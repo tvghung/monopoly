@@ -4,6 +4,7 @@ import { useAlert } from 'react-alert';
 import './style/Dashboard.css';
 import MarketPlace from './MarketPlace';
 import stateContext from '../internal';
+import displayPositionsContext from '../displayPositionsContext';
 import tileNames from './BoardInitState';
 import sellPromptContext from '../sellPromptContext';
 import type { OfferOnProp, OfferResult } from '@monopoly/shared';
@@ -17,6 +18,14 @@ export default function Dashboard() {
   const {
     openSale, setOpenSale, privateSale, setPrivateSale,
   } = useContext(sellPromptContext);
+  const displayPositions = useContext(displayPositionsContext);
+
+  // The buy prompt is driven by authoritative server state, which updates the
+  // instant the move resolves — but the token is still walking there. Hold the
+  // prompt until our token has actually reached its destination tile.
+  const myPlayer = typeof playerId === 'string' ? state.players[playerId] : undefined;
+  const tokenArrived = !myPlayer
+    || (displayPositions[playerId as string] ?? myPlayer.currentTile) === myPlayer.currentTile;
   const [priceInput, setPriceInput] = useState(0);
   const [offer, setOffer] = useState(0);
   const [offers, setOffers] = useState<ActiveOffer[]>([]);
@@ -133,6 +142,7 @@ export default function Dashboard() {
             {state.loaded
               && state.boardState.currentPlayer.id === playerId
               && state.turnInfo.canBuyProp
+              && tokenArrived
               ? (
                 <motion.div className="open-market__sell-toast" {...toastMotion}>
                   <section className="center__dashboard__button__purchase">
