@@ -26,6 +26,23 @@ export default function Dashboard() {
   const myPlayer = typeof playerId === 'string' ? state.players[playerId] : undefined;
   const tokenArrived = !myPlayer
     || (displayPositions[playerId as string] ?? myPlayer.currentTile) === myPlayer.currentTile;
+
+  // Every token has finished its stepped walk when each player's displayed tile
+  // matches the authoritative server tile.
+  const tokensSettled = Object.keys(state.players).every(
+    id => (displayPositions[id] ?? state.players[id].currentTile) === state.players[id].currentTile,
+  );
+
+  // The server flips `currentPlayer` the instant a move resolves, but a token may
+  // still be walking to its landing tile. Hold the "now playing" indicator on the
+  // last value until every token has settled, so the turn hand-off doesn't spoil
+  // watching the current token finish moving.
+  const serverActiveId = state.boardState.currentPlayer.id;
+  const [activePlayerId, setActivePlayerId] = useState(serverActiveId);
+  useEffect(() => {
+    if (tokensSettled) setActivePlayerId(serverActiveId);
+  }, [tokensSettled, serverActiveId]);
+
   const [priceInput, setPriceInput] = useState(0);
   const [offer, setOffer] = useState(0);
   const [bidInput, setBidInput] = useState(0);
@@ -114,7 +131,7 @@ export default function Dashboard() {
                   const {
                     name, color, accountBalance, isJail, getOutOfJailCards,
                   } = state.players[player];
-                  const isCurrent = state.boardState.currentPlayer.id === player;
+                  const isCurrent = activePlayerId === player;
                   return (
                     <li
                       key={player}
@@ -465,7 +482,7 @@ export default function Dashboard() {
         <h3 className="center__dashboard__player-info__current">
           {state.loaded
             ? (
-              state.players[state.boardState.currentPlayer.id] ? `${state.players[state.boardState.currentPlayer.id].name}` : 'None'
+              state.players[activePlayerId] ? `${state.players[activePlayerId].name}` : 'None'
             )
             : 'Loading...'}
         </h3>
