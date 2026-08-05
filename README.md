@@ -1,50 +1,135 @@
-# The Coderleones Final Project for </Salt> School of Applied Technology Spring 2020 
-![GitHub language count](https://img.shields.io/github/languages/count/terragady/monopoly-websockets)
+# Monopoly Websockets
+
 ![GitHub top language](https://img.shields.io/github/languages/top/terragady/monopoly-websockets)
-![Snyk Vulnerabilities for GitHub Repo](https://img.shields.io/snyk/vulnerabilities/github/terragady/monopoly-websockets)
 ![GitHub repo size](https://img.shields.io/github/repo-size/terragady/monopoly-websockets)
 ![GitHub](https://img.shields.io/github/license/terragady/monopoly-websockets)
 
+Real-time multiplayer Monopoly. Originally a </Salt> School of Applied Technology
+final project (Spring 2020), since modernized into a typed pnpm monorepo with an
+authoritative game server and isolated game rooms.
 
-## The Monopoly Game
-For our final project we have developed a Monopoly game. This README will outline the key functionality and usage.  
-The app is deployed here: [https://monopolywebsockets.herokuapp.com/](https://monopolywebsockets.herokuapp.com/)
-
-When playing, everything that happens gets logged to the log / chat. Pay close attention to this!
+Everything that happens is written to the in-game log / chat — keep an eye on it!
 
 ![image](https://user-images.githubusercontent.com/19210041/187416300-fd0c4e0c-8942-4c36-863d-6b00664d3e0b.png)
 
+## Tech stack
 
-## The technology
-The app is built using React and Express. Front-end <-> Back-end communication is done with WebSockets using socket.io as a framework. State changes are handled server-side, then pushed to all connected clients in order to facilitate real-time change and ensure that the view is the same for all clients.
+- **Monorepo:** pnpm workspaces — `apps/server`, `apps/client`, `packages/shared`.
+- **Server:** Express + Socket.IO (TypeScript, run directly with `tsx`). Game state
+  lives in memory, one independent game per room.
+- **Client:** React 18 + Vite (TypeScript).
+- **Shared:** board data, card decks, and the end-to-end typed Socket.IO event
+  contracts imported by both sides via `@monopoly/shared`.
 
-### FAQ
-#### How can I talk to my friends during the game?
-There is a chat in the top right corner of the board! Use that!
+Front-end ⇄ back-end communication is over WebSockets. State changes are applied on
+the server and pushed to every client in the room, so all players see the same board.
 
-#### Can spectators join?
-Yes. Once the game has started, anyone who joins will join as a spectator.
+## Getting started
 
-#### How to trade with other players?
-You can trade with other players in two ways:  
+Requires **Node 24 (LTS)** and **pnpm** (via `corepack enable`).
 
-Private sale: If you want do submit an offer to buy a players property, you can click their property and submit an offer.
-The Player who owns the Tile then has 20 seconds to accept or decline. You will be notified of their decision.  
+```bash
+pnpm install
+pnpm dev
+```
 
-The open market: If you own a property you want to sell, you can click the property, and click "sell". Input a price and put it out. The property is now available for any player in the game to buy. You also have the option to remove the property off the market.
+`pnpm dev` runs both apps in parallel:
 
-#### What happens when I go bankrupt?
-Then you're out of the game. All your properties are put back on the open market. However, you can still spectate the game, as well as send messages in the chat.
+- server on `http://localhost:8080`
+- client on `http://localhost:5173` (Vite proxies `/socket.io` to the server)
 
-#### How do I win the game?
-By being the only remaining player who is not bankrupt.
+Open `http://localhost:5173`, enter a name and a **room code** (leave it blank to join
+the default `LOBBY` room), and share the code with friends to play together. Open a
+second tab / browser to add another player.
 
-#### Known bugs
-  * Spectators and broke players can buy properties and make offers.
-#### Future improvements
-  * Add a "win" screen.
-  * Add ability to buy houses on properties.
-  * Create socket.io rooms to be able to serve multiple, isolated games at once.
-  * More notifications and alerts to make important events in the game more noticable to everyone.
-  * Add WebRTC video and audio functionality for the players to communicate during the game.
+### Useful scripts
 
+```bash
+pnpm dev         # run server + client together
+pnpm build       # build the client bundle
+pnpm start       # start the server (serves the built client in production)
+pnpm typecheck   # tsc --noEmit across all packages
+pnpm lint        # eslint across the repo
+```
+
+## Environment variables
+
+| Variable      | Where   | Default                     | Notes                                              |
+| ------------- | ------- | --------------------------- | -------------------------------------------------- |
+| `PORT`        | server  | `8080`                      | Port the server listens on.                        |
+| `NODE_ENV`    | server  | –                           | Set to `production` to serve the built client.     |
+| `CORS_ORIGIN` | server  | Vite origin (dev)           | Allowed origin; in prod it reflects same-origin.   |
+| `CLIENT_DIST` | server  | `apps/client/dist`          | Override the static client directory if needed.    |
+
+## Deployment
+
+The Node server serves the built client from the same origin (no separate CORS
+config needed), so the whole app ships as a **single service**.
+
+### Render (Blueprint)
+
+A [`render.yaml`](./render.yaml) blueprint is included (single free web service).
+In the Render dashboard: **New → Blueprint**, point it at this repo, and deploy.
+It runs:
+
+```bash
+# build
+corepack enable && pnpm install --frozen-lockfile && pnpm --filter @monopoly/client build
+# start
+pnpm --filter @monopoly/server start
+```
+
+Health check path is `/healthz`. Expect a one-time cold start on the free plan.
+
+### Docker / Cloud Run
+
+A multi-stage [`Dockerfile`](./Dockerfile) builds the client and runs the server.
+
+```bash
+docker build -t monopoly-websockets .
+docker run -p 8080:8080 -e NODE_ENV=production monopoly-websockets
+# → http://localhost:8080
+```
+
+Deploy the same image to Cloud Run (keep it cheap with a single instance):
+
+```bash
+gcloud run deploy monopoly-websockets \
+  --source . \
+  --region europe-west1 \
+  --allow-unauthenticated \
+  --max-instances=1
+```
+
+> Cloud Run bills per request/CPU; `--max-instances=1` plus a budget alert keeps a
+> hobby deploy from surprising you.
+
+## Gameplay FAQ
+
+**How do I chat with other players?** There's a chat in the log panel — use it.
+
+**Can spectators join?** Yes. Anyone who joins a room after its game has started
+joins as a spectator (and can still chat).
+
+**How do I trade?**
+- *Private sale:* click another player's property and submit an offer. The owner has
+  20 seconds to accept or decline, and you're notified of their decision.
+- *Open market:* click your own property, choose **Sell**, and set a price. Any player
+  in the room can then buy it; you can also pull it back off the market.
+
+**What happens when I go bankrupt?** You're out, and your properties return to the open
+market — but you can keep spectating and chatting.
+
+**How do I win?** Be the last player who isn't bankrupt.
+
+## Roadmap
+
+- [x] pnpm monorepo + Vite + full TypeScript conversion
+- [x] Server-authoritative state pushed to all clients
+- [x] Isolated game rooms (share a room code to play together)
+- [x] Chat input sanitisation (no HTML injection)
+- [x] Separate, expanded Chance / Community Chest decks
+- [ ] Full server-side move validation (reject out-of-turn / unaffordable actions)
+- [ ] Animated dice + player-token movement
+- [ ] "Win" screen and the ability to build houses on properties
+```
