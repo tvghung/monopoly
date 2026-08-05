@@ -68,16 +68,20 @@ function Tile({ initState, id, position }: TileProps) {
           ? (
             <div
               className="tile__owner-flag"
+              title="Owned property"
               style={{ borderTopColor: state.boardState.ownedProps[id].color }}
             />
           )
           : null}
         {owned && owned.mortgaged
-          ? <div className="tile__mortgaged">M</div>
+          ? <div className="tile__mortgaged" title="Mortgaged — collects no rent">M</div>
           : null}
         {owned && owned.houses > 0
           ? (
-            <div className="tile__buildings">
+            <div
+              className="tile__buildings"
+              title={owned.houses === 5 ? 'Hotel' : `${owned.houses} house${owned.houses > 1 ? 's' : ''}`}
+            >
               {owned.houses === 5
                 ? <span className="tile__building tile__building--hotel" />
                 : Array.from({ length: owned.houses }).map((_unused, index) => (

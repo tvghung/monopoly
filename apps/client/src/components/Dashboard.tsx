@@ -127,10 +127,15 @@ export default function Dashboard() {
                       <div className="player-card__info">
                         <span className="player-card__name">
                           {name}
-                          {isJail ? <span className="player-card__tag" title="In jail">🔒</span> : null}
+                          {isJail
+                            ? <span className="player-card__tag" title="Currently in jail">🔒</span>
+                            : null}
                           {getOutOfJailCards > 0
                             ? (
-                              <span className="player-card__tag" title="Get Out Of Jail Free card">
+                              <span
+                                className="player-card__tag"
+                                title={`Holds ${getOutOfJailCards} Get Out Of Jail Free card${getOutOfJailCards > 1 ? 's' : ''}`}
+                              >
                                 {getOutOfJailCards > 1 ? `🔑×${getOutOfJailCards}` : '🔑'}
                               </span>
                             )
