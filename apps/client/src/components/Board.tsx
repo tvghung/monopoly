@@ -4,6 +4,7 @@ import {
   useContext,
   useReducer,
 } from 'react';
+import { LayoutGroup } from 'framer-motion';
 import './style/Board.css';
 import stateContext from '../internal';
 import Tile from './Tile';
@@ -70,26 +71,28 @@ function Board() {
     >
       <cardFlipContext.Provider value={{ cardsBack, dispatch }}>
         <section className="Board">
-          {
-            tiles.map((tile, index) => {
-              if (index === 0) {
-                return <Tile key={index} position="tile__start" id={index} initState={tile} />;
-              }
-              if (index > 0 && index <= 10) {
-                return <Tile key={index} position="tile__horizontal--bottom" id={index} initState={tile} />;
-              }
-              if (index >= 11 && index <= 19) {
-                return <Tile key={index} position="tile__vertical--left" id={index} initState={tile} />;
-              }
-              if (index >= 20 && index <= 30) {
-                return <Tile key={index} position="tile__horizontal--top" id={index} initState={tile} />;
-              }
-              if (index >= 31 && index <= 39) {
-                return <Tile key={index} position="tile__vertical--right" id={index} initState={tile} />;
-              }
-              return null;
-            })
-          }
+          <LayoutGroup>
+            {
+              tiles.map((tile, index) => {
+                if (index === 0) {
+                  return <Tile key={index} position="tile__start" id={index} initState={tile} />;
+                }
+                if (index > 0 && index <= 10) {
+                  return <Tile key={index} position="tile__horizontal--bottom" id={index} initState={tile} />;
+                }
+                if (index >= 11 && index <= 19) {
+                  return <Tile key={index} position="tile__vertical--left" id={index} initState={tile} />;
+                }
+                if (index >= 20 && index <= 30) {
+                  return <Tile key={index} position="tile__horizontal--top" id={index} initState={tile} />;
+                }
+                if (index >= 31 && index <= 39) {
+                  return <Tile key={index} position="tile__vertical--right" id={index} initState={tile} />;
+                }
+                return null;
+              })
+            }
+          </LayoutGroup>
           <section className="center">
             <Dice />
             <Log />

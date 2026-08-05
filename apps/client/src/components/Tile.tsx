@@ -1,4 +1,5 @@
 import { useContext } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import './style/Board.css';
 import stateContext from '../internal';
 import BackOfCard from './BackOfCard';
@@ -9,6 +10,31 @@ interface TileProps {
   initState: BoardInitTile;
   id: number;
   position: string;
+}
+
+// Renders the tokens of every player currently standing on this tile. Each token
+// carries a stable `layoutId`, so when a player moves the token glides from its
+// old tile to the new one (framer-motion shared-layout animation).
+function PlayerTokens({ tileId }: { tileId: number }) {
+  const { state } = useContext(stateContext);
+  const reduced = useReducedMotion() ?? false;
+  return (
+    <div className="player__token--wrapper">
+      {Object.keys(state.players)
+        .filter(playerKey => state.players[playerKey].currentTile === tileId)
+        .map(playerKey => (
+          <motion.div
+            key={playerKey}
+            layoutId={`token-${playerKey}`}
+            className="player__token"
+            style={{ backgroundColor: state.players[playerKey].color }}
+            transition={reduced
+              ? { duration: 0 }
+              : { type: 'spring', stiffness: 500, damping: 40 }}
+          />
+        ))}
+    </div>
+  );
 }
 
 function Tile({ initState, id, position }: TileProps) {
@@ -41,13 +67,7 @@ function Tile({ initState, id, position }: TileProps) {
               />
               <div className="tile__wrapper">
                 <p className="tile__street-name">{initState.streetName}</p>
-                <div className="player__token--wrapper">
-                  {Object.keys(state.players).map(e => (
-                    state.players[e].currentTile === id
-                      ? <div key={e} className="player__token" style={{ backgroundColor: state.players[e].color }} />
-                      : <div key={e} />
-                  ))}
-                </div>
+                <PlayerTokens tileId={id} />
                 <p className="tile__price">{`$${initState.price}M`}</p>
               </div>
             </>
@@ -63,13 +83,7 @@ function Tile({ initState, id, position }: TileProps) {
               }
             >
               <p className="tile__special-name">{initState.streetName}</p>
-              <div className="player__token--wrapper">
-                {Object.keys(state.players).map(e => (
-                  state.players[e].currentTile === id
-                    ? <div key={e} className="player__token" style={{ backgroundColor: state.players[e].color }} />
-                    : <div key={e} />
-                ))}
-              </div>
+              <PlayerTokens tileId={id} />
               <p className="tile__special--price">{initState.price ? `$${initState.price}M` : ''}</p>
             </div>
           )}

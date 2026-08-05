@@ -1,4 +1,5 @@
 import { useContext, useState, useEffect } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useAlert } from 'react-alert';
 import './style/Dashboard.css';
 import MarketPlace from './MarketPlace';
@@ -20,6 +21,15 @@ export default function Dashboard() {
   const [offer, setOffer] = useState(0);
   const [offers, setOffers] = useState<ActiveOffer[]>([]);
   const alert = useAlert();
+  const reduced = useReducedMotion() ?? false;
+  const toastMotion = reduced
+    ? {}
+    : {
+      initial: { opacity: 0, scale: 0.9, y: -8 },
+      animate: { opacity: 1, scale: 1, y: 0 },
+      exit: { opacity: 0, scale: 0.9, y: -8 },
+      transition: { duration: 0.2, ease: 'easeOut' as const },
+    };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -103,22 +113,24 @@ export default function Dashboard() {
         </section>
 
         <section className="center__dashboard__block">
-          {state.loaded
-            && state.boardState.currentPlayer.id === playerId
-            && state.turnInfo.canBuyProp
-            ? (
-              <div className="open-market__sell-toast">
-                <section className="center__dashboard__button__purchase">
-                  <button className="button__purchase--yes" type="button" onClick={() => socketFunctions.buyProperty()}>
-                    Buy property
-                  </button>
-                  <button className="button__purchase--no" type="button" onClick={() => socketFunctions.endTurn()}>
-                    Do not buy property
-                  </button>
-                </section>
-              </div>
-            )
-            : null}
+          <AnimatePresence>
+            {state.loaded
+              && state.boardState.currentPlayer.id === playerId
+              && state.turnInfo.canBuyProp
+              ? (
+                <motion.div className="open-market__sell-toast" {...toastMotion}>
+                  <section className="center__dashboard__button__purchase">
+                    <button className="button__purchase--yes" type="button" onClick={() => socketFunctions.buyProperty()}>
+                      Buy property
+                    </button>
+                    <button className="button__purchase--no" type="button" onClick={() => socketFunctions.endTurn()}>
+                      Do not buy property
+                    </button>
+                  </section>
+                </motion.div>
+              )
+              : null}
+          </AnimatePresence>
           {state.loaded && openSale
             ? (
               <article className="open-market__sell-toast">
@@ -193,7 +205,7 @@ export default function Dashboard() {
             : null}
           {state.loaded && offers.length !== 0
             ? offers.map(current => (
-              <section key={current.tileID} className="open-market__offer">
+              <motion.section key={current.tileID} className="open-market__offer" {...toastMotion}>
                 <h3 className="open-market__offer__title">
                   Offer from:
                   {current.buyerName}
@@ -225,7 +237,7 @@ export default function Dashboard() {
                     Decline
                   </button>
                 </div>
-              </section>
+              </motion.section>
             ))
             : null}
           {state.loaded && !state.boardState.gameStarted

@@ -1,4 +1,5 @@
 import { useState, useContext, useEffect } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import cardFlipContext from '../cardFlipContext';
 import stateContext from '../internal';
 import sellPromptContext from '../sellPromptContext';
@@ -16,6 +17,7 @@ const BackOfCard = ({ id, handleCardClick, position }: BackOfCardProps) => {
   const [ownership, setOwnership] = useState<string | false>(false);
   const { state, playerId } = useContext(stateContext);
   const { handlePutOpenMarket, handleMakeOffer } = useContext(sellPromptContext);
+  const reduced = useReducedMotion() ?? false;
 
   useEffect(() => {
     if (Object.prototype.hasOwnProperty.call(state.boardState.ownedProps, id)) {
@@ -26,7 +28,13 @@ const BackOfCard = ({ id, handleCardClick, position }: BackOfCardProps) => {
   }, [state.boardState.ownedProps, id]);
 
   return (
-    <div className="tile-back--container">
+    <motion.div
+      className="tile-back--container"
+      initial={reduced ? { opacity: 0 } : { rotateY: -90, opacity: 0 }}
+      animate={reduced ? { opacity: 1 } : { rotateY: 0, opacity: 1 }}
+      transition={reduced ? { duration: 0 } : { duration: 0.35, ease: 'easeOut' }}
+      style={{ transformPerspective: 600 }}
+    >
       <article role="presentation" onClick={handleCardClick} className={`Tile-back tile-back__${position}`}>
         <p className="tile-back__name" style={backOfCard.color ? { backgroundColor: backOfCard.color } : { backgroundColor: 'none' }}>{backOfCard.cardName}</p>
         <section className="tile-back__prices">
@@ -64,7 +72,7 @@ const BackOfCard = ({ id, handleCardClick, position }: BackOfCardProps) => {
             )
           : null}
       </article>
-    </div>
+    </motion.div>
   );
 };
 

@@ -1,11 +1,13 @@
 import {
   useContext, useRef, useEffect, useState, type FormEvent,
 } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import './style/Log.css';
 import stateContext from '../internal';
 
 export default function Log() {
   const { state, socketFunctions } = useContext(stateContext);
+  const reduced = useReducedMotion() ?? false;
   const [chat, setChat] = useState('');
   const scrollRef = useRef<HTMLElement>(null);
 
@@ -25,7 +27,13 @@ export default function Log() {
       <section ref={scrollRef} className="center__log">
         {state.loaded
           ? state.boardState.logs.map((e, i) => (
-            <p key={i} dangerouslySetInnerHTML={{ __html: e }} />
+            <motion.p
+              key={i}
+              initial={reduced ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              dangerouslySetInnerHTML={{ __html: e }}
+            />
           ))
           : <p>Loading...</p>}
       </section>

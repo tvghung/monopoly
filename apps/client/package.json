@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@monopoly/shared": "workspace:*",
+    "framer-motion": "^12.43.0",
     "react": "^18.2.0",
     "react-alert": "^7.0.3",
     "react-alert-template-basic": "^1.0.2",
