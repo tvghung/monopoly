@@ -11,6 +11,8 @@ const tileState: Tile[] = [
     color: 'brown',
     price: 60,
     rent: 2,
+    rentTiers: [10, 30, 90, 160, 250],
+    houseCost: 50,
   },
   {
     streetName: 'Chest',
@@ -22,6 +24,8 @@ const tileState: Tile[] = [
     color: 'brown',
     price: 60,
     rent: 4,
+    rentTiers: [20, 60, 180, 320, 450],
+    houseCost: 50,
   },
   {
     streetName: 'Income Tax',
@@ -40,6 +44,8 @@ const tileState: Tile[] = [
     color: 'lightblue',
     price: 100,
     rent: 6,
+    rentTiers: [30, 90, 270, 400, 550],
+    houseCost: 50,
   },
   {
     streetName: 'Chance',
@@ -51,6 +57,8 @@ const tileState: Tile[] = [
     color: 'lightblue',
     price: 100,
     rent: 6,
+    rentTiers: [30, 90, 270, 400, 550],
+    houseCost: 50,
   },
   {
     streetName: 'Burford Vale',
@@ -58,6 +66,8 @@ const tileState: Tile[] = [
     color: 'lightblue',
     price: 120,
     rent: 8,
+    rentTiers: [40, 100, 300, 450, 600],
+    houseCost: 50,
   },
   {
     streetName: 'Jail',
@@ -69,6 +79,8 @@ const tileState: Tile[] = [
     color: 'pink',
     price: 140,
     rent: 10,
+    rentTiers: [50, 150, 450, 625, 750],
+    houseCost: 100,
   },
   {
     streetName: 'Electric Company',
@@ -81,6 +93,8 @@ const tileState: Tile[] = [
     color: 'pink',
     price: 140,
     rent: 10,
+    rentTiers: [50, 150, 450, 625, 750],
+    houseCost: 100,
   },
   {
     streetName: 'Hedger Fold',
@@ -88,6 +102,8 @@ const tileState: Tile[] = [
     color: 'pink',
     price: 160,
     rent: 12,
+    rentTiers: [60, 180, 500, 700, 900],
+    houseCost: 100,
   },
   {
     streetName: 'Pennsylvania Railroad',
@@ -101,6 +117,8 @@ const tileState: Tile[] = [
     color: 'orange',
     price: 180,
     rent: 14,
+    rentTiers: [70, 200, 550, 700, 900],
+    houseCost: 100,
   },
   {
     streetName: 'Chance',
@@ -112,6 +130,8 @@ const tileState: Tile[] = [
     color: 'orange',
     price: 180,
     rent: 14,
+    rentTiers: [70, 200, 550, 700, 900],
+    houseCost: 100,
   },
   {
     streetName: 'Aveling Lodge',
@@ -119,6 +139,8 @@ const tileState: Tile[] = [
     color: 'orange',
     price: 200,
     rent: 16,
+    rentTiers: [80, 220, 600, 800, 1000],
+    houseCost: 100,
   },
   {
     streetName: '',
@@ -130,6 +152,8 @@ const tileState: Tile[] = [
     color: 'red',
     price: 220,
     rent: 18,
+    rentTiers: [90, 250, 700, 875, 1050],
+    houseCost: 150,
   },
   {
     streetName: 'Chance',
@@ -141,6 +165,8 @@ const tileState: Tile[] = [
     color: 'red',
     price: 220,
     rent: 18,
+    rentTiers: [90, 250, 700, 875, 1050],
+    houseCost: 150,
   },
   {
     streetName: 'Albany Lane',
@@ -148,6 +174,8 @@ const tileState: Tile[] = [
     color: 'red',
     price: 240,
     rent: 20,
+    rentTiers: [100, 300, 750, 925, 1100],
+    houseCost: 150,
   },
   {
     streetName: 'Short Line',
@@ -161,6 +189,8 @@ const tileState: Tile[] = [
     color: 'yellow',
     price: 260,
     rent: 22,
+    rentTiers: [110, 330, 800, 975, 1150],
+    houseCost: 150,
   },
   {
     streetName: 'Keepers Villas',
@@ -168,6 +198,8 @@ const tileState: Tile[] = [
     color: 'yellow',
     price: 260,
     rent: 22,
+    rentTiers: [110, 330, 800, 975, 1150],
+    houseCost: 150,
   },
   {
     streetName: 'Water Company',
@@ -180,6 +212,8 @@ const tileState: Tile[] = [
     color: 'yellow',
     price: 280,
     rent: 24,
+    rentTiers: [120, 360, 850, 1025, 1200],
+    houseCost: 150,
   },
   {
     streetName: 'Go to jail',
@@ -191,6 +225,8 @@ const tileState: Tile[] = [
     color: 'green',
     price: 300,
     rent: 26,
+    rentTiers: [130, 390, 900, 1100, 1275],
+    houseCost: 200,
   },
   {
     streetName: 'Brock Gardens',
@@ -198,6 +234,8 @@ const tileState: Tile[] = [
     color: 'green',
     price: 300,
     rent: 26,
+    rentTiers: [130, 390, 900, 1100, 1275],
+    houseCost: 200,
   },
   {
     streetName: 'Chest',
@@ -209,6 +247,8 @@ const tileState: Tile[] = [
     color: 'green',
     price: 320,
     rent: 28,
+    rentTiers: [150, 450, 1000, 1200, 1400],
+    houseCost: 200,
   },
   {
     streetName: 'B. & O. Railroad',
@@ -226,6 +266,8 @@ const tileState: Tile[] = [
     color: 'blue',
     price: 350,
     rent: 35,
+    rentTiers: [175, 500, 1100, 1300, 1500],
+    houseCost: 200,
   },
   {
     streetName: 'Luxury Tax',
@@ -238,7 +280,22 @@ const tileState: Tile[] = [
     color: 'blue',
     price: 400,
     rent: 50,
+    rentTiers: [200, 600, 1400, 1700, 2000],
+    houseCost: 200,
   },
 ];
+
+// Tile indices that make up each buildable colour group. Owning every tile in a
+// group is a "monopoly": it doubles base rent and unlocks building houses.
+export const colorGroups: Record<string, number[]> = {
+  brown: [1, 3],
+  lightblue: [6, 8, 9],
+  pink: [11, 13, 14],
+  orange: [16, 18, 19],
+  red: [21, 23, 24],
+  yellow: [26, 27, 29],
+  green: [31, 32, 34],
+  blue: [37, 39],
+};
 
 export default tileState;

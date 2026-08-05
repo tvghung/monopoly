@@ -28,6 +28,7 @@ export default function Dashboard() {
     || (displayPositions[playerId as string] ?? myPlayer.currentTile) === myPlayer.currentTile;
   const [priceInput, setPriceInput] = useState(0);
   const [offer, setOffer] = useState(0);
+  const [bidInput, setBidInput] = useState(0);
   const [offers, setOffers] = useState<ActiveOffer[]>([]);
   const alert = useAlert();
   const reduced = useReducedMotion() ?? false;
@@ -163,6 +164,37 @@ export default function Dashboard() {
         </section>
 
         <section className="center__dashboard__block">
+          {state.loaded
+            && state.boardState.currentPlayer.id === playerId
+            && myPlayer?.isJail
+            ? (
+              <section className="jail-panel">
+                <h3 className="jail-panel__title">You're in jail!</h3>
+                <p className="jail-panel__hint">Roll a double to escape, or:</p>
+                <div className="jail-panel__actions">
+                  <button
+                    className="button__purchase--yes"
+                    type="button"
+                    disabled={myPlayer.accountBalance < 50}
+                    onClick={() => socketFunctions.payBail()}
+                  >
+                    Pay $50M bail
+                  </button>
+                  {myPlayer.getOutOfJailCards > 0
+                    ? (
+                      <button
+                        className="button__purchase--yes"
+                        type="button"
+                        onClick={() => socketFunctions.useJailCard()}
+                      >
+                        {`Use jail card (${myPlayer.getOutOfJailCards})`}
+                      </button>
+                    )
+                    : null}
+                </div>
+              </section>
+            )
+            : null}
           <AnimatePresence>
             {state.loaded
               && state.boardState.currentPlayer.id === playerId
@@ -182,8 +214,8 @@ export default function Dashboard() {
                       <button className="button__purchase--yes" type="button" onClick={() => socketFunctions.buyProperty()}>
                         Buy property
                       </button>
-                      <button className="button__purchase--no" type="button" onClick={() => socketFunctions.endTurn()}>
-                        Do not buy property
+                      <button className="button__purchase--no" type="button" onClick={() => socketFunctions.declineProperty()}>
+                        Auction it instead
                       </button>
                     </section>
                   </motion.div>
@@ -328,6 +360,74 @@ export default function Dashboard() {
                         </div>
                       </section>
                     ))}
+                  </motion.div>
+                </motion.div>
+              )
+              : null}
+          </AnimatePresence>
+          <AnimatePresence>
+            {state.loaded && state.boardState.auction
+              ? (
+                <motion.div key="auction-modal" className="modal__overlay" {...backdropMotion}>
+                  <motion.div className="modal__card modal__card--offers" {...modalMotion}>
+                    <h3 className="open-market__offer__title">
+                      {`Auction: ${state.boardState.auction.tileName}`}
+                    </h3>
+                    <p>{`List price: $${state.boardState.auction.price}M`}</p>
+                    <p>
+                      {state.boardState.auction.highestBidder
+                        ? `Highest bid: $${state.boardState.auction.highestBid}M by ${state.boardState.auction.highestBidderName}`
+                        : 'No bids yet'}
+                    </p>
+                    <p>{`Closes in: ${state.boardState.auction.timer}s`}</p>
+                    {state.boardState.auction.active.includes(playerId as string)
+                      ? (
+                        <>
+                          <form
+                            className="open-market__offer__buttons"
+                            onSubmit={e => {
+                              e.preventDefault();
+                              socketFunctions.placeBid(bidInput);
+                              setBidInput(0);
+                            }}
+                          >
+                            <input
+                              className="open-market__sell-toast__input"
+                              type="number"
+                              min={state.boardState.auction.highestBid + 1}
+                              value={bidInput || ''}
+                              onChange={e => setBidInput(parseInt(e.target.value, 10) || 0)}
+                              placeholder="Your bid"
+                            />
+                            <button className="open-market__sell-toast__button--yes" type="submit">Bid</button>
+                          </form>
+                          <button
+                            className="open-market__sell-toast__button--no"
+                            type="button"
+                            onClick={() => socketFunctions.passBid()}
+                          >
+                            Pass
+                          </button>
+                        </>
+                      )
+                      : <p>You have passed on this auction.</p>}
+                  </motion.div>
+                </motion.div>
+              )
+              : null}
+          </AnimatePresence>
+          <AnimatePresence>
+            {state.loaded && state.boardState.winner
+              ? (
+                <motion.div key="winner-modal" className="modal__overlay" {...backdropMotion}>
+                  <motion.div className="modal__card" {...modalMotion}>
+                    <h2 className="open-market__sell-toast__title">🏆 Game over!</h2>
+                    <h3
+                      className="open-market__sell-toast__title"
+                      style={{ color: state.boardState.winner.color }}
+                    >
+                      {`${state.boardState.winner.name} wins!`}
+                    </h3>
                   </motion.div>
                 </motion.div>
               )

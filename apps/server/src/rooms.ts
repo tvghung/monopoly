@@ -7,6 +7,8 @@ export interface Room {
   id: string;
   state: GameState;
   colors: string[];
+  // Interval handle for a running property auction's countdown, if any.
+  auctionTimer?: ReturnType<typeof setInterval>;
 }
 
 const rooms = new Map<string, Room>();
@@ -31,6 +33,8 @@ const freshState = (): GameState => ({
     diceValue: { dice1: ['⚅', 0], dice2: ['⚅', 0] },
     ownedProps: {},
     openMarket: {},
+    winner: null,
+    auction: null,
   },
   players: {},
   turnInfo: {},

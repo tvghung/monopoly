@@ -33,6 +33,19 @@ export interface ClientToServerEvents {
   'decline offer': (offer: Offer) => void;
   'make sale': (item: string) => void;
   'remove sale': (item: string) => void;
+  // Building / mortgaging (property owner only).
+  'build house': (tileID: number) => void;
+  'sell house': (tileID: number) => void;
+  'mortgage property': (tileID: number) => void;
+  'unmortgage property': (tileID: number) => void;
+  // Jail actions (current player only, while jailed).
+  'pay bail': () => void;
+  'use jail card': () => void;
+  // The current player declined to buy the tile they landed on — auction it.
+  'decline property': () => void;
+  // Auction participation (any active player).
+  'place bid': (amount: number) => void;
+  'pass bid': () => void;
 }
 
 // Inter-server events (unused here) + per-socket data placeholder.

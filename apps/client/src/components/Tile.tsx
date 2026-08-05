@@ -59,6 +59,7 @@ function Tile({ initState, id, position }: TileProps) {
 
   const isOwned = state.loaded
     && Object.prototype.hasOwnProperty.call(state.boardState.ownedProps, id);
+  const owned = isOwned ? state.boardState.ownedProps[id] : undefined;
 
   if (!cardsBack[id].clicked) {
     return (
@@ -69,6 +70,20 @@ function Tile({ initState, id, position }: TileProps) {
               className="tile__owner-flag"
               style={{ borderTopColor: state.boardState.ownedProps[id].color }}
             />
+          )
+          : null}
+        {owned && owned.mortgaged
+          ? <div className="tile__mortgaged">M</div>
+          : null}
+        {owned && owned.houses > 0
+          ? (
+            <div className="tile__buildings">
+              {owned.houses === 5
+                ? <span className="tile__building tile__building--hotel" />
+                : Array.from({ length: owned.houses }).map((_unused, index) => (
+                  <span key={`house-${index}`} className="tile__building" />
+                ))}
+            </div>
           )
           : null}
         {initState.color && initState.color !== 'railroad'

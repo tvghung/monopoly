@@ -26,7 +26,14 @@ import {
   movePlayer,
   resolveTile,
   handleJailRoll,
+  buildHouse,
+  sellHouse,
+  mortgageProperty,
+  unmortgageProperty,
+  startAuction,
+  finalizeAuction,
 } from './game';
+import type { Room } from './rooms';
 
 const { env } = process;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -60,6 +67,38 @@ if (env.NODE_ENV === 'production') {
   });
 }
 
+// Finalise the current auction, clear its countdown, and broadcast the result.
+const endAuction = (room: Room): void => {
+  if (room.auctionTimer) {
+    clearInterval(room.auctionTimer);
+    room.auctionTimer = undefined;
+  }
+  finalizeAuction(room.state);
+  checkBalance(room.state, false);
+  io.to(room.id).emit('update', room.state);
+};
+
+// Start an auction for `tileID` and run a one-second countdown that broadcasts
+// each tick and finalises the sale when it reaches zero.
+const beginAuction = (room: Room, tileID: number): void => {
+  startAuction(room.state, tileID);
+  io.to(room.id).emit('update', room.state);
+  room.auctionTimer = setInterval(() => {
+    const { auction } = room.state.boardState;
+    if (!auction) {
+      if (room.auctionTimer) clearInterval(room.auctionTimer);
+      room.auctionTimer = undefined;
+      return;
+    }
+    auction.timer -= 1;
+    if (auction.timer <= 0) {
+      endAuction(room);
+      return;
+    }
+    io.to(room.id).emit('update', room.state);
+  }, 1000);
+};
+
 io.on('connection', (socket) => {
   // A player joins a room. This is the only handler that runs before the socket
   // has a room; every other handler resolves the room from `socket.data.roomId`.
@@ -86,6 +125,7 @@ io.on('connection', (socket) => {
         accountBalance: 1500,
         isJail: false,
         jailRounds: 0,
+        getOutOfJailCards: 0,
       };
       sendToLog(state, `${newName} joined the game as ${state.players[id].color}`);
       state.boardState.players = Object.keys(state.players);
@@ -196,6 +236,8 @@ io.on('connection', (socket) => {
     state.boardState.ownedProps[currentTile] = {
       id: socket.id,
       color: player.color,
+      houses: 0,
+      mortgaged: false,
     };
     sendToLog(state, `${name} bought a property!`);
     nextTurn(state);
@@ -325,6 +367,133 @@ io.on('connection', (socket) => {
     io.to(room.id).emit('update', state);
   });
 
+  // Build a house/hotel on a monopolised property (owner only).
+  socket.on('build house', (tileID) => {
+    const room = getRoom(socket.data.roomId);
+    if (!room) return;
+    const { state } = room;
+    if (state.boardState.winner) return;
+    buildHouse(state, socket.id, tileID);
+    io.to(room.id).emit('update', state);
+  });
+
+  // Sell a house/hotel back to the bank (owner only).
+  socket.on('sell house', (tileID) => {
+    const room = getRoom(socket.data.roomId);
+    if (!room) return;
+    const { state } = room;
+    if (state.boardState.winner) return;
+    sellHouse(state, socket.id, tileID);
+    io.to(room.id).emit('update', state);
+  });
+
+  // Mortgage a property for half its price (owner only).
+  socket.on('mortgage property', (tileID) => {
+    const room = getRoom(socket.data.roomId);
+    if (!room) return;
+    const { state } = room;
+    if (state.boardState.winner) return;
+    mortgageProperty(state, socket.id, tileID);
+    io.to(room.id).emit('update', state);
+  });
+
+  // Lift a mortgage (owner only).
+  socket.on('unmortgage property', (tileID) => {
+    const room = getRoom(socket.data.roomId);
+    if (!room) return;
+    const { state } = room;
+    if (state.boardState.winner) return;
+    unmortgageProperty(state, socket.id, tileID);
+    io.to(room.id).emit('update', state);
+  });
+
+  // Pay $50 bail to leave jail (current player, on their turn, while jailed).
+  socket.on('pay bail', () => {
+    const room = getRoom(socket.data.roomId);
+    if (!room) return;
+    const { state } = room;
+    const player = state.players[socket.id];
+    if (!player || !player.isJail) return;
+    if (state.boardState.currentPlayer.id !== socket.id) return;
+    if (player.accountBalance < 50) {
+      sendToLog(state, `${player.name} can't afford the $50M bail.`);
+      io.to(room.id).emit('update', state);
+      return;
+    }
+    player.accountBalance -= 50;
+    player.isJail = false;
+    player.jailRounds = 0;
+    sendToLog(state, `${player.name} paid $50M bail and is free to move.`);
+    io.to(room.id).emit('update', state);
+  });
+
+  // Use a Get Out Of Jail Free card (current player, on their turn, while jailed).
+  socket.on('use jail card', () => {
+    const room = getRoom(socket.data.roomId);
+    if (!room) return;
+    const { state } = room;
+    const player = state.players[socket.id];
+    if (!player || !player.isJail) return;
+    if (state.boardState.currentPlayer.id !== socket.id) return;
+    if (player.getOutOfJailCards < 1) return;
+    player.getOutOfJailCards -= 1;
+    player.isJail = false;
+    player.jailRounds = 0;
+    sendToLog(state, `${player.name} used a Get Out Of Jail Free card.`);
+    io.to(room.id).emit('update', state);
+  });
+
+  // The current player declined to buy the tile they landed on — auction it.
+  socket.on('decline property', () => {
+    const room = getRoom(socket.data.roomId);
+    if (!room) return;
+    const { state } = room;
+    const player = state.players[socket.id];
+    if (!player) return;
+    if (state.boardState.currentPlayer.id !== socket.id) return;
+    if (!state.turnInfo.canBuyProp) return;
+    if (state.boardState.auction) return;
+    beginAuction(room, player.currentTile);
+  });
+
+  // Place a bid in the running auction (any active, solvent player).
+  socket.on('place bid', (amount) => {
+    const room = getRoom(socket.data.roomId);
+    if (!room) return;
+    const { state } = room;
+    const { auction } = state.boardState;
+    const player = state.players[socket.id];
+    if (!auction || !player) return;
+    if (!auction.active.includes(socket.id)) return;
+    if (!Number.isFinite(amount) || amount <= auction.highestBid) return;
+    if (amount > player.accountBalance) return;
+    auction.highestBid = Math.floor(amount);
+    auction.highestBidder = socket.id;
+    auction.highestBidderName = player.name;
+    // Keep the auction open a little longer after a fresh bid.
+    if (auction.timer < 8) auction.timer = 8;
+    sendToLog(state, `${player.name} bid $${auction.highestBid}M for ${auction.tileName}.`);
+    io.to(room.id).emit('update', state);
+  });
+
+  // Drop out of the running auction. Ends it once one or fewer bidders remain.
+  socket.on('pass bid', () => {
+    const room = getRoom(socket.data.roomId);
+    if (!room) return;
+    const { state } = room;
+    const { auction } = state.boardState;
+    const player = state.players[socket.id];
+    if (!auction || !player) return;
+    if (!auction.active.includes(socket.id)) return;
+    auction.active = auction.active.filter((activeId) => activeId !== socket.id);
+    sendToLog(state, `${player.name} passed on ${auction.tileName}.`);
+    if (auction.active.length <= 1) {
+      endAuction(room);
+      return;
+    }
+    io.to(room.id).emit('update', state);
+  });
+
   // A player disconnects.
   socket.on('disconnect', () => {
     const room = getRoom(socket.data.roomId);
@@ -352,8 +521,24 @@ io.on('connection', (socket) => {
 
     // Drop the room entirely once no players remain.
     if (state.boardState.players.length === 0) {
+      if (room.auctionTimer) clearInterval(room.auctionTimer);
       deleteRoom(room.id);
       return;
+    }
+
+    // Remove the departed player from any running auction; end it if it collapses.
+    const { auction } = state.boardState;
+    if (auction) {
+      auction.active = auction.active.filter((activeId) => activeId !== socket.id);
+      if (auction.highestBidder === socket.id) {
+        auction.highestBidder = null;
+        auction.highestBidderName = null;
+        auction.highestBid = 0;
+      }
+      if (auction.active.length <= 1) {
+        endAuction(room);
+        return;
+      }
     }
     io.to(room.id).emit('update', state);
   });

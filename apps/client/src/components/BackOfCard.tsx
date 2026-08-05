@@ -1,5 +1,6 @@
 import { useState, useContext, useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
+import { tileState } from '@monopoly/shared';
 import cardFlipContext from '../cardFlipContext';
 import stateContext from '../internal';
 import sellPromptContext from '../sellPromptContext';
@@ -15,9 +16,12 @@ const BackOfCard = ({ id, handleCardClick, position }: BackOfCardProps) => {
   const { cardsBack } = useContext(cardFlipContext);
   const [backOfCard] = useState(cardsBack[id]);
   const [ownership, setOwnership] = useState<string | false>(false);
-  const { state, playerId } = useContext(stateContext);
+  const { state, playerId, socketFunctions } = useContext(stateContext);
   const { handlePutOpenMarket, handleMakeOffer } = useContext(sellPromptContext);
   const reduced = useReducedMotion() ?? false;
+  const owned = state.boardState.ownedProps[id];
+  const tile = tileState[id];
+  const canBuild = tile?.tileType === 'normal' && typeof tile.houseCost === 'number';
 
   useEffect(() => {
     if (Object.prototype.hasOwnProperty.call(state.boardState.ownedProps, id)) {
@@ -58,6 +62,16 @@ const BackOfCard = ({ id, handleCardClick, position }: BackOfCardProps) => {
           <p className="tile-back__details">{backOfCard.details4 ? `${backOfCard.details4.split('$')[0]}` : ''}</p>
           <span className="tile-back__details--price">{backOfCard.details4 ? `$${backOfCard.details4.split('$')[1]}` : ''}</span>
         </section>
+        {owned?.mortgaged
+          ? <p className="tile-back__mortgaged">MORTGAGED</p>
+          : null}
+        {owned && owned.houses > 0
+          ? (
+            <p className="tile-back__houses">
+              {owned.houses === 5 ? '🏨 Hotel' : `🏠 ${owned.houses} house${owned.houses > 1 ? 's' : ''}`}
+            </p>
+          )
+          : null}
         {ownership
           ? ownership !== playerId
             ? (
@@ -67,6 +81,17 @@ const BackOfCard = ({ id, handleCardClick, position }: BackOfCardProps) => {
             )
             : (
               <section className="tile-back__buttons">
+                {canBuild
+                  ? (
+                    <>
+                      <button type="button" onClick={e => { e.stopPropagation(); socketFunctions.buildHouse(id); }} className="tile-back__button">Build</button>
+                      <button type="button" onClick={e => { e.stopPropagation(); socketFunctions.sellHouse(id); }} className="tile-back__button">Sell house</button>
+                    </>
+                  )
+                  : null}
+                {owned?.mortgaged
+                  ? <button type="button" onClick={e => { e.stopPropagation(); socketFunctions.unmortgageProperty(id); }} className="tile-back__button">Unmortgage</button>
+                  : <button type="button" onClick={e => { e.stopPropagation(); socketFunctions.mortgageProperty(id); }} className="tile-back__button">Mortgage</button>}
                 <button type="button" onClick={e => { e.stopPropagation(); handlePutOpenMarket(id); }} className="tile-back__button">Sell</button>
               </section>
             )

@@ -347,3 +347,35 @@ align-items: center;
   gap: 1vmin;
   margin-top: 1vmin;
 }
+
+/* Jail controls shown to the current player while they are jailed. */
+.jail-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1vmin;
+  padding: 1.5vmin;
+  margin-bottom: 1.5vmin;
+  background: #fff4d6;
+  border: 0.25vmin solid #d9a441;
+  border-radius: 1vmin;
+  text-align: center;
+}
+
+.jail-panel__title {
+  margin: 0;
+  color: #8a5a00;
+}
+
+.jail-panel__hint {
+  margin: 0;
+  font-size: 1.4vmin;
+  color: #6b6b6b;
+}
+
+.jail-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1vmin;
+}

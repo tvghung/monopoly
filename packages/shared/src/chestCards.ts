@@ -60,6 +60,10 @@ const chestCards: GameCard[] = [
     message: 'You inherit $100M.',
     reward: 100,
   },
+  {
+    message: 'Get out of jail free. Keep this card until needed.',
+    getOutOfJailFree: true,
+  },
 ];
 
 export default chestCards;

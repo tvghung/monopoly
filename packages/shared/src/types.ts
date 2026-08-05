@@ -18,7 +18,12 @@ export interface Tile {
   tileType: TileType;
   color?: string;
   price?: number;
+  // Base rent (no houses, not a monopoly).
   rent?: number;
+  // Rent with [1, 2, 3, 4 houses, hotel]. Only on buildable street tiles.
+  rentTiers?: number[];
+  // Cost of one house/hotel on this tile's colour group.
+  houseCost?: number;
 }
 
 // A Chance / Community Chest card. Every field except `message` is an optional
@@ -40,6 +45,8 @@ export interface GameCard {
   collectFromEachPlayer?: number;
   // Pay this amount to every other player.
   payEachPlayer?: number;
+  // Grant a "Get out of jail free" card the player can keep and use later.
+  getOutOfJailFree?: boolean;
 }
 
 // Community Chest and Chance decks share the same card shape.
@@ -52,6 +59,8 @@ export interface Player {
   accountBalance: number;
   isJail: boolean;
   jailRounds: number;
+  // Number of "Get out of jail free" cards the player is holding.
+  getOutOfJailCards: number;
 }
 
 export interface FinishedPlayer {
@@ -62,6 +71,10 @@ export interface FinishedPlayer {
 export interface OwnedProp {
   id: string;
   color: string;
+  // Houses built on this street (0-4 houses, 5 = a hotel).
+  houses: number;
+  // Whether the property is mortgaged (collects no rent while mortgaged).
+  mortgaged: boolean;
 }
 
 export interface OpenMarketEntry {
@@ -88,6 +101,21 @@ export interface TurnInfo {
   canBuyProp?: boolean;
 }
 
+// A live auction for a property the current player declined to buy. Any active
+// player can bid; the highest bidder when it ends buys the tile.
+export interface Auction {
+  tileID: number;
+  tileName: string;
+  price: number;
+  highestBid: number;
+  highestBidder: string | null;
+  highestBidderName: string | null;
+  // Player ids still in the auction (haven't passed).
+  active: string[];
+  // Seconds remaining before the auction resolves.
+  timer: number;
+}
+
 export interface BoardState {
   gameStarted: boolean;
   players: string[];
@@ -97,6 +125,10 @@ export interface BoardState {
   diceValue: DiceValue;
   ownedProps: Record<number, OwnedProp>;
   openMarket: Record<number, OpenMarketEntry>;
+  // Set once a single player remains; drives the win screen.
+  winner: FinishedPlayer | null;
+  // The live property auction, or null when none is running.
+  auction: Auction | null;
 }
 
 export interface GameState {

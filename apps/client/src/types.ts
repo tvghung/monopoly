@@ -25,6 +25,15 @@ export interface SocketFunctions {
   makeSale: (item: string) => void;
   startGame: () => void;
   removeSale: (item: string) => void;
+  buildHouse: (tileID: number) => void;
+  sellHouse: (tileID: number) => void;
+  mortgageProperty: (tileID: number) => void;
+  unmortgageProperty: (tileID: number) => void;
+  payBail: () => void;
+  useJailCard: () => void;
+  declineProperty: () => void;
+  placeBid: (amount: number) => void;
+  passBid: () => void;
 }
 
 export interface StateContextValue {

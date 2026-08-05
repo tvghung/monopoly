@@ -26,6 +26,15 @@ const socketFunctions: SocketFunctions = {
   makeSale: (item) => socket.emit('make sale', item),
   startGame: () => socket.emit('start game', ''),
   removeSale: (item) => socket.emit('remove sale', item),
+  buildHouse: (tileID) => socket.emit('build house', tileID),
+  sellHouse: (tileID) => socket.emit('sell house', tileID),
+  mortgageProperty: (tileID) => socket.emit('mortgage property', tileID),
+  unmortgageProperty: (tileID) => socket.emit('unmortgage property', tileID),
+  payBail: () => socket.emit('pay bail'),
+  useJailCard: () => socket.emit('use jail card'),
+  declineProperty: () => socket.emit('decline property'),
+  placeBid: (amount) => socket.emit('place bid', amount),
+  passBid: () => socket.emit('pass bid'),
 };
 
 const initialState: GameState = {
@@ -38,6 +47,8 @@ const initialState: GameState = {
     diceValue: { dice1: ['⚅', 0], dice2: ['⚅', 0] },
     ownedProps: {},
     openMarket: {},
+    winner: null,
+    auction: null,
   },
   players: {},
   turnInfo: {},

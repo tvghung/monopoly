@@ -53,6 +53,10 @@ const chanceCards: GameCard[] = [
     message: 'Pay a poor tax of $15M.',
     penalty: 15,
   },
+  {
+    message: 'Get out of jail free. Keep this card until needed.',
+    getOutOfJailFree: true,
+  },
 ];
 
 export default chanceCards;
