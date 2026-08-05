@@ -104,9 +104,9 @@
   flex-wrap: wrap;
   align-items: stretch;
   justify-content: center;
-  gap: 0.4vmin;
-  width: 92%;
-  padding-top: 0.5vmin;
+  gap: 0.3vmin;
+  width: 94%;
+  padding-top: 0.3vmin;
 }
 
 .tile-back__button {
@@ -115,13 +115,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.4vmin;
-  padding: 0.4vmin 0.5vmin;
+  min-height: 1.8vmin;
+  padding: 0.2vmin 0.4vmin;
   background: rgb(255, 255, 255, 0.50);
   border: 1px solid black;
   border-radius: 0.25vmin;
   color: black;
-  font-size: 1.25vmin;
+  font-size: 1vmin;
+  line-height: 1.1;
   white-space: nowrap;
   cursor: pointer;
 }
