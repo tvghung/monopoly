@@ -379,3 +379,11 @@ align-items: center;
   justify-content: center;
   gap: 1vmin;
 }
+
+/* Small status badges (in jail, holds a Get Out Of Jail Free card) next to a
+   player's name in the roster. */
+.player-card__tag {
+  margin-left: 0.6vmin;
+  font-size: 1.4vmin;
+  vertical-align: middle;
+}

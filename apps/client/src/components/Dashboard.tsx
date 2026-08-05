@@ -111,7 +111,9 @@ export default function Dashboard() {
             ? (
               <ul className="player-list">
                 {Object.keys(state.players).map((player) => {
-                  const { name, color, accountBalance } = state.players[player];
+                  const {
+                    name, color, accountBalance, isJail, getOutOfJailCards,
+                  } = state.players[player];
                   const isCurrent = state.boardState.currentPlayer.id === player;
                   return (
                     <li
@@ -123,7 +125,17 @@ export default function Dashboard() {
                         <span className="player-card__initial">{name.slice(0, 1).toUpperCase()}</span>
                       </span>
                       <div className="player-card__info">
-                        <span className="player-card__name">{name}</span>
+                        <span className="player-card__name">
+                          {name}
+                          {isJail ? <span className="player-card__tag" title="In jail">🔒</span> : null}
+                          {getOutOfJailCards > 0
+                            ? (
+                              <span className="player-card__tag" title="Get Out Of Jail Free card">
+                                {getOutOfJailCards > 1 ? `🔑×${getOutOfJailCards}` : '🔑'}
+                              </span>
+                            )
+                            : null}
+                        </span>
                         <span className="player-card__balance">{`$${accountBalance}M`}</span>
                       </div>
                       {isCurrent ? <span className="player-card__turn">Now playing</span> : null}
