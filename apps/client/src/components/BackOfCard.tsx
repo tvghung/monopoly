@@ -124,7 +124,7 @@ const BackOfCard = ({ id, handleCardClick, position }: BackOfCardProps) => {
             )
             : (
               <section className="tile-back__buttons">
-                {isStreet
+                {isStreet && !isMortgaged
                   ? (
                     <>
                       <button type="button" disabled={!canBuild} title={buildTitle} onClick={e => { e.stopPropagation(); socketFunctions.buildHouse(id); }} className="tile-back__button">Build</button>
