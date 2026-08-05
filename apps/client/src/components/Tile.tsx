@@ -2,6 +2,7 @@ import { useContext } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import './style/Board.css';
 import stateContext from '../internal';
+import displayPositionsContext from '../displayPositionsContext';
 import BackOfCard from './BackOfCard';
 import cardFlipContext from '../cardFlipContext';
 import type { BoardInitTile } from './BoardInitState';
@@ -17,11 +18,13 @@ interface TileProps {
 // old tile to the new one (framer-motion shared-layout animation).
 function PlayerTokens({ tileId }: { tileId: number }) {
   const { state } = useContext(stateContext);
+  const displayPositions = useContext(displayPositionsContext);
   const reduced = useReducedMotion() ?? false;
   return (
     <div className="player__token--wrapper">
       {Object.keys(state.players)
-        .filter(playerKey => state.players[playerKey].currentTile === tileId)
+        .filter(playerKey => (displayPositions[playerKey] ?? state.players[playerKey].currentTile)
+          === tileId)
         .map(playerKey => (
           <motion.div
             key={playerKey}
@@ -30,8 +33,12 @@ function PlayerTokens({ tileId }: { tileId: number }) {
             style={{ backgroundColor: state.players[playerKey].color }}
             transition={reduced
               ? { duration: 0 }
-              : { type: 'spring', stiffness: 500, damping: 40 }}
-          />
+              : { type: 'tween', ease: 'linear', duration: 0.18 }}
+          >
+            <span className="player__token-initial">
+              {state.players[playerKey].name.slice(0, 1).toUpperCase()}
+            </span>
+          </motion.div>
         ))}
     </div>
   );
@@ -50,21 +57,24 @@ function Tile({ initState, id, position }: TileProps) {
     dispatch({ type: 'FLIP_CARD', payload: cardsFlipped });
   };
 
+  const isOwned = state.loaded
+    && Object.prototype.hasOwnProperty.call(state.boardState.ownedProps, id);
+
   if (!cardsBack[id].clicked) {
     return (
       <article role="presentation" onClick={handleCardClick} className={`Tile tile${id} ${position}`} id={String(id)}>
+        {isOwned
+          ? (
+            <div
+              className="tile__owner-flag"
+              style={{ borderTopColor: state.boardState.ownedProps[id].color }}
+            />
+          )
+          : null}
         {initState.color && initState.color !== 'railroad'
           ? (
             <>
-              <div
-                className="tile__color-box"
-                style={
-                  state.loaded
-                    && Object.prototype.hasOwnProperty.call(state.boardState.ownedProps, id)
-                    ? { backgroundColor: initState.color, boxShadow: `0px 0px 1px 3px ${state.boardState.ownedProps[id].color}` }
-                    : { backgroundColor: initState.color }
-                }
-              />
+              <div className="tile__color-box" style={{ backgroundColor: initState.color }} />
               <div className="tile__wrapper">
                 <p className="tile__street-name">{initState.streetName}</p>
                 <PlayerTokens tileId={id} />
@@ -73,15 +83,7 @@ function Tile({ initState, id, position }: TileProps) {
             </>
           )
           : (
-            <div
-              className="tile__special--wrapper"
-              style={
-                state.loaded
-                  && Object.prototype.hasOwnProperty.call(state.boardState.ownedProps, id)
-                  ? { boxShadow: `0px 0px 1px 3px ${state.boardState.ownedProps[id].color}` }
-                  : {}
-              }
-            >
+            <div className="tile__special--wrapper">
               <p className="tile__special-name">{initState.streetName}</p>
               <PlayerTokens tileId={id} />
               <p className="tile__special--price">{initState.price ? `$${initState.price}M` : ''}</p>

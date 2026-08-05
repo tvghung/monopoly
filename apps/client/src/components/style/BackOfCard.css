@@ -1,5 +1,8 @@
 .tile-back--container {
   position: relative;
+  /* Lift the flipped card above the center panel (a later-painted, positioned
+     grid sibling) so its overflowing face is never hidden behind it. */
+  z-index: 50;
 }
 
 .Tile-back {

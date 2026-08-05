@@ -3,10 +3,13 @@ import {
   useEffect,
   useContext,
   useReducer,
+  useMemo,
 } from 'react';
 import { LayoutGroup } from 'framer-motion';
 import './style/Board.css';
 import stateContext from '../internal';
+import displayPositionsContext from '../displayPositionsContext';
+import useSteppedPositions from '../useSteppedPositions';
 import Tile from './Tile';
 import initialState from './BoardInitState';
 import Dice from './Dice';
@@ -28,7 +31,18 @@ const reducer = (state: BackCard[], action: CardFlipAction): BackCard[] => {
 
 function Board() {
   const [cardsBack, dispatch] = useReducer(reducer, backOfCards);
-  const { playerId } = useContext(stateContext);
+  const { playerId, state } = useContext(stateContext);
+
+  // Authoritative tile per player, from the server. The stepper walks the shown
+  // positions toward these one tile at a time.
+  const actualPositions = useMemo(() => {
+    const positions: Record<string, number> = {};
+    Object.keys(state.players).forEach((key) => {
+      positions[key] = state.players[key].currentTile;
+    });
+    return positions;
+  }, [state.players]);
+  const displayPositions = useSteppedPositions(actualPositions);
 
   const [tiles] = useState(initialState);
   const [openSale, setOpenSale] = useState<SalePrompt | false>(false);
@@ -70,35 +84,37 @@ function Board() {
     }}
     >
       <cardFlipContext.Provider value={{ cardsBack, dispatch }}>
-        <section className="Board">
-          <LayoutGroup>
-            {
-              tiles.map((tile, index) => {
-                if (index === 0) {
-                  return <Tile key={index} position="tile__start" id={index} initState={tile} />;
-                }
-                if (index > 0 && index <= 10) {
-                  return <Tile key={index} position="tile__horizontal--bottom" id={index} initState={tile} />;
-                }
-                if (index >= 11 && index <= 19) {
-                  return <Tile key={index} position="tile__vertical--left" id={index} initState={tile} />;
-                }
-                if (index >= 20 && index <= 30) {
-                  return <Tile key={index} position="tile__horizontal--top" id={index} initState={tile} />;
-                }
-                if (index >= 31 && index <= 39) {
-                  return <Tile key={index} position="tile__vertical--right" id={index} initState={tile} />;
-                }
-                return null;
-              })
-            }
-          </LayoutGroup>
-          <section className="center">
-            <Dice />
-            <Log />
-            <Dashboard />
+        <displayPositionsContext.Provider value={displayPositions}>
+          <section className="Board">
+            <LayoutGroup>
+              {
+                tiles.map((tile, index) => {
+                  if (index === 0) {
+                    return <Tile key={index} position="tile__start" id={index} initState={tile} />;
+                  }
+                  if (index > 0 && index <= 10) {
+                    return <Tile key={index} position="tile__horizontal--bottom" id={index} initState={tile} />;
+                  }
+                  if (index >= 11 && index <= 19) {
+                    return <Tile key={index} position="tile__vertical--left" id={index} initState={tile} />;
+                  }
+                  if (index >= 20 && index <= 30) {
+                    return <Tile key={index} position="tile__horizontal--top" id={index} initState={tile} />;
+                  }
+                  if (index >= 31 && index <= 39) {
+                    return <Tile key={index} position="tile__vertical--right" id={index} initState={tile} />;
+                  }
+                  return null;
+                })
+              }
+            </LayoutGroup>
+            <section className="center">
+              <Dice />
+              <Log />
+              <Dashboard />
+            </section>
           </section>
-        </section>
+        </displayPositionsContext.Provider>
       </cardFlipContext.Provider>
     </sellPromptContext.Provider>
   );
