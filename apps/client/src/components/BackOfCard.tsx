@@ -1,6 +1,6 @@
 import { useState, useContext, useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { tileState } from '@monopoly/shared';
+import { tileState, colorGroups } from '@monopoly/shared';
 import cardFlipContext from '../cardFlipContext';
 import stateContext from '../internal';
 import sellPromptContext from '../sellPromptContext';
@@ -21,7 +21,50 @@ const BackOfCard = ({ id, handleCardClick, position }: BackOfCardProps) => {
   const reduced = useReducedMotion() ?? false;
   const owned = state.boardState.ownedProps[id];
   const tile = tileState[id];
-  const canBuild = tile?.tileType === 'normal' && typeof tile.houseCost === 'number';
+
+  // Mirror the server's build/mortgage rules so buttons can be enabled/disabled
+  // (the server still validates every action authoritatively).
+  const isStreet = tile?.tileType === 'normal' && typeof tile.houseCost === 'number';
+  const group = tile?.color ? colorGroups[tile.color] : undefined;
+  const ownsGroup = !!group && group.every(t => state.boardState.ownedProps[t]?.id === playerId);
+  const groupHouses = group ? group.map(t => state.boardState.ownedProps[t]?.houses ?? 0) : [];
+  const minGroupHouses = groupHouses.length ? Math.min(...groupHouses) : 0;
+  const maxGroupHouses = groupHouses.length ? Math.max(...groupHouses) : 0;
+  const groupHasMortgage = !!group && group.some(t => state.boardState.ownedProps[t]?.mortgaged);
+  const myBalance = typeof playerId === 'string' ? state.players[playerId]?.accountBalance ?? 0 : 0;
+  const houseCost = tile?.houseCost ?? 0;
+  const houses = owned?.houses ?? 0;
+  const isMortgaged = !!owned?.mortgaged;
+  const mortgageValue = Math.floor((tile?.price ?? 0) / 2);
+  const unmortgageCost = Math.ceil(((tile?.price ?? 0) / 2) * 1.1);
+
+  const canBuild = isStreet && ownsGroup && !groupHasMortgage && !isMortgaged
+    && houses < 5 && houses === minGroupHouses && myBalance >= houseCost;
+  const canSellHouse = isStreet && houses > 0 && houses === maxGroupHouses;
+  const canMortgage = !isMortgaged && houses === 0;
+  const canUnmortgage = isMortgaged && myBalance >= unmortgageCost;
+
+  const buildTitle = (() => {
+    if (canBuild) return `Build a house ($${houseCost}M)`;
+    if (!ownsGroup) return 'Own the whole colour group to build';
+    if (groupHasMortgage || isMortgaged) return 'Unmortgage the group first';
+    if (houses >= 5) return 'Already has a hotel';
+    if (houses !== minGroupHouses) return 'Build evenly across the group first';
+    return `Can't afford a house ($${houseCost}M)`;
+  })();
+  const sellHouseTitle = (() => {
+    if (canSellHouse) return 'Sell a house';
+    if (houses === 0) return 'No houses to sell';
+    return 'Sell from the most-built property first';
+  })();
+  const mortgageTitle = (() => {
+    if (canMortgage) return `Mortgage for $${mortgageValue}M`;
+    if (houses > 0) return 'Sell all houses in the group first';
+    return 'Already mortgaged';
+  })();
+  const unmortgageTitle = canUnmortgage
+    ? `Unmortgage for $${unmortgageCost}M`
+    : `Unmortgage costs $${unmortgageCost}M — can't afford`;
 
   useEffect(() => {
     if (Object.prototype.hasOwnProperty.call(state.boardState.ownedProps, id)) {
@@ -81,18 +124,18 @@ const BackOfCard = ({ id, handleCardClick, position }: BackOfCardProps) => {
             )
             : (
               <section className="tile-back__buttons">
-                {canBuild
+                {isStreet
                   ? (
                     <>
-                      <button type="button" onClick={e => { e.stopPropagation(); socketFunctions.buildHouse(id); }} className="tile-back__button">Build</button>
-                      <button type="button" onClick={e => { e.stopPropagation(); socketFunctions.sellHouse(id); }} className="tile-back__button">Sell house</button>
+                      <button type="button" disabled={!canBuild} title={buildTitle} onClick={e => { e.stopPropagation(); socketFunctions.buildHouse(id); }} className="tile-back__button">Build</button>
+                      <button type="button" disabled={!canSellHouse} title={sellHouseTitle} onClick={e => { e.stopPropagation(); socketFunctions.sellHouse(id); }} className="tile-back__button">Sell&nbsp;house</button>
                     </>
                   )
                   : null}
-                {owned?.mortgaged
-                  ? <button type="button" onClick={e => { e.stopPropagation(); socketFunctions.unmortgageProperty(id); }} className="tile-back__button">Unmortgage</button>
-                  : <button type="button" onClick={e => { e.stopPropagation(); socketFunctions.mortgageProperty(id); }} className="tile-back__button">Mortgage</button>}
-                <button type="button" onClick={e => { e.stopPropagation(); handlePutOpenMarket(id); }} className="tile-back__button">Sell</button>
+                {isMortgaged
+                  ? <button type="button" disabled={!canUnmortgage} title={unmortgageTitle} onClick={e => { e.stopPropagation(); socketFunctions.unmortgageProperty(id); }} className="tile-back__button">Unmortgage</button>
+                  : <button type="button" disabled={!canMortgage} title={mortgageTitle} onClick={e => { e.stopPropagation(); socketFunctions.mortgageProperty(id); }} className="tile-back__button">Mortgage</button>}
+                <button type="button" title="List on the open market" onClick={e => { e.stopPropagation(); handlePutOpenMarket(id); }} className="tile-back__button">Sell</button>
               </section>
             )
           : null}
