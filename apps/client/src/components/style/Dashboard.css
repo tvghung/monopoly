@@ -48,9 +48,130 @@
   /* border: 1px solid black; */
 }
 
+.center__dashboard__block--players {
+  gap: 1vmin;
+}
+
 .center__dashboard__title {
   margin-bottom: 1.5vmin;
   font-size: 2.25vmin;
+}
+
+.center__dashboard__title--sub {
+  margin-top: 1vmin;
+  margin-bottom: 0.5vmin;
+  font-size: 1.7vmin;
+  color: #666;
+}
+
+/* --- Player roster cards --- */
+.player-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1vmin;
+  width: 100%;
+}
+
+.player-card {
+  display: flex;
+  align-items: center;
+  gap: 1.2vmin;
+  padding: 0.9vmin 1.2vmin;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-left: 0.6vmin solid #999;
+  border-radius: 0.8vmin;
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.player-card--active {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 0 0 0.22vmin rgba(0, 128, 0, 0.55),
+    0 0.4vmin 0.9vmin rgba(0, 0, 0, 0.15);
+}
+
+.player-card--out {
+  opacity: 0.55;
+}
+
+.player-card--out .player-card__name {
+  text-decoration: line-through;
+}
+
+/* Glossy disc that mirrors the player's board token. */
+.player-card__disc {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 3vmin;
+  height: 3vmin;
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow:
+    inset 0 0.35vmin 0.35vmin rgba(255, 255, 255, 0.55),
+    inset 0 -0.3vmin 0.3vmin rgba(0, 0, 0, 0.35);
+}
+
+.player-card__disc::after {
+  content: '';
+  position: absolute;
+  top: 10%;
+  left: 16%;
+  width: 45%;
+  height: 32%;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  filter: blur(0.15vmin);
+  pointer-events: none;
+}
+
+.player-card__initial {
+  position: relative;
+  z-index: 1;
+  color: #fff;
+  font-size: 1.5vmin;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 0.1vmin 0.15vmin rgba(0, 0, 0, 0.7);
+}
+
+.player-card__info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+}
+
+.player-card__name {
+  font-size: 1.8vmin;
+  font-weight: 700;
+  color: #1a1a1a;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-card__balance {
+  font-size: 1.4vmin;
+  color: #333;
+}
+
+.player-card__turn {
+  flex: 0 0 auto;
+  padding: 0.3vmin 0.8vmin;
+  background: rgb(0, 128, 0);
+  color: #fff;
+  font-size: 1.2vmin;
+  font-weight: 700;
+  border-radius: 1vmin;
+  white-space: nowrap;
 }
 
 .center__dashboard__player-info {

@@ -4,13 +4,31 @@
 ![GitHub repo size](https://img.shields.io/github/repo-size/terragady/monopoly-websockets)
 ![GitHub](https://img.shields.io/github/license/terragady/monopoly-websockets)
 
-Real-time multiplayer Monopoly. Originally a </Salt> School of Applied Technology
-final project (Spring 2020), since modernized into a typed pnpm monorepo with an
-authoritative game server and isolated game rooms.
+Real-time multiplayer Monopoly you can play in the browser with friends over a
+shared room code.
+
+This started life as a small 2020 hobby project and has since been **rewritten from
+the ground up**: the original single-file Express + Create React App codebase (one
+global game, all logic on the client, easily cheated) is now a typed pnpm monorepo
+with an **authoritative game server**, **isolated game rooms**, sanitised chat, and
+an animated, polished UI. See [What changed in the rewrite](#what-changed-in-the-rewrite).
 
 Everything that happens is written to the in-game log / chat — keep an eye on it!
 
 ![image](https://user-images.githubusercontent.com/19210041/187416300-fd0c4e0c-8942-4c36-863d-6b00664d3e0b.png)
+
+## What changed in the rewrite
+
+| Then (2020) | Now |
+| --- | --- |
+| Create React App + single `server.js` | pnpm monorepo — `apps/server`, `apps/client`, `packages/shared` |
+| Plain JavaScript | End-to-end **TypeScript**, incl. typed Socket.IO event contracts |
+| One global game for everyone | **Isolated rooms** — share a code to play together |
+| Client decided dice, money & moves (cheatable) | **Server-authoritative** dice, movement, rent and turn order |
+| Chat rendered raw HTML (XSS) | Chat + names sanitised |
+| Chance drew from the Community Chest deck | Separate, expanded **Chance / Community Chest** decks |
+| Static board, instant token jumps | **Animated** 3D dice, tile-by-tile token movement, card flips, modal prompts |
+| Committed build output, mixed yarn/npm lockfiles | Clean workspace, single pnpm lockfile, Docker + Render deploy configs |
 
 ## Tech stack
 
@@ -124,12 +142,22 @@ market — but you can keep spectating and chatting.
 
 ## Roadmap
 
+Done:
+
 - [x] pnpm monorepo + Vite + full TypeScript conversion
 - [x] Server-authoritative state pushed to all clients
+- [x] Server-side validation (reject out-of-turn / unaffordable / not-owner actions)
 - [x] Isolated game rooms (share a room code to play together)
 - [x] Chat input sanitisation (no HTML injection)
 - [x] Separate, expanded Chance / Community Chest decks
-- [ ] Full server-side move validation (reject out-of-turn / unaffordable actions)
-- [ ] Animated dice + player-token movement
-- [ ] "Win" screen and the ability to build houses on properties
+- [x] Animated 3D dice, tile-by-tile token movement, card flips and modal prompts
+
+Not yet implemented (classic Monopoly features still missing):
+
+- [ ] Building houses / hotels and the rent tiers they unlock
+- [ ] Colour-group monopoly rent bonus (owning a full set)
+- [ ] Mortgaging properties for cash
+- [ ] Auctions when a player declines to buy an unowned tile
+- [ ] "Get out of jail free" card and paying $50 to leave jail
+- [ ] A dedicated win screen
 ```

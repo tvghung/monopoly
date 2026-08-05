@@ -103,30 +103,63 @@ export default function Dashboard() {
       <section className="center__dashboard">
         <article className="center__dashboard--img" />
 
-        <section className="center__dashboard__block">
-          <h3 className="center__dashboard__title">Players:</h3>
+        <section className="center__dashboard__block center__dashboard__block--players">
+          <h3 className="center__dashboard__title">Players</h3>
 
           {state.loaded
-            ? Object.keys(state.players).map(player => (
-              <section key={player} className="center__dashboard__players">
-                <h3 className="center__dashboard__player-info__name" style={{ color: state.players[player].color, textShadow: '1px 1px 0 black, 1px -1px 0 grey, -1px 1px 0 black, -1px -1px 0 grey, 1px 0px 0 grey, 0px 1px 0 black, -1px 0px 0 grey, 0px -1px 0 grey' }}>
-                  {state.players[player].name}
-                </h3>
-                <p className="center__dashboard__player-info">{`Account balance: $${state.players[player].accountBalance}M`}</p>
-              </section>
-            ))
+            ? (
+              <ul className="player-list">
+                {Object.keys(state.players).map((player) => {
+                  const { name, color, accountBalance } = state.players[player];
+                  const isCurrent = state.boardState.currentPlayer.id === player;
+                  return (
+                    <li
+                      key={player}
+                      className={`player-card${isCurrent ? ' player-card--active' : ''}`}
+                      style={{ borderLeftColor: color }}
+                    >
+                      <span className="player-card__disc" style={{ backgroundColor: color }}>
+                        <span className="player-card__initial">{name.slice(0, 1).toUpperCase()}</span>
+                      </span>
+                      <div className="player-card__info">
+                        <span className="player-card__name">{name}</span>
+                        <span className="player-card__balance">{`$${accountBalance}M`}</span>
+                      </div>
+                      {isCurrent ? <span className="player-card__turn">Now playing</span> : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            )
             : 'Loading...'}
 
-          {Object.keys(state.boardState.finishedPlayers).length > 0 ? <h3 className="center__dashboard__title">Broke Players:</h3> : null}
-          {state.loaded
-            ? Object.keys(state.boardState.finishedPlayers).map(player => (
-              <section key={player} className="center__dashboard__players">
-                <h3 className="center__dashboard__player-info__name" style={{ color: state.boardState.finishedPlayers[player].color, textShadow: '1px 1px 0 black, 1px -1px 0 grey, -1px 1px 0 black, -1px -1px 0 grey, 1px 0px 0 grey, 0px 1px 0 black, -1px 0px 0 grey, 0px -1px 0 grey' }}>
-                  {state.boardState.finishedPlayers[player].name}
-                </h3>
-              </section>
-            ))
-            : 'Loading...'}
+          {state.loaded && Object.keys(state.boardState.finishedPlayers).length > 0
+            ? (
+              <>
+                <h3 className="center__dashboard__title center__dashboard__title--sub">Bankrupt</h3>
+                <ul className="player-list">
+                  {Object.keys(state.boardState.finishedPlayers).map((player) => {
+                    const { name, color } = state.boardState.finishedPlayers[player];
+                    return (
+                      <li
+                        key={player}
+                        className="player-card player-card--out"
+                        style={{ borderLeftColor: color }}
+                      >
+                        <span className="player-card__disc" style={{ backgroundColor: color }}>
+                          <span className="player-card__initial">{name.slice(0, 1).toUpperCase()}</span>
+                        </span>
+                        <div className="player-card__info">
+                          <span className="player-card__name">{name}</span>
+                          <span className="player-card__balance">Bankrupt</span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            )
+            : null}
         </section>
 
         <section className="center__dashboard__block">
