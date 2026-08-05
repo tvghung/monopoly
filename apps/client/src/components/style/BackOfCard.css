@@ -10,9 +10,7 @@
   flex-direction: column;
   align-items: center;
   width: 180%;
-  /* Size to the content so nothing ever overflows the card border, and the
-     card can grow taller when the owner controls (two button rows) are shown. */
-  height: auto;
+  height: 185%;
   text-align: center;
   border: 1px solid black;
   position: absolute;
@@ -20,41 +18,31 @@
   left: -40%;
   z-index: 1;
   background: rgb(191, 234, 163);
-  padding-bottom: 0.6vmin;
-}
-
-/* Each edge pops the card out toward the board interior (never covering the
-   tile or spilling past the board edge, so it's always fully visible). */
-.tile-back__tile__start {
-  position: absolute;
-  bottom: 100%;
-  right: 0;
+  padding-bottom: 0.4vmin;
 }
 
 .tile-back__tile__horizontal--top {
   position: absolute;
-  top: 100%;
+  top: 0;
   left: -40%;
 }
 
 .tile-back__tile__vertical--right {
   position: absolute;
-  right: 100%;
-  top: 50%;
-  transform: translateY(-50%);
+  top: -42.5%;
+  left: -80%;
 }
 
 .tile-back__tile__horizontal--bottom {
   position: absolute;
-  bottom: 100%;
+  bottom: 0;
   left: -40%;
 }
 
 .tile-back__tile__vertical--left {
   position: absolute;
-  left: 100%;
-  top: 50%;
-  transform: translateY(-50%);
+  top: -42.5%;
+  left: 0;
 }
 
 .Tile-back:hover {
@@ -111,13 +99,14 @@
 }
 
 .tile-back__buttons {
-  margin-top: 0.6vmin;
+  margin-top: auto;
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
   justify-content: center;
   gap: 0.4vmin;
   width: 92%;
+  padding-top: 0.5vmin;
 }
 
 .tile-back__button {
