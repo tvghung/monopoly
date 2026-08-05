@@ -31,14 +31,6 @@ export default function Dashboard() {
   const [offers, setOffers] = useState<ActiveOffer[]>([]);
   const alert = useAlert();
   const reduced = useReducedMotion() ?? false;
-  const toastMotion = reduced
-    ? {}
-    : {
-      initial: { opacity: 0, scale: 0.9, y: -8 },
-      animate: { opacity: 1, scale: 1, y: 0 },
-      exit: { opacity: 0, scale: 0.9, y: -8 },
-      transition: { duration: 0.2, ease: 'easeOut' as const },
-    };
   const backdropMotion = reduced
     ? {}
     : {
@@ -144,15 +136,24 @@ export default function Dashboard() {
               && state.turnInfo.canBuyProp
               && tokenArrived
               ? (
-                <motion.div className="open-market__sell-toast" {...toastMotion}>
-                  <section className="center__dashboard__button__purchase">
-                    <button className="button__purchase--yes" type="button" onClick={() => socketFunctions.buyProperty()}>
-                      Buy property
-                    </button>
-                    <button className="button__purchase--no" type="button" onClick={() => socketFunctions.endTurn()}>
-                      Do not buy property
-                    </button>
-                  </section>
+                <motion.div key="buy-modal" className="modal__overlay" {...backdropMotion}>
+                  <motion.div className="modal__card" {...modalMotion}>
+                    {myPlayer && tileNames[myPlayer.currentTile]
+                      ? (
+                        <h3 className="open-market__sell-toast__title">
+                          {`Buy ${tileNames[myPlayer.currentTile].streetName} for $${tileNames[myPlayer.currentTile].price}M?`}
+                        </h3>
+                      )
+                      : <h3 className="open-market__sell-toast__title">Buy this property?</h3>}
+                    <section className="center__dashboard__button__purchase">
+                      <button className="button__purchase--yes" type="button" onClick={() => socketFunctions.buyProperty()}>
+                        Buy property
+                      </button>
+                      <button className="button__purchase--no" type="button" onClick={() => socketFunctions.endTurn()}>
+                        Do not buy property
+                      </button>
+                    </section>
+                  </motion.div>
                 </motion.div>
               )
               : null}
