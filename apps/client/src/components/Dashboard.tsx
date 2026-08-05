@@ -30,6 +30,22 @@ export default function Dashboard() {
       exit: { opacity: 0, scale: 0.9, y: -8 },
       transition: { duration: 0.2, ease: 'easeOut' as const },
     };
+  const backdropMotion = reduced
+    ? {}
+    : {
+      initial: { opacity: 0 },
+      animate: { opacity: 1 },
+      exit: { opacity: 0 },
+      transition: { duration: 0.15 },
+    };
+  const modalMotion = reduced
+    ? {}
+    : {
+      initial: { opacity: 0, scale: 0.9, y: 12 },
+      animate: { opacity: 1, scale: 1, y: 0 },
+      exit: { opacity: 0, scale: 0.9, y: 12 },
+      transition: { duration: 0.2, ease: 'easeOut' as const },
+    };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -131,115 +147,148 @@ export default function Dashboard() {
               )
               : null}
           </AnimatePresence>
-          {state.loaded && openSale
-            ? (
-              <article className="open-market__sell-toast">
-                <h3 role="presentation" className="open-market__sell-toast__close" onClick={removeSellPropPrompt}>❌</h3>
-                <h3 className="open-market__sell-toast__title">
-                  Sell
-                  {' '}
-                  {tileNames[openSale.tileID].streetName}
-                  {' '}
-                  for:
-                </h3>
-                <form
-                  onSubmit={e => {
-                    e.preventDefault();
-                    if (openSale) socketFunctions.putOpenMarket({ ...openSale, price: priceInput });
-                    setPriceInput(0);
-                    setOpenSale(false);
-                  }}
-                  className="open-market__sell-toast__form"
+          <AnimatePresence>
+            {state.loaded && openSale
+              ? (
+                <motion.div
+                  key="open-sale-modal"
+                  className="modal__overlay"
+                  role="presentation"
+                  onClick={removeSellPropPrompt}
+                  {...backdropMotion}
                 >
-                  <label htmlFor="open-sale-price"> Input in millions. (e.g. 200 = $200M)</label>
-                  <div className="open-market__sell-toast__input--container">
-                    <input
-                      id="open-sale-price"
-                      className="open-market__sell-toast__input"
-                      onChange={e => setPriceInput(parseInt(e.target.value, 10))}
-                      type="number"
-                      min="20"
-                      autoFocus
-                    />
-                    <button className="open-market__sell-toast__button" type="submit">Put on the open market</button>
-                  </div>
-                </form>
-              </article>
-            )
-            : null}
-          {state.loaded && privateSale
-            ? (
-              <article className="open-market__sell-toast">
-                <h3 role="presentation" className="open-market__sell-toast__close" onClick={removeSellPropPrompt}>❌</h3>
-                <h3 className="open-market__sell-toast__title">
-                  Make offer for
-                  {' '}
-                  {tileNames[privateSale.tileID].streetName}
-                  {' '}
-                  for:
-                </h3>
-                <form
-                  onSubmit={e => {
-                    e.preventDefault();
-                    if (privateSale) socketFunctions.makeOffer({ ...privateSale, price: offer });
-                    setOffer(0);
-                    setPrivateSale(false);
-                  }}
-                  className="open-market__sell-toast__form"
+                  <motion.article
+                    className="modal__card open-market__sell-toast"
+                    role="presentation"
+                    onClick={e => e.stopPropagation()}
+                    {...modalMotion}
+                  >
+                    <h3 role="presentation" className="open-market__sell-toast__close" onClick={removeSellPropPrompt}>❌</h3>
+                    <h3 className="open-market__sell-toast__title">
+                      Sell
+                      {' '}
+                      {tileNames[openSale.tileID].streetName}
+                      {' '}
+                      for:
+                    </h3>
+                    <form
+                      onSubmit={e => {
+                        e.preventDefault();
+                        if (openSale) {
+                          socketFunctions.putOpenMarket({ ...openSale, price: priceInput });
+                        }
+                        setPriceInput(0);
+                        setOpenSale(false);
+                      }}
+                      className="open-market__sell-toast__form"
+                    >
+                      <label htmlFor="open-sale-price"> Input in millions. (e.g. 200 = $200M)</label>
+                      <div className="open-market__sell-toast__input--container">
+                        <input
+                          id="open-sale-price"
+                          className="open-market__sell-toast__input"
+                          onChange={e => setPriceInput(parseInt(e.target.value, 10))}
+                          type="number"
+                          min="20"
+                          autoFocus
+                        />
+                        <button className="open-market__sell-toast__button" type="submit">Put on the open market</button>
+                      </div>
+                    </form>
+                  </motion.article>
+                </motion.div>
+              )
+              : null}
+          </AnimatePresence>
+          <AnimatePresence>
+            {state.loaded && privateSale
+              ? (
+                <motion.div
+                  key="private-sale-modal"
+                  className="modal__overlay"
+                  role="presentation"
+                  onClick={removeSellPropPrompt}
+                  {...backdropMotion}
                 >
-                  <label htmlFor="private-offer-price">Input in millions. e.g. 200 = $200M</label>
-                  <div className="open-market__sell-toast__input--container">
-                    <input
-                      id="private-offer-price"
-                      className="open-market__sell-toast__input"
-                      onChange={e => setOffer(parseInt(e.target.value, 10))}
-                      type="number"
-                      min="20"
-                      autoFocus
-                    />
-                    <button className="open-market__sell-toast__button" type="submit">Make offer</button>
-                  </div>
-                </form>
-              </article>
-            )
-            : null}
-          {state.loaded && offers.length !== 0
-            ? offers.map(current => (
-              <motion.section key={current.tileID} className="open-market__offer" {...toastMotion}>
-                <h3 className="open-market__offer__title">
-                  Offer from:
-                  {current.buyerName}
-                </h3>
-                <h3 className="open-market__offer__title">
-                  To buy:
-                  {current.tileName}
-                </h3>
-                <p>
-                  Expires in:
-                  {current.timer}
-                  {' '}
-                  seconds
-                </p>
-                <p>{`The offer is for $${current.price}M.`}</p>
-                <div className="open-market__offer__buttons">
-                  <button
-                    className="open-market__sell-toast__button--yes"
-                    onClick={() => handleAcceptOffer(current)}
-                    type="button"
+                  <motion.article
+                    className="modal__card open-market__sell-toast"
+                    role="presentation"
+                    onClick={e => e.stopPropagation()}
+                    {...modalMotion}
                   >
-                    Accept
-                  </button>
-                  <button
-                    className="open-market__sell-toast__button--no"
-                    onClick={() => handleDeclineOffer(current)}
-                    type="button"
-                  >
-                    Decline
-                  </button>
-                </div>
-              </motion.section>
-            ))
-            : null}
+                    <h3 role="presentation" className="open-market__sell-toast__close" onClick={removeSellPropPrompt}>❌</h3>
+                    <h3 className="open-market__sell-toast__title">
+                      Make offer for
+                      {' '}
+                      {tileNames[privateSale.tileID].streetName}
+                      {' '}
+                      for:
+                    </h3>
+                    <form
+                      onSubmit={e => {
+                        e.preventDefault();
+                        if (privateSale) socketFunctions.makeOffer({ ...privateSale, price: offer });
+                        setOffer(0);
+                        setPrivateSale(false);
+                      }}
+                      className="open-market__sell-toast__form"
+                    >
+                      <label htmlFor="private-offer-price">Input in millions. e.g. 200 = $200M</label>
+                      <div className="open-market__sell-toast__input--container">
+                        <input
+                          id="private-offer-price"
+                          className="open-market__sell-toast__input"
+                          onChange={e => setOffer(parseInt(e.target.value, 10))}
+                          type="number"
+                          min="20"
+                          autoFocus
+                        />
+                        <button className="open-market__sell-toast__button" type="submit">Make offer</button>
+                      </div>
+                    </form>
+                  </motion.article>
+                </motion.div>
+              )
+              : null}
+          </AnimatePresence>
+          <AnimatePresence>
+            {state.loaded && offers.length !== 0
+              ? (
+                <motion.div key="offers-modal" className="modal__overlay" {...backdropMotion}>
+                  <motion.div className="modal__card modal__card--offers" {...modalMotion}>
+                    {offers.map(current => (
+                      <section key={current.tileID} className="open-market__offer">
+                        <h3 className="open-market__offer__title">
+                          {`Offer from: ${current.buyerName}`}
+                        </h3>
+                        <h3 className="open-market__offer__title">
+                          {`To buy: ${current.tileName}`}
+                        </h3>
+                        <p>{`Expires in: ${current.timer} seconds`}</p>
+                        <p>{`The offer is for $${current.price}M.`}</p>
+                        <div className="open-market__offer__buttons">
+                          <button
+                            className="open-market__sell-toast__button--yes"
+                            onClick={() => handleAcceptOffer(current)}
+                            type="button"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            className="open-market__sell-toast__button--no"
+                            onClick={() => handleDeclineOffer(current)}
+                            type="button"
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </section>
+                    ))}
+                  </motion.div>
+                </motion.div>
+              )
+              : null}
+          </AnimatePresence>
           {state.loaded && !state.boardState.gameStarted
             ? (
               <button className="button__start-game" type="button" onClick={() => socketFunctions.startGame()}>

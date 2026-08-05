@@ -5,6 +5,14 @@
   font-family: 'Avenir', sans-serif;
 }
 
+html, body, #root {
+  height: 100%;
+  /* The board is sized to the viewport (100vh); flipped cards overhang their
+     tile on purpose, so clip the overhang instead of letting it grow the page
+     and spawn scrollbars. */
+  overflow: hidden;
+}
+
 body {
   cursor: url('./cursor.png'), auto;
   /* Matches the board's capped width (min(100vw, 180vh)) so text is the same
@@ -25,30 +33,13 @@ button:hover {
   cursor: pointer;
 }
 
-.open-market__sell-toast {
-  position: fixed;
-  background-color: rgba(200, 232, 170, 0.842);
-  border-radius: 10px;
-  border: 2px solid blue;
-  top:  30%;
-  left: 30%;
-  width:  40%;
-  height: 30%;
-  padding: 5vmin;
-
-}
-
 .open-market__sell-toast__close {
   position: absolute;
-  top:  1vmin;
-  left: 1vmin;
-}
-
-.open-market__sell-toast-form {
-  transform: translate(-50%, -50%);
-  position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 1vmin;
+  right: 1.5vmin;
+  cursor: pointer;
+  font-size: 2vmin;
+  line-height: 1;
 }
 
 .log-chat-name {
