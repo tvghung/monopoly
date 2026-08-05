@@ -442,16 +442,21 @@ export default function Dashboard() {
                             />
                             <button className="open-market__sell-toast__button--yes" type="submit">Bid</button>
                           </form>
-                          <button
-                            className="open-market__sell-toast__button--no"
-                            type="button"
-                            onClick={() => socketFunctions.passBid()}
-                          >
-                            Pass
-                          </button>
+                          {state.boardState.auction.highestBidder === playerId
+                            ? <p>You have the leading bid.</p>
+                            : (
+                              <button
+                                className="open-market__sell-toast__button--no"
+                                type="button"
+                                title="Drop out of this auction"
+                                onClick={() => socketFunctions.passBid()}
+                              >
+                                No bid
+                              </button>
+                            )}
                         </>
                       )
-                      : <p>You have passed on this auction.</p>}
+                      : <p>You placed no bid — waiting for the auction to close.</p>}
                   </motion.div>
                 </motion.div>
               )

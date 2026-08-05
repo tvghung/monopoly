@@ -471,7 +471,7 @@ io.on('connection', (socket) => {
     auction.highestBidder = socket.id;
     auction.highestBidderName = player.name;
     // Keep the auction open a little longer after a fresh bid.
-    if (auction.timer < 8) auction.timer = 8;
+    if (auction.timer < 15) auction.timer = 15;
     sendToLog(state, `${player.name} bid $${auction.highestBid}M for ${auction.tileName}.`);
     io.to(room.id).emit('update', state);
   });
@@ -485,6 +485,8 @@ io.on('connection', (socket) => {
     const player = state.players[socket.id];
     if (!auction || !player) return;
     if (!auction.active.includes(socket.id)) return;
+    // The current top bidder can't withdraw their own leading bid.
+    if (auction.highestBidder === socket.id) return;
     auction.active = auction.active.filter((activeId) => activeId !== socket.id);
     sendToLog(state, `${player.name} passed on ${auction.tileName}.`);
     if (auction.active.length <= 1) {
