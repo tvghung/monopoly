@@ -137,12 +137,12 @@
 }
 /* Ownership status shown on the flipped card face. */
 .tile-back__mortgaged {
-  width: 92%;
-  margin: 0.6vmin 0;
-  padding: 0.25vmin 0;
+  width: 94%;
+  margin: 0.3vmin 0;
+  padding: 0.15vmin 0;
   color: #b00020;
   font-weight: 700;
-  font-size: 1.3vmin;
+  font-size: 1vmin;
   letter-spacing: 0.1vmin;
   text-align: center;
   background: rgba(176, 0, 32, 0.12);
@@ -152,6 +152,6 @@
 
 .tile-back__houses {
   margin: 0.25vmin 0;
-  font-size: 1.3vmin;
+  font-size: 1.1vmin;
   text-align: center;
 }
