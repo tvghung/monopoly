@@ -160,7 +160,14 @@ export default function Dashboard() {
                         </span>
                         <span className="player-card__balance">{`$${accountBalance}M`}</span>
                       </div>
-                      {isCurrent ? <span className="player-card__turn">Now playing</span> : null}
+                      {isCurrent
+                        ? (
+                          <span className="player-card__turn" title="Now playing">
+                            <span className="player-card__turn-dot" />
+                            Turn
+                          </span>
+                        )
+                        : null}
                     </li>
                   );
                 })}
@@ -476,16 +483,6 @@ export default function Dashboard() {
             : null}
         </section>
         <MarketPlace />
-      </section>
-      <section className="center__dashboard--current-player">
-        <h2 className="center__dashboard__player-info">Current player:</h2>
-        <h3 className="center__dashboard__player-info__current">
-          {state.loaded
-            ? (
-              state.players[activePlayerId] ? `${state.players[activePlayerId].name}` : 'None'
-            )
-            : 'Loading...'}
-        </h3>
       </section>
     </section>
   );
