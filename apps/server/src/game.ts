@@ -437,6 +437,7 @@ export const startAuction = (state: GameState, tileID: number): void => {
     highestBidder: null,
     highestBidderName: null,
     active: Object.keys(state.players),
+    passed: [],
     timer: 30,
   };
   sendToLog(state, `Auction started for ${tile.streetName}!`);

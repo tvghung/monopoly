@@ -470,13 +470,17 @@ io.on('connection', (socket) => {
     auction.highestBid = Math.floor(amount);
     auction.highestBidder = socket.id;
     auction.highestBidderName = player.name;
+    // A fresh bid re-opens the floor: everyone who had declined can react again.
+    auction.passed = [];
     // Keep the auction open a little longer after a fresh bid.
     if (auction.timer < 15) auction.timer = 15;
     sendToLog(state, `${player.name} bid $${auction.highestBid}M for ${auction.tileName}.`);
     io.to(room.id).emit('update', state);
   });
 
-  // Drop out of the running auction. Ends it once one or fewer bidders remain.
+  // Decline to bid (for now). The auction only ends when everyone except the
+  // current top bidder has declined since the last bid — a new bid clears these,
+  // so declining never locks you out of reacting to a later lowball bid.
   socket.on('pass bid', () => {
     const room = getRoom(socket.data.roomId);
     if (!room) return;
@@ -485,11 +489,15 @@ io.on('connection', (socket) => {
     const player = state.players[socket.id];
     if (!auction || !player) return;
     if (!auction.active.includes(socket.id)) return;
-    // The current top bidder can't withdraw their own leading bid.
+    // The current top bidder can't decline their own leading bid.
     if (auction.highestBidder === socket.id) return;
-    auction.active = auction.active.filter((activeId) => activeId !== socket.id);
-    sendToLog(state, `${player.name} passed on ${auction.tileName}.`);
-    if (auction.active.length <= 1) {
+    if (!auction.passed.includes(socket.id)) auction.passed.push(socket.id);
+    sendToLog(state, `${player.name} declined to bid on ${auction.tileName}.`);
+    // Everyone who could still act (everyone but the top bidder) has declined.
+    const stillToAct = auction.active.filter(
+      (id) => id !== auction.highestBidder && !auction.passed.includes(id),
+    );
+    if (stillToAct.length === 0) {
       endAuction(room);
       return;
     }
@@ -532,12 +540,18 @@ io.on('connection', (socket) => {
     const { auction } = state.boardState;
     if (auction) {
       auction.active = auction.active.filter((activeId) => activeId !== socket.id);
+      auction.passed = auction.passed.filter((passedId) => passedId !== socket.id);
       if (auction.highestBidder === socket.id) {
+        // The leader left: drop their bid and re-open the floor.
         auction.highestBidder = null;
         auction.highestBidderName = null;
         auction.highestBid = 0;
+        auction.passed = [];
       }
-      if (auction.active.length <= 1) {
+      const stillToAct = auction.active.filter(
+        (id) => id !== auction.highestBidder && !auction.passed.includes(id),
+      );
+      if (auction.active.length <= 1 || stillToAct.length === 0) {
         endAuction(room);
         return;
       }

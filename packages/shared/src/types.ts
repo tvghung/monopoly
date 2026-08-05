@@ -110,8 +110,11 @@ export interface Auction {
   highestBid: number;
   highestBidder: string | null;
   highestBidderName: string | null;
-  // Player ids still in the auction (haven't passed).
+  // Player ids taking part in the auction (only removed if they disconnect).
   active: string[];
+  // Player ids who have declined to bid since the last bid. Cleared whenever a
+  // new bid is placed, so a fresh bid re-opens the floor to everyone.
+  passed: string[];
   // Seconds remaining before the auction resolves.
   timer: number;
 }

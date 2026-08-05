@@ -11,6 +11,9 @@ import type { OfferOnProp, OfferResult } from '@monopoly/shared';
 
 type ActiveOffer = OfferOnProp & { timer: number };
 
+// Format an in-game amount with thousands separators, e.g. 1500 -> "$1,500M".
+const formatMoney = (amount: number): string => `$${amount.toLocaleString('en-US')}M`;
+
 export default function Dashboard() {
   const {
     socketFunctions, state, playerId, socket,
@@ -158,7 +161,7 @@ export default function Dashboard() {
                             )
                             : null}
                         </span>
-                        <span className="player-card__balance">{`$${accountBalance}M`}</span>
+                        <span className="player-card__balance">{formatMoney(accountBalance)}</span>
                       </div>
                       {isCurrent
                         ? (
@@ -414,10 +417,10 @@ export default function Dashboard() {
                     <h3 className="open-market__offer__title">
                       {`Auction: ${state.boardState.auction.tileName}`}
                     </h3>
-                    <p>{`List price: $${state.boardState.auction.price}M`}</p>
+                    <p>{`List price: ${formatMoney(state.boardState.auction.price)}`}</p>
                     <p>
                       {state.boardState.auction.highestBidder
-                        ? `Highest bid: $${state.boardState.auction.highestBid}M by ${state.boardState.auction.highestBidderName}`
+                        ? `Highest bid: ${formatMoney(state.boardState.auction.highestBid)} by ${state.boardState.auction.highestBidderName}`
                         : 'No bids yet'}
                     </p>
                     <p>{`Closes in: ${state.boardState.auction.timer}s`}</p>
@@ -444,19 +447,21 @@ export default function Dashboard() {
                           </form>
                           {state.boardState.auction.highestBidder === playerId
                             ? <p>You have the leading bid.</p>
-                            : (
-                              <button
-                                className="open-market__sell-toast__button--no"
-                                type="button"
-                                title="Drop out of this auction"
-                                onClick={() => socketFunctions.passBid()}
-                              >
-                                No bid
-                              </button>
-                            )}
+                            : state.boardState.auction.passed.includes(playerId as string)
+                              ? <p>You declined — place a bid to rejoin.</p>
+                              : (
+                                <button
+                                  className="open-market__sell-toast__button--no"
+                                  type="button"
+                                  title="Decline to bid for now (a new bid re-opens the floor)"
+                                  onClick={() => socketFunctions.passBid()}
+                                >
+                                  No bid
+                                </button>
+                              )}
                         </>
                       )
-                      : <p>You placed no bid — waiting for the auction to close.</p>}
+                      : <p>You&apos;re watching this auction.</p>}
                   </motion.div>
                 </motion.div>
               )
