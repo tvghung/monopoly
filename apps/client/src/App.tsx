@@ -14,12 +14,9 @@ const socketUrl = typeof __SOCKET_URL__ !== 'undefined' ? __SOCKET_URL__ : '';
 const socket: AppSocket = io(socketUrl || undefined);
 
 const socketFunctions: SocketFunctions = {
-  makeMove: (num) => socket.emit('makeMove', num),
   newPlayer: (name, roomId) => socket.emit('new player', name, roomId),
-  toggleHasMoved: (hasMoved) => socket.emit('player has moved', hasMoved),
   endTurn: () => socket.emit('end turn', ''),
-  sendDice: (dices) => socket.emit('send dice', dices),
-  inJail: (dices) => socket.emit('in jail', dices),
+  rollDice: () => socket.emit('roll dice'),
   buyProperty: () => socket.emit('buy property', true),
   sendChat: (message) => socket.emit('send chat', message),
   putOpenMarket: (saleInfo) => socket.emit('put on open market', saleInfo),

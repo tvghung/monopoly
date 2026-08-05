@@ -2,7 +2,6 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { Socket } from 'socket.io-client';
 import type {
   GameState,
-  DiceValue,
   SaleInfo,
   OfferInfo,
   Offer,
@@ -14,12 +13,9 @@ import type {
 export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 export interface SocketFunctions {
-  makeMove: (num: number) => void;
   newPlayer: (name: string, roomId: string) => void;
-  toggleHasMoved: (hasMoved: boolean) => void;
   endTurn: () => void;
-  sendDice: (dices: DiceValue) => void;
-  inJail: (dices: DiceValue) => void;
+  rollDice: () => void;
   buyProperty: () => void;
   sendChat: (message: string) => void;
   putOpenMarket: (saleInfo: SaleInfo) => void;

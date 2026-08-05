@@ -4,7 +4,6 @@
 
 import type {
   GameState,
-  DiceValue,
   SaleInfo,
   OfferInfo,
   OfferOnProp,
@@ -22,13 +21,12 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
   'new player': (name: string, roomId: string) => void;
   'start game': (payload: string) => void;
-  makeMove: (num: number) => void;
   'send chat': (message: string) => void;
   'end turn': (payload: string) => void;
-  'player has moved': (hasMoved: boolean) => void;
+  // The server rolls the dice, moves the player, and resolves the tile it lands
+  // on — clients no longer generate dice or drive movement (anti-cheat).
+  'roll dice': () => void;
   'buy property': (payload: boolean) => void;
-  'send dice': (dices: DiceValue) => void;
-  'in jail': (dices: DiceValue) => void;
   'put on open market': (saleInfo: SaleInfo) => void;
   'make offer': (offerInfo: OfferInfo) => void;
   'accept offer': (offer: Offer) => void;

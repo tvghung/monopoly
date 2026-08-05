@@ -5,8 +5,6 @@ import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import {
   tileState,
-  chestCards,
-  chanceCards,
   type ClientToServerEvents,
   type ServerToClientEvents,
   type InterServerEvents,
@@ -24,8 +22,10 @@ import {
   sendToLog,
   checkBalance,
   nextTurn,
-  checkOwned,
-  applyCard,
+  rollDice,
+  movePlayer,
+  resolveTile,
+  handleJailRoll,
 } from './game';
 
 const { env } = process;
@@ -59,8 +59,6 @@ if (env.NODE_ENV === 'production') {
     res.sendFile(path.join(clientDist, 'index.html'));
   });
 }
-
-const railRoadTiles = [5, 15, 25, 35];
 
 io.on('connection', (socket) => {
   // A player joins a room. This is the only handler that runs before the socket
@@ -110,23 +108,34 @@ io.on('connection', (socket) => {
     io.to(room.id).emit('update', state);
   });
 
-  // Move a step when the dice are rolled.
-  socket.on('makeMove', (num) => {
+  // Roll the dice (server-authoritative). The server generates the dice, moves
+  // the player, and resolves the landed tile — the client only asks to roll.
+  socket.on('roll dice', () => {
     const room = getRoom(socket.data.roomId);
     if (!room) return;
     const { state } = room;
     const { id } = socket;
-    if (!state.players[id]) return;
-    const cTile = state.players[id].currentTile;
-    if (cTile + num < 40) {
-      state.players[id].currentTile = cTile + num;
-    } else {
-      const left = 40 - cTile;
-      const more = num - left;
-      state.players[id].currentTile = more;
-      state.players[id].accountBalance += 200;
-      sendToLog(state, `${state.players[id].name} has passed start and recieved $200M`);
+    const player = state.players[id];
+    // Authority guards: game running, sender's turn, and not already rolled.
+    if (!player) return;
+    if (!state.boardState.gameStarted) return;
+    if (state.boardState.currentPlayer.id !== id) return;
+    if (state.boardState.currentPlayer.hasMoved) return;
+
+    const dice = rollDice();
+    const diceResult = dice.dice1[1] + dice.dice2[1];
+
+    if (player.isJail) {
+      handleJailRoll(state, id, dice);
+      io.to(room.id).emit('update', state);
+      return;
     }
+
+    state.boardState.diceValue = dice;
+    state.boardState.currentPlayer.hasMoved = true;
+    sendToLog(state, `${player.name} rolled ${diceResult}!`);
+    movePlayer(state, id, diceResult);
+    resolveTile(state, id, diceResult);
     io.to(room.id).emit('update', state);
   });
 
@@ -156,178 +165,39 @@ io.on('connection', (socket) => {
     io.to(room.id).emit('update', state);
   });
 
-  // End the current turn.
+  // End the current turn (only the current player may).
   socket.on('end turn', () => {
     const room = getRoom(socket.data.roomId);
     if (!room) return;
     const { state } = room;
+    if (state.boardState.currentPlayer.id !== socket.id) return;
     nextTurn(state);
-    state.boardState.currentPlayer.hasMoved = false;
     io.to(room.id).emit('update', state);
   });
 
-  // Resolve the tile a player has moved onto.
-  socket.on('player has moved', (hasMoved) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room) return;
-    const { state } = room;
-    if (!state.players[socket.id]) return;
-    state.boardState.currentPlayer.hasMoved = hasMoved;
-    const { currentTile } = state.players[socket.id];
-    const { dice1, dice2 } = state.boardState.diceValue;
-    const diceResult = dice1[1] + dice2[1];
-    const playerName = state.players[socket.id].name;
-    const tile = tileState[currentTile];
-    const rent = tile.rent ?? 0;
-
-    switch (tile.tileType) {
-      case 'normal':
-        checkOwned(state, socket.id, currentTile, () => {
-          const currentTileOwner = state.boardState.ownedProps[currentTile].id;
-          state.players[socket.id].accountBalance -= rent;
-          state.players[currentTileOwner].accountBalance += rent;
-          sendToLog(
-            state,
-            `${playerName} have paid rent $${rent}M to ${
-              state.players[currentTileOwner].name
-            }`,
-          );
-        });
-        break;
-      case 'expense':
-        state.players[socket.id].accountBalance -= rent;
-        sendToLog(state, `${playerName} paid ${rent} in taxes.`);
-        nextTurn(state);
-        break;
-      case 'railroad': {
-        checkOwned(state, socket.id, currentTile, () => {
-          const ownerId = state.boardState.ownedProps[currentTile].id;
-          let ownedRailroads = 0;
-          railRoadTiles.forEach((tileNumb) => {
-            if (
-              state.boardState.ownedProps[tileNumb]
-              && state.boardState.ownedProps[tileNumb].id === ownerId
-            ) {
-              ownedRailroads += 1;
-            }
-          });
-          const priceToPay = 25 * 2 ** (ownedRailroads - 1);
-          state.players[socket.id].accountBalance -= priceToPay;
-          state.players[ownerId].accountBalance += priceToPay;
-          if (ownedRailroads > 1) {
-            sendToLog(
-              state,
-              `${playerName} have paid rent $${priceToPay}M for ${ownedRailroads} owned railroads to ${
-                state.players[ownerId].name
-              }`,
-            );
-          } else {
-            sendToLog(state, `${playerName} have paid rent $${priceToPay}M to ${state.players[ownerId].name}`);
-          }
-        });
-        break;
-      }
-      case 'gojail':
-        state.players[socket.id].isJail = true;
-        state.players[socket.id].jailRounds = 0;
-        state.players[socket.id].currentTile = 10;
-        sendToLog(state, `${playerName} was sent to jail for tax fraud.`);
-        nextTurn(state);
-        break;
-      case 'jail':
-        sendToLog(state, `${playerName}, dont't worry! You're just visiting.`);
-        nextTurn(state);
-        break;
-      case 'company': {
-        checkOwned(state, socket.id, currentTile, () => {
-          const ownerId = state.boardState.ownedProps[currentTile].id;
-          let priceToPay = 0;
-          if (
-            state.boardState.ownedProps[12]
-            && state.boardState.ownedProps[28]
-            && state.boardState.ownedProps[12].id === ownerId
-            && state.boardState.ownedProps[28].id === ownerId
-          ) {
-            priceToPay = diceResult * 10;
-          } else {
-            priceToPay = diceResult * 4;
-          }
-          state.players[socket.id].accountBalance -= priceToPay;
-          state.players[ownerId].accountBalance += priceToPay;
-          sendToLog(state, `${playerName} have paid rent $${priceToPay}M to ${state.players[ownerId].name}`);
-        });
-        break;
-      }
-      case 'chance':
-      case 'chest': {
-        const deck = tile.tileType === 'chance' ? chanceCards : chestCards;
-        const card = deck[Math.floor(Math.random() * deck.length)];
-        applyCard(state, socket.id, card);
-        nextTurn(state);
-        break;
-      }
-      default:
-        nextTurn(state);
-        break;
-    }
-    io.to(room.id).emit('update', state);
-  });
-
-  // Buy the property the player is standing on.
+  // Buy the property the player is standing on. Only the current player may buy,
+  // only on a tile flagged buyable this turn, and only if they can afford it.
   socket.on('buy property', () => {
     const room = getRoom(socket.data.roomId);
     if (!room) return;
     const { state } = room;
-    if (!state.players[socket.id]) return;
-    const { accountBalance, currentTile, name } = state.players[socket.id];
+    const player = state.players[socket.id];
+    if (!player) return;
+    if (state.boardState.currentPlayer.id !== socket.id) return;
+    if (!state.turnInfo.canBuyProp) return;
+    const { currentTile, name } = player;
     const price = tileState[currentTile].price ?? 0;
-    state.players[socket.id].accountBalance = accountBalance - price;
+    if (player.accountBalance < price) {
+      sendToLog(state, `${name} can't afford ${tileState[currentTile].streetName}.`);
+      io.to(room.id).emit('update', state);
+      return;
+    }
+    player.accountBalance -= price;
     state.boardState.ownedProps[currentTile] = {
       id: socket.id,
-      color: state.players[socket.id].color,
+      color: player.color,
     };
     sendToLog(state, `${name} bought a property!`);
-    nextTurn(state);
-    io.to(room.id).emit('update', state);
-  });
-
-  // Update the shared dice state.
-  socket.on('send dice', (dices) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room) return;
-    const { state } = room;
-    if (!state.players[socket.id]) return;
-    state.boardState.diceValue = dices;
-    const diceResult = dices.dice1[1] + dices.dice2[1];
-    const playerName = state.players[socket.id].name;
-    sendToLog(state, `${playerName} rolled ${diceResult}!`);
-    io.to(room.id).emit('update', state);
-  });
-
-  // Handle a roll while in jail.
-  socket.on('in jail', (dices) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room) return;
-    const { state } = room;
-    if (!state.players[socket.id]) return;
-    const { jailRounds, currentTile, name } = state.players[socket.id];
-    const diceResult = dices.dice1[1] + dices.dice2[1];
-    if (jailRounds === 2) {
-      state.players[socket.id].currentTile = currentTile + diceResult;
-      state.players[socket.id].isJail = false;
-      state.players[socket.id].jailRounds = 0;
-      state.boardState.currentPlayer.hasMoved = true;
-      sendToLog(state, `${name} waited patiently and got out of jail.`);
-    } else if (dices.dice1[1] === dices.dice2[1]) {
-      state.players[socket.id].currentTile = currentTile + diceResult;
-      state.players[socket.id].isJail = false;
-      state.players[socket.id].jailRounds = 0;
-      sendToLog(state, `${name} got lucky and escaped jail!`);
-    } else {
-      state.players[socket.id].jailRounds += 1;
-      sendToLog(state, `${name} has to stay in jail.`);
-    }
-    state.boardState.diceValue = dices;
     nextTurn(state);
     io.to(room.id).emit('update', state);
   });
@@ -337,12 +207,15 @@ io.on('connection', (socket) => {
     const room = getRoom(socket.data.roomId);
     if (!room) return;
     const { state } = room;
-    const { tileID, playerId, price } = saleInfo;
+    const { tileID, price } = saleInfo;
     const tileName = tileState[tileID].streetName;
-    const sellerName = state.players[playerId]?.name;
-    if (!sellerName) return;
+    const sellerName = state.players[socket.id]?.name;
+    // Only the tile's owner may list it, and the price must be positive.
+    const owner = state.boardState.ownedProps[tileID];
+    if (!sellerName || !owner || owner.id !== socket.id) return;
+    if (!(price > 0)) return;
     state.boardState.openMarket[tileID] = {
-      seller: playerId,
+      seller: socket.id,
       price,
       sellerName,
       tileName,
@@ -350,13 +223,14 @@ io.on('connection', (socket) => {
     io.to(room.id).emit('update', state);
   });
 
-  // Remove a property listing.
+  // Remove a property listing (only the seller may).
   socket.on('remove sale', (item) => {
     const room = getRoom(socket.data.roomId);
     if (!room) return;
     const { state } = room;
     const tile = Number(item);
     if (!state.boardState.openMarket[tile]) return;
+    if (state.boardState.openMarket[tile].seller !== socket.id) return;
     const { tileName } = state.boardState.openMarket[tile];
     delete state.boardState.openMarket[tile];
     const playerName = state.players[socket.id]?.name ?? 'A player';
@@ -374,6 +248,13 @@ io.on('connection', (socket) => {
     const {
       seller, price, sellerName, tileName,
     } = state.boardState.openMarket[tile];
+    // Can't buy your own listing, and you must be able to afford it.
+    if (seller === socket.id) return;
+    if (state.players[socket.id].accountBalance < price) {
+      sendToLog(state, `${state.players[socket.id].name} can't afford ${tileName}.`);
+      io.to(room.id).emit('update', state);
+      return;
+    }
     const buyerName = state.players[socket.id].name;
     if (state.players[seller]) state.players[seller].accountBalance += price;
     state.players[socket.id].accountBalance -= price;
@@ -407,7 +288,8 @@ io.on('connection', (socket) => {
       playerId, tileID, price, tileName,
     } = offer;
     const ownerID = state.boardState.ownedProps[tileID]?.id;
-    if (!ownerID) return;
+    // Only the property's owner may decline an offer for it.
+    if (!ownerID || ownerID !== socket.id) return;
     const ownerName = state.players[ownerID].name;
     io.to(playerId).emit('offer declined', { tileName, price, ownerName });
   });
@@ -421,9 +303,16 @@ io.on('connection', (socket) => {
       playerId, tileID, price, tileName,
     } = offer;
     const ownerID = state.boardState.ownedProps[tileID]?.id;
-    if (!ownerID || !state.players[playerId]) return;
+    // Only the property's owner may accept, and the buyer must still exist.
+    if (!ownerID || ownerID !== socket.id || !state.players[playerId]) return;
     const ownerName = state.players[ownerID].name;
     const buyerName = state.players[playerId].name;
+    // The buyer must still be able to afford the agreed price.
+    if (state.players[playerId].accountBalance < price) {
+      sendToLog(state, `${buyerName} can no longer afford ${tileName}.`);
+      io.to(room.id).emit('update', state);
+      return;
+    }
     state.players[ownerID].accountBalance += price;
     state.players[playerId].accountBalance -= price;
     state.boardState.ownedProps[tileID].id = playerId;
