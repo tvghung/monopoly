@@ -174,5 +174,6 @@ market — but you can keep spectating and chatting.
 
 Ideas for later:
 
+- [ ] Doubles rules: roll again after a double, and go to jail on three doubles in a row
 - [ ] Persist games so they survive a server restart (state is in-memory only)
 - [ ] Reconnect to your seat after a dropped connection (you're currently removed on disconnect)
