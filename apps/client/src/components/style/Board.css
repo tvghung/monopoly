@@ -24,15 +24,11 @@
   position: relative;
 }
 
-/* Corner ribbon in the owner's colour, marking a claimed tile. */
-.tile__owner-flag {
+/* Inset frame in the owner's colour, ringing a claimed tile so ownership is
+   readable at a glance. The colour is applied inline via box-shadow. */
+.tile__owner-frame {
   position: absolute;
-  top: 0;
-  right: 0;
-  width: 0;
-  height: 0;
-  border-top: 1.7vmin solid #000;
-  border-left: 1.7vmin solid transparent;
+  inset: 0;
   z-index: 3;
   pointer-events: none;
 }
