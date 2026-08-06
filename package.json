@@ -1,6 +1,6 @@
 {
   "name": "monopoly-websockets",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Real-time multiplayer Monopoly (Express + Socket.IO + React/Vite)",
   "private": true,
   "type": "module",
