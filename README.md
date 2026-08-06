@@ -1,11 +1,24 @@
 # Monopoly Websockets
 
+[![Live demo](https://img.shields.io/badge/▶_Live_demo-monopoly.michalik.no-2ea44f?style=for-the-badge)](https://monopoly.michalik.no)
+
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-5FA04E?logo=nodedotjs&logoColor=white)
+![Socket.IO](https://img.shields.io/badge/Socket.IO-010101?logo=socketdotio&logoColor=white)
+![pnpm](https://img.shields.io/badge/pnpm-F69220?logo=pnpm&logoColor=white)
+
 ![GitHub top language](https://img.shields.io/github/languages/top/terragady/monopoly-websockets)
 ![GitHub repo size](https://img.shields.io/github/repo-size/terragady/monopoly-websockets)
+![GitHub last commit](https://img.shields.io/github/last-commit/terragady/monopoly-websockets)
 ![GitHub](https://img.shields.io/github/license/terragady/monopoly-websockets)
 
 Real-time multiplayer Monopoly you can play in the browser with friends over a
 shared room code.
+
+**▶ Play it live at [monopoly.michalik.no](https://monopoly.michalik.no)** — grab a
+room code and share it with friends.
 
 This started life as a small 2020 hobby project and has since been **rewritten from
 the ground up**: the original single-file Express + Create React App codebase (one
