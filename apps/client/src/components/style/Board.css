@@ -24,13 +24,18 @@
   position: relative;
 }
 
-/* Inset frame in the owner's colour, ringing a claimed tile so ownership is
-   readable at a glance. The colour is applied inline via box-shadow. */
+/* Ownership marker: a thin ring in the owner's colour plus a soft inner glow
+   that diffuses toward the tile centre, so ownership reads at a glance without a
+   harsh outline. Sits below the player tokens (z-index 2) so it never covers a
+   token. The colour comes in via the inline `--owner-color` custom property. */
 .tile__owner-frame {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 1;
   pointer-events: none;
+  box-shadow:
+    inset 0 0 0 0.28vmin var(--owner-color),
+    inset 0 0 1.4vmin -0.15vmin var(--owner-color);
 }
 
 .Tile:hover {
