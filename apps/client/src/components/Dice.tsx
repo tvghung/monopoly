@@ -79,8 +79,8 @@ export default function Dice() {
   const canRoll = isMyTurn && !state.boardState.currentPlayer.hasMoved && tokensSettled;
 
   const dice = state.boardState.diceValue;
-  const first = dice.dice1[1];
-  const second = dice.dice2[1];
+  const first = dice.dice1;
+  const second = dice.dice2;
 
   // Bump a spin counter whenever a new roll arrives so the cubes always tumble,
   // even when the same total (or same face) comes up twice in a row.

@@ -14,7 +14,6 @@ export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 export interface SocketFunctions {
   newPlayer: (name: string, roomId: string) => void;
-  endTurn: () => void;
   rollDice: () => void;
   buyProperty: () => void;
   sendChat: (message: string) => void;

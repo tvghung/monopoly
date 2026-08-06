@@ -22,7 +22,6 @@ export interface ClientToServerEvents {
   'new player': (name: string, roomId: string) => void;
   'start game': (payload: string) => void;
   'send chat': (message: string) => void;
-  'end turn': (payload: string) => void;
   // The server rolls the dice, moves the player, and resolves the tile it lands
   // on — clients no longer generate dice or drive movement (anti-cheat).
   'roll dice': () => void;

@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { useContext, type CSSProperties } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import './style/Board.css';
 import stateContext from '../internal';
@@ -69,7 +69,7 @@ function Tile({ initState, id, position }: TileProps) {
             <div
               className="tile__owner-frame"
               title="Owned property"
-              style={{ boxShadow: `inset 0 0 0 0.35vmin ${owned.color}` }}
+              style={{ '--owner-color': owned.color } as CSSProperties}
             />
           )
           : null}

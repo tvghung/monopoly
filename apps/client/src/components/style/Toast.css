@@ -1,0 +1,28 @@
+/* Bottom-centre stack of transient notifications, matching the old alert's
+   position (bottom centre, 30px offset). The container ignores pointer events
+   so it never blocks the board; individual toasts re-enable them. */
+.toast__container {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.toast {
+  background: #151515;
+  color: #ffffff;
+  padding: 10px 20px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: center;
+  max-width: 90vw;
+  pointer-events: auto;
+}

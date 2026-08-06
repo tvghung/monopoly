@@ -30,7 +30,7 @@ const freshState = (): GameState => ({
     finishedPlayers: {},
     currentPlayer: { id: '', hasMoved: false },
     logs: [],
-    diceValue: { dice1: ['⚅', 0], dice2: ['⚅', 0] },
+    diceValue: { dice1: 0, dice2: 0 },
     ownedProps: {},
     openMarket: {},
     winner: null,
@@ -43,7 +43,7 @@ const freshState = (): GameState => ({
 
 // Normalise a raw room code to a safe, shareable id; blank falls back to LOBBY.
 export const normalizeRoomId = (raw: unknown): string => {
-  const value = String(raw ?? '')
+  const value = (typeof raw === 'string' ? raw : '')
     .replace(/[^a-zA-Z0-9-]/g, '')
     .trim()
     .slice(0, 20)
