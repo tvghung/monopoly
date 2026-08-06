@@ -2,7 +2,7 @@
 
 [![Live demo](https://img.shields.io/badge/▶_Live_demo-monopoly.michalik.no-2ea44f?style=for-the-badge)](https://monopoly.michalik.no)
 
-[![CI](https://img.shields.io/github/actions/workflow/status/terragady/monopoly-websockets/ci.yml?branch=main&label=CI&logo=github)](https://github.com/terragady/monopoly-websockets/actions/workflows/ci.yml)
+[![CI](https://github.com/terragady/monopoly-websockets/actions/workflows/ci.yml/badge.svg)](https://github.com/terragady/monopoly-websockets/actions/workflows/ci.yml)
 ![GitHub top language](https://img.shields.io/github/languages/top/terragady/monopoly-websockets)
 ![GitHub repo size](https://img.shields.io/github/repo-size/terragady/monopoly-websockets)
 ![GitHub last commit](https://img.shields.io/github/last-commit/terragady/monopoly-websockets)
@@ -30,7 +30,7 @@ an animated, polished UI. See [What changed in the rewrite](#what-changed-in-the
 
 Everything that happens is written to the in-game log / chat — keep an eye on it!
 
-![image](https://user-images.githubusercontent.com/19210041/187416300-fd0c4e0c-8942-4c36-863d-6b00664d3e0b.png)
+![Monopoly Websockets game board](./docs/screenshot.png)
 
 ## What changed in the rewrite
 
@@ -156,8 +156,6 @@ market — but you can keep spectating and chatting.
 **How do I win?** Be the last player who isn't bankrupt.
 
 ## Roadmap
-
-Done:
 
 - [x] pnpm monorepo + Vite + full TypeScript conversion
 - [x] Server-authoritative state pushed to all clients

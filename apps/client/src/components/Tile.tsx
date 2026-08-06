@@ -64,12 +64,12 @@ function Tile({ initState, id, position }: TileProps) {
   if (!cardsBack[id].clicked) {
     return (
       <article role="presentation" onClick={handleCardClick} className={`Tile tile${id} ${position}`} id={String(id)}>
-        {isOwned
+        {owned
           ? (
             <div
-              className="tile__owner-flag"
+              className="tile__owner-frame"
               title="Owned property"
-              style={{ borderTopColor: state.boardState.ownedProps[id].color }}
+              style={{ boxShadow: `inset 0 0 0 0.35vmin ${owned.color}` }}
             />
           )
           : null}
