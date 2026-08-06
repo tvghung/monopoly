@@ -1,0 +1,60 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Avenir', sans-serif;
+}
+
+html, body, #root {
+  height: 100%;
+  /* The board is sized to the viewport (100vh); flipped cards overhang their
+     tile on purpose, so clip the overhang instead of letting it grow the page
+     and spawn scrollbars. */
+  overflow: hidden;
+}
+
+body {
+  cursor: url('./cursor.png'), auto;
+  /* Matches the board's capped width (min(100vw, 180vh)) so text is the same
+     size as the original 0.8vw on normal screens, but caps on ultra-wide
+     windows instead of growing unboundedly. */
+  font-size: calc(min(100vw, 180vh) * 0.008);
+}
+
+button {
+  outline: none;
+}
+
+button:disabled{
+  outline: none;
+}
+
+button:hover {
+  cursor: pointer;
+}
+
+.open-market__sell-toast__close {
+  position: absolute;
+  top: 1vmin;
+  right: 1.5vmin;
+  cursor: pointer;
+  font-size: 2vmin;
+  line-height: 1;
+}
+
+.log-chat-name {
+  text-shadow: 0px 0px 1px black;
+  /* letter-spacing: 0.2vmin;
+  text-shadow:
+  -0.5px -0.5px 0 #000,  
+   0.5px -0.5px 0 #000,
+   -0.5px 0.5px 0 #000,
+    0.5px 0.5px 0 #000; */
+  font-weight: bold;
+
+}
+
+.bankrupt-message {
+  color: red;
+  font-weight: bold;
+}

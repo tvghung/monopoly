@@ -1,0 +1,18 @@
+# Render Blueprint — single free web service that builds the client and runs the
+# Node server, which serves the built client same-origin. Deploy with:
+#   Render dashboard → New → Blueprint → point at this repo.
+services:
+  - type: web
+    name: monopoly-websockets
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @monopoly/client build
+    startCommand: pnpm --filter @monopoly/server start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "24"

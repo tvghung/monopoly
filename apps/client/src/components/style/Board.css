@@ -1,0 +1,487 @@
+.Board {
+  display: grid;
+  grid-template-columns: 1.5fr repeat(9, 1.5fr) 1.5fr;
+  grid-template-rows: 1.5fr repeat(9, 1.5fr) 1.5fr;
+  grid-gap: 0px;
+  /* Fill the viewport height, and fill the width too — but cap how wide the
+     board may get relative to its height so it never stretches into an ugly
+     ultra-wide rectangle. 180vh = at most a 1.8:1 ratio (normal 16:9/16:10
+     screens fill completely; only very wide windows get letterboxed).
+     Lower this number for a squarer board, raise it to allow more stretch. */
+  height: 100vh;
+  width: min(100vw, 180vh);
+  background: rgb(191, 234, 163);
+  border: 2px solid black;
+}
+
+.Tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  position: relative;
+}
+
+/* Corner ribbon in the owner's colour, marking a claimed tile. */
+.tile__owner-flag {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-top: 1.7vmin solid #000;
+  border-left: 1.7vmin solid transparent;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.Tile:hover {
+  cursor: pointer;
+}
+
+.tile0 {
+  grid-area: 11 / 11 / 12 / 12;
+  background-image: url('/icons/go.gif');
+  background-position: center -0.6vmin;
+  background-repeat: no-repeat;
+  background-size: 9vmin;
+}
+
+.tile1 {
+  grid-area: 11 / 10 / 12 / 11;
+  position: relative;
+}
+
+.tile2 {
+  grid-area: 11 / 9 / 12 / 10;
+  background-image: url('/icons/chest.gif');
+  background-position: center 1.5vmin;
+  background-repeat: no-repeat;
+  background-size: 7.25vmin;
+}
+
+.tile3 {
+  grid-area: 11 / 8 / 12 / 9;
+}
+
+.tile4 {
+  grid-area: 11 / 7 / 12 / 8;
+  background-image: url('/icons/tax.png');
+  background-position: center 2.5vmin;
+  background-repeat: no-repeat;
+  background-size: 4vmin;
+}
+
+.tile5 {
+  grid-area: 11 / 6 / 12 / 7;
+  background-image: url('/icons/railroad.png');
+  background-position: center 2vmin;
+  background-repeat: no-repeat;
+  background-size: 5vmin;
+}
+
+.tile6 {
+  grid-area: 11 / 5 / 12 / 6;
+}
+
+.tile7 {
+  grid-area: 11 / 4 / 12 / 5;
+  background-image: url('/icons/chance.png');
+  background-position: center 2.5vmin;
+  background-repeat: no-repeat;
+  background-size: 3.5vmin;
+}
+
+.tile8 {
+  grid-area: 11 / 3 / 12 / 4;
+}
+
+.tile9 {
+  grid-area: 11 / 2 / 12 / 3;
+}
+
+.tile10 {
+  grid-area: 11 / 1 / 12 / 2;
+  background-image: url('/icons/jail.png');
+  background-position: center 2.5vmin;
+  background-repeat: no-repeat;
+  background-size: 5.25vmin;
+}
+
+.tile11 {
+  grid-area: 10 / 1 / 11 / 2;
+}
+
+.tile12 {
+  grid-area: 9 / 1 / 10 / 2;
+  background-image: url('/icons/electric.gif');
+  background-position: center 2vmin;
+  background-repeat: no-repeat;
+  background-size: 3.5vmin;
+}
+
+.tile13 {
+  grid-area: 8 / 1 / 9 / 2;
+}
+
+.tile14 {
+  grid-area: 7 / 1 / 8 / 2;
+}
+
+.tile15 {
+  grid-area: 6 / 1 / 7 / 2;
+  background-image: url('/icons/railroad.png');
+  background-position: center 2vmin;
+  background-repeat: no-repeat;
+  background-size: 5vmin;
+}
+
+.tile16 {
+  grid-area: 5 / 1 / 6 / 2;
+}
+
+.tile17 {
+  grid-area: 4 / 1 / 5 / 2;
+  background-image: url('/icons/chance.png');
+  background-position: center 2.5vmin;
+  background-repeat: no-repeat;
+  background-size: 3.5vmin;
+}
+
+.tile18 {
+  grid-area: 3 / 1 / 4 / 2;
+}
+
+.tile19 {
+  grid-area: 2 / 1 / 3 / 2;
+}
+
+.tile20 {
+  grid-area: 1 / 1 / 2 / 2;
+}
+
+/* Free Parking icon, rendered as an emoji so it never depends on a remote
+   image (the old hotlinked graphic no longer loads). */
+.tile20::after {
+  content: '🚗';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 5vmin;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.tile21 {
+  grid-area: 1 / 2 / 2 / 3;
+}
+
+.tile22 {
+  grid-area: 1 / 3 / 2 / 4;
+  background-image: url('/icons/chance.png');
+  background-position: center 2.5vmin;
+  background-repeat: no-repeat;
+  background-size: 3.5vmin;
+}
+
+.tile23 {
+  grid-area: 1 / 4 / 2 / 5;
+}
+
+.tile24 {
+  grid-area: 1 / 5 / 2 / 6;
+}
+
+.tile25 {
+  grid-area: 1 / 6 / 2 / 7;
+  background-image: url('/icons/railroad.png');
+  background-position: center 2vmin;
+  background-repeat: no-repeat;
+  background-size: 5vmin;
+}
+
+.tile26 {
+  grid-area: 1 / 7 / 2 / 8;
+}
+
+.tile27 {
+  grid-area: 1 / 8 / 2 / 9;
+}
+
+.tile28 {
+  grid-area: 1 / 9 / 2 / 10;
+  background-image: url('/icons/water.png');
+  background-position: center 2.5vmin;
+  background-repeat: no-repeat;
+  background-size: 3.5vmin;
+}
+
+.tile29 {
+  grid-area: 1 / 10 / 2 / 11;
+}
+
+.tile30 {
+  grid-area: 1 / 11 / 2 / 12;
+  background-image: url('/icons/gotojail.gif');
+  background-position: center 2.5vmin;
+  background-repeat: no-repeat;
+  background-size: 7vmin;
+}
+
+.tile31 {
+  grid-area: 2 / 11 / 3 / 12;
+}
+
+.tile32 {
+  grid-area: 3 / 11 / 4 / 12;
+}
+
+.tile33 {
+  grid-area: 4 / 11 / 5 / 12;
+  background-image: url('/icons/chest.gif');
+  background-position: center 1.5vmin;
+  background-repeat: no-repeat;
+  background-size: 7.25vmin;
+}
+
+.tile34 {
+  grid-area: 5 / 11 / 6 / 12;
+}
+
+.tile35 {
+  grid-area: 6 / 11 / 7 / 12;
+  background-image: url('/icons/railroad.png');
+  background-position: center 2vmin;
+  background-repeat: no-repeat;
+  background-size: 5vmin;
+}
+
+.tile36 {
+  grid-area: 7 / 11 / 8 / 12;
+  background-image: url('/icons/chance.png');
+  background-position: center 2.5vmin;
+  background-repeat: no-repeat;
+  background-size: 3.5vmin;
+}
+
+.tile37 {
+  grid-area: 8 / 11 / 9 / 12;
+}
+
+.tile38 {
+  grid-area: 9 / 11 / 10 / 12;
+  background-image: url('/icons/tax.png');
+  background-position: center 2.5vmin;
+  background-repeat: no-repeat;
+  background-size: 4vmin;
+}
+
+.tile39 {
+  grid-area: 10 / 11 / 11 / 12;
+}
+
+.center {
+  grid-area: 2 / 2 / 11 / 11;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+  "dice log"
+  "dashboard dashboard";
+  width: 92%;
+  position: relative;
+  margin: 5vmin;
+  padding: 2vw 3vw 2vw 4vw;
+  background:rgba(255, 255, 255, 0.50);
+}
+
+.tile__start {
+  border-top: 1px solid black;
+  border-left: 1px solid black;
+}
+
+.tile__horizontal--top {
+  border-top: 1px solid black;
+  border-bottom: 1px solid black;
+  border-left: 1px solid black;
+}
+
+.tile__horizontal--top .tile__color-box {
+  order: 1;
+  height: 1.5vh;
+  border-top: 1px solid black;
+}
+
+.tile__vertical--right {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  border-top: 1px solid black;
+  border-left: 1px solid black;
+}
+
+.tile__vertical--right .tile__color-box {
+  width: 1.5vh;
+  height: 100%;
+  margin-right: 1.5vh;
+  border-right: 1px solid black;
+}
+
+.tile__horizontal--bottom {
+  border-top: 1px solid black;
+  border-left: 1px solid black;
+}
+
+.tile__horizontal--bottom .tile__street-name {
+  margin-top: -6vh;
+  margin-bottom: 0.5vh;
+}
+
+.tile__horizontal--bottom .tile__color-box {
+  height: 1.5vh;
+  border-bottom: 1px solid black;
+}
+
+.tile__vertical--left {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  border-top: 1px solid black;
+  border-right: 1px solid black;
+}
+
+.tile__vertical--left .tile__color-box {
+  order: 1;
+  width: 1.5vh;
+  height: 100%;
+  border-bottom: 0;
+  margin-left: 1.5vh;
+  border-left: 1px solid black;
+}
+
+.tile__wrapper {
+  width: 100%;
+  text-align: center;
+}
+
+.tile__special--wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+}
+
+.tile__street-name {
+  margin-top: 2.5vh;
+  margin-bottom: 0.5vh;
+}
+
+.tile__special-name {
+  margin-top: 0.4vmin;
+  font-weight: bold;
+}
+
+.tile__price {
+  font-weight: bold;
+}
+
+.tile__special--price {
+  margin-bottom: 0.4vmin;
+  font-weight: bold;
+}
+
+.player__token--wrapper {
+  display: flex;
+  position: absolute;
+  gap: 0.3vmin;
+  z-index: 2;
+}
+
+/* Glossy game-piece disc showing the player's initial. */
+.player__token {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.3vmin;
+  height: 2.3vmin;
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  border-radius: 50%;
+  color: #fff;
+  overflow: hidden;
+  box-shadow:
+    0 0.3vmin 0.5vmin rgba(0, 0, 0, 0.45),
+    inset 0 0.35vmin 0.35vmin rgba(255, 255, 255, 0.55),
+    inset 0 -0.3vmin 0.3vmin rgba(0, 0, 0, 0.35);
+}
+
+.player__token::after {
+  content: '';
+  position: absolute;
+  top: 10%;
+  left: 16%;
+  width: 45%;
+  height: 32%;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  filter: blur(0.15vmin);
+  pointer-events: none;
+}
+
+.player__token-initial {
+  position: relative;
+  z-index: 1;
+  font-size: 1.25vmin;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 0.1vmin 0.15vmin rgba(0, 0, 0, 0.7);
+}
+
+/* House / hotel markers and mortgage flag drawn on an owned tile's front. */
+.tile__buildings {
+  position: absolute;
+  top: 0.2vmin;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 0.2vmin;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.tile__building {
+  width: 0.8vmin;
+  height: 0.8vmin;
+  background: #2e7d32;
+  border: 0.1vmin solid #14401b;
+  border-radius: 0.1vmin;
+}
+
+.tile__building--hotel {
+  width: 1.6vmin;
+  background: #c62828;
+  border-color: #7a1414;
+}
+
+.tile__mortgaged {
+  position: absolute;
+  top: 0.3vmin;
+  right: 0.3vmin;
+  z-index: 3;
+  width: 1.6vmin;
+  height: 1.6vmin;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #b0b0b0;
+  color: #fff;
+  font-size: 1.1vmin;
+  font-weight: 700;
+  border-radius: 0.2vmin;
+  pointer-events: none;
+}

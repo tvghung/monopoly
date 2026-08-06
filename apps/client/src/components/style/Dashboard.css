@@ -1,0 +1,386 @@
+.center__dashboard--container {
+  grid-area: 'dashboard';
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 65%;
+  margin-top: 1vmin;
+  padding: 2vmin;
+}
+
+.center__dashboard {
+  display: flex;
+  flex: 1;
+  height: 95%;
+}
+
+.center__dashboard--img {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: -0.1%;
+  left: -0.1%;
+  background-image: url('../../The_Coderleones_logo_black.png');
+  background-repeat: no-repeat;
+  background-position: 100% 105%;
+  background-size: 12.5vmin;
+  opacity: 25%;
+  pointer-events: none;
+}
+
+.center__dashboard__players {
+  margin-bottom: 1vmin;
+}
+
+.center__dashboard__block {
+  display: flex;
+  flex-direction: column;
+  width: 25%;
+  margin-right: 1%;
+  padding: 1%;
+  /* border: 1px solid black; */
+}
+
+.center__dashboard__block--players {
+  gap: 1vmin;
+}
+
+.center__dashboard__title {
+  margin-bottom: 1.5vmin;
+  font-size: 2.25vmin;
+}
+
+.center__dashboard__title--sub {
+  margin-top: 1vmin;
+  margin-bottom: 0.5vmin;
+  font-size: 1.7vmin;
+  color: #666;
+}
+
+/* --- Player roster cards --- */
+.player-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1vmin;
+  width: 100%;
+}
+
+.player-card {
+  display: flex;
+  align-items: center;
+  gap: 1vmin;
+  padding: 0.7vmin 1vmin;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-left: 0.5vmin solid #999;
+  border-radius: 0.7vmin;
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.player-card--active {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 0.18vmin rgba(0, 128, 0, 0.45);
+}
+
+.player-card--out {
+  opacity: 0.55;
+}
+
+.player-card--out .player-card__name {
+  text-decoration: line-through;
+}
+
+/* Glossy disc that mirrors the player's board token. */
+.player-card__disc {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 2.6vmin;
+  height: 2.6vmin;
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow:
+    inset 0 0.35vmin 0.35vmin rgba(255, 255, 255, 0.55),
+    inset 0 -0.3vmin 0.3vmin rgba(0, 0, 0, 0.35);
+}
+
+.player-card__disc::after {
+  content: '';
+  position: absolute;
+  top: 10%;
+  left: 16%;
+  width: 45%;
+  height: 32%;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  filter: blur(0.15vmin);
+  pointer-events: none;
+}
+
+.player-card__initial {
+  position: relative;
+  z-index: 1;
+  color: #fff;
+  font-size: 1.3vmin;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 0.1vmin 0.15vmin rgba(0, 0, 0, 0.7);
+}
+
+.player-card__info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+}
+
+.player-card__name {
+  font-size: 1.55vmin;
+  font-weight: 700;
+  color: #1a1a1a;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-card__balance {
+  font-size: 1.25vmin;
+  color: #444;
+}
+
+.player-card__turn {
+  display: flex;
+  align-items: center;
+  gap: 0.5vmin;
+  flex: 0 0 auto;
+  color: #1b7a1b;
+  font-size: 1.1vmin;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05vmin;
+}
+
+.player-card__turn-dot {
+  width: 0.9vmin;
+  height: 0.9vmin;
+  background: #1b7a1b;
+  border-radius: 50%;
+  animation: turn-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes turn-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.75); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-card__turn-dot {
+    animation: none;
+  }
+}
+
+.button__purchase--yes, .button__purchase--no, .button__start-game {
+  align-self: left;
+  border-radius: 0.5vmin;
+  padding: 0.5vmin 1vmin;
+  font-size: 1.5vmin;
+  background: rgb(200, 232, 170);
+  color: black;
+  width: 100%;
+  margin: 1vmin 0vmin;
+}
+
+.button__purchase--yes {
+  border: 1px solid rgb(0, 128, 0);
+  background: rgb(255, 255, 255, 0.5);
+}
+
+.button__purchase--no {
+  border: 1px solid rgb(255, 0, 0);
+  background: rgb(255, 255, 255, 0.5);
+}
+
+.button__start-game {
+  border: 1px solid grey;
+  background: rgb(255, 255, 255, 0.5);
+}
+
+.center__dashboard__button__purchase {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1vmin;
+}
+
+/* Dimmed backdrop that lifts a modal above the board and focuses attention. */
+.modal__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.modal__card {
+  position: relative;
+  min-width: 40vmin;
+  max-width: min(90vw, 70vmin);
+  padding: 4vmin 4vmin 3vmin;
+  background: #eef7e4;
+  border: 2px solid rgb(0, 128, 0);
+  border-radius: 1.2vmin;
+  box-shadow: 0 1.5vmin 4vmin rgba(0, 0, 0, 0.45);
+  text-align: center;
+}
+
+/* When several offers arrive at once, stack their cards in one modal. */
+.modal__card--offers {
+  display: flex;
+  flex-direction: column;
+  gap: 2vmin;
+}
+
+.open-market__sell-toast__title {
+  font-size: 2vmin;
+  margin-bottom: 2vmin;
+}
+
+.open-market__sell-toast {
+display: flex;
+flex-direction: column;
+/* justify-content: center; */
+align-items: center;
+}
+
+.open-market__sell-toast__form {
+font-size: 1.5vmin;
+width: 100%;
+height: 50%;
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+}
+
+.open-market__sell-toast__input--container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.open-market__sell-toast__input {
+  margin: 1vmin 0vmin;
+  padding-left: 0.5vmin;
+  padding-right: 0.5vmin;
+  width: 14vmin;
+  height: 3.5vmin;
+  background: rgb(255, 255, 255, 0.5);
+  border: 1px solid grey;
+  border-radius: 0.5vmin;
+}
+
+.open-market__sell-toast__button {
+  align-self: left;
+  border-radius: 0.5vmin;
+  padding: 0.5vmin 1.5vmin;
+  background: rgb(255, 255, 255, 0.5);
+  color: black;
+  margin: 0.5vmin 0.5vmin;
+  border: 1px solid rgb(0, 128, 0);
+  white-space: nowrap;
+  font-size: 1.5vmin;
+  height: 3.5vmin;
+}
+
+.open-market__sell-toast__button--yes, .open-market__sell-toast__button--no {
+  align-self: left;
+  border-radius: 0.5vmin;
+  padding: 0.5vmin 1vmin;
+  background: rgb(255, 255, 255, 0.5);
+  color: black;
+  margin: 0.5vmin 0.5vmin;
+  border: 1px solid grey;
+  width: 10vmin;
+  font-size: 1.5vmin;
+  height: 3.5vmin;
+}
+
+.open-market__sell-toast__button--yes {
+  border: 1px solid rgb(0, 128, 0);
+  background: rgb(255, 255, 255, 0.5);
+}
+
+.open-market__sell-toast__button--no {
+  border: 1px solid rgb(255, 0, 0);
+  background: rgb(255, 255, 255, 0.5);
+}
+
+.open-market__offer__title {
+  font-size: 2vmin;
+}
+
+.open-market__offer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5vmin;
+  padding: 1vmin;
+  font-size: 1.5vmin;
+}
+
+.open-market__offer__buttons {
+  display: flex;
+  gap: 1vmin;
+  margin-top: 1vmin;
+}
+
+/* Jail controls shown to the current player while they are jailed. */
+.jail-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1vmin;
+  padding: 1.5vmin;
+  margin-bottom: 1.5vmin;
+  background: #fff4d6;
+  border: 0.25vmin solid #d9a441;
+  border-radius: 1vmin;
+  text-align: center;
+}
+
+.jail-panel__title {
+  margin: 0;
+  color: #8a5a00;
+}
+
+.jail-panel__hint {
+  margin: 0;
+  font-size: 1.4vmin;
+  color: #6b6b6b;
+}
+
+.jail-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1vmin;
+}
+
+/* Small status badges (in jail, holds a Get Out Of Jail Free card) next to a
+   player's name in the roster. */
+.player-card__tag {
+  margin-left: 0.6vmin;
+  font-size: 1.4vmin;
+  vertical-align: middle;
+}
