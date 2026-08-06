@@ -49,9 +49,6 @@ export interface GameCard {
   getOutOfJailFree?: boolean;
 }
 
-// Community Chest and Chance decks share the same card shape.
-export type ChestCard = GameCard;
-
 export interface Player {
   name: string;
   currentTile: number;
@@ -177,6 +174,4 @@ export interface Offer {
   playerId: string;
   price: number;
   tileName: string;
-  buyerName?: string;
-  timer?: number;
 }

@@ -15,7 +15,6 @@ const socket: AppSocket = io(socketUrl || undefined);
 
 const socketFunctions: SocketFunctions = {
   newPlayer: (name, roomId) => socket.emit('new player', name, roomId),
-  endTurn: () => socket.emit('end turn', ''),
   rollDice: () => socket.emit('roll dice'),
   buyProperty: () => socket.emit('buy property', true),
   sendChat: (message) => socket.emit('send chat', message),

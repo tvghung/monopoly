@@ -53,16 +53,6 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket): void {
     io.to(room.id).emit('update', state);
   });
 
-  // End the current turn (only the current player may).
-  socket.on('end turn', () => {
-    const room = getRoom(socket.data.roomId);
-    if (!room) return;
-    const { state } = room;
-    if (state.boardState.currentPlayer.id !== socket.id) return;
-    nextTurn(state);
-    io.to(room.id).emit('update', state);
-  });
-
   // Buy the property the player is standing on. Only the current player may buy,
   // only on a tile flagged buyable this turn, and only if they can afford it.
   socket.on('buy property', () => {
