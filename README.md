@@ -151,13 +151,15 @@ Done:
 - [x] Chat input sanitisation (no HTML injection)
 - [x] Separate, expanded Chance / Community Chest decks
 - [x] Animated 3D dice, tile-by-tile token movement, card flips and modal prompts
+- [x] Building houses / hotels and the rent tiers they unlock
+- [x] Colour-group monopoly rent bonus (owning a full set)
+- [x] Mortgaging properties for cash
+- [x] Auctions when a player declines to buy an unowned tile
+- [x] "Get out of jail free" card and paying $50 to leave jail
+- [x] Property trading (private offers and an open market)
+- [x] A dedicated win screen
 
-Not yet implemented (classic Monopoly features still missing):
+Ideas for later:
 
-- [ ] Building houses / hotels and the rent tiers they unlock
-- [ ] Colour-group monopoly rent bonus (owning a full set)
-- [ ] Mortgaging properties for cash
-- [ ] Auctions when a player declines to buy an unowned tile
-- [ ] "Get out of jail free" card and paying $50 to leave jail
-- [ ] A dedicated win screen
-```
+- [ ] Persist games so they survive a server restart (state is in-memory only)
+- [ ] Reconnect to your seat after a dropped connection (you're currently removed on disconnect)
