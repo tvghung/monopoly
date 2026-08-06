@@ -42,7 +42,7 @@ const makeState = (): GameState => ({
     finishedPlayers: {},
     currentPlayer: { id: '', hasMoved: false },
     logs: [],
-    diceValue: { dice1: ['⚅', 0], dice2: ['⚅', 0] },
+    diceValue: { dice1: 0, dice2: 0 },
     ownedProps: {},
     openMarket: {},
     winner: null,
@@ -269,7 +269,7 @@ describe('handleJailRoll', () => {
     addPlayer(state, 'p2');
     addPlayer(state, 'p1', { isJail: true, jailRounds: 1, currentTile: 10 });
     state.boardState.currentPlayer.id = 'p1';
-    handleJailRoll(state, 'p1', { dice1: ['⚂', 3], dice2: ['⚂', 3] });
+    handleJailRoll(state, 'p1', { dice1: 3, dice2: 3 });
     expect(state.players.p1.isJail).toBe(false);
     expect(state.players.p1.currentTile).toBe(16);
   });
@@ -279,7 +279,7 @@ describe('handleJailRoll', () => {
     addPlayer(state, 'p2');
     addPlayer(state, 'p1', { isJail: true, jailRounds: 2, currentTile: 10 });
     state.boardState.currentPlayer.id = 'p1';
-    handleJailRoll(state, 'p1', { dice1: ['⚀', 1], dice2: ['⚁', 2] });
+    handleJailRoll(state, 'p1', { dice1: 1, dice2: 2 });
     expect(state.players.p1.isJail).toBe(false);
     expect(state.players.p1.currentTile).toBe(13);
   });
@@ -289,7 +289,7 @@ describe('handleJailRoll', () => {
     addPlayer(state, 'p2');
     addPlayer(state, 'p1', { isJail: true, jailRounds: 0, currentTile: 10 });
     state.boardState.currentPlayer.id = 'p1';
-    handleJailRoll(state, 'p1', { dice1: ['⚀', 1], dice2: ['⚁', 2] });
+    handleJailRoll(state, 'p1', { dice1: 1, dice2: 2 });
     expect(state.players.p1.isJail).toBe(true);
     expect(state.players.p1.jailRounds).toBe(1);
     expect(state.players.p1.currentTile).toBe(10);

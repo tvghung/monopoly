@@ -84,8 +84,9 @@ export interface OpenMarketEntry {
   tileName: string;
 }
 
-// A single die: [glyph, pip value]. e.g. ['⚄', 5].
-export type Die = [string, number];
+// A single die's pip value, 1-6 (0 before the first roll). The client renders
+// the pips from this number; the old Unicode glyph column is no longer used.
+export type Die = number;
 
 export interface DiceValue {
   dice1: Die;

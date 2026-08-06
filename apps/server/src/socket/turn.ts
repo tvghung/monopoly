@@ -37,7 +37,7 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket): void {
     if (state.boardState.currentPlayer.hasMoved) return;
 
     const dice = rollDice();
-    const diceResult = dice.dice1[1] + dice.dice2[1];
+    const diceResult = dice.dice1 + dice.dice2;
 
     if (player.isJail) {
       handleJailRoll(state, id, dice);

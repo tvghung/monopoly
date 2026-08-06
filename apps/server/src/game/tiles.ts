@@ -185,7 +185,7 @@ export const handleJailRoll = (state: GameState, playerId: string, dice: DiceVal
   const player = state.players[playerId];
   if (!player) return;
   const { jailRounds, currentTile, name } = player;
-  const diceResult = dice.dice1[1] + dice.dice2[1];
+  const diceResult = dice.dice1 + dice.dice2;
   state.boardState.diceValue = dice;
 
   if (jailRounds === 2) {
@@ -193,7 +193,7 @@ export const handleJailRoll = (state: GameState, playerId: string, dice: DiceVal
     player.isJail = false;
     player.jailRounds = 0;
     sendToLog(state, `${name} waited patiently and got out of jail.`);
-  } else if (dice.dice1[1] === dice.dice2[1]) {
+  } else if (dice.dice1 === dice.dice2) {
     player.currentTile = currentTile + diceResult;
     player.isJail = false;
     player.jailRounds = 0;

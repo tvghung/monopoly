@@ -1,18 +1,9 @@
 import type { GameState, DiceValue, Die } from '@monopoly/shared';
 import { sendToLog } from './text';
 
-const diceFaces: Record<number, Die> = {
-  1: ['⚀', 1],
-  2: ['⚁', 2],
-  3: ['⚂', 3],
-  4: ['⚃', 4],
-  5: ['⚄', 5],
-  6: ['⚅', 6],
-};
-
 // Roll two dice server-side (the only source of truth for a roll).
 export const rollDice = (): DiceValue => {
-  const rollOne = (): Die => diceFaces[Math.floor(Math.random() * 6) + 1];
+  const rollOne = (): Die => Math.floor(Math.random() * 6) + 1;
   return { dice1: rollOne(), dice2: rollOne() };
 };
 

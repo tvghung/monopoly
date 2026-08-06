@@ -30,7 +30,7 @@ const freshState = (): GameState => ({
     finishedPlayers: {},
     currentPlayer: { id: '', hasMoved: false },
     logs: [],
-    diceValue: { dice1: ['⚅', 0], dice2: ['⚅', 0] },
+    diceValue: { dice1: 0, dice2: 0 },
     ownedProps: {},
     openMarket: {},
     winner: null,
