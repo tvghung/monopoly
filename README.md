@@ -2,17 +2,19 @@
 
 [![Live demo](https://img.shields.io/badge/▶_Live_demo-monopoly.michalik.no-2ea44f?style=for-the-badge)](https://monopoly.michalik.no)
 
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
-![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
-![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
-![Node.js](https://img.shields.io/badge/Node.js-5FA04E?logo=nodedotjs&logoColor=white)
-![Socket.IO](https://img.shields.io/badge/Socket.IO-010101?logo=socketdotio&logoColor=white)
-![pnpm](https://img.shields.io/badge/pnpm-F69220?logo=pnpm&logoColor=white)
-
+[![CI](https://img.shields.io/github/actions/workflow/status/terragady/monopoly-websockets/ci.yml?branch=main&label=CI&logo=github)](https://github.com/terragady/monopoly-websockets/actions/workflows/ci.yml)
 ![GitHub top language](https://img.shields.io/github/languages/top/terragady/monopoly-websockets)
 ![GitHub repo size](https://img.shields.io/github/repo-size/terragady/monopoly-websockets)
 ![GitHub last commit](https://img.shields.io/github/last-commit/terragady/monopoly-websockets)
-![GitHub](https://img.shields.io/github/license/terragady/monopoly-websockets)
+![License](https://img.shields.io/github/license/terragady/monopoly-websockets)
+
+![TypeScript](https://img.shields.io/github/package-json/dependency-version/terragady/monopoly-websockets/dev/typescript?logo=typescript&logoColor=white&label=TypeScript)
+![React](https://img.shields.io/github/package-json/dependency-version/terragady/monopoly-websockets/react?filename=apps%2Fclient%2Fpackage.json&logo=react&logoColor=61DAFB&label=React)
+![Vite](https://img.shields.io/github/package-json/dependency-version/terragady/monopoly-websockets/dev/vite?filename=apps%2Fclient%2Fpackage.json&logo=vite&logoColor=white&label=Vite)
+![Socket.IO](https://img.shields.io/github/package-json/dependency-version/terragady/monopoly-websockets/socket.io?filename=apps%2Fserver%2Fpackage.json&logo=socketdotio&logoColor=white&label=Socket.IO)
+![Express](https://img.shields.io/github/package-json/dependency-version/terragady/monopoly-websockets/express?filename=apps%2Fserver%2Fpackage.json&logo=express&logoColor=white&label=Express)
+![pnpm](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fterragady%2Fmonopoly-websockets%2Fmain%2Fpackage.json&query=%24.packageManager&logo=pnpm&logoColor=white&label=pnpm&color=F69220)
+![Node](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fterragady%2Fmonopoly-websockets%2Fmain%2Fpackage.json&query=%24.engines.node&logo=nodedotjs&logoColor=white&label=Node&color=5FA04E)
 
 Real-time multiplayer Monopoly you can play in the browser with friends over a
 shared room code.
