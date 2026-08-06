@@ -13,7 +13,8 @@
     "build": "pnpm --filter @monopoly/client build",
     "start": "pnpm --filter @monopoly/server start",
     "lint": "eslint .",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
