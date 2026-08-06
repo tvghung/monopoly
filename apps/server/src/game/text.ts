@@ -4,7 +4,7 @@ import type { GameState } from '@monopoly/shared';
 export const date = (): string => new Date(Date.now()).toLocaleTimeString('en-GB', { hour12: false });
 
 // Escape HTML so user-supplied text (chat) can't inject markup/scripts.
-export const escapeHtml = (value: unknown): string => String(value ?? '')
+export const escapeHtml = (value: unknown): string => (typeof value === 'string' ? value : '')
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;')
@@ -12,7 +12,7 @@ export const escapeHtml = (value: unknown): string => String(value ?? '')
   .replace(/'/g, '&#039;');
 
 // Sanitise a player name: strip markup-significant characters, trim, cap length.
-export const sanitizeName = (value: unknown): string => String(value ?? '')
+export const sanitizeName = (value: unknown): string => (typeof value === 'string' ? value : '')
   .replace(/[<>&"']/g, '')
   .trim()
   .slice(0, 20);

@@ -8,6 +8,20 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    // Type-aware linting for application/library source. Scoped to `src` (the
+    // only path each workspace's tsconfig includes) so config files such as
+    // vite.config.ts aren't pulled into the type-checked program. `projectService`
+    // finds the nearest tsconfig.json per file, covering the whole monorepo.
+    files: ['**/src/**/*.{ts,tsx}'],
+    extends: [...tseslint.configs.recommendedTypeChecked],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
     // TypeScript handles undefined-symbol checking; the core rule misfires on
     // ambient globals and type-only names.
     files: ['**/*.{ts,tsx}'],

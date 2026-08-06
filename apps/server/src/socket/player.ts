@@ -14,7 +14,8 @@ export function registerPlayerHandlers(io: AppServer, socket: AppSocket): void {
   socket.on('new player', (rawName, rawRoomId) => {
     const { id } = socket;
     const roomId = normalizeRoomId(rawRoomId);
-    socket.join(roomId);
+    // `join` may return a promise; we don't need to await it before continuing.
+    void socket.join(roomId);
     socket.data.roomId = roomId;
     const room = getOrCreateRoom(roomId);
     const { state } = room;

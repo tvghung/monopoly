@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { GameCard, GameState, Player } from '@monopoly/shared';
+import type { GameState, Player } from '@monopoly/shared';
 import {
   sanitizeName,
   escapeHtml,
@@ -300,9 +300,9 @@ describe('applyCard', () => {
   it('applies rewards and penalties', () => {
     const state = makeState();
     addPlayer(state, 'p1', { accountBalance: 100 });
-    applyCard(state, 'p1', { message: 'bank pays you', reward: 50 } as GameCard);
+    applyCard(state, 'p1', { message: 'bank pays you', reward: 50 });
     expect(state.players.p1.accountBalance).toBe(150);
-    applyCard(state, 'p1', { message: 'pay the bank', penalty: 30 } as GameCard);
+    applyCard(state, 'p1', { message: 'pay the bank', penalty: 30 });
     expect(state.players.p1.accountBalance).toBe(120);
   });
 
@@ -311,7 +311,7 @@ describe('applyCard', () => {
     addPlayer(state, 'p1', { accountBalance: 100 });
     addPlayer(state, 'p2', { accountBalance: 100 });
     addPlayer(state, 'p3', { accountBalance: 100 });
-    applyCard(state, 'p1', { message: 'birthday', collectFromEachPlayer: 10 } as GameCard);
+    applyCard(state, 'p1', { message: 'birthday', collectFromEachPlayer: 10 });
     expect(state.players.p1.accountBalance).toBe(120);
     expect(state.players.p2.accountBalance).toBe(90);
     expect(state.players.p3.accountBalance).toBe(90);
@@ -321,7 +321,7 @@ describe('applyCard', () => {
     const state = makeState();
     addPlayer(state, 'p1', { accountBalance: 100 });
     addPlayer(state, 'p2', { accountBalance: 100 });
-    applyCard(state, 'p1', { message: 'chairman', payEachPlayer: 40 } as GameCard);
+    applyCard(state, 'p1', { message: 'chairman', payEachPlayer: 40 });
     expect(state.players.p1.accountBalance).toBe(60);
     expect(state.players.p2.accountBalance).toBe(140);
   });
@@ -329,9 +329,9 @@ describe('applyCard', () => {
   it('grants a get-out-of-jail card and sends a player to jail', () => {
     const state = makeState();
     addPlayer(state, 'p1', { currentTile: 5 });
-    applyCard(state, 'p1', { message: 'free pass', getOutOfJailFree: true } as GameCard);
+    applyCard(state, 'p1', { message: 'free pass', getOutOfJailFree: true });
     expect(state.players.p1.getOutOfJailCards).toBe(1);
-    applyCard(state, 'p1', { message: 'go to jail', goToJail: true } as GameCard);
+    applyCard(state, 'p1', { message: 'go to jail', goToJail: true });
     expect(state.players.p1.isJail).toBe(true);
     expect(state.players.p1.currentTile).toBe(10);
   });
@@ -339,7 +339,7 @@ describe('applyCard', () => {
   it('moves relative to the current tile and wraps the board', () => {
     const state = makeState();
     addPlayer(state, 'p1', { currentTile: 2 });
-    applyCard(state, 'p1', { message: 'go back 3', moveBy: -3 } as GameCard);
+    applyCard(state, 'p1', { message: 'go back 3', moveBy: -3 });
     expect(state.players.p1.currentTile).toBe(39);
   });
 });
