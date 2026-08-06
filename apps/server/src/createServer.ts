@@ -3,6 +3,7 @@ import { createServer as createHttpServer, type Server as HttpServer } from 'htt
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
+import rateLimit from 'express-rate-limit';
 import type { AppServer } from './socket/types';
 
 const { env } = process;
@@ -27,10 +28,19 @@ export function createServer(): { server: HttpServer; io: AppServer } {
   if (env.NODE_ENV === 'production') {
     const clientDist = env.CLIENT_DIST
       || path.join(currentDir, '..', '..', 'client', 'dist');
-    app.use(express.static(clientDist));
+    // Cap requests to the static file server so a single client can't hammer the
+    // filesystem. Scoped to the asset/SPA routes only, so it never throttles the
+    // Socket.IO transport (which has its own connection handling).
+    const staticLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      limit: 1000,
+      standardHeaders: 'draft-8',
+      legacyHeaders: false,
+    });
+    app.use(staticLimiter, express.static(clientDist));
     // SPA fallback: serve index.html for any other GET. Express 5 (path-to-regexp
     // v8) no longer accepts the bare '*' string route, so match with a RegExp.
-    app.get(/.*/, (_req, res) => {
+    app.get(/.*/, staticLimiter, (_req, res) => {
       res.sendFile(path.join(clientDist, 'index.html'));
     });
   }

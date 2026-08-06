@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Least-privilege token: the build only needs to read the repo contents.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
