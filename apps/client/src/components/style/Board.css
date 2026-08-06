@@ -160,10 +160,19 @@
 
 .tile20 {
   grid-area: 1 / 1 / 2 / 2;
-  background-image: url('https://s3.amazonaws.com/images.hamlethub.com/hh20mediafolder/942/201611/parking_large-1480365634.png');
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain; 
+}
+
+/* Free Parking icon, rendered as an emoji so it never depends on a remote
+   image (the old hotlinked graphic no longer loads). */
+.tile20::after {
+  content: '🚗';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 5vmin;
+  line-height: 1;
+  pointer-events: none;
 }
 
 .tile21 {

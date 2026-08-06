@@ -143,7 +143,7 @@ const tileState: Tile[] = [
     houseCost: 100,
   },
   {
-    streetName: '',
+    streetName: 'Free Parking',
     tileType: 'parking',
   },
   {
