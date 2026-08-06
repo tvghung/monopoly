@@ -41,11 +41,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const server = createServer(app);
 
-// In production the client is served same-origin, so reflecting the request
-// origin (true) works without knowing the deployed URL up front; an explicit
-// CORS_ORIGIN always wins. In dev we allow the Vite origin.
+// In production the client is served same-origin, so cross-origin requests are
+// disallowed by default (rather than reflecting any Origin); set CORS_ORIGIN to
+// explicitly allow another origin. In dev we allow the Vite origin.
 const corsOrigin = env.CORS_ORIGIN
-  || (env.NODE_ENV === 'production' ? true : 'http://localhost:5173');
+  || (env.NODE_ENV === 'production' ? false : 'http://localhost:5173');
 
 const io = new Server<
   ClientToServerEvents,
@@ -313,12 +313,17 @@ io.on('connection', (socket) => {
     const room = getRoom(socket.data.roomId);
     if (!room) return;
     const { state } = room;
-    const { playerId, tileID } = item;
-    const buyerName = state.players[playerId]?.name;
+    const { tileID } = item;
+    // The buyer is always the socket making the offer — never trust a
+    // client-supplied playerId, which could be spoofed to impersonate someone.
+    const buyerId = socket.id;
+    const buyerName = state.players[buyerId]?.name;
     const tileOwner = state.boardState.ownedProps[tileID]?.id;
     if (!buyerName || !tileOwner) return;
     const tileName = tileState[tileID].streetName;
-    io.to(tileOwner).emit('offer on prop', { ...item, buyerName, tileName });
+    io.to(tileOwner).emit('offer on prop', {
+      ...item, playerId: buyerId, buyerName, tileName,
+    });
   });
 
   // Owner declines a private offer.
@@ -465,9 +470,14 @@ io.on('connection', (socket) => {
     const player = state.players[socket.id];
     if (!auction || !player) return;
     if (!auction.active.includes(socket.id)) return;
-    if (!Number.isFinite(amount) || amount <= auction.highestBid) return;
-    if (amount > player.accountBalance) return;
-    auction.highestBid = Math.floor(amount);
+    if (!Number.isFinite(amount)) return;
+    // Normalise to a whole number first, then validate — otherwise a fractional
+    // bid like `highestBid + 0.5` passes the check but floors back down to a
+    // non-increasing bid once stored.
+    const bid = Math.floor(amount);
+    if (bid <= auction.highestBid) return;
+    if (bid > player.accountBalance) return;
+    auction.highestBid = bid;
     auction.highestBidder = socket.id;
     auction.highestBidderName = player.name;
     // A fresh bid re-opens the floor: everyone who had declined can react again.

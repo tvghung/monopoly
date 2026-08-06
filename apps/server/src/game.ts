@@ -53,7 +53,7 @@ export const checkBalance = (state: GameState, advanceTurn?: boolean): void => {
       };
       sendToLog(
         state,
-        `<span class="bancrupt-message">${state.players[e].name} went bancrupt and can no longer play the game, all his properties were put on sale again!</span>`,
+        `<span class="bankrupt-message">${state.players[e].name} went bankrupt and can no longer play the game, all his properties were put on sale again!</span>`,
       );
       delete state.players[e];
       if (e === state.boardState.currentPlayer.id) {
@@ -93,7 +93,7 @@ export const checkWinner = (state: GameState): void => {
   if (remaining.length === 1 && someoneEliminated) {
     const [id] = remaining;
     state.boardState.winner = { name: state.players[id].name, color: state.players[id].color };
-    sendToLog(state, `<span class="bancrupt-message">${state.players[id].name} wins the game!</span>`);
+    sendToLog(state, `<span class="bankrupt-message">${state.players[id].name} wins the game!</span>`);
   }
 };
 
@@ -131,7 +131,7 @@ export const movePlayer = (state: GameState, playerId: string, steps: number): v
   } else {
     player.currentTile = from + steps - 40;
     player.accountBalance += 200;
-    sendToLog(state, `${player.name} has passed start and recieved $200M`);
+    sendToLog(state, `${player.name} has passed start and received $200M`);
   }
 };
 
@@ -201,7 +201,7 @@ export const resolveTile = (state: GameState, playerId: string, diceResult: numb
       nextTurn(state);
       break;
     case 'jail':
-      sendToLog(state, `${playerName}, dont't worry! You're just visiting.`);
+      sendToLog(state, `${playerName}, don't worry! You're just visiting.`);
       nextTurn(state);
       break;
     case 'company':
