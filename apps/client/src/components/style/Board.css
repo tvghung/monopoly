@@ -43,7 +43,7 @@
 
 .tile0 {
   grid-area: 11 / 11 / 12 / 12;
-  background-image: url('https://i.pinimg.com/originals/a9/b6/8a/a9b68a1213ecc93ee5f07b3423d0e913.gif');
+  background-image: url('/icons/go.gif');
   background-position: center -0.6vmin;
   background-repeat: no-repeat;
   background-size: 9vmin;
@@ -56,7 +56,7 @@
 
 .tile2 {
   grid-area: 11 / 9 / 12 / 10;
-  background-image: url('https://i.pinimg.com/originals/aa/98/84/aa98846a483c4de09ea31b9c1e3fd8a1.gif');
+  background-image: url('/icons/chest.gif');
   background-position: center 1.5vmin;
   background-repeat: no-repeat;
   background-size: 7.25vmin;
@@ -68,7 +68,7 @@
 
 .tile4 {
   grid-area: 11 / 7 / 12 / 8;
-  background-image: url('https://cdn4.iconfinder.com/data/icons/business-bicolor-1/512/salary-512.png');
+  background-image: url('/icons/tax.png');
   background-position: center 2.5vmin;
   background-repeat: no-repeat;
   background-size: 4vmin;
@@ -76,7 +76,7 @@
 
 .tile5 {
   grid-area: 11 / 6 / 12 / 7;
-  background-image: url('https://i.pinimg.com/originals/02/43/87/0243879c56257b841de3a891941b48ad.png');
+  background-image: url('/icons/railroad.png');
   background-position: center 2vmin;
   background-repeat: no-repeat;
   background-size: 5vmin;
@@ -88,7 +88,7 @@
 
 .tile7 {
   grid-area: 11 / 4 / 12 / 5;
-  background-image: url('https://pngimg.com/uploads/question_mark/question_mark_PNG121.png');
+  background-image: url('/icons/chance.png');
   background-position: center 2.5vmin;
   background-repeat: no-repeat;
   background-size: 3.5vmin;
@@ -104,7 +104,7 @@
 
 .tile10 {
   grid-area: 11 / 1 / 12 / 2;
-  background-image: url('https://cdn.iconscout.com/icon/premium/png-256-thumb/jail-1488489-1259723.png');
+  background-image: url('/icons/jail.png');
   background-position: center 2.5vmin;
   background-repeat: no-repeat;
   background-size: 5.25vmin;
@@ -116,7 +116,7 @@
 
 .tile12 {
   grid-area: 9 / 1 / 10 / 2;
-  background-image: url('https://i.pinimg.com/originals/a8/a6/20/a8a620c5f79c2b85554352148eac732f.gif');
+  background-image: url('/icons/electric.gif');
   background-position: center 2vmin;
   background-repeat: no-repeat;
   background-size: 3.5vmin;
@@ -132,7 +132,7 @@
 
 .tile15 {
   grid-area: 6 / 1 / 7 / 2;
-  background-image: url('https://i.pinimg.com/originals/02/43/87/0243879c56257b841de3a891941b48ad.png');
+  background-image: url('/icons/railroad.png');
   background-position: center 2vmin;
   background-repeat: no-repeat;
   background-size: 5vmin;
@@ -144,7 +144,7 @@
 
 .tile17 {
   grid-area: 4 / 1 / 5 / 2;
-  background-image: url('https://pngimg.com/uploads/question_mark/question_mark_PNG121.png');
+  background-image: url('/icons/chance.png');
   background-position: center 2.5vmin;
   background-repeat: no-repeat;
   background-size: 3.5vmin;
@@ -181,7 +181,7 @@
 
 .tile22 {
   grid-area: 1 / 3 / 2 / 4;
-  background-image: url('https://pngimg.com/uploads/question_mark/question_mark_PNG121.png');
+  background-image: url('/icons/chance.png');
   background-position: center 2.5vmin;
   background-repeat: no-repeat;
   background-size: 3.5vmin;
@@ -197,7 +197,7 @@
 
 .tile25 {
   grid-area: 1 / 6 / 2 / 7;
-  background-image: url('https://i.pinimg.com/originals/02/43/87/0243879c56257b841de3a891941b48ad.png');
+  background-image: url('/icons/railroad.png');
   background-position: center 2vmin;
   background-repeat: no-repeat;
   background-size: 5vmin;
@@ -213,7 +213,7 @@
 
 .tile28 {
   grid-area: 1 / 9 / 2 / 10;
-  background-image: url('https://static.thenounproject.com/png/1929131-200.png');
+  background-image: url('/icons/water.png');
   background-position: center 2.5vmin;
   background-repeat: no-repeat;
   background-size: 3.5vmin;
@@ -225,7 +225,7 @@
 
 .tile30 {
   grid-area: 1 / 11 / 2 / 12;
-  background-image: url('https://www.pinclipart.com/picdir/big/127-1274529_prison-clipart-gates-monopoly-go-to-jail-man.png');
+  background-image: url('/icons/gotojail.gif');
   background-position: center 2.5vmin;
   background-repeat: no-repeat;
   background-size: 7vmin;
@@ -241,7 +241,7 @@
 
 .tile33 {
   grid-area: 4 / 11 / 5 / 12;
-  background-image: url('https://i.pinimg.com/originals/aa/98/84/aa98846a483c4de09ea31b9c1e3fd8a1.gif');
+  background-image: url('/icons/chest.gif');
   background-position: center 1.5vmin;
   background-repeat: no-repeat;
   background-size: 7.25vmin;
@@ -253,7 +253,7 @@
 
 .tile35 {
   grid-area: 6 / 11 / 7 / 12;
-  background-image: url('https://i.pinimg.com/originals/02/43/87/0243879c56257b841de3a891941b48ad.png');
+  background-image: url('/icons/railroad.png');
   background-position: center 2vmin;
   background-repeat: no-repeat;
   background-size: 5vmin;
@@ -261,7 +261,7 @@
 
 .tile36 {
   grid-area: 7 / 11 / 8 / 12;
-  background-image: url('https://pngimg.com/uploads/question_mark/question_mark_PNG121.png');
+  background-image: url('/icons/chance.png');
   background-position: center 2.5vmin;
   background-repeat: no-repeat;
   background-size: 3.5vmin;
@@ -273,7 +273,7 @@
 
 .tile38 {
   grid-area: 9 / 11 / 10 / 12;
-  background-image: url('https://cdn4.iconfinder.com/data/icons/business-bicolor-1/512/salary-512.png');
+  background-image: url('/icons/tax.png');
   background-position: center 2.5vmin;
   background-repeat: no-repeat;
   background-size: 4vmin;
