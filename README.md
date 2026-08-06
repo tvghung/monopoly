@@ -30,7 +30,7 @@ an animated, polished UI. See [What changed in the rewrite](#what-changed-in-the
 
 Everything that happens is written to the in-game log / chat — keep an eye on it!
 
-![image](https://user-images.githubusercontent.com/19210041/187416300-fd0c4e0c-8942-4c36-863d-6b00664d3e0b.png)
+![Monopoly Websockets game board](./docs/screenshot.png)
 
 ## What changed in the rewrite
 
