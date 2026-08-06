@@ -62,7 +62,9 @@ if (env.NODE_ENV === 'production') {
   const clientDist = env.CLIENT_DIST
     || path.join(__dirname, '..', '..', 'client', 'dist');
   app.use(express.static(clientDist));
-  app.get('*', (_req, res) => {
+  // SPA fallback: serve index.html for any other GET. Express 5 (path-to-regexp
+  // v8) no longer accepts the bare '*' string route, so match with a RegExp.
+  app.get(/.*/, (_req, res) => {
     res.sendFile(path.join(clientDist, 'index.html'));
   });
 }

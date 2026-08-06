@@ -50,7 +50,7 @@ Everything that happens is written to the in-game log / chat — keep an eye on 
 - **Monorepo:** pnpm workspaces — `apps/server`, `apps/client`, `packages/shared`.
 - **Server:** Express + Socket.IO (TypeScript, run directly with `tsx`). Game state
   lives in memory, one independent game per room.
-- **Client:** React 18 + Vite (TypeScript).
+- **Client:** React 19 + Vite (TypeScript).
 - **Shared:** board data, card decks, and the end-to-end typed Socket.IO event
   contracts imported by both sides via `@monopoly/shared`.
 

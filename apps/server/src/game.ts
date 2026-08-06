@@ -211,17 +211,13 @@ export const resolveTile = (state: GameState, playerId: string, diceResult: numb
           sendToLog(state, `${playerName} landed on ${tile.streetName} (mortgaged) — no rent due.`);
           return;
         }
-        let priceToPay = 0;
-        if (
+        const ownsBothUtilities = Boolean(
           state.boardState.ownedProps[12]
           && state.boardState.ownedProps[28]
           && state.boardState.ownedProps[12].id === ownerId
-          && state.boardState.ownedProps[28].id === ownerId
-        ) {
-          priceToPay = diceResult * 10;
-        } else {
-          priceToPay = diceResult * 4;
-        }
+          && state.boardState.ownedProps[28].id === ownerId,
+        );
+        const priceToPay = ownsBothUtilities ? diceResult * 10 : diceResult * 4;
         player.accountBalance -= priceToPay;
         state.players[ownerId].accountBalance += priceToPay;
         sendToLog(state, `${playerName} have paid rent $${priceToPay}M to ${state.players[ownerId].name}`);

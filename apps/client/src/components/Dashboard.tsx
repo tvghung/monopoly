@@ -1,6 +1,6 @@
 import { useContext, useState, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { useAlert } from 'react-alert';
+import { useToast } from './Toast';
 import './style/Dashboard.css';
 import MarketPlace from './MarketPlace';
 import stateContext from '../internal';
@@ -50,7 +50,7 @@ export default function Dashboard() {
   const [offer, setOffer] = useState(0);
   const [bidInput, setBidInput] = useState(0);
   const [offers, setOffers] = useState<ActiveOffer[]>([]);
-  const alert = useAlert();
+  const toast = useToast();
   const reduced = useReducedMotion() ?? false;
   const backdropMotion = reduced
     ? {}
@@ -85,12 +85,12 @@ export default function Dashboard() {
 
     const onDeclined = (info: OfferResult) => {
       const { tileName, price, ownerName } = info;
-      alert.show(`${ownerName} declined your offer to buy ${tileName} for $${price}M`);
+      toast.show(`${ownerName} declined your offer to buy ${tileName} for $${price}M`);
     };
 
     const onAccepted = (info: OfferResult) => {
       const { tileName, price, ownerName } = info;
-      alert.show(`${ownerName} accepted your offer to buy ${tileName} for $${price}M`);
+      toast.show(`${ownerName} accepted your offer to buy ${tileName} for $${price}M`);
     };
 
     socket.on('offer on prop', onOffer);
@@ -102,7 +102,7 @@ export default function Dashboard() {
       socket.off('offer declined', onDeclined);
       socket.off('offer accepted', onAccepted);
     };
-  }, [socket, alert]);
+  }, [socket, toast]);
 
   const handleAcceptOffer = (chosen: ActiveOffer) => {
     setOffers(prev => prev.filter(item => item.tileID !== chosen.tileID));
