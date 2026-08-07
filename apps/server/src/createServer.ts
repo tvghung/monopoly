@@ -16,6 +16,15 @@ export function createServer(): { server: HttpServer; io: AppServer } {
   const app = express();
   const server = createHttpServer(app);
 
+  // In production the app runs behind a single reverse proxy (e.g. Render),
+  // which sets the 'X-Forwarded-For' header. Trust exactly one hop so
+  // express-rate-limit can identify clients by their real IP. Trusting a
+  // specific number of hops (rather than `true`) prevents clients from
+  // spoofing the header to bypass the limiter.
+  if (env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+  }
+
   const corsOrigin = env.CORS_ORIGIN
     || (env.NODE_ENV === 'production' ? false : 'http://localhost:5173');
 
