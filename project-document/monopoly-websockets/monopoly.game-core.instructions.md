@@ -2,107 +2,71 @@
 
 ## Phạm vi
 
-Áp dụng cho:
+Áp dụng cho room aggregate/factory tại `apps/server/src/rooms.ts` và luật game tại
+`apps/server/src/game/`. Persistence/orchestration nằm ở services/repository, không
+được trộn Socket.IO hoặc SQL vào domain functions.
 
-- `apps/server/src/rooms.ts`
-- `apps/server/src/game/`
+## Identity và aggregate
 
-Đọc sau [monopoly.shared.instructions.md](./monopoly.shared.instructions.md), rồi mở [GameCore/README.md](./GameCore/README.md) và instruction đúng nhóm logic.
-
-## Vai trò và điểm vào
-
-`apps/server/src/game/index.ts` là barrel public mà Socket handlers và test suite import. GameCore chứa các function mutate `GameState`, tính rent/movement, resolve tile/card/jail, quản lý turn/bankruptcy/winner và auction domain.
-
-`apps/server/src/rooms.ts` giữ registry room và fresh state. Đây là runtime state store in-memory, không phải repository/database.
-
-Không gọi toàn bộ GameCore là pure: dice dùng `Math.random`, log dùng thời gian hiện tại, còn hầu hết function mutate state truyền vào.
+- Mọi player reference là stable `PlayerId`, không phải `socket.id`.
+- `GameState.players`, turn order/current player, ownership, market, auction,
+  finished players và winner phải giữ reference consistency.
+- Room metadata có lifecycle `LOBBY | IN_PROGRESS | FINISHED`, host ID, ready Seat
+  metadata và monotonic aggregate version.
+- `gameStarted` là compatibility projection từ room status, không phải lifecycle
+  authority thứ hai.
+- Persisted snapshot loại `loaded`, presence, SocketData, token, offers và timers.
 
 ## Module map
 
 | Trách nhiệm | Code | Instruction |
 | --- | --- | --- |
-| Room registry, fresh state, room ID | `apps/server/src/rooms.ts` | [GameCore/room-lifecycle.instruction.md](./GameCore/room-lifecycle.instruction.md) |
-| Balance, bankruptcy, winner, turn, dice movement | `apps/server/src/game/turn.ts`, `apps/server/src/game/dice.ts` | [GameCore/turn-movement-and-bankruptcy.instruction.md](./GameCore/turn-movement-and-bankruptcy.instruction.md) |
-| Tile, rent dispatch, cards, jail roll | `apps/server/src/game/tiles.ts` | [GameCore/tile-cards-and-jail-resolution.instruction.md](./GameCore/tile-cards-and-jail-resolution.instruction.md) |
-| Monopoly, street rent, build/sell, mortgage | `apps/server/src/game/property.ts` | [GameCore/property-economy.instruction.md](./GameCore/property-economy.instruction.md) |
-| Auction state và finalize | `apps/server/src/game/auction.ts` | [GameCore/auction.instruction.md](./GameCore/auction.instruction.md) |
-| Log timestamp và input safety helper | `apps/server/src/game/text.ts` | Liên kết từ API chat và các instruction consumer |
+| Room/Seat/host/ready/leave | `rooms.ts`, lifecycle services | [GameCore/room-lifecycle.instruction.md](./GameCore/room-lifecycle.instruction.md) |
+| Turn/movement/bankruptcy/winner/recovery | `game/turn.ts`, `game/dice.ts` | [GameCore/turn-movement-and-bankruptcy.instruction.md](./GameCore/turn-movement-and-bankruptcy.instruction.md) |
+| Tile/card/jail | `game/tiles.ts` | [GameCore/tile-cards-and-jail-resolution.instruction.md](./GameCore/tile-cards-and-jail-resolution.instruction.md) |
+| Property economy | `game/property.ts` | [GameCore/property-economy.instruction.md](./GameCore/property-economy.instruction.md) |
+| Auction | `game/auction.ts` | [GameCore/auction.instruction.md](./GameCore/auction.instruction.md) |
 
-## State model và mutation
+## Lifecycle rules
 
-- `GameState.boardState` giữ game lifecycle, player order, current player, log, dice, owned properties, open market, winner và auction.
-- `GameState.players` giữ active player records; bankrupt player chuyển sang `finishedPlayers`.
-- `turnInfo.canBuyProp` là transient state chờ buy hoặc auction decision.
-- Game functions mutate object được truyền vào; caller chịu trách nhiệm broadcast state.
-- `nextTurn` gọi `checkBalance`, chọn player kế tiếp, reset `hasMoved` và xóa `turnInfo`.
-- `checkBalance` có thể xóa player, property và listing rồi gọi `checkWinner`.
+- First activated Seat is host; new Seat is unready.
+- Lobby capacity is 2–7 for start; all active Seats must be connected and ready.
+- Only host transitions room once from lobby to in-progress.
+- Disconnect preserves Seat/host/ready/assets. Explicit leave is a distinct durable
+  domain command; lobby leave removes Seat, in-game leave is confirmed forfeit.
+- Host transfer occurs on explicit leave to lowest remaining join order, not on
+  transient disconnect.
+- New no-token join after start is spectator; valid token reclaim is handled first.
 
-Không thêm transaction/audit/persistence semantics vào tài liệu khi code không có.
+## Mutation and durability boundary
 
-## Invariants và rule nền hiện tại
+GameCore mutates a draft passed by caller. Caller serializes commands, validates
+aggregate references, commits by expected version and only then publishes. Domain
+functions must not broadcast, ACK or assume persistence has already succeeded.
 
-- Board có index 0–39; movement forward wrap qua 40.
-- Pass GO bằng dice movement trả `$200M`; card absolute movement xử lý tiền bằng field card riêng.
-- Không có rule được thêm lượt khi ra doubles.
-- Street rent: mortgage = 0; unbuilt monopoly = 2× base; có house/hotel dùng rent tier.
-- Build cần full color group, không mortgage trong group, build-even, tối đa level 5 và đủ tiền.
-- Sell house theo sell-even và hoàn nửa house cost.
-- Mortgage trả nửa property price; unmortgage trả nửa giá + 10%, làm tròn lên.
-- Winner chỉ được set khi game đã start, còn đúng một active player và đã có ít nhất một finished player.
-- Auction state bắt đầu 30 giây; finalize trao property cho highest bidder nếu có.
+## Turn/auction deadline rules
 
-Chi tiết và caveat của từng rule nằm trong instruction leaf, không nhân bản toàn bộ ở đây.
+- Offline current Player receives persisted configured recovery deadline (default
+  60 seconds).
+- Reconnect before committed expiry clears marker and preserves exact turn.
+- Expiry starts auction when waiting on `canBuyProp`; otherwise advances the turn.
+- Active auction owns progression and is not overridden by turn grace.
+- Auction persists `auctionId` and absolute `endsAt`; bid may extend deadline to at
+  least 15 seconds. Countdown is derived, not persisted per tick.
+- Deadline callbacks must match operation ID/turn/deadline/version before mutation.
 
-## Hard-coded board dependencies
+## Game rules giữ nguyên
 
-Ngoài `tileState`, code có các index mang ý nghĩa đặc biệt:
+Board remains 0–39, dice server-authoritative, GO reward/rent/build/mortgage/jail
+rules remain as documented in leaf files. Multi-player bankruptcy traversal must not
+re-enter over stale player keys; regression coverage is required.
 
-- 0: GO.
-- 10: Jail.
-- 12 và 28: utilities.
-- 5, 15, 25, 35: railroads.
-- Card destinations trong `chanceCards.ts`.
-- Client presentation arrays theo cùng thứ tự 0–39.
-
-Khi đổi board order/index, phải rà Shared data, GameCore hard-coded indices, client arrays, docs và testcase.
-
-## Ranh giới với transport
-
-- Socket handler lấy room/actor và thực hiện runtime guards trước khi gọi GameCore.
-- GameCore function cũng có các owner/existence/business guards riêng tùy function.
-- Caller quyết định gửi `update`, private event hoặc không phản hồi.
-- Không đưa Socket.IO object vào game-domain functions trừ logic timer/broadcast hiện nằm ở transport auction helper.
-
-File GameCore instruction phải liên kết ngược tới Api và Client consumers để tránh sửa rule chỉ ở một phía.
-
-## Unit test hiện có
-
-`apps/server/src/game.test.ts` hiện kiểm thử 39 case cho:
-
-- Sanitization.
-- Movement/pass GO.
-- Monopoly/rent/build/sell/mortgage.
-- Jail roll.
-- Card effects và tile resolution.
-- Turn, bankruptcy và winner.
-- Auction finalization.
-
-Chưa có automated coverage cho room lifecycle, Socket integration, HTTP runtime hoặc client UI.
-
-## Quy tắc sửa GameCore
-
-1. Giữ mutation order hiện tại trừ khi yêu cầu thay đổi rõ ràng.
-2. Thêm/sửa unit test cho valid, rejected và boundary behavior của function.
-3. Rà handler caller, client presentation và shared types/data.
-4. Cập nhật GameCore index/instruction, Api/Client cross-links và testcase trong cùng lần sửa.
-5. Nếu thay đổi state lifecycle hoặc persistence model, cập nhật root README và `CLAUDE.md`.
-
-## Kiểm tra bắt buộc
+## Kiểm tra
 
 ```bash
-pnpm --filter @monopoly/server typecheck
 pnpm --filter @monopoly/server test
+pnpm typecheck
 pnpm lint
 ```
 
-Thực hiện thêm checklist liên quan trong [testcase/README.md](./testcase/README.md).
+Room/deadline changes also require Socket and restart integration tests.

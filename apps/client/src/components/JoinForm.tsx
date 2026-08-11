@@ -3,9 +3,14 @@ import './style/JoinForm.css';
 
 interface JoinFormProps {
   onJoin: (name: string, roomId: string) => void;
+  busy: boolean;
+  connected: boolean;
+  error: string | null;
 }
 
-export default function JoinForm({ onJoin }: JoinFormProps) {
+export default function JoinForm({
+  onJoin, busy, connected, error,
+}: JoinFormProps) {
   const [name, setName] = useState('');
   const [roomId, setRoomId] = useState('');
 
@@ -22,6 +27,9 @@ export default function JoinForm({ onJoin }: JoinFormProps) {
       <form className="join__card" onSubmit={handleSubmit}>
         <h1 className="join__title">Monopoly</h1>
         <p className="join__subtitle">Join a room to play. Share the room code with friends to play together.</p>
+
+        {error ? <p className="join__error" role="alert">{error}</p> : null}
+        {!connected ? <p className="join__connection" role="status">Connecting to the game server…</p> : null}
 
         <label className="join__label" htmlFor="join-name">Your name</label>
         <input
@@ -46,8 +54,8 @@ export default function JoinForm({ onJoin }: JoinFormProps) {
           onChange={e => setRoomId(e.target.value)}
         />
 
-        <button className="join__button" type="submit" disabled={!name.trim()}>
-          Join game
+        <button className="join__button" type="submit" disabled={!name.trim() || busy || !connected}>
+          {busy ? 'Joining…' : 'Join game'}
         </button>
       </form>
     </section>

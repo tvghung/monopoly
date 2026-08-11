@@ -1,80 +1,49 @@
 # Trading Socket instruction
 
-## Phạm vi AS-IS
+## Authority/validation
 
-Đây là Socket event module tương đương controller cho open market và private property offers.
+All actions require authenticated active Player and use stable server-side actor.
+Zod validates tile `0..39`, positive integer price up to `2_147_483_647` and UUID
+offer IDs. Payloads never supply buyer/seller/owner identity.
 
-- Socket.IO path: `/socket.io` mặc định.
-- Namespace: `/` mặc định.
-- Function đăng ký: `registerTradingHandlers(io, socket)`.
-- Handler: `apps/server/src/socket/trading.ts:6-133`.
-- Contract payload: `packages/shared/src/types.ts:142-177` và `packages/shared/src/events.ts:29-34`.
+## Open market events
 
-## Auth và permission
+| Event | Payload | Transaction checks |
+| --- | --- | --- |
+| `put on open market` | `{tileID, price}` | Actor owns property; listing allowed; authoritative name/tile |
+| `remove sale` | `{tileID}` | Actor is current seller |
+| `make sale` | `{tileID}` | Listing pending, buyer != seller, buyer active and funded, ownership unchanged |
 
-Không có auth hoặc permission key ở module/action. Quyền thực thi được kiểm tra theo state và `socket.id`:
+Transfer updates balances, stable owner/color and listing in same room transaction.
 
-| Action | Guard nghiệp vụ hiện tại |
-|---|---|
-| `put on open market` | Sender còn là active player, property tồn tại và `owned.id === socket.id`, `price > 0`. |
-| `remove sale` | Listing tồn tại và `listing.seller === socket.id`. |
-| `make sale` | Listing và buyer tồn tại; buyer không phải seller; buyer đủ balance. |
-| `make offer` | Buyer lấy từ `socket.id` và còn là player; property có owner. Client-supplied `playerId` bị overwrite. |
-| `decline offer` | Sender vẫn là owner hiện tại của `tileID`. |
-| `accept offer` | Sender vẫn là owner; buyer `playerId` còn tồn tại và đủ balance theo `price` nhận trong event. |
+## Durable private offer events
 
-## Action, service/mutation và outbound
+| Event | Payload/result |
+| --- | --- |
+| `make offer` | `{tileID, price}`; creates DB offer and ACKs `{offerId, expiresAt}` |
+| `accept offer` | `{offerId}` |
+| `decline offer` | `{offerId}` |
 
-| Inbound event | Mutation/service chính | Outbound |
-|---|---|---|
-| `put on open market(SaleInfo)` | Tạo/ghi đè `openMarket[tileID]` gồm seller từ socket, price, sellerName, tileName. | `update` tới room. |
-| `remove sale(item)` | `Number(item)`, xóa listing, ghi log. | `update` tới room. |
-| `make sale(item)` | Validate buyer; cộng tiền seller nếu còn player, trừ buyer, đổi owner/color, xóa listing, `checkBalance(state, true)`. | `update` tới room. |
-| `make offer(OfferInfo)` | Không lưu offer server-side; lấy buyer authoritative từ socket và gửi offer trực tiếp cho owner. | `offer on prop` tới owner. |
-| `decline offer(Offer)` | Xác nhận current owner, lấy ownerName. | `offer declined` tới `playerId` trong offer. |
-| `accept offer(Offer)` | Chuyển tiền, đổi owner/color, xóa listing cùng tile nếu có, `checkBalance(state, true)`. | `offer accepted` tới buyer, rồi `update` tới room. |
+Offer has server-authoritative buyer/owner/tile/price/status and 20-second absolute
+expiry. Accept/decline locks/revalidates pending status, expiry, actor as owner,
+current ownership, buyer activity/balance and original terms. Replays, fabricated or
+cross-room IDs fail. Multiple offers on the same tile are independent.
 
-## Code liên quan
+## Private routing/recovery
 
-| Concern | Code thật |
-|---|---|
-| Socket handler | `apps/server/src/socket/trading.ts:6-133` |
-| Balance/bankruptcy | `apps/server/src/game/turn.ts:4-43` |
-| Tile names/prices | `packages/shared/src/tileState.ts` |
-| Trade payload types | `packages/shared/src/types.ts:142-177` |
-| Client emit wrappers | `apps/client/src/App.tsx:21-27` |
-| Open market UI | `apps/client/src/components/MarketPlace.tsx:5-49` |
-| Private offer local timer/listeners | `apps/client/src/components/dashboard/useIncomingOffers.ts:6-60` |
+Arrival/result/expiry/cancellation emits only to prefixed
+`player:<stablePlayerId>` rooms. Offer rows never enter public state. Resume ACK
+includes only unexpired pending offers relevant to Player. Startup/periodic scheduler
+resolves due offers exactly once; explicit player leave cancels their pending offers.
 
-## Caveat cần giữ đúng khi sửa
+## Transaction/ACK
 
-- TypeScript event types không validate runtime payload. Module không dùng schema validator.
-- `put on open market` đọc `tileState[tileID].streetName` trước owner guard; tile ID ngoài mảng có thể gây lỗi runtime.
-- Server chỉ check `price > 0` cho listing; UI `min=20` không phải server rule. Không có integer/finite/range check rõ ràng.
-- Private offer không được lưu server-side. Countdown 20 giây chỉ là local Client state; accept/decline không kiểm tra offer tồn tại hoặc đã hết hạn.
-- `accept offer` tin `playerId`, `price` và `tileName` do owner gửi lại; code không chặn giá âm/NaN hoặc fabricated offer.
-- `decline offer` cũng dùng target `playerId` và display fields từ payload, sau khi chỉ xác nhận ownership của `tileID`.
-- Transfer chỉ đổi `ownedProps[tile].id` và `.color`; `houses` và `mortgaged` được giữ nguyên.
-- Listing không cấm property có houses hoặc đang mortgaged.
-- Mọi failure chủ yếu `return` im lặng; không ACK/error event.
+All mutations commit room/offer rows before private/public emit and success ACK.
+Database failure returns retryable ACK, discards draft and emits nothing.
 
-## Liên kết chéo
+## Tests
 
-- Client trading: [`../Client/trading-market.instruction.md`](../Client/trading-market.instruction.md)
-- Client property actions: [`../Client/property-management.instruction.md`](../Client/property-management.instruction.md)
-- GameCore property economy: [`../GameCore/property-economy.instruction.md`](../GameCore/property-economy.instruction.md)
-- GameCore bankruptcy: [`../GameCore/turn-movement-and-bankruptcy.instruction.md`](../GameCore/turn-movement-and-bankruptcy.instruction.md)
-- Shared contract: [`../Shared/socket-and-state-contracts.instruction.md`](../Shared/socket-and-state-contracts.instruction.md)
-- Testcase: [`../testcase/trading-market-and-private-offers.md`](../testcase/trading-market-and-private-offers.md), [`../testcase/property-economy.md`](../testcase/property-economy.md)
-
-## Quy tắc sửa và kiểm thử
-
-Khi sửa module này phải kiểm tra:
-
-- Owner/non-owner list/remove; invalid tile ID; zero/negative/fractional/NaN/infinite price.
-- Buy listing của chính seller, buyer thiếu tiền, seller disconnect và listing/property thay owner trước purchase.
-- Room isolation và đúng target cho ba private events.
-- Client-spoofed `playerId` trong `make offer` vẫn bị server overwrite.
-- Accept/decline sau khi owner hoặc buyer thay đổi; fabricated/expired/duplicate offer.
-- Transfer property có houses/mortgage/listing và balance/bankruptcy side effects.
-- Nếu thêm server-side offer store/token/expiry, cập nhật state schema, Shared contract, Client hook, GameCore và testcase trong cùng thay đổi.
+- Invalid tile/price, spoofed identity and owner/balance changes.
+- Listing buy/remove atomicity and save-failure behavior.
+- Private target isolation; same-tile offers; replay/cross-room/expired IDs.
+- Accept once, correct balances/property/listing; restart/expiry/resume.

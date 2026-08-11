@@ -8,11 +8,14 @@ import { useModalMotion } from './useModalMotion';
 // list price, or send it to auction. `tokenArrived` lets Dashboard hold the
 // prompt until the player's token has finished walking to the landing tile.
 export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
-  const { state, socketFunctions, playerId } = useContext(stateContext);
+  const {
+    state, socketFunctions, playerId, canMutate,
+  } = useContext(stateContext);
   const { backdropMotion, modalMotion } = useModalMotion();
   const myPlayer = typeof playerId === 'string' ? state.players[playerId] : undefined;
 
-  const show = state.loaded
+  const show = canMutate
+    && state.loaded
     && state.boardState.currentPlayer.id === playerId
     && state.turnInfo.canBuyProp
     && tokenArrived;

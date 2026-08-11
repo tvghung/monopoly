@@ -5,6 +5,7 @@ import {
   type GameCard,
   type GameState,
   type DiceValue,
+  type PlayerId,
 } from '@monopoly/shared';
 import { sendToLog } from './text';
 import { nextTurn } from './turn';
@@ -17,7 +18,7 @@ const railRoadTiles = [5, 15, 25, 35];
 // when the player already owns it.
 export const checkOwned = (
   state: GameState,
-  playerId: string,
+  playerId: PlayerId,
   currentTile: number,
   payRent: () => void,
 ): void => {
@@ -33,7 +34,7 @@ export const checkOwned = (
 
 // Apply the effects of a drawn Chance / Community Chest card to a player, then
 // log the card's message. Turn advancement is handled by the caller.
-export const applyCard = (state: GameState, playerId: string, card: GameCard): void => {
+export const applyCard = (state: GameState, playerId: PlayerId, card: GameCard): void => {
   const player = state.players[playerId];
   if (!player) return;
 
@@ -80,7 +81,7 @@ export const applyCard = (state: GameState, playerId: string, card: GameCard): v
 // Resolve whatever tile a player has just landed on: pay rent, draw a card, go to
 // jail, pay tax, or offer to buy an unowned property. Advances the turn itself for
 // every outcome except an unowned buyable tile (which waits for buy / end turn).
-export const resolveTile = (state: GameState, playerId: string, diceResult: number): void => {
+export const resolveTile = (state: GameState, playerId: PlayerId, diceResult: number): void => {
   const player = state.players[playerId];
   if (!player) return;
   const { currentTile } = player;
@@ -181,7 +182,7 @@ export const resolveTile = (state: GameState, playerId: string, diceResult: numb
 
 // Resolve a roll made from jail: escape on a double or after waiting two rounds,
 // otherwise stay put. Either way the turn passes on.
-export const handleJailRoll = (state: GameState, playerId: string, dice: DiceValue): void => {
+export const handleJailRoll = (state: GameState, playerId: PlayerId, dice: DiceValue): void => {
   const player = state.players[playerId];
   if (!player) return;
   const { jailRounds, currentTile, name } = player;

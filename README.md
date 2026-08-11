@@ -38,8 +38,10 @@ Everything that happens is written to the in-game log / chat — keep an eye on 
 | --- | --- |
 | Create React App + single `server.js` | pnpm monorepo — `apps/server`, `apps/client`, `packages/shared` |
 | Plain JavaScript | End-to-end **TypeScript**, incl. typed Socket.IO event contracts |
-| One global game for everyone | **Isolated rooms** — share a code to play together |
+| One global game for everyone | **Durable isolated rooms** — share a code to play together |
 | Client decided dice, money & moves (cheatable) | **Server-authoritative** dice, movement, rent and turn order |
+| A dropped socket deleted the player | **Stable player sessions** reclaim the same seat after refresh/reconnect |
+| Process memory was the game store | **PostgreSQL-backed** rooms, sessions, offers and restart recovery |
 | Chat rendered raw HTML (XSS) | Chat + names sanitised |
 | Chance drew from the Community Chest deck | Separate, expanded **Chance / Community Chest** decks |
 | Static board, instant token jumps | **Animated** 3D dice, tile-by-tile token movement, card flips, modal prompts |
@@ -48,14 +50,18 @@ Everything that happens is written to the in-game log / chat — keep an eye on 
 ## Tech stack
 
 - **Monorepo:** pnpm workspaces — `apps/server`, `apps/client`, `packages/shared`.
-- **Server:** Express + Socket.IO (TypeScript, run directly with `tsx`). Game state
-  lives in memory, one independent game per room.
+- **Server:** Express + Socket.IO (TypeScript, run directly with `tsx`). Commands
+  are validated, serialized per room and committed before acknowledgement.
 - **Client:** React 19 + Vite (TypeScript).
-- **Shared:** board data, card decks, and the end-to-end typed Socket.IO event
-  contracts imported by both sides via `@monopoly/shared`.
+- **Persistence:** PostgreSQL relational metadata plus a versioned JSONB game
+  snapshot. There is no production in-memory fallback.
+- **Shared:** board data, card decks, runtime schemas and typed Socket.IO contracts
+  imported by both sides via `@monopoly/shared`.
 
-Front-end ⇄ back-end communication is over WebSockets. State changes are applied on
-the server and pushed to every client in the room, so all players see the same board.
+Front-end ⇄ back-end communication is over WebSockets. A player is identified by a
+stable UUID, not by `socket.id`. A reconnect token stored in that browser reclaims
+the same seat after a refresh, dropped connection or server restart. This is a
+room-seat session, not an account or OAuth login.
 
 ## Getting started
 
@@ -63,97 +69,127 @@ Requires **Node 24 (LTS)** and **pnpm** (via `corepack enable`).
 
 ```bash
 pnpm install
+docker compose up -d postgres
+cp .env.example .env
+pnpm db:migrate
 pnpm dev
 ```
+
+Server and database scripts load the root `.env` when it exists; shell environment
+variables still take precedence.
 
 `pnpm dev` runs both apps in parallel:
 
 - server on `http://localhost:8080`
 - client on `http://localhost:5173` (Vite proxies `/socket.io` to the server)
 
-Open `http://localhost:5173`, enter a name and a **room code** (leave it blank to join
-the default `LOBBY` room), and share the code with friends to play together. Open a
-second tab / browser to add another player.
+Open `http://localhost:5173`, enter a name and a **room code**, and share the code
+with friends. A lobby supports 2–7 players. Every player must be connected and ready;
+only the persisted host can start the game.
 
 ### Useful scripts
 
 ```bash
 pnpm dev         # run server + client together
+pnpm db:migrate  # apply pending PostgreSQL migrations
+pnpm db:status   # inspect migration status
 pnpm build       # build the client bundle
 pnpm start       # start the server (serves the built client in production)
 pnpm typecheck   # tsc --noEmit across all packages
 pnpm lint        # eslint across the repo
+pnpm test        # unit/client/socket tests; PostgreSQL suite is conditional
 ```
 
 ## Environment variables
 
-| Variable      | Where   | Default                     | Notes                                              |
-| ------------- | ------- | --------------------------- | -------------------------------------------------- |
-| `PORT`        | server  | `8080`                      | Port the server listens on.                        |
-| `NODE_ENV`    | server  | –                           | Set to `production` to serve the built client.     |
-| `CORS_ORIGIN` | server  | Vite origin (dev)           | Allowed origin; in prod it reflects same-origin.   |
-| `CLIENT_DIST` | server  | `apps/client/dist`          | Override the static client directory if needed.    |
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `DATABASE_URL` | local value in `.env.example` | Required by every real server start; tests may inject the in-memory adapter. |
+| `DATABASE_SSL` | `false` | Enable TLS for PostgreSQL. |
+| `DATABASE_SSL_REJECT_UNAUTHORIZED` | `true` | Certificate verification policy. |
+| `DATABASE_MAX_CONNECTIONS` | `10` | PostgreSQL pool size. |
+| `TEST_DATABASE_URL` | unset | Enables the PostgreSQL integration suite; pass it in the shell running `pnpm test`. |
+| `PORT` | `8080` | HTTP/Socket server port. |
+| `NODE_ENV` | `development` | `production` also serves the built client. |
+| `CORS_ORIGIN` | Vite origin in development | Explicit cross-origin allowlist; not authentication. |
+| `CLIENT_DIST` | `apps/client/dist` | Static client directory override. |
+| `RECONNECT_GRACE_MS` | `60000` | Grace before an offline current player's turn is resolved. |
+| `PENDING_SESSION_TTL_MS` | `300000` | Unactivated first-join token TTL. |
+| `TERMINAL_SESSION_RETENTION_MS` | `604800000` | Retain revoked/expired session rows for seven days before purge. |
+| `LOBBY_RETENTION_MS` | `86400000` | Inactive lobby retention. |
+| `IN_PROGRESS_RETENTION_MS` | `2592000000` | Inactive running-game retention. |
+| `FINISHED_RETENTION_MS` | `604800000` | Finished-room retention. |
 
 ## Deployment
 
-The Node server serves the built client from the same origin (no separate CORS
-config needed), so the whole app ships as a **single service**.
+The Node server serves the built client from the same origin, so application code
+ships as one service. PostgreSQL remains a required durable dependency. Run
+migrations before accepting traffic; a schema/database failure makes readiness fail
+instead of silently creating an in-memory game.
 
 ### Render (Blueprint)
 
-A [`render.yaml`](./render.yaml) blueprint is included (single free web service).
-In the Render dashboard: **New → Blueprint**, point it at this repo, and deploy.
-It runs:
+A [`render.yaml`](./render.yaml) blueprint provisions a paid `starter` Node web
+service and paid `basic-256mb` PostgreSQL database. The paid database is intentional:
+durable games must not rely on an expiring/no-backup free database. The service also
+has a 1 GB deployment-guard disk. No game data is written to that disk; its purpose
+is to make Render stop the old process before starting its replacement, preserving
+the runtime's single-live-process session and presence invariant during deploys.
+Expect a brief reconnect while the browser resumes through its stable token.
+
+In the Render dashboard: **New → Blueprint**, point it at this repo, review the paid
+resources, and deploy. It runs:
 
 ```bash
 # build
-corepack enable && pnpm install --frozen-lockfile && pnpm --filter @monopoly/client build
-# start
-pnpm --filter @monopoly/server start
+corepack enable && pnpm install --frozen-lockfile && pnpm build
+# start (server applies guarded migrations before listen)
+pnpm start
 ```
 
-Health check path is `/healthz`. Expect a one-time cold start on the free plan.
+`/healthz` is liveness. `/readyz` checks the database/schema and is the deployment
+health-check target.
 
-### Docker / Cloud Run
+### Docker / stop-first container platforms
 
 A multi-stage [`Dockerfile`](./Dockerfile) builds the client and runs the server.
 
 ```bash
 docker build -t monopoly-websockets .
-docker run -p 8080:8080 -e NODE_ENV=production monopoly-websockets
+docker run -p 8080:8080 -e NODE_ENV=production \
+  -e DATABASE_URL=postgresql://... monopoly-websockets
 # → http://localhost:8080
 ```
 
-Deploy the same image to Cloud Run (keep it cheap with a single instance):
-
-```bash
-gcloud run deploy monopoly-websockets \
-  --source . \
-  --region europe-west1 \
-  --allow-unauthenticated \
-  --max-instances=1
-```
-
-> Cloud Run bills per request/CPU; `--max-instances=1` plus a budget alert keeps a
-> hobby deploy from surprising you.
+The current runtime supports one live Node process, including across a deployment.
+Use a stop-before-start deployment strategy. A rolling platform that overlaps old
+and new revisions is unsupported even when its steady-state maximum is one instance;
+add distributed connection ownership, presence, room locking and a Socket.IO adapter
+before enabling overlapping revisions or horizontal scaling.
 
 ## Gameplay FAQ
 
 **How do I chat with other players?** There's a chat in the log panel — use it.
 
 **Can spectators join?** Yes. Anyone who joins a room after its game has started
-joins as a spectator (and can still chat).
+joins as an explicit spectator (and can still chat). A browser with a valid existing
+player token reclaims that seat instead of becoming a spectator.
+
+**What happens if I refresh or lose my network?** The browser reconnects with a
+private token and resumes the same stable player. A newer connection using the same
+token replaces the older one. Disconnecting does not sell, delete or transfer assets.
 
 **How do I trade?**
 - *Private sale:* click another player's property and submit an offer. The owner has
-  20 seconds to accept or decline, and you're notified of their decision.
+  20 seconds to accept or decline. Offers and expiry are server-authoritative and
+  survive reconnect/restart.
 - *Open market:* click your own property, choose **Sell**, and set a price. Any player
   in the room can then buy it; you can also pull it back off the market.
 
-**What happens when I go bankrupt?** You're out, and your properties return to the open
-market — but you can keep spectating and chatting.
+**What happens when I go bankrupt?** You're moved out of the active roster and your
+properties become unowned; they are not automatically listed on the open market.
 
-**How do I win?** Be the last player who isn't bankrupt.
+**How do I win?** Be the last active player after the others go bankrupt or forfeit.
 
 ## Roadmap
 
@@ -171,9 +207,11 @@ market — but you can keep spectating and chatting.
 - [x] "Get out of jail free" card and paying $50 to leave jail
 - [x] Property trading (private offers and an open market)
 - [x] A dedicated win screen
+- [x] Stable player identity, reconnect and newest-connection-wins sessions
+- [x] Host/ready lobby with 2–7 players and explicit spectator admission
+- [x] PostgreSQL persistence and restart recovery
+- [x] Durable private offers and absolute-deadline auctions
 
 Ideas for later:
 
 - [ ] Doubles rules: roll again after a double, and go to jail on three doubles in a row
-- [ ] Persist games so they survive a server restart (state is in-memory only)
-- [ ] Reconnect to your seat after a dropped connection (you're currently removed on disconnect)

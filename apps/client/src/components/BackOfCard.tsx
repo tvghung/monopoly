@@ -16,7 +16,9 @@ const BackOfCard = ({ id, handleCardClick, position }: BackOfCardProps) => {
   const { cardsBack } = useContext(cardFlipContext);
   const [backOfCard] = useState(cardsBack[id]);
   const [ownership, setOwnership] = useState<string | false>(false);
-  const { state, playerId, socketFunctions } = useContext(stateContext);
+  const {
+    state, playerId, socketFunctions, canMutate,
+  } = useContext(stateContext);
   const { handlePutOpenMarket, handleMakeOffer } = useContext(sellPromptContext);
   const reduced = useReducedMotion() ?? false;
   const owned = state.boardState.ownedProps[id];
@@ -115,7 +117,7 @@ const BackOfCard = ({ id, handleCardClick, position }: BackOfCardProps) => {
             </p>
           )
           : null}
-        {ownership
+        {ownership && canMutate
           ? ownership !== playerId
             ? (
               <section className="tile-back__buttons">

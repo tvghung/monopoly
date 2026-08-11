@@ -18,7 +18,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm --filter @monopoly/client build
 
-# ---- Runtime stage: server (via tsx) serving the built client ----
+# ---- Runtime stage: migrate, then run the server that serves the built client ----
 FROM node:24-alpine AS runtime
 ENV NODE_ENV=production
 ENV PNPM_HOME=/pnpm
@@ -37,4 +37,4 @@ COPY --from=build /app/apps/client/package.json ./apps/client/package.json
 COPY --from=build /app/apps/client/dist ./apps/client/dist
 
 EXPOSE 8080
-CMD ["pnpm", "--filter", "@monopoly/server", "start"]
+CMD ["pnpm", "start"]

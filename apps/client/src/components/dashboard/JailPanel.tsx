@@ -4,10 +4,13 @@ import stateContext from '../../internal';
 // Shown to the current player while they're in jail on their own turn: pay bail
 // or spend a Get Out Of Jail Free card (they can still roll for a double too).
 export default function JailPanel() {
-  const { state, socketFunctions, playerId } = useContext(stateContext);
+  const {
+    state, socketFunctions, playerId, canMutate,
+  } = useContext(stateContext);
   const myPlayer = typeof playerId === 'string' ? state.players[playerId] : undefined;
 
-  if (!state.loaded
+  if (!canMutate
+    || !state.loaded
     || state.boardState.currentPlayer.id !== playerId
     || !myPlayer?.isJail) {
     return null;

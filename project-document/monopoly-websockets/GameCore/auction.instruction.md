@@ -1,54 +1,47 @@
-# Auction
+# Durable auction
 
-## Phạm vi và code nguồn
+## State
 
-- Auction state transitions: `apps/server/src/game/auction.ts`.
-- Timer và Socket events: `apps/server/src/socket/auction.ts`.
-- Disconnect interaction: `apps/server/src/socket/player.ts`.
-- Shared `Auction` shape: `packages/shared/src/types.ts`.
+Auction snapshot contains stable `auctionId`, tile ID/name/list price, high
+bid/bidder, active/passed stable Player IDs and absolute ISO `endsAt`. Timer handles
+and per-second countdown are runtime/client-derived only.
 
-## Exports/functions
+## Domain rules
 
-- `startAuction(state, tileID)`: tắt `canBuyProp`, tạo auction 30 giây với toàn bộ active player.
-- `finalizeAuction(state)`: giao tile cho highest bidder hợp lệ hoặc để unowned; clear auction rồi `nextTurn`.
-- `beginAuction(io, room, tileID)`: start, broadcast và mở interval 1 giây.
-- `endAuction(io, room)`: clear interval, finalize, check balance và broadcast.
-- Socket actions: `decline property`, `place bid`, `pass bid`.
+- Current Player may start auction only while `canBuyProp` and no auction exists.
+- Auction starts with all active Players and 30-second deadline.
+- Bid must be positive integer up to `2_147_483_647`, exceed high bid and not exceed
+  current balance.
+- Valid bid resets passed and extends deadline to at least 15 seconds when needed.
+- Highest bidder cannot pass; early finalize may occur once no other participant
+  needs action.
+- Finalize revalidates authoritative bidder/property/balance, creates unbuilt and
+  unmortgaged ownership when valid, clears auction and advances turn.
+- A bid does not reserve funds. If the leader no longer has enough balance at
+  finalize, no invalid debt/ownership transfer is committed and the tile stays unowned.
 
-## State và invariants
+## Disconnect/leave
 
-- Auction giữ `tileID`, `tileName`, list `price`, highest bid/bidder, `active`, `passed`, `timer`.
-- Chỉ current player đang ở trạng thái `canBuyProp` và khi chưa có auction mới được decline property.
-- Bidder phải là active player của auction; bid phải finite, được floor thành số nguyên, lớn hơn highest bid và không vượt balance hiện tại.
-- Bid mới reset toàn bộ `passed`; nếu timer dưới 15 thì tăng lại 15 giây.
-- Highest bidder không thể pass. Auction kết thúc sớm khi mọi active player khác highest bidder đã pass.
-- Finalize tạo `OwnedProp` với `houses: 0`, `mortgaged: false`, trừ winning bid và chuyển turn.
+Temporary disconnect preserves participant/pass/highest bid; it does not reopen or
+cancel auction. Explicit leave/forfeit performs deterministic auction reconciliation
+inside the same room transaction.
 
-## Disconnect mutation
+Current-turn reconnect grace is subordinate to active auction deadline.
 
-- Player rời bị xóa khỏi `active` và `passed`.
-- Nếu leader rời: highest bidder/name/bid về null/0 và reset passed.
-- Auction kết thúc nếu còn tối đa một active player hoặc không còn ai cần hành động.
-- Room cuối cùng rời sẽ clear timer trước khi room bị xóa.
+## Recovery/idempotence
 
-## Caveat AS-IS
+- Scheduler finds due auction rows from persisted `endsAt`/`next_action_at`.
+- Recovery captures the due `auctionId/endsAt`, reloads locked current state and
+  requires that exact marker before aggregate CAS.
+- Startup/lazy load immediately finalizes expired auction before serving state.
+- Start, bid, pass, extension and finalize persist before broadcast.
+- A concurrent stale recovery rolls back with no revision/activity/broadcast; it
+  cannot award, charge or advance the turn twice.
 
-- Winning funds không được reserve. Bidder có thể tiêu tiền qua flow khác trước finalize; finalize vẫn trừ bid nếu player còn tồn tại, sau đó `checkBalance` có thể loại họ.
-- Auction timer chỉ ở memory/process; restart làm mất auction.
-- Active list là snapshot khi auction start; spectator không tham gia. Bankruptcy giữa auction không trực tiếp đồng bộ list như disconnect, nhưng timeout vẫn kết thúc.
-- `price` là list price để hiển thị; minimum bid thực tế chỉ là `highestBid + 1`, bắt đầu từ 1, không bắt đầu bằng list price.
-- `finalizeAuction` tự gọi `nextTurn`; `endAuction` gọi thêm `checkBalance(false)` sau đó.
+## Tests
 
-## Consumers và liên kết chéo
-
-- Auction Socket API: [`../Api/socket-auction.instruction.md`](../Api/socket-auction.instruction.md).
-- Client auction UI: [`../Client/auction.instruction.md`](../Client/auction.instruction.md).
-- Room cleanup: [`room-lifecycle.instruction.md`](room-lifecycle.instruction.md).
-- Turn hand-off: [`turn-movement-and-bankruptcy.instruction.md`](turn-movement-and-bankruptcy.instruction.md).
-
-## Kiểm thử khi sửa
-
-- Unit hiện có chỉ cover `finalizeAuction` với winning bid và no-bid.
-- Chưa có automation cho start state, bid/pass guards, integer normalization, timer extension/countdown, early close, disconnect hoặc room cleanup.
-- Thực hiện [`../testcase/auction.md`](../testcase/auction.md) và disconnect cases trong [`../testcase/join-room-and-player-lifecycle.md`](../testcase/join-room-and-player-lifecycle.md).
-- Chạy `pnpm typecheck`, `pnpm lint`, `pnpm test`.
+- Start/bid/pass/extension/early close/finalize domain behavior.
+- Invalid numeric values and insufficient funds.
+- Disconnect preservation and explicit leave reconciliation.
+- Active/expired auction restart; bid-expiry race and stale callbacks.
+- Repository failure does not commit a revision or broadcast.

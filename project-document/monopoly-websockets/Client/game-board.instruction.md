@@ -8,7 +8,7 @@
 | List route | Không có |
 | Detail route | Không có; tile detail là mặt sau inline của tile |
 | URL entry | `/` |
-| Điều kiện hiển thị | `joined === true` trong `App` |
+| Điều kiện hiển thị | Activated Player hoặc explicit Spectator admission |
 | Permission key | Không có |
 
 ## Code và component path
@@ -25,8 +25,8 @@
 
 ## Service, state, context và socket
 
-- Board đọc `state` và `playerId` từ `stateContext`.
-- Board không đăng ký socket listener riêng; dữ liệu authoritative đến từ event `update` mà `App` xử lý.
+- Board đọc public room/game state, stable `playerId` và `role` từ `stateContext`.
+- Board không đăng ký socket listener riêng; dữ liệu authoritative đến từ `update(PublicRoomState)` mà `App` xử lý theo revision.
 - `displayPositionsContext` chứa vị trí đang hiển thị của từng player. `useSteppedPositions` dịch vị trí này dần tới `state.players[id].currentTile`.
 - `cardFlipContext` chứa mảng `cardsBack` và reducer action `FLIP_CARD`.
 - `sellPromptContext` được tạo tại Board để chuyển click từ property card sang modal trading.
@@ -47,7 +47,7 @@
 4. `Tile` render token có vị trí hiển thị trùng tile hiện tại; nếu context chưa có vị trí thì fallback về `currentTile` từ server.
 5. Click một tile đóng card đang mở và mở mặt sau của tile vừa click.
 6. Click ngoài `.Tile` và `.tile-back--container` đóng card đang mở.
-7. Event `update` thay state; owner frame, mortgage, building và token được render lại theo state mới.
+7. Event `update` thay committed public snapshot; owner frame, mortgage, building và token được render lại theo state mới.
 
 ## Rule và caveat
 
@@ -60,6 +60,9 @@
 - `state.boardState.ownedProps` và `state.players` từ server là nguồn authoritative cho ownership/buildings/token. Các trường `ownedBy`/`houses` trong `BoardInitState.ts` không điều khiển state game realtime.
 - Card special cũng có mặt sau thông tin; action property chỉ xuất hiện theo ownership và loại tile trong `BackOfCard`.
 - Không có route detail cho tile, deep link hoặc browser history khi lật card.
+- `socket.id` không được dùng làm token/owner identity; stable Player ID giữ nguyên qua refresh.
+- Spectator có banner read-only và không thấy property/gameplay mutation actions.
+- Khi reconnect, Board giữ snapshot nhưng overlay khóa mutation cho tới resume ACK.
 
 ## Tài liệu liên quan
 
@@ -77,7 +80,7 @@ Khi sửa Board/Tile/movement, kiểm tra tối thiểu:
 
 - Đủ đúng 40 tile, đúng index, tên, màu, giá và orientation.
 - Owner frame, mortgage marker, house và hotel phản ánh đúng `ownedProps` sau `update`.
-- Nhiều player cùng tile đều hiển thị; player join/leave được thêm/xóa khỏi display positions.
+- Nhiều player cùng tile đều hiển thị; temporary disconnect không xóa token/Seat, còn explicit leave mới thay roster.
 - Move 2–12 ô đi lần lượt, qua ô 39 về 0 đúng; jail/teleport/backward snap đúng AS-IS.
 - Không cho roll tiếp, đổi turn marker hoặc hiện buy prompt trước thời điểm token settled/arrived.
 - Click tile mở đúng card; click tile khác chỉ mở một card; click center/dashboard/log đóng card.

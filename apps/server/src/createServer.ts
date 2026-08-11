@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import rateLimit from 'express-rate-limit';
+import type { AppRuntime } from './services/runtime';
 import type { AppServer } from './socket/types';
 
 const { env } = process;
@@ -12,7 +13,7 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 // Build the Express app, HTTP server, and typed Socket.IO server. In production
 // the client is served same-origin (with a SPA fallback), so cross-origin
 // requests are disallowed by default; set CORS_ORIGIN to allow another origin.
-export function createServer(): { server: HttpServer; io: AppServer } {
+export function createServer(runtime: AppRuntime): { server: HttpServer; io: AppServer } {
   const app = express();
   const server = createHttpServer(app);
 
@@ -33,6 +34,18 @@ export function createServer(): { server: HttpServer; io: AppServer } {
   });
 
   app.get('/healthz', (_req, res) => res.status(200).send('ok'));
+  app.get('/readyz', async (_req, res) => {
+    if (runtime.flags.shuttingDown) {
+      res.status(503).send('shutting down');
+      return;
+    }
+    try {
+      await runtime.persistence.healthcheck();
+      res.status(200).send('ready');
+    } catch {
+      res.status(503).send('database unavailable');
+    }
+  });
 
   if (env.NODE_ENV === 'production') {
     const clientDist = env.CLIENT_DIST

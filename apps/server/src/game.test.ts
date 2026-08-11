@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { GameState, Player } from '@monopoly/shared';
+import type { GameState, Player, PlayerId } from '@monopoly/shared';
 import {
   sanitizeName,
   escapeHtml,
@@ -15,6 +15,10 @@ import {
   resolveTile,
   nextTurn,
   checkBalance,
+  checkWinner,
+  removePlayerFromGame,
+  startAuction,
+  extendAuctionDeadline,
   finalizeAuction,
 } from './game';
 
@@ -41,6 +45,8 @@ const makeState = (): GameState => ({
     players: [],
     finishedPlayers: {},
     currentPlayer: { id: '', hasMoved: false },
+    turnNumber: 0,
+    turnRecovery: null,
     logs: [],
     diceValue: { dice1: 0, dice2: 0 },
     ownedProps: {},
@@ -53,7 +59,7 @@ const makeState = (): GameState => ({
   loaded: true,
 });
 
-const addPlayer = (state: GameState, id: string, over: Partial<Player> = {}): Player => {
+const addPlayer = (state: GameState, id: PlayerId, over: Partial<Player> = {}): Player => {
   state.players[id] = makePlayer(over);
   state.boardState.players = Object.keys(state.players);
   if (!state.boardState.currentPlayer.id) state.boardState.currentPlayer.id = id;
@@ -64,7 +70,7 @@ const addPlayer = (state: GameState, id: string, over: Partial<Player> = {}): Pl
 const own = (
   state: GameState,
   tileIndex: number,
-  id: string,
+  id: PlayerId,
   over: Partial<GameState['boardState']['ownedProps'][number]> = {},
 ): void => {
   state.boardState.ownedProps[tileIndex] = {
@@ -195,13 +201,32 @@ describe('buildHouse', () => {
     expect(state.boardState.ownedProps[1].houses).toBe(0);
   });
 
-  it('caps at a hotel (5) and does not build when unaffordable', () => {
+  it('caps construction at a hotel (5)', () => {
     const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 40 });
+    addPlayer(state, 'p1', { accountBalance: 1000 });
     BROWN.forEach((t) => own(state, t, 'p1', { houses: 5 }));
     buildHouse(state, 'p1', 1);
     expect(state.boardState.ownedProps[1].houses).toBe(5);
+    expect(state.players.p1.accountBalance).toBe(1000);
+  });
+
+  it('refuses a valid house build when the player cannot afford it', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { accountBalance: 40 });
+    BROWN.forEach((t) => own(state, t, 'p1'));
+    buildHouse(state, 'p1', 1);
+    expect(state.boardState.ownedProps[1].houses).toBe(0);
     expect(state.players.p1.accountBalance).toBe(40);
+    expect(state.boardState.logs.at(-1)).toContain("can't afford to build");
+  });
+
+  it('refuses to build on a non-buildable property', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { accountBalance: 1000 });
+    own(state, 5, 'p1', { color: 'railroad' });
+    buildHouse(state, 'p1', 5);
+    expect(state.boardState.ownedProps[5].houses).toBe(0);
+    expect(state.players.p1.accountBalance).toBe(1000);
   });
 });
 
@@ -404,17 +429,31 @@ describe('resolveTile', () => {
 });
 
 describe('nextTurn', () => {
-  it('advances to the next player and wraps around', () => {
+  it('advances to the next player, increments the turn, and clears recovery state', () => {
     const state = makeState();
     addPlayer(state, 'p1');
     addPlayer(state, 'p2');
     addPlayer(state, 'p3');
     state.boardState.currentPlayer.id = 'p1';
+    state.boardState.currentPlayer.hasMoved = true;
+    state.boardState.turnNumber = 7;
+    state.boardState.turnRecovery = {
+      playerId: 'p1',
+      turnNumber: 7,
+      deadlineAt: '2030-01-01T00:00:00.000Z',
+    };
+    state.turnInfo.canBuyProp = true;
     nextTurn(state);
     expect(state.boardState.currentPlayer.id).toBe('p2');
+    expect(state.boardState.currentPlayer.hasMoved).toBe(false);
+    expect(state.boardState.turnNumber).toBe(8);
+    expect(state.boardState.turnRecovery).toBeNull();
+    expect(state.turnInfo).toEqual({});
+
     state.boardState.currentPlayer.id = 'p3';
     nextTurn(state);
     expect(state.boardState.currentPlayer.id).toBe('p1');
+    expect(state.boardState.turnNumber).toBe(9);
   });
 });
 
@@ -427,8 +466,9 @@ describe('checkBalance / winner', () => {
     checkBalance(state);
     expect(state.players.p1).toBeUndefined();
     expect(state.boardState.finishedPlayers.p1).toBeDefined();
+    expect(state.boardState.finishedPlayers.p1.reason).toBe('BANKRUPT');
     expect(state.boardState.ownedProps[1]).toBeUndefined();
-    expect(state.boardState.winner?.name).toBe('Player');
+    expect(state.boardState.winner).toMatchObject({ playerId: 'p2', name: 'Player' });
   });
 
   it('does not declare a winner while nobody has been eliminated', () => {
@@ -437,6 +477,141 @@ describe('checkBalance / winner', () => {
     checkBalance(state);
     expect(state.boardState.winner).toBeNull();
   });
+
+  it('removes multiple bankrupt players as one batch without stale-id recursion', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { accountBalance: 0 });
+    addPlayer(state, 'p2', { accountBalance: -10 });
+    addPlayer(state, 'p3', { accountBalance: 500 });
+    addPlayer(state, 'p4', { accountBalance: 500 });
+    state.boardState.currentPlayer.id = 'p1';
+    own(state, 1, 'p1');
+    own(state, 3, 'p2');
+    state.boardState.openMarket[3] = {
+      seller: 'p2',
+      price: 100,
+      sellerName: 'Player',
+      tileName: 'Tyne St.',
+    };
+
+    expect(() => checkBalance(state, true)).not.toThrow();
+    expect(Object.keys(state.players)).toEqual(['p3', 'p4']);
+    expect(state.boardState.players).toEqual(['p3', 'p4']);
+    expect(state.boardState.currentPlayer.id).toBe('p3');
+    expect(state.boardState.turnNumber).toBe(1);
+    expect(state.boardState.ownedProps[1]).toBeUndefined();
+    expect(state.boardState.ownedProps[3]).toBeUndefined();
+    expect(state.boardState.openMarket[3]).toBeUndefined();
+  });
+
+  it('advances exactly once when non-current bankruptcies are cleaned up', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { accountBalance: 500 });
+    addPlayer(state, 'p2', { accountBalance: 0 });
+    addPlayer(state, 'p3', { accountBalance: 0 });
+    addPlayer(state, 'p4', { accountBalance: 500 });
+    state.boardState.currentPlayer.id = 'p1';
+
+    checkBalance(state, true);
+    expect(state.boardState.currentPlayer.id).toBe('p4');
+    expect(state.boardState.turnNumber).toBe(1);
+  });
+
+  it('sets the winner and win log only once', () => {
+    const state = makeState();
+    addPlayer(state, 'winner', { name: 'Ada', color: 'purple' });
+    state.boardState.finishedPlayers.loser = {
+      name: 'Grace',
+      color: 'green',
+      reason: 'BANKRUPT',
+    };
+    const logsBefore = state.boardState.logs.length;
+
+    checkWinner(state);
+    checkWinner(state);
+
+    expect(state.boardState.winner).toEqual({
+      playerId: 'winner',
+      name: 'Ada',
+      color: 'purple',
+    });
+    expect(state.boardState.logs).toHaveLength(logsBefore + 1);
+  });
+
+  it('forfeits an active player and hands off a current turn once', () => {
+    const state = makeState();
+    addPlayer(state, 'p1');
+    addPlayer(state, 'p2');
+    addPlayer(state, 'p3');
+    state.boardState.currentPlayer.id = 'p2';
+    own(state, 1, 'p2');
+    state.boardState.openMarket[1] = {
+      seller: 'p2',
+      price: 75,
+      sellerName: 'Player',
+      tileName: 'Parker St.',
+    };
+    state.boardState.auction = {
+      auctionId: 'auction-forfeit',
+      tileID: 3,
+      tileName: 'Tyne St.',
+      price: 60,
+      highestBid: 50,
+      highestBidder: 'p2',
+      highestBidderName: 'Player',
+      active: ['p1', 'p2', 'p3'],
+      passed: ['p1'],
+      endsAt: '2030-01-01T00:00:00.000Z',
+    };
+
+    expect(removePlayerFromGame(state, 'p2')).toBe(true);
+    expect(state.boardState.finishedPlayers.p2.reason).toBe('LEFT');
+    expect(state.boardState.currentPlayer.id).toBe('p3');
+    expect(state.boardState.turnNumber).toBe(1);
+    expect(state.boardState.ownedProps[1]).toBeUndefined();
+    expect(state.boardState.openMarket[1]).toBeUndefined();
+    expect(state.boardState.auction?.active).toEqual(['p1', 'p3']);
+    expect(state.boardState.auction?.highestBidder).toBeNull();
+    expect(state.boardState.auction?.highestBid).toBe(0);
+  });
+});
+
+describe('auction deadlines', () => {
+  it('starts with a stable id and an absolute 30-second deadline', () => {
+    const state = makeState();
+    addPlayer(state, 'p1');
+    addPlayer(state, 'p2');
+    state.turnInfo.canBuyProp = true;
+    const now = Date.parse('2030-01-01T00:00:00.000Z');
+
+    const auction = startAuction(state, 1, { auctionId: 'auction-1', now });
+
+    expect(auction.auctionId).toBe('auction-1');
+    expect(auction.endsAt).toBe('2030-01-01T00:00:30.000Z');
+    expect(auction.active).toEqual(['p1', 'p2']);
+    expect(auction).not.toHaveProperty('timer');
+    expect(state.turnInfo.canBuyProp).toBe(false);
+  });
+
+  it('accepts a supplied authoritative deadline', () => {
+    const state = makeState();
+    addPlayer(state, 'p1');
+    const auction = startAuction(state, 1, {
+      auctionId: 'restored-auction',
+      endsAt: '2031-02-03T04:05:06.000Z',
+    });
+    expect(auction.endsAt).toBe('2031-02-03T04:05:06.000Z');
+  });
+
+  it('extends only deadlines with less than 15 seconds remaining', () => {
+    const state = makeState();
+    addPlayer(state, 'p1');
+    const origin = Date.parse('2030-01-01T00:00:00.000Z');
+    const auction = startAuction(state, 1, { auctionId: 'auction-1', now: origin });
+
+    expect(extendAuctionDeadline(auction, origin)).toBe('2030-01-01T00:00:30.000Z');
+    expect(extendAuctionDeadline(auction, origin + 20_000)).toBe('2030-01-01T00:00:35.000Z');
+  });
 });
 
 describe('finalizeAuction', () => {
@@ -444,7 +619,82 @@ describe('finalizeAuction', () => {
     const state = makeState();
     addPlayer(state, 'p1', { accountBalance: 1000 });
     addPlayer(state, 'p2', { accountBalance: 1000 });
+    state.boardState.currentPlayer.id = 'p1';
+    state.boardState.turnRecovery = {
+      playerId: 'p1',
+      turnNumber: 0,
+      deadlineAt: '2030-01-01T00:00:00.000Z',
+    };
     state.boardState.auction = {
+      auctionId: 'auction-1',
+      tileID: 1,
+      tileName: 'Parker St.',
+      price: 60,
+      highestBid: 120,
+      highestBidder: 'p2',
+      highestBidderName: 'Untrusted stale name',
+      active: ['p1', 'p2'],
+      passed: [],
+      endsAt: '2030-01-01T00:00:00.000Z',
+    };
+    expect(finalizeAuction(state, 'auction-1')).toBe(true);
+    expect(state.players.p2.accountBalance).toBe(880);
+    expect(state.boardState.ownedProps[1]).toEqual({
+      id: 'p2',
+      color: 'red',
+      houses: 0,
+      mortgaged: false,
+    });
+    expect(state.boardState.auction).toBeNull();
+    expect(state.boardState.currentPlayer.id).toBe('p2');
+    expect(state.boardState.turnNumber).toBe(1);
+    expect(state.boardState.turnRecovery).toBeNull();
+    expect(state.boardState.logs.at(-1)).toContain('Player won the auction');
+    expect(finalizeAuction(state, 'auction-1')).toBe(false);
+    expect(state.boardState.turnNumber).toBe(1);
+  });
+
+  it('leaves the tile unowned when there were no bids', () => {
+    const state = makeState();
+    addPlayer(state, 'p1');
+    addPlayer(state, 'p2');
+    state.boardState.auction = {
+      auctionId: 'auction-no-bids',
+      tileID: 1,
+      tileName: 'Parker St.',
+      price: 60,
+      highestBid: 0,
+      highestBidder: null,
+      highestBidderName: null,
+      active: ['p1', 'p2'],
+      passed: [],
+      endsAt: '2030-01-01T00:00:00.000Z',
+    };
+    finalizeAuction(state);
+    expect(state.boardState.ownedProps[1]).toBeUndefined();
+    expect(state.boardState.auction).toBeNull();
+    expect(state.boardState.currentPlayer.id).toBe('p2');
+  });
+
+  it('does not let a stale callback finalize a newer auction', () => {
+    const state = makeState();
+    addPlayer(state, 'p1');
+    startAuction(state, 1, {
+      auctionId: 'new-auction',
+      endsAt: '2030-01-01T00:00:00.000Z',
+    });
+
+    expect(finalizeAuction(state, 'old-auction')).toBe(false);
+    expect(state.boardState.auction?.auctionId).toBe('new-auction');
+    expect(state.boardState.turnNumber).toBe(0);
+  });
+
+  it('rejects an unaffordable persisted high bid at finalization', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { accountBalance: 1000 });
+    addPlayer(state, 'p2', { accountBalance: 100 });
+    state.boardState.auction = {
+      auctionId: 'auction-invalid-bid',
       tileID: 1,
       tileName: 'Parker St.',
       price: 60,
@@ -453,30 +703,11 @@ describe('finalizeAuction', () => {
       highestBidderName: 'Player',
       active: ['p1', 'p2'],
       passed: [],
-      timer: 0,
+      endsAt: '2030-01-01T00:00:00.000Z',
     };
-    finalizeAuction(state);
-    expect(state.players.p2.accountBalance).toBe(880);
-    expect(state.boardState.ownedProps[1].id).toBe('p2');
-    expect(state.boardState.auction).toBeNull();
-  });
 
-  it('leaves the tile unowned when there were no bids', () => {
-    const state = makeState();
-    addPlayer(state, 'p1');
-    state.boardState.auction = {
-      tileID: 1,
-      tileName: 'Parker St.',
-      price: 60,
-      highestBid: 0,
-      highestBidder: null,
-      highestBidderName: null,
-      active: ['p1'],
-      passed: [],
-      timer: 0,
-    };
-    finalizeAuction(state);
+    expect(finalizeAuction(state)).toBe(true);
+    expect(state.players.p2.accountBalance).toBe(100);
     expect(state.boardState.ownedProps[1]).toBeUndefined();
-    expect(state.boardState.auction).toBeNull();
   });
 });

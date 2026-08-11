@@ -1,113 +1,95 @@
 # Monopoly Websockets — Documentation Source of Truth
 
-## Mục đích và phạm vi
+## Mục đích
 
-Thư mục này là nguồn sự thật duy nhất để định vị phạm vi chức năng, đường dẫn code, rule thay đổi và checklist kiểm thử của project `monopoly-websockets`.
+Thư mục này định vị code, invariant, contract, persistence và checklist kiểm thử
+của `monopoly-websockets`. Code, migration và test là bằng chứng thực thi; tài liệu
+phải được cập nhật trong cùng thay đổi.
 
-Tài liệu chỉ mô tả hành vi đang tồn tại trong code. Không ghi roadmap, flow đã xóa hoặc giả định chưa được code chứng minh. Code là bằng chứng thực thi; mọi sai khác giữa code và tài liệu phải được đồng bộ ngay trong cùng lần sửa.
+## Kiến trúc hiện tại
 
-Root `README.md` phục vụ giới thiệu, chạy project và deploy. Thư mục `docs/` hiện chỉ chứa ảnh minh họa. Hai nguồn đó không thay thế bộ instruction này.
-
-## Tổng quan kiến trúc hiện tại
-
-| Khối | Đường dẫn code | Trách nhiệm hiện tại | Tài liệu bắt đầu |
+| Khối | Code | Trách nhiệm | Bắt đầu đọc |
 | --- | --- | --- | --- |
-| Client | `apps/client/` | React 19 + Vite; join room và toàn bộ game UI | [monopoly.client.instructions.md](./monopoly.client.instructions.md) |
-| HTTP/Socket API | `apps/server/src/createServer.ts`, `apps/server/src/socket/` | Express runtime và Socket.IO event handlers | [monopoly.api.instructions.md](./monopoly.api.instructions.md) |
-| GameCore | `apps/server/src/rooms.ts`, `apps/server/src/game/` | In-memory room state và luật game phía server | [monopoly.game-core.instructions.md](./monopoly.game-core.instructions.md) |
-| Shared | `packages/shared/src/` | Event contracts, state/payload types, board và card data | [monopoly.contracts.instructions.md](./monopoly.contracts.instructions.md) |
-| Test/CI/deploy | `apps/server/src/game.test.ts`, `.github/`, root configs | Unit test game core, workspace validation và single-service deploy | [monopoly.shared.instructions.md](./monopoly.shared.instructions.md) |
+| Client | `apps/client/` | React/Vite; admission, lobby, reconnect/spectator UX và game UI | [monopoly.client.instructions.md](./monopoly.client.instructions.md) |
+| API | `apps/server/src/createServer.ts`, `apps/server/src/socket/` | Express/Socket.IO, runtime validation, authenticated commands và ACK | [monopoly.api.instructions.md](./monopoly.api.instructions.md) |
+| GameCore | `apps/server/src/rooms.ts`, `apps/server/src/game/` | Room aggregate và luật game dùng stable player ID | [monopoly.game-core.instructions.md](./monopoly.game-core.instructions.md) |
+| Persistence | `apps/server/src/persistence/`, `apps/server/src/services/`, `apps/server/migrations/` | PostgreSQL, sessions, CAS command execution và recovery | [Persistence/README.md](./Persistence/README.md) |
+| Shared | `packages/shared/src/` | State/event/ACK types, Zod schemas, board/card data | [monopoly.contracts.instructions.md](./monopoly.contracts.instructions.md) |
+| Test/deploy | `apps/**/*.test.ts*`, `.github/`, root configs | Unit, Socket/client/PostgreSQL/restart gates và single-service deployment | [testcase/README.md](./testcase/README.md) |
 
-Các khối không tồn tại trong code hiện tại: database, ORM, repository, schema, migration, REST controller nghiệp vụ, auth và RBAC.
+Ứng dụng vẫn là một Node service phục vụ client cùng origin. PostgreSQL là durable
+dependency bắt buộc trong production; không có runtime memory fallback.
 
-## Thứ tự đọc bắt buộc
+## Invariants nguồn thẩm quyền
 
-1. Đọc file này để xác định đúng khối.
-2. Đọc [monopoly.shared.instructions.md](./monopoly.shared.instructions.md).
-3. Đọc rule nền theo khối:
-   - [monopoly.client.instructions.md](./monopoly.client.instructions.md)
-   - [monopoly.api.instructions.md](./monopoly.api.instructions.md)
-   - [monopoly.game-core.instructions.md](./monopoly.game-core.instructions.md)
-   - [monopoly.contracts.instructions.md](./monopoly.contracts.instructions.md)
-4. Mở index đúng khối:
-   - [Client/README.md](./Client/README.md)
-   - [Api/README.md](./Api/README.md)
-   - [GameCore/README.md](./GameCore/README.md)
-   - [Shared/README.md](./Shared/README.md)
-5. Đọc file `.instruction.md` đúng màn hình hoặc module.
-6. Đọc các instruction GameCore/Shared được file đó liên kết.
-7. Đọc [testcase/README.md](./testcase/README.md) và checklist được liên kết trước khi sửa.
+- Public player identity là stable UUID. `socket.id` không được dùng làm owner,
+  buyer, seller, turn, auction hoặc winner identity.
+- Browser giữ raw reconnect token; database chỉ giữ SHA-256 hash.
+- Valid token reclaim đúng Seat. Newest authenticated connection wins.
+- Disconnect chỉ đổi runtime presence; explicit `leave room` mới revoke/remove.
+- Room lifecycle là `LOBBY → IN_PROGRESS → FINISHED`; host/ready thuộc durable room.
+- Lobby cần 2–7 active players, tất cả connected và ready; chỉ host được start.
+- Join không token sau start là spectator; valid player token luôn được xét trước.
+- Mọi inbound payload qua runtime schema. Actor lấy từ authenticated SocketData.
+- Mọi authoritative command được serialize theo room, commit PostgreSQL transaction,
+  rồi mới ACK/broadcast monotonic room revision.
+- Public projector không phát session/token hash/private offers. Private delivery dùng
+  `player:<playerId>`, public delivery dùng `room:<roomId>`.
+- Auction, offer và turn recovery dùng absolute deadline; timer handle không persist.
 
-Nếu một thay đổi cắt qua nhiều khối, lặp lại bước 3–7 cho từng khối bị tác động.
+## Thứ tự đọc
 
-## Tra nhanh theo ý định sửa
+1. File này.
+2. [monopoly.shared.instructions.md](./monopoly.shared.instructions.md).
+3. Rule nền đúng khối.
+4. README index và file leaf đúng module.
+5. Cross-link tới persistence/contracts/producer/consumer.
+6. [testcase/README.md](./testcase/README.md) và checklist liên quan.
 
-| Muốn sửa | Mở trước | Logic chính nằm tại |
+## Tra nhanh
+
+| Muốn sửa | Mở trước | Code chính |
 | --- | --- | --- |
-| Join room | [Client/join-room.instruction.md](./Client/join-room.instruction.md) | `apps/client/src/App.tsx`, `apps/client/src/components/JoinForm.tsx`, `apps/server/src/socket/player.ts` |
-| Bàn cờ, tile hoặc token animation | [Client/game-board.instruction.md](./Client/game-board.instruction.md) | `apps/client/src/components/Board.tsx`, `apps/client/src/components/Tile.tsx`, `apps/client/src/useSteppedPositions.ts` |
-| Roll, mua property hoặc jail action | [Client/turn-actions.instruction.md](./Client/turn-actions.instruction.md) | `apps/client/src/components/Dice.tsx`, `apps/client/src/components/dashboard/BuyPrompt.tsx`, `apps/client/src/components/dashboard/JailPanel.tsx`, `apps/server/src/socket/turn.ts`, `apps/server/src/socket/jail.ts`, `apps/server/src/game/tiles.ts` |
-| Player list, start game hoặc winner | [Client/game-status.instruction.md](./Client/game-status.instruction.md) | `apps/client/src/components/Dashboard.tsx`, `apps/client/src/components/dashboard/PlayerList.tsx`, `apps/client/src/components/dashboard/WinnerBanner.tsx`, `apps/server/src/game/turn.ts` |
-| Build, sell house hoặc mortgage | [Client/property-management.instruction.md](./Client/property-management.instruction.md) | `apps/client/src/components/BackOfCard.tsx`, `apps/server/src/socket/building.ts`, `apps/server/src/game/property.ts` |
-| Open market hoặc private offer | [Client/trading-market.instruction.md](./Client/trading-market.instruction.md) | `apps/client/src/components/MarketPlace.tsx`, `apps/client/src/components/dashboard/SellPrompts.tsx`, `apps/client/src/components/dashboard/IncomingOffers.tsx`, `apps/server/src/socket/trading.ts` |
-| Auction | [Client/auction.instruction.md](./Client/auction.instruction.md) | `apps/client/src/components/dashboard/AuctionPanel.tsx`, `apps/server/src/socket/auction.ts`, `apps/server/src/game/auction.ts` |
-| Chat hoặc log | [Client/activity-log-and-chat.instruction.md](./Client/activity-log-and-chat.instruction.md) | `apps/client/src/components/Log.tsx`, `apps/server/src/socket/chat.ts`, `apps/server/src/game/text.ts` |
-| HTTP health/static/CORS | [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md) | `apps/server/src/createServer.ts` |
-| Socket event | [Api/README.md](./Api/README.md) | `apps/server/src/socket/` |
-| Luật game hoặc room lifecycle | [GameCore/README.md](./GameCore/README.md) | `apps/server/src/game/`, `apps/server/src/rooms.ts` |
-| Event, payload hoặc `GameState` | [Shared/socket-and-state-contracts.instruction.md](./Shared/socket-and-state-contracts.instruction.md) | `packages/shared/src/events.ts`, `packages/shared/src/types.ts` |
-| Tile, color group hoặc card data | [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md) | `packages/shared/src/tileState.ts`, `packages/shared/src/chanceCards.ts`, `packages/shared/src/chestCards.ts`, `apps/client/src/components/BoardInitState.ts`, `apps/client/src/components/backOfCards.ts` |
+| Join/resume/reconnect/token | [Client/join-room.instruction.md](./Client/join-room.instruction.md), [Api/socket-session.instruction.md](./Api/socket-session.instruction.md) | `App.tsx`, `playerSessionStorage.ts`, `socket/session.ts`, `playerSessionService.ts` |
+| Host/lobby/ready/leave | [GameCore/room-lifecycle.instruction.md](./GameCore/room-lifecycle.instruction.md), [Api/socket-lobby.instruction.md](./Api/socket-lobby.instruction.md) | `Lobby.tsx`, room aggregate, `socket/lobby.ts` |
+| DB/schema/CAS/recovery | [Persistence/postgres-and-recovery.instruction.md](./Persistence/postgres-and-recovery.instruction.md) | `persistence/`, `services/`, `migrations/` |
+| Turn/current-player grace | [GameCore/turn-movement-and-bankruptcy.instruction.md](./GameCore/turn-movement-and-bankruptcy.instruction.md) | `game/turn.ts`, turn handler, deadline scheduler |
+| Trading/private offer | [Client/trading-market.instruction.md](./Client/trading-market.instruction.md), [Api/socket-trading.instruction.md](./Api/socket-trading.instruction.md) | trading handler, `trade_offers`, offer UI |
+| Auction/recovery | [GameCore/auction.instruction.md](./GameCore/auction.instruction.md) | `game/auction.ts`, socket auction, scheduler |
+| Contracts/runtime schema | [Shared/socket-and-state-contracts.instruction.md](./Shared/socket-and-state-contracts.instruction.md) | `types.ts`, `events.ts`, `socketSchemas.ts` |
+| HTTP/readiness/deploy | [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md) | create/start server, migration startup, Docker/Render/CI |
+| Board/card data | [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md) | shared tile/card data và client presentation duplicates |
 
-## Quy ước tên và nội dung
+## Quy ước tài liệu
 
-- `*.instructions.md`: rule nền dùng cho cả một khối; không lặp nguyên văn vào file leaf.
-- `*.instruction.md`: tài liệu chi tiết của một màn hình, event module hoặc nhóm game-domain functions.
-- `README.md` trong mỗi khối: index và mapping; không chứa lại toàn bộ business rule.
-- `testcase/*.md`: checklist kiểm thử theo chức năng, có phân biệt test tự động hiện có với manual/integration coverage còn thiếu.
-- Đường dẫn code luôn tính từ root repo và phải tồn tại.
-- Tên Socket event, state field, environment variable và route phải giữ đúng chính tả/casing trong code.
-- Giá trị không tồn tại phải ghi rõ `Không có`; không để trống và không dựng tên giả.
-- Caveat AS-IS mô tả rủi ro hoặc giới hạn hiện tại, không được diễn đạt như tính năng dự kiến.
+- `*.instructions.md`: rule nền toàn khối.
+- `*.instruction.md`: behavior chi tiết của màn hình/module.
+- `README.md`: index, mapping và navigation.
+- `testcase/*.md`: phân biệt assertion tự động thật với manual/missing coverage.
+- Không ghi proposal/legacy flow trong tài liệu AS-IS.
+- Không gọi UI visibility là security. Authority nằm ở authenticated handler/domain.
+- Environment/event/type phải giữ đúng spelling và casing trong code.
 
-## Nguồn thẩm quyền hiện tại
+## Ma trận cập nhật
 
-- Server giữ `GameState` thẩm quyền và broadcast toàn state bằng event `update`.
-- Client có thêm display/local state cho animation, modal và offer countdown; state này không thay thế server state.
-- Socket actor lấy từ `socket.id`; room scope lấy từ `socket.data.roomId`.
-- TypeScript shared contracts chỉ kiểm tra compile-time; code hiện không có runtime schema validation.
-- Room state là `Map` trong memory một process; restart hoặc redeploy làm mất game.
-- Không có permission key. Owner/current-player/auction-participant checks là state guard theo action.
-
-## Ma trận cập nhật bắt buộc
-
-| Thay đổi code | Tài liệu tối thiểu phải cập nhật cùng lần sửa |
+| Thay đổi | Tài liệu phải cập nhật |
 | --- | --- |
-| View, menu, route, visibility hoặc UI behavior | Client rule + `Client/README.md` + file màn hình + testcase |
-| HTTP route, middleware, CORS, static serving | API rule + `Api/README.md` + `http-runtime` + testcase deploy/runtime |
-| Socket event, payload, guard hoặc outbound event | API module + Shared contract + Client producer/consumer + testcase |
-| `GameState` hoặc shared type | Shared instruction + mọi instruction consumer + fixtures/testcase |
-| Game rule, mutation order, bankruptcy/winner | GameCore instruction + liên kết API/Client + testcase |
-| Room create/join/disconnect/delete | Room lifecycle + socket-player + join/player testcase |
-| Tile/card name, value, index hoặc group | Shared data + client duplicates + hard-coded indices + testcase |
-| Auth, permission, DB, schema hoặc migration mới | Root README + `CLAUDE.md` + rule/index/detail/testcase của khối mới |
-| Xóa chức năng | Xóa mapping/detail/testcase đã hết hiệu lực; sửa mọi cross-link |
+| Event/payload/ACK/schema | Api module + Shared contract + Client consumer + testcase |
+| Public/private state | Shared + projector/consumer docs + leak/privacy tests |
+| Game rule/aggregate | GameCore + Api/Client consumers + persistence serialization + testcase |
+| Session/room lifecycle | Client join/lobby + socket session/lobby + room lifecycle + persistence + restart test |
+| SQL/snapshot/deadline | Persistence + HTTP/deploy + affected GameCore/Api + integration test |
+| Tile/card index/data | Shared data + client duplicates + hard-coded core indices + testcase |
 
-## Quy tắc thêm mới
-
-- Thêm màn hình/panel leaf: tạo `Client/<slug>.instruction.md` và thêm một dòng vào `Client/README.md`.
-- Thêm HTTP controller/route hoặc Socket handler module: tạo file tương ứng trong `Api/` và cập nhật `Api/README.md`.
-- Thêm game-domain module hoặc shared data family: tạo instruction trong đúng khối và cập nhật index.
-- Thêm testcase automation: cập nhật checklist để chỉ rõ mục nào đã được tự động hóa và đường dẫn test thật.
-- Không giữ flow đã bị xóa dưới nhãn “legacy”; lịch sử thuộc version control, không thuộc tài liệu AS-IS.
-
-## Kiểm tra cấu trúc và code
-
-Trước khi bàn giao một thay đổi tài liệu hoặc code:
+## Baseline
 
 ```bash
+pnpm db:status
 pnpm typecheck
 pnpm lint
 pnpm test
+pnpm build
 ```
 
-Chạy `pnpm build` khi thay đổi client, shared data/contract mà client import, hoặc cấu hình build/deploy. Ngoài lệnh tự động, thực hiện checklist liên quan trong `testcase/` và ghi đúng phần chưa thể tự động kiểm tra.
+Persistence change còn phải chạy PostgreSQL integration và server-restart scenario
+trên cùng database.

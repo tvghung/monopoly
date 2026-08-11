@@ -40,10 +40,18 @@ justify-content: space-evenly;
 }
 
 .dashboard__market-place__icon-v {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
   font-size: 1.75vmin;
   color: green;
 }
 
 .dashboard__market-place__icon-x {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
   font-size: 1vmin;
 }

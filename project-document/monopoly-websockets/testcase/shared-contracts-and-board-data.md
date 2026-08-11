@@ -1,46 +1,33 @@
-# Checklist — shared contracts và board/card data
+# Checklist — contracts, runtime schemas và board/card data
 
-## Nguồn hành vi
+## Contract/state
 
-- [`../Shared/socket-and-state-contracts.instruction.md`](../Shared/socket-and-state-contracts.instruction.md)
-- [`../Shared/board-and-card-data.instruction.md`](../Shared/board-and-card-data.instruction.md)
-- Code: `packages/shared/src/`, state fixtures ở `apps/server/src/rooms.ts`, `apps/client/src/App.tsx`, `apps/server/src/game.test.ts`.
+- [ ] Stable identity aliases and protocol version compile for client/server.
+- [ ] `PublicRoomState` carries revision/lifecycle/host/limits/roster/game projection.
+- [ ] `SocketData` has internal session context and ephemeral pending-admission lock,
+  but no raw token.
+- [ ] Every state-changing event has typed ACK; `new player`/dummy payloads absent.
+- [ ] Runtime schemas reject malformed UUID/token, unknown object fields, invalid tile,
+  non-positive/fractional/money above `2_147_483_647`, blank/oversize chat.
+- [ ] Schema success does not bypass role/actor/domain guards.
+- [ ] `[SOCKET-INTEGRATION]` Protocol mismatch, actor spoof and strict transport paths
+  are exercised in `apps/server/src/socket.integration.test.ts`.
+- [ ] `[AUTO]` `apps/server/src/rooms.test.ts` exercises exact snapshot version,
+  non-UUID identity and active-member inverse-state rejection; other deep malformed
+  host/auction/turn invariants still need direct assertions.
+- [ ] Public serialization contains no raw/hash token, session row or private offers.
+- [ ] Persisted snapshot omits `loaded`, presence, socket IDs and timer handles.
+- [ ] Auction uses `auctionId/endsAt`; offers/actions use `offerId`; winner has player ID.
 
-## Coverage hiện tại
+## Board/card invariants
 
-- `[AUTO-EXISTING]` TypeScript typecheck kiểm tra consumer compile; game tests cover một phần rent/card effects.
-- `[MISSING-AUTO]` Chưa có automated data-integrity test cho board length/groups/index/card target hoặc parity với client tables.
+- [ ] Exactly 40 tile indices `0..39`; color groups reference valid buildable streets.
+- [ ] Railroad, utility, GO/jail and card destination hard-coded indices still align.
+- [ ] Chance/Chest effects retain expected behavior.
+- [ ] Shared/client duplicate tile presentation sources remain synchronized; document
+  any existing tile-name mismatch rather than claiming typecheck proves equality.
 
-## Checklist
+## Gates
 
-### Contract/state shape
-
-- [ ] `[MANUAL]` `pnpm typecheck` pass sau khi đổi type/event và không có local duplicate event signature ngoài shared contract.
-- [ ] `[MANUAL]` `GameState` field mới/đổi được cập nhật trong server `freshState`, client `initialState` và test `makeState`.
-- [ ] `[MANUAL]` Client `AppSocket` nghe `ServerToClientEvents` và emit `ClientToServerEvents`; server aliases dùng thứ tự generic ngược đúng Socket.IO API.
-- [ ] `[MANUAL]` Event mới có cả emit/listener runtime tương ứng; xóa event không để wrapper/hook/listener mồ côi.
-- [ ] `[AS-IS CAVEAT]` Gửi payload sai kiểu từ raw Socket client để xác nhận runtime handler không dựa riêng vào TypeScript.
-
-### Board invariants
-
-- [ ] `[MANUAL]` `tileState` có đúng 40 index `0..39`; mọi player position, owned property key và card target nằm trong range.
-- [ ] `[MANUAL]` Mọi `colorGroups` index trỏ đến `normal` tile cùng màu, có price/rent/rent tiers/house cost.
-- [ ] `[MANUAL]` Railroad indices `5,15,25,35`, utility `12,28`, GO `0`, Jail `10` khớp dữ liệu và game core.
-- [ ] `[MANUAL]` Mọi `rentTiers` của buildable street có 5 mức; level 5 tương ứng hotel.
-- [ ] `[MANUAL]` Chance/Chest card chỉ dùng effect được `GameCard` và `applyCard` hỗ trợ; mọi absolute target hợp lệ.
-
-### Client duplicate data
-
-- [ ] `[AS-IS CAVEAT]` Ghi nhận drift hiện tại: shared index 20 `Free Parking` nhưng `BoardInitState` để label rỗng; shared index 28 `Water Company` nhưng client ghi `Water Works`.
-- [ ] `[MANUAL]` Khi đổi tile economics, đối chiếu `tileState.ts`, `BoardInitState.ts`, `backOfCards.ts`, Buy/Sell prompt và BackOfCard.
-- [ ] `[MISSING-AUTO]` Chưa có parity test với allow-list cho drift cố ý; khi sửa board data phải đối chiếu thủ công ba bảng thay vì giả định chúng hoàn toàn giống nhau.
-
-### Card behavior
-
-- [ ] `[AUTO-EXISTING]` Reward/penalty, collect/pay-each, jail card, go-to-jail và relative wrap giữ đúng mutation.
-- [ ] `[AS-IS CAVEAT]` Draw là random có hoàn lại; Get Out of Jail card không bị loại khỏi deck; absolute/relative movement không resolve tile đích.
-- [ ] `[MISSING-AUTO]` Mỗi card record được chạy qua effect test/data validation, gồm destination và money conservation khi transfer giữa players.
-
-## Regression commands
-
-`pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`.
+`pnpm typecheck`, schema unit tests, `pnpm test` and `pnpm build`. Typecheck proves
+contract compatibility, not network validation/authority or static-data equality.

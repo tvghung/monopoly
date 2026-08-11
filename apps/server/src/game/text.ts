@@ -1,5 +1,7 @@
 import type { GameState } from '@monopoly/shared';
 
+export const MAX_GAME_LOG_ENTRIES = 500;
+
 // Current time (HH:MM:SS) for log lines.
 export const date = (): string => new Date(Date.now()).toLocaleTimeString('en-GB', { hour12: false });
 
@@ -18,6 +20,12 @@ export const sanitizeName = (value: unknown): string => (typeof value === 'strin
   .slice(0, 20);
 
 // Append a message to a room's game log.
-export const sendToLog = (state: GameState, text: string): void => {
-  state.boardState.logs = [...state.boardState.logs, `${date()} - ${text}`];
+export const sendToLog = (
+  state: Pick<GameState, 'boardState'>,
+  text: string,
+): void => {
+  state.boardState.logs = [
+    ...state.boardState.logs,
+    `${date()} - ${text}`,
+  ].slice(-MAX_GAME_LOG_ENTRIES);
 };

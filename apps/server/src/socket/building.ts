@@ -1,50 +1,65 @@
+import { tileIdSchema, type AckCallback } from '@monopoly/shared';
 import {
   buildHouse,
-  sellHouse,
   mortgageProperty,
+  sellHouse,
   unmortgageProperty,
 } from '../game';
-import { getRoom } from '../rooms';
+import type { AppRuntime } from '../services/runtime';
+import { requirePlayer } from './authority';
+import { broadcastRoom } from './broadcast';
+import { CommandError, acknowledgeFailure, successAck } from './errors';
+import { commitRoomCommand } from './roomCommands';
 import type { AppServer, AppSocket } from './types';
+import { parsePayload } from './validation';
 
-export function registerBuildingHandlers(io: AppServer, socket: AppSocket): void {
-  // Build a house/hotel on a monopolised property (owner only).
-  socket.on('build house', (tileID) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room) return;
-    const { state } = room;
-    if (state.boardState.winner) return;
-    buildHouse(state, socket.id, tileID);
-    io.to(room.id).emit('update', state);
+type PropertyAction = typeof buildHouse;
+
+async function executePropertyAction(
+  io: AppServer,
+  socket: AppSocket,
+  runtime: AppRuntime,
+  rawTileID: unknown,
+  acknowledge: AckCallback,
+  action: PropertyAction,
+): Promise<void> {
+  try {
+    const tileID = parsePayload(tileIdSchema, rawTileID);
+    const actor = requirePlayer(socket, runtime);
+    const { roomId, playerId } = actor;
+    const committed = await commitRoomCommand(runtime, roomId, ({ room, state }) => {
+      if (room.status !== 'IN_PROGRESS' || state.boardState.winner) {
+        throw new CommandError('CONFLICT', 'Property management is not available.');
+      }
+      if (!action(state, playerId, tileID)) {
+        throw new CommandError('CONFLICT', 'This property action is not allowed now.');
+      }
+    }, undefined, actor);
+    if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
+    broadcastRoom(io, runtime, committed.room);
+    if (typeof acknowledge === 'function') {
+      acknowledge(successAck(committed.room.aggregateVersion));
+    }
+  } catch (error) {
+    if (typeof acknowledge === 'function') acknowledgeFailure(acknowledge, error);
+  }
+}
+
+export function registerBuildingHandlers(
+  io: AppServer,
+  socket: AppSocket,
+  runtime: AppRuntime,
+): void {
+  socket.on('build house', (tileID, acknowledge) => {
+    void executePropertyAction(io, socket, runtime, tileID, acknowledge, buildHouse);
   });
-
-  // Sell a house/hotel back to the bank (owner only).
-  socket.on('sell house', (tileID) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room) return;
-    const { state } = room;
-    if (state.boardState.winner) return;
-    sellHouse(state, socket.id, tileID);
-    io.to(room.id).emit('update', state);
+  socket.on('sell house', (tileID, acknowledge) => {
+    void executePropertyAction(io, socket, runtime, tileID, acknowledge, sellHouse);
   });
-
-  // Mortgage a property for half its price (owner only).
-  socket.on('mortgage property', (tileID) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room) return;
-    const { state } = room;
-    if (state.boardState.winner) return;
-    mortgageProperty(state, socket.id, tileID);
-    io.to(room.id).emit('update', state);
+  socket.on('mortgage property', (tileID, acknowledge) => {
+    void executePropertyAction(io, socket, runtime, tileID, acknowledge, mortgageProperty);
   });
-
-  // Lift a mortgage (owner only).
-  socket.on('unmortgage property', (tileID) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room) return;
-    const { state } = room;
-    if (state.boardState.winner) return;
-    unmortgageProperty(state, socket.id, tileID);
-    io.to(room.id).emit('update', state);
+  socket.on('unmortgage property', (tileID, acknowledge) => {
+    void executePropertyAction(io, socket, runtime, tileID, acknowledge, unmortgageProperty);
   });
 }

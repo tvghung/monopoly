@@ -1,55 +1,39 @@
-# Checklist — turn, movement, buy và jail
+# Checklist — start, turn, buy, jail và reconnect grace
 
-## Nguồn hành vi
+## Automated evidence
 
-- [`../GameCore/turn-movement-and-bankruptcy.instruction.md`](../GameCore/turn-movement-and-bankruptcy.instruction.md)
-- [`../GameCore/tile-cards-and-jail-resolution.instruction.md`](../GameCore/tile-cards-and-jail-resolution.instruction.md)
-- [`../Api/socket-turn.instruction.md`](../Api/socket-turn.instruction.md), [`../Api/socket-jail.instruction.md`](../Api/socket-jail.instruction.md)
-- [`../Client/turn-actions.instruction.md`](../Client/turn-actions.instruction.md)
+`[AUTO]` GameCore dice/movement/tile/jail/turn assertions are in
+`apps/server/src/game.test.ts`. `[AUTO]` deadline recovery of an expired buy decision
+is in `apps/server/src/services/deadlineScheduler.test.ts`. `[SOCKET-INTEGRATION]`
+covers host/ready start, an already-offline successor grace, unaffordable buy/bail,
+no-payload shape and queued stale-generation rejection; other paths below remain
+separate requirements.
 
-## Coverage hiện tại
+## Start
 
-- `[AUTO-EXISTING]` Movement/GO, tile outcomes, jail rolls và một số card effects có unit tests trong `apps/server/src/game.test.ts`.
-- `[MISSING-AUTO]` Start/roll/buy/bail/jail-card authority guards và Socket broadcast chưa có integration tests.
+- [ ] Only host starts `LOBBY`; 2–7 active Players all connected/ready.
+- [ ] Non-host, spectator, one Player, offline/unready roster and repeated start fail.
+- [ ] Start has no dummy payload and commits status/first turn once.
 
-## Checklist
+## Roll/buy/tile/jail
 
-### Start và roll authority
+- [ ] Stable current Player alone can roll once; dice/movement are server-authoritative.
+- [ ] All tile/rent/tax/card/jail outcomes retain existing domain behavior.
+- [ ] Buy has no dummy payload and revalidates unowned tile/balance/current decision.
+- [ ] Decline creates durable auction; no decision path deadlocks turn.
+- [ ] Pay/card jail action derives actor; invalid balance/card/state fails.
+- [ ] Every command ACKs only after commit; failure does not commit a revision or broadcast.
 
-- [ ] `[MANUAL]` Start set `gameStarted`, ghi log, chọn player đầu tiên qua `nextTurn` và broadcast state.
-- [ ] `[AS-IS CAVEAT]` Bất kỳ socket đã có `roomId`, kể cả spectator, có thể emit start; repeated start làm advance turn thêm lần nữa.
-- [ ] `[MANUAL]` Roll bị bỏ qua nếu game chưa start, sender không phải active/current player hoặc `hasMoved` đã true.
-- [ ] `[MANUAL]` Dice do server tạo, mỗi die 1–6; client không gửi dice value/current tile.
-- [ ] `[MANUAL]` Nút Roll client disabled khi không đúng lượt, đã move hoặc token animation chưa settle.
-- [ ] `[AUTO-EXISTING]` Move thường không trả GO bonus; wrap/landing đúng GO cộng 200 và ghi log.
-- [ ] `[AS-IS CAVEAT]` Roll double không cho thêm lượt và không có rule ba double vào jail.
+## Current-player disconnect
 
-### Tile và buy/decline
-
-- [ ] `[AUTO-EXISTING]` Unowned normal street set `turnInfo.canBuyProp` và chưa advance turn.
-- [ ] `[MANUAL]` Unowned railroad/company đi qua cùng `checkOwned` flow và cũng chờ buy/decline.
-- [ ] `[MANUAL]` Current player đủ tiền mua: trừ đúng price, tạo owner/houses 0/not mortgaged, rồi advance turn.
-- [ ] `[MANUAL]` Không đủ tiền: không đổi ownership/balance, ghi log và vẫn chờ quyết định khác.
-- [ ] `[MANUAL]` Non-current player, request lặp hoặc request khi `canBuyProp` false không mua được.
-- [ ] `[MANUAL]` Decline hợp lệ tạo auction; xem thêm [`auction.md`](auction.md).
-- [ ] `[AUTO-EXISTING]` Tax trừ balance; go-to-jail set tile 10; owned street/railroad/utility chuyển rent đúng owner.
-
-### Jail
-
-- [ ] `[AUTO-EXISTING]` Double thoát jail, reset rounds và tiến theo tổng dice.
-- [ ] `[AUTO-EXISTING]` Hai lượt thất bại trước đó làm lần roll tiếp theo tự thả; non-double trước mốc tăng `jailRounds`.
-- [ ] `[MANUAL]` Pay bail chỉ cho current jailed player, yêu cầu balance >= 50; trừ 50 và clear jail state.
-- [ ] `[MANUAL]` Không đủ bail chỉ ghi log, không đổi state.
-- [ ] `[MANUAL]` Use jail card chỉ cho current jailed player có counter > 0; giảm đúng một card.
-- [ ] `[AS-IS CAVEAT]` Jail roll thoát và di chuyển nhưng không resolve tile đích; bail/card chỉ giải phóng rồi chờ roll.
-
-## Negative/edge cases cần automation khi sửa
-
-- [ ] `[MISSING-AUTO]` Hai request roll gần đồng thời từ cùng socket chỉ mutate một lần.
-- [ ] `[MISSING-AUTO]` Buy payload client bị giả mạo không thể thay actor/price/tile ngoài current state.
-- [ ] `[MISSING-AUTO]` Bail/card events từ spectator hoặc player khác lượt không mutate.
-- [ ] `[MISSING-AUTO]` Card movement backward/teleport và jail release giữ đúng turn hand-off AS-IS.
-
-## Regression commands
-
-`pnpm typecheck`, `pnpm lint`, `pnpm test`, và `pnpm build` nếu sửa client turn controls/motion.
+- [ ] Disconnect persists the configured guarded marker (default 60 seconds) without
+  deleting Player/state.
+- [ ] A command handing the turn to an already-offline Player arms the same grace at
+  the centralized commit boundary.
+- [ ] Reconnect committed before expiry clears marker and preserves exact turn/jail/buy state.
+- [ ] Expiry on buy decision starts auction; otherwise advances turn.
+- [ ] Active auction owns progression and ignores generic grace callback.
+- [ ] Reconnect-expiry race follows serialized commit order; stale recovery rolls
+  back without revision/update and cannot reapply the turn effect.
+- [ ] Server restart restores/processes genuine deadline exactly once and does not create
+  artificial grace solely because process restarted.

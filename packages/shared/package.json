@@ -7,11 +7,15 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./socketSchemas": "./src/socketSchemas.ts",
     "./tileState": "./src/tileState.ts",
     "./chestCards": "./src/chestCards.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "typescript": "^6.0.3"

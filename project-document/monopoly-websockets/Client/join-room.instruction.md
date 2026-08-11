@@ -1,85 +1,75 @@
-# Join room
+# Join, resume và connection lifecycle
 
 ## Định danh màn hình
 
-| Thuộc tính | Giá trị AS-IS |
-|---|---|
-| Menu | Không có |
-| List route | Không có |
-| Detail route | Không có |
-| URL entry | `/` |
-| Điều kiện hiển thị | `joined === false` trong `App` |
-| Permission key | Không có |
+SPA entry `/`; không có Router/menu/permission key. Join/restore/lobby/board được chọn
+bằng application session state, không bằng `socket.id` hay optimistic `joined` flag.
 
-`joined` là local state của tab trình duyệt, không phải trạng thái route, auth hay permission.
+## Code
 
-## Code và component path
+- `apps/client/src/App.tsx`
+- `apps/client/src/playerSessionStorage.ts`
+- `apps/client/src/components/JoinForm.tsx`
+- `apps/client/src/components/ConnectionOverlay.tsx`
+- `apps/client/src/components/SpectatorBanner.tsx`
+- Shared types/events/schemas under `packages/shared/src/`
 
-- Entry DOM và provider toast: `apps/client/src/index.tsx`.
-- Chuyển Join/Board, khởi tạo socket và xử lý submit: `apps/client/src/App.tsx`.
-- Form: `apps/client/src/components/JoinForm.tsx`.
-- Style: `apps/client/src/components/style/JoinForm.css`.
-- Kiểu socket/context: `apps/client/src/types.ts`.
-- Socket URL và dev proxy: `apps/client/vite.config.ts`.
+## First join
 
-## Service, state, context và socket
+1. Form trim/validate name và room code.
+2. Client emit `join room({name, roomCode})` và ở state `JOINING`.
+3. Running game may ACK explicit `SPECTATOR`; spectator gets no Player session/token.
+4. Lobby admission ACK returns `PENDING` raw token/expiry; no Seat yet.
+5. Client writes versioned record `monopoly.player-session.v1`.
+6. Client immediately emits `resume session({token})`.
+7. Success ACK supplies stable `playerId`, role, public room and pending offers.
+8. Only then App renders Lobby/Board.
 
-- Không có service hoặc store riêng.
-- `JoinForm` giữ local state `name` và `roomId`.
-- `App` giữ `joined` và `playerId`; socket được tạo ở module scope.
-- Submit gọi `onJoin(trimmedName, room)`; `App.handleJoin` emit `new player` qua `socketFunctions.newPlayer` rồi set `joined` thành `true` ngay.
-- `App` nghe:
-  - `connect` để cập nhật `playerId` từ `socket.id`.
-  - `update` để thay toàn bộ `GameState` trong reducer.
-- Contract event nằm tại `packages/shared/src/events.ts`; kiểu context nằm tại `apps/client/src/types.ts`.
+Two-step activation prevents lost first ACK from consuming a Seat. Lost activation
+ACK is resumable because token was stored first.
 
-## Phạm vi UI
+## Startup/refresh/reconnect
 
-- Tiêu đề và mô tả join room.
-- Input `Your name`.
-- Input `Room code`.
-- Nút `Join game`.
-- Sau submit hợp lệ, cùng component tree chuyển sang `Board`; không có navigation hoặc URL mới.
+- Startup with stored token enters `RESTORING` before JoinForm.
+- Every new Socket.IO connection resumes token before enabling mutation.
+- During transport loss, last snapshot remains visible under `RECONNECTING` overlay;
+  actions are disabled.
+- `DATABASE_UNAVAILABLE` and network errors retain token for retry.
+- Invalid/revoked/expired/room-gone terminal errors clear invalid local record and
+  return to Join/error flow. `GAME_ALREADY_STARTED`/`ROOM_FULL` during the pending
+  activation race are also terminal for that admission token and clear it.
+- `session replaced` moves old tab to terminal `REPLACED`, stops reconnect and does
+  not clear shared localStorage.
 
-## Luồng hiện tại
+## Duplicate/role rules
 
-1. Người dùng mở SPA và thấy `JoinForm` khi `joined` còn `false`.
-2. Nút submit bị disable khi `name.trim()` rỗng.
-3. Khi submit, client trim tên; tên rỗng không được gửi.
-4. Client trim và uppercase room code; room rỗng thành `LOBBY`.
-5. Client emit `new player(name, roomId)`.
-6. Client set `joined = true` ngay và render `Board`.
-7. Server gửi `update`; `App` thay toàn bộ state và các panel trên Board render theo state đó.
+- Newest valid connection for a token wins.
+- Reconnect preserves stable Player/Seat/host/ready/assets.
+- Valid Player token is resolved before spectator branch.
+- Join without valid token after start is an explicit read-only gameplay spectator;
+  the bound spectator may still use room chat.
+- Spectator has no durable identity/token; a temporary transport reconnect reissues
+  the remembered room request and receives a fresh spectator admission.
+- Refresh never derives identity from a new `socket.id`.
 
-## Rule và caveat
+## Explicit leave
 
-- Cả hai input có `maxLength={20}` ở UI.
-- Việc client uppercase/default room chỉ là chuẩn hóa đầu vào phía UI; server vẫn có normalize riêng.
-- Không có ACK, success/error event hay màn lỗi join. Việc chuyển sang Board không chứng minh người chơi đã được thêm vào room.
-- Nếu game trong room đã bắt đầu, backend hiện không thêm socket mới vào danh sách player; client vẫn ở Board và hoạt động như spectator theo state nhận được.
-- Không có listener `disconnect`; `joined` không reset khi mất kết nối. Event `connect` kế tiếp cập nhật `playerId` mới.
-- Không lưu name/room vào URL, localStorage hay sessionStorage; reload tạo lại màn Join.
-- `window.onbeforeunload` được gắn trong `App`, nên việc rời/reload tab phụ thuộc hành vi cảnh báo mặc định của trình duyệt.
-- Không được ghi permission giả cho Join; code không có auth, role hoặc permission key.
+`leave room` has success ACK. Only after success does client clear its Player token
+or in-memory spectator request and return to Join. In-game Player requires explicit
+forfeit confirmation. Browser close, refresh and network loss are not leave.
 
-## Tài liệu liên quan
+## Security
 
-- Rule nền Client: [`../monopoly.client.instructions.md`](../monopoly.client.instructions.md)
-- Contract socket/state: [`../monopoly.contracts.instructions.md`](../monopoly.contracts.instructions.md), [`../Shared/socket-and-state-contracts.instruction.md`](../Shared/socket-and-state-contracts.instruction.md)
-- Socket player API: [`../Api/socket-player.instruction.md`](../Api/socket-player.instruction.md)
-- Vòng đời room: [`../GameCore/room-lifecycle.instruction.md`](../GameCore/room-lifecycle.instruction.md)
-- Testcase: [`../testcase/join-room-and-player-lifecycle.md`](../testcase/join-room-and-player-lifecycle.md), [`../testcase/client-state-sync-motion-and-accessibility.md`](../testcase/client-state-sync-motion-and-accessibility.md)
+- Never put token in URL, public state, error text, log or DOM.
+- Room code/name/public player ID are not credential.
+- Client-side storage is versioned and malformed entries are rejected safely.
 
-## Quy tắc sửa và checklist kiểm thử
+## Required tests
 
-Khi sửa màn này, kiểm tra tối thiểu:
-
-- Tên rỗng và chỉ có khoảng trắng không submit được.
-- Tên hợp lệ được trim; giới hạn 20 ký tự vẫn đúng ở client và server.
-- Room rỗng vào `LOBBY`; room có chữ thường/khoảng trắng được trim và uppercase.
-- Hai browser cùng room nhận cùng state; hai room khác nhau không lẫn state.
-- Submit chỉ emit event `new player` với đúng thứ tự `name, roomId`.
-- Join room chưa start tạo player; join room đã start hiển thị state spectator đúng AS-IS.
-- Mất kết nối/reconnect không làm listener `connect` hoặc `update` bị nhân đôi và `playerId` được cập nhật.
-- Reload quay lại JoinForm vì không có persistence.
-- Chạy typecheck, build, lint và hai testcase được liên kết ở trên.
+- No optimistic Board/Lobby transition.
+- Pending token is stored before resume; lost ACK recovery.
+- Refresh/new socket returns same stable Player.
+- Invalid/revoked/retryable errors handle storage correctly.
+- Newest-wins/old tab does not clear token.
+- Spectator versus valid reconnect after start.
+- StrictMode listener cleanup and mutation controls disabled while reconnecting.

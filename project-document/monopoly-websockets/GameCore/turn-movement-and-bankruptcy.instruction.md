@@ -1,54 +1,61 @@
-# Turn, movement, bankruptcy và winner
+# Turn, movement, bankruptcy, winner và reconnect grace
 
-## Phạm vi và code nguồn
+## Scope
 
-- Dice/movement: `apps/server/src/game/dice.ts`.
-- Turn/bankruptcy/winner: `apps/server/src/game/turn.ts`.
-- Start, roll, buy handlers: `apps/server/src/socket/turn.ts`.
-- Public barrel: `apps/server/src/game/index.ts`.
+Dice/movement live in `game/dice.ts`; turn/bankruptcy/winner in `game/turn.ts`;
+transport/recovery orchestration uses room executor and deadline scheduler.
 
-## Exports/functions
+## Stable-ID invariants
 
-- `rollDice()`: tạo hai số nguyên độc lập từ 1 đến 6 ở server.
-- `movePlayer(state, playerId, steps)`: tiến player; khi đạt/vượt index 40 thì trừ 40, cộng 200 và ghi log qua GO.
-- `checkBalance(state, advanceTurn?)`: loại player có balance `< 1`, chuyển họ sang `finishedPlayers`, thả property/listing, rồi kiểm tra winner.
-- `checkWinner(state)`: set winner khi game đã start, chưa có winner, chỉ còn một active player và đã có ít nhất một finished player.
-- `nextTurn(state)`: gọi `checkBalance`, chuyển sang player kế tiếp có wrap, reset `hasMoved` và `turnInfo`.
+- Turn order/current Player, active/finished maps, ownership/market/auction and winner
+  reference stable `PlayerId` values.
+- Dice and movement remain server-authoritative; client sends no dice/position.
+- `nextTurn` resets moved/buy decision and increments/uses persisted turn number.
+- Bankruptcy removes all insolvent players safely without iterating stale keys or
+  re-entering into an already-deleted Player.
+- Released property becomes unowned; it is not automatically listed on open market.
+- Winner includes stable player ID/name/color and is set once when one active Player
+  remains, transitioning room to `FINISHED`.
 
-## Socket flows liên quan
+## Current-player disconnect
 
-- `start game`: set `gameStarted`, ghi log, gọi `nextTurn`, broadcast.
-- `roll dice`: yêu cầu sender là active player, game đã start, đúng current player và chưa move; server roll, move rồi resolve tile.
-- `buy property`: yêu cầu active/current player và `turnInfo.canBuyProp`; kiểm tra affordability, trừ tiền, tạo `OwnedProp`, gọi `nextTurn` rồi broadcast.
+Temporary disconnect does not delete Player or advance immediately. The disconnect
+path and centralized room-commit boundary both re-check the authoritative current
+Player; this also covers a command that hands the turn to a Player already offline.
+If no active auction owns progression, persist:
 
-## Invariants và mutations
+```text
+{ turnNumber, playerId, deadlineAt = now + RECONNECT_GRACE_MS }
+```
 
-- Dice là server-authoritative; client không gửi kết quả dice hoặc vị trí mới.
-- `hasMoved` chặn roll lặp trong cùng turn. Unowned buyable tile giữ turn ở trạng thái chờ buy/decline; các tile đã resolve thường gọi `nextTurn` ngay.
-- Mua property khởi tạo `houses: 0`, `mortgaged: false`, owner/color theo socket player.
-- Bankruptcy dùng ngưỡng `< 1`, không phải `< 0`; balance đúng 0 bị loại.
-- Khi loại current player trong `checkBalance`, code chọn một vị trí tiền nhiệm trước khi có thể gọi `nextTurn` để hand-off.
-- Winner là snapshot `{ name, color }` trong board state và chỉ được set một lần.
+`RECONNECT_GRACE_MS` defaults to 60 seconds.
 
-## Caveat AS-IS
+- Reconnect committed before expiry clears marker and preserves exact `hasMoved`,
+  `canBuyProp`, jail and position state.
+- Expiry recovery captures and then requires the exact turn/player/deadline marker
+  under the locked command; stale recovery rolls back and save uses aggregate CAS.
+- If waiting to buy, expiry revalidates tile then starts auction.
+- Otherwise expiry advances/skips turn; an offline jailed Player's `jailRounds`
+  remains unchanged because no jail roll occurred.
+- Active auction ignores generic turn-grace callback and follows `endsAt`.
+- Process shutdown/restart must not create artificial disconnect grace for all Seats.
 
-- `start game` không có host/admin permission, không kiểm tra sender là active player, số người tối thiểu hay game đã start. Gọi lại sẽ chạy `nextTurn` thêm lần nữa.
-- `movePlayer` chỉ trừ 40 một lần; đủ cho dice 2–12 hiện tại nhưng không phải hàm wrap tổng quát cho bước rất lớn/âm.
-- Landing đúng GO cũng nhận 200 vì điều kiện là `from + steps < 40`.
-- Không có luật được roll lại khi double hoặc đi jail sau ba double; UI chỉ hiển thị nhãn DOUBLE.
-- Winner không phải global action lock. Một số handler như building có guard winner, nhưng turn/trading/chat không cùng một guard tổng quát.
-- Disconnect không đi qua `checkBalance`; xem caveat hand-off/winner ở [`room-lifecycle.instruction.md`](room-lifecycle.instruction.md).
+## Existing rules
 
-## Consumers và liên kết chéo
+GO reward, dice 2–12, tile resolution, no doubles-extra-turn and bankruptcy threshold
+remain governed by current GameCore. Buy initializes unbuilt/unmortgaged ownership.
 
-- Tile outcome: [`tile-cards-and-jail-resolution.instruction.md`](tile-cards-and-jail-resolution.instruction.md).
-- Player/turn Socket API: [`../Api/socket-turn.instruction.md`](../Api/socket-turn.instruction.md).
-- Client turn controls: [`../Client/turn-actions.instruction.md`](../Client/turn-actions.instruction.md).
-- Game status UI: [`../Client/game-status.instruction.md`](../Client/game-status.instruction.md).
+## Durability
 
-## Kiểm thử khi sửa
+GameCore mutates draft only. Aggregate snapshot/turn recovery commits before public
+update. Save failure leaves current room unchanged. Lazy room load resolves due
+deadline before returning resume state.
 
-- Unit hiện có cover movement/GO, next-turn wrap, bankruptcy release và winner/no-winner trong `apps/server/src/game.test.ts`.
-- Chưa có automation cho start/roll/buy authority guards, repeated start hoặc Socket broadcast.
-- Thực hiện [`../testcase/turn-movement-buy-and-jail.md`](../testcase/turn-movement-buy-and-jail.md) và [`../testcase/game-status-bankruptcy-and-winner.md`](../testcase/game-status-bankruptcy-and-winner.md).
-- Chạy `pnpm typecheck`, `pnpm lint`, `pnpm test`.
+## Tests
+
+- Movement/GO/turn wrap/buy valid and rejected paths.
+- Multiple bankrupt players in one balance check does not throw or skip survivor.
+- Winner stable ID/set-once and finished reasons.
+- Disconnect before/after grace, buy-decision expiry, auction interaction and
+  duplicate-recovery safety.
+- Restart same DB preserves or resolves turn deadline exactly once.

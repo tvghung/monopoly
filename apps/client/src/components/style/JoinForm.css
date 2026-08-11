@@ -33,6 +33,24 @@
   line-height: 1.4;
 }
 
+.join__error,
+.join__connection {
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.join__error {
+  background: #f8d7da;
+  color: #842029;
+}
+
+.join__connection {
+  background: #e2e3e5;
+  color: #41464b;
+}
+
 .join__label {
   margin-bottom: 0.35rem;
   font-weight: 600;

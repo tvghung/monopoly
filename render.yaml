@@ -1,18 +1,40 @@
-# Render Blueprint — single free web service that builds the client and runs the
-# Node server, which serves the built client same-origin. Deploy with:
+# Render Blueprint — one Node service builds and serves the client same-origin.
+# The managed basic-256mb Postgres database is a paid, non-expiring resource.
+# The small service disk is a deployment guard only: attaching it makes Render
+# stop the old process before starting the replacement. Game data stays in Postgres.
+# Deploy with:
 #   Render dashboard → New → Blueprint → point at this repo.
 services:
   - type: web
     name: monopoly-websockets
     runtime: node
-    plan: free
+    plan: starter
+    numInstances: 1
     region: frankfurt
     branch: main
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @monopoly/client build
-    startCommand: pnpm --filter @monopoly/server start
-    healthCheckPath: /healthz
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /readyz
+    maxShutdownDelaySeconds: 30
+    disk:
+      name: single-process-deploy-guard
+      mountPath: /var/monopoly-deploy-guard
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
         value: "24"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: monopoly-postgres
+          property: connectionString
+
+databases:
+  - name: monopoly-postgres
+    plan: basic-256mb
+    region: frankfurt
+    databaseName: monopoly
+    user: monopoly
+    postgresMajorVersion: "17"
+    ipAllowList: []

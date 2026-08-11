@@ -1,74 +1,108 @@
 # Socket và state contracts
 
-## Phạm vi
-
-Contract TypeScript dùng chung giữa Socket.IO server và React client. File này không mô tả runtime validation, authentication hay persistence vì các lớp đó không tồn tại trong package shared hiện tại.
-
 ## Code nguồn
 
-- Barrel export: `packages/shared/src/index.ts`.
-- State và payload types: `packages/shared/src/types.ts`.
-- Event contracts: `packages/shared/src/events.ts`.
-- Typed server aliases: `apps/server/src/socket/types.ts`.
-- Typed client aliases/wrappers: `apps/client/src/types.ts`, `apps/client/src/App.tsx`.
-- State khởi tạo phía server: `apps/server/src/rooms.ts` (`freshState`).
-- State khởi tạo phía client: `apps/client/src/App.tsx` (`initialState`).
-- Test fixture cùng shape: `apps/server/src/game.test.ts` (`makeState`, `makePlayer`).
+- `packages/shared/src/types.ts`
+- `packages/shared/src/events.ts`
+- `packages/shared/src/socketSchemas.ts`
+- `packages/shared/src/index.ts`
 
-## Exports nhìn thấy trong code
+## Identity/lifecycle types
 
-### State và data model
+- Opaque aliases: `PlayerId`, `RoomId`, `RoomCode`, `SessionId`, `OfferId`,
+  `AuctionId`.
+- `RoomStatus`: `LOBBY | IN_PROGRESS | FINISHED`.
+- `RoomRole`: `PLAYER | SPECTATOR`.
+- Session and membership statuses explicitly model pending/active/revoked/expired
+  and active/finished/left state.
+- `SOCKET_PROTOCOL_VERSION` gates coordinated same-origin client/server deployment.
 
-- Board data: `TileType`, `Tile`, `GameCard`.
-- Player/property: `Player`, `FinishedPlayer`, `OwnedProp`, `OpenMarketEntry`.
-- Turn/game state: `Die`, `DiceValue`, `CurrentPlayer`, `TurnInfo`, `Auction`, `BoardState`, `GameState`.
-- Trading payloads: `SaleInfo`, `OfferInfo`, `OfferOnProp`, `OfferResult`, `Offer`.
+Stable ID is public identity, not a credential. Raw reconnect token is private bearer
+material and never part of public DTO or SocketData.
 
-`GameState` gồm `boardState`, map `players`, `turnInfo` và cờ `loaded`. `BoardState` giữ danh sách player id, current player, log, dice, ownership, open market, winner và auction hiện tại.
+## Public room/game state
 
-### Server → client
+`PublicRoomState` contains:
 
-- `update(state)` — broadcast toàn bộ `GameState`.
-- `offer on prop(info)` — gửi offer tới owner.
-- `offer declined(info)` và `offer accepted(info)` — trả kết quả cho buyer.
+- protocol version and monotonic room `version`.
+- internal room ID/code/status/host.
+- `minPlayers=2`, `maxPlayers=7`.
+- roster metadata: stable ID, name/color/join order/membership/ready and runtime
+  connected projection.
+- `GameState` keyed/referenced by stable IDs.
 
-### Client → server
+`Winner` carries stable player ID. `Auction` carries `auctionId` and ISO `endsAt`;
+optional compatibility `timer` is derived by the public projector and is not durable.
+`TurnRecovery` carries turn number, player ID and ISO deadline. `PersistedGameState`
+omits client-only `loaded`.
 
-- Lifecycle/turn/chat: `new player`, `start game`, `send chat`, `roll dice`, `buy property`.
-- Trading: `put on open market`, `make offer`, `accept offer`, `decline offer`, `make sale`, `remove sale`.
-- Property: `build house`, `sell house`, `mortgage property`, `unmortgage property`.
-- Jail: `pay bail`, `use jail card`.
-- Auction: `decline property`, `place bid`, `pass bid`.
+## Session and admission DTO
 
-`SocketData` chỉ có `roomId?`; nó được gán sau event `new player`. `InterServerEvents` hiện là record rỗng.
+- `join room({name, roomCode})` returns either pending player admission with raw
+  token/expiry or an explicit spectator admission.
+- `resume session({token})` activates/reclaims an existing Player and returns stable
+  ID, public room and pending private offers.
+- `set ready({ready})` and `leave room()` mutate lobby/lifecycle state.
+- `session replaced` tells the superseded connection to stop reconnecting.
 
-## Invariants và luồng mutation
+Invalid token is never silently converted to spectator/new player.
 
-- Server là nguồn state runtime có thẩm quyền. Client emit ý định; server mutate room state rồi phát `update` cho cả Socket.IO room.
-- Player actor phải lấy từ `socket.id`; payload `playerId` trong trade không phải bằng chứng quyền sở hữu.
-- Mỗi room có một `GameState` riêng. Các handler lấy room từ `socket.data.roomId`.
-- Shared package chỉ khai báo shape/data; mutation nằm trong `apps/server/src/game/` và `apps/server/src/socket/`.
-- Khi nhận `update`, reducer client thay state bằng shallow copy của payload; không merge từng field.
+## Trading DTO
 
-## Caveat AS-IS
+- Listing/make-offer requests contain only tile and positive integer price no greater
+  than `2_147_483_647`.
+- Accept/decline contains only `{offerId}`.
+- `PrivateOffer` is authoritative: stable buyer/owner, tile/price, status,
+  `createdAt`, `expiresAt`, `resolvedAt`.
+- Multiple offers on the same tile are distinguishable by offer ID.
 
-- TypeScript chỉ kiểm tra code đã compile; payload từ browser vẫn cần guard runtime ở handler. Không được viết tài liệu rằng event “đã validate” chỉ vì nó có type.
-- Contract `start game` nhận một `string` và `buy property` nhận một `boolean`, nhưng server hiện không dùng hai payload này; client vẫn emit `''` và `true`.
-- Shape state được khởi tạo lặp ở `rooms.ts`, `App.tsx` và `game.test.ts`. Thêm field bắt buộc phải đồng bộ cả ba nơi.
-- `loaded` là `true` trong room state, `false` trong client initial state và chuyển theo bản `update` đầu tiên.
-- Không có versioning/backward compatibility cho event hay state; server và client được deploy như một bộ cùng version.
+## Event contract
 
-## Consumers và liên kết chéo
+Every state-changing client event ends in `AckCallback<T>`. Success contains protocol
+version and optional committed revision/data. Failure contains stable code/message
+and `retryable`.
 
-- Room/state lifecycle: [`../GameCore/room-lifecycle.instruction.md`](../GameCore/room-lifecycle.instruction.md).
-- Turn và bankruptcy: [`../GameCore/turn-movement-and-bankruptcy.instruction.md`](../GameCore/turn-movement-and-bankruptcy.instruction.md).
-- Socket handler index: [`../Api/README.md`](../Api/README.md).
-- Client state sync: [`../Client/README.md`](../Client/README.md).
+Server events:
 
-## Quy tắc sửa và kiểm thử
+- `update(PublicRoomState)`.
+- `offer on prop`, `offer accepted`, `offer declined`, `offer expired`,
+  `offer cancelled`.
+- `session replaced`.
 
-1. Tìm tất cả consumer bằng import `@monopoly/shared` trước khi đổi type/export.
-2. Nếu đổi event, sửa đồng thời interface event, emit/listener client, listener/emit server và targeted-event hook.
-3. Nếu đổi state, sửa `freshState`, `initialState`, test fixtures và mọi UI đọc field đó.
-4. Chạy `pnpm typecheck`, `pnpm lint`, `pnpm test`; chạy `pnpm build` khi client bị ảnh hưởng.
-5. Thực hiện checklist [`../testcase/shared-contracts-and-board-data.md`](../testcase/shared-contracts-and-board-data.md) và testcase chức năng của event bị đổi.
+There is no `new player`, dummy start/buy payload or client-supplied actor field.
+
+## SocketData
+
+Runtime-only fields are internal room/player ID, role, session ID, connection
+generation and optional `pendingAdmission` per-socket join lock. That boolean is
+neither credential nor durable domain state. Raw token is forbidden; `socket.id`
+remains transport identity only.
+
+## Runtime schemas
+
+Zod validates every event's first business argument:
+
+- trimmed 1–20 character names and normalized room codes.
+- base64url-like reconnect tokens.
+- UUID stable IDs/offer actions.
+- integer tile `0..39` and positive integer money up to `2_147_483_647`.
+- bounded nonblank chat.
+- strict objects reject unknown fields.
+- exact argument shape requires one ACK callback; no-payload commands reject dummy
+  payloads.
+
+After schema parse, handler must still authorize actor/role/room/domain state.
+
+## Public/private/persistence boundaries
+
+- Public projector whitelists room/game fields and derives connected presence.
+- Offer/session state is delivered privately, not nested into `update`.
+- Persistent game snapshot excludes transport/presence/credentials/timer handles.
+- Client discards stale revision; server broadcasts only after durable commit.
+
+## Tests
+
+- Contract/typecheck for event names, payloads and ACKs.
+- Runtime schema cases for malformed UUID/tile/money/chat/unknown keys.
+- Public serialization test proving no token/hash/session/private-offer leak.
+- Socket integration for private targeting and actor spoof rejection.

@@ -12,7 +12,7 @@ import AuctionPanel from './dashboard/AuctionPanel';
 import WinnerBanner from './dashboard/WinnerBanner';
 
 export default function Dashboard() {
-  const { state, playerId, socketFunctions } = useContext(stateContext);
+  const { state, playerId } = useContext(stateContext);
   const displayPositions = useContext(displayPositionsContext);
 
   // The buy prompt is driven by authoritative server state, which updates the
@@ -52,13 +52,6 @@ export default function Dashboard() {
           <IncomingOffers />
           <AuctionPanel />
           <WinnerBanner />
-          {state.loaded && !state.boardState.gameStarted
-            ? (
-              <button className="button__start-game" type="button" onClick={() => socketFunctions.startGame()}>
-                Start game
-              </button>
-            )
-            : null}
         </section>
         <MarketPlace />
       </section>

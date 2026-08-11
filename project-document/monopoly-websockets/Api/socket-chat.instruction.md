@@ -1,60 +1,29 @@
 # Chat Socket instruction
 
-## Phạm vi AS-IS
+## Event/role
 
-Đây là Socket event module tương đương controller cho chat trong room. Chat được ghi chung vào `boardState.logs`, không có collection/message store riêng.
+`send chat(message)` is available to authenticated Players and explicit spectators
+already bound to a room. Runtime schema requires nonblank string up to 500 characters.
+It has typed ACK.
 
-- Socket.IO path: `/socket.io` mặc định.
-- Namespace: `/` mặc định.
-- Function đăng ký: `registerChatHandlers(io, socket)`.
-- Handler: `apps/server/src/socket/chat.ts:5-30`.
-- Inbound: `send chat(message)`.
-- Outbound: `update(GameState)` tới toàn room.
+Each socket may submit at most one chat attempt per 750 ms. The durable game
+log keeps the newest 500 entries, bounding snapshot growth.
 
-## Auth và permission
+## Safety/authority
 
-| Mức/action | Permission/guard hiện tại |
-|---|---|
-| Module/controller | Không có auth và không có permission key. |
-| `send chat` | Chỉ yêu cầu socket đã gắn với room còn tồn tại. |
-| Active player | Được gắn name/color từ `state.players`. |
-| Finished player | Được gắn name/color từ `finishedPlayers`. |
-| Spectator | Được phép chat, hiển thị tên `Spectator` và màu grey. |
+- Sender label/name/color derives from bound stable Player or spectator context,
+  never client payload.
+- User-controlled name/message is escaped before insertion into HTML-formatted log.
+- CORS/room code are not authentication; unbound sockets cannot select arbitrary room.
+- Chat cannot carry actor/player ID.
 
-## Action, validation và mutation
+## Persistence
 
-| Bước | Code | Hành vi hiện tại |
-|---|---|---|
-| Resolve room | `apps/server/src/socket/chat.ts:7-10` | Không có room thì `return`. |
-| Sanitize message | `apps/server/src/socket/chat.ts:11`; `apps/server/src/game/text.ts:6-12` | `escapeHtml` escape `& < > " '`; non-string thành chuỗi rỗng. |
-| Chọn nhãn sender | `apps/server/src/socket/chat.ts:12-28` | Active, finished hoặc spectator. |
-| Append log | `apps/server/src/game/text.ts:20-22` | Tạo mảng logs mới và thêm timestamp `HH:MM:SS`. |
-| Broadcast | `apps/server/src/socket/chat.ts:29` | Phát full state bằng `update` tới room. |
+Chat append is a serialized room command and becomes public only after committed
+aggregate update. DB failure returns retryable ACK without a phantom log entry.
+Reconnect/restart retains committed logs.
 
-## Caveat cần giữ đúng khi sửa
+## Tests
 
-- Client render log bằng `dangerouslySetInnerHTML`: `apps/client/src/components/Log.tsx:28-36`. Không được bỏ `escapeHtml` cho user message nếu chưa thay toàn bộ render contract.
-- Markup của name được loại bỏ lúc join bởi `sanitizeName`; màu player lấy từ server color pool.
-- Code không kiểm tra message rỗng sau sanitize, không giới hạn độ dài và không rate limit Socket chat.
-- `boardState.logs` tăng trong memory không có retention/cap.
-- Chat không có outbound event riêng; mọi client nhận lại toàn bộ `GameState`.
-- Không có persistence, moderation, private message, ACK hoặc error response.
-
-## Liên kết chéo
-
-- Client log/chat: [`../Client/activity-log-and-chat.instruction.md`](../Client/activity-log-and-chat.instruction.md)
-- Client state sync: [`../Client/game-board.instruction.md`](../Client/game-board.instruction.md)
-- Room lifetime: [`../GameCore/room-lifecycle.instruction.md`](../GameCore/room-lifecycle.instruction.md)
-- Shared state/event: [`../Shared/socket-and-state-contracts.instruction.md`](../Shared/socket-and-state-contracts.instruction.md)
-- Testcase: [`../testcase/chat-log-and-input-safety.md`](../testcase/chat-log-and-input-safety.md)
-
-## Quy tắc sửa và kiểm thử
-
-Khi sửa module này phải kiểm tra:
-
-- Escape đủ HTML-significant characters và không tạo executable markup từ message.
-- Active/finished/spectator được ghi đúng nhãn và color.
-- Empty, non-string, rất dài và HTML payload theo đúng validation mới nếu có.
-- Message chỉ xuất hiện trong room tương ứng.
-- Client vẫn render server-generated markup và user text an toàn.
-- Nếu thêm giới hạn/rate limit/error event, cập nhật Shared contract, Client behavior và testcase cùng lần sửa.
+Player/spectator labels, room isolation, blank/oversize/malformed payload, HTML/script
+escaping, commit-before-update and save-failure behavior.

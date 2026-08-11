@@ -1,51 +1,39 @@
-# Checklist — join room và vòng đời player
+# Checklist — join, session, reconnect, host và leave
 
-## Nguồn hành vi
+## Automated evidence
 
-- [`../GameCore/room-lifecycle.instruction.md`](../GameCore/room-lifecycle.instruction.md)
-- [`../Api/socket-player.instruction.md`](../Api/socket-player.instruction.md)
-- [`../Client/join-room.instruction.md`](../Client/join-room.instruction.md)
-- Code: `apps/server/src/rooms.ts`, `apps/server/src/socket/player.ts`, `apps/client/src/components/JoinForm.tsx`.
-
-## Coverage hiện tại
-
-- `[AUTO-EXISTING]` `sanitizeName` strip ký tự markup, trim và cap 20 ký tự trong `apps/server/src/game.test.ts`.
-- `[MISSING-AUTO]` Chưa có test cho normalize room, isolation, join/spectator/disconnect/room cleanup.
+- `[AUTO]` Token storage parse/save/clear: `apps/client/src/playerSessionStorage.test.ts`.
+- `[AUTO]` Newest-wins/generation registry: `apps/server/src/services/connectionRegistry.test.ts`.
+- `[CLIENT]` App/lobby assertions: `apps/client/src/App.test.tsx`, `components/Lobby.test.tsx`.
+- `[SOCKET-INTEGRATION]` `apps/server/src/socket.integration.test.ts` covers protocol,
+  two-step stable admission, unknown-token rejection without Seat binding, reconnect,
+  newest-wins, host/ready start, disconnect preservation, queued stale generation,
+  deterministic host leave, auction/forfeit, Player/spectator same-socket
+  leave-and-rejoin, spectator/reclaim and server recreation over the same test store.
+- `[PG-INTEGRATION][SOCKET-INTEGRATION]` Its conditional PostgreSQL case recreates
+  pools/persistence/server, then resumes both stable Players and persisted game state.
 
 ## Checklist
 
-### Form và normalize
+- [ ] First `join room` returns pending token but creates no Seat/host/color.
+- [ ] Token hash is 32 bytes in DB; raw token is absent from DB/log/public state.
+- [ ] `resume session` activates exactly one stable UUID Seat; lost ACK is resumable.
+- [ ] Newest valid socket wins; old receives `session replaced`; stale disconnect no-ops.
+- [ ] Refresh/network reconnect/new socket keeps Player ID, Seat, ready, money and assets.
+- [ ] Invalid/revoked/expired token is rejected, not spectator/new Player.
+- [ ] First activated Seat is host; concurrent first joins produce one host/join order.
+- [ ] Lobby capacity and start boundaries are 2–7; all connected/ready; host only.
+- [ ] Host temporary disconnect does not transfer; explicit leave transfers deterministically.
+- [ ] Disconnect preserves Seat/property/listing/auction/session and does not delete room.
+- [ ] Lobby leave removes Seat/revokes token; in-game leave is confirmed atomic forfeit.
+- [ ] Successful Player/spectator leave may start a fresh admission on the same socket.
+- [ ] Join after start without token is spectator; valid existing token reclaims Player.
+- [ ] Public/private Socket.IO rooms isolate room updates and private session/offer data.
+- [ ] All-offline room survives; explicit empty lobby/retention cleanup follows policy.
 
-- [ ] `[MANUAL]` Name chỉ có whitespace làm nút Join disabled; name hợp lệ submit được.
-- [ ] `[MANUAL]` Room rỗng vào `LOBBY`; chữ thường thành uppercase; ký tự ngoài chữ/số/`-` bị loại; kết quả tối đa 20 ký tự.
-- [ ] `[AUTO-EXISTING]` Name có `<>&"'` không giữ ký tự markup; unit test hiện có cover strip/trim/cap.
-- [ ] `[MANUAL]` Name sau sanitize rỗng dùng fallback `Player` trong join flow.
+## Restart evidence boundary
 
-### Join và room isolation
-
-- [ ] `[MANUAL]` Player đầu tiên nhận tile 0, balance 1500, chưa jail, `jailRounds = 0`, jail-card count 0.
-- [ ] `[MANUAL]` Mỗi socket trước khi hết pool nhận một màu lấy từ room riêng; room khác bắt đầu với pool mới.
-- [ ] `[MANUAL]` Hai room A/B không nhận state/log/broadcast của nhau.
-- [ ] `[MANUAL]` Gửi lại `new player` từ cùng socket trong cùng room không tạo duplicate player.
-- [ ] `[AS-IS CAVEAT]` Player thứ tám trở đi có thể nhận `grey`; code không có player-cap guard.
-
-### Spectator và disconnect
-
-- [ ] `[MANUAL]` Socket join sau khi `gameStarted` không xuất hiện trong active players nhưng nhận state và có thể chat với nhãn Spectator.
-- [ ] `[MANUAL]` Disconnect active player xóa player, owned properties và listing của seller; màu được trả vào pool.
-- [ ] `[MANUAL]` Disconnect finished player xóa record khỏi `finishedPlayers` và trả màu.
-- [ ] `[MANUAL]` Player cuối cùng rời làm room bị xóa; auction interval đang chạy được clear.
-- [ ] `[MANUAL]` Disconnect auction participant cập nhật `active`/`passed`; leader rời reset highest bid.
-- [ ] `[AS-IS CAVEAT]` Disconnect current player không tự chọn current player mới và không chạy winner check; ghi nhận nguy cơ turn bị kẹt thay vì báo pass.
-- [ ] `[AS-IS CAVEAT]` Refresh/disconnect không reconnect lại seat cũ; socket id mới được xem là player mới nếu game chưa start, spectator nếu đã start.
-
-## Negative/edge cases cần automation khi sửa
-
-- [ ] `[MISSING-AUTO]` Raw room id không phải string không throw và fallback `LOBBY`.
-- [ ] `[MISSING-AUTO]` Hai room cùng lúc dùng cùng player name nhưng state vẫn cô lập theo socket/room.
-- [ ] `[MISSING-AUTO]` Cleanup room không để auction interval tiếp tục emit sau delete.
-- [ ] `[MISSING-AUTO]` Repeated `new player` không tiêu thêm màu hoặc reset player state.
-
-## Regression commands
-
-`pnpm typecheck`, `pnpm lint`, `pnpm test`; Socket lifecycle hiện vẫn cần test manual hoặc integration harness riêng.
+The executable PostgreSQL Socket case proves fresh pool/persistence/server recovery
+with both tokens, stable IDs, balances, property, turn and game status when
+`TEST_DATABASE_URL` is set. A real process-manager/container kill and browser reload
+remains a separate deployment E2E.

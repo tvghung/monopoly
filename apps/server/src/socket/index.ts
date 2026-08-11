@@ -1,23 +1,39 @@
-import type { AppServer } from './types';
-import { registerPlayerHandlers } from './player';
-import { registerTurnHandlers } from './turn';
-import { registerChatHandlers } from './chat';
-import { registerTradingHandlers } from './trading';
-import { registerBuildingHandlers } from './building';
-import { registerJailHandlers } from './jail';
+import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
+import type { AppRuntime } from '../services/runtime';
 import { registerAuctionHandlers } from './auction';
+import { registerBuildingHandlers } from './building';
+import { registerChatHandlers } from './chat';
+import { registerJailHandlers } from './jail';
+import { registerLobbyHandlers } from './lobby';
+import { registerSessionHandlers } from './session';
+import { registerTradingHandlers } from './trading';
+import { registerTurnHandlers } from './turn';
+import { installInboundValidation } from './validation';
+import type { AppServer } from './types';
 
-// Wire every per-connection handler group. Each `register*` attaches its own
-// `socket.on(...)` listeners; grouping them by domain keeps this file a simple
-// table of contents for the socket layer.
-export function registerSocketHandlers(io: AppServer): void {
+export function registerSocketHandlers(io: AppServer, runtime: AppRuntime): void {
+  io.use((socket, next) => {
+    if (socket.handshake.auth.protocolVersion !== SOCKET_PROTOCOL_VERSION) {
+      const message = 'Client protocol version is no longer supported.';
+      const error = new Error(message);
+      Object.assign(error, {
+        data: { code: 'UPGRADE_REQUIRED', message, retryable: false },
+      });
+      next(error);
+      return;
+    }
+    next();
+  });
+
   io.on('connection', (socket) => {
-    registerPlayerHandlers(io, socket);
-    registerTurnHandlers(io, socket);
-    registerChatHandlers(io, socket);
-    registerTradingHandlers(io, socket);
-    registerBuildingHandlers(io, socket);
-    registerJailHandlers(io, socket);
-    registerAuctionHandlers(io, socket);
+    installInboundValidation(socket);
+    registerSessionHandlers(io, socket, runtime);
+    registerLobbyHandlers(io, socket, runtime);
+    registerTurnHandlers(io, socket, runtime);
+    registerChatHandlers(io, socket, runtime);
+    registerTradingHandlers(io, socket, runtime);
+    registerBuildingHandlers(io, socket, runtime);
+    registerJailHandlers(io, socket, runtime);
+    registerAuctionHandlers(io, socket, runtime);
   });
 }

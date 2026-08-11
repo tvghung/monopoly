@@ -1,96 +1,96 @@
 # Rule nền dùng chung
 
-## Phạm vi áp dụng
+## Phạm vi
 
-Áp dụng cho mọi thay đổi trong repo và mọi tài liệu dưới `project-document/monopoly-websockets/`. File này chứa rule chung; file leaf chỉ ghi phần riêng của màn hình/module và liên kết về đây.
+Áp dụng cho mọi code và tài liệu trong repo. Đọc sau [README.md](./README.md).
 
-Đọc file này sau [README.md](./README.md), trước rule nền theo khối.
+## Workspace
 
-## Nguyên tắc bằng chứng và AS-IS
-
-- Chỉ ghi hành vi có thể chỉ ra từ code, cấu hình hoặc test hiện tại.
-- Không suy ra auth, permission, route, validation hoặc persistence từ tên biến hay UI.
-- `Không có` là một fact hợp lệ và phải được ghi rõ khi code không triển khai khái niệm đó.
-- Không giữ flow đã xóa, proposal, roadmap hoặc workaround cũ trong tài liệu nguồn sự thật.
-- Nếu code và tài liệu không khớp, thay đổi chưa hoàn tất cho đến khi hai phía được đồng bộ.
-- Caveat phải mô tả đúng giới hạn hiện tại; không tự biến caveat thành yêu cầu sửa ngoài phạm vi.
-
-## Bản đồ workspace
-
-| Package/khối | Đường dẫn | Vai trò |
+| Khối | Đường dẫn | Vai trò |
 | --- | --- | --- |
-| Root workspace | `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json` | Script chung, workspace và TypeScript strict defaults |
-| Client | `apps/client/` | React/Vite UI và Socket.IO client |
-| Server | `apps/server/` | Express runtime, Socket.IO handlers và game-domain logic |
-| Shared | `packages/shared/` | Types, event contracts và board/card data dùng chung |
-| CI/deploy | `.github/workflows/ci.yml`, `Dockerfile`, `render.yaml` | Validation và single-service deployment |
+| Client | `apps/client/` | React/Vite và Socket.IO client |
+| Server | `apps/server/` | Express, Socket.IO, domain, services và persistence |
+| Shared | `packages/shared/` | Types, ACKs, Zod schemas và static game data |
+| Database | `apps/server/migrations/` | Forward SQL schema |
+| Local DB | `compose.yaml`, `.env.example` | PostgreSQL development |
+| CI/deploy | `.github/`, `Dockerfile`, `render.yaml` | Validation và application service deployment |
 
-Package manager là `pnpm@11.15.1`; Node engine trong root package là `>=18`, trong khi CI/Docker/Render hiện dùng Node 24.
+## Authority và identity
 
-## Ranh giới nguồn thẩm quyền
+- Server/PostgreSQL aggregate là authority cho room/game/session/offer.
+- `PlayerId` là stable UUID; `socket.id` chỉ dùng cho connection registry.
+- Socket command actor lấy từ authenticated `socket.data.playerId`.
+- Raw reconnect token là bearer credential. Chỉ client giữ raw value; server lưu
+  SHA-256 hash và không đưa token vào public serialization/log.
+- Đây là room-seat session, không phải account system, OAuth, RBAC hoặc user profile.
+- CORS, room code, display name và public player ID không phải authentication.
+- Client display state cho animation/modal không được dùng làm business authority.
 
-- Server-side `GameState` là nguồn thẩm quyền của tiền, vị trí thật, lượt, ownership, market, auction và winner.
-- Client giữ display/local state cho animation, form, modal, toast và private-offer countdown. Local state không cấp quyền thực hiện action.
-- `packages/shared` định nghĩa shape và static game data dùng chung, nhưng TypeScript không validation payload tại runtime.
-- Room state tồn tại trong memory của một server process; không có database, schema, migration hoặc multi-process adapter.
-- Socket actor phải lấy từ `socket.id` khi code hiện tại làm như vậy; trường `playerId` do client gửi không mặc nhiên đáng tin.
+## Durable mutation contract
 
-## Quy ước đường dẫn và định danh
+1. Parse inbound payload bằng schema trong `packages/shared/src/socketSchemas.ts`.
+2. Resolve session/role/actor từ SocketData.
+3. Enqueue theo internal room ID.
+4. Clone aggregate và áp dụng guard/mutation lên draft.
+5. Commit rooms/session/offer changes trong một PostgreSQL transaction bằng expected
+   aggregate version.
+6. Sau commit mới broadcast public/private DTO và ACK; deadline scheduler đọc
+   `next_action_at` đã persist thay vì nhận timer handle từ command.
 
-- Dùng đường dẫn tính từ root repo, ví dụ `apps/server/src/socket/turn.ts`.
-- Giữ nguyên casing và khoảng trắng của Socket event, ví dụ `roll dice`, `offer on prop`.
-- Giữ nguyên casing của field/type/environment variable, ví dụ `GameState`, `CORS_ORIGIN`, `CLIENT_DIST`.
-- Khi trích dẫn code, luôn ghi file/function đang tồn tại. Có thể thêm line number làm locator kiểm chứng, nhưng phải rà và cập nhật locator đó khi file nguồn thay đổi.
-- Cross-link tài liệu phải dùng đường dẫn Markdown tương đối và trỏ tới file đang tồn tại.
+Save thất bại phải bỏ draft. Không có production memory fallback. In-memory adapter
+chỉ dùng trong test qua dependency injection.
 
-## Quy tắc thay đổi tối thiểu
+## Public/private/runtime boundaries
 
-- Chỉ sửa các dòng cần thiết cho mục tiêu đã yêu cầu; không refactor hoặc “dọn” logic bên cạnh.
-- Khi thay đổi tạo import, biến hoặc helper không còn dùng, chỉ xóa phần thừa do chính thay đổi đó tạo ra.
-- Không đổi shared contract mà chỉ sửa một phía client hoặc server.
-- Không đổi board index mà bỏ qua client presentation data hoặc hard-coded index.
-- Không mô tả client-side disable/visibility như security guard.
-- Khi thêm khối kiến trúc mới, cập nhật [README.md](./README.md), root `CLAUDE.md` và tạo rule/index/detail/testcase tương ứng.
+| Boundary | Dữ liệu |
+| --- | --- |
+| Public | Room status/version/host/min-max/ready/presence và public GameState |
+| Private persistent | Session hash/status; offer records |
+| Client-only | Raw token và connection UX state |
+| Runtime-only | `socket.id`, generation registry, presence, queues và scheduler timer handle |
+| Durable aggregate | Stable-ID GameState, room metadata, absolute deadlines |
 
-## An toàn input và nội dung HTML
+Public Socket.IO room có tên `room:<roomId>`; private player room có tên
+`player:<playerId>`. Không emit raw database aggregate trực tiếp; dùng whitelist
+projector.
 
-- Chat message hiện được escape ở server trước khi client render log bằng `dangerouslySetInnerHTML`.
-- Không bỏ escaping hoặc đưa user input thô vào log HTML mà không cập nhật đồng bộ server, client và testcase an toàn.
-- Name và room code có normalization riêng; không dùng normalization đó như bằng chứng xác thực danh tính hoặc bảo vệ room.
-- CORS và rate limit không phải auth/permission.
+## Input và HTML safety
 
-## Quy tắc cập nhật tài liệu
+- User payload luôn qua runtime schema; domain handler vẫn phải kiểm tra authority và
+  business state sau khi parse.
+- Chat/name phải được escape trước khi đi vào HTML log. Client vẫn render log markup,
+  nên không đưa raw user string vào `dangerouslySetInnerHTML`.
+- Inbound bid/listing/offer amount là positive integer không vượt `2_147_483_647`
+  (PostgreSQL `integer`); tile index là integer `0..39`; offer action chỉ nhận UUID
+  `offerId`.
 
-Trong cùng lần sửa code:
+## Environment và vận hành
 
-1. Cập nhật rule/index/detail của tất cả khối bị tác động.
-2. Cập nhật testcase tương ứng, phân biệt automatic và manual/integration coverage.
-3. Thêm hoặc sửa cross-link hai chiều giữa Client ↔ Api ↔ GameCore ↔ Shared khi dependency đổi.
-4. Nếu thêm file leaf, thêm nó vào index; nếu xóa file leaf, xóa mapping và mọi link tới nó.
-5. Không sao chép nguyên rule nền vào file leaf; chỉ liên kết và ghi ngoại lệ riêng.
+- PostgreSQL được cấu hình bằng `DATABASE_URL`; mọi real server start thiếu DB phải
+  fail trước khi listen. In-memory adapter chỉ dành cho test.
+- `DATABASE_SSL`, `DATABASE_SSL_REJECT_UNAUTHORIZED` và
+  `DATABASE_MAX_CONNECTIONS` cấu hình pool/TLS.
+- Grace/TTL/retention có environment tương ứng trong `.env.example`.
+- `/healthz` là liveness; `/readyz` phản ánh DB/schema readiness.
+- SQL migration và JSON snapshot schema version là hai version riêng.
 
-## Baseline kiểm tra
+## Quy tắc sửa
 
-Các lệnh workspace chuẩn:
+- Thay shared contract phải sửa đồng thời producer, consumer, runtime schema và test.
+- Thay aggregate phải rà snapshot migration/validation và public projector.
+- Thay lifecycle/deadline phải test cả reconnect race và process restart.
+- Không thêm router/auth framework/Redis/event sourcing nếu scope không yêu cầu.
+- Không coi checklist là automated nếu chưa có executable assertion.
+
+## Baseline
 
 ```bash
+pnpm db:status
 pnpm typecheck
 pnpm lint
 pnpm test
-```
-
-Chạy thêm:
-
-```bash
 pnpm build
 ```
 
-khi sửa client, shared code mà client import, hoặc build/deploy. CI hiện chạy install, typecheck, lint và test; CI chưa chạy client build hoặc coverage. Không gọi một checklist là test tự động nếu repo chưa có test thực thi cho checklist đó.
-
-## Tài liệu tiếp theo
-
-- Client: [monopoly.client.instructions.md](./monopoly.client.instructions.md)
-- API transport: [monopoly.api.instructions.md](./monopoly.api.instructions.md)
-- GameCore: [monopoly.game-core.instructions.md](./monopoly.game-core.instructions.md)
-- Shared contracts/data: [monopoly.contracts.instructions.md](./monopoly.contracts.instructions.md)
-- Testcase index: [testcase/README.md](./testcase/README.md)
+Xem tiếp Client, Api, GameCore, Shared, [Persistence/README.md](./Persistence/README.md)
+và [testcase/README.md](./testcase/README.md).

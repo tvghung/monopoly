@@ -1,4 +1,9 @@
-import type { GameState, DiceValue, Die } from '@monopoly/shared';
+import type {
+  GameState,
+  DiceValue,
+  Die,
+  PlayerId,
+} from '@monopoly/shared';
 import { sendToLog } from './text';
 
 // Roll two dice server-side (the only source of truth for a roll).
@@ -8,7 +13,7 @@ export const rollDice = (): DiceValue => {
 };
 
 // Advance a player `steps` tiles forward, granting the pass-GO bonus on wrap.
-export const movePlayer = (state: GameState, playerId: string, steps: number): void => {
+export const movePlayer = (state: GameState, playerId: PlayerId, steps: number): void => {
   const player = state.players[playerId];
   if (!player) return;
   const from = player.currentTile;

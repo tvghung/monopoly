@@ -1,63 +1,31 @@
-import { useContext, useEffect, useState } from 'react';
-import type { OfferOnProp, OfferResult } from '@monopoly/shared';
+import { useContext, useEffect, useMemo, useState } from 'react';
+import type { PrivateOffer } from '@monopoly/shared';
 import stateContext from '../../internal';
-import { useToast } from '../Toast';
 
-export type ActiveOffer = OfferOnProp & { timer: number };
+export type ActiveOffer = PrivateOffer & { remainingSeconds: number };
 
-// Owns the list of pending buy offers shown to a property owner: it ticks each
-// offer's countdown, listens for server offer events (arrivals, and toasts for
-// the buyer when their own offer is accepted/declined), and exposes accept /
-// decline actions that forward to the server and drop the offer locally.
 export function useIncomingOffers() {
-  const { socket, socketFunctions } = useContext(stateContext);
-  const toast = useToast();
-  const [offers, setOffers] = useState<ActiveOffer[]>([]);
+  const {
+    privateOffers, playerId, socketFunctions,
+  } = useContext(stateContext);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setOffers(prev => prev
-        .map(item => ({ ...item, timer: item.timer - 1 }))
-        .filter(item => item.timer !== 0));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+    if (privateOffers.length === 0) return undefined;
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [privateOffers.length]);
 
-  useEffect(() => {
-    const onOffer = (info: OfferOnProp) => {
-      setOffers(prev => [...prev, { ...info, timer: 20 }]);
-    };
+  const offers = useMemo<ActiveOffer[]>(() => privateOffers
+    .filter(offer => offer.ownerPlayerId === playerId && offer.status === 'PENDING')
+    .map(offer => ({
+      ...offer,
+      remainingSeconds: Math.max(0, Math.ceil((Date.parse(offer.expiresAt) - now) / 1000)),
+    })), [now, playerId, privateOffers]);
 
-    const onDeclined = (info: OfferResult) => {
-      const { tileName, price, ownerName } = info;
-      toast.show(`${ownerName} declined your offer to buy ${tileName} for $${price}M`);
-    };
-
-    const onAccepted = (info: OfferResult) => {
-      const { tileName, price, ownerName } = info;
-      toast.show(`${ownerName} accepted your offer to buy ${tileName} for $${price}M`);
-    };
-
-    socket.on('offer on prop', onOffer);
-    socket.on('offer declined', onDeclined);
-    socket.on('offer accepted', onAccepted);
-
-    return () => {
-      socket.off('offer on prop', onOffer);
-      socket.off('offer declined', onDeclined);
-      socket.off('offer accepted', onAccepted);
-    };
-  }, [socket, toast]);
-
-  const acceptOffer = (chosen: ActiveOffer) => {
-    setOffers(prev => prev.filter(item => item.tileID !== chosen.tileID));
-    socketFunctions.acceptOffer(chosen);
+  return {
+    offers,
+    acceptOffer: (offer: ActiveOffer) => socketFunctions.acceptOffer(offer.offerId),
+    declineOffer: (offer: ActiveOffer) => socketFunctions.declineOffer(offer.offerId),
   };
-
-  const declineOffer = (chosen: ActiveOffer) => {
-    setOffers(prev => prev.filter(item => item.tileID !== chosen.tileID));
-    socketFunctions.declineOffer(chosen);
-  };
-
-  return { offers, acceptOffer, declineOffer };
 }

@@ -1,49 +1,52 @@
-# Checklist — HTTP runtime và deployment
+# Checklist — PostgreSQL, HTTP runtime và deployment
 
-## Nguồn hành vi
+## Automated evidence
 
-- [`../Api/http-runtime.instruction.md`](../Api/http-runtime.instruction.md)
-- Code/config: `apps/server/src/createServer.ts`, `apps/server/src/index.ts`, `apps/client/vite.config.ts`, `Dockerfile`, `render.yaml`, `.github/workflows/ci.yml`, root/package manifests.
-
-## Coverage hiện tại
-
-- `[MISSING-AUTO]` Không có HTTP integration, production static, container smoke hay deployment test.
-- CI hiện chỉ install, typecheck, lint và test; không chạy `pnpm build` hoặc Docker build.
+- `[AUTO]` Config validation/defaults: `apps/server/src/config.test.ts`.
+- `[AUTO]` HTTP liveness/readiness/shutdown projection: `apps/server/src/createServer.test.ts`.
+- `[AUTO]` Snapshot version/UUID/active-member inverse gates: `apps/server/src/rooms.test.ts`.
+- `[AUTO]` Due auction/buy/room cleanup: `apps/server/src/services/deadlineScheduler.test.ts`.
+- `[AUTO]` Test-adapter terminal retention: `apps/server/src/persistence/inMemory.test.ts`.
+- `[AUTO]` Migration order/checksum/required-table SQL:
+  `apps/server/src/persistence/migrations.test.ts`.
+- `[PG-INTEGRATION]` Repository/CAS/hash/rollback/session-retention tests:
+  `apps/server/src/persistence/postgres.integration.test.ts` when test DB configured.
+- `[SOCKET-INTEGRATION]` A failure-injected transaction mutates its draft then throws
+  a simulated DB outage; `apps/server/src/socket.integration.test.ts` asserts retryable
+  `DATABASE_UNAVAILABLE`, no `update`, and byte-for-byte unchanged room/version.
+- `[PG-INTEGRATION][SOCKET-INTEGRATION]` Conditional fresh-pool/server restart:
+  `apps/server/src/socket.integration.test.ts` when test DB configured.
 
 ## Checklist
 
-### Development runtime
+- [ ] Clean PostgreSQL runs migrations once; `db:status` reports current schema.
+- [ ] Any real server start with missing/invalid `DATABASE_URL` or incompatible schema
+  fails before listen.
+- [ ] No production in-memory fallback exists.
+- [ ] `/healthz` remains liveness; `/readyz` reports healthy/unhealthy DB/schema.
+- [ ] DB save failure returns retryable ACK, leaves revision unchanged and emits no update.
+- [ ] Snapshot round-trip preserves stable references; unknown/deep-malformed fields,
+  cross-reference/invariant failures, over-500 logs and non-v1 version fail explicitly.
+- [ ] Expected-version conflict cannot silently overwrite a newer room.
+- [ ] Local `compose.yaml` + `.env.example` support migrate/dev/restart workflow.
+- [ ] Production same-origin static/SPA and Socket.IO work; CORS is not authentication.
+- [ ] Production proxy/static limiter uses one trusted hop and does not throttle
+  Socket.IO or health probes.
+- [ ] CI migrates PostgreSQL before integration tests and runs typecheck/lint/test/build.
+- [ ] Container/Render starts migration-guarded app and uses `/readyz` health check.
+- [ ] Render deployment uses the paid starter service and deployment-guard disk;
+  replacement starts only after the previous process stops (brief token-based
+  reconnect is expected).
+- [ ] Rolling revisions/horizontal replicas remain disabled until distributed
+  connection ownership, presence, locking and Socket.IO fan-out are implemented.
+- [ ] SIGTERM stops commands and closes scheduler/socket/http/pool without fake turn grace.
+- [ ] Scheduler/bootstrap/listen failure before ready closes opened Socket.IO/DB resources.
+- [ ] Backup/forward-fix procedure avoids destructive down migration.
 
-- [ ] `[MANUAL]` `pnpm dev` chạy client Vite port 5173 và server port 8080 mặc định.
-- [ ] `[MANUAL]` Vite proxy `/socket.io` tới `http://localhost:8080` với WebSocket enabled; client dùng same-origin khi `VITE_SOCKET_URL` rỗng.
-- [ ] `[MANUAL]` Dev Socket.IO CORS mặc định cho `http://localhost:5173`; origin khác chỉ dùng được khi cấu hình phù hợp.
-- [ ] `[MANUAL]` `GET /healthz` trả HTTP 200 body `ok`.
+## Restart/recovery
 
-### Production server
-
-- [ ] `[MANUAL]` `NODE_ENV=production` bật `trust proxy = 1`, serve `CLIENT_DIST` hoặc default là thư mục build generated `apps/client/dist`.
-- [ ] `[MANUAL]` Asset thật được serve; GET route SPA không trùng asset trả `index.html` qua RegExp fallback.
-- [ ] `[MANUAL]` Static/SPA limiter áp dụng 1000 request/15 phút với standard headers; `/healthz` và Socket.IO transport không nằm sau limiter này.
-- [ ] `[MANUAL]` Không set `CORS_ORIGIN` trong production dùng same-origin; override chỉ khi client/server host tách.
-- [ ] `[MANUAL]` `PORT` override được honor; default là 8080.
-
-### Build/CI/container/Render
-
-- [ ] `[MANUAL]` `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build` đều pass.
-- [ ] `[AS-IS CAVEAT]` Root `pnpm build` chỉ build client; server chạy TypeScript trực tiếp bằng `tsx`, nên typecheck là gate riêng.
-- [ ] `[AS-IS CAVEAT]` CI workflow chưa gọi client production build dù job tên `build`.
-- [ ] `[MANUAL]` Docker multi-stage Node 24 tạo client `dist`, copy server/shared sources, expose 8080 và start `@monopoly/server`.
-- [ ] `[MANUAL]` Render Blueprint dùng Node 24, branch `main`, health path `/healthz`, build client và start server đúng manifest.
-- [ ] `[MANUAL]` Production cold start/redeploy làm mất room đang chơi vì state/timer chỉ in-memory.
-- [ ] `[AS-IS CAVEAT]` Chạy nhiều instance không share room/game state hoặc Socket.IO adapter; không mô tả horizontal scaling là được hỗ trợ.
-
-## Negative/edge cases cần automation khi sửa
-
-- [ ] `[MISSING-AUTO]` Chưa có smoke test ghi nhận response/error hiện tại khi `CLIENT_DIST` thiếu hoặc trỏ sai.
-- [ ] `[MISSING-AUTO]` CORS matrix dev/prod/custom origin và spoofed forwarded headers được kiểm tra ở HTTP/Socket integration level.
-- [ ] `[MISSING-AUTO]` SPA fallback không nuốt `/healthz` hoặc Socket.IO handshake.
-- [ ] `[MISSING-AUTO]` Docker health/start smoke xác nhận built client tải và WebSocket connect được từ cùng origin.
-
-## Regression commands
-
-`pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`; khi đổi image/runtime cần thêm `docker build` và HTTP/WebSocket smoke trong môi trường có Docker.
+- [ ] Same DB restores room/session/host/ready/game/offers/auction.
+- [ ] Due auction/offer/turn deadline is applied exactly once before state is served.
+- [ ] Cleanup honors pending/lobby/in-progress/finished TTL and never deletes merely-offline room.
+- [ ] Expired/revoked session rows purge after `TERMINAL_SESSION_RETENTION_MS` without
+  touching active sessions.

@@ -35,7 +35,7 @@ Owner/non-owner và các điều kiện build/mortgage là state guard, không p
   - `mortgage property(tileID)`.
   - `unmortgage property(tileID)`.
 - Click `Sell` hoặc `Make offer` chưa emit ngay; nó mở prompt trong trading flow.
-- Kết quả property action đến qua event `update` toàn state.
+- Mọi property action có typed ACK; UI chỉ nhận committed result qua `update(PublicRoomState)`.
 
 ## Phạm vi UI
 
@@ -72,7 +72,10 @@ Owner/non-owner và các điều kiện build/mortgage là state guard, không p
 
 ## Caveat dễ sai
 
-- Các rule enable/disable ở client chỉ mirror rule. Socket handler/GameCore vẫn là nguồn authoritative và có thể bỏ qua event.
+- Các rule enable/disable ở client chỉ mirror rule. Socket handler/GameCore vẫn là nguồn authoritative và trả ACK failure khi event bị từ chối.
+- Actor/owner lấy từ authenticated stable Player ID; payload chỉ mang numeric `tileID`.
+- Spectator/reconnecting client không được phát property mutation.
+- Database save failure trả ACK retryable và không được làm UI giả định mutation đã thành công.
 - Property economics dùng `packages/shared/src/tileState.ts`; card text dùng `backOfCards.ts`. Hai nguồn có dữ liệu lặp và phải giữ đúng tile index.
 - Tên/giá còn lặp trong `BoardInitState.ts`; xem caveat tile 28 trong [`game-board.instruction.md`](game-board.instruction.md).
 - Nút `Sell` mở listing cho mọi property do player sở hữu theo code hiện tại; client không chặn theo mortgage/building/open-listing.
@@ -106,4 +109,3 @@ Khi sửa property card/action, kiểm tra tối thiểu:
 - Bán/open market và private offer mở đúng prompt, không đồng thời làm đóng card ngoài ý muốn.
 - Kiểm tra đồng bộ `tileState.ts`, `BoardInitState.ts`, `backOfCards.ts` khi đổi metadata.
 - Chạy typecheck, build, lint và testcase được liên kết ở trên.
-

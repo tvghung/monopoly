@@ -25,7 +25,9 @@
 - `Log` đọc `state.boardState.logs` và `socketFunctions` từ `stateContext`.
 - Local state `chat` giữ nội dung input; `scrollRef` trỏ tới vùng log.
 - Submit có nội dung truthy emit `send chat(message)`, sau đó reset local state và form.
-- Không có event chat response riêng. Server append log rồi emit `update`; client render mảng log mới.
+- `send chat` có request-scoped ACK. Server append log trong room command rồi phát committed `update`; client render mảng log mới.
+- Server giới hạn một chat attempt mỗi socket trong 750 ms và chỉ giữ 500 log entries
+  mới nhất trong durable snapshot.
 - Effect theo dõi `state.boardState.logs` và cuộn vùng log xuống `scrollHeight` sau mỗi thay đổi.
 - Không có chat service, pagination, persistence phía client hoặc channel riêng ngoài room hiện tại.
 
@@ -43,18 +45,20 @@
 3. Mỗi lần mảng log đổi, vùng log auto-scroll xuống cuối.
 4. Người dùng nhập chat và submit.
 5. Nếu chuỗi local `chat` truthy, client emit `send chat` nguyên giá trị đang có.
-6. Client xóa input ngay, không chờ ACK.
-7. Server escape nội dung do người dùng gửi, ghép name/color markup, append timestamped log và emit `update` cho room.
+6. Client xóa input sau emit; ACK failure được App hiển thị qua toast và không tự retry message.
+7. Server escape nội dung do người dùng gửi, ghép authoritative actor markup, commit log và emit `update` cho room.
 8. Client render dòng mới và auto-scroll.
 
 ## Rule và caveat
 
-- Client không trim chat. Chuỗi chỉ gồm khoảng trắng vẫn truthy và được emit theo code hiện tại.
-- Client không đặt `maxLength` và không sanitize nội dung trước emit.
+- Client UI validation không phải safety boundary. Runtime schema server từ chối chuỗi rỗng/chỉ khoảng trắng và message trên 500 ký tự.
+- Chat gửi nhanh hơn 750 ms bị ACK failure; giới hạn log 500 dòng có nghĩa các dòng
+  cũ nhất bị loại khi server append dòng mới.
 - Log render bằng `dangerouslySetInnerHTML` vì server đưa markup màu/tên vào log. An toàn hiện tại phụ thuộc mọi dữ liệu do người dùng kiểm soát tiếp tục được escape/sanitize ở server.
 - Server hiện escape chat text và sanitize player name; nếu đổi format/nguồn log phải kiểm tra lại boundary này trước khi render HTML.
 - Component dùng array index làm React key cho log line; code hiện append log theo thứ tự.
-- Form reset và local state xóa ngay cả khi server bỏ qua event hoặc socket mất kết nối; không có pending/error/retry UI.
+- Disconnected client khóa form; failure ACK không tạo phantom log entry dù input local đã được xóa.
+- Actor là stable authenticated Player hoặc explicit spectator label, không lấy từ client payload/socket ID.
 - Active player, finished player và socket khác có thể nhận nhãn người gửi khác nhau từ server; client không tự xác định role đó.
 - Không có route detail, permission key, message edit/delete hoặc history pagination.
 - Các action game khác cũng append vào cùng log; thay schema log ảnh hưởng nhiều GameCore module.
@@ -73,13 +77,13 @@
 
 Khi sửa activity log/chat, kiểm tra tối thiểu:
 
-- Chat rỗng không emit; xác nhận hành vi AS-IS với chuỗi chỉ có khoảng trắng.
+- Chat rỗng/chỉ khoảng trắng/quá 500 ký tự không trở thành committed log.
 - Message bình thường tới đúng room và không rò sang room khác.
 - Active player, finished player và spectator nhận đúng label/name/color hiện tại.
 - Payload chứa `<`, `>`, `&`, quote và script-like text chỉ hiển thị như text, không thực thi HTML/script.
 - Game-generated markup vẫn render đúng sau mọi thay đổi sanitize/render.
 - Input được xóa sau submit và log auto-scroll khi có dòng mới.
-- Nhiều log liên tiếp giữ đúng thứ tự và không mất dòng khi full-state update đến.
+- Nhiều log liên tiếp giữ đúng thứ tự và không mất dòng khi committed public snapshot đến.
 - Reduced-motion không chạy entry animation.
 - Listener `update` không bị nhân đôi sau rerender/reconnect.
 - Chạy typecheck, build, lint và testcase được liên kết ở trên.

@@ -3,7 +3,7 @@ import stateContext from '../../internal';
 import { formatMoney } from './format';
 
 // The "Players" panel: the active roster (with balances, jail/card badges and a
-// "Turn" marker) plus a "Bankrupt" list once players start dropping out.
+// "Turn" marker) plus a finished-player list once players drop out.
 // `activePlayerId` is held by Dashboard so the turn marker only moves once every
 // token has finished walking, rather than the instant the server flips turns.
 export default function PlayerList({ activePlayerId }: { activePlayerId: string }) {
@@ -67,10 +67,10 @@ export default function PlayerList({ activePlayerId }: { activePlayerId: string 
       {state.loaded && Object.keys(state.boardState.finishedPlayers).length > 0
         ? (
           <>
-            <h3 className="center__dashboard__title center__dashboard__title--sub">Bankrupt</h3>
+            <h3 className="center__dashboard__title center__dashboard__title--sub">Finished</h3>
             <ul className="player-list">
               {Object.keys(state.boardState.finishedPlayers).map((player) => {
-                const { name, color } = state.boardState.finishedPlayers[player];
+                const { name, color, reason } = state.boardState.finishedPlayers[player];
                 return (
                   <li
                     key={player}
@@ -82,7 +82,9 @@ export default function PlayerList({ activePlayerId }: { activePlayerId: string 
                     </span>
                     <div className="player-card__info">
                       <span className="player-card__name">{name}</span>
-                      <span className="player-card__balance">Bankrupt</span>
+                    <span className="player-card__balance">
+                      {reason === 'LEFT' ? 'Left game' : 'Bankrupt'}
+                    </span>
                     </div>
                   </li>
                 );

@@ -63,7 +63,9 @@ function DieCube({ value, spins, reduced }: DieCubeProps) {
 }
 
 export default function Dice() {
-  const { state, socketFunctions, playerId } = useContext(stateContext);
+  const {
+    state, socketFunctions, playerId, canMutate,
+  } = useContext(stateContext);
   const displayPositions = useContext(displayPositionsContext);
   const reduced = useReducedMotion() ?? false;
 
@@ -76,7 +78,7 @@ export default function Dice() {
   // The server owns the dice now: rolling, movement and tile resolution all
   // happen server-side, so the client only asks to roll on its turn.
   const isMyTurn = state.boardState.currentPlayer.id === playerId;
-  const canRoll = isMyTurn && !state.boardState.currentPlayer.hasMoved && tokensSettled;
+  const canRoll = canMutate && isMyTurn && !state.boardState.currentPlayer.hasMoved && tokensSettled;
 
   const dice = state.boardState.diceValue;
   const first = dice.dice1;
@@ -96,7 +98,7 @@ export default function Dice() {
 
   return (
     <>
-      {state.loaded && playerId
+      {state.loaded
         ? (
           <section className="dice">
             <button

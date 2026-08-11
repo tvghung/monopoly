@@ -31,7 +31,7 @@ const reducer = (state: BackCard[], action: CardFlipAction): BackCard[] => {
 
 function Board() {
   const [cardsBack, dispatch] = useReducer(reducer, backOfCards);
-  const { playerId, state } = useContext(stateContext);
+  const { canMutate, state } = useContext(stateContext);
 
   // Authoritative tile per player, from the server. The stepper walks the shown
   // positions toward these one tile at a time.
@@ -66,11 +66,11 @@ function Board() {
   }, [cardsBack]);
 
   const handlePutOpenMarket = (tileID: number) => {
-    if (typeof playerId === 'string') setOpenSale({ tileID, playerId });
+    if (canMutate) setOpenSale({ tileID });
   };
 
   const handleMakeOffer = (tileID: number) => {
-    if (typeof playerId === 'string') setPrivateSale({ tileID, playerId });
+    if (canMutate) setPrivateSale({ tileID });
   };
 
   return (

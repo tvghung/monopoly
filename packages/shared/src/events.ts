@@ -1,55 +1,125 @@
-// End-to-end typed Socket.IO event contracts. The server types its `Server` with
-// these and the client types its `Socket`, so every emit/listener is checked
-// against the same definitions.
+// End-to-end typed Socket.IO contracts. Every state-changing request has a
+// request-scoped acknowledgement so clients only act on committed state.
 
 import type {
-  GameState,
-  SaleInfo,
+  JoinRoomRequest,
+  JoinRoomResult,
+  LeaveRoomResult,
+  MakeOfferResult,
+  OfferAction,
   OfferInfo,
-  OfferOnProp,
   OfferResult,
-  Offer,
+  PlayerId,
+  PrivateOffer,
+  PublicRoomState,
+  ResumeSessionRequest,
+  ResumeSessionResult,
+  RoomId,
+  RoomRole,
+  SaleInfo,
+  SessionId,
+  SessionReplacedInfo,
+  SetReadyRequest,
+  SocketProtocolVersion,
 } from './types';
 
+export type AckErrorCode =
+  | 'INVALID_REQUEST'
+  | 'UNAUTHENTICATED'
+  | 'FORBIDDEN'
+  | 'NOT_FOUND'
+  | 'CONFLICT'
+  | 'ROOM_FULL'
+  | 'ROOM_GONE'
+  | 'GAME_ALREADY_STARTED'
+  | 'SESSION_INVALID'
+  | 'SESSION_REVOKED'
+  | 'SESSION_EXPIRED'
+  | 'SESSION_REPLACED'
+  | 'UPGRADE_REQUIRED'
+  | 'DATABASE_UNAVAILABLE'
+  | 'INTERNAL_ERROR';
+
+export interface AckError {
+  code: AckErrorCode;
+  message: string;
+  retryable: boolean;
+}
+
+export type AckSuccess<T = void> = {
+  ok: true;
+  protocolVersion: SocketProtocolVersion;
+  revision?: number;
+} & ([T] extends [void] ? { data?: never } : { data: T });
+
+export interface AckFailure {
+  ok: false;
+  protocolVersion: SocketProtocolVersion;
+  error: AckError;
+}
+
+export type Ack<T = void> = AckSuccess<T> | AckFailure;
+export type AckCallback<T = void> = (response: Ack<T>) => void;
+
+export interface TileRequest {
+  tileID: number;
+}
+
 export interface ServerToClientEvents {
-  update: (state: GameState) => void;
-  'offer on prop': (info: OfferOnProp) => void;
-  'offer declined': (info: OfferResult) => void;
-  'offer accepted': (info: OfferResult) => void;
+  update: (state: PublicRoomState) => void;
+  'offer on prop': (offer: PrivateOffer) => void;
+  'offer declined': (result: OfferResult) => void;
+  'offer accepted': (result: OfferResult) => void;
+  'offer expired': (result: OfferResult) => void;
+  'offer cancelled': (result: OfferResult) => void;
+  'session replaced': (info: SessionReplacedInfo) => void;
 }
 
 export interface ClientToServerEvents {
-  'new player': (name: string, roomId: string) => void;
-  'start game': (payload: string) => void;
-  'send chat': (message: string) => void;
-  // The server rolls the dice, moves the player, and resolves the tile it lands
-  // on — clients no longer generate dice or drive movement (anti-cheat).
-  'roll dice': () => void;
-  'buy property': (payload: boolean) => void;
-  'put on open market': (saleInfo: SaleInfo) => void;
-  'make offer': (offerInfo: OfferInfo) => void;
-  'accept offer': (offer: Offer) => void;
-  'decline offer': (offer: Offer) => void;
-  'make sale': (item: string) => void;
-  'remove sale': (item: string) => void;
-  // Building / mortgaging (property owner only).
-  'build house': (tileID: number) => void;
-  'sell house': (tileID: number) => void;
-  'mortgage property': (tileID: number) => void;
-  'unmortgage property': (tileID: number) => void;
-  // Jail actions (current player only, while jailed).
-  'pay bail': () => void;
-  'use jail card': () => void;
-  // The current player declined to buy the tile they landed on — auction it.
-  'decline property': () => void;
-  // Auction participation (any active player).
-  'place bid': (amount: number) => void;
-  'pass bid': () => void;
+  'join room': (
+    request: JoinRoomRequest,
+    acknowledge: AckCallback<JoinRoomResult>,
+  ) => void;
+  'resume session': (
+    request: ResumeSessionRequest,
+    acknowledge: AckCallback<ResumeSessionResult>,
+  ) => void;
+  'set ready': (request: SetReadyRequest, acknowledge: AckCallback) => void;
+  'leave room': (acknowledge: AckCallback<LeaveRoomResult>) => void;
+  'start game': (acknowledge: AckCallback) => void;
+  'send chat': (message: string, acknowledge: AckCallback) => void;
+  // The server rolls the dice, moves the player, and resolves the landed tile.
+  'roll dice': (acknowledge: AckCallback) => void;
+  'buy property': (acknowledge: AckCallback) => void;
+  'put on open market': (saleInfo: SaleInfo, acknowledge: AckCallback) => void;
+  'make offer': (
+    offerInfo: OfferInfo,
+    acknowledge: AckCallback<MakeOfferResult>,
+  ) => void;
+  'accept offer': (offer: OfferAction, acknowledge: AckCallback) => void;
+  'decline offer': (offer: OfferAction, acknowledge: AckCallback) => void;
+  'make sale': (request: TileRequest, acknowledge: AckCallback) => void;
+  'remove sale': (request: TileRequest, acknowledge: AckCallback) => void;
+  'build house': (tileID: number, acknowledge: AckCallback) => void;
+  'sell house': (tileID: number, acknowledge: AckCallback) => void;
+  'mortgage property': (tileID: number, acknowledge: AckCallback) => void;
+  'unmortgage property': (tileID: number, acknowledge: AckCallback) => void;
+  'pay bail': (acknowledge: AckCallback) => void;
+  'use jail card': (acknowledge: AckCallback) => void;
+  'decline property': (acknowledge: AckCallback) => void;
+  'place bid': (amount: number, acknowledge: AckCallback) => void;
+  'pass bid': (acknowledge: AckCallback) => void;
 }
 
-// Inter-server events (unused here) + per-socket data placeholder.
 export type InterServerEvents = Record<string, never>;
 
+// Runtime transport context only. Raw reconnect tokens must never be attached
+// to socket.data because it is routinely logged and inspected.
 export interface SocketData {
-  roomId?: string;
+  roomId?: RoomId;
+  playerId?: PlayerId;
+  role?: RoomRole;
+  sessionId?: SessionId;
+  connectionGeneration?: number;
+  pendingAdmission?: boolean;
 }

@@ -1,6 +1,28 @@
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
+export const SOCKET_PROTOCOL_VERSION = 1 as const;
+
+export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
+export type PlayerId = string;
+export type RoomId = string;
+export type RoomCode = string;
+export type SessionId = string;
+export type OfferId = string;
+export type AuctionId = string;
+
+export type RoomStatus = 'LOBBY' | 'IN_PROGRESS' | 'FINISHED';
+export type RoomRole = 'PLAYER' | 'SPECTATOR';
+export type RoomMembershipStatus = 'ACTIVE' | 'FINISHED' | 'LEFT';
+export type PlayerSessionStatus = 'PENDING' | 'ACTIVE' | 'REVOKED' | 'EXPIRED';
+export type FinishedPlayerReason = 'BANKRUPT' | 'LEFT';
+export type PrivateOfferStatus =
+  | 'PENDING'
+  | 'ACCEPTED'
+  | 'DECLINED'
+  | 'EXPIRED'
+  | 'CANCELLED';
+
 export type TileType =
   | 'start'
   | 'normal'
@@ -63,10 +85,15 @@ export interface Player {
 export interface FinishedPlayer {
   name: string;
   color: string;
+  reason?: FinishedPlayerReason;
+}
+
+export interface Winner extends FinishedPlayer {
+  playerId: PlayerId;
 }
 
 export interface OwnedProp {
-  id: string;
+  id: PlayerId;
   color: string;
   // Houses built on this street (0-4 houses, 5 = a hotel).
   houses: number;
@@ -75,7 +102,7 @@ export interface OwnedProp {
 }
 
 export interface OpenMarketEntry {
-  seller: string;
+  seller: PlayerId;
   price: number;
   sellerName: string;
   tileName: string;
@@ -91,8 +118,14 @@ export interface DiceValue {
 }
 
 export interface CurrentPlayer {
-  id: string;
+  id: PlayerId;
   hasMoved: boolean;
+}
+
+export interface TurnRecovery {
+  turnNumber: number;
+  playerId: PlayerId;
+  deadlineAt: string;
 }
 
 export interface TurnInfo {
@@ -102,41 +135,131 @@ export interface TurnInfo {
 // A live auction for a property the current player declined to buy. Any active
 // player can bid; the highest bidder when it ends buys the tile.
 export interface Auction {
+  auctionId: AuctionId;
   tileID: number;
   tileName: string;
   price: number;
   highestBid: number;
-  highestBidder: string | null;
+  highestBidder: PlayerId | null;
   highestBidderName: string | null;
-  // Player ids taking part in the auction (only removed if they disconnect).
-  active: string[];
+  // Player ids taking part in the auction. A transient disconnect preserves
+  // participation; only explicit leave/bankruptcy removes a player.
+  active: PlayerId[];
   // Player ids who have declined to bid since the last bid. Cleared whenever a
   // new bid is placed, so a fresh bid re-opens the floor to everyone.
-  passed: string[];
-  // Seconds remaining before the auction resolves.
-  timer: number;
+  passed: PlayerId[];
+  // Authoritative absolute deadline. Runtime timer handles and countdown ticks
+  // are deliberately not part of the durable/public contract.
+  endsAt: string;
+  // Transitional client projection only. New clients derive this from endsAt.
+  timer?: number;
 }
 
 export interface BoardState {
   gameStarted: boolean;
-  players: string[];
-  finishedPlayers: Record<string, FinishedPlayer>;
+  players: PlayerId[];
+  finishedPlayers: Record<PlayerId, FinishedPlayer>;
   currentPlayer: CurrentPlayer;
+  turnNumber: number;
+  turnRecovery: TurnRecovery | null;
   logs: string[];
   diceValue: DiceValue;
   ownedProps: Record<number, OwnedProp>;
   openMarket: Record<number, OpenMarketEntry>;
   // Set once a single player remains; drives the win screen.
-  winner: FinishedPlayer | null;
+  winner: Winner | null;
   // The live property auction, or null when none is running.
   auction: Auction | null;
 }
 
 export interface GameState {
   boardState: BoardState;
-  players: Record<string, Player>;
+  players: Record<PlayerId, Player>;
   turnInfo: TurnInfo;
+  // Retained as a client-facing compatibility flag. Persistent snapshots must
+  // omit transport/loading state.
   loaded: boolean;
+}
+
+export type PersistedGameState = Omit<GameState, 'loaded'>;
+
+// ---- Room / session DTOs ----
+
+export interface RoomPlayerMeta {
+  playerId: PlayerId;
+  name: string;
+  color: string;
+  joinOrder: number;
+  membershipStatus: RoomMembershipStatus;
+  ready: boolean;
+  connected: boolean;
+}
+
+export interface PublicRoomState {
+  protocolVersion: SocketProtocolVersion;
+  version: number;
+  roomId: RoomId;
+  roomCode: RoomCode;
+  status: RoomStatus;
+  hostPlayerId: PlayerId | null;
+  minPlayers: number;
+  maxPlayers: number;
+  players: RoomPlayerMeta[];
+  gameState: GameState;
+}
+
+export interface PlayerSessionSummary {
+  sessionId: SessionId;
+  status: PlayerSessionStatus;
+  roomId: RoomId | null;
+  playerId: PlayerId | null;
+  createdAt: string;
+  expiresAt: string | null;
+}
+
+export interface JoinRoomRequest {
+  name: string;
+  roomCode: RoomCode;
+}
+
+export interface ResumeSessionRequest {
+  token: string;
+}
+
+export interface SetReadyRequest {
+  ready: boolean;
+}
+
+export interface PendingPlayerAdmission {
+  kind: 'PENDING';
+  role: 'PLAYER';
+  token: string;
+  expiresAt: string;
+}
+
+export interface SpectatorAdmission {
+  kind: 'SPECTATOR';
+  role: 'SPECTATOR';
+  playerId: null;
+  room: PublicRoomState;
+}
+
+export type JoinRoomResult = PendingPlayerAdmission | SpectatorAdmission;
+
+export interface ResumeSessionResult {
+  role: 'PLAYER';
+  playerId: PlayerId;
+  room: PublicRoomState;
+  pendingOffers: PrivateOffer[];
+}
+
+export interface LeaveRoomResult {
+  roomDeleted: boolean;
+}
+
+export interface SessionReplacedInfo {
+  code: 'SESSION_REPLACED';
+  message: string;
 }
 
 // ---- Trade / open-market payloads ----
@@ -144,34 +267,54 @@ export interface GameState {
 // Sent by the client when listing a property on the open market.
 export interface SaleInfo {
   tileID: number;
-  playerId: string;
   price: number;
 }
 
 // Sent by the client when making a private offer for a property.
 export interface OfferInfo {
   tileID: number;
-  playerId: string;
   price: number;
 }
 
-// Sent by the server to a property owner when someone offers to buy it.
-export interface OfferOnProp extends OfferInfo {
-  buyerName: string;
-  tileName: string;
+export interface OfferAction {
+  offerId: OfferId;
 }
 
-// Sent back to the offering player when the owner accepts/declines.
+export interface MakeOfferResult {
+  offerId: OfferId;
+  expiresAt: string;
+}
+
+// Authoritative private offer sent only to the buyer and property owner.
+export interface PrivateOffer {
+  offerId: OfferId;
+  roomId: RoomId;
+  buyerPlayerId: PlayerId;
+  ownerPlayerId: PlayerId;
+  tileID: number;
+  price: number;
+  buyerName: string;
+  ownerName: string;
+  tileName: string;
+  status: PrivateOfferStatus;
+  createdAt: string;
+  expiresAt: string;
+  resolvedAt: string | null;
+}
+
+export type OfferOnProp = PrivateOffer;
+
+// Sent privately when an offer leaves the pending state.
 export interface OfferResult {
+  offerId: OfferId;
+  status: Exclude<PrivateOfferStatus, 'PENDING'>;
+  tileID: number;
   tileName: string;
   price: number;
   ownerName: string;
+  resolvedAt: string;
 }
 
-// The offer object the owner acts on (accept/decline).
-export interface Offer {
-  tileID: number;
-  playerId: string;
-  price: number;
-  tileName: string;
-}
+// Compatibility name for UI code while the action payload is narrowed to the
+// only client-controlled field the server accepts.
+export type Offer = OfferAction;

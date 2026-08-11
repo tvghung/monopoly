@@ -6,7 +6,7 @@ import './style/Log.css';
 import stateContext from '../internal';
 
 export default function Log() {
-  const { state, socketFunctions } = useContext(stateContext);
+  const { state, socketFunctions, connected } = useContext(stateContext);
   const reduced = useReducedMotion() ?? false;
   const [chat, setChat] = useState('');
   const scrollRef = useRef<HTMLElement>(null);
@@ -39,8 +39,8 @@ export default function Log() {
       </section>
       <section className="center__chat">
         <form className="center__chat--form" onSubmit={sendChat}>
-          <input className="center__chat--input" onChange={e => setChat(e.target.value)} type="text" name="chat" id="chat" autoComplete="off" placeholder="Write message..." />
-          <button className="center__chat--button" type="submit">Send</button>
+          <input className="center__chat--input" disabled={!connected} onChange={e => setChat(e.target.value)} type="text" name="chat" id="chat" autoComplete="off" placeholder="Write message..." />
+          <button className="center__chat--button" type="submit" disabled={!connected}>Send</button>
         </form>
       </section>
     </section>

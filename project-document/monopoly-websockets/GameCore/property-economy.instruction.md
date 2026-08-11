@@ -11,10 +11,10 @@
 
 - `ownsFullGroup(state, ownerId, color)`: owner có đủ mọi index trong `colorGroups[color]`.
 - `streetRent(state, tileIndex)`: rent 0 khi không owned/mortgaged; house tier khi có nhà; double base khi full group chưa xây; còn lại base rent.
-- `buildHouse(state, playerId, tileID)`: xây một level, level 5 là hotel.
-- `sellHouse(state, playerId, tileID)`: bán một level, hoàn nửa house cost lấy floor.
-- `mortgageProperty(state, playerId, tileID)`: nhận nửa price lấy floor.
-- `unmortgageProperty(state, playerId, tileID)`: trả nửa price cộng 10%, lấy ceil.
+- `buildHouse(state, playerId, tileID)`: xây một level, level 5 là hotel; trả boolean mutation success.
+- `sellHouse(state, playerId, tileID)`: bán một level, hoàn nửa house cost lấy floor; trả boolean.
+- `mortgageProperty(state, playerId, tileID)`: nhận nửa price lấy floor; trả boolean.
+- `unmortgageProperty(state, playerId, tileID)`: trả nửa price cộng 10%, lấy ceil; trả boolean.
 
 ## Guards và invariants
 
@@ -42,16 +42,18 @@
 
 - Build/sell thay `OwnedProp.houses` và balance.
 - Mortgage/unmortgage thay `OwnedProp.mortgaged` và balance.
-- Mỗi mutation thành công ghi log; wrapper phát full `update` cho room.
+- Mỗi mutation thành công ghi log; wrapper commits room aggregate rồi phát public `update`.
 - Ownership transfer trong trading/auction giữ object property hiện có hoặc tạo object mới tùy flow; xem testcase trading/auction.
 
-## Caveat AS-IS
+## Caveat và boundaries
 
-- Socket building handlers chỉ chặn khi đã có winner; không yêu cầu current turn hoặc `gameStarted`. Owner có thể quản lý property ngoài lượt khi game chưa có winner.
+- Socket building handlers yêu cầu authenticated active Player và room `IN_PROGRESS`,
+  nhưng property management vẫn được phép ngoài lượt.
 - Mortgage chỉ kiểm tra số nhà trên tile đang mortgage, không kiểm tra toàn bộ color group có nhà hay không.
 - Không có inventory giới hạn số house/hotel của bank.
 - `ownsFullGroup` dựa vào ownership, không loại group vì một tile khác đang mortgage; rent của tile không mortgage vẫn có thể dùng full-group bonus.
-- Server silently returns cho phần lớn action không hợp lệ; chỉ affordability build/unmortgage ghi log.
+- GameCore functions return `false` without mutation for invalid owner/economy state;
+  transport maps that result to an explicit failure ACK without committing a revision.
 
 ## Consumers và liên kết chéo
 
@@ -62,7 +64,8 @@
 
 ## Kiểm thử khi sửa
 
-- Unit hiện có cover monopoly/base/double/tier/mortgage rent, even build/sell, hotel cap, affordability, mortgage và unmortgage cost.
-- Chưa có Socket integration test cho actor ownership, winner guard, broadcast hoặc action ngoài turn.
+- Unit hiện có cover monopoly/base/double/tier/mortgage rent, even build/sell, hotel
+  cap, direct insufficient-funds/non-buildable branches, mortgage và unmortgage cost.
+- Socket authority/save-failure/no-op ACK behavior cần integration assertion riêng.
 - Thực hiện [`../testcase/property-economy.md`](../testcase/property-economy.md) và các transfer case trong [`../testcase/trading-market-and-private-offers.md`](../testcase/trading-market-and-private-offers.md).
 - Chạy `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build` nếu đổi UI/shared data.
