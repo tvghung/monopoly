@@ -1,4 +1,13 @@
-import { sendToLog } from '../game';
+import { gameCardsById } from '@monopoly/shared';
+import {
+  assertDebtActionAllowed,
+  continuationForRoll,
+  enqueuePayments,
+  logPausedDebt,
+  resumePaymentContinuation,
+  sendToLog,
+  settleAffordableClaims,
+} from '../game';
 import type { AppRuntime } from '../services/runtime';
 import { requirePlayer } from './authority';
 import { broadcastRoom } from './broadcast';
@@ -15,6 +24,7 @@ export function registerJailHandlers(
     try {
       const actor = requirePlayer(socket, runtime);
       const { roomId, playerId } = actor;
+      const now = new Date();
       const committed = await commitRoomCommand(runtime, roomId, ({ room, state }) => {
         const player = state.players[playerId];
         if (
@@ -23,16 +33,28 @@ export function registerJailHandlers(
           || state.boardState.currentPlayer.id !== playerId
           || state.boardState.currentPlayer.hasMoved
         ) {
-          throw new CommandError('FORBIDDEN', 'Bail is not available now.');
+          throw new CommandError('FORBIDDEN', 'Hiện không thể trả tiền bảo lãnh.');
         }
-        if (player.accountBalance < 50) {
-          throw new CommandError('CONFLICT', "You can't afford the $50M bail.");
+        if (!assertDebtActionAllowed(state, playerId, 'BUY')) {
+          throw new CommandError('CONFLICT', 'Phải xử lý khoản nợ đang chờ trước.');
         }
-        player.accountBalance -= 50;
-        player.isJail = false;
-        player.jailRounds = 0;
-        sendToLog(state, `${player.name} paid $50M bail and is free to move.`);
-      }, undefined, actor);
+        const resolutionOptions = {
+          now: now.getTime(),
+          debtActionTimeoutMs: runtime.timing.debtActionTimeoutMs,
+        };
+        const continuation = continuationForRoll(state, playerId, false, {
+          resume: { kind: 'RELEASE_FROM_JAIL' },
+        });
+        enqueuePayments(state, [{
+          debtorPlayerId: playerId,
+          creditor: 'BANK',
+          amount: 50,
+          source: { kind: 'BAIL' },
+        }], continuation, resolutionOptions);
+        const resolved = settleAffordableClaims(state, resolutionOptions);
+        if (resolved) resumePaymentContinuation(state, resolved, resolutionOptions);
+        else logPausedDebt(state);
+      }, now, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
       broadcastRoom(io, runtime, committed.room);
       acknowledge(successAck(committed.room.aggregateVersion));
@@ -52,14 +74,23 @@ export function registerJailHandlers(
           || !player?.isJail
           || state.boardState.currentPlayer.id !== playerId
           || state.boardState.currentPlayer.hasMoved
-          || player.getOutOfJailCards < 1
+          || player.heldJailFreeCardIds.length < 1
         ) {
-          throw new CommandError('FORBIDDEN', 'A jail card cannot be used now.');
+          throw new CommandError('FORBIDDEN', 'Hiện không thể dùng Thẻ Thoát Tù Miễn Phí.');
         }
-        player.getOutOfJailCards -= 1;
+        if (!assertDebtActionAllowed(state, playerId, 'BUY')) {
+          throw new CommandError('CONFLICT', 'Phải xử lý khoản nợ đang chờ trước.');
+        }
+        const cardId = player.heldJailFreeCardIds.shift();
+        const card = cardId ? gameCardsById[cardId] : undefined;
+        const deck = card?.sourceDeck;
+        if (!cardId || !deck || !card.getOutOfJailFree) {
+          throw new CommandError('CONFLICT', 'Thẻ ra tù không hợp lệ.');
+        }
+        state.privateState.decks[deck].drawPile.push(cardId);
         player.isJail = false;
         player.jailRounds = 0;
-        sendToLog(state, `${player.name} used a Get Out Of Jail Free card.`);
+        sendToLog(state, `${player.name} đã dùng Thẻ Thoát Tù Miễn Phí.`);
       }, undefined, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
       broadcastRoom(io, runtime, committed.room);

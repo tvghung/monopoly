@@ -1,7 +1,7 @@
 import type { PlayerId } from '@monopoly/shared';
 import type { RoomRecord } from '../persistence';
 import type { RoomSnapshot } from '../rooms';
-import { projectPublicRoomState } from '../services/publicState';
+import { projectPrivatePlayerState, projectPublicRoomState } from '../services/publicState';
 import type { AppRuntime } from '../services/runtime';
 import type { AppServer } from './types';
 
@@ -17,6 +17,13 @@ export function broadcastRoom(
     'update',
     projectPublicRoomState(room, runtime.connections),
   );
+  for (const [playerId, member] of Object.entries(room.gameSnapshot.members)) {
+    if (member.membershipStatus === 'LEFT') continue;
+    io.to(privatePlayerRoomName(playerId)).emit(
+      'private player state',
+      projectPrivatePlayerState(room, playerId),
+    );
+  }
 }
 
 export async function broadcastRoomById(

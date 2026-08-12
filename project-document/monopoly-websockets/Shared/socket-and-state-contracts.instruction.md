@@ -1,4 +1,4 @@
-# Socket và state contracts
+# Socket, Standard Mode state và transfer contracts
 
 ## Code nguồn
 
@@ -7,102 +7,95 @@
 - `packages/shared/src/socketSchemas.ts`
 - `packages/shared/src/index.ts`
 
-## Identity/lifecycle types
+## Identity/protocol
 
-- Opaque aliases: `PlayerId`, `RoomId`, `RoomCode`, `SessionId`, `OfferId`,
-  `AuctionId`.
-- `RoomStatus`: `LOBBY | IN_PROGRESS | FINISHED`.
-- `RoomRole`: `PLAYER | SPECTATOR`.
-- Session and membership statuses explicitly model pending/active/revoked/expired
-  and active/finished/left state.
-- `SOCKET_PROTOCOL_VERSION` gates coordinated same-origin client/server deployment.
+- Stable aliases: `PlayerId`, `RoomId`, `SessionId`, `OfferId`, `AuctionId`,
+  `GameCardId` và operation IDs cần cho durable continuation.
+- `RoomStatus`: `LOBBY | IN_PROGRESS | FINISHED`; `RoomRole`:
+  `PLAYER | SPECTATOR`.
+- `SOCKET_PROTOCOL_VERSION = 2`; v1 nhận `UPGRADE_REQUIRED`, không chạy legacy
+  state/payload.
+- Stable public ID không phải credential. Raw reconnect token không thuộc
+  `PublicRoomState`, `GameState`, `SocketData`, log hoặc snapshot.
 
-Stable ID is public identity, not a credential. Raw reconnect token is private bearer
-material and never part of public DTO or SocketData.
+## Standard Mode aggregate
 
-## Public room/game state
+Public/persisted types dùng stable IDs và phân biệt hidden state:
 
-`PublicRoomState` contains:
+- Turn: `doublesStreak`; successful `completeTurnResolution` outcome
+  `EXTRA_ROLL | ADVANCE_TURN` (`null` cho blocker/stale hoặc internal
+  `NO_TURN_CHANGE` completion);
+  `TurnInfo.pendingPropertyDecision` biểu diễn buy wait
+  và mỗi payment/auction wait nhúng `PendingTurnContinuation`.
+- `PendingTurnContinuation.resume.kind` là internal durable instruction:
+  `COMPLETE_TURN`, `MOVE_STORED_DICE` hoặc `NO_TURN_CHANGE`. Kind cuối chỉ dùng khi
+  Bank auction của một non-current forfeit kết thúc, để không advance lượt của
+  Player khác.
+- Payment: `PaymentQueue` giữ `orderedClaims: DebtClaim[]`, `activeClaimIndex`,
+  `continuation` và `actionDeadlineAt`. Mỗi claim bắt buộc có `debtorPlayerId`,
+  `creditor: 'PLAYER' | 'BANK'`, optional `creditorPlayerId`, `amount`,
+  `remainingAmount`, `source`; `claimId` và optional `status` là metadata
+  idempotency/recovery.
+- Auction: `Auction.kind = PROPERTY | BUILDING`; stable `auctionId`, participant,
+  bid/pass, target/continuation và absolute `endsAt`.
+- Bank: durable `BankPropertyAuctionQueue`; optional `BuildingContention` với
+  `reservedUnit: { buildingType: 'HOUSE' | 'HOTEL'; quantity: 1 }`. Available 32
+  Nhà/12 Khách Sạn là derived state, không persist counter song song.
+- Cards: private persisted `GamePrivateState.decks.chance.drawPile` và
+  `.chest.drawPile`; Player giữ `heldJailFreeCardIds`. Public projection chỉ lộ
+  counts cần cho UI, không lộ holder IDs/order/card kế tiếp.
+- Jail third-failed-roll continuation phải giữ dice result qua payment/restart.
 
-- protocol version and monotonic room `version`.
-- internal room ID/code/status/host.
-- `minPlayers=2`, `maxPlayers=7`.
-- roster metadata: stable ID, name/color/join order/membership/ready and runtime
-  connected projection.
-- `GameState` keyed/referenced by stable IDs.
+`PersistedGameState`/room snapshot chứa durable fields trên và bỏ `loaded`, presence,
+credential, socket ID, countdown tick/timer handle.
 
-`Winner` carries stable player ID. `Auction` carries `auctionId` and ISO `endsAt`;
-optional compatibility `timer` is derived by the public projector and is not durable.
-`TurnRecovery` carries turn number, player ID and ISO deadline. `PersistedGameState`
-omits client-only `loaded`.
+## Transfer/trading
 
-## Session and admission DTO
+`PropertyTransferPolicy` là:
 
-- `join room({name, roomCode})` returns either pending player admission with raw
-  token/expiry or an explicit spectator admission.
-- `resume session({token})` activates/reclaims an existing Player and returns stable
-  ID, public room and pending private offers.
-- `set ready({ready})` and `leave room()` mutate lobby/lifecycle state.
-- `session replaced` tells the superseded connection to stop reconnecting.
+```text
+VOLUNTARY
+BANKRUPTCY_TO_PLAYER
+RETURN_TO_BANK
+BANK_AUCTION_AWARD
+```
 
-Invalid token is never silently converted to spectator/new player.
+`TradeBundle` có hai side `offered` và `requested`; mỗi side biểu diễn money,
+property IDs và jail-free `GameCardId`s. Không có Nhà/Khách Sạn trực tiếp trong bundle.
+Runtime schema yêu cầu:
 
-## Trading DTO
+- amount là integer không âm trong bundle; offer tổng thể phải trao ít nhất một
+  asset và không cho cùng asset xuất hiện hai phía.
+- tile `0..39`, unique card/property IDs và bounded money.
+- buyer/owner/actor không được lấy từ client payload; server derive từ authenticated
+  session và authoritative ownership.
 
-- Listing/make-offer requests contain only tile and positive integer price no greater
-  than `2_147_483_647`.
-- Accept/decline contains only `{offerId}`.
-- `PrivateOffer` is authoritative: stable buyer/owner, tile/price, status,
-  `createdAt`, `expiresAt`, `resolvedAt`.
-- Multiple offers on the same tile are distinguishable by offer ID.
+Private offer vẫn có stable `offerId`, participants, status và absolute expiry;
+persisted row chứa complete canonical terms để accept/restart không phụ thuộc client
+hay board label hiện tại.
 
-## Event contract
+## Events/ACK
 
-Every state-changing client event ends in `AckCallback<T>`. Success contains protocol
-version and optional committed revision/data. Failure contains stable code/message
-and `retryable`.
+- Mọi state-changing inbound kết thúc bằng typed `AckCallback<T>`; success chỉ sau
+  commit và có protocol/revision, failure có stable code/message/retryable.
+- Turn/buy/jail/property/building/auction/payment/trade command actor lấy từ
+  `socket.data.playerId`.
+- Auction bid/pass dùng cùng typed path cho `PROPERTY | BUILDING`, còn target/kind
+  được revalidate từ authoritative auction state.
+- Public `update(PublicRoomState)` tách khỏi private offer/session delivery.
+- Không có `new player`, dummy payload hoặc client-supplied actor.
 
-Server events:
+## Runtime schemas và boundaries
 
-- `update(PublicRoomState)`.
-- `offer on prop`, `offer accepted`, `offer declined`, `offer expired`,
-  `offer cancelled`.
-- `session replaced`.
-
-There is no `new player`, dummy start/buy payload or client-supplied actor field.
-
-## SocketData
-
-Runtime-only fields are internal room/player ID, role, session ID, connection
-generation and optional `pendingAdmission` per-socket join lock. That boolean is
-neither credential nor durable domain state. Raw token is forbidden; `socket.id`
-remains transport identity only.
-
-## Runtime schemas
-
-Zod validates every event's first business argument:
-
-- trimmed 1–20 character names and normalized room codes.
-- base64url-like reconnect tokens.
-- UUID stable IDs/offer actions.
-- integer tile `0..39` and positive integer money up to `2_147_483_647`.
-- bounded nonblank chat.
-- strict objects reject unknown fields.
-- exact argument shape requires one ACK callback; no-payload commands reject dummy
-  payloads.
-
-After schema parse, handler must still authorize actor/role/room/domain state.
-
-## Public/private/persistence boundaries
-
-- Public projector whitelists room/game fields and derives connected presence.
-- Offer/session state is delivered privately, not nested into `update`.
-- Persistent game snapshot excludes transport/presence/credentials/timer handles.
-- Client discards stale revision; server broadcasts only after durable commit.
+- Zod strict objects validate name/room/token/UUID/tile/money/chat/trade bundle và
+  exact argument count; domain vẫn authorize role/turn/owner/debt/state sau parse.
+- Public projector whitelist room/roster/game fields và scrub exact `DeckState`,
+  credentials, private offer rows và internal continuation details không cần cho UI.
+- Client bỏ stale revision; server commit PostgreSQL trước ACK/broadcast.
 
 ## Tests
 
-- Contract/typecheck for event names, payloads and ACKs.
-- Runtime schema cases for malformed UUID/tile/money/chat/unknown keys.
-- Public serialization test proving no token/hash/session/private-offer leak.
-- Socket integration for private targeting and actor spoof rejection.
+- Protocol v2 mismatch; payload/ACK compile/runtime validation.
+- Strict `TradeBundle`, auction kinds, debt/payment and snapshot v2 validation.
+- Public no-leak assertion cho token/hash/session/private offer/exact deck order.
+- Socket actor spoof/spectator rejection và save-failure no-publish.

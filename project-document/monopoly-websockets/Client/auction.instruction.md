@@ -1,37 +1,34 @@
-# Live durable property auction
+# Property/building auction UI
 
-## Code
+## Public state
 
-- `apps/client/src/components/dashboard/AuctionPanel.tsx`
-- `apps/client/src/components/dashboard/BuyPrompt.tsx`
-- Shared `Auction`/ACK contracts
+Auction panel render `Auction.kind`, target, participants/pass, highest bid/bidder và
+countdown từ absolute `endsAt`; không sở hữu timer authority. All amounts dùng VNĐ.
 
-## State/UI
+## PROPERTY
 
-Public auction state includes stable `auctionId`, tile, active/passed stable Player IDs,
-highest bid/bidder and absolute ISO `endsAt`. Client derives countdown from current
-time and `endsAt`; no authoritative per-second tick is stored locally.
+- Declined landed property và Bank-queued bankruptcy property dùng cùng panel nhưng
+  hiển thị source/queue context khác nhau.
+- Mọi active Player, kể cả decliner, có thể bid/pass. Không bid: property unowned;
+  Bank queue tự chuyển item kế tiếp bằng committed update.
 
-- Active Player can bid/pass according to public state; server remains authority.
-- Spectator/non-participant sees read-only auction.
-- Reconnecting disables bid/pass.
-- Bid/pass carries ACK; committed auction state comes from public update and failure
-  is surfaced without fabricating a bid. Stale state is resynced from the update.
-- Modal closes only when committed update clears auction.
+## BUILDING
 
-## Deadline behavior
+- Panel nêu Nhà/Khách Sạn cuối đang được tranh, legal target đã chọn và
+  `reservedUnit`; derived Bank inventory không double-count unit này.
+- Winner/invalidated target/released reservation chỉ đổi UI sau committed finalize.
 
-- Auction starts with absolute 30-second deadline.
-- A valid bid resets `passed` and, when less than 15 seconds remain, persists a new
-  deadline at least 15 seconds ahead.
-- Offline participants and highest bidder are not removed merely by disconnect.
-- Server restart restores/finalizes from `endsAt`; client refresh resumes countdown.
-- Current-turn reconnect grace does not override an active auction.
+## Role/recovery
 
-## Required tests
+- Active participant bid/pass; highest bidder không pass. Spectator/non-participant
+  read-only; reconnecting disables actions.
+- Modal/panel chỉ đóng khi committed state clear/advance auction. Restart/refresh
+  resume đúng kind, bid và deadline; stale revision không đóng auction mới.
+- Typed ACK failure tiếng Việt không tạo phantom bid/reservation.
 
-- Valid/invalid bid/pass and typed ACK errors.
-- Client countdown from `endsAt`, extension and restart snapshot.
-- Offline/highest bidder preserved.
-- Expired auction finalizes once; stale callback/update cannot finalize twice.
-- Spectator/reconnecting action gating.
+## Tests
+
+- Both kinds labels/amount/countdown/action gating.
+- Decliner participation/no-bid/bank queue next item.
+- Building reservation/inventory/invalid target.
+- Deadline extension/restart/stale update/StrictMode cleanup/save failure.

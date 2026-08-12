@@ -6,6 +6,7 @@ import type {
   ResumeSessionRequest,
   SaleInfo,
   SetReadyRequest,
+  TradeBundle,
 } from './types';
 import type { ClientToServerEvents, TileRequest } from './events';
 
@@ -13,6 +14,11 @@ export const playerIdSchema = z.uuid();
 export const roomIdSchema = z.uuid();
 export const offerIdSchema = z.uuid();
 export const auctionIdSchema = z.uuid();
+export const gameCardIdSchema = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^(chance|chest)-[a-z0-9-]+$/);
 export const isoTimestampSchema = z.iso.datetime({ offset: true });
 
 export const playerNameSchema = z.string().trim().min(1).max(20);
@@ -35,6 +41,11 @@ export const moneyAmountSchema = z
   .number()
   .int()
   .positive()
+  .max(MAX_MONEY_AMOUNT);
+export const nonNegativeMoneyAmountSchema = z
+  .number()
+  .int()
+  .min(0)
   .max(MAX_MONEY_AMOUNT);
 export const chatMessageSchema = z
   .string()
@@ -65,10 +76,47 @@ export const saleInfoSchema = z.strictObject({
   price: moneyAmountSchema,
 }) satisfies z.ZodType<SaleInfo>;
 
+const uniqueTileIdsSchema = z
+  .array(tileIdSchema)
+  .max(28)
+  .refine((ids) => new Set(ids).size === ids.length, 'Property ids must be unique');
+
+const uniqueJailCardIdsSchema = z
+  .array(gameCardIdSchema)
+  .max(2)
+  .refine((ids) => new Set(ids).size === ids.length, 'Jail-free card ids must be unique');
+
+export const tradeBundleSchema = z.strictObject({
+  cash: nonNegativeMoneyAmountSchema,
+  propertyIds: uniqueTileIdsSchema,
+  jailFreeCardIds: uniqueJailCardIdsSchema,
+}) satisfies z.ZodType<TradeBundle>;
+
+const bundleHasValue = (bundle: TradeBundle): boolean => (
+  bundle.cash > 0
+  || bundle.propertyIds.length > 0
+  || bundle.jailFreeCardIds.length > 0
+);
+
 export const offerInfoSchema = z.strictObject({
-  tileID: tileIdSchema,
-  price: moneyAmountSchema,
-}) satisfies z.ZodType<OfferInfo>;
+  recipientPlayerId: playerIdSchema,
+  offered: tradeBundleSchema,
+  requested: tradeBundleSchema,
+})
+  .refine(
+    (offer) => bundleHasValue(offer.offered) || bundleHasValue(offer.requested),
+    'A trade must exchange cash, property, or a jail-free card',
+  )
+  .refine(
+    (offer) => !offer.offered.propertyIds.some((id) => offer.requested.propertyIds.includes(id)),
+    'The same property cannot appear on both sides of a trade',
+  )
+  .refine(
+    (offer) => !offer.offered.jailFreeCardIds.some(
+      (id) => offer.requested.jailFreeCardIds.includes(id),
+    ),
+    'The same jail-free card cannot appear on both sides of a trade',
+  ) satisfies z.ZodType<OfferInfo>;
 
 export const offerActionSchema = z.strictObject({
   offerId: offerIdSchema,
@@ -102,6 +150,8 @@ export const clientEventPayloadSchemas = {
   'unmortgage property': tileIdSchema,
   'pay bail': noPayloadSchema,
   'use jail card': noPayloadSchema,
+  'settle debt': noPayloadSchema,
+  'declare bankruptcy': noPayloadSchema,
   'decline property': noPayloadSchema,
   'place bid': moneyAmountSchema,
   'pass bid': noPayloadSchema,

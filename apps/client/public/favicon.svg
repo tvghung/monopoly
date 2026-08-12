@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Cờ Tỷ Phú Việt Nam">
+  <rect width="64" height="64" rx="12" fill="#9b101b"/>
+  <path d="M8 13h48v38H8z" fill="#fff8e8" stroke="#f0c65c" stroke-width="3"/>
+  <text x="32" y="38" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="800" fill="#9b101b">CTP</text>
+  <path d="M18 46h28" stroke="#d59b22" stroke-width="3" stroke-linecap="round"/>
+</svg>

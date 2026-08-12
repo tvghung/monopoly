@@ -1,4 +1,5 @@
 .Board {
+  position: relative;
   display: grid;
   grid-template-columns: 1.5fr repeat(9, 1.5fr) 1.5fr;
   grid-template-rows: 1.5fr repeat(9, 1.5fr) 1.5fr;
@@ -22,6 +23,19 @@
   height: 100%;
   text-align: center;
   position: relative;
+  min-width: 0;
+  padding: 0;
+  border-radius: 0;
+  background-color: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.Tile:focus-visible {
+  z-index: 10;
+  outline: 0.35vmin solid #0b57d0;
+  outline-offset: -0.35vmin;
 }
 
 /* Ownership marker: a thin ring in the owner's colour plus a soft inner glow
@@ -38,16 +52,17 @@
     inset 0 0 1.4vmin -0.15vmin var(--owner-color);
 }
 
-.Tile:hover {
-  cursor: pointer;
-}
-
 .tile0 {
   grid-area: 11 / 11 / 12 / 12;
-  background-image: url('/icons/go.gif');
-  background-position: center -0.6vmin;
-  background-repeat: no-repeat;
-  background-size: 9vmin;
+}
+
+.tile0::after {
+  content: '🏁';
+  position: absolute;
+  inset: 30% 0 auto;
+  font-size: 4vmin;
+  line-height: 1;
+  pointer-events: none;
 }
 
 .tile1 {
@@ -336,7 +351,7 @@
 }
 
 .tile__horizontal--bottom .tile__street-name {
-  margin-top: -6vh;
+  margin-top: 0.4vmin;
   margin-bottom: 0.5vh;
 }
 
@@ -363,7 +378,11 @@
 }
 
 .tile__wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   width: 100%;
+  height: 100%;
   text-align: center;
 }
 
@@ -377,11 +396,19 @@
 }
 
 .tile__street-name {
-  margin-top: 2.5vh;
+  margin-top: 0.4vmin;
   margin-bottom: 0.5vh;
 }
 
+.tile__street-name,
 .tile__special-name {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  line-height: 1.15;
   margin-top: 0.4vmin;
   font-weight: bold;
 }
@@ -485,4 +512,42 @@
   font-weight: 700;
   border-radius: 0.2vmin;
   pointer-events: none;
+}
+
+.orientation-notice {
+  display: none;
+}
+
+@media (orientation: portrait) and (max-width: 48rem) {
+  .orientation-notice {
+    position: fixed;
+    z-index: 12000;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 2rem;
+    background: #152727;
+    color: #fff;
+    font-size: clamp(1rem, 5vw, 1.4rem);
+    line-height: 1.4;
+    text-align: center;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 31rem) {
+  .center {
+    width: 94%;
+    margin: 3vmin;
+    padding: 1.5vmin 2.5vmin;
+  }
+
+  .tile__street-name,
+  .tile__special-name,
+  .tile__price,
+  .tile__special--price {
+    font-size: clamp(0.42rem, 1.8vmin, 0.65rem);
+  }
 }

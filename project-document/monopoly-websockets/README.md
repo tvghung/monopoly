@@ -1,4 +1,4 @@
-# Monopoly Websockets — Documentation Source of Truth
+# Cờ Tỷ Phú Việt Nam — Documentation Source of Truth
 
 ## Mục đích
 
@@ -18,7 +18,9 @@ phải được cập nhật trong cùng thay đổi.
 | Test/deploy | `apps/**/*.test.ts*`, `.github/`, root configs | Unit, Socket/client/PostgreSQL/restart gates và single-service deployment | [testcase/README.md](./testcase/README.md) |
 
 Ứng dụng vẫn là một Node service phục vụ client cùng origin. PostgreSQL là durable
-dependency bắt buộc trong production; không có runtime memory fallback.
+dependency bắt buộc trong production; không có runtime memory fallback. Player-facing
+product là Vietnamese-only **Cờ Tỷ Phú Việt Nam — Standard Mode**; package/path kỹ
+thuật `monopoly-*` được giữ để tránh cosmetic refactor.
 
 ## Invariants nguồn thẩm quyền
 
@@ -36,6 +38,13 @@ dependency bắt buộc trong production; không có runtime memory fallback.
 - Public projector không phát session/token hash/private offers. Private delivery dùng
   `player:<playerId>`, public delivery dùng `room:<roomId>`.
 - Auction, offer và turn recovery dùng absolute deadline; timer handle không persist.
+- Board giữ index `0..39` và economy số nguyên hiện tại; `1 game unit = 1.000 VNĐ`.
+- Successful `completeTurnResolution` trả `EXTRA_ROLL | ADVANCE_TURN`; buy decision dùng
+  `TurnInfo.pendingPropertyDecision`, còn payment/auction wait nhúng durable
+  `PendingTurnContinuation` thay vì advance sớm.
+- Hidden `GamePrivateState.decks`, `PaymentQueue`, `BankPropertyAuctionQueue`,
+  doubles và building contention nằm trong snapshot v2 nhưng public projector
+  không được lộ deck order.
 
 ## Thứ tự đọc
 
@@ -53,12 +62,12 @@ dependency bắt buộc trong production; không có runtime memory fallback.
 | Join/resume/reconnect/token | [Client/join-room.instruction.md](./Client/join-room.instruction.md), [Api/socket-session.instruction.md](./Api/socket-session.instruction.md) | `App.tsx`, `playerSessionStorage.ts`, `socket/session.ts`, `playerSessionService.ts` |
 | Host/lobby/ready/leave | [GameCore/room-lifecycle.instruction.md](./GameCore/room-lifecycle.instruction.md), [Api/socket-lobby.instruction.md](./Api/socket-lobby.instruction.md) | `Lobby.tsx`, room aggregate, `socket/lobby.ts` |
 | DB/schema/CAS/recovery | [Persistence/postgres-and-recovery.instruction.md](./Persistence/postgres-and-recovery.instruction.md) | `persistence/`, `services/`, `migrations/` |
-| Turn/current-player grace | [GameCore/turn-movement-and-bankruptcy.instruction.md](./GameCore/turn-movement-and-bankruptcy.instruction.md) | `game/turn.ts`, turn handler, deadline scheduler |
+| Turn/doubles/payment/bankruptcy/recovery | [GameCore/turn-movement-and-bankruptcy.instruction.md](./GameCore/turn-movement-and-bankruptcy.instruction.md) | `game/turn.ts`, turn handler, deadline scheduler |
 | Trading/private offer | [Client/trading-market.instruction.md](./Client/trading-market.instruction.md), [Api/socket-trading.instruction.md](./Api/socket-trading.instruction.md) | trading handler, `trade_offers`, offer UI |
-| Auction/recovery | [GameCore/auction.instruction.md](./GameCore/auction.instruction.md) | `game/auction.ts`, socket auction, scheduler |
+| Property/building/bank auctions | [GameCore/auction.instruction.md](./GameCore/auction.instruction.md) | `game/auction.ts`, socket auction, scheduler |
 | Contracts/runtime schema | [Shared/socket-and-state-contracts.instruction.md](./Shared/socket-and-state-contracts.instruction.md) | `types.ts`, `events.ts`, `socketSchemas.ts` |
 | HTTP/readiness/deploy | [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md) | create/start server, migration startup, Docker/Render/CI |
-| Board/card data | [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md) | shared tile/card data và client presentation duplicates |
+| Board/card/deck data | [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md) | shared canonical board/cards và private deck state |
 
 ## Quy ước tài liệu
 

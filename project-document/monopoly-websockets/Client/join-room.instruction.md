@@ -1,5 +1,9 @@
 # Join, resume và connection lifecycle
 
+Player-facing product name là **Cờ Tỷ Phú Việt Nam**. Join, restore, reconnect,
+replacement, leave/forfeit confirmations và mọi ACK error được render bằng tiếng
+Việt. Internal phase/event/error codes vẫn giữ English.
+
 ## Định danh màn hình
 
 SPA entry `/`; không có Router/menu/permission key. Join/restore/lobby/board được chọn

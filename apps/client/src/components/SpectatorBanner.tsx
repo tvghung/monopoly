@@ -1,7 +1,7 @@
 export default function SpectatorBanner() {
   return (
     <aside className="spectator-banner" role="status">
-      Spectator mode — you can watch this game, but gameplay actions are disabled.
+      Chế độ Khán Giả — bạn có thể theo dõi ván chơi nhưng không thể thực hiện thao tác.
     </aside>
   );
 }

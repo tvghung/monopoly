@@ -23,39 +23,39 @@ export default function JoinForm({
   };
 
   return (
-    <section className="join">
+    <section className="join" aria-labelledby="join-title">
       <form className="join__card" onSubmit={handleSubmit}>
-        <h1 className="join__title">Monopoly</h1>
-        <p className="join__subtitle">Join a room to play. Share the room code with friends to play together.</p>
+        <h1 id="join-title" className="join__title">Cờ Tỷ Phú Việt Nam</h1>
+        <p className="join__subtitle">Vào phòng và chia sẻ mã phòng để cùng bạn bè chơi trực tuyến.</p>
 
         {error ? <p className="join__error" role="alert">{error}</p> : null}
-        {!connected ? <p className="join__connection" role="status">Connecting to the game server…</p> : null}
+        {!connected ? <p className="join__connection" role="status">Đang kết nối đến máy chủ trò chơi…</p> : null}
 
-        <label className="join__label" htmlFor="join-name">Your name</label>
+        <label className="join__label" htmlFor="join-name">Tên của bạn</label>
         <input
           id="join-name"
           className="join__input"
           type="text"
           value={name}
           maxLength={20}
-          placeholder="e.g. Marcin"
+          placeholder="Ví dụ: Minh"
           onChange={e => setName(e.target.value)}
           autoFocus
         />
 
-        <label className="join__label" htmlFor="join-room">Room code</label>
+        <label className="join__label" htmlFor="join-room">Mã phòng</label>
         <input
           id="join-room"
           className="join__input"
           type="text"
           value={roomId}
           maxLength={20}
-          placeholder="e.g. GAME-1234 (blank joins LOBBY)"
+          placeholder="Ví dụ: GAME-1234 (để trống để vào phòng chung)"
           onChange={e => setRoomId(e.target.value)}
         />
 
         <button className="join__button" type="submit" disabled={!name.trim() || busy || !connected}>
-          {busy ? 'Joining…' : 'Join game'}
+          {busy ? 'Đang vào phòng…' : 'Vào phòng'}
         </button>
       </form>
     </section>

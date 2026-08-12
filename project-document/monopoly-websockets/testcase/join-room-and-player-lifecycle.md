@@ -20,12 +20,21 @@
 - [ ] `resume session` activates exactly one stable UUID Seat; lost ACK is resumable.
 - [ ] Newest valid socket wins; old receives `session replaced`; stale disconnect no-ops.
 - [ ] Refresh/network reconnect/new socket keeps Player ID, Seat, ready, money and assets.
+- [ ] Protocol/snapshot v2 identity-preserving reset keeps room/code, stable Player
+  IDs, join order/name/color/ready, host, `IN_PROGRESS` status and active reconnect
+  token hashes while resetting incompatible gameplay to a fresh v2 turn.
+- [ ] Existing tokens reclaim the same Seats after reset; pending old-game offers are
+  cancelled and no room delete cascades session rows.
 - [ ] Invalid/revoked/expired token is rejected, not spectator/new Player.
 - [ ] First activated Seat is host; concurrent first joins produce one host/join order.
 - [ ] Lobby capacity and start boundaries are 2–7; all connected/ready; host only.
+- [ ] Start rolls/tie-breaks first Player server-side, persists order once and accepts
+  no client dice/order.
 - [ ] Host temporary disconnect does not transfer; explicit leave transfers deterministically.
 - [ ] Disconnect preserves Seat/property/listing/auction/session and does not delete room.
 - [ ] Lobby leave removes Seat/revokes token; in-game leave is confirmed atomic forfeit.
+- [ ] Active debtor forfeit routes assets to active PLAYER creditor or Bank pipeline
+  as applicable while history reason remains `LEFT`.
 - [ ] Successful Player/spectator leave may start a fresh admission on the same socket.
 - [ ] Join after start without token is spectator; valid existing token reclaims Player.
 - [ ] Public/private Socket.IO rooms isolate room updates and private session/offer data.
@@ -33,7 +42,7 @@
 
 ## Restart evidence boundary
 
-The executable PostgreSQL Socket case proves fresh pool/persistence/server recovery
-with both tokens, stable IDs, balances, property, turn and game status when
-`TEST_DATABASE_URL` is set. A real process-manager/container kill and browser reload
-remains a separate deployment E2E.
+The executable PostgreSQL Socket suite must prove fresh pool/persistence/server
+recovery with both tokens and exact v2 game state, plus v1→v2 reset identity
+preservation, when `TEST_DATABASE_URL` is set. A real process-manager/container kill
+and browser reload remains a separate deployment E2E.

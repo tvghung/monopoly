@@ -1,11 +1,11 @@
-import { tileState, type PrivateOffer } from '@monopoly/shared';
+import type { PrivateOffer } from '@monopoly/shared';
 import type { RoomRecord, TradeOfferRecord } from '../persistence';
 import { assertSupportedRoomSnapshot, type RoomSnapshot } from '../rooms';
 
 const playerName = (room: RoomRecord<RoomSnapshot>, playerId: string): string => (
   room.gameSnapshot.gameState.players[playerId]?.name
   ?? room.gameSnapshot.gameState.boardState.finishedPlayers[playerId]?.name
-  ?? 'Player'
+  ?? 'Người chơi'
 );
 
 export function projectPrivateOffer(
@@ -16,13 +16,12 @@ export function projectPrivateOffer(
   return {
     offerId: offer.id,
     roomId: offer.roomId,
-    buyerPlayerId: offer.buyerPlayerId,
-    ownerPlayerId: offer.ownerPlayerId,
-    tileID: offer.tileId,
-    price: offer.price,
-    buyerName: playerName(room, offer.buyerPlayerId),
-    ownerName: playerName(room, offer.ownerPlayerId),
-    tileName: tileState[offer.tileId]?.streetName ?? `Tile ${offer.tileId}`,
+    proposerPlayerId: offer.proposerPlayerId,
+    recipientPlayerId: offer.recipientPlayerId,
+    proposerName: playerName(room, offer.proposerPlayerId),
+    recipientName: playerName(room, offer.recipientPlayerId),
+    offered: structuredClone(offer.offered),
+    requested: structuredClone(offer.requested),
     status: offer.status,
     createdAt: offer.createdAt.toISOString(),
     expiresAt: offer.expiresAt.toISOString(),

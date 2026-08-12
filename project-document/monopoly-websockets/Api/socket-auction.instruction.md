@@ -1,43 +1,26 @@
-# Auction Socket instruction
+# PROPERTY/BUILDING auction Socket instruction
 
-## Events/guards
+## Events
 
-- `decline property`: authenticated current Player with `canBuyProp`, no auction.
-- `place bid(amount)`: authenticated active auction participant; positive integer bid
-  up to `2_147_483_647`, above current high and within current balance.
-- `pass bid`: authenticated participant who is not highest bidder.
+- `decline property`: current landed buy wait only; starts `PROPERTY` auction.
+- `place bid(amount)`: authenticated participant in current auction kind; integer
+  positive, higher than high bid, within balance.
+- `pass bid`: participant except current highest bidder.
 
-All commands use runtime schema and typed ACK; actor is stable SocketData player ID.
+No payload chooses `Auction.kind`, property, building target, creditor or owner;
+server reads authoritative auction/contention/Bank queue.
 
-## Durable state/deadline
+## Durable state/recovery
 
-Auction state persists `auctionId`, tile, active/passed stable IDs, high bid/bidder and
-absolute `endsAt`. Start deadline is 30 seconds. Valid late bid persists extension to
-at least 15 seconds and resets passed. No interval handle/tick belongs in snapshot.
+- Both kinds persist stable `auctionId`, participants/pass/bid and absolute `endsAt`.
+- PROPERTY may originate decline or `BankPropertyAuctionQueue`; every active Player,
+  including decliner, participates. Queue head advances only after finalize.
+- BUILDING consumes/releases exactly one `BuildingContention.reservedUnit`; target
+  and inventory are revalidated at award.
+- Valid late bid guarantees 15 seconds; start is 30 seconds. Disconnect preserves
+  state, leave reconciles atomically, active auction dominates turn grace.
+- Scheduler capture requires exact `auctionId/kind/endsAt`; CAS/stale callback/save
+  failure cannot finalize/charge/award/advance twice.
 
-Scheduler polls persisted due rows. Recovery captures the due `auctionId/endsAt`,
-reloads/locks current state and requires that exact marker before aggregate CAS.
-Concurrent stale recovery rolls back without revision/broadcast, so the auction
-award/charge/turn effect applies once.
-
-## Disconnect/reconnect
-
-Temporary disconnect does not remove participant, passed state or highest bid. An
-offline bidder can still win if authoritative state remains valid at finalize. Active
-auction controls turn progression; configured current-turn grace (default 60 seconds)
-cannot skip it.
-Explicit leave/forfeit reconciles auction atomically through lifecycle command.
-
-## Commit/public update
-
-Start, bid, pass and finalize are durable room commands. Success broadcast/ACK occurs
-after PostgreSQL commit. Client derives countdown from `endsAt`; server does not
-broadcast whole state every second.
-
-## Tests
-
-- Start/bid/pass guards, `NaN`/fraction/low/over-balance rejection.
-- Deadline extension, early completion and no-bid/winner finalization.
-- Offline/highest bidder preservation and explicit-forfeit reconciliation.
-- Restart before/after expiry; stale callback and duplicate finalize safety.
-- Save failure commits no revision and emits no broadcast.
+Tests cover both kinds, no-bid, Bank queue, reservation, invalid target, bid/pass,
+leave/disconnect, deadline extension/restart and no-broadcast failure.

@@ -4,10 +4,15 @@ import {
   type OfferResult,
 } from '@monopoly/shared';
 import {
+  chooseStartingPlayer,
+  createShuffledDecks,
   finalizeAuction,
-  nextTurn,
   removePlayerFromGame,
+  resumePaymentContinuation,
+  rotateSeatOrder,
   sendToLog,
+  startNextBankPropertyAuction,
+  surrenderPlayerToBank,
 } from '../game';
 import { activePlayerIds, MAX_PLAYERS, MIN_PLAYERS } from '../rooms';
 import type { AppRuntime } from '../services/runtime';
@@ -76,9 +81,28 @@ export function registerLobbyHandlers(
 
         room.status = 'IN_PROGRESS';
         state.boardState.gameStarted = true;
-        state.boardState.players = players;
-        sendToLog(state, 'The Game has started!!! Good luck players!');
-        nextTurn(state);
+        const startingRoll = chooseStartingPlayer(players);
+        state.boardState.players = rotateSeatOrder(players, startingRoll.winner);
+        state.boardState.currentPlayer = {
+          id: startingRoll.winner,
+          hasMoved: false,
+          doublesStreak: 0,
+        };
+        state.boardState.turnNumber = 1;
+        state.boardState.turnRecovery = null;
+        state.turnInfo = {};
+        state.privateState.decks = createShuffledDecks();
+        for (const round of startingRoll.rounds) {
+          const rollSummary = round.contenders.map((id) => {
+            const dice = round.rolls[id];
+            return `${state.players[id].name}: ${dice.dice1} + ${dice.dice2}`;
+          }).join(', ');
+          sendToLog(state, `Tung xúc xắc chọn người đi đầu — ${rollSummary}.`);
+        }
+        sendToLog(
+          state,
+          `Ván Cờ Tỷ Phú Việt Nam bắt đầu. ${state.players[startingRoll.winner].name} đi trước!`,
+        );
       }, undefined, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
       broadcastRoom(io, runtime, committed.room);
@@ -121,13 +145,33 @@ export function registerLobbyHandlers(
 
         let cancelledOffers: TradeOfferRecord[] = [];
         if (room.status === 'IN_PROGRESS') {
-          const auction = state.boardState.auction;
-          const deferTurnHandoff = Boolean(
-            auction && state.boardState.currentPlayer.id === playerId,
-          );
-          removePlayerFromGame(state, playerId, 'LEFT', { deferTurnHandoff });
+          const alreadyFinished = member.membershipStatus === 'FINISHED';
+          const resolutionOptions = {
+            now: now.getTime(),
+            debtActionTimeoutMs: runtime.timing.debtActionTimeoutMs,
+          };
+          const result = alreadyFinished
+            ? { changed: true, continuation: null, bankAuctionQueued: false }
+            : surrenderPlayerToBank(state, playerId, resolutionOptions);
+          if (!result.changed) throw new CommandError('CONFLICT', 'Không thể rời ván lúc này.');
+          if (
+            result.bankAuctionQueued
+            && !state.boardState.auction
+            && !state.boardState.paymentQueue
+          ) {
+            startNextBankPropertyAuction(state, { now: now.getTime() });
+          }
+          if (result.continuation) {
+            if (state.boardState.bankPropertyAuctionQueue) {
+              if (!state.boardState.paymentQueue) {
+                startNextBankPropertyAuction(state, { now: now.getTime() });
+              }
+            } else {
+              resumePaymentContinuation(state, result.continuation, resolutionOptions);
+            }
+          }
 
-          const reconciledAuction = state.boardState.auction;
+          const reconciledAuction = alreadyFinished ? null : state.boardState.auction;
           if (reconciledAuction && !state.boardState.winner) {
             const stillToAct = reconciledAuction.active.filter(
               (id) => id !== reconciledAuction.highestBidder
@@ -185,14 +229,16 @@ export function registerLobbyHandlers(
           const offerResult: OfferResult = {
             offerId: offer.offerId,
             status: 'CANCELLED',
-            tileID: offer.tileID,
-            tileName: offer.tileName,
-            price: offer.price,
-            ownerName: offer.ownerName,
+            proposerPlayerId: offer.proposerPlayerId,
+            recipientPlayerId: offer.recipientPlayerId,
+            proposerName: offer.proposerName,
+            recipientName: offer.recipientName,
+            offered: offer.offered,
+            requested: offer.requested,
             resolvedAt: offer.resolvedAt ?? now.toISOString(),
           };
-          io.to(privatePlayerRoomName(offer.buyerPlayerId)).emit('offer cancelled', offerResult);
-          io.to(privatePlayerRoomName(offer.ownerPlayerId)).emit('offer cancelled', offerResult);
+          io.to(privatePlayerRoomName(offer.proposerPlayerId)).emit('offer cancelled', offerResult);
+          io.to(privatePlayerRoomName(offer.recipientPlayerId)).emit('offer cancelled', offerResult);
         }
         broadcastRoom(io, runtime, committed.room);
       }

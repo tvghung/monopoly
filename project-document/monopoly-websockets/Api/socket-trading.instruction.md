@@ -1,49 +1,29 @@
-# Trading Socket instruction
+# TradeBundle/open-market Socket instruction
 
 ## Authority/validation
 
-All actions require authenticated active Player and use stable server-side actor.
-Zod validates tile `0..39`, positive integer price up to `2_147_483_647` and UUID
-offer IDs. Payloads never supply buyer/seller/owner identity.
+All actions require authenticated active Player. Zod validates tile, bounded integer
+money, UUID offer/card IDs and bilateral `TradeOfferRequest`; payload không mang
+trusted buyer/seller/owner identity.
 
-## Open market events
+## Open market
 
-| Event | Payload | Transaction checks |
-| --- | --- | --- |
-| `put on open market` | `{tileID, price}` | Actor owns property; listing allowed; authoritative name/tile |
-| `remove sale` | `{tileID}` | Actor is current seller |
-| `make sale` | `{tileID}` | Listing pending, buyer != seller, buyer active and funded, ownership unchanged |
+Existing put/remove/make-sale events keep simple price/property UX but execute
+`VOLUNTARY` transfer. Server revalidates owner/listing/buyer/funds, zero buildings
+across affected group and mortgage-interest payment atomically.
 
-Transfer updates balances, stable owner/color and listing in same room transaction.
+## Durable bilateral offer
 
-## Durable private offer events
+- `make offer(TradeOfferRequest)` persists canonical `TradeBundle.offered/requested`,
+  server-derived participants and 20-second `expiresAt`; ACK returns offer ID/deadline.
+- `accept offer({offerId})`/`decline offer({offerId})` unchanged. Accept reloads terms,
+  checks ownership/money/card holders/group buildings/mortgages/debt and applies all
+  transfers once, including immediate mortgage-interest claims.
+- Private arrival/result/expiry/cancel only use relevant `player:<PlayerId>` rooms;
+  resume restores pending relevant offers. Public update never contains offer terms.
+- Explicit leave cancels unresolved offers unless they are consumed inside the same
+  creditor-resolution transaction.
 
-| Event | Payload/result |
-| --- | --- |
-| `make offer` | `{tileID, price}`; creates DB offer and ACKs `{offerId, expiresAt}` |
-| `accept offer` | `{offerId}` |
-| `decline offer` | `{offerId}` |
-
-Offer has server-authoritative buyer/owner/tile/price/status and 20-second absolute
-expiry. Accept/decline locks/revalidates pending status, expiry, actor as owner,
-current ownership, buyer activity/balance and original terms. Replays, fabricated or
-cross-room IDs fail. Multiple offers on the same tile are independent.
-
-## Private routing/recovery
-
-Arrival/result/expiry/cancellation emits only to prefixed
-`player:<stablePlayerId>` rooms. Offer rows never enter public state. Resume ACK
-includes only unexpired pending offers relevant to Player. Startup/periodic scheduler
-resolves due offers exactly once; explicit player leave cancels their pending offers.
-
-## Transaction/ACK
-
-All mutations commit room/offer rows before private/public emit and success ACK.
-Database failure returns retryable ACK, discards draft and emits nothing.
-
-## Tests
-
-- Invalid tile/price, spoofed identity and owner/balance changes.
-- Listing buy/remove atomicity and save-failure behavior.
-- Private target isolation; same-tile offers; replay/cross-room/expired IDs.
-- Accept once, correct balances/property/listing; restart/expiry/resume.
+Room + offer + payment writes commit atomically before private/public emit and ACK.
+Tests cover bundle validation/transfers, mortgage interest, jail cards, spoof/replay/
+expiry/restart/private routing and DB rollback.

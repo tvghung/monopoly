@@ -1,157 +1,215 @@
 .tile-back--container {
   position: relative;
-  /* Lift the flipped card above the center panel (a later-painted, positioned
-     grid sibling) so its overflowing face is never hidden behind it. */
   z-index: 50;
 }
 
 .Tile-back {
+  position: absolute;
+  top: -85%;
+  left: -45%;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 180%;
-  height: 185%;
-  text-align: center;
-  border: 1px solid black;
-  position: absolute;
-  top: -85%;
-  left: -40%;
-  z-index: 1;
+  width: 190%;
+  min-height: 190%;
+  max-height: min(45vmin, 88vh);
+  padding: 0.5vmin;
+  overflow-y: auto;
+  border: 1px solid #111;
   background: rgb(191, 234, 163);
-  padding-bottom: 0.4vmin;
+  text-align: center;
+  box-shadow: 0 0.8vmin 2vmin rgba(0, 0, 0, 0.32);
 }
 
 .tile-back__tile__horizontal--top {
-  position: absolute;
   top: 0;
-  left: -40%;
+  left: -45%;
 }
 
 .tile-back__tile__vertical--right {
-  position: absolute;
   top: -42.5%;
-  left: -80%;
+  left: -90%;
 }
 
 .tile-back__tile__horizontal--bottom {
-  position: absolute;
+  top: auto;
   bottom: 0;
-  left: -40%;
+  left: -45%;
 }
 
 .tile-back__tile__vertical--left {
-  position: absolute;
   top: -42.5%;
   left: 0;
 }
 
-.Tile-back:hover {
-  cursor: pointer;
+.tile-back__close {
+  position: absolute;
+  top: 0.2vmin;
+  right: 0.3vmin;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 2.2vmin;
+  height: 2.2vmin;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.82);
+  color: #191919;
+  font-size: 1.7vmin;
+  line-height: 1;
 }
 
 .tile-back__name {
-  flex: 0;
-  align-self: center;
-  border: 1px solid black;
-  margin-top: 0.25vmin;
-  font-weight: bold;
   width: 95%;
-  padding: 0.25vmin 0vmin;
-  background: rgb(255, 255, 255, 0.50);
-  line-height: 2vmin;
-  word-break: break-all;
-  white-space: nowrap;
-  font-size: 1.1vmin;
+  margin: 0;
+  padding: 0.35vmin 2.2vmin 0.35vmin 0.35vmin;
+  overflow-wrap: anywhere;
+  border: 1px solid #111;
+  background: rgba(255, 255, 255, 0.55);
+  font-size: clamp(0.58rem, 1.15vmin, 0.85rem);
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .tile-back__prices {
-  display: flex;
-  margin: 0.5vmin 0vmin;
-  font-size: 1vmin;
-}
-
-.tile-back__price {
-  margin-right: 0.5vmin;
-}
-
-.tile-back__rent {
+  margin: 0.45vmin 0;
+  font-size: clamp(0.55rem, 1vmin, 0.8rem);
+  font-weight: 700;
 }
 
 .tile-back__line {
   width: 95%;
-  margin-bottom: 0.5vmin;
-  border-top: 1px solid black;
+  margin-bottom: 0.35vmin;
+  border-top: 1px solid #111;
+}
+
+.tile-back__details-list {
+  width: 92%;
 }
 
 .tile-back__details--wrapper {
-  width: 90%;
-  text-align: left;
   display: flex;
   justify-content: space-between;
+  gap: 0.5vmin;
+  margin: 0.1vmin 0;
+  text-align: left;
 }
 
-.tile-back__details {
-  font-size: 1vmin;
+.tile-back__details,
+.tile-back__details--price {
+  font-size: clamp(0.52rem, 0.95vmin, 0.75rem);
+  line-height: 1.15;
 }
 
 .tile-back__details--price {
-  font-size: 1vmin;
+  flex: 0 0 auto;
+  font-weight: 700;
+  text-align: right;
 }
 
 .tile-back__buttons {
-  margin-top: auto;
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
   justify-content: center;
-  gap: 0.3vmin;
+  gap: 0.35vmin;
   width: 94%;
-  padding-top: 0.3vmin;
+  margin-top: auto;
+  padding-top: 0.4vmin;
 }
 
 .tile-back__button {
   flex: 1 1 40%;
   min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 1.8vmin;
-  padding: 0.2vmin 0.4vmin;
-  background: rgb(255, 255, 255, 0.50);
-  border: 1px solid black;
+  min-height: 2.2vmin;
+  padding: 0.25vmin 0.4vmin;
+  border: 1px solid #111;
   border-radius: 0.25vmin;
-  color: black;
-  font-size: 1vmin;
+  background: rgba(255, 255, 255, 0.62);
+  color: #111;
+  font-size: clamp(0.52rem, 0.95vmin, 0.75rem);
   line-height: 1.1;
-  white-space: nowrap;
   cursor: pointer;
 }
 
-.tile-back__button:hover:not(:disabled) {
-  background: rgb(255, 255, 255, 0.85);
+.tile-back__button:hover:not(:disabled),
+.tile-back__close:hover {
+  background: #fff;
 }
 
 .tile-back__button:disabled {
-  opacity: 0.4;
   cursor: not-allowed;
+  opacity: 0.42;
 }
-/* Ownership status shown on the flipped card face. */
+
 .tile-back__mortgaged {
   width: 94%;
   margin: 0.3vmin 0;
   padding: 0.15vmin 0;
-  color: #b00020;
-  font-weight: 700;
-  font-size: 1vmin;
-  letter-spacing: 0.1vmin;
-  text-align: center;
-  background: rgba(176, 0, 32, 0.12);
   border: 1px solid rgba(176, 0, 32, 0.45);
   border-radius: 0.3vmin;
+  background: rgba(176, 0, 32, 0.12);
+  color: #8e001a;
+  font-size: clamp(0.52rem, 0.95vmin, 0.75rem);
+  font-weight: 700;
+  letter-spacing: 0.08vmin;
 }
 
 .tile-back__houses {
   margin: 0.25vmin 0;
-  font-size: 1.1vmin;
+  font-size: clamp(0.55rem, 1vmin, 0.8rem);
   text-align: center;
+}
+
+@media (orientation: landscape) and (max-height: 31rem) {
+  .tile-back--container {
+    position: static;
+  }
+
+  .Tile-back,
+  .tile-back__tile__horizontal--top,
+  .tile-back__tile__horizontal--bottom,
+  .tile-back__tile__vertical--left,
+  .tile-back__tile__vertical--right {
+    position: fixed;
+    z-index: 11000;
+    top: 50%;
+    left: 50%;
+    bottom: auto;
+    width: min(92vw, 24rem);
+    min-height: 0;
+    max-height: 92vh;
+    padding: 0.75rem;
+    transform: translate(-50%, -50%);
+    border-radius: 0.65rem;
+  }
+
+  .tile-back__close {
+    top: 0.4rem;
+    right: 0.4rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: 1.6rem;
+  }
+
+  .tile-back__name {
+    min-height: 2.75rem;
+    padding: 0.65rem 3rem 0.65rem 0.65rem;
+    font-size: 0.9rem;
+  }
+
+  .tile-back__prices,
+  .tile-back__details,
+  .tile-back__details--price,
+  .tile-back__button,
+  .tile-back__mortgaged,
+  .tile-back__houses {
+    font-size: 0.78rem;
+  }
+
+  .tile-back__button {
+    min-height: 2.75rem;
+  }
 }

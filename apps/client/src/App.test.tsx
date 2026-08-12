@@ -93,7 +93,7 @@ const room: PublicRoomState = {
       gameStarted: false,
       players: ['stable-player-id'],
       finishedPlayers: {},
-      currentPlayer: { id: '', hasMoved: false },
+      currentPlayer: { id: '', hasMoved: false, doublesStreak: 0 },
       turnNumber: 0,
       turnRecovery: null,
       logs: [],
@@ -102,9 +102,14 @@ const room: PublicRoomState = {
       openMarket: {},
       winner: null,
       auction: null,
+      buildingContention: null,
+      paymentQueue: null,
+      bankPropertyAuctionQueue: null,
     },
     players: {},
     turnInfo: {},
+    deckCounts: { chance: 16, chest: 16 },
+    bankBuildingInventory: { housesAvailable: 32, hotelsAvailable: 12 },
     loaded: true,
   },
 };
@@ -138,9 +143,9 @@ describe('App session admission', () => {
       </StrictMode>,
     );
 
-    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Ada' } });
-    fireEvent.change(screen.getByLabelText('Room code'), { target: { value: 'room-42' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Join game' }));
+    fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Ada' } });
+    fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'room-42' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Vào phòng' }));
 
     const join = lastEmission('join room');
     expect(join?.args[0]).toEqual({ name: 'Ada', roomCode: 'ROOM-42' });
@@ -177,6 +182,10 @@ describe('App session admission', () => {
             role: 'PLAYER',
             playerId: 'stable-player-id',
             room,
+            privatePlayerState: {
+              playerId: 'stable-player-id',
+              heldJailFreeCardIds: [],
+            },
             pendingOffers: [],
           },
         });
@@ -184,11 +193,11 @@ describe('App session admission', () => {
     });
 
     expect(screen.getByRole('heading', { name: 'ROOM-42' })).toBeTruthy();
-    expect(screen.getByText('Ada (you)')).toBeTruthy();
+    expect(screen.getByText('Ada (bạn)')).toBeTruthy();
     expect(screen.queryByText('transport-only-id')).toBeNull();
 
     act(() => { socketHarness.socket.disconnect(); });
-    expect(screen.getByText(/Connection lost/)).toBeTruthy();
+    expect(screen.getByText(/Đã mất kết nối/)).toBeTruthy();
 
     act(() => { socketHarness.socket.connect(); });
     const reconnectAck = lastEmission('resume session')?.args[1];
@@ -202,14 +211,18 @@ describe('App session admission', () => {
             role: 'PLAYER',
             playerId: 'stable-player-id',
             room: { ...room, version: 2 },
+            privatePlayerState: {
+              playerId: 'stable-player-id',
+              heldJailFreeCardIds: [],
+            },
             pendingOffers: [],
           },
         });
       }
     });
 
-    expect(screen.queryByText(/Connection lost/)).toBeNull();
-    expect(screen.getByText('Ada (you)')).toBeTruthy();
+    expect(screen.queryByText(/Đã mất kết nối/)).toBeNull();
+    expect(screen.getByText('Ada (bạn)')).toBeTruthy();
   });
 
   it('abandons an unactivatable admission when browser storage is unavailable', () => {
@@ -221,9 +234,9 @@ describe('App session admission', () => {
         <App />
       </ToastProvider>,
     );
-    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Ada' } });
-    fireEvent.change(screen.getByLabelText('Room code'), { target: { value: 'room-42' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Join game' }));
+    fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Ada' } });
+    fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'room-42' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Vào phòng' }));
 
     const joinAck = lastEmission('join room')?.args[1];
     act(() => {
@@ -241,13 +254,13 @@ describe('App session admission', () => {
       }
     });
 
-    expect(screen.getByRole('heading', { name: 'Unable to restore game' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Không thể khôi phục ván chơi' })).toBeTruthy();
     expect(socketHarness.socket.connected).toBe(false);
     setItem.mockRestore();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Return to join' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Quay về màn hình vào phòng' }));
     expect(socketHarness.socket.connected).toBe(true);
-    expect(screen.getByRole('button', { name: 'Join game' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Vào phòng' })).toBeTruthy();
   });
 
   it('requires confirmation before an active player forfeits the game', () => {
@@ -262,7 +275,7 @@ describe('App session admission', () => {
           ...room.gameState.boardState,
           gameStarted: true,
           players: ['stable-player-id'],
-          currentPlayer: { id: 'stable-player-id', hasMoved: false },
+          currentPlayer: { id: 'stable-player-id', hasMoved: false, doublesStreak: 0 },
         },
         players: {
           'stable-player-id': {
@@ -272,7 +285,7 @@ describe('App session admission', () => {
             accountBalance: 1500,
             isJail: false,
             jailRounds: 0,
-            getOutOfJailCards: 0,
+            getOutOfJailCardCount: 0,
           },
         },
       },
@@ -283,9 +296,9 @@ describe('App session admission', () => {
         <App />
       </ToastProvider>,
     );
-    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Ada' } });
-    fireEvent.change(screen.getByLabelText('Room code'), { target: { value: 'room-42' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Join game' }));
+    fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Ada' } });
+    fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'room-42' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Vào phòng' }));
 
     const joinAck = lastEmission('join room')?.args[1];
     act(() => {
@@ -313,18 +326,22 @@ describe('App session admission', () => {
             role: 'PLAYER',
             playerId: 'stable-player-id',
             room: gameRoom,
+            privatePlayerState: {
+              playerId: 'stable-player-id',
+              heldJailFreeCardIds: [],
+            },
             pendingOffers: [],
           },
         });
       }
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Forfeit game' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ cuộc' }));
     expect(confirm).toHaveBeenCalledOnce();
     expect(lastEmission('leave room')).toBeUndefined();
 
     confirm.mockReturnValue(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Forfeit game' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ cuộc' }));
     expect(lastEmission('leave room')).toBeDefined();
     confirm.mockRestore();
   });
@@ -347,9 +364,9 @@ describe('App session admission', () => {
         <App />
       </ToastProvider>,
     );
-    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Viewer' } });
-    fireEvent.change(screen.getByLabelText('Room code'), { target: { value: 'room-42' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Join game' }));
+    fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Viewer' } });
+    fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'room-42' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Vào phòng' }));
 
     const joinAck = lastEmission('join room')?.args[1];
     act(() => {
@@ -368,9 +385,9 @@ describe('App session admission', () => {
       }
     });
 
-    expect(screen.getByText(/Spectator mode/)).toBeTruthy();
+    expect(screen.getByText(/Chế độ Khán Giả/)).toBeTruthy();
     expect(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY)).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Leave room' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rời phòng' }));
     const leaveAck = lastEmission('leave room')?.args[0];
     act(() => {
       if (isAckCallback(leaveAck)) {
@@ -381,7 +398,7 @@ describe('App session admission', () => {
         });
       }
     });
-    expect(screen.getByRole('button', { name: 'Join game' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Vào phòng' })).toBeTruthy();
   });
 
   it('enters a terminal replaced state and removes socket listeners on unmount', () => {
@@ -391,6 +408,7 @@ describe('App session admission', () => {
       </ToastProvider>,
     );
     expect(socketHarness.listenerCount('update')).toBe(1);
+    expect(socketHarness.listenerCount('private player state')).toBe(1);
 
     act(() => {
       socketHarness.trigger('session replaced', {
@@ -398,11 +416,116 @@ describe('App session admission', () => {
         message: 'This session moved to a newer connection.',
       });
     });
-    expect(screen.getByRole('heading', { name: 'Session opened elsewhere' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Phiên chơi đã được mở ở nơi khác' })).toBeTruthy();
     expect(socketHarness.socket.connected).toBe(false);
 
     view.unmount();
     expect(socketHarness.listenerCount('update')).toBe(0);
+    expect(socketHarness.listenerCount('private player state')).toBe(0);
     expect(socketHarness.listenerCount('offer cancelled')).toBe(0);
+  });
+
+  it('hydrates held card ids from resume ACK and refreshes them from the private event', () => {
+    const gameRoom: PublicRoomState = {
+      ...room,
+      status: 'IN_PROGRESS',
+      version: 5,
+      players: [
+        ...room.players,
+        {
+          playerId: 'other-player-id',
+          name: 'Bình',
+          color: 'blue',
+          joinOrder: 2,
+          membershipStatus: 'ACTIVE',
+          ready: true,
+          connected: true,
+        },
+      ],
+      gameState: {
+        ...room.gameState,
+        boardState: {
+          ...room.gameState.boardState,
+          gameStarted: true,
+          players: ['stable-player-id', 'other-player-id'],
+          currentPlayer: { id: 'stable-player-id', hasMoved: true, doublesStreak: 0 },
+          ownedProps: {
+            1: { id: 'other-player-id', color: 'blue', houses: 0, mortgaged: false },
+          },
+        },
+        players: {
+          'stable-player-id': {
+            name: 'Ada',
+            currentTile: 0,
+            color: 'red',
+            accountBalance: 1500,
+            isJail: false,
+            jailRounds: 0,
+            getOutOfJailCardCount: 1,
+          },
+          'other-player-id': {
+            name: 'Bình',
+            currentTile: 4,
+            color: 'blue',
+            accountBalance: 1200,
+            isJail: false,
+            jailRounds: 0,
+            getOutOfJailCardCount: 0,
+          },
+        },
+      },
+    };
+    window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      token: RECONNECT_TOKEN,
+    }));
+
+    render(
+      <ToastProvider>
+        <App />
+      </ToastProvider>,
+    );
+    const resumeAck = lastEmission('resume session')?.args[1];
+    act(() => {
+      if (isAckCallback(resumeAck)) {
+        resumeAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          revision: gameRoom.version,
+          data: {
+            role: 'PLAYER',
+            playerId: 'stable-player-id',
+            room: gameRoom,
+            privatePlayerState: {
+              playerId: 'stable-player-id',
+              heldJailFreeCardIds: ['chance-jail-free'],
+            },
+            pendingOffers: [],
+          },
+        });
+      }
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Ô 1: Cà Mau/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đề nghị mua' }));
+    expect(screen.getByLabelText(/Thẻ Thoát Tù Miễn Phí \(Cơ Hội\)/)).toBeTruthy();
+
+    act(() => {
+      socketHarness.trigger('private player state', {
+        playerId: 'other-player-id',
+        heldJailFreeCardIds: ['chest-jail-free'],
+      });
+    });
+    expect(screen.getByLabelText(/Thẻ Thoát Tù Miễn Phí \(Cơ Hội\)/)).toBeTruthy();
+    expect(screen.queryByLabelText(/Thẻ Thoát Tù Miễn Phí \(Khí Vận\)/)).toBeNull();
+
+    act(() => {
+      socketHarness.trigger('private player state', {
+        playerId: 'stable-player-id',
+        heldJailFreeCardIds: ['chest-jail-free'],
+      });
+    });
+    expect(screen.getByLabelText(/Thẻ Thoát Tù Miễn Phí \(Khí Vận\)/)).toBeTruthy();
+    expect(screen.queryByLabelText(/Thẻ Thoát Tù Miễn Phí \(Cơ Hội\)/)).toBeNull();
   });
 });

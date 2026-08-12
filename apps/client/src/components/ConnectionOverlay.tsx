@@ -3,7 +3,7 @@ interface ConnectionOverlayProps {
 }
 
 export default function ConnectionOverlay({
-  message = 'Connection lost. Reconnecting to your game…',
+  message = 'Đã mất kết nối. Đang kết nối lại vào ván chơi…',
 }: ConnectionOverlayProps) {
   return (
     <div className="connection-overlay" role="status" aria-live="polite">

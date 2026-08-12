@@ -1,80 +1,163 @@
-import { useState, useContext, useEffect } from 'react';
+import { useContext, useEffect, useRef } from 'react';
+import { colorGroups } from '@monopoly/shared';
+import type { Tile } from '@monopoly/shared';
 import { motion, useReducedMotion } from 'framer-motion';
-import { tileState, colorGroups } from '@monopoly/shared';
-import cardFlipContext from '../cardFlipContext';
 import stateContext from '../internal';
 import sellPromptContext from '../sellPromptContext';
+import { formatMoney, getTileName } from '../presentation';
 import './style/BackOfCard.css';
 
 interface BackOfCardProps {
   id: number;
-  handleCardClick: () => void;
+  tile: Tile;
+  onClose: () => void;
   position: string;
 }
 
-const BackOfCard = ({ id, handleCardClick, position }: BackOfCardProps) => {
-  const { cardsBack } = useContext(cardFlipContext);
-  const [backOfCard] = useState(cardsBack[id]);
-  const [ownership, setOwnership] = useState<string | false>(false);
+interface TileDetail {
+  label: string;
+  value?: string;
+}
+
+function getTileDetails(tile: Tile): TileDetail[] {
+  if (tile.tileType === 'normal') {
+    const rentDetails = (tile.rentTiers ?? []).map((rent, index) => ({
+      label: index === 4 ? 'Có Khách Sạn' : `Có ${index + 1} Nhà`,
+      value: formatMoney(rent),
+    }));
+    return [
+      ...(typeof tile.rent === 'number'
+        ? [
+          { label: 'Tiền thuê cơ bản', value: formatMoney(tile.rent) },
+          { label: 'Đủ nhóm màu, chưa xây', value: `${formatMoney(tile.rent)} ×2` },
+        ]
+        : []),
+      ...rentDetails,
+      ...(typeof tile.houseCost === 'number'
+        ? [{ label: 'Giá mỗi Nhà / Khách Sạn', value: formatMoney(tile.houseCost) }]
+        : []),
+      ...(typeof tile.price === 'number'
+        ? [{ label: 'Giá trị cầm cố', value: formatMoney(Math.floor(tile.price / 2)) }]
+        : []),
+    ];
+  }
+
+  if (tile.tileType === 'railroad') {
+    const rents = [25, 50, 100, 200].map((rent, index) => ({
+      label: `Sở hữu ${index + 1} Ga Tàu`,
+      value: formatMoney(rent),
+    }));
+    return [
+      ...rents,
+      ...(typeof tile.price === 'number'
+        ? [{ label: 'Giá trị cầm cố', value: formatMoney(Math.floor(tile.price / 2)) }]
+        : []),
+    ];
+  }
+
+  if (tile.tileType === 'company') {
+    return [
+      { label: 'Sở hữu 1 Công Ty', value: 'Tổng xúc xắc ×4' },
+      { label: 'Sở hữu cả 2 Công Ty', value: 'Tổng xúc xắc ×10' },
+      ...(typeof tile.price === 'number'
+        ? [{ label: 'Giá trị cầm cố', value: formatMoney(Math.floor(tile.price / 2)) }]
+        : []),
+    ];
+  }
+
+  if (tile.tileType === 'chance') {
+    return [{ label: 'Rút thẻ Cơ Hội trên cùng và thực hiện nội dung trên thẻ.' }];
+  }
+  if (tile.tileType === 'chest') {
+    return [{ label: 'Rút thẻ Khí Vận trên cùng và thực hiện nội dung trên thẻ.' }];
+  }
+  if (tile.tileType === 'expense' && typeof tile.rent === 'number') {
+    return [{ label: 'Số tiền phải nộp', value: formatMoney(tile.rent) }];
+  }
+  if (tile.tileType === 'start') {
+    return [{ label: `Đi qua hoặc dừng tại đây nhận ${formatMoney(200)}.` }];
+  }
+  if (tile.tileType === 'jail') {
+    return [{ label: 'Người đang thăm tù vẫn tiếp tục lượt bình thường.' }];
+  }
+  if (tile.tileType === 'gojail') {
+    return [{ label: 'Đi thẳng vào Nhà Tù và không nhận tiền khi qua Xuất Phát.' }];
+  }
+  if (tile.tileType === 'parking') {
+    return [{ label: 'Không nhận thưởng; lượt chơi tiếp tục theo luật thông thường.' }];
+  }
+  return [];
+}
+
+const BackOfCard = ({
+  id, tile, onClose, position,
+}: BackOfCardProps) => {
   const {
     state, playerId, socketFunctions, canMutate,
   } = useContext(stateContext);
   const { handlePutOpenMarket, handleMakeOffer } = useContext(sellPromptContext);
   const reduced = useReducedMotion() ?? false;
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const owned = state.boardState.ownedProps[id];
-  const tile = tileState[id];
+  const name = getTileName(id);
+  const details = getTileDetails(tile);
 
-  // Mirror the server's build/mortgage rules so buttons can be enabled/disabled
-  // (the server still validates every action authoritatively).
-  const isStreet = tile?.tileType === 'normal' && typeof tile.houseCost === 'number';
-  const group = tile?.color ? colorGroups[tile.color] : undefined;
-  const ownsGroup = !!group && group.every(t => state.boardState.ownedProps[t]?.id === playerId);
-  const groupHouses = group ? group.map(t => state.boardState.ownedProps[t]?.houses ?? 0) : [];
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, []);
+
+  // Mirror the server's build/mortgage rules only to explain disabled controls;
+  // the server remains authoritative for every command.
+  const isStreet = tile.tileType === 'normal' && typeof tile.houseCost === 'number';
+  const group = tile.color ? colorGroups[tile.color] : undefined;
+  const ownsGroup = !!group && group.every(tileId => (
+    state.boardState.ownedProps[tileId]?.id === playerId
+  ));
+  const groupHouses = group
+    ? group.map(tileId => state.boardState.ownedProps[tileId]?.houses ?? 0)
+    : [];
   const minGroupHouses = groupHouses.length ? Math.min(...groupHouses) : 0;
   const maxGroupHouses = groupHouses.length ? Math.max(...groupHouses) : 0;
-  const groupHasMortgage = !!group && group.some(t => state.boardState.ownedProps[t]?.mortgaged);
-  const myBalance = typeof playerId === 'string' ? state.players[playerId]?.accountBalance ?? 0 : 0;
-  const houseCost = tile?.houseCost ?? 0;
+  const groupHasMortgage = !!group && group.some(tileId => (
+    state.boardState.ownedProps[tileId]?.mortgaged
+  ));
+  const groupHasBuildings = groupHouses.some(houses => houses > 0);
+  const myBalance = typeof playerId === 'string'
+    ? state.players[playerId]?.accountBalance ?? 0
+    : 0;
+  const houseCost = tile.houseCost ?? 0;
   const houses = owned?.houses ?? 0;
   const isMortgaged = !!owned?.mortgaged;
-  const mortgageValue = Math.floor((tile?.price ?? 0) / 2);
-  const unmortgageCost = Math.ceil(((tile?.price ?? 0) / 2) * 1.1);
+  const mortgageValue = Math.floor((tile.price ?? 0) / 2);
+  const unmortgageCost = Math.ceil(mortgageValue * 1.1);
 
   const canBuild = isStreet && ownsGroup && !groupHasMortgage && !isMortgaged
     && houses < 5 && houses === minGroupHouses && myBalance >= houseCost;
   const canSellHouse = isStreet && houses > 0 && houses === maxGroupHouses;
-  const canMortgage = !isMortgaged && houses === 0;
+  const canMortgage = !isMortgaged && (!isStreet || !groupHasBuildings);
   const canUnmortgage = isMortgaged && myBalance >= unmortgageCost;
 
   const buildTitle = (() => {
-    if (canBuild) return `Build a house ($${houseCost}M)`;
-    if (!ownsGroup) return 'Own the whole colour group to build';
-    if (groupHasMortgage || isMortgaged) return 'Unmortgage the group first';
-    if (houses >= 5) return 'Already has a hotel';
-    if (houses !== minGroupHouses) return 'Build evenly across the group first';
-    return `Can't afford a house ($${houseCost}M)`;
+    if (canBuild) return `Xây thêm với giá ${formatMoney(houseCost)}`;
+    if (!ownsGroup) return 'Cần sở hữu toàn bộ nhóm màu để xây';
+    if (groupHasMortgage || isMortgaged) return 'Cần chuộc toàn bộ nhóm màu trước';
+    if (houses >= 5) return 'Tài sản đã có Khách Sạn';
+    if (houses !== minGroupHouses) return 'Phải xây đều trong nhóm màu';
+    return `Không đủ tiền xây (${formatMoney(houseCost)})`;
   })();
   const sellHouseTitle = (() => {
-    if (canSellHouse) return 'Sell a house';
-    if (houses === 0) return 'No houses to sell';
-    return 'Sell from the most-built property first';
+    if (canSellHouse) return 'Bán một Nhà về Ngân hàng';
+    if (houses === 0) return 'Tài sản không có Nhà để bán';
+    return 'Phải bán từ tài sản được xây nhiều nhất trong nhóm';
   })();
   const mortgageTitle = (() => {
-    if (canMortgage) return `Mortgage for $${mortgageValue}M`;
-    if (houses > 0) return 'Sell all houses in the group first';
-    return 'Already mortgaged';
+    if (canMortgage) return `Cầm cố để nhận ${formatMoney(mortgageValue)}`;
+    if (groupHasBuildings) return 'Phải bán hết công trình trong toàn bộ nhóm màu trước';
+    return 'Tài sản đã được cầm cố';
   })();
   const unmortgageTitle = canUnmortgage
-    ? `Unmortgage for $${unmortgageCost}M`
-    : `Unmortgage costs $${unmortgageCost}M — can't afford`;
-
-  useEffect(() => {
-    if (Object.prototype.hasOwnProperty.call(state.boardState.ownedProps, id)) {
-      setOwnership(state.boardState.ownedProps[id].id);
-    } else {
-      setOwnership(false);
-    }
-  }, [state.boardState.ownedProps, id]);
+    ? `Chuộc tài sản với giá ${formatMoney(unmortgageCost)}`
+    : `Cần ${formatMoney(unmortgageCost)} để chuộc tài sản`;
 
   return (
     <motion.div
@@ -84,61 +167,77 @@ const BackOfCard = ({ id, handleCardClick, position }: BackOfCardProps) => {
       transition={reduced ? { duration: 0 } : { duration: 0.35, ease: 'easeOut' }}
       style={{ transformPerspective: 600 }}
     >
-      <article role="presentation" onClick={handleCardClick} className={`Tile-back tile-back__${position}`}>
-        <p className="tile-back__name" style={backOfCard.color ? { backgroundColor: backOfCard.color } : { backgroundColor: 'none' }}>{backOfCard.cardName}</p>
-        <section className="tile-back__prices">
-          <p className="tile-back__price">{backOfCard.price ? `Price: $${backOfCard.price}` : ''}</p>
-          <p className="tile-back__rent">{backOfCard.rent ? `Rent: $${backOfCard.rent}` : ''}</p>
-        </section>
-        <p className="tile-back__line" />
-        <section className="tile-back__details--wrapper">
-          <p className="tile-back__details">{backOfCard.details1 && backOfCard.details1.includes('$') ? `${backOfCard.details1.split('$')[0]}` : backOfCard.details1}</p>
-          <span className="tile-back__details--price">{backOfCard.details1 && backOfCard.details1.includes('$') ? `$${backOfCard.details1.split('$')[1]}` : ''}</span>
-        </section>
-        <section className="tile-back__details--wrapper">
-          <p className="tile-back__details">{backOfCard.details2 && backOfCard.details2.includes('$') ? `${backOfCard.details2.split('$')[0]}` : backOfCard.details2}</p>
-          <span className="tile-back__details--price">{backOfCard.details2 && backOfCard.details2.includes('$') ? `$${backOfCard.details2.split('$')[1]}` : ''}</span>
-        </section>
-        <section className="tile-back__details--wrapper">
-          <p className="tile-back__details">{backOfCard.details3 ? `${backOfCard.details3.split('$')[0]}` : ''}</p>
-          <span className="tile-back__details--price">{backOfCard.details3 ? `$${backOfCard.details3.split('$')[1]}` : ''}</span>
-        </section>
-        <section className="tile-back__details--wrapper">
-          <p className="tile-back__details">{backOfCard.details4 ? `${backOfCard.details4.split('$')[0]}` : ''}</p>
-          <span className="tile-back__details--price">{backOfCard.details4 ? `$${backOfCard.details4.split('$')[1]}` : ''}</span>
-        </section>
-        {owned?.mortgaged
-          ? <p className="tile-back__mortgaged">MORTGAGED</p>
+      <article
+        role="dialog"
+        aria-labelledby={`tile-detail-title-${id}`}
+        className={`Tile-back tile-back__${position}`}
+      >
+        <button
+          ref={closeButtonRef}
+          className="tile-back__close"
+          type="button"
+          aria-label={`Đóng chi tiết ${name}`}
+          onClick={onClose}
+        >
+          ×
+        </button>
+        <h2
+          id={`tile-detail-title-${id}`}
+          className="tile-back__name"
+          style={tile.color ? { backgroundColor: tile.color } : undefined}
+        >
+          {name}
+        </h2>
+        {typeof tile.price === 'number'
+          ? <p className="tile-back__prices">Giá mua: {formatMoney(tile.price)}</p>
           : null}
-        {owned && owned.houses > 0
+        <span className="tile-back__line" aria-hidden="true" />
+        <div className="tile-back__details-list">
+          {details.map(detail => (
+            <p className="tile-back__details--wrapper" key={`${detail.label}-${detail.value ?? ''}`}>
+              <span className="tile-back__details">{detail.label}</span>
+              {detail.value
+                ? <span className="tile-back__details--price">{detail.value}</span>
+                : null}
+            </p>
+          ))}
+        </div>
+        {isMortgaged ? <p className="tile-back__mortgaged">ĐANG CẦM CỐ</p> : null}
+        {owned && houses > 0
           ? (
             <p className="tile-back__houses">
-              {owned.houses === 5 ? '🏨 Hotel' : `🏠 ${owned.houses} house${owned.houses > 1 ? 's' : ''}`}
+              {houses === 5 ? '🏨 1 Khách Sạn' : `🏠 ${houses} Nhà`}
             </p>
           )
           : null}
-        {ownership && canMutate
-          ? ownership !== playerId
+        {owned && canMutate
+          ? owned.id !== playerId
             ? (
-              <section className="tile-back__buttons">
-                <button type="button" onClick={e => { e.stopPropagation(); handleMakeOffer(id); }} className="tile-back__button">Make offer</button>
-              </section>
+              <div className="tile-back__buttons">
+                <button
+                  type="button"
+                  onClick={() => handleMakeOffer(id)}
+                  className="tile-back__button"
+                >
+                  Đề nghị mua
+                </button>
+              </div>
             )
             : (
-              <section className="tile-back__buttons">
+              <div className="tile-back__buttons">
                 {isStreet && !isMortgaged
                   ? (
                     <>
-                      <button type="button" disabled={!canBuild} title={buildTitle} onClick={e => { e.stopPropagation(); socketFunctions.buildHouse(id); }} className="tile-back__button">Build</button>
-                      <button type="button" disabled={!canSellHouse} title={sellHouseTitle} onClick={e => { e.stopPropagation(); socketFunctions.sellHouse(id); }} className="tile-back__button">Sell&nbsp;house</button>
+                      <button type="button" disabled={!canBuild} title={buildTitle} onClick={() => socketFunctions.buildHouse(id)} className="tile-back__button">Xây</button>
+                      <button type="button" disabled={!canSellHouse} title={sellHouseTitle} onClick={() => socketFunctions.sellHouse(id)} className="tile-back__button">Bán Nhà</button>
                     </>
                   )
                   : null}
                 {isMortgaged
-                  ? <button type="button" disabled={!canUnmortgage} title={unmortgageTitle} onClick={e => { e.stopPropagation(); socketFunctions.unmortgageProperty(id); }} className="tile-back__button">Unmortgage</button>
-                  : <button type="button" disabled={!canMortgage} title={mortgageTitle} onClick={e => { e.stopPropagation(); socketFunctions.mortgageProperty(id); }} className="tile-back__button">Mortgage</button>}
-                <button type="button" title="List on the open market" onClick={e => { e.stopPropagation(); handlePutOpenMarket(id); }} className="tile-back__button">Sell</button>
-              </section>
+                  ? <button type="button" disabled={!canUnmortgage} title={unmortgageTitle} onClick={() => socketFunctions.unmortgageProperty(id)} className="tile-back__button">Chuộc tài sản</button>
+                  : <button type="button" disabled={!canMortgage} title={mortgageTitle} onClick={() => socketFunctions.mortgageProperty(id)} className="tile-back__button">Cầm cố</button>}
+                <button type="button" title="Đăng bán trên thị trường" onClick={() => handlePutOpenMarket(id)} className="tile-back__button">Đăng bán</button>
+              </div>
             )
           : null}
       </article>

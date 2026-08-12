@@ -31,7 +31,7 @@ border-bottom: 1px dashed black;
 
 .center__chat--input {
   width: 90%;
-  height: 3vmin;
+  min-height: 2.75rem;
   background: rgb(191, 234, 163, 0.25);
   padding: 0vmin 1vmin;
   border: 1px solid grey;
@@ -44,7 +44,8 @@ border-bottom: 1px dashed black;
   align-self: center;
   width: 10%;
   font-size: 1.25vmin;
-  height: 3vmin;
+  min-width: 4.5rem;
+  min-height: 2.75rem;
   border: 1px solid grey;
   border-radius: 0vmin 0.5vmin 0.5vmin 0vmin;
   background: rgb(191, 234, 163, 0.25);

@@ -1,57 +1,86 @@
 .dashboard__market-place--container {
-display: flex;
-flex-direction: column;
-width: 50%;
-padding: 0.5vmin;
-text-align: center;
+  display: flex;
+  flex-direction: column;
+  width: 50%;
+  min-width: 0;
+  padding: 0.5vmin;
+  text-align: left;
 }
 
 .dashboard__market-place {
-display: flex;
-width: 100%;
-justify-content: space-evenly;
+  display: grid;
+  gap: 0.8vmin;
+  max-height: 100%;
+  overflow-y: auto;
 }
 
 .dashboard__market-place__title {
-  margin-bottom: 1.5vmin;
+  margin-bottom: 1vmin;
   font-size: 2.25vmin;
+  text-align: center;
 }
 
-.dashboard__market-place__subtitle {
-  font-size: 1.5vmin;
-  margin-bottom: 0.5vmin;
+.dashboard__market-place__empty {
+  text-align: center;
 }
 
-.dashboard__market-place__block {
-  width: 100%;
-  justify-content: space-evenly;
-  align-self: flex-end;
-  font-size: 1.25vmin;
-  line-height: 2vmin;
+.market-listing {
+  display: grid;
+  grid-template-columns: minmax(7rem, 1fr) minmax(12rem, 2fr) auto;
+  align-items: center;
+  gap: 1vmin;
+  padding: 0.8vmin;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: 0.6vmin;
+  background: rgba(255, 255, 255, 0.45);
+  font-size: clamp(0.62rem, 1.2vmin, 0.85rem);
+  line-height: 1.3;
 }
 
-.dashboard__market-place__buttons {
-  display: flex;
-  justify-content: space-evenly;
+.market-listing__name {
+  font-size: clamp(0.7rem, 1.4vmin, 1rem);
 }
 
-.dashboard__market-place__buttons:hover {
+.market-listing__mortgage {
+  color: #7c3100;
+}
+
+.dashboard__market-place__icon-v,
+.dashboard__market-place__icon-x {
+  display: grid;
+  grid-template-columns: auto auto;
+  place-items: center;
+  gap: 0.35rem;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.65rem;
+  border-radius: 0.4rem;
+  background: rgba(255, 255, 255, 0.75);
   cursor: pointer;
+  font-weight: 700;
 }
 
 .dashboard__market-place__icon-v {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  font-size: 1.75vmin;
-  color: green;
+  border: 1px solid green;
+  color: #075f07;
 }
 
 .dashboard__market-place__icon-x {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  font-size: 1vmin;
+  border: 1px solid #9b101b;
+  color: #7a0912;
+}
+
+@media (max-width: 760px) {
+  .dashboard__market-place--container {
+    width: 100%;
+  }
+
+  .market-listing {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard__market-place__icon-v,
+  .dashboard__market-place__icon-x {
+    justify-self: stretch;
+    justify-content: center;
+  }
 }

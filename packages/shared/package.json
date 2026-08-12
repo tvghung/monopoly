@@ -8,8 +8,11 @@
   "exports": {
     ".": "./src/index.ts",
     "./socketSchemas": "./src/socketSchemas.ts",
+    "./stateSchemas": "./src/stateSchemas.ts",
     "./tileState": "./src/tileState.ts",
-    "./chestCards": "./src/chestCards.ts"
+    "./chestCards": "./src/chestCards.ts",
+    "./chanceCards": "./src/chanceCards.ts",
+    "./money": "./src/money.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

@@ -1,46 +1,45 @@
-# Turn Socket instruction
+# Turn, payment và bankruptcy Socket instruction
 
-## Events/authority
+## Events
 
-All commands require authenticated Player role, runtime schema and typed ACK. Actor
-comes from stable `socket.data.playerId`; spectator and unauthenticated sockets fail.
+| Event | Payload | Authoritative mutation |
+| --- | --- | --- |
+| `roll dice` | none | current Player 2d6; movement/jail/doubles/full resolution |
+| `buy property` | none | current `TurnInfo.pendingPropertyDecision`; revalidate/fund/award |
+| `settle debt` | none | apply current debtor funds to active `DebtClaim`, then continue queue |
+| `declare bankruptcy` | none | current active-claim debtor confirms correct creditor pipeline |
 
-| Event | Server guards/mutation |
-| --- | --- |
-| `roll dice` | In-progress active current Player, not moved, no blocking auction/decision; server rolls/moves/resolves |
-| `buy property` | Current Player with `canBuyProp`; revalidate tile unowned and balance; purchase then next turn |
+All require authenticated active Player, strict argument/ACK shape and room
+`IN_PROGRESS`. `settle debt`/`declare bankruptcy` actor must equal
+`PaymentQueue.orderedClaims[activeClaimIndex].debtorPlayerId`.
 
-Buy no longer accepts an ignored dummy payload. `start game` belongs to
-[`socket-lobby.instruction.md`](./socket-lobby.instruction.md).
+## Roll/continuation
 
-## Durable command behavior
+- Reject if wrong turn, winner, auction, payment or blocking
+  `TurnInfo.pendingPropertyDecision`.
+- Server produces dice and updates `doublesStreak`. Third consecutive doubles goes
+  direct jail without movement. Jail doubles never creates extra roll.
+- Tile/card/payment/buy/auction resolution calls domain `completeTurnResolution`;
+  handler does not directly handoff. `EXTRA_ROLL` clears roll gate for same Player;
+  `ADVANCE_TURN` hands off once.
 
-Each action runs on a cloned room draft in the per-room executor, commits aggregate
-version to PostgreSQL, then broadcasts `PublicRoomState` and ACKs. Save failure leaves
-committed state unchanged.
+## Buy/debt/bankruptcy
 
-## Disconnect/recovery
+- Buy revalidates canonical property/price/balance, applies award and continuation.
+  Decline belongs to auction module.
+- `settle debt` pays only active claim and preserves ordered cyclic queue/
+  `activeClaimIndex`; no client amount/creditor payload.
+- `declare bankruptcy` selects PLAYER versus BANK from active claim, never client
+  input. PLAYER transfer uses `BANKRUPTCY_TO_PLAYER`; BANK uses return/Bank auction
+  queue. Winner/finished transition occurs after assets/queue references reconcile.
 
-Disconnect does not remove current Player. A configured persisted marker (default
-60 seconds) carries turn number/player/deadline. Reconnect committed before expiry
-clears marker and keeps `hasMoved`, `canBuyProp` and jail state exactly. At expiry:
+## Durability/recovery
 
-- Active auction owns progression; turn marker does nothing.
-- Pending buy decision revalidates and starts durable auction.
-- Otherwise server advances/skips turn.
-
-Recovery captures and requires the exact current turn/player/deadline under the
-locked command; stale recovery rolls back with no revision/update, and aggregate CAS
-prevents duplicate advance.
-
-## Existing game rules
-
-Dice remain server-authoritative; movement/tile/jail/property rules remain in
-GameCore. No doubles-extra-turn/three-doubles rule is introduced.
+Doubles, dice required by jail third-fail, pending decision/continuation, payment,
+Bank auction queue and recovery deadline persist in snapshot v2. Reconnect restores exact state;
+stale deadline callback/CAS conflict/save failure cannot advance/apply twice.
 
 ## Tests
 
-- Actor/role spoof rejection and invalid payload ACK.
-- Roll/buy authoritative valid/rejected paths.
-- Persistence failure no broadcast; revision increments once.
-- Current-turn reconnect/grace/auction interaction/restart races.
+Actor/role/payload guards; normal/GO/doubles/jail; buy/decline; multi-claim settle;
+both bankruptcy creditors; disconnect/restart/save-failure/no-broadcast.

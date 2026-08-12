@@ -22,7 +22,7 @@
 | Trách nhiệm | Code | Instruction |
 | --- | --- | --- |
 | Room/Seat/host/ready/leave | `rooms.ts`, lifecycle services | [GameCore/room-lifecycle.instruction.md](./GameCore/room-lifecycle.instruction.md) |
-| Turn/movement/bankruptcy/winner/recovery | `game/turn.ts`, `game/dice.ts` | [GameCore/turn-movement-and-bankruptcy.instruction.md](./GameCore/turn-movement-and-bankruptcy.instruction.md) |
+| Turn/doubles/payment/bankruptcy/winner/recovery | `game/turn.ts`, `game/dice.ts` | [GameCore/turn-movement-and-bankruptcy.instruction.md](./GameCore/turn-movement-and-bankruptcy.instruction.md) |
 | Tile/card/jail | `game/tiles.ts` | [GameCore/tile-cards-and-jail-resolution.instruction.md](./GameCore/tile-cards-and-jail-resolution.instruction.md) |
 | Property economy | `game/property.ts` | [GameCore/property-economy.instruction.md](./GameCore/property-economy.instruction.md) |
 | Auction | `game/auction.ts` | [GameCore/auction.instruction.md](./GameCore/auction.instruction.md) |
@@ -55,11 +55,22 @@ functions must not broadcast, ACK or assume persistence has already succeeded.
   least 15 seconds. Countdown is derived, not persisted per tick.
 - Deadline callbacks must match operation ID/turn/deadline/version before mutation.
 
-## Game rules giữ nguyên
+## Standard Mode
 
-Board remains 0–39, dice server-authoritative, GO reward/rent/build/mortgage/jail
-rules remain as documented in leaf files. Multi-player bankruptcy traversal must not
-re-enter over stale player keys; regression coverage is required.
+- Board Việt Nam giữ index `0..39`, 2d6 server-authoritative, 1500 units ban đầu và
+  200 units khi đi qua/đáp Xuất Phát; tiền chỉ scale khi format sang VNĐ.
+- `doublesStreak` sống theo turn. Sau khi tile/card/payment/auction resolution hoàn
+  tất, `completeTurnResolution` trả `EXTRA_ROLL` cho doubles thứ nhất/hai hoặc
+  `ADVANCE_TURN`; doubles thứ ba vào tù, không di chuyển.
+- Payment không tự làm balance âm rồi xóa player. `PaymentQueue`/`DebtClaim` giữ
+  creditor/source; player được thanh lý tài sản hợp lệ trước khi khai phá sản.
+- Bankruptcy-to-player, return-to-bank, bank auction và voluntary trade dùng policy
+  transfer riêng; forfeit `LEFT` không được giả làm bankruptcy.
+- Nhà/Khách Sạn giới hạn 32/12 được derive từ board + một
+  `BuildingContention.reservedUnit`; Bank-property auctions chạy tuần tự qua durable
+  `BankPropertyAuctionQueue`.
+- Deck order/jail-free ownership là authoritative private state và phải giữ nguyên
+  qua reconnect/restart.
 
 ## Kiểm tra
 

@@ -32,10 +32,10 @@ describe('Lobby', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu ván chơi' }));
     expect(onStart).toHaveBeenCalledOnce();
-    expect(screen.getByText('Ada (you)')).toBeTruthy();
-    expect(screen.getByText('Host')).toBeTruthy();
+    expect(screen.getByText('Ada (bạn)')).toBeTruthy();
+    expect(screen.getByText('Chủ phòng')).toBeTruthy();
   });
 
   it('keeps start disabled while a player is offline or not ready', () => {
@@ -55,9 +55,9 @@ describe('Lobby', () => {
       />,
     );
 
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Start game' }).disabled).toBe(true);
-    expect(screen.getByText('Offline')).toBeTruthy();
-    expect(screen.getAllByText('Not ready').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Bắt đầu ván chơi' }).disabled).toBe(true);
+    expect(screen.getByText('Mất kết nối')).toBeTruthy();
+    expect(screen.getAllByText('Chưa sẵn sàng').length).toBeGreaterThanOrEqual(1);
   });
 
   it('does not render a start action for a non-host', () => {
@@ -77,7 +77,7 @@ describe('Lobby', () => {
       />,
     );
 
-    expect(screen.queryByRole('button', { name: 'Start game' })).toBeNull();
-    expect(screen.getByText(/Waiting for the host/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Bắt đầu ván chơi' })).toBeNull();
+    expect(screen.getByText(/Đang chờ Chủ Phòng/)).toBeTruthy();
   });
 });

@@ -1,30 +1,30 @@
-# Checklist — open market và durable private offers
+# Checklist — TradeBundle/open market/private offers
 
-## Coverage
+## Contract/creation
 
-`[SOCKET-INTEGRATION]` `apps/server/src/socket.integration.test.ts` covers spoofed
-actor fields, owner-only private delivery, authoritative expired-offer rejection and
-an unaffordable open-market purchase with no committed revision. PostgreSQL
-offer-restart/expiry and client countdown assertions remain separate requirements.
+- [ ] `[AUTO]` Bilateral `TradeOfferRequest` validates offered/requested money,
+  unique property/Card IDs, no same asset both sides, bounded amounts and at least
+  one transferred asset.
+- [ ] `[SOCKET]` Actor/participants/ownership derive server-side; spoofed/cross-room/
+  unowned assets fail. Nhà/Khách Sạn never appear as bundle assets.
+- [ ] `[SOCKET]` Group with any building cannot transfer property; jail-free card
+  holder/source and money balance revalidate.
 
-## Open market
+## Accept/transfer
 
-- [ ] Owner lists `{tileID, positive integer price}`; server derives seller.
-- [ ] Invalid/out-of-range tile, `NaN`, fraction, zero/negative or price above
-  `2_147_483_647` fails.
-- [ ] Non-owner remove and seller self-purchase fail.
-- [ ] Purchase revalidates listing/owner/buyer/balance and commits transfer once.
-- [ ] Save failure changes no balance/ownership/listing/revision/broadcast.
+- [ ] `[SOCKET]` Accept by authoritative owner applies both bundle sides exactly
+  once and deletes stale listings/offers atomically.
+- [ ] `[AUTO][SOCKET]` Mortgaged property stays mortgaged and creates immediate 10%
+  BANK interest claim; later unmortgage still principal +10%.
+- [ ] `[SOCKET]` Open-market price transfer uses same `VOLUNTARY` invariants.
+- [ ] `[SOCKET]` Fabricated/replayed/expired/already-resolved offer IDs fail; multiple
+  same-tile offers remain independent.
 
-## Private offer
+## Privacy/recovery
 
-- [ ] `make offer` creates unique DB `offerId`, original terms and 20-second `expiresAt`.
-- [ ] Only relevant private player rooms receive arrival/result; public update has no offer.
-- [ ] Resume returns pending relevant offers; multiple same-tile offers do not collide.
-- [ ] Accept/decline sends only offer ID; client cannot spoof actor/owner/buyer/price.
-- [ ] Cross-room, fabricated, expired, replayed and already-resolved offer IDs fail.
-- [ ] Accept transaction revalidates owner/property/buyer/balance and transfers exactly once.
-- [ ] Restart preserves pending offer and expiry resolves exactly once.
-- [ ] Explicit buyer/owner leave cancels pending offers and privately emits
-  `offer cancelled` to both relevant player rooms.
-- [ ] Client derives countdown from authoritative deadline and cleans listeners/timers.
+- [ ] `[SOCKET]` Arrival/result only to buyer/owner private rooms; public state has
+  no offer terms.
+- [ ] `[PG]` DB round-trips canonical bundle; fresh pool/server resume restores
+  pending offer and expiry resolves exactly once.
+- [ ] `[SOCKET]` Leave cancels relevant pending offers; failed room/offer/payment
+  transaction produces no transfer/private result/public update/success ACK.

@@ -1,18 +1,19 @@
 import { useContext } from 'react';
+import { tileState } from '@monopoly/shared';
 import { motion, AnimatePresence } from 'framer-motion';
 import stateContext from '../../internal';
-import tileNames from '../BoardInitState';
+import { formatMoney, getTileName } from '../../presentation';
 import { useModalMotion } from './useModalMotion';
 
-// Offered to the current player when they land on an unowned property: buy it at
-// list price, or send it to auction. `tokenArrived` lets Dashboard hold the
-// prompt until the player's token has finished walking to the landing tile.
+// Offered after landing on an unowned property; declining starts an auction.
 export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
   const {
     state, socketFunctions, playerId, canMutate,
   } = useContext(stateContext);
   const { backdropMotion, modalMotion } = useModalMotion();
   const myPlayer = typeof playerId === 'string' ? state.players[playerId] : undefined;
+  const tileId = myPlayer?.currentTile;
+  const tile = typeof tileId === 'number' ? tileState[tileId] : undefined;
 
   const show = canMutate
     && state.loaded
@@ -25,22 +26,26 @@ export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
       {show
         ? (
           <motion.div key="buy-modal" className="modal__overlay" {...backdropMotion}>
-            <motion.div className="modal__card" {...modalMotion}>
-              {myPlayer && tileNames[myPlayer.currentTile]
-                ? (
-                  <h3 className="open-market__sell-toast__title">
-                    {`Buy ${tileNames[myPlayer.currentTile].streetName} for $${tileNames[myPlayer.currentTile].price}M?`}
-                  </h3>
-                )
-                : <h3 className="open-market__sell-toast__title">Buy this property?</h3>}
-              <section className="center__dashboard__button__purchase">
-                <button className="button__purchase--yes" type="button" onClick={() => socketFunctions.buyProperty()}>
-                  Buy property
+            <motion.div
+              className="modal__card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="buy-property-title"
+              {...modalMotion}
+            >
+              <h2 id="buy-property-title" className="open-market__sell-toast__title">
+                {tile && typeof tileId === 'number' && typeof tile.price === 'number'
+                  ? `Mua ${getTileName(tileId)} với giá ${formatMoney(tile.price)}?`
+                  : 'Mua tài sản này?'}
+              </h2>
+              <div className="center__dashboard__button__purchase">
+                <button autoFocus className="button__purchase--yes" type="button" onClick={() => socketFunctions.buyProperty()}>
+                  Mua tài sản
                 </button>
                 <button className="button__purchase--no" type="button" onClick={() => socketFunctions.declineProperty()}>
-                  Auction it instead
+                  Đưa ra đấu giá
                 </button>
-              </section>
+              </div>
             </motion.div>
           </motion.div>
         )

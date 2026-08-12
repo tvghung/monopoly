@@ -1,71 +1,93 @@
-# Dữ liệu bàn cờ và bộ thẻ
+# Canonical board Việt Nam, cards và deck state
 
-## Phạm vi
+## Source of truth
 
-Dữ liệu tĩnh định nghĩa 40 vị trí bàn cờ, nhóm màu và các hiệu ứng Chance/Community Chest mà game core đang sử dụng.
+- `packages/shared/src/tileState.ts`: duy nhất 40 tile và `colorGroups`.
+- `packages/shared/src/chanceCards.ts`, `chestCards.ts`: canonical Vietnamese cards
+  có stable `GameCardId`, source deck và typed effects.
+- `packages/shared/src/index.ts`: export surface cho server/client.
 
-## Code nguồn và exports
+Client derive mặt trước, property detail, price/rent/build/mortgage text từ shared
+data. Không duy trì `BoardInitState.ts` hoặc `backOfCards.ts` như bảng metadata thứ
+hai. Presentation-only icon/layout có thể ở Client nhưng không lặp economy/name.
 
-- `packages/shared/src/tileState.ts`
-  - default export `tileState: Tile[]`.
-  - named export `colorGroups: Record<string, number[]>`.
-- `packages/shared/src/chanceCards.ts`
-  - default export `chanceCards: GameCard[]`.
-- `packages/shared/src/chestCards.ts`
-  - default export `chestCards: GameCard[]`.
-- `packages/shared/src/index.ts` re-export cả bốn giá trị trên.
+## Board 40 index
 
-`tileState` hiện có 40 phần tử, index `0..39`. Tám nhóm có thể xây nhà là `brown`, `lightblue`, `pink`, `orange`, `red`, `yellow`, `green`, `blue`.
+| Index | Type | Tên tiếng Việt | Economy/group |
+| ---: | --- | --- | --- |
+| 0 | start | Xuất Phát | giữ |
+| 1 | normal | Cà Mau | brown, giữ |
+| 2 | chest | Khí Vận | giữ |
+| 3 | normal | Bạc Liêu | brown, giữ |
+| 4 | expense | Thuế Thu Nhập | 200 |
+| 5 | railroad | Ga Hà Nội | giữ |
+| 6 | normal | Buôn Ma Thuột | lightblue, giữ |
+| 7 | chance | Cơ Hội | giữ |
+| 8 | normal | Cần Thơ | lightblue, giữ |
+| 9 | normal | Hải Phòng | lightblue, giữ |
+| 10 | jail | Nhà Tù / Thăm Tù | giữ |
+| 11 | normal | Đà Lạt | pink, giữ |
+| 12 | company | Công Ty Điện | giữ |
+| 13 | normal | Hội An | pink, giữ |
+| 14 | normal | Huế | pink, giữ |
+| 15 | railroad | Ga Huế | giữ |
+| 16 | normal | Mũi Né | orange, giữ |
+| 17 | chest | Khí Vận | đổi type Chance cũ → Chest |
+| 18 | normal | Sa Pa | orange, giữ |
+| 19 | normal | Nha Trang | orange, giữ |
+| 20 | parking | Bãi Đỗ Xe | no-op |
+| 21 | normal | Vũng Tàu | red, giữ |
+| 22 | chance | Cơ Hội | giữ |
+| 23 | normal | Quy Nhơn | red, giữ |
+| 24 | normal | Đà Nẵng | red, giữ |
+| 25 | railroad | Ga Đà Nẵng | giữ |
+| 26 | normal | Bãi Cháy | yellow, giữ |
+| 27 | normal | Hồ Tây | yellow, giữ |
+| 28 | company | Công Ty Nước | giữ |
+| 29 | normal | Phú Quốc | yellow, giữ |
+| 30 | gojail | Vào Tù | giữ |
+| 31 | normal | Phú Mỹ Hưng | green, giữ |
+| 32 | normal | Thảo Điền | green, giữ |
+| 33 | chest | Khí Vận | giữ |
+| 34 | normal | Nguyễn Huệ | green, giữ |
+| 35 | railroad | Ga Sài Gòn | giữ |
+| 36 | chance | Cơ Hội | giữ |
+| 37 | normal | Đồng Khởi | blue, giữ |
+| 38 | expense | Thuế Xa Xỉ | 75 |
+| 39 | normal | Landmark 81 | blue, giữ |
 
-## Schema dữ liệu đang dùng
+Mọi price/base rent/rent tiers/house cost và 8 `colorGroups` giữ numeric value hiện
+tại. `1 game unit = 1.000 VNĐ`; shared math không nhân 1000.
 
-- Mọi tile có `streetName` và `tileType`.
-- Tile mua được có thể có `color`, `price`, `rent`.
-- Street xây được dùng `rentTiers` theo mức 1–4 nhà và mức 5 là hotel, cùng `houseCost`.
-- `GameCard.message` luôn có; effect tùy chọn gồm `reward`, `penalty`, `moveToTile`, `moveBy`, `goToJail`, `collectFromEachPlayer`, `payEachPlayer`, `getOutOfJailFree`.
+## Index invariants
 
-Game core chọn ngẫu nhiên một phần tử mỗi lần đáp Chance/Chest. Không có deck state, shuffle/discard pile hoặc cơ chế loại thẻ Get Out of Jail Free khỏi deck.
+- Board size 40; Xuất Phát 0; Jail 10; Go-to-jail 30.
+- Khí Vận 2/17/33; Cơ Hội 7/22/36; Ga 5/15/25/35; utilities 12/28.
+- Card destinations dùng canonical index, không hard-code English name. Tests phải
+  phát hiện sai type index 17 và mọi mismatch group/type/destination.
 
-## Invariants theo index
+## Card content/effects
 
-- Board wrap dùng hằng `40`; GO là index `0`, Jail là `10`.
-- Railroad rent dùng các index `5, 15, 25, 35` trong `apps/server/src/game/tiles.ts`.
-- Utility multiplier dùng index `12` và `28` trong cùng file.
-- Chance card đang tham chiếu trực tiếp `0`, `39`, `24`, `5`; comment đầu deck ghi ý nghĩa các index này.
-- `colorGroups` phải chỉ trỏ đến street `tileType: normal` đúng màu; property economy dùng trực tiếp nhóm này cho monopoly và luật xây/bán đều.
+- Tất cả message là tiếng Việt và dùng formatter semantics VNĐ; themes gồm hoàn
+  thuế, thưởng Tết, sửa nhà, viện phí, học phí, cổ tức, sinh nhật, du lịch, phạt
+  giao thông, Xuất Phát, địa danh Việt Nam, Vào Tù và Thoát Tù Miễn Phí.
+- Không còn beauty contest/chairman/Reading Railroad/Meadowlands hoặc `$`/`$M`.
+- Numeric balance giữ tương đương deck cũ trừ thay đổi rule được test rõ; movement
+  card tham chiếu canonical destination.
+- Effect schema hỗ trợ bank/player payment, absolute/relative movement, jail và
+  jail-free card identity/source deck.
 
-## Consumers
+## Deck lifecycle
 
-- Tile/rent/card resolution: `apps/server/src/game/tiles.ts`.
-- Monopoly/build/mortgage: `apps/server/src/game/property.ts`.
-- Buy và trade labels: `apps/server/src/socket/turn.ts`, `apps/server/src/socket/trading.ts`.
-- Property-card actions: `apps/client/src/components/BackOfCard.tsx`.
-- Board/prompt presentation: `apps/client/src/components/BoardInitState.ts`, `apps/client/src/components/backOfCards.ts`, `apps/client/src/components/dashboard/BuyPrompt.tsx`, `apps/client/src/components/dashboard/SellPrompts.tsx`.
+- New game shuffle mỗi deck server-side, persist order trong private `DeckState`.
+- Draw top; normal card resolve rồi xuống cuối; jail-free card rời pile vào
+  `heldJailFreeCardIds`; use/transfer/elimination trả card đúng source deck.
+- Reconnect/restart phục hồi exact order/holder. Public projection không lộ pile,
+  discard hoặc card kế tiếp.
 
-## Mutation và hành vi liên quan
+## Tests
 
-- Các array data này không bị mutate trong game state.
-- `resolveTile` đọc tile bằng `currentTile`; `applyCard` mutate player balance/position/jail card theo effect.
-- `moveToTile` trên card không tự trả tiền qua GO và không resolve tiếp tile đích; tiền GO chỉ có khi card ghi `reward`.
-- `moveBy` wrap bằng modulo 40.
-
-## Caveat AS-IS
-
-- Client vẫn có hai bảng trình bày lặp dữ liệu: `BoardInitState.ts` và `backOfCards.ts`. Vì vậy `tileState.ts` chưa phải nguồn dữ liệu duy nhất cho mọi label/price/rent hiển thị.
-- Có drift nhìn thấy: index 20 là `Free Parking` trong shared nhưng `BoardInitState.ts` để label rỗng; index 28 là `Water Company` trong shared nhưng `BoardInitState.ts` và `backOfCards.ts` dùng `Water Works`.
-- Thêm/xóa/reorder tile mà không cập nhật hard-coded index sẽ làm sai jail, utility, railroad hoặc card destination.
-- Card được rút có hoàn lại về mặt dữ liệu; cùng một card có thể xuất hiện liên tiếp và thẻ ra tù không bị loại khỏi deck khi player đang giữ.
-
-## Quy tắc sửa và kiểm thử
-
-1. Không reorder tile như một refactor trình bày; index là khóa nghiệp vụ trong state và nhiều consumer.
-2. Khi đổi tile, rà `colorGroups`, hard-coded indices, card destinations, `BoardInitState.ts`, `backOfCards.ts` và icon/layout tương ứng.
-3. Khi thêm effect card, cập nhật `GameCard`, `applyCard` và unit test trước khi thêm card dùng effect đó.
-4. Chạy `pnpm typecheck`, `pnpm test`, `pnpm build`.
-5. Thực hiện [`../testcase/shared-contracts-and-board-data.md`](../testcase/shared-contracts-and-board-data.md); testcase tile/card runtime chính nằm trong [`../testcase/turn-movement-buy-and-jail.md`](../testcase/turn-movement-buy-and-jail.md).
-
-## Liên kết chéo
-
-- [`../GameCore/tile-cards-and-jail-resolution.instruction.md`](../GameCore/tile-cards-and-jail-resolution.instruction.md)
-- [`../GameCore/property-economy.instruction.md`](../GameCore/property-economy.instruction.md)
-- [`../Client/game-board.instruction.md`](../Client/game-board.instruction.md)
+- Exact 40 rows/names/types/groups/economy and no English board label.
+- Canonical source derivation: không còn client metadata duplicate.
+- Vietnamese card text/effects/destinations; deterministic injected shuffle tests.
+- Draw rotation, jail-free remove/return/transfer và exact restart/no-public-leak.

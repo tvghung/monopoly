@@ -1,9 +1,11 @@
 import type {
   FinishedPlayerReason,
   GameState,
+  PendingTurnContinuation,
   PlayerId,
 } from '@monopoly/shared';
 import { sendToLog } from './text';
+import { transferProperty } from './transfer';
 
 const orderedPlayerIds = (state: GameState): PlayerId[] => {
   const inTurnOrder = state.boardState.players.filter((id) => Boolean(state.players[id]));
@@ -16,7 +18,7 @@ const clearPlayerReferences = (state: GameState, playerId: PlayerId): void => {
   Object.keys(state.boardState.ownedProps).forEach((tileKey) => {
     const tileID = Number(tileKey);
     if (state.boardState.ownedProps[tileID]?.id === playerId) {
-      delete state.boardState.ownedProps[tileID];
+      transferProperty(state, tileID, playerId, null, 'RETURN_TO_BANK');
     }
   });
 
@@ -43,12 +45,32 @@ const clearPlayerReferences = (state: GameState, playerId: PlayerId): void => {
   if (state.boardState.turnRecovery?.playerId === playerId) {
     state.boardState.turnRecovery = null;
   }
+
+  const contention = state.boardState.buildingContention;
+  if (contention?.requests[playerId]) {
+    delete contention.requests[playerId];
+    if (Object.keys(contention.requests).length === 0) {
+      state.boardState.buildingContention = null;
+    }
+  }
+
+  // A creditor who explicitly leaves surrenders the receivable to the Bank;
+  // otherwise the queue would retain a PLAYER claim whose recipient vanished.
+  const paymentQueue = state.boardState.paymentQueue;
+  if (paymentQueue) {
+    for (const claim of paymentQueue.orderedClaims) {
+      if (claim.creditor === 'PLAYER' && claim.creditorPlayerId === playerId) {
+        claim.creditor = 'BANK';
+        delete claim.creditorPlayerId;
+      }
+    }
+  }
 };
 
 const removalMessage = (name: string, reason: FinishedPlayerReason): string => (
   reason === 'BANKRUPT'
-    ? `${name} went bankrupt and can no longer play; their properties returned to the bank.`
-    : `${name} left the game and forfeited their properties.`
+    ? `${name} đã phá sản và rời khỏi ván chơi.`
+    : `${name} đã rời ván và từ bỏ tài sản.`
 );
 
 const removePlayerRecord = (
@@ -90,6 +112,7 @@ const successorAfter = (
 
 const resetForFreshTurn = (state: GameState): void => {
   state.boardState.currentPlayer.hasMoved = false;
+  state.boardState.currentPlayer.doublesStreak = 0;
   state.boardState.turnNumber += 1;
   state.boardState.turnRecovery = null;
   state.turnInfo = {};
@@ -111,7 +134,7 @@ export const checkWinner = (state: GameState): void => {
       name: winner.name,
       color: winner.color,
     };
-    sendToLog(state, `<span class="bankrupt-message">${winner.name} wins the game!</span>`);
+    sendToLog(state, `<span class="bankrupt-message">${winner.name} đã chiến thắng!</span>`);
   }
 };
 
@@ -122,7 +145,7 @@ export const removePlayerFromGame = (
   state: GameState,
   playerId: PlayerId,
   reason: FinishedPlayerReason = 'LEFT',
-  options: { deferTurnHandoff?: boolean } = {},
+  options: { deferTurnHandoff?: boolean; deferWinner?: boolean } = {},
 ): boolean => {
   const previousOrder = orderedPlayerIds(state);
   const wasCurrent = state.boardState.currentPlayer.id === playerId;
@@ -144,7 +167,7 @@ export const removePlayerFromGame = (
     }
   }
 
-  checkWinner(state);
+  if (!options.deferWinner) checkWinner(state);
   if (wasCurrent) {
     state.boardState.turnRecovery = null;
     state.turnInfo = {};
@@ -165,7 +188,9 @@ export const removePlayerFromGame = (
 // player ids and could throw when several players went bankrupt together.
 export const checkBalance = (state: GameState, advanceTurn = false): void => {
   const previousOrder = orderedPlayerIds(state);
-  const bankrupt = previousOrder.filter((id) => state.players[id]?.accountBalance < 1);
+  // A zero balance is solvent. Compulsory payments that cannot be paid are
+  // represented by PaymentQueue and require an explicit/recovered bankruptcy.
+  const bankrupt = previousOrder.filter((id) => state.players[id]?.accountBalance < 0);
   if (bankrupt.length === 0) {
     checkWinner(state);
     return;
@@ -223,4 +248,59 @@ export const nextTurn = (state: GameState): void => {
     ? playerIds[0]
     : playerIds[(currentIndex + 1) % playerIds.length];
   resetForFreshTurn(state);
+};
+
+export type TurnResolutionOutcome = 'EXTRA_ROLL' | 'ADVANCE_TURN';
+
+export const continuationForRoll = (
+  state: GameState,
+  playerId: PlayerId,
+  rolledDoubles: boolean,
+  options: Pick<PendingTurnContinuation, 'forceAdvance' | 'resume'> = {},
+): PendingTurnContinuation => ({
+  playerId,
+  turnNumber: state.boardState.turnNumber,
+  rolledDoubles,
+  ...options,
+});
+
+/**
+ * The single turn-completion gateway. Callers resolve their entire synchronous
+ * tile/card/payment flow first, and invoke this only after every external wait
+ * (purchase, auction or debt) has also completed.
+ */
+export const completeTurnResolution = (
+  state: GameState,
+  continuation: PendingTurnContinuation,
+): TurnResolutionOutcome | null => {
+  if (
+    state.boardState.winner
+    || state.boardState.paymentQueue
+    || state.boardState.auction
+    || state.boardState.buildingContention
+    || state.boardState.bankPropertyAuctionQueue
+    || state.turnInfo.pendingPropertyDecision
+  ) {
+    return null;
+  }
+  if (continuation.resume?.kind === 'NO_TURN_CHANGE') return null;
+  if (
+    state.boardState.currentPlayer.id !== continuation.playerId
+    || state.boardState.turnNumber !== continuation.turnNumber
+    || !state.players[continuation.playerId]
+  ) {
+    return null;
+  }
+
+  const player = state.players[continuation.playerId];
+  if (!continuation.forceAdvance && continuation.rolledDoubles && !player.isJail) {
+    state.boardState.currentPlayer.hasMoved = false;
+    state.turnInfo = {};
+    state.boardState.turnRecovery = null;
+    sendToLog(state, `${player.name} được đổ xúc xắc thêm vì đã đổ đôi.`);
+    return 'EXTRA_ROLL';
+  }
+
+  nextTurn(state);
+  return 'ADVANCE_TURN';
 };

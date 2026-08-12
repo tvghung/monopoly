@@ -1,66 +1,83 @@
 import { useContext } from 'react';
 import stateContext from '../internal';
+import {
+  formatMoney,
+  getMortgageTransferSurcharge,
+  getTileName,
+} from '../presentation';
 import './style/MarketPlace.css';
 
 export default function MarketPlace() {
   const {
     socketFunctions, state, playerId, canMutate,
   } = useContext(stateContext);
-  const { openMarket } = state.boardState;
+  const { openMarket, ownedProps } = state.boardState;
   const tileIds = Object.keys(openMarket).map(Number);
 
   return (
     <section className="dashboard__market-place--container">
-      <h1 className="dashboard__market-place__title">The open market:</h1>
-      <section className="dashboard__market-place">
-        <section className="dashboard__market-place__block">
-          <h3 className="dashboard__market-place__subtitle">Seller</h3>
-          {state.loaded
-            ? tileIds.map(tileId => <p key={tileId}>{openMarket[tileId].sellerName}</p>)
-            : null}
-        </section>
-        <section className="dashboard__market-place__block">
-          <h3 className="dashboard__market-place__subtitle">Property</h3>
-          {state.loaded
-            ? tileIds.map(tileId => <p key={tileId}>{openMarket[tileId].tileName}</p>)
-            : null}
-        </section>
-        <section className="dashboard__market-place__block">
-          <h3 className="dashboard__market-place__subtitle">Price</h3>
-          {state.loaded
-            ? tileIds.map(tileId => <p key={tileId}>{`$${openMarket[tileId].price}M`}</p>)
-            : null}
-        </section>
-        <section className="dashboard__market-place__block">
-          {state.loaded && canMutate
-            ? tileIds.map(tileId => (
-              <div key={tileId} className="dashboard__market-place__buttons">
-                {openMarket[tileId].seller === playerId
-                  ? (
-                    <button
-                      type="button"
-                      aria-label={`Remove ${openMarket[tileId].tileName} from the market`}
-                      onClick={() => socketFunctions.removeSale(tileId)}
-                      className="dashboard__market-place__icon-x"
-                    >
-                      &#10060;
-                    </button>
-                  )
-                  : (
-                    <button
-                      type="button"
-                      aria-label={`Buy ${openMarket[tileId].tileName}`}
-                      onClick={() => socketFunctions.makeSale(tileId)}
-                      className="dashboard__market-place__icon-v"
-                    >
-                      &#10003;
-                    </button>
-                  )}
-              </div>
-            ))
-            : null}
-        </section>
-      </section>
+      <h2 className="dashboard__market-place__title">Thị trường tài sản</h2>
+      {state.loaded && tileIds.length === 0
+        ? <p className="dashboard__market-place__empty">Chưa có tài sản nào được đăng bán.</p>
+        : null}
+      <div className="dashboard__market-place" role="list">
+        {state.loaded
+          ? tileIds.map(tileId => {
+            const listing = openMarket[tileId];
+            const mortgaged = !!ownedProps[tileId]?.mortgaged;
+            const surcharge = mortgaged ? getMortgageTransferSurcharge(tileId) : 0;
+            const total = listing.price + surcharge;
+            const isSeller = listing.seller === playerId;
+
+            return (
+              <article className="market-listing" role="listitem" key={tileId}>
+                <div>
+                  <h3 className="market-listing__name">{getTileName(tileId)}</h3>
+                  <p>Người bán: {listing.sellerName}</p>
+                </div>
+                <div className="market-listing__price">
+                  <p>Giá bán: <strong>{formatMoney(listing.price)}</strong></p>
+                  {mortgaged
+                    ? (
+                      <p className="market-listing__mortgage">
+                        <strong>Đang cầm cố</strong>
+                        {' — '}
+                        người mua trả thêm {formatMoney(surcharge)} lãi chuyển nhượng
+                        (10% giá trị cầm cố). Tổng thanh toán: {formatMoney(total)}.
+                      </p>
+                    )
+                    : <p>Tổng thanh toán: {formatMoney(total)}.</p>}
+                </div>
+                {canMutate
+                  ? isSeller
+                    ? (
+                      <button
+                        type="button"
+                        aria-label={`Gỡ ${getTileName(tileId)} khỏi thị trường`}
+                        onClick={() => socketFunctions.removeSale(tileId)}
+                        className="dashboard__market-place__icon-x"
+                      >
+                        <span aria-hidden="true">✕</span>
+                        <span>Gỡ tin</span>
+                      </button>
+                    )
+                    : (
+                      <button
+                        type="button"
+                        aria-label={`Mua ${getTileName(tileId)}, tổng thanh toán ${formatMoney(total)}`}
+                        onClick={() => socketFunctions.makeSale(tileId)}
+                        className="dashboard__market-place__icon-v"
+                      >
+                        <span aria-hidden="true">✓</span>
+                        <span>Mua</span>
+                      </button>
+                    )
+                  : null}
+              </article>
+            );
+          })
+          : null}
+      </div>
     </section>
   );
 }

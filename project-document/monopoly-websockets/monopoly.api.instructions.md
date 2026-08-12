@@ -77,6 +77,11 @@ Actor không bao giờ lấy từ client payload. Handler không tự viết SQL
 | Jail | `pay bail`, `use jail card` |
 | Auction | `decline property`, `place bid`, `pass bid` |
 
+`Auction.kind` phân biệt `PROPERTY | BUILDING`; cùng typed event/ACK path được dùng
+cho durable property/bankruptcy/building contention auctions. Turn handler không tự
+advance: domain `completeTurnResolution` quyết định extra roll hoặc handoff sau khi
+`TurnInfo.pendingPropertyDecision` và mọi payment/auction continuation đã hoàn tất.
+
 `new player` không còn là operational event. Dummy payload của start/buy đã bị xóa.
 
 ## Public/private outbound

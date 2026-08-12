@@ -14,18 +14,27 @@
   height: 95%;
 }
 
-.center__dashboard--img {
+.center__dashboard--brand {
   position: absolute;
-  width: 100%;
-  height: 100%;
-  top: -0.1%;
-  left: -0.1%;
-  background-image: url('../../The_Coderleones_logo_black.png');
-  background-repeat: no-repeat;
-  background-position: 100% 105%;
-  background-size: 12.5vmin;
-  opacity: 25%;
+  right: 1.5vmin;
+  bottom: 1vmin;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: #9b101b;
+  font-size: 2.6vmin;
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: 0.08em;
+  opacity: 0.2;
   pointer-events: none;
+}
+
+.center__dashboard--brand span {
+  margin-top: 0.45vmin;
+  color: #9e6f16;
+  font-size: 1.6vmin;
+  letter-spacing: 0.22em;
 }
 
 .center__dashboard__players {
@@ -194,6 +203,14 @@
   color: black;
   width: 100%;
   margin: 1vmin 0vmin;
+  min-height: 2.75rem;
+}
+
+.bank-building-inventory {
+  margin-top: -1vmin;
+  color: #4b4b4b;
+  font-size: clamp(0.55rem, 1.05vmin, 0.78rem);
+  line-height: 1.2;
 }
 
 .button__purchase--yes {
@@ -231,9 +248,10 @@
 
 .modal__card {
   position: relative;
-  min-width: 40vmin;
-  max-width: min(90vw, 70vmin);
-  padding: 4vmin 4vmin 3vmin;
+  width: min(90vw, 32rem);
+  max-height: 92vh;
+  padding: clamp(1.5rem, 4vmin, 2.5rem);
+  overflow-y: auto;
   background: #eef7e4;
   border: 2px solid rgb(0, 128, 0);
   border-radius: 1.2vmin;
@@ -261,13 +279,12 @@ align-items: center;
 }
 
 .open-market__sell-toast__form {
-font-size: 1.5vmin;
-width: 100%;
-height: 50%;
-display: flex;
-flex-direction: column;
-justify-content: center;
-align-items: center;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-size: clamp(0.72rem, 1.5vmin, 1rem);
 }
 
 .open-market__sell-toast__input--container {
@@ -281,8 +298,8 @@ align-items: center;
   margin: 1vmin 0vmin;
   padding-left: 0.5vmin;
   padding-right: 0.5vmin;
-  width: 14vmin;
-  height: 3.5vmin;
+  width: min(55vw, 12rem);
+  min-height: 2.75rem;
   background: rgb(255, 255, 255, 0.5);
   border: 1px solid grey;
   border-radius: 0.5vmin;
@@ -298,7 +315,7 @@ align-items: center;
   border: 1px solid rgb(0, 128, 0);
   white-space: nowrap;
   font-size: 1.5vmin;
-  height: 3.5vmin;
+  min-height: 2.75rem;
 }
 
 .open-market__sell-toast__button--yes, .open-market__sell-toast__button--no {
@@ -309,9 +326,10 @@ align-items: center;
   color: black;
   margin: 0.5vmin 0.5vmin;
   border: 1px solid grey;
-  width: 10vmin;
+  width: auto;
+  min-width: 6.5rem;
   font-size: 1.5vmin;
-  height: 3.5vmin;
+  min-height: 2.75rem;
 }
 
 .open-market__sell-toast__button--yes {
@@ -375,6 +393,118 @@ align-items: center;
   flex-wrap: wrap;
   justify-content: center;
   gap: 1vmin;
+}
+
+.trade-modal {
+  width: min(94vw, 58rem);
+  text-align: left;
+}
+
+.trade-modal__lead {
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.trade-form {
+  gap: 1rem;
+}
+
+.trade-form__bundles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  width: 100%;
+}
+
+.trade-bundle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid rgba(0, 96, 0, 0.4);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.trade-bundle legend,
+.trade-bundle__label {
+  font-weight: 800;
+}
+
+.trade-bundle__label {
+  margin-top: 0.5rem;
+}
+
+.trade-bundle .open-market__sell-toast__input {
+  width: 100%;
+  margin: 0;
+}
+
+.trade-asset {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.5rem;
+  line-height: 1.35;
+}
+
+.trade-asset input {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.trade-asset:has(input:disabled) {
+  color: #6e6e6e;
+}
+
+.trade-bundle__empty {
+  color: #555;
+  font-size: 0.9em;
+  line-height: 1.4;
+}
+
+.trade-mortgage-note {
+  width: 100%;
+  padding: 0.75rem;
+  border-left: 0.25rem solid #a74a00;
+  border-radius: 0.25rem;
+  background: #fff1dc;
+  color: #6e2f00;
+  line-height: 1.4;
+}
+
+.trade-mortgage-note p {
+  margin-top: 0.3rem;
+}
+
+@media (max-width: 700px) {
+  .trade-form__bundles {
+    grid-template-columns: 1fr;
+  }
+}
+
+.debt-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6vmin;
+  margin-bottom: 1vmin;
+  padding: 1vmin;
+  border: 0.25vmin solid #9b101b;
+  border-radius: 0.8vmin;
+  background: #fff1f1;
+  color: #551016;
+  font-size: clamp(0.58rem, 1.2vmin, 0.85rem);
+  line-height: 1.3;
+}
+
+.debt-panel__title {
+  font-size: clamp(0.7rem, 1.5vmin, 1rem);
+}
+
+.debt-panel__actions {
+  display: flex;
+  gap: 0.75vmin;
 }
 
 /* Small status badges (in jail, holds a Get Out Of Jail Free card) next to a

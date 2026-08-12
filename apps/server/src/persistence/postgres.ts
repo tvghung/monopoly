@@ -3,6 +3,7 @@ import {
   type PoolClient,
   type QueryResultRow,
 } from 'pg';
+import type { TradeBundle } from '@monopoly/shared';
 
 import type { DatabaseConfig } from '../config.js';
 import {
@@ -61,10 +62,10 @@ interface PlayerSessionRow extends QueryResultRow {
 interface TradeOfferRow extends QueryResultRow {
   id: string;
   room_id: string;
-  buyer_player_id: string;
-  owner_player_id: string;
-  tile_id: number;
-  price: number;
+  proposer_player_id: string;
+  recipient_player_id: string;
+  offered_bundle: TradeBundle;
+  requested_bundle: TradeBundle;
   status: TradeOfferStatus;
   created_at: Date;
   expires_at: Date;
@@ -83,7 +84,8 @@ const SESSION_COLUMNS = `
 `;
 
 const OFFER_COLUMNS = `
-  id, room_id, buyer_player_id, owner_player_id, tile_id, price, status,
+  id, room_id, proposer_player_id, recipient_player_id,
+  offered_bundle, requested_bundle, status,
   created_at, expires_at, resolved_at
 `;
 
@@ -139,10 +141,10 @@ function mapOffer(row: TradeOfferRow): TradeOfferRecord {
   return {
     id: row.id,
     roomId: row.room_id,
-    buyerPlayerId: row.buyer_player_id,
-    ownerPlayerId: row.owner_player_id,
-    tileId: row.tile_id,
-    price: row.price,
+    proposerPlayerId: row.proposer_player_id,
+    recipientPlayerId: row.recipient_player_id,
+    offered: row.offered_bundle,
+    requested: row.requested_bundle,
     status: row.status,
     createdAt: row.created_at,
     expiresAt: row.expires_at,
@@ -436,27 +438,21 @@ class PostgresTradeOfferRepository implements TradeOfferRepository {
   }
 
   async create(input: CreateTradeOfferInput): Promise<TradeOfferRecord> {
-    if (!Number.isSafeInteger(input.tileId) || input.tileId < 0) {
-      throw new Error('Trade offer tile ID must be a non-negative integer');
-    }
-    if (!Number.isSafeInteger(input.price) || input.price <= 0) {
-      throw new Error('Trade offer price must be a positive integer');
-    }
     const result = await this.database.query<TradeOfferRow>(
       `
         INSERT INTO trade_offers (
-          id, room_id, buyer_player_id, owner_player_id,
-          tile_id, price, status, expires_at
+          id, room_id, proposer_player_id, recipient_player_id,
+          offered_bundle, requested_bundle, status, expires_at
         ) VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', $7)
         RETURNING ${OFFER_COLUMNS}
       `,
       [
         input.id,
         input.roomId,
-        input.buyerPlayerId,
-        input.ownerPlayerId,
-        input.tileId,
-        input.price,
+        input.proposerPlayerId,
+        input.recipientPlayerId,
+        JSON.stringify(input.offered),
+        JSON.stringify(input.requested),
         input.expiresAt,
       ],
     );
@@ -472,12 +468,27 @@ class PostgresTradeOfferRepository implements TradeOfferRepository {
         SELECT ${OFFER_COLUMNS}
         FROM trade_offers
         WHERE room_id = $1
-          AND (buyer_player_id = $2 OR owner_player_id = $2)
+          AND (proposer_player_id = $2 OR recipient_player_id = $2)
           AND status = 'PENDING'
           AND expires_at > CURRENT_TIMESTAMP
         ORDER BY created_at, id
       `,
       [roomId, playerId],
+    );
+    return result.rows.map(mapOffer);
+  }
+
+  async listPendingForRoom(roomId: string): Promise<TradeOfferRecord[]> {
+    const result = await this.database.query<TradeOfferRow>(
+      `
+        SELECT ${OFFER_COLUMNS}
+        FROM trade_offers
+        WHERE room_id = $1
+          AND status = 'PENDING'
+          AND expires_at > CURRENT_TIMESTAMP
+        ORDER BY created_at, id
+      `,
+      [roomId],
     );
     return result.rows.map(mapOffer);
   }
@@ -579,8 +590,10 @@ export class PostgresPersistenceStore<TSnapshot extends object>
           session.token_hash,
           session.room_id,
           session.player_id,
-          offer.buyer_player_id,
-          offer.owner_player_id,
+          offer.proposer_player_id,
+          offer.recipient_player_id,
+          offer.offered_bundle,
+          offer.requested_bundle,
           offer.expires_at
         FROM rooms AS room
         CROSS JOIN player_sessions AS session
@@ -590,7 +603,7 @@ export class PostgresPersistenceStore<TSnapshot extends object>
       SELECT EXISTS (
         SELECT 1
         FROM schema_migrations
-        WHERE version = '001_initial_persistence.sql'
+        WHERE version = '003_reset_v1_snapshots.sql'
       ) AS migration_applied
       FROM (SELECT 1) AS probe
       LEFT JOIN required_schema ON FALSE

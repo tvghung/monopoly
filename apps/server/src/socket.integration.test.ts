@@ -14,6 +14,7 @@ import {
   type ResumeSessionResult,
   type ServerToClientEvents,
   type SessionReplacedInfo,
+  type TradeOfferRequest,
 } from '@monopoly/shared';
 import { Pool } from 'pg';
 import { io as createClient, type Socket as ClientSocket } from 'socket.io-client';
@@ -65,6 +66,8 @@ class FailAfterCommandPersistenceStore extends InMemoryPersistenceStore<RoomSnap
 
 const TEST_TIMING: PersistenceTimingConfig = {
   reconnectGraceMs: 60_000,
+  debtActionTimeoutMs: 120_000,
+  buildingContentionMs: 10_000,
   pendingSessionTtlMs: 5 * 60_000,
   terminalSessionRetentionMs: 7 * 24 * 60 * 60_000,
   lobbyRetentionMs: 24 * 60 * 60_000,
@@ -458,11 +461,14 @@ describe('Socket.IO durable player lifecycle', () => {
         gameState: {
           boardState: {
             gameStarted: true,
-            currentPlayer: { id: host.playerId, hasMoved: false },
+            currentPlayer: { hasMoved: false, doublesStreak: 0 },
           },
         },
       },
     });
+    const startingPlayerId = stored?.gameSnapshot.gameState.boardState.currentPlayer.id;
+    expect([host.playerId, guest.playerId]).toContain(startingPlayerId);
+    expect(stored?.gameSnapshot.gameState.boardState.players[0]).toBe(startingPlayerId);
   });
 
   it('preserves an in-progress player and their property across transient disconnect', async () => {
@@ -515,8 +521,21 @@ describe('Socket.IO durable player lifecycle', () => {
     expect((await startGame(host.socket)).ok).toBe(true);
 
     await mutateRoom(persistence, host.room.roomId, (room) => {
+      const board = room.gameSnapshot.gameState.boardState;
+      board.players = [host.playerId, guest.playerId];
+      board.currentPlayer = { id: host.playerId, hasMoved: true, doublesStreak: 0 };
       room.gameSnapshot.gameState.players[host.playerId].currentTile = 1;
       room.gameSnapshot.gameState.turnInfo.canBuyProp = true;
+      room.gameSnapshot.gameState.turnInfo.pendingPropertyDecision = {
+        operationId: randomUUID(),
+        playerId: host.playerId,
+        tileID: 1,
+        continuation: {
+          playerId: host.playerId,
+          turnNumber: board.turnNumber,
+          rolledDoubles: false,
+        },
+      };
     });
     guest.socket.disconnect();
     await waitUntil(
@@ -574,7 +593,7 @@ describe('Socket.IO durable player lifecycle', () => {
       tileID: 1,
       price: 100,
       playerId: owner.playerId,
-    };
+    } as unknown as TradeOfferRequest;
     const spoofed = await waitForAck((acknowledge) => {
       buyer.socket.emit(
         'make offer',
@@ -595,15 +614,19 @@ describe('Socket.IO durable player lifecycle', () => {
       owner.socket.once('offer on prop', resolve);
     });
     const offered = await waitForAck((acknowledge) => {
-      buyer.socket.emit('make offer', { tileID: 1, price: 100 }, acknowledge);
+      buyer.socket.emit('make offer', {
+        recipientPlayerId: owner.playerId,
+        offered: { cash: 100, propertyIds: [], jailFreeCardIds: [] },
+        requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+      }, acknowledge);
     });
 
     expect(offered.ok).toBe(true);
     await expect(ownerOffer).resolves.toMatchObject({
-      buyerPlayerId: buyer.playerId,
-      ownerPlayerId: owner.playerId,
-      tileID: 1,
-      price: 100,
+      proposerPlayerId: buyer.playerId,
+      recipientPlayerId: owner.playerId,
+      offered: { cash: 100, propertyIds: [], jailFreeCardIds: [] },
+      requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
     });
     await new Promise((resolve) => setTimeout(resolve, 25));
     expect(observerReceivedOffer).toBe(false);
@@ -632,19 +655,19 @@ describe('Socket.IO durable player lifecycle', () => {
     await persistence.tradeOffers.create({
       id: acceptOfferId,
       roomId: owner.room.roomId,
-      buyerPlayerId: buyer.playerId,
-      ownerPlayerId: owner.playerId,
-      tileId: 1,
-      price: 100,
+      proposerPlayerId: buyer.playerId,
+      recipientPlayerId: owner.playerId,
+      offered: { cash: 100, propertyIds: [], jailFreeCardIds: [] },
+      requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
       expiresAt,
     });
     await persistence.tradeOffers.create({
       id: declineOfferId,
       roomId: owner.room.roomId,
-      buyerPlayerId: buyer.playerId,
-      ownerPlayerId: owner.playerId,
-      tileId: 1,
-      price: 120,
+      proposerPlayerId: buyer.playerId,
+      recipientPlayerId: owner.playerId,
+      offered: { cash: 120, propertyIds: [], jailFreeCardIds: [] },
+      requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
       expiresAt,
     });
     await new Promise((resolve) => setTimeout(resolve, 60));
@@ -658,11 +681,11 @@ describe('Socket.IO durable player lifecycle', () => {
 
     expect(accept).toMatchObject({
       ok: false,
-      error: { code: 'CONFLICT', message: 'This offer has expired.' },
+      error: { code: 'CONFLICT', message: 'Đề nghị đã hết hạn.' },
     });
     expect(decline).toMatchObject({
       ok: false,
-      error: { code: 'CONFLICT', message: 'This offer has expired.' },
+      error: { code: 'CONFLICT', message: 'Đề nghị đã hết hạn.' },
     });
     const stored = await persistence.rooms.findById(owner.room.roomId);
     expect(stored?.gameSnapshot.gameState.boardState.ownedProps[1]?.id).toBe(
@@ -681,10 +704,22 @@ describe('Socket.IO durable player lifecycle', () => {
     await setReady(guest.socket);
     expect((await startGame(host.socket)).ok).toBe(true);
     await mutateRoom(persistence, host.room.roomId, (room) => {
+      const board = room.gameSnapshot.gameState.boardState;
+      board.currentPlayer = { id: host.playerId, hasMoved: true, doublesStreak: 0 };
       const player = room.gameSnapshot.gameState.players[host.playerId];
       player.currentTile = 1;
       player.accountBalance = 59;
       room.gameSnapshot.gameState.turnInfo.canBuyProp = true;
+      room.gameSnapshot.gameState.turnInfo.pendingPropertyDecision = {
+        operationId: randomUUID(),
+        playerId: host.playerId,
+        tileID: 1,
+        continuation: {
+          playerId: host.playerId,
+          turnNumber: board.turnNumber,
+          rolledDoubles: false,
+        },
+      };
     });
     const before = await persistence.rooms.findById(host.room.roomId);
 
@@ -732,13 +767,13 @@ describe('Socket.IO durable player lifecycle', () => {
       ok: false,
       error: {
         code: 'CONFLICT',
-        message: "You can't afford Mediterranean Avenue.",
+        message: 'Bạn không đủ tiền mua và trả lãi chuyển nhượng cầm cố.',
       },
     });
     expect(await persistence.rooms.findById(buyer.room.roomId)).toEqual(before);
   });
 
-  it('rejects unaffordable bail without committing room state', async () => {
+  it('persists unaffordable voluntary bail as compulsory debt without releasing jail', async () => {
     const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
     const subject = await startServer(persistence);
     const host = await joinPlayer(await connect(subject.url), 'Host', 'poor-bail');
@@ -747,26 +782,44 @@ describe('Socket.IO durable player lifecycle', () => {
     await setReady(guest.socket);
     expect((await startGame(host.socket)).ok).toBe(true);
     await mutateRoom(persistence, host.room.roomId, (room) => {
+      room.gameSnapshot.gameState.boardState.currentPlayer = {
+        id: host.playerId,
+        hasMoved: false,
+        doublesStreak: 0,
+      };
       const player = room.gameSnapshot.gameState.players[host.playerId];
       player.accountBalance = 49;
       player.isJail = true;
       player.jailRounds = 2;
       room.gameSnapshot.gameState.boardState.currentPlayer.hasMoved = false;
     });
-    const before = await persistence.rooms.findById(host.room.roomId);
-
     const acknowledgement = await waitForAck((acknowledge) => {
       host.socket.emit('pay bail', acknowledge);
     });
 
-    expect(acknowledgement).toMatchObject({
-      ok: false,
-      error: {
-        code: 'CONFLICT',
-        message: "You can't afford the $50M bail.",
+    expect(acknowledgement).toMatchObject({ ok: true });
+    const after = await persistence.rooms.findById(host.room.roomId);
+    const state = after?.gameSnapshot.gameState;
+    expect(state?.players[host.playerId]).toMatchObject({
+      accountBalance: 0,
+      isJail: true,
+      jailRounds: 2,
+    });
+    expect(state?.boardState.paymentQueue).toMatchObject({
+      activeClaimIndex: 0,
+      orderedClaims: [{
+        debtorPlayerId: host.playerId,
+        creditor: 'BANK',
+        amount: 50,
+        remainingAmount: 1,
+        source: { kind: 'BAIL' },
+        status: 'PENDING',
+      }],
+      continuation: {
+        playerId: host.playerId,
+        resume: { kind: 'RELEASE_FROM_JAIL' },
       },
     });
-    expect(await persistence.rooms.findById(host.room.roomId)).toEqual(before);
   });
 
   it('rejects a payload inserted into a no-payload command without committing', async () => {
@@ -909,17 +962,27 @@ describe('Socket.IO durable player lifecycle', () => {
     expect((await startGame(host.socket)).ok).toBe(true);
     const auctionId = randomUUID();
     const withAuction = await mutateRoom(persistence, host.room.roomId, (room) => {
-      room.gameSnapshot.gameState.boardState.auction = {
+      const board = room.gameSnapshot.gameState.boardState;
+      board.players = [host.playerId, bidder.playerId, third.playerId];
+      board.currentPlayer = { id: host.playerId, hasMoved: true, doublesStreak: 0 };
+      board.auction = {
+        kind: 'PROPERTY',
         auctionId,
         tileID: 1,
-        tileName: 'Mediterranean Avenue',
+        tileName: 'Cà Mau',
         price: 60,
+        source: 'DECLINED_PURCHASE',
         highestBid: 10,
         highestBidder: bidder.playerId,
         highestBidderName: 'Bidder',
         active: [host.playerId, bidder.playerId],
         passed: [],
         endsAt: new Date(Date.now() + 60_000).toISOString(),
+        continuation: {
+          playerId: host.playerId,
+          turnNumber: board.turnNumber,
+          rolledDoubles: false,
+        },
       };
     });
     const turnNumber = withAuction.gameSnapshot.gameState.boardState.turnNumber;
@@ -945,7 +1008,7 @@ describe('Socket.IO durable player lifecycle', () => {
       },
     });
     expect(stored?.gameSnapshot.gameState.boardState.logs.filter(
-      (entry) => entry.includes('won the auction'),
+      (entry) => entry.includes('thắng đấu giá'),
     )).toHaveLength(1);
   });
 
@@ -958,17 +1021,27 @@ describe('Socket.IO durable player lifecycle', () => {
     await setReady(guest.socket);
     expect((await startGame(host.socket)).ok).toBe(true);
     await mutateRoom(persistence, host.room.roomId, (room) => {
-      room.gameSnapshot.gameState.boardState.auction = {
+      const board = room.gameSnapshot.gameState.boardState;
+      board.players = [host.playerId, guest.playerId];
+      board.currentPlayer = { id: host.playerId, hasMoved: true, doublesStreak: 0 };
+      board.auction = {
+        kind: 'PROPERTY',
         auctionId: randomUUID(),
         tileID: 1,
-        tileName: 'Mediterranean Avenue',
+        tileName: 'Cà Mau',
         price: 60,
+        source: 'DECLINED_PURCHASE',
         highestBid: 10,
         highestBidder: guest.playerId,
         highestBidderName: 'Guest',
         active: [host.playerId, guest.playerId],
         passed: [],
         endsAt: new Date(Date.now() + 60_000).toISOString(),
+        continuation: {
+          playerId: host.playerId,
+          turnNumber: board.turnNumber,
+          rolledDoubles: false,
+        },
       };
     });
 
@@ -1098,6 +1171,183 @@ const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 describe.runIf(Boolean(testDatabaseUrl))(
   'Socket.IO PostgreSQL restart recovery',
   () => {
+    it('resets a v1 in-progress game in place while preserving identity and active sessions', async () => {
+      if (!testDatabaseUrl) throw new Error('TEST_DATABASE_URL is required');
+
+      const schemaName = `monopoly_v1_reset_${randomUUID().replaceAll('-', '')}`;
+      const administrativePool = new Pool({ connectionString: testDatabaseUrl });
+      let schemaCreated = false;
+      let applicationPool: Pool | undefined;
+      let persistence: PostgresPersistenceStore<RoomSnapshot> | undefined;
+
+      try {
+        await administrativePool.query(`CREATE SCHEMA "${schemaName}"`);
+        schemaCreated = true;
+        applicationPool = new Pool({
+          connectionString: testDatabaseUrl,
+          options: `-c search_path=${schemaName}`,
+        });
+        await migrateDatabase(applicationPool);
+        const migrationRows = await applicationPool.query<{ checksum: string }>(
+          `DELETE FROM schema_migrations
+           WHERE version = '003_reset_v1_snapshots.sql'
+           RETURNING checksum`,
+        );
+        expect(migrationRows.rows).toHaveLength(1);
+
+        const roomId = randomUUID();
+        const hostPlayerId = randomUUID();
+        const guestPlayerId = randomUUID();
+        const hostSessionId = randomUUID();
+        const guestSessionId = randomUUID();
+        const legacySnapshot = {
+          members: {
+            [hostPlayerId]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
+            [guestPlayerId]: { joinOrder: 2, ready: true, membershipStatus: 'ACTIVE' },
+          },
+          nextJoinOrder: 3,
+          gameState: {
+            players: {
+              [hostPlayerId]: {
+                name: 'Chủ phòng',
+                color: 'red',
+                currentTile: 39,
+                accountBalance: 17,
+                isJail: true,
+                jailRounds: 2,
+              },
+              [guestPlayerId]: {
+                name: 'Khách',
+                color: 'blue',
+                currentTile: 20,
+                accountBalance: 23,
+                isJail: false,
+                jailRounds: 0,
+              },
+            },
+            boardState: {
+              players: [guestPlayerId, hostPlayerId],
+              finishedPlayers: {},
+              currentPlayer: { id: guestPlayerId, hasMoved: true },
+              ownedProps: { 1: { id: hostPlayerId, houses: 4, mortgaged: false } },
+              openMarket: {},
+              winner: null,
+            },
+          },
+        };
+        await applicationPool.query(
+          `INSERT INTO rooms (
+             id, code, status, host_player_id, aggregate_version,
+             snapshot_schema_version, game_snapshot, next_action_at
+           ) VALUES ($1, $2, 'IN_PROGRESS', $3, 7, 1, $4, CURRENT_TIMESTAMP)`,
+          [roomId, 'V1-IDENTITY', hostPlayerId, legacySnapshot],
+        );
+        const hostTokenHash = Buffer.alloc(32, 11);
+        const guestTokenHash = Buffer.alloc(32, 22);
+        await applicationPool.query(
+          `INSERT INTO player_sessions (
+             id, status, token_hash, room_id, player_id, last_used_at
+           ) VALUES
+             ($1, 'ACTIVE', $2, $3, $4, CURRENT_TIMESTAMP),
+             ($5, 'ACTIVE', $6, $3, $7, CURRENT_TIMESTAMP)`,
+          [
+            hostSessionId,
+            hostTokenHash,
+            roomId,
+            hostPlayerId,
+            guestSessionId,
+            guestTokenHash,
+            guestPlayerId,
+          ],
+        );
+        const offerId = randomUUID();
+        await applicationPool.query(
+          `INSERT INTO trade_offers (
+             id, room_id, status, expires_at, proposer_player_id,
+             recipient_player_id, offered_bundle, requested_bundle
+           ) VALUES ($1, $2, 'PENDING', CURRENT_TIMESTAMP + INTERVAL '1 hour',
+             $3, $4, $5, $6)`,
+          [
+            offerId,
+            roomId,
+            guestPlayerId,
+            hostPlayerId,
+            { cash: 25, propertyIds: [], jailFreeCardIds: [] },
+            { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+          ],
+        );
+
+        await migrateDatabase(applicationPool);
+        const migratedPool = applicationPool;
+        persistence = new PostgresPersistenceStore<RoomSnapshot>(migratedPool);
+
+        const resetRoom = await persistence.rooms.findById(roomId);
+        expect(resetRoom).toMatchObject({
+          id: roomId,
+          code: 'V1-IDENTITY',
+          status: 'IN_PROGRESS',
+          hostPlayerId,
+          aggregateVersion: 8,
+          snapshotSchemaVersion: 2,
+          gameSnapshot: {
+            members: {
+              [hostPlayerId]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
+              [guestPlayerId]: { joinOrder: 2, ready: true, membershipStatus: 'ACTIVE' },
+            },
+            nextJoinOrder: 3,
+            gameState: {
+              boardState: {
+                gameStarted: true,
+                turnNumber: 1,
+                ownedProps: {},
+                auction: null,
+                paymentQueue: null,
+                bankPropertyAuctionQueue: null,
+              },
+              players: {
+                [hostPlayerId]: {
+                  name: 'Chủ phòng',
+                  color: 'red',
+                  currentTile: 0,
+                  accountBalance: 1500,
+                },
+                [guestPlayerId]: {
+                  name: 'Khách',
+                  color: 'blue',
+                  currentTile: 0,
+                  accountBalance: 1500,
+                },
+              },
+            },
+          },
+        });
+        expect(resetRoom?.gameSnapshot.gameState.boardState.players).toHaveLength(2);
+        expect(resetRoom?.gameSnapshot.gameState.boardState.players[0]).toBe(
+          resetRoom?.gameSnapshot.gameState.boardState.currentPlayer.id,
+        );
+        expect(await persistence.playerSessions.findByTokenHash(hostTokenHash))
+          .toMatchObject({ id: hostSessionId, roomId, playerId: hostPlayerId, status: 'ACTIVE' });
+        expect(await persistence.playerSessions.findByTokenHash(guestTokenHash))
+          .toMatchObject({ id: guestSessionId, roomId, playerId: guestPlayerId, status: 'ACTIVE' });
+        expect(await persistence.tradeOffers.findById(offerId))
+          .toMatchObject({ status: 'CANCELLED' });
+
+        const beforeSecondMigration = await persistence.rooms.findById(roomId);
+        expect(await migrateDatabase(migratedPool)).toEqual([]);
+        expect(await persistence.rooms.findById(roomId)).toEqual(beforeSecondMigration);
+      } finally {
+        if (persistence) {
+          await persistence.close();
+          applicationPool = undefined;
+        }
+        if (applicationPool) await applicationPool.end();
+        if (schemaCreated) {
+          await administrativePool.query(`DROP SCHEMA "${schemaName}" CASCADE`);
+        }
+        await administrativePool.end();
+      }
+    });
+
     it('resumes the same players and game aggregate through a fresh pool and server', async () => {
       if (!testDatabaseUrl) throw new Error('TEST_DATABASE_URL is required');
 
@@ -1148,22 +1398,33 @@ describe.runIf(Boolean(testDatabaseUrl))(
             mortgaged: false,
           };
           room.gameSnapshot.gameState.boardState.auction = {
+            kind: 'PROPERTY',
             auctionId: randomUUID(),
             tileID: 3,
-            tileName: 'Baltic Avenue',
+            tileName: 'Bạc Liêu',
             price: 60,
+            source: 'DECLINED_PURCHASE',
             highestBid: 0,
             highestBidder: null,
             highestBidderName: null,
             active: [host.playerId, guest.playerId],
             passed: [],
             endsAt: auctionEndsAt,
+            continuation: {
+              playerId: room.gameSnapshot.gameState.boardState.currentPlayer.id,
+              turnNumber: room.gameSnapshot.gameState.boardState.turnNumber,
+              rolledDoubles: false,
+            },
           };
           room.nextActionAt = new Date(auctionEndsAt);
         });
         const offer = successData(
           await waitForAck<MakeOfferResult>((acknowledge) => {
-            guest.socket.emit('make offer', { tileID: 1, price: 25 }, acknowledge);
+            guest.socket.emit('make offer', {
+              recipientPlayerId: host.playerId,
+              offered: { cash: 25, propertyIds: [], jailFreeCardIds: [] },
+              requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+            }, acknowledge);
           }),
         );
         const beforeRestart = await firstPersistence.rooms.findById(host.room.roomId);

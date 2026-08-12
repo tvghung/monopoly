@@ -44,7 +44,7 @@ function DieCube({ value, spins, reduced }: DieCubeProps) {
     transition: reduced ? 'none' : undefined,
   };
   return (
-    <div className="die">
+    <div className="die" aria-hidden="true">
       <div className="die__cube" style={cubeStyle}>
         {faceValues.map(face => (
           <div key={face} className={`die__face die__face--${face}`}>
@@ -107,22 +107,28 @@ export default function Dice() {
               disabled={!canRoll}
               onClick={() => socketFunctions.rollDice()}
             >
-              {' '}
-              Roll Dice
+              Đổ Xúc Xắc
             </button>
             <div className="dice__cubes">
               <DieCube value={first} spins={spins} reduced={reduced} />
               <DieCube value={second} spins={spins + 1} reduced={reduced} />
             </div>
-            <h2 className="dice__result">
-              {'Result: '}
-              {first + second}
+            <h2 className="dice__result" role="status" aria-live="polite" aria-atomic="true">
+              {'Kết quả: '}
+              {first > 0 || second > 0 ? `${first} + ${second} = ${first + second}` : 'chưa đổ'}
               <br />
-              {first > 0 && first === second ? <span className="dice__result" role="img" aria-label="emoji">🤩DOUBLE🤩</span> : ''}
+              {first > 0 && first === second ? <strong className="dice__result">Đổ đôi!</strong> : ''}
+              {state.boardState.currentPlayer.doublesStreak > 0
+                ? (
+                  <span className="dice__streak">
+                    {`Chuỗi đổ đôi: ${state.boardState.currentPlayer.doublesStreak}/3`}
+                  </span>
+                )
+                : null}
             </h2>
           </section>
         )
-        : 'loading...'}
+        : 'Đang tải…'}
     </>
   );
 }

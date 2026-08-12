@@ -1,67 +1,95 @@
 import type { GameCard } from './types';
 
-// Community Chest deck, adapted from the classic Monopoly cards to this board's
-// tile layout and "$X M" money style.
+// Vietnamese Khí Vận deck. The values retain the existing game-unit balance.
 const chestCards: GameCard[] = [
   {
-    message: 'Advance to GO and collect $200M.',
+    id: 'chest-advance-start',
+    sourceDeck: 'chest',
+    message: 'Tiến đến ô Xuất Phát.',
     moveToTile: 0,
+  },
+  {
+    id: 'chest-bank-adjustment',
+    sourceDeck: 'chest',
+    message: 'Ngân hàng điều chỉnh có lợi cho bạn, nhận 200.000 ₫.',
     reward: 200,
   },
   {
-    message: 'Bank error in your favour. Collect $200M.',
-    reward: 200,
-  },
-  {
-    message: "Doctor's fees. Pay $50M.",
+    id: 'chest-medical-fee',
+    sourceDeck: 'chest',
+    message: 'Thanh toán phí khám bệnh 50.000 ₫.',
     penalty: 50,
   },
   {
-    message: 'From the sale of stock you get $50M.',
+    id: 'chest-investment-return',
+    sourceDeck: 'chest',
+    message: 'Nhận lợi nhuận đầu tư 50.000 ₫.',
     reward: 50,
   },
   {
-    message: 'Go directly to jail. Do not pass GO, do not collect $200M.',
+    id: 'chest-go-to-jail',
+    sourceDeck: 'chest',
+    message: 'Vào Tù ngay. Không đi qua Xuất Phát.',
     goToJail: true,
   },
   {
-    message: 'Your holiday fund matures. Receive $100M.',
+    id: 'chest-tet-bonus',
+    sourceDeck: 'chest',
+    message: 'Nhận thưởng Tết 100.000 ₫.',
     reward: 100,
   },
   {
-    message: 'Income tax refund. Collect $20M.',
+    id: 'chest-tax-refund',
+    sourceDeck: 'chest',
+    message: 'Nhận hoàn thuế 20.000 ₫.',
     reward: 20,
   },
   {
-    message: 'It is your birthday. Collect $10M from every player.',
+    id: 'chest-birthday',
+    sourceDeck: 'chest',
+    message: 'Mừng sinh nhật, nhận 10.000 ₫ từ mỗi người chơi.',
     collectFromEachPlayer: 10,
   },
   {
-    message: 'Life insurance matures. Collect $100M.',
+    id: 'chest-insurance',
+    sourceDeck: 'chest',
+    message: 'Khoản bảo hiểm đến hạn, nhận 100.000 ₫.',
     reward: 100,
   },
   {
-    message: 'Pay hospital fees of $100M.',
+    id: 'chest-hospital-fee',
+    sourceDeck: 'chest',
+    message: 'Thanh toán viện phí 100.000 ₫.',
     penalty: 100,
   },
   {
-    message: 'Pay school fees of $50M.',
+    id: 'chest-tuition-fee',
+    sourceDeck: 'chest',
+    message: 'Thanh toán học phí 50.000 ₫.',
     penalty: 50,
   },
   {
-    message: 'Receive $25M consultancy fee.',
+    id: 'chest-consulting-fee',
+    sourceDeck: 'chest',
+    message: 'Nhận phí tư vấn 25.000 ₫.',
     reward: 25,
   },
   {
-    message: 'You have won second prize in a beauty contest. Collect $10M.',
+    id: 'chest-lucky-prize',
+    sourceDeck: 'chest',
+    message: 'Trúng giải khuyến khích, nhận 10.000 ₫.',
     reward: 10,
   },
   {
-    message: 'You inherit $100M.',
+    id: 'chest-inheritance',
+    sourceDeck: 'chest',
+    message: 'Nhận tài sản thừa kế 100.000 ₫.',
     reward: 100,
   },
   {
-    message: 'Get out of jail free. Keep this card until needed.',
+    id: 'chest-jail-free',
+    sourceDeck: 'chest',
+    message: 'Thẻ Thoát Tù Miễn Phí. Giữ thẻ đến khi sử dụng.',
     getOutOfJailFree: true,
   },
 ];

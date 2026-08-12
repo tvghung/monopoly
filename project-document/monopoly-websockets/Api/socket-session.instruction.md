@@ -37,17 +37,19 @@ or queued command from deactivating/mutating the newer connection.
 Disconnect changes runtime presence only. It never deletes/revokes Player, balance,
 property, listing, ready, host, session, offer or auction participation/high bid.
 
-If the disconnected stable Player owns current turn and no auction controls
-progression, handler persists the configured guarded turn-recovery deadline (default
-60 seconds). Reconnect before expiry clears it and preserves exact turn state. The common room commit
+If the disconnected stable Player owns current turn and no auction/payment operation
+controls progression, handler persists the configured guarded turn-recovery deadline
+(default 60 seconds). Reconnect before expiry clears it and preserves exact turn,
+doubles, pending decision/continuation, payment, deck holder, Bank queue and
+contention state. The common room commit
 boundary also arms the same marker when a command advances to an already-offline
 current Player. Controlled shutdown does not arm artificial deadlines.
 
 ## Broadcast/ACK
 
-Admission/resume uses typed ACK. Resume returns stable Player identity, public room
+Admission/resume uses protocol-v2 typed ACK. Resume returns stable Player identity, public room
 and pending private offers. Public presence projection is broadcast after binding;
-session/token/offer rows remain private.
+session/token/offer/exact private deck state remain private.
 
 ## Tests
 

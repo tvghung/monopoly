@@ -10,7 +10,7 @@ import {
   recoverRoomIfDue,
 } from '../services/deadlineScheduler';
 import { projectPrivateOffer } from '../services/privateOffers';
-import { projectPublicRoomState } from '../services/publicState';
+import { projectPrivatePlayerState, projectPublicRoomState } from '../services/publicState';
 import type { AppRuntime } from '../services/runtime';
 import { assertSupportedRoomSnapshot } from '../rooms';
 import {
@@ -196,6 +196,7 @@ export function registerSessionHandlers(
         playerId: resumed.playerId,
         room: projectPublicRoomState(room, runtime.connections),
         pendingOffers: offerRecords.map((offer) => projectPrivateOffer(offer, room)),
+        privatePlayerState: projectPrivatePlayerState(room, resumed.playerId),
       };
       acknowledge(successAck(result, room.aggregateVersion));
       await broadcastRoomById(io, runtime, room.id);

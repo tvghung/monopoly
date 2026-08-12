@@ -1,65 +1,70 @@
-# Tile, card và jail resolution
+# Tile, card deck và jail resolution
 
-## Phạm vi và code nguồn
+## Code nguồn
 
-- Tile/card/jail game-domain logic: `apps/server/src/game/tiles.ts`.
-- Bail/jail-card handlers: `apps/server/src/socket/jail.ts`.
-- Board/decks: `packages/shared/src/tileState.ts`, `packages/shared/src/chanceCards.ts`, `packages/shared/src/chestCards.ts`.
+- Domain resolution: `apps/server/src/game/tiles.ts`.
+- Bail/jail-card transport: `apps/server/src/socket/jail.ts`.
+- Canonical board/cards: `packages/shared/src/tileState.ts`, `chanceCards.ts`,
+  `chestCards.ts`.
+- Private durable deck state: room snapshot `DeckState`.
 
-## Exports/functions
+## Tile behavior
 
-- `checkOwned(state, playerId, currentTile, payRent)`: unowned → bật `canBuyProp`; owner khác → gọi rent callback rồi `nextTurn`; own tile → `nextTurn`.
-- `applyCard(state, playerId, card)`: áp dụng money/player transfer/jail-card/movement/jail effects và ghi log.
-- `resolveTile(state, playerId, diceResult)`: dispatch theo `tileType`.
-- `handleJailRoll(state, playerId, dice)`: xử lý roll khi player đang jail rồi chuyển turn.
+- `normal`: unowned → `TurnInfo.pendingPropertyDecision` mua/đấu giá; owner khác →
+  enqueue rent claim; own tile → complete resolution.
+- `expense`: index 4 trả 200, index 38 trả 75 cho BANK qua `PaymentQueue`.
+- `railroad`/`company`: áp rent trong property-economy instruction.
+- `gojail`: direct index 10, reset doubles/jail attempts, không thưởng Xuất Phát.
+- `jail`: landing bình thường là “Thăm Tù”.
+- `chance`/`chest`: rút top card từ đúng durable draw pile.
+- `start` và `parking`: không có jackpot/effect; Bãi Đỗ Xe không nhận thuế/phạt.
 
-## Hành vi theo tile
+Tile/card resolution không tự handoff. Khi card destination và mọi claim/pending
+action hoàn tất, caller dùng `completeTurnResolution`.
 
-- `normal`: unowned chờ mua/đấu giá; owner khác trả `streetRent`; mortgaged rent bằng 0.
-- `expense`: trừ `tile.rent` vào bank rồi chuyển turn.
-- `railroad`: rent `25 * 2^(số railroad không mortgage của owner - 1)`.
-- `company`: một utility = `diceResult * 4`, đủ cả index 12 và 28 = `diceResult * 10`; mortgaged không thu rent.
-- `gojail`: chuyển về index 10, `isJail = true`, reset `jailRounds`, chuyển turn.
-- `jail`: chỉ visiting nếu player không ở trạng thái jail khi đáp ô.
-- `chance`/`chest`: chọn ngẫu nhiên card, apply rồi chuyển turn.
-- `start`, `parking` và default: không có hiệu ứng thêm, chỉ chuyển turn.
+## GameCard và DeckState
 
-## Card mutations
+- Mỗi card có stable `cardId`, source deck và typed effect; message player-facing
+  là tiếng Việt, không chứa địa danh/currency/ngữ cảnh Monopoly tiếng Anh.
+- New game shuffle mỗi deck server-side một lần; authoritative order được persist
+  trong private `DeckState`:
 
-- `reward`/`penalty` cộng/trừ balance với bank.
-- `collectFromEachPlayer` và `payEachPlayer` chuyển tiền với mọi active player khác.
-- `getOutOfJailFree` tăng counter trên player.
-- `goToJail` đặt tile 10/jail state.
-- `moveToTile` gán index tuyệt đối; `moveBy` dùng modulo 40.
-- Ghi `card.message` vào game log sau khi apply.
+```text
+GamePrivateState.decks.chance.drawPile: GameCardId[]
+GamePrivateState.decks.chest.drawPile: GameCardId[]
+Player.heldJailFreeCardIds: GameCardId[]
+```
 
-## Jail mutations và guards
+- Card thường rút top, resolve rồi xuống cuối cùng deck. Jail-free card rời draw
+  pile khi được giữ; khi dùng, transfer về Bank hoặc holder bị loại thì card quay
+  lại cuối đúng source deck.
+- Exact pile order/next card không thuộc public DTO. Public state chỉ chiếu thông
+  tin holder/card-count cần cho UI.
+- Card movement tới destination phải áp pass-Xuất-Phát đúng effect và tiếp tục
+  resolve tile đích; `goToJail` là ngoại lệ direct-jail. Movement chain có guard để
+  không resolve/handoff hai lần.
+- Card money/multi-player transfer tạo ordered `DebtClaim`, không mutate balance âm
+  hoặc iterate Player theo object-key order.
 
-- Roll double thoát jail và tiến bằng tổng dice.
-- Sau hai lượt thất bại (`jailRounds === 2` ở lần roll kế tiếp), player tự thoát và tiến.
-- Roll không double trước mốc trên chỉ tăng `jailRounds`.
-- `pay bail`: current jailed player, balance ít nhất 50; trừ 50, clear jail state nhưng chưa chuyển turn.
-- `use jail card`: current jailed player có ít nhất một card; giảm counter, clear jail state nhưng chưa chuyển turn.
+## Jail Standard Mode
 
-## Caveat AS-IS
+Ba cách thoát trước/một phần roll:
 
-- Card `moveToTile`/`moveBy` không resolve tiếp tile đích. Jail escape bằng dice cũng không gọi `resolveTile`; sau đó turn chuyển ngay.
-- Card movement không tự thưởng pass-GO; deck phải ghi `reward` nếu cần trả tiền.
-- Deck chọn random có hoàn lại; không giữ thứ tự/deck state.
-- Railroad/utility/jail dùng index hard-code; thay board order phải sửa đồng thời.
-- `pay bail` và `use jail card` không tự roll hoặc next turn; player được giải phóng rồi dùng roll bình thường.
-- Player-to-player card transfer có thể làm balance âm; bankruptcy được xử lý khi caller gọi `nextTurn` sau card.
+1. Trả 50 units bail qua claim BANK, rồi roll bình thường.
+2. Dùng held jail-free `cardId`, trả card về đúng deck, rồi roll bình thường.
+3. Roll doubles trong tối đa ba lượt thử.
 
-## Consumers và liên kết chéo
+- Doubles ở tù: clear jail, di chuyển bằng roll, resolve tile; không extra roll.
+- Fail attempt 1/2: tăng persisted `jailRounds`, kết thúc lượt.
+- Fail attempt 3: bắt buộc trả 50; sau khi claim settle, clear jail, di chuyển bằng
+  chính dice result đã persist và resolve tile. Không mất dice khi debt wait/restart.
+- Player trong tù vẫn có thể nhận rent, trade, auction và quản lý property khi các
+  domain guard khác cho phép.
 
-- Board/card data: [`../Shared/board-and-card-data.instruction.md`](../Shared/board-and-card-data.instruction.md).
-- Property rent: [`property-economy.instruction.md`](property-economy.instruction.md).
-- Jail Socket API: [`../Api/socket-jail.instruction.md`](../Api/socket-jail.instruction.md).
-- Client turn/jail UI: [`../Client/turn-actions.instruction.md`](../Client/turn-actions.instruction.md).
+## Tests
 
-## Kiểm thử khi sửa
-
-- Unit hiện có cover street/railroad/utility/tax/go-to-jail resolution, card effects, relative wrap và ba nhánh jail roll.
-- Chưa có automation cho deck selection, bail/jail-card Socket guards, broadcast hoặc behavior “không resolve tile đích”.
-- Thực hiện [`../testcase/turn-movement-buy-and-jail.md`](../testcase/turn-movement-buy-and-jail.md) và [`../testcase/shared-contracts-and-board-data.md`](../testcase/shared-contracts-and-board-data.md).
-- Chạy `pnpm typecheck`, `pnpm lint`, `pnpm test`.
+- Deck initialization/order/draw/rotate, hidden public state và restart exactness.
+- Jail-free removal/return/use/transfer/elimination theo source deck.
+- Card movement/pass-GO/destination resolution/card-to-jail.
+- Ba jail paths, third-fail forced bail, no-extra-roll on jail doubles.
+- Tax và Bãi Đỗ Xe no-op; save failure không publish partial resolution.

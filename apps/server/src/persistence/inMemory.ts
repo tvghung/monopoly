@@ -359,17 +359,7 @@ class InMemoryTradeOfferRepository<TSnapshot extends object>
   }
 
   create(input: CreateTradeOfferInput): Promise<TradeOfferRecord> {
-    if (!Number.isSafeInteger(input.tileId) || input.tileId < 0) {
-      return Promise.reject(
-        new Error('Trade offer tile ID must be a non-negative integer'),
-      );
-    }
-    if (!Number.isSafeInteger(input.price) || input.price <= 0) {
-      return Promise.reject(
-        new Error('Trade offer price must be a positive integer'),
-      );
-    }
-    if (input.buyerPlayerId === input.ownerPlayerId) {
+    if (input.proposerPlayerId === input.recipientPlayerId) {
       return Promise.reject(new Error('Trade offer players must be different'));
     }
     const state = this.getState();
@@ -404,8 +394,23 @@ class InMemoryTradeOfferRepository<TSnapshot extends object>
           offer.roomId === roomId &&
           offer.status === 'PENDING' &&
           offer.expiresAt > now &&
-          (offer.buyerPlayerId === playerId || offer.ownerPlayerId === playerId),
+          (offer.proposerPlayerId === playerId || offer.recipientPlayerId === playerId),
       )
+      .sort((left, right) => {
+        const byDate = left.createdAt.getTime() - right.createdAt.getTime();
+        return byDate === 0 ? left.id.localeCompare(right.id) : byDate;
+      });
+    return Promise.resolve(clone(offers));
+  }
+
+  listPendingForRoom(roomId: string): Promise<TradeOfferRecord[]> {
+    const now = new Date();
+    const offers = [...this.getState().offers.values()]
+      .filter((offer) => (
+        offer.roomId === roomId
+        && offer.status === 'PENDING'
+        && offer.expiresAt > now
+      ))
       .sort((left, right) => {
         const byDate = left.createdAt.getTime() - right.createdAt.getTime();
         return byDate === 0 ? left.id.localeCompare(right.id) : byDate;

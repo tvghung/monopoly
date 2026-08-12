@@ -1,38 +1,25 @@
-# Mục lục HTTP và Socket.IO backend
+# HTTP và Socket.IO — Cờ Tỷ Phú Việt Nam
 
-## Phạm vi
-
-Express runtime và Socket.IO command modules. PostgreSQL/session/recovery detail nằm
-tại [../Persistence/README.md](../Persistence/README.md).
-
-## Module map
+Express runtime và Socket.IO command modules. PostgreSQL/session/recovery detail:
+[Persistence README](../Persistence/README.md).
 
 | Module | Events/routes | Instruction |
 | --- | --- | --- |
-| Runtime | `/healthz`, `/readyz`, static/SPA, startup/shutdown | [http-runtime.instruction.md](./http-runtime.instruction.md) |
-| Session/presence | `join room`, `resume session`, disconnect | [socket-session.instruction.md](./socket-session.instruction.md) |
-| Lobby/lifecycle | `set ready`, `start game`, `leave room` | [socket-lobby.instruction.md](./socket-lobby.instruction.md) |
-| Turn | `roll dice`, `buy property` | [socket-turn.instruction.md](./socket-turn.instruction.md) |
-| Chat | `send chat` | [socket-chat.instruction.md](./socket-chat.instruction.md) |
-| Trading | listing/sale/make/accept/decline offer | [socket-trading.instruction.md](./socket-trading.instruction.md) |
-| Building | build/sell/mortgage/unmortgage | [socket-building.instruction.md](./socket-building.instruction.md) |
-| Jail | `pay bail`, `use jail card` | [socket-jail.instruction.md](./socket-jail.instruction.md) |
-| Auction | `decline property`, `place bid`, `pass bid` | [socket-auction.instruction.md](./socket-auction.instruction.md) |
+| Runtime | `/healthz`, `/readyz`, static/SPA, startup/shutdown | [http-runtime](./http-runtime.instruction.md) |
+| Session | `join room`, `resume session`, disconnect | [socket-session](./socket-session.instruction.md) |
+| Lobby | `set ready`, `start game`, `leave room` | [socket-lobby](./socket-lobby.instruction.md) |
+| Turn/payment | `roll dice`, `buy property`, `settle debt`, `declare bankruptcy` | [socket-turn](./socket-turn.instruction.md) |
+| Chat | `send chat` | [socket-chat](./socket-chat.instruction.md) |
+| Trading | listing/sale + bilateral `TradeOfferRequest` | [socket-trading](./socket-trading.instruction.md) |
+| Building | build/sell/mortgage/unmortgage | [socket-building](./socket-building.instruction.md) |
+| Jail | `pay bail`, `use jail card` | [socket-jail](./socket-jail.instruction.md) |
+| Auction | `decline property`, `place bid`, `pass bid` for both kinds | [socket-auction](./socket-auction.instruction.md) |
 
-## Outbound
+## Authority/commit
 
-| Event | Đích |
-| --- | --- |
-| `update(PublicRoomState)` | `room:<roomId>` after commit |
-| `offer on prop` | Private owner room only |
-| `offer accepted`, `offer declined`, `offer expired`, `offer cancelled` | Private buyer and owner rooms |
-| `session replaced` | Superseded connection only |
+Protocol v2 schema → authenticated role/actor → serialized room draft → PostgreSQL
+CAS commit → public/private projection → ACK. Save failure phát không state/update/
+success. Actor/owner/dice/auction kind/debt target không lấy từ payload.
 
-Mọi state-changing inbound có typed ACK. `new player` và dummy payloads không còn
-thuộc contract.
-
-## Authority
-
-Runtime schema → authenticated actor/role → per-room executor → PostgreSQL commit →
-projection/broadcast/ACK. Payload actor fields không được tin; spectators không được
-gọi gameplay mutation.
+Public `update` tới `room:<roomId>`; session/private trade results chỉ tới relevant
+`player:<playerId>`. Exact deck order và credentials không thuộc public projection.

@@ -3,6 +3,7 @@ import type { AppRuntime } from '../services/runtime';
 import { registerAuctionHandlers } from './auction';
 import { registerBuildingHandlers } from './building';
 import { registerChatHandlers } from './chat';
+import { registerDebtHandlers } from './debt';
 import { registerJailHandlers } from './jail';
 import { registerLobbyHandlers } from './lobby';
 import { registerSessionHandlers } from './session';
@@ -31,6 +32,7 @@ export function registerSocketHandlers(io: AppServer, runtime: AppRuntime): void
     registerLobbyHandlers(io, socket, runtime);
     registerTurnHandlers(io, socket, runtime);
     registerChatHandlers(io, socket, runtime);
+    registerDebtHandlers(io, socket, runtime);
     registerTradingHandlers(io, socket, runtime);
     registerBuildingHandlers(io, socket, runtime);
     registerJailHandlers(io, socket, runtime);

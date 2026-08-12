@@ -1,5 +1,6 @@
 import { useContext } from 'react';
 import stateContext from '../../internal';
+import { formatMoney } from '../../presentation';
 
 // Shown to the current player while they're in jail on their own turn: pay bail
 // or spend a Get Out Of Jail Free card (they can still roll for a double too).
@@ -17,9 +18,9 @@ export default function JailPanel() {
   }
 
   return (
-    <section className="jail-panel">
-      <h3 className="jail-panel__title">You're in jail!</h3>
-      <p className="jail-panel__hint">Roll a double to escape, or:</p>
+    <section className="jail-panel" role="status" aria-live="polite">
+      <h3 className="jail-panel__title">Bạn đang ở Nhà Tù</h3>
+      <p className="jail-panel__hint">Hãy đổ đôi để thoát, hoặc chọn một cách sau:</p>
       <div className="jail-panel__actions">
         <button
           className="button__purchase--yes"
@@ -27,16 +28,16 @@ export default function JailPanel() {
           disabled={myPlayer.accountBalance < 50}
           onClick={() => socketFunctions.payBail()}
         >
-          Pay $50M bail
+          Trả {formatMoney(50)} tiền bảo lãnh
         </button>
-        {myPlayer.getOutOfJailCards > 0
+        {myPlayer.getOutOfJailCardCount > 0
           ? (
             <button
               className="button__purchase--yes"
               type="button"
               onClick={() => socketFunctions.useJailCard()}
             >
-              {`Use jail card (${myPlayer.getOutOfJailCards})`}
+              {`Dùng thẻ Thoát Tù Miễn Phí (${myPlayer.getOutOfJailCardCount})`}
             </button>
           )
           : null}

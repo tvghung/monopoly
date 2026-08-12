@@ -17,7 +17,7 @@ export function useIncomingOffers() {
   }, [privateOffers.length]);
 
   const offers = useMemo<ActiveOffer[]>(() => privateOffers
-    .filter(offer => offer.ownerPlayerId === playerId && offer.status === 'PENDING')
+    .filter(offer => offer.recipientPlayerId === playerId && offer.status === 'PENDING')
     .map(offer => ({
       ...offer,
       remainingSeconds: Math.max(0, Math.ceil((Date.parse(offer.expiresAt) - now) / 1000)),

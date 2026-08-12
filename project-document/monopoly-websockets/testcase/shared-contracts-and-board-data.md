@@ -1,33 +1,40 @@
-# Checklist — contracts, runtime schemas và board/card data
+# Checklist — protocol/snapshot v2, board Việt Nam và decks
 
-## Contract/state
+## Protocol/contracts/privacy
 
-- [ ] Stable identity aliases and protocol version compile for client/server.
-- [ ] `PublicRoomState` carries revision/lifecycle/host/limits/roster/game projection.
-- [ ] `SocketData` has internal session context and ephemeral pending-admission lock,
-  but no raw token.
-- [ ] Every state-changing event has typed ACK; `new player`/dummy payloads absent.
-- [ ] Runtime schemas reject malformed UUID/token, unknown object fields, invalid tile,
-  non-positive/fractional/money above `2_147_483_647`, blank/oversize chat.
-- [ ] Schema success does not bypass role/actor/domain guards.
-- [ ] `[SOCKET-INTEGRATION]` Protocol mismatch, actor spoof and strict transport paths
-  are exercised in `apps/server/src/socket.integration.test.ts`.
-- [ ] `[AUTO]` `apps/server/src/rooms.test.ts` exercises exact snapshot version,
-  non-UUID identity and active-member inverse-state rejection; other deep malformed
-  host/auction/turn invariants still need direct assertions.
-- [ ] Public serialization contains no raw/hash token, session row or private offers.
-- [ ] Persisted snapshot omits `loaded`, presence, socket IDs and timer handles.
-- [ ] Auction uses `auctionId/endsAt`; offers/actions use `offerId`; winner has player ID.
+- [ ] `[AUTO][SOCKET]` Protocol v2 client/server works; v1/mismatch gets
+  `UPGRADE_REQUIRED`; every mutation has typed ACK and strict payload shape.
+- [ ] `[AUTO]` Runtime schemas cover `TurnInfo.pendingPropertyDecision`,
+  `PendingTurnContinuation`, `DebtClaim/PaymentQueue`, both auction kinds,
+  `TradeOfferRequest/TradeBundle`, transfer policies and IDs.
+- [ ] `[AUTO]` Continuation schema accepts only `COMPLETE_TURN`,
+  `MOVE_STORED_DICE` and `NO_TURN_CHANGE`; non-current forfeit Bank queue cannot
+  advance another Player.
+- [ ] `[AUTO]` Public projection contains no raw/hash token, session row, private
+  offer terms or exact `DeckState`/next card; snapshot omits presence/socket/timer.
+- [ ] `[AUTO]` Snapshot v2 deep validation rejects dangling player/card/creditor,
+  invalid claim index, duplicate card, auction/queue/contention mismatch, negative
+  derived inventory and live operation in FINISHED room.
 
-## Board/card invariants
+## Board/card data
 
-- [ ] Exactly 40 tile indices `0..39`; color groups reference valid buildable streets.
-- [ ] Railroad, utility, GO/jail and card destination hard-coded indices still align.
-- [ ] Chance/Chest effects retain expected behavior.
-- [ ] Shared/client duplicate tile presentation sources remain synchronized; document
-  any existing tile-name mismatch rather than claiming typecheck proves equality.
+- [ ] `[AUDIT]` Exactly 40 indices match canonical Vietnamese table; index 17 is
+  Khí Vận/chest; all special indices, types and eight color groups valid.
+- [ ] `[AUDIT]` All numeric price/rent tiers/house costs retained; no player-facing
+  English board/card label or `$`/`$M`.
+- [ ] `[AUDIT]` Client has no duplicate 40-row metadata; presentation derives shared
+  names/economy.
+- [ ] `[AUTO]` Money formatter maps 60→`60.000 ₫`, 200→`200.000 ₫`,
+  1500→`1.500.000 ₫`.
+- [ ] `[AUTO]` Chance/Khí Vận Card IDs unique, Vietnamese content/effects/destinations
+  valid; draw/rotate/jail-free source behavior deterministic with injected shuffle.
 
-## Gates
+## v1 reset
 
-`pnpm typecheck`, schema unit tests, `pnpm test` and `pnpm build`. Typecheck proves
-contract compatibility, not network validation/authority or static-data equality.
+- [ ] `[PG]` v1 IN_PROGRESS room resets transactionally to a fresh v2
+  `IN_PROGRESS` turn while preserving room/code, stable IDs, join order/name/color/
+  ready, host and active session hashes; old gameplay/offers/deadlines clear.
+- [ ] `[SOCKET][PG]` Starting roll chooses only the first Player and rotates existing
+  cyclic Seat order; existing tokens resume the same Seats with no session cascade.
+- [ ] `[PG]` Reset rerun is idempotent and malformed/mid-failure transaction cannot
+  leave mixed v1/v2 state.

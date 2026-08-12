@@ -62,8 +62,9 @@ Token display position có thể trễ hơn authoritative position. Dice/buy/tur
 settlement rules tiếp tục áp dụng. Reconnect snapshot không được tạo duplicate timer,
 listener hoặc replay mutation.
 
-Static tile/card presentation vẫn có các nguồn lặp tại `tileState.ts`,
-`BoardInitState.ts`, `backOfCards.ts`; không thay một nguồn riêng lẻ.
+Board/property presentation derive trực tiếp từ canonical shared `tileState`; không
+duy trì bản sao `BoardInitState.ts` hoặc `backOfCards.ts`. Tất cả tiền hiển thị qua
+formatter dùng `1 game unit = 1.000 VNĐ` và player-facing UI/log/error là tiếng Việt.
 
 ## Quy tắc sửa
 
@@ -72,6 +73,8 @@ Static tile/card presentation vẫn có các nguồn lặp tại `tileState.ts`,
 3. Không dùng public player ID/room code như credential.
 4. Không tự retry command không idempotent sau ACK timeout; resume/resync trước.
 5. Test cả valid resume, invalid/revoked token, newest-wins và listener cleanup.
+6. Không render hidden `DeckState`, raw `PaymentQueue` internals hoặc credential;
+   chỉ render public pending-action/debt/auction projection cần cho quyết định UI.
 
 ## Kiểm tra
 

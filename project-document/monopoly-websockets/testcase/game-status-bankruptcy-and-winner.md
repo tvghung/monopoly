@@ -1,20 +1,33 @@
-# Checklist — roster, bankruptcy, leave và winner
+# Checklist — bankruptcy, forfeit, Bank pipeline và winner
 
-## Automated evidence
+## PLAYER creditor
 
-`[AUTO]` Bankruptcy/winner domain assertions live in `apps/server/src/game.test.ts`.
-`[SOCKET-INTEGRATION]` covers an in-game auction forfeit plus a two-player leave that
-commits `FINISHED` without retaining an auction. UI reason and PostgreSQL retention
-remain separate layers.
+- [ ] `[AUTO]` Declared bankruptcy pays available cash then transfers remaining
+  properties, mortgages and held jail-free cards to active `creditorPlayerId` using
+  `BANKRUPTCY_TO_PLAYER`; nothing becomes unowned accidentally.
+- [ ] `[AUTO]` Mortgage interest becomes correct follow-up BANK claim without losing
+  cyclic `PaymentQueue` order/index.
+- [ ] `[SOCKET]` If active debtor explicit leaves, same PLAYER-creditor transfer
+  runs but finished reason remains `LEFT`.
 
-## Checklist
+## BANK/no-player-creditor
 
-- [ ] Active roster uses stable IDs; temporary disconnect changes presence only.
-- [ ] Balance `< 1` moves Player to finished with `BANKRUPT` and releases property to unowned.
-- [ ] Released property is not automatically inserted into open market.
-- [ ] Multiple players bankrupt in one check do not throw, skip or use deleted record.
-- [ ] Explicit in-game leave records `LEFT` and cleans refs atomically.
-- [ ] Finished record survives disconnect/restart and UI distinguishes reason.
-- [ ] Winner includes stable player ID/name/color, is set once and room becomes `FINISHED`.
-- [ ] Winner/finished/current/ownership references remain valid after leave/bankruptcy.
-- [ ] Finished room is restored from DB and deleted only by configured retention.
+- [ ] `[AUTO]` Buildings return inventory, mortgage/listing clear, cards return to
+  source deck and properties enqueue ascending index into `BankPropertyAuctionQueue`.
+- [ ] `[AUTO][PG]` Multiple-property queue auctions sequentially and survives restart
+  without skip/duplicate award.
+- [ ] `[SOCKET]` Active BANK debtor leave uses Bank pipeline; no active
+  player-creditor debt surrenders to Bank and records `LEFT`.
+- [ ] `[AUTO][SOCKET]` A non-current forfeit Bank auction queue resumes through
+  `NO_TURN_CHANGE`; it cannot hand off or alter the unrelated current Player.
+
+## Multi-claim/winner/reference safety
+
+- [ ] `[AUTO]` Multiple debtors/claims/eliminations do not recurse through stale
+  IDs, skip active claim or advance turn twice.
+- [ ] `[AUTO]` Cleanup reconciles current Player, payment, private offers, auction,
+  contention, deck holders and Bank queue with no dangling stable-ID reference.
+- [ ] `[AUTO][SOCKET]` Last active Player becomes stable winner once; room FINISHED,
+  all live operation/deadline state clear; bankruptcy and leave reasons differ.
+- [ ] `[PG]` Finished/winner history restores and obeys retention; reconnect identity
+  and credential privacy remain intact.

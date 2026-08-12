@@ -1,25 +1,39 @@
-# Checklist — client session state, sync, motion và accessibility
+# Checklist — Vietnamese client, state sync, motion và accessibility
 
-## Automated evidence
+## Session/sync
 
-- `[CLIENT]` `apps/client/src/App.test.tsx`.
-- `[CLIENT]` `apps/client/src/components/Lobby.test.tsx`.
-- `[CLIENT]` `apps/client/src/playerSessionStorage.test.ts`.
+- [ ] `[CLIENT]` Join/resume ACK gates Lobby/Board; restore/reconnect keeps token and
+  snapshot; terminal errors clear only invalid session; newest-wins old tab stops.
+- [ ] `[CLIENT]` Stale revision ignored; spectator/reconnecting has no mutation;
+  StrictMode does not duplicate listeners/countdowns/actions.
+- [ ] `[CLIENT]` Protocol-v2 reset resumes the same identity directly into the fresh
+  v2 `IN_PROGRESS` turn without replacing the reconnect credential.
 
-## Checklist
+## Vietnamese/content/money
 
-- [ ] App does not enter Lobby/Board before join/resume success ACK.
-- [ ] Startup token shows restoring state rather than flashing JoinForm.
-- [ ] Reconnecting keeps last snapshot visible and disables all mutation controls.
-- [ ] Retryable errors preserve token; terminal session errors clear invalid record.
-- [ ] Pending activation losing the lobby-capacity/start race clears its token on
-  `ROOM_FULL`/`GAME_ALREADY_STARTED` rather than retrying a dead admission.
-- [ ] `session replaced` stops old tab without clearing token used by new tab.
-- [ ] Stale public revision is ignored; committed newer revision replaces state.
-- [ ] Player role sees lobby/game actions; spectator sees banner/read-only gameplay
-  controls while room chat remains available.
-- [ ] Pending offers restore/key by `offerId`; countdown derives from `expiresAt`.
-- [ ] StrictMode does not duplicate connect/update/private-offer listeners or timers.
-- [ ] Token stepped movement, buy prompt and turn marker still wait for settled position.
-- [ ] Reduced motion, keyboard focus, labels and error announcements remain usable.
-- [ ] Mobile/desktop viewports show Join/Lobby/Board/overlay without hidden critical action.
+- [ ] `[AUDIT][CLIENT]` HTML title/metadata/manifest, join/lobby/host/ready/spectator,
+  reconnect, dice/buy/payment/auction/trade/property/jail/forfeit/winner/error/empty/
+  tooltip/alt/log copy is Vietnamese.
+- [ ] `[AUDIT]` No player-facing “Monopoly”, English game term, `$`, `$M` or USD
+  formatter remains; internal event/package/env names are exempt.
+- [ ] `[CLIENT]` All displayed amounts use shared VNĐ formatter, including card
+  detail, tooltip, prompt, log, offer, bid, balance and bail.
+- [ ] `[CLIENT]` Board renders exact canonical shared 40 tiles without duplicate
+  metadata source; exact private deck order absent from DOM/state.
+
+## Turn/property/auction UX
+
+- [ ] `[CLIENT]` Token settlement gates buy/turn; doubles extra-roll waits for full
+  resolution and third double/jail animation cannot expose premature roll.
+- [ ] `[CLIENT]` Active debtor sees remaining claim/liquidation/bankruptcy confirmation;
+  other Player/spectator cannot settle/declare.
+- [ ] `[CLIENT]` Building inventory/contention/reserved unit and both auction kinds
+  render correct labels/actions/deadlines.
+- [ ] `[CLIENT]` TradeBundle asset selection blocks built group and discloses mortgage
+  interest; ACK failure keeps authoritative UI.
+
+## Accessibility/layout
+
+- [ ] `[CLIENT][MANUAL-E2E]` Keyboard/focus/labels/live errors/reduced-motion usable;
+  Vietnamese text and short board labels fit desktop/mobile without hiding critical
+  action.

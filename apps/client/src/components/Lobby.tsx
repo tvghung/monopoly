@@ -47,16 +47,16 @@ export default function Lobby({
       <article className="lobby__card">
         <header className="lobby__header">
           <div>
-            <p className="lobby__eyebrow">Room code</p>
+            <p className="lobby__eyebrow">Mã phòng</p>
             <h1 id="lobby-title" className="lobby__title">{roomCode}</h1>
           </div>
           <button className="lobby__leave" type="button" disabled={busy} onClick={onLeave}>
-            Leave room
+            Rời phòng
           </button>
         </header>
 
         <p className="lobby__hint">
-          {`The host can start when ${minPlayers}–${maxPlayers} connected players are ready.`}
+          {`Chủ phòng có thể bắt đầu khi ${minPlayers}–${maxPlayers} người chơi đang kết nối đều sẵn sàng.`}
         </p>
 
         <ul className="lobby__players">
@@ -65,14 +65,14 @@ export default function Lobby({
               <span className="lobby-player__disc" style={{ backgroundColor: player.color }} aria-hidden="true" />
               <span className="lobby-player__name">
                 {player.name}
-                {player.id === playerId ? ' (you)' : ''}
+                {player.id === playerId ? ' (bạn)' : ''}
               </span>
-              {player.id === hostPlayerId ? <span className="lobby-player__host">Host</span> : null}
+              {player.id === hostPlayerId ? <span className="lobby-player__host">Chủ phòng</span> : null}
               <span className={player.connected ? 'lobby-player__online' : 'lobby-player__offline'}>
-                {player.connected ? 'Online' : 'Offline'}
+                {player.connected ? 'Trực tuyến' : 'Mất kết nối'}
               </span>
               <span className={player.ready ? 'lobby-player__ready' : 'lobby-player__waiting'}>
-                {player.ready ? 'Ready' : 'Not ready'}
+                {player.ready ? 'Sẵn sàng' : 'Chưa sẵn sàng'}
               </span>
             </li>
           ))}
@@ -87,7 +87,7 @@ export default function Lobby({
             disabled={busy || !me?.connected}
             onClick={() => onSetReady(!me?.ready)}
           >
-            {me?.ready ? 'Not ready' : 'Ready up'}
+            {me?.ready ? 'Hủy sẵn sàng' : 'Sẵn sàng'}
           </button>
 
           {isHost
@@ -98,10 +98,10 @@ export default function Lobby({
                 disabled={busy || !canStart}
                 onClick={onStart}
               >
-                Start game
+                Bắt đầu ván chơi
               </button>
             )
-            : <p className="lobby__waiting-copy">Waiting for the host to start…</p>}
+            : <p className="lobby__waiting-copy">Đang chờ Chủ Phòng bắt đầu…</p>}
         </div>
       </article>
     </section>

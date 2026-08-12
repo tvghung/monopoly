@@ -1,23 +1,16 @@
 # Jail Socket instruction
 
-## Events/authority
+`pay bail` and `use jail card` remain no-business-payload typed commands for the
+authenticated current jailed Player. Spectator/other player/blocking state fails.
 
-`pay bail` and `use jail card` have no business payload and use typed ACK. Actor is
-authenticated stable current Player; spectators/other players fail.
+- `pay bail`: enqueue/settle 50-unit BANK claim, clear jail only after payment, then
+  Player may roll. Third failed jail roll reuses its persisted dice after forced
+  bail settles and moves/resolves without a new roll.
+- `use jail card`: choose an authoritative held `GameCardId`, remove it from holder and
+  return to end of correct source deck; no client card/source payload.
+- Jail doubles are handled by `roll dice`, move/resolve destination and always
+  `ADVANCE_TURN` after resolution rather than extra roll.
 
-- Pay bail revalidates jailed state and at least 50 balance, clears jail/rounds and
-  deducts money.
-- Use card revalidates jailed state and positive card count, decrements card and
-  clears jail/rounds.
-- Jail dice flow remains under `roll dice`/GameCore.
-
-## Durability/reconnect
-
-Jail state, balance, card count and current turn commit before update/ACK. Temporary
-disconnect preserves them. Reconnect within turn grace resumes exact state; expiry
-follows current-turn recovery policy. Database failure emits no false success/update.
-
-## Tests
-
-Wrong player/role/state/balance/card rejection; committed valid mutation; reconnect
-and server restart preservation; ACK/save-failure behavior.
+Jail/card/debt/dice state commits before update/ACK and restores exactly across
+reconnect/restart. Tests cover invalid balance/card/state, all three escape paths,
+third fail, card source return and save failure.

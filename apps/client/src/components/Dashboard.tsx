@@ -10,6 +10,7 @@ import SellPrompts from './dashboard/SellPrompts';
 import IncomingOffers from './dashboard/IncomingOffers';
 import AuctionPanel from './dashboard/AuctionPanel';
 import WinnerBanner from './dashboard/WinnerBanner';
+import DebtPanel from './dashboard/DebtPanel';
 
 export default function Dashboard() {
   const { state, playerId } = useContext(stateContext);
@@ -41,11 +42,15 @@ export default function Dashboard() {
   return (
     <section className="center__dashboard--container">
       <section className="center__dashboard">
-        <article className="center__dashboard--img" />
+        <div className="center__dashboard--brand" aria-hidden="true">
+          CỜ TỶ PHÚ
+          <span>VIỆT NAM</span>
+        </div>
 
         <PlayerList activePlayerId={activePlayerId} />
 
         <section className="center__dashboard__block">
+          <DebtPanel />
           <JailPanel />
           <BuyPrompt tokenArrived={tokenArrived} />
           <SellPrompts />

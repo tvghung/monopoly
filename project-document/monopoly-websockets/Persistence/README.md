@@ -1,44 +1,60 @@
-# Persistence — mục lục database, session và recovery
+# Persistence — snapshot v2 và restart recovery
 
 ## Phạm vi
 
-Khối này mô tả durable storage và orchestration tại:
-
-- `apps/server/migrations/`
-- `apps/server/src/persistence/`
-- `apps/server/src/services/`
-- `apps/server/src/config.ts`
+- SQL/repositories: `apps/server/migrations/`, `src/persistence/`.
+- Snapshot validation/serialization: `apps/server/src/rooms.ts`.
+- FIFO/CAS/public projection/deadlines: `src/services/`, `socket/roomCommands.ts`.
 
 ## Invariants
 
-- PostgreSQL là durable authority; không có production in-memory fallback.
-- Room/game snapshot chỉ được publish sau committed transaction.
-- `aggregate_version` bảo vệ compare-and-swap; command cùng room còn được serialize
-  trong process để giảm contention.
-- Raw session token không được persist; chỉ SHA-256 hash được lookup/index.
-- Runtime presence/socket/queue/scheduler timer không nằm trong database.
-- SQL migration version và JSON snapshot schema version được quản lý riêng.
+- PostgreSQL là production authority; in-memory adapter chỉ test.
+- Room command serialize + clone draft + expected-version CAS; commit trước mọi
+  ACK/public/private emit. Failure bỏ toàn draft và related offer writes.
+- Raw token không persist; chỉ SHA-256. Presence/socket/generation/queue object/timer
+  handle/countdown tick không nằm database.
+- SQL migration version và JSON snapshot schema version độc lập.
 
-## Bảng ánh xạ
+## Snapshot v2
 
-| Nhóm | Code | Instruction/testcase |
-| --- | --- | --- |
-| SQL schema, repository, CAS | `migrations/`, `persistence/postgres.ts` | [postgres-and-recovery.instruction.md](./postgres-and-recovery.instruction.md) |
-| Test adapter | `persistence/inMemory.ts` | Chỉ dependency-injected tests |
-| Sessions/token | `services/playerSessionService.ts` | Cùng instruction và join lifecycle testcase |
-| FIFO/CAS boundary | `services/roomCommandExecutor.ts` | Cùng instruction và persistence tests |
-| Connection registry | `services/connectionRegistry.ts` | Socket lifecycle testcase |
-| Public projection | `services/publicState.ts` | Shared/privacy testcase |
-| Runtime/recovery | `services/runtime.ts` và deadline scheduler | Restart/deadline testcase |
+Room JSONB v2 persists stable-ID Standard Mode state:
 
-## Kiểm tra
+- turn order/number/current/dice/`doublesStreak`,
+  `TurnInfo.pendingPropertyDecision` and each wait's `PendingTurnContinuation`;
+- ownership/buildings/mortgage/open market/winner;
+- `PaymentQueue.orderedClaims`/`DebtClaim` + `activeClaimIndex`, continuation and
+  action deadline;
+- private `GamePrivateState.decks.*.drawPile` and held jail-free card IDs;
+- `Auction.kind`, absolute deadline, `BankPropertyAuctionQueue`;
+- `BuildingContention.reservedUnit`.
 
-```bash
-docker compose up -d postgres
-pnpm db:migrate
-pnpm db:status
-pnpm --filter @monopoly/server test
-```
+Available house/hotel inventory is derived from board + reserved unit, never a
+persisted counter. Public projector excludes exact deck order, credential and private
+offer terms.
 
-PostgreSQL integration tests có thể require test database environment. Không thay
-chúng bằng in-memory tests khi thay SQL/schema/CAS/recovery.
+## Compatibility decision
+
+- `SOCKET_PROTOCOL_VERSION = 2`; old clients fail `UPGRADE_REQUIRED`.
+- `ROOM_SNAPSHOT_SCHEMA_VERSION = 2`; không diễn giải tiếp gameplay v1. Existing
+  v1 `IN_PROGRESS` aggregate được reset một lần thành ván Standard Mode v2 mới,
+  vẫn giữ status `IN_PROGRESS`, room ID/code, stable Player IDs, member
+  join order/name/color/ready, host và active reconnect sessions/token hashes.
+  Balance/position/tài sản/jail/deck/turn được tạo mới; roll chỉ chọn người đi đầu,
+  rồi cyclic seat order cũ được xoay bắt đầu từ người đó.
+- Pending private offers associated with reset gameplay are cancelled; runtime
+  presence is rebuilt on resume. `FINISHED`/expired data follows retention policy;
+  no destructive session-table reset/cascade.
+- Reset is idempotent/transactional and records v2 snapshot before it can be served.
+
+## Mapping/tests
+
+| Concern | Main code/test |
+| --- | --- |
+| Schema/version/deep invariants | `rooms.ts`, `rooms.test.ts` |
+| CAS/transaction | repositories, room command executor tests |
+| Deadline/queue continuation | deadline scheduler tests |
+| Real DB/restart | PostgreSQL integration + Socket restart tests |
+| Public privacy | public projector/contract tests |
+
+Release requires `db:status`, full gates and opt-in PostgreSQL suites with
+`TEST_DATABASE_URL`; a skipped DB suite is not persistence verification.

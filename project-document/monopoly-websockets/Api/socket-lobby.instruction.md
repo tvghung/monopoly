@@ -11,8 +11,10 @@ per-room executor and typed ACK.
 - `set ready({ready})`: active lobby Player changes only own durable ready flag.
 - `start game`: actor must be persisted host; room must be `LOBBY`; 2–7 active
   Players must all be connected and ready.
-- Successful start atomically sets `IN_PROGRESS`, initializes turn once and commits
-  before public update/ACK.
+- Successful start rolls server-side 2d6 for every active Player, rerolls tied
+  highest group to one winner, persists that stable-ID turn order, initializes
+  private decks/Standard Mode state, sets `IN_PROGRESS` and commits once before
+  public update/ACK. Client supplies no dice/order.
 - Repeat/non-host/spectator/offline/unready start returns explicit failure.
 
 First activated Seat is host. Temporary disconnect never transfers host or ready.
@@ -22,9 +24,10 @@ First activated Seat is host. Temporary disconnect never transfers host or ready
 - Spectator: leave public Socket room and clear runtime SocketData; no durable Seat.
 - Lobby Player: revoke session, remove Seat, transfer host to lowest remaining join
   order; delete empty room.
-- In-progress Player: confirmed forfeit records `LEFT`, revokes session, releases
-  property/listing, cancels pending offers, reconciles auction/current turn/winner
-  atomically.
+- In-progress Player: confirmed forfeit records `LEFT`, revokes session, cancels
+  stale listings/offers and resolves assets by active `DebtClaim`: PLAYER creditor
+  gets `BANKRUPTCY_TO_PLAYER`; BANK/no-player-creditor uses Bank surrender and
+  `BankPropertyAuctionQueue`. Payment/auction/current turn/winner reconcile atomically.
 - Finished Player: mark left/revoke and preserve finished game history.
 
 When leave intersects an auction:

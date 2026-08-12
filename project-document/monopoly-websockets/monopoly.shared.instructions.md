@@ -50,6 +50,12 @@ chỉ dùng trong test qua dependency injection.
 | Runtime-only | `socket.id`, generation registry, presence, queues và scheduler timer handle |
 | Durable aggregate | Stable-ID GameState, room metadata, absolute deadlines |
 
+Snapshot v2 còn chứa authoritative doubles/pending decision/continuation,
+`PaymentQueue`, private `GamePrivateState.decks`, `BankPropertyAuctionQueue` và
+building contention. Public projection
+phải loại exact deck order; building inventory là giá trị derive, không phải một bộ
+đếm persist độc lập.
+
 Public Socket.IO room có tên `room:<roomId>`; private player room có tên
 `player:<playerId>`. Không emit raw database aggregate trực tiếp; dùng whitelist
 projector.

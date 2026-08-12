@@ -1,60 +1,84 @@
 import type { GameCard } from './types';
 
-// Chance deck, adapted from the classic Monopoly cards to this board's tile
-// layout. Tile references: 0 = GO, 5 = Reading Railroad, 10 = Jail,
-// 24 = Albany Lane, 39 = Meadowlands Avenue.
+// Vietnamese Cơ Hội deck. Absolute destinations use the canonical board
+// indices; the movement helper is the only owner of pass-GO rewards.
 const chanceCards: GameCard[] = [
   {
-    message: 'Advance to GO and collect $200M.',
+    id: 'chance-advance-start',
+    sourceDeck: 'chance',
+    message: 'Tiến đến ô Xuất Phát.',
     moveToTile: 0,
-    reward: 200,
   },
   {
-    message: 'Advance to Meadowlands Avenue.',
+    id: 'chance-advance-landmark-81',
+    sourceDeck: 'chance',
+    message: 'Tiến đến Landmark 81.',
     moveToTile: 39,
   },
   {
-    message: 'Advance to Albany Lane.',
+    id: 'chance-advance-da-nang',
+    sourceDeck: 'chance',
+    message: 'Tiến đến Đà Nẵng.',
     moveToTile: 24,
   },
   {
-    message: 'Take a trip to Reading Railroad.',
+    id: 'chance-trip-ga-ha-noi',
+    sourceDeck: 'chance',
+    message: 'Đi đến Ga Hà Nội.',
     moveToTile: 5,
   },
   {
-    message: 'Go back 3 spaces.',
+    id: 'chance-back-three',
+    sourceDeck: 'chance',
+    message: 'Lùi lại 3 ô.',
     moveBy: -3,
   },
   {
-    message: 'Go directly to jail. Do not pass GO, do not collect $200M.',
+    id: 'chance-go-to-jail',
+    sourceDeck: 'chance',
+    message: 'Vào Tù ngay. Không đi qua Xuất Phát.',
     goToJail: true,
   },
   {
-    message: 'Make general repairs on all your property. Pay $75M.',
+    id: 'chance-property-repairs',
+    sourceDeck: 'chance',
+    message: 'Thanh toán phí sửa chữa tài sản 75.000 ₫.',
     penalty: 75,
   },
   {
-    message: 'Speeding fine. Pay $15M.',
+    id: 'chance-traffic-fine',
+    sourceDeck: 'chance',
+    message: 'Đóng phạt giao thông 15.000 ₫.',
     penalty: 15,
   },
   {
-    message: 'You have been elected chairman of the board. Pay each player $50M.',
+    id: 'chance-community-event',
+    sourceDeck: 'chance',
+    message: 'Tổ chức sự kiện cộng đồng, tặng mỗi người chơi 50.000 ₫.',
     payEachPlayer: 50,
   },
   {
-    message: 'Your building loan matures. Collect $150M.',
+    id: 'chance-loan-matures',
+    sourceDeck: 'chance',
+    message: 'Khoản tiết kiệm đến hạn, nhận 150.000 ₫.',
     reward: 150,
   },
   {
-    message: 'The bank pays you a dividend of $50M.',
+    id: 'chance-dividend',
+    sourceDeck: 'chance',
+    message: 'Nhận cổ tức 50.000 ₫.',
     reward: 50,
   },
   {
-    message: 'Pay a poor tax of $15M.',
+    id: 'chance-administrative-fee',
+    sourceDeck: 'chance',
+    message: 'Thanh toán phí hành chính 15.000 ₫.',
     penalty: 15,
   },
   {
-    message: 'Get out of jail free. Keep this card until needed.',
+    id: 'chance-jail-free',
+    sourceDeck: 'chance',
+    message: 'Thẻ Thoát Tù Miễn Phí. Giữ thẻ đến khi sử dụng.',
     getOutOfJailFree: true,
   },
 ];

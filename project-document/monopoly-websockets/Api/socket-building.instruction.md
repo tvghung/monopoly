@@ -3,30 +3,26 @@
 ## Events/authority
 
 `build house`, `sell house`, `mortgage property`, `unmortgage property` accept only
-numeric tile ID plus typed ACK. Runtime schema requires integer `0..39`.
+tile index `0..39` plus typed ACK. Actor derives from stable SocketData and must own
+target; spectator/cross-room/spoof fails.
 
-Authenticated stable Player from SocketData must be active owner. Spectator,
-unauthenticated, cross-room and spoofed actor attempts fail. UI visibility is not
-authority.
+## Domain behavior
 
-## Domain rules
+- `build house`: full group, no mortgage, even, funded. Normal stock consumes unit;
+  scarce stock creates/joins `BuildingContention` through this existing event—không
+  thêm request-building event. Hotel requires 4 houses on every group property.
+- `sell house`: reverse-even, half refund; hotel downgrade requires four Bank houses.
+- Mortgage requires zero buildings across entire color group; unmortgage charges
+  principal +10%.
+- Building inventory derives from board and `reservedUnit` against 32/12; handler
+  không mutate persisted counter.
+- Debtor may use valid sell/mortgage while active claim waits; successful action may
+  trigger domain payment continuation but never client-chosen creditor.
 
-- Build: full color group, no group mortgage, build-even, below hotel and funded.
-- Sell: has building and sell-even; refund half house cost.
-- Mortgage: owned, not mortgaged and no building on property/group as domain rule
-  requires; credit half price.
-- Unmortgage: owned/mortgaged and funded for half price plus 10%, rounded up.
-
-Existing property-economy rules live in GameCore and remain unchanged.
-
-## Durability
-
-Action runs on room draft and commits aggregate version before public update/success
-ACK. Rejected/no-op action returns explicit failure; save failure commits no revision
-and emits no `update`.
+Each command revalidates draft, commits once, then update/ACK. Rejected/no-op/save
+failure changes no balance/building/inventory/contention/revision.
 
 ## Tests
 
-- Stable actor/owner, invalid tile and spectator rejection.
-- Full valid/rejected property-economy boundaries.
-- DB save failure and reconnect/restart state preservation.
+Full property rule matrix; last-unit contention/join/reservation; debt liquidation;
+restart/reconnect; actor/spectator/invalid tile; save failure.

@@ -7,9 +7,21 @@ import {
   tileState,
   type MakeOfferResult,
   type OfferResult,
+  type TradeBundle,
 } from '@monopoly/shared';
-import { checkBalance, sendToLog } from '../game';
+import {
+  activeDebtorId,
+  continueDebtAfterLiquidity,
+  executeVoluntaryTrade,
+  mortgageTransferInterest,
+  propertyGroupHasBuildings,
+  resumePaymentContinuation,
+  sendToLog,
+  startNextBankPropertyAuction,
+  transferProperty,
+} from '../game';
 import { projectPrivateOffer } from '../services/privateOffers';
+import { cancelPendingOffersForAssets } from '../services/offerInvalidation';
 import type { AppRuntime } from '../services/runtime';
 import { requirePlayer } from './authority';
 import { broadcastRoom, privatePlayerRoomName } from './broadcast';
@@ -20,235 +32,306 @@ import { parsePayload } from './validation';
 
 const OFFER_TTL_MS = 20_000;
 
-export function registerTradingHandlers(
-  io: AppServer,
-  socket: AppSocket,
-  runtime: AppRuntime,
-): void {
+const ownsBundle = (
+  state: Parameters<typeof executeVoluntaryTrade>[0],
+  playerId: string,
+  bundle: TradeBundle,
+): boolean => (
+  bundle.propertyIds.every((tileID) => state.boardState.ownedProps[tileID]?.id === playerId)
+  && bundle.jailFreeCardIds.every((cardId) => state.players[playerId]?.heldJailFreeCardIds.includes(cardId))
+);
+
+export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtime: AppRuntime): void {
   socket.on('put on open market', async (rawSale, acknowledge) => {
     try {
       const sale = parsePayload(saleInfoSchema, rawSale);
       const actor = requirePlayer(socket, runtime);
-      const { roomId, playerId } = actor;
-      const committed = await commitRoomCommand(runtime, roomId, ({ room, state }) => {
-        const player = state.players[playerId];
+      const committed = await commitRoomCommand(runtime, actor.roomId, ({ room, state }) => {
+        const player = state.players[actor.playerId];
         const owner = state.boardState.ownedProps[sale.tileID];
         const tile = tileState[sale.tileID];
-        if (room.status !== 'IN_PROGRESS' || !player || !owner || owner.id !== playerId || !tile) {
-          throw new CommandError('FORBIDDEN', 'Only the current owner can list this property.');
+        if (room.status !== 'IN_PROGRESS' || !player || !owner || owner.id !== actor.playerId || !tile) {
+          throw new CommandError('FORBIDDEN', 'Chỉ chủ sở hữu mới được đăng bán tài sản.');
+        }
+        if (propertyGroupHasBuildings(state, sale.tileID)) {
+          throw new CommandError('CONFLICT', 'Phải bán hết công trình trong nhóm màu trước khi đăng bán.');
+        }
+        const debtor = activeDebtorId(state);
+        if (debtor && debtor !== actor.playerId) {
+          throw new CommandError('CONFLICT', 'Chỉ người đang mắc nợ được đăng bán tài sản trong giai đoạn xử lý nợ.');
         }
         state.boardState.openMarket[sale.tileID] = {
-          seller: playerId,
+          seller: actor.playerId,
           price: sale.price,
           sellerName: player.name,
           tileName: tile.streetName,
         };
       }, undefined, actor);
-      if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
+      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
       broadcastRoom(io, runtime, committed.room);
       acknowledge(successAck(committed.room.aggregateVersion));
-    } catch (error) {
-      acknowledgeFailure(acknowledge, error);
-    }
+    } catch (error) { acknowledgeFailure(acknowledge, error); }
   });
 
   socket.on('remove sale', async (rawRequest, acknowledge) => {
     try {
       const request = parsePayload(tileRequestSchema, rawRequest);
       const actor = requirePlayer(socket, runtime);
-      const { roomId, playerId } = actor;
-      const committed = await commitRoomCommand(runtime, roomId, ({ state }) => {
+      const committed = await commitRoomCommand(runtime, actor.roomId, ({ state }) => {
         const listing = state.boardState.openMarket[request.tileID];
-        if (!listing || listing.seller !== playerId) {
-          throw new CommandError('FORBIDDEN', 'Only the seller can remove this listing.');
+        if (!listing || listing.seller !== actor.playerId) {
+          throw new CommandError('FORBIDDEN', 'Chỉ người bán mới được gỡ tin đăng.');
         }
         delete state.boardState.openMarket[request.tileID];
-        const playerName = state.players[playerId]?.name ?? 'A player';
-        sendToLog(state, `${playerName} removed ${listing.tileName} from the open market.`);
       }, undefined, actor);
-      if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
+      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
       broadcastRoom(io, runtime, committed.room);
       acknowledge(successAck(committed.room.aggregateVersion));
-    } catch (error) {
-      acknowledgeFailure(acknowledge, error);
-    }
+    } catch (error) { acknowledgeFailure(acknowledge, error); }
   });
 
   socket.on('make sale', async (rawRequest, acknowledge) => {
     try {
       const request = parsePayload(tileRequestSchema, rawRequest);
       const actor = requirePlayer(socket, runtime);
-      const { roomId, playerId } = actor;
-      const committed = await commitRoomCommand(runtime, roomId, ({ room, state }) => {
+      const now = new Date();
+      const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }) => {
         const listing = state.boardState.openMarket[request.tileID];
-        const buyer = state.players[playerId];
-        if (room.status !== 'IN_PROGRESS' || !listing || !buyer) {
-          throw new CommandError('CONFLICT', 'This listing is no longer available.');
-        }
+        const buyer = state.players[actor.playerId];
         const property = state.boardState.ownedProps[request.tileID];
-        const seller = state.players[listing.seller];
-        if (!property || property.id !== listing.seller || !seller) {
-          throw new CommandError('CONFLICT', 'The listing owner is no longer valid.');
+        const seller = listing ? state.players[listing.seller] : undefined;
+        if (room.status !== 'IN_PROGRESS' || !listing || !buyer || !property || !seller || property.id !== listing.seller) {
+          throw new CommandError('CONFLICT', 'Tin đăng không còn hợp lệ.');
         }
-        if (listing.seller === playerId) {
-          throw new CommandError('FORBIDDEN', 'You cannot buy your own listing.');
+        if (listing.seller === actor.playerId) throw new CommandError('FORBIDDEN', 'Bạn không thể mua tài sản của chính mình.');
+        const debtor = activeDebtorId(state);
+        if (debtor && (listing.seller !== debtor || actor.playerId === debtor)) {
+          throw new CommandError('CONFLICT', 'Giao dịch này không giúp xử lý khoản nợ đang chờ.');
         }
-        if (buyer.accountBalance < listing.price) {
-          throw new CommandError('CONFLICT', `You can't afford ${listing.tileName}.`);
+        const interest = property.mortgaged ? mortgageTransferInterest(request.tileID) : 0;
+        if (buyer.accountBalance < listing.price + interest) {
+          throw new CommandError('CONFLICT', 'Bạn không đủ tiền mua và trả lãi chuyển nhượng cầm cố.');
         }
-        seller.accountBalance += listing.price;
+        const transferred = transferProperty(
+          state,
+          request.tileID,
+          listing.seller,
+          actor.playerId,
+          'VOLUNTARY',
+        );
+        if (!transferred.ok) throw new CommandError('CONFLICT', transferred.reason ?? 'Không thể chuyển tài sản.');
         buyer.accountBalance -= listing.price;
-        property.id = playerId;
-        property.color = buyer.color;
-        delete state.boardState.openMarket[request.tileID];
-        sendToLog(state, `${buyer.name} has bought ${listing.tileName} from ${listing.sellerName}`);
-        checkBalance(state, true);
-      }, undefined, actor);
-      if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
+        seller.accountBalance += listing.price;
+        const resolutionOptions = {
+          now: now.getTime(),
+          debtActionTimeoutMs: runtime.timing.debtActionTimeoutMs,
+        };
+        const continuation = continueDebtAfterLiquidity(state, listing.seller, resolutionOptions);
+        if (continuation && state.boardState.bankPropertyAuctionQueue) {
+          state.boardState.bankPropertyAuctionQueue.continuation = continuation;
+          startNextBankPropertyAuction(state, { now: now.getTime() });
+        } else if (continuation) {
+          resumePaymentContinuation(state, continuation, resolutionOptions);
+        }
+        sendToLog(state, `${buyer.name} đã mua ${listing.tileName} từ ${seller.name}.`);
+        return cancelPendingOffersForAssets(
+          transaction.tradeOffers,
+          actor.roomId,
+          null,
+          [request.tileID],
+          [],
+          now,
+        );
+      }, now, actor);
+      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
+      for (const record of committed.result) {
+        emitOfferResult(io, projectPrivateOffer(record, committed.room), 'offer cancelled', now);
+      }
       broadcastRoom(io, runtime, committed.room);
       acknowledge(successAck(committed.room.aggregateVersion));
-    } catch (error) {
-      acknowledgeFailure(acknowledge, error);
-    }
+    } catch (error) { acknowledgeFailure(acknowledge, error); }
   });
 
   socket.on('make offer', async (rawOffer, acknowledge) => {
     try {
       const request = parsePayload(offerInfoSchema, rawOffer);
       const actor = requirePlayer(socket, runtime);
-      const { roomId, playerId } = actor;
       const now = new Date();
       const offerId = randomUUID();
       const expiresAt = new Date(now.getTime() + OFFER_TTL_MS);
-      const committed = await commitRoomCommand(runtime, roomId, async ({ room, state, transaction }) => {
-        const buyer = state.players[playerId];
-        const ownerPlayerId = state.boardState.ownedProps[request.tileID]?.id;
-        const owner = ownerPlayerId ? state.players[ownerPlayerId] : undefined;
-        if (room.status !== 'IN_PROGRESS' || !buyer || !ownerPlayerId || !owner) {
-          throw new CommandError('CONFLICT', 'This property cannot receive an offer.');
+      const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }) => {
+        const proposer = state.players[actor.playerId];
+        const recipient = state.players[request.recipientPlayerId];
+        if (room.status !== 'IN_PROGRESS' || !proposer || !recipient || actor.playerId === request.recipientPlayerId) {
+          throw new CommandError('CONFLICT', 'Không thể tạo đề nghị giao dịch này.');
         }
-        if (ownerPlayerId === playerId) {
-          throw new CommandError('FORBIDDEN', 'You cannot offer on your own property.');
+        if (request.requested.jailFreeCardIds.length > 0) {
+          throw new CommandError(
+            'INVALID_REQUEST',
+            'Không thể yêu cầu ID Thẻ Thoát Tù riêng tư của người chơi khác; họ phải chủ động đề nghị thẻ.',
+          );
+        }
+        const debtor = activeDebtorId(state);
+        if (debtor && ![actor.playerId, request.recipientPlayerId].includes(debtor)) {
+          throw new CommandError('CONFLICT', 'Trong giai đoạn xử lý nợ, đề nghị phải có người mắc nợ tham gia.');
+        }
+        if (!ownsBundle(state, actor.playerId, request.offered) || !ownsBundle(state, request.recipientPlayerId, request.requested)) {
+          throw new CommandError('CONFLICT', 'Một bên không còn sở hữu tài sản trong gói giao dịch.');
+        }
+        if ([...request.offered.propertyIds, ...request.requested.propertyIds].some((id) => propertyGroupHasBuildings(state, id))) {
+          throw new CommandError('CONFLICT', 'Không thể giao dịch tài sản thuộc nhóm màu còn công trình.');
         }
         return transaction.tradeOffers.create({
           id: offerId,
-          roomId,
-          buyerPlayerId: playerId,
-          ownerPlayerId,
-          tileId: request.tileID,
-          price: request.price,
+          roomId: actor.roomId,
+          proposerPlayerId: actor.playerId,
+          recipientPlayerId: request.recipientPlayerId,
+          offered: request.offered,
+          requested: request.requested,
           expiresAt,
         });
       }, now, actor);
-      if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
+      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
       const offer = projectPrivateOffer(committed.result, committed.room);
-      io.to(privatePlayerRoomName(offer.ownerPlayerId)).emit('offer on prop', offer);
-      broadcastRoom(io, runtime, committed.room);
+      io.to(privatePlayerRoomName(offer.recipientPlayerId)).emit('offer on prop', offer);
       const result: MakeOfferResult = { offerId: offer.offerId, expiresAt: offer.expiresAt };
       acknowledge(successAck(result, committed.room.aggregateVersion));
-    } catch (error) {
-      acknowledgeFailure(acknowledge, error);
-    }
+    } catch (error) { acknowledgeFailure(acknowledge, error); }
   });
 
   socket.on('decline offer', async (rawAction, acknowledge) => {
     try {
       const request = parsePayload(offerActionSchema, rawAction);
       const actor = requirePlayer(socket, runtime);
-      const { roomId, playerId } = actor;
       const now = new Date();
-      const committed = await commitRoomCommand(runtime, roomId, async ({ transaction }) => {
+      const committed = await commitRoomCommand(runtime, actor.roomId, async ({ transaction }) => {
         const offer = await transaction.tradeOffers.findById(request.offerId);
-        if (!offer || offer.roomId !== roomId || offer.ownerPlayerId !== playerId) {
-          throw new CommandError('FORBIDDEN', 'This offer does not belong to you.');
+        if (!offer || offer.roomId !== actor.roomId || offer.recipientPlayerId !== actor.playerId) {
+          throw new CommandError('FORBIDDEN', 'Đề nghị này không thuộc về bạn.');
         }
-        if (offer.expiresAt <= now) {
-          throw new CommandError('CONFLICT', 'This offer has expired.');
-        }
+        if (offer.expiresAt <= now) throw new CommandError('CONFLICT', 'Đề nghị đã hết hạn.');
         const resolved = await transaction.tradeOffers.resolve(offer.id, 'DECLINED', now);
-        if (!resolved) throw new CommandError('CONFLICT', 'This offer is no longer pending.');
+        if (!resolved) throw new CommandError('CONFLICT', 'Đề nghị không còn chờ xử lý.');
         return resolved;
       }, now, actor);
-      if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
-      const offer = projectPrivateOffer(committed.result, committed.room);
-      const result = offerResult(offer, now);
-      io.to(privatePlayerRoomName(offer.buyerPlayerId)).emit('offer declined', result);
-      io.to(privatePlayerRoomName(offer.ownerPlayerId)).emit('offer declined', result);
+      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
+      emitOfferResult(io, projectPrivateOffer(committed.result, committed.room), 'offer declined', now);
       acknowledge(successAck(committed.room.aggregateVersion));
-    } catch (error) {
-      acknowledgeFailure(acknowledge, error);
-    }
+    } catch (error) { acknowledgeFailure(acknowledge, error); }
   });
 
   socket.on('accept offer', async (rawAction, acknowledge) => {
     try {
       const request = parsePayload(offerActionSchema, rawAction);
       const actor = requirePlayer(socket, runtime);
-      const { roomId, playerId } = actor;
       const now = new Date();
-      const committed = await commitRoomCommand(runtime, roomId, async ({ room, state, transaction }) => {
-        if (room.status !== 'IN_PROGRESS') {
-          throw new CommandError('CONFLICT', 'The game is not in progress.');
-        }
+      const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }) => {
+        if (room.status !== 'IN_PROGRESS') throw new CommandError('CONFLICT', 'Ván chơi chưa diễn ra.');
         const offer = await transaction.tradeOffers.findById(request.offerId);
-        if (!offer || offer.roomId !== roomId || offer.ownerPlayerId !== playerId) {
-          throw new CommandError('FORBIDDEN', 'This offer does not belong to you.');
+        if (!offer || offer.roomId !== actor.roomId || offer.recipientPlayerId !== actor.playerId) {
+          throw new CommandError('FORBIDDEN', 'Đề nghị này không thuộc về bạn.');
         }
-        if (offer.expiresAt <= now) {
-          throw new CommandError('CONFLICT', 'This offer has expired.');
+        if (offer.expiresAt <= now) throw new CommandError('CONFLICT', 'Đề nghị đã hết hạn.');
+        const debtor = activeDebtorId(state);
+        if (debtor && ![offer.proposerPlayerId, offer.recipientPlayerId].includes(debtor)) {
+          throw new CommandError('CONFLICT', 'Đề nghị này không liên quan đến khoản nợ đang chờ.');
         }
-        const property = state.boardState.ownedProps[offer.tileId];
-        const owner = state.players[playerId];
-        const buyer = state.players[offer.buyerPlayerId];
-        if (!property || property.id !== playerId || !owner || !buyer) {
-          throw new CommandError('CONFLICT', 'Offer participants or ownership changed.');
-        }
-        if (buyer.accountBalance < offer.price) {
-          throw new CommandError('CONFLICT', 'The buyer can no longer afford this offer.');
-        }
-        const resolved = await transaction.tradeOffers.resolve(offer.id, 'ACCEPTED', now);
-        if (!resolved) throw new CommandError('CONFLICT', 'This offer is no longer pending.');
-
-        owner.accountBalance += offer.price;
-        buyer.accountBalance -= offer.price;
-        property.id = offer.buyerPlayerId;
-        property.color = buyer.color;
-        delete state.boardState.openMarket[offer.tileId];
-        const tileName = tileState[offer.tileId]?.streetName ?? `Tile ${offer.tileId}`;
-        sendToLog(
-          state,
-          `${buyer.name} privately bought ${tileName} from ${owner.name} for $${offer.price}M`,
+        const debtorBalanceBefore = debtor ? state.players[debtor]?.accountBalance : undefined;
+        const previewState = structuredClone(state);
+        const preview = executeVoluntaryTrade(
+          previewState,
+          offer.proposerPlayerId,
+          offer.recipientPlayerId,
+          offer.offered,
+          offer.requested,
         );
-        checkBalance(state, true);
-        return resolved;
+        if (!preview.ok) throw new CommandError('CONFLICT', preview.reason ?? 'Giao dịch không còn hợp lệ.');
+        if (debtor && debtorBalanceBefore !== undefined) {
+          const debtorIsProposer = debtor === offer.proposerPlayerId;
+          const outgoing = debtorIsProposer ? offer.offered : offer.requested;
+          const debtorBalanceAfter = previewState.players[debtor]?.accountBalance ?? -1;
+          if (debtorBalanceAfter < debtorBalanceBefore) {
+            throw new CommandError('CONFLICT', 'Người mắc nợ không được chi thêm tiền trong giai đoạn xử lý nợ.');
+          }
+          if (
+            (outgoing.propertyIds.length > 0 || outgoing.jailFreeCardIds.length > 0)
+            && debtorBalanceAfter <= debtorBalanceBefore
+          ) {
+            throw new CommandError('CONFLICT', 'Người mắc nợ không được chuyển tài sản mà không huy động thêm tiền.');
+          }
+        }
+        const result = executeVoluntaryTrade(
+          state,
+          offer.proposerPlayerId,
+          offer.recipientPlayerId,
+          offer.offered,
+          offer.requested,
+        );
+        if (!result.ok) throw new CommandError('CONFLICT', result.reason ?? 'Giao dịch không còn hợp lệ.');
+        const resolved = await transaction.tradeOffers.resolve(offer.id, 'ACCEPTED', now);
+        if (!resolved) throw new CommandError('CONFLICT', 'Đề nghị không còn chờ xử lý.');
+        const cancelled = await cancelPendingOffersForAssets(
+          transaction.tradeOffers,
+          actor.roomId,
+          offer.id,
+          [...offer.offered.propertyIds, ...offer.requested.propertyIds],
+          [...offer.offered.jailFreeCardIds, ...offer.requested.jailFreeCardIds],
+          now,
+        );
+        if (
+          debtor
+          && debtorBalanceBefore !== undefined
+          && (state.players[debtor]?.accountBalance ?? 0) > debtorBalanceBefore
+        ) {
+          const resolutionOptions = {
+            now: now.getTime(),
+            debtActionTimeoutMs: runtime.timing.debtActionTimeoutMs,
+          };
+          const continuation = continueDebtAfterLiquidity(state, debtor, resolutionOptions);
+          if (continuation && state.boardState.bankPropertyAuctionQueue) {
+            state.boardState.bankPropertyAuctionQueue.continuation = continuation;
+            startNextBankPropertyAuction(state, { now: now.getTime() });
+          } else if (continuation) {
+            resumePaymentContinuation(state, continuation, resolutionOptions);
+          }
+        }
+        sendToLog(state, `${state.players[offer.proposerPlayerId].name} và ${state.players[offer.recipientPlayerId].name} đã hoàn tất giao dịch.`);
+        return { resolved, cancelled };
       }, now, actor);
-      if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
-      const offer = projectPrivateOffer(committed.result, committed.room);
-      const result = offerResult(offer, now);
-      io.to(privatePlayerRoomName(offer.buyerPlayerId)).emit('offer accepted', result);
-      io.to(privatePlayerRoomName(offer.ownerPlayerId)).emit('offer accepted', result);
+      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
+      const offer = projectPrivateOffer(committed.result.resolved, committed.room);
+      emitOfferResult(io, offer, 'offer accepted', now);
+      for (const record of committed.result.cancelled) {
+        emitOfferResult(io, projectPrivateOffer(record, committed.room), 'offer cancelled', now);
+      }
       broadcastRoom(io, runtime, committed.room);
       acknowledge(successAck(committed.room.aggregateVersion));
-    } catch (error) {
-      acknowledgeFailure(acknowledge, error);
-    }
+    } catch (error) { acknowledgeFailure(acknowledge, error); }
   });
 }
 
-function offerResult(
-  offer: ReturnType<typeof projectPrivateOffer>,
-  now: Date,
-): OfferResult {
-  if (offer.status === 'PENDING') {
-    throw new Error('Cannot emit a result for a pending offer');
-  }
+function offerResult(offer: ReturnType<typeof projectPrivateOffer>, now: Date): OfferResult {
+  if (offer.status === 'PENDING') throw new Error('Cannot emit a pending offer result');
   return {
     offerId: offer.offerId,
     status: offer.status,
-    tileID: offer.tileID,
-    tileName: offer.tileName,
-    price: offer.price,
-    ownerName: offer.ownerName,
+    proposerPlayerId: offer.proposerPlayerId,
+    recipientPlayerId: offer.recipientPlayerId,
+    proposerName: offer.proposerName,
+    recipientName: offer.recipientName,
+    offered: offer.offered,
+    requested: offer.requested,
     resolvedAt: offer.resolvedAt ?? now.toISOString(),
   };
+}
+
+function emitOfferResult(
+  io: AppServer,
+  offer: ReturnType<typeof projectPrivateOffer>,
+  event: 'offer declined' | 'offer accepted' | 'offer cancelled',
+  now: Date,
+): void {
+  const result = offerResult(offer, now);
+  io.to(privatePlayerRoomName(offer.proposerPlayerId)).emit(event, result);
+  io.to(privatePlayerRoomName(offer.recipientPlayerId)).emit(event, result);
 }

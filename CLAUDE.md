@@ -1,4 +1,4 @@
-# Hướng dẫn làm việc với Monopoly Websockets
+# Hướng dẫn làm việc với Cờ Tỷ Phú Việt Nam
 
 ## Nguồn sự thật duy nhất
 
@@ -51,6 +51,17 @@ thay đổi chưa hoàn tất.
 - Lifecycle room chỉ tiến `LOBBY → IN_PROGRESS → FINISHED`.
 - Host là stable player; disconnect không transfer host. Lobby cần 2–7 active,
   connected và ready players để host start.
+- Standard Mode dùng board Việt Nam cố định 40 ô, đơn vị số nguyên game-unit
+  (`1 unit = 1.000 VNĐ`) và protocol/snapshot schema v2. Không đổi index hoặc
+  economy chỉ vì đổi nhãn hiển thị.
+- `completeTurnResolution` là điểm duy nhất quyết định `EXTRA_ROLL` hay
+  `ADVANCE_TURN`. `doublesStreak`, `PendingTurnContinuation` nhúng trong các wait,
+  `TurnInfo.pendingPropertyDecision`, `PaymentQueue`, private
+  `GamePrivateState.decks`, `BankPropertyAuctionQueue`, auction/building contention
+  đều thuộc authoritative room aggregate và phải recovery-safe.
+- `DeckState` và thứ tự thẻ không được phát trong public DTO. Client chỉ nhận dữ
+  liệu công khai cần để render; credential, private offer và hidden deck state vẫn
+  giữ ngoài public projection.
 
 ## Quy tắc cập nhật đồng bộ
 
@@ -64,6 +75,9 @@ thay đổi chưa hoàn tất.
   Client lifecycle và restart/reconnect testcase.
 - Đổi tile/card data: rà shared data, presentation duplicates, hard-coded index,
   docs và testcase. Không dọn code/tài liệu không liên quan.
+- Đổi payment/bankruptcy/transfer/building inventory: rà mọi producer của
+  `DebtClaim`, policy transfer, auction continuation, snapshot validation và test
+  restart/reconnect trước khi hoàn tất.
 
 ## Kiểm tra trước khi hoàn tất
 

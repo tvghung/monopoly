@@ -51,10 +51,23 @@ Payload không hợp lệ trả ACK `INVALID_REQUEST`; không được throw do 
 presence, credential/private offer hay runtime timer. Auction dùng `auctionId` và
 ISO `endsAt`; turn recovery dùng stable player/turn/deadline.
 
-## Board/card data
+## Standard Mode contracts và game data
 
-Giữ nguyên index 0–39, color groups, destinations và presentation duplicates. Khi
-đổi static data, đọc [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md).
+- `SOCKET_PROTOCOL_VERSION = 2`; client/server v1 bị từ chối bằng
+  `UPGRADE_REQUIRED`.
+- Board Việt Nam canonical giữ index `0..39`, 8 color groups và toàn bộ numeric
+  economy. Client presentation derive từ shared data, không có metadata duplicate.
+- Shared state định nghĩa `PendingTurnContinuation`,
+  `TurnInfo.pendingPropertyDecision`, `PaymentQueue`/`DebtClaim`,
+  `BankPropertyAuctionQueue`, `BuildingContention`, `Auction.kind`, `TradeBundle`,
+  transfer policy và public deck/card projections.
+- Private persisted `GamePrivateState.decks.chance.drawPile` và
+  `GamePrivateState.decks.chest.drawPile` giữ exact draw order;
+  `heldJailFreeCardIds` nằm trên Player/private player projection. Các ID/order này
+  không thuộc public `GameState`.
+
+Khi đổi static data/contract, đọc
+[Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md).
 
 ## Kiểm tra
 

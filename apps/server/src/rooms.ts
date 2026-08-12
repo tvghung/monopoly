@@ -5,9 +5,16 @@ import type {
   RoomMembershipStatus,
   RoomStatus,
 } from '@monopoly/shared';
+import {
+  allGameCards,
+  colorGroups,
+  createCanonicalDecks,
+  persistedGameStateSchema,
+  tileState,
+} from '@monopoly/shared';
 import { z } from 'zod';
 
-export const ROOM_SNAPSHOT_SCHEMA_VERSION = 1;
+export const ROOM_SNAPSHOT_SCHEMA_VERSION = 2;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 7;
 
@@ -23,45 +30,6 @@ const PLAYER_COLORS = [
 
 const playerIdValueSchema = z.uuid();
 const finiteIntegerSchema = z.number().int().finite().safe();
-const timestampSchema = z.iso.datetime({ offset: true });
-const finishedPlayerSchema = z.strictObject({
-  name: z.string().min(1).max(20),
-  color: z.string().min(1).max(32),
-  reason: z.enum(['BANKRUPT', 'LEFT']).optional(),
-});
-const playerSchema = z.strictObject({
-  name: z.string().min(1).max(20),
-  currentTile: finiteIntegerSchema.min(0).max(39),
-  color: z.string().min(1).max(32),
-  accountBalance: finiteIntegerSchema,
-  isJail: z.boolean(),
-  jailRounds: finiteIntegerSchema.min(0),
-  getOutOfJailCards: finiteIntegerSchema.min(0),
-});
-const ownedPropertySchema = z.strictObject({
-  id: playerIdValueSchema,
-  color: z.string().min(1).max(32),
-  houses: finiteIntegerSchema.min(0).max(5),
-  mortgaged: z.boolean(),
-});
-const openMarketEntrySchema = z.strictObject({
-  seller: playerIdValueSchema,
-  price: finiteIntegerSchema.positive(),
-  sellerName: z.string().min(1).max(20),
-  tileName: z.string().min(1).max(100),
-});
-const auctionSchema = z.strictObject({
-  auctionId: z.uuid(),
-  tileID: finiteIntegerSchema.min(0).max(39),
-  tileName: z.string().min(1).max(100),
-  price: finiteIntegerSchema.min(0),
-  highestBid: finiteIntegerSchema.min(0),
-  highestBidder: playerIdValueSchema.nullable(),
-  highestBidderName: z.string().min(1).max(20).nullable(),
-  active: z.array(playerIdValueSchema).max(MAX_PLAYERS),
-  passed: z.array(playerIdValueSchema).max(MAX_PLAYERS),
-  endsAt: timestampSchema,
-});
 const roomSnapshotSchema = z.strictObject({
   members: z.record(playerIdValueSchema, z.strictObject({
     joinOrder: finiteIntegerSchema.positive(),
@@ -69,38 +37,7 @@ const roomSnapshotSchema = z.strictObject({
     membershipStatus: z.enum(['ACTIVE', 'FINISHED', 'LEFT']),
   })),
   nextJoinOrder: finiteIntegerSchema.positive(),
-  gameState: z.strictObject({
-    boardState: z.strictObject({
-      gameStarted: z.boolean(),
-      players: z.array(playerIdValueSchema).max(MAX_PLAYERS),
-      finishedPlayers: z.record(playerIdValueSchema, finishedPlayerSchema),
-      currentPlayer: z.strictObject({
-        id: z.union([z.literal(''), playerIdValueSchema]),
-        hasMoved: z.boolean(),
-      }),
-      turnNumber: finiteIntegerSchema.min(0),
-      turnRecovery: z.strictObject({
-        turnNumber: finiteIntegerSchema.min(0),
-        playerId: playerIdValueSchema,
-        deadlineAt: timestampSchema,
-      }).nullable(),
-      logs: z.array(z.string().max(2_000)).max(500),
-      diceValue: z.strictObject({
-        dice1: finiteIntegerSchema.min(0).max(6),
-        dice2: finiteIntegerSchema.min(0).max(6),
-      }),
-      ownedProps: z.record(z.string().regex(/^\d+$/), ownedPropertySchema),
-      openMarket: z.record(z.string().regex(/^\d+$/), openMarketEntrySchema),
-      winner: finishedPlayerSchema.extend({
-        playerId: playerIdValueSchema,
-      }).nullable(),
-      auction: auctionSchema.nullable(),
-    }),
-    players: z.record(playerIdValueSchema, playerSchema),
-    turnInfo: z.strictObject({
-      canBuyProp: z.boolean().optional(),
-    }),
-  }),
+  gameState: persistedGameStateSchema,
 });
 
 export interface RoomMember {
@@ -146,7 +83,7 @@ export const freshState = (): GameState => ({
     gameStarted: false,
     players: [],
     finishedPlayers: {},
-    currentPlayer: { id: '', hasMoved: false },
+    currentPlayer: { id: '', hasMoved: false, doublesStreak: 0 },
     turnNumber: 0,
     turnRecovery: null,
     logs: [],
@@ -155,9 +92,13 @@ export const freshState = (): GameState => ({
     openMarket: {},
     winner: null,
     auction: null,
+    buildingContention: null,
+    paymentQueue: null,
+    bankPropertyAuctionQueue: null,
   },
   players: {},
   turnInfo: {},
+  privateState: { decks: createCanonicalDecks() },
   loaded: true,
 });
 
@@ -167,6 +108,7 @@ export const createRoomSnapshot = (): RoomSnapshot => {
     boardState: state.boardState,
     players: state.players,
     turnInfo: state.turnInfo,
+    privateState: state.privateState,
   };
   return { members: {}, nextJoinOrder: 1, gameState };
 };
@@ -194,6 +136,7 @@ export const storeGameState = (
     boardState: durableState.boardState,
     players: durableState.players,
     turnInfo: durableState.turnInfo,
+    privateState: durableState.privateState,
   };
 };
 
@@ -232,6 +175,8 @@ export const calculateNextActionAt = (snapshot: RoomSnapshot): Date | null => {
   const deadlines = [
     snapshot.gameState.boardState.auction?.endsAt,
     snapshot.gameState.boardState.turnRecovery?.deadlineAt,
+    snapshot.gameState.boardState.paymentQueue?.actionDeadlineAt,
+    snapshot.gameState.boardState.buildingContention?.endsAt,
   ]
     .filter((value): value is string => typeof value === 'string')
     .map((value) => new Date(value))
@@ -264,6 +209,20 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
     ...(state.boardState.auction?.passed ?? []),
     state.boardState.auction?.highestBidder,
     state.boardState.turnRecovery?.playerId,
+    state.turnInfo.pendingPropertyDecision?.playerId,
+    ...Object.values(state.boardState.buildingContention?.requests ?? {}).map(
+      (request) => request.playerId,
+    ),
+    ...Object.values(
+      state.boardState.auction?.kind === 'BUILDING' ? state.boardState.auction.requests : {},
+    ).map((request) => request.playerId),
+    ...(state.boardState.paymentQueue?.orderedClaims.flatMap((claim) => [
+      claim.debtorPlayerId,
+      claim.creditorPlayerId,
+    ]) ?? []),
+    state.boardState.paymentQueue?.continuation.playerId,
+    state.boardState.auction?.continuation?.playerId,
+    state.boardState.bankPropertyAuctionQueue?.continuation.playerId,
   ];
 
   for (const reference of references) {
@@ -317,6 +276,12 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
   }
 
   const auction = state.boardState.auction;
+  if (state.boardState.paymentQueue && auction) {
+    throw new Error('Room snapshot cannot run a live auction during debt resolution');
+  }
+  if (auction && state.boardState.buildingContention) {
+    throw new Error('Room snapshot cannot contain an auction and building contention together');
+  }
   if (auction) {
     if (new Set(auction.active).size !== auction.active.length) {
       throw new Error('Room snapshot auction contains duplicate participants');
@@ -332,6 +297,21 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
     }
   }
 
+  const bankQueue = state.boardState.bankPropertyAuctionQueue;
+  if (bankQueue?.currentAuctionId) {
+    if (
+      !auction
+      || auction.kind !== 'PROPERTY'
+      || auction.source !== 'BANKRUPTCY'
+      || auction.auctionId !== bankQueue.currentAuctionId
+      || auction.tileID !== bankQueue.currentTileId
+    ) {
+      throw new Error('Room snapshot Bank auction queue does not match the live auction');
+    }
+  } else if (auction?.kind === 'PROPERTY' && auction.source === 'BANKRUPTCY') {
+    throw new Error('Room snapshot Bank auction has no matching durable queue');
+  }
+
   const recovery = state.boardState.turnRecovery;
   if (recovery && (
     recovery.playerId !== state.boardState.currentPlayer.id
@@ -339,13 +319,139 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
   )) {
     throw new Error('Room snapshot turn recovery does not match the current turn');
   }
+
+  const decision = state.turnInfo.pendingPropertyDecision;
+  if (decision && state.boardState.buildingContention) {
+    throw new Error('Room snapshot cannot contain a property decision and building contention together');
+  }
+  if (decision && (
+    decision.playerId !== state.boardState.currentPlayer.id
+    || decision.continuation.playerId !== decision.playerId
+    || decision.continuation.turnNumber !== state.boardState.turnNumber
+  )) {
+    throw new Error('Room snapshot property decision does not match the current turn');
+  }
+
+  const currentTurnMatches = (playerId: PlayerId, turnNumber: number): boolean => (
+    playerId === state.boardState.currentPlayer.id
+    && turnNumber === state.boardState.turnNumber
+  );
+  const paymentContinuation = state.boardState.paymentQueue?.continuation;
+  if (paymentContinuation && !currentTurnMatches(
+    paymentContinuation.playerId,
+    paymentContinuation.turnNumber,
+  )) {
+    throw new Error('Room snapshot payment continuation does not match the current turn');
+  }
+  const auctionContinuation = state.boardState.auction?.continuation;
+  if (auctionContinuation && !currentTurnMatches(
+    auctionContinuation.playerId,
+    auctionContinuation.turnNumber,
+  )) {
+    throw new Error('Room snapshot auction continuation does not match the current turn');
+  }
+  const bankContinuation = state.boardState.bankPropertyAuctionQueue?.continuation;
+  if (bankContinuation && !currentTurnMatches(
+    bankContinuation.playerId,
+    bankContinuation.turnNumber,
+  )) {
+    throw new Error('Room snapshot Bank queue continuation does not match the current turn');
+  }
+
+  let housesOnBoard = 0;
+  let hotelsOnBoard = 0;
+  const builtGroups = new Set<string>();
+  for (const [tileKey, property] of Object.entries(state.boardState.ownedProps)) {
+    const tileID = Number(tileKey);
+    const tile = tileState[tileID];
+    if (!state.players[property.id]) {
+      throw new Error(`Room snapshot property ${tileID} has no live owner`);
+    }
+    if (!tile || !['normal', 'railroad', 'company'].includes(tile.tileType)) {
+      throw new Error(`Room snapshot property ${tileID} is not purchasable`);
+    }
+    if (property.mortgaged && property.houses > 0) {
+      throw new Error(`Room snapshot property ${tileID} is mortgaged with buildings`);
+    }
+    if (tile.tileType !== 'normal' && property.houses > 0) {
+      throw new Error(`Room snapshot non-street property ${tileID} has buildings`);
+    }
+    if (property.houses === 5) hotelsOnBoard += 1;
+    else housesOnBoard += property.houses;
+    if (property.houses > 0 && tile.color) builtGroups.add(tile.color);
+  }
+  if (housesOnBoard > 32 || hotelsOnBoard > 12) {
+    throw new Error('Room snapshot exceeds the physical Bank building inventory');
+  }
+  for (const color of builtGroups) {
+    const group = colorGroups[color] ?? [];
+    const properties = group.map((tileID) => state.boardState.ownedProps[tileID]);
+    const ownerId = properties[0]?.id;
+    if (
+      !ownerId
+      || properties.some((property) => !property || property.id !== ownerId || property.mortgaged)
+    ) {
+      throw new Error(`Room snapshot built group ${color} lacks one valid owner`);
+    }
+    const levels = properties.map((property) => property.houses);
+    if (Math.max(...levels) - Math.min(...levels) > 1) {
+      throw new Error(`Room snapshot built group ${color} violates even building`);
+    }
+  }
+
+  const buildingWait = state.boardState.buildingContention
+    ?? (state.boardState.auction?.kind === 'BUILDING' ? state.boardState.auction : null);
+  if (buildingWait) {
+    const requests = Object.entries(buildingWait.requests);
+    if (requests.length === 0) throw new Error('Room snapshot building wait has no claimants');
+    for (const [playerId, request] of requests) {
+      const property = state.boardState.ownedProps[request.tileID];
+      const expectedType = property?.houses === 4 ? 'HOTEL' : 'HOUSE';
+      if (
+        request.playerId !== playerId
+        || request.buildingType !== buildingWait.buildingType
+        || expectedType !== buildingWait.buildingType
+        || property?.id !== playerId
+      ) {
+        throw new Error('Room snapshot building request target is inconsistent');
+      }
+    }
+    const available = buildingWait.buildingType === 'HOUSE'
+      ? 32 - housesOnBoard
+      : 12 - hotelsOnBoard;
+    if (available < 1) throw new Error('Room snapshot building wait has no physical unit reserved');
+  }
+
+  const knownCards = new Map(allGameCards.map((card) => [card.id, card]));
+  const knownCardIds = new Set(knownCards.keys());
+  const chancePile = state.privateState.decks.chance.drawPile;
+  const chestPile = state.privateState.decks.chest.drawPile;
+  if (chancePile.some((cardId) => knownCards.get(cardId)?.sourceDeck !== 'chance')) {
+    throw new Error('Room snapshot chance deck contains a card from another deck');
+  }
+  if (chestPile.some((cardId) => knownCards.get(cardId)?.sourceDeck !== 'chest')) {
+    throw new Error('Room snapshot chest deck contains a card from another deck');
+  }
+  for (const player of Object.values(state.players)) {
+    if (player.heldJailFreeCardIds.some((cardId) => !knownCards.get(cardId)?.getOutOfJailFree)) {
+      throw new Error('Room snapshot player holds a non-jail-free card');
+    }
+  }
+  const cardLocations = [
+    ...chancePile,
+    ...chestPile,
+    ...Object.values(state.players).flatMap((player) => player.heldJailFreeCardIds),
+  ];
+  if (
+    cardLocations.some((cardId) => !knownCardIds.has(cardId))
+    || new Set(cardLocations).size !== cardLocations.length
+    || cardLocations.length !== knownCardIds.size
+  ) {
+    throw new Error('Room snapshot card ownership/deck state is inconsistent');
+  }
 };
 
-/**
- * Version 1 is the first durable format, so there is no legacy snapshot to
- * transform yet. Rejecting every other version prevents newer/older JSON from
- * being interpreted with the wrong domain model.
- */
+/** V1 rows are reset transactionally by migration 003; runtime accepts v2 only. */
 export const assertSupportedRoomSnapshot = (
   room: PersistedRoomSnapshotEnvelope,
 ): void => {
@@ -388,6 +494,9 @@ export const assertSupportedRoomSnapshot = (
     && (
       room.gameSnapshot.gameState.boardState.auction
       || room.gameSnapshot.gameState.boardState.turnRecovery
+      || room.gameSnapshot.gameState.boardState.paymentQueue
+      || room.gameSnapshot.gameState.boardState.buildingContention
+      || room.gameSnapshot.gameState.boardState.bankPropertyAuctionQueue
     )
   ) {
     throw new Error('Finished room contains a live runtime operation');

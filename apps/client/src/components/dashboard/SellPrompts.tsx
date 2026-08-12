@@ -1,26 +1,137 @@
-import { useContext, useState } from 'react';
+import {
+  useCallback, useContext, useEffect, useRef, useState,
+} from 'react';
+import {
+  colorGroups,
+  gameCardsById,
+  tileState,
+} from '@monopoly/shared';
+import type { GameCardId, PublicGameState } from '@monopoly/shared';
 import { motion, AnimatePresence } from 'framer-motion';
 import stateContext from '../../internal';
 import sellPromptContext from '../../sellPromptContext';
-import tileNames from '../BoardInitState';
+import {
+  formatMoney,
+  getMortgageTransferSurcharge,
+  getTileName,
+} from '../../presentation';
 import { useModalMotion } from './useModalMotion';
 
-// The two owner-initiated sale dialogs, driven by sellPromptContext: put a
-// property on the open market at a set price, or make a private offer for one.
-// Both are dismissible by clicking the backdrop or the ❌.
+function groupHasBuildings(
+  ownedProps: PublicGameState['boardState']['ownedProps'],
+  tileId: number,
+): boolean {
+  const color = tileState[tileId]?.color;
+  const group = color ? colorGroups[color] ?? [tileId] : [tileId];
+  return group.some(groupTileId => (ownedProps[groupTileId]?.houses ?? 0) > 0);
+}
+
+function cardLabel(cardId: GameCardId): string {
+  const deck = gameCardsById[cardId]?.sourceDeck;
+  const source = deck === 'chance' ? 'Cơ Hội' : deck === 'chest' ? 'Khí Vận' : null;
+  return `Thẻ Thoát Tù Miễn Phí${source ? ` (${source})` : ''}`;
+}
+
+function toggleNumber(values: number[], value: number, checked: boolean): number[] {
+  return checked ? [...values, value] : values.filter(current => current !== value);
+}
+
+function toggleCard(values: GameCardId[], value: GameCardId, checked: boolean): GameCardId[] {
+  return checked ? [...values, value] : values.filter(current => current !== value);
+}
+
 export default function SellPrompts() {
-  const { state, socketFunctions } = useContext(stateContext);
+  const {
+    state, socketFunctions, playerId, privatePlayerState,
+  } = useContext(stateContext);
   const {
     openSale, setOpenSale, privateSale, setPrivateSale,
   } = useContext(sellPromptContext);
   const { backdropMotion, modalMotion } = useModalMotion();
   const [priceInput, setPriceInput] = useState(0);
-  const [offer, setOffer] = useState(0);
+  const [offeredCash, setOfferedCash] = useState(0);
+  const [requestedCash, setRequestedCash] = useState(0);
+  const [offeredPropertyIds, setOfferedPropertyIds] = useState<number[]>([]);
+  const [requestedPropertyIds, setRequestedPropertyIds] = useState<number[]>([]);
+  const [offeredJailFreeCardIds, setOfferedJailFreeCardIds] = useState<GameCardId[]>([]);
+  const previousFocus = useRef<HTMLElement | null>(null);
 
-  const removeSellPropPrompt = () => {
+  const recipientPlayerId = privateSale
+    ? state.boardState.ownedProps[privateSale.tileID]?.id ?? null
+    : null;
+  const recipient = recipientPlayerId ? state.players[recipientPlayerId] : undefined;
+  const heldJailFreeCardIds = privatePlayerState?.playerId === playerId
+    ? [...new Set(privatePlayerState.heldJailFreeCardIds)]
+    : [];
+  const propertyIds = Object.keys(state.boardState.ownedProps).map(Number);
+  const offeredPropertyOptions = propertyIds.filter(
+    tileId => state.boardState.ownedProps[tileId]?.id === playerId,
+  );
+  const requestedPropertyOptions = propertyIds.filter(
+    tileId => state.boardState.ownedProps[tileId]?.id === recipientPlayerId,
+  );
+
+  const offeredMortgageSurcharge = offeredPropertyIds.reduce((sum, tileId) => (
+    sum + (state.boardState.ownedProps[tileId]?.mortgaged
+      ? getMortgageTransferSurcharge(tileId)
+      : 0)
+  ), 0);
+  const requestedMortgageSurcharge = requestedPropertyIds.reduce((sum, tileId) => (
+    sum + (state.boardState.ownedProps[tileId]?.mortgaged
+      ? getMortgageTransferSurcharge(tileId)
+      : 0)
+  ), 0);
+  const hasBundleValue = offeredCash > 0
+    || requestedCash > 0
+    || offeredPropertyIds.length > 0
+    || requestedPropertyIds.length > 0
+    || offeredJailFreeCardIds.length > 0;
+
+  const removeSellPropPrompt = useCallback(() => {
     setOpenSale(false);
     setPrivateSale(false);
-  };
+    window.requestAnimationFrame(() => previousFocus.current?.focus());
+  }, [setOpenSale, setPrivateSale]);
+
+  useEffect(() => {
+    if (!privateSale) return;
+    const requestedTileId = privateSale.tileID;
+    setOfferedCash(0);
+    setRequestedCash(0);
+    setOfferedPropertyIds([]);
+    setOfferedJailFreeCardIds([]);
+    setRequestedPropertyIds([requestedTileId]);
+  }, [privateSale, recipientPlayerId]);
+
+  useEffect(() => {
+    const heldCards = new Set(
+      privatePlayerState?.playerId === playerId
+        ? privatePlayerState.heldJailFreeCardIds
+        : [],
+    );
+    setOfferedJailFreeCardIds(current => current.filter(cardId => heldCards.has(cardId)));
+  }, [privatePlayerState, playerId]);
+
+  useEffect(() => {
+    setOfferedPropertyIds(current => current.filter(tileId => (
+      state.boardState.ownedProps[tileId]?.id === playerId
+      && !groupHasBuildings(state.boardState.ownedProps, tileId)
+    )));
+    setRequestedPropertyIds(current => current.filter(tileId => (
+      state.boardState.ownedProps[tileId]?.id === recipientPlayerId
+      && !groupHasBuildings(state.boardState.ownedProps, tileId)
+    )));
+  }, [playerId, recipientPlayerId, state.boardState.ownedProps]);
+
+  useEffect(() => {
+    if (!openSale && !privateSale) return undefined;
+    previousFocus.current = document.activeElement as HTMLElement | null;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') removeSellPropPrompt();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [openSale, privateSale, removeSellPropPrompt]);
 
   return (
     <>
@@ -30,47 +141,59 @@ export default function SellPrompts() {
             <motion.div
               key="open-sale-modal"
               className="modal__overlay"
-              role="presentation"
               onClick={removeSellPropPrompt}
               {...backdropMotion}
             >
               <motion.article
                 className="modal__card open-market__sell-toast"
-                role="presentation"
-                onClick={e => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="open-sale-title"
+                onClick={event => event.stopPropagation()}
                 {...modalMotion}
               >
-                <h3 role="presentation" className="open-market__sell-toast__close" onClick={removeSellPropPrompt}>❌</h3>
-                <h3 className="open-market__sell-toast__title">
-                  Sell
-                  {' '}
-                  {tileNames[openSale.tileID].streetName}
-                  {' '}
-                  for:
-                </h3>
+                <button type="button" className="open-market__sell-toast__close" aria-label="Đóng" onClick={removeSellPropPrompt}>×</button>
+                <h2 id="open-sale-title" className="open-market__sell-toast__title">
+                  Đăng bán {getTileName(openSale.tileID)}
+                </h2>
+                {state.boardState.ownedProps[openSale.tileID]?.mortgaged
+                  ? (
+                    <p className="trade-mortgage-note">
+                      Tài sản đang cầm cố. Người mua trả thêm
+                      {' '}
+                      {formatMoney(getMortgageTransferSurcharge(openSale.tileID))}
+                      {' '}
+                      lãi chuyển nhượng, bằng 10% giá trị cầm cố.
+                    </p>
+                  )
+                  : null}
                 <form
-                  onSubmit={e => {
-                    e.preventDefault();
-                    if (openSale) {
-                      socketFunctions.putOpenMarket({ ...openSale, price: priceInput });
-                    }
+                  onSubmit={event => {
+                    event.preventDefault();
+                    socketFunctions.putOpenMarket({ ...openSale, price: priceInput });
                     setPriceInput(0);
-                    setOpenSale(false);
+                    removeSellPropPrompt();
                   }}
                   className="open-market__sell-toast__form"
                 >
-                  <label htmlFor="open-sale-price"> Input in millions. (e.g. 200 = $200M)</label>
+                  <label htmlFor="open-sale-price">
+                    Giá theo đơn vị nghìn đồng (ví dụ: 200 = {formatMoney(200)})
+                  </label>
                   <div className="open-market__sell-toast__input--container">
                     <input
                       id="open-sale-price"
                       className="open-market__sell-toast__input"
-                      onChange={e => setPriceInput(parseInt(e.target.value, 10))}
+                      value={priceInput || ''}
+                      onChange={event => setPriceInput(parseInt(event.target.value, 10) || 0)}
                       type="number"
                       min="20"
+                      step="1"
+                      required
                       autoFocus
                     />
-                    <button className="open-market__sell-toast__button" type="submit">Put on the open market</button>
+                    <button className="open-market__sell-toast__button" type="submit" disabled={priceInput < 20}>Đăng lên thị trường</button>
                   </div>
+                  {priceInput > 0 ? <output>Giá bán: {formatMoney(priceInput)}</output> : null}
                 </form>
               </motion.article>
             </motion.div>
@@ -83,45 +206,178 @@ export default function SellPrompts() {
             <motion.div
               key="private-sale-modal"
               className="modal__overlay"
-              role="presentation"
               onClick={removeSellPropPrompt}
               {...backdropMotion}
             >
               <motion.article
-                className="modal__card open-market__sell-toast"
-                role="presentation"
-                onClick={e => e.stopPropagation()}
+                className="modal__card open-market__sell-toast trade-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="private-offer-title"
+                onClick={event => event.stopPropagation()}
                 {...modalMotion}
               >
-                <h3 role="presentation" className="open-market__sell-toast__close" onClick={removeSellPropPrompt}>❌</h3>
-                <h3 className="open-market__sell-toast__title">
-                  Make offer for
-                  {' '}
-                  {tileNames[privateSale.tileID].streetName}
-                  {' '}
-                  for:
-                </h3>
+                <button type="button" className="open-market__sell-toast__close" aria-label="Đóng" onClick={removeSellPropPrompt}>×</button>
+                <h2 id="private-offer-title" className="open-market__sell-toast__title">
+                  Giao dịch với {recipient?.name ?? 'người sở hữu tài sản'}
+                </h2>
+                <p className="trade-modal__lead">
+                  Gói đề nghị ban đầu yêu cầu {getTileName(privateSale.tileID)}. Bạn có thể chọn thêm tiền và nhiều tài sản ở cả hai phía.
+                </p>
                 <form
-                  onSubmit={e => {
-                    e.preventDefault();
-                    if (privateSale) socketFunctions.makeOffer({ ...privateSale, price: offer });
-                    setOffer(0);
-                    setPrivateSale(false);
+                  onSubmit={event => {
+                    event.preventDefault();
+                    if (!recipientPlayerId || recipientPlayerId === playerId || !hasBundleValue) return;
+                    socketFunctions.makeOffer({
+                      recipientPlayerId,
+                      offered: {
+                        cash: offeredCash,
+                        propertyIds: offeredPropertyIds,
+                        jailFreeCardIds: offeredJailFreeCardIds,
+                      },
+                      requested: {
+                        cash: requestedCash,
+                        propertyIds: requestedPropertyIds,
+                        // Exact ids held by another player are private. Never infer
+                        // them from the public count or guess their source deck.
+                        jailFreeCardIds: [],
+                      },
+                    });
+                    removeSellPropPrompt();
                   }}
-                  className="open-market__sell-toast__form"
+                  className="open-market__sell-toast__form trade-form"
                 >
-                  <label htmlFor="private-offer-price">Input in millions. e.g. 200 = $200M</label>
-                  <div className="open-market__sell-toast__input--container">
-                    <input
-                      id="private-offer-price"
-                      className="open-market__sell-toast__input"
-                      onChange={e => setOffer(parseInt(e.target.value, 10))}
-                      type="number"
-                      min="20"
-                      autoFocus
-                    />
-                    <button className="open-market__sell-toast__button" type="submit">Make offer</button>
+                  <div className="trade-form__bundles">
+                    <fieldset className="trade-bundle">
+                      <legend>Bạn giao</legend>
+                      <label htmlFor="private-offer-cash">
+                        Tiền (đơn vị nghìn đồng)
+                      </label>
+                      <input
+                        id="private-offer-cash"
+                        className="open-market__sell-toast__input"
+                        value={offeredCash || ''}
+                        onChange={event => setOfferedCash(parseInt(event.target.value, 10) || 0)}
+                        type="number"
+                        min="0"
+                        step="1"
+                        autoFocus
+                      />
+                      {offeredCash > 0 ? <output>{formatMoney(offeredCash)}</output> : null}
+                      <span className="trade-bundle__label">Tài sản</span>
+                      {offeredPropertyOptions.length > 0
+                        ? offeredPropertyOptions.map(tileId => {
+                          const property = state.boardState.ownedProps[tileId];
+                          const unavailable = groupHasBuildings(state.boardState.ownedProps, tileId);
+                          return (
+                            <label className="trade-asset" key={tileId}>
+                              <input
+                                type="checkbox"
+                                checked={offeredPropertyIds.includes(tileId)}
+                                disabled={unavailable}
+                                onChange={event => setOfferedPropertyIds(current => (
+                                  toggleNumber(current, tileId, event.target.checked)
+                                ))}
+                              />
+                              <span>
+                                {getTileName(tileId)}
+                                {property?.mortgaged
+                                  ? ` — đang cầm cố; ${recipient?.name ?? 'người nhận'} trả thêm ${formatMoney(getMortgageTransferSurcharge(tileId))} (10% giá trị cầm cố)`
+                                  : ''}
+                                {unavailable ? ' — phải bán hết công trình trong nhóm màu trước' : ''}
+                              </span>
+                            </label>
+                          );
+                        })
+                        : <span className="trade-bundle__empty">Bạn chưa có tài sản để giao.</span>}
+                      <span className="trade-bundle__label">Thẻ Thoát Tù Miễn Phí</span>
+                      {privatePlayerState === null
+                        ? <span className="trade-bundle__empty">Đang đồng bộ danh sách thẻ riêng của bạn…</span>
+                        : heldJailFreeCardIds.length > 0
+                          ? heldJailFreeCardIds.map(cardId => (
+                            <label className="trade-asset" key={cardId}>
+                              <input
+                                type="checkbox"
+                                checked={offeredJailFreeCardIds.includes(cardId)}
+                                onChange={event => setOfferedJailFreeCardIds(current => (
+                                  toggleCard(current, cardId, event.target.checked)
+                                ))}
+                              />
+                              <span>{cardLabel(cardId)}</span>
+                            </label>
+                          ))
+                          : <span className="trade-bundle__empty">Bạn không giữ thẻ nào.</span>}
+                    </fieldset>
+
+                    <fieldset className="trade-bundle">
+                      <legend>Bạn nhận</legend>
+                      <label htmlFor="private-request-cash">
+                        Tiền (đơn vị nghìn đồng)
+                      </label>
+                      <input
+                        id="private-request-cash"
+                        className="open-market__sell-toast__input"
+                        value={requestedCash || ''}
+                        onChange={event => setRequestedCash(parseInt(event.target.value, 10) || 0)}
+                        type="number"
+                        min="0"
+                        step="1"
+                      />
+                      {requestedCash > 0 ? <output>{formatMoney(requestedCash)}</output> : null}
+                      <span className="trade-bundle__label">Tài sản</span>
+                      {requestedPropertyOptions.length > 0
+                        ? requestedPropertyOptions.map(tileId => {
+                          const property = state.boardState.ownedProps[tileId];
+                          const unavailable = groupHasBuildings(state.boardState.ownedProps, tileId);
+                          return (
+                            <label className="trade-asset" key={tileId}>
+                              <input
+                                type="checkbox"
+                                checked={requestedPropertyIds.includes(tileId)}
+                                disabled={unavailable}
+                                onChange={event => setRequestedPropertyIds(current => (
+                                  toggleNumber(current, tileId, event.target.checked)
+                                ))}
+                              />
+                              <span>
+                                {getTileName(tileId)}
+                                {property?.mortgaged
+                                  ? ` — đang cầm cố; bạn trả thêm ${formatMoney(getMortgageTransferSurcharge(tileId))} (10% giá trị cầm cố)`
+                                  : ''}
+                                {unavailable ? ' — phải bán hết công trình trong nhóm màu trước' : ''}
+                              </span>
+                            </label>
+                          );
+                        })
+                        : <span className="trade-bundle__empty">Người chơi này chưa có tài sản có thể giao.</span>}
+                      <span className="trade-bundle__label">Thẻ Thoát Tù Miễn Phí</span>
+                      <span id="requested-card-privacy" className="trade-bundle__empty">
+                        {recipient?.getOutOfJailCardCount
+                          ? `${recipient.name} đang giữ ${recipient.getOutOfJailCardCount} thẻ, nhưng danh tính thẻ là dữ liệu riêng. Bạn không thể yêu cầu một ID thẻ cụ thể; hãy nhờ họ chủ động gửi đề nghị có thẻ.`
+                          : 'Không có thẻ công khai để yêu cầu. Danh tính thẻ của người khác luôn được giữ riêng.'}
+                      </span>
+                    </fieldset>
                   </div>
+
+                  {offeredMortgageSurcharge > 0 || requestedMortgageSurcharge > 0
+                    ? (
+                      <p className="trade-mortgage-note">
+                        Phí cầm cố nộp ngay cho Ngân hàng khi nhận tài sản:
+                        {' '}
+                        bạn trả {formatMoney(requestedMortgageSurcharge)};
+                        {' '}
+                        {recipient?.name ?? 'bên kia'} trả {formatMoney(offeredMortgageSurcharge)}.
+                        Mỗi khoản bằng 10% giá trị cầm cố và không nằm trong số tiền đổi giữa hai bên.
+                      </p>
+                    )
+                    : null}
+                  <button
+                    className="open-market__sell-toast__button"
+                    type="submit"
+                    disabled={!recipientPlayerId || recipientPlayerId === playerId || !hasBundleValue}
+                  >
+                    Gửi đề nghị
+                  </button>
                 </form>
               </motion.article>
             </motion.div>

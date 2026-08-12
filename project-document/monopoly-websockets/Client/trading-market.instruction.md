@@ -1,49 +1,37 @@
-# Trading: open market và durable private offers
+# TradeBundle, open market và durable private offers
 
-## Code
+## Trade model
 
-- `MarketPlace.tsx`, `BackOfCard.tsx`, `dashboard/SellPrompts.tsx`
-- `dashboard/useIncomingOffers.ts`, `dashboard/IncomingOffers.tsx`
-- `App.tsx` typed command wrappers
+- `TradeBundle` có `offered` và `requested`, mỗi side gồm money, property IDs và
+  jail-free Card IDs. Không trao đổi trực tiếp Nhà/Khách Sạn.
+- UI cho chọn only authoritative assets của mỗi bên, format money VNĐ và preview
+  mortgage interest. Server derive actor/owner và revalidate lúc create/accept.
+- Property thuộc color group còn building không được chọn cho transfer; player phải
+  bán building trước.
 
 ## Open market
 
-- Listing request is `{tileID, price}`; seller is authenticated actor.
-- Buy/remove requests are `{tileID}`; buyer/seller are derived server-side.
-- Price must be a positive integer no greater than `2_147_483_647`; the server revalidates ownership,
-  listing, balance and room/player status at commit.
-- Authoritative market state only changes on committed update. Local prompt may close
-  after emit; ACK failure is surfaced rather than fabricating a transfer. Reconnecting/
-  spectator disables or hides actions.
+- Listing là trường hợp `VOLUNTARY` price-for-property đơn giản; seller từ
+  authenticated actor. Buy/remove revalidate listing, ownership, balance, building,
+  mortgage interest và active debt state trong một transaction.
+- Mortgaged transfer giữ mortgage; buyer trả 10% mortgage value ngay cho Bank qua
+  payment rule, rồi normal unmortgage vẫn là principal +10%.
 
-## Private offers
+## Durable private offer
 
-1. Buyer sends `{tileID, price}`.
-2. Success ACK returns unique `offerId` and authoritative `expiresAt`.
-3. Owner receives private `offer on prop(PrivateOffer)`.
-4. Accept/decline sends only `{offerId}`.
-5. Server revalidates pending status, expiry, room, buyer/owner, ownership, balance
-   and price in the same transaction as property transfer.
-6. Buyer/owner receive authoritative accepted/declined/expired/cancelled result.
+1. Buyer gửi canonical offered/requested bundle, không gửi actor/owner.
+2. Success ACK trả unique `offerId` + authoritative `expiresAt`.
+3. Owner nhận private offer; accept/decline chỉ dùng `{offerId}`.
+4. Server reload canonical persisted terms, revalidate participants/assets/funds/
+   building/mortgage/debt, apply `VOLUNTARY` transfer once rồi resolve offer.
 
-Offer records and 20-second expiry are server/PostgreSQL authoritative. Client
-derives countdown from `expiresAt`; it does not own an expiry timer that authorizes
-acceptance. Resume ACK restores pending private offers. Multiple offers on one tile
-are safe because UI keys by `offerId`, not tile index. Explicit player leave cancels
-their pending offers and the client removes them on `offer cancelled`.
+Offer row/PostgreSQL và 20-second absolute expiry là authority. Resume trả pending
+offers relevant; same-tile offers key by ID. Expiry/leave cancels exactly once và
+private events không xuất hiện trong public state.
 
-## Privacy/security
+## Tests
 
-- Offer payload never accepts client-supplied player/owner/seller names or IDs.
-- Private events use `player:<stablePlayerId>` Socket.IO rooms.
-- Offers never appear in public `update`.
-- Fabricated, replayed, expired and cross-room offer IDs fail through typed ACK.
-
-## Required tests
-
-- Listing ownership/balance/invalid tile/price and save-failure behavior.
-- Private targeting, same-tile multiple offers and resume restoration.
-- Spoof/replay/cross-room/expired/duplicate accept rejection.
-- Accept transaction updates balances/ownership/listing exactly once.
-- DB/server restart preserves pending offers and absolute expiry.
-- StrictMode listeners/timers clean up without duplicate toast/actions.
+- Money/property/card bundle create/accept và invalid duplicate/not-owned assets.
+- Group-building guard; mortgaged transfer + immediate interest.
+- Spoof/replay/cross-room/expiry/multiple offer/private routing.
+- Restart/resume/expiry and failed commit atomicity.

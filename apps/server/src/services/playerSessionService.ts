@@ -63,7 +63,7 @@ export class PlayerSessionService {
     now = new Date(),
   ): Promise<BeginAdmissionResult> {
     const roomCode = normalizeRoomId(rawRoomCode);
-    const name = sanitizeName(rawName) || 'Player';
+    const name = sanitizeName(rawName) || 'Người chơi';
     const token = randomBytes(32).toString('base64url');
     const expiresAt = addMilliseconds(now, this.timing.pendingSessionTtlMs);
 
@@ -265,10 +265,10 @@ export class PlayerSessionService {
       accountBalance: 1500,
       isJail: false,
       jailRounds: 0,
-      getOutOfJailCards: 0,
+      heldJailFreeCardIds: [],
     };
     snapshot.gameState.boardState.players = activePlayerIds(snapshot);
-    sendToLog(snapshot.gameState, `${name} joined the game as ${color}`);
+    sendToLog(snapshot.gameState, `${name} đã tham gia phòng.`);
   }
 
   private roomExpiry(status: RoomRecord['status'], now: Date): Date {

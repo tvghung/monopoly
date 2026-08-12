@@ -117,6 +117,7 @@
 
 .lobby__button,
 .lobby__leave {
+  min-height: 2.75rem;
   border: 0;
   border-radius: 0.5rem;
   cursor: pointer;

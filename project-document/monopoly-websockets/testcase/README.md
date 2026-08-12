@@ -1,59 +1,33 @@
-# Testcase — mục lục và coverage contract
+# Testcase — Cờ Tỷ Phú Việt Nam Standard Mode
 
-## Nhãn
+## Evidence labels
 
-- `[AUTO]`: có executable assertion/gate; luôn ghi file/lệnh thật.
-- `[PG-INTEGRATION]`: cần PostgreSQL thật và chỉ đạt khi suite tương ứng chạy.
-- `[SOCKET-INTEGRATION]`: cần server + `socket.io-client`, không được suy từ pure unit.
-- `[CLIENT]`: Vitest/React Testing Library executable assertion.
-- `[MANUAL-E2E]`: browser/process scenario thủ công; không gọi là automated.
-- `[MISSING]`: requirement quan trọng chưa có executable coverage.
+- `[AUTO]`: executable unit/schema gate with exact test file.
+- `[SOCKET]`: real Socket.IO client/server integration.
+- `[PG]`: requires disposable PostgreSQL via `TEST_DATABASE_URL`.
+- `[CLIENT]`: Vitest + React Testing Library.
+- `[AUDIT]`: deterministic repository/content audit implemented as test/script.
+- `[MANUAL-E2E]`: browser/process validation; never called automated.
 
-## Test files hiện có
+Không đánh dấu requirement đạt chỉ vì typecheck/build pass. Sau implementation, mỗi
+checklist item phải map tới assertion executable hoặc giữ nhãn missing/manual rõ.
 
-- `apps/server/src/game.test.ts`: GameCore unit/regression.
-- `apps/server/src/config.test.ts`: environment validation/defaults.
-- `apps/server/src/createServer.test.ts`: liveness/readiness/shutdown-state HTTP behavior.
-- `apps/server/src/rooms.test.ts`: snapshot version, UUID identity and active-member
-  inverse-state validation.
-- `apps/server/src/services/connectionRegistry.test.ts`: newest-wins/generation registry.
-- `apps/server/src/services/roomCommandExecutor.test.ts`: serialization/commit boundary.
-- `apps/server/src/services/deadlineScheduler.test.ts`: expired auction, buy-decision
-  recovery and expired empty-room cleanup.
-- `apps/server/src/persistence/inMemory.test.ts`: terminal-session retention behavior
-  of the test adapter.
-- `apps/server/src/persistence/migrations.test.ts`: migration file ordering, checksum
-  and required-table SQL presence.
-- `apps/server/src/persistence/postgres.integration.test.ts`: PostgreSQL repository,
-  CAS/hash/rollback/session-retention integration when a test database is supplied.
-- `apps/server/src/socket.integration.test.ts`: 22 default real-Socket.IO scenarios
-  over the injected in-memory repository, including a failed-commit rollback case,
-  plus one opt-in PostgreSQL restart scenario using fresh pools/persistence/server
-  when `TEST_DATABASE_URL` is supplied.
-- `apps/client/src/playerSessionStorage.test.ts`: versioned token storage.
-- `apps/client/src/App.test.tsx`, `components/Lobby.test.tsx`: client session/lobby UI.
+## Coverage map
 
-The default Socket recreation case deliberately reuses the in-memory test repository.
-The conditional PostgreSQL case separately recreates the pool, persistence adapter
-and HTTP/Socket server over one database schema. Neither is a browser/process-manager
-deployment E2E.
+| Area | Checklist | Primary executable layer |
+| --- | --- | --- |
+| Identity/lobby/reconnect/reset | [join lifecycle](./join-room-and-player-lifecycle.md) | Socket + PG restart |
+| Turn/doubles/cards/jail/payment | [turn](./turn-movement-buy-and-jail.md) | GameCore + Socket + PG |
+| Bankruptcy/forfeit/winner | [bankruptcy](./game-status-bankruptcy-and-winner.md) | GameCore + Socket + PG |
+| Rent/build/mortgage/transfer | [property](./property-economy.md) | GameCore + Socket |
+| `TradeBundle`/private offer | [trading](./trading-market-and-private-offers.md) | schema + Socket + PG |
+| Property/building/Bank queue | [auction](./auction.md) | GameCore + scheduler + PG |
+| Protocol/snapshot/board/decks | [shared](./shared-contracts-and-board-data.md) | schema + room + data audit |
+| Vietnamese client/motion | [client](./client-state-sync-motion-and-accessibility.md) | client + audit |
+| Chat/log safety | [chat](./chat-log-and-input-safety.md) | Socket + client |
+| DB/runtime/deploy | [runtime](./http-runtime-and-deployment.md) | migration + HTTP + PG |
 
-## Mapping
-
-| Chức năng | Checklist |
-| --- | --- |
-| Join/session/reconnect/host/leave | [join-room-and-player-lifecycle.md](./join-room-and-player-lifecycle.md) |
-| Turn/buy/jail/recovery | [turn-movement-buy-and-jail.md](./turn-movement-buy-and-jail.md) |
-| Bankruptcy/winner | [game-status-bankruptcy-and-winner.md](./game-status-bankruptcy-and-winner.md) |
-| Property economy | [property-economy.md](./property-economy.md) |
-| Trading/private offers | [trading-market-and-private-offers.md](./trading-market-and-private-offers.md) |
-| Auction/deadline | [auction.md](./auction.md) |
-| Chat/input safety | [chat-log-and-input-safety.md](./chat-log-and-input-safety.md) |
-| Contracts/schemas/data | [shared-contracts-and-board-data.md](./shared-contracts-and-board-data.md) |
-| Client state/accessibility | [client-state-sync-motion-and-accessibility.md](./client-state-sync-motion-and-accessibility.md) |
-| DB/runtime/deployment | [http-runtime-and-deployment.md](./http-runtime-and-deployment.md) |
-
-## Baseline
+## Full gates
 
 ```bash
 pnpm db:status
@@ -63,10 +37,6 @@ pnpm test
 pnpm build
 ```
 
-Persistence release additionally requires clean migration, PostgreSQL integration
-and restart E2E using the same database.
-
-Both PostgreSQL repository tests and the Socket restart case create/drop isolated
-schemas, but Vitest skips them unless `TEST_DATABASE_URL` is present in the shell
-environment. Point that variable at a disposable PostgreSQL database when validating
-a persistence release.
+Persistence release additionally runs PostgreSQL migration/integration and fresh
+pool/server restart against the same disposable DB. Conditional/skipped suites do
+not satisfy v2 reset/recovery requirements.

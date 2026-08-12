@@ -35,7 +35,8 @@
 
 - Danh sách activity/game log của room.
 - Dòng chat nằm chung trong cùng mảng log với message nghiệp vụ game.
-- Input `Write message...` và nút `Send`.
+- Input/nút/chat role/loading/empty state đều dùng tiếng Việt.
+- Game amounts dùng formatter VNĐ; không còn `$`, `$M` hoặc copy tiếng Anh.
 - Animation xuất hiện cho từng dòng log; tắt animation khi user chọn reduced motion.
 
 ## Luồng hiện tại
@@ -62,6 +63,8 @@
 - Active player, finished player và socket khác có thể nhận nhãn người gửi khác nhau từ server; client không tự xác định role đó.
 - Không có route detail, permission key, message edit/delete hoặc history pagination.
 - Các action game khác cũng append vào cùng log; thay schema log ảnh hưởng nhiều GameCore module.
+- Card/turn/payment/auction/bankruptcy log giữ deterministic order từ committed
+  `PaymentQueue`/continuation; Client không tự dựng translated gameplay result.
 
 ## Tài liệu liên quan
 
@@ -86,4 +89,5 @@ Khi sửa activity log/chat, kiểm tra tối thiểu:
 - Nhiều log liên tiếp giữ đúng thứ tự và không mất dòng khi committed public snapshot đến.
 - Reduced-motion không chạy entry animation.
 - Listener `update` không bị nhân đôi sau rerender/reconnect.
+- Audit không còn player-facing English/USD trong chat hoặc game-generated log.
 - Chạy typecheck, build, lint và testcase được liên kết ở trên.

@@ -19,7 +19,7 @@ export function registerChatHandlers(
     try {
       const now = Date.now();
       if (now < nextChatAt) {
-        throw new CommandError('CONFLICT', 'Please wait before sending another message.', true);
+        throw new CommandError('CONFLICT', 'Vui lòng chờ trước khi gửi tin nhắn tiếp theo.', true);
       }
       nextChatAt = now + 750;
       const actor = socket.data.role === 'PLAYER'
@@ -36,12 +36,12 @@ export function registerChatHandlers(
         if (identity) {
           sendToLog(
             state,
-            `<span style="color:${identity.color}" class="log-chat-name">${identity.name}</span> says: ${safeMessage}`,
+            `<span style="color:${identity.color}" class="log-chat-name">${identity.name}</span>: ${safeMessage}`,
           );
         } else {
           sendToLog(
             state,
-            `<span style="color:grey" class="log-chat-name">Spectator</span> says: ${safeMessage}`,
+            `<span style="color:grey" class="log-chat-name">Khán giả</span>: ${safeMessage}`,
           );
         }
       }, undefined, actor);

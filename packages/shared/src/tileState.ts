@@ -2,11 +2,11 @@ import type { Tile } from './types';
 
 const tileState: Tile[] = [
   {
-    streetName: '',
+    streetName: 'Xuất Phát',
     tileType: 'start',
   },
   {
-    streetName: 'Parker St.',
+    streetName: 'Cà Mau',
     tileType: 'normal',
     color: 'brown',
     price: 60,
@@ -15,11 +15,11 @@ const tileState: Tile[] = [
     houseCost: 50,
   },
   {
-    streetName: 'Chest',
+    streetName: 'Khí Vận',
     tileType: 'chest',
   },
   {
-    streetName: 'Tyne St.',
+    streetName: 'Bạc Liêu',
     tileType: 'normal',
     color: 'brown',
     price: 60,
@@ -28,18 +28,18 @@ const tileState: Tile[] = [
     houseCost: 50,
   },
   {
-    streetName: 'Income Tax',
+    streetName: 'Thuế Thu Nhập',
     tileType: 'expense',
     rent: 200,
   },
   {
-    streetName: 'Reading Railroad',
+    streetName: 'Ga Hà Nội',
     tileType: 'railroad',
     color: 'railroad',
     price: 200,
   },
   {
-    streetName: 'Brighton Vale',
+    streetName: 'Buôn Ma Thuột',
     tileType: 'normal',
     color: 'lightblue',
     price: 100,
@@ -48,11 +48,11 @@ const tileState: Tile[] = [
     houseCost: 50,
   },
   {
-    streetName: 'Chance',
+    streetName: 'Cơ Hội',
     tileType: 'chance',
   },
   {
-    streetName: 'Granary Vale',
+    streetName: 'Cần Thơ',
     tileType: 'normal',
     color: 'lightblue',
     price: 100,
@@ -61,7 +61,7 @@ const tileState: Tile[] = [
     houseCost: 50,
   },
   {
-    streetName: 'Burford Vale',
+    streetName: 'Hải Phòng',
     tileType: 'normal',
     color: 'lightblue',
     price: 120,
@@ -70,11 +70,11 @@ const tileState: Tile[] = [
     houseCost: 50,
   },
   {
-    streetName: 'Jail',
+    streetName: 'Nhà Tù / Thăm Tù',
     tileType: 'jail',
   },
   {
-    streetName: 'Holden Fold',
+    streetName: 'Đà Lạt',
     tileType: 'normal',
     color: 'pink',
     price: 140,
@@ -83,12 +83,12 @@ const tileState: Tile[] = [
     houseCost: 100,
   },
   {
-    streetName: 'Electric Company',
+    streetName: 'Công Ty Điện',
     tileType: 'company',
     price: 150,
   },
   {
-    streetName: 'Mere Fold',
+    streetName: 'Hội An',
     tileType: 'normal',
     color: 'pink',
     price: 140,
@@ -97,7 +97,7 @@ const tileState: Tile[] = [
     houseCost: 100,
   },
   {
-    streetName: 'Hedger Fold',
+    streetName: 'Huế',
     tileType: 'normal',
     color: 'pink',
     price: 160,
@@ -106,13 +106,13 @@ const tileState: Tile[] = [
     houseCost: 100,
   },
   {
-    streetName: 'Pennsylvania Railroad',
+    streetName: 'Ga Huế',
     tileType: 'railroad',
     color: 'railroad',
     price: 200,
   },
   {
-    streetName: 'Danthorpe Lodge',
+    streetName: 'Mũi Né',
     tileType: 'normal',
     color: 'orange',
     price: 180,
@@ -121,11 +121,11 @@ const tileState: Tile[] = [
     houseCost: 100,
   },
   {
-    streetName: 'Chance',
-    tileType: 'chance',
+    streetName: 'Khí Vận',
+    tileType: 'chest',
   },
   {
-    streetName: 'Rockingham Lodge',
+    streetName: 'Sa Pa',
     tileType: 'normal',
     color: 'orange',
     price: 180,
@@ -134,7 +134,7 @@ const tileState: Tile[] = [
     houseCost: 100,
   },
   {
-    streetName: 'Aveling Lodge',
+    streetName: 'Nha Trang',
     tileType: 'normal',
     color: 'orange',
     price: 200,
@@ -143,11 +143,11 @@ const tileState: Tile[] = [
     houseCost: 100,
   },
   {
-    streetName: 'Free Parking',
+    streetName: 'Bãi Đỗ Xe',
     tileType: 'parking',
   },
   {
-    streetName: 'Brambleberry Lane',
+    streetName: 'Vũng Tàu',
     tileType: 'normal',
     color: 'red',
     price: 220,
@@ -156,11 +156,11 @@ const tileState: Tile[] = [
     houseCost: 150,
   },
   {
-    streetName: 'Chance',
+    streetName: 'Cơ Hội',
     tileType: 'chance',
   },
   {
-    streetName: 'Guildford Lane',
+    streetName: 'Quy Nhơn',
     tileType: 'normal',
     color: 'red',
     price: 220,
@@ -169,7 +169,7 @@ const tileState: Tile[] = [
     houseCost: 150,
   },
   {
-    streetName: 'Albany Lane',
+    streetName: 'Đà Nẵng',
     tileType: 'normal',
     color: 'red',
     price: 240,
@@ -178,13 +178,13 @@ const tileState: Tile[] = [
     houseCost: 150,
   },
   {
-    streetName: 'Short Line',
+    streetName: 'Ga Đà Nẵng',
     color: 'railroad',
     tileType: 'railroad',
     price: 200,
   },
   {
-    streetName: 'Elms Villas',
+    streetName: 'Bãi Cháy',
     tileType: 'normal',
     color: 'yellow',
     price: 260,
@@ -193,7 +193,7 @@ const tileState: Tile[] = [
     houseCost: 150,
   },
   {
-    streetName: 'Keepers Villas',
+    streetName: 'Hồ Tây',
     tileType: 'normal',
     color: 'yellow',
     price: 260,
@@ -202,12 +202,12 @@ const tileState: Tile[] = [
     houseCost: 150,
   },
   {
-    streetName: 'Water Company',
+    streetName: 'Công Ty Nước',
     tileType: 'company',
     price: 150,
   },
   {
-    streetName: 'Moorcraft Villas',
+    streetName: 'Phú Quốc',
     tileType: 'normal',
     color: 'yellow',
     price: 280,
@@ -216,11 +216,11 @@ const tileState: Tile[] = [
     houseCost: 150,
   },
   {
-    streetName: 'Go to jail',
+    streetName: 'Vào Tù',
     tileType: 'gojail',
   },
   {
-    streetName: 'Whilworth Gardens',
+    streetName: 'Phú Mỹ Hưng',
     tileType: 'normal',
     color: 'green',
     price: 300,
@@ -229,7 +229,7 @@ const tileState: Tile[] = [
     houseCost: 200,
   },
   {
-    streetName: 'Brock Gardens',
+    streetName: 'Thảo Điền',
     tileType: 'normal',
     color: 'green',
     price: 300,
@@ -238,11 +238,11 @@ const tileState: Tile[] = [
     houseCost: 200,
   },
   {
-    streetName: 'Chest',
+    streetName: 'Khí Vận',
     tileType: 'chest',
   },
   {
-    streetName: 'Fair Gardens',
+    streetName: 'Nguyễn Huệ',
     tileType: 'normal',
     color: 'green',
     price: 320,
@@ -251,17 +251,17 @@ const tileState: Tile[] = [
     houseCost: 200,
   },
   {
-    streetName: 'B. & O. Railroad',
+    streetName: 'Ga Sài Gòn',
     color: 'railroad',
     tileType: 'railroad',
     price: 200,
   },
   {
-    streetName: 'Chance',
+    streetName: 'Cơ Hội',
     tileType: 'chance',
   },
   {
-    streetName: 'Hartington Avenue',
+    streetName: 'Đồng Khởi',
     tileType: 'normal',
     color: 'blue',
     price: 350,
@@ -270,12 +270,12 @@ const tileState: Tile[] = [
     houseCost: 200,
   },
   {
-    streetName: 'Luxury Tax',
+    streetName: 'Thuế Xa Xỉ',
     tileType: 'expense',
     rent: 75,
   },
   {
-    streetName: 'Meadowlands Avenue',
+    streetName: 'Landmark 81',
     tileType: 'normal',
     color: 'blue',
     price: 400,
@@ -297,5 +297,14 @@ export const colorGroups: Record<string, number[]> = {
   green: [31, 32, 34],
   blue: [37, 39],
 };
+
+export const BOARD_SIZE = 40;
+export const START_TILE_INDEX = 0;
+export const JAIL_TILE_INDEX = 10;
+export const GO_TO_JAIL_TILE_INDEX = 30;
+export const RAILROAD_TILE_INDICES = [5, 15, 25, 35] as const;
+export const UTILITY_TILE_INDICES = [12, 28] as const;
+export const CHEST_TILE_INDICES = [2, 17, 33] as const;
+export const CHANCE_TILE_INDICES = [7, 22, 36] as const;
 
 export default tileState;

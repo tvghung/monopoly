@@ -9,11 +9,12 @@ import { io } from 'socket.io-client';
 import type {
   AckError,
   AckCallback,
-  GameState,
   JoinRoomRequest,
   OfferResult,
+  PrivatePlayerState,
   PrivateOffer,
   PublicRoomState,
+  PublicGameState,
   RoomRole,
   SessionReplacedInfo,
 } from '@monopoly/shared';
@@ -25,6 +26,7 @@ import Lobby from './components/Lobby';
 import SpectatorBanner from './components/SpectatorBanner';
 import { useToast } from './components/Toast';
 import stateContext from './internal';
+import { localizeAckError } from './presentation';
 import {
   clearPlayerSession,
   readPlayerSession,
@@ -39,12 +41,12 @@ const socket: AppSocket = io(socketUrl || undefined, {
   auth: { protocolVersion: SOCKET_PROTOCOL_VERSION },
 });
 
-const initialState: GameState = {
+const initialState: PublicGameState = {
   boardState: {
     gameStarted: false,
     players: [],
     finishedPlayers: {},
-    currentPlayer: { id: '', hasMoved: false },
+    currentPlayer: { id: '', hasMoved: false, doublesStreak: 0 },
     turnNumber: 0,
     turnRecovery: null,
     logs: [],
@@ -53,9 +55,14 @@ const initialState: GameState = {
     openMarket: {},
     winner: null,
     auction: null,
+    buildingContention: null,
+    paymentQueue: null,
+    bankPropertyAuctionQueue: null,
   },
   players: {},
   turnInfo: {},
+  deckCounts: { chance: 0, chest: 0 },
+  bankBuildingInventory: { housesAvailable: 32, hotelsAvailable: 12 },
   loaded: false,
 };
 
@@ -89,7 +96,7 @@ function LoadingScreen({ message }: { message: string }) {
   return (
     <section className="app-status" role="status" aria-live="polite">
       <span className="connection-overlay__spinner" aria-hidden="true" />
-      <h1>Monopoly</h1>
+      <h1>Cờ Tỷ Phú Việt Nam</h1>
       <p>{message}</p>
     </section>
   );
@@ -113,8 +120,8 @@ function FailureScreen({ title, failure, onRetry }: FailureScreenProps) {
             onClick={failure.reloadRequired ? () => window.location.reload() : onRetry}
           >
             {failure.reloadRequired
-              ? 'Reload application'
-              : failure.retryable ? 'Retry' : 'Return to join'}
+              ? 'Tải lại trò chơi'
+              : failure.retryable ? 'Thử lại' : 'Quay về màn hình vào phòng'}
           </button>
         )
         : null}
@@ -129,6 +136,7 @@ export default function App() {
   const spectatorRequestRef = useRef<JoinRoomRequest | null>(null);
   const phaseRef = useRef<AppPhase>(initialToken ? 'RESTORING' : 'JOIN');
   const roleRef = useRef<RoomRole | null>(null);
+  const playerIdRef = useRef<string | null>(null);
   const roomRef = useRef<PublicRoomState | null>(null);
   const admissionAttemptRef = useRef(0);
 
@@ -140,6 +148,7 @@ export default function App() {
   const [failure, setFailure] = useState<AppFailure | null>(null);
   const [operation, setOperation] = useState<'ready' | 'start' | 'leave' | null>(null);
   const [operationError, setOperationError] = useState<string | null>(null);
+  const [privatePlayerState, setPrivatePlayerState] = useState<PrivatePlayerState | null>(null);
   const [privateOffers, setPrivateOffers] = useState<PrivateOffer[]>([]);
 
   const transition = useCallback((next: AppPhase) => {
@@ -149,6 +158,7 @@ export default function App() {
 
   const setIdentity = useCallback((nextRole: RoomRole | null, nextPlayerId: string | null) => {
     roleRef.current = nextRole;
+    playerIdRef.current = nextPlayerId;
     setRole(nextRole);
     setPlayerId(nextPlayerId);
   }, []);
@@ -176,7 +186,8 @@ export default function App() {
     setOperationError(null);
 
     if (error.code === 'SESSION_REPLACED') {
-      setFailure({ message: error.message, retryable: false });
+      setPrivatePlayerState(null);
+      setFailure({ message: localizeAckError(error), retryable: false });
       transition('REPLACED');
       socket.disconnect();
       return;
@@ -188,11 +199,12 @@ export default function App() {
       clearPlayerSession();
       roomRef.current = null;
       setRoom(null);
+      setPrivatePlayerState(null);
       setPrivateOffers([]);
       setIdentity(null, null);
     }
 
-    setFailure({ message: error.message, retryable: error.retryable });
+    setFailure({ message: localizeAckError(error), retryable: error.retryable });
     transition('ERROR');
   }, [setIdentity, transition]);
 
@@ -208,7 +220,7 @@ export default function App() {
     const timeout = window.setTimeout(() => {
       if (admissionAttemptRef.current !== attempt || tokenRef.current !== token) return;
       admissionAttemptRef.current += 1;
-      setFailure({ message: 'The server did not confirm the session in time.', retryable: true });
+      setFailure({ message: 'Máy chủ chưa xác nhận phiên chơi kịp thời.', retryable: true });
       transition('ERROR');
     }, ACK_TIMEOUT_MS);
 
@@ -225,6 +237,11 @@ export default function App() {
       setFailure(null);
       setOperationError(null);
       setIdentity(response.data.role, response.data.playerId);
+      setPrivatePlayerState(
+        response.data.privatePlayerState.playerId === response.data.playerId
+          ? response.data.privatePlayerState
+          : null,
+      );
       setPrivateOffers(response.data.pendingOffers.filter(offer => offer.status === 'PENDING'));
       applyRoom(response.data.room, true);
     });
@@ -232,7 +249,7 @@ export default function App() {
 
   const joinRoom = useCallback((request: JoinRoomRequest, reconnecting = false) => {
     if (!socket.connected) {
-      setFailure({ message: 'Unable to reach the game server.', retryable: true });
+      setFailure({ message: 'Không thể kết nối đến máy chủ trò chơi.', retryable: true });
       transition(reconnecting ? 'RECONNECTING' : 'ERROR');
       socket.connect();
       return;
@@ -245,7 +262,7 @@ export default function App() {
     const timeout = window.setTimeout(() => {
       if (admissionAttemptRef.current !== attempt) return;
       admissionAttemptRef.current += 1;
-      setFailure({ message: 'The server did not confirm the room admission in time.', retryable: true });
+      setFailure({ message: 'Máy chủ chưa xác nhận việc vào phòng kịp thời.', retryable: true });
       transition(reconnecting ? 'ERROR' : 'JOIN');
       // Phase-one admission may already exist on the server even though its
       // token ACK was lost. Reset the transport so a retry is not trapped by
@@ -258,7 +275,10 @@ export default function App() {
       window.clearTimeout(timeout);
       if (admissionAttemptRef.current !== attempt || phaseRef.current === 'REPLACED') return;
       if (!response.ok) {
-        setFailure({ message: response.error.message, retryable: response.error.retryable });
+        setFailure({
+          message: localizeAckError(response.error),
+          retryable: response.error.retryable,
+        });
         transition(reconnecting ? 'ERROR' : 'JOIN');
         return;
       }
@@ -267,6 +287,7 @@ export default function App() {
         tokenRef.current = null;
         spectatorRequestRef.current = request;
         setIdentity('SPECTATOR', null);
+        setPrivatePlayerState(null);
         setPrivateOffers([]);
         applyRoom(response.data.room, true);
         return;
@@ -277,7 +298,7 @@ export default function App() {
         // browser credential exists to activate it safely. Closing this transport
         // abandons that pending admission and lets a later retry start cleanly.
         setFailure({
-          message: 'This browser could not store the reconnect session. Check site storage permissions and try again.',
+          message: 'Trình duyệt không thể lưu phiên kết nối lại. Hãy kiểm tra quyền lưu trữ của trang rồi thử lại.',
           retryable: false,
         });
         transition('ERROR');
@@ -346,20 +367,29 @@ export default function App() {
       ]);
     };
 
+    const onPrivatePlayerState = (incoming: PrivatePlayerState) => {
+      if (roleRef.current !== 'PLAYER' || playerIdRef.current !== incoming.playerId) return;
+      setPrivatePlayerState(incoming);
+    };
+
     const handleOfferResult = (result: OfferResult) => {
       setPrivateOffers(current => current.filter(offer => offer.offerId !== result.offerId));
       const verb = result.status === 'ACCEPTED'
-        ? 'was accepted'
+        ? 'đã được chấp nhận'
         : result.status === 'DECLINED'
-          ? 'was declined'
+          ? 'đã bị từ chối'
           : result.status === 'EXPIRED'
-            ? 'expired'
-            : 'was cancelled';
-      toast.show(`Offer for ${result.tileName} at $${result.price}M ${verb}.`);
+            ? 'đã hết hạn'
+            : 'đã bị hủy';
+      toast.show(`Đề nghị giao dịch giữa ${result.proposerName} và ${result.recipientName} ${verb}.`);
     };
 
     const onSessionReplaced = (info: SessionReplacedInfo) => {
-      setFailure({ message: info.message, retryable: false });
+      setPrivatePlayerState(null);
+      setFailure({
+        message: localizeAckError({ code: info.code, message: info.message }),
+        retryable: false,
+      });
       transition('REPLACED');
       socket.disconnect();
     };
@@ -368,7 +398,9 @@ export default function App() {
       const details = (error as Error & { data?: Partial<AckError> }).data;
       setConnected(false);
       setFailure({
-        message: details?.message ?? error.message ?? 'Unable to connect to the game server.',
+        message: details?.code
+          ? localizeAckError({ code: details.code, message: details.message ?? '' })
+          : 'Không thể kết nối đến máy chủ trò chơi.',
         retryable: details?.retryable ?? true,
         reloadRequired: details?.code === 'UPGRADE_REQUIRED',
       });
@@ -383,6 +415,7 @@ export default function App() {
     socket.on('disconnect', onDisconnect);
     socket.on('connect_error', onConnectError);
     socket.on('update', onUpdate);
+    socket.on('private player state', onPrivatePlayerState);
     socket.on('offer on prop', onOffer);
     socket.on('offer accepted', handleOfferResult);
     socket.on('offer declined', handleOfferResult);
@@ -397,6 +430,7 @@ export default function App() {
       socket.off('disconnect', onDisconnect);
       socket.off('connect_error', onConnectError);
       socket.off('update', onUpdate);
+      socket.off('private player state', onPrivatePlayerState);
       socket.off('offer on prop', onOffer);
       socket.off('offer accepted', handleOfferResult);
       socket.off('offer declined', handleOfferResult);
@@ -408,7 +442,7 @@ export default function App() {
   }, [applyRoom, joinRoom, resumeSession, toast, transition]);
 
   const showCommandFailure = useCallback((response: { ok: true } | { ok: false; error: AckError }) => {
-    if (!response.ok) toast.show(response.error.message);
+    if (!response.ok) toast.show(localizeAckError(response.error));
   }, [toast]);
 
   const canMutate = connected
@@ -420,7 +454,7 @@ export default function App() {
   const socketFunctions = useMemo<SocketFunctions>(() => {
     const gameCommandAllowed = () => {
       if (canMutate) return true;
-      toast.show('Gameplay actions are unavailable while reconnecting or spectating.');
+      toast.show('Không thể thao tác khi đang kết nối lại hoặc xem với vai trò khán giả.');
       return false;
     };
     const ack: AckCallback = showCommandFailure;
@@ -464,6 +498,8 @@ export default function App() {
       },
       payBail: () => { if (gameCommandAllowed()) socket.emit('pay bail', ack); },
       useJailCard: () => { if (gameCommandAllowed()) socket.emit('use jail card', ack); },
+      settleDebt: () => { if (gameCommandAllowed()) socket.emit('settle debt', ack); },
+      declareBankruptcy: () => { if (gameCommandAllowed()) socket.emit('declare bankruptcy', ack); },
       declineProperty: () => { if (gameCommandAllowed()) socket.emit('decline property', ack); },
       placeBid: (amount) => { if (gameCommandAllowed()) socket.emit('place bid', amount, ack); },
       passBid: () => { if (gameCommandAllowed()) socket.emit('pass bid', ack); },
@@ -479,7 +515,7 @@ export default function App() {
     setOperationError(null);
     socket.emit('set ready', { ready }, (response) => {
       setOperation(null);
-      if (!response.ok) setOperationError(response.error.message);
+      if (!response.ok) setOperationError(localizeAckError(response.error));
     });
   }, []);
 
@@ -488,7 +524,7 @@ export default function App() {
     setOperationError(null);
     socket.emit('start game', (response) => {
       setOperation(null);
-      if (!response.ok) setOperationError(response.error.message);
+      if (!response.ok) setOperationError(localizeAckError(response.error));
     });
   }, []);
 
@@ -496,7 +532,7 @@ export default function App() {
     const currentRoom = roomRef.current;
     if (roleRef.current === 'PLAYER'
       && currentRoom?.status === 'IN_PROGRESS'
-      && !window.confirm('Leaving now forfeits this game and revokes this session. Continue?')) {
+      && !window.confirm('Rời phòng lúc này đồng nghĩa với bỏ cuộc và thu hồi phiên chơi. Bạn có chắc muốn tiếp tục?')) {
       return;
     }
 
@@ -505,7 +541,7 @@ export default function App() {
     socket.emit('leave room', (response) => {
       setOperation(null);
       if (!response.ok) {
-        setOperationError(response.error.message);
+        setOperationError(localizeAckError(response.error));
         return;
       }
 
@@ -514,6 +550,7 @@ export default function App() {
       clearPlayerSession();
       roomRef.current = null;
       setRoom(null);
+      setPrivatePlayerState(null);
       setPrivateOffers([]);
       setIdentity(null, null);
       transition('JOIN');
@@ -541,8 +578,9 @@ export default function App() {
     role,
     connected,
     canMutate,
+    privatePlayerState,
     privateOffers,
-  }), [canMutate, connected, playerId, privateOffers, role, room, socketFunctions]);
+  }), [canMutate, connected, playerId, privateOffers, privatePlayerState, role, room, socketFunctions]);
 
   const roomContent = room && role
     ? role === 'PLAYER' && room.status === 'LOBBY' && playerId
@@ -579,8 +617,8 @@ export default function App() {
             onClick={handleLeave}
           >
             {role === 'PLAYER' && room.status === 'IN_PROGRESS'
-              ? 'Forfeit game'
-              : 'Leave room'}
+              ? 'Bỏ cuộc'
+              : 'Rời phòng'}
           </button>
           {operationError ? <p className="room-exit-error" role="alert">{operationError}</p> : null}
           <Board />
@@ -591,7 +629,7 @@ export default function App() {
   return (
     <stateContext.Provider value={contextValue}>
       <main className="App">
-        {phase === 'RESTORING' ? <LoadingScreen message="Restoring your game…" /> : null}
+        {phase === 'RESTORING' ? <LoadingScreen message="Đang khôi phục ván chơi…" /> : null}
         {phase === 'JOIN' || phase === 'JOINING'
           ? (
             <JoinForm
@@ -605,10 +643,10 @@ export default function App() {
         {phase === 'LOBBY' || phase === 'GAME' || phase === 'RECONNECTING' ? roomContent : null}
         {phase === 'RECONNECTING' ? <ConnectionOverlay /> : null}
         {phase === 'REPLACED' && failure
-          ? <FailureScreen title="Session opened elsewhere" failure={failure} />
+          ? <FailureScreen title="Phiên chơi đã được mở ở nơi khác" failure={failure} />
           : null}
         {phase === 'ERROR' && failure
-          ? <FailureScreen title="Unable to restore game" failure={failure} onRetry={retry} />
+          ? <FailureScreen title="Không thể khôi phục ván chơi" failure={failure} onRetry={retry} />
           : null}
       </main>
     </stateContext.Provider>

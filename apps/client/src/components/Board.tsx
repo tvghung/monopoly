@@ -1,40 +1,40 @@
 import {
-  useState,
-  useEffect,
+  useCallback,
   useContext,
-  useReducer,
+  useEffect,
   useMemo,
+  useRef,
+  useState,
 } from 'react';
-import { LayoutGroup } from 'framer-motion';
+import { tileState } from '@monopoly/shared';
+import { LayoutGroup, useReducedMotion } from 'framer-motion';
 import './style/Board.css';
 import stateContext from '../internal';
 import displayPositionsContext from '../displayPositionsContext';
 import useSteppedPositions from '../useSteppedPositions';
 import Tile from './Tile';
-import initialState from './BoardInitState';
 import Dice from './Dice';
 import Log from './Log';
 import Dashboard from './Dashboard';
-import cardFlipContext, { type CardFlipAction } from '../cardFlipContext';
 import sellPromptContext from '../sellPromptContext';
-import backOfCards, { type BackCard } from './backOfCards';
 import type { SalePrompt } from '../types';
 
-const reducer = (state: BackCard[], action: CardFlipAction): BackCard[] => {
-  switch (action.type) {
-    case 'FLIP_CARD':
-      return [...action.payload];
-    default:
-      return state;
-  }
+const getTilePosition = (index: number): string => {
+  if (index === 0) return 'tile__start';
+  if (index <= 10) return 'tile__horizontal--bottom';
+  if (index <= 19) return 'tile__vertical--left';
+  if (index <= 30) return 'tile__horizontal--top';
+  return 'tile__vertical--right';
 };
 
 function Board() {
-  const [cardsBack, dispatch] = useReducer(reducer, backOfCards);
-  const { canMutate, state } = useContext(stateContext);
+  const { canMutate, connected, state } = useContext(stateContext);
+  const reducedMotion = useReducedMotion() ?? false;
+  const [openTileId, setOpenTileId] = useState<number | null>(null);
+  const lastOpenTileId = useRef<number | null>(null);
 
   // Authoritative tile per player, from the server. The stepper walks the shown
-  // positions toward these one tile at a time.
+  // positions toward these one tile at a time unless reduced motion is enabled.
   const actualPositions = useMemo(() => {
     const positions: Record<string, number> = {};
     Object.keys(state.players).forEach((key) => {
@@ -42,28 +42,45 @@ function Board() {
     });
     return positions;
   }, [state.players]);
-  const displayPositions = useSteppedPositions(actualPositions);
+  const displayPositions = useSteppedPositions(actualPositions, reducedMotion);
 
-  const [tiles] = useState(initialState);
   const [openSale, setOpenSale] = useState<SalePrompt | false>(false);
   const [privateSale, setPrivateSale] = useState<SalePrompt | false>(false);
 
-  // Unflip any open card when the user clicks anywhere that isn't a tile or the
-  // flipped card itself (e.g. the centre panel, dashboard, log).
+  const openCard = useCallback((tileId: number) => {
+    lastOpenTileId.current = tileId;
+    setOpenTileId(tileId);
+  }, []);
+
+  const closeCard = useCallback(() => {
+    const tileId = lastOpenTileId.current;
+    setOpenTileId(null);
+    if (tileId === null) return;
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(`[data-tile-index="${tileId}"]`)?.focus();
+    });
+  }, []);
+
+  // Close the property card with Escape or a click outside the board tile/card.
   useEffect(() => {
-    const anyFlipped = cardsBack.some(card => card.clicked);
-    if (!anyFlipped) return undefined;
+    if (openTileId === null) return undefined;
+
     const onDocumentClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target && target.closest('.Tile, .tile-back--container')) return;
-      dispatch({
-        type: 'FLIP_CARD',
-        payload: cardsBack.map(card => (card.clicked ? { ...card, clicked: false } : card)),
-      });
+      if (target?.closest('.Tile, .tile-back--container')) return;
+      closeCard();
     };
+    const onDocumentKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeCard();
+    };
+
     document.addEventListener('click', onDocumentClick);
-    return () => document.removeEventListener('click', onDocumentClick);
-  }, [cardsBack]);
+    document.addEventListener('keydown', onDocumentKeyDown);
+    return () => {
+      document.removeEventListener('click', onDocumentClick);
+      document.removeEventListener('keydown', onDocumentKeyDown);
+    };
+  }, [closeCard, openTileId]);
 
   const handlePutOpenMarket = (tileID: number) => {
     if (canMutate) setOpenSale({ tileID });
@@ -83,39 +100,38 @@ function Board() {
       privateSale,
     }}
     >
-      <cardFlipContext.Provider value={{ cardsBack, dispatch }}>
-        <displayPositionsContext.Provider value={displayPositions}>
-          <section className="Board">
-            <LayoutGroup>
-              {
-                tiles.map((tile, index) => {
-                  if (index === 0) {
-                    return <Tile key={index} position="tile__start" id={index} initState={tile} />;
-                  }
-                  if (index > 0 && index <= 10) {
-                    return <Tile key={index} position="tile__horizontal--bottom" id={index} initState={tile} />;
-                  }
-                  if (index >= 11 && index <= 19) {
-                    return <Tile key={index} position="tile__vertical--left" id={index} initState={tile} />;
-                  }
-                  if (index >= 20 && index <= 30) {
-                    return <Tile key={index} position="tile__horizontal--top" id={index} initState={tile} />;
-                  }
-                  if (index >= 31 && index <= 39) {
-                    return <Tile key={index} position="tile__vertical--right" id={index} initState={tile} />;
-                  }
-                  return null;
-                })
-              }
-            </LayoutGroup>
-            <section className="center">
-              <Dice />
-              <Log />
-              <Dashboard />
-            </section>
+      <displayPositionsContext.Provider value={displayPositions}>
+        <section
+          className="Board"
+          aria-label="Bàn cờ Cờ Tỷ Phú Việt Nam"
+          aria-busy={!connected}
+          data-testid="game-board"
+          inert={!connected}
+        >
+          <aside className="orientation-notice" role="status">
+            <strong>Hãy xoay ngang thiết bị</strong>
+            <span>Bàn cờ hiển thị tốt nhất ở chế độ ngang.</span>
+          </aside>
+          <LayoutGroup>
+            {tileState.map((tile, index) => (
+              <Tile
+                key={index}
+                tile={tile}
+                id={index}
+                position={getTilePosition(index)}
+                isOpen={openTileId === index}
+                onOpen={() => openCard(index)}
+                onClose={closeCard}
+              />
+            ))}
+          </LayoutGroup>
+          <section className="center" aria-label="Khu vực điều khiển ván chơi">
+            <Dice />
+            <Log />
+            <Dashboard />
           </section>
-        </displayPositionsContext.Provider>
-      </cardFlipContext.Provider>
+        </section>
+      </displayPositionsContext.Provider>
     </sellPromptContext.Provider>
   );
 }

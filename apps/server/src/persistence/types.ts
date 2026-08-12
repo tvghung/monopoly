@@ -1,3 +1,5 @@
+import type { TradeBundle } from '@monopoly/shared';
+
 export type RoomStatus = 'LOBBY' | 'IN_PROGRESS' | 'FINISHED';
 
 export type PlayerSessionStatus =
@@ -84,10 +86,10 @@ export interface ActivateSessionInput {
 export interface TradeOfferRecord {
   id: string;
   roomId: string;
-  buyerPlayerId: string;
-  ownerPlayerId: string;
-  tileId: number;
-  price: number;
+  proposerPlayerId: string;
+  recipientPlayerId: string;
+  offered: TradeBundle;
+  requested: TradeBundle;
   status: TradeOfferStatus;
   createdAt: Date;
   expiresAt: Date;
@@ -97,10 +99,10 @@ export interface TradeOfferRecord {
 export interface CreateTradeOfferInput {
   id: string;
   roomId: string;
-  buyerPlayerId: string;
-  ownerPlayerId: string;
-  tileId: number;
-  price: number;
+  proposerPlayerId: string;
+  recipientPlayerId: string;
+  offered: TradeBundle;
+  requested: TradeBundle;
   expiresAt: Date;
 }
 
@@ -149,6 +151,7 @@ export interface TradeOfferRepository {
     roomId: string,
     playerId: string,
   ): Promise<TradeOfferRecord[]>;
+  listPendingForRoom(roomId: string): Promise<TradeOfferRecord[]>;
   listDue(now: Date, limit: number): Promise<TradeOfferRecord[]>;
   resolve(
     id: string,

@@ -2,10 +2,11 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { Socket } from 'socket.io-client';
 import type {
   ClientToServerEvents,
-  GameState,
   OfferId,
   OfferInfo,
+  PrivatePlayerState,
   PrivateOffer,
+  PublicGameState,
   RoomRole,
   SaleInfo,
   ServerToClientEvents,
@@ -29,18 +30,21 @@ export interface SocketFunctions {
   unmortgageProperty: (tileID: number) => void;
   payBail: () => void;
   useJailCard: () => void;
+  settleDebt: () => void;
+  declareBankruptcy: () => void;
   declineProperty: () => void;
   placeBid: (amount: number) => void;
   passBid: () => void;
 }
 
 export interface StateContextValue {
-  state: GameState;
+  state: PublicGameState;
   socketFunctions: SocketFunctions;
   playerId: string | null;
   role: RoomRole | null;
   connected: boolean;
   canMutate: boolean;
+  privatePlayerState: PrivatePlayerState | null;
   privateOffers: PrivateOffer[];
 }
 

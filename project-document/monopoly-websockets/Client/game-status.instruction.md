@@ -1,54 +1,31 @@
-# Lobby, roster, start game và winner
+# Lobby, roster, winner và branding
 
-## Định danh
+## Branding/language
 
-Lobby/Board panels tại `/`; không có route/menu/permission key. Host/current-player
-visibility is UX only; server enforces authority.
+- HTML title/metadata/manifest, loading/error/reconnect/replaced screens, join/lobby,
+  center board, roster, winner và confirmations dùng “Cờ Tỷ Phú Việt Nam” và tiếng
+  Việt. Technical repository/package/event names không cần rename.
+- Host=`Chủ Phòng`, Ready=`Sẵn Sàng`, Spectator=`Khán Giả`, Online/Offline và
+  bankruptcy/leave reasons đều có Vietnamese copy.
 
-## Code
+## Lobby/start
 
-- `apps/client/src/components/Lobby.tsx`
-- `apps/client/src/components/Dashboard.tsx`
-- `apps/client/src/components/dashboard/PlayerList.tsx`
-- `apps/client/src/components/dashboard/WinnerBanner.tsx`
-- `apps/client/src/App.tsx`
+- Public roster hiển thị stable ID-backed name/color/host/ready/connected.
+- 2–7 active Player, tất cả connected/ready; chỉ host có start action.
+- Start success update chứa persisted first-player result từ server dice tie-break;
+  UI không tự random/reorder roster.
+- Temporary host disconnect không transfer; explicit leave transfer theo join order.
 
-## Lobby behavior
+## In-game/finished
 
-- Public roster shows stable Player, color, host badge, ready and connected state.
-- New active Player starts unready; ready persists through reconnect.
-- Player may toggle only own ready state through ACKed `set ready`.
-- Lobby capacity/start rule is 2–7 active Players, all connected and ready.
-- Only host sees/enables authoritative start action. `start game` has no dummy payload
-  and waits for success ACK/update.
-- New join does not reset existing ready flags; their own false ready blocks start.
-- Start is idempotently rejected after room leaves `LOBBY`.
+- Roster/turn/debt/auction/winner key bằng stable IDs. Temporary disconnect không
+  xóa Seat/assets; spectator read-only.
+- Finished reason phân biệt `BANKRUPT` và `LEFT`; forfeit confirmation mô tả asset
+  destination theo active creditor/Bank nhưng không đổi reason.
+- Winner set một lần, room `FINISHED`, không rematch/reverse lifecycle.
 
-First activated Seat becomes host. Temporary host disconnect only marks disconnected
-and blocks start; it does not transfer host. Explicit host leave transfers to the
-lowest remaining join order.
+## Tests
 
-## In-game roster/winner
-
-- Player list keys and turn marker use stable IDs.
-- Connected is runtime presence projection and may be false after restart until
-  session resumes.
-- Finished player reason distinguishes bankruptcy and explicit leave/forfeit; UI
-  must not label all finished records as bankrupt.
-- Winner includes stable `playerId`, name and color and is committed once when room
-  transitions to `FINISHED`.
-- No rematch/reverse lifecycle is provided.
-
-## Spectator/reconnect
-
-Spectator can view roster/game/chat but cannot ready/start or mutate game. A valid
-Player reconnect restores normal Player controls after resume ACK.
-
-## Required tests
-
-- First host, simultaneous join order and deterministic host transfer.
-- Ready persistence, connected gating and 2/7 boundaries.
-- Non-host/spectator/repeated start rejection.
-- Host disconnect/reconnect without transfer.
-- Finished reason/winner stable ID and UI.
-- Reconnecting disables lobby/game commands.
+- Vietnamese branding/copy/metadata and no player-facing English.
+- Host/ready/2–7/first-player result/disconnect-transfer behavior.
+- Bankruptcy versus forfeit reason, stable winner and reconnect/restart.

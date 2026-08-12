@@ -6,7 +6,9 @@
 already bound to a room. Runtime schema requires nonblank string up to 500 characters.
 It has typed ACK.
 
-Each socket may submit at most one chat attempt per 750 ms. The durable game
+Player/spectator labels and all generated player-facing copy are tiếng Việt; game
+amounts use VNĐ formatting and no `$`/`$M`. Each socket may submit at most one chat
+attempt per 750 ms. The durable game
 log keeps the newest 500 entries, bounding snapshot growth.
 
 ## Safety/authority

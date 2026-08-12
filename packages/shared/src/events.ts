@@ -10,6 +10,7 @@ import type {
   OfferInfo,
   OfferResult,
   PlayerId,
+  PrivatePlayerState,
   PrivateOffer,
   PublicRoomState,
   ResumeSessionRequest,
@@ -72,6 +73,7 @@ export interface ServerToClientEvents {
   'offer accepted': (result: OfferResult) => void;
   'offer expired': (result: OfferResult) => void;
   'offer cancelled': (result: OfferResult) => void;
+  'private player state': (state: PrivatePlayerState) => void;
   'session replaced': (info: SessionReplacedInfo) => void;
 }
 
@@ -106,6 +108,8 @@ export interface ClientToServerEvents {
   'unmortgage property': (tileID: number, acknowledge: AckCallback) => void;
   'pay bail': (acknowledge: AckCallback) => void;
   'use jail card': (acknowledge: AckCallback) => void;
+  'settle debt': (acknowledge: AckCallback) => void;
+  'declare bankruptcy': (acknowledge: AckCallback) => void;
   'decline property': (acknowledge: AckCallback) => void;
   'place bid': (amount: number, acknowledge: AckCallback) => void;
   'pass bid': (acknowledge: AckCallback) => void;

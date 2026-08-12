@@ -1,5 +1,6 @@
 import { moneyAmountSchema } from '@monopoly/shared';
 import {
+  assertDebtActionAllowed,
   extendAuctionDeadline,
   finalizeAuction,
   sendToLog,
@@ -25,17 +26,27 @@ export function registerAuctionHandlers(
       const now = new Date();
       const committed = await commitRoomCommand(runtime, roomId, ({ room, state }) => {
         const player = state.players[playerId];
+        const decision = state.turnInfo.pendingPropertyDecision;
         if (
           room.status !== 'IN_PROGRESS'
           || !player
           || state.boardState.currentPlayer.id !== playerId
-          || !state.turnInfo.canBuyProp
+          || !decision
+          || decision.playerId !== playerId
+          || decision.tileID !== player.currentTile
           || state.boardState.auction
+          || state.boardState.buildingContention
           || state.boardState.ownedProps[player.currentTile]
         ) {
-          throw new CommandError('CONFLICT', 'This property cannot enter auction now.');
+          throw new CommandError('CONFLICT', 'Tài sản này chưa thể đưa ra đấu giá.');
         }
-        startAuction(state, player.currentTile, { now: now.getTime() });
+        if (!assertDebtActionAllowed(state, playerId, 'BUY')) {
+          throw new CommandError('CONFLICT', 'Phải xử lý khoản nợ đang chờ trước.');
+        }
+        startAuction(state, player.currentTile, {
+          now: now.getTime(),
+          continuation: decision.continuation,
+        });
       }, now, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
       broadcastRoom(io, runtime, committed.room);
@@ -55,16 +66,20 @@ export function registerAuctionHandlers(
         const auction = state.boardState.auction;
         const player = state.players[playerId];
         if (room.status !== 'IN_PROGRESS' || !auction || !player) {
-          throw new CommandError('CONFLICT', 'There is no active auction.');
+          throw new CommandError('CONFLICT', 'Không có phiên đấu giá đang diễn ra.');
         }
         if (Date.parse(auction.endsAt) <= now.getTime()) {
-          throw new CommandError('CONFLICT', 'The auction deadline has passed.');
+          throw new CommandError('CONFLICT', 'Phiên đấu giá đã hết hạn.');
         }
         if (!auction.active.includes(playerId)) {
-          throw new CommandError('FORBIDDEN', 'You are not an auction participant.');
+          throw new CommandError('FORBIDDEN', 'Bạn không thuộc danh sách đấu giá.');
         }
-        if (amount <= auction.highestBid || amount > player.accountBalance) {
-          throw new CommandError('CONFLICT', 'The bid must exceed the current bid and fit your balance.');
+        if (!assertDebtActionAllowed(state, playerId, 'BID')) {
+          throw new CommandError('CONFLICT', 'Không thể đặt giá khi khoản nợ đang chờ.');
+        }
+        const minimum = auction.kind === 'BUILDING' ? auction.minimumBid : 1;
+        if (amount < minimum || amount <= auction.highestBid || amount > player.accountBalance) {
+          throw new CommandError('CONFLICT', 'Giá đặt phải hợp lệ, cao hơn giá hiện tại và không vượt số dư.');
         }
 
         auction.highestBid = amount;
@@ -72,7 +87,10 @@ export function registerAuctionHandlers(
         auction.highestBidderName = player.name;
         auction.passed = [];
         extendAuctionDeadline(auction, now.getTime());
-        sendToLog(state, `${player.name} bid $${amount}M for ${auction.tileName}.`);
+        const subject = auction.kind === 'PROPERTY'
+          ? auction.tileName
+          : auction.buildingType === 'HOUSE' ? 'Nhà' : 'Khách Sạn';
+        sendToLog(state, `${player.name} đặt ${amount.toLocaleString('vi-VN')}.000 ₫ cho ${subject}.`);
       }, now, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
       broadcastRoom(io, runtime, committed.room);
@@ -91,16 +109,19 @@ export function registerAuctionHandlers(
         const auction = state.boardState.auction;
         const player = state.players[playerId];
         if (room.status !== 'IN_PROGRESS' || !auction || !player) {
-          throw new CommandError('CONFLICT', 'There is no active auction.');
+          throw new CommandError('CONFLICT', 'Không có phiên đấu giá đang diễn ra.');
         }
         if (Date.parse(auction.endsAt) <= now.getTime()) {
-          throw new CommandError('CONFLICT', 'The auction deadline has passed.');
+          throw new CommandError('CONFLICT', 'Phiên đấu giá đã hết hạn.');
         }
         if (!auction.active.includes(playerId) || auction.highestBidder === playerId) {
-          throw new CommandError('FORBIDDEN', 'You cannot pass this auction now.');
+          throw new CommandError('FORBIDDEN', 'Bạn không thể bỏ lượt đấu giá lúc này.');
         }
         if (!auction.passed.includes(playerId)) auction.passed.push(playerId);
-        sendToLog(state, `${player.name} declined to bid on ${auction.tileName}.`);
+        const subject = auction.kind === 'PROPERTY'
+          ? auction.tileName
+          : auction.buildingType === 'HOUSE' ? 'Nhà' : 'Khách Sạn';
+        sendToLog(state, `${player.name} bỏ lượt đấu giá ${subject}.`);
 
         const stillToAct = auction.active.filter(
           (id) => id !== auction.highestBidder && !auction.passed.includes(id),

@@ -62,6 +62,9 @@ export async function commitRoomCommand<TResult>(
     if (state.boardState.winner) {
       context.room.status = 'FINISHED';
       state.boardState.auction = null;
+      state.boardState.buildingContention = null;
+      state.boardState.paymentQueue = null;
+      state.boardState.bankPropertyAuctionQueue = null;
       state.boardState.turnRecovery = null;
       state.turnInfo = {};
     }
@@ -70,6 +73,9 @@ export async function commitRoomCommand<TResult>(
       && !runtime.flags.shuttingDown
       && !state.boardState.winner
       && !state.boardState.auction
+      && !state.boardState.paymentQueue
+      && !state.boardState.buildingContention
+      && !state.boardState.bankPropertyAuctionQueue
       && state.boardState.currentPlayer.id
       && !state.boardState.turnRecovery
       && !runtime.connections.isConnected(state.boardState.currentPlayer.id)

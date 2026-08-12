@@ -73,6 +73,7 @@
 }
 
 .join__button {
+  min-height: 2.75rem;
   padding: 0.8rem 1rem;
   border: none;
   border-radius: 0.5rem;

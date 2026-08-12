@@ -13,6 +13,7 @@ const forwardDistance = (from: number, to: number): number => ((to - from) % 40 
 // the field-by-field piece movement now that the server resolves moves at once.
 export default function useSteppedPositions(
   actual: Record<string, number>,
+  reducedMotion = false,
 ): Record<string, number> {
   const [display, setDisplay] = useState<Record<string, number>>(actual);
   const actualRef = useRef(actual);
@@ -20,6 +21,10 @@ export default function useSteppedPositions(
 
   // Add pieces for new players (and drop ones who left) without animating them.
   useEffect(() => {
+    if (reducedMotion) {
+      setDisplay(actual);
+      return;
+    }
     setDisplay((prev) => {
       const next: Record<string, number> = {};
       let changed = false;
@@ -34,10 +39,11 @@ export default function useSteppedPositions(
       if (Object.keys(prev).length !== Object.keys(next).length) changed = true;
       return changed ? next : prev;
     });
-  }, [actual]);
+  }, [actual, reducedMotion]);
 
   // Step every lagging piece one tile forward on each tick.
   useEffect(() => {
+    if (reducedMotion) return undefined;
     const interval = setInterval(() => {
       setDisplay((prev) => {
         const target = actualRef.current;
@@ -56,7 +62,7 @@ export default function useSteppedPositions(
       });
     }, STEP_MS);
     return () => clearInterval(interval);
-  }, []);
+  }, [reducedMotion]);
 
   return display;
 }

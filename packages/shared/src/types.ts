@@ -1,7 +1,7 @@
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
-export const SOCKET_PROTOCOL_VERSION = 1 as const;
+export const SOCKET_PROTOCOL_VERSION = 2 as const;
 
 export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
 export type PlayerId = string;
@@ -10,6 +10,9 @@ export type RoomCode = string;
 export type SessionId = string;
 export type OfferId = string;
 export type AuctionId = string;
+export type GameCardId = string;
+export type DebtClaimId = string;
+export type BuildingContentionId = string;
 
 export type RoomStatus = 'LOBBY' | 'IN_PROGRESS' | 'FINISHED';
 export type RoomRole = 'PLAYER' | 'SPECTATOR';
@@ -48,16 +51,21 @@ export interface Tile {
   houseCost?: number;
 }
 
-// A Chance / Community Chest card. Every field except `message` is an optional
-// effect; the server applies whichever ones are present (see `applyCard`).
+// A Cơ Hội / Khí Vận card. Identity, source deck and message are required; the
+// server applies whichever optional effects are present.
 export interface GameCard {
+  // Stable identity is required because jail-free cards leave and later rejoin
+  // their source deck.
+  id: GameCardId;
+  sourceDeck: CardDeck;
   // Text shown in the game log when the card is drawn.
   message: string;
   // Collect this amount from the bank.
   reward?: number;
   // Pay this amount to the bank.
   penalty?: number;
-  // Move to an absolute tile index (money is handled explicitly via reward).
+  // Move to an absolute tile index. The movement helper owns forward pass-GO
+  // rewards; cards never duplicate that reward as a separate effect.
   moveToTile?: number;
   // Move relative to the current tile (negative = backwards); wraps the board.
   moveBy?: number;
@@ -71,6 +79,21 @@ export interface GameCard {
   getOutOfJailFree?: boolean;
 }
 
+export type CardDeck = 'chance' | 'chest';
+
+export interface DeckState {
+  // The first id is the next card to draw. Normal cards rotate to the end;
+  // held jail-free cards remain absent until returned to this pile.
+  drawPile: GameCardId[];
+}
+
+export type GameDecks = Record<CardDeck, DeckState>;
+export type DeckCounts = Record<CardDeck, number>;
+
+export interface GamePrivateState {
+  decks: GameDecks;
+}
+
 export interface Player {
   name: string;
   currentTile: number;
@@ -78,8 +101,17 @@ export interface Player {
   accountBalance: number;
   isJail: boolean;
   jailRounds: number;
-  // Number of "Get out of jail free" cards the player is holding.
-  getOutOfJailCards: number;
+  // Exact ids preserve the source deck while a jail-free card is held.
+  heldJailFreeCardIds: GameCardId[];
+}
+
+export interface PublicPlayer extends Omit<Player, 'heldJailFreeCardIds'> {
+  getOutOfJailCardCount: number;
+}
+
+export interface PrivatePlayerState {
+  playerId: PlayerId;
+  heldJailFreeCardIds: GameCardId[];
 }
 
 export interface FinishedPlayer {
@@ -120,6 +152,8 @@ export interface DiceValue {
 export interface CurrentPlayer {
   id: PlayerId;
   hasMoved: boolean;
+  // Consecutive doubles in this turn. It resets on turn handoff or jail.
+  doublesStreak: number;
 }
 
 export interface TurnRecovery {
@@ -128,17 +162,98 @@ export interface TurnRecovery {
   deadlineAt: string;
 }
 
+export type BuildingType = 'HOUSE' | 'HOTEL';
+
+export interface BankBuildingInventory {
+  housesAvailable: number;
+  hotelsAvailable: number;
+}
+
+export interface BuildingRequest {
+  playerId: PlayerId;
+  tileID: number;
+  buildingType: BuildingType;
+  requestedAt: string;
+}
+
+export interface BuildingContention {
+  contentionId: BuildingContentionId;
+  buildingType: BuildingType;
+  reservedUnit: { buildingType: BuildingType; quantity: 1 };
+  requests: Record<PlayerId, BuildingRequest>;
+  endsAt: string;
+}
+
+// Durable instruction for completing the roll after an auction, debt queue or
+// bankruptcy auction queue finishes. `turnNumber` makes stale recovery a no-op.
+export interface PendingTurnContinuation {
+  playerId: PlayerId;
+  turnNumber: number;
+  rolledDoubles: boolean;
+  forceAdvance?: boolean;
+  resume?:
+    | { kind: 'COMPLETE_TURN' }
+    | { kind: 'NO_TURN_CHANGE' }
+    | { kind: 'RELEASE_FROM_JAIL' }
+    | { kind: 'MOVE_STORED_DICE'; dice: DiceValue };
+}
+
+export interface PendingPropertyDecision {
+  operationId: string;
+  playerId: PlayerId;
+  tileID: number;
+  continuation: PendingTurnContinuation;
+}
+
 export interface TurnInfo {
+  // Compatibility projection while consumers migrate to the durable decision.
   canBuyProp?: boolean;
+  pendingPropertyDecision?: PendingPropertyDecision;
+}
+
+export type DebtCreditor = 'PLAYER' | 'BANK';
+
+export type DebtSource =
+  | { kind: 'RENT'; tileID: number }
+  | { kind: 'TAX'; tileID: number }
+  | { kind: 'CARD'; cardId: GameCardId }
+  | { kind: 'BAIL' }
+  | { kind: 'MORTGAGE_INTEREST'; tileID: number }
+  | { kind: 'OTHER'; description: string };
+
+export type DebtClaimStatus = 'PENDING' | 'SETTLED' | 'BANKRUPT';
+
+export interface DebtClaim {
+  claimId: DebtClaimId;
+  debtorPlayerId: PlayerId;
+  creditor: DebtCreditor;
+  creditorPlayerId?: PlayerId;
+  amount: number;
+  remainingAmount: number;
+  source: DebtSource;
+  status?: DebtClaimStatus;
+}
+
+export interface PaymentQueue {
+  operationId: string;
+  orderedClaims: DebtClaim[];
+  activeClaimIndex: number;
+  continuation: PendingTurnContinuation;
+  actionDeadlineAt: string;
+}
+
+export interface BankPropertyAuctionQueue {
+  operationId: string;
+  orderedRemainingTileIds: number[];
+  currentTileId: number | null;
+  currentAuctionId: AuctionId | null;
+  continuation: PendingTurnContinuation;
 }
 
 // A live auction for a property the current player declined to buy. Any active
 // player can bid; the highest bidder when it ends buys the tile.
-export interface Auction {
+export interface AuctionBase {
   auctionId: AuctionId;
-  tileID: number;
-  tileName: string;
-  price: number;
   highestBid: number;
   highestBidder: PlayerId | null;
   highestBidderName: string | null;
@@ -151,9 +266,27 @@ export interface Auction {
   // Authoritative absolute deadline. Runtime timer handles and countdown ticks
   // are deliberately not part of the durable/public contract.
   endsAt: string;
+  continuation: PendingTurnContinuation | null;
   // Transitional client projection only. New clients derive this from endsAt.
   timer?: number;
 }
+
+export interface PropertyAuction extends AuctionBase {
+  kind: 'PROPERTY';
+  tileID: number;
+  tileName: string;
+  price: number;
+  source: 'DECLINED_PURCHASE' | 'BANKRUPTCY';
+}
+
+export interface BuildingAuction extends AuctionBase {
+  kind: 'BUILDING';
+  buildingType: BuildingType;
+  requests: Record<PlayerId, BuildingRequest>;
+  minimumBid: number;
+}
+
+export type Auction = PropertyAuction | BuildingAuction;
 
 export interface BoardState {
   gameStarted: boolean;
@@ -170,18 +303,77 @@ export interface BoardState {
   winner: Winner | null;
   // The live property auction, or null when none is running.
   auction: Auction | null;
+  buildingContention: BuildingContention | null;
+  paymentQueue: PaymentQueue | null;
+  bankPropertyAuctionQueue: BankPropertyAuctionQueue | null;
 }
 
 export interface GameState {
   boardState: BoardState;
   players: Record<PlayerId, Player>;
   turnInfo: TurnInfo;
+  // Server/persistence only. Public projection must never expose draw order.
+  privateState: GamePrivateState;
   // Retained as a client-facing compatibility flag. Persistent snapshots must
   // omit transport/loading state.
   loaded: boolean;
 }
 
 export type PersistedGameState = Omit<GameState, 'loaded'>;
+
+export type PublicAuction =
+  | Omit<PropertyAuction, 'continuation'>
+  | Omit<BuildingAuction, 'continuation'>;
+
+export interface PublicDebtState {
+  debtorPlayerId: PlayerId;
+  creditor: DebtCreditor;
+  creditorPlayerId?: PlayerId;
+  amount: number;
+  remainingAmount: number;
+  source: DebtSource;
+  actionDeadlineAt: string;
+  remainingClaimCount: number;
+}
+
+export interface PublicBuildingContention {
+  buildingType: BuildingType;
+  claimantPlayerIds: PlayerId[];
+  endsAt: string;
+}
+
+export interface PublicBankPropertyAuctionQueue {
+  currentTileId: number | null;
+  remainingCount: number;
+}
+
+export type PublicBoardState = Omit<
+  BoardState,
+  | 'turnRecovery'
+  | 'auction'
+  | 'buildingContention'
+  | 'paymentQueue'
+  | 'bankPropertyAuctionQueue'
+> & {
+  turnRecovery: { playerId: PlayerId; deadlineAt: string } | null;
+  auction: PublicAuction | null;
+  buildingContention: PublicBuildingContention | null;
+  paymentQueue: PublicDebtState | null;
+  bankPropertyAuctionQueue: PublicBankPropertyAuctionQueue | null;
+};
+
+export interface PublicTurnInfo {
+  canBuyProp?: boolean;
+}
+
+export interface PublicGameState {
+  boardState: PublicBoardState;
+  players: Record<PlayerId, PublicPlayer>;
+  turnInfo: PublicTurnInfo;
+  deckCounts: DeckCounts;
+  bankBuildingInventory: BankBuildingInventory;
+  loaded: boolean;
+}
 
 // ---- Room / session DTOs ----
 
@@ -205,7 +397,7 @@ export interface PublicRoomState {
   minPlayers: number;
   maxPlayers: number;
   players: RoomPlayerMeta[];
-  gameState: GameState;
+  gameState: PublicGameState;
 }
 
 export interface PlayerSessionSummary {
@@ -250,6 +442,7 @@ export interface ResumeSessionResult {
   role: 'PLAYER';
   playerId: PlayerId;
   room: PublicRoomState;
+  privatePlayerState: PrivatePlayerState;
   pendingOffers: PrivateOffer[];
 }
 
@@ -270,11 +463,21 @@ export interface SaleInfo {
   price: number;
 }
 
-// Sent by the client when making a private offer for a property.
-export interface OfferInfo {
-  tileID: number;
-  price: number;
+export interface TradeBundle {
+  cash: number;
+  propertyIds: number[];
+  jailFreeCardIds: GameCardId[];
 }
+
+// A bilateral offer: the proposer gives `offered` and asks the recipient for
+// `requested`. Actor identity still comes from the authenticated socket.
+export interface TradeOfferRequest {
+  recipientPlayerId: PlayerId;
+  offered: TradeBundle;
+  requested: TradeBundle;
+}
+
+export type OfferInfo = TradeOfferRequest;
 
 export interface OfferAction {
   offerId: OfferId;
@@ -289,13 +492,12 @@ export interface MakeOfferResult {
 export interface PrivateOffer {
   offerId: OfferId;
   roomId: RoomId;
-  buyerPlayerId: PlayerId;
-  ownerPlayerId: PlayerId;
-  tileID: number;
-  price: number;
-  buyerName: string;
-  ownerName: string;
-  tileName: string;
+  proposerPlayerId: PlayerId;
+  recipientPlayerId: PlayerId;
+  proposerName: string;
+  recipientName: string;
+  offered: TradeBundle;
+  requested: TradeBundle;
   status: PrivateOfferStatus;
   createdAt: string;
   expiresAt: string;
@@ -308,10 +510,12 @@ export type OfferOnProp = PrivateOffer;
 export interface OfferResult {
   offerId: OfferId;
   status: Exclude<PrivateOfferStatus, 'PENDING'>;
-  tileID: number;
-  tileName: string;
-  price: number;
-  ownerName: string;
+  proposerPlayerId: PlayerId;
+  recipientPlayerId: PlayerId;
+  proposerName: string;
+  recipientName: string;
+  offered: TradeBundle;
+  requested: TradeBundle;
   resolvedAt: string;
 }
 

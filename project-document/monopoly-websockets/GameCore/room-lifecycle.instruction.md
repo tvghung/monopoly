@@ -29,6 +29,9 @@ presence (`CONNECTED | DISCONNECTED`).
 - Player toggles only own ready flag in lobby.
 - All active players, including host, must be connected and ready.
 - Only persisted host may atomically transition lobby to in-progress.
+- Start rolls server-side 2d6 for all active Player; tied highest rollers reroll
+  until one winner, whose stable ID becomes first in persisted turn order. This
+  happens inside start command; no client dice/order payload is accepted.
 - Start cannot repeat and no reverse/rematch lifecycle exists.
 - Temporary host disconnect preserves host. Explicit leave transfers host to lowest
   remaining active join order.
@@ -45,9 +48,11 @@ Disconnect:
 Explicit leave:
 
 - Lobby: remove Seat, revoke session, transfer host; delete room if empty.
-- In game: confirmed forfeit atomically marks/removes active Seat, releases properties
-  to unowned, cancels listings/offers, reconciles auction/current turn, checks winner
-  and revokes session.
+- In game: confirmed forfeit atomically revokes session, cancels stale listing/offer
+  and resolves assets according to active `DebtClaim`. PLAYER creditor receives the
+  same `BANKRUPTCY_TO_PLAYER` transfer; BANK/no-player-creditor uses surrender-to-Bank
+  plus `BankPropertyAuctionQueue`. Auction/payment/turn continuation is reconciled
+  before winner check; finished reason remains `LEFT`.
 - Spectator: runtime room leave only.
 
 Finished history records reason (`BANKRUPT | LEFT`); it is not erased by disconnect.
@@ -68,6 +73,9 @@ Finished history records reason (`BANKRUPT | LEFT`); it is not erased by disconn
 - Public connected flags derive from runtime registry after load/restart.
 - Raw token, SocketData, presence, command queue and scheduler timer handles never
   enter snapshot.
+- Snapshot v2 persists Standard Mode operations but not runtime handles: doubles,
+  pending decision/continuation, ordered payments, private deck state, Bank auction
+  queue and building contention.
 - Room code is normalized/unique but is not password/credential.
 
 ## Tests
