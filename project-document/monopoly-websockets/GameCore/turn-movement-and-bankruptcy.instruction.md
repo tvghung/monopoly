@@ -62,9 +62,10 @@ validate/recovery, nhưng không thay đổi các trường settlement trên.
 - Chỉ active claim được settle. Tiền có sẵn chuyển ngay; phần còn lại giữ
   `remainingAmount`, khóa roll/turn handoff nhưng vẫn cho debtor bán building, cầm
   cố và thực hiện giao dịch hợp lệ.
-- Trong lúc queue còn active, không chạy live auction hoặc cho bất kỳ Player nào
-  bid/spend vào gameplay khác; Bank property queue chỉ bắt đầu sau khi debt queue
-  đã hoàn tất.
+- Trong lúc queue còn active, không chạy gameplay thường hoặc cho debtor bid/spend;
+  các Player khác chỉ được thực hiện interaction cần thiết cho debt recovery. Vì
+  vậy Bank-property auction có thể chạy cùng queue khi tài sản đã bị trả Bank;
+  bidder không phải debtor được đặt giá, còn debtor vẫn bị khóa.
 - Sau mỗi action thanh lý, payment tiếp tục từ active claim; claim đủ tiền được
   remove/advance đúng một lần. Không có phantom ACK/broadcast nếu save thất bại.
 - Player explicit xác nhận phá sản khi không thể/không tiếp tục thanh lý. GameCore

@@ -1,6 +1,4 @@
-# Monopoly Websockets
-
-[![Live demo](https://img.shields.io/badge/▶_Live_demo-monopoly.michalik.no-2ea44f?style=for-the-badge)](https://monopoly.michalik.no)
+# Cờ Tỷ Phú Việt Nam
 
 [![CI](https://github.com/terragady/monopoly-websockets/actions/workflows/ci.yml/badge.svg)](https://github.com/terragady/monopoly-websockets/actions/workflows/ci.yml)
 ![GitHub top language](https://img.shields.io/github/languages/top/terragady/monopoly-websockets)
@@ -16,11 +14,11 @@
 ![pnpm](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fterragady%2Fmonopoly-websockets%2Fmain%2Fpackage.json&query=%24.packageManager&logo=pnpm&logoColor=white&label=pnpm&color=F69220)
 ![Node](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fterragady%2Fmonopoly-websockets%2Fmain%2Fpackage.json&query=%24.engines.node&logo=nodedotjs&logoColor=white&label=Node&color=5FA04E)
 
-Real-time multiplayer Monopoly you can play in the browser with friends over a
-shared room code.
+Trò chơi Cờ Tỷ Phú Việt Nam nhiều người chơi theo thời gian thực trên trình duyệt.
+Tạo mã phòng, mời bạn bè và chơi cùng nhau.
 
-**▶ Play it live at [monopoly.michalik.no](https://monopoly.michalik.no)** — grab a
-room code and share it with friends.
+Giao diện và nội dung người chơi đã được Việt hóa; các tên package kỹ thuật
+`@monopoly/*` được giữ nguyên để tránh breaking change không cần thiết.
 
 This started life as a small 2020 hobby project and has since been **rewritten from
 the ground up**: the original single-file Express + Create React App codebase (one
@@ -29,8 +27,6 @@ with an **authoritative game server**, **isolated game rooms**, sanitised chat, 
 an animated, polished UI. See [What changed in the rewrite](#what-changed-in-the-rewrite).
 
 Everything that happens is written to the in-game log / chat — keep an eye on it!
-
-![Monopoly Websockets game board](./docs/screenshot.png)
 
 ## What changed in the rewrite
 
@@ -43,7 +39,7 @@ Everything that happens is written to the in-game log / chat — keep an eye on 
 | A dropped socket deleted the player | **Stable player sessions** reclaim the same seat after refresh/reconnect |
 | Process memory was the game store | **PostgreSQL-backed** rooms, sessions, offers and restart recovery |
 | Chat rendered raw HTML (XSS) | Chat + names sanitised |
-| Chance drew from the Community Chest deck | Separate, expanded **Chance / Community Chest** decks |
+| Cơ Hội và Khí Vận dùng chung nguồn thẻ | Hai bộ thẻ có thứ tự, xáo trộn và phục hồi durable riêng |
 | Static board, instant token jumps | **Animated** 3D dice, tile-by-tile token movement, card flips, modal prompts |
 | Committed build output, mixed yarn/npm lockfiles | Clean workspace, single pnpm lockfile, Docker + Render deploy configs |
 
@@ -114,6 +110,8 @@ pnpm test        # unit/client/socket tests; PostgreSQL suite is conditional
 | `CORS_ORIGIN` | Vite origin in development | Explicit cross-origin allowlist; not authentication. |
 | `CLIENT_DIST` | `apps/client/dist` | Static client directory override. |
 | `RECONNECT_GRACE_MS` | `60000` | Grace before an offline current player's turn is resolved. |
+| `DEBT_ACTION_TIMEOUT_MS` | `120000` | Thời hạn xử lý khoản nợ trước recovery phá sản xác định. |
+| `BUILDING_CONTENTION_MS` | `10000` | Cửa sổ tranh chấp Nhà/Khách Sạn khan hiếm. |
 | `PENDING_SESSION_TTL_MS` | `300000` | Unactivated first-join token TTL. |
 | `TERMINAL_SESSION_RETENTION_MS` | `604800000` | Retain revoked/expired session rows for seven days before purge. |
 | `LOBBY_RETENTION_MS` | `86400000` | Inactive lobby retention. |
@@ -186,8 +184,9 @@ token replaces the older one. Disconnecting does not sell, delete or transfer as
 - *Open market:* click your own property, choose **Sell**, and set a price. Any player
   in the room can then buy it; you can also pull it back off the market.
 
-**What happens when I go bankrupt?** You're moved out of the active roster and your
-properties become unowned; they are not automatically listed on the open market.
+**What happens when I go bankrupt?** Nhà/Khách Sạn được thanh lý trước. Nếu khoản nợ
+thuộc về người chơi, tiền, tài sản còn lại và thẻ Thoát Tù Miễn Phí chuyển cho chủ nợ;
+nếu nợ Ngân hàng, tài sản đi qua hàng đợi đấu giá durable.
 
 **How do I win?** Be the last active player after the others go bankrupt or forfeit.
 
@@ -198,13 +197,13 @@ properties become unowned; they are not automatically listed on the open market.
 - [x] Server-side validation (reject out-of-turn / unaffordable / not-owner actions)
 - [x] Isolated game rooms (share a room code to play together)
 - [x] Chat input sanitisation (no HTML injection)
-- [x] Separate, expanded Chance / Community Chest decks
+- [x] Separate, expanded Cơ Hội / Khí Vận decks with durable draw order
 - [x] Animated 3D dice, tile-by-tile token movement, card flips and modal prompts
 - [x] Building houses / hotels and the rent tiers they unlock
-- [x] Colour-group monopoly rent bonus (owning a full set)
+- [x] Thưởng tiền thuê khi sở hữu đủ nhóm màu
 - [x] Mortgaging properties for cash
 - [x] Auctions when a player declines to buy an unowned tile
-- [x] "Get out of jail free" card and paying $50 to leave jail
+- [x] Thẻ Thoát Tù Miễn Phí và trả 50 game-unit để ra tù
 - [x] Property trading (private offers and an open market)
 - [x] A dedicated win screen
 - [x] Stable player identity, reconnect and newest-connection-wins sessions

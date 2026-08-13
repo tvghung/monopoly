@@ -188,6 +188,8 @@ export const assertDebtActionAllowed = (
   if (!claim) return true;
   if (action === 'LIQUIDATE') return actorId === claim.debtorPlayerId;
   if (action === 'TRADE') return true;
-  if (action === 'BID') return false;
+  // A Bank-property auction is a required debt-recovery interaction. Other
+  // players may bid there, while the active debtor remains blocked.
+  if (action === 'BID') return actorId !== claim.debtorPlayerId;
   return false;
 };

@@ -276,8 +276,16 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
   }
 
   const auction = state.boardState.auction;
-  if (state.boardState.paymentQueue && auction) {
-    throw new Error('Room snapshot cannot run a live auction during debt resolution');
+  if (
+    state.boardState.paymentQueue
+    && auction
+    && !(
+      auction.kind === 'PROPERTY'
+      && auction.source === 'BANKRUPTCY'
+      && state.boardState.bankPropertyAuctionQueue?.currentAuctionId === auction.auctionId
+    )
+  ) {
+    throw new Error('Room snapshot cannot run an unrelated live auction during debt resolution');
   }
   if (auction && state.boardState.buildingContention) {
     throw new Error('Room snapshot cannot contain an auction and building contention together');
