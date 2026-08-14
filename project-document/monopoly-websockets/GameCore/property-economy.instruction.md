@@ -33,8 +33,8 @@
 - Mortgage chỉ yêu cầu chính tài sản không có công trình; không có group-wide
   mortgage guard.
 - Mortgage trả `floor(price/2)`; unmortgage trả `ceil(mortgageValue * 1.1)`.
-- Mortgaged property không thu rent nhưng vẫn thuộc ownership/group để tính tier
-  railroad/utility; color-group street không được build khi bất kỳ member mortgage.
+- Mortgaged property không thu rent; ownership của nó vẫn được tính khi xác định
+  tier Ga Tàu/Công Ty, nhưng tài sản mortgaged không được phát triển.
 
 ## Transfer policies
 

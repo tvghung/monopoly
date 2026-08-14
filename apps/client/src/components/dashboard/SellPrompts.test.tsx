@@ -17,8 +17,8 @@ const state: PublicGameState = {
     gameStarted: true,
     players: ['me', 'them'],
     finishedPlayers: {},
-    currentPlayer: { id: 'me', hasMoved: true, doublesStreak: 0 },
     turnNumber: 2,
+    currentPlayer: { id: '', hasMoved: false },
     turnRecovery: null,
     logs: [],
     diceValue: { dice1: 2, dice2: 3 },
@@ -30,10 +30,6 @@ const state: PublicGameState = {
     },
     openMarket: {},
     winner: null,
-    auction: null,
-    buildingContention: null,
-    paymentQueue: null,
-    bankPropertyAuctionQueue: null,
   },
   players: {
     me: {
@@ -42,7 +38,7 @@ const state: PublicGameState = {
       color: 'red',
       accountBalance: 1500,
       isJail: false,
-      jailRounds: 0,
+      jailOpponentRoundsElapsed: 0,
       getOutOfJailCardCount: 1,
     },
     them: {
@@ -51,13 +47,12 @@ const state: PublicGameState = {
       color: 'blue',
       accountBalance: 900,
       isJail: false,
-      jailRounds: 0,
+      jailOpponentRoundsElapsed: 0,
       getOutOfJailCardCount: 1,
     },
   },
   turnInfo: {},
   deckCounts: { chance: 15, chest: 15 },
-  bankBuildingInventory: { housesAvailable: 32, hotelsAvailable: 12 },
   loaded: true,
 };
 

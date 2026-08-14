@@ -40,8 +40,7 @@ property, listing, ready, host, session, offer or payment/proposal state.
 If the disconnected stable Player owns current turn and no payment/proposal operation
 controls progression, handler persists the configured guarded turn-recovery deadline
 (default 60 seconds). Reconnect before expiry clears it and preserves exact turn,
-doubles, pending decision/continuation, payment, deck holder, Bank queue and
-contention state. The common room commit
+pending decision/continuation, payment, deck holder and forced-sale proposal state. The common room commit
 boundary also arms the same marker when a command advances to an already-offline
 current Player. Controlled shutdown does not arm artificial deadlines.
 

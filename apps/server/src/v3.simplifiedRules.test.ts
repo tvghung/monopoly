@@ -13,6 +13,7 @@ import {
   forcedSaleNetProceeds,
   handleJailRoll,
   nextTurn,
+  progressPaymentQueue,
   resolveTile,
   sellPropertyToBankForPayment,
   streetRent,
@@ -163,12 +164,96 @@ describe('simplified v3 rules', () => {
       1,
       { now: 0, paymentShortfallActionTimeoutMs: 120_000 },
     );
+    progressPaymentQueue(state, { now: 0, paymentShortfallActionTimeoutMs: 120_000 });
 
     expect(state.boardState.ownedProps[1]).toBeUndefined();
-    expect(state.players.p1.accountBalance).toBe(0);
-    expect(state.boardState.paymentQueue?.orderedClaims[0].remainingAmount).toBe(
-      100 - forcedSaleNetProceeds(1, 0, true),
+    expect(state.players.p1).toBeUndefined();
+    expect(state.boardState.paymentQueue).toBeNull();
+  });
+
+  it('rejects a repeated forced-sale command without a second mutation', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { accountBalance: 0 });
+    addPlayer(state, 'p2', { accountBalance: 1500, color: 'blue' });
+    own(state, 1, 'p1');
+    own(state, 3, 'p1');
+    const queue = createPaymentQueue(
+      [{
+        debtorPlayerId: 'p1',
+        creditor: 'PLAYER',
+        creditorPlayerId: 'p2',
+        amount: 500,
+        source: { kind: 'OTHER', description: 'stale sale' },
+      }],
+      { playerId: 'p1', turnNumber: 1 },
+      { now: 0, paymentShortfallActionTimeoutMs: 120_000 },
     );
+    state.boardState.paymentQueue = queue;
+    const claimId = queue.orderedClaims[0].claimId;
+    const first = sellPropertyToBankForPayment(
+      state,
+      'p1',
+      queue.operationId,
+      claimId,
+      1,
+      { now: 0, paymentShortfallActionTimeoutMs: 120_000 },
+    );
+    expect(first).toMatchObject({ ok: true, changed: true });
+    const balanceAfterFirstSale = state.players.p1.accountBalance;
+    const queueAfterFirstSale = structuredClone(state.boardState.paymentQueue);
+
+    const repeated = sellPropertyToBankForPayment(
+      state,
+      'p1',
+      queue.operationId,
+      claimId,
+      1,
+      { now: 1, paymentShortfallActionTimeoutMs: 120_000 },
+    );
+    expect(repeated).toMatchObject({ ok: false, changed: false });
+    expect(state.players.p1.accountBalance).toBe(balanceAfterFirstSale);
+    expect(state.boardState.ownedProps[1]).toBeUndefined();
+    expect(state.boardState.paymentQueue).toEqual(queueAfterFirstSale);
+  });
+
+  it('keeps the shortfall open while another property remains', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { accountBalance: 0 });
+    addPlayer(state, 'p2', { accountBalance: 1500, color: 'blue' });
+    own(state, 1, 'p1');
+    own(state, 3, 'p1');
+    const queue = createPaymentQueue(
+      [{
+        debtorPlayerId: 'p1',
+        creditor: 'PLAYER',
+        creditorPlayerId: 'p2',
+        amount: 500,
+        source: { kind: 'OTHER', description: 'remaining property' },
+      }],
+      { playerId: 'p1', turnNumber: 1 },
+      { now: 0, paymentShortfallActionTimeoutMs: 120_000 },
+    );
+    state.boardState.paymentQueue = queue;
+    const claimId = queue.orderedClaims[0].claimId;
+
+    const sale = sellPropertyToBankForPayment(
+      state,
+      'p1',
+      queue.operationId,
+      claimId,
+      1,
+      { now: 0, paymentShortfallActionTimeoutMs: 120_000 },
+    );
+    expect(sale.ok).toBe(true);
+    const progress = progressPaymentQueue(state, {
+      now: 1,
+      paymentShortfallActionTimeoutMs: 120_000,
+    });
+
+    expect(progress.status).toBe('WAITING_FOR_LIQUIDATION');
+    expect(state.players.p1).toBeDefined();
+    expect(state.boardState.ownedProps[3]).toMatchObject({ id: 'p1' });
+    expect(state.boardState.paymentQueue?.orderedClaims[0].remainingAmount).toBeGreaterThan(0);
   });
 
   it('accepts a forced-sale proposal only through the active payment claim', () => {
@@ -195,6 +280,7 @@ describe('simplified v3 rules', () => {
       now: 1,
       paymentShortfallActionTimeoutMs: 120_000,
     })).not.toBeNull();
+    progressPaymentQueue(state, { now: 1, paymentShortfallActionTimeoutMs: 120_000 });
 
     expect(state.boardState.ownedProps[1]).toMatchObject({ id: 'p2', mortgaged: false });
     expect(state.players.p2.accountBalance).toBe(1000 - forcedSaleGrossPrice(1, 0));
@@ -231,10 +317,7 @@ describe('simplified v3 rules', () => {
     );
     state.boardState.paymentQueue = queue;
 
-    bankruptActiveDebtor(state, 'p1', 'BANKRUPT', {
-      now: 0,
-      paymentShortfallActionTimeoutMs: 120_000,
-    });
+    bankruptActiveDebtor(state, 'p1', 'BANKRUPT');
 
     expect(state.players.p1).toBeUndefined();
     expect(state.boardState.currentPlayer).toMatchObject({ id: 'p2', hasMoved: false });

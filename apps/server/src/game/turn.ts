@@ -106,7 +106,6 @@ const successorAfter = (
 
 const resetForFreshTurn = (state: GameState): void => {
   state.boardState.currentPlayer.hasMoved = false;
-  delete state.boardState.currentPlayer.doublesStreak;
   state.boardState.turnNumber += 1;
   state.boardState.turnRecovery = null;
   state.turnInfo = {};
@@ -243,9 +242,8 @@ export const nextTurn = (state: GameState): void => {
     : playerIds[(currentIndex + 1) % playerIds.length];
   const selected = state.players[state.boardState.currentPlayer.id];
   if (selected?.isJail) {
-    const elapsed = selected.jailOpponentRoundsElapsed ?? selected.jailRounds ?? 0;
+    const elapsed = selected.jailOpponentRoundsElapsed;
     selected.jailOpponentRoundsElapsed = Math.min(2, elapsed + 1);
-    delete selected.jailRounds;
     if (selected.jailOpponentRoundsElapsed >= 2) {
       selected.isJail = false;
       selected.jailOpponentRoundsElapsed = 0;
@@ -260,12 +258,8 @@ export type TurnResolutionOutcome = 'ADVANCE_TURN';
 export const continuationForRoll = (
   state: GameState,
   playerId: PlayerId,
-  _rolledDoubles = false,
-  options: Pick<PendingTurnContinuation, 'forceAdvance' | 'resume'> = {},
+  options: Pick<PendingTurnContinuation, 'resume'> = {},
 ): PendingTurnContinuation => {
-  // Kept as a source-compatible argument for callers that still pass the old
-  // roll result; v3 intentionally ignores it and never grants an extra roll.
-  void _rolledDoubles;
   return {
     playerId,
     turnNumber: state.boardState.turnNumber,

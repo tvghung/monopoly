@@ -34,6 +34,20 @@ export async function cancelPendingOffersForAssets(
   return cancelled.filter((offer): offer is TradeOfferRecord => offer !== null);
 }
 
+/** Cancel every pending offer involving a player in the same transaction. */
+export async function cancelPendingOffersForPlayer(
+  repository: TradeOfferRepository,
+  roomId: string,
+  playerId: string,
+  now: Date,
+): Promise<TradeOfferRecord[]> {
+  const pending = await repository.listPendingForPlayer(roomId, playerId);
+  const cancelled = await Promise.all(
+    pending.map((offer) => repository.resolve(offer.id, 'CANCELLED', now)),
+  );
+  return cancelled.filter((offer): offer is TradeOfferRecord => offer !== null);
+}
+
 export function emitCancelledOffers(
   io: AppServer,
   room: RoomRecord<RoomSnapshot>,

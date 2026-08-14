@@ -63,7 +63,7 @@
 - Active player, finished player và socket khác có thể nhận nhãn người gửi khác nhau từ server; client không tự xác định role đó.
 - Không có route detail, permission key, message edit/delete hoặc history pagination.
 - Các action game khác cũng append vào cùng log; thay schema log ảnh hưởng nhiều GameCore module.
-- Card/turn/payment/auction/bankruptcy log giữ deterministic order từ committed
+- Card/turn/payment/bankruptcy log giữ deterministic order từ committed
   `PaymentQueue`/continuation; Client không tự dựng translated gameplay result.
 
 ## Tài liệu liên quan

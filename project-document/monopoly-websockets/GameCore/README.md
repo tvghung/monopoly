@@ -25,7 +25,7 @@ Room persistence/CAS/deadline recovery: [../Persistence/README.md](../Persistenc
   pending purchase/development decision hoặc `PaymentQueue`; các wait giữ
   `PendingTurnContinuation` của chính operation.
 - `PaymentQueue.orderedClaims` là thứ tự claim ổn định có `activeClaimIndex`;
-  creditor BANK và PLAYER dẫn tới hai pipeline bankruptcy khác nhau.
+  creditor BANK và PLAYER đều đi qua cùng payment-progression path.
 - Payment shortfall tự động bán tài sản theo tile index khi deadline hết; forced-sale
   proposal có một proposal duy nhất, gắn với `paymentOperationId`/`claimId` và
   chỉ seller/buyer được thấy.

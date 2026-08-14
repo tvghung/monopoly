@@ -11,6 +11,7 @@ import {
 } from '@monopoly/shared';
 import {
   executeVoluntaryTrade,
+  isPropertyLockedByLandingDecision,
   mortgageTransferInterest,
   sendToLog,
   transferProperty,
@@ -55,6 +56,9 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
         if (room.status !== 'IN_PROGRESS' || !player || !owner || owner.id !== actor.playerId || !tile) {
           throw new CommandError('FORBIDDEN', 'Chỉ chủ sở hữu mới được đăng bán tài sản.');
         }
+        if (isPropertyLockedByLandingDecision(state, sale.tileID)) {
+          throw new CommandError('CONFLICT', 'Tài sản đang chờ quyết định phát triển của lượt hiện tại.');
+        }
         state.boardState.openMarket[sale.tileID] = {
           seller: actor.playerId,
           price: sale.price,
@@ -74,6 +78,9 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
       const actor = requirePlayer(socket, runtime);
       const committed = await commitRoomCommand(runtime, actor.roomId, ({ state }) => {
         assertCommerceAvailable(state);
+        if (isPropertyLockedByLandingDecision(state, request.tileID)) {
+          throw new CommandError('CONFLICT', 'Tài sản đang chờ quyết định phát triển của lượt hiện tại.');
+        }
         const listing = state.boardState.openMarket[request.tileID];
         if (!listing || listing.seller !== actor.playerId) {
           throw new CommandError('FORBIDDEN', 'Chỉ người bán mới được gỡ tin đăng.');
@@ -99,6 +106,9 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
         const seller = listing ? state.players[listing.seller] : undefined;
         if (room.status !== 'IN_PROGRESS' || !listing || !buyer || !property || !seller || property.id !== listing.seller) {
           throw new CommandError('CONFLICT', 'Tin đăng không còn hợp lệ.');
+        }
+        if (isPropertyLockedByLandingDecision(state, request.tileID)) {
+          throw new CommandError('CONFLICT', 'Tài sản đang chờ quyết định phát triển của lượt hiện tại.');
         }
         if (listing.seller === actor.playerId) throw new CommandError('FORBIDDEN', 'Bạn không thể mua tài sản của chính mình.');
         const interest = property.mortgaged ? mortgageTransferInterest(request.tileID) : 0;
@@ -156,6 +166,13 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
         }
         if (!ownsBundle(state, actor.playerId, request.offered) || !ownsBundle(state, request.recipientPlayerId, request.requested)) {
           throw new CommandError('CONFLICT', 'Một bên không còn sở hữu tài sản trong gói giao dịch.');
+        }
+        const lockedTile = state.turnInfo.pendingDevelopmentDecision?.tileID;
+        if (
+          lockedTile !== undefined
+          && (request.offered.propertyIds.includes(lockedTile) || request.requested.propertyIds.includes(lockedTile))
+        ) {
+          throw new CommandError('CONFLICT', 'Tài sản đang chờ quyết định phát triển của lượt hiện tại.');
         }
         return transaction.tradeOffers.create({
           id: offerId,

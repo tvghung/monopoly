@@ -3,6 +3,7 @@ import {
   activeDebtClaim,
   createForcedSaleProposal,
   rejectForcedSaleProposal,
+  progressPaymentQueue,
   resumePaymentContinuation,
   sellPropertyToBankForPayment,
 } from '../game';
@@ -10,9 +11,19 @@ import type { AppRuntime } from '../services/runtime';
 import { requirePlayer } from './authority';
 import { broadcastRoom, privatePlayerRoomName } from './broadcast';
 import { CommandError, acknowledgeFailure, successAck } from './errors';
-import { cancelPendingOffersForAssets, emitCancelledOffers } from '../services/offerInvalidation';
+import {
+  cancelPendingOffersForAssets,
+  cancelPendingOffersForPlayer,
+  emitCancelledOffers,
+} from '../services/offerInvalidation';
 import { commitRoomCommand } from './roomCommands';
 import type { AppServer, AppSocket } from './types';
+
+const emitForcedSaleCleared = (io: AppServer, playerIds: string[]): void => {
+  for (const playerId of new Set(playerIds)) {
+    io.to(privatePlayerRoomName(playerId)).emit('forced sale proposal', null);
+  }
+};
 
 export function registerDebtHandlers(io: AppServer, socket: AppSocket, runtime: AppRuntime): void {
   socket.on('sell property to bank', async (request, acknowledge) => {
@@ -25,9 +36,9 @@ export function registerDebtHandlers(io: AppServer, socket: AppSocket, runtime: 
           throw new CommandError('FORBIDDEN', 'Bạn không có khoản thanh toán cần bán tài sản.');
         }
         if (Date.parse(state.boardState.paymentQueue?.actionDeadlineAt ?? '') <= now.getTime()) {
-          throw new CommandError('CONFLICT', 'Thoi han thanh toan da het; may chu dang tu xu ly.');
+          throw new CommandError('CONFLICT', 'Thời hạn thanh toán đã hết; máy chủ đang tự xử lý.');
         }
-        const continuation = sellPropertyToBankForPayment(
+        const sale = sellPropertyToBankForPayment(
           state,
           actor.playerId,
           request.paymentOperationId,
@@ -35,13 +46,18 @@ export function registerDebtHandlers(io: AppServer, socket: AppSocket, runtime: 
           request.tileID,
           { now: now.getTime(), paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs },
         );
-        if (!continuation && state.boardState.ownedProps[request.tileID]) {
-          throw new CommandError('CONFLICT', 'Không thể bán tài sản theo khoản thanh toán hiện tại.');
-        }
-        if (continuation) resumePaymentContinuation(state, continuation, {
-          now: now.getTime(), paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+        if (!sale.ok) throw new CommandError('CONFLICT', sale.reason);
+        const progress = progressPaymentQueue(state, {
+          now: now.getTime(),
+          paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
         });
-        return cancelPendingOffersForAssets(
+        if (progress.status === 'COMPLETED' && progress.continuation) {
+          resumePaymentContinuation(state, progress.continuation, {
+            now: now.getTime(),
+            paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+          });
+        }
+        const cancelled = await cancelPendingOffersForAssets(
           transaction.tradeOffers,
           actor.roomId,
           null,
@@ -49,6 +65,15 @@ export function registerDebtHandlers(io: AppServer, socket: AppSocket, runtime: 
           [],
           now,
         );
+        if (!state.players[actor.playerId]) {
+          cancelled.push(...await cancelPendingOffersForPlayer(
+            transaction.tradeOffers,
+            actor.roomId,
+            actor.playerId,
+            now,
+          ));
+        }
+        return cancelled;
       }, now, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
       emitCancelledOffers(io, committed.room, committed.result, now);
@@ -91,30 +116,49 @@ export function registerDebtHandlers(io: AppServer, socket: AppSocket, runtime: 
     try {
       const actor = requirePlayer(socket, runtime);
       const now = new Date();
+      let proposalPlayers: string[] = [];
       const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }) => {
-        const before = state.privateState.forcedSaleProposal;
-        const continuation = acceptForcedSaleProposal(state, actor.playerId, request.proposalId, {
+        const proposal = state.privateState.forcedSaleProposal;
+        proposalPlayers = proposal
+          ? [proposal.sellerPlayerId, proposal.buyerPlayerId]
+          : [];
+        const sellerId = proposal?.sellerPlayerId;
+        const sale = acceptForcedSaleProposal(state, actor.playerId, request.proposalId, {
           now: now.getTime(), paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
         });
-        if (!continuation && state.privateState.forcedSaleProposal) {
-          throw new CommandError('CONFLICT', 'Đề nghị bán bắt buộc đã hết hạn hoặc không còn hợp lệ.');
-        }
-        if (continuation) resumePaymentContinuation(state, continuation, {
-          now: now.getTime(), paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
-        });
+        if (!sale.ok) throw new CommandError('CONFLICT', sale.reason);
         if (room.status !== 'IN_PROGRESS') throw new CommandError('CONFLICT', 'Phòng không còn hoạt động.');
-        if (!before) throw new CommandError('CONFLICT', 'Đề nghị bán bắt buộc không còn hợp lệ.');
-        return cancelPendingOffersForAssets(
+        const progress = progressPaymentQueue(state, {
+          now: now.getTime(),
+          paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+        });
+        if (progress.status === 'COMPLETED' && progress.continuation) {
+          resumePaymentContinuation(state, progress.continuation, {
+            now: now.getTime(),
+            paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+          });
+        }
+        const cancelled = await cancelPendingOffersForAssets(
           transaction.tradeOffers,
           actor.roomId,
           null,
-          [before.tileID],
+          [sale.tileID],
           [],
           now,
         );
+        if (sellerId && !state.players[sellerId]) {
+          cancelled.push(...await cancelPendingOffersForPlayer(
+            transaction.tradeOffers,
+            actor.roomId,
+            sellerId,
+            now,
+          ));
+        }
+        return cancelled;
       }, now, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
       emitCancelledOffers(io, committed.room, committed.result, now);
+      emitForcedSaleCleared(io, proposalPlayers);
       broadcastRoom(io, runtime, committed.room);
       acknowledge(successAck(committed.room.aggregateVersion));
     } catch (error) { acknowledgeFailure(acknowledge, error); }
@@ -124,7 +168,12 @@ export function registerDebtHandlers(io: AppServer, socket: AppSocket, runtime: 
     try {
       const actor = requirePlayer(socket, runtime);
       const now = new Date();
+      let proposalPlayers: string[] = [];
       const committed = await commitRoomCommand(runtime, actor.roomId, ({ room, state }) => {
+        const proposal = state.privateState.forcedSaleProposal;
+        proposalPlayers = proposal
+          ? [proposal.sellerPlayerId, proposal.buyerPlayerId]
+          : [];
         if (
           room.status !== 'IN_PROGRESS'
           || !rejectForcedSaleProposal(state, actor.playerId, request.proposalId, now.getTime())
@@ -133,6 +182,7 @@ export function registerDebtHandlers(io: AppServer, socket: AppSocket, runtime: 
         }
       }, now, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
+      emitForcedSaleCleared(io, proposalPlayers);
       broadcastRoom(io, runtime, committed.room);
       acknowledge(successAck(committed.room.aggregateVersion));
     } catch (error) { acknowledgeFailure(acknowledge, error); }

@@ -58,7 +58,7 @@ function activeSnapshot(): RoomSnapshot {
       color: 'red',
       accountBalance: 1500,
       isJail: false,
-      jailRounds: 0,
+      jailOpponentRoundsElapsed: 0,
       heldJailFreeCardIds: [],
     },
     [PLAYER_B]: {
@@ -67,7 +67,7 @@ function activeSnapshot(): RoomSnapshot {
       color: 'blue',
       accountBalance: 1500,
       isJail: false,
-      jailRounds: 0,
+      jailOpponentRoundsElapsed: 0,
       heldJailFreeCardIds: [],
     },
   };
@@ -76,7 +76,7 @@ function activeSnapshot(): RoomSnapshot {
   snapshot.gameState.boardState.currentPlayer = {
     id: PLAYER_A,
     hasMoved: true,
-    doublesStreak: 0,
+
   };
   snapshot.gameState.boardState.turnNumber = 4;
   return snapshot;
@@ -92,14 +92,14 @@ function addDueBankDebt(snapshot: RoomSnapshot, now: Date): void {
       creditor: 'BANK',
       amount: 200,
       remainingAmount: 200,
-      source: { kind: 'TAX', tileID: 4 },
+      source: { kind: 'OTHER', description: 'income tax' },
       status: 'PENDING',
     }],
     activeClaimIndex: 0,
     continuation: {
       playerId: PLAYER_A,
       turnNumber: snapshot.gameState.boardState.turnNumber,
-      rolledDoubles: false,
+
     },
     actionDeadlineAt: new Date(now.getTime() - 1).toISOString(),
   };
@@ -174,151 +174,7 @@ describe('durable deadline recovery', () => {
     });
   });
 
-  it.skip('finalizes an expired persisted auction once and advances the turn', async () => {
-    const { persistence, runtime, io } = createRuntime();
-    const now = new Date('2026-08-09T12:00:00.000Z');
-    const roomId = randomUUID();
-    const snapshot = activeSnapshot();
-    const auctionId = randomUUID();
-    snapshot.gameState.boardState.auction = {
-      kind: 'PROPERTY',
-      auctionId,
-      tileID: 1,
-      tileName: 'Cà Mau',
-      price: 60,
-      source: 'DECLINED_PURCHASE',
-      highestBid: 100,
-      highestBidder: PLAYER_B,
-      highestBidderName: 'Grace',
-      active: [PLAYER_A, PLAYER_B],
-      passed: [PLAYER_A],
-      endsAt: new Date(now.getTime() - 1).toISOString(),
-      continuation: {
-        playerId: PLAYER_A,
-        turnNumber: 4,
-        rolledDoubles: false,
-      },
-    };
-    await persistence.rooms.create({
-      id: roomId,
-      code: 'AUCTION-RECOVERY',
-      status: 'IN_PROGRESS',
-      hostPlayerId: PLAYER_A,
-      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
-      gameSnapshot: snapshot,
-      nextActionAt: now,
-      expiresAt: new Date(now.getTime() + 86_400_000),
-    });
 
-    const beforeRecovery = await persistence.rooms.findById(roomId);
-    await Promise.all([
-      recoverRoomIfDue(io, runtime, roomId, now),
-      recoverRoomIfDue(io, runtime, roomId, now),
-    ]);
-
-    const restored = await persistence.rooms.findById(roomId);
-    expect(restored?.aggregateVersion).toBe(
-      (beforeRecovery?.aggregateVersion ?? 0) + 1,
-    );
-    expect(restored?.gameSnapshot.gameState.boardState).toMatchObject({
-      auction: null,
-      currentPlayer: { id: PLAYER_B, hasMoved: false },
-      turnNumber: 5,
-    });
-    expect(restored?.gameSnapshot.gameState.boardState.ownedProps[1]?.id).toBe(PLAYER_B);
-    expect(restored?.gameSnapshot.gameState.players[PLAYER_B]?.accountBalance).toBe(1400);
-  });
-
-  it.skip('advances a durable multi-property Bank auction queue across fresh runtimes', async () => {
-    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
-    createRuntime(persistence);
-    const firstDeadline = new Date('2026-08-12T12:10:00.000Z');
-    const roomId = randomUUID();
-    const snapshot = activeSnapshot();
-    const firstAuctionId = randomUUID();
-    const continuation = {
-      playerId: PLAYER_A,
-      turnNumber: snapshot.gameState.boardState.turnNumber,
-      rolledDoubles: false,
-    } as const;
-    snapshot.gameState.boardState.auction = {
-      kind: 'PROPERTY',
-      auctionId: firstAuctionId,
-      tileID: 1,
-      tileName: 'Cà Mau',
-      price: 60,
-      source: 'BANKRUPTCY',
-      highestBid: 0,
-      highestBidder: null,
-      highestBidderName: null,
-      active: [PLAYER_A, PLAYER_B],
-      passed: [],
-      endsAt: new Date(firstDeadline.getTime() - 1).toISOString(),
-      continuation: null,
-    };
-    snapshot.gameState.boardState.bankPropertyAuctionQueue = {
-      operationId: randomUUID(),
-      orderedRemainingTileIds: [3],
-      currentTileId: 1,
-      currentAuctionId: firstAuctionId,
-      continuation,
-    };
-    await persistence.rooms.create({
-      id: roomId,
-      code: 'BANK-AUCTION-RESTART',
-      status: 'IN_PROGRESS',
-      hostPlayerId: PLAYER_A,
-      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
-      gameSnapshot: snapshot,
-      nextActionAt: firstDeadline,
-      expiresAt: new Date(firstDeadline.getTime() + 86_400_000),
-    });
-
-    const secondRuntime = createRuntime(persistence);
-    await recoverRoomIfDue(secondRuntime.io, secondRuntime.runtime, roomId, firstDeadline);
-
-    const afterFirst = await persistence.rooms.findById(roomId);
-    const secondAuction = afterFirst?.gameSnapshot.gameState.boardState.auction;
-    expect(secondAuction).toMatchObject({
-      kind: 'PROPERTY',
-      tileID: 3,
-      source: 'BANKRUPTCY',
-    });
-    expect(afterFirst?.gameSnapshot.gameState.boardState.bankPropertyAuctionQueue)
-      .toMatchObject({
-        orderedRemainingTileIds: [],
-        currentTileId: 3,
-        currentAuctionId: secondAuction?.auctionId,
-      });
-
-    if (!afterFirst || !secondAuction) throw new Error('Second Bank auction was not persisted');
-    const secondDeadline = new Date('2026-08-12T12:11:00.000Z');
-    secondAuction.endsAt = new Date(secondDeadline.getTime() - 1).toISOString();
-    await persistence.rooms.save({
-      id: afterFirst.id,
-      expectedVersion: afterFirst.aggregateVersion,
-      status: afterFirst.status,
-      hostPlayerId: afterFirst.hostPlayerId,
-      snapshotSchemaVersion: afterFirst.snapshotSchemaVersion,
-      gameSnapshot: afterFirst.gameSnapshot,
-      nextActionAt: secondDeadline,
-      lastActivityAt: afterFirst.lastActivityAt,
-      expiresAt: afterFirst.expiresAt,
-    });
-
-    const thirdRuntime = createRuntime(persistence);
-    await recoverRoomIfDue(thirdRuntime.io, thirdRuntime.runtime, roomId, secondDeadline);
-
-    const completed = await persistence.rooms.findById(roomId);
-    expect(completed?.gameSnapshot.gameState.boardState).toMatchObject({
-      auction: null,
-      bankPropertyAuctionQueue: null,
-      currentPlayer: { id: PLAYER_B, hasMoved: false, doublesStreak: 0 },
-      turnNumber: 5,
-    });
-    expect(completed?.gameSnapshot.gameState.boardState.ownedProps[1]).toBeUndefined();
-    expect(completed?.gameSnapshot.gameState.boardState.ownedProps[3]).toBeUndefined();
-  });
 
   it('turns a due buy decision into Do Not Buy and deletes an expired empty room', async () => {
     const { persistence, runtime, io } = createRuntime();
@@ -332,7 +188,7 @@ describe('durable deadline recovery', () => {
       continuation: {
         playerId: PLAYER_A,
         turnNumber: 4,
-        rolledDoubles: false,
+
       },
     };
     snapshot.gameState.boardState.turnRecovery = {

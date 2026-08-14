@@ -24,14 +24,6 @@
   font-size: 2vmin;
 }
 
-.dice__streak {
-  display: block;
-  margin-top: 0.3vmin;
-  color: #8b1e24;
-  font-size: 1.3vmin;
-  font-weight: 700;
-}
-
 .dice__button {
   align-self: center;
   background: white 0.75;

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { tileState } from '@monopoly/shared';
 
 import {
   ROOM_SNAPSHOT_SCHEMA_VERSION,
@@ -35,7 +34,7 @@ const createActiveSnapshot = (): ReturnType<typeof createRoomSnapshot> => {
     color: 'red',
     accountBalance: 1500,
     isJail: false,
-    jailRounds: 0,
+    jailOpponentRoundsElapsed: 0,
     heldJailFreeCardIds: [],
   };
   gameSnapshot.gameState.players[PLAYER_TWO] = {
@@ -44,7 +43,7 @@ const createActiveSnapshot = (): ReturnType<typeof createRoomSnapshot> => {
     color: 'blue',
     accountBalance: 1500,
     isJail: false,
-    jailRounds: 0,
+    jailOpponentRoundsElapsed: 0,
     heldJailFreeCardIds: [],
   };
   gameSnapshot.gameState.boardState.gameStarted = true;
@@ -52,21 +51,9 @@ const createActiveSnapshot = (): ReturnType<typeof createRoomSnapshot> => {
   gameSnapshot.gameState.boardState.currentPlayer = {
     id: PLAYER_ONE,
     hasMoved: true,
-    doublesStreak: 0,
   };
   gameSnapshot.gameState.boardState.turnNumber = 7;
   return gameSnapshot;
-};
-
-const expectInvalidActiveSnapshot = (
-  gameSnapshot: ReturnType<typeof createRoomSnapshot>,
-): void => {
-  expect(() => assertSupportedRoomSnapshot({
-    snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
-    gameSnapshot,
-    hostPlayerId: PLAYER_ONE,
-    status: 'IN_PROGRESS',
-  })).toThrow();
 };
 
 describe('durable room snapshot compatibility', () => {
@@ -98,7 +85,7 @@ describe('durable room snapshot compatibility', () => {
       color: 'red',
       accountBalance: 1500,
       isJail: false,
-      jailRounds: 0,
+      jailOpponentRoundsElapsed: 0,
       heldJailFreeCardIds: [],
     };
     gameSnapshot.gameState.boardState.players = ['legacy-socket-id'];
@@ -149,7 +136,7 @@ describe('durable room snapshot compatibility', () => {
       color: 'red',
       accountBalance: 5,
       isJail: false,
-      jailRounds: 0,
+      jailOpponentRoundsElapsed: 0,
       heldJailFreeCardIds: [],
     };
     state.players[creditorId] = {
@@ -158,11 +145,11 @@ describe('durable room snapshot compatibility', () => {
       color: 'blue',
       accountBalance: 100,
       isJail: false,
-      jailRounds: 0,
+      jailOpponentRoundsElapsed: 0,
       heldJailFreeCardIds: [],
     };
     state.boardState.players = [debtorId, creditorId];
-    state.boardState.currentPlayer = { id: debtorId, hasMoved: true, doublesStreak: 0 };
+    state.boardState.currentPlayer = { id: debtorId, hasMoved: true };
     state.boardState.turnNumber = 4;
     state.boardState.paymentQueue = {
       operationId: '00000000-0000-4000-8000-000000000010',
@@ -192,7 +179,7 @@ describe('durable room snapshot compatibility', () => {
       continuation: {
         playerId: debtorId,
         turnNumber: 4,
-        rolledDoubles: false,
+
       },
       actionDeadlineAt: '2030-01-01T00:02:00.000Z',
     };
@@ -215,130 +202,8 @@ describe('durable room snapshot compatibility', () => {
     });
   });
 
-  it('rejects stale continuations for payment, property auction, and Bank auction queue', () => {
-    const validSnapshot = createActiveSnapshot();
-    expect(() => assertSupportedRoomSnapshot({
-      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
-      gameSnapshot: validSnapshot,
-      hostPlayerId: PLAYER_ONE,
-      status: 'IN_PROGRESS',
-    })).not.toThrow();
 
-    const staleContinuation = {
-      playerId: PLAYER_TWO,
-      turnNumber: 6,
-      rolledDoubles: false,
-    };
 
-    const paymentSnapshot = createActiveSnapshot();
-    paymentSnapshot.gameState.boardState.paymentQueue = {
-      operationId: '00000000-0000-4000-8000-000000000010',
-      orderedClaims: [{
-        claimId: '00000000-0000-4000-8000-000000000011',
-        debtorPlayerId: PLAYER_ONE,
-        creditor: 'BANK',
-        amount: 10,
-        remainingAmount: 10,
-        source: { kind: 'OTHER', description: 'stale payment continuation' },
-        status: 'PENDING',
-      }],
-      activeClaimIndex: 0,
-      continuation: staleContinuation,
-      actionDeadlineAt: '2030-01-01T00:02:00.000Z',
-    };
-    expectInvalidActiveSnapshot(paymentSnapshot);
-
-    const auctionSnapshot = createActiveSnapshot();
-    auctionSnapshot.gameState.boardState.auction = {
-      kind: 'PROPERTY',
-      auctionId: '00000000-0000-4000-8000-000000000020',
-      tileID: 1,
-      tileName: 'Cà Mau',
-      price: 60,
-      source: 'DECLINED_PURCHASE',
-      highestBid: 0,
-      highestBidder: null,
-      highestBidderName: null,
-      active: [PLAYER_ONE, PLAYER_TWO],
-      passed: [],
-      endsAt: '2030-01-01T00:00:30.000Z',
-      continuation: staleContinuation,
-    };
-    expectInvalidActiveSnapshot(auctionSnapshot);
-
-    const bankSnapshot = createActiveSnapshot();
-    const bankAuctionId = '00000000-0000-4000-8000-000000000030';
-    bankSnapshot.gameState.boardState.auction = {
-      kind: 'PROPERTY',
-      auctionId: bankAuctionId,
-      tileID: 3,
-      tileName: 'Bạc Liêu',
-      price: 60,
-      source: 'BANKRUPTCY',
-      highestBid: 0,
-      highestBidder: null,
-      highestBidderName: null,
-      active: [PLAYER_ONE, PLAYER_TWO],
-      passed: [],
-      endsAt: '2030-01-01T00:00:30.000Z',
-      continuation: null,
-    };
-    bankSnapshot.gameState.boardState.bankPropertyAuctionQueue = {
-      operationId: '00000000-0000-4000-8000-000000000031',
-      orderedRemainingTileIds: [],
-      currentTileId: 3,
-      currentAuctionId: bankAuctionId,
-      continuation: staleContinuation,
-    };
-    expectInvalidActiveSnapshot(bankSnapshot);
-  });
-
-  it('rejects a building auction whose request is not a legal build target', () => {
-    const gameSnapshot = createActiveSnapshot();
-    gameSnapshot.gameState.boardState.auction = {
-      kind: 'BUILDING',
-      buildingType: 'HOUSE',
-      requests: {
-        [PLAYER_ONE]: {
-          playerId: PLAYER_ONE,
-          tileID: 5,
-          buildingType: 'HOUSE',
-          requestedAt: '2030-01-01T00:00:00.000Z',
-        },
-      },
-      minimumBid: 1,
-      auctionId: '00000000-0000-4000-8000-000000000040',
-      highestBid: 0,
-      highestBidder: null,
-      highestBidderName: null,
-      active: [PLAYER_ONE],
-      passed: [],
-      endsAt: '2030-01-01T00:00:30.000Z',
-      continuation: null,
-    };
-
-    expectInvalidActiveSnapshot(gameSnapshot);
-  });
-
-  it('allows more than the legacy finite Bank inventory', () => {
-    const gameSnapshot = createActiveSnapshot();
-    tileState.forEach((tile, tileID) => {
-      if (tile.tileType !== 'normal') return;
-      gameSnapshot.gameState.boardState.ownedProps[tileID] = {
-        id: PLAYER_ONE,
-        color: tile.color ?? 'red',
-        houses: 4,
-        mortgaged: false,
-      };
-    });
-
-    expect(() => assertSupportedRoomSnapshot({
-      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
-      gameSnapshot,
-      hostPlayerId: PLAYER_ONE,
-      status: 'IN_PROGRESS',
-    })).not.toThrow();
-  });
 });
 
 describe('public room projection', () => {
@@ -369,14 +234,14 @@ describe('public room projection', () => {
         creditor: 'BANK',
         amount: 100,
         remainingAmount: 40,
-        source: { kind: 'TAX', tileID: 4 },
+        source: { kind: 'OTHER', description: 'income tax' },
         status: 'PENDING',
       }],
       activeClaimIndex: 0,
       continuation: {
         playerId: PLAYER_ONE,
         turnNumber: 7,
-        rolledDoubles: true,
+
       },
       actionDeadlineAt: '2030-01-01T00:02:00.000Z',
     };
@@ -393,7 +258,7 @@ describe('public room projection', () => {
       creditorPlayerId: undefined,
       amount: 100,
       remainingAmount: 40,
-      source: { kind: 'TAX', tileID: 4 },
+      source: { kind: 'OTHER', description: 'income tax' },
       actionDeadlineAt: '2030-01-01T00:02:00.000Z',
       remainingClaimCount: 1,
       paymentOperationId: '00000000-0000-4000-8000-000000000101',
@@ -402,38 +267,4 @@ describe('public room projection', () => {
     });
   });
 
-  it.skip('hides the turn continuation attached to a removed auction', () => {
-    const gameSnapshot = createActiveSnapshot();
-    gameSnapshot.gameState.boardState.auction = {
-      kind: 'PROPERTY',
-      auctionId: '00000000-0000-4000-8000-000000000104',
-      tileID: 1,
-      tileName: 'Cà Mau',
-      price: 60,
-      source: 'DECLINED_PURCHASE',
-      highestBid: 0,
-      highestBidder: null,
-      highestBidderName: null,
-      active: [PLAYER_ONE, PLAYER_TWO],
-      passed: [],
-      endsAt: '2030-01-01T00:01:30.000Z',
-      continuation: {
-        playerId: PLAYER_ONE,
-        turnNumber: 7,
-        rolledDoubles: true,
-      },
-    };
-
-    const projected = projectPublicRoomState(
-      roomFromSnapshot(gameSnapshot),
-      new ConnectionRegistry(),
-      new Date('2030-01-01T00:01:00.000Z'),
-    );
-
-    expect(projected.gameState.boardState.auction).toMatchObject({
-      kind: 'PROPERTY',
-      timer: 30,
-    });
-    expect(projected.gameState.boardState.auction).not.toHaveProperty('continuation');
-  });
 });

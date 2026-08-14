@@ -14,7 +14,7 @@
   → enqueue rent claim; own tile → same-landing development decision when eligible.
 - `expense`: tax/fee tiles are no-op in the simplified rules.
 - `railroad`/`company`: áp rent trong property-economy instruction.
-- `gojail`: direct index 10, reset doubles/jail attempts, không thưởng Xuất Phát.
+- `gojail`: direct index 10, reset jail opponent-round progress, không thưởng Xuất Phát.
 - `jail`: landing bình thường là “Thăm Tù”.
 - `chance`/`chest`: rút top card từ đúng durable draw pile.
 - `start` và `parking`: không có jackpot/effect; Bãi Đỗ Xe không nhận thuế/phạt.
@@ -66,5 +66,6 @@ Ba cách xử lý lượt tù:
 - Deck initialization/order/draw/rotate, hidden public state và restart exactness.
 - Jail-free removal/return/use/transfer/elimination theo source deck.
 - Card movement/pass-GO/destination resolution/card-to-jail.
-- Ba jail paths, third-fail forced bail, no-extra-roll on jail doubles.
+- Bail trực tiếp, jail-free card, doubles escape và wait; không có third-fail
+  forced-bail hay stored-dice continuation.
 - Tax và Bãi Đỗ Xe no-op; save failure không publish partial resolution.

@@ -1,5 +1,10 @@
 import { tileIdSchema, type AckCallback, type GameState } from '@monopoly/shared';
-import { mortgageProperty, sellHouse, unmortgageProperty } from '../game';
+import {
+  isPropertyLockedByLandingDecision,
+  mortgageProperty,
+  sellHouse,
+  unmortgageProperty,
+} from '../game';
 import type { AppRuntime } from '../services/runtime';
 import { cancelPendingOffersForAssets, emitCancelledOffers } from '../services/offerInvalidation';
 import { requirePlayer } from './authority';
@@ -26,6 +31,9 @@ async function executePropertyAction(
     const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }) => {
       if (room.status !== 'IN_PROGRESS' || state.boardState.winner || state.boardState.paymentQueue) {
         throw new CommandError('CONFLICT', 'Hành động tài sản bị khóa trong lúc thanh toán thiếu hụt.');
+      }
+      if (isPropertyLockedByLandingDecision(state, tileID)) {
+        throw new CommandError('CONFLICT', 'Tài sản đang chờ quyết định phát triển của lượt hiện tại.');
       }
       if (!action(state, actor.playerId, tileID)) {
         throw new CommandError('CONFLICT', 'Hành động tài sản không hợp lệ.');

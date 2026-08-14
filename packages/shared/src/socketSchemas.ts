@@ -13,7 +13,6 @@ import type { ClientToServerEvents, TileRequest } from './events';
 export const playerIdSchema = z.uuid();
 export const roomIdSchema = z.uuid();
 export const offerIdSchema = z.uuid();
-export const auctionIdSchema = z.uuid();
 export const gameCardIdSchema = z
   .string()
   .min(1)

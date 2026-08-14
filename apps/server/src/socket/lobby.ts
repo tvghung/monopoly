@@ -123,11 +123,15 @@ export function registerLobbyHandlers(
       const actor = requirePlayer(socket, runtime);
       const { roomId, playerId } = actor;
       const now = new Date();
+      let proposalPlayers: string[] = [];
       const committed = await commitRoomCommand(runtime, roomId, async (context) => {
         const { room, state, transaction } = context;
         const member = room.gameSnapshot.members[playerId];
         if (!member || member.membershipStatus === 'LEFT') {
           throw new CommandError('CONFLICT', 'This player has already left the room.');
+        }
+        if (room.status === 'FINISHED') {
+          throw new CommandError('CONFLICT', 'Ván đã kết thúc; không thể rời phòng lưu trữ.');
         }
         await transaction.playerSessions.revokeByPlayer(roomId, playerId, now);
 
@@ -144,6 +148,10 @@ export function registerLobbyHandlers(
 
         let cancelledOffers: TradeOfferRecord[];
         if (room.status === 'IN_PROGRESS') {
+          const proposal = state.privateState.forcedSaleProposal;
+          proposalPlayers = proposal
+            ? [proposal.sellerPlayerId, proposal.buyerPlayerId]
+            : [];
           const result = member.membershipStatus === 'FINISHED'
             ? { changed: true, continuation: null }
             : surrenderPlayerToBank(state, playerId, {
@@ -209,6 +217,9 @@ export function registerLobbyHandlers(
 
       const result: LeaveRoomResult = { roomDeleted: committed.room === null };
       if (committed.room) {
+        for (const affectedPlayerId of new Set(proposalPlayers)) {
+          io.to(privatePlayerRoomName(affectedPlayerId)).emit('forced sale proposal', null);
+        }
         for (const record of committed.result) {
           const offer = projectPrivateOffer(record, committed.room);
           const offerResult: OfferResult = {

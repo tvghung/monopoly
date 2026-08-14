@@ -36,7 +36,8 @@ Public/persisted types dùng stable IDs và phân biệt hidden state:
 - Cards: private persisted `GamePrivateState.decks.chance.drawPile` và
   `.chest.drawPile`; Player giữ `heldJailFreeCardIds`. Public projection chỉ lộ
   counts cần cho UI, không lộ holder IDs/order/card kế tiếp.
-- Jail third-failed-roll continuation phải giữ dice result qua payment/restart.
+- Jail wait progress (`jailOpponentRoundsElapsed`) là state authoritative, được giữ
+  nguyên qua payment/restart; không có third-failed-roll hoặc stored-dice state.
 
 `PersistedGameState`/room snapshot chứa durable fields trên và bỏ `loaded`, presence,
 credential, socket ID, countdown tick/timer handle.

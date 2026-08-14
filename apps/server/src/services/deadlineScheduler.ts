@@ -1,15 +1,15 @@
 import type { OfferResult, PlayerId } from '@monopoly/shared';
 import {
   activeDebtClaim,
-  bankruptActiveDebtor,
   completeTurnResolution,
   nextTurn,
+  progressPaymentQueue,
   resumePaymentContinuation,
-  settleAffordableClaims,
+  sellablePropertyIds,
   sellPropertyToBankForPayment,
 } from '../game';
 import { assertSupportedRoomSnapshot } from '../rooms';
-import { cancelPendingOffersForAssets } from './offerInvalidation';
+import { cancelPendingOffersForAssets, cancelPendingOffersForPlayer } from './offerInvalidation';
 import { projectPrivateOffer } from './privateOffers';
 import { broadcastRoom, privatePlayerRoomName } from '../socket/broadcast';
 import { commitRoomCommand } from '../socket/roomCommands';
@@ -25,6 +25,7 @@ class StaleDeadlineError extends Error {}
 interface RecoveryResult {
   changed: boolean;
   cancelledOffers: TradeOfferRecord[];
+  forcedSalePlayers: PlayerId[];
 }
 
 const emitCancelledOffers = (
@@ -61,7 +62,7 @@ const recoverPaymentShortfall = async (
   },
   now: Date,
   runtime: AppRuntime,
-): Promise<{ changed: boolean; cancelledOffers: TradeOfferRecord[] }> => {
+): Promise<{ changed: boolean; cancelledOffers: TradeOfferRecord[]; forcedSalePlayers: PlayerId[] }> => {
   const { state, transaction } = context;
   const queue = state.boardState.paymentQueue;
   const claim = queue?.orderedClaims[queue.activeClaimIndex];
@@ -73,7 +74,7 @@ const recoverPaymentShortfall = async (
     || claim.claimId !== expected.claimId
     || queue.actionDeadlineAt !== expected.deadlineAt
     || Date.parse(queue.actionDeadlineAt) > now.getTime()
-  ) return { changed: false, cancelledOffers: [] };
+  ) return { changed: false, cancelledOffers: [], forcedSalePlayers: [] };
 
   const options = {
     now: now.getTime(),
@@ -81,33 +82,40 @@ const recoverPaymentShortfall = async (
   };
   const debtorId = claim.debtorPlayerId;
   const debtor = state.players[debtorId];
-  if (!debtor) return { changed: false, cancelledOffers: [] };
+  if (!debtor) return { changed: false, cancelledOffers: [], forcedSalePlayers: [] };
 
   const cancelledOffers: TradeOfferRecord[] = [];
   let changed = false;
-  let continuation = settleAffordableClaims(state, options);
-  if (continuation) {
-    resumePaymentContinuation(state, continuation, options);
-    return { changed: true, cancelledOffers };
+  const cancelDebtorOffers = async (): Promise<void> => {
+    if (state.players[debtorId]) return;
+    cancelledOffers.push(...await cancelPendingOffersForPlayer(
+      transaction.tradeOffers,
+      context.original.id,
+      debtorId,
+      now,
+    ));
+  };
+  let progress = progressPaymentQueue(state, options);
+  changed ||= progress.changed;
+  if (progress.status === 'COMPLETED') {
+    if (progress.continuation) resumePaymentContinuation(state, progress.continuation, options);
+    await cancelDebtorOffers();
+    return { changed, cancelledOffers, forcedSalePlayers: [] };
   }
 
-  const ownedTileIds = (): number[] => Object.entries(state.boardState.ownedProps)
-    .filter(([, property]) => property.id === debtorId)
-    .map(([tileID]) => Number(tileID))
-    .sort((left, right) => left - right);
-
-  for (const tileID of ownedTileIds()) {
+  for (const tileID of sellablePropertyIds(state, debtorId)) {
     const active = activeDebtClaim(state);
     const currentQueue = state.boardState.paymentQueue;
     if (!active || !currentQueue || active.debtorPlayerId !== debtorId) break;
-    const soldContinuation = sellPropertyToBankForPayment(
+    const sale = sellPropertyToBankForPayment(
       state,
       debtorId,
       currentQueue.operationId,
       active.claimId,
       tileID,
-      options,
+      { ...options, allowExpired: true },
     );
+    if (!sale.ok) continue;
     const cancelled = await cancelPendingOffersForAssets(
       transaction.tradeOffers,
       context.original.id,
@@ -118,46 +126,21 @@ const recoverPaymentShortfall = async (
     );
     cancelledOffers.push(...cancelled);
     changed = true;
-    if (soldContinuation) {
-      resumePaymentContinuation(state, soldContinuation, options);
-      return { changed, cancelledOffers };
-    }
-    continuation = settleAffordableClaims(state, options);
-    if (continuation) {
-      resumePaymentContinuation(state, continuation, options);
-      return { changed, cancelledOffers };
+    progress = progressPaymentQueue(state, options);
+    changed ||= progress.changed;
+    if (progress.status === 'COMPLETED') {
+      if (progress.continuation) resumePaymentContinuation(state, progress.continuation, options);
+      await cancelDebtorOffers();
+      return { changed, cancelledOffers, forcedSalePlayers: [] };
     }
   }
-
-  const remaining = activeDebtClaim(state);
-  if (remaining?.debtorPlayerId === debtorId && state.boardState.paymentQueue) {
-    // No property remains and the cash already available has been applied by
-    // settleAffordableClaims. Mark this debtor's claims terminal, then let
-    // the ordered queue continue to any other debtor.
-    const continuationAfterBankruptcy = bankruptActiveDebtor(
-      state,
-      debtorId,
-      'BANKRUPT',
-      options,
-    );
-    const pendingOffers = await transaction.tradeOffers.listPendingForPlayer(
-      context.original.id,
-      debtorId,
-    );
-    const cancelled = await Promise.all(
-      pendingOffers.map((offer) => transaction.tradeOffers.resolve(
-        offer.id,
-        'CANCELLED',
-        now,
-      )),
-    );
-    cancelledOffers.push(...cancelled.filter((offer): offer is TradeOfferRecord => offer !== null));
-    if (continuationAfterBankruptcy) {
-      resumePaymentContinuation(state, continuationAfterBankruptcy, options);
-    }
-    changed = true;
+  progress = progressPaymentQueue(state, options);
+  changed ||= progress.changed;
+  if (progress.status === 'COMPLETED') {
+    if (progress.continuation) resumePaymentContinuation(state, progress.continuation, options);
+    await cancelDebtorOffers();
   }
-  return { changed, cancelledOffers };
+  return { changed, cancelledOffers, forcedSalePlayers: [] };
 };
 
 export async function recoverRoomIfDue(
@@ -201,6 +184,7 @@ export async function recoverRoomIfDue(
       const { state, room } = context;
       let changed = false;
       const cancelledOffers: TradeOfferRecord[] = [];
+      const forcedSalePlayers: PlayerId[] = [];
 
       if (
         expectedRoomExpiry !== undefined
@@ -212,7 +196,7 @@ export async function recoverRoomIfDue(
         ));
         if (!hasConnectedPlayer) {
           context.deleteRoom();
-          return { changed: true, cancelledOffers };
+          return { changed: true, cancelledOffers, forcedSalePlayers };
         }
         changed = true;
       }
@@ -224,6 +208,7 @@ export async function recoverRoomIfDue(
         && proposal.expiresAt === expectedProposal.expiresAt
         && Date.parse(proposal.expiresAt) <= now.getTime()
       ) {
+        forcedSalePlayers.push(proposal.sellerPlayerId, proposal.buyerPlayerId);
         state.privateState.forcedSaleProposal = null;
         changed = true;
       }
@@ -232,6 +217,7 @@ export async function recoverRoomIfDue(
         const paymentResult = await recoverPaymentShortfall(context, expectedPayment, now, runtime);
         changed ||= paymentResult.changed;
         cancelledOffers.push(...paymentResult.cancelledOffers);
+        forcedSalePlayers.push(...paymentResult.forcedSalePlayers);
       }
 
       const recovery = state.boardState.turnRecovery;
@@ -264,11 +250,14 @@ export async function recoverRoomIfDue(
       }
 
       if (!changed) throw new StaleDeadlineError();
-      return { changed, cancelledOffers };
+      return { changed, cancelledOffers, forcedSalePlayers };
     }, now);
 
     if (committed.result.changed && committed.room) {
       emitCancelledOffers(io, committed.room, committed.result.cancelledOffers, now);
+      for (const playerId of new Set(committed.result.forcedSalePlayers)) {
+        io.to(privatePlayerRoomName(playerId)).emit('forced sale proposal', null);
+      }
       broadcastRoom(io, runtime, committed.room);
     }
   } catch (error) {

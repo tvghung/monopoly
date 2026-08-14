@@ -104,7 +104,7 @@ export function projectPublicRoomState(
         color: player.color,
         accountBalance: player.accountBalance,
         isJail: player.isJail,
-        jailOpponentRoundsElapsed: player.jailOpponentRoundsElapsed ?? player.jailRounds ?? 0,
+        jailOpponentRoundsElapsed: player.jailOpponentRoundsElapsed,
         getOutOfJailCardCount: player.heldJailFreeCardIds.length,
       },
     ])),

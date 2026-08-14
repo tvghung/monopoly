@@ -9,10 +9,8 @@ export type RoomId = string;
 export type RoomCode = string;
 export type SessionId = string;
 export type OfferId = string;
-export type AuctionId = string;
 export type GameCardId = string;
 export type DebtClaimId = string;
-export type BuildingContentionId = string;
 export type PaymentClaimId = DebtClaimId;
 export type ForcedSaleProposalId = string;
 
@@ -103,9 +101,7 @@ export interface Player {
   color: string;
   accountBalance: number;
   isJail: boolean;
-  jailOpponentRoundsElapsed?: number;
-  /** v2 compatibility alias; v3 writes only jailOpponentRoundsElapsed. */
-  jailRounds?: number;
+  jailOpponentRoundsElapsed: number;
   // Exact ids preserve the source deck while a jail-free card is held.
   heldJailFreeCardIds: GameCardId[];
 }
@@ -158,8 +154,6 @@ export interface DiceValue {
 export interface CurrentPlayer {
   id: PlayerId;
   hasMoved: boolean;
-  /** v2 compatibility field; v3 never uses it. */
-  doublesStreak?: number;
 }
 
 export interface TurnRecovery {
@@ -170,40 +164,13 @@ export interface TurnRecovery {
   pendingOperationId?: string | null;
 }
 
-export type BuildingType = 'HOUSE' | 'HOTEL';
-
-export interface BankBuildingInventory {
-  housesAvailable: number;
-  hotelsAvailable: number;
-}
-
-export interface BuildingRequest {
-  playerId: PlayerId;
-  tileID: number;
-  buildingType: BuildingType;
-  requestedAt: string;
-}
-
-export interface BuildingContention {
-  contentionId: BuildingContentionId;
-  buildingType: BuildingType;
-  reservedUnit: { buildingType: BuildingType; quantity: 1 };
-  requests: Record<PlayerId, BuildingRequest>;
-  endsAt: string;
-}
-
-// Durable instruction for completing the roll after an auction, debt queue or
-// bankruptcy auction queue finishes. `turnNumber` makes stale recovery a no-op.
+// Durable instruction for completing a waiting payment/landing operation.
+// `turnNumber` makes stale recovery a no-op. `NO_TURN_CHANGE` is used only when
+// a payment continuation survives elimination of the original current player.
 export interface PendingTurnContinuation {
   playerId: PlayerId;
   turnNumber: number;
-  rolledDoubles?: boolean;
-  forceAdvance?: boolean;
-  resume?:
-    | { kind: 'COMPLETE_TURN' }
-    | { kind: 'NO_TURN_CHANGE' }
-    | { kind: 'RELEASE_FROM_JAIL' }
-    | { kind: 'MOVE_STORED_DICE'; dice: DiceValue };
+  resume?: { kind: 'NO_TURN_CHANGE' };
 }
 
 export interface PendingPropertyDecision {
@@ -226,8 +193,6 @@ export interface PendingDevelopmentDecision {
 export type PendingLandingDecision = PendingPropertyDecision | PendingDevelopmentDecision;
 
 export interface TurnInfo {
-  // Compatibility projection while consumers migrate to the durable decision.
-  canBuyProp?: boolean;
   pendingPropertyDecision?: PendingPropertyDecision;
   pendingDevelopmentDecision?: PendingDevelopmentDecision;
 }
@@ -236,10 +201,7 @@ export type DebtCreditor = 'PLAYER' | 'BANK';
 
 export type DebtSource =
   | { kind: 'RENT'; tileID: number }
-  | { kind: 'TAX'; tileID: number }
   | { kind: 'CARD'; cardId: GameCardId }
-  | { kind: 'BAIL' }
-  | { kind: 'MORTGAGE_INTEREST'; tileID: number }
   | { kind: 'OTHER'; description: string };
 
 export type DebtClaimStatus = 'PENDING' | 'SETTLED' | 'BANKRUPT';
@@ -277,52 +239,6 @@ export interface ForcedSaleProposal {
   expiresAt: string;
 }
 
-export interface BankPropertyAuctionQueue {
-  operationId: string;
-  orderedRemainingTileIds: number[];
-  currentTileId: number | null;
-  currentAuctionId: AuctionId | null;
-  continuation: PendingTurnContinuation;
-}
-
-// A live auction for a property the current player declined to buy. Any active
-// player can bid; the highest bidder when it ends buys the tile.
-export interface AuctionBase {
-  auctionId: AuctionId;
-  highestBid: number;
-  highestBidder: PlayerId | null;
-  highestBidderName: string | null;
-  // Player ids taking part in the auction. A transient disconnect preserves
-  // participation; only explicit leave/bankruptcy removes a player.
-  active: PlayerId[];
-  // Player ids who have declined to bid since the last bid. Cleared whenever a
-  // new bid is placed, so a fresh bid re-opens the floor to everyone.
-  passed: PlayerId[];
-  // Authoritative absolute deadline. Runtime timer handles and countdown ticks
-  // are deliberately not part of the durable/public contract.
-  endsAt: string;
-  continuation: PendingTurnContinuation | null;
-  // Transitional client projection only. New clients derive this from endsAt.
-  timer?: number;
-}
-
-export interface PropertyAuction extends AuctionBase {
-  kind: 'PROPERTY';
-  tileID: number;
-  tileName: string;
-  price: number;
-  source: 'DECLINED_PURCHASE' | 'BANKRUPTCY';
-}
-
-export interface BuildingAuction extends AuctionBase {
-  kind: 'BUILDING';
-  buildingType: BuildingType;
-  requests: Record<PlayerId, BuildingRequest>;
-  minimumBid: number;
-}
-
-export type Auction = PropertyAuction | BuildingAuction;
-
 export interface BoardState {
   gameStarted: boolean;
   players: PlayerId[];
@@ -336,14 +252,7 @@ export interface BoardState {
   openMarket: Record<number, OpenMarketEntry>;
   // Set once a single player remains; drives the win screen.
   winner: Winner | null;
-  // The live property auction, or null when none is running.
-  /** Removed from v3 snapshots; retained as an optional legacy read shape. */
-  auction?: Auction | null;
-  /** Removed from v3 snapshots; retained as an optional legacy read shape. */
-  buildingContention?: BuildingContention | null;
   paymentQueue: PaymentQueue | null;
-  /** Removed from v3 snapshots; retained as an optional legacy read shape. */
-  bankPropertyAuctionQueue?: BankPropertyAuctionQueue | null;
 }
 
 export interface GameState {
@@ -358,10 +267,6 @@ export interface GameState {
 }
 
 export type PersistedGameState = Omit<GameState, 'loaded'>;
-
-export type PublicAuction =
-  | Omit<PropertyAuction, 'continuation'>
-  | Omit<BuildingAuction, 'continuation'>;
 
 export interface PublicDebtState {
   debtorPlayerId: PlayerId;
@@ -385,39 +290,16 @@ export interface PublicDebtState {
 
 export type PublicPaymentShortfall = PublicDebtState;
 
-export interface PublicBuildingContention {
-  buildingType: BuildingType;
-  claimantPlayerIds: PlayerId[];
-  endsAt: string;
-}
-
-export interface PublicBankPropertyAuctionQueue {
-  currentTileId: number | null;
-  remainingCount: number;
-}
-
 export type PublicBoardState = Omit<
   BoardState,
   | 'turnRecovery'
-  | 'auction'
-  | 'buildingContention'
   | 'paymentQueue'
-  | 'bankPropertyAuctionQueue'
 > & {
   turnRecovery: { playerId: PlayerId; deadlineAt: string } | null;
   paymentShortfall?: PublicPaymentShortfall | null;
-  /** @deprecated v3 payloads omit auction/contention/Bank queue fields. */
-  auction?: PublicAuction | null;
-  /** @deprecated v3 payloads omit auction/contention/Bank queue fields. */
-  buildingContention?: PublicBuildingContention | null;
-  /** @deprecated v3 payloads omit auction/contention/Bank queue fields. */
-  paymentQueue?: PublicDebtState | null;
-  /** @deprecated v3 payloads omit auction/contention/Bank queue fields. */
-  bankPropertyAuctionQueue?: PublicBankPropertyAuctionQueue | null;
 };
 
 export interface PublicTurnInfo {
-  canBuyProp?: boolean;
   pendingLandingDecision?: {
     kind: 'PURCHASE' | 'DEVELOP_HOUSES' | 'UPGRADE_HOTEL';
     operationId: string;
@@ -435,8 +317,6 @@ export interface PublicGameState {
   players: Record<PlayerId, PublicPlayer>;
   turnInfo: PublicTurnInfo;
   deckCounts: DeckCounts;
-  /** @deprecated v3 no longer exposes finite Bank building inventory. */
-  bankBuildingInventory?: BankBuildingInventory;
   loaded: boolean;
 }
 

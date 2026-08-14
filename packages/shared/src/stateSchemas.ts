@@ -1,11 +1,6 @@
 import { z } from 'zod';
 import type {
-  Auction,
-  BankBuildingInventory,
-  BankPropertyAuctionQueue,
   BoardState,
-  BuildingContention,
-  BuildingRequest,
   CurrentPlayer,
   DebtClaim,
   DebtSource,
@@ -24,7 +19,6 @@ import type {
   TurnInfo,
 } from './types';
 import {
-  auctionIdSchema,
   gameCardIdSchema,
   isoTimestampSchema,
   moneyAmountSchema,
@@ -39,20 +33,7 @@ const turnNumberSchema = z.number().int().min(0);
 export const pendingTurnContinuationSchema = z.strictObject({
   playerId: playerIdSchema,
   turnNumber: turnNumberSchema,
-  rolledDoubles: z.boolean().optional(),
-  forceAdvance: z.boolean().optional(),
-  resume: z.discriminatedUnion('kind', [
-    z.strictObject({ kind: z.literal('COMPLETE_TURN') }),
-    z.strictObject({ kind: z.literal('NO_TURN_CHANGE') }),
-    z.strictObject({ kind: z.literal('RELEASE_FROM_JAIL') }),
-    z.strictObject({
-      kind: z.literal('MOVE_STORED_DICE'),
-      dice: z.strictObject({
-        dice1: z.number().int().min(1).max(6),
-        dice2: z.number().int().min(1).max(6),
-      }),
-    }),
-  ]).optional(),
+  resume: z.strictObject({ kind: z.literal('NO_TURN_CHANGE') }).optional(),
 }) satisfies z.ZodType<PendingTurnContinuation>;
 
 export const pendingPropertyDecisionSchema = z.strictObject({
@@ -75,7 +56,6 @@ export const pendingDevelopmentDecisionSchema = z.strictObject({
 }) satisfies z.ZodType<PendingDevelopmentDecision>;
 
 export const turnInfoSchema = z.strictObject({
-  canBuyProp: z.boolean().optional(),
   pendingPropertyDecision: pendingPropertyDecisionSchema.optional(),
   pendingDevelopmentDecision: pendingDevelopmentDecisionSchema.optional(),
 }) satisfies z.ZodType<TurnInfo>;
@@ -83,7 +63,6 @@ export const turnInfoSchema = z.strictObject({
 export const currentPlayerSchema = z.strictObject({
   id: z.union([z.literal(''), playerIdSchema]),
   hasMoved: z.boolean(),
-  doublesStreak: z.number().int().min(0).max(2).optional(),
 }) satisfies z.ZodType<CurrentPlayer>;
 
 export const deckStateSchema = z.strictObject({
@@ -136,60 +115,9 @@ export const privatePlayerStateSchema = z.strictObject({
   }).nullable().optional(),
 }) satisfies z.ZodType<PrivatePlayerState>;
 
-export const buildingTypeSchema = z.enum(['HOUSE', 'HOTEL']);
-
-export const buildingRequestSchema = z.strictObject({
-  playerId: playerIdSchema,
-  tileID: tileIdSchema,
-  buildingType: buildingTypeSchema,
-  requestedAt: isoTimestampSchema,
-}) satisfies z.ZodType<BuildingRequest>;
-
-export const buildingContentionSchema = z.strictObject({
-  contentionId: operationIdSchema,
-  buildingType: buildingTypeSchema,
-  reservedUnit: z.strictObject({
-    buildingType: buildingTypeSchema,
-    quantity: z.literal(1),
-  }),
-  requests: z.record(playerIdSchema, buildingRequestSchema),
-  endsAt: isoTimestampSchema,
-}).superRefine((contention, context) => {
-  const requests = Object.entries(contention.requests);
-  if (contention.reservedUnit.buildingType !== contention.buildingType) {
-    context.addIssue({
-      code: 'custom',
-      path: ['reservedUnit', 'buildingType'],
-      message: 'Reserved unit type must match the contention',
-    });
-  }
-  if (requests.length === 0) {
-    context.addIssue({ code: 'custom', message: 'Building contention requires a request' });
-  }
-  requests.forEach(([playerId, request]) => {
-    if (request.playerId !== playerId) {
-      context.addIssue({
-        code: 'custom',
-        path: ['requests', playerId, 'playerId'],
-        message: 'Building request key and player id must match',
-      });
-    }
-    if (request.buildingType !== contention.buildingType) {
-      context.addIssue({
-        code: 'custom',
-        path: ['requests', playerId, 'buildingType'],
-        message: 'Building request type must match the contention',
-      });
-    }
-  });
-}) satisfies z.ZodType<BuildingContention>;
-
 export const debtSourceSchema: z.ZodType<DebtSource> = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('RENT'), tileID: tileIdSchema }),
-  z.strictObject({ kind: z.literal('TAX'), tileID: tileIdSchema }),
   z.strictObject({ kind: z.literal('CARD'), cardId: gameCardIdSchema }),
-  z.strictObject({ kind: z.literal('BAIL') }),
-  z.strictObject({ kind: z.literal('MORTGAGE_INTEREST'), tileID: tileIdSchema }),
   z.strictObject({ kind: z.literal('OTHER'), description: z.string().min(1).max(200) }),
 ]);
 
@@ -273,71 +201,13 @@ export const paymentQueueSchema = z.strictObject({
   });
 }) satisfies z.ZodType<PaymentQueue>;
 
-export const bankPropertyAuctionQueueSchema = z.strictObject({
-  operationId: operationIdSchema,
-  orderedRemainingTileIds: z
-    .array(tileIdSchema)
-    .max(28)
-    .refine((ids) => new Set(ids).size === ids.length, 'Bank auction tile ids must be unique'),
-  currentTileId: tileIdSchema.nullable(),
-  currentAuctionId: auctionIdSchema.nullable(),
-  continuation: pendingTurnContinuationSchema,
-}).superRefine((queue, context) => {
-  if ((queue.currentTileId === null) !== (queue.currentAuctionId === null)) {
-    context.addIssue({
-      code: 'custom',
-      message: 'Current bank tile and auction id must both be set or both be null',
-    });
-  }
-}) satisfies z.ZodType<BankPropertyAuctionQueue>;
-
-const auctionBaseShape = {
-  auctionId: auctionIdSchema,
-  highestBid: nonNegativeMoneyAmountSchema,
-  highestBidder: playerIdSchema.nullable(),
-  highestBidderName: z.string().min(1).max(20).nullable(),
-  active: z.array(playerIdSchema).min(1).max(7),
-  passed: z.array(playerIdSchema).max(7),
-  endsAt: isoTimestampSchema,
-  continuation: pendingTurnContinuationSchema.nullable(),
-  timer: z.number().int().min(0).optional(),
-} as const;
-
-export const propertyAuctionSchema = z.strictObject({
-  ...auctionBaseShape,
-  kind: z.literal('PROPERTY'),
-  tileID: tileIdSchema,
-  tileName: z.string().min(1).max(100),
-  price: nonNegativeMoneyAmountSchema,
-  source: z.enum(['DECLINED_PURCHASE', 'BANKRUPTCY']),
-});
-
-export const buildingAuctionSchema = z.strictObject({
-  ...auctionBaseShape,
-  kind: z.literal('BUILDING'),
-  buildingType: buildingTypeSchema,
-  requests: z.record(playerIdSchema, buildingRequestSchema),
-  minimumBid: moneyAmountSchema,
-});
-
-export const auctionSchema = z.discriminatedUnion('kind', [
-  propertyAuctionSchema,
-  buildingAuctionSchema,
-]) satisfies z.ZodType<Auction>;
-
-export const bankBuildingInventorySchema = z.strictObject({
-  housesAvailable: z.number().int().min(0).max(32),
-  hotelsAvailable: z.number().int().min(0).max(12),
-}) satisfies z.ZodType<BankBuildingInventory>;
-
 export const playerSchema = z.strictObject({
   name: z.string().min(1).max(20),
   currentTile: tileIdSchema,
   color: z.string().min(1).max(32),
   accountBalance: z.number().int().min(0).max(2_147_483_647),
   isJail: z.boolean(),
-  jailOpponentRoundsElapsed: z.number().int().min(0).max(2).optional(),
-  jailRounds: z.number().int().min(0).max(3).optional(),
+  jailOpponentRoundsElapsed: z.number().int().min(0).max(2),
   heldJailFreeCardIds: z.array(gameCardIdSchema).max(2),
 }) satisfies z.ZodType<Player>;
 
@@ -381,10 +251,7 @@ export const boardStateSchema = z.strictObject({
   ownedProps: z.record(z.string().regex(/^\d+$/), ownedPropertySchema),
   openMarket: z.record(z.string().regex(/^\d+$/), openMarketEntrySchema),
   winner: finishedPlayerSchema.extend({ playerId: playerIdSchema }).nullable(),
-  auction: auctionSchema.nullable().optional(),
-  buildingContention: buildingContentionSchema.nullable().optional(),
   paymentQueue: paymentQueueSchema.nullable(),
-  bankPropertyAuctionQueue: bankPropertyAuctionQueueSchema.nullable().optional(),
 }) satisfies z.ZodType<BoardState>;
 
 export const persistedGameStateSchema = z.strictObject({

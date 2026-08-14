@@ -8,7 +8,6 @@ import {
   type ClientToServerEvents,
   type JoinRoomResult,
   type LeaveRoomResult,
-  type MakeOfferResult,
   type PrivateOffer,
   type PublicRoomState,
   type ResumeSessionResult,
@@ -30,7 +29,7 @@ import type {
   PersistenceUnitOfWork,
   RoomRecord,
 } from './persistence/types.js';
-import type { RoomSnapshot } from './rooms.js';
+import { assertSupportedRoomSnapshot, type RoomSnapshot } from './rooms.js';
 import { createAppRuntime, type AppRuntime } from './services/runtime.js';
 import { registerSocketHandlers } from './socket/index.js';
 
@@ -522,7 +521,7 @@ describe('Socket.IO durable player lifecycle', () => {
     await mutateRoom(persistence, host.room.roomId, (room) => {
       const board = room.gameSnapshot.gameState.boardState;
       board.players = [host.playerId, guest.playerId];
-      board.currentPlayer = { id: host.playerId, hasMoved: true, doublesStreak: 0 };
+      board.currentPlayer = { id: host.playerId, hasMoved: true };
       room.gameSnapshot.gameState.players[host.playerId].currentTile = 1;
       room.gameSnapshot.gameState.turnInfo.pendingPropertyDecision = {
         operationId: randomUUID(),
@@ -531,7 +530,7 @@ describe('Socket.IO durable player lifecycle', () => {
         continuation: {
           playerId: host.playerId,
           turnNumber: board.turnNumber,
-          rolledDoubles: false,
+
         },
       };
     });
@@ -706,7 +705,7 @@ describe('Socket.IO durable player lifecycle', () => {
     expect((await startGame(host.socket)).ok).toBe(true);
     await mutateRoom(persistence, host.room.roomId, (room) => {
       const board = room.gameSnapshot.gameState.boardState;
-      board.currentPlayer = { id: host.playerId, hasMoved: true, doublesStreak: 0 };
+      board.currentPlayer = { id: host.playerId, hasMoved: true };
       const player = room.gameSnapshot.gameState.players[host.playerId];
       player.currentTile = 1;
       player.accountBalance = 59;
@@ -717,7 +716,7 @@ describe('Socket.IO durable player lifecycle', () => {
         continuation: {
           playerId: host.playerId,
           turnNumber: board.turnNumber,
-          rolledDoubles: false,
+
         },
       };
     });
@@ -787,12 +786,12 @@ describe('Socket.IO durable player lifecycle', () => {
       room.gameSnapshot.gameState.boardState.currentPlayer = {
         id: host.playerId,
         hasMoved: false,
-        doublesStreak: 0,
+
       };
       const player = room.gameSnapshot.gameState.players[host.playerId];
       player.accountBalance = 49;
       player.isJail = true;
-      player.jailRounds = 2;
+      player.jailOpponentRoundsElapsed = 2;
       room.gameSnapshot.gameState.boardState.currentPlayer.hasMoved = false;
     });
     const acknowledgement = await waitForAck((acknowledge) => {
@@ -939,119 +938,7 @@ describe('Socket.IO durable player lifecycle', () => {
     expect(await persistence.rooms.findById(second.room.roomId)).not.toBeNull();
   });
 
-  it.skip('finalizes an auction and hands off the turn exactly once when its current player leaves', async () => {
-    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
-    const subject = await startServer(persistence);
-    const host = await joinPlayer(await connect(subject.url), 'Host', 'auction-leave');
-    const bidder = await joinPlayer(await connect(subject.url), 'Bidder', 'auction-leave');
-    const third = await joinPlayer(await connect(subject.url), 'Third', 'auction-leave');
-    await setReady(host.socket);
-    await setReady(bidder.socket);
-    await setReady(third.socket);
-    expect((await startGame(host.socket)).ok).toBe(true);
-    const auctionId = randomUUID();
-    const withAuction = await mutateRoom(persistence, host.room.roomId, (room) => {
-      const board = room.gameSnapshot.gameState.boardState;
-      board.players = [host.playerId, bidder.playerId, third.playerId];
-      board.currentPlayer = { id: host.playerId, hasMoved: true, doublesStreak: 0 };
-      board.auction = {
-        kind: 'PROPERTY',
-        auctionId,
-        tileID: 1,
-        tileName: 'Cà Mau',
-        price: 60,
-        source: 'DECLINED_PURCHASE',
-        highestBid: 10,
-        highestBidder: bidder.playerId,
-        highestBidderName: 'Bidder',
-        active: [host.playerId, bidder.playerId],
-        passed: [],
-        endsAt: new Date(Date.now() + 60_000).toISOString(),
-        continuation: {
-          playerId: host.playerId,
-          turnNumber: board.turnNumber,
-          rolledDoubles: false,
-        },
-      };
-    });
-    const turnNumber = withAuction.gameSnapshot.gameState.boardState.turnNumber;
 
-    expect(successData(await leaveRoom(host.socket))).toEqual({ roomDeleted: false });
-    const stored = await persistence.rooms.findById(host.room.roomId);
-    expect(stored).toMatchObject({
-      status: 'IN_PROGRESS',
-      hostPlayerId: bidder.playerId,
-      gameSnapshot: {
-        gameState: {
-          boardState: {
-            currentPlayer: { id: bidder.playerId, hasMoved: false },
-            turnNumber: turnNumber + 1,
-            auction: null,
-            winner: null,
-            ownedProps: { 1: { id: bidder.playerId } },
-          },
-          players: {
-            [bidder.playerId]: { accountBalance: 1490 },
-          },
-        },
-      },
-    });
-    expect(stored?.gameSnapshot.gameState.boardState.logs.filter(
-      (entry) => entry.includes('thắng đấu giá'),
-    )).toHaveLength(1);
-  });
-
-  it.skip('finishes without retaining a live auction when the current player leaves a two-player game', async () => {
-    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
-    const subject = await startServer(persistence);
-    const host = await joinPlayer(await connect(subject.url), 'Host', 'finished-leave');
-    const guest = await joinPlayer(await connect(subject.url), 'Guest', 'finished-leave');
-    await setReady(host.socket);
-    await setReady(guest.socket);
-    expect((await startGame(host.socket)).ok).toBe(true);
-    await mutateRoom(persistence, host.room.roomId, (room) => {
-      const board = room.gameSnapshot.gameState.boardState;
-      board.players = [host.playerId, guest.playerId];
-      board.currentPlayer = { id: host.playerId, hasMoved: true, doublesStreak: 0 };
-      board.auction = {
-        kind: 'PROPERTY',
-        auctionId: randomUUID(),
-        tileID: 1,
-        tileName: 'Cà Mau',
-        price: 60,
-        source: 'DECLINED_PURCHASE',
-        highestBid: 10,
-        highestBidder: guest.playerId,
-        highestBidderName: 'Guest',
-        active: [host.playerId, guest.playerId],
-        passed: [],
-        endsAt: new Date(Date.now() + 60_000).toISOString(),
-        continuation: {
-          playerId: host.playerId,
-          turnNumber: board.turnNumber,
-          rolledDoubles: false,
-        },
-      };
-    });
-
-    expect(successData(await leaveRoom(host.socket))).toEqual({ roomDeleted: false });
-    const stored = await persistence.rooms.findById(host.room.roomId);
-    expect(stored).toMatchObject({
-      status: 'FINISHED',
-      hostPlayerId: guest.playerId,
-      gameSnapshot: {
-        gameState: {
-          boardState: {
-            auction: null,
-            winner: { playerId: guest.playerId },
-          },
-        },
-      },
-    });
-
-    expect(successData(await leaveRoom(guest.socket))).toEqual({ roomDeleted: true });
-    expect(await persistence.rooms.findById(host.room.roomId)).toBeNull();
-  });
 
   it('admits a new post-start socket as spectator while a valid token reclaims its seat', async () => {
     const subject = await startServer();
@@ -1203,7 +1090,7 @@ describe.runIf(Boolean(testDatabaseUrl))(
                 currentTile: 39,
                 accountBalance: 17,
                 isJail: true,
-                jailRounds: 2,
+                jailOpponentRoundsElapsed: 2,
               },
               [guestPlayerId]: {
                 name: 'Khách',
@@ -1211,7 +1098,7 @@ describe.runIf(Boolean(testDatabaseUrl))(
                 currentTile: 20,
                 accountBalance: 23,
                 isJail: false,
-                jailRounds: 0,
+                jailOpponentRoundsElapsed: 0,
               },
             },
             boardState: {
@@ -1276,8 +1163,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V1-IDENTITY',
           status: 'IN_PROGRESS',
           hostPlayerId,
-          aggregateVersion: 8,
-          snapshotSchemaVersion: 2,
+          aggregateVersion: 9,
+          snapshotSchemaVersion: 3,
           gameSnapshot: {
             members: {
               [hostPlayerId]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
@@ -1289,9 +1176,7 @@ describe.runIf(Boolean(testDatabaseUrl))(
                 gameStarted: true,
                 turnNumber: 1,
                 ownedProps: {},
-                auction: null,
                 paymentQueue: null,
-                bankPropertyAuctionQueue: null,
               },
               players: {
                 [hostPlayerId]: {
@@ -1324,6 +1209,177 @@ describe.runIf(Boolean(testDatabaseUrl))(
         const beforeSecondMigration = await persistence.rooms.findById(roomId);
         expect(await migrateDatabase(migratedPool)).toEqual([]);
         expect(await persistence.rooms.findById(roomId)).toEqual(beforeSecondMigration);
+      } finally {
+        if (persistence) {
+          await persistence.close();
+          applicationPool = undefined;
+        }
+        if (applicationPool) await applicationPool.end();
+        if (schemaCreated) {
+          await administrativePool.query(`DROP SCHEMA "${schemaName}" CASCADE`);
+        }
+        await administrativePool.end();
+      }
+    });
+
+    it('converts a representative v2 snapshot to strict v3 state in place', async () => {
+      if (!testDatabaseUrl) throw new Error('TEST_DATABASE_URL is required');
+
+      const schemaName = `monopoly_v2_to_v3_${randomUUID().replaceAll('-', '')}`;
+      const administrativePool = new Pool({ connectionString: testDatabaseUrl });
+      let schemaCreated = false;
+      let applicationPool: Pool | undefined;
+      let persistence: PostgresPersistenceStore<RoomSnapshot> | undefined;
+
+      try {
+        await administrativePool.query(`CREATE SCHEMA "${schemaName}"`);
+        schemaCreated = true;
+        applicationPool = new Pool({
+          connectionString: testDatabaseUrl,
+          options: `-c search_path=${schemaName}`,
+        });
+        await migrateDatabase(applicationPool);
+        await applicationPool.query(
+          `DELETE FROM schema_migrations WHERE version = '004_simplified_rules_v3.sql'`,
+        );
+
+        const roomId = randomUUID();
+        const hostPlayerId = randomUUID();
+        const guestPlayerId = randomUUID();
+        const hostSessionId = randomUUID();
+        const hostTokenHash = Buffer.alloc(32, 31);
+        const v2Snapshot = {
+          members: {
+            [hostPlayerId]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
+            [guestPlayerId]: { joinOrder: 2, ready: true, membershipStatus: 'ACTIVE' },
+          },
+          nextJoinOrder: 3,
+          gameState: {
+            players: {
+              [hostPlayerId]: {
+                name: 'Chủ phòng',
+                color: 'red',
+                currentTile: 7,
+                accountBalance: 222,
+                isJail: true,
+                jailRounds: 2,
+                heldJailFreeCardIds: [],
+              },
+              [guestPlayerId]: {
+                name: 'Khách',
+                color: 'blue',
+                currentTile: 14,
+                accountBalance: 333,
+                isJail: false,
+                jailRounds: 0,
+                heldJailFreeCardIds: [],
+              },
+            },
+            boardState: {
+              gameStarted: true,
+              players: [hostPlayerId, guestPlayerId],
+              finishedPlayers: {},
+              currentPlayer: { id: hostPlayerId, hasMoved: true, doublesStreak: 2 },
+              turnNumber: 8,
+              turnRecovery: null,
+              logs: [],
+              diceValue: { dice1: 3, dice2: 3 },
+              ownedProps: {
+                1: { id: hostPlayerId, color: 'red', houses: 3, mortgaged: false },
+              },
+              openMarket: {},
+              winner: null,
+              auction: null,
+              buildingContention: null,
+              paymentQueue: {
+                operationId: randomUUID(),
+                orderedClaims: [],
+                activeClaimIndex: 0,
+              },
+              bankPropertyAuctionQueue: null,
+            },
+            turnInfo: {
+              pendingPropertyDecision: null,
+              pendingDevelopmentDecision: null,
+            },
+            privateState: {
+              decks: {
+                chance: { drawPile: [] },
+                chest: { drawPile: [] },
+              },
+            },
+          },
+        };
+
+        await applicationPool.query(
+          `INSERT INTO rooms (
+             id, code, status, host_player_id, aggregate_version,
+             snapshot_schema_version, game_snapshot, next_action_at
+           ) VALUES ($1, $2, 'IN_PROGRESS', $3, 12, 2, $4, CURRENT_TIMESTAMP)`,
+          [roomId, 'V2-TO-V3', hostPlayerId, v2Snapshot],
+        );
+        await applicationPool.query(
+          `INSERT INTO player_sessions (
+             id, status, token_hash, room_id, player_id, last_used_at
+           ) VALUES ($1, 'ACTIVE', $2, $3, $4, CURRENT_TIMESTAMP)`,
+          [hostSessionId, hostTokenHash, roomId, hostPlayerId],
+        );
+        const offerId = randomUUID();
+        await applicationPool.query(
+          `INSERT INTO trade_offers (
+             id, room_id, status, expires_at, proposer_player_id,
+             recipient_player_id, offered_bundle, requested_bundle
+           ) VALUES ($1, $2, 'PENDING', CURRENT_TIMESTAMP + INTERVAL '1 hour',
+             $3, $4, $5, $6)`,
+          [
+            offerId,
+            roomId,
+            hostPlayerId,
+            guestPlayerId,
+            { cash: 10, propertyIds: [], jailFreeCardIds: [] },
+            { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+          ],
+        );
+
+        await migrateDatabase(applicationPool);
+        persistence = new PostgresPersistenceStore<RoomSnapshot>(applicationPool);
+        const migrated = await persistence.rooms.findById(roomId);
+        if (!migrated) throw new Error('Migrated v2 room was not persisted');
+
+        expect(migrated).toMatchObject({
+          id: roomId,
+          code: 'V2-TO-V3',
+          status: 'IN_PROGRESS',
+          hostPlayerId,
+          aggregateVersion: 13,
+          snapshotSchemaVersion: 3,
+          gameSnapshot: {
+            gameState: {
+              boardState: {
+                gameStarted: true,
+                turnNumber: 1,
+                ownedProps: {},
+                paymentQueue: null,
+              },
+              players: {
+                [hostPlayerId]: { currentTile: 0, accountBalance: 1500, jailOpponentRoundsElapsed: 0 },
+                [guestPlayerId]: { currentTile: 0, accountBalance: 1500, jailOpponentRoundsElapsed: 0 },
+              },
+              turnInfo: {},
+              privateState: { forcedSaleProposal: null },
+            },
+          },
+        });
+        expect(migrated.gameSnapshot.gameState.boardState.players).toHaveLength(2);
+        expect(migrated.gameSnapshot.gameState.boardState).not.toHaveProperty('auction');
+        expect(migrated.gameSnapshot.gameState.boardState).not.toHaveProperty('buildingContention');
+        expect(migrated.gameSnapshot.gameState.boardState).not.toHaveProperty('bankPropertyAuctionQueue');
+        expect(migrated.gameSnapshot.gameState.boardState.currentPlayer).not.toHaveProperty('doublesStreak');
+        expect(migrated.gameSnapshot.gameState.players[hostPlayerId]).not.toHaveProperty('jailRounds');
+        expect(await persistence.playerSessions.findByTokenHash(hostTokenHash))
+          .toMatchObject({ id: hostSessionId, roomId, playerId: hostPlayerId, status: 'ACTIVE' });
+        expect(await persistence.tradeOffers.findById(offerId)).toMatchObject({ status: 'CANCELLED' });
+        assertSupportedRoomSnapshot(migrated);
       } finally {
         if (persistence) {
           await persistence.close();
@@ -1376,9 +1432,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
         await setReady(host.socket);
         await setReady(guest.socket);
         expect((await startGame(host.socket)).ok).toBe(true);
-        const auctionEndsAt = new Date(Date.now() + 60_000).toISOString();
         await mutateRoom(firstPersistence, host.room.roomId, (room) => {
-          room.gameSnapshot.gameState.players[host.playerId].accountBalance = 1337;
+          room.gameSnapshot.gameState.players[host.playerId].accountBalance = 0;
           room.gameSnapshot.gameState.players[guest.playerId].accountBalance = 1444;
           room.gameSnapshot.gameState.boardState.ownedProps[1] = {
             id: host.playerId,
@@ -1386,36 +1441,27 @@ describe.runIf(Boolean(testDatabaseUrl))(
             houses: 0,
             mortgaged: false,
           };
-          room.gameSnapshot.gameState.boardState.auction = {
-            kind: 'PROPERTY',
-            auctionId: randomUUID(),
-            tileID: 3,
-            tileName: 'Bạc Liêu',
-            price: 60,
-            source: 'DECLINED_PURCHASE',
-            highestBid: 0,
-            highestBidder: null,
-            highestBidderName: null,
-            active: [host.playerId, guest.playerId],
-            passed: [],
-            endsAt: auctionEndsAt,
+          room.gameSnapshot.gameState.boardState.paymentQueue = {
+            operationId: randomUUID(),
+            orderedClaims: [{
+              claimId: randomUUID(),
+              debtorPlayerId: host.playerId,
+              creditor: 'PLAYER',
+              creditorPlayerId: guest.playerId,
+              amount: 100,
+              remainingAmount: 100,
+              source: { kind: 'OTHER', description: 'restart payment' },
+              status: 'PENDING',
+            }],
+            activeClaimIndex: 0,
             continuation: {
-              playerId: room.gameSnapshot.gameState.boardState.currentPlayer.id,
+              playerId: host.playerId,
               turnNumber: room.gameSnapshot.gameState.boardState.turnNumber,
-              rolledDoubles: false,
             },
+            actionDeadlineAt: new Date(Date.now() + 60_000).toISOString(),
           };
-          room.nextActionAt = new Date(auctionEndsAt);
+          room.nextActionAt = new Date(room.gameSnapshot.gameState.boardState.paymentQueue.actionDeadlineAt);
         });
-        const offer = successData(
-          await waitForAck<MakeOfferResult>((acknowledge) => {
-            guest.socket.emit('make offer', {
-              recipientPlayerId: host.playerId,
-              offered: { cash: 25, propertyIds: [], jailFreeCardIds: [] },
-              requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
-            }, acknowledge);
-          }),
-        );
         const beforeRestart = await firstPersistence.rooms.findById(host.room.roomId);
         if (!beforeRestart) throw new Error('PostgreSQL room was not persisted');
 
@@ -1447,7 +1493,6 @@ describe.runIf(Boolean(testDatabaseUrl))(
             roomId: host.room.roomId,
             status: 'IN_PROGRESS',
           },
-          pendingOffers: [{ offerId: offer.offerId, status: 'PENDING' }],
         });
         expect(resumedGuest).toMatchObject({
           playerId: guest.playerId,
@@ -1461,14 +1506,14 @@ describe.runIf(Boolean(testDatabaseUrl))(
                 turnNumber:
                   beforeRestart.gameSnapshot.gameState.boardState.turnNumber,
                 ownedProps: { 1: { id: host.playerId } },
+                paymentQueue: { activeClaimIndex: 0 },
               },
               players: {
-                [host.playerId]: { accountBalance: 1337 },
+                [host.playerId]: { accountBalance: 0 },
                 [guest.playerId]: { accountBalance: 1444 },
               },
             },
           },
-          pendingOffers: [{ offerId: offer.offerId, status: 'PENDING' }],
         });
 
         const afterRestart = await secondPersistence.rooms.findById(host.room.roomId);

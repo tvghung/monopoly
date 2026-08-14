@@ -5,14 +5,12 @@ import {
   type QueuePaymentOptions,
   sellPropertyToBankForPayment,
 } from './payment';
-import { removePlayerFromGame, checkWinner } from './turn';
-
-const ownedTileIds = (state: GameState, playerId: PlayerId): number[] => (
-  Object.keys(state.boardState.ownedProps)
-    .map(Number)
-    .filter(tileID => state.boardState.ownedProps[tileID]?.id === playerId)
-    .sort((a, b) => a - b)
-);
+import {
+  bankruptActiveDebtor,
+  progressPaymentQueue,
+  sellablePropertyIds,
+} from './paymentResolution';
+import { checkWinner, removePlayerFromGame } from './turn';
 
 const returnHeldCardsToDeck = (state: GameState, playerId: PlayerId): void => {
   const player = state.players[playerId];
@@ -26,15 +24,6 @@ const returnHeldCardsToDeck = (state: GameState, playerId: PlayerId): void => {
   player.heldJailFreeCardIds = [];
 };
 
-export interface BankruptcyResult {
-  changed: boolean;
-  continuation: PendingTurnContinuation | null;
-  /** v2 compatibility flag; v3 is always false because auctions are gone. */
-  bankAuctionQueued: false;
-}
-
-const noChange = (): BankruptcyResult => ({ changed: false, continuation: null, bankAuctionQueued: false });
-
 const finishElimination = (state: GameState, playerId: PlayerId, reason: 'BANKRUPT' | 'LEFT'): void => {
   const player = state.players[playerId];
   if (!player) return;
@@ -45,75 +34,14 @@ const finishElimination = (state: GameState, playerId: PlayerId, reason: 'BANKRU
   checkWinner(state);
 };
 
-const rebasePaymentContinuationAfterRemoval = (state: GameState): void => {
-  const queue = state.boardState.paymentQueue;
-  if (!queue || state.players[queue.continuation.playerId]) return;
-  const successorId = state.boardState.currentPlayer.id;
-  if (!successorId || !state.players[successorId]) return;
-  queue.continuation = {
-    playerId: successorId,
-    turnNumber: state.boardState.turnNumber,
-    resume: { kind: 'NO_TURN_CHANGE' },
-  };
-};
+export interface BankruptcyResult {
+  changed: boolean;
+  continuation: PendingTurnContinuation | null;
+}
 
-/**
- * Close every queued claim owned by a debtor who has no remaining property,
- * remove that player, then continue the ordered queue. Claims for the removed
- * debtor may appear again later in a multi-claim card payment, so they are
- * marked terminal before the next claim is settled.
- */
-export const bankruptActiveDebtor = (
-  state: GameState,
-  debtorPlayerId: PlayerId,
-  reason: 'BANKRUPT' | 'LEFT' = 'BANKRUPT',
-  options: Pick<QueuePaymentOptions, 'now' | 'paymentShortfallActionTimeoutMs'> = {},
-): PendingTurnContinuation | null => {
-  const queue = state.boardState.paymentQueue;
-  const active = activeDebtClaim(state);
-  if (!queue || !active || active.debtorPlayerId !== debtorPlayerId || !state.players[debtorPlayerId]) {
-    return null;
-  }
-  for (let index = queue.activeClaimIndex; index < queue.orderedClaims.length; index += 1) {
-    const claim = queue.orderedClaims[index];
-    if (claim.debtorPlayerId === debtorPlayerId) {
-      claim.status = 'BANKRUPT';
-      claim.remainingAmount = 0;
-    }
-  }
-  while (
-    queue.activeClaimIndex < queue.orderedClaims.length
-    && queue.orderedClaims[queue.activeClaimIndex].status !== 'PENDING'
-  ) {
-    queue.activeClaimIndex += 1;
-  }
-  state.privateState.forcedSaleProposal = null;
-  finishElimination(state, debtorPlayerId, reason);
-  rebasePaymentContinuationAfterRemoval(state);
-  return settleAffordableClaims(state, options);
-};
+const noChange = (): BankruptcyResult => ({ changed: false, continuation: null });
 
-/** Bankruptcy can only be reached after the active claim has exhausted all assets. */
-export const declareActiveDebtBankruptcy = (
-  state: GameState,
-  debtorPlayerId: PlayerId,
-  _options: Pick<QueuePaymentOptions, 'now' | 'paymentShortfallActionTimeoutMs'> = {},
-): BankruptcyResult => {
-  const queue = state.boardState.paymentQueue;
-  const claim = activeDebtClaim(state);
-  const debtor = state.players[debtorPlayerId];
-  if (!queue || !claim || claim.debtorPlayerId !== debtorPlayerId || !debtor) return noChange();
-  settleAffordableClaims(state, _options);
-  const afterCash = activeDebtClaim(state);
-  if (!afterCash || afterCash.debtorPlayerId !== debtorPlayerId) return noChange();
-  if (debtor.accountBalance >= afterCash.remainingAmount || ownedTileIds(state, debtorPlayerId).length > 0) {
-    return noChange();
-  }
-  const continuation = bankruptActiveDebtor(state, debtorPlayerId, 'BANKRUPT', _options);
-  return { changed: true, continuation, bankAuctionQueued: false };
-};
-
-/** Explicit leave: active payer is auto-liquidated first; others return assets. */
+/** Explicit leave/forfeit: settle an active payer before removing the seat. */
 export const surrenderPlayerToBank = (
   state: GameState,
   playerId: PlayerId,
@@ -122,45 +50,42 @@ export const surrenderPlayerToBank = (
   const player = state.players[playerId];
   if (!player) return noChange();
   const active = activeDebtClaim(state);
+  let continuation: PendingTurnContinuation | null = null;
+
   if (active?.debtorPlayerId === playerId && state.boardState.paymentQueue) {
-    // Leaving cancels any outstanding bilateral forced-sale proposal before
-    // the deterministic Bank liquidation below; the departing player cannot
-    // leave a proposal blocking creditor settlement.
     if (state.privateState.forcedSaleProposal?.sellerPlayerId === playerId) {
       state.privateState.forcedSaleProposal = null;
     }
     settleAffordableClaims(state, options);
-    let current = activeDebtClaim(state);
-    let continuation: PendingTurnContinuation | null = null;
-    for (const tileID of ownedTileIds(state, playerId)) {
-      if (!current || current.debtorPlayerId !== playerId || !state.boardState.paymentQueue) break;
-      const soldContinuation = sellPropertyToBankForPayment(
+    for (const tileID of sellablePropertyIds(state, playerId)) {
+      const current = activeDebtClaim(state);
+      const queue = state.boardState.paymentQueue;
+      if (!current || !queue || current.debtorPlayerId !== playerId) break;
+      const sale = sellPropertyToBankForPayment(
         state,
         playerId,
-        state.boardState.paymentQueue?.operationId ?? '',
+        queue.operationId,
         current.claimId,
         tileID,
-        options,
+        { ...options, allowExpired: true },
       );
-      if (soldContinuation) {
-        // The active payer has settled all claims; continue with leave cleanup.
-        continuation = soldContinuation;
+      if (!sale.ok) continue;
+      const progress = progressPaymentQueue(state, options);
+      if (progress.status === 'COMPLETED') {
+        continuation = progress.continuation;
         break;
       }
-      current = activeDebtClaim(state);
-      if (!current || current.debtorPlayerId !== playerId) break;
     }
     const remaining = activeDebtClaim(state);
     if (remaining?.debtorPlayerId === playerId && state.boardState.paymentQueue) {
-      continuation = bankruptActiveDebtor(state, playerId, 'LEFT', options);
-    } else if (remaining) {
-      continuation = null;
+      bankruptActiveDebtor(state, playerId, 'LEFT');
+      const progress = progressPaymentQueue(state, options);
+      continuation = progress.continuation;
     }
-    finishElimination(state, playerId, 'LEFT');
-    rebasePaymentContinuationAfterRemoval(state);
-    return { changed: true, continuation, bankAuctionQueued: false };
+    if (state.players[playerId]) finishElimination(state, playerId, 'LEFT');
+    return { changed: true, continuation };
   }
+
   finishElimination(state, playerId, 'LEFT');
-  rebasePaymentContinuationAfterRemoval(state);
-  return { changed: true, continuation: null, bankAuctionQueued: false };
+  return { changed: true, continuation: null };
 };

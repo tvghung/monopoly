@@ -17,6 +17,7 @@ import {
   transferProperty,
 } from '../game';
 import type { AppRuntime } from '../services/runtime';
+import { cancelPendingOffersForAssets, emitCancelledOffers } from '../services/offerInvalidation';
 import { requirePlayer } from './authority';
 import { broadcastRoom } from './broadcast';
 import { CommandError, acknowledgeFailure, successAck } from './errors';
@@ -24,7 +25,7 @@ import { commitRoomCommand } from './roomCommands';
 import type { AppServer, AppSocket } from './types';
 
 const currentTurnContinuation = (state: Parameters<typeof continuationForRoll>[0], playerId: string) => (
-  continuationForRoll(state, playerId, false)
+  continuationForRoll(state, playerId)
 );
 
 const completeDevelopment = (state: GameState, decision: PendingDevelopmentDecision): void => {
@@ -57,7 +58,6 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
         }
         const dice = rollDice();
         const total = dice.dice1 + dice.dice2;
-        delete state.boardState.currentPlayer.doublesStreak;
         const continuation = currentTurnContinuation(state, actor.playerId);
         if (player.isJail) {
           handleJailRoll(state, actor.playerId, dice, continuation, {
@@ -138,7 +138,7 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
   socket.on('resolve development', async (request, acknowledge) => {
     try {
       const actor = requirePlayer(socket, runtime);
-      const committed = await commitRoomCommand(runtime, actor.roomId, ({ room, state }) => {
+      const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction, now }) => {
         const decision = state.turnInfo.pendingDevelopmentDecision;
         const player = state.players[actor.playerId];
         if (
@@ -174,10 +174,24 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
           player.accountBalance -= tile.houseCost;
           property.houses = 5;
         }
-        delete state.boardState.openMarket[decision.tileID];
+        if (request.action !== 'SKIP') {
+          delete state.boardState.openMarket[decision.tileID];
+          const cancelled = await cancelPendingOffersForAssets(
+            transaction.tradeOffers,
+            actor.roomId,
+            null,
+            [decision.tileID],
+            [],
+            now,
+          );
+          completeDevelopment(state, decision);
+          return cancelled;
+        }
         completeDevelopment(state, decision);
+        return [];
       }, undefined, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
+      emitCancelledOffers(io, committed.room, committed.result, new Date());
       broadcastRoom(io, runtime, committed.room);
       acknowledge(successAck(committed.room.aggregateVersion));
     } catch (error) {

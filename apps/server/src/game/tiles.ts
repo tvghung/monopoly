@@ -16,10 +16,9 @@ import {
 import { moveBy, moveToJail, moveToTile } from './dice';
 import {
   enqueuePayments,
-  logPausedDebt,
-  settleAffordableClaims,
   type CompulsoryPayment,
 } from './payment';
+import { progressPaymentQueue } from './paymentResolution';
 import { streetRent } from './property';
 import { sendToLog } from './text';
 import { completeTurnResolution } from './turn';
@@ -56,9 +55,11 @@ const processPayments = (
 ): boolean => {
   if (payments.length === 0) return true;
   enqueuePayments(state, payments, continuation, options);
-  const resumed = settleAffordableClaims(state, options);
-  if (!resumed) {
-    logPausedDebt(state);
+  const progress = progressPaymentQueue(state, options);
+  if (progress.status !== 'COMPLETED') {
+    if (progress.status === 'WAITING_FOR_LIQUIDATION') {
+      sendToLog(state, 'Cần bán tài sản để tiếp tục thanh toán bắt buộc.');
+    }
     return false;
   }
   return true;
@@ -141,7 +142,6 @@ export const utilityRent = (state: GameState, tileID: number, diceTotal: number)
 
 interface CardResolutionResult {
   continueDestination: boolean;
-  forceAdvance: boolean;
 }
 
 export const applyCard = (
@@ -152,7 +152,7 @@ export const applyCard = (
   options: TileResolutionOptions = {},
 ): CardResolutionResult => {
   const player = state.players[playerId];
-  if (!player) return { continueDestination: false, forceAdvance: true };
+  if (!player) return { continueDestination: false };
   sendToLog(state, `${player.name}: ${card.message}`);
   if (card.reward) player.accountBalance += card.reward;
   if (card.getOutOfJailFree) player.heldJailFreeCardIds.push(card.id);
@@ -174,22 +174,22 @@ export const applyCard = (
     }
   }
   if (payments.length > 0 && !processPayments(state, payments, resume, options)) {
-    return { continueDestination: false, forceAdvance: false };
+    return { continueDestination: false };
   }
 
   if (card.goToJail) {
     moveToJail(state, playerId);
-    return { continueDestination: false, forceAdvance: true };
+    return { continueDestination: false };
   }
   if (typeof card.moveToTile === 'number') {
     moveToTile(state, playerId, card.moveToTile);
-    return { continueDestination: true, forceAdvance: false };
+    return { continueDestination: true };
   }
   if (typeof card.moveBy === 'number') {
     moveBy(state, playerId, card.moveBy);
-    return { continueDestination: true, forceAdvance: false };
+    return { continueDestination: true };
   }
-  return { continueDestination: false, forceAdvance: false };
+  return { continueDestination: false };
 };
 
 /** Resolve the destination synchronously until an external wait is encountered. */
@@ -211,7 +211,6 @@ export const resolveTile = (
     const tileID = player.currentTile;
     const tile = tileState[tileID];
     let complete = true;
-    let forceAdvance = continuation.forceAdvance ?? false;
 
     switch (tile.tileType) {
       case 'normal':
@@ -229,14 +228,12 @@ export const resolveTile = (
         break;
       case 'gojail':
         moveToJail(state, playerId);
-        forceAdvance = true;
         break;
       case 'chance':
       case 'chest': {
         const card = drawCard(state, tile.tileType);
         const result = applyCard(state, playerId, card, continuation, options);
         if (!result.continueDestination) {
-          forceAdvance ||= result.forceAdvance;
           break;
         }
         continue;
@@ -252,7 +249,7 @@ export const resolveTile = (
     }
 
     if (!complete || state.boardState.paymentQueue || state.turnInfo.pendingPropertyDecision) return;
-    completeTurnResolution(state, { ...continuation, forceAdvance });
+    completeTurnResolution(state, continuation);
     return;
   }
   if (chainDepth >= 32) throw new Error('Chuỗi thẻ vượt quá giới hạn an toàn.');
@@ -284,7 +281,6 @@ export const handleJailRoll = (
   const resume: PendingTurnContinuation = continuation ?? {
     playerId,
     turnNumber: state.boardState.turnNumber,
-    forceAdvance: true,
   };
   state.boardState.diceValue = dice;
   state.boardState.currentPlayer.hasMoved = true;
@@ -292,16 +288,13 @@ export const handleJailRoll = (
   if (isDoubles) {
     player.isJail = false;
     player.jailOpponentRoundsElapsed = 0;
-    delete player.jailRounds;
     moveBy(state, playerId, total);
     sendToLog(state, `${player.name} đổ đôi và được ra tù.`);
-    resolveTile(state, playerId, total, { ...resume, forceAdvance: true }, options);
+    resolveTile(state, playerId, total, resume, options);
     return;
   }
-  player.jailOpponentRoundsElapsed = player.jailOpponentRoundsElapsed ?? player.jailRounds ?? 0;
-  delete player.jailRounds;
   sendToLog(state, `${player.name} chưa đổ được đôi và tiếp tục ở tù.`);
-  completeTurnResolution(state, { ...resume, forceAdvance: true });
+  completeTurnResolution(state, resume);
 };
 
 export const resumePaymentContinuation = (
@@ -309,38 +302,7 @@ export const resumePaymentContinuation = (
   continuation: PendingTurnContinuation,
   options: TileResolutionOptions = {},
 ): void => {
-  if (continuation.resume?.kind === 'RELEASE_FROM_JAIL') {
-    if (
-      state.boardState.currentPlayer.id !== continuation.playerId
-      || state.boardState.turnNumber !== continuation.turnNumber
-      || !state.players[continuation.playerId]?.isJail
-    ) return;
-    const player = state.players[continuation.playerId];
-    player.isJail = false;
-    player.jailOpponentRoundsElapsed = 0;
-    delete player.jailRounds;
-    sendToLog(state, `${player.name} đã trả 50.000 ₫ tiền bảo lãnh và được ra tù.`);
-    return;
-  }
-  if (continuation.resume?.kind === 'MOVE_STORED_DICE') {
-    if (
-      state.boardState.currentPlayer.id !== continuation.playerId
-      || state.boardState.turnNumber !== continuation.turnNumber
-      || !state.players[continuation.playerId]
-    ) return;
-    const player = state.players[continuation.playerId];
-    player.isJail = false;
-    player.jailOpponentRoundsElapsed = 0;
-    delete player.jailRounds;
-    const dice = continuation.resume.dice;
-    const total = dice.dice1 + dice.dice2;
-    moveBy(state, continuation.playerId, total);
-    resolveTile(state, continuation.playerId, total, {
-      ...continuation,
-      resume: { kind: 'COMPLETE_TURN' },
-    }, options);
-    return;
-  }
+  void options;
   completeTurnResolution(state, continuation);
 };
 

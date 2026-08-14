@@ -39,7 +39,6 @@ export function registerJailHandlers(
         player.accountBalance -= 50;
         player.isJail = false;
         player.jailOpponentRoundsElapsed = 0;
-        delete player.jailRounds;
         sendToLog(state, `${player.name} đã trả tiền bảo lãnh và được ra tù.`);
       }, now, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
@@ -77,7 +76,6 @@ export function registerJailHandlers(
         state.privateState.decks[deck].drawPile.push(cardId);
         player.isJail = false;
         player.jailOpponentRoundsElapsed = 0;
-        delete player.jailRounds;
         sendToLog(state, `${player.name} đã dùng Thẻ Thoát Tù Miễn Phí.`);
       }, undefined, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');

@@ -12,7 +12,11 @@ export default function ForcedSaleProposalPanel() {
   return (
     <section className="forced-sale-proposal" role="dialog" aria-labelledby="forced-sale-title">
       <h3 id="forced-sale-title">Đề nghị bán bắt buộc</h3>
-      <p>{`${getTileName(proposal.tileID)} — ${formatMoney(proposal.grossPrice)}`}</p>
+      <p>{getTileName(proposal.tileID)}</p>
+      <p>Giá giao dịch cố định: {formatMoney(proposal.grossPrice)}</p>
+      {isSeller && proposal.sellerNetProceeds !== proposal.grossPrice
+        ? <p>Bạn thực nhận sau khi trừ khoản thế chấp: {formatMoney(proposal.sellerNetProceeds)}</p>
+        : null}
       <p>Giá do máy chủ xác định; mức phát triển hiện tại được giữ nguyên.</p>
       {isBuyer
         ? (

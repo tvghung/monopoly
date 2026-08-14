@@ -116,8 +116,6 @@ export default function Dice() {
             <h2 className="dice__result" role="status" aria-live="polite" aria-atomic="true">
               {'Kết quả: '}
               {first > 0 || second > 0 ? `${first} + ${second} = ${first + second}` : 'chưa đổ'}
-              <br />
-              {first > 0 && first === second ? <strong className="dice__result">Đổ đôi!</strong> : ''}
             </h2>
           </section>
         )

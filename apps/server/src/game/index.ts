@@ -26,16 +26,8 @@ export {
 export { createShuffledDecks, shuffleInPlace } from './decks';
 export type { RandomIndex } from './decks';
 export {
-  BANK_HOTELS,
-  BANK_HOUSES,
-  bankBuildingInventory,
-  canBuildHouse,
-  ownsFullGroup,
-  propertyGroupHasBuildings,
-  requestedBuildingType,
   streetRent,
-  buildHouse,
-  liquidateBuildings,
+  isPropertyLockedByLandingDecision,
   sellHouse,
   mortgageProperty,
   unmortgageProperty,
@@ -44,22 +36,10 @@ export {
   mortgagePrincipal,
 } from './property';
 export {
-  AUCTION_INITIAL_DURATION_MS,
-  AUCTION_MIN_BID_WINDOW_MS,
-  BUILDING_CONTENTION_DURATION_MS,
-  startAuction,
-  startBuildingAuction,
-  startNextBankPropertyAuction,
-  extendAuctionDeadline,
-  finalizeAuction,
-} from './auction';
-export type { StartAuctionOptions } from './auction';
-export {
   activeDebtClaim,
   activeDebtorId,
   assertDebtActionAllowed,
   createPaymentQueue,
-  continueDebtAfterLiquidity,
   enqueuePayments,
   hasPendingDebt,
   logPausedDebt,
@@ -73,18 +53,17 @@ export {
   DEFAULT_FORCED_SALE_PROPOSAL_TIMEOUT_MS,
   DEFAULT_PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS,
 } from './payment';
-export type { CompulsoryPayment, QueuePaymentOptions } from './payment';
+export type { CompulsoryPayment, ForcedSaleExecutionResult, QueuePaymentOptions } from './payment';
+export { bankruptActiveDebtor, progressPaymentQueue, sellablePropertyIds } from './paymentResolution';
+export type { PaymentProgressResult, PaymentProgressStatus } from './paymentResolution';
 export {
   executeVoluntaryTrade,
-  groupTileIds,
   invalidatePropertyCommerce,
   mortgageTransferInterest,
   transferProperty,
 } from './transfer';
 export type { PropertyTransferPolicy, PropertyTransferResult } from './transfer';
 export {
-  bankruptActiveDebtor,
-  declareActiveDebtBankruptcy,
   surrenderPlayerToBank,
 } from './bankruptcy';
 export type { BankruptcyResult } from './bankruptcy';

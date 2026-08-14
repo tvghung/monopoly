@@ -1,65 +1,16 @@
 import {
   tileState,
-  colorGroups,
   type GameState,
   type PlayerId,
 } from '@monopoly/shared';
 import { sendToLog } from './text';
 
-export const BANK_HOUSES = 32;
-export const BANK_HOTELS = 12;
-
-export const bankBuildingInventory = (state: GameState): {
-  housesAvailable: number;
-  hotelsAvailable: number;
-} => {
-  let housesOnBoard = 0;
-  let hotelsOnBoard = 0;
-  Object.values(state.boardState.ownedProps).forEach(({ houses }) => {
-    if (houses === 5) hotelsOnBoard += 1;
-    else housesOnBoard += houses;
-  });
-  const reservation = state.boardState.buildingContention?.buildingType
-    ?? (state.boardState.auction?.kind === 'BUILDING'
-      ? state.boardState.auction.buildingType
-      : undefined);
-  return {
-    housesAvailable: Math.max(0, BANK_HOUSES - housesOnBoard - (reservation === 'HOUSE' ? 1 : 0)),
-    hotelsAvailable: Math.max(0, BANK_HOTELS - hotelsOnBoard - (reservation === 'HOTEL' ? 1 : 0)),
-  };
-};
-
-export const propertyGroupHasBuildings = (state: GameState, tileID: number): boolean => {
-  return Boolean(state.boardState.ownedProps[tileID]?.houses);
-};
-
-export const requestedBuildingType = (state: GameState, tileID: number): 'HOUSE' | 'HOTEL' => (
-  state.boardState.ownedProps[tileID]?.houses === 4 ? 'HOTEL' : 'HOUSE'
+export const isPropertyLockedByLandingDecision = (state: GameState, tileID: number): boolean => (
+  state.turnInfo.pendingDevelopmentDecision?.tileID === tileID
 );
 
-export const canBuildHouse = (
-  state: GameState,
-  playerId: PlayerId,
-  tileID: number,
-): boolean => {
-  const owned = state.boardState.ownedProps[tileID];
-  const tile = tileState[tileID];
-  const player = state.players[playerId];
-  if (!player || !owned || owned.id !== playerId) return false;
-  if (tile?.tileType !== 'normal' || !tile.houseCost || !tile.rentTiers) return false;
-  if (owned.mortgaged || owned.houses >= 5 || player.accountBalance < tile.houseCost) return false;
-  return true;
-};
-
-// True when `ownerId` owns every tile in a colour group (a monopoly).
-export const ownsFullGroup = (state: GameState, ownerId: PlayerId, color: string): boolean => {
-  const group = colorGroups[color];
-  if (!group) return false;
-  return group.every((tileIndex) => state.boardState.ownedProps[tileIndex]?.id === ownerId);
-};
-
 // Rent owed for landing on an owned street: nothing if mortgaged, otherwise the
-// canonical base/tier rent.  Ownership of a full colour group never changes it.
+// canonical base/tier rent. Ownership of a colour group never changes it.
 export const streetRent = (state: GameState, tileIndex: number): number => {
   const owned = state.boardState.ownedProps[tileIndex];
   const tile = tileState[tileIndex];
@@ -69,27 +20,12 @@ export const streetRent = (state: GameState, tileIndex: number): number => {
   return base;
 };
 
-// Build one house (or a hotel at level 5) on a monopolised street, respecting the
-// even-building rule and available funds.
-export const buildHouse = (state: GameState, playerId: PlayerId, tileID: number): boolean => {
-  const owned = state.boardState.ownedProps[tileID];
-  const tile = tileState[tileID];
-  const player = state.players[playerId];
-  if (!player || !owned || !tile?.houseCost || !canBuildHouse(state, playerId, tileID)) return false;
-  player.accountBalance -= tile.houseCost;
-  owned.houses += 1;
-  delete state.boardState.openMarket[tileID];
-  const label = owned.houses === 5 ? 'một Khách Sạn' : `Nhà thứ ${owned.houses}`;
-  sendToLog(state, `${player.name} đã xây ${label} tại ${tile.streetName}.`);
-  return true;
-};
-
-// Sell one house back to the bank for half its build cost, keeping the group even.
+// Sell one development level back to the Bank for half its build cost.
 export const sellHouse = (state: GameState, playerId: PlayerId, tileID: number): boolean => {
   const owned = state.boardState.ownedProps[tileID];
   const tile = tileState[tileID];
   const player = state.players[playerId];
-  if (!player || !owned || owned.id !== playerId) return false;
+  if (!player || !owned || owned.id !== playerId || isPropertyLockedByLandingDecision(state, tileID)) return false;
   if (!tile.houseCost || owned.houses <= 0) return false;
   owned.houses -= 1;
   delete state.boardState.openMarket[tileID];
@@ -104,7 +40,7 @@ export const mortgageProperty = (state: GameState, playerId: PlayerId, tileID: n
   const owned = state.boardState.ownedProps[tileID];
   const tile = tileState[tileID];
   const player = state.players[playerId];
-  if (!player || !owned || owned.id !== playerId) return false;
+  if (!player || !owned || owned.id !== playerId || isPropertyLockedByLandingDecision(state, tileID)) return false;
   if (owned.mortgaged || owned.houses > 0) return false;
   const value = Math.floor((tile.price ?? 0) / 2);
   if (value <= 0) return false;
@@ -119,7 +55,7 @@ export const unmortgageProperty = (state: GameState, playerId: PlayerId, tileID:
   const owned = state.boardState.ownedProps[tileID];
   const tile = tileState[tileID];
   const player = state.players[playerId];
-  if (!player || !owned || owned.id !== playerId) return false;
+  if (!player || !owned || owned.id !== playerId || isPropertyLockedByLandingDecision(state, tileID)) return false;
   if (!owned.mortgaged) return false;
   const cost = Math.ceil(((tile.price ?? 0) / 2) * 1.1);
   if (player.accountBalance < cost) {
@@ -130,32 +66,6 @@ export const unmortgageProperty = (state: GameState, playerId: PlayerId, tileID:
   player.accountBalance -= cost;
   sendToLog(state, `${player.name} đã chuộc ${tile.streetName} với giá ${cost.toLocaleString('vi-VN')}.000 ₫.`);
   return true;
-};
-
-/**
- * Full bankruptcy/Bank surrender liquidation. Hotels return directly and do
- * not need four Bank houses; every level refunds half of the current build cost.
- */
-export const liquidateBuildings = (state: GameState, playerId: PlayerId): number => {
-  const player = state.players[playerId];
-  if (!player) return 0;
-  let refund = 0;
-  const tileIds = Object.keys(state.boardState.ownedProps)
-    .map(Number)
-    .filter((tileID) => state.boardState.ownedProps[tileID]?.id === playerId)
-    .sort((a, b) => a - b);
-  for (const tileID of tileIds) {
-    const property = state.boardState.ownedProps[tileID];
-    const houseCost = tileState[tileID]?.houseCost ?? 0;
-    if (!property || property.houses <= 0 || houseCost <= 0) continue;
-    refund += property.houses * Math.floor(houseCost / 2);
-    property.houses = 0;
-  }
-  player.accountBalance += refund;
-  if (refund > 0) {
-    sendToLog(state, `${player.name} đã thanh lý toàn bộ công trình và nhận ${refund.toLocaleString('vi-VN')}.000 ₫.`);
-  }
-  return refund;
 };
 
 /** Fixed authoritative gross consideration for mandatory liquidation. */

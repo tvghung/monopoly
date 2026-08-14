@@ -10,17 +10,10 @@ import {
   sanitizeName,
   escapeHtml,
   movePlayer,
-  ownsFullGroup,
   streetRent,
-  bankBuildingInventory,
-  buildHouse,
-  liquidateBuildings,
-  sellHouse,
   mortgageProperty,
   unmortgageProperty,
-  handleJailRoll,
   applyCard,
-  assertDebtActionAllowed,
   railroadRent,
   resolveTile,
   utilityRent,
@@ -28,22 +21,10 @@ import {
   checkBalance,
   checkWinner,
   removePlayerFromGame,
-  startAuction,
-  startNextBankPropertyAuction,
-  extendAuctionDeadline,
-  finalizeAuction,
-  startBuildingAuction,
-  declareActiveDebtBankruptcy,
-  surrenderPlayerToBank,
-  completeTurnResolution,
-  continuationForRoll,
-  resumePaymentContinuation,
   transferProperty,
   chooseStartingPlayer,
   rotateSeatOrder,
   createShuffledDecks,
-  createPaymentQueue,
-  settleAffordableClaims,
 } from './game';
 
 // ---- Test fixtures ----
@@ -58,7 +39,7 @@ const makePlayer = (over: Partial<Player> = {}): Player => ({
   color: 'red',
   accountBalance: 1500,
   isJail: false,
-  jailRounds: 0,
+  jailOpponentRoundsElapsed: 0,
   heldJailFreeCardIds: [],
   ...over,
 });
@@ -68,7 +49,7 @@ const makeState = (): GameState => ({
     gameStarted: true,
     players: [],
     finishedPlayers: {},
-    currentPlayer: { id: '', hasMoved: false, doublesStreak: 0 },
+    currentPlayer: { id: '', hasMoved: false },
     turnNumber: 0,
     turnRecovery: null,
     logs: [],
@@ -76,10 +57,7 @@ const makeState = (): GameState => ({
     ownedProps: {},
     openMarket: {},
     winner: null,
-    auction: null,
-    buildingContention: null,
     paymentQueue: null,
-    bankPropertyAuctionQueue: null,
   },
   players: {},
   turnInfo: {},
@@ -105,9 +83,6 @@ const own = (
     id, color: 'red', houses: 0, mortgaged: false, ...over,
   };
 };
-
-// Brown group is tiles 1 and 3 (Cà Mau / Bạc Liêu), houseCost 50.
-const BROWN = [1, 3];
 
 const chanceCard = (
   id: string,
@@ -173,16 +148,7 @@ describe('movePlayer', () => {
   });
 });
 
-describe('ownsFullGroup / streetRent', () => {
-  it('reports a monopoly only when every tile in the group is owned', () => {
-    const state = makeState();
-    addPlayer(state, 'p1');
-    own(state, 1, 'p1');
-    expect(ownsFullGroup(state, 'p1', 'brown')).toBe(false);
-    own(state, 3, 'p1');
-    expect(ownsFullGroup(state, 'p1', 'brown')).toBe(true);
-  });
-
+describe('streetRent', () => {
   it('charges base rent for a single owned tile', () => {
     const state = makeState();
     addPlayer(state, 'p1');
@@ -190,17 +156,18 @@ describe('ownsFullGroup / streetRent', () => {
     expect(streetRent(state, 1)).toBe(2);
   });
 
-  it('doubles base rent for an unbuilt monopoly', () => {
+  it('keeps the base rent independent of group ownership', () => {
     const state = makeState();
     addPlayer(state, 'p1');
-    BROWN.forEach((t) => own(state, t, 'p1'));
+    addPlayer(state, 'p2');
+    own(state, 1, 'p2');
     expect(streetRent(state, 1)).toBe(2);
   });
 
   it('uses the house tier once built up', () => {
     const state = makeState();
     addPlayer(state, 'p1');
-    BROWN.forEach((t) => own(state, t, 'p1'));
+    own(state, 1, 'p1');
     state.boardState.ownedProps[1].houses = 2;
     // Rent tiers for Cà Mau are [10, 30, 90, 160, 250]; index houses-1.
     expect(streetRent(state, 1)).toBe(30);
@@ -270,146 +237,6 @@ describe('railroadRent / utilityRent mortgage tiers', () => {
   });
 });
 
-describe.skip('legacy buildHouse group/inventory rules', () => {
-  it('builds a house, deducts the cost, and enforces the even-build rule', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 1000 });
-    BROWN.forEach((t) => own(state, t, 'p1'));
-
-    buildHouse(state, 'p1', 1);
-    expect(state.boardState.ownedProps[1].houses).toBe(1);
-    expect(state.players.p1.accountBalance).toBe(950);
-
-    // Tile 1 is now ahead of tile 3, so building on it again is blocked.
-    buildHouse(state, 'p1', 1);
-    expect(state.boardState.ownedProps[1].houses).toBe(1);
-
-    // Building on the lagging tile is allowed.
-    buildHouse(state, 'p1', 3);
-    expect(state.boardState.ownedProps[3].houses).toBe(1);
-  });
-
-  it('refuses to build without a full-group monopoly', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 1000 });
-    own(state, 1, 'p1');
-    buildHouse(state, 'p1', 1);
-    expect(state.boardState.ownedProps[1].houses).toBe(0);
-    expect(state.players.p1.accountBalance).toBe(1000);
-  });
-
-  it('refuses to build when a tile in the group is mortgaged', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 1000 });
-    own(state, 1, 'p1');
-    own(state, 3, 'p1', { mortgaged: true });
-    buildHouse(state, 'p1', 1);
-    expect(state.boardState.ownedProps[1].houses).toBe(0);
-  });
-
-  it('caps construction at a hotel (5)', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 1000 });
-    BROWN.forEach((t) => own(state, t, 'p1', { houses: 5 }));
-    buildHouse(state, 'p1', 1);
-    expect(state.boardState.ownedProps[1].houses).toBe(5);
-    expect(state.players.p1.accountBalance).toBe(1000);
-  });
-
-  it('refuses a valid house build when the player cannot afford it', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 40 });
-    BROWN.forEach((t) => own(state, t, 'p1'));
-    expect(buildHouse(state, 'p1', 1)).toBe(false);
-    expect(state.boardState.ownedProps[1].houses).toBe(0);
-    expect(state.players.p1.accountBalance).toBe(40);
-    expect(state.boardState.logs).toEqual([]);
-  });
-
-  it('refuses to build on a non-buildable property', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 1000 });
-    own(state, 5, 'p1', { color: 'railroad' });
-    buildHouse(state, 'p1', 5);
-    expect(state.boardState.ownedProps[5].houses).toBe(0);
-    expect(state.players.p1.accountBalance).toBe(1000);
-  });
-
-  it('returns four houses to the Bank when four houses become a hotel', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 1000 });
-    BROWN.forEach((tileID) => own(state, tileID, 'p1', { houses: 4 }));
-
-    expect(bankBuildingInventory(state)).toEqual({ housesAvailable: 24, hotelsAvailable: 12 });
-    expect(buildHouse(state, 'p1', 1)).toBe(true);
-    expect(state.boardState.ownedProps[1].houses).toBe(5);
-    expect(bankBuildingInventory(state)).toEqual({ housesAvailable: 28, hotelsAvailable: 11 });
-  });
-
-  it('reserves and awards the last physical house without overselling stock', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 1000 });
-    addPlayer(state, 'p2', { accountBalance: 1000 });
-    addPlayer(state, 'p3');
-    BROWN.forEach((tileID) => own(state, tileID, 'p1'));
-    [6, 8, 9].forEach((tileID) => own(state, tileID, 'p2'));
-    [11, 13, 14, 16, 18, 19, 21].forEach((tileID) => own(state, tileID, 'p3', { houses: 4 }));
-    own(state, 23, 'p3', { houses: 3 });
-    expect(bankBuildingInventory(state).housesAvailable).toBe(1);
-
-    const requestedAt = '2030-01-01T00:00:00.000Z';
-    const auction = startBuildingAuction(state, 'HOUSE', {
-      p1: { playerId: 'p1', tileID: 1, buildingType: 'HOUSE', requestedAt },
-      p2: { playerId: 'p2', tileID: 6, buildingType: 'HOUSE', requestedAt },
-    }, { auctionId: 'last-house', now: Date.parse(requestedAt) });
-    expect(bankBuildingInventory(state).housesAvailable).toBe(0);
-    auction.highestBid = 75;
-    auction.highestBidder = 'p1';
-    auction.highestBidderName = 'Player';
-
-    expect(finalizeAuction(state, auction.auctionId)).toBe(true);
-    expect(state.boardState.ownedProps[1].houses).toBe(1);
-    expect(state.players.p1.accountBalance).toBe(925);
-    expect(bankBuildingInventory(state).housesAvailable).toBe(0);
-    expect(buildHouse(state, 'p2', 6)).toBe(false);
-  });
-});
-
-describe.skip('legacy sellHouse group/inventory rules', () => {
-  it('refunds half the build cost and keeps the group even', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 0 });
-    own(state, 1, 'p1', { houses: 2 });
-    own(state, 3, 'p1', { houses: 1 });
-
-    // Tile 1 is at the group max, so it can be sold down first.
-    sellHouse(state, 'p1', 1);
-    expect(state.boardState.ownedProps[1].houses).toBe(1);
-    expect(state.players.p1.accountBalance).toBe(25);
-
-    // Now both are level; selling from tile 3 (no longer the max) is blocked.
-    own(state, 1, 'p1', { houses: 2 });
-    sellHouse(state, 'p1', 3);
-    expect(state.boardState.ownedProps[3].houses).toBe(1);
-  });
-
-  it('liquidates a hotel directly when the Bank has no houses for a downgrade', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 0 });
-    addPlayer(state, 'p2');
-    own(state, 1, 'p1', { houses: 5 });
-    [3, 6, 8, 9, 11, 13, 14, 16].forEach((tileID) => {
-      own(state, tileID, 'p2', { houses: 4 });
-    });
-
-    expect(bankBuildingInventory(state).housesAvailable).toBe(0);
-    expect(sellHouse(state, 'p1', 1)).toBe(false);
-    expect(liquidateBuildings(state, 'p1')).toBe(125);
-    expect(state.boardState.ownedProps[1].houses).toBe(0);
-    expect(state.players.p1.accountBalance).toBe(125);
-  });
-});
-
 describe('mortgageProperty / unmortgageProperty', () => {
   it('mortgages for half the tile price', () => {
     const state = makeState();
@@ -473,74 +300,6 @@ describe('mortgageProperty / unmortgageProperty', () => {
     expect(state.players.p2.accountBalance).toBe(10);
     expect(state.boardState.ownedProps[5]).toMatchObject({ id: 'p2', mortgaged: true });
     expect(state.boardState.openMarket[5]).toBeUndefined();
-  });
-});
-
-describe.skip('legacy jail bail/failed-roll rules', () => {
-  it('uses a jail double only to escape and advances after destination resolution', () => {
-    const state = makeState();
-    addPlayer(state, 'p2');
-    addPlayer(state, 'p1', { isJail: true, jailRounds: 1, currentTile: 10 });
-    own(state, 16, 'p1');
-    state.boardState.currentPlayer.id = 'p1';
-    handleJailRoll(state, 'p1', { dice1: 3, dice2: 3 });
-    expect(state.players.p1.isJail).toBe(false);
-    expect(state.players.p1.currentTile).toBe(16);
-    expect(state.boardState.currentPlayer.id).toBe('p2');
-    expect(state.boardState.turnNumber).toBe(1);
-  });
-
-  it('pays the forced bail on the third failed roll before moving', () => {
-    const state = makeState();
-    addPlayer(state, 'p2');
-    addPlayer(state, 'p1', { isJail: true, jailRounds: 2, currentTile: 10 });
-    state.boardState.currentPlayer.id = 'p1';
-    handleJailRoll(state, 'p1', { dice1: 1, dice2: 2 });
-    expect(state.players.p1.isJail).toBe(false);
-    expect(state.players.p1.currentTile).toBe(13);
-    expect(state.players.p1.accountBalance).toBe(1450);
-  });
-
-  it('persists the third-roll dice while forced bail debt is raised and resumes them once', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', {
-      accountBalance: 20, isJail: true, jailRounds: 2, currentTile: 10,
-    });
-    addPlayer(state, 'p2');
-    own(state, 1, 'p1');
-    state.boardState.currentPlayer.id = 'p1';
-
-    handleJailRoll(state, 'p1', { dice1: 2, dice2: 3 });
-    expect(state.players.p1.accountBalance).toBe(0);
-    expect(state.players.p1.currentTile).toBe(10);
-    expect(state.players.p1.isJail).toBe(true);
-    expect(state.boardState.paymentQueue?.orderedClaims[0].source).toEqual({ kind: 'BAIL' });
-    expect(state.boardState.paymentQueue?.continuation.resume).toEqual({
-      kind: 'MOVE_STORED_DICE', dice: { dice1: 2, dice2: 3 },
-    });
-
-    expect(mortgageProperty(state, 'p1', 1)).toBe(true);
-    const continuation = settleAffordableClaims(state);
-    expect(continuation?.resume).toMatchObject({ kind: 'MOVE_STORED_DICE' });
-    if (!continuation) throw new Error('expected stored-dice continuation');
-    resumePaymentContinuation(state, continuation);
-
-    expect(state.players.p1.accountBalance).toBe(0);
-    expect(state.players.p1.currentTile).toBe(15);
-    expect(state.players.p1.isJail).toBe(false);
-    expect(state.turnInfo.pendingPropertyDecision?.tileID).toBe(15);
-    expect(state.boardState.paymentQueue).toBeNull();
-  });
-
-  it('stays jailed and counts the round on a non-double', () => {
-    const state = makeState();
-    addPlayer(state, 'p2');
-    addPlayer(state, 'p1', { isJail: true, jailRounds: 0, currentTile: 10 });
-    state.boardState.currentPlayer.id = 'p1';
-    handleJailRoll(state, 'p1', { dice1: 1, dice2: 2 });
-    expect(state.players.p1.isJail).toBe(true);
-    expect(state.players.p1.jailRounds).toBe(1);
-    expect(state.players.p1.currentTile).toBe(10);
   });
 });
 
@@ -616,19 +375,8 @@ describe('applyCard', () => {
 
     expect(state.players.p1.accountBalance).toBe(115);
     expect(state.players.p2.accountBalance).toBe(90);
-    expect(state.players.p3.accountBalance).toBe(0);
-    expect(state.boardState.paymentQueue?.activeClaimIndex).toBe(1);
-    expect(state.boardState.paymentQueue?.orderedClaims[0].status).toBe('SETTLED');
-    expect(state.boardState.paymentQueue?.orderedClaims[1].remainingAmount).toBe(5);
-
-    const restarted = structuredClone(state);
-    restarted.players.p3.accountBalance = 5;
-    expect(settleAffordableClaims(restarted)).toMatchObject({ playerId: 'p1' });
-
-    expect(restarted.boardState.paymentQueue).toBeNull();
-    expect(restarted.players.p1.accountBalance).toBe(120);
-    expect(restarted.players.p2.accountBalance).toBe(90);
-    expect(restarted.players.p3.accountBalance).toBe(0);
+    expect(state.players.p3).toBeUndefined();
+    expect(state.boardState.paymentQueue).toBeNull();
   });
 });
 
@@ -734,89 +482,6 @@ describe('resolveTile', () => {
     resolveTile(state, 'p1', 0);
     expect(state.players.p1.isJail).toBe(true);
     expect(state.players.p1.currentTile).toBe(10);
-  });
-});
-
-describe.skip('legacy extra-roll doubles rules', () => {
-  const doubleContinuation = (state: GameState) => {
-    state.boardState.currentPlayer.hasMoved = true;
-    state.boardState.currentPlayer.doublesStreak = 1;
-    return continuationForRoll(state, 'p1', true);
-  };
-
-  it('grants the extra roll only after rent is paid', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { currentTile: 1, accountBalance: 100 });
-    addPlayer(state, 'p2', { accountBalance: 100 });
-    own(state, 1, 'p2');
-
-    resolveTile(state, 'p1', 2, doubleContinuation(state));
-
-    expect(state.players.p1.accountBalance).toBe(98);
-    expect(state.players.p2.accountBalance).toBe(102);
-    expect(state.boardState.currentPlayer).toMatchObject({ id: 'p1', hasMoved: false });
-    expect(state.boardState.turnNumber).toBe(0);
-  });
-
-  it('grants the extra roll after the pending purchase is completed', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { currentTile: 1 });
-    addPlayer(state, 'p2');
-    resolveTile(state, 'p1', 2, doubleContinuation(state));
-    const decision = state.turnInfo.pendingPropertyDecision;
-    expect(decision?.tileID).toBe(1);
-    if (!decision) throw new Error('expected property decision');
-
-    state.players.p1.accountBalance -= 60;
-    expect(transferProperty(state, 1, null, 'p1', 'BANK_AUCTION_AWARD').ok).toBe(true);
-    state.turnInfo = {};
-    expect(completeTurnResolution(state, decision.continuation)).toBe('EXTRA_ROLL');
-
-    expect(state.boardState.currentPlayer).toMatchObject({ id: 'p1', hasMoved: false });
-    expect(state.boardState.ownedProps[1].id).toBe('p1');
-  });
-
-  it('grants the extra roll only after a declined-property auction finalizes', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { currentTile: 1 });
-    addPlayer(state, 'p2');
-    resolveTile(state, 'p1', 2, doubleContinuation(state));
-    const decision = state.turnInfo.pendingPropertyDecision;
-    if (!decision) throw new Error('expected property decision');
-    const auction = startAuction(state, 1, {
-      auctionId: 'doubles-decline',
-      continuation: decision.continuation,
-      now: Date.parse('2030-01-01T00:00:00.000Z'),
-    });
-
-    expect(finalizeAuction(state, auction.auctionId)).toBe(true);
-    expect(state.boardState.currentPlayer).toMatchObject({ id: 'p1', hasMoved: false });
-    expect(state.boardState.turnNumber).toBe(0);
-  });
-
-  it('grants the extra roll after a synchronous card effect', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { currentTile: 2, accountBalance: 100 });
-    addPlayer(state, 'p2');
-    putCardOnTop(state, 'chest', 'chest-consulting-fee');
-
-    resolveTile(state, 'p1', 2, doubleContinuation(state));
-
-    expect(state.players.p1.accountBalance).toBe(125);
-    expect(state.boardState.currentPlayer).toMatchObject({ id: 'p1', hasMoved: false });
-  });
-
-  it('forces turn advance when a card sends the doubles roller to jail', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { currentTile: 7 });
-    addPlayer(state, 'p2');
-    putCardOnTop(state, 'chance', 'chance-go-to-jail');
-
-    resolveTile(state, 'p1', 2, doubleContinuation(state));
-
-    expect(state.players.p1).toMatchObject({ currentTile: 10, isJail: true });
-    expect(state.boardState.currentPlayer).toMatchObject({ id: 'p2', doublesStreak: 0 });
-    expect(state.boardState.turnNumber).toBe(1);
   });
 });
 
@@ -948,365 +613,5 @@ describe('checkBalance / winner', () => {
     expect(state.boardState.turnNumber).toBe(1);
     expect(state.boardState.ownedProps[1]).toBeUndefined();
     expect(state.boardState.openMarket[1]).toBeUndefined();
-    expect(state.boardState.auction).toBeNull();
-  });
-});
-
-describe.skip('legacy auction-based bankruptcy rules', () => {
-  it('transfers available cash immediately and keeps only the unpaid remainder', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 60 });
-    addPlayer(state, 'p2', { accountBalance: 100 });
-    state.boardState.paymentQueue = createPaymentQueue([
-      {
-        debtorPlayerId: 'p1',
-        creditor: 'PLAYER',
-        creditorPlayerId: 'p2',
-        amount: 100,
-        source: { kind: 'OTHER', description: 'partial payment regression' },
-      },
-    ], continuationForRoll(state, 'p1', false));
-
-    expect(settleAffordableClaims(state)).toBeNull();
-
-    expect(state.players.p1.accountBalance).toBe(0);
-    expect(state.players.p2.accountBalance).toBe(160);
-    expect(state.boardState.paymentQueue).toMatchObject({
-      activeClaimIndex: 0,
-      orderedClaims: [{ status: 'PENDING', amount: 100, remainingAmount: 40 }],
-    });
-  });
-
-  it('surrenders a future debtor assets to the Bank and continues the active claim', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 0 });
-    addPlayer(state, 'p2');
-    addPlayer(state, 'p3', {
-      accountBalance: 60,
-      heldJailFreeCardIds: ['chance-jail-free'],
-    });
-    own(state, 5, 'p3', { color: 'railroad' });
-    const queue = createPaymentQueue([
-      {
-        debtorPlayerId: 'p1',
-        creditor: 'BANK',
-        amount: 100,
-        source: { kind: 'OTHER', description: 'active claim' },
-      },
-      {
-        debtorPlayerId: 'p3',
-        creditor: 'PLAYER',
-        creditorPlayerId: 'p1',
-        amount: 25,
-        source: { kind: 'OTHER', description: 'future claim' },
-      },
-    ], continuationForRoll(state, 'p1', false));
-    state.boardState.paymentQueue = queue;
-
-    const result = surrenderPlayerToBank(state, 'p3');
-
-    expect(result).toMatchObject({ changed: true, continuation: null, bankAuctionQueued: true });
-    expect(state.players.p3).toBeUndefined();
-    expect(state.boardState.finishedPlayers.p3.reason).toBe('LEFT');
-    expect(state.boardState.ownedProps[5]).toBeUndefined();
-    expect(state.players.p1.heldJailFreeCardIds).not.toContain('chance-jail-free');
-    expect(state.privateState.decks.chance.drawPile.at(-1)).toBe('chance-jail-free');
-    expect(state.players.p1.accountBalance).toBe(0);
-    expect(state.boardState.paymentQueue).toMatchObject({
-      activeClaimIndex: 0,
-      orderedClaims: [
-        { debtorPlayerId: 'p1', status: 'PENDING', remainingAmount: 100 },
-        { debtorPlayerId: 'p3', status: 'BANKRUPT', remainingAmount: 0 },
-      ],
-    });
-  });
-
-  it('preserves a Bank queue turn continuation when an unrelated player leaves', () => {
-    const state = makeState();
-    addPlayer(state, 'p1');
-    addPlayer(state, 'p2');
-    addPlayer(state, 'p3');
-    addPlayer(state, 'p4');
-    state.boardState.currentPlayer = { id: 'p1', hasMoved: true, doublesStreak: 0 };
-    const originalContinuation = continuationForRoll(state, 'p1', false);
-    const declinedAuction = startAuction(state, 3, {
-      auctionId: '00000000-0000-4000-8000-000000000101',
-      continuation: originalContinuation,
-      now: Date.parse('2030-01-01T00:00:00.000Z'),
-    });
-    own(state, 1, 'p3');
-    expect(surrenderPlayerToBank(state, 'p3').bankAuctionQueued).toBe(true);
-
-    expect(finalizeAuction(state, declinedAuction.auctionId)).toBe(true);
-    expect(state.boardState.auction).toMatchObject({ kind: 'PROPERTY', source: 'BANKRUPTCY' });
-    expect(state.boardState.bankPropertyAuctionQueue?.continuation).toEqual(originalContinuation);
-
-    const unrelatedLeave = surrenderPlayerToBank(state, 'p2');
-    expect(unrelatedLeave.continuation?.resume).toEqual({ kind: 'NO_TURN_CHANGE' });
-    expect(state.boardState.bankPropertyAuctionQueue?.continuation).toEqual(originalContinuation);
-
-    const bankAuctionId = state.boardState.auction?.auctionId;
-    expect(bankAuctionId).toBeDefined();
-    expect(finalizeAuction(state, bankAuctionId)).toBe(true);
-    expect(state.boardState.bankPropertyAuctionQueue).toBeNull();
-    expect(state.boardState.currentPlayer.id).toBe('p4');
-    expect(state.boardState.turnNumber).toBe(1);
-  });
-
-  it('liquidates buildings and transfers mortgaged property and a jail-free card to the creditor', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', {
-      accountBalance: 0,
-      heldJailFreeCardIds: ['chance-jail-free'],
-    });
-    addPlayer(state, 'p2', { accountBalance: 1000 });
-    own(state, 1, 'p1', { houses: 1 });
-    own(state, 3, 'p1', { houses: 1 });
-    own(state, 5, 'p1', { color: 'railroad', mortgaged: true });
-
-    applyCard(
-      state,
-      'p1',
-      chanceCard('bankruptcy-test', { message: 'pay creditor', payEachPlayer: 100 }),
-    );
-    expect(state.boardState.paymentQueue?.orderedClaims[0]).toMatchObject({
-      debtorPlayerId: 'p1',
-      creditor: 'PLAYER',
-      creditorPlayerId: 'p2',
-      remainingAmount: 100,
-    });
-
-    const result = declareActiveDebtBankruptcy(state, 'p1');
-
-    expect(result).toMatchObject({ changed: true, bankAuctionQueued: false });
-    expect(state.players.p1).toBeUndefined();
-    expect(state.boardState.finishedPlayers.p1.reason).toBe('BANKRUPT');
-    expect(state.boardState.ownedProps[1]).toMatchObject({ id: 'p2', houses: 0 });
-    expect(state.boardState.ownedProps[3]).toMatchObject({ id: 'p2', houses: 0 });
-    expect(state.boardState.ownedProps[5]).toMatchObject({ id: 'p2', mortgaged: true });
-    expect(state.players.p2.heldJailFreeCardIds).toContain('chance-jail-free');
-    expect(state.players.p2.accountBalance).toBe(1040);
-    expect(state.boardState.paymentQueue).toBeNull();
-  });
-
-  it('protects the active player creditor when the debtor forfeits', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', {
-      accountBalance: 0,
-      heldJailFreeCardIds: ['chance-jail-free'],
-    });
-    addPlayer(state, 'p2');
-    own(state, 1, 'p1');
-    applyCard(state, 'p1', chanceCard('forfeit-debt', {
-      message: 'pay creditor', payEachPlayer: 100,
-    }));
-
-    const result = surrenderPlayerToBank(state, 'p1');
-
-    expect(result).toMatchObject({ changed: true, bankAuctionQueued: false });
-    expect(state.boardState.finishedPlayers.p1.reason).toBe('LEFT');
-    expect(state.boardState.ownedProps[1].id).toBe('p2');
-    expect(state.players.p2.heldJailFreeCardIds).toContain('chance-jail-free');
-    expect(state.boardState.bankPropertyAuctionQueue).toBeNull();
-  });
-
-  it('returns a held jail-free card to the bottom of its source deck on Bank surrender', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { currentTile: 7 });
-    addPlayer(state, 'p2');
-    putCardOnTop(state, 'chance', 'chance-jail-free');
-    resolveTile(state, 'p1', 0);
-    expect(state.players.p1.heldJailFreeCardIds).toEqual(['chance-jail-free']);
-    expect(state.privateState.decks.chance.drawPile).not.toContain('chance-jail-free');
-
-    expect(surrenderPlayerToBank(state, 'p1').changed).toBe(true);
-
-    expect(state.privateState.decks.chance.drawPile.at(-1)).toBe('chance-jail-free');
-  });
-
-  it('does not consume the current player purchase wait while auctioning forfeited Bank assets', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { currentTile: 1 });
-    addPlayer(state, 'p2');
-    addPlayer(state, 'p3');
-    resolveTile(state, 'p1', 0);
-    const decision = state.turnInfo.pendingPropertyDecision;
-    expect(decision?.tileID).toBe(1);
-    own(state, 3, 'p3');
-
-    expect(surrenderPlayerToBank(state, 'p3').bankAuctionQueued).toBe(true);
-    const auction = startNextBankPropertyAuction(state, {
-      auctionId: 'forfeit-bank-property',
-      now: Date.parse('2030-01-01T00:00:00.000Z'),
-    });
-    expect(auction).toMatchObject({
-      kind: 'PROPERTY', source: 'BANKRUPTCY', continuation: null,
-    });
-    expect(state.turnInfo.pendingPropertyDecision).toEqual(decision);
-
-    expect(finalizeAuction(state, 'forfeit-bank-property')).toBe(true);
-    expect(state.boardState.bankPropertyAuctionQueue).toBeNull();
-    expect(state.turnInfo.pendingPropertyDecision).toEqual(decision);
-    expect(state.boardState.currentPlayer.id).toBe('p1');
-  });
-
-  it('allows non-debtors to bid in a required Bank auction while the active debtor remains blocked', () => {
-    const state = makeState();
-    addPlayer(state, 'p1');
-    addPlayer(state, 'p2', { accountBalance: 0 });
-    addPlayer(state, 'p3');
-    state.boardState.paymentQueue = createPaymentQueue([
-      { debtorPlayerId: 'p2', creditor: 'BANK', amount: 100, source: { kind: 'OTHER', description: 'first' } },
-      { debtorPlayerId: 'p3', creditor: 'BANK', amount: 100, source: { kind: 'OTHER', description: 'second' } },
-    ], continuationForRoll(state, 'p1', false));
-
-    expect(assertDebtActionAllowed(state, 'p2', 'BID')).toBe(false);
-    expect(assertDebtActionAllowed(state, 'p1', 'BID')).toBe(true);
-    expect(assertDebtActionAllowed(state, 'p3', 'BID')).toBe(true);
-  });
-});
-
-describe.skip('removed auction deadlines', () => {
-  it('starts with a stable id and an absolute 30-second deadline', () => {
-    const state = makeState();
-    addPlayer(state, 'p1');
-    addPlayer(state, 'p2');
-    state.turnInfo.canBuyProp = true;
-    const now = Date.parse('2030-01-01T00:00:00.000Z');
-
-    const auction = startAuction(state, 1, { auctionId: 'auction-1', now });
-
-    expect(auction.auctionId).toBe('auction-1');
-    expect(auction.endsAt).toBe('2030-01-01T00:00:30.000Z');
-    expect(auction.active).toEqual(['p1', 'p2']);
-    expect(auction).not.toHaveProperty('timer');
-    expect(state.turnInfo.canBuyProp).toBe(false);
-  });
-
-  it('accepts a supplied authoritative deadline', () => {
-    const state = makeState();
-    addPlayer(state, 'p1');
-    const auction = startAuction(state, 1, {
-      auctionId: 'restored-auction',
-      endsAt: '2031-02-03T04:05:06.000Z',
-    });
-    expect(auction.endsAt).toBe('2031-02-03T04:05:06.000Z');
-  });
-
-  it('extends only deadlines with less than 15 seconds remaining', () => {
-    const state = makeState();
-    addPlayer(state, 'p1');
-    const origin = Date.parse('2030-01-01T00:00:00.000Z');
-    const auction = startAuction(state, 1, { auctionId: 'auction-1', now: origin });
-
-    expect(extendAuctionDeadline(auction, origin)).toBe('2030-01-01T00:00:30.000Z');
-    expect(extendAuctionDeadline(auction, origin + 20_000)).toBe('2030-01-01T00:00:35.000Z');
-  });
-});
-
-describe.skip('removed auctions', () => {
-  it('awards the tile to the highest bidder and charges them', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 1000 });
-    addPlayer(state, 'p2', { accountBalance: 1000 });
-    state.boardState.currentPlayer.id = 'p1';
-    state.boardState.turnRecovery = {
-      playerId: 'p1',
-      turnNumber: 0,
-      deadlineAt: '2030-01-01T00:00:00.000Z',
-    };
-    state.boardState.auction = {
-      kind: 'PROPERTY',
-      auctionId: 'auction-1',
-      tileID: 1,
-      tileName: 'Cà Mau',
-      price: 60,
-      source: 'DECLINED_PURCHASE',
-      highestBid: 120,
-      highestBidder: 'p2',
-      highestBidderName: 'Untrusted stale name',
-      active: ['p1', 'p2'],
-      passed: [],
-      endsAt: '2030-01-01T00:00:00.000Z',
-      continuation: { playerId: 'p1', turnNumber: 0, rolledDoubles: false },
-    };
-    expect(finalizeAuction(state, 'auction-1')).toBe(true);
-    expect(state.players.p2.accountBalance).toBe(880);
-    expect(state.boardState.ownedProps[1]).toEqual({
-      id: 'p2',
-      color: 'red',
-      houses: 0,
-      mortgaged: false,
-    });
-    expect(state.boardState.auction).toBeNull();
-    expect(state.boardState.currentPlayer.id).toBe('p2');
-    expect(state.boardState.turnNumber).toBe(1);
-    expect(state.boardState.turnRecovery).toBeNull();
-    expect(state.boardState.logs.at(-1)).toContain('Player thắng đấu giá');
-    expect(finalizeAuction(state, 'auction-1')).toBe(false);
-    expect(state.boardState.turnNumber).toBe(1);
-  });
-
-  it('leaves the tile unowned when there were no bids', () => {
-    const state = makeState();
-    addPlayer(state, 'p1');
-    addPlayer(state, 'p2');
-    state.boardState.auction = {
-      kind: 'PROPERTY',
-      auctionId: 'auction-no-bids',
-      tileID: 1,
-      tileName: 'Cà Mau',
-      price: 60,
-      source: 'DECLINED_PURCHASE',
-      highestBid: 0,
-      highestBidder: null,
-      highestBidderName: null,
-      active: ['p1', 'p2'],
-      passed: [],
-      endsAt: '2030-01-01T00:00:00.000Z',
-      continuation: { playerId: 'p1', turnNumber: 0, rolledDoubles: false },
-    };
-    finalizeAuction(state);
-    expect(state.boardState.ownedProps[1]).toBeUndefined();
-    expect(state.boardState.auction).toBeNull();
-    expect(state.boardState.currentPlayer.id).toBe('p2');
-  });
-
-  it('does not let a stale callback finalize a newer auction', () => {
-    const state = makeState();
-    addPlayer(state, 'p1');
-    startAuction(state, 1, {
-      auctionId: 'new-auction',
-      endsAt: '2030-01-01T00:00:00.000Z',
-    });
-
-    expect(finalizeAuction(state, 'old-auction')).toBe(false);
-    expect(state.boardState.auction?.auctionId).toBe('new-auction');
-    expect(state.boardState.turnNumber).toBe(0);
-  });
-
-  it('rejects an unaffordable persisted high bid at finalization', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 1000 });
-    addPlayer(state, 'p2', { accountBalance: 100 });
-    state.boardState.auction = {
-      kind: 'PROPERTY',
-      auctionId: 'auction-invalid-bid',
-      tileID: 1,
-      tileName: 'Cà Mau',
-      price: 60,
-      source: 'DECLINED_PURCHASE',
-      highestBid: 120,
-      highestBidder: 'p2',
-      highestBidderName: 'Player',
-      active: ['p1', 'p2'],
-      passed: [],
-      endsAt: '2030-01-01T00:00:00.000Z',
-      continuation: null,
-    };
-
-    expect(finalizeAuction(state)).toBe(true);
-    expect(state.players.p2.accountBalance).toBe(100);
-    expect(state.boardState.ownedProps[1]).toBeUndefined();
   });
 });

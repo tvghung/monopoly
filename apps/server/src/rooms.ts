@@ -200,27 +200,16 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
     state.boardState.winner?.playerId,
     ...Object.values(state.boardState.ownedProps).map((property) => property.id),
     ...Object.values(state.boardState.openMarket).map((entry) => entry.seller),
-    ...(state.boardState.auction?.active ?? []),
-    ...(state.boardState.auction?.passed ?? []),
-    state.boardState.auction?.highestBidder,
     state.boardState.turnRecovery?.playerId,
     state.turnInfo.pendingPropertyDecision?.playerId,
     state.turnInfo.pendingDevelopmentDecision?.playerId,
     state.privateState.forcedSaleProposal?.sellerPlayerId,
     state.privateState.forcedSaleProposal?.buyerPlayerId,
-    ...Object.values(state.boardState.buildingContention?.requests ?? {}).map(
-      (request) => request.playerId,
-    ),
-    ...Object.values(
-      state.boardState.auction?.kind === 'BUILDING' ? state.boardState.auction.requests : {},
-    ).map((request) => request.playerId),
     ...(state.boardState.paymentQueue?.orderedClaims.flatMap((claim) => [
       claim.debtorPlayerId,
       claim.creditorPlayerId,
     ]) ?? []),
     state.boardState.paymentQueue?.continuation.playerId,
-    state.boardState.auction?.continuation?.playerId,
-    state.boardState.bankPropertyAuctionQueue?.continuation.playerId,
   ];
 
   for (const reference of references) {
@@ -273,14 +262,6 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
     }
   }
 
-  if (
-    state.boardState.auction
-    || state.boardState.buildingContention
-    || state.boardState.bankPropertyAuctionQueue
-  ) {
-    throw new Error('Room snapshot v3 cannot contain auction or building-scarcity state');
-  }
-
   const recovery = state.boardState.turnRecovery;
   if (recovery && (
     recovery.playerId !== state.boardState.currentPlayer.id
@@ -291,9 +272,6 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
 
   const decision = state.turnInfo.pendingPropertyDecision;
   const development = state.turnInfo.pendingDevelopmentDecision;
-  if (state.turnInfo.canBuyProp !== undefined) {
-    throw new Error('Room snapshot v3 cannot contain the legacy canBuyProp flag');
-  }
   if (decision && development) {
     throw new Error('Room snapshot cannot contain two pending landing decisions');
   }
@@ -468,13 +446,10 @@ export const assertSupportedRoomSnapshot = (
     throw new Error('Persisted lobby has no active host');
   }
   if (
-    room.status === 'FINISHED'
+      room.status === 'FINISHED'
     && (
-      room.gameSnapshot.gameState.boardState.auction
-      || room.gameSnapshot.gameState.boardState.turnRecovery
+      room.gameSnapshot.gameState.boardState.turnRecovery
       || room.gameSnapshot.gameState.boardState.paymentQueue
-      || room.gameSnapshot.gameState.boardState.buildingContention
-      || room.gameSnapshot.gameState.boardState.bankPropertyAuctionQueue
       || room.gameSnapshot.gameState.turnInfo.pendingPropertyDecision
       || room.gameSnapshot.gameState.turnInfo.pendingDevelopmentDecision
       || room.gameSnapshot.gameState.privateState.forcedSaleProposal

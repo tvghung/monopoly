@@ -1,17 +1,15 @@
 import {
-  colorGroups,
   tileState,
   type GameCardId,
   type GameState,
   type PlayerId,
   type TradeBundle,
 } from '@monopoly/shared';
+import { isPropertyLockedByLandingDecision } from './property';
 
 export type PropertyTransferPolicy =
   | 'VOLUNTARY'
-  | 'BANKRUPTCY_TO_PLAYER'
   | 'RETURN_TO_BANK'
-  | 'BANK_AUCTION_AWARD'
   | 'BANK_PURCHASE'
   | 'FORCED_SALE';
 
@@ -49,8 +47,12 @@ export const transferProperty = (
     return { ok: false, mortgageInterest: 0, reason: 'Người nhận không còn trong ván.' };
   }
 
+  if (isPropertyLockedByLandingDecision(state, tileID)) {
+    return { ok: false, mortgageInterest: 0, reason: 'Tài sản đang chờ quyết định phát triển của lượt hiện tại.' };
+  }
+
   if (!property) {
-    if (policy !== 'BANK_AUCTION_AWARD' && policy !== 'BANK_PURCHASE') {
+    if (policy !== 'BANK_PURCHASE') {
       return { ok: false, mortgageInterest: 0, reason: 'Tài sản không tồn tại.' };
     }
     state.boardState.ownedProps[tileID] = {
@@ -104,6 +106,13 @@ export const executeVoluntaryTrade = (
   if (state.boardState.paymentQueue) {
     return { ok: false, mortgageInterest: 0, reason: 'Không thể giao dịch trong lúc thanh toán thiếu hụt.' };
   }
+  const lockedTile = state.turnInfo.pendingDevelopmentDecision?.tileID;
+  if (
+    lockedTile !== undefined
+    && (offered.propertyIds.includes(lockedTile) || requested.propertyIds.includes(lockedTile))
+  ) {
+    return { ok: false, mortgageInterest: 0, reason: 'Tài sản đang chờ quyết định phát triển của lượt hiện tại.' };
+  }
   const proposer = state.players[proposerId];
   const recipient = state.players[recipientId];
   if (!proposer || !recipient || !ownsBundle(state, proposerId, offered) || !ownsBundle(state, recipientId, requested)) {
@@ -131,9 +140,4 @@ export const executeVoluntaryTrade = (
   transferCards(state, proposerId, recipientId, offered.jailFreeCardIds);
   transferCards(state, recipientId, proposerId, requested.jailFreeCardIds);
   return { ok: true, mortgageInterest: proposerInterest + recipientInterest };
-};
-
-export const groupTileIds = (tileID: number): number[] => {
-  const color = tileState[tileID]?.color;
-  return color ? [...(colorGroups[color] ?? [tileID])] : [tileID];
 };

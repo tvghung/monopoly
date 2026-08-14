@@ -115,8 +115,6 @@ export const moveToJail = (state: GameState, playerId: PlayerId): boolean => {
   player.currentTile = JAIL_TILE;
   player.isJail = true;
   player.jailOpponentRoundsElapsed = 0;
-  delete player.jailRounds;
-  delete state.boardState.currentPlayer.doublesStreak;
   return true;
 };
 
