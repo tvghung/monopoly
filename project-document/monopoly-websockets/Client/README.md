@@ -12,8 +12,8 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
 | Lobby/roster/start/winner | [game-status.instruction.md](./game-status.instruction.md) | Lobby/Dashboard/PlayerList/WinnerBanner |
 | Board/spectator | [game-board.instruction.md](./game-board.instruction.md) | Board/Tile/BackOfCard/SpectatorBanner |
 | Turn/landing/payment/jail | [turn-actions.instruction.md](./turn-actions.instruction.md) | Dice/BuyPrompt/DevelopmentPrompt/Jail/Debt controls |
-| Property/build/mortgage | [property-management.instruction.md](./property-management.instruction.md) | BackOfCard/Tile |
-| `TradeBundle`/private offers | [trading-market.instruction.md](./trading-market.instruction.md) | Market/SellPrompts/IncomingOffers |
+| Property/build/forced sale | [property-management.instruction.md](./property-management.instruction.md) | BackOfCard/Tile/DebtPanel |
+| `TradeBundle`/private offers | [trade-offers.instruction.md](./trade-offers.instruction.md) | BackOfCard/TradeOfferModal/IncomingOffers |
 | Forced sale proposal | [../testcase/payment-shortfall-and-forced-sale.md](../testcase/payment-shortfall-and-forced-sale.md) | DebtPanel/ForcedSaleProposalPanel |
 | Log/chat | [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md) | Log |
 | Desktop shell/runtime | [../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md](../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md) | `apps/desktop/`, preload bridge, bootstrap/runtime config |

@@ -600,10 +600,10 @@ export class PostgresPersistenceStore<TSnapshot extends object>
         CROSS JOIN trade_offers AS offer
         LIMIT 0
       )
-      SELECT EXISTS (
+        SELECT EXISTS (
         SELECT 1
         FROM schema_migrations
-        WHERE version = '004_simplified_rules_v3.sql'
+        WHERE version = '005_remove_mortgage_open_market.sql'
       ) AS migration_applied
       FROM (SELECT 1) AS probe
       LEFT JOIN required_schema ON FALSE

@@ -21,14 +21,14 @@
 
 - [ ] Clean PostgreSQL runs migrations once; `db:status` reports current schema.
 - [ ] Forward migration stores canonical bilateral TradeBundle offer terms and
-  snapshot schema version 3 without destructive down migration.
+  snapshot schema version 4 without destructive down migration.
 - [ ] Any real server start with missing/invalid `DATABASE_URL` or incompatible schema
   fails before listen.
 - [ ] No production in-memory fallback exists.
 - [ ] `/healthz` remains liveness; `/readyz` reports healthy/unhealthy DB/schema.
 - [ ] DB save failure returns retryable ACK, leaves revision unchanged and emits no update.
 - [ ] Snapshot round-trip preserves stable references; unknown/deep-malformed fields,
-  cross-reference/invariant failures, over-500 logs and non-v3 version fail explicitly.
+  cross-reference/invariant failures, over-500 logs and non-v4 version fail explicitly.
 - [ ] Expected-version conflict cannot silently overwrite a newer room.
 - [ ] Local `compose.yaml` + `.env.example` support migrate/dev/restart workflow.
 - [ ] Production same-origin static/SPA and Socket.IO work; CORS is not authentication.

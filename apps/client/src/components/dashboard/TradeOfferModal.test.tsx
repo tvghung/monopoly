@@ -6,9 +6,9 @@ import {
   afterEach, describe, expect, it, vi,
 } from 'vitest';
 import stateContext from '../../internal';
-import sellPromptContext from '../../sellPromptContext';
+import tradePromptContext from '../../tradePromptContext';
 import type { SocketFunctions, StateContextValue } from '../../types';
-import SellPrompts from './SellPrompts';
+import TradeOfferModal from './TradeOfferModal';
 
 afterEach(cleanup);
 
@@ -23,12 +23,11 @@ const state: PublicGameState = {
     logs: [],
     diceValue: { dice1: 2, dice2: 3 },
     ownedProps: {
-      1: { id: 'them', color: 'blue', houses: 0, mortgaged: true },
-      3: { id: 'them', color: 'blue', houses: 0, mortgaged: false },
-      5: { id: 'me', color: 'red', houses: 0, mortgaged: false },
-      12: { id: 'me', color: 'red', houses: 0, mortgaged: true },
+      1: { id: 'them', color: 'blue', houses: 0 },
+      3: { id: 'them', color: 'blue', houses: 0 },
+      5: { id: 'me', color: 'red', houses: 0 },
+      12: { id: 'me', color: 'red', houses: 0 },
     },
-    openMarket: {},
     winner: null,
   },
   players: {
@@ -56,10 +55,10 @@ const state: PublicGameState = {
   loaded: true,
 };
 
-describe('SellPrompts trade bundles', () => {
+describe('TradeOfferModal', () => {
   it('sends cash, multiple properties and only the current player private card ids', () => {
     const makeOffer = vi.fn();
-    const setPrivateSale = vi.fn();
+    const closeTrade = vi.fn();
     const contextValue: StateContextValue = {
       state,
       socketFunctions: { makeOffer } as unknown as SocketFunctions,
@@ -76,22 +75,18 @@ describe('SellPrompts trade bundles', () => {
 
     render(
       <stateContext.Provider value={contextValue}>
-        <sellPromptContext.Provider value={{
-          handlePutOpenMarket: vi.fn(),
-          handleMakeOffer: vi.fn(),
-          openSale: false,
-          setOpenSale: vi.fn(),
-          privateSale: { tileID: 1 },
-          setPrivateSale,
+        <tradePromptContext.Provider value={{
+          tradeTarget: { tileID: 1 },
+          openTradeForProperty: vi.fn(),
+          closeTrade,
         }}
         >
-          <SellPrompts />
-        </sellPromptContext.Provider>
+          <TradeOfferModal />
+        </tradePromptContext.Provider>
       </stateContext.Provider>,
     );
 
     expect(screen.getByText(/Bình đang giữ 1 thẻ, nhưng danh tính thẻ là dữ liệu riêng/)).toBeTruthy();
-    expect(screen.getByText(/Cà Mau.*bạn trả thêm 3\.000 ₫.*10% giá trị cầm cố/)).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('Tiền (đơn vị nghìn đồng)', { selector: '#private-offer-cash' }), {
       target: { value: '200' },
@@ -100,7 +95,7 @@ describe('SellPrompts trade bundles', () => {
       target: { value: '75' },
     });
     fireEvent.click(screen.getByLabelText(/Ga Hà Nội/));
-    fireEvent.click(screen.getByLabelText(/Công Ty Điện.*đang cầm cố/));
+    fireEvent.click(screen.getByLabelText(/Công Ty Điện/));
     fireEvent.click(screen.getByLabelText(/Bạc Liêu/));
     fireEvent.click(screen.getByLabelText(/Thẻ Thoát Tù Miễn Phí \(Cơ Hội\)/));
     fireEvent.click(screen.getByRole('button', { name: 'Gửi đề nghị' }));

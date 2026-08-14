@@ -1,4 +1,3 @@
-import type { Dispatch, SetStateAction } from 'react';
 import type { Socket } from 'socket.io-client';
 import type {
   ClientToServerEvents,
@@ -9,7 +8,6 @@ import type {
   PublicGameState,
   RoomPlayerMeta,
   RoomRole,
-  SaleInfo,
   ServerToClientEvents,
 } from '@monopoly/shared';
 
@@ -23,15 +21,10 @@ export interface SocketFunctions {
   resolveDevelopment?: (request: DevelopmentRequest) => void;
   waitInJail?: () => void;
   sendChat: (message: string) => void;
-  putOpenMarket: (saleInfo: SaleInfo) => void;
   makeOffer: (offerInfo: OfferInfo) => void;
   acceptOffer: (offerId: OfferId) => void;
   declineOffer: (offerId: OfferId) => void;
-  makeSale: (tileID: number) => void;
-  removeSale: (tileID: number) => void;
   sellHouse: (tileID: number) => void;
-  mortgageProperty: (tileID: number) => void;
-  unmortgageProperty: (tileID: number) => void;
   payBail: () => void;
   useJailCard: () => void;
   sellPropertyToBank?: (request: { paymentOperationId: string; claimId: string; tileID: number }) => void;
@@ -57,15 +50,12 @@ export interface StateContextValue {
   roomPlayers?: RoomPlayerMeta[];
 }
 
-export interface SalePrompt {
+export interface TradeTarget {
   tileID: number;
 }
 
-export interface SellPromptContextValue {
-  handlePutOpenMarket: (tileID: number) => void;
-  handleMakeOffer: (tileID: number) => void;
-  openSale: SalePrompt | false;
-  setOpenSale: Dispatch<SetStateAction<SalePrompt | false>>;
-  privateSale: SalePrompt | false;
-  setPrivateSale: Dispatch<SetStateAction<SalePrompt | false>>;
+export interface TradePromptContextValue {
+  tradeTarget: TradeTarget | null;
+  openTradeForProperty: (tileID: number) => void;
+  closeTrade: () => void;
 }

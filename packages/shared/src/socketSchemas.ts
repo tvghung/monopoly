@@ -4,11 +4,10 @@ import type {
   OfferAction,
   OfferInfo,
   ResumeSessionRequest,
-  SaleInfo,
   SetReadyRequest,
   TradeBundle,
 } from './types';
-import type { ClientToServerEvents, TileRequest } from './events';
+import type { ClientToServerEvents } from './events';
 
 export const playerIdSchema = z.uuid();
 export const roomIdSchema = z.uuid();
@@ -66,10 +65,6 @@ export const setReadyRequestSchema = z.strictObject({
   ready: z.boolean(),
 }) satisfies z.ZodType<SetReadyRequest>;
 
-export const tileRequestSchema = z.strictObject({
-  tileID: tileIdSchema,
-}) satisfies z.ZodType<TileRequest>;
-
 export const operationIdSchema = z.uuid();
 export const purchaseDecisionRequestSchema = z.strictObject({
   operationId: operationIdSchema,
@@ -95,11 +90,6 @@ export const forcedSaleProposalRequestSchema = z.strictObject({
   buyerPlayerId: playerIdSchema,
 });
 export const forcedSaleProposalActionSchema = z.strictObject({ proposalId: operationIdSchema });
-
-export const saleInfoSchema = z.strictObject({
-  tileID: tileIdSchema,
-  price: moneyAmountSchema,
-}) satisfies z.ZodType<SaleInfo>;
 
 const uniqueTileIdsSchema = z
   .array(tileIdSchema)
@@ -165,15 +155,10 @@ export const clientEventPayloadSchemas = {
   'buy property': purchaseDecisionRequestSchema,
   'do not buy': purchaseDecisionRequestSchema,
   'resolve development': developmentDecisionRequestSchema,
-  'put on open market': saleInfoSchema,
   'make offer': offerInfoSchema,
   'accept offer': offerActionSchema,
   'decline offer': offerActionSchema,
-  'make sale': tileRequestSchema,
-  'remove sale': tileRequestSchema,
   'sell house': tileIdSchema,
-  'mortgage property': tileIdSchema,
-  'unmortgage property': tileIdSchema,
   'pay bail': noPayloadSchema,
   'use jail card': noPayloadSchema,
   'wait in jail': noPayloadSchema,

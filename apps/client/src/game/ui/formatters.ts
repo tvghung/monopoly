@@ -22,14 +22,6 @@ export function getTileName(tileId: number): string {
   return tile.streetName.trim() || `Ô số ${tileId}`;
 }
 
-export function getMortgageValue(tileId: number): number {
-  return Math.floor((tileState[tileId]?.price ?? 0) / 2);
-}
-
-export function getMortgageTransferSurcharge(tileId: number): number {
-  return Math.ceil(((tileState[tileId]?.price ?? 0) / 2) * 0.1);
-}
-
 const ackErrorMessages: Record<AckError['code'], string> = {
   INVALID_REQUEST: 'Yêu cầu không hợp lệ. Vui lòng kiểm tra thông tin và thử lại.',
   UNAUTHENTICATED: 'Bạn chưa được xác thực. Vui lòng vào lại phòng.',

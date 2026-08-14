@@ -41,14 +41,14 @@ presence (`CONNECTED | DISCONNECTED`).
 Disconnect:
 
 - Runtime presence only.
-- Does not delete/release/revoke player, balance, property, listing, ready, host,
+- Does not delete/release/revoke player, balance, property, ready, host,
   session, offer or payment/proposal state.
 - May persist a guarded current-turn reconnect deadline.
 
 Explicit leave:
 
 - Lobby: remove Seat, revoke session, transfer host; delete room if empty.
-- In game: confirmed forfeit atomically revokes session, cancels stale listing/offer
+- In game: confirmed forfeit atomically revokes session, cancels stale offers
   and resolves assets according to active payment shortfall. An active payer is
   auto-liquidated to the Bank before the creditor is paid; other leavers return
   assets unowned with no proceeds. Payment/turn continuation is reconciled before
@@ -73,7 +73,7 @@ Finished history records reason (`BANKRUPT | LEFT`); it is not erased by disconn
 - Public connected flags derive from runtime registry after load/restart.
 - Raw token, SocketData, presence, command queue and scheduler timer handles never
   enter snapshot.
-- Snapshot v3 persists pending landing decisions, ordered payments, private deck
+- Snapshot v4 persists pending landing decisions, ordered payments, private deck
   state, turn recovery and forced-sale proposals; auction/contention/Bank queue
   state is not part of the schema.
 - Room code is normalized/unique but is not password/credential.

@@ -53,7 +53,6 @@ const initialState: PublicGameState = {
     logs: [],
     diceValue: { dice1: 0, dice2: 0 },
     ownedProps: {},
-    openMarket: {},
     winner: null,
     paymentShortfall: null,
   },
@@ -502,9 +501,6 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       sendChat: (message) => {
         if (connected) socket.emit('send chat', message, ack);
       },
-      putOpenMarket: (saleInfo) => {
-        if (gameCommandAllowed()) socket.emit('put on open market', saleInfo, ack);
-      },
       makeOffer: (offerInfo) => {
         if (!gameCommandAllowed()) return;
         socket.emit('make offer', offerInfo, response => showCommandFailure(response));
@@ -515,20 +511,8 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       declineOffer: (offerId) => {
         if (gameCommandAllowed()) socket.emit('decline offer', { offerId }, ack);
       },
-      makeSale: (tileID) => {
-        if (gameCommandAllowed()) socket.emit('make sale', { tileID }, ack);
-      },
-      removeSale: (tileID) => {
-        if (gameCommandAllowed()) socket.emit('remove sale', { tileID }, ack);
-      },
       sellHouse: (tileID) => {
         if (gameCommandAllowed()) socket.emit('sell house', tileID, ack);
-      },
-      mortgageProperty: (tileID) => {
-        if (gameCommandAllowed()) socket.emit('mortgage property', tileID, ack);
-      },
-      unmortgageProperty: (tileID) => {
-        if (gameCommandAllowed()) socket.emit('unmortgage property', tileID, ack);
       },
       payBail: () => { if (gameCommandAllowed()) socket.emit('pay bail', ack); },
       useJailCard: () => { if (gameCommandAllowed()) socket.emit('use jail card', ack); },

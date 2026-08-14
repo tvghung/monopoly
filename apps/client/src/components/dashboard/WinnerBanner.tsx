@@ -11,7 +11,7 @@ export default function WinnerBanner() {
       {state.boardState.winner
         ? (
           <h3
-            className="open-market__sell-toast__title"
+            className="trade-offer-modal__title"
             style={{ color: state.boardState.winner.color }}
           >
             {`${state.boardState.winner.name} chiến thắng!`}

@@ -6,8 +6,8 @@ describe('selectPlayerHudViewModels', () => {
   it('derives canonical property and development counts plus lifecycle flags', () => {
     const room = makeRoom();
     room.gameState.boardState.ownedProps = {
-      1: { id: 'player-a', color: 'red', houses: 2, mortgaged: false },
-      3: { id: 'player-a', color: 'red', houses: 5, mortgaged: false },
+      1: { id: 'player-a', color: 'red', houses: 2 },
+      3: { id: 'player-a', color: 'red', houses: 5 },
     };
     room.gameState.boardState.finishedPlayers['player-b'] = {
       name: 'Bình', color: 'blue', reason: 'LEFT',

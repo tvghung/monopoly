@@ -37,7 +37,7 @@ export default function DebtPanel() {
               <article key={property.tileID} className="debt-panel__property">
                 <p>
                   {getTileName(property.tileID)} — tổng giá {formatMoney(property.grossPrice)},
-                  {' '}bạn nhận {formatMoney(property.netProceeds)}
+                  {' '}bạn nhận {formatMoney(property.grossPrice)}
                 </p>
                 <button
                   type="button"

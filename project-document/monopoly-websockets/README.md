@@ -45,7 +45,7 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
   landing decision dùng operation ID, còn payment/forced-sale wait nhúng durable
   `PendingTurnContinuation` thay vì advance sớm.
 - Hidden `GamePrivateState.decks`, `PaymentQueue` và forced-sale proposal nằm trong
-  snapshot v3 nhưng public projector không được lộ deck order hoặc proposal terms
+  snapshot v4 nhưng public projector không được lộ deck order hoặc proposal terms
   cho người chơi khác.
 - Client presentation queue is a derived display layer only: reconnect/session
   snapshots snap/reset and live public revisions may animate observable diffs.
@@ -69,8 +69,8 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
 | Host/lobby/ready/leave | [GameCore/room-lifecycle.instruction.md](./GameCore/room-lifecycle.instruction.md), [Api/socket-lobby.instruction.md](./Api/socket-lobby.instruction.md) | `Lobby.tsx`, room aggregate, `socket/lobby.ts` |
 | DB/schema/CAS/recovery | [Persistence/postgres-and-recovery.instruction.md](./Persistence/postgres-and-recovery.instruction.md) | `persistence/`, `services/`, `migrations/` |
 | Turn/payment shortfall/bankruptcy/recovery | [GameCore/turn-movement-and-bankruptcy.instruction.md](./GameCore/turn-movement-and-bankruptcy.instruction.md) | `game/turn.ts`, `game/payment.ts`, turn handler, deadline scheduler |
-| Trading/private offer | [Client/trading-market.instruction.md](./Client/trading-market.instruction.md), [Api/socket-trading.instruction.md](./Api/socket-trading.instruction.md) | trading handler, `trade_offers`, offer UI |
-| Property/building/mortgage/forced sale | [GameCore/property-economy.instruction.md](./GameCore/property-economy.instruction.md) | `game/property.ts`, `game/transfer.ts`, `socket/debt.ts` |
+| Trading/private offer | [Client/trade-offers.instruction.md](./Client/trade-offers.instruction.md), [Api/socket-trading.instruction.md](./Api/socket-trading.instruction.md) | trading handler, `trade_offers`, offer UI |
+| Property/building/forced sale | [GameCore/property-economy.instruction.md](./GameCore/property-economy.instruction.md) | `game/property.ts`, `game/transfer.ts`, `socket/debt.ts` |
 | Contracts/runtime schema | [Shared/socket-and-state-contracts.instruction.md](./Shared/socket-and-state-contracts.instruction.md) | `types.ts`, `events.ts`, `socketSchemas.ts` |
 | HTTP/readiness/deploy | [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md) | create/start server, migration startup, Docker/Render/CI |
 | Board/card/deck data | [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md) | shared canonical board/cards và private deck state |

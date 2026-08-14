@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 
 import {
+  createCanonicalDecks,
   SOCKET_PROTOCOL_VERSION,
   type Ack,
   type AckCallback,
@@ -157,7 +158,7 @@ function waitForAck<TResult>(
 function successData<TResult>(acknowledgement: Ack<TResult>): TResult {
   if (!acknowledgement.ok) {
     throw new Error(
-      `Expected successful acknowledgement, received ${acknowledgement.error.code}`,
+      `Expected successful acknowledgement, received ${acknowledgement.error.code}: ${acknowledgement.error.message}`,
     );
   }
   if (acknowledgement.data === undefined) {
@@ -485,7 +486,6 @@ describe('Socket.IO durable player lifecycle', () => {
         id: guest.playerId,
         color: room.gameSnapshot.gameState.players[guest.playerId].color,
         houses: 0,
-        mortgaged: false,
       };
     });
 
@@ -586,7 +586,6 @@ describe('Socket.IO durable player lifecycle', () => {
         id: owner.playerId,
         color: room.gameSnapshot.gameState.players[owner.playerId].color,
         houses: 0,
-        mortgaged: false,
       };
     });
 
@@ -647,7 +646,6 @@ describe('Socket.IO durable player lifecycle', () => {
         id: owner.playerId,
         color: room.gameSnapshot.gameState.players[owner.playerId].color,
         houses: 0,
-        mortgaged: false,
       };
     });
     const expiresAt = new Date(Date.now() + 50);
@@ -734,45 +732,6 @@ describe('Socket.IO durable player lifecycle', () => {
       },
     });
     expect(await persistence.rooms.findById(host.room.roomId)).toEqual(before);
-  });
-
-  it('rejects an unaffordable open-market sale without committing room state', async () => {
-    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
-    const subject = await startServer(persistence);
-    const buyer = await joinPlayer(await connect(subject.url), 'Buyer', 'poor-market');
-    const seller = await joinPlayer(await connect(subject.url), 'Seller', 'poor-market');
-    await setReady(buyer.socket);
-    await setReady(seller.socket);
-    expect((await startGame(buyer.socket)).ok).toBe(true);
-    await mutateRoom(persistence, buyer.room.roomId, (room) => {
-      room.gameSnapshot.gameState.players[buyer.playerId].accountBalance = 99;
-      room.gameSnapshot.gameState.boardState.ownedProps[1] = {
-        id: seller.playerId,
-        color: room.gameSnapshot.gameState.players[seller.playerId].color,
-        houses: 0,
-        mortgaged: false,
-      };
-      room.gameSnapshot.gameState.boardState.openMarket[1] = {
-        seller: seller.playerId,
-        price: 100,
-        sellerName: 'Seller',
-        tileName: 'Mediterranean Avenue',
-      };
-    });
-    const before = await persistence.rooms.findById(buyer.room.roomId);
-
-    const acknowledgement = await waitForAck((acknowledge) => {
-      buyer.socket.emit('make sale', { tileID: 1 }, acknowledge);
-    });
-
-    expect(acknowledgement).toMatchObject({
-      ok: false,
-      error: {
-        code: 'CONFLICT',
-        message: 'Bạn không đủ tiền mua và trả lãi chuyển nhượng cầm cố.',
-      },
-    });
-    expect(await persistence.rooms.findById(buyer.room.roomId)).toEqual(before);
   });
 
   it('rejects unaffordable bail without mutating jail or payment state', async () => {
@@ -1074,7 +1033,6 @@ describe('Socket.IO durable player lifecycle', () => {
           id: debtor.playerId,
           color: gameState.players[debtor.playerId].color,
           houses: 0,
-          mortgaged: false,
         },
       };
       gameState.players[creditor.playerId].accountBalance = 1500;
@@ -1105,9 +1063,7 @@ describe('Socket.IO durable player lifecycle', () => {
         buyerPlayerId: buyer.playerId,
         tileID: 1,
         grossPrice,
-        sellerNetProceeds: grossPrice,
         expectedHouses: 0,
-        expectedMortgaged: false,
         expiresAt,
       };
       room.nextActionAt = new Date(expiresAt);
@@ -1192,16 +1148,22 @@ describe.runIf(Boolean(testDatabaseUrl))(
         await migrateDatabase(applicationPool);
         const migrationRows = await applicationPool.query<{ checksum: string }>(
           `DELETE FROM schema_migrations
-           WHERE version = '003_reset_v1_snapshots.sql'
+           WHERE version IN (
+             '003_reset_v1_snapshots.sql',
+             '004_simplified_rules_v3.sql',
+             '005_remove_mortgage_open_market.sql'
+           )
            RETURNING checksum`,
         );
-        expect(migrationRows.rows).toHaveLength(1);
+        expect(migrationRows.rows).toHaveLength(3);
 
         const roomId = randomUUID();
         const hostPlayerId = randomUUID();
         const guestPlayerId = randomUUID();
         const hostSessionId = randomUUID();
         const guestSessionId = randomUUID();
+        // Historical v1 fixture: these legacy fields are intentionally present
+        // so migrations 003-005 can prove that the row is upgraded in place.
         const legacySnapshot = {
           members: {
             [hostPlayerId]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
@@ -1289,8 +1251,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V1-IDENTITY',
           status: 'IN_PROGRESS',
           hostPlayerId,
-          aggregateVersion: 9,
-          snapshotSchemaVersion: 3,
+          aggregateVersion: 10,
+          snapshotSchemaVersion: 4,
           gameSnapshot: {
             members: {
               [hostPlayerId]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
@@ -1348,10 +1310,10 @@ describe.runIf(Boolean(testDatabaseUrl))(
       }
     });
 
-    it('converts a representative v2 snapshot to strict v3 state in place', async () => {
+    it('converts a representative v2 snapshot through the current strict state in place', async () => {
       if (!testDatabaseUrl) throw new Error('TEST_DATABASE_URL is required');
 
-      const schemaName = `monopoly_v2_to_v3_${randomUUID().replaceAll('-', '')}`;
+      const schemaName = `monopoly_v2_to_v4_${randomUUID().replaceAll('-', '')}`;
       const administrativePool = new Pool({ connectionString: testDatabaseUrl });
       let schemaCreated = false;
       let applicationPool: Pool | undefined;
@@ -1366,7 +1328,11 @@ describe.runIf(Boolean(testDatabaseUrl))(
         });
         await migrateDatabase(applicationPool);
         await applicationPool.query(
-          `DELETE FROM schema_migrations WHERE version = '004_simplified_rules_v3.sql'`,
+          `DELETE FROM schema_migrations
+           WHERE version IN (
+             '004_simplified_rules_v3.sql',
+             '005_remove_mortgage_open_market.sql'
+           )`,
         );
 
         const roomId = randomUUID();
@@ -1374,6 +1340,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
         const guestPlayerId = randomUUID();
         const hostSessionId = randomUUID();
         const hostTokenHash = Buffer.alloc(32, 31);
+        // Historical v2 fixture: these legacy fields are intentionally present
+        // so migrations 004-005 can prove that the row reaches the current shape.
         const v2Snapshot = {
           members: {
             [hostPlayerId]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
@@ -1442,7 +1410,7 @@ describe.runIf(Boolean(testDatabaseUrl))(
              id, code, status, host_player_id, aggregate_version,
              snapshot_schema_version, game_snapshot, next_action_at
            ) VALUES ($1, $2, 'IN_PROGRESS', $3, 12, 2, $4, CURRENT_TIMESTAMP)`,
-          [roomId, 'V2-TO-V3', hostPlayerId, v2Snapshot],
+          [roomId, 'V2-TO-V4', hostPlayerId, v2Snapshot],
         );
         await applicationPool.query(
           `INSERT INTO player_sessions (
@@ -1474,11 +1442,11 @@ describe.runIf(Boolean(testDatabaseUrl))(
 
         expect(migrated).toMatchObject({
           id: roomId,
-          code: 'V2-TO-V3',
+          code: 'V2-TO-V4',
           status: 'IN_PROGRESS',
           hostPlayerId,
-          aggregateVersion: 13,
-          snapshotSchemaVersion: 3,
+          aggregateVersion: 14,
+          snapshotSchemaVersion: 4,
           gameSnapshot: {
             gameState: {
               boardState: {
@@ -1505,6 +1473,203 @@ describe.runIf(Boolean(testDatabaseUrl))(
         expect(await persistence.playerSessions.findByTokenHash(hostTokenHash))
           .toMatchObject({ id: hostSessionId, roomId, playerId: hostPlayerId, status: 'ACTIVE' });
         expect(await persistence.tradeOffers.findById(offerId)).toMatchObject({ status: 'CANCELLED' });
+        assertSupportedRoomSnapshot(migrated);
+      } finally {
+        if (persistence) {
+          await persistence.close();
+          applicationPool = undefined;
+        }
+        if (applicationPool) await applicationPool.end();
+        if (schemaCreated) {
+          await administrativePool.query(`DROP SCHEMA "${schemaName}" CASCADE`);
+        }
+        await administrativePool.end();
+      }
+    });
+
+    it('removes mortgage and public listing state from a live v3 snapshot', async () => {
+      if (!testDatabaseUrl) throw new Error('TEST_DATABASE_URL is required');
+
+      const schemaName = `monopoly_v3_cleanup_${randomUUID().replaceAll('-', '')}`;
+      const administrativePool = new Pool({ connectionString: testDatabaseUrl });
+      let schemaCreated = false;
+      let applicationPool: Pool | undefined;
+      let persistence: PostgresPersistenceStore<RoomSnapshot> | undefined;
+
+      try {
+        await administrativePool.query(`CREATE SCHEMA "${schemaName}"`);
+        schemaCreated = true;
+        applicationPool = new Pool({
+          connectionString: testDatabaseUrl,
+          options: `-c search_path=${schemaName}`,
+        });
+        await migrateDatabase(applicationPool);
+        await applicationPool.query(
+          `DELETE FROM schema_migrations WHERE version = '005_remove_mortgage_open_market.sql'`,
+        );
+
+        const roomId = randomUUID();
+        const sellerPlayerId = randomUUID();
+        const buyerPlayerId = randomUUID();
+        const paymentOperationId = randomUUID();
+        const claimId = randomUUID();
+        const proposalId = randomUUID();
+        const roomExpiresAt = new Date(Date.now() + 300_000);
+        const paymentDeadline = new Date(Date.now() + 120_000);
+        const proposalExpiresAt = new Date(Date.now() + 60_000);
+        const canonicalDecks = createCanonicalDecks();
+        const grossPrice = forcedSaleGrossPrice(1, 2);
+        // Historical v3 fixture: these legacy fields are intentionally present
+        // so migration 005 is tested against the complete obsolete state shape.
+        const v3Snapshot = {
+          members: {
+            [sellerPlayerId]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
+            [buyerPlayerId]: { joinOrder: 2, ready: true, membershipStatus: 'ACTIVE' },
+          },
+          nextJoinOrder: 3,
+          gameState: {
+            boardState: {
+              gameStarted: true,
+              players: [sellerPlayerId, buyerPlayerId],
+              finishedPlayers: {},
+              currentPlayer: { id: sellerPlayerId, hasMoved: false },
+              turnNumber: 9,
+              turnRecovery: null,
+              logs: ['v3 migration fixture'],
+              diceValue: { dice1: 2, dice2: 4 },
+              ownedProps: {
+                1: { id: sellerPlayerId, color: 'red', houses: 2, mortgaged: true },
+                3: { id: buyerPlayerId, color: 'red', houses: 0, mortgaged: false },
+              },
+              openMarket: {
+                1: {
+                  seller: sellerPlayerId,
+                  price: 250,
+                  sellerName: 'Người bán',
+                  tileName: 'Bạc Liêu',
+                },
+              },
+              winner: null,
+              paymentQueue: {
+                operationId: paymentOperationId,
+                orderedClaims: [{
+                  claimId,
+                  debtorPlayerId: sellerPlayerId,
+                  creditor: 'BANK',
+                  amount: 600,
+                  remainingAmount: 600,
+                  source: { kind: 'OTHER', description: 'v3 migration fixture' },
+                  status: 'PENDING',
+                }],
+                activeClaimIndex: 0,
+                continuation: { playerId: sellerPlayerId, turnNumber: 9 },
+                actionDeadlineAt: paymentDeadline.toISOString(),
+              },
+            },
+            players: {
+              [sellerPlayerId]: {
+                name: 'Người bán',
+                currentTile: 1,
+                color: 'red',
+                accountBalance: 1000,
+                isJail: false,
+                jailOpponentRoundsElapsed: 0,
+                heldJailFreeCardIds: [],
+              },
+              [buyerPlayerId]: {
+                name: 'Người mua',
+                currentTile: 3,
+                color: 'blue',
+                accountBalance: 900,
+                isJail: false,
+                jailOpponentRoundsElapsed: 0,
+                heldJailFreeCardIds: [],
+              },
+            },
+            turnInfo: {},
+            privateState: {
+              decks: canonicalDecks,
+              forcedSaleProposal: {
+                proposalId,
+                paymentOperationId,
+                claimId,
+                sellerPlayerId,
+                buyerPlayerId,
+                tileID: 1,
+                grossPrice,
+                sellerNetProceeds: grossPrice - 100,
+                expectedHouses: 2,
+                expectedMortgaged: true,
+                expiresAt: proposalExpiresAt.toISOString(),
+              },
+            },
+          },
+        };
+
+        await applicationPool.query(
+          `INSERT INTO rooms (
+             id, code, status, host_player_id, aggregate_version,
+             snapshot_schema_version, game_snapshot, next_action_at, expires_at
+           ) VALUES ($1, $2, 'IN_PROGRESS', $3, 20, 3, $4, CURRENT_TIMESTAMP, $5)`,
+          [roomId, 'V3-CLEANUP', sellerPlayerId, v3Snapshot, roomExpiresAt],
+        );
+        const offerId = randomUUID();
+        await applicationPool.query(
+          `INSERT INTO trade_offers (
+             id, room_id, status, expires_at, proposer_player_id,
+             recipient_player_id, offered_bundle, requested_bundle
+           ) VALUES ($1, $2, 'PENDING', CURRENT_TIMESTAMP + INTERVAL '1 hour',
+             $3, $4, $5, $6)`,
+          [
+            offerId,
+            roomId,
+            buyerPlayerId,
+            sellerPlayerId,
+            { cash: 100, propertyIds: [], jailFreeCardIds: [] },
+            { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+          ],
+        );
+
+        await migrateDatabase(applicationPool);
+        persistence = new PostgresPersistenceStore<RoomSnapshot>(applicationPool);
+        const migrated = await persistence.rooms.findById(roomId);
+        if (!migrated) throw new Error('Migrated v3 room was not persisted');
+
+        expect(migrated).toMatchObject({
+          id: roomId,
+          code: 'V3-CLEANUP',
+          status: 'IN_PROGRESS',
+          hostPlayerId: sellerPlayerId,
+          aggregateVersion: 21,
+          snapshotSchemaVersion: 4,
+        });
+        const migratedState = migrated.gameSnapshot.gameState;
+        expect(migratedState.boardState).not.toHaveProperty('openMarket');
+        expect(migratedState.boardState.ownedProps).toEqual({
+          1: { id: sellerPlayerId, color: 'red', houses: 2 },
+          3: { id: buyerPlayerId, color: 'red', houses: 0 },
+        });
+        expect(migratedState.boardState.paymentQueue).toMatchObject({
+          operationId: paymentOperationId,
+          activeClaimIndex: 0,
+          continuation: { playerId: sellerPlayerId, turnNumber: 9 },
+          actionDeadlineAt: paymentDeadline.toISOString(),
+        });
+        expect(migratedState.boardState.turnNumber).toBe(9);
+        expect(migratedState.players[sellerPlayerId]).toMatchObject({
+          currentTile: 1,
+          accountBalance: 1000,
+        });
+        expect(migratedState.players[buyerPlayerId]).toMatchObject({
+          currentTile: 3,
+          accountBalance: 900,
+        });
+        expect(migratedState.privateState.decks).toEqual(canonicalDecks);
+        expect(migratedState.privateState.forcedSaleProposal).toBeNull();
+        expect(await persistence.tradeOffers.findById(offerId))
+          .toMatchObject({ status: 'CANCELLED' });
+        expect(migrated.nextActionAt).not.toBeNull();
+        expect(migrated.nextActionAt!.getTime()).toBeLessThanOrEqual(paymentDeadline.getTime());
         assertSupportedRoomSnapshot(migrated);
       } finally {
         if (persistence) {
@@ -1565,7 +1730,6 @@ describe.runIf(Boolean(testDatabaseUrl))(
             id: host.playerId,
             color: room.gameSnapshot.gameState.players[host.playerId].color,
             houses: 0,
-            mortgaged: false,
           };
           room.gameSnapshot.gameState.boardState.paymentQueue = {
             operationId: randomUUID(),
@@ -1632,7 +1796,7 @@ describe.runIf(Boolean(testDatabaseUrl))(
                 turnNumber:
                   beforeRestart.gameSnapshot.gameState.boardState.turnNumber,
                 ownedProps: { 1: { id: host.playerId } },
-                paymentQueue: { activeClaimIndex: 0 },
+                paymentShortfall: { remainingAmount: 100 },
               },
               players: {
                 [host.playerId]: { accountBalance: 0 },

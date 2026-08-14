@@ -10,8 +10,8 @@ styles. Không có detail route hay permission key.
 
 - Map đúng 40 tile index từ `packages/shared/src/tileState.ts`; mapping tiếng Việt
   nằm tại [Shared board data](../Shared/board-and-card-data.instruction.md).
-- Board face và property detail derive name/type/color/price/rent tiers/house cost/
-  mortgage value từ shared tile. `BoardInitState.ts`/`backOfCards.ts` không còn là
+- Board face và property detail derive name/type/color/price/rent tiers/house cost
+  từ shared tile. `BoardInitState.ts`/`backOfCards.ts` không còn là
   metadata source.
 - Presentation-only icon/orientation được map theo `tileType`/index; không hard-code
   English label. Index 17 là Khí Vận, 20 Bãi Đỗ Xe, 28 Công Ty Nước.
@@ -19,9 +19,9 @@ styles. Không có detail route hay permission key.
 
 ## State/rendering
 
-- Ownership, mortgage, buildings, player position và pending landing/payment state từ
+- Ownership, buildings, player position và pending landing/payment state từ
   committed `PublicRoomState`; stable IDs điều khiển token/owner.
-- Level 1–4 render Nhà; level 5 render Khách Sạn. Forced-sale gross/net values come
+- Level 1–4 render Nhà; level 5 render Khách Sạn. Forced-sale gross values come
   from the public shortfall projection; không client-counter.
 - Tất cả amounts dùng shared client money formatter VNĐ.
 - Exact deck order/next card không có trong public state hoặc DOM.
@@ -39,6 +39,6 @@ styles. Không có detail route hay permission key.
 ## Tests
 
 - Exact 40 Vietnamese tiles, canonical derivation và không English board labels.
-- Owner/mortgage/house/hotel/inventory/token update theo revision.
+- Owner/house/hotel/inventory/token update theo revision.
 - Normal/pass-GO/jail/card movement; buy/development/payment settlement.
 - Card flip, outside close, multiple token, reduced-motion, reconnect/no-duplicate.

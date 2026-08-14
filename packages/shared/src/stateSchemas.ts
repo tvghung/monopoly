@@ -7,7 +7,6 @@ import type {
   DeckState,
   GameDecks,
   GamePrivateState,
-  OpenMarketEntry,
   OwnedProp,
   PaymentQueue,
   PendingPropertyDecision,
@@ -87,9 +86,7 @@ export const gamePrivateStateSchema = z.strictObject({
     buyerPlayerId: playerIdSchema,
     tileID: tileIdSchema,
     grossPrice: moneyAmountSchema,
-    sellerNetProceeds: nonNegativeMoneyAmountSchema,
     expectedHouses: z.number().int().min(0).max(5),
-    expectedMortgaged: z.boolean(),
     expiresAt: isoTimestampSchema,
   }).nullable().optional(),
 }) satisfies z.ZodType<GamePrivateState>;
@@ -108,9 +105,7 @@ export const privatePlayerStateSchema = z.strictObject({
     buyerPlayerId: playerIdSchema,
     tileID: tileIdSchema,
     grossPrice: moneyAmountSchema,
-    sellerNetProceeds: nonNegativeMoneyAmountSchema,
     expectedHouses: z.number().int().min(0).max(5),
-    expectedMortgaged: z.boolean(),
     expiresAt: isoTimestampSchema,
   }).nullable().optional(),
 }) satisfies z.ZodType<PrivatePlayerState>;
@@ -215,15 +210,7 @@ export const ownedPropertySchema = z.strictObject({
   id: playerIdSchema,
   color: z.string().min(1).max(32),
   houses: z.number().int().min(0).max(5),
-  mortgaged: z.boolean(),
 }) satisfies z.ZodType<OwnedProp>;
-
-export const openMarketEntrySchema = z.strictObject({
-  seller: playerIdSchema,
-  price: moneyAmountSchema,
-  sellerName: z.string().min(1).max(20),
-  tileName: z.string().min(1).max(100),
-}) satisfies z.ZodType<OpenMarketEntry>;
 
 const finishedPlayerSchema = z.strictObject({
   name: z.string().min(1).max(20),
@@ -249,7 +236,6 @@ export const boardStateSchema = z.strictObject({
     dice2: z.number().int().min(0).max(6),
   }),
   ownedProps: z.record(z.string().regex(/^\d+$/), ownedPropertySchema),
-  openMarket: z.record(z.string().regex(/^\d+$/), openMarketEntrySchema),
   winner: finishedPlayerSchema.extend({ playerId: playerIdSchema }).nullable(),
   paymentQueue: paymentQueueSchema.nullable(),
 }) satisfies z.ZodType<BoardState>;

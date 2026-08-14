@@ -6,8 +6,8 @@
   snapshot; terminal errors clear only invalid session; newest-wins old tab stops.
 - [x] `[CLIENT][AUTOMATED]` Stale revision ignored; spectator/reconnecting has no mutation;
   StrictMode does not duplicate listeners/countdowns/actions.
-- [x] `[CLIENT][AUTOMATED]` Protocol-v3 reset resumes the same identity directly into the fresh
-  v3 `IN_PROGRESS` turn without replacing the reconnect credential.
+- [x] `[CLIENT][AUTOMATED]` Protocol-v4 reset resumes the same identity directly into the fresh
+  v4 `IN_PROGRESS` turn without replacing the reconnect credential.
 - [x] `[CLIENT][AUTOMATED]` Presentation event derivation is deterministic, ordered,
   stale-safe and limited to observable diffs; reconnect snapshots do not replay history.
 - [x] `[CLIENT][AUTOMATED]` Animation queue covers FIFO, pause/resume, skip/reset,
@@ -32,10 +32,10 @@
   jail animation cannot expose a premature action.
 - [ ] `[CLIENT]` Active debtor sees remaining claim/liquidation/bankruptcy confirmation;
   other Player/spectator cannot settle/declare.
-- [ ] `[CLIENT]` Landing development, payment-shortfall gross/net values and
+- [ ] `[CLIENT]` Landing development, payment-shortfall gross values and
   private forced-sale proposal visibility
   render correct labels/actions/deadlines.
-- [ ] `[CLIENT]` TradeBundle asset selection discloses mortgage interest; ACK failure
+- [ ] `[CLIENT]` TradeBundle asset selection and ACK failure
   keeps authoritative UI.
 
 ## Accessibility/layout

@@ -469,7 +469,7 @@
   text-shadow: 0 0.1vmin 0.15vmin rgba(0, 0, 0, 0.7);
 }
 
-/* House / hotel markers and mortgage flag drawn on an owned tile's front. */
+/* House / hotel markers drawn on an owned tile's front. */
 .tile__buildings {
   position: absolute;
   top: 0.2vmin;
@@ -494,24 +494,6 @@
   width: 1.6vmin;
   background: #c62828;
   border-color: #7a1414;
-}
-
-.tile__mortgaged {
-  position: absolute;
-  top: 0.3vmin;
-  right: 0.3vmin;
-  z-index: 3;
-  width: 1.6vmin;
-  height: 1.6vmin;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #b0b0b0;
-  color: #fff;
-  font-size: 1.1vmin;
-  font-weight: 700;
-  border-radius: 0.2vmin;
-  pointer-events: none;
 }
 
 .orientation-notice {

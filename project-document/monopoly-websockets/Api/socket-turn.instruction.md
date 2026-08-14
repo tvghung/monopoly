@@ -1,4 +1,4 @@
-# Socket turn và landing decisions v3
+# Socket turn và landing decisions v4
 
 | Event | Payload | Server rule |
 | --- | --- | --- |
@@ -13,5 +13,5 @@ current turn, operation ID, property ownership, balance and level are revalidate
 the serialized room command. ACK/broadcast happen only after CAS commit.
 
 `roll dice` and landing resolution call `completeTurnResolution` only after every
-synchronous card/rent/payment step and every pending decision is complete. v3 has no
+synchronous card/rent/payment step and every pending decision is complete. v4 has no
 extra-roll, auction, building-contention, settle-debt or declare-bankruptcy event.

@@ -11,8 +11,6 @@ import {
   escapeHtml,
   movePlayer,
   streetRent,
-  mortgageProperty,
-  unmortgageProperty,
   applyCard,
   railroadRent,
   resolveTile,
@@ -55,7 +53,6 @@ const makeState = (): GameState => ({
     logs: [],
     diceValue: { dice1: 0, dice2: 0 },
     ownedProps: {},
-    openMarket: {},
     winner: null,
     paymentQueue: null,
   },
@@ -80,7 +77,7 @@ const own = (
   over: Partial<GameState['boardState']['ownedProps'][number]> = {},
 ): void => {
   state.boardState.ownedProps[tileIndex] = {
-    id, color: 'red', houses: 0, mortgaged: false, ...over,
+    id, color: 'red', houses: 0, ...over,
   };
 };
 
@@ -173,11 +170,11 @@ describe('streetRent', () => {
     expect(streetRent(state, 1)).toBe(30);
   });
 
-  it('collects no rent while mortgaged', () => {
+  it('keeps collecting rent for an owned property without extra state', () => {
     const state = makeState();
     addPlayer(state, 'p1');
-    own(state, 1, 'p1', { mortgaged: true });
-    expect(streetRent(state, 1)).toBe(0);
+    own(state, 1, 'p1');
+    expect(streetRent(state, 1)).toBe(2);
   });
 });
 
@@ -215,67 +212,30 @@ describe('starting player', () => {
   });
 });
 
-describe('railroadRent / utilityRent mortgage tiers', () => {
-  it('counts all owned railroads for the tier but charges no rent on a mortgaged landing tile', () => {
+describe('railroadRent / utilityRent tiers', () => {
+  it('counts all owned railroads for the tier', () => {
     const state = makeState();
     addPlayer(state, 'p1');
     own(state, 5, 'p1', { color: 'railroad' });
-    own(state, 15, 'p1', { color: 'railroad', mortgaged: true });
+    own(state, 15, 'p1', { color: 'railroad' });
 
     expect(railroadRent(state, 5)).toBe(50);
-    expect(railroadRent(state, 15)).toBe(0);
+    expect(railroadRent(state, 15)).toBe(50);
   });
 
   it('uses the two-utility tier while the landed utility is active', () => {
     const state = makeState();
     addPlayer(state, 'p1');
     own(state, 12, 'p1', { color: 'company' });
-    own(state, 28, 'p1', { color: 'company', mortgaged: true });
+    own(state, 28, 'p1', { color: 'company' });
 
     expect(utilityRent(state, 12, 8)).toBe(80);
-    expect(utilityRent(state, 28, 8)).toBe(0);
+    expect(utilityRent(state, 28, 8)).toBe(80);
   });
 });
 
-describe('mortgageProperty / unmortgageProperty', () => {
-  it('mortgages for half the tile price', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 0 });
-    own(state, 1, 'p1');
-    mortgageProperty(state, 'p1', 1);
-    expect(state.boardState.ownedProps[1].mortgaged).toBe(true);
-    expect(state.players.p1.accountBalance).toBe(30);
-  });
-
-  it('refuses to mortgage a built-up property', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 0 });
-    own(state, 1, 'p1', { houses: 1 });
-    mortgageProperty(state, 'p1', 1);
-    expect(state.boardState.ownedProps[1].mortgaged).toBe(false);
-    expect(state.players.p1.accountBalance).toBe(0);
-  });
-
-  it('lifts a mortgage for half the price plus 10% interest', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 100 });
-    own(state, 1, 'p1', { mortgaged: true });
-    unmortgageProperty(state, 'p1', 1);
-    // ceil((60 / 2) * 1.1) = ceil(33) = 33.
-    expect(state.boardState.ownedProps[1].mortgaged).toBe(false);
-    expect(state.players.p1.accountBalance).toBe(67);
-  });
-
-  it('will not lift a mortgage the player cannot afford', () => {
-    const state = makeState();
-    addPlayer(state, 'p1', { accountBalance: 10 });
-    own(state, 1, 'p1', { mortgaged: true });
-    unmortgageProperty(state, 'p1', 1);
-    expect(state.boardState.ownedProps[1].mortgaged).toBe(true);
-    expect(state.players.p1.accountBalance).toBe(10);
-  });
-
-  it('allows developed-property transfer and keeps mortgage interest validation', () => {
+describe('property transfer', () => {
+  it('allows developed-property transfer without a hidden fee', () => {
     const state = makeState();
     addPlayer(state, 'p1');
     addPlayer(state, 'p2', { accountBalance: 9 });
@@ -284,22 +244,12 @@ describe('mortgageProperty / unmortgageProperty', () => {
     expect(transferProperty(state, 1, 'p1', 'p2', 'VOLUNTARY')).toMatchObject({ ok: true });
     expect(state.boardState.ownedProps[1].id).toBe('p2');
 
-    own(state, 5, 'p1', { color: 'railroad', mortgaged: true });
-    state.boardState.openMarket[5] = {
-      seller: 'p1', price: 100, sellerName: 'Player', tileName: 'Ga Ha Noi',
-    };
-    expect(transferProperty(state, 5, 'p1', 'p2', 'VOLUNTARY')).toMatchObject({
-      ok: false,
-      mortgageInterest: 10,
-    });
-    state.players.p2.accountBalance = 20;
+    own(state, 5, 'p1', { color: 'railroad' });
     expect(transferProperty(state, 5, 'p1', 'p2', 'VOLUNTARY')).toMatchObject({
       ok: true,
-      mortgageInterest: 10,
     });
-    expect(state.players.p2.accountBalance).toBe(10);
-    expect(state.boardState.ownedProps[5]).toMatchObject({ id: 'p2', mortgaged: true });
-    expect(state.boardState.openMarket[5]).toBeUndefined();
+    expect(state.players.p2.accountBalance).toBe(9);
+    expect(state.boardState.ownedProps[5]).toMatchObject({ id: 'p2' });
   });
 });
 
@@ -543,13 +493,6 @@ describe('checkBalance / winner', () => {
     state.boardState.currentPlayer.id = 'p1';
     own(state, 1, 'p1');
     own(state, 3, 'p2');
-    state.boardState.openMarket[3] = {
-      seller: 'p2',
-      price: 100,
-      sellerName: 'Player',
-      tileName: 'Bạc Liêu',
-    };
-
     expect(() => checkBalance(state, true)).not.toThrow();
     expect(Object.keys(state.players)).toEqual(['p3', 'p4']);
     expect(state.boardState.players).toEqual(['p3', 'p4']);
@@ -557,7 +500,6 @@ describe('checkBalance / winner', () => {
     expect(state.boardState.turnNumber).toBe(1);
     expect(state.boardState.ownedProps[1]).toBeUndefined();
     expect(state.boardState.ownedProps[3]).toBeUndefined();
-    expect(state.boardState.openMarket[3]).toBeUndefined();
   });
 
   it('advances exactly once when non-current bankruptcies are cleaned up', () => {
@@ -601,17 +543,10 @@ describe('checkBalance / winner', () => {
     addPlayer(state, 'p3');
     state.boardState.currentPlayer.id = 'p2';
     own(state, 1, 'p2');
-    state.boardState.openMarket[1] = {
-      seller: 'p2',
-      price: 75,
-      sellerName: 'Player',
-      tileName: 'Cà Mau',
-    };
     expect(removePlayerFromGame(state, 'p2')).toBe(true);
     expect(state.boardState.finishedPlayers.p2.reason).toBe('LEFT');
     expect(state.boardState.currentPlayer.id).toBe('p3');
     expect(state.boardState.turnNumber).toBe(1);
     expect(state.boardState.ownedProps[1]).toBeUndefined();
-    expect(state.boardState.openMarket[1]).toBeUndefined();
   });
 });

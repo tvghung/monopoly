@@ -19,7 +19,7 @@ checklist item phải map tới assertion executable hoặc giữ nhãn missing/
 | Identity/lobby/reconnect/reset | [join lifecycle](./join-room-and-player-lifecycle.md) | Socket + PG restart |
 | Turn/cards/jail/payment | [turn](./turn-movement-buy-and-jail.md) | GameCore + Socket + PG |
 | Bankruptcy/forfeit/winner | [bankruptcy](./game-status-bankruptcy-and-winner.md) | GameCore + Socket + PG |
-| Rent/build/mortgage/transfer | [property](./property-economy.md) | GameCore + Socket |
+| Rent/build/transfer | [property](./property-economy.md) | GameCore + Socket |
 | `TradeBundle`/private offer | [trading](./trading-market-and-private-offers.md) | schema + Socket + PG |
 | Property/building/forced sale | [payment-shortfall](./payment-shortfall-and-forced-sale.md) | GameCore + Socket + scheduler + PG |
 | Protocol/snapshot/board/decks | [shared](./shared-contracts-and-board-data.md) | schema + room + data audit |

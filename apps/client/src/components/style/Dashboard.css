@@ -236,25 +236,25 @@
 }
 
 /* When several offers arrive at once, stack their cards in one modal. */
-.open-market__offers-modal {
+.trade-offers-modal {
   display: flex;
   flex-direction: column;
   gap: 2vmin;
 }
 
-.open-market__sell-toast__title {
+.trade-offer-modal__title {
   font-size: 2vmin;
   margin-bottom: 2vmin;
 }
 
-.open-market__sell-toast {
+.trade-offer-modal {
 display: flex;
 flex-direction: column;
 /* justify-content: center; */
 align-items: center;
 }
 
-.open-market__sell-toast__form {
+.trade-offer-form {
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -263,14 +263,14 @@ align-items: center;
   font-size: clamp(0.72rem, 1.5vmin, 1rem);
 }
 
-.open-market__sell-toast__input--container {
+.trade-offer-form__input--container {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
 }
 
-.open-market__sell-toast__input {
+.trade-offer-form__input {
   margin: 1vmin 0vmin;
   padding-left: 0.5vmin;
   padding-right: 0.5vmin;
@@ -281,7 +281,7 @@ align-items: center;
   border-radius: 0.5vmin;
 }
 
-.open-market__sell-toast__button {
+.trade-offer-form__button {
   align-self: left;
   border-radius: 0.5vmin;
   padding: 0.5vmin 1.5vmin;
@@ -294,7 +294,7 @@ align-items: center;
   min-height: 2.75rem;
 }
 
-.open-market__sell-toast__button--yes, .open-market__sell-toast__button--no {
+.trade-offers-modal__button--yes, .trade-offers-modal__button--no {
   align-self: left;
   border-radius: 0.5vmin;
   padding: 0.5vmin 1vmin;
@@ -308,21 +308,21 @@ align-items: center;
   min-height: 2.75rem;
 }
 
-.open-market__sell-toast__button--yes {
+.trade-offers-modal__button--yes {
   border: 1px solid rgb(0, 128, 0);
   background: rgb(255, 255, 255, 0.5);
 }
 
-.open-market__sell-toast__button--no {
+.trade-offers-modal__button--no {
   border: 1px solid rgb(255, 0, 0);
   background: rgb(255, 255, 255, 0.5);
 }
 
-.open-market__offer__title {
+.trade-offers-modal__offer__title {
   font-size: 2vmin;
 }
 
-.open-market__offer {
+.trade-offers-modal__offer {
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -333,7 +333,7 @@ align-items: center;
   font-size: 1.5vmin;
 }
 
-.open-market__offer__buttons {
+.trade-offers-modal__offer__buttons {
   display: flex;
   gap: 1vmin;
   margin-top: 1vmin;
@@ -371,7 +371,7 @@ align-items: center;
   gap: 1vmin;
 }
 
-.trade-modal {
+.trade-offer-modal {
   width: min(94vw, 58rem);
   text-align: left;
 }
@@ -381,7 +381,7 @@ align-items: center;
   text-align: center;
 }
 
-.trade-form {
+.trade-offer-form {
   gap: 1rem;
 }
 
@@ -412,7 +412,7 @@ align-items: center;
   margin-top: 0.5rem;
 }
 
-.trade-bundle .open-market__sell-toast__input {
+.trade-bundle .trade-offer-form__input {
   width: 100%;
   margin: 0;
 }
@@ -438,20 +438,6 @@ align-items: center;
   color: #555;
   font-size: 0.9em;
   line-height: 1.4;
-}
-
-.trade-mortgage-note {
-  width: 100%;
-  padding: 0.75rem;
-  border-left: 0.25rem solid #a74a00;
-  border-radius: 0.25rem;
-  background: #fff1dc;
-  color: #6e2f00;
-  line-height: 1.4;
-}
-
-.trade-mortgage-note p {
-  margin-top: 0.3rem;
 }
 
 @media (max-width: 700px) {

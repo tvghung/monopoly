@@ -194,11 +194,9 @@ private token and resumes the same stable player. A newer connection using the s
 token replaces the older one. Disconnecting does not sell, delete or transfer assets.
 
 **How do I trade?**
-- *Private sale:* click another player's property and submit an offer. The owner has
+- Click another player's property and submit a bilateral offer. The owner has
   20 seconds to accept or decline. Offers and expiry are server-authoritative and
   survive reconnect/restart.
-- *Open market:* click your own property, choose **Sell**, and set a price. Any player
-  in the room can then buy it; you can also pull it back off the market.
 
 **What happens when I cannot pay?** The payment shortfall remains a durable ordered
 claim. You can sell an owned property to the Bank at the server-derived gross/net
@@ -219,10 +217,9 @@ owned property remains.
 - [x] Animated 3D dice, tile-by-tile token movement, card flips and modal prompts
 - [x] Building houses / hotels and the rent tiers they unlock
 - [x] Base rent without monopoly multiplier; authoritative landing development prompt
-- [x] Mortgaging properties for cash
 - [x] Do Not Buy resolves the landing without an auction
 - [x] Thẻ Thoát Tù Miễn Phí và trả 50 game-unit để ra tù
-- [x] Property trading (private offers and an open market)
+- [x] Property trading (private bilateral offers)
 - [x] A dedicated win screen
 - [x] Stable player identity, reconnect and newest-connection-wins sessions
 - [x] Host/ready lobby with 2–7 players and explicit spectator admission

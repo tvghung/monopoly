@@ -1,4 +1,4 @@
-# GameCore — turn, payment shortfall và forfeit v3
+# GameCore — turn, payment shortfall và forfeit v4
 
 ## Luồng lượt
 
@@ -26,16 +26,15 @@
 
 - Rent/card payments tạo `PaymentQueue` gồm ordered claims, `activeClaimIndex`,
   continuation và absolute `actionDeadlineAt`.
-- Trong shortfall, ordinary listing/sale/offer/build/mortgage actions bị khóa;
+- Trong shortfall, ordinary offer/build actions bị khóa;
   debtor chỉ được bán tài sản cho Bank hoặc gửi một forced-sale proposal cho một
   active buyer. Proposal lưu trong private snapshot và gắn operation/claim,
-  property fingerprint, gross/net authoritative price và expiry không vượt claim
+  property fingerprint, gross authoritative price và expiry không vượt claim
   deadline.
-- Bank sale dùng `floor((price + investedBuildCost) * 70 / 100)` gross; mortgage
-  principal được trừ một lần để tính seller net. Scheduler tự động bán theo tile
-  index khi deadline hết, retry claims, rồi mới loại debtor khi hết tài sản.
-- Forced-sale buyer trả gross, Bank nhận mortgage principal ngầm qua transfer,
-  seller nhận net và claim tiếp tục trong cùng room CAS.
+- Bank sale dùng `floor((price + investedBuildCost) * 70 / 100)` gross. Seller nhận
+  gross trước khi `PaymentQueue` tiếp tục xử lý khoản nợ. Scheduler tự động bán theo
+  tile index khi deadline hết, retry claims, rồi mới loại debtor khi hết tài sản.
+- Forced-sale buyer trả gross, seller nhận gross và claim tiếp tục trong cùng room CAS.
 
 ## Forfeit/winner/recovery
 

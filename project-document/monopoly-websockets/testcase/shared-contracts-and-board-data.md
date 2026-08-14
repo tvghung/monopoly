@@ -1,8 +1,8 @@
-# Checklist — protocol/snapshot v3, board Việt Nam và decks
+# Checklist — protocol/snapshot v4, board Việt Nam và decks
 
 ## Protocol/contracts/privacy
 
-- [ ] `[AUTO][SOCKET]` Protocol v3 client/server works; older/mismatch gets
+- [ ] `[AUTO][SOCKET]` Protocol v4 client/server works; older/mismatch gets
   `UPGRADE_REQUIRED`; every mutation has typed ACK and strict payload shape.
 - [ ] `[AUTO]` Runtime schemas cover `TurnInfo.pendingPropertyDecision`,
   `PendingTurnContinuation`, `DebtClaim/PaymentQueue`, landing decisions,
@@ -11,7 +11,7 @@
   resume kinds; stale operation IDs cannot advance another Player.
 - [ ] `[AUTO]` Public projection contains no raw/hash token, session row, private
   offer terms or exact `DeckState`/next card; snapshot omits presence/socket/timer.
-- [ ] `[AUTO]` Snapshot v3 deep validation rejects dangling player/card/creditor,
+- [ ] `[AUTO]` Snapshot v4 deep validation rejects dangling player/card/creditor,
   invalid claim index, duplicate card, two landing decisions, malformed proposal
   binding and any removed auction/contention/Bank queue state.
 

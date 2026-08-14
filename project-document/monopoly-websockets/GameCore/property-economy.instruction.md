@@ -1,20 +1,17 @@
-# Property economy, buildings, mortgage và transfer
+# Property economy, buildings và transfer
 
 ## Code nguồn
 
-- Domain: `apps/server/src/game/property.ts` và
-  `apps/server/src/game/transfer.ts`.
+- Domain: `apps/server/src/game/property.ts` và `apps/server/src/game/transfer.ts`.
 - Transport: `apps/server/src/socket/building.ts`, trading and forced-sale handlers.
 - Canonical economy: `packages/shared/src/tileState.ts`.
 
 ## Rent
 
-- Street: always base rent; 1–4 Nhà/Khách Sạn dùng `rentTiers`; mortgaged landed
-  property = 0. A full colour group does not multiply rent.
-- Ga Tàu: rent `25/50/100/200` theo tổng số Ga owner sở hữu. Một Ga mortgaged vẫn
-  tính là owned để xác định tier trên Ga khác; landing chính Ga mortgaged trả 0.
-- Công Ty: landing utility mortgaged trả 0; owner sở hữu một utility = dice x4,
-  sở hữu cả index 12/28 = dice x10, kể cả utility còn lại đang mortgage.
+- Street: always base rent; 1–4 Nhà/Khách Sạn dùng `rentTiers`. A full colour
+  group does not multiply rent.
+- Ga Tàu: rent `25/50/100/200` theo tổng số Ga owner sở hữu.
+- Công Ty: owner sở hữu một utility = dice x4, sở hữu cả index 12/28 = dice x10.
 - Rent tạo `DebtClaim` có PLAYER creditor thay vì transfer âm trực tiếp.
 
 ## Build/sell và landing decision
@@ -28,27 +25,20 @@
 - Bán Nhà tự nguyện hoàn tiền `floor(houseCost/2)` cho đúng tile; hành động chỉ
   bị chặn bởi payment shortfall đang mở.
 
-## Mortgage
-
-- Mortgage chỉ yêu cầu chính tài sản không có công trình; không có group-wide
-  mortgage guard.
-- Mortgage trả `floor(price/2)`; unmortgage trả `ceil(mortgageValue * 1.1)`.
-- Mortgaged property không thu rent; ownership của nó vẫn được tính khi xác định
-  tier Ga Tàu/Công Ty, nhưng tài sản mortgaged không được phát triển.
-
 ## Transfer policies
 
 Mọi ownership change dùng một policy rõ ràng:
 
-- `VOLUNTARY`: open market/private `TradeBundle`; mortgaged recipient trả ngay
-  10% mortgage value cho Bank.
-- `RETURN_TO_BANK`: clear owner, mortgage, buildings and listing.
-- `BANK_PURCHASE`: tạo ownership mới unbuilt/unmortgaged sau Buy.
-- `FORCED_SALE`: buyer trả gross 70% của price + invested build cost; Bank giữ
-  mortgage principal; seller nhận net và property trở thành unowned/unmortgaged.
+- `VOLUNTARY`: direct bilateral `TradeBundle`; chỉ các terms trong bundle làm thay
+  đổi cash/property/card state.
+- `RETURN_TO_BANK`: clear owner and buildings.
+- `BANK_PURCHASE`: tạo ownership mới với `houses = 0` sau Buy.
+- `FORCED_SALE`: buyer trả gross `floor((price + invested development cost) * 70 / 100)`;
+  seller nhận gross trước khi `PaymentQueue` tiếp tục xử lý khoản nợ.
 
 Nhà/Khách Sạn không được đưa trực tiếp vào `TradeBundle`; debtor phải bán về Bank
-trước. Transfer xóa listing/offer stale trong cùng transaction.
+trước. Mọi offer pending liên quan asset được hủy trong cùng transaction khi asset
+đổi chủ hoặc bị bán.
 
 ## Tests
 

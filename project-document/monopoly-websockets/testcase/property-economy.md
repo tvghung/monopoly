@@ -1,13 +1,11 @@
-# Checklist — rent, buildings, mortgage và transfer policies
+# Checklist — rent, buildings và transfer policies
 
 ## Rent
 
-- [ ] `[AUTO]` Street base (no full-group multiplier), 1–4 Nhà/Khách Sạn tiers and mortgaged
-  landed street zero rent.
-- [ ] `[AUTO]` Ga rent 25/50/100/200 counts all Ga owner owns including mortgaged
-  other Ga; landing the mortgaged Ga itself charges zero.
-- [ ] `[AUTO]` Utility x4/x10 counts ownership of both utilities even if the other
-  utility is mortgaged; landing mortgaged utility charges zero.
+- [ ] `[AUTO]` Street base (no full-group multiplier), 1–4 Nhà/Khách Sạn tiers and
+  normal rent on every owned landed street.
+- [ ] `[AUTO]` Ga rent 25/50/100/200 counts all Ga owned by the same player.
+- [ ] `[AUTO]` Utility x4/x10 counts ownership of one or both utilities.
 - [ ] `[AUTO]` Rent creates PLAYER `DebtClaim`, preserving creditor and source.
 
 ## Landing development/sell
@@ -17,13 +15,11 @@
 - [ ] `[AUTO]` Voluntary sell refunds half the tile build cost; no inventory,
   contention or even-building state is persisted.
 
-## Mortgage/transfer
+## Transfer
 
-- [ ] `[AUTO]` Mortgage a property with no buildings; value half price; unmortgage
-  principal +10%.
-- [ ] `[AUTO]` `VOLUNTARY` preserves mortgage; recipient
-  immediately owes 10% mortgage value, with normal later unmortgage still due.
-- [ ] `[AUTO]` `FORCED_SALE` computes gross/net from authoritative tile data and
-  transfers an unmortgaged property; `RETURN_TO_BANK` clears owner/building/listing.
+- [ ] `[AUTO]` `VOLUNTARY` applies only the explicit bilateral bundle terms and no
+  hidden transfer fee.
+- [ ] `[AUTO]` `FORCED_SALE` computes gross from authoritative tile data and transfers
+  the property; `RETURN_TO_BANK` clears owner and buildings.
 - [ ] `[SOCKET][PG]` Stable owner/transfer/payment state survives reconnect/restart;
   invalid actor/tile/spectator and failed commit make no change.

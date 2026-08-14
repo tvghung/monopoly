@@ -15,9 +15,7 @@ export default function ForcedSaleProposalPanel() {
     <Modal open title="Đề nghị bán bắt buộc" className="forced-sale-proposal">
       <p>{getTileName(proposal.tileID)}</p>
       <p>Giá giao dịch cố định: {formatMoney(proposal.grossPrice)}</p>
-      {isSeller && proposal.sellerNetProceeds !== proposal.grossPrice
-        ? <p>Bạn thực nhận sau khi trừ khoản thế chấp: {formatMoney(proposal.sellerNetProceeds)}</p>
-        : null}
+      {isSeller ? <p>Bạn nhận đủ giá giao dịch trước khi hàng đợi thanh toán tiếp tục xử lý khoản nợ.</p> : null}
       <p>Giá do máy chủ xác định; mức phát triển hiện tại được giữ nguyên.</p>
       {isBuyer
         ? (

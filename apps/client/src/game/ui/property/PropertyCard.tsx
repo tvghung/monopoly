@@ -20,8 +20,7 @@ export default function PropertyCard({
       role={role}
     >
       <div className="property-card__header">
-        <h3 className="market-listing__name">{getTileName(tileId)}</h3>
-        {ownedProp?.mortgaged ? <span className="property-card__status">Đang cầm cố</span> : null}
+        <h3 className="property-card__name">{getTileName(tileId)}</h3>
         {ownedProp && ownedProp.houses > 0
           ? <span className="property-card__development">{ownedProp.houses === 5 ? '🏨 1 Khách sạn' : `🏠 ${ownedProp.houses} Nhà`}</span>
           : null}

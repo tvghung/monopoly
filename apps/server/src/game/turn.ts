@@ -22,13 +22,6 @@ const clearPlayerReferences = (state: GameState, playerId: PlayerId): void => {
     }
   });
 
-  Object.keys(state.boardState.openMarket).forEach((tileKey) => {
-    const tileID = Number(tileKey);
-    if (state.boardState.openMarket[tileID]?.seller === playerId) {
-      delete state.boardState.openMarket[tileID];
-    }
-  });
-
   const proposal = state.privateState.forcedSaleProposal;
   if (proposal && (proposal.sellerPlayerId === playerId || proposal.buyerPlayerId === playerId)) {
     state.privateState.forcedSaleProposal = null;

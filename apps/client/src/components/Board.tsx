@@ -14,8 +14,7 @@ import Tile from './Tile';
 import Dice from './Dice';
 import Log from './Log';
 import Dashboard from './Dashboard';
-import sellPromptContext from '../sellPromptContext';
-import type { SalePrompt } from '../types';
+import tradePromptContext from '../tradePromptContext';
 import { usePresentation } from '../game/presentation/PresentationProvider';
 
 const getTilePosition = (index: number): string => {
@@ -36,8 +35,7 @@ function Board() {
   // queue runs a safe, cancellable movement sequence.
   const displayPositions = presentationState.displayPositions;
 
-  const [openSale, setOpenSale] = useState<SalePrompt | false>(false);
-  const [privateSale, setPrivateSale] = useState<SalePrompt | false>(false);
+  const [tradeTarget, setTradeTarget] = useState<number | null>(null);
 
   const openCard = useCallback((tileId: number) => {
     lastOpenTileId.current = tileId;
@@ -74,22 +72,19 @@ function Board() {
     };
   }, [closeCard, openTileId]);
 
-  const handlePutOpenMarket = (tileID: number) => {
-    if (canMutate) setOpenSale({ tileID });
-  };
+  const openTradeForProperty = useCallback((tileID: number) => {
+    if (canMutate) setTradeTarget(tileID);
+  }, [canMutate]);
 
-  const handleMakeOffer = (tileID: number) => {
-    if (canMutate) setPrivateSale({ tileID });
-  };
+  const closeTrade = useCallback(() => {
+    setTradeTarget(null);
+  }, []);
 
   return (
-    <sellPromptContext.Provider value={{
-      handlePutOpenMarket,
-      handleMakeOffer,
-      openSale,
-      setOpenSale,
-      setPrivateSale,
-      privateSale,
+    <tradePromptContext.Provider value={{
+      tradeTarget: tradeTarget === null ? null : { tileID: tradeTarget },
+      openTradeForProperty,
+      closeTrade,
     }}
     >
       <displayPositionsContext.Provider value={displayPositions}>
@@ -124,7 +119,7 @@ function Board() {
           </section>
         </section>
       </displayPositionsContext.Provider>
-    </sellPromptContext.Provider>
+    </tradePromptContext.Provider>
   );
 }
 

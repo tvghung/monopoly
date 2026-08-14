@@ -1,4 +1,4 @@
-# PostgreSQL, snapshot v3, CAS và recovery
+# PostgreSQL, snapshot v4, CAS và recovery
 
 ## Relational model
 
@@ -10,11 +10,11 @@ proposals live inside the active room snapshot and do not require a new table.
 
 ## Strict snapshot validation
 
-The v3 loader/save gate validates player/member references, ordered payment claims,
-pending landing/turn continuation correlation, property/mortgage/building shape,
+The v4 loader/save gate validates player/member references, ordered payment claims,
+pending landing/turn continuation correlation, property/building shape,
 private deck/card one-location invariants, and forced-sale proposal binding:
 seller=active debtor, buyer=distinct ACTIVE player, property fingerprint unchanged,
-gross/net recomputed, and proposal expiry no later than the payment deadline.
+gross recomputed, and proposal expiry no later than the payment deadline.
 Finished rooms contain no pending landing/payment/proposal/turn-recovery state.
 
 ## Command transaction
@@ -23,7 +23,7 @@ Finished rooms contain no pending landing/payment/proposal/turn-recovery state.
 protocol/schema gate
 → authenticated actor
 → per-room FIFO + row lock
-→ clone/validate v3 snapshot
+→ clone/validate v4 snapshot
 → mutate GameCore and related ordinary-offer rows
 → revalidate + expected-version CAS
 → public/private projection + ACK
@@ -46,11 +46,12 @@ success state. Startup processes due room/offer/session work before accepting tr
 `reconcileTurnPresence` can clear/arm turn recovery but never resets payment or
 proposal deadlines. Disconnect is not leave; explicit leave is its own transaction.
 
-## v2 → v3 migration and tests
+## v2/v3 → v4 migration and tests
 
 Migration 004 preserves room/member/session identities and cancels pending ordinary
-offers for migrated rooms. Active in-progress gameplay is reset to fresh v3 state and
-reruns starting-player dice competition; a valid one-active-player room finishes.
+offers for migrated rooms. Migration 005 upgrades only v3 rows, strips retired
+property/listing fields, clears the private proposal, preserves active queue/turn state,
+cancels pending offers for migrated rooms and recomputes the scheduler deadline.
 Tests must cover idempotence, identity/session/token preservation, offer cancellation,
 fresh-runtime pending Buy/development/Jail/payment/proposal recovery, CAS/save failure
 and public/private no-leak behavior.

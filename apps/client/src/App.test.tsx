@@ -98,9 +98,8 @@ const room: PublicRoomState = {
       currentPlayer: { id: '', hasMoved: false },
       turnRecovery: null,
       logs: [],
-      diceValue: { dice1: 0, dice2: 0 },
-      ownedProps: {},
-      openMarket: {},
+    diceValue: { dice1: 0, dice2: 0 },
+    ownedProps: {},
       winner: null,
     },
     players: {},
@@ -515,7 +514,7 @@ describe('App session admission', () => {
           gameStarted: true,
           players: ['stable-player-id', 'other-player-id'],
           ownedProps: {
-            1: { id: 'other-player-id', color: 'blue', houses: 0, mortgaged: false },
+            1: { id: 'other-player-id', color: 'blue', houses: 0 },
           },
         },
         players: {

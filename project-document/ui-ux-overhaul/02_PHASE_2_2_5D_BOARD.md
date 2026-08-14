@@ -104,7 +104,6 @@ Tile phải hỗ trợ:
 - price nếu cần
 - color group
 - owner
-- mortgage state nếu có
 - building state
 - highlighted
 - active/landed state

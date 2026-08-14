@@ -7,7 +7,7 @@ import {
   type RoomPlayerMeta,
 } from '@monopoly/shared';
 import { tileState } from '@monopoly/shared';
-import { forcedSaleGrossPrice, forcedSaleNetProceeds } from '../game';
+import { forcedSaleGrossPrice } from '../game';
 import type { RoomRecord } from '../persistence/types';
 import {
   MAX_PLAYERS,
@@ -63,7 +63,6 @@ export function projectPublicRoomState(
       logs: boardState.logs,
       diceValue: boardState.diceValue,
       ownedProps: boardState.ownedProps,
-      openMarket: boardState.openMarket,
       winner: boardState.winner,
       turnRecovery: boardState.turnRecovery
         ? {
@@ -90,9 +89,7 @@ export function projectPublicRoomState(
           .map(([tileID, property]) => ({
             tileID: Number(tileID),
             grossPrice: forcedSaleGrossPrice(Number(tileID), property.houses),
-            netProceeds: forcedSaleNetProceeds(Number(tileID), property.houses, property.mortgaged),
             houses: property.houses,
-            mortgaged: property.mortgaged,
           })),
       } : null,
     },

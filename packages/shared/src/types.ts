@@ -1,7 +1,7 @@
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
-export const SOCKET_PROTOCOL_VERSION = 3 as const;
+export const SOCKET_PROTOCOL_VERSION = 4 as const;
 
 export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
 export type PlayerId = string;
@@ -131,15 +131,6 @@ export interface OwnedProp {
   color: string;
   // Houses built on this street (0-4 houses, 5 = a hotel).
   houses: number;
-  // Whether the property is mortgaged (collects no rent while mortgaged).
-  mortgaged: boolean;
-}
-
-export interface OpenMarketEntry {
-  seller: PlayerId;
-  price: number;
-  sellerName: string;
-  tileName: string;
 }
 
 // A single die's pip value, 1-6 (0 before the first roll). The client renders
@@ -233,9 +224,7 @@ export interface ForcedSaleProposal {
   buyerPlayerId: PlayerId;
   tileID: number;
   grossPrice: number;
-  sellerNetProceeds: number;
   expectedHouses: number;
-  expectedMortgaged: boolean;
   expiresAt: string;
 }
 
@@ -249,7 +238,6 @@ export interface BoardState {
   logs: string[];
   diceValue: DiceValue;
   ownedProps: Record<number, OwnedProp>;
-  openMarket: Record<number, OpenMarketEntry>;
   // Set once a single player remains; drives the win screen.
   winner: Winner | null;
   paymentQueue: PaymentQueue | null;
@@ -282,9 +270,7 @@ export interface PublicDebtState {
   sellableProperties?: Array<{
     tileID: number;
     grossPrice: number;
-    netProceeds: number;
     houses: number;
-    mortgaged: boolean;
   }>;
 }
 
@@ -401,13 +387,7 @@ export interface SessionReplacedInfo {
   message: string;
 }
 
-// ---- Trade / open-market payloads ----
-
-// Sent by the client when listing a property on the open market.
-export interface SaleInfo {
-  tileID: number;
-  price: number;
-}
+// ---- Bilateral trade payloads ----
 
 export interface TradeBundle {
   cash: number;

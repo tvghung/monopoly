@@ -1,13 +1,12 @@
 import { useContext } from 'react';
 import './style/Dashboard.css';
-import MarketPlace from './MarketPlace';
 import stateContext from '../internal';
 import displayPositionsContext from '../displayPositionsContext';
 import PlayerList from './dashboard/PlayerList';
 import JailPanel from './dashboard/JailPanel';
 import BuyPrompt from './dashboard/BuyPrompt';
 import DevelopmentPrompt from './dashboard/DevelopmentPrompt';
-import SellPrompts from './dashboard/SellPrompts';
+import TradeOfferModal from './dashboard/TradeOfferModal';
 import IncomingOffers from './dashboard/IncomingOffers';
 import WinnerBanner from './dashboard/WinnerBanner';
 import DebtPanel from './dashboard/DebtPanel';
@@ -45,11 +44,10 @@ export default function Dashboard() {
           <JailPanel />
           <BuyPrompt tokenArrived={tokenArrived} />
           <DevelopmentPrompt tokenArrived={tokenArrived} />
-          <SellPrompts />
+          <TradeOfferModal />
           <IncomingOffers />
           <WinnerBanner />
         </section>
-        <MarketPlace />
       </section>
     </section>
   );

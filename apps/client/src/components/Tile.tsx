@@ -67,7 +67,6 @@ function Tile({
     `Ô ${id}: ${name}`,
     typeof tile.price === 'number' ? `Giá ${formatMoney(tile.price)}` : null,
     ownerName ? `Chủ sở hữu: ${ownerName}` : null,
-    owned?.mortgaged ? 'Đang cầm cố' : null,
     buildingLabel ? `Có ${buildingLabel}` : null,
     playersHere.length > 0 ? `Người chơi đang đứng: ${playersHere.join(', ')}` : null,
     'Mở chi tiết ô cờ',
@@ -95,9 +94,6 @@ function Tile({
             style={{ '--owner-color': owned.color } as CSSProperties}
           />
         )
-        : null}
-      {owned?.mortgaged
-        ? <span className="tile__mortgaged" title="Đang cầm cố — không thu tiền thuê">C</span>
         : null}
       {buildingLabel
         ? (

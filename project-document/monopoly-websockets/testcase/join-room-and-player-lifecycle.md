@@ -20,9 +20,9 @@
 - [ ] `resume session` activates exactly one stable UUID Seat; lost ACK is resumable.
 - [ ] Newest valid socket wins; old receives `session replaced`; stale disconnect no-ops.
 - [ ] Refresh/network reconnect/new socket keeps Player ID, Seat, ready, money and assets.
-- [ ] Protocol/snapshot v3 identity-preserving reset keeps room/code, stable Player
+- [ ] Protocol/snapshot v4 identity-preserving reset keeps room/code, stable Player
   IDs, join order/name/color/ready, host, `IN_PROGRESS` status and active reconnect
-  token hashes while resetting incompatible gameplay to a fresh v3 turn.
+  token hashes while resetting incompatible gameplay to a fresh v4 turn.
 - [ ] Existing tokens reclaim the same Seats after reset; pending old-game offers are
   cancelled and no room delete cascades session rows.
 - [ ] Invalid/revoked/expired token is rejected, not spectator/new Player.
@@ -31,7 +31,7 @@
 - [ ] Start rolls/tie-breaks first Player server-side, persists order once and accepts
   no client dice/order.
 - [ ] Host temporary disconnect does not transfer; explicit leave transfers deterministically.
-- [ ] Disconnect preserves Seat/property/listing/payment/session and does not delete room.
+- [ ] Disconnect preserves Seat/property/payment/session and does not delete room.
 - [ ] Lobby leave removes Seat/revokes token; in-game leave is confirmed atomic forfeit.
 - [ ] Active debtor forfeit auto-liquidates to Bank before creditor payment; other
   leavers return assets unowned while history reason remains `LEFT`.
@@ -43,6 +43,6 @@
 ## Restart evidence boundary
 
 The executable PostgreSQL Socket suite must prove fresh pool/persistence/server
-recovery with both tokens and exact v3 game state, plus v2→v3 reset identity
+recovery with both tokens and exact v4 game state, plus v2/v3→v4 reset identity
 preservation, when `TEST_DATABASE_URL` is set. A real process-manager/container kill
 and browser reload remains a separate deployment E2E.

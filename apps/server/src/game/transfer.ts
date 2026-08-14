@@ -1,5 +1,4 @@
 import {
-  tileState,
   type GameCardId,
   type GameState,
   type PlayerId,
@@ -15,17 +14,8 @@ export type PropertyTransferPolicy =
 
 export interface PropertyTransferResult {
   ok: boolean;
-  mortgageInterest: number;
   reason?: string;
 }
-
-export const mortgageTransferInterest = (tileID: number): number => (
-  Math.ceil(((tileState[tileID]?.price ?? 0) / 2) * 0.1)
-);
-
-export const invalidatePropertyCommerce = (state: GameState, tileID: number): void => {
-  delete state.boardState.openMarket[tileID];
-};
 
 export const transferProperty = (
   state: GameState,
@@ -36,44 +26,35 @@ export const transferProperty = (
 ): PropertyTransferResult => {
   const property = state.boardState.ownedProps[tileID];
   if (fromPlayerId && (!property || property.id !== fromPlayerId)) {
-    return { ok: false, mortgageInterest: 0, reason: 'Quyền sở hữu đã thay đổi.' };
+    return { ok: false, reason: 'Quyền sở hữu đã thay đổi.' };
   }
   if (policy === 'RETURN_TO_BANK') {
-    invalidatePropertyCommerce(state, tileID);
     delete state.boardState.ownedProps[tileID];
-    return { ok: true, mortgageInterest: 0 };
+    return { ok: true };
   }
   if (!toPlayerId || !state.players[toPlayerId]) {
-    return { ok: false, mortgageInterest: 0, reason: 'Người nhận không còn trong ván.' };
+    return { ok: false, reason: 'Người nhận không còn trong ván.' };
   }
 
   if (isPropertyLockedByLandingDecision(state, tileID)) {
-    return { ok: false, mortgageInterest: 0, reason: 'Tài sản đang chờ quyết định phát triển của lượt hiện tại.' };
+    return { ok: false, reason: 'Tài sản đang chờ quyết định phát triển của lượt hiện tại.' };
   }
 
   if (!property) {
     if (policy !== 'BANK_PURCHASE') {
-      return { ok: false, mortgageInterest: 0, reason: 'Tài sản không tồn tại.' };
+      return { ok: false, reason: 'Tài sản không tồn tại.' };
     }
     state.boardState.ownedProps[tileID] = {
       id: toPlayerId,
       color: state.players[toPlayerId].color,
       houses: 0,
-      mortgaged: false,
     };
-    return { ok: true, mortgageInterest: 0 };
+    return { ok: true };
   }
 
-  const interest = property.mortgaged ? mortgageTransferInterest(tileID) : 0;
-  if (policy === 'VOLUNTARY' && state.players[toPlayerId].accountBalance < interest) {
-    return { ok: false, mortgageInterest: interest, reason: 'Người nhận không đủ tiền trả lãi chuyển nhượng cầm cố.' };
-  }
-  invalidatePropertyCommerce(state, tileID);
-  if (policy === 'VOLUNTARY') state.players[toPlayerId].accountBalance -= interest;
-  if (policy === 'FORCED_SALE') property.mortgaged = false;
   property.id = toPlayerId;
   property.color = state.players[toPlayerId].color;
-  return { ok: true, mortgageInterest: interest };
+  return { ok: true };
 };
 
 const ownsBundle = (state: GameState, playerId: PlayerId, bundle: TradeBundle): boolean => (
@@ -104,33 +85,25 @@ export const executeVoluntaryTrade = (
   requested: TradeBundle,
 ): PropertyTransferResult => {
   if (state.boardState.paymentQueue) {
-    return { ok: false, mortgageInterest: 0, reason: 'Không thể giao dịch trong lúc thanh toán thiếu hụt.' };
+    return { ok: false, reason: 'Không thể giao dịch trong lúc thanh toán thiếu hụt.' };
   }
   const lockedTile = state.turnInfo.pendingDevelopmentDecision?.tileID;
   if (
     lockedTile !== undefined
     && (offered.propertyIds.includes(lockedTile) || requested.propertyIds.includes(lockedTile))
   ) {
-    return { ok: false, mortgageInterest: 0, reason: 'Tài sản đang chờ quyết định phát triển của lượt hiện tại.' };
+    return { ok: false, reason: 'Tài sản đang chờ quyết định phát triển của lượt hiện tại.' };
   }
   const proposer = state.players[proposerId];
   const recipient = state.players[recipientId];
   if (!proposer || !recipient || !ownsBundle(state, proposerId, offered) || !ownsBundle(state, recipientId, requested)) {
-    return { ok: false, mortgageInterest: 0, reason: 'Gói giao dịch đã lỗi thời.' };
+    return { ok: false, reason: 'Gói giao dịch đã lỗi thời.' };
   }
-  const proposerInterest = requested.propertyIds.reduce(
-    (sum, id) => sum + (state.boardState.ownedProps[id]?.mortgaged ? mortgageTransferInterest(id) : 0),
-    0,
-  );
-  const recipientInterest = offered.propertyIds.reduce(
-    (sum, id) => sum + (state.boardState.ownedProps[id]?.mortgaged ? mortgageTransferInterest(id) : 0),
-    0,
-  );
-  if (proposer.accountBalance + requested.cash < offered.cash + proposerInterest) {
-    return { ok: false, mortgageInterest: proposerInterest + recipientInterest, reason: 'Bên đề nghị không đủ tiền.' };
+  if (proposer.accountBalance + requested.cash < offered.cash) {
+    return { ok: false, reason: 'Bên đề nghị không đủ tiền.' };
   }
-  if (recipient.accountBalance + offered.cash < requested.cash + recipientInterest) {
-    return { ok: false, mortgageInterest: proposerInterest + recipientInterest, reason: 'Bên nhận không đủ tiền.' };
+  if (recipient.accountBalance + offered.cash < requested.cash) {
+    return { ok: false, reason: 'Bên nhận không đủ tiền.' };
   }
 
   proposer.accountBalance += requested.cash - offered.cash;
@@ -139,5 +112,5 @@ export const executeVoluntaryTrade = (
   for (const tileID of requested.propertyIds) transferProperty(state, tileID, recipientId, proposerId, 'VOLUNTARY');
   transferCards(state, proposerId, recipientId, offered.jailFreeCardIds);
   transferCards(state, recipientId, proposerId, requested.jailFreeCardIds);
-  return { ok: true, mortgageInterest: proposerInterest + recipientInterest };
+  return { ok: true };
 };

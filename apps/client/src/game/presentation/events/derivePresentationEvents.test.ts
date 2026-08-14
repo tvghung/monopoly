@@ -10,7 +10,7 @@ describe('derivePresentationEvents', () => {
     next.gameState.players['player-a'].currentTile = 4;
     next.gameState.players['player-a'].accountBalance = 1300;
     next.gameState.boardState.ownedProps[4] = {
-      id: 'player-a', color: 'red', houses: 2, mortgaged: false,
+      id: 'player-a', color: 'red', houses: 2,
     };
     next.gameState.boardState.currentPlayer.id = 'player-b';
 
@@ -36,7 +36,7 @@ describe('derivePresentationEvents', () => {
   it('emits development, jail, finish, and game-finished changes without inventing causes', () => {
     const previous = makeRoom();
     previous.gameState.boardState.ownedProps[1] = {
-      id: 'player-a', color: 'red', houses: 1, mortgaged: false,
+      id: 'player-a', color: 'red', houses: 1,
     };
     const next = cloneRoom(previous);
     next.gameState.boardState.ownedProps[1].houses = 5;

@@ -3,7 +3,7 @@
 ## Payment creditor
 
 - [ ] `[AUTO]` Affordable claims settle in ordered `PaymentQueue` order without a
-  negative balance; a shortfall exposes deterministic sellable gross/net values.
+  negative balance; a shortfall exposes deterministic sellable gross values.
 - [ ] `[AUTO]` A debtor can sell to Bank in ascending tile order or create one
   snapshot-bound forced-sale proposal; stale/replayed markers are no-ops.
 - [ ] `[SOCKET]` If active debtor explicitly leaves, auto-liquidation pays the
@@ -11,7 +11,7 @@
 
 ## Bank liquidation
 
-- [ ] `[AUTO]` Forced Bank sale clears ownership, mortgage, listing and buildings;
+- [ ] `[AUTO]` Forced Bank sale clears ownership and buildings;
   it stops once the active claim is affordable.
 - [ ] `[AUTO][PG]` Payment deadline recovery repeats deterministic sales after a
   fresh runtime, then continues later claims or eliminates only after assets end.

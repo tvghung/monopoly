@@ -11,9 +11,7 @@ import type {
 import { sendToLog } from './text';
 import {
   forcedSaleGrossPrice,
-  forcedSaleNetProceeds,
   isPropertyLockedByLandingDecision,
-  mortgagePrincipal,
 } from './property';
 import { transferProperty } from './transfer';
 
@@ -173,7 +171,7 @@ export const logPausedDebt = (state: GameState): void => {
 export const assertDebtActionAllowed = (
   state: GameState,
   actorId: PlayerId,
-  action: 'ROLL' | 'BUY' | 'BUILD' | 'UNMORTGAGE' | 'LIQUIDATE' | 'TRADE',
+  action: 'ROLL' | 'BUY' | 'BUILD' | 'LIQUIDATE' | 'TRADE',
 ): boolean => {
   const claim = activeDebtClaim(state);
   if (!claim) return true;
@@ -190,7 +188,6 @@ export type ForcedSaleExecutionResult =
       changed: true;
       tileID: number;
       grossPrice: number;
-      sellerNetProceeds: number;
     }
   | {
       ok: false;
@@ -221,19 +218,15 @@ export const sellPropertyToBankForPayment = (
   ) return { ok: false, changed: false, reason: 'Yêu cầu bán tài sản đã hết hạn hoặc không còn hợp lệ.' };
 
   const gross = forcedSaleGrossPrice(tileID, owned.houses);
-  const net = forcedSaleNetProceeds(tileID, owned.houses, owned.mortgaged);
-  const principal = owned.mortgaged ? mortgagePrincipal(tileID) : 0;
   const seller = state.players[sellerId];
-  if (!seller || gross <= 0 || net < 0 || principal > gross) {
+  if (!seller || gross <= 0) {
     return { ok: false, changed: false, reason: 'Tài sản không có giá thanh lý hợp lệ.' };
   }
   const transfer = transferProperty(state, tileID, sellerId, null, 'RETURN_TO_BANK');
   if (!transfer.ok) return { ok: false, changed: false, reason: transfer.reason ?? 'Không thể chuyển tài sản về Ngân hàng.' };
-  seller.accountBalance += net;
-  // The principal is paid to the Bank as part of the gross consideration;
-  // deleting the property also clears its mortgage and development.
+  seller.accountBalance += gross;
   sendToLog(state, `${seller.name} đã bị buộc bán tài sản ${tileID} cho Ngân hàng.`);
-  return { ok: true, changed: true, tileID, grossPrice: gross, sellerNetProceeds: net };
+  return { ok: true, changed: true, tileID, grossPrice: gross };
 };
 
 export const createForcedSaleProposal = (
@@ -260,7 +253,6 @@ export const createForcedSaleProposal = (
   const paymentDeadline = Date.parse(queue.actionDeadlineAt);
   if (!Number.isFinite(paymentDeadline) || paymentDeadline <= now) return null;
   const gross = forcedSaleGrossPrice(tileID, property.houses);
-  const net = forcedSaleNetProceeds(tileID, property.houses, property.mortgaged);
   if (gross <= 0 || buyer.accountBalance < gross) return null;
   const proposal: ForcedSaleProposal = {
     proposalId: randomUUID(),
@@ -270,9 +262,7 @@ export const createForcedSaleProposal = (
     buyerPlayerId,
     tileID,
     grossPrice: gross,
-    sellerNetProceeds: net,
     expectedHouses: property.houses,
-    expectedMortgaged: property.mortgaged,
     expiresAt: new Date(Math.min(
       now + DEFAULT_FORCED_SALE_PROPOSAL_TIMEOUT_MS,
       paymentDeadline,
@@ -315,7 +305,7 @@ export const acceptForcedSaleProposal = (
     || claim.claimId !== proposal.claimId || claim.debtorPlayerId !== proposal.sellerPlayerId
     || !property || property.id !== proposal.sellerPlayerId
     || isPropertyLockedByLandingDecision(state, proposal.tileID)
-    || property.houses !== proposal.expectedHouses || property.mortgaged !== proposal.expectedMortgaged
+    || property.houses !== proposal.expectedHouses
     || !buyer || !seller || buyer.accountBalance < proposal.grossPrice
     || Date.parse(proposal.expiresAt) <= (options.now ?? Date.now())
   ) return { ok: false, changed: false, reason: 'Đề nghị bán bắt buộc đã hết hạn hoặc không còn hợp lệ.' };
@@ -328,13 +318,12 @@ export const acceptForcedSaleProposal = (
   );
   if (!transfer.ok) return { ok: false, changed: false, reason: transfer.reason ?? 'Không thể chuyển tài sản.' };
   buyer.accountBalance -= proposal.grossPrice;
-  seller.accountBalance += proposal.sellerNetProceeds;
+  seller.accountBalance += proposal.grossPrice;
   state.privateState.forcedSaleProposal = null;
   return {
     ok: true,
     changed: true,
     tileID: proposal.tileID,
     grossPrice: proposal.grossPrice,
-    sellerNetProceeds: proposal.sellerNetProceeds,
   };
 };

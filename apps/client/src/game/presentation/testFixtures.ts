@@ -42,7 +42,6 @@ export function makeRoom(version = 1): PublicRoomState {
         logs: [],
         diceValue: { dice1: 0, dice2: 0 },
         ownedProps: {},
-        openMarket: {},
         winner: null,
       },
       players: {
