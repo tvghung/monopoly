@@ -2,11 +2,9 @@ import {
   useCallback, useContext, useEffect, useRef, useState,
 } from 'react';
 import {
-  colorGroups,
   gameCardsById,
-  tileState,
 } from '@monopoly/shared';
-import type { GameCardId, PublicGameState } from '@monopoly/shared';
+import type { GameCardId } from '@monopoly/shared';
 import { motion, AnimatePresence } from 'framer-motion';
 import stateContext from '../../internal';
 import sellPromptContext from '../../sellPromptContext';
@@ -16,15 +14,6 @@ import {
   getTileName,
 } from '../../presentation';
 import { useModalMotion } from './useModalMotion';
-
-function groupHasBuildings(
-  ownedProps: PublicGameState['boardState']['ownedProps'],
-  tileId: number,
-): boolean {
-  const color = tileState[tileId]?.color;
-  const group = color ? colorGroups[color] ?? [tileId] : [tileId];
-  return group.some(groupTileId => (ownedProps[groupTileId]?.houses ?? 0) > 0);
-}
 
 function cardLabel(cardId: GameCardId): string {
   const deck = gameCardsById[cardId]?.sourceDeck;
@@ -115,11 +104,9 @@ export default function SellPrompts() {
   useEffect(() => {
     setOfferedPropertyIds(current => current.filter(tileId => (
       state.boardState.ownedProps[tileId]?.id === playerId
-      && !groupHasBuildings(state.boardState.ownedProps, tileId)
     )));
     setRequestedPropertyIds(current => current.filter(tileId => (
       state.boardState.ownedProps[tileId]?.id === recipientPlayerId
-      && !groupHasBuildings(state.boardState.ownedProps, tileId)
     )));
   }, [playerId, recipientPlayerId, state.boardState.ownedProps]);
 
@@ -268,13 +255,11 @@ export default function SellPrompts() {
                       {offeredPropertyOptions.length > 0
                         ? offeredPropertyOptions.map(tileId => {
                           const property = state.boardState.ownedProps[tileId];
-                          const unavailable = groupHasBuildings(state.boardState.ownedProps, tileId);
                           return (
                             <label className="trade-asset" key={tileId}>
                               <input
                                 type="checkbox"
                                 checked={offeredPropertyIds.includes(tileId)}
-                                disabled={unavailable}
                                 onChange={event => setOfferedPropertyIds(current => (
                                   toggleNumber(current, tileId, event.target.checked)
                                 ))}
@@ -284,7 +269,6 @@ export default function SellPrompts() {
                                 {property?.mortgaged
                                   ? ` — đang cầm cố; ${recipient?.name ?? 'người nhận'} trả thêm ${formatMoney(getMortgageTransferSurcharge(tileId))} (10% giá trị cầm cố)`
                                   : ''}
-                                {unavailable ? ' — phải bán hết công trình trong nhóm màu trước' : ''}
                               </span>
                             </label>
                           );
@@ -328,13 +312,11 @@ export default function SellPrompts() {
                       {requestedPropertyOptions.length > 0
                         ? requestedPropertyOptions.map(tileId => {
                           const property = state.boardState.ownedProps[tileId];
-                          const unavailable = groupHasBuildings(state.boardState.ownedProps, tileId);
                           return (
                             <label className="trade-asset" key={tileId}>
                               <input
                                 type="checkbox"
                                 checked={requestedPropertyIds.includes(tileId)}
-                                disabled={unavailable}
                                 onChange={event => setRequestedPropertyIds(current => (
                                   toggleNumber(current, tileId, event.target.checked)
                                 ))}
@@ -344,7 +326,6 @@ export default function SellPrompts() {
                                 {property?.mortgaged
                                   ? ` — đang cầm cố; bạn trả thêm ${formatMoney(getMortgageTransferSurcharge(tileId))} (10% giá trị cầm cố)`
                                   : ''}
-                                {unavailable ? ' — phải bán hết công trình trong nhóm màu trước' : ''}
                               </span>
                             </label>
                           );

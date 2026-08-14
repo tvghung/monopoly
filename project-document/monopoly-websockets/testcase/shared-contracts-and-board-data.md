@@ -1,20 +1,19 @@
-# Checklist — protocol/snapshot v2, board Việt Nam và decks
+# Checklist — protocol/snapshot v3, board Việt Nam và decks
 
 ## Protocol/contracts/privacy
 
-- [ ] `[AUTO][SOCKET]` Protocol v2 client/server works; v1/mismatch gets
+- [ ] `[AUTO][SOCKET]` Protocol v3 client/server works; older/mismatch gets
   `UPGRADE_REQUIRED`; every mutation has typed ACK and strict payload shape.
 - [ ] `[AUTO]` Runtime schemas cover `TurnInfo.pendingPropertyDecision`,
-  `PendingTurnContinuation`, `DebtClaim/PaymentQueue`, both auction kinds,
+  `PendingTurnContinuation`, `DebtClaim/PaymentQueue`, landing decisions,
   `TradeOfferRequest/TradeBundle`, transfer policies and IDs.
-- [ ] `[AUTO]` Continuation schema accepts only `COMPLETE_TURN`,
-  `MOVE_STORED_DICE` and `NO_TURN_CHANGE`; non-current forfeit Bank queue cannot
-  advance another Player.
+- [ ] `[AUTO]` Continuation schema accepts only the supported card/jail/payment
+  resume kinds; stale operation IDs cannot advance another Player.
 - [ ] `[AUTO]` Public projection contains no raw/hash token, session row, private
   offer terms or exact `DeckState`/next card; snapshot omits presence/socket/timer.
-- [ ] `[AUTO]` Snapshot v2 deep validation rejects dangling player/card/creditor,
-  invalid claim index, duplicate card, auction/queue/contention mismatch, negative
-  derived inventory and live operation in FINISHED room.
+- [ ] `[AUTO]` Snapshot v3 deep validation rejects dangling player/card/creditor,
+  invalid claim index, duplicate card, two landing decisions, malformed proposal
+  binding and any removed auction/contention/Bank queue state.
 
 ## Board/card data
 
@@ -29,12 +28,12 @@
 - [ ] `[AUTO]` Chance/Khí Vận Card IDs unique, Vietnamese content/effects/destinations
   valid; draw/rotate/jail-free source behavior deterministic with injected shuffle.
 
-## v1 reset
+## v2 → v3 reset
 
-- [ ] `[PG]` v1 IN_PROGRESS room resets transactionally to a fresh v2
+- [ ] `[PG]` v2 IN_PROGRESS room resets transactionally to a fresh v3
   `IN_PROGRESS` turn while preserving room/code, stable IDs, join order/name/color/
   ready, host and active session hashes; old gameplay/offers/deadlines clear.
 - [ ] `[SOCKET][PG]` Starting roll chooses only the first Player and rotates existing
   cyclic Seat order; existing tokens resume the same Seats with no session cascade.
 - [ ] `[PG]` Reset rerun is idempotent and malformed/mid-failure transaction cannot
-  leave mixed v1/v2 state.
+  leave mixed v2/v3 state.

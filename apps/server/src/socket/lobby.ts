@@ -6,12 +6,10 @@ import {
 import {
   chooseStartingPlayer,
   createShuffledDecks,
-  finalizeAuction,
   removePlayerFromGame,
   resumePaymentContinuation,
   rotateSeatOrder,
   sendToLog,
-  startNextBankPropertyAuction,
   surrenderPlayerToBank,
 } from '../game';
 import { activePlayerIds, MAX_PLAYERS, MIN_PLAYERS } from '../rooms';
@@ -86,7 +84,8 @@ export function registerLobbyHandlers(
         state.boardState.currentPlayer = {
           id: startingRoll.winner,
           hasMoved: false,
-          doublesStreak: 0,
+          // v3 does not persist a doubles streak; normal doubles never grant
+          // an extra roll.
         };
         state.boardState.turnNumber = 1;
         state.boardState.turnRecovery = null;
@@ -143,43 +142,20 @@ export function registerLobbyHandlers(
           return [];
         }
 
-        let cancelledOffers: TradeOfferRecord[] = [];
+        let cancelledOffers: TradeOfferRecord[];
         if (room.status === 'IN_PROGRESS') {
-          const alreadyFinished = member.membershipStatus === 'FINISHED';
-          const resolutionOptions = {
-            now: now.getTime(),
-            debtActionTimeoutMs: runtime.timing.debtActionTimeoutMs,
-          };
-          const result = alreadyFinished
-            ? { changed: true, continuation: null, bankAuctionQueued: false }
-            : surrenderPlayerToBank(state, playerId, resolutionOptions);
+          const result = member.membershipStatus === 'FINISHED'
+            ? { changed: true, continuation: null }
+            : surrenderPlayerToBank(state, playerId, {
+              now: now.getTime(),
+              paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+            });
           if (!result.changed) throw new CommandError('CONFLICT', 'Không thể rời ván lúc này.');
-          if (
-            result.bankAuctionQueued
-            && !state.boardState.auction
-            && !state.boardState.paymentQueue
-          ) {
-            startNextBankPropertyAuction(state, { now: now.getTime() });
-          }
           if (result.continuation) {
-            if (state.boardState.bankPropertyAuctionQueue) {
-              if (!state.boardState.paymentQueue) {
-                startNextBankPropertyAuction(state, { now: now.getTime() });
-              }
-            } else {
-              resumePaymentContinuation(state, result.continuation, resolutionOptions);
-            }
-          }
-
-          const reconciledAuction = alreadyFinished ? null : state.boardState.auction;
-          if (reconciledAuction && !state.boardState.winner) {
-            const stillToAct = reconciledAuction.active.filter(
-              (id) => id !== reconciledAuction.highestBidder
-                && !reconciledAuction.passed.includes(id),
-            );
-            if (reconciledAuction.active.length === 0 || stillToAct.length === 0) {
-              finalizeAuction(state, reconciledAuction.auctionId);
-            }
+            resumePaymentContinuation(state, result.continuation, {
+              now: now.getTime(),
+              paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+            });
           }
           member.membershipStatus = 'LEFT';
           member.ready = false;
@@ -196,6 +172,15 @@ export function registerLobbyHandlers(
           if (member.membershipStatus === 'ACTIVE') {
             removePlayerFromGame(state, playerId, 'LEFT');
           }
+          const pendingOffers = await transaction.tradeOffers.listPendingForPlayer(roomId, playerId);
+          const cancelled = await Promise.all(
+            pendingOffers.map((offer) => transaction.tradeOffers.resolve(
+              offer.id,
+              'CANCELLED',
+              now,
+            )),
+          );
+          cancelledOffers = cancelled.filter((offer) => offer !== null);
           member.membershipStatus = 'LEFT';
           member.ready = false;
           if (Object.values(room.gameSnapshot.members).every(

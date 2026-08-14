@@ -16,6 +16,7 @@ import type {
   OwnedProp,
   PaymentQueue,
   PendingPropertyDecision,
+  PendingDevelopmentDecision,
   PendingTurnContinuation,
   PrivatePlayerState,
   PersistedGameState,
@@ -38,7 +39,7 @@ const turnNumberSchema = z.number().int().min(0);
 export const pendingTurnContinuationSchema = z.strictObject({
   playerId: playerIdSchema,
   turnNumber: turnNumberSchema,
-  rolledDoubles: z.boolean(),
+  rolledDoubles: z.boolean().optional(),
   forceAdvance: z.boolean().optional(),
   resume: z.discriminatedUnion('kind', [
     z.strictObject({ kind: z.literal('COMPLETE_TURN') }),
@@ -61,15 +62,28 @@ export const pendingPropertyDecisionSchema = z.strictObject({
   continuation: pendingTurnContinuationSchema,
 }) satisfies z.ZodType<PendingPropertyDecision>;
 
+export const pendingDevelopmentDecisionSchema = z.strictObject({
+  operationId: operationIdSchema,
+  playerId: playerIdSchema,
+  turnNumber: turnNumberSchema,
+  tileID: tileIdSchema,
+  levelAtLanding: z.union([
+    z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4),
+  ]),
+  kind: z.enum(['HOUSES', 'HOTEL']),
+  continuation: pendingTurnContinuationSchema,
+}) satisfies z.ZodType<PendingDevelopmentDecision>;
+
 export const turnInfoSchema = z.strictObject({
   canBuyProp: z.boolean().optional(),
   pendingPropertyDecision: pendingPropertyDecisionSchema.optional(),
+  pendingDevelopmentDecision: pendingDevelopmentDecisionSchema.optional(),
 }) satisfies z.ZodType<TurnInfo>;
 
 export const currentPlayerSchema = z.strictObject({
   id: z.union([z.literal(''), playerIdSchema]),
   hasMoved: z.boolean(),
-  doublesStreak: z.number().int().min(0).max(2),
+  doublesStreak: z.number().int().min(0).max(2).optional(),
 }) satisfies z.ZodType<CurrentPlayer>;
 
 export const deckStateSchema = z.strictObject({
@@ -86,6 +100,19 @@ export const gameDecksSchema = z.strictObject({
 
 export const gamePrivateStateSchema = z.strictObject({
   decks: gameDecksSchema,
+  forcedSaleProposal: z.strictObject({
+    proposalId: operationIdSchema,
+    paymentOperationId: operationIdSchema,
+    claimId: operationIdSchema,
+    sellerPlayerId: playerIdSchema,
+    buyerPlayerId: playerIdSchema,
+    tileID: tileIdSchema,
+    grossPrice: moneyAmountSchema,
+    sellerNetProceeds: nonNegativeMoneyAmountSchema,
+    expectedHouses: z.number().int().min(0).max(5),
+    expectedMortgaged: z.boolean(),
+    expiresAt: isoTimestampSchema,
+  }).nullable().optional(),
 }) satisfies z.ZodType<GamePrivateState>;
 
 export const privatePlayerStateSchema = z.strictObject({
@@ -94,6 +121,19 @@ export const privatePlayerStateSchema = z.strictObject({
     .array(gameCardIdSchema)
     .max(2)
     .refine((ids) => new Set(ids).size === ids.length, 'Held jail-free card ids must be unique'),
+  forcedSaleProposal: z.strictObject({
+    proposalId: operationIdSchema,
+    paymentOperationId: operationIdSchema,
+    claimId: operationIdSchema,
+    sellerPlayerId: playerIdSchema,
+    buyerPlayerId: playerIdSchema,
+    tileID: tileIdSchema,
+    grossPrice: moneyAmountSchema,
+    sellerNetProceeds: nonNegativeMoneyAmountSchema,
+    expectedHouses: z.number().int().min(0).max(5),
+    expectedMortgaged: z.boolean(),
+    expiresAt: isoTimestampSchema,
+  }).nullable().optional(),
 }) satisfies z.ZodType<PrivatePlayerState>;
 
 export const buildingTypeSchema = z.enum(['HOUSE', 'HOTEL']);
@@ -296,7 +336,8 @@ export const playerSchema = z.strictObject({
   color: z.string().min(1).max(32),
   accountBalance: z.number().int().min(0).max(2_147_483_647),
   isJail: z.boolean(),
-  jailRounds: z.number().int().min(0).max(3),
+  jailOpponentRoundsElapsed: z.number().int().min(0).max(2).optional(),
+  jailRounds: z.number().int().min(0).max(3).optional(),
   heldJailFreeCardIds: z.array(gameCardIdSchema).max(2),
 }) satisfies z.ZodType<Player>;
 
@@ -330,6 +371,7 @@ export const boardStateSchema = z.strictObject({
     turnNumber: turnNumberSchema,
     playerId: playerIdSchema,
     deadlineAt: isoTimestampSchema,
+    pendingOperationId: operationIdSchema.nullable().optional(),
   }).nullable(),
   logs: z.array(z.string().max(2_000)).max(500),
   diceValue: z.strictObject({
@@ -339,10 +381,10 @@ export const boardStateSchema = z.strictObject({
   ownedProps: z.record(z.string().regex(/^\d+$/), ownedPropertySchema),
   openMarket: z.record(z.string().regex(/^\d+$/), openMarketEntrySchema),
   winner: finishedPlayerSchema.extend({ playerId: playerIdSchema }).nullable(),
-  auction: auctionSchema.nullable(),
-  buildingContention: buildingContentionSchema.nullable(),
+  auction: auctionSchema.nullable().optional(),
+  buildingContention: buildingContentionSchema.nullable().optional(),
   paymentQueue: paymentQueueSchema.nullable(),
-  bankPropertyAuctionQueue: bankPropertyAuctionQueueSchema.nullable(),
+  bankPropertyAuctionQueue: bankPropertyAuctionQueueSchema.nullable().optional(),
 }) satisfies z.ZodType<BoardState>;
 
 export const persistedGameStateSchema = z.strictObject({

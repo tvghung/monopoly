@@ -10,14 +10,9 @@ import {
   type TradeBundle,
 } from '@monopoly/shared';
 import {
-  activeDebtorId,
-  continueDebtAfterLiquidity,
   executeVoluntaryTrade,
   mortgageTransferInterest,
-  propertyGroupHasBuildings,
-  resumePaymentContinuation,
   sendToLog,
-  startNextBankPropertyAuction,
   transferProperty,
 } from '../game';
 import { projectPrivateOffer } from '../services/privateOffers';
@@ -41,24 +36,24 @@ const ownsBundle = (
   && bundle.jailFreeCardIds.every((cardId) => state.players[playerId]?.heldJailFreeCardIds.includes(cardId))
 );
 
+const assertCommerceAvailable = (state: { boardState: { paymentQueue: unknown } }): void => {
+  if (state.boardState.paymentQueue) {
+    throw new CommandError('CONFLICT', 'Giao dịch thông thường bị khóa trong lúc thanh toán thiếu hụt.');
+  }
+};
+
 export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtime: AppRuntime): void {
   socket.on('put on open market', async (rawSale, acknowledge) => {
     try {
       const sale = parsePayload(saleInfoSchema, rawSale);
       const actor = requirePlayer(socket, runtime);
       const committed = await commitRoomCommand(runtime, actor.roomId, ({ room, state }) => {
+        assertCommerceAvailable(state);
         const player = state.players[actor.playerId];
         const owner = state.boardState.ownedProps[sale.tileID];
         const tile = tileState[sale.tileID];
         if (room.status !== 'IN_PROGRESS' || !player || !owner || owner.id !== actor.playerId || !tile) {
           throw new CommandError('FORBIDDEN', 'Chỉ chủ sở hữu mới được đăng bán tài sản.');
-        }
-        if (propertyGroupHasBuildings(state, sale.tileID)) {
-          throw new CommandError('CONFLICT', 'Phải bán hết công trình trong nhóm màu trước khi đăng bán.');
-        }
-        const debtor = activeDebtorId(state);
-        if (debtor && debtor !== actor.playerId) {
-          throw new CommandError('CONFLICT', 'Chỉ người đang mắc nợ được đăng bán tài sản trong giai đoạn xử lý nợ.');
         }
         state.boardState.openMarket[sale.tileID] = {
           seller: actor.playerId,
@@ -78,6 +73,7 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
       const request = parsePayload(tileRequestSchema, rawRequest);
       const actor = requirePlayer(socket, runtime);
       const committed = await commitRoomCommand(runtime, actor.roomId, ({ state }) => {
+        assertCommerceAvailable(state);
         const listing = state.boardState.openMarket[request.tileID];
         if (!listing || listing.seller !== actor.playerId) {
           throw new CommandError('FORBIDDEN', 'Chỉ người bán mới được gỡ tin đăng.');
@@ -96,6 +92,7 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
       const actor = requirePlayer(socket, runtime);
       const now = new Date();
       const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }) => {
+        assertCommerceAvailable(state);
         const listing = state.boardState.openMarket[request.tileID];
         const buyer = state.players[actor.playerId];
         const property = state.boardState.ownedProps[request.tileID];
@@ -104,10 +101,6 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
           throw new CommandError('CONFLICT', 'Tin đăng không còn hợp lệ.');
         }
         if (listing.seller === actor.playerId) throw new CommandError('FORBIDDEN', 'Bạn không thể mua tài sản của chính mình.');
-        const debtor = activeDebtorId(state);
-        if (debtor && (listing.seller !== debtor || actor.playerId === debtor)) {
-          throw new CommandError('CONFLICT', 'Giao dịch này không giúp xử lý khoản nợ đang chờ.');
-        }
         const interest = property.mortgaged ? mortgageTransferInterest(request.tileID) : 0;
         if (buyer.accountBalance < listing.price + interest) {
           throw new CommandError('CONFLICT', 'Bạn không đủ tiền mua và trả lãi chuyển nhượng cầm cố.');
@@ -122,17 +115,6 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
         if (!transferred.ok) throw new CommandError('CONFLICT', transferred.reason ?? 'Không thể chuyển tài sản.');
         buyer.accountBalance -= listing.price;
         seller.accountBalance += listing.price;
-        const resolutionOptions = {
-          now: now.getTime(),
-          debtActionTimeoutMs: runtime.timing.debtActionTimeoutMs,
-        };
-        const continuation = continueDebtAfterLiquidity(state, listing.seller, resolutionOptions);
-        if (continuation && state.boardState.bankPropertyAuctionQueue) {
-          state.boardState.bankPropertyAuctionQueue.continuation = continuation;
-          startNextBankPropertyAuction(state, { now: now.getTime() });
-        } else if (continuation) {
-          resumePaymentContinuation(state, continuation, resolutionOptions);
-        }
         sendToLog(state, `${buyer.name} đã mua ${listing.tileName} từ ${seller.name}.`);
         return cancelPendingOffersForAssets(
           transaction.tradeOffers,
@@ -160,6 +142,7 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
       const offerId = randomUUID();
       const expiresAt = new Date(now.getTime() + OFFER_TTL_MS);
       const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }) => {
+        assertCommerceAvailable(state);
         const proposer = state.players[actor.playerId];
         const recipient = state.players[request.recipientPlayerId];
         if (room.status !== 'IN_PROGRESS' || !proposer || !recipient || actor.playerId === request.recipientPlayerId) {
@@ -171,15 +154,8 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
             'Không thể yêu cầu ID Thẻ Thoát Tù riêng tư của người chơi khác; họ phải chủ động đề nghị thẻ.',
           );
         }
-        const debtor = activeDebtorId(state);
-        if (debtor && ![actor.playerId, request.recipientPlayerId].includes(debtor)) {
-          throw new CommandError('CONFLICT', 'Trong giai đoạn xử lý nợ, đề nghị phải có người mắc nợ tham gia.');
-        }
         if (!ownsBundle(state, actor.playerId, request.offered) || !ownsBundle(state, request.recipientPlayerId, request.requested)) {
           throw new CommandError('CONFLICT', 'Một bên không còn sở hữu tài sản trong gói giao dịch.');
-        }
-        if ([...request.offered.propertyIds, ...request.requested.propertyIds].some((id) => propertyGroupHasBuildings(state, id))) {
-          throw new CommandError('CONFLICT', 'Không thể giao dịch tài sản thuộc nhóm màu còn công trình.');
         }
         return transaction.tradeOffers.create({
           id: offerId,
@@ -226,17 +202,13 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
       const actor = requirePlayer(socket, runtime);
       const now = new Date();
       const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }) => {
+        assertCommerceAvailable(state);
         if (room.status !== 'IN_PROGRESS') throw new CommandError('CONFLICT', 'Ván chơi chưa diễn ra.');
         const offer = await transaction.tradeOffers.findById(request.offerId);
         if (!offer || offer.roomId !== actor.roomId || offer.recipientPlayerId !== actor.playerId) {
           throw new CommandError('FORBIDDEN', 'Đề nghị này không thuộc về bạn.');
         }
         if (offer.expiresAt <= now) throw new CommandError('CONFLICT', 'Đề nghị đã hết hạn.');
-        const debtor = activeDebtorId(state);
-        if (debtor && ![offer.proposerPlayerId, offer.recipientPlayerId].includes(debtor)) {
-          throw new CommandError('CONFLICT', 'Đề nghị này không liên quan đến khoản nợ đang chờ.');
-        }
-        const debtorBalanceBefore = debtor ? state.players[debtor]?.accountBalance : undefined;
         const previewState = structuredClone(state);
         const preview = executeVoluntaryTrade(
           previewState,
@@ -246,20 +218,6 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
           offer.requested,
         );
         if (!preview.ok) throw new CommandError('CONFLICT', preview.reason ?? 'Giao dịch không còn hợp lệ.');
-        if (debtor && debtorBalanceBefore !== undefined) {
-          const debtorIsProposer = debtor === offer.proposerPlayerId;
-          const outgoing = debtorIsProposer ? offer.offered : offer.requested;
-          const debtorBalanceAfter = previewState.players[debtor]?.accountBalance ?? -1;
-          if (debtorBalanceAfter < debtorBalanceBefore) {
-            throw new CommandError('CONFLICT', 'Người mắc nợ không được chi thêm tiền trong giai đoạn xử lý nợ.');
-          }
-          if (
-            (outgoing.propertyIds.length > 0 || outgoing.jailFreeCardIds.length > 0)
-            && debtorBalanceAfter <= debtorBalanceBefore
-          ) {
-            throw new CommandError('CONFLICT', 'Người mắc nợ không được chuyển tài sản mà không huy động thêm tiền.');
-          }
-        }
         const result = executeVoluntaryTrade(
           state,
           offer.proposerPlayerId,
@@ -278,23 +236,6 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
           [...offer.offered.jailFreeCardIds, ...offer.requested.jailFreeCardIds],
           now,
         );
-        if (
-          debtor
-          && debtorBalanceBefore !== undefined
-          && (state.players[debtor]?.accountBalance ?? 0) > debtorBalanceBefore
-        ) {
-          const resolutionOptions = {
-            now: now.getTime(),
-            debtActionTimeoutMs: runtime.timing.debtActionTimeoutMs,
-          };
-          const continuation = continueDebtAfterLiquidity(state, debtor, resolutionOptions);
-          if (continuation && state.boardState.bankPropertyAuctionQueue) {
-            state.boardState.bankPropertyAuctionQueue.continuation = continuation;
-            startNextBankPropertyAuction(state, { now: now.getTime() });
-          } else if (continuation) {
-            resumePaymentContinuation(state, continuation, resolutionOptions);
-          }
-        }
         sendToLog(state, `${state.players[offer.proposerPlayerId].name} và ${state.players[offer.recipientPlayerId].name} đã hoàn tất giao dịch.`);
         return { resolved, cancelled };
       }, now, actor);

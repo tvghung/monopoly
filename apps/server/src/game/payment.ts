@@ -6,10 +6,14 @@ import type {
   PaymentQueue,
   PendingTurnContinuation,
   PlayerId,
+  ForcedSaleProposal,
 } from '@monopoly/shared';
 import { sendToLog } from './text';
+import { forcedSaleGrossPrice, forcedSaleNetProceeds, mortgagePrincipal } from './property';
+import { transferProperty } from './transfer';
 
-export const DEFAULT_DEBT_ACTION_TIMEOUT_MS = 120_000;
+export const DEFAULT_PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS = 120_000;
+export const DEFAULT_FORCED_SALE_PROPOSAL_TIMEOUT_MS = 20_000;
 
 export interface CompulsoryPayment {
   debtorPlayerId: PlayerId;
@@ -22,7 +26,7 @@ export interface CompulsoryPayment {
 export interface QueuePaymentOptions {
   operationId?: string;
   now?: number;
-  debtActionTimeoutMs?: number;
+  paymentShortfallActionTimeoutMs?: number;
 }
 
 export const activeDebtClaim = (state: GameState): DebtClaim | null => {
@@ -60,7 +64,7 @@ export const createPaymentQueue = (
     continuation,
     actionDeadlineAt: new Date(
       (options.now ?? Date.now())
-      + (options.debtActionTimeoutMs ?? DEFAULT_DEBT_ACTION_TIMEOUT_MS),
+      + (options.paymentShortfallActionTimeoutMs ?? DEFAULT_PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS),
     ).toISOString(),
   };
 };
@@ -110,7 +114,7 @@ const settleCurrentClaim = (state: GameState, queue: PaymentQueue): boolean => {
  */
 export const settleAffordableClaims = (
   state: GameState,
-  options: Pick<QueuePaymentOptions, 'now' | 'debtActionTimeoutMs'> = {},
+  options: Pick<QueuePaymentOptions, 'now' | 'paymentShortfallActionTimeoutMs'> = {},
 ): PendingTurnContinuation | null => {
   const queue = state.boardState.paymentQueue;
   if (!queue) return null;
@@ -120,7 +124,7 @@ export const settleAffordableClaims = (
       if (queue.activeClaimIndex !== startingIndex) {
         queue.actionDeadlineAt = new Date(
           (options.now ?? Date.now())
-          + (options.debtActionTimeoutMs ?? DEFAULT_DEBT_ACTION_TIMEOUT_MS),
+          + (options.paymentShortfallActionTimeoutMs ?? DEFAULT_PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS),
         ).toISOString();
       }
       return null;
@@ -135,7 +139,7 @@ export const refreshDebtDeadline = (
   state: GameState,
   debtorPlayerId: PlayerId,
   now = Date.now(),
-  timeoutMs = DEFAULT_DEBT_ACTION_TIMEOUT_MS,
+  timeoutMs = DEFAULT_PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS,
 ): boolean => {
   const queue = state.boardState.paymentQueue;
   const active = queue?.orderedClaims[queue.activeClaimIndex];
@@ -152,7 +156,7 @@ export const refreshDebtDeadline = (
 export const continueDebtAfterLiquidity = (
   state: GameState,
   debtorPlayerId: PlayerId,
-  options: Pick<QueuePaymentOptions, 'now' | 'debtActionTimeoutMs'> = {},
+  options: Pick<QueuePaymentOptions, 'now' | 'paymentShortfallActionTimeoutMs'> = {},
 ): PendingTurnContinuation | null => {
   const before = activeDebtClaim(state);
   if (!before || before.debtorPlayerId !== debtorPlayerId) return null;
@@ -163,7 +167,7 @@ export const continueDebtAfterLiquidity = (
       state,
       after.debtorPlayerId,
       options.now ?? Date.now(),
-      options.debtActionTimeoutMs ?? DEFAULT_DEBT_ACTION_TIMEOUT_MS,
+      options.paymentShortfallActionTimeoutMs ?? DEFAULT_PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS,
     );
   }
   return continuation;
@@ -187,9 +191,139 @@ export const assertDebtActionAllowed = (
   const claim = activeDebtClaim(state);
   if (!claim) return true;
   if (action === 'LIQUIDATE') return actorId === claim.debtorPlayerId;
-  if (action === 'TRADE') return true;
-  // A Bank-property auction is a required debt-recovery interaction. Other
-  // players may bid there, while the active debtor remains blocked.
+  if (action === 'TRADE') return false;
+  // The removed auction action remains a compatibility discriminator for old
+  // pure-game callers; v3 socket commands expose only forced-sale actions.
   if (action === 'BID') return actorId !== claim.debtorPlayerId;
   return false;
+};
+
+export const activePaymentClaim = activeDebtClaim;
+
+/** Apply one authoritative Bank forced sale and immediately retry the claim. */
+export const sellPropertyToBankForPayment = (
+  state: GameState,
+  sellerId: PlayerId,
+  paymentOperationId: string,
+  claimId: string,
+  tileID: number,
+  options: Pick<QueuePaymentOptions, 'now' | 'paymentShortfallActionTimeoutMs'> = {},
+): PendingTurnContinuation | null => {
+  const queue = state.boardState.paymentQueue;
+  const claim = activeDebtClaim(state);
+  const owned = state.boardState.ownedProps[tileID];
+  if (
+    !queue || !claim || claim.debtorPlayerId !== sellerId
+    || queue.operationId !== paymentOperationId || claim.claimId !== claimId
+    || state.privateState.forcedSaleProposal
+    || !owned || owned.id !== sellerId
+  ) return null;
+
+  const gross = forcedSaleGrossPrice(tileID, owned.houses);
+  const net = forcedSaleNetProceeds(tileID, owned.houses, owned.mortgaged);
+  const principal = owned.mortgaged ? mortgagePrincipal(tileID) : 0;
+  const seller = state.players[sellerId];
+  if (!seller || gross <= 0 || net < 0) return null;
+  delete state.boardState.openMarket[tileID];
+  delete state.boardState.ownedProps[tileID];
+  seller.accountBalance += net;
+  // The principal is paid to the Bank as part of the gross consideration;
+  // deleting the property also clears its mortgage and development.
+  if (principal > gross) return null;
+  sendToLog(state, `${seller.name} đã bị buộc bán tài sản ${tileID} cho Ngân hàng.`);
+  return continueDebtAfterLiquidity(state, sellerId, options);
+};
+
+export const createForcedSaleProposal = (
+  state: GameState,
+  sellerId: PlayerId,
+  paymentOperationId: string,
+  claimId: string,
+  tileID: number,
+  buyerPlayerId: PlayerId,
+  now = Date.now(),
+): ForcedSaleProposal | null => {
+  const queue = state.boardState.paymentQueue;
+  const claim = activeDebtClaim(state);
+  const property = state.boardState.ownedProps[tileID];
+  const buyer = state.players[buyerPlayerId];
+  if (
+    !queue || !claim || claim.debtorPlayerId !== sellerId
+    || queue.operationId !== paymentOperationId || claim.claimId !== claimId
+    || !property || property.id !== sellerId || !buyer || buyerPlayerId === sellerId
+    || state.boardState.players.indexOf(buyerPlayerId) < 0
+  ) return null;
+  if (state.privateState.forcedSaleProposal) return null;
+  const paymentDeadline = Date.parse(queue.actionDeadlineAt);
+  if (!Number.isFinite(paymentDeadline) || paymentDeadline <= now) return null;
+  const gross = forcedSaleGrossPrice(tileID, property.houses);
+  const net = forcedSaleNetProceeds(tileID, property.houses, property.mortgaged);
+  if (gross <= 0 || buyer.accountBalance < gross) return null;
+  const proposal: ForcedSaleProposal = {
+    proposalId: randomUUID(),
+    paymentOperationId,
+    claimId,
+    sellerPlayerId: sellerId,
+    buyerPlayerId,
+    tileID,
+    grossPrice: gross,
+    sellerNetProceeds: net,
+    expectedHouses: property.houses,
+    expectedMortgaged: property.mortgaged,
+    expiresAt: new Date(Math.min(
+      now + DEFAULT_FORCED_SALE_PROPOSAL_TIMEOUT_MS,
+      paymentDeadline,
+    )).toISOString(),
+  };
+  state.privateState.forcedSaleProposal = proposal;
+  return proposal;
+};
+
+export const rejectForcedSaleProposal = (
+  state: GameState,
+  actorId: PlayerId,
+  proposalId: string,
+  now = Date.now(),
+): boolean => {
+  const proposal = state.privateState.forcedSaleProposal;
+  if (!proposal || proposal.proposalId !== proposalId
+    || (actorId !== proposal.sellerPlayerId && actorId !== proposal.buyerPlayerId)
+    || Date.parse(proposal.expiresAt) <= now) return false;
+  state.privateState.forcedSaleProposal = null;
+  return true;
+};
+
+export const acceptForcedSaleProposal = (
+  state: GameState,
+  actorId: PlayerId,
+  proposalId: string,
+  options: Pick<QueuePaymentOptions, 'now' | 'paymentShortfallActionTimeoutMs'> = {},
+): PendingTurnContinuation | null => {
+  const proposal = state.privateState.forcedSaleProposal;
+  const queue = state.boardState.paymentQueue;
+  const claim = activeDebtClaim(state);
+  const property = proposal && state.boardState.ownedProps[proposal.tileID];
+  const buyer = proposal && state.players[proposal.buyerPlayerId];
+  const seller = proposal && state.players[proposal.sellerPlayerId];
+  if (
+    !proposal || !queue || !claim || actorId !== proposal.buyerPlayerId
+    || proposal.proposalId !== proposalId || queue.operationId !== proposal.paymentOperationId
+    || claim.claimId !== proposal.claimId || claim.debtorPlayerId !== proposal.sellerPlayerId
+    || !property || property.id !== proposal.sellerPlayerId
+    || property.houses !== proposal.expectedHouses || property.mortgaged !== proposal.expectedMortgaged
+    || !buyer || !seller || buyer.accountBalance < proposal.grossPrice
+    || Date.parse(proposal.expiresAt) <= (options.now ?? Date.now())
+  ) return null;
+  const transfer = transferProperty(
+    state,
+    proposal.tileID,
+    proposal.sellerPlayerId,
+    proposal.buyerPlayerId,
+    'FORCED_SALE',
+  );
+  if (!transfer.ok) return null;
+  buyer.accountBalance -= proposal.grossPrice;
+  seller.accountBalance += proposal.sellerNetProceeds;
+  state.privateState.forcedSaleProposal = null;
+  return continueDebtAfterLiquidity(state, proposal.sellerPlayerId, options);
 };

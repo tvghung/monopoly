@@ -70,17 +70,16 @@ Actor không bao giờ lấy từ client payload. Handler không tự viết SQL
 | --- | --- |
 | Session/presence | `join room`, `resume session`, disconnect |
 | Lobby/lifecycle | `set ready`, `start game`, `leave room` |
-| Turn | `roll dice`, `buy property` |
+| Turn | `roll dice`, `buy property`, `do not buy`, `resolve development`, `wait in jail` |
 | Chat | `send chat` |
 | Trading | listing/sale và durable offer events |
-| Building | build/sell/mortgage/unmortgage |
-| Jail | `pay bail`, `use jail card` |
-| Auction | `decline property`, `place bid`, `pass bid` |
+| Property | sell-house/mortgage/unmortgage |
+| Jail | `pay bail`, `use jail card`, `wait in jail` |
+| Payment shortfall | sell to Bank / propose / accept / reject forced sale |
 
-`Auction.kind` phân biệt `PROPERTY | BUILDING`; cùng typed event/ACK path được dùng
-cho durable property/bankruptcy/building contention auctions. Turn handler không tự
-advance: domain `completeTurnResolution` quyết định extra roll hoặc handoff sau khi
-`TurnInfo.pendingPropertyDecision` và mọi payment/auction continuation đã hoàn tất.
+Pending purchase/development decisions, payment shortfall and forced-sale proposals
+carry operation/claim IDs. Turn handler không tự advance: domain
+`completeTurnResolution` handoff sau khi decision/payment continuation hoàn tất.
 
 `new player` không còn là operational event. Dummy payload của start/buy đã bị xóa.
 
@@ -96,7 +95,8 @@ advance: domain `completeTurnResolution` quyết định extra roll hoặc hando
 - `DATABASE_URL` bắt buộc cho mọi real server start; schema mismatch/startup migration
   error làm process fail trước listen. In-memory store chỉ được dependency-inject trong test.
 - Room command failure do DB trả retryable ACK, không memory fallback.
-- Auction/offer/turn recovery dùng persisted absolute deadlines và stable operation ID.
+- Offer/turn/payment/forced-sale recovery dùng persisted absolute deadlines và stable
+  operation ID.
 - Graceful shutdown ngừng nhận command, đóng scheduler/socket/http/pool; shutdown không
   được tạo artificial player-disconnect grace.
 

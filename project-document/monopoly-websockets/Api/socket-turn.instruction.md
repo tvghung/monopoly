@@ -1,45 +1,17 @@
-# Turn, payment và bankruptcy Socket instruction
+# Socket turn và landing decisions v3
 
-## Events
-
-| Event | Payload | Authoritative mutation |
+| Event | Payload | Server rule |
 | --- | --- | --- |
-| `roll dice` | none | current Player 2d6; movement/jail/doubles/full resolution |
-| `buy property` | none | current `TurnInfo.pendingPropertyDecision`; revalidate/fund/award |
-| `settle debt` | none | apply current debtor funds to active `DebtClaim`, then continue queue |
-| `declare bankruptcy` | none | current active-claim debtor confirms correct creditor pipeline |
+| `roll dice` | no payload | Authenticated current player; server creates dice and resolves the landing |
+| `buy property` | `{operationId}` | Matches the pending purchase; price/tile/owner derive from snapshot |
+| `do not buy` | `{operationId}` | Clears purchase wait and completes the turn; never starts an auction |
+| `resolve development` | `{operationId, action}` | Action is `SKIP`, `BUILD_HOUSES` with quantity, or `UPGRADE_HOTEL`; tile/level/cost derive from snapshot |
+| `wait in jail` | no payload | Ends the jailed seat's turn without changing the jail counter directly |
 
-All require authenticated active Player, strict argument/ACK shape and room
-`IN_PROGRESS`. `settle debt`/`declare bankruptcy` actor must equal
-`PaymentQueue.orderedClaims[activeClaimIndex].debtorPlayerId`.
+All payloads are strict Zod schemas and middleware requires exactly one ACK. Actor,
+current turn, operation ID, property ownership, balance and level are revalidated in
+the serialized room command. ACK/broadcast happen only after CAS commit.
 
-## Roll/continuation
-
-- Reject if wrong turn, winner, auction, payment or blocking
-  `TurnInfo.pendingPropertyDecision`.
-- Server produces dice and updates `doublesStreak`. Third consecutive doubles goes
-  direct jail without movement. Jail doubles never creates extra roll.
-- Tile/card/payment/buy/auction resolution calls domain `completeTurnResolution`;
-  handler does not directly handoff. `EXTRA_ROLL` clears roll gate for same Player;
-  `ADVANCE_TURN` hands off once.
-
-## Buy/debt/bankruptcy
-
-- Buy revalidates canonical property/price/balance, applies award and continuation.
-  Decline belongs to auction module.
-- `settle debt` pays only active claim and preserves ordered cyclic queue/
-  `activeClaimIndex`; no client amount/creditor payload.
-- `declare bankruptcy` selects PLAYER versus BANK from active claim, never client
-  input. PLAYER transfer uses `BANKRUPTCY_TO_PLAYER`; BANK uses return/Bank auction
-  queue. Winner/finished transition occurs after assets/queue references reconcile.
-
-## Durability/recovery
-
-Doubles, dice required by jail third-fail, pending decision/continuation, payment,
-Bank auction queue and recovery deadline persist in snapshot v2. Reconnect restores exact state;
-stale deadline callback/CAS conflict/save failure cannot advance/apply twice.
-
-## Tests
-
-Actor/role/payload guards; normal/GO/doubles/jail; buy/decline; multi-claim settle;
-both bankruptcy creditors; disconnect/restart/save-failure/no-broadcast.
+`roll dice` and landing resolution call `completeTurnResolution` only after every
+synchronous card/rent/payment step and every pending decision is complete. v3 has no
+extra-roll, auction, building-contention, settle-debt or declare-bankruptcy event.

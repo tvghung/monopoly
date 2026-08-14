@@ -7,8 +7,7 @@ export interface DatabaseConfig {
 
 export interface PersistenceTimingConfig {
   reconnectGraceMs: number;
-  debtActionTimeoutMs: number;
-  buildingContentionMs: number;
+  paymentShortfallActionTimeoutMs: number;
   pendingSessionTtlMs: number;
   terminalSessionRetentionMs: number;
   lobbyRetentionMs: number;
@@ -92,15 +91,10 @@ export function loadServerConfig(
         'RECONNECT_GRACE_MS',
         60_000,
       ),
-      debtActionTimeoutMs: readPositiveInteger(
+      paymentShortfallActionTimeoutMs: readPositiveInteger(
         environment,
-        'DEBT_ACTION_TIMEOUT_MS',
+        'PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS',
         120_000,
-      ),
-      buildingContentionMs: readPositiveInteger(
-        environment,
-        'BUILDING_CONTENTION_MS',
-        10_000,
       ),
       pendingSessionTtlMs: readPositiveInteger(
         environment,

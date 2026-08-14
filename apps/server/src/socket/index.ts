@@ -1,6 +1,5 @@
 import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
 import type { AppRuntime } from '../services/runtime';
-import { registerAuctionHandlers } from './auction';
 import { registerBuildingHandlers } from './building';
 import { registerChatHandlers } from './chat';
 import { registerDebtHandlers } from './debt';
@@ -36,6 +35,5 @@ export function registerSocketHandlers(io: AppServer, runtime: AppRuntime): void
     registerTradingHandlers(io, socket, runtime);
     registerBuildingHandlers(io, socket, runtime);
     registerJailHandlers(io, socket, runtime);
-    registerAuctionHandlers(io, socket, runtime);
   });
 }

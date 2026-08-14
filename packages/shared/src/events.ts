@@ -22,6 +22,7 @@ import type {
   SessionReplacedInfo,
   SetReadyRequest,
   SocketProtocolVersion,
+  ForcedSaleProposal,
 } from './types';
 
 export type AckErrorCode =
@@ -74,6 +75,7 @@ export interface ServerToClientEvents {
   'offer expired': (result: OfferResult) => void;
   'offer cancelled': (result: OfferResult) => void;
   'private player state': (state: PrivatePlayerState) => void;
+  'forced sale proposal': (proposal: ForcedSaleProposal | null) => void;
   'session replaced': (info: SessionReplacedInfo) => void;
 }
 
@@ -92,7 +94,15 @@ export interface ClientToServerEvents {
   'send chat': (message: string, acknowledge: AckCallback) => void;
   // The server rolls the dice, moves the player, and resolves the landed tile.
   'roll dice': (acknowledge: AckCallback) => void;
-  'buy property': (acknowledge: AckCallback) => void;
+  'buy property': (request: { operationId: string }, acknowledge: AckCallback) => void;
+  'do not buy': (request: { operationId: string }, acknowledge: AckCallback) => void;
+  'resolve development': (
+    request:
+      | { operationId: string; action: 'SKIP' }
+      | { operationId: string; action: 'BUILD_HOUSES'; quantity: number }
+      | { operationId: string; action: 'UPGRADE_HOTEL' },
+    acknowledge: AckCallback,
+  ) => void;
   'put on open market': (saleInfo: SaleInfo, acknowledge: AckCallback) => void;
   'make offer': (
     offerInfo: OfferInfo,
@@ -102,17 +112,22 @@ export interface ClientToServerEvents {
   'decline offer': (offer: OfferAction, acknowledge: AckCallback) => void;
   'make sale': (request: TileRequest, acknowledge: AckCallback) => void;
   'remove sale': (request: TileRequest, acknowledge: AckCallback) => void;
-  'build house': (tileID: number, acknowledge: AckCallback) => void;
   'sell house': (tileID: number, acknowledge: AckCallback) => void;
   'mortgage property': (tileID: number, acknowledge: AckCallback) => void;
   'unmortgage property': (tileID: number, acknowledge: AckCallback) => void;
   'pay bail': (acknowledge: AckCallback) => void;
   'use jail card': (acknowledge: AckCallback) => void;
-  'settle debt': (acknowledge: AckCallback) => void;
-  'declare bankruptcy': (acknowledge: AckCallback) => void;
-  'decline property': (acknowledge: AckCallback) => void;
-  'place bid': (amount: number, acknowledge: AckCallback) => void;
-  'pass bid': (acknowledge: AckCallback) => void;
+  'wait in jail': (acknowledge: AckCallback) => void;
+  'sell property to bank': (
+    request: { paymentOperationId: string; claimId: string; tileID: number },
+    acknowledge: AckCallback,
+  ) => void;
+  'propose forced sale': (
+    request: { paymentOperationId: string; claimId: string; tileID: number; buyerPlayerId: PlayerId },
+    acknowledge: AckCallback<{ proposalId: string; expiresAt: string }>,
+  ) => void;
+  'accept forced sale': (request: { proposalId: string }, acknowledge: AckCallback) => void;
+  'reject forced sale': (request: { proposalId: string }, acknowledge: AckCallback) => void;
 }
 
 export type InterServerEvents = Record<string, never>;

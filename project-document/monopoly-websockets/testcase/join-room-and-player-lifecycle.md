@@ -8,7 +8,7 @@
 - `[SOCKET-INTEGRATION]` `apps/server/src/socket.integration.test.ts` covers protocol,
   two-step stable admission, unknown-token rejection without Seat binding, reconnect,
   newest-wins, host/ready start, disconnect preservation, queued stale generation,
-  deterministic host leave, auction/forfeit, Player/spectator same-socket
+  deterministic host leave, forced-liquidation forfeit, Player/spectator same-socket
   leave-and-rejoin, spectator/reclaim and server recreation over the same test store.
 - `[PG-INTEGRATION][SOCKET-INTEGRATION]` Its conditional PostgreSQL case recreates
   pools/persistence/server, then resumes both stable Players and persisted game state.
@@ -20,9 +20,9 @@
 - [ ] `resume session` activates exactly one stable UUID Seat; lost ACK is resumable.
 - [ ] Newest valid socket wins; old receives `session replaced`; stale disconnect no-ops.
 - [ ] Refresh/network reconnect/new socket keeps Player ID, Seat, ready, money and assets.
-- [ ] Protocol/snapshot v2 identity-preserving reset keeps room/code, stable Player
+- [ ] Protocol/snapshot v3 identity-preserving reset keeps room/code, stable Player
   IDs, join order/name/color/ready, host, `IN_PROGRESS` status and active reconnect
-  token hashes while resetting incompatible gameplay to a fresh v2 turn.
+  token hashes while resetting incompatible gameplay to a fresh v3 turn.
 - [ ] Existing tokens reclaim the same Seats after reset; pending old-game offers are
   cancelled and no room delete cascades session rows.
 - [ ] Invalid/revoked/expired token is rejected, not spectator/new Player.
@@ -31,10 +31,10 @@
 - [ ] Start rolls/tie-breaks first Player server-side, persists order once and accepts
   no client dice/order.
 - [ ] Host temporary disconnect does not transfer; explicit leave transfers deterministically.
-- [ ] Disconnect preserves Seat/property/listing/auction/session and does not delete room.
+- [ ] Disconnect preserves Seat/property/listing/payment/session and does not delete room.
 - [ ] Lobby leave removes Seat/revokes token; in-game leave is confirmed atomic forfeit.
-- [ ] Active debtor forfeit routes assets to active PLAYER creditor or Bank pipeline
-  as applicable while history reason remains `LEFT`.
+- [ ] Active debtor forfeit auto-liquidates to Bank before creditor payment; other
+  leavers return assets unowned while history reason remains `LEFT`.
 - [ ] Successful Player/spectator leave may start a fresh admission on the same socket.
 - [ ] Join after start without token is spectator; valid existing token reclaims Player.
 - [ ] Public/private Socket.IO rooms isolate room updates and private session/offer data.
@@ -43,6 +43,6 @@
 ## Restart evidence boundary
 
 The executable PostgreSQL Socket suite must prove fresh pool/persistence/server
-recovery with both tokens and exact v2 game state, plus v1→v2 reset identity
+recovery with both tokens and exact v3 game state, plus v2→v3 reset identity
 preservation, when `TEST_DATABASE_URL` is set. A real process-manager/container kill
 and browser reload remains a separate deployment E2E.

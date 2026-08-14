@@ -39,6 +39,9 @@ export {
   sellHouse,
   mortgageProperty,
   unmortgageProperty,
+  forcedSaleGrossPrice,
+  forcedSaleNetProceeds,
+  mortgagePrincipal,
 } from './property';
 export {
   AUCTION_INITIAL_DURATION_MS,
@@ -57,12 +60,18 @@ export {
   assertDebtActionAllowed,
   createPaymentQueue,
   continueDebtAfterLiquidity,
-  DEFAULT_DEBT_ACTION_TIMEOUT_MS,
   enqueuePayments,
   hasPendingDebt,
   logPausedDebt,
   refreshDebtDeadline,
   settleAffordableClaims,
+  sellPropertyToBankForPayment,
+  createForcedSaleProposal,
+  acceptForcedSaleProposal,
+  rejectForcedSaleProposal,
+  activePaymentClaim,
+  DEFAULT_FORCED_SALE_PROPOSAL_TIMEOUT_MS,
+  DEFAULT_PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS,
 } from './payment';
 export type { CompulsoryPayment, QueuePaymentOptions } from './payment';
 export {
@@ -74,6 +83,7 @@ export {
 } from './transfer';
 export type { PropertyTransferPolicy, PropertyTransferResult } from './transfer';
 export {
+  bankruptActiveDebtor,
   declareActiveDebtBankruptcy,
   surrenderPlayerToBank,
 } from './bankruptcy';

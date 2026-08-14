@@ -7,14 +7,13 @@ import type {
 } from '@monopoly/shared';
 import {
   allGameCards,
-  colorGroups,
   createCanonicalDecks,
   persistedGameStateSchema,
   tileState,
 } from '@monopoly/shared';
 import { z } from 'zod';
 
-export const ROOM_SNAPSHOT_SCHEMA_VERSION = 2;
+export const ROOM_SNAPSHOT_SCHEMA_VERSION = 3;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 7;
 
@@ -83,7 +82,7 @@ export const freshState = (): GameState => ({
     gameStarted: false,
     players: [],
     finishedPlayers: {},
-    currentPlayer: { id: '', hasMoved: false, doublesStreak: 0 },
+    currentPlayer: { id: '', hasMoved: false },
     turnNumber: 0,
     turnRecovery: null,
     logs: [],
@@ -91,14 +90,11 @@ export const freshState = (): GameState => ({
     ownedProps: {},
     openMarket: {},
     winner: null,
-    auction: null,
-    buildingContention: null,
     paymentQueue: null,
-    bankPropertyAuctionQueue: null,
   },
   players: {},
   turnInfo: {},
-  privateState: { decks: createCanonicalDecks() },
+  privateState: { decks: createCanonicalDecks(), forcedSaleProposal: null },
   loaded: true,
 });
 
@@ -173,10 +169,9 @@ export const syncMembershipWithGameState = (snapshot: RoomSnapshot): void => {
 
 export const calculateNextActionAt = (snapshot: RoomSnapshot): Date | null => {
   const deadlines = [
-    snapshot.gameState.boardState.auction?.endsAt,
     snapshot.gameState.boardState.turnRecovery?.deadlineAt,
     snapshot.gameState.boardState.paymentQueue?.actionDeadlineAt,
-    snapshot.gameState.boardState.buildingContention?.endsAt,
+    snapshot.gameState.privateState.forcedSaleProposal?.expiresAt,
   ]
     .filter((value): value is string => typeof value === 'string')
     .map((value) => new Date(value))
@@ -210,6 +205,9 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
     state.boardState.auction?.highestBidder,
     state.boardState.turnRecovery?.playerId,
     state.turnInfo.pendingPropertyDecision?.playerId,
+    state.turnInfo.pendingDevelopmentDecision?.playerId,
+    state.privateState.forcedSaleProposal?.sellerPlayerId,
+    state.privateState.forcedSaleProposal?.buyerPlayerId,
     ...Object.values(state.boardState.buildingContention?.requests ?? {}).map(
       (request) => request.playerId,
     ),
@@ -275,49 +273,12 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
     }
   }
 
-  const auction = state.boardState.auction;
   if (
-    state.boardState.paymentQueue
-    && auction
-    && !(
-      auction.kind === 'PROPERTY'
-      && auction.source === 'BANKRUPTCY'
-      && state.boardState.bankPropertyAuctionQueue?.currentAuctionId === auction.auctionId
-    )
+    state.boardState.auction
+    || state.boardState.buildingContention
+    || state.boardState.bankPropertyAuctionQueue
   ) {
-    throw new Error('Room snapshot cannot run an unrelated live auction during debt resolution');
-  }
-  if (auction && state.boardState.buildingContention) {
-    throw new Error('Room snapshot cannot contain an auction and building contention together');
-  }
-  if (auction) {
-    if (new Set(auction.active).size !== auction.active.length) {
-      throw new Error('Room snapshot auction contains duplicate participants');
-    }
-    if (auction.passed.some((playerId) => !auction.active.includes(playerId))) {
-      throw new Error('Room snapshot auction passed list is not active');
-    }
-    if (
-      (auction.highestBidder === null) !== (auction.highestBidderName === null)
-      || (auction.highestBidder !== null && !auction.active.includes(auction.highestBidder))
-    ) {
-      throw new Error('Room snapshot auction leader is inconsistent');
-    }
-  }
-
-  const bankQueue = state.boardState.bankPropertyAuctionQueue;
-  if (bankQueue?.currentAuctionId) {
-    if (
-      !auction
-      || auction.kind !== 'PROPERTY'
-      || auction.source !== 'BANKRUPTCY'
-      || auction.auctionId !== bankQueue.currentAuctionId
-      || auction.tileID !== bankQueue.currentTileId
-    ) {
-      throw new Error('Room snapshot Bank auction queue does not match the live auction');
-    }
-  } else if (auction?.kind === 'PROPERTY' && auction.source === 'BANKRUPTCY') {
-    throw new Error('Room snapshot Bank auction has no matching durable queue');
+    throw new Error('Room snapshot v3 cannot contain auction or building-scarcity state');
   }
 
   const recovery = state.boardState.turnRecovery;
@@ -329,15 +290,85 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
   }
 
   const decision = state.turnInfo.pendingPropertyDecision;
-  if (decision && state.boardState.buildingContention) {
-    throw new Error('Room snapshot cannot contain a property decision and building contention together');
+  const development = state.turnInfo.pendingDevelopmentDecision;
+  if (state.turnInfo.canBuyProp !== undefined) {
+    throw new Error('Room snapshot v3 cannot contain the legacy canBuyProp flag');
+  }
+  if (decision && development) {
+    throw new Error('Room snapshot cannot contain two pending landing decisions');
+  }
+  if (state.boardState.paymentQueue && (decision || development)) {
+    throw new Error('Room snapshot cannot contain a landing decision during payment shortfall');
   }
   if (decision && (
     decision.playerId !== state.boardState.currentPlayer.id
     || decision.continuation.playerId !== decision.playerId
     || decision.continuation.turnNumber !== state.boardState.turnNumber
+    || state.players[decision.playerId]?.currentTile !== decision.tileID
+    || state.boardState.ownedProps[decision.tileID]
+    || !tileState[decision.tileID]
+    || !['normal', 'railroad', 'company'].includes(tileState[decision.tileID].tileType)
+    || (tileState[decision.tileID].price ?? 0) <= 0
   )) {
     throw new Error('Room snapshot property decision does not match the current turn');
+  }
+
+  if (development && (
+    development.playerId !== state.boardState.currentPlayer.id
+    || development.turnNumber !== state.boardState.turnNumber
+    || development.continuation.playerId !== development.playerId
+    || development.continuation.turnNumber !== development.turnNumber
+    || state.players[development.playerId]?.currentTile !== development.tileID
+  )) {
+    throw new Error('Room snapshot development decision does not match the current turn');
+  }
+  if (development) {
+    const property = state.boardState.ownedProps[development.tileID];
+    const tile = tileState[development.tileID];
+    if (
+      !property || property.id !== development.playerId || tile?.tileType !== 'normal'
+      || property.mortgaged || property.houses !== development.levelAtLanding
+      || (development.kind === 'HOUSES' && development.levelAtLanding >= 4)
+      || (development.kind === 'HOTEL' && development.levelAtLanding !== 4)
+    ) throw new Error('Room snapshot development target is inconsistent');
+  }
+
+  if (recovery?.pendingOperationId !== undefined) {
+    const pendingOperationId = decision?.operationId ?? development?.operationId ?? null;
+    if (recovery.pendingOperationId !== pendingOperationId) {
+      throw new Error('Room snapshot turn recovery does not match the pending operation');
+    }
+  }
+
+  const proposal = state.privateState.forcedSaleProposal;
+  if (proposal) {
+    const claim = state.boardState.paymentQueue?.orderedClaims[
+      state.boardState.paymentQueue.activeClaimIndex
+    ];
+    const property = state.boardState.ownedProps[proposal.tileID];
+    const tile = tileState[proposal.tileID];
+    const invested = tile?.tileType === 'normal'
+      ? proposal.expectedHouses * (tile.houseCost ?? 0)
+      : 0;
+    const expectedGross = Math.floor(((tile?.price ?? 0) + invested) * 70 / 100);
+    const mortgagePrincipal = Math.floor((tile?.price ?? 0) / 2);
+    const expectedNet = Math.max(
+      0,
+      expectedGross - (proposal.expectedMortgaged ? mortgagePrincipal : 0),
+    );
+    if (
+      !claim || claim.claimId !== proposal.claimId
+      || state.boardState.paymentQueue?.operationId !== proposal.paymentOperationId
+      || claim.debtorPlayerId !== proposal.sellerPlayerId
+      || proposal.sellerPlayerId === proposal.buyerPlayerId
+      || !state.players[proposal.buyerPlayerId]
+      || !property || property.id !== proposal.sellerPlayerId
+      || property.houses !== proposal.expectedHouses
+      || property.mortgaged !== proposal.expectedMortgaged
+      || proposal.grossPrice !== expectedGross
+      || proposal.sellerNetProceeds !== expectedNet
+      || Date.parse(proposal.expiresAt) > Date.parse(state.boardState.paymentQueue.actionDeadlineAt)
+    ) throw new Error('Room snapshot forced-sale proposal is inconsistent');
   }
 
   const currentTurnMatches = (playerId: PlayerId, turnNumber: number): boolean => (
@@ -351,24 +382,7 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
   )) {
     throw new Error('Room snapshot payment continuation does not match the current turn');
   }
-  const auctionContinuation = state.boardState.auction?.continuation;
-  if (auctionContinuation && !currentTurnMatches(
-    auctionContinuation.playerId,
-    auctionContinuation.turnNumber,
-  )) {
-    throw new Error('Room snapshot auction continuation does not match the current turn');
-  }
-  const bankContinuation = state.boardState.bankPropertyAuctionQueue?.continuation;
-  if (bankContinuation && !currentTurnMatches(
-    bankContinuation.playerId,
-    bankContinuation.turnNumber,
-  )) {
-    throw new Error('Room snapshot Bank queue continuation does not match the current turn');
-  }
 
-  let housesOnBoard = 0;
-  let hotelsOnBoard = 0;
-  const builtGroups = new Set<string>();
   for (const [tileKey, property] of Object.entries(state.boardState.ownedProps)) {
     const tileID = Number(tileKey);
     const tile = tileState[tileID];
@@ -384,50 +398,6 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
     if (tile.tileType !== 'normal' && property.houses > 0) {
       throw new Error(`Room snapshot non-street property ${tileID} has buildings`);
     }
-    if (property.houses === 5) hotelsOnBoard += 1;
-    else housesOnBoard += property.houses;
-    if (property.houses > 0 && tile.color) builtGroups.add(tile.color);
-  }
-  if (housesOnBoard > 32 || hotelsOnBoard > 12) {
-    throw new Error('Room snapshot exceeds the physical Bank building inventory');
-  }
-  for (const color of builtGroups) {
-    const group = colorGroups[color] ?? [];
-    const properties = group.map((tileID) => state.boardState.ownedProps[tileID]);
-    const ownerId = properties[0]?.id;
-    if (
-      !ownerId
-      || properties.some((property) => !property || property.id !== ownerId || property.mortgaged)
-    ) {
-      throw new Error(`Room snapshot built group ${color} lacks one valid owner`);
-    }
-    const levels = properties.map((property) => property.houses);
-    if (Math.max(...levels) - Math.min(...levels) > 1) {
-      throw new Error(`Room snapshot built group ${color} violates even building`);
-    }
-  }
-
-  const buildingWait = state.boardState.buildingContention
-    ?? (state.boardState.auction?.kind === 'BUILDING' ? state.boardState.auction : null);
-  if (buildingWait) {
-    const requests = Object.entries(buildingWait.requests);
-    if (requests.length === 0) throw new Error('Room snapshot building wait has no claimants');
-    for (const [playerId, request] of requests) {
-      const property = state.boardState.ownedProps[request.tileID];
-      const expectedType = property?.houses === 4 ? 'HOTEL' : 'HOUSE';
-      if (
-        request.playerId !== playerId
-        || request.buildingType !== buildingWait.buildingType
-        || expectedType !== buildingWait.buildingType
-        || property?.id !== playerId
-      ) {
-        throw new Error('Room snapshot building request target is inconsistent');
-      }
-    }
-    const available = buildingWait.buildingType === 'HOUSE'
-      ? 32 - housesOnBoard
-      : 12 - hotelsOnBoard;
-    if (available < 1) throw new Error('Room snapshot building wait has no physical unit reserved');
   }
 
   const knownCards = new Map(allGameCards.map((card) => [card.id, card]));
@@ -459,7 +429,7 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
   }
 };
 
-/** V1 rows are reset transactionally by migration 003; runtime accepts v2 only. */
+/** Older rows are upgraded transactionally; runtime accepts v3 only. */
 export const assertSupportedRoomSnapshot = (
   room: PersistedRoomSnapshotEnvelope,
 ): void => {
@@ -505,6 +475,9 @@ export const assertSupportedRoomSnapshot = (
       || room.gameSnapshot.gameState.boardState.paymentQueue
       || room.gameSnapshot.gameState.boardState.buildingContention
       || room.gameSnapshot.gameState.boardState.bankPropertyAuctionQueue
+      || room.gameSnapshot.gameState.turnInfo.pendingPropertyDecision
+      || room.gameSnapshot.gameState.turnInfo.pendingDevelopmentDecision
+      || room.gameSnapshot.gameState.privateState.forcedSaleProposal
     )
   ) {
     throw new Error('Finished room contains a live runtime operation');

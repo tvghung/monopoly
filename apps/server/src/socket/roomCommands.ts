@@ -61,29 +61,28 @@ export async function commitRoomCommand<TResult>(
 
     if (state.boardState.winner) {
       context.room.status = 'FINISHED';
-      state.boardState.auction = null;
-      state.boardState.buildingContention = null;
       state.boardState.paymentQueue = null;
-      state.boardState.bankPropertyAuctionQueue = null;
       state.boardState.turnRecovery = null;
+      state.privateState.forcedSaleProposal = null;
       state.turnInfo = {};
     }
     if (
       context.room.status === 'IN_PROGRESS'
       && !runtime.flags.shuttingDown
       && !state.boardState.winner
-      && !state.boardState.auction
       && !state.boardState.paymentQueue
-      && !state.boardState.buildingContention
-      && !state.boardState.bankPropertyAuctionQueue
       && state.boardState.currentPlayer.id
       && !state.boardState.turnRecovery
       && !runtime.connections.isConnected(state.boardState.currentPlayer.id)
     ) {
+      const pendingOperationId = state.turnInfo.pendingPropertyDecision?.operationId
+        ?? state.turnInfo.pendingDevelopmentDecision?.operationId
+        ?? null;
       state.boardState.turnRecovery = {
         playerId: state.boardState.currentPlayer.id,
         turnNumber: state.boardState.turnNumber,
         deadlineAt: addMilliseconds(now, runtime.timing.reconnectGraceMs).toISOString(),
+        pendingOperationId,
       };
     }
     storeGameState(context.room.gameSnapshot, state, context.room.status);

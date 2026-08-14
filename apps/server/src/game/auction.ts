@@ -68,7 +68,6 @@ export const startAuction = (
       : state.turnInfo.pendingPropertyDecision?.continuation ?? null,
   };
   if (auction.source === 'DECLINED_PURCHASE') {
-    state.turnInfo.canBuyProp = false;
     delete state.turnInfo.pendingPropertyDecision;
   }
   state.boardState.auction = auction;
@@ -131,7 +130,7 @@ export const startNextBankPropertyAuction = (
     || state.boardState.auction
     || state.boardState.buildingContention
     || queue.currentAuctionId
-  ) return state.boardState.auction;
+  ) return state.boardState.auction ?? null;
   const tileID = queue.orderedRemainingTileIds.shift();
   if (tileID === undefined) {
     const continuation = queue.continuation;

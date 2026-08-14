@@ -1,7 +1,7 @@
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
-export const SOCKET_PROTOCOL_VERSION = 2 as const;
+export const SOCKET_PROTOCOL_VERSION = 3 as const;
 
 export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
 export type PlayerId = string;
@@ -13,6 +13,8 @@ export type AuctionId = string;
 export type GameCardId = string;
 export type DebtClaimId = string;
 export type BuildingContentionId = string;
+export type PaymentClaimId = DebtClaimId;
+export type ForcedSaleProposalId = string;
 
 export type RoomStatus = 'LOBBY' | 'IN_PROGRESS' | 'FINISHED';
 export type RoomRole = 'PLAYER' | 'SPECTATOR';
@@ -92,6 +94,7 @@ export type DeckCounts = Record<CardDeck, number>;
 
 export interface GamePrivateState {
   decks: GameDecks;
+  forcedSaleProposal?: ForcedSaleProposal | null;
 }
 
 export interface Player {
@@ -100,7 +103,9 @@ export interface Player {
   color: string;
   accountBalance: number;
   isJail: boolean;
-  jailRounds: number;
+  jailOpponentRoundsElapsed?: number;
+  /** v2 compatibility alias; v3 writes only jailOpponentRoundsElapsed. */
+  jailRounds?: number;
   // Exact ids preserve the source deck while a jail-free card is held.
   heldJailFreeCardIds: GameCardId[];
 }
@@ -112,6 +117,7 @@ export interface PublicPlayer extends Omit<Player, 'heldJailFreeCardIds'> {
 export interface PrivatePlayerState {
   playerId: PlayerId;
   heldJailFreeCardIds: GameCardId[];
+  forcedSaleProposal?: ForcedSaleProposal | null;
 }
 
 export interface FinishedPlayer {
@@ -152,14 +158,16 @@ export interface DiceValue {
 export interface CurrentPlayer {
   id: PlayerId;
   hasMoved: boolean;
-  // Consecutive doubles in this turn. It resets on turn handoff or jail.
-  doublesStreak: number;
+  /** v2 compatibility field; v3 never uses it. */
+  doublesStreak?: number;
 }
 
 export interface TurnRecovery {
   turnNumber: number;
   playerId: PlayerId;
   deadlineAt: string;
+  /** Operation currently waiting on this turn, if any; used for stale recovery. */
+  pendingOperationId?: string | null;
 }
 
 export type BuildingType = 'HOUSE' | 'HOTEL';
@@ -189,7 +197,7 @@ export interface BuildingContention {
 export interface PendingTurnContinuation {
   playerId: PlayerId;
   turnNumber: number;
-  rolledDoubles: boolean;
+  rolledDoubles?: boolean;
   forceAdvance?: boolean;
   resume?:
     | { kind: 'COMPLETE_TURN' }
@@ -205,10 +213,23 @@ export interface PendingPropertyDecision {
   continuation: PendingTurnContinuation;
 }
 
+export interface PendingDevelopmentDecision {
+  operationId: string;
+  playerId: PlayerId;
+  turnNumber: number;
+  tileID: number;
+  levelAtLanding: 0 | 1 | 2 | 3 | 4;
+  kind: 'HOUSES' | 'HOTEL';
+  continuation: PendingTurnContinuation;
+}
+
+export type PendingLandingDecision = PendingPropertyDecision | PendingDevelopmentDecision;
+
 export interface TurnInfo {
   // Compatibility projection while consumers migrate to the durable decision.
   canBuyProp?: boolean;
   pendingPropertyDecision?: PendingPropertyDecision;
+  pendingDevelopmentDecision?: PendingDevelopmentDecision;
 }
 
 export type DebtCreditor = 'PLAYER' | 'BANK';
@@ -240,6 +261,20 @@ export interface PaymentQueue {
   activeClaimIndex: number;
   continuation: PendingTurnContinuation;
   actionDeadlineAt: string;
+}
+
+export interface ForcedSaleProposal {
+  proposalId: ForcedSaleProposalId;
+  paymentOperationId: string;
+  claimId: PaymentClaimId;
+  sellerPlayerId: PlayerId;
+  buyerPlayerId: PlayerId;
+  tileID: number;
+  grossPrice: number;
+  sellerNetProceeds: number;
+  expectedHouses: number;
+  expectedMortgaged: boolean;
+  expiresAt: string;
 }
 
 export interface BankPropertyAuctionQueue {
@@ -302,10 +337,13 @@ export interface BoardState {
   // Set once a single player remains; drives the win screen.
   winner: Winner | null;
   // The live property auction, or null when none is running.
-  auction: Auction | null;
-  buildingContention: BuildingContention | null;
+  /** Removed from v3 snapshots; retained as an optional legacy read shape. */
+  auction?: Auction | null;
+  /** Removed from v3 snapshots; retained as an optional legacy read shape. */
+  buildingContention?: BuildingContention | null;
   paymentQueue: PaymentQueue | null;
-  bankPropertyAuctionQueue: BankPropertyAuctionQueue | null;
+  /** Removed from v3 snapshots; retained as an optional legacy read shape. */
+  bankPropertyAuctionQueue?: BankPropertyAuctionQueue | null;
 }
 
 export interface GameState {
@@ -334,7 +372,18 @@ export interface PublicDebtState {
   source: DebtSource;
   actionDeadlineAt: string;
   remainingClaimCount: number;
+  paymentOperationId?: string;
+  claimId?: PaymentClaimId;
+  sellableProperties?: Array<{
+    tileID: number;
+    grossPrice: number;
+    netProceeds: number;
+    houses: number;
+    mortgaged: boolean;
+  }>;
 }
+
+export type PublicPaymentShortfall = PublicDebtState;
 
 export interface PublicBuildingContention {
   buildingType: BuildingType;
@@ -356,14 +405,29 @@ export type PublicBoardState = Omit<
   | 'bankPropertyAuctionQueue'
 > & {
   turnRecovery: { playerId: PlayerId; deadlineAt: string } | null;
-  auction: PublicAuction | null;
-  buildingContention: PublicBuildingContention | null;
-  paymentQueue: PublicDebtState | null;
-  bankPropertyAuctionQueue: PublicBankPropertyAuctionQueue | null;
+  paymentShortfall?: PublicPaymentShortfall | null;
+  /** @deprecated v3 payloads omit auction/contention/Bank queue fields. */
+  auction?: PublicAuction | null;
+  /** @deprecated v3 payloads omit auction/contention/Bank queue fields. */
+  buildingContention?: PublicBuildingContention | null;
+  /** @deprecated v3 payloads omit auction/contention/Bank queue fields. */
+  paymentQueue?: PublicDebtState | null;
+  /** @deprecated v3 payloads omit auction/contention/Bank queue fields. */
+  bankPropertyAuctionQueue?: PublicBankPropertyAuctionQueue | null;
 };
 
 export interface PublicTurnInfo {
   canBuyProp?: boolean;
+  pendingLandingDecision?: {
+    kind: 'PURCHASE' | 'DEVELOP_HOUSES' | 'UPGRADE_HOTEL';
+    operationId: string;
+    playerId: PlayerId;
+    tileID: number;
+    levelAtLanding?: number;
+    maxQuantity?: number;
+    unitCost?: number;
+    price?: number;
+  };
 }
 
 export interface PublicGameState {
@@ -371,7 +435,8 @@ export interface PublicGameState {
   players: Record<PlayerId, PublicPlayer>;
   turnInfo: PublicTurnInfo;
   deckCounts: DeckCounts;
-  bankBuildingInventory: BankBuildingInventory;
+  /** @deprecated v3 no longer exposes finite Bank building inventory. */
+  bankBuildingInventory?: BankBuildingInventory;
   loaded: boolean;
 }
 
@@ -444,6 +509,7 @@ export interface ResumeSessionResult {
   room: PublicRoomState;
   privatePlayerState: PrivatePlayerState;
   pendingOffers: PrivateOffer[];
+  forcedSaleProposal?: ForcedSaleProposal | null;
 }
 
 export interface LeaveRoomResult {

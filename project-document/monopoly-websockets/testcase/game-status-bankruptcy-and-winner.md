@@ -1,32 +1,27 @@
-# Checklist — bankruptcy, forfeit, Bank pipeline và winner
+# Checklist — bankruptcy, forfeit, forced liquidation và winner
 
-## PLAYER creditor
+## Payment creditor
 
-- [ ] `[AUTO]` Declared bankruptcy pays available cash then transfers remaining
-  properties, mortgages and held jail-free cards to active `creditorPlayerId` using
-  `BANKRUPTCY_TO_PLAYER`; nothing becomes unowned accidentally.
-- [ ] `[AUTO]` Mortgage interest becomes correct follow-up BANK claim without losing
-  cyclic `PaymentQueue` order/index.
-- [ ] `[SOCKET]` If active debtor explicit leaves, same PLAYER-creditor transfer
-  runs but finished reason remains `LEFT`.
+- [ ] `[AUTO]` Affordable claims settle in ordered `PaymentQueue` order without a
+  negative balance; a shortfall exposes deterministic sellable gross/net values.
+- [ ] `[AUTO]` A debtor can sell to Bank in ascending tile order or create one
+  snapshot-bound forced-sale proposal; stale/replayed markers are no-ops.
+- [ ] `[SOCKET]` If active debtor explicitly leaves, auto-liquidation pays the
+  creditor where possible and finished reason remains `LEFT`.
 
-## BANK/no-player-creditor
+## Bank liquidation
 
-- [ ] `[AUTO]` Buildings return inventory, mortgage/listing clear, cards return to
-  source deck and properties enqueue ascending index into `BankPropertyAuctionQueue`.
-- [ ] `[AUTO][PG]` Multiple-property queue auctions sequentially and survives restart
-  without skip/duplicate award.
-- [ ] `[SOCKET]` Active BANK debtor leave uses Bank pipeline; no active
-  player-creditor debt surrenders to Bank and records `LEFT`.
-- [ ] `[AUTO][SOCKET]` A non-current forfeit Bank auction queue resumes through
-  `NO_TURN_CHANGE`; it cannot hand off or alter the unrelated current Player.
+- [ ] `[AUTO]` Forced Bank sale clears ownership, mortgage, listing and buildings;
+  it stops once the active claim is affordable.
+- [ ] `[AUTO][PG]` Payment deadline recovery repeats deterministic sales after a
+  fresh runtime, then continues later claims or eliminates only after assets end.
 
 ## Multi-claim/winner/reference safety
 
 - [ ] `[AUTO]` Multiple debtors/claims/eliminations do not recurse through stale
   IDs, skip active claim or advance turn twice.
-- [ ] `[AUTO]` Cleanup reconciles current Player, payment, private offers, auction,
-  contention, deck holders and Bank queue with no dangling stable-ID reference.
+- [ ] `[AUTO]` Cleanup reconciles current Player, payment, proposal, private offers
+  and deck holders with no dangling stable-ID reference.
 - [ ] `[AUTO][SOCKET]` Last active Player becomes stable winner once; room FINISHED,
   all live operation/deadline state clear; bankruptcy and leave reasons differ.
 - [ ] `[PG]` Finished/winner history restores and obeys retention; reconnect identity

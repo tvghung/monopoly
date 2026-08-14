@@ -21,17 +21,11 @@ const socketFunctions: SocketFunctions = {
   declineOffer: vi.fn(),
   makeSale: vi.fn(),
   removeSale: vi.fn(),
-  buildHouse: vi.fn(),
   sellHouse: vi.fn(),
   mortgageProperty: vi.fn(),
   unmortgageProperty: vi.fn(),
   payBail: vi.fn(),
   useJailCard: vi.fn(),
-  settleDebt: vi.fn(),
-  declareBankruptcy: vi.fn(),
-  declineProperty: vi.fn(),
-  placeBid: vi.fn(),
-  passBid: vi.fn(),
 };
 
 const gameState: PublicGameState = {

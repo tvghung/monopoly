@@ -17,7 +17,7 @@
 
 - `SOCKET_PROTOCOL_VERSION` phải được client gửi/kiểm tra cùng server. Client cũ
   nhận `UPGRADE_REQUIRED` thay vì chạy legacy unauthenticated flow.
-- `PlayerId`, `RoomId`, `SessionId`, `OfferId`, `AuctionId` là stable opaque IDs.
+- `PlayerId`, `RoomId`, `SessionId`, `OfferId`, `ForcedSaleProposalId` là stable opaque IDs.
 - `PublicRoomState` có room revision, lifecycle, host, 2–7 limits, roster
   ready/connected và public `GameState`.
 - `SocketData` chứa internal room/player/role/session/generation; không chứa raw token.
@@ -40,26 +40,26 @@ Payload không hợp lệ trả ACK `INVALID_REQUEST`; không được throw do 
 - Lifecycle: `join room`, `resume session`, `set ready`, `leave room`; không còn
   `new player`.
 - Mọi command gameplay/chat/trading có ACK.
-- `start game`, `roll dice`, `buy property`, jail/auction no-business-payload
-  commands không dùng dummy string/boolean.
+- `start game`, `roll dice`, jail và `wait in jail` no-business-payload commands
+  không dùng dummy string/boolean. Buy/do-not-buy/development payloads chỉ mang
+  operation ID và action được schema cho phép.
 - Trading request không mang actor. Accept/decline chỉ mang `{offerId}`.
 - Outbound bổ sung `offer expired`, `offer cancelled` và `session replaced`.
 
 ## Persistence boundary
 
 `PersistedGameState` loại `loaded`; persistence không được chứa socket identity,
-presence, credential/private offer hay runtime timer. Auction dùng `auctionId` và
-ISO `endsAt`; turn recovery dùng stable player/turn/deadline.
+presence, credential/private offer hay runtime timer. Payment/forced-sale/turn
+recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
 
 ## Standard Mode contracts và game data
 
-- `SOCKET_PROTOCOL_VERSION = 2`; client/server v1 bị từ chối bằng
+- `SOCKET_PROTOCOL_VERSION = 3`; client/server cũ bị từ chối bằng
   `UPGRADE_REQUIRED`.
 - Board Việt Nam canonical giữ index `0..39`, 8 color groups và toàn bộ numeric
   economy. Client presentation derive từ shared data, không có metadata duplicate.
-- Shared state định nghĩa `PendingTurnContinuation`,
-  `TurnInfo.pendingPropertyDecision`, `PaymentQueue`/`DebtClaim`,
-  `BankPropertyAuctionQueue`, `BuildingContention`, `Auction.kind`, `TradeBundle`,
+- Shared state định nghĩa `PendingTurnContinuation`, pending purchase/development
+  landing decisions, `PaymentQueue`/`DebtClaim`, forced-sale proposal, `TradeBundle`,
   transfer policy và public deck/card projections.
 - Private persisted `GamePrivateState.decks.chance.drawPile` và
   `GamePrivateState.decks.chest.drawPile` giữ exact draw order;

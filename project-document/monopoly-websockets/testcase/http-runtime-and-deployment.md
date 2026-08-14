@@ -5,7 +5,7 @@
 - `[AUTO]` Config validation/defaults: `apps/server/src/config.test.ts`.
 - `[AUTO]` HTTP liveness/readiness/shutdown projection: `apps/server/src/createServer.test.ts`.
 - `[AUTO]` Snapshot version/UUID/active-member inverse gates: `apps/server/src/rooms.test.ts`.
-- `[AUTO]` Due auction/buy/room cleanup: `apps/server/src/services/deadlineScheduler.test.ts`.
+- `[AUTO]` Due buy/development/payment/room cleanup: `apps/server/src/services/deadlineScheduler.test.ts`.
 - `[AUTO]` Test-adapter terminal retention: `apps/server/src/persistence/inMemory.test.ts`.
 - `[AUTO]` Migration order/checksum/required-table SQL:
   `apps/server/src/persistence/migrations.test.ts`.
@@ -21,14 +21,14 @@
 
 - [ ] Clean PostgreSQL runs migrations once; `db:status` reports current schema.
 - [ ] Forward migration stores canonical bilateral TradeBundle offer terms and
-  snapshot schema version 2 without destructive down migration.
+  snapshot schema version 3 without destructive down migration.
 - [ ] Any real server start with missing/invalid `DATABASE_URL` or incompatible schema
   fails before listen.
 - [ ] No production in-memory fallback exists.
 - [ ] `/healthz` remains liveness; `/readyz` reports healthy/unhealthy DB/schema.
 - [ ] DB save failure returns retryable ACK, leaves revision unchanged and emits no update.
 - [ ] Snapshot round-trip preserves stable references; unknown/deep-malformed fields,
-  cross-reference/invariant failures, over-500 logs and non-v2 version fail explicitly.
+  cross-reference/invariant failures, over-500 logs and non-v3 version fail explicitly.
 - [ ] Expected-version conflict cannot silently overwrite a newer room.
 - [ ] Local `compose.yaml` + `.env.example` support migrate/dev/restart workflow.
 - [ ] Production same-origin static/SPA and Socket.IO work; CORS is not authentication.
@@ -47,12 +47,11 @@
 
 ## Restart/recovery
 
-- [ ] Same DB restores room/session/host/ready plus exact doubles, pending
-  decision/continuation, payment claim/index, private decks/card holders, both auction kinds, Bank property
-  queue and building reserved unit.
-- [ ] v1 IN_PROGRESS reset is transactional/idempotent, preserves room/member/host/
+- [ ] Same DB restores room/session/host/ready plus pending landing decision/
+  continuation, payment claim/index, private decks/card holders and proposal terms.
+- [ ] v2 IN_PROGRESS reset is transactional/idempotent, preserves room/member/host/
   active session identity and never cascades reconnect credentials.
-- [ ] Due auction/offer/turn deadline is applied exactly once before state is served.
+- [ ] Due offer/turn/payment/proposal deadline is applied exactly once before state is served.
 - [ ] Cleanup honors pending/lobby/in-progress/finished TTL and never deletes merely-offline room.
 - [ ] Expired/revoked session rows purge after `TERMINAL_SESSION_RETENTION_MS` without
   touching active sessions.

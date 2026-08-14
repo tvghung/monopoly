@@ -21,8 +21,7 @@ describe('HTTP health endpoints', () => {
       new InMemoryPersistenceStore<RoomSnapshot>(),
       {
         reconnectGraceMs: 60_000,
-        debtActionTimeoutMs: 120_000,
-        buildingContentionMs: 10_000,
+        paymentShortfallActionTimeoutMs: 120_000,
         pendingSessionTtlMs: 300_000,
         terminalSessionRetentionMs: 604_800_000,
         lobbyRetentionMs: 86_400_000,

@@ -1,107 +1,47 @@
-# Turn, doubles, payment, bankruptcy và reconnect recovery
+# GameCore — turn, payment shortfall và forfeit v3
 
-## Scope
+## Luồng lượt
 
-- Dice/movement: `apps/server/src/game/dice.ts`.
-- Turn continuation: `apps/server/src/game/turn.ts`; `PaymentQueue`:
-  `apps/server/src/game/payment.ts`; bankruptcy/winner:
-  `apps/server/src/game/bankruptcy.ts`.
-- Socket orchestration: `apps/server/src/socket/turn.ts`.
-- Deadline/restart: room command boundary và deadline scheduler.
+- `roll dice` là server-authoritative. Server tạo 2d6, di chuyển theo index 0..39
+  và resolve card/property/tile trên draft room.
+- Đổ đôi chỉ là kết quả xúc xắc; không có extra roll hoặc triple-double jail.
+- `completeTurnResolution` là cổng handoff duy nhất và chỉ trả `ADVANCE_TURN`.
+- Landing tile unowned tạo `pendingPropertyDecision` với operation ID. Landing
+  property của chính người chơi tạo `pendingDevelopmentDecision` chứa level tại
+  thời điểm đáp; quyết định gồm `SKIP`, xây 1..4 Nhà trong khoảng còn thiếu, hoặc
+  nâng cấp Khách sạn ở level 4. Không được build lại landing cũ sau reconnect.
 
-## Start và turn order
+## Jail
 
-- Lobby vẫn yêu cầu 2–7 active Player đều connected/ready và host start.
-- Mỗi Player bắt đầu tại index `0` với 1500 game units.
-- Khi start, server roll 2d6 cho mọi Player; nhóm đồng hạng cao nhất reroll tới khi
-  có một người thắng. Người thắng đứng đầu persisted turn order; không thêm pre-game
-  client event hoặc tin dice từ client.
-- Mọi roll/order/log được commit cùng transition `LOBBY → IN_PROGRESS` trước ACK.
+- Vào tù đặt `isJail=true`, `jailOpponentRoundsElapsed=0`.
+- Double giải phóng và di chuyển nhưng vẫn hoàn tất lượt; failed roll hoặc
+  `wait in jail` kết thúc lượt.
+- Khi handoff chạm tới seat đang bị tù, counter tăng một lần. Counter đạt 2 thì
+  tự động giải phóng trước lượt của seat đó. Người chơi rời/disconnect không làm
+  counter tăng ngoài handoff đã commit.
+- `pay bail` chỉ được phép khi balance đủ 50 và trừ trực tiếp; không mở payment
+  queue mới. Jail-free card giữ identity và trả về đúng deck khi dùng.
 
-## Movement và doubles
+## Payment shortfall
 
-- Server roll hai dice độc lập `1..6`. Đi qua hoặc đáp index `0` nhận 200 units;
-  direct-to-jail không nhận thưởng.
-- `doublesStreak` thuộc current turn, reset khi handoff hoặc vào tù.
-- Doubles lần 1/2 vẫn di chuyển và resolve toàn bộ tile/card/payment/buy/auction.
-  Sau khi không còn blocking state, `completeTurnResolution` trả `EXTRA_ROLL` và
-  giữ cùng current Player với `hasMoved=false`.
-- Doubles lần 3 đưa thẳng Player tới index `10`, không di chuyển theo roll, reset
-  streak và kết thúc lượt.
-- Doubles dùng để ra tù không tạo extra roll.
-- Successful `completeTurnResolution(state, continuation)` trả
-  `EXTRA_ROLL | ADVANCE_TURN`; blocker/stale continuation hoặc internal
-  `NO_TURN_CHANGE` completion trả `null` và không handoff. Buy decision được biểu
-  diễn bằng `TurnInfo.pendingPropertyDecision`; payment, property/building auction
-  và Bank queue nhúng `PendingTurnContinuation` cho tới khi resolution xong.
-- Internal resume kind: `COMPLETE_TURN` hoàn tất roll đang chờ;
-  `MOVE_STORED_DICE` tiếp tục bằng dice đã persist; `NO_TURN_CHANGE` hoàn tất Bank
-  auction do non-current forfeit mà không handoff current Player không liên quan.
+- Rent/card payments tạo `PaymentQueue` gồm ordered claims, `activeClaimIndex`,
+  continuation và absolute `actionDeadlineAt`.
+- Trong shortfall, ordinary listing/sale/offer/build/mortgage actions bị khóa;
+  debtor chỉ được bán tài sản cho Bank hoặc gửi một forced-sale proposal cho một
+  active buyer. Proposal lưu trong private snapshot và gắn operation/claim,
+  property fingerprint, gross/net authoritative price và expiry không vượt claim
+  deadline.
+- Bank sale dùng `floor((price + investedBuildCost) * 70 / 100)` gross; mortgage
+  principal được trừ một lần để tính seller net. Scheduler tự động bán theo tile
+  index khi deadline hết, retry claims, rồi mới loại debtor khi hết tài sản.
+- Forced-sale buyer trả gross, Bank nhận mortgage principal ngầm qua transfer,
+  seller nhận net và claim tiếp tục trong cùng room CAS.
 
-## PaymentQueue và DebtClaim
+## Forfeit/winner/recovery
 
-Mọi khoản phải trả đi qua `PaymentQueue`, không trừ âm rồi auto-remove.
-`PaymentQueue.orderedClaims` giữ thứ tự ổn định cùng `activeClaimIndex`,
-`continuation` và absolute `actionDeadlineAt`. Mỗi `DebtClaim` có các trường
-settlement bắt buộc:
-
-```text
-debtorPlayerId
-creditor: 'PLAYER' | 'BANK'
-creditorPlayerId?   // bắt buộc khi creditor = PLAYER
-amount
-remainingAmount
-source
-```
-
-Implementation được phép bổ sung `claimId` để idempotency và optional `status` để
-validate/recovery, nhưng không thay đổi các trường settlement trên.
-
-- Queue giữ thứ tự claim theo vòng Player ổn định và `activeClaimIndex`; các card
-  collect/pay-each-player không phụ thuộc object-key iteration.
-- Chỉ active claim được settle. Tiền có sẵn chuyển ngay; phần còn lại giữ
-  `remainingAmount`, khóa roll/turn handoff nhưng vẫn cho debtor bán building, cầm
-  cố và thực hiện giao dịch hợp lệ.
-- Trong lúc queue còn active, không chạy gameplay thường hoặc cho debtor bid/spend;
-  các Player khác chỉ được thực hiện interaction cần thiết cho debt recovery. Vì
-  vậy Bank-property auction có thể chạy cùng queue khi tài sản đã bị trả Bank;
-  bidder không phải debtor được đặt giá, còn debtor vẫn bị khóa.
-- Sau mỗi action thanh lý, payment tiếp tục từ active claim; claim đủ tiền được
-  remove/advance đúng một lần. Không có phantom ACK/broadcast nếu save thất bại.
-- Player explicit xác nhận phá sản khi không thể/không tiếp tục thanh lý. GameCore
-  không tự suy diễn một private trade tương lai sẽ xảy ra.
-
-## Bankruptcy và forfeit
-
-- Nợ PLAYER: transfer tiền còn lại, property (kể cả mortgage) và held jail-free
-  card cho `creditorPlayerId` theo `BANKRUPTCY_TO_PLAYER`; không release tài sản
-  thành unowned. Recipient xử lý mortgage interest theo property rule.
-- Nợ BANK: buildings trả Bank, mortgage clear, jail-free cards trở lại đúng deck;
-  property đi theo board index vào durable `BankPropertyAuctionQueue`, rồi auction
-  từng tài sản theo `RETURN_TO_BANK`/`BANK_AUCTION_AWARD`.
-- Nếu debtor của active claim explicit leave: PLAYER creditor dùng cùng
-  bankruptcy-to-player pipeline; BANK creditor dùng Bank pipeline. Chỉ khi không có
-  active player-creditor debt mới surrender-to-Bank.
-- Finished reason giữ `BANKRUPT | LEFT`; forfeit không đổi nhãn thành bankruptcy dù
-  cleanup dùng Bank pipeline.
-- Cleanup hủy listing/private offer liên quan, reconcile active auction/queue và
-  giữ mọi stable-ID reference hợp lệ.
-- Player cuối cùng còn active trở thành `winner` đúng một lần; room chuyển
-  `FINISHED`, clear live pending/deadline/auction state nhưng không đổi winner ID.
-
-## Disconnect/restart
-
-- Offline current Player giữ persisted `{turnNumber, playerId, deadlineAt}`; default
-  grace 60 giây. Reconnect trước expiry giữ chính xác doubles, pending
-  decision/continuation, payments, deck/auction và current turn.
-- Active auction/payment resolution không bị generic grace callback skip. Khi grace
-  hết, buy wait trở thành property auction; các state khác dùng explicit recovery
-  policy và không tăng jail attempt nếu không có roll.
-- Recovery callback phải match operation/turn/deadline dưới room lock + CAS; commit
-  trước ACK/broadcast và không apply hai lần sau restart/race.
-
-## Tests
-
-Xem [turn testcase](../testcase/turn-movement-buy-and-jail.md),
-[bankruptcy testcase](../testcase/game-status-bankruptcy-and-winner.md),
-[auction testcase](../testcase/auction.md) và PostgreSQL restart suite.
+- Explicit leave của active payer hủy proposal/ordinary offers, auto-liquidates
+  deterministically để trả creditor rồi marks `LEFT`; tài sản còn lại trả Bank,
+  không đấu giá. Leave của non-payer trả tài sản trực tiếp cho Bank.
+- Winner supersedes every pending landing/payment/proposal/turn-recovery marker.
+- Scheduler rechecks exact room/turn/operation/claim/deadline marker under the room
+  lock; stale/replayed callbacks are no-ops.

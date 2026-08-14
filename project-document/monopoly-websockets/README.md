@@ -25,7 +25,7 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
 ## Invariants nguồn thẩm quyền
 
 - Public player identity là stable UUID. `socket.id` không được dùng làm owner,
-  buyer, seller, turn, auction hoặc winner identity.
+  buyer, seller, turn hoặc winner identity.
 - Browser giữ raw reconnect token; database chỉ giữ SHA-256 hash.
 - Valid token reclaim đúng Seat. Newest authenticated connection wins.
 - Disconnect chỉ đổi runtime presence; explicit `leave room` mới revoke/remove.
@@ -37,14 +37,15 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
   rồi mới ACK/broadcast monotonic room revision.
 - Public projector không phát session/token hash/private offers. Private delivery dùng
   `player:<playerId>`, public delivery dùng `room:<roomId>`.
-- Auction, offer và turn recovery dùng absolute deadline; timer handle không persist.
+- Offer, turn recovery, payment shortfall và forced-sale proposal dùng absolute
+  deadline; timer handle không persist.
 - Board giữ index `0..39` và economy số nguyên hiện tại; `1 game unit = 1.000 VNĐ`.
-- Successful `completeTurnResolution` trả `EXTRA_ROLL | ADVANCE_TURN`; buy decision dùng
-  `TurnInfo.pendingPropertyDecision`, còn payment/auction wait nhúng durable
+- Successful `completeTurnResolution` chỉ handoff `ADVANCE_TURN`; buy/development
+  landing decision dùng operation ID, còn payment/forced-sale wait nhúng durable
   `PendingTurnContinuation` thay vì advance sớm.
-- Hidden `GamePrivateState.decks`, `PaymentQueue`, `BankPropertyAuctionQueue`,
-  doubles và building contention nằm trong snapshot v2 nhưng public projector
-  không được lộ deck order.
+- Hidden `GamePrivateState.decks`, `PaymentQueue` và forced-sale proposal nằm trong
+  snapshot v3 nhưng public projector không được lộ deck order hoặc proposal terms
+  cho người chơi khác.
 
 ## Thứ tự đọc
 
@@ -62,9 +63,9 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
 | Join/resume/reconnect/token | [Client/join-room.instruction.md](./Client/join-room.instruction.md), [Api/socket-session.instruction.md](./Api/socket-session.instruction.md) | `App.tsx`, `playerSessionStorage.ts`, `socket/session.ts`, `playerSessionService.ts` |
 | Host/lobby/ready/leave | [GameCore/room-lifecycle.instruction.md](./GameCore/room-lifecycle.instruction.md), [Api/socket-lobby.instruction.md](./Api/socket-lobby.instruction.md) | `Lobby.tsx`, room aggregate, `socket/lobby.ts` |
 | DB/schema/CAS/recovery | [Persistence/postgres-and-recovery.instruction.md](./Persistence/postgres-and-recovery.instruction.md) | `persistence/`, `services/`, `migrations/` |
-| Turn/doubles/payment/bankruptcy/recovery | [GameCore/turn-movement-and-bankruptcy.instruction.md](./GameCore/turn-movement-and-bankruptcy.instruction.md) | `game/turn.ts`, turn handler, deadline scheduler |
+| Turn/payment shortfall/bankruptcy/recovery | [GameCore/turn-movement-and-bankruptcy.instruction.md](./GameCore/turn-movement-and-bankruptcy.instruction.md) | `game/turn.ts`, `game/payment.ts`, turn handler, deadline scheduler |
 | Trading/private offer | [Client/trading-market.instruction.md](./Client/trading-market.instruction.md), [Api/socket-trading.instruction.md](./Api/socket-trading.instruction.md) | trading handler, `trade_offers`, offer UI |
-| Property/building/bank auctions | [GameCore/auction.instruction.md](./GameCore/auction.instruction.md) | `game/auction.ts`, socket auction, scheduler |
+| Property/building/mortgage/forced sale | [GameCore/property-economy.instruction.md](./GameCore/property-economy.instruction.md) | `game/property.ts`, `game/transfer.ts`, `socket/debt.ts` |
 | Contracts/runtime schema | [Shared/socket-and-state-contracts.instruction.md](./Shared/socket-and-state-contracts.instruction.md) | `types.ts`, `events.ts`, `socketSchemas.ts` |
 | HTTP/readiness/deploy | [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md) | create/start server, migration startup, Docker/Render/CI |
 | Board/card/deck data | [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md) | shared canonical board/cards và private deck state |

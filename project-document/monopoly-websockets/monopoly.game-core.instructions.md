@@ -9,7 +9,7 @@
 ## Identity và aggregate
 
 - Mọi player reference là stable `PlayerId`, không phải `socket.id`.
-- `GameState.players`, turn order/current player, ownership, market, auction,
+- `GameState.players`, turn order/current player, ownership and market,
   finished players và winner phải giữ reference consistency.
 - Room metadata có lifecycle `LOBBY | IN_PROGRESS | FINISHED`, host ID, ready Seat
   metadata và monotonic aggregate version.
@@ -22,10 +22,10 @@
 | Trách nhiệm | Code | Instruction |
 | --- | --- | --- |
 | Room/Seat/host/ready/leave | `rooms.ts`, lifecycle services | [GameCore/room-lifecycle.instruction.md](./GameCore/room-lifecycle.instruction.md) |
-| Turn/doubles/payment/bankruptcy/winner/recovery | `game/turn.ts`, `game/dice.ts` | [GameCore/turn-movement-and-bankruptcy.instruction.md](./GameCore/turn-movement-and-bankruptcy.instruction.md) |
+| Turn/payment shortfall/bankruptcy/winner/recovery | `game/turn.ts`, `game/dice.ts`, `game/payment.ts` | [GameCore/turn-movement-and-bankruptcy.instruction.md](./GameCore/turn-movement-and-bankruptcy.instruction.md) |
 | Tile/card/jail | `game/tiles.ts` | [GameCore/tile-cards-and-jail-resolution.instruction.md](./GameCore/tile-cards-and-jail-resolution.instruction.md) |
 | Property economy | `game/property.ts` | [GameCore/property-economy.instruction.md](./GameCore/property-economy.instruction.md) |
-| Auction | `game/auction.ts` | [GameCore/auction.instruction.md](./GameCore/auction.instruction.md) |
+| Forced sale | `game/payment.ts`, `game/bankruptcy.ts`, `socket/debt.ts` | [testcase/payment-shortfall-and-forced-sale.md](./testcase/payment-shortfall-and-forced-sale.md) |
 
 ## Lifecycle rules
 
@@ -44,31 +44,32 @@ GameCore mutates a draft passed by caller. Caller serializes commands, validates
 aggregate references, commits by expected version and only then publishes. Domain
 functions must not broadcast, ACK or assume persistence has already succeeded.
 
-## Turn/auction deadline rules
+## Turn/payment deadline rules
 
 - Offline current Player receives persisted configured recovery deadline (default
   60 seconds).
 - Reconnect before committed expiry clears marker and preserves exact turn.
-- Expiry starts auction when waiting on `canBuyProp`; otherwise advances the turn.
-- Active auction owns progression and is not overridden by turn grace.
-- Auction persists `auctionId` and absolute `endsAt`; bid may extend deadline to at
-  least 15 seconds. Countdown is derived, not persisted per tick.
+- Expiry resolves a pending purchase as Do Not Buy or a development prompt as Skip;
+  otherwise it advances the turn.
+- Payment shortfall expiry sells owned properties in deterministic tile order and
+  eliminates the debtor only after all sellable properties are exhausted.
+- Forced-sale proposal persists its proposal ID and absolute expiry inside the
+  snapshot; only the seller and selected buyer receive its terms.
 - Deadline callbacks must match operation ID/turn/deadline/version before mutation.
 
 ## Standard Mode
 
 - Board Việt Nam giữ index `0..39`, 2d6 server-authoritative, 1500 units ban đầu và
   200 units khi đi qua/đáp Xuất Phát; tiền chỉ scale khi format sang VNĐ.
-- `doublesStreak` sống theo turn. Sau khi tile/card/payment/auction resolution hoàn
-  tất, `completeTurnResolution` trả `EXTRA_ROLL` cho doubles thứ nhất/hai hoặc
-  `ADVANCE_TURN`; doubles thứ ba vào tù, không di chuyển.
+- Đổ đôi không cấp thêm lượt. Mỗi landing được resolve một lần; landing property
+  của chính player tạo pending development decision với level tại thời điểm đáp.
 - Payment không tự làm balance âm rồi xóa player. `PaymentQueue`/`DebtClaim` giữ
   creditor/source; player được thanh lý tài sản hợp lệ trước khi khai phá sản.
-- Bankruptcy-to-player, return-to-bank, bank auction và voluntary trade dùng policy
-  transfer riêng; forfeit `LEFT` không được giả làm bankruptcy.
-- Nhà/Khách Sạn giới hạn 32/12 được derive từ board + một
-  `BuildingContention.reservedUnit`; Bank-property auctions chạy tuần tự qua durable
-  `BankPropertyAuctionQueue`.
+- Forced sale to Bank and forced sale to another active player use separate transfer
+  policies; forfeit `LEFT` first settles an active payer and then returns remaining
+  assets to the Bank without proceeds.
+- Houses/hotels have no finite Bank inventory or colour-group/even-building gate;
+  property invariant remains 0..5, non-street properties have zero buildings.
 - Deck order/jail-free ownership là authoritative private state và phải giữ nguyên
   qua reconnect/restart.
 

@@ -10,9 +10,9 @@
 
 ## Tile behavior
 
-- `normal`: unowned → `TurnInfo.pendingPropertyDecision` mua/đấu giá; owner khác →
-  enqueue rent claim; own tile → complete resolution.
-- `expense`: index 4 trả 200, index 38 trả 75 cho BANK qua `PaymentQueue`.
+- `normal`: unowned → `TurnInfo.pendingPropertyDecision` mua/không mua; owner khác
+  → enqueue rent claim; own tile → same-landing development decision when eligible.
+- `expense`: tax/fee tiles are no-op in the simplified rules.
 - `railroad`/`company`: áp rent trong property-economy instruction.
 - `gojail`: direct index 10, reset doubles/jail attempts, không thưởng Xuất Phát.
 - `jail`: landing bình thường là “Thăm Tù”.
@@ -46,19 +46,19 @@ Player.heldJailFreeCardIds: GameCardId[]
 - Card money/multi-player transfer tạo ordered `DebtClaim`, không mutate balance âm
   hoặc iterate Player theo object-key order.
 
-## Jail Standard Mode
+## Jail simplified rules
 
-Ba cách thoát trước/một phần roll:
+Ba cách xử lý lượt tù:
 
-1. Trả 50 units bail qua claim BANK, rồi roll bình thường.
+1. Trả 50 units bail trực tiếp nếu đủ tiền, rồi roll bình thường.
 2. Dùng held jail-free `cardId`, trả card về đúng deck, rồi roll bình thường.
-3. Roll doubles trong tối đa ba lượt thử.
+3. Roll doubles để ra tù và di chuyển; không extra roll.
 
 - Doubles ở tù: clear jail, di chuyển bằng roll, resolve tile; không extra roll.
-- Fail attempt 1/2: tăng persisted `jailRounds`, kết thúc lượt.
-- Fail attempt 3: bắt buộc trả 50; sau khi claim settle, clear jail, di chuyển bằng
-  chính dice result đã persist và resolve tile. Không mất dice khi debt wait/restart.
-- Player trong tù vẫn có thể nhận rent, trade, auction và quản lý property khi các
+- Failed roll hoặc `wait in jail` kết thúc lượt; persisted
+  `jailOpponentRoundsElapsed` tăng khi lượt đi qua người đang bị tù. Lần đến thứ hai
+  tự động ra tù trước khi hành động.
+- Player trong tù vẫn có thể nhận rent và quản lý property khi các
   domain guard khác cho phép.
 
 ## Tests

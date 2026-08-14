@@ -11,10 +11,10 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
 | Join/restore/reconnect | [join-room.instruction.md](./join-room.instruction.md) | `App.tsx`, `JoinForm.tsx`, session storage, overlay |
 | Lobby/roster/start/winner | [game-status.instruction.md](./game-status.instruction.md) | Lobby/Dashboard/PlayerList/WinnerBanner |
 | Board/spectator | [game-board.instruction.md](./game-board.instruction.md) | Board/Tile/BackOfCard/SpectatorBanner |
-| Turn/doubles/payment/jail | [turn-actions.instruction.md](./turn-actions.instruction.md) | Dice/BuyPrompt/Jail/payment controls |
+| Turn/landing/payment/jail | [turn-actions.instruction.md](./turn-actions.instruction.md) | Dice/BuyPrompt/DevelopmentPrompt/Jail/Debt controls |
 | Property/build/mortgage | [property-management.instruction.md](./property-management.instruction.md) | BackOfCard/Tile |
 | `TradeBundle`/private offers | [trading-market.instruction.md](./trading-market.instruction.md) | Market/SellPrompts/IncomingOffers |
-| Property/building auction | [auction.instruction.md](./auction.instruction.md) | AuctionPanel |
+| Forced sale proposal | [../testcase/payment-shortfall-and-forced-sale.md](../testcase/payment-shortfall-and-forced-sale.md) | DebtPanel/ForcedSaleProposalPanel |
 | Log/chat | [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md) | Log |
 
 ## Client invariants
@@ -25,8 +25,9 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
 - Board/property metadata derive từ `@monopoly/shared`; không duplicate 40-row data.
 - Mọi game-unit hiển thị qua một formatter: `60 → 60.000 ₫`,
   `1500 → 1.500.000 ₫`; không còn `$`, `$M`, USD.
-- Client không nhận/render exact `DeckState` hoặc credential. Pending debt/action và
-  auction chỉ dùng public projection cần cho quyết định UX.
+- Client không nhận/render exact `DeckState` hoặc credential. Pending landing,
+  payment shortfall và seller/buyer forced-sale proposal chỉ dùng projection cần
+  cho quyết định UX.
 
 ## Checks
 

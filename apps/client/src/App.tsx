@@ -17,6 +17,7 @@ import type {
   PublicGameState,
   RoomRole,
   SessionReplacedInfo,
+  ForcedSaleProposal,
 } from '@monopoly/shared';
 import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
 import Board from './components/Board';
@@ -46,7 +47,7 @@ const initialState: PublicGameState = {
     gameStarted: false,
     players: [],
     finishedPlayers: {},
-    currentPlayer: { id: '', hasMoved: false, doublesStreak: 0 },
+    currentPlayer: { id: '', hasMoved: false },
     turnNumber: 0,
     turnRecovery: null,
     logs: [],
@@ -54,15 +55,11 @@ const initialState: PublicGameState = {
     ownedProps: {},
     openMarket: {},
     winner: null,
-    auction: null,
-    buildingContention: null,
-    paymentQueue: null,
-    bankPropertyAuctionQueue: null,
+    paymentShortfall: null,
   },
   players: {},
   turnInfo: {},
   deckCounts: { chance: 0, chest: 0 },
-  bankBuildingInventory: { housesAvailable: 32, hotelsAvailable: 12 },
   loaded: false,
 };
 
@@ -372,6 +369,13 @@ export default function App() {
       setPrivatePlayerState(incoming);
     };
 
+    const onForcedSaleProposal = (proposal: ForcedSaleProposal | null) => {
+      if (roleRef.current !== 'PLAYER' || !playerIdRef.current) return;
+      setPrivatePlayerState(current => current
+        ? { ...current, forcedSaleProposal: proposal }
+        : current);
+    };
+
     const handleOfferResult = (result: OfferResult) => {
       setPrivateOffers(current => current.filter(offer => offer.offerId !== result.offerId));
       const verb = result.status === 'ACCEPTED'
@@ -416,6 +420,7 @@ export default function App() {
     socket.on('connect_error', onConnectError);
     socket.on('update', onUpdate);
     socket.on('private player state', onPrivatePlayerState);
+    socket.on('forced sale proposal', onForcedSaleProposal);
     socket.on('offer on prop', onOffer);
     socket.on('offer accepted', handleOfferResult);
     socket.on('offer declined', handleOfferResult);
@@ -431,6 +436,7 @@ export default function App() {
       socket.off('connect_error', onConnectError);
       socket.off('update', onUpdate);
       socket.off('private player state', onPrivatePlayerState);
+      socket.off('forced sale proposal', onForcedSaleProposal);
       socket.off('offer on prop', onOffer);
       socket.off('offer accepted', handleOfferResult);
       socket.off('offer declined', handleOfferResult);
@@ -461,7 +467,17 @@ export default function App() {
 
     return {
       rollDice: () => { if (gameCommandAllowed()) socket.emit('roll dice', ack); },
-      buyProperty: () => { if (gameCommandAllowed()) socket.emit('buy property', ack); },
+      buyProperty: (operationId) => {
+        if (!gameCommandAllowed()) return;
+        socket.emit('buy property', { operationId }, ack);
+      },
+      doNotBuy: (operationId) => {
+        if (gameCommandAllowed()) socket.emit('do not buy', { operationId }, ack);
+      },
+      resolveDevelopment: (request) => {
+        if (gameCommandAllowed()) socket.emit('resolve development', request, ack);
+      },
+      waitInJail: () => { if (gameCommandAllowed()) socket.emit('wait in jail', ack); },
       sendChat: (message) => {
         if (connected) socket.emit('send chat', message, ack);
       },
@@ -484,9 +500,6 @@ export default function App() {
       removeSale: (tileID) => {
         if (gameCommandAllowed()) socket.emit('remove sale', { tileID }, ack);
       },
-      buildHouse: (tileID) => {
-        if (gameCommandAllowed()) socket.emit('build house', tileID, ack);
-      },
       sellHouse: (tileID) => {
         if (gameCommandAllowed()) socket.emit('sell house', tileID, ack);
       },
@@ -498,11 +511,18 @@ export default function App() {
       },
       payBail: () => { if (gameCommandAllowed()) socket.emit('pay bail', ack); },
       useJailCard: () => { if (gameCommandAllowed()) socket.emit('use jail card', ack); },
-      settleDebt: () => { if (gameCommandAllowed()) socket.emit('settle debt', ack); },
-      declareBankruptcy: () => { if (gameCommandAllowed()) socket.emit('declare bankruptcy', ack); },
-      declineProperty: () => { if (gameCommandAllowed()) socket.emit('decline property', ack); },
-      placeBid: (amount) => { if (gameCommandAllowed()) socket.emit('place bid', amount, ack); },
-      passBid: () => { if (gameCommandAllowed()) socket.emit('pass bid', ack); },
+      sellPropertyToBank: (request) => {
+        if (gameCommandAllowed()) socket.emit('sell property to bank', request, ack);
+      },
+      proposeForcedSale: (request) => {
+        if (gameCommandAllowed()) socket.emit('propose forced sale', request, response => showCommandFailure(response));
+      },
+      acceptForcedSale: (proposalId) => {
+        if (gameCommandAllowed()) socket.emit('accept forced sale', { proposalId }, ack);
+      },
+      rejectForcedSale: (proposalId) => {
+        if (gameCommandAllowed()) socket.emit('reject forced sale', { proposalId }, ack);
+      },
     };
   }, [canMutate, connected, showCommandFailure, toast]);
 

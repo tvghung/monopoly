@@ -21,6 +21,7 @@ export default function JailPanel() {
     <section className="jail-panel" role="status" aria-live="polite">
       <h3 className="jail-panel__title">Bạn đang ở Nhà Tù</h3>
       <p className="jail-panel__hint">Hãy đổ đôi để thoát, hoặc chọn một cách sau:</p>
+      <p aria-live="polite">Vòng đối thủ đã trôi qua: {(myPlayer.jailOpponentRoundsElapsed ?? myPlayer.jailRounds ?? 0)}/2</p>
       <div className="jail-panel__actions">
         <button
           className="button__purchase--yes"
@@ -41,6 +42,9 @@ export default function JailPanel() {
             </button>
           )
           : null}
+        <button type="button" onClick={() => socketFunctions.waitInJail?.()}>
+          Chờ hết lượt trong tù
+        </button>
       </div>
     </section>
   );

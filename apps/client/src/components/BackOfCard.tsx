@@ -1,5 +1,4 @@
 import { useContext, useEffect, useRef } from 'react';
-import { colorGroups } from '@monopoly/shared';
 import type { Tile } from '@monopoly/shared';
 import { motion, useReducedMotion } from 'framer-motion';
 import stateContext from '../internal';
@@ -29,7 +28,6 @@ function getTileDetails(tile: Tile): TileDetail[] {
       ...(typeof tile.rent === 'number'
         ? [
           { label: 'Tiền thuê cơ bản', value: formatMoney(tile.rent) },
-          { label: 'Đủ nhóm màu, chưa xây', value: `${formatMoney(tile.rent)} ×2` },
         ]
         : []),
       ...rentDetails,
@@ -71,9 +69,6 @@ function getTileDetails(tile: Tile): TileDetail[] {
   if (tile.tileType === 'chest') {
     return [{ label: 'Rút thẻ Khí Vận trên cùng và thực hiện nội dung trên thẻ.' }];
   }
-  if (tile.tileType === 'expense' && typeof tile.rent === 'number') {
-    return [{ label: 'Số tiền phải nộp', value: formatMoney(tile.rent) }];
-  }
   if (tile.tileType === 'start') {
     return [{ label: `Đi qua hoặc dừng tại đây nhận ${formatMoney(200)}.` }];
   }
@@ -106,53 +101,29 @@ const BackOfCard = ({
     closeButtonRef.current?.focus();
   }, []);
 
-  // Mirror the server's build/mortgage rules only to explain disabled controls;
-  // the server remains authoritative for every command.
+  // Development is landing-bound; this panel only exposes local sale and
+  // mortgage actions. The server remains authoritative for every command.
   const isStreet = tile.tileType === 'normal' && typeof tile.houseCost === 'number';
-  const group = tile.color ? colorGroups[tile.color] : undefined;
-  const ownsGroup = !!group && group.every(tileId => (
-    state.boardState.ownedProps[tileId]?.id === playerId
-  ));
-  const groupHouses = group
-    ? group.map(tileId => state.boardState.ownedProps[tileId]?.houses ?? 0)
-    : [];
-  const minGroupHouses = groupHouses.length ? Math.min(...groupHouses) : 0;
-  const maxGroupHouses = groupHouses.length ? Math.max(...groupHouses) : 0;
-  const groupHasMortgage = !!group && group.some(tileId => (
-    state.boardState.ownedProps[tileId]?.mortgaged
-  ));
-  const groupHasBuildings = groupHouses.some(houses => houses > 0);
   const myBalance = typeof playerId === 'string'
     ? state.players[playerId]?.accountBalance ?? 0
     : 0;
-  const houseCost = tile.houseCost ?? 0;
   const houses = owned?.houses ?? 0;
   const isMortgaged = !!owned?.mortgaged;
   const mortgageValue = Math.floor((tile.price ?? 0) / 2);
   const unmortgageCost = Math.ceil(mortgageValue * 1.1);
 
-  const canBuild = isStreet && ownsGroup && !groupHasMortgage && !isMortgaged
-    && houses < 5 && houses === minGroupHouses && myBalance >= houseCost;
-  const canSellHouse = isStreet && houses > 0 && houses === maxGroupHouses;
-  const canMortgage = !isMortgaged && (!isStreet || !groupHasBuildings);
+  const canSellHouse = isStreet && houses > 0;
+  const canMortgage = !isMortgaged && houses === 0;
   const canUnmortgage = isMortgaged && myBalance >= unmortgageCost;
 
-  const buildTitle = (() => {
-    if (canBuild) return `Xây thêm với giá ${formatMoney(houseCost)}`;
-    if (!ownsGroup) return 'Cần sở hữu toàn bộ nhóm màu để xây';
-    if (groupHasMortgage || isMortgaged) return 'Cần chuộc toàn bộ nhóm màu trước';
-    if (houses >= 5) return 'Tài sản đã có Khách Sạn';
-    if (houses !== minGroupHouses) return 'Phải xây đều trong nhóm màu';
-    return `Không đủ tiền xây (${formatMoney(houseCost)})`;
-  })();
   const sellHouseTitle = (() => {
     if (canSellHouse) return 'Bán một Nhà về Ngân hàng';
     if (houses === 0) return 'Tài sản không có Nhà để bán';
-    return 'Phải bán từ tài sản được xây nhiều nhất trong nhóm';
+    return 'Tài sản không có Nhà để bán';
   })();
   const mortgageTitle = (() => {
     if (canMortgage) return `Cầm cố để nhận ${formatMoney(mortgageValue)}`;
-    if (groupHasBuildings) return 'Phải bán hết công trình trong toàn bộ nhóm màu trước';
+    if (houses > 0) return 'Phải bán hết công trình trên tài sản trước';
     return 'Tài sản đã được cầm cố';
   })();
   const unmortgageTitle = canUnmortgage
@@ -228,7 +199,6 @@ const BackOfCard = ({
                 {isStreet && !isMortgaged
                   ? (
                     <>
-                      <button type="button" disabled={!canBuild} title={buildTitle} onClick={() => socketFunctions.buildHouse(id)} className="tile-back__button">Xây</button>
                       <button type="button" disabled={!canSellHouse} title={sellHouseTitle} onClick={() => socketFunctions.sellHouse(id)} className="tile-back__button">Bán Nhà</button>
                     </>
                   )

@@ -264,7 +264,7 @@ export class PlayerSessionService {
       color,
       accountBalance: 1500,
       isJail: false,
-      jailRounds: 0,
+      jailOpponentRoundsElapsed: 0,
       heldJailFreeCardIds: [],
     };
     snapshot.gameState.boardState.players = activePlayerIds(snapshot);

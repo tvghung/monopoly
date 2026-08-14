@@ -25,19 +25,15 @@ First activated Seat is host. Temporary disconnect never transfers host or ready
 - Lobby Player: revoke session, remove Seat, transfer host to lowest remaining join
   order; delete empty room.
 - In-progress Player: confirmed forfeit records `LEFT`, revokes session, cancels
-  stale listings/offers and resolves assets by active `DebtClaim`: PLAYER creditor
-  gets `BANKRUPTCY_TO_PLAYER`; BANK/no-player-creditor uses Bank surrender and
-  `BankPropertyAuctionQueue`. Payment/auction/current turn/winner reconcile atomically.
+  stale listings/offers and, when the leaver is the active payer, auto-liquidates
+  to the Bank to settle the creditor before removal. Remaining properties return to
+  the Bank without proceeds or auction; payment/current turn/winner reconcile
+  atomically.
 - Finished Player: mark left/revoke and preserve finished game history.
 
-When leave intersects an auction:
-
-- Remove leaver from active/passed.
-- If leaver was leader, reset unrecoverable high bid; remaining unpassed participants
-  may continue.
-- If leader remains and nobody else needs action, finalize immediately.
-- Auction owns turn handoff; current-player leave cannot advance once and then let
-  auction advance a second time.
+When leave intersects a forced-sale proposal, cancel the proposal before deterministic
+Bank liquidation. Ordinary pending offers are cancelled in the same unit of work and
+notifications are emitted only after commit.
 
 Host transfer only occurs on explicit leave. `leave room` success ACK precedes client
 token clearing; disconnect/browser close is not leave. Successful Player/spectator
@@ -50,4 +46,5 @@ leave clears runtime binding/admission lock so the same Socket can join another 
 - Spectator/lobby/in-progress/finished leave branches and token revocation.
 - Same-socket Player/spectator leave then fresh join.
 - Current/non-current leave, property/listing/offer cleanup and winner.
-- Auction leader/nonleader/no-bid leave with exactly-one turn handoff.
+- Active-payer leave settles creditor and leaves no auction/proposal; non-payer leave
+  returns assets without proceeds.

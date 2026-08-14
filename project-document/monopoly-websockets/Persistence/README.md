@@ -1,60 +1,52 @@
-# Persistence — snapshot v2 và restart recovery
+# Persistence — snapshot v3 và restart recovery
 
 ## Phạm vi
 
-- SQL/repositories: `apps/server/migrations/`, `src/persistence/`.
+- SQL/repositories: `apps/server/migrations/`, `apps/server/src/persistence/`.
 - Snapshot validation/serialization: `apps/server/src/rooms.ts`.
-- FIFO/CAS/public projection/deadlines: `src/services/`, `socket/roomCommands.ts`.
+- FIFO/CAS/public projection/deadlines: `apps/server/src/services/`,
+  `socket/roomCommands.ts`.
 
 ## Invariants
 
-- PostgreSQL là production authority; in-memory adapter chỉ test.
-- Room command serialize + clone draft + expected-version CAS; commit trước mọi
-  ACK/public/private emit. Failure bỏ toàn draft và related offer writes.
-- Raw token không persist; chỉ SHA-256. Presence/socket/generation/queue object/timer
-  handle/countdown tick không nằm database.
-- SQL migration version và JSON snapshot schema version độc lập.
+- PostgreSQL là production authority; in-memory adapter chỉ dùng trong test.
+- Room command serialize + clone draft + expected-version CAS; chỉ commit xong mới
+  ACK/public/private emit. Save failure bỏ toàn bộ draft và related offer writes.
+- Raw token không persist; chỉ SHA-256. Presence/socket/generation/timer handle và
+  countdown tick không nằm database.
+- SQL migration version và JSON snapshot schema version độc lập; runtime v3 chỉ nhận
+  protocol/snapshot v3.
 
-## Snapshot v2
+## Snapshot v3
 
-Room JSONB v2 persists stable-ID Standard Mode state:
+Room JSONB giữ stable-ID state, pending purchase/development landing decisions,
+ordered `PaymentQueue`/`DebtClaim`, private deck/card ownership, and one optional
+forced-sale proposal. Public projection loại deck order, continuation internals and
+proposal terms except to its seller/buyer private rooms. Auction, Bank queue,
+building-contention and finite Bank inventory are not v3 live state.
 
-- turn order/number/current/dice/`doublesStreak`,
-  `TurnInfo.pendingPropertyDecision` and each wait's `PendingTurnContinuation`;
-- ownership/buildings/mortgage/open market/winner;
-- `PaymentQueue.orderedClaims`/`DebtClaim` + `activeClaimIndex`, continuation and
-  action deadline;
-- private `GamePrivateState.decks.*.drawPile` and held jail-free card IDs;
-- `Auction.kind`, absolute deadline, `BankPropertyAuctionQueue`;
-- `BuildingContention.reservedUnit`.
+Property invariants remain houses `0..5`, non-street houses `0`, and mortgage with no
+houses. No colour-group/even-building or 32/12 Bank-stock gate is persisted.
 
-Available house/hotel inventory is derived from board + reserved unit, never a
-persisted counter. Public projector excludes exact deck order, credential and private
-offer terms.
+## v2 → v3 migration
 
-## Compatibility decision
+`004_simplified_rules_v3.sql` is forward-only and leaves migrations 001–003
+unchanged. It preserves room/code/status (except a valid one-active-player running
+room becomes finished), host, member/player stable IDs, join order, and active
+session rows/token hashes. Running gameplay resets active players to 1500/start/no
+assets/no jail/no operations, fresh private decks, and a new highest-roll/tie-reroll
+starting-player competition with the existing seat order rotated from the winner.
+Lobby rows are structurally fresh lobbies; finished rows keep terminal identity and
+reason history while live operations are stripped. Pending ordinary offers in the
+migrated rooms are cancelled; offer history and sessions are retained.
 
-- `SOCKET_PROTOCOL_VERSION = 2`; old clients fail `UPGRADE_REQUIRED`.
-- `ROOM_SNAPSHOT_SCHEMA_VERSION = 2`; không diễn giải tiếp gameplay v1. Existing
-  v1 `IN_PROGRESS` aggregate được reset một lần thành ván Standard Mode v2 mới,
-  vẫn giữ status `IN_PROGRESS`, room ID/code, stable Player IDs, member
-  join order/name/color/ready, host và active reconnect sessions/token hashes.
-  Balance/position/tài sản/jail/deck/turn được tạo mới; roll chỉ chọn người đi đầu,
-  rồi cyclic seat order cũ được xoay bắt đầu từ người đó.
-- Pending private offers associated with reset gameplay are cancelled; runtime
-  presence is rebuilt on resume. `FINISHED`/expired data follows retention policy;
-  no destructive session-table reset/cascade.
-- Reset is idempotent/transactional and records v2 snapshot before it can be served.
+## Deadline/restart recovery
 
-## Mapping/tests
+`next_action_at` is the minimum room expiry, turn-recovery, payment-shortfall action
+deadline or forced-sale proposal expiry. Ordinary trade-offer/session deadlines
+remain relational. Scheduler captures exact operation/claim/player/deadline markers,
+rechecks under room lock/CAS, and treats stale/replayed callbacks as no-ops.
 
-| Concern | Main code/test |
-| --- | --- |
-| Schema/version/deep invariants | `rooms.ts`, `rooms.test.ts` |
-| CAS/transaction | repositories, room command executor tests |
-| Deadline/queue continuation | deadline scheduler tests |
-| Real DB/restart | PostgreSQL integration + Socket restart tests |
-| Public privacy | public projector/contract tests |
-
-Release requires `db:status`, full gates and opt-in PostgreSQL suites with
-`TEST_DATABASE_URL`; a skipped DB suite is not persistence verification.
+Required release gates include migration checksum/order, snapshot invariants, CAS
+failure, private no-leak, payment auto-liquidation, proposal expiry/reconnect and
+fresh-runtime restart tests.

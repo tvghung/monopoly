@@ -2,12 +2,12 @@ import {
   SOCKET_PROTOCOL_VERSION,
   type PlayerId,
   type PrivatePlayerState,
-  type PublicAuction,
   type PublicGameState,
   type PublicRoomState,
   type RoomPlayerMeta,
 } from '@monopoly/shared';
-import { bankBuildingInventory } from '../game';
+import { tileState } from '@monopoly/shared';
+import { forcedSaleGrossPrice, forcedSaleNetProceeds } from '../game';
 import type { RoomRecord } from '../persistence/types';
 import {
   MAX_PLAYERS,
@@ -23,21 +23,9 @@ export function projectPublicRoomState(
   connections: ConnectionRegistry,
   now = new Date(),
 ): PublicRoomState {
+  void now;
   assertSupportedRoomSnapshot(room);
   const gameState = hydrateGameState(room.gameSnapshot, room.status);
-  const auction = gameState.boardState.auction;
-  let publicAuction: PublicAuction | null = null;
-  if (auction) {
-    const { continuation: _continuation, ...auctionFields } = auction;
-    void _continuation;
-    publicAuction = {
-      ...auctionFields,
-      timer: Math.max(
-        0,
-        Math.ceil((new Date(auction.endsAt).getTime() - now.getTime()) / 1_000),
-      ),
-    };
-  }
   const queue = gameState.boardState.paymentQueue;
   const activeClaim = queue?.orderedClaims[queue.activeClaimIndex];
   const boardState = gameState.boardState;
@@ -67,7 +55,10 @@ export function projectPublicRoomState(
       gameStarted: boardState.gameStarted,
       players: boardState.players,
       finishedPlayers: boardState.finishedPlayers,
-      currentPlayer: boardState.currentPlayer,
+      currentPlayer: {
+        id: boardState.currentPlayer.id,
+        hasMoved: boardState.currentPlayer.hasMoved,
+      },
       turnNumber: boardState.turnNumber,
       logs: boardState.logs,
       diceValue: boardState.diceValue,
@@ -80,13 +71,7 @@ export function projectPublicRoomState(
           deadlineAt: boardState.turnRecovery.deadlineAt,
         }
         : null,
-      auction: publicAuction,
-      buildingContention: boardState.buildingContention ? {
-        buildingType: boardState.buildingContention.buildingType,
-        claimantPlayerIds: Object.keys(boardState.buildingContention.requests),
-        endsAt: boardState.buildingContention.endsAt,
-      } : null,
-      paymentQueue: queue && activeClaim ? {
+      paymentShortfall: queue && activeClaim ? {
         debtorPlayerId: activeClaim.debtorPlayerId,
         creditor: activeClaim.creditor,
         creditorPlayerId: activeClaim.creditorPlayerId,
@@ -94,12 +79,21 @@ export function projectPublicRoomState(
         remainingAmount: activeClaim.remainingAmount,
         source: activeClaim.source,
         actionDeadlineAt: queue.actionDeadlineAt,
-        remainingClaimCount: queue.orderedClaims.length - queue.activeClaimIndex,
-      } : null,
-      bankPropertyAuctionQueue: boardState.bankPropertyAuctionQueue ? {
-        currentTileId: boardState.bankPropertyAuctionQueue.currentTileId,
-        remainingCount: boardState.bankPropertyAuctionQueue.orderedRemainingTileIds.length
-          + (boardState.bankPropertyAuctionQueue.currentTileId === null ? 0 : 1),
+        remainingClaimCount: queue.orderedClaims
+          .slice(queue.activeClaimIndex)
+          .filter(claim => claim.status !== 'SETTLED' && claim.status !== 'BANKRUPT').length,
+        paymentOperationId: queue.operationId,
+        claimId: activeClaim.claimId,
+        sellableProperties: Object.entries(boardState.ownedProps)
+          .filter(([, property]) => property.id === activeClaim.debtorPlayerId)
+          .sort(([left], [right]) => Number(left) - Number(right))
+          .map(([tileID, property]) => ({
+            tileID: Number(tileID),
+            grossPrice: forcedSaleGrossPrice(Number(tileID), property.houses),
+            netProceeds: forcedSaleNetProceeds(Number(tileID), property.houses, property.mortgaged),
+            houses: property.houses,
+            mortgaged: property.mortgaged,
+          })),
       } : null,
     },
     players: Object.fromEntries(Object.entries(gameState.players).map(([playerId, player]) => [
@@ -110,18 +104,44 @@ export function projectPublicRoomState(
         color: player.color,
         accountBalance: player.accountBalance,
         isJail: player.isJail,
-        jailRounds: player.jailRounds,
+        jailOpponentRoundsElapsed: player.jailOpponentRoundsElapsed ?? player.jailRounds ?? 0,
         getOutOfJailCardCount: player.heldJailFreeCardIds.length,
       },
     ])),
-    turnInfo: gameState.turnInfo.canBuyProp === undefined
-      ? {}
-      : { canBuyProp: gameState.turnInfo.canBuyProp },
+    turnInfo: (() => {
+      const purchase = gameState.turnInfo.pendingPropertyDecision;
+      const development = gameState.turnInfo.pendingDevelopmentDecision;
+      if (purchase) {
+        return {
+          pendingLandingDecision: {
+            kind: 'PURCHASE' as const,
+            operationId: purchase.operationId,
+            playerId: purchase.playerId,
+            tileID: purchase.tileID,
+            price: tileState[purchase.tileID]?.price ?? 0,
+          },
+        };
+      }
+      if (development) {
+        const tile = tileState[development.tileID];
+        return {
+          pendingLandingDecision: {
+            kind: development.kind === 'HOTEL' ? 'UPGRADE_HOTEL' as const : 'DEVELOP_HOUSES' as const,
+            operationId: development.operationId,
+            playerId: development.playerId,
+            tileID: development.tileID,
+            levelAtLanding: development.levelAtLanding,
+            maxQuantity: development.kind === 'HOUSES' ? 4 - development.levelAtLanding : 1,
+            unitCost: tile?.houseCost ?? 0,
+          },
+        };
+      }
+      return {};
+    })(),
     deckCounts: {
       chance: gameState.privateState.decks.chance.drawPile.length,
       chest: gameState.privateState.decks.chest.drawPile.length,
     },
-    bankBuildingInventory: bankBuildingInventory(gameState),
     loaded: true,
   };
 
@@ -145,7 +165,17 @@ export function projectPrivatePlayerState(
 ): PrivatePlayerState {
   assertSupportedRoomSnapshot(room);
   const player = room.gameSnapshot.gameState.players[playerId];
-  if (player) return { playerId, heldJailFreeCardIds: [...player.heldJailFreeCardIds] };
+  if (player) return {
+    playerId,
+    heldJailFreeCardIds: [...player.heldJailFreeCardIds],
+    forcedSaleProposal: room.gameSnapshot.gameState.privateState.forcedSaleProposal
+      && [
+        room.gameSnapshot.gameState.privateState.forcedSaleProposal.sellerPlayerId,
+        room.gameSnapshot.gameState.privateState.forcedSaleProposal.buyerPlayerId,
+      ].includes(playerId)
+      ? structuredClone(room.gameSnapshot.gameState.privateState.forcedSaleProposal)
+      : null,
+  };
   if (room.gameSnapshot.gameState.boardState.finishedPlayers[playerId]) {
     return { playerId, heldJailFreeCardIds: [] };
   }

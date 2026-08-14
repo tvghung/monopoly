@@ -1,12 +1,7 @@
 import { gameCardsById } from '@monopoly/shared';
 import {
   assertDebtActionAllowed,
-  continuationForRoll,
-  enqueuePayments,
-  logPausedDebt,
-  resumePaymentContinuation,
   sendToLog,
-  settleAffordableClaims,
 } from '../game';
 import type { AppRuntime } from '../services/runtime';
 import { requirePlayer } from './authority';
@@ -38,22 +33,14 @@ export function registerJailHandlers(
         if (!assertDebtActionAllowed(state, playerId, 'BUY')) {
           throw new CommandError('CONFLICT', 'Phải xử lý khoản nợ đang chờ trước.');
         }
-        const resolutionOptions = {
-          now: now.getTime(),
-          debtActionTimeoutMs: runtime.timing.debtActionTimeoutMs,
-        };
-        const continuation = continuationForRoll(state, playerId, false, {
-          resume: { kind: 'RELEASE_FROM_JAIL' },
-        });
-        enqueuePayments(state, [{
-          debtorPlayerId: playerId,
-          creditor: 'BANK',
-          amount: 50,
-          source: { kind: 'BAIL' },
-        }], continuation, resolutionOptions);
-        const resolved = settleAffordableClaims(state, resolutionOptions);
-        if (resolved) resumePaymentContinuation(state, resolved, resolutionOptions);
-        else logPausedDebt(state);
+        if (player.accountBalance < 50) {
+          throw new CommandError('CONFLICT', 'Không đủ 50 để trả tiền bảo lãnh.');
+        }
+        player.accountBalance -= 50;
+        player.isJail = false;
+        player.jailOpponentRoundsElapsed = 0;
+        delete player.jailRounds;
+        sendToLog(state, `${player.name} đã trả tiền bảo lãnh và được ra tù.`);
       }, now, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
       broadcastRoom(io, runtime, committed.room);
@@ -89,7 +76,8 @@ export function registerJailHandlers(
         }
         state.privateState.decks[deck].drawPile.push(cardId);
         player.isJail = false;
-        player.jailRounds = 0;
+        player.jailOpponentRoundsElapsed = 0;
+        delete player.jailRounds;
         sendToLog(state, `${player.name} đã dùng Thẻ Thoát Tù Miễn Phí.`);
       }, undefined, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');

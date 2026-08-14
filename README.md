@@ -110,8 +110,7 @@ pnpm test        # unit/client/socket tests; PostgreSQL suite is conditional
 | `CORS_ORIGIN` | Vite origin in development | Explicit cross-origin allowlist; not authentication. |
 | `CLIENT_DIST` | `apps/client/dist` | Static client directory override. |
 | `RECONNECT_GRACE_MS` | `60000` | Grace before an offline current player's turn is resolved. |
-| `DEBT_ACTION_TIMEOUT_MS` | `120000` | Thời hạn xử lý khoản nợ trước recovery phá sản xác định. |
-| `BUILDING_CONTENTION_MS` | `10000` | Cửa sổ tranh chấp Nhà/Khách Sạn khan hiếm. |
+| `PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS` | `120000` | Thời hạn xử lý thanh toán thiếu hụt trước auto-liquidation xác định. |
 | `PENDING_SESSION_TTL_MS` | `300000` | Unactivated first-join token TTL. |
 | `TERMINAL_SESSION_RETENTION_MS` | `604800000` | Retain revoked/expired session rows for seven days before purge. |
 | `LOBBY_RETENTION_MS` | `86400000` | Inactive lobby retention. |
@@ -184,9 +183,11 @@ token replaces the older one. Disconnecting does not sell, delete or transfer as
 - *Open market:* click your own property, choose **Sell**, and set a price. Any player
   in the room can then buy it; you can also pull it back off the market.
 
-**What happens when I go bankrupt?** Nhà/Khách Sạn được thanh lý trước. Nếu khoản nợ
-thuộc về người chơi, tiền, tài sản còn lại và thẻ Thoát Tù Miễn Phí chuyển cho chủ nợ;
-nếu nợ Ngân hàng, tài sản đi qua hàng đợi đấu giá durable.
+**What happens when I cannot pay?** The payment shortfall remains a durable ordered
+claim. You can sell an owned property to the Bank at the server-derived gross/net
+value, or propose that another active player buys it. On deadline, the server sells
+properties deterministically by tile index and only eliminates the debtor after no
+owned property remains.
 
 **How do I win?** Be the last active player after the others go bankrupt or forfeit.
 
@@ -200,17 +201,13 @@ nếu nợ Ngân hàng, tài sản đi qua hàng đợi đấu giá durable.
 - [x] Separate, expanded Cơ Hội / Khí Vận decks with durable draw order
 - [x] Animated 3D dice, tile-by-tile token movement, card flips and modal prompts
 - [x] Building houses / hotels and the rent tiers they unlock
-- [x] Thưởng tiền thuê khi sở hữu đủ nhóm màu
+- [x] Base rent without monopoly multiplier; authoritative landing development prompt
 - [x] Mortgaging properties for cash
-- [x] Auctions when a player declines to buy an unowned tile
+- [x] Do Not Buy resolves the landing without an auction
 - [x] Thẻ Thoát Tù Miễn Phí và trả 50 game-unit để ra tù
 - [x] Property trading (private offers and an open market)
 - [x] A dedicated win screen
 - [x] Stable player identity, reconnect and newest-connection-wins sessions
 - [x] Host/ready lobby with 2–7 players and explicit spectator admission
 - [x] PostgreSQL persistence and restart recovery
-- [x] Durable private offers and absolute-deadline auctions
-
-Ideas for later:
-
-- [ ] Doubles rules: roll again after a double, and go to jail on three doubles in a row
+- [x] Durable private offers, payment shortfall deadlines and private forced-sale proposals

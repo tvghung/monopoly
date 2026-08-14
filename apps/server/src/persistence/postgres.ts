@@ -603,7 +603,7 @@ export class PostgresPersistenceStore<TSnapshot extends object>
       SELECT EXISTS (
         SELECT 1
         FROM schema_migrations
-        WHERE version = '003_reset_v1_snapshots.sql'
+        WHERE version = '004_simplified_rules_v3.sql'
       ) AS migration_applied
       FROM (SELECT 1) AS probe
       LEFT JOIN required_schema ON FALSE

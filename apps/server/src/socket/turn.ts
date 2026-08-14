@@ -1,4 +1,9 @@
-import { tileState } from '@monopoly/shared';
+import {
+  tileState,
+  type AckCallback,
+  type GameState,
+  type PendingDevelopmentDecision,
+} from '@monopoly/shared';
 import {
   assertDebtActionAllowed,
   completeTurnResolution,
@@ -6,7 +11,6 @@ import {
   handleJailRoll,
   isDouble,
   movePlayer,
-  moveToJail,
   resolveTile,
   rollDice,
   sendToLog,
@@ -19,63 +23,57 @@ import { CommandError, acknowledgeFailure, successAck } from './errors';
 import { commitRoomCommand } from './roomCommands';
 import type { AppServer, AppSocket } from './types';
 
+const currentTurnContinuation = (state: Parameters<typeof continuationForRoll>[0], playerId: string) => (
+  continuationForRoll(state, playerId, false)
+);
+
+const completeDevelopment = (state: GameState, decision: PendingDevelopmentDecision): void => {
+  state.turnInfo = {};
+  completeTurnResolution(state, decision.continuation);
+};
+
 export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: AppRuntime): void {
   socket.on('roll dice', async (acknowledge) => {
     try {
       const actor = requirePlayer(socket, runtime);
-      const { roomId, playerId } = actor;
       const now = new Date();
-      const resolutionOptions = {
-        now: now.getTime(),
-        debtActionTimeoutMs: runtime.timing.debtActionTimeoutMs,
-      };
-      const committed = await commitRoomCommand(runtime, roomId, ({ room, state }) => {
-        const player = state.players[playerId];
+      const committed = await commitRoomCommand(runtime, actor.roomId, ({ room, state }) => {
+        const player = state.players[actor.playerId];
         if (room.status !== 'IN_PROGRESS' || state.boardState.winner) {
           throw new CommandError('CONFLICT', 'Ván chơi hiện không nhận lượt mới.');
         }
-        if (!player || state.boardState.currentPlayer.id !== playerId) {
+        if (!player || state.boardState.currentPlayer.id !== actor.playerId) {
           throw new CommandError('FORBIDDEN', 'Chưa đến lượt của bạn.');
         }
-        if (!assertDebtActionAllowed(state, playerId, 'ROLL')) {
-          throw new CommandError('CONFLICT', 'Phải xử lý khoản nợ đang chờ trước khi đổ xúc xắc.');
+        if (!assertDebtActionAllowed(state, actor.playerId, 'ROLL')) {
+          throw new CommandError('CONFLICT', 'Phải xử lý khoản thanh toán đang chờ trước khi đổ xúc xắc.');
         }
         if (
           state.boardState.currentPlayer.hasMoved
-          || state.boardState.auction
-          || state.boardState.buildingContention
-          || state.boardState.bankPropertyAuctionQueue
           || state.turnInfo.pendingPropertyDecision
+          || state.turnInfo.pendingDevelopmentDecision
         ) {
           throw new CommandError('CONFLICT', 'Lượt này chưa thể đổ xúc xắc tiếp.');
         }
-
         const dice = rollDice();
         const total = dice.dice1 + dice.dice2;
+        delete state.boardState.currentPlayer.doublesStreak;
+        const continuation = currentTurnContinuation(state, actor.playerId);
         if (player.isJail) {
-          handleJailRoll(state, playerId, dice, continuationForRoll(state, playerId, false, {
-            forceAdvance: true,
-          }), resolutionOptions);
+          handleJailRoll(state, actor.playerId, dice, continuation, {
+            now: now.getTime(),
+            paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+          });
           return;
         }
-
         state.boardState.diceValue = dice;
         state.boardState.currentPlayer.hasMoved = true;
-        const rolledDoubles = isDouble(dice);
-        sendToLog(state, `${player.name} đổ được ${total}${rolledDoubles ? ' (đôi)' : ''}.`);
-        if (rolledDoubles && state.boardState.currentPlayer.doublesStreak === 2) {
-          moveToJail(state, playerId);
-          sendToLog(state, `${player.name} đổ đôi lần thứ ba liên tiếp và bị đưa thẳng vào tù.`);
-          completeTurnResolution(
-            state,
-            continuationForRoll(state, playerId, false, { forceAdvance: true }),
-          );
-          return;
-        }
-        if (rolledDoubles) state.boardState.currentPlayer.doublesStreak += 1;
-        const continuation = continuationForRoll(state, playerId, rolledDoubles);
-        movePlayer(state, playerId, total);
-        resolveTile(state, playerId, total, continuation, resolutionOptions);
+        sendToLog(state, `${player.name} đổ được ${total}${isDouble(dice) ? ' (đôi)' : ''}.`);
+        movePlayer(state, actor.playerId, total);
+        resolveTile(state, actor.playerId, total, continuation, {
+          now: now.getTime(),
+          paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+        });
       }, now, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
       broadcastRoom(io, runtime, committed.room);
@@ -85,45 +83,121 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
     }
   });
 
-  socket.on('buy property', async (acknowledge) => {
+  const resolvePurchase = async (
+    operationId: string,
+    buy: boolean,
+    acknowledge: AckCallback,
+  ): Promise<void> => {
     try {
       const actor = requirePlayer(socket, runtime);
-      const { roomId, playerId } = actor;
-      const committed = await commitRoomCommand(runtime, roomId, ({ room, state }) => {
-        const player = state.players[playerId];
+      const committed = await commitRoomCommand(runtime, actor.roomId, ({ room, state }) => {
         const decision = state.turnInfo.pendingPropertyDecision;
-        if (room.status !== 'IN_PROGRESS' || state.boardState.winner || !player) {
-          throw new CommandError('CONFLICT', 'Hiện không thể mua tài sản.');
-        }
-        if (!assertDebtActionAllowed(state, playerId, 'BUY')) {
-          throw new CommandError('CONFLICT', 'Không thể mua tài sản khi khoản nợ đang chờ.');
-        }
+        const player = state.players[actor.playerId];
         if (
-          state.boardState.currentPlayer.id !== playerId
-          || !decision
-          || decision.playerId !== playerId
-          || decision.tileID !== player.currentTile
-          || state.boardState.auction
-          || state.boardState.buildingContention
-        ) {
-          throw new CommandError('CONFLICT', 'Không có tài sản nào đang chờ bạn mua.');
+          room.status !== 'IN_PROGRESS' || state.boardState.winner || !player
+          || !decision || decision.operationId !== operationId
+          || decision.playerId !== actor.playerId
+          || state.boardState.currentPlayer.id !== actor.playerId
+        ) throw new CommandError('CONFLICT', 'Không có quyết định mua tài sản phù hợp.');
+        if (state.boardState.paymentQueue) {
+          throw new CommandError('CONFLICT', 'Không thể mua tài sản trong lúc thanh toán thiếu hụt.');
         }
         const tile = tileState[decision.tileID];
         const price = tile?.price ?? 0;
-        if (!tile || price <= 0 || state.boardState.ownedProps[decision.tileID]) {
-          throw new CommandError('CONFLICT', 'Tài sản này không còn khả dụng.');
+        if (buy) {
+          if (!tile || price <= 0 || state.boardState.ownedProps[decision.tileID]) {
+            throw new CommandError('CONFLICT', 'Tài sản này không còn khả dụng.');
+          }
+          if (player.accountBalance < price) {
+            throw new CommandError('CONFLICT', `Bạn không đủ tiền mua ${tile.streetName}.`);
+          }
+          player.accountBalance -= price;
+          if (!transferProperty(state, decision.tileID, null, actor.playerId, 'BANK_PURCHASE').ok) {
+            throw new CommandError('CONFLICT', 'Không thể chuyển quyền sở hữu tài sản.');
+          }
+          sendToLog(state, `${player.name} đã mua ${tile.streetName}.`);
         }
-        if (player.accountBalance < price) {
-          throw new CommandError('CONFLICT', `Bạn không đủ tiền mua ${tile.streetName}.`);
-        }
-        player.accountBalance -= price;
-        if (!transferProperty(state, decision.tileID, null, playerId, 'BANK_AUCTION_AWARD').ok) {
-          throw new CommandError('CONFLICT', 'Không thể chuyển quyền sở hữu tài sản.');
-        }
-        const continuation = decision.continuation;
         state.turnInfo = {};
-        sendToLog(state, `${player.name} đã mua ${tile.streetName}.`);
-        completeTurnResolution(state, continuation);
+        completeTurnResolution(state, decision.continuation);
+      }, undefined, actor);
+      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
+      broadcastRoom(io, runtime, committed.room);
+      acknowledge(successAck(committed.room.aggregateVersion));
+    } catch (error) {
+      acknowledgeFailure(acknowledge, error);
+    }
+  };
+
+  socket.on('buy property', (request, acknowledge) => {
+    void resolvePurchase(request.operationId, true, acknowledge);
+  });
+  socket.on('do not buy', (request, acknowledge) => {
+    void resolvePurchase(request.operationId, false, acknowledge);
+  });
+
+  socket.on('resolve development', async (request, acknowledge) => {
+    try {
+      const actor = requirePlayer(socket, runtime);
+      const committed = await commitRoomCommand(runtime, actor.roomId, ({ room, state }) => {
+        const decision = state.turnInfo.pendingDevelopmentDecision;
+        const player = state.players[actor.playerId];
+        if (
+          room.status !== 'IN_PROGRESS' || state.boardState.winner || !player
+          || !decision || decision.operationId !== request.operationId
+          || decision.playerId !== actor.playerId
+          || state.boardState.currentPlayer.id !== actor.playerId
+        ) throw new CommandError('CONFLICT', 'Không có quyết định phát triển phù hợp.');
+        if (state.boardState.paymentQueue) {
+          throw new CommandError('CONFLICT', 'Không thể phát triển trong lúc thanh toán thiếu hụt.');
+        }
+        const property = state.boardState.ownedProps[decision.tileID];
+        const tile = tileState[decision.tileID];
+        if (
+          !property || property.id !== actor.playerId || !tile?.houseCost || property.mortgaged
+          || property.houses !== decision.levelAtLanding
+        ) {
+          throw new CommandError('CONFLICT', 'Tài sản không còn đủ điều kiện phát triển.');
+        }
+        if (request.action === 'BUILD_HOUSES') {
+          if (decision.kind !== 'HOUSES' || request.quantity > 4 - decision.levelAtLanding) {
+            throw new CommandError('CONFLICT', 'Số lượng Nhà vượt quá giới hạn của lần đổ này.');
+          }
+          const cost = request.quantity * tile.houseCost;
+          if (player.accountBalance < cost) throw new CommandError('CONFLICT', 'Không đủ tiền xây Nhà.');
+          player.accountBalance -= cost;
+          property.houses += request.quantity;
+        } else if (request.action === 'UPGRADE_HOTEL') {
+          if (decision.kind !== 'HOTEL' || decision.levelAtLanding !== 4 || property.houses !== 4) {
+            throw new CommandError('CONFLICT', 'Tài sản chưa đủ điều kiện nâng cấp Khách sạn.');
+          }
+          if (player.accountBalance < tile.houseCost) throw new CommandError('CONFLICT', 'Không đủ tiền nâng cấp.');
+          player.accountBalance -= tile.houseCost;
+          property.houses = 5;
+        }
+        delete state.boardState.openMarket[decision.tileID];
+        completeDevelopment(state, decision);
+      }, undefined, actor);
+      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
+      broadcastRoom(io, runtime, committed.room);
+      acknowledge(successAck(committed.room.aggregateVersion));
+    } catch (error) {
+      acknowledgeFailure(acknowledge, error);
+    }
+  });
+
+  socket.on('wait in jail', async (acknowledge) => {
+    try {
+      const actor = requirePlayer(socket, runtime);
+      const committed = await commitRoomCommand(runtime, actor.roomId, ({ room, state }) => {
+        const player = state.players[actor.playerId];
+        if (room.status !== 'IN_PROGRESS' || !player?.isJail
+          || state.boardState.currentPlayer.id !== actor.playerId) {
+          throw new CommandError('CONFLICT', 'Bạn không có lượt chờ trong tù.');
+        }
+        if (state.boardState.paymentQueue) {
+          throw new CommandError('CONFLICT', 'Phải xử lý thanh toán trước khi chờ trong tù.');
+        }
+        completeTurnResolution(state, currentTurnContinuation(state, actor.playerId));
       }, undefined, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
       broadcastRoom(io, runtime, committed.room);

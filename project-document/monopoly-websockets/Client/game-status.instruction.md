@@ -18,7 +18,7 @@
 
 ## In-game/finished
 
-- Roster/turn/debt/auction/winner key bằng stable IDs. Temporary disconnect không
+- Roster/turn/payment/winner key bằng stable IDs. Temporary disconnect không
   xóa Seat/assets; spectator read-only.
 - Finished reason phân biệt `BANKRUPT` và `LEFT`; forfeit confirmation mô tả asset
   destination theo active creditor/Bank nhưng không đổi reason.

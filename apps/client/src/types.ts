@@ -13,10 +13,14 @@ import type {
 } from '@monopoly/shared';
 
 export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+export type DevelopmentRequest = Parameters<ClientToServerEvents['resolve development']>[0];
 
 export interface SocketFunctions {
   rollDice: () => void;
-  buyProperty: () => void;
+  buyProperty: (operationId: string) => void;
+  doNotBuy?: (operationId: string) => void;
+  resolveDevelopment?: (request: DevelopmentRequest) => void;
+  waitInJail?: () => void;
   sendChat: (message: string) => void;
   putOpenMarket: (saleInfo: SaleInfo) => void;
   makeOffer: (offerInfo: OfferInfo) => void;
@@ -24,17 +28,20 @@ export interface SocketFunctions {
   declineOffer: (offerId: OfferId) => void;
   makeSale: (tileID: number) => void;
   removeSale: (tileID: number) => void;
-  buildHouse: (tileID: number) => void;
   sellHouse: (tileID: number) => void;
   mortgageProperty: (tileID: number) => void;
   unmortgageProperty: (tileID: number) => void;
   payBail: () => void;
   useJailCard: () => void;
-  settleDebt: () => void;
-  declareBankruptcy: () => void;
-  declineProperty: () => void;
-  placeBid: (amount: number) => void;
-  passBid: () => void;
+  sellPropertyToBank?: (request: { paymentOperationId: string; claimId: string; tileID: number }) => void;
+  proposeForcedSale?: (request: {
+    paymentOperationId: string;
+    claimId: string;
+    tileID: number;
+    buyerPlayerId: string;
+  }) => void;
+  acceptForcedSale?: (proposalId: string) => void;
+  rejectForcedSale?: (proposalId: string) => void;
 }
 
 export interface StateContextValue {

@@ -71,6 +71,32 @@ export const tileRequestSchema = z.strictObject({
   tileID: tileIdSchema,
 }) satisfies z.ZodType<TileRequest>;
 
+export const operationIdSchema = z.uuid();
+export const purchaseDecisionRequestSchema = z.strictObject({
+  operationId: operationIdSchema,
+});
+export const developmentDecisionRequestSchema = z.discriminatedUnion('action', [
+  z.strictObject({ operationId: operationIdSchema, action: z.literal('SKIP') }),
+  z.strictObject({
+    operationId: operationIdSchema,
+    action: z.literal('BUILD_HOUSES'),
+    quantity: z.number().int().min(1).max(4),
+  }),
+  z.strictObject({ operationId: operationIdSchema, action: z.literal('UPGRADE_HOTEL') }),
+]);
+export const forcedSaleBankRequestSchema = z.strictObject({
+  paymentOperationId: operationIdSchema,
+  claimId: operationIdSchema,
+  tileID: tileIdSchema,
+});
+export const forcedSaleProposalRequestSchema = z.strictObject({
+  paymentOperationId: operationIdSchema,
+  claimId: operationIdSchema,
+  tileID: tileIdSchema,
+  buyerPlayerId: playerIdSchema,
+});
+export const forcedSaleProposalActionSchema = z.strictObject({ proposalId: operationIdSchema });
+
 export const saleInfoSchema = z.strictObject({
   tileID: tileIdSchema,
   price: moneyAmountSchema,
@@ -137,24 +163,25 @@ export const clientEventPayloadSchemas = {
   'start game': noPayloadSchema,
   'send chat': chatMessageSchema,
   'roll dice': noPayloadSchema,
-  'buy property': noPayloadSchema,
+  'buy property': purchaseDecisionRequestSchema,
+  'do not buy': purchaseDecisionRequestSchema,
+  'resolve development': developmentDecisionRequestSchema,
   'put on open market': saleInfoSchema,
   'make offer': offerInfoSchema,
   'accept offer': offerActionSchema,
   'decline offer': offerActionSchema,
   'make sale': tileRequestSchema,
   'remove sale': tileRequestSchema,
-  'build house': tileIdSchema,
   'sell house': tileIdSchema,
   'mortgage property': tileIdSchema,
   'unmortgage property': tileIdSchema,
   'pay bail': noPayloadSchema,
   'use jail card': noPayloadSchema,
-  'settle debt': noPayloadSchema,
-  'declare bankruptcy': noPayloadSchema,
-  'decline property': noPayloadSchema,
-  'place bid': moneyAmountSchema,
-  'pass bid': noPayloadSchema,
+  'wait in jail': noPayloadSchema,
+  'sell property to bank': forcedSaleBankRequestSchema,
+  'propose forced sale': forcedSaleProposalRequestSchema,
+  'accept forced sale': forcedSaleProposalActionSchema,
+  'reject forced sale': forcedSaleProposalActionSchema,
 } as const satisfies ClientEventPayloadSchemas;
 
 export type ClientEventName = keyof typeof clientEventPayloadSchemas;

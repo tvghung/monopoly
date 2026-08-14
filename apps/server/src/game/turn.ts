@@ -29,29 +29,13 @@ const clearPlayerReferences = (state: GameState, playerId: PlayerId): void => {
     }
   });
 
-  const { auction } = state.boardState;
-  if (auction) {
-    auction.active = auction.active.filter((id) => id !== playerId);
-    if (auction.highestBidder === playerId) {
-      auction.highestBid = 0;
-      auction.highestBidder = null;
-      auction.highestBidderName = null;
-      auction.passed = [];
-    } else {
-      auction.passed = auction.passed.filter((id) => id !== playerId);
-    }
+  const proposal = state.privateState.forcedSaleProposal;
+  if (proposal && (proposal.sellerPlayerId === playerId || proposal.buyerPlayerId === playerId)) {
+    state.privateState.forcedSaleProposal = null;
   }
 
   if (state.boardState.turnRecovery?.playerId === playerId) {
     state.boardState.turnRecovery = null;
-  }
-
-  const contention = state.boardState.buildingContention;
-  if (contention?.requests[playerId]) {
-    delete contention.requests[playerId];
-    if (Object.keys(contention.requests).length === 0) {
-      state.boardState.buildingContention = null;
-    }
   }
 
   // A creditor who explicitly leaves surrenders the receivable to the Bank;
@@ -59,10 +43,20 @@ const clearPlayerReferences = (state: GameState, playerId: PlayerId): void => {
   const paymentQueue = state.boardState.paymentQueue;
   if (paymentQueue) {
     for (const claim of paymentQueue.orderedClaims) {
+      if (claim.debtorPlayerId === playerId && claim.status === 'PENDING') {
+        claim.status = 'BANKRUPT';
+        claim.remainingAmount = 0;
+      }
       if (claim.creditor === 'PLAYER' && claim.creditorPlayerId === playerId) {
         claim.creditor = 'BANK';
         delete claim.creditorPlayerId;
       }
+    }
+    while (
+      paymentQueue.activeClaimIndex < paymentQueue.orderedClaims.length
+      && paymentQueue.orderedClaims[paymentQueue.activeClaimIndex].status !== 'PENDING'
+    ) {
+      paymentQueue.activeClaimIndex += 1;
     }
   }
 };
@@ -112,7 +106,7 @@ const successorAfter = (
 
 const resetForFreshTurn = (state: GameState): void => {
   state.boardState.currentPlayer.hasMoved = false;
-  state.boardState.currentPlayer.doublesStreak = 0;
+  delete state.boardState.currentPlayer.doublesStreak;
   state.boardState.turnNumber += 1;
   state.boardState.turnRecovery = null;
   state.turnInfo = {};
@@ -247,27 +241,42 @@ export const nextTurn = (state: GameState): void => {
   state.boardState.currentPlayer.id = currentIndex < 0
     ? playerIds[0]
     : playerIds[(currentIndex + 1) % playerIds.length];
+  const selected = state.players[state.boardState.currentPlayer.id];
+  if (selected?.isJail) {
+    const elapsed = selected.jailOpponentRoundsElapsed ?? selected.jailRounds ?? 0;
+    selected.jailOpponentRoundsElapsed = Math.min(2, elapsed + 1);
+    delete selected.jailRounds;
+    if (selected.jailOpponentRoundsElapsed >= 2) {
+      selected.isJail = false;
+      selected.jailOpponentRoundsElapsed = 0;
+      sendToLog(state, `${selected.name} đã tự động ra tù sau hai vòng đối thủ.`);
+    }
+  }
   resetForFreshTurn(state);
 };
 
-export type TurnResolutionOutcome = 'EXTRA_ROLL' | 'ADVANCE_TURN';
+export type TurnResolutionOutcome = 'ADVANCE_TURN';
 
 export const continuationForRoll = (
   state: GameState,
   playerId: PlayerId,
-  rolledDoubles: boolean,
+  _rolledDoubles = false,
   options: Pick<PendingTurnContinuation, 'forceAdvance' | 'resume'> = {},
-): PendingTurnContinuation => ({
-  playerId,
-  turnNumber: state.boardState.turnNumber,
-  rolledDoubles,
-  ...options,
-});
+): PendingTurnContinuation => {
+  // Kept as a source-compatible argument for callers that still pass the old
+  // roll result; v3 intentionally ignores it and never grants an extra roll.
+  void _rolledDoubles;
+  return {
+    playerId,
+    turnNumber: state.boardState.turnNumber,
+    ...options,
+  };
+};
 
 /**
  * The single turn-completion gateway. Callers resolve their entire synchronous
  * tile/card/payment flow first, and invoke this only after every external wait
- * (purchase, auction or debt) has also completed.
+ * (purchase, development or payment shortfall) has also completed.
  */
 export const completeTurnResolution = (
   state: GameState,
@@ -276,10 +285,8 @@ export const completeTurnResolution = (
   if (
     state.boardState.winner
     || state.boardState.paymentQueue
-    || state.boardState.auction
-    || state.boardState.buildingContention
-    || state.boardState.bankPropertyAuctionQueue
     || state.turnInfo.pendingPropertyDecision
+    || state.turnInfo.pendingDevelopmentDecision
   ) {
     return null;
   }
@@ -290,15 +297,6 @@ export const completeTurnResolution = (
     || !state.players[continuation.playerId]
   ) {
     return null;
-  }
-
-  const player = state.players[continuation.playerId];
-  if (!continuation.forceAdvance && continuation.rolledDoubles && !player.isJail) {
-    state.boardState.currentPlayer.hasMoved = false;
-    state.turnInfo = {};
-    state.boardState.turnRecovery = null;
-    sendToLog(state, `${player.name} được đổ xúc xắc thêm vì đã đổ đôi.`);
-    return 'EXTRA_ROLL';
   }
 
   nextTurn(state);

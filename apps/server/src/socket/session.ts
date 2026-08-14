@@ -197,6 +197,7 @@ export function registerSessionHandlers(
         room: projectPublicRoomState(room, runtime.connections),
         pendingOffers: offerRecords.map((offer) => projectPrivateOffer(offer, room)),
         privatePlayerState: projectPrivatePlayerState(room, resumed.playerId),
+        forcedSaleProposal: projectPrivatePlayerState(room, resumed.playerId).forcedSaleProposal,
       };
       acknowledge(successAck(result, room.aggregateVersion));
       await broadcastRoomById(io, runtime, room.id);

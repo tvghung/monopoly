@@ -2,10 +2,6 @@ import { useContext } from 'react';
 import stateContext from '../../internal';
 import { formatMoney } from '../../presentation';
 
-// The "Players" panel: the active roster (with balances, jail/card badges and a
-// "Turn" marker) plus a finished-player list once players drop out.
-// `activePlayerId` is held by Dashboard so the turn marker only moves once every
-// token has finished walking, rather than the instant the server flips turns.
 export default function PlayerList({ activePlayerId }: { activePlayerId: string }) {
   const { state } = useContext(stateContext);
   const activePlayerName = state.players[activePlayerId]?.name;
@@ -16,46 +12,30 @@ export default function PlayerList({ activePlayerId }: { activePlayerId: string 
       <p className="sr-only" role="status" aria-live="polite">
         {activePlayerName ? `Đến lượt ${activePlayerName}` : ''}
       </p>
-      <p className="bank-building-inventory">
-        {`Ngân hàng: ${state.bankBuildingInventory.housesAvailable} Nhà · ${state.bankBuildingInventory.hotelsAvailable} Khách Sạn`}
-      </p>
-
       {state.loaded
         ? (
           <ul className="player-list">
-            {Object.keys(state.players).map((player) => {
-              const {
-                name, color, accountBalance, isJail, getOutOfJailCardCount,
-              } = state.players[player];
-              const isCurrent = activePlayerId === player;
+            {Object.keys(state.players).map((playerId) => {
+              const player = state.players[playerId];
+              const isCurrent = activePlayerId === playerId;
               return (
                 <li
-                  key={player}
+                  key={playerId}
                   className={`player-card${isCurrent ? ' player-card--active' : ''}`}
-                  style={{ borderLeftColor: color }}
+                  style={{ borderLeftColor: player.color }}
                 >
-                  <span className="player-card__disc" style={{ backgroundColor: color }} aria-hidden="true">
-                    <span className="player-card__initial">{name.slice(0, 1).toUpperCase()}</span>
+                  <span className="player-card__disc" style={{ backgroundColor: player.color }} aria-hidden="true">
+                    <span className="player-card__initial">{player.name.slice(0, 1).toUpperCase()}</span>
                   </span>
                   <div className="player-card__info">
                     <span className="player-card__name">
-                      {name}
-                      {isJail
-                        ? <span className="player-card__tag" role="img" aria-label="Đang ở Nhà Tù">🔒</span>
-                        : null}
-                      {getOutOfJailCardCount > 0
-                        ? (
-                          <span
-                            className="player-card__tag"
-                            role="img"
-                            aria-label={`Có ${getOutOfJailCardCount} thẻ Thoát Tù Miễn Phí`}
-                          >
-                            {getOutOfJailCardCount > 1 ? `🔑×${getOutOfJailCardCount}` : '🔑'}
-                          </span>
-                        )
+                      {player.name}
+                      {player.isJail ? <span className="player-card__tag" aria-label="Đang ở Nhà Tù">🔒</span> : null}
+                      {player.getOutOfJailCardCount > 0
+                        ? <span className="player-card__tag" aria-label={`Có ${player.getOutOfJailCardCount} thẻ Thoát Tù`}>🔑</span>
                         : null}
                     </span>
-                    <span className="player-card__balance">{formatMoney(accountBalance)}</span>
+                    <span className="player-card__balance">{formatMoney(player.accountBalance)}</span>
                   </div>
                   {isCurrent
                     ? (
@@ -77,26 +57,17 @@ export default function PlayerList({ activePlayerId }: { activePlayerId: string 
           <>
             <h3 className="center__dashboard__title center__dashboard__title--sub">Đã rời ván</h3>
             <ul className="player-list">
-              {Object.keys(state.boardState.finishedPlayers).map((player) => {
-                const { name, color, reason } = state.boardState.finishedPlayers[player];
-                return (
-                  <li
-                    key={player}
-                    className="player-card player-card--out"
-                    style={{ borderLeftColor: color }}
-                  >
-                    <span className="player-card__disc" style={{ backgroundColor: color }} aria-hidden="true">
-                      <span className="player-card__initial">{name.slice(0, 1).toUpperCase()}</span>
-                    </span>
-                    <div className="player-card__info">
-                      <span className="player-card__name">{name}</span>
-                    <span className="player-card__balance">
-                      {reason === 'LEFT' ? 'Đã rời ván' : 'Phá sản'}
-                    </span>
-                    </div>
-                  </li>
-                );
-              })}
+              {Object.entries(state.boardState.finishedPlayers).map(([playerId, player]) => (
+                <li key={playerId} className="player-card player-card--out" style={{ borderLeftColor: player.color }}>
+                  <span className="player-card__disc" style={{ backgroundColor: player.color }} aria-hidden="true">
+                    <span className="player-card__initial">{player.name.slice(0, 1).toUpperCase()}</span>
+                  </span>
+                  <div className="player-card__info">
+                    <span className="player-card__name">{player.name}</span>
+                    <span className="player-card__balance">{player.reason === 'LEFT' ? 'Đã rời ván' : 'Phá sản'}</span>
+                  </div>
+                </li>
+              ))}
             </ul>
           </>
         )

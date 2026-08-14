@@ -74,7 +74,8 @@ formatter dùng `1 game unit = 1.000 VNĐ` và player-facing UI/log/error là ti
 4. Không tự retry command không idempotent sau ACK timeout; resume/resync trước.
 5. Test cả valid resume, invalid/revoked token, newest-wins và listener cleanup.
 6. Không render hidden `DeckState`, raw `PaymentQueue` internals hoặc credential;
-   chỉ render public pending-action/debt/auction projection cần cho quyết định UI.
+   chỉ render public pending landing/payment-shortfall projection và private proposal
+   terms for its seller/buyer.
 
 ## Kiểm tra
 

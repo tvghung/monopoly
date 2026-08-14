@@ -118,13 +118,6 @@ export default function Dice() {
               {first > 0 || second > 0 ? `${first} + ${second} = ${first + second}` : 'chưa đổ'}
               <br />
               {first > 0 && first === second ? <strong className="dice__result">Đổ đôi!</strong> : ''}
-              {state.boardState.currentPlayer.doublesStreak > 0
-                ? (
-                  <span className="dice__streak">
-                    {`Chuỗi đổ đôi: ${state.boardState.currentPlayer.doublesStreak}/3`}
-                  </span>
-                )
-                : null}
             </h2>
           </section>
         )

@@ -7,6 +7,6 @@ const vndInteger = new Intl.NumberFormat('vi-VN', {
 });
 
 /** Format integer game units using the product convention 1 unit = 1.000 VND. */
-export const formatMoney = (gameUnits: number): string => (
-  `${vndInteger.format(gameUnits * GAME_UNIT_IN_VND)} ₫`
+export const formatMoney = (gameUnits: number | undefined): string => (
+  `${vndInteger.format((gameUnits ?? 0) * GAME_UNIT_IN_VND)} ₫`
 );

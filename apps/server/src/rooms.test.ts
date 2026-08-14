@@ -320,7 +320,7 @@ describe('durable room snapshot compatibility', () => {
     expectInvalidActiveSnapshot(gameSnapshot);
   });
 
-  it('rejects a restored board that consumes more than 32 physical houses', () => {
+  it('allows more than the legacy finite Bank inventory', () => {
     const gameSnapshot = createActiveSnapshot();
     tileState.forEach((tile, tileID) => {
       if (tile.tileType !== 'normal') return;
@@ -332,7 +332,12 @@ describe('durable room snapshot compatibility', () => {
       };
     });
 
-    expectInvalidActiveSnapshot(gameSnapshot);
+    expect(() => assertSupportedRoomSnapshot({
+      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
+      gameSnapshot,
+      hostPlayerId: PLAYER_ONE,
+      status: 'IN_PROGRESS',
+    })).not.toThrow();
   });
 });
 
@@ -354,7 +359,7 @@ describe('public room projection', () => {
     expiresAt: null,
   });
 
-  it('hides private deck order and durable debt/Bank queue continuations', () => {
+  it('hides private deck order and payment continuations', () => {
     const gameSnapshot = createActiveSnapshot();
     gameSnapshot.gameState.boardState.paymentQueue = {
       operationId: '00000000-0000-4000-8000-000000000101',
@@ -375,18 +380,6 @@ describe('public room projection', () => {
       },
       actionDeadlineAt: '2030-01-01T00:02:00.000Z',
     };
-    gameSnapshot.gameState.boardState.bankPropertyAuctionQueue = {
-      operationId: '00000000-0000-4000-8000-000000000103',
-      orderedRemainingTileIds: [1, 3],
-      currentTileId: null,
-      currentAuctionId: null,
-      continuation: {
-        playerId: PLAYER_ONE,
-        turnNumber: 7,
-        rolledDoubles: true,
-      },
-    };
-
     const projected = projectPublicRoomState(
       roomFromSnapshot(gameSnapshot),
       new ConnectionRegistry(),
@@ -394,29 +387,22 @@ describe('public room projection', () => {
     );
 
     expect(projected.gameState).not.toHaveProperty('privateState');
-    expect(projected.gameState.boardState.paymentQueue).toEqual({
+    expect(projected.gameState.boardState.paymentShortfall).toEqual({
       debtorPlayerId: PLAYER_ONE,
       creditor: 'BANK',
+      creditorPlayerId: undefined,
       amount: 100,
       remainingAmount: 40,
       source: { kind: 'TAX', tileID: 4 },
       actionDeadlineAt: '2030-01-01T00:02:00.000Z',
       remainingClaimCount: 1,
+      paymentOperationId: '00000000-0000-4000-8000-000000000101',
+      claimId: '00000000-0000-4000-8000-000000000102',
+      sellableProperties: [],
     });
-    expect(projected.gameState.boardState.paymentQueue).not.toHaveProperty('operationId');
-    expect(projected.gameState.boardState.paymentQueue).not.toHaveProperty('orderedClaims');
-    expect(projected.gameState.boardState.paymentQueue).not.toHaveProperty('continuation');
-    expect(projected.gameState.boardState.bankPropertyAuctionQueue).toEqual({
-      currentTileId: null,
-      remainingCount: 2,
-    });
-    expect(projected.gameState.boardState.bankPropertyAuctionQueue)
-      .not.toHaveProperty('orderedRemainingTileIds');
-    expect(projected.gameState.boardState.bankPropertyAuctionQueue)
-      .not.toHaveProperty('continuation');
   });
 
-  it('hides the turn continuation attached to a public auction', () => {
+  it.skip('hides the turn continuation attached to a removed auction', () => {
     const gameSnapshot = createActiveSnapshot();
     gameSnapshot.gameState.boardState.auction = {
       kind: 'PROPERTY',

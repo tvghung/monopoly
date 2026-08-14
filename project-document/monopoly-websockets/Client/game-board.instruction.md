@@ -19,10 +19,10 @@ styles. Không có detail route hay permission key.
 
 ## State/rendering
 
-- Ownership, mortgage, buildings, player position và auction/pending state từ
+- Ownership, mortgage, buildings, player position và pending landing/payment state từ
   committed `PublicRoomState`; stable IDs điều khiển token/owner.
-- Level 1–4 render Nhà; level 5 render Khách Sạn. Derived available 32/12 inventory
-  và reserved contention unit hiển thị từ public projection, không client-counter.
+- Level 1–4 render Nhà; level 5 render Khách Sạn. Forced-sale gross/net values come
+  from the public shortfall projection; không client-counter.
 - Tất cả amounts dùng shared client money formatter VNĐ.
 - Exact deck order/next card không có trong public state hoặc DOM.
 
@@ -30,9 +30,8 @@ styles. Không có detail route hay permission key.
 
 - Token presentation có thể trễ authoritative position; normal move tối đa 12 bước,
   pass 39→0 đúng. Jail/teleport/backward dùng explicit animation/snap behavior.
-- Buy/debt/auction/turn marker đợi token settled. Doubles giữ marker current Player
-  tới khi full resolution xong; extra-roll control chỉ bật sau committed
-  `completeTurnResolution=EXTRA_ROLL` state.
+- Buy/development/payment/turn marker đợi token settled. The marker remains until
+  the committed landing/payment resolution is complete; doubles never extra-roll.
 - Reconnect snapshot không replay mutation/animation timer; reduced-motion vẫn dùng
   state settlement đúng.
 - Spectator/reconnecting thấy board nhưng không có mutation action.
@@ -41,5 +40,5 @@ styles. Không có detail route hay permission key.
 
 - Exact 40 Vietnamese tiles, canonical derivation và không English board labels.
 - Owner/mortgage/house/hotel/inventory/token update theo revision.
-- Normal/pass-GO/jail/card movement; doubles extra-roll settlement.
+- Normal/pass-GO/jail/card movement; buy/development/payment settlement.
 - Card flip, outside close, multiple token, reduced-motion, reconnect/no-duplicate.

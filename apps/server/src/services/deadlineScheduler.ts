@@ -1,30 +1,164 @@
-import { randomUUID } from 'node:crypto';
 import type { OfferResult, PlayerId } from '@monopoly/shared';
 import {
-  bankBuildingInventory,
-  buildHouse,
-  canBuildHouse,
-  declareActiveDebtBankruptcy,
-  finalizeAuction,
+  activeDebtClaim,
+  bankruptActiveDebtor,
+  completeTurnResolution,
   nextTurn,
   resumePaymentContinuation,
-  startAuction,
-  startBuildingAuction,
-  startNextBankPropertyAuction,
   settleAffordableClaims,
+  sellPropertyToBankForPayment,
 } from '../game';
 import { assertSupportedRoomSnapshot } from '../rooms';
+import { cancelPendingOffersForAssets } from './offerInvalidation';
+import { projectPrivateOffer } from './privateOffers';
 import { broadcastRoom, privatePlayerRoomName } from '../socket/broadcast';
 import { commitRoomCommand } from '../socket/roomCommands';
 import type { AppServer } from '../socket/types';
-import { projectPrivateOffer } from './privateOffers';
-import type { AppRuntime } from './runtime';
 import type { TradeOfferRecord } from '../persistence/types';
+import type { AppRuntime } from './runtime';
 
 const POLL_INTERVAL_MS = 1_000;
 const BATCH_SIZE = 100;
 
 class StaleDeadlineError extends Error {}
+
+interface RecoveryResult {
+  changed: boolean;
+  cancelledOffers: TradeOfferRecord[];
+}
+
+const emitCancelledOffers = (
+  io: AppServer,
+  room: Parameters<typeof projectPrivateOffer>[1],
+  records: TradeOfferRecord[],
+  now: Date,
+): void => {
+  for (const record of records) {
+    const offer = projectPrivateOffer(record, room);
+    const result: OfferResult = {
+      offerId: offer.offerId,
+      status: 'CANCELLED',
+      proposerPlayerId: offer.proposerPlayerId,
+      recipientPlayerId: offer.recipientPlayerId,
+      proposerName: offer.proposerName,
+      recipientName: offer.recipientName,
+      offered: offer.offered,
+      requested: offer.requested,
+      resolvedAt: offer.resolvedAt ?? now.toISOString(),
+    };
+    io.to(privatePlayerRoomName(offer.proposerPlayerId)).emit('offer cancelled', result);
+    io.to(privatePlayerRoomName(offer.recipientPlayerId)).emit('offer cancelled', result);
+  }
+};
+
+const recoverPaymentShortfall = async (
+  context: Parameters<Parameters<typeof commitRoomCommand>[2]>[0],
+  expected: {
+    operationId: string;
+    activeClaimIndex: number;
+    claimId: string;
+    deadlineAt: string;
+  },
+  now: Date,
+  runtime: AppRuntime,
+): Promise<{ changed: boolean; cancelledOffers: TradeOfferRecord[] }> => {
+  const { state, transaction } = context;
+  const queue = state.boardState.paymentQueue;
+  const claim = queue?.orderedClaims[queue.activeClaimIndex];
+  if (
+    !queue
+    || !claim
+    || queue.operationId !== expected.operationId
+    || queue.activeClaimIndex !== expected.activeClaimIndex
+    || claim.claimId !== expected.claimId
+    || queue.actionDeadlineAt !== expected.deadlineAt
+    || Date.parse(queue.actionDeadlineAt) > now.getTime()
+  ) return { changed: false, cancelledOffers: [] };
+
+  const options = {
+    now: now.getTime(),
+    paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+  };
+  const debtorId = claim.debtorPlayerId;
+  const debtor = state.players[debtorId];
+  if (!debtor) return { changed: false, cancelledOffers: [] };
+
+  const cancelledOffers: TradeOfferRecord[] = [];
+  let changed = false;
+  let continuation = settleAffordableClaims(state, options);
+  if (continuation) {
+    resumePaymentContinuation(state, continuation, options);
+    return { changed: true, cancelledOffers };
+  }
+
+  const ownedTileIds = (): number[] => Object.entries(state.boardState.ownedProps)
+    .filter(([, property]) => property.id === debtorId)
+    .map(([tileID]) => Number(tileID))
+    .sort((left, right) => left - right);
+
+  for (const tileID of ownedTileIds()) {
+    const active = activeDebtClaim(state);
+    const currentQueue = state.boardState.paymentQueue;
+    if (!active || !currentQueue || active.debtorPlayerId !== debtorId) break;
+    const soldContinuation = sellPropertyToBankForPayment(
+      state,
+      debtorId,
+      currentQueue.operationId,
+      active.claimId,
+      tileID,
+      options,
+    );
+    const cancelled = await cancelPendingOffersForAssets(
+      transaction.tradeOffers,
+      context.original.id,
+      null,
+      [tileID],
+      [],
+      now,
+    );
+    cancelledOffers.push(...cancelled);
+    changed = true;
+    if (soldContinuation) {
+      resumePaymentContinuation(state, soldContinuation, options);
+      return { changed, cancelledOffers };
+    }
+    continuation = settleAffordableClaims(state, options);
+    if (continuation) {
+      resumePaymentContinuation(state, continuation, options);
+      return { changed, cancelledOffers };
+    }
+  }
+
+  const remaining = activeDebtClaim(state);
+  if (remaining?.debtorPlayerId === debtorId && state.boardState.paymentQueue) {
+    // No property remains and the cash already available has been applied by
+    // settleAffordableClaims. Mark this debtor's claims terminal, then let
+    // the ordered queue continue to any other debtor.
+    const continuationAfterBankruptcy = bankruptActiveDebtor(
+      state,
+      debtorId,
+      'BANKRUPT',
+      options,
+    );
+    const pendingOffers = await transaction.tradeOffers.listPendingForPlayer(
+      context.original.id,
+      debtorId,
+    );
+    const cancelled = await Promise.all(
+      pendingOffers.map((offer) => transaction.tradeOffers.resolve(
+        offer.id,
+        'CANCELLED',
+        now,
+      )),
+    );
+    cancelledOffers.push(...cancelled.filter((offer): offer is TradeOfferRecord => offer !== null));
+    if (continuationAfterBankruptcy) {
+      resumePaymentContinuation(state, continuationAfterBankruptcy, options);
+    }
+    changed = true;
+  }
+  return { changed, cancelledOffers };
+};
 
 export async function recoverRoomIfDue(
   io: AppServer,
@@ -40,35 +174,30 @@ export async function recoverRoomIfDue(
   const expectedRoomExpiry = candidate.expiresAt && candidate.expiresAt <= now
     ? candidate.expiresAt.getTime()
     : undefined;
-  const candidateAuction = candidate.gameSnapshot.gameState.boardState.auction;
-  const expectedAuction = candidateAuction
-    && Date.parse(candidateAuction.endsAt) <= now.getTime()
-    ? { auctionId: candidateAuction.auctionId, endsAt: candidateAuction.endsAt }
-    : undefined;
   const candidateRecovery = candidate.gameSnapshot.gameState.boardState.turnRecovery;
   const expectedRecovery = candidateRecovery
     && Date.parse(candidateRecovery.deadlineAt) <= now.getTime()
     ? { ...candidateRecovery }
     : undefined;
-  const candidateDebt = candidate.gameSnapshot.gameState.boardState.paymentQueue;
-  const candidateClaim = candidateDebt?.orderedClaims[candidateDebt.activeClaimIndex];
-  const expectedDebt = candidateDebt && candidateClaim
-    && Date.parse(candidateDebt.actionDeadlineAt) <= now.getTime()
+  const candidateQueue = candidate.gameSnapshot.gameState.boardState.paymentQueue;
+  const candidateClaim = candidateQueue?.orderedClaims[candidateQueue.activeClaimIndex];
+  const expectedPayment = candidateQueue && candidateClaim
+    && Date.parse(candidateQueue.actionDeadlineAt) <= now.getTime()
     ? {
-        operationId: candidateDebt.operationId,
-        activeClaimIndex: candidateDebt.activeClaimIndex,
+        operationId: candidateQueue.operationId,
+        activeClaimIndex: candidateQueue.activeClaimIndex,
         claimId: candidateClaim.claimId,
-        deadlineAt: candidateDebt.actionDeadlineAt,
+        deadlineAt: candidateQueue.actionDeadlineAt,
       }
     : undefined;
-  const candidateContention = candidate.gameSnapshot.gameState.boardState.buildingContention;
-  const expectedContention = candidateContention
-    && Date.parse(candidateContention.endsAt) <= now.getTime()
-    ? { contentionId: candidateContention.contentionId, endsAt: candidateContention.endsAt }
+  const candidateProposal = candidate.gameSnapshot.gameState.privateState.forcedSaleProposal;
+  const expectedProposal = candidateProposal
+    && Date.parse(candidateProposal.expiresAt) <= now.getTime()
+    ? { proposalId: candidateProposal.proposalId, expiresAt: candidateProposal.expiresAt }
     : undefined;
 
   try {
-    const committed = await commitRoomCommand(runtime, roomId, async (context) => {
+    const committed = await commitRoomCommand(runtime, roomId, async (context): Promise<RecoveryResult> => {
       const { state, room } = context;
       let changed = false;
       const cancelledOffers: TradeOfferRecord[] = [];
@@ -78,11 +207,9 @@ export async function recoverRoomIfDue(
         && room.expiresAt?.getTime() === expectedRoomExpiry
         && room.expiresAt <= now
       ) {
-        const hasConnectedPlayer = Object.entries(room.gameSnapshot.members)
-          .some(([playerId, member]) => (
-            member.membershipStatus !== 'LEFT'
-            && runtime.connections.isConnected(playerId)
-          ));
+        const hasConnectedPlayer = Object.entries(room.gameSnapshot.members).some(([playerId, member]) => (
+          member.membershipStatus !== 'LEFT' && runtime.connections.isConnected(playerId)
+        ));
         if (!hasConnectedPlayer) {
           context.deleteRoom();
           return { changed: true, cancelledOffers };
@@ -90,119 +217,21 @@ export async function recoverRoomIfDue(
         changed = true;
       }
 
-      const auction = state.boardState.auction;
+      const proposal = state.privateState.forcedSaleProposal;
       if (
-        expectedAuction
-        && auction?.auctionId === expectedAuction.auctionId
-        && auction.endsAt === expectedAuction.endsAt
-        && Date.parse(auction.endsAt) <= now.getTime()
+        expectedProposal
+        && proposal?.proposalId === expectedProposal.proposalId
+        && proposal.expiresAt === expectedProposal.expiresAt
+        && Date.parse(proposal.expiresAt) <= now.getTime()
       ) {
-        changed = finalizeAuction(state, expectedAuction.auctionId) || changed;
-      }
-
-      const contention = state.boardState.buildingContention;
-      if (
-        expectedContention
-        && contention?.contentionId === expectedContention.contentionId
-        && contention.endsAt === expectedContention.endsAt
-        && Date.parse(contention.endsAt) <= now.getTime()
-      ) {
-        const validRequests = Object.fromEntries(
-          Object.entries(contention.requests).filter(([playerId, request]) => (
-            canBuildHouse(state, playerId, request.tileID, { ignoreInventory: true })
-          )),
-        );
-        const claimantSet = new Set(Object.keys(validRequests));
-        const claimants = [
-          ...state.boardState.players.filter((id) => claimantSet.delete(id)),
-          ...claimantSet,
-        ];
-        const inventory = bankBuildingInventory(state);
-        const physicalStock = (
-          contention.buildingType === 'HOUSE'
-            ? inventory.housesAvailable
-            : inventory.hotelsAvailable
-        ) + 1; // include the unit reserved by this contention
-        if (claimants.length === 0) {
-          state.boardState.buildingContention = null;
-        } else if (claimants.length === 1) {
-          const request = validRequests[claimants[0]];
-          state.boardState.buildingContention = null;
-          buildHouse(state, request.playerId, request.tileID);
-        } else if (physicalStock >= claimants.length) {
-          state.boardState.buildingContention = null;
-          for (const playerId of claimants) {
-            const request = validRequests[playerId];
-            buildHouse(state, request.playerId, request.tileID);
-          }
-        } else {
-          startBuildingAuction(state, contention.buildingType, validRequests, {
-            now: now.getTime(),
-          });
-        }
-        if (
-          state.boardState.bankPropertyAuctionQueue
-          && !state.boardState.buildingContention
-          && !state.boardState.auction
-        ) {
-          startNextBankPropertyAuction(state, { now: now.getTime() });
-        }
+        state.privateState.forcedSaleProposal = null;
         changed = true;
       }
 
-      const paymentQueue = state.boardState.paymentQueue;
-      const claim = paymentQueue?.orderedClaims[paymentQueue.activeClaimIndex];
-      if (
-        expectedDebt
-        && paymentQueue?.operationId === expectedDebt.operationId
-        && paymentQueue.activeClaimIndex === expectedDebt.activeClaimIndex
-        && claim?.claimId === expectedDebt.claimId
-        && paymentQueue.actionDeadlineAt === expectedDebt.deadlineAt
-        && Date.parse(paymentQueue.actionDeadlineAt) <= now.getTime()
-      ) {
-        const resolutionOptions = {
-          now: now.getTime(),
-          debtActionTimeoutMs: runtime.timing.debtActionTimeoutMs,
-        };
-        const debtorCanPay = (
-          state.players[claim.debtorPlayerId]?.accountBalance ?? -1
-        ) >= claim.remainingAmount;
-        if (debtorCanPay) {
-          const beforeIndex = paymentQueue.activeClaimIndex;
-          const continuation = settleAffordableClaims(state, resolutionOptions);
-          if (continuation && state.boardState.bankPropertyAuctionQueue) {
-            state.boardState.bankPropertyAuctionQueue.continuation = continuation;
-            startNextBankPropertyAuction(state, { now: now.getTime() });
-          } else if (continuation) {
-            resumePaymentContinuation(state, continuation, resolutionOptions);
-          }
-          changed = continuation !== null
-            || state.boardState.paymentQueue?.activeClaimIndex !== beforeIndex
-            || changed;
-          if (!changed) throw new StaleDeadlineError();
-          return { changed, cancelledOffers };
-        }
-        const result = declareActiveDebtBankruptcy(state, claim.debtorPlayerId, resolutionOptions);
-        if (result.changed) {
-          const pending = await context.transaction.tradeOffers.listPendingForPlayer(
-            roomId,
-            claim.debtorPlayerId,
-          );
-          const cancelled = await Promise.all(pending.map((offer) => (
-            context.transaction.tradeOffers.resolve(offer.id, 'CANCELLED', now)
-          )));
-          cancelledOffers.push(...cancelled.filter((offer): offer is TradeOfferRecord => offer !== null));
-        }
-        if (result.bankAuctionQueued && !state.boardState.paymentQueue) {
-          startNextBankPropertyAuction(state, { now: now.getTime() });
-        }
-        if (result.continuation && state.boardState.bankPropertyAuctionQueue) {
-          state.boardState.bankPropertyAuctionQueue.continuation = result.continuation;
-          startNextBankPropertyAuction(state, { now: now.getTime() });
-        } else if (result.continuation) {
-          resumePaymentContinuation(state, result.continuation, resolutionOptions);
-        }
-        changed = result.changed || changed;
+      if (expectedPayment) {
+        const paymentResult = await recoverPaymentShortfall(context, expectedPayment, now, runtime);
+        changed ||= paymentResult.changed;
+        cancelledOffers.push(...paymentResult.cancelledOffers);
       }
 
       const recovery = state.boardState.turnRecovery;
@@ -211,37 +240,26 @@ export async function recoverRoomIfDue(
         && recovery?.turnNumber === expectedRecovery.turnNumber
         && recovery.playerId === expectedRecovery.playerId
         && recovery.deadlineAt === expectedRecovery.deadlineAt
+        && (recovery.pendingOperationId ?? null) === (expectedRecovery.pendingOperationId ?? null)
         && Date.parse(recovery.deadlineAt) <= now.getTime()
       ) {
         const isCurrentTurn = recovery.turnNumber === state.boardState.turnNumber
           && recovery.playerId === state.boardState.currentPlayer.id;
         state.boardState.turnRecovery = null;
         changed = true;
-        if (
-          !isCurrentTurn
-          || state.boardState.winner
-          || state.boardState.auction
-          || state.boardState.paymentQueue
-          || state.boardState.buildingContention
-          || state.boardState.bankPropertyAuctionQueue
-        ) {
-          return { changed, cancelledOffers };
-        }
-
-        const player = state.players[recovery.playerId];
-        if (
-          state.turnInfo.pendingPropertyDecision
-          && player
-          && !state.boardState.ownedProps[player.currentTile]
-        ) {
-          startAuction(state, player.currentTile, {
-            auctionId: randomUUID(),
-            now: now.getTime(),
-            continuation: state.turnInfo.pendingPropertyDecision.continuation,
-          });
-        } else {
-          // This deliberately does not change jailRounds. It only skips the turn.
-          nextTurn(state);
+        if (isCurrentTurn && !state.boardState.winner && !state.boardState.paymentQueue) {
+          const player = state.players[recovery.playerId];
+          if (state.turnInfo.pendingPropertyDecision && player) {
+            const continuation = state.turnInfo.pendingPropertyDecision.continuation;
+            state.turnInfo = {};
+            completeTurnResolution(state, continuation);
+          } else if (state.turnInfo.pendingDevelopmentDecision && player) {
+            const continuation = state.turnInfo.pendingDevelopmentDecision.continuation;
+            state.turnInfo = {};
+            completeTurnResolution(state, continuation);
+          } else {
+            nextTurn(state);
+          }
         }
       }
 
@@ -250,22 +268,7 @@ export async function recoverRoomIfDue(
     }, now);
 
     if (committed.result.changed && committed.room) {
-      for (const record of committed.result.cancelledOffers) {
-        const projected = projectPrivateOffer(record, committed.room);
-        const result: OfferResult = {
-          offerId: projected.offerId,
-          status: 'CANCELLED',
-          proposerPlayerId: projected.proposerPlayerId,
-          recipientPlayerId: projected.recipientPlayerId,
-          proposerName: projected.proposerName,
-          recipientName: projected.recipientName,
-          offered: projected.offered,
-          requested: projected.requested,
-          resolvedAt: projected.resolvedAt ?? now.toISOString(),
-        };
-        io.to(privatePlayerRoomName(projected.proposerPlayerId)).emit('offer cancelled', result);
-        io.to(privatePlayerRoomName(projected.recipientPlayerId)).emit('offer cancelled', result);
-      }
+      emitCancelledOffers(io, committed.room, committed.result.cancelledOffers, now);
       broadcastRoom(io, runtime, committed.room);
     }
   } catch (error) {
@@ -287,14 +290,7 @@ export async function reconcileTurnPresence(
   assertSupportedRoomSnapshot(current);
   const board = current.gameSnapshot.gameState.boardState;
   const currentPlayerId = board.currentPlayer.id;
-  if (
-    !currentPlayerId
-    || board.auction
-    || board.paymentQueue
-    || board.buildingContention
-    || board.bankPropertyAuctionQueue
-    || board.winner
-  ) return;
+  if (!currentPlayerId || board.paymentQueue || current.gameSnapshot.gameState.privateState.forcedSaleProposal || board.winner) return;
 
   const shouldClear = reconnectingPlayerId === currentPlayerId
     && board.turnRecovery?.playerId === currentPlayerId
@@ -320,10 +316,7 @@ export async function reconcileTurnPresence(
     if (
       shouldArm
       && !latestBoard.turnRecovery
-      && !latestBoard.auction
       && !latestBoard.paymentQueue
-      && !latestBoard.buildingContention
-      && !latestBoard.bankPropertyAuctionQueue
       && latestBoard.currentPlayer.id
       && !runtime.connections.isConnected(latestBoard.currentPlayer.id)
     ) {
@@ -331,6 +324,9 @@ export async function reconcileTurnPresence(
         playerId: latestBoard.currentPlayer.id,
         turnNumber: latestBoard.turnNumber,
         deadlineAt: new Date(now.getTime() + runtime.timing.reconnectGraceMs).toISOString(),
+        pendingOperationId: state.turnInfo.pendingPropertyDecision?.operationId
+          ?? state.turnInfo.pendingDevelopmentDecision?.operationId
+          ?? null,
       };
     }
   }, now);
@@ -341,7 +337,7 @@ export async function armDisconnectedCurrentPlayer(
   io: AppServer,
   runtime: AppRuntime,
   roomId: string,
-  disconnectedPlayerId: PlayerId,
+  disconnectedPlayerId: string,
   now = new Date(),
 ): Promise<void> {
   if (runtime.flags.shuttingDown || runtime.connections.isConnected(disconnectedPlayerId)) return;
@@ -352,10 +348,8 @@ export async function armDisconnectedCurrentPlayer(
     !room
     || room.status !== 'IN_PROGRESS'
     || board?.currentPlayer.id !== disconnectedPlayerId
-    || board.auction
     || board.paymentQueue
-    || board.buildingContention
-    || board.bankPropertyAuctionQueue
+    || room.gameSnapshot.gameState.privateState.forcedSaleProposal
     || board.turnRecovery
     || board.winner
   ) return;
@@ -364,10 +358,7 @@ export async function armDisconnectedCurrentPlayer(
     if (
       runtime.connections.isConnected(disconnectedPlayerId)
       || state.boardState.currentPlayer.id !== disconnectedPlayerId
-      || state.boardState.auction
       || state.boardState.paymentQueue
-      || state.boardState.buildingContention
-      || state.boardState.bankPropertyAuctionQueue
       || state.boardState.turnRecovery
       || state.boardState.winner
     ) return;
@@ -375,6 +366,9 @@ export async function armDisconnectedCurrentPlayer(
       playerId: disconnectedPlayerId,
       turnNumber: state.boardState.turnNumber,
       deadlineAt: new Date(now.getTime() + runtime.timing.reconnectGraceMs).toISOString(),
+      pendingOperationId: state.turnInfo.pendingPropertyDecision?.operationId
+        ?? state.turnInfo.pendingDevelopmentDecision?.operationId
+        ?? null,
     };
   }, now);
   if (committed.room) broadcastRoom(io, runtime, committed.room);
@@ -423,11 +417,7 @@ export class DeadlineScheduler {
     });
 
     const offerResults = await Promise.allSettled(offers.map(async (offer) => {
-      const resolved = await this.runtime.persistence.tradeOffers.resolve(
-        offer.id,
-        'EXPIRED',
-        now,
-      );
+      const resolved = await this.runtime.persistence.tradeOffers.resolve(offer.id, 'EXPIRED', now);
       if (!resolved) return;
       const room = await this.runtime.persistence.rooms.findById(resolved.roomId);
       if (!room) return;

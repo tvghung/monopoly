@@ -1,4 +1,4 @@
-# Checklist — start, movement, doubles, cards, jail và PaymentQueue
+# Checklist — start, movement, landing decisions, jail và payment shortfall
 
 ## Start/movement
 
@@ -8,20 +8,19 @@
   Xuất Phát pay 200; direct-to-jail pays none.
 - [ ] `[SOCKET]` Client cannot supply starting roll, dice, position or actor.
 
-## Turn continuation/doubles
+## Turn continuation
 
-- [ ] `[AUTO]` Non-double full resolution → `ADVANCE_TURN`; doubles 1/2 full
-  resolution → `EXTRA_ROLL`; third consecutive doubles → jail/no movement/reset.
-- [ ] `[AUTO]` Buy wait, card destination, payment and both auction kinds delay
-  `completeTurnResolution` and handoff/extra roll exactly once.
-- [ ] `[SOCKET][PG]` Disconnect/restart after doubles resolution restores same
-  Player/streak/pending decision/continuation and cannot roll/advance twice.
-- [ ] `[AUTO]` Normal handoff/jail reset streak; jail doubles never extra-roll.
+- [ ] `[AUTO]` Every completed roll resolves exactly once and advances to the next
+  seat; doubles never grant an extra roll.
+- [ ] `[AUTO]` Buy wait and same-landing development wait delay
+  `completeTurnResolution` and handoff exactly once.
+- [ ] `[SOCKET][PG]` Disconnect/restart restores the same pending operation ID and
+  continuation and cannot roll/advance twice.
 
 ## Tile/cards/decks
 
-- [ ] `[AUTO]` Buy revalidates property/balance; decline starts auction with every
-  active Player including decliner; Free Parking no-op; taxes 200/75.
+- [ ] `[AUTO]` Buy/Do Not Buy revalidate operation ID, property and balance; Do Not
+  Buy never starts an auction; Free Parking and tax/fee tiles are no-op.
 - [ ] `[AUTO]` Chance/Khí Vận draw top in persisted order, normal card rotates bottom,
   movement resolves destination/pass-GO and go-to-jail direct semantics.
 - [ ] `[AUTO][PG]` Jail-free card leaves source pile, holder identity persists,
@@ -31,9 +30,10 @@
 
 - [ ] `[AUTO][SOCKET]` Pay bail 50 then roll; use held card then roll; doubles escapes,
   moves/resolves and ends turn.
-- [ ] `[AUTO]` Failed attempts 1/2 stay jailed; third failure creates forced BANK
-  claim, then moves with persisted dice after payment and resolves destination.
-- [ ] `[PG]` Restart during third-fail debt preserves dice/attempt/card/payment state.
+- [ ] `[AUTO]` Failed roll or explicit wait ends the jailed turn; the persisted
+  opponent-round counter increments on handoff and releases before the second
+  jailed turn.
+- [ ] `[PG]` Restart preserves jail progress and card identities exactly.
 
 ## Multi-debtor PaymentQueue
 
@@ -41,8 +41,8 @@
   `creditorPlayerId`; `remainingAmount` never exceeds original positive amount.
 - [ ] `[AUTO]` collect/pay-each-player creates stable cyclic claims and
   `activeClaimIndex`; multiple debtors settle in deterministic Player order.
-- [ ] `[AUTO][SOCKET]` Only active debtor can `settle debt`/`declare bankruptcy`;
-  sell/mortgage/trade may fund claim while roll/handoff stays blocked.
+- [ ] `[AUTO][SOCKET]` Only the active debtor can sell to Bank or propose a forced
+  sale; ordinary listing/trade and roll remain blocked during shortfall.
 - [ ] `[PG]` Reconnect/restart preserves claim order/index/remaining source and
   resumes exactly once.
 - [ ] `[SOCKET]` Save failure causes no partial balance, claim removal, revision,

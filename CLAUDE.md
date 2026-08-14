@@ -47,18 +47,18 @@ thay đổi chưa hoàn tất.
   JSONB game snapshot, snapshot schema version và aggregate compare-and-swap.
 - Không có production memory fallback. In-memory repository chỉ dành cho test.
 - Không persist presence, socket mapping, raw token, timer handle hoặc countdown
-  tick. Auction/offer/turn recovery persist absolute deadline.
+  tick. Offer/turn/payment-shortfall/forced-sale recovery persist absolute deadline.
 - Lifecycle room chỉ tiến `LOBBY → IN_PROGRESS → FINISHED`.
 - Host là stable player; disconnect không transfer host. Lobby cần 2–7 active,
   connected và ready players để host start.
 - Standard Mode dùng board Việt Nam cố định 40 ô, đơn vị số nguyên game-unit
-  (`1 unit = 1.000 VNĐ`) và protocol/snapshot schema v2. Không đổi index hoặc
+  (`1 unit = 1.000 VNĐ`) và protocol/snapshot schema v3. Không đổi index hoặc
   economy chỉ vì đổi nhãn hiển thị.
-- `completeTurnResolution` là điểm duy nhất quyết định `EXTRA_ROLL` hay
-  `ADVANCE_TURN`. `doublesStreak`, `PendingTurnContinuation` nhúng trong các wait,
-  `TurnInfo.pendingPropertyDecision`, `PaymentQueue`, private
-  `GamePrivateState.decks`, `BankPropertyAuctionQueue`, auction/building contention
-  đều thuộc authoritative room aggregate và phải recovery-safe.
+- `completeTurnResolution` là điểm duy nhất handoff và v3 chỉ có
+  `ADVANCE_TURN`; đổ đôi không cấp thêm lượt. `PendingTurnContinuation` nhúng trong
+  các wait, pending purchase/development landing decision, `PaymentQueue`, private
+  `GamePrivateState.decks` và forced-sale proposal đều thuộc authoritative room
+  aggregate và phải recovery-safe.
 - `DeckState` và thứ tự thẻ không được phát trong public DTO. Client chỉ nhận dữ
   liệu công khai cần để render; credential, private offer và hidden deck state vẫn
   giữ ngoài public projection.
@@ -75,8 +75,8 @@ thay đổi chưa hoàn tất.
   Client lifecycle và restart/reconnect testcase.
 - Đổi tile/card data: rà shared data, presentation duplicates, hard-coded index,
   docs và testcase. Không dọn code/tài liệu không liên quan.
-- Đổi payment/bankruptcy/transfer/building inventory: rà mọi producer của
-  `DebtClaim`, policy transfer, auction continuation, snapshot validation và test
+- Đổi payment/bankruptcy/transfer/forced sale: rà mọi producer của `DebtClaim`,
+  policy transfer, proposal continuation, snapshot validation và test
   restart/reconnect trước khi hoàn tất.
 
 ## Kiểm tra trước khi hoàn tất
