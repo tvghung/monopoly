@@ -28,4 +28,19 @@ describe('database migrations', () => {
       'SELECT 1;\nSELECT 2;\n',
     );
   });
+
+  it('pins the checksum of the historical v3 migration', async () => {
+    const migrations = await loadMigrationFiles();
+    const migration = migrations.find(({ version }) => (
+      version === '004_simplified_rules_v3.sql'
+    ));
+
+    // Migrations 001-004 are historical and applied databases record their
+    // checksums; editing one can prevent an existing database from starting.
+    // Keep this literal independent from the file under test so an accidental
+    // edit cannot silently update the expected value.
+    expect(migration?.checksum).toBe(
+      '36e396735856d38b1257a42b9f15821c0752c73892e455a5add64c4e01b552cd',
+    );
+  });
 });

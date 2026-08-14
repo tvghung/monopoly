@@ -21,6 +21,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { PersistenceTimingConfig } from './config.js';
 import { createServer } from './createServer.js';
+import { forcedSaleGrossPrice } from './game';
 import { InMemoryPersistenceStore } from './persistence/inMemory.js';
 import { migrateDatabase } from './persistence/migrate.js';
 import { PostgresPersistenceStore } from './persistence/postgres.js';
@@ -1039,6 +1040,131 @@ describe('Socket.IO durable player lifecycle', () => {
         expect.objectContaining({ playerId: guest.playerId, ready: true }),
       ]),
     );
+  });
+
+  it('lets an unrelated current creditor leave without rebasing or clearing another forced sale', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const creditor = await joinPlayer(await connect(subject.url), 'Creditor', 'leave-shortfall');
+    const debtor = await joinPlayer(await connect(subject.url), 'Debtor', 'leave-shortfall');
+    const buyer = await joinPlayer(await connect(subject.url), 'Buyer', 'leave-shortfall');
+    await setReady(creditor.socket);
+    await setReady(debtor.socket);
+    await setReady(buyer.socket);
+    expect((await startGame(creditor.socket)).ok).toBe(true);
+
+    const paymentOperationId = randomUUID();
+    const claimId = randomUUID();
+    const proposalId = randomUUID();
+    const turnNumber = 5;
+    const now = Date.now();
+    const actionDeadlineAt = new Date(now + 120_000).toISOString();
+    const expiresAt = new Date(now + 20_000).toISOString();
+    const grossPrice = forcedSaleGrossPrice(1, 0);
+
+    await mutateRoom(persistence, creditor.room.roomId, (room) => {
+      const gameState = room.gameSnapshot.gameState;
+      gameState.boardState.players = [creditor.playerId, debtor.playerId, buyer.playerId];
+      gameState.boardState.currentPlayer = { id: creditor.playerId, hasMoved: true };
+      gameState.boardState.turnNumber = turnNumber;
+      gameState.boardState.finishedPlayers = {};
+      gameState.boardState.winner = null;
+      gameState.boardState.ownedProps = {
+        1: {
+          id: debtor.playerId,
+          color: gameState.players[debtor.playerId].color,
+          houses: 0,
+          mortgaged: false,
+        },
+      };
+      gameState.players[creditor.playerId].accountBalance = 1500;
+      gameState.players[debtor.playerId].accountBalance = 0;
+      gameState.players[buyer.playerId].accountBalance = 1500;
+      gameState.turnInfo = {};
+      gameState.boardState.paymentQueue = {
+        operationId: paymentOperationId,
+        orderedClaims: [{
+          claimId,
+          debtorPlayerId: debtor.playerId,
+          creditor: 'PLAYER',
+          creditorPlayerId: creditor.playerId,
+          amount: 500,
+          remainingAmount: 500,
+          source: { kind: 'OTHER', description: 'leave continuation regression' },
+          status: 'PENDING',
+        }],
+        activeClaimIndex: 0,
+        continuation: { playerId: creditor.playerId, turnNumber },
+        actionDeadlineAt,
+      };
+      gameState.privateState.forcedSaleProposal = {
+        proposalId,
+        paymentOperationId,
+        claimId,
+        sellerPlayerId: debtor.playerId,
+        buyerPlayerId: buyer.playerId,
+        tileID: 1,
+        grossPrice,
+        sellerNetProceeds: grossPrice,
+        expectedHouses: 0,
+        expectedMortgaged: false,
+        expiresAt,
+      };
+      room.nextActionAt = new Date(expiresAt);
+    });
+
+    const before = await persistence.rooms.findById(creditor.room.roomId);
+    if (!before) throw new Error('Expected a persisted room before leave');
+    assertSupportedRoomSnapshot(before);
+
+    const nullProposalEvents: unknown[] = [];
+    debtor.socket.on('forced sale proposal', (proposal) => {
+      if (proposal === null) nullProposalEvents.push(proposal);
+    });
+    buyer.socket.on('forced sale proposal', (proposal) => {
+      if (proposal === null) nullProposalEvents.push(proposal);
+    });
+
+    expect(successData(await leaveRoom(creditor.socket))).toEqual({ roomDeleted: false });
+    expect(nullProposalEvents).toHaveLength(0);
+
+    const after = await persistence.rooms.findById(creditor.room.roomId);
+    if (!after) throw new Error('Expected the room to remain after creditor leave');
+    assertSupportedRoomSnapshot(after);
+    expect(after.gameSnapshot.members[creditor.playerId]).toMatchObject({
+      membershipStatus: 'LEFT',
+    });
+    expect(after.gameSnapshot.gameState.boardState.players).toEqual([
+      debtor.playerId,
+      buyer.playerId,
+    ]);
+    expect(after.gameSnapshot.gameState.boardState.currentPlayer).toEqual({
+      id: debtor.playerId,
+      hasMoved: false,
+    });
+    expect(after.gameSnapshot.gameState.boardState.turnNumber).toBe(turnNumber + 1);
+    expect(after.gameSnapshot.gameState.boardState.paymentQueue).toMatchObject({
+      continuation: {
+        playerId: debtor.playerId,
+        turnNumber: turnNumber + 1,
+        resume: { kind: 'NO_TURN_CHANGE' },
+      },
+      orderedClaims: [{
+        debtorPlayerId: debtor.playerId,
+        creditor: 'BANK',
+        remainingAmount: 500,
+      }],
+    });
+    expect(after.gameSnapshot.gameState.boardState.paymentQueue?.orderedClaims[0]?.creditorPlayerId)
+      .toBeUndefined();
+    expect(after.gameSnapshot.gameState.boardState.ownedProps[1]).toMatchObject({ id: debtor.playerId });
+    expect(after.gameSnapshot.gameState.privateState.forcedSaleProposal).toMatchObject({
+      proposalId,
+      sellerPlayerId: debtor.playerId,
+      buyerPlayerId: buyer.playerId,
+      paymentOperationId,
+      claimId,
+    });
   });
 });
 

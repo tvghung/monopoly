@@ -150,6 +150,7 @@ export function registerLobbyHandlers(
         if (room.status === 'IN_PROGRESS') {
           const proposal = state.privateState.forcedSaleProposal;
           proposalPlayers = proposal
+            && (proposal.sellerPlayerId === playerId || proposal.buyerPlayerId === playerId)
             ? [proposal.sellerPlayerId, proposal.buyerPlayerId]
             : [];
           const result = member.membershipStatus === 'FINISHED'

@@ -29,7 +29,6 @@ const finishElimination = (state: GameState, playerId: PlayerId, reason: 'BANKRU
   if (!player) return;
   player.accountBalance = 0;
   returnHeldCardsToDeck(state, playerId);
-  state.privateState.forcedSaleProposal = null;
   removePlayerFromGame(state, playerId, reason, { deferWinner: true });
   checkWinner(state);
 };

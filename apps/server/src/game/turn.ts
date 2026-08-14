@@ -111,6 +111,26 @@ const resetForFreshTurn = (state: GameState): void => {
   state.turnInfo = {};
 };
 
+// A payment queue is resumed by the turn that was interrupted. If that turn's
+// player is removed, repair only that queue's continuation after the final
+// post-removal handoff has established the successor and turn number.
+const rebasePaymentContinuationAfterPlayerRemoval = (
+  state: GameState,
+  removedPlayerId: PlayerId,
+): void => {
+  const queue = state.boardState.paymentQueue;
+  if (!queue || queue.continuation.playerId !== removedPlayerId) return;
+
+  const currentPlayerId = state.boardState.currentPlayer.id;
+  if (!currentPlayerId || !state.players[currentPlayerId]) return;
+
+  queue.continuation = {
+    playerId: currentPlayerId,
+    turnNumber: state.boardState.turnNumber,
+    resume: { kind: 'NO_TURN_CHANGE' },
+  };
+};
+
 // Declare a winner once only one player is left standing and at least one other
 // player has already been eliminated. The guard makes both the state and win log
 // idempotent when recovery or a repeated command checks the result again.
@@ -173,6 +193,7 @@ export const removePlayerFromGame = (
       resetForFreshTurn(state);
     }
   }
+  rebasePaymentContinuationAfterPlayerRemoval(state, playerId);
   return true;
 };
 
@@ -210,10 +231,16 @@ export const checkBalance = (state: GameState, advanceTurn = false): void => {
 
   if (currentWasRemoved) {
     resetForFreshTurn(state);
+    bankrupt.forEach((playerId) => {
+      rebasePaymentContinuationAfterPlayerRemoval(state, playerId);
+    });
     return;
   }
 
   if (advanceTurn) nextTurn(state);
+  bankrupt.forEach((playerId) => {
+    rebasePaymentContinuationAfterPlayerRemoval(state, playerId);
+  });
 };
 
 // Advance the turn to the next player (wrapping around). If balance cleanup has

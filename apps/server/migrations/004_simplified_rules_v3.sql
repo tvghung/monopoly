@@ -149,7 +149,7 @@ BEGIN
         - 'bankPropertyAuctionQueue')
         || JSONB_BUILD_OBJECT(
           'gameStarted', TRUE,
-          'players', TO_JSONB(COALESCE(rotated_ids, ARRAY[]::TEXT[])),
+          'players', TO_JSONB(rotated_ids),
           'finishedPlayers', finished_players,
           'currentPlayer', JSONB_BUILD_OBJECT(
             'id', COALESCE(starter_id, ''),
@@ -171,7 +171,7 @@ BEGIN
         - 'bankPropertyAuctionQueue')
         || JSONB_BUILD_OBJECT(
           'gameStarted', TRUE,
-          'players', TO_JSONB(COALESCE(active_ids, ARRAY[]::TEXT[])),
+          'players', TO_JSONB(active_ids),
           'finishedPlayers', finished_players,
           'currentPlayer', JSONB_BUILD_OBJECT(
             'id', COALESCE(winner_id, ''),
@@ -197,7 +197,7 @@ BEGIN
         - 'bankPropertyAuctionQueue')
         || JSONB_BUILD_OBJECT(
           'gameStarted', TRUE,
-          'players', TO_JSONB(COALESCE(active_ids, ARRAY[]::TEXT[])),
+          'players', TO_JSONB(active_ids),
           'currentPlayer', JSONB_BUILD_OBJECT('id', COALESCE(winner_id, ''), 'hasMoved', FALSE),
           'turnNumber', 1,
           'turnRecovery', NULL,
@@ -219,7 +219,7 @@ BEGIN
         - 'bankPropertyAuctionQueue')
         || JSONB_BUILD_OBJECT(
           'gameStarted', FALSE,
-          'players', TO_JSONB(COALESCE(active_ids, ARRAY[]::TEXT[])),
+          'players', TO_JSONB(active_ids),
           'currentPlayer', JSONB_BUILD_OBJECT('id', '', 'hasMoved', FALSE),
           'turnNumber', 0,
           'turnRecovery', NULL,

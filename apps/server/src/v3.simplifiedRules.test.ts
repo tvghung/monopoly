@@ -14,9 +14,12 @@ import {
   handleJailRoll,
   nextTurn,
   progressPaymentQueue,
+  removePlayerFromGame,
   resolveTile,
+  resumePaymentContinuation,
   sellPropertyToBankForPayment,
   streetRent,
+  surrenderPlayerToBank,
 } from './game';
 import { tileState } from '@monopoly/shared';
 
@@ -326,6 +329,173 @@ describe('simplified v3 rules', () => {
       playerId: 'p2',
       turnNumber: 2,
       resume: { kind: 'NO_TURN_CHANGE' },
+    });
+  });
+
+  it('rebases the continuation when the current creditor leaves another debtor shortfall', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { accountBalance: 1500 });
+    addPlayer(state, 'p2', { accountBalance: 0, color: 'blue' });
+    addPlayer(state, 'p3', { accountBalance: 1500, color: 'green' });
+    own(state, 1, 'p2');
+    state.boardState.currentPlayer = { id: 'p1', hasMoved: true };
+    state.boardState.turnNumber = 5;
+    const queue = createPaymentQueue(
+      [{
+        debtorPlayerId: 'p2',
+        creditor: 'PLAYER',
+        creditorPlayerId: 'p1',
+        amount: 500,
+        source: { kind: 'OTHER', description: 'creditor leaves' },
+      }],
+      { playerId: 'p1', turnNumber: 5 },
+      { now: 0, paymentShortfallActionTimeoutMs: 120_000 },
+    );
+    state.boardState.paymentQueue = queue;
+
+    expect(surrenderPlayerToBank(state, 'p1', {
+      now: 1,
+      paymentShortfallActionTimeoutMs: 120_000,
+    }).changed).toBe(true);
+
+    expect(state.players.p1).toBeUndefined();
+    expect(state.players.p2).toBeDefined();
+    expect(state.players.p3).toBeDefined();
+    expect(state.boardState.currentPlayer).toEqual({ id: 'p2', hasMoved: false });
+    expect(state.boardState.turnNumber).toBe(6);
+    expect(state.boardState.ownedProps[1]).toMatchObject({ id: 'p2' });
+    expect(state.boardState.paymentQueue?.orderedClaims[0]).toMatchObject({
+      debtorPlayerId: 'p2',
+      creditor: 'BANK',
+      remainingAmount: 500,
+    });
+    expect(state.boardState.paymentQueue?.orderedClaims[0].creditorPlayerId).toBeUndefined();
+    expect(state.boardState.paymentQueue?.continuation).toEqual({
+      playerId: 'p2',
+      turnNumber: 6,
+      resume: { kind: 'NO_TURN_CHANGE' },
+    });
+
+    state.players.p2.accountBalance = 500;
+    const progress = progressPaymentQueue(state, {
+      now: 2,
+      paymentShortfallActionTimeoutMs: 120_000,
+    });
+    expect(progress.continuation).toEqual({
+      playerId: 'p2',
+      turnNumber: 6,
+      resume: { kind: 'NO_TURN_CHANGE' },
+    });
+    if (progress.continuation) resumePaymentContinuation(state, progress.continuation);
+    expect(state.boardState.currentPlayer.id).toBe('p2');
+    expect(state.boardState.turnNumber).toBe(6);
+  });
+
+  it('preserves an unrelated forced-sale proposal when another player leaves', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { accountBalance: 1500 });
+    addPlayer(state, 'p2', { accountBalance: 0, color: 'blue' });
+    addPlayer(state, 'p3', { accountBalance: 1500, color: 'green' });
+    own(state, 1, 'p2');
+    state.boardState.currentPlayer = { id: 'p1', hasMoved: true };
+    state.boardState.turnNumber = 5;
+    const queue = createPaymentQueue(
+      [{
+        debtorPlayerId: 'p2',
+        creditor: 'PLAYER',
+        creditorPlayerId: 'p1',
+        amount: 500,
+        source: { kind: 'OTHER', description: 'proposal survives' },
+      }],
+      { playerId: 'p1', turnNumber: 5 },
+      { now: 0, paymentShortfallActionTimeoutMs: 120_000 },
+    );
+    state.boardState.paymentQueue = queue;
+    const proposal = createForcedSaleProposal(
+      state,
+      'p2',
+      queue.operationId,
+      queue.orderedClaims[0].claimId,
+      1,
+      'p3',
+      0,
+    );
+    expect(proposal).not.toBeNull();
+
+    expect(surrenderPlayerToBank(state, 'p1', {
+      now: 1,
+      paymentShortfallActionTimeoutMs: 120_000,
+    }).changed).toBe(true);
+
+    expect(state.privateState.forcedSaleProposal).toEqual(proposal);
+    expect(state.privateState.forcedSaleProposal).toMatchObject({
+      sellerPlayerId: 'p2',
+      buyerPlayerId: 'p3',
+      paymentOperationId: queue.operationId,
+      claimId: queue.orderedClaims[0].claimId,
+    });
+  });
+
+  it('clears a forced-sale proposal when its seller or buyer leaves', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { accountBalance: 1500 });
+    addPlayer(state, 'p2', { accountBalance: 0, color: 'blue' });
+    addPlayer(state, 'p3', { accountBalance: 1500, color: 'green' });
+    own(state, 1, 'p2');
+    state.boardState.currentPlayer = { id: 'p1', hasMoved: true };
+    const queue = createPaymentQueue(
+      [{
+        debtorPlayerId: 'p2',
+        creditor: 'PLAYER',
+        creditorPlayerId: 'p1',
+        amount: 500,
+        source: { kind: 'OTHER', description: 'proposal participant leaves' },
+      }],
+      { playerId: 'p1', turnNumber: 1 },
+      { now: 0, paymentShortfallActionTimeoutMs: 120_000 },
+    );
+    state.boardState.paymentQueue = queue;
+    expect(createForcedSaleProposal(
+      state,
+      'p2',
+      queue.operationId,
+      queue.orderedClaims[0].claimId,
+      1,
+      'p3',
+      0,
+    )).not.toBeNull();
+
+    expect(removePlayerFromGame(state, 'p3')).toBe(true);
+    expect(state.privateState.forcedSaleProposal).toBeNull();
+  });
+
+  it('does not rewrite a valid continuation when an unrelated non-current player leaves', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { accountBalance: 1500 });
+    addPlayer(state, 'p2', { accountBalance: 0, color: 'blue' });
+    addPlayer(state, 'p3', { accountBalance: 1500, color: 'green' });
+    own(state, 1, 'p2');
+    state.boardState.currentPlayer = { id: 'p1', hasMoved: true };
+    state.boardState.turnNumber = 5;
+    const queue = createPaymentQueue(
+      [{
+        debtorPlayerId: 'p2',
+        creditor: 'PLAYER',
+        creditorPlayerId: 'p1',
+        amount: 500,
+        source: { kind: 'OTHER', description: 'unrelated removal' },
+      }],
+      { playerId: 'p1', turnNumber: 5 },
+      { now: 0, paymentShortfallActionTimeoutMs: 120_000 },
+    );
+    state.boardState.paymentQueue = queue;
+
+    expect(removePlayerFromGame(state, 'p3')).toBe(true);
+    expect(state.boardState.currentPlayer).toEqual({ id: 'p1', hasMoved: true });
+    expect(state.boardState.turnNumber).toBe(5);
+    expect(state.boardState.paymentQueue?.continuation).toEqual({
+      playerId: 'p1',
+      turnNumber: 5,
     });
   });
 });

@@ -46,21 +46,8 @@ const finishElimination = (state: GameState, playerId: PlayerId, reason: Finishe
   if (!player) return;
   player.accountBalance = 0;
   returnHeldCardsToDeck(state, playerId);
-  state.privateState.forcedSaleProposal = null;
   removePlayerFromGame(state, playerId, reason, { deferWinner: true });
   checkWinner(state);
-};
-
-const rebasePaymentContinuationAfterRemoval = (state: GameState): void => {
-  const queue = state.boardState.paymentQueue;
-  if (!queue || state.players[queue.continuation.playerId]) return;
-  const successorId = state.boardState.currentPlayer.id;
-  if (!successorId || !state.players[successorId]) return;
-  queue.continuation = {
-    playerId: successorId,
-    turnNumber: state.boardState.turnNumber,
-    resume: { kind: 'NO_TURN_CHANGE' },
-  };
 };
 
 export const bankruptActiveDebtor = (
@@ -87,7 +74,6 @@ export const bankruptActiveDebtor = (
     queue.activeClaimIndex += 1;
   }
   finishElimination(state, debtorPlayerId, reason);
-  rebasePaymentContinuationAfterRemoval(state);
   return true;
 };
 
