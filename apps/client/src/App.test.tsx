@@ -259,7 +259,6 @@ describe('App session admission', () => {
   });
 
   it('requires confirmation before an active player forfeits the game', () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const gameRoom: PublicRoomState = {
       ...room,
       status: 'IN_PROGRESS',
@@ -331,13 +330,12 @@ describe('App session admission', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Bỏ cuộc' }));
-    expect(confirm).toHaveBeenCalledOnce();
+    expect(screen.getByRole('alertdialog')).toBeTruthy();
     expect(lastEmission('leave room')).toBeUndefined();
 
-    confirm.mockReturnValue(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Bỏ cuộc' }));
+    const confirmationButtons = screen.getAllByRole('button', { name: 'Bỏ cuộc' });
+    fireEvent.click(confirmationButtons[confirmationButtons.length - 1]);
     expect(lastEmission('leave room')).toBeDefined();
-    confirm.mockRestore();
   });
 
   it('keeps spectator admission read-only and lets the spectator leave', () => {

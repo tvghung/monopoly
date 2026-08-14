@@ -2,22 +2,21 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
 import { tileState } from '@monopoly/shared';
-import { LayoutGroup, useReducedMotion } from 'framer-motion';
+import { LayoutGroup } from 'framer-motion';
 import './style/Board.css';
 import stateContext from '../internal';
 import displayPositionsContext from '../displayPositionsContext';
-import useSteppedPositions from '../useSteppedPositions';
 import Tile from './Tile';
 import Dice from './Dice';
 import Log from './Log';
 import Dashboard from './Dashboard';
 import sellPromptContext from '../sellPromptContext';
 import type { SalePrompt } from '../types';
+import { usePresentation } from '../game/presentation/PresentationProvider';
 
 const getTilePosition = (index: number): string => {
   if (index === 0) return 'tile__start';
@@ -28,21 +27,14 @@ const getTilePosition = (index: number): string => {
 };
 
 function Board() {
-  const { canMutate, connected, state } = useContext(stateContext);
-  const reducedMotion = useReducedMotion() ?? false;
+  const { canMutate, connected } = useContext(stateContext);
+  const { state: presentationState } = usePresentation();
   const [openTileId, setOpenTileId] = useState<number | null>(null);
   const lastOpenTileId = useRef<number | null>(null);
 
-  // Authoritative tile per player, from the server. The stepper walks the shown
-  // positions toward these one tile at a time unless reduced motion is enabled.
-  const actualPositions = useMemo(() => {
-    const positions: Record<string, number> = {};
-    Object.keys(state.players).forEach((key) => {
-      positions[key] = state.players[key].currentTile;
-    });
-    return positions;
-  }, [state.players]);
-  const displayPositions = useSteppedPositions(actualPositions, reducedMotion);
+  // Presentation state intentionally lags authoritative positions while the
+  // queue runs a safe, cancellable movement sequence.
+  const displayPositions = presentationState.displayPositions;
 
   const [openSale, setOpenSale] = useState<SalePrompt | false>(false);
   const [privateSale, setPrivateSale] = useState<SalePrompt | false>(false);

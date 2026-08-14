@@ -1,0 +1,7 @@
+.ds-badge { display: inline-flex; align-items: center; gap: var(--space-1); padding: 0.25rem 0.6rem; border-radius: var(--radius-pill); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); line-height: 1.2; }
+.ds-badge--neutral { background: var(--color-surface-soft); color: var(--color-text-secondary); }
+.ds-badge--success { background: rgb(45 139 95 / 14%); color: var(--color-success); }
+.ds-badge--warning { background: rgb(199 135 39 / 16%); color: var(--color-warning); }
+.ds-badge--danger { background: rgb(183 72 69 / 14%); color: var(--color-danger); }
+.ds-badge--info { background: rgb(60 117 163 / 14%); color: var(--color-info); }
+

@@ -16,11 +16,17 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
 | `TradeBundle`/private offers | [trading-market.instruction.md](./trading-market.instruction.md) | Market/SellPrompts/IncomingOffers |
 | Forced sale proposal | [../testcase/payment-shortfall-and-forced-sale.md](../testcase/payment-shortfall-and-forced-sale.md) | DebtPanel/ForcedSaleProposalPanel |
 | Log/chat | [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md) | Log |
+| Desktop shell/runtime | [../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md](../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md) | `apps/desktop/`, preload bridge, bootstrap/runtime config |
+| Presentation/design system | [../ui-ux-overhaul/PHASE_1_IMPLEMENTATION_PLAN.md](../ui-ux-overhaul/PHASE_1_IMPLEMENTATION_PLAN.md) | `game/presentation/`, `game/ui/`, `design-system/`, settings/audio |
 
 ## Client invariants
 
 - Stable `playerId` từ resume ACK; raw token chỉ trong versioned localStorage.
 - Reconnecting giữ snapshot nhưng disable mutation; stale revision bị bỏ.
+- `SESSION_SYNC`/`SPECTATOR_SYNC` reset presentation queue và snap display state;
+  chỉ `LIVE_UPDATE` mới derive/enqueue animation events.
+- Authoritative room/game state cập nhật ngay; display position/turn/dice chỉ là
+  presentation state và không được dùng làm nguồn thẩm quyền.
 - Spectator read-only; server authority không phụ thuộc action visibility.
 - Board/property metadata derive từ `@monopoly/shared`; không duplicate 40-row data.
 - Mọi game-unit hiển thị qua một formatter: `60 → 60.000 ₫`,
@@ -28,12 +34,19 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
 - Client không nhận/render exact `DeckState` hoặc credential. Pending landing,
   payment shortfall và seller/buyer forced-sale proposal chỉ dùng projection cần
   cho quyết định UX.
+- Settings dùng key `own-the-block.settings.v1`, normalize/clamp defensive và tách
+  khỏi reconnect token. Reduced motion hiệu lực là user setting hoặc OS
+  preference. Audio provider mới chỉ cung cấp gain interfaces, chưa tự phát âm thanh.
+- Desktop renderer dùng `contextIsolation`, `sandbox`, `nodeIntegration: false` và
+  typed preload bridge whitelist; Electron main không chứa GameCore/game action.
 
 ## Checks
 
 ```bash
 pnpm --filter @monopoly/client typecheck
 pnpm --filter @monopoly/client test
+pnpm --filter @monopoly/desktop test
 pnpm lint
 pnpm build
+pnpm desktop:package
 ```

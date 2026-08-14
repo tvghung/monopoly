@@ -22,6 +22,7 @@ thay đổi chưa hoàn tất.
 | Khối | Đường dẫn chính | Tài liệu bắt đầu |
 | --- | --- | --- |
 | Client | `apps/client/` | `monopoly.client.instructions.md` → `Client/README.md` |
+| Desktop shell | `apps/desktop/` | `../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md` → Client/runtime rules |
 | HTTP/Socket | `apps/server/src/createServer.ts`, `apps/server/src/socket/` | `monopoly.api.instructions.md` → `Api/README.md` |
 | GameCore/room aggregate | `apps/server/src/rooms.ts`, `apps/server/src/game/` | `monopoly.game-core.instructions.md` → `GameCore/README.md` |
 | Persistence/session/runtime services | `apps/server/src/persistence/`, `apps/server/src/services/`, `apps/server/migrations/` | `Persistence/README.md` |
@@ -62,6 +63,16 @@ thay đổi chưa hoàn tất.
 - `DeckState` và thứ tự thẻ không được phát trong public DTO. Client chỉ nhận dữ
   liệu công khai cần để render; credential, private offer và hidden deck state vẫn
   giữ ngoài public projection.
+- Client display state không thay authoritative room state. `SESSION_SYNC` và
+  `SPECTATOR_SYNC` reset presentation queue/snap; chỉ `LIVE_UPDATE` mới animate
+  state diff. Queue failure phải resolve, và reconnect không replay lịch sử.
+- Desktop Electron phải giữ `contextIsolation: true`, `nodeIntegration: false`,
+  `sandbox: true`, preload bridge typed/whitelist-only và packaged `app://` path
+  traversal guard. Main process chỉ là shell/runtime/window boundary, không chứa
+  GameCore hoặc bypass server authority.
+- Active-game desktop close là disconnect để reconnect; không emit `leave room`.
+  Chỉ nút `Bỏ cuộc`/explicit leave mới revoke session. Prompt/confirmation dùng
+  central Modal/ConfirmationDialog; không thêm `window.confirm`.
 
 ## Quy tắc cập nhật đồng bộ
 
@@ -87,6 +98,14 @@ pnpm typecheck
 pnpm lint
 pnpm test
 pnpm build
+```
+
+Desktop checks:
+
+```bash
+pnpm --filter @monopoly/desktop typecheck
+pnpm --filter @monopoly/desktop test
+pnpm desktop:package
 ```
 
 Với thay đổi persistence/recovery, phải chạy PostgreSQL integration và restart

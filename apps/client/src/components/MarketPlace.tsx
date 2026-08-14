@@ -5,6 +5,7 @@ import {
   getMortgageTransferSurcharge,
   getTileName,
 } from '../presentation';
+import PropertyCard from '../game/ui/property/PropertyCard';
 import './style/MarketPlace.css';
 
 export default function MarketPlace() {
@@ -30,9 +31,8 @@ export default function MarketPlace() {
             const isSeller = listing.seller === playerId;
 
             return (
-              <article className="market-listing" role="listitem" key={tileId}>
+              <PropertyCard className="market-listing" role="listitem" key={tileId} tileId={tileId} ownedProp={ownedProps[tileId]}>
                 <div>
-                  <h3 className="market-listing__name">{getTileName(tileId)}</h3>
                   <p>Người bán: {listing.sellerName}</p>
                 </div>
                 <div className="market-listing__price">
@@ -73,7 +73,7 @@ export default function MarketPlace() {
                       </button>
                     )
                   : null}
-              </article>
+              </PropertyCard>
             );
           })
           : null}

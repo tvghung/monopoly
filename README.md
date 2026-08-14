@@ -74,7 +74,7 @@ pnpm dev
 Server and database scripts load the root `.env` when it exists; shell environment
 variables still take precedence.
 
-`pnpm dev` runs both apps in parallel:
+`pnpm dev` / `pnpm dev:web` runs the web server and Vite client in parallel:
 
 - server on `http://localhost:8080`
 - client on `http://localhost:5173` (Vite proxies `/socket.io` to the server)
@@ -83,10 +83,16 @@ Open `http://localhost:5173`, enter a name and a **room code**, and share the co
 with friends. A lobby supports 2–7 players. Every player must be connected and ready;
 only the persisted host can start the game.
 
+`pnpm dev:desktop` starts the same server/client pair and opens the hardened Electron
+shell against `http://127.0.0.1:5173`. The desktop renderer receives only the typed
+preload bridge; game state and commands remain in the existing client/server flow.
+
 ### Useful scripts
 
 ```bash
 pnpm dev         # run server + client together
+pnpm dev:web     # run server + client together
+pnpm dev:desktop # run web dependencies and the Electron shell
 pnpm db:migrate  # apply pending PostgreSQL migrations
 pnpm db:status   # inspect migration status
 pnpm build       # build the client bundle
@@ -94,6 +100,8 @@ pnpm start       # start the server (serves the built client in production)
 pnpm typecheck   # tsc --noEmit across all packages
 pnpm lint        # eslint across the repo
 pnpm test        # unit/client/socket tests; PostgreSQL suite is conditional
+pnpm desktop:package # package the Windows/macOS Electron application
+pnpm desktop:make    # create configured platform makers (Windows Squirrel on Windows)
 ```
 
 ## Environment variables

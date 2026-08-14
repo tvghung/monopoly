@@ -1,0 +1,6 @@
+.ds-toast { max-width: min(28rem, calc(100vw - 2rem)); padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-medium); background: var(--color-surface-raised); color: var(--color-text-primary); box-shadow: var(--shadow-floating); }
+.ds-toast--info { border-left: 0.3rem solid var(--color-info); }
+.ds-toast--success { border-left: 0.3rem solid var(--color-success); }
+.ds-toast--warning { border-left: 0.3rem solid var(--color-warning); }
+.ds-toast--error { border-left: 0.3rem solid var(--color-danger); }
+

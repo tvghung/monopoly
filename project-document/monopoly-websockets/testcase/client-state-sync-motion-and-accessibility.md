@@ -2,12 +2,16 @@
 
 ## Session/sync
 
-- [ ] `[CLIENT]` Join/resume ACK gates Lobby/Board; restore/reconnect keeps token and
+- [x] `[CLIENT][AUTOMATED]` Join/resume ACK gates Lobby/Board; restore/reconnect keeps token and
   snapshot; terminal errors clear only invalid session; newest-wins old tab stops.
-- [ ] `[CLIENT]` Stale revision ignored; spectator/reconnecting has no mutation;
+- [x] `[CLIENT][AUTOMATED]` Stale revision ignored; spectator/reconnecting has no mutation;
   StrictMode does not duplicate listeners/countdowns/actions.
-- [ ] `[CLIENT]` Protocol-v3 reset resumes the same identity directly into the fresh
+- [x] `[CLIENT][AUTOMATED]` Protocol-v3 reset resumes the same identity directly into the fresh
   v3 `IN_PROGRESS` turn without replacing the reconnect credential.
+- [x] `[CLIENT][AUTOMATED]` Presentation event derivation is deterministic, ordered,
+  stale-safe and limited to observable diffs; reconnect snapshots do not replay history.
+- [x] `[CLIENT][AUTOMATED]` Animation queue covers FIFO, pause/resume, skip/reset,
+  reduced motion, executor failure recovery and stale executor cancellation.
 
 ## Vietnamese/content/money
 
@@ -16,9 +20,9 @@
   tooltip/alt/log copy is Vietnamese.
 - [ ] `[AUDIT]` No player-facing “Monopoly”, English game term, `$`, `$M` or USD
   formatter remains; internal event/package/env names are exempt.
-- [ ] `[CLIENT]` All displayed amounts use shared VNĐ formatter, including card
+- [x] `[CLIENT][AUTOMATED]` All displayed amounts use shared VNĐ formatter, including card
   detail, tooltip, prompt, log, offer, bid, balance and bail.
-- [ ] `[CLIENT]` Board renders exact canonical shared 40 tiles without duplicate
+- [x] `[CLIENT][AUTOMATED]` Board renders exact canonical shared 40 tiles without duplicate
   metadata source; exact private deck order absent from DOM/state.
 
 ## Turn/property/payment UX
@@ -38,3 +42,13 @@
 - [ ] `[CLIENT][MANUAL-E2E]` Keyboard/focus/labels/live errors/reduced-motion usable;
   Vietnamese text and short board labels fit desktop/mobile without hiding critical
   action.
+
+## Desktop shell
+
+- [x] `[DESKTOP][AUTOMATED]` Renderer navigation, external URL allowlist and packaged
+  renderer traversal guard have unit coverage.
+- [ ] `[DESKTOP][MANUAL-E2E]` Active-player window close prompts and confirmed close
+  preserves reconnect token; lobby/join close exits normally; explicit `Bỏ cuộc`
+  still revokes the session.
+- [ ] `[DESKTOP][CONFIGURED]` Windows Squirrel and macOS DMG makers are configured;
+  macOS artifact is not claimed from Windows validation.

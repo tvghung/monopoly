@@ -7,6 +7,7 @@ import type {
   PrivatePlayerState,
   PrivateOffer,
   PublicGameState,
+  RoomPlayerMeta,
   RoomRole,
   SaleInfo,
   ServerToClientEvents,
@@ -53,6 +54,7 @@ export interface StateContextValue {
   canMutate: boolean;
   privatePlayerState: PrivatePlayerState | null;
   privateOffers: PrivateOffer[];
+  roomPlayers?: RoomPlayerMeta[];
 }
 
 export interface SalePrompt {

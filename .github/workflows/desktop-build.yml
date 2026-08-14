@@ -1,0 +1,57 @@
+name: Desktop Build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    name: Desktop (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+          - macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck desktop
+        run: pnpm --filter @monopoly/desktop typecheck
+
+      - name: Test desktop
+        run: pnpm --filter @monopoly/desktop test
+
+      - name: Build desktop distributable
+        run: pnpm desktop:make
+
+      - name: Upload Windows Squirrel artifact
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: own-the-block-windows-squirrel
+          path: apps/desktop/out/make/squirrel.windows/**
+          if-no-files-found: error
+
+      - name: Upload macOS DMG artifact
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: own-the-block-macos-dmg
+          path: apps/desktop/out/make/**/*.dmg
+          if-no-files-found: error

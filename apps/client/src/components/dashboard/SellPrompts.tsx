@@ -1,11 +1,10 @@
 import {
-  useCallback, useContext, useEffect, useRef, useState,
+  useCallback, useContext, useEffect, useState,
 } from 'react';
 import {
   gameCardsById,
 } from '@monopoly/shared';
 import type { GameCardId } from '@monopoly/shared';
-import { motion, AnimatePresence } from 'framer-motion';
 import stateContext from '../../internal';
 import sellPromptContext from '../../sellPromptContext';
 import {
@@ -13,7 +12,7 @@ import {
   getMortgageTransferSurcharge,
   getTileName,
 } from '../../presentation';
-import { useModalMotion } from './useModalMotion';
+import Modal from '../../design-system/components/Modal/Modal';
 
 function cardLabel(cardId: GameCardId): string {
   const deck = gameCardsById[cardId]?.sourceDeck;
@@ -36,14 +35,12 @@ export default function SellPrompts() {
   const {
     openSale, setOpenSale, privateSale, setPrivateSale,
   } = useContext(sellPromptContext);
-  const { backdropMotion, modalMotion } = useModalMotion();
   const [priceInput, setPriceInput] = useState(0);
   const [offeredCash, setOfferedCash] = useState(0);
   const [requestedCash, setRequestedCash] = useState(0);
   const [offeredPropertyIds, setOfferedPropertyIds] = useState<number[]>([]);
   const [requestedPropertyIds, setRequestedPropertyIds] = useState<number[]>([]);
   const [offeredJailFreeCardIds, setOfferedJailFreeCardIds] = useState<GameCardId[]>([]);
-  const previousFocus = useRef<HTMLElement | null>(null);
 
   const recipientPlayerId = privateSale
     ? state.boardState.ownedProps[privateSale.tileID]?.id ?? null
@@ -79,7 +76,6 @@ export default function SellPrompts() {
   const removeSellPropPrompt = useCallback(() => {
     setOpenSale(false);
     setPrivateSale(false);
-    window.requestAnimationFrame(() => previousFocus.current?.focus());
   }, [setOpenSale, setPrivateSale]);
 
   useEffect(() => {
@@ -110,40 +106,18 @@ export default function SellPrompts() {
     )));
   }, [playerId, recipientPlayerId, state.boardState.ownedProps]);
 
-  useEffect(() => {
-    if (!openSale && !privateSale) return undefined;
-    previousFocus.current = document.activeElement as HTMLElement | null;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') removeSellPropPrompt();
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [openSale, privateSale, removeSellPropPrompt]);
-
   return (
     <>
-      <AnimatePresence>
+      <Modal
+        open={Boolean(state.loaded && openSale)}
+        title={openSale ? `Đăng bán ${getTileName(openSale.tileID)}` : 'Đăng bán tài sản'}
+        onClose={removeSellPropPrompt}
+        className="open-market__sell-toast"
+      >
         {state.loaded && openSale
           ? (
-            <motion.div
-              key="open-sale-modal"
-              className="modal__overlay"
-              onClick={removeSellPropPrompt}
-              {...backdropMotion}
-            >
-              <motion.article
-                className="modal__card open-market__sell-toast"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="open-sale-title"
-                onClick={event => event.stopPropagation()}
-                {...modalMotion}
-              >
-                <button type="button" className="open-market__sell-toast__close" aria-label="Đóng" onClick={removeSellPropPrompt}>×</button>
-                <h2 id="open-sale-title" className="open-market__sell-toast__title">
-                  Đăng bán {getTileName(openSale.tileID)}
-                </h2>
-                {state.boardState.ownedProps[openSale.tileID]?.mortgaged
+            <>
+              {state.boardState.ownedProps[openSale.tileID]?.mortgaged
                   ? (
                     <p className="trade-mortgage-note">
                       Tài sản đang cầm cố. Người mua trả thêm
@@ -154,7 +128,7 @@ export default function SellPrompts() {
                     </p>
                   )
                   : null}
-                <form
+              <form
                   onSubmit={event => {
                     event.preventDefault();
                     socketFunctions.putOpenMarket({ ...openSale, price: priceInput });
@@ -176,42 +150,29 @@ export default function SellPrompts() {
                       min="20"
                       step="1"
                       required
-                      autoFocus
+                      data-modal-autofocus
                     />
                     <button className="open-market__sell-toast__button" type="submit" disabled={priceInput < 20}>Đăng lên thị trường</button>
                   </div>
                   {priceInput > 0 ? <output>Giá bán: {formatMoney(priceInput)}</output> : null}
-                </form>
-              </motion.article>
-            </motion.div>
+              </form>
+            </>
           )
           : null}
-      </AnimatePresence>
-      <AnimatePresence>
+      </Modal>
+      <Modal
+        open={Boolean(state.loaded && privateSale)}
+        title={`Giao dịch với ${recipient?.name ?? 'người sở hữu tài sản'}`}
+        onClose={removeSellPropPrompt}
+        className="open-market__sell-toast trade-modal"
+      >
         {state.loaded && privateSale
           ? (
-            <motion.div
-              key="private-sale-modal"
-              className="modal__overlay"
-              onClick={removeSellPropPrompt}
-              {...backdropMotion}
-            >
-              <motion.article
-                className="modal__card open-market__sell-toast trade-modal"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="private-offer-title"
-                onClick={event => event.stopPropagation()}
-                {...modalMotion}
-              >
-                <button type="button" className="open-market__sell-toast__close" aria-label="Đóng" onClick={removeSellPropPrompt}>×</button>
-                <h2 id="private-offer-title" className="open-market__sell-toast__title">
-                  Giao dịch với {recipient?.name ?? 'người sở hữu tài sản'}
-                </h2>
-                <p className="trade-modal__lead">
+            <>
+              <p className="trade-modal__lead">
                   Gói đề nghị ban đầu yêu cầu {getTileName(privateSale.tileID)}. Bạn có thể chọn thêm tiền và nhiều tài sản ở cả hai phía.
                 </p>
-                <form
+              <form
                   onSubmit={event => {
                     event.preventDefault();
                     if (!recipientPlayerId || recipientPlayerId === playerId || !hasBundleValue) return;
@@ -248,7 +209,7 @@ export default function SellPrompts() {
                         type="number"
                         min="0"
                         step="1"
-                        autoFocus
+                        data-modal-autofocus
                       />
                       {offeredCash > 0 ? <output>{formatMoney(offeredCash)}</output> : null}
                       <span className="trade-bundle__label">Tài sản</span>
@@ -359,12 +320,11 @@ export default function SellPrompts() {
                   >
                     Gửi đề nghị
                   </button>
-                </form>
-              </motion.article>
-            </motion.div>
+              </form>
+            </>
           )
           : null}
-      </AnimatePresence>
+      </Modal>
     </>
   );
 }

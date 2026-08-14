@@ -1,5 +1,12 @@
 packages:
   - "apps/*"
   - "packages/*"
+# Electron Forge requires an explicit hoist configuration; keep workspace
+# packages isolated while declaring the supported packaging layout.
+nodeLinker: isolated
+hoistPattern:
+  - "*"
 allowBuilds:
+  electron: true
+  electron-winstaller: true
   esbuild: true

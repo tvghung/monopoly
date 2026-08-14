@@ -235,32 +235,8 @@
   gap: 1vmin;
 }
 
-/* Dimmed backdrop that lifts a modal above the board and focuses attention. */
-.modal__overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
-}
-
-.modal__card {
-  position: relative;
-  width: min(90vw, 32rem);
-  max-height: 92vh;
-  padding: clamp(1.5rem, 4vmin, 2.5rem);
-  overflow-y: auto;
-  background: #eef7e4;
-  border: 2px solid rgb(0, 128, 0);
-  border-radius: 1.2vmin;
-  box-shadow: 0 1.5vmin 4vmin rgba(0, 0, 0, 0.45);
-  text-align: center;
-}
-
 /* When several offers arrive at once, stack their cards in one modal. */
-.modal__card--offers {
+.open-market__offers-modal {
   display: flex;
   flex-direction: column;
   gap: 2vmin;

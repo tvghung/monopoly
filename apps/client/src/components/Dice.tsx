@@ -1,10 +1,11 @@
 import {
   useContext, useEffect, useRef, useState,
 } from 'react';
-import { useReducedMotion } from 'framer-motion';
 import './style/Dice.css';
 import stateContext from '../internal';
 import displayPositionsContext from '../displayPositionsContext';
+import { useEffectiveReducedMotion } from '../settings/selectors';
+import { usePresentation } from '../game/presentation/PresentationProvider';
 
 // Cube rotation (degrees) needed to bring a given face value to the front.
 const faceRotation: Record<number, { x: number; y: number }> = {
@@ -67,7 +68,8 @@ export default function Dice() {
     state, socketFunctions, playerId, canMutate,
   } = useContext(stateContext);
   const displayPositions = useContext(displayPositionsContext);
-  const reduced = useReducedMotion() ?? false;
+  const reduced = useEffectiveReducedMotion();
+  const { state: presentationState } = usePresentation();
 
   // Hold off rolling until every token has finished its stepped walk, so the next
   // player can't start moving while the previous token is still travelling.
@@ -78,9 +80,16 @@ export default function Dice() {
   // The server owns the dice now: rolling, movement and tile resolution all
   // happen server-side, so the client only asks to roll on its turn.
   const isMyTurn = state.boardState.currentPlayer.id === playerId;
-  const canRoll = canMutate && isMyTurn && !state.boardState.currentPlayer.hasMoved && tokensSettled;
+  const canRoll = canMutate
+    && isMyTurn
+    && !state.boardState.currentPlayer.hasMoved
+    && tokensSettled
+    && presentationState.status === 'idle';
 
-  const dice = state.boardState.diceValue;
+  const authoritativeDice = state.boardState.diceValue;
+  const dice = presentationState.displayDice.dice1 > 0 || presentationState.displayDice.dice2 > 0
+    ? presentationState.displayDice
+    : authoritativeDice;
   const first = dice.dice1;
   const second = dice.dice2;
 
