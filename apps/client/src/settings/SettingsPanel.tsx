@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import Button from '../design-system/components/Button/Button';
 import Modal from '../design-system/components/Modal/Modal';
 import { getDesktopBridge, isDesktopRuntime } from '../runtime/desktopBridge';
@@ -41,21 +40,6 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const effectiveReducedMotion = useEffectiveReducedMotion();
   const desktop = isDesktopRuntime();
   const bridge = getDesktopBridge();
-
-  useEffect(() => {
-    if (!open || !bridge) return undefined;
-    let active = true;
-    void bridge.window.getState().then(state => {
-      if (active) updateSettings({ fullscreen: state.fullscreen });
-    });
-    const removeListener = bridge.window.onFullscreenChanged(state => {
-      updateSettings({ fullscreen: state.fullscreen });
-    });
-    return () => {
-      active = false;
-      removeListener();
-    };
-  }, [bridge, open, updateSettings]);
 
   const setFullscreen = (value: boolean) => {
     updateSettings({ fullscreen: value });
@@ -122,4 +106,3 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
     </Modal>
   );
 }
-

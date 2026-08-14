@@ -11,7 +11,8 @@
 - [x] `[CLIENT][AUTOMATED]` Presentation event derivation is deterministic, ordered,
   stale-safe and limited to observable diffs; reconnect snapshots do not replay history.
 - [x] `[CLIENT][AUTOMATED]` Animation queue covers FIFO, pause/resume, skip/reset,
-  reduced motion, executor failure recovery and stale executor cancellation.
+  reduced motion, executor failure recovery, skip-all/reconnect snap and stale
+  executor cancellation.
 
 ## Vietnamese/content/money
 
@@ -47,8 +48,20 @@
 
 - [x] `[DESKTOP][AUTOMATED]` Renderer navigation, external URL allowlist and packaged
   renderer traversal guard have unit coverage.
+- [x] `[DESKTOP][AUTOMATED]` Production reload/history shortcuts and DevTools policy
+  are covered by a pure input-policy test; preload compilation bundles local IPC
+  modules into the exact BrowserWindow artifact.
+- [x] `[DESKTOP][AUTOMATED]` Settings reset requests native fullscreen false and
+  fullscreen events synchronize even when the settings modal is closed.
 - [ ] `[DESKTOP][MANUAL-E2E]` Active-player window close prompts and confirmed close
   preserves reconnect token; lobby/join close exits normally; explicit `Bỏ cuộc`
   still revokes the session.
 - [ ] `[DESKTOP][CONFIGURED]` Windows Squirrel and macOS DMG makers are configured;
   macOS artifact is not claimed from Windows validation.
+
+## Phase 1.1 acceptance procedure
+
+The executable procedure is documented in
+[`project-document/ui-ux-overhaul/PHASE_1_1_MANUAL_ACCEPTANCE.md`](../../ui-ux-overhaul/PHASE_1_1_MANUAL_ACCEPTANCE.md).
+The manual boxes above remain unchecked until a human run records the environment,
+players, and observed result.

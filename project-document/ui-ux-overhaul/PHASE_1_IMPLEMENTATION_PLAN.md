@@ -22,3 +22,25 @@ The plan intentionally does not modify server/game-core code or shared network
 contracts unless a later implementation proves a client boundary cannot be
 implemented safely without it.
 
+## Phase 1.1 — Stabilization & acceptance closure
+
+Phase 1.1 is limited to closure of the Phase 1 desktop/presentation foundation:
+
+- Bundle `apps/desktop/src/preload.ts` into the exact `dist/preload.js` artifact
+  used by the BrowserWindow while retaining `sandbox`, `contextIsolation`,
+  `nodeIntegration: false`, and `webSecurity`.
+- Make all-in-one and shell-only desktop development compile main/preload on a
+  clean checkout; keep packaged DevTools disabled and production reload/history
+  shortcuts blocked.
+- Snap accepted presentation state on reconnect, skip-all, and reduced-motion
+  changes, invalidating stale executor finishes; retain FIFO animation for normal
+  live updates.
+- Synchronize native fullscreen changes into settings and reset native fullscreen
+  when restoring defaults; add a lobby-only character placeholder with
+  `characterId: null` and no Phase 3 server state.
+- Preserve the canonical 00–06 phase documents unchanged. Phase 2–6 implementation
+  remains out of scope until manual acceptance of Phase 1.
+
+See [PHASE_1_1_MANUAL_ACCEPTANCE.md](./PHASE_1_1_MANUAL_ACCEPTANCE.md) for the
+environment procedure and manual scenarios. Native `.icns` artwork/signing and
+notarization remain deferred distribution work.

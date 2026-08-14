@@ -83,6 +83,7 @@ export class AnimationQueue {
 
   public skipAll(): void {
     this.setStatus('skipping');
+    this.generation += 1;
     this.pending.splice(0).forEach(item => item.resolve());
     this.current?.controller.abort();
     if (!this.current) this.setStatus('idle');

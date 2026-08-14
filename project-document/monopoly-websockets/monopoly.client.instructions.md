@@ -102,6 +102,9 @@ formatter dùng `1 game unit = 1.000 VNĐ` và player-facing UI/log/error là ti
    behavior, focus restore/trap, reduced motion và z-index phải tập trung ở primitive.
    Active-game `Bỏ cuộc` dùng confirmation; desktop close khi đang chơi chỉ
    disconnect để giữ reconnect token, không emit `leave room`.
+- Desktop shell development có hai đường chạy: `pnpm dev:desktop` tự khởi động
+  server/client; hoặc `pnpm dev:web` ở Terminal A và `pnpm dev:desktop:shell` ở
+  Terminal B. Cả hai đều compile main/preload trước khi mở Electron.
 
 ## Kiểm tra
 
@@ -110,4 +113,6 @@ pnpm --filter @monopoly/client typecheck
 pnpm --filter @monopoly/client test
 pnpm lint
 pnpm build
+pnpm dev:desktop:shell
+pnpm desktop:make
 ```

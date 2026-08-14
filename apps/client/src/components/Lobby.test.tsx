@@ -80,4 +80,24 @@ describe('Lobby', () => {
     expect(screen.queryByRole('button', { name: 'Bắt đầu ván chơi' })).toBeNull();
     expect(screen.getByText(/Đang chờ Chủ Phòng/)).toBeTruthy();
   });
+
+  it('shows a character placeholder without adding server character state', () => {
+    render(
+      <Lobby
+        roomCode="ROOM-4"
+        players={readyPlayers}
+        playerId="player-a"
+        hostPlayerId="player-a"
+        minPlayers={2}
+        maxPlayers={7}
+        busy={false}
+        error={null}
+        onSetReady={vi.fn()}
+        onStart={vi.fn()}
+        onLeave={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByText('Nhân vật: Sắp ra mắt')).toHaveLength(2);
+  });
 });

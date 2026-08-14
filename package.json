@@ -14,6 +14,7 @@
     "dev": "pnpm dev:web",
     "dev:web": "pnpm --parallel --filter @monopoly/server --filter @monopoly/client dev",
     "dev:desktop": "pnpm --filter @monopoly/desktop dev",
+    "dev:desktop:shell": "pnpm --filter @monopoly/desktop dev:shell",
     "desktop:package": "pnpm --filter @monopoly/desktop package",
     "desktop:make": "pnpm --filter @monopoly/desktop make",
     "build": "pnpm --filter @monopoly/client build",

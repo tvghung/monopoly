@@ -4,6 +4,8 @@ module.exports = {
   packagerConfig: {
     name: 'Own the Block',
     executableName: 'OwnTheBlock',
+    // The renderer has the deterministic favicon placeholder. Native .ico/.icns
+    // artwork is intentionally deferred until the distribution polish phase.
     asar: true,
     // The compiled main/preload code has no runtime npm dependencies. Keep the
     // development workspace out of the packaged app without invoking pnpm's

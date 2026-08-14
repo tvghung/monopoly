@@ -12,6 +12,10 @@ export function installExternalNavigationGuards(
   });
 
   window.webContents.on('will-navigate', (event, url) => {
+    if (!development) {
+      event.preventDefault();
+      return;
+    }
     if (isAllowedRendererNavigation(url, development)) return;
     event.preventDefault();
     if (isSafeExternalUrl(url, development)) void shell.openExternal(url);
@@ -24,4 +28,3 @@ export function openExternalUrl(rawUrl: string, development: boolean): Promise<v
   }
   return shell.openExternal(rawUrl);
 }
-

@@ -1,6 +1,27 @@
 name: Desktop Build
 
 on:
+  pull_request:
+    paths:
+      - 'apps/client/**'
+      - 'apps/desktop/**'
+      - 'packages/shared/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/desktop-build.yml'
+  push:
+    branches:
+      - main
+      - 'overhaul/**'
+    paths:
+      - 'apps/client/**'
+      - 'apps/desktop/**'
+      - 'packages/shared/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/desktop-build.yml'
   workflow_dispatch:
 
 permissions:
@@ -34,8 +55,14 @@ jobs:
       - name: Typecheck desktop
         run: pnpm --filter @monopoly/desktop typecheck
 
+      - name: Typecheck workspace
+        run: pnpm typecheck
+
       - name: Test desktop
         run: pnpm --filter @monopoly/desktop test
+
+      - name: Build renderer
+        run: pnpm build
 
       - name: Build desktop distributable
         run: pnpm desktop:make

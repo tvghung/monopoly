@@ -4,6 +4,7 @@ import path from 'node:path';
 import { getDesktopRuntimeConfig } from './runtimeConfig';
 import { installExternalNavigationGuards } from './ipc/externalLinks';
 import { QuitRequestController, registerWindowHandlers } from './ipc/windowHandlers';
+import { shouldBlockProductionInput } from './productionPolicy';
 import { resolveRendererPath } from './security';
 
 const DEV_RENDERER_URL = process.env.OWN_THE_BLOCK_DEV_RENDERER_URL?.trim()
@@ -55,6 +56,7 @@ function registerProductionRenderer(): void {
 }
 
 function createWindow(): BrowserWindow {
+  const development = !app.isPackaged;
   const window = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -69,10 +71,16 @@ function createWindow(): BrowserWindow {
       nodeIntegration: false,
       sandbox: true,
       webSecurity: true,
+      devTools: development,
     },
   });
 
-  const development = !app.isPackaged;
+  window.webContents.on('before-input-event', (event, input) => {
+    if (!development && shouldBlockProductionInput(input)) event.preventDefault();
+  });
+  window.webContents.on('devtools-opened', () => {
+    if (!development) window.webContents.closeDevTools();
+  });
   const quitController = new QuitRequestController(window);
   window.on('close', event => quitController.handleClose(event));
   registerWindowHandlers(window, development, quitController);

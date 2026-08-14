@@ -6,6 +6,7 @@ export interface LobbyPlayerView {
   id: string;
   name: string;
   color: string;
+  characterId?: string | null;
   ready: boolean;
   connected: boolean;
 }
@@ -78,6 +79,9 @@ export default function Lobby({
                   {player.id === playerId ? ' (bạn)' : ''}
                 </span>
                 {player.id === hostPlayerId ? <Badge variant="warning">Chủ phòng</Badge> : null}
+                <span className="lobby-player__character" aria-label="Nhân vật hiện tại">
+                  {player.characterId ? `Nhân vật: ${player.characterId}` : 'Nhân vật: Sắp ra mắt'}
+                </span>
                 <Badge variant={player.connected ? 'success' : 'neutral'}>
                   {player.connected ? 'Trực tuyến' : 'Mất kết nối'}
                 </Badge>

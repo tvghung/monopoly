@@ -2,14 +2,16 @@
   "name": "@monopoly/desktop",
   "version": "1.0.0",
   "private": true,
+  "productName": "Own the Block",
   "description": "Own the Block desktop client",
   "author": "Own the Block",
   "type": "commonjs",
   "main": "dist/main.js",
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "dev:shell": "node scripts/shell.mjs",
     "prepare:renderer": "node scripts/prepareRenderer.mjs",
-    "compile": "tsc -p tsconfig.build.json",
+    "compile": "node scripts/compile.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --pool=threads --maxWorkers=1 --no-file-parallelism",
     "package": "pnpm run prepare:renderer && pnpm run compile && electron-forge package",
@@ -21,6 +23,7 @@
     "@electron-forge/maker-dmg": "^7.11.2",
     "@electron-forge/maker-squirrel": "^7.11.2",
     "@types/node": "^26.1.2",
+    "esbuild": "^0.28.1",
     "electron": "^43.4.0",
     "vitest": "^4.1.10"
   }

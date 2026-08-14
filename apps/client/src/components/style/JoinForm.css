@@ -33,6 +33,15 @@
   line-height: 1.4;
 }
 
+.join__brand {
+  margin: 0 0 0.75rem;
+  color: #c1121f;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-align: center;
+}
+
 .join__error,
 .join__connection {
   margin: 0 0 1rem;

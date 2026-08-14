@@ -87,6 +87,9 @@ importers:
       '@types/node':
         specifier: ^26.1.2
         version: 26.1.2
+      esbuild:
+        specifier: ^0.28.1
+        version: 0.28.1
       electron:
         specifier: ^43.4.0
         version: 43.4.0(supports-color@8.1.1)

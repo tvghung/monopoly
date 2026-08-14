@@ -95,7 +95,8 @@ function LoadingScreen({ message }: { message: string }) {
   return (
     <section className="app-status" role="status" aria-live="polite">
       <span className="connection-overlay__spinner" aria-hidden="true" />
-      <h1>Cờ Tỷ Phú Việt Nam</h1>
+      <h1>Own the Block</h1>
+      <p>Cờ Tỷ Phú Việt Nam</p>
       <p>{message}</p>
     </section>
   );
@@ -667,6 +668,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
               id: member.playerId,
               name: member.name,
               color: member.color,
+              characterId: null,
               ready: member.ready,
               connected: member.connected,
             }))}

@@ -95,7 +95,7 @@ function Board() {
       <displayPositionsContext.Provider value={displayPositions}>
         <section
           className="Board"
-          aria-label="Bàn cờ Cờ Tỷ Phú Việt Nam"
+          aria-label="Bàn cờ Own the Block — Cờ Tỷ Phú Việt Nam"
           aria-busy={!connected}
           data-testid="game-board"
           inert={!connected}

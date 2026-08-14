@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +10,13 @@ const require = createRequire(import.meta.url);
 const electronBinary = require('electron');
 const children = [];
 let shuttingDown = false;
+
+const compile = spawnSync(pnpm, ['run', 'compile'], {
+  cwd: desktopRoot,
+  stdio: 'inherit',
+  shell: process.platform === 'win32',
+});
+if (compile.status !== 0) process.exit(compile.status ?? 1);
 
 function start(args) {
   const child = spawn(pnpm, args, {

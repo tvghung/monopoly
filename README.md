@@ -86,6 +86,13 @@ only the persisted host can start the game.
 `pnpm dev:desktop` starts the same server/client pair and opens the hardened Electron
 shell against `http://127.0.0.1:5173`. The desktop renderer receives only the typed
 preload bridge; game state and commands remain in the existing client/server flow.
+For a split-terminal workflow, run `pnpm dev:web` in Terminal A and
+`pnpm dev:desktop:shell` in Terminal B; the shell command compiles main/preload and
+does not own or stop the web processes.
+
+The bundled PostgreSQL service maps host port `5433` to container port `5432`.
+Keep the local `.env` `DATABASE_URL` host port aligned with that mapping before
+running migrations or manual multiplayer checks.
 
 ### Useful scripts
 
@@ -93,6 +100,7 @@ preload bridge; game state and commands remain in the existing client/server flo
 pnpm dev         # run server + client together
 pnpm dev:web     # run server + client together
 pnpm dev:desktop # run web dependencies and the Electron shell
+pnpm dev:desktop:shell # open only Electron; keep pnpm dev:web in another terminal
 pnpm db:migrate  # apply pending PostgreSQL migrations
 pnpm db:status   # inspect migration status
 pnpm build       # build the client bundle

@@ -102,4 +102,27 @@ describe('AnimationQueue', () => {
     expect(runs).toEqual(['current']);
     queue.dispose();
   });
+
+  it('invalidates a stale executor finish when skipAll aborts the current event', async () => {
+    let startedResolve!: () => void;
+    let releaseRun!: () => void;
+    const started = new Promise<void>(resolve => { startedResolve = resolve; });
+    const finished: string[] = [];
+    const queue = new AnimationQueue({
+      executors: makeExecutor(async () => {
+        startedResolve();
+        await new Promise<void>(resolve => { releaseRun = resolve; });
+      }, current => finished.push(current.id)),
+    });
+
+    const pending = queue.enqueue(event('stale'));
+    await started;
+    queue.skipAll();
+    releaseRun();
+    await pending;
+
+    expect(finished).toEqual([]);
+    expect(queue.getStatus()).toBe('idle');
+    queue.dispose();
+  });
 });

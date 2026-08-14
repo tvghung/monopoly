@@ -56,7 +56,12 @@ export class PresentationController {
   public setPreferences(reducedMotion: boolean, speedMultiplier: number): void {
     this.queue.setReducedMotion(reducedMotion);
     this.queue.setSpeedMultiplier(speedMultiplier);
-    if (reducedMotion) this.queue.skipAll();
+    if (reducedMotion) this.skipAllAndSnap();
+  }
+
+  public skipAllAndSnap(): void {
+    if (this.acceptedRoom) this.queue.reset(this.acceptedRoom);
+    else this.queue.skipAll();
   }
 
   public getState(): PresentationState {
