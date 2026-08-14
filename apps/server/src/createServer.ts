@@ -9,6 +9,12 @@ import type { AppServer } from './socket/types';
 
 const { env } = process;
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
+export const DEVELOPMENT_RENDERER_ORIGIN = 'http://127.0.0.1:5173';
+
+export function resolveCorsOrigin(environment: NodeJS.ProcessEnv): string | false {
+  return environment.CORS_ORIGIN
+    || (environment.NODE_ENV === 'production' ? false : DEVELOPMENT_RENDERER_ORIGIN);
+}
 
 // Build the Express app, HTTP server, and typed Socket.IO server. In production
 // the client is served same-origin (with a SPA fallback), so cross-origin
@@ -26,8 +32,7 @@ export function createServer(runtime: AppRuntime): { server: HttpServer; io: App
     app.set('trust proxy', 1);
   }
 
-  const corsOrigin = env.CORS_ORIGIN
-    || (env.NODE_ENV === 'production' ? false : 'http://localhost:5173');
+  const corsOrigin = resolveCorsOrigin(env);
 
   const io: AppServer = new Server(server, {
     cors: { origin: corsOrigin },

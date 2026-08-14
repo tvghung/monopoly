@@ -15,7 +15,11 @@ start Phase 2 board work or any character/audio/particle implementation.
 
 ## Launch paths
 
-- Web: Terminal A, `pnpm dev:web`; open `http://127.0.0.1:5173`.
+- Development endpoint contract: Vite/Electron renderer
+  `http://127.0.0.1:5173`; game/Socket.IO server `http://127.0.0.1:8080`; server
+  development CORS origin exactly `http://127.0.0.1:5173`.
+- Web: Terminal A, `pnpm dev:web`; open `http://127.0.0.1:5173`. Verify
+  `http://127.0.0.1:8080/healthz` and `/readyz` before joining a room.
 - All-in-one desktop: stop the separate web processes, then run
   `pnpm dev:desktop`. Confirm the shell compiles `dist/main.js` and the bundled
   `dist/preload.js` before opening the renderer.

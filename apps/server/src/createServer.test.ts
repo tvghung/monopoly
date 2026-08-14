@@ -2,7 +2,11 @@ import type { AddressInfo } from 'node:net';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createServer } from './createServer.js';
+import {
+  createServer,
+  DEVELOPMENT_RENDERER_ORIGIN,
+  resolveCorsOrigin,
+} from './createServer.js';
 import { InMemoryPersistenceStore } from './persistence/inMemory.js';
 import type { RoomSnapshot } from './rooms.js';
 import { createAppRuntime } from './services/runtime.js';
@@ -55,5 +59,29 @@ describe('HTTP health endpoints', () => {
       503,
       'shutting down',
     ]);
+  });
+});
+
+describe('resolveCorsOrigin', () => {
+  it('uses the exact IPv4 renderer origin by default in development', () => {
+    expect(resolveCorsOrigin({ NODE_ENV: 'development' })).toBe(
+      DEVELOPMENT_RENDERER_ORIGIN,
+    );
+    expect(DEVELOPMENT_RENDERER_ORIGIN).toBe('http://127.0.0.1:5173');
+  });
+
+  it('keeps an explicit CORS_ORIGIN override in development and production', () => {
+    const explicitOrigin = 'https://example.test';
+
+    expect(
+      resolveCorsOrigin({ NODE_ENV: 'development', CORS_ORIGIN: explicitOrigin }),
+    ).toBe(explicitOrigin);
+    expect(
+      resolveCorsOrigin({ NODE_ENV: 'production', CORS_ORIGIN: explicitOrigin }),
+    ).toBe(explicitOrigin);
+  });
+
+  it('keeps production same-origin CORS disabled by default', () => {
+    expect(resolveCorsOrigin({ NODE_ENV: 'production' })).toBe(false);
   });
 });

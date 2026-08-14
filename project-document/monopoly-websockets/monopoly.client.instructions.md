@@ -24,6 +24,13 @@ read-only thay vì một `AppPhase` riêng.
 
 ## Bootstrap/runtime desktop
 
+Development endpoint contract:
+
+- Vite serves the web renderer at `http://127.0.0.1:5173`.
+- The game/Socket.IO server listens at `http://127.0.0.1:8080`.
+- Vite proxies `/socket.io` to the server, while Electron connects directly to
+  `http://127.0.0.1:8080`; the server allows the exact renderer origin by default.
+
 - `AppBootstrap` chạy các stage `loading-settings` → `loading-runtime-config` →
   `loading-assets` → `initializing-client` → `ready`/`error`; loading UI chỉ hiển
   thị stage thực, không dựng phần trăm giả.

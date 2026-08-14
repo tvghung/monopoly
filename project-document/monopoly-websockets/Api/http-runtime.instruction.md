@@ -9,6 +9,14 @@
   1,000 per IP per 15 minutes; Socket.IO and health routes are outside that limiter.
 - Socket.IO shares the HTTP server at default path/namespace.
 
+Development endpoint contract:
+
+- Game server and Socket.IO server: `http://127.0.0.1:8080`.
+- Vite renderer origin: `http://127.0.0.1:5173`.
+- Socket.IO development CORS default: exactly `http://127.0.0.1:5173`.
+- `CORS_ORIGIN` explicitly overrides the development default; production remains
+  same-origin by default.
+
 No REST gameplay controller/auth route is added.
 
 ## Startup
@@ -34,7 +42,9 @@ before propagating the failure.
   `TERMINAL_SESSION_RETENTION_MS=604800000`.
 - `LOBBY_RETENTION_MS=86400000`, `IN_PROGRESS_RETENTION_MS=2592000000`,
   `FINISHED_RETENTION_MS=604800000`.
-- Existing `NODE_ENV`, `CORS_ORIGIN`, `CLIENT_DIST` behavior remains.
+- Existing `NODE_ENV`, `CORS_ORIGIN`, `CLIENT_DIST` behavior remains. In development,
+  the default `CORS_ORIGIN` is `http://127.0.0.1:5173`; production remains disabled
+  by default.
 
 Room code and CORS are not authentication.
 

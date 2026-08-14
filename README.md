@@ -76,10 +76,11 @@ variables still take precedence.
 
 `pnpm dev` / `pnpm dev:web` runs the web server and Vite client in parallel:
 
-- server on `http://localhost:8080`
-- client on `http://localhost:5173` (Vite proxies `/socket.io` to the server)
+- game server on `http://127.0.0.1:8080`
+- Vite renderer on `http://127.0.0.1:5173` (Vite proxies `/socket.io` to the server)
+- Socket.IO development CORS origin is exactly `http://127.0.0.1:5173`
 
-Open `http://localhost:5173`, enter a name and a **room code**, and share the code
+Open `http://127.0.0.1:5173`, enter a name and a **room code**, and share the code
 with friends. A lobby supports 2–7 players. Every player must be connected and ready;
 only the persisted host can start the game.
 
@@ -123,7 +124,7 @@ pnpm desktop:make    # create configured platform makers (Windows Squirrel on Wi
 | `TEST_DATABASE_URL` | unset | Enables the PostgreSQL integration suite; pass it in the shell running `pnpm test`. |
 | `PORT` | `8080` | HTTP/Socket server port. |
 | `NODE_ENV` | `development` | `production` also serves the built client. |
-| `CORS_ORIGIN` | Vite origin in development | Explicit cross-origin allowlist; not authentication. |
+| `CORS_ORIGIN` | `http://127.0.0.1:5173` in development; disabled by default in production | Explicit cross-origin allowlist; not authentication. |
 | `CLIENT_DIST` | `apps/client/dist` | Static client directory override. |
 | `RECONNECT_GRACE_MS` | `60000` | Grace before an offline current player's turn is resolved. |
 | `PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS` | `120000` | Thời hạn xử lý thanh toán thiếu hụt trước auto-liquidation xác định. |
@@ -171,7 +172,7 @@ A multi-stage [`Dockerfile`](./Dockerfile) builds the client and runs the server
 docker build -t monopoly-websockets .
 docker run -p 8080:8080 -e NODE_ENV=production \
   -e DATABASE_URL=postgresql://... monopoly-websockets
-# → http://localhost:8080
+# → http://127.0.0.1:8080 (development only; production is normally same-origin)
 ```
 
 The current runtime supports one live Node process, including across a deployment.
