@@ -56,6 +56,15 @@ export function useTileMotionController(): TileMotionController | null {
   return useContext(tileMotionContext);
 }
 
+export function useTileMotionRevision(): number {
+  const controller = useTileMotionController();
+  return useSyncExternalStore(
+    controller?.subscribe.bind(controller) ?? (() => () => {}),
+    controller ? () => controller.getRevision() : () => 0,
+    () => 0,
+  );
+}
+
 export function useTileMotionOffset(tileId: number): number {
   const controller = useTileMotionController();
   return useSyncExternalStore(

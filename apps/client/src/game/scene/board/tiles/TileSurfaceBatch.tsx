@@ -12,6 +12,7 @@ import { getBoardTileLayout, transformTileLocalPointToWorld } from '../boardLayo
 import type { BoardTileRenderModel } from '../boardRenderModel';
 import { tileState } from '@monopoly/shared';
 import { boardVisualTokens } from '../boardVisualTokens';
+import { useTileMotionController, useTileMotionRevision } from '../motion/TileMotionProvider';
 
 interface TileSurfaceBatchProps {
   tiles: readonly BoardTileRenderModel[];
@@ -40,6 +41,8 @@ export default function TileSurfaceBatch({
 }: TileSurfaceBatchProps) {
   const surfaceRef = useRef<THREE.InstancedMesh>(null);
   const accentRef = useRef<THREE.InstancedMesh>(null);
+  const motionController = useTileMotionController();
+  const motionRevision = useTileMotionRevision();
   const entries = useMemo(() => tiles.map(tile => {
     const layout = getBoardTileLayout(tile.tileId);
     const sourceTile = tileState[tile.tileId];
@@ -63,7 +66,8 @@ export default function TileSurfaceBatch({
     entries.forEach((entry, index) => {
       const layout = getBoardTileLayout(entry.tileId);
       if (!layout) return;
-      dummy.position.set(layout.position[0], TILE_SURFACE_Y + 0.004, layout.position[2]);
+      const tileOffsetY = motionController?.getTileOffsetY(entry.tileId) ?? 0;
+      dummy.position.set(layout.position[0], TILE_SURFACE_Y + 0.004 + tileOffsetY, layout.position[2]);
       dummy.rotation.set(-Math.PI / 2, layout.rotation[1], 0);
       dummy.scale.set(entry.surfaceSize[0], entry.surfaceSize[1], 1);
       dummy.updateMatrix();
@@ -73,7 +77,7 @@ export default function TileSurfaceBatch({
       const accentIndex = entries.slice(0, index + 1).filter(candidate => candidate.isProperty).length - 1;
       const accentPosition = transformTileLocalPointToWorld(entry.tileId, [
         0,
-        TILE_SURFACE_CLEARANCE_Y + PROPERTY_ACCENT_HEIGHT / 2,
+        TILE_SURFACE_CLEARANCE_Y + PROPERTY_ACCENT_HEIGHT / 2 + tileOffsetY,
         -entry.surfaceSize[1] / 2 + 0.18,
       ]);
       if (!accentPosition) return;
@@ -85,7 +89,7 @@ export default function TileSurfaceBatch({
     });
     surfaceMesh.instanceMatrix.needsUpdate = true;
     accentMesh.instanceMatrix.needsUpdate = true;
-  }, [entries]);
+  }, [entries, motionController, motionRevision]);
 
   const handlePointer = (callback: ((tileId: number) => void) | undefined) => (event: ThreeEvent<PointerEvent | MouseEvent>) => {
     stopPointerEvent(event);

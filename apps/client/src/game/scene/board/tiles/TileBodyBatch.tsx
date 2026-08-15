@@ -13,6 +13,7 @@ import { getTileVisualDescriptor } from '../architecture/tileVisualRegistry';
 import type { BoardTileRenderModel } from '../boardRenderModel';
 import { boardVisualTokens } from '../boardVisualTokens';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { useTileMotionController, useTileMotionRevision } from '../motion/TileMotionProvider';
 
 interface TileBodyBatchProps {
   tiles: readonly BoardTileRenderModel[];
@@ -62,6 +63,8 @@ export default function TileBodyBatch({
     () => new RoundedBoxGeometry(1, TILE_BODY_HEIGHT, 1, 2, TILE_BODY_BEVEL),
     [],
   );
+  const motionController = useTileMotionController();
+  const motionRevision = useTileMotionRevision();
   const batches = useMemo(() => {
     const byColor = new Map<string, BodyEntry[]>();
     entries.forEach(entry => {
@@ -93,6 +96,27 @@ export default function TileBodyBatch({
       return { color, entries: groupedEntries, mesh, material };
     });
   }, [entries, geometry, hoveredTileId, selectedTileId]);
+
+  useEffect(() => {
+    const dummy = new THREE.Object3D();
+    const bodyCenterY = BOARD_FOUNDATION_HEIGHT + TILE_SOCKET_GAP + TILE_BODY_HEIGHT / 2;
+    batches.forEach(batch => {
+      batch.entries.forEach((entry, index) => {
+        const layout = getBoardTileLayout(entry.tileId);
+        if (!layout) return;
+        dummy.position.set(
+          layout.position[0],
+          bodyCenterY + (motionController?.getTileOffsetY(entry.tileId) ?? 0),
+          layout.position[2],
+        );
+        dummy.rotation.set(0, layout.rotation[1], 0);
+        dummy.scale.set(entry.size[0], 1, entry.size[1]);
+        dummy.updateMatrix();
+        batch.mesh.setMatrixAt(index, dummy.matrix);
+      });
+      batch.mesh.instanceMatrix.needsUpdate = true;
+    });
+  }, [batches, motionController, motionRevision]);
 
   useEffect(() => () => {
     batches.forEach(batch => batch.material.dispose());

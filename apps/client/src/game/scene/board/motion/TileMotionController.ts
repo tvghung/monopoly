@@ -37,6 +37,7 @@ export class TileMotionController {
   private invalidate?: () => void;
   private reducedMotion: boolean;
   private frameHandle: number | null = null;
+  private revision = 0;
 
   public constructor(options: TileMotionControllerOptions = {}) {
     this.scheduler = options.scheduler ?? defaultScheduler;
@@ -89,6 +90,10 @@ export class TileMotionController {
 
   public getTileOffsetY(tileId: number): number {
     return this.states.get(tileId)?.offsetY ?? this.roots.get(tileId)?.position.y ?? 0;
+  }
+
+  public getRevision(): number {
+    return this.revision;
   }
 
   public subscribe(listener: () => void): () => void {
@@ -151,6 +156,7 @@ export class TileMotionController {
   }
 
   private notify(): void {
+    this.revision += 1;
     this.listeners.forEach(listener => listener());
   }
 }
