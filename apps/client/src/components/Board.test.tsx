@@ -125,11 +125,12 @@ describe('Vietnamese game board', () => {
       </stateContext.Provider>,
     );
 
-    await waitFor(() => expect(container.querySelector('[data-testid="game-scene"]')).toBeTruthy());
     const leftRail = container.querySelector('.game-board__left-rail');
     const renderer = container.querySelector('.game-board__renderer');
     const rightRail = container.querySelector('.game-board__right-rail');
 
+    expect(renderer).toBeTruthy();
+    expect(renderer?.classList.contains('game-board__renderer--legacy')).toBe(false);
     expect(leftRail?.querySelectorAll('.dice')).toHaveLength(1);
     expect(leftRail?.querySelectorAll('.center__dashboard--container')).toHaveLength(1);
     expect(rightRail?.querySelectorAll('.center__room')).toHaveLength(1);
