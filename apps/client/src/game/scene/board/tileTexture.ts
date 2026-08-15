@@ -1,22 +1,31 @@
 import type { Tile } from '@monopoly/shared';
 import * as THREE from 'three';
 import { formatMoney, getTileName } from '../../../presentation';
-import { getPropertyGroupDisplayColor } from '../../ui/propertyVisualColors';
+import {
+  getPropertyGroupVisualStyle,
+  type PropertyMotif,
+} from '../../ui/propertyVisualColors';
 import { boardVisualTokens } from './boardVisualTokens';
 
-const TILE_COLOR_TOKENS: Record<string, string> = {
-  brown: '#c7a27f',
-  lightblue: '#8fd5e4',
-  pink: '#e7a3cc',
-  orange: '#f4b06d',
-  red: '#eb8c96',
-  yellow: '#efd36c',
-  green: '#83c68d',
-  blue: '#88a8e4',
-  railroad: boardVisualTokens.railroad,
-};
-
 const TILE_TEXTURE_ANISOTROPY = 4;
+
+interface TileSurfaceStyle {
+  accent: string;
+  tint: string;
+  motif: PropertyMotif;
+}
+
+const SPECIAL_TILE_STYLES: Record<string, TileSurfaceStyle> = {
+  jail: { accent: boardVisualTokens.jail, tint: '#eeeafd', motif: 'downtown' },
+  gojail: { accent: boardVisualTokens.expense, tint: '#ffe7e7', motif: 'downtown' },
+  chance: { accent: boardVisualTokens.chance, tint: '#fff0da', motif: 'shopping' },
+  chest: { accent: boardVisualTokens.chest, tint: '#def8f3', motif: 'water' },
+  railroad: { accent: boardVisualTokens.railroad, tint: '#edf2f6', motif: 'rail' },
+  company: { accent: boardVisualTokens.utility, tint: '#e5f1ff', motif: 'water' },
+  expense: { accent: boardVisualTokens.expense, tint: '#ffe7e7', motif: 'downtown' },
+  start: { accent: boardVisualTokens.selection, tint: '#fff7d6', motif: 'nightlife' },
+  parking: { accent: boardVisualTokens.plazaTree, tint: '#e5f6e6', motif: 'eco' },
+};
 
 interface TextureCacheEntry {
   texture: THREE.CanvasTexture;
@@ -35,25 +44,16 @@ function labelDimensions(tile: Tile): { width: number; height: number } {
     : { width: 384, height: 640 };
 }
 
-function tileAccent(tile: Tile): string {
-  if (tile.color) return TILE_COLOR_TOKENS[tile.color] ?? getPropertyGroupDisplayColor(tile.color);
-  switch (tile.tileType) {
-    case 'jail':
-    case 'gojail':
-      return boardVisualTokens.jail;
-    case 'chance':
-      return boardVisualTokens.chance;
-    case 'chest':
-      return boardVisualTokens.chest;
-    case 'railroad':
-      return boardVisualTokens.railroad;
-    case 'company':
-      return boardVisualTokens.utility;
-    case 'expense':
-      return boardVisualTokens.expense;
-    default:
-      return boardVisualTokens.boardBase;
+function tileSurfaceStyle(tile: Tile): TileSurfaceStyle {
+  if (tile.color) {
+    const style = getPropertyGroupVisualStyle(tile.color);
+    return { accent: style.color, tint: style.tint, motif: style.motif };
   }
+  return SPECIAL_TILE_STYLES[tile.tileType] ?? {
+    accent: boardVisualTokens.boardBase,
+    tint: boardVisualTokens.tileSurface,
+    motif: 'water',
+  };
 }
 
 function tileTypeLabel(tile: Tile): string {
@@ -98,6 +98,69 @@ function drawWrappedText(
   });
 }
 
+function drawMotif(
+  context: CanvasRenderingContext2D,
+  motif: PropertyMotif,
+  accent: string,
+  width: number,
+  height: number,
+): void {
+  const startY = Math.round(height * 0.58);
+  const unit = Math.max(8, Math.round(width * 0.06));
+  context.globalAlpha = 0.15;
+  context.fillStyle = accent;
+  switch (motif) {
+    case 'brick':
+      for (let row = 0; row < 3; row += 1) {
+        for (let column = row % 2; column < 8; column += 2) {
+          context.fillRect(column * unit, startY + row * unit, unit * 0.8, unit * 0.48);
+        }
+      }
+      break;
+    case 'water':
+      for (let row = 0; row < 3; row += 1) {
+        for (let column = 0; column < 6; column += 1) {
+          context.fillRect(column * unit * 1.35, startY + row * unit, unit, unit * 0.12);
+        }
+      }
+      break;
+    case 'shopping':
+    case 'nightlife':
+    case 'luxury':
+      for (let index = 0; index < 5; index += 1) {
+        const x = (index * 2 + 1) * unit;
+        const y = startY + (index % 2) * unit * 1.4;
+        context.fillRect(x, y, unit * 0.34, unit * 0.34);
+        context.fillRect(x - unit * 0.34, y + unit * 0.34, unit * 1.02, unit * 0.18);
+      }
+      break;
+    case 'market':
+    case 'eco':
+      for (let index = 0; index < 8; index += 1) {
+        context.fillRect(
+          (index % 4) * unit * 1.5 + unit * 0.35,
+          startY + Math.floor(index / 4) * unit * 1.5,
+          unit * 0.4,
+          unit * 0.4,
+        );
+      }
+      break;
+    case 'downtown':
+      for (let index = 0; index < 5; index += 1) {
+        context.fillRect(index * unit * 1.4, startY, unit * 0.7, unit * (1 + (index % 2) * 0.5));
+      }
+      break;
+    case 'rail':
+      context.fillRect(0, startY, width * 0.82, unit * 0.12);
+      context.fillRect(0, startY + unit * 0.75, width * 0.82, unit * 0.12);
+      for (let index = 0; index < 7; index += 1) {
+        context.fillRect(index * unit * 1.25, startY - unit * 0.15, unit * 0.12, unit * 1.2);
+      }
+      break;
+  }
+  context.globalAlpha = 1;
+}
+
 function createTileLabelTexture(tileId: number, tile: Tile): THREE.CanvasTexture {
   const { width, height } = labelDimensions(tile);
   const canvas = document.createElement('canvas');
@@ -106,11 +169,13 @@ function createTileLabelTexture(tileId: number, tile: Tile): THREE.CanvasTexture
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Không thể tạo canvas cho nhãn ô cờ.');
 
-  const accent = tileAccent(tile);
-  context.fillStyle = boardVisualTokens.tileSurface;
+  const style = tileSurfaceStyle(tile);
+  const accentHeight = Math.round(height * 0.2);
+  context.fillStyle = style.tint;
   context.fillRect(0, 0, width, height);
-  context.fillStyle = accent;
-  context.fillRect(0, 0, width, Math.round(height * 0.18));
+  drawMotif(context, style.motif, style.accent, width, height);
+  context.fillStyle = style.accent;
+  context.fillRect(0, 0, width, accentHeight);
   context.strokeStyle = boardVisualTokens.tileBorder;
   context.lineWidth = Math.max(3, Math.round(width * 0.012));
   context.strokeRect(context.lineWidth / 2, context.lineWidth / 2, width - context.lineWidth, height - context.lineWidth);
@@ -118,19 +183,19 @@ function createTileLabelTexture(tileId: number, tile: Tile): THREE.CanvasTexture
   context.textAlign = 'center';
   context.textBaseline = 'middle';
   context.fillStyle = boardVisualTokens.tileText;
-  context.font = `700 ${Math.round(width * 0.075)}px Arial, sans-serif`;
+  context.font = `800 ${Math.round(width * 0.07)}px Arial, sans-serif`;
   context.fillText(tileTypeLabel(tile), width / 2, height * 0.25);
 
-  context.font = `700 ${Math.round(width * 0.105)}px Arial, sans-serif`;
-  drawWrappedText(context, getTileName(tileId), width / 2, height * 0.43, width * 0.82, width * 0.12, 3);
+  context.font = `800 ${Math.round(width * 0.115)}px Arial, sans-serif`;
+  drawWrappedText(context, getTileName(tileId), width / 2, height * 0.46, width * 0.82, width * 0.13, 3);
 
   if (typeof tile.price === 'number') {
-    context.font = `700 ${Math.round(width * 0.075)}px Arial, sans-serif`;
-    context.fillText(formatMoney(tile.price), width / 2, height * 0.82);
+    context.font = `800 ${Math.round(width * 0.072)}px Arial, sans-serif`;
+    context.fillText(formatMoney(tile.price), width / 2, height * 0.86);
   } else {
-    context.font = `600 ${Math.round(width * 0.06)}px Arial, sans-serif`;
+    context.font = `700 ${Math.round(width * 0.06)}px Arial, sans-serif`;
     context.fillStyle = boardVisualTokens.tileText;
-    context.fillText('MỞ CHI TIẾT', width / 2, height * 0.82);
+    context.fillText('MỞ CHI TIẾT', width / 2, height * 0.86);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -171,14 +236,4 @@ export function releaseTileLabelTexture(tileId: number): void {
     current.texture.dispose();
     textureCache.delete(tileId);
   });
-}
-
-export function getTileLabelScale(tile: Tile): readonly [number, number, number] {
-  return labelDimensions(tile).width === 512
-    ? [1.75, 1.75, 1]
-    : [1.05, 1.72, 1];
-}
-
-export function getTileAccentColor(tile: Tile): string {
-  return tileAccent(tile);
 }

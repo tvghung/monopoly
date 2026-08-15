@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react';
 import type { CanvasTexture } from 'three';
 import {
   PLATFORM_HEIGHT,
-  PROPERTY_ACCENT_CENTER_Y,
-  PROPERTY_ACCENT_HEIGHT,
   TILE_HEIGHT,
   TILE_SURFACE_Y,
   getBoardTileLayout,
@@ -13,8 +11,6 @@ import {
 import { boardVisualTokens } from './boardVisualTokens';
 import {
   acquireTileLabelTexture,
-  getTileAccentColor,
-  getTileLabelScale,
   releaseTileLabelTexture,
 } from './tileTexture';
 import JailVisual from '../special/JailVisual';
@@ -73,10 +69,6 @@ export default function BoardTile3D({
   const slabColor = selected
     ? boardVisualTokens.selection
     : hovered ? boardVisualTokens.hover : boardVisualTokens.tileSurface;
-  const stripPosition = [
-    0, PROPERTY_ACCENT_CENTER_Y, layout.size[1] / 2 - 0.11,
-  ] as const;
-  const accent = getTileAccentColor(tile);
   const handlePointerEnter = (event: ThreeEvent<PointerEvent>) => {
     stopPointerEvent(event);
     onHover?.(tileId);
@@ -102,18 +94,6 @@ export default function BoardTile3D({
           <boxGeometry args={[layout.size[0], TILE_HEIGHT, layout.size[1]]} />
           <meshStandardMaterial color={slabColor} roughness={0.76} metalness={0} />
         </mesh>
-        {tile.color || tile.tileType !== 'normal'
-          ? (
-            <mesh
-              position={stripPosition}
-              onPointerDown={stopPointerEvent}
-              onClick={handleClick}
-            >
-              <boxGeometry args={[layout.size[0], PROPERTY_ACCENT_HEIGHT, 0.19]} />
-              <meshStandardMaterial color={accent} roughness={0.7} />
-            </mesh>
-          )
-          : null}
         {tile.tileType === 'jail' ? <JailVisual size={layout.size} /> : null}
         {tile.tileType === 'chance' || tile.tileType === 'chest'
           ? <CardDeckVisual size={layout.size} kind={tile.tileType} />
@@ -124,15 +104,16 @@ export default function BoardTile3D({
         {selected ? <SelectionMarker size={layout.size} /> : null}
         {houses > 0 ? <BuildingLayer houses={houses} /> : null}
       </group>
-      <sprite
-        position={[0, TILE_SURFACE_Y + 0.09, 0]}
-        scale={getTileLabelScale(tile)}
+      <mesh
+        position={[0, TILE_SURFACE_Y + 0.006, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
         onClick={handleClick}
       >
-        <spriteMaterial map={texture} transparent depthWrite={false} />
-      </sprite>
+        <planeGeometry args={[Math.max(0.3, layout.size[0] - 0.08), Math.max(0.3, layout.size[1] - 0.08)]} />
+        <meshBasicMaterial map={texture} toneMapped={false} />
+      </mesh>
     </group>
   );
 }
