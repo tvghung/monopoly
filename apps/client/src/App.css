@@ -6,7 +6,7 @@
   text-align: center;
   width: 100vw;
   height: 100vh;
-  background-color: lightblue;
+  background-color: var(--color-canvas);
 }
 
 .app-status {
@@ -17,8 +17,8 @@
   width: 100vw;
   min-height: 100vh;
   padding: 2rem;
-  background: radial-gradient(circle at 50% 0%, #2f4f4f 0%, #1c2b2b 60%, #101a1a 100%);
-  color: #fff;
+  background: linear-gradient(160deg, var(--color-canvas-deep), #e7f0fa);
+  color: var(--color-text-primary);
 }
 
 .app-status button {
@@ -26,8 +26,8 @@
   padding: 0.7rem 1rem;
   border: 0;
   border-radius: 0.5rem;
-  background: #c1121f;
-  color: #fff;
+  background: var(--color-accent-primary);
+  color: var(--color-text-primary);
   cursor: pointer;
   font-weight: 700;
 }
@@ -39,8 +39,8 @@
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: rgba(10, 18, 18, 0.76);
-  backdrop-filter: blur(2px);
+  background: var(--color-overlay);
+  backdrop-filter: blur(4px);
 }
 
 .connection-overlay__card {
@@ -50,17 +50,17 @@
   max-width: 28rem;
   padding: 1rem 1.25rem;
   border-radius: 0.75rem;
-  background: #faf7ef;
-  color: #222;
-  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.35);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-modal);
 }
 
 .connection-overlay__spinner {
   width: 1.25rem;
   height: 1.25rem;
   flex: 0 0 auto;
-  border: 3px solid rgba(193, 18, 31, 0.25);
-  border-top-color: #c1121f;
+  border: 3px solid rgb(243 143 164 / 28%);
+  border-top-color: var(--color-accent-primary-strong);
   border-radius: 50%;
   animation: connection-spin 0.8s linear infinite;
 }
@@ -74,9 +74,9 @@
   padding: 0.6rem 0.9rem;
   transform: translateX(-50%);
   border-radius: 999px;
-  background: #202b2b;
-  color: #fff;
-  box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.3);
+  background: #e6e7f7;
+  color: #4d5278;
+  box-shadow: var(--shadow-raised);
   font-size: 0.85rem;
   font-weight: 700;
 }
@@ -89,8 +89,8 @@
   padding: 0.55rem 0.8rem;
   border: 0;
   border-radius: 0.5rem;
-  background: #8b1e24;
-  color: #fff;
+  background: var(--color-danger);
+  color: var(--color-text-primary);
   cursor: pointer;
   font-weight: 700;
   min-height: 2.75rem;
@@ -125,8 +125,9 @@
   margin: 0;
   padding: 0.5rem 0.7rem;
   border-radius: 0.4rem;
-  background: #fff4f4;
-  color: #7a1118;
+  border: 1px solid rgb(217 111 120 / 32%);
+  background: #fff1f3;
+  color: #9d4651;
 }
 
 @keyframes connection-spin {

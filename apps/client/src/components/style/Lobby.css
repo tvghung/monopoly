@@ -5,13 +5,13 @@
   width: 100vw;
   min-height: 100vh;
   padding: 2rem;
-  background: radial-gradient(circle at 50% 0%, var(--color-canvas-deep) 0%, #102d2b 70%, #0b1c1b 100%);
+  background: radial-gradient(circle at 50% 0%, #fdf3d5 0%, #e9f7f2 48%, #e7f0fa 100%);
 }
 
 .lobby__card {
   width: min(94vw, 48rem);
   padding: 2rem;
-  border: 1px solid rgb(255 255 255 / 18%);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-large);
   background: var(--color-surface);
   box-shadow: var(--shadow-floating);
@@ -86,7 +86,7 @@
 .lobby-player__disc {
   width: 1.25rem;
   height: 1.25rem;
-  border: 2px solid rgb(29 41 39 / 20%);
+  border: 2px solid var(--color-border-strong);
   border-radius: 50%;
 }
 
