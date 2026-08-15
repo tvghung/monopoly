@@ -7,20 +7,20 @@ export interface PropertyGroupVisualStyle {
 }
 
 const PROPERTY_GROUP_VISUAL_STYLES: Record<string, PropertyGroupVisualStyle> = {
-  brown: { color: '#c7a27f', tint: '#f7eadc', motif: 'brick' },
-  lightblue: { color: '#8fd5e4', tint: '#e1f7fb', motif: 'water' },
-  pink: { color: '#e7a3cc', tint: '#fce8f6', motif: 'shopping' },
-  orange: { color: '#f4b06d', tint: '#fff0dc', motif: 'market' },
-  red: { color: '#eb8c96', tint: '#ffe5e7', motif: 'downtown' },
-  yellow: { color: '#efd36c', tint: '#fff7d4', motif: 'nightlife' },
-  green: { color: '#83c68d', tint: '#e3f6e5', motif: 'eco' },
-  blue: { color: '#88a8e4', tint: '#e7edff', motif: 'luxury' },
-  railroad: { color: '#a8b7c4', tint: '#edf2f6', motif: 'rail' },
+  brown: { color: '#a85532', tint: '#fff0e7', motif: 'brick' },
+  lightblue: { color: '#19b9d3', tint: '#e5fbff', motif: 'water' },
+  pink: { color: '#e34bb1', tint: '#ffe4f5', motif: 'shopping' },
+  orange: { color: '#f47723', tint: '#fff0df', motif: 'market' },
+  red: { color: '#e24451', tint: '#ffe4e6', motif: 'downtown' },
+  yellow: { color: '#f2bd19', tint: '#fff7cc', motif: 'nightlife' },
+  green: { color: '#24a662', tint: '#e4f8ea', motif: 'eco' },
+  blue: { color: '#536ddd', tint: '#e9ecff', motif: 'luxury' },
+  railroad: { color: '#546982', tint: '#eef3f8', motif: 'rail' },
 };
 
 const FALLBACK_STYLE: PropertyGroupVisualStyle = {
-  color: '#dce8e3',
-  tint: '#f2f8f6',
+  color: '#75b8ad',
+  tint: '#edf9f6',
   motif: 'water',
 };
 

@@ -2,7 +2,7 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: #eaf8f3;
+  background: var(--color-canvas-deep);
 }
 
 .game-scene canvas {

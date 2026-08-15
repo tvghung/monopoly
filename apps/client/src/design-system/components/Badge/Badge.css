@@ -1,7 +1,7 @@
 .ds-badge { display: inline-flex; align-items: center; gap: var(--space-1); padding: 0.25rem 0.6rem; border-radius: var(--radius-pill); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); line-height: 1.2; }
 .ds-badge--neutral { background: var(--color-surface-soft); color: var(--color-text-secondary); }
-.ds-badge--success { background: rgb(85 169 130 / 16%); color: #347858; }
-.ds-badge--warning { background: rgb(239 211 108 / 28%); color: #80611e; }
-.ds-badge--danger { background: rgb(217 111 120 / 16%); color: #9d4651; }
-.ds-badge--info { background: rgb(111 152 214 / 16%); color: #476da7; }
+.ds-badge--success { background: var(--color-success-soft); color: var(--color-success-strong); }
+.ds-badge--warning { background: var(--color-warning-soft); color: var(--color-warning); }
+.ds-badge--danger { background: var(--color-danger-soft); color: var(--color-danger-strong); }
+.ds-badge--info { background: var(--color-info-soft); color: var(--color-info-strong); }
 

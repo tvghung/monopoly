@@ -30,7 +30,7 @@
 .dice__button {
   align-self: center;
   background: var(--color-accent-secondary);
-  color: var(--color-text-primary);
+  color: var(--color-text-inverse);
   border: 1px solid var(--color-border-strong);
   border-radius: 0.5vmin;
   padding: 0.5vmin 1vmin;
@@ -74,7 +74,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
-  background: linear-gradient(145deg, #ffffff, #e7f0fa);
+  background: linear-gradient(145deg, #ffffff, var(--color-info-soft));
   border: 1px solid var(--color-border-strong);
   border-radius: 1.2vmin;
   box-shadow: inset 0 0 1vmin rgb(74 98 94 / 15%);
@@ -93,7 +93,7 @@
   justify-self: center;
   width: 1.5vmin;
   height: 1.5vmin;
-  background: radial-gradient(circle at 35% 30%, #60727a, #34454d);
+  background: radial-gradient(circle at 35% 30%, var(--color-text-secondary), var(--color-text-primary));
   border-radius: 50%;
   box-shadow: 0 0 0.2vmin rgb(52 69 77 / 40%);
 }

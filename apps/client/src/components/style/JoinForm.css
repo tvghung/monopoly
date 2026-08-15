@@ -4,7 +4,7 @@
   justify-content: center;
   width: 100vw;
   height: 100vh;
-  background: radial-gradient(circle at 50% 0%, #fdf3d5 0%, #e9f7f2 48%, #e7f0fa 100%);
+  background: radial-gradient(circle at 50% 0%, var(--color-warning-soft) 0%, var(--color-accent-secondary-soft) 48%, var(--color-info-soft) 100%);
 }
 
 .join__card {
@@ -51,13 +51,13 @@
 }
 
 .join__error {
-  background: #fff1f3;
-  color: #9d4651;
+  background: var(--color-danger-soft);
+  color: var(--color-danger-strong);
 }
 
 .join__connection {
-  background: #e7f0fa;
-  color: #476da7;
+  background: var(--color-info-soft);
+  color: var(--color-info-strong);
 }
 
 .join__label {
@@ -106,6 +106,6 @@
 }
 
 .join__button:disabled {
-  background: #e5c1c8;
+  background: var(--color-border);
   cursor: not-allowed;
 }

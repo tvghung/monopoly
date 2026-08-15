@@ -1,24 +1,24 @@
 const PLAYER_DISPLAY_COLORS: Record<string, string> = {
-  yellow: '#eecb63',
-  green: '#70c499',
-  blue: '#7fa5e3',
-  red: '#ec8792',
-  orange: '#f0ab68',
-  white: '#f5efe6',
-  black: '#8b8fa8',
+  yellow: '#f2bb13',
+  green: '#17a968',
+  blue: '#416bd8',
+  red: '#e54659',
+  orange: '#ef7727',
+  white: '#fff6dd',
+  black: '#223746',
 };
 
 const PLAYER_DISPLAY_FOREGROUNDS: Record<string, string> = {
-  yellow: '#5d4c1a',
-  green: '#274f3c',
-  blue: '#324d7b',
-  red: '#6e3340',
-  orange: '#704515',
-  white: '#34454d',
-  black: '#34454d',
+  yellow: '#183344',
+  green: '#ffffff',
+  blue: '#ffffff',
+  red: '#ffffff',
+  orange: '#ffffff',
+  white: '#183344',
+  black: '#ffffff',
 };
 
-const FALLBACK_DISPLAY_COLOR = '#72ccbc';
+const FALLBACK_DISPLAY_COLOR = '#11aaa4';
 
 export function getPlayerDisplayColor(rawColor: string | null | undefined): string {
   if (!rawColor) return FALLBACK_DISPLAY_COLOR;
@@ -26,7 +26,6 @@ export function getPlayerDisplayColor(rawColor: string | null | undefined): stri
 }
 
 export function getPlayerDisplayForeground(rawColor: string | null | undefined): string {
-  if (!rawColor) return '#34454d';
-  return PLAYER_DISPLAY_FOREGROUNDS[rawColor.toLowerCase()] ?? '#34454d';
+  if (!rawColor) return '#ffffff';
+  return PLAYER_DISPLAY_FOREGROUNDS[rawColor.toLowerCase()] ?? '#ffffff';
 }
-

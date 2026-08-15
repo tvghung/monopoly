@@ -17,12 +17,12 @@ export default function JailVisual({ size }: JailVisualProps) {
       {Array.from({ length: barCount }, (_, index) => (
         <mesh key={index} position={[(index + 1) * barSpacing - size[0] / 2, 0.42, 0]}>
           <cylinderGeometry args={[0.045, 0.045, 0.72, 8]} />
-          <meshStandardMaterial color="#68777a" roughness={0.65} />
+          <meshStandardMaterial color={boardVisualTokens.jailBars} roughness={0.65} />
         </mesh>
       ))}
       <mesh position={[0, 0.77, 0]}>
         <boxGeometry args={[size[0] * 0.72, 0.08, 0.08]} />
-        <meshStandardMaterial color="#68777a" roughness={0.65} />
+        <meshStandardMaterial color={boardVisualTokens.jailBars} roughness={0.65} />
       </mesh>
     </group>
   );

@@ -471,15 +471,15 @@
 .tile__building {
   width: 0.8vmin;
   height: 0.8vmin;
-  background: #74c99c;
-  border: 0.1vmin solid #4f9c76;
+  background: var(--color-success);
+  border: 0.1vmin solid var(--color-success-strong);
   border-radius: 0.1vmin;
 }
 
 .tile__building--hotel {
   width: 1.6vmin;
-  background: #ef8fa1;
-  border-color: #c66478;
+  background: var(--color-danger);
+  border-color: var(--color-danger-strong);
 }
 
 .orientation-notice {
@@ -497,7 +497,7 @@
     justify-content: center;
     gap: 0.75rem;
     padding: 2rem;
-    background: #e6e7f7;
+    background: var(--color-info-soft);
   color: var(--color-text-primary);
     font-size: clamp(1rem, 5vw, 1.4rem);
     line-height: 1.4;

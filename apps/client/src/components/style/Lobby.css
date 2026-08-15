@@ -5,7 +5,7 @@
   width: 100vw;
   min-height: 100vh;
   padding: 2rem;
-  background: radial-gradient(circle at 50% 0%, #fdf3d5 0%, #e9f7f2 48%, #e7f0fa 100%);
+  background: radial-gradient(circle at 50% 0%, var(--color-warning-soft) 0%, var(--color-accent-secondary-soft) 48%, var(--color-info-soft) 100%);
 }
 
 .lobby__card {

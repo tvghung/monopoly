@@ -12,7 +12,7 @@ export default function HouseMesh({
       </mesh>
       <mesh position={[0, 0.16, 0]} rotation={[0, Math.PI / 4, 0]}>
         <coneGeometry args={[0.19, 0.16, 4]} />
-        <meshStandardMaterial color="#4f9c76" roughness={0.7} />
+        <meshStandardMaterial color={boardVisualTokens.houseDark} roughness={0.7} />
       </mesh>
     </group>
   );

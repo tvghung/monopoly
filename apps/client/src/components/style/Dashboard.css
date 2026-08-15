@@ -102,8 +102,8 @@
 }
 
 .player-card--active {
-  background: #f5fffb;
-  box-shadow: 0 0 0 0.18vmin rgb(114 204 188 / 45%);
+  background: var(--color-accent-secondary-soft);
+  box-shadow: 0 0 0 0.18vmin rgb(18 185 167 / 45%);
 }
 
 .player-card--out {
@@ -229,12 +229,12 @@
 
 .button__purchase--yes {
   border: 1px solid var(--color-success);
-  background: #f5fffb;
+  background: var(--color-success-soft);
 }
 
 .button__purchase--no {
   border: 1px solid var(--color-danger);
-  background: #fff4f5;
+  background: var(--color-danger-soft);
 }
 
 .button__start-game {
@@ -324,12 +324,12 @@ align-items: center;
 
 .trade-offers-modal__button--yes {
   border: 1px solid var(--color-success);
-  background: #f5fffb;
+  background: var(--color-success-soft);
 }
 
 .trade-offers-modal__button--no {
   border: 1px solid var(--color-danger);
-  background: #fff4f5;
+  background: var(--color-danger-soft);
 }
 
 .trade-offers-modal__offer__title {
@@ -361,15 +361,15 @@ align-items: center;
   gap: 1vmin;
   padding: 1.5vmin;
   margin-bottom: 1.5vmin;
-  background: #fff8df;
-  border: 0.25vmin solid #e2c66d;
+  background: var(--color-warning-soft);
+  border: 0.25vmin solid var(--color-warning);
   border-radius: 1vmin;
   text-align: center;
 }
 
 .jail-panel__title {
   margin: 0;
-  color: #80611e;
+  color: var(--color-warning);
 }
 
 .jail-panel__hint {
@@ -468,8 +468,8 @@ align-items: center;
   padding: 1vmin;
   border: 0.25vmin solid var(--color-danger);
   border-radius: 0.8vmin;
-  background: #fff1f3;
-  color: #6e3340;
+  background: var(--color-danger-soft);
+  color: var(--color-danger-strong);
   font-size: clamp(0.58rem, 1.2vmin, 0.85rem);
   line-height: 1.3;
 }
