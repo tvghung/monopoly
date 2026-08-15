@@ -1,7 +1,13 @@
 import type { Tile } from '@monopoly/shared';
 import type { ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
-import { PLATFORM_HEIGHT, TILE_HEIGHT, getBoardTileLayout } from './boardLayout';
+import {
+  PLATFORM_HEIGHT,
+  SURFACE_EPSILON,
+  TILE_HEIGHT,
+  TILE_SURFACE_Y,
+  getBoardTileLayout,
+} from './boardLayout';
 import { boardVisualTokens } from './boardVisualTokens';
 import {
   acquireTileLabelTexture,
@@ -53,7 +59,11 @@ export default function BoardTile3D({
   const slabColor = selected
     ? boardVisualTokens.selection
     : hovered ? boardVisualTokens.hover : boardVisualTokens.tileSurface;
-  const stripPosition = [0, TILE_HEIGHT / 2 + 0.018, layout.size[1] / 2 - 0.11] as const;
+  const stripPosition = [
+    0,
+    TILE_SURFACE_Y + SURFACE_EPSILON + 0.0225,
+    layout.size[1] / 2 - 0.11,
+  ] as const;
   const accent = getTileAccentColor(tile);
   const handlePointerEnter = (event: ThreeEvent<PointerEvent>) => {
     stopPointerEvent(event);
@@ -70,33 +80,41 @@ export default function BoardTile3D({
 
   return (
     <group position={layout.position}>
-      <mesh
-        position={[0, PLATFORM_HEIGHT + TILE_HEIGHT / 2, 0]}
-        rotation={layout.rotation}
-        receiveShadow
-        onPointerEnter={handlePointerEnter}
-        onPointerLeave={handlePointerLeave}
-        onClick={handleClick}
-      >
-        <boxGeometry args={[layout.size[0], TILE_HEIGHT, layout.size[1]]} />
-        <meshStandardMaterial color={slabColor} roughness={0.76} metalness={0} />
-      </mesh>
-      {tile.color || tile.tileType !== 'normal'
-        ? (
-          <mesh
-            position={stripPosition}
-            rotation={layout.rotation}
-            receiveShadow
-            onPointerDown={stopPointerEvent}
-            onClick={handleClick}
-          >
-            <boxGeometry args={[layout.size[0], 0.045, 0.19]} />
-            <meshStandardMaterial color={accent} roughness={0.7} />
-          </mesh>
-        )
-        : null}
+      <group rotation={layout.rotation}>
+        <mesh
+          position={[0, PLATFORM_HEIGHT + TILE_HEIGHT / 2, 0]}
+          receiveShadow
+          onPointerEnter={handlePointerEnter}
+          onPointerLeave={handlePointerLeave}
+          onClick={handleClick}
+        >
+          <boxGeometry args={[layout.size[0], TILE_HEIGHT, layout.size[1]]} />
+          <meshStandardMaterial color={slabColor} roughness={0.76} metalness={0} />
+        </mesh>
+        {tile.color || tile.tileType !== 'normal'
+          ? (
+            <mesh
+              position={stripPosition}
+              receiveShadow
+              onPointerDown={stopPointerEvent}
+              onClick={handleClick}
+            >
+              <boxGeometry args={[layout.size[0], 0.045, 0.19]} />
+              <meshStandardMaterial color={accent} roughness={0.7} />
+            </mesh>
+          )
+          : null}
+        {tile.tileType === 'jail' ? <JailVisual size={layout.size} /> : null}
+        {tile.tileType === 'chance' || tile.tileType === 'chest'
+          ? <CardDeckVisual size={layout.size} kind={tile.tileType} />
+          : null}
+        {ownerColor
+          ? <OwnershipMarker color={ownerColor} size={layout.size} />
+          : null}
+        {selected ? <SelectionMarker size={layout.size} /> : null}
+      </group>
       <sprite
-        position={[0, PLATFORM_HEIGHT + TILE_HEIGHT + 0.09, 0]}
+        position={[0, TILE_SURFACE_Y + 0.09, 0]}
         scale={getTileLabelScale(tile)}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
@@ -104,14 +122,6 @@ export default function BoardTile3D({
       >
         <spriteMaterial map={texture} transparent depthWrite={false} />
       </sprite>
-      {tile.tileType === 'jail' ? <JailVisual size={layout.size} /> : null}
-      {tile.tileType === 'chance' || tile.tileType === 'chest'
-        ? <CardDeckVisual size={layout.size} kind={tile.tileType} />
-        : null}
-      {ownerColor
-        ? <OwnershipMarker color={ownerColor} size={layout.size} rotation={layout.rotation} />
-        : null}
-      {selected ? <SelectionMarker size={layout.size} rotation={layout.rotation} /> : null}
       {houses > 0 ? <BuildingLayer tileId={tileId} houses={houses} /> : null}
     </group>
   );

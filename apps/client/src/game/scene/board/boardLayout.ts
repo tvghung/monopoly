@@ -6,6 +6,8 @@ export const EDGE_TILE_DEPTH = 2.4;
 export const TILE_GAP = 0.05;
 export const TILE_HEIGHT = 0.28;
 export const PLATFORM_HEIGHT = 0.42;
+export const TILE_SURFACE_Y = PLATFORM_HEIGHT + TILE_HEIGHT;
+export const SURFACE_EPSILON = 0.02;
 
 export const OUTER_BOARD_SIZE = 2 * CORNER_SIZE + 9 * EDGE_TILE_WIDTH;
 export const CORNER_CENTER = OUTER_BOARD_SIZE / 2 - CORNER_SIZE / 2;

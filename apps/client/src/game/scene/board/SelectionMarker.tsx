@@ -1,19 +1,18 @@
-import { PLATFORM_HEIGHT, TILE_HEIGHT } from './boardLayout';
+import { SURFACE_EPSILON, TILE_SURFACE_Y } from './boardLayout';
 import { boardVisualTokens } from './boardVisualTokens';
 
 interface SelectionMarkerProps {
   size: readonly [number, number];
-  rotation: readonly [number, number, number];
   color?: string;
 }
 
 export default function SelectionMarker({
-  size, rotation, color = boardVisualTokens.selection,
+  size, color = boardVisualTokens.selection,
 }: SelectionMarkerProps) {
   const edgeHeight = 0.045;
-  const y = PLATFORM_HEIGHT + TILE_HEIGHT + 0.04;
+  const y = TILE_SURFACE_Y + SURFACE_EPSILON + edgeHeight / 2;
   return (
-    <group rotation={rotation}>
+    <group>
       <mesh position={[0, y, -size[1] / 2]}>
         <boxGeometry args={[size[0] + 0.08, edgeHeight, 0.045]} />
         <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.2} />
