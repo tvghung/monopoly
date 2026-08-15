@@ -37,7 +37,7 @@ function stopPointerEvent(event: { stopPropagation: () => void }): void {
   event.stopPropagation();
 }
 
-function useTileLabelTexture(
+export function useTileLabelTexture(
   tileId: number,
   tile: Tile,
   enabled: boolean,

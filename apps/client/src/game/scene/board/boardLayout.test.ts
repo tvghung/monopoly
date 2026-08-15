@@ -3,7 +3,11 @@ import {
   CORNER_SIZE,
   EDGE_TILE_DEPTH,
   EDGE_TILE_WIDTH,
+  PLATFORM_HEIGHT,
+  SURFACE_EPSILON,
   TILE_GAP,
+  TILE_HEIGHT,
+  TILE_SURFACE_Y,
   boardLayout,
   getBoardTileLayout,
 } from './boardLayout';
@@ -48,6 +52,22 @@ describe('canonical 2.5D board layout', () => {
     expect(boardLayout.filter(layout => layout.side === 'CORNER')
       .every(layout => layout.size[0] === CORNER_SIZE - TILE_GAP
         && layout.size[1] === CORNER_SIZE - TILE_GAP)).toBe(true);
+    expect(TILE_SURFACE_Y).toBe(PLATFORM_HEIGHT + TILE_HEIGHT);
+    expect(SURFACE_EPSILON).toBeGreaterThan(0);
+  });
+
+  it.each([
+    [1, 'BOTTOM', [5.6, 0, 7.5], 0],
+    [11, 'LEFT', [-7.5, 0, 5.6], -Math.PI / 2],
+    [21, 'TOP', [-5.6, 0, -7.5], Math.PI],
+    [31, 'RIGHT', [7.5, 0, -5.6], Math.PI / 2],
+  ] as const)('keeps tile %i on its canonical world transform', (tileId, side, position, rotationY) => {
+    const layout = getBoardTileLayout(tileId);
+    expect(layout?.side).toBe(side);
+    position.forEach((coordinate, index) => {
+      expect(layout?.position[index]).toBeCloseTo(coordinate);
+    });
+    expect(layout?.rotation).toEqual([0, rotationY, 0]);
   });
 
   it('looks up valid IDs and safely rejects invalid IDs', () => {

@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, vi,
+} from 'vitest';
 import { supportsWebGL } from './webglSupport';
 
 describe('supportsWebGL', () => {
@@ -7,11 +9,13 @@ describe('supportsWebGL', () => {
   });
 
   it('accepts WebGL2', () => {
+    const getContext = vi.fn((contextId: string) => contextId === 'webgl2' ? {} : null);
     expect(supportsWebGL({
-      createElement: () => ({
-        getContext: (contextId: string) => contextId === 'webgl2' ? {} : null,
-      }),
+      defaultView: { WebGL2RenderingContext: {} },
+      createElement: () => ({ getContext }),
     })).toBe(true);
+    expect(getContext).toHaveBeenCalledTimes(1);
+    expect(getContext).toHaveBeenCalledWith('webgl2');
   });
 
   it('rejects browsers that only expose WebGL1', () => {

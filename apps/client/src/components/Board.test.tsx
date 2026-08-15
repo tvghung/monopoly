@@ -3,13 +3,24 @@ import {
 } from '@testing-library/react';
 import type { PublicGameState } from '@monopoly/shared';
 import {
-  afterEach, describe, expect, it, vi,
+  afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest';
 import stateContext from '../internal';
+import { supportsWebGL } from '../game/scene/fallback/webglSupport';
 import type { SocketFunctions, StateContextValue } from '../types';
 import Board from './Board';
 
+vi.mock('../game/scene/fallback/webglSupport', () => ({
+  supportsWebGL: vi.fn(() => false),
+}));
+vi.mock('../game/scene/GameScene', () => ({
+  default: () => <div data-testid="game-scene" />,
+}));
+
 afterEach(cleanup);
+beforeEach(() => {
+  vi.mocked(supportsWebGL).mockReturnValue(false);
+});
 
 const makeSocketFunctions = (): SocketFunctions => ({
   rollDice: vi.fn(),
@@ -106,6 +117,31 @@ describe('Vietnamese game board', () => {
     expect(tile.getAttribute('aria-expanded')).toBe('true');
   });
 
+  it('keeps one HUD instance in side rails while the WebGL renderer owns the center', async () => {
+    vi.mocked(supportsWebGL).mockReturnValue(true);
+    const { container } = render(
+      <stateContext.Provider value={makeContextValue()}>
+        <Board />
+      </stateContext.Provider>,
+    );
+
+    await waitFor(() => expect(container.querySelector('[data-testid="game-scene"]')).toBeTruthy());
+    const leftRail = container.querySelector('.game-board__left-rail');
+    const renderer = container.querySelector('.game-board__renderer');
+    const rightRail = container.querySelector('.game-board__right-rail');
+
+    expect(leftRail?.querySelectorAll('.dice')).toHaveLength(1);
+    expect(leftRail?.querySelectorAll('.center__dashboard--container')).toHaveLength(1);
+    expect(rightRail?.querySelectorAll('.center__room')).toHaveLength(1);
+    expect(container.querySelectorAll('.dice')).toHaveLength(1);
+    expect(container.querySelectorAll('.center__dashboard--container')).toHaveLength(1);
+    expect(container.querySelectorAll('.center__room')).toHaveLength(1);
+    expect(renderer?.querySelector('.dice, .center__dashboard--container, .center__room')).toBeNull();
+    expect(container.querySelector('.game-board__center-ui, .game-board__ui, .center')).toBeNull();
+    expect(container.querySelector('.legacy-board')).toBeNull();
+    expect(container.querySelectorAll('[data-tile-index]')).toHaveLength(40);
+  });
+
   it('opens derived property details and closes them with Escape', async () => {
     render(
       <stateContext.Provider value={makeContextValue()}>
@@ -158,7 +194,7 @@ describe('Vietnamese game board', () => {
     expect(screen.getByRole('button', { name: 'Bán Nhà' })).toBeTruthy();
   });
 
-  it('keeps bilateral trade available for another player property', () => {
+  it('hands property inspection to one bilateral trade modal without restoring tile focus', async () => {
     const state = makeGameState({
       players: {
         me: makePlayer('An', 'red'),
@@ -182,7 +218,14 @@ describe('Vietnamese game board', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /Ô 1: Cà Mau/ }));
-    expect(screen.getByRole('button', { name: 'Đề nghị mua' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Đề nghị mua' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Cà Mau' })).toBeNull();
+      expect(screen.getByRole('dialog', { name: 'Giao dịch với Bình' })).toBeTruthy();
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
+      expect(document.activeElement?.id).toBe('private-offer-cash');
+    });
   });
 
   it('does not render the removed public marketplace', () => {
