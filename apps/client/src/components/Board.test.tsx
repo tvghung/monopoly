@@ -90,6 +90,22 @@ describe('Vietnamese game board', () => {
     expect(screen.getByRole('button', { name: /Ô 39: Landmark 81.*400\.000 ₫/ })).toBeTruthy();
   });
 
+  it('uses the legacy board when WebGL is unavailable and keeps selection visible', () => {
+    const { container } = render(
+      <stateContext.Provider value={makeContextValue()}>
+        <Board />
+      </stateContext.Provider>,
+    );
+
+    expect(container.querySelector('.legacy-board')).toBeTruthy();
+    expect(container.querySelector('[data-testid="game-scene"]')).toBeNull();
+
+    const tile = screen.getByRole('button', { name: /Ô 1: Cà Mau/ });
+    expect(tile.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(tile);
+    expect(tile.getAttribute('aria-expanded')).toBe('true');
+  });
+
   it('opens derived property details and closes them with Escape', async () => {
     render(
       <stateContext.Provider value={makeContextValue()}>
@@ -107,6 +123,7 @@ describe('Vietnamese game board', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'Cà Mau' })).toBeNull();
+      expect(document.activeElement?.getAttribute('data-tile-index')).toBe('1');
     });
   });
 

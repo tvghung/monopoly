@@ -23,10 +23,10 @@ describe('supportsWebGL', () => {
     })).toBe(false);
   });
 
-  it('skips the unsupported jsdom canvas implementation', () => {
+  it('skips probing when the browser exposes no WebGL context constructors', () => {
     let probeCount = 0;
     expect(supportsWebGL({
-      defaultView: { navigator: { userAgent: 'Mozilla/5.0 jsdom/26.1.0' } },
+      defaultView: {},
       createElement: () => ({
         getContext: () => {
           probeCount += 1;
