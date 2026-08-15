@@ -13,12 +13,20 @@ export default function SpecialTileVisual({ size, tileType }: SpecialTileVisualP
   if (tileType === 'start') {
     return (
       <group name="StartVisual" position={[0, TILE_SURFACE_CLEARANCE_Y, 0]}>
-        <mesh position={[0, 0.2, 0]} rotation={[0, 0, Math.PI / 4]}>
-          <coneGeometry args={[0.18, 0.34, 4]} />
+        <mesh position={[0, 0.055, 0]}>
+          <cylinderGeometry args={[0.34, 0.38, 0.1, 20]} />
+          <meshStandardMaterial color={boardVisualTokens.boardFrame} roughness={0.64} metalness={0.02} />
+        </mesh>
+        <mesh position={[0, 0.12, 0]}>
+          <cylinderGeometry args={[0.29, 0.29, 0.04, 20]} />
+          <meshStandardMaterial color={boardVisualTokens.selection} roughness={0.42} metalness={0.04} />
+        </mesh>
+        <mesh position={[0, 0.3, 0]} rotation={[0, 0, Math.PI / 4]}>
+          <coneGeometry args={[0.2, 0.38, 4]} />
           <meshStandardMaterial color={boardVisualTokens.selection} roughness={0.3} metalness={0.05} />
         </mesh>
-        <RoundedBoxMesh width={0.42} height={0.05} depth={0.09} radius={0.025} color={boardVisualTokens.selection} materialProfile="propertyTrim" position={[0, 0.035, 0]} />
-        <ContactShadow scale={[0.54, 0.28]} opacity={0.18} />
+        <RoundedBoxMesh width={0.46} height={0.055} depth={0.09} radius={0.025} color={boardVisualTokens.chanceDark} materialProfile="propertyTrim" position={[0, 0.17, 0]} rotation={[0, Math.PI / 4, 0]} />
+        <ContactShadow scale={[0.68, 0.46]} opacity={0.18} />
       </group>
     );
   }

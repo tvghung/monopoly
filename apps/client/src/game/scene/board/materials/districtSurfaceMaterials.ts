@@ -220,6 +220,12 @@ export function generateDistrictSurfaceTextureData(
           : mixColor(baseColor, secondaryColor, sample.blend);
       let bumpValue = sample.bump;
 
+      const isTextQuietZone = u > 0.08 && u < 0.92 && v > 0.28 && v < 0.72;
+      if (isTextQuietZone) {
+        color = mixColor(color, baseColor, 0.38);
+        bumpValue = bumpValue * 0.45 + 96;
+      }
+
       const isAccentInlay = u > 0.3 && u < 0.7 && v > 0.025 && v < 0.058;
       if (isAccentInlay || isEmblemPixel(descriptor.emblem, u, v)) {
         color = accentColor;

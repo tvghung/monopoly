@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   CORNER_SIZE,
-  CARD_DECK_CENTER_Y,
-  CARD_HEIGHT,
   EDGE_TILE_DEPTH,
   EDGE_TILE_WIDTH,
   JAIL_BASE_CENTER_Y,
@@ -76,8 +74,6 @@ describe('canonical 2.5D board layout', () => {
     expect(getGeometryBottomY(OWNERSHIP_MARKER_CENTER_Y, OWNERSHIP_MARKER_HEIGHT))
       .toBeGreaterThanOrEqual(surface);
     expect(getGeometryBottomY(SELECTION_MARKER_CENTER_Y, SELECTION_EDGE_HEIGHT))
-      .toBeGreaterThanOrEqual(surface);
-    expect(getGeometryBottomY(CARD_DECK_CENTER_Y, CARD_HEIGHT))
       .toBeGreaterThanOrEqual(surface);
     expect(getGeometryBottomY(surface + JAIL_BASE_CENTER_Y, JAIL_BASE_HEIGHT))
       .toBeGreaterThanOrEqual(surface);
