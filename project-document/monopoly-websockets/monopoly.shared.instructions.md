@@ -50,7 +50,7 @@ chỉ dùng trong test qua dependency injection.
 | Runtime-only | `socket.id`, generation registry, presence, queues và scheduler timer handle |
 | Durable aggregate | Stable-ID GameState, room metadata, absolute deadlines |
 
-Snapshot v3 chứa pending landing decision/continuation, `PaymentQueue`, private
+Snapshot v4 chứa pending landing decision/continuation, `PaymentQueue`, private
 `GamePrivateState.decks` và forced-sale proposal. Public projection phải loại exact
 deck order và chỉ gửi shortfall summary/sellable values; proposal terms chỉ gửi
 seller/buyer qua private player room.

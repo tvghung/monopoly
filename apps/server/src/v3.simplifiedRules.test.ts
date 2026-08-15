@@ -10,7 +10,6 @@ import {
   createForcedSaleProposal,
   createPaymentQueue,
   forcedSaleGrossPrice,
-  forcedSaleNetProceeds,
   handleJailRoll,
   nextTurn,
   progressPaymentQueue,
@@ -45,7 +44,6 @@ const makeState = (): GameState => ({
     logs: [],
     diceValue: { dice1: 0, dice2: 0 },
     ownedProps: {},
-    openMarket: {},
     winner: null,
     paymentQueue: null,
   },
@@ -71,12 +69,11 @@ const own = (
     id: playerId,
     color: state.players[playerId]?.color ?? 'red',
     houses: 0,
-    mortgaged: false,
     ...over,
   };
 };
 
-describe('simplified v3 rules', () => {
+describe('simplified v4 rules', () => {
   it('uses base street rent even when the owner has the full colour group', () => {
     const state = makeState();
     addPlayer(state, 'p1');
@@ -86,16 +83,13 @@ describe('simplified v3 rules', () => {
     expect(streetRent(state, 1)).toBe(tileState[1].rent);
   });
 
-  it('derives forced-sale gross and net values without a mortgage double dip', () => {
+  it('derives the authoritative forced-sale gross value', () => {
     const tileID = 1;
     const price = tileState[tileID].price ?? 0;
     const houseCost = tileState[tileID].houseCost ?? 0;
     const gross = forcedSaleGrossPrice(tileID, 2);
 
     expect(gross).toBe(Math.floor((price + houseCost * 2) * 0.7));
-    expect(forcedSaleNetProceeds(tileID, 2, true)).toBe(
-      gross - Math.floor(price / 2),
-    );
   });
 
   it('creates a durable development decision at the level present on landing', () => {
@@ -146,7 +140,7 @@ describe('simplified v3 rules', () => {
   it('sells a shortfall property to the Bank at the authoritative net value', () => {
     const state = makeState();
     addPlayer(state, 'p1', { accountBalance: 0 });
-    own(state, 1, 'p1', { mortgaged: true });
+    own(state, 1, 'p1');
     const queue = createPaymentQueue(
       [{
         debtorPlayerId: 'p1',
@@ -285,7 +279,7 @@ describe('simplified v3 rules', () => {
     })).not.toBeNull();
     progressPaymentQueue(state, { now: 1, paymentShortfallActionTimeoutMs: 120_000 });
 
-    expect(state.boardState.ownedProps[1]).toMatchObject({ id: 'p2', mortgaged: false });
+    expect(state.boardState.ownedProps[1]).toMatchObject({ id: 'p2' });
     expect(state.players.p2.accountBalance).toBe(1000 - forcedSaleGrossPrice(1, 0));
     expect(state.players.p1.accountBalance).toBe(0);
     expect(state.boardState.paymentQueue).toBeNull();

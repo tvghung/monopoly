@@ -1,9 +1,7 @@
 import { tileIdSchema, type AckCallback, type GameState } from '@monopoly/shared';
 import {
   isPropertyLockedByLandingDecision,
-  mortgageProperty,
   sellHouse,
-  unmortgageProperty,
 } from '../game';
 import type { AppRuntime } from '../services/runtime';
 import { cancelPendingOffersForAssets, emitCancelledOffers } from '../services/offerInvalidation';
@@ -38,7 +36,6 @@ async function executePropertyAction(
       if (!action(state, actor.playerId, tileID)) {
         throw new CommandError('CONFLICT', 'Hành động tài sản không hợp lệ.');
       }
-      delete state.boardState.openMarket[tileID];
       return cancelPendingOffersForAssets(transaction.tradeOffers, actor.roomId, null, [tileID], [], now);
     }, now, actor);
     if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
@@ -53,11 +50,5 @@ async function executePropertyAction(
 export function registerBuildingHandlers(io: AppServer, socket: AppSocket, runtime: AppRuntime): void {
   socket.on('sell house', (tileID, acknowledge) => {
     void executePropertyAction(io, socket, runtime, tileID, acknowledge, sellHouse);
-  });
-  socket.on('mortgage property', (tileID, acknowledge) => {
-    void executePropertyAction(io, socket, runtime, tileID, acknowledge, mortgageProperty);
-  });
-  socket.on('unmortgage property', (tileID, acknowledge) => {
-    void executePropertyAction(io, socket, runtime, tileID, acknowledge, unmortgageProperty);
   });
 }

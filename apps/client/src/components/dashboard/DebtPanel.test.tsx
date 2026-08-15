@@ -23,8 +23,7 @@ describe('DebtPanel', () => {
         turnRecovery: null,
         logs: [],
         diceValue: { dice1: 2, dice2: 3 },
-        ownedProps: { 1: { id: 'player-a', color: 'brown', houses: 2, mortgaged: false } },
-        openMarket: {},
+        ownedProps: { 1: { id: 'player-a', color: 'brown', houses: 2 } },
         winner: null,
         paymentShortfall: {
           debtorPlayerId: 'player-a',
@@ -39,9 +38,7 @@ describe('DebtPanel', () => {
           sellableProperties: [{
             tileID: 1,
             grossPrice: 112,
-            netProceeds: 112,
             houses: 2,
-            mortgaged: false,
           }],
         },
       },

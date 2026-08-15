@@ -2,21 +2,26 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
+import ToastView from '../design-system/components/Toast/ToastView';
 import './style/Toast.css';
+
+export type ToastVariant = 'info' | 'success' | 'warning' | 'error';
 
 interface ToastItem {
   id: number;
   message: string;
+  variant: ToastVariant;
 }
 
 interface ToastApi {
-  show: (message: string) => void;
+  show: (message: string, options?: { variant?: ToastVariant }) => void;
 }
 
 // How long a toast stays on screen before it dismisses itself.
@@ -31,15 +36,20 @@ const ToastContext = createContext<ToastApi>({ show: () => {} });
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const nextId = useRef(0);
-  const reduced = useReducedMotion() ?? false;
+  const timers = useRef<number[]>([]);
 
-  const show = useCallback((message: string) => {
+  const show = useCallback((message: string, options?: { variant?: ToastVariant }) => {
     const id = nextId.current;
     nextId.current += 1;
-    setToasts(prev => [...prev, { id, message }]);
-    setTimeout(() => {
+    setToasts(prev => [...prev, { id, message, variant: options?.variant ?? 'info' }]);
+    const timer = window.setTimeout(() => {
       setToasts(prev => prev.filter(toast => toast.id !== id));
     }, TOAST_TIMEOUT_MS);
+    timers.current.push(timer);
+  }, []);
+
+  useEffect(() => () => {
+    timers.current.forEach(timer => window.clearTimeout(timer));
   }, []);
 
   const api = useMemo<ToastApi>(() => ({ show }), [show]);
@@ -50,17 +60,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div className="toast__container">
         <AnimatePresence>
           {toasts.map(toast => (
-            <motion.div
+            <ToastView
               key={toast.id}
-              className="toast"
-              role="status"
-              initial={reduced ? false : { opacity: 0, scale: 0.8 }}
-              animate={reduced ? {} : { opacity: 1, scale: 1 }}
-              exit={reduced ? {} : { opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-            >
-              {toast.message}
-            </motion.div>
+              message={toast.message}
+              variant={toast.variant}
+            />
           ))}
         </AnimatePresence>
       </div>

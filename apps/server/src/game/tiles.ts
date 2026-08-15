@@ -98,7 +98,6 @@ const resolveOwnedProperty = (
     if (
       property.id === playerId
       && tile?.tileType === 'normal'
-      && !property.mortgaged
       && property.houses < 5
     ) {
       state.turnInfo.pendingDevelopmentDecision = {
@@ -124,7 +123,7 @@ const resolveOwnedProperty = (
 
 export const railroadRent = (state: GameState, tileID: number): number => {
   const landed = state.boardState.ownedProps[tileID];
-  if (!landed || landed.mortgaged) return 0;
+  if (!landed) return 0;
   const count = RAILROAD_TILE_INDICES.filter(
     (id) => state.boardState.ownedProps[id]?.id === landed.id,
   ).length;
@@ -133,7 +132,7 @@ export const railroadRent = (state: GameState, tileID: number): number => {
 
 export const utilityRent = (state: GameState, tileID: number, diceTotal: number): number => {
   const landed = state.boardState.ownedProps[tileID];
-  if (!landed || landed.mortgaged) return 0;
+  if (!landed) return 0;
   const count = UTILITY_TILE_INDICES.filter(
     (id) => state.boardState.ownedProps[id]?.id === landed.id,
   ).length;

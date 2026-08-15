@@ -153,7 +153,7 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
         const property = state.boardState.ownedProps[decision.tileID];
         const tile = tileState[decision.tileID];
         if (
-          !property || property.id !== actor.playerId || !tile?.houseCost || property.mortgaged
+          !property || property.id !== actor.playerId || !tile?.houseCost
           || property.houses !== decision.levelAtLanding
         ) {
           throw new CommandError('CONFLICT', 'Tài sản không còn đủ điều kiện phát triển.');
@@ -175,7 +175,6 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
           property.houses = 5;
         }
         if (request.action !== 'SKIP') {
-          delete state.boardState.openMarket[decision.tileID];
           const cancelled = await cancelPendingOffersForAssets(
             transaction.tradeOffers,
             actor.roomId,

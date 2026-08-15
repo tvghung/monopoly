@@ -17,7 +17,6 @@ import type {
   ResumeSessionResult,
   RoomId,
   RoomRole,
-  SaleInfo,
   SessionId,
   SessionReplacedInfo,
   SetReadyRequest,
@@ -63,10 +62,6 @@ export interface AckFailure {
 export type Ack<T = void> = AckSuccess<T> | AckFailure;
 export type AckCallback<T = void> = (response: Ack<T>) => void;
 
-export interface TileRequest {
-  tileID: number;
-}
-
 export interface ServerToClientEvents {
   update: (state: PublicRoomState) => void;
   'offer on prop': (offer: PrivateOffer) => void;
@@ -103,18 +98,13 @@ export interface ClientToServerEvents {
       | { operationId: string; action: 'UPGRADE_HOTEL' },
     acknowledge: AckCallback,
   ) => void;
-  'put on open market': (saleInfo: SaleInfo, acknowledge: AckCallback) => void;
   'make offer': (
     offerInfo: OfferInfo,
     acknowledge: AckCallback<MakeOfferResult>,
   ) => void;
   'accept offer': (offer: OfferAction, acknowledge: AckCallback) => void;
   'decline offer': (offer: OfferAction, acknowledge: AckCallback) => void;
-  'make sale': (request: TileRequest, acknowledge: AckCallback) => void;
-  'remove sale': (request: TileRequest, acknowledge: AckCallback) => void;
   'sell house': (tileID: number, acknowledge: AckCallback) => void;
-  'mortgage property': (tileID: number, acknowledge: AckCallback) => void;
-  'unmortgage property': (tileID: number, acknowledge: AckCallback) => void;
   'pay bail': (acknowledge: AckCallback) => void;
   'use jail card': (acknowledge: AckCallback) => void;
   'wait in jail': (acknowledge: AckCallback) => void;

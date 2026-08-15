@@ -2,8 +2,6 @@ import { tileState } from '@monopoly/shared';
 import { describe, expect, it } from 'vitest';
 import {
   formatMoney,
-  getMortgageTransferSurcharge,
-  getMortgageValue,
   getTileName,
   localizeAckError,
 } from './presentation';
@@ -25,13 +23,6 @@ describe('Vietnamese presentation helpers', () => {
     expect(getTileName(38)).toBe('Thuế Xa Xỉ');
   });
 
-  it('previews the server mortgage value and 10% transfer surcharge', () => {
-    expect(getMortgageValue(1)).toBe(30);
-    expect(getMortgageTransferSurcharge(1)).toBe(3);
-    expect(getMortgageValue(37)).toBe(175);
-    expect(getMortgageTransferSurcharge(37)).toBe(18);
-  });
-
   it('does not expose an English ACK message to players', () => {
     expect(localizeAckError({
       code: 'ROOM_FULL',
@@ -40,7 +31,7 @@ describe('Vietnamese presentation helpers', () => {
 
     expect(localizeAckError({
       code: 'CONFLICT',
-      message: 'Bạn phải bán hết Nhà trước khi cầm cố.',
-    })).toBe('Bạn phải bán hết Nhà trước khi cầm cố.');
+      message: 'Giao dịch chưa thể thực hiện.',
+    })).toBe('Giao dịch chưa thể thực hiện.');
   });
 });

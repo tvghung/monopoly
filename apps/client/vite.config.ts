@@ -19,14 +19,16 @@ export default defineConfig(({ mode }) => {
       __SOCKET_URL__: JSON.stringify(socketUrl),
     },
     server: {
-      port: 5173,
-      proxy: {
-        '/socket.io': {
-          target: 'http://localhost:8080',
-          ws: true,
-        },
-      },
+  host: '127.0.0.1',
+  port: 5173,
+  strictPort: true,
+  proxy: {
+    '/socket.io': {
+      target: 'http://127.0.0.1:8080',
+      ws: true,
     },
+  },
+},
     build: {
       outDir: 'dist',
     },

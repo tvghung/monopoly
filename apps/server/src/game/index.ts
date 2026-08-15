@@ -29,11 +29,7 @@ export {
   streetRent,
   isPropertyLockedByLandingDecision,
   sellHouse,
-  mortgageProperty,
-  unmortgageProperty,
   forcedSaleGrossPrice,
-  forcedSaleNetProceeds,
-  mortgagePrincipal,
 } from './property';
 export {
   activeDebtClaim,
@@ -58,8 +54,6 @@ export { bankruptActiveDebtor, progressPaymentQueue, sellablePropertyIds } from 
 export type { PaymentProgressResult, PaymentProgressStatus } from './paymentResolution';
 export {
   executeVoluntaryTrade,
-  invalidatePropertyCommerce,
-  mortgageTransferInterest,
   transferProperty,
 } from './transfer';
 export type { PropertyTransferPolicy, PropertyTransferResult } from './transfer';

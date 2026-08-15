@@ -2,22 +2,20 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
 import { tileState } from '@monopoly/shared';
-import { LayoutGroup, useReducedMotion } from 'framer-motion';
+import { LayoutGroup } from 'framer-motion';
 import './style/Board.css';
 import stateContext from '../internal';
 import displayPositionsContext from '../displayPositionsContext';
-import useSteppedPositions from '../useSteppedPositions';
 import Tile from './Tile';
 import Dice from './Dice';
 import Log from './Log';
 import Dashboard from './Dashboard';
-import sellPromptContext from '../sellPromptContext';
-import type { SalePrompt } from '../types';
+import tradePromptContext from '../tradePromptContext';
+import { usePresentation } from '../game/presentation/PresentationProvider';
 
 const getTilePosition = (index: number): string => {
   if (index === 0) return 'tile__start';
@@ -28,24 +26,16 @@ const getTilePosition = (index: number): string => {
 };
 
 function Board() {
-  const { canMutate, connected, state } = useContext(stateContext);
-  const reducedMotion = useReducedMotion() ?? false;
+  const { canMutate, connected } = useContext(stateContext);
+  const { state: presentationState } = usePresentation();
   const [openTileId, setOpenTileId] = useState<number | null>(null);
   const lastOpenTileId = useRef<number | null>(null);
 
-  // Authoritative tile per player, from the server. The stepper walks the shown
-  // positions toward these one tile at a time unless reduced motion is enabled.
-  const actualPositions = useMemo(() => {
-    const positions: Record<string, number> = {};
-    Object.keys(state.players).forEach((key) => {
-      positions[key] = state.players[key].currentTile;
-    });
-    return positions;
-  }, [state.players]);
-  const displayPositions = useSteppedPositions(actualPositions, reducedMotion);
+  // Presentation state intentionally lags authoritative positions while the
+  // queue runs a safe, cancellable movement sequence.
+  const displayPositions = presentationState.displayPositions;
 
-  const [openSale, setOpenSale] = useState<SalePrompt | false>(false);
-  const [privateSale, setPrivateSale] = useState<SalePrompt | false>(false);
+  const [tradeTarget, setTradeTarget] = useState<number | null>(null);
 
   const openCard = useCallback((tileId: number) => {
     lastOpenTileId.current = tileId;
@@ -82,28 +72,25 @@ function Board() {
     };
   }, [closeCard, openTileId]);
 
-  const handlePutOpenMarket = (tileID: number) => {
-    if (canMutate) setOpenSale({ tileID });
-  };
+  const openTradeForProperty = useCallback((tileID: number) => {
+    if (canMutate) setTradeTarget(tileID);
+  }, [canMutate]);
 
-  const handleMakeOffer = (tileID: number) => {
-    if (canMutate) setPrivateSale({ tileID });
-  };
+  const closeTrade = useCallback(() => {
+    setTradeTarget(null);
+  }, []);
 
   return (
-    <sellPromptContext.Provider value={{
-      handlePutOpenMarket,
-      handleMakeOffer,
-      openSale,
-      setOpenSale,
-      setPrivateSale,
-      privateSale,
+    <tradePromptContext.Provider value={{
+      tradeTarget: tradeTarget === null ? null : { tileID: tradeTarget },
+      openTradeForProperty,
+      closeTrade,
     }}
     >
       <displayPositionsContext.Provider value={displayPositions}>
         <section
           className="Board"
-          aria-label="Bàn cờ Cờ Tỷ Phú Việt Nam"
+          aria-label="Bàn cờ Own the Block — Cờ Tỷ Phú Việt Nam"
           aria-busy={!connected}
           data-testid="game-board"
           inert={!connected}
@@ -132,7 +119,7 @@ function Board() {
           </section>
         </section>
       </displayPositionsContext.Provider>
-    </sellPromptContext.Provider>
+    </tradePromptContext.Provider>
   );
 }
 

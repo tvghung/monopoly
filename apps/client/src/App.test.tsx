@@ -66,6 +66,7 @@ vi.mock('socket.io-client', () => ({ io: () => socketHarness.socket }));
 import App from './App';
 import { ToastProvider } from './components/Toast';
 import { PLAYER_SESSION_STORAGE_KEY } from './playerSessionStorage';
+import type { OwnTheBlockDesktopBridge } from './runtime/types';
 
 const RECONNECT_TOKEN = 'A'.repeat(43);
 const FORFEIT_TOKEN = 'B'.repeat(43);
@@ -97,9 +98,8 @@ const room: PublicRoomState = {
       currentPlayer: { id: '', hasMoved: false },
       turnRecovery: null,
       logs: [],
-      diceValue: { dice1: 0, dice2: 0 },
-      ownedProps: {},
-      openMarket: {},
+    diceValue: { dice1: 0, dice2: 0 },
+    ownedProps: {},
       winner: null,
     },
     players: {},
@@ -127,7 +127,10 @@ describe('App session admission', () => {
     window.localStorage.clear();
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    delete window.ownTheBlockDesktop;
+  });
 
   it('persists a pending token before resuming with a stable player identity', () => {
     render(
@@ -259,7 +262,6 @@ describe('App session admission', () => {
   });
 
   it('requires confirmation before an active player forfeits the game', () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const gameRoom: PublicRoomState = {
       ...room,
       status: 'IN_PROGRESS',
@@ -331,13 +333,82 @@ describe('App session admission', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Bỏ cuộc' }));
-    expect(confirm).toHaveBeenCalledOnce();
+    expect(screen.getByRole('alertdialog')).toBeTruthy();
     expect(lastEmission('leave room')).toBeUndefined();
 
-    confirm.mockReturnValue(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Bỏ cuộc' }));
+    const confirmationButtons = screen.getAllByRole('button', { name: 'Bỏ cuộc' });
+    fireEvent.click(confirmationButtons[confirmationButtons.length - 1]);
     expect(lastEmission('leave room')).toBeDefined();
-    confirm.mockRestore();
+  });
+
+  it('confirms active desktop close without emitting leave room', () => {
+    let quitListener: ((requestId: string) => void) | undefined;
+    const respond = vi.fn();
+    const bridge: OwnTheBlockDesktopBridge = {
+      getRuntimeConfig: () => Promise.resolve({ target: 'desktop' }),
+      window: {
+        getState: () => Promise.resolve({ fullscreen: false, maximized: false, resizable: true }),
+        setFullscreen: () => Promise.resolve(),
+        toggleFullscreen: () => Promise.resolve(),
+        onFullscreenChanged: () => () => {},
+      },
+      quit: {
+        onQuitRequested: listener => {
+          quitListener = listener;
+          return () => { quitListener = undefined; };
+        },
+        respond,
+      },
+      openExternal: () => Promise.resolve(),
+    };
+    window.ownTheBlockDesktop = bridge;
+    const gameRoom: PublicRoomState = {
+      ...room,
+      status: 'IN_PROGRESS',
+      version: 4,
+      gameState: {
+        ...room.gameState,
+        boardState: { ...room.gameState.boardState, gameStarted: true },
+      },
+    };
+    window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      token: RECONNECT_TOKEN,
+    }));
+
+    render(
+      <ToastProvider>
+        <App />
+      </ToastProvider>,
+    );
+    const resumeAck = lastEmission('resume session')?.args[1];
+    act(() => {
+      if (isAckCallback(resumeAck)) {
+        resumeAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          revision: gameRoom.version,
+          data: {
+            role: 'PLAYER',
+            playerId: 'stable-player-id',
+            room: gameRoom,
+            privatePlayerState: {
+              playerId: 'stable-player-id',
+              heldJailFreeCardIds: [],
+            },
+            pendingOffers: [],
+          },
+        });
+      }
+    });
+
+    act(() => quitListener?.('desktop-quit-1'));
+    expect(screen.getByRole('alertdialog')).toBeTruthy();
+    expect(lastEmission('leave room')).toBeUndefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng cửa sổ' }));
+
+    expect(respond).toHaveBeenCalledWith('desktop-quit-1', true);
+    expect(lastEmission('leave room')).toBeUndefined();
   });
 
   it('keeps spectator admission read-only and lets the spectator leave', () => {
@@ -443,7 +514,7 @@ describe('App session admission', () => {
           gameStarted: true,
           players: ['stable-player-id', 'other-player-id'],
           ownedProps: {
-            1: { id: 'other-player-id', color: 'blue', houses: 0, mortgaged: false },
+            1: { id: 'other-player-id', color: 'blue', houses: 0 },
           },
         },
         players: {

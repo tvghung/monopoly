@@ -9,8 +9,8 @@ import IncomingOffers from './IncomingOffers';
 
 afterEach(cleanup);
 
-describe('IncomingOffers mortgage preview', () => {
-  it('separates the surcharge paid by each receiver from the bundle cash', () => {
+describe('IncomingOffers', () => {
+  it('shows the bilateral bundles with explicit terms only', () => {
     const state: PublicGameState = {
       boardState: {
         gameStarted: true,
@@ -22,10 +22,9 @@ describe('IncomingOffers mortgage preview', () => {
         logs: [],
         diceValue: { dice1: 2, dice2: 3 },
         ownedProps: {
-          1: { id: 'proposer', color: 'red', houses: 0, mortgaged: true },
-          37: { id: 'recipient', color: 'blue', houses: 0, mortgaged: true },
+          1: { id: 'proposer', color: 'red', houses: 0 },
+          37: { id: 'recipient', color: 'blue', houses: 0 },
         },
-        openMarket: {},
         winner: null,
       },
       players: {},
@@ -67,8 +66,7 @@ describe('IncomingOffers mortgage preview', () => {
       </stateContext.Provider>,
     );
 
-    expect(screen.getByText('Bạn trả 3.000 ₫: Cà Mau (3.000 ₫).')).toBeTruthy();
-    expect(screen.getByText('An trả 18.000 ₫: Đồng Khởi (18.000 ₫).')).toBeTruthy();
-    expect(screen.getByText(/10% giá trị cầm cố.*tách khỏi tiền đổi/)).toBeTruthy();
+    expect(screen.getByText('An giao: 100.000 ₫, Cà Mau')).toBeTruthy();
+    expect(screen.getByText('Bạn giao: 25.000 ₫, Đồng Khởi')).toBeTruthy();
   });
 });

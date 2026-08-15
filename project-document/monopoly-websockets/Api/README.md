@@ -10,14 +10,14 @@ Express runtime và Socket.IO command modules. PostgreSQL/session/recovery detai
 | Lobby | `set ready`, `start game`, `leave room` | [socket-lobby](./socket-lobby.instruction.md) |
 | Turn/landing decision | `roll dice`, `buy property`, `do not buy`, `resolve development`, `wait in jail` | [socket-turn](./socket-turn.instruction.md) |
 | Chat | `send chat` | [socket-chat](./socket-chat.instruction.md) |
-| Trading | listing/sale + bilateral `TradeOfferRequest` | [socket-trading](./socket-trading.instruction.md) |
-| Building/property | sell-house/mortgage/unmortgage | [socket-building](./socket-building.instruction.md) |
+| Trading | bilateral `TradeOfferRequest` và private offer lifecycle | [socket-trading](./socket-trading.instruction.md) |
+| Building/property | sell-house và landing development | [socket-building](./socket-building.instruction.md) |
 | Jail | `pay bail`, `use jail card`, `wait in jail` | [socket-jail](./socket-jail.instruction.md) |
 | Payment shortfall | Bank forced sale and bilateral forced-sale proposal events | [payment-shortfall-and-forced-sale](../testcase/payment-shortfall-and-forced-sale.md) |
 
 ## Authority/commit
 
-Protocol v3 schema → authenticated role/actor → serialized room draft → PostgreSQL
+Protocol v4 schema → authenticated role/actor → serialized room draft → PostgreSQL
 CAS commit → public/private projection → ACK. Save failure phát không state/update/
 success. Actor/owner/dice/debt target và forced-sale price không lấy từ payload.
 

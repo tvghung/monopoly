@@ -74,19 +74,34 @@ pnpm dev
 Server and database scripts load the root `.env` when it exists; shell environment
 variables still take precedence.
 
-`pnpm dev` runs both apps in parallel:
+`pnpm dev` / `pnpm dev:web` runs the web server and Vite client in parallel:
 
-- server on `http://localhost:8080`
-- client on `http://localhost:5173` (Vite proxies `/socket.io` to the server)
+- game server on `http://127.0.0.1:8080`
+- Vite renderer on `http://127.0.0.1:5173` (Vite proxies `/socket.io` to the server)
+- Socket.IO development CORS origin is exactly `http://127.0.0.1:5173`
 
-Open `http://localhost:5173`, enter a name and a **room code**, and share the code
+Open `http://127.0.0.1:5173`, enter a name and a **room code**, and share the code
 with friends. A lobby supports 2–7 players. Every player must be connected and ready;
 only the persisted host can start the game.
+
+`pnpm dev:desktop` starts the same server/client pair and opens the hardened Electron
+shell against `http://127.0.0.1:5173`. The desktop renderer receives only the typed
+preload bridge; game state and commands remain in the existing client/server flow.
+For a split-terminal workflow, run `pnpm dev:web` in Terminal A and
+`pnpm dev:desktop:shell` in Terminal B; the shell command compiles main/preload and
+does not own or stop the web processes.
+
+The bundled PostgreSQL service maps host port `5433` to container port `5432`.
+Keep the local `.env` `DATABASE_URL` host port aligned with that mapping before
+running migrations or manual multiplayer checks.
 
 ### Useful scripts
 
 ```bash
 pnpm dev         # run server + client together
+pnpm dev:web     # run server + client together
+pnpm dev:desktop # run web dependencies and the Electron shell
+pnpm dev:desktop:shell # open only Electron; keep pnpm dev:web in another terminal
 pnpm db:migrate  # apply pending PostgreSQL migrations
 pnpm db:status   # inspect migration status
 pnpm build       # build the client bundle
@@ -94,6 +109,8 @@ pnpm start       # start the server (serves the built client in production)
 pnpm typecheck   # tsc --noEmit across all packages
 pnpm lint        # eslint across the repo
 pnpm test        # unit/client/socket tests; PostgreSQL suite is conditional
+pnpm desktop:package # package the Windows/macOS Electron application
+pnpm desktop:make    # create configured platform makers (Windows Squirrel on Windows)
 ```
 
 ## Environment variables
@@ -107,7 +124,7 @@ pnpm test        # unit/client/socket tests; PostgreSQL suite is conditional
 | `TEST_DATABASE_URL` | unset | Enables the PostgreSQL integration suite; pass it in the shell running `pnpm test`. |
 | `PORT` | `8080` | HTTP/Socket server port. |
 | `NODE_ENV` | `development` | `production` also serves the built client. |
-| `CORS_ORIGIN` | Vite origin in development | Explicit cross-origin allowlist; not authentication. |
+| `CORS_ORIGIN` | `http://127.0.0.1:5173` in development; disabled by default in production | Explicit cross-origin allowlist; not authentication. |
 | `CLIENT_DIST` | `apps/client/dist` | Static client directory override. |
 | `RECONNECT_GRACE_MS` | `60000` | Grace before an offline current player's turn is resolved. |
 | `PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS` | `120000` | Thời hạn xử lý thanh toán thiếu hụt trước auto-liquidation xác định. |
@@ -155,7 +172,7 @@ A multi-stage [`Dockerfile`](./Dockerfile) builds the client and runs the server
 docker build -t monopoly-websockets .
 docker run -p 8080:8080 -e NODE_ENV=production \
   -e DATABASE_URL=postgresql://... monopoly-websockets
-# → http://localhost:8080
+# → http://127.0.0.1:8080 (development only; production is normally same-origin)
 ```
 
 The current runtime supports one live Node process, including across a deployment.
@@ -177,11 +194,9 @@ private token and resumes the same stable player. A newer connection using the s
 token replaces the older one. Disconnecting does not sell, delete or transfer assets.
 
 **How do I trade?**
-- *Private sale:* click another player's property and submit an offer. The owner has
+- Click another player's property and submit a bilateral offer. The owner has
   20 seconds to accept or decline. Offers and expiry are server-authoritative and
   survive reconnect/restart.
-- *Open market:* click your own property, choose **Sell**, and set a price. Any player
-  in the room can then buy it; you can also pull it back off the market.
 
 **What happens when I cannot pay?** The payment shortfall remains a durable ordered
 claim. You can sell an owned property to the Bank at the server-derived gross/net
@@ -202,10 +217,9 @@ owned property remains.
 - [x] Animated 3D dice, tile-by-tile token movement, card flips and modal prompts
 - [x] Building houses / hotels and the rent tiers they unlock
 - [x] Base rent without monopoly multiplier; authoritative landing development prompt
-- [x] Mortgaging properties for cash
 - [x] Do Not Buy resolves the landing without an auction
 - [x] Thẻ Thoát Tù Miễn Phí và trả 50 game-unit để ra tù
-- [x] Property trading (private offers and an open market)
+- [x] Property trading (private bilateral offers)
 - [x] A dedicated win screen
 - [x] Stable player identity, reconnect and newest-connection-wins sessions
 - [x] Host/ready lobby with 2–7 players and explicit spectator admission

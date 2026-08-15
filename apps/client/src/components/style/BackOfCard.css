@@ -144,19 +144,6 @@
   opacity: 0.42;
 }
 
-.tile-back__mortgaged {
-  width: 94%;
-  margin: 0.3vmin 0;
-  padding: 0.15vmin 0;
-  border: 1px solid rgba(176, 0, 32, 0.45);
-  border-radius: 0.3vmin;
-  background: rgba(176, 0, 32, 0.12);
-  color: #8e001a;
-  font-size: clamp(0.52rem, 0.95vmin, 0.75rem);
-  font-weight: 700;
-  letter-spacing: 0.08vmin;
-}
-
 .tile-back__houses {
   margin: 0.25vmin 0;
   font-size: clamp(0.55rem, 1vmin, 0.8rem);
@@ -204,7 +191,6 @@
   .tile-back__details,
   .tile-back__details--price,
   .tile-back__button,
-  .tile-back__mortgaged,
   .tile-back__houses {
     font-size: 0.78rem;
   }

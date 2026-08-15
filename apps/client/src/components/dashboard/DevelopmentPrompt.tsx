@@ -1,6 +1,8 @@
 import { useContext } from 'react';
 import stateContext from '../../internal';
 import { formatMoney, getTileName } from '../../presentation';
+import Modal from '../../design-system/components/Modal/Modal';
+import Button from '../../design-system/components/Button/Button';
 
 export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: boolean }) {
   const { state, playerId, canMutate, socketFunctions } = useContext(stateContext);
@@ -13,8 +15,7 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
   const total = unitCost * max;
   const tileName = getTileName(decision.tileID);
   return (
-    <section className="development-prompt" role="dialog" aria-labelledby="development-title">
-      <h3 id="development-title">Phát triển {tileName}</h3>
+    <Modal open title={`Phát triển ${tileName}`} className="development-prompt-modal">
       {decision.kind === 'DEVELOP_HOUSES'
         ? (
           <>
@@ -23,7 +24,8 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
               {Array.from({ length: max }, (_, index) => {
                 const quantity = index + 1;
                 return (
-                  <button
+                  <Button
+                    variant="secondary"
                     key={quantity}
                     type="button"
                     disabled={(player?.accountBalance ?? 0) < unitCost * quantity}
@@ -34,14 +36,14 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
                     })}
                   >
                     Xây {quantity} Nhà ({formatMoney(unitCost * quantity)})
-                  </button>
+                  </Button>
                 );
               })}
             </div>
           </>
         )
         : (
-          <button
+          <Button
             type="button"
             disabled={(player?.accountBalance ?? 0) < total}
             onClick={() => socketFunctions.resolveDevelopment?.({
@@ -50,15 +52,16 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
             })}
           >
             Nâng cấp Khách sạn ({formatMoney(unitCost)})
-          </button>
+          </Button>
         )}
-      <button
+      <Button
+        variant="secondary"
         type="button"
         onClick={() => socketFunctions.resolveDevelopment?.({
           operationId: decision.operationId,
           action: 'SKIP',
         })}
-      >Bỏ qua</button>
-    </section>
+      >Bỏ qua</Button>
+    </Modal>
   );
 }

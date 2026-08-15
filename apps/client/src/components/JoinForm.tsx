@@ -25,6 +25,7 @@ export default function JoinForm({
   return (
     <section className="join" aria-labelledby="join-title">
       <form className="join__card" onSubmit={handleSubmit}>
+        <p className="join__brand" aria-hidden="true">OWN THE BLOCK</p>
         <h1 id="join-title" className="join__title">Cờ Tỷ Phú Việt Nam</h1>
         <p className="join__subtitle">Vào phòng và chia sẻ mã phòng để cùng bạn bè chơi trực tuyến.</p>
 

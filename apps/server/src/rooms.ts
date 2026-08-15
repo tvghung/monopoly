@@ -13,7 +13,7 @@ import {
 } from '@monopoly/shared';
 import { z } from 'zod';
 
-export const ROOM_SNAPSHOT_SCHEMA_VERSION = 3;
+export const ROOM_SNAPSHOT_SCHEMA_VERSION = 4;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 7;
 
@@ -88,7 +88,6 @@ export const freshState = (): GameState => ({
     logs: [],
     diceValue: { dice1: 0, dice2: 0 },
     ownedProps: {},
-    openMarket: {},
     winner: null,
     paymentQueue: null,
   },
@@ -199,7 +198,6 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
     state.boardState.currentPlayer.id || undefined,
     state.boardState.winner?.playerId,
     ...Object.values(state.boardState.ownedProps).map((property) => property.id),
-    ...Object.values(state.boardState.openMarket).map((entry) => entry.seller),
     state.boardState.turnRecovery?.playerId,
     state.turnInfo.pendingPropertyDecision?.playerId,
     state.turnInfo.pendingDevelopmentDecision?.playerId,
@@ -254,7 +252,6 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
 
   for (const tileKey of [
     ...Object.keys(state.boardState.ownedProps),
-    ...Object.keys(state.boardState.openMarket),
   ]) {
     const tileID = Number(tileKey);
     if (!Number.isSafeInteger(tileID) || tileID < 0 || tileID > 39) {
@@ -305,7 +302,7 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
     const tile = tileState[development.tileID];
     if (
       !property || property.id !== development.playerId || tile?.tileType !== 'normal'
-      || property.mortgaged || property.houses !== development.levelAtLanding
+      || property.houses !== development.levelAtLanding
       || (development.kind === 'HOUSES' && development.levelAtLanding >= 4)
       || (development.kind === 'HOTEL' && development.levelAtLanding !== 4)
     ) throw new Error('Room snapshot development target is inconsistent');
@@ -329,11 +326,6 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
       ? proposal.expectedHouses * (tile.houseCost ?? 0)
       : 0;
     const expectedGross = Math.floor(((tile?.price ?? 0) + invested) * 70 / 100);
-    const mortgagePrincipal = Math.floor((tile?.price ?? 0) / 2);
-    const expectedNet = Math.max(
-      0,
-      expectedGross - (proposal.expectedMortgaged ? mortgagePrincipal : 0),
-    );
     if (
       !claim || claim.claimId !== proposal.claimId
       || state.boardState.paymentQueue?.operationId !== proposal.paymentOperationId
@@ -342,9 +334,7 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
       || !state.players[proposal.buyerPlayerId]
       || !property || property.id !== proposal.sellerPlayerId
       || property.houses !== proposal.expectedHouses
-      || property.mortgaged !== proposal.expectedMortgaged
       || proposal.grossPrice !== expectedGross
-      || proposal.sellerNetProceeds !== expectedNet
       || Date.parse(proposal.expiresAt) > Date.parse(state.boardState.paymentQueue.actionDeadlineAt)
     ) throw new Error('Room snapshot forced-sale proposal is inconsistent');
   }
@@ -369,9 +359,6 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
     }
     if (!tile || !['normal', 'railroad', 'company'].includes(tile.tileType)) {
       throw new Error(`Room snapshot property ${tileID} is not purchasable`);
-    }
-    if (property.mortgaged && property.houses > 0) {
-      throw new Error(`Room snapshot property ${tileID} is mortgaged with buildings`);
     }
     if (tile.tileType !== 'normal' && property.houses > 0) {
       throw new Error(`Room snapshot non-street property ${tileID} has buildings`);
@@ -407,7 +394,7 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
   }
 };
 
-/** Older rows are upgraded transactionally; runtime accepts v3 only. */
+/** Older rows are upgraded transactionally; runtime accepts v4 only. */
 export const assertSupportedRoomSnapshot = (
   room: PersistedRoomSnapshotEnvelope,
 ): void => {

@@ -72,8 +72,8 @@ Actor không bao giờ lấy từ client payload. Handler không tự viết SQL
 | Lobby/lifecycle | `set ready`, `start game`, `leave room` |
 | Turn | `roll dice`, `buy property`, `do not buy`, `resolve development`, `wait in jail` |
 | Chat | `send chat` |
-| Trading | listing/sale và durable offer events |
-| Property | sell-house/mortgage/unmortgage |
+| Trading | durable bilateral offer events |
+| Property | sell-house và landing development |
 | Jail | `pay bail`, `use jail card`, `wait in jail` |
 | Payment shortfall | sell to Bank / propose / accept / reject forced sale |
 

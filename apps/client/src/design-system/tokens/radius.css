@@ -1,0 +1,8 @@
+:root {
+  --radius-small: 0.5rem;
+  --radius-medium: 0.875rem;
+  --radius-large: 1.25rem;
+  --radius-extra-large: 1.75rem;
+  --radius-pill: 999px;
+}
+

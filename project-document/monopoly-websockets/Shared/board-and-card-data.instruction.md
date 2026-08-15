@@ -7,7 +7,7 @@
   có stable `GameCardId`, source deck và typed effects.
 - `packages/shared/src/index.ts`: export surface cho server/client.
 
-Client derive mặt trước, property detail, price/rent/build/mortgage text từ shared
+Client derive mặt trước, property detail, price/rent/build text từ shared
 data. Không duy trì `BoardInitState.ts` hoặc `backOfCards.ts` như bảng metadata thứ
 hai. Presentation-only icon/layout có thể ở Client nhưng không lặp economy/name.
 

@@ -11,7 +11,12 @@
   "scripts": {
     "db:migrate": "pnpm --filter @monopoly/server db:migrate",
     "db:status": "pnpm --filter @monopoly/server db:status",
-    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "dev": "pnpm dev:web",
+    "dev:web": "pnpm --parallel --filter @monopoly/server --filter @monopoly/client dev",
+    "dev:desktop": "pnpm --filter @monopoly/desktop dev",
+    "dev:desktop:shell": "pnpm --filter @monopoly/desktop dev:shell",
+    "desktop:package": "pnpm --filter @monopoly/desktop package",
+    "desktop:make": "pnpm --filter @monopoly/desktop make",
     "build": "pnpm --filter @monopoly/client build",
     "start": "pnpm --filter @monopoly/server start",
     "lint": "eslint .",

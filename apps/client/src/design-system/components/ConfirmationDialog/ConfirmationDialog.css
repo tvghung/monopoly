@@ -1,0 +1,4 @@
+.ds-confirmation__message { margin: 0; color: var(--color-text-secondary); }
+.ds-confirmation__actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-5); }
+@media (max-width: 32rem) { .ds-confirmation__actions { flex-direction: column-reverse; } }
+

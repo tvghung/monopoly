@@ -1,4 +1,4 @@
-# Persistence — snapshot v3 và restart recovery
+# Persistence — snapshot v4 và restart recovery
 
 ## Phạm vi
 
@@ -14,21 +14,22 @@
   ACK/public/private emit. Save failure bỏ toàn bộ draft và related offer writes.
 - Raw token không persist; chỉ SHA-256. Presence/socket/generation/timer handle và
   countdown tick không nằm database.
-- SQL migration version và JSON snapshot schema version độc lập; runtime v3 chỉ nhận
-  protocol/snapshot v3.
+- SQL migration version và JSON snapshot schema version độc lập; runtime v4 chỉ nhận
+  protocol/snapshot v4.
 
-## Snapshot v3
+## Snapshot v4
 
 Room JSONB giữ stable-ID state, pending purchase/development landing decisions,
 ordered `PaymentQueue`/`DebtClaim`, private deck/card ownership, and one optional
 forced-sale proposal. Public projection loại deck order, continuation internals and
 proposal terms except to its seller/buyer private rooms. Auction, Bank queue,
-building-contention and finite Bank inventory are not v3 live state.
+building-contention and finite Bank inventory are not v4 live state. Property rows
+contain only owner, colour and development level.
 
-Property invariants remain houses `0..5`, non-street houses `0`, and mortgage with no
-houses. No colour-group/even-building or 32/12 Bank-stock gate is persisted.
+Property invariants remain houses `0..5` and non-street houses `0`. No colour-group/
+even-building or 32/12 Bank-stock gate is persisted.
 
-## v2 → v3 migration
+## v2/v3 → v4 migration
 
 `004_simplified_rules_v3.sql` is forward-only and leaves migrations 001–003
 unchanged. It preserves room/code/status (except a valid one-active-player running
@@ -39,6 +40,11 @@ starting-player competition with the existing seat order rotated from the winner
 Lobby rows are structurally fresh lobbies; finished rows keep terminal identity and
 reason history while live operations are stripped. Pending ordinary offers in the
 migrated rooms are cancelled; offer history and sessions are retained.
+
+Migration 005 upgrades only snapshot version 3 rows to 4,
+removes retired listing/property fields, clears the private forced-sale proposal,
+preserves payment/turn state, cancels pending offers for those rooms, increments the
+room aggregate once and recomputes `next_action_at`.
 
 ## Deadline/restart recovery
 

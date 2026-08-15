@@ -1,0 +1,17 @@
+.settings-panel { display: grid; gap: var(--space-5); }
+.settings-panel__section { display: grid; gap: var(--space-3); }
+.settings-panel__section h3 { margin: 0; font-size: var(--font-size-md); }
+.settings-panel__control { display: grid; grid-template-columns: minmax(8rem, 1fr) minmax(8rem, 1.4fr) 3rem; align-items: center; gap: var(--space-3); color: var(--color-text-secondary); }
+.settings-panel__control input[type='range'] { accent-color: var(--color-accent-primary); }
+.settings-panel__control output { color: var(--color-text-primary); font-variant-numeric: tabular-nums; text-align: right; }
+.settings-panel__control select { min-height: 2.5rem; padding: var(--space-2); border: 1px solid var(--color-border-strong); border-radius: var(--radius-small); background: var(--color-surface-raised); color: var(--color-text-primary); font: inherit; }
+.settings-panel__toggle { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); }
+.settings-panel__toggle input { width: 1.1rem; height: 1.1rem; accent-color: var(--color-accent-primary); }
+.settings-panel__hint { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-sm); }
+.settings-panel__actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+@media (max-width: 36rem) {
+  .settings-panel__control { grid-template-columns: 1fr auto; }
+  .settings-panel__control input[type='range'] { grid-column: 1 / -1; grid-row: 2; }
+  .settings-panel__actions { flex-direction: column-reverse; }
+}
+

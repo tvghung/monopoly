@@ -5,7 +5,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { io } from 'socket.io-client';
 import type {
   AckError,
   AckCallback,
@@ -19,28 +18,29 @@ import type {
   SessionReplacedInfo,
   ForcedSaleProposal,
 } from '@monopoly/shared';
-import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
 import Board from './components/Board';
 import ConnectionOverlay from './components/ConnectionOverlay';
 import JoinForm from './components/JoinForm';
 import Lobby from './components/Lobby';
 import SpectatorBanner from './components/SpectatorBanner';
 import { useToast } from './components/Toast';
+import ConfirmationDialog from './design-system/components/ConfirmationDialog/ConfirmationDialog';
+import SettingsPanel from './settings/SettingsPanel';
+import { getDesktopBridge } from './runtime/desktopBridge';
 import stateContext from './internal';
 import { localizeAckError } from './presentation';
+import { createSocket } from './network/createSocket';
+import { PresentationController, type SnapshotSource } from './game/presentation/PresentationController';
+import { PresentationProvider } from './game/presentation/PresentationProvider';
 import {
   clearPlayerSession,
   readPlayerSession,
   writePlayerSession,
 } from './playerSessionStorage';
 import type { AppSocket, SocketFunctions } from './types';
+import { getDefaultWebRuntimeConfig } from './runtime/runtimeConfig';
+import type { RuntimeConfig } from './runtime/types';
 import './App.css';
-
-const socketUrl = typeof __SOCKET_URL__ !== 'undefined' ? __SOCKET_URL__ : '';
-const socket: AppSocket = io(socketUrl || undefined, {
-  autoConnect: false,
-  auth: { protocolVersion: SOCKET_PROTOCOL_VERSION },
-});
 
 const initialState: PublicGameState = {
   boardState: {
@@ -53,7 +53,6 @@ const initialState: PublicGameState = {
     logs: [],
     diceValue: { dice1: 0, dice2: 0 },
     ownedProps: {},
-    openMarket: {},
     winner: null,
     paymentShortfall: null,
   },
@@ -79,6 +78,8 @@ interface AppFailure {
   reloadRequired?: boolean;
 }
 
+type ConfirmationState = 'LEAVE' | { kind: 'QUIT'; requestId: string };
+
 const terminalSessionCodes = new Set<AckError['code']>([
   'SESSION_INVALID',
   'SESSION_REVOKED',
@@ -93,7 +94,8 @@ function LoadingScreen({ message }: { message: string }) {
   return (
     <section className="app-status" role="status" aria-live="polite">
       <span className="connection-overlay__spinner" aria-hidden="true" />
-      <h1>Cờ Tỷ Phú Việt Nam</h1>
+      <h1>Own the Block</h1>
+      <p>Cờ Tỷ Phú Việt Nam</p>
       <p>{message}</p>
     </section>
   );
@@ -126,8 +128,18 @@ function FailureScreen({ title, failure, onRetry }: FailureScreenProps) {
   );
 }
 
-export default function App() {
+interface AppProps {
+  socket?: AppSocket;
+  runtimeConfig?: RuntimeConfig;
+}
+
+export default function App({ socket: injectedSocket, runtimeConfig }: AppProps = {}) {
   const toast = useToast();
+  const socket = useMemo(
+    () => injectedSocket ?? createSocket(runtimeConfig ?? getDefaultWebRuntimeConfig()),
+    [injectedSocket, runtimeConfig],
+  );
+  const [presentationController] = useState(() => new PresentationController());
   const [initialToken] = useState(readPlayerSession);
   const tokenRef = useRef<string | null>(initialToken);
   const spectatorRequestRef = useRef<JoinRoomRequest | null>(null);
@@ -147,6 +159,9 @@ export default function App() {
   const [operationError, setOperationError] = useState<string | null>(null);
   const [privatePlayerState, setPrivatePlayerState] = useState<PrivatePlayerState | null>(null);
   const [privateOffers, setPrivateOffers] = useState<PrivateOffer[]>([]);
+  const [confirmation, setConfirmation] = useState<ConfirmationState | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const desktopBridge = getDesktopBridge();
 
   const transition = useCallback((next: AppPhase) => {
     phaseRef.current = next;
@@ -160,11 +175,15 @@ export default function App() {
     setPlayerId(nextPlayerId);
   }, []);
 
-  const applyRoom = useCallback((incoming: PublicRoomState, advancePhase: boolean) => {
+  const applyRoom = useCallback((
+    incoming: PublicRoomState,
+    advancePhase: boolean,
+    source: SnapshotSource = 'LIVE_UPDATE',
+  ) => {
     const current = roomRef.current;
     if (current
       && current.roomId === incoming.roomId
-      && current.version > incoming.version) {
+      && current.version >= incoming.version) {
       if (advancePhase && phaseRef.current !== 'REPLACED') {
         transition(roleRef.current === 'PLAYER' && current.status === 'LOBBY' ? 'LOBBY' : 'GAME');
       }
@@ -173,10 +192,11 @@ export default function App() {
 
     roomRef.current = incoming;
     setRoom(incoming);
+    presentationController.acceptRoomSnapshot(incoming, source);
 
     if (!advancePhase || phaseRef.current === 'REPLACED') return;
     transition(roleRef.current === 'PLAYER' && incoming.status === 'LOBBY' ? 'LOBBY' : 'GAME');
-  }, [transition]);
+  }, [presentationController, transition]);
 
   const failSession = useCallback((error: AckError) => {
     setOperation(null);
@@ -203,7 +223,7 @@ export default function App() {
 
     setFailure({ message: localizeAckError(error), retryable: error.retryable });
     transition('ERROR');
-  }, [setIdentity, transition]);
+  }, [setIdentity, socket, transition]);
 
   const resumeSession = useCallback((token: string) => {
     if (!socket.connected) {
@@ -240,9 +260,9 @@ export default function App() {
           : null,
       );
       setPrivateOffers(response.data.pendingOffers.filter(offer => offer.status === 'PENDING'));
-      applyRoom(response.data.room, true);
+       applyRoom(response.data.room, true, 'SESSION_SYNC');
     });
-  }, [applyRoom, failSession, setIdentity, transition]);
+  }, [applyRoom, failSession, setIdentity, socket, transition]);
 
   const joinRoom = useCallback((request: JoinRoomRequest, reconnecting = false) => {
     if (!socket.connected) {
@@ -286,7 +306,7 @@ export default function App() {
         setIdentity('SPECTATOR', null);
         setPrivatePlayerState(null);
         setPrivateOffers([]);
-        applyRoom(response.data.room, true);
+         applyRoom(response.data.room, true, 'SPECTATOR_SYNC');
         return;
       }
 
@@ -308,7 +328,7 @@ export default function App() {
       transition('RESTORING');
       resumeSession(response.data.token);
     });
-  }, [applyRoom, resumeSession, setIdentity, transition]);
+  }, [applyRoom, resumeSession, setIdentity, socket, transition]);
 
   useEffect(() => {
     const onConnect = () => {
@@ -353,7 +373,7 @@ export default function App() {
       const connecting = phaseRef.current === 'RESTORING'
         || phaseRef.current === 'JOINING'
         || phaseRef.current === 'RECONNECTING';
-      applyRoom(incoming, !connecting && roleRef.current !== null);
+      applyRoom(incoming, !connecting && roleRef.current !== null, connecting ? 'SESSION_SYNC' : 'LIVE_UPDATE');
     };
 
     const onOffer = (offer: PrivateOffer) => {
@@ -445,7 +465,7 @@ export default function App() {
       socket.off('session replaced', onSessionReplaced);
       socket.disconnect();
     };
-  }, [applyRoom, joinRoom, resumeSession, toast, transition]);
+  }, [applyRoom, joinRoom, resumeSession, socket, toast, transition]);
 
   const showCommandFailure = useCallback((response: { ok: true } | { ok: false; error: AckError }) => {
     if (!response.ok) toast.show(localizeAckError(response.error));
@@ -481,9 +501,6 @@ export default function App() {
       sendChat: (message) => {
         if (connected) socket.emit('send chat', message, ack);
       },
-      putOpenMarket: (saleInfo) => {
-        if (gameCommandAllowed()) socket.emit('put on open market', saleInfo, ack);
-      },
       makeOffer: (offerInfo) => {
         if (!gameCommandAllowed()) return;
         socket.emit('make offer', offerInfo, response => showCommandFailure(response));
@@ -494,20 +511,8 @@ export default function App() {
       declineOffer: (offerId) => {
         if (gameCommandAllowed()) socket.emit('decline offer', { offerId }, ack);
       },
-      makeSale: (tileID) => {
-        if (gameCommandAllowed()) socket.emit('make sale', { tileID }, ack);
-      },
-      removeSale: (tileID) => {
-        if (gameCommandAllowed()) socket.emit('remove sale', { tileID }, ack);
-      },
       sellHouse: (tileID) => {
         if (gameCommandAllowed()) socket.emit('sell house', tileID, ack);
-      },
-      mortgageProperty: (tileID) => {
-        if (gameCommandAllowed()) socket.emit('mortgage property', tileID, ack);
-      },
-      unmortgageProperty: (tileID) => {
-        if (gameCommandAllowed()) socket.emit('unmortgage property', tileID, ack);
       },
       payBail: () => { if (gameCommandAllowed()) socket.emit('pay bail', ack); },
       useJailCard: () => { if (gameCommandAllowed()) socket.emit('use jail card', ack); },
@@ -524,7 +529,7 @@ export default function App() {
         if (gameCommandAllowed()) socket.emit('reject forced sale', { proposalId }, ack);
       },
     };
-  }, [canMutate, connected, showCommandFailure, toast]);
+  }, [canMutate, connected, showCommandFailure, socket, toast]);
 
   const handleJoin = useCallback((name: string, roomCode: string) => {
     joinRoom({ name, roomCode });
@@ -537,7 +542,7 @@ export default function App() {
       setOperation(null);
       if (!response.ok) setOperationError(localizeAckError(response.error));
     });
-  }, []);
+  }, [socket]);
 
   const handleStart = useCallback(() => {
     setOperation('start');
@@ -546,16 +551,9 @@ export default function App() {
       setOperation(null);
       if (!response.ok) setOperationError(localizeAckError(response.error));
     });
-  }, []);
+  }, [socket]);
 
-  const handleLeave = useCallback(() => {
-    const currentRoom = roomRef.current;
-    if (roleRef.current === 'PLAYER'
-      && currentRoom?.status === 'IN_PROGRESS'
-      && !window.confirm('Rời phòng lúc này đồng nghĩa với bỏ cuộc và thu hồi phiên chơi. Bạn có chắc muốn tiếp tục?')) {
-      return;
-    }
-
+  const leaveRoom = useCallback(() => {
     setOperation('leave');
     setOperationError(null);
     socket.emit('leave room', (response) => {
@@ -575,7 +573,47 @@ export default function App() {
       setIdentity(null, null);
       transition('JOIN');
     });
-  }, [setIdentity, transition]);
+  }, [setIdentity, socket, transition]);
+
+  const handleLeave = useCallback(() => {
+    const currentRoom = roomRef.current;
+    if (roleRef.current === 'PLAYER' && currentRoom?.status === 'IN_PROGRESS') {
+      setConfirmation('LEAVE');
+      return;
+    }
+    leaveRoom();
+  }, [leaveRoom]);
+
+  useEffect(() => {
+    if (!desktopBridge) return undefined;
+    return desktopBridge.quit.onQuitRequested(requestId => {
+      const activeGame = roleRef.current === 'PLAYER'
+        && roomRef.current?.status === 'IN_PROGRESS';
+      if (activeGame) {
+        setConfirmation({ kind: 'QUIT', requestId });
+      } else {
+        desktopBridge.quit.respond(requestId, true);
+      }
+    });
+  }, [desktopBridge]);
+
+  const cancelConfirmation = useCallback(() => {
+    if (confirmation && confirmation !== 'LEAVE') {
+      desktopBridge?.quit.respond(confirmation.requestId, false);
+    }
+    setConfirmation(null);
+  }, [confirmation, desktopBridge]);
+
+  const confirmConfirmation = useCallback(() => {
+    if (!confirmation) return;
+    if (confirmation === 'LEAVE') {
+      setConfirmation(null);
+      leaveRoom();
+      return;
+    }
+    desktopBridge?.quit.respond(confirmation.requestId, true);
+    setConfirmation(null);
+  }, [confirmation, desktopBridge, leaveRoom]);
 
   const retry = useCallback(() => {
     setFailure(null);
@@ -589,7 +627,7 @@ export default function App() {
 
     transition('JOIN');
     if (!socket.connected) socket.connect();
-  }, [resumeSession, transition]);
+  }, [resumeSession, socket, transition]);
 
   const contextValue = useMemo(() => ({
     state: room?.gameState ?? initialState,
@@ -600,6 +638,7 @@ export default function App() {
     canMutate,
     privatePlayerState,
     privateOffers,
+    roomPlayers: room?.players ?? [],
   }), [canMutate, connected, playerId, privateOffers, privatePlayerState, role, room, socketFunctions]);
 
   const roomContent = room && role
@@ -613,6 +652,7 @@ export default function App() {
               id: member.playerId,
               name: member.name,
               color: member.color,
+              characterId: null,
               ready: member.ready,
               connected: member.connected,
             }))}
@@ -625,11 +665,19 @@ export default function App() {
           onSetReady={handleReady}
           onStart={handleStart}
           onLeave={handleLeave}
+          onSettings={() => setSettingsOpen(true)}
         />
       )
       : (
         <>
           {role === 'SPECTATOR' ? <SpectatorBanner /> : null}
+          <button
+            type="button"
+            className="room-settings-button"
+            onClick={() => setSettingsOpen(true)}
+          >
+            Cài đặt
+          </button>
           <button
             type="button"
             className="room-exit-button"
@@ -647,28 +695,41 @@ export default function App() {
     : null;
 
   return (
-    <stateContext.Provider value={contextValue}>
-      <main className="App">
-        {phase === 'RESTORING' ? <LoadingScreen message="Đang khôi phục ván chơi…" /> : null}
-        {phase === 'JOIN' || phase === 'JOINING'
-          ? (
-            <JoinForm
-              onJoin={handleJoin}
-              busy={phase === 'JOINING'}
-              connected={connected}
-              error={failure?.message ?? null}
-            />
-          )
-          : null}
-        {phase === 'LOBBY' || phase === 'GAME' || phase === 'RECONNECTING' ? roomContent : null}
-        {phase === 'RECONNECTING' ? <ConnectionOverlay /> : null}
-        {phase === 'REPLACED' && failure
-          ? <FailureScreen title="Phiên chơi đã được mở ở nơi khác" failure={failure} />
-          : null}
-        {phase === 'ERROR' && failure
-          ? <FailureScreen title="Không thể khôi phục ván chơi" failure={failure} onRetry={retry} />
-          : null}
-      </main>
-    </stateContext.Provider>
+    <PresentationProvider controller={presentationController}>
+      <stateContext.Provider value={contextValue}>
+        <main className="App">
+          {phase === 'RESTORING' ? <LoadingScreen message="Đang khôi phục ván chơi…" /> : null}
+          {phase === 'JOIN' || phase === 'JOINING'
+            ? (
+              <JoinForm
+                onJoin={handleJoin}
+                busy={phase === 'JOINING'}
+                connected={connected}
+                error={failure?.message ?? null}
+              />
+            )
+            : null}
+          {phase === 'LOBBY' || phase === 'GAME' || phase === 'RECONNECTING' ? roomContent : null}
+          {phase === 'RECONNECTING' ? <ConnectionOverlay /> : null}
+          {phase === 'REPLACED' && failure
+            ? <FailureScreen title="Phiên chơi đã được mở ở nơi khác" failure={failure} />
+            : null}
+          {phase === 'ERROR' && failure
+            ? <FailureScreen title="Không thể khôi phục ván chơi" failure={failure} onRetry={retry} />
+            : null}
+          <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+          <ConfirmationDialog
+            open={confirmation !== null}
+            title={confirmation === 'LEAVE' ? 'Bỏ cuộc khỏi ván chơi?' : 'Đóng Own the Block?'}
+            message={confirmation === 'LEAVE'
+              ? 'Rời phòng lúc này đồng nghĩa với bỏ cuộc và thu hồi phiên chơi.'
+              : 'Đóng cửa sổ sẽ ngắt kết nối nhưng không bỏ cuộc; bạn có thể kết nối lại bằng phiên đã lưu.'}
+            confirmLabel={confirmation === 'LEAVE' ? 'Bỏ cuộc' : 'Đóng cửa sổ'}
+            onCancel={cancelConfirmation}
+            onConfirm={confirmConfirmation}
+          />
+        </main>
+      </stateContext.Provider>
+    </PresentationProvider>
   );
 }
