@@ -1,6 +1,9 @@
 import { tileState } from '@monopoly/shared';
-import BoardBase from './BoardBase';
-import BoardTile3D from './BoardTile3D';
+import BoardFoundation from './foundation/BoardFoundation';
+import CenterPark from './center/CenterPark';
+import TileAssembly from './tiles/TileAssembly';
+import TileBodyBatch from './tiles/TileBodyBatch';
+import TileSurfaceBatch from './tiles/TileSurfaceBatch';
 import type { BoardRenderModel, BoardTileRenderModel } from './boardRenderModel';
 import Phase2PlayerMarkers from '../players/Phase2PlayerMarkers';
 
@@ -8,7 +11,6 @@ interface Board3DProps {
   model?: BoardRenderModel;
   hoveredTileId?: number | null;
   selectedTileId?: number | null;
-  textureAnisotropy?: number;
   onTileHover?: (tileId: number | null) => void;
   onTileSelect?: (tileId: number) => void;
 }
@@ -17,7 +19,6 @@ export default function Board3D({
   model,
   hoveredTileId = null,
   selectedTileId = null,
-  textureAnisotropy,
   onTileHover,
   onTileSelect,
 }: Board3DProps) {
@@ -30,22 +31,39 @@ export default function Board3D({
     houses: 0,
   }));
   return (
-    <group>
-      <BoardBase />
-      {tiles.map(tile => (
-        <BoardTile3D
-          key={tile.tileId}
-          tileId={tile.tileId}
-          tile={tileState[tile.tileId]}
-          ownerColor={tile.ownerColor}
-          houses={tile.houses}
-          textureAnisotropy={textureAnisotropy}
-          hovered={hoveredTileId === tile.tileId}
-          selected={selectedTileId === tile.tileId}
-          onHover={onTileHover}
-          onSelect={onTileSelect}
-        />
-      ))}
+    <group name="Board3D">
+      <BoardFoundation />
+      <TileBodyBatch
+        tiles={tiles}
+        hoveredTileId={hoveredTileId}
+        selectedTileId={selectedTileId}
+        onHover={onTileHover}
+        onSelect={onTileSelect}
+      />
+      <TileSurfaceBatch
+        tiles={tiles}
+        hoveredTileId={hoveredTileId}
+        selectedTileId={selectedTileId}
+        onHover={onTileHover}
+        onSelect={onTileSelect}
+      />
+      <group name="TileRing">
+        {tiles.map(tile => (
+          <TileAssembly
+            key={tile.tileId}
+            tileId={tile.tileId}
+            tile={tileState[tile.tileId]}
+            name={tile.name}
+            ownerColor={tile.ownerColor}
+            houses={tile.houses}
+            hovered={hoveredTileId === tile.tileId}
+            selected={selectedTileId === tile.tileId}
+            onHover={onTileHover}
+            onSelect={onTileSelect}
+          />
+        ))}
+      </group>
+      <CenterPark />
       <Phase2PlayerMarkers players={model?.players ?? []} />
     </group>
   );

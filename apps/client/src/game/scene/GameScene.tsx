@@ -9,7 +9,14 @@ import {
   getCameraPosition,
 } from './camera/cameraMath';
 import FixedBoardCamera from './camera/FixedBoardCamera';
-import { getTileTextureAnisotropy } from './board/tileTexture';
+import {
+  HARD_TRIANGLE_LIMIT,
+  STRESS_DRAW_CALL_LIMIT,
+  TARGET_DRAW_CALLS,
+  TARGET_TRIANGLES,
+  getTileTextureAnisotropy,
+} from './board/architecture/sceneBudget';
+import TileMotionProvider from './board/motion/TileMotionProvider';
 import './GameScene.css';
 
 export interface GameSceneProps {
@@ -52,6 +59,10 @@ function RendererDiagnostics({
         textureMaxAnisotropy: gl.capabilities.getMaxAnisotropy(),
         drawCalls: gl.info.render.calls,
         triangles: gl.info.render.triangles,
+        targetDrawCalls: TARGET_DRAW_CALLS,
+        stressDrawCallLimit: STRESS_DRAW_CALL_LIMIT,
+        targetTriangles: TARGET_TRIANGLES,
+        hardTriangleLimit: HARD_TRIANGLE_LIMIT,
       }));
     });
     return () => window.cancelAnimationFrame(frame);
@@ -67,9 +78,10 @@ function BoardSceneContents({
   onTileHover,
   onTileSelect,
 }: BoardSceneContentsProps) {
-  const gl = useThree(state => state.gl);
-  const textureAnisotropy = getTileTextureAnisotropy(gl.capabilities.getMaxAnisotropy());
-  const activityKey = model?.players.map(player => `${player.playerId}:${player.tileId}`).join('|') ?? '';
+  const activityKey = [
+    model?.players.map(player => `${player.playerId}:${player.tileId}`).join('|') ?? '',
+    model?.tileImpacts.at(-1)?.sequence ?? 0,
+  ].join('|');
 
   return (
     <>
@@ -79,14 +91,18 @@ function BoardSceneContents({
         hoveredTileId={hoveredTileId}
         selectedTileId={selectedTileId}
       />
-      <Board3D
-        model={model}
-        textureAnisotropy={textureAnisotropy}
-        hoveredTileId={hoveredTileId}
-        selectedTileId={selectedTileId}
-        onTileHover={onTileHover}
-        onTileSelect={onTileSelect}
-      />
+      <TileMotionProvider
+        impacts={model?.tileImpacts ?? []}
+        impactEpoch={model?.tileImpactEpoch ?? 0}
+      >
+        <Board3D
+          model={model}
+          hoveredTileId={hoveredTileId}
+          selectedTileId={selectedTileId}
+          onTileHover={onTileHover}
+          onTileSelect={onTileSelect}
+        />
+      </TileMotionProvider>
     </>
   );
 }
