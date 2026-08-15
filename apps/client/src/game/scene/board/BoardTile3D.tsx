@@ -1,0 +1,108 @@
+import type { Tile } from '@monopoly/shared';
+import type { ThreeEvent } from '@react-three/fiber';
+import { useEffect, useMemo } from 'react';
+import { PLATFORM_HEIGHT, TILE_HEIGHT, getBoardTileLayout } from './boardLayout';
+import { boardVisualTokens } from './boardVisualTokens';
+import {
+  acquireTileLabelTexture,
+  getTileAccentColor,
+  getTileLabelScale,
+  releaseTileLabelTexture,
+} from './tileTexture';
+import JailVisual from '../special/JailVisual';
+import CardDeckVisual from '../special/CardDeckVisual';
+
+export interface BoardTile3DProps {
+  tileId: number;
+  tile: Tile;
+  hovered?: boolean;
+  selected?: boolean;
+  ownerColor?: string;
+  houses?: number;
+  onHover?: (tileId: number | null) => void;
+  onSelect?: (tileId: number) => void;
+}
+
+function stopPointerEvent(event: { stopPropagation: () => void }): void {
+  event.stopPropagation();
+}
+
+export default function BoardTile3D({
+  tileId,
+  tile,
+  hovered = false,
+  selected = false,
+  onHover,
+  onSelect,
+}: BoardTile3DProps) {
+  const layout = getBoardTileLayout(tileId);
+  const texture = useMemo(
+    () => (layout ? acquireTileLabelTexture(tileId, tile) : null),
+    [layout, tile, tileId],
+  );
+  useEffect(() => () => {
+    if (texture) releaseTileLabelTexture(tileId);
+  }, [texture, tileId]);
+
+  if (!layout || !texture) return null;
+  const slabColor = selected
+    ? boardVisualTokens.selection
+    : hovered ? boardVisualTokens.hover : boardVisualTokens.tileSurface;
+  const stripPosition = [0, TILE_HEIGHT / 2 + 0.018, layout.size[1] / 2 - 0.11] as const;
+  const accent = getTileAccentColor(tile);
+  const handlePointerEnter = (event: ThreeEvent<PointerEvent>) => {
+    stopPointerEvent(event);
+    onHover?.(tileId);
+  };
+  const handlePointerLeave = (event: ThreeEvent<PointerEvent>) => {
+    stopPointerEvent(event);
+    onHover?.(null);
+  };
+  const handleClick = (event: ThreeEvent<MouseEvent>) => {
+    stopPointerEvent(event);
+    onSelect?.(tileId);
+  };
+
+  return (
+    <group position={layout.position}>
+      <mesh
+        position={[0, PLATFORM_HEIGHT + TILE_HEIGHT / 2, 0]}
+        rotation={layout.rotation}
+        receiveShadow
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
+        onClick={handleClick}
+      >
+        <boxGeometry args={[layout.size[0], TILE_HEIGHT, layout.size[1]]} />
+        <meshStandardMaterial color={slabColor} roughness={0.76} metalness={0} />
+      </mesh>
+      {tile.color || tile.tileType !== 'normal'
+        ? (
+          <mesh
+            position={stripPosition}
+            rotation={layout.rotation}
+            receiveShadow
+            onPointerDown={stopPointerEvent}
+            onClick={handleClick}
+          >
+            <boxGeometry args={[layout.size[0], 0.045, 0.19]} />
+            <meshStandardMaterial color={accent} roughness={0.7} />
+          </mesh>
+        )
+        : null}
+      <sprite
+        position={[0, PLATFORM_HEIGHT + TILE_HEIGHT + 0.09, 0]}
+        scale={getTileLabelScale(tile)}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
+        onClick={handleClick}
+      >
+        <spriteMaterial map={texture} transparent depthWrite={false} />
+      </sprite>
+      {tile.tileType === 'jail' ? <JailVisual size={layout.size} /> : null}
+      {tile.tileType === 'chance' || tile.tileType === 'chest'
+        ? <CardDeckVisual size={layout.size} kind={tile.tileType} />
+        : null}
+    </group>
+  );
+}
