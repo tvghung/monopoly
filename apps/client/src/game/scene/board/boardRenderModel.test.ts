@@ -8,6 +8,8 @@ const presentation = (overrides: Partial<PresentationState> = {}): PresentationS
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
   status: 'idle',
+  tileImpacts: [],
+  tileImpactEpoch: 0,
   ...overrides,
 });
 

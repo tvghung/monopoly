@@ -27,6 +27,7 @@ import {
   getTileSurfaceGeometry,
   getTileSurfaceWorldCorners,
 } from './boardLayout';
+import { TILE_SOCKET_GAP } from './architecture/boardArtSpec';
 
 describe('canonical 2.5D board layout', () => {
   it('contains exactly the canonical 40 tile IDs without duplicate centers', () => {
@@ -68,7 +69,7 @@ describe('canonical 2.5D board layout', () => {
     expect(boardLayout.filter(layout => layout.side === 'CORNER')
       .every(layout => layout.size[0] === CORNER_SIZE - TILE_GAP
         && layout.size[1] === CORNER_SIZE - TILE_GAP)).toBe(true);
-    expect(TILE_SURFACE_Y).toBe(PLATFORM_HEIGHT + TILE_HEIGHT);
+    expect(TILE_SURFACE_Y).toBe(PLATFORM_HEIGHT + TILE_SOCKET_GAP + TILE_HEIGHT);
     expect(SURFACE_EPSILON).toBeGreaterThan(0);
   });
 
