@@ -1,14 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import {
   CORNER_SIZE,
+  CARD_DECK_CENTER_Y,
+  CARD_HEIGHT,
   EDGE_TILE_DEPTH,
   EDGE_TILE_WIDTH,
+  JAIL_BASE_CENTER_Y,
+  JAIL_BASE_HEIGHT,
+  OWNERSHIP_MARKER_CENTER_Y,
+  OWNERSHIP_MARKER_HEIGHT,
   PLATFORM_HEIGHT,
+  PROPERTY_ACCENT_CENTER_Y,
+  PROPERTY_ACCENT_HEIGHT,
+  SELECTION_EDGE_HEIGHT,
+  SELECTION_MARKER_CENTER_Y,
   SURFACE_EPSILON,
+  TILE_SURFACE_CLEARANCE_Y,
   TILE_GAP,
   TILE_HEIGHT,
   TILE_SURFACE_Y,
   boardLayout,
+  getGeometryBottomY,
   getBoardTileLayout,
 } from './boardLayout';
 
@@ -54,6 +66,20 @@ describe('canonical 2.5D board layout', () => {
         && layout.size[1] === CORNER_SIZE - TILE_GAP)).toBe(true);
     expect(TILE_SURFACE_Y).toBe(PLATFORM_HEIGHT + TILE_HEIGHT);
     expect(SURFACE_EPSILON).toBeGreaterThan(0);
+  });
+
+  it('keeps physical tile overlays at or above the canonical surface clearance', () => {
+    const surface = TILE_SURFACE_CLEARANCE_Y;
+    expect(getGeometryBottomY(PROPERTY_ACCENT_CENTER_Y, PROPERTY_ACCENT_HEIGHT))
+      .toBeGreaterThanOrEqual(surface);
+    expect(getGeometryBottomY(OWNERSHIP_MARKER_CENTER_Y, OWNERSHIP_MARKER_HEIGHT))
+      .toBeGreaterThanOrEqual(surface);
+    expect(getGeometryBottomY(SELECTION_MARKER_CENTER_Y, SELECTION_EDGE_HEIGHT))
+      .toBeGreaterThanOrEqual(surface);
+    expect(getGeometryBottomY(CARD_DECK_CENTER_Y, CARD_HEIGHT))
+      .toBeGreaterThanOrEqual(surface);
+    expect(getGeometryBottomY(surface + JAIL_BASE_CENTER_Y, JAIL_BASE_HEIGHT))
+      .toBeGreaterThanOrEqual(surface);
   });
 
   it.each([

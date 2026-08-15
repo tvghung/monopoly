@@ -1,4 +1,4 @@
-import { SURFACE_EPSILON, TILE_SURFACE_Y } from './boardLayout';
+import { SELECTION_EDGE_HEIGHT, SELECTION_MARKER_CENTER_Y } from './boardLayout';
 import { boardVisualTokens } from './boardVisualTokens';
 
 interface SelectionMarkerProps {
@@ -9,8 +9,8 @@ interface SelectionMarkerProps {
 export default function SelectionMarker({
   size, color = boardVisualTokens.selection,
 }: SelectionMarkerProps) {
-  const edgeHeight = 0.045;
-  const y = TILE_SURFACE_Y + SURFACE_EPSILON + edgeHeight / 2;
+  const edgeHeight = SELECTION_EDGE_HEIGHT;
+  const y = SELECTION_MARKER_CENTER_Y;
   return (
     <group>
       <mesh position={[0, y, -size[1] / 2]}>

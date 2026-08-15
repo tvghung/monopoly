@@ -8,6 +8,22 @@ export const TILE_HEIGHT = 0.28;
 export const PLATFORM_HEIGHT = 0.42;
 export const TILE_SURFACE_Y = PLATFORM_HEIGHT + TILE_HEIGHT;
 export const SURFACE_EPSILON = 0.02;
+export const TILE_SURFACE_CLEARANCE_Y = TILE_SURFACE_Y + SURFACE_EPSILON;
+
+export const PROPERTY_ACCENT_HEIGHT = 0.045;
+export const PROPERTY_ACCENT_CENTER_Y = TILE_SURFACE_CLEARANCE_Y + PROPERTY_ACCENT_HEIGHT / 2;
+export const OWNERSHIP_MARKER_HEIGHT = 0.065;
+export const OWNERSHIP_MARKER_CENTER_Y = TILE_SURFACE_CLEARANCE_Y + OWNERSHIP_MARKER_HEIGHT / 2;
+export const SELECTION_EDGE_HEIGHT = 0.045;
+export const SELECTION_MARKER_CENTER_Y = TILE_SURFACE_CLEARANCE_Y + SELECTION_EDGE_HEIGHT / 2;
+export const CARD_HEIGHT = 0.07;
+export const CARD_DECK_CENTER_Y = TILE_SURFACE_CLEARANCE_Y + CARD_HEIGHT / 2;
+export const JAIL_BASE_HEIGHT = 0.1;
+export const JAIL_BASE_CENTER_Y = JAIL_BASE_HEIGHT / 2;
+
+export function getGeometryBottomY(centerY: number, height: number): number {
+  return centerY - height / 2;
+}
 
 export const OUTER_BOARD_SIZE = 2 * CORNER_SIZE + 9 * EDGE_TILE_WIDTH;
 export const CORNER_CENTER = OUTER_BOARD_SIZE / 2 - CORNER_SIZE / 2;
@@ -97,6 +113,22 @@ const layoutByTileId = new Map(boardLayout.map(layout => [layout.tileId, layout]
 
 export function getBoardTileLayout(tileId: number): BoardTileLayout | undefined {
   return layoutByTileId.get(tileId);
+}
+
+export function transformTileLocalPointToWorld(
+  tileId: number,
+  localPoint: readonly [number, number, number],
+): readonly [number, number, number] | undefined {
+  const layout = getBoardTileLayout(tileId);
+  if (!layout) return undefined;
+  const rotation = layout.rotation[1];
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  return [
+    layout.position[0] + cos * localPoint[0] + sin * localPoint[2],
+    layout.position[1] + localPoint[1],
+    layout.position[2] - sin * localPoint[0] + cos * localPoint[2],
+  ];
 }
 
 export const BOARD_BOUNDING_RADIUS = Math.hypot(OUTER_BOARD_SIZE / 2, OUTER_BOARD_SIZE / 2);

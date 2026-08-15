@@ -1,6 +1,7 @@
 import type { Phase2PlayerMarkerModel } from '../board/boardRenderModel';
 import {
-  PLAYER_MARKER_BODY_HEIGHT,
+  PLAYER_ACTIVE_RING_LOCAL_Y,
+  PLAYER_ACTIVE_RING_TUBE_RADIUS,
   getOccupantWorldPosition,
 } from '../board/buildingPlacement';
 import { boardVisualTokens } from '../board/boardVisualTokens';
@@ -19,11 +20,11 @@ function PlayerMarker({
       {player.isActive
         ? (
           <mesh
-            position={[0, -PLAYER_MARKER_BODY_HEIGHT / 2 + 0.015, 0]}
+            position={[0, PLAYER_ACTIVE_RING_LOCAL_Y, 0]}
             rotation={[Math.PI / 2, 0, 0]}
             receiveShadow
           >
-            <torusGeometry args={[0.28, 0.035, 8, 24]} />
+            <torusGeometry args={[0.28, PLAYER_ACTIVE_RING_TUBE_RADIUS, 8, 24]} />
             <meshStandardMaterial color={boardVisualTokens.selection} emissive={boardVisualTokens.selection} emissiveIntensity={0.2} />
           </mesh>
         )

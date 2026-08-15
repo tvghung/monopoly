@@ -1,4 +1,7 @@
-import { SURFACE_EPSILON, TILE_SURFACE_Y } from './boardLayout';
+import {
+  OWNERSHIP_MARKER_CENTER_Y,
+  OWNERSHIP_MARKER_HEIGHT,
+} from './boardLayout';
 
 interface OwnershipMarkerProps {
   color: string;
@@ -8,10 +11,10 @@ interface OwnershipMarkerProps {
 export default function OwnershipMarker({ color, size }: OwnershipMarkerProps) {
   return (
     <mesh
-      position={[0, TILE_SURFACE_Y + SURFACE_EPSILON + 0.0325, size[1] / 2 - 0.31]}
+      position={[0, OWNERSHIP_MARKER_CENTER_Y, size[1] / 2 - 0.31]}
       castShadow
     >
-      <boxGeometry args={[Math.max(0.55, size[0] * 0.72), 0.065, 0.12]} />
+      <boxGeometry args={[Math.max(0.55, size[0] * 0.72), OWNERSHIP_MARKER_HEIGHT, 0.12]} />
       <meshStandardMaterial color={color} roughness={0.62} metalness={0.05} />
     </mesh>
   );

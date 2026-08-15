@@ -1,7 +1,7 @@
 import {
   SURFACE_EPSILON,
   TILE_SURFACE_Y,
-  getBoardTileLayout,
+  transformTileLocalPointToWorld,
 } from './boardLayout';
 
 export const HOUSE_BODY_HEIGHT = 0.22;
@@ -10,6 +10,11 @@ export const PLAYER_MARKER_BODY_HEIGHT = 0.26;
 export const HOUSE_CENTER_Y = TILE_SURFACE_Y + SURFACE_EPSILON + HOUSE_BODY_HEIGHT / 2;
 export const HOTEL_CENTER_Y = TILE_SURFACE_Y + SURFACE_EPSILON + HOTEL_BODY_HEIGHT / 2;
 export const PLAYER_MARKER_Y = TILE_SURFACE_Y + SURFACE_EPSILON + PLAYER_MARKER_BODY_HEIGHT / 2;
+export const PLAYER_ACTIVE_RING_TUBE_RADIUS = 0.035;
+export const PLAYER_ACTIVE_RING_LOCAL_Y = -PLAYER_MARKER_BODY_HEIGHT / 2 + 0.015;
+export const PLAYER_ACTIVE_RING_BOTTOM_Y = PLAYER_MARKER_Y
+  + PLAYER_ACTIVE_RING_LOCAL_Y
+  - PLAYER_ACTIVE_RING_TUBE_RADIUS;
 
 const HOUSE_SLOTS: readonly (readonly [number, number, number])[] = [
   [-0.34, HOUSE_CENTER_Y, 0.18],
@@ -36,23 +41,10 @@ export function getHotelSlot(): readonly [number, number, number] {
   return [0, HOTEL_CENTER_Y, 0];
 }
 
-function rotateY(offset: readonly [number, number, number], rotation: number): readonly [number, number, number] {
-  const cos = Math.cos(rotation);
-  const sin = Math.sin(rotation);
-  return [cos * offset[0] + sin * offset[2], offset[1], -sin * offset[0] + cos * offset[2]];
-}
-
 export function getOccupantWorldPosition(
   tileId: number,
   slotIndex: number,
 ): readonly [number, number, number] | undefined {
-  const layout = getBoardTileLayout(tileId);
   const offset = OCCUPANT_OFFSETS[slotIndex];
-  if (!layout || !offset) return undefined;
-  const rotated = rotateY(offset, layout.rotation[1]);
-  return [
-    layout.position[0] + rotated[0],
-    rotated[1],
-    layout.position[2] + rotated[2],
-  ];
+  return offset ? transformTileLocalPointToWorld(tileId, offset) : undefined;
 }

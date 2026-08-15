@@ -117,7 +117,7 @@ describe('Vietnamese game board', () => {
     expect(tile.getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('keeps one HUD instance in side rails while the WebGL renderer owns the center', async () => {
+  it('keeps one HUD instance in side rails while the WebGL renderer owns the center', () => {
     vi.mocked(supportsWebGL).mockReturnValue(true);
     const { container } = render(
       <stateContext.Provider value={makeContextValue()}>

@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import type { CanvasTexture } from 'three';
 import {
   PLATFORM_HEIGHT,
-  SURFACE_EPSILON,
+  PROPERTY_ACCENT_CENTER_Y,
+  PROPERTY_ACCENT_HEIGHT,
   TILE_HEIGHT,
   TILE_SURFACE_Y,
   getBoardTileLayout,
@@ -73,9 +74,7 @@ export default function BoardTile3D({
     ? boardVisualTokens.selection
     : hovered ? boardVisualTokens.hover : boardVisualTokens.tileSurface;
   const stripPosition = [
-    0,
-    TILE_SURFACE_Y + SURFACE_EPSILON + 0.0225,
-    layout.size[1] / 2 - 0.11,
+    0, PROPERTY_ACCENT_CENTER_Y, layout.size[1] / 2 - 0.11,
   ] as const;
   const accent = getTileAccentColor(tile);
   const handlePointerEnter = (event: ThreeEvent<PointerEvent>) => {
@@ -112,7 +111,7 @@ export default function BoardTile3D({
               onPointerDown={stopPointerEvent}
               onClick={handleClick}
             >
-              <boxGeometry args={[layout.size[0], 0.045, 0.19]} />
+              <boxGeometry args={[layout.size[0], PROPERTY_ACCENT_HEIGHT, 0.19]} />
               <meshStandardMaterial color={accent} roughness={0.7} />
             </mesh>
           )
