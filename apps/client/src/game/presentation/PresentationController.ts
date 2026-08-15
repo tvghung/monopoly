@@ -13,6 +13,9 @@ export class PresentationController {
   public readonly store = new PresentationStore();
   public readonly queue: AnimationQueue;
   private acceptedRoom: PublicRoomState | null = null;
+  private consumerCount = 0;
+  private disposalGeneration = 0;
+  private disposed = false;
 
   public constructor(reducedMotion = false, speedMultiplier = 1) {
     const executors = {
@@ -59,6 +62,26 @@ export class PresentationController {
     if (reducedMotion) this.skipAllAndSnap();
   }
 
+  public retain(): void {
+    if (this.disposed) return;
+    this.consumerCount += 1;
+    this.disposalGeneration += 1;
+  }
+
+  public release(): void {
+    if (this.consumerCount === 0) return;
+    this.consumerCount -= 1;
+    if (this.consumerCount !== 0) return;
+
+    const generation = ++this.disposalGeneration;
+    queueMicrotask(() => {
+      if (this.consumerCount === 0
+        && this.disposalGeneration === generation) {
+        this.dispose();
+      }
+    });
+  }
+
   public skipAllAndSnap(): void {
     if (this.acceptedRoom) this.queue.reset(this.acceptedRoom);
     else this.queue.skipAll();
@@ -69,6 +92,10 @@ export class PresentationController {
   }
 
   public dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.consumerCount = 0;
+    this.disposalGeneration += 1;
     this.queue.dispose();
   }
 }

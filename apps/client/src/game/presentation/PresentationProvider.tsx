@@ -30,7 +30,10 @@ export function PresentationProvider({ controller, children }: { controller: Pre
   useEffect(() => {
     controller.setPreferences(reducedMotion, settings.animationSpeed);
   }, [controller, reducedMotion, settings.animationSpeed]);
-  useEffect(() => () => controller.dispose(), [controller]);
+  useEffect(() => {
+    controller.retain();
+    return () => controller.release();
+  }, [controller]);
 
   return <presentationContext.Provider value={{ state, queue: controller.queue }}>{children}</presentationContext.Provider>;
 }
