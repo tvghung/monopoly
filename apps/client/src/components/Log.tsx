@@ -1,13 +1,11 @@
 import {
   useContext, useRef, useEffect, useState, type FormEvent,
 } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
 import './style/Log.css';
 import stateContext from '../internal';
 
 export default function Log() {
   const { state, socketFunctions, connected } = useContext(stateContext);
-  const reduced = useReducedMotion() ?? false;
   const [chat, setChat] = useState('');
   const scrollRef = useRef<HTMLElement>(null);
 
@@ -23,15 +21,12 @@ export default function Log() {
   };
 
   return (
-    <section className="center__room">
+    <section className="center__room" data-testid="board-log-overlay" aria-label="Nhật ký và trò chuyện">
       <section ref={scrollRef} className="center__log" role="log" aria-live="polite" aria-label="Nhật ký ván chơi">
         {state.loaded
           ? state.boardState.logs.map((e, i) => (
-            <motion.p
+            <p
               key={i}
-              initial={reduced ? false : { opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
               dangerouslySetInnerHTML={{ __html: e }}
             />
           ))

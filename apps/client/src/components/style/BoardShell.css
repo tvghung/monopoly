@@ -3,8 +3,7 @@
   display: grid;
   grid-template-columns:
     clamp(15rem, 18vw, 18rem)
-    minmax(0, 1fr)
-    clamp(17rem, 20vw, 22rem);
+    minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: var(--space-3);
   width: 100%;
@@ -40,8 +39,7 @@
   max-height: 100%;
 }
 
-.game-board__left-rail,
-.game-board__right-rail {
+.game-board__left-rail {
   position: relative;
   z-index: 10;
   display: flex;
@@ -53,11 +51,6 @@
 
 .game-board__left-rail {
   grid-column: 1;
-}
-
-.game-board__right-rail {
-  grid-column: 3;
-  padding-top: 3.5rem;
 }
 
 .game-board__scene-loading {
@@ -110,14 +103,8 @@
 
 @media (max-width: 900px) {
   .game-board {
-    grid-template-columns: 14rem minmax(0, 1fr) 16rem;
+    grid-template-columns: 14rem minmax(0, 1fr);
     gap: var(--space-2);
     padding: var(--space-2);
-  }
-}
-
-@media (max-width: 620px), (max-height: 560px) {
-  .game-board__right-rail {
-    padding-top: 3rem;
   }
 }

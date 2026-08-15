@@ -117,7 +117,7 @@ describe('Vietnamese game board', () => {
     expect(tile.getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('keeps one HUD instance in side rails while the WebGL renderer owns the center', () => {
+  it('keeps one HUD side rail while the WebGL renderer owns the board and log overlay', () => {
     vi.mocked(supportsWebGL).mockReturnValue(true);
     const { container } = render(
       <stateContext.Provider value={makeContextValue()}>
@@ -127,17 +127,17 @@ describe('Vietnamese game board', () => {
 
     const leftRail = container.querySelector('.game-board__left-rail');
     const renderer = container.querySelector('.game-board__renderer');
-    const rightRail = container.querySelector('.game-board__right-rail');
 
     expect(renderer).toBeTruthy();
     expect(renderer?.classList.contains('game-board__renderer--legacy')).toBe(false);
     expect(leftRail?.querySelectorAll('.dice')).toHaveLength(1);
     expect(leftRail?.querySelectorAll('.center__dashboard--container')).toHaveLength(1);
-    expect(rightRail?.querySelectorAll('.center__room')).toHaveLength(1);
+    expect(container.querySelector('.game-board__right-rail')).toBeNull();
+    expect(renderer?.querySelectorAll('.center__room')).toHaveLength(1);
     expect(container.querySelectorAll('.dice')).toHaveLength(1);
     expect(container.querySelectorAll('.center__dashboard--container')).toHaveLength(1);
     expect(container.querySelectorAll('.center__room')).toHaveLength(1);
-    expect(renderer?.querySelector('.dice, .center__dashboard--container, .center__room')).toBeNull();
+    expect(renderer?.querySelector('.dice, .center__dashboard--container')).toBeNull();
     expect(container.querySelector('.game-board__center-ui, .game-board__ui, .center')).toBeNull();
     expect(container.querySelector('.legacy-board')).toBeNull();
     expect(container.querySelectorAll('[data-tile-index]')).toHaveLength(40);

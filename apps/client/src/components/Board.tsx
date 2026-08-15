@@ -115,6 +115,7 @@ export default function Board() {
                 </SceneErrorBoundary>
               )
               : legacyBoard}
+            <Log />
           </section>
 
           {rendererMode === 'webgl'
@@ -126,10 +127,6 @@ export default function Board() {
               />
             )
             : null}
-
-          <aside className="game-board__right-rail" aria-label="Nhật ký và trò chuyện">
-            <Log />
-          </aside>
 
           <PropertyInspectionModal tileId={selectedTileId} onClose={closeInspection} />
         </section>
