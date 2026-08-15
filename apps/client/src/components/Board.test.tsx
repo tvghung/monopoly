@@ -117,8 +117,7 @@ describe('Vietnamese game board', () => {
     expect(tile.getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('keeps one HUD side rail while the WebGL renderer owns the board and log overlay', () => {
-    vi.mocked(supportsWebGL).mockReturnValue(true);
+  it('keeps one HUD side rail and places the log inside the renderer', () => {
     const { container } = render(
       <stateContext.Provider value={makeContextValue()}>
         <Board />
@@ -129,7 +128,6 @@ describe('Vietnamese game board', () => {
     const renderer = container.querySelector('.game-board__renderer');
 
     expect(renderer).toBeTruthy();
-    expect(renderer?.classList.contains('game-board__renderer--legacy')).toBe(false);
     expect(leftRail?.querySelectorAll('.dice')).toHaveLength(1);
     expect(leftRail?.querySelectorAll('.center__dashboard--container')).toHaveLength(1);
     expect(container.querySelector('.game-board__right-rail')).toBeNull();
@@ -137,10 +135,20 @@ describe('Vietnamese game board', () => {
     expect(container.querySelectorAll('.dice')).toHaveLength(1);
     expect(container.querySelectorAll('.center__dashboard--container')).toHaveLength(1);
     expect(container.querySelectorAll('.center__room')).toHaveLength(1);
-    expect(renderer?.querySelector('.dice, .center__dashboard--container')).toBeNull();
     expect(container.querySelector('.game-board__center-ui, .game-board__ui, .center')).toBeNull();
-    expect(container.querySelector('.legacy-board')).toBeNull();
     expect(container.querySelectorAll('[data-tile-index]')).toHaveLength(40);
+  });
+
+  it('routes the WebGL renderer deterministically when WebGL is supported', async () => {
+    vi.mocked(supportsWebGL).mockReturnValue(true);
+    const { container } = render(
+      <stateContext.Provider value={makeContextValue()}>
+        <Board />
+      </stateContext.Provider>,
+    );
+
+    expect(await screen.findByTestId('game-scene')).toBeTruthy();
+    expect(container.querySelector('.legacy-board')).toBeNull();
   });
 
   it('opens derived property details and closes them with Escape', async () => {
