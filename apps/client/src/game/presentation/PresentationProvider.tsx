@@ -14,6 +14,8 @@ const emptyPresentationState: PresentationState = {
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
   status: 'idle',
+  tileImpacts: [],
+  tileImpactEpoch: 0,
 };
 
 export const presentationContext = createContext<PresentationContextValue | null>(null);

@@ -1,4 +1,5 @@
 import type { PresentationEvent, PresentationEventType } from '../events/types';
+import type { LandTilePresentationEvent } from '../events/types';
 import type { AnimationExecutionContext, PresentationExecutor, PresentationExecutorMap } from '../queue/types';
 import type { PresentationStoreLike } from '../store/types';
 import { presentationTiming } from '../timings';
@@ -26,8 +27,15 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
     },
     store,
   );
+  const landingExecutor: PresentationExecutor<LandTilePresentationEvent> = {
+    async run(event, context) {
+      store.emitTileImpact(event.playerId, event.tileId, 'LAND');
+      await context.wait(presentationTiming.landing);
+    },
+    finish() {},
+  };
   return {
-    LAND_TILE: createTimedExecutor(presentationTiming.landing),
+    LAND_TILE: landingExecutor,
     BALANCE_CHANGED: createTimedExecutor(presentationTiming.balanceChange),
     PROPERTY_OWNERSHIP_CHANGED: createTimedExecutor(presentationTiming.propertyPurchase),
     PROPERTY_DEVELOPMENT_CHANGED: createTimedExecutor(presentationTiming.buildPop),

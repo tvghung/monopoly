@@ -1,6 +1,7 @@
 import type { PublicGameState, TileType } from '@monopoly/shared';
 import { tileState } from '@monopoly/shared';
 import type { PresentationState } from '../../presentation/store/types';
+import type { TileImpactSignal } from './motion/tileMotionTypes';
 import { getTileName } from '../../../presentation';
 
 export interface BoardTileRenderModel {
@@ -25,6 +26,8 @@ export interface Phase2PlayerMarkerModel {
 export interface BoardRenderModel {
   tiles: BoardTileRenderModel[];
   players: Phase2PlayerMarkerModel[];
+  tileImpacts: readonly TileImpactSignal[];
+  tileImpactEpoch: number;
 }
 
 function resolveOwnerColor(
@@ -70,5 +73,10 @@ export function buildBoardRenderModel(
       isActive: playerId === activePlayerId,
     }));
 
-  return { tiles, players };
+  return {
+    tiles,
+    players,
+    tileImpacts: presentationState.tileImpacts,
+    tileImpactEpoch: presentationState.tileImpactEpoch,
+  };
 }
