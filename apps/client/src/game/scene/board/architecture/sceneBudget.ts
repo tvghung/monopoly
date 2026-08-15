@@ -12,14 +12,29 @@ export function getTileTextureAnisotropy(maxSupported: number): number {
   return Math.max(1, Math.min(TILE_TEXTURE_ANISOTROPY_CAP, Math.floor(maxSupported)));
 }
 
+function readUnknownProperty(value: unknown, property: PropertyKey): unknown {
+  if ((typeof value !== 'object' && typeof value !== 'function') || value === null) {
+    return undefined;
+  }
+  return Reflect.get(value, property);
+}
+
 export function estimateSceneTriangles(root: THREE.Object3D): number {
   let triangleCount = 0;
   root.traverse(object => {
-    if (!(object instanceof THREE.Mesh)) return;
-    const geometry = object.geometry;
-    const elementCount = geometry.index?.count
-      ?? geometry.getAttribute('position')?.count
-      ?? 0;
+    if (readUnknownProperty(object, 'isMesh') !== true) return;
+    const candidateGeometry = readUnknownProperty(object, 'geometry');
+    if (!(candidateGeometry instanceof THREE.BufferGeometry)) return;
+    const geometry = candidateGeometry;
+    const indexCount = readUnknownProperty(readUnknownProperty(geometry, 'index'), 'count');
+    const attributes = readUnknownProperty(geometry, 'attributes');
+    const positionCount = readUnknownProperty(
+      readUnknownProperty(attributes, 'position'),
+      'count',
+    );
+    const elementCount = typeof indexCount === 'number'
+      ? indexCount
+      : typeof positionCount === 'number' ? positionCount : 0;
     const instanceCount = object instanceof THREE.InstancedMesh ? object.count : 1;
     triangleCount += Math.floor(elementCount / 3) * instanceCount;
   });

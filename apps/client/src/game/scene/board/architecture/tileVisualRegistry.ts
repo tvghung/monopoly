@@ -107,7 +107,7 @@ const FALLBACK_DESCRIPTOR = PROPERTY_DESCRIPTORS.brown;
 export const CANONICAL_PROPERTY_GROUPS = Object.freeze(Object.keys(PROPERTY_DESCRIPTORS));
 export const DISTRICT_SURFACE_KEYS = Object.freeze(
   CANONICAL_PROPERTY_GROUPS.map(group => PROPERTY_DESCRIPTORS[group].surfaceKey),
-) as readonly DistrictSurfaceKey[];
+);
 
 const DESCRIPTORS_BY_SURFACE_KEY = new Map(
   CANONICAL_PROPERTY_GROUPS.map(group => {

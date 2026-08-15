@@ -72,6 +72,7 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
 | Trading/private offer | [Client/trade-offers.instruction.md](./Client/trade-offers.instruction.md), [Api/socket-trading.instruction.md](./Api/socket-trading.instruction.md) | trading handler, `trade_offers`, offer UI |
 | Property/building/forced sale | [GameCore/property-economy.instruction.md](./GameCore/property-economy.instruction.md) | `game/property.ts`, `game/transfer.ts`, `socket/debt.ts` |
 | Contracts/runtime schema | [Shared/socket-and-state-contracts.instruction.md](./Shared/socket-and-state-contracts.instruction.md) | `types.ts`, `events.ts`, `socketSchemas.ts` |
+| WebGL board/surface art/motion | [Client/game-board.instruction.md](./Client/game-board.instruction.md) | `Board.tsx`, `game/scene/GameScene.tsx`, `game/scene/board/` |
 | HTTP/readiness/deploy | [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md) | create/start server, migration startup, Docker/Render/CI |
 | Board/card/deck data | [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md) | shared canonical board/cards và private deck state |
 

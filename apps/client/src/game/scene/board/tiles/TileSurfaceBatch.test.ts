@@ -1,23 +1,35 @@
+import { tileState } from '@monopoly/shared';
 import { describe, expect, it } from 'vitest';
-import { DISTRICT_SURFACE_KEYS } from '../architecture/tileVisualRegistry';
+import { TILE_SURFACE_INSET, getBoardTileLayout } from '../boardLayout';
+import {
+  DISTRICT_SURFACE_KEYS,
+  getDistrictSurfaceDescriptor,
+} from '../architecture/tileVisualRegistry';
 import { groupTileSurfaceEntries } from './TileSurfaceBatch';
 
 describe('tile surface material batching', () => {
-  it('creates one batch per district material key and keeps specials separate', () => {
-    const entries = [
-      ...DISTRICT_SURFACE_KEYS.map((surfaceKey, tileId) => ({
+  it('assigns every canonical tile once across eight district batches and one special batch', () => {
+    const entries = tileState.map((tile, tileId) => {
+      const layout = getBoardTileLayout(tileId);
+      if (!layout) throw new Error(`Missing canonical board layout for tile ${tileId}`);
+      return {
         tileId,
-        surfaceKey,
-        surfaceSize: [1.2, 2.2] as const,
-      })),
-      { tileId: 30, surfaceSize: [2.3, 2.3] as const },
-      { tileId: 36, surfaceSize: [1.2, 2.2] as const },
-    ];
+        surfaceKey: getDistrictSurfaceDescriptor(tile)?.surfaceKey,
+        surfaceSize: [
+          Math.max(0.3, layout.size[0] - TILE_SURFACE_INSET),
+          Math.max(0.3, layout.size[1] - TILE_SURFACE_INSET),
+        ] as const,
+      };
+    });
     const groups = groupTileSurfaceEntries(entries);
+    const assignedTileIds = groups.flatMap(group => group.entries.map(entry => entry.tileId));
 
     expect(groups.map(group => group.key)).toEqual([...DISTRICT_SURFACE_KEYS, 'special']);
     expect(groups.filter(group => group.key !== 'special')).toHaveLength(8);
-    expect(groups.find(group => group.key === 'special')?.entries.map(entry => entry.tileId))
-      .toEqual([30, 36]);
+    expect(groups).toHaveLength(9);
+    expect(assignedTileIds).toHaveLength(40);
+    expect(new Set(assignedTileIds).size).toBe(40);
+    expect([...assignedTileIds].sort((left, right) => left - right))
+      .toEqual(Array.from({ length: 40 }, (_, tileId) => tileId));
   });
 });

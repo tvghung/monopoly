@@ -29,17 +29,6 @@ interface BoardSceneContentsProps extends GameSceneProps {
   model?: BoardRenderModel;
 }
 
-function FixedRendererSettings() {
-  const gl = useThree(state => state.gl);
-  const invalidate = useThree(state => state.invalidate);
-  useEffect(() => {
-    gl.toneMapping = THREE.ACESFilmicToneMapping;
-    gl.toneMappingExposure = 1;
-    invalidate();
-  }, [gl, invalidate]);
-  return null;
-}
-
 function RendererDiagnostics({
   activityKey,
   hoveredTileId,
@@ -143,9 +132,10 @@ export default function GameScene({
           antialias: true,
           alpha: false,
           powerPreference: 'high-performance',
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1,
         }}
       >
-        <FixedRendererSettings />
         <color attach="background" args={[boardVisualTokens.sceneBackground]} />
         <hemisphereLight args={['#fff8e2', '#9fd6c4', 1.8]} />
         <directionalLight

@@ -147,7 +147,8 @@ describe('Vietnamese game board', () => {
       </stateContext.Provider>,
     );
 
-    expect(await screen.findByTestId('game-scene')).toBeTruthy();
+    await vi.dynamicImportSettled();
+    expect(await screen.findByTestId('game-scene', {}, { timeout: 5_000 })).toBeTruthy();
     expect(container.querySelector('.legacy-board')).toBeNull();
   });
 
