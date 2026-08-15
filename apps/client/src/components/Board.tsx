@@ -1,84 +1,73 @@
 import {
+  lazy,
+  Suspense,
   useCallback,
   useContext,
-  useEffect,
-  useRef,
+  useMemo,
   useState,
 } from 'react';
-import { tileState } from '@monopoly/shared';
-import { LayoutGroup } from 'framer-motion';
-import './style/Board.css';
 import stateContext from '../internal';
 import displayPositionsContext from '../displayPositionsContext';
-import Tile from './Tile';
+import tradePromptContext from '../tradePromptContext';
+import { usePresentation } from '../game/presentation/PresentationProvider';
+import { buildBoardRenderModel } from '../game/scene/board/boardRenderModel';
+import SceneErrorBoundary from '../game/scene/fallback/SceneErrorBoundary';
+import { supportsWebGL } from '../game/scene/fallback/webglSupport';
+import PropertyInspectionModal from '../game/ui/property/PropertyInspectionModal';
+import BoardAccessibilityControls from './BoardAccessibilityControls';
+import LegacyBoardView from './legacy-board/LegacyBoardView';
 import Dice from './Dice';
 import Log from './Log';
 import Dashboard from './Dashboard';
-import tradePromptContext from '../tradePromptContext';
-import { usePresentation } from '../game/presentation/PresentationProvider';
+import './style/BoardShell.css';
 
-const getTilePosition = (index: number): string => {
-  if (index === 0) return 'tile__start';
-  if (index <= 10) return 'tile__horizontal--bottom';
-  if (index <= 19) return 'tile__vertical--left';
-  if (index <= 30) return 'tile__horizontal--top';
-  return 'tile__vertical--right';
-};
+const GameScene = lazy(() => import('../game/scene/GameScene'));
 
-function Board() {
-  const { canMutate, connected } = useContext(stateContext);
+type RendererMode = 'webgl' | 'legacy';
+
+export default function Board() {
+  const { state, connected, canMutate } = useContext(stateContext);
   const { state: presentationState } = usePresentation();
-  const [openTileId, setOpenTileId] = useState<number | null>(null);
-  const lastOpenTileId = useRef<number | null>(null);
-
-  // Presentation state intentionally lags authoritative positions while the
-  // queue runs a safe, cancellable movement sequence.
-  const displayPositions = presentationState.displayPositions;
-
+  const [rendererMode, setRendererMode] = useState<RendererMode>(
+    () => supportsWebGL() ? 'webgl' : 'legacy',
+  );
+  const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
+  const [hoveredTileId, setHoveredTileId] = useState<number | null>(null);
   const [tradeTarget, setTradeTarget] = useState<number | null>(null);
+  const displayPositions = presentationState.displayPositions;
+  const renderModel = useMemo(
+    () => buildBoardRenderModel(state, presentationState),
+    [presentationState, state],
+  );
 
-  const openCard = useCallback((tileId: number) => {
-    lastOpenTileId.current = tileId;
-    setOpenTileId(tileId);
+  const selectTile = useCallback((tileId: number) => {
+    setSelectedTileId(tileId);
   }, []);
-
-  const closeCard = useCallback(() => {
-    const tileId = lastOpenTileId.current;
-    setOpenTileId(null);
-    if (tileId === null) return;
-    window.requestAnimationFrame(() => {
-      document.querySelector<HTMLElement>(`[data-tile-index="${tileId}"]`)?.focus();
-    });
-  }, []);
-
-  // Close the property card with Escape or a click outside the board tile/card.
-  useEffect(() => {
-    if (openTileId === null) return undefined;
-
-    const onDocumentClick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target?.closest('.Tile, .tile-back--container')) return;
-      closeCard();
-    };
-    const onDocumentKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeCard();
-    };
-
-    document.addEventListener('click', onDocumentClick);
-    document.addEventListener('keydown', onDocumentKeyDown);
-    return () => {
-      document.removeEventListener('click', onDocumentClick);
-      document.removeEventListener('keydown', onDocumentKeyDown);
-    };
-  }, [closeCard, openTileId]);
-
-  const openTradeForProperty = useCallback((tileID: number) => {
-    if (canMutate) setTradeTarget(tileID);
+  const openTradeForProperty = useCallback((tileId: number) => {
+    if (canMutate) setTradeTarget(tileId);
   }, [canMutate]);
-
   const closeTrade = useCallback(() => {
     setTradeTarget(null);
   }, []);
+  const closeInspection = useCallback(() => {
+    const tileId = selectedTileId;
+    setSelectedTileId(null);
+    if (tileId === null || typeof window === 'undefined') return;
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(`[data-tile-index="${tileId}"]`)?.focus();
+    });
+  }, [selectedTileId]);
+  const switchToLegacy = useCallback((error?: Error) => {
+    if (error) {
+      console.error('Switching to the legacy board fallback after a renderer error.', error);
+    }
+    setRendererMode('legacy');
+    setHoveredTileId(null);
+  }, []);
+
+  const legacyBoard = (
+    <LegacyBoardView selectedTileId={selectedTileId} onTileSelect={selectTile} />
+  );
 
   return (
     <tradePromptContext.Provider value={{
@@ -89,38 +78,58 @@ function Board() {
     >
       <displayPositionsContext.Provider value={displayPositions}>
         <section
-          className="Board"
+          className="game-board"
           aria-label="Bàn cờ Own the Block — Cờ Tỷ Phú Việt Nam"
           aria-busy={!connected}
           data-testid="game-board"
           inert={!connected}
         >
-          <aside className="orientation-notice" role="status">
+          <aside className="game-board__orientation-notice" role="status">
             <strong>Hãy xoay ngang thiết bị</strong>
             <span>Bàn cờ hiển thị tốt nhất ở chế độ ngang.</span>
           </aside>
-          <LayoutGroup>
-            {tileState.map((tile, index) => (
-              <Tile
-                key={index}
-                tile={tile}
-                id={index}
-                position={getTilePosition(index)}
-                isOpen={openTileId === index}
-                onOpen={() => openCard(index)}
-                onClose={closeCard}
-              />
-            ))}
-          </LayoutGroup>
-          <section className="center" aria-label="Khu vực điều khiển ván chơi">
-            <Dice />
-            <Log />
-            <Dashboard />
+
+          <section className="game-board__renderer" aria-label="Khu vực bàn cờ trực quan">
+            {rendererMode === 'webgl'
+              ? (
+                <SceneErrorBoundary fallback={legacyBoard} onError={switchToLegacy}>
+                  <Suspense fallback={<div className="game-board__scene-loading" role="status">Đang dựng bàn cờ…</div>}>
+                    <GameScene
+                      model={renderModel}
+                      hoveredTileId={hoveredTileId}
+                      selectedTileId={selectedTileId}
+                      onTileHover={setHoveredTileId}
+                      onTileSelect={selectTile}
+                    />
+                  </Suspense>
+                </SceneErrorBoundary>
+              )
+              : <div className="game-board__renderer game-board__renderer--legacy">{legacyBoard}</div>}
           </section>
+
+          {rendererMode === 'webgl'
+            ? (
+              <BoardAccessibilityControls
+                selectedTileId={selectedTileId}
+                onHover={setHoveredTileId}
+                onSelect={selectTile}
+              />
+            )
+            : null}
+
+          <section className="game-board__ui" aria-label="Điều khiển ván chơi">
+            <section className="game-board__center-ui">
+              <section className="center">
+                <Dice />
+                <Log />
+                <Dashboard />
+              </section>
+            </section>
+          </section>
+
+          <PropertyInspectionModal tileId={selectedTileId} onClose={closeInspection} />
         </section>
       </displayPositionsContext.Provider>
     </tradePromptContext.Provider>
   );
 }
-
-export default Board;

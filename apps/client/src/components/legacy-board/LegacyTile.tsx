@@ -1,23 +1,19 @@
 import { useContext, type CSSProperties } from 'react';
 import type { Tile as TileData } from '@monopoly/shared';
 import { motion, useReducedMotion } from 'framer-motion';
-import './style/Board.css';
-import stateContext from '../internal';
-import displayPositionsContext from '../displayPositionsContext';
-import { formatMoney, getTileName } from '../presentation';
-import BackOfCard from './BackOfCard';
+import stateContext from '../../internal';
+import displayPositionsContext from '../../displayPositionsContext';
+import { formatMoney, getTileName } from '../../presentation';
+import { getTileAccessibilityLabel } from './tileAccessibility';
 
-interface TileProps {
+interface LegacyTileProps {
   tile: TileData;
   id: number;
   position: string;
-  isOpen: boolean;
-  onOpen: () => void;
-  onClose: () => void;
+  selected: boolean;
+  onSelect: () => void;
 }
 
-// Renders the tokens of every player currently standing on this tile. Each token
-// carries a stable layoutId, so movement can animate between adjacent tiles.
 function PlayerTokens({ tileId }: { tileId: number }) {
   const { state } = useContext(stateContext);
   const displayPositions = useContext(displayPositionsContext);
@@ -25,8 +21,7 @@ function PlayerTokens({ tileId }: { tileId: number }) {
   return (
     <div className="player__token--wrapper" aria-hidden="true">
       {Object.keys(state.players)
-        .filter(playerKey => (displayPositions[playerKey] ?? state.players[playerKey].currentTile)
-          === tileId)
+        .filter(playerKey => (displayPositions[playerKey] ?? state.players[playerKey].currentTile) === tileId)
         .map(playerKey => (
           <motion.div
             key={playerKey}
@@ -46,54 +41,33 @@ function PlayerTokens({ tileId }: { tileId: number }) {
   );
 }
 
-function Tile({
-  tile, id, position, isOpen, onOpen, onClose,
-}: TileProps) {
+export default function LegacyTile({
+  tile, id, position, selected, onSelect,
+}: LegacyTileProps) {
   const { state } = useContext(stateContext);
-  const owned = state.loaded ? state.boardState.ownedProps[id] : undefined;
-  const ownerName = owned
-    ? state.players[owned.id]?.name
-      ?? state.boardState.finishedPlayers[owned.id]?.name
-      ?? 'người chơi khác'
-    : null;
-  const playersHere = Object.values(state.players)
-    .filter(player => player.currentTile === id)
-    .map(player => player.name);
+  const owned = state.boardState.ownedProps[id];
+  const ownerColor = owned
+    ? state.players[owned.id]?.color
+      ?? state.boardState.finishedPlayers[owned.id]?.color
+      ?? owned.color
+    : undefined;
   const name = getTileName(id);
   const buildingLabel = owned && owned.houses > 0
     ? owned.houses === 5 ? '1 Khách Sạn' : `${owned.houses} Nhà`
     : null;
-  const accessibleLabel = [
-    `Ô ${id}: ${name}`,
-    typeof tile.price === 'number' ? `Giá ${formatMoney(tile.price)}` : null,
-    ownerName ? `Chủ sở hữu: ${ownerName}` : null,
-    buildingLabel ? `Có ${buildingLabel}` : null,
-    playersHere.length > 0 ? `Người chơi đang đứng: ${playersHere.join(', ')}` : null,
-    'Mở chi tiết ô cờ',
-  ].filter(Boolean).join('. ');
-
-  if (isOpen) {
-    return <BackOfCard id={id} tile={tile} onClose={onClose} position={position} />;
-  }
 
   return (
     <button
       type="button"
-      onClick={onOpen}
+      onClick={onSelect}
       className={`Tile tile${id} ${position}`}
       id={String(id)}
       data-tile-index={id}
-      aria-label={accessibleLabel}
-      aria-expanded="false"
+      aria-label={getTileAccessibilityLabel(id, state)}
+      aria-expanded={selected}
     >
       {owned
-        ? (
-          <span
-            className="tile__owner-frame"
-            title={`Tài sản của ${ownerName}`}
-            style={{ '--owner-color': owned.color } as CSSProperties}
-          />
-        )
+        ? <span className="tile__owner-frame" title={`Tài sản của ${ownerColor ?? 'người chơi khác'}`} style={{ '--owner-color': ownerColor } as CSSProperties} />
         : null}
       {buildingLabel
         ? (
@@ -131,5 +105,3 @@ function Tile({
     </button>
   );
 }
-
-export default Tile;

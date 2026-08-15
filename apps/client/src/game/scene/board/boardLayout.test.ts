@@ -23,13 +23,13 @@ describe('canonical 2.5D board layout', () => {
     expect(boardLayout.filter(layout => layout.side === 'CORNER').map(layout => layout.tileId))
       .toEqual([0, 10, 20, 30]);
     expect(boardLayout.filter(layout => layout.side === 'BOTTOM').map(layout => layout.tileId))
-      .toEqual([...Array(9)].map((_, index) => index + 1));
+      .toEqual(Array.from({ length: 9 }, (_, index) => index + 1));
     expect(boardLayout.filter(layout => layout.side === 'LEFT').map(layout => layout.tileId))
-      .toEqual([...Array(9)].map((_, index) => index + 11));
+      .toEqual(Array.from({ length: 9 }, (_, index) => index + 11));
     expect(boardLayout.filter(layout => layout.side === 'TOP').map(layout => layout.tileId))
-      .toEqual([...Array(9)].map((_, index) => index + 21));
+      .toEqual(Array.from({ length: 9 }, (_, index) => index + 21));
     expect(boardLayout.filter(layout => layout.side === 'RIGHT').map(layout => layout.tileId))
-      .toEqual([...Array(9)].map((_, index) => index + 31));
+      .toEqual(Array.from({ length: 9 }, (_, index) => index + 31));
 
     const bottom = boardLayout.filter(layout => layout.side === 'BOTTOM');
     const left = boardLayout.filter(layout => layout.side === 'LEFT');

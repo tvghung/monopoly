@@ -23,8 +23,8 @@ describe('fixed board camera math', () => {
   it('returns a position on the fixed direction vector', () => {
     const position = getCameraPosition(1.5);
     const distance = calculateCameraDistance(1.5);
-    expect(position.map(component => component / distance)).toEqual(
-      CAMERA_DIRECTION.map(component => expect.closeTo(component, 10)),
-    );
+    position.forEach((component, index) => {
+      expect(component / distance).toBeCloseTo(CAMERA_DIRECTION[index], 10);
+    });
   });
 });
