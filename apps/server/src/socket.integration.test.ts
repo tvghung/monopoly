@@ -1745,7 +1745,7 @@ describe.runIf(Boolean(testDatabaseUrl))(
             }],
             activeClaimIndex: 0,
             continuation: {
-              playerId: host.playerId,
+              playerId: room.gameSnapshot.gameState.boardState.currentPlayer.id,
               turnNumber: room.gameSnapshot.gameState.boardState.turnNumber,
             },
             actionDeadlineAt: new Date(Date.now() + 60_000).toISOString(),
@@ -1754,6 +1754,7 @@ describe.runIf(Boolean(testDatabaseUrl))(
         });
         const beforeRestart = await firstPersistence.rooms.findById(host.room.roomId);
         if (!beforeRestart) throw new Error('PostgreSQL room was not persisted');
+        assertSupportedRoomSnapshot(beforeRestart);
 
         await firstServer.close();
         await firstPersistence.close();
