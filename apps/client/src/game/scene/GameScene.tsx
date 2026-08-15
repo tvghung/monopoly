@@ -1,5 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import Board3D from './board/Board3D';
+import type { BoardRenderModel } from './board/boardRenderModel';
 import { boardVisualTokens } from './board/boardVisualTokens';
 import {
   DEFAULT_CAMERA_FOV,
@@ -8,7 +9,21 @@ import {
 import FixedBoardCamera from './camera/FixedBoardCamera';
 import './GameScene.css';
 
-export default function GameScene() {
+export interface GameSceneProps {
+  model?: BoardRenderModel;
+  hoveredTileId?: number | null;
+  selectedTileId?: number | null;
+  onTileHover?: (tileId: number | null) => void;
+  onTileSelect?: (tileId: number) => void;
+}
+
+export default function GameScene({
+  model,
+  hoveredTileId,
+  selectedTileId,
+  onTileHover,
+  onTileSelect,
+}: GameSceneProps) {
   return (
     <div className="game-scene" data-testid="game-scene">
       <Canvas
@@ -45,7 +60,13 @@ export default function GameScene() {
           shadow-bias={-0.0005}
         />
         <FixedBoardCamera />
-        <Board3D />
+        <Board3D
+          model={model}
+          hoveredTileId={hoveredTileId}
+          selectedTileId={selectedTileId}
+          onTileHover={onTileHover}
+          onTileSelect={onTileSelect}
+        />
       </Canvas>
     </div>
   );

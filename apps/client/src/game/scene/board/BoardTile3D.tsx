@@ -11,6 +11,9 @@ import {
 } from './tileTexture';
 import JailVisual from '../special/JailVisual';
 import CardDeckVisual from '../special/CardDeckVisual';
+import BuildingLayer from '../buildings/BuildingLayer';
+import OwnershipMarker from './OwnershipMarker';
+import SelectionMarker from './SelectionMarker';
 
 export interface BoardTile3DProps {
   tileId: number;
@@ -32,6 +35,8 @@ export default function BoardTile3D({
   tile,
   hovered = false,
   selected = false,
+  ownerColor,
+  houses = 0,
   onHover,
   onSelect,
 }: BoardTile3DProps) {
@@ -103,6 +108,11 @@ export default function BoardTile3D({
       {tile.tileType === 'chance' || tile.tileType === 'chest'
         ? <CardDeckVisual size={layout.size} kind={tile.tileType} />
         : null}
+      {ownerColor
+        ? <OwnershipMarker color={ownerColor} size={layout.size} rotation={layout.rotation} />
+        : null}
+      {selected ? <SelectionMarker size={layout.size} rotation={layout.rotation} /> : null}
+      {houses > 0 ? <BuildingLayer tileId={tileId} houses={houses} /> : null}
     </group>
   );
 }
