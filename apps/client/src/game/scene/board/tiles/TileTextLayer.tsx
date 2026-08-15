@@ -4,7 +4,7 @@ import { TILE_SURFACE_INSET } from '../boardLayout';
 import {
   PROPERTY_NAME_Y,
 } from '../architecture/boardArtSpec';
-import { getTileVisualDescriptor } from '../architecture/tileVisualRegistry';
+import { getSpecialTileLabel } from '../architecture/tileVisualRegistry';
 import SdfSurfaceText, { limitSurfaceTextLines } from './SdfSurfaceText';
 
 interface TileTextLayerProps {
@@ -14,13 +14,12 @@ interface TileTextLayerProps {
 }
 
 export default function TileTextLayer({ tile, name, size }: TileTextLayerProps) {
-  const descriptor = getTileVisualDescriptor(tile);
   const surfaceWidth = Math.max(0.3, size[0] - TILE_SURFACE_INSET);
   const cornerScale = Math.min(size[0], size[1]) > 2 ? 1.2 : 1;
   const maxWordsPerLine = Math.max(2, Math.floor(surfaceWidth / 0.34));
   const labelValue = tile.tileType === 'normal'
     ? limitSurfaceTextLines(name, typeof tile.price === 'number' ? 2 : 3, maxWordsPerLine)
-    : limitSurfaceTextLines(`${descriptor.label}\n${name}`, typeof tile.price === 'number' ? 2 : 3, maxWordsPerLine);
+    : limitSurfaceTextLines(`${getSpecialTileLabel(tile.tileType)}\n${name}`, typeof tile.price === 'number' ? 2 : 3, maxWordsPerLine);
   const textValue = typeof tile.price === 'number'
     ? `${labelValue}\n${formatMoney(tile.price)}`
     : labelValue;

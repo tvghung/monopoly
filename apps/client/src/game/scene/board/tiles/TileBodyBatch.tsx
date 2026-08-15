@@ -9,7 +9,6 @@ import {
   TILE_SOCKET_GAP,
 } from '../architecture/boardArtSpec';
 import { getBoardTileLayout } from '../boardLayout';
-import { getTileVisualDescriptor } from '../architecture/tileVisualRegistry';
 import type { BoardTileRenderModel } from '../boardRenderModel';
 import { boardVisualTokens } from '../boardVisualTokens';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
@@ -47,7 +46,7 @@ export default function TileBodyBatch({
   onHover,
   onSelect,
 }: TileBodyBatchProps) {
-  const entries = useMemo(() => tiles.map(tile => {
+  const entries = useMemo(() => tiles.map<BodyEntry | null>(tile => {
     const layout = getBoardTileLayout(tile.tileId);
     const sourceTile = tileState[tile.tileId];
     if (!layout || !sourceTile) return null;
@@ -55,8 +54,8 @@ export default function TileBodyBatch({
       tileId: tile.tileId,
       size: layout.size,
       baseColor: sourceTile.tileType === 'normal'
-        ? getTileVisualDescriptor(sourceTile).primaryColor
-        : boardVisualTokens.tileBodyLower,
+        ? boardVisualTokens.tileChassis
+        : boardVisualTokens.tileChassisSpecial,
     } satisfies BodyEntry;
   }).filter((entry): entry is BodyEntry => entry !== null), [tiles]);
   const geometry = useMemo(
@@ -69,9 +68,9 @@ export default function TileBodyBatch({
     const byColor = new Map<string, BodyEntry[]>();
     entries.forEach(entry => {
       const color = entry.tileId === selectedTileId
-        ? boardVisualTokens.selection
+        ? boardVisualTokens.tileChassisSelected
         : entry.tileId === hoveredTileId
-          ? boardVisualTokens.hover
+          ? boardVisualTokens.tileChassisHover
           : entry.baseColor;
       const group = byColor.get(color) ?? [];
       group.push(entry);

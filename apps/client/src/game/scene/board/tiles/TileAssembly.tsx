@@ -1,7 +1,7 @@
 import type { Tile } from '@monopoly/shared';
 import { getBoardTileLayout } from '../boardLayout';
-import { getTileVisualDescriptor } from '../architecture/tileVisualRegistry';
 import { TILE_ASSEMBLY_LAYER_ORDER, TILE_TRANSFORM_CONTRACT } from '../architecture/tileAssemblyContracts';
+import { boardVisualTokens } from '../boardVisualTokens';
 import { TileSocketAnchor } from '../foundation/TileSocket';
 import TileFxAnchor from './TileFxAnchor';
 import TileBodyLayer from './TileBodyLayer';
@@ -36,7 +36,6 @@ export default function TileAssembly({
 }: TileAssemblyProps) {
   const layout = getBoardTileLayout(tileId);
   if (!layout) return null;
-  const descriptor = getTileVisualDescriptor(tile);
   return (
     <group
       name={`TileAnchor:${tileId}`}
@@ -55,7 +54,9 @@ export default function TileAssembly({
         <TileBodyLayer
           tileId={tileId}
           size={layout.size}
-          color={descriptor.primaryColor}
+          color={tile.tileType === 'normal'
+            ? boardVisualTokens.tileChassis
+            : boardVisualTokens.tileChassisSpecial}
           selected={selected}
           hovered={hovered}
         />

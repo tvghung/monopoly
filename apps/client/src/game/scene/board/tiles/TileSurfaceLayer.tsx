@@ -1,5 +1,5 @@
 import type { Tile } from '@monopoly/shared';
-import { getTileVisualDescriptor } from '../architecture/tileVisualRegistry';
+import { getDistrictSurfaceDescriptor } from '../architecture/tileVisualRegistry';
 
 interface TileSurfaceLayerProps {
   tile: Tile;
@@ -10,14 +10,13 @@ export default function TileSurfaceLayer({
   tile,
   size,
 }: TileSurfaceLayerProps) {
-  const descriptor = getTileVisualDescriptor(tile);
+  const descriptor = getDistrictSurfaceDescriptor(tile);
   return (
     <group
       name="TileSurfaceLayer"
       userData={{
-        motif: descriptor.motif,
-        emblem: descriptor.emblem,
-        family: descriptor.family,
+        districtSurfaceKey: descriptor?.surfaceKey ?? null,
+        districtAccent: descriptor?.accentColor ?? null,
         batch: 'TileSurfaceBatch',
         sourceSize: size,
       }}

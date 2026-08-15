@@ -1,11 +1,26 @@
 import type { Tile, TileType } from '@monopoly/shared';
-import {
-  getPropertyGroupVisualStyle,
-  type PropertyMotif,
-} from '../../../ui/propertyVisualColors';
 
-export type TileVisualFamily = 'PROPERTY' | 'SPECIAL' | 'RAILROAD' | 'UTILITY';
-export type TileVisualEmblem =
+export type DistrictSurfaceKey =
+  | 'oldTownStone'
+  | 'harborCeramic'
+  | 'coolGranite'
+  | 'terracottaBrick'
+  | 'metroConcrete'
+  | 'sandstoneTerrazzo'
+  | 'ecoSlate'
+  | 'premiumBrownStone';
+
+export type DistrictSurfacePattern =
+  | 'cobble'
+  | 'ceramic'
+  | 'granite'
+  | 'brick'
+  | 'concrete'
+  | 'terrazzo'
+  | 'slate'
+  | 'slab';
+
+export type DistrictSurfaceEmblem =
   | 'heritage'
   | 'harbor'
   | 'boutique'
@@ -13,133 +28,94 @@ export type TileVisualEmblem =
   | 'skyline'
   | 'marquee'
   | 'leaf'
-  | 'landmark'
-  | 'station'
-  | 'water'
-  | 'power'
-  | 'start'
-  | 'jail'
-  | 'gojail'
-  | 'chance'
-  | 'chest'
-  | 'expense'
-  | 'parking';
+  | 'landmark';
 
-export interface TileVisualDescriptor {
-  family: TileVisualFamily;
-  primaryColor: string;
+export interface DistrictSurfaceDescriptor {
+  surfaceKey: DistrictSurfaceKey;
+  pattern: DistrictSurfacePattern;
+  emblem: DistrictSurfaceEmblem;
+  baseColor: string;
   secondaryColor: string;
-  surfaceTint: string;
-  trimColor: string;
-  motif: PropertyMotif;
-  emblem: TileVisualEmblem;
-  materialProfile: 'tileTop' | 'propertyTrim';
-  label: string;
+  groutColor: string;
+  accentColor: string;
+  roughness: number;
+  bumpScale: number;
+  patternScale: number;
 }
 
-const PROPERTY_DESCRIPTORS: Record<string, TileVisualDescriptor> = {
+const PROPERTY_DESCRIPTORS: Record<string, DistrictSurfaceDescriptor> = {
   brown: {
-    family: 'PROPERTY', primaryColor: '#a85532', secondaryColor: '#7d3827', surfaceTint: '#fff0e7',
-    trimColor: '#f2c8a9', motif: 'brick', emblem: 'heritage', materialProfile: 'tileTop', label: 'KHU PHỐ CŨ',
+    surfaceKey: 'oldTownStone', pattern: 'cobble', emblem: 'heritage',
+    baseColor: '#b9a181', secondaryColor: '#d6c2a1', groutColor: '#74614e',
+    accentColor: '#6f3b2b', roughness: 0.82, bumpScale: 0.09, patternScale: 6,
   },
   lightblue: {
-    family: 'PROPERTY', primaryColor: '#19b9d3', secondaryColor: '#087e9a', surfaceTint: '#e5fbff',
-    trimColor: '#a4e7f0', motif: 'water', emblem: 'harbor', materialProfile: 'tileTop', label: 'BẾN CẢNG',
+    surfaceKey: 'harborCeramic', pattern: 'ceramic', emblem: 'harbor',
+    baseColor: '#b8d8d8', secondaryColor: '#dbe9e5', groutColor: '#789da1',
+    accentColor: '#13a9c4', roughness: 0.64, bumpScale: 0.045, patternScale: 5,
   },
   pink: {
-    family: 'PROPERTY', primaryColor: '#e34bb1', secondaryColor: '#ad2e81', surfaceTint: '#ffe4f5',
-    trimColor: '#f3a1d4', motif: 'shopping', emblem: 'boutique', materialProfile: 'tileTop', label: 'PHỐ VUI CHƠI',
+    surfaceKey: 'coolGranite', pattern: 'granite', emblem: 'boutique',
+    baseColor: '#9da5aa', secondaryColor: '#c1c6c8', groutColor: '#626b70',
+    accentColor: '#cc3d95', roughness: 0.72, bumpScale: 0.06, patternScale: 8,
   },
   orange: {
-    family: 'PROPERTY', primaryColor: '#f47723', secondaryColor: '#b84d16', surfaceTint: '#fff0df',
-    trimColor: '#ffc07c', motif: 'market', emblem: 'market', materialProfile: 'tileTop', label: 'KHU ẨM THỰC',
+    surfaceKey: 'terracottaBrick', pattern: 'brick', emblem: 'market',
+    baseColor: '#a8573c', secondaryColor: '#7d3f32', groutColor: '#d3aa86',
+    accentColor: '#f06b21', roughness: 0.84, bumpScale: 0.11, patternScale: 7,
   },
   red: {
-    family: 'PROPERTY', primaryColor: '#e24451', secondaryColor: '#a62d38', surfaceTint: '#ffe4e6',
-    trimColor: '#f09aa1', motif: 'downtown', emblem: 'skyline', materialProfile: 'tileTop', label: 'TRUNG TÂM',
+    surfaceKey: 'metroConcrete', pattern: 'concrete', emblem: 'skyline',
+    baseColor: '#5d6265', secondaryColor: '#828789', groutColor: '#363a3c',
+    accentColor: '#cf3345', roughness: 0.79, bumpScale: 0.07, patternScale: 6,
   },
   yellow: {
-    family: 'PROPERTY', primaryColor: '#f2bd19', secondaryColor: '#b47e0d', surfaceTint: '#fff7cc',
-    trimColor: '#f8df73', motif: 'nightlife', emblem: 'marquee', materialProfile: 'tileTop', label: 'ĐIỂM SÁNG',
+    surfaceKey: 'sandstoneTerrazzo', pattern: 'terrazzo', emblem: 'marquee',
+    baseColor: '#d6c79d', secondaryColor: '#eee3be', groutColor: '#aa9668',
+    accentColor: '#d6a417', roughness: 0.7, bumpScale: 0.055, patternScale: 8,
   },
   green: {
-    family: 'PROPERTY', primaryColor: '#24a662', secondaryColor: '#14734a', surfaceTint: '#e4f8ea',
-    trimColor: '#8ed5a8', motif: 'eco', emblem: 'leaf', materialProfile: 'tileTop', label: 'ĐẠI LỘ XANH',
+    surfaceKey: 'ecoSlate', pattern: 'slate', emblem: 'leaf',
+    baseColor: '#66776e', secondaryColor: '#8b9b91', groutColor: '#3e4c45',
+    accentColor: '#15935c', roughness: 0.86, bumpScale: 0.085, patternScale: 6,
   },
   blue: {
-    family: 'PROPERTY', primaryColor: '#536ddd', secondaryColor: '#293f9d', surfaceTint: '#e9ecff',
-    trimColor: '#9ba9f0', motif: 'luxury', emblem: 'landmark', materialProfile: 'tileTop', label: 'BIỂU TƯỢNG',
+    surfaceKey: 'premiumBrownStone', pattern: 'slab', emblem: 'landmark',
+    baseColor: '#745f50', secondaryColor: '#a18a74', groutColor: '#40352e',
+    accentColor: '#3559c7', roughness: 0.6, bumpScale: 0.05, patternScale: 5,
   },
 };
 
-const SPECIAL_DESCRIPTORS: Record<TileType, TileVisualDescriptor> = {
-  start: {
-    family: 'SPECIAL', primaryColor: '#ffc425', secondaryColor: '#b87808', surfaceTint: '#fff7d6',
-    trimColor: '#f5d86b', motif: 'nightlife', emblem: 'start', materialProfile: 'tileTop', label: 'ĐIỂM KHỞI ĐẦU',
-  },
-  jail: {
-    family: 'SPECIAL', primaryColor: '#8171dc', secondaryColor: '#4f4499', surfaceTint: '#eeeafd',
-    trimColor: '#b7acf3', motif: 'downtown', emblem: 'jail', materialProfile: 'tileTop', label: 'NHÀ TÙ / THĂM TÙ',
-  },
-  gojail: {
-    family: 'SPECIAL', primaryColor: '#e9545e', secondaryColor: '#9e2d3c', surfaceTint: '#ffe7e7',
-    trimColor: '#f39da3', motif: 'downtown', emblem: 'gojail', materialProfile: 'tileTop', label: 'VÀO TÙ',
-  },
-  chance: {
-    family: 'SPECIAL', primaryColor: '#ff9b2f', secondaryColor: '#b65b11', surfaceTint: '#fff0da',
-    trimColor: '#ffd18d', motif: 'shopping', emblem: 'chance', materialProfile: 'tileTop', label: 'CƠ HỘI',
-  },
-  chest: {
-    family: 'SPECIAL', primaryColor: '#12b7a8', secondaryColor: '#08736c', surfaceTint: '#def8f3',
-    trimColor: '#8be0d5', motif: 'water', emblem: 'chest', materialProfile: 'tileTop', label: 'KHÍ VẬN',
-  },
-  railroad: {
-    family: 'RAILROAD', primaryColor: '#46637f', secondaryColor: '#283e57', surfaceTint: '#edf2f6',
-    trimColor: '#94abc0', motif: 'rail', emblem: 'station', materialProfile: 'tileTop', label: 'GA TÀU',
-  },
-  company: {
-    family: 'UTILITY', primaryColor: '#2a82d6', secondaryColor: '#175493', surfaceTint: '#e5f1ff',
-    trimColor: '#93c5f4', motif: 'water', emblem: 'power', materialProfile: 'tileTop', label: 'CÔNG TY',
-  },
-  expense: {
-    family: 'SPECIAL', primaryColor: '#e9545e', secondaryColor: '#9e2d3c', surfaceTint: '#ffe7e7',
-    trimColor: '#f39da3', motif: 'downtown', emblem: 'expense', materialProfile: 'tileTop', label: 'THUẾ / PHÍ',
-  },
-  parking: {
-    family: 'SPECIAL', primaryColor: '#36aa63', secondaryColor: '#14734a', surfaceTint: '#e5f6e6',
-    trimColor: '#93d5a8', motif: 'eco', emblem: 'parking', materialProfile: 'tileTop', label: 'BÃI ĐỖ XE',
-  },
-  normal: {
-    family: 'SPECIAL', primaryColor: '#75b8ad', secondaryColor: '#3d766e', surfaceTint: '#edf9f6',
-    trimColor: '#9fd7ca', motif: 'water', emblem: 'harbor', materialProfile: 'tileTop', label: 'Ô CỜ',
-  },
+const SPECIAL_TILE_LABELS: Partial<Record<TileType, string>> = {
+  start: 'ĐIỂM KHỞI ĐẦU',
+  jail: 'NHÀ TÙ / THĂM TÙ',
+  gojail: 'VÀO TÙ',
+  chance: 'CƠ HỘI',
+  chest: 'KHÍ VẬN',
+  railroad: 'GA TÀU',
+  company: 'CÔNG TY',
+  expense: 'THUẾ / PHÍ',
+  parking: 'BÃI ĐỖ XE',
 };
 
-const FALLBACK_DESCRIPTOR = SPECIAL_DESCRIPTORS.normal;
+const FALLBACK_DESCRIPTOR = PROPERTY_DESCRIPTORS.brown;
 
 export const CANONICAL_PROPERTY_GROUPS = Object.freeze(Object.keys(PROPERTY_DESCRIPTORS));
 
-export function getTileVisualDescriptor(tile: Tile): TileVisualDescriptor {
-  if (tile.color) {
-    const descriptor = PROPERTY_DESCRIPTORS[tile.color.toLowerCase()];
-    if (descriptor) return descriptor;
-    const fallback = getPropertyGroupVisualStyle(tile.color);
-    return {
-      ...FALLBACK_DESCRIPTOR,
-      family: 'PROPERTY',
-      primaryColor: fallback.color,
-      surfaceTint: fallback.tint,
-      motif: fallback.motif,
-    };
-  }
-  return SPECIAL_DESCRIPTORS[tile.tileType] ?? FALLBACK_DESCRIPTOR;
-}
-
-export function getTileVisualDescriptorByType(tileType: TileType): TileVisualDescriptor {
-  return SPECIAL_DESCRIPTORS[tileType] ?? FALLBACK_DESCRIPTOR;
-}
-
-export function getPropertyVisualDescriptor(rawColor: string | null | undefined): TileVisualDescriptor {
+export function getPropertyVisualDescriptor(
+  rawColor: string | null | undefined,
+): DistrictSurfaceDescriptor {
   if (!rawColor) return FALLBACK_DESCRIPTOR;
   return PROPERTY_DESCRIPTORS[rawColor.toLowerCase()] ?? FALLBACK_DESCRIPTOR;
+}
+
+export function getDistrictSurfaceDescriptor(
+  tile: Tile,
+): DistrictSurfaceDescriptor | undefined {
+  if (tile.tileType !== 'normal') return undefined;
+  return getPropertyVisualDescriptor(tile.color);
+}
+
+export function getSpecialTileLabel(tileType: TileType): string {
+  return SPECIAL_TILE_LABELS[tileType] ?? 'Ô CỜ';
 }
