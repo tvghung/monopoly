@@ -1,13 +1,16 @@
 .dice {
-  grid-area: 'dice';
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  position: absolute;
-  width: 50%;
-  height: 35%;
-  background: rgb(191, 234, 163);
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 13rem;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
   text-align: center;
 }
 
@@ -21,7 +24,7 @@
 }
 
 .dice__result {
-  font-size: 2vmin;
+  font-size: clamp(0.9rem, 1.2vw, 1.15rem);
 }
 
 .dice__button {
@@ -31,7 +34,7 @@
   border: 1px solid black;
   border-radius: 0.5vmin;
   padding: 0.5vmin 1vmin;
-  font-size: 1.5vmin;
+  font-size: clamp(0.85rem, 1vw, 1rem);
   min-height: 2.75rem;
 }
 
@@ -42,7 +45,7 @@
   border: 1px solid rgba(255, 0, 0, 0.50);
   border-radius: 0.5vmin;
   padding: 0.5vmin 1vmin;
-  font-size: 1.5vmin;
+  font-size: clamp(0.85rem, 1vw, 1rem);
   min-height: 2.75rem;
 }
 

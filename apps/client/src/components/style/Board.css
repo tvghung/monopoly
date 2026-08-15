@@ -299,20 +299,6 @@
   grid-area: 10 / 11 / 11 / 12;
 }
 
-.center {
-  grid-area: 2 / 2 / 11 / 11;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-areas:
-  "dice log"
-  "dashboard dashboard";
-  width: 92%;
-  position: relative;
-  margin: 5vmin;
-  padding: 2vw 3vw 2vw 4vw;
-  background:rgba(255, 255, 255, 0.50);
-}
-
 .tile__start {
   border-top: 1px solid black;
   border-left: 1px solid black;
@@ -520,12 +506,6 @@
 }
 
 @media (orientation: landscape) and (max-height: 31rem) {
-  .center {
-    width: 94%;
-    margin: 3vmin;
-    padding: 1.5vmin 2.5vmin;
-  }
-
   .tile__street-name,
   .tile__special-name,
   .tile__price,

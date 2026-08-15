@@ -89,7 +89,15 @@ export default function Board() {
             <span>Bàn cờ hiển thị tốt nhất ở chế độ ngang.</span>
           </aside>
 
-          <section className="game-board__renderer" aria-label="Khu vực bàn cờ trực quan">
+          <aside className="game-board__left-rail" aria-label="Xúc xắc và trạng thái người chơi">
+            <Dice />
+            <Dashboard />
+          </aside>
+
+          <section
+            className={`game-board__renderer${rendererMode === 'legacy' ? ' game-board__renderer--legacy' : ''}`}
+            aria-label="Khu vực bàn cờ trực quan"
+          >
             {rendererMode === 'webgl'
               ? (
                 <SceneErrorBoundary fallback={legacyBoard} onError={switchToLegacy}>
@@ -104,7 +112,7 @@ export default function Board() {
                   </Suspense>
                 </SceneErrorBoundary>
               )
-              : <div className="game-board__renderer game-board__renderer--legacy">{legacyBoard}</div>}
+              : legacyBoard}
           </section>
 
           {rendererMode === 'webgl'
@@ -117,15 +125,9 @@ export default function Board() {
             )
             : null}
 
-          <section className="game-board__ui" aria-label="Điều khiển ván chơi">
-            <section className="game-board__center-ui">
-              <section className="center">
-                <Dice />
-                <Log />
-                <Dashboard />
-              </section>
-            </section>
-          </section>
+          <aside className="game-board__right-rail" aria-label="Nhật ký và trò chuyện">
+            <Log />
+          </aside>
 
           <PropertyInspectionModal tileId={selectedTileId} onClose={closeInspection} />
         </section>

@@ -1,15 +1,30 @@
 .game-board {
   position: relative;
+  display: grid;
+  grid-template-columns:
+    clamp(15rem, 18vw, 18rem)
+    minmax(0, 1fr)
+    clamp(17rem, 20vw, 22rem);
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--space-3);
   width: 100%;
   height: 100%;
-  min-height: 42rem;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-3);
   overflow: hidden;
   background: var(--color-canvas-deep);
 }
 
 .game-board__renderer {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  grid-column: 2;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgb(38 76 67 / 24%);
+  border-radius: var(--radius-large);
+  box-shadow: var(--shadow-card);
   z-index: 0;
 }
 
@@ -25,65 +40,24 @@
   max-height: 100%;
 }
 
-.game-board__ui {
-  position: absolute;
+.game-board__left-rail,
+.game-board__right-rail {
+  position: relative;
   z-index: 10;
-  inset: 0;
-  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  gap: var(--space-3);
 }
 
-.game-board__center-ui {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: min(52vw, 54rem);
-  height: min(58vh, 38rem);
-  min-width: 32rem;
-  min-height: 24rem;
-  transform: translate(-50%, -50%);
-  pointer-events: auto;
+.game-board__left-rail {
+  grid-column: 1;
 }
 
-.game-board__center-ui .center {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1.25fr;
-  grid-template-areas: 'dice log' 'dashboard dashboard';
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 1rem;
-  border: 1px solid rgb(38 76 67 / 22%);
-  border-radius: 1.25rem;
-  background: rgb(255 250 241 / 76%);
-  box-shadow: 0 1rem 3rem rgb(19 50 43 / 22%);
-  backdrop-filter: blur(5px);
-}
-
-.game-board__center-ui .center__room,
-.game-board__center-ui .dice {
-  position: relative;
-  inset: auto;
-  width: 100%;
-  height: 100%;
-}
-
-.game-board__center-ui .center__room {
-  border-bottom: 1px dashed rgb(38 76 67 / 30%);
-}
-
-.game-board__center-ui .center__dashboard--container {
-  height: 100%;
-  padding: 0.75rem;
-}
-
-.game-board__center-ui .center__dashboard {
-  height: 100%;
-}
-
-.game-board__center-ui .center__dashboard__block {
-  overflow: auto;
+.game-board__right-rail {
+  grid-column: 3;
+  padding-top: 3.5rem;
 }
 
 .game-board__scene-loading {
@@ -135,21 +109,15 @@
 }
 
 @media (max-width: 900px) {
-  .game-board__center-ui {
-    width: min(76vw, 54rem);
-    height: min(62vh, 36rem);
+  .game-board {
+    grid-template-columns: 14rem minmax(0, 1fr) 16rem;
+    gap: var(--space-2);
+    padding: var(--space-2);
   }
 }
 
 @media (max-width: 620px), (max-height: 560px) {
-  .game-board {
-    min-height: 0;
-  }
-
-  .game-board__center-ui {
-    width: min(92vw, 38rem);
-    height: min(68vh, 30rem);
-    min-width: 0;
-    min-height: 18rem;
+  .game-board__right-rail {
+    padding-top: 3rem;
   }
 }
