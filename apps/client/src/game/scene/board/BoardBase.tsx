@@ -4,6 +4,7 @@ import {
   PLATFORM_HEIGHT,
 } from './boardLayout';
 import { boardVisualTokens } from './boardVisualTokens';
+import BoardCenterDecoration from './BoardCenterDecoration';
 
 const CENTER_SIZE = INNER_SIDE_BOUNDARY * 2;
 const RIM_HEIGHT = 0.12;
@@ -37,6 +38,7 @@ export default function BoardBase() {
         <boxGeometry args={[RIM_WIDTH, RIM_HEIGHT, CENTER_SIZE]} />
         <meshStandardMaterial color={boardVisualTokens.boardBaseEdge} roughness={0.8} />
       </mesh>
+      <BoardCenterDecoration />
     </group>
   );
 }

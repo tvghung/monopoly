@@ -1,7 +1,7 @@
 import { BOARD_BOUNDING_RADIUS } from '../board/boardLayout';
 
-export const DEFAULT_CAMERA_FOV = 34;
-export const DEFAULT_FRAMING_MARGIN = 1.12;
+export const DEFAULT_CAMERA_FOV = 40;
+export const DEFAULT_FRAMING_MARGIN = 1.05;
 export const CAMERA_DIRECTION: readonly [number, number, number] = (() => {
   const length = Math.hypot(1, 1.25, 1);
   return [1 / length, 1.25 / length, 1 / length];
