@@ -23,7 +23,7 @@ export const boardVisualTokens = {
   tileChassisHover: '#88918d',
   tileChassisSelected: '#8b8267',
   tileBorder: '#163a48',
-  tileText: '#142d38',
+  tileText: '#1c2527',
   selection: '#ffc425',
   hover: '#fff1a4',
   house: '#23aa6b',

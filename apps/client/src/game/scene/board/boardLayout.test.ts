@@ -10,8 +10,6 @@ import {
   OWNERSHIP_MARKER_CENTER_Y,
   OWNERSHIP_MARKER_HEIGHT,
   PLATFORM_HEIGHT,
-  PROPERTY_ACCENT_CENTER_Y,
-  PROPERTY_ACCENT_HEIGHT,
   SELECTION_EDGE_HEIGHT,
   SELECTION_MARKER_CENTER_Y,
   SURFACE_EPSILON,
@@ -75,8 +73,6 @@ describe('canonical 2.5D board layout', () => {
 
   it('keeps physical tile overlays at or above the canonical surface clearance', () => {
     const surface = TILE_SURFACE_CLEARANCE_Y;
-    expect(getGeometryBottomY(PROPERTY_ACCENT_CENTER_Y, PROPERTY_ACCENT_HEIGHT))
-      .toBeGreaterThanOrEqual(surface);
     expect(getGeometryBottomY(OWNERSHIP_MARKER_CENTER_Y, OWNERSHIP_MARKER_HEIGHT))
       .toBeGreaterThanOrEqual(surface);
     expect(getGeometryBottomY(SELECTION_MARKER_CENTER_Y, SELECTION_EDGE_HEIGHT))
