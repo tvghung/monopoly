@@ -4,6 +4,13 @@ export type BoardMaterialProfile =
   | 'boardTop'
   | 'tileBody'
   | 'tileTop'
+  | 'tileChassis'
+  | 'districtStone'
+  | 'districtBrick'
+  | 'districtConcrete'
+  | 'districtPremium'
+  | 'centerWell'
+  | 'parkGround'
   | 'propertyTrim'
   | 'houseWall'
   | 'houseRoof'
@@ -25,6 +32,13 @@ export const boardMaterialSpecs: Record<BoardMaterialProfile, BoardMaterialSpec>
   boardTop: { roughness: 0.7, metalness: 0 },
   tileBody: { roughness: 0.5, metalness: 0.01 },
   tileTop: { roughness: 0.58, metalness: 0 },
+  tileChassis: { roughness: 0.66, metalness: 0.015 },
+  districtStone: { roughness: 0.78, metalness: 0 },
+  districtBrick: { roughness: 0.88, metalness: 0 },
+  districtConcrete: { roughness: 0.83, metalness: 0 },
+  districtPremium: { roughness: 0.56, metalness: 0.025 },
+  centerWell: { roughness: 0.74, metalness: 0 },
+  parkGround: { roughness: 0.9, metalness: 0 },
   propertyTrim: { roughness: 0.3, metalness: 0.05 },
   houseWall: { roughness: 0.48, metalness: 0 },
   houseRoof: { roughness: 0.36, metalness: 0.02 },

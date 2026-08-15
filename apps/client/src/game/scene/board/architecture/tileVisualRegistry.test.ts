@@ -18,7 +18,7 @@ describe('tile visual registry', () => {
       expect(descriptor.surfaceKey).toBeTruthy();
       expect(descriptor.pattern).toBeTruthy();
       expect(descriptor.emblem).toBeTruthy();
-      expect(descriptor.roughness).toBeGreaterThan(0);
+      expect(descriptor.materialProfile).toMatch(/^district/);
       expect(descriptor.bumpScale).toBeGreaterThan(0);
       expect(descriptor.patternScale).toBeGreaterThan(0);
     });

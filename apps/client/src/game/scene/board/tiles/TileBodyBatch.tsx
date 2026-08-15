@@ -13,6 +13,7 @@ import type { BoardTileRenderModel } from '../boardRenderModel';
 import { boardVisualTokens } from '../boardVisualTokens';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { useTileMotionController, useTileMotionRevision } from '../motion/TileMotionProvider';
+import { getBoardMaterialProps } from '../materials/boardMaterialSpecs';
 
 interface TileBodyBatchProps {
   tiles: readonly BoardTileRenderModel[];
@@ -78,7 +79,7 @@ export default function TileBodyBatch({
     });
     const bodyCenterY = BOARD_FOUNDATION_HEIGHT + TILE_SOCKET_GAP + TILE_BODY_HEIGHT / 2;
     return [...byColor.entries()].map(([color, groupedEntries], batchIndex): BodyBatch => {
-      const material = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.01 });
+      const material = new THREE.MeshStandardMaterial(getBoardMaterialProps('tileChassis', color));
       const mesh = new THREE.InstancedMesh(geometry, material, groupedEntries.length);
       mesh.name = `TileBodies:${batchIndex}`;
       const dummy = new THREE.Object3D();

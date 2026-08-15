@@ -1,22 +1,17 @@
-import type { ThreeEvent } from '@react-three/fiber';
+import { useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { tileState } from '@monopoly/shared';
+import { TILE_SURFACE_INSET, getBoardTileLayout } from '../boardLayout';
+import { composeTileSurfaceMatrix } from '../architecture/tileMatrix';
 import {
-  TILE_SURFACE_INSET,
-  TILE_SURFACE_LOCAL_POSITION,
-  getBoardTileLayout,
-} from '../boardLayout';
-import {
-  composeTileLocalPlaneMatrix,
-  composeTileSurfaceMatrix,
-} from '../architecture/tileMatrix';
-import {
+  DISTRICT_SURFACE_KEYS,
   getDistrictSurfaceDescriptor,
   type DistrictSurfaceKey,
 } from '../architecture/tileVisualRegistry';
+import { getTileTextureAnisotropy } from '../architecture/sceneBudget';
 import type { BoardTileRenderModel } from '../boardRenderModel';
-import { boardVisualTokens } from '../boardVisualTokens';
+import { DistrictSurfaceMaterialLibrary } from '../materials/districtSurfaceMaterials';
 import { useTileMotionController, useTileMotionRevision } from '../motion/TileMotionProvider';
 
 interface TileSurfaceBatchProps {
@@ -27,25 +22,47 @@ interface TileSurfaceBatchProps {
   onSelect?: (tileId: number) => void;
 }
 
-interface BatchEntry {
+export interface TileSurfaceBatchEntry {
   tileId: number;
-  size: readonly [number, number];
   surfaceSize: readonly [number, number];
-  districtSurfaceKey?: DistrictSurfaceKey;
-  accentColor?: string;
+  surfaceKey?: DistrictSurfaceKey;
 }
 
-interface AccentBatch {
-  surfaceKey: DistrictSurfaceKey;
-  color: string;
-  entries: readonly BatchEntry[];
+export interface TileSurfaceBatchGroup {
+  key: DistrictSurfaceKey | 'special';
+  entries: readonly TileSurfaceBatchEntry[];
+}
+
+export function groupTileSurfaceEntries(
+  entries: readonly TileSurfaceBatchEntry[],
+): readonly TileSurfaceBatchGroup[] {
+  const districtGroups = DISTRICT_SURFACE_KEYS.map(key => ({
+    key,
+    entries: entries.filter(entry => entry.surfaceKey === key),
+  })).filter(group => group.entries.length > 0);
+  const specialEntries = entries.filter(entry => entry.surfaceKey === undefined);
+  return specialEntries.length > 0
+    ? [...districtGroups, { key: 'special' as const, entries: specialEntries }]
+    : districtGroups;
 }
 
 function stopPointerEvent(event: { stopPropagation: () => void }): void {
   event.stopPropagation();
 }
 
-function PropertyAccentInlayBatch({ batch }: { batch: AccentBatch }) {
+function SurfaceBatchMesh({
+  batch,
+  geometry,
+  material,
+  onHover,
+  onSelect,
+}: {
+  batch: TileSurfaceBatchGroup;
+  geometry: THREE.PlaneGeometry;
+  material: THREE.MeshStandardMaterial;
+  onHover?: (tileId: number | null) => void;
+  onSelect?: (tileId: number) => void;
+}) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const motionController = useTileMotionController();
   const motionRevision = useTileMotionRevision();
@@ -58,28 +75,35 @@ function PropertyAccentInlayBatch({ batch }: { batch: AccentBatch }) {
       const layout = getBoardTileLayout(entry.tileId);
       if (!layout) return;
       const motionOffsetY = motionController?.getTileOffsetY(entry.tileId) ?? 0;
-      const accentDepth = Math.min(0.075, entry.surfaceSize[1] * 0.05);
-      composeTileLocalPlaneMatrix(
-        layout,
-        [entry.surfaceSize[0] * 0.44, accentDepth],
-        [0, -entry.surfaceSize[1] / 2 + 0.14],
-        TILE_SURFACE_LOCAL_POSITION[1] + motionOffsetY + 0.003,
-        matrix,
-      );
+      composeTileSurfaceMatrix(layout, entry.surfaceSize, motionOffsetY, matrix);
       mesh.setMatrixAt(index, matrix);
     });
     mesh.instanceMatrix.needsUpdate = true;
   }, [batch, motionController, motionRevision]);
 
+  const handlePointer = (callback: ((tileId: number) => void) | undefined) => (
+    event: ThreeEvent<PointerEvent | MouseEvent>,
+  ) => {
+    stopPointerEvent(event);
+    const instanceId = event.instanceId;
+    if (instanceId === undefined) return;
+    const entry = batch.entries[instanceId];
+    if (entry) callback?.(entry.tileId);
+  };
+
   return (
     <instancedMesh
       ref={meshRef}
       args={[undefined, undefined, batch.entries.length]}
-      name={`PropertyAccentInlays:${batch.surfaceKey}`}
-      userData={{ districtSurfaceKey: batch.surfaceKey }}
+      name={`TileSurfaces:${batch.key}`}
+      userData={{ materialKey: batch.key, tileIds: batch.entries.map(entry => entry.tileId) }}
+      onPointerEnter={handlePointer(tileId => onHover?.(tileId))}
+      onPointerLeave={event => { stopPointerEvent(event); onHover?.(null); }}
+      onClick={handlePointer(tileId => onSelect?.(tileId))}
+      dispose={null}
     >
-      <planeGeometry args={[1, 1]} />
-      <meshStandardMaterial color={batch.color} roughness={0.52} metalness={0} />
+      <primitive object={geometry} attach="geometry" />
+      <primitive object={material} attach="material" />
     </instancedMesh>
   );
 }
@@ -89,84 +113,45 @@ export default function TileSurfaceBatch({
   onHover,
   onSelect,
 }: TileSurfaceBatchProps) {
-  const surfaceRef = useRef<THREE.InstancedMesh>(null);
-  const motionController = useTileMotionController();
-  const motionRevision = useTileMotionRevision();
-  const entries = useMemo(() => tiles.map<BatchEntry | null>(tile => {
+  const gl = useThree(state => state.gl);
+  const anisotropy = getTileTextureAnisotropy(gl.capabilities.getMaxAnisotropy());
+  const materialLibrary = useMemo(
+    () => new DistrictSurfaceMaterialLibrary(anisotropy),
+    [anisotropy],
+  );
+  useEffect(() => {
+    materialLibrary.retain();
+    return () => materialLibrary.release();
+  }, [materialLibrary]);
+
+  const entries = useMemo(() => tiles.map<TileSurfaceBatchEntry | null>(tile => {
     const layout = getBoardTileLayout(tile.tileId);
     const sourceTile = tileState[tile.tileId];
     if (!layout || !sourceTile) return null;
-    const district = getDistrictSurfaceDescriptor(sourceTile);
     return {
       tileId: tile.tileId,
-      size: layout.size,
       surfaceSize: [
         Math.max(0.3, layout.size[0] - TILE_SURFACE_INSET),
         Math.max(0.3, layout.size[1] - TILE_SURFACE_INSET),
       ] as const,
-      districtSurfaceKey: district?.surfaceKey,
-      accentColor: district?.accentColor,
-    } satisfies BatchEntry;
-  }).filter((entry): entry is BatchEntry => entry !== null), [tiles]);
-  const accentBatches = useMemo(() => {
-    const bySurfaceKey = new Map<DistrictSurfaceKey, BatchEntry[]>();
-    entries.forEach(entry => {
-      if (!entry.districtSurfaceKey || !entry.accentColor) return;
-      const group = bySurfaceKey.get(entry.districtSurfaceKey) ?? [];
-      group.push(entry);
-      bySurfaceKey.set(entry.districtSurfaceKey, group);
-    });
-    return [...bySurfaceKey.entries()].map(([surfaceKey, groupedEntries]): AccentBatch => ({
-      surfaceKey,
-      color: groupedEntries[0].accentColor!,
-      entries: groupedEntries,
-    }));
-  }, [entries]);
-
-  useEffect(() => {
-    const surfaceMesh = surfaceRef.current;
-    if (!surfaceMesh) return;
-    const surfaceMatrix = new THREE.Matrix4();
-    entries.forEach((entry, index) => {
-      const layout = getBoardTileLayout(entry.tileId);
-      if (!layout) return;
-      const tileOffsetY = motionController?.getTileOffsetY(entry.tileId) ?? 0;
-      composeTileSurfaceMatrix(layout, entry.surfaceSize, tileOffsetY, surfaceMatrix);
-      surfaceMesh.setMatrixAt(index, surfaceMatrix);
-    });
-    surfaceMesh.instanceMatrix.needsUpdate = true;
-  }, [entries, motionController, motionRevision]);
-
-  const handlePointer = (callback: ((tileId: number) => void) | undefined) => (
-    event: ThreeEvent<PointerEvent | MouseEvent>,
-  ) => {
-    stopPointerEvent(event);
-    const instanceId = event.instanceId;
-    if (instanceId === undefined) return;
-    const entry = entries[instanceId];
-    if (entry) callback?.(entry.tileId);
-  };
+      surfaceKey: getDistrictSurfaceDescriptor(sourceTile)?.surfaceKey,
+    } satisfies TileSurfaceBatchEntry;
+  }).filter((entry): entry is TileSurfaceBatchEntry => entry !== null), [tiles]);
+  const batches = useMemo(() => groupTileSurfaceEntries(entries), [entries]);
 
   return (
     <group name="TileSurfaceBatch">
-      <instancedMesh
-        ref={surfaceRef}
-        args={[undefined, undefined, entries.length]}
-        name="TileSurfaces"
-        onPointerEnter={handlePointer(tileId => onHover?.(tileId))}
-        onPointerLeave={event => { stopPointerEvent(event); onHover?.(null); }}
-        onClick={handlePointer(tileId => onSelect?.(tileId))}
-      >
-        <planeGeometry args={[1, 1]} />
-        <meshStandardMaterial
-          color={boardVisualTokens.tileSurface}
-          side={THREE.DoubleSide}
-          roughness={0.58}
-          metalness={0}
+      {batches.map(batch => (
+        <SurfaceBatchMesh
+          key={batch.key}
+          batch={batch}
+          geometry={materialLibrary.geometry}
+          material={batch.key === 'special'
+            ? materialLibrary.specialMaterial
+            : materialLibrary.getMaterial(batch.key)}
+          onHover={onHover}
+          onSelect={onSelect}
         />
-      </instancedMesh>
-      {accentBatches.map(batch => (
-        <PropertyAccentInlayBatch key={batch.surfaceKey} batch={batch} />
       ))}
     </group>
   );
