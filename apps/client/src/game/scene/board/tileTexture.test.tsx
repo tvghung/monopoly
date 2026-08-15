@@ -6,14 +6,16 @@ import {
   cleanup, render, screen, waitFor,
 } from '@testing-library/react';
 import * as THREE from 'three';
+import { getTileSurfaceStyle } from './tileTexture';
 import {
   afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest';
 import { useTileLabelTexture } from './BoardTile3D';
 
+const fillText = vi.fn();
 const context = {
   fillRect: vi.fn(),
-  fillText: vi.fn(),
+  fillText,
   measureText: (text: string) => ({ width: text.length * 10 }),
   strokeRect: vi.fn(),
 } as unknown as CanvasRenderingContext2D;
@@ -36,6 +38,7 @@ describe('tile texture lifecycle', () => {
   let dispose: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    fillText.mockClear();
     getContext = vi.fn(() => context);
     Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
       configurable: true,
@@ -72,5 +75,22 @@ describe('tile texture lifecycle', () => {
 
     unmount();
     await waitFor(() => expect(dispose).toHaveBeenCalledTimes(1));
+  });
+
+  it('prints the property name into the cached tile-face canvas', async () => {
+    const { unmount } = render(<TextureConsumer hovered={false} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('texture-consumer').getAttribute('data-texture-id')).not.toBe('');
+    });
+    expect(fillText).toHaveBeenCalledWith('Cà Mau', expect.any(Number), expect.any(Number));
+    unmount();
+  });
+
+  it('keeps group motifs distinct without adding 3D tile props', () => {
+    expect(getTileSurfaceStyle(tileState[1]).motif).toBe('brick');
+    expect(getTileSurfaceStyle(tileState[6]).motif).toBe('water');
+    expect(getTileSurfaceStyle(tileState[16]).motif).toBe('market');
+    expect(getTileSurfaceStyle(tileState[21]).motif).toBe('downtown');
   });
 });

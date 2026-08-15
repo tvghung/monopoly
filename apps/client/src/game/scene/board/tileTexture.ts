@@ -44,7 +44,7 @@ function labelDimensions(tile: Tile): { width: number; height: number } {
     : { width: 384, height: 640 };
 }
 
-function tileSurfaceStyle(tile: Tile): TileSurfaceStyle {
+export function getTileSurfaceStyle(tile: Tile): TileSurfaceStyle {
   if (tile.color) {
     const style = getPropertyGroupVisualStyle(tile.color);
     return { accent: style.color, tint: style.tint, motif: style.motif };
@@ -169,7 +169,7 @@ function createTileLabelTexture(tileId: number, tile: Tile): THREE.CanvasTexture
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Không thể tạo canvas cho nhãn ô cờ.');
 
-  const style = tileSurfaceStyle(tile);
+  const style = getTileSurfaceStyle(tile);
   const accentHeight = Math.round(height * 0.2);
   context.fillStyle = style.tint;
   context.fillRect(0, 0, width, height);

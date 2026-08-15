@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getPlayerDisplayColor, getPlayerDisplayForeground } from './playerVisualColors';
-import { getPropertyGroupDisplayColor } from './propertyVisualColors';
+import { getPropertyGroupDisplayColor, getPropertyGroupVisualStyle } from './propertyVisualColors';
 
 describe('vivid presentation color mappings', () => {
   it('maps semantic player colors without changing their raw values', () => {
@@ -13,5 +13,7 @@ describe('vivid presentation color mappings', () => {
     expect(getPropertyGroupDisplayColor('brown')).toBe('#a85532');
     expect(getPropertyGroupDisplayColor('blue')).toBe('#536ddd');
     expect(getPropertyGroupDisplayColor('railroad')).toBe('#546982');
+    expect(getPropertyGroupVisualStyle('green').motif).toBe('eco');
+    expect(getPropertyGroupVisualStyle('pink').motif).toBe('shopping');
   });
 });

@@ -27,4 +27,26 @@ describe('fixed board camera math', () => {
       expect(component / distance).toBeCloseTo(CAMERA_DIRECTION[index], 10);
     });
   });
+
+  it('keeps the full board inside the fixed frame across supported viewport sizes', () => {
+    const viewports = [
+      [1280, 720],
+      [1366, 768],
+      [1440, 900],
+      [1920, 1080],
+      [2560, 1440],
+    ] as const;
+    const previousPhaseTwoDistance = calculateCameraDistance(16 / 9, {
+      fov: 34,
+      framingMargin: 1.12,
+    });
+
+    viewports.forEach(([width, height]) => {
+      const aspect = width / height;
+      const distance = calculateCameraDistance(aspect);
+      expect(Number.isFinite(distance)).toBe(true);
+      expect(getCameraPosition(aspect)).toHaveLength(3);
+    });
+    expect(calculateCameraDistance(16 / 9)).toBeLessThan(previousPhaseTwoDistance);
+  });
 });
