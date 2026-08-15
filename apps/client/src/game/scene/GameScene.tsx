@@ -44,13 +44,13 @@ export default function GameScene({
       >
         <color attach="background" args={[boardVisualTokens.sceneBackground]} />
         <hemisphereLight
-          args={['#fff7e6', '#7da393', 1.8]}
+          args={['#fff8e2', '#9fd6c4', 1.8]}
         />
         <directionalLight
           castShadow
           position={[8, 14, 7]}
           intensity={2.2}
-          color="#fff5df"
+          color="#fff8e8"
           shadow-mapSize-width={1024}
           shadow-mapSize-height={1024}
           shadow-camera-left={-14}

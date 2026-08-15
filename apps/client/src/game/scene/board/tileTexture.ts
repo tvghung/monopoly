@@ -1,17 +1,18 @@
 import type { Tile } from '@monopoly/shared';
 import * as THREE from 'three';
 import { formatMoney, getTileName } from '../../../presentation';
+import { getPropertyGroupDisplayColor } from '../../ui/propertyVisualColors';
 import { boardVisualTokens } from './boardVisualTokens';
 
 const TILE_COLOR_TOKENS: Record<string, string> = {
-  brown: '#9b6b45',
-  lightblue: '#72c7d8',
-  pink: '#d77bb6',
-  orange: '#e89448',
-  red: '#d45b61',
-  yellow: '#e3c95d',
-  green: '#65a96c',
-  blue: '#5e8fd4',
+  brown: '#c7a27f',
+  lightblue: '#8fd5e4',
+  pink: '#e7a3cc',
+  orange: '#f4b06d',
+  red: '#eb8c96',
+  yellow: '#efd36c',
+  green: '#83c68d',
+  blue: '#88a8e4',
   railroad: boardVisualTokens.railroad,
 };
 
@@ -33,7 +34,7 @@ function labelDimensions(tile: Tile): { width: number; height: number } {
 }
 
 function tileAccent(tile: Tile): string {
-  if (tile.color) return TILE_COLOR_TOKENS[tile.color] ?? tile.color;
+  if (tile.color) return TILE_COLOR_TOKENS[tile.color] ?? getPropertyGroupDisplayColor(tile.color);
   switch (tile.tileType) {
     case 'jail':
     case 'gojail':
@@ -104,11 +105,11 @@ function createTileLabelTexture(tileId: number, tile: Tile): THREE.CanvasTexture
   if (!context) throw new Error('Không thể tạo canvas cho nhãn ô cờ.');
 
   const accent = tileAccent(tile);
-  context.fillStyle = '#fffaf0';
+  context.fillStyle = boardVisualTokens.tileSurface;
   context.fillRect(0, 0, width, height);
   context.fillStyle = accent;
   context.fillRect(0, 0, width, Math.round(height * 0.18));
-  context.strokeStyle = '#d9cdb7';
+  context.strokeStyle = boardVisualTokens.tileBorder;
   context.lineWidth = Math.max(3, Math.round(width * 0.012));
   context.strokeRect(context.lineWidth / 2, context.lineWidth / 2, width - context.lineWidth, height - context.lineWidth);
 
@@ -126,7 +127,7 @@ function createTileLabelTexture(tileId: number, tile: Tile): THREE.CanvasTexture
     context.fillText(formatMoney(tile.price), width / 2, height * 0.82);
   } else {
     context.font = `600 ${Math.round(width * 0.06)}px Arial, sans-serif`;
-    context.fillStyle = '#63756f';
+    context.fillStyle = boardVisualTokens.tileText;
     context.fillText('MỞ CHI TIẾT', width / 2, height * 0.82);
   }
 

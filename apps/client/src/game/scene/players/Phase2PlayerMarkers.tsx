@@ -5,6 +5,7 @@ import {
   getOccupantWorldPosition,
 } from '../board/buildingPlacement';
 import { boardVisualTokens } from '../board/boardVisualTokens';
+import { getPlayerDisplayColor } from '../../ui/playerVisualColors';
 
 interface Phase2PlayerMarkersProps {
   players: readonly Phase2PlayerMarkerModel[];
@@ -15,6 +16,7 @@ function PlayerMarker({
 }: { player: Phase2PlayerMarkerModel; slotIndex: number }) {
   const position = getOccupantWorldPosition(player.tileId, slotIndex);
   if (!position) return null;
+  const displayColor = getPlayerDisplayColor(player.color);
   return (
     <group position={position}>
       {player.isActive
@@ -31,11 +33,11 @@ function PlayerMarker({
         : null}
       <mesh castShadow>
         <cylinderGeometry args={[0.2, 0.25, 0.26, 12]} />
-        <meshStandardMaterial color={player.color} roughness={0.6} />
+        <meshStandardMaterial color={displayColor} roughness={0.6} />
       </mesh>
       <mesh position={[0, 0.22, 0]} castShadow>
         <sphereGeometry args={[0.16, 12, 8]} />
-        <meshStandardMaterial color={player.color} roughness={0.58} />
+        <meshStandardMaterial color={displayColor} roughness={0.58} />
       </mesh>
     </group>
   );

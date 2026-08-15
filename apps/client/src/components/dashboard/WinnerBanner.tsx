@@ -1,6 +1,7 @@
 import { useContext } from 'react';
 import stateContext from '../../internal';
 import Modal from '../../design-system/components/Modal/Modal';
+import { getPlayerDisplayColor } from '../../game/ui/playerVisualColors';
 
 // Game-over modal announcing the last player standing, tinted with their colour.
 export default function WinnerBanner() {
@@ -12,7 +13,7 @@ export default function WinnerBanner() {
         ? (
           <h3
             className="trade-offer-modal__title"
-            style={{ color: state.boardState.winner.color }}
+            style={{ color: getPlayerDisplayColor(state.boardState.winner.color) }}
           >
             {`${state.boardState.winner.name} chiến thắng!`}
           </h3>

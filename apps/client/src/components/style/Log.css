@@ -38,9 +38,9 @@
 .center__chat--input {
   width: 90%;
   min-height: 2.75rem;
-  background: rgb(191, 234, 163, 0.25);
+  background: var(--color-surface-soft);
   padding: 0vmin 1vmin;
-  border: 1px solid grey;
+  border: 1px solid var(--color-border-strong);
   border-right: 0px;
   border-radius: 0.5vmin 0vmin 0vmin 0.5vmin;
   font-size: clamp(0.8rem, 0.9vw, 1rem);
@@ -52,8 +52,8 @@
   font-size: clamp(0.8rem, 0.9vw, 1rem);
   min-width: 4.5rem;
   min-height: 2.75rem;
-  border: 1px solid grey;
+  border: 1px solid var(--color-border-strong);
   border-radius: 0vmin 0.5vmin 0.5vmin 0vmin;
-  background: rgb(191, 234, 163, 0.25);
-  color: black;
+  background: var(--color-surface-soft);
+  color: var(--color-text-primary);
 }

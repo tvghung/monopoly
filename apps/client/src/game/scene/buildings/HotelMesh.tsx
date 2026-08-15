@@ -12,7 +12,7 @@ export default function HotelMesh({
       </mesh>
       <mesh position={[0, 0.3, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
         <coneGeometry args={[0.3, 0.22, 4]} />
-        <meshStandardMaterial color="#8e2f39" roughness={0.66} />
+        <meshStandardMaterial color="#c66478" roughness={0.66} />
       </mesh>
     </group>
   );

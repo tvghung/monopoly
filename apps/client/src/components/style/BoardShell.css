@@ -22,7 +22,7 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid rgb(38 76 67 / 24%);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-large);
   box-shadow: var(--shadow-card);
   z-index: 0;
@@ -68,7 +68,7 @@
   transform: translate(-50%, -50%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-large);
-  background: rgb(255 250 241 / 92%);
+  background: rgb(255 253 248 / 94%);
   color: var(--color-text-primary);
   box-shadow: var(--shadow-card);
   pointer-events: none;
@@ -100,8 +100,8 @@
     justify-content: center;
     gap: 0.75rem;
     padding: 2rem;
-    background: #152727;
-    color: #fff;
+    background: #e6e7f7;
+    color: #4d5278;
     font-size: clamp(1rem, 5vw, 1.4rem);
     line-height: 1.4;
     text-align: center;

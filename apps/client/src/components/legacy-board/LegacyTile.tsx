@@ -4,6 +4,8 @@ import { motion, useReducedMotion } from 'framer-motion';
 import stateContext from '../../internal';
 import displayPositionsContext from '../../displayPositionsContext';
 import { formatMoney, getTileName } from '../../presentation';
+import { getPlayerDisplayColor, getPlayerDisplayForeground } from '../../game/ui/playerVisualColors';
+import { getPropertyGroupDisplayColor } from '../../game/ui/propertyVisualColors';
 import { getTileAccessibilityLabel } from './tileAccessibility';
 
 interface LegacyTileProps {
@@ -27,7 +29,10 @@ function PlayerTokens({ tileId }: { tileId: number }) {
             key={playerKey}
             layoutId={`token-${playerKey}`}
             className="player__token"
-            style={{ backgroundColor: state.players[playerKey].color }}
+            style={{
+              backgroundColor: getPlayerDisplayColor(state.players[playerKey].color),
+              color: getPlayerDisplayForeground(state.players[playerKey].color),
+            }}
             transition={reduced
               ? { duration: 0 }
               : { type: 'tween', ease: 'linear', duration: 0.18 }}
@@ -51,6 +56,7 @@ export default function LegacyTile({
       ?? state.boardState.finishedPlayers[owned.id]?.color
       ?? owned.color
     : undefined;
+  const displayOwnerColor = ownerColor ? getPlayerDisplayColor(ownerColor) : undefined;
   const name = getTileName(id);
   const buildingLabel = owned && owned.houses > 0
     ? owned.houses === 5 ? '1 Khách Sạn' : `${owned.houses} Nhà`
@@ -67,7 +73,7 @@ export default function LegacyTile({
       aria-expanded={selected}
     >
       {owned
-        ? <span className="tile__owner-frame" title={`Tài sản của ${ownerColor ?? 'người chơi khác'}`} style={{ '--owner-color': ownerColor } as CSSProperties} />
+        ? <span className="tile__owner-frame" title={`Tài sản của ${ownerColor ?? 'người chơi khác'}`} style={{ '--owner-color': displayOwnerColor } as CSSProperties} />
         : null}
       {buildingLabel
         ? (
@@ -83,7 +89,7 @@ export default function LegacyTile({
       {tile.color && tile.color !== 'railroad'
         ? (
           <>
-            <span className="tile__color-box" style={{ backgroundColor: tile.color }} />
+            <span className="tile__color-box" style={{ backgroundColor: getPropertyGroupDisplayColor(tile.color) }} />
             <span className="tile__wrapper">
               <span className="tile__street-name">{name}</span>
               <PlayerTokens tileId={id} />
