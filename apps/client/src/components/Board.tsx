@@ -44,7 +44,9 @@ export default function Board() {
     setSelectedTileId(tileId);
   }, []);
   const openTradeForProperty = useCallback((tileId: number) => {
-    if (canMutate) setTradeTarget(tileId);
+    if (!canMutate) return;
+    setSelectedTileId(null);
+    setTradeTarget(tileId);
   }, [canMutate]);
   const closeTrade = useCallback(() => {
     setTradeTarget(null);

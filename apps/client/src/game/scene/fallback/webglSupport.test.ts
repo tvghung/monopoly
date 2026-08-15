@@ -6,15 +6,23 @@ describe('supportsWebGL', () => {
     expect(supportsWebGL(undefined)).toBe(false);
   });
 
-  it('accepts either WebGL2 or WebGL', () => {
+  it('accepts WebGL2', () => {
     expect(supportsWebGL({
       createElement: () => ({
-        getContext: (contextId: string) => contextId === 'webgl2' ? null : {},
+        getContext: (contextId: string) => contextId === 'webgl2' ? {} : null,
       }),
     })).toBe(true);
   });
 
-  it('returns false when both contexts are unavailable or probing throws', () => {
+  it('rejects browsers that only expose WebGL1', () => {
+    expect(supportsWebGL({
+      createElement: () => ({
+        getContext: (contextId: string) => contextId === 'webgl' ? {} : null,
+      }),
+    })).toBe(false);
+  });
+
+  it('returns false when WebGL2 is unavailable or probing throws', () => {
     expect(supportsWebGL({
       createElement: () => ({ getContext: () => null }),
     })).toBe(false);

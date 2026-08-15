@@ -81,8 +81,8 @@
   pointer-events: none;
 }
 
-.game-board__accessibility-layer button {
-  pointer-events: auto;
+.game-board__accessibility-layer * {
+  pointer-events: none;
 }
 
 .game-board__orientation-notice {

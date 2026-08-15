@@ -1,6 +1,5 @@
 export interface CanvasCapabilityDocument {
   defaultView?: {
-    WebGLRenderingContext?: unknown;
     WebGL2RenderingContext?: unknown;
   } | null;
   createElement: (tagName: string) => {
@@ -13,11 +12,10 @@ export function supportsWebGL(
 ): boolean {
   if (!ownerDocument) return false;
   if (ownerDocument.defaultView
-    && !ownerDocument.defaultView.WebGLRenderingContext
     && !ownerDocument.defaultView.WebGL2RenderingContext) return false;
   try {
     const canvas = ownerDocument.createElement('canvas');
-    return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'));
+    return Boolean(canvas.getContext('webgl2'));
   } catch {
     return false;
   }
