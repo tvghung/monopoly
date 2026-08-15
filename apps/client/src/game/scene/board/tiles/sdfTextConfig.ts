@@ -15,7 +15,7 @@ export interface SdfTextTarget {
   lineHeight: number | string;
   color: string | number;
   sdfGlyphSize: number;
-  sync: () => void;
+  sync: (callback?: () => void) => void;
 }
 
 export interface SdfTextConfig {
@@ -27,7 +27,11 @@ export interface SdfTextConfig {
   sdfGlyphSize?: number;
 }
 
-export function configureSdfText(text: SdfTextTarget, props: SdfTextConfig): void {
+export function configureSdfText(
+  text: SdfTextTarget,
+  props: SdfTextConfig,
+  onSync?: () => void,
+): void {
   text.text = props.value;
   text.font = beVietnamProFont;
   text.fontSize = props.fontSize;
@@ -39,5 +43,5 @@ export function configureSdfText(text: SdfTextTarget, props: SdfTextConfig): voi
   text.lineHeight = props.lineHeight ?? 1.05;
   text.color = props.color ?? boardVisualTokens.tileText;
   text.sdfGlyphSize = props.sdfGlyphSize ?? TILE_SDF_GLYPH_SIZE;
-  text.sync();
+  text.sync(onSync);
 }

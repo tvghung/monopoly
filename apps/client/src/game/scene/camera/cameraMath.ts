@@ -5,6 +5,7 @@ import {
 
 export const DEFAULT_CAMERA_FOV = 40;
 export const DEFAULT_FRAMING_MARGIN = 1.06;
+export const ORTHOGRAPHIC_CAMERA_DISTANCE = 32;
 export const CAMERA_DIRECTION: readonly [number, number, number] = (() => {
   const length = Math.hypot(1, 1.25, 1);
   return [1 / length, 1.25 / length, 1 / length];
@@ -122,4 +123,22 @@ export function getCameraPosition(
 ): readonly [number, number, number] {
   const distance = calculateCameraDistance(aspect, options);
   return CAMERA_DIRECTION.map(component => component * distance) as [number, number, number];
+}
+
+export function calculateOrthographicHalfHeight(
+  aspect: number,
+  options: CameraFramingOptions = {},
+): number {
+  const safeAspect = Number.isFinite(aspect) && aspect > 0 ? aspect : 1;
+  const framingMargin = getSafeFramingMargin(options.framingMargin);
+  const corners = options.boardCorners ?? BOARD_FIT_CORNERS;
+  const projectedHalfWidth = Math.max(...corners.map(corner => Math.abs(dot(corner, CAMERA_RIGHT))));
+  const projectedHalfHeight = Math.max(...corners.map(corner => Math.abs(dot(corner, CAMERA_UP))));
+  return Math.max(projectedHalfHeight, projectedHalfWidth / safeAspect) * framingMargin;
+}
+
+export function getOrthographicCameraPosition(): readonly [number, number, number] {
+  return CAMERA_DIRECTION.map(component => (
+    component * ORTHOGRAPHIC_CAMERA_DISTANCE
+  )) as [number, number, number];
 }

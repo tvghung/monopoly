@@ -7,8 +7,11 @@ import {
   CAMERA_DIRECTION,
   calculateBoundingSphereCameraDistance,
   calculateCameraDistance,
+  calculateOrthographicHalfHeight,
   DEFAULT_CAMERA_FOV,
   getCameraPosition,
+  getOrthographicCameraPosition,
+  ORTHOGRAPHIC_CAMERA_DISTANCE,
 } from './cameraMath';
 
 describe('fixed board camera math', () => {
@@ -76,5 +79,24 @@ describe('fixed board camera math', () => {
         expect(vertical / depth).toBeLessThan(verticalLimit);
       });
     });
+  });
+
+  it('fits every projected corner inside the fixed orthographic frame', () => {
+    [0.75, 1, 16 / 9, 2].forEach(aspect => {
+      const halfHeight = calculateOrthographicHalfHeight(aspect);
+      const halfWidth = halfHeight * aspect;
+      BOARD_FIT_CORNERS.forEach(corner => {
+        const horizontal = Math.abs(corner[0] * CAMERA_RIGHT[0]
+          + corner[1] * CAMERA_RIGHT[1]
+          + corner[2] * CAMERA_RIGHT[2]);
+        const vertical = Math.abs(corner[0] * CAMERA_UP[0]
+          + corner[1] * CAMERA_UP[1]
+          + corner[2] * CAMERA_UP[2]);
+        expect(horizontal).toBeLessThan(halfWidth);
+        expect(vertical).toBeLessThan(halfHeight);
+      });
+    });
+    expect(Math.hypot(...getOrthographicCameraPosition()))
+      .toBeCloseTo(ORTHOGRAPHIC_CAMERA_DISTANCE);
   });
 });

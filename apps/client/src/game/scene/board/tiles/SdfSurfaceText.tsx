@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useThree } from '@react-three/fiber';
 import { Text } from 'troika-three-text';
 import type * as THREE from 'three';
 import { boardVisualTokens } from '../boardVisualTokens';
@@ -34,6 +35,7 @@ export default function SdfSurfaceText({
   sdfGlyphSize = TILE_SDF_GLYPH_SIZE,
   name,
 }: SdfSurfaceTextProps) {
+  const invalidate = useThree(state => state.invalidate);
   const textObjectRef = useRef<Text | null>(null);
   if (!textObjectRef.current) textObjectRef.current = new Text();
   const textObject = textObjectRef.current;
@@ -48,8 +50,8 @@ export default function SdfSurfaceText({
       color,
       lineHeight,
       sdfGlyphSize,
-    });
-  }, [color, fontSize, lineHeight, maxWidth, sdfGlyphSize, textObject, value]);
+    }, invalidate);
+  }, [color, fontSize, invalidate, lineHeight, maxWidth, sdfGlyphSize, textObject, value]);
 
   useEffect(() => {
     const generation = disposeGeneration.current + 1;

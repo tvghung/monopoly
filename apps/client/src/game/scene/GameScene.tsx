@@ -1,19 +1,17 @@
 import { Canvas, useThree } from '@react-three/fiber';
 import { useEffect } from 'react';
-import { Vector2 } from 'three';
+import * as THREE from 'three';
 import Board3D from './board/Board3D';
 import type { BoardRenderModel } from './board/boardRenderModel';
 import { boardVisualTokens } from './board/boardVisualTokens';
-import {
-  DEFAULT_CAMERA_FOV,
-  getCameraPosition,
-} from './camera/cameraMath';
+import { getOrthographicCameraPosition } from './camera/cameraMath';
 import FixedBoardCamera from './camera/FixedBoardCamera';
 import {
   HARD_TRIANGLE_LIMIT,
   STRESS_DRAW_CALL_LIMIT,
   TARGET_DRAW_CALLS,
   TARGET_TRIANGLES,
+  estimateSceneTriangles,
   getTileTextureAnisotropy,
 } from './board/architecture/sceneBudget';
 import TileMotionProvider from './board/motion/TileMotionProvider';
@@ -31,6 +29,17 @@ interface BoardSceneContentsProps extends GameSceneProps {
   model?: BoardRenderModel;
 }
 
+function FixedRendererSettings() {
+  const gl = useThree(state => state.gl);
+  const invalidate = useThree(state => state.invalidate);
+  useEffect(() => {
+    gl.toneMapping = THREE.ACESFilmicToneMapping;
+    gl.toneMappingExposure = 1;
+    invalidate();
+  }, [gl, invalidate]);
+  return null;
+}
+
 function RendererDiagnostics({
   activityKey,
   hoveredTileId,
@@ -42,6 +51,7 @@ function RendererDiagnostics({
 }) {
   const camera = useThree(state => state.camera);
   const gl = useThree(state => state.gl);
+  const scene = useThree(state => state.scene);
   const width = useThree(state => state.size.width);
   const height = useThree(state => state.size.height);
 
@@ -50,15 +60,18 @@ function RendererDiagnostics({
       return undefined;
     }
     const frame = window.requestAnimationFrame(() => {
-      const drawingBufferSize = gl.getDrawingBufferSize(new Vector2());
+      const drawingBufferSize = gl.getDrawingBufferSize(new THREE.Vector2());
       console.info('[own-the-block-renderer]', JSON.stringify({
         pixelRatio: gl.getPixelRatio(),
         drawingBuffer: { width: drawingBufferSize.x, height: drawingBufferSize.y },
+        camera: 'orthographic',
         cameraPosition: camera.position.toArray(),
+        toneMapping: 'ACESFilmicToneMapping',
+        shadows: 'contact',
         anisotropy: getTileTextureAnisotropy(gl.capabilities.getMaxAnisotropy()),
         textureMaxAnisotropy: gl.capabilities.getMaxAnisotropy(),
         drawCalls: gl.info.render.calls,
-        triangles: gl.info.render.triangles,
+        triangles: estimateSceneTriangles(scene),
         targetDrawCalls: TARGET_DRAW_CALLS,
         stressDrawCallLimit: STRESS_DRAW_CALL_LIMIT,
         targetTriangles: TARGET_TRIANGLES,
@@ -66,7 +79,7 @@ function RendererDiagnostics({
       }));
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [activityKey, camera, gl, height, hoveredTileId, selectedTileId, width]);
+  }, [activityKey, camera, gl, height, hoveredTileId, scene, selectedTileId, width]);
 
   return null;
 }
@@ -118,11 +131,11 @@ export default function GameScene({
     <div className="game-scene" data-testid="game-scene">
       <Canvas
         camera={{
-          fov: DEFAULT_CAMERA_FOV,
           near: 0.1,
           far: 100,
-          position: getCameraPosition(1),
+          position: getOrthographicCameraPosition(),
         }}
+        orthographic
         dpr={[1.25, 1.5]}
         frameloop="demand"
         shadows={false}
@@ -132,10 +145,9 @@ export default function GameScene({
           powerPreference: 'high-performance',
         }}
       >
+        <FixedRendererSettings />
         <color attach="background" args={[boardVisualTokens.sceneBackground]} />
-        <hemisphereLight
-          args={['#fff8e2', '#9fd6c4', 1.8]}
-        />
+        <hemisphereLight args={['#fff8e2', '#9fd6c4', 1.8]} />
         <directionalLight
           position={[8, 14, 7]}
           intensity={1.7}
