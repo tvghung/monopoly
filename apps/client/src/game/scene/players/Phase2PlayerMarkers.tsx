@@ -24,19 +24,18 @@ function PlayerMarker({
           <mesh
             position={[0, PLAYER_ACTIVE_RING_LOCAL_Y, 0]}
             rotation={[Math.PI / 2, 0, 0]}
-            receiveShadow
           >
             <torusGeometry args={[0.28, PLAYER_ACTIVE_RING_TUBE_RADIUS, 8, 24]} />
             <meshStandardMaterial color={boardVisualTokens.selection} emissive={boardVisualTokens.selection} emissiveIntensity={0.2} />
           </mesh>
         )
         : null}
-      <mesh castShadow>
-        <cylinderGeometry args={[0.2, 0.25, 0.26, 12]} />
+      <mesh>
+        <cylinderGeometry args={[0.2, 0.25, 0.26, 10]} />
         <meshStandardMaterial color={displayColor} roughness={0.6} />
       </mesh>
-      <mesh position={[0, 0.22, 0]} castShadow>
-        <sphereGeometry args={[0.16, 12, 8]} />
+      <mesh position={[0, 0.22, 0]}>
+        <sphereGeometry args={[0.16, 10, 6]} />
         <meshStandardMaterial color={displayColor} roughness={0.58} />
       </mesh>
     </group>

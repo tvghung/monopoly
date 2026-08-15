@@ -95,7 +95,6 @@ export default function BoardTile3D({
       <group rotation={layout.rotation}>
         <mesh
           position={[0, PLATFORM_HEIGHT + TILE_HEIGHT / 2, 0]}
-          receiveShadow
           onPointerEnter={handlePointerEnter}
           onPointerLeave={handlePointerLeave}
           onClick={handleClick}
@@ -107,7 +106,6 @@ export default function BoardTile3D({
           ? (
             <mesh
               position={stripPosition}
-              receiveShadow
               onPointerDown={stopPointerEvent}
               onClick={handleClick}
             >

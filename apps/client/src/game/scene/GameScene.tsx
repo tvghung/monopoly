@@ -33,9 +33,9 @@ export default function GameScene({
           far: 100,
           position: getCameraPosition(1),
         }}
-        dpr={[1, 1.5]}
+        dpr={[1, 1.25]}
         frameloop="demand"
-        shadows
+        shadows={false}
         gl={{
           antialias: true,
           alpha: false,
@@ -47,17 +47,9 @@ export default function GameScene({
           args={['#fff8e2', '#9fd6c4', 1.8]}
         />
         <directionalLight
-          castShadow
           position={[8, 14, 7]}
-          intensity={2.2}
+          intensity={1.7}
           color="#fff8e8"
-          shadow-mapSize-width={1024}
-          shadow-mapSize-height={1024}
-          shadow-camera-left={-14}
-          shadow-camera-right={14}
-          shadow-camera-top={14}
-          shadow-camera-bottom={-14}
-          shadow-bias={-0.0005}
         />
         <FixedBoardCamera />
         <Board3D

@@ -6,11 +6,11 @@ export default function HotelMesh({
 }: { position: readonly [number, number, number] }) {
   return (
     <group position={position}>
-      <mesh castShadow>
+      <mesh>
         <boxGeometry args={[0.52, HOTEL_BODY_HEIGHT, 0.34]} />
         <meshStandardMaterial color={boardVisualTokens.hotel} roughness={0.68} />
       </mesh>
-      <mesh position={[0, 0.3, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+      <mesh position={[0, 0.3, 0]} rotation={[0, Math.PI / 4, 0]}>
         <coneGeometry args={[0.3, 0.22, 4]} />
         <meshStandardMaterial color="#c66478" roughness={0.66} />
       </mesh>

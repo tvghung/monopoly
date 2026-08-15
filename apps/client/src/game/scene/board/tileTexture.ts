@@ -16,6 +16,8 @@ const TILE_COLOR_TOKENS: Record<string, string> = {
   railroad: boardVisualTokens.railroad,
 };
 
+const TILE_TEXTURE_ANISOTROPY = 4;
+
 interface TextureCacheEntry {
   texture: THREE.CanvasTexture;
   users: number;
@@ -133,8 +135,10 @@ function createTileLabelTexture(tileId: number, tile: Tile): THREE.CanvasTexture
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = TILE_TEXTURE_ANISOTROPY;
   texture.needsUpdate = true;
   return texture;
 }
