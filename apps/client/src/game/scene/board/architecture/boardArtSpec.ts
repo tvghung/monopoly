@@ -9,10 +9,10 @@ export const BOARD_FOUNDATION_HEIGHT = 0.42;
 export const BOARD_FOUNDATION_BEVEL = 0.16;
 export const BOARD_LOWER_CHASSIS_HEIGHT = 0.16;
 export const BOARD_TOP_DECK_HEIGHT = 0.12;
-export const BOARD_FRAME_HEIGHT = 0.16;
-export const BOARD_FRAME_BEVEL = 0.06;
-export const BOARD_FRAME_WIDTH = 0.2;
-export const BOARD_CENTER_INSET = 0.11;
+export const BOARD_FRAME_HEIGHT = 0.07;
+export const BOARD_FRAME_BEVEL = 0.025;
+export const BOARD_FRAME_WIDTH = 0.12;
+export const BOARD_CENTER_INSET = 0.14;
 
 export const TILE_BODY_HEIGHT = 0.3;
 export const TILE_BODY_BEVEL = 0.075;
@@ -37,7 +37,7 @@ export const HOTEL_BODY_HEIGHT = 0.52;
 export const PLAYER_MARKER_BODY_HEIGHT = 0.26;
 export const PLAYER_ACTIVE_RING_TUBE_RADIUS = 0.035;
 
-export const CENTER_PARK_SURFACE_Y = BOARD_FOUNDATION_HEIGHT + 0.06 + 0.008;
+export const CENTER_PARK_SURFACE_Y = BOARD_FOUNDATION_HEIGHT + 0.045;
 export const CONTACT_SHADOW_Y = 0.004;
 
 export const OWNERSHIP_MARKER_HEIGHT = 0.065;
