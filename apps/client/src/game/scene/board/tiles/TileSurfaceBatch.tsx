@@ -6,9 +6,9 @@ import {
   PROPERTY_ACCENT_HEIGHT,
   TILE_SURFACE_CLEARANCE_Y,
   TILE_SURFACE_INSET,
-  TILE_SURFACE_Y,
 } from '../boardLayout';
 import { getBoardTileLayout, transformTileLocalPointToWorld } from '../boardLayout';
+import { composeTileSurfaceMatrix } from '../architecture/tileMatrix';
 import type { BoardTileRenderModel } from '../boardRenderModel';
 import { tileState } from '@monopoly/shared';
 import { boardVisualTokens } from '../boardVisualTokens';
@@ -63,15 +63,13 @@ export default function TileSurfaceBatch({
     const accentMesh = accentRef.current;
     if (!surfaceMesh || !accentMesh) return;
     const dummy = new THREE.Object3D();
+    const surfaceMatrix = new THREE.Matrix4();
     entries.forEach((entry, index) => {
       const layout = getBoardTileLayout(entry.tileId);
       if (!layout) return;
       const tileOffsetY = motionController?.getTileOffsetY(entry.tileId) ?? 0;
-      dummy.position.set(layout.position[0], TILE_SURFACE_Y + 0.004 + tileOffsetY, layout.position[2]);
-      dummy.rotation.set(-Math.PI / 2, layout.rotation[1], 0);
-      dummy.scale.set(entry.surfaceSize[0], entry.surfaceSize[1], 1);
-      dummy.updateMatrix();
-      surfaceMesh.setMatrixAt(index, dummy.matrix);
+      composeTileSurfaceMatrix(layout, entry.surfaceSize, tileOffsetY, surfaceMatrix);
+      surfaceMesh.setMatrixAt(index, surfaceMatrix);
 
       if (!entry.isProperty) return;
       const accentIndex = entries.slice(0, index + 1).filter(candidate => candidate.isProperty).length - 1;
