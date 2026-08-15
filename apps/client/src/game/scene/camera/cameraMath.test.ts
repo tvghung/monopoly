@@ -1,0 +1,30 @@
+import { describe, expect, it } from 'vitest';
+import {
+  CAMERA_DIRECTION,
+  calculateCameraDistance,
+  getCameraPosition,
+} from './cameraMath';
+
+describe('fixed board camera math', () => {
+  it('keeps the camera direction normalized and fixed', () => {
+    expect(Math.hypot(...CAMERA_DIRECTION)).toBeCloseTo(1);
+    expect(CAMERA_DIRECTION[0]).toBeGreaterThan(0);
+    expect(CAMERA_DIRECTION[1]).toBeGreaterThan(CAMERA_DIRECTION[0]);
+    expect(CAMERA_DIRECTION[2]).toBeGreaterThan(0);
+  });
+
+  it('frames a wide board farther on a narrow viewport', () => {
+    const narrow = calculateCameraDistance(0.75);
+    const wide = calculateCameraDistance(1.8);
+    expect(narrow).toBeGreaterThan(wide);
+    expect(calculateCameraDistance(0)).toBeCloseTo(calculateCameraDistance(1));
+  });
+
+  it('returns a position on the fixed direction vector', () => {
+    const position = getCameraPosition(1.5);
+    const distance = calculateCameraDistance(1.5);
+    expect(position.map(component => component / distance)).toEqual(
+      CAMERA_DIRECTION.map(component => expect.closeTo(component, 10)),
+    );
+  });
+});
