@@ -1,17 +1,21 @@
 import {
-  PLATFORM_HEIGHT,
-  TILE_HEIGHT,
+  SURFACE_EPSILON,
+  TILE_SURFACE_Y,
   getBoardTileLayout,
 } from './boardLayout';
 
-export const BUILDING_BASE_Y = PLATFORM_HEIGHT + TILE_HEIGHT + 0.02;
-export const PLAYER_MARKER_Y = PLATFORM_HEIGHT + TILE_HEIGHT + 0.42;
+export const HOUSE_BODY_HEIGHT = 0.22;
+export const HOTEL_BODY_HEIGHT = 0.46;
+export const PLAYER_MARKER_BODY_HEIGHT = 0.26;
+export const HOUSE_CENTER_Y = TILE_SURFACE_Y + SURFACE_EPSILON + HOUSE_BODY_HEIGHT / 2;
+export const HOTEL_CENTER_Y = TILE_SURFACE_Y + SURFACE_EPSILON + HOTEL_BODY_HEIGHT / 2;
+export const PLAYER_MARKER_Y = TILE_SURFACE_Y + SURFACE_EPSILON + PLAYER_MARKER_BODY_HEIGHT / 2;
 
 const HOUSE_SLOTS: readonly (readonly [number, number, number])[] = [
-  [-0.34, BUILDING_BASE_Y, 0.18],
-  [0, BUILDING_BASE_Y, 0.18],
-  [0.34, BUILDING_BASE_Y, 0.18],
-  [0, BUILDING_BASE_Y, -0.22],
+  [-0.34, HOUSE_CENTER_Y, 0.18],
+  [0, HOUSE_CENTER_Y, 0.18],
+  [0.34, HOUSE_CENTER_Y, 0.18],
+  [0, HOUSE_CENTER_Y, -0.22],
 ];
 
 const OCCUPANT_OFFSETS: readonly (readonly [number, number, number])[] = [
@@ -29,7 +33,7 @@ export function getBuildingSlots(houses: number): readonly (readonly [number, nu
 }
 
 export function getHotelSlot(): readonly [number, number, number] {
-  return [0, BUILDING_BASE_Y, 0];
+  return [0, HOTEL_CENTER_Y, 0];
 }
 
 function rotateY(offset: readonly [number, number, number], rotation: number): readonly [number, number, number] {

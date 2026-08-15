@@ -1,26 +1,22 @@
-import { getBoardTileLayout } from '../board/boardLayout';
 import { getBuildingSlots, getHotelSlot } from '../board/buildingPlacement';
 import HouseMesh from './HouseMesh';
 import HotelMesh from './HotelMesh';
 
 interface BuildingLayerProps {
-  tileId: number;
   houses: number;
 }
 
-export default function BuildingLayer({ tileId, houses }: BuildingLayerProps) {
-  const layout = getBoardTileLayout(tileId);
-  if (!layout) return null;
+export default function BuildingLayer({ houses }: BuildingLayerProps) {
   if (houses === 5) {
     return (
-      <group position={layout.position} rotation={layout.rotation}>
+      <group>
         <HotelMesh position={getHotelSlot()} />
       </group>
     );
   }
   const slots = getBuildingSlots(houses);
   return (
-    <group position={layout.position} rotation={layout.rotation}>
+    <group>
       {slots.map((position, index) => <HouseMesh key={index} position={position} />)}
     </group>
   );

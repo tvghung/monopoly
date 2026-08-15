@@ -112,6 +112,7 @@ export default function BoardTile3D({
           ? <OwnershipMarker color={ownerColor} size={layout.size} />
           : null}
         {selected ? <SelectionMarker size={layout.size} /> : null}
+        {houses > 0 ? <BuildingLayer houses={houses} /> : null}
       </group>
       <sprite
         position={[0, TILE_SURFACE_Y + 0.09, 0]}
@@ -122,7 +123,6 @@ export default function BoardTile3D({
       >
         <spriteMaterial map={texture} transparent depthWrite={false} />
       </sprite>
-      {houses > 0 ? <BuildingLayer tileId={tileId} houses={houses} /> : null}
     </group>
   );
 }

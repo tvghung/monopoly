@@ -1,4 +1,5 @@
 import { boardVisualTokens } from '../board/boardVisualTokens';
+import { HOTEL_BODY_HEIGHT } from '../board/buildingPlacement';
 
 export default function HotelMesh({
   position,
@@ -6,7 +7,7 @@ export default function HotelMesh({
   return (
     <group position={position}>
       <mesh castShadow>
-        <boxGeometry args={[0.52, 0.46, 0.34]} />
+        <boxGeometry args={[0.52, HOTEL_BODY_HEIGHT, 0.34]} />
         <meshStandardMaterial color={boardVisualTokens.hotel} roughness={0.68} />
       </mesh>
       <mesh position={[0, 0.3, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>

@@ -1,4 +1,5 @@
 import { boardVisualTokens } from '../board/boardVisualTokens';
+import { SURFACE_EPSILON, TILE_SURFACE_Y } from '../board/boardLayout';
 
 interface JailVisualProps {
   size: readonly [number, number];
@@ -8,7 +9,7 @@ export default function JailVisual({ size }: JailVisualProps) {
   const barCount = 4;
   const barSpacing = size[0] / (barCount + 1);
   return (
-    <group position={[0, 0.48, 0]}>
+    <group position={[0, TILE_SURFACE_Y + SURFACE_EPSILON, 0]}>
       <mesh position={[0, 0.05, 0]} receiveShadow>
         <boxGeometry args={[size[0] * 0.72, 0.1, size[1] * 0.62]} />
         <meshStandardMaterial color={boardVisualTokens.jail} roughness={0.76} />
