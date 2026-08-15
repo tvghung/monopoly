@@ -1,4 +1,4 @@
-import { getBuildingSlots, getHotelSlot } from '../board/buildingPlacement';
+import { getBuildingSlots, getHotelSlot } from '../board/architecture/tileAnchors';
 import HouseMesh from './HouseMesh';
 import HotelMesh from './HotelMesh';
 
