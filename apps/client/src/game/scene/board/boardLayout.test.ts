@@ -19,9 +19,13 @@ import {
   TILE_GAP,
   TILE_HEIGHT,
   TILE_SURFACE_Y,
+  TILE_SURFACE_LOCAL_POSITION,
+  TILE_SURFACE_LOCAL_ROTATION,
   boardLayout,
   getGeometryBottomY,
   getBoardTileLayout,
+  getTileSurfaceGeometry,
+  getTileSurfaceWorldCorners,
 } from './boardLayout';
 
 describe('canonical 2.5D board layout', () => {
@@ -94,6 +98,28 @@ describe('canonical 2.5D board layout', () => {
       expect(layout?.position[index]).toBeCloseTo(coordinate);
     });
     expect(layout?.rotation).toEqual([0, rotationY, 0]);
+  });
+
+  it.each([
+    [1, 'BOTTOM', EDGE_TILE_WIDTH - TILE_GAP - 0.08, EDGE_TILE_DEPTH - TILE_GAP - 0.08],
+    [11, 'LEFT', EDGE_TILE_DEPTH - TILE_GAP - 0.08, EDGE_TILE_WIDTH - TILE_GAP - 0.08],
+    [21, 'TOP', EDGE_TILE_WIDTH - TILE_GAP - 0.08, EDGE_TILE_DEPTH - TILE_GAP - 0.08],
+    [31, 'RIGHT', EDGE_TILE_DEPTH - TILE_GAP - 0.08, EDGE_TILE_WIDTH - TILE_GAP - 0.08],
+  ] as const)('transforms tile %i surface footprint with its canonical side rotation', (tileId, side, expectedWorldWidth, expectedWorldDepth) => {
+    const layout = getBoardTileLayout(tileId);
+    const surface = layout ? getTileSurfaceGeometry(layout) : undefined;
+    const corners = getTileSurfaceWorldCorners(tileId);
+    expect(layout?.side).toBe(side);
+    expect(surface?.position).toEqual(TILE_SURFACE_LOCAL_POSITION);
+    expect(surface?.rotation).toEqual(TILE_SURFACE_LOCAL_ROTATION);
+    expect(corners).toHaveLength(4);
+    const worldWidth = Math.max(...corners!.map(corner => corner[0]))
+      - Math.min(...corners!.map(corner => corner[0]));
+    const worldDepth = Math.max(...corners!.map(corner => corner[2]))
+      - Math.min(...corners!.map(corner => corner[2]));
+    expect(worldWidth).toBeCloseTo(expectedWorldWidth);
+    expect(worldDepth).toBeCloseTo(expectedWorldDepth);
+    corners!.forEach(corner => expect(corner[1]).toBeCloseTo(TILE_SURFACE_LOCAL_POSITION[1]));
   });
 
   it('looks up valid IDs and safely rejects invalid IDs', () => {

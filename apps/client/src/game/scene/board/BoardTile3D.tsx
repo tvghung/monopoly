@@ -5,12 +5,13 @@ import type { CanvasTexture } from 'three';
 import {
   PLATFORM_HEIGHT,
   TILE_HEIGHT,
-  TILE_SURFACE_Y,
+  getTileSurfaceGeometry,
   getBoardTileLayout,
 } from './boardLayout';
 import { boardVisualTokens } from './boardVisualTokens';
 import {
   acquireTileLabelTexture,
+  DEFAULT_TILE_TEXTURE_ANISOTROPY,
   releaseTileLabelTexture,
 } from './tileTexture';
 import JailVisual from '../special/JailVisual';
@@ -26,6 +27,7 @@ export interface BoardTile3DProps {
   selected?: boolean;
   ownerColor?: string;
   houses?: number;
+  textureAnisotropy?: number;
   onHover?: (tileId: number | null) => void;
   onSelect?: (tileId: number) => void;
 }
@@ -38,6 +40,7 @@ export function useTileLabelTexture(
   tileId: number,
   tile: Tile,
   enabled: boolean,
+  maxSupportedAnisotropy = DEFAULT_TILE_TEXTURE_ANISOTROPY,
 ): CanvasTexture | null {
   const [texture, setTexture] = useState<CanvasTexture | null>(null);
   useEffect(() => {
@@ -45,10 +48,10 @@ export function useTileLabelTexture(
       setTexture(null);
       return undefined;
     }
-    const acquiredTexture = acquireTileLabelTexture(tileId, tile);
+    const acquiredTexture = acquireTileLabelTexture(tileId, tile, maxSupportedAnisotropy);
     setTexture(acquiredTexture);
     return () => releaseTileLabelTexture(tileId);
-  }, [enabled, tile, tileId]);
+  }, [enabled, maxSupportedAnisotropy, tile, tileId]);
   return texture;
 }
 
@@ -59,13 +62,20 @@ export default function BoardTile3D({
   selected = false,
   ownerColor,
   houses = 0,
+  textureAnisotropy = DEFAULT_TILE_TEXTURE_ANISOTROPY,
   onHover,
   onSelect,
 }: BoardTile3DProps) {
   const layout = getBoardTileLayout(tileId);
-  const texture = useTileLabelTexture(tileId, tile, Boolean(layout));
+  const texture = useTileLabelTexture(
+    tileId,
+    tile,
+    Boolean(layout),
+    textureAnisotropy,
+  );
 
   if (!layout || !texture) return null;
+  const surface = getTileSurfaceGeometry(layout);
   const slabColor = selected
     ? boardVisualTokens.selection
     : hovered ? boardVisualTokens.hover : boardVisualTokens.tileSurface;
@@ -103,17 +113,17 @@ export default function BoardTile3D({
           : null}
         {selected ? <SelectionMarker size={layout.size} /> : null}
         {houses > 0 ? <BuildingLayer houses={houses} /> : null}
+        <mesh
+          position={surface.position}
+          rotation={surface.rotation}
+          onPointerEnter={handlePointerEnter}
+          onPointerLeave={handlePointerLeave}
+          onClick={handleClick}
+        >
+          <planeGeometry args={surface.size} />
+          <meshBasicMaterial map={texture} toneMapped={false} />
+        </mesh>
       </group>
-      <mesh
-        position={[0, TILE_SURFACE_Y + 0.006, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        onPointerEnter={handlePointerEnter}
-        onPointerLeave={handlePointerLeave}
-        onClick={handleClick}
-      >
-        <planeGeometry args={[Math.max(0.3, layout.size[0] - 0.08), Math.max(0.3, layout.size[1] - 0.08)]} />
-        <meshBasicMaterial map={texture} toneMapped={false} />
-      </mesh>
     </group>
   );
 }

@@ -7,6 +7,18 @@ export const TILE_GAP = 0.05;
 export const TILE_HEIGHT = 0.28;
 export const PLATFORM_HEIGHT = 0.42;
 export const TILE_SURFACE_Y = PLATFORM_HEIGHT + TILE_HEIGHT;
+export const TILE_FACE_EPSILON = 0.006;
+export const TILE_SURFACE_LOCAL_POSITION: readonly [number, number, number] = [
+  0,
+  TILE_SURFACE_Y + TILE_FACE_EPSILON,
+  0,
+];
+export const TILE_SURFACE_LOCAL_ROTATION: readonly [number, number, number] = [
+  -Math.PI / 2,
+  0,
+  0,
+];
+export const TILE_SURFACE_INSET = 0.08;
 export const SURFACE_EPSILON = 0.02;
 export const TILE_SURFACE_CLEARANCE_Y = TILE_SURFACE_Y + SURFACE_EPSILON;
 
@@ -49,6 +61,12 @@ export interface BoardTileLayout {
   position: readonly [number, number, number];
   rotation: readonly [number, number, number];
   /** Local mesh footprint as [width, depth]. Side tiles rotate this footprint. */
+  size: readonly [number, number];
+}
+
+export interface TileSurfaceGeometry {
+  position: readonly [number, number, number];
+  rotation: readonly [number, number, number];
   size: readonly [number, number];
 }
 
@@ -115,6 +133,17 @@ export function getBoardTileLayout(tileId: number): BoardTileLayout | undefined 
   return layoutByTileId.get(tileId);
 }
 
+export function getTileSurfaceGeometry(layout: BoardTileLayout): TileSurfaceGeometry {
+  return {
+    position: TILE_SURFACE_LOCAL_POSITION,
+    rotation: TILE_SURFACE_LOCAL_ROTATION,
+    size: [
+      Math.max(0.3, layout.size[0] - TILE_SURFACE_INSET),
+      Math.max(0.3, layout.size[1] - TILE_SURFACE_INSET),
+    ],
+  };
+}
+
 export function transformTileLocalPointToWorld(
   tileId: number,
   localPoint: readonly [number, number, number],
@@ -129,6 +158,22 @@ export function transformTileLocalPointToWorld(
     layout.position[1] + localPoint[1],
     layout.position[2] - sin * localPoint[0] + cos * localPoint[2],
   ];
+}
+
+export function getTileSurfaceWorldCorners(
+  tileId: number,
+): readonly (readonly [number, number, number])[] | undefined {
+  const layout = getBoardTileLayout(tileId);
+  if (!layout) return undefined;
+  const surface = getTileSurfaceGeometry(layout);
+  const halfWidth = surface.size[0] / 2;
+  const halfDepth = surface.size[1] / 2;
+  return [
+    transformTileLocalPointToWorld(tileId, [-halfWidth, surface.position[1], -halfDepth]),
+    transformTileLocalPointToWorld(tileId, [halfWidth, surface.position[1], -halfDepth]),
+    transformTileLocalPointToWorld(tileId, [halfWidth, surface.position[1], halfDepth]),
+    transformTileLocalPointToWorld(tileId, [-halfWidth, surface.position[1], halfDepth]),
+  ] as readonly (readonly [number, number, number])[];
 }
 
 export const BOARD_BOUNDING_RADIUS = Math.hypot(OUTER_BOARD_SIZE / 2, OUTER_BOARD_SIZE / 2);
