@@ -2,10 +2,12 @@ import type { Phase2PlayerMarkerModel } from '../board/boardRenderModel';
 import {
   PLAYER_ACTIVE_RING_LOCAL_Y,
   PLAYER_ACTIVE_RING_TUBE_RADIUS,
-  getOccupantWorldPosition,
 } from '../board/buildingPlacement';
+import { PLAYER_MARKER_BODY_HEIGHT, getPlayerLandingAnchor } from '../board/architecture/tileAnchors';
+import { useTileMotionOffset } from '../board/motion/TileMotionProvider';
 import { boardVisualTokens } from '../board/boardVisualTokens';
 import { getPlayerDisplayColor } from '../../ui/playerVisualColors';
+import ContactShadow from '../fx/ContactShadow';
 
 interface Phase2PlayerMarkersProps {
   players: readonly Phase2PlayerMarkerModel[];
@@ -14,11 +16,12 @@ interface Phase2PlayerMarkersProps {
 function PlayerMarker({
   player, slotIndex,
 }: { player: Phase2PlayerMarkerModel; slotIndex: number }) {
-  const position = getOccupantWorldPosition(player.tileId, slotIndex);
+  const position = getPlayerLandingAnchor(player.tileId, slotIndex);
+  const tileMotionOffsetY = useTileMotionOffset(player.tileId);
   if (!position) return null;
   const displayColor = getPlayerDisplayColor(player.color);
   return (
-    <group position={position}>
+    <group position={[position[0], position[1] + tileMotionOffsetY, position[2]]}>
       {player.isActive
         ? (
           <mesh
@@ -38,6 +41,7 @@ function PlayerMarker({
         <sphereGeometry args={[0.16, 10, 6]} />
         <meshStandardMaterial color={displayColor} roughness={0.58} />
       </mesh>
+      <ContactShadow position={[0, -PLAYER_MARKER_BODY_HEIGHT / 2 - 0.01, 0]} scale={[0.52, 0.4]} opacity={0.2} />
     </group>
   );
 }
