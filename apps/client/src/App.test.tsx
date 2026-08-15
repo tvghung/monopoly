@@ -332,6 +332,9 @@ describe('App session admission', () => {
       }
     });
 
+    expect(screen.getByText(/^FPS (?:--|\d+)$/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cài đặt' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Bỏ cuộc' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Bỏ cuộc' }));
     expect(screen.getByRole('alertdialog')).toBeTruthy();
     expect(lastEmission('leave room')).toBeUndefined();
