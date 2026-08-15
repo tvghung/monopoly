@@ -40,6 +40,15 @@ function populateSockets(
   mesh.instanceMatrix.needsUpdate = true;
 }
 
+export function TileSocketAnchor({ tileId }: { tileId: number }) {
+  return (
+    <group
+      name={`TileSocket:${tileId}`}
+      userData={{ tileId, batch: 'TileSocketLayer' }}
+    />
+  );
+}
+
 export default function TileSocket() {
   const sideRef = useRef<THREE.InstancedMesh>(null);
   const cornerRef = useRef<THREE.InstancedMesh>(null);

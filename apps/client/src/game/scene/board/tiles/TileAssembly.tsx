@@ -2,6 +2,7 @@ import type { Tile } from '@monopoly/shared';
 import { getBoardTileLayout } from '../boardLayout';
 import { getTileVisualDescriptor } from '../architecture/tileVisualRegistry';
 import { TILE_ASSEMBLY_LAYER_ORDER, TILE_TRANSFORM_CONTRACT } from '../architecture/tileAssemblyContracts';
+import { TileSocketAnchor } from '../foundation/TileSocket';
 import TileFxAnchor from './TileFxAnchor';
 import TileBodyLayer from './TileBodyLayer';
 import TileDevelopmentLayer from './TileDevelopmentLayer';
@@ -48,6 +49,7 @@ export default function TileAssembly({
         transformContract: TILE_TRANSFORM_CONTRACT,
       }}
     >
+      <TileSocketAnchor tileId={tileId} />
       <TileInteractionLayer tileId={tileId} />
       <TilePressRoot tileId={tileId}>
         <TileBodyLayer
