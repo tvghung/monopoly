@@ -7,7 +7,14 @@ import {
 } from '../../ui/propertyVisualColors';
 import { boardVisualTokens } from './boardVisualTokens';
 
-const TILE_TEXTURE_ANISOTROPY = 4;
+export const DEFAULT_TILE_TEXTURE_ANISOTROPY = 4;
+export const TILE_TEXTURE_ANISOTROPY_CAP = 8;
+export const TILE_TEXTURE_MIN_FILTER = THREE.LinearMipmapNearestFilter;
+
+export function getTileTextureAnisotropy(maxSupported: number): number {
+  if (!Number.isFinite(maxSupported)) return 1;
+  return Math.max(1, Math.min(TILE_TEXTURE_ANISOTROPY_CAP, Math.floor(maxSupported)));
+}
 
 interface TileSurfaceStyle {
   accent: string;
@@ -56,9 +63,9 @@ export function getTileSurfaceStyle(tile: Tile): TileSurfaceStyle {
   };
 }
 
-function tileTypeLabel(tile: Tile): string {
+function tileTypeLabel(tile: Tile): string | null {
   switch (tile.tileType) {
-    case 'normal': return 'BẤT ĐỘNG SẢN';
+    case 'normal': return null;
     case 'railroad': return 'GA TÀU';
     case 'company': return 'CÔNG TY';
     case 'chance': return 'CƠ HỘI';
@@ -105,9 +112,9 @@ function drawMotif(
   width: number,
   height: number,
 ): void {
-  const startY = Math.round(height * 0.58);
+  const startY = Math.round(height * 0.64);
   const unit = Math.max(8, Math.round(width * 0.06));
-  context.globalAlpha = 0.15;
+  context.globalAlpha = 0.1;
   context.fillStyle = accent;
   switch (motif) {
     case 'brick':
@@ -161,7 +168,11 @@ function drawMotif(
   context.globalAlpha = 1;
 }
 
-function createTileLabelTexture(tileId: number, tile: Tile): THREE.CanvasTexture {
+function createTileLabelTexture(
+  tileId: number,
+  tile: Tile,
+  maxSupportedAnisotropy: number,
+): THREE.CanvasTexture {
   const { width, height } = labelDimensions(tile);
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -182,15 +193,29 @@ function createTileLabelTexture(tileId: number, tile: Tile): THREE.CanvasTexture
 
   context.textAlign = 'center';
   context.textBaseline = 'middle';
-  context.fillStyle = boardVisualTokens.tileText;
-  context.font = `800 ${Math.round(width * 0.07)}px Arial, sans-serif`;
-  context.fillText(tileTypeLabel(tile), width / 2, height * 0.25);
+  const typeLabel = tileTypeLabel(tile);
+  if (typeLabel) {
+    context.fillStyle = boardVisualTokens.tileText;
+    context.font = `800 ${Math.round(width * 0.07)}px Arial, sans-serif`;
+    context.fillText(typeLabel, width / 2, height * 0.25);
+  }
 
-  context.font = `800 ${Math.round(width * 0.115)}px Arial, sans-serif`;
-  drawWrappedText(context, getTileName(tileId), width / 2, height * 0.46, width * 0.82, width * 0.13, 3);
+  context.fillStyle = boardVisualTokens.tileText;
+  context.font = tile.tileType === 'normal'
+    ? `900 ${Math.round(width * 0.145)}px Arial, sans-serif`
+    : `800 ${Math.round(width * 0.115)}px Arial, sans-serif`;
+  drawWrappedText(
+    context,
+    getTileName(tileId),
+    width / 2,
+    tile.tileType === 'normal' ? height * 0.4 : height * 0.46,
+    width * 0.86,
+    tile.tileType === 'normal' ? width * 0.16 : width * 0.13,
+    3,
+  );
 
   if (typeof tile.price === 'number') {
-    context.font = `800 ${Math.round(width * 0.072)}px Arial, sans-serif`;
+    context.font = `800 ${Math.round(width * (tile.tileType === 'normal' ? 0.082 : 0.072))}px Arial, sans-serif`;
     context.fillText(formatMoney(tile.price), width / 2, height * 0.86);
   } else {
     context.font = `700 ${Math.round(width * 0.06)}px Arial, sans-serif`;
@@ -201,14 +226,18 @@ function createTileLabelTexture(tileId: number, tile: Tile): THREE.CanvasTexture
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.generateMipmaps = true;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.minFilter = TILE_TEXTURE_MIN_FILTER;
   texture.magFilter = THREE.LinearFilter;
-  texture.anisotropy = TILE_TEXTURE_ANISOTROPY;
+  texture.anisotropy = getTileTextureAnisotropy(maxSupportedAnisotropy);
   texture.needsUpdate = true;
   return texture;
 }
 
-export function acquireTileLabelTexture(tileId: number, tile: Tile): THREE.CanvasTexture {
+export function acquireTileLabelTexture(
+  tileId: number,
+  tile: Tile,
+  maxSupportedAnisotropy = DEFAULT_TILE_TEXTURE_ANISOTROPY,
+): THREE.CanvasTexture {
   const cached = textureCache.get(tileId);
   if (cached) {
     cached.users += 1;
@@ -216,7 +245,7 @@ export function acquireTileLabelTexture(tileId: number, tile: Tile): THREE.Canva
     return cached.texture;
   }
   const entry: TextureCacheEntry = {
-    texture: createTileLabelTexture(tileId, tile),
+    texture: createTileLabelTexture(tileId, tile, maxSupportedAnisotropy),
     users: 1,
     disposalToken: 0,
   };

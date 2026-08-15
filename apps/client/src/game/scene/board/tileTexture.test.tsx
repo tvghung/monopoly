@@ -6,13 +6,13 @@ import {
   cleanup, render, screen, waitFor,
 } from '@testing-library/react';
 import * as THREE from 'three';
-import { getTileSurfaceStyle } from './tileTexture';
+import { getTileSurfaceStyle, getTileTextureAnisotropy } from './tileTexture';
 import {
   afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest';
 import { useTileLabelTexture } from './BoardTile3D';
 
-const fillText = vi.fn();
+const fillText = vi.fn<(text: string, x: number, y: number) => void>();
 const context = {
   fillRect: vi.fn(),
   fillText,
@@ -28,6 +28,8 @@ function TextureConsumer({ hovered }: { hovered: boolean }) {
       data-testid="texture-consumer"
       data-instance-id={instanceId}
       data-texture-id={texture?.uuid ?? ''}
+      data-min-filter={texture?.minFilter ?? ''}
+      data-anisotropy={texture?.anisotropy ?? ''}
       data-hovered={hovered}
     />
   );
@@ -83,7 +85,27 @@ describe('tile texture lifecycle', () => {
     await waitFor(() => {
       expect(screen.getByTestId('texture-consumer').getAttribute('data-texture-id')).not.toBe('');
     });
-    expect(fillText).toHaveBeenCalledWith('Cà Mau', expect.any(Number), expect.any(Number));
+    const drawnText = fillText.mock.calls.map(([text]) => text);
+    expect(drawnText).toContain('Cà Mau');
+    expect(drawnText).toContain('60.000 ₫');
+    expect(drawnText).not.toContain('BẤT ĐỘNG SẢN');
+    unmount();
+  });
+
+  it('uses a sharper mip filter and the configured anisotropy without recreating on hover', async () => {
+    const { rerender, unmount } = render(<TextureConsumer hovered={false} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('texture-consumer').getAttribute('data-texture-id')).not.toBe('');
+    });
+    const textureConsumer = screen.getByTestId('texture-consumer');
+    expect(textureConsumer.getAttribute('data-min-filter'))
+      .toBe(String(THREE.LinearMipmapNearestFilter));
+    expect(textureConsumer.getAttribute('data-anisotropy')).toBe('4');
+
+    rerender(<TextureConsumer hovered />);
+    expect(screen.getByTestId('texture-consumer').getAttribute('data-texture-id'))
+      .toBe(textureConsumer.getAttribute('data-texture-id'));
     unmount();
   });
 
@@ -92,5 +114,11 @@ describe('tile texture lifecycle', () => {
     expect(getTileSurfaceStyle(tileState[6]).motif).toBe('water');
     expect(getTileSurfaceStyle(tileState[16]).motif).toBe('market');
     expect(getTileSurfaceStyle(tileState[21]).motif).toBe('downtown');
+  });
+
+  it('clamps renderer anisotropy to a practical quality cap', () => {
+    expect(getTileTextureAnisotropy(16)).toBe(8);
+    expect(getTileTextureAnisotropy(4)).toBe(4);
+    expect(getTileTextureAnisotropy(Number.NaN)).toBe(1);
   });
 });

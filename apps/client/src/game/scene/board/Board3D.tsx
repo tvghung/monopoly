@@ -8,6 +8,7 @@ interface Board3DProps {
   model?: BoardRenderModel;
   hoveredTileId?: number | null;
   selectedTileId?: number | null;
+  textureAnisotropy?: number;
   onTileHover?: (tileId: number | null) => void;
   onTileSelect?: (tileId: number) => void;
 }
@@ -16,6 +17,7 @@ export default function Board3D({
   model,
   hoveredTileId = null,
   selectedTileId = null,
+  textureAnisotropy,
   onTileHover,
   onTileSelect,
 }: Board3DProps) {
@@ -37,6 +39,7 @@ export default function Board3D({
           tile={tileState[tile.tileId]}
           ownerColor={tile.ownerColor}
           houses={tile.houses}
+          textureAnisotropy={textureAnisotropy}
           hovered={hoveredTileId === tile.tileId}
           selected={selectedTileId === tile.tileId}
           onHover={onTileHover}
