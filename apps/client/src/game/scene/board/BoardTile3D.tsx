@@ -1,6 +1,7 @@
 import type { Tile } from '@monopoly/shared';
 import type { ThreeEvent } from '@react-three/fiber';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useState } from 'react';
+import type { CanvasTexture } from 'three';
 import {
   PLATFORM_HEIGHT,
   SURFACE_EPSILON,
@@ -36,6 +37,24 @@ function stopPointerEvent(event: { stopPropagation: () => void }): void {
   event.stopPropagation();
 }
 
+function useTileLabelTexture(
+  tileId: number,
+  tile: Tile,
+  enabled: boolean,
+): CanvasTexture | null {
+  const [texture, setTexture] = useState<CanvasTexture | null>(null);
+  useEffect(() => {
+    if (!enabled) {
+      setTexture(null);
+      return undefined;
+    }
+    const acquiredTexture = acquireTileLabelTexture(tileId, tile);
+    setTexture(acquiredTexture);
+    return () => releaseTileLabelTexture(tileId);
+  }, [enabled, tile, tileId]);
+  return texture;
+}
+
 export default function BoardTile3D({
   tileId,
   tile,
@@ -47,13 +66,7 @@ export default function BoardTile3D({
   onSelect,
 }: BoardTile3DProps) {
   const layout = getBoardTileLayout(tileId);
-  const texture = useMemo(
-    () => (layout ? acquireTileLabelTexture(tileId, tile) : null),
-    [layout, tile, tileId],
-  );
-  useEffect(() => () => {
-    if (texture) releaseTileLabelTexture(tileId);
-  }, [texture, tileId]);
+  const texture = useTileLabelTexture(tileId, tile, Boolean(layout));
 
   if (!layout || !texture) return null;
   const slabColor = selected

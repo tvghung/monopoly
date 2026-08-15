@@ -18,6 +18,7 @@ const TILE_COLOR_TOKENS: Record<string, string> = {
 interface TextureCacheEntry {
   texture: THREE.CanvasTexture;
   users: number;
+  disposalToken: number;
 }
 
 const textureCache = new Map<number, TextureCacheEntry>();
@@ -141,11 +142,13 @@ export function acquireTileLabelTexture(tileId: number, tile: Tile): THREE.Canva
   const cached = textureCache.get(tileId);
   if (cached) {
     cached.users += 1;
+    cached.disposalToken += 1;
     return cached.texture;
   }
   const entry: TextureCacheEntry = {
     texture: createTileLabelTexture(tileId, tile),
     users: 1,
+    disposalToken: 0,
   };
   textureCache.set(tileId, entry);
   return entry.texture;
@@ -153,11 +156,16 @@ export function acquireTileLabelTexture(tileId: number, tile: Tile): THREE.Canva
 
 export function releaseTileLabelTexture(tileId: number): void {
   const cached = textureCache.get(tileId);
-  if (!cached) return;
+  if (!cached || cached.users === 0) return;
   cached.users -= 1;
   if (cached.users > 0) return;
-  cached.texture.dispose();
-  textureCache.delete(tileId);
+  const disposalToken = ++cached.disposalToken;
+  queueMicrotask(() => {
+    const current = textureCache.get(tileId);
+    if (current !== cached || current.users > 0 || current.disposalToken !== disposalToken) return;
+    current.texture.dispose();
+    textureCache.delete(tileId);
+  });
 }
 
 export function getTileLabelScale(tile: Tile): readonly [number, number, number] {
