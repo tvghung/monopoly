@@ -1,6 +1,6 @@
 :root {
   --color-canvas: #effcf8;
-  --color-canvas-deep: #b7f1e4;
+  --color-canvas-deep: #a7f3e2;
   --color-surface: #fffdf4;
   --color-surface-raised: #ffffff;
   --color-surface-soft: #e7faf5;
@@ -8,10 +8,10 @@
   --color-text-secondary: #42616d;
   --color-text-muted: #718b94;
   --color-text-inverse: #ffffff;
-  --color-accent-primary: #ff5b73;
-  --color-accent-primary-strong: #e43e5a;
+  --color-accent-primary: #ff4f6d;
+  --color-accent-primary-strong: #dc3455;
   --color-accent-primary-soft: #ffe0e6;
-  --color-accent-secondary: #12b9a7;
+  --color-accent-secondary: #0fc8b1;
   --color-accent-secondary-strong: #078f8d;
   --color-accent-secondary-soft: #d3f8f0;
   --color-success: #159b60;
