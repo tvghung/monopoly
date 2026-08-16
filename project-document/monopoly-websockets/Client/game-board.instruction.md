@@ -28,24 +28,34 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   `metroConcrete`, `sandstoneTerrazzo`, `ecoSlate`, `premiumBrownStone`.
 - Mỗi key giữ đúng một 512×512 sRGB albedo `DataTexture`, một non-color bump
   `DataTexture` và một `MeshStandardMaterial`; tài nguyên được dùng chung theo
-  batch, không tạo lại khi hover/select. 40 mặt ô được chia thành tám district
-  instanced batches và một special batch.
-- District color chỉ xuất hiện như accent inlay/emblem trong texture. Ownership có
-  marker riêng; không dùng chassis/accent district làm owner state và không còn
-  raised continuous color rail.
+  batch, không tạo lại khi hover/select. Upper art của 36 edge tiles được chia
+  thành tám district instanced batches và một special batch; footer/divider dùng
+  hai instanced layers chung, còn bốn corner tiles giữ treatment riêng.
+- District identity nằm trong các pattern nền textless, sáng và thưa, có tuning
+  density/contrast/seam/spacing. Không còn accent inlay, emblem nhỏ hoặc raised
+  continuous color rail trên property tile. Ownership có marker riêng và không
+  dùng district accent làm owner state.
+- Mỗi edge tile có upper art panel 60%, footer nền sáng 40% và divider line hình
+  học; upper/footer/divider dùng cùng tile-motion matrix với chassis.
 - Surface, chassis, text và prop dùng cùng tile motion controller. Matrix mặt ô
   compose từ translation + quaternion XZ orientation + scale, giữ normal hướng lên
   ở cả bốn cạnh và footprint khớp tile thật.
 - Property thường chỉ in tên, không in giá trên mặt ô. Cỡ local SDF adaptive là
-  `0.205`/`0.19`/`0.17`: một dòng cho tên ngắn, hai dòng cho tên dài thông thường,
-  ba dòng chỉ khi thật sự cần; maxWidth bằng 90% vùng usable. Special tile vẫn giữ
-  label/name/amount có ích. SDF dùng font local và callback sync invalidate demand
-  frame.
+  `0.255`/`0.225`/`0.195`: một dòng cho tên ngắn, hai dòng cho tên dài thông thường,
+  ba dòng chỉ khi thật sự cần; maxWidth bằng 96% vùng usable footer. Special tile
+  chỉ in một footer label; price không render trên mặt tile. Text dùng một
+  canonical inward-facing rule theo side, gồm cả hai run sát Parking. SDF dùng
+  font local và callback sync invalidate demand frame.
 - Scene dùng fixed orthographic camera, ACES filmic tone mapping, contact shadows,
   DPR clamp `1.25..1.5` và `frameloop="demand"`. Budget hiện hành: target 210 draw
   calls, stress ceiling 240, target 80k triangles và hard ceiling 100k.
-- Foundation/rim trung tính bao quanh center park recessed. Start/Chance/Chest và
-  bốn corner tiles giữ hierarchy riêng; district art không tràn sang special tile.
+- Foundation/rim trung tính bao quanh center airport field recessed. Center có
+  field xanh, runway/taxiway strips và marking nhẹ, không có airplane model.
+  Chance/Chest dùng lucky-wheel 2D, railroad dùng material/track phẳng, tax dùng
+  stacked paper, jail dùng cell bars và Vào Tù dùng police icon; district art không
+  tràn sang special tile.
+- Edge tile nominal width là `1.55` (corner vẫn `2.4`); outer board size và
+  orthographic fit tự derive từ layout nên camera vẫn frame đủ board.
 
 ## State/rendering
 
@@ -72,9 +82,13 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
 - Quaternion surface normal/footprint tại tile 1, 11, 21, 31; canonical 40-tile
   assignment vào đúng tám district batches cộng một special batch.
 - Tám registry/material descriptors distinct; 512² albedo/bump color-space,
-  resource reuse và StrictMode-safe deferred disposal.
-- Property name-only typography (short/canonical/long), frame dimensions, scene
-  budget, orthographic camera/tone mapping và SDF sync invalidation.
+  resource reuse và StrictMode-safe deferred disposal; beach descriptor có water
+  region và premium green district dùng paver pattern.
+- Property name-only typography (short/canonical/long), 60/40 panel ratio, inward
+  Parking-adjacent orientation, widened edge/corner dimensions, frame dimensions,
+  scene budget, orthographic camera/tone mapping và SDF sync invalidation.
+- Special art contracts cover lucky wheel, flat railroad, tax paper stack, jail
+  bars/police, utility, parking and airport center theme.
 - Owner/house/hotel/inventory/token update theo revision.
 - Normal/pass-GO/jail/card movement; buy/development/payment settlement.
 - Card flip, outside close, multiple token, reduced-motion, reconnect/no-duplicate.
