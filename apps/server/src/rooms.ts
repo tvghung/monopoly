@@ -80,6 +80,7 @@ export const normalizeRoomId = (raw: unknown): string => {
 export const freshState = (): GameState => ({
   boardState: {
     gameStarted: false,
+    gameStartedAt: null,
     players: [],
     finishedPlayers: {},
     currentPlayer: { id: '', hasMoved: false },
@@ -116,6 +117,7 @@ export const hydrateGameState = (
   boardState: {
     ...structuredClone(snapshot.gameState.boardState),
     gameStarted: status !== 'LOBBY',
+    gameStartedAt: snapshot.gameState.boardState.gameStartedAt ?? null,
   },
   loaded: true,
 });
@@ -127,6 +129,7 @@ export const storeGameState = (
 ): void => {
   const durableState = structuredClone(state);
   durableState.boardState.gameStarted = status !== 'LOBBY';
+  durableState.boardState.gameStartedAt = durableState.boardState.gameStartedAt ?? null;
   snapshot.gameState = {
     boardState: durableState.boardState,
     players: durableState.players,

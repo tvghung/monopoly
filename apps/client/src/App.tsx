@@ -46,6 +46,7 @@ import './App.css';
 const initialState: PublicGameState = {
   boardState: {
     gameStarted: false,
+    gameStartedAt: null,
     players: [],
     finishedPlayers: {},
     currentPlayer: { id: '', hasMoved: false },

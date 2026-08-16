@@ -3,12 +3,14 @@ import { CENTER_AIRPORT_SURFACE_Y } from '../architecture/boardArtSpec';
 import RoundedBoxMesh from '../geometry/RoundedBoxMesh';
 import AirportRunwayDashes from './AirportRunwayDashes';
 import AirportRunwayLoop from './AirportRunwayLoop';
+import CenterFieldDecor from './CenterFieldDecor';
 import { AIRPORT_FIELD_SIZE } from './airportRunwayGeometry';
+import MatchTimerSign from './MatchTimerSign';
 
-export const CENTER_DECORATION_MESH_COUNT = 4;
+export const CENTER_DECORATION_MESH_COUNT = 6;
 export const CENTER_DECORATION_THEME = 'airport';
 
-export default function CenterAirport() {
+export default function CenterAirport({ gameStartedAt }: { gameStartedAt?: string | null }) {
   return (
     <group name="CenterAirport" position={[0, CENTER_AIRPORT_SURFACE_Y, 0]}>
       <RoundedBoxMesh
@@ -21,12 +23,10 @@ export default function CenterAirport() {
         materialProfile="centerWell"
         position={[0, 0.04, 0]}
       />
+      <CenterFieldDecor />
       <AirportRunwayLoop />
       <AirportRunwayDashes />
-      <mesh name="AirportCenterMarker" position={[0, 0.102, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.5, 0.56, 32]} />
-        <meshStandardMaterial color={boardVisualTokens.airportCenterMark} roughness={0.7} metalness={0} />
-      </mesh>
+      <MatchTimerSign gameStartedAt={gameStartedAt} />
     </group>
   );
 }

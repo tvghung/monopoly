@@ -230,6 +230,8 @@ export interface ForcedSaleProposal {
 
 export interface BoardState {
   gameStarted: boolean;
+  // Set by the authoritative start command; optional for older persisted snapshots.
+  gameStartedAt?: string | null;
   players: PlayerId[];
   finishedPlayers: Record<PlayerId, FinishedPlayer>;
   currentPlayer: CurrentPlayer;

@@ -71,6 +71,29 @@ describe('durable room snapshot compatibility', () => {
     })).toThrow(UnsupportedRoomSnapshotVersionError);
   });
 
+  it('accepts older snapshots without a match-start timestamp', () => {
+    const gameSnapshot = createRoomSnapshot();
+    delete gameSnapshot.gameState.boardState.gameStartedAt;
+
+    expect(() => assertSupportedRoomSnapshot({
+      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
+      gameSnapshot,
+      status: 'LOBBY',
+    })).not.toThrow();
+    expect(hydrateGameState(gameSnapshot, 'LOBBY').boardState.gameStartedAt).toBeNull();
+  });
+
+  it('preserves an existing match-start timestamp across hydration and storage', () => {
+    const gameSnapshot = createRoomSnapshot();
+    const startedAt = '2030-01-01T00:00:00.000Z';
+    gameSnapshot.gameState.boardState.gameStartedAt = startedAt;
+
+    const state = hydrateGameState(gameSnapshot, 'IN_PROGRESS');
+    storeGameState(gameSnapshot, state, 'IN_PROGRESS');
+
+    expect(gameSnapshot.gameState.boardState.gameStartedAt).toBe(startedAt);
+  });
+
   it('rejects non-UUID domain player identities in a persisted snapshot', () => {
     const gameSnapshot = createRoomSnapshot();
     gameSnapshot.members['legacy-socket-id'] = {
@@ -265,6 +288,19 @@ describe('public room projection', () => {
       claimId: '00000000-0000-4000-8000-000000000102',
       sellableProperties: [],
     });
+  });
+
+  it('projects the durable match-start timestamp to public state', () => {
+    const gameSnapshot = createActiveSnapshot();
+    gameSnapshot.gameState.boardState.gameStartedAt = '2030-01-01T00:00:00.000Z';
+
+    const projected = projectPublicRoomState(
+      roomFromSnapshot(gameSnapshot),
+      new ConnectionRegistry(),
+      new Date('2030-01-01T00:01:00.000Z'),
+    );
+
+    expect(projected.gameState.boardState.gameStartedAt).toBe('2030-01-01T00:00:00.000Z');
   });
 
 });

@@ -59,7 +59,7 @@ export function registerLobbyHandlers(
     try {
       const actor = requirePlayer(socket, runtime);
       const { roomId, playerId } = actor;
-      const committed = await commitRoomCommand(runtime, roomId, ({ room, state }) => {
+      const committed = await commitRoomCommand(runtime, roomId, ({ room, state, now }) => {
         if (room.status !== 'LOBBY') {
           throw new CommandError('GAME_ALREADY_STARTED', 'The game has already started.');
         }
@@ -79,6 +79,7 @@ export function registerLobbyHandlers(
 
         room.status = 'IN_PROGRESS';
         state.boardState.gameStarted = true;
+        state.boardState.gameStartedAt = state.boardState.gameStartedAt ?? now.toISOString();
         const startingRoll = chooseStartingPlayer(players);
         state.boardState.players = rotateSeatOrder(players, startingRoll.winner);
         state.boardState.currentPlayer = {

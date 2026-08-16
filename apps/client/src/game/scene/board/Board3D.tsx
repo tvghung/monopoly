@@ -63,7 +63,7 @@ export default function Board3D({
           />
         ))}
       </group>
-      <CenterAirport />
+      <CenterAirport gameStartedAt={model?.gameStartedAt} />
       <Phase2PlayerMarkers players={model?.players ?? []} />
     </group>
   );

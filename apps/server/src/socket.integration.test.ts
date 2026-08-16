@@ -466,6 +466,9 @@ describe('Socket.IO durable player lifecycle', () => {
         },
       },
     });
+    const startedAt = stored?.gameSnapshot.gameState.boardState.gameStartedAt;
+    expect(startedAt).toEqual(expect.any(String));
+    expect(Number.isFinite(Date.parse(startedAt ?? ''))).toBe(true);
     const startingPlayerId = stored?.gameSnapshot.gameState.boardState.currentPlayer.id;
     expect([host.playerId, guest.playerId]).toContain(startingPlayerId);
     expect(stored?.gameSnapshot.gameState.boardState.players[0]).toBe(startingPlayerId);
