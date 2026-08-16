@@ -1,26 +1,24 @@
 import { TILE_SURFACE_CLEARANCE_Y } from '../board/boardLayout';
 import { boardVisualTokens } from '../board/boardVisualTokens';
 import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
-import { getTilePanelLayoutForTileSize } from '../board/tiles/tilePanelLayout';
+import type { TilePanelLayout } from '../board/tiles/tilePanelLayout';
 
 interface JailVisualProps {
-  size: readonly [number, number];
-  isCorner: boolean;
-  contentRotationY: number;
+  panel: TilePanelLayout;
 }
 
-export default function JailVisual({ size, isCorner, contentRotationY }: JailVisualProps) {
-  const panels = getTilePanelLayoutForTileSize(size);
-  const width = panels.upperSize[0] * (isCorner ? 0.54 : 0.78);
-  const depth = Math.min(panels.upperSize[1] * 0.68, 0.9);
+export default function JailVisual({ panel }: JailVisualProps) {
+  const isCorner = panel.side === 'CORNER';
+  const width = panel.upperSize[0] * (isCorner ? 0.54 : 0.78);
+  const depth = Math.min(panel.upperSize[1] * 0.68, 0.9);
   const barCount = 9;
   const barSpacing = width / (barCount - 1);
 
   return (
     <group
       name="JailCellBars2D"
-      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, isCorner ? 0 : panels.upperCenterLocalZ]}
-      rotation={[0, contentRotationY, 0]}
+      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, isCorner ? 0 : panel.upperCenterLocalZ]}
+      rotation={[0, panel.contentRotationY, 0]}
     >
       <RoundedBoxMesh
         name="JailCellThreshold"

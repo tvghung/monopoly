@@ -2,7 +2,7 @@ import { useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { tileState } from '@monopoly/shared';
-import { getBoardTileLayout, getTileSurfaceGeometry } from '../boardLayout';
+import { getBoardTileLayout, getTileSurfaceGeometry, type BoardSide } from '../boardLayout';
 import { composeTileSurfaceMatrix } from '../architecture/tileMatrix';
 import {
   DISTRICT_SURFACE_KEYS,
@@ -25,6 +25,7 @@ interface TileSurfaceBatchProps {
 
 export interface TileSurfaceBatchEntry {
   tileId: number;
+  side: BoardSide;
   surfaceSize: readonly [number, number];
   surfaceKey?: DistrictSurfaceKey;
   surfacePlaneOffset?: number;
@@ -114,6 +115,8 @@ function SurfaceBatchMesh({
         materialKey: batch.key,
         panel: layerName,
         tileIds: batch.entries.map(entry => entry.tileId),
+        panelSides: batch.entries.map(entry => entry.side),
+        panelFlowSigns: batch.entries.map(entry => getTilePanelLayout(entry.surfaceSize, entry.side).flowSign),
       }}
       onPointerEnter={handlePointer(tileId => onHover?.(tileId))}
       onPointerLeave={event => { stopPointerEvent(event); onHover?.(null); }}
@@ -137,11 +140,11 @@ function getUpperMaterial(
   return library.getMaterial(key);
 }
 
-function withPanel(
+export function withPanel(
   entry: TileSurfaceBatchEntry,
   panel: 'upper' | 'footer' | 'divider',
 ): TileSurfaceBatchEntry {
-  const panelLayout = getTilePanelLayout(entry.surfaceSize);
+  const panelLayout = getTilePanelLayout(entry.surfaceSize, entry.side);
   if (panel === 'upper') {
     return {
       ...entry,
@@ -269,6 +272,7 @@ export default function TileSurfaceBatch({
     if (!layout || !sourceTile) return null;
     return {
       tileId: tile.tileId,
+      side: layout.side,
       surfaceSize: getTileSurfaceGeometry(layout).size,
       surfaceKey: getDistrictSurfaceDescriptor(sourceTile)?.surfaceKey,
     } satisfies TileSurfaceBatchEntry;

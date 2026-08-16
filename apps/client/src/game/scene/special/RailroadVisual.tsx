@@ -1,24 +1,22 @@
 import { TILE_SURFACE_CLEARANCE_Y } from '../board/boardLayout';
 import { boardVisualTokens } from '../board/boardVisualTokens';
 import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
-import { getTilePanelLayoutForTileSize } from '../board/tiles/tilePanelLayout';
+import type { TilePanelLayout } from '../board/tiles/tilePanelLayout';
 
 interface RailroadVisualProps {
-  size: readonly [number, number];
-  isCorner: boolean;
-  contentRotationY: number;
+  panel: TilePanelLayout;
 }
 
-export default function RailroadVisual({ size, isCorner, contentRotationY }: RailroadVisualProps) {
-  const panels = getTilePanelLayoutForTileSize(size);
-  const trainWidth = panels.upperSize[0] * (isCorner ? 0.48 : 0.68);
-  const trainDepth = Math.min(panels.upperSize[1] * 0.5, 0.62);
+export default function RailroadVisual({ panel }: RailroadVisualProps) {
+  const isCorner = panel.side === 'CORNER';
+  const trainWidth = panel.upperSize[0] * (isCorner ? 0.48 : 0.68);
+  const trainDepth = Math.min(panel.upperSize[1] * 0.5, 0.62);
 
   return (
     <group
       name="TrainIcon2D"
-      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.012, isCorner ? 0 : panels.upperCenterLocalZ]}
-      rotation={[0, contentRotationY, 0]}
+      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.012, isCorner ? 0 : panel.upperCenterLocalZ]}
+      rotation={[0, panel.contentRotationY, 0]}
     >
       <RoundedBoxMesh
         name="TrainBody"

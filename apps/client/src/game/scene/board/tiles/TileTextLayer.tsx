@@ -1,16 +1,16 @@
 import type { Tile } from '@monopoly/shared';
-import type { BoardSide } from '../boardLayout';
-import { TILE_SURFACE_INSET } from '../boardLayout';
 import { PROPERTY_NAME_Y } from '../architecture/boardArtSpec';
 import { getSpecialTileLabel } from '../architecture/tileVisualRegistry';
 import SdfSurfaceText, { limitSurfaceTextLines } from './SdfSurfaceText';
-import { getInwardTextTopDirection, getTileContentRotationY, getTilePanelLayoutForTileSize } from './tilePanelLayout';
+import {
+  getInwardTextTopDirection,
+  type TilePanelLayout,
+} from './tilePanelLayout';
 
 interface TileTextLayerProps {
   tile: Tile;
   name: string;
-  size: readonly [number, number];
-  side?: BoardSide;
+  panel: TilePanelLayout;
 }
 
 export interface TileTextPresentation {
@@ -57,11 +57,10 @@ export function wrapPropertyName(value: string, maxLines: 1 | 2 | 3): string {
 export function getTileTextPresentation(
   tile: Tile,
   name: string,
-  size: readonly [number, number],
-  isCorner = size[0] > 2,
+  panel: TilePanelLayout,
 ): TileTextPresentation {
-  const surfaceWidth = Math.max(0.3, size[0] - TILE_SURFACE_INSET);
-  const panelLayout = getTilePanelLayoutForTileSize(size);
+  const surfaceWidth = panel.surfaceSize[0];
+  const isCorner = panel.side === 'CORNER';
   if (tile.tileType === 'normal') {
     const normalizedName = name.trim();
     const lineCount = getPropertyLineCount(normalizedName);
@@ -70,7 +69,7 @@ export function getTileTextPresentation(
       fontSize: lineCount === 1 ? 0.255 : lineCount === 2 ? 0.225 : 0.195,
       maxWidth: surfaceWidth * 0.96,
       lineHeight: 1.04,
-      positionZ: isCorner ? 0 : panelLayout.footerCenterLocalZ,
+      positionZ: isCorner ? 0 : panel.footerCenterLocalZ,
       footer: !isCorner,
     };
   }
@@ -83,25 +82,24 @@ export function getTileTextPresentation(
     fontSize: (lineCount === 1 ? 0.215 : 0.19) * cornerScale,
     maxWidth: surfaceWidth * 0.95,
     lineHeight: 1.02,
-    positionZ: isCorner ? 0 : panelLayout.footerCenterLocalZ,
+    positionZ: isCorner ? 0 : panel.footerCenterLocalZ,
     footer: !isCorner,
   };
 }
 
-export default function TileTextLayer({ tile, name, size, side = 'BOTTOM' }: TileTextLayerProps) {
+export default function TileTextLayer({ tile, name, panel }: TileTextLayerProps) {
   if (!shouldRenderTileText(tile.tileType)) return null;
-  const presentation = getTileTextPresentation(tile, name, size, side === 'CORNER');
-  const inwardTopDirection = getInwardTextTopDirection(side);
-  const contentRotationY = getTileContentRotationY(side);
+  const presentation = getTileTextPresentation(tile, name, panel);
+  const inwardTopDirection = getInwardTextTopDirection(panel.side);
   return (
     <group
       name="TileTextLayer"
       userData={{
         region: presentation.footer ? 'footer' : 'corner',
         textFacing: 'inward',
-        side,
+        side: panel.side,
         inwardTopDirection,
-        contentRotationY,
+        contentRotationY: panel.contentRotationY,
       }}
     >
       <SdfSurfaceText
@@ -111,7 +109,7 @@ export default function TileTextLayer({ tile, name, size, side = 'BOTTOM' }: Til
         fontSize={presentation.fontSize}
         maxWidth={presentation.maxWidth}
         lineHeight={presentation.lineHeight}
-        rotationZ={contentRotationY}
+        rotationZ={panel.contentRotationY}
       />
     </group>
   );

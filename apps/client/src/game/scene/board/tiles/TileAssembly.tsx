@@ -12,7 +12,7 @@ import TilePressRoot from './TilePressRoot';
 import TileSpecialLayer from './TileSpecialLayer';
 import TileSurfaceLayer from './TileSurfaceLayer';
 import TileTextLayer from './TileTextLayer';
-import { getTileContentRotationY } from './tilePanelLayout';
+import { getOrientedTilePanelLayoutForTileSize } from './tilePanelLayout';
 
 export interface TileAssemblyProps {
   tileId: number;
@@ -37,7 +37,7 @@ export default function TileAssembly({
 }: TileAssemblyProps) {
   const layout = getBoardTileLayout(tileId);
   if (!layout) return null;
-  const contentRotationY = getTileContentRotationY(layout.side);
+  const panel = getOrientedTilePanelLayoutForTileSize(layout.size, layout.side);
   return (
     <group
       name={`TileAnchor:${tileId}`}
@@ -66,14 +66,12 @@ export default function TileAssembly({
           tile={tile}
           size={layout.size}
         />
-        <TileTextLayer tile={tile} name={name} size={layout.size} side={layout.side} />
+        <TileTextLayer tile={tile} name={name} panel={panel} />
         <TileOwnershipLayer ownerColor={ownerColor} size={layout.size} selected={selected} />
         <TileDevelopmentLayer houses={houses} />
         <TileSpecialLayer
           tile={tile}
-          size={layout.size}
-          isCorner={layout.side === 'CORNER'}
-          contentRotationY={contentRotationY}
+          panel={panel}
         />
         <TileFxAnchor tileId={tileId} />
       </TilePressRoot>

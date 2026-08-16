@@ -2,21 +2,18 @@ import type { TileType } from '@monopoly/shared';
 import { TILE_SURFACE_CLEARANCE_Y } from '../board/boardLayout';
 import { boardVisualTokens } from '../board/boardVisualTokens';
 import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
-import { getTilePanelLayoutForTileSize } from '../board/tiles/tilePanelLayout';
+import type { TilePanelLayout } from '../board/tiles/tilePanelLayout';
 
 interface SpecialTileVisualProps {
-  size: readonly [number, number];
+  panel: TilePanelLayout;
   tileType: TileType;
-  isCorner: boolean;
-  contentRotationY: number;
 }
 
 function TaxPaperStack({
-  size,
-  isCorner,
-  contentRotationY,
-}: Pick<SpecialTileVisualProps, 'size' | 'isCorner' | 'contentRotationY'>) {
-  const panels = getTilePanelLayoutForTileSize(size);
+  panel,
+}: Pick<SpecialTileVisualProps, 'panel'>) {
+  const isCorner = panel.side === 'CORNER';
+  const panels = panel;
   const paperWidth = panels.upperSize[0] * (isCorner ? 0.4 : 0.58);
   const paperDepth = Math.min(panels.upperSize[1] * 0.52, 0.78);
   const lines = [
@@ -29,7 +26,7 @@ function TaxPaperStack({
     <group
       name="TaxPaperStack2D"
       position={[0, TILE_SURFACE_CLEARANCE_Y + 0.016, isCorner ? 0 : panels.upperCenterLocalZ]}
-      rotation={[0, contentRotationY, 0]}
+      rotation={[0, panel.contentRotationY, 0]}
     >
       <RoundedBoxMesh
         name="TaxPaperBack"
@@ -71,16 +68,15 @@ function TaxPaperStack({
 }
 
 function PoliceIcon({
-  size,
-  isCorner,
-  contentRotationY,
-}: Pick<SpecialTileVisualProps, 'size' | 'isCorner' | 'contentRotationY'>) {
-  const panels = getTilePanelLayoutForTileSize(size);
+  panel,
+}: Pick<SpecialTileVisualProps, 'panel'>) {
+  const isCorner = panel.side === 'CORNER';
+  const panels = panel;
   return (
     <group
       name="PoliceIcon2D"
       position={[0, TILE_SURFACE_CLEARANCE_Y + 0.018, isCorner ? 0 : panels.upperCenterLocalZ]}
-      rotation={[0, contentRotationY, 0]}
+      rotation={[0, panel.contentRotationY, 0]}
     >
       <RoundedBoxMesh
         name="PoliceShoulders"
@@ -121,15 +117,14 @@ function PoliceIcon({
 }
 
 function ParkingGraphic({
-  size,
-  contentRotationY,
-}: Pick<SpecialTileVisualProps, 'size' | 'contentRotationY'>) {
-  const panels = getTilePanelLayoutForTileSize(size);
+  panel,
+}: Pick<SpecialTileVisualProps, 'panel'>) {
+  const panels = panel;
   return (
     <group
       name="ParkingGraphic2D"
       position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, 0]}
-      rotation={[0, contentRotationY, 0]}
+      rotation={[0, panel.contentRotationY, 0]}
     >
       <RoundedBoxMesh
         name="ParkingBay"
@@ -159,14 +154,12 @@ function ParkingGraphic({
 }
 
 export default function SpecialTileVisual({
-  size,
+  panel,
   tileType,
-  isCorner,
-  contentRotationY,
 }: SpecialTileVisualProps) {
   if (tileType === 'start') {
     return (
-      <group name="StartVisual" position={[0, TILE_SURFACE_CLEARANCE_Y, 0]} rotation={[0, contentRotationY, 0]}>
+      <group name="StartVisual" position={[0, TILE_SURFACE_CLEARANCE_Y, 0]} rotation={[0, panel.contentRotationY, 0]}>
         <mesh position={[0, 0.055, 0]}>
           <cylinderGeometry args={[0.34, 0.38, 0.1, 20]} />
           <meshStandardMaterial color={boardVisualTokens.boardFrame} roughness={0.64} metalness={0.02} />
@@ -182,8 +175,8 @@ export default function SpecialTileVisual({
       </group>
     );
   }
-  if (tileType === 'gojail') return <PoliceIcon size={size} isCorner={isCorner} contentRotationY={contentRotationY} />;
-  if (tileType === 'parking') return <ParkingGraphic size={size} contentRotationY={contentRotationY} />;
-  if (tileType === 'expense') return <TaxPaperStack size={size} isCorner={isCorner} contentRotationY={contentRotationY} />;
+  if (tileType === 'gojail') return <PoliceIcon panel={panel} />;
+  if (tileType === 'parking') return <ParkingGraphic panel={panel} />;
+  if (tileType === 'expense') return <TaxPaperStack panel={panel} />;
   return null;
 }

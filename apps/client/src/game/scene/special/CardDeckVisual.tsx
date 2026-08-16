@@ -1,27 +1,33 @@
+import { chestCards } from '@monopoly/shared';
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { TILE_SURFACE_CLEARANCE_Y } from '../board/boardLayout';
-import { boardVisualTokens } from '../board/boardVisualTokens';
-import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
-import { getTilePanelLayoutForTileSize } from '../board/tiles/tilePanelLayout';
+import SdfSurfaceText from '../board/tiles/SdfSurfaceText';
+import type { TilePanelLayout } from '../board/tiles/tilePanelLayout';
 
 interface CardDeckVisualProps {
-  size: readonly [number, number];
+  panel: TilePanelLayout;
   kind: 'chance' | 'chest';
-  isCorner: boolean;
-  contentRotationY: number;
 }
 
-export const FORTUNE_WHEEL_SEGMENT_COUNT = 12;
+export const FORTUNE_WHEEL_SEGMENT_COUNT = chestCards.length;
 export const FORTUNE_WHEEL_RADIUS_RATIO = 0.36;
 
-const FORTUNE_WHEEL_COLORS = [
-  '#10a89b', '#f5c84c', '#f07858', '#5bb8dc',
-  '#9b79d1', '#ef9250', '#57c59d', '#e56b96',
-  '#3f91c5', '#f0a94d', '#70c8c8', '#d66cc5',
+const FORTUNE_WHEEL_PALETTE = [
+  '#ffd21a', '#ff8a25', '#ef4056', '#e45ca8', '#8256ce',
+  '#416bd8', '#59aeea', '#1cc9d2', '#00a995', '#24b66b', '#a9d63f',
 ] as const;
+const CHANCE_QUESTION_COLOR = '#f2384a';
+const WHEEL_SEPARATOR_COLOR = '#fff5d6';
+const WHEEL_RING_COLOR = '#15504f';
+const WHEEL_HUB_COLOR = '#111a22';
+const WHEEL_POINTER_COLOR = '#fff7c7';
 
-function createFortuneWheelGeometry(
+export function getFortuneWheelColors(segmentCount = FORTUNE_WHEEL_SEGMENT_COUNT): readonly string[] {
+  return Array.from({ length: segmentCount }, (_, index) => FORTUNE_WHEEL_PALETTE[index % FORTUNE_WHEEL_PALETTE.length]);
+}
+
+export function createFortuneWheelGeometry(
   radius: number,
   colors: readonly string[],
 ): THREE.BufferGeometry {
@@ -51,25 +57,74 @@ function createFortuneWheelGeometry(
   return geometry;
 }
 
-function FortuneWheelGraphic({
-  size,
-  isCorner,
-  contentRotationY,
-}: Omit<CardDeckVisualProps, 'kind'>) {
-  const panels = getTilePanelLayoutForTileSize(size);
-  const radius = Math.min(panels.upperSize[0], panels.upperSize[1])
-    * (isCorner ? 0.31 : FORTUNE_WHEEL_RADIUS_RATIO);
-  const wheelGeometry = useMemo(
-    () => createFortuneWheelGeometry(radius, FORTUNE_WHEEL_COLORS),
-    [radius],
+export function createFortuneWheelSeparatorGeometry(
+  radius: number,
+  segmentCount: number,
+): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const innerRadius = radius * 0.18;
+  const outerRadius = radius * 0.96;
+  for (let index = 0; index < segmentCount; index += 1) {
+    const angle = index * Math.PI * 2 / segmentCount;
+    positions.push(
+      Math.cos(angle) * innerRadius, Math.sin(angle) * innerRadius, 0,
+      Math.cos(angle) * outerRadius, Math.sin(angle) * outerRadius, 0,
+    );
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  return geometry;
+}
+
+function ChanceQuestionMarkGraphic({ panel }: { panel: TilePanelLayout }) {
+  const isCorner = panel.side === 'CORNER';
+  const fontSize = Math.min(
+    panel.upperSize[0] * (isCorner ? 0.48 : 0.78),
+    panel.upperSize[1] * (isCorner ? 0.52 : 0.72),
   );
-  useEffect(() => () => wheelGeometry.dispose(), [wheelGeometry]);
+  return (
+    <group
+      name="ChanceQuestionMark2D"
+      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, isCorner ? 0 : panel.upperCenterLocalZ]}
+      rotation={[0, panel.contentRotationY, 0]}
+    >
+      <SdfSurfaceText
+        name="ChanceQuestionMark"
+        value="?"
+        position={[0, 0.035, 0]}
+        fontSize={fontSize}
+        maxWidth={panel.upperSize[0] * 0.9}
+        color={CHANCE_QUESTION_COLOR}
+        lineHeight={1}
+        sdfGlyphSize={96}
+      />
+    </group>
+  );
+}
+
+function FortuneWheelGraphic({ panel }: { panel: TilePanelLayout }) {
+  const isCorner = panel.side === 'CORNER';
+  const radius = Math.min(panel.upperSize[0], panel.upperSize[1])
+    * (isCorner ? 0.31 : FORTUNE_WHEEL_RADIUS_RATIO);
+  const colors = useMemo(() => getFortuneWheelColors(), []);
+  const wheelGeometry = useMemo(
+    () => createFortuneWheelGeometry(radius, colors),
+    [colors, radius],
+  );
+  const separatorGeometry = useMemo(
+    () => createFortuneWheelSeparatorGeometry(radius, colors.length),
+    [colors.length, radius],
+  );
+  useEffect(() => () => {
+    wheelGeometry.dispose();
+    separatorGeometry.dispose();
+  }, [separatorGeometry, wheelGeometry]);
 
   return (
     <group
       name="FortuneWheel2D"
-      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, isCorner ? 0 : panels.upperCenterLocalZ]}
-      rotation={[0, contentRotationY, 0]}
+      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, isCorner ? 0 : panel.upperCenterLocalZ]}
+      rotation={[0, panel.contentRotationY, 0]}
     >
       <mesh
         name="FortuneWheelSegments"
@@ -77,87 +132,34 @@ function FortuneWheelGraphic({
         position={[0, 0.004, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
       >
-        <meshStandardMaterial vertexColors roughness={0.62} metalness={0} />
+        <meshStandardMaterial vertexColors roughness={0.58} metalness={0} />
       </mesh>
-      <mesh name="FortuneWheelOuterRing" position={[0, 0.012, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[radius * 0.84, radius * 0.96, 32]} />
-        <meshStandardMaterial color="#087e79" roughness={0.5} />
+      <lineSegments
+        name="FortuneWheelSeparators"
+        geometry={separatorGeometry}
+        position={[0, 0.012, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
+        <lineBasicMaterial color={WHEEL_SEPARATOR_COLOR} transparent opacity={0.78} />
+      </lineSegments>
+      <mesh name="FortuneWheelOuterRing" position={[0, 0.016, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[radius * 0.87, radius * 0.98, 40]} />
+        <meshStandardMaterial color={WHEEL_RING_COLOR} roughness={0.46} />
       </mesh>
-      <mesh name="FortuneWheelCenter" position={[0, 0.018, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh name="FortuneWheelHub" position={[0, 0.024, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[radius * 0.16, 20]} />
-        <meshStandardMaterial color="#fff3ca" roughness={0.45} />
+        <meshStandardMaterial color={WHEEL_HUB_COLOR} roughness={0.38} metalness={0.08} />
+      </mesh>
+      <mesh name="FortuneWheelCenterPointer" position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[radius * 0.055, 16]} />
+        <meshStandardMaterial color={WHEEL_POINTER_COLOR} roughness={0.3} />
       </mesh>
     </group>
   );
 }
 
-function TreasureChestGraphic({
-  size,
-  isCorner,
-  contentRotationY,
-}: Omit<CardDeckVisualProps, 'kind'>) {
-  const panels = getTilePanelLayoutForTileSize(size);
-  const chestWidth = panels.upperSize[0] * (isCorner ? 0.48 : 0.68);
-  const chestDepth = Math.min(panels.upperSize[1] * 0.42, 0.62);
-  const jewelColors = ['#e84e70', '#58b9ea', '#f4c94b'] as const;
-
-  return (
-    <group
-      name="ChanceTreasureChest2D"
-      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, isCorner ? 0 : panels.upperCenterLocalZ]}
-      rotation={[0, contentRotationY, 0]}
-    >
-      <RoundedBoxMesh
-        name="TreasureChestBody"
-        width={chestWidth}
-        height={0.052}
-        depth={chestDepth}
-        radius={0.035}
-        color={boardVisualTokens.chestBody}
-        materialProfile="propertyTrim"
-        position={[0, 0.034, 0.035]}
-      />
-      <RoundedBoxMesh
-        name="TreasureChestLid"
-        width={chestWidth * 1.04}
-        height={0.045}
-        depth={chestDepth * 0.62}
-        radius={0.04}
-        color={boardVisualTokens.chest}
-        materialProfile="propertyTrim"
-        position={[0, 0.078, -0.09]}
-      />
-      <RoundedBoxMesh
-        name="TreasureChestBand"
-        width={0.055}
-        height={0.02}
-        depth={chestDepth * 0.9}
-        radius={0.012}
-        color={boardVisualTokens.chestBand}
-        materialProfile="propertyTrim"
-        position={[0, 0.09, 0.005]}
-      />
-      <mesh name="TreasureChestLatch" position={[0, 0.102, 0.02]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.045, 16]} />
-        <meshStandardMaterial color={boardVisualTokens.chestLatch} roughness={0.32} metalness={0.1} />
-      </mesh>
-      {jewelColors.map((color, index) => (
-        <mesh
-          key={color}
-          name="TreasureJewel"
-          position={[(index - 1) * 0.12, 0.104, 0.1]}
-          rotation={[-Math.PI / 2, 0, 0]}
-        >
-          <circleGeometry args={[0.045, 12]} />
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.16} roughness={0.3} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-export default function CardDeckVisual({ size, kind, isCorner, contentRotationY }: CardDeckVisualProps) {
+export default function CardDeckVisual({ panel, kind }: CardDeckVisualProps) {
   return kind === 'chance'
-    ? <TreasureChestGraphic size={size} isCorner={isCorner} contentRotationY={contentRotationY} />
-    : <FortuneWheelGraphic size={size} isCorner={isCorner} contentRotationY={contentRotationY} />;
+    ? <ChanceQuestionMarkGraphic panel={panel} />
+    : <FortuneWheelGraphic panel={panel} />;
 }

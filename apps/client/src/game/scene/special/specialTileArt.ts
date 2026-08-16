@@ -4,11 +4,11 @@ export type SpecialTileArtKind =
   | 'start-token'
   | 'jail-bars-2d'
   | 'police-2d'
-  | 'treasure-chest-2d'
+  | 'question-mark-2d'
   | 'fortune-wheel-2d'
   | 'train-2d'
   | 'electric-bulb-2d'
-  | 'water-valve-2d'
+  | 'water-faucet-2d'
   | 'utility-flat'
   | 'tax-paper-stack-2d'
   | 'parking-flat';
@@ -17,7 +17,7 @@ const SPECIAL_TILE_ART: Record<Exclude<TileType, 'normal'>, SpecialTileArtKind> 
   start: 'start-token',
   jail: 'jail-bars-2d',
   gojail: 'police-2d',
-  chance: 'treasure-chest-2d',
+  chance: 'question-mark-2d',
   chest: 'fortune-wheel-2d',
   railroad: 'train-2d',
   company: 'utility-flat',
@@ -25,9 +25,9 @@ const SPECIAL_TILE_ART: Record<Exclude<TileType, 'normal'>, SpecialTileArtKind> 
   parking: 'parking-flat',
 };
 
-export function getUtilityArtKind(label: string): 'electric-bulb-2d' | 'water-valve-2d' {
+export function getUtilityArtKind(label: string): 'electric-bulb-2d' | 'water-faucet-2d' {
   return label.toLocaleLowerCase('vi-VN').includes('nước')
-    ? 'water-valve-2d'
+    ? 'water-faucet-2d'
     : 'electric-bulb-2d';
 }
 

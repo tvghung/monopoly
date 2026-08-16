@@ -3,10 +3,14 @@ import type { BoardSide } from '../boardLayout';
 
 export const TILE_UPPER_PANEL_RATIO = 0.6;
 export const TILE_FOOTER_PANEL_RATIO = 0.4;
-export const TILE_DIVIDER_THICKNESS = 0.024;
-export const PARKING_ADJACENT_SIDES = ['LEFT', 'TOP'] as const;
+export const TILE_DIVIDER_THICKNESS = 0.03;
+
+export type TilePanelFlowSign = -1 | 1;
 
 export interface TilePanelLayout {
+  side: BoardSide;
+  flowSign: TilePanelFlowSign;
+  contentRotationY: number;
   surfaceSize: readonly [number, number];
   upperSize: readonly [number, number];
   footerSize: readonly [number, number];
@@ -32,17 +36,22 @@ export function getUsableTileSurfaceSize(
 
 export function getTilePanelLayout(
   surfaceSize: readonly [number, number],
+  side: BoardSide = 'BOTTOM',
 ): TilePanelLayout {
   const width = Math.max(0.3, surfaceSize[0]);
   const depth = Math.max(0.3, surfaceSize[1]);
   const upperDepth = depth * TILE_UPPER_PANEL_RATIO;
   const footerDepth = depth * TILE_FOOTER_PANEL_RATIO;
   const dividerDepth = Math.min(TILE_DIVIDER_THICKNESS, footerDepth * 0.08);
-  const upperPlaneOffset = (depth - upperDepth) / 2;
-  const footerPlaneOffset = -(depth - footerDepth) / 2;
-  const dividerPlaneOffset = (upperDepth - footerDepth) / 2;
+  const flowSign = getTilePanelFlowSign(side);
+  const upperPlaneOffset = ((depth - upperDepth) / 2) * flowSign;
+  const footerPlaneOffset = (-(depth - footerDepth) / 2) * flowSign;
+  const dividerPlaneOffset = ((upperDepth - footerDepth) / 2) * flowSign;
 
   return {
+    side,
+    flowSign,
+    contentRotationY: flowSign === -1 ? Math.PI : 0,
     surfaceSize: [width, depth],
     upperSize: [width, upperDepth],
     footerSize: [width, footerDepth],
@@ -56,10 +65,15 @@ export function getTilePanelLayout(
   };
 }
 
-export function getTilePanelLayoutForTileSize(
+export function getOrientedTilePanelLayoutForTileSize(
   tileSize: readonly [number, number],
+  side: BoardSide = 'BOTTOM',
 ): TilePanelLayout {
-  return getTilePanelLayout(getUsableTileSurfaceSize(tileSize));
+  return getTilePanelLayout(getUsableTileSurfaceSize(tileSize), side);
+}
+
+export function getTilePanelFlowSign(side: BoardSide): TilePanelFlowSign {
+  return side === 'LEFT' || side === 'TOP' ? -1 : 1;
 }
 
 /**
@@ -77,15 +91,4 @@ export function getInwardTextTopDirection(
     case 'RIGHT': return [-1, 0];
     case 'CORNER': return [0, 0];
   }
-}
-
-/**
- * The camera-facing content on both runs beside Parking is read from the
- * opposite edge of the canonical tile plane. Keep text and flat tile art on
- * the same shared flip instead of rotating individual objects.
- */
-export function getTileContentRotationY(side: BoardSide): number {
-  return PARKING_ADJACENT_SIDES.includes(side as (typeof PARKING_ADJACENT_SIDES)[number])
-    ? Math.PI
-    : 0;
 }
