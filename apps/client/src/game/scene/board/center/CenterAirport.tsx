@@ -99,7 +99,7 @@ export default function CenterAirport() {
       <AirportRunwayMarkings />
       <mesh name="AirportCenterMarker" position={[0, 0.102, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.5, 0.56, 32]} />
-        <meshStandardMaterial color={boardVisualTokens.airportTaxiway} roughness={0.7} metalness={0} />
+        <meshStandardMaterial color={boardVisualTokens.airportCenterMark} roughness={0.7} metalness={0} />
       </mesh>
     </group>
   );

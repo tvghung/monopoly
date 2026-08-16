@@ -68,4 +68,5 @@ export const boardVisualTokens = {
   airportRunwayEdge: '#a9b9aa',
   airportMarking: '#f6e6a6',
   airportTaxiway: '#b3c9af',
+  airportCenterMark: '#c96a63',
 } as const;
