@@ -53,11 +53,21 @@ describe('tile visual registry', () => {
   });
 
   it('keeps the palette vivid while retaining light surfaces for black text', () => {
-    expect(boardVisualTokens.sceneBackground).toBe('#9be3d5');
-    expect(boardVisualTokens.utilityBulb).toBe('#ffd34e');
-    expect(boardVisualTokens.utilityWater).toBe('#17c3d4');
-    expect(getPropertyVisualDescriptor('lightblue').baseColor).toBe('#a9e3e2');
+    expect(boardVisualTokens.sceneBackground).toBe('#82e2d3');
+    expect(boardVisualTokens.tileDivider).toBe('#111318');
+    expect(boardVisualTokens.utilityBulb).toBe('#ffd400');
+    expect(boardVisualTokens.utilityWater).toBe('#19bdeb');
+    expect(getPropertyVisualDescriptor('lightblue').baseColor).toBe('#83cfe5');
     expect(getPropertyVisualDescriptor('yellow').baseColor).toBe('#f1cf79');
+  });
+
+  it('keeps the three canonical harbor-blue properties on one descriptor', () => {
+    const harborDescriptor = getPropertyVisualDescriptor('lightblue');
+    [6, 8, 9].forEach(tileId => {
+      expect(getDistrictSurfaceDescriptor(tileState[tileId])).toMatchObject(harborDescriptor);
+    });
+    expect(harborDescriptor.secondaryColor).toBe('#c4ecf5');
+    expect(harborDescriptor.groutColor).toBe('#5cafc4');
   });
 
   it('maps normal tiles to districts and keeps special labels as plain metadata', () => {

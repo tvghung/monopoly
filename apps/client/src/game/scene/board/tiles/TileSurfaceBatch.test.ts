@@ -5,7 +5,14 @@ import {
   DISTRICT_SURFACE_KEYS,
   getDistrictSurfaceDescriptor,
 } from '../architecture/tileVisualRegistry';
-import { groupTileSurfaceEntries } from './TileSurfaceBatch';
+import {
+  groupTileSurfaceEntries,
+  withPanel,
+} from './TileSurfaceBatch';
+import {
+  TILE_FOOTER_PANEL_RATIO,
+  TILE_UPPER_PANEL_RATIO,
+} from './tilePanelLayout';
 
 describe('tile surface material batching', () => {
   it('assigns every canonical tile once across eight district batches and one special batch', () => {
@@ -14,6 +21,7 @@ describe('tile surface material batching', () => {
       if (!layout) throw new Error(`Missing canonical board layout for tile ${tileId}`);
       return {
         tileId,
+        side: layout.side,
         surfaceKey: getDistrictSurfaceDescriptor(tile)?.surfaceKey,
         surfaceSize: [
           Math.max(0.3, layout.size[0] - TILE_SURFACE_INSET),
@@ -31,5 +39,24 @@ describe('tile surface material batching', () => {
     expect(new Set(assignedTileIds).size).toBe(40);
     expect([...assignedTileIds].sort((left, right) => left - right))
       .toEqual(Array.from({ length: 40 }, (_, tileId) => tileId));
+  });
+
+  it('keeps the physical upper, divider, and footer flow aligned on Parking-adjacent runs', () => {
+    const baseEntry = {
+      tileId: 19,
+      side: 'LEFT' as const,
+      surfaceSize: [1.42, 2.27] as const,
+      surfaceKey: 'harborCeramic' as const,
+    };
+    const upper = withPanel(baseEntry, 'upper');
+    const footer = withPanel(baseEntry, 'footer');
+    const divider = withPanel(baseEntry, 'divider');
+
+    expect(upper.surfaceSize[1] / baseEntry.surfaceSize[1]).toBeCloseTo(TILE_UPPER_PANEL_RATIO);
+    expect(footer.surfaceSize[1] / baseEntry.surfaceSize[1]).toBeCloseTo(TILE_FOOTER_PANEL_RATIO);
+    expect(upper.surfacePlaneOffset).toBeLessThan(divider.surfacePlaneOffset!);
+    expect(divider.surfacePlaneOffset).toBeLessThan(footer.surfacePlaneOffset!);
+    expect(upper.side).toBe(footer.side);
+    expect(footer.side).toBe(divider.side);
   });
 });

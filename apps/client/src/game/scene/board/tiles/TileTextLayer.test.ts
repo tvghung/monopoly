@@ -2,13 +2,20 @@ import { tileState } from '@monopoly/shared';
 import { describe, expect, it } from 'vitest';
 import { getBoardTileLayout } from '../boardLayout';
 import { getTileTextPresentation, shouldRenderTileText } from './TileTextLayer';
-import { getInwardTextTopDirection, getTileContentRotationY, getTilePanelLayoutForTileSize } from './tilePanelLayout';
+import {
+  getInwardTextTopDirection,
+  getOrientedTilePanelLayoutForTileSize,
+} from './tilePanelLayout';
 
 describe('commercial tile typography', () => {
   it('shows a short property name on one large line without its price', () => {
     const tile = tileState[1];
     const size = getBoardTileLayout(1)!.size;
-    const presentation = getTileTextPresentation(tile, tile.streetName, size);
+    const presentation = getTileTextPresentation(
+      tile,
+      tile.streetName,
+      getOrientedTilePanelLayoutForTileSize(size, 'BOTTOM'),
+    );
 
     expect(presentation.value).toBe('Cà Mau');
     expect(presentation.value).not.toContain('60.000');
@@ -22,7 +29,7 @@ describe('commercial tile typography', () => {
     const presentation = getTileTextPresentation(
       tile,
       tile.streetName,
-      getBoardTileLayout(6)!.size,
+      getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(6)!.size, 'BOTTOM'),
     );
 
     expect(tile.streetName).toBe('Buôn Ma Thuột');
@@ -36,7 +43,7 @@ describe('commercial tile typography', () => {
     const presentation = getTileTextPresentation(
       tile,
       'Khu đô thị mới Thủ Thiêm',
-      getBoardTileLayout(6)!.size,
+      getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(6)!.size, 'BOTTOM'),
     );
 
     expect(presentation.value).toBe('Khu đô\nthị mới\nThủ Thiêm');
@@ -49,7 +56,7 @@ describe('commercial tile typography', () => {
     const presentation = getTileTextPresentation(
       tile,
       tile.streetName,
-      getBoardTileLayout(5)!.size,
+      getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(5)!.size, 'BOTTOM'),
     );
 
     expect(presentation.value).toBe('Ga tàu');
@@ -63,14 +70,18 @@ describe('commercial tile typography', () => {
     const topSide = getBoardTileLayout(21)!.side;
     expect(getInwardTextTopDirection(leftSide)).toEqual([1, 0]);
     expect(getInwardTextTopDirection(topSide)).toEqual([0, 1]);
-    expect(getTileContentRotationY(leftSide)).toBe(Math.PI);
-    expect(getTileContentRotationY(topSide)).toBe(Math.PI);
-    expect(getTileContentRotationY('BOTTOM')).toBe(0);
-    expect(getTileContentRotationY('RIGHT')).toBe(0);
+    const leftPanel = getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(19)!.size, leftSide);
+    const topPanel = getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(21)!.size, topSide);
+    const bottomPanel = getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(19)!.size, 'BOTTOM');
+    const rightPanel = getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(19)!.size, 'RIGHT');
+    expect(leftPanel.contentRotationY).toBe(Math.PI);
+    expect(topPanel.contentRotationY).toBe(Math.PI);
+    expect(bottomPanel.contentRotationY).toBe(0);
+    expect(rightPanel.contentRotationY).toBe(0);
 
-    const left = getTileTextPresentation(tileState[19], tileState[19].streetName, getBoardTileLayout(19)!.size);
-    const top = getTileTextPresentation(tileState[21], tileState[21].streetName, getBoardTileLayout(21)!.size);
-    const footerZ = getTilePanelLayoutForTileSize(getBoardTileLayout(19)!.size).footerCenterLocalZ;
+    const left = getTileTextPresentation(tileState[19], tileState[19].streetName, leftPanel);
+    const top = getTileTextPresentation(tileState[21], tileState[21].streetName, topPanel);
+    const footerZ = leftPanel.footerCenterLocalZ;
     expect(left.footer).toBe(true);
     expect(top.footer).toBe(true);
     expect(left.positionZ).toBeCloseTo(footerZ);

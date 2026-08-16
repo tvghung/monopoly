@@ -4,6 +4,7 @@ import {
   DISTRICT_SURFACE_KEYS,
   getDistrictSurfaceDescriptorByKey,
 } from '../architecture/tileVisualRegistry';
+import { boardVisualTokens } from '../boardVisualTokens';
 import {
   BEACH_PRIMARY_WAVE_AMPLITUDE,
   BEACH_SECONDARY_WAVE_AMPLITUDE,
@@ -46,6 +47,13 @@ describe('district surface material library', () => {
       if (blue > red + 8 && green > red - 4) waterLikePixels += 1;
     }
     expect(waterLikePixels).toBeGreaterThan(64);
+  });
+
+  it('uses the near-black divider token for the shared 60/40 separator', () => {
+    const library = new DistrictSurfaceMaterialLibrary(1);
+    expect(boardVisualTokens.tileDivider).toBe('#111318');
+    expect(library.dividerMaterial.color.getHexString()).toBe('111318');
+    library.dispose();
   });
 
   it('uses a visibly undulating shoreline with a secondary wave contour', () => {

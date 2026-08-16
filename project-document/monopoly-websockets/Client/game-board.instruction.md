@@ -33,10 +33,12 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   hai instanced layers chung, còn bốn corner tiles giữ treatment riêng.
 - District identity nằm trong các pattern nền textless, sáng và thưa, có tuning
   density/contrast/seam/spacing. Không còn accent inlay, emblem nhỏ hoặc raised
-  continuous color rail trên property tile. Ownership có marker riêng và không
-  dùng district accent làm owner state.
-- Mỗi edge tile có upper art panel 60%, footer nền sáng 40% và divider line hình
-  học; upper/footer/divider dùng cùng tile-motion matrix với chassis.
+  continuous color rail trên property tile. Ownership không còn top-surface owner
+  strip; owner state vẫn nằm trong `BoardRenderModel` cho property inspection, HUD,
+  houses/hotel và state presentation.
+- Mỗi edge tile có upper art panel 60%, footer nền sáng 40% và divider near-black;
+  một side-aware `TilePanelLayout` duy nhất cung cấp kích thước, offset, divider,
+  footer text và content rotation cho surface batch, text và special art.
 - Surface, chassis, text và prop dùng cùng tile motion controller. Matrix mặt ô
   compose từ translation + quaternion XZ orientation + scale, giữ normal hướng lên
   ở cả bốn cạnh và footprint khớp tile thật.
@@ -53,10 +55,12 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   calls, stress ceiling 240, target 80k triangles và hard ceiling 100k.
 - Foundation/rim trung tính bao quanh center airport field recessed. Center có
   field xanh, runway/taxiway strips và marking nhẹ, không có airplane model.
-  Chance dùng treasure chest 2D; Khí Vận dùng fortune wheel 12 lát màu không có
-  pointer line; railroad dùng train icon 2D; Công Ty Điện dùng light bulb và
-  Công Ty Nước dùng water-valve icon; tax dùng stacked paper, jail chỉ dùng cell
-  bars và Vào Tù chỉ dùng police icon. District art không tràn sang special tile.
+  Chance dùng question mark đỏ lớn; Khí Vận dùng fortune wheel có số lát lấy từ
+  `chestCards.length`, có separator/ring/hub và không có horizontal pointer line;
+  railroad dùng train icon 2D; Công Ty Điện dùng bulb pear-shape với socket xám
+  và Công Ty Nước dùng faucet/tap với water drop; tax dùng stacked paper, jail chỉ
+  dùng cell bars và Vào Tù chỉ dùng police icon. District art không tràn sang
+  special tile.
 - Beach district dùng shoreline uốn lượn với wave contour thứ hai; palette board/UI
   tăng saturation nhưng giữ upper/footer sáng để text đen vẫn rõ.
 - Edge tile nominal width là `1.55` (corner vẫn `2.4`); outer board size và
@@ -90,12 +94,13 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   resource reuse và StrictMode-safe deferred disposal; beach descriptor có water
   region và premium green district dùng paver pattern.
 - Property name-only typography (short/canonical/long), textless jail/go-to-jail,
-  60/40 panel ratio, inward Parking-adjacent orientation, widened edge/corner
+  60/40 panel ratio, side-aware Parking-adjacent orientation, widened edge/corner
   dimensions, frame dimensions, scene budget, orthographic camera/tone mapping
   và SDF sync invalidation.
-- Special art contracts cover treasure chest, larger pointer-free fortune wheel,
-  train, light bulb, water valve, tax paper stack, jail bars/police, parking and
-  airport center theme; seven legacy accent-line tiles expose no accent channel.
+- Special art contracts cover Chance question mark, deck-sized pointer-free fortune
+  wheel, train, light bulb, faucet, tax paper stack, jail bars/police, parking and
+  airport center theme; ownership layer exposes no `OwnerTab` and seven legacy
+  accent-line tiles expose no accent channel.
 - Owner/house/hotel/inventory/token update theo revision.
 - Normal/pass-GO/jail/card movement; buy/development/payment settlement.
 - Card flip, outside close, multiple token, reduced-motion, reconnect/no-duplicate.
