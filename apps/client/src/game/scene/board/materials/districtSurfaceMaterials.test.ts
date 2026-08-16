@@ -53,7 +53,7 @@ describe('district surface material library', () => {
     expect(waterLikePixels).toBeGreaterThan(64);
   });
 
-  it('uses the near-black divider token for the shared 60/40 separator', () => {
+  it('uses the near-black divider token for the shared 70/30 separator', () => {
     const library = new DistrictSurfaceMaterialLibrary(1);
     expect(boardVisualTokens.tileDivider).toBe('#111318');
     expect(library.dividerMaterial.color.getHexString()).toBe('111318');

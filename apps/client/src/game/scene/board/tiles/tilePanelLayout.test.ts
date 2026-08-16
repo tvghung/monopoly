@@ -8,7 +8,7 @@ import {
   getOrientedTilePanelLayoutForTileSize,
 } from './tilePanelLayout';
 
-describe('tile 60/40 panel layout', () => {
+describe('tile 70/30 panel layout', () => {
   it('creates true upper, footer, and divider regions from one usable surface', () => {
     const layout = getTilePanelLayout([1.35, 2.35], 'BOTTOM');
     expect(layout.side).toBe('BOTTOM');
@@ -17,6 +17,7 @@ describe('tile 60/40 panel layout', () => {
     expect(layout.upperSize[0]).toBe(1.35);
     expect(layout.upperSize[1] / layout.surfaceSize[1]).toBeCloseTo(TILE_UPPER_PANEL_RATIO);
     expect(layout.footerSize[1] / layout.surfaceSize[1]).toBeCloseTo(TILE_FOOTER_PANEL_RATIO);
+    expect(TILE_UPPER_PANEL_RATIO + TILE_FOOTER_PANEL_RATIO).toBe(1);
     expect(layout.dividerSize[1]).toBeLessThanOrEqual(TILE_DIVIDER_THICKNESS);
     expect(layout.upperPlaneOffset).toBeGreaterThan(0);
     expect(layout.footerPlaneOffset).toBeLessThan(0);
@@ -37,7 +38,7 @@ describe('tile 60/40 panel layout', () => {
     expect(getInwardTextTopDirection('RIGHT')).toEqual([-1, 0]);
   });
 
-  it('orients the same 60/40 contract for every board side', () => {
+  it('orients the same 70/30 contract for every board side', () => {
     (['BOTTOM', 'LEFT', 'TOP', 'RIGHT'] as const).forEach(side => {
       const layout = getOrientedTilePanelLayoutForTileSize([1.5, 2.35], side);
       expect(layout.side).toBe(side);

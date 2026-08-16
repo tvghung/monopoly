@@ -1,8 +1,8 @@
 import { TILE_SURFACE_INSET } from '../boardLayout';
 import type { BoardSide } from '../boardLayout';
 
-export const TILE_UPPER_PANEL_RATIO = 0.6;
-export const TILE_FOOTER_PANEL_RATIO = 0.4;
+export const TILE_UPPER_PANEL_RATIO = 0.7;
+export const TILE_FOOTER_PANEL_RATIO = 0.3;
 export const TILE_DIVIDER_THICKNESS = 0.03;
 
 export type TilePanelFlowSign = -1 | 1;
@@ -24,8 +24,6 @@ export interface TilePanelLayout {
   upperCenterLocalZ: number;
   /** Upper-panel sub-anchor toward the divider for icon-bearing art. */
   upperArtCenterLocalZ: number;
-  /** Upper-panel sub-anchor away from the divider for special labels. */
-  upperLabelCenterLocalZ: number;
   footerCenterLocalZ: number;
   upperFooterBoundaryLocalZ: number;
   dividerLocalZ: number;
@@ -71,7 +69,6 @@ export function getTilePanelLayout(
     dividerPlaneOffset,
     upperCenterLocalZ: -upperPlaneOffset,
     upperArtCenterLocalZ: -upperPlaneOffset + flowSign * upperDepth * 0.16,
-    upperLabelCenterLocalZ: -upperPlaneOffset - flowSign * upperDepth * 0.28,
     footerCenterLocalZ: -footerPlaneOffset,
     upperFooterBoundaryLocalZ: -upperFooterBoundaryPlaneOffset,
     dividerLocalZ: -dividerPlaneOffset,

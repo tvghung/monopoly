@@ -20,39 +20,36 @@ export interface TileTextPresentation {
   lineHeight: number;
   positionZ: number;
   footer: boolean;
-  region: 'upper' | 'corner';
+  region: 'footer' | 'corner';
 }
 
 export function shouldRenderTileText(tileType: Tile['tileType']): boolean {
   return tileType !== 'start' && tileType !== 'jail' && tileType !== 'gojail' && tileType !== 'parking';
 }
 
-function getPropertyLineCount(value: string): 1 | 2 | 3 {
+function getPropertyLineCount(value: string): 1 | 2 {
   const words = value.trim().split(/\s+/).filter(Boolean);
-  if (value.length <= 11 || (words.length <= 2 && value.length <= 14)) return 1;
-  if (value.length <= 20 && words.length <= 4) return 2;
-  return 3;
+  if (value.length <= 12 || (words.length <= 2 && value.length <= 15)) return 1;
+  return 2;
 }
 
-export function wrapPropertyName(value: string, maxLines: 1 | 2 | 3): string {
+export function wrapPropertyName(value: string, maxLines: 1 | 2): string {
   const limitedValue = limitSurfaceTextLines(value, maxLines, 4);
   const words = limitedValue.trim().split(/\s+/).filter(Boolean);
   if (maxLines === 1 || words.length <= 1) return words.join(' ');
 
-  const targetLength = Math.ceil(limitedValue.length / maxLines);
-  const lines: string[] = [];
-  let currentLine = '';
-  words.forEach(word => {
-    const candidate = currentLine ? `${currentLine} ${word}` : word;
-    if (currentLine && candidate.length > targetLength && lines.length < maxLines - 1) {
-      lines.push(currentLine);
-      currentLine = word;
-      return;
+  const totalLength = words.join(' ').length;
+  let splitIndex = 1;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  for (let index = 1; index < words.length; index += 1) {
+    const firstLength = words.slice(0, index).join(' ').length;
+    const distance = Math.abs(firstLength - totalLength / 2);
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      splitIndex = index;
     }
-    currentLine = candidate;
-  });
-  if (currentLine) lines.push(currentLine);
-  return lines.slice(0, maxLines).join('\n');
+  }
+  return [words.slice(0, splitIndex).join(' '), words.slice(splitIndex).join(' ')].join('\n');
 }
 
 export function getTileTextPresentation(
@@ -67,12 +64,12 @@ export function getTileTextPresentation(
     const lineCount = getPropertyLineCount(normalizedName);
     return {
       value: wrapPropertyName(normalizedName, lineCount),
-      fontSize: lineCount === 1 ? 0.3 : lineCount === 2 ? 0.26 : 0.22,
-      maxWidth: surfaceWidth * 0.96,
-      lineHeight: 1.04,
-      positionZ: isCorner ? 0 : panel.upperCenterLocalZ,
-      footer: false,
-      region: isCorner ? 'corner' : 'upper',
+      fontSize: lineCount === 1 ? 0.31 : 0.25,
+      maxWidth: surfaceWidth * 0.92,
+      lineHeight: 1.03,
+      positionZ: isCorner ? 0 : panel.footerCenterLocalZ,
+      footer: !isCorner,
+      region: isCorner ? 'corner' : 'footer',
     };
   }
 
@@ -81,14 +78,14 @@ export function getTileTextPresentation(
   const cornerScale = isCorner ? 1.12 : 1;
   return {
     value: wrapPropertyName(label, lineCount),
-    fontSize: (lineCount === 1 ? 0.245 : 0.215) * cornerScale,
-    maxWidth: surfaceWidth * 0.95,
-    lineHeight: 1.02,
+    fontSize: (lineCount === 1 ? 0.27 : 0.23) * cornerScale,
+    maxWidth: surfaceWidth * 0.92,
+    lineHeight: 1.03,
     positionZ: isCorner
       ? 0
-      : panel.upperLabelCenterLocalZ,
-    footer: false,
-    region: isCorner ? 'corner' : 'upper',
+      : panel.footerCenterLocalZ,
+    footer: !isCorner,
+    region: isCorner ? 'corner' : 'footer',
   };
 }
 

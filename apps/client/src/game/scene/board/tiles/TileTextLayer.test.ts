@@ -19,12 +19,12 @@ describe('commercial tile typography', () => {
 
     expect(presentation.value).toBe('Cà Mau');
     expect(presentation.value).not.toContain('60.000');
-    expect(presentation.fontSize).toBe(0.3);
-    expect(presentation.maxWidth).toBeCloseTo((size[0] - 0.08) * 0.96);
-    expect(presentation.footer).toBe(false);
-    expect(presentation.region).toBe('upper');
+    expect(presentation.fontSize).toBe(0.31);
+    expect(presentation.maxWidth).toBeCloseTo((size[0] - 0.08) * 0.92);
+    expect(presentation.footer).toBe(true);
+    expect(presentation.region).toBe('footer');
     expect(presentation.positionZ).toBeCloseTo(
-      getOrientedTilePanelLayoutForTileSize(size, 'BOTTOM').upperCenterLocalZ,
+      getOrientedTilePanelLayoutForTileSize(size, 'BOTTOM').footerCenterLocalZ,
     );
   });
 
@@ -38,11 +38,11 @@ describe('commercial tile typography', () => {
 
     expect(tile.streetName).toBe('Buôn Ma Thuột');
     expect(presentation.value).toBe('Buôn Ma\nThuột');
-    expect(presentation.fontSize).toBe(0.26);
+    expect(presentation.fontSize).toBe(0.25);
     expect(presentation.value.split('\n')).toHaveLength(2);
   });
 
-  it('uses three lines only when a real long Vietnamese place name needs them', () => {
+  it('keeps a long Vietnamese place name readable in two footer lines', () => {
     const tile = tileState[6];
     const presentation = getTileTextPresentation(
       tile,
@@ -50,9 +50,9 @@ describe('commercial tile typography', () => {
       getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(6)!.size, 'BOTTOM'),
     );
 
-    expect(presentation.value).toBe('Khu đô\nthị mới\nThủ Thiêm');
-    expect(presentation.fontSize).toBe(0.22);
-    expect(presentation.value.split('\n')).toHaveLength(3);
+    expect(presentation.value).toBe('Khu đô thị\nmới Thủ Thiêm');
+    expect(presentation.fontSize).toBe(0.25);
+    expect(presentation.value.split('\n')).toHaveLength(2);
   });
 
   it('uses a single readable upper label for special tiles without price text', () => {
@@ -67,9 +67,29 @@ describe('commercial tile typography', () => {
     expect(presentation.value).toBe('Ga tàu');
     expect(presentation.value).not.toContain('Ga Hà Nội');
     expect(presentation.value).not.toContain('200.000');
-    expect(presentation.footer).toBe(false);
-    expect(presentation.region).toBe('upper');
-    expect(presentation.positionZ).toBeCloseTo(panel.upperLabelCenterLocalZ);
+    expect(presentation.footer).toBe(true);
+    expect(presentation.region).toBe('footer');
+    expect(presentation.positionZ).toBeCloseTo(panel.footerCenterLocalZ);
+  });
+
+  it('anchors railroad, company, Chance, Chest and Tax labels in the 30% footer', () => {
+    const cases = [
+      [5, 'Ga tàu'],
+      [12, 'Công Ty Điện'],
+      [7, 'Cơ hội'],
+      [2, 'Khí vận'],
+      [4, 'Thuế'],
+    ] as const;
+
+    cases.forEach(([tileId, expected]) => {
+      const panel = getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(tileId)!.size, 'BOTTOM');
+      const presentation = getTileTextPresentation(tileState[tileId], tileState[tileId].streetName, panel);
+      expect(presentation.value).toBe(expected);
+      expect(presentation.footer).toBe(true);
+      expect(presentation.region).toBe('footer');
+      expect(presentation.positionZ).toBeCloseTo(panel.footerCenterLocalZ);
+      expect(presentation.fontSize).toBeGreaterThanOrEqual(0.23);
+    });
   });
 
   it('keeps both runs adjacent to Parking on the shared inward-facing text rule', () => {
@@ -88,10 +108,10 @@ describe('commercial tile typography', () => {
 
     const left = getTileTextPresentation(tileState[19], tileState[19].streetName, leftPanel);
     const top = getTileTextPresentation(tileState[21], tileState[21].streetName, topPanel);
-    expect(left.footer).toBe(false);
-    expect(top.footer).toBe(false);
-    expect(left.positionZ).toBeCloseTo(leftPanel.upperCenterLocalZ);
-    expect(top.positionZ).toBeCloseTo(topPanel.upperCenterLocalZ);
+    expect(left.footer).toBe(true);
+    expect(top.footer).toBe(true);
+    expect(left.positionZ).toBeCloseTo(leftPanel.footerCenterLocalZ);
+    expect(top.positionZ).toBeCloseTo(topPanel.footerCenterLocalZ);
   });
 
   it('removes jail and go-to-jail text so their icons carry the meaning', () => {
