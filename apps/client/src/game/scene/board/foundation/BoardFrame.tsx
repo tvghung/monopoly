@@ -1,4 +1,4 @@
-import { INNER_SIDE_BOUNDARY } from '../boardLayout';
+import { CENTER_PLATFORM_SIZE } from '../boardLayout';
 import {
   BOARD_FRAME_BEVEL,
   BOARD_FRAME_HEIGHT,
@@ -8,7 +8,7 @@ import {
 import { boardVisualTokens } from '../boardVisualTokens';
 import RoundedBoxMesh from '../geometry/RoundedBoxMesh';
 
-const CENTER_SIZE = INNER_SIDE_BOUNDARY * 2;
+const CENTER_SIZE = CENTER_PLATFORM_SIZE;
 const RIM_EXTENT = CENTER_SIZE / 2 + BOARD_FRAME_WIDTH / 2;
 const RAIL_Y = CENTER_AIRPORT_SURFACE_Y + 0.08 + BOARD_FRAME_HEIGHT / 2;
 

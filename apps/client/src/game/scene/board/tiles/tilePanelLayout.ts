@@ -22,6 +22,10 @@ export interface TilePanelLayout {
   dividerPlaneOffset: number;
   /** Offset on the tile-local Z axis used by text and flat art. */
   upperCenterLocalZ: number;
+  /** Upper-panel sub-anchor toward the divider for icon-bearing art. */
+  upperArtCenterLocalZ: number;
+  /** Upper-panel sub-anchor away from the divider for special labels. */
+  upperLabelCenterLocalZ: number;
   footerCenterLocalZ: number;
   upperFooterBoundaryLocalZ: number;
   dividerLocalZ: number;
@@ -66,6 +70,8 @@ export function getTilePanelLayout(
     upperFooterBoundaryPlaneOffset,
     dividerPlaneOffset,
     upperCenterLocalZ: -upperPlaneOffset,
+    upperArtCenterLocalZ: -upperPlaneOffset + flowSign * upperDepth * 0.16,
+    upperLabelCenterLocalZ: -upperPlaneOffset - flowSign * upperDepth * 0.28,
     footerCenterLocalZ: -footerPlaneOffset,
     upperFooterBoundaryLocalZ: -upperFooterBoundaryPlaneOffset,
     dividerLocalZ: -dividerPlaneOffset,

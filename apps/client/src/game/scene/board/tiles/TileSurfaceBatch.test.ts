@@ -10,6 +10,7 @@ import {
 import {
   groupTileFooterEntries,
   groupTileSurfaceEntries,
+  shouldRenderTileDivider,
   withPanel,
 } from './TileSurfaceBatch';
 import {
@@ -19,12 +20,24 @@ import {
 } from './tilePanelLayout';
 
 describe('tile surface material batching', () => {
+  it.each([
+    ['normal', true],
+    ['railroad', true],
+    ['company', true],
+    ['chance', false],
+    ['chest', false],
+    ['expense', false],
+  ] as const)('uses the selective divider contract for %s tiles', (tileType, eligible) => {
+    expect(shouldRenderTileDivider(tileType)).toBe(eligible);
+  });
+
   it('assigns every canonical tile once across district and white-pebble batches', () => {
     const entries = tileState.map((tile, tileId) => {
       const layout = getBoardTileLayout(tileId);
       if (!layout) throw new Error(`Missing canonical board layout for tile ${tileId}`);
       return {
         tileId,
+        tileType: tile.tileType,
         side: layout.side,
         surfaceKey: getDistrictSurfaceDescriptor(tile)?.surfaceKey,
         surfaceSize: [
@@ -54,6 +67,7 @@ describe('tile surface material batching', () => {
   it('keeps the physical upper, divider, and footer flow aligned on Parking-adjacent runs', () => {
     const baseEntry = {
       tileId: 19,
+      tileType: 'normal' as const,
       side: 'LEFT' as const,
       surfaceSize: [1.42, 2.27] as const,
       surfaceKey: 'harborCeramic' as const,
@@ -76,6 +90,7 @@ describe('tile surface material batching', () => {
       if (!layout) throw new Error(`Missing canonical board layout for tile ${tileId}`);
       return {
         tileId,
+        tileType: tile.tileType,
         side: layout.side,
         surfaceKey: getDistrictSurfaceDescriptor(tile)?.surfaceKey,
         surfaceSize: [1.42, 2.27] as const,
@@ -108,6 +123,7 @@ describe('tile surface material batching', () => {
       if (!layout) throw new Error(`Missing canonical board layout for tile ${tileId}`);
       const baseEntry = {
         tileId,
+        tileType: 'normal' as const,
         side: side as 'BOTTOM' | 'LEFT' | 'TOP' | 'RIGHT',
         surfaceSize: [1.42, 2.27] as const,
         surfaceKey: 'harborCeramic' as const,

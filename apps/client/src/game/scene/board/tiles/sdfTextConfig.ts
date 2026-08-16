@@ -1,4 +1,4 @@
-import beVietnamProFont from '@fontsource/be-vietnam-pro/files/be-vietnam-pro-vietnamese-700-normal.woff?url';
+import beVietnamProFont from '@fontsource/be-vietnam-pro/files/be-vietnam-pro-vietnamese-800-normal.woff?url';
 import { boardVisualTokens } from '../boardVisualTokens';
 
 export const TILE_SDF_GLYPH_SIZE = 64;

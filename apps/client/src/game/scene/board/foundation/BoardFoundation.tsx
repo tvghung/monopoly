@@ -6,7 +6,7 @@ import {
   BOARD_CENTER_INSET,
 } from '../architecture/boardArtSpec';
 import {
-  INNER_SIDE_BOUNDARY,
+  CENTER_PLATFORM_SIZE,
   OUTER_BOARD_SIZE,
 } from '../boardLayout';
 import { boardVisualTokens } from '../boardVisualTokens';
@@ -15,7 +15,6 @@ import BoardFrame from './BoardFrame';
 import TileSocket from './TileSocket';
 
 const FOUNDATION_SIZE = OUTER_BOARD_SIZE + 0.72;
-const CENTER_SIZE = INNER_SIDE_BOUNDARY * 2;
 const SIDE_WALL_HEIGHT = BOARD_FOUNDATION_HEIGHT - BOARD_LOWER_CHASSIS_HEIGHT - BOARD_TOP_DECK_HEIGHT;
 
 function FoundationAccentInlays() {
@@ -85,9 +84,9 @@ export default function BoardFoundation() {
       />
       <RoundedBoxMesh
         name="CenterInsetPlatform"
-        width={CENTER_SIZE - BOARD_CENTER_INSET}
+        width={CENTER_PLATFORM_SIZE - BOARD_CENTER_INSET}
         height={0.05}
-        depth={CENTER_SIZE - BOARD_CENTER_INSET}
+        depth={CENTER_PLATFORM_SIZE - BOARD_CENTER_INSET}
         radius={0.06}
         color={boardVisualTokens.boardCenter}
         materialProfile="centerWell"

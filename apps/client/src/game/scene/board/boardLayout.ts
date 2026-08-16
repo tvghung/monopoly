@@ -12,9 +12,9 @@ import {
 
 export type BoardSide = 'BOTTOM' | 'LEFT' | 'TOP' | 'RIGHT' | 'CORNER';
 
-export const CORNER_SIZE = 2.4;
-export const EDGE_TILE_WIDTH = 1.55;
-export const EDGE_TILE_DEPTH = 2.4;
+export const CORNER_SIZE = 2.46;
+export const EDGE_TILE_WIDTH = 1.6;
+export const EDGE_TILE_DEPTH = 2.58;
 export const TILE_GAP = 0.05;
 export const TILE_HEIGHT = TILE_BODY_HEIGHT;
 export const PLATFORM_HEIGHT = BOARD_FOUNDATION_HEIGHT;
@@ -49,6 +49,12 @@ export function getGeometryBottomY(centerY: number, height: number): number {
 export const OUTER_BOARD_SIZE = 2 * CORNER_SIZE + 9 * EDGE_TILE_WIDTH;
 export const CORNER_CENTER = OUTER_BOARD_SIZE / 2 - CORNER_SIZE / 2;
 export const INNER_SIDE_BOUNDARY = OUTER_BOARD_SIZE / 2 - CORNER_SIZE;
+/** The inward edge of the usable side-tile surface, shared by center geometry. */
+export const INNER_TILE_SURFACE_BOUNDARY = CORNER_CENTER
+  - (EDGE_TILE_DEPTH - TILE_GAP - TILE_SURFACE_INSET) / 2;
+/** Deliberate breathing room between the center field and the inward tile edge. */
+export const CENTER_FIELD_CLEARANCE = 0.92;
+export const CENTER_PLATFORM_SIZE = INNER_TILE_SURFACE_BOUNDARY * 2;
 
 const SIDE_ROTATIONS: Record<Exclude<BoardSide, 'CORNER'>, number> = {
   BOTTOM: 0,

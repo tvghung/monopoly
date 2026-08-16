@@ -16,7 +16,7 @@ describe('SDF surface text contract', () => {
       onSync,
     );
     expect(target.text).toBe('Đồng Khởi');
-    expect(target.font).toMatch(/be-vietnam-pro-vietnamese-700-normal/);
+    expect(target.font).toMatch(/be-vietnam-pro-vietnamese-800-normal/);
     expect(target.maxWidth).toBe(1.1);
     expect(target.sdfGlyphSize).toBe(TILE_SDF_GLYPH_SIZE);
     expect(target.sync).toHaveBeenCalledTimes(1);

@@ -71,7 +71,7 @@ describe('canonical 2.5D board layout', () => {
 
   it('widens edge tiles while keeping the corner footprint unchanged', () => {
     expect(EDGE_TILE_WIDTH).toBeGreaterThan(1.4);
-    expect(CORNER_SIZE).toBe(2.4);
+    expect(CORNER_SIZE).toBe(2.46);
     expect(boardLayout.filter(layout => layout.side !== 'CORNER')
       .every(layout => layout.size[0] === EDGE_TILE_WIDTH - TILE_GAP)).toBe(true);
     expect(boardLayout.filter(layout => layout.side === 'CORNER')
@@ -89,10 +89,10 @@ describe('canonical 2.5D board layout', () => {
   });
 
   it.each([
-    [1, 'BOTTOM', [6.2, 0, 8.175], 0],
-    [11, 'LEFT', [-8.175, 0, 6.2], -Math.PI / 2],
-    [21, 'TOP', [-6.2, 0, -8.175], Math.PI],
-    [31, 'RIGHT', [8.175, 0, -6.2], Math.PI / 2],
+    [1, 'BOTTOM', [6.4, 0, 8.43], 0],
+    [11, 'LEFT', [-8.43, 0, 6.4], -Math.PI / 2],
+    [21, 'TOP', [-6.4, 0, -8.43], Math.PI],
+    [31, 'RIGHT', [8.43, 0, -6.4], Math.PI / 2],
   ] as const)('keeps tile %i on its canonical world transform', (tileId, side, position, rotationY) => {
     const layout = getBoardTileLayout(tileId);
     expect(layout?.side).toBe(side);

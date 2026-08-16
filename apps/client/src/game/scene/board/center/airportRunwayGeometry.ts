@@ -1,7 +1,10 @@
 import * as THREE from 'three';
-import { INNER_SIDE_BOUNDARY } from '../boardLayout';
+import {
+  CENTER_FIELD_CLEARANCE,
+  INNER_TILE_SURFACE_BOUNDARY,
+} from '../boardLayout';
 
-export const AIRPORT_FIELD_SIZE = INNER_SIDE_BOUNDARY * 2 - 0.38;
+export const AIRPORT_FIELD_SIZE = INNER_TILE_SURFACE_BOUNDARY * 2 - CENTER_FIELD_CLEARANCE * 2;
 export const AIRPORT_RUNWAY_OLD_WIDTH = 0.28;
 export const AIRPORT_RUNWAY_WIDTH = 0.52;
 export const AIRPORT_RUNWAY_OUTER_MARGIN = 0.1;

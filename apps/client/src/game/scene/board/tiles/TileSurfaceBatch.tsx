@@ -1,7 +1,7 @@
 import { useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { tileState } from '@monopoly/shared';
+import { tileState, type TileType } from '@monopoly/shared';
 import { getBoardTileLayout, getTileSurfaceGeometry, type BoardSide } from '../boardLayout';
 import { composeTileSurfaceMatrix } from '../architecture/tileMatrix';
 import {
@@ -30,6 +30,7 @@ interface TileSurfaceBatchProps {
 
 export interface TileSurfaceBatchEntry {
   tileId: number;
+  tileType: TileType;
   side: BoardSide;
   surfaceSize: readonly [number, number];
   surfaceKey?: DistrictSurfaceKey;
@@ -45,6 +46,10 @@ export type TileSurfaceBatchKey = DistrictSurfaceKey | WhitePebbleBatchKey | 'di
 export interface TileSurfaceBatchGroup {
   key: TileSurfaceBatchKey;
   entries: readonly TileSurfaceBatchEntry[];
+}
+
+export function shouldRenderTileDivider(tileType: TileType): boolean {
+  return tileType !== 'chance' && tileType !== 'chest' && tileType !== 'expense';
 }
 
 function getWhitePebbleBatchKey(
@@ -308,6 +313,7 @@ export default function TileSurfaceBatch({
     if (!layout || !sourceTile) return null;
     return {
       tileId: tile.tileId,
+      tileType: sourceTile.tileType,
       side: layout.side,
       surfaceSize: getTileSurfaceGeometry(layout).size,
       surfaceKey: getDistrictSurfaceDescriptor(sourceTile)?.surfaceKey,
@@ -336,7 +342,9 @@ export default function TileSurfaceBatch({
   );
   const dividerBatch = useMemo<TileSurfaceBatchGroup>(() => ({
     key: 'divider',
-    entries: edgeEntries.map(entry => withPanel(entry, 'divider')),
+    entries: edgeEntries
+      .filter(entry => shouldRenderTileDivider(entry.tileType))
+      .map(entry => withPanel(entry, 'divider')),
   }), [edgeEntries]);
 
   return (

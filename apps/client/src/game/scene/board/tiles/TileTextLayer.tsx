@@ -20,10 +20,11 @@ export interface TileTextPresentation {
   lineHeight: number;
   positionZ: number;
   footer: boolean;
+  region: 'upper' | 'corner';
 }
 
 export function shouldRenderTileText(tileType: Tile['tileType']): boolean {
-  return tileType !== 'jail' && tileType !== 'gojail';
+  return tileType !== 'start' && tileType !== 'jail' && tileType !== 'gojail' && tileType !== 'parking';
 }
 
 function getPropertyLineCount(value: string): 1 | 2 | 3 {
@@ -66,11 +67,12 @@ export function getTileTextPresentation(
     const lineCount = getPropertyLineCount(normalizedName);
     return {
       value: wrapPropertyName(normalizedName, lineCount),
-      fontSize: lineCount === 1 ? 0.255 : lineCount === 2 ? 0.225 : 0.195,
+      fontSize: lineCount === 1 ? 0.3 : lineCount === 2 ? 0.26 : 0.22,
       maxWidth: surfaceWidth * 0.96,
       lineHeight: 1.04,
-      positionZ: isCorner ? 0 : panel.footerCenterLocalZ,
-      footer: !isCorner,
+      positionZ: isCorner ? 0 : panel.upperCenterLocalZ,
+      footer: false,
+      region: isCorner ? 'corner' : 'upper',
     };
   }
 
@@ -79,11 +81,14 @@ export function getTileTextPresentation(
   const cornerScale = isCorner ? 1.12 : 1;
   return {
     value: wrapPropertyName(label, lineCount),
-    fontSize: (lineCount === 1 ? 0.215 : 0.19) * cornerScale,
+    fontSize: (lineCount === 1 ? 0.245 : 0.215) * cornerScale,
     maxWidth: surfaceWidth * 0.95,
     lineHeight: 1.02,
-    positionZ: isCorner ? 0 : panel.footerCenterLocalZ,
-    footer: !isCorner,
+    positionZ: isCorner
+      ? 0
+      : panel.upperLabelCenterLocalZ,
+    footer: false,
+    region: isCorner ? 'corner' : 'upper',
   };
 }
 
@@ -95,7 +100,7 @@ export default function TileTextLayer({ tile, name, panel }: TileTextLayerProps)
     <group
       name="TileTextLayer"
       userData={{
-        region: presentation.footer ? 'footer' : 'corner',
+        region: presentation.region,
         textFacing: 'inward',
         side: panel.side,
         inwardTopDirection,
