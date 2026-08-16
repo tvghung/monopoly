@@ -66,7 +66,7 @@ const PROPERTY_DESCRIPTORS: Record<string, DistrictSurfaceDescriptor> = {
   },
   lightblue: {
     surfaceKey: 'harborCeramic', pattern: 'ceramic', emblem: 'harbor',
-    baseColor: '#a9e3e2', secondaryColor: '#d8f4ee', groutColor: '#7fc4c5',
+    baseColor: '#83cfe5', secondaryColor: '#c4ecf5', groutColor: '#5cafc4',
     materialProfile: 'districtStone', bumpScale: 0.032, patternScale: 4,
     patternTuning: { patternDensity: 0.48, contrast: 0.2, seamWidth: 0.022, spacing: 1.22 },
   },
