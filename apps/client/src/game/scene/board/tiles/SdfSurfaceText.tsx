@@ -13,6 +13,7 @@ export interface SdfSurfaceTextProps {
   color?: string;
   lineHeight?: number;
   sdfGlyphSize?: number;
+  rotationZ?: number;
   name?: string;
 }
 
@@ -33,6 +34,7 @@ export default function SdfSurfaceText({
   color = boardVisualTokens.tileText,
   lineHeight = 1.05,
   sdfGlyphSize = TILE_SDF_GLYPH_SIZE,
+  rotationZ = 0,
   name,
 }: SdfSurfaceTextProps) {
   const invalidate = useThree(state => state.invalidate);
@@ -69,7 +71,7 @@ export default function SdfSurfaceText({
       object={textObject}
       name={name}
       position={position}
-      rotation={[-Math.PI / 2, 0, 0]}
+      rotation={[-Math.PI / 2, 0, rotationZ]}
     />
   );
 }

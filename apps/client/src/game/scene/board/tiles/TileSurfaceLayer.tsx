@@ -16,7 +16,6 @@ export default function TileSurfaceLayer({
       name="TileSurfaceLayer"
       userData={{
         districtSurfaceKey: descriptor?.surfaceKey ?? null,
-        districtAccent: descriptor?.accentColor ?? null,
         batch: 'TileSurfaceBatch',
         sourceSize: size,
       }}

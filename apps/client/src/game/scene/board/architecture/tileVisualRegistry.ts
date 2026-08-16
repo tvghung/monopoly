@@ -47,7 +47,6 @@ export interface DistrictSurfaceDescriptor {
   baseColor: string;
   secondaryColor: string;
   groutColor: string;
-  accentColor: string;
   materialProfile: Extract<
     BoardMaterialProfile,
     'districtStone' | 'districtBrick' | 'districtConcrete' | 'districtPremium'
@@ -61,50 +60,50 @@ export interface DistrictSurfaceDescriptor {
 const PROPERTY_DESCRIPTORS: Record<string, DistrictSurfaceDescriptor> = {
   brown: {
     surfaceKey: 'oldTownStone', pattern: 'cobble', emblem: 'heritage',
-    baseColor: '#cfb995', secondaryColor: '#ead9bd', groutColor: '#b59b7e',
-    accentColor: '#8d634f', materialProfile: 'districtStone', bumpScale: 0.055, patternScale: 5,
+    baseColor: '#d5b27f', secondaryColor: '#f1d1a2', groutColor: '#b18b62',
+    materialProfile: 'districtStone', bumpScale: 0.055, patternScale: 5,
     patternTuning: { patternDensity: 0.54, contrast: 0.24, seamWidth: 0.028, spacing: 1.18 },
   },
   lightblue: {
     surfaceKey: 'harborCeramic', pattern: 'ceramic', emblem: 'harbor',
-    baseColor: '#c4e3e1', secondaryColor: '#e7f2ed', groutColor: '#a9c8c7',
-    accentColor: '#6aaeb6', materialProfile: 'districtStone', bumpScale: 0.032, patternScale: 4,
+    baseColor: '#a9e3e2', secondaryColor: '#d8f4ee', groutColor: '#7fc4c5',
+    materialProfile: 'districtStone', bumpScale: 0.032, patternScale: 4,
     patternTuning: { patternDensity: 0.48, contrast: 0.2, seamWidth: 0.022, spacing: 1.22 },
   },
   pink: {
     surfaceKey: 'coolGranite', pattern: 'granite', emblem: 'boutique',
-    baseColor: '#bec6c9', secondaryColor: '#dce1e1', groutColor: '#a8b1b3',
-    accentColor: '#a77e9c', materialProfile: 'districtStone', bumpScale: 0.04, patternScale: 6,
+    baseColor: '#dcb3c9', secondaryColor: '#f1d4e2', groutColor: '#b98cae',
+    materialProfile: 'districtStone', bumpScale: 0.04, patternScale: 6,
     patternTuning: { patternDensity: 0.42, contrast: 0.18, seamWidth: 0.018, spacing: 1.26 },
   },
   orange: {
     surfaceKey: 'terracottaBrick', pattern: 'brick', emblem: 'market',
-    baseColor: '#ca8463', secondaryColor: '#e6b398', groutColor: '#b78b78',
-    accentColor: '#d98b6c', materialProfile: 'districtBrick', bumpScale: 0.06, patternScale: 5,
+    baseColor: '#db8058', secondaryColor: '#f2b18b', groutColor: '#b86849',
+    materialProfile: 'districtBrick', bumpScale: 0.06, patternScale: 5,
     patternTuning: { patternDensity: 0.52, contrast: 0.22, seamWidth: 0.024, spacing: 1.16 },
   },
   red: {
     surfaceKey: 'metroConcrete', pattern: 'concrete', emblem: 'skyline',
-    baseColor: '#9ba4a6', secondaryColor: '#c2cac9', groutColor: '#778083',
-    accentColor: '#b86d76', materialProfile: 'districtConcrete', bumpScale: 0.045, patternScale: 5,
+    baseColor: '#c98d95', secondaryColor: '#edb5b1', groutColor: '#a96671',
+    materialProfile: 'districtConcrete', bumpScale: 0.045, patternScale: 5,
     patternTuning: { patternDensity: 0.38, contrast: 0.16, seamWidth: 0.015, spacing: 1.3 },
   },
   yellow: {
     surfaceKey: 'sandstoneTerrazzo', pattern: 'beach', emblem: 'marquee',
-    baseColor: '#ead7a6', secondaryColor: '#f6edcc', groutColor: '#cbb887',
-    accentColor: '#d3b768', waterColor: '#9ed7d5', materialProfile: 'districtStone', bumpScale: 0.028, patternScale: 4,
+    baseColor: '#f1cf79', secondaryColor: '#fff0bd', groutColor: '#cba75b',
+    waterColor: '#70cbd1', materialProfile: 'districtStone', bumpScale: 0.028, patternScale: 4,
     patternTuning: { patternDensity: 0.34, contrast: 0.14, seamWidth: 0.012, spacing: 1.34 },
   },
   green: {
     surfaceKey: 'ecoSlate', pattern: 'paver', emblem: 'leaf',
-    baseColor: '#b9c9bf', secondaryColor: '#e0e9df', groutColor: '#9eafa3',
-    accentColor: '#6b9b81', materialProfile: 'districtPremium', bumpScale: 0.034, patternScale: 4,
+    baseColor: '#a8d0ad', secondaryColor: '#d6edcf', groutColor: '#7da47f',
+    materialProfile: 'districtPremium', bumpScale: 0.034, patternScale: 4,
     patternTuning: { patternDensity: 0.42, contrast: 0.16, seamWidth: 0.018, spacing: 1.34 },
   },
   blue: {
     surfaceKey: 'premiumBrownStone', pattern: 'slab', emblem: 'landmark',
-    baseColor: '#b09c8a', secondaryColor: '#d8c8b5', groutColor: '#8d7c6e',
-    accentColor: '#7e8caa', materialProfile: 'districtPremium', bumpScale: 0.032, patternScale: 3,
+    baseColor: '#c49b77', secondaryColor: '#ebccb0', groutColor: '#9c7255',
+    materialProfile: 'districtPremium', bumpScale: 0.032, patternScale: 3,
     patternTuning: { patternDensity: 0.38, contrast: 0.15, seamWidth: 0.016, spacing: 1.4 },
   },
 };

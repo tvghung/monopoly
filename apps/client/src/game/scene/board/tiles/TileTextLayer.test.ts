@@ -1,8 +1,8 @@
 import { tileState } from '@monopoly/shared';
 import { describe, expect, it } from 'vitest';
 import { getBoardTileLayout } from '../boardLayout';
-import { getTileTextPresentation } from './TileTextLayer';
-import { getInwardTextTopDirection, getTilePanelLayoutForTileSize } from './tilePanelLayout';
+import { getTileTextPresentation, shouldRenderTileText } from './TileTextLayer';
+import { getInwardTextTopDirection, getTileContentRotationY, getTilePanelLayoutForTileSize } from './tilePanelLayout';
 
 describe('commercial tile typography', () => {
   it('shows a short property name on one large line without its price', () => {
@@ -63,6 +63,10 @@ describe('commercial tile typography', () => {
     const topSide = getBoardTileLayout(21)!.side;
     expect(getInwardTextTopDirection(leftSide)).toEqual([1, 0]);
     expect(getInwardTextTopDirection(topSide)).toEqual([0, 1]);
+    expect(getTileContentRotationY(leftSide)).toBe(Math.PI);
+    expect(getTileContentRotationY(topSide)).toBe(Math.PI);
+    expect(getTileContentRotationY('BOTTOM')).toBe(0);
+    expect(getTileContentRotationY('RIGHT')).toBe(0);
 
     const left = getTileTextPresentation(tileState[19], tileState[19].streetName, getBoardTileLayout(19)!.size);
     const top = getTileTextPresentation(tileState[21], tileState[21].streetName, getBoardTileLayout(21)!.size);
@@ -71,5 +75,11 @@ describe('commercial tile typography', () => {
     expect(top.footer).toBe(true);
     expect(left.positionZ).toBeCloseTo(footerZ);
     expect(top.positionZ).toBeCloseTo(footerZ);
+  });
+
+  it('removes jail and go-to-jail text so their icons carry the meaning', () => {
+    expect(shouldRenderTileText(tileState[10].tileType)).toBe(false);
+    expect(shouldRenderTileText(tileState[30].tileType)).toBe(false);
+    expect(shouldRenderTileText(tileState[5].tileType)).toBe(true);
   });
 });

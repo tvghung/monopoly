@@ -4,7 +4,7 @@ import { TILE_SURFACE_INSET } from '../boardLayout';
 import { PROPERTY_NAME_Y } from '../architecture/boardArtSpec';
 import { getSpecialTileLabel } from '../architecture/tileVisualRegistry';
 import SdfSurfaceText, { limitSurfaceTextLines } from './SdfSurfaceText';
-import { getInwardTextTopDirection, getTilePanelLayoutForTileSize } from './tilePanelLayout';
+import { getInwardTextTopDirection, getTileContentRotationY, getTilePanelLayoutForTileSize } from './tilePanelLayout';
 
 interface TileTextLayerProps {
   tile: Tile;
@@ -20,6 +20,10 @@ export interface TileTextPresentation {
   lineHeight: number;
   positionZ: number;
   footer: boolean;
+}
+
+export function shouldRenderTileText(tileType: Tile['tileType']): boolean {
+  return tileType !== 'jail' && tileType !== 'gojail';
 }
 
 function getPropertyLineCount(value: string): 1 | 2 | 3 {
@@ -85,8 +89,10 @@ export function getTileTextPresentation(
 }
 
 export default function TileTextLayer({ tile, name, size, side = 'BOTTOM' }: TileTextLayerProps) {
+  if (!shouldRenderTileText(tile.tileType)) return null;
   const presentation = getTileTextPresentation(tile, name, size, side === 'CORNER');
   const inwardTopDirection = getInwardTextTopDirection(side);
+  const contentRotationY = getTileContentRotationY(side);
   return (
     <group
       name="TileTextLayer"
@@ -95,6 +101,7 @@ export default function TileTextLayer({ tile, name, size, side = 'BOTTOM' }: Til
         textFacing: 'inward',
         side,
         inwardTopDirection,
+        contentRotationY,
       }}
     >
       <SdfSurfaceText
@@ -104,6 +111,7 @@ export default function TileTextLayer({ tile, name, size, side = 'BOTTOM' }: Til
         fontSize={presentation.fontSize}
         maxWidth={presentation.maxWidth}
         lineHeight={presentation.lineHeight}
+        rotationZ={contentRotationY}
       />
     </group>
   );

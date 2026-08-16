@@ -4,6 +4,7 @@ import type { BoardSide } from '../boardLayout';
 export const TILE_UPPER_PANEL_RATIO = 0.6;
 export const TILE_FOOTER_PANEL_RATIO = 0.4;
 export const TILE_DIVIDER_THICKNESS = 0.024;
+export const PARKING_ADJACENT_SIDES = ['LEFT', 'TOP'] as const;
 
 export interface TilePanelLayout {
   surfaceSize: readonly [number, number];
@@ -76,4 +77,15 @@ export function getInwardTextTopDirection(
     case 'RIGHT': return [-1, 0];
     case 'CORNER': return [0, 0];
   }
+}
+
+/**
+ * The camera-facing content on both runs beside Parking is read from the
+ * opposite edge of the canonical tile plane. Keep text and flat tile art on
+ * the same shared flip instead of rotating individual objects.
+ */
+export function getTileContentRotationY(side: BoardSide): number {
+  return PARKING_ADJACENT_SIDES.includes(side as (typeof PARKING_ADJACENT_SIDES)[number])
+    ? Math.PI
+    : 0;
 }
