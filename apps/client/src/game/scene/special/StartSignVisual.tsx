@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import { Text } from 'troika-three-text';
 import * as THREE from 'three';
-import beVietnamProFont from '@fontsource/be-vietnam-pro/files/be-vietnam-pro-vietnamese-800-normal.woff?url';
+import { BOARD_FONT_URL } from '../../../design-system/typography/gameFonts';
 import { getBoardTileLayout, TILE_SURFACE_CLEARANCE_Y } from '../board/boardLayout';
 import { boardVisualTokens } from '../board/boardVisualTokens';
 import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
@@ -14,6 +14,8 @@ interface StartSignVisualProps {
 
 export const START_SIGN_LABEL = 'Start';
 export const START_SIGN_TRAVEL_ROTATION_Y = getBoardTileLayout(0)?.rotation[1] ?? 0;
+export const START_SIGN_WIDTH_SCALE = 1.12;
+export const START_SIGN_HEIGHT_SCALE = 1.1;
 
 export function createStartSignGeometry(): THREE.ExtrudeGeometry {
   const shape = new THREE.Shape();
@@ -45,8 +47,8 @@ function StartSignText() {
 
   useEffect(() => {
     textObject.text = START_SIGN_LABEL;
-    textObject.font = beVietnamProFont;
-    textObject.fontSize = 0.34;
+    textObject.font = BOARD_FONT_URL;
+    textObject.fontSize = 0.35;
     textObject.maxWidth = 0.86;
     textObject.anchorX = 'center';
     textObject.anchorY = 'middle';
@@ -76,7 +78,12 @@ export default function StartSignVisual({ panel }: StartSignVisualProps) {
       name="StartSignVisual"
       position={[0, TILE_SURFACE_CLEARANCE_Y, 0]}
       rotation={[0, START_SIGN_TRAVEL_ROTATION_Y + panel.contentRotationY, 0]}
-      userData={{ label: START_SIGN_LABEL, points: 'tile-0-travel-left' }}
+      scale={[START_SIGN_WIDTH_SCALE, START_SIGN_HEIGHT_SCALE, START_SIGN_WIDTH_SCALE]}
+      userData={{
+        label: START_SIGN_LABEL,
+        points: 'tile-0-travel-left',
+        visualScale: [START_SIGN_WIDTH_SCALE, START_SIGN_HEIGHT_SCALE],
+      }}
     >
       <RoundedBoxMesh
         name="StartSignPostLeft"

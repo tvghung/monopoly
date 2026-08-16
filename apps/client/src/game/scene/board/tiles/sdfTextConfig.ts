@@ -1,5 +1,5 @@
-import beVietnamProFont from '@fontsource/be-vietnam-pro/files/be-vietnam-pro-vietnamese-800-normal.woff?url';
 import { boardVisualTokens } from '../boardVisualTokens';
+import { BOARD_FONT_URL } from '../../../../design-system/typography/gameFonts';
 
 export const TILE_SDF_GLYPH_SIZE = 64;
 
@@ -33,7 +33,7 @@ export function configureSdfText(
   onSync?: () => void,
 ): void {
   text.text = props.value;
-  text.font = beVietnamProFont;
+  text.font = BOARD_FONT_URL;
   text.fontSize = props.fontSize;
   text.maxWidth = props.maxWidth;
   text.maxHeight = props.fontSize * 3.4;

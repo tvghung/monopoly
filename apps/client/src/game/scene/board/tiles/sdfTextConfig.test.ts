@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { BOARD_FONT_GLYPH_SAMPLES, BOARD_FONT_URL } from '../../../../design-system/typography/gameFonts';
 import { configureSdfText, TILE_SDF_GLYPH_SIZE } from './sdfTextConfig';
 import { limitSurfaceTextLines } from './SdfSurfaceText';
 
@@ -16,7 +17,17 @@ describe('SDF surface text contract', () => {
       onSync,
     );
     expect(target.text).toBe('Đồng Khởi');
-    expect(target.font).toMatch(/be-vietnam-pro-vietnamese-800-normal/);
+    expect(target.font).toBe(BOARD_FONT_URL);
+    expect(BOARD_FONT_URL).toMatch(/BeVietnamPro-ExtraBold/);
+    expect(BOARD_FONT_GLYPH_SAMPLES).toEqual([
+      'Cà Mau',
+      'Buôn Ma Thuột',
+      'Đà Nẵng',
+      'Phú Quốc',
+      'Công Ty Nước',
+      'Khí vận',
+      'Cơ hội',
+    ]);
     expect(target.maxWidth).toBe(1.1);
     expect(target.sdfGlyphSize).toBe(TILE_SDF_GLYPH_SIZE);
     expect(target.sync).toHaveBeenCalledTimes(1);
