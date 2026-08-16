@@ -14,6 +14,7 @@ export function composeTileSurfaceMatrix(
   surfaceSize: readonly [number, number],
   motionOffsetY = 0,
   target = new THREE.Matrix4(),
+  surfacePlaneOffset = 0,
 ): THREE.Matrix4 {
   const tileYaw = new THREE.Quaternion().setFromAxisAngle(WORLD_UP_AXIS, layout.rotation[1]);
   const faceTilt = new THREE.Quaternion().setFromAxisAngle(
@@ -22,12 +23,15 @@ export function composeTileSurfaceMatrix(
   );
   const orientation = tileYaw.multiply(faceTilt);
 
-  return target.compose(
-    new THREE.Vector3(
+  const position = new THREE.Vector3(
       layout.position[0],
       TILE_SURFACE_LOCAL_POSITION[1] + motionOffsetY,
       layout.position[2],
-    ),
+  );
+  position.add(new THREE.Vector3(0, surfacePlaneOffset, 0).applyQuaternion(orientation));
+
+  return target.compose(
+    position,
     orientation,
     new THREE.Vector3(surfaceSize[0], surfaceSize[1], 1),
   );

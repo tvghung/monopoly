@@ -38,10 +38,10 @@ describe('board building and occupant placement', () => {
   });
 
   it.each([
-    [1, [5.94, HOUSE_CENTER_Y, 7.68]],
-    [11, [-7.68, HOUSE_CENTER_Y, 5.94]],
-    [21, [-5.94, HOUSE_CENTER_Y, -7.68]],
-    [31, [7.68, HOUSE_CENTER_Y, -5.94]],
+    [1, [6.54, HOUSE_CENTER_Y, 8.355]],
+    [11, [-8.355, HOUSE_CENTER_Y, 6.54]],
+    [21, [-6.54, HOUSE_CENTER_Y, -8.355]],
+    [31, [8.355, HOUSE_CENTER_Y, -6.54]],
   ] as const)('transforms a local building anchor once for tile %i', (tileId, expected) => {
     const actual = transformTileLocalPointToWorld(tileId, [0.34, HOUSE_CENTER_Y, 0.18]);
     expect(actual).toBeDefined();

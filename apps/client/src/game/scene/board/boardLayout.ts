@@ -13,7 +13,7 @@ import {
 export type BoardSide = 'BOTTOM' | 'LEFT' | 'TOP' | 'RIGHT' | 'CORNER';
 
 export const CORNER_SIZE = 2.4;
-export const EDGE_TILE_WIDTH = 1.4;
+export const EDGE_TILE_WIDTH = 1.55;
 export const EDGE_TILE_DEPTH = 2.4;
 export const TILE_GAP = 0.05;
 export const TILE_HEIGHT = TILE_BODY_HEIGHT;

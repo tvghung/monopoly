@@ -64,10 +64,10 @@ export default function TileAssembly({
           tile={tile}
           size={layout.size}
         />
-        <TileTextLayer tile={tile} name={name} size={layout.size} />
+        <TileTextLayer tile={tile} name={name} size={layout.size} side={layout.side} />
         <TileOwnershipLayer ownerColor={ownerColor} size={layout.size} selected={selected} />
         <TileDevelopmentLayer houses={houses} />
-        <TileSpecialLayer tile={tile} size={layout.size} />
+        <TileSpecialLayer tile={tile} size={layout.size} isCorner={layout.side === 'CORNER'} />
         <TileFxAnchor tileId={tileId} />
       </TilePressRoot>
     </group>

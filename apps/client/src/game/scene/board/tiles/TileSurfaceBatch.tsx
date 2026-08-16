@@ -2,7 +2,7 @@ import { useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { tileState } from '@monopoly/shared';
-import { TILE_SURFACE_INSET, getBoardTileLayout } from '../boardLayout';
+import { getBoardTileLayout, getTileSurfaceGeometry } from '../boardLayout';
 import { composeTileSurfaceMatrix } from '../architecture/tileMatrix';
 import {
   DISTRICT_SURFACE_KEYS,
@@ -12,6 +12,7 @@ import {
 import { getTileTextureAnisotropy } from '../architecture/sceneBudget';
 import type { BoardTileRenderModel } from '../boardRenderModel';
 import { DistrictSurfaceMaterialLibrary } from '../materials/districtSurfaceMaterials';
+import { getTilePanelLayout } from './tilePanelLayout';
 import { useTileMotionController, useTileMotionRevision } from '../motion/TileMotionProvider';
 
 interface TileSurfaceBatchProps {
@@ -26,10 +27,13 @@ export interface TileSurfaceBatchEntry {
   tileId: number;
   surfaceSize: readonly [number, number];
   surfaceKey?: DistrictSurfaceKey;
+  surfacePlaneOffset?: number;
 }
 
+export type TileSurfaceBatchKey = DistrictSurfaceKey | 'special' | 'footer' | 'divider';
+
 export interface TileSurfaceBatchGroup {
-  key: DistrictSurfaceKey | 'special';
+  key: TileSurfaceBatchKey;
   entries: readonly TileSurfaceBatchEntry[];
 }
 
@@ -54,12 +58,14 @@ function SurfaceBatchMesh({
   batch,
   geometry,
   material,
+  layerName,
   onHover,
   onSelect,
 }: {
   batch: TileSurfaceBatchGroup;
   geometry: THREE.PlaneGeometry;
   material: THREE.MeshStandardMaterial;
+  layerName: string;
   onHover?: (tileId: number | null) => void;
   onSelect?: (tileId: number) => void;
 }) {
@@ -75,7 +81,13 @@ function SurfaceBatchMesh({
       const layout = getBoardTileLayout(entry.tileId);
       if (!layout) return;
       const motionOffsetY = motionController?.getTileOffsetY(entry.tileId) ?? 0;
-      composeTileSurfaceMatrix(layout, entry.surfaceSize, motionOffsetY, matrix);
+      composeTileSurfaceMatrix(
+        layout,
+        entry.surfaceSize,
+        motionOffsetY,
+        matrix,
+        entry.surfacePlaneOffset ?? 0,
+      );
       mesh.setMatrixAt(index, matrix);
     });
     mesh.instanceMatrix.needsUpdate = true;
@@ -91,12 +103,18 @@ function SurfaceBatchMesh({
     if (entry) callback?.(entry.tileId);
   };
 
+  if (batch.entries.length === 0) return null;
+
   return (
     <instancedMesh
       ref={meshRef}
       args={[undefined, undefined, batch.entries.length]}
-      name={`TileSurfaces:${batch.key}`}
-      userData={{ materialKey: batch.key, tileIds: batch.entries.map(entry => entry.tileId) }}
+      name={`${layerName}:${batch.key}`}
+      userData={{
+        materialKey: batch.key,
+        panel: layerName,
+        tileIds: batch.entries.map(entry => entry.tileId),
+      }}
       onPointerEnter={handlePointer(tileId => onHover?.(tileId))}
       onPointerLeave={event => { stopPointerEvent(event); onHover?.(null); }}
       onClick={handlePointer(tileId => onSelect?.(tileId))}
@@ -105,6 +123,127 @@ function SurfaceBatchMesh({
       <primitive object={geometry} attach="geometry" />
       <primitive object={material} attach="material" />
     </instancedMesh>
+  );
+}
+
+function getUpperMaterial(
+  library: DistrictSurfaceMaterialLibrary,
+  key: TileSurfaceBatchKey,
+): THREE.MeshStandardMaterial {
+  if (key === 'special') return library.specialMaterial;
+  if (key === 'footer' || key === 'divider') {
+    throw new Error(`Panel key ${key} cannot use an upper material.`);
+  }
+  return library.getMaterial(key);
+}
+
+function withPanel(
+  entry: TileSurfaceBatchEntry,
+  panel: 'upper' | 'footer' | 'divider',
+): TileSurfaceBatchEntry {
+  const panelLayout = getTilePanelLayout(entry.surfaceSize);
+  if (panel === 'upper') {
+    return {
+      ...entry,
+      surfaceSize: panelLayout.upperSize,
+      surfacePlaneOffset: panelLayout.upperPlaneOffset,
+    };
+  }
+  if (panel === 'footer') {
+    return {
+      ...entry,
+      surfaceSize: panelLayout.footerSize,
+      surfacePlaneOffset: panelLayout.footerPlaneOffset,
+    };
+  }
+  return {
+    ...entry,
+    surfaceSize: panelLayout.dividerSize,
+    surfacePlaneOffset: panelLayout.dividerPlaneOffset,
+  };
+}
+
+export function TileSurfaceUpperLayer({
+  batches,
+  library,
+  geometry,
+  onHover,
+  onSelect,
+}: {
+  batches: readonly TileSurfaceBatchGroup[];
+  library: DistrictSurfaceMaterialLibrary;
+  geometry: THREE.PlaneGeometry;
+  onHover?: (tileId: number | null) => void;
+  onSelect?: (tileId: number) => void;
+}) {
+  return (
+    <group name="TileSurfaceUpperLayer">
+      {batches.map(batch => (
+        <SurfaceBatchMesh
+          key={`upper:${batch.key}`}
+          batch={batch}
+          geometry={geometry}
+          material={getUpperMaterial(library, batch.key)}
+          layerName="TileSurfaceUpperLayer"
+          onHover={onHover}
+          onSelect={onSelect}
+        />
+      ))}
+    </group>
+  );
+}
+
+export function TileFooterLayer({
+  batch,
+  library,
+  geometry,
+  onHover,
+  onSelect,
+}: {
+  batch: TileSurfaceBatchGroup;
+  library: DistrictSurfaceMaterialLibrary;
+  geometry: THREE.PlaneGeometry;
+  onHover?: (tileId: number | null) => void;
+  onSelect?: (tileId: number) => void;
+}) {
+  return (
+    <group name="TileFooterLayer">
+      <SurfaceBatchMesh
+        batch={batch}
+        geometry={geometry}
+        material={library.footerMaterial}
+        layerName="TileFooterLayer"
+        onHover={onHover}
+        onSelect={onSelect}
+      />
+    </group>
+  );
+}
+
+export function TileDividerLine({
+  batch,
+  library,
+  geometry,
+  onHover,
+  onSelect,
+}: {
+  batch: TileSurfaceBatchGroup;
+  library: DistrictSurfaceMaterialLibrary;
+  geometry: THREE.PlaneGeometry;
+  onHover?: (tileId: number | null) => void;
+  onSelect?: (tileId: number) => void;
+}) {
+  return (
+    <group name="TileDividerLine">
+      <SurfaceBatchMesh
+        batch={batch}
+        geometry={geometry}
+        material={library.dividerMaterial}
+        layerName="TileDividerLine"
+        onHover={onHover}
+        onSelect={onSelect}
+      />
+    </group>
   );
 }
 
@@ -130,29 +269,59 @@ export default function TileSurfaceBatch({
     if (!layout || !sourceTile) return null;
     return {
       tileId: tile.tileId,
-      surfaceSize: [
-        Math.max(0.3, layout.size[0] - TILE_SURFACE_INSET),
-        Math.max(0.3, layout.size[1] - TILE_SURFACE_INSET),
-      ] as const,
+      surfaceSize: getTileSurfaceGeometry(layout).size,
       surfaceKey: getDistrictSurfaceDescriptor(sourceTile)?.surfaceKey,
     } satisfies TileSurfaceBatchEntry;
   }).filter((entry): entry is TileSurfaceBatchEntry => entry !== null), [tiles]);
-  const batches = useMemo(() => groupTileSurfaceEntries(entries), [entries]);
+
+  const edgeEntries = useMemo(
+    () => entries.filter(entry => getBoardTileLayout(entry.tileId)?.side !== 'CORNER'),
+    [entries],
+  );
+  const cornerEntries = useMemo(
+    () => entries.filter(entry => getBoardTileLayout(entry.tileId)?.side === 'CORNER'),
+    [entries],
+  );
+  const upperEntries = useMemo(
+    () => [...edgeEntries.map(entry => withPanel(entry, 'upper')), ...cornerEntries],
+    [cornerEntries, edgeEntries],
+  );
+  const upperBatches = useMemo(
+    () => groupTileSurfaceEntries(upperEntries),
+    [upperEntries],
+  );
+  const footerBatch = useMemo<TileSurfaceBatchGroup>(() => ({
+    key: 'footer',
+    entries: edgeEntries.map(entry => withPanel(entry, 'footer')),
+  }), [edgeEntries]);
+  const dividerBatch = useMemo<TileSurfaceBatchGroup>(() => ({
+    key: 'divider',
+    entries: edgeEntries.map(entry => withPanel(entry, 'divider')),
+  }), [edgeEntries]);
 
   return (
     <group name="TileSurfaceBatch">
-      {batches.map(batch => (
-        <SurfaceBatchMesh
-          key={batch.key}
-          batch={batch}
-          geometry={materialLibrary.geometry}
-          material={batch.key === 'special'
-            ? materialLibrary.specialMaterial
-            : materialLibrary.getMaterial(batch.key)}
-          onHover={onHover}
-          onSelect={onSelect}
-        />
-      ))}
+      <TileSurfaceUpperLayer
+        batches={upperBatches}
+        library={materialLibrary}
+        geometry={materialLibrary.geometry}
+        onHover={onHover}
+        onSelect={onSelect}
+      />
+      <TileFooterLayer
+        batch={footerBatch}
+        library={materialLibrary}
+        geometry={materialLibrary.geometry}
+        onHover={onHover}
+        onSelect={onSelect}
+      />
+      <TileDividerLine
+        batch={dividerBatch}
+        library={materialLibrary}
+        geometry={materialLibrary.geometry}
+        onHover={onHover}
+        onSelect={onSelect}
+      />
     </group>
   );
 }
