@@ -20,7 +20,7 @@ interface RgbColor {
 interface PatternSample {
   blend: number;
   bump: number;
-  colorRole: 'base' | 'secondary' | 'grout' | 'water';
+  colorRole: 'base' | 'secondary' | 'grout' | 'water' | 'foam';
 }
 
 export interface DistrictSurfaceTextureData {
@@ -58,6 +58,15 @@ function hashString(value: string): number {
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
+}
+
+export const BEACH_PRIMARY_WAVE_AMPLITUDE = 0.055;
+export const BEACH_SECONDARY_WAVE_AMPLITUDE = 0.018;
+
+export function getBeachShoreline(u: number): number {
+  return 0.22
+    + Math.sin(u * Math.PI * 2.4 - 0.35) * BEACH_PRIMARY_WAVE_AMPLITUDE
+    + Math.sin(u * Math.PI * 7.4 + 0.8) * BEACH_SECONDARY_WAVE_AMPLITUDE;
 }
 
 function noise2d(x: number, y: number, seed: number): number {
@@ -141,10 +150,15 @@ function samplePattern(
       return { blend: 0.2 + pixelNoise * 0.06 * density, bump: 158, colorRole: 'base' };
     }
     case 'beach': {
-      const shoreline = 0.2 + Math.sin(u * Math.PI * 2.2) * 0.025;
-      if (v < shoreline) return { blend: 0, bump: 128, colorRole: 'water' };
-      if (Math.abs(v - shoreline) < seamWidth * 1.6) {
-        return { blend: 0.48, bump: 150, colorRole: 'secondary' };
+      const shoreline = getBeachShoreline(u);
+      const foamWidth = Math.max(seamWidth * 2.4, 0.034);
+      if (v < shoreline - foamWidth) return { blend: 0, bump: 136, colorRole: 'water' };
+      if (Math.abs(v - shoreline) < foamWidth) {
+        return { blend: 0.8, bump: 188, colorRole: 'foam' };
+      }
+      const outerWave = shoreline + 0.075 + Math.sin(u * Math.PI * 5.2) * 0.012;
+      if (Math.abs(v - outerWave) < seamWidth * 0.82) {
+        return { blend: 0, bump: 172, colorRole: 'water' };
       }
       return { blend: 0.16 + pixelNoise * 0.08 * density, bump: 138, colorRole: 'base' };
     }
@@ -181,6 +195,7 @@ export function generateDistrictSurfaceTextureData(
   const secondaryColor = parseHexColor(descriptor.secondaryColor);
   const groutColor = parseHexColor(descriptor.groutColor);
   const waterColor = parseHexColor(descriptor.waterColor ?? descriptor.secondaryColor);
+  const foamColor = mixColor(secondaryColor, { r: 255, g: 255, b: 248 }, 0.42);
   const seed = hashString(`${descriptor.surfaceKey}:${descriptor.pattern}:${descriptor.emblem}`);
   const sampleSize = Math.min(size, PROCEDURAL_SAMPLE_SIZE);
 
@@ -195,6 +210,8 @@ export function generateDistrictSurfaceTextureData(
       const sample = samplePattern(descriptor, u, v, sampleX, sampleY, seed);
       let color = sample.colorRole === 'water'
         ? waterColor
+        : sample.colorRole === 'foam'
+          ? foamColor
         : sample.colorRole === 'grout'
           ? mixColor(baseColor, groutColor, descriptor.patternTuning.contrast)
           : sample.colorRole === 'secondary'

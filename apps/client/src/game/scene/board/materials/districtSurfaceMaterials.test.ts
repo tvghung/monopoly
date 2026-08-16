@@ -5,8 +5,11 @@ import {
   getDistrictSurfaceDescriptorByKey,
 } from '../architecture/tileVisualRegistry';
 import {
+  BEACH_PRIMARY_WAVE_AMPLITUDE,
+  BEACH_SECONDARY_WAVE_AMPLITUDE,
   DISTRICT_TEXTURE_SIZE,
   DistrictSurfaceMaterialLibrary,
+  getBeachShoreline,
   generateDistrictSurfaceTextureData,
 } from './districtSurfaceMaterials';
 
@@ -43,6 +46,13 @@ describe('district surface material library', () => {
       if (blue > red + 8 && green > red - 4) waterLikePixels += 1;
     }
     expect(waterLikePixels).toBeGreaterThan(64);
+  });
+
+  it('uses a visibly undulating shoreline with a secondary wave contour', () => {
+    const shorelineSamples = Array.from({ length: 32 }, (_, index) => getBeachShoreline(index / 32));
+    expect(Math.max(...shorelineSamples) - Math.min(...shorelineSamples)).toBeGreaterThan(0.09);
+    expect(BEACH_PRIMARY_WAVE_AMPLITUDE).toBeGreaterThan(0.05);
+    expect(BEACH_SECONDARY_WAVE_AMPLITUDE).toBeGreaterThan(0.015);
   });
 
   it('shares one 512-square sRGB/bump pair per material key and disposes safely', async () => {

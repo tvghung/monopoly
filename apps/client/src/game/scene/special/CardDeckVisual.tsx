@@ -9,19 +9,19 @@ interface CardDeckVisualProps {
   size: readonly [number, number];
   kind: 'chance' | 'chest';
   isCorner: boolean;
+  contentRotationY: number;
 }
 
-const CHANCE_WHEEL_COLORS = [
-  '#f47b65', '#f7c95f', '#6ec4a1', '#6fb7e6',
-  '#a98bd4', '#f39a54', '#77c6c9', '#e9789d',
+export const FORTUNE_WHEEL_SEGMENT_COUNT = 12;
+export const FORTUNE_WHEEL_RADIUS_RATIO = 0.36;
+
+const FORTUNE_WHEEL_COLORS = [
+  '#10a89b', '#f5c84c', '#f07858', '#5bb8dc',
+  '#9b79d1', '#ef9250', '#57c59d', '#e56b96',
+  '#3f91c5', '#f0a94d', '#70c8c8', '#d66cc5',
 ] as const;
 
-const CHEST_WHEEL_COLORS = [
-  '#0c9f97', '#f1cf66', '#ee8f64', '#6bb7a6',
-  '#4d99bc', '#f0ad61', '#6dbaa5', '#8d9bd1',
-] as const;
-
-function createLuckyWheelGeometry(
+function createFortuneWheelGeometry(
   radius: number,
   colors: readonly string[],
 ): THREE.BufferGeometry {
@@ -51,48 +51,113 @@ function createLuckyWheelGeometry(
   return geometry;
 }
 
-function LuckyWheelGraphic({
+function FortuneWheelGraphic({
   size,
-  kind,
   isCorner,
-}: CardDeckVisualProps) {
+  contentRotationY,
+}: Omit<CardDeckVisualProps, 'kind'>) {
   const panels = getTilePanelLayoutForTileSize(size);
-  const radius = Math.min(panels.upperSize[0], panels.upperSize[1]) * (isCorner ? 0.27 : 0.3);
-  const colors = kind === 'chance' ? CHANCE_WHEEL_COLORS : CHEST_WHEEL_COLORS;
-  const wheelGeometry = useMemo(() => createLuckyWheelGeometry(radius, colors), [colors, radius]);
+  const radius = Math.min(panels.upperSize[0], panels.upperSize[1])
+    * (isCorner ? 0.31 : FORTUNE_WHEEL_RADIUS_RATIO);
+  const wheelGeometry = useMemo(
+    () => createFortuneWheelGeometry(radius, FORTUNE_WHEEL_COLORS),
+    [radius],
+  );
   useEffect(() => () => wheelGeometry.dispose(), [wheelGeometry]);
 
   return (
     <group
-      name={`LuckyWheel2D:${kind}`}
+      name="FortuneWheel2D"
       position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, isCorner ? 0 : panels.upperCenterLocalZ]}
+      rotation={[0, contentRotationY, 0]}
     >
-      <mesh name="LuckyWheelSegments" geometry={wheelGeometry} position={[0, 0.004, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh
+        name="FortuneWheelSegments"
+        geometry={wheelGeometry}
+        position={[0, 0.004, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
         <meshStandardMaterial vertexColors roughness={0.62} metalness={0} />
       </mesh>
-      <mesh name="LuckyWheelOuterRing" position={[0, 0.012, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh name="FortuneWheelOuterRing" position={[0, 0.012, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[radius * 0.84, radius * 0.96, 32]} />
-        <meshStandardMaterial color={kind === 'chance' ? '#d85d4c' : '#087e79'} roughness={0.5} />
+        <meshStandardMaterial color="#087e79" roughness={0.5} />
       </mesh>
-      <mesh name="LuckyWheelCenter" position={[0, 0.018, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh name="FortuneWheelCenter" position={[0, 0.018, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[radius * 0.16, 20]} />
         <meshStandardMaterial color="#fff3ca" roughness={0.45} />
       </mesh>
-      <RoundedBoxMesh
-        name="LuckyWheelPointer"
-        width={radius * 1.1}
-        height={0.024}
-        depth={0.045}
-        radius={0.012}
-        color={kind === 'chance' ? boardVisualTokens.chanceDark : boardVisualTokens.chestBody}
-        materialProfile="propertyTrim"
-        position={[0, 0.034, 0]}
-        rotation={[0, Math.PI / 7, 0]}
-      />
     </group>
   );
 }
 
-export default function CardDeckVisual({ size, kind, isCorner }: CardDeckVisualProps) {
-  return <LuckyWheelGraphic size={size} kind={kind} isCorner={isCorner} />;
+function TreasureChestGraphic({
+  size,
+  isCorner,
+  contentRotationY,
+}: Omit<CardDeckVisualProps, 'kind'>) {
+  const panels = getTilePanelLayoutForTileSize(size);
+  const chestWidth = panels.upperSize[0] * (isCorner ? 0.48 : 0.68);
+  const chestDepth = Math.min(panels.upperSize[1] * 0.42, 0.62);
+  const jewelColors = ['#e84e70', '#58b9ea', '#f4c94b'] as const;
+
+  return (
+    <group
+      name="ChanceTreasureChest2D"
+      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, isCorner ? 0 : panels.upperCenterLocalZ]}
+      rotation={[0, contentRotationY, 0]}
+    >
+      <RoundedBoxMesh
+        name="TreasureChestBody"
+        width={chestWidth}
+        height={0.052}
+        depth={chestDepth}
+        radius={0.035}
+        color={boardVisualTokens.chestBody}
+        materialProfile="propertyTrim"
+        position={[0, 0.034, 0.035]}
+      />
+      <RoundedBoxMesh
+        name="TreasureChestLid"
+        width={chestWidth * 1.04}
+        height={0.045}
+        depth={chestDepth * 0.62}
+        radius={0.04}
+        color={boardVisualTokens.chest}
+        materialProfile="propertyTrim"
+        position={[0, 0.078, -0.09]}
+      />
+      <RoundedBoxMesh
+        name="TreasureChestBand"
+        width={0.055}
+        height={0.02}
+        depth={chestDepth * 0.9}
+        radius={0.012}
+        color={boardVisualTokens.chestBand}
+        materialProfile="propertyTrim"
+        position={[0, 0.09, 0.005]}
+      />
+      <mesh name="TreasureChestLatch" position={[0, 0.102, 0.02]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.045, 16]} />
+        <meshStandardMaterial color={boardVisualTokens.chestLatch} roughness={0.32} metalness={0.1} />
+      </mesh>
+      {jewelColors.map((color, index) => (
+        <mesh
+          key={color}
+          name="TreasureJewel"
+          position={[(index - 1) * 0.12, 0.104, 0.1]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <circleGeometry args={[0.045, 12]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.16} roughness={0.3} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+export default function CardDeckVisual({ size, kind, isCorner, contentRotationY }: CardDeckVisualProps) {
+  return kind === 'chance'
+    ? <TreasureChestGraphic size={size} isCorner={isCorner} contentRotationY={contentRotationY} />
+    : <FortuneWheelGraphic size={size} isCorner={isCorner} contentRotationY={contentRotationY} />;
 }
