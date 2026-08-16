@@ -21,6 +21,10 @@ describe('tile visual registry', () => {
       expect(descriptor.materialProfile).toMatch(/^district/);
       expect(descriptor.bumpScale).toBeGreaterThan(0);
       expect(descriptor.patternScale).toBeGreaterThan(0);
+      expect(descriptor.patternTuning.patternDensity).toBeGreaterThan(0);
+      expect(descriptor.patternTuning.contrast).toBeGreaterThan(0);
+      expect(descriptor.patternTuning.seamWidth).toBeGreaterThan(0);
+      expect(descriptor.patternTuning.spacing).toBeGreaterThan(1);
     });
     expect(CANONICAL_PROPERTY_GROUPS.map(group => getPropertyVisualDescriptor(group).surfaceKey))
       .toEqual([
@@ -35,6 +39,9 @@ describe('tile visual registry', () => {
       ]);
     expect(getPropertyVisualDescriptor('pink').baseColor).not.toBe('#cc3d95');
     expect(getPropertyVisualDescriptor('blue').baseColor).not.toBe('#3559c7');
+    expect(getPropertyVisualDescriptor('yellow').pattern).toBe('beach');
+    expect(getPropertyVisualDescriptor('yellow').waterColor).toBeTruthy();
+    expect(getPropertyVisualDescriptor('green').pattern).toBe('paver');
   });
 
   it('maps normal tiles to districts and keeps special labels as plain metadata', () => {

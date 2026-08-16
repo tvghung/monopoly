@@ -18,8 +18,10 @@ export type DistrictSurfacePattern =
   | 'brick'
   | 'concrete'
   | 'terrazzo'
+  | 'beach'
   | 'slate'
-  | 'slab';
+  | 'slab'
+  | 'paver';
 
 export type DistrictSurfaceEmblem =
   | 'heritage'
@@ -30,6 +32,13 @@ export type DistrictSurfaceEmblem =
   | 'marquee'
   | 'leaf'
   | 'landmark';
+
+export interface DistrictPatternTuning {
+  patternDensity: number;
+  contrast: number;
+  seamWidth: number;
+  spacing: number;
+}
 
 export interface DistrictSurfaceDescriptor {
   surfaceKey: DistrictSurfaceKey;
@@ -45,61 +54,71 @@ export interface DistrictSurfaceDescriptor {
   >;
   bumpScale: number;
   patternScale: number;
+  patternTuning: DistrictPatternTuning;
+  waterColor?: string;
 }
 
 const PROPERTY_DESCRIPTORS: Record<string, DistrictSurfaceDescriptor> = {
   brown: {
     surfaceKey: 'oldTownStone', pattern: 'cobble', emblem: 'heritage',
-    baseColor: '#b9a181', secondaryColor: '#d6c2a1', groutColor: '#74614e',
-    accentColor: '#6f3b2b', materialProfile: 'districtStone', bumpScale: 0.09, patternScale: 6,
+    baseColor: '#cfb995', secondaryColor: '#ead9bd', groutColor: '#b59b7e',
+    accentColor: '#8d634f', materialProfile: 'districtStone', bumpScale: 0.055, patternScale: 5,
+    patternTuning: { patternDensity: 0.54, contrast: 0.24, seamWidth: 0.028, spacing: 1.18 },
   },
   lightblue: {
     surfaceKey: 'harborCeramic', pattern: 'ceramic', emblem: 'harbor',
-    baseColor: '#b8d8d8', secondaryColor: '#dbe9e5', groutColor: '#789da1',
-    accentColor: '#13a9c4', materialProfile: 'districtStone', bumpScale: 0.045, patternScale: 5,
+    baseColor: '#c4e3e1', secondaryColor: '#e7f2ed', groutColor: '#a9c8c7',
+    accentColor: '#6aaeb6', materialProfile: 'districtStone', bumpScale: 0.032, patternScale: 4,
+    patternTuning: { patternDensity: 0.48, contrast: 0.2, seamWidth: 0.022, spacing: 1.22 },
   },
   pink: {
     surfaceKey: 'coolGranite', pattern: 'granite', emblem: 'boutique',
-    baseColor: '#9da5aa', secondaryColor: '#c1c6c8', groutColor: '#626b70',
-    accentColor: '#cc3d95', materialProfile: 'districtStone', bumpScale: 0.06, patternScale: 8,
+    baseColor: '#bec6c9', secondaryColor: '#dce1e1', groutColor: '#a8b1b3',
+    accentColor: '#a77e9c', materialProfile: 'districtStone', bumpScale: 0.04, patternScale: 6,
+    patternTuning: { patternDensity: 0.42, contrast: 0.18, seamWidth: 0.018, spacing: 1.26 },
   },
   orange: {
     surfaceKey: 'terracottaBrick', pattern: 'brick', emblem: 'market',
-    baseColor: '#a8573c', secondaryColor: '#7d3f32', groutColor: '#d3aa86',
-    accentColor: '#f06b21', materialProfile: 'districtBrick', bumpScale: 0.11, patternScale: 7,
+    baseColor: '#ca8463', secondaryColor: '#e6b398', groutColor: '#b78b78',
+    accentColor: '#d98b6c', materialProfile: 'districtBrick', bumpScale: 0.06, patternScale: 5,
+    patternTuning: { patternDensity: 0.52, contrast: 0.22, seamWidth: 0.024, spacing: 1.16 },
   },
   red: {
     surfaceKey: 'metroConcrete', pattern: 'concrete', emblem: 'skyline',
-    baseColor: '#5d6265', secondaryColor: '#828789', groutColor: '#363a3c',
-    accentColor: '#cf3345', materialProfile: 'districtConcrete', bumpScale: 0.07, patternScale: 6,
+    baseColor: '#9ba4a6', secondaryColor: '#c2cac9', groutColor: '#778083',
+    accentColor: '#b86d76', materialProfile: 'districtConcrete', bumpScale: 0.045, patternScale: 5,
+    patternTuning: { patternDensity: 0.38, contrast: 0.16, seamWidth: 0.015, spacing: 1.3 },
   },
   yellow: {
-    surfaceKey: 'sandstoneTerrazzo', pattern: 'terrazzo', emblem: 'marquee',
-    baseColor: '#d6c79d', secondaryColor: '#eee3be', groutColor: '#aa9668',
-    accentColor: '#d6a417', materialProfile: 'districtStone', bumpScale: 0.055, patternScale: 8,
+    surfaceKey: 'sandstoneTerrazzo', pattern: 'beach', emblem: 'marquee',
+    baseColor: '#ead7a6', secondaryColor: '#f6edcc', groutColor: '#cbb887',
+    accentColor: '#d3b768', waterColor: '#9ed7d5', materialProfile: 'districtStone', bumpScale: 0.028, patternScale: 4,
+    patternTuning: { patternDensity: 0.34, contrast: 0.14, seamWidth: 0.012, spacing: 1.34 },
   },
   green: {
-    surfaceKey: 'ecoSlate', pattern: 'slate', emblem: 'leaf',
-    baseColor: '#66776e', secondaryColor: '#8b9b91', groutColor: '#3e4c45',
-    accentColor: '#15935c', materialProfile: 'districtStone', bumpScale: 0.085, patternScale: 6,
+    surfaceKey: 'ecoSlate', pattern: 'paver', emblem: 'leaf',
+    baseColor: '#b9c9bf', secondaryColor: '#e0e9df', groutColor: '#9eafa3',
+    accentColor: '#6b9b81', materialProfile: 'districtPremium', bumpScale: 0.034, patternScale: 4,
+    patternTuning: { patternDensity: 0.42, contrast: 0.16, seamWidth: 0.018, spacing: 1.34 },
   },
   blue: {
     surfaceKey: 'premiumBrownStone', pattern: 'slab', emblem: 'landmark',
-    baseColor: '#745f50', secondaryColor: '#a18a74', groutColor: '#40352e',
-    accentColor: '#3559c7', materialProfile: 'districtPremium', bumpScale: 0.05, patternScale: 5,
+    baseColor: '#b09c8a', secondaryColor: '#d8c8b5', groutColor: '#8d7c6e',
+    accentColor: '#7e8caa', materialProfile: 'districtPremium', bumpScale: 0.032, patternScale: 3,
+    patternTuning: { patternDensity: 0.38, contrast: 0.15, seamWidth: 0.016, spacing: 1.4 },
   },
 };
 
 const SPECIAL_TILE_LABELS: Partial<Record<TileType, string>> = {
-  start: 'ĐIỂM KHỞI ĐẦU',
-  jail: 'NHÀ TÙ / THĂM TÙ',
-  gojail: 'VÀO TÙ',
-  chance: 'CƠ HỘI',
-  chest: 'KHÍ VẬN',
-  railroad: 'GA TÀU',
-  company: 'CÔNG TY',
-  expense: 'THUẾ / PHÍ',
-  parking: 'BÃI ĐỖ XE',
+  start: 'Xuất phát',
+  jail: 'Nhà tù / Thăm tù',
+  gojail: 'Vào tù',
+  chance: 'Cơ hội',
+  chest: 'Khí vận',
+  railroad: 'Ga tàu',
+  company: 'Công ty',
+  expense: 'Thuế',
+  parking: 'Bãi đỗ xe',
 };
 
 const FALLBACK_DESCRIPTOR = PROPERTY_DESCRIPTORS.brown;

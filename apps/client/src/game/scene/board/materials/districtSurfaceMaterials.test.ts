@@ -32,6 +32,19 @@ describe('district surface material library', () => {
     expect(new Set(checksums).size).toBe(8);
   });
 
+  it('includes a light water region in the beach district surface', () => {
+    const descriptor = getDistrictSurfaceDescriptorByKey('sandstoneTerrazzo');
+    const textureData = generateDistrictSurfaceTextureData(descriptor, 64);
+    let waterLikePixels = 0;
+    for (let index = 0; index < textureData.albedo.length; index += 4) {
+      const red = textureData.albedo[index];
+      const green = textureData.albedo[index + 1];
+      const blue = textureData.albedo[index + 2];
+      if (blue > red + 8 && green > red - 4) waterLikePixels += 1;
+    }
+    expect(waterLikePixels).toBeGreaterThan(64);
+  });
+
   it('shares one 512-square sRGB/bump pair per material key and disposes safely', async () => {
     const library = new DistrictSurfaceMaterialLibrary(4);
     const albedoTextures = new Set<THREE.Texture>();

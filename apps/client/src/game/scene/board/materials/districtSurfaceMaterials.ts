@@ -4,7 +4,6 @@ import {
   DISTRICT_SURFACE_KEYS,
   getDistrictSurfaceDescriptorByKey,
   type DistrictSurfaceDescriptor,
-  type DistrictSurfaceEmblem,
   type DistrictSurfaceKey,
 } from '../architecture/tileVisualRegistry';
 import { boardMaterialSpecs } from './boardMaterialSpecs';
@@ -21,7 +20,7 @@ interface RgbColor {
 interface PatternSample {
   blend: number;
   bump: number;
-  colorRole: 'base' | 'secondary' | 'grout';
+  colorRole: 'base' | 'secondary' | 'grout' | 'water';
 }
 
 export interface DistrictSurfaceTextureData {
@@ -93,101 +92,82 @@ function samplePattern(
   y: number,
   seed: number,
 ): PatternSample {
-  const scale = descriptor.patternScale;
+  const tuning = descriptor.patternTuning;
+  const scale = Math.max(2, descriptor.patternScale / tuning.spacing);
+  const seamWidth = tuning.seamWidth;
+  const density = tuning.patternDensity;
   const pixelNoise = noise2d(x, y, seed);
 
   switch (descriptor.pattern) {
     case 'cobble': {
       const cell = cellSample(u, v, scale, scale * 0.72, true, seed);
       const edge = Math.min(cell.fx, 1 - cell.fx, cell.fy, 1 - cell.fy);
-      return edge < 0.055
+      return edge < seamWidth * 2
         ? { blend: 0, bump: 64, colorRole: 'grout' }
-        : { blend: 0.08 + cell.variation * 0.24, bump: 168 + cell.variation * 45, colorRole: 'base' };
+        : { blend: 0.18 + cell.variation * 0.18 * density, bump: 150 + cell.variation * 32, colorRole: 'base' };
     }
     case 'ceramic': {
       const cell = cellSample(u, v, scale, scale * 1.28, false, seed);
       const edge = Math.min(cell.fx, 1 - cell.fx, cell.fy, 1 - cell.fy);
-      return edge < 0.035
+      return edge < seamWidth * 1.25
         ? { blend: 0, bump: 78, colorRole: 'grout' }
-        : { blend: 0.12 + Math.sin((u + v) * Math.PI * 3) * 0.04, bump: 190, colorRole: 'base' };
+        : { blend: 0.2 + Math.sin((u + v) * Math.PI * 2) * 0.025, bump: 175, colorRole: 'base' };
     }
     case 'granite': {
-      const vein = Math.abs(Math.sin((u * 0.8 + v * 1.6) * Math.PI * scale)) > 0.992;
+      const vein = Math.abs(Math.sin((u * 0.8 + v * 1.6) * Math.PI * scale)) > 0.996 - density * 0.008;
       if (vein) return { blend: 0, bump: 112, colorRole: 'grout' };
-      if (pixelNoise > 0.968) return { blend: pixelNoise, bump: 215, colorRole: 'secondary' };
-      return { blend: 0.08 + pixelNoise * 0.13, bump: 166 + pixelNoise * 24, colorRole: 'base' };
+      if (pixelNoise > 0.985 - density * 0.02) return { blend: 0.72, bump: 195, colorRole: 'secondary' };
+      return { blend: 0.2 + pixelNoise * 0.1 * density, bump: 150 + pixelNoise * 18, colorRole: 'base' };
     }
     case 'brick': {
       const cell = cellSample(u, v, scale, scale * 1.55, true, seed);
       const edge = Math.min(cell.fx, 1 - cell.fx, cell.fy, 1 - cell.fy);
-      return edge < 0.045
+      return edge < seamWidth * 1.6
         ? { blend: 0, bump: 62, colorRole: 'grout' }
-        : { blend: 0.07 + cell.variation * 0.22, bump: 171 + cell.variation * 38, colorRole: 'base' };
+        : { blend: 0.16 + cell.variation * 0.16 * density, bump: 152 + cell.variation * 28, colorRole: 'base' };
     }
     case 'concrete': {
-      const expansionJoint = Math.abs(u - 0.5) < 0.007 || Math.abs(v - 0.5) < 0.007;
+      const expansionJoint = Math.abs(u - 0.5) < seamWidth * 0.8 || Math.abs(v - 0.5) < seamWidth * 0.8;
       if (expansionJoint) return { blend: 0, bump: 76, colorRole: 'grout' };
-      if (pixelNoise > 0.982) return { blend: 0.35, bump: 125, colorRole: 'grout' };
-      return { blend: 0.06 + pixelNoise * 0.16, bump: 160 + pixelNoise * 34, colorRole: 'base' };
+      if (pixelNoise > 0.99 - density * 0.018) return { blend: 0.34, bump: 125, colorRole: 'grout' };
+      return { blend: 0.2 + pixelNoise * 0.1 * density, bump: 146 + pixelNoise * 22, colorRole: 'base' };
     }
     case 'terrazzo': {
-      const seam = Math.abs(u - 0.5) < 0.004 || Math.abs(v - 0.5) < 0.004;
+      const seam = Math.abs(u - 0.5) < seamWidth * 0.55 || Math.abs(v - 0.5) < seamWidth * 0.55;
       if (seam) return { blend: 0, bump: 96, colorRole: 'grout' };
       const fleckNoise = noise2d(Math.floor(x / 3), Math.floor(y / 3), seed);
-      if (fleckNoise > 0.91) return { blend: fleckNoise, bump: 206, colorRole: 'secondary' };
-      if (fleckNoise < 0.035) return { blend: 0, bump: 132, colorRole: 'grout' };
-      return { blend: 0.08 + pixelNoise * 0.08, bump: 176, colorRole: 'base' };
+      if (fleckNoise > 0.98 - density * 0.08) return { blend: 0.68, bump: 188, colorRole: 'secondary' };
+      if (fleckNoise < 0.025) return { blend: 0, bump: 132, colorRole: 'grout' };
+      return { blend: 0.2 + pixelNoise * 0.06 * density, bump: 158, colorRole: 'base' };
+    }
+    case 'beach': {
+      const shoreline = 0.2 + Math.sin(u * Math.PI * 2.2) * 0.025;
+      if (v < shoreline) return { blend: 0, bump: 128, colorRole: 'water' };
+      if (Math.abs(v - shoreline) < seamWidth * 1.6) {
+        return { blend: 0.48, bump: 150, colorRole: 'secondary' };
+      }
+      return { blend: 0.16 + pixelNoise * 0.08 * density, bump: 138, colorRole: 'base' };
     }
     case 'slate': {
       const cell = cellSample(u, v, scale * 0.72, scale * 1.4, true, seed);
       const edge = Math.min(cell.fx, 1 - cell.fx, cell.fy, 1 - cell.fy);
-      if (edge < 0.038) return { blend: 0, bump: 69, colorRole: 'grout' };
-      const striation = (Math.sin(v * Math.PI * scale * 8) + 1) * 0.035;
-      return { blend: 0.08 + cell.variation * 0.18 + striation, bump: 164 + striation * 300, colorRole: 'base' };
+      if (edge < seamWidth * 1.35) return { blend: 0, bump: 69, colorRole: 'grout' };
+      const striation = (Math.sin(v * Math.PI * scale * 5) + 1) * 0.025;
+      return { blend: 0.18 + cell.variation * 0.12 * density + striation, bump: 150 + striation * 180, colorRole: 'base' };
     }
     case 'slab': {
       const cell = cellSample(u, v, Math.max(2, scale * 0.55), scale, true, seed);
       const edge = Math.min(cell.fx, 1 - cell.fx, cell.fy, 1 - cell.fy);
-      if (edge < 0.03) return { blend: 0, bump: 82, colorRole: 'grout' };
-      const vein = (Math.sin((u * 3.2 + v * 0.7) * Math.PI * scale) + 1) * 0.045;
-      return { blend: 0.08 + cell.variation * 0.16 + vein, bump: 182 + vein * 260, colorRole: 'base' };
+      if (edge < seamWidth * 1.1) return { blend: 0, bump: 82, colorRole: 'grout' };
+      const vein = (Math.sin((u * 2.4 + v * 0.55) * Math.PI * scale) + 1) * 0.025;
+      return { blend: 0.2 + cell.variation * 0.1 * density + vein, bump: 155 + vein * 170, colorRole: 'base' };
     }
-  }
-}
-
-function isEmblemPixel(emblem: DistrictSurfaceEmblem, u: number, v: number): boolean {
-  const x = (u - 0.17) / 0.065;
-  const y = (v - 0.15) / 0.065;
-  if (Math.abs(x) > 1.2 || Math.abs(y) > 1.2) return false;
-
-  switch (emblem) {
-    case 'heritage':
-      return (Math.abs(x) > 0.58 && Math.abs(x) < 0.82 && y > -0.35)
-        || (y < -0.2 && Math.abs(Math.hypot(x, y + 0.2) - 0.72) < 0.16);
-    case 'harbor':
-      return [-0.42, 0.12, 0.66].some(offset => (
-        Math.abs(y - offset - Math.sin(x * Math.PI * 1.4) * 0.13) < 0.11
-      ));
-    case 'boutique':
-      return Math.abs(Math.abs(x) + Math.abs(y) - 0.78) < 0.16;
-    case 'market':
-      return (y < -0.3 && y > -0.72 && Math.abs(x) < 0.9)
-        || (y > -0.22 && Math.abs(x) < 0.72 && Math.abs(x * 3) % 1.5 < 0.28);
-    case 'skyline':
-      return (Math.abs(x) < 0.22 && y > -0.78 && y < 0.8)
-        || (x > 0.28 && x < 0.62 && y > -0.25 && y < 0.8)
-        || (x < -0.3 && x > -0.72 && y > 0.05 && y < 0.8);
-    case 'marquee': {
-      const radius = Math.hypot(x, y);
-      const angle = Math.atan2(y, x);
-      return radius < 0.32 || (radius < 0.95 && Math.abs(Math.sin(angle * 5)) > 0.82);
+    case 'paver': {
+      const cell = cellSample(u, v, Math.max(2, scale * 0.72), scale * 1.1, true, seed);
+      const edge = Math.min(cell.fx, 1 - cell.fx, cell.fy, 1 - cell.fy);
+      if (edge < seamWidth * 1.15) return { blend: 0, bump: 88, colorRole: 'grout' };
+      return { blend: 0.22 + cell.variation * 0.08 * density, bump: 148 + cell.variation * 20, colorRole: 'base' };
     }
-    case 'leaf':
-      return (x * x) / 0.55 + (y * y) / 1.05 < 1
-        && (x > -0.12 || Math.abs(y + x * 0.85) < 0.16);
-    case 'landmark':
-      return (Math.abs(x) < 0.22 && y > -0.8 && y < 0.78)
-        || (y < -0.3 && Math.abs(x) + Math.abs(y + 0.3) < 0.7);
   }
 }
 
@@ -200,7 +180,7 @@ export function generateDistrictSurfaceTextureData(
   const baseColor = parseHexColor(descriptor.baseColor);
   const secondaryColor = parseHexColor(descriptor.secondaryColor);
   const groutColor = parseHexColor(descriptor.groutColor);
-  const accentColor = parseHexColor(descriptor.accentColor);
+  const waterColor = parseHexColor(descriptor.waterColor ?? descriptor.secondaryColor);
   const seed = hashString(`${descriptor.surfaceKey}:${descriptor.pattern}:${descriptor.emblem}`);
   const sampleSize = Math.min(size, PROCEDURAL_SAMPLE_SIZE);
 
@@ -213,23 +193,23 @@ export function generateDistrictSurfaceTextureData(
       const pixelXStart = Math.floor(sampleX * size / sampleSize);
       const pixelXEnd = Math.floor((sampleX + 1) * size / sampleSize);
       const sample = samplePattern(descriptor, u, v, sampleX, sampleY, seed);
-      let color = sample.colorRole === 'grout'
-        ? groutColor
-        : sample.colorRole === 'secondary'
-          ? secondaryColor
-          : mixColor(baseColor, secondaryColor, sample.blend);
+      let color = sample.colorRole === 'water'
+        ? waterColor
+        : sample.colorRole === 'grout'
+          ? mixColor(baseColor, groutColor, descriptor.patternTuning.contrast)
+          : sample.colorRole === 'secondary'
+            ? mixColor(baseColor, secondaryColor, descriptor.patternTuning.contrast)
+            : mixColor(
+              baseColor,
+              secondaryColor,
+              0.5 + (sample.blend - 0.5) * descriptor.patternTuning.contrast,
+            );
       let bumpValue = sample.bump;
 
       const isTextQuietZone = u > 0.08 && u < 0.92 && v > 0.28 && v < 0.72;
       if (isTextQuietZone) {
         color = mixColor(color, baseColor, 0.38);
         bumpValue = bumpValue * 0.45 + 96;
-      }
-
-      const isAccentInlay = u > 0.3 && u < 0.7 && v > 0.025 && v < 0.058;
-      if (isAccentInlay || isEmblemPixel(descriptor.emblem, u, v)) {
-        color = accentColor;
-        bumpValue = 218;
       }
 
       const clampedBump = Math.max(0, Math.min(255, Math.round(bumpValue)));
@@ -296,7 +276,21 @@ export class DistrictSurfaceMaterialLibrary {
   readonly geometry = new THREE.PlaneGeometry(1, 1);
   readonly specialMaterial = new THREE.MeshStandardMaterial({
     name: 'SpecialTileSurfaceMaterial',
-    color: boardVisualTokens.tileSurface,
+    color: boardVisualTokens.tileUpperSpecial,
+    roughness: boardMaterialSpecs.tileTop.roughness,
+    metalness: boardMaterialSpecs.tileTop.metalness,
+    side: THREE.DoubleSide,
+  });
+  readonly footerMaterial = new THREE.MeshStandardMaterial({
+    name: 'TileFooterMaterial',
+    color: boardVisualTokens.tileFooter,
+    roughness: boardMaterialSpecs.tileTop.roughness,
+    metalness: boardMaterialSpecs.tileTop.metalness,
+    side: THREE.DoubleSide,
+  });
+  readonly dividerMaterial = new THREE.MeshStandardMaterial({
+    name: 'TileDividerMaterial',
+    color: boardVisualTokens.tileDivider,
     roughness: boardMaterialSpecs.tileTop.roughness,
     metalness: boardMaterialSpecs.tileTop.metalness,
     side: THREE.DoubleSide,
@@ -372,6 +366,8 @@ export class DistrictSurfaceMaterialLibrary {
       textureSet.bump.dispose();
     });
     this.specialMaterial.dispose();
+    this.footerMaterial.dispose();
+    this.dividerMaterial.dispose();
     this.geometry.dispose();
     this.materials.clear();
     this.textureSets.clear();
