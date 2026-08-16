@@ -1,3 +1,5 @@
+import { useEffect, useMemo } from 'react';
+import * as THREE from 'three';
 import {
   BOARD_FOUNDATION_BEVEL,
   BOARD_FOUNDATION_HEIGHT,
@@ -7,44 +9,38 @@ import {
 } from '../architecture/boardArtSpec';
 import {
   CENTER_PLATFORM_SIZE,
-  OUTER_BOARD_SIZE,
 } from '../boardLayout';
 import { boardVisualTokens } from '../boardVisualTokens';
 import RoundedBoxMesh from '../geometry/RoundedBoxMesh';
 import BoardFrame from './BoardFrame';
 import TileSocket from './TileSocket';
+import {
+  createOuterBoardAccentGeometry,
+  FOUNDATION_SIZE,
+  OUTER_BOARD_ACCENT_LIFT_Y,
+} from './outerBoardAccent';
 
-const FOUNDATION_SIZE = OUTER_BOARD_SIZE + 0.72;
 const SIDE_WALL_HEIGHT = BOARD_FOUNDATION_HEIGHT - BOARD_LOWER_CHASSIS_HEIGHT - BOARD_TOP_DECK_HEIGHT;
 
-function FoundationAccentInlays() {
-  const accentsRef = useRef<THREE.InstancedMesh>(null);
-  useEffect(() => {
-    const accents = accentsRef.current;
-    if (!accents) return;
-    const dummy = new THREE.Object3D();
-    const extent = FOUNDATION_SIZE / 2 - 0.16;
-    const length = FOUNDATION_SIZE - 0.8;
-    [
-      [0, -extent, 0],
-      [0, extent, 0],
-      [-extent, 0, Math.PI / 2],
-      [extent, 0, Math.PI / 2],
-    ].forEach(([x, z, rotationY], index) => {
-      dummy.position.set(x, BOARD_FOUNDATION_HEIGHT + 0.008, z);
-      dummy.rotation.set(0, rotationY, 0);
-      dummy.scale.set(length, 0.012, 0.055);
-      dummy.updateMatrix();
-      accents.setMatrixAt(index, dummy.matrix);
-    });
-    accents.instanceMatrix.needsUpdate = true;
-  }, []);
+function FoundationOuterAccentLoop() {
+  const geometry = useMemo(() => createOuterBoardAccentGeometry(), []);
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   return (
-    <instancedMesh ref={accentsRef} args={[undefined, undefined, 4]} name="FoundationAccentInlays">
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color={boardVisualTokens.boardAccent} roughness={0.5} metalness={0.02} />
-    </instancedMesh>
+    <mesh
+      name="FoundationOuterAccentLoop"
+      geometry={geometry}
+      position={[0, BOARD_FOUNDATION_HEIGHT + OUTER_BOARD_ACCENT_LIFT_Y, 0]}
+      rotation={[-Math.PI / 2, 0, 0]}
+      userData={{ continuous: true, closed: true, band: 'near-white-neutral' }}
+    >
+      <meshStandardMaterial
+        color={boardVisualTokens.boardOuterAccent}
+        roughness={0.6}
+        metalness={0}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
   );
 }
 
@@ -61,7 +57,7 @@ export default function BoardFoundation() {
         materialProfile="boardEdge"
         position={[0, BOARD_LOWER_CHASSIS_HEIGHT / 2, 0]}
       />
-      <FoundationAccentInlays />
+      <FoundationOuterAccentLoop />
       <RoundedBoxMesh
         name="MutedSideWall"
         width={FOUNDATION_SIZE}
@@ -97,5 +93,3 @@ export default function BoardFoundation() {
     </group>
   );
 }
-import { useEffect, useRef } from 'react';
-import * as THREE from 'three';
