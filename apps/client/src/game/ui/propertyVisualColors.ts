@@ -7,13 +7,13 @@ export interface PropertyGroupVisualStyle {
 }
 
 const PROPERTY_GROUP_VISUAL_STYLES: Record<string, PropertyGroupVisualStyle> = {
-  brown: { color: '#a85532', tint: '#fff0e7', motif: 'brick' },
-  lightblue: { color: '#19b9d3', tint: '#e5fbff', motif: 'water' },
-  pink: { color: '#e34bb1', tint: '#ffe4f5', motif: 'shopping' },
-  orange: { color: '#f47723', tint: '#fff0df', motif: 'market' },
-  red: { color: '#e24451', tint: '#ffe4e6', motif: 'downtown' },
-  yellow: { color: '#f2bd19', tint: '#fff7cc', motif: 'nightlife' },
-  green: { color: '#24a662', tint: '#e4f8ea', motif: 'eco' },
+  brown: { color: '#ad5630', tint: '#fff0e7', motif: 'brick' },
+  lightblue: { color: '#169fc8', tint: '#e5f8fd', motif: 'water' },
+  pink: { color: '#e246ae', tint: '#ffe4f5', motif: 'shopping' },
+  orange: { color: '#f27420', tint: '#fff0df', motif: 'market' },
+  red: { color: '#e44455', tint: '#ffe4e6', motif: 'downtown' },
+  yellow: { color: '#f2b919', tint: '#fff7cc', motif: 'nightlife' },
+  green: { color: '#20ab63', tint: '#e4f8ea', motif: 'eco' },
   blue: { color: '#536ddd', tint: '#e9ecff', motif: 'luxury' },
   railroad: { color: '#546982', tint: '#eef3f8', motif: 'rail' },
 };

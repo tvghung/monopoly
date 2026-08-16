@@ -1,11 +1,11 @@
 const PLAYER_DISPLAY_COLORS: Record<string, string> = {
-  yellow: '#f2bb13',
-  green: '#17a968',
-  blue: '#416bd8',
-  red: '#e54659',
-  orange: '#ef7727',
+  yellow: '#f6c515',
+  green: '#12b86b',
+  blue: '#3f6fe5',
+  red: '#ef4056',
+  orange: '#f47b1e',
   white: '#fff6dd',
-  black: '#223746',
+  black: '#19313e',
 };
 
 const PLAYER_DISPLAY_FOREGROUNDS: Record<string, string> = {
@@ -18,7 +18,7 @@ const PLAYER_DISPLAY_FOREGROUNDS: Record<string, string> = {
   black: '#ffffff',
 };
 
-const FALLBACK_DISPLAY_COLOR = '#11aaa4';
+const FALLBACK_DISPLAY_COLOR = '#00b6a7';
 
 export function getPlayerDisplayColor(rawColor: string | null | undefined): string {
   if (!rawColor) return FALLBACK_DISPLAY_COLOR;
