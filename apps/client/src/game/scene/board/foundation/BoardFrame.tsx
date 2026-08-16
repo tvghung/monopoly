@@ -3,14 +3,14 @@ import {
   BOARD_FRAME_BEVEL,
   BOARD_FRAME_HEIGHT,
   BOARD_FRAME_WIDTH,
-  CENTER_PARK_SURFACE_Y,
+  CENTER_AIRPORT_SURFACE_Y,
 } from '../architecture/boardArtSpec';
 import { boardVisualTokens } from '../boardVisualTokens';
 import RoundedBoxMesh from '../geometry/RoundedBoxMesh';
 
 const CENTER_SIZE = INNER_SIDE_BOUNDARY * 2;
 const RIM_EXTENT = CENTER_SIZE / 2 + BOARD_FRAME_WIDTH / 2;
-const RAIL_Y = CENTER_PARK_SURFACE_Y + 0.08 + BOARD_FRAME_HEIGHT / 2;
+const RAIL_Y = CENTER_AIRPORT_SURFACE_Y + 0.08 + BOARD_FRAME_HEIGHT / 2;
 
 export interface BoardFrameSegment {
   name: string;

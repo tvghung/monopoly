@@ -1,6 +1,6 @@
 import { tileState } from '@monopoly/shared';
 import BoardFoundation from './foundation/BoardFoundation';
-import CenterPark from './center/CenterPark';
+import CenterAirport from './center/CenterAirport';
 import TileAssembly from './tiles/TileAssembly';
 import TileBodyBatch from './tiles/TileBodyBatch';
 import TileSurfaceBatch from './tiles/TileSurfaceBatch';
@@ -63,7 +63,7 @@ export default function Board3D({
           />
         ))}
       </group>
-      <CenterPark />
+      <CenterAirport />
       <Phase2PlayerMarkers players={model?.players ?? []} />
     </group>
   );

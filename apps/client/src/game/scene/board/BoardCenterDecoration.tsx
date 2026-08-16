@@ -1,1 +1,5 @@
-export { CENTER_DECORATION_MESH_COUNT, default } from './center/CenterPark';
+export {
+  CENTER_DECORATION_MESH_COUNT,
+  CENTER_DECORATION_THEME,
+  default,
+} from './center/CenterAirport';
