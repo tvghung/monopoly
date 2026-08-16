@@ -3,8 +3,8 @@ import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { TILE_SURFACE_CLEARANCE_Y } from '../board/boardLayout';
 import { boardVisualTokens } from '../board/boardVisualTokens';
-import SdfSurfaceText from '../board/tiles/SdfSurfaceText';
 import type { TilePanelLayout } from '../board/tiles/tilePanelLayout';
+import QuestionMarkIcon2D from './QuestionMarkIcon2D';
 
 interface CardDeckVisualProps {
   panel: TilePanelLayout;
@@ -72,32 +72,6 @@ export function createFortuneWheelSeparatorGeometry(
   return geometry;
 }
 
-function ChanceQuestionMarkGraphic({ panel }: { panel: TilePanelLayout }) {
-  const isCorner = panel.side === 'CORNER';
-  const fontSize = Math.min(
-    panel.upperSize[0] * (isCorner ? 0.48 : 0.78),
-    panel.upperSize[1] * (isCorner ? 0.52 : 0.72),
-  );
-  return (
-    <group
-      name="ChanceQuestionMark2D"
-      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, isCorner ? 0 : panel.upperCenterLocalZ]}
-      rotation={[0, panel.contentRotationY, 0]}
-    >
-      <SdfSurfaceText
-        name="ChanceQuestionMark"
-        value="?"
-        position={[0, 0.035, 0]}
-        fontSize={fontSize}
-        maxWidth={panel.upperSize[0] * 0.9}
-        color={boardVisualTokens.chanceQuestion}
-        lineHeight={1}
-        sdfGlyphSize={96}
-      />
-    </group>
-  );
-}
-
 function FortuneWheelGraphic({ panel }: { panel: TilePanelLayout }) {
   const isCorner = panel.side === 'CORNER';
   const radius = Math.min(panel.upperSize[0], panel.upperSize[1])
@@ -156,6 +130,6 @@ function FortuneWheelGraphic({ panel }: { panel: TilePanelLayout }) {
 
 export default function CardDeckVisual({ panel, kind }: CardDeckVisualProps) {
   return kind === 'chance'
-    ? <ChanceQuestionMarkGraphic panel={panel} />
+    ? <QuestionMarkIcon2D panel={panel} />
     : <FortuneWheelGraphic panel={panel} />;
 }
