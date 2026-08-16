@@ -17,7 +17,7 @@ export default function TaxVisual({ panel }: TaxVisualProps) {
 
   return (
     <group
-      name="TaxVisual25D"
+      name="TaxVisual"
       position={[0, TILE_SURFACE_CLEARANCE_Y + 0.016, panel.upperArtCenterLocalZ]}
       rotation={[0, panel.contentRotationY, 0]}
       userData={{ artWidthRatio: TAX_ART_SAFE_WIDTH_RATIO, artDepthRatio: TAX_ART_SAFE_DEPTH_RATIO }}
