@@ -16,7 +16,8 @@ per-room executor and typed ACK.
   private decks/Standard Mode state, sets `IN_PROGRESS` and commits once before
   public update/ACK. The same command `now` is stored once as optional nullable
   `boardState.gameStartedAt` and exposed in the public projection; later commands
-  preserve it. Client supplies no dice/order.
+  preserve it. The board may keep this compatibility field without rendering a visible
+  timer. Client supplies no dice/order.
 - Repeat/non-host/spectator/offline/unready start returns explicit failure.
 
 First activated Seat is host. Temporary disconnect never transfers host or ready.

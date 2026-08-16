@@ -36,33 +36,39 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   continuous color rail trên property tile. Ownership không còn top-surface owner
   strip; owner state vẫn nằm trong `BoardRenderModel` cho property inspection, HUD,
   houses/hotel và state presentation.
-- Mỗi edge tile có upper art panel 60%, footer nền sáng 40% và divider near-black;
+- Mỗi edge tile có upper art panel 70%, footer nền sáng 30% và divider near-black;
   một side-aware `TilePanelLayout` duy nhất cung cấp kích thước, offset, divider,
-  upper-art/upper-label anchors, footer text và content rotation cho surface batch,
+  upper-art/footer anchors, footer text và content rotation cho surface batch,
   text và special art. Divider chỉ render cho `normal`, `railroad`, `company`; các
   tile `chance`, `chest`, `expense` vẫn giữ logical panel geometry nhưng bỏ divider.
 - Surface, chassis, text và prop dùng cùng tile motion controller. Matrix mặt ô
   compose từ translation + quaternion XZ orientation + scale, giữ normal hướng lên
   ở cả bốn cạnh và footprint khớp tile thật.
 - Property thường chỉ in tên, không in giá trên mặt ô. Cỡ local SDF adaptive là
-  `0.30`/`0.26`/`0.22`: một dòng cho tên ngắn, hai dòng cho tên dài thông thường,
-  ba dòng chỉ khi thật sự cần; maxWidth bằng 96% vùng usable upper panel. Special tile
-  dùng upper-label anchor, icon-bearing art dùng upper-art anchor; price không render
-  trên mặt tile. Text dùng một canonical inward-facing rule theo side, gồm cả hai run
+  `0.31`/`0.25`: một dòng cho tên ngắn, hai dòng cho tên dài thông thường; maxWidth
+  bằng 92% vùng usable footer. Normal/company và nhãn Chance/Chest/Tax/Railroad đều
+  dùng footer anchor; icon-bearing art dùng upper-art anchor; price không render trên
+  mặt tile. Text dùng một canonical inward-facing rule theo side, gồm cả hai run
   sát Parking; hai run `LEFT`/`TOP` dùng cùng một camera-facing half-turn cho text và
   flat art. START/Jail/Vào Tù/Parking không render generic edge/corner label khi
-  landmark riêng đã là label chính. SDF dùng font Be Vietnam Pro Vietnamese 800 và
-  callback sync invalidate demand frame.
+  landmark riêng đã là label chính. DOM dùng các weight local của Be Vietnam Pro;
+  board/Troika dùng một local full-coverage ExtraBold TTF và callback sync invalidate
+  demand frame. Các mẫu kiểm tra gồm `Cà Mau`, `Buôn Ma Thuột`, `Đà Nẵng`, `Phú Quốc`,
+  `Công Ty Nước`, `Khí vận` và `Cơ hội`.
 - Scene dùng fixed orthographic camera, ACES filmic tone mapping, contact shadows,
   DPR clamp `1.25..1.5` và `frameloop="demand"`. Budget hiện hành: target 210 draw
   calls, stress ceiling 240, target 80k triangles và hard ceiling 100k.
-- Foundation/rim trung tính bao quanh center airport field recessed. Center có
-  field xanh, runway/taxiway strips, marking nhẹ, deterministic pebbles/worn paths
-  và planted `MatchTimerSign`, không có airplane model hay red center ring.
+- Foundation/rim trung tính bao quanh center airport field recessed. Outer accent là
+  một continuous rounded-square loop near-white; center có field xanh, runway/taxiway
+  strips, marking nhẹ và một authored orthogonal S-path deterministic, không có
+  pebbles, random trails, timer sign, airplane model hay red center ring.
   Chance dùng continuous extruded question mark đỏ; Khí Vận dùng fortune wheel có
   số lát lấy từ `chestCards.length`, có separator/ring/hub và không có horizontal
-  pointer line; railroad dùng locomotive + hai wagon 2.5D; Công Ty Điện dùng bulb
-  pear-shape với socket xám và Công Ty Nước dùng faucet/tap lớn với water drop; tax
+  pointer line; railroad dùng local flat SVG locomotive + hai wagon; Công Ty Điện dùng
+  local flat SVG bulb với socket xám và Công Ty Nước dùng local flat SVG faucet/tap
+  lớn với water drop. Bốn nguồn SVG được bundle local, parse bằng `SVGLoader` thành
+  một merged vertex-colored `ShapeGeometry` phẳng cho mỗi icon, không tạo texture
+  runtime hoặc hình học 3D có chiều sâu; tax
   dùng stacked paper lớn; START dùng planted left-pointing `Start` sign; Parking dùng
   asphalt runway-gray với lane marks và deterministic parked cars; Go To Jail dùng
   handcuffs còn Jail dùng cell bars. District art không tràn sang special tile.
@@ -101,7 +107,7 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   resource reuse và StrictMode-safe deferred disposal; beach descriptor có water
   region và premium green district dùng paver pattern.
 - Property name-only typography (short/canonical/long), textless jail/go-to-jail,
-  upper 60% text anchors, selective divider eligibility, 60/40 panel ratio,
+  upper 70% art/footer 30% text anchors, selective divider eligibility, 70/30 panel ratio,
   side-aware Parking-adjacent orientation, widened edge/corner dimensions, frame
   dimensions, scene budget, orthographic camera/tone mapping
   và SDF sync invalidation.

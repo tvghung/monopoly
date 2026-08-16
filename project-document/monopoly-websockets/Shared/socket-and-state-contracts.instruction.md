@@ -43,7 +43,9 @@ Public/persisted types dùng stable IDs và phân biệt hidden state:
 credential, socket ID, countdown tick/timer handle. `BoardState.gameStartedAt?: string | null`
 là ISO timestamp authoritative được set tại transition `LOBBY -> IN_PROGRESS`; `freshState()`
 dùng `null`, schema chấp nhận missing/null để hydrate snapshot cũ, và public projection
-expose giá trị này cho center timer. Client không tự khởi tạo timestamp từ mount/reconnect.
+giữ giá trị này cho compatibility/public state. Board client hiện không render center timer
+và không cần đưa timestamp vào scene render model. Client không tự khởi tạo timestamp từ
+mount/reconnect.
 
 ## Transfer/trading
 
