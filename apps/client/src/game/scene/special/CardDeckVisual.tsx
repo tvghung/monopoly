@@ -2,6 +2,7 @@ import { chestCards } from '@monopoly/shared';
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { TILE_SURFACE_CLEARANCE_Y } from '../board/boardLayout';
+import { boardVisualTokens } from '../board/boardVisualTokens';
 import SdfSurfaceText from '../board/tiles/SdfSurfaceText';
 import type { TilePanelLayout } from '../board/tiles/tilePanelLayout';
 
@@ -17,11 +18,6 @@ const FORTUNE_WHEEL_PALETTE = [
   '#ffd21a', '#ff8a25', '#ef4056', '#e45ca8', '#8256ce',
   '#416bd8', '#59aeea', '#1cc9d2', '#00a995', '#24b66b', '#a9d63f',
 ] as const;
-const CHANCE_QUESTION_COLOR = '#f2384a';
-const WHEEL_SEPARATOR_COLOR = '#fff5d6';
-const WHEEL_RING_COLOR = '#15504f';
-const WHEEL_HUB_COLOR = '#111a22';
-const WHEEL_POINTER_COLOR = '#fff7c7';
 
 export function getFortuneWheelColors(segmentCount = FORTUNE_WHEEL_SEGMENT_COUNT): readonly string[] {
   return Array.from({ length: segmentCount }, (_, index) => FORTUNE_WHEEL_PALETTE[index % FORTUNE_WHEEL_PALETTE.length]);
@@ -94,7 +90,7 @@ function ChanceQuestionMarkGraphic({ panel }: { panel: TilePanelLayout }) {
         position={[0, 0.035, 0]}
         fontSize={fontSize}
         maxWidth={panel.upperSize[0] * 0.9}
-        color={CHANCE_QUESTION_COLOR}
+        color={boardVisualTokens.chanceQuestion}
         lineHeight={1}
         sdfGlyphSize={96}
       />
@@ -140,19 +136,19 @@ function FortuneWheelGraphic({ panel }: { panel: TilePanelLayout }) {
         position={[0, 0.012, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
       >
-        <lineBasicMaterial color={WHEEL_SEPARATOR_COLOR} transparent opacity={0.78} />
+        <lineBasicMaterial color={boardVisualTokens.wheelSeparator} transparent opacity={0.78} />
       </lineSegments>
       <mesh name="FortuneWheelOuterRing" position={[0, 0.016, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[radius * 0.87, radius * 0.98, 40]} />
-        <meshStandardMaterial color={WHEEL_RING_COLOR} roughness={0.46} />
+        <meshStandardMaterial color={boardVisualTokens.wheelRing} roughness={0.46} />
       </mesh>
       <mesh name="FortuneWheelHub" position={[0, 0.024, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[radius * 0.16, 20]} />
-        <meshStandardMaterial color={WHEEL_HUB_COLOR} roughness={0.38} metalness={0.08} />
+        <meshStandardMaterial color={boardVisualTokens.wheelHub} roughness={0.38} metalness={0.08} />
       </mesh>
       <mesh name="FortuneWheelCenterPointer" position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[radius * 0.055, 16]} />
-        <meshStandardMaterial color={WHEEL_POINTER_COLOR} roughness={0.3} />
+        <meshStandardMaterial color={boardVisualTokens.wheelPointer} roughness={0.3} />
       </mesh>
     </group>
   );

@@ -1,17 +1,10 @@
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { TILE_SURFACE_CLEARANCE_Y } from '../board/boardLayout';
+import { boardVisualTokens } from '../board/boardVisualTokens';
 import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
 import type { TilePanelLayout } from '../board/tiles/tilePanelLayout';
 import { getUtilityArtKind } from './specialTileArt';
-
-const UTILITY_BULB_COLOR = '#ffd400';
-const UTILITY_BULB_HIGHLIGHT_COLOR = '#fff7c7';
-const UTILITY_BULB_RAY_COLOR = '#ffd400';
-const UTILITY_SOCKET_COLOR = '#7a7f84';
-const UTILITY_SOCKET_DARK_COLOR = '#555a60';
-const UTILITY_FAUCET_COLOR = '#111a22';
-const UTILITY_DROP_COLOR = '#19bdeb';
 
 interface UtilityVisualProps {
   panel: TilePanelLayout;
@@ -55,7 +48,7 @@ function ElectricBulbIcon({ radius }: { radius: number }) {
             height={0.014}
             depth={radius * 0.22}
             radius={0.008}
-            color={UTILITY_BULB_RAY_COLOR}
+            color={boardVisualTokens.utilityBulbRay}
             materialProfile="propertyTrim"
             position={[Math.cos(angle) * radius * 0.96, 0.022, -radius * 0.04 + Math.sin(angle) * radius * 0.96]}
             rotation={[0, -angle, 0]}
@@ -69,8 +62,8 @@ function ElectricBulbIcon({ radius }: { radius: number }) {
         rotation={[-Math.PI / 2, 0, 0]}
       >
         <meshStandardMaterial
-          color={UTILITY_BULB_COLOR}
-          emissive={UTILITY_BULB_COLOR}
+          color={boardVisualTokens.utilityBulb}
+          emissive={boardVisualTokens.utilityBulb}
           emissiveIntensity={0.32}
           roughness={0.28}
           side={THREE.DoubleSide}
@@ -78,7 +71,7 @@ function ElectricBulbIcon({ radius }: { radius: number }) {
       </mesh>
       <mesh name="ElectricBulbHighlight" position={[-radius * 0.25, 0.052, -radius * 0.34]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[radius * 0.14, 16]} />
-        <meshStandardMaterial color={UTILITY_BULB_HIGHLIGHT_COLOR} emissive={UTILITY_BULB_HIGHLIGHT_COLOR} emissiveIntensity={0.12} />
+        <meshStandardMaterial color={boardVisualTokens.utilityBulbHighlight} emissive={boardVisualTokens.utilityBulbHighlight} emissiveIntensity={0.12} />
       </mesh>
       <RoundedBoxMesh
         name="ElectricBulbSocket"
@@ -86,7 +79,7 @@ function ElectricBulbIcon({ radius }: { radius: number }) {
         height={0.028}
         depth={radius * 0.28}
         radius={0.018}
-        color={UTILITY_SOCKET_DARK_COLOR}
+        color={boardVisualTokens.utilitySocketDark}
         materialProfile="metal"
         position={[0, 0.047, radius * 0.72]}
       />
@@ -98,7 +91,7 @@ function ElectricBulbIcon({ radius }: { radius: number }) {
           height={0.018}
           depth={radius * 0.055}
           radius={0.009}
-          color={index === 1 ? UTILITY_SOCKET_COLOR : UTILITY_SOCKET_DARK_COLOR}
+          color={index === 1 ? boardVisualTokens.utilitySocket : boardVisualTokens.utilitySocketDark}
           materialProfile="metal"
           position={[0, 0.064 + index * 0.018, radius * (0.58 + index * 0.12)]}
         />
@@ -119,7 +112,7 @@ function WaterFaucetIcon({ radius }: { radius: number }) {
         height={0.032}
         depth={0.08}
         radius={0.025}
-        color={UTILITY_FAUCET_COLOR}
+        color={boardVisualTokens.utilityFaucet}
         materialProfile="metal"
         position={[0, 0.045, -radius * 0.56]}
       />
@@ -129,7 +122,7 @@ function WaterFaucetIcon({ radius }: { radius: number }) {
         height={0.032}
         depth={radius * 0.28}
         radius={0.025}
-        color={UTILITY_FAUCET_COLOR}
+        color={boardVisualTokens.utilityFaucet}
         materialProfile="metal"
         position={[0, 0.045, -radius * 0.38]}
       />
@@ -139,7 +132,7 @@ function WaterFaucetIcon({ radius }: { radius: number }) {
         height={0.04}
         depth={radius * 0.48}
         radius={0.04}
-        color={UTILITY_FAUCET_COLOR}
+        color={boardVisualTokens.utilityFaucet}
         materialProfile="metal"
         position={[0, 0.05, -radius * 0.08]}
       />
@@ -149,7 +142,7 @@ function WaterFaucetIcon({ radius }: { radius: number }) {
         height={0.04}
         depth={0.1}
         radius={0.04}
-        color={UTILITY_FAUCET_COLOR}
+        color={boardVisualTokens.utilityFaucet}
         materialProfile="metal"
         position={[radius * 0.24, 0.05, radius * 0.18]}
       />
@@ -159,12 +152,12 @@ function WaterFaucetIcon({ radius }: { radius: number }) {
         height={0.04}
         depth={radius * 0.24}
         radius={0.04}
-        color={UTILITY_FAUCET_COLOR}
+        color={boardVisualTokens.utilityFaucet}
         materialProfile="metal"
         position={[radius * 0.6, 0.05, radius * 0.3]}
       />
       <mesh name="WaterFaucetDrop" geometry={dropGeometry} position={[radius * 0.6, 0.066, radius * 0.53]} rotation={[-Math.PI / 2, 0, 0]}>
-        <meshStandardMaterial color={UTILITY_DROP_COLOR} emissive={UTILITY_DROP_COLOR} emissiveIntensity={0.12} side={THREE.DoubleSide} />
+        <meshStandardMaterial color={boardVisualTokens.utilityDrop} emissive={boardVisualTokens.utilityDrop} emissiveIntensity={0.12} side={THREE.DoubleSide} />
       </mesh>
     </group>
   );
