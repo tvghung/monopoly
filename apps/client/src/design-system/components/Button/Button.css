@@ -17,10 +17,10 @@
 .ds-button:hover:not(:disabled) { transform: translateY(-1px); }
 .ds-button:active:not(:disabled) { transform: translateY(1px); }
 .ds-button:disabled { cursor: not-allowed; opacity: 0.55; }
-.ds-button--primary { background: var(--color-accent-primary); color: var(--color-text-primary); box-shadow: var(--shadow-raised); }
-.ds-button--primary:hover:not(:disabled) { background: var(--color-accent-primary-strong); }
+.ds-button--primary { background: var(--color-accent-primary-strong); color: var(--color-text-inverse); box-shadow: var(--shadow-raised); }
+.ds-button--primary:hover:not(:disabled) { background: var(--color-accent-primary); }
 .ds-button--secondary { background: var(--color-surface-soft); border-color: var(--color-border-strong); color: var(--color-text-primary); }
-.ds-button--danger { background: var(--color-danger); color: var(--color-text-primary); }
+.ds-button--danger { background: var(--color-danger-strong); color: var(--color-text-inverse); }
 .ds-button--ghost { background: transparent; color: var(--color-text-primary); }
 .ds-button:focus-visible { outline: 0; box-shadow: var(--shadow-focus); }
 .ds-button__spinner { width: 0.9rem; height: 0.9rem; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: ds-button-spin 0.7s linear infinite; }

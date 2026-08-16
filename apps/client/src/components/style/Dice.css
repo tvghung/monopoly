@@ -29,9 +29,9 @@
 
 .dice__button {
   align-self: center;
-  background: var(--color-accent-secondary);
+  background: var(--color-accent-secondary-strong);
   color: var(--color-text-inverse);
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-accent-secondary-strong);
   border-radius: 0.5vmin;
   padding: 0.5vmin 1vmin;
   font-size: clamp(0.85rem, 1vw, 1rem);

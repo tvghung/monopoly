@@ -26,8 +26,8 @@
   padding: 0.7rem 1rem;
   border: 0;
   border-radius: 0.5rem;
-  background: var(--color-accent-primary);
-  color: var(--color-text-primary);
+  background: var(--color-accent-primary-strong);
+  color: var(--color-text-inverse);
   cursor: pointer;
   font-weight: 700;
 }
@@ -95,8 +95,8 @@
   padding: 0.55rem 0.8rem;
   border: 0;
   border-radius: 0.5rem;
-  background: var(--color-danger);
-  color: var(--color-text-primary);
+  background: var(--color-danger-strong);
+  color: var(--color-text-inverse);
   cursor: pointer;
   font-weight: 700;
   min-height: 2.75rem;

@@ -228,18 +228,21 @@
 }
 
 .button__purchase--yes {
-  border: 1px solid var(--color-success);
-  background: var(--color-success-soft);
+  border: 1px solid var(--color-success-strong);
+  background: var(--color-success);
+  color: var(--color-text-inverse);
 }
 
 .button__purchase--no {
-  border: 1px solid var(--color-danger);
-  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger-strong);
+  background: var(--color-danger-strong);
+  color: var(--color-text-inverse);
 }
 
 .button__start-game {
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-surface-soft);
+  border: 1px solid var(--color-accent-secondary-strong);
+  background: var(--color-accent-secondary-strong);
+  color: var(--color-text-inverse);
 }
 
 .center__dashboard__button__purchase {
@@ -299,8 +302,8 @@ align-items: center;
   align-self: left;
   border-radius: 0.5vmin;
   padding: 0.5vmin 1.5vmin;
-  background: var(--color-surface-raised);
-  color: var(--color-text-primary);
+  background: var(--color-success);
+  color: var(--color-text-inverse);
   margin: 0.5vmin 0.5vmin;
   border: 1px solid var(--color-success);
   white-space: nowrap;
@@ -323,13 +326,15 @@ align-items: center;
 }
 
 .trade-offers-modal__button--yes {
-  border: 1px solid var(--color-success);
-  background: var(--color-success-soft);
+  border: 1px solid var(--color-success-strong);
+  background: var(--color-success);
+  color: var(--color-text-inverse);
 }
 
 .trade-offers-modal__button--no {
-  border: 1px solid var(--color-danger);
-  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger-strong);
+  background: var(--color-danger-strong);
+  color: var(--color-text-inverse);
 }
 
 .trade-offers-modal__offer__title {
