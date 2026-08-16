@@ -29,7 +29,7 @@ describe('Phase 2.5E visual contracts', () => {
   });
 
   it('keeps Chance vector mapping and sparse white pebble variants locked', () => {
-    expect(getSpecialTileArtKind('chance')).toBe('question-mark-2d');
+    expect(getSpecialTileArtKind('chance')).toBe('question-mark-25d');
     const coverages = WHITE_PEBBLE_VARIANTS.map(variant => (
       generateWhitePebbleTextureData(variant, 64).coverage
     ));

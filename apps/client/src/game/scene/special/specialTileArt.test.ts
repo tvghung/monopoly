@@ -9,15 +9,15 @@ import {
 import { getSpecialTileArtKind, getUtilityArtKind } from './specialTileArt';
 
 describe('special tile art contracts', () => {
-  it('uses dedicated 2D art for chance, fortune, railroad, tax, jail and utilities', () => {
-    expect(getSpecialTileArtKind('chance')).toBe('question-mark-2d');
+  it('uses dedicated procedural art for chance, fortune, railroad, tax, jail and utilities', () => {
+    expect(getSpecialTileArtKind('chance')).toBe('question-mark-25d');
     expect(getSpecialTileArtKind('chest')).toBe('fortune-wheel-2d');
-    expect(getSpecialTileArtKind('railroad')).toBe('train-2d');
-    expect(getSpecialTileArtKind('expense')).toBe('tax-paper-stack-2d');
+    expect(getSpecialTileArtKind('railroad')).toBe('train-convoy-25d');
+    expect(getSpecialTileArtKind('expense')).toBe('tax-paper-stack-25d');
     expect(getSpecialTileArtKind('jail')).toBe('jail-bars-2d');
-    expect(getSpecialTileArtKind('company')).toBe('utility-flat');
+    expect(getSpecialTileArtKind('company')).toBe('utility-25d');
     expect(getUtilityArtKind('Công Ty Điện')).toBe('electric-bulb-2d');
-    expect(getUtilityArtKind('Công Ty Nước')).toBe('water-faucet-2d');
+    expect(getUtilityArtKind('Công Ty Nước')).toBe('water-faucet-25d');
   });
 
   it('derives one colorful wheel cell from every shared Khí Vận card', () => {
@@ -35,8 +35,8 @@ describe('special tile art contracts', () => {
   });
 
   it('keeps corner identity as separate flat/marker treatments', () => {
-    expect(getSpecialTileArtKind('start')).toBe('start-token');
-    expect(getSpecialTileArtKind('parking')).toBe('parking-flat');
-    expect(getSpecialTileArtKind('gojail')).toBe('police-2d');
+    expect(getSpecialTileArtKind('start')).toBe('start-sign-25d');
+    expect(getSpecialTileArtKind('parking')).toBe('parking-lot-25d');
+    expect(getSpecialTileArtKind('gojail')).toBe('handcuffs-25d');
   });
 });

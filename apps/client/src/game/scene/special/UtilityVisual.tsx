@@ -11,6 +11,8 @@ interface UtilityVisualProps {
   label: string;
 }
 
+export const WATER_ICON_SAFE_WIDTH_RATIO = 0.84;
+
 function createBulbGlassGeometry(radius: number): THREE.ShapeGeometry {
   const shape = new THREE.Shape();
   shape.moveTo(0, -radius * 0.9);
@@ -100,12 +102,12 @@ function ElectricBulbIcon({ radius }: { radius: number }) {
   );
 }
 
-function WaterFaucetIcon({ radius }: { radius: number }) {
+function WaterFaucetIcon({ radius, depthScale }: { radius: number; depthScale: number }) {
   const dropGeometry = useMemo(() => createWaterDropGeometry(radius * 0.13), [radius]);
   useEffect(() => () => dropGeometry.dispose(), [dropGeometry]);
 
   return (
-    <group name="WaterFaucet2D">
+    <group name="WaterFaucet25D" scale={[1, 1, depthScale]}>
       <RoundedBoxMesh
         name="WaterFaucetHandle"
         width={radius * 0.72}
@@ -164,17 +166,23 @@ function WaterFaucetIcon({ radius }: { radius: number }) {
 }
 
 export default function UtilityVisual({ panel, label }: UtilityVisualProps) {
-  const radius = Math.min(panel.upperSize[0], panel.upperSize[1])
-    * (panel.side === 'CORNER' ? 0.28 : 0.33);
   const utilityKind = getUtilityArtKind(label);
+  const radius = panel.side === 'CORNER'
+    ? Math.min(panel.upperSize[0], panel.upperSize[1]) * 0.28
+    : utilityKind === 'water-faucet-25d'
+      ? panel.upperSize[0] * WATER_ICON_SAFE_WIDTH_RATIO / 1.01
+      : Math.min(panel.upperSize[0], panel.upperSize[1]) * 0.33;
+  const waterDepthScale = panel.side === 'CORNER'
+    ? 1
+    : Math.min(1, panel.upperSize[1] * 0.48 / (radius * 1.18));
   return (
     <group
-      name={utilityKind === 'water-faucet-2d' ? 'WaterFaucetGraphic2D' : 'ElectricBulbGraphic2D'}
-      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, panel.side === 'CORNER' ? 0 : panel.upperCenterLocalZ]}
+      name={utilityKind === 'water-faucet-25d' ? 'WaterFaucetGraphic25D' : 'ElectricBulbGraphic2D'}
+      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, panel.side === 'CORNER' ? 0 : panel.upperArtCenterLocalZ]}
       rotation={[0, panel.contentRotationY, 0]}
     >
-      {utilityKind === 'water-faucet-2d'
-        ? <WaterFaucetIcon radius={radius} />
+      {utilityKind === 'water-faucet-25d'
+        ? <WaterFaucetIcon radius={radius} depthScale={waterDepthScale} />
         : <ElectricBulbIcon radius={radius} />}
     </group>
   );

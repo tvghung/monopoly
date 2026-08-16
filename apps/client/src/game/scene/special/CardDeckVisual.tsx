@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { TILE_SURFACE_CLEARANCE_Y } from '../board/boardLayout';
 import { boardVisualTokens } from '../board/boardVisualTokens';
 import type { TilePanelLayout } from '../board/tiles/tilePanelLayout';
-import QuestionMarkIcon2D from './QuestionMarkIcon2D';
+import QuestionMarkIcon25D from './QuestionMarkIcon25D';
 
 interface CardDeckVisualProps {
   panel: TilePanelLayout;
@@ -93,7 +93,7 @@ function FortuneWheelGraphic({ panel }: { panel: TilePanelLayout }) {
   return (
     <group
       name="FortuneWheel2D"
-      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, isCorner ? 0 : panel.upperCenterLocalZ]}
+      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, isCorner ? 0 : panel.upperArtCenterLocalZ]}
       rotation={[0, panel.contentRotationY, 0]}
     >
       <mesh
@@ -130,6 +130,6 @@ function FortuneWheelGraphic({ panel }: { panel: TilePanelLayout }) {
 
 export default function CardDeckVisual({ panel, kind }: CardDeckVisualProps) {
   return kind === 'chance'
-    ? <QuestionMarkIcon2D panel={panel} />
+    ? <QuestionMarkIcon25D panel={panel} />
     : <FortuneWheelGraphic panel={panel} />;
 }

@@ -17,7 +17,7 @@ export default function JailVisual({ panel }: JailVisualProps) {
   return (
     <group
       name="JailCellBars2D"
-      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, isCorner ? 0 : panel.upperCenterLocalZ]}
+      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, isCorner ? 0 : panel.upperArtCenterLocalZ]}
       rotation={[0, panel.contentRotationY, 0]}
     >
       <RoundedBoxMesh
