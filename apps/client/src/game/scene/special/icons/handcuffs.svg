@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="224" viewBox="0 0 256 224" role="img" aria-label="Handcuffs">
+  <path d="M65 43a49 49 0 1 1 0 98 49 49 0 1 1 0-98z M65 67a25 25 0 1 0 0 50 25 25 0 1 0 0-50z" fill="#111111" fill-rule="evenodd"/>
+  <path d="M191 85a49 49 0 1 1 0 98 49 49 0 1 1 0-98z M191 109a25 25 0 1 0 0 50 25 25 0 1 0 0-50z" fill="#111111" fill-rule="evenodd"/>
+  <rect x="31" y="70" width="27" height="18" rx="8" fill="#111111"/>
+  <rect x="198" y="144" width="27" height="18" rx="8" fill="#111111"/>
+  <path d="M105 100a20 12 0 1 1 0 24 20 12 0 1 1 0-24z M105 106a11 6 0 1 0 0 12 11 6 0 1 0 0-12z" fill="#111111" fill-rule="evenodd" transform="rotate(28 105 112)"/>
+  <path d="M128 104a20 12 0 1 1 0 24 20 12 0 1 1 0-24z M128 110a11 6 0 1 0 0 12 11 6 0 1 0 0-12z" fill="#111111" fill-rule="evenodd" transform="rotate(-6 128 116)"/>
+  <path d="M151 108a20 12 0 1 1 0 24 20 12 0 1 1 0-24z M151 114a11 6 0 1 0 0 12 11 6 0 1 0 0-12z" fill="#111111" fill-rule="evenodd" transform="rotate(-28 151 120)"/>
+</svg>

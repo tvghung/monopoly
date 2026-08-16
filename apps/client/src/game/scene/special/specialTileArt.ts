@@ -1,33 +1,32 @@
 import type { TileType } from '@monopoly/shared';
 
 export type SpecialTileArtKind =
-  | 'start-sign-25d'
+  | 'start-sign'
   | 'jail-bars-2d'
-  | 'handcuffs-25d'
-  | 'question-mark-25d'
+  | 'handcuffs-2d'
+  | 'question-mark-2d'
   | 'fortune-wheel-2d'
-  | 'train-convoy-25d'
+  | 'train-convoy-2d'
   | 'electric-bulb-2d'
-  | 'water-faucet-25d'
-  | 'utility-25d'
-  | 'tax-paper-stack-25d'
-  | 'parking-lot-25d';
+  | 'water-faucet-2d'
+  | 'tax-paper-stack-2d'
+  | 'parking-lot-2d';
 
 const SPECIAL_TILE_ART: Record<Exclude<TileType, 'normal'>, SpecialTileArtKind> = {
-  start: 'start-sign-25d',
+  start: 'start-sign',
   jail: 'jail-bars-2d',
-  gojail: 'handcuffs-25d',
-  chance: 'question-mark-25d',
+  gojail: 'handcuffs-2d',
+  chance: 'question-mark-2d',
   chest: 'fortune-wheel-2d',
-  railroad: 'train-convoy-25d',
-  company: 'utility-25d',
-  expense: 'tax-paper-stack-25d',
-  parking: 'parking-lot-25d',
+  railroad: 'train-convoy-2d',
+  company: 'electric-bulb-2d',
+  expense: 'tax-paper-stack-2d',
+  parking: 'parking-lot-2d',
 };
 
-export function getUtilityArtKind(label: string): 'electric-bulb-2d' | 'water-faucet-25d' {
+export function getUtilityArtKind(label: string): 'electric-bulb-2d' | 'water-faucet-2d' {
   return label.toLocaleLowerCase('vi-VN').includes('nước')
-    ? 'water-faucet-25d'
+    ? 'water-faucet-2d'
     : 'electric-bulb-2d';
 }
 
