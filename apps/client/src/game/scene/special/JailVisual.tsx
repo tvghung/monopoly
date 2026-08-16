@@ -6,19 +6,21 @@ import { getTilePanelLayoutForTileSize } from '../board/tiles/tilePanelLayout';
 interface JailVisualProps {
   size: readonly [number, number];
   isCorner: boolean;
+  contentRotationY: number;
 }
 
-export default function JailVisual({ size, isCorner }: JailVisualProps) {
+export default function JailVisual({ size, isCorner, contentRotationY }: JailVisualProps) {
   const panels = getTilePanelLayoutForTileSize(size);
   const width = panels.upperSize[0] * (isCorner ? 0.54 : 0.78);
   const depth = Math.min(panels.upperSize[1] * 0.68, 0.9);
-  const barCount = 7;
+  const barCount = 9;
   const barSpacing = width / (barCount - 1);
 
   return (
     <group
       name="JailCellBars2D"
       position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, isCorner ? 0 : panels.upperCenterLocalZ]}
+      rotation={[0, contentRotationY, 0]}
     >
       <RoundedBoxMesh
         name="JailCellThreshold"

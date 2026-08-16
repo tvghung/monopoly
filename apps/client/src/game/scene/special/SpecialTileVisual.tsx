@@ -8,9 +8,14 @@ interface SpecialTileVisualProps {
   size: readonly [number, number];
   tileType: TileType;
   isCorner: boolean;
+  contentRotationY: number;
 }
 
-function TaxPaperStack({ size, isCorner }: Pick<SpecialTileVisualProps, 'size' | 'isCorner'>) {
+function TaxPaperStack({
+  size,
+  isCorner,
+  contentRotationY,
+}: Pick<SpecialTileVisualProps, 'size' | 'isCorner' | 'contentRotationY'>) {
   const panels = getTilePanelLayoutForTileSize(size);
   const paperWidth = panels.upperSize[0] * (isCorner ? 0.4 : 0.58);
   const paperDepth = Math.min(panels.upperSize[1] * 0.52, 0.78);
@@ -24,6 +29,7 @@ function TaxPaperStack({ size, isCorner }: Pick<SpecialTileVisualProps, 'size' |
     <group
       name="TaxPaperStack2D"
       position={[0, TILE_SURFACE_CLEARANCE_Y + 0.016, isCorner ? 0 : panels.upperCenterLocalZ]}
+      rotation={[0, contentRotationY, 0]}
     >
       <RoundedBoxMesh
         name="TaxPaperBack"
@@ -64,12 +70,17 @@ function TaxPaperStack({ size, isCorner }: Pick<SpecialTileVisualProps, 'size' |
   );
 }
 
-function PoliceIcon({ size, isCorner }: Pick<SpecialTileVisualProps, 'size' | 'isCorner'>) {
+function PoliceIcon({
+  size,
+  isCorner,
+  contentRotationY,
+}: Pick<SpecialTileVisualProps, 'size' | 'isCorner' | 'contentRotationY'>) {
   const panels = getTilePanelLayoutForTileSize(size);
   return (
     <group
       name="PoliceIcon2D"
       position={[0, TILE_SURFACE_CLEARANCE_Y + 0.018, isCorner ? 0 : panels.upperCenterLocalZ]}
+      rotation={[0, contentRotationY, 0]}
     >
       <RoundedBoxMesh
         name="PoliceShoulders"
@@ -77,13 +88,13 @@ function PoliceIcon({ size, isCorner }: Pick<SpecialTileVisualProps, 'size' | 'i
         height={0.028}
         depth={0.22}
         radius={0.08}
-        color="#5c88b9"
+        color="#4d93d0"
         materialProfile="propertyTrim"
         position={[0, 0.026, 0.12]}
       />
       <mesh name="PoliceFace" position={[0, 0.05, -0.06]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.12, 16]} />
-        <meshStandardMaterial color="#f1bf94" roughness={0.72} />
+        <meshStandardMaterial color="#f3bc88" roughness={0.72} />
       </mesh>
       <RoundedBoxMesh
         name="PoliceCap"
@@ -91,7 +102,7 @@ function PoliceIcon({ size, isCorner }: Pick<SpecialTileVisualProps, 'size' | 'i
         height={0.024}
         depth={0.09}
         radius={0.025}
-        color="#234a78"
+        color="#1d5592"
         materialProfile="propertyTrim"
         position={[0, 0.07, -0.17]}
       />
@@ -109,10 +120,17 @@ function PoliceIcon({ size, isCorner }: Pick<SpecialTileVisualProps, 'size' | 'i
   );
 }
 
-function ParkingGraphic({ size }: Pick<SpecialTileVisualProps, 'size'>) {
+function ParkingGraphic({
+  size,
+  contentRotationY,
+}: Pick<SpecialTileVisualProps, 'size' | 'contentRotationY'>) {
   const panels = getTilePanelLayoutForTileSize(size);
   return (
-    <group name="ParkingGraphic2D" position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, 0]}>
+    <group
+      name="ParkingGraphic2D"
+      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.014, 0]}
+      rotation={[0, contentRotationY, 0]}
+    >
       <RoundedBoxMesh
         name="ParkingBay"
         width={panels.surfaceSize[0] * 0.48}
@@ -140,10 +158,15 @@ function ParkingGraphic({ size }: Pick<SpecialTileVisualProps, 'size'>) {
   );
 }
 
-export default function SpecialTileVisual({ size, tileType, isCorner }: SpecialTileVisualProps) {
+export default function SpecialTileVisual({
+  size,
+  tileType,
+  isCorner,
+  contentRotationY,
+}: SpecialTileVisualProps) {
   if (tileType === 'start') {
     return (
-      <group name="StartVisual" position={[0, TILE_SURFACE_CLEARANCE_Y, 0]}>
+      <group name="StartVisual" position={[0, TILE_SURFACE_CLEARANCE_Y, 0]} rotation={[0, contentRotationY, 0]}>
         <mesh position={[0, 0.055, 0]}>
           <cylinderGeometry args={[0.34, 0.38, 0.1, 20]} />
           <meshStandardMaterial color={boardVisualTokens.boardFrame} roughness={0.64} metalness={0.02} />
@@ -159,8 +182,8 @@ export default function SpecialTileVisual({ size, tileType, isCorner }: SpecialT
       </group>
     );
   }
-  if (tileType === 'gojail') return <PoliceIcon size={size} isCorner={isCorner} />;
-  if (tileType === 'parking') return <ParkingGraphic size={size} />;
-  if (tileType === 'expense') return <TaxPaperStack size={size} isCorner={isCorner} />;
+  if (tileType === 'gojail') return <PoliceIcon size={size} isCorner={isCorner} contentRotationY={contentRotationY} />;
+  if (tileType === 'parking') return <ParkingGraphic size={size} contentRotationY={contentRotationY} />;
+  if (tileType === 'expense') return <TaxPaperStack size={size} isCorner={isCorner} contentRotationY={contentRotationY} />;
   return null;
 }

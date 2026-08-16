@@ -6,65 +6,76 @@ import { getTilePanelLayoutForTileSize } from '../board/tiles/tilePanelLayout';
 interface RailroadVisualProps {
   size: readonly [number, number];
   isCorner: boolean;
+  contentRotationY: number;
 }
 
-export default function RailroadVisual({ size, isCorner }: RailroadVisualProps) {
+export default function RailroadVisual({ size, isCorner, contentRotationY }: RailroadVisualProps) {
   const panels = getTilePanelLayoutForTileSize(size);
-  const trackLength = panels.upperSize[0] * 0.74;
-  const trackDepth = Math.min(panels.upperSize[1] * 0.64, 0.72);
-  const centerZ = isCorner ? 0 : panels.upperCenterLocalZ;
+  const trainWidth = panels.upperSize[0] * (isCorner ? 0.48 : 0.68);
+  const trainDepth = Math.min(panels.upperSize[1] * 0.5, 0.62);
 
   return (
     <group
-      name="RailroadFlatVisual"
-      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.012, centerZ]}
+      name="TrainIcon2D"
+      position={[0, TILE_SURFACE_CLEARANCE_Y + 0.012, isCorner ? 0 : panels.upperCenterLocalZ]}
+      rotation={[0, contentRotationY, 0]}
     >
       <RoundedBoxMesh
-        name="RailroadConcreteInset"
-        width={panels.upperSize[0] * 0.82}
-        height={0.018}
-        depth={trackDepth + 0.16}
-        radius={0.025}
-        color={boardVisualTokens.railroadPlatform}
-        materialProfile="boardTop"
-        position={[0, 0.01, 0]}
+        name="TrainBody"
+        width={trainWidth}
+        height={0.035}
+        depth={trainDepth * 0.55}
+        radius={0.035}
+        color={boardVisualTokens.railroad}
+        materialProfile="propertyTrim"
+        position={[0, 0.028, 0.035]}
       />
-      {[-0.14, 0.14].map(offset => (
-        <RoundedBoxMesh
-          key={offset}
-          name="RailroadRail"
-          width={trackLength}
-          height={0.024}
-          depth={0.042}
-          radius={0.012}
-          color={boardVisualTokens.railroad}
-          materialProfile="metal"
-          position={[0, 0.03, offset]}
-        />
-      ))}
-      {[-0.25, -0.125, 0, 0.125, 0.25].map(offset => (
-        <RoundedBoxMesh
-          key={offset}
-          name="RailroadSleeper"
-          width={0.045}
-          height={0.018}
-          depth={trackDepth}
-          radius={0.01}
-          color={boardVisualTokens.railroadLight}
-          materialProfile="boardTop"
-          position={[offset, 0.027, 0]}
-        />
-      ))}
       <RoundedBoxMesh
-        name="RailroadDirectionMark"
-        width={panels.upperSize[0] * 0.32}
+        name="TrainCab"
+        width={trainWidth * 0.38}
+        height={0.046}
+        depth={trainDepth * 0.62}
+        radius={0.03}
+        color={boardVisualTokens.railroad}
+        materialProfile="propertyTrim"
+        position={[-trainWidth * 0.22, 0.054, -0.08]}
+      />
+      <RoundedBoxMesh
+        name="TrainCabRoof"
+        width={trainWidth * 0.48}
         height={0.018}
-        depth={0.045}
-        radius={0.01}
+        depth={0.07}
+        radius={0.012}
         color={boardVisualTokens.railroadLight}
         materialProfile="boardTop"
-        position={[0, 0.036, -trackDepth * 0.43]}
+        position={[-trainWidth * 0.22, 0.084, -0.08]}
       />
+      <RoundedBoxMesh
+        name="TrainWindow"
+        width={trainWidth * 0.2}
+        height={0.012}
+        depth={0.07}
+        radius={0.01}
+        color={boardVisualTokens.utilityLight}
+        materialProfile="boardTop"
+        position={[-trainWidth * 0.22, 0.084, -0.08]}
+      />
+      <RoundedBoxMesh
+        name="TrainFront"
+        width={trainWidth * 0.16}
+        height={0.025}
+        depth={0.11}
+        radius={0.018}
+        color={boardVisualTokens.railroadLight}
+        materialProfile="boardTop"
+        position={[trainWidth * 0.38, 0.035, 0.03]}
+      />
+      {[-trainWidth * 0.28, trainWidth * 0.28].map(x => (
+        <mesh key={x} name="TrainWheel" position={[x, 0.058, 0.12]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[0.06, 16]} />
+          <meshStandardMaterial color={boardVisualTokens.tileText} roughness={0.48} metalness={0.2} />
+        </mesh>
+      ))}
     </group>
   );
 }
