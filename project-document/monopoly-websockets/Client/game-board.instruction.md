@@ -44,16 +44,21 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   `0.255`/`0.225`/`0.195`: một dòng cho tên ngắn, hai dòng cho tên dài thông thường,
   ba dòng chỉ khi thật sự cần; maxWidth bằng 96% vùng usable footer. Special tile
   chỉ in một footer label; price không render trên mặt tile. Text dùng một
-  canonical inward-facing rule theo side, gồm cả hai run sát Parking. SDF dùng
-  font local và callback sync invalidate demand frame.
+  canonical inward-facing rule theo side, gồm cả hai run sát Parking; hai run
+  `LEFT`/`TOP` dùng cùng một camera-facing half-turn cho text và flat art. Jail
+  và Vào Tù không render footer text, chỉ giữ bars/police icon. SDF dùng font
+  local và callback sync invalidate demand frame.
 - Scene dùng fixed orthographic camera, ACES filmic tone mapping, contact shadows,
   DPR clamp `1.25..1.5` và `frameloop="demand"`. Budget hiện hành: target 210 draw
   calls, stress ceiling 240, target 80k triangles và hard ceiling 100k.
 - Foundation/rim trung tính bao quanh center airport field recessed. Center có
   field xanh, runway/taxiway strips và marking nhẹ, không có airplane model.
-  Chance/Chest dùng lucky-wheel 2D, railroad dùng material/track phẳng, tax dùng
-  stacked paper, jail dùng cell bars và Vào Tù dùng police icon; district art không
-  tràn sang special tile.
+  Chance dùng treasure chest 2D; Khí Vận dùng fortune wheel 12 lát màu không có
+  pointer line; railroad dùng train icon 2D; Công Ty Điện dùng light bulb và
+  Công Ty Nước dùng water-valve icon; tax dùng stacked paper, jail chỉ dùng cell
+  bars và Vào Tù chỉ dùng police icon. District art không tràn sang special tile.
+- Beach district dùng shoreline uốn lượn với wave contour thứ hai; palette board/UI
+  tăng saturation nhưng giữ upper/footer sáng để text đen vẫn rõ.
 - Edge tile nominal width là `1.55` (corner vẫn `2.4`); outer board size và
   orthographic fit tự derive từ layout nên camera vẫn frame đủ board.
 
@@ -84,11 +89,13 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
 - Tám registry/material descriptors distinct; 512² albedo/bump color-space,
   resource reuse và StrictMode-safe deferred disposal; beach descriptor có water
   region và premium green district dùng paver pattern.
-- Property name-only typography (short/canonical/long), 60/40 panel ratio, inward
-  Parking-adjacent orientation, widened edge/corner dimensions, frame dimensions,
-  scene budget, orthographic camera/tone mapping và SDF sync invalidation.
-- Special art contracts cover lucky wheel, flat railroad, tax paper stack, jail
-  bars/police, utility, parking and airport center theme.
+- Property name-only typography (short/canonical/long), textless jail/go-to-jail,
+  60/40 panel ratio, inward Parking-adjacent orientation, widened edge/corner
+  dimensions, frame dimensions, scene budget, orthographic camera/tone mapping
+  và SDF sync invalidation.
+- Special art contracts cover treasure chest, larger pointer-free fortune wheel,
+  train, light bulb, water valve, tax paper stack, jail bars/police, parking and
+  airport center theme; seven legacy accent-line tiles expose no accent channel.
 - Owner/house/hotel/inventory/token update theo revision.
 - Normal/pass-GO/jail/card movement; buy/development/payment settlement.
 - Card flip, outside close, multiple token, reduced-motion, reconnect/no-duplicate.
