@@ -18,10 +18,12 @@ export interface TilePanelLayout {
   /** Offset on the pre-tilt plane's local Y axis. Positive points inward. */
   upperPlaneOffset: number;
   footerPlaneOffset: number;
+  upperFooterBoundaryPlaneOffset: number;
   dividerPlaneOffset: number;
   /** Offset on the tile-local Z axis used by text and flat art. */
   upperCenterLocalZ: number;
   footerCenterLocalZ: number;
+  upperFooterBoundaryLocalZ: number;
   dividerLocalZ: number;
 }
 
@@ -46,7 +48,10 @@ export function getTilePanelLayout(
   const flowSign = getTilePanelFlowSign(side);
   const upperPlaneOffset = ((depth - upperDepth) / 2) * flowSign;
   const footerPlaneOffset = (-(depth - footerDepth) / 2) * flowSign;
-  const dividerPlaneOffset = ((upperDepth - footerDepth) / 2) * flowSign;
+  const upperBoundary = upperPlaneOffset - flowSign * upperDepth / 2;
+  const footerBoundary = footerPlaneOffset + flowSign * footerDepth / 2;
+  const upperFooterBoundaryPlaneOffset = (upperBoundary + footerBoundary) / 2;
+  const dividerPlaneOffset = upperFooterBoundaryPlaneOffset;
 
   return {
     side,
@@ -58,9 +63,11 @@ export function getTilePanelLayout(
     dividerSize: [width, dividerDepth],
     upperPlaneOffset,
     footerPlaneOffset,
+    upperFooterBoundaryPlaneOffset,
     dividerPlaneOffset,
     upperCenterLocalZ: -upperPlaneOffset,
     footerCenterLocalZ: -footerPlaneOffset,
+    upperFooterBoundaryLocalZ: -upperFooterBoundaryPlaneOffset,
     dividerLocalZ: -dividerPlaneOffset,
   };
 }

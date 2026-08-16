@@ -53,6 +53,9 @@ describe('district surface material library', () => {
     const library = new DistrictSurfaceMaterialLibrary(1);
     expect(boardVisualTokens.tileDivider).toBe('#111318');
     expect(library.dividerMaterial.color.getHexString()).toBe('111318');
+    expect(library.dividerMaterial.polygonOffset).toBe(true);
+    expect(library.dividerMaterial.polygonOffsetFactor).toBe(-1);
+    expect(library.dividerMaterial.polygonOffsetUnits).toBe(-1);
     library.dispose();
   });
 

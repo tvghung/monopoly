@@ -1,6 +1,8 @@
+import * as THREE from 'three';
 import { tileState } from '@monopoly/shared';
 import { describe, expect, it } from 'vitest';
 import { TILE_SURFACE_INSET, getBoardTileLayout } from '../boardLayout';
+import { composeTileSurfaceMatrix } from '../architecture/tileMatrix';
 import {
   DISTRICT_SURFACE_KEYS,
   getDistrictSurfaceDescriptor,
@@ -12,6 +14,7 @@ import {
 import {
   TILE_FOOTER_PANEL_RATIO,
   TILE_UPPER_PANEL_RATIO,
+  getTilePanelLayout,
 } from './tilePanelLayout';
 
 describe('tile surface material batching', () => {
@@ -58,5 +61,65 @@ describe('tile surface material batching', () => {
     expect(divider.surfacePlaneOffset).toBeLessThan(footer.surfacePlaneOffset!);
     expect(upper.side).toBe(footer.side);
     expect(footer.side).toBe(divider.side);
+  });
+
+  it('places every divider center on the shared upper/footer world-space edge', () => {
+    const sideTiles = {
+      BOTTOM: 1,
+      LEFT: 11,
+      TOP: 21,
+      RIGHT: 31,
+    } as const;
+
+    Object.entries(sideTiles).forEach(([side, tileId]) => {
+      const layout = getBoardTileLayout(tileId);
+      if (!layout) throw new Error(`Missing canonical board layout for tile ${tileId}`);
+      const baseEntry = {
+        tileId,
+        side: side as 'BOTTOM' | 'LEFT' | 'TOP' | 'RIGHT',
+        surfaceSize: [1.42, 2.27] as const,
+        surfaceKey: 'harborCeramic' as const,
+      };
+      const upper = withPanel(baseEntry, 'upper');
+      const footer = withPanel(baseEntry, 'footer');
+      const divider = withPanel(baseEntry, 'divider');
+      const panel = getTilePanelLayout(baseEntry.surfaceSize, baseEntry.side);
+      const upperMatrix = composeTileSurfaceMatrix(
+        layout,
+        upper.surfaceSize,
+        0,
+        new THREE.Matrix4(),
+        upper.surfacePlaneOffset,
+      );
+      const footerMatrix = composeTileSurfaceMatrix(
+        layout,
+        footer.surfaceSize,
+        0,
+        new THREE.Matrix4(),
+        footer.surfacePlaneOffset,
+      );
+      const dividerMatrix = composeTileSurfaceMatrix(
+        layout,
+        divider.surfaceSize,
+        0,
+        new THREE.Matrix4(),
+        divider.surfacePlaneOffset,
+      );
+      const upperBoundary = new THREE.Vector3(
+        0,
+        -panel.flowSign * 0.5,
+        0,
+      ).applyMatrix4(upperMatrix);
+      const footerBoundary = new THREE.Vector3(
+        0,
+        panel.flowSign * 0.5,
+        0,
+      ).applyMatrix4(footerMatrix);
+      const dividerCenter = new THREE.Vector3(0, 0, 0).applyMatrix4(dividerMatrix);
+
+      expect(upperBoundary.distanceTo(footerBoundary)).toBeLessThan(1e-9);
+      expect(upperBoundary.distanceTo(dividerCenter)).toBeLessThan(1e-9);
+      expect(panel.upperFooterBoundaryPlaneOffset).toBeCloseTo(panel.dividerPlaneOffset, 10);
+    });
   });
 });

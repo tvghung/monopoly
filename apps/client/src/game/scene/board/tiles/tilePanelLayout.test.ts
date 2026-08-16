@@ -48,6 +48,16 @@ describe('tile 60/40 panel layout', () => {
       expect(layout.dividerLocalZ).toBeGreaterThan(lowerCenter);
       expect(layout.dividerLocalZ).toBeLessThan(higherCenter);
       expect(layout.contentRotationY).toBe(side === 'LEFT' || side === 'TOP' ? Math.PI : 0);
+
+      const upperBoundary = layout.upperPlaneOffset
+        - layout.flowSign * layout.upperSize[1] / 2;
+      const footerBoundary = layout.footerPlaneOffset
+        + layout.flowSign * layout.footerSize[1] / 2;
+      expect(upperBoundary).toBeCloseTo(footerBoundary, 10);
+      expect(layout.upperFooterBoundaryPlaneOffset).toBeCloseTo(upperBoundary, 10);
+      expect(layout.dividerPlaneOffset).toBeCloseTo(upperBoundary, 10);
+      expect(layout.upperFooterBoundaryLocalZ).toBeCloseTo(-upperBoundary, 10);
+      expect(layout.dividerLocalZ).toBeCloseTo(-upperBoundary, 10);
     });
   });
 

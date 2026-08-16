@@ -311,6 +311,9 @@ export class DistrictSurfaceMaterialLibrary {
     roughness: boardMaterialSpecs.tileTop.roughness,
     metalness: boardMaterialSpecs.tileTop.metalness,
     side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
   });
 
   private readonly textureSets = new Map<DistrictSurfaceKey, DistrictSurfaceTextureSet>();
