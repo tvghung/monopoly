@@ -8,6 +8,7 @@ import {
   getDistrictSurfaceDescriptor,
 } from '../architecture/tileVisualRegistry';
 import {
+  groupTileFooterEntries,
   groupTileSurfaceEntries,
   withPanel,
 } from './TileSurfaceBatch';
@@ -18,7 +19,7 @@ import {
 } from './tilePanelLayout';
 
 describe('tile surface material batching', () => {
-  it('assigns every canonical tile once across eight district batches and one special batch', () => {
+  it('assigns every canonical tile once across district and white-pebble batches', () => {
     const entries = tileState.map((tile, tileId) => {
       const layout = getBoardTileLayout(tileId);
       if (!layout) throw new Error(`Missing canonical board layout for tile ${tileId}`);
@@ -35,9 +36,15 @@ describe('tile surface material batching', () => {
     const groups = groupTileSurfaceEntries(entries);
     const assignedTileIds = groups.flatMap(group => group.entries.map(entry => entry.tileId));
 
-    expect(groups.map(group => group.key)).toEqual([...DISTRICT_SURFACE_KEYS, 'special']);
-    expect(groups.filter(group => group.key !== 'special')).toHaveLength(8);
-    expect(groups).toHaveLength(9);
+    expect(groups.map(group => group.key)).toEqual([
+      ...DISTRICT_SURFACE_KEYS,
+      'specialPebble0',
+      'specialPebble1',
+      'specialPebble2',
+      'specialPebble3',
+    ]);
+    expect(groups.filter(group => group.key.startsWith('specialPebble'))).toHaveLength(4);
+    expect(groups).toHaveLength(12);
     expect(assignedTileIds).toHaveLength(40);
     expect(new Set(assignedTileIds).size).toBe(40);
     expect([...assignedTileIds].sort((left, right) => left - right))
@@ -61,6 +68,31 @@ describe('tile surface material batching', () => {
     expect(divider.surfacePlaneOffset).toBeLessThan(footer.surfacePlaneOffset!);
     expect(upper.side).toBe(footer.side);
     expect(footer.side).toBe(divider.side);
+  });
+
+  it('batches every non-corner footer into deterministic pebble variants', () => {
+    const entries = tileState.map((tile, tileId) => {
+      const layout = getBoardTileLayout(tileId);
+      if (!layout) throw new Error(`Missing canonical board layout for tile ${tileId}`);
+      return {
+        tileId,
+        side: layout.side,
+        surfaceKey: getDistrictSurfaceDescriptor(tile)?.surfaceKey,
+        surfaceSize: [1.42, 2.27] as const,
+      };
+    }).filter(entry => entry.side !== 'CORNER');
+    const groups = groupTileFooterEntries(entries.map(entry => withPanel(entry, 'footer')));
+    const assignedTileIds = groups.flatMap(group => group.entries.map(entry => entry.tileId));
+
+    expect(groups.map(group => group.key)).toEqual([
+      'footerPebble0',
+      'footerPebble1',
+      'footerPebble2',
+      'footerPebble3',
+    ]);
+    expect(assignedTileIds).toHaveLength(36);
+    expect(new Set(assignedTileIds).size).toBe(36);
+    expect(assignedTileIds.every(tileId => getBoardTileLayout(tileId)?.side !== 'CORNER')).toBe(true);
   });
 
   it('places every divider center on the shared upper/footer world-space edge', () => {

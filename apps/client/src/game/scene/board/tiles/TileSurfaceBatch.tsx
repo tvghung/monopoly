@@ -12,6 +12,11 @@ import {
 import { getTileTextureAnisotropy } from '../architecture/sceneBudget';
 import type { BoardTileRenderModel } from '../boardRenderModel';
 import { DistrictSurfaceMaterialLibrary } from '../materials/districtSurfaceMaterials';
+import {
+  WHITE_PEBBLE_VARIANTS,
+  getWhitePebbleVariant,
+  type WhitePebbleVariant,
+} from '../materials/whitePebbleSurface';
 import { getTilePanelLayout } from './tilePanelLayout';
 import { useTileMotionController, useTileMotionRevision } from '../motion/TileMotionProvider';
 
@@ -31,11 +36,29 @@ export interface TileSurfaceBatchEntry {
   surfacePlaneOffset?: number;
 }
 
-export type TileSurfaceBatchKey = DistrictSurfaceKey | 'special' | 'footer' | 'divider';
+export type WhitePebbleBatchKey =
+  | `specialPebble${WhitePebbleVariant}`
+  | `footerPebble${WhitePebbleVariant}`;
+
+export type TileSurfaceBatchKey = DistrictSurfaceKey | WhitePebbleBatchKey | 'divider';
 
 export interface TileSurfaceBatchGroup {
   key: TileSurfaceBatchKey;
   entries: readonly TileSurfaceBatchEntry[];
+}
+
+function getWhitePebbleBatchKey(
+  prefix: 'specialPebble' | 'footerPebble',
+  variant: WhitePebbleVariant,
+): WhitePebbleBatchKey {
+  return `${prefix}${variant}` as WhitePebbleBatchKey;
+}
+
+export function getWhitePebbleBatchVariant(
+  key: TileSurfaceBatchKey,
+): WhitePebbleVariant | null {
+  if (!key.startsWith('specialPebble') && !key.startsWith('footerPebble')) return null;
+  return Number(key.slice(-1)) as WhitePebbleVariant;
 }
 
 export function groupTileSurfaceEntries(
@@ -46,9 +69,20 @@ export function groupTileSurfaceEntries(
     entries: entries.filter(entry => entry.surfaceKey === key),
   })).filter(group => group.entries.length > 0);
   const specialEntries = entries.filter(entry => entry.surfaceKey === undefined);
-  return specialEntries.length > 0
-    ? [...districtGroups, { key: 'special' as const, entries: specialEntries }]
-    : districtGroups;
+  const specialGroups = WHITE_PEBBLE_VARIANTS.map(variant => ({
+    key: getWhitePebbleBatchKey('specialPebble', variant),
+    entries: specialEntries.filter(entry => getWhitePebbleVariant(entry.tileId) === variant),
+  })).filter(group => group.entries.length > 0);
+  return [...districtGroups, ...specialGroups];
+}
+
+export function groupTileFooterEntries(
+  entries: readonly TileSurfaceBatchEntry[],
+): readonly TileSurfaceBatchGroup[] {
+  return WHITE_PEBBLE_VARIANTS.map(variant => ({
+    key: getWhitePebbleBatchKey('footerPebble', variant),
+    entries: entries.filter(entry => getWhitePebbleVariant(entry.tileId) === variant),
+  })).filter(group => group.entries.length > 0);
 }
 
 function stopPointerEvent(event: { stopPropagation: () => void }): void {
@@ -133,11 +167,10 @@ function getUpperMaterial(
   library: DistrictSurfaceMaterialLibrary,
   key: TileSurfaceBatchKey,
 ): THREE.MeshStandardMaterial {
-  if (key === 'special') return library.specialMaterial;
-  if (key === 'footer' || key === 'divider') {
-    throw new Error(`Panel key ${key} cannot use an upper material.`);
-  }
-  return library.getMaterial(key);
+  if (key === 'divider') throw new Error(`Panel key ${key} cannot use an upper material.`);
+  const pebbleVariant = getWhitePebbleBatchVariant(key);
+  if (pebbleVariant !== null) return library.getWhitePebbleMaterial(pebbleVariant);
+  return library.getMaterial(key as DistrictSurfaceKey);
 }
 
 export function withPanel(
@@ -197,13 +230,13 @@ export function TileSurfaceUpperLayer({
 }
 
 export function TileFooterLayer({
-  batch,
+  batches,
   library,
   geometry,
   onHover,
   onSelect,
 }: {
-  batch: TileSurfaceBatchGroup;
+  batches: readonly TileSurfaceBatchGroup[];
   library: DistrictSurfaceMaterialLibrary;
   geometry: THREE.PlaneGeometry;
   onHover?: (tileId: number | null) => void;
@@ -211,14 +244,17 @@ export function TileFooterLayer({
 }) {
   return (
     <group name="TileFooterLayer">
-      <SurfaceBatchMesh
-        batch={batch}
-        geometry={geometry}
-        material={library.footerMaterial}
-        layerName="TileFooterLayer"
-        onHover={onHover}
-        onSelect={onSelect}
-      />
+      {batches.map(batch => (
+        <SurfaceBatchMesh
+          key={`footer:${batch.key}`}
+          batch={batch}
+          geometry={geometry}
+          material={library.getWhitePebbleMaterial(getWhitePebbleBatchVariant(batch.key)!)}
+          layerName="TileFooterLayer"
+          onHover={onHover}
+          onSelect={onSelect}
+        />
+      ))}
     </group>
   );
 }
@@ -294,10 +330,10 @@ export default function TileSurfaceBatch({
     () => groupTileSurfaceEntries(upperEntries),
     [upperEntries],
   );
-  const footerBatch = useMemo<TileSurfaceBatchGroup>(() => ({
-    key: 'footer',
-    entries: edgeEntries.map(entry => withPanel(entry, 'footer')),
-  }), [edgeEntries]);
+  const footerBatches = useMemo(
+    () => groupTileFooterEntries(edgeEntries.map(entry => withPanel(entry, 'footer'))),
+    [edgeEntries],
+  );
   const dividerBatch = useMemo<TileSurfaceBatchGroup>(() => ({
     key: 'divider',
     entries: edgeEntries.map(entry => withPanel(entry, 'divider')),
@@ -313,7 +349,7 @@ export default function TileSurfaceBatch({
         onSelect={onSelect}
       />
       <TileFooterLayer
-        batch={footerBatch}
+        batches={footerBatches}
         library={materialLibrary}
         geometry={materialLibrary.geometry}
         onHover={onHover}

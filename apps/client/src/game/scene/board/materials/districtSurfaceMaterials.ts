@@ -7,6 +7,12 @@ import {
   type DistrictSurfaceKey,
 } from '../architecture/tileVisualRegistry';
 import { boardMaterialSpecs } from './boardMaterialSpecs';
+import {
+  WHITE_PEBBLE_TEXTURE_SIZE,
+  WHITE_PEBBLE_VARIANTS,
+  generateWhitePebbleTextureData,
+  type WhitePebbleVariant,
+} from './whitePebbleSurface';
 
 export const DISTRICT_TEXTURE_SIZE = 512;
 const PROCEDURAL_SAMPLE_SIZE = 128;
@@ -289,22 +295,50 @@ function createTextureSet(
   return { albedo, bump };
 }
 
+function createWhitePebbleTextureSet(
+  variant: WhitePebbleVariant,
+  anisotropy: number,
+): DistrictSurfaceTextureSet {
+  const data = generateWhitePebbleTextureData(variant);
+  const albedo = new THREE.DataTexture(
+    data.albedo,
+    WHITE_PEBBLE_TEXTURE_SIZE,
+    WHITE_PEBBLE_TEXTURE_SIZE,
+    THREE.RGBAFormat,
+    THREE.UnsignedByteType,
+  );
+  albedo.name = `WhitePebbleAlbedo:${variant}`;
+  albedo.colorSpace = THREE.SRGBColorSpace;
+  albedo.wrapS = THREE.RepeatWrapping;
+  albedo.wrapT = THREE.RepeatWrapping;
+  albedo.magFilter = THREE.LinearFilter;
+  albedo.minFilter = THREE.LinearMipmapLinearFilter;
+  albedo.generateMipmaps = true;
+  albedo.anisotropy = anisotropy;
+  albedo.needsUpdate = true;
+
+  const bump = new THREE.DataTexture(
+    data.bump,
+    WHITE_PEBBLE_TEXTURE_SIZE,
+    WHITE_PEBBLE_TEXTURE_SIZE,
+    THREE.RedFormat,
+    THREE.UnsignedByteType,
+  );
+  bump.name = `WhitePebbleBump:${variant}`;
+  bump.colorSpace = THREE.NoColorSpace;
+  bump.wrapS = THREE.RepeatWrapping;
+  bump.wrapT = THREE.RepeatWrapping;
+  bump.magFilter = THREE.LinearFilter;
+  bump.minFilter = THREE.LinearMipmapLinearFilter;
+  bump.generateMipmaps = true;
+  bump.anisotropy = anisotropy;
+  bump.needsUpdate = true;
+
+  return { albedo, bump };
+}
+
 export class DistrictSurfaceMaterialLibrary {
   readonly geometry = new THREE.PlaneGeometry(1, 1);
-  readonly specialMaterial = new THREE.MeshStandardMaterial({
-    name: 'SpecialTileSurfaceMaterial',
-    color: boardVisualTokens.tileUpperSpecial,
-    roughness: boardMaterialSpecs.tileTop.roughness,
-    metalness: boardMaterialSpecs.tileTop.metalness,
-    side: THREE.DoubleSide,
-  });
-  readonly footerMaterial = new THREE.MeshStandardMaterial({
-    name: 'TileFooterMaterial',
-    color: boardVisualTokens.tileFooter,
-    roughness: boardMaterialSpecs.tileTop.roughness,
-    metalness: boardMaterialSpecs.tileTop.metalness,
-    side: THREE.DoubleSide,
-  });
   readonly dividerMaterial = new THREE.MeshStandardMaterial({
     name: 'TileDividerMaterial',
     color: boardVisualTokens.tileDivider,
@@ -318,6 +352,8 @@ export class DistrictSurfaceMaterialLibrary {
 
   private readonly textureSets = new Map<DistrictSurfaceKey, DistrictSurfaceTextureSet>();
   private readonly materials = new Map<DistrictSurfaceKey, THREE.MeshStandardMaterial>();
+  private readonly whitePebbleTextureSets = new Map<WhitePebbleVariant, DistrictSurfaceTextureSet>();
+  private readonly whitePebbleMaterials = new Map<WhitePebbleVariant, THREE.MeshStandardMaterial>();
   private retainCount = 0;
   private disposalGeneration = 0;
   private disposed = false;
@@ -339,6 +375,20 @@ export class DistrictSurfaceMaterialLibrary {
         side: THREE.DoubleSide,
       }));
     });
+    WHITE_PEBBLE_VARIANTS.forEach(variant => {
+      const textureSet = createWhitePebbleTextureSet(variant, anisotropy);
+      this.whitePebbleTextureSets.set(variant, textureSet);
+      this.whitePebbleMaterials.set(variant, new THREE.MeshStandardMaterial({
+        name: `WhitePebbleSurfaceMaterial:${variant}`,
+        color: '#ffffff',
+        map: textureSet.albedo,
+        bumpMap: textureSet.bump,
+        bumpScale: 0.006,
+        roughness: 0.76,
+        metalness: 0,
+        side: THREE.DoubleSide,
+      }));
+    });
   }
 
   get isDisposed(): boolean {
@@ -354,6 +404,18 @@ export class DistrictSurfaceMaterialLibrary {
   getTextureSet(surfaceKey: DistrictSurfaceKey): DistrictSurfaceTextureSet {
     const textureSet = this.textureSets.get(surfaceKey);
     if (!textureSet || this.disposed) throw new Error(`District textures are unavailable: ${surfaceKey}`);
+    return textureSet;
+  }
+
+  getWhitePebbleMaterial(variant: WhitePebbleVariant): THREE.MeshStandardMaterial {
+    const material = this.whitePebbleMaterials.get(variant);
+    if (!material || this.disposed) throw new Error(`White pebble material is unavailable: ${variant}`);
+    return material;
+  }
+
+  getWhitePebbleTextureSet(variant: WhitePebbleVariant): DistrictSurfaceTextureSet {
+    const textureSet = this.whitePebbleTextureSets.get(variant);
+    if (!textureSet || this.disposed) throw new Error(`White pebble textures are unavailable: ${variant}`);
     return textureSet;
   }
 
@@ -381,15 +443,20 @@ export class DistrictSurfaceMaterialLibrary {
     this.disposed = true;
     this.disposalGeneration += 1;
     this.materials.forEach(material => material.dispose());
+    this.whitePebbleMaterials.forEach(material => material.dispose());
     this.textureSets.forEach(textureSet => {
       textureSet.albedo.dispose();
       textureSet.bump.dispose();
     });
-    this.specialMaterial.dispose();
-    this.footerMaterial.dispose();
+    this.whitePebbleTextureSets.forEach(textureSet => {
+      textureSet.albedo.dispose();
+      textureSet.bump.dispose();
+    });
     this.dividerMaterial.dispose();
     this.geometry.dispose();
     this.materials.clear();
     this.textureSets.clear();
+    this.whitePebbleMaterials.clear();
+    this.whitePebbleTextureSets.clear();
   }
 }

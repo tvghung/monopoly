@@ -13,6 +13,10 @@ import {
   getBeachShoreline,
   generateDistrictSurfaceTextureData,
 } from './districtSurfaceMaterials';
+import {
+  WHITE_PEBBLE_TEXTURE_SIZE,
+  WHITE_PEBBLE_VARIANTS,
+} from './whitePebbleSurface';
 
 function checksum(data: Uint8Array): number {
   let value = 2166136261;
@@ -56,6 +60,23 @@ describe('district surface material library', () => {
     expect(library.dividerMaterial.polygonOffset).toBe(true);
     expect(library.dividerMaterial.polygonOffsetFactor).toBe(-1);
     expect(library.dividerMaterial.polygonOffsetUnits).toBe(-1);
+    library.dispose();
+  });
+
+  it('provides four shared true-white pebble material variants', () => {
+    const library = new DistrictSurfaceMaterialLibrary(2);
+    WHITE_PEBBLE_VARIANTS.forEach(variant => {
+      const textureSet = library.getWhitePebbleTextureSet(variant);
+      const material = library.getWhitePebbleMaterial(variant);
+      expect(material.color.getHexString()).toBe('ffffff');
+      expect(textureSet.albedo.image.width).toBe(WHITE_PEBBLE_TEXTURE_SIZE);
+      expect(textureSet.albedo.image.height).toBe(WHITE_PEBBLE_TEXTURE_SIZE);
+      expect(textureSet.bump.image.width).toBe(WHITE_PEBBLE_TEXTURE_SIZE);
+      expect(textureSet.bump.image.height).toBe(WHITE_PEBBLE_TEXTURE_SIZE);
+      expect(material.map).toBe(textureSet.albedo);
+      expect(material.bumpMap).toBe(textureSet.bump);
+      expect(material.bumpScale).toBeCloseTo(0.006);
+    });
     library.dispose();
   });
 
