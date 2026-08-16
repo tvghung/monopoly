@@ -28,7 +28,6 @@ export interface BoardRenderModel {
   players: Phase2PlayerMarkerModel[];
   tileImpacts: readonly TileImpactSignal[];
   tileImpactEpoch: number;
-  gameStartedAt?: string | null;
 }
 
 function resolveOwnerColor(
@@ -79,6 +78,5 @@ export function buildBoardRenderModel(
     players,
     tileImpacts: presentationState.tileImpacts,
     tileImpactEpoch: presentationState.tileImpactEpoch,
-    gameStartedAt: state.boardState.gameStartedAt ?? null,
   };
 }

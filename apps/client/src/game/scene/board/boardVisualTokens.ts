@@ -89,12 +89,6 @@ export const boardVisualTokens = {
   airportRunwayEdge: '#3f474f',
   airportMarking: '#ffffff',
   airportTaxiway: '#b3c9af',
-  airportCenterMark: '#c96a63',
-  centerPebble: '#c4c7bd',
-  centerPebbleWarm: '#d2c8b7',
-  centerPebbleCool: '#aeb8b2',
   centerPath: '#b6db7c',
-  timerFrame: '#25353c',
-  timerTrim: '#455961',
-  timerDisplay: '#fff8df',
+  boardOuterAccent: '#e7ebea',
 } as const;

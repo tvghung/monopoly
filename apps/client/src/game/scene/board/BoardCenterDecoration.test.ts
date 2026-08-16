@@ -6,7 +6,7 @@ describe('board center decoration budget', () => {
   it('stays within the lightweight Phase 2 mesh budget', () => {
     expect(CENTER_DECORATION_MESH_COUNT).toBeLessThanOrEqual(6);
     expect(CENTER_DECORATION_THEME).toBe('airport');
-    expect(boardVisualTokens.centerPebble).toBe('#c4c7bd');
     expect(boardVisualTokens.centerPath).toBe('#b6db7c');
+    expect(boardVisualTokens.boardOuterAccent).toBe('#e7ebea');
   });
 });

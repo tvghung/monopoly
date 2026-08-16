@@ -5,12 +5,11 @@ import AirportRunwayDashes from './AirportRunwayDashes';
 import AirportRunwayLoop from './AirportRunwayLoop';
 import CenterFieldDecor from './CenterFieldDecor';
 import { AIRPORT_FIELD_SIZE } from './airportRunwayGeometry';
-import MatchTimerSign from './MatchTimerSign';
 
-export const CENTER_DECORATION_MESH_COUNT = 6;
+export const CENTER_DECORATION_MESH_COUNT = 4;
 export const CENTER_DECORATION_THEME = 'airport';
 
-export default function CenterAirport({ gameStartedAt }: { gameStartedAt?: string | null }) {
+export default function CenterAirport() {
   return (
     <group name="CenterAirport" position={[0, CENTER_AIRPORT_SURFACE_Y, 0]}>
       <RoundedBoxMesh
@@ -26,7 +25,6 @@ export default function CenterAirport({ gameStartedAt }: { gameStartedAt?: strin
       <CenterFieldDecor />
       <AirportRunwayLoop />
       <AirportRunwayDashes />
-      <MatchTimerSign gameStartedAt={gameStartedAt} />
     </group>
   );
 }
