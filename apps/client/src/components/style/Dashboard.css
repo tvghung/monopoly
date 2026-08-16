@@ -103,7 +103,7 @@
 
 .player-card--active {
   background: var(--color-accent-secondary-soft);
-  box-shadow: 0 0 0 0.18vmin rgb(18 185 167 / 45%);
+  box-shadow: 0 0 0 0.18vmin var(--color-accent-secondary);
 }
 
 .player-card--out {
@@ -412,7 +412,7 @@ align-items: center;
   gap: 0.55rem;
   min-width: 0;
   padding: 1rem;
-  border: 1px solid rgb(85 169 130 / 45%);
+  border: 1px solid var(--color-success);
   border-radius: 0.5rem;
   background: var(--color-surface-raised);
 }

@@ -61,7 +61,7 @@
   transform: translate(-50%, -50%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-large);
-  background: rgb(255 253 248 / 94%);
+  background: var(--color-surface);
   color: var(--color-text-primary);
   box-shadow: var(--shadow-card);
   pointer-events: none;
