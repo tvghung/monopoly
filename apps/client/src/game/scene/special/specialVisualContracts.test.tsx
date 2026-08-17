@@ -1,8 +1,12 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { getOrientedTilePanelLayoutForTileSize } from '../board/tiles/tilePanelLayout';
+import {
+  getOrientedTilePanelLayoutForTileSize,
+  getUpperIconTopAlignedLocalZ,
+} from '../board/tiles/tilePanelLayout';
 import {
   TILE_ICON_BACKING_Y_OFFSET,
+  TILE_ICON_BACKING_SCALE,
   TILE_ICON_DEPTH,
   TILE_ICON_FACE_Y_OFFSET,
   TILE_SURFACE_EPSILON,
@@ -26,7 +30,12 @@ import StartSignVisual, {
   START_SIGN_WIDTH_SCALE,
   createStartSignGeometry,
 } from './StartSignVisual';
-import TaxVisual, { TAX_ART_SAFE_WIDTH_RATIO } from './TaxVisual';
+import TaxVisual, {
+  TAX_ART_SAFE_DEPTH_RATIO,
+  TAX_ART_SAFE_WIDTH_RATIO,
+  TAX_BACK_PAPER_COLOR,
+  TAX_PLACEHOLDER_LINE_COUNT,
+} from './TaxVisual';
 import UtilityVisual, { WATER_ICON_SAFE_WIDTH_RATIO } from './UtilityVisual';
 import { BOARD_SVG_TILE_ICON_ASSETS } from './boardIconAssets';
 import chanceQuestionSvg from './icons/chance-question.svg?raw';
@@ -88,13 +97,42 @@ describe('Phase 2.5G special visual contracts', () => {
     ].forEach(source => expect(source.trimStart()).toMatch(/^<svg\b/));
     expect(fortuneWheelSvg).toContain('clipPath');
     expect(electricBulbSvg).toContain('stroke="white"');
-    expect(handcuffsSvg).toContain('fill-rule="evenodd"');
+    expect(electricBulbSvg).not.toMatch(/transform="rotate/);
+    expect(electricBulbSvg).not.toContain('width="28" height="74"');
+    expect(waterFaucetSvg).toContain('M432 386');
+    expect(waterFaucetSvg).not.toContain('transform=');
+    expect(handcuffsSvg).toContain('fill="white" stroke="#111111"');
+    expect(handcuffsSvg).toContain('stroke-width="18"');
+  });
+
+  it('places every raised SVG footprint in the upper zone, away from lower text', () => {
+    Object.values(BOARD_SVG_TILE_ICON_ASSETS).forEach(icon => {
+      const [, height] = getRaisedSvgTileIconArtSize(edgePanel, icon);
+      const iconCenter = getUpperIconTopAlignedLocalZ(
+        edgePanel,
+        height,
+        TILE_ICON_BACKING_SCALE,
+      );
+      const footprintHeight = height * TILE_ICON_BACKING_SCALE;
+      const dividerGap = edgePanel.flowSign
+        * (edgePanel.dividerLocalZ - iconCenter)
+        - footprintHeight / 2;
+
+      expect(dividerGap).toBeGreaterThan(edgePanel.upperSize[1] * 0.1);
+      expect(iconCenter).not.toBeCloseTo(edgePanel.upperArtCenterLocalZ, 2);
+    });
   });
 
   it('keeps the tax stack, planted start sign and asphalt parking lot contracts', () => {
     const tax = render(<TaxVisual panel={edgePanel} />);
     expect(tax.container.querySelector('[name="TaxVisual"]')).not.toBeNull();
-    expect(TAX_ART_SAFE_WIDTH_RATIO).toBeGreaterThanOrEqual(0.8);
+    expect(tax.container.querySelector('[name="TaxPaperBack"]')).not.toBeNull();
+    expect(tax.container.querySelector('[name="TaxPaperFront"]')).not.toBeNull();
+    expect(tax.container.querySelectorAll('[name^="TaxPaperMark"]').length)
+      .toBe(TAX_PLACEHOLDER_LINE_COUNT);
+    expect(TAX_ART_SAFE_WIDTH_RATIO).toBeLessThan(0.8);
+    expect(TAX_ART_SAFE_DEPTH_RATIO).toBeLessThan(0.6);
+    expect(TAX_BACK_PAPER_COLOR).toBe('#b7c0be');
     tax.unmount();
 
     const parking = render(<ParkingLotVisual panel={cornerPanel} />);

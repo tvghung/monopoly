@@ -47,7 +47,7 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
 - Property thường chỉ in tên, không in giá trên mặt ô. Cỡ local SDF adaptive là
   `0.31`/`0.25`: một dòng cho tên ngắn, hai dòng cho tên dài thông thường; maxWidth
   bằng 92% vùng usable footer. Normal/company và nhãn Chance/Chest/Tax/Railroad đều
-  dùng footer anchor; icon-bearing art dùng upper-art anchor; price không render trên
+  dùng footer anchor; raised SVG art dùng top-biased upper anchor; price không render trên
   mặt tile. Text dùng một canonical inward-facing rule theo side, gồm cả hai run
   sát Parking; hai run `LEFT`/`TOP` dùng cùng một camera-facing half-turn cho text và
   flat art. START/Jail/Vào Tù/Parking không render generic edge/corner label khi
@@ -70,8 +70,9 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   backing bên dưới; `TILE_ICON_DEPTH` là `0.018` world units, không dùng
   `SVGLoader → ShapeGeometry` để tái dựng mặt icon. Icon backing/face dùng elevation
   contract chung trên tile surface, depth test và alpha test để tránh chìm hoặc
-  z-fight; tax
-  dùng stacked paper lớn; START dùng planted left-pointing `Start` sign; Parking dùng
+  z-fight; icon footprint giữ divider của upper 70% clear. Tax dùng paper stack nhỏ hơn
+  với rear sheet xám đậm hơn và five red placeholder marks nằm trong front sheet; START dùng
+  planted left-pointing `Start` sign; Parking dùng
   asphalt runway-gray với lane marks và deterministic parked cars; Go To Jail dùng
   handcuffs còn Jail dùng cell bars. District art không tràn sang special tile.
 - Beach district dùng shoreline uốn lượn với wave contour thứ hai; palette board/UI
@@ -109,7 +110,8 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   resource reuse và StrictMode-safe deferred disposal; beach descriptor có water
   region và premium green district dùng paver pattern.
 - Property name-only typography (short/canonical/long), textless jail/go-to-jail,
-  upper 70% art/footer 30% text anchors, selective divider eligibility, 70/30 panel ratio,
+  upper 70% art/footer 30% text anchors, top-biased raised-icon placement with divider
+  clearance, selective divider eligibility, 70/30 panel ratio,
   side-aware Parking-adjacent orientation, widened edge/corner dimensions, frame
   dimensions, scene budget, orthographic camera/tone mapping
   và SDF sync invalidation.

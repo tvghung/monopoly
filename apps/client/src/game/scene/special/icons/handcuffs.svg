@@ -1,16 +1,26 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
   <rect width="512" height="512" fill="none"/>
+
   <g fill="#111111">
-    <path fill-rule="evenodd" clip-rule="evenodd" d="M145 92C195.258 92 236 132.742 236 183C236 201.357 230.565 218.445 221.224 232.737L238.562 250.074L221.592 267.044L204.255 249.707C189.963 259.048 172.875 264.483 154.518 264.483C104.259 264.483 63.5176 223.741 63.5176 173.482C63.5176 123.224 104.259 82.4824 154.518 82.4824L145 92ZM154.518 123.482C126.899 123.482 104.518 145.864 104.518 173.482C104.518 201.101 126.899 223.482 154.518 223.482C182.136 223.482 204.518 201.101 204.518 173.482C204.518 145.864 182.136 123.482 154.518 123.482Z"/>
-    <rect x="184" y="212" width="48" height="34" rx="8" transform="rotate(-45 184 212)" fill="#111111"/>
-    <circle cx="181" cy="205" r="8" fill="white"/>
-    <circle cx="181" cy="205" r="4" fill="#111111"/>
-    <path fill-rule="evenodd" clip-rule="evenodd" d="M367 92C417.258 92 458 132.742 458 183C458 201.357 452.565 218.445 443.224 232.737L460.562 250.074L443.592 267.044L426.255 249.707C411.963 259.048 394.875 264.483 376.518 264.483C326.259 264.483 285.518 223.741 285.518 173.482C285.518 123.224 326.259 82.4824 376.518 82.4824L367 92ZM376.518 123.482C348.899 123.482 326.518 145.864 326.518 173.482C326.518 201.101 348.899 223.482 376.518 223.482C404.136 223.482 426.518 201.101 426.518 173.482C426.518 145.864 404.136 123.482 376.518 123.482Z"/>
-    <rect x="328" y="212" width="48" height="34" rx="8" transform="rotate(45 328 212)" fill="#111111"/>
-    <circle cx="331" cy="205" r="8" fill="white"/>
-    <circle cx="331" cy="205" r="4" fill="#111111"/>
-    <rect x="210" y="254" width="22" height="52" rx="11" transform="rotate(-25 210 254)" fill="#111111"/>
-    <rect x="240" y="280" width="34" height="56" rx="17" transform="rotate(18 240 280)" fill="#111111"/>
-    <rect x="287" y="276" width="22" height="52" rx="11" transform="rotate(25 287 276)" fill="#111111"/>
+    <!-- left cuff -->
+    <circle cx="142" cy="150" r="112"/>
+    <circle cx="142" cy="150" r="66" fill="white"/>
+    <rect x="196" y="185" width="82" height="48" rx="18" transform="rotate(-42 237 209)"/>
+    <circle cx="205" cy="211" r="11" fill="white"/>
+    <circle cx="205" cy="211" r="5"/>
+
+    <!-- right cuff -->
+    <circle cx="370" cy="150" r="112"/>
+    <circle cx="370" cy="150" r="66" fill="white"/>
+    <rect x="234" y="185" width="82" height="48" rx="18" transform="rotate(42 275 209)"/>
+    <circle cx="307" cy="211" r="11" fill="white"/>
+    <circle cx="307" cy="211" r="5"/>
+
+    <!-- three bold, open chain links -->
+    <g fill="white" stroke="#111111" stroke-width="18" stroke-linejoin="round">
+      <rect x="192" y="238" width="78" height="52" rx="26" transform="rotate(-32 231 264)"/>
+      <rect x="220" y="296" width="84" height="54" rx="27" transform="rotate(4 262 323)"/>
+      <rect x="254" y="238" width="78" height="52" rx="26" transform="rotate(32 293 264)"/>
+    </g>
   </g>
 </svg>
