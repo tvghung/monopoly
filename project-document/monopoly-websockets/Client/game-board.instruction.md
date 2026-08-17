@@ -62,13 +62,15 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   một continuous rounded-square loop near-white; center có field xanh, runway/taxiway
   strips, marking nhẹ và một authored orthogonal S-path deterministic, không có
   pebbles, random trails, timer sign, airplane model hay red center ring.
-  Chance dùng continuous extruded question mark đỏ; Khí Vận dùng fortune wheel có
-  số lát lấy từ `chestCards.length`, có separator/ring/hub và không có horizontal
-  pointer line; railroad dùng local flat SVG locomotive + hai wagon; Công Ty Điện dùng
-  local flat SVG bulb với socket xám và Công Ty Nước dùng local flat SVG faucet/tap
-  lớn với water drop. Bốn nguồn SVG được bundle local, parse bằng `SVGLoader` thành
-  một merged vertex-colored `ShapeGeometry` phẳng cho mỗi icon, không tạo texture
-  runtime hoặc hình học 3D có chiều sâu; tax
+  Chance dùng approved coral question-mark SVG; Khí Vận dùng approved simplified
+  fortune-wheel SVG không pointer/separator/outer border; railroad dùng local SVG
+  locomotive + hai wagon; Công Ty Điện dùng local SVG bulb với socket xám và Công Ty
+  Nước dùng local SVG faucet/tap lớn với water drop. Sáu nguồn SVG được bundle local,
+  rasterize nguyên vẹn thành texture cho top face và dùng lại một shallow darker SVG
+  backing bên dưới; `TILE_ICON_DEPTH` là `0.018` world units, không dùng
+  `SVGLoader → ShapeGeometry` để tái dựng mặt icon. Icon backing/face dùng elevation
+  contract chung trên tile surface, depth test và alpha test để tránh chìm hoặc
+  z-fight; tax
   dùng stacked paper lớn; START dùng planted left-pointing `Start` sign; Parking dùng
   asphalt runway-gray với lane marks và deterministic parked cars; Go To Jail dùng
   handcuffs còn Jail dùng cell bars. District art không tràn sang special tile.
@@ -111,7 +113,7 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   side-aware Parking-adjacent orientation, widened edge/corner dimensions, frame
   dimensions, scene budget, orthographic camera/tone mapping
   và SDF sync invalidation.
-- Special art contracts cover continuous Chance question mark, deck-sized pointer-free
+- Special art contracts cover approved Chance question mark, simplified pointer-free
   fortune wheel, locomotive/wagons, light bulb, large faucet, tax paper stack, START
   sign, parking lot/cars, handcuffs, jail bars and airport center theme; ownership
   layer exposes no `OwnerTab` and seven legacy accent-line tiles expose no accent channel.
