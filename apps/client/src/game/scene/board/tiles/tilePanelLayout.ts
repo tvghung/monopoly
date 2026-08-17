@@ -4,6 +4,7 @@ import type { BoardSide } from '../boardLayout';
 export const TILE_UPPER_PANEL_RATIO = 0.7;
 export const TILE_FOOTER_PANEL_RATIO = 0.3;
 export const TILE_DIVIDER_THICKNESS = 0.03;
+export const TILE_UPPER_ICON_TOP_INSET_RATIO = 0.06;
 
 export type TilePanelFlowSign = -1 | 1;
 
@@ -24,6 +25,8 @@ export interface TilePanelLayout {
   upperCenterLocalZ: number;
   /** Upper-panel sub-anchor toward the divider for icon-bearing art. */
   upperArtCenterLocalZ: number;
+  /** Upper-panel edge away from the lower text region. */
+  upperOuterBoundaryLocalZ: number;
   footerCenterLocalZ: number;
   upperFooterBoundaryLocalZ: number;
   dividerLocalZ: number;
@@ -54,6 +57,7 @@ export function getTilePanelLayout(
   const footerBoundary = footerPlaneOffset + flowSign * footerDepth / 2;
   const upperFooterBoundaryPlaneOffset = (upperBoundary + footerBoundary) / 2;
   const dividerPlaneOffset = upperFooterBoundaryPlaneOffset;
+  const upperOuterBoundaryLocalZ = -upperPlaneOffset - flowSign * upperDepth / 2;
 
   return {
     side,
@@ -69,10 +73,27 @@ export function getTilePanelLayout(
     dividerPlaneOffset,
     upperCenterLocalZ: -upperPlaneOffset,
     upperArtCenterLocalZ: -upperPlaneOffset + flowSign * upperDepth * 0.16,
+    upperOuterBoundaryLocalZ,
     footerCenterLocalZ: -footerPlaneOffset,
     upperFooterBoundaryLocalZ: -upperFooterBoundaryPlaneOffset,
     dividerLocalZ: -dividerPlaneOffset,
   };
+}
+
+/**
+ * Places a raised icon from the upper region's outer edge, leaving the
+ * lower text divider clear without shrinking the icon to fit a centered slot.
+ */
+export function getUpperIconTopAlignedLocalZ(
+  panel: TilePanelLayout,
+  iconHeight: number,
+  backingScale = 1,
+): number {
+  if (panel.side === 'CORNER') return 0;
+  const footprintHeight = Math.max(0, iconHeight) * Math.max(1, backingScale);
+  const topInset = panel.upperSize[1] * TILE_UPPER_ICON_TOP_INSET_RATIO;
+  return panel.upperOuterBoundaryLocalZ
+    + panel.flowSign * (topInset + footprintHeight / 2);
 }
 
 export function getOrientedTilePanelLayoutForTileSize(

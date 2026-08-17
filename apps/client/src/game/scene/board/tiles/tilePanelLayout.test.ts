@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   TILE_DIVIDER_THICKNESS,
   TILE_FOOTER_PANEL_RATIO,
+  TILE_UPPER_ICON_TOP_INSET_RATIO,
   TILE_UPPER_PANEL_RATIO,
   getInwardTextTopDirection,
+  getUpperIconTopAlignedLocalZ,
   getTilePanelLayout,
   getOrientedTilePanelLayoutForTileSize,
 } from './tilePanelLayout';
@@ -71,5 +73,27 @@ describe('tile 70/30 panel layout', () => {
     expect(left.footerCenterLocalZ).toBeCloseTo(-bottom.footerCenterLocalZ);
     expect(top.upperCenterLocalZ).toBeCloseTo(-bottom.upperCenterLocalZ);
     expect(top.footerCenterLocalZ).toBeCloseTo(-bottom.footerCenterLocalZ);
+  });
+
+  it('keeps a raised icon footprint inside the upper region with a top-biased anchor', () => {
+    (['BOTTOM', 'LEFT', 'TOP', 'RIGHT'] as const).forEach(side => {
+      const panel = getOrientedTilePanelLayoutForTileSize([1.5, 2.35], side);
+      const iconHeight = panel.upperSize[1] * 0.72;
+      const backingScale = 1.018;
+      const iconCenter = getUpperIconTopAlignedLocalZ(panel, iconHeight, backingScale);
+      const footprintHeight = iconHeight * backingScale;
+      const outerGap = panel.flowSign
+        * (iconCenter - panel.upperOuterBoundaryLocalZ)
+        - footprintHeight / 2;
+      const dividerGap = panel.flowSign
+        * (panel.dividerLocalZ - iconCenter)
+        - footprintHeight / 2;
+
+      expect(outerGap).toBeCloseTo(panel.upperSize[1] * TILE_UPPER_ICON_TOP_INSET_RATIO);
+      expect(dividerGap).toBeGreaterThan(panel.upperSize[1] * 0.2);
+    });
+
+    const cornerPanel = getOrientedTilePanelLayoutForTileSize([2.46, 2.46], 'CORNER');
+    expect(getUpperIconTopAlignedLocalZ(cornerPanel, 1)).toBe(0);
   });
 });

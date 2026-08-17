@@ -7,7 +7,10 @@ import {
   TILE_ICON_BACKING_SCALE,
 } from '../board/architecture/boardArtSpec';
 import { TILE_SURFACE_Y } from '../board/boardLayout';
-import type { TilePanelLayout } from '../board/tiles/tilePanelLayout';
+import {
+  getUpperIconTopAlignedLocalZ,
+  type TilePanelLayout,
+} from '../board/tiles/tilePanelLayout';
 import {
   type BoardSvgTileIconAsset,
 } from './boardIconAssets';
@@ -127,6 +130,9 @@ export default function RaisedSvgTileIcon({ panel, icon, name }: RaisedSvgTileIc
   const texture = useSvgTexture(icon.url);
   const [width, height] = getRaisedSvgTileIconArtSize(panel, icon);
   const isCorner = panel.side === 'CORNER';
+  const iconCenterLocalZ = isCorner
+    ? 0
+    : getUpperIconTopAlignedLocalZ(panel, height, TILE_ICON_BACKING_SCALE);
   const geometry = useMemo(() => new THREE.PlaneGeometry(width, height), [height, width]);
 
   useEffect(() => () => geometry.dispose(), [geometry]);
@@ -134,12 +140,16 @@ export default function RaisedSvgTileIcon({ panel, icon, name }: RaisedSvgTileIc
   return (
     <group
       name={name}
-      position={[0, TILE_SURFACE_Y, isCorner ? 0 : panel.upperArtCenterLocalZ]}
+      position={[0, TILE_SURFACE_Y, iconCenterLocalZ]}
       rotation={[0, panel.contentRotationY, 0]}
       userData={{
         artKind: icon.kind,
         pipeline: RAISED_SVG_RENDERING_PIPELINE,
         panelRegion: isCorner ? 'corner' : 'upper',
+        placement: isCorner ? 'corner-centered' : 'upper-top-biased',
+        iconCenterLocalZ,
+        upperOuterBoundaryLocalZ: panel.upperOuterBoundaryLocalZ,
+        dividerLocalZ: panel.dividerLocalZ,
         meshCount: texture ? 2 : 0,
         surfaceY: TILE_SURFACE_Y,
         backingY: TILE_SURFACE_Y + TILE_ICON_BACKING_Y_OFFSET,
