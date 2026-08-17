@@ -1,10 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="224" viewBox="0 0 256 224" role="img" aria-label="Water faucet">
-  <rect x="57" y="78" width="139" height="29" rx="14.5" fill="#737d82"/>
-  <rect x="37" y="48" width="70" height="19" rx="9.5" fill="#8b9499"/>
-  <rect x="66" y="61" width="14" height="31" rx="7" fill="#737d82"/>
-  <rect x="174" y="78" width="23" height="70" rx="11.5" fill="#737d82"/>
-  <rect x="183" y="137" width="50" height="25" rx="12.5" fill="#737d82"/>
-  <rect x="194" y="157" width="31" height="14" rx="7" fill="#5e686d"/>
-  <path d="M205 173 187 205 205 216 223 205z" fill="#19bdeb"/>
-  <path d="M205 180 198 205 205 211 212 205z" fill="#0b87ac"/>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="none"/>
+  <rect x="130" y="64" width="252" height="42" rx="21" fill="#4A4A4A"/>
+  <rect x="238" y="100" width="36" height="62" fill="#8A8A8A"/>
+  <rect x="208" y="144" width="96" height="44" rx="12" fill="#5C5C5C"/>
+  <rect x="76" y="170" width="310" height="70" rx="18" fill="#8E8E8E"/>
+  <rect x="76" y="154" width="42" height="102" rx="12" fill="#4A4A4A"/>
+  <path d="M356 170H378C430 170 472 212 472 264V338H402V274C402 245.281 378.719 222 350 222H318V170H356Z" fill="#8E8E8E"/>
+  <rect x="378" y="330" width="108" height="36" rx="14" fill="#4A4A4A"/>
+  <path d="M427 405C427 405 385 466 385 489C385 527.66 416.34 559 455 559C493.66 559 525 527.66 525 489C525 466 483 405 483 405C473 389 437 389 427 405Z" fill="#35B8F2" transform="translate(-71 -110) scale(0.92)"/>
 </svg>
