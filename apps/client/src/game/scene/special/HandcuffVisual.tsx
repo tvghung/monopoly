@@ -1,5 +1,6 @@
 import type { TilePanelLayout } from '../board/tiles/tilePanelLayout';
-import FlatTileSvgIcon, { FLAT_TILE_SVG_ICONS } from './FlatTileSvgIcon';
+import RaisedSvgTileIcon from './RaisedSvgTileIcon';
+import { BOARD_SVG_TILE_ICON_ASSETS } from './boardIconAssets';
 
 interface HandcuffVisualProps {
   panel: TilePanelLayout;
@@ -9,10 +10,10 @@ export const HANDCUFF_ART_FOOTPRINT_RATIO = 0.86;
 
 export default function HandcuffVisual({ panel }: HandcuffVisualProps) {
   return (
-    <FlatTileSvgIcon
+    <RaisedSvgTileIcon
       panel={panel}
-      icon={FLAT_TILE_SVG_ICONS['handcuffs-2d']}
-      name="HandcuffsFlatSvgIcon"
+      icon={BOARD_SVG_TILE_ICON_ASSETS['handcuffs-svg']}
+      name="HandcuffsRaisedSvgIcon"
     />
   );
 }

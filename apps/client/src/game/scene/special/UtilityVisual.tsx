@@ -1,5 +1,6 @@
 import type { TilePanelLayout } from '../board/tiles/tilePanelLayout';
-import FlatTileSvgIcon, { FLAT_TILE_SVG_ICONS } from './FlatTileSvgIcon';
+import RaisedSvgTileIcon from './RaisedSvgTileIcon';
+import { BOARD_SVG_TILE_ICON_ASSETS } from './boardIconAssets';
 import { getUtilityArtKind } from './specialTileArt';
 
 interface UtilityVisualProps {
@@ -12,10 +13,10 @@ export const WATER_ICON_SAFE_WIDTH_RATIO = 0.86;
 export default function UtilityVisual({ panel, label }: UtilityVisualProps) {
   const utilityKind = getUtilityArtKind(label);
   return (
-    <FlatTileSvgIcon
+    <RaisedSvgTileIcon
       panel={panel}
-      icon={FLAT_TILE_SVG_ICONS[utilityKind]}
-      name="UtilityFlatSvgIcon"
+      icon={BOARD_SVG_TILE_ICON_ASSETS[utilityKind]}
+      name="UtilityRaisedSvgIcon"
     />
   );
 }

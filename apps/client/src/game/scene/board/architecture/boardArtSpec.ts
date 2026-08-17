@@ -22,6 +22,11 @@ export const TILE_SOCKET_LIP_HEIGHT = 0.015;
 export const TILE_SOCKET_GAP = 0.025;
 export const TILE_SURFACE_EPSILON = 0.008;
 export const TILE_SURFACE_INSET = 0.08;
+/** Shared shallow badge elevation for approved SVG-backed special-tile art. */
+export const TILE_ICON_DEPTH = 0.018;
+export const TILE_ICON_BACKING_Y_OFFSET = TILE_SURFACE_EPSILON + 0.006;
+export const TILE_ICON_FACE_Y_OFFSET = TILE_ICON_BACKING_Y_OFFSET + TILE_ICON_DEPTH;
+export const TILE_ICON_BACKING_SCALE = 1.018;
 
 export const PROPERTY_TEXT_Y = BOARD_FOUNDATION_HEIGHT + TILE_SOCKET_GAP
   + TILE_BODY_HEIGHT + TILE_SURFACE_EPSILON + 0.006;

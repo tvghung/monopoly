@@ -1,5 +1,6 @@
 import type { TilePanelLayout } from '../board/tiles/tilePanelLayout';
-import FlatTileSvgIcon, { FLAT_TILE_SVG_ICONS } from './FlatTileSvgIcon';
+import RaisedSvgTileIcon from './RaisedSvgTileIcon';
+import { BOARD_SVG_TILE_ICON_ASSETS } from './boardIconAssets';
 
 interface RailroadVisualProps {
   panel: TilePanelLayout;
@@ -11,10 +12,10 @@ export const TRAIN_ART_HEIGHT_RATIO = 0.66;
 
 export default function RailroadVisual({ panel }: RailroadVisualProps) {
   return (
-    <FlatTileSvgIcon
+    <RaisedSvgTileIcon
       panel={panel}
-      icon={FLAT_TILE_SVG_ICONS['train-convoy-2d']}
-      name="RailroadFlatSvgIcon"
+      icon={BOARD_SVG_TILE_ICON_ASSETS['railroad-train-svg']}
+      name="RailroadRaisedSvgIcon"
     />
   );
 }
