@@ -83,17 +83,29 @@ export function getTilePanelLayout(
 /**
  * Places a raised icon from the upper region's outer edge, leaving the
  * lower text divider clear without shrinking the icon to fit a centered slot.
+ * `towardDividerRatio` is normalized to the upper depth: positive values move
+ * toward the divider, while negative values move back toward the outer edge.
  */
 export function getUpperIconTopAlignedLocalZ(
   panel: TilePanelLayout,
   iconHeight: number,
   backingScale = 1,
+  towardDividerRatio = 0,
 ): number {
   if (panel.side === 'CORNER') return 0;
   const footprintHeight = Math.max(0, iconHeight) * Math.max(1, backingScale);
   const topInset = panel.upperSize[1] * TILE_UPPER_ICON_TOP_INSET_RATIO;
+  const maxTowardDividerOffset = Math.max(
+    0,
+    panel.upperSize[1] - (topInset * 2) - footprintHeight,
+  );
+  const requestedOffset = towardDividerRatio * panel.upperSize[1];
+  const clampedOffset = Math.min(
+    maxTowardDividerOffset,
+    Math.max(-topInset, requestedOffset),
+  );
   return panel.upperOuterBoundaryLocalZ
-    + panel.flowSign * (topInset + footprintHeight / 2);
+    + panel.flowSign * (topInset + footprintHeight / 2 + clampedOffset);
 }
 
 export function getOrientedTilePanelLayoutForTileSize(

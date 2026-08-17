@@ -6,7 +6,7 @@ interface HandcuffVisualProps {
   panel: TilePanelLayout;
 }
 
-export const HANDCUFF_ART_FOOTPRINT_RATIO = 0.86;
+export const HANDCUFF_ART_FOOTPRINT_RATIO = BOARD_SVG_TILE_ICON_ASSETS['handcuffs-svg'].safeWidthRatio;
 
 export default function HandcuffVisual({ panel }: HandcuffVisualProps) {
   return (

@@ -96,4 +96,26 @@ describe('tile 70/30 panel layout', () => {
     const cornerPanel = getOrientedTilePanelLayoutForTileSize([2.46, 2.46], 'CORNER');
     expect(getUpperIconTopAlignedLocalZ(cornerPanel, 1)).toBe(0);
   });
+
+  it('applies per-icon divider bias while clamping the footprint to the upper panel', () => {
+    const panel = getOrientedTilePanelLayoutForTileSize([1.5, 2.35], 'BOTTOM');
+    const iconHeight = panel.upperSize[1] * 0.72;
+    const baseCenter = getUpperIconTopAlignedLocalZ(panel, iconHeight, 1);
+    const biasedCenter = getUpperIconTopAlignedLocalZ(panel, iconHeight, 1, 0.025);
+    expect(panel.flowSign * (biasedCenter - baseCenter)).toBeGreaterThan(0);
+
+    const oversizedBiasCenter = getUpperIconTopAlignedLocalZ(
+      panel,
+      panel.upperSize[1] * 0.4,
+      1,
+      1,
+    );
+    const footprintHeight = panel.upperSize[1] * 0.4;
+    const dividerGap = panel.flowSign
+      * (panel.dividerLocalZ - oversizedBiasCenter)
+      - footprintHeight / 2;
+    expect(dividerGap).toBeGreaterThanOrEqual(
+      panel.upperSize[1] * TILE_UPPER_ICON_TOP_INSET_RATIO - 1e-8,
+    );
+  });
 });

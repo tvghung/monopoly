@@ -74,11 +74,22 @@ describe('Phase 2.5G special visual contracts', () => {
     );
     expect(handcuffSize[0] / cornerPanel.surfaceSize[0]).toBeGreaterThanOrEqual(0.75);
     expect(handcuffSize[0] / cornerPanel.surfaceSize[0]).toBeLessThanOrEqual(0.9);
-    expect(TRAIN_WAGON_COUNT).toBe(2);
+    expect(TRAIN_WAGON_COUNT).toBe(1);
     expect(TRAIN_ART_WIDTH_RATIO).toBeGreaterThanOrEqual(0.8);
-    expect(TRAIN_ART_HEIGHT_RATIO).toBeGreaterThanOrEqual(0.6);
+    expect(TRAIN_ART_HEIGHT_RATIO).toBeGreaterThanOrEqual(0.7);
     expect(WATER_ICON_SAFE_WIDTH_RATIO).toBeGreaterThanOrEqual(0.8);
     expect(HANDCUFF_ART_FOOTPRINT_RATIO).toBeGreaterThanOrEqual(0.8);
+    expect(BOARD_SVG_TILE_ICON_ASSETS['chance-question-svg'].safeWidthRatio)
+      .toBeGreaterThan(0.72);
+    expect(BOARD_SVG_TILE_ICON_ASSETS['fortune-wheel-svg'].safeWidthRatio)
+      .toBeGreaterThan(0.72);
+    expect(BOARD_SVG_TILE_ICON_ASSETS['chance-question-svg'].verticalBias)
+      .toBeGreaterThan(0);
+    expect(BOARD_SVG_TILE_ICON_ASSETS['fortune-wheel-svg'].verticalBias)
+      .toBeGreaterThan(0);
+    expect(BOARD_SVG_TILE_ICON_ASSETS['water-faucet-svg'].verticalBias)
+      .toBeGreaterThan(0);
+    expect(BOARD_SVG_TILE_ICON_ASSETS['railroad-train-svg'].verticalBias).toBe(0);
     expect(RailroadVisual).toBeTypeOf('function');
     expect(HandcuffVisual).toBeTypeOf('function');
     expect(UtilityVisual).toBeTypeOf('function');
@@ -103,6 +114,11 @@ describe('Phase 2.5G special visual contracts', () => {
     expect(waterFaucetSvg).not.toContain('transform=');
     expect(handcuffsSvg).toContain('fill="white" stroke="#111111"');
     expect(handcuffsSvg).toContain('stroke-width="18"');
+    expect(handcuffsSvg).toContain('cx="112" cy="145"');
+    expect(handcuffsSvg).toContain('cx="400" cy="145"');
+    expect((handcuffsSvg.match(/<rect[^>]+transform="rotate/g) ?? []).length).toBe(5);
+    expect(railroadTrainSvg).toContain('<!-- single small wagon -->');
+    expect((railroadTrainSvg.match(/<circle cx=/g) ?? []).length).toBe(8);
   });
 
   it('places every raised SVG footprint in the upper zone, away from lower text', () => {
@@ -112,6 +128,7 @@ describe('Phase 2.5G special visual contracts', () => {
         edgePanel,
         height,
         TILE_ICON_BACKING_SCALE,
+        icon.verticalBias,
       );
       const footprintHeight = height * TILE_ICON_BACKING_SCALE;
       const dividerGap = edgePanel.flowSign

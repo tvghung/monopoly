@@ -2,25 +2,25 @@
   <rect width="512" height="512" fill="none"/>
 
   <g fill="#111111">
-    <!-- left cuff -->
-    <circle cx="142" cy="150" r="112"/>
-    <circle cx="142" cy="150" r="66" fill="white"/>
-    <rect x="196" y="185" width="82" height="48" rx="18" transform="rotate(-42 237 209)"/>
-    <circle cx="205" cy="211" r="11" fill="white"/>
-    <circle cx="205" cy="211" r="5"/>
+    <!-- separated left cuff -->
+    <circle cx="112" cy="145" r="96"/>
+    <circle cx="112" cy="145" r="58" fill="white"/>
+    <rect x="164" y="177" width="82" height="48" rx="18" transform="rotate(-36 205 201)"/>
+    <circle cx="181" cy="204" r="11" fill="white"/>
+    <circle cx="181" cy="204" r="5"/>
 
-    <!-- right cuff -->
-    <circle cx="370" cy="150" r="112"/>
-    <circle cx="370" cy="150" r="66" fill="white"/>
-    <rect x="234" y="185" width="82" height="48" rx="18" transform="rotate(42 275 209)"/>
-    <circle cx="307" cy="211" r="11" fill="white"/>
-    <circle cx="307" cy="211" r="5"/>
+    <!-- separated right cuff -->
+    <circle cx="400" cy="145" r="96"/>
+    <circle cx="400" cy="145" r="58" fill="white"/>
+    <rect x="266" y="177" width="82" height="48" rx="18" transform="rotate(36 307 201)"/>
+    <circle cx="331" cy="204" r="11" fill="white"/>
+    <circle cx="331" cy="204" r="5"/>
 
-    <!-- three bold, open chain links -->
+    <!-- three open, varied chain links with clear space between the cuffs -->
     <g fill="white" stroke="#111111" stroke-width="18" stroke-linejoin="round">
-      <rect x="192" y="238" width="78" height="52" rx="26" transform="rotate(-32 231 264)"/>
-      <rect x="220" y="296" width="84" height="54" rx="27" transform="rotate(4 262 323)"/>
-      <rect x="254" y="238" width="78" height="52" rx="26" transform="rotate(32 293 264)"/>
+      <rect x="184" y="236" width="76" height="50" rx="25" transform="rotate(-32 222 261)"/>
+      <rect x="224" y="288" width="56" height="84" rx="28" transform="rotate(8 252 330)"/>
+      <rect x="270" y="348" width="76" height="50" rx="25" transform="rotate(32 308 373)"/>
     </g>
   </g>
 </svg>

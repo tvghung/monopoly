@@ -64,7 +64,7 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   pebbles, random trails, timer sign, airplane model hay red center ring.
   Chance dùng approved coral question-mark SVG; Khí Vận dùng approved simplified
   fortune-wheel SVG không pointer/separator/outer border; railroad dùng local SVG
-  locomotive + hai wagon; Công Ty Điện dùng local SVG bulb với socket xám và Công Ty
+  locomotive + một wagon; Công Ty Điện dùng local SVG bulb với socket xám và Công Ty
   Nước dùng local SVG faucet/tap lớn với water drop. Sáu nguồn SVG được bundle local,
   rasterize nguyên vẹn thành texture cho top face và dùng lại một shallow darker SVG
   backing bên dưới; `TILE_ICON_DEPTH` là `0.018` world units, không dùng
@@ -116,7 +116,7 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   dimensions, scene budget, orthographic camera/tone mapping
   và SDF sync invalidation.
 - Special art contracts cover approved Chance question mark, simplified pointer-free
-  fortune wheel, locomotive/wagons, light bulb, large faucet, tax paper stack, START
+  fortune wheel, locomotive/one-wagon silhouette, light bulb, large faucet, tax paper stack, START
   sign, parking lot/cars, handcuffs, jail bars and airport center theme; ownership
   layer exposes no `OwnerTab` and seven legacy accent-line tiles expose no accent channel.
 - Owner/house/hotel/inventory/token update theo revision.

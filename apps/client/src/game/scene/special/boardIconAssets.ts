@@ -20,6 +20,8 @@ export interface BoardSvgTileIconAsset {
   viewBoxHeight: number;
   safeWidthRatio: number;
   safeHeightRatio: number;
+  /** Normalized offset toward the upper/footer divider; negative moves outward. */
+  verticalBias: number;
   cornerSafeWidthRatio?: number;
   cornerSafeHeightRatio?: number;
   backingColor: string;
@@ -32,7 +34,8 @@ export const BOARD_SVG_TILE_ICON_ASSETS: Record<BoardSvgTileIconKind, BoardSvgTi
     viewBoxWidth: 512,
     viewBoxHeight: 512,
     safeWidthRatio: 0.86,
-    safeHeightRatio: 0.66,
+    safeHeightRatio: 0.72,
+    verticalBias: 0,
     backingColor: '#2d4658',
   },
   'handcuffs-svg': {
@@ -42,6 +45,7 @@ export const BOARD_SVG_TILE_ICON_ASSETS: Record<BoardSvgTileIconKind, BoardSvgTi
     viewBoxHeight: 512,
     safeWidthRatio: 0.86,
     safeHeightRatio: 0.7,
+    verticalBias: 0,
     cornerSafeWidthRatio: 0.8,
     cornerSafeHeightRatio: 0.78,
     backingColor: '#080808',
@@ -53,6 +57,7 @@ export const BOARD_SVG_TILE_ICON_ASSETS: Record<BoardSvgTileIconKind, BoardSvgTi
     viewBoxHeight: 512,
     safeWidthRatio: 0.86,
     safeHeightRatio: 0.7,
+    verticalBias: 0.02,
     backingColor: '#566269',
   },
   'electric-bulb-svg': {
@@ -62,6 +67,7 @@ export const BOARD_SVG_TILE_ICON_ASSETS: Record<BoardSvgTileIconKind, BoardSvgTi
     viewBoxHeight: 512,
     safeWidthRatio: 0.84,
     safeHeightRatio: 0.7,
+    verticalBias: 0,
     backingColor: '#9b7b00',
   },
   'chance-question-svg': {
@@ -69,9 +75,10 @@ export const BOARD_SVG_TILE_ICON_ASSETS: Record<BoardSvgTileIconKind, BoardSvgTi
     url: chanceQuestionUrl,
     viewBoxWidth: 512,
     viewBoxHeight: 512,
-    safeWidthRatio: 0.72,
-    safeHeightRatio: 0.72,
-    cornerSafeWidthRatio: 0.58,
+    safeWidthRatio: 0.78,
+    safeHeightRatio: 0.78,
+    verticalBias: 0.025,
+    cornerSafeWidthRatio: 0.64,
     cornerSafeHeightRatio: 0.68,
     backingColor: '#b43d4c',
   },
@@ -80,10 +87,11 @@ export const BOARD_SVG_TILE_ICON_ASSETS: Record<BoardSvgTileIconKind, BoardSvgTi
     url: fortuneWheelUrl,
     viewBoxWidth: 512,
     viewBoxHeight: 512,
-    safeWidthRatio: 0.72,
-    safeHeightRatio: 0.72,
-    cornerSafeWidthRatio: 0.58,
-    cornerSafeHeightRatio: 0.58,
+    safeWidthRatio: 0.78,
+    safeHeightRatio: 0.78,
+    verticalBias: 0.025,
+    cornerSafeWidthRatio: 0.64,
+    cornerSafeHeightRatio: 0.64,
     backingColor: '#755737',
   },
 };

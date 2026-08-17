@@ -8,7 +8,7 @@ interface UtilityVisualProps {
   label: string;
 }
 
-export const WATER_ICON_SAFE_WIDTH_RATIO = 0.86;
+export const WATER_ICON_SAFE_WIDTH_RATIO = BOARD_SVG_TILE_ICON_ASSETS['water-faucet-svg'].safeWidthRatio;
 
 export default function UtilityVisual({ panel, label }: UtilityVisualProps) {
   const utilityKind = getUtilityArtKind(label);

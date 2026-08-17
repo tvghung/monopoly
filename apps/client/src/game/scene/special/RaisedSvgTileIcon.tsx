@@ -132,7 +132,12 @@ export default function RaisedSvgTileIcon({ panel, icon, name }: RaisedSvgTileIc
   const isCorner = panel.side === 'CORNER';
   const iconCenterLocalZ = isCorner
     ? 0
-    : getUpperIconTopAlignedLocalZ(panel, height, TILE_ICON_BACKING_SCALE);
+    : getUpperIconTopAlignedLocalZ(
+      panel,
+      height,
+      TILE_ICON_BACKING_SCALE,
+      icon.verticalBias,
+    );
   const geometry = useMemo(() => new THREE.PlaneGeometry(width, height), [height, width]);
 
   useEffect(() => () => geometry.dispose(), [geometry]);
@@ -147,6 +152,7 @@ export default function RaisedSvgTileIcon({ panel, icon, name }: RaisedSvgTileIc
         pipeline: RAISED_SVG_RENDERING_PIPELINE,
         panelRegion: isCorner ? 'corner' : 'upper',
         placement: isCorner ? 'corner-centered' : 'upper-top-biased',
+        verticalBias: icon.verticalBias,
         iconCenterLocalZ,
         upperOuterBoundaryLocalZ: panel.upperOuterBoundaryLocalZ,
         dividerLocalZ: panel.dividerLocalZ,
