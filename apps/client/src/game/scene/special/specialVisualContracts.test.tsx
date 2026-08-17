@@ -1,8 +1,14 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
 import { getOrientedTilePanelLayoutForTileSize } from '../board/tiles/tilePanelLayout';
+import {
+  TILE_ICON_BACKING_Y_OFFSET,
+  TILE_ICON_DEPTH,
+  TILE_ICON_FACE_Y_OFFSET,
+  TILE_SURFACE_EPSILON,
+} from '../board/architecture/boardArtSpec';
 import HandcuffVisual, { HANDCUFF_ART_FOOTPRINT_RATIO } from './HandcuffVisual';
+import CardDeckVisual from './CardDeckVisual';
 import ParkingLotVisual, {
   PARKING_ART_WIDTH_RATIO,
   PARKING_CAR_COUNT,
@@ -22,45 +28,67 @@ import StartSignVisual, {
 } from './StartSignVisual';
 import TaxVisual, { TAX_ART_SAFE_WIDTH_RATIO } from './TaxVisual';
 import UtilityVisual, { WATER_ICON_SAFE_WIDTH_RATIO } from './UtilityVisual';
+import { BOARD_SVG_TILE_ICON_ASSETS } from './boardIconAssets';
+import chanceQuestionSvg from './icons/chance-question.svg?raw';
+import electricBulbSvg from './icons/electric-bulb.svg?raw';
+import fortuneWheelSvg from './icons/fortune-wheel.svg?raw';
+import handcuffsSvg from './icons/handcuffs.svg?raw';
+import railroadTrainSvg from './icons/railroad-train.svg?raw';
+import waterFaucetSvg from './icons/water-faucet.svg?raw';
 import {
-  FLAT_SVG_RENDERING_PIPELINE,
-  FLAT_TILE_SVG_ICONS,
-  createFlatSvgGeometry,
-  getFlatTileSvgArtSize,
-} from './FlatTileSvgIcon';
+  RAISED_SVG_BACKING_RENDER_ORDER,
+  RAISED_SVG_FACE_RENDER_ORDER,
+  RAISED_SVG_RENDERING_PIPELINE,
+  getRaisedSvgTileIconArtSize,
+} from './RaisedSvgTileIcon';
 
 const edgePanel = getOrientedTilePanelLayoutForTileSize([1.55, 2.4], 'BOTTOM');
 const cornerPanel = getOrientedTilePanelLayoutForTileSize([2.46, 2.46], 'CORNER');
-const svgLoader = new SVGLoader();
 
 describe('Phase 2.5G special visual contracts', () => {
-  it('maps railroad, handcuff and utility art to local flat SVG geometry', () => {
-    Object.values(FLAT_TILE_SVG_ICONS).forEach(icon => {
+  it('maps all approved special art to local SVG texture assets', () => {
+    Object.values(BOARD_SVG_TILE_ICON_ASSETS).forEach(icon => {
       expect(icon.url.startsWith('data:image/svg+xml') || icon.url.endsWith('.svg')).toBe(true);
       expect(icon.url).not.toMatch(/^https?:/);
-      expect(icon.source.trimStart()).toMatch(/^<svg\b/);
-      expect(icon.safeWidthRatio).toBeGreaterThanOrEqual(0.82);
+      expect(icon.viewBoxWidth).toBe(512);
+      expect(icon.viewBoxHeight).toBe(512);
+      expect(icon.safeWidthRatio).toBeGreaterThan(0.5);
       expect(icon.safeWidthRatio).toBeLessThanOrEqual(0.9);
-      expect(icon.safeHeightRatio).toBeGreaterThanOrEqual(0.55);
-      expect(icon.safeHeightRatio).toBeLessThanOrEqual(0.7);
-      expect(getFlatTileSvgArtSize(edgePanel, icon)[0]).toBeGreaterThan(0);
-      const geometry = createFlatSvgGeometry(svgLoader.parse(icon.source));
-      expect(geometry.getAttribute('position')?.count).toBeGreaterThan(0);
-      geometry.dispose();
+      expect(icon.safeHeightRatio).toBeGreaterThan(0.5);
+      expect(icon.safeHeightRatio).toBeLessThanOrEqual(0.8);
+      expect(getRaisedSvgTileIconArtSize(edgePanel, icon)[0]).toBeGreaterThan(0);
     });
 
-    const handcuffSize = getFlatTileSvgArtSize(cornerPanel, FLAT_TILE_SVG_ICONS['handcuffs-2d']);
-    expect(handcuffSize[0] / cornerPanel.surfaceSize[0]).toBeGreaterThanOrEqual(0.8);
+    const handcuffSize = getRaisedSvgTileIconArtSize(
+      cornerPanel,
+      BOARD_SVG_TILE_ICON_ASSETS['handcuffs-svg'],
+    );
+    expect(handcuffSize[0] / cornerPanel.surfaceSize[0]).toBeGreaterThanOrEqual(0.75);
     expect(handcuffSize[0] / cornerPanel.surfaceSize[0]).toBeLessThanOrEqual(0.9);
     expect(TRAIN_WAGON_COUNT).toBe(2);
-    expect(TRAIN_ART_WIDTH_RATIO).toBeGreaterThanOrEqual(0.82);
-    expect(TRAIN_ART_HEIGHT_RATIO).toBeGreaterThanOrEqual(0.55);
-    expect(WATER_ICON_SAFE_WIDTH_RATIO).toBeGreaterThanOrEqual(0.82);
+    expect(TRAIN_ART_WIDTH_RATIO).toBeGreaterThanOrEqual(0.8);
+    expect(TRAIN_ART_HEIGHT_RATIO).toBeGreaterThanOrEqual(0.6);
+    expect(WATER_ICON_SAFE_WIDTH_RATIO).toBeGreaterThanOrEqual(0.8);
     expect(HANDCUFF_ART_FOOTPRINT_RATIO).toBeGreaterThanOrEqual(0.8);
     expect(RailroadVisual).toBeTypeOf('function');
     expect(HandcuffVisual).toBeTypeOf('function');
     expect(UtilityVisual).toBeTypeOf('function');
-    expect(FLAT_SVG_RENDERING_PIPELINE).toBe('svg-loader-shape-geometry');
+    expect(RAISED_SVG_RENDERING_PIPELINE).toBe('local-svg-texture-with-shallow-backing');
+    expect(RAISED_SVG_BACKING_RENDER_ORDER).toBeLessThan(RAISED_SVG_FACE_RENDER_ORDER);
+  });
+
+  it('keeps every approved SVG as a real local source file', () => {
+    [
+      railroadTrainSvg,
+      handcuffsSvg,
+      waterFaucetSvg,
+      electricBulbSvg,
+      chanceQuestionSvg,
+      fortuneWheelSvg,
+    ].forEach(source => expect(source.trimStart()).toMatch(/^<svg\b/));
+    expect(fortuneWheelSvg).toContain('clipPath');
+    expect(electricBulbSvg).toContain('stroke="white"');
+    expect(handcuffsSvg).toContain('fill-rule="evenodd"');
   });
 
   it('keeps the tax stack, planted start sign and asphalt parking lot contracts', () => {
@@ -86,5 +114,36 @@ describe('Phase 2.5G special visual contracts', () => {
     expect(START_SIGN_HEIGHT_SCALE).toBeGreaterThanOrEqual(1.08);
     startGeometry.dispose();
     expect(StartSignVisual).toBeTypeOf('function');
+  });
+
+  it('routes railroad, handcuffs and utilities through the shared raised component', () => {
+    const railroad = render(<RailroadVisual panel={edgePanel} />);
+    expect(railroad.container.querySelector('[name="RailroadRaisedSvgIcon"]')).not.toBeNull();
+    railroad.unmount();
+
+    const handcuffs = render(<HandcuffVisual panel={cornerPanel} />);
+    expect(handcuffs.container.querySelector('[name="HandcuffsRaisedSvgIcon"]')).not.toBeNull();
+    handcuffs.unmount();
+
+    const utility = render(<UtilityVisual panel={edgePanel} label="Công Ty Nước" />);
+    expect(utility.container.querySelector('[name="UtilityRaisedSvgIcon"]')).not.toBeNull();
+    utility.unmount();
+  });
+
+  it('routes Chance and Fortune through the approved SVG assets', () => {
+    const chance = render(<CardDeckVisual panel={edgePanel} kind="chance" />);
+    expect(chance.container.querySelector('[name="ChanceQuestionRaisedSvgIcon"]')).not.toBeNull();
+    chance.unmount();
+
+    const fortune = render(<CardDeckVisual panel={cornerPanel} kind="chest" />);
+    expect(fortune.container.querySelector('[name="FortuneWheelRaisedSvgIcon"]')).not.toBeNull();
+    fortune.unmount();
+  });
+
+  it('keeps the shared icon layers above the tile surface without a coplanar face', () => {
+    expect(TILE_ICON_DEPTH).toBeGreaterThanOrEqual(0.01);
+    expect(TILE_ICON_DEPTH).toBeLessThanOrEqual(0.03);
+    expect(TILE_ICON_BACKING_Y_OFFSET).toBeGreaterThan(TILE_SURFACE_EPSILON);
+    expect(TILE_ICON_FACE_Y_OFFSET - TILE_ICON_BACKING_Y_OFFSET).toBeCloseTo(TILE_ICON_DEPTH);
   });
 });

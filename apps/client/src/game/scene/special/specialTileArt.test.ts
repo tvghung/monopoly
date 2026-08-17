@@ -1,42 +1,21 @@
-import { chestCards } from '@monopoly/shared';
 import { describe, expect, it } from 'vitest';
-import {
-  createFortuneWheelGeometry,
-  FORTUNE_WHEEL_RADIUS_RATIO,
-  FORTUNE_WHEEL_SEGMENT_COUNT,
-  getFortuneWheelColors,
-} from './CardDeckVisual';
 import { getSpecialTileArtKind, getUtilityArtKind } from './specialTileArt';
 
 describe('special tile art contracts', () => {
-  it('uses dedicated art mappings for chance, fortune, railroad, tax, jail and utilities', () => {
-    expect(getSpecialTileArtKind('chance')).toBe('question-mark-2d');
-    expect(getSpecialTileArtKind('chest')).toBe('fortune-wheel-2d');
-    expect(getSpecialTileArtKind('railroad')).toBe('train-convoy-2d');
+  it('uses dedicated SVG asset mappings for special tiles and utilities', () => {
+    expect(getSpecialTileArtKind('chance')).toBe('chance-question-svg');
+    expect(getSpecialTileArtKind('chest')).toBe('fortune-wheel-svg');
+    expect(getSpecialTileArtKind('railroad')).toBe('railroad-train-svg');
     expect(getSpecialTileArtKind('expense')).toBe('tax-paper-stack-2d');
     expect(getSpecialTileArtKind('jail')).toBe('jail-bars-2d');
-    expect(getSpecialTileArtKind('company')).toBe('electric-bulb-2d');
-    expect(getUtilityArtKind('Công Ty Điện')).toBe('electric-bulb-2d');
-    expect(getUtilityArtKind('Công Ty Nước')).toBe('water-faucet-2d');
+    expect(getSpecialTileArtKind('company')).toBe('electric-bulb-svg');
+    expect(getUtilityArtKind('Công Ty Điện')).toBe('electric-bulb-svg');
+    expect(getUtilityArtKind('Công Ty Nước')).toBe('water-faucet-svg');
   });
 
-  it('derives one colorful wheel cell from every shared Khí Vận card', () => {
-    expect(FORTUNE_WHEEL_SEGMENT_COUNT).toBe(chestCards.length);
-    const colors = getFortuneWheelColors();
-    const geometry = createFortuneWheelGeometry(1, colors);
-    expect(colors).toHaveLength(chestCards.length);
-    expect(geometry.getAttribute('position').count).toBe(chestCards.length * 3);
-    expect(colors.every((color, index) => color !== colors[index - 1])).toBe(true);
-    geometry.dispose();
-  });
-
-  it('keeps the fortune wheel larger and vivid without a horizontal pointer line', () => {
-    expect(FORTUNE_WHEEL_RADIUS_RATIO).toBeGreaterThan(0.3);
-  });
-
-  it('keeps corner identity as separate flat/marker treatments', () => {
+  it('keeps corner identity as separate landmark treatments', () => {
     expect(getSpecialTileArtKind('start')).toBe('start-sign');
     expect(getSpecialTileArtKind('parking')).toBe('parking-lot-2d');
-    expect(getSpecialTileArtKind('gojail')).toBe('handcuffs-2d');
+    expect(getSpecialTileArtKind('gojail')).toBe('handcuffs-svg');
   });
 });
