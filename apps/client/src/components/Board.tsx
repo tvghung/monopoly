@@ -19,17 +19,19 @@ import LegacyBoardView from './legacy-board/LegacyBoardView';
 import Dice from './Dice';
 import Log from './Log';
 import Dashboard from './Dashboard';
+import {
+  resolveInitialRendererMode,
+  type RendererMode,
+} from './rendererMode';
 import './style/BoardShell.css';
 
 const GameScene = lazy(() => import('../game/scene/GameScene'));
-
-type RendererMode = 'webgl' | 'legacy';
 
 export default function Board() {
   const { state, connected, canMutate, roomPlayers } = useContext(stateContext);
   const { state: presentationState } = usePresentation();
   const [rendererMode, setRendererMode] = useState<RendererMode>(
-    () => supportsWebGL() ? 'webgl' : 'legacy',
+    () => resolveInitialRendererMode(supportsWebGL()),
   );
   const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
   const [hoveredTileId, setHoveredTileId] = useState<number | null>(null);

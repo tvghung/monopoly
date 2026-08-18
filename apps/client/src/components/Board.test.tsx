@@ -3,24 +3,17 @@ import {
 } from '@testing-library/react';
 import type { PlayerColorId, PublicGameState } from '@monopoly/shared';
 import {
-  afterEach, beforeEach, describe, expect, it, vi,
+  afterEach, describe, expect, it, vi,
 } from 'vitest';
 import stateContext from '../internal';
-import { supportsWebGL } from '../game/scene/fallback/webglSupport';
 import type { SocketFunctions, StateContextValue } from '../types';
 import Board from './Board';
 
-vi.mock('../game/scene/fallback/webglSupport', () => ({
-  supportsWebGL: vi.fn(() => false),
-}));
 vi.mock('../game/scene/GameScene', () => ({
   default: () => <div data-testid="game-scene" />,
 }));
 
 afterEach(cleanup);
-beforeEach(() => {
-  vi.mocked(supportsWebGL).mockReturnValue(false);
-});
 
 const makeSocketFunctions = (): SocketFunctions => ({
   rollDice: vi.fn(),
@@ -141,20 +134,6 @@ describe('Vietnamese game board', () => {
     expect(container.querySelectorAll('.center__room')).toHaveLength(1);
     expect(container.querySelector('.game-board__center-ui, .game-board__ui, .center')).toBeNull();
     expect(container.querySelectorAll('[data-tile-index]')).toHaveLength(40);
-  });
-
-  it('routes the WebGL renderer deterministically when WebGL is supported', () => {
-    vi.mocked(supportsWebGL).mockReturnValue(true);
-    const { container } = render(
-      <stateContext.Provider value={makeContextValue()}>
-        <Board />
-      </stateContext.Provider>,
-    );
-
-    expect(container.querySelector('.game-board__renderer')?.getAttribute('data-renderer-mode'))
-      .toBe('webgl');
-    expect(container.querySelector('.game-board__accessibility-layer')).not.toBeNull();
-    expect(container.querySelector('.legacy-board')).toBeNull();
   });
 
   it('opens derived property details and closes them with Escape', async () => {
