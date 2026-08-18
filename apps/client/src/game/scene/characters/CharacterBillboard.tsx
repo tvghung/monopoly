@@ -7,7 +7,6 @@ import { useEffectiveReducedMotion } from '../../../settings/selectors';
 import { useTileMotionOffset } from '../board/motion/TileMotionProvider';
 import { boardVisualTokens } from '../board/boardVisualTokens';
 import {
-  CHARACTER_BILLBOARD_HEIGHT,
   getCharacterLandingAnchor,
 } from '../board/architecture/tileAnchors';
 import { getCharacterDefinition } from '../../characters/characterRegistry';
@@ -18,7 +17,7 @@ import {
   sampleCharacterMotion,
 } from './characterMotion';
 import { CharacterReactionController } from './characterReaction';
-import { getCharacterSpriteMaterialProps } from './characterSpriteMaterial';
+import CharacterSprite from './CharacterSprite';
 import ContactShadow from '../fx/ContactShadow';
 import { PLAYER_ACTIVE_RING_TUBE_RADIUS } from '../board/buildingPlacement';
 
@@ -252,15 +251,11 @@ export default function CharacterBillboard({
         </group>
       </group>
       <group ref={bodyGroupRef} position={[0, groundY, 0]}>
-        <sprite
-          position={[0, CHARACTER_BILLBOARD_HEIGHT / 2 + definition.verticalOffset, 0]}
-          scale={[definition.scale * 0.96, definition.scale * CHARACTER_BILLBOARD_HEIGHT, 1]}
-        >
-          <spriteMaterial
-            ref={spriteMaterialRef}
-            {...getCharacterSpriteMaterialProps(texture)}
-          />
-        </sprite>
+        <CharacterSprite
+          texture={texture}
+          definition={definition}
+          materialRef={spriteMaterialRef}
+        />
       </group>
     </group>
   );

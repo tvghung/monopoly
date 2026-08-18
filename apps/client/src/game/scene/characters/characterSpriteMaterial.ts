@@ -2,8 +2,8 @@ import * as THREE from 'three';
 
 export const CHARACTER_SPRITE_MATERIAL_COLOR = '#ffffff';
 
-export function getCharacterSpriteMaterialProps(texture: THREE.Texture | null): {
-  map: THREE.Texture | undefined;
+export function getCharacterSpriteMaterialProps(texture: THREE.Texture): {
+  map: THREE.Texture;
   color: string;
   transparent: true;
   opacity: number;
@@ -12,10 +12,10 @@ export function getCharacterSpriteMaterialProps(texture: THREE.Texture | null): 
   toneMapped: false;
 } {
   return {
-    map: texture ?? undefined,
+    map: texture,
     color: CHARACTER_SPRITE_MATERIAL_COLOR,
     transparent: true,
-    opacity: texture ? 1 : 0,
+    opacity: 1,
     alphaTest: 0.04,
     depthWrite: false,
     toneMapped: false,

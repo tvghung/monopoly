@@ -148,8 +148,7 @@ describe('Vietnamese game board', () => {
       </stateContext.Provider>,
     );
 
-    await vi.dynamicImportSettled();
-    expect(await screen.findByTestId('game-scene', {}, { timeout: 5_000 })).toBeTruthy();
+    expect(await screen.findByTestId('game-scene')).toBeTruthy();
     expect(container.querySelector('.legacy-board')).toBeNull();
   });
 
