@@ -48,13 +48,16 @@ function FreezeChainProbe() {
   const { state: presentationState } = usePresentation();
   const player = playerId ? state.players[playerId] : undefined;
   const tokenArrived = !player
-    || (presentationState.displayPositions[playerId as string] ?? player.currentTile) === player.currentTile;
+    || (presentationState.settledPositions[playerId as string] ?? player.currentTile) === player.currentTile;
 
   return (
     <>
       <output data-testid="authoritative-position">{player?.currentTile ?? 'missing'}</output>
       <output data-testid="display-position">
         {presentationState.displayPositions[playerId as string] ?? 'missing'}
+      </output>
+      <output data-testid="settled-position">
+        {presentationState.settledPositions[playerId as string] ?? 'missing'}
       </output>
       <output data-testid="presentation-status">{presentationState.status}</output>
       <BuyPrompt tokenArrived={tokenArrived} />
@@ -113,6 +116,7 @@ describe('presentation freeze chain', () => {
 
     expect(screen.getByTestId('authoritative-position').textContent).toBe('4');
     expect(screen.getByTestId('display-position').textContent).toBe('0');
+    expect(screen.getByTestId('settled-position').textContent).toBe('0');
     expect(screen.getByTestId('presentation-status').textContent).toBe('playing');
     expect(screen.queryByRole('dialog')).toBeNull();
 
@@ -121,6 +125,7 @@ describe('presentation freeze chain', () => {
     });
 
     expect(screen.getByTestId('display-position').textContent).toBe('4');
+    expect(screen.getByTestId('settled-position').textContent).toBe('4');
     expect(screen.getByRole('dialog')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Không mua' }));
     expect(socketFunctions.doNotBuy).toHaveBeenCalledWith('purchase-1');

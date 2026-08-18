@@ -1,4 +1,4 @@
-# PostgreSQL, snapshot v4, CAS và recovery
+# PostgreSQL, snapshot v5, CAS và recovery
 
 ## Relational model
 
@@ -10,12 +10,14 @@ proposals live inside the active room snapshot and do not require a new table.
 
 ## Strict snapshot validation
 
-The v4 loader/save gate validates player/member references, ordered payment claims,
+The v5 loader/save gate validates player/member references, ordered payment claims,
 pending landing/turn continuation correlation, property/building shape,
 private deck/card one-location invariants, and forced-sale proposal binding:
 seller=active debtor, buyer=distinct ACTIVE player, property fingerprint unchanged,
 gross recomputed, and proposal expiry no later than the payment deadline.
-Finished rooms contain no pending landing/payment/proposal/turn-recovery state.
+It also validates nullable `CharacterId` and shared `PlayerColorId` values on
+appearance identity records. Finished rooms contain no pending
+landing/payment/proposal/turn-recovery state.
 
 ## Command transaction
 
@@ -23,7 +25,7 @@ Finished rooms contain no pending landing/payment/proposal/turn-recovery state.
 protocol/schema gate
 → authenticated actor
 → per-room FIFO + row lock
-→ clone/validate v4 snapshot
+→ clone/validate v5 snapshot
 → mutate GameCore and related ordinary-offer rows
 → revalidate + expected-version CAS
 → public/private projection + ACK
@@ -52,6 +54,8 @@ Migration 004 preserves room/member/session identities and cancels pending ordin
 offers for migrated rooms. Migration 005 upgrades only v3 rows, strips retired
 property/listing fields, clears the private proposal, preserves active queue/turn state,
 cancels pending offers for migrated rooms and recomputes the scheduler deadline.
+Migration 006 upgrades V4 snapshots to V5 without inventing a mascot or resetting
+gameplay; it normalizes legacy player/property colors and adds nullable character IDs.
 Tests must cover idempotence, identity/session/token preservation, offer cancellation,
 fresh-runtime pending Buy/development/Jail/payment/proposal recovery, CAS/save failure
 and public/private no-leak behavior.

@@ -65,13 +65,15 @@ describe('PresentationController', () => {
     controller.dispose();
   });
 
-  it('aborts animation on reconnect and remains at the reconnect snapshot after settling', async () => {
+  it('hard-snaps on reconnect and stale movement completion cannot overwrite the authoritative tile', async () => {
     const controller = new PresentationController();
     const initial = makeRoom();
     controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
     const live = cloneRoom(initial);
-    live.gameState.players['player-a'].currentTile = 10;
+    live.gameState.players['player-a'].currentTile = 4;
     controller.acceptRoomSnapshot(live, 'LIVE_UPDATE');
+    expect(controller.getState().displayPositions['player-a']).toBe(1);
+    expect(controller.getState().settledPositions['player-a']).toBe(0);
     const reconnect = cloneRoom(live);
     reconnect.gameState.players['player-a'].currentTile = 3;
 
@@ -79,6 +81,7 @@ describe('PresentationController', () => {
     await controller.queue.whenIdle();
 
     expect(controller.getState().displayPositions['player-a']).toBe(3);
+    expect(controller.getState().settledPositions['player-a']).toBe(3);
     expect(controller.getState().tileImpacts).toEqual([]);
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(controller.getState().displayPositions['player-a']).toBe(3);

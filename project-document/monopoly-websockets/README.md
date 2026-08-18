@@ -45,10 +45,13 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
   landing decision dùng operation ID, còn payment/forced-sale wait nhúng durable
   `PendingTurnContinuation` thay vì advance sớm.
 - Hidden `GamePrivateState.decks`, `PaymentQueue` và forced-sale proposal nằm trong
-  snapshot v4 nhưng public projector không được lộ deck order hoặc proposal terms
-  cho người chơi khác.
+  snapshot v5 nhưng public projector không được lộ deck order hoặc proposal terms
+  cho người chơi khác. Appearance identity dùng `CharacterId` nullable và
+  `PlayerColorId` ổn định.
 - Client presentation queue is a derived display layer only: reconnect/session
   snapshots snap/reset and live public revisions may animate observable diffs.
+  Board đọc display target, còn action gates đọc settled position; reset epoch không
+  dùng chung sequence với tile impact.
 - Electron is an optional desktop shell around the same client/server contract;
   it does not own gameplay state, identity, persistence or server authority.
 

@@ -11,11 +11,13 @@ interface PresentationContextValue {
 
 const emptyPresentationState: PresentationState = {
   displayPositions: {},
+  settledPositions: {},
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
   status: 'idle',
   tileImpacts: [],
-  tileImpactEpoch: 0,
+  characterReactions: [],
+  presentationResetEpoch: 0,
 };
 
 export const presentationContext = createContext<PresentationContextValue | null>(null);

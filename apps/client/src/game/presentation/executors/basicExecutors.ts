@@ -30,7 +30,29 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
   const landingExecutor: PresentationExecutor<LandTilePresentationEvent> = {
     async run(event, context) {
       store.emitTileImpact(event.playerId, event.tileId, 'LAND');
+      store.emitCharacterReaction(event.playerId, 'happy');
       await context.wait(presentationTiming.landing);
+    },
+    finish() {},
+  };
+  const jailExecutor: PresentationExecutor = {
+    async run(event, context) {
+      if (event.type === 'JAIL_STATE_CHANGED' && event.isJail) {
+        store.emitCharacterReaction(event.playerId, 'jail');
+      }
+      await context.wait(presentationTiming.characterReaction.jail);
+    },
+    finish() {},
+  };
+  const finishedExecutor: PresentationExecutor = {
+    async run(event, context) {
+      if (event.type === 'PLAYER_FINISHED') {
+        store.emitCharacterReaction(
+          event.playerId,
+          event.reason === 'BANKRUPT' ? 'bankrupt' : 'sad',
+        );
+      }
+      await context.wait(presentationTiming.characterReaction.bankrupt);
     },
     finish() {},
   };
@@ -39,8 +61,8 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
     BALANCE_CHANGED: createTimedExecutor(presentationTiming.balanceChange),
     PROPERTY_OWNERSHIP_CHANGED: createTimedExecutor(presentationTiming.propertyPurchase),
     PROPERTY_DEVELOPMENT_CHANGED: createTimedExecutor(presentationTiming.buildPop),
-    JAIL_STATE_CHANGED: createTimedExecutor(presentationTiming.landing),
-    PLAYER_FINISHED: createTimedExecutor(presentationTiming.finish),
+    JAIL_STATE_CHANGED: jailExecutor,
+    PLAYER_FINISHED: finishedExecutor,
     TURN_CHANGED: turnExecutor,
     GAME_FINISHED: createTimedExecutor(presentationTiming.finish),
   };

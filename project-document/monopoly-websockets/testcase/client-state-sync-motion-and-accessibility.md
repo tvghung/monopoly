@@ -6,10 +6,13 @@
   snapshot; terminal errors clear only invalid session; newest-wins old tab stops.
 - [x] `[CLIENT][AUTOMATED]` Stale revision ignored; spectator/reconnecting has no mutation;
   StrictMode does not duplicate listeners/countdowns/actions.
-- [x] `[CLIENT][AUTOMATED]` Protocol-v4 reset resumes the same identity directly into the fresh
-  v4 `IN_PROGRESS` turn without replacing the reconnect credential.
+- [x] `[CLIENT][AUTOMATED]` Protocol-v5 reset resumes the same identity directly into the fresh
+  v5 `IN_PROGRESS` turn without replacing the reconnect credential.
 - [x] `[CLIENT][AUTOMATED]` Presentation event derivation is deterministic, ordered,
   stale-safe and limited to observable diffs; reconnect snapshots do not replay history.
+- [x] `[CLIENT][AUTOMATED]` Board display targets publish before each hop while
+  settled positions gate prompts; reset epoch, tile impacts and stationary-player
+  behavior remain independent.
 - [x] `[CLIENT][AUTOMATED]` Animation queue covers FIFO, pause/resume, skip/reset,
   reduced motion, executor failure recovery, skip-all/reconnect snap and stale
   executor cancellation.

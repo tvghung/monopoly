@@ -35,8 +35,8 @@ export interface BoardRenderModel {
   tiles: BoardTileRenderModel[];
   players: CharacterPlayerModel[];
   tileImpacts: readonly TileImpactSignal[];
-  tileImpactEpoch: number;
-  resetEpoch: number;
+  characterReactions: PresentationState['characterReactions'];
+  presentationResetEpoch: number;
 }
 
 function resolveOwnerColor(
@@ -91,7 +91,7 @@ export function buildBoardRenderModel(
     tiles,
     players,
     tileImpacts: presentationState.tileImpacts,
-    tileImpactEpoch: presentationState.tileImpactEpoch,
-    resetEpoch: presentationState.tileImpactEpoch,
+    characterReactions: presentationState.characterReactions,
+    presentationResetEpoch: presentationState.presentationResetEpoch,
   };
 }

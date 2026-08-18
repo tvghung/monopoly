@@ -8,11 +8,21 @@ const tileMotionContext = createContext<TileMotionController | null>(null);
 
 interface TileMotionProviderProps {
   impacts: readonly TileImpactSignal[];
-  impactEpoch: number;
+  resetEpoch: number;
   children: ReactNode;
 }
 
-export default function TileMotionProvider({ impacts, impactEpoch, children }: TileMotionProviderProps) {
+export function getUnprocessedTileImpacts(
+  impacts: readonly TileImpactSignal[],
+  lastSequence: number,
+): TileImpactSignal[] {
+  return impacts
+    .filter(impact => impact.sequence > lastSequence)
+    .slice()
+    .sort((left, right) => left.sequence - right.sequence);
+}
+
+export default function TileMotionProvider({ impacts, resetEpoch, children }: TileMotionProviderProps) {
   const invalidate = useThree(state => state.invalidate);
   const reducedMotion = useEffectiveReducedMotion();
   const controllerRef = useRef<TileMotionController | null>(null);
@@ -30,7 +40,7 @@ export default function TileMotionProvider({ impacts, impactEpoch, children }: T
   useEffect(() => {
     controller.reset();
     lastSequenceRef.current = 0;
-  }, [controller, impactEpoch]);
+  }, [controller, resetEpoch]);
 
   useEffect(() => {
     if (!initializedRef.current) {
@@ -38,13 +48,7 @@ export default function TileMotionProvider({ impacts, impactEpoch, children }: T
       lastSequenceRef.current = impacts.reduce((latest, impact) => Math.max(latest, impact.sequence), 0);
       return;
     }
-    if (impacts.length === 0) {
-      lastSequenceRef.current = 0;
-      return;
-    }
-    impacts
-      .filter(impact => impact.sequence > lastSequenceRef.current)
-      .sort((left, right) => left.sequence - right.sequence)
+    getUnprocessedTileImpacts(impacts, lastSequenceRef.current)
       .forEach(impact => controller.press(impact.tileId, impact.kind));
     lastSequenceRef.current = impacts.reduce((latest, impact) => Math.max(latest, impact.sequence), lastSequenceRef.current);
   }, [controller, impacts]);

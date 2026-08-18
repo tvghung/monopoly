@@ -449,6 +449,11 @@ Mục tiêu:
   presentation architecture hiện có
 - lưu appearance trong snapshot và nâng protocol/snapshot v4 → v5 an toàn
 
+Implementation note: the Phase 3 presentation layer keeps board target positions
+separate from settled UI-gating positions, uses a dedicated reset epoch for
+reconnect/session snaps, and keeps tile impacts/reactions as independent
+presentation signals.
+
 File:
 
 `03_PHASE_3_CHARACTER_SYSTEM.md`

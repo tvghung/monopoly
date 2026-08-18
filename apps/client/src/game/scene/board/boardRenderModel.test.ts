@@ -5,11 +5,13 @@ import type { PresentationState } from '../../presentation/store/types';
 
 const presentation = (overrides: Partial<PresentationState> = {}): PresentationState => ({
   displayPositions: {},
+  settledPositions: {},
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
   status: 'idle',
   tileImpacts: [],
-  tileImpactEpoch: 0,
+  characterReactions: [],
+  presentationResetEpoch: 0,
   ...overrides,
 });
 

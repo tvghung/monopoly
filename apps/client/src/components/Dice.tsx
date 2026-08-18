@@ -3,7 +3,6 @@ import {
 } from 'react';
 import './style/Dice.css';
 import stateContext from '../internal';
-import displayPositionsContext from '../displayPositionsContext';
 import { useEffectiveReducedMotion } from '../settings/selectors';
 import { usePresentation } from '../game/presentation/PresentationProvider';
 
@@ -67,14 +66,13 @@ export default function Dice() {
   const {
     state, socketFunctions, playerId, canMutate,
   } = useContext(stateContext);
-  const displayPositions = useContext(displayPositionsContext);
   const reduced = useEffectiveReducedMotion();
   const { state: presentationState } = usePresentation();
 
   // Hold off rolling until every token has finished its stepped walk, so the next
   // player can't start moving while the previous token is still travelling.
   const tokensSettled = Object.keys(state.players).every(
-    id => (displayPositions[id] ?? state.players[id].currentTile) === state.players[id].currentTile,
+    id => (presentationState.settledPositions[id] ?? state.players[id].currentTile) === state.players[id].currentTile,
   );
 
   // The server owns the dice now: rolling, movement and tile resolution all

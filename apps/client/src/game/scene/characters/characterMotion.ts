@@ -16,6 +16,37 @@ export interface CharacterMotionSample {
   done: boolean;
 }
 
+export interface CharacterGroundingTransforms {
+  root: readonly [number, number, number];
+  ground: readonly [number, number, number];
+  body: readonly [number, number, number];
+}
+
+export function getCharacterGroundingTransforms(
+  bodyPosition: readonly [number, number, number],
+  groundY: number,
+  tileMotionOffsetY: number,
+): CharacterGroundingTransforms {
+  return {
+    root: [bodyPosition[0], 0, bodyPosition[2]],
+    ground: [0, groundY + tileMotionOffsetY, 0],
+    body: [0, bodyPosition[1], 0],
+  };
+}
+
+export type CharacterTargetTransition = 'SNAP' | 'HOP' | 'NONE';
+
+export function getCharacterTargetTransition(
+  previousTileId: number | null,
+  nextTileId: number,
+  resetChanged: boolean,
+  reducedMotion: boolean,
+): CharacterTargetTransition {
+  if (reducedMotion || resetChanged || previousTileId === null) return 'SNAP';
+  if (previousTileId === nextTileId) return 'NONE';
+  return 'HOP';
+}
+
 export function sampleCharacterMotion(
   elapsedMs: number,
   from: THREE.Vector3,
@@ -42,18 +73,13 @@ export function sampleCharacterMotion(
     };
   }
 
-  const landingProgress = Math.min(
-    1,
-    (elapsed - CHARACTER_HOP_DURATION_MS) / CHARACTER_LANDING_DURATION_MS,
-  );
-  const rebound = Math.sin(landingProgress * Math.PI);
   return {
     position: [to.x, to.y, to.z],
     rotationZ: 0,
-    scaleXZ: 1 - rebound * 0.025,
-    scaleY: 1 + rebound * 0.04,
-    shadowScale: 1 - rebound * 0.1,
-    shadowOpacity: CHARACTER_SHADOW_OPACITY - rebound * 0.035,
-    done: landingProgress >= 1,
+    scaleXZ: 1,
+    scaleY: 1,
+    shadowScale: 1,
+    shadowOpacity: CHARACTER_SHADOW_OPACITY,
+    done: true,
   };
 }

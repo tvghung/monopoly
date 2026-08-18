@@ -13,8 +13,11 @@
   operation IDs cần cho durable continuation.
 - `RoomStatus`: `LOBBY | IN_PROGRESS | FINISHED`; `RoomRole`:
   `PLAYER | SPECTATOR`.
-- `SOCKET_PROTOCOL_VERSION = 4`; older clients nhận `UPGRADE_REQUIRED`, không chạy legacy
+- `SOCKET_PROTOCOL_VERSION = 5`; older clients nhận `UPGRADE_REQUIRED`, không chạy legacy
   state/payload.
+- `CharacterId` và `PlayerColorId` là stable shared appearance IDs. `set appearance`
+  nhận strict character-only, color-only hoặc combined payload; empty/unknown keys
+  bị từ chối.
 - Stable public ID không phải credential. Raw reconnect token không thuộc
   `PublicRoomState`, `GameState`, `SocketData`, log hoặc snapshot.
 
@@ -93,8 +96,9 @@ hay board label hiện tại.
 
 ## Tests
 
-- Protocol v4 mismatch; payload/ACK compile/runtime validation.
-- Strict `TradeBundle`, payment shortfall, landing decision and snapshot v4 validation.
+- Protocol v5 mismatch; payload/ACK compile/runtime validation.
+- Strict appearance/`TradeBundle`, payment shortfall, landing decision and snapshot v5
+  validation.
 - Strict board snapshot validation cho `gameStartedAt` optional/null và compatibility với
   snapshot cũ không có field; start timestamp persistence/public projection.
 - Public no-leak assertion cho token/hash/session/private offer/exact deck order.

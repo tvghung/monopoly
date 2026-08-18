@@ -121,7 +121,7 @@ pnpm desktop:make    # create configured platform makers (Windows Squirrel on Wi
 | `DATABASE_SSL` | `false` | Enable TLS for PostgreSQL. |
 | `DATABASE_SSL_REJECT_UNAUTHORIZED` | `true` | Certificate verification policy. |
 | `DATABASE_MAX_CONNECTIONS` | `10` | PostgreSQL pool size. |
-| `TEST_DATABASE_URL` | unset | Enables the PostgreSQL integration suite; pass it in the shell running `pnpm test`. |
+| `TEST_DATABASE_URL` | unset | Enables the PostgreSQL integration suite; CI sets it alongside `DATABASE_URL`. A run without it is not CI-equivalent, and the test output must make conditional/skipped coverage explicit. |
 | `PORT` | `8080` | HTTP/Socket server port. |
 | `NODE_ENV` | `development` | `production` also serves the built client. |
 | `CORS_ORIGIN` | `http://127.0.0.1:5173` in development; disabled by default in production | Explicit cross-origin allowlist; not authentication. |

@@ -4,7 +4,7 @@
 
 - `[AUTO]`: executable unit/schema gate with exact test file.
 - `[SOCKET]`: real Socket.IO client/server integration.
-- `[PG]`: requires disposable PostgreSQL via `TEST_DATABASE_URL`.
+- `[PG]`: requires disposable PostgreSQL via `DATABASE_URL` and `TEST_DATABASE_URL`.
 - `[CLIENT]`: Vitest + React Testing Library.
 - `[AUDIT]`: deterministic repository/content audit implemented as test/script.
 - `[MANUAL-E2E]`: browser/process validation; never called automated.
@@ -39,4 +39,6 @@ pnpm build
 
 Persistence release additionally runs PostgreSQL migration/integration and fresh
 pool/server restart against the same disposable DB. Conditional/skipped suites do
-not satisfy v3 reset/recovery requirements.
+not satisfy V5 appearance/reset/recovery requirements. CI parity means both
+database variables are set before `pnpm db:migrate` and `pnpm test`; an unset
+`TEST_DATABASE_URL` is an explicitly skipped/conditional run.

@@ -95,7 +95,7 @@ function BoardSceneContents({
       />
       <TileMotionProvider
         impacts={model?.tileImpacts ?? []}
-        impactEpoch={model?.tileImpactEpoch ?? 0}
+        resetEpoch={model?.presentationResetEpoch ?? 0}
       >
         <Board3D
           model={model}

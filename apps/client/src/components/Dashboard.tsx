@@ -1,7 +1,6 @@
 import { useContext } from 'react';
 import './style/Dashboard.css';
 import stateContext from '../internal';
-import displayPositionsContext from '../displayPositionsContext';
 import PlayerList from './dashboard/PlayerList';
 import JailPanel from './dashboard/JailPanel';
 import BuyPrompt from './dashboard/BuyPrompt';
@@ -15,15 +14,15 @@ import { usePresentation } from '../game/presentation/PresentationProvider';
 
 export default function Dashboard() {
   const { state, playerId } = useContext(stateContext);
-  const displayPositions = useContext(displayPositionsContext);
   const { state: presentationState } = usePresentation();
+  const settledPositions = presentationState.settledPositions;
 
   // The buy prompt is driven by authoritative server state, which updates the
   // instant the move resolves — but the token is still walking there. Hold the
   // prompt until our token has actually reached its destination tile.
   const myPlayer = typeof playerId === 'string' ? state.players[playerId] : undefined;
   const tokenArrived = !myPlayer
-    || (displayPositions[playerId as string] ?? myPlayer.currentTile) === myPlayer.currentTile;
+    || (settledPositions[playerId as string] ?? myPlayer.currentTile) === myPlayer.currentTile;
 
   const serverActiveId = state.boardState.currentPlayer.id;
   const activePlayerId = presentationState.displayActivePlayerId ?? serverActiveId;

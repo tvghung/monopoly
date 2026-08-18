@@ -77,9 +77,11 @@ Development endpoint contract:
 
 ## Animation/presentation
 
-Token display position có thể trễ hơn authoritative position. Dice/buy/turn-marker
-settlement rules tiếp tục áp dụng. Reconnect snapshot không được tạo duplicate timer,
-listener hoặc replay mutation.
+`displayPositions` là target display map cho board/character movement; nó có thể đi
+trước authoritative settlement. `settledPositions` là map riêng dùng để gate dice,
+buy và turn prompts cho tới khi presentation tới đúng tile. Không dùng display map
+cho business authority. Reconnect snapshot không được tạo duplicate timer, listener
+hoặc replay mutation.
 
 Board/property presentation derive trực tiếp từ canonical shared `tileState`; không
 duy trì bản sao `BoardInitState.ts` hoặc `backOfCards.ts`. Tất cả tiền hiển thị qua
@@ -90,10 +92,13 @@ formatter dùng `1 game unit = 1.000 VNĐ` và player-facing UI/log/error là ti
 - `derivePresentationEvents(previous, next)` chỉ phát event chứng minh được từ
   hai `PublicRoomState`; không suy đoán rent/cause từ một diff chung.
 - `AnimationQueue` là FIFO, cancellable, có pause/resume/skip/reset/speed và luôn
-  resolve item khi executor lỗi. `reset` phải snap authoritative snapshot và không
-  để executor cũ ghi đè sau reconnect.
-- Movement walk chỉ áp dụng cho bước tiến nhỏ; lùi/teleport snap. Buy/turn prompt
-  chờ display token/queue settle; command vẫn gửi theo authoritative state.
+  resolve item khi executor lỗi. `reset` phải snap authoritative snapshot, tăng
+  `presentationResetEpoch`, xoá tile/reaction signals và không để executor cũ ghi
+  đè sau reconnect. Reset epoch độc lập với sequence của tile impact.
+- Movement walk chỉ áp dụng cho bước tiến nhỏ; executor công bố target từng tile
+  trước khi chờ hop, settle sau khi hop, phát `STEP` chỉ cho tile trung gian và để
+  `LAND` xử lý riêng đúng một lần sau tile cuối. Lùi/teleport snap. Buy/turn prompt
+  chờ `settledPositions`/queue settle; command vẫn gửi theo authoritative state.
 
 ## Quy tắc sửa
 

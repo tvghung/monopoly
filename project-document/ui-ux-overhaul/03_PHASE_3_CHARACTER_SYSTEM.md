@@ -158,9 +158,11 @@ source.
 
 For Three.js, convert the colorized local SVG to a transparent texture and
 cache by `characterId + PlayerColorId`. Do not rasterize per frame or per React
-render; dispose unused texture resources correctly. New lobbies admit at most
-four players; if a legacy in-progress snapshot contains five to seven players,
-the renderer remains structurally safe without changing the admission rule.
+render. The cache uses entry identity, reference counts and idempotent release;
+an old async load disposes its texture and cannot notify a replacement cache entry.
+Dispose unused texture resources correctly. New lobbies admit at most four
+players; if a legacy in-progress snapshot contains five to seven players, the
+renderer remains structurally safe without changing the admission rule.
 
 ## 6. Board placement and presentation
 
@@ -187,16 +189,21 @@ object insertion order or the old seven-slot placeholder registry.
 
 Characters remain readable from the fixed camera, have a consistent apparent
 size, use no camera follow/orbit, and preserve natural art colors with a clear
-player accent.
+player accent. The billboard keeps the active ring and contact shadow in a
+grounded group while the sprite body moves independently. The sprite material is
+neutral white so the colorized SVG is not tinted a second time; hop sampling owns
+shadow scale/opacity and the grounded group receives tile-impact offset only.
 
 ## 7. Movement, landing, reactions, and reconnect
 
 Retain the existing `MOVE_CHARACTER` path and server-authoritative current
-tile. Each intermediate tile is a small hop: X/Z interpolation, restrained Y
-arc, subtle squash/stretch, optional 1–3° tilt, and a smaller/lighter contact
-shadow near the apex. Use centralized `presentationTiming.tileHop` without
-random per-character timing. At the destination add a short squash/rebound and
-the existing tile impact/pulse where practical; do not add an expensive
+tile. For a walk, publish each intermediate display target before waiting for
+the hop, settle it after the hop, emit `STEP` only for intermediate tiles, and
+emit the separate `LAND` event once after the final arrival. Each intermediate
+tile is a small hop: X/Z interpolation, restrained Y arc, subtle squash/stretch,
+optional 1–3° tilt, and a smaller/lighter contact shadow near the apex. Use
+centralized `presentationTiming.tileHop` without random per-character timing.
+Landing rebound/impact is separate from movement timing; do not add an expensive
 particle or sound overhaul.
 
 Because the canvas uses `frameloop="demand"`, request animation frames only
@@ -206,13 +213,21 @@ with no mandatory hop and an authoritative final position.
 
 Reactions use a lightweight internal abstraction that can support `happy`,
 `sad`, `jail`, `bankrupt`, and `emote` via bounce, scale, tilt, emoji bubble,
-or brief accent flash; custom animation clips are out of scope.
+or brief accent flash; the current controller is deterministic and reduced
+motion cancels it. Landing, jail entry and player-finished events use the
+abstraction; custom animation clips are out of scope.
 
 On `SESSION_SYNC`/reconnect, keep player ID, color, and character, cancel
-stale hop/reaction state, reset the presentation queue, snap to authoritative
-current tile, and never replay old movement or duplicate billboards. A stale
-animation completion must not move a character away from the authoritative
-snapshot.
+stale hop/reaction state, reset the presentation queue and reset epoch, snap to
+authoritative current tile, and never replay old movement or duplicate
+billboards. A stale animation completion must not move a character away from the
+authoritative snapshot.
+
+The presentation store keeps `displayPositions` (board/character target) separate
+from `settledPositions` (prompt/dice gating). Tile-impact sequence numbers and
+`presentationResetEpoch` are separate namespaces, so an ordinary pulse cannot
+reset movement state and a session reset cannot replay an old pulse. A stationary
+player must not hop when another player's tile impact changes.
 
 ## 8. Documentation and acceptance criteria
 
@@ -239,8 +254,10 @@ Automated acceptance must cover:
 - every SVG's registry entry, accent tokens, valid local output, red/blue
   recoloring, preserved base colors, and absence of placeholder magenta;
 - deterministic 1–4 placement for all four board sides;
-- one-step, multi-step, wrap 39→0, landing impact, reduced motion, queue reset,
-  session sync, and stale-completion safety.
+- one-step publication-before-wait, multi-step/no-final-STEP, wrap 39→0,
+  landing impact, grounded stationary-player behavior, reduced motion, queue
+  reset, session sync, stale-completion safety, neutral sprite material, and
+  async texture-cache stale-load disposal.
 
 Manual acceptance must confirm four-player cap, eight characters, ten colors,
 duplicate characters, unique colors, accent/ownership agreement, readable
@@ -248,9 +265,12 @@ duplicate characters, unique colors, accent/ownership agreement, readable
 reduced-motion snap, reconnect without replay/clone, no rule regression,
 `frameloop="demand"`, unchanged scene budgets, and no obvious resource leak.
 
-Required release gates are `pnpm db:migrate`, `pnpm typecheck`, `pnpm lint`,
-`pnpm test`, and `pnpm build`. Performance must remain healthy against the
-Phase 2 budget/60 FPS target; budget values may not be raised to hide regressions.
+Required release gates are `pnpm db:migrate`, `pnpm db:status`, `pnpm typecheck`,
+`pnpm lint`, `pnpm test`, and `pnpm build`. PostgreSQL-backed tests must run with
+`TEST_DATABASE_URL` set against a disposable PostgreSQL 17 instance; an unset
+variable is a conditional/skipped run, not CI parity. Performance must remain
+healthy against the Phase 2 budget/60 FPS target; budget values may not be
+raised to hide regressions.
 
 ## 9. Out of scope
 

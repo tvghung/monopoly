@@ -54,8 +54,11 @@ recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
 
 ## Standard Mode contracts và game data
 
-- `SOCKET_PROTOCOL_VERSION = 3`; client/server cũ bị từ chối bằng
+- `SOCKET_PROTOCOL_VERSION = 5`; client/server cũ bị từ chối bằng
   `UPGRADE_REQUIRED`.
+- Appearance contract dùng stable `CharacterId`/`PlayerColorId`; `set appearance`
+  is strict, lobby-only, allows duplicate characters and enforces unique active
+  lobby colors.
 - Board Việt Nam canonical giữ index `0..39`, 8 color groups và toàn bộ numeric
   economy. Client presentation derive từ shared data, không có metadata duplicate.
 - Shared state định nghĩa `PendingTurnContinuation`, pending purchase/development

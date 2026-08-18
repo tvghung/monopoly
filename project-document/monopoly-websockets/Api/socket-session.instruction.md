@@ -46,8 +46,9 @@ current Player. Controlled shutdown does not arm artificial deadlines.
 
 ## Broadcast/ACK
 
-Admission/resume uses protocol-v4 typed ACK. Resume returns stable Player identity, public room
-and pending private offers. Public presence projection is broadcast after binding;
+Admission/resume uses protocol-v5 typed ACK. Resume returns stable Player identity,
+public room, persisted `PlayerColorId`/`CharacterId` and pending private offers.
+Public presence projection is broadcast after binding;
 session/token/offer/exact private deck state remain private.
 
 ## Tests

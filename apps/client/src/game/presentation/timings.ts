@@ -7,5 +7,12 @@ export const presentationTiming = {
   buildPop: 140,
   turnChange: 80,
   finish: 180,
+  characterReaction: {
+    happy: 120,
+    sad: 180,
+    jail: 120,
+    bankrupt: 180,
+    emote: 160,
+  },
 } as const;
 
