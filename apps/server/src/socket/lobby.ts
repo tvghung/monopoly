@@ -68,7 +68,10 @@ export function registerLobbyHandlers(
         }
         const players = activePlayerIds(room.gameSnapshot);
         if (players.length < MIN_PLAYERS || players.length > MAX_PLAYERS) {
-          throw new CommandError('CONFLICT', 'A game requires between two and seven players.');
+          throw new CommandError(
+            'CONFLICT',
+            `A game requires between ${MIN_PLAYERS} and ${MAX_PLAYERS} players.`,
+          );
         }
         if (players.some((id) => !room.gameSnapshot.members[id]?.ready)) {
           throw new CommandError('CONFLICT', 'Every active player must be ready.');

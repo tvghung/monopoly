@@ -33,9 +33,12 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   divider dùng hai instanced layers chung, còn bốn corner tiles giữ treatment riêng.
 - District identity nằm trong các pattern nền textless, sáng và thưa, có tuning
   density/contrast/seam/spacing. Không còn accent inlay, emblem nhỏ hoặc raised
-  continuous color rail trên property tile. Ownership không còn top-surface owner
-  strip; owner state vẫn nằm trong `BoardRenderModel` cho property inspection, HUD,
-  houses/hotel và state presentation.
+  continuous color rail trên property tile. Ownership không còn full-width owner
+  strip/`OwnerTab`; owned purchasable tiles render một planted `OwnershipFlag` nhỏ,
+  với cloth dùng canonical player display color. Flag derive từ authoritative
+  `ownedProps` qua `BoardRenderModel`, coexist với houses/hotel/selection và không
+  xuất hiện trên tile unowned. Owner state vẫn nằm trong `BoardRenderModel` cho
+  property inspection, HUD, houses/hotel và state presentation.
 - Mỗi edge tile có upper art panel 70%, footer nền sáng 30% và divider near-black;
   một side-aware `TilePanelLayout` duy nhất cung cấp kích thước, offset, divider,
   upper-art/footer anchors, footer text và content rotation cho surface batch,

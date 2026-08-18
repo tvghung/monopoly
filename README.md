@@ -81,7 +81,7 @@ variables still take precedence.
 - Socket.IO development CORS origin is exactly `http://127.0.0.1:5173`
 
 Open `http://127.0.0.1:5173`, enter a name and a **room code**, and share the code
-with friends. A lobby supports 2–7 players. Every player must be connected and ready;
+with friends. A lobby supports 2–4 players. Every player must be connected and ready;
 only the persisted host can start the game.
 
 `pnpm dev:desktop` starts the same server/client pair and opens the hardened Electron
@@ -222,6 +222,6 @@ owned property remains.
 - [x] Property trading (private bilateral offers)
 - [x] A dedicated win screen
 - [x] Stable player identity, reconnect and newest-connection-wins sessions
-- [x] Host/ready lobby with 2–7 players and explicit spectator admission
+- [x] Host/ready lobby with 2–4 players and explicit spectator admission
 - [x] PostgreSQL persistence and restart recovery
 - [x] Durable private offers, payment shortfall deadlines and private forced-sale proposals

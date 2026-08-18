@@ -79,7 +79,7 @@ const room: PublicRoomState = {
   status: 'LOBBY',
   hostPlayerId: 'stable-player-id',
   minPlayers: 2,
-  maxPlayers: 7,
+  maxPlayers: 4,
   players: [{
     playerId: 'stable-player-id',
     name: 'Ada',

@@ -2,7 +2,7 @@
 
 ## Start/movement
 
-- [ ] `[AUTO][SOCKET]` Start requires host + 2–7 connected/ready; all Players roll
+- [ ] `[AUTO][SOCKET]` Start requires host + 2–4 connected/ready; all Players roll
   server-side 2d6, tied highest group rerolls, final stable-ID order persists once.
 - [ ] `[AUTO]` Every Player starts index 0/1500; normal 2d6 movement and exact/pass
   Xuất Phát pay 200; direct-to-jail pays none.

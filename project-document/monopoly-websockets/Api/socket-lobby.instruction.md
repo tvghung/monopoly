@@ -9,7 +9,7 @@ per-room executor and typed ACK.
 ## Ready/start
 
 - `set ready({ready})`: active lobby Player changes only own durable ready flag.
-- `start game`: actor must be persisted host; room must be `LOBBY`; 2–7 active
+- `start game`: actor must be persisted host; room must be `LOBBY`; 2–4 active
   Players must all be connected and ready.
 - Successful start rolls server-side 2d6 for every active Player, rerolls tied
   highest group to one winner, persists that stable-ID turn order, initializes
@@ -44,7 +44,7 @@ leave clears runtime binding/admission lock so the same Socket can join another 
 
 ## Tests
 
-- Own-ready only, persistence through reconnect, 2/7 and connected gates.
+- Own-ready only, persistence through reconnect, 2/4 and connected gates.
 - First host, non-host/repeated start and deterministic transfer.
 - Successful start persists one ISO `gameStartedAt`; hydration/public projection and
   subsequent command storage do not reset it. Older snapshots without the field remain valid.

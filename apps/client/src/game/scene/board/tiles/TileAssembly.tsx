@@ -67,7 +67,12 @@ export default function TileAssembly({
           size={layout.size}
         />
         <TileTextLayer tile={tile} name={name} panel={panel} />
-        <TileOwnershipLayer ownerColor={ownerColor} size={layout.size} selected={selected} />
+        <TileOwnershipLayer
+          ownerColor={ownerColor}
+          size={layout.size}
+          panel={panel}
+          selected={selected}
+        />
         <TileDevelopmentLayer houses={houses} />
         <TileSpecialLayer
           tile={tile}

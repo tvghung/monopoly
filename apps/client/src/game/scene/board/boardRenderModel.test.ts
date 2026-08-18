@@ -29,6 +29,7 @@ const state = (overrides: Partial<PublicGameState> = {}): PublicGameState => ({
       1: { id: 'active', color: 'legacy-active', houses: 2 },
       3: { id: 'finished', color: 'legacy-finished', houses: 5 },
       5: { id: 'missing', color: 'fallback', houses: 1 },
+      12: { id: 'active', color: 'legacy-active', houses: 0 },
     },
     winner: null,
   },
@@ -69,6 +70,7 @@ describe('board render model', () => {
     });
     expect(model.tiles[3]).toMatchObject({ ownerId: 'finished', ownerColor: 'purple', houses: 5 });
     expect(model.tiles[5]).toMatchObject({ ownerId: 'missing', ownerColor: 'fallback', houses: 1 });
+    expect(model.tiles[12]).toMatchObject({ ownerId: 'active', ownerColor: 'red', houses: 0 });
     expect(model.tiles[2]).toHaveProperty('houses', 0);
     expect(model.tiles[2]).not.toHaveProperty('ownerId');
   });

@@ -15,16 +15,13 @@ import { z } from 'zod';
 
 export const ROOM_SNAPSHOT_SCHEMA_VERSION = 4;
 export const MIN_PLAYERS = 2;
-export const MAX_PLAYERS = 7;
+export const MAX_PLAYERS = 4;
 
 const PLAYER_COLORS = [
   'yellow',
   'green',
   'blue',
   'red',
-  'orange',
-  'white',
-  'black',
 ] as const;
 
 const playerIdValueSchema = z.uuid();

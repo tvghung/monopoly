@@ -31,7 +31,7 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
 - Valid token reclaim đúng Seat. Newest authenticated connection wins.
 - Disconnect chỉ đổi runtime presence; explicit `leave room` mới revoke/remove.
 - Room lifecycle là `LOBBY → IN_PROGRESS → FINISHED`; host/ready thuộc durable room.
-- Lobby cần 2–7 active players, tất cả connected và ready; chỉ host được start.
+- Lobby cần 2–4 active players, tất cả connected và ready; chỉ host được start.
 - Join không token sau start là spectator; valid player token luôn được xét trước.
 - Mọi inbound payload qua runtime schema. Actor lấy từ authenticated SocketData.
 - Mọi authoritative command được serialize theo room, commit PostgreSQL transaction,

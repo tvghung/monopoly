@@ -137,13 +137,16 @@ Style:
 
 Khi property có owner phải thấy ngay.
 
-Options:
+Design:
 
-- tile edge
-- owner strip
-- small flag
-- marker
-- glow rất nhẹ
+- owned purchasable tiles use a small planted 3D ownership flag
+- flag cloth uses the owning player's canonical display color
+- the flag derives from authoritative ownership/render-model data and coexists
+  with houses, hotel and selection feedback
+- unowned tiles have no ownership flag
+
+The clean district surfaces remain unchanged; do not restore a full-width owner
+strip or `OwnerTab`.
 
 Không chỉ đổi một màu khó thấy.
 

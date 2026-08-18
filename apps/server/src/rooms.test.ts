@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  MAX_PLAYERS,
+  MIN_PLAYERS,
   ROOM_SNAPSHOT_SCHEMA_VERSION,
   UnsupportedRoomSnapshotVersionError,
   assertSupportedRoomSnapshot,
@@ -288,6 +290,17 @@ describe('public room projection', () => {
       claimId: '00000000-0000-4000-8000-000000000102',
       sellableProperties: [],
     });
+  });
+
+  it('projects the supported two-to-four player room limits', () => {
+    const projected = projectPublicRoomState(
+      roomFromSnapshot(createActiveSnapshot()),
+      new ConnectionRegistry(),
+    );
+
+    expect(MIN_PLAYERS).toBe(2);
+    expect(MAX_PLAYERS).toBe(4);
+    expect(projected).toMatchObject({ minPlayers: 2, maxPlayers: 4 });
   });
 
   it('projects the durable match-start timestamp to public state', () => {

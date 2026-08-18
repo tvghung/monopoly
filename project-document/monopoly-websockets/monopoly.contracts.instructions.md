@@ -18,7 +18,7 @@
 - `SOCKET_PROTOCOL_VERSION` phải được client gửi/kiểm tra cùng server. Client cũ
   nhận `UPGRADE_REQUIRED` thay vì chạy legacy unauthenticated flow.
 - `PlayerId`, `RoomId`, `SessionId`, `OfferId`, `ForcedSaleProposalId` là stable opaque IDs.
-- `PublicRoomState` có room revision, lifecycle, host, 2–7 limits, roster
+- `PublicRoomState` có room revision, lifecycle, host, 2–4 limits, roster
   ready/connected và public `GameState`.
 - `SocketData` chứa internal room/player/role/session/generation; không chứa raw token.
 - `Ack<T>` là discriminated success/failure contract. State-changing request chỉ

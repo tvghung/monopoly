@@ -50,7 +50,7 @@ thay đổi chưa hoàn tất.
 - Không persist presence, socket mapping, raw token, timer handle hoặc countdown
   tick. Offer/turn/payment-shortfall/forced-sale recovery persist absolute deadline.
 - Lifecycle room chỉ tiến `LOBBY → IN_PROGRESS → FINISHED`.
-- Host là stable player; disconnect không transfer host. Lobby cần 2–7 active,
+- Host là stable player; disconnect không transfer host. Lobby cần 2–4 active,
   connected và ready players để host start.
 - Standard Mode dùng board Việt Nam cố định 40 ô, đơn vị số nguyên game-unit
   (`1 unit = 1.000 VNĐ`) và protocol/snapshot schema v4. Không đổi index hoặc

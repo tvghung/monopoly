@@ -11,7 +11,7 @@
 ## Lobby/start
 
 - Public roster hiển thị stable ID-backed name/color/host/ready/connected.
-- 2–7 active Player, tất cả connected/ready; chỉ host có start action.
+- 2–4 active Player, tất cả connected/ready; chỉ host có start action.
 - Start success update chứa persisted first-player result từ server dice tie-break;
   UI không tự random/reorder roster.
 - Temporary host disconnect không transfer; explicit leave transfer theo join order.
@@ -27,5 +27,5 @@
 ## Tests
 
 - Vietnamese branding/copy/metadata and no player-facing English.
-- Host/ready/2–7/first-player result/disconnect-transfer behavior.
+- Host/ready/2–4/first-player result/disconnect-transfer behavior.
 - Bankruptcy versus forfeit reason, stable winner and reconnect/restart.

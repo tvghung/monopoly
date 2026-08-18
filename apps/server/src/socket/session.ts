@@ -23,7 +23,7 @@ import type { AppServer, AppSocket } from './types';
 import { parsePayload } from './validation';
 
 const ADMISSION_RATE_WINDOW_MS = 60_000;
-// Leave room for a full seven-player lobby behind one NAT while still capping
+// Leave room for a full four-player lobby behind one NAT while still capping
 // unauthenticated pending-row creation from a single peer.
 const MAX_ADMISSIONS_PER_WINDOW = 30;
 
