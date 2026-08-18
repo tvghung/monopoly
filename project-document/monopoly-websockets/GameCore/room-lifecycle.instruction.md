@@ -20,7 +20,7 @@ presence (`CONNECTED | DISCONNECTED`).
 - Two-step pending admission creates a Seat only on `resume session` activation.
 - Stable UUID Player identity is assigned once and reused across connections/restart.
 - First activated active Seat is host; new Seat has `ready=false`.
-- Lobby maximum is seven active Seats. Start requires 2–7.
+- Lobby maximum is four active Seats. Start requires 2–4.
 - Seat/color/join order and game references are persisted in aggregate.
 - Join without valid Player token after start is spectator and creates no Seat.
 

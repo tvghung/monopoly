@@ -53,6 +53,7 @@ export function projectPublicRoomState(
   const publicGameState: PublicGameState = {
     boardState: {
       gameStarted: boardState.gameStarted,
+      gameStartedAt: boardState.gameStartedAt ?? null,
       players: boardState.players,
       finishedPlayers: boardState.finishedPlayers,
       currentPlayer: {

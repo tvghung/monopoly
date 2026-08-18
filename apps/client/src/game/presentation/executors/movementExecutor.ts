@@ -12,7 +12,9 @@ export function createMovementExecutor(store: PresentationStoreLike): Presentati
       }
       for (let step = 1; step <= event.steps; step += 1) {
         await context.wait(presentationTiming.tileHop);
-        store.setDisplayPosition(event.playerId, (event.from + step) % 40);
+        const tileId = (event.from + step) % 40;
+        store.setDisplayPosition(event.playerId, tileId);
+        store.emitTileImpact(event.playerId, tileId, 'STEP');
       }
     },
     finish(event) {

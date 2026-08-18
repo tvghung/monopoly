@@ -15,16 +15,13 @@ import { z } from 'zod';
 
 export const ROOM_SNAPSHOT_SCHEMA_VERSION = 4;
 export const MIN_PLAYERS = 2;
-export const MAX_PLAYERS = 7;
+export const MAX_PLAYERS = 4;
 
 const PLAYER_COLORS = [
   'yellow',
   'green',
   'blue',
   'red',
-  'orange',
-  'white',
-  'black',
 ] as const;
 
 const playerIdValueSchema = z.uuid();
@@ -80,6 +77,7 @@ export const normalizeRoomId = (raw: unknown): string => {
 export const freshState = (): GameState => ({
   boardState: {
     gameStarted: false,
+    gameStartedAt: null,
     players: [],
     finishedPlayers: {},
     currentPlayer: { id: '', hasMoved: false },
@@ -116,6 +114,7 @@ export const hydrateGameState = (
   boardState: {
     ...structuredClone(snapshot.gameState.boardState),
     gameStarted: status !== 'LOBBY',
+    gameStartedAt: snapshot.gameState.boardState.gameStartedAt ?? null,
   },
   loaded: true,
 });
@@ -127,6 +126,7 @@ export const storeGameState = (
 ): void => {
   const durableState = structuredClone(state);
   durableState.boardState.gameStarted = status !== 'LOBBY';
+  durableState.boardState.gameStartedAt = durableState.boardState.gameStartedAt ?? null;
   snapshot.gameState = {
     boardState: durableState.boardState,
     players: durableState.players,

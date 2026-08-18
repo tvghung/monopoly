@@ -11,8 +11,8 @@
      Lower this number for a squarer board, raise it to allow more stretch. */
   height: 100vh;
   width: min(100vw, 180vh);
-  background: rgb(191, 234, 163);
-  border: 2px solid black;
+  background: var(--color-canvas-deep);
+  border: 2px solid var(--color-border-strong);
 }
 
 .Tile {
@@ -34,7 +34,7 @@
 
 .Tile:focus-visible {
   z-index: 10;
-  outline: 0.35vmin solid #0b57d0;
+  outline: 0.35vmin solid var(--color-focus);
   outline-offset: -0.35vmin;
 }
 
@@ -299,55 +299,41 @@
   grid-area: 10 / 11 / 11 / 12;
 }
 
-.center {
-  grid-area: 2 / 2 / 11 / 11;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-areas:
-  "dice log"
-  "dashboard dashboard";
-  width: 92%;
-  position: relative;
-  margin: 5vmin;
-  padding: 2vw 3vw 2vw 4vw;
-  background:rgba(255, 255, 255, 0.50);
-}
-
 .tile__start {
-  border-top: 1px solid black;
-  border-left: 1px solid black;
+  border-top: 1px solid var(--color-border-strong);
+  border-left: 1px solid var(--color-border-strong);
 }
 
 .tile__horizontal--top {
-  border-top: 1px solid black;
-  border-bottom: 1px solid black;
-  border-left: 1px solid black;
+  border-top: 1px solid var(--color-border-strong);
+  border-bottom: 1px solid var(--color-border-strong);
+  border-left: 1px solid var(--color-border-strong);
 }
 
 .tile__horizontal--top .tile__color-box {
   order: 1;
   height: 1.5vh;
-  border-top: 1px solid black;
+  border-top: 1px solid var(--color-border-strong);
 }
 
 .tile__vertical--right {
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
-  border-top: 1px solid black;
-  border-left: 1px solid black;
+  border-top: 1px solid var(--color-border-strong);
+  border-left: 1px solid var(--color-border-strong);
 }
 
 .tile__vertical--right .tile__color-box {
   width: 1.5vh;
   height: 100%;
   margin-right: 1.5vh;
-  border-right: 1px solid black;
+  border-right: 1px solid var(--color-border-strong);
 }
 
 .tile__horizontal--bottom {
-  border-top: 1px solid black;
-  border-left: 1px solid black;
+  border-top: 1px solid var(--color-border-strong);
+  border-left: 1px solid var(--color-border-strong);
 }
 
 .tile__horizontal--bottom .tile__street-name {
@@ -357,15 +343,15 @@
 
 .tile__horizontal--bottom .tile__color-box {
   height: 1.5vh;
-  border-bottom: 1px solid black;
+  border-bottom: 1px solid var(--color-border-strong);
 }
 
 .tile__vertical--left {
   display: flex;
   flex-direction: row;
   justify-content: flex-end;
-  border-top: 1px solid black;
-  border-right: 1px solid black;
+  border-top: 1px solid var(--color-border-strong);
+  border-right: 1px solid var(--color-border-strong);
 }
 
 .tile__vertical--left .tile__color-box {
@@ -374,7 +360,7 @@
   height: 100%;
   border-bottom: 0;
   margin-left: 1.5vh;
-  border-left: 1px solid black;
+  border-left: 1px solid var(--color-border-strong);
 }
 
 .tile__wrapper {
@@ -437,14 +423,14 @@
   justify-content: center;
   width: 2.3vmin;
   height: 2.3vmin;
-  border: 1px solid rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--color-border-strong);
   border-radius: 50%;
-  color: #fff;
+  color: var(--color-text-inverse);
   overflow: hidden;
   box-shadow:
-    0 0.3vmin 0.5vmin rgba(0, 0, 0, 0.45),
+    0 0.3vmin 0.5vmin rgb(74 98 94 / 18%),
     inset 0 0.35vmin 0.35vmin rgba(255, 255, 255, 0.55),
-    inset 0 -0.3vmin 0.3vmin rgba(0, 0, 0, 0.35);
+    inset 0 -0.3vmin 0.3vmin rgb(74 98 94 / 20%);
 }
 
 .player__token::after {
@@ -466,7 +452,7 @@
   font-size: 1.25vmin;
   font-weight: 700;
   line-height: 1;
-  text-shadow: 0 0.1vmin 0.15vmin rgba(0, 0, 0, 0.7);
+  text-shadow: none;
 }
 
 /* House / hotel markers drawn on an owned tile's front. */
@@ -485,15 +471,15 @@
 .tile__building {
   width: 0.8vmin;
   height: 0.8vmin;
-  background: #2e7d32;
-  border: 0.1vmin solid #14401b;
+  background: var(--color-success);
+  border: 0.1vmin solid var(--color-success-strong);
   border-radius: 0.1vmin;
 }
 
 .tile__building--hotel {
   width: 1.6vmin;
-  background: #c62828;
-  border-color: #7a1414;
+  background: var(--color-danger);
+  border-color: var(--color-danger-strong);
 }
 
 .orientation-notice {
@@ -511,8 +497,8 @@
     justify-content: center;
     gap: 0.75rem;
     padding: 2rem;
-    background: #152727;
-    color: #fff;
+    background: var(--color-info-soft);
+  color: var(--color-text-primary);
     font-size: clamp(1rem, 5vw, 1.4rem);
     line-height: 1.4;
     text-align: center;
@@ -520,12 +506,6 @@
 }
 
 @media (orientation: landscape) and (max-height: 31rem) {
-  .center {
-    width: 94%;
-    margin: 3vmin;
-    padding: 1.5vmin 2.5vmin;
-  }
-
   .tile__street-name,
   .tile__special-name,
   .tile__price,

@@ -17,7 +17,7 @@ disconnect. Durable token/Seat work is delegated to `playerSessionService.ts`.
 ## `resume session({token})`
 
 - Hash lookup handles pending activation or active reconnect.
-- Pending activation transaction creates/finds lobby, enforces seven-seat capacity,
+- Pending activation transaction creates/finds lobby, enforces four-seat capacity,
   creates stable UUID Seat and assigns join order/color/host.
 - Active reconnect returns the same stable Player and relevant pending offers.
 - Invalid/revoked/expired token is rejected, never converted to spectator/new Seat.

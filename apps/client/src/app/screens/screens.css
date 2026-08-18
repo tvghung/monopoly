@@ -1,8 +1,8 @@
-.app-screen { display: grid; place-items: center; align-content: center; gap: var(--space-3); min-height: 100vh; padding: var(--space-6); background: linear-gradient(160deg, var(--color-canvas-deep), #245b54); color: var(--color-text-inverse); text-align: center; }
-.app-screen__brand-mark { margin: 0; color: #ffd79d; font-size: clamp(1.6rem, 5vw, 3rem); font-weight: var(--font-weight-bold); letter-spacing: 0.12em; }
+.app-screen { display: grid; place-items: center; align-content: center; gap: var(--space-3); min-height: 100vh; padding: var(--space-6); background: linear-gradient(160deg, var(--color-canvas-deep), var(--color-info-soft)); color: var(--color-text-primary); text-align: center; }
+.app-screen__brand-mark { margin: 0; color: var(--color-accent-primary-strong); font-size: clamp(1.6rem, 5vw, 3rem); font-weight: var(--font-weight-bold); letter-spacing: 0.12em; }
 .app-screen__product-name { margin: 0; font-size: var(--font-size-lg); }
-.app-screen__spinner { width: 2rem; height: 2rem; margin-top: var(--space-3); border: 3px solid rgb(255 255 255 / 28%); border-top-color: #ffd79d; border-radius: 50%; animation: app-screen-spin 0.8s linear infinite; }
-.app-screen--error { background: linear-gradient(160deg, #502e2b, #743e39); }
+.app-screen__spinner { width: 2rem; height: 2rem; margin-top: var(--space-3); border: 3px solid var(--color-accent-secondary-soft); border-top-color: var(--color-accent-primary-strong); border-radius: 50%; animation: app-screen-spin 0.8s linear infinite; }
+.app-screen--error { background: linear-gradient(160deg, var(--color-danger-soft), #f0e8ff); }
 .app-screen--error h1, .app-screen--error p { max-width: 34rem; }
 @keyframes app-screen-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .app-screen__spinner { animation: none; } }

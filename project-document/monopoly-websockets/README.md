@@ -31,7 +31,7 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
 - Valid token reclaim đúng Seat. Newest authenticated connection wins.
 - Disconnect chỉ đổi runtime presence; explicit `leave room` mới revoke/remove.
 - Room lifecycle là `LOBBY → IN_PROGRESS → FINISHED`; host/ready thuộc durable room.
-- Lobby cần 2–7 active players, tất cả connected và ready; chỉ host được start.
+- Lobby cần 2–4 active players, tất cả connected và ready; chỉ host được start.
 - Join không token sau start là spectator; valid player token luôn được xét trước.
 - Mọi inbound payload qua runtime schema. Actor lấy từ authenticated SocketData.
 - Mọi authoritative command được serialize theo room, commit PostgreSQL transaction,
@@ -72,6 +72,7 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
 | Trading/private offer | [Client/trade-offers.instruction.md](./Client/trade-offers.instruction.md), [Api/socket-trading.instruction.md](./Api/socket-trading.instruction.md) | trading handler, `trade_offers`, offer UI |
 | Property/building/forced sale | [GameCore/property-economy.instruction.md](./GameCore/property-economy.instruction.md) | `game/property.ts`, `game/transfer.ts`, `socket/debt.ts` |
 | Contracts/runtime schema | [Shared/socket-and-state-contracts.instruction.md](./Shared/socket-and-state-contracts.instruction.md) | `types.ts`, `events.ts`, `socketSchemas.ts` |
+| WebGL board/surface art/motion | [Client/game-board.instruction.md](./Client/game-board.instruction.md) | `Board.tsx`, `game/scene/GameScene.tsx`, `game/scene/board/` |
 | HTTP/readiness/deploy | [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md) | create/start server, migration startup, Docker/Render/CI |
 | Board/card/deck data | [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md) | shared canonical board/cards và private deck state |
 

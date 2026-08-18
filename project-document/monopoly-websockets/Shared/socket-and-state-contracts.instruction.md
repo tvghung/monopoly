@@ -40,7 +40,12 @@ Public/persisted types dùng stable IDs và phân biệt hidden state:
   nguyên qua payment/restart; không có third-failed-roll hoặc stored-dice state.
 
 `PersistedGameState`/room snapshot chứa durable fields trên và bỏ `loaded`, presence,
-credential, socket ID, countdown tick/timer handle.
+credential, socket ID, countdown tick/timer handle. `BoardState.gameStartedAt?: string | null`
+là ISO timestamp authoritative được set tại transition `LOBBY -> IN_PROGRESS`; `freshState()`
+dùng `null`, schema chấp nhận missing/null để hydrate snapshot cũ, và public projection
+giữ giá trị này cho compatibility/public state. Board client hiện không render center timer
+và không cần đưa timestamp vào scene render model. Client không tự khởi tạo timestamp từ
+mount/reconnect.
 
 ## Transfer/trading
 
@@ -90,5 +95,7 @@ hay board label hiện tại.
 
 - Protocol v4 mismatch; payload/ACK compile/runtime validation.
 - Strict `TradeBundle`, payment shortfall, landing decision and snapshot v4 validation.
+- Strict board snapshot validation cho `gameStartedAt` optional/null và compatibility với
+  snapshot cũ không có field; start timestamp persistence/public projection.
 - Public no-leak assertion cho token/hash/session/private offer/exact deck order.
 - Socket actor spoof/spectator rejection và save-failure no-publish.

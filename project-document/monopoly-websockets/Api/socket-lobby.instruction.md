@@ -9,12 +9,15 @@ per-room executor and typed ACK.
 ## Ready/start
 
 - `set ready({ready})`: active lobby Player changes only own durable ready flag.
-- `start game`: actor must be persisted host; room must be `LOBBY`; 2–7 active
+- `start game`: actor must be persisted host; room must be `LOBBY`; 2–4 active
   Players must all be connected and ready.
 - Successful start rolls server-side 2d6 for every active Player, rerolls tied
   highest group to one winner, persists that stable-ID turn order, initializes
   private decks/Standard Mode state, sets `IN_PROGRESS` and commits once before
-  public update/ACK. Client supplies no dice/order.
+  public update/ACK. The same command `now` is stored once as optional nullable
+  `boardState.gameStartedAt` and exposed in the public projection; later commands
+  preserve it. The board may keep this compatibility field without rendering a visible
+  timer. Client supplies no dice/order.
 - Repeat/non-host/spectator/offline/unready start returns explicit failure.
 
 First activated Seat is host. Temporary disconnect never transfers host or ready.
@@ -41,8 +44,10 @@ leave clears runtime binding/admission lock so the same Socket can join another 
 
 ## Tests
 
-- Own-ready only, persistence through reconnect, 2/7 and connected gates.
+- Own-ready only, persistence through reconnect, 2/4 and connected gates.
 - First host, non-host/repeated start and deterministic transfer.
+- Successful start persists one ISO `gameStartedAt`; hydration/public projection and
+  subsequent command storage do not reset it. Older snapshots without the field remain valid.
 - Spectator/lobby/in-progress/finished leave branches and token revocation.
 - Same-socket Player/spectator leave then fresh join.
 - Current/non-current leave, property/listing/offer cleanup and winner.

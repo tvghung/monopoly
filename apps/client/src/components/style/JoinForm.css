@@ -4,7 +4,7 @@
   justify-content: center;
   width: 100vw;
   height: 100vh;
-  background: radial-gradient(circle at 50% 0%, #2f4f4f 0%, #1c2b2b 60%, #101a1a 100%);
+  background: radial-gradient(circle at 50% 0%, var(--color-warning-soft) 0%, var(--color-accent-secondary-soft) 48%, var(--color-info-soft) 100%);
 }
 
 .join__card {
@@ -13,29 +13,29 @@
   width: min(90vw, 26rem);
   padding: 2.5rem 2rem;
   border-radius: 1rem;
-  background: #faf7ef;
-  box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.45);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-floating);
 }
 
 .join__title {
   margin: 0 0 0.25rem;
   font-size: 2.5rem;
   text-align: center;
-  color: #c1121f;
+  color: var(--color-accent-primary-strong);
   letter-spacing: 0.05em;
 }
 
 .join__subtitle {
   margin: 0 0 1.5rem;
   text-align: center;
-  color: #4a4a4a;
+  color: var(--color-text-secondary);
   font-size: 0.95rem;
   line-height: 1.4;
 }
 
 .join__brand {
   margin: 0 0 0.75rem;
-  color: #c1121f;
+  color: var(--color-accent-primary-strong);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.18em;
@@ -51,26 +51,28 @@
 }
 
 .join__error {
-  background: #f8d7da;
-  color: #842029;
+  background: var(--color-danger-soft);
+  color: var(--color-danger-strong);
 }
 
 .join__connection {
-  background: #e2e3e5;
-  color: #41464b;
+  background: var(--color-info-soft);
+  color: var(--color-info-strong);
 }
 
 .join__label {
   margin-bottom: 0.35rem;
   font-weight: 600;
-  color: #2b2b2b;
+  color: var(--color-text-primary);
   font-size: 0.9rem;
 }
 
 .join__input {
   margin-bottom: 1.25rem;
   padding: 0.7rem 0.9rem;
-  border: 2px solid #d8d2c2;
+  border: 2px solid var(--color-border);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
   border-radius: 0.5rem;
   font-size: 1rem;
   outline: none;
@@ -78,7 +80,8 @@
 }
 
 .join__input:focus {
-  border-color: #2f4f4f;
+  border-color: var(--color-accent-secondary);
+  box-shadow: var(--shadow-focus);
 }
 
 .join__button {
@@ -86,8 +89,8 @@
   padding: 0.8rem 1rem;
   border: none;
   border-radius: 0.5rem;
-  background: #c1121f;
-  color: #fff;
+  background: var(--color-accent-primary-strong);
+  color: var(--color-text-inverse);
   font-size: 1.05rem;
   font-weight: 700;
   cursor: pointer;
@@ -95,7 +98,7 @@
 }
 
 .join__button:hover:not(:disabled) {
-  background: #a20e1a;
+  background: var(--color-accent-primary);
 }
 
 .join__button:active:not(:disabled) {
@@ -103,6 +106,6 @@
 }
 
 .join__button:disabled {
-  background: #c7a0a3;
+  background: var(--color-border);
   cursor: not-allowed;
 }

@@ -7,11 +7,14 @@ const emptyState: PresentationState = {
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
   status: 'idle',
+  tileImpacts: [],
+  tileImpactEpoch: 0,
 };
 
 export class PresentationStore implements PresentationStoreLike {
   private state: PresentationState = emptyState;
   private readonly listeners = new Set<PresentationListener>();
+  private nextTileImpactSequence = 0;
 
   public getSnapshot(): PresentationState {
     return this.state;
@@ -32,7 +35,10 @@ export class PresentationStore implements PresentationStoreLike {
       displayActivePlayerId: room.gameState.boardState.currentPlayer.id || null,
       displayDice: { ...room.gameState.boardState.diceValue },
       status: 'idle',
+      tileImpacts: [],
+      tileImpactEpoch: this.state.tileImpactEpoch + 1,
     };
+    this.nextTileImpactSequence = 0;
     this.notify();
   }
 
@@ -68,6 +74,14 @@ export class PresentationStore implements PresentationStoreLike {
     const next = playerId || null;
     if (this.state.displayActivePlayerId === next) return;
     this.state = { ...this.state, displayActivePlayerId: next };
+    this.notify();
+  }
+
+  public emitTileImpact(playerId: string, tileId: number, kind: PresentationState['tileImpacts'][number]['kind']): void {
+    this.nextTileImpactSequence += 1;
+    const nextImpact = { sequence: this.nextTileImpactSequence, playerId, tileId, kind };
+    const impacts = [...this.state.tileImpacts, nextImpact].slice(-64);
+    this.state = { ...this.state, tileImpacts: impacts };
     this.notify();
   }
 

@@ -10,7 +10,7 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
 | --- | --- | --- |
 | Join/restore/reconnect | [join-room.instruction.md](./join-room.instruction.md) | `App.tsx`, `JoinForm.tsx`, session storage, overlay |
 | Lobby/roster/start/winner | [game-status.instruction.md](./game-status.instruction.md) | Lobby/Dashboard/PlayerList/WinnerBanner |
-| Board/spectator | [game-board.instruction.md](./game-board.instruction.md) | Board/Tile/BackOfCard/SpectatorBanner |
+| Board/spectator/WebGL surface | [game-board.instruction.md](./game-board.instruction.md) | `Board.tsx`, `game/scene/GameScene.tsx`, `game/scene/board/`, fallback |
 | Turn/landing/payment/jail | [turn-actions.instruction.md](./turn-actions.instruction.md) | Dice/BuyPrompt/DevelopmentPrompt/Jail/Debt controls |
 | Property/build/forced sale | [property-management.instruction.md](./property-management.instruction.md) | BackOfCard/Tile/DebtPanel |
 | `TradeBundle`/private offers | [trade-offers.instruction.md](./trade-offers.instruction.md) | BackOfCard/TradeOfferModal/IncomingOffers |

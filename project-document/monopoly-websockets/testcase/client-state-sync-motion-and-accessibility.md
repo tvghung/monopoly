@@ -44,6 +44,25 @@
   Vietnamese text and short board labels fit desktop/mobile without hiding critical
   action.
 
+## Phase 2.5B commercial WebGL board
+
+- [x] `[CLIENT][AUTOMATED]` Tile surface matrix keeps upward normals and matching
+  footprints on bottom/left/top/right representatives; canonical 40 tiles are
+  assigned once to eight district surface batches plus one special batch.
+- [x] `[CLIENT][AUTOMATED]` All eight district descriptors generate distinct
+  textless albedo/bump data; the 512-square sRGB/non-color texture pairs and
+  materials are reused and deferred disposal survives React StrictMode remount.
+- [x] `[CLIENT][AUTOMATED]` Normal property typography is name-only with adaptive
+  short/canonical/long Vietnamese sizing; local SDF completion invalidates the
+  demand frame without a user interaction.
+- [x] `[CLIENT][AUTOMATED]` Neutral chassis, integrated accents, frame bounds,
+  orthographic camera, tone mapping, budget constants and the triangle estimator
+  are guarded by tests; live diagnostics measure actual draw calls/triangles. WebGL
+  lazy routing waits for its dynamic import deterministically.
+- [ ] `[CLIENT][MANUAL-E2E]` Record 1920×1080 bottom/left/top/right visual review,
+  orange/pink/blue material distinction, center/corner hierarchy, four-player
+  developed-property stress scene and active roll/landing action flow.
+
 ## Desktop shell
 
 - [x] `[DESKTOP][AUTOMATED]` Renderer navigation, external URL allowlist and packaged

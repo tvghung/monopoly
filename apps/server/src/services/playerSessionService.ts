@@ -73,7 +73,10 @@ export class PlayerSessionService {
         assertSupportedRoomSnapshot(room);
         if (room.status !== 'LOBBY') return { kind: 'SPECTATOR', room };
         if (activePlayerIds(room.gameSnapshot).length >= MAX_PLAYERS) {
-          throw new CommandError('ROOM_FULL', 'The lobby already has seven active players.');
+          throw new CommandError(
+            'ROOM_FULL',
+            `The lobby already has ${MAX_PLAYERS} active players.`,
+          );
         }
       }
 
@@ -232,7 +235,10 @@ export class PlayerSessionService {
     }
     const snapshot = structuredClone(room.gameSnapshot);
     if (activePlayerIds(snapshot).length >= MAX_PLAYERS) {
-      throw new CommandError('ROOM_FULL', 'The lobby already has seven active players.');
+      throw new CommandError(
+        'ROOM_FULL',
+        `The lobby already has ${MAX_PLAYERS} active players.`,
+      );
     }
     this.addSeat(snapshot, playerId, name);
     const expiresAt = this.roomExpiry('LOBBY', now);

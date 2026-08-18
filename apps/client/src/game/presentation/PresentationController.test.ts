@@ -79,6 +79,7 @@ describe('PresentationController', () => {
     await controller.queue.whenIdle();
 
     expect(controller.getState().displayPositions['player-a']).toBe(3);
+    expect(controller.getState().tileImpacts).toEqual([]);
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(controller.getState().displayPositions['player-a']).toBe(3);
     controller.dispose();

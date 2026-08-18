@@ -27,7 +27,7 @@
   cancelled and no room delete cascades session rows.
 - [ ] Invalid/revoked/expired token is rejected, not spectator/new Player.
 - [ ] First activated Seat is host; concurrent first joins produce one host/join order.
-- [ ] Lobby capacity and start boundaries are 2–7; all connected/ready; host only.
+- [ ] Lobby capacity and start boundaries are 2–4; all connected/ready; host only.
 - [ ] Start rolls/tie-breaks first Player server-side, persists order once and accepts
   no client dice/order.
 - [ ] Host temporary disconnect does not transfer; explicit leave transfers deterministically.

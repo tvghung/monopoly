@@ -466,9 +466,168 @@ describe('Socket.IO durable player lifecycle', () => {
         },
       },
     });
+    const startedAt = stored?.gameSnapshot.gameState.boardState.gameStartedAt;
+    expect(startedAt).toEqual(expect.any(String));
+    expect(Number.isFinite(Date.parse(startedAt ?? ''))).toBe(true);
     const startingPlayerId = stored?.gameSnapshot.gameState.boardState.currentPlayer.id;
     expect([host.playerId, guest.playerId]).toContain(startingPlayerId);
     expect(stored?.gameSnapshot.gameState.boardState.players[0]).toBe(startingPlayerId);
+  });
+
+  it.each([2, 3, 4])('starts a %i-player lobby when every player is ready', async (playerCount) => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const players: PlayerConnection[] = [];
+
+    for (let index = 0; index < playerCount; index += 1) {
+      players.push(await joinPlayer(
+        await connect(subject.url),
+        `Player ${index + 1}`,
+        `start-${playerCount}`,
+      ));
+    }
+    for (const player of players) {
+      expect((await setReady(player.socket)).ok).toBe(true);
+    }
+
+    expect((await startGame(players[0].socket)).ok).toBe(true);
+    const stored = await persistence.rooms.findById(players[0].room.roomId);
+    expect(stored?.status).toBe('IN_PROGRESS');
+    expect(stored?.gameSnapshot.gameState.boardState.players).toHaveLength(playerCount);
+  });
+
+  it('rejects a fifth player before creating a pending admission', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const players: PlayerConnection[] = [];
+
+    for (let index = 0; index < 4; index += 1) {
+      players.push(await joinPlayer(
+        await connect(subject.url),
+        `Player ${index + 1}`,
+        'capacity-boundary',
+      ));
+    }
+
+    const fifthSocket = await connect(subject.url);
+    const rejected = await waitForAck<JoinRoomResult>((acknowledge) => {
+      fifthSocket.emit('join room', {
+        name: 'Player 5',
+        roomCode: 'capacity-boundary',
+      }, acknowledge);
+    });
+    expect(rejected).toMatchObject({
+      ok: false,
+      error: {
+        code: 'ROOM_FULL',
+        message: 'The lobby already has 4 active players.',
+      },
+    });
+
+    const stored = await persistence.rooms.findById(players[0].room.roomId);
+    expect(Object.values(stored?.gameSnapshot.members ?? {})
+      .filter(member => member.membershipStatus === 'ACTIVE')).toHaveLength(4);
+    expect(Object.keys(stored?.gameSnapshot.gameState.players ?? {})).toHaveLength(4);
+  });
+
+  it('keeps the activation-time capacity guard for concurrent pending admissions', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const players: PlayerConnection[] = [];
+
+    for (let index = 0; index < 3; index += 1) {
+      players.push(await joinPlayer(
+        await connect(subject.url),
+        `Player ${index + 1}`,
+        'activation-capacity',
+      ));
+    }
+
+    const pendingSockets = await Promise.all([
+      connect(subject.url),
+      connect(subject.url),
+    ]);
+    const pendingAdmissions = await Promise.all(pendingSockets.map((socket, index) => (
+      waitForAck<JoinRoomResult>((acknowledge) => {
+        socket.emit('join room', {
+          name: `Pending ${index + 1}`,
+          roomCode: 'activation-capacity',
+        }, acknowledge);
+      })
+    )));
+    const pendingTokens = pendingAdmissions.map(admission => {
+      const result = successData(admission);
+      if (result.kind !== 'PENDING') throw new Error('Expected a pending admission');
+      return result.token;
+    });
+
+    const activations = await Promise.all(pendingTokens.map((token, index) => (
+      waitForAck<ResumeSessionResult>((acknowledge) => {
+        pendingSockets[index].emit('resume session', { token }, acknowledge);
+      })
+    )));
+    expect(activations.filter(acknowledgement => acknowledgement.ok)).toHaveLength(1);
+    const rejected = activations.find(acknowledgement => !acknowledgement.ok);
+    expect(rejected).toMatchObject({
+      ok: false,
+      error: {
+        code: 'ROOM_FULL',
+        message: 'The lobby already has 4 active players.',
+      },
+    });
+
+    const stored = await persistence.rooms.findById(players[0].room.roomId);
+    expect(Object.values(stored?.gameSnapshot.members ?? {})
+      .filter(member => member.membershipStatus === 'ACTIVE')).toHaveLength(4);
+    expect(Object.keys(stored?.gameSnapshot.gameState.players ?? {})).toHaveLength(4);
+  });
+
+  it('rejects a structurally loadable legacy five-player lobby at start', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const players: PlayerConnection[] = [];
+
+    for (let index = 0; index < 4; index += 1) {
+      players.push(await joinPlayer(
+        await connect(subject.url),
+        `Player ${index + 1}`,
+        'legacy-capacity',
+      ));
+    }
+
+    const legacyPlayerId = randomUUID();
+    await mutateRoom(persistence, players[0].room.roomId, (room) => {
+      room.gameSnapshot.members[legacyPlayerId] = {
+        joinOrder: 5,
+        ready: true,
+        membershipStatus: 'ACTIVE',
+      };
+      room.gameSnapshot.nextJoinOrder = 6;
+      room.gameSnapshot.gameState.players[legacyPlayerId] = {
+        name: 'Legacy Player',
+        currentTile: 0,
+        color: 'orange',
+        accountBalance: 1500,
+        isJail: false,
+        jailOpponentRoundsElapsed: 0,
+        heldJailFreeCardIds: [],
+      };
+      room.gameSnapshot.gameState.boardState.players = [
+        ...room.gameSnapshot.gameState.boardState.players,
+        legacyPlayerId,
+      ];
+    });
+
+    const rejected = await startGame(players[0].socket);
+    expect(rejected).toMatchObject({
+      ok: false,
+      error: {
+        code: 'CONFLICT',
+        message: 'A game requires between 2 and 4 players.',
+      },
+    });
+    const stored = await persistence.rooms.findById(players[0].room.roomId);
+    expect(stored?.status).toBe('LOBBY');
   });
 
   it('preserves an in-progress player and their property across transient disconnect', async () => {

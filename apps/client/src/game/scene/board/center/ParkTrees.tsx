@@ -1,0 +1,62 @@
+import { useEffect, useRef } from 'react';
+import * as THREE from 'three';
+import { boardVisualTokens } from '../boardVisualTokens';
+import ContactShadow from '../../fx/ContactShadow';
+
+const TREE_POSITIONS: readonly (readonly [number, number])[] = [
+  [-2.35, -2.35],
+  [2.35, -2.35],
+  [-2.35, 2.35],
+  [2.35, 2.35],
+];
+
+export default function ParkTrees() {
+  const trunksRef = useRef<THREE.InstancedMesh>(null);
+  const crownsRef = useRef<THREE.InstancedMesh>(null);
+  const crownsDarkRef = useRef<THREE.InstancedMesh>(null);
+
+  useEffect(() => {
+    const trunks = trunksRef.current;
+    const crowns = crownsRef.current;
+    const crownsDark = crownsDarkRef.current;
+    if (!trunks || !crowns || !crownsDark) return;
+    const dummy = new THREE.Object3D();
+    TREE_POSITIONS.forEach(([x, z], index) => {
+      dummy.position.set(x, 0.27, z);
+      dummy.scale.set(1, 1.2, 1);
+      dummy.updateMatrix();
+      trunks.setMatrixAt(index, dummy.matrix);
+      dummy.position.set(x, 0.78, z);
+      dummy.scale.setScalar(1);
+      dummy.updateMatrix();
+      crowns.setMatrixAt(index, dummy.matrix);
+      dummy.position.set(x - 0.16, 0.9, z + 0.1);
+      dummy.scale.setScalar(0.78);
+      dummy.updateMatrix();
+      crownsDark.setMatrixAt(index, dummy.matrix);
+    });
+    trunks.instanceMatrix.needsUpdate = true;
+    crowns.instanceMatrix.needsUpdate = true;
+    crownsDark.instanceMatrix.needsUpdate = true;
+  }, []);
+
+  return (
+    <group name="ParkTrees">
+      <instancedMesh ref={trunksRef} args={[undefined, undefined, TREE_POSITIONS.length]}>
+        <cylinderGeometry args={[0.1, 0.13, 0.46, 12]} />
+        <meshStandardMaterial color={boardVisualTokens.plazaTreeTrunk} roughness={0.8} />
+      </instancedMesh>
+      <instancedMesh ref={crownsRef} args={[undefined, undefined, TREE_POSITIONS.length]}>
+        <sphereGeometry args={[0.48, 16, 10]} />
+        <meshStandardMaterial color={boardVisualTokens.plazaTree} roughness={0.76} />
+      </instancedMesh>
+      <instancedMesh ref={crownsDarkRef} args={[undefined, undefined, TREE_POSITIONS.length]}>
+        <sphereGeometry args={[0.34, 12, 8]} />
+        <meshStandardMaterial color={boardVisualTokens.plazaTreeDark} roughness={0.8} />
+      </instancedMesh>
+      {TREE_POSITIONS.map(([x, z]) => (
+        <ContactShadow key={`${x}:${z}`} position={[x, 0, z]} scale={[0.95, 0.68]} opacity={0.18} />
+      ))}
+    </group>
+  );
+}

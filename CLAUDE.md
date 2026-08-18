@@ -50,7 +50,7 @@ thay đổi chưa hoàn tất.
 - Không persist presence, socket mapping, raw token, timer handle hoặc countdown
   tick. Offer/turn/payment-shortfall/forced-sale recovery persist absolute deadline.
 - Lifecycle room chỉ tiến `LOBBY → IN_PROGRESS → FINISHED`.
-- Host là stable player; disconnect không transfer host. Lobby cần 2–7 active,
+- Host là stable player; disconnect không transfer host. Lobby cần 2–4 active,
   connected và ready players để host start.
 - Standard Mode dùng board Việt Nam cố định 40 ô, đơn vị số nguyên game-unit
   (`1 unit = 1.000 VNĐ`) và protocol/snapshot schema v4. Không đổi index hoặc
@@ -66,6 +66,13 @@ thay đổi chưa hoàn tất.
 - Client display state không thay authoritative room state. `SESSION_SYNC` và
   `SPECTATOR_SYNC` reset presentation queue/snap; chỉ `LIVE_UPDATE` mới animate
   state diff. Queue failure phải resolve, và reconnect không replay lịch sử.
+- WebGL board chỉ render `BoardRenderModel` derive từ authoritative state cộng
+  presentation state. Camera orthographic cố định, `frameloop="demand"`; callback
+  hoàn tất local SDF text phải invalidate frame để tên ô hiện mà không cần tương tác.
+- Property chassis giữ màu trung tính. Tám district dùng tám material/texture pair
+  textless dùng chung theo `surfaceKey`; district accent không biểu diễn ownership.
+  Surface batch phải theo cùng tile-motion matrix với chassis. WebGL fallback và
+  40 semantic tile buttons vẫn là accessibility/compatibility boundary bắt buộc.
 - Desktop Electron phải giữ `contextIsolation: true`, `nodeIntegration: false`,
   `sandbox: true`, preload bridge typed/whitelist-only và packaged `app://` path
   traversal guard. Main process chỉ là shell/runtime/window boundary, không chứa

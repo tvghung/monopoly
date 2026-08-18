@@ -1,8 +1,9 @@
 :root {
-  --shadow-panel: 0 0.75rem 2rem rgb(34 48 43 / 12%);
-  --shadow-raised: 0 0.5rem 1.25rem rgb(34 48 43 / 14%);
-  --shadow-modal: 0 1.5rem 4rem rgb(11 28 25 / 30%);
-  --shadow-floating: 0 0.75rem 1.75rem rgb(11 28 25 / 22%);
-  --shadow-focus: 0 0 0 0.25rem rgb(31 111 209 / 24%);
+  --shadow-panel: 0 0.75rem 2rem rgb(17 54 66 / 14%);
+  --shadow-raised: 0 0.5rem 1.25rem rgb(17 54 66 / 16%);
+  --shadow-card: 0 0.55rem 1.35rem rgb(17 54 66 / 14%);
+  --shadow-modal: 0 1.5rem 4rem rgb(11 35 47 / 28%);
+  --shadow-floating: 0 0.75rem 1.75rem rgb(17 54 66 / 20%);
+  --shadow-focus: 0 0 0 0.25rem rgb(36 89 204 / 28%);
 }
 

@@ -69,7 +69,7 @@ Development endpoint contract:
 ## Role và visibility
 
 - Player lobby thấy roster, host badge, ready controls và start state.
-- Chỉ host có start action; button chỉ enabled khi 2–7 active players đều connected
+- Chỉ host có start action; button chỉ enabled khi 2–4 active players đều connected
   và ready.
 - Spectator có banner rõ ràng, board/gameplay read-only và không thấy gameplay/trading
   mutation actions; `send chat` vẫn là ngoại lệ được server cho phép trong room đã bind.

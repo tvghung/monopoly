@@ -79,7 +79,7 @@ const room: PublicRoomState = {
   status: 'LOBBY',
   hostPlayerId: 'stable-player-id',
   minPlayers: 2,
-  maxPlayers: 7,
+  maxPlayers: 4,
   players: [{
     playerId: 'stable-player-id',
     name: 'Ada',
@@ -332,6 +332,9 @@ describe('App session admission', () => {
       }
     });
 
+    expect(screen.getByText(/^FPS (?:--|\d+)$/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cài đặt' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Bỏ cuộc' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Bỏ cuộc' }));
     expect(screen.getByRole('alertdialog')).toBeTruthy();
     expect(lastEmission('leave room')).toBeUndefined();

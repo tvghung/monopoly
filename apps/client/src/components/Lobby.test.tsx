@@ -23,7 +23,7 @@ describe('Lobby', () => {
         playerId="player-a"
         hostPlayerId="player-a"
         minPlayers={2}
-        maxPlayers={7}
+        maxPlayers={4}
         busy={false}
         error={null}
         onSetReady={vi.fn()}
@@ -36,6 +36,8 @@ describe('Lobby', () => {
     expect(onStart).toHaveBeenCalledOnce();
     expect(screen.getByText('Ada (bạn)')).toBeTruthy();
     expect(screen.getByText('Chủ phòng')).toBeTruthy();
+    expect(screen.getAllByRole('listitem')).toHaveLength(4);
+    expect(screen.getByText(/2–4 người chơi/)).toBeTruthy();
   });
 
   it('keeps start disabled while a player is offline or not ready', () => {
@@ -46,7 +48,7 @@ describe('Lobby', () => {
         playerId="player-a"
         hostPlayerId="player-a"
         minPlayers={2}
-        maxPlayers={7}
+        maxPlayers={4}
         busy={false}
         error={null}
         onSetReady={vi.fn()}
@@ -68,7 +70,7 @@ describe('Lobby', () => {
         playerId="player-b"
         hostPlayerId="player-a"
         minPlayers={2}
-        maxPlayers={7}
+        maxPlayers={4}
         busy={false}
         error={null}
         onSetReady={vi.fn()}
@@ -89,7 +91,7 @@ describe('Lobby', () => {
         playerId="player-a"
         hostPlayerId="player-a"
         minPlayers={2}
-        maxPlayers={7}
+        maxPlayers={4}
         busy={false}
         error={null}
         onSetReady={vi.fn()}

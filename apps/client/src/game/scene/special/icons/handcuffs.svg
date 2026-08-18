@@ -1,0 +1,26 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="none"/>
+
+  <g fill="#111111">
+    <!-- separated left cuff -->
+    <circle cx="112" cy="145" r="96"/>
+    <circle cx="112" cy="145" r="58" fill="white"/>
+    <rect x="164" y="177" width="82" height="48" rx="18" transform="rotate(-36 205 201)"/>
+    <circle cx="181" cy="204" r="11" fill="white"/>
+    <circle cx="181" cy="204" r="5"/>
+
+    <!-- separated right cuff -->
+    <circle cx="400" cy="145" r="96"/>
+    <circle cx="400" cy="145" r="58" fill="white"/>
+    <rect x="266" y="177" width="82" height="48" rx="18" transform="rotate(36 307 201)"/>
+    <circle cx="331" cy="204" r="11" fill="white"/>
+    <circle cx="331" cy="204" r="5"/>
+
+    <!-- three open, varied chain links with clear space between the cuffs -->
+    <g fill="white" stroke="#111111" stroke-width="18" stroke-linejoin="round">
+      <rect x="184" y="236" width="76" height="50" rx="25" transform="rotate(-32 222 261)"/>
+      <rect x="224" y="288" width="56" height="84" rx="28" transform="rotate(8 252 330)"/>
+      <rect x="270" y="348" width="76" height="50" rx="25" transform="rotate(32 308 373)"/>
+    </g>
+  </g>
+</svg>

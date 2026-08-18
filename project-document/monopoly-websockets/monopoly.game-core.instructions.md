@@ -30,7 +30,7 @@
 ## Lifecycle rules
 
 - First activated Seat is host; new Seat is unready.
-- Lobby capacity is 2–7 for start; all active Seats must be connected and ready.
+- Lobby capacity is 2–4 for start; all active Seats must be connected and ready.
 - Only host transitions room once from lobby to in-progress.
 - Disconnect preserves Seat/host/ready/assets. Explicit leave is a distinct durable
   domain command; lobby leave removes Seat, in-game leave is confirmed forfeit.

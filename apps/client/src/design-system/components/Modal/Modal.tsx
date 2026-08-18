@@ -39,9 +39,16 @@ export default function Modal({
   useEffect(() => {
     if (!open) return undefined;
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const focusTarget = dialogRef.current?.querySelector<HTMLElement>('[data-modal-autofocus], button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    const focusTarget = dialogRef.current?.querySelector<HTMLElement>('[data-modal-autofocus]')
+      ?? dialogRef.current?.querySelector<HTMLElement>('button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
     (focusTarget ?? dialogRef.current)?.focus();
-    return () => previousFocus.current?.focus();
+    return () => {
+      const focusToRestore = previousFocus.current;
+      queueMicrotask(() => {
+        if (document.querySelector('[aria-modal="true"]')) return;
+        if (focusToRestore?.isConnected) focusToRestore.focus();
+      });
+    };
   }, [open]);
 
   useEffect(() => {

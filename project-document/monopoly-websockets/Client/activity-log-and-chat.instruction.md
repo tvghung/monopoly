@@ -24,11 +24,21 @@
 
 - `Log` đọc `state.boardState.logs` và `socketFunctions` từ `stateContext`.
 - Local state `chat` giữ nội dung input; `scrollRef` trỏ tới vùng log.
+- `getLogActivitySignature()` dùng `[logs.length, logs.at(-1)]`; broadcast tạo array
+  mới nhưng giữ nguyên nội dung log không được coi là activity mới.
+- Root overlay giữ local active/idle state. Mount, log cuối thay đổi, typing, submit,
+  focus hoặc pointer interaction gọi `markActive()`; timeout ref duy nhất chuyển sang
+  idle sau `3000ms` và được clear khi unmount.
+- Idle chỉ giảm opacity toàn bộ root overlay xuống `0.2` (log, input, nền, border và
+  nút `Gửi` cùng fade), không dùng `display:none`/`visibility:hidden` và vẫn nhận
+  pointer events để wake ngay.
 - Submit có nội dung truthy emit `send chat(message)`, sau đó reset local state và form.
 - `send chat` có request-scoped ACK. Server append log trong room command rồi phát committed `update`; client render mảng log mới.
 - Server giới hạn một chat attempt mỗi socket trong 750 ms và chỉ giữ 500 log entries
   mới nhất trong durable snapshot.
-- Effect theo dõi `state.boardState.logs` và cuộn vùng log xuống `scrollHeight` sau mỗi thay đổi.
+- Effect theo dõi activity signature và cuộn vùng log xuống `scrollHeight` sau mỗi
+  log signature mới. Vùng log vẫn `overflow-y:auto` nhưng ẩn scrollbar ở Firefox và
+  Chromium/WebKit.
 - Không có chat service, pagination, persistence phía client hoặc channel riêng ngoài room hiện tại.
 
 ## Phạm vi UI
@@ -43,12 +53,13 @@
 
 1. Khi state chưa loaded, vùng log hiển thị `Loading...`.
 2. Khi loaded, component map toàn bộ `boardState.logs` thành các dòng `<p>`.
-3. Mỗi lần mảng log đổi, vùng log auto-scroll xuống cuối.
-4. Người dùng nhập chat và submit.
-5. Nếu chuỗi local `chat` truthy, client emit `send chat` nguyên giá trị đang có.
-6. Client xóa input sau emit; ACK failure được App hiển thị qua toast và không tự retry message.
-7. Server escape nội dung do người dùng gửi, ghép authoritative actor markup, commit log và emit `update` cho room.
-8. Client render dòng mới và auto-scroll.
+3. Activity signature mới làm overlay sáng lại, reset countdown và auto-scroll xuống cuối.
+4. Sau đúng 3 giây không có activity, root overlay chuyển opacity về `0.2`.
+5. Người dùng nhập chat và submit; typing hoặc pointer/focus interaction cũng wake overlay.
+6. Nếu chuỗi local `chat` truthy, client emit `send chat` nguyên giá trị đang có.
+7. Client xóa input sau emit; ACK failure được App hiển thị qua toast và không tự retry message.
+8. Server escape nội dung do người dùng gửi, ghép authoritative actor markup, commit log và emit `update` cho room.
+9. Client render dòng mới, wake overlay và auto-scroll.
 
 ## Rule và caveat
 
@@ -59,6 +70,7 @@
 - Server hiện escape chat text và sanitize player name; nếu đổi format/nguồn log phải kiểm tra lại boundary này trước khi render HTML.
 - Component dùng array index làm React key cho log line; code hiện append log theo thứ tự.
 - Disconnected client khóa form; failure ACK không tạo phantom log entry dù input local đã được xóa.
+- Idle overlay không khóa input/nút; pointer interaction trên overlay mờ phải wake lại ngay.
 - Actor là stable authenticated Player hoặc explicit spectator label, không lấy từ client payload/socket ID.
 - Active player, finished player và socket khác có thể nhận nhãn người gửi khác nhau từ server; client không tự xác định role đó.
 - Không có route detail, permission key, message edit/delete hoặc history pagination.
@@ -86,6 +98,9 @@ Khi sửa activity log/chat, kiểm tra tối thiểu:
 - Payload chứa `<`, `>`, `&`, quote và script-like text chỉ hiển thị như text, không thực thi HTML/script.
 - Game-generated markup vẫn render đúng sau mọi thay đổi sanitize/render.
 - Input được xóa sau submit và log auto-scroll khi có dòng mới.
+- Overlay active ban đầu, idle sau đúng `3000ms`, wake khi có log mới/typing/submit/focus/pointer;
+  state broadcast giữ nguyên `[count,last]` không reset timer.
+- Log body còn scroll được bằng wheel/touchpad nhưng không có vertical scrollbar nhìn thấy.
 - Nhiều log liên tiếp giữ đúng thứ tự và không mất dòng khi committed public snapshot đến.
 - Reduced-motion không chạy entry animation.
 - Listener `update` không bị nhân đôi sau rerender/reconnect.

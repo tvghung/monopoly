@@ -1,0 +1,58 @@
+import { useEffect, useMemo } from 'react';
+import type { ThreeEvent } from '@react-three/fiber';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import type { BoardMaterialProfile } from '../materials/boardMaterialSpecs';
+import { getBoardMaterialProps } from '../materials/boardMaterialSpecs';
+
+interface RoundedBoxMeshProps {
+  width: number;
+  height: number;
+  depth: number;
+  radius: number;
+  segments?: number;
+  color: string;
+  materialProfile: BoardMaterialProfile;
+  position?: readonly [number, number, number];
+  rotation?: readonly [number, number, number];
+  name?: string;
+  onPointerEnter?: (event: ThreeEvent<PointerEvent>) => void;
+  onPointerLeave?: (event: ThreeEvent<PointerEvent>) => void;
+  onClick?: (event: ThreeEvent<MouseEvent>) => void;
+}
+
+export default function RoundedBoxMesh({
+  width,
+  height,
+  depth,
+  radius,
+  segments = 2,
+  color,
+  materialProfile,
+  position,
+  rotation,
+  name,
+  onPointerEnter,
+  onPointerLeave,
+  onClick,
+}: RoundedBoxMeshProps) {
+  const geometry = useMemo(
+    () => new RoundedBoxGeometry(width, height, depth, segments, radius),
+    [depth, height, radius, segments, width],
+  );
+
+  useEffect(() => () => geometry.dispose(), [geometry]);
+
+  return (
+    <mesh
+      name={name}
+      position={position}
+      rotation={rotation}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
+      onClick={onClick}
+    >
+      <primitive object={geometry} attach="geometry" />
+      <meshStandardMaterial {...getBoardMaterialProps(materialProfile, color)} />
+    </mesh>
+  );
+}

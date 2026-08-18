@@ -26,6 +26,7 @@ import SpectatorBanner from './components/SpectatorBanner';
 import { useToast } from './components/Toast';
 import ConfirmationDialog from './design-system/components/ConfirmationDialog/ConfirmationDialog';
 import SettingsPanel from './settings/SettingsPanel';
+import FpsBadge from './game/ui/FpsBadge';
 import { getDesktopBridge } from './runtime/desktopBridge';
 import stateContext from './internal';
 import { localizeAckError } from './presentation';
@@ -45,6 +46,7 @@ import './App.css';
 const initialState: PublicGameState = {
   boardState: {
     gameStarted: false,
+    gameStartedAt: null,
     players: [],
     finishedPlayers: {},
     currentPlayer: { id: '', hasMoved: false },
@@ -671,23 +673,26 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       : (
         <>
           {role === 'SPECTATOR' ? <SpectatorBanner /> : null}
-          <button
-            type="button"
-            className="room-settings-button"
-            onClick={() => setSettingsOpen(true)}
-          >
-            Cài đặt
-          </button>
-          <button
-            type="button"
-            className="room-exit-button"
-            disabled={operation !== null}
-            onClick={handleLeave}
-          >
-            {role === 'PLAYER' && room.status === 'IN_PROGRESS'
-              ? 'Bỏ cuộc'
-              : 'Rời phòng'}
-          </button>
+          <div className="room-toolbar" aria-label="Điều khiển ván chơi">
+            <FpsBadge />
+            <button
+              type="button"
+              className="room-settings-button"
+              onClick={() => setSettingsOpen(true)}
+            >
+              Cài đặt
+            </button>
+            <button
+              type="button"
+              className="room-exit-button"
+              disabled={operation !== null}
+              onClick={handleLeave}
+            >
+              {role === 'PLAYER' && room.status === 'IN_PROGRESS'
+                ? 'Bỏ cuộc'
+                : 'Rời phòng'}
+            </button>
+          </div>
           {operationError ? <p className="room-exit-error" role="alert">{operationError}</p> : null}
           <Board />
         </>

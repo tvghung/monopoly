@@ -14,6 +14,8 @@ const emptyPresentationState: PresentationState = {
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
   status: 'idle',
+  tileImpacts: [],
+  tileImpactEpoch: 0,
 };
 
 export const presentationContext = createContext<PresentationContextValue | null>(null);
@@ -30,7 +32,10 @@ export function PresentationProvider({ controller, children }: { controller: Pre
   useEffect(() => {
     controller.setPreferences(reducedMotion, settings.animationSpeed);
   }, [controller, reducedMotion, settings.animationSpeed]);
-  useEffect(() => () => controller.dispose(), [controller]);
+  useEffect(() => {
+    controller.retain();
+    return () => controller.release();
+  }, [controller]);
 
   return <presentationContext.Provider value={{ state, queue: controller.queue }}>{children}</presentationContext.Provider>;
 }

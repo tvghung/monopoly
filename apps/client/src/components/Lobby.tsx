@@ -1,6 +1,7 @@
 import './style/Lobby.css';
 import Button from '../design-system/components/Button/Button';
 import Badge from '../design-system/components/Badge/Badge';
+import { getPlayerDisplayColor } from '../game/ui/playerVisualColors';
 
 export interface LobbyPlayerView {
   id: string;
@@ -73,7 +74,7 @@ export default function Lobby({
           {slots.map((player, index) => player
             ? (
               <li className="lobby-player lobby-player--occupied" key={player.id}>
-                <span className="lobby-player__disc" style={{ backgroundColor: player.color }} aria-hidden="true" />
+                <span className="lobby-player__disc" style={{ backgroundColor: getPlayerDisplayColor(player.color) }} aria-hidden="true" />
                 <span className="lobby-player__name">
                   {player.name}
                   {player.id === playerId ? ' (bạn)' : ''}

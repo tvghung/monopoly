@@ -220,6 +220,8 @@ const finishedPlayerSchema = z.strictObject({
 
 export const boardStateSchema = z.strictObject({
   gameStarted: z.boolean(),
+  // Older durable snapshots predate the authoritative match-start timestamp.
+  gameStartedAt: isoTimestampSchema.nullable().optional(),
   players: z.array(playerIdSchema).max(7),
   finishedPlayers: z.record(playerIdSchema, finishedPlayerSchema),
   currentPlayer: currentPlayerSchema,

@@ -1,0 +1,12 @@
+.game-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--color-canvas-deep);
+}
+
+.game-scene canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
