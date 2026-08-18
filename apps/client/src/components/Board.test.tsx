@@ -1,7 +1,7 @@
 import {
   cleanup, fireEvent, render, screen, waitFor,
 } from '@testing-library/react';
-import type { PublicGameState } from '@monopoly/shared';
+import type { PlayerColorId, PublicGameState } from '@monopoly/shared';
 import {
   afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest';
@@ -34,10 +34,11 @@ const makeSocketFunctions = (): SocketFunctions => ({
   useJailCard: vi.fn(),
 });
 
-const makePlayer = (name: string, color: string): PublicGameState['players'][string] => ({
+const makePlayer = (name: string, color: PlayerColorId): PublicGameState['players'][string] => ({
   name,
   currentTile: 0,
   color,
+  characterId: 'shiba',
   accountBalance: 1500,
   isJail: false,
   jailOpponentRoundsElapsed: 0,

@@ -14,6 +14,7 @@ import {
   type ResumeSessionResult,
   type ServerToClientEvents,
   type SessionReplacedInfo,
+  type SetAppearanceRequest,
   type TradeOfferRequest,
 } from '@monopoly/shared';
 import { Pool } from 'pg';
@@ -202,8 +203,25 @@ async function resumePlayer(
 }
 
 async function setReady(socket: TestSocket, ready = true): Promise<Ack> {
+  if (ready) {
+    await waitForAck((acknowledge) => {
+      socket.emit('set appearance', { characterId: 'shiba' }, acknowledge);
+    });
+  }
   return waitForAck((acknowledge) => {
     socket.emit('set ready', { ready }, acknowledge);
+  });
+}
+
+async function setReadyOnly(socket: TestSocket, ready = true): Promise<Ack> {
+  return waitForAck((acknowledge) => {
+    socket.emit('set ready', { ready }, acknowledge);
+  });
+}
+
+async function setAppearance(socket: TestSocket, request: SetAppearanceRequest): Promise<Ack> {
+  return waitForAck((acknowledge) => {
+    socket.emit('set appearance', request, acknowledge);
   });
 }
 
@@ -258,41 +276,44 @@ async function mutateRoom(
 }
 
 describe('Socket.IO durable player lifecycle', () => {
-  it('rejects an incompatible protocol before registering application handlers', async () => {
-    const subject = await startServer();
-    const socket: TestSocket = createClient(subject.url, {
-      auth: { protocolVersion: SOCKET_PROTOCOL_VERSION + 1 },
-      forceNew: true,
-      reconnection: false,
-      transports: ['websocket'],
-    });
-    openSockets.push(socket);
-
-    const error = await new Promise<Error>((resolve, reject) => {
-      const timer = setTimeout(
-        () => reject(new Error('Protocol rejection timed out')),
-        2_000,
-      );
-      socket.once('connect', () => {
-        clearTimeout(timer);
-        reject(new Error('An incompatible protocol connected successfully'));
+  it.each([SOCKET_PROTOCOL_VERSION - 1, SOCKET_PROTOCOL_VERSION + 1])(
+    'rejects incompatible protocol v%i before registering application handlers',
+    async (incompatibleVersion) => {
+      const subject = await startServer();
+      const socket: TestSocket = createClient(subject.url, {
+        auth: { protocolVersion: incompatibleVersion },
+        forceNew: true,
+        reconnection: false,
+        transports: ['websocket'],
       });
-      socket.once('connect_error', (connectError) => {
-        clearTimeout(timer);
-        resolve(connectError);
-      });
-    });
+      openSockets.push(socket);
 
-    expect(error).toMatchObject({
-      message: 'Client protocol version is no longer supported.',
-      data: {
-        code: 'UPGRADE_REQUIRED',
+      const error = await new Promise<Error>((resolve, reject) => {
+        const timer = setTimeout(
+          () => reject(new Error('Protocol rejection timed out')),
+          2_000,
+        );
+        socket.once('connect', () => {
+          clearTimeout(timer);
+          reject(new Error('An incompatible protocol connected successfully'));
+        });
+        socket.once('connect_error', (connectError) => {
+          clearTimeout(timer);
+          resolve(connectError);
+        });
+      });
+
+      expect(error).toMatchObject({
         message: 'Client protocol version is no longer supported.',
-        retryable: false,
-      },
-    });
-    expect(socket.connected).toBe(false);
-  });
+        data: {
+          code: 'UPGRADE_REQUIRED',
+          message: 'Client protocol version is no longer supported.',
+          retryable: false,
+        },
+      });
+      expect(socket.connected).toBe(false);
+    },
+  );
 
   it('uses two-step admission and assigns a stable player ID distinct from socket.id', async () => {
     const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
@@ -357,7 +378,8 @@ describe('Socket.IO durable player lifecycle', () => {
     const subject = await startServer();
     const firstSocket = await connect(subject.url);
     const player = await joinPlayer(firstSocket, 'Ada', 'refresh-room');
-    expect((await setReady(firstSocket)).ok).toBe(true);
+    expect((await setAppearance(firstSocket, { characterId: 'fox', color: 'pink' })).ok).toBe(true);
+    expect((await setReadyOnly(firstSocket)).ok).toBe(true);
 
     firstSocket.disconnect();
     await waitUntil(
@@ -372,6 +394,8 @@ describe('Socket.IO durable player lifecycle', () => {
     expect(resumed.room.players).toHaveLength(1);
     expect(resumed.room.players[0]).toMatchObject({
       playerId: player.playerId,
+      color: 'pink',
+      characterId: 'fox',
       ready: true,
       connected: true,
     });
@@ -472,6 +496,102 @@ describe('Socket.IO durable player lifecycle', () => {
     const startingPlayerId = stored?.gameSnapshot.gameState.boardState.currentPlayer.id;
     expect([host.playerId, guest.playerId]).toContain(startingPlayerId);
     expect(stored?.gameSnapshot.gameState.boardState.players[0]).toBe(startingPlayerId);
+  });
+
+  it('assigns the first available color and enforces lobby appearance rules', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const host = await joinPlayer(await connect(subject.url), 'Host', 'appearance-rules');
+    const guest = await joinPlayer(await connect(subject.url), 'Guest', 'appearance-rules');
+
+    expect(host.room.players.map(player => player.color)).toEqual(['red']);
+    expect(guest.room.players.map(player => player.color)).toEqual(['red', 'blue']);
+    expect(host.room.players.every(player => player.characterId === null)).toBe(true);
+
+    const readyWithoutCharacter = await waitForAck((acknowledge) => {
+      host.socket.emit('set ready', { ready: true }, acknowledge);
+    });
+    expect(readyWithoutCharacter).toMatchObject({
+      ok: false,
+      error: { code: 'CONFLICT' },
+    });
+    expect((await setAppearance(host.socket, { characterId: 'panda' })).ok).toBe(true);
+    expect((await setReadyOnly(host.socket)).ok).toBe(true);
+
+    const conflictingColor = await setAppearance(host.socket, { color: 'blue' });
+    expect(conflictingColor).toMatchObject({
+      ok: false,
+      error: { code: 'CONFLICT', message: 'Màu này đã được người chơi khác chọn.' },
+    });
+
+    const changedColor = await setAppearance(host.socket, { color: 'orange' });
+    expect(changedColor.ok).toBe(true);
+    const storedAfterChange = await persistence.rooms.findById(host.room.roomId);
+    expect(storedAfterChange?.gameSnapshot.gameState.players[host.playerId]).toMatchObject({
+      color: 'orange',
+      characterId: 'panda',
+    });
+    expect(storedAfterChange?.gameSnapshot.members[host.playerId]?.ready).toBe(false);
+
+    expect((await setAppearance(host.socket, {}))).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_REQUEST' },
+    });
+    expect((await setAppearance(host.socket, { characterId: 'shiba', extra: true } as unknown as SetAppearanceRequest))).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_REQUEST' },
+    });
+    expect((await setAppearance(host.socket, { characterId: 'hamster' } as unknown as SetAppearanceRequest))).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_REQUEST' },
+    });
+    expect((await setAppearance(host.socket, { color: 'white' } as unknown as SetAppearanceRequest))).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_REQUEST' },
+    });
+
+    expect((await setAppearance(guest.socket, { characterId: 'shiba' })).ok).toBe(true);
+    expect((await setAppearance(host.socket, { characterId: 'shiba' })).ok).toBe(true);
+    expect((await setAppearance(guest.socket, { characterId: 'shiba', color: 'lime' })).ok).toBe(true);
+    expect((await setReadyOnly(host.socket)).ok).toBe(true);
+    expect((await setReady(guest.socket)).ok).toBe(true);
+    expect((await startGame(host.socket)).ok).toBe(true);
+    expect((await setAppearance(host.socket, { color: 'pink' }))).toMatchObject({
+      ok: false,
+      error: { code: 'GAME_ALREADY_STARTED' },
+    });
+  });
+
+  it('releases a lobby color when its active player leaves', async () => {
+    const subject = await startServer();
+    const host = await joinPlayer(await connect(subject.url), 'Host', 'appearance-release');
+    const guest = await joinPlayer(await connect(subject.url), 'Guest', 'appearance-release');
+
+    expect(guest.room.players.find(player => player.playerId === guest.playerId)?.color).toBe('blue');
+    expect((await leaveRoom(guest.socket)).ok).toBe(true);
+
+    const replacement = await joinPlayer(await connect(subject.url), 'Replacement', 'appearance-release');
+    expect(replacement.room.players.find(player => player.playerId === replacement.playerId)?.color)
+      .toBe('blue');
+    expect(host.playerId).not.toBe(replacement.playerId);
+  });
+
+  it('rejects duplicate authoritative colors at start even if legacy state bypassed the UI', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const host = await joinPlayer(await connect(subject.url), 'Host', 'appearance-duplicate');
+    const guest = await joinPlayer(await connect(subject.url), 'Guest', 'appearance-duplicate');
+    await setReady(host.socket);
+    await setReady(guest.socket);
+
+    await mutateRoom(persistence, host.room.roomId, room => {
+      room.gameSnapshot.gameState.players[guest.playerId].color = 'red';
+    });
+
+    expect(await startGame(host.socket)).toMatchObject({
+      ok: false,
+      error: { code: 'CONFLICT', message: 'Mỗi người chơi phải có một màu riêng trước khi bắt đầu.' },
+    });
   });
 
   it.each([2, 3, 4])('starts a %i-player lobby when every player is ready', async (playerCount) => {
@@ -607,6 +727,7 @@ describe('Socket.IO durable player lifecycle', () => {
         name: 'Legacy Player',
         currentTile: 0,
         color: 'orange',
+        characterId: null,
         accountBalance: 1500,
         isJail: false,
         jailOpponentRoundsElapsed: 0,
@@ -962,6 +1083,7 @@ describe('Socket.IO durable player lifecycle', () => {
     const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
     const subject = await startServer(persistence);
     const player = await joinPlayer(await connect(subject.url), 'Ada', 'stale-queue');
+    await setAppearance(player.socket, { characterId: 'shiba' });
     const before = await persistence.rooms.findById(player.room.roomId);
     const executeSpy = vi.spyOn(subject.runtime.commands, 'execute');
     let releaseBlocker!: () => void;
@@ -981,7 +1103,9 @@ describe('Socket.IO durable player lifecycle', () => {
     );
     await blockerEntered;
 
-    const staleAck = setReady(player.socket);
+    const staleAck = waitForAck((acknowledge) => {
+      player.socket.emit('set ready', { ready: true }, acknowledge);
+    });
     await waitUntil(
       () => executeSpy.mock.calls.length >= 2,
       'The player command was not queued behind the blocker',
@@ -1310,11 +1434,12 @@ describe.runIf(Boolean(testDatabaseUrl))(
            WHERE version IN (
              '003_reset_v1_snapshots.sql',
              '004_simplified_rules_v3.sql',
-             '005_remove_mortgage_open_market.sql'
+             '005_remove_mortgage_open_market.sql',
+             '006_appearance_system_v5.sql'
            )
            RETURNING checksum`,
         );
-        expect(migrationRows.rows).toHaveLength(3);
+        expect(migrationRows.rows).toHaveLength(4);
 
         const roomId = randomUUID();
         const hostPlayerId = randomUUID();
@@ -1322,7 +1447,7 @@ describe.runIf(Boolean(testDatabaseUrl))(
         const hostSessionId = randomUUID();
         const guestSessionId = randomUUID();
         // Historical v1 fixture: these legacy fields are intentionally present
-        // so migrations 003-005 can prove that the row is upgraded in place.
+        // so migrations 003-006 can prove that the row is upgraded in place.
         const legacySnapshot = {
           members: {
             [hostPlayerId]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
@@ -1410,8 +1535,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V1-IDENTITY',
           status: 'IN_PROGRESS',
           hostPlayerId,
-          aggregateVersion: 10,
-          snapshotSchemaVersion: 4,
+          aggregateVersion: 11,
+          snapshotSchemaVersion: 5,
           gameSnapshot: {
             members: {
               [hostPlayerId]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
@@ -1429,12 +1554,14 @@ describe.runIf(Boolean(testDatabaseUrl))(
                 [hostPlayerId]: {
                   name: 'Chủ phòng',
                   color: 'red',
+                  characterId: null,
                   currentTile: 0,
                   accountBalance: 1500,
                 },
                 [guestPlayerId]: {
                   name: 'Khách',
                   color: 'blue',
+                  characterId: null,
                   currentTile: 0,
                   accountBalance: 1500,
                 },
@@ -1490,7 +1617,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           `DELETE FROM schema_migrations
            WHERE version IN (
              '004_simplified_rules_v3.sql',
-             '005_remove_mortgage_open_market.sql'
+             '005_remove_mortgage_open_market.sql',
+             '006_appearance_system_v5.sql'
            )`,
         );
 
@@ -1604,8 +1732,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V2-TO-V4',
           status: 'IN_PROGRESS',
           hostPlayerId,
-          aggregateVersion: 14,
-          snapshotSchemaVersion: 4,
+          aggregateVersion: 15,
+          snapshotSchemaVersion: 5,
           gameSnapshot: {
             gameState: {
               boardState: {
@@ -1615,8 +1743,18 @@ describe.runIf(Boolean(testDatabaseUrl))(
                 paymentQueue: null,
               },
               players: {
-                [hostPlayerId]: { currentTile: 0, accountBalance: 1500, jailOpponentRoundsElapsed: 0 },
-                [guestPlayerId]: { currentTile: 0, accountBalance: 1500, jailOpponentRoundsElapsed: 0 },
+                [hostPlayerId]: {
+                  currentTile: 0,
+                  accountBalance: 1500,
+                  jailOpponentRoundsElapsed: 0,
+                  characterId: null,
+                },
+                [guestPlayerId]: {
+                  currentTile: 0,
+                  accountBalance: 1500,
+                  jailOpponentRoundsElapsed: 0,
+                  characterId: null,
+                },
               },
               turnInfo: {},
               privateState: { forcedSaleProposal: null },
@@ -1664,7 +1802,11 @@ describe.runIf(Boolean(testDatabaseUrl))(
         });
         await migrateDatabase(applicationPool);
         await applicationPool.query(
-          `DELETE FROM schema_migrations WHERE version = '005_remove_mortgage_open_market.sql'`,
+          `DELETE FROM schema_migrations
+           WHERE version IN (
+             '005_remove_mortgage_open_market.sql',
+             '006_appearance_system_v5.sql'
+           )`,
         );
 
         const roomId = randomUUID();
@@ -1730,6 +1872,7 @@ describe.runIf(Boolean(testDatabaseUrl))(
                 name: 'Người bán',
                 currentTile: 1,
                 color: 'red',
+                characterId: 'shiba',
                 accountBalance: 1000,
                 isJail: false,
                 jailOpponentRoundsElapsed: 0,
@@ -1739,6 +1882,7 @@ describe.runIf(Boolean(testDatabaseUrl))(
                 name: 'Người mua',
                 currentTile: 3,
                 color: 'blue',
+                characterId: 'panda',
                 accountBalance: 900,
                 isJail: false,
                 jailOpponentRoundsElapsed: 0,
@@ -1799,14 +1943,14 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V3-CLEANUP',
           status: 'IN_PROGRESS',
           hostPlayerId: sellerPlayerId,
-          aggregateVersion: 21,
-          snapshotSchemaVersion: 4,
+          aggregateVersion: 22,
+          snapshotSchemaVersion: 5,
         });
         const migratedState = migrated.gameSnapshot.gameState;
         expect(migratedState.boardState).not.toHaveProperty('openMarket');
         expect(migratedState.boardState.ownedProps).toEqual({
           1: { id: sellerPlayerId, color: 'red', houses: 2 },
-          3: { id: buyerPlayerId, color: 'red', houses: 0 },
+          3: { id: buyerPlayerId, color: 'blue', houses: 0 },
         });
         expect(migratedState.boardState.paymentQueue).toMatchObject({
           operationId: paymentOperationId,
@@ -1818,10 +1962,12 @@ describe.runIf(Boolean(testDatabaseUrl))(
         expect(migratedState.players[sellerPlayerId]).toMatchObject({
           currentTile: 1,
           accountBalance: 1000,
+          characterId: null,
         });
         expect(migratedState.players[buyerPlayerId]).toMatchObject({
           currentTile: 3,
           accountBalance: 900,
+          characterId: null,
         });
         expect(migratedState.privateState.decks).toEqual(canonicalDecks);
         expect(migratedState.privateState.forcedSaleProposal).toBeNull();

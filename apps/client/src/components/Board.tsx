@@ -26,7 +26,7 @@ const GameScene = lazy(() => import('../game/scene/GameScene'));
 type RendererMode = 'webgl' | 'legacy';
 
 export default function Board() {
-  const { state, connected, canMutate } = useContext(stateContext);
+  const { state, connected, canMutate, roomPlayers } = useContext(stateContext);
   const { state: presentationState } = usePresentation();
   const [rendererMode, setRendererMode] = useState<RendererMode>(
     () => supportsWebGL() ? 'webgl' : 'legacy',
@@ -36,8 +36,8 @@ export default function Board() {
   const [tradeTarget, setTradeTarget] = useState<number | null>(null);
   const displayPositions = presentationState.displayPositions;
   const renderModel = useMemo(
-    () => buildBoardRenderModel(state, presentationState),
-    [presentationState, state],
+    () => buildBoardRenderModel(state, presentationState, roomPlayers),
+    [presentationState, roomPlayers, state],
   );
 
   const selectTile = useCallback((tileId: number) => {

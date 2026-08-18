@@ -1,4 +1,5 @@
 import {
+  setAppearanceRequestSchema,
   setReadyRequestSchema,
   type LeaveRoomResult,
   type OfferResult,
@@ -32,18 +33,60 @@ export function registerLobbyHandlers(
   socket: AppSocket,
   runtime: AppRuntime,
 ): void {
+  socket.on('set appearance', async (rawRequest, acknowledge) => {
+    try {
+      const request = parsePayload(setAppearanceRequestSchema, rawRequest);
+      const actor = requirePlayer(socket, runtime);
+      const { roomId, playerId } = actor;
+      const committed = await commitRoomCommand(runtime, roomId, ({ room, state }) => {
+        if (room.status !== 'LOBBY') {
+          throw new CommandError('GAME_ALREADY_STARTED', 'Appearance can only change in the lobby.');
+        }
+        const member = room.gameSnapshot.members[playerId];
+        const player = state.players[playerId];
+        if (!member || member.membershipStatus !== 'ACTIVE' || !player) {
+          throw new CommandError('FORBIDDEN', 'Only an active player can change appearance.');
+        }
+
+        if (request.color !== undefined && request.color !== player.color) {
+          const conflictingPlayerId = activePlayerIds(room.gameSnapshot).find(
+            candidateId => candidateId !== playerId
+              && state.players[candidateId]?.color === request.color,
+          );
+          if (conflictingPlayerId) {
+            throw new CommandError('CONFLICT', 'Màu này đã được người chơi khác chọn.');
+          }
+        }
+
+        const changed = (request.characterId !== undefined && request.characterId !== player.characterId)
+          || (request.color !== undefined && request.color !== player.color);
+        if (request.characterId !== undefined) player.characterId = request.characterId;
+        if (request.color !== undefined) player.color = request.color;
+        if (changed) member.ready = false;
+      }, undefined, actor);
+      if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
+      broadcastRoom(io, runtime, committed.room);
+      acknowledge(successAck(committed.room.aggregateVersion));
+    } catch (error) {
+      acknowledgeFailure(acknowledge, error);
+    }
+  });
+
   socket.on('set ready', async (rawRequest, acknowledge) => {
     try {
       const request = parsePayload(setReadyRequestSchema, rawRequest);
       const actor = requirePlayer(socket, runtime);
       const { roomId, playerId } = actor;
-      const committed = await commitRoomCommand(runtime, roomId, ({ room }) => {
+      const committed = await commitRoomCommand(runtime, roomId, ({ room, state }) => {
         if (room.status !== 'LOBBY') {
           throw new CommandError('CONFLICT', 'Ready state can only change in the lobby.');
         }
         const member = room.gameSnapshot.members[playerId];
         if (!member || member.membershipStatus !== 'ACTIVE') {
           throw new CommandError('FORBIDDEN', 'Only an active player can become ready.');
+        }
+        if (request.ready && state.players[playerId]?.characterId === null) {
+          throw new CommandError('CONFLICT', 'Vui lòng chọn nhân vật trước khi sẵn sàng.');
         }
         member.ready = request.ready;
       }, undefined, actor);
@@ -75,6 +118,14 @@ export function registerLobbyHandlers(
         }
         if (players.some((id) => !room.gameSnapshot.members[id]?.ready)) {
           throw new CommandError('CONFLICT', 'Every active player must be ready.');
+        }
+        const activePlayers = players.map(id => state.players[id]);
+        if (activePlayers.some(player => !player || player.characterId === null)) {
+          throw new CommandError('CONFLICT', 'Mọi người chơi phải chọn nhân vật trước khi bắt đầu.');
+        }
+        const colors = activePlayers.map(player => player?.color);
+        if (new Set(colors).size !== colors.length) {
+          throw new CommandError('CONFLICT', 'Mỗi người chơi phải có một màu riêng trước khi bắt đầu.');
         }
         if (players.some((id) => !runtime.connections.isConnected(id))) {
           throw new CommandError('CONFLICT', 'Every active player must be connected.');

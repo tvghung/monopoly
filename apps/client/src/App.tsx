@@ -17,6 +17,7 @@ import type {
   RoomRole,
   SessionReplacedInfo,
   ForcedSaleProposal,
+  SetAppearanceRequest,
 } from '@monopoly/shared';
 import Board from './components/Board';
 import ConnectionOverlay from './components/ConnectionOverlay';
@@ -157,7 +158,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
   const [role, setRole] = useState<RoomRole | null>(null);
   const [connected, setConnected] = useState(socket.connected);
   const [failure, setFailure] = useState<AppFailure | null>(null);
-  const [operation, setOperation] = useState<'ready' | 'start' | 'leave' | null>(null);
+  const [operation, setOperation] = useState<'ready' | 'appearance' | 'start' | 'leave' | null>(null);
   const [operationError, setOperationError] = useState<string | null>(null);
   const [privatePlayerState, setPrivatePlayerState] = useState<PrivatePlayerState | null>(null);
   const [privateOffers, setPrivateOffers] = useState<PrivateOffer[]>([]);
@@ -546,6 +547,15 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
     });
   }, [socket]);
 
+  const handleAppearance = useCallback((request: SetAppearanceRequest) => {
+    setOperation('appearance');
+    setOperationError(null);
+    socket.emit('set appearance', request, (response) => {
+      setOperation(null);
+      if (!response.ok) setOperationError(localizeAckError(response.error));
+    });
+  }, [socket]);
+
   const handleStart = useCallback(() => {
     setOperation('start');
     setOperationError(null);
@@ -654,7 +664,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
               id: member.playerId,
               name: member.name,
               color: member.color,
-              characterId: null,
+              characterId: member.characterId,
               ready: member.ready,
               connected: member.connected,
             }))}
@@ -665,6 +675,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
           busy={operation !== null}
           error={operationError}
           onSetReady={handleReady}
+          onSetAppearance={handleAppearance}
           onStart={handleStart}
           onLeave={handleLeave}
           onSettings={() => setSettingsOpen(true)}

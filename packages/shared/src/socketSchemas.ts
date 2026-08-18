@@ -1,9 +1,11 @@
 import { z } from 'zod';
+import { CHARACTER_IDS, PLAYER_COLOR_IDS } from './types';
 import type {
   JoinRoomRequest,
   OfferAction,
   OfferInfo,
   ResumeSessionRequest,
+  SetAppearanceRequest,
   SetReadyRequest,
   TradeBundle,
 } from './types';
@@ -64,6 +66,15 @@ export const resumeSessionRequestSchema = z.strictObject({
 export const setReadyRequestSchema = z.strictObject({
   ready: z.boolean(),
 }) satisfies z.ZodType<SetReadyRequest>;
+
+export const setAppearanceRequestSchema = z.strictObject({
+  characterId: z.enum(CHARACTER_IDS).optional(),
+  color: z.enum(PLAYER_COLOR_IDS).optional(),
+})
+  .refine(
+    request => request.characterId !== undefined || request.color !== undefined,
+    'At least one appearance field is required',
+  ) satisfies z.ZodType<SetAppearanceRequest>;
 
 export const operationIdSchema = z.uuid();
 export const purchaseDecisionRequestSchema = z.strictObject({
@@ -148,6 +159,7 @@ export const clientEventPayloadSchemas = {
   'join room': joinRoomRequestSchema,
   'resume session': resumeSessionRequestSchema,
   'set ready': setReadyRequestSchema,
+  'set appearance': setAppearanceRequestSchema,
   'leave room': noPayloadSchema,
   'start game': noPayloadSchema,
   'send chat': chatMessageSchema,

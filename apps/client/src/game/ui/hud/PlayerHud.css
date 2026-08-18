@@ -5,6 +5,7 @@
   min-height: 4.8rem;
 }
 .player-hud .player-card__disc { width: clamp(1.6rem, 1.6vw, 2.1rem); height: clamp(1.6rem, 1.6vw, 2.1rem); }
+.player-hud .player-card__mascot { width: clamp(1.9rem, 1.9vw, 2.5rem); height: clamp(1.9rem, 1.9vw, 2.5rem); object-fit: contain; flex: 0 0 auto; }
 .player-hud .player-card__initial { font-size: clamp(0.7rem, 0.7vw, 0.9rem); }
 .player-hud .player-card__name { font-size: clamp(0.8rem, 0.8vw, 1rem); }
 .player-hud .player-card__balance { font-size: clamp(0.72rem, 0.72vw, 0.9rem); }

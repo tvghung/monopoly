@@ -23,7 +23,7 @@ describe('DebtPanel', () => {
         turnRecovery: null,
         logs: [],
         diceValue: { dice1: 2, dice2: 3 },
-        ownedProps: { 1: { id: 'player-a', color: 'brown', houses: 2 } },
+        ownedProps: { 1: { id: 'player-a', color: 'red', houses: 2 } },
         winner: null,
         paymentShortfall: {
           debtorPlayerId: 'player-a',
@@ -45,11 +45,11 @@ describe('DebtPanel', () => {
       players: {
         'player-a': {
           name: 'An', currentTile: 3, color: 'red', accountBalance: 100, isJail: false,
-          jailOpponentRoundsElapsed: 0, getOutOfJailCardCount: 0,
+          jailOpponentRoundsElapsed: 0, getOutOfJailCardCount: 0, characterId: 'shiba',
         },
         'player-b': {
           name: 'Bình', currentTile: 5, color: 'blue', accountBalance: 500, isJail: false,
-          jailOpponentRoundsElapsed: 0, getOutOfJailCardCount: 0,
+          jailOpponentRoundsElapsed: 0, getOutOfJailCardCount: 0, characterId: 'panda',
         },
       },
       turnInfo: {},

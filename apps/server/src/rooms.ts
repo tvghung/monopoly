@@ -1,6 +1,7 @@
 import type {
   GameState,
   PersistedGameState,
+  PlayerColorId,
   PlayerId,
   RoomMembershipStatus,
   RoomStatus,
@@ -9,20 +10,34 @@ import {
   allGameCards,
   createCanonicalDecks,
   persistedGameStateSchema,
+  PLAYER_COLOR_IDS,
   tileState,
 } from '@monopoly/shared';
 import { z } from 'zod';
 
-export const ROOM_SNAPSHOT_SCHEMA_VERSION = 4;
+export const ROOM_SNAPSHOT_SCHEMA_VERSION = 5;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 4;
 
-const PLAYER_COLORS = [
-  'yellow',
-  'green',
-  'blue',
-  'red',
-] as const;
+export const LEGACY_PLAYER_COLOR_MAP: Record<string, PlayerColorId> = {
+  yellow: 'yellow',
+  green: 'green',
+  blue: 'blue',
+  red: 'red',
+  orange: 'orange',
+  white: 'cyan',
+  black: 'charcoal',
+  purple: 'purple',
+  pink: 'pink',
+  cyan: 'cyan',
+  lime: 'lime',
+  charcoal: 'charcoal',
+};
+
+export const mapLegacyPlayerColor = (rawColor: unknown): PlayerColorId => {
+  const normalized = typeof rawColor === 'string' ? rawColor.trim().toLowerCase() : '';
+  return LEGACY_PLAYER_COLOR_MAP[normalized] ?? 'charcoal';
+};
 
 const playerIdValueSchema = z.uuid();
 const finiteIntegerSchema = z.number().int().finite().safe();
@@ -55,6 +70,72 @@ export interface PersistedRoomSnapshotEnvelope {
   hostPlayerId?: PlayerId | null;
   status?: RoomStatus;
 }
+
+interface LegacyPlayerRecord {
+  id?: unknown;
+  color?: unknown;
+  characterId?: unknown;
+  [key: string]: unknown;
+}
+
+interface LegacyRoomSnapshotShape {
+  members: RoomSnapshot['members'];
+  nextJoinOrder: number;
+  gameState: {
+    players: Record<PlayerId, LegacyPlayerRecord>;
+    boardState: {
+      finishedPlayers: Record<PlayerId, LegacyPlayerRecord>;
+      winner: LegacyPlayerRecord | null;
+      ownedProps: Record<string, LegacyPlayerRecord>;
+      [key: string]: unknown;
+    };
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+/**
+ * Pure JSON boundary used by migration tests and operational tooling. The SQL
+ * migration is the production upgrader; this helper makes the exact V4 -> V5
+ * transformation executable without inventing an appearance.
+ */
+export const upgradeRoomSnapshotV4ToV5 = (
+  input: unknown,
+): PersistedRoomSnapshotEnvelope => {
+  const envelope = structuredClone(input) as {
+    snapshotSchemaVersion: number;
+    gameSnapshot: LegacyRoomSnapshotShape;
+    hostPlayerId?: PlayerId | null;
+    status?: RoomStatus;
+  };
+  if (envelope.snapshotSchemaVersion !== 4) {
+    throw new Error('Only V4 room snapshots can be upgraded to V5');
+  }
+
+  const { gameState } = envelope.gameSnapshot;
+  Object.values(gameState.players).forEach(player => {
+    player.color = mapLegacyPlayerColor(player.color);
+    player.characterId = null;
+  });
+  Object.values(gameState.boardState.finishedPlayers).forEach(player => {
+    player.color = mapLegacyPlayerColor(player.color);
+    player.characterId = null;
+  });
+  if (gameState.boardState.winner) {
+    gameState.boardState.winner.color = mapLegacyPlayerColor(gameState.boardState.winner.color);
+    gameState.boardState.winner.characterId = null;
+  }
+  Object.values(gameState.boardState.ownedProps).forEach(property => {
+    const owner = gameState.players[property.id as PlayerId];
+    property.color = mapLegacyPlayerColor(owner?.color ?? property.color);
+  });
+
+  return {
+    ...envelope,
+    snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
+    gameSnapshot: envelope.gameSnapshot as unknown as RoomSnapshot,
+  };
+};
 
 export class UnsupportedRoomSnapshotVersionError extends Error {
   constructor(readonly snapshotSchemaVersion: number) {
@@ -142,13 +223,13 @@ export const activePlayerIds = (snapshot: RoomSnapshot): PlayerId[] => (
     .map(([playerId]) => playerId)
 );
 
-export const nextAvailableColor = (snapshot: RoomSnapshot): string | null => {
+export const nextAvailableColor = (snapshot: RoomSnapshot): PlayerColorId | null => {
   const used = new Set(
     activePlayerIds(snapshot)
       .map((playerId) => snapshot.gameState.players[playerId]?.color)
-      .filter((color): color is string => typeof color === 'string'),
+      .filter((color): color is PlayerColorId => typeof color === 'string'),
   );
-  return PLAYER_COLORS.find((color) => !used.has(color)) ?? null;
+  return PLAYER_COLOR_IDS.find((color) => !used.has(color)) ?? null;
 };
 
 export const syncMembershipWithGameState = (snapshot: RoomSnapshot): void => {

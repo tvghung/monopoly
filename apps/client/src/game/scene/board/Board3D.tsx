@@ -5,7 +5,7 @@ import TileAssembly from './tiles/TileAssembly';
 import TileBodyBatch from './tiles/TileBodyBatch';
 import TileSurfaceBatch from './tiles/TileSurfaceBatch';
 import type { BoardRenderModel, BoardTileRenderModel } from './boardRenderModel';
-import Phase2PlayerMarkers from '../players/Phase2PlayerMarkers';
+import CharactersLayer from '../characters/CharactersLayer';
 
 interface Board3DProps {
   model?: BoardRenderModel;
@@ -64,7 +64,10 @@ export default function Board3D({
         ))}
       </group>
       <CenterAirport />
-      <Phase2PlayerMarkers players={model?.players ?? []} />
+      <CharactersLayer
+        players={model?.players ?? []}
+        resetEpoch={model?.resetEpoch ?? 0}
+      />
     </group>
   );
 }

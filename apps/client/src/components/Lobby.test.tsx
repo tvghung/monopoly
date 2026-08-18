@@ -9,8 +9,8 @@ import Lobby from './Lobby';
 afterEach(cleanup);
 
 const readyPlayers = [
-  { id: 'player-a', name: 'Ada', color: 'red', ready: true, connected: true },
-  { id: 'player-b', name: 'Grace', color: 'blue', ready: true, connected: true },
+  { id: 'player-a', name: 'Ada', color: 'red' as const, characterId: 'shiba' as const, ready: true, connected: true },
+  { id: 'player-b', name: 'Grace', color: 'blue' as const, characterId: 'panda' as const, ready: true, connected: true },
 ];
 
 describe('Lobby', () => {
@@ -27,6 +27,7 @@ describe('Lobby', () => {
         busy={false}
         error={null}
         onSetReady={vi.fn()}
+        onSetAppearance={vi.fn()}
         onStart={onStart}
         onLeave={vi.fn()}
       />,
@@ -52,6 +53,7 @@ describe('Lobby', () => {
         busy={false}
         error={null}
         onSetReady={vi.fn()}
+        onSetAppearance={vi.fn()}
         onStart={vi.fn()}
         onLeave={vi.fn()}
       />,
@@ -74,6 +76,7 @@ describe('Lobby', () => {
         busy={false}
         error={null}
         onSetReady={vi.fn()}
+        onSetAppearance={vi.fn()}
         onStart={vi.fn()}
         onLeave={vi.fn()}
       />,
@@ -83,7 +86,7 @@ describe('Lobby', () => {
     expect(screen.getByText(/Đang chờ Chủ Phòng/)).toBeTruthy();
   });
 
-  it('shows a character placeholder without adding server character state', () => {
+  it('shows the selected mascot and exposes appearance controls', () => {
     render(
       <Lobby
         roomCode="ROOM-4"
@@ -95,11 +98,22 @@ describe('Lobby', () => {
         busy={false}
         error={null}
         onSetReady={vi.fn()}
+        onSetAppearance={vi.fn()}
         onStart={vi.fn()}
         onLeave={vi.fn()}
       />,
     );
 
-    expect(screen.getAllByText('Nhân vật: Sắp ra mắt')).toHaveLength(2);
+    expect(screen.getAllByText('Shiba').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Panda').length).toBeGreaterThanOrEqual(1);
+    const characterGroup = screen.getByRole('group', { name: 'Chọn mascot' });
+    const colorGroup = screen.getByRole('group', { name: 'Chọn màu người chơi' });
+    expect(characterGroup.querySelectorAll('button')).toHaveLength(8);
+    expect(colorGroup.querySelectorAll('button')).toHaveLength(10);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Panda' }).disabled).toBe(false);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: /Xanh dương \(đã được chọn\)/u }).disabled).toBe(true);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đỏ' }).disabled).toBe(false);
+    expect(document.querySelector<HTMLImageElement>('.lobby-player__mascot')?.src)
+      .toContain('%23f2384a');
   });
 });

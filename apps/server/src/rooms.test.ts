@@ -8,7 +8,9 @@ import {
   assertSupportedRoomSnapshot,
   createRoomSnapshot,
   hydrateGameState,
+  nextAvailableColor,
   storeGameState,
+  upgradeRoomSnapshotV4ToV5,
 } from './rooms.js';
 import type { RoomRecord } from './persistence/types.js';
 import { ConnectionRegistry } from './services/connectionRegistry.js';
@@ -34,6 +36,7 @@ const createActiveSnapshot = (): ReturnType<typeof createRoomSnapshot> => {
     name: 'Player One',
     currentTile: 0,
     color: 'red',
+    characterId: 'shiba',
     accountBalance: 1500,
     isJail: false,
     jailOpponentRoundsElapsed: 0,
@@ -43,6 +46,7 @@ const createActiveSnapshot = (): ReturnType<typeof createRoomSnapshot> => {
     name: 'Player Two',
     currentTile: 0,
     color: 'blue',
+    characterId: 'panda',
     accountBalance: 1500,
     isJail: false,
     jailOpponentRoundsElapsed: 0,
@@ -59,6 +63,67 @@ const createActiveSnapshot = (): ReturnType<typeof createRoomSnapshot> => {
 };
 
 describe('durable room snapshot compatibility', () => {
+  it('upgrades V4 appearance state without inventing characters or changing game state', () => {
+    const legacy = {
+      snapshotSchemaVersion: 4,
+      gameSnapshot: {
+        ...createRoomSnapshot(),
+        gameState: {
+          ...createRoomSnapshot().gameState,
+          players: {
+            [PLAYER_ONE]: {
+              name: 'Legacy One',
+              currentTile: 11,
+              color: 'white',
+              accountBalance: 800,
+              isJail: false,
+              jailOpponentRoundsElapsed: 0,
+              heldJailFreeCardIds: [],
+            },
+          },
+          boardState: {
+            ...createRoomSnapshot().gameState.boardState,
+            finishedPlayers: {
+              [PLAYER_TWO]: { name: 'Legacy Two', color: 'black', reason: 'LEFT' },
+            },
+            ownedProps: {
+              1: { id: PLAYER_ONE, color: 'red', houses: 2 },
+            },
+            winner: { playerId: PLAYER_TWO, name: 'Legacy Two', color: 'black' },
+          },
+        },
+      },
+    } as unknown;
+
+    const original = structuredClone(legacy);
+    const upgraded = upgradeRoomSnapshotV4ToV5(legacy);
+    expect(upgraded.snapshotSchemaVersion).toBe(5);
+    expect(upgraded.gameSnapshot.gameState.players[PLAYER_ONE]).toMatchObject({
+      color: 'cyan',
+      characterId: null,
+      currentTile: 11,
+      accountBalance: 800,
+    });
+    expect(upgraded.gameSnapshot.gameState.boardState.finishedPlayers[PLAYER_TWO]).toMatchObject({
+      color: 'charcoal',
+      characterId: null,
+    });
+    expect(upgraded.gameSnapshot.gameState.boardState.winner).toMatchObject({
+      color: 'charcoal',
+      characterId: null,
+    });
+    expect(upgraded.gameSnapshot.gameState.boardState.ownedProps[1]).toMatchObject({
+      id: PLAYER_ONE,
+      color: 'cyan',
+      houses: 2,
+    });
+    expect(legacy).toEqual(original);
+  });
+
+  it('allocates the first unused color from the ten-color palette', () => {
+    expect(nextAvailableColor(createActiveSnapshot())).toBe('green');
+  });
+
   it('accepts the current schema version and rejects unknown versions', () => {
     const gameSnapshot = createRoomSnapshot();
 
@@ -108,6 +173,7 @@ describe('durable room snapshot compatibility', () => {
       name: 'Legacy',
       currentTile: 0,
       color: 'red',
+      characterId: 'shiba',
       accountBalance: 1500,
       isJail: false,
       jailOpponentRoundsElapsed: 0,
@@ -159,6 +225,7 @@ describe('durable room snapshot compatibility', () => {
       name: 'Debtor',
       currentTile: 0,
       color: 'red',
+      characterId: 'shiba',
       accountBalance: 5,
       isJail: false,
       jailOpponentRoundsElapsed: 0,
@@ -168,6 +235,7 @@ describe('durable room snapshot compatibility', () => {
       name: 'Creditor',
       currentTile: 0,
       color: 'blue',
+      characterId: 'panda',
       accountBalance: 100,
       isJail: false,
       jailOpponentRoundsElapsed: 0,

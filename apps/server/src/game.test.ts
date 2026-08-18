@@ -40,6 +40,7 @@ const makePlayer = (over: Partial<Player> = {}): Player => ({
   jailOpponentRoundsElapsed: 0,
   heldJailFreeCardIds: [],
   ...over,
+  characterId: over.characterId ?? 'shiba',
 });
 
 const makeState = (): GameState => ({
@@ -216,8 +217,8 @@ describe('railroadRent / utilityRent tiers', () => {
   it('counts all owned railroads for the tier', () => {
     const state = makeState();
     addPlayer(state, 'p1');
-    own(state, 5, 'p1', { color: 'railroad' });
-    own(state, 15, 'p1', { color: 'railroad' });
+    own(state, 5, 'p1', { color: 'red' });
+    own(state, 15, 'p1', { color: 'red' });
 
     expect(railroadRent(state, 5)).toBe(50);
     expect(railroadRent(state, 15)).toBe(50);
@@ -226,8 +227,8 @@ describe('railroadRent / utilityRent tiers', () => {
   it('uses the two-utility tier while the landed utility is active', () => {
     const state = makeState();
     addPlayer(state, 'p1');
-    own(state, 12, 'p1', { color: 'company' });
-    own(state, 28, 'p1', { color: 'company' });
+    own(state, 12, 'p1', { color: 'red' });
+    own(state, 28, 'p1', { color: 'red' });
 
     expect(utilityRent(state, 12, 8)).toBe(80);
     expect(utilityRent(state, 28, 8)).toBe(80);
@@ -244,7 +245,7 @@ describe('property transfer', () => {
     expect(transferProperty(state, 1, 'p1', 'p2', 'VOLUNTARY')).toMatchObject({ ok: true });
     expect(state.boardState.ownedProps[1].id).toBe('p2');
 
-    own(state, 5, 'p1', { color: 'railroad' });
+    own(state, 5, 'p1', { color: 'red' });
     expect(transferProperty(state, 5, 'p1', 'p2', 'VOLUNTARY')).toMatchObject({
       ok: true,
     });
@@ -399,8 +400,8 @@ describe('resolveTile', () => {
     addPlayer(state, 'p1', { currentTile: 5, accountBalance: 1000 });
     addPlayer(state, 'p2', { accountBalance: 1000 });
     // p2 owns two railroads: rent is 25 * 2^(2-1) = 50.
-    own(state, 5, 'p2', { color: 'railroad' });
-    own(state, 15, 'p2', { color: 'railroad' });
+    own(state, 5, 'p2', { color: 'blue' });
+    own(state, 15, 'p2', { color: 'blue' });
     resolveTile(state, 'p1', 0);
     expect(state.players.p1.accountBalance).toBe(950);
     expect(state.players.p2.accountBalance).toBe(1050);
@@ -411,7 +412,7 @@ describe('resolveTile', () => {
     addPlayer(state, 'p1', { currentTile: 12, accountBalance: 1000 });
     addPlayer(state, 'p2', { accountBalance: 1000 });
     // One utility owned: rent is diceResult * 4.
-    own(state, 12, 'p2', { color: 'company' });
+    own(state, 12, 'p2', { color: 'blue' });
     resolveTile(state, 'p1', 8);
     expect(state.players.p1.accountBalance).toBe(968);
     expect(state.players.p2.accountBalance).toBe(1032);
@@ -521,6 +522,7 @@ describe('checkBalance / winner', () => {
     state.boardState.finishedPlayers.loser = {
       name: 'Grace',
       color: 'green',
+      characterId: 'panda',
       reason: 'BANKRUPT',
     };
     const logsBefore = state.boardState.logs.length;
@@ -532,6 +534,7 @@ describe('checkBalance / winner', () => {
       playerId: 'winner',
       name: 'Ada',
       color: 'purple',
+      characterId: 'shiba',
     });
     expect(state.boardState.logs).toHaveLength(logsBefore + 1);
   });

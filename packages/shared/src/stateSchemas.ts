@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CHARACTER_IDS, PLAYER_COLOR_IDS } from './types';
 import type {
   BoardState,
   CurrentPlayer,
@@ -199,7 +200,8 @@ export const paymentQueueSchema = z.strictObject({
 export const playerSchema = z.strictObject({
   name: z.string().min(1).max(20),
   currentTile: tileIdSchema,
-  color: z.string().min(1).max(32),
+  color: z.enum(PLAYER_COLOR_IDS),
+  characterId: z.enum(CHARACTER_IDS).nullable(),
   accountBalance: z.number().int().min(0).max(2_147_483_647),
   isJail: z.boolean(),
   jailOpponentRoundsElapsed: z.number().int().min(0).max(2),
@@ -208,13 +210,14 @@ export const playerSchema = z.strictObject({
 
 export const ownedPropertySchema = z.strictObject({
   id: playerIdSchema,
-  color: z.string().min(1).max(32),
+  color: z.enum(PLAYER_COLOR_IDS),
   houses: z.number().int().min(0).max(5),
 }) satisfies z.ZodType<OwnedProp>;
 
 const finishedPlayerSchema = z.strictObject({
   name: z.string().min(1).max(20),
-  color: z.string().min(1).max(32),
+  color: z.enum(PLAYER_COLOR_IDS),
+  characterId: z.enum(CHARACTER_IDS).nullable(),
   reason: z.enum(['BANKRUPT', 'LEFT']).optional(),
 });
 

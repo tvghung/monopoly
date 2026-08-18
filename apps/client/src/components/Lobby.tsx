@@ -1,13 +1,27 @@
 import './style/Lobby.css';
+import type {
+  CharacterId,
+  PlayerColorId,
+  SetAppearanceRequest,
+} from '@monopoly/shared';
+import { CHARACTER_IDS, PLAYER_COLOR_IDS } from '@monopoly/shared';
 import Button from '../design-system/components/Button/Button';
 import Badge from '../design-system/components/Badge/Badge';
-import { getPlayerDisplayColor } from '../game/ui/playerVisualColors';
+import {
+  characterSvgDataUri,
+} from '../game/characters/characterSvg';
+import { CHARACTER_REGISTRY } from '../game/characters/characterRegistry';
+import {
+  getPlayerColorLabel,
+  getPlayerDisplayColor,
+  PLAYER_COLOR_VISUALS,
+} from '../game/ui/playerVisualColors';
 
 export interface LobbyPlayerView {
   id: string;
   name: string;
-  color: string;
-  characterId?: string | null;
+  color: PlayerColorId;
+  characterId: CharacterId | null;
   ready: boolean;
   connected: boolean;
 }
@@ -22,6 +36,7 @@ interface LobbyProps {
   busy: boolean;
   error: string | null;
   onSetReady: (ready: boolean) => void;
+  onSetAppearance: (request: SetAppearanceRequest) => void;
   onStart: () => void;
   onLeave: () => void;
   onSettings?: () => void;
@@ -37,16 +52,21 @@ export default function Lobby({
   busy,
   error,
   onSetReady,
+  onSetAppearance,
   onStart,
   onLeave,
   onSettings,
 }: LobbyProps) {
   const me = players.find(player => player.id === playerId);
   const isHost = hostPlayerId === playerId;
+  const takenColors = new Set(
+    players.filter(player => player.id !== playerId).map(player => player.color),
+  );
   const canStart = isHost
     && players.length >= minPlayers
     && players.length <= maxPlayers
-    && players.every(player => player.ready && player.connected);
+    && players.every(player => player.ready && player.connected && player.characterId !== null)
+    && new Set(players.map(player => player.color)).size === players.length;
   const slots = Array.from({ length: maxPlayers }, (_, index) => players[index] ?? null);
 
   return (
@@ -67,21 +87,34 @@ export default function Lobby({
         </header>
 
         <p className="lobby__hint">
-          {`Chủ phòng có thể bắt đầu khi ${minPlayers}–${maxPlayers} người chơi đang kết nối đều sẵn sàng.`}
+          {`Chủ phòng có thể bắt đầu khi ${minPlayers}–${maxPlayers} người chơi đang kết nối đều sẵn sàng và đã chọn mascot.`}
         </p>
 
         <ul className="lobby__players" aria-label="Danh sách người chơi">
           {slots.map((player, index) => player
             ? (
               <li className="lobby-player lobby-player--occupied" key={player.id}>
-                <span className="lobby-player__disc" style={{ backgroundColor: getPlayerDisplayColor(player.color) }} aria-hidden="true" />
+                <span
+                  className="lobby-player__disc"
+                  style={{ backgroundColor: getPlayerDisplayColor(player.color) }}
+                  aria-label={`Màu ${getPlayerColorLabel(player.color)}`}
+                />
+                {player.characterId
+                  ? (
+                    <img
+                      className="lobby-player__mascot"
+                      src={characterSvgDataUri(CHARACTER_REGISTRY[player.characterId].svgSource, player.color)}
+                      alt=""
+                    />
+                  )
+                  : <span className="lobby-player__mascot lobby-player__mascot--empty" aria-hidden="true">?</span>}
                 <span className="lobby-player__name">
                   {player.name}
                   {player.id === playerId ? ' (bạn)' : ''}
                 </span>
                 {player.id === hostPlayerId ? <Badge variant="warning">Chủ phòng</Badge> : null}
                 <span className="lobby-player__character" aria-label="Nhân vật hiện tại">
-                  {player.characterId ? `Nhân vật: ${player.characterId}` : 'Nhân vật: Sắp ra mắt'}
+                  {player.characterId ? CHARACTER_REGISTRY[player.characterId].displayName : 'Chưa chọn mascot'}
                 </span>
                 <Badge variant={player.connected ? 'success' : 'neutral'}>
                   {player.connected ? 'Trực tuyến' : 'Mất kết nối'}
@@ -100,6 +133,70 @@ export default function Lobby({
             ))}
         </ul>
 
+        {me
+          ? (
+            <section className="lobby__appearance" aria-labelledby="appearance-title">
+              <div className="lobby__appearance-heading">
+                <div>
+                  <p className="lobby__eyebrow">Ngoại hình của bạn</p>
+                  <h2 id="appearance-title">Chọn mascot và màu nhận diện</h2>
+                </div>
+                {busy ? <span className="lobby__pending" role="status">Đang cập nhật…</span> : null}
+              </div>
+              <fieldset className="lobby__fieldset">
+                <legend>Mascot <span>(có thể trùng)</span></legend>
+                <div className="lobby__character-grid" role="group" aria-label="Chọn mascot">
+                  {CHARACTER_IDS.map(characterId => {
+                    const character = CHARACTER_REGISTRY[characterId];
+                    const selected = me.characterId === characterId;
+                    return (
+                      <button
+                        key={characterId}
+                        className={`lobby-character${selected ? ' lobby-character--selected' : ''}`}
+                        type="button"
+                        aria-pressed={selected}
+                        disabled={busy}
+                        onClick={() => onSetAppearance({ characterId })}
+                      >
+                        <img
+                          src={characterSvgDataUri(character.svgSource, me.color)}
+                          alt=""
+                          className="lobby-character__image"
+                        />
+                        <span>{character.displayName}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+              <fieldset className="lobby__fieldset">
+                <legend>Màu người chơi <span>(màu đã dùng sẽ bị khóa)</span></legend>
+                <div className="lobby__color-grid" role="group" aria-label="Chọn màu người chơi">
+                  {PLAYER_COLOR_IDS.map(color => {
+                    const visual = PLAYER_COLOR_VISUALS[color];
+                    const selected = me.color === color;
+                    const unavailable = takenColors.has(color) && !selected;
+                    return (
+                      <button
+                        key={color}
+                        className={`lobby-color${selected ? ' lobby-color--selected' : ''}`}
+                        type="button"
+                        aria-label={`${visual.label}${unavailable ? ' (đã được chọn)' : ''}`}
+                        aria-pressed={selected}
+                        disabled={busy || unavailable}
+                        onClick={() => onSetAppearance({ color })}
+                      >
+                        <span className="lobby-color__swatch" style={{ backgroundColor: visual.display }} aria-hidden="true" />
+                        <span>{visual.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            </section>
+          )
+          : null}
+
         {error ? <p className="lobby__error" role="alert">{error}</p> : null}
 
         <div className="lobby__actions">
@@ -107,10 +204,10 @@ export default function Lobby({
             variant={me?.ready ? 'secondary' : 'primary'}
             className="lobby__button"
             type="button"
-            disabled={busy || !me?.connected}
-            onClick={() => onSetReady(!me?.ready)}
+            disabled={busy || !me?.connected || me?.characterId === null}
+            onClick={() => { if (me) onSetReady(!me.ready); }}
           >
-            {me?.ready ? 'Hủy sẵn sàng' : 'Sẵn sàng'}
+            {me?.characterId === null ? 'Chọn mascot trước' : me?.ready ? 'Hủy sẵn sàng' : 'Sẵn sàng'}
           </Button>
 
           {isHost

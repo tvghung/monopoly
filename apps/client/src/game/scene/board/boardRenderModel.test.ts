@@ -18,7 +18,7 @@ const state = (overrides: Partial<PublicGameState> = {}): PublicGameState => ({
     gameStarted: true,
     players: ['active', 'finished', 'fallback'],
     finishedPlayers: {
-      finished: { name: 'Đã rời', color: 'purple', reason: 'BANKRUPT' },
+      finished: { name: 'Đã rời', color: 'purple', characterId: 'panda', reason: 'BANKRUPT' },
     },
     currentPlayer: { id: 'active', hasMoved: false },
     turnNumber: 2,
@@ -26,24 +26,24 @@ const state = (overrides: Partial<PublicGameState> = {}): PublicGameState => ({
     logs: [],
     diceValue: { dice1: 2, dice2: 3 },
     ownedProps: {
-      1: { id: 'active', color: 'legacy-active', houses: 2 },
-      3: { id: 'finished', color: 'legacy-finished', houses: 5 },
-      5: { id: 'missing', color: 'fallback', houses: 1 },
-      12: { id: 'active', color: 'legacy-active', houses: 0 },
+      1: { id: 'active', color: 'red', houses: 2 },
+      3: { id: 'finished', color: 'purple', houses: 5 },
+      5: { id: 'missing', color: 'charcoal', houses: 1 },
+      12: { id: 'active', color: 'red', houses: 0 },
     },
     winner: null,
   },
   players: {
     active: {
-      name: 'An', currentTile: 4, color: 'red', accountBalance: 900,
+      name: 'An', currentTile: 4, color: 'red', characterId: 'shiba', accountBalance: 900,
       isJail: false, jailOpponentRoundsElapsed: 0, getOutOfJailCardCount: 0,
     },
     finished: {
-      name: 'Bình', currentTile: 8, color: 'blue', accountBalance: 0,
+      name: 'Bình', currentTile: 8, color: 'blue', characterId: 'panda', accountBalance: 0,
       isJail: false, jailOpponentRoundsElapsed: 0, getOutOfJailCardCount: 0,
     },
     fallback: {
-      name: 'Chi', currentTile: 9, color: 'green', accountBalance: 600,
+      name: 'Chi', currentTile: 9, color: 'green', characterId: 'cat', accountBalance: 600,
       isJail: false, jailOpponentRoundsElapsed: 0, getOutOfJailCardCount: 0,
     },
   },
@@ -69,7 +69,7 @@ describe('board render model', () => {
       houses: 2,
     });
     expect(model.tiles[3]).toMatchObject({ ownerId: 'finished', ownerColor: 'purple', houses: 5 });
-    expect(model.tiles[5]).toMatchObject({ ownerId: 'missing', ownerColor: 'fallback', houses: 1 });
+    expect(model.tiles[5]).toMatchObject({ ownerId: 'missing', ownerColor: 'charcoal', houses: 1 });
     expect(model.tiles[12]).toMatchObject({ ownerId: 'active', ownerColor: 'red', houses: 0 });
     expect(model.tiles[2]).toHaveProperty('houses', 0);
     expect(model.tiles[2]).not.toHaveProperty('ownerId');

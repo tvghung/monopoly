@@ -436,17 +436,18 @@ File:
 
 ---
 
-## Phase 3 — Character System
+## Phase 3 — Character + Player Color Appearance System
 
 Mục tiêu:
 
-- character selector
-- sprite registry
-- billboard rendering
-- hop movement
-- shadow
-- player color
-- reactions
+- chọn 1 trong 8 mascot SVG và 1 trong 10 màu người chơi trong lobby
+- cho phép trùng mascot nhưng bắt buộc màu duy nhất giữa người chơi active
+- dùng một registry màu chung cho lobby/HUD, cờ ownership và accent mascot
+- giữ màu tự nhiên của mascot, chỉ recolor các vùng accent có token ổn định
+- billboard mascot trên board với layout deterministic cho 1–4 người cùng ô
+- hop movement, landing feedback, reduced motion và reconnect snap qua
+  presentation architecture hiện có
+- lưu appearance trong snapshot và nâng protocol/snapshot v4 → v5 an toàn
 
 File:
 

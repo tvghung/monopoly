@@ -1,7 +1,7 @@
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
-export const SOCKET_PROTOCOL_VERSION = 4 as const;
+export const SOCKET_PROTOCOL_VERSION = 5 as const;
 
 export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
 export type PlayerId = string;
@@ -13,6 +13,34 @@ export type GameCardId = string;
 export type DebtClaimId = string;
 export type PaymentClaimId = DebtClaimId;
 export type ForcedSaleProposalId = string;
+
+export const CHARACTER_IDS = [
+  'shiba',
+  'capybara',
+  'panda',
+  'cat',
+  'penguin',
+  'fox',
+  'rabbit',
+  'duck',
+] as const;
+
+export type CharacterId = typeof CHARACTER_IDS[number];
+
+export const PLAYER_COLOR_IDS = [
+  'red',
+  'blue',
+  'green',
+  'yellow',
+  'orange',
+  'purple',
+  'pink',
+  'cyan',
+  'lime',
+  'charcoal',
+] as const;
+
+export type PlayerColorId = typeof PLAYER_COLOR_IDS[number];
 
 export type RoomStatus = 'LOBBY' | 'IN_PROGRESS' | 'FINISHED';
 export type RoomRole = 'PLAYER' | 'SPECTATOR';
@@ -98,7 +126,8 @@ export interface GamePrivateState {
 export interface Player {
   name: string;
   currentTile: number;
-  color: string;
+  color: PlayerColorId;
+  characterId: CharacterId | null;
   accountBalance: number;
   isJail: boolean;
   jailOpponentRoundsElapsed: number;
@@ -118,7 +147,8 @@ export interface PrivatePlayerState {
 
 export interface FinishedPlayer {
   name: string;
-  color: string;
+  color: PlayerColorId;
+  characterId: CharacterId | null;
   reason?: FinishedPlayerReason;
 }
 
@@ -128,7 +158,7 @@ export interface Winner extends FinishedPlayer {
 
 export interface OwnedProp {
   id: PlayerId;
-  color: string;
+  color: PlayerColorId;
   // Houses built on this street (0-4 houses, 5 = a hotel).
   houses: number;
 }
@@ -313,7 +343,8 @@ export interface PublicGameState {
 export interface RoomPlayerMeta {
   playerId: PlayerId;
   name: string;
-  color: string;
+  color: PlayerColorId;
+  characterId: CharacterId | null;
   joinOrder: number;
   membershipStatus: RoomMembershipStatus;
   ready: boolean;
@@ -353,6 +384,11 @@ export interface ResumeSessionRequest {
 
 export interface SetReadyRequest {
   ready: boolean;
+}
+
+export interface SetAppearanceRequest {
+  characterId?: CharacterId;
+  color?: PlayerColorId;
 }
 
 export interface PendingPlayerAdmission {

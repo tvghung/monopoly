@@ -71,6 +71,7 @@ const removePlayerRecord = (
   state.boardState.finishedPlayers[playerId] = {
     name: player.name,
     color: player.color,
+    characterId: player.characterId,
     reason,
   };
   sendToLog(
@@ -139,6 +140,7 @@ export const checkWinner = (state: GameState): void => {
       playerId,
       name: winner.name,
       color: winner.color,
+      characterId: winner.characterId,
     };
     sendToLog(state, `<span class="bankrupt-message">${winner.name} đã chiến thắng!</span>`);
   }

@@ -1,4 +1,10 @@
-import type { PublicGameState, TileType } from '@monopoly/shared';
+import type {
+  CharacterId,
+  PlayerColorId,
+  PublicGameState,
+  RoomPlayerMeta,
+  TileType,
+} from '@monopoly/shared';
 import { tileState } from '@monopoly/shared';
 import type { PresentationState } from '../../presentation/store/types';
 import type { TileImpactSignal } from './motion/tileMotionTypes';
@@ -15,19 +21,22 @@ export interface BoardTileRenderModel {
   houses: number;
 }
 
-export interface Phase2PlayerMarkerModel {
+export interface CharacterPlayerModel {
   playerId: string;
   name: string;
-  color: string;
+  color: PlayerColorId;
+  characterId: CharacterId | null;
   tileId: number;
   isActive: boolean;
+  joinOrder: number;
 }
 
 export interface BoardRenderModel {
   tiles: BoardTileRenderModel[];
-  players: Phase2PlayerMarkerModel[];
+  players: CharacterPlayerModel[];
   tileImpacts: readonly TileImpactSignal[];
   tileImpactEpoch: number;
+  resetEpoch: number;
 }
 
 function resolveOwnerColor(
@@ -43,6 +52,7 @@ function resolveOwnerColor(
 export function buildBoardRenderModel(
   state: PublicGameState,
   presentationState: PresentationState,
+  roomPlayers: readonly RoomPlayerMeta[] = [],
 ): BoardRenderModel {
   const tiles = tileState.map((tile, tileId): BoardTileRenderModel => {
     const owned = state.boardState.ownedProps[tileId];
@@ -64,19 +74,24 @@ export function buildBoardRenderModel(
 
   const activePlayerId = presentationState.displayActivePlayerId
     ?? state.boardState.currentPlayer.id;
+  const roomOrder = new Map(roomPlayers.map(player => [player.playerId, player]));
   const players = Object.entries(state.players)
-    .map(([playerId, player]): Phase2PlayerMarkerModel => ({
+    .map(([playerId, player]): CharacterPlayerModel => ({
       playerId,
       name: player.name,
       color: player.color,
+      characterId: player.characterId ?? roomOrder.get(playerId)?.characterId ?? null,
       tileId: presentationState.displayPositions[playerId] ?? player.currentTile,
       isActive: playerId === activePlayerId,
-    }));
+      joinOrder: roomOrder.get(playerId)?.joinOrder ?? Number.MAX_SAFE_INTEGER,
+    }))
+    .sort((left, right) => left.joinOrder - right.joinOrder || left.playerId.localeCompare(right.playerId));
 
   return {
     tiles,
     players,
     tileImpacts: presentationState.tileImpacts,
     tileImpactEpoch: presentationState.tileImpactEpoch,
+    resetEpoch: presentationState.tileImpactEpoch,
   };
 }

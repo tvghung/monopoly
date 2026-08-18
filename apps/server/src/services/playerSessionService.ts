@@ -268,6 +268,7 @@ export class PlayerSessionService {
       name,
       currentTile: 0,
       color,
+      characterId: null,
       accountBalance: 1500,
       isJail: false,
       jailOpponentRoundsElapsed: 0,

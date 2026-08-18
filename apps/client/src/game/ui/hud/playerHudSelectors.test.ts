@@ -10,7 +10,7 @@ describe('selectPlayerHudViewModels', () => {
       3: { id: 'player-a', color: 'red', houses: 5 },
     };
     room.gameState.boardState.finishedPlayers['player-b'] = {
-      name: 'Bình', color: 'blue', reason: 'LEFT',
+      name: 'Bình', color: 'blue', characterId: 'panda', reason: 'LEFT',
     };
     const views = selectPlayerHudViewModels(room.gameState, 'player-a', room.players);
     expect(views[0]).toMatchObject({
@@ -18,7 +18,7 @@ describe('selectPlayerHudViewModels', () => {
       propertyCount: 2,
       houseCount: 2,
       hotelCount: 1,
-      characterId: null,
+      characterId: 'shiba',
       isCurrentTurn: true,
     });
     expect(views.find(view => view.playerId === 'player-b')).toMatchObject({

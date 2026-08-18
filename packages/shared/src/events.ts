@@ -19,6 +19,7 @@ import type {
   RoomRole,
   SessionId,
   SessionReplacedInfo,
+  SetAppearanceRequest,
   SetReadyRequest,
   SocketProtocolVersion,
   ForcedSaleProposal,
@@ -84,6 +85,7 @@ export interface ClientToServerEvents {
     acknowledge: AckCallback<ResumeSessionResult>,
   ) => void;
   'set ready': (request: SetReadyRequest, acknowledge: AckCallback) => void;
+  'set appearance': (request: SetAppearanceRequest, acknowledge: AckCallback) => void;
   'leave room': (acknowledge: AckCallback<LeaveRoomResult>) => void;
   'start game': (acknowledge: AckCallback) => void;
   'send chat': (message: string, acknowledge: AckCallback) => void;

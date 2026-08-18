@@ -12,6 +12,7 @@ describe('database migrations', () => {
       '003_reset_v1_snapshots.sql',
       '004_simplified_rules_v3.sql',
       '005_remove_mortgage_open_market.sql',
+      '006_appearance_system_v5.sql',
     ]);
     expect(migrations[0]?.checksum).toMatch(/^[a-f0-9]{64}$/u);
     expect(migrations[0]?.sql).toContain('CREATE TABLE rooms');
@@ -25,6 +26,9 @@ describe('database migrations', () => {
     expect(migrations[4]?.sql).toContain('snapshot_schema_version = 4');
     expect(migrations[4]?.sql).toContain("status = 'CANCELLED'");
     expect(migrations[4]?.sql).toContain("value - 'mortgaged'");
+    expect(migrations[5]?.sql).toContain('snapshot_schema_version = 5');
+    expect(migrations[5]?.sql).toContain("'characterId', NULL");
+    expect(migrations[5]?.sql).toContain("WHEN 'white' THEN 'cyan'");
   });
 
   it('canonicalizes checkout line endings before hashing or executing SQL', () => {
