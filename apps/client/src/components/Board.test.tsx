@@ -109,7 +109,10 @@ describe('Vietnamese game board', () => {
       </stateContext.Provider>,
     );
 
+    expect(container.querySelector('.game-board__renderer')?.getAttribute('data-renderer-mode'))
+      .toBe('legacy');
     expect(container.querySelector('.legacy-board')).toBeTruthy();
+    expect(container.querySelector('.game-board__accessibility-layer')).toBeNull();
     expect(container.querySelector('[data-testid="game-scene"]')).toBeNull();
 
     const tile = screen.getByRole('button', { name: /Ô 1: Cà Mau/ });
@@ -140,7 +143,7 @@ describe('Vietnamese game board', () => {
     expect(container.querySelectorAll('[data-tile-index]')).toHaveLength(40);
   });
 
-  it('routes the WebGL renderer deterministically when WebGL is supported', async () => {
+  it('routes the WebGL renderer deterministically when WebGL is supported', () => {
     vi.mocked(supportsWebGL).mockReturnValue(true);
     const { container } = render(
       <stateContext.Provider value={makeContextValue()}>
@@ -148,7 +151,9 @@ describe('Vietnamese game board', () => {
       </stateContext.Provider>,
     );
 
-    expect(await screen.findByTestId('game-scene')).toBeTruthy();
+    expect(container.querySelector('.game-board__renderer')?.getAttribute('data-renderer-mode'))
+      .toBe('webgl');
+    expect(container.querySelector('.game-board__accessibility-layer')).not.toBeNull();
     expect(container.querySelector('.legacy-board')).toBeNull();
   });
 

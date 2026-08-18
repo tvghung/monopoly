@@ -11,6 +11,8 @@ import {
 } from '../board/architecture/tileAnchors';
 import { getCharacterDefinition } from '../../characters/characterRegistry';
 import { acquireCharacterTexture } from '../../characters/characterTextureCache';
+import { characterSvgDataUri } from '../../characters/characterSvg';
+import { recordCharacterTextureDiagnostic } from '../../characters/characterTextureDiagnostics';
 import {
   getCharacterGroundingTransforms,
   getCharacterTargetTransition,
@@ -33,6 +35,12 @@ interface CharacterMovement {
   from: THREE.Vector3;
   to: THREE.Vector3;
   elapsedMs: number;
+}
+
+function getTextureImageDimension(image: unknown, dimension: 'width' | 'height'): number {
+  if (!image || typeof image !== 'object') return 0;
+  const value = (image as Record<string, unknown>)[dimension];
+  return typeof value === 'number' ? value : 0;
 }
 
 function snapCharacter(
@@ -90,8 +98,28 @@ export default function CharacterBillboard({
     return acquireCharacterTexture(player.characterId, player.color, nextTexture => {
       setTexture(nextTexture);
       invalidate();
+    }, () => {
+      setTexture(null);
+      invalidate();
     });
   }, [invalidate, player.characterId, player.color]);
+
+  useEffect(() => {
+    if (!texture) return;
+    const rawSvg = definition.svgSource;
+    recordCharacterTextureDiagnostic({
+      key: `${player.characterId ?? 'legacy'}:${player.color}`,
+      characterId: player.characterId,
+      playerColor: player.color,
+      svgSourceExists: rawSvg.length > 0,
+      svgSourceLength: rawSvg.length,
+      dataUriLength: characterSvgDataUri(rawSvg, player.color).length,
+      stage: 'character-sprite-receives-texture',
+      loaded: true,
+      imageWidth: getTextureImageDimension(texture.image, 'width'),
+      imageHeight: getTextureImageDimension(texture.image, 'height'),
+    });
+  }, [definition, player.characterId, player.color, texture]);
 
   useEffect(() => {
     const group = groupRef.current;

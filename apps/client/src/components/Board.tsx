@@ -98,6 +98,7 @@ export default function Board() {
 
           <section
             className={`game-board__renderer${rendererMode === 'legacy' ? ' game-board__renderer--legacy' : ''}`}
+            data-renderer-mode={rendererMode}
             aria-label="Khu vực bàn cờ trực quan"
           >
             {rendererMode === 'webgl'
