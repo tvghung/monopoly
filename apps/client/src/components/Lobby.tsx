@@ -122,10 +122,6 @@ export default function Lobby({
           </div>
         </header>
 
-        <p className="lobby__hint">
-          {`Chủ phòng có thể bắt đầu khi ${minPlayers}-${maxPlayers} người chơi đang kết nối đều sẵn sàng và đã chọn mascot.`}
-        </p>
-
         <ul className="lobby__players" aria-label="Danh sách người chơi">
           {slots.map((player, index) => player
             ? (
@@ -150,7 +146,7 @@ export default function Lobby({
                 </span>
                 {player.id === hostPlayerId ? <Badge variant="warning">Chủ phòng</Badge> : null}
                 <span className="lobby-player__character" aria-label="Nhân vật hiện tại">
-                  {player.characterId ? CHARACTER_REGISTRY[player.characterId].displayName : 'Chưa chọn mascot'}
+                  {player.characterId ? CHARACTER_REGISTRY[player.characterId].displayName : 'Chưa chọn nhân vật'}
                 </span>
                 <Badge variant={player.connected ? 'success' : 'neutral'}>
                   {player.connected ? 'Trực tuyến' : 'Mất kết nối'}

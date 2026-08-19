@@ -103,17 +103,6 @@ export default function MascotPicker({
 
   return (
     <section className="mascot-picker" style={accentStyle} aria-labelledby="appearance-title">
-      <div className="mascot-picker__heading">
-        <div>
-          <p className="lobby__eyebrow">Ngoại hình của bạn</p>
-          <h2 id="appearance-title">Chọn nhân vật của bạn</h2>
-          <p className="mascot-picker__description">Chọn mascot để cả phòng nhận ra bạn.</p>
-        </div>
-        <span className="mascot-picker__status" role="status" aria-live="polite">
-          {selectionStatus}
-        </span>
-      </div>
-
       <div
         className="mascot-picker__stage"
         tabIndex={0}
@@ -169,13 +158,6 @@ export default function MascotPicker({
             </motion.div>
           </div>
           <strong>{focusedCharacter.displayName}</strong>
-          <span className="mascot-picker__hero-caption">
-            {focusedPairTaken
-              ? 'Chọn màu khác'
-              : selectedCharacterId === focusedCharacterId
-                ? 'Mascot hiện tại'
-                : 'Chọn màu để xác nhận'}
-          </span>
         </div>
 
         <button
@@ -204,7 +186,6 @@ export default function MascotPicker({
 
       <div className="mascot-picker__rail-heading">
         <span>Tất cả mascot</span>
-        <span>Chọn nhanh</span>
       </div>
       <div className="mascot-picker__thumbnail-rail" role="group" aria-label="Chọn mascot">
         {CHARACTER_IDS.map(characterId => {
@@ -229,7 +210,6 @@ export default function MascotPicker({
       </div>
 
       <fieldset className="mascot-picker__colors">
-        <legend>Màu nhận diện <span>(không thể trùng cả mascot và màu)</span></legend>
         <div className="mascot-picker__color-grid" role="group" aria-label="Chọn màu người chơi">
           {PLAYER_COLOR_IDS.map(color => {
             const visual = PLAYER_COLOR_VISUALS[color];
