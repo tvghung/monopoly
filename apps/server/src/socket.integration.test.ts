@@ -498,7 +498,7 @@ describe('Socket.IO durable player lifecycle', () => {
     expect(stored?.gameSnapshot.gameState.boardState.players[0]).toBe(startingPlayerId);
   });
 
-  it('assigns the first available color and enforces lobby appearance rules', async () => {
+  it('assigns a default color and enforces exact appearance combinations', async () => {
     const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
     const subject = await startServer(persistence);
     const host = await joinPlayer(await connect(subject.url), 'Host', 'appearance-rules');
@@ -515,23 +515,51 @@ describe('Socket.IO durable player lifecycle', () => {
       ok: false,
       error: { code: 'CONFLICT' },
     });
-    expect((await setAppearance(host.socket, { characterId: 'panda' })).ok).toBe(true);
+    expect((await setAppearance(host.socket, { characterId: 'dog', color: 'red' })).ok).toBe(true);
     expect((await setReadyOnly(host.socket)).ok).toBe(true);
 
-    const conflictingColor = await setAppearance(host.socket, { color: 'blue' });
-    expect(conflictingColor).toMatchObject({
-      ok: false,
-      error: { code: 'CONFLICT', message: 'Màu này đã được người chơi khác chọn.' },
-    });
-
     const changedColor = await setAppearance(host.socket, { color: 'orange' });
-    expect(changedColor.ok).toBe(true);
+    expect(changedColor).toMatchObject({ ok: true });
     const storedAfterChange = await persistence.rooms.findById(host.room.roomId);
     expect(storedAfterChange?.gameSnapshot.gameState.players[host.playerId]).toMatchObject({
       color: 'orange',
-      characterId: 'panda',
+      characterId: 'dog',
     });
     expect(storedAfterChange?.gameSnapshot.members[host.playerId]?.ready).toBe(false);
+    expect((await setAppearance(host.socket, { color: 'red' })).ok).toBe(true);
+
+    const sameColorDifferentMascot = await setAppearance(guest.socket, {
+      characterId: 'panda',
+      color: 'red',
+    });
+    expect(sameColorDifferentMascot.ok).toBe(true);
+
+    const characterOnlyCollision = await setAppearance(guest.socket, { characterId: 'dog' });
+    expect(characterOnlyCollision).toMatchObject({
+      ok: false,
+      error: { code: 'CONFLICT', message: 'Tổ hợp mascot và màu này đã được người chơi khác chọn.' },
+    });
+
+    const guestAfterCharacterCollision = await persistence.rooms.findById(host.room.roomId);
+    expect(guestAfterCharacterCollision?.gameSnapshot.gameState.players[guest.playerId]).toMatchObject({
+      color: 'red',
+      characterId: 'panda',
+    });
+
+    expect((await setAppearance(guest.socket, { characterId: 'dog', color: 'blue' })).ok).toBe(true);
+    const colorOnlyCollision = await setAppearance(guest.socket, { color: 'red' });
+    expect(colorOnlyCollision).toMatchObject({
+      ok: false,
+      error: { code: 'CONFLICT', message: 'Tổ hợp mascot và màu này đã được người chơi khác chọn.' },
+    });
+    const combinedCollision = await setAppearance(guest.socket, {
+      characterId: 'dog',
+      color: 'red',
+    });
+    expect(combinedCollision).toMatchObject({
+      ok: false,
+      error: { code: 'CONFLICT', message: 'Tổ hợp mascot và màu này đã được người chơi khác chọn.' },
+    });
 
     expect((await setAppearance(host.socket, {}))).toMatchObject({
       ok: false,
@@ -554,11 +582,9 @@ describe('Socket.IO durable player lifecycle', () => {
       error: { code: 'INVALID_REQUEST' },
     });
 
-    expect((await setAppearance(guest.socket, { characterId: 'dog' })).ok).toBe(true);
-    expect((await setAppearance(host.socket, { characterId: 'dog' })).ok).toBe(true);
-    expect((await setAppearance(guest.socket, { characterId: 'dog', color: 'lime' })).ok).toBe(true);
+    expect((await setAppearance(guest.socket, { characterId: 'panda', color: 'red' })).ok).toBe(true);
     expect((await setReadyOnly(host.socket)).ok).toBe(true);
-    expect((await setReady(guest.socket)).ok).toBe(true);
+    expect((await setReadyOnly(guest.socket)).ok).toBe(true);
     expect((await startGame(host.socket)).ok).toBe(true);
     expect((await setAppearance(host.socket, { color: 'pink' }))).toMatchObject({
       ok: false,
@@ -580,7 +606,17 @@ describe('Socket.IO durable player lifecycle', () => {
     expect(host.playerId).not.toBe(replacement.playerId);
   });
 
-  it('rejects duplicate authoritative colors at start even if legacy state bypassed the UI', async () => {
+  it('allows the same mascot with different colors at start', async () => {
+    const subject = await startServer();
+    const host = await joinPlayer(await connect(subject.url), 'Host', 'same-mascot');
+    const guest = await joinPlayer(await connect(subject.url), 'Guest', 'same-mascot');
+
+    expect((await setReady(host.socket)).ok).toBe(true);
+    expect((await setReady(guest.socket)).ok).toBe(true);
+    expect((await startGame(host.socket)).ok).toBe(true);
+  });
+
+  it('rejects duplicate authoritative appearance combinations at ready and start', async () => {
     const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
     const subject = await startServer(persistence);
     const host = await joinPlayer(await connect(subject.url), 'Host', 'appearance-duplicate');
@@ -589,12 +625,25 @@ describe('Socket.IO durable player lifecycle', () => {
     await setReady(guest.socket);
 
     await mutateRoom(persistence, host.room.roomId, room => {
+      room.gameSnapshot.gameState.players[host.playerId].characterId = 'dog';
+      room.gameSnapshot.gameState.players[host.playerId].color = 'red';
+      room.gameSnapshot.gameState.players[guest.playerId].characterId = 'dog';
       room.gameSnapshot.gameState.players[guest.playerId].color = 'red';
     });
 
+    expect(await setReadyOnly(guest.socket)).toMatchObject({
+      ok: false,
+      error: {
+        code: 'CONFLICT',
+        message: 'Tổ hợp mascot và màu này đã được người chơi khác chọn.',
+      },
+    });
     expect(await startGame(host.socket)).toMatchObject({
       ok: false,
-      error: { code: 'CONFLICT', message: 'Mỗi người chơi phải có một màu riêng trước khi bắt đầu.' },
+      error: {
+        code: 'CONFLICT',
+        message: 'Mỗi người chơi phải có một tổ hợp mascot và màu riêng trước khi bắt đầu.',
+      },
     });
   });
 

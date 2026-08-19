@@ -56,12 +56,13 @@ registry:
 | `lime` | `#84CC16` |
 | `charcoal` | `#334155` |
 
-Colors are unique among ACTIVE players while a room is in `LOBBY`. The server
-rejects stale conflicting selections; client-disabled swatches are UX only.
-The actor's current color is valid as a no-op. LEFT and FINISHED members do not
-reserve a lobby color. A new seat receives the first available color in this
-palette order and may change it before the game starts. Color is non-null and
-locked once the room leaves the lobby.
+Mascots may repeat and colors may repeat, but each ACTIVE player must have a
+unique `characterId + color` combination while a room is in `LOBBY`. The server
+rejects stale conflicting combinations; client-disabled swatches are UX only.
+The actor's current combination is valid as a no-op. LEFT and FINISHED members
+do not reserve an appearance combination. A new seat still receives the first
+available color in this palette order as a convenience, and may change it before
+the game starts. Color is non-null and locked once the room leaves the lobby.
 
 ### 2.3 SVG accent policy
 
@@ -84,15 +85,15 @@ The local appearance editor contains:
 - eight mascot cards with SVG preview, display name, current selection, and
   selected-state semantics; duplicate characters remain available;
 - ten named color swatches with selected state, accessible name/label, and
-  unavailable state when another active lobby player owns the color;
-- the local player's current color always available;
+  unavailable state when another active lobby player owns the focused mascot and
+  color combination;
 - a player list showing name, host state, color swatch, selected mascot/name,
   ready state, and connection state without overcrowding the row.
 
 Selecting a character emits `set appearance` with `characterId`; selecting a
 color emits the same command with `color`. UI appearance changes are shown
 only after the committed public room update; a pending state may be shown.
-Conflict feedback keeps the authoritative previous color and ready state.
+Conflict feedback keeps the authoritative previous appearance and ready state.
 
 Ready integration is server-enforced:
 
@@ -100,8 +101,9 @@ Ready integration is server-enforced:
 - changing character or color actually resets the member's ready flag to false
   in the same room command;
 - a no-op appearance request need not reset ready;
-- `start game` requires the host, 2–4 connected active players, all ready,
-  valid unique colors, and a non-null character for every active player.
+- `start game` requires the host, 2-4 connected active players, all ready,
+  valid unique mascot and color combinations, and a non-null character for every
+  active player.
 
 ## 4. Shared and durable state
 
@@ -123,8 +125,9 @@ interface SetAppearanceRequest {
 ```
 
 Its actor is the authenticated socket. It is accepted only for an active
-PLAYER in `LOBBY`; characters allow duplicates, colors do not. Use the existing
-ACK/error localization pipeline and a clear Vietnamese conflict message.
+PLAYER in `LOBBY`; characters and colors may repeat, but exact mascot and color
+combinations do not. Use the existing ACK/error localization pipeline and a
+clear Vietnamese conflict message.
 
 Increment `SOCKET_PROTOCOL_VERSION` from 4 to 5 and
 `ROOM_SNAPSHOT_SCHEMA_VERSION` from 4 to 5. Add a transactional V4 → V5
@@ -241,7 +244,8 @@ player must not hop when another player's tile impact changes.
 
 Update the Phase 3 masterplan/index summary and relevant socket lobby/session,
 board, room lifecycle, and contract documents with CharacterId, PlayerColorId,
-`set appearance`, duplicate-character behavior, unique lobby colors, ready
+`set appearance`, duplicate-character behavior, unique mascot and color
+combinations, ready
 requirements, reconnect persistence, protocol/snapshot v5, V4 → V5 upgrade,
 SVG accents, and 1–4 placement layouts.
 
@@ -254,8 +258,8 @@ Automated acceptance must cover:
 - V4 → V5 live/finished/winner null character, legacy color mapping,
   ownership consistency, five-to-seven-player in-progress loadability, and no
   gameplay-state loss;
-- server character selection, duplicate characters allowed, conflicting color
-  rejection, available color switch, ready reset, ready/start blocking,
+- server character selection, duplicate characters and colors allowed, exact
+  combination rejection, available color switch, ready reset, ready/start blocking,
   reconnect persistence, color release on lobby leave, and post-start lock;
 - lobby counts/selection/disabled-color/preview/pending behavior and four
   slots;
@@ -268,7 +272,8 @@ Automated acceptance must cover:
   async texture-cache stale-load disposal.
 
 Manual acceptance must confirm four-player cap, eight characters, ten colors,
-duplicate characters, unique colors, accent/ownership agreement, readable
+duplicate characters, duplicate colors, unique mascot and color combinations,
+accent/ownership agreement, readable
 1–4 same-tile layouts on every board side, smooth hop, landing feedback,
 reduced-motion snap, reconnect without replay/clone, no rule regression,
 `frameloop="demand"`, unchanged scene budgets, and no obvious resource leak.

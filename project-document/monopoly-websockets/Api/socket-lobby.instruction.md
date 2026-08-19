@@ -12,16 +12,18 @@ per-room executor and typed ACK.
   active Player while the room is in `LOBBY`. The strict request is non-empty and
   permits character-only, color-only or combined updates; unknown keys and invalid
   IDs fail validation.
-- Characters may duplicate. Colors are unique among active lobby Players; a
-  conflicting color is rejected by the server, and a no-op selection is allowed.
+- Characters and colors may duplicate. Only an exact mascot plus color
+  combination is unique among active lobby Players; a conflicting combination is
+  rejected by the server, and a no-op selection is allowed.
 - A changed appearance clears only that Player's ready flag. Appearance is committed
   before the public room update and is locked once the room starts.
 
 ## Ready/start
 
 - `set ready({ready})`: active lobby Player changes only own durable ready flag.
-- `start game`: actor must be persisted host; room must be `LOBBY`; 2–4 active
-  Players must all be connected and ready, with a valid character and unique colors.
+- `start game`: actor must be persisted host; room must be `LOBBY`; 2-4 active
+  Players must all be connected and ready, with a valid character and unique
+  mascot plus color combinations.
 - Successful start rolls server-side 2d6 for every active Player, rerolls tied
   highest group to one winner, persists that stable-ID turn order, initializes
   private decks/Standard Mode state, sets `IN_PROGRESS` and commits once before

@@ -5,6 +5,7 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
+import { getAppearanceCombinationKey } from '@monopoly/shared';
 import type {
   CharacterId,
   PlayerColorId,
@@ -15,17 +16,14 @@ import { characterSvgDataUri } from '../../game/characters/characterSvg';
 import { CHARACTER_REGISTRY } from '../../game/characters/characterRegistry';
 import {
   getPlayerAccentDarkColor,
-  getPlayerColorLabel,
   getPlayerDisplayColor,
-  getPlayerDisplayForeground,
   PLAYER_COLOR_VISUALS,
 } from '../../game/ui/playerVisualColors';
 
 interface MascotPickerProps {
-  playerName: string;
   selectedCharacterId: CharacterId | null;
   playerColor: PlayerColorId;
-  takenColors: ReadonlySet<PlayerColorId>;
+  takenAppearanceKeys: ReadonlySet<string>;
   busy: boolean;
   onSetAppearance: (request: SetAppearanceRequest) => void;
 }
@@ -35,10 +33,9 @@ function wrapCharacterIndex(index: number): number {
 }
 
 export default function MascotPicker({
-  playerName,
   selectedCharacterId,
   playerColor,
-  takenColors,
+  takenAppearanceKeys,
   busy,
   onSetAppearance,
 }: MascotPickerProps) {
@@ -57,21 +54,41 @@ export default function MascotPicker({
   const nextCharacterId = CHARACTER_IDS[wrapCharacterIndex(focusedIndex + 1)];
   const focusedCharacter = CHARACTER_REGISTRY[focusedCharacterId];
   const displayColor = getPlayerDisplayColor(playerColor);
-  const foregroundColor = getPlayerDisplayForeground(playerColor);
   const accentStyle = {
     '--mascot-accent': displayColor,
     '--mascot-accent-dark': getPlayerAccentDarkColor(playerColor),
   } as CSSProperties;
+  const isCombinationTaken = (characterId: CharacterId, color: PlayerColorId): boolean => {
+    const key = getAppearanceCombinationKey(characterId, color);
+    return key !== null && takenAppearanceKeys.has(key);
+  };
+  const focusedPairTaken = isCombinationTaken(focusedCharacterId, playerColor);
+  const takenCharacterForColor = (color: PlayerColorId): CharacterId | null => (
+    isCombinationTaken(focusedCharacterId, color) ? focusedCharacterId : null
+  );
   const selectionStatus = busy
     ? 'Đang lưu lựa chọn...'
-    : selectedCharacterId === focusedCharacterId
-      ? 'Đã chọn'
-      : 'Chưa chọn mascot';
+    : focusedPairTaken
+      ? 'Chọn màu khác'
+      : selectedCharacterId === focusedCharacterId
+        ? 'Đã chọn'
+        : 'Chọn màu để xác nhận';
 
   const selectCharacter = (characterId: CharacterId): void => {
     if (busy) return;
     setFocusedCharacterId(characterId);
-    if (selectedCharacterId !== characterId) onSetAppearance({ characterId });
+    if (selectedCharacterId !== characterId && !isCombinationTaken(characterId, playerColor)) {
+      onSetAppearance({ characterId });
+    }
+  };
+
+  const selectColor = (color: PlayerColorId): void => {
+    if (busy || isCombinationTaken(focusedCharacterId, color)) return;
+    if (focusedCharacterId === selectedCharacterId) {
+      onSetAppearance({ color });
+    } else {
+      onSetAppearance({ characterId: focusedCharacterId, color });
+    }
   };
 
   const handleKeyboardNavigation = (event: KeyboardEvent<HTMLDivElement>): void => {
@@ -153,7 +170,11 @@ export default function MascotPicker({
           </div>
           <strong>{focusedCharacter.displayName}</strong>
           <span className="mascot-picker__hero-caption">
-            {selectedCharacterId === focusedCharacterId ? 'Mascot hiện tại' : 'Chạm để chọn'}
+            {focusedPairTaken
+              ? 'Chọn màu khác'
+              : selectedCharacterId === focusedCharacterId
+                ? 'Mascot hiện tại'
+                : 'Chọn màu để xác nhận'}
           </span>
         </div>
 
@@ -208,21 +229,22 @@ export default function MascotPicker({
       </div>
 
       <fieldset className="mascot-picker__colors">
-        <legend>Màu nhận diện <span>(màu đã dùng sẽ bị khóa)</span></legend>
+        <legend>Màu nhận diện <span>(không thể trùng cả mascot và màu)</span></legend>
         <div className="mascot-picker__color-grid" role="group" aria-label="Chọn màu người chơi">
           {PLAYER_COLOR_IDS.map(color => {
             const visual = PLAYER_COLOR_VISUALS[color];
             const selected = playerColor === color;
-            const unavailable = takenColors.has(color) && !selected;
+            const takenCharacterId = takenCharacterForColor(color);
+            const unavailable = takenCharacterId !== null;
             return (
               <button
                 key={color}
                 className={`mascot-picker__color${selected ? ' mascot-picker__color--selected' : ''}`}
                 type="button"
-                aria-label={`${visual.label}${unavailable ? ' (đã được chọn)' : ''}`}
+                aria-label={`${visual.label}${takenCharacterId ? ` (đã dùng với ${CHARACTER_REGISTRY[takenCharacterId].displayName})` : ''}`}
                 aria-pressed={selected}
                 disabled={busy || unavailable}
-                onClick={() => onSetAppearance({ color })}
+                onClick={() => selectColor(color)}
               >
                 <span
                   className="mascot-picker__color-swatch"
@@ -235,24 +257,6 @@ export default function MascotPicker({
           })}
         </div>
       </fieldset>
-
-      <div className="mascot-picker__identity-preview">
-        <img
-          src={characterSvgDataUri(focusedCharacter.svgSource, playerColor)}
-          alt=""
-        />
-        <div>
-          <span className="lobby__eyebrow">Xem trước trong phòng</span>
-          <strong>{playerName}</strong>
-          <span>{focusedCharacter.displayName} <span aria-hidden="true">•</span> {getPlayerColorLabel(playerColor)}</span>
-        </div>
-        <span
-          className="mascot-picker__identity-chip"
-          style={{ backgroundColor: displayColor, color: foregroundColor }}
-        >
-          Bạn
-        </span>
-      </div>
     </section>
   );
 }

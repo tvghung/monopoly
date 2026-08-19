@@ -1,4 +1,5 @@
 import './style/Lobby.css';
+import { getAppearanceCombinationKey } from '@monopoly/shared';
 import type {
   CharacterId,
   PlayerColorId,
@@ -41,6 +42,34 @@ interface LobbyProps {
   onSettings?: () => void;
 }
 
+function ReadyActionIcon({ cancel = false }: { cancel?: boolean }) {
+  return (
+    <svg
+      className="lobby__button-icon"
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {cancel
+        ? <path d="m4.25 4.25 7.5 7.5m0-7.5-7.5 7.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+        : <path d="m3.25 8.25 3.05 3.05 6.45-6.6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />}
+    </svg>
+  );
+}
+
+function StartActionIcon() {
+  return (
+    <svg
+      className="lobby__button-icon"
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="m5 3.25 7 4.75-7 4.75z" fill="currentColor" />
+    </svg>
+  );
+}
+
 export default function Lobby({
   roomCode,
   players,
@@ -58,14 +87,22 @@ export default function Lobby({
 }: LobbyProps) {
   const me = players.find(player => player.id === playerId);
   const isHost = hostPlayerId === playerId;
-  const takenColors = new Set(
-    players.filter(player => player.id !== playerId).map(player => player.color),
+  const takenAppearanceKeys = new Set(
+    players
+      .filter(player => player.id !== playerId && player.characterId !== null)
+      .map(player => getAppearanceCombinationKey(player.characterId, player.color))
+      .filter((key): key is string => key !== null),
   );
+  const appearanceKeys = players
+    .map(player => getAppearanceCombinationKey(player.characterId, player.color))
+    .filter((key): key is string => key !== null);
+  const appearanceCombinationsAreUnique = appearanceKeys.length === players.length
+    && new Set(appearanceKeys).size === appearanceKeys.length;
   const canStart = isHost
     && players.length >= minPlayers
     && players.length <= maxPlayers
     && players.every(player => player.ready && player.connected && player.characterId !== null)
-    && new Set(players.map(player => player.color)).size === players.length;
+    && appearanceCombinationsAreUnique;
   const slots = Array.from({ length: maxPlayers }, (_, index) => players[index] ?? null);
 
   return (
@@ -135,10 +172,9 @@ export default function Lobby({
         {me
           ? (
             <MascotPicker
-              playerName={me.name}
               selectedCharacterId={me.characterId}
               playerColor={me.color}
-              takenColors={takenColors}
+              takenAppearanceKeys={takenAppearanceKeys}
               busy={busy}
               onSetAppearance={onSetAppearance}
             />
@@ -155,7 +191,11 @@ export default function Lobby({
             disabled={busy || !me?.connected || me?.characterId === null}
             onClick={() => { if (me) onSetReady(!me.ready); }}
           >
-            {me?.characterId === null ? 'Chọn mascot trước' : me?.ready ? 'Hủy sẵn sàng' : 'Sẵn sàng'}
+            {me?.characterId === null
+              ? 'Chọn mascot trước'
+              : me?.ready
+                ? <><ReadyActionIcon cancel /><span>Hủy sẵn sàng</span></>
+                : <><ReadyActionIcon /><span>Sẵn sàng</span></>}
           </Button>
 
           {isHost
@@ -166,7 +206,8 @@ export default function Lobby({
                 disabled={busy || !canStart}
                 onClick={onStart}
               >
-                Bắt đầu ván chơi
+                <StartActionIcon />
+                <span>Bắt đầu</span>
               </Button>
             )
             : <p className="lobby__waiting-copy">Đang chờ Chủ Phòng bắt đầu...</p>}

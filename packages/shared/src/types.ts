@@ -52,6 +52,13 @@ export const PLAYER_COLOR_IDS = [
 
 export type PlayerColorId = typeof PLAYER_COLOR_IDS[number];
 
+export function getAppearanceCombinationKey(
+  characterId: CharacterId | null,
+  color: PlayerColorId,
+): string | null {
+  return characterId === null ? null : `${characterId}:${color}`;
+}
+
 export type RoomStatus = 'LOBBY' | 'IN_PROGRESS' | 'FINISHED';
 export type RoomRole = 'PLAYER' | 'SPECTATOR';
 export type RoomMembershipStatus = 'ACTIVE' | 'FINISHED' | 'LEFT';

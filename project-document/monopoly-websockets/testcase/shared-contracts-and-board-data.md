@@ -5,7 +5,8 @@
 - [ ] `[AUTO][SOCKET]` Protocol v5 client/server works; older/mismatch gets
   `UPGRADE_REQUIRED`; every mutation has typed ACK and strict payload shape.
 - [ ] `[AUTO][SOCKET]` `set appearance` accepts strict character/color combinations,
-  allows duplicate characters, rejects conflicting active colors and preserves
+  allows duplicate characters and colors, rejects conflicting exact combinations,
+  and preserves
   committed appearance through public projection/reconnect.
 - [ ] `[AUTO]` Runtime schemas cover `TurnInfo.pendingPropertyDecision`,
   `PendingTurnContinuation`, `DebtClaim/PaymentQueue`, landing decisions,

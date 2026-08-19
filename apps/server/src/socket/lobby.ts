@@ -1,8 +1,12 @@
 import {
+  getAppearanceCombinationKey,
   setAppearanceRequestSchema,
   setReadyRequestSchema,
+  type CharacterId,
+  type GameState,
   type LeaveRoomResult,
   type OfferResult,
+  type PlayerColorId,
 } from '@monopoly/shared';
 import {
   chooseStartingPlayer,
@@ -13,7 +17,12 @@ import {
   sendToLog,
   surrenderPlayerToBank,
 } from '../game';
-import { activePlayerIds, MAX_PLAYERS, MIN_PLAYERS } from '../rooms';
+import {
+  activePlayerIds,
+  MAX_PLAYERS,
+  MIN_PLAYERS,
+  type RoomSnapshot,
+} from '../rooms';
 import type { AppRuntime } from '../services/runtime';
 import type { TradeOfferRecord } from '../persistence';
 import { projectPrivateOffer } from '../services/privateOffers';
@@ -27,6 +36,23 @@ import { CommandError, acknowledgeFailure, successAck } from './errors';
 import { commitRoomCommand } from './roomCommands';
 import type { AppServer, AppSocket } from './types';
 import { parsePayload } from './validation';
+
+function hasAppearanceCombinationConflict(
+  room: RoomSnapshot,
+  state: GameState,
+  playerId: string,
+  characterId: CharacterId | null,
+  color: PlayerColorId,
+): boolean {
+  const key = getAppearanceCombinationKey(characterId, color);
+  if (key === null) return false;
+  return activePlayerIds(room).some(candidateId => {
+    if (candidateId === playerId) return false;
+    const candidate = state.players[candidateId];
+    return candidate !== undefined
+      && getAppearanceCombinationKey(candidate.characterId, candidate.color) === key;
+  });
+}
 
 export function registerLobbyHandlers(
   io: AppServer,
@@ -48,14 +74,10 @@ export function registerLobbyHandlers(
           throw new CommandError('FORBIDDEN', 'Only an active player can change appearance.');
         }
 
-        if (request.color !== undefined && request.color !== player.color) {
-          const conflictingPlayerId = activePlayerIds(room.gameSnapshot).find(
-            candidateId => candidateId !== playerId
-              && state.players[candidateId]?.color === request.color,
-          );
-          if (conflictingPlayerId) {
-            throw new CommandError('CONFLICT', 'Màu này đã được người chơi khác chọn.');
-          }
+        const nextCharacterId = request.characterId ?? player.characterId;
+        const nextColor = request.color ?? player.color;
+        if (hasAppearanceCombinationConflict(room.gameSnapshot, state, playerId, nextCharacterId, nextColor)) {
+          throw new CommandError('CONFLICT', 'Tổ hợp mascot và màu này đã được người chơi khác chọn.');
         }
 
         const changed = (request.characterId !== undefined && request.characterId !== player.characterId)
@@ -85,8 +107,22 @@ export function registerLobbyHandlers(
         if (!member || member.membershipStatus !== 'ACTIVE') {
           throw new CommandError('FORBIDDEN', 'Only an active player can become ready.');
         }
-        if (request.ready && state.players[playerId]?.characterId === null) {
+        const player = state.players[playerId];
+        if (request.ready && (!player || player.characterId === null)) {
           throw new CommandError('CONFLICT', 'Vui lòng chọn nhân vật trước khi sẵn sàng.');
+        }
+        if (
+          request.ready
+          && player
+          && hasAppearanceCombinationConflict(
+            room.gameSnapshot,
+            state,
+            playerId,
+            player.characterId,
+            player.color,
+          )
+        ) {
+          throw new CommandError('CONFLICT', 'Tổ hợp mascot và màu này đã được người chơi khác chọn.');
         }
         member.ready = request.ready;
       }, undefined, actor);
@@ -123,9 +159,18 @@ export function registerLobbyHandlers(
         if (activePlayers.some(player => !player || player.characterId === null)) {
           throw new CommandError('CONFLICT', 'Mọi người chơi phải chọn nhân vật trước khi bắt đầu.');
         }
-        const colors = activePlayers.map(player => player?.color);
-        if (new Set(colors).size !== colors.length) {
-          throw new CommandError('CONFLICT', 'Mỗi người chơi phải có một màu riêng trước khi bắt đầu.');
+        const appearanceKeys = activePlayers
+          .filter((player): player is NonNullable<typeof player> => player !== undefined)
+          .map(player => getAppearanceCombinationKey(player.characterId, player.color));
+        if (
+          appearanceKeys.length !== activePlayers.length
+          || appearanceKeys.some(key => key === null)
+          || new Set(appearanceKeys).size !== appearanceKeys.length
+        ) {
+          throw new CommandError(
+            'CONFLICT',
+            'Mỗi người chơi phải có một tổ hợp mascot và màu riêng trước khi bắt đầu.',
+          );
         }
         if (players.some((id) => !runtime.connections.isConnected(id))) {
           throw new CommandError('CONFLICT', 'Every active player must be connected.');
