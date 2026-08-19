@@ -110,7 +110,6 @@ export default function Lobby({
       <article className="lobby__card">
         <header className="lobby__header">
           <div>
-            <p className="lobby__brand">OWN THE BLOCK</p>
             <p className="lobby__eyebrow">Mã phòng</p>
             <h1 id="lobby-title" className="lobby__title">{roomCode}</h1>
           </div>
@@ -119,6 +118,19 @@ export default function Lobby({
             <Button className="lobby__leave" variant="secondary" type="button" disabled={busy} onClick={onLeave}>
               Rời phòng
             </Button>
+            {isHost
+              ? (
+                <Button
+                  className="lobby__start"
+                  type="button"
+                  disabled={busy || !canStart}
+                  onClick={onStart}
+                >
+                  <StartActionIcon />
+                  <span>Bắt đầu</span>
+                </Button>
+              )
+              : null}
           </div>
         </header>
 
@@ -145,22 +157,35 @@ export default function Lobby({
                   {player.id === playerId ? ' (bạn)' : ''}
                 </span>
                 {player.id === hostPlayerId ? <Badge variant="warning">Chủ phòng</Badge> : null}
-                <span className="lobby-player__character" aria-label="Nhân vật hiện tại">
-                  {player.characterId ? CHARACTER_REGISTRY[player.characterId].displayName : 'Chưa chọn nhân vật'}
-                </span>
-                <Badge variant={player.connected ? 'success' : 'neutral'}>
-                  {player.connected ? 'Trực tuyến' : 'Mất kết nối'}
-                </Badge>
-                <Badge variant={player.ready ? 'success' : 'neutral'}>
-                  {player.ready ? 'Sẵn sàng' : 'Chưa sẵn sàng'}
-                </Badge>
+                <span
+                  className={`lobby-player__presence-dot ${player.connected
+                    ? 'lobby-player__presence-dot--online'
+                    : 'lobby-player__presence-dot--offline'}`}
+                  aria-label={player.connected ? 'Trực tuyến' : 'Mất kết nối'}
+                  title={player.connected ? 'Trực tuyến' : 'Mất kết nối'}
+                />
+                {player.id === playerId
+                  ? (
+                    <Button
+                      variant={player.ready ? 'secondary' : 'primary'}
+                      className="lobby-player__ready-action"
+                      type="button"
+                      disabled={busy || !player.connected || player.characterId === null}
+                      title={player.characterId === null ? 'Chọn mascot trước để sẵn sàng' : undefined}
+                      onClick={() => onSetReady(!player.ready)}
+                    >
+                      {player.ready
+                        ? <><ReadyActionIcon cancel /><span>Hủy sẵn sàng</span></>
+                        : <><ReadyActionIcon /><span>Sẵn sàng</span></>}
+                    </Button>
+                  )
+                  : null}
               </li>
             )
             : (
               <li className="lobby-player lobby-player--empty" key={`empty-${index}`}>
                 <span className="lobby-player__disc" aria-hidden="true" />
                 <span className="lobby-player__name">Chỗ trống {index + 1}</span>
-                <Badge>Đang chờ người chơi</Badge>
               </li>
             ))}
         </ul>
@@ -178,36 +203,6 @@ export default function Lobby({
           : null}
 
         {error ? <p className="lobby__error" role="alert">{error}</p> : null}
-
-        <div className="lobby__actions">
-          <Button
-            variant={me?.ready ? 'secondary' : 'primary'}
-            className="lobby__button"
-            type="button"
-            disabled={busy || !me?.connected || me?.characterId === null}
-            onClick={() => { if (me) onSetReady(!me.ready); }}
-          >
-            {me?.characterId === null
-              ? 'Chọn mascot trước'
-              : me?.ready
-                ? <><ReadyActionIcon cancel /><span>Hủy sẵn sàng</span></>
-                : <><ReadyActionIcon /><span>Sẵn sàng</span></>}
-          </Button>
-
-          {isHost
-            ? (
-              <Button
-                className="lobby__button"
-                type="button"
-                disabled={busy || !canStart}
-                onClick={onStart}
-              >
-                <StartActionIcon />
-                <span>Bắt đầu</span>
-              </Button>
-            )
-            : <p className="lobby__waiting-copy">Đang chờ Chủ Phòng bắt đầu...</p>}
-        </div>
       </article>
     </section>
   );

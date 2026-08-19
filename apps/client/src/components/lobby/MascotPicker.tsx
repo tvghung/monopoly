@@ -62,17 +62,9 @@ export default function MascotPicker({
     const key = getAppearanceCombinationKey(characterId, color);
     return key !== null && takenAppearanceKeys.has(key);
   };
-  const focusedPairTaken = isCombinationTaken(focusedCharacterId, playerColor);
   const takenCharacterForColor = (color: PlayerColorId): CharacterId | null => (
     isCombinationTaken(focusedCharacterId, color) ? focusedCharacterId : null
   );
-  const selectionStatus = busy
-    ? 'Đang lưu lựa chọn...'
-    : focusedPairTaken
-      ? 'Chọn màu khác'
-      : selectedCharacterId === focusedCharacterId
-        ? 'Đã chọn'
-        : 'Chọn màu để xác nhận';
 
   const selectCharacter = (characterId: CharacterId): void => {
     if (busy) return;
@@ -102,7 +94,7 @@ export default function MascotPicker({
   };
 
   return (
-    <section className="mascot-picker" style={accentStyle} aria-labelledby="appearance-title">
+    <section className="mascot-picker" style={accentStyle} aria-label="Chọn nhân vật của bạn">
       <div
         className="mascot-picker__stage"
         tabIndex={0}
@@ -184,9 +176,6 @@ export default function MascotPicker({
         </button>
       </div>
 
-      <div className="mascot-picker__rail-heading">
-        <span>Tất cả mascot</span>
-      </div>
       <div className="mascot-picker__thumbnail-rail" role="group" aria-label="Chọn mascot">
         {CHARACTER_IDS.map(characterId => {
           const character = CHARACTER_REGISTRY[characterId];
@@ -209,8 +198,8 @@ export default function MascotPicker({
         })}
       </div>
 
-      <fieldset className="mascot-picker__colors">
-        <div className="mascot-picker__color-grid" role="group" aria-label="Chọn màu người chơi">
+      <div className="mascot-picker__colors" role="group" aria-label="Chọn màu người chơi">
+        <div className="mascot-picker__color-grid">
           {PLAYER_COLOR_IDS.map(color => {
             const visual = PLAYER_COLOR_VISUALS[color];
             const selected = playerColor === color;
@@ -236,7 +225,7 @@ export default function MascotPicker({
             );
           })}
         </div>
-      </fieldset>
+      </div>
     </section>
   );
 }
