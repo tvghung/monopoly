@@ -36,7 +36,7 @@ const createActiveSnapshot = (): ReturnType<typeof createRoomSnapshot> => {
     name: 'Player One',
     currentTile: 0,
     color: 'red',
-    characterId: 'shiba',
+    characterId: 'dog',
     accountBalance: 1500,
     isJail: false,
     jailOpponentRoundsElapsed: 0,
@@ -138,6 +138,20 @@ describe('durable room snapshot compatibility', () => {
     })).toThrow(UnsupportedRoomSnapshotVersionError);
   });
 
+  it('normalizes legacy V5 character ids before validating the snapshot', () => {
+    const gameSnapshot = createActiveSnapshot();
+    (gameSnapshot.gameState.players[PLAYER_ONE] as unknown as { characterId: unknown }).characterId = 'shiba';
+    (gameSnapshot.gameState.players[PLAYER_TWO] as unknown as { characterId: unknown }).characterId = 'fox';
+
+    expect(() => assertSupportedRoomSnapshot({
+      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
+      gameSnapshot,
+      status: 'IN_PROGRESS',
+    })).not.toThrow();
+    expect(gameSnapshot.gameState.players[PLAYER_ONE]?.characterId).toBe('dog');
+    expect(gameSnapshot.gameState.players[PLAYER_TWO]?.characterId).toBe('elephant');
+  });
+
   it('accepts older snapshots without a match-start timestamp', () => {
     const gameSnapshot = createRoomSnapshot();
     delete gameSnapshot.gameState.boardState.gameStartedAt;
@@ -173,7 +187,7 @@ describe('durable room snapshot compatibility', () => {
       name: 'Legacy',
       currentTile: 0,
       color: 'red',
-      characterId: 'shiba',
+      characterId: 'dog',
       accountBalance: 1500,
       isJail: false,
       jailOpponentRoundsElapsed: 0,
@@ -225,7 +239,7 @@ describe('durable room snapshot compatibility', () => {
       name: 'Debtor',
       currentTile: 0,
       color: 'red',
-      characterId: 'shiba',
+      characterId: 'dog',
       accountBalance: 5,
       isJail: false,
       jailOpponentRoundsElapsed: 0,

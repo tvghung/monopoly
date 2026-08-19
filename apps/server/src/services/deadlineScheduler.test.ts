@@ -56,7 +56,7 @@ function activeSnapshot(): RoomSnapshot {
       name: 'Ada',
       currentTile: 1,
       color: 'red',
-      characterId: 'shiba',
+      characterId: 'dog',
       accountBalance: 1500,
       isJail: false,
       jailOpponentRoundsElapsed: 0,

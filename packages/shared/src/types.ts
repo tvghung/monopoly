@@ -15,17 +15,27 @@ export type PaymentClaimId = DebtClaimId;
 export type ForcedSaleProposalId = string;
 
 export const CHARACTER_IDS = [
-  'shiba',
+  'dog',
   'capybara',
   'panda',
   'cat',
   'penguin',
-  'fox',
+  'elephant',
   'rabbit',
   'duck',
 ] as const;
 
 export type CharacterId = typeof CHARACTER_IDS[number];
+
+/**
+ * Character ids written by the original V5 appearance rollout. They remain
+ * readable at the durable snapshot boundary, but are never emitted by the
+ * current roster or appearance command schema.
+ */
+export const LEGACY_CHARACTER_ID_MAP: Record<string, CharacterId> = {
+  shiba: 'dog',
+  fox: 'elephant',
+};
 
 export const PLAYER_COLOR_IDS = [
   'red',

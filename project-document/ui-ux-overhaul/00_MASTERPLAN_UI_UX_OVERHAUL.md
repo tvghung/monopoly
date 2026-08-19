@@ -82,12 +82,12 @@ Không dùng full 3D character rigs trong scope hiện tại.
 
 Nhân vật dùng transparent PNG sprite/billboard:
 
-- Shiba
+- Dog (golden retriever artwork)
 - Capybara
 - Panda
 - Cat
 - Penguin
-- Fox
+- Elephant
 - Rabbit
 - Duck
 
@@ -279,12 +279,12 @@ Board phải trả lời ngay được:
 
 8 character sprite:
 
-1. Shiba
+1. Dog
 2. Capybara
 3. Panda
 4. Cat
 5. Penguin
-6. Fox
+6. Elephant
 7. Rabbit
 8. Duck
 

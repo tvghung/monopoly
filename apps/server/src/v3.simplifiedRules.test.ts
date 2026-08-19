@@ -31,7 +31,7 @@ const makePlayer = (over: Partial<Player> = {}): Player => ({
   jailOpponentRoundsElapsed: 0,
   heldJailFreeCardIds: [],
   ...over,
-  characterId: over.characterId ?? 'shiba',
+  characterId: over.characterId ?? 'dog',
 });
 
 const makeState = (): GameState => ({

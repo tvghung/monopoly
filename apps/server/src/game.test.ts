@@ -40,7 +40,7 @@ const makePlayer = (over: Partial<Player> = {}): Player => ({
   jailOpponentRoundsElapsed: 0,
   heldJailFreeCardIds: [],
   ...over,
-  characterId: over.characterId ?? 'shiba',
+  characterId: over.characterId ?? 'dog',
 });
 
 const makeState = (): GameState => ({
@@ -534,7 +534,7 @@ describe('checkBalance / winner', () => {
       playerId: 'winner',
       name: 'Ada',
       color: 'purple',
-      characterId: 'shiba',
+      characterId: 'dog',
     });
     expect(state.boardState.logs).toHaveLength(logsBefore + 1);
   });

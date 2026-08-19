@@ -9,6 +9,7 @@ import type {
 import {
   allGameCards,
   createCanonicalDecks,
+  LEGACY_CHARACTER_ID_MAP,
   persistedGameStateSchema,
   PLAYER_COLOR_IDS,
   tileState,
@@ -37,6 +38,22 @@ export const LEGACY_PLAYER_COLOR_MAP: Record<string, PlayerColorId> = {
 export const mapLegacyPlayerColor = (rawColor: unknown): PlayerColorId => {
   const normalized = typeof rawColor === 'string' ? rawColor.trim().toLowerCase() : '';
   return LEGACY_PLAYER_COLOR_MAP[normalized] ?? 'charcoal';
+};
+
+const normalizeLegacyCharacterIds = (snapshot: RoomSnapshot): void => {
+  const normalize = (record: LegacyPlayerRecord): void => {
+    if (typeof record.characterId !== 'string') return;
+    const canonicalId = LEGACY_CHARACTER_ID_MAP[record.characterId];
+    if (canonicalId) record.characterId = canonicalId;
+  };
+
+  Object.values(snapshot.gameState.players as unknown as Record<PlayerId, LegacyPlayerRecord>)
+    .forEach(normalize);
+  Object.values(snapshot.gameState.boardState.finishedPlayers as unknown as Record<PlayerId, LegacyPlayerRecord>)
+    .forEach(normalize);
+  if (snapshot.gameState.boardState.winner) {
+    normalize(snapshot.gameState.boardState.winner as unknown as LegacyPlayerRecord);
+  }
 };
 
 const playerIdValueSchema = z.uuid();
@@ -262,6 +279,7 @@ export const calculateNextActionAt = (snapshot: RoomSnapshot): Date | null => {
 };
 
 export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
+  normalizeLegacyCharacterIds(snapshot);
   const parsed = roomSnapshotSchema.safeParse(snapshot);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
@@ -475,7 +493,7 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
   }
 };
 
-/** Older rows are upgraded transactionally; runtime accepts v4 only. */
+/** Older rows are upgraded transactionally; current V5 rows normalize legacy mascot ids at the boundary. */
 export const assertSupportedRoomSnapshot = (
   room: PersistedRoomSnapshotEnvelope,
 ): void => {

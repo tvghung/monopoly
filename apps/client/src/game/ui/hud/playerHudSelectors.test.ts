@@ -18,7 +18,7 @@ describe('selectPlayerHudViewModels', () => {
       propertyCount: 2,
       houseCount: 2,
       hotelCount: 1,
-      characterId: 'shiba',
+      characterId: 'dog',
       isCurrentTurn: true,
     });
     expect(views.find(view => view.playerId === 'player-b')).toMatchObject({

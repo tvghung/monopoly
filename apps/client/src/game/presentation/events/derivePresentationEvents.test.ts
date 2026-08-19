@@ -45,7 +45,7 @@ describe('derivePresentationEvents', () => {
       name: 'Bình', color: 'blue', characterId: 'panda', reason: 'BANKRUPT',
     };
     next.gameState.boardState.winner = {
-      playerId: 'player-a', name: 'An', color: 'red', characterId: 'shiba', reason: 'BANKRUPT',
+      playerId: 'player-a', name: 'An', color: 'red', characterId: 'dog', reason: 'BANKRUPT',
     };
 
     expect(derivePresentationEvents(previous, next).map(event => event.type)).toEqual([

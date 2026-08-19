@@ -6,7 +6,7 @@ import CharacterSprite from './CharacterSprite';
 
 describe('character sprite composition', () => {
   it('keeps the loading state empty and passes the exact ready texture to a neutral material', () => {
-    const definition = CHARACTER_REGISTRY.shiba;
+    const definition = CHARACTER_REGISTRY.dog;
     const texture = new THREE.Texture();
 
     expect(CharacterSprite({ texture: null, definition })).toBeNull();

@@ -31,7 +31,7 @@ const makePlayer = (name: string, color: PlayerColorId): PublicGameState['player
   name,
   currentTile: 0,
   color,
-  characterId: 'shiba',
+  characterId: 'dog',
   accountBalance: 1500,
   isJail: false,
   jailOpponentRoundsElapsed: 0,

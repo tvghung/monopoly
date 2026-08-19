@@ -7,7 +7,7 @@ const player = (overrides: Partial<CharacterPlayerModel>): CharacterPlayerModel 
   playerId: 'player',
   name: 'Player',
   color: 'red',
-  characterId: 'shiba',
+  characterId: 'dog',
   tileId: 1,
   isActive: false,
   joinOrder: 1,

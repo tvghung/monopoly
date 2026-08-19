@@ -4,9 +4,9 @@ import type {
   PlayerColorId,
   SetAppearanceRequest,
 } from '@monopoly/shared';
-import { CHARACTER_IDS, PLAYER_COLOR_IDS } from '@monopoly/shared';
 import Button from '../design-system/components/Button/Button';
 import Badge from '../design-system/components/Badge/Badge';
+import MascotPicker from './lobby/MascotPicker';
 import {
   characterSvgDataUri,
 } from '../game/characters/characterSvg';
@@ -14,7 +14,6 @@ import { CHARACTER_REGISTRY } from '../game/characters/characterRegistry';
 import {
   getPlayerColorLabel,
   getPlayerDisplayColor,
-  PLAYER_COLOR_VISUALS,
 } from '../game/ui/playerVisualColors';
 
 export interface LobbyPlayerView {
@@ -87,7 +86,7 @@ export default function Lobby({
         </header>
 
         <p className="lobby__hint">
-          {`Chủ phòng có thể bắt đầu khi ${minPlayers}–${maxPlayers} người chơi đang kết nối đều sẵn sàng và đã chọn mascot.`}
+          {`Chủ phòng có thể bắt đầu khi ${minPlayers}-${maxPlayers} người chơi đang kết nối đều sẵn sàng và đã chọn mascot.`}
         </p>
 
         <ul className="lobby__players" aria-label="Danh sách người chơi">
@@ -135,65 +134,14 @@ export default function Lobby({
 
         {me
           ? (
-            <section className="lobby__appearance" aria-labelledby="appearance-title">
-              <div className="lobby__appearance-heading">
-                <div>
-                  <p className="lobby__eyebrow">Ngoại hình của bạn</p>
-                  <h2 id="appearance-title">Chọn mascot và màu nhận diện</h2>
-                </div>
-                {busy ? <span className="lobby__pending" role="status">Đang cập nhật…</span> : null}
-              </div>
-              <fieldset className="lobby__fieldset">
-                <legend>Mascot <span>(có thể trùng)</span></legend>
-                <div className="lobby__character-grid" role="group" aria-label="Chọn mascot">
-                  {CHARACTER_IDS.map(characterId => {
-                    const character = CHARACTER_REGISTRY[characterId];
-                    const selected = me.characterId === characterId;
-                    return (
-                      <button
-                        key={characterId}
-                        className={`lobby-character${selected ? ' lobby-character--selected' : ''}`}
-                        type="button"
-                        aria-pressed={selected}
-                        disabled={busy}
-                        onClick={() => onSetAppearance({ characterId })}
-                      >
-                        <img
-                          src={characterSvgDataUri(character.svgSource, me.color)}
-                          alt=""
-                          className="lobby-character__image"
-                        />
-                        <span>{character.displayName}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </fieldset>
-              <fieldset className="lobby__fieldset">
-                <legend>Màu người chơi <span>(màu đã dùng sẽ bị khóa)</span></legend>
-                <div className="lobby__color-grid" role="group" aria-label="Chọn màu người chơi">
-                  {PLAYER_COLOR_IDS.map(color => {
-                    const visual = PLAYER_COLOR_VISUALS[color];
-                    const selected = me.color === color;
-                    const unavailable = takenColors.has(color) && !selected;
-                    return (
-                      <button
-                        key={color}
-                        className={`lobby-color${selected ? ' lobby-color--selected' : ''}`}
-                        type="button"
-                        aria-label={`${visual.label}${unavailable ? ' (đã được chọn)' : ''}`}
-                        aria-pressed={selected}
-                        disabled={busy || unavailable}
-                        onClick={() => onSetAppearance({ color })}
-                      >
-                        <span className="lobby-color__swatch" style={{ backgroundColor: visual.display }} aria-hidden="true" />
-                        <span>{visual.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </fieldset>
-            </section>
+            <MascotPicker
+              playerName={me.name}
+              selectedCharacterId={me.characterId}
+              playerColor={me.color}
+              takenColors={takenColors}
+              busy={busy}
+              onSetAppearance={onSetAppearance}
+            />
           )
           : null}
 
@@ -221,7 +169,7 @@ export default function Lobby({
                 Bắt đầu ván chơi
               </Button>
             )
-            : <p className="lobby__waiting-copy">Đang chờ Chủ Phòng bắt đầu…</p>}
+            : <p className="lobby__waiting-copy">Đang chờ Chủ Phòng bắt đầu...</p>}
         </div>
       </article>
     </section>

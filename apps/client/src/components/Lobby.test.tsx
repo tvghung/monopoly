@@ -9,7 +9,7 @@ import Lobby from './Lobby';
 afterEach(cleanup);
 
 const readyPlayers = [
-  { id: 'player-a', name: 'Ada', color: 'red' as const, characterId: 'shiba' as const, ready: true, connected: true },
+  { id: 'player-a', name: 'Ada', color: 'red' as const, characterId: 'dog' as const, ready: true, connected: true },
   { id: 'player-b', name: 'Grace', color: 'blue' as const, characterId: 'panda' as const, ready: true, connected: true },
 ];
 
@@ -38,7 +38,7 @@ describe('Lobby', () => {
     expect(screen.getByText('Ada (bạn)')).toBeTruthy();
     expect(screen.getByText('Chủ phòng')).toBeTruthy();
     expect(screen.getAllByRole('listitem')).toHaveLength(4);
-    expect(screen.getByText(/2–4 người chơi/)).toBeTruthy();
+    expect(screen.getByText(/2-4 người chơi/)).toBeTruthy();
   });
 
   it('keeps start disabled while a player is offline or not ready', () => {
@@ -104,7 +104,7 @@ describe('Lobby', () => {
       />,
     );
 
-    expect(screen.getAllByText('Shiba').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Dog').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Panda').length).toBeGreaterThanOrEqual(1);
     const characterGroup = screen.getByRole('group', { name: 'Chọn mascot' });
     const colorGroup = screen.getByRole('group', { name: 'Chọn màu người chơi' });
@@ -115,5 +115,33 @@ describe('Lobby', () => {
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đỏ' }).disabled).toBe(false);
     expect(document.querySelector<HTMLImageElement>('.lobby-player__mascot')?.src)
       .toContain('%23f2384a');
+  });
+
+  it('supports carousel keyboard navigation and keeps color selection in the same appearance flow', () => {
+    const onSetAppearance = vi.fn();
+    render(
+      <Lobby
+        roomCode="ROOM-5"
+        players={readyPlayers}
+        playerId="player-a"
+        hostPlayerId="player-a"
+        minPlayers={2}
+        maxPlayers={4}
+        busy={false}
+        error={null}
+        onSetReady={vi.fn()}
+        onSetAppearance={onSetAppearance}
+        onStart={vi.fn()}
+        onLeave={vi.fn()}
+      />,
+    );
+
+    const stage = screen.getByRole('group', { name: /Mascot đang xem: Dog/u });
+    fireEvent.keyDown(stage, { key: 'ArrowRight' });
+    expect(onSetAppearance).toHaveBeenCalledWith({ characterId: 'capybara' });
+    expect(screen.getByRole('button', { name: 'Dog' }).getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xanh lá' }));
+    expect(onSetAppearance).toHaveBeenLastCalledWith({ color: 'green' });
   });
 });

@@ -1,10 +1,10 @@
 import type { CharacterId } from '@monopoly/shared';
-import shibaSvg from './assets/shiba.svg?raw';
+import dogSvg from './assets/dog.svg?raw';
 import capybaraSvg from './assets/capybara.svg?raw';
 import pandaSvg from './assets/panda.svg?raw';
 import catSvg from './assets/cat.svg?raw';
 import penguinSvg from './assets/penguin.svg?raw';
-import foxSvg from './assets/fox.svg?raw';
+import elephantSvg from './assets/elephant.svg?raw';
 import rabbitSvg from './assets/rabbit.svg?raw';
 import duckSvg from './assets/duck.svg?raw';
 import legacySvg from './assets/legacy.svg?raw';
@@ -32,12 +32,12 @@ const definition = (
 });
 
 export const CHARACTER_REGISTRY: Record<CharacterId, CharacterDefinition> = {
-  shiba: definition('shiba', 'Shiba', shibaSvg),
+  dog: definition('dog', 'Dog', dogSvg),
   capybara: definition('capybara', 'Capybara', capybaraSvg),
   panda: definition('panda', 'Panda', pandaSvg),
   cat: definition('cat', 'Mèo', catSvg),
   penguin: definition('penguin', 'Chim cánh cụt', penguinSvg),
-  fox: definition('fox', 'Cáo', foxSvg),
+  elephant: definition('elephant', 'Elephant', elephantSvg),
   rabbit: definition('rabbit', 'Thỏ', rabbitSvg),
   duck: definition('duck', 'Vịt', duckSvg),
 };

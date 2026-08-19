@@ -35,7 +35,7 @@ const state: PublicGameState = {
       name: 'An',
       currentTile: 0,
       color: 'red',
-      characterId: 'shiba',
+      characterId: 'dog',
       accountBalance: 1500,
       isJail: false,
       jailOpponentRoundsElapsed: 0,

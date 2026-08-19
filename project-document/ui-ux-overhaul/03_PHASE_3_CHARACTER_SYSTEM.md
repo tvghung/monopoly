@@ -23,17 +23,19 @@ second gameplay or animation authority.
 
 Use exactly these stable lowercase `CharacterId` values:
 
-- `shiba`
+- `dog`
 - `capybara`
 - `panda`
 - `cat`
 - `penguin`
-- `fox`
+- `elephant`
 - `rabbit`
 - `duck`
 
+`dog` uses a golden retriever artwork but keeps the generic display label
+**Dog**. `elephant` uses the elephant artwork and display label **Elephant**.
 Characters are not unique in a room. Multiple players may select the same
-character; for example, Shiba/red and Shiba/blue is valid. Do not disable a
+character; for example, Dog/red and Dog/blue is valid. Do not disable a
 character because another player selected it.
 
 ### 2.2 Player color palette
@@ -138,6 +140,12 @@ persistence migration using the existing migration/checksum architecture:
   loadable, while new lobby admission/start remains capped at 2–4;
 - upgraded snapshots validate as v5 and remain idempotent.
 
+V5 snapshots written by the first appearance rollout may still contain the
+legacy ids `shiba` or `fox`. The server normalizes those ids at the snapshot
+boundary to `dog` and `elephant` before schema validation; the next committed
+room write persists the canonical ids. New appearance commands accept only the
+current roster.
+
 When a live player is eliminated, leaves, or becomes the winner, preserve
 `name`, `color`, and `characterId` in every `FinishedPlayer`/`Winner`
 construction path.
@@ -146,8 +154,8 @@ construction path.
 
 Use eight original, local, transparent SVGs under
 `apps/client/src/game/characters/assets/` with a common `0 0 256 256` viewBox
-where practical: `shiba.svg`, `capybara.svg`, `panda.svg`, `cat.svg`,
-`penguin.svg`, `fox.svg`, `rabbit.svg`, and `duck.svg`.
+where practical: `dog.svg`, `capybara.svg`, `panda.svg`, `cat.svg`,
+`penguin.svg`, `elephant.svg`, `rabbit.svg`, and `duck.svg`.
 
 Create one registry under `apps/client/src/game/characters/` with exactly one
 definition per `CharacterId`, including display name, SVG source, scale,

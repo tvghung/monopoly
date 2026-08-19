@@ -37,7 +37,7 @@ const state = (overrides: Partial<PublicGameState> = {}): PublicGameState => ({
   },
   players: {
     active: {
-      name: 'An', currentTile: 4, color: 'red', characterId: 'shiba', accountBalance: 900,
+      name: 'An', currentTile: 4, color: 'red', characterId: 'dog', accountBalance: 900,
       isJail: false, jailOpponentRoundsElapsed: 0, getOutOfJailCardCount: 0,
     },
     finished: {

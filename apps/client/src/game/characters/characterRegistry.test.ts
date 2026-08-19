@@ -6,6 +6,10 @@ import { CHARACTER_REGISTRY } from './characterRegistry';
 describe('character registry', () => {
   it('has exactly one local SVG definition for every stable character id', () => {
     expect(Object.keys(CHARACTER_REGISTRY).sort()).toEqual([...CHARACTER_IDS].sort());
+    expect(CHARACTER_REGISTRY.dog.displayName).toBe('Dog');
+    expect(CHARACTER_REGISTRY.elephant.displayName).toBe('Elephant');
+    expect('shiba' in CHARACTER_REGISTRY).toBe(false);
+    expect('fox' in CHARACTER_REGISTRY).toBe(false);
     CHARACTER_IDS.forEach(characterId => {
       const definition = CHARACTER_REGISTRY[characterId];
       expect(definition.id).toBe(characterId);
@@ -25,13 +29,13 @@ describe('character registry', () => {
   });
 
   it('keeps base art stable while changing the player accent', () => {
-    const source = CHARACTER_REGISTRY.shiba.svgSource;
+    const source = CHARACTER_REGISTRY.dog.svgSource;
     const red = colorizeCharacterSvg(source, 'red');
     const blue = colorizeCharacterSvg(source, 'blue');
 
     expect(red).not.toEqual(blue);
-    expect(red).toContain('#d9823b');
-    expect(blue).toContain('#d9823b');
+    expect(red).toContain('#d9a441');
+    expect(blue).toContain('#d9a441');
     expect(red).toContain('#f2384a');
     expect(blue).toContain('#3567f2');
   });

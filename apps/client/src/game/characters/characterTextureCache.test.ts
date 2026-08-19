@@ -74,11 +74,11 @@ describe('character texture cache lifecycle', () => {
   it('uses the exact colorized URI and rasterizes a ready 256px CanvasTexture', () => {
     const { images, drawImage } = mockImagePipeline();
     const ready = vi.fn();
-    const release = acquireCharacterTexture('shiba', 'red', ready);
+    const release = acquireCharacterTexture('dog', 'red', ready);
 
     expect(images).toHaveLength(1);
     expect(images[0].src).toBe(
-      characterSvgDataUri(CHARACTER_REGISTRY.shiba.svgSource, 'red'),
+      characterSvgDataUri(CHARACTER_REGISTRY.dog.svgSource, 'red'),
     );
     expect(ready).not.toHaveBeenCalled();
 
@@ -101,22 +101,22 @@ describe('character texture cache lifecycle', () => {
     const { images } = mockImagePipeline();
     const ready = vi.fn();
     const error = vi.fn();
-    const release = acquireCharacterTexture('shiba', 'red', ready, error);
+    const release = acquireCharacterTexture('dog', 'red', ready, error);
     const cause = new Error('SVG decode failed');
 
     images[0].reject(cause);
 
     expect(ready).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledWith(expect.objectContaining({
-      key: 'shiba:red',
-      characterId: 'shiba',
+      key: 'dog:red',
+      characterId: 'dog',
       playerColor: 'red',
       cause,
     }));
 
     release();
     const retryReady = vi.fn();
-    const retryRelease = acquireCharacterTexture('shiba', 'red', retryReady);
+    const retryRelease = acquireCharacterTexture('dog', 'red', retryReady);
 
     expect(images).toHaveLength(2);
     images[1].resolve();

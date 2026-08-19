@@ -205,7 +205,7 @@ async function resumePlayer(
 async function setReady(socket: TestSocket, ready = true): Promise<Ack> {
   if (ready) {
     await waitForAck((acknowledge) => {
-      socket.emit('set appearance', { characterId: 'shiba' }, acknowledge);
+      socket.emit('set appearance', { characterId: 'dog' }, acknowledge);
     });
   }
   return waitForAck((acknowledge) => {
@@ -378,7 +378,7 @@ describe('Socket.IO durable player lifecycle', () => {
     const subject = await startServer();
     const firstSocket = await connect(subject.url);
     const player = await joinPlayer(firstSocket, 'Ada', 'refresh-room');
-    expect((await setAppearance(firstSocket, { characterId: 'fox', color: 'pink' })).ok).toBe(true);
+    expect((await setAppearance(firstSocket, { characterId: 'elephant', color: 'pink' })).ok).toBe(true);
     expect((await setReadyOnly(firstSocket)).ok).toBe(true);
 
     firstSocket.disconnect();
@@ -395,7 +395,7 @@ describe('Socket.IO durable player lifecycle', () => {
     expect(resumed.room.players[0]).toMatchObject({
       playerId: player.playerId,
       color: 'pink',
-      characterId: 'fox',
+      characterId: 'elephant',
       ready: true,
       connected: true,
     });
@@ -537,7 +537,11 @@ describe('Socket.IO durable player lifecycle', () => {
       ok: false,
       error: { code: 'INVALID_REQUEST' },
     });
-    expect((await setAppearance(host.socket, { characterId: 'shiba', extra: true } as unknown as SetAppearanceRequest))).toMatchObject({
+    expect((await setAppearance(host.socket, { characterId: 'dog', extra: true } as unknown as SetAppearanceRequest))).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_REQUEST' },
+    });
+    expect((await setAppearance(host.socket, { characterId: 'shiba' } as unknown as SetAppearanceRequest))).toMatchObject({
       ok: false,
       error: { code: 'INVALID_REQUEST' },
     });
@@ -550,9 +554,9 @@ describe('Socket.IO durable player lifecycle', () => {
       error: { code: 'INVALID_REQUEST' },
     });
 
-    expect((await setAppearance(guest.socket, { characterId: 'shiba' })).ok).toBe(true);
-    expect((await setAppearance(host.socket, { characterId: 'shiba' })).ok).toBe(true);
-    expect((await setAppearance(guest.socket, { characterId: 'shiba', color: 'lime' })).ok).toBe(true);
+    expect((await setAppearance(guest.socket, { characterId: 'dog' })).ok).toBe(true);
+    expect((await setAppearance(host.socket, { characterId: 'dog' })).ok).toBe(true);
+    expect((await setAppearance(guest.socket, { characterId: 'dog', color: 'lime' })).ok).toBe(true);
     expect((await setReadyOnly(host.socket)).ok).toBe(true);
     expect((await setReady(guest.socket)).ok).toBe(true);
     expect((await startGame(host.socket)).ok).toBe(true);
@@ -1083,7 +1087,7 @@ describe('Socket.IO durable player lifecycle', () => {
     const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
     const subject = await startServer(persistence);
     const player = await joinPlayer(await connect(subject.url), 'Ada', 'stale-queue');
-    await setAppearance(player.socket, { characterId: 'shiba' });
+    await setAppearance(player.socket, { characterId: 'dog' });
     const before = await persistence.rooms.findById(player.room.roomId);
     const executeSpy = vi.spyOn(subject.runtime.commands, 'execute');
     let releaseBlocker!: () => void;
@@ -1872,7 +1876,7 @@ describe.runIf(Boolean(testDatabaseUrl))(
                 name: 'Người bán',
                 currentTile: 1,
                 color: 'red',
-                characterId: 'shiba',
+                characterId: 'dog',
                 accountBalance: 1000,
                 isJail: false,
                 jailOpponentRoundsElapsed: 0,

@@ -45,7 +45,7 @@ describe('DebtPanel', () => {
       players: {
         'player-a': {
           name: 'An', currentTile: 3, color: 'red', accountBalance: 100, isJail: false,
-          jailOpponentRoundsElapsed: 0, getOutOfJailCardCount: 0, characterId: 'shiba',
+          jailOpponentRoundsElapsed: 0, getOutOfJailCardCount: 0, characterId: 'dog',
         },
         'player-b': {
           name: 'Bình', currentTile: 5, color: 'blue', accountBalance: 500, isJail: false,
