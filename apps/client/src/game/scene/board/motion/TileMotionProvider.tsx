@@ -49,7 +49,7 @@ export default function TileMotionProvider({ impacts, resetEpoch, children }: Ti
       return;
     }
     getUnprocessedTileImpacts(impacts, lastSequenceRef.current)
-      .forEach(impact => controller.press(impact.tileId, impact.kind));
+      .forEach(impact => controller.press(impact.tileId, impact.kind, impact));
     lastSequenceRef.current = impacts.reduce((latest, impact) => Math.max(latest, impact.sequence), lastSequenceRef.current);
   }, [controller, impacts]);
 

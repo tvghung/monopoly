@@ -8,14 +8,22 @@ import {
 describe('character reactions', () => {
   it('starts and completes a deterministic jail reaction', () => {
     const controller = new CharacterReactionController();
-    controller.start('jail');
+    controller.start('jail', 70);
 
     const active = controller.advance(20);
     expect(active.done).toBe(false);
     expect(active.offsetY).not.toBe(0);
 
-    const complete = controller.advance(getCharacterReactionDuration('jail'));
+    const complete = controller.advance(50);
     expect(complete.done).toBe(true);
+    expect(controller.getState()).toBeNull();
+  });
+
+  it('uses the resolved reaction duration instead of the base timing', () => {
+    const controller = new CharacterReactionController();
+    controller.start('jail', getCharacterReactionDuration('jail') / 2);
+
+    expect(controller.advance(getCharacterReactionDuration('jail') / 2).done).toBe(true);
     expect(controller.getState()).toBeNull();
   });
 

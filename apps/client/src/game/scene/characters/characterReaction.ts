@@ -15,6 +15,7 @@ export interface CharacterReactionSample {
 export interface CharacterReactionState {
   kind: CharacterReactionKind;
   elapsedMs: number;
+  durationMs: number;
 }
 
 const IDLE_REACTION: CharacterReactionSample = {
@@ -34,9 +35,11 @@ export function sampleCharacterReaction(
   kind: CharacterReactionKind,
   elapsedMs: number,
   reducedMotion = false,
+  durationMs = getCharacterReactionDuration(kind),
 ): CharacterReactionSample {
   if (reducedMotion) return IDLE_REACTION;
-  const duration = getCharacterReactionDuration(kind);
+  const duration = Math.max(0, durationMs);
+  if (duration === 0) return { ...IDLE_REACTION };
   const progress = Math.min(1, Math.max(0, elapsedMs / duration));
   const wave = Math.sin(progress * Math.PI);
   const settle = Math.sin(progress * Math.PI * 2);
@@ -95,8 +98,8 @@ export function sampleCharacterReaction(
 export class CharacterReactionController {
   private active: CharacterReactionState | null = null;
 
-  public start(kind: CharacterReactionKind): void {
-    this.active = { kind, elapsedMs: 0 };
+  public start(kind: CharacterReactionKind, durationMs = getCharacterReactionDuration(kind)): void {
+    this.active = { kind, elapsedMs: 0, durationMs: Math.max(0, durationMs) };
   }
 
   public reset(): void {
@@ -114,7 +117,7 @@ export class CharacterReactionController {
       return IDLE_REACTION;
     }
     this.active.elapsedMs += Math.max(0, deltaMs);
-    const sample = sampleCharacterReaction(this.active.kind, this.active.elapsedMs);
+    const sample = sampleCharacterReaction(this.active.kind, this.active.elapsedMs, false, this.active.durationMs);
     if (sample.done) this.reset();
     return sample;
   }

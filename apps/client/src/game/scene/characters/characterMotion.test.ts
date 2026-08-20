@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import {
   CHARACTER_HOP_DURATION_MS,
+  getCharacterBodyTileOffsetY,
   getCharacterGroundingTransforms,
   getCharacterTravelLean,
   getCharacterTargetTransition,
@@ -105,5 +106,10 @@ describe('character motion samples', () => {
     expect(transforms.root).toEqual([1, 0, 2]);
     expect(transforms.ground).toEqual([0, 0.64, 0]);
     expect(transforms.body).toEqual([0, 0.94, 0]);
+  });
+
+  it('attaches grounded bodies to a depressed tile without moving airborne hops', () => {
+    expect(getCharacterBodyTileOffsetY(-0.046, false)).toBe(-0.046);
+    expect(getCharacterBodyTileOffsetY(-0.046, true)).toBe(0);
   });
 });

@@ -16,12 +16,14 @@ import { acquireCharacterTexture } from '../../characters/characterTextureCache'
 import {
   CHARACTER_SHADOW_OPACITY,
   CHARACTER_SLOT_REFLOW_DURATION_MS,
+  getCharacterBodyTileOffsetY,
   getCharacterGroundingTransforms,
   getCharacterTargetTransition,
   sampleCharacterHop,
   sampleCharacterLanding,
   sampleCharacterSlotReflow,
 } from './characterMotion';
+import { resolvePresentationDuration } from '../../presentation/timings';
 import { CharacterReactionController } from './characterReaction';
 import CharacterSprite from './CharacterSprite';
 import ContactShadow from '../fx/ContactShadow';
@@ -80,13 +82,6 @@ function signalAnchor(
 ): THREE.Vector3 | null {
   const anchor = getCharacterLandingAnchor(tileId, slotIndex, occupantCount);
   return anchor ? new THREE.Vector3(...anchor) : null;
-}
-
-function animationDuration(baseDurationMs: number, multiplier: number): number {
-  const safeMultiplier = Number.isFinite(multiplier)
-    ? Math.min(2, Math.max(0.75, multiplier))
-    : 1;
-  return Math.max(0, baseDurationMs / safeMultiplier);
 }
 
 export default function CharacterBillboard({
@@ -338,7 +333,7 @@ export default function CharacterBillboard({
         from: previousAnchor.clone(),
         to: effectTarget.clone(),
         elapsedMs: 0,
-        durationMs: animationDuration(CHARACTER_SLOT_REFLOW_DURATION_MS, animationSpeedMultiplier),
+        durationMs: resolvePresentationDuration(CHARACTER_SLOT_REFLOW_DURATION_MS, animationSpeedMultiplier),
       };
     }
 
@@ -364,7 +359,7 @@ export default function CharacterBillboard({
   useEffect(() => {
     if (!reaction || reaction.sequence === lastReactionSequenceRef.current) return;
     lastReactionSequenceRef.current = reaction.sequence;
-    reactionControllerRef.current.start(reaction.kind);
+    reactionControllerRef.current.start(reaction.kind, reaction.durationMs);
     invalidate();
   }, [invalidate, reaction]);
 
@@ -425,6 +420,10 @@ export default function CharacterBillboard({
     const reactionWasActive = reactionControllerRef.current.getState() !== null;
     const reactionSample = reactionControllerRef.current.advance(delta * 1000, reducedMotion);
     const reactionActive = reactionWasActive || !reactionSample.done;
+    const bodyTileOffsetY = getCharacterBodyTileOffsetY(
+      tileMotionOffsetY,
+      activeMotionRef.current?.kind === 'TILE_HOP',
+    );
     const grounding = getCharacterGroundingTransforms(
       [bodyPosition.x, bodyPosition.y, bodyPosition.z],
       targetY ?? bodyPosition.y,
@@ -434,7 +433,7 @@ export default function CharacterBillboard({
     ground.position.set(...grounding.ground);
     body.position.set(
       grounding.body[0],
-      grounding.body[1] + landingOffsetY + reactionSample.offsetY,
+      grounding.body[1] + bodyTileOffsetY + landingOffsetY + reactionSample.offsetY,
       grounding.body[2],
     );
     body.rotation.set(0, 0, bodyRotationZ + landingRotationZ + reactionSample.rotationZ);

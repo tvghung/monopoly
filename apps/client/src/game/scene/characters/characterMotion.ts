@@ -49,6 +49,10 @@ export function getCharacterGroundingTransforms(
   };
 }
 
+export function getCharacterBodyTileOffsetY(tileMotionOffsetY: number, airborne: boolean): number {
+  return airborne ? 0 : tileMotionOffsetY;
+}
+
 export type CharacterTargetTransition = CharacterTransition;
 
 export function getCharacterTargetTransition(

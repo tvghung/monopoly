@@ -220,6 +220,24 @@ renderer samples the same duration; it does not recalculate the speed
 multiplier. A speed change keeps the active segment at its resolved duration and
 applies to the next segment.
 
+Intermediate `STEP` contact is part of the hop timeline rather than a trailing
+event. At the resolved hop duration, the final 52 ms (24.8% at 1x) is the
+contact/depression phase: the character starts descending, the destination tile
+receives a `STEP` signal carrying resolved depress/rebound durations, the tile
+reaches maximum depression at hop completion, and only then is the hop completed
+and the next hop started. The previous tile may rebound during the next hop, so
+the sequence retains continuous momentum without a dead pause.
+
+`TileImpactSignal` carries `depressDurationMs` and `reboundDurationMs` from the
+presentation queue. `TileMotionController` owns no speed calculation or global
+press clock; it uses those signal values with its demand-driven frame scheduler.
+The shared normalized press intensity drives both vertical depression and
+instanced color multiplication. `STEP` uses 0.046 world units and 9% maximum
+darkening; `LAND` uses 0.072 world units and 14% maximum darkening. Body and
+grounded contact visuals follow the depressed tile while an airborne hop body
+continues to use its independent arc. Instancing and material batches remain
+unchanged.
+
 Movement transitions are explicit. `TILE_HOP` is reserved for a logical board
 tile change and carries logical `fromTileId`/`toTileId` endpoints, while
 `SLOT_REFLOW` is a short grounded interpolation when occupant-count placement
@@ -229,9 +247,22 @@ transform untouched. The rendered origin for a hop is always the signal's
 logical source anchor, never an arbitrary in-flight `group.position`.
 
 Landing rebound/impact is separate from movement timing and is neutral physical
-feedback. `LAND_TILE` no longer emits a semantic `happy` reaction. Semantic
-reactions such as `happy`, `sad`, `jail`, `bankrupt`, and `emote` remain separate
-from contact physics. Do not add an expensive particle or sound overhaul.
+feedback. `LAND_TILE` publishes the character landing signal and `LAND` tile
+impact together. At each speed, the resolved 70 ms tile depression reaches its
+maximum at the midpoint of the resolved 140 ms neutral landing response, then
+rebounds while the landing settles. `LAND_TILE` no longer emits a semantic
+`happy` reaction. Semantic reactions such as `happy`, `sad`, `jail`, `bankrupt`,
+and `emote` remain separate from contact physics. Do not add an expensive
+particle or sound overhaul.
+
+All presentation pacing is centralized in `presentationTiming` and resolved by
+`resolvePresentationDuration`; the user-facing speed options remain 0.75x, 1x,
+1.5x, and 2x. The current base values are dice 210 ms, tile hop 210 ms, slot
+reflow 125 ms, landing 140 ms, balance 140 ms, property purchase 210 ms, build
+pop 160 ms, turn change 95 ms, finish 210 ms, and reactions happy 140 ms, sad
+210 ms, jail 140 ms, bankrupt 210 ms, and emote 185 ms. Queued reaction signals
+carry the exact resolved duration consumed by `CharacterReactionController`;
+renderer-local reaction sampling does not rescale it.
 
 Because the canvas uses `frameloop="demand"`, request animation frames only
 while a hop/reaction is active and invalidate those frames; idle characters do

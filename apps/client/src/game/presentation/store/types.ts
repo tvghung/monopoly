@@ -1,6 +1,6 @@
 import type { DiceValue, PublicRoomState } from '@monopoly/shared';
 import type { AnimationQueueStatus } from '../queue/types';
-import type { TileImpactSignal } from '../../scene/board/motion/tileMotionTypes';
+import type { TileImpactSignal, TileImpactTiming } from '../../scene/board/motion/tileMotionTypes';
 
 export type CharacterReactionKind = 'happy' | 'sad' | 'jail' | 'bankrupt' | 'emote';
 
@@ -33,6 +33,7 @@ export interface CharacterReactionSignal {
   sequence: number;
   playerId: string;
   kind: CharacterReactionKind;
+  durationMs: number;
 }
 
 export interface PresentationState {
@@ -62,8 +63,8 @@ export interface PresentationStoreLike {
   emitCharacterLanding: (playerId: string, tileId: number, durationMs: number) => void;
   setDisplayDice: (dice: DiceValue) => void;
   setDisplayActivePlayerId: (playerId: string) => void;
-  emitTileImpact: (playerId: string, tileId: number, kind: TileImpactSignal['kind']) => void;
-  emitCharacterReaction: (playerId: string, kind: CharacterReactionKind) => void;
+  emitTileImpact: (playerId: string, tileId: number, kind: TileImpactSignal['kind'], timing: TileImpactTiming) => void;
+  emitCharacterReaction: (playerId: string, kind: CharacterReactionKind, durationMs: number) => void;
   setAnimationSpeedMultiplier: (multiplier: number) => void;
   setStatus: (status: AnimationQueueStatus) => void;
 }

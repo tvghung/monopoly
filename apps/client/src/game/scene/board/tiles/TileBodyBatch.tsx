@@ -79,7 +79,10 @@ export default function TileBodyBatch({
     });
     const bodyCenterY = BOARD_FOUNDATION_HEIGHT + TILE_SOCKET_GAP + TILE_BODY_HEIGHT / 2;
     return [...byColor.entries()].map(([color, groupedEntries], batchIndex): BodyBatch => {
-      const material = new THREE.MeshStandardMaterial(getBoardMaterialProps('tileChassis', color));
+      const material = new THREE.MeshStandardMaterial({
+        ...getBoardMaterialProps('tileChassis', color),
+        vertexColors: true,
+      });
       const mesh = new THREE.InstancedMesh(geometry, material, groupedEntries.length);
       mesh.name = `TileBodies:${batchIndex}`;
       const dummy = new THREE.Object3D();
@@ -99,6 +102,7 @@ export default function TileBodyBatch({
 
   useEffect(() => {
     const dummy = new THREE.Object3D();
+    const instanceColor = new THREE.Color();
     const bodyCenterY = BOARD_FOUNDATION_HEIGHT + TILE_SOCKET_GAP + TILE_BODY_HEIGHT / 2;
     batches.forEach(batch => {
       batch.entries.forEach((entry, index) => {
@@ -113,8 +117,11 @@ export default function TileBodyBatch({
         dummy.scale.set(entry.size[0], 1, entry.size[1]);
         dummy.updateMatrix();
         batch.mesh.setMatrixAt(index, dummy.matrix);
+        instanceColor.setScalar(motionController?.getTilePressColorMultiplier(entry.tileId) ?? 1);
+        batch.mesh.setColorAt(index, instanceColor);
       });
       batch.mesh.instanceMatrix.needsUpdate = true;
+      if (batch.mesh.instanceColor) batch.mesh.instanceColor.needsUpdate = true;
     });
   }, [batches, motionController, motionRevision]);
 

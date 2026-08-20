@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { cloneRoom, makeRoom } from '../testFixtures';
+import { presentationTiming } from '../timings';
 import { PresentationStore } from './presentationStore';
+
+const impactTiming = {
+  depressDurationMs: presentationTiming.tileImpact.stepDepress,
+  reboundDurationMs: presentationTiming.tileImpact.stepRebound,
+};
 
 describe('PresentationStore reset and impact generations', () => {
   it('keeps ordinary impacts out of the presentation reset generation', () => {
@@ -8,8 +14,8 @@ describe('PresentationStore reset and impact generations', () => {
     store.resetFromSnapshot(makeRoom());
     const resetEpoch = store.getSnapshot().presentationResetEpoch;
 
-    store.emitTileImpact('player-a', 1, 'STEP');
-    store.emitTileImpact('player-b', 5, 'LAND');
+    store.emitTileImpact('player-a', 1, 'STEP', impactTiming);
+    store.emitTileImpact('player-b', 5, 'LAND', impactTiming);
 
     expect(store.getSnapshot().presentationResetEpoch).toBe(resetEpoch);
     expect(store.getSnapshot().tileImpacts.map(impact => impact.sequence)).toEqual([1, 2]);
@@ -19,8 +25,8 @@ describe('PresentationStore reset and impact generations', () => {
     const store = new PresentationStore();
     const room = makeRoom();
     store.resetFromSnapshot(room);
-    store.emitTileImpact('player-a', 1, 'STEP');
-    store.emitTileImpact('player-a', 2, 'STEP');
+    store.emitTileImpact('player-a', 1, 'STEP', impactTiming);
+    store.emitTileImpact('player-a', 2, 'STEP', impactTiming);
 
     const beforeResetEpoch = store.getSnapshot().presentationResetEpoch;
     const resetRoom = cloneRoom(room, 2);
@@ -30,7 +36,7 @@ describe('PresentationStore reset and impact generations', () => {
     expect(store.getSnapshot().presentationResetEpoch).toBe(beforeResetEpoch + 1);
     expect(store.getSnapshot().tileImpacts).toEqual([]);
     expect(store.getSnapshot().displayPositions['player-a']).toBe(9);
-    store.emitTileImpact('player-a', 9, 'LAND');
+    store.emitTileImpact('player-a', 9, 'LAND', impactTiming);
     expect(store.getSnapshot().tileImpacts[0]?.sequence).toBe(1);
   });
 

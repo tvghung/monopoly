@@ -117,6 +117,7 @@ function SurfaceBatchMesh({
     const mesh = meshRef.current;
     if (!mesh) return;
     const matrix = new THREE.Matrix4();
+    const instanceColor = new THREE.Color();
     batch.entries.forEach((entry, index) => {
       const layout = getBoardTileLayout(entry.tileId);
       if (!layout) return;
@@ -129,8 +130,11 @@ function SurfaceBatchMesh({
         entry.surfacePlaneOffset ?? 0,
       );
       mesh.setMatrixAt(index, matrix);
+      instanceColor.setScalar(motionController?.getTilePressColorMultiplier(entry.tileId) ?? 1);
+      mesh.setColorAt(index, instanceColor);
     });
     mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }, [batch, motionController, motionRevision]);
 
   const handlePointer = (callback: ((tileId: number) => void) | undefined) => (

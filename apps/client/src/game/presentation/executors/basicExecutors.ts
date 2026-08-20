@@ -30,8 +30,13 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
   const landingExecutor: PresentationExecutor<LandTilePresentationEvent> = {
     async run(event, context) {
       const durationMs = context.getDuration(presentationTiming.landing);
+      const depressDurationMs = context.getDuration(presentationTiming.tileImpact.landDepress);
+      const reboundDurationMs = context.getDuration(presentationTiming.tileImpact.landRebound);
       if (!context.reducedMotion) {
-        store.emitTileImpact(event.playerId, event.tileId, 'LAND');
+        store.emitTileImpact(event.playerId, event.tileId, 'LAND', {
+          depressDurationMs,
+          reboundDurationMs,
+        });
         store.emitCharacterLanding(event.playerId, event.tileId, durationMs);
       }
       await context.waitForDuration(durationMs);
@@ -40,22 +45,27 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
   };
   const jailExecutor: PresentationExecutor = {
     async run(event, context) {
+      const durationMs = context.getDuration(presentationTiming.characterReaction.jail);
       if (event.type === 'JAIL_STATE_CHANGED' && event.isJail) {
-        store.emitCharacterReaction(event.playerId, 'jail');
+        if (!context.reducedMotion) store.emitCharacterReaction(event.playerId, 'jail', durationMs);
       }
-      await context.wait(presentationTiming.characterReaction.jail);
+      await context.waitForDuration(durationMs);
     },
     finish() {},
   };
   const finishedExecutor: PresentationExecutor = {
     async run(event, context) {
+      const durationMs = context.getDuration(presentationTiming.characterReaction.bankrupt);
       if (event.type === 'PLAYER_FINISHED') {
-        store.emitCharacterReaction(
-          event.playerId,
-          event.reason === 'BANKRUPT' ? 'bankrupt' : 'sad',
-        );
+        if (!context.reducedMotion) {
+          store.emitCharacterReaction(
+            event.playerId,
+            event.reason === 'BANKRUPT' ? 'bankrupt' : 'sad',
+            durationMs,
+          );
+        }
       }
-      await context.wait(presentationTiming.characterReaction.bankrupt);
+      await context.waitForDuration(durationMs);
     },
     finish() {},
   };

@@ -7,6 +7,8 @@ const impact = (sequence: number, tileId: number, playerId = 'player-a'): TileIm
   tileId,
   playerId,
   kind: 'STEP',
+  depressDurationMs: 52,
+  reboundDurationMs: 126,
 });
 
 describe('tile impact cursor', () => {

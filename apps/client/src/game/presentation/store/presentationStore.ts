@@ -7,6 +7,7 @@ import type {
   PresentationState,
   PresentationStoreLike,
 } from './types';
+import type { TileImpactSignal, TileImpactTiming } from '../../scene/board/motion/tileMotionTypes';
 
 const emptyState: PresentationState = {
   displayPositions: {},
@@ -193,20 +194,33 @@ export class PresentationStore implements PresentationStoreLike {
     this.notify();
   }
 
-  public emitTileImpact(playerId: string, tileId: number, kind: PresentationState['tileImpacts'][number]['kind']): void {
+  public emitTileImpact(
+    playerId: string,
+    tileId: number,
+    kind: PresentationState['tileImpacts'][number]['kind'],
+    timing: TileImpactTiming,
+  ): void {
     this.nextTileImpactSequence += 1;
-    const nextImpact = { sequence: this.nextTileImpactSequence, playerId, tileId, kind };
+    const nextImpact: TileImpactSignal = {
+      sequence: this.nextTileImpactSequence,
+      playerId,
+      tileId,
+      kind,
+      depressDurationMs: Math.max(0, timing.depressDurationMs),
+      reboundDurationMs: Math.max(0, timing.reboundDurationMs),
+    };
     const impacts = [...this.state.tileImpacts, nextImpact].slice(-64);
     this.state = { ...this.state, tileImpacts: impacts };
     this.notify();
   }
 
-  public emitCharacterReaction(playerId: string, kind: CharacterReactionKind): void {
+  public emitCharacterReaction(playerId: string, kind: CharacterReactionKind, durationMs: number): void {
     this.nextCharacterReactionSequence += 1;
     const nextReaction = {
       sequence: this.nextCharacterReactionSequence,
       playerId,
       kind,
+      durationMs: Math.max(0, durationMs),
     };
     const characterReactions = [...this.state.characterReactions, nextReaction].slice(-64);
     this.state = { ...this.state, characterReactions };
