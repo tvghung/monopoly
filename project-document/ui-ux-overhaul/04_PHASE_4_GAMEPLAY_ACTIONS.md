@@ -1,6 +1,7 @@
 # Phase 4 - Gameplay Actions and Presentation Orchestration
 
-Status: implementation plan and handoff only.
+Status: implementation plan and handoff only; Phase 4.0 contract audit:
+[04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md).
 
 Base: the completed Phase 3 character and movement system on
 overhaul/phase-3-character-system.
@@ -194,6 +195,12 @@ amount unambiguous.
 
 These limits are presentation-contract limits, not permission to guess.
 
+The Phase 4.0 audit also confirms a P0 gate: a legal repeat of the same
+ordered dice pair creates a new committed revision but does not produce a
+new ROLL_DICE event in the current adapter, and Dice.tsx uses that same pair
+as its spin identity. Phase 4.1 must resolve a server/public per-roll
+identity before it promises one dice presentation per committed roll.
+
 ## 6. Serial versus overlapping presentation
 
 The queue policy should be explicit for every workstream.
@@ -231,6 +238,9 @@ Before adding visuals:
 - Mark each candidate semantic event as A, B, C, or D using Section 8.
 - Identify whether a transition can produce more than one snapshot in a single
   turn-resolution handoff.
+- Resolve the repeated-dice-pair identity gate documented in
+  [04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md) before
+  claiming universal ROLL_DICE presentation.
 - Add fixtures for normal movement, purchase, development, payment shortfall,
   jail, forced sale, and reconnect.
 
@@ -774,8 +784,14 @@ Phase 4 is complete only when all of the following are true:
 
 ## 14. Open decisions and handoff gates
 
-The current architecture is ready for generic, state-driven Phase 4 work.
-Three richer choreography decisions remain explicit:
+The current architecture is ready for a narrowly scoped generic, state-driven
+slice, but the full Phase 4.1 handoff is blocked by the repeated-dice-pair
+identity gate in
+[04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md).
+Four contract decisions remain explicit:
+
+0. Roll identity: a committed public per-roll identity is required so an
+   identical ordered dice pair still produces one presentation event.
 
 1. Movement cause and route: exact card, teleport, backward, and jail paths
    need a safe signal if the product requires a semantic route instead of a
@@ -785,10 +801,11 @@ Three richer choreography decisions remain explicit:
 3. Transfer attribution: exact payer, receiver, and cause need a proven
    transition contract when a balance diff is ambiguous.
 
-These are not blockers for normal dice movement, landing, purchase,
-development, generic balance feedback, current jail controls, current debt
-controls, or turn presentation. They are blockers only for promising the
-corresponding richer semantic choreography without a contract decision.
+The movement, card, and transfer decisions are blockers only for promising the
+corresponding richer semantic choreography without a contract decision. The
+roll-identity decision is a P0 blocker for universal committed-dice
+presentation; generic state-driven work must retain the documented fallback
+and must not silently treat a changed room revision as a new roll event.
 
 No shared type, server handler, database migration, client gameplay code, or
 animation implementation is changed by this handoff document.
