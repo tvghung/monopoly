@@ -91,17 +91,40 @@ export default function Dice() {
   const first = dice.dice1;
   const second = dice.dice2;
 
-  // Bump a spin counter whenever a new roll arrives so the cubes always tumble,
-  // even when the same total (or same face) comes up twice in a row.
-  const [spins, setSpins] = useState(0);
-  const previous = useRef('');
+  // A live presented roll advances the authoritative sequence. Snapshot resets
+  // also replace that sequence, but must settle the already-played result
+  // without replaying it as a new tumble.
+  // This ordinal is CSS-only animation state; authoritative roll identity is
+  // always presentationState.displayRollSequence.
+  const [tumbleCount, setTumbleCount] = useState(0);
+  const previousPresentation = useRef({
+    resetEpoch: presentationState.presentationResetEpoch,
+    rollSequence: presentationState.displayRollSequence,
+  });
   useEffect(() => {
-    const key = `${first}-${second}`;
-    if (key !== previous.current) {
-      previous.current = key;
-      if (first > 0 || second > 0) setSpins(count => count + 1);
+    const previous = previousPresentation.current;
+    if (previous.resetEpoch !== presentationState.presentationResetEpoch) {
+      previousPresentation.current = {
+        resetEpoch: presentationState.presentationResetEpoch,
+        rollSequence: presentationState.displayRollSequence,
+      };
+      return;
     }
-  }, [first, second]);
+    if (presentationState.displayRollSequence > previous.rollSequence) {
+      previousPresentation.current = {
+        resetEpoch: presentationState.presentationResetEpoch,
+        rollSequence: presentationState.displayRollSequence,
+      };
+      if (first > 0 || second > 0) setTumbleCount(count => count + 1);
+      return;
+    }
+    if (presentationState.displayRollSequence !== previous.rollSequence) {
+      previousPresentation.current = {
+        resetEpoch: presentationState.presentationResetEpoch,
+        rollSequence: presentationState.displayRollSequence,
+      };
+    }
+  }, [first, second, presentationState.displayRollSequence, presentationState.presentationResetEpoch]);
 
   return (
     <>
@@ -117,8 +140,8 @@ export default function Dice() {
               Đổ Xúc Xắc
             </button>
             <div className="dice__cubes">
-              <DieCube value={first} spins={spins} reduced={reduced} />
-              <DieCube value={second} spins={spins + 1} reduced={reduced} />
+              <DieCube value={first} spins={tumbleCount} reduced={reduced} />
+              <DieCube value={second} spins={tumbleCount + 1} reduced={reduced} />
             </div>
             <h2 className="dice__result" role="status" aria-live="polite" aria-atomic="true">
               {'Kết quả: '}

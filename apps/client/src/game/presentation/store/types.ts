@@ -41,6 +41,7 @@ export interface PresentationState {
   settledPositions: Record<string, number>;
   displayActivePlayerId: string | null;
   displayDice: DiceValue;
+  displayRollSequence: number;
   status: AnimationQueueStatus;
   tileImpacts: readonly TileImpactSignal[];
   characterMovements: readonly CharacterMovementSignal[];
@@ -61,7 +62,8 @@ export interface PresentationStoreLike {
   completeCharacterHop: (playerId: string, tileId: number) => void;
   snapDisplayPosition: (playerId: string, tileId: number) => void;
   emitCharacterLanding: (playerId: string, tileId: number, durationMs: number) => void;
-  setDisplayDice: (dice: DiceValue) => void;
+  setDisplayDice: (dice: DiceValue, rollSequence: number) => void;
+  syncDisplayDice: (dice: DiceValue, rollSequence: number) => void;
   setDisplayActivePlayerId: (playerId: string) => void;
   emitTileImpact: (playerId: string, tileId: number, kind: TileImpactSignal['kind'], timing: TileImpactTiming) => void;
   emitCharacterReaction: (playerId: string, kind: CharacterReactionKind, durationMs: number) => void;

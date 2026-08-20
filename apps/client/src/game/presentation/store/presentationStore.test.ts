@@ -62,6 +62,45 @@ describe('PresentationStore reset and impact generations', () => {
     expect(store.getSnapshot().displayPositions['player-a']).toBe(2);
   });
 
+  it('updates identical faces when the authoritative roll sequence advances', () => {
+    const store = new PresentationStore();
+    store.resetFromSnapshot(makeRoom());
+
+    let notifications = 0;
+    store.subscribe(() => { notifications += 1; });
+    store.setDisplayDice({ dice1: 2, dice2: 3 }, 1);
+    store.setDisplayDice({ dice1: 2, dice2: 3 }, 1);
+
+    expect(store.getSnapshot().displayDice).toEqual({ dice1: 2, dice2: 3 });
+    expect(store.getSnapshot().displayRollSequence).toBe(1);
+    expect(notifications).toBe(1);
+  });
+
+  it('snaps dice faces and sequence on reset without replaying the baseline', () => {
+    const store = new PresentationStore();
+    const initial = makeRoom();
+    store.resetFromSnapshot(initial);
+    store.setDisplayDice({ dice1: 2, dice2: 3 }, 1);
+
+    const reset = cloneRoom(initial, 2);
+    reset.gameState.boardState.diceValue = { dice1: 2, dice2: 3 };
+    reset.gameState.boardState.rollSequence = 2;
+    store.resetFromSnapshot(reset);
+
+    expect(store.getSnapshot().displayDice).toEqual({ dice1: 2, dice2: 3 });
+    expect(store.getSnapshot().displayRollSequence).toBe(2);
+  });
+
+  it('synchronizes a face-only authoritative correction without creating a roll', () => {
+    const store = new PresentationStore();
+    store.resetFromSnapshot(makeRoom());
+
+    store.syncDisplayDice({ dice1: 5, dice2: 6 }, 0);
+
+    expect(store.getSnapshot().displayDice).toEqual({ dice1: 5, dice2: 6 });
+    expect(store.getSnapshot().displayRollSequence).toBe(0);
+  });
+
   it('records count-aware destination slots without making the stationary occupant hop', () => {
     const store = new PresentationStore();
     store.resetFromSnapshot(makeRoom());

@@ -23,6 +23,7 @@ export interface RollDicePresentationEvent extends PresentationEventBase {
   entityId: 'room';
   dice1: number;
   dice2: number;
+  rollSequence: number;
 }
 
 export interface MoveCharacterPresentationEvent extends PresentationEventBase {

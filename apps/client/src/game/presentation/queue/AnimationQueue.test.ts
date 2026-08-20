@@ -12,6 +12,7 @@ function event(id: string): PresentationEvent {
     entityId: 'room',
     dice1: 1,
     dice2: 2,
+    rollSequence: 1,
   };
 }
 

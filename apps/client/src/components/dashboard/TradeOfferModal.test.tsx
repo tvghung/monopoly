@@ -22,6 +22,7 @@ const state: PublicGameState = {
     turnRecovery: null,
     logs: [],
     diceValue: { dice1: 2, dice2: 3 },
+    rollSequence: 1,
     ownedProps: {
       1: { id: 'them', color: 'blue', houses: 0 },
       3: { id: 'them', color: 'blue', houses: 0 },

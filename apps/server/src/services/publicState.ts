@@ -64,6 +64,7 @@ export function projectPublicRoomState(
       turnNumber: boardState.turnNumber,
       logs: boardState.logs,
       diceValue: boardState.diceValue,
+      rollSequence: boardState.rollSequence,
       ownedProps: boardState.ownedProps,
       winner: boardState.winner,
       turnRecovery: boardState.turnRecovery

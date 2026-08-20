@@ -17,6 +17,7 @@ const state: PublicGameState = {
     turnRecovery: null,
     logs: [],
     diceValue: { dice1: 0, dice2: 0 },
+    rollSequence: 0,
     ownedProps: {},
     winner: null,
   },

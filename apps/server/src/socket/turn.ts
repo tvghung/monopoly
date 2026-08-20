@@ -57,6 +57,10 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
           throw new CommandError('CONFLICT', 'Lượt này chưa thể đổ xúc xắc tiếp.');
         }
         const dice = rollDice();
+        if (state.boardState.rollSequence >= Number.MAX_SAFE_INTEGER) {
+          throw new CommandError('CONFLICT', 'Ván chơi đã đạt giới hạn số lượt đổ xúc xắc.');
+        }
+        state.boardState.rollSequence += 1;
         const total = dice.dice1 + dice.dice2;
         const continuation = currentTurnContinuation(state, actor.playerId);
         if (player.isJail) {

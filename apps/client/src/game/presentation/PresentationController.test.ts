@@ -71,7 +71,10 @@ describe('PresentationController', () => {
     controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
     const live = cloneRoom(initial);
     live.gameState.players['player-a'].currentTile = 4;
+    live.gameState.boardState.diceValue = { dice1: 2, dice2: 2 };
+    live.gameState.boardState.rollSequence = 1;
     controller.acceptRoomSnapshot(live, 'LIVE_UPDATE');
+    await new Promise(resolve => setTimeout(resolve, 200));
     expect(controller.getState().displayPositions['player-a']).toBe(1);
     expect(controller.getState().settledPositions['player-a']).toBe(0);
     const reconnect = cloneRoom(live);
@@ -87,6 +90,24 @@ describe('PresentationController', () => {
     expect(controller.getState().characterLandings).toEqual([]);
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(controller.getState().displayPositions['player-a']).toBe(3);
+    controller.dispose();
+  });
+
+  it('snaps an unexpected roll-sequence gap to the current authoritative dice', () => {
+    const controller = new PresentationController();
+    const initial = makeRoom();
+    controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
+    const gap = cloneRoom(initial);
+    gap.gameState.boardState.diceValue = { dice1: 5, dice2: 6 };
+    gap.gameState.boardState.rollSequence = 2;
+    gap.gameState.players['player-a'].currentTile = 11;
+
+    controller.acceptRoomSnapshot(gap, 'LIVE_UPDATE');
+
+    expect(controller.getState().displayDice).toEqual({ dice1: 5, dice2: 6 });
+    expect(controller.getState().displayRollSequence).toBe(2);
+    expect(controller.getState().displayPositions['player-a']).toBe(11);
+    expect(controller.queue.getStatus()).toBe('idle');
     controller.dispose();
   });
 });

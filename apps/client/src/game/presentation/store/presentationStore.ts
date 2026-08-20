@@ -14,6 +14,7 @@ const emptyState: PresentationState = {
   settledPositions: {},
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
+  displayRollSequence: 0,
   status: 'idle',
   tileImpacts: [],
   characterMovements: [],
@@ -57,6 +58,7 @@ export class PresentationStore implements PresentationStoreLike {
       settledPositions: positions,
       displayActivePlayerId: room.gameState.boardState.currentPlayer.id || null,
       displayDice: { ...room.gameState.boardState.diceValue },
+      displayRollSequence: room.gameState.boardState.rollSequence,
       status: 'idle',
       tileImpacts: [],
       characterMovements: [],
@@ -181,9 +183,26 @@ export class PresentationStore implements PresentationStoreLike {
     this.notify();
   }
 
-  public setDisplayDice(dice: DiceValue): void {
-    if (this.state.displayDice.dice1 === dice.dice1 && this.state.displayDice.dice2 === dice.dice2) return;
-    this.state = { ...this.state, displayDice: { ...dice } };
+  public setDisplayDice(dice: DiceValue, rollSequence: number): void {
+    if (rollSequence <= this.state.displayRollSequence) return;
+    this.state = {
+      ...this.state,
+      displayDice: { ...dice },
+      displayRollSequence: rollSequence,
+    };
+    this.notify();
+  }
+
+  public syncDisplayDice(dice: DiceValue, rollSequence: number): void {
+    if (rollSequence < this.state.displayRollSequence
+      || (rollSequence === this.state.displayRollSequence
+        && this.state.displayDice.dice1 === dice.dice1
+        && this.state.displayDice.dice2 === dice.dice2)) return;
+    this.state = {
+      ...this.state,
+      displayDice: { ...dice },
+      displayRollSequence: rollSequence,
+    };
     this.notify();
   }
 

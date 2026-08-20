@@ -1,7 +1,9 @@
 # Phase 4 - Gameplay Actions and Presentation Orchestration
 
-Status: implementation plan and handoff only; Phase 4.0 contract audit:
-[04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md).
+Status: Phase 4.1 foundation implemented; Phase 4.0/4.1 contract audit:
+[04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md). Phase 4.2
+must treat movement cause/route, card identity, and transfer attribution as
+open contracts.
 
 Base: the completed Phase 3 character and movement system on
 overhaul/phase-3-character-system.
@@ -12,8 +14,9 @@ movement, tile resolution, money, ownership, development, jail, debt,
 bankruptcy, turn order, and the winner. The client presents committed state
 transitions through the existing presentation pipeline.
 
-This document does not implement Phase 4 gameplay, animation, shared types, or
-server changes.
+The Phase 4.1 foundation implemented the smallest shared/server/client contract
+needed for authoritative roll identity and safe movement classification. It
+does not implement the richer Phase 4 visual/action polish described below.
 
 ## 1. Design direction
 
@@ -151,7 +154,7 @@ They should remain the first choice for Phase 4 sequences.
 | Desired user-visible moment | Current evidence | Phase 4 policy |
 | --- | --- | --- |
 | Dice result | ROLL_DICE and displayDice | Reuse the event. |
-| Normal movement | MOVE_CHARACTER with the current bounded forward-path derivation | Reuse the Phase 3 executor for paths that are actually derivable. |
+| Normal movement | MOVE_CHARACTER with the Phase 4.1 proven-dice-route classifier | Reuse the Phase 3 executor only for a proven route; snap other or ambiguous destinations. |
 | Final landing | LAND_TILE | Reuse the landing executor and wait for settledPositions before enabling a decision. |
 | Balance change | BALANCE_CHANGED | Present a balance delta. Do not label payer, receiver, rent, tax, or card cause unless it is proven. |
 | Ownership change | PROPERTY_OWNERSHIP_CHANGED | Use authoritative owner and balance state to update the board and decision UI. |
@@ -195,11 +198,18 @@ amount unambiguous.
 
 These limits are presentation-contract limits, not permission to guess.
 
-The Phase 4.0 audit also confirms a P0 gate: a legal repeat of the same
-ordered dice pair creates a new committed revision but does not produce a
-new ROLL_DICE event in the current adapter, and Dice.tsx uses that same pair
-as its spin identity. Phase 4.1 must resolve a server/public per-roll
-identity before it promises one dice presentation per committed roll.
+Phase 4.1 resolves the repeated-dice identity gate with a server-owned public
+durable `BoardState.rollSequence` in protocol/snapshot V6. It starts at zero,
+increments once per committed gameplay roll (including jail attempts), excludes
+starting-player tie-break rolls, and is preserved by persistence, duplicate
+snapshot handling, reconnect/reset, and spectator sync. `ROLL_DICE` derives
+only from an exact one-step sequence advance, so identical faces still present
+as a new roll.
+
+Movement uses the conservative Phase 4.1 boundary:
+`PROVEN DICE ROUTE -> WALK`; `OTHER / AMBIGUOUS -> SNAP`. The general
+movement-cause/route, card-identity, and transfer-attribution decisions remain
+open for later phases.
 
 ## 6. Serial versus overlapping presentation
 
@@ -238,9 +248,9 @@ Before adding visuals:
 - Mark each candidate semantic event as A, B, C, or D using Section 8.
 - Identify whether a transition can produce more than one snapshot in a single
   turn-resolution handoff.
-- Resolve the repeated-dice-pair identity gate documented in
-  [04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md) before
-  claiming universal ROLL_DICE presentation.
+- Preserve the resolved `rollSequence` identity gate documented in
+  [04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md) when
+  extending universal ROLL_DICE presentation.
 - Add fixtures for normal movement, purchase, development, payment shortfall,
   jail, forced sale, and reconnect.
 
@@ -249,12 +259,14 @@ ordering, duplicate snapshot handling, and reset behavior.
 
 ### 7.2 Workstream B - Dice result presentation
 
-Observed baseline:
+Current contract baseline:
 
 - Board.tsx uses a CSS 3D dice cube.
 - The client sends the existing roll-dice command.
 - The server decides the result.
 - ROLL_DICE updates displayDice through the presentation layer.
+- Public `rollSequence` identifies each committed gameplay roll, including
+  repeated ordered faces; session/reconnect sync snaps the baseline.
 - Movement is gated until the presentation state is safe.
 
 Plan:
@@ -275,7 +287,9 @@ Required tests:
 
 - The displayed face equals the server result for every legal result.
 - A missing or stale result does not start movement.
-- A second click cannot create a duplicate roll sequence.
+- A second click cannot create a duplicate committed roll sequence.
+- Identical faces with a higher sequence trigger one presentation update;
+  duplicate sequence/faces are a no-op.
 - Skip, reduced motion, speed changes, and reconnect leave the dice and queue
   consistent.
 
@@ -302,9 +316,11 @@ The adapter must distinguish these cases:
 - A server-driven movement caused by a card or another tile effect.
 - A backward, absolute, teleport, or jail movement.
 
-The current bounded forward-path heuristic is suitable only for the first
-case. For the other cases, snap to the authoritative destination or wait for
-an approved movement metadata contract. Do not fabricate intermediate tiles.
+The Phase 4.1 classifier treats the first case as `WALK` only when the public
+roll sequence and next dice result prove the exact destination from the prior
+current-player tile. For the other cases, snap to the authoritative
+destination or wait for an approved movement metadata contract. Do not
+fabricate intermediate tiles.
 
 Landing prompts continue to use settledPositions. A visual token arriving at a
 tile does not itself authorize a purchase, development action, payment, or
@@ -784,14 +800,9 @@ Phase 4 is complete only when all of the following are true:
 
 ## 14. Open decisions and handoff gates
 
-The current architecture is ready for a narrowly scoped generic, state-driven
-slice, but the full Phase 4.1 handoff is blocked by the repeated-dice-pair
-identity gate in
-[04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md).
-Four contract decisions remain explicit:
-
-0. Roll identity: a committed public per-roll identity is required so an
-   identical ordered dice pair still produces one presentation event.
+The architecture is ready for the bounded Phase 4.1 foundation. The
+repeated-dice-pair identity gate is resolved by `rollSequence`; the following
+three richer contract decisions remain explicit:
 
 1. Movement cause and route: exact card, teleport, backward, and jail paths
    need a safe signal if the product requires a semantic route instead of a
@@ -802,10 +813,10 @@ Four contract decisions remain explicit:
    transition contract when a balance diff is ambiguous.
 
 The movement, card, and transfer decisions are blockers only for promising the
-corresponding richer semantic choreography without a contract decision. The
-roll-identity decision is a P0 blocker for universal committed-dice
-presentation; generic state-driven work must retain the documented fallback
-and must not silently treat a changed room revision as a new roll event.
+corresponding richer semantic choreography without a contract decision. Until
+then, retain the documented fallback and do not silently treat a changed room
+revision or short tile delta as a new roll or proven route.
 
-No shared type, server handler, database migration, client gameplay code, or
-animation implementation is changed by this handoff document.
+Phase 4.1 has already changed the shared/server/client roll-identity contract
+and its forward migration. This plan still does not authorize card reveal,
+transfer attribution, GO effects, or visual polish beyond that foundation.

@@ -7,10 +7,16 @@ export function createDiceExecutor(store: PresentationStoreLike): PresentationEx
   return {
     async run(event, context) {
       await context.wait(presentationTiming.diceRoll);
-      store.setDisplayDice({ dice1: event.dice1, dice2: event.dice2 });
+      store.setDisplayDice(
+        { dice1: event.dice1, dice2: event.dice2 },
+        event.rollSequence,
+      );
     },
     finish(event) {
-      store.setDisplayDice({ dice1: event.dice1, dice2: event.dice2 });
+      store.setDisplayDice(
+        { dice1: event.dice1, dice2: event.dice2 },
+        event.rollSequence,
+      );
     },
   };
 }

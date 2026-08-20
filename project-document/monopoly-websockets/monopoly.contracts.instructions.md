@@ -54,7 +54,7 @@ recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
 
 ## Standard Mode contracts và game data
 
-- `SOCKET_PROTOCOL_VERSION = 5`; client/server cũ bị từ chối bằng
+- `SOCKET_PROTOCOL_VERSION = 6`; client/server cũ bị từ chối bằng
   `UPGRADE_REQUIRED`.
 - Appearance contract dùng stable `CharacterId`/`PlayerColorId`; `set appearance`
   is strict, lobby-only, allows duplicate characters and enforces unique active
@@ -64,6 +64,10 @@ recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
 - Shared state định nghĩa `PendingTurnContinuation`, pending purchase/development
   landing decisions, `PaymentQueue`/`DebtClaim`, forced-sale proposal, `TradeBundle`,
   transfer policy và public deck/card projections.
+- `BoardState.rollSequence` là public non-negative safe integer, bắt đầu từ `0`
+  và tăng đúng một lần cho gameplay `roll dice` đã commit; starting-player
+  tie-break, rejected command và rollback không tăng sequence. `ROLL_DICE` phía
+  client chỉ được derive khi sequence tăng đúng một bước.
 - Private persisted `GamePrivateState.decks.chance.drawPile` và
   `GamePrivateState.decks.chest.drawPile` giữ exact draw order;
   `heldJailFreeCardIds` nằm trên Player/private player projection. Các ID/order này

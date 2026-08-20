@@ -8,6 +8,7 @@ const presentation = (overrides: Partial<PresentationState> = {}): PresentationS
   settledPositions: {},
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
+  displayRollSequence: 0,
   status: 'idle',
   tileImpacts: [],
   characterMovements: [],
@@ -30,6 +31,7 @@ const state = (overrides: Partial<PublicGameState> = {}): PublicGameState => ({
     turnRecovery: null,
     logs: [],
     diceValue: { dice1: 2, dice2: 3 },
+    rollSequence: 1,
     ownedProps: {
       1: { id: 'active', color: 'red', houses: 2 },
       3: { id: 'finished', color: 'purple', houses: 5 },

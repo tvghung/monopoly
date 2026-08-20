@@ -45,7 +45,7 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
   landing decision dùng operation ID, còn payment/forced-sale wait nhúng durable
   `PendingTurnContinuation` thay vì advance sớm.
 - Hidden `GamePrivateState.decks`, `PaymentQueue` và forced-sale proposal nằm trong
-  snapshot v5 nhưng public projector không được lộ deck order hoặc proposal terms
+  snapshot v6 nhưng public projector không được lộ deck order hoặc proposal terms
   cho người chơi khác. Appearance identity dùng `CharacterId` nullable và
   `PlayerColorId` ổn định.
 - Client presentation queue is a derived display layer only: reconnect/session

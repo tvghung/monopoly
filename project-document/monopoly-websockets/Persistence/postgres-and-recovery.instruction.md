@@ -1,4 +1,4 @@
-# PostgreSQL, snapshot v5, CAS và recovery
+# PostgreSQL, snapshot v6, CAS và recovery
 
 ## Relational model
 
@@ -10,7 +10,7 @@ proposals live inside the active room snapshot and do not require a new table.
 
 ## Strict snapshot validation
 
-The v5 loader/save gate validates player/member references, ordered payment claims,
+The v6 loader/save gate validates player/member references, ordered payment claims,
 pending landing/turn continuation correlation, property/building shape,
 private deck/card one-location invariants, and forced-sale proposal binding:
 seller=active debtor, buyer=distinct ACTIVE player, property fingerprint unchanged,
@@ -25,7 +25,7 @@ landing/payment/proposal/turn-recovery state.
 protocol/schema gate
 → authenticated actor
 → per-room FIFO + row lock
-→ clone/validate v5 snapshot
+→ clone/validate v6 snapshot
 → mutate GameCore and related ordinary-offer rows
 → revalidate + expected-version CAS
 → public/private projection + ACK
@@ -56,6 +56,9 @@ property/listing fields, clears the private proposal, preserves active queue/tur
 cancels pending offers for migrated rooms and recomputes the scheduler deadline.
 Migration 006 upgrades V4 snapshots to V5 without inventing a mascot or resetting
 gameplay; it normalizes legacy player/property colors and adds nullable character IDs.
+Migration 007 upgrades V5 snapshots to V6 with `rollSequence: 0` without
+reconstructing historical roll count. The V6 loader requires the field and the
+server increments it only inside a committed gameplay roll transaction.
 Tests must cover idempotence, identity/session/token preservation, offer cancellation,
 fresh-runtime pending Buy/development/Jail/payment/proposal recovery, CAS/save failure
 and public/private no-leak behavior.

@@ -84,6 +84,7 @@ function freezeChainTree(
 function makePurchaseLandingRoom(initial: PublicRoomState): PublicRoomState {
   const live = cloneRoom(initial);
   live.gameState.boardState.diceValue = { dice1: 2, dice2: 2 };
+  live.gameState.boardState.rollSequence = 1;
   live.gameState.boardState.currentPlayer = { id: 'player-a', hasMoved: true };
   live.gameState.players['player-a'].currentTile = 4;
   live.gameState.turnInfo.pendingLandingDecision = {

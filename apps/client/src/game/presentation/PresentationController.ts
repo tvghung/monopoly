@@ -53,7 +53,20 @@ export class PresentationController {
     }
 
     this.store.syncPlayers(room);
-    void Promise.all(this.queue.enqueueMany(derivePresentationEvents(previous, room)));
+    const rollSequenceDelta = room.gameState.boardState.rollSequence
+      - previous.gameState.boardState.rollSequence;
+    if (rollSequenceDelta > 1) {
+      this.queue.reset(room);
+      return true;
+    }
+    const events = derivePresentationEvents(previous, room);
+    if (!events.some(event => event.type === 'ROLL_DICE')) {
+      this.store.syncDisplayDice(
+        room.gameState.boardState.diceValue,
+        room.gameState.boardState.rollSequence,
+      );
+    }
+    void Promise.all(this.queue.enqueueMany(events));
     return true;
   }
 

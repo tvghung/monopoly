@@ -231,6 +231,12 @@ async function startGame(socket: TestSocket): Promise<Ack> {
   });
 }
 
+async function rollDice(socket: TestSocket): Promise<Ack> {
+  return waitForAck((acknowledge) => {
+    socket.emit('roll dice', acknowledge);
+  });
+}
+
 async function buyProperty(socket: TestSocket, operationId: string): Promise<Ack> {
   return waitForAck((acknowledge) => {
     socket.emit('buy property', { operationId }, acknowledge);
@@ -485,6 +491,7 @@ describe('Socket.IO durable player lifecycle', () => {
         gameState: {
           boardState: {
             gameStarted: true,
+            rollSequence: 0,
             currentPlayer: { hasMoved: false },
           },
         },
@@ -496,6 +503,130 @@ describe('Socket.IO durable player lifecycle', () => {
     const startingPlayerId = stored?.gameSnapshot.gameState.boardState.currentPlayer.id;
     expect([host.playerId, guest.playerId]).toContain(startingPlayerId);
     expect(stored?.gameSnapshot.gameState.boardState.players[0]).toBe(startingPlayerId);
+  });
+
+  it('increments the durable gameplay roll sequence once for consecutive identical rolls', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const host = await joinPlayer(await connect(subject.url), 'Host', 'roll-sequence');
+    const guest = await joinPlayer(await connect(subject.url), 'Guest', 'roll-sequence');
+    await setReady(host.socket);
+    await setReady(guest.socket);
+    expect((await startGame(host.socket)).ok).toBe(true);
+
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.2);
+    try {
+      const firstTurn = await persistence.rooms.findById(host.room.roomId);
+      if (!firstTurn) throw new Error('Expected the started room');
+      const firstActor = firstTurn.gameSnapshot.gameState.boardState.currentPlayer.id === host.playerId
+        ? host
+        : guest;
+      const firstRoll = await rollDice(firstActor.socket);
+      expect(firstRoll.ok).toBe(true);
+      const afterFirst = await persistence.rooms.findById(host.room.roomId);
+      expect(afterFirst?.gameSnapshot.gameState.boardState).toMatchObject({
+        rollSequence: 1,
+        diceValue: { dice1: 2, dice2: 2 },
+      });
+
+      const secondTurn = afterFirst?.gameSnapshot.gameState.boardState.currentPlayer.id;
+      const secondActor = secondTurn === host.playerId ? host : guest;
+      const secondRoll = await rollDice(secondActor.socket);
+      expect(secondRoll.ok).toBe(true);
+      const afterSecond = await persistence.rooms.findById(host.room.roomId);
+      expect(afterSecond?.gameSnapshot.gameState.boardState).toMatchObject({
+        rollSequence: 2,
+        diceValue: { dice1: 2, dice2: 2 },
+      });
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('does not persist a roll sequence when the durable roll transaction fails', async () => {
+    const persistence = new FailAfterCommandPersistenceStore();
+    const subject = await startServer(persistence);
+    const host = await joinPlayer(await connect(subject.url), 'Host', 'roll-rollback');
+    const guest = await joinPlayer(await connect(subject.url), 'Guest', 'roll-rollback');
+    await setReady(host.socket);
+    await setReady(guest.socket);
+    expect((await startGame(host.socket)).ok).toBe(true);
+
+    const before = await persistence.rooms.findById(host.room.roomId);
+    if (!before) throw new Error('Expected the started room');
+    const actor = before.gameSnapshot.gameState.boardState.currentPlayer.id === host.playerId
+      ? host
+      : guest;
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.2);
+    persistence.failNextTransactionAfterOperation = true;
+    try {
+      await expect(rollDice(actor.socket)).resolves.toMatchObject({
+        ok: false,
+        error: { code: 'DATABASE_UNAVAILABLE', retryable: true },
+      });
+      expect(await persistence.rooms.findById(host.room.roomId)).toEqual(before);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('increments a failed jail roll once through the same roll command boundary', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const host = await joinPlayer(await connect(subject.url), 'Host', 'jail-roll-sequence');
+    const guest = await joinPlayer(await connect(subject.url), 'Guest', 'jail-roll-sequence');
+    await setReady(host.socket);
+    await setReady(guest.socket);
+    expect((await startGame(host.socket)).ok).toBe(true);
+
+    const started = await persistence.rooms.findById(host.room.roomId);
+    if (!started) throw new Error('Expected the started room');
+    const actor = started.gameSnapshot.gameState.boardState.currentPlayer.id === host.playerId
+      ? host
+      : guest;
+    await mutateRoom(persistence, host.room.roomId, room => {
+      const state = room.gameSnapshot.gameState;
+      state.boardState.currentPlayer = { id: actor.playerId, hasMoved: false };
+      state.players[actor.playerId].currentTile = 10;
+      state.players[actor.playerId].isJail = true;
+      state.players[actor.playerId].jailOpponentRoundsElapsed = 0;
+    });
+
+    const randomSpy = vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.2)
+      .mockReturnValueOnce(0.5);
+    try {
+      expect((await rollDice(actor.socket)).ok).toBe(true);
+      const stored = await persistence.rooms.findById(host.room.roomId);
+      expect(stored?.gameSnapshot.gameState.boardState).toMatchObject({
+        rollSequence: 1,
+        diceValue: { dice1: 2, dice2: 4 },
+      });
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('does not advance roll sequence for a rejected roll command', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const host = await joinPlayer(await connect(subject.url), 'Host', 'reject-roll');
+    const guest = await joinPlayer(await connect(subject.url), 'Guest', 'reject-roll');
+    await setReady(host.socket);
+    await setReady(guest.socket);
+    expect((await startGame(host.socket)).ok).toBe(true);
+
+    const started = await persistence.rooms.findById(host.room.roomId);
+    if (!started) throw new Error('Expected the started room');
+    const actor = started.gameSnapshot.gameState.boardState.currentPlayer.id === host.playerId
+      ? host
+      : guest;
+    await mutateRoom(persistence, host.room.roomId, room => {
+      room.gameSnapshot.gameState.boardState.currentPlayer.hasMoved = true;
+    });
+    expect((await rollDice(actor.socket)).ok).toBe(false);
+    const stored = await persistence.rooms.findById(host.room.roomId);
+    expect(stored?.gameSnapshot.gameState.boardState.rollSequence).toBe(0);
   });
 
   it('assigns a default color and enforces exact appearance combinations', async () => {
@@ -1488,11 +1619,12 @@ describe.runIf(Boolean(testDatabaseUrl))(
              '003_reset_v1_snapshots.sql',
              '004_simplified_rules_v3.sql',
              '005_remove_mortgage_open_market.sql',
-             '006_appearance_system_v5.sql'
+             '006_appearance_system_v5.sql',
+             '007_roll_sequence_v6.sql'
            )
            RETURNING checksum`,
         );
-        expect(migrationRows.rows).toHaveLength(4);
+        expect(migrationRows.rows).toHaveLength(5);
 
         const roomId = randomUUID();
         const hostPlayerId = randomUUID();
@@ -1588,8 +1720,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V1-IDENTITY',
           status: 'IN_PROGRESS',
           hostPlayerId,
-          aggregateVersion: 11,
-          snapshotSchemaVersion: 5,
+          aggregateVersion: 12,
+          snapshotSchemaVersion: 6,
           gameSnapshot: {
             members: {
               [hostPlayerId]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
@@ -1599,6 +1731,7 @@ describe.runIf(Boolean(testDatabaseUrl))(
             gameState: {
               boardState: {
                 gameStarted: true,
+                rollSequence: 0,
                 turnNumber: 1,
                 ownedProps: {},
                 paymentQueue: null,
@@ -1671,7 +1804,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
            WHERE version IN (
              '004_simplified_rules_v3.sql',
              '005_remove_mortgage_open_market.sql',
-             '006_appearance_system_v5.sql'
+             '006_appearance_system_v5.sql',
+             '007_roll_sequence_v6.sql'
            )`,
         );
 
@@ -1785,12 +1919,13 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V2-TO-V4',
           status: 'IN_PROGRESS',
           hostPlayerId,
-          aggregateVersion: 15,
-          snapshotSchemaVersion: 5,
+          aggregateVersion: 16,
+          snapshotSchemaVersion: 6,
           gameSnapshot: {
             gameState: {
               boardState: {
                 gameStarted: true,
+                rollSequence: 0,
                 turnNumber: 1,
                 ownedProps: {},
                 paymentQueue: null,
@@ -1858,7 +1993,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           `DELETE FROM schema_migrations
            WHERE version IN (
              '005_remove_mortgage_open_market.sql',
-             '006_appearance_system_v5.sql'
+             '006_appearance_system_v5.sql',
+             '007_roll_sequence_v6.sql'
            )`,
         );
 
@@ -1996,10 +2132,11 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V3-CLEANUP',
           status: 'IN_PROGRESS',
           hostPlayerId: sellerPlayerId,
-          aggregateVersion: 22,
-          snapshotSchemaVersion: 5,
+          aggregateVersion: 23,
+          snapshotSchemaVersion: 6,
         });
         const migratedState = migrated.gameSnapshot.gameState;
+        expect(migratedState.boardState.rollSequence).toBe(0);
         expect(migratedState.boardState).not.toHaveProperty('openMarket');
         expect(migratedState.boardState.ownedProps).toEqual({
           1: { id: sellerPlayerId, color: 'red', houses: 2 },

@@ -20,7 +20,7 @@
 - [ ] `resume session` activates exactly one stable UUID Seat; lost ACK is resumable.
 - [ ] Newest valid socket wins; old receives `session replaced`; stale disconnect no-ops.
 - [ ] Refresh/network reconnect/new socket keeps Player ID, Seat, ready, money and assets.
-- [ ] Protocol/snapshot v5 identity-preserving reset keeps room/code, stable Player
+- [ ] Protocol/snapshot v6 identity-preserving reset keeps room/code, stable Player
   IDs, join order/name/color/ready, host, `IN_PROGRESS` status and active reconnect
   token hashes while preserving the V5 appearance fields and current gameplay state.
 - [ ] Existing tokens reclaim the same Seats after reset; pending old-game offers are

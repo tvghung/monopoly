@@ -1,7 +1,7 @@
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
-export const SOCKET_PROTOCOL_VERSION = 5 as const;
+export const SOCKET_PROTOCOL_VERSION = 6 as const;
 
 export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
 export type PlayerId = string;
@@ -286,6 +286,9 @@ export interface BoardState {
   turnRecovery: TurnRecovery | null;
   logs: string[];
   diceValue: DiceValue;
+  // Monotonic public identity for accepted gameplay rolls. Starting-player
+  // tie-break rolls do not advance this sequence.
+  rollSequence: number;
   ownedProps: Record<number, OwnedProp>;
   // Set once a single player remains; drives the win screen.
   winner: Winner | null;

@@ -17,7 +17,7 @@ Express runtime và Socket.IO command modules. PostgreSQL/session/recovery detai
 
 ## Authority/commit
 
-Protocol v5 schema → authenticated role/actor → serialized room draft → PostgreSQL
+Protocol v6 schema → authenticated role/actor → serialized room draft → PostgreSQL
 CAS commit → public/private projection → ACK. Save failure phát không state/update/
 success. Actor/owner/dice/debt target và forced-sale price không lấy từ payload.
 

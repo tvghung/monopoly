@@ -240,6 +240,7 @@ export const boardStateSchema = z.strictObject({
     dice1: z.number().int().min(0).max(6),
     dice2: z.number().int().min(0).max(6),
   }),
+  rollSequence: z.number().int().nonnegative().safe(),
   ownedProps: z.record(z.string().regex(/^\d+$/), ownedPropertySchema),
   winner: finishedPlayerSchema.extend({ playerId: playerIdSchema }).nullable(),
   paymentQueue: paymentQueueSchema.nullable(),

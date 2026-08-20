@@ -6,7 +6,7 @@
   snapshot; terminal errors clear only invalid session; newest-wins old tab stops.
 - [x] `[CLIENT][AUTOMATED]` Stale revision ignored; spectator/reconnecting has no mutation;
   StrictMode does not duplicate listeners/countdowns/actions.
-- [x] `[CLIENT][AUTOMATED]` Protocol-v5 reset resumes the same identity directly into the fresh
+- [x] `[CLIENT][AUTOMATED]` Protocol-v6 reset resumes the same identity directly into the fresh
   v5 `IN_PROGRESS` turn without replacing the reconnect credential.
 - [x] `[CLIENT][AUTOMATED]` Presentation event derivation is deterministic, ordered,
   stale-safe and limited to observable diffs; reconnect snapshots do not replay history.

@@ -2,6 +2,7 @@ import type { PublicRoomState } from '@monopoly/shared';
 import type { PresentationEvent, PresentationEventType } from './types';
 
 const MAX_WALK = 12;
+const BOARD_SIZE = 40;
 
 function forwardDistance(from: number, to: number): number {
   return ((to - from) % 40 + 40) % 40;
@@ -11,8 +12,47 @@ function eventId(room: PublicRoomState, type: PresentationEventType, entityId: s
   return `${room.roomId}:revision-${room.version}:${type}:${entityId}`;
 }
 
+function rollEventId(room: PublicRoomState, rollSequence: number): string {
+  return `${room.roomId}:roll-${rollSequence}`;
+}
+
 function sortedIds(values: Iterable<string>): string[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+}
+
+function isValidDiceValue(dice1: number, dice2: number): boolean {
+  return Number.isInteger(dice1) && dice1 >= 1 && dice1 <= 6
+    && Number.isInteger(dice2) && dice2 >= 1 && dice2 <= 6;
+}
+
+function isProvenDiceMovement(
+  previous: PublicRoomState,
+  next: PublicRoomState,
+  playerId: string,
+  previousTile: number,
+  nextTile: number,
+  previousIsJail: boolean,
+): boolean {
+  const previousBoard = previous.gameState.boardState;
+  const nextBoard = next.gameState.boardState;
+  const dice = nextBoard.diceValue;
+  if (
+    nextBoard.rollSequence !== previousBoard.rollSequence + 1
+    || previous.status !== 'IN_PROGRESS'
+    || !previousBoard.gameStarted
+    || Boolean(previousBoard.winner)
+    || previousBoard.currentPlayer.id !== playerId
+    || previousBoard.currentPlayer.hasMoved
+    || Boolean(previous.gameState.turnInfo.pendingLandingDecision)
+    || Boolean(previousBoard.paymentShortfall)
+    || !isValidDiceValue(dice.dice1, dice.dice2)
+  ) return false;
+
+  if (previousIsJail && dice.dice1 !== dice.dice2) return false;
+  if (previousIsJail && next.gameState.players[playerId]?.isJail) return false;
+
+  const expectedTile = (previousTile + dice.dice1 + dice.dice2) % BOARD_SIZE;
+  return nextTile === expectedTile;
 }
 
 export function derivePresentationEvents(
@@ -34,16 +74,18 @@ export function derivePresentationEvents(
   const turnEvents: PresentationEvent[] = [];
   const gameEvents: PresentationEvent[] = [];
 
-  if (previousGame.boardState.diceValue.dice1 !== nextGame.boardState.diceValue.dice1
-    || previousGame.boardState.diceValue.dice2 !== nextGame.boardState.diceValue.dice2) {
+  const rollSequenceDelta = nextGame.boardState.rollSequence
+    - previousGame.boardState.rollSequence;
+  if (rollSequenceDelta === 1) {
     diceEvents.push({
-      id: eventId(next, 'ROLL_DICE', 'room'),
+      id: rollEventId(next, nextGame.boardState.rollSequence),
       roomId: next.roomId,
       roomVersion: next.version,
       type: 'ROLL_DICE',
       entityId: 'room',
       dice1: nextGame.boardState.diceValue.dice1,
       dice2: nextGame.boardState.diceValue.dice2,
+      rollSequence: nextGame.boardState.rollSequence,
     });
   }
 
@@ -68,7 +110,14 @@ export function derivePresentationEvents(
         from: oldPlayer.currentTile,
         to: newPlayer.currentTile,
         steps,
-        presentation: steps > 0 && steps <= MAX_WALK ? 'WALK' : 'SNAP',
+        presentation: isProvenDiceMovement(
+          previous,
+          next,
+          playerId,
+          oldPlayer.currentTile,
+          newPlayer.currentTile,
+          oldPlayer.isJail,
+        ) && steps > 0 && steps <= MAX_WALK ? 'WALK' : 'SNAP',
       });
       landingEvents.push({
         id: eventId(next, 'LAND_TILE', playerId),

@@ -23,6 +23,7 @@ describe('DebtPanel', () => {
         turnRecovery: null,
         logs: [],
         diceValue: { dice1: 2, dice2: 3 },
+        rollSequence: 1,
         ownedProps: { 1: { id: 'player-a', color: 'red', houses: 2 } },
         winner: null,
         paymentShortfall: {

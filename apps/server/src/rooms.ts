@@ -16,7 +16,7 @@ import {
 } from '@monopoly/shared';
 import { z } from 'zod';
 
-export const ROOM_SNAPSHOT_SCHEMA_VERSION = 5;
+export const ROOM_SNAPSHOT_SCHEMA_VERSION = 6;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 4;
 
@@ -149,7 +149,39 @@ export const upgradeRoomSnapshotV4ToV5 = (
 
   return {
     ...envelope,
-    snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
+    snapshotSchemaVersion: 5,
+    gameSnapshot: envelope.gameSnapshot as unknown as RoomSnapshot,
+  };
+};
+
+/**
+ * Pure JSON boundary used by migration tests and operational tooling. The SQL
+ * migration is the production upgrader; this helper applies the same V5 -> V6
+ * baseline without inventing historical roll count.
+ */
+export const upgradeRoomSnapshotV5ToV6 = (
+  input: unknown,
+): PersistedRoomSnapshotEnvelope => {
+  const envelope = structuredClone(input) as {
+    snapshotSchemaVersion: number;
+    gameSnapshot: {
+      gameState: {
+        boardState: { rollSequence?: number; [key: string]: unknown };
+        [key: string]: unknown;
+      };
+      [key: string]: unknown;
+    };
+    hostPlayerId?: PlayerId | null;
+    status?: RoomStatus;
+  };
+  if (envelope.snapshotSchemaVersion !== 5) {
+    throw new Error('Only V5 room snapshots can be upgraded to V6');
+  }
+
+  envelope.gameSnapshot.gameState.boardState.rollSequence = 0;
+  return {
+    ...envelope,
+    snapshotSchemaVersion: 6,
     gameSnapshot: envelope.gameSnapshot as unknown as RoomSnapshot,
   };
 };
@@ -183,6 +215,7 @@ export const freshState = (): GameState => ({
     turnRecovery: null,
     logs: [],
     diceValue: { dice1: 0, dice2: 0 },
+    rollSequence: 0,
     ownedProps: {},
     winner: null,
     paymentQueue: null,
@@ -493,7 +526,7 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
   }
 };
 
-/** Older rows are upgraded transactionally; current V5 rows normalize legacy mascot ids at the boundary. */
+/** Older rows are upgraded transactionally; current V6 rows normalize legacy mascot ids at the boundary. */
 export const assertSupportedRoomSnapshot = (
   room: PersistedRoomSnapshotEnvelope,
 ): void => {

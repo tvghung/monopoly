@@ -53,7 +53,10 @@ thay đổi chưa hoàn tất.
 - Host là stable player; disconnect không transfer host. Lobby cần 2–4 active,
   connected và ready players để host start.
 - Standard Mode dùng board Việt Nam cố định 40 ô, đơn vị số nguyên game-unit
-  (`1 unit = 1.000 VNĐ`) và protocol/snapshot schema v5. Không đổi index hoặc
+  (`1 unit = 1.000 VNĐ`) và protocol/snapshot schema v6. `BoardState.rollSequence`
+  là public durable identity, bắt đầu từ `0`, tăng đúng một lần cho mỗi gameplay
+  roll đã commit, không tăng cho starting-player tie-break hoặc command rollback.
+  Không đổi index hoặc
   economy chỉ vì đổi nhãn hiển thị.
 - `completeTurnResolution` là điểm duy nhất handoff và v4 chỉ có
   `ADVANCE_TURN`; đổ đôi không cấp thêm lượt. `PendingTurnContinuation` nhúng trong

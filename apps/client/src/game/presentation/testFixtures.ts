@@ -43,6 +43,7 @@ export function makeRoom(version = 1): PublicRoomState {
         turnRecovery: null,
         logs: [],
         diceValue: { dice1: 0, dice2: 0 },
+        rollSequence: 0,
         ownedProps: {},
         winner: null,
       },

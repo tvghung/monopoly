@@ -14,6 +14,7 @@ const emptyPresentationState: PresentationState = {
   settledPositions: {},
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
+  displayRollSequence: 0,
   status: 'idle',
   tileImpacts: [],
   characterMovements: [],

@@ -1,13 +1,14 @@
 # Own the Block — Phase 4.0 Authoritative Gameplay → Presentation Contract Audit
 
-Status: audit and Phase 4.1 handoff gate. No gameplay, protocol, persistence,
-or renderer implementation is included in this file.
+Status: Phase 4.1 implementation-slice audit and Phase 4.2 handoff. The
+authoritative roll-identity slice is implemented; richer cause/card/transfer
+contracts remain open.
 
 Audit date: 2026-08-20 (Asia/Ho_Chi_Minh)
 
 Audited branch: `overhaul/phase-4-gameplay-actions`
 
-Audited HEAD: `65cec11 docs: prepare phase 4 gameplay presentation plan`
+Audited base: `5881bbd docs: audit phase 4 gameplay presentation contract`
 
 Phase 3 baseline: `34944d9 feat: complete phase 3 character appearance and movement system`
 
@@ -15,26 +16,29 @@ Primary companion plan: [04_PHASE_4_GAMEPLAY_ACTIONS.md](04_PHASE_4_GAMEPLAY_ACT
 
 ## 1. Executive verdict
 
-## PHASE 4.1 BLOCKED
+## PHASE 4.1 READY FOR PHASE 4.2
 
-The existing server, public/private projections, snapshot diff, queue, and
-decision surfaces are sufficient for a bounded generic presentation slice.
-The full Phase 4.1 contract is not safe to implement yet because a legal
-repeat of the same ordered dice pair has no deterministic presentation
-identity:
+The Phase 4.1 roll-identity slice is complete. `BoardState.rollSequence` is a
+server-owned, public, durable non-negative safe integer. It starts at zero,
+increments once inside the committed gameplay `roll dice` transaction after
+eligibility and dice generation, includes jail attempts, excludes starting-
+player tie-break rolls, and is unchanged by rejected or rolled-back commands.
 
-1. The server commits a new room revision and stores the new dice result, but
-   `BoardState.diceValue` contains only the two face values.
-2. `derivePresentationEvents` emits `ROLL_DICE` only when
-   either ordered face changes.
-3. `Dice.tsx` uses the ordered face pair as its spin key, so the
-   repeated roll also does not start a new tumble.
-4. The command acknowledgement revision is ignored by the client command
-   wrappers and is not correlated with a presentation event.
+Protocol and room snapshots are now V6. Existing V5 snapshots receive a zero
+baseline through the forward migration, without reconstructing historical roll
+count. `ROLL_DICE` derives from an exact one-step sequence advance, so an
+identical ordered face pair is still a new roll. Session/reconnect/spectator
+resets snap both dice faces and sequence without replaying the baseline.
 
-This is a Class D/P0 contract gap for any implementation that promises
-one visible dice-roll acknowledgement per committed legal roll. It is not
-evidence that the server roll or the authoritative result is incorrect.
+Movement remains intentionally conservative: a transition is `WALK` only when
+the next authoritative dice result and consecutive roll sequence prove the
+ordinary destination for the previous current player; all other or ambiguous
+relocations use `SNAP`. This resolves the short-distance false-walk risk for
+this slice without claiming that the general movement-cause contract exists.
+
+P4-D-002 remains open for semantic movement/card/teleport choreography.
+P4-D-003 and P4-D-004 also remain open. This readiness statement is for the
+bounded Phase 4.1 foundation and does not authorize those richer contracts.
 
 The following are safe only within the conditions recorded below:
 
@@ -107,7 +111,7 @@ commit occurred; it is not currently used as a presentation event identity.
 
 | Command/family | Authoritative commit | Public delivery | Private delivery | ACK/broadcast ordering | Audit result |
 | --- | --- | --- | --- | --- | --- |
-| Roll dice | Set dice, mark moved, move/resolve tile, possibly settle or open payment/pending decision | Public `update` | Private player state when changed | Broadcast, then ACK with aggregate revision | One final revision can contain the full roll resolution; roll identity is missing for repeated faces. |
+| Roll dice | Set dice, increment `rollSequence`, mark moved, move/resolve tile, possibly settle or open payment/pending decision | Public `update` with faces and `rollSequence` | Private player state when changed | Broadcast, then ACK with aggregate revision | One committed gameplay roll has one public sequence identity, including repeated faces; one final revision may still contain the full roll resolution. |
 | Buy property | Validate pending purchase operation, debit, transfer to bank-owned purchase, clear decision/advance | Public update | Private state if affected | Broadcast, then ACK with revision | Purchase completion is conditionally provable from pending operation plus owner transition. |
 | Do not buy | Validate pending operation, clear decision/advance | Public update | None normally | Broadcast, then ACK with revision | Clearing the decision does not distinguish explicit decline from expiry/timeout. |
 | Resolve houses/hotel | Validate pending development operation, debit, mutate houses, clear decision/advance | Public update | Forced-sale cancellations/private state where relevant | Private cancellation, broadcast, then ACK | Resulting development delta is structured; action intent is only conditional. |
@@ -153,7 +157,7 @@ It does not treat internal function calls as separate public events.
 | Fact | Public projection | Participant/private projection | Hidden or not structured | Presentation consequence |
 | --- | --- | --- | --- | --- |
 | Current tile, balance, jail flag, character, color | Yes | Yes | No | Class A generic state. |
-| Dice faces | Yes in `diceValue` | Yes | Roll identity/sequence | Faces are authoritative but not a unique roll event. |
+| Dice faces and roll identity | Yes in `diceValue` and `rollSequence` | Yes | No additional private copy | Faces and sequence are authoritative; sequence identifies each committed gameplay roll. |
 | Exact deck order | No; only `deckCounts` | Private deck state is server-held, not generally sent | Yes | Never animate or infer future order. |
 | Drawn normal card identity | No uniform public/private field | Not delivered as a general card-reveal event | Yes except contextual cases below | Generic result only unless a safe signal is approved. |
 | Active payment source | Yes in `paymentShortfall.source` | Yes | The queue may have already settled | A live shortfall can expose a CARD cardId to every viewer. |
@@ -207,9 +211,10 @@ This is a deterministic local ordering, not an authoritative causal order.
 The adapter does not inspect command names, ACK data, logs, deck counts,
 pending operation IDs, payment source, or private events.
 
-Event IDs are locally derived from room, accepted revision, event type, and
-entity. They are useful Class B identity for duplicate/stale snapshot
-suppression, but they cannot create a missing semantic fact.
+Non-roll event IDs remain locally derived from room, accepted revision, event
+type, and entity. `ROLL_DICE` uses the public room/`rollSequence` pair so a
+newer sequence remains distinct even when faces are identical. Session,
+spectator, and reconnect snapshots are reset and never replay a baseline.
 
 ### 6.3 Queue and store
 
@@ -219,7 +224,10 @@ playing; there is no requirement that the queue drain before the next update.
 The movement executor walks the locally derived route and never receives an
 authoritative route.
 
-`PresentationStore` separates display position from settled position.
+`PresentationStore` separates display position from settled position and keeps
+the presented `displayRollSequence` beside the presented dice faces. A live
+sequence advance publishes the result even when both faces match; reset snaps
+both values and increments the presentation reset epoch without a tumble.
 Purchase and development prompts use settled arrival, while the authoritative
 render model updates from the new snapshot immediately. Skip, reset, and
 reconnect use generation/reset protections so stale executors cannot mutate a
@@ -234,23 +242,22 @@ decision, not current behavior.
 | Check | Observed behavior | Result |
 | --- | --- | --- |
 | Server result authority | `rollDice()` generates the two faces on the server. | Proven. |
-| Public result | `BoardState.diceValue` contains only `dice1` and `dice2`. | Proven but not unique per roll. |
-| Snapshot diff | `derivePresentationEvents` emits `ROLL_DICE` only if either ordered face changes. | Repeated pair is dropped. |
+| Public result | `BoardState.diceValue` contains `dice1`/`dice2` and public `rollSequence`. | Proven and uniquely identified per committed gameplay roll. |
+| Snapshot diff | `derivePresentationEvents` emits `ROLL_DICE` only when `next.rollSequence === previous.rollSequence + 1`. | Repeated faces remain a distinct roll; gaps do not fabricate missing rolls. |
 | Ordered swap | `(2,3)` to `(3,2)` is a visible change. | Emits, although it is a different ordered value. |
-| Exact repeat | `(2,3)` to `(2,3)` can be a legal next roll. | No derived roll event. |
-| Dice visual identity | `Dice.tsx` increments the spin identity only when the ordered face-pair key changes. | Exact repeat does not tumble. |
+| Exact repeat | `(2,3)` to `(2,3)` can be a legal next roll. | The higher `rollSequence` emits one derived roll event. |
+| Dice visual identity | `Dice.tsx` uses the presented `displayRollSequence` and reset epoch. | Exact repeat tumbles once; reset/reconnect settles without replay. |
 | ACK correlation | Gameplay ACKs include the committed aggregate revision, but App command wrappers ignore successful ACK data/revision. | No command-to-roll bridge. |
-| Reconnect | Session sync resets to current faces without replaying the prior roll. | Correct for recovery, not a solution for identity. |
+| Reconnect | Session/spectator sync resets to current faces and `rollSequence` without replaying the prior roll. | Correct recovery baseline; the next live sequence advance can present normally. |
 
 No server rule prevents two consecutive legal rolls from producing the same
-ordered pair. A new aggregate revision proves that the room changed, but the
-client does not use that revision as a roll event because its event adapter
-only compares the pair.
+ordered pair. The public sequence now identifies that second committed roll;
+the sequence is persisted with the room snapshot and V5 rooms start at zero
+when upgraded to V6. Starting-player tie-break rolls do not advance it.
 
-Classification: Class D, P0 for a universal committed-roll presentation
-contract. Do not patch this by randomizing the client, comparing logs, or
-inventing a local click counter; those would not identify server-committed
-rolls after reconnect or duplicate delivery.
+Classification: P4-D-001 resolved for this slice. Do not replace the server
+sequence with a room revision, log comparison, random client value, or local
+click counter.
 
 ## 8. Movement and cause audit
 
@@ -267,27 +274,36 @@ rolls after reconnect or duplicate delivery.
 
 ### 8.2 Client route heuristic
 
-The current adapter computes a forward distance modulo 40 and emits
-`WALK` only when the distance is greater than zero and at most
-`MAX_WALK = 12`; otherwise it emits a destination snap. It does not
-inspect the roll command, card effect, tile type, log, deck count, jail cause,
-or movement operation.
+Phase 4.1 keeps the forward-distance calculation only as the geometric part
+of the existing executor. It emits `WALK` only when all of these conditions
+hold: the roll sequence advanced exactly once, the previous current player is
+the moved player and was legally ready to roll, the next dice faces are valid,
+and the observed destination equals the dice destination from the previous
+tile. A jailed player must have rolled doubles and left jail. Every other
+transition, including a sequence gap or unsupported cause, emits a
+destination `SNAP`.
 
-This creates concrete false-walk cases:
+The previously observed threshold-only adapter created concrete false-walk
+cases; Phase 4.1 now handles these transitions as follows:
 
-| Authoritative cause | Example final transition | Current adapter result | Finding |
+| Authoritative cause | Example final transition | Phase 4.1 adapter result | Finding |
 | --- | --- | --- | --- |
-| Chance absolute move | Tile 36 to tile 39 or tile 22 to tile 24 | Short WALK | Absolute card relocation is misclassified as ordinary walking. |
-| Chance/chest move to GO | Tile 36 to tile 0 or tile 33 to tile 0 | Short WALK | A card move can look like a normal route. |
-| Card go-to-jail | Tile 7 to tile 10 or tile 2 to tile 10 | Short WALK | Jail teleport is misclassified as a walk. |
+| Chance absolute move | Tile 36 to tile 39 or tile 22 to tile 24 | SNAP unless the dice proof independently matches | Absolute card relocation is not treated as ordinary walking. |
+| Chance/chest move to GO | Tile 36 to tile 0 or tile 33 to tile 0 | SNAP unless the dice proof independently matches | A card move is not inferred from a short delta. |
+| Card go-to-jail | Tile 7 to tile 10 or tile 2 to tile 10 | SNAP | Jail teleport is not treated as a walk. |
 | Card back-three | Tile 36 to tile 33 | SNAP because forward distance is 37 | Destination is safe, but cause and route remain hidden. |
-| Card chain | Tile 36 to tile 33, then chest effect | One final 36-to-final transition | Intermediate movement/card chain is collapsed. |
-| Direct jail/tile effect | Any source to tile 10 | Often WALK if distance <= 12 | Direct movement cause is not in the public diff. |
+| Card chain | Tile 36 to tile 33, then chest effect | SNAP for the collapsed final transition unless the dice proof matches | Intermediate movement/card chain is collapsed. |
+| Direct jail/tile effect | Any source to tile 10 | SNAP | Direct movement cause is not in the public diff. |
 
-The current bounded walk is therefore safe only when the implementation has
-independent proof that the committed transition is an ordinary positive dice
-move and the route is not collapsed with another effect. All unsupported cases
-must snap to the authoritative destination or wait for an approved contract.
+The conservative Phase 4.1 rule is therefore:
+
+```text
+PROVEN DICE ROUTE -> WALK
+OTHER / AMBIGUOUS -> SNAP
+```
+
+The general movement-cause/route gap remains open; this slice does not add
+card, teleport, or route metadata.
 
 Classification:
 
@@ -518,7 +534,7 @@ Classification:
 
 | Surface | Current gate | Evidence | Phase 4.1 implication |
 | --- | --- | --- | --- |
-| Roll dice | Connected, mutable player, in-progress game, current player, not moved, all settled positions equal authoritative positions, presentation queue idle | `Dice.tsx` and `App.tsx:canMutate` | Retain; add the solved roll identity contract without local prediction. |
+| Roll dice | Connected, mutable player, in-progress game, current player, not moved, all settled positions equal authoritative positions, presentation queue idle | `Dice.tsx` and `App.tsx:canMutate` | Retain; consume the authoritative `rollSequence` without local prediction. |
 | Buy prompt | Mutable current player, matching pending PURCHASE, local token settled at authoritative tile | `BuyPrompt.tsx` and `Dashboard.tsx:tokenArrived` | Correctly prevents action before visual arrival; server operation ID remains authority. |
 | Development prompt | Mutable current player, matching pending development, local token settled | `DevelopmentPrompt.tsx` | Same boundary; do not infer operation from a generic landing. |
 | Jail panel | Mutable current player and public jail state | `JailPanel.tsx` | Does not separately wait for queue idle; keep authoritative control visible. |
@@ -570,10 +586,10 @@ semantic evidence.
 
 | ID | Gap | Class | Status | Owner | Smallest safe next step |
 | --- | --- | --- | --- | --- | --- |
-| P4-D-001 | Repeated ordered dice pair has no per-roll identity | D/P0 | Blocking | Shared type, server roll handler/projector, client adapter/Dice | Approve a committed public roll sequence/ID before universal dice presentation. |
-| P4-D-002 | Movement cause/route is absent; bounded forward diff false-walks card/jail/absolute movement | D | Blocking for semantic route choreography | Server movement projection and shared contract | Approve cause/route metadata or explicitly define destination snap for unsupported causes. |
-| P4-D-003 | General card identity/result/chain is absent | D | Blocking for readable card reveal | Server projector/shared visibility contract | Approve audience-scoped card-resolution metadata; never use logs or deck order. |
-| P4-D-004 | Public balance/ownership diff lacks universal transfer attribution | D | Blocking for universal transfer labels | Server command/event contract and client adapter | Approve a structured transfer signal with audience and operation identity, or keep generic deltas. |
+| P4-D-001 | Repeated ordered dice pair has no per-roll identity | D/P0 | RESOLVED in Phase 4.1 | Shared type, server roll handler/projector, client adapter/Dice, V6 migration and tests | Keep `rollSequence` authoritative, public, durable, and reset-safe. |
+| P4-D-002 | Movement cause/route is absent; bounded forward diff can false-walk card/jail/absolute movement | D | OPEN for semantic route choreography; conservative fallback implemented | Server movement projection and shared contract | Approve cause/route metadata only if richer route choreography is required; otherwise retain proven dice route → WALK, other/ambiguous → SNAP. |
+| P4-D-003 | General card identity/result/chain is absent | D | OPEN | Server projector/shared visibility contract | Approve audience-scoped card-resolution metadata; never use logs or deck order. |
+| P4-D-004 | Public balance/ownership diff lacks universal transfer attribution | D | OPEN | Server command/event contract and client adapter | Approve a structured transfer signal with audience and operation identity, or keep generic deltas. |
 | P4-B-001 | ACK revision is ignored and normal broadcast precedes ACK | B | Confirmed sequencing gap | Client command/presentation integration | Use accepted snapshot revision for correlation only after the roll identity/order contract is settled. |
 | P4-B-002 | All derived events currently serialize, while the plan permits safe overlap | B | Confirmed implementation mismatch | PresentationController/queue | Decide overlap per event family and test queue append/skip; no second queue. |
 | P4-A-001 | Jail, debt, and trade panels do not use a presentation-idle gate | A/B | UX sequencing risk | Client decision surfaces | Decide deliberately whether these authoritative controls remain immediately visible; do not hide debt behind effects. |
@@ -591,9 +607,10 @@ semantic evidence.
 | Ephemeral structured roll presentation signal | Server emits after commit; public | Must be replayed or intentionally skipped on reconnect; event loss is possible | Socket event ordering, duplicate handling, and reconnect tests; no durable history if visual-only | Smaller wire change but less reliable for snapshot recovery. |
 
 No option should use a client click count, a random local ID, or log parsing.
-The recommended field should be monotonic or otherwise unique per committed
-roll, included in the public snapshot, validated in shared schemas, and tested
-for duplicate delivery, reconnect, room restart, and same-face repeats.
+Phase 4.1 selected the public monotonic `rollSequence` option. It is included
+in the V6 public snapshot, validated as a non-negative safe integer, persisted
+through V6 room snapshots, and tested for duplicate delivery, reconnect/reset,
+room restart, jail attempts, rollback, and same-face repeats.
 
 #### P4-D-002 — movement cause and route
 
@@ -623,10 +640,10 @@ for duplicate delivery, reconnect, room restart, and same-face repeats.
 
 | Risk | Status | Evidence sentence |
 | --- | --- | --- |
-| A. Identical dice pair does not produce a distinct `ROLL_DICE` | CONFIRMED | The adapter compares only ordered face values, so a legal repeat of the same pair produces a new revision without a roll event. |
-| B. Dice spin identity is keyed only by face pair | CONFIRMED | `Dice.tsx` uses the ordered pair as its spin key, so an exact repeat does not tumble. |
+| A. Identical dice pair does not produce a distinct `ROLL_DICE` | RESOLVED | Public `rollSequence` advances once per committed gameplay roll, and the adapter emits on an exact one-step advance even when faces match. |
+| B. Dice spin identity is keyed only by face pair | RESOLVED | `Dice.tsx` uses presented `displayRollSequence` plus the reset epoch, so an exact repeat tumbles once and reset does not replay it. |
 | C. Card chains collapse into one public transition | CONFIRMED | `resolveTile` continues synchronously through card movement and destination effects before one committed broadcast. |
-| D. Short card movement can be misclassified as `WALK` | CONFIRMED | Absolute card moves and card-to-jail moves can have a forward distance of 12 or less and are emitted as ordinary walks. |
+| D. Short card movement can be misclassified as `WALK` | MITIGATED | The adapter now requires a consecutive roll and exact dice destination proof; unsupported or ambiguous movement snaps, while the general cause contract remains open. |
 | E. Affordable compulsory payment may leave no public queue | CONFIRMED | `progressPaymentQueue` settles affordable claims before the committed public projection is broadcast. |
 | F. Public shortfall can expose a CARD `cardId` | CONFIRMED | `projectPublicRoomState` copies the active structured CARD source into public `paymentShortfall`. |
 | G. Card identity is not uniform across contexts | PARTIAL | Active CARD shortfall and private jail-free state carry identity in limited contexts, but there is no general card-draw/result event. |
@@ -643,29 +660,33 @@ for duplicate delivery, reconnect, room restart, and same-face repeats.
 
 ## 19. Phase 4.1 handoff
 
-### Required before claiming Phase 4.1 ready
+### Completed for the Phase 4.1 foundation
 
-1. Resolve P4-D-001 and add tests for repeated identical ordered dice
-   results, duplicate snapshots, reconnect, skip, and ACK/update ordering.
-2. Decide whether Phase 4.1 requires semantic movement cause/route. If not,
-   specify and test snap behavior for all unsupported movement cases.
-3. Decide whether card identity is needed, and define audience, card ID,
-   effect/result, chain behavior, reconnect behavior, and deck-order privacy.
-4. Decide whether transfer direction/cause is required; otherwise retain
-   generic balance feedback.
-5. Keep purchase/development inference conditional on pending operation state.
-6. Keep logs display-only and never use them as an API.
-7. Preserve public/private forced-sale and offer boundaries.
-8. Keep server authority, the single queue/store, settled-position gating,
-   reset epochs, and stale-completion protection.
+1. P4-D-001 is resolved with public durable `rollSequence`, V6 compatibility,
+   identical-face derivation, and reset/reconnect-safe presentation state.
+2. Movement classification uses and tests the conservative rule:
+   `PROVEN DICE ROUTE -> WALK`; `OTHER / AMBIGUOUS -> SNAP`.
+3. Server authority, the single queue/store, settled-position gating, reset
+   epochs, and stale-completion protection remain in place.
+
+### Still open for richer future choreography
+
+1. P4-D-002 movement cause/route metadata is not added; semantic card,
+   teleport, and route choreography still require a shared contract.
+2. P4-D-003 card identity/result/chain and audience policy remain open.
+3. P4-D-004 universal transfer attribution remains open; generic balance and
+   ownership deltas remain the safe public fallback.
+4. Purchase/development inference remains conditional on pending operation
+   state, logs remain display-only, and public/private forced-sale and offer
+   boundaries remain unchanged.
 
 ### Explicitly not authorized by this audit
 
 - No new gameplay command.
 - No client-side dice, movement, rent, tax, card, purchase, development,
   debt, or bankruptcy rule.
-- No production protocol/shared-type implementation.
-- No database migration or event-history table.
+- No protocol/shared-type expansion beyond the V6 roll-identity contract.
+- No event-history table or reconstruction of historical roll count.
 - No visual effect implementation.
 - No log parser.
 - No promise that ACK order is a presentation sequence.
@@ -687,9 +708,9 @@ for duplicate delivery, reconnect, room restart, and same-face repeats.
 
 ### Final audit verdict
 
-## PHASE 4.1 BLOCKED
+## PHASE 4.1 READY FOR PHASE 4.2
 
-The block is caused by the missing deterministic per-roll identity and the
-unresolved richer-cause contracts, not by a failure of the authoritative
-gameplay implementation. Phase 4.1 may proceed only after the P0 contract is
-approved and its shared/server/client test obligations are explicitly scoped.
+The authoritative roll identity and safe movement foundation are complete.
+Phase 4.2 must treat P4-D-002, P4-D-003, and P4-D-004 as open contracts and
+must not infer their richer semantics from logs, room revisions, or short tile
+deltas.
