@@ -4,6 +4,7 @@ import { presentationTiming } from '../timings';
 import { PresentationStore } from './presentationStore';
 
 const impactTiming = {
+  delayMs: 0,
   depressDurationMs: presentationTiming.tileImpact.stepDepress,
   reboundDurationMs: presentationTiming.tileImpact.stepRebound,
 };

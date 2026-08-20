@@ -8,7 +8,7 @@ import type {
 } from '../../presentation/store/types';
 import type { CharacterPlayerModel } from '../board/boardRenderModel';
 import { useEffectiveReducedMotion } from '../../../settings/selectors';
-import { useTileMotionOffset } from '../board/motion/TileMotionProvider';
+import { useTileMotionController } from '../board/motion/TileMotionProvider';
 import { boardVisualTokens } from '../board/boardVisualTokens';
 import { getCharacterLandingAnchor } from '../board/architecture/tileAnchors';
 import { getCharacterDefinition } from '../../characters/characterRegistry';
@@ -114,7 +114,8 @@ export default function CharacterBillboard({
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
   const invalidate = useThree(state => state.invalidate);
   const reducedMotion = useEffectiveReducedMotion();
-  const tileMotionOffsetY = useTileMotionOffset(player.tileId);
+  const tileMotionController = useTileMotionController();
+  const tileMotionOffsetYSnapshot = tileMotionController?.getTileOffsetY(player.tileId) ?? 0;
   const definition = getCharacterDefinition(player.characterId);
   const anchor = getCharacterLandingAnchor(player.tileId, slotIndex, occupantCount);
   const targetX = anchor?.[0];
@@ -159,7 +160,7 @@ export default function CharacterBillboard({
         body,
         shadow,
         effectTarget,
-        tileMotionOffsetY,
+        tileMotionOffsetYSnapshot,
         shadowMaterialRef.current,
         spriteMaterialRef.current,
       );
@@ -177,7 +178,7 @@ export default function CharacterBillboard({
         body,
         shadow,
         effectTarget,
-        tileMotionOffsetY,
+        tileMotionOffsetYSnapshot,
         shadowMaterialRef.current,
         spriteMaterialRef.current,
       );
@@ -206,7 +207,7 @@ export default function CharacterBillboard({
           body,
           shadow,
           effectTarget,
-          tileMotionOffsetY,
+          tileMotionOffsetYSnapshot,
           shadowMaterialRef.current,
           spriteMaterialRef.current,
         );
@@ -232,7 +233,7 @@ export default function CharacterBillboard({
             body,
             shadow,
             effectTarget,
-            tileMotionOffsetY,
+            tileMotionOffsetYSnapshot,
             shadowMaterialRef.current,
             spriteMaterialRef.current,
           );
@@ -261,7 +262,7 @@ export default function CharacterBillboard({
         body,
         shadow,
         to,
-        tileMotionOffsetY,
+        tileMotionOffsetYSnapshot,
         shadowMaterialRef.current,
         spriteMaterialRef.current,
       );
@@ -303,7 +304,7 @@ export default function CharacterBillboard({
         body,
         shadow,
         effectTarget,
-        tileMotionOffsetY,
+        tileMotionOffsetYSnapshot,
         shadowMaterialRef.current,
         spriteMaterialRef.current,
       );
@@ -318,7 +319,7 @@ export default function CharacterBillboard({
         body,
         shadow,
         effectTarget,
-        tileMotionOffsetY,
+        tileMotionOffsetYSnapshot,
         shadowMaterialRef.current,
         spriteMaterialRef.current,
       );
@@ -353,7 +354,8 @@ export default function CharacterBillboard({
     targetX,
     targetY,
     targetZ,
-    tileMotionOffsetY,
+    tileMotionController,
+    tileMotionOffsetYSnapshot,
   ]);
 
   useEffect(() => {
@@ -420,14 +422,18 @@ export default function CharacterBillboard({
     const reactionWasActive = reactionControllerRef.current.getState() !== null;
     const reactionSample = reactionControllerRef.current.advance(delta * 1000, reducedMotion);
     const reactionActive = reactionWasActive || !reactionSample.done;
+    const currentTileMotionOffsetY = tileMotionController?.getTileOffsetY(player.tileId) ?? 0;
+    const activeHop = activeMotionRef.current?.kind === 'TILE_HOP'
+      ? activeMotionRef.current
+      : null;
     const bodyTileOffsetY = getCharacterBodyTileOffsetY(
-      tileMotionOffsetY,
-      activeMotionRef.current?.kind === 'TILE_HOP',
+      currentTileMotionOffsetY,
+      activeHop !== null && activeHop.elapsedMs < activeHop.durationMs * 0.9,
     );
     const grounding = getCharacterGroundingTransforms(
       [bodyPosition.x, bodyPosition.y, bodyPosition.z],
       targetY ?? bodyPosition.y,
-      tileMotionOffsetY,
+      currentTileMotionOffsetY,
     );
     group.position.set(...grounding.root);
     ground.position.set(...grounding.ground);
@@ -454,7 +460,7 @@ export default function CharacterBillboard({
   const groundY = anchor?.[1] ?? 0;
   return (
     <group ref={groupRef}>
-      <group ref={groundGroupRef} position={[0, groundY + tileMotionOffsetY, 0]}>
+      <group ref={groundGroupRef} position={[0, groundY + tileMotionOffsetYSnapshot, 0]}>
         {player.isActive
           ? (
             <mesh position={[0, 0.025, 0]} rotation={[Math.PI / 2, 0, 0]}>

@@ -14,21 +14,17 @@ export function createMovementExecutor(store: PresentationStoreLike): Presentati
       for (let step = 1; step <= event.steps; step += 1) {
         const tileId = (fromTileId + 1) % 40;
         const hopDurationMs = context.getDuration(presentationTiming.tileHop);
-        const depressDurationMs = Math.min(
-          hopDurationMs,
-          context.getDuration(presentationTiming.tileImpact.stepDepress),
-        );
+        const depressDurationMs = Math.min(hopDurationMs, context.getDuration(presentationTiming.tileImpact.stepDepress));
         const reboundDurationMs = context.getDuration(presentationTiming.tileImpact.stepRebound);
-        const travelDurationMs = Math.max(0, hopDurationMs - depressDurationMs);
         store.startCharacterHop(event.playerId, fromTileId, tileId, hopDurationMs);
-        await context.waitForDuration(travelDurationMs);
         if (step < event.steps) {
           store.emitTileImpact(event.playerId, tileId, 'STEP', {
+            delayMs: Math.max(0, hopDurationMs - depressDurationMs),
             depressDurationMs,
             reboundDurationMs,
           });
         }
-        await context.waitForDuration(depressDurationMs);
+        await context.waitForDuration(hopDurationMs);
         store.completeCharacterHop(event.playerId, tileId);
         fromTileId = tileId;
       }

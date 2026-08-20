@@ -206,6 +206,7 @@ export class PresentationStore implements PresentationStoreLike {
       playerId,
       tileId,
       kind,
+      delayMs: Math.max(0, timing.delayMs),
       depressDurationMs: Math.max(0, timing.depressDurationMs),
       reboundDurationMs: Math.max(0, timing.reboundDurationMs),
     };

@@ -102,6 +102,7 @@ describe('presentation reaction executors', () => {
         playerId: 'player-a',
         tileId: 4,
         kind: 'LAND',
+        delayMs: 0,
         depressDurationMs: presentationTiming.tileImpact.landDepress,
         reboundDurationMs: presentationTiming.tileImpact.landRebound,
       },

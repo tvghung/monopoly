@@ -344,7 +344,6 @@ export class DistrictSurfaceMaterialLibrary {
     color: boardVisualTokens.tileDivider,
     roughness: boardMaterialSpecs.tileTop.roughness,
     metalness: boardMaterialSpecs.tileTop.metalness,
-    vertexColors: true,
     side: THREE.DoubleSide,
     polygonOffset: true,
     polygonOffsetFactor: -1,
@@ -373,7 +372,6 @@ export class DistrictSurfaceMaterialLibrary {
         bumpScale: descriptor.bumpScale,
         roughness: materialSpec.roughness,
         metalness: materialSpec.metalness,
-        vertexColors: true,
         side: THREE.DoubleSide,
       }));
     });
@@ -388,7 +386,6 @@ export class DistrictSurfaceMaterialLibrary {
         bumpScale: 0.006,
         roughness: 0.76,
         metalness: 0,
-        vertexColors: true,
         side: THREE.DoubleSide,
       }));
     });

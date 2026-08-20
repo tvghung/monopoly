@@ -1,5 +1,5 @@
-import { useThree, type ThreeEvent } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { tileState, type TileType } from '@monopoly/shared';
 import { getBoardTileLayout, getTileSurfaceGeometry, type BoardSide } from '../boardLayout';
@@ -18,7 +18,7 @@ import {
   type WhitePebbleVariant,
 } from '../materials/whitePebbleSurface';
 import { getTilePanelLayout } from './tilePanelLayout';
-import { useTileMotionController, useTileMotionRevision } from '../motion/TileMotionProvider';
+import { useTileMotionController } from '../motion/TileMotionProvider';
 
 interface TileSurfaceBatchProps {
   tiles: readonly BoardTileRenderModel[];
@@ -111,13 +111,13 @@ function SurfaceBatchMesh({
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const motionController = useTileMotionController();
-  const motionRevision = useTileMotionRevision();
+  const previousOffsetsRef = useRef(new Map<number, number>());
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
     const matrix = new THREE.Matrix4();
-    const instanceColor = new THREE.Color();
+    previousOffsetsRef.current.clear();
     batch.entries.forEach((entry, index) => {
       const layout = getBoardTileLayout(entry.tileId);
       if (!layout) return;
@@ -130,12 +130,33 @@ function SurfaceBatchMesh({
         entry.surfacePlaneOffset ?? 0,
       );
       mesh.setMatrixAt(index, matrix);
-      instanceColor.setScalar(motionController?.getTilePressColorMultiplier(entry.tileId) ?? 1);
-      mesh.setColorAt(index, instanceColor);
     });
     mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [batch, motionController, motionRevision]);
+  }, [batch, motionController]);
+
+  useFrame(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const matrix = new THREE.Matrix4();
+    let changed = false;
+    batch.entries.forEach((entry, index) => {
+      const layout = getBoardTileLayout(entry.tileId);
+      if (!layout) return;
+      const motionOffsetY = motionController?.getTileOffsetY(entry.tileId) ?? 0;
+      if (previousOffsetsRef.current.get(entry.tileId) === motionOffsetY) return;
+      composeTileSurfaceMatrix(
+        layout,
+        entry.surfaceSize,
+        motionOffsetY,
+        matrix,
+        entry.surfacePlaneOffset ?? 0,
+      );
+      mesh.setMatrixAt(index, matrix);
+      previousOffsetsRef.current.set(entry.tileId, motionOffsetY);
+      changed = true;
+    });
+    if (changed) mesh.instanceMatrix.needsUpdate = true;
+  });
 
   const handlePointer = (callback: ((tileId: number) => void) | undefined) => (
     event: ThreeEvent<PointerEvent | MouseEvent>,

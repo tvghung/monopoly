@@ -1,5 +1,5 @@
-import type { ThreeEvent } from '@react-three/fiber';
-import { useEffect, useMemo } from 'react';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { tileState } from '@monopoly/shared';
 import {
@@ -12,7 +12,7 @@ import { getBoardTileLayout } from '../boardLayout';
 import type { BoardTileRenderModel } from '../boardRenderModel';
 import { boardVisualTokens } from '../boardVisualTokens';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { useTileMotionController, useTileMotionRevision } from '../motion/TileMotionProvider';
+import { useTileMotionController } from '../motion/TileMotionProvider';
 import { getBoardMaterialProps } from '../materials/boardMaterialSpecs';
 
 interface TileBodyBatchProps {
@@ -64,7 +64,7 @@ export default function TileBodyBatch({
     [],
   );
   const motionController = useTileMotionController();
-  const motionRevision = useTileMotionRevision();
+  const previousOffsetsRef = useRef(new Map<string, number>());
   const batches = useMemo(() => {
     const byColor = new Map<string, BodyEntry[]>();
     entries.forEach(entry => {
@@ -81,7 +81,6 @@ export default function TileBodyBatch({
     return [...byColor.entries()].map(([color, groupedEntries], batchIndex): BodyBatch => {
       const material = new THREE.MeshStandardMaterial({
         ...getBoardMaterialProps('tileChassis', color),
-        vertexColors: true,
       });
       const mesh = new THREE.InstancedMesh(geometry, material, groupedEntries.length);
       mesh.name = `TileBodies:${batchIndex}`;
@@ -100,30 +99,32 @@ export default function TileBodyBatch({
     });
   }, [entries, geometry, hoveredTileId, selectedTileId]);
 
-  useEffect(() => {
+  useFrame(() => {
     const dummy = new THREE.Object3D();
-    const instanceColor = new THREE.Color();
     const bodyCenterY = BOARD_FOUNDATION_HEIGHT + TILE_SOCKET_GAP + TILE_BODY_HEIGHT / 2;
     batches.forEach(batch => {
+      let changed = false;
       batch.entries.forEach((entry, index) => {
         const layout = getBoardTileLayout(entry.tileId);
         if (!layout) return;
+        const offsetY = motionController?.getTileOffsetY(entry.tileId) ?? 0;
+        const offsetKey = `${batch.mesh.uuid}:${entry.tileId}`;
+        if (previousOffsetsRef.current.get(offsetKey) === offsetY) return;
         dummy.position.set(
           layout.position[0],
-          bodyCenterY + (motionController?.getTileOffsetY(entry.tileId) ?? 0),
+          bodyCenterY + offsetY,
           layout.position[2],
         );
         dummy.rotation.set(0, layout.rotation[1], 0);
         dummy.scale.set(entry.size[0], 1, entry.size[1]);
         dummy.updateMatrix();
         batch.mesh.setMatrixAt(index, dummy.matrix);
-        instanceColor.setScalar(motionController?.getTilePressColorMultiplier(entry.tileId) ?? 1);
-        batch.mesh.setColorAt(index, instanceColor);
+        previousOffsetsRef.current.set(offsetKey, offsetY);
+        changed = true;
       });
-      batch.mesh.instanceMatrix.needsUpdate = true;
-      if (batch.mesh.instanceColor) batch.mesh.instanceColor.needsUpdate = true;
+      if (changed) batch.mesh.instanceMatrix.needsUpdate = true;
     });
-  }, [batches, motionController, motionRevision]);
+  });
 
   useEffect(() => () => {
     batches.forEach(batch => batch.material.dispose());

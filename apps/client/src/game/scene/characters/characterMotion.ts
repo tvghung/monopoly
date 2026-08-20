@@ -11,7 +11,6 @@ export const CHARACTER_SHADOW_OPACITY = 0.24;
 
 const CHARACTER_LEAN_MAX_RADIANS = THREE.MathUtils.degToRad(3);
 const CHARACTER_LEAN_PER_SCREEN_UNIT = 0.028;
-const CONTACT_EASE_AMPLITUDE = 0.028;
 
 export interface CharacterMotionSample {
   position: readonly [number, number, number];
@@ -91,10 +90,9 @@ function smoothStep(value: number): number {
   return clamped * clamped * (3 - 2 * clamped);
 }
 
-/** Near-linear travel with a small contact ease, avoiding a full brake at each tile. */
+/** Linear travel keeps the final velocity of one hop continuous with the next. */
 function sampleTravelProgress(progress: number): number {
-  if (progress <= 0 || progress >= 1) return progress;
-  return progress + CONTACT_EASE_AMPLITUDE * Math.sin(progress * Math.PI * 2);
+  return THREE.MathUtils.clamp(progress, 0, 1);
 }
 
 export function sampleCharacterHop(
@@ -129,8 +127,8 @@ export function sampleCharacterHop(
       THREE.MathUtils.lerp(from.z, to.z, travelProgress),
     ],
     rotationZ: lean * arc,
-    scaleXZ: 1 - takeoffStretch * 0.01 + contactSquash * 0.025,
-    scaleY: 1 + takeoffStretch * 0.022 - contactSquash * 0.045,
+    scaleXZ: 1 - takeoffStretch * 0.01 + contactSquash * 0.014,
+    scaleY: 1 + takeoffStretch * 0.022 - contactSquash * 0.026,
     shadowScale: 1 - arc * 0.18,
     shadowOpacity: CHARACTER_SHADOW_OPACITY - arc * 0.055,
     done: false,

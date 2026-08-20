@@ -46,7 +46,7 @@ function traceStore(store: PresentationStore, trace: string[]): void {
     complete(playerId, tileId);
   });
   vi.spyOn(store, 'emitTileImpact').mockImplementation((playerId, tileId, kind, timing) => {
-    trace.push(`impact:${kind}:${tileId}:${timing.depressDurationMs}/${timing.reboundDurationMs}`);
+    trace.push(`impact:${kind}:${tileId}:${timing.delayMs}/${timing.depressDurationMs}/${timing.reboundDurationMs}`);
     impact(playerId, tileId, kind, timing);
   });
   vi.spyOn(store, 'emitCharacterLanding').mockImplementation((playerId, tileId, durationMs) => {
@@ -69,9 +69,8 @@ describe('movement tile-hop presentation', () => {
     await createMovementExecutor(store).run(walkEvent({ to: 1, steps: 1 }), context);
 
     expect(trace).toEqual([
-      'start:0->1:210',
-      'wait:158',
-      'wait:52',
+      'start:0->1:180',
+      'wait:180',
       'complete:1',
     ]);
     expect(store.getSnapshot().displayPositions['player-a']).toBe(1);
@@ -83,8 +82,8 @@ describe('movement tile-hop presentation', () => {
       signal.toTileId,
       signal.durationMs,
     ])).toEqual([
-      ['TILE_HOP', 'START', 0, 1, 210],
-      ['TILE_HOP', 'COMPLETE', 0, 1, 210],
+      ['TILE_HOP', 'START', 0, 1, 180],
+      ['TILE_HOP', 'COMPLETE', 0, 1, 180],
     ]);
   });
 
@@ -101,10 +100,10 @@ describe('movement tile-hop presentation', () => {
     await createMovementExecutor(store).run(walkEvent(), context);
 
     expect(trace).toEqual([
-      'start:0->1:210', 'wait:158', 'impact:STEP:1:52/126', 'wait:52', 'complete:1',
-      'start:1->2:210', 'wait:158', 'impact:STEP:2:52/126', 'wait:52', 'complete:2',
-      'start:2->3:210', 'wait:158', 'impact:STEP:3:52/126', 'wait:52', 'complete:3',
-      'start:3->4:210', 'wait:158', 'wait:52', 'complete:4',
+      'start:0->1:180', 'impact:STEP:1:144/36/78', 'wait:180', 'complete:1',
+      'start:1->2:180', 'impact:STEP:2:144/36/78', 'wait:180', 'complete:2',
+      'start:2->3:180', 'impact:STEP:3:144/36/78', 'wait:180', 'complete:3',
+      'start:3->4:180', 'wait:180', 'complete:4',
     ]);
     expect(store.getSnapshot().tileImpacts).toEqual([
       {
@@ -112,24 +111,27 @@ describe('movement tile-hop presentation', () => {
         playerId: 'player-a',
         tileId: 1,
         kind: 'STEP',
-        depressDurationMs: 52,
-        reboundDurationMs: 126,
+        delayMs: 144,
+        depressDurationMs: 36,
+        reboundDurationMs: 78,
       },
       {
         sequence: 2,
         playerId: 'player-a',
         tileId: 2,
         kind: 'STEP',
-        depressDurationMs: 52,
-        reboundDurationMs: 126,
+        delayMs: 144,
+        depressDurationMs: 36,
+        reboundDurationMs: 78,
       },
       {
         sequence: 3,
         playerId: 'player-a',
         tileId: 3,
         kind: 'STEP',
-        depressDurationMs: 52,
-        reboundDurationMs: 126,
+        delayMs: 144,
+        depressDurationMs: 36,
+        reboundDurationMs: 78,
       },
     ]);
 
@@ -149,15 +151,16 @@ describe('movement tile-hop presentation', () => {
     const landingExecutor = createBasicExecutors(store).LAND_TILE as unknown as PresentationExecutor<LandTilePresentationEvent>;
     await landingExecutor.run(landing, basicContext);
 
-    expect(trace.at(-3)).toBe('impact:LAND:4:70/70');
-    expect(trace.at(-2)).toBe('landing:4:140');
-    expect(trace.at(-1)).toBe('wait:140');
+    expect(trace.at(-3)).toBe('impact:LAND:4:0/52/68');
+    expect(trace.at(-2)).toBe('landing:4:120');
+    expect(trace.at(-1)).toBe('wait:120');
     expect(store.getSnapshot().characterReactions).toEqual([]);
     expect(store.getSnapshot().tileImpacts.at(-1)).toMatchObject({
       tileId: 4,
       kind: 'LAND',
-      depressDurationMs: 70,
-      reboundDurationMs: 70,
+      delayMs: 0,
+      depressDurationMs: 52,
+      reboundDurationMs: 68,
     });
   });
 
@@ -198,15 +201,15 @@ describe('movement tile-hop presentation', () => {
       waitForDuration: duration => { trace.push(`wait:${duration}`); return Promise.resolve(); },
     });
 
-    expect(trace).toEqual(['start:39->0:210', 'wait:158', 'wait:52', 'complete:0']);
+    expect(trace).toEqual(['start:39->0:180', 'wait:180', 'complete:0']);
     expect(store.getSnapshot().characterMovements[0]).toMatchObject({ fromTileId: 39, toTileId: 0 });
   });
 
   it.each([
-    [0.75, 280, 69.33333333333333],
-    [1, 210, 52],
-    [1.5, 140, 34.66666666666667],
-    [2, 105, 26],
+    [0.75, 240, 48],
+    [1, 180, 36],
+    [1.5, 120, 24],
+    [2, 90, 18],
   ])('uses one resolved duration for queue wait and rendered hop at %sx', async (speed, expectedDuration) => {
     const store = new PresentationStore();
     store.resetFromSnapshot(makeRoom());
@@ -218,15 +221,15 @@ describe('movement tile-hop presentation', () => {
       waitForDuration: duration => { waits.push(duration); return Promise.resolve(); },
     });
 
-    expect(waits[0] + waits[1]).toBeCloseTo(expectedDuration);
+    expect(waits).toEqual([expectedDuration]);
     expect(store.getSnapshot().characterMovements[0]?.durationMs).toBe(expectedDuration);
   });
 
   it.each([
-    [0.75, 280, 69.33333333333333],
-    [1, 210, 52],
-    [1.5, 140, 34.66666666666667],
-    [2, 105, 26],
+    [0.75, 240, 48],
+    [1, 180, 36],
+    [1.5, 120, 24],
+    [2, 90, 18],
   ])('begins intermediate STEP during the final contact phase at %sx', async (speed, expectedHop, expectedDepress) => {
     const store = new PresentationStore();
     const trace: string[] = [];
@@ -240,15 +243,15 @@ describe('movement tile-hop presentation', () => {
     });
 
     expect(trace[0]).toBe(`start:0->1:${expectedHop}`);
-    expect(Number(trace[1].slice('wait:'.length))).toBeCloseTo(expectedHop - expectedDepress);
-    const impactParts = trace[2].split(':');
+    const impactParts = trace[1].split(':');
     const timingParts = impactParts[3]?.split('/') ?? [];
     expect(impactParts.slice(0, 3)).toEqual(['impact', 'STEP', '1']);
-    expect(Number(timingParts[0])).toBeCloseTo(expectedDepress);
-    expect(Number(timingParts[1])).toBeCloseTo(presentationTiming.tileImpact.stepRebound / speed);
-    expect(Number(trace[3].slice('wait:'.length))).toBeCloseTo(expectedDepress);
-    expect(trace[4]).toBe('complete:1');
-    expect(trace[5]).toBe(`start:1->2:${expectedHop}`);
+    expect(Number(timingParts[0])).toBeCloseTo(expectedHop - expectedDepress);
+    expect(Number(timingParts[1])).toBeCloseTo(expectedDepress);
+    expect(Number(timingParts[2])).toBeCloseTo(presentationTiming.tileImpact.stepRebound / speed);
+    expect(Number(trace[2].slice('wait:'.length))).toBeCloseTo(expectedHop);
+    expect(trace[3]).toBe('complete:1');
+    expect(trace[4]).toBe(`start:1->2:${expectedHop}`);
   });
 
   it('snaps both target and settled positions without impacts for reduced motion', async () => {

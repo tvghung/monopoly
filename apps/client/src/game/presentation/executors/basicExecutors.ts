@@ -34,6 +34,7 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
       const reboundDurationMs = context.getDuration(presentationTiming.tileImpact.landRebound);
       if (!context.reducedMotion) {
         store.emitTileImpact(event.playerId, event.tileId, 'LAND', {
+          delayMs: 0,
           depressDurationMs,
           reboundDurationMs,
         });

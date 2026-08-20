@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { useThree } from '@react-three/fiber';
 import { useEffectiveReducedMotion } from '../../../../settings/selectors';
 import { TileMotionController } from './TileMotionController';
@@ -58,22 +58,4 @@ export default function TileMotionProvider({ impacts, resetEpoch, children }: Ti
 
 export function useTileMotionController(): TileMotionController | null {
   return useContext(tileMotionContext);
-}
-
-export function useTileMotionRevision(): number {
-  const controller = useTileMotionController();
-  return useSyncExternalStore(
-    controller?.subscribe.bind(controller) ?? (() => () => {}),
-    controller ? () => controller.getRevision() : () => 0,
-    () => 0,
-  );
-}
-
-export function useTileMotionOffset(tileId: number): number {
-  const controller = useTileMotionController();
-  return useSyncExternalStore(
-    controller?.subscribe.bind(controller) ?? (() => () => {}),
-    controller ? () => controller.getTileOffsetY(tileId) : () => 0,
-    () => 0,
-  );
 }

@@ -7,6 +7,7 @@ const impact = (sequence: number, tileId: number, playerId = 'player-a'): TileIm
   tileId,
   playerId,
   kind: 'STEP',
+  delayMs: 0,
   depressDurationMs: 52,
   reboundDurationMs: 126,
 });

@@ -3,6 +3,7 @@ import type * as THREE from 'three';
 export type TileMotionKind = 'STEP' | 'LAND';
 
 export interface TileImpactTiming {
+  delayMs: number;
   depressDurationMs: number;
   reboundDurationMs: number;
 }
@@ -12,6 +13,7 @@ export interface TileImpactSignal {
   tileId: number;
   playerId: string;
   kind: TileMotionKind;
+  delayMs: number;
   depressDurationMs: number;
   reboundDurationMs: number;
 }
@@ -25,9 +27,11 @@ export interface TileMotionState {
   startPressIntensity: number;
   targetPressIntensity: number;
   startedAt: number;
+  delayMs: number;
+  depressDurationMs: number;
   duration: number;
   reboundDurationMs: number;
-  phase: 'DEPRESS' | 'REBOUND';
+  phase: 'WAITING' | 'DEPRESS' | 'REBOUND';
 }
 
 export interface TileMotionScheduler {

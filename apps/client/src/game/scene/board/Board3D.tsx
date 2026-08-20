@@ -4,6 +4,7 @@ import CenterAirport from './center/CenterAirport';
 import TileAssembly from './tiles/TileAssembly';
 import TileBodyBatch from './tiles/TileBodyBatch';
 import TileSurfaceBatch from './tiles/TileSurfaceBatch';
+import TileImpactHighlightBatch from './tiles/TileImpactHighlightBatch';
 import type { BoardRenderModel, BoardTileRenderModel } from './boardRenderModel';
 import CharactersLayer from '../characters/CharactersLayer';
 
@@ -47,6 +48,7 @@ export default function Board3D({
         onHover={onTileHover}
         onSelect={onTileSelect}
       />
+      <TileImpactHighlightBatch tiles={tiles} />
       <group name="TileRing">
         {tiles.map(tile => (
           <TileAssembly

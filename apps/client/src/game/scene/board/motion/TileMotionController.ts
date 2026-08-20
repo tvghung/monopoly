@@ -1,8 +1,6 @@
 import * as THREE from 'three';
 import {
   TILE_LAND_PRESS_DEPTH,
-  TILE_LAND_PRESS_DARKENING,
-  TILE_STEP_PRESS_DARKENING,
   TILE_STEP_PRESS_DEPTH,
 } from '../architecture/boardArtSpec';
 import type {
@@ -79,6 +77,9 @@ export class TileMotionController {
     const currentPressIntensity = currentState?.pressIntensity ?? 0;
     const targetOffsetY = -(kind === 'LAND' ? TILE_LAND_PRESS_DEPTH : TILE_STEP_PRESS_DEPTH);
     const now = this.scheduler.now();
+    const delayMs = this.resolveDuration(timing.delayMs);
+    const depressDurationMs = this.resolveDuration(timing.depressDurationMs);
+    const phase = delayMs > 0 ? 'WAITING' : 'DEPRESS';
     this.states.set(tileId, {
       kind,
       offsetY: currentOffsetY,
@@ -88,9 +89,11 @@ export class TileMotionController {
       startPressIntensity: currentPressIntensity,
       targetPressIntensity: 1,
       startedAt: now,
-      duration: this.resolveDuration(timing.depressDurationMs),
+      delayMs,
+      depressDurationMs,
+      duration: phase === 'WAITING' ? delayMs : depressDurationMs,
       reboundDurationMs: this.resolveDuration(timing.reboundDurationMs),
-      phase: 'DEPRESS',
+      phase,
     });
     this.writeOffset(tileId, currentOffsetY);
     this.invalidate?.();
@@ -106,13 +109,8 @@ export class TileMotionController {
     return this.states.get(tileId)?.pressIntensity ?? 0;
   }
 
-  public getTilePressColorMultiplier(tileId: number): number {
-    const state = this.states.get(tileId);
-    if (!state) return 1;
-    const darkening = state.kind === 'LAND'
-      ? TILE_LAND_PRESS_DARKENING
-      : TILE_STEP_PRESS_DARKENING;
-    return 1 - state.pressIntensity * darkening;
+  public getTilePressKind(tileId: number): TileMotionKind | null {
+    return this.states.get(tileId)?.kind ?? null;
   }
 
   public getRevision(): number {
@@ -145,8 +143,23 @@ export class TileMotionController {
 
   private tick(now: number): void {
     let active = false;
+    let visualChanged = false;
+    let lifecycleChanged = false;
     this.states.forEach((state, tileId) => {
       let remainingMs = Math.max(0, now - state.startedAt);
+      if (state.phase === 'WAITING') {
+        if (remainingMs < state.delayMs) {
+          active = true;
+          return;
+        }
+        state.phase = 'DEPRESS';
+        state.startedAt += state.delayMs;
+        state.duration = state.depressDurationMs;
+        state.startOffsetY = state.offsetY;
+        state.startPressIntensity = state.pressIntensity;
+        remainingMs = Math.max(0, now - state.startedAt);
+        lifecycleChanged = true;
+      }
       while (true) {
         const progress = state.duration <= 0
           ? 1
@@ -158,6 +171,7 @@ export class TileMotionController {
         state.pressIntensity = state.startPressIntensity
           + (state.targetPressIntensity - state.startPressIntensity) * eased;
         this.writeOffset(tileId, state.offsetY);
+        visualChanged = true;
         if (progress < 1) {
           active = true;
           break;
@@ -176,11 +190,12 @@ export class TileMotionController {
         }
         this.states.delete(tileId);
         this.writeOffset(tileId, 0);
+        lifecycleChanged = true;
         break;
       }
     });
-    this.invalidate?.();
-    this.notify();
+    if (visualChanged) this.invalidate?.();
+    if (lifecycleChanged) this.notify();
     if (active) this.ensureFrame();
   }
 
