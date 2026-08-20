@@ -220,23 +220,38 @@ renderer samples the same duration; it does not recalculate the speed
 multiplier. A speed change keeps the active segment at its resolved duration and
 applies to the next segment.
 
-Intermediate `STEP` contact is part of the hop timeline rather than a trailing
-event. At the resolved hop duration, the final 52 ms (24.8% at 1x) is the
-contact/depression phase: the character starts descending, the destination tile
-receives a `STEP` signal carrying resolved depress/rebound durations, the tile
-reaches maximum depression at hop completion, and only then is the hop completed
-and the next hop started. The previous tile may rebound during the next hop, so
-the sequence retains continuous momentum without a dead pause.
+For each intermediate hop, the movement executor resolves one hop duration,
+emits `startCharacterHop`, schedules a delayed `STEP` impact, waits once for the
+full resolved hop duration, and then emits completion at the exact destination.
+The renderer samples the same resolved duration. The next hop may begin
+immediately after completion, while the previous tile's rebound continues
+concurrently. `STEP` feedback therefore does not block the next hop and there is
+no deliberate dead pause between intermediate tiles. The conceptual rhythm is:
 
-`TileImpactSignal` carries `depressDurationMs` and `reboundDurationMs` from the
-presentation queue. `TileMotionController` owns no speed calculation or global
-press clock; it uses those signal values with its demand-driven frame scheduler.
-The shared normalized press intensity drives both vertical depression and
-instanced color multiplication. `STEP` uses 0.046 world units and 9% maximum
-darkening; `LAND` uses 0.072 world units and 14% maximum darkening. Body and
-grounded contact visuals follow the depressed tile while an airborne hop body
-continues to use its independent arc. Instancing and material batches remain
-unchanged.
+```text
+hop      hop      hop
+╭────╮  ╭────╮  ╭────╮
+     ↓       ↓       ↓
+   STEP    STEP    LAND
+```
+
+`TileImpactSignal` carries the resolved delay, depression, and rebound durations
+from the presentation queue. `TileMotionController` owns no speed calculation
+or global press clock; it uses those signal values with its demand-driven frame
+scheduler. The shared normalized press intensity drives physical depression and
+the separate additive highlight layer. The final code values are
+`TILE_STEP_PRESS_DEPTH = 0.036` and `TILE_LAND_PRESS_DEPTH = 0.058` world units.
+Tile body, surface, text, and props follow the depressed tile while an airborne
+character body continues to use its independent arc.
+
+`TileImpactHighlightBatch` is a lightweight instanced layer above the tile
+surface. It uses the warm/neutral `#fff8df` additive material with
+`TILE_IMPACT_HIGHLIGHT_OPACITY = 0.12`, `STEP` strength `0.68`, and `LAND`
+strength `1`. Its instance color is zero at idle, so it contributes no light;
+while active it follows the same depressed tile matrix. Base district/body
+materials and textures remain untouched: they do not use impact vertex-color
+modulation or permanent color multiplication. This keeps idle materials exact
+and adds only a small instanced highlight cost.
 
 Movement transitions are explicit. `TILE_HOP` is reserved for a logical board
 tile change and carries logical `fromTileId`/`toTileId` endpoints, while
@@ -248,34 +263,62 @@ logical source anchor, never an arbitrary in-flight `group.position`.
 
 Landing rebound/impact is separate from movement timing and is neutral physical
 feedback. `LAND_TILE` publishes the character landing signal and `LAND` tile
-impact together. At each speed, the resolved 70 ms tile depression reaches its
-maximum at the midpoint of the resolved 140 ms neutral landing response, then
-rebounds while the landing settles. `LAND_TILE` no longer emits a semantic
-`happy` reaction. Semantic reactions such as `happy`, `sad`, `jail`, `bankrupt`,
-and `emote` remain separate from contact physics. Do not add an expensive
-particle or sound overhaul.
+impact together. The current base landing response is 120 ms, with a 52 ms
+depression and 68 ms rebound at 1x; the tile and character use the same resolved
+speed multiplier. `LAND_TILE` does not emit a semantic `happy` reaction.
+Semantic reactions such as `happy`, `sad`, `jail`, `bankrupt`, and `emote` remain
+separate from contact physics. Do not add an expensive particle or sound
+overhaul in Phase 3.
 
 All presentation pacing is centralized in `presentationTiming` and resolved by
 `resolvePresentationDuration`; the user-facing speed options remain 0.75x, 1x,
-1.5x, and 2x. The current base values are dice 210 ms, tile hop 210 ms, slot
-reflow 125 ms, landing 140 ms, balance 140 ms, property purchase 210 ms, build
-pop 160 ms, turn change 95 ms, finish 210 ms, and reactions happy 140 ms, sad
-210 ms, jail 140 ms, bankrupt 210 ms, and emote 185 ms. Queued reaction signals
-carry the exact resolved duration consumed by `CharacterReactionController`;
-renderer-local reaction sampling does not rescale it.
+1.5x, and 2x. The current base values are:
+
+| Timing | Base duration |
+| --- | ---: |
+| `diceRoll` | 180 ms |
+| `tileHop` | 180 ms |
+| `slotReflow` | 110 ms |
+| `landing` | 120 ms |
+| `balanceChange` | 120 ms |
+| `propertyPurchase` | 180 ms |
+| `buildPop` | 140 ms |
+| `turnChange` | 80 ms |
+| `finish` | 180 ms |
+| reaction `happy` | 120 ms |
+| reaction `sad` | 180 ms |
+| reaction `jail` | 120 ms |
+| reaction `bankrupt` | 180 ms |
+| reaction `emote` | 160 ms |
+
+Tile impact timing is `STEP` 36 ms depression plus 78 ms rebound, with the
+impact scheduled 144 ms into a 180 ms hop at 1x; `LAND` is 52 ms depression
+plus 68 ms rebound. Queued reaction signals carry the exact resolved duration
+consumed by `CharacterReactionController`; renderer-local reaction sampling
+does not rescale it. The expected hop durations are 240 ms at 0.75x, 180 ms at
+1x, 120 ms at 1.5x, and 90 ms at 2x.
 
 Because the canvas uses `frameloop="demand"`, request animation frames only
-while a hop/reaction is active and invalidate those frames; idle characters do
-not keep permanent loops. Reduced Motion snaps or uses a minimal transition,
-with no mandatory hop and an authoritative final position.
+while a hop, landing, reaction, or tile impact is active and invalidate those
+frames; idle characters do not keep permanent loops. Reduced Motion snaps or
+uses a minimal transition, with no mandatory hop and an authoritative final
+position.
+
+The high-frequency tile-motion path is imperative. `TileMotionController.tick`
+updates registered Three.js roots and internal press state, calls `invalidate()`
+for visual frames, and notifies subscribers only for lifecycle changes such as
+start/reset/phase completion. `TileBodyBatch`, `TileSurfaceBatch`, and
+`TileImpactHighlightBatch` sample controller state in R3F frame callbacks and
+update instance matrices/colors without sending a React/external-store
+notification for every RAF. React subscriptions remain appropriate for
+presentation lifecycle snapshots, queue status, and signal publication.
 
 Reactions use a lightweight internal abstraction that can support `happy`,
 `sad`, `jail`, `bankrupt`, and `emote` via bounce, scale, tilt, emoji bubble,
 or brief accent flash; the current controller is deterministic and reduced
-motion cancels it. Landing, jail entry and player-finished events use the
-physical landing has its own neutral contact signal, while jail entry and
-player-finished events use the reaction abstraction; custom animation clips are
-out of scope.
+motion cancels it. Physical landing has its own neutral contact signal. Jail
+entry and player-finished events use the semantic reaction abstraction; custom
+animation clips are out of scope.
 
 On `SESSION_SYNC`/reconnect, keep player ID, color, and character, cancel
 stale hop/reaction state, reset the presentation queue and reset epoch, snap to
@@ -343,7 +386,16 @@ variable is a conditional/skipped run, not CI parity. Performance must remain
 healthy against the Phase 2 budget/60 FPS target; budget values may not be
 raised to hide regressions.
 
-## 9. Out of scope
+## 9. Movement foundation freeze
+
+The Phase 3 character-movement foundation is considered stable. Phase 4 must
+extend it rather than redesign it. A movement change requires a reproducible
+regression or an explicit Phase 4 requirement. In particular, do not casually
+modify `CharacterBillboard` hop semantics, tile-to-tile anchor logic, hop
+duration synchronization, `SLOT_REFLOW`, reconnect snapping, `STEP`
+lightening, or the core `TileMotionController` timing architecture.
+
+## 10. Out of scope
 
 - Gameplay-rule or authoritative-state changes.
 - Full 3D rigs, Blender/GLB/FBX assets, walk cycles, or per-mascot clips.

@@ -441,7 +441,8 @@ File:
 Mục tiêu:
 
 - chọn 1 trong 8 mascot SVG và 1 trong 10 màu người chơi trong lobby
-- cho phép trùng mascot nhưng bắt buộc màu duy nhất giữa người chơi active
+- cho phép trùng mascot và màu, nhưng bắt buộc tổ hợp mascot + màu duy nhất giữa
+  người chơi active
 - dùng một registry màu chung cho lobby/HUD, cờ ownership và accent mascot
 - giữ màu tự nhiên của mascot, chỉ recolor các vùng accent có token ổn định
 - billboard mascot trên board với layout deterministic cho 1–4 người cùng ô
@@ -452,7 +453,9 @@ Mục tiêu:
 Implementation note: the Phase 3 presentation layer keeps board target positions
 separate from settled UI-gating positions, uses a dedicated reset epoch for
 reconnect/session snaps, and keeps tile impacts/reactions as independent
-presentation signals.
+presentation signals. The final movement rhythm uses one resolved wait per hop;
+intermediate `STEP` lightening is non-blocking and is rendered by a separate
+additive impact-highlight batch without changing idle tile materials.
 
 File:
 
