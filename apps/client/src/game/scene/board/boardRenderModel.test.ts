@@ -10,7 +10,10 @@ const presentation = (overrides: Partial<PresentationState> = {}): PresentationS
   displayDice: { dice1: 0, dice2: 0 },
   status: 'idle',
   tileImpacts: [],
+  characterMovements: [],
+  characterLandings: [],
   characterReactions: [],
+  animationSpeedMultiplier: 1,
   presentationResetEpoch: 0,
   ...overrides,
 });
@@ -85,5 +88,31 @@ describe('board render model', () => {
     expect(model.players.find(player => player.playerId === 'active')).toMatchObject({ tileId: 17, isActive: false });
     expect(model.players.find(player => player.playerId === 'finished')).toMatchObject({ tileId: 8, isActive: false });
     expect(model.players.find(player => player.playerId === 'fallback')).toMatchObject({ tileId: 9, isActive: true });
+  });
+
+  it('forwards visual movement contracts without changing authoritative player data', () => {
+    const movement = {
+      sequence: 1,
+      playerId: 'active',
+      transition: 'TILE_HOP' as const,
+      phase: 'START' as const,
+      fromTileId: 4,
+      toTileId: 5,
+      fromSlotIndex: 0,
+      fromOccupantCount: 1,
+      toSlotIndex: 1,
+      toOccupantCount: 2,
+      durationMs: 90,
+    };
+    const model = buildBoardRenderModel(state(), presentation({
+      displayPositions: { active: 5 },
+      characterMovements: [movement],
+      animationSpeedMultiplier: 2,
+    }));
+
+    expect(model.players.find(player => player.playerId === 'active')?.tileId).toBe(5);
+    expect(model.characterMovements).toEqual([movement]);
+    expect(model.animationSpeedMultiplier).toBe(2);
+    expect(state().players.active.currentTile).toBe(4);
   });
 });

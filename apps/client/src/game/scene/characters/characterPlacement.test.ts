@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { CharacterPlayerModel } from '../board/boardRenderModel';
 import { getCharacterLandingAnchor, getCharacterOccupantOffsets } from '../board/architecture/tileAnchors';
 import { assignCharacterSlots } from './characterPlacement';
+import { getCharacterTargetTransition, sampleCharacterSlotReflow } from './characterMotion';
+import * as THREE from 'three';
 
 const player = (overrides: Partial<CharacterPlayerModel>): CharacterPlayerModel => ({
   playerId: 'player',
@@ -50,5 +52,19 @@ describe('character placement', () => {
     const positions = [0, 1, 2, 3].map(slot => getCharacterLandingAnchor(tileId, slot, 4));
     expect(positions.every(position => position?.every(Number.isFinite))).toBe(true);
     expect(new Set(positions.map(position => position?.join(','))).size).toBe(4);
+  });
+
+  it('treats occupied-tile slot changes as grounded reflow for the stationary player', () => {
+    expect(getCharacterTargetTransition(1, 1, false, false, true)).toBe('SLOT_REFLOW');
+    const sample = sampleCharacterSlotReflow(
+      55,
+      new THREE.Vector3(-0.28, 0.6, 0),
+      new THREE.Vector3(0, 0.6, 0),
+      110,
+    );
+    expect(sample.position[1]).toBe(0.6);
+    expect(sample.position[0]).toBeGreaterThan(-0.28);
+    expect(sample.position[0]).toBeLessThan(0);
+    expect(sample.shadowScale).toBe(1);
   });
 });

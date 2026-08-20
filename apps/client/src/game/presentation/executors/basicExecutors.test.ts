@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { JailStateChangedPresentationEvent, PlayerFinishedPresentationEvent } from '../events/types';
+import type {
+  JailStateChangedPresentationEvent,
+  LandTilePresentationEvent,
+  PlayerFinishedPresentationEvent,
+} from '../events/types';
 import type { AnimationExecutionContext, PresentationExecutor } from '../queue/types';
 import { makeRoom } from '../testFixtures';
 import { PresentationStore } from '../store/presentationStore';
@@ -11,6 +15,7 @@ const immediateContext: AnimationExecutionContext = {
   reducedMotion: false,
   getDuration: duration => duration,
   wait: async () => {},
+  waitForDuration: async () => {},
 };
 
 describe('presentation reaction executors', () => {
@@ -54,5 +59,29 @@ describe('presentation reaction executors', () => {
       { playerId: 'player-a', kind: 'bankrupt', sequence: 1 },
     ]);
     expect(store.getSnapshot().displayPositions['player-a']).toBe(before);
+  });
+
+  it('uses neutral landing physics instead of a semantic happy reaction', async () => {
+    const store = new PresentationStore();
+    store.resetFromSnapshot(makeRoom());
+    const executor = createBasicExecutors(store).LAND_TILE as unknown as PresentationExecutor<LandTilePresentationEvent>;
+
+    await executor.run({
+      id: 'land',
+      roomId: 'room-1',
+      roomVersion: 2,
+      type: 'LAND_TILE',
+      entityId: 'player-a',
+      playerId: 'player-a',
+      tileId: 4,
+    }, immediateContext);
+
+    expect(store.getSnapshot().characterReactions).toEqual([]);
+    expect(store.getSnapshot().characterLandings).toEqual([
+      { sequence: 1, playerId: 'player-a', tileId: 4, durationMs: 120 },
+    ]);
+    expect(store.getSnapshot().tileImpacts).toEqual([
+      { sequence: 1, playerId: 'player-a', tileId: 4, kind: 'LAND' },
+    ]);
   });
 });

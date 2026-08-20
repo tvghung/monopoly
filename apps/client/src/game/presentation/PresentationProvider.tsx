@@ -16,7 +16,10 @@ const emptyPresentationState: PresentationState = {
   displayDice: { dice1: 0, dice2: 0 },
   status: 'idle',
   tileImpacts: [],
+  characterMovements: [],
+  characterLandings: [],
   characterReactions: [],
+  animationSpeedMultiplier: 1,
   presentationResetEpoch: 0,
 };
 

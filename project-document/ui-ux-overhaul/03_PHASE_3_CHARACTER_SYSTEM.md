@@ -214,8 +214,24 @@ emit the separate `LAND` event once after the final arrival. Each intermediate
 tile is a small hop: X/Z interpolation, restrained Y arc, subtle squash/stretch,
 optional 1–3° tilt, and a smaller/lighter contact shadow near the apex. Use
 centralized `presentationTiming.tileHop` without random per-character timing.
-Landing rebound/impact is separate from movement timing; do not add an expensive
-particle or sound overhaul.
+The presentation executor resolves that base duration through the queue speed
+context and publishes the resolved duration with each visual segment. The
+renderer samples the same duration; it does not recalculate the speed
+multiplier. A speed change keeps the active segment at its resolved duration and
+applies to the next segment.
+
+Movement transitions are explicit. `TILE_HOP` is reserved for a logical board
+tile change and carries logical `fromTileId`/`toTileId` endpoints, while
+`SLOT_REFLOW` is a short grounded interpolation when occupant-count placement
+changes without a tile change. `SNAP` is used for session sync, authoritative
+correction, reduced motion, and interruption recovery. `NONE` leaves the
+transform untouched. The rendered origin for a hop is always the signal's
+logical source anchor, never an arbitrary in-flight `group.position`.
+
+Landing rebound/impact is separate from movement timing and is neutral physical
+feedback. `LAND_TILE` no longer emits a semantic `happy` reaction. Semantic
+reactions such as `happy`, `sad`, `jail`, `bankrupt`, and `emote` remain separate
+from contact physics. Do not add an expensive particle or sound overhaul.
 
 Because the canvas uses `frameloop="demand"`, request animation frames only
 while a hop/reaction is active and invalidate those frames; idle characters do
@@ -226,19 +242,30 @@ Reactions use a lightweight internal abstraction that can support `happy`,
 `sad`, `jail`, `bankrupt`, and `emote` via bounce, scale, tilt, emoji bubble,
 or brief accent flash; the current controller is deterministic and reduced
 motion cancels it. Landing, jail entry and player-finished events use the
-abstraction; custom animation clips are out of scope.
+physical landing has its own neutral contact signal, while jail entry and
+player-finished events use the reaction abstraction; custom animation clips are
+out of scope.
 
 On `SESSION_SYNC`/reconnect, keep player ID, color, and character, cancel
 stale hop/reaction state, reset the presentation queue and reset epoch, snap to
 authoritative current tile, and never replay old movement or duplicate
 billboards. A stale animation completion must not move a character away from the
-authoritative snapshot.
+authoritative snapshot. `skipCurrent()` recovers a movement-specific abort by
+snapping to its event destination; reset/`skipAllAndSnap()` invalidates stale
+completion through the presentation reset epoch. Exact completion restores the
+canonical anchor, rotation, scale, shadow scale, and shadow opacity.
 
 The presentation store keeps `displayPositions` (board/character target) separate
 from `settledPositions` (prompt/dice gating). Tile-impact sequence numbers and
 `presentationResetEpoch` are separate namespaces, so an ordinary pulse cannot
 reset movement state and a session reset cannot replay an old pulse. A stationary
 player must not hop when another player's tile impact changes.
+
+The snapshot contract does not include movement cause metadata. Card effects
+can therefore produce a short forward or absolute relocation that is
+indistinguishable from a dice walk in `derivePresentationEvents`; the client
+keeps the existing bounded forward-walk heuristic and documents this limitation
+instead of inventing gameplay semantics in the presentation layer.
 
 ## 8. Documentation and acceptance criteria
 

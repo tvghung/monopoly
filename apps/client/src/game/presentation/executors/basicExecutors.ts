@@ -29,9 +29,12 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
   );
   const landingExecutor: PresentationExecutor<LandTilePresentationEvent> = {
     async run(event, context) {
-      store.emitTileImpact(event.playerId, event.tileId, 'LAND');
-      store.emitCharacterReaction(event.playerId, 'happy');
-      await context.wait(presentationTiming.landing);
+      const durationMs = context.getDuration(presentationTiming.landing);
+      if (!context.reducedMotion) {
+        store.emitTileImpact(event.playerId, event.tileId, 'LAND');
+        store.emitCharacterLanding(event.playerId, event.tileId, durationMs);
+      }
+      await context.waitForDuration(durationMs);
     },
     finish() {},
   };

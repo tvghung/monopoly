@@ -33,4 +33,42 @@ describe('PresentationStore reset and impact generations', () => {
     store.emitTileImpact('player-a', 9, 'LAND');
     expect(store.getSnapshot().tileImpacts[0]?.sequence).toBe(1);
   });
+
+  it('keeps logical hop origins and resolved durations independent of rendered frames', () => {
+    const store = new PresentationStore();
+    store.resetFromSnapshot(makeRoom());
+    store.startCharacterHop('player-a', 0, 1, 90);
+    store.completeCharacterHop('player-a', 1);
+    store.startCharacterHop('player-a', 1, 2, 240);
+
+    expect(store.getSnapshot().characterMovements.map(signal => ({
+      phase: signal.phase,
+      from: signal.fromTileId,
+      to: signal.toTileId,
+      duration: signal.durationMs,
+    }))).toEqual([
+      { phase: 'START', from: 0, to: 1, duration: 90 },
+      { phase: 'COMPLETE', from: 0, to: 1, duration: 90 },
+      { phase: 'START', from: 1, to: 2, duration: 240 },
+    ]);
+    expect(store.getSnapshot().settledPositions['player-a']).toBe(1);
+    expect(store.getSnapshot().displayPositions['player-a']).toBe(2);
+  });
+
+  it('records count-aware destination slots without making the stationary occupant hop', () => {
+    const store = new PresentationStore();
+    store.resetFromSnapshot(makeRoom());
+    store.startCharacterHop('player-b', 5, 0, 180);
+
+    expect(store.getSnapshot().characterMovements[0]).toMatchObject({
+      playerId: 'player-b',
+      fromTileId: 5,
+      toTileId: 0,
+      fromSlotIndex: 0,
+      fromOccupantCount: 1,
+      toSlotIndex: 1,
+      toOccupantCount: 2,
+    });
+    expect(store.getSnapshot().characterMovements).toHaveLength(1);
+  });
 });

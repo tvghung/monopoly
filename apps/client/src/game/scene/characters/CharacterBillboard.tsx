@@ -1,20 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import type { CharacterReactionSignal } from '../../presentation/store/types';
+import type {
+  CharacterLandingSignal,
+  CharacterMovementSignal,
+  CharacterReactionSignal,
+} from '../../presentation/store/types';
 import type { CharacterPlayerModel } from '../board/boardRenderModel';
 import { useEffectiveReducedMotion } from '../../../settings/selectors';
 import { useTileMotionOffset } from '../board/motion/TileMotionProvider';
 import { boardVisualTokens } from '../board/boardVisualTokens';
-import {
-  getCharacterLandingAnchor,
-} from '../board/architecture/tileAnchors';
+import { getCharacterLandingAnchor } from '../board/architecture/tileAnchors';
 import { getCharacterDefinition } from '../../characters/characterRegistry';
 import { acquireCharacterTexture } from '../../characters/characterTextureCache';
 import {
+  CHARACTER_SHADOW_OPACITY,
+  CHARACTER_SLOT_REFLOW_DURATION_MS,
   getCharacterGroundingTransforms,
   getCharacterTargetTransition,
-  sampleCharacterMotion,
+  sampleCharacterHop,
+  sampleCharacterLanding,
+  sampleCharacterSlotReflow,
 } from './characterMotion';
 import { CharacterReactionController } from './characterReaction';
 import CharacterSprite from './CharacterSprite';
@@ -25,14 +31,26 @@ interface CharacterBillboardProps {
   player: CharacterPlayerModel;
   slotIndex: number;
   occupantCount: number;
+  movementSignals: readonly CharacterMovementSignal[];
+  landingSignals: readonly CharacterLandingSignal[];
+  animationSpeedMultiplier: number;
   resetEpoch: number;
   reaction?: CharacterReactionSignal;
 }
 
-interface CharacterMovement {
+type CharacterMotionKind = 'TILE_HOP' | 'SLOT_REFLOW';
+
+interface ActiveCharacterMotion {
+  kind: CharacterMotionKind;
   from: THREE.Vector3;
   to: THREE.Vector3;
   elapsedMs: number;
+  durationMs: number;
+}
+
+interface ActiveLanding {
+  elapsedMs: number;
+  durationMs: number;
 }
 
 function snapCharacter(
@@ -51,14 +69,33 @@ function snapCharacter(
   body.rotation.set(0, 0, 0);
   body.scale.set(1, 1, 1);
   shadow.scale.set(1, 1, 1);
-  if (shadowMaterial) shadowMaterial.opacity = 0.24;
+  if (shadowMaterial) shadowMaterial.opacity = CHARACTER_SHADOW_OPACITY;
   if (spriteMaterial) spriteMaterial.opacity = spriteMaterial.map ? 1 : 0;
+}
+
+function signalAnchor(
+  tileId: number,
+  slotIndex: number,
+  occupantCount: number,
+): THREE.Vector3 | null {
+  const anchor = getCharacterLandingAnchor(tileId, slotIndex, occupantCount);
+  return anchor ? new THREE.Vector3(...anchor) : null;
+}
+
+function animationDuration(baseDurationMs: number, multiplier: number): number {
+  const safeMultiplier = Number.isFinite(multiplier)
+    ? Math.min(2, Math.max(0.75, multiplier))
+    : 1;
+  return Math.max(0, baseDurationMs / safeMultiplier);
 }
 
 export default function CharacterBillboard({
   player,
   slotIndex,
   occupantCount,
+  movementSignals,
+  landingSignals,
+  animationSpeedMultiplier,
   resetEpoch,
   reaction,
 }: CharacterBillboardProps) {
@@ -68,12 +105,17 @@ export default function CharacterBillboard({
   const shadowGroupRef = useRef<THREE.Group>(null);
   const shadowMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
   const spriteMaterialRef = useRef<THREE.SpriteMaterial | null>(null);
-  const movementRef = useRef<CharacterMovement | null>(null);
+  const activeMotionRef = useRef<ActiveCharacterMotion | null>(null);
+  const activeLandingRef = useRef<ActiveLanding | null>(null);
   const reactionControllerRef = useRef(new CharacterReactionController());
   const initializedRef = useRef(false);
   const previousTileIdRef = useRef<number | null>(null);
+  const previousAnchorRef = useRef<THREE.Vector3 | null>(null);
   const previousResetEpochRef = useRef<number | null>(null);
+  const movementSequenceRef = useRef(0);
+  const landingSequenceRef = useRef(0);
   const lastReactionSequenceRef = useRef<number | null>(null);
+  const bodyPositionScratchRef = useRef(new THREE.Vector3());
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
   const invalidate = useThree(state => state.invalidate);
   const reducedMotion = useEffectiveReducedMotion();
@@ -83,7 +125,6 @@ export default function CharacterBillboard({
   const targetX = anchor?.[0];
   const targetY = anchor?.[1];
   const targetZ = anchor?.[2];
-  const target = anchor ? new THREE.Vector3(...anchor) : null;
 
   useEffect(() => {
     setTexture(null);
@@ -109,33 +150,14 @@ export default function CharacterBillboard({
     const resetChanged = previousResetEpochRef.current !== null
       && previousResetEpochRef.current !== resetEpoch;
     previousResetEpochRef.current = resetEpoch;
-    const transition = getCharacterTargetTransition(
-      previousTileIdRef.current,
-      player.tileId,
-      resetChanged,
-      reducedMotion,
-    );
-    previousTileIdRef.current = player.tileId;
+
     if (resetChanged) {
+      activeMotionRef.current = null;
+      activeLandingRef.current = null;
       reactionControllerRef.current.reset();
       lastReactionSequenceRef.current = null;
-    }
-
-    const targetXUnchanged = Math.abs(group.position.x - effectTarget.x) < 0.0001;
-    const targetZUnchanged = Math.abs(group.position.z - effectTarget.z) < 0.0001;
-    const movementTargetUnchanged = movementRef.current !== null
-      && Math.abs(movementRef.current.to.x - effectTarget.x) < 0.0001
-      && Math.abs(movementRef.current.to.z - effectTarget.z) < 0.0001;
-    if (transition === 'NONE'
-      && initializedRef.current
-      && (targetXUnchanged && targetZUnchanged || movementTargetUnchanged)) {
-      ground.position.set(0, effectTarget.y + tileMotionOffsetY, 0);
-      invalidate();
-      return;
-    }
-
-    if (transition === 'SNAP' || !initializedRef.current) {
-      movementRef.current = null;
+      movementSequenceRef.current = movementSignals.at(-1)?.sequence ?? 0;
+      landingSequenceRef.current = landingSignals.at(-1)?.sequence ?? 0;
       snapCharacter(
         group,
         ground,
@@ -146,26 +168,197 @@ export default function CharacterBillboard({
         shadowMaterialRef.current,
         spriteMaterialRef.current,
       );
-    } else {
-      movementRef.current = {
-        from: new THREE.Vector3(group.position.x, body.position.y, group.position.z),
-        to: effectTarget,
+      initializedRef.current = true;
+      previousTileIdRef.current = player.tileId;
+      previousAnchorRef.current = effectTarget.clone();
+      invalidate();
+      return;
+    }
+
+    if (!initializedRef.current) {
+      snapCharacter(
+        group,
+        ground,
+        body,
+        shadow,
+        effectTarget,
+        tileMotionOffsetY,
+        shadowMaterialRef.current,
+        spriteMaterialRef.current,
+      );
+      initializedRef.current = true;
+      previousTileIdRef.current = player.tileId;
+      previousAnchorRef.current = effectTarget.clone();
+      movementSequenceRef.current = movementSignals.at(-1)?.sequence ?? 0;
+      landingSequenceRef.current = landingSignals.at(-1)?.sequence ?? 0;
+      invalidate();
+      return;
+    }
+
+    const pendingMovementSignals = movementSignals
+      .filter(signal => signal.sequence > movementSequenceRef.current)
+      .sort((left, right) => left.sequence - right.sequence);
+    let movementSignalHandled = false;
+    pendingMovementSignals.forEach(signal => {
+      movementSequenceRef.current = signal.sequence;
+      movementSignalHandled = true;
+      if (signal.transition === 'SNAP') {
+        activeMotionRef.current = null;
+        activeLandingRef.current = null;
+        snapCharacter(
+          group,
+          ground,
+          body,
+          shadow,
+          effectTarget,
+          tileMotionOffsetY,
+          shadowMaterialRef.current,
+          spriteMaterialRef.current,
+        );
+        return;
+      }
+
+      if (signal.phase === 'START') {
+        const from = signalAnchor(
+          signal.fromTileId,
+          signal.fromSlotIndex,
+          signal.fromOccupantCount,
+        );
+        const to = signalAnchor(
+          signal.toTileId,
+          signal.toSlotIndex,
+          signal.toOccupantCount,
+        );
+        if (!from || !to) {
+          activeMotionRef.current = null;
+          snapCharacter(
+            group,
+            ground,
+            body,
+            shadow,
+            effectTarget,
+            tileMotionOffsetY,
+            shadowMaterialRef.current,
+            spriteMaterialRef.current,
+          );
+          return;
+        }
+        activeLandingRef.current = null;
+        activeMotionRef.current = {
+          kind: 'TILE_HOP',
+          from,
+          to,
+          elapsedMs: 0,
+          durationMs: signal.durationMs,
+        };
+        return;
+      }
+
+      const to = signalAnchor(
+        signal.toTileId,
+        signal.toSlotIndex,
+        signal.toOccupantCount,
+      ) ?? effectTarget;
+      activeMotionRef.current = null;
+      snapCharacter(
+        group,
+        ground,
+        body,
+        shadow,
+        to,
+        tileMotionOffsetY,
+        shadowMaterialRef.current,
+        spriteMaterialRef.current,
+      );
+    });
+
+    const pendingLandingSignals = landingSignals
+      .filter(signal => signal.sequence > landingSequenceRef.current)
+      .sort((left, right) => left.sequence - right.sequence);
+    pendingLandingSignals.forEach(signal => {
+      landingSequenceRef.current = signal.sequence;
+      if (signal.tileId !== player.tileId || reducedMotion) {
+        activeLandingRef.current = null;
+        return;
+      }
+      activeLandingRef.current = {
         elapsedMs: 0,
+        durationMs: signal.durationMs,
+      };
+    });
+
+    const previousTileId = previousTileIdRef.current;
+    const previousAnchor = previousAnchorRef.current;
+    const anchorChanged = previousAnchor !== null
+      && previousAnchor.distanceTo(effectTarget) > 0.0001;
+    const transition = getCharacterTargetTransition(
+      previousTileId,
+      player.tileId,
+      false,
+      reducedMotion,
+      anchorChanged,
+    );
+
+    if (!movementSignalHandled && transition === 'SNAP') {
+      activeMotionRef.current = null;
+      activeLandingRef.current = null;
+      snapCharacter(
+        group,
+        ground,
+        body,
+        shadow,
+        effectTarget,
+        tileMotionOffsetY,
+        shadowMaterialRef.current,
+        spriteMaterialRef.current,
+      );
+    } else if (!movementSignalHandled && transition === 'TILE_HOP') {
+      // A tile changed without a presentation segment. Correct to state rather
+      // than inventing a hop from the current rendered transform.
+      activeMotionRef.current = null;
+      activeLandingRef.current = null;
+      snapCharacter(
+        group,
+        ground,
+        body,
+        shadow,
+        effectTarget,
+        tileMotionOffsetY,
+        shadowMaterialRef.current,
+        spriteMaterialRef.current,
+      );
+    } else if (
+      !movementSignalHandled
+      && transition === 'SLOT_REFLOW'
+      && previousAnchor
+      && activeMotionRef.current === null
+    ) {
+      activeMotionRef.current = {
+        kind: 'SLOT_REFLOW',
+        from: previousAnchor.clone(),
+        to: effectTarget.clone(),
+        elapsedMs: 0,
+        durationMs: animationDuration(CHARACTER_SLOT_REFLOW_DURATION_MS, animationSpeedMultiplier),
       };
     }
-    initializedRef.current = true;
+
+    previousTileIdRef.current = player.tileId;
+    previousAnchorRef.current = effectTarget.clone();
     invalidate();
   }, [
+    animationSpeedMultiplier,
     invalidate,
+    landingSignals,
+    movementSignals,
     occupantCount,
     player.tileId,
     reducedMotion,
     resetEpoch,
     slotIndex,
-    tileMotionOffsetY,
     targetX,
     targetY,
     targetZ,
+    tileMotionOffsetY,
   ]);
 
   useEffect(() => {
@@ -182,42 +375,73 @@ export default function CharacterBillboard({
     const shadow = shadowGroupRef.current;
     if (!group || !ground || !body || !shadow) return;
 
-    const movement = movementRef.current;
-    let bodyPosition = target ?? new THREE.Vector3(group.position.x, body.position.y, group.position.z);
+    const bodyPosition = bodyPositionScratchRef.current;
+    if (targetX === undefined || targetY === undefined || targetZ === undefined) {
+      bodyPosition.set(group.position.x, body.position.y, group.position.z);
+    } else {
+      bodyPosition.set(targetX, targetY, targetZ);
+    }
+
     let bodyRotationZ = 0;
     let bodyScaleX = 1;
     let bodyScaleY = 1;
     let shadowScale = 1;
-    let shadowOpacity = 0.24;
+    let shadowOpacity = CHARACTER_SHADOW_OPACITY;
     let movementActive = false;
-    if (movement) {
-      movement.elapsedMs += delta * 1000;
-      const sample = sampleCharacterMotion(movement.elapsedMs, movement.from, movement.to);
-      bodyPosition = new THREE.Vector3(...sample.position);
+
+    const motion = activeMotionRef.current;
+    if (motion) {
+      motion.elapsedMs += delta * 1000;
+      const sample = motion.kind === 'TILE_HOP'
+        ? sampleCharacterHop(motion.elapsedMs, motion.from, motion.to, motion.durationMs)
+        : sampleCharacterSlotReflow(motion.elapsedMs, motion.from, motion.to, motion.durationMs);
+      bodyPosition.set(...sample.position);
       bodyRotationZ = sample.rotationZ;
       bodyScaleX = sample.scaleXZ;
       bodyScaleY = sample.scaleY;
       shadowScale = sample.shadowScale;
       shadowOpacity = sample.shadowOpacity;
       movementActive = !sample.done;
-      if (sample.done) movementRef.current = null;
+      if (sample.done) activeMotionRef.current = null;
     }
 
-    const reactionActive = reactionControllerRef.current.getState() !== null;
+    let landingActive = false;
+    let landingOffsetY = 0;
+    let landingRotationZ = 0;
+    let landingScaleX = 1;
+    let landingScaleY = 1;
+    const landing = activeLandingRef.current;
+    if (landing) {
+      landing.elapsedMs += delta * 1000;
+      const landingSample = sampleCharacterLanding(landing.elapsedMs, landing.durationMs);
+      landingOffsetY = landingSample.offsetY;
+      landingRotationZ = landingSample.rotationZ;
+      landingScaleX = landingSample.scaleX;
+      landingScaleY = landingSample.scaleY;
+      landingActive = !landingSample.done;
+      if (landingSample.done) activeLandingRef.current = null;
+    }
+
+    const reactionWasActive = reactionControllerRef.current.getState() !== null;
     const reactionSample = reactionControllerRef.current.advance(delta * 1000, reducedMotion);
+    const reactionActive = reactionWasActive || !reactionSample.done;
     const grounding = getCharacterGroundingTransforms(
       [bodyPosition.x, bodyPosition.y, bodyPosition.z],
-      target?.y ?? bodyPosition.y,
+      targetY ?? bodyPosition.y,
       tileMotionOffsetY,
     );
     group.position.set(...grounding.root);
     ground.position.set(...grounding.ground);
-    body.position.set(grounding.body[0], grounding.body[1] + reactionSample.offsetY, grounding.body[2]);
-    body.rotation.set(0, 0, bodyRotationZ + reactionSample.rotationZ);
+    body.position.set(
+      grounding.body[0],
+      grounding.body[1] + landingOffsetY + reactionSample.offsetY,
+      grounding.body[2],
+    );
+    body.rotation.set(0, 0, bodyRotationZ + landingRotationZ + reactionSample.rotationZ);
     body.scale.set(
-      bodyScaleX * reactionSample.scaleX,
-      bodyScaleY * reactionSample.scaleY,
-      bodyScaleX * reactionSample.scaleX,
+      bodyScaleX * landingScaleX * reactionSample.scaleX,
+      bodyScaleY * landingScaleY * reactionSample.scaleY,
+      bodyScaleX * landingScaleX * reactionSample.scaleX,
     );
     shadow.scale.set(shadowScale, shadowScale, 1);
     if (shadowMaterialRef.current) shadowMaterialRef.current.opacity = shadowOpacity;
@@ -225,7 +449,7 @@ export default function CharacterBillboard({
       spriteMaterialRef.current.opacity = texture ? reactionSample.spriteOpacity : 0;
     }
 
-    if (movementActive || reactionActive) invalidate();
+    if (movementActive || landingActive || reactionActive) invalidate();
   });
 
   const groundY = anchor?.[1] ?? 0;
@@ -247,7 +471,7 @@ export default function CharacterBillboard({
         <group ref={shadowGroupRef}>
           <ContactShadow
             scale={definition.shadowScale}
-            opacity={0.24}
+            opacity={CHARACTER_SHADOW_OPACITY}
             materialRef={shadowMaterialRef}
             uniqueMaterial
           />

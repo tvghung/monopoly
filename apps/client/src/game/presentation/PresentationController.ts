@@ -18,6 +18,7 @@ export class PresentationController {
   private disposed = false;
 
   public constructor(reducedMotion = false, speedMultiplier = 1) {
+    this.store.setAnimationSpeedMultiplier(speedMultiplier);
     const executors = {
       ...createBasicExecutors(this.store),
       ROLL_DICE: createDiceExecutor(this.store),
@@ -59,6 +60,7 @@ export class PresentationController {
   public setPreferences(reducedMotion: boolean, speedMultiplier: number): void {
     this.queue.setReducedMotion(reducedMotion);
     this.queue.setSpeedMultiplier(speedMultiplier);
+    this.store.setAnimationSpeedMultiplier(speedMultiplier);
     if (reducedMotion) this.skipAllAndSnap();
   }
 

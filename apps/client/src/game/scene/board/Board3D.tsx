@@ -66,7 +66,10 @@ export default function Board3D({
       <CenterAirport />
       <CharactersLayer
         players={model?.players ?? []}
+        movementSignals={model?.characterMovements ?? []}
+        landingSignals={model?.characterLandings ?? []}
         reactions={model?.characterReactions ?? []}
+        animationSpeedMultiplier={model?.animationSpeedMultiplier ?? 1}
         resetEpoch={model?.presentationResetEpoch ?? 0}
       />
     </group>

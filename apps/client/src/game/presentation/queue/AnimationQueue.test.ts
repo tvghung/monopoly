@@ -125,4 +125,25 @@ describe('AnimationQueue', () => {
     expect(queue.getStatus()).toBe('idle');
     queue.dispose();
   });
+
+  it('lets movement consume one resolved duration for both queue wait and rendering', async () => {
+    vi.useFakeTimers();
+    const durations: number[] = [];
+    const queue = new AnimationQueue({
+      speedMultiplier: 2,
+      executors: makeExecutor(async (_current, context) => {
+        const duration = context.getDuration(180);
+        durations.push(duration);
+        await context.waitForDuration(duration);
+        durations.push(duration);
+      }),
+    });
+
+    const pending = queue.enqueue(event('resolved-duration'));
+    await vi.runAllTimersAsync();
+    await pending;
+
+    expect(durations).toEqual([90, 90]);
+    queue.dispose();
+  });
 });

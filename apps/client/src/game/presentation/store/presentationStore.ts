@@ -1,6 +1,7 @@
 import type { DiceValue, PublicRoomState } from '@monopoly/shared';
 import type { AnimationQueueStatus } from '../queue/types';
 import type {
+  CharacterMovementSignal,
   CharacterReactionKind,
   PresentationListener,
   PresentationState,
@@ -14,15 +15,24 @@ const emptyState: PresentationState = {
   displayDice: { dice1: 0, dice2: 0 },
   status: 'idle',
   tileImpacts: [],
+  characterMovements: [],
+  characterLandings: [],
   characterReactions: [],
+  animationSpeedMultiplier: 1,
   presentationResetEpoch: 0,
 };
+
+const CHARACTER_SIGNAL_LIMIT = 128;
 
 export class PresentationStore implements PresentationStoreLike {
   private state: PresentationState = emptyState;
   private readonly listeners = new Set<PresentationListener>();
   private nextTileImpactSequence = 0;
+  private nextCharacterMovementSequence = 0;
+  private nextCharacterLandingSequence = 0;
   private nextCharacterReactionSequence = 0;
+  private readonly playerJoinOrder = new Map<string, number>();
+  private readonly activeCharacterMovements = new Map<string, CharacterMovementSignal>();
 
   public getSnapshot(): PresentationState {
     return this.state;
@@ -38,6 +48,9 @@ export class PresentationStore implements PresentationStoreLike {
     Object.entries(room.gameState.players).forEach(([playerId, player]) => {
       positions[playerId] = player.currentTile;
     });
+    this.playerJoinOrder.clear();
+    room.players.forEach(player => this.playerJoinOrder.set(player.playerId, player.joinOrder));
+    this.activeCharacterMovements.clear();
     this.state = {
       displayPositions: positions,
       settledPositions: positions,
@@ -45,15 +58,21 @@ export class PresentationStore implements PresentationStoreLike {
       displayDice: { ...room.gameState.boardState.diceValue },
       status: 'idle',
       tileImpacts: [],
+      characterMovements: [],
+      characterLandings: [],
       characterReactions: [],
+      animationSpeedMultiplier: this.state.animationSpeedMultiplier,
       presentationResetEpoch: this.state.presentationResetEpoch + 1,
     };
     this.nextTileImpactSequence = 0;
+    this.nextCharacterMovementSequence = 0;
+    this.nextCharacterLandingSequence = 0;
     this.nextCharacterReactionSequence = 0;
     this.notify();
   }
 
   public syncPlayers(room: PublicRoomState): void {
+    room.players.forEach(player => this.playerJoinOrder.set(player.playerId, player.joinOrder));
     const nextPositions: Record<string, number> = {};
     const nextSettledPositions: Record<string, number> = {};
     let changed = false;
@@ -74,23 +93,90 @@ export class PresentationStore implements PresentationStoreLike {
     this.notify();
   }
 
-  public startDisplayPosition(playerId: string, tileId: number): void {
-    if (this.state.displayPositions[playerId] === tileId) return;
+  public startCharacterHop(
+    playerId: string,
+    fromTileId: number,
+    toTileId: number,
+    durationMs: number,
+  ): void {
+    const currentPositions = this.state.displayPositions;
+    const nextPositions = { ...currentPositions, [playerId]: toTileId };
+    const fromSlot = this.getSlotInfo(currentPositions, playerId, fromTileId);
+    const toSlot = this.getSlotInfo(nextPositions, playerId, toTileId);
+    this.nextCharacterMovementSequence += 1;
+    const signal: CharacterMovementSignal = {
+      sequence: this.nextCharacterMovementSequence,
+      playerId,
+      transition: 'TILE_HOP',
+      phase: 'START',
+      fromTileId,
+      toTileId,
+      fromSlotIndex: fromSlot.slotIndex,
+      fromOccupantCount: fromSlot.occupantCount,
+      toSlotIndex: toSlot.slotIndex,
+      toOccupantCount: toSlot.occupantCount,
+      durationMs: Math.max(0, durationMs),
+    };
+    this.activeCharacterMovements.set(playerId, signal);
     this.state = {
       ...this.state,
-      displayPositions: { ...this.state.displayPositions, [playerId]: tileId },
+      displayPositions: nextPositions,
+      characterMovements: this.appendCharacterMovement(signal),
     };
     this.notify();
   }
 
-  public settleDisplayPosition(playerId: string, tileId: number): void {
-    if (this.state.displayPositions[playerId] === tileId
-      && this.state.settledPositions[playerId] === tileId) return;
+  public completeCharacterHop(playerId: string, tileId: number): void {
+    const active = this.activeCharacterMovements.get(playerId);
+    this.activeCharacterMovements.delete(playerId);
+    const signal = active
+      ? active
+      : this.createSnapSignal(playerId, tileId);
+    this.nextCharacterMovementSequence += 1;
+    const completed: CharacterMovementSignal = {
+      ...signal,
+      sequence: this.nextCharacterMovementSequence,
+      phase: 'COMPLETE',
+      toTileId: tileId,
+    };
     this.state = {
       ...this.state,
       displayPositions: { ...this.state.displayPositions, [playerId]: tileId },
       settledPositions: { ...this.state.settledPositions, [playerId]: tileId },
+      characterMovements: this.appendCharacterMovement(completed),
     };
+    this.notify();
+  }
+
+  public snapDisplayPosition(playerId: string, tileId: number): void {
+    const currentTileId = this.state.displayPositions[playerId]
+      ?? this.state.settledPositions[playerId]
+      ?? tileId;
+    this.activeCharacterMovements.delete(playerId);
+    this.nextCharacterMovementSequence += 1;
+    const signal: CharacterMovementSignal = {
+      ...this.createSnapSignal(playerId, tileId, currentTileId),
+      sequence: this.nextCharacterMovementSequence,
+    };
+    this.state = {
+      ...this.state,
+      displayPositions: { ...this.state.displayPositions, [playerId]: tileId },
+      settledPositions: { ...this.state.settledPositions, [playerId]: tileId },
+      characterMovements: this.appendCharacterMovement(signal),
+    };
+    this.notify();
+  }
+
+  public emitCharacterLanding(playerId: string, tileId: number, durationMs: number): void {
+    this.nextCharacterLandingSequence += 1;
+    const nextLanding = {
+      sequence: this.nextCharacterLandingSequence,
+      playerId,
+      tileId,
+      durationMs: Math.max(0, durationMs),
+    };
+    const characterLandings = [...this.state.characterLandings, nextLanding].slice(-CHARACTER_SIGNAL_LIMIT);
+    this.state = { ...this.state, characterLandings };
     this.notify();
   }
 
@@ -127,6 +213,14 @@ export class PresentationStore implements PresentationStoreLike {
     this.notify();
   }
 
+  public setAnimationSpeedMultiplier(multiplier: number): void {
+    if (!Number.isFinite(multiplier)) return;
+    const next = Math.min(2, Math.max(0.75, multiplier));
+    if (this.state.animationSpeedMultiplier === next) return;
+    this.state = { ...this.state, animationSpeedMultiplier: next };
+    this.notify();
+  }
+
   public setStatus(status: AnimationQueueStatus): void {
     if (this.state.status === status) return;
     this.state = { ...this.state, status };
@@ -135,6 +229,52 @@ export class PresentationStore implements PresentationStoreLike {
 
   private notify(): void {
     this.listeners.forEach(listener => listener());
+  }
+
+  private appendCharacterMovement(signal: CharacterMovementSignal): readonly CharacterMovementSignal[] {
+    return [...this.state.characterMovements, signal].slice(-CHARACTER_SIGNAL_LIMIT);
+  }
+
+  private createSnapSignal(
+    playerId: string,
+    toTileId: number,
+    fromTileId = this.state.displayPositions[playerId] ?? toTileId,
+  ): CharacterMovementSignal {
+    const fromSlot = this.getSlotInfo(this.state.displayPositions, playerId, fromTileId);
+    const nextPositions = { ...this.state.displayPositions, [playerId]: toTileId };
+    const toSlot = this.getSlotInfo(nextPositions, playerId, toTileId);
+    return {
+      sequence: 0,
+      playerId,
+      transition: 'SNAP',
+      phase: 'COMPLETE',
+      fromTileId,
+      toTileId,
+      fromSlotIndex: fromSlot.slotIndex,
+      fromOccupantCount: fromSlot.occupantCount,
+      toSlotIndex: toSlot.slotIndex,
+      toOccupantCount: toSlot.occupantCount,
+      durationMs: 0,
+    };
+  }
+
+  private getSlotInfo(
+    positions: Record<string, number>,
+    playerId: string,
+    tileId: number,
+  ): { slotIndex: number; occupantCount: number } {
+    const occupants = Object.entries(positions)
+      .filter(([, position]) => position === tileId)
+      .map(([id]) => id);
+    if (!occupants.includes(playerId)) occupants.push(playerId);
+    occupants.sort((left, right) => (
+      (this.playerJoinOrder.get(left) ?? Number.MAX_SAFE_INTEGER)
+      - (this.playerJoinOrder.get(right) ?? Number.MAX_SAFE_INTEGER)
+    ) || left.localeCompare(right));
+    return {
+      slotIndex: Math.max(0, occupants.indexOf(playerId)),
+      occupantCount: occupants.length,
+    };
   }
 }
 

@@ -158,6 +158,10 @@ export class AnimationQueue {
             this.reducedMotion ? 0 : Math.max(0, baseDuration / this.speedMultiplier),
             controller.signal,
           ),
+          waitForDuration: durationMs => waitForDelay(
+            Math.max(0, durationMs),
+            controller.signal,
+          ),
         };
         try {
           if (executor) await executor.run(item.event, context);

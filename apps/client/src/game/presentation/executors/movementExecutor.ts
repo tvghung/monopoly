@@ -7,20 +7,22 @@ export function createMovementExecutor(store: PresentationStoreLike): Presentati
   return {
     async run(event, context) {
       if (event.presentation === 'SNAP' || context.reducedMotion) {
-        store.startDisplayPosition(event.playerId, event.to);
-        store.settleDisplayPosition(event.playerId, event.to);
+        store.snapDisplayPosition(event.playerId, event.to);
         return;
       }
+      let fromTileId = event.from;
       for (let step = 1; step <= event.steps; step += 1) {
-        const tileId = (event.from + step) % 40;
-        store.startDisplayPosition(event.playerId, tileId);
-        await context.wait(presentationTiming.tileHop);
-        store.settleDisplayPosition(event.playerId, tileId);
+        const tileId = (fromTileId + 1) % 40;
+        const durationMs = context.getDuration(presentationTiming.tileHop);
+        store.startCharacterHop(event.playerId, fromTileId, tileId, durationMs);
+        await context.waitForDuration(durationMs);
+        store.completeCharacterHop(event.playerId, tileId);
         if (step < event.steps) store.emitTileImpact(event.playerId, tileId, 'STEP');
+        fromTileId = tileId;
       }
     },
-    finish(event) {
-      store.settleDisplayPosition(event.playerId, event.to);
+    finish(event, context) {
+      if (context.signal.aborted) store.snapDisplayPosition(event.playerId, event.to);
     },
   };
 }

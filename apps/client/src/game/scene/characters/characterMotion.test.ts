@@ -3,8 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
   CHARACTER_HOP_DURATION_MS,
   getCharacterGroundingTransforms,
+  getCharacterTravelLean,
   getCharacterTargetTransition,
+  sampleCharacterHop,
+  sampleCharacterLanding,
   sampleCharacterMotion,
+  sampleCharacterSlotReflow,
 } from './characterMotion';
 
 describe('character motion samples', () => {
@@ -39,9 +43,60 @@ describe('character motion samples', () => {
 
   it('does not start a zero-distance hop when only tile feedback changes', () => {
     expect(getCharacterTargetTransition(4, 4, false, false)).toBe('NONE');
-    expect(getCharacterTargetTransition(4, 5, false, false)).toBe('HOP');
+    expect(getCharacterTargetTransition(4, 5, false, false)).toBe('TILE_HOP');
+    expect(getCharacterTargetTransition(4, 4, false, false, true)).toBe('SLOT_REFLOW');
     expect(getCharacterTargetTransition(4, 5, true, false)).toBe('SNAP');
     expect(getCharacterTargetTransition(4, 5, false, true)).toBe('SNAP');
+  });
+
+  it('uses the resolved duration and exact canonical completion for every hop speed', () => {
+    const from = new THREE.Vector3(0, 0.6, 0);
+    const to = new THREE.Vector3(1, 0.6, 0);
+    expect(sampleCharacterHop(90, from, to, 90)).toMatchObject({
+      position: [1, 0.6, 0],
+      rotationZ: 0,
+      scaleXZ: 1,
+      scaleY: 1,
+      shadowScale: 1,
+      shadowOpacity: 0.24,
+      done: true,
+    });
+    expect(sampleCharacterHop(239, from, to, 240).done).toBe(false);
+  });
+
+  it('keeps slot reflow grounded and landing physics neutral', () => {
+    const reflow = sampleCharacterSlotReflow(
+      55,
+      new THREE.Vector3(0, 0.6, 0),
+      new THREE.Vector3(0.28, 0.6, 0),
+      110,
+    );
+    expect(reflow.position[1]).toBe(0.6);
+    expect(reflow.scaleY).toBe(1);
+    expect(reflow.shadowScale).toBe(1);
+    expect(reflow.rotationZ).toBe(0);
+
+    const landing = sampleCharacterLanding(60, 120);
+    expect(landing.scaleY).toBeLessThan(1);
+    expect(landing.scaleX).toBeGreaterThan(1);
+    expect(sampleCharacterLanding(120, 120)).toEqual({
+      offsetY: 0,
+      rotationZ: 0,
+      scaleX: 1,
+      scaleY: 1,
+      done: true,
+    });
+  });
+
+  it('projects travel onto camera right so all four board directions can lean', () => {
+    const directions = [
+      [new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 0, 0)],
+      [new THREE.Vector3(0, 0, 0), new THREE.Vector3(-1, 0, 0)],
+      [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 1)],
+      [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)],
+    ] as const;
+    expect(directions.map(([from, to]) => getCharacterTravelLean(from, to).toFixed(6)))
+      .toEqual(['0.019799', '-0.019799', '-0.019799', '0.019799']);
   });
 
   it('keeps the active ring and contact shadow grounded while the body arcs', () => {

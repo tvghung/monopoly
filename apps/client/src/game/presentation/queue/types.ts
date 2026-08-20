@@ -8,6 +8,8 @@ export interface AnimationExecutionContext {
   reducedMotion: boolean;
   getDuration: (baseDuration: number) => number;
   wait: (baseDuration: number) => Promise<void>;
+  /** Wait for a duration that has already been resolved by this context. */
+  waitForDuration: (durationMs: number) => Promise<void>;
 }
 
 export interface PresentationExecutor<E extends PresentationEvent = PresentationEvent> {

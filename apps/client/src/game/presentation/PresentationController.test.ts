@@ -83,6 +83,8 @@ describe('PresentationController', () => {
     expect(controller.getState().displayPositions['player-a']).toBe(3);
     expect(controller.getState().settledPositions['player-a']).toBe(3);
     expect(controller.getState().tileImpacts).toEqual([]);
+    expect(controller.getState().characterMovements).toEqual([]);
+    expect(controller.getState().characterLandings).toEqual([]);
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(controller.getState().displayPositions['player-a']).toBe(3);
     controller.dispose();

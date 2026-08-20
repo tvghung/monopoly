@@ -35,7 +35,10 @@ export interface BoardRenderModel {
   tiles: BoardTileRenderModel[];
   players: CharacterPlayerModel[];
   tileImpacts: readonly TileImpactSignal[];
+  characterMovements: PresentationState['characterMovements'];
+  characterLandings: PresentationState['characterLandings'];
   characterReactions: PresentationState['characterReactions'];
+  animationSpeedMultiplier: number;
   presentationResetEpoch: number;
 }
 
@@ -91,7 +94,10 @@ export function buildBoardRenderModel(
     tiles,
     players,
     tileImpacts: presentationState.tileImpacts,
+    characterMovements: presentationState.characterMovements,
+    characterLandings: presentationState.characterLandings,
     characterReactions: presentationState.characterReactions,
+    animationSpeedMultiplier: presentationState.animationSpeedMultiplier,
     presentationResetEpoch: presentationState.presentationResetEpoch,
   };
 }
