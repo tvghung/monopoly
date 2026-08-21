@@ -6,6 +6,9 @@ import {
   DICE_SURFACE_EPSILON,
 } from './diceVisualConfig';
 
+const DICE_PIP_CAP_ORIENTATION = new THREE.Quaternion()
+  .setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));
+
 export const PIP_POSITIONS: Record<number, readonly (readonly [number, number])[]> = {
   1: [[2, 2]],
   2: [[1, 1], [3, 3]],
@@ -27,6 +30,15 @@ export interface DicePipInstance {
   column: number;
   position: readonly [number, number, number];
   rotation: readonly [number, number, number];
+}
+
+/** CylinderGeometry's visible top cap uses the local +Y normal. */
+export function getDicePipCylinderQuaternion(
+  faceRotation: readonly [number, number, number],
+): THREE.Quaternion {
+  return new THREE.Quaternion()
+    .setFromEuler(new THREE.Euler(...faceRotation))
+    .multiply(DICE_PIP_CAP_ORIENTATION);
 }
 
 export function getDiceFaceSpecs(): readonly DiceFaceSpec[] {

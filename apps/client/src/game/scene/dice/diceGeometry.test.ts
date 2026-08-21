@@ -12,7 +12,11 @@ import {
   DICE_FACE_ROUGHNESS,
   DICE_FACE_SIZE,
   DICE_PIP_CENTER_OFFSET,
+  DICE_PIP_DEPTH_TEST,
   DICE_PIP_DEPTH,
+  DICE_PIP_POLYGON_OFFSET_ENABLED,
+  DICE_PIP_POLYGON_OFFSET_FACTOR,
+  DICE_PIP_POLYGON_OFFSET_UNITS,
   DICE_PIP_SEGMENTS,
   DICE_PIP_RADIUS,
   DICE_PIP_SURFACE_OFFSET,
@@ -21,7 +25,11 @@ import {
 } from './diceVisualConfig';
 import { DICE_PIP_OFFSET } from './diceVisualConfig';
 import { DICE_SIZE } from './diceLayout';
-import { getDiceFaceSpecs, getDicePipInstances } from './diceGeometry';
+import {
+  getDiceFaceSpecs,
+  getDicePipCylinderQuaternion,
+  getDicePipInstances,
+} from './diceGeometry';
 import { getSettledDiceRotation } from './diceOrientation';
 import { SelectiveRoundedBoxGeometry } from '../board/geometry/SelectiveRoundedBoxGeometry';
 import {
@@ -183,7 +191,7 @@ describe('dice visual geometry contract', () => {
     const visibleDiameterRatio = (DICE_PIP_RADIUS * 2) / DICE_SIZE;
     expect(visibleDiameterRatio).toBeGreaterThanOrEqual(0.2);
     expect(visibleDiameterRatio).toBeLessThanOrEqual(0.23);
-    expect(DICE_PIP_SEGMENTS).toBeGreaterThanOrEqual(12);
+    expect(DICE_PIP_SEGMENTS).toBe(16);
     expect(DICE_PIP_DEPTH).toBeGreaterThan(0);
     expect(DICE_PIP_SURFACE_OFFSET).toBe(0);
     expect(DICE_PIP_SURFACE_OFFSET).toBeLessThan(DICE_SURFACE_EPSILON);
@@ -204,6 +212,32 @@ describe('dice visual geometry contract', () => {
         .toBeCloseTo(DICE_PIP_SURFACE_OFFSET);
       expect(offsetFromFace + DICE_PIP_DEPTH / 2).toBeLessThanOrEqual(1e-8);
       expect(pip.rotation).toEqual(face!.rotation);
+    });
+  });
+
+  it('keeps the shallow cylinder cap flush while its body stays behind the face', () => {
+    const capOffset = DICE_PIP_CENTER_OFFSET + DICE_PIP_DEPTH / 2;
+    const backOffset = DICE_PIP_CENTER_OFFSET - DICE_PIP_DEPTH / 2;
+    expect(capOffset).toBeCloseTo(DICE_PIP_SURFACE_OFFSET);
+    expect(capOffset).toBeLessThanOrEqual(DICE_PIP_SURFACE_OFFSET);
+    expect(backOffset).toBeLessThan(capOffset);
+  });
+
+  it('uses an explicit negative pip depth bias without disabling depth testing', () => {
+    expect(DICE_PIP_DEPTH_TEST).toBe(true);
+    expect(DICE_PIP_POLYGON_OFFSET_ENABLED).toBe(true);
+    expect(DICE_PIP_POLYGON_OFFSET_FACTOR).toBeLessThan(0);
+    expect(DICE_PIP_POLYGON_OFFSET_UNITS).toBeLessThan(0);
+  });
+
+  it('aligns the composed cylinder cap normal with every physical face normal', () => {
+    const capNormal = new THREE.Vector3(0, 1, 0);
+    getDiceFaceSpecs().forEach(face => {
+      const faceNormal = new THREE.Vector3(0, 0, 1)
+        .applyEuler(new THREE.Euler(...face.rotation));
+      const composedCapNormal = capNormal.clone()
+        .applyQuaternion(getDicePipCylinderQuaternion(face.rotation));
+      expect(composedCapNormal.dot(faceNormal)).toBeCloseTo(1);
     });
   });
 

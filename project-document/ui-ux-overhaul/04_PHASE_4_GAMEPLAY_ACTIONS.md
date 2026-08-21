@@ -31,8 +31,11 @@ visual/action polish described below.
   with `roughness: 0.18` and `metalness: 0.02`.
 - Pips remain genuine instanced shallow-cylinder geometry, oriented to each
   physical face with a 21% die-width circular footprint. Their bodies are
-  embedded behind the face plane and their caps are flush with the white face,
-  with all six face orientations preserved.
+  embedded behind the face plane and their caps are flush with the white face.
+  The pip material uses an explicit negative polygon-offset bias
+  (`factor: -1`, `units: -1`) to resolve the coplanar cap/face depth conflict;
+  normal depth testing remains enabled and no render-order dependency is used.
+  All six face orientations are preserved.
 - The visible dice arena floor was removed. Dice and the result total are
   positioned from the canonical `AirportField` top surface, keeping the board
   center free of a second visible floor.
@@ -358,12 +361,14 @@ consumed as implemented.
 This client-only follow-up keeps the Phase 4.2 authority and timing contract
 unchanged. WebGL dice now use the shared `RoundedBoxMesh` with an 8.5% edge
 radius and three bevel segments, a bright near-neutral white standard material,
-dark three-dimensional sphere pips, all six physically mapped faces, and a small
-face-plane epsilon to avoid coplanar z-fighting. The pips remain real geometry,
-but the 21 pips for each die share one `InstancedMesh` draw.
+dark three-dimensional shallow-cylinder pips, all six physically mapped faces,
+and an explicit negative polygon-offset material bias (`factor: -1`, `units: -1`)
+against the white face. The cap remains geometrically flush, depth testing stays
+enabled so hidden faces remain occluded, and the 21 pips for each die share one
+`InstancedMesh` draw without relying on `renderOrder`.
 
 The settled dice-only code-level budget measurement (arena surface and result
-text excluded) changed from 56 draws / 3,408 triangles to 16 draws / 4,560
+text excluded) changed from 56 draws / 3,408 triangles to 16 draws / 8,656
 triangles. The triangle increase is the measured cost of the rounded body; the
 draw reduction preserves the current 210 target-call and 240 stress-call
 guardrails. This is a geometry-budget test, not a live viewport capture.

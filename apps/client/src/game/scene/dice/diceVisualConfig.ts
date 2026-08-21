@@ -14,11 +14,15 @@ export const DICE_PIP_RADIUS = DICE_SIZE * 0.105;
 export const DICE_PIP_OFFSET = DICE_SIZE * 0.22;
 export const DICE_PIP_SEGMENTS = 16;
 export const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
-// The cap is flush with the face plane; DiceLayer renders it after the plane
-// so the coplanar depth test remains deterministic without a raised lip.
+// The cap stays geometrically flush with the white face. The material uses a
+// small negative polygon offset to resolve the coplanar raster depth conflict.
 export const DICE_PIP_SURFACE_OFFSET = 0;
 export const DICE_PIP_CENTER_OFFSET = DICE_PIP_SURFACE_OFFSET
   - DICE_PIP_DEPTH / 2;
+export const DICE_PIP_DEPTH_TEST = true;
+export const DICE_PIP_POLYGON_OFFSET_ENABLED = true;
+export const DICE_PIP_POLYGON_OFFSET_FACTOR = -1;
+export const DICE_PIP_POLYGON_OFFSET_UNITS = -1;
 export const DICE_CORNER_SEGMENTS = 10;
 export const DICE_RESULT_FONT_SIZE = 0.42;
 
