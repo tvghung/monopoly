@@ -1,9 +1,10 @@
 # Phase 4 - Gameplay Actions and Presentation Orchestration
 
-Status: Phase 4.2.2 final dice feel and rent feedback polish implemented; Phase 4.2.1
-gameplay HUD hardening and dice visual polish implemented; Phase 4.2
-board-centered dice and gameplay HUD implemented; Phase
-4.0/4.1 contract audit: [04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md).
+Status: Phase 4.2 is completed/current, including Phase 4.2.1 gameplay HUD
+hardening and dice visual polish and Phase 4.2.2 final dice feel/rent feedback
+polish. Phase 4.3 and Phase 4.4 are the next planned implementation slices and
+have not started. Phase 4.0/4.1 contract audit:
+[04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md).
 Movement cause/route, card identity, and transfer attribution remain open
 contracts.
 
@@ -24,27 +25,33 @@ visual/action polish described below.
 
 ### Phase 4.2.2 implemented slice
 
-- Dice use the existing procedural geometry with a 1.70 linear scale from the
-  approved 0.78 base body to `1.326`, an 8.5% edge radius, five edge segments,
-  and separate level-10 spherical patches over the eight corners. The body uses
-  the dice-only `diceBody` profile
-  (`roughness: 0.16`, `metalness: 0.02`); face materials remain neutral white
-  with `roughness: 0.18` and `metalness: 0.02`.
+- Dice use the existing procedural `SelectiveRoundedBoxGeometry` with a 1.70
+  linear scale from the approved 0.78 base body to `1.326`, an 8.5% edge
+  radius, `10` edge segments, and `10` corner segments. Because the edge and
+  corner values are equal, the current geometry does not append the older
+  separate higher-density corner-patch pass. The body uses the dice-only
+  `diceBody` profile (`roughness: 0.16`, `metalness: 0.02`); face materials
+  remain neutral white with `roughness: 0.18` and `metalness: 0.05`.
 - Pips remain genuine instanced shallow-cylinder geometry, oriented to each
-  physical face with the same absolute radius and depth as the approved base
-  die; their position spacing follows the enlarged body at `DICE_SIZE * 0.22`.
-  Their bodies are embedded behind the face plane and their caps are flush with
-  the white face.
-  The pip material uses an explicit negative polygon-offset bias
+  physical face with the same absolute base-die dimensions: radius `0.1053`
+  (`BASE_DICE_SIZE * 0.135`), depth `0.01404` (`BASE_DICE_SIZE * 0.018`), and
+  `16` radial segments. Their position spacing follows the enlarged body at
+  `DICE_SIZE * 0.22` (`0.29172`). Their bodies are embedded behind the face
+  plane and their caps are flush with the white face. The pip material uses
+  `roughness: 0.46` and `metalness: 0.08`.
+  It also uses an explicit negative polygon-offset bias
   (`factor: -1`, `units: -1`) to resolve the coplanar cap/face depth conflict;
   normal depth testing remains enabled and no render-order dependency is used.
   All six face orientations are preserved.
 - The visible dice arena floor was removed. Dice and the result total are
   positioned from the canonical `AirportField` top surface, keeping the board
-  center free of a second visible floor. The settled die centers use the
-  deterministic `-0.884` and `+0.884` x positions; the logical-only arena is
-  derived from the enlarged body footprint and remains clear of authored
-  center paths.
+  center free of a second visible floor. The logical arena center is
+  `(0, -1.65)` in board-world x/z coordinates. The settled die centers use the
+  deterministic `-0.884` and `+0.884` x positions; their y position is the
+  field top plus `DICE_SIZE / 2`. The result text is at the field top plus
+  `0.014` y and uses a `1.033` z offset from the arena center. The logical-only
+  arena is derived from the enlarged body footprint and remains clear of
+  authored center paths.
 - The settled result total uses the existing `SdfSurfaceText` component at
   `fontSize: 0.42` (up from `0.36`, approximately 16.7% larger), without a
   transform-only scale or a second announcement source.
@@ -55,12 +62,14 @@ visual/action polish described below.
   authoritative face. The first-roll entry remains the existing raised/drop
   path. Reduced motion, skip, reset, and sequence guards remain authoritative
   presentation boundaries.
-- Server rent logs are emitted once, immediately before the authoritative
-  payment queue starts, using the exact queued amount and shared money
-  formatter. Dice-origin rent includes the dice total; rent reached through a
-  card destination uses generic wording so the log does not invent a dice
-  cause. Normal-property labels distinguish base rent, `1`-`4` houses, and a
-  hotel; railroad and utility amounts use their existing server calculations.
+- Server rent liability is calculated authoritatively on the server and logged
+  once immediately before the payment queue starts, using the exact amount
+  passed to payment processing and the shared money formatter. Dice-origin rent
+  includes the committed dice total; rent reached through a card destination
+  uses generic wording so the log does not invent a dice cause. Normal-property
+  labels use the street name at base level, `1`-`4` Nhà labels, and a Khách sạn
+  label at level `5`; railroad and utility amounts use their existing server
+  calculations. The client does not calculate rent.
 - The Roll reset epoch clears both a pending command and a stale error. The
   legacy overlay no longer contributes a second live announcement source.
 
@@ -309,6 +318,16 @@ ordering, duplicate snapshot handling, and reset behavior.
 
 Current contract baseline:
 
+- The former gameplay side HUD/right rail is gone. The board renderer occupies
+  the primary single-column screen area, and the current `PlayerHud`,
+  `Dashboard`, `RollControl`, `OwnedPropertiesControl`, and `Log` are mounted
+  as overlays inside that board renderer. The compact player strip remains at
+  the top, the Roll CTA is bottom-centered, and property access is a separate
+  control rather than part of the Roll CTA.
+- The existing authoritative decision panels remain mounted in the gameplay
+  action layer. Buy and development decisions use authoritative pending state
+  and remain gated by `settledPositions`/token arrival; the client presents
+  those decisions but does not authorize gameplay or calculate rent.
 - Board3D uses a procedural R3F DiceLayer centered in the existing board-world
   airport field. The arena is sized and checked against the authored center
   paths and tile clearance; the fixed orthographic camera is unchanged.
@@ -365,19 +384,20 @@ consumed as implemented.
 ### 7.2.1 Phase 4.2.1 hardening and dice visual polish
 
 This client-only follow-up keeps the Phase 4.2 authority and timing contract
-unchanged. WebGL dice now use the shared `RoundedBoxMesh` with an 8.5% edge
-radius and three bevel segments, a bright near-neutral white standard material,
-dark three-dimensional shallow-cylinder pips, all six physically mapped faces,
-and an explicit negative polygon-offset material bias (`factor: -1`, `units: -1`)
-against the white face. The cap remains geometrically flush, depth testing stays
-enabled so hidden faces remain occluded, and the 21 pips for each die share one
-`InstancedMesh` draw without relying on `renderOrder`.
+unchanged. WebGL dice use the shared `RoundedBoxMesh` with an 8.5% edge radius,
+`10` edge segments, and `10` corner segments, a bright near-neutral white
+standard material, dark three-dimensional shallow-cylinder pips, all six
+physically mapped faces, and an explicit negative polygon-offset material bias
+(`factor: -1`, `units: -1`) against the white face. With equal edge and corner
+segment values, the current selective geometry does not add a separate
+higher-density corner-patch pass. The cap remains geometrically flush, depth
+testing stays enabled so hidden faces remain occluded, and the 21 pips for each
+die share one `InstancedMesh` draw without relying on `renderOrder`.
 
-The settled dice-only code-level budget measurement (arena surface and result
-text excluded) changed from 56 draws / 3,408 triangles to 16 draws / 8,656
-triangles. The triangle increase is the measured cost of the rounded body; the
-draw reduction preserves the current 210 target-call and 240 stress-call
-guardrails. This is a geometry-budget test, not a live viewport capture.
+The repeated pips remain instanced, while exact dice draw-call and triangle
+totals remain implementation measurements rather than a fixed Phase 4.2
+contract. The current documentation therefore keeps the existing qualitative
+scene-budget guardrails without presenting an unverified dice-specific count.
 
 Roll recovery adds a bounded 8-second client-only ACK timeout and immediate
 disconnect rejection without retrying the non-idempotent command. The local

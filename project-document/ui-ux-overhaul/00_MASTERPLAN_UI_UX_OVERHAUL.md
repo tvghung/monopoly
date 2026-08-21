@@ -465,6 +465,9 @@ File:
 
 ## Phase 4 — Gameplay Actions & Animations
 
+Status: Phase 4.2 is completed/current. Phase 4.3 and Phase 4.4 are the next
+planned implementation slices and have not started.
+
 Mục tiêu:
 
 - dice
