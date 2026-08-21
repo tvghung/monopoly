@@ -10,7 +10,7 @@ export const DICE_FACE_SIZE = DICE_SIZE * 0.82;
 export const DICE_SURFACE_EPSILON = DICE_SIZE * 0.012;
 // The pip footprint and depth stay authored against the approved 0.78 base die
 // so enlarging the body does not enlarge the visible black circles.
-export const DICE_PIP_RADIUS = BASE_DICE_SIZE * 0.105;
+export const DICE_PIP_RADIUS = BASE_DICE_SIZE * 0.135;
 export const DICE_PIP_OFFSET = DICE_SIZE * 0.22;
 export const DICE_PIP_SEGMENTS = 16;
 export const DICE_PIP_DEPTH = BASE_DICE_SIZE * 0.018;
