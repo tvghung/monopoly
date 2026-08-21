@@ -11,9 +11,26 @@ import { AIRPORT_RUNWAY_INNER_HALF_SIZE } from '../board/center/airportRunwayGeo
 
 export const DICE_ARENA_CENTER_X = 0;
 export const DICE_ARENA_CENTER_Z = -1.65;
-export const DICE_ARENA_SIZE = Object.freeze({ width: 2.8, depth: 1.75 });
-export const DICE_SIZE = 0.78;
-export const DICE_ARENA_RESULT_OFFSET_Z = 0.76;
+export const BASE_DICE_SIZE = 0.78;
+export const DICE_SCALE = 1.70;
+export const DICE_SIZE = BASE_DICE_SIZE * DICE_SCALE;
+export const BASE_DICE_CENTER_OFFSET_X = 0.52;
+export const DICE_CENTER_OFFSET_X = BASE_DICE_CENTER_OFFSET_X * DICE_SCALE;
+// The logical envelope keeps a small side margin while staying inside the
+// authored x=2 center path. It is never rendered as a platform or region.
+export const DICE_ARENA_HORIZONTAL_MARGIN = 0.18;
+export const DICE_ARENA_VERTICAL_MARGIN = 0.24;
+// Preserve the previous center-to-body gap while moving the unchanged result
+// font clear of the enlarged settled dice.
+export const DICE_RESULT_DIE_CENTER_GAP_Z = 0.37;
+export const DICE_ARENA_RESULT_OFFSET_Z = DICE_SIZE / 2 + DICE_RESULT_DIE_CENTER_GAP_Z;
+const DICE_PAIR_FOOTPRINT_WIDTH = DICE_CENTER_OFFSET_X * 2 + DICE_SIZE;
+const DICE_ARENA_HALF_DEPTH = Math.max(DICE_SIZE / 2, DICE_ARENA_RESULT_OFFSET_Z)
+  + DICE_ARENA_VERTICAL_MARGIN;
+export const DICE_ARENA_SIZE = Object.freeze({
+  width: DICE_PAIR_FOOTPRINT_WIDTH + DICE_ARENA_HORIZONTAL_MARGIN * 2,
+  depth: DICE_ARENA_HALF_DEPTH * 2,
+});
 export const DICE_DROP_HEIGHT = 1.35;
 
 export interface DiceArenaBounds {
@@ -32,8 +49,18 @@ export function getDiceArenaBounds(): DiceArenaBounds {
   };
 }
 
+export function getDiceSettledFootprintBounds(): DiceArenaBounds {
+  const halfSize = DICE_SIZE / 2;
+  return {
+    minX: DICE_ARENA_CENTER_X - DICE_CENTER_OFFSET_X - halfSize,
+    minZ: DICE_ARENA_CENTER_Z - halfSize,
+    maxX: DICE_ARENA_CENTER_X + DICE_CENTER_OFFSET_X + halfSize,
+    maxZ: DICE_ARENA_CENTER_Z + halfSize,
+  };
+}
+
 export function getDicePosition(dieIndex: 0 | 1): readonly [number, number, number] {
-  const x = DICE_ARENA_CENTER_X + (dieIndex === 0 ? -0.52 : 0.52);
+  const x = DICE_ARENA_CENTER_X + (dieIndex === 0 ? -DICE_CENTER_OFFSET_X : DICE_CENTER_OFFSET_X);
   return [x, CENTER_AIRPORT_FIELD_TOP_Y + DICE_SIZE / 2, DICE_ARENA_CENTER_Z];
 }
 
@@ -52,6 +79,12 @@ function overlaps(left: readonly [number, number, number, number], right: DiceAr
     && left[3] >= right.minZ;
 }
 
+function isBoundsClearOfCenterPaths(bounds: DiceArenaBounds): boolean {
+  return CENTER_ORTHOGONAL_PATH_SEGMENTS.every(segment => (
+    !overlaps(getCenterPathBounds(segment), bounds)
+  ));
+}
+
 export function isDiceArenaInsideCenterField(bounds = getDiceArenaBounds()): boolean {
   const centerHalfSize = AIRPORT_RUNWAY_INNER_HALF_SIZE - CENTER_FIELD_CLEARANCE;
   return bounds.minX >= -centerHalfSize
@@ -67,7 +100,11 @@ export function isDiceArenaInsideCenterField(bounds = getDiceArenaBounds()): boo
 export function isDiceArenaClearOfCenterPaths(
   bounds = getDiceArenaBounds(),
 ): boolean {
-  return CENTER_ORTHOGONAL_PATH_SEGMENTS.every(segment => (
-    !overlaps(getCenterPathBounds(segment), bounds)
-  ));
+  return isBoundsClearOfCenterPaths(bounds);
+}
+
+export function isDiceFootprintClearOfCenterPaths(
+  bounds = getDiceSettledFootprintBounds(),
+): boolean {
+  return isBoundsClearOfCenterPaths(bounds);
 }

@@ -24,21 +24,27 @@ visual/action polish described below.
 
 ### Phase 4.2.2 implemented slice
 
-- Dice use the existing procedural geometry with an 8.5% edge radius, five
-  edge segments, and separate level-10 spherical patches over the eight
-  corners. The body uses the dice-only `diceBody` profile
+- Dice use the existing procedural geometry with a 1.70 linear scale from the
+  approved 0.78 base body to `1.326`, an 8.5% edge radius, five edge segments,
+  and separate level-10 spherical patches over the eight corners. The body uses
+  the dice-only `diceBody` profile
   (`roughness: 0.16`, `metalness: 0.02`); face materials remain neutral white
   with `roughness: 0.18` and `metalness: 0.02`.
 - Pips remain genuine instanced shallow-cylinder geometry, oriented to each
-  physical face with a 21% die-width circular footprint. Their bodies are
-  embedded behind the face plane and their caps are flush with the white face.
+  physical face with the same absolute radius and depth as the approved base
+  die; their position spacing follows the enlarged body at `DICE_SIZE * 0.22`.
+  Their bodies are embedded behind the face plane and their caps are flush with
+  the white face.
   The pip material uses an explicit negative polygon-offset bias
   (`factor: -1`, `units: -1`) to resolve the coplanar cap/face depth conflict;
   normal depth testing remains enabled and no render-order dependency is used.
   All six face orientations are preserved.
 - The visible dice arena floor was removed. Dice and the result total are
   positioned from the canonical `AirportField` top surface, keeping the board
-  center free of a second visible floor.
+  center free of a second visible floor. The settled die centers use the
+  deterministic `-0.884` and `+0.884` x positions; the logical-only arena is
+  derived from the enlarged body footprint and remains clear of authored
+  center paths.
 - The settled result total uses the existing `SdfSurfaceText` component at
   `fontSize: 0.42` (up from `0.36`, approximately 16.7% larger), without a
   transform-only scale or a second announcement source.

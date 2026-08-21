@@ -39,6 +39,7 @@ describe('procedural dice orientation', () => {
   });
 
   it('lifts and drops a subsequent roll while ending at rest', () => {
+    expect(DICE_DROP_HEIGHT).toBe(1.35);
     expect(getDiceAnimationHeight(DICE_REROLL_LIFT_RATIO / 2, true)).toBeGreaterThan(0);
     expect(getDiceAnimationHeight(0.8, true)).toBeLessThan(DICE_DROP_HEIGHT);
     expect(getDiceAnimationHeight(1, true)).toBe(0);

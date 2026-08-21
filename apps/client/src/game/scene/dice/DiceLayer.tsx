@@ -7,6 +7,7 @@ import { boardVisualTokens } from '../board/boardVisualTokens';
 import SdfSurfaceText from '../board/tiles/SdfSurfaceText';
 import type { DiceRenderModel } from '../board/boardRenderModel';
 import {
+  BASE_DICE_SIZE,
   DICE_SIZE,
   getDicePosition,
   getDiceResultPosition,
@@ -42,7 +43,7 @@ import {
   DICE_RESULT_FONT_SIZE,
 } from './diceVisualConfig';
 
-const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.13;
+const DICE_BOUNCE_HEIGHT = BASE_DICE_SIZE * 0.13;
 
 function DieFaces() {
   const faces = useMemo(() => getDiceFaceSpecs(), []);

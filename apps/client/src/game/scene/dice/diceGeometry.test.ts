@@ -23,8 +23,8 @@ import {
   DICE_RESULT_FONT_SIZE,
   DICE_SURFACE_EPSILON,
 } from './diceVisualConfig';
+import { BASE_DICE_SIZE, DICE_SCALE, DICE_SIZE } from './diceLayout';
 import { DICE_PIP_OFFSET } from './diceVisualConfig';
-import { DICE_SIZE } from './diceLayout';
 import {
   getDiceFaceSpecs,
   getDicePipCylinderQuaternion,
@@ -95,6 +95,16 @@ function buildDiceCost({ rounded, instancedPips }: { rounded: boolean; instanced
 }
 
 describe('dice visual geometry contract', () => {
+  it('scales the body by 1.70 while keeping the approved pip dimensions absolute', () => {
+    expect(DICE_SCALE).toBe(1.70);
+    expect(DICE_SIZE).toBeCloseTo(BASE_DICE_SIZE * DICE_SCALE, 12);
+    expect(DICE_SIZE).toBeCloseTo(1.326, 12);
+    expect(DICE_PIP_RADIUS).toBeCloseTo(BASE_DICE_SIZE * 0.105, 12);
+    expect(DICE_PIP_RADIUS).toBeCloseTo(0.0819, 12);
+    expect(DICE_PIP_DEPTH).toBeCloseTo(BASE_DICE_SIZE * 0.018, 12);
+    expect(DICE_PIP_DEPTH).toBeCloseTo(0.01404, 12);
+  });
+
   it('uses a bright white PBR cube with a visible 7-10% edge radius', () => {
     expect(DICE_EDGE_RADIUS_RATIO).toBeGreaterThanOrEqual(0.07);
     expect(DICE_EDGE_RADIUS_RATIO).toBeLessThanOrEqual(0.1);
@@ -187,10 +197,10 @@ describe('dice visual geometry contract', () => {
     expect(pips.filter(pip => pip.faceValue === 1)).toHaveLength(1);
     expect(pips.filter(pip => pip.faceValue === 6)).toHaveLength(6);
     expect(DICE_PIP_OFFSET).toBeGreaterThan(0);
-    expect(DICE_PIP_RADIUS).toBeCloseTo(DICE_SIZE * 0.105);
-    const visibleDiameterRatio = (DICE_PIP_RADIUS * 2) / DICE_SIZE;
-    expect(visibleDiameterRatio).toBeGreaterThanOrEqual(0.2);
-    expect(visibleDiameterRatio).toBeLessThanOrEqual(0.23);
+    expect(DICE_PIP_OFFSET).toBeCloseTo(DICE_SIZE * 0.22);
+    expect(DICE_PIP_OFFSET).toBeGreaterThan(BASE_DICE_SIZE * 0.22);
+    const visibleDiameterRatio = (DICE_PIP_RADIUS * 2) / BASE_DICE_SIZE;
+    expect(visibleDiameterRatio).toBeCloseTo(0.21);
     expect(DICE_PIP_SEGMENTS).toBe(16);
     expect(DICE_PIP_DEPTH).toBeGreaterThan(0);
     expect(DICE_PIP_SURFACE_OFFSET).toBe(0);
@@ -212,6 +222,22 @@ describe('dice visual geometry contract', () => {
         .toBeCloseTo(DICE_PIP_SURFACE_OFFSET);
       expect(offsetFromFace + DICE_PIP_DEPTH / 2).toBeLessThanOrEqual(1e-8);
       expect(pip.rotation).toEqual(face!.rotation);
+    });
+  });
+
+  it('keeps every pip circle inside the enlarged usable face area', () => {
+    const pips = getDicePipInstances();
+    const faces = getDiceFaceSpecs();
+    const faceHalf = DICE_FACE_SIZE / 2;
+    pips.forEach(pip => {
+      const face = faces.find(candidate => candidate.value === pip.faceValue);
+      expect(face).toBeDefined();
+      const faceOrientation = new THREE.Quaternion().setFromEuler(new THREE.Euler(...face!.rotation));
+      const local = new THREE.Vector3(...pip.position)
+        .sub(new THREE.Vector3(...face!.position))
+        .applyQuaternion(faceOrientation.invert());
+      expect(Math.abs(local.x) + DICE_PIP_RADIUS).toBeLessThanOrEqual(faceHalf);
+      expect(Math.abs(local.y) + DICE_PIP_RADIUS).toBeLessThanOrEqual(faceHalf);
     });
   });
 
