@@ -169,6 +169,7 @@ describe('dice visual geometry contract', () => {
     expect(pips.filter(pip => pip.faceValue === 1)).toHaveLength(1);
     expect(pips.filter(pip => pip.faceValue === 6)).toHaveLength(6);
     expect(DICE_PIP_OFFSET).toBeGreaterThan(0);
+    expect(DICE_PIP_RADIUS).toBeCloseTo(DICE_SIZE * 0.085);
     expect(DICE_PIP_SURFACE_OFFSET).toBeGreaterThan(0);
     expect(DICE_PIP_SURFACE_OFFSET).toBeLessThan(DICE_SURFACE_EPSILON);
     expect(DICE_PIP_CENTER_OFFSET).toBeLessThan(0);

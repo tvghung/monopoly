@@ -8,7 +8,7 @@ export const DICE_EDGE_SEGMENTS = 5;
 
 export const DICE_FACE_SIZE = DICE_SIZE * 0.82;
 export const DICE_SURFACE_EPSILON = DICE_SIZE * 0.012;
-export const DICE_PIP_RADIUS = DICE_SIZE * 0.075;
+export const DICE_PIP_RADIUS = DICE_SIZE * 0.085;
 export const DICE_PIP_OFFSET = DICE_SIZE * 0.22;
 export const DICE_PIP_DEPTH_SCALE = 0.32;
 export const DICE_PIP_SURFACE_OFFSET = DICE_SIZE * 0.002;
