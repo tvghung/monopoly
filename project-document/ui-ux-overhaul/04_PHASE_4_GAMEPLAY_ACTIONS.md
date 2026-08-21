@@ -1,6 +1,6 @@
 # Phase 4 - Gameplay Actions and Presentation Orchestration
 
-Status: Phase 4.2.2 dice feel and rent feedback polish implemented; Phase 4.2.1
+Status: Phase 4.2.2 final dice feel and rent feedback polish implemented; Phase 4.2.1
 gameplay HUD hardening and dice visual polish implemented; Phase 4.2
 board-centered dice and gameplay HUD implemented; Phase
 4.0/4.1 contract audit: [04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md).
@@ -24,13 +24,21 @@ visual/action polish described below.
 
 ### Phase 4.2.2 implemented slice
 
-- Dice use the existing procedural geometry with an 8.5% edge radius and five
-  bevel segments. The body uses the shared `diceBody` profile
-  (`roughness: 0.20`, `metalness: 0.04`); face materials remain neutral white
-  with `roughness: 0.22` and `metalness: 0.03`.
+- Dice use the existing procedural geometry with an 8.5% edge radius, five
+  edge segments, and separate level-10 spherical patches over the eight
+  corners. The body uses the dice-only `diceBody` profile
+  (`roughness: 0.16`, `metalness: 0.02`); face materials remain neutral white
+  with `roughness: 0.18` and `metalness: 0.02`.
+- Pips remain genuine instanced sphere geometry, oriented to each physical face
+  and flattened along its normal. Their centers are recessed behind the face
+  plane; the front cap has only a 0.2% die-size clearance, with all six face
+  orientations preserved.
 - The visible dice arena floor was removed. Dice and the result total are
   positioned from the canonical `AirportField` top surface, keeping the board
   center free of a second visible floor.
+- The settled result total uses the existing `SdfSurfaceText` component at
+  `fontSize: 0.42` (up from `0.36`, approximately 16.7% larger), without a
+  transform-only scale or a second announcement source.
 - The existing 640 ms roll and 140 ms result hold are unchanged. On reroll, the
   committed previous dice pair is captured in the presentation transient;
   each die holds its previous settled face while lifting through the first 18%

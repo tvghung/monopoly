@@ -24,13 +24,16 @@ import {
 } from './diceOrientation';
 import {
   DICE_BODY_COLOR,
+  DICE_CORNER_SEGMENTS,
   DICE_EDGE_RADIUS,
   DICE_EDGE_SEGMENTS,
   DICE_FACE_COLOR,
   DICE_FACE_METALNESS,
   DICE_FACE_ROUGHNESS,
   DICE_FACE_SIZE,
+  DICE_PIP_DEPTH_SCALE,
   DICE_PIP_RADIUS,
+  DICE_RESULT_FONT_SIZE,
 } from './diceVisualConfig';
 
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.13;
@@ -66,8 +69,11 @@ function DiePips() {
     const mesh = pipsRef.current;
     if (!mesh) return;
     const matrix = new THREE.Matrix4();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3(1, 1, DICE_PIP_DEPTH_SCALE);
     pips.forEach((pip, index) => {
-      matrix.makeTranslation(...pip.position);
+      quaternion.setFromEuler(new THREE.Euler(...pip.rotation));
+      matrix.compose(new THREE.Vector3(...pip.position), quaternion, scale);
       mesh.setMatrixAt(index, matrix);
     });
     mesh.instanceMatrix.needsUpdate = true;
@@ -158,6 +164,7 @@ function Die({
         depth={DICE_SIZE}
         radius={DICE_EDGE_RADIUS}
         segments={DICE_EDGE_SEGMENTS}
+        cornerSegments={DICE_CORNER_SEGMENTS}
         color={DICE_BODY_COLOR}
         materialProfile="diceBody"
       />
@@ -204,7 +211,7 @@ export default function DiceLayer({ model }: { model: DiceRenderModel }) {
                   name="DiceResultTotal"
                   value={String(model.dice.dice1 + model.dice.dice2)}
                   position={resultPosition}
-                  fontSize={0.36}
+                  fontSize={DICE_RESULT_FONT_SIZE}
                   maxWidth={0.9}
                   color={boardVisualTokens.tileText}
                 />

@@ -10,11 +10,16 @@ export const DICE_FACE_SIZE = DICE_SIZE * 0.82;
 export const DICE_SURFACE_EPSILON = DICE_SIZE * 0.012;
 export const DICE_PIP_RADIUS = DICE_SIZE * 0.075;
 export const DICE_PIP_OFFSET = DICE_SIZE * 0.22;
-export const DICE_PIP_SURFACE_OFFSET = DICE_SIZE * 0.028;
+export const DICE_PIP_DEPTH_SCALE = 0.32;
+export const DICE_PIP_SURFACE_OFFSET = DICE_SIZE * 0.002;
+export const DICE_PIP_CENTER_OFFSET = DICE_PIP_SURFACE_OFFSET
+  - DICE_PIP_RADIUS * DICE_PIP_DEPTH_SCALE;
+export const DICE_CORNER_SEGMENTS = 10;
+export const DICE_RESULT_FONT_SIZE = 0.42;
 
 // These are intentionally near-neutral white and near-black blue-green. The
 // standard materials remain lit by the existing ACESFilmic scene lights.
 export const DICE_BODY_COLOR = '#ffffff';
 export const DICE_FACE_COLOR = '#ffffff';
-export const DICE_FACE_ROUGHNESS = 0.22;
-export const DICE_FACE_METALNESS = 0.03;
+export const DICE_FACE_ROUGHNESS = 0.18;
+export const DICE_FACE_METALNESS = 0.02;

@@ -3,6 +3,7 @@ import type { ThreeEvent } from '@react-three/fiber';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import type { BoardMaterialProfile } from '../materials/boardMaterialSpecs';
 import { getBoardMaterialProps } from '../materials/boardMaterialSpecs';
+import { SelectiveRoundedBoxGeometry } from './SelectiveRoundedBoxGeometry';
 
 interface RoundedBoxMeshProps {
   width: number;
@@ -10,6 +11,7 @@ interface RoundedBoxMeshProps {
   depth: number;
   radius: number;
   segments?: number;
+  cornerSegments?: number;
   color: string;
   materialProfile: BoardMaterialProfile;
   position?: readonly [number, number, number];
@@ -26,6 +28,7 @@ export default function RoundedBoxMesh({
   depth,
   radius,
   segments = 2,
+  cornerSegments,
   color,
   materialProfile,
   position,
@@ -36,8 +39,10 @@ export default function RoundedBoxMesh({
   onClick,
 }: RoundedBoxMeshProps) {
   const geometry = useMemo(
-    () => new RoundedBoxGeometry(width, height, depth, segments, radius),
-    [depth, height, radius, segments, width],
+    () => cornerSegments === undefined
+      ? new RoundedBoxGeometry(width, height, depth, segments, radius)
+      : new SelectiveRoundedBoxGeometry(width, height, depth, segments, cornerSegments, radius),
+    [cornerSegments, depth, height, radius, segments, width],
   );
 
   useEffect(() => () => geometry.dispose(), [geometry]);

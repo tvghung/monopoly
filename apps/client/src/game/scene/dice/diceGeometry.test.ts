@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { describe, expect, it } from 'vitest';
 import {
   DICE_BODY_COLOR,
+  DICE_CORNER_SEGMENTS,
   DICE_EDGE_RADIUS,
   DICE_EDGE_RADIUS_RATIO,
   DICE_EDGE_SEGMENTS,
@@ -10,13 +11,18 @@ import {
   DICE_FACE_METALNESS,
   DICE_FACE_ROUGHNESS,
   DICE_FACE_SIZE,
+  DICE_PIP_CENTER_OFFSET,
+  DICE_PIP_DEPTH_SCALE,
   DICE_PIP_RADIUS,
+  DICE_PIP_SURFACE_OFFSET,
+  DICE_RESULT_FONT_SIZE,
   DICE_SURFACE_EPSILON,
 } from './diceVisualConfig';
-import { DICE_PIP_OFFSET, DICE_PIP_SURFACE_OFFSET } from './diceVisualConfig';
+import { DICE_PIP_OFFSET } from './diceVisualConfig';
 import { DICE_SIZE } from './diceLayout';
 import { getDiceFaceSpecs, getDicePipInstances } from './diceGeometry';
 import { getSettledDiceRotation } from './diceOrientation';
+import { SelectiveRoundedBoxGeometry } from '../board/geometry/SelectiveRoundedBoxGeometry';
 import {
   estimateSceneTriangles,
   STRESS_DRAW_CALL_LIMIT,
@@ -41,7 +47,14 @@ function buildDiceCost({ rounded, instancedPips }: { rounded: boolean; instanced
 
   for (let dieIndex = 0; dieIndex < 2; dieIndex += 1) {
     const bodyGeometry = rounded
-      ? new RoundedBoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE, DICE_EDGE_SEGMENTS, DICE_EDGE_RADIUS)
+      ? new SelectiveRoundedBoxGeometry(
+        DICE_SIZE,
+        DICE_SIZE,
+        DICE_SIZE,
+        DICE_EDGE_SEGMENTS,
+        DICE_CORNER_SEGMENTS,
+        DICE_EDGE_RADIUS,
+      )
       : new THREE.BoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE);
     root.add(new THREE.Mesh(bodyGeometry, material));
   }
@@ -74,9 +87,50 @@ describe('dice visual geometry contract', () => {
     expect(DICE_FACE_ROUGHNESS).toBeGreaterThan(0);
     expect(DICE_FACE_METALNESS).toBeLessThan(0.05);
     expect(DICE_EDGE_SEGMENTS).toBe(5);
-    expect(DICE_FACE_ROUGHNESS).toBeCloseTo(0.22);
-    expect(DICE_FACE_METALNESS).toBeCloseTo(0.03);
-    expect(boardMaterialSpecs.diceBody).toEqual({ roughness: 0.2, metalness: 0.04 });
+    expect(DICE_CORNER_SEGMENTS).toBe(10);
+    expect(DICE_FACE_ROUGHNESS).toBeCloseTo(0.18);
+    expect(DICE_FACE_METALNESS).toBeCloseTo(0.02);
+    expect(boardMaterialSpecs.diceBody).toEqual({ roughness: 0.16, metalness: 0.02 });
+  });
+
+  it('increases subdivision only across the eight corner patches', () => {
+    const base = new RoundedBoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE, DICE_EDGE_SEGMENTS, DICE_EDGE_RADIUS);
+    const selective = new SelectiveRoundedBoxGeometry(
+      DICE_SIZE,
+      DICE_SIZE,
+      DICE_SIZE,
+      DICE_EDGE_SEGMENTS,
+      DICE_CORNER_SEGMENTS,
+      DICE_EDGE_RADIUS,
+    );
+    const basePositionCount = base.getAttribute('position').count;
+    expect(selective.edgeSegments).toBe(DICE_EDGE_SEGMENTS);
+    expect(selective.cornerSegments).toBe(DICE_CORNER_SEGMENTS);
+    expect(selective.radius).toBeCloseTo(DICE_EDGE_RADIUS);
+    const cornerTriangleCount = DICE_CORNER_SEGMENTS * (2 * DICE_CORNER_SEGMENTS - 1);
+    expect(selective.getAttribute('position').count).toBe(
+      basePositionCount + 8 * cornerTriangleCount * 3,
+    );
+
+    const positions = selective.getAttribute('position');
+    const normals = selective.getAttribute('normal');
+    for (let index = 0; index < positions.count; index += 3) {
+      const first = new THREE.Vector3().fromBufferAttribute(positions, index);
+      const second = new THREE.Vector3().fromBufferAttribute(positions, index + 1);
+      const third = new THREE.Vector3().fromBufferAttribute(positions, index + 2);
+      const triangleNormal = new THREE.Vector3()
+        .subVectors(second, first)
+        .cross(new THREE.Vector3().subVectors(third, first));
+      if (triangleNormal.lengthSq() === 0) continue;
+      const averageNormal = new THREE.Vector3(
+        normals.getX(index) + normals.getX(index + 1) + normals.getX(index + 2),
+        normals.getY(index) + normals.getY(index + 1) + normals.getY(index + 2),
+        normals.getZ(index) + normals.getZ(index + 1) + normals.getZ(index + 2),
+      ).normalize();
+      expect(triangleNormal.normalize().dot(averageNormal)).toBeGreaterThan(0.9);
+    }
+    base.dispose();
+    selective.dispose();
   });
 
   it('keeps all six physical faces, standard opposite pairs, and an epsilon above the body', () => {
@@ -116,7 +170,30 @@ describe('dice visual geometry contract', () => {
     expect(pips.filter(pip => pip.faceValue === 6)).toHaveLength(6);
     expect(DICE_PIP_OFFSET).toBeGreaterThan(0);
     expect(DICE_PIP_SURFACE_OFFSET).toBeGreaterThan(0);
+    expect(DICE_PIP_SURFACE_OFFSET).toBeLessThan(DICE_SURFACE_EPSILON);
+    expect(DICE_PIP_CENTER_OFFSET).toBeLessThan(0);
+    expect(DICE_PIP_DEPTH_SCALE).toBeGreaterThan(0);
     expect(pips.every(pip => pip.position.every(Number.isFinite))).toBe(true);
+
+    const faces = getDiceFaceSpecs();
+    pips.forEach(pip => {
+      const face = faces.find(candidate => candidate.value === pip.faceValue);
+      expect(face).toBeDefined();
+      const faceNormal = new THREE.Vector3(0, 0, 1)
+        .applyEuler(new THREE.Euler(...face!.rotation));
+      const offsetFromFace = new THREE.Vector3(...pip.position)
+        .sub(new THREE.Vector3(...face!.position))
+        .dot(faceNormal);
+      expect(offsetFromFace).toBeCloseTo(DICE_PIP_CENTER_OFFSET);
+      expect(offsetFromFace + DICE_PIP_RADIUS * DICE_PIP_DEPTH_SCALE)
+        .toBeCloseTo(DICE_PIP_SURFACE_OFFSET);
+      expect(pip.rotation).toEqual(face!.rotation);
+    });
+  });
+
+  it('raises the settled total through the text component size', () => {
+    expect(DICE_RESULT_FONT_SIZE / 0.36).toBeGreaterThanOrEqual(1.15);
+    expect(DICE_RESULT_FONT_SIZE / 0.36).toBeLessThanOrEqual(1.2);
   });
 
   it('reduces settled dice draw calls while remaining inside the existing scene budget', () => {
@@ -127,7 +204,7 @@ describe('dice visual geometry contract', () => {
     expect(optimized.drawCalls).toBe(16);
     expect(optimized.drawCalls).toBeLessThan(TARGET_DRAW_CALLS);
     expect(optimized.drawCalls).toBeLessThan(STRESS_DRAW_CALL_LIMIT);
-    expect(optimized.triangles).toBe(6288);
+    expect(optimized.triangles).toBe(9328);
     expect(optimized.triangles).toBeLessThan(TARGET_TRIANGLES);
   });
 });

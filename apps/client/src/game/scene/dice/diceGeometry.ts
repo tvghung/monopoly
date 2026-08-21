@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { DICE_SIZE } from './diceLayout';
 import {
+  DICE_PIP_CENTER_OFFSET,
   DICE_PIP_OFFSET,
-  DICE_PIP_SURFACE_OFFSET,
   DICE_SURFACE_EPSILON,
 } from './diceVisualConfig';
 
@@ -26,6 +26,7 @@ export interface DicePipInstance {
   row: number;
   column: number;
   position: readonly [number, number, number];
+  rotation: readonly [number, number, number];
 }
 
 export function getDiceFaceSpecs(): readonly DiceFaceSpec[] {
@@ -48,14 +49,14 @@ export function getDicePipInstances(): readonly DicePipInstance[] {
       const localPosition = new THREE.Vector3(
         (column - 2) * DICE_PIP_OFFSET,
         (2 - row) * DICE_PIP_OFFSET,
-        DICE_PIP_SURFACE_OFFSET,
+        DICE_PIP_CENTER_OFFSET,
       ).applyQuaternion(orientation);
       const position: [number, number, number] = [
         face.position[0] + localPosition.x,
         face.position[1] + localPosition.y,
         face.position[2] + localPosition.z,
       ];
-      return { faceValue: face.value, row, column, position };
+      return { faceValue: face.value, row, column, position, rotation: face.rotation };
     });
   });
 }
