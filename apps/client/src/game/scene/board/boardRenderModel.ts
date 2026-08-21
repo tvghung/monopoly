@@ -1,5 +1,6 @@
 import type {
   CharacterId,
+  DiceValue,
   PlayerColorId,
   PublicGameState,
   RoomPlayerMeta,
@@ -31,9 +32,17 @@ export interface CharacterPlayerModel {
   joinOrder: number;
 }
 
+export interface DiceRenderModel {
+  dice: DiceValue;
+  rollSequence: number;
+  phase: 'HIDDEN' | 'ROLLING' | 'SETTLED';
+  durationMs: number;
+}
+
 export interface BoardRenderModel {
   tiles: BoardTileRenderModel[];
   players: CharacterPlayerModel[];
+  dice: DiceRenderModel;
   tileImpacts: readonly TileImpactSignal[];
   characterMovements: PresentationState['characterMovements'];
   characterLandings: PresentationState['characterLandings'];
@@ -90,9 +99,21 @@ export function buildBoardRenderModel(
     }))
     .sort((left, right) => left.joinOrder - right.joinOrder || left.playerId.localeCompare(right.playerId));
 
+  const activeDice = presentationState.diceRoll;
+  const dice = activeDice?.dice ?? presentationState.displayDice;
+  const diceRollSequence = activeDice?.rollSequence ?? presentationState.displayRollSequence;
+
   return {
     tiles,
     players,
+    dice: {
+      dice: { ...dice },
+      rollSequence: diceRollSequence,
+      phase: activeDice
+        ? 'ROLLING'
+        : presentationState.displayRollSequence > 0 ? 'SETTLED' : 'HIDDEN',
+      durationMs: activeDice?.durationMs ?? 0,
+    },
     tileImpacts: presentationState.tileImpacts,
     characterMovements: presentationState.characterMovements,
     characterLandings: presentationState.characterLandings,

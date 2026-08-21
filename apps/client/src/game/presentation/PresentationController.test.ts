@@ -65,7 +65,7 @@ describe('PresentationController', () => {
     controller.dispose();
   });
 
-  it('hard-snaps on reconnect and stale movement completion cannot overwrite the authoritative tile', async () => {
+  it('hard-snaps on reconnect while an identified dice presentation is active', async () => {
     const controller = new PresentationController();
     const initial = makeRoom();
     controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
@@ -74,9 +74,9 @@ describe('PresentationController', () => {
     live.gameState.boardState.diceValue = { dice1: 2, dice2: 2 };
     live.gameState.boardState.rollSequence = 1;
     controller.acceptRoomSnapshot(live, 'LIVE_UPDATE');
-    await new Promise(resolve => setTimeout(resolve, 200));
-    expect(controller.getState().displayPositions['player-a']).toBe(1);
-    expect(controller.getState().settledPositions['player-a']).toBe(0);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(controller.getState().displayPositions['player-a']).toBe(0);
+    expect(controller.getState().diceRoll?.rollSequence).toBe(1);
     const reconnect = cloneRoom(live);
     reconnect.gameState.players['player-a'].currentTile = 3;
 

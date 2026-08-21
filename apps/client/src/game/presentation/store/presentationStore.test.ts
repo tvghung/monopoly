@@ -76,6 +76,45 @@ describe('PresentationStore reset and impact generations', () => {
     expect(notifications).toBe(1);
   });
 
+  it('keeps an identified roll transient until the dice executor settles it', () => {
+    const store = new PresentationStore();
+    store.resetFromSnapshot(makeRoom());
+
+    store.startDiceRoll({ dice1: 2, dice2: 3 }, 1, 640);
+
+    expect(store.getSnapshot().diceRoll).toEqual({
+      lifecycle: 'rolling',
+      dice: { dice1: 2, dice2: 3 },
+      rollSequence: 1,
+      durationMs: 640,
+    });
+    expect(store.getSnapshot().displayRollSequence).toBe(0);
+
+    store.syncDisplayDice({ dice1: 6, dice2: 6 }, 1);
+    expect(store.getSnapshot().diceRoll?.dice).toEqual({ dice1: 2, dice2: 3 });
+
+    store.settleDiceRoll({ dice1: 2, dice2: 3 }, 1);
+    expect(store.getSnapshot().diceRoll).toBeNull();
+    expect(store.getSnapshot().displayDice).toEqual({ dice1: 2, dice2: 3 });
+    expect(store.getSnapshot().displayRollSequence).toBe(1);
+  });
+
+  it('clears a transient roll when a reset snapshot becomes authoritative', () => {
+    const store = new PresentationStore();
+    const room = makeRoom();
+    store.resetFromSnapshot(room);
+    store.startDiceRoll({ dice1: 4, dice2: 5 }, 1, 640);
+
+    const reset = cloneRoom(room, 2);
+    reset.gameState.boardState.diceValue = { dice1: 4, dice2: 5 };
+    reset.gameState.boardState.rollSequence = 1;
+    store.resetFromSnapshot(reset);
+
+    expect(store.getSnapshot().diceRoll).toBeNull();
+    expect(store.getSnapshot().displayDice).toEqual({ dice1: 4, dice2: 5 });
+    expect(store.getSnapshot().displayRollSequence).toBe(1);
+  });
+
   it('snaps dice faces and sequence on reset without replaying the baseline', () => {
     const store = new PresentationStore();
     const initial = makeRoom();

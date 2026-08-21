@@ -14,9 +14,11 @@ import { buildBoardRenderModel } from '../game/scene/board/boardRenderModel';
 import SceneErrorBoundary from '../game/scene/fallback/SceneErrorBoundary';
 import { supportsWebGL } from '../game/scene/fallback/webglSupport';
 import PropertyInspectionModal from '../game/ui/property/PropertyInspectionModal';
+import OwnedPropertiesControl from '../game/ui/property/OwnedPropertiesControl';
+import PlayerHud from '../game/ui/hud/PlayerHud';
+import RollControl from '../game/ui/hud/RollControl';
 import BoardAccessibilityControls from './BoardAccessibilityControls';
 import LegacyBoardView from './legacy-board/LegacyBoardView';
-import Dice from './Dice';
 import Log from './Log';
 import Dashboard from './Dashboard';
 import {
@@ -93,11 +95,6 @@ export default function Board() {
             <span>Bàn cờ hiển thị tốt nhất ở chế độ ngang.</span>
           </aside>
 
-          <aside className="game-board__left-rail" aria-label="Xúc xắc và trạng thái người chơi">
-            <Dice />
-            <Dashboard />
-          </aside>
-
           <section
             className={`game-board__renderer${rendererMode === 'legacy' ? ' game-board__renderer--legacy' : ''}`}
             data-renderer-mode={rendererMode}
@@ -118,6 +115,12 @@ export default function Board() {
                 </SceneErrorBoundary>
               )
               : legacyBoard}
+            <PlayerHud
+              activePlayerId={presentationState.displayActivePlayerId ?? state.boardState.currentPlayer.id}
+            />
+            <Dashboard />
+            <RollControl />
+            <OwnedPropertiesControl onSelect={selectTile} />
             <Log />
           </section>
 

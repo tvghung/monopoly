@@ -7,6 +7,7 @@ import TileSurfaceBatch from './tiles/TileSurfaceBatch';
 import TileImpactHighlightBatch from './tiles/TileImpactHighlightBatch';
 import type { BoardRenderModel, BoardTileRenderModel } from './boardRenderModel';
 import CharactersLayer from '../characters/CharactersLayer';
+import DiceLayer from '../dice/DiceLayer';
 
 interface Board3DProps {
   model?: BoardRenderModel;
@@ -66,6 +67,12 @@ export default function Board3D({
         ))}
       </group>
       <CenterAirport />
+      <DiceLayer model={model?.dice ?? {
+        dice: { dice1: 0, dice2: 0 },
+        rollSequence: 0,
+        phase: 'HIDDEN',
+        durationMs: 0,
+      }} />
       <CharactersLayer
         players={model?.players ?? []}
         movementSignals={model?.characterMovements ?? []}

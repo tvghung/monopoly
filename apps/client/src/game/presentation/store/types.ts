@@ -36,12 +36,20 @@ export interface CharacterReactionSignal {
   durationMs: number;
 }
 
+export interface DiceRollPresentation {
+  lifecycle: 'rolling';
+  dice: DiceValue;
+  rollSequence: number;
+  durationMs: number;
+}
+
 export interface PresentationState {
   displayPositions: Record<string, number>;
   settledPositions: Record<string, number>;
   displayActivePlayerId: string | null;
   displayDice: DiceValue;
   displayRollSequence: number;
+  diceRoll: DiceRollPresentation | null;
   status: AnimationQueueStatus;
   tileImpacts: readonly TileImpactSignal[];
   characterMovements: readonly CharacterMovementSignal[];
@@ -62,6 +70,8 @@ export interface PresentationStoreLike {
   completeCharacterHop: (playerId: string, tileId: number) => void;
   snapDisplayPosition: (playerId: string, tileId: number) => void;
   emitCharacterLanding: (playerId: string, tileId: number, durationMs: number) => void;
+  startDiceRoll: (dice: DiceValue, rollSequence: number, durationMs: number) => void;
+  settleDiceRoll: (dice: DiceValue, rollSequence: number) => void;
   setDisplayDice: (dice: DiceValue, rollSequence: number) => void;
   syncDisplayDice: (dice: DiceValue, rollSequence: number) => void;
   setDisplayActivePlayerId: (playerId: string) => void;

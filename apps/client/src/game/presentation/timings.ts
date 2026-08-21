@@ -1,5 +1,6 @@
 export const presentationTiming = {
-  diceRoll: 180,
+  diceRoll: 640,
+  diceResultHold: 140,
   tileHop: 180,
   slotReflow: 110,
   landing: 120,

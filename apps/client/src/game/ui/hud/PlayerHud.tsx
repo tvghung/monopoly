@@ -10,13 +10,12 @@ export default function PlayerHud({ activePlayerId }: { activePlayerId: string }
   const players = state.loaded ? selectPlayerHudViewModels(state, activePlayerId, roomPlayers) : [];
 
   return (
-    <section className="center__dashboard__block center__dashboard__block--players player-hud">
-      <h3 className="center__dashboard__title">Người chơi</h3>
+    <section className="player-hud" aria-label="Trạng thái người chơi">
       <p className="sr-only" role="status" aria-live="polite">
         {activePlayerName ? 'Đến lượt ' + activePlayerName : ''}
       </p>
       {state.loaded
-        ? <ul className="player-list" aria-label="Trạng thái người chơi">{players.map(player => <PlayerCard key={player.playerId} player={player} />)}</ul>
+        ? <ul className="player-list">{players.map(player => <PlayerCard key={player.playerId} player={player} />)}</ul>
         : 'Đang tải…'}
     </section>
   );

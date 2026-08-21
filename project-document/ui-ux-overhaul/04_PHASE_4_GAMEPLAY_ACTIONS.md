@@ -1,9 +1,9 @@
 # Phase 4 - Gameplay Actions and Presentation Orchestration
 
-Status: Phase 4.1 foundation implemented; Phase 4.0/4.1 contract audit:
-[04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md). Phase 4.2
-must treat movement cause/route, card identity, and transfer attribution as
-open contracts.
+Status: Phase 4.2 board-centered dice and gameplay HUD implemented; Phase
+4.0/4.1 contract audit: [04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md).
+Movement cause/route, card identity, and transfer attribution remain open
+contracts.
 
 Base: the completed Phase 3 character and movement system on
 overhaul/phase-3-character-system.
@@ -74,7 +74,7 @@ authoritative server state or committed command acknowledgement
 | Shared protocol and public projector | Publicly safe state and command/event contracts | Hidden deck order, private forced-sale terms, speculative outcomes |
 | Client event adapter | Detecting proven state transitions, stable event ids, presentation grouping | Inventing causes, prices, transfer parties, or card results |
 | AnimationQueue | Ordered client presentation, duration resolution, skip, stale-completion protection | Authorizing a gameplay action |
-| PresentationStore | Display positions, settled positions, display dice, visual reaction and tile-impact signals | Source of truth for game state |
+| PresentationStore | Display positions, settled positions, display dice, transient dice-roll lifecycle, visual reaction and tile-impact signals | Source of truth for game state |
 | React, DOM, and R3F layers | Rendering current presentation state and controls | Writing authoritative board state or resolving rules |
 
 Server command acknowledgements are usable as a sequencing boundary only after
@@ -97,8 +97,8 @@ The following is the observed baseline to preserve while implementing Phase 4.
 | Basic events | presentation/executors/basicExecutors.ts | Reuse semantic reactions and the existing timing map. |
 | Board render | GameScene.tsx and Board3D.tsx | Keep demand rendering, instancing, orthographic framing, and server-derived board state. |
 | Tile feedback | TileMotionController, TileMotionProvider, TileBodyBatch, TileSurfaceBatch, TileImpactHighlightBatch | Add action feedback through existing lifecycle signals and imperatively updated layers. |
-| Dice | Board.tsx renders the current CSS 3D dice and calls the server roll command | Improve acknowledgement and result presentation without making a client-side result. |
-| Decision UI | Dashboard.tsx, BuyPrompt, DevelopmentPrompt, JailPanel, DebtPanel, ForcedSaleProposalPanel | Keep the current panels as the action surface; do not duplicate actions in board overlays without a clear reason. |
+| Dice | Board3D renders a procedural R3F DiceLayer in a board-world center arena; RollControl calls the existing server roll command | Keep the server result authoritative, preserve the fixed camera, and keep the client wrapper protocol-compatible. |
+| Decision UI | Dashboard.tsx and the existing BuyPrompt, DevelopmentPrompt, JailPanel, DebtPanel, ForcedSaleProposalPanel, plus compact PlayerHud, RollControl, and OwnedPropertiesControl | Keep decision components alive as a lightweight action layer; separate stable turn/property access from transient decisions. |
 | Shared state | packages/shared/src/types.ts | Use pendingLandingDecision, paymentShortfall, ownership, development, jail, turn, deckCounts, and forced-sale fields as exposed. |
 | Commands | packages/shared/src/events.ts and server socket handlers | Use the existing command names and operation ids. Any new command needs a protocol review. |
 | Tile resolution | apps/server/src/game/tiles.ts | Treat card draw and tile effects as server-internal unless an approved safe presentation signal is added. |
@@ -123,13 +123,15 @@ Gameplay work may consume these primitives, but must not retune them casually.
 | Base materials | Tile body and surface materials remain unchanged. There is no darkening, no permanent instance-color multiplication, and no impact modulation in the base tile batches. |
 | Hot path | TileMotionController.tick and R3F useFrame paths update imperative roots and instance matrices. React notifications are lifecycle/status signals, not per-frame impact updates. |
 | Character motion | TILE_HOP, SLOT_REFLOW, SNAP, and NONE reuse presentation timings and the existing landing anchor and neutral landing sample. |
-| Timing | diceRoll 180, tileHop 180, slotReflow 110, landing 120, balanceChange 120, propertyPurchase 180, buildPop 140, turnChange 80, finish 180. |
+| Timing | diceRoll 640 plus a 140 ms result hold, tileHop 180, slotReflow 110, landing 120, balanceChange 120, propertyPurchase 180, buildPop 140, turnChange 80, finish 180. |
 | Reactions | happy 120, sad 180, jail 120, bankrupt 180, emote 160. |
 | Preferences | Supported speed multipliers are 0.75x, 1x, 1.5x, and 2x. Reduced motion resolves visual durations to zero and suppresses non-essential impacts. |
 | Recovery | PresentationController reset/snap behavior, reset epochs, sequence namespaces, and stale completion guards remain the recovery boundary. |
 
 Phase 4 acceptance tests must assert reuse of these values and behavior rather
-than silently creating action-specific motion constants.
+than silently creating action-specific motion constants. The dice roll and
+result-hold values are the Phase 4.2 board-centered presentation contract;
+the movement values remain the frozen Phase 3 contract.
 
 ## 5. Event taxonomy and adapter policy
 
@@ -257,31 +259,44 @@ Before adding visuals:
 Deliverable: a reviewed event/state matrix and tests for stable event ids,
 ordering, duplicate snapshot handling, and reset behavior.
 
-### 7.2 Workstream B - Dice result presentation
+### 7.2 Workstream B - Dice result presentation and gameplay HUD
 
 Current contract baseline:
 
-- Board.tsx uses a CSS 3D dice cube.
-- The client sends the existing roll-dice command.
+- Board3D uses a procedural R3F DiceLayer centered in the existing board-world
+  airport field. The arena is sized and checked against the authored center
+  paths and tile clearance; the fixed orthographic camera is unchanged.
+- The client sends the existing roll-dice command through a Promise-returning
+  internal wrapper. The socket event and shared protocol are unchanged.
 - The server decides the result.
-- ROLL_DICE updates displayDice through the presentation layer.
+- ROLL_DICE enters a transient `PresentationStore.diceRoll` lifecycle, then
+  commits `displayDice` and `displayRollSequence` after the visual roll.
 - Public `rollSequence` identifies each committed gameplay roll, including
   repeated ordered faces; session/reconnect sync snaps the baseline.
-- Movement is gated until the presentation state is safe.
+- Movement remains behind the same FIFO queue: 640 ms at 1x for the roll,
+  followed by a 140 ms result hold, then the already-proven movement event.
+- The result total is shown only after the dice settle. The last committed
+  result remains visible across turn changes, while reset/reconnect/spectator
+  sync snaps without replaying.
 
 Plan:
 
-- Keep the CSS dice as the baseline presentation surface unless a measured
-  product need justifies a different renderer.
-- Use diceRoll 180 ms at 1x and the resolved speed preference.
+- Keep the procedural dice geometry local to the client render layer; it uses
+  no physics or random client result. Use diceRoll 640 ms at 1x plus a 140 ms
+  result hold, both resolved through the existing speed preference.
 - Present anticipation, roll, and settle only after the server result is
   available. The animation may disguise timing, never the face value.
 - Start movement from the committed movement event, not from a local dice
   callback.
 - In reduced motion, show the authoritative face immediately and preserve the
   same event ordering.
-- Keep the current no-double-roll and local-turn gates from Board.tsx and the
-  server.
+- Keep the local-turn, current-state, settled-token, pending-decision, and
+  no-double-roll gates in RollControl and the server. The CTA locks before
+  emitting and unlocks only after an authoritative sequence or turn outcome.
+- Use a compact top player strip, a stable bottom-centered Roll CTA, and a
+  separate owned-property access button. Dashboard decision components remain
+  mounted in the lightweight action layer and continue to use authoritative
+  state and existing modals.
 
 Required tests:
 
@@ -290,8 +305,16 @@ Required tests:
 - A second click cannot create a duplicate committed roll sequence.
 - Identical faces with a higher sequence trigger one presentation update;
   duplicate sequence/faces are a no-op.
+- The transient dice state remains separate from the committed display baseline
+  until the roll duration completes, and the result hold precedes movement.
+- The player strip, turn label, CTA lock, property access path, keyboard status,
+  and reduced-motion behavior remain readable without covering the board.
 - Skip, reduced motion, speed changes, and reconnect leave the dice and queue
   consistent.
+
+No server or shared-source changes are required for this Phase 4.2 slice; the
+existing V6 `rollSequence` contract and Phase 4.1 movement classifier are
+consumed as implemented.
 
 ### 7.3 Workstream C - Movement orchestration
 
@@ -800,7 +823,7 @@ Phase 4 is complete only when all of the following are true:
 
 ## 14. Open decisions and handoff gates
 
-The architecture is ready for the bounded Phase 4.1 foundation. The
+The bounded Phase 4.2 client slice consumes the Phase 4.1 foundation. The
 repeated-dice-pair identity gate is resolved by `rollSequence`; the following
 three richer contract decisions remain explicit:
 
@@ -817,6 +840,7 @@ corresponding richer semantic choreography without a contract decision. Until
 then, retain the documented fallback and do not silently treat a changed room
 revision or short tile delta as a new roll or proven route.
 
-Phase 4.1 has already changed the shared/server/client roll-identity contract
-and its forward migration. This plan still does not authorize card reveal,
-transfer attribution, GO effects, or visual polish beyond that foundation.
+Phase 4.1 changed the shared/server/client roll-identity contract and its
+forward migration. Phase 4.2 consumes that contract without further shared or
+server changes; it does not authorize card reveal, transfer attribution, or
+new client rule authority.

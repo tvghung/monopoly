@@ -1,7 +1,6 @@
 import { useContext } from 'react';
 import './style/Dashboard.css';
 import stateContext from '../internal';
-import PlayerList from './dashboard/PlayerList';
 import JailPanel from './dashboard/JailPanel';
 import BuyPrompt from './dashboard/BuyPrompt';
 import DevelopmentPrompt from './dashboard/DevelopmentPrompt';
@@ -24,30 +23,18 @@ export default function Dashboard() {
   const tokenArrived = !myPlayer
     || (settledPositions[playerId as string] ?? myPlayer.currentTile) === myPlayer.currentTile;
 
-  const serverActiveId = state.boardState.currentPlayer.id;
-  const activePlayerId = presentationState.displayActivePlayerId ?? serverActiveId;
-
   return (
-    <section className="center__dashboard--container">
-      <section className="center__dashboard">
-        <div className="center__dashboard--brand" aria-hidden="true">
-          CỜ TỶ PHÚ
-          <span>VIỆT NAM</span>
-        </div>
-
-        <PlayerList activePlayerId={activePlayerId} />
-
-        <section className="center__dashboard__block">
-          <DebtPanel />
-          <ForcedSaleProposalPanel />
-          <JailPanel />
-          <BuyPrompt tokenArrived={tokenArrived} />
-          <DevelopmentPrompt tokenArrived={tokenArrived} />
-          <TradeOfferModal />
-          <IncomingOffers />
-          <WinnerBanner />
-        </section>
-      </section>
+    <section className="gameplay-action-layer" aria-label="Quyết định trong lượt chơi">
+      <div className="gameplay-action-layer__context">
+        <DebtPanel />
+        <JailPanel />
+      </div>
+      <BuyPrompt tokenArrived={tokenArrived} />
+      <DevelopmentPrompt tokenArrived={tokenArrived} />
+      <ForcedSaleProposalPanel />
+      <TradeOfferModal />
+      <IncomingOffers />
+      <WinnerBanner />
     </section>
   );
 }

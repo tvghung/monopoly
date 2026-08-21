@@ -1,5 +1,6 @@
 import type { Socket } from 'socket.io-client';
 import type {
+  Ack,
   ClientToServerEvents,
   OfferId,
   OfferInfo,
@@ -15,7 +16,7 @@ export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 export type DevelopmentRequest = Parameters<ClientToServerEvents['resolve development']>[0];
 
 export interface SocketFunctions {
-  rollDice: () => void;
+  rollDice: () => Promise<Ack>;
   buyProperty: (operationId: string) => void;
   doNotBuy?: (operationId: string) => void;
   resolveDevelopment?: (request: DevelopmentRequest) => void;

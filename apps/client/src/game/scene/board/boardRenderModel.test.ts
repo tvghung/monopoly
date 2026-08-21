@@ -9,6 +9,7 @@ const presentation = (overrides: Partial<PresentationState> = {}): PresentationS
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
   displayRollSequence: 0,
+  diceRoll: null,
   status: 'idle',
   tileImpacts: [],
   characterMovements: [],
@@ -116,5 +117,36 @@ describe('board render model', () => {
     expect(model.characterMovements).toEqual([movement]);
     expect(model.animationSpeedMultiplier).toBe(2);
     expect(state().players.active.currentTile).toBe(4);
+  });
+
+  it('projects hidden, rolling, and settled dice from the presentation state', () => {
+    const hidden = buildBoardRenderModel(state(), presentation());
+    expect(hidden.dice).toMatchObject({ phase: 'HIDDEN', rollSequence: 0 });
+
+    const rolling = buildBoardRenderModel(state(), presentation({
+      displayDice: { dice1: 1, dice2: 1 },
+      diceRoll: {
+        lifecycle: 'rolling',
+        dice: { dice1: 5, dice2: 6 },
+        rollSequence: 2,
+        durationMs: 640,
+      },
+    }));
+    expect(rolling.dice).toEqual({
+      dice: { dice1: 5, dice2: 6 },
+      rollSequence: 2,
+      phase: 'ROLLING',
+      durationMs: 640,
+    });
+
+    const settled = buildBoardRenderModel(state(), presentation({
+      displayDice: { dice1: 5, dice2: 6 },
+      displayRollSequence: 2,
+    }));
+    expect(settled.dice).toMatchObject({
+      dice: { dice1: 5, dice2: 6 },
+      rollSequence: 2,
+      phase: 'SETTLED',
+    });
   });
 });

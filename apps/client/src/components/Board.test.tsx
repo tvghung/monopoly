@@ -1,7 +1,7 @@
 import {
   cleanup, fireEvent, render, screen, waitFor,
 } from '@testing-library/react';
-import type { PlayerColorId, PublicGameState } from '@monopoly/shared';
+import { SOCKET_PROTOCOL_VERSION, type Ack, type PlayerColorId, type PublicGameState } from '@monopoly/shared';
 import {
   afterEach, describe, expect, it, vi,
 } from 'vitest';
@@ -71,10 +71,11 @@ const makeContextValue = (
     playerId?: string | null;
     role?: StateContextValue['role'];
     canMutate?: boolean;
+    socketFunctions?: SocketFunctions;
   } = {},
 ): StateContextValue => ({
   state,
-  socketFunctions: makeSocketFunctions(),
+  socketFunctions: options.socketFunctions ?? makeSocketFunctions(),
   playerId: options.playerId ?? null,
   role: options.role ?? 'SPECTATOR',
   connected: true,
@@ -115,23 +116,23 @@ describe('Vietnamese game board', () => {
     expect(tile.getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('keeps one HUD side rail and places the log inside the renderer', () => {
+  it('keeps the board full-width and layers gameplay controls over the renderer', () => {
     const { container } = render(
       <stateContext.Provider value={makeContextValue()}>
         <Board />
       </stateContext.Provider>,
     );
 
-    const leftRail = container.querySelector('.game-board__left-rail');
     const renderer = container.querySelector('.game-board__renderer');
 
     expect(renderer).toBeTruthy();
-    expect(leftRail?.querySelectorAll('.dice')).toHaveLength(1);
-    expect(leftRail?.querySelectorAll('.center__dashboard--container')).toHaveLength(1);
+    expect(container.querySelector('.game-board__left-rail')).toBeNull();
     expect(container.querySelector('.game-board__right-rail')).toBeNull();
+    expect(container.querySelector('.gameplay-action-layer')).toBeTruthy();
+    expect(container.querySelector('.player-hud')).toBeTruthy();
+    expect(container.querySelector('[data-testid="roll-control"]')).toBeTruthy();
+    expect(container.querySelectorAll('.dice')).toHaveLength(0);
     expect(renderer?.querySelectorAll('.center__room')).toHaveLength(1);
-    expect(container.querySelectorAll('.dice')).toHaveLength(1);
-    expect(container.querySelectorAll('.center__dashboard--container')).toHaveLength(1);
     expect(container.querySelectorAll('.center__room')).toHaveLength(1);
     expect(container.querySelector('.game-board__center-ui, .game-board__ui, .center')).toBeNull();
     expect(container.querySelectorAll('[data-tile-index]')).toHaveLength(40);
@@ -231,5 +232,122 @@ describe('Vietnamese game board', () => {
     );
 
     expect(screen.queryByText('Thị trường tài sản')).toBeNull();
+  });
+
+  it('opens owned properties as a separate access path before inspection', async () => {
+    const state = makeGameState({
+      players: { me: makePlayer('An', 'red') },
+      ownedProps: { 1: { id: 'me', color: 'blue', houses: 0 } },
+      currentPlayerId: 'me',
+    });
+
+    render(
+      <stateContext.Provider value={makeContextValue(state, {
+        playerId: 'me',
+        role: 'PLAYER',
+        canMutate: true,
+      })}
+      >
+        <Board />
+      </stateContext.Provider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tài sản của tôi (1)' }));
+    expect(screen.getByRole('dialog', { name: 'Tài sản của tôi' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^Cà Mau$/ }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: 'Cà Mau' })).toBeTruthy();
+    });
+  });
+
+  it('locks the Roll CTA immediately and releases it on authoritative progression', async () => {
+    const state = makeGameState({
+      players: { me: makePlayer('An', 'red') },
+      currentPlayerId: 'me',
+    });
+    const socketFunctions = makeSocketFunctions();
+    const pendingRoll: SocketFunctions['rollDice'] = () => new Promise<Ack>(() => {});
+    socketFunctions.rollDice = vi.fn(pendingRoll);
+
+    const view = render(
+      <stateContext.Provider value={makeContextValue(state, {
+        playerId: 'me',
+        role: 'PLAYER',
+        canMutate: true,
+        socketFunctions,
+      })}
+      >
+        <Board />
+      </stateContext.Provider>,
+    );
+
+    const button = screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ Xúc Xắc' });
+    fireEvent.click(button);
+    fireEvent.click(button);
+
+    expect(socketFunctions.rollDice).toHaveBeenCalledTimes(1);
+    expect(button.disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Đang chờ máy chủ…' })).toBe(button);
+
+    const progressed = {
+      ...state,
+      boardState: {
+        ...state.boardState,
+        diceValue: { dice1: 2, dice2: 3 },
+        rollSequence: 1,
+      },
+    };
+    view.rerender(
+      <stateContext.Provider value={makeContextValue(progressed, {
+        playerId: 'me',
+        role: 'PLAYER',
+        canMutate: true,
+        socketFunctions,
+      })}
+      >
+        <Board />
+      </stateContext.Provider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ Xúc Xắc' }).disabled).toBe(false);
+    });
+  });
+
+  it('releases the Roll CTA and surfaces a localized ACK failure', async () => {
+    const state = makeGameState({
+      players: { me: makePlayer('An', 'red') },
+      currentPlayerId: 'me',
+    });
+    const socketFunctions = makeSocketFunctions();
+    socketFunctions.rollDice = vi.fn((): Promise<Ack> => Promise.resolve({
+      ok: false,
+      protocolVersion: SOCKET_PROTOCOL_VERSION,
+      error: {
+        code: 'FORBIDDEN',
+        message: 'forbidden',
+        retryable: false,
+      },
+    }));
+
+    render(
+      <stateContext.Provider value={makeContextValue(state, {
+        playerId: 'me',
+        role: 'PLAYER',
+        canMutate: true,
+        socketFunctions,
+      })}
+      >
+        <Board />
+      </stateContext.Provider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đổ Xúc Xắc' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('Bạn không có quyền thực hiện hành động này.');
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ Xúc Xắc' }).disabled).toBe(false);
+    });
   });
 });

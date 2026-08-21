@@ -7,6 +7,7 @@ import {
 } from 'react';
 import type {
   AckError,
+  Ack,
   AckCallback,
   JoinRoomRequest,
   OfferResult,
@@ -19,6 +20,7 @@ import type {
   ForcedSaleProposal,
   SetAppearanceRequest,
 } from '@monopoly/shared';
+import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
 import Board from './components/Board';
 import ConnectionOverlay from './components/ConnectionOverlay';
 import JoinForm from './components/JoinForm';
@@ -490,7 +492,22 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
     const ack: AckCallback = showCommandFailure;
 
     return {
-      rollDice: () => { if (gameCommandAllowed()) socket.emit('roll dice', ack); },
+      rollDice: () => {
+        if (!gameCommandAllowed()) {
+          return Promise.resolve({
+            ok: false,
+            protocolVersion: SOCKET_PROTOCOL_VERSION,
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Gameplay action is not available.',
+              retryable: false,
+            },
+          } satisfies Ack);
+        }
+        return new Promise<Ack>(resolve => {
+          socket.emit('roll dice', response => resolve(response));
+        });
+      },
       buyProperty: (operationId) => {
         if (!gameCommandAllowed()) return;
         socket.emit('buy property', { operationId }, ack);
