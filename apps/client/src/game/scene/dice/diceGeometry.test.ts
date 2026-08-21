@@ -12,7 +12,8 @@ import {
   DICE_FACE_ROUGHNESS,
   DICE_FACE_SIZE,
   DICE_PIP_CENTER_OFFSET,
-  DICE_PIP_DEPTH_SCALE,
+  DICE_PIP_DEPTH,
+  DICE_PIP_SEGMENTS,
   DICE_PIP_RADIUS,
   DICE_PIP_SURFACE_OFFSET,
   DICE_RESULT_FONT_SIZE,
@@ -43,7 +44,16 @@ function buildDiceCost({ rounded, instancedPips }: { rounded: boolean; instanced
   const root = new THREE.Group();
   const material = new THREE.MeshBasicMaterial();
   const faceGeometry = new THREE.PlaneGeometry(DICE_FACE_SIZE, DICE_FACE_SIZE);
-  const pipGeometry = new THREE.SphereGeometry(DICE_PIP_RADIUS, 8, 6);
+  const pipGeometry = rounded
+    ? new THREE.CylinderGeometry(
+      DICE_PIP_RADIUS,
+      DICE_PIP_RADIUS,
+      DICE_PIP_DEPTH,
+      DICE_PIP_SEGMENTS,
+      1,
+      false,
+    )
+    : new THREE.SphereGeometry(DICE_PIP_RADIUS, 8, 6);
 
   for (let dieIndex = 0; dieIndex < 2; dieIndex += 1) {
     const bodyGeometry = rounded
@@ -169,11 +179,15 @@ describe('dice visual geometry contract', () => {
     expect(pips.filter(pip => pip.faceValue === 1)).toHaveLength(1);
     expect(pips.filter(pip => pip.faceValue === 6)).toHaveLength(6);
     expect(DICE_PIP_OFFSET).toBeGreaterThan(0);
-    expect(DICE_PIP_RADIUS).toBeCloseTo(DICE_SIZE * 0.085);
-    expect(DICE_PIP_SURFACE_OFFSET).toBeGreaterThan(0);
+    expect(DICE_PIP_RADIUS).toBeCloseTo(DICE_SIZE * 0.105);
+    const visibleDiameterRatio = (DICE_PIP_RADIUS * 2) / DICE_SIZE;
+    expect(visibleDiameterRatio).toBeGreaterThanOrEqual(0.2);
+    expect(visibleDiameterRatio).toBeLessThanOrEqual(0.23);
+    expect(DICE_PIP_SEGMENTS).toBeGreaterThanOrEqual(12);
+    expect(DICE_PIP_DEPTH).toBeGreaterThan(0);
+    expect(DICE_PIP_SURFACE_OFFSET).toBe(0);
     expect(DICE_PIP_SURFACE_OFFSET).toBeLessThan(DICE_SURFACE_EPSILON);
     expect(DICE_PIP_CENTER_OFFSET).toBeLessThan(0);
-    expect(DICE_PIP_DEPTH_SCALE).toBeGreaterThan(0);
     expect(pips.every(pip => pip.position.every(Number.isFinite))).toBe(true);
 
     const faces = getDiceFaceSpecs();
@@ -186,8 +200,9 @@ describe('dice visual geometry contract', () => {
         .sub(new THREE.Vector3(...face!.position))
         .dot(faceNormal);
       expect(offsetFromFace).toBeCloseTo(DICE_PIP_CENTER_OFFSET);
-      expect(offsetFromFace + DICE_PIP_RADIUS * DICE_PIP_DEPTH_SCALE)
+      expect(offsetFromFace + DICE_PIP_DEPTH / 2)
         .toBeCloseTo(DICE_PIP_SURFACE_OFFSET);
+      expect(offsetFromFace + DICE_PIP_DEPTH / 2).toBeLessThanOrEqual(1e-8);
       expect(pip.rotation).toEqual(face!.rotation);
     });
   });
@@ -205,7 +220,7 @@ describe('dice visual geometry contract', () => {
     expect(optimized.drawCalls).toBe(16);
     expect(optimized.drawCalls).toBeLessThan(TARGET_DRAW_CALLS);
     expect(optimized.drawCalls).toBeLessThan(STRESS_DRAW_CALL_LIMIT);
-    expect(optimized.triangles).toBe(9328);
+    expect(optimized.triangles).toBe(8656);
     expect(optimized.triangles).toBeLessThan(TARGET_TRIANGLES);
   });
 });

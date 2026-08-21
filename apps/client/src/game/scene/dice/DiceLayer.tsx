@@ -31,12 +31,15 @@ import {
   DICE_FACE_METALNESS,
   DICE_FACE_ROUGHNESS,
   DICE_FACE_SIZE,
-  DICE_PIP_DEPTH_SCALE,
+  DICE_PIP_DEPTH,
+  DICE_PIP_SEGMENTS,
   DICE_PIP_RADIUS,
   DICE_RESULT_FONT_SIZE,
 } from './diceVisualConfig';
 
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.13;
+const DICE_PIP_CYLINDER_ORIENTATION = new THREE.Quaternion()
+  .setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));
 
 function DieFaces() {
   const faces = useMemo(() => getDiceFaceSpecs(), []);
@@ -70,9 +73,10 @@ function DiePips() {
     if (!mesh) return;
     const matrix = new THREE.Matrix4();
     const quaternion = new THREE.Quaternion();
-    const scale = new THREE.Vector3(1, 1, DICE_PIP_DEPTH_SCALE);
+    const scale = new THREE.Vector3(1, 1, 1);
     pips.forEach((pip, index) => {
       quaternion.setFromEuler(new THREE.Euler(...pip.rotation));
+      quaternion.multiply(DICE_PIP_CYLINDER_ORIENTATION);
       matrix.compose(new THREE.Vector3(...pip.position), quaternion, scale);
       mesh.setMatrixAt(index, matrix);
     });
@@ -85,8 +89,9 @@ function DiePips() {
       args={[undefined, undefined, pips.length]}
       name="DiePips"
       frustumCulled={false}
+      renderOrder={1}
     >
-      <sphereGeometry args={[DICE_PIP_RADIUS, 8, 6]} />
+      <cylinderGeometry args={[DICE_PIP_RADIUS, DICE_PIP_RADIUS, DICE_PIP_DEPTH, DICE_PIP_SEGMENTS, 1, false]} />
       <meshStandardMaterial color={boardVisualTokens.tileText} roughness={0.46} metalness={0.08} />
     </instancedMesh>
   );

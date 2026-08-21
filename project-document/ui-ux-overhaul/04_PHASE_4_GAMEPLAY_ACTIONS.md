@@ -29,10 +29,10 @@ visual/action polish described below.
   corners. The body uses the dice-only `diceBody` profile
   (`roughness: 0.16`, `metalness: 0.02`); face materials remain neutral white
   with `roughness: 0.18` and `metalness: 0.02`.
-- Pips remain genuine instanced sphere geometry, oriented to each physical face
-  and flattened along its normal. Their centers are recessed behind the face
-  plane; the front cap has only a 0.2% die-size clearance, with all six face
-  orientations preserved.
+- Pips remain genuine instanced shallow-cylinder geometry, oriented to each
+  physical face with a 21% die-width circular footprint. Their bodies are
+  embedded behind the face plane and their caps are flush with the white face,
+  with all six face orientations preserved.
 - The visible dice arena floor was removed. Dice and the result total are
   positioned from the canonical `AirportField` top surface, keeping the board
   center free of a second visible floor.
