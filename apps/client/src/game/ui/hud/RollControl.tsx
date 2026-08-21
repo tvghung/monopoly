@@ -9,55 +9,74 @@ function hasDiceResult(dice: { dice1: number; dice2: number }): boolean {
   return dice.dice1 >= 1 && dice.dice1 <= 6 && dice.dice2 >= 1 && dice.dice2 <= 6;
 }
 
+interface PendingRoll {
+  sequence: number;
+  resetEpoch: number;
+}
+
 export default function RollControl() {
   const {
     state, socketFunctions, playerId, canMutate, connected,
   } = useContext(stateContext);
   const { state: presentationState } = usePresentation();
-  const [pendingSequence, setPendingSequence] = useState<number | null>(null);
+  const [pendingRoll, setPendingRoll] = useState<PendingRoll | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const currentPlayer = state.players[state.boardState.currentPlayer.id];
+  const visualActivePlayerId = presentationState.displayActivePlayerId
+    ?? state.boardState.currentPlayer.id;
+  const visualCurrentPlayer = state.players[visualActivePlayerId];
   const isMyTurn = state.boardState.currentPlayer.id === playerId;
-  const turnLabel = isMyTurn
+  const isMyVisualTurn = visualActivePlayerId === playerId;
+  const turnLabel = isMyVisualTurn
     ? 'Lượt của bạn'
-    : currentPlayer?.name
-      ? `${currentPlayer.name} đang chơi`
+    : visualCurrentPlayer?.name
+      ? `${visualCurrentPlayer.name} đang chơi`
       : 'Đang chờ lượt chơi';
   const tokensSettled = areAllTokensSettled(state, presentationState);
   const canRoll = canRollForState(state, presentationState, {
     connected,
     canMutate,
     playerId,
-    pendingRequest: pendingSequence !== null,
+    pendingRequest: pendingRoll !== null,
   });
 
   useEffect(() => {
-    if (pendingSequence === null) return;
+    if (!pendingRoll) return;
+    if (presentationState.presentationResetEpoch !== pendingRoll.resetEpoch) {
+      setPendingRoll(null);
+      return;
+    }
     const currentTurn = state.boardState.currentPlayer;
-    const authoritativeRollArrived = state.boardState.rollSequence > pendingSequence;
+    const authoritativeRollArrived = state.boardState.rollSequence > pendingRoll.sequence;
     const turnMovedForward = currentTurn.id !== playerId
       || (currentTurn.id === playerId && currentTurn.hasMoved);
-    if (authoritativeRollArrived || turnMovedForward) setPendingSequence(null);
-  }, [pendingSequence, playerId, state.boardState.currentPlayer, state.boardState.rollSequence]);
+    if (authoritativeRollArrived || turnMovedForward) setPendingRoll(null);
+  }, [pendingRoll, playerId, presentationState.presentationResetEpoch, state.boardState.currentPlayer, state.boardState.rollSequence]);
+
+  useEffect(() => {
+    if (!connected && pendingRoll) setPendingRoll(null);
+  }, [connected, pendingRoll]);
 
   const handleRoll = useCallback(() => {
     if (!canRoll) return;
     const startingSequence = state.boardState.rollSequence;
-    setPendingSequence(startingSequence);
+    setPendingRoll({
+      sequence: startingSequence,
+      resetEpoch: presentationState.presentationResetEpoch,
+    });
     setError(null);
     void Promise.resolve(socketFunctions.rollDice())
       .then((response: Ack | undefined) => {
         if (response && !response.ok) {
-          setPendingSequence(null);
+          setPendingRoll(null);
           setError(localizeAckError(response.error));
         }
       })
       .catch(() => {
-        setPendingSequence(null);
+        setPendingRoll(null);
         setError('Không thể gửi lệnh đổ xúc xắc.');
       });
-  }, [canRoll, socketFunctions, state.boardState.rollSequence]);
+  }, [canRoll, presentationState.presentationResetEpoch, socketFunctions, state.boardState.rollSequence]);
 
   const diceAnnouncement = useMemo(() => {
     if (presentationState.diceRoll) return 'Đang trình bày kết quả đổ xúc xắc.';
@@ -75,10 +94,10 @@ export default function RollControl() {
         data-testid="roll-button"
         type="button"
         disabled={!canRoll}
-        aria-busy={pendingSequence !== null}
+        aria-busy={pendingRoll !== null}
         onClick={handleRoll}
       >
-        {pendingSequence !== null ? 'Đang chờ máy chủ…' : 'Đổ Xúc Xắc'}
+        {pendingRoll !== null ? 'Đang chờ máy chủ…' : 'Đổ Xúc Xắc'}
       </button>
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {diceAnnouncement}

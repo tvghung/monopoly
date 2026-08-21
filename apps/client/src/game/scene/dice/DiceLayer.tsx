@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { DiceValue } from '@monopoly/shared';
@@ -18,61 +18,30 @@ import {
   getDiceResultPosition,
 } from './diceLayout';
 import {
+  getDiceFaceSpecs,
+  getDicePipInstances,
+} from './diceGeometry';
+import {
   easeOutCubic,
   getDiceAnimationRotation,
   getSettledDiceRotation,
   isValidDiceFace,
 } from './diceOrientation';
+import {
+  DICE_BODY_COLOR,
+  DICE_EDGE_RADIUS,
+  DICE_EDGE_SEGMENTS,
+  DICE_FACE_COLOR,
+  DICE_FACE_METALNESS,
+  DICE_FACE_ROUGHNESS,
+  DICE_FACE_SIZE,
+  DICE_PIP_RADIUS,
+} from './diceVisualConfig';
 
-const DIE_FACE_HALF = DICE_SIZE / 2;
-const DIE_FACE_SIZE = DICE_SIZE * 0.88;
-const PIP_RADIUS = DICE_SIZE * 0.075;
-const PIP_OFFSET = DICE_SIZE * 0.22;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.13;
 
-const PIP_POSITIONS: Record<number, readonly (readonly [number, number])[]> = {
-  1: [[2, 2]],
-  2: [[1, 1], [3, 3]],
-  3: [[1, 1], [2, 2], [3, 3]],
-  4: [[1, 1], [1, 3], [3, 1], [3, 3]],
-  5: [[1, 1], [1, 3], [2, 2], [3, 1], [3, 3]],
-  6: [[1, 1], [1, 3], [2, 1], [2, 3], [3, 1], [3, 3]],
-};
-
-interface FaceSpec {
-  value: number;
-  position: readonly [number, number, number];
-  rotation: readonly [number, number, number];
-}
-
-function getFaceSpecs(): readonly FaceSpec[] {
-  return [
-    { value: 1, position: [0, DIE_FACE_HALF, 0], rotation: [-Math.PI / 2, 0, 0] },
-    { value: 6, position: [0, -DIE_FACE_HALF, 0], rotation: [Math.PI / 2, 0, 0] },
-    { value: 2, position: [0, 0, DIE_FACE_HALF], rotation: [0, 0, 0] },
-    { value: 5, position: [0, 0, -DIE_FACE_HALF], rotation: [0, Math.PI, 0] },
-    { value: 3, position: [DIE_FACE_HALF, 0, 0], rotation: [0, Math.PI / 2, 0] },
-    { value: 4, position: [-DIE_FACE_HALF, 0, 0], rotation: [0, -Math.PI / 2, 0] },
-  ];
-}
-
-function Pip({ row, column }: { row: number; column: number }) {
-  return (
-    <mesh
-      position={[
-        (column - 2) * PIP_OFFSET,
-        (2 - row) * PIP_OFFSET,
-        DICE_SIZE * 0.028,
-      ]}
-    >
-      <sphereGeometry args={[PIP_RADIUS, 8, 6]} />
-      <meshStandardMaterial color={boardVisualTokens.tileText} roughness={0.46} metalness={0.08} />
-    </mesh>
-  );
-}
-
 function DieFaces() {
-  const faces = useMemo(() => getFaceSpecs(), []);
+  const faces = useMemo(() => getDiceFaceSpecs(), []);
   return (
     <>
       {faces.map(face => (
@@ -82,14 +51,43 @@ function DieFaces() {
           position={face.position}
           rotation={face.rotation}
         >
-          <planeGeometry args={[DIE_FACE_SIZE, DIE_FACE_SIZE]} />
-          <meshStandardMaterial color="#f6f0e1" roughness={0.38} metalness={0.04} />
-          {PIP_POSITIONS[face.value].map(([row, column]) => (
-            <Pip key={`${row}-${column}`} row={row} column={column} />
-          ))}
+          <planeGeometry args={[DICE_FACE_SIZE, DICE_FACE_SIZE]} />
+          <meshStandardMaterial
+            color={DICE_FACE_COLOR}
+            roughness={DICE_FACE_ROUGHNESS}
+            metalness={DICE_FACE_METALNESS}
+          />
         </mesh>
       ))}
     </>
+  );
+}
+
+function DiePips() {
+  const pips = useMemo(() => getDicePipInstances(), []);
+  const pipsRef = useRef<THREE.InstancedMesh>(null);
+
+  useLayoutEffect(() => {
+    const mesh = pipsRef.current;
+    if (!mesh) return;
+    const matrix = new THREE.Matrix4();
+    pips.forEach((pip, index) => {
+      matrix.makeTranslation(...pip.position);
+      mesh.setMatrixAt(index, matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+  }, [pips]);
+
+  return (
+    <instancedMesh
+      ref={pipsRef}
+      args={[undefined, undefined, pips.length]}
+      name="DiePips"
+      frustumCulled={false}
+    >
+      <sphereGeometry args={[DICE_PIP_RADIUS, 8, 6]} />
+      <meshStandardMaterial color={boardVisualTokens.tileText} roughness={0.46} metalness={0.08} />
+    </instancedMesh>
   );
 }
 
@@ -155,11 +153,18 @@ function Die({
       rotation={rotation}
       scale={isRolling ? 0.86 : 1}
     >
-      <mesh name="DieBody">
-        <boxGeometry args={[DICE_SIZE, DICE_SIZE, DICE_SIZE]} />
-        <meshStandardMaterial color="#f0e5d0" roughness={0.42} metalness={0.04} />
-      </mesh>
+      <RoundedBoxMesh
+        name="DieBody"
+        width={DICE_SIZE}
+        height={DICE_SIZE}
+        depth={DICE_SIZE}
+        radius={DICE_EDGE_RADIUS}
+        segments={DICE_EDGE_SEGMENTS}
+        color={DICE_BODY_COLOR}
+        materialProfile="diceBody"
+      />
       <DieFaces />
+      <DiePips />
     </group>
   );
 }

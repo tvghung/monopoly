@@ -42,6 +42,7 @@ import {
   writePlayerSession,
 } from './playerSessionStorage';
 import type { AppSocket, SocketFunctions } from './types';
+import { requestRollDiceAck } from './rollDiceRequest';
 import { getDefaultWebRuntimeConfig } from './runtime/runtimeConfig';
 import type { RuntimeConfig } from './runtime/types';
 import './App.css';
@@ -504,9 +505,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
             },
           } satisfies Ack);
         }
-        return new Promise<Ack>(resolve => {
-          socket.emit('roll dice', response => resolve(response));
-        });
+        return requestRollDiceAck(socket);
       },
       buyProperty: (operationId) => {
         if (!gameCommandAllowed()) return;

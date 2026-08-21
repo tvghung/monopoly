@@ -1,6 +1,7 @@
 # Phase 4 - Gameplay Actions and Presentation Orchestration
 
-Status: Phase 4.2 board-centered dice and gameplay HUD implemented; Phase
+Status: Phase 4.2.1 gameplay HUD hardening and dice visual polish implemented;
+Phase 4.2 board-centered dice and gameplay HUD implemented; Phase
 4.0/4.1 contract audit: [04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md).
 Movement cause/route, card identity, and transfer attribution remain open
 contracts.
@@ -315,6 +316,38 @@ Required tests:
 No server or shared-source changes are required for this Phase 4.2 slice; the
 existing V6 `rollSequence` contract and Phase 4.1 movement classifier are
 consumed as implemented.
+
+### 7.2.1 Phase 4.2.1 hardening and dice visual polish
+
+This client-only follow-up keeps the Phase 4.2 authority and timing contract
+unchanged. WebGL dice now use the shared `RoundedBoxMesh` with an 8.5% edge
+radius and three bevel segments, a bright near-neutral white standard material,
+dark three-dimensional sphere pips, all six physically mapped faces, and a small
+face-plane epsilon to avoid coplanar z-fighting. The pips remain real geometry,
+but the 21 pips for each die share one `InstancedMesh` draw.
+
+The settled dice-only code-level budget measurement (arena surface and result
+text excluded) changed from 56 draws / 3,408 triangles to 16 draws / 4,560
+triangles. The triangle increase is the measured cost of the rounded body; the
+draw reduction preserves the current 210 target-call and 240 stress-call
+guardrails. This is a geometry-budget test, not a live viewport capture.
+
+Roll recovery adds a bounded 8-second client-only ACK timeout and immediate
+disconnect rejection without retrying the non-idempotent command. The local
+lock clears on transport loss, presentation reset, or an authoritative higher
+`rollSequence`; a committed reconnect state therefore cannot cause a duplicate
+request. The visible turn label and player strip follow
+`displayActivePlayerId`, while Roll permission continues to use authoritative
+state. `LegacyDiceOverlay` consumes the same `DiceRenderModel`, hides sequence
+zero/reset baselines, and presents settled or rolling authoritative values
+without a second queue, random source, or state machine.
+
+Automated coverage covers face orientation/opposites, edge/material/epsilon
+contracts, the dice budget, ACK timeout/disconnect/settled-commit recovery,
+presentation reset, visual turn sequencing, legacy dice, reduced motion, Phase
+3/Phase 4 timing boundaries, 40 semantic tile controls, property/debt/jail/trade
+surfaces, and reconnect-safe presentation. Browser/Electron multi-viewport UAT
+remains a separate manual check until it is run and recorded.
 
 ### 7.3 Workstream C - Movement orchestration
 

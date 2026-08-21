@@ -72,7 +72,11 @@ export default function Board() {
   }, []);
 
   const legacyBoard = (
-    <LegacyBoardView selectedTileId={selectedTileId} onTileSelect={selectTile} />
+    <LegacyBoardView
+      selectedTileId={selectedTileId}
+      onTileSelect={selectTile}
+      dice={renderModel.dice}
+    />
   );
 
   return (

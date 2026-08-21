@@ -2,7 +2,9 @@ import { useContext } from 'react';
 import { tileState } from '@monopoly/shared';
 import { LayoutGroup } from 'framer-motion';
 import stateContext from '../../internal';
+import type { DiceRenderModel } from '../../game/scene/board/boardRenderModel';
 import LegacyTile from './LegacyTile';
+import LegacyDiceOverlay from './LegacyDiceOverlay';
 import '../style/Board.css';
 
 const getTilePosition = (index: number): string => {
@@ -16,9 +18,10 @@ const getTilePosition = (index: number): string => {
 interface LegacyBoardViewProps {
   selectedTileId: number | null;
   onTileSelect: (tileId: number) => void;
+  dice: DiceRenderModel;
 }
 
-export default function LegacyBoardView({ selectedTileId, onTileSelect }: LegacyBoardViewProps) {
+export default function LegacyBoardView({ selectedTileId, onTileSelect, dice }: LegacyBoardViewProps) {
   const { state } = useContext(stateContext);
   return (
     <section className="Board legacy-board" aria-label="Bàn cờ dự phòng">
@@ -34,6 +37,7 @@ export default function LegacyBoardView({ selectedTileId, onTileSelect }: Legacy
           />
         ))}
       </LayoutGroup>
+      <LegacyDiceOverlay model={dice} />
       {!state.loaded ? <span className="legacy-board__loading">Đang tải…</span> : null}
     </section>
   );

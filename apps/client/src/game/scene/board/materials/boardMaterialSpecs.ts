@@ -15,6 +15,7 @@ export type BoardMaterialProfile =
   | 'houseWall'
   | 'houseRoof'
   | 'hotel'
+  | 'diceBody'
   | 'metal'
   | 'foliage'
   | 'water'
@@ -43,6 +44,7 @@ export const boardMaterialSpecs: Record<BoardMaterialProfile, BoardMaterialSpec>
   houseWall: { roughness: 0.48, metalness: 0 },
   houseRoof: { roughness: 0.36, metalness: 0.02 },
   hotel: { roughness: 0.3, metalness: 0.04 },
+  diceBody: { roughness: 0.3, metalness: 0.02 },
   metal: { roughness: 0.24, metalness: 0.7 },
   foliage: { roughness: 0.76, metalness: 0 },
   water: { roughness: 0.12, metalness: 0.08 },

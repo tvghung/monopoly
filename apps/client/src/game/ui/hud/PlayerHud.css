@@ -100,9 +100,12 @@
 .player-card__connection { color: #ffd3c9; }
 .player-card__state { color: #c5f5f2; }
 
+@media (max-width: 70rem) {
+  .player-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 62rem) {
   .player-hud { left: 14rem; right: 8rem; }
-  .player-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 48rem) {

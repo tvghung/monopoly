@@ -7,6 +7,9 @@ import {
 } from 'vitest';
 import stateContext from '../internal';
 import type { SocketFunctions, StateContextValue } from '../types';
+import { presentationContext } from '../game/presentation/PresentationProvider';
+import type { PresentationState } from '../game/presentation/store/types';
+import type { AnimationQueue } from '../game/presentation/queue/AnimationQueue';
 import Board from './Board';
 
 vi.mock('../game/scene/GameScene', () => ({
@@ -71,6 +74,7 @@ const makeContextValue = (
     playerId?: string | null;
     role?: StateContextValue['role'];
     canMutate?: boolean;
+    connected?: boolean;
     socketFunctions?: SocketFunctions;
   } = {},
 ): StateContextValue => ({
@@ -78,10 +82,27 @@ const makeContextValue = (
   socketFunctions: options.socketFunctions ?? makeSocketFunctions(),
   playerId: options.playerId ?? null,
   role: options.role ?? 'SPECTATOR',
-  connected: true,
+  connected: options.connected ?? true,
   canMutate: options.canMutate ?? false,
   privatePlayerState: null,
   privateOffers: [],
+});
+
+const makePresentationState = (overrides: Partial<PresentationState> = {}): PresentationState => ({
+  displayPositions: {},
+  settledPositions: {},
+  displayActivePlayerId: null,
+  displayDice: { dice1: 0, dice2: 0 },
+  displayRollSequence: 0,
+  diceRoll: null,
+  status: 'idle',
+  tileImpacts: [],
+  characterMovements: [],
+  characterLandings: [],
+  characterReactions: [],
+  animationSpeedMultiplier: 1,
+  presentationResetEpoch: 0,
+  ...overrides,
 });
 
 describe('Vietnamese game board', () => {
@@ -349,5 +370,218 @@ describe('Vietnamese game board', () => {
       expect(screen.getByRole('alert').textContent).toContain('Bạn không có quyền thực hiện hành động này.');
       expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ Xúc Xắc' }).disabled).toBe(false);
     });
+  });
+
+  it('clears a pre-ACK lock on disconnect and waits for an explicit retry after reconnect', async () => {
+    const state = makeGameState({
+      players: { me: makePlayer('An', 'red') },
+      currentPlayerId: 'me',
+    });
+    const socketFunctions = makeSocketFunctions();
+    socketFunctions.rollDice = vi.fn(() => new Promise<Ack>(() => {}));
+    const view = render(
+      <stateContext.Provider value={makeContextValue(state, {
+        playerId: 'me',
+        role: 'PLAYER',
+        canMutate: true,
+        socketFunctions,
+      })}
+      >
+        <Board />
+      </stateContext.Provider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đổ Xúc Xắc' }));
+    expect(socketFunctions.rollDice).toHaveBeenCalledTimes(1);
+
+    view.rerender(
+      <stateContext.Provider value={makeContextValue(state, {
+        playerId: 'me',
+        role: 'PLAYER',
+        canMutate: true,
+        connected: false,
+        socketFunctions,
+      })}
+      >
+        <Board />
+      </stateContext.Provider>,
+    );
+    view.rerender(
+      <stateContext.Provider value={makeContextValue(state, {
+        playerId: 'me',
+        role: 'PLAYER',
+        canMutate: true,
+        connected: true,
+        socketFunctions,
+      })}
+      >
+        <Board />
+      </stateContext.Provider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ Xúc Xắc' }).disabled).toBe(false);
+    });
+    expect(socketFunctions.rollDice).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Đổ Xúc Xắc' }));
+    expect(socketFunctions.rollDice).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not duplicate a committed roll when reconnect supplies a higher sequence', async () => {
+    const state = makeGameState({
+      players: { me: makePlayer('An', 'red') },
+      currentPlayerId: 'me',
+    });
+    const socketFunctions = makeSocketFunctions();
+    socketFunctions.rollDice = vi.fn(() => new Promise<Ack>(() => {}));
+    const view = render(
+      <stateContext.Provider value={makeContextValue(state, {
+        playerId: 'me',
+        role: 'PLAYER',
+        canMutate: true,
+        socketFunctions,
+      })}
+      >
+        <Board />
+      </stateContext.Provider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đổ Xúc Xắc' }));
+    const committed = {
+      ...state,
+      boardState: {
+        ...state.boardState,
+        diceValue: { dice1: 4, dice2: 2 },
+        rollSequence: 1,
+        currentPlayer: { id: 'me', hasMoved: true },
+      },
+    };
+    view.rerender(
+      <stateContext.Provider value={makeContextValue(committed, {
+        playerId: 'me',
+        role: 'PLAYER',
+        canMutate: true,
+        socketFunctions,
+      })}
+      >
+        <Board />
+      </stateContext.Provider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ Xúc Xắc' }).disabled).toBe(true);
+    });
+    expect(socketFunctions.rollDice).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears stale Roll state when the presentation session reset epoch changes', async () => {
+    const state = makeGameState({
+      players: { me: makePlayer('An', 'red') },
+      currentPlayerId: 'me',
+    });
+    const socketFunctions = makeSocketFunctions();
+    socketFunctions.rollDice = vi.fn(() => new Promise<Ack>(() => {}));
+    const view = render(
+      <stateContext.Provider value={makeContextValue(state, {
+        playerId: 'me',
+        role: 'PLAYER',
+        canMutate: true,
+        socketFunctions,
+      })}
+      >
+        <presentationContext.Provider value={{
+          state: makePresentationState(),
+          queue: null as unknown as AnimationQueue,
+        }}
+        >
+          <Board />
+        </presentationContext.Provider>
+      </stateContext.Provider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đổ Xúc Xắc' }));
+    view.rerender(
+      <stateContext.Provider value={makeContextValue(state, {
+        playerId: 'me',
+        role: 'PLAYER',
+        canMutate: true,
+        socketFunctions,
+      })}
+      >
+        <presentationContext.Provider value={{
+          state: makePresentationState({ presentationResetEpoch: 1 }),
+          queue: null as unknown as AnimationQueue,
+        }}
+        >
+          <Board />
+        </presentationContext.Provider>
+      </stateContext.Provider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ Xúc Xắc' }).disabled).toBe(false);
+    });
+    expect(socketFunctions.rollDice).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the turn label and player strip on the presentation player while Roll permission stays authoritative', () => {
+    const state = makeGameState({
+      players: {
+        a: makePlayer('An', 'red'),
+        b: makePlayer('Bình', 'blue'),
+      },
+      currentPlayerId: 'b',
+    });
+
+    const view = render(
+      <stateContext.Provider value={makeContextValue(state, {
+        playerId: 'b',
+        role: 'PLAYER',
+        canMutate: true,
+      })}
+      >
+        <presentationContext.Provider value={{
+          state: makePresentationState({
+            displayActivePlayerId: 'a',
+            displayPositions: { a: 0, b: 0 },
+            settledPositions: { a: 0, b: 0 },
+          }),
+          queue: null as unknown as AnimationQueue,
+        }}
+        >
+          <Board />
+        </presentationContext.Provider>
+      </stateContext.Provider>,
+    );
+
+    expect(screen.getByText('An đang chơi')).toBeTruthy();
+    expect(document.querySelector('[data-player-id="a"]')?.className).toContain('player-card--active');
+    expect(document.querySelector('[data-player-id="b"]')?.className).not.toContain('player-card--active');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ Xúc Xắc' }).disabled).toBe(false);
+
+    view.rerender(
+      <stateContext.Provider value={makeContextValue(state, {
+        playerId: 'b',
+        role: 'PLAYER',
+        canMutate: true,
+      })}
+      >
+        <presentationContext.Provider value={{
+          state: makePresentationState({
+            displayActivePlayerId: 'b',
+            displayPositions: { a: 0, b: 0 },
+            settledPositions: { a: 0, b: 0 },
+          }),
+          queue: null as unknown as AnimationQueue,
+        }}
+        >
+          <Board />
+        </presentationContext.Provider>
+      </stateContext.Provider>,
+    );
+
+    expect(screen.queryByText('An đang chơi')).toBeNull();
+    expect(screen.getByText('Lượt của bạn')).toBeTruthy();
+    expect(document.querySelector('[data-player-id="b"]')?.className).toContain('player-card--active');
   });
 });
