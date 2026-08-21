@@ -32,11 +32,6 @@ export default function LegacyDiceOverlay({ model }: { model: DiceRenderModel })
         <span className="legacy-dice-overlay__die">{dice.dice2}</span>
       </div>
       {isRolling ? null : <strong className="legacy-dice-overlay__total">Tổng {total}</strong>}
-      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        {isRolling
-          ? `Đang trình bày kết quả ${dice.dice1} và ${dice.dice2}.`
-          : `Kết quả đổ xúc xắc: ${dice.dice1} + ${dice.dice2} = ${total}.`}
-      </span>
     </aside>
   );
 }

@@ -24,13 +24,13 @@ describe('legacy dice overlay', () => {
     expect(overlay.textContent).toContain('Tổng 7');
   });
 
-  it('shows rolling state without inventing a second result or random motion state', () => {
+  it('shows rolling state without inventing a second result or live announcement source', () => {
     render(<LegacyDiceOverlay model={{ ...settledModel, phase: 'ROLLING', durationMs: 640 }} />);
 
     const overlay = screen.getByRole('complementary', { name: 'Kết quả đổ xúc xắc' });
     expect(overlay.getAttribute('data-dice-phase')).toBe('ROLLING');
     expect(overlay.textContent).not.toContain('Tổng 7');
-    expect(overlay.textContent).toContain('Đang trình bày kết quả 2 và 5.');
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('stays hidden for sequence zero and reconnect baseline state', () => {

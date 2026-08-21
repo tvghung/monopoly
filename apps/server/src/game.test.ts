@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createCanonicalDecks,
+  formatMoney,
   type GameCard,
   type GameState,
   type Player,
@@ -14,6 +15,7 @@ import {
   applyCard,
   railroadRent,
   resolveTile,
+  progressPaymentQueue,
   utilityRent,
   nextTurn,
   checkBalance,
@@ -394,6 +396,103 @@ describe('resolveTile', () => {
     resolveTile(state, 'p1', 0);
     expect(state.players.p1.accountBalance).toBe(998);
     expect(state.players.p2.accountBalance).toBe(1002);
+  });
+
+  it('logs the base street rent with the dice total, tile, and owner', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { name: 'An', currentTile: 1, accountBalance: 1000 });
+    addPlayer(state, 'p2', { name: 'Bình', accountBalance: 1000 });
+    own(state, 1, 'p2');
+
+    resolveTile(state, 'p1', 4);
+
+    expect(state.boardState.logs.filter(log => log.includes('tiền thuê'))).toHaveLength(1);
+    expect(state.boardState.logs.at(-1)).toContain(
+      `An đổ được 4 và phải trả ${formatMoney(streetRent(state, 1))} tiền thuê Cà Mau cho Bình.`,
+    );
+  });
+
+  it('logs the authoritative house tier and hotel label once', () => {
+    const housesState = makeState();
+    addPlayer(housesState, 'p1', { name: 'An', currentTile: 1, accountBalance: 1000 });
+    addPlayer(housesState, 'p2', { name: 'Bình', accountBalance: 1000 });
+    own(housesState, 1, 'p2', { houses: 3 });
+
+    resolveTile(housesState, 'p1', 4);
+
+    expect(housesState.boardState.logs.at(-1)).toContain(
+      `An đổ được 4 và phải trả ${formatMoney(streetRent(housesState, 1))} tiền thuê 3 Nhà tại Cà Mau cho Bình.`,
+    );
+
+    const hotelState = makeState();
+    addPlayer(hotelState, 'p1', { name: 'An', currentTile: 1, accountBalance: 1000 });
+    addPlayer(hotelState, 'p2', { name: 'Bình', accountBalance: 1000 });
+    own(hotelState, 1, 'p2', { houses: 5 });
+
+    resolveTile(hotelState, 'p1', 4);
+
+    expect(hotelState.boardState.logs.at(-1)).toContain(
+      `An đổ được 4 và phải trả ${formatMoney(streetRent(hotelState, 1))} tiền thuê Khách sạn tại Cà Mau cho Bình.`,
+    );
+  });
+
+  it('logs railroad and utility rent from their exact payment amounts', () => {
+    const railroadState = makeState();
+    addPlayer(railroadState, 'p1', { name: 'An', currentTile: 5, accountBalance: 1000 });
+    addPlayer(railroadState, 'p2', { name: 'Bình', accountBalance: 1000 });
+    own(railroadState, 5, 'p2', { color: 'blue' });
+    own(railroadState, 15, 'p2', { color: 'blue' });
+
+    resolveTile(railroadState, 'p1', 4);
+
+    expect(railroadState.boardState.logs.at(-1)).toContain(
+      `An đổ được 4 và phải trả ${formatMoney(50)} tiền thuê Ga Hà Nội cho Bình.`,
+    );
+
+    const utilityState = makeState();
+    addPlayer(utilityState, 'p1', { name: 'An', currentTile: 12, accountBalance: 1000 });
+    addPlayer(utilityState, 'p2', { name: 'Bình', accountBalance: 1000 });
+    own(utilityState, 12, 'p2', { color: 'blue' });
+
+    resolveTile(utilityState, 'p1', 8);
+
+    expect(utilityState.boardState.logs.at(-1)).toContain(
+      `An đổ được 8 và phải trả ${formatMoney(32)} tiền thuê Công Ty Điện cho Bình.`,
+    );
+  });
+
+  it('logs the full rent once when payment starts in shortfall and later resumes', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { name: 'An', currentTile: 1, accountBalance: 10 });
+    addPlayer(state, 'p2', { name: 'Bình', accountBalance: 1000 });
+    own(state, 3, 'p1', { color: 'green' });
+    own(state, 1, 'p2', { houses: 3 });
+
+    resolveTile(state, 'p1', 4);
+
+    const rentMessage = `An đổ được 4 và phải trả ${formatMoney(90)} tiền thuê 3 Nhà tại Cà Mau cho Bình.`;
+    expect(state.boardState.logs.filter(log => log.includes(rentMessage))).toHaveLength(1);
+    expect(state.boardState.paymentQueue?.orderedClaims[0]?.remainingAmount).toBe(80);
+
+    state.players.p1.accountBalance = 80;
+    progressPaymentQueue(state);
+
+    expect(state.boardState.paymentQueue).toBeNull();
+    expect(state.boardState.logs.filter(log => log.includes(rentMessage))).toHaveLength(1);
+  });
+
+  it('does not attribute card-destination rent to the original dice total', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { name: 'An', currentTile: 7, accountBalance: 1000 });
+    addPlayer(state, 'p2', { name: 'Bình', accountBalance: 1000 });
+    own(state, 5, 'p2', { color: 'blue' });
+    putCardOnTop(state, 'chance', 'chance-trip-ga-ha-noi');
+
+    resolveTile(state, 'p1', 4);
+
+    const rentMessage = `An phải trả ${formatMoney(25)} tiền thuê Ga Hà Nội cho Bình.`;
+    expect(state.boardState.logs).toContainEqual(expect.stringContaining(rentMessage));
+    expect(state.boardState.logs.some(log => log.includes('An đổ được 4 và phải trả'))).toBe(false);
   });
 
   it('scales railroad rent with the number owned', () => {

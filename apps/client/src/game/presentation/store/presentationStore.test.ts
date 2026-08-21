@@ -99,6 +99,21 @@ describe('PresentationStore reset and impact generations', () => {
     expect(store.getSnapshot().displayRollSequence).toBe(1);
   });
 
+  it('captures the previous settled dice pair for a subsequent roll', () => {
+    const store = new PresentationStore();
+    store.resetFromSnapshot(makeRoom());
+    store.setDisplayDice({ dice1: 4, dice2: 5 }, 1);
+
+    store.startDiceRoll({ dice1: 2, dice2: 6 }, 2, 640);
+
+    expect(store.getSnapshot().diceRoll).toMatchObject({
+      dice: { dice1: 2, dice2: 6 },
+      fromDice: { dice1: 4, dice2: 5 },
+      rollSequence: 2,
+      durationMs: 640,
+    });
+  });
+
   it('clears a transient roll when a reset snapshot becomes authoritative', () => {
     const store = new PresentationStore();
     const room = makeRoom();

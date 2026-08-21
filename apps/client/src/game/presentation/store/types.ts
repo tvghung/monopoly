@@ -39,6 +39,7 @@ export interface CharacterReactionSignal {
 export interface DiceRollPresentation {
   lifecycle: 'rolling';
   dice: DiceValue;
+  fromDice?: DiceValue;
   rollSequence: number;
   durationMs: number;
 }

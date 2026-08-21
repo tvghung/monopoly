@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { CENTER_AIRPORT_FIELD_TOP_Y } from '../board/architecture/boardArtSpec';
 import {
-  DICE_ARENA_FLOOR_TOP_Y,
   DICE_ARENA_SIZE,
   DICE_SIZE,
   getDiceArenaBounds,
@@ -25,11 +25,12 @@ describe('board-space dice arena layout', () => {
       expect(x + DICE_SIZE / 2).toBeLessThanOrEqual(bounds.maxX);
       expect(z - DICE_SIZE / 2).toBeGreaterThanOrEqual(bounds.minZ);
       expect(z + DICE_SIZE / 2).toBeLessThanOrEqual(bounds.maxZ);
-      expect(y).toBeGreaterThan(DICE_ARENA_FLOOR_TOP_Y);
+      expect(y).toBeCloseTo(CENTER_AIRPORT_FIELD_TOP_Y + DICE_SIZE / 2);
     });
     const result = getDiceResultPosition();
     expect(result[0]).toBeGreaterThanOrEqual(bounds.minX);
     expect(result[0]).toBeLessThanOrEqual(bounds.maxX);
     expect(result[2]).toBeLessThanOrEqual(bounds.maxZ);
+    expect(result[1]).toBeCloseTo(CENTER_AIRPORT_FIELD_TOP_Y + 0.014);
   });
 });

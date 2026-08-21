@@ -73,7 +73,10 @@ describe('dice visual geometry contract', () => {
     expect(DICE_FACE_COLOR).toBe('#ffffff');
     expect(DICE_FACE_ROUGHNESS).toBeGreaterThan(0);
     expect(DICE_FACE_METALNESS).toBeLessThan(0.05);
-    expect(boardMaterialSpecs.diceBody).toEqual({ roughness: 0.3, metalness: 0.02 });
+    expect(DICE_EDGE_SEGMENTS).toBe(5);
+    expect(DICE_FACE_ROUGHNESS).toBeCloseTo(0.22);
+    expect(DICE_FACE_METALNESS).toBeCloseTo(0.03);
+    expect(boardMaterialSpecs.diceBody).toEqual({ roughness: 0.2, metalness: 0.04 });
   });
 
   it('keeps all six physical faces, standard opposite pairs, and an epsilon above the body', () => {
@@ -124,6 +127,7 @@ describe('dice visual geometry contract', () => {
     expect(optimized.drawCalls).toBe(16);
     expect(optimized.drawCalls).toBeLessThan(TARGET_DRAW_CALLS);
     expect(optimized.drawCalls).toBeLessThan(STRESS_DRAW_CALL_LIMIT);
+    expect(optimized.triangles).toBe(6288);
     expect(optimized.triangles).toBeLessThan(TARGET_TRIANGLES);
   });
 });

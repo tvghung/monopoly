@@ -44,6 +44,7 @@ export default function RollControl() {
     if (!pendingRoll) return;
     if (presentationState.presentationResetEpoch !== pendingRoll.resetEpoch) {
       setPendingRoll(null);
+      setError(null);
       return;
     }
     const currentTurn = state.boardState.currentPlayer;
@@ -52,6 +53,10 @@ export default function RollControl() {
       || (currentTurn.id === playerId && currentTurn.hasMoved);
     if (authoritativeRollArrived || turnMovedForward) setPendingRoll(null);
   }, [pendingRoll, playerId, presentationState.presentationResetEpoch, state.boardState.currentPlayer, state.boardState.rollSequence]);
+
+  useEffect(() => {
+    setError(null);
+  }, [presentationState.presentationResetEpoch]);
 
   useEffect(() => {
     if (!connected && pendingRoll) setPendingRoll(null);

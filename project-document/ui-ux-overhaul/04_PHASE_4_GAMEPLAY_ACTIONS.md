@@ -1,7 +1,8 @@
 # Phase 4 - Gameplay Actions and Presentation Orchestration
 
-Status: Phase 4.2.1 gameplay HUD hardening and dice visual polish implemented;
-Phase 4.2 board-centered dice and gameplay HUD implemented; Phase
+Status: Phase 4.2.2 dice feel and rent feedback polish implemented; Phase 4.2.1
+gameplay HUD hardening and dice visual polish implemented; Phase 4.2
+board-centered dice and gameplay HUD implemented; Phase
 4.0/4.1 contract audit: [04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md).
 Movement cause/route, card identity, and transfer attribution remain open
 contracts.
@@ -16,8 +17,35 @@ bankruptcy, turn order, and the winner. The client presents committed state
 transitions through the existing presentation pipeline.
 
 The Phase 4.1 foundation implemented the smallest shared/server/client contract
-needed for authoritative roll identity and safe movement classification. It
-does not implement the richer Phase 4 visual/action polish described below.
+needed for authoritative roll identity and safe movement classification. Phase
+4.2.2 now adds the bounded dice-feel and rent-feedback polish below without
+expanding the gameplay protocol. It does not implement the richer Phase 4
+visual/action polish described below.
+
+### Phase 4.2.2 implemented slice
+
+- Dice use the existing procedural geometry with an 8.5% edge radius and five
+  bevel segments. The body uses the shared `diceBody` profile
+  (`roughness: 0.20`, `metalness: 0.04`); face materials remain neutral white
+  with `roughness: 0.22` and `metalness: 0.03`.
+- The visible dice arena floor was removed. Dice and the result total are
+  positioned from the canonical `AirportField` top surface, keeping the board
+  center free of a second visible floor.
+- The existing 640 ms roll and 140 ms result hold are unchanged. On reroll, the
+  committed previous dice pair is captured in the presentation transient;
+  each die holds its previous settled face while lifting through the first 18%
+  of the roll, then follows a deterministic tumble and settles on the new
+  authoritative face. The first-roll entry remains the existing raised/drop
+  path. Reduced motion, skip, reset, and sequence guards remain authoritative
+  presentation boundaries.
+- Server rent logs are emitted once, immediately before the authoritative
+  payment queue starts, using the exact queued amount and shared money
+  formatter. Dice-origin rent includes the dice total; rent reached through a
+  card destination uses generic wording so the log does not invent a dice
+  cause. Normal-property labels distinguish base rent, `1`-`4` houses, and a
+  hotel; railroad and utility amounts use their existing server calculations.
+- The Roll reset epoch clears both a pending command and a stale error. The
+  legacy overlay no longer contributes a second live announcement source.
 
 ## 1. Design direction
 

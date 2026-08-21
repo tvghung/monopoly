@@ -7,12 +7,6 @@ import { boardVisualTokens } from '../board/boardVisualTokens';
 import SdfSurfaceText from '../board/tiles/SdfSurfaceText';
 import type { DiceRenderModel } from '../board/boardRenderModel';
 import {
-  DICE_ARENA_CENTER_X,
-  DICE_ARENA_CENTER_Z,
-  DICE_ARENA_FLOOR_HEIGHT,
-  DICE_ARENA_FLOOR_TOP_Y,
-  DICE_ARENA_SIZE,
-  DICE_DROP_HEIGHT,
   DICE_SIZE,
   getDicePosition,
   getDiceResultPosition,
@@ -23,6 +17,7 @@ import {
 } from './diceGeometry';
 import {
   easeOutCubic,
+  getDiceAnimationHeight,
   getDiceAnimationRotation,
   getSettledDiceRotation,
   isValidDiceFace,
@@ -101,18 +96,21 @@ function Die({
   phase,
   rollSequence,
   durationMs,
+  fromValue,
 }: {
   dieIndex: 0 | 1;
   value: number;
   phase: DiceRenderModel['phase'];
   rollSequence: number;
   durationMs: number;
+  fromValue?: number;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const invalidate = useThree(state => state.invalidate);
   const animationStartRef = useRef<number | null>(null);
   const basePosition = getDicePosition(dieIndex);
   const isRolling = phase === 'ROLLING';
+  const hasPreviousDice = isValidDiceFace(fromValue ?? 0);
 
   useEffect(() => {
     animationStartRef.current = isRolling ? performance.now() : null;
@@ -129,18 +127,18 @@ function Die({
     const bounce = Math.sin(bounceProgress * Math.PI * 2.5)
       * DICE_BOUNCE_HEIGHT
       * (1 - Math.min(1, bounceProgress));
-    const rotation = getDiceAnimationRotation(value, rollSequence, dieIndex, progress);
+    const rotation = getDiceAnimationRotation(value, rollSequence, dieIndex, progress, fromValue);
     groupRef.current.rotation.set(...rotation);
     groupRef.current.position.y = basePosition[1]
-      + (1 - eased) * DICE_DROP_HEIGHT
+      + getDiceAnimationHeight(progress, hasPreviousDice)
       + bounce;
-    const scale = 0.86 + eased * 0.14;
+    const scale = hasPreviousDice ? 1 : 0.86 + eased * 0.14;
     groupRef.current.scale.setScalar(scale);
     if (progress < 1) invalidate();
   });
 
   const rotation = isRolling
-    ? getDiceAnimationRotation(value, rollSequence, dieIndex, 0)
+    ? getDiceAnimationRotation(value, rollSequence, dieIndex, 0, fromValue)
     : getSettledDiceRotation(value);
 
   return (
@@ -148,10 +146,10 @@ function Die({
       ref={groupRef}
       name={`ProceduralDie${dieIndex + 1}`}
       position={isRolling
-        ? [basePosition[0], basePosition[1] + DICE_DROP_HEIGHT, basePosition[2]]
+        ? [basePosition[0], basePosition[1] + getDiceAnimationHeight(0, hasPreviousDice), basePosition[2]]
         : basePosition}
       rotation={rotation}
-      scale={isRolling ? 0.86 : 1}
+      scale={isRolling && !hasPreviousDice ? 0.86 : 1}
     >
       <RoundedBoxMesh
         name="DieBody"
@@ -181,20 +179,6 @@ export default function DiceLayer({ model }: { model: DiceRenderModel }) {
         centerFieldClearance: true,
       }}
     >
-      <RoundedBoxMesh
-        name="DiceArenaSurface"
-        width={DICE_ARENA_SIZE.width}
-        height={DICE_ARENA_FLOOR_HEIGHT}
-        depth={DICE_ARENA_SIZE.depth}
-        radius={0.18}
-        color={boardVisualTokens.airportTaxiway}
-        materialProfile="centerWell"
-        position={[
-          DICE_ARENA_CENTER_X,
-          DICE_ARENA_FLOOR_TOP_Y - DICE_ARENA_FLOOR_HEIGHT / 2,
-          DICE_ARENA_CENTER_Z,
-        ]}
-      />
       {hasVisibleDice
         ? (
           <>
@@ -204,6 +188,7 @@ export default function DiceLayer({ model }: { model: DiceRenderModel }) {
               phase={model.phase}
               rollSequence={model.rollSequence}
               durationMs={model.durationMs}
+              fromValue={model.fromDice?.dice1}
             />
             <Die
               dieIndex={1}
@@ -211,6 +196,7 @@ export default function DiceLayer({ model }: { model: DiceRenderModel }) {
               phase={model.phase}
               rollSequence={model.rollSequence}
               durationMs={model.durationMs}
+              fromValue={model.fromDice?.dice2}
             />
             {model.phase === 'SETTLED'
               ? (

@@ -524,6 +524,67 @@ describe('Vietnamese game board', () => {
     expect(socketFunctions.rollDice).toHaveBeenCalledTimes(1);
   });
 
+  it('clears a stale Roll error when the presentation session reset epoch changes', async () => {
+    const state = makeGameState({
+      players: { me: makePlayer('An', 'red') },
+      currentPlayerId: 'me',
+    });
+    const socketFunctions = makeSocketFunctions();
+    socketFunctions.rollDice = vi.fn((): Promise<Ack> => Promise.resolve({
+      ok: false,
+      protocolVersion: SOCKET_PROTOCOL_VERSION,
+      error: {
+        code: 'FORBIDDEN',
+        message: 'forbidden',
+        retryable: false,
+      },
+    }));
+    const view = render(
+      <stateContext.Provider value={makeContextValue(state, {
+        playerId: 'me',
+        role: 'PLAYER',
+        canMutate: true,
+        socketFunctions,
+      })}
+      >
+        <presentationContext.Provider value={{
+          state: makePresentationState(),
+          queue: null as unknown as AnimationQueue,
+        }}
+        >
+          <Board />
+        </presentationContext.Provider>
+      </stateContext.Provider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đổ Xúc Xắc' }));
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeTruthy();
+    });
+
+    view.rerender(
+      <stateContext.Provider value={makeContextValue(state, {
+        playerId: 'me',
+        role: 'PLAYER',
+        canMutate: true,
+        socketFunctions,
+      })}
+      >
+        <presentationContext.Provider value={{
+          state: makePresentationState({ presentationResetEpoch: 1 }),
+          queue: null as unknown as AnimationQueue,
+        }}
+        >
+          <Board />
+        </presentationContext.Provider>
+      </stateContext.Provider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+  });
+
   it('keeps the turn label and player strip on the presentation player while Roll permission stays authoritative', () => {
     const state = makeGameState({
       players: {

@@ -128,12 +128,14 @@ describe('board render model', () => {
       diceRoll: {
         lifecycle: 'rolling',
         dice: { dice1: 5, dice2: 6 },
+        fromDice: { dice1: 2, dice2: 3 },
         rollSequence: 2,
         durationMs: 640,
       },
     }));
     expect(rolling.dice).toEqual({
       dice: { dice1: 5, dice2: 6 },
+      fromDice: { dice1: 2, dice2: 3 },
       rollSequence: 2,
       phase: 'ROLLING',
       durationMs: 640,

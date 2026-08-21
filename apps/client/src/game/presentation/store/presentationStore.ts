@@ -190,11 +190,15 @@ export class PresentationStore implements PresentationStoreLike {
     if (this.state.diceRoll?.rollSequence === rollSequence
       && this.state.diceRoll.dice.dice1 === dice.dice1
       && this.state.diceRoll.dice.dice2 === dice.dice2) return;
+    const fromDice = this.state.displayRollSequence > 0
+      ? { ...this.state.displayDice }
+      : undefined;
     this.state = {
       ...this.state,
       diceRoll: {
         lifecycle: 'rolling',
         dice: { ...dice },
+        ...(fromDice ? { fromDice } : {}),
         rollSequence,
         durationMs: Math.max(0, durationMs),
       },

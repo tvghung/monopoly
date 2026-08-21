@@ -34,6 +34,7 @@ export interface CharacterPlayerModel {
 
 export interface DiceRenderModel {
   dice: DiceValue;
+  fromDice?: DiceValue;
   rollSequence: number;
   phase: 'HIDDEN' | 'ROLLING' | 'SETTLED';
   durationMs: number;
@@ -108,6 +109,7 @@ export function buildBoardRenderModel(
     players,
     dice: {
       dice: { ...dice },
+      ...(activeDice?.fromDice ? { fromDice: { ...activeDice.fromDice } } : {}),
       rollSequence: diceRollSequence,
       phase: activeDice
         ? 'ROLLING'

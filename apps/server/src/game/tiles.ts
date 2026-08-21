@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   CHANCE_TILE_INDICES,
   CHEST_TILE_INDICES,
+  formatMoney,
   RAILROAD_TILE_INDICES,
   UTILITY_TILE_INDICES,
   gameCardsById,
@@ -81,6 +82,8 @@ const resolveOwnedProperty = (
   tileID: number,
   amount: number,
   continuation: PendingTurnContinuation,
+  diceResult: number,
+  cause: RentResolutionCause,
   options: TileResolutionOptions = {},
 ): boolean => {
   const property = state.boardState.ownedProps[tileID];
@@ -113,6 +116,7 @@ const resolveOwnedProperty = (
     }
     return true;
   }
+  logRentLiability(state, playerId, tileID, amount, diceResult, cause);
   return processPayments(
     state,
     [payment(playerId, 'PLAYER', amount, { kind: 'RENT', tileID }, property.id)],
@@ -142,6 +146,35 @@ export const utilityRent = (state: GameState, tileID: number, diceTotal: number)
 interface CardResolutionResult {
   continueDestination: boolean;
 }
+
+type RentResolutionCause = 'DICE' | 'CARD';
+
+const rentPropertyLabel = (tileID: number, houses: number): string => {
+  const tile = tileState[tileID];
+  if (tile?.tileType === 'normal' && houses === 5) return `Khách sạn tại ${tile.streetName}`;
+  if (tile?.tileType === 'normal' && houses > 0) return `${houses} Nhà tại ${tile.streetName}`;
+  return tile?.streetName ?? `ô ${tileID}`;
+};
+
+const logRentLiability = (
+  state: GameState,
+  debtorPlayerId: PlayerId,
+  tileID: number,
+  amount: number,
+  diceResult: number,
+  cause: RentResolutionCause,
+): void => {
+  if (amount <= 0) return;
+  const debtor = state.players[debtorPlayerId];
+  const property = state.boardState.ownedProps[tileID];
+  const owner = property ? state.players[property.id] : undefined;
+  if (!debtor || !property || property.id === debtorPlayerId || !owner) return;
+  const diceCopy = cause === 'DICE' ? `${debtor.name} đổ được ${diceResult} và ` : `${debtor.name} `;
+  sendToLog(
+    state,
+    `${diceCopy}phải trả ${formatMoney(amount)} tiền thuê ${rentPropertyLabel(tileID, property.houses)} cho ${owner.name}.`,
+  );
+};
 
 export const applyCard = (
   state: GameState,
@@ -205,6 +238,7 @@ export const resolveTile = (
   const player = state.players[playerId];
   if (!player) return;
   let chainDepth = 0;
+  let resolutionCause: RentResolutionCause = 'DICE';
   while (chainDepth < 32 && state.players[playerId] && !state.boardState.paymentQueue) {
     chainDepth += 1;
     const tileID = player.currentTile;
@@ -213,13 +247,40 @@ export const resolveTile = (
 
     switch (tile.tileType) {
       case 'normal':
-        complete = resolveOwnedProperty(state, playerId, tileID, streetRent(state, tileID), continuation, options);
+        complete = resolveOwnedProperty(
+          state,
+          playerId,
+          tileID,
+          streetRent(state, tileID),
+          continuation,
+          diceResult,
+          resolutionCause,
+          options,
+        );
         break;
       case 'railroad':
-        complete = resolveOwnedProperty(state, playerId, tileID, railroadRent(state, tileID), continuation, options);
+        complete = resolveOwnedProperty(
+          state,
+          playerId,
+          tileID,
+          railroadRent(state, tileID),
+          continuation,
+          diceResult,
+          resolutionCause,
+          options,
+        );
         break;
       case 'company':
-        complete = resolveOwnedProperty(state, playerId, tileID, utilityRent(state, tileID, diceResult), continuation, options);
+        complete = resolveOwnedProperty(
+          state,
+          playerId,
+          tileID,
+          utilityRent(state, tileID, diceResult),
+          continuation,
+          diceResult,
+          resolutionCause,
+          options,
+        );
         break;
       case 'expense':
         sendToLog(state, `${player.name} đến ô Thuế/Phí nhưng không phát sinh thanh toán.`);
@@ -235,6 +296,7 @@ export const resolveTile = (
         if (!result.continueDestination) {
           break;
         }
+        resolutionCause = 'CARD';
         continue;
       }
       case 'parking':
