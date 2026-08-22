@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type {
   CardInteractionChangedPresentationEvent,
   PropertyTransferPresentationEvent,
@@ -14,10 +14,8 @@ const immediateContext: AnimationExecutionContext = {
   speedMultiplier: 1,
   reducedMotion: false,
   getDuration: duration => duration,
-  getSemanticDuration: duration => duration,
   wait: async () => {},
   waitForDuration: async () => {},
-  waitForSemanticDuration: async () => {},
 };
 
 function cardEvent(
@@ -86,10 +84,9 @@ describe('semantic presentation executors', () => {
     });
   });
 
-  it('keeps BANK endpoints on property transfer board events', async () => {
+  it('keeps property transfer feedback physical and removes informational stages', async () => {
     const store = new PresentationStore();
     store.resetFromSnapshot(makeRoom());
-    const showBoardEvent = vi.spyOn(store, 'showBoardEvent');
     const executor = createSemanticExecutors(store).PROPERTY_TRANSFER as unknown as
       PresentationExecutor<PropertyTransferPresentationEvent>;
     const event: PropertyTransferPresentationEvent = {
@@ -111,10 +108,10 @@ describe('semantic presentation executors', () => {
 
     await executor.run(event, immediateContext);
 
-    expect(showBoardEvent).toHaveBeenCalledWith(expect.objectContaining({
-      kind: 'PROPERTY_TRANSFER',
-      source: { kind: 'PLAYER', playerId: 'player-a' },
-      destination: { kind: 'BANK' },
-    }));
+    expect(store.getSnapshot().ownershipChanges).toMatchObject([{
+      tileId: 1,
+      fromPlayerId: 'player-a',
+      toPlayerId: null,
+    }]);
   });
 });

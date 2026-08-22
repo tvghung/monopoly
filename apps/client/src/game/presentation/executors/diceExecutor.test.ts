@@ -11,10 +11,8 @@ const immediateContext: AnimationExecutionContext = {
   speedMultiplier: 1,
   reducedMotion: false,
   getDuration: duration => duration,
-  getSemanticDuration: duration => duration,
   wait: async () => {},
   waitForDuration: async () => {},
-  waitForSemanticDuration: async () => {},
 };
 
 function rollEvent(rollSequence: number): RollDicePresentationEvent {

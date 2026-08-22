@@ -1141,12 +1141,12 @@ apart from the explicitly identified configured-database checksum state, but
 the missing browser and Electron manual gates cannot be promoted to passes by
 unit tests or fixture availability.
 
-## 16. Final visual correction pass closure (2026-08-22)
+## 16. Historical final visual correction pass closure (superseded, 2026-08-22)
 
-This section is the current record for the requested final Phase 4 visual
-correction pass. It supersedes the stale status statements in sections 15.3
-and 15.4; those sections are retained as historical evidence from the earlier
-V7 review.
+This section records the earlier visual pass and is retained as historical
+evidence only. Section 17 is the current record for the focused correction pass
+requested after that review. The implementation and validation statements below
+were superseded where they conflict with the current source of truth.
 
 ### 16.1 Final presentation architecture
 
@@ -1248,3 +1248,121 @@ The requested visual correction implementation is complete and locally
 validated. Full Phase 4 remains open only for the explicitly listed manual
 Electron/resize and remote-CI gates; no test-only result is being promoted to
 those unavailable checks.
+
+## 17. Focused Phase 4 visual/presentation correction pass (2026-08-22/23)
+
+This is the current source-of-truth record for the focused correction pass.
+Section 16 is historical and is superseded where it describes platforms,
+portraits, active rings, informational event stages, or earlier metrics.
+
+### 17.1 Contract and presentation architecture
+
+- A live authoritative snapshot containing dice, a final Chance/Khí Vận tile,
+  and `pendingCardInteraction` now queues `ROLL_DICE -> WALK -> LAND_TILE ->
+  CARD_INTERACTION_CHANGED`. `boardRenderModel` no longer exposes the pending
+  card directly before the queued landing completes.
+- Session sync/reconnect hydrates `AWAITING_DRAW` or `REVEALED` into
+  `PresentationStore` without replaying deck flight or reveal. Live card
+  visibility is queue-driven.
+- `CardInteractionOverlay` is a root-level fixed four-panel cut-out layer
+  above the room toolbar. It blocks unrelated controls while leaving only the
+  active physical card region clickable. Revealed cards retain the lock,
+  active-player authority, backdrop/Escape dismissal, and server timeout, but
+  have no visible instruction or X control.
+- The obsolete `BoardEventStage` informational modal and semantic dwell waits
+  were removed. Physical movement, coin transfer, ownership/building effects,
+  jail reactions, and required decisions remain queued.
+- Visible gameplay logs use the client-side presentation-safe gate. New
+  authoritative gameplay logs buffer until the presentation/decision boundary
+  is safe; historical reconnect logs hydrate immediately; chat is not parsed
+  for gameplay meaning.
+
+### 17.2 Visual corrections
+
+- The renderer border is transparent while preserving its measured geometry.
+- Bank, station, and transfer coins use deterministic shared copper/silver/gold
+  materials with normalized relative weights `60:20:10`, shared geometry, and
+  metallic roughness tuned for the existing low-poly board lighting.
+- Player stations are minimal edge-centered clusters: readable name, physical
+  mixed-metal wealth pile, and exact money value. Platforms, portraits,
+  connection dots, property/building counts, labels, and active-turn rings are
+  removed from the visible world-space presentation. Stations are farther from
+  the board and camera-fit bounds include the new extents.
+- Destination preview uses a brighter tinted surface and a shared bright edge
+  frame with anticipation/persistent phases. It is created only for a proven
+  normal dice walk and clears on landing.
+- Physical decks are enlarged to approximately `2.2 x 1.38`, placed
+  symmetrically on the Parking-to-Start axis with card long axes perpendicular
+  to that diagonal, and use shared Chance question-mark and Khí Vận wheel
+  backs for idle and detached cards. The Bank label is removed.
+- The Roll CTA is rendered only for the local legally rollable turn (with
+  pending-request feedback); opponent turns retain screen-reader status only.
+- PASS GO remains amount-only with Bank-to-player coins. Informational rent,
+  purchase, transfer, development, jail, and PASS GO modals are not rendered.
+
+### 17.3 Automated validation
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Root typecheck | **PASS** | `pnpm typecheck` |
+| Workspace lint | **PASS** | `pnpm lint` |
+| Client tests | **PASS** | 82 files, 395 tests |
+| Server tests without database | **PASS** | 12 files, 142 passed; 1 file and 9 database-gated tests skipped |
+| PostgreSQL-backed server tests | **PASS** | 13 files, 151 passed with `TEST_DATABASE_URL` |
+| Desktop tests | **PASS** | 4 files, 12 tests |
+| Production build | **PASS** | Vite build completed; only the existing large-chunk warning remained |
+| Win32 desktop package | **PASS** | Final x64 package completed after releasing the smoke-test executable lock |
+| Database migration status | **PASS** | Migrations 001 through 008 applied |
+| Production artifact stale-UAT-label scan | **PASS** | No Phase 4 harness labels in rebuilt client/package artifacts |
+| `git diff --check` | **PASS** | No whitespace errors; CRLF normalization warnings only |
+| Remote CI / push / merge | **NOT RUN** | Not authorized |
+
+### 17.4 Deterministic harness evidence
+
+The existing `Phase4UatHarness` was extended; no second harness was created.
+The observed normal card trace was `PREVIEW > WALK > LAND > CARD`, with the
+preview present before the first hop and still present before landing.
+
+| Scenario / viewport | Draw calls | Triangles | Active animations | Result |
+| --- | ---: | ---: | ---: | --- |
+| 2 players, settled | 192 | 50,872 | 0 | **PASS** |
+| 4 players, settled | 202 | 51,716 | 0 | **PASS** |
+| Chance landing / awaiting draw | 210 | 63,112 | 0 | **PASS** |
+| Khí Vận landing / awaiting draw | 210 | 63,112 | 0 | **PASS** |
+| Roll gate early / after handoff | 208 / 206 | 63,122 / 63,112 | 1 / 0 | **PASS** |
+| Reconnect awaiting / revealed | 193 / 195 | 49,814 / 50,122 | 0 / 0 | **PASS** |
+| Stress peak / settled | 214 / 208 | 52,616 / 52,484 | 25 / 5 | **PASS**; below 240 draw calls / 100,000 triangles |
+
+The 2-player and 4-player station layouts passed at 1280x720, 1440x900, and
+1920x1080 without clipping. Deterministic checks also passed for the two deck
+icons, mixed-metal piles, absent character/station rings, invisible renderer
+border, absent informational modals, amount-only PASS GO, opponent-hidden Roll,
+revealed-card cleanup, Reduced Motion, 0.75x/1x/1.5x/2x, reconnect log
+hydration, and log flush at turn handoff.
+
+### 17.5 Live browser and Electron evidence
+
+- **Live browser: PARTIAL PASS.** In room `P4UAT22`, two real clients
+  completed a normal roll, a purchase, presentation-safe log delay/flush, and
+  local Roll hiding/reappearing across the authoritative turn handoff. Live
+  Chance, Khí Vận, rent, and development paths were **NOT RUN** because the
+  second player disconnected before those paths could be reached.
+- **Packaged Electron: PASS for visual smoke.** The final rebuilt x64
+  executable was launched against a scoped CORS-enabled validation server;
+  two fresh clients joined, selected mascots, started a room, and rendered the
+  board, toolbar, physical decks/icons, dice, edge stations, and Roll state.
+  Full packaged card, rent, development, reduced-motion, skip, reconnect, and
+  resize semantics remain **NOT RUN**. The earlier card-focus interaction was
+  also exercised in the packaged client before the final source/package
+  rebuild; the deterministic harness is the final evidence for revealed-face
+  copy and dismissal semantics.
+
+### 17.6 Current status and remaining gaps
+
+The implementation and local automated/deterministic evidence for this focused
+correction pass are complete. This does not close every requested Phase 4
+manual gate: live multiplayer rent/development/Chance/Khí Vận, full packaged
+semantic coverage, resize during gameplay, and remote CI remain **NOT RUN**.
+No gameplay rule, server authority, V8 contract, Phase 3 hop baseline, fixed
+camera direction, Reduced Motion/Skip guarantee, or semantic event privacy
+boundary was expanded to compensate for those unavailable manual paths.

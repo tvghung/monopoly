@@ -12,6 +12,9 @@ import Board from '../../components/Board';
 import stateContext from '../../internal';
 import { PresentationController } from '../../game/presentation/PresentationController';
 import { PresentationProvider } from '../../game/presentation/PresentationProvider';
+import CardInteractionOverlay, {
+  CardInteractionProvider,
+} from '../../game/ui/events/CardInteractionOverlay';
 import { DEFAULT_GAME_SETTINGS } from '../../settings/defaults';
 import { useSettings } from '../../settings/selectors';
 import { SettingsProvider } from '../../settings/SettingsProvider';
@@ -29,6 +32,8 @@ const scenarios = [
   ['stations-2', '01 · Trạm 2 người'],
   ['stations-4', '01 · Trạm 4 người'],
   ['walk', '02 · Đích đến → di chuyển'],
+  ['roll-chance', '02 · Đổ → Cơ Hội → LAND → thẻ'],
+  ['roll-chest', '02 · Đổ → Khí Vận → LAND → thẻ'],
   ['pass-go', '03 · Qua Xuất Phát'],
   ['purchase', '04 · Mua tài sản'],
   ['decline', '05 · Từ chối mua'],
@@ -63,6 +68,7 @@ const scenarios = [
   ['skip-card-flight', '24 · Bỏ qua khi thẻ đang bay'],
   ['skip-card-reveal', '24 · Bỏ qua khi thẻ đang lật'],
   ['keyboard-card', '26 · Focus / Escape thẻ'],
+  ['opponent-turn', '27 · Ẩn Roll khi đối thủ chơi'],
   ['stress', 'Hiệu năng · trạng thái đồng thời'],
 ] as const;
 
@@ -158,6 +164,7 @@ function setPendingCard(
 ): void {
   const sourceTile = deck === 'chance' ? 7 : 2;
   room.gameState.players['player-a'].currentTile = sourceTile;
+  room.gameState.boardState.currentPlayer.hasMoved = true;
   room.gameState.turnInfo.pendingCardInteraction = {
     operationId: CARD_OPERATION,
     playerId: 'player-a',
@@ -181,12 +188,12 @@ function cardForScenario(scenario: ScenarioKey): string {
 }
 
 function cardDeckForScenario(scenario: ScenarioKey): 'chance' | 'chest' {
-  return scenario === 'chest' || scenario === 'collect-each' ? 'chest' : 'chance';
+  return scenario === 'chest' || scenario === 'collect-each' || scenario === 'roll-chest' ? 'chest' : 'chance';
 }
 
 const liveCardScenarios: readonly ScenarioKey[] = [
   'chance', 'chest', 'pay-each', 'collect-each', 'card-chain', 'keyboard-card',
-  'skip-card-flight', 'skip-card-reveal',
+  'skip-card-flight', 'skip-card-reveal', 'roll-chance', 'roll-chest',
 ];
 
 function configureBaseline(
@@ -229,6 +236,9 @@ function configureBaseline(
     room.gameState.players['player-a'].currentTile = cardDeckForScenario(scenario) === 'chance' ? 7 : 2;
   }
   if (scenario === 'reconnect-awaiting') setPendingCard(room, 'chance', 'AWAITING_DRAW');
+  if (scenario === 'reconnect-awaiting' || scenario === 'reconnect-revealed') {
+    room.gameState.boardState.logs = ['Lịch sử: An đã đáp xuống ô rút thẻ.'];
+  }
   if (scenario === 'reconnect-revealed') setPendingCard(room, 'chance', 'REVEALED', 'chance-dividend');
   if (scenario === 'spectator-awaiting') {
     setPendingCard(room, 'chest', 'AWAITING_DRAW');
@@ -239,6 +249,12 @@ function configureBaseline(
     return { playerId: null, role: 'SPECTATOR' };
   }
   if (scenario === 'pass-go') room.gameState.players['player-a'].currentTile = 37;
+  if (scenario === 'roll-chance' || scenario === 'roll-chest') {
+    room.gameState.players['player-a'].currentTile = 0;
+  }
+  if (scenario === 'opponent-turn') {
+    room.gameState.boardState.currentPlayer = { id: 'player-b', hasMoved: false };
+  }
   if (scenario === 'jail') room.gameState.players['player-a'].currentTile = 25;
   if (scenario === 'just-visiting') room.gameState.players['player-a'].currentTile = 8;
   if (scenario === 'jail-bail' || scenario === 'jail-free') {
@@ -284,11 +300,44 @@ function Phase4UatSurface() {
   });
   const [rendererMetrics, setRendererMetrics] = useState<Record<string, unknown> | null>(null);
   const [controlsCollapsed, setControlsCollapsed] = useState(false);
+  const traceRef = useRef<{
+    scenario: ScenarioKey;
+    steps: string[];
+    previewBeforeWalk: boolean;
+    previewBeforeLand: boolean;
+  }>({ scenario: 'stations-4', steps: [], previewBeforeWalk: false, previewBeforeLand: false });
   const runNumberRef = useRef(1);
   const roomRef = useRef(room);
   const scenarioRef = useRef(scenario);
   const timersRef = useRef<number[]>([]);
   const { settings, updateSettings } = useSettings();
+
+  useEffect(() => {
+    if (traceRef.current.scenario !== scenario) {
+      traceRef.current = {
+        scenario,
+        steps: [],
+        previewBeforeWalk: false,
+        previewBeforeLand: false,
+      };
+    }
+    const trace = traceRef.current;
+    const addStep = (step: string) => {
+      if (!trace.steps.includes(step)) trace.steps.push(step);
+    };
+    if (presentationState.destinationPreview) {
+      if (!trace.steps.includes('WALK')) trace.previewBeforeWalk = true;
+      addStep('PREVIEW');
+    }
+    const movement = presentationState.characterMovements.at(-1);
+    if (movement?.phase === 'START') {
+      if (presentationState.destinationPreview) trace.previewBeforeLand = true;
+      addStep('WALK');
+    }
+    if (presentationState.characterLandings.length > 0) addStep('LAND');
+    if (presentationState.cardPresentation?.stage === 'AWAITING_DRAW'
+      || presentationState.cardPresentation?.stage === 'REVEALED') addStep('CARD');
+  }, [presentationState, scenario]);
 
   const clearTimers = useCallback(() => {
     timersRef.current.forEach(timer => window.clearTimeout(timer));
@@ -306,8 +355,26 @@ function Phase4UatSurface() {
   }, [controller]);
 
   const applyAnimatedScenario = useCallback((key: ScenarioKey) => {
+    if (key === 'roll-chance' || key === 'roll-chest') {
+      commit(next => {
+        const deck = key === 'roll-chance' ? 'chance' : 'chest';
+        const destinationTile = deck === 'chance' ? 7 : 2;
+        next.gameState.boardState.diceValue = deck === 'chance'
+          ? { dice1: 3, dice2: 4 }
+          : { dice1: 1, dice2: 1 };
+        next.gameState.boardState.rollSequence = 1;
+        next.gameState.boardState.currentPlayer.hasMoved = true;
+        next.gameState.players['player-a'].currentTile = destinationTile;
+        setPendingCard(next, deck, 'AWAITING_DRAW');
+        next.gameState.boardState.logs = [`An đổ được ${deck === 'chance' ? 7 : 2}`];
+      });
+      return;
+    }
     if (liveCardScenarios.includes(key)) {
-      commit(next => setPendingCard(next, cardDeckForScenario(key), 'AWAITING_DRAW'));
+      commit(next => {
+        setPendingCard(next, cardDeckForScenario(key), 'AWAITING_DRAW');
+        next.gameState.boardState.logs = ['An đáp xuống ô rút thẻ'];
+      });
       if (key === 'skip-card-flight') {
         schedule(() => controller.skipAllAndSnap(), 240);
       }
@@ -331,7 +398,12 @@ function Phase4UatSurface() {
         next.gameState.boardState.diceValue = { dice1: 2, dice2: 3 };
         next.gameState.boardState.rollSequence = 1;
         next.gameState.players['player-a'].currentTile = 6;
+        next.gameState.boardState.logs = ['An đổ được 5'];
       });
+      schedule(() => commit(next => {
+        next.gameState.boardState.turnNumber += 1;
+        next.gameState.boardState.currentPlayer = { id: 'player-b', hasMoved: false };
+      }), 3_600);
       return;
     }
     if (key === 'pass-go') {
@@ -593,6 +665,8 @@ function Phase4UatSurface() {
           destination: { kind: 'PLAYER', playerId: 'player-a' }, amount,
           reason: 'CARD', operationId: CARD_OPERATION,
         }]);
+        next.gameState.boardState.turnNumber += 1;
+        next.gameState.boardState.currentPlayer = { id: 'player-b', hasMoved: false };
       }
     });
     return Promise.resolve(successfulAck(roomRef.current.version));
@@ -640,7 +714,8 @@ function Phase4UatSurface() {
   return (
     <PresentationProvider controller={controller}>
       <stateContext.Provider value={contextValue}>
-        <main className="phase4-uat" data-scenario={scenario}>
+        <CardInteractionProvider>
+          <main className="phase4-uat" data-scenario={scenario}>
           <aside
             className={`phase4-uat__controls${controlsCollapsed ? ' phase4-uat__controls--collapsed' : ''}`}
             aria-label="Điều khiển UAT Phase 4"
@@ -688,6 +763,9 @@ function Phase4UatSurface() {
               {` · dice ${presentationState.diceRoll?.lifecycle ?? 'settled'}`}
               {` · card ${presentationState.cardPresentation?.stage ?? 'direct'}`}
               {` · preview ${presentationState.destinationPreview ? 'on' : 'off'}`}
+              {` · trace ${traceRef.current.steps.join(' > ') || '—'}`}
+              {traceRef.current.previewBeforeWalk ? ' · preview-before-walk yes' : ''}
+              {traceRef.current.previewBeforeLand ? ' · preview-before-land yes' : ''}
             </output>
             {rendererMetrics ? (
               <output data-testid="renderer-metrics">
@@ -696,7 +774,9 @@ function Phase4UatSurface() {
             ) : null}</> : null}
           </aside>
           <Board />
-        </main>
+          </main>
+          <CardInteractionOverlay />
+        </CardInteractionProvider>
       </stateContext.Provider>
     </PresentationProvider>
   );

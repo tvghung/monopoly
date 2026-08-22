@@ -1,22 +1,15 @@
 import { useContext } from 'react';
 import stateContext from '../../../internal';
-import { usePresentation } from '../../presentation/PresentationProvider';
 import { formatMoney } from '../formatters';
 import { selectPlayerHudViewModels } from '../hud/playerHudSelectors';
 
 /** Visible stations live in PlayerStationLayer. This DOM surface is accessibility-only. */
 export default function PlayerStations({ activePlayerId }: { activePlayerId: string }) {
   const { state, roomPlayers = [] } = useContext(stateContext);
-  const { state: presentation } = usePresentation();
   const players = state.loaded ? selectPlayerHudViewModels(state, activePlayerId, roomPlayers) : [];
-  const latest = presentation.activeBoardEvent;
-  const announcement = latest
-    ? `${latest.kind}${latest.amount ? ` ${formatMoney(latest.amount)}` : ''}`
-    : '';
 
   return (
     <section className="player-stations-accessibility sr-only" aria-label="Trạng thái trạm người chơi">
-      <p role="status" aria-live="polite" aria-atomic="true">{announcement}</p>
       <ul>
         {players.map(player => {
           const status = player.hasLeft

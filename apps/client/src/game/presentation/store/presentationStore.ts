@@ -4,7 +4,6 @@ import type {
   BalanceDeltaSignal,
   CharacterMovementSignal,
   CharacterReactionKind,
-  BoardEventSignal,
   CardPresentationSignal,
   DevelopmentChangeSignal,
   DestinationPreviewSignal,
@@ -18,6 +17,7 @@ import type {
 import type { TileImpactSignal, TileImpactTiming } from '../../scene/board/motion/tileMotionTypes';
 
 const emptyState: PresentationState = {
+  displayLogs: [],
   displayPositions: {},
   settledPositions: {},
   displayActivePlayerId: null,
@@ -35,7 +35,6 @@ const emptyState: PresentationState = {
   goCrossings: [],
   destinationPreview: null,
   moneyTransfers: [],
-  activeBoardEvent: null,
   cardPresentation: null,
   animationSpeedMultiplier: 1,
   presentationResetEpoch: 0,
@@ -87,8 +86,10 @@ export class PresentationStore implements PresentationStoreLike {
     });
     this.playerJoinOrder.clear();
     room.players.forEach(player => this.playerJoinOrder.set(player.playerId, player.joinOrder));
+    const pendingCard = room.gameState.turnInfo.pendingCardInteraction;
     this.activeCharacterMovements.clear();
     this.state = {
+      displayLogs: [...room.gameState.boardState.logs],
       displayPositions: positions,
       settledPositions: positions,
       displayActivePlayerId: room.gameState.boardState.currentPlayer.id || null,
@@ -106,8 +107,17 @@ export class PresentationStore implements PresentationStoreLike {
       goCrossings: [],
       destinationPreview: null,
       moneyTransfers: [],
-      activeBoardEvent: null,
-      cardPresentation: null,
+      cardPresentation: pendingCard
+        ? {
+            operationId: pendingCard.operationId,
+            playerId: pendingCard.playerId,
+            deck: pendingCard.deck,
+            sourceTile: pendingCard.sourceTile,
+            stage: pendingCard.stage,
+            ...(pendingCard.revealedCardId ? { revealedCardId: pendingCard.revealedCardId } : {}),
+            durationMs: 0,
+          }
+        : null,
       animationSpeedMultiplier: this.state.animationSpeedMultiplier,
       presentationResetEpoch: this.state.presentationResetEpoch + 1,
     };
@@ -126,6 +136,13 @@ export class PresentationStore implements PresentationStoreLike {
     this.developmentChangeIds.clear();
     this.goCrossingIds.clear();
     this.moneyTransferIds.clear();
+    this.notify();
+  }
+
+  public setDisplayLogs(logs: readonly string[]): void {
+    if (this.state.displayLogs.length === logs.length
+      && this.state.displayLogs.every((log, index) => log === logs[index])) return;
+    this.state = { ...this.state, displayLogs: [...logs] };
     this.notify();
   }
 
@@ -555,18 +572,6 @@ export class PresentationStore implements PresentationStoreLike {
       this.notify();
     }, Math.max(0, signal.durationMs) + 50);
     this.moneyTransferCleanupTimers.set(signal.id, cleanupTimer);
-  }
-
-  public showBoardEvent(signal: BoardEventSignal): void {
-    this.state = { ...this.state, activeBoardEvent: signal };
-    this.notify();
-  }
-
-  public clearBoardEvent(id?: string): void {
-    if (!this.state.activeBoardEvent) return;
-    if (id && this.state.activeBoardEvent.id !== id) return;
-    this.state = { ...this.state, activeBoardEvent: null };
-    this.notify();
   }
 
   public setCardPresentation(signal: CardPresentationSignal | null): void {

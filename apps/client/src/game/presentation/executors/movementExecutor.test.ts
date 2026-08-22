@@ -12,10 +12,8 @@ const immediateContext: AnimationExecutionContext = {
   speedMultiplier: 1,
   reducedMotion: false,
   getDuration: duration => duration,
-  getSemanticDuration: duration => duration,
   wait: () => Promise.resolve(),
   waitForDuration: () => Promise.resolve(),
-  waitForSemanticDuration: () => Promise.resolve(),
 };
 
 function walkEvent(overrides: Partial<MoveCharacterPresentationEvent> = {}): MoveCharacterPresentationEvent {
@@ -221,6 +219,7 @@ describe('movement tile-hop presentation', () => {
       'start:39->0:180',
       'wait:180',
       'complete:0',
+      `wait:${presentationTiming.goMoment}`,
       `wait:${presentationTiming.goHold}`,
     ]);
     expect(store.getSnapshot().characterMovements[0]).toMatchObject({ fromTileId: 39, toTileId: 0 });
@@ -229,7 +228,7 @@ describe('movement tile-hop presentation', () => {
     }]);
   });
 
-  it('holds briefly at GO while the longer semantic moment continues', async () => {
+  it('holds at GO only for the physical checkpoint and coin feedback', async () => {
     const store = new PresentationStore();
     const trace: string[] = [];
     store.resetFromSnapshot(makeRoom());
@@ -252,7 +251,6 @@ describe('movement tile-hop presentation', () => {
     }), {
       ...immediateContext,
       waitForDuration: duration => { trace.push(`physical:${duration}`); return Promise.resolve(); },
-      waitForSemanticDuration: duration => { trace.push(`semantic:${duration}`); return Promise.resolve(); },
     });
 
     expect(trace).toEqual([
@@ -260,7 +258,7 @@ describe('movement tile-hop presentation', () => {
       'impact:STEP:0:144/36/78',
       'physical:180',
       'complete:0',
-      `semantic:${presentationTiming.goMoment}`,
+      `physical:${presentationTiming.goMoment}`,
       `physical:${presentationTiming.goHold}`,
       'start:0->1:180',
       'physical:180',

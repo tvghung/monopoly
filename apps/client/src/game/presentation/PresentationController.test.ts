@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { cloneRoom, makeRoom } from './testFixtures';
 import { PresentationController } from './PresentationController';
 
@@ -158,9 +158,108 @@ describe('PresentationController', () => {
     controller.acceptRoomSnapshot(gap, 'LIVE_UPDATE');
 
     expect(controller.getState().displayPositions['player-a']).toBe(9);
-    expect(controller.getState().activeBoardEvent).toBeNull();
+    expect(controller.getState().displayLogs).toEqual([]);
     expect(controller.getState().moneyTransfers).toEqual([]);
     expect(controller.queue.getStatus()).toBe('idle');
+    controller.dispose();
+  });
+
+  it('buffers a roll log while dice and movement presentation is active', () => {
+    const controller = new PresentationController();
+    const initial = makeRoom();
+    initial.gameState.boardState.logs = ['Lịch sử cũ'];
+    controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
+    const roll = cloneRoom(initial);
+    roll.gameState.boardState.diceValue = { dice1: 3, dice2: 4 };
+    roll.gameState.boardState.rollSequence = 1;
+    roll.gameState.boardState.currentPlayer.hasMoved = true;
+    roll.gameState.players['player-a'].currentTile = 7;
+    roll.gameState.turnInfo.pendingCardInteraction = {
+      operationId: 'roll-log-card',
+      playerId: 'player-a',
+      turnNumber: 1,
+      deck: 'chance',
+      sourceTile: 7,
+      stage: 'AWAITING_DRAW',
+      continuation: { playerId: 'player-a', turnNumber: 1 },
+      deadlineAt: '2026-08-22T00:00:30.000Z',
+    };
+    roll.gameState.boardState.logs = ['Lịch sử cũ', 'An đổ được 7'];
+
+    controller.acceptRoomSnapshot(roll, 'LIVE_UPDATE');
+
+    expect(controller.getState().displayLogs).toEqual(['Lịch sử cũ']);
+    controller.dispose();
+  });
+
+  it('keeps purchase/card logs gated through a pending interaction and flushes at handoff', async () => {
+    const controller = new PresentationController();
+    controller.setPreferences(true, 1);
+    const initial = makeRoom();
+    controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
+    const purchase = cloneRoom(initial);
+    purchase.gameState.boardState.currentPlayer.hasMoved = true;
+    purchase.gameState.players['player-a'].currentTile = 1;
+    purchase.gameState.players['player-a'].accountBalance = 1440;
+    purchase.gameState.turnInfo.pendingLandingDecision = {
+      kind: 'PURCHASE', operationId: 'purchase-log', playerId: 'player-a', tileID: 1, price: 60,
+    };
+    purchase.gameState.boardState.gameplayEvents = {
+      sequence: 1,
+      events: [{
+        eventId: 'purchase-log-event', sequence: 1, type: 'MONEY_TRANSFER',
+        source: { kind: 'PLAYER', playerId: 'player-a' }, destination: { kind: 'BANK' },
+        amount: 60, reason: 'PROPERTY_PURCHASE', operationId: 'purchase-log',
+      }],
+    };
+    purchase.gameState.boardState.logs = ['An mua đất'];
+    controller.acceptRoomSnapshot(purchase, 'LIVE_UPDATE');
+    await controller.queue.whenIdle();
+    expect(controller.getState().displayLogs).toEqual([]);
+
+    const handoff = cloneRoom(purchase);
+    delete handoff.gameState.turnInfo.pendingLandingDecision;
+    handoff.gameState.boardState.currentPlayer = { id: 'player-b', hasMoved: false };
+    handoff.gameState.boardState.turnNumber = 2;
+    handoff.gameState.boardState.logs = ['An mua đất', 'Đến lượt Bình'];
+    controller.acceptRoomSnapshot(handoff, 'LIVE_UPDATE');
+    await controller.queue.whenIdle();
+    expect(controller.getState().displayLogs).toEqual(['An mua đất', 'Đến lượt Bình']);
+
+    const card = cloneRoom(handoff);
+    card.gameState.boardState.currentPlayer = { id: 'player-a', hasMoved: true };
+    card.gameState.boardState.turnNumber = 3;
+    card.gameState.players['player-a'].currentTile = 2;
+    card.gameState.turnInfo.pendingCardInteraction = {
+      operationId: 'card-log', playerId: 'player-a', turnNumber: 3, deck: 'chest', sourceTile: 2,
+      stage: 'AWAITING_DRAW', continuation: { playerId: 'player-a', turnNumber: 3 },
+      deadlineAt: '2026-08-22T00:00:30.000Z',
+    };
+    card.gameState.boardState.logs = ['An mua đất', 'Đến lượt Bình', 'An rút thẻ'];
+    controller.acceptRoomSnapshot(card, 'LIVE_UPDATE');
+    await controller.queue.whenIdle();
+    expect(controller.getState().displayLogs).toEqual(['An mua đất', 'Đến lượt Bình']);
+    controller.dispose();
+    vi.restoreAllMocks();
+  });
+
+  it('hydrates active card state on session sync without replaying flight or reveal', () => {
+    const controller = new PresentationController();
+    const initial = makeRoom();
+    const sync = cloneRoom(initial);
+    sync.gameState.players['player-a'].currentTile = 7;
+    sync.gameState.turnInfo.pendingCardInteraction = {
+      operationId: 'reconnect-card', playerId: 'player-a', turnNumber: 1, deck: 'chance', sourceTile: 7,
+      stage: 'REVEALED', revealedCardId: 'chance-dividend',
+      continuation: { playerId: 'player-a', turnNumber: 1 }, deadlineAt: '2026-08-22T00:00:30.000Z',
+    };
+    controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
+    controller.acceptRoomSnapshot(sync, 'SESSION_SYNC');
+    expect(controller.getState().cardPresentation).toEqual({
+      operationId: 'reconnect-card', playerId: 'player-a', deck: 'chance', sourceTile: 7,
+      stage: 'REVEALED', revealedCardId: 'chance-dividend', durationMs: 0,
+    });
+    expect(controller.getState().characterMovements).toEqual([]);
     controller.dispose();
   });
 });

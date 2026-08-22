@@ -18,9 +18,9 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid transparent;
   border-radius: var(--radius-large);
-  box-shadow: var(--shadow-card);
+  box-shadow: none;
   z-index: 0;
 }
 

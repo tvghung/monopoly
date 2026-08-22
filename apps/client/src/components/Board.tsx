@@ -3,23 +3,20 @@ import {
   Suspense,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 import stateContext from '../internal';
 import displayPositionsContext from '../displayPositionsContext';
 import tradePromptContext from '../tradePromptContext';
 import { usePresentation } from '../game/presentation/PresentationProvider';
-import { localizeAckError } from '../presentation';
 import { buildBoardRenderModel } from '../game/scene/board/boardRenderModel';
 import SceneErrorBoundary from '../game/scene/fallback/SceneErrorBoundary';
 import { supportsWebGL } from '../game/scene/fallback/webglSupport';
 import PropertyInspectionModal from '../game/ui/property/PropertyInspectionModal';
 import OwnedPropertiesControl from '../game/ui/property/OwnedPropertiesControl';
 import PlayerStations from '../game/ui/stations/PlayerStations';
-import BoardEventStage from '../game/ui/events/BoardEventStage';
+import { useCardInteraction } from '../game/ui/events/CardInteractionOverlay';
 import RollControl from '../game/ui/hud/RollControl';
 import BoardAccessibilityControls from './BoardAccessibilityControls';
 import LegacyBoardView from './legacy-board/LegacyBoardView';
@@ -35,7 +32,7 @@ const GameScene = lazy(() => import('../game/scene/GameScene'));
 
 export default function Board() {
   const {
-    state, connected, canMutate, roomPlayers, playerId, role, socketFunctions,
+    state, connected, canMutate, roomPlayers, playerId, role,
   } = useContext(stateContext);
   const { state: presentationState } = usePresentation();
   const [rendererMode, setRendererMode] = useState<RendererMode>(
@@ -44,9 +41,7 @@ export default function Board() {
   const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
   const [hoveredTileId, setHoveredTileId] = useState<number | null>(null);
   const [tradeTarget, setTradeTarget] = useState<number | null>(null);
-  const [cardDrawPendingOperation, setCardDrawPendingOperation] = useState<string | null>(null);
-  const [cardDrawError, setCardDrawError] = useState('');
-  const cardDrawPendingRef = useRef<string | null>(null);
+  const { cardInteraction } = useCardInteraction();
   const displayPositions = presentationState.displayPositions;
   const renderModel = useMemo(
     () => buildBoardRenderModel(state, presentationState, roomPlayers, playerId, role),
@@ -87,45 +82,6 @@ export default function Board() {
       dice={renderModel.dice}
     />
   );
-  const pendingCard = state.turnInfo.pendingCardInteraction;
-  const canDrawCard = Boolean(
-    pendingCard
-    && pendingCard.stage === 'AWAITING_DRAW'
-    && pendingCard.playerId === playerId
-    && role === 'PLAYER'
-    && canMutate
-    && connected
-    && socketFunctions.drawCard,
-  );
-
-  useEffect(() => {
-    const operationStillAwaiting = pendingCard?.stage === 'AWAITING_DRAW'
-      && pendingCard.operationId === cardDrawPendingRef.current;
-    if (operationStillAwaiting && connected) return;
-    cardDrawPendingRef.current = null;
-    setCardDrawPendingOperation(null);
-    setCardDrawError('');
-  }, [connected, pendingCard?.operationId, pendingCard?.stage, presentationState.presentationResetEpoch]);
-
-  const requestCardDraw = useCallback((operationId: string) => {
-    if (!canDrawCard || pendingCard?.operationId !== operationId || cardDrawPendingRef.current) return;
-    cardDrawPendingRef.current = operationId;
-    setCardDrawPendingOperation(operationId);
-    setCardDrawError('');
-    void Promise.resolve(socketFunctions.drawCard?.(operationId))
-      .then(response => {
-        if (!response || response.ok) return;
-        cardDrawPendingRef.current = null;
-        setCardDrawPendingOperation(null);
-        setCardDrawError(localizeAckError(response.error));
-      })
-      .catch(() => {
-        cardDrawPendingRef.current = null;
-        setCardDrawPendingOperation(null);
-        setCardDrawError('Không thể gửi lệnh rút thẻ.');
-      });
-  }, [canDrawCard, pendingCard?.operationId, socketFunctions]);
-
   return (
     <tradePromptContext.Provider value={{
       tradeTarget: tradeTarget === null ? null : { tileID: tradeTarget },
@@ -162,9 +118,9 @@ export default function Board() {
                       onTileHover={setHoveredTileId}
                       onTileSelect={selectTile}
                       cardInteraction={{
-                        canDraw: canDrawCard,
-                        drawPending: cardDrawPendingOperation === pendingCard?.operationId,
-                        onDraw: requestCardDraw,
+                        canDraw: cardInteraction.canDraw,
+                        drawPending: cardInteraction.drawPending,
+                        onDraw: cardInteraction.onDraw,
                       }}
                     />
                   </Suspense>
@@ -173,11 +129,6 @@ export default function Board() {
               : legacyBoard}
             <PlayerStations
               activePlayerId={presentationState.displayActivePlayerId ?? state.boardState.currentPlayer.id}
-            />
-            <BoardEventStage
-              cardDrawError={cardDrawError}
-              cardDrawPending={cardDrawPendingOperation === pendingCard?.operationId}
-              onCardDraw={requestCardDraw}
             />
             <Dashboard />
             <RollControl />

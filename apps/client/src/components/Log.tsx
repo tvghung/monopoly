@@ -3,6 +3,7 @@ import {
 } from 'react';
 import './style/Log.css';
 import stateContext from '../internal';
+import { usePresentation } from '../game/presentation/PresentationProvider';
 
 export const LOG_IDLE_TIMEOUT_MS = 3000;
 
@@ -12,11 +13,13 @@ export function getLogActivitySignature(logs: readonly string[]): string {
 
 export default function Log() {
   const { state, socketFunctions, connected } = useContext(stateContext);
+  const { state: presentation, queue } = usePresentation();
   const [chat, setChat] = useState('');
   const [idle, setIdle] = useState(false);
   const scrollRef = useRef<HTMLElement>(null);
   const idleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activitySignature = getLogActivitySignature(state.boardState.logs);
+  const visibleLogs = queue ? presentation.displayLogs : state.boardState.logs;
+  const activitySignature = getLogActivitySignature(visibleLogs);
 
   const clearIdleTimeout = useCallback(() => {
     if (idleTimeoutRef.current !== null) {
@@ -62,7 +65,7 @@ export default function Log() {
     >
       <section ref={scrollRef} className="center__log" role="log" aria-live="polite" aria-label="Nhật ký ván chơi">
         {state.loaded
-          ? state.boardState.logs.map((e, i) => (
+          ? visibleLogs.map((e, i) => (
             <p
               key={i}
               dangerouslySetInnerHTML={{ __html: e }}

@@ -3,7 +3,7 @@ import type { Ack } from '@monopoly/shared';
 import stateContext from '../../../internal';
 import { localizeAckError } from '../../../presentation';
 import { usePresentation } from '../../presentation/PresentationProvider';
-import { areAllTokensSettled, canRollForState } from './rollControlLogic';
+import { areAllTokensSettled, canRollForState, shouldShowRollButton } from './rollControlLogic';
 
 function hasDiceResult(dice: { dice1: number; dice2: number }): boolean {
   return dice.dice1 >= 1 && dice.dice1 <= 6 && dice.dice2 >= 1 && dice.dice2 <= 6;
@@ -39,6 +39,12 @@ export default function RollControl() {
     playerId,
     pendingRequest: pendingRoll !== null,
   });
+  const showRollButton = shouldShowRollButton(
+    state.boardState.currentPlayer.id,
+    playerId,
+    canRoll,
+    pendingRoll !== null,
+  );
 
   useEffect(() => {
     if (!pendingRoll) return;
@@ -94,16 +100,20 @@ export default function RollControl() {
   return (
     <section className="game-board__roll-controls" data-testid="roll-control" aria-label="Điều khiển lượt chơi">
       <p className="game-board__turn-label">{turnLabel}</p>
-      <button
-        className="game-board__roll-button"
-        data-testid="roll-button"
-        type="button"
-        disabled={!canRoll}
-        aria-busy={pendingRoll !== null}
-        onClick={handleRoll}
-      >
-        {pendingRoll !== null ? 'Đang chờ máy chủ…' : 'Đổ Xúc Xắc'}
-      </button>
+      {showRollButton
+        ? (
+          <button
+            className="game-board__roll-button"
+            data-testid="roll-button"
+            type="button"
+            disabled={!canRoll}
+            aria-busy={pendingRoll !== null}
+            onClick={handleRoll}
+          >
+            {pendingRoll !== null ? 'Đang chờ máy chủ…' : 'Đổ Xúc Xắc'}
+          </button>
+        )
+        : null}
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {diceAnnouncement}
       </p>

@@ -17,6 +17,15 @@ export interface RollGateInput {
   pendingRequest: boolean;
 }
 
+export function shouldShowRollButton(
+  currentPlayerId: string,
+  playerId: string | null,
+  canRoll: boolean,
+  pendingRequest: boolean,
+): boolean {
+  return currentPlayerId === playerId && (canRoll || pendingRequest);
+}
+
 export function canRollForState(
   state: PublicGameState,
   presentationState: PresentationState,

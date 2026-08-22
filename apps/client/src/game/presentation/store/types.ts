@@ -4,10 +4,7 @@ import type {
   GameCardId,
   MoneyEndpoint,
   MoneyTransferReason,
-  JailReleasedSemanticEvent,
-  PropertyTransferCause,
   PublicRoomState,
-  SentToJailCause,
 } from '@monopoly/shared';
 import type { AnimationQueueStatus } from '../queue/types';
 import type { TileImpactSignal, TileImpactTiming } from '../../scene/board/motion/tileMotionTypes';
@@ -108,22 +105,6 @@ export interface MoneyTransferSignal {
   durationMs: number;
 }
 
-export interface BoardEventSignal {
-  id: string;
-  kind: 'MONEY_TRANSFER' | 'PROPERTY_PURCHASE' | 'PROPERTY_TRANSFER' | 'PASS_GO'
-    | 'DEVELOPMENT' | 'SENT_TO_JAIL' | 'JAIL_ROLL_FAILED' | 'JAIL_RELEASED';
-  playerIds: string[];
-  tileIds: number[];
-  amount?: number;
-  reason?: MoneyTransferReason;
-  source?: MoneyEndpoint;
-  destination?: MoneyEndpoint;
-  fromHouses?: number;
-  toHouses?: number;
-  cause?: PropertyTransferCause | SentToJailCause | JailReleasedSemanticEvent['cause'];
-  durationMs: number;
-}
-
 export interface CardPresentationSignal {
   operationId: string;
   playerId: string;
@@ -143,6 +124,7 @@ export interface DiceRollPresentation {
 }
 
 export interface PresentationState {
+  displayLogs: readonly string[];
   displayPositions: Record<string, number>;
   settledPositions: Record<string, number>;
   displayActivePlayerId: string | null;
@@ -160,7 +142,6 @@ export interface PresentationState {
   goCrossings: readonly GoCrossingSignal[];
   destinationPreview: DestinationPreviewSignal | null;
   moneyTransfers: readonly MoneyTransferSignal[];
-  activeBoardEvent: BoardEventSignal | null;
   cardPresentation: CardPresentationSignal | null;
   animationSpeedMultiplier: number;
   presentationResetEpoch: number;
@@ -172,6 +153,7 @@ export interface PresentationStoreLike {
   getSnapshot: () => PresentationState;
   subscribe: (listener: PresentationListener) => () => void;
   resetFromSnapshot: (room: PublicRoomState) => void;
+  setDisplayLogs: (logs: readonly string[]) => void;
   syncPlayers: (room: PublicRoomState) => void;
   startCharacterHop: (playerId: string, fromTileId: number, toTileId: number, durationMs: number) => void;
   startJailTransfer: (playerId: string, fromTileId: number, toTileId: number, durationMs: number) => void;
@@ -205,8 +187,6 @@ export interface PresentationStoreLike {
   showDestinationPreview: (signal: DestinationPreviewSignal) => void;
   clearDestinationPreview: (id?: string) => void;
   emitMoneyTransfer: (signal: Omit<MoneyTransferSignal, 'sequence' | 'coinCount'>) => void;
-  showBoardEvent: (signal: BoardEventSignal) => void;
-  clearBoardEvent: (id?: string) => void;
   setCardPresentation: (signal: CardPresentationSignal | null) => void;
   setAnimationSpeedMultiplier: (multiplier: number) => void;
   setStatus: (status: AnimationQueueStatus) => void;

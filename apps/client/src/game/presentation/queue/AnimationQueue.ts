@@ -151,25 +151,13 @@ export class AnimationQueue {
         const resolveDuration = (baseDuration: number): number => this.reducedMotion
           ? 0
           : resolvePresentationDuration(baseDuration, this.speedMultiplier);
-        const resolveSemanticDuration = (
-          baseDuration: number,
-          minimumDuration = 650,
-        ): number => Math.max(
-          Math.max(0, minimumDuration),
-          resolvePresentationDuration(baseDuration, this.speedMultiplier),
-        );
         const context: AnimationExecutionContext = {
           signal: controller.signal,
           speedMultiplier: this.speedMultiplier,
           reducedMotion: this.reducedMotion,
           getDuration: resolveDuration,
-          getSemanticDuration: resolveSemanticDuration,
           wait: baseDuration => waitForDelay(resolveDuration(baseDuration), controller.signal),
           waitForDuration: durationMs => waitForDelay(
-            Math.max(0, durationMs),
-            controller.signal,
-          ),
-          waitForSemanticDuration: durationMs => waitForDelay(
             Math.max(0, durationMs),
             controller.signal,
           ),

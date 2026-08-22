@@ -10,6 +10,7 @@ interface PresentationContextValue {
 }
 
 const emptyPresentationState: PresentationState = {
+  displayLogs: [],
   displayPositions: {},
   settledPositions: {},
   displayActivePlayerId: null,
@@ -27,7 +28,6 @@ const emptyPresentationState: PresentationState = {
   goCrossings: [],
   destinationPreview: null,
   moneyTransfers: [],
-  activeBoardEvent: null,
   cardPresentation: null,
   animationSpeedMultiplier: 1,
   presentationResetEpoch: 0,

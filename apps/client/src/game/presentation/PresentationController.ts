@@ -19,6 +19,8 @@ export class PresentationController {
   private disposalGeneration = 0;
   private disposed = false;
   private readonly privateSemanticSequences = new Map<string, number>();
+  private authoritativeLogs: readonly string[] = [];
+  private logGate: { playerId: string; turnNumber: number } | null = null;
 
   public constructor(reducedMotion = false, speedMultiplier = 1) {
     this.store.setAnimationSpeedMultiplier(speedMultiplier);
@@ -34,14 +36,20 @@ export class PresentationController {
       speedMultiplier,
       onReset: snapshot => {
         if (snapshot && typeof snapshot === 'object' && 'gameState' in snapshot) {
-          this.store.resetFromSnapshot(snapshot as PublicRoomState);
+          const room = snapshot as PublicRoomState;
+          this.authoritativeLogs = [...room.gameState.boardState.logs];
+          this.logGate = null;
+          this.store.resetFromSnapshot(room);
         }
       },
       onError: (error, event) => {
         console.error('Presentation animation failed.', event.type, error);
       },
     });
-    this.queue.subscribe(status => this.store.setStatus(status));
+    this.queue.subscribe(status => {
+      this.store.setStatus(status);
+      if (status === 'idle') this.flushLogsIfSafe();
+    });
   }
 
   public acceptRoomSnapshot(room: PublicRoomState, source: SnapshotSource): boolean {
@@ -71,6 +79,7 @@ export class PresentationController {
       return true;
     }
     const events = derivePresentationEvents(previous, room);
+    this.updateLogGate(previous, room, events);
     if (!events.some(event => event.type === 'ROLL_DICE')) {
       this.store.syncDisplayDice(
         room.gameState.boardState.diceValue,
@@ -78,6 +87,7 @@ export class PresentationController {
       );
     }
     void Promise.all(this.queue.enqueueMany(events));
+    this.flushLogsIfSafe();
     return true;
   }
 
@@ -162,5 +172,41 @@ export class PresentationController {
     this.consumerCount = 0;
     this.disposalGeneration += 1;
     this.queue.dispose();
+  }
+
+  private updateLogGate(
+    previous: PublicRoomState,
+    next: PublicRoomState,
+    events: ReturnType<typeof derivePresentationEvents>,
+  ): void {
+    this.authoritativeLogs = [...next.gameState.boardState.logs];
+    if (this.logGate) return;
+    if (events.length === 0) {
+      this.store.setDisplayLogs(this.authoritativeLogs);
+      return;
+    }
+    this.logGate = {
+      playerId: previous.gameState.boardState.currentPlayer.id,
+      turnNumber: previous.gameState.boardState.turnNumber,
+    };
+  }
+
+  private flushLogsIfSafe(): void {
+    if (!this.logGate || !this.acceptedRoom || this.queue.getStatus() !== 'idle') return;
+    const game = this.acceptedRoom.gameState;
+    const currentPlayer = game.boardState.currentPlayer;
+    const turnReady = currentPlayer.id !== this.logGate.playerId
+      || game.boardState.turnNumber > this.logGate.turnNumber
+      || !currentPlayer.hasMoved;
+    const interactionPending = Boolean(
+      game.turnInfo.pendingCardInteraction
+      || game.turnInfo.pendingLandingDecision
+      || game.boardState.paymentShortfall,
+    );
+    const gameFinished = this.acceptedRoom.status === 'FINISHED' || Boolean(game.boardState.winner);
+    if (!turnReady && !gameFinished) return;
+    if (interactionPending) return;
+    this.store.setDisplayLogs(this.authoritativeLogs);
+    this.logGate = null;
   }
 }

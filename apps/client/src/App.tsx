@@ -36,6 +36,9 @@ import { localizeAckError } from './presentation';
 import { createSocket } from './network/createSocket';
 import { PresentationController, type SnapshotSource } from './game/presentation/PresentationController';
 import { PresentationProvider } from './game/presentation/PresentationProvider';
+import CardInteractionOverlay, {
+  CardInteractionProvider,
+} from './game/ui/events/CardInteractionOverlay';
 import {
   clearPlayerSession,
   readPlayerSession,
@@ -779,7 +782,8 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
   return (
     <PresentationProvider controller={presentationController}>
       <stateContext.Provider value={contextValue}>
-        <main className="App">
+        <CardInteractionProvider>
+          <main className="App">
           {phase === 'RESTORING' ? <LoadingScreen message="Đang khôi phục ván chơi…" /> : null}
           {phase === 'JOIN' || phase === 'JOINING'
             ? (
@@ -810,7 +814,9 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
             onCancel={cancelConfirmation}
             onConfirm={confirmConfirmation}
           />
-        </main>
+          </main>
+          <CardInteractionOverlay />
+        </CardInteractionProvider>
       </stateContext.Provider>
     </PresentationProvider>
   );

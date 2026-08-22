@@ -7,13 +7,13 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { gameCardsById, type CardDeck, type DeckCounts } from '@monopoly/shared';
 import * as THREE from 'three';
 import type { CardPresentationSignal } from '../../presentation/store/types';
+import { BOARD_SVG_TILE_ICON_ASSETS } from '../special/boardIconAssets';
+import { useSharedSvgTexture } from '../special/RaisedSvgTileIcon';
 import SdfSurfaceText from '../board/tiles/SdfSurfaceText';
 import {
-  FIXED_CAMERA_QUATERNION,
   FIXED_CARD_BACK_QUATERNION,
 } from '../camera/fixedCameraOrientation';
 import {
-  CARD_FOCUS_SCRIM_POSITION,
   CARD_PRESENTATION_POSITION,
   CARD_PRESENTATION_SCALE,
   CARD_REVEAL_ROTATIONS,
@@ -54,10 +54,20 @@ const CARD_BACK_MATERIALS: Record<CardDeck, THREE.MeshStandardMaterial> = {
 const CARD_FRONT_MATERIAL = new THREE.MeshStandardMaterial({
   color: '#fff1cf', roughness: 0.72, metalness: 0,
 });
-const CARD_SCRIM_GEOMETRY = new THREE.PlaneGeometry(80, 80);
-const CARD_SCRIM_MATERIAL = new THREE.MeshBasicMaterial({
-  color: '#071c23', transparent: true, opacity: 0.32, depthWrite: false,
-});
+const CARD_BACK_ICON_GEOMETRY = new THREE.PlaneGeometry(
+  PHYSICAL_CARD_WIDTH * 0.38,
+  PHYSICAL_CARD_DEPTH * 0.54,
+);
+CARD_BACK_ICON_GEOMETRY.rotateX(-Math.PI / 2);
+CARD_BACK_ICON_GEOMETRY.translate(0, PHYSICAL_CARD_THICKNESS / 2 + 0.004, 0);
+const CARD_BACK_ICON_MATERIALS: Record<CardDeck, THREE.MeshBasicMaterial> = {
+  chance: new THREE.MeshBasicMaterial({
+    color: '#fff2d4', transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, toneMapped: false,
+  }),
+  chest: new THREE.MeshBasicMaterial({
+    color: '#fff2d4', transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, toneMapped: false,
+  }),
+};
 const LOCAL_X_AXIS = new THREE.Vector3(1, 0, 0);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
@@ -65,10 +75,6 @@ export interface PhysicalCardInteraction {
   canDraw: boolean;
   drawPending: boolean;
   onDraw: (operationId: string) => void;
-}
-
-function deckLabel(deck: CardDeck): string {
-  return deck === 'chance' ? 'CƠ HỘI' : 'KHÍ VẬN';
 }
 
 function IdleDeckStack({
@@ -82,12 +88,24 @@ function IdleDeckStack({
 }) {
   const bodyRef = useRef<THREE.InstancedMesh>(null);
   const backRef = useRef<THREE.InstancedMesh>(null);
+  const iconRef = useRef<THREE.InstancedMesh>(null);
   const invalidate = useThree(state => state.invalidate);
   const object = useMemo(() => new THREE.Object3D(), []);
+  const icon = deck === 'chance'
+    ? BOARD_SVG_TILE_ICON_ASSETS['chance-question-svg']
+    : BOARD_SVG_TILE_ICON_ASSETS['fortune-wheel-svg'];
+  const texture = useSharedSvgTexture(icon.url);
+
+  useEffect(() => {
+    const material = CARD_BACK_ICON_MATERIALS[deck];
+    material.map = texture;
+    material.needsUpdate = true;
+  }, [deck, texture]);
 
   useLayoutEffect(() => {
     const body = bodyRef.current;
     const back = backRef.current;
+    const iconMesh = iconRef.current;
     if (!body || !back) return;
     for (let index = 0; index < count; index += 1) {
       const transform = getCardLayerTransform(deck, index);
@@ -97,11 +115,13 @@ function IdleDeckStack({
       object.updateMatrix();
       body.setMatrixAt(index, object.matrix);
       back.setMatrixAt(index, object.matrix);
+      iconMesh?.setMatrixAt(index, object.matrix);
     }
     body.instanceMatrix.needsUpdate = true;
     back.instanceMatrix.needsUpdate = true;
+    if (iconMesh) iconMesh.instanceMatrix.needsUpdate = true;
     invalidate();
-  }, [count, deck, invalidate, object]);
+  }, [count, deck, invalidate, object, texture]);
 
   return (
     <group name={`${deck}PhysicalCardStack`} userData={{ physicalCount: count, authoritativeCount }}>
@@ -115,21 +135,16 @@ function IdleDeckStack({
         args={[CARD_BACK_GEOMETRY, CARD_BACK_MATERIALS[deck], count]}
         name={`${deck}CardBacks`}
       />
+      {texture
+        ? (
+          <instancedMesh
+            ref={iconRef}
+            args={[CARD_BACK_ICON_GEOMETRY, CARD_BACK_ICON_MATERIALS[deck], count]}
+            name={`${deck}CardBackIcons`}
+          />
+        )
+        : null}
     </group>
-  );
-}
-
-function CardFocusScrim() {
-  return (
-    <mesh
-      geometry={CARD_SCRIM_GEOMETRY}
-      material={CARD_SCRIM_MATERIAL}
-      position={CARD_FOCUS_SCRIM_POSITION}
-      quaternion={FIXED_CAMERA_QUATERNION}
-      renderOrder={20}
-      raycast={() => undefined}
-      name="PhysicalCardFocusScrim"
-    />
   );
 }
 
@@ -154,6 +169,16 @@ function ActivePhysicalCard({
     Math.max(0, authoritativeDeckCount - 1),
   ), [authoritativeDeckCount, signal.deck]);
   const card = signal.revealedCardId ? gameCardsById[signal.revealedCardId] : undefined;
+  const icon = signal.deck === 'chance'
+    ? BOARD_SVG_TILE_ICON_ASSETS['chance-question-svg']
+    : BOARD_SVG_TILE_ICON_ASSETS['fortune-wheel-svg'];
+  const iconTexture = useSharedSvgTexture(icon.url);
+
+  useEffect(() => {
+    const material = CARD_BACK_ICON_MATERIALS[signal.deck];
+    material.map = iconTexture;
+    material.needsUpdate = true;
+  }, [iconTexture, signal.deck]);
   const interactive = signal.stage === 'AWAITING_DRAW'
     && interaction.canDraw
     && !interaction.drawPending;
@@ -238,15 +263,12 @@ function ActivePhysicalCard({
     >
       <mesh geometry={CARD_BODY_GEOMETRY} material={CARD_BODY_MATERIAL} name="ActivePhysicalCardBody" />
       <mesh geometry={CARD_BACK_GEOMETRY} material={CARD_BACK_MATERIALS[signal.deck]} name="ActivePhysicalCardBack" />
-      <mesh geometry={CARD_FRONT_GEOMETRY} material={CARD_FRONT_MATERIAL} name="ActivePhysicalCardFront" />
-      <SdfSurfaceText
-        value={deckLabel(signal.deck)}
-        position={[0, PHYSICAL_CARD_THICKNESS / 2 + 0.006, 0]}
-        fontSize={0.2}
-        maxWidth={1.35}
-        color="#fff4d2"
-        name="ActivePhysicalCardBackLabel"
-      />
+      {iconTexture
+        ? <mesh geometry={CARD_BACK_ICON_GEOMETRY} material={CARD_BACK_ICON_MATERIALS[signal.deck]} name="ActivePhysicalCardBackIcon" />
+        : null}
+      {signal.stage === 'REVEALING' || signal.stage === 'REVEALED'
+        ? <mesh geometry={CARD_FRONT_GEOMETRY} material={CARD_FRONT_MATERIAL} name="ActivePhysicalCardFront" />
+        : null}
       {card
         ? (
           <SdfSurfaceText
@@ -258,6 +280,7 @@ function ActivePhysicalCard({
             lineHeight={1.12}
             rotationX={Math.PI / 2}
             color="#173d43"
+            renderOrder={2}
             name="ActivePhysicalCardMessage"
           />
         )
@@ -283,10 +306,7 @@ export default function PhysicalCardDecks({
       <IdleDeckStack deck="chest" count={chestCount} authoritativeCount={deckCounts.chest} />
       {signal
         ? (
-          <>
-            <CardFocusScrim />
-            <ActivePhysicalCard signal={signal} deckCounts={deckCounts} interaction={interaction} />
-          </>
+          <ActivePhysicalCard signal={signal} deckCounts={deckCounts} interaction={interaction} />
         )
         : null}
     </group>

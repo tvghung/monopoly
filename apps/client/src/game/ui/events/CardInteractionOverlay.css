@@ -1,0 +1,56 @@
+.card-focus-overlay {
+  --card-focus-width: min(28rem, 62vw);
+  --card-focus-height: min(19rem, 48vh);
+  --card-focus-scrim: rgb(4 18 24 / 68%);
+  position: fixed;
+  z-index: 9100;
+  inset: 0;
+  pointer-events: none;
+}
+
+.card-focus-overlay__panel {
+  position: absolute;
+  background: var(--card-focus-scrim);
+  backdrop-filter: blur(5px) saturate(78%);
+  -webkit-backdrop-filter: blur(5px) saturate(78%);
+  pointer-events: auto;
+}
+
+.card-focus-overlay__panel--top {
+  inset: 0 0 calc(50% + var(--card-focus-height) / 2) 0;
+}
+
+.card-focus-overlay__panel--bottom {
+  inset: calc(50% + var(--card-focus-height) / 2) 0 0 0;
+}
+
+.card-focus-overlay__panel--left {
+  inset: calc(50% - var(--card-focus-height) / 2) calc(50% + var(--card-focus-width) / 2) calc(50% - var(--card-focus-height) / 2) 0;
+}
+
+.card-focus-overlay__panel--right {
+  inset: calc(50% - var(--card-focus-height) / 2) 0 calc(50% - var(--card-focus-height) / 2) calc(50% + var(--card-focus-width) / 2);
+}
+
+.card-focus-overlay__instruction {
+  position: fixed;
+  top: calc(50% + var(--card-focus-height) / 2 + 1.25rem);
+  left: 50%;
+  margin: 0;
+  color: #fff4d6;
+  font-family: var(--font-family-display);
+  font-size: clamp(0.95rem, 1.7vw, 1.2rem);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+  text-align: center;
+  text-shadow: 0 0.15rem 0.8rem rgb(0 0 0 / 76%);
+  transform: translateX(-50%);
+}
+
+@media (max-width: 720px) {
+  .card-focus-overlay {
+    --card-focus-width: min(23rem, 82vw);
+    --card-focus-height: min(16rem, 46vh);
+  }
+}

@@ -23,6 +23,7 @@ describe('world-space player stations', () => {
       PLAYER_STATION_CENTER_OFFSET - OUTER_BOARD_SIZE / 2 - PLAYER_STATION_DEPTH / 2,
     );
     expect(PLAYER_STATION_BOARD_GAP).toBeGreaterThan(0.4);
+    expect(PLAYER_STATION_BOARD_GAP).toBeGreaterThan(0.9);
   });
 
   it('resolves BANK and player transfer endpoints at their visible coin heights', () => {

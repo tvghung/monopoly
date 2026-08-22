@@ -10,6 +10,7 @@ import type { SocketFunctions, StateContextValue } from '../types';
 import { presentationContext } from '../game/presentation/PresentationProvider';
 import type { PresentationState } from '../game/presentation/store/types';
 import type { AnimationQueue } from '../game/presentation/queue/AnimationQueue';
+import CardInteractionOverlay, { CardInteractionProvider } from '../game/ui/events/CardInteractionOverlay';
 import Board from './Board';
 
 vi.mock('../game/scene/GameScene', () => ({
@@ -100,6 +101,7 @@ const makeContextValue = (
 });
 
 const makePresentationState = (overrides: Partial<PresentationState> = {}): PresentationState => ({
+  displayLogs: [],
   displayPositions: {},
   settledPositions: {},
   displayActivePlayerId: null,
@@ -117,7 +119,6 @@ const makePresentationState = (overrides: Partial<PresentationState> = {}): Pres
   goCrossings: [],
   destinationPreview: null,
   moneyTransfers: [],
-  activeBoardEvent: null,
   cardPresentation: null,
   animationSpeedMultiplier: 1,
   presentationResetEpoch: 0,
@@ -301,11 +302,19 @@ describe('Vietnamese game board', () => {
           state: makePresentationState({
             displayPositions: { a: 7 },
             settledPositions: { a: 7 },
+            cardPresentation: {
+              operationId: '00000000-0000-4000-8000-000000000700',
+              playerId: 'a',
+              deck: 'chance',
+              sourceTile: 7,
+              stage: 'AWAITING_DRAW',
+              durationMs: 0,
+            },
           }),
           queue: null as unknown as AnimationQueue,
         }}
         >
-          <Board />
+          <CardInteractionProvider><Board /><CardInteractionOverlay /></CardInteractionProvider>
         </presentationContext.Provider>
       </stateContext.Provider>,
     );
@@ -532,7 +541,7 @@ describe('Vietnamese game board', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ Xúc Xắc' }).disabled).toBe(true);
+      expect(screen.queryByRole<HTMLButtonElement>('button', { name: 'Đổ Xúc Xắc' })).toBeNull();
     });
     expect(socketFunctions.rollDice).toHaveBeenCalledTimes(1);
   });

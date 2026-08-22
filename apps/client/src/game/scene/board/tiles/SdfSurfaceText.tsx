@@ -16,6 +16,7 @@ export interface SdfSurfaceTextProps {
   sdfGlyphSize?: number;
   rotationX?: number;
   rotationZ?: number;
+  renderOrder?: number;
   name?: string;
 }
 
@@ -39,12 +40,14 @@ export default function SdfSurfaceText({
   sdfGlyphSize = TILE_SDF_GLYPH_SIZE,
   rotationX = -Math.PI / 2,
   rotationZ = 0,
+  renderOrder = 0,
   name,
 }: SdfSurfaceTextProps) {
   const invalidate = useThree(state => state.invalidate);
   const textObjectRef = useRef<Text | null>(null);
   if (!textObjectRef.current) textObjectRef.current = new Text();
   const textObject = textObjectRef.current;
+  textObject.renderOrder = renderOrder;
   const disposeGeneration = useRef(0);
   const textRef = useRef<THREE.Object3D>(null);
 

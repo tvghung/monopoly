@@ -6,6 +6,7 @@ import { cloneRoom, makeRoom } from '../../presentation/testFixtures';
 import { PLAYER_STATION_WORLD_ANCHORS } from '../stations/stationWorld';
 
 const presentation = (overrides: Partial<PresentationState> = {}): PresentationState => ({
+  displayLogs: [],
   displayPositions: {},
   settledPositions: {},
   displayActivePlayerId: null,
@@ -23,7 +24,6 @@ const presentation = (overrides: Partial<PresentationState> = {}): PresentationS
   goCrossings: [],
   destinationPreview: null,
   moneyTransfers: [],
-  activeBoardEvent: null,
   cardPresentation: null,
   animationSpeedMultiplier: 1,
   presentationResetEpoch: 0,
@@ -218,7 +218,7 @@ describe('board render model', () => {
     expect(model.deckCounts).toEqual({ chance: 16, chest: 16 });
   });
 
-  it('projects bankrupt stations and reconnects directly to authoritative card state', () => {
+  it('does not bypass queued card presentation with an authoritative pending interaction', () => {
     const room = makeRoom();
     const reconnect = cloneRoom(room);
     reconnect.gameState.boardState.finishedPlayers['player-b'] = {
@@ -244,7 +244,24 @@ describe('board render model', () => {
       'PLAYER',
     );
     expect(model.stations.find(station => station.playerId === 'player-b')?.status).toBe('BANKRUPT');
-    expect(model.cardPresentation).toEqual({
+    expect(model.cardPresentation).toBeNull();
+    expect(buildBoardRenderModel(
+      reconnect.gameState,
+      presentation({
+        cardPresentation: {
+          operationId: '00000000-0000-4000-8000-000000000700',
+          playerId: 'player-a',
+          deck: 'chance',
+          sourceTile: 7,
+          stage: 'REVEALED',
+          revealedCardId: 'chance-dividend',
+          durationMs: 0,
+        },
+      }),
+      reconnect.players,
+      'player-a',
+      'PLAYER',
+    ).cardPresentation).toEqual({
       operationId: '00000000-0000-4000-8000-000000000700',
       playerId: 'player-a',
       deck: 'chance',

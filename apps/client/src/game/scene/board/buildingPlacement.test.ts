@@ -3,7 +3,6 @@ import {
   HOTEL_BODY_HEIGHT,
   HOUSE_BODY_HEIGHT,
   HOUSE_CENTER_Y,
-  PLAYER_ACTIVE_RING_BOTTOM_Y,
   PLAYER_MARKER_BODY_HEIGHT,
   getBuildingSlots,
   getHotelSlot,
@@ -34,7 +33,6 @@ describe('board building and occupant placement', () => {
       .toBeCloseTo(TILE_SURFACE_Y + SURFACE_EPSILON);
     expect((getOccupantWorldPosition(1, 0)?.[1] ?? 0) - PLAYER_MARKER_BODY_HEIGHT / 2)
       .toBeCloseTo(TILE_SURFACE_Y + SURFACE_EPSILON);
-    expect(PLAYER_ACTIVE_RING_BOTTOM_Y).toBeGreaterThanOrEqual(TILE_SURFACE_Y);
   });
 
   it.each([

@@ -343,6 +343,37 @@ describe('derivePresentationEvents', () => {
     expect(events.some(event => event.type === 'PASS_GO')).toBe(false);
   });
 
+  it('never opens a card before LAND when one authoritative roll snapshot includes the pending draw', () => {
+    const previous = makeRoom();
+    const next = cloneRoom(previous);
+    next.gameState.boardState.diceValue = { dice1: 3, dice2: 4 };
+    next.gameState.boardState.rollSequence = 1;
+    next.gameState.boardState.currentPlayer.hasMoved = true;
+    next.gameState.players['player-a'].currentTile = 7;
+    next.gameState.turnInfo.pendingCardInteraction = {
+      operationId: 'roll-card-operation',
+      playerId: 'player-a',
+      turnNumber: 1,
+      deck: 'chance',
+      sourceTile: 7,
+      stage: 'AWAITING_DRAW',
+      continuation: { playerId: 'player-a', turnNumber: 1 },
+      deadlineAt: '2026-08-22T00:00:30.000Z',
+    };
+
+    const events = derivePresentationEvents(previous, next);
+    expect(events.map(event => (
+      event.type === 'CARD_INTERACTION_CHANGED' ? `${event.type}:${event.stage}` : event.type
+    ))).toEqual([
+      'ROLL_DICE',
+      'MOVE_CHARACTER',
+      'LAND_TILE',
+      'CARD_INTERACTION_CHANGED:AWAITING_DRAW',
+    ]);
+    expect(events.findIndex(event => event.type === 'CARD_INTERACTION_CHANGED'))
+      .toBeGreaterThan(events.findIndex(event => event.type === 'LAND_TILE'));
+  });
+
   it('closes the old card before movement and opens a chained card only after LAND', () => {
     const previous = makeRoom();
     previous.gameState.players['player-a'].currentTile = 7;

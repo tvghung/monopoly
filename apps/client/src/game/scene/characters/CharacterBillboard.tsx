@@ -9,7 +9,6 @@ import type {
 import type { CharacterPlayerModel } from '../board/boardRenderModel';
 import { useEffectiveReducedMotion } from '../../../settings/selectors';
 import { useTileMotionController } from '../board/motion/TileMotionProvider';
-import { boardVisualTokens } from '../board/boardVisualTokens';
 import { getCharacterLandingAnchor } from '../board/architecture/tileAnchors';
 import { getCharacterDefinition } from '../../characters/characterRegistry';
 import { acquireCharacterTexture } from '../../characters/characterTextureCache';
@@ -28,7 +27,6 @@ import { resolvePresentationDuration } from '../../presentation/timings';
 import { CharacterReactionController } from './characterReaction';
 import CharacterSprite from './CharacterSprite';
 import ContactShadow from '../fx/ContactShadow';
-import { PLAYER_ACTIVE_RING_TUBE_RADIUS } from '../board/buildingPlacement';
 
 interface CharacterBillboardProps {
   player: CharacterPlayerModel;
@@ -465,18 +463,6 @@ export default function CharacterBillboard({
   return (
     <group ref={groupRef}>
       <group ref={groundGroupRef} position={[0, groundY + tileMotionOffsetYSnapshot, 0]}>
-        {player.isActive
-          ? (
-            <mesh position={[0, 0.025, 0]} rotation={[Math.PI / 2, 0, 0]}>
-              <torusGeometry args={[0.32, PLAYER_ACTIVE_RING_TUBE_RADIUS, 8, 24]} />
-              <meshStandardMaterial
-                color={boardVisualTokens.selection}
-                emissive={boardVisualTokens.selection}
-                emissiveIntensity={0.2}
-              />
-            </mesh>
-          )
-          : null}
         <group ref={shadowGroupRef}>
           <ContactShadow
             scale={definition.shadowScale}

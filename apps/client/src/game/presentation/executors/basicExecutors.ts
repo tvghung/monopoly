@@ -126,19 +126,6 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
           ? presentationTiming.housePop + (added - 1) * presentationTiming.houseStagger
           : 0;
       const durationMs = context.getDuration(baseDuration);
-      const semanticDurationMs = context.getSemanticDuration(
-        presentationTiming.developmentMoment,
-        presentationTiming.developmentMomentMinimum,
-      );
-      store.showBoardEvent({
-        id: event.id,
-        kind: 'DEVELOPMENT',
-        playerIds: [event.playerId],
-        tileIds: [event.tileId],
-        fromHouses: event.fromHouses,
-        toHouses: event.toHouses,
-        durationMs: semanticDurationMs,
-      });
       store.emitDevelopmentChange(
         event.id,
         event.tileId,
@@ -147,8 +134,7 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
         event.toHouses,
         durationMs,
       );
-      await context.waitForSemanticDuration(semanticDurationMs);
-      if (isExecutionCurrent(context)) store.clearBoardEvent(event.id);
+      await context.waitForDuration(durationMs);
     },
     finish() {},
   };

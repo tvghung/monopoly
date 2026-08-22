@@ -38,6 +38,7 @@ function RendererDiagnostics({
   stationCount,
   deckCounts,
   activeCardStage,
+  destinationPreviewTileId,
   hoveredTileId,
   selectedTileId,
 }: {
@@ -48,6 +49,7 @@ function RendererDiagnostics({
   activeCardStage: BoardRenderModel['cardPresentation'] extends infer Signal
     ? Signal extends { stage: infer Stage } ? Stage : null
     : null;
+  destinationPreviewTileId: number | null;
   hoveredTileId?: number | null;
   selectedTileId?: number | null;
 }) {
@@ -71,8 +73,7 @@ function RendererDiagnostics({
       const drawingBufferSize = gl.getDrawingBufferSize(new THREE.Vector2());
       const sceneObjects: THREE.Object3D[] = [];
       scene.traverse(object => sceneObjects.push(object));
-      const stationBases = scene.getObjectByName('PlayerStationLowerBases');
-      const sharedCoins = scene.getObjectByName('SharedStationAndBankCoins');
+      const stationCoinMeshes = sceneObjects.filter(object => object.name.startsWith('StationCoins:'));
       const chanceCards = scene.getObjectByName('chanceCardBodies');
       const chestCards = scene.getObjectByName('chestCardBodies');
       const diagnostics = {
@@ -93,11 +94,14 @@ function RendererDiagnostics({
         hardTriangleLimit: HARD_TRIANGLE_LIMIT,
         physicalScene: {
           stationLayer: Boolean(scene.getObjectByName('PlayerStationLayer')),
-          stationCount: stationBases instanceof THREE.InstancedMesh ? stationBases.count : 0,
+          stationCount: stationCount,
           authoritativeStationCount: stationCount,
           stationLabelCount: sceneObjects.filter(object => object.name.startsWith('PlayerStationName:')).length,
           bankTreasury: Boolean(scene.getObjectByName('BankTreasury')),
-          sharedCoinInstanceCount: sharedCoins instanceof THREE.InstancedMesh ? sharedCoins.count : 0,
+          sharedCoinInstanceCount: stationCoinMeshes.reduce(
+            (count, object) => count + (object instanceof THREE.InstancedMesh ? object.count : 0),
+            0,
+          ),
           decks: {
             chance: {
               physicalCount: chanceCards instanceof THREE.InstancedMesh ? chanceCards.count : 0,
@@ -109,7 +113,11 @@ function RendererDiagnostics({
             },
           },
           activeCardStage,
-          cardFocusScrim: Boolean(scene.getObjectByName('PhysicalCardFocusScrim')),
+          destinationPreviewTileId,
+          activeTurnRingCount: sceneObjects.filter(object => (
+            object.name.includes('ActiveTurn') || object.name.includes('PlayerActiveRing')
+          )).length,
+          cardFocusScrim: false,
         },
       };
       window.__OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__ = diagnostics;
@@ -129,7 +137,7 @@ function RendererDiagnostics({
       window.cancelAnimationFrame(firstFrame);
       window.cancelAnimationFrame(measurementFrame);
     };
-  }, [activeAnimatedObjects, activeCardStage, activityKey, camera, deckCounts.chance, deckCounts.chest, gl, height, hoveredTileId, invalidate, scene, selectedTileId, stationCount, width]);
+  }, [activeAnimatedObjects, activeCardStage, activityKey, camera, deckCounts.chance, deckCounts.chest, destinationPreviewTileId, gl, height, hoveredTileId, invalidate, scene, selectedTileId, stationCount, width]);
 
   return null;
 }
@@ -178,6 +186,7 @@ function BoardSceneContents({
         stationCount={model?.stations.length ?? 0}
         deckCounts={model?.deckCounts ?? { chance: 0, chest: 0 }}
         activeCardStage={model?.cardPresentation?.stage ?? null}
+        destinationPreviewTileId={model?.destinationPreview?.tileId ?? null}
         hoveredTileId={hoveredTileId}
         selectedTileId={selectedTileId}
       />

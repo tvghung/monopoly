@@ -17,10 +17,7 @@ export function createMovementExecutor(store: PresentationStoreLike): Presentati
   ): { holdDurationMs: number; completion: Promise<void> } | null => {
     const passGo = event.passGo;
     if (!passGo || !isExecutionCurrent(context)) return null;
-    const duration = context.getSemanticDuration(
-      presentationTiming.goMoment,
-      presentationTiming.goMomentMinimum,
-    );
+    const duration = context.getDuration(presentationTiming.goMoment);
     store.emitGoCrossing(
       passGo.eventId,
       event.playerId,
@@ -35,26 +32,9 @@ export function createMovementExecutor(store: PresentationStoreLike): Presentati
       reason: 'PASS_GO',
       durationMs: context.getDuration(presentationTiming.moneyTransfer),
     });
-    store.showBoardEvent({
-      id: passGo.eventId,
-      kind: 'PASS_GO',
-      playerIds: [event.playerId],
-      tileIds: [0],
-      amount: passGo.reward,
-      source: { kind: 'BANK' },
-      destination: { kind: 'PLAYER', playerId: event.playerId },
-      durationMs: duration,
-    });
     return {
       holdDurationMs: context.getDuration(presentationTiming.goHold),
-      completion: context.waitForSemanticDuration(duration).then(
-        () => {
-          if (isExecutionCurrent(context)) store.clearBoardEvent(passGo.eventId);
-        },
-        error => {
-          if (!(error instanceof Error) || error.name !== 'AbortError') throw error;
-        },
-      ),
+      completion: context.waitForDuration(duration),
     };
   };
 
@@ -111,7 +91,6 @@ export function createMovementExecutor(store: PresentationStoreLike): Presentati
       if (context.signal.aborted && (context.isCurrent?.() ?? true)) {
         store.snapDisplayPosition(event.playerId, event.to);
         store.clearDestinationPreview(`${event.id}:destination-preview`);
-        if (event.passGo) store.clearBoardEvent(event.passGo.eventId);
       }
     },
   };

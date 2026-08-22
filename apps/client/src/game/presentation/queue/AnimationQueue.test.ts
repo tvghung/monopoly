@@ -127,7 +127,7 @@ describe('AnimationQueue', () => {
     queue.dispose();
   });
 
-  it('keeps semantic copy readable at 2x and with reduced motion', async () => {
+  it('resolves physical presentation duration for reduced motion', async () => {
     vi.useFakeTimers();
     const durations: number[] = [];
     const queue = new AnimationQueue({
@@ -135,9 +135,7 @@ describe('AnimationQueue', () => {
       speedMultiplier: 2,
       executors: makeExecutor(async (_current, context) => {
         durations.push(context.getDuration(1_300));
-        const semanticDuration = context.getSemanticDuration(1_300, 700);
-        durations.push(semanticDuration);
-        await context.waitForSemanticDuration(semanticDuration);
+        await context.waitForDuration(context.getDuration(1_300));
       }),
     });
 
@@ -145,7 +143,7 @@ describe('AnimationQueue', () => {
     await vi.runAllTimersAsync();
     await pending;
 
-    expect(durations).toEqual([0, 700]);
+    expect(durations).toEqual([0]);
     queue.dispose();
   });
 

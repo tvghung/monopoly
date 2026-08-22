@@ -100,7 +100,7 @@ describe('character motion samples', () => {
       .toEqual(['0.019799', '-0.019799', '-0.019799', '0.019799']);
   });
 
-  it('keeps the active ring and contact shadow grounded while the body arcs', () => {
+  it('keeps the contact shadow grounded while the body arcs', () => {
     const transforms = getCharacterGroundingTransforms([1, 0.94, 2], 0.6, 0.04);
 
     expect(transforms.root).toEqual([1, 0, 2]);

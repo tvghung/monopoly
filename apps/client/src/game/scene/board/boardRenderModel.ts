@@ -157,26 +157,10 @@ export function buildBoardRenderModel(
     }];
   });
 
-  const pendingCard = state.turnInfo.pendingCardInteraction;
-  const cardPresentation = presentationState.cardPresentation
-    ? {
-        ...presentationState.cardPresentation,
-        ...(pendingCard?.operationId === presentationState.cardPresentation.operationId
-          && pendingCard.revealedCardId
-          ? { revealedCardId: pendingCard.revealedCardId }
-          : {}),
-      }
-    : pendingCard
-      ? {
-          operationId: pendingCard.operationId,
-          playerId: pendingCard.playerId,
-          deck: pendingCard.deck,
-          sourceTile: pendingCard.sourceTile,
-          stage: pendingCard.stage,
-          durationMs: 0,
-          ...(pendingCard.revealedCardId ? { revealedCardId: pendingCard.revealedCardId } : {}),
-        }
-      : null;
+  // LIVE_UPDATE card visuals are emitted by the presentation queue only. A
+  // reset/sync hydrates the authoritative interaction into PresentationStore,
+  // so a live snapshot cannot skip movement and landing.
+  const cardPresentation = presentationState.cardPresentation;
 
   return {
     tiles,

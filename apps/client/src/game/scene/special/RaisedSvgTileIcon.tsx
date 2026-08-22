@@ -29,6 +29,7 @@ interface SvgImageCacheEntry {
 }
 
 const SVG_IMAGE_CACHE = new Map<string, SvgImageCacheEntry>();
+const SVG_TEXTURE_CACHE = new Map<string, THREE.Texture>();
 
 function getSvgImageCacheEntry(url: string): SvgImageCacheEntry {
   const existing = SVG_IMAGE_CACHE.get(url);
@@ -99,6 +100,26 @@ function useSvgTexture(url: string): THREE.Texture | null {
 
   useEffect(() => () => texture?.dispose(), [texture]);
   return texture;
+}
+
+/** Shared app-lifetime texture for repeated physical/icon surfaces. */
+export function useSharedSvgTexture(url: string): THREE.Texture | null {
+  const image = useSvgImage(url);
+  return useMemo(() => {
+    if (!image) return SVG_TEXTURE_CACHE.get(url) ?? null;
+    const cached = SVG_TEXTURE_CACHE.get(url);
+    if (cached) return cached;
+    const texture = new THREE.Texture(image);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.generateMipmaps = true;
+    texture.needsUpdate = true;
+    SVG_TEXTURE_CACHE.set(url, texture);
+    return texture;
+  }, [image, url]);
 }
 
 export function getRaisedSvgTileIconArtSize(

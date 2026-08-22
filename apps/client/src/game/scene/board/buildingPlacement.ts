@@ -24,12 +24,6 @@ export {
 };
 
 export const SURFACE_EPSILON = TILE_SURFACE_EPSILON;
-export const PLAYER_ACTIVE_RING_TUBE_RADIUS = 0.035;
-export const PLAYER_ACTIVE_RING_LOCAL_Y = -PLAYER_MARKER_BODY_HEIGHT / 2
-  + PLAYER_ACTIVE_RING_TUBE_RADIUS + TILE_SURFACE_EPSILON;
-export const PLAYER_ACTIVE_RING_BOTTOM_Y = PLAYER_MARKER_Y
-  + PLAYER_ACTIVE_RING_LOCAL_Y
-  - PLAYER_ACTIVE_RING_TUBE_RADIUS;
 
 /** @deprecated Use getPlayerLandingAnchor from tileAnchors for new callers. */
 export function getOccupantWorldPosition(

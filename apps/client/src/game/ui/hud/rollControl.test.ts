@@ -1,9 +1,10 @@
 import type { PublicGameState } from '@monopoly/shared';
 import { describe, expect, it } from 'vitest';
 import type { PresentationState } from '../../presentation/store/types';
-import { canRollForState } from './rollControlLogic';
+import { canRollForState, shouldShowRollButton } from './rollControlLogic';
 
 const presentation = (overrides: Partial<PresentationState> = {}): PresentationState => ({
+  displayLogs: [],
   displayPositions: { me: 0 },
   settledPositions: { me: 0 },
   displayActivePlayerId: 'me',
@@ -21,7 +22,6 @@ const presentation = (overrides: Partial<PresentationState> = {}): PresentationS
   goCrossings: [],
   destinationPreview: null,
   moneyTransfers: [],
-  activeBoardEvent: null,
   cardPresentation: null,
   animationSpeedMultiplier: 1,
   presentationResetEpoch: 0,
@@ -70,6 +70,12 @@ const input = {
 };
 
 describe('roll control gating', () => {
+  it('hides Roll for an opponent and retains it only for a local pending request', () => {
+    expect(shouldShowRollButton('other', 'me', false, false)).toBe(false);
+    expect(shouldShowRollButton('me', 'me', true, false)).toBe(true);
+    expect(shouldShowRollButton('me', 'me', false, true)).toBe(true);
+  });
+
   it('requires the complete local turn and settled presentation', () => {
     expect(canRollForState(state(), presentation(), input)).toBe(true);
     expect(canRollForState(state({ boardState: { ...state().boardState, currentPlayer: { id: 'other', hasMoved: false } } }), presentation(), input)).toBe(false);

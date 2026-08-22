@@ -15,24 +15,10 @@ function current(context: Parameters<PresentationExecutor['run']>[1]): boolean {
   return !context.signal.aborted && (context.isCurrent?.() ?? true);
 }
 
-const endpointPlayerId = (endpoint: MoneyTransferPresentationEvent['source']): string | null => (
-  endpoint.kind === 'PLAYER' ? endpoint.playerId : null
-);
-
-const sameEndpoint = (
-  left: MoneyTransferPresentationEvent['source'],
-  right: MoneyTransferPresentationEvent['source'],
-): boolean => left.kind === right.kind
-  && (left.kind === 'BANK' || (right.kind === 'PLAYER' && left.playerId === right.playerId));
-
 export function createSemanticExecutors(store: PresentationStoreLike): PresentationExecutorMap {
   const money: PresentationExecutor<MoneyTransferPresentationEvent> = {
     async run(event, context) {
       if (!current(context)) return;
-      const semanticDuration = context.getSemanticDuration(
-        presentationTiming.moneyTransfer,
-        presentationTiming.moneyTransferMinimum,
-      );
       const physicalDuration = context.getDuration(presentationTiming.moneyTransfer);
       store.emitMoneyTransfer({
         id: event.id,
@@ -42,20 +28,7 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
         reason: event.reason,
         durationMs: physicalDuration,
       });
-      store.showBoardEvent({
-        id: event.id,
-        kind: 'MONEY_TRANSFER',
-        playerIds: [endpointPlayerId(event.source), endpointPlayerId(event.destination)]
-          .filter((id): id is string => Boolean(id)),
-        tileIds: [],
-        amount: event.amount,
-        reason: event.reason,
-        source: event.source,
-        destination: event.destination,
-        durationMs: semanticDuration,
-      });
-      await context.waitForSemanticDuration(semanticDuration);
-      if (current(context)) store.clearBoardEvent(event.id);
+      await context.waitForDuration(physicalDuration);
     },
     finish() {},
   };
@@ -63,33 +36,7 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
   const property: PresentationExecutor<PropertyTransferPresentationEvent> = {
     async run(event, context) {
       if (!current(context)) return;
-      const semanticDuration = context.getSemanticDuration(
-        presentationTiming.propertyTransfer,
-        presentationTiming.propertyTransferMinimum,
-      );
       const pulseDuration = context.getDuration(presentationTiming.feedbackPulse);
-      const playerIds = [...new Set(event.transfers.flatMap(transfer => [
-        transfer.fromPlayerId,
-        transfer.toPlayerId,
-      ]).filter((id): id is string => Boolean(id)))];
-      const source = event.transfers[0]?.from;
-      const destination = event.transfers[0]?.to;
-      const hasOneEndpointPair = Boolean(source && destination && event.transfers.every(transfer => (
-        sameEndpoint(transfer.from, source)
-        && sameEndpoint(transfer.to, destination)
-      )));
-      store.showBoardEvent({
-        id: event.id,
-        kind: event.cause === 'BANK_PURCHASE' ? 'PROPERTY_PURCHASE' : 'PROPERTY_TRANSFER',
-        playerIds,
-        tileIds: event.transfers.map(transfer => transfer.tileId),
-        ...(event.amount ? { amount: event.amount } : {}),
-        ...(hasOneEndpointPair && source && destination ? { source, destination } : {}),
-        cause: event.cause,
-        durationMs: semanticDuration,
-      });
-      await context.waitForSemanticDuration(Math.round(semanticDuration * 0.68));
-      if (!current(context)) return;
       event.transfers.forEach(transfer => store.emitOwnershipChange(
         transfer.eventId,
         transfer.tileId,
@@ -97,8 +44,7 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
         transfer.toPlayerId,
         pulseDuration,
       ));
-      await context.waitForSemanticDuration(Math.round(semanticDuration * 0.32));
-      if (current(context)) store.clearBoardEvent(event.id);
+      await context.waitForDuration(pulseDuration);
     },
     finish() {},
   };
@@ -106,10 +52,7 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
   const passGo: PresentationExecutor<PassGoPresentationEvent> = {
     async run(event, context) {
       if (!current(context)) return;
-      const duration = context.getSemanticDuration(
-        presentationTiming.goMoment,
-        presentationTiming.goMomentMinimum,
-      );
+      const duration = context.getDuration(presentationTiming.goMoment);
       const playerId = event.event.playerId;
       store.emitGoCrossing(event.id, playerId, event.event.fromTile, duration);
       store.emitMoneyTransfer({
@@ -120,18 +63,7 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
         reason: 'PASS_GO',
         durationMs: context.getDuration(presentationTiming.moneyTransfer),
       });
-      store.showBoardEvent({
-        id: event.id,
-        kind: 'PASS_GO',
-        playerIds: [playerId],
-        tileIds: [0],
-        amount: event.event.reward,
-        source: { kind: 'BANK' },
-        destination: { kind: 'PLAYER', playerId },
-        durationMs: duration,
-      });
-      await context.waitForSemanticDuration(duration);
-      if (current(context)) store.clearBoardEvent(event.id);
+      await context.waitForDuration(duration);
     },
     finish() {},
   };
@@ -139,20 +71,8 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
   const sentToJail: PresentationExecutor<SentToJailPresentationEvent> = {
     async run(event, context) {
       if (!current(context)) return;
-      const semanticDuration = context.getSemanticDuration(
-        presentationTiming.jailMoment,
-        presentationTiming.jailMomentMinimum,
-      );
       const physicalDuration = context.getDuration(presentationTiming.jailTransfer);
       const { playerId, fromTile, destinationTile } = event.event;
-      store.showBoardEvent({
-        id: event.id,
-        kind: 'SENT_TO_JAIL',
-        playerIds: [playerId],
-        tileIds: [destinationTile],
-        cause: event.event.cause,
-        durationMs: semanticDuration,
-      });
       if (physicalDuration > 0) {
         store.startJailTransfer(playerId, fromTile, destinationTile, physicalDuration);
         store.emitCharacterReaction(playerId, 'jail', physicalDuration);
@@ -167,13 +87,14 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
         depressDurationMs: context.getDuration(presentationTiming.tileImpact.landDepress),
         reboundDurationMs: context.getDuration(presentationTiming.tileImpact.landRebound),
       });
-      await context.waitForSemanticDuration(Math.max(0, semanticDuration - physicalDuration));
-      if (current(context)) store.clearBoardEvent(event.id);
+      await context.waitForDuration(
+        context.getDuration(presentationTiming.tileImpact.landDepress)
+        + context.getDuration(presentationTiming.tileImpact.landRebound),
+      );
     },
     finish(event, context) {
       if (context.signal.aborted && (context.isCurrent?.() ?? true)) {
         store.snapDisplayPosition(event.event.playerId, event.event.destinationTile);
-        store.clearBoardEvent(event.id);
       }
     },
   };
@@ -181,42 +102,15 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
   const jailRollFailed: PresentationExecutor<JailRollFailedPresentationEvent> = {
     async run(event, context) {
       if (!current(context)) return;
-      const duration = context.getSemanticDuration(
-        presentationTiming.jailRollFailed,
-        presentationTiming.jailRollFailedMinimum,
-      );
-      store.showBoardEvent({
-        id: event.id,
-        kind: 'JAIL_ROLL_FAILED',
-        playerIds: [event.playerId],
-        tileIds: [10],
-        durationMs: duration,
-      });
-      if (!context.reducedMotion) store.emitCharacterReaction(event.playerId, 'sad', context.getDuration(320));
-      await context.waitForSemanticDuration(duration);
-      if (current(context)) store.clearBoardEvent(event.id);
+      const duration = context.getDuration(presentationTiming.characterReaction.sad);
+      if (!context.reducedMotion) store.emitCharacterReaction(event.playerId, 'sad', duration);
+      await context.waitForDuration(duration);
     },
     finish() {},
   };
 
   const jailReleased: PresentationExecutor<JailReleasedPresentationEvent> = {
-    async run(event, context) {
-      if (!current(context)) return;
-      const duration = context.getSemanticDuration(
-        presentationTiming.jailRelease,
-        presentationTiming.jailReleaseMinimum,
-      );
-      store.showBoardEvent({
-        id: event.id,
-        kind: 'JAIL_RELEASED',
-        playerIds: [event.playerId],
-        tileIds: [10],
-        cause: event.cause,
-        durationMs: duration,
-      });
-      await context.waitForSemanticDuration(duration);
-      if (current(context)) store.clearBoardEvent(event.id);
-    },
+    async run() {},
     finish() {},
   };
 
