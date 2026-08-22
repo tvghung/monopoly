@@ -36,6 +36,46 @@ export interface CharacterReactionSignal {
   durationMs: number;
 }
 
+export interface BalanceDeltaSignal {
+  id: string;
+  sequence: number;
+  playerId: string;
+  from: number;
+  to: number;
+  delta: number;
+  durationMs: number;
+}
+
+export interface OwnershipChangeSignal {
+  id: string;
+  sequence: number;
+  tileId: number;
+  fromPlayerId: string | null;
+  toPlayerId: string | null;
+  durationMs: number;
+}
+
+export interface DevelopmentChangeSignal {
+  id: string;
+  sequence: number;
+  tileId: number;
+  playerId: string;
+  fromHouses: number;
+  toHouses: number;
+  delta: number;
+  direction: 'UP' | 'DOWN';
+  durationMs: number;
+}
+
+export interface GoCrossingSignal {
+  id: string;
+  sequence: number;
+  playerId: string;
+  fromTileId: number;
+  toTileId: 0;
+  durationMs: number;
+}
+
 export interface DiceRollPresentation {
   lifecycle: 'rolling';
   dice: DiceValue;
@@ -56,6 +96,10 @@ export interface PresentationState {
   characterMovements: readonly CharacterMovementSignal[];
   characterLandings: readonly CharacterLandingSignal[];
   characterReactions: readonly CharacterReactionSignal[];
+  balanceDeltas: readonly BalanceDeltaSignal[];
+  ownershipChanges: readonly OwnershipChangeSignal[];
+  developmentChanges: readonly DevelopmentChangeSignal[];
+  goCrossings: readonly GoCrossingSignal[];
   animationSpeedMultiplier: number;
   presentationResetEpoch: number;
 }
@@ -78,6 +122,23 @@ export interface PresentationStoreLike {
   setDisplayActivePlayerId: (playerId: string) => void;
   emitTileImpact: (playerId: string, tileId: number, kind: TileImpactSignal['kind'], timing: TileImpactTiming) => void;
   emitCharacterReaction: (playerId: string, kind: CharacterReactionKind, durationMs: number) => void;
+  emitBalanceDelta: (id: string, playerId: string, from: number, to: number, durationMs: number) => void;
+  emitOwnershipChange: (
+    id: string,
+    tileId: number,
+    fromPlayerId: string | null,
+    toPlayerId: string | null,
+    durationMs: number,
+  ) => void;
+  emitDevelopmentChange: (
+    id: string,
+    tileId: number,
+    playerId: string,
+    fromHouses: number,
+    toHouses: number,
+    durationMs: number,
+  ) => void;
+  emitGoCrossing: (id: string, playerId: string, fromTileId: number, durationMs: number) => void;
   setAnimationSpeedMultiplier: (multiplier: number) => void;
   setStatus: (status: AnimationQueueStatus) => void;
 }

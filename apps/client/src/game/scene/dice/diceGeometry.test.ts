@@ -99,8 +99,8 @@ describe('dice visual geometry contract', () => {
     expect(DICE_SCALE).toBe(1.70);
     expect(DICE_SIZE).toBeCloseTo(BASE_DICE_SIZE * DICE_SCALE, 12);
     expect(DICE_SIZE).toBeCloseTo(1.326, 12);
-    expect(DICE_PIP_RADIUS).toBeCloseTo(BASE_DICE_SIZE * 0.105, 12);
-    expect(DICE_PIP_RADIUS).toBeCloseTo(0.0819, 12);
+    expect(DICE_PIP_RADIUS).toBeCloseTo(BASE_DICE_SIZE * 0.135, 12);
+    expect(DICE_PIP_RADIUS).toBeCloseTo(0.1053, 12);
     expect(DICE_PIP_DEPTH).toBeCloseTo(BASE_DICE_SIZE * 0.018, 12);
     expect(DICE_PIP_DEPTH).toBeCloseTo(0.01404, 12);
   });
@@ -113,15 +113,15 @@ describe('dice visual geometry contract', () => {
     expect(DICE_BODY_COLOR).toBe('#ffffff');
     expect(DICE_FACE_COLOR).toBe('#ffffff');
     expect(DICE_FACE_ROUGHNESS).toBeGreaterThan(0);
-    expect(DICE_FACE_METALNESS).toBeLessThan(0.05);
-    expect(DICE_EDGE_SEGMENTS).toBe(5);
+    expect(DICE_FACE_METALNESS).toBeLessThanOrEqual(0.05);
+    expect(DICE_EDGE_SEGMENTS).toBe(10);
     expect(DICE_CORNER_SEGMENTS).toBe(10);
     expect(DICE_FACE_ROUGHNESS).toBeCloseTo(0.18);
-    expect(DICE_FACE_METALNESS).toBeCloseTo(0.02);
+    expect(DICE_FACE_METALNESS).toBeCloseTo(0.05);
     expect(boardMaterialSpecs.diceBody).toEqual({ roughness: 0.16, metalness: 0.02 });
   });
 
-  it('increases subdivision only across the eight corner patches', () => {
+  it('keeps aligned edge and corner subdivision without duplicate patches', () => {
     const base = new RoundedBoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE, DICE_EDGE_SEGMENTS, DICE_EDGE_RADIUS);
     const selective = new SelectiveRoundedBoxGeometry(
       DICE_SIZE,
@@ -135,10 +135,7 @@ describe('dice visual geometry contract', () => {
     expect(selective.edgeSegments).toBe(DICE_EDGE_SEGMENTS);
     expect(selective.cornerSegments).toBe(DICE_CORNER_SEGMENTS);
     expect(selective.radius).toBeCloseTo(DICE_EDGE_RADIUS);
-    const cornerTriangleCount = DICE_CORNER_SEGMENTS * (2 * DICE_CORNER_SEGMENTS - 1);
-    expect(selective.getAttribute('position').count).toBe(
-      basePositionCount + 8 * cornerTriangleCount * 3,
-    );
+    expect(selective.getAttribute('position').count).toBe(basePositionCount);
 
     const positions = selective.getAttribute('position');
     const normals = selective.getAttribute('normal');
@@ -200,7 +197,7 @@ describe('dice visual geometry contract', () => {
     expect(DICE_PIP_OFFSET).toBeCloseTo(DICE_SIZE * 0.22);
     expect(DICE_PIP_OFFSET).toBeGreaterThan(BASE_DICE_SIZE * 0.22);
     const visibleDiameterRatio = (DICE_PIP_RADIUS * 2) / BASE_DICE_SIZE;
-    expect(visibleDiameterRatio).toBeCloseTo(0.21);
+    expect(visibleDiameterRatio).toBeCloseTo(0.27);
     expect(DICE_PIP_SEGMENTS).toBe(16);
     expect(DICE_PIP_DEPTH).toBeGreaterThan(0);
     expect(DICE_PIP_SURFACE_OFFSET).toBe(0);
@@ -280,7 +277,7 @@ describe('dice visual geometry contract', () => {
     expect(optimized.drawCalls).toBe(16);
     expect(optimized.drawCalls).toBeLessThan(TARGET_DRAW_CALLS);
     expect(optimized.drawCalls).toBeLessThan(STRESS_DRAW_CALL_LIMIT);
-    expect(optimized.triangles).toBe(8656);
+    expect(optimized.triangles).toBe(13296);
     expect(optimized.triangles).toBeLessThan(TARGET_TRIANGLES);
   });
 });

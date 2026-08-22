@@ -1,5 +1,11 @@
-import type { PresentationEvent, PresentationEventType } from '../events/types';
-import type { LandTilePresentationEvent } from '../events/types';
+import type {
+  BalanceChangedPresentationEvent,
+  LandTilePresentationEvent,
+  PresentationEvent,
+  PresentationEventType,
+  PropertyDevelopmentChangedPresentationEvent,
+  PropertyOwnershipChangedPresentationEvent,
+} from '../events/types';
 import type { AnimationExecutionContext, PresentationExecutor, PresentationExecutorMap } from '../queue/types';
 import type { PresentationStoreLike } from '../store/types';
 import { presentationTiming } from '../timings';
@@ -16,6 +22,25 @@ function createTimedExecutor(
     finish(event) {
       if (store && finish) finish(event, store);
     },
+  };
+}
+
+function isExecutionCurrent(context: AnimationExecutionContext): boolean {
+  return !context.signal.aborted && (context.isCurrent?.() ?? true);
+}
+
+function createConsequenceExecutor<E extends PresentationEvent>(
+  duration: number,
+  emit: (event: E, durationMs: number) => void,
+): PresentationExecutor<E> {
+  return {
+    async run(event, context) {
+      if (!isExecutionCurrent(context)) return;
+      const durationMs = context.getDuration(duration);
+      emit(event, durationMs);
+      await context.waitForDuration(durationMs);
+    },
+    finish() {},
   };
 }
 
@@ -70,11 +95,42 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
     },
     finish() {},
   };
+  const balanceExecutor = createConsequenceExecutor<BalanceChangedPresentationEvent>(
+    presentationTiming.balanceChange,
+    (event, durationMs) => store.emitBalanceDelta(
+      event.id,
+      event.playerId,
+      event.from,
+      event.to,
+      durationMs,
+    ),
+  );
+  const ownershipExecutor = createConsequenceExecutor<PropertyOwnershipChangedPresentationEvent>(
+    presentationTiming.propertyPurchase,
+    (event, durationMs) => store.emitOwnershipChange(
+      event.id,
+      event.tileId,
+      event.fromPlayerId,
+      event.toPlayerId,
+      durationMs,
+    ),
+  );
+  const developmentExecutor = createConsequenceExecutor<PropertyDevelopmentChangedPresentationEvent>(
+    presentationTiming.buildPop,
+    (event, durationMs) => store.emitDevelopmentChange(
+      event.id,
+      event.tileId,
+      event.playerId,
+      event.fromHouses,
+      event.toHouses,
+      durationMs,
+    ),
+  );
   return {
     LAND_TILE: landingExecutor,
-    BALANCE_CHANGED: createTimedExecutor(presentationTiming.balanceChange),
-    PROPERTY_OWNERSHIP_CHANGED: createTimedExecutor(presentationTiming.propertyPurchase),
-    PROPERTY_DEVELOPMENT_CHANGED: createTimedExecutor(presentationTiming.buildPop),
+    BALANCE_CHANGED: balanceExecutor,
+    PROPERTY_OWNERSHIP_CHANGED: ownershipExecutor,
+    PROPERTY_DEVELOPMENT_CHANGED: developmentExecutor,
     JAIL_STATE_CHANGED: jailExecutor,
     PLAYER_FINISHED: finishedExecutor,
     TURN_CHANGED: turnExecutor,

@@ -2,8 +2,9 @@
 
 Status: Phase 4.2 is completed/current, including Phase 4.2.1 gameplay HUD
 hardening and dice visual polish and Phase 4.2.2 final dice feel/rent feedback
-polish. Phase 4.3 and Phase 4.4 are the next planned implementation slices and
-have not started. Phase 4.0/4.1 contract audit:
+polish. The bounded remaining Phase 4 A-F implementation slice is now
+completed/current on the client. Richer movement-cause, card-identity, and
+transfer-attribution contracts remain open. Phase 4.0/4.1 contract audit:
 [04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md).
 Movement cause/route, card identity, and transfer attribution remain open
 contracts.
@@ -72,6 +73,52 @@ visual/action polish described below.
   calculations. The client does not calculate rent.
 - The Roll reset epoch clears both a pending command and a stale error. The
   legacy overlay no longer contributes a second live announcement source.
+
+### Remaining Phase 4 bounded implementation slice (A-F)
+
+This slice stays within the existing public event taxonomy, one
+`PresentationController`, one `AnimationQueue`, and one `PresentationStore`.
+It does not add a shared/server protocol field or a client gameplay rule.
+
+- **A, bounded presentation signals:** `PresentationStore` now exposes typed
+  one-shot balance deltas, ownership transitions, development deltas, and
+  proven GO crossings. Each signal carries a stable event id, sequence, and
+  resolved duration; balance signals retain exact `from`, `to`, and signed
+  `delta` values. Signal ids are deduplicated, capped at 64 per family, and
+  cleared by snapshot reset/reconnect.
+- **B, consequence feedback:** the existing balance, ownership, and
+  development executors publish committed feedback without changing
+  authoritative state. Tile cues use the existing `TileFxAnchor` and SDF text
+  path; authoritative ownership flags, house counts, base tile materials, and
+  Phase 3 tile-impact layers remain separate. The cues are bounded and
+  demand-rendered, with no per-frame React state loop.
+- **C, player HUD:** the compact top strip shows a fixed-space signed balance
+  delta beside the authoritative balance. A single concise polite live region
+  announces the latest committed balance change and active turn without adding
+  a second announcement source. Reduced motion retains the text/state cue.
+- **D, GO:** a GO cue is emitted only when a proven `WALK` execution enters
+  tile `0`, including its reduced-motion semantic snap. `SNAP`, reconnect,
+  card/teleport/ambiguous movement, and destination-only updates do not emit
+  the cue. The client does not show or calculate a GO reward amount.
+- **E, decisions:** purchase and development prompts remain hidden until
+  `settledPositions` reaches the authoritative destination. Each prompt
+  accepts one in-flight request, disables duplicate clicks, waits for the
+  authoritative decision transition, and re-enables with localized ACK error
+  feedback. Operation changes, reset, reconnect, permission loss, and prompt
+  disappearance clear local pending state. Jail, debt, and forced-sale
+  actions receive the same bounded duplicate-click protection where exposed.
+- **F, conservative remaining families:** cards remain generic and do not use
+  logs, private deck data, `DRAW`, `CONTINUE`, or a fabricated `V7` contract.
+  Debt stays visible and actionable from `paymentShortfall`; finish and
+  bankruptcy remain driven by structured authoritative state, never a zero
+  balance alone. Turn, jail, forced-sale privacy, and simplified property
+  rules remain server-controlled.
+
+Focused coverage includes exact signal fields, id dedupe and bounds, reset and
+stale-executor guards, strict WALK-only GO behavior, speed resolution at
+0.75x/1x/1.5x/2x, reduced motion, settled landing gating, one-click decision
+locks, ACK failure recovery, and operation replacement. Browser and Electron
+UAT remain separate manual checks.
 
 ## 1. Design direction
 
@@ -344,7 +391,7 @@ Current contract baseline:
   result remains visible across turn changes, while reset/reconnect/spectator
   sync snaps without replaying.
 
-Plan:
+Implemented bounded behavior:
 
 - Keep the procedural dice geometry local to the client render layer; it uses
   no physics or random client result. Use diceRoll 640 ms at 1x plus a 140 ms
@@ -453,14 +500,14 @@ card action.
 
 The server owns GO crossing, reward amount, and balance update.
 
-Plan:
+Implemented bounded behavior:
 
 - Detect a dedicated GO crossing only when the authoritative movement path or
   an approved server presentation signal proves that the token crossed GO.
 - If crossing is not provable, present the committed balance change without
   claiming a GO reward.
-- When proven, use a compact GO tile pulse, positive amount cue, and HUD
-  update. Keep it non-blocking and shorter than the movement sequence.
+- When proven, use the existing GO tile FX anchor and generic HUD balance
+  update. Keep it non-blocking and do not expose a reward amount.
 - Never calculate the reward, infer a pass from a destination alone, or issue a
   second client command.
 - Test a path that crosses GO, a path that lands before GO, a direct
@@ -511,8 +558,9 @@ disabled based on authoritative state and must not be reimplemented in the
 client.
 
 Required tests include purchase, decline, duplicate operation id, stale
-decision, reconnect while the prompt is open, and a purchase that changes the
-turn-resolution state.
+decision, reconnect while the prompt is open, ACK failure recovery, and a
+purchase that changes the turn-resolution state. The implemented prompt keeps
+the server's pending operation visible until its authoritative transition.
 
 ### 7.7 Workstream G - Money transfer and balance consequence
 
@@ -534,9 +582,8 @@ If any condition fails, show a safe balance change without a payer/receiver
 label. Do not invent rent, tax, card, bail, purchase, development, or forced
 sale attribution from timing alone.
 
-The future visual may use a floating amount, directional emphasis, and HUD
-count-up/count-down. It must not simulate individual coins or require a
-permanent particle loop. Test:
+The implemented visual uses a compact signed HUD delta and does not simulate
+individual coins or require a permanent particle loop. Test:
 
 - player to player rent or forced-sale payment;
 - player to bank purchase, tax, bail, or development payment;
@@ -553,7 +600,7 @@ quantity, and unit cost. The client must send the selected action and quantity,
 not calculate legality or final cost.
 
 The existing Board3D building layer already renders houses and hotels from
-authoritative tile state. Phase 4 should add a short presentation around the
+authoritative tile state. The client adds a short presentation around the
 committed PROPERTY_DEVELOPMENT_CHANGED event:
 
 - House count increases: one or more short build pops, with bounded total time.

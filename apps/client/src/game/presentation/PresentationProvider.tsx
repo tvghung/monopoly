@@ -21,6 +21,10 @@ const emptyPresentationState: PresentationState = {
   characterMovements: [],
   characterLandings: [],
   characterReactions: [],
+  balanceDeltas: [],
+  ownershipChanges: [],
+  developmentChanges: [],
+  goCrossings: [],
   animationSpeedMultiplier: 1,
   presentationResetEpoch: 0,
 };

@@ -1,4 +1,9 @@
 import type { Tile } from '@monopoly/shared';
+import type {
+  DevelopmentChangeSignal,
+  GoCrossingSignal,
+  OwnershipChangeSignal,
+} from '../../../presentation/store/types';
 import { getBoardTileLayout } from '../boardLayout';
 import { TILE_ASSEMBLY_LAYER_ORDER, TILE_TRANSFORM_CONTRACT } from '../architecture/tileAssemblyContracts';
 import { boardVisualTokens } from '../boardVisualTokens';
@@ -22,6 +27,9 @@ export interface TileAssemblyProps {
   selected?: boolean;
   ownerColor?: string;
   houses?: number;
+  ownershipChange?: OwnershipChangeSignal;
+  developmentChange?: DevelopmentChangeSignal;
+  goCrossing?: GoCrossingSignal;
   onHover?: (tileId: number | null) => void;
   onSelect?: (tileId: number) => void;
 }
@@ -34,6 +42,9 @@ export default function TileAssembly({
   selected = false,
   ownerColor,
   houses = 0,
+  ownershipChange,
+  developmentChange,
+  goCrossing,
 }: TileAssemblyProps) {
   const layout = getBoardTileLayout(tileId);
   if (!layout) return null;
@@ -78,7 +89,14 @@ export default function TileAssembly({
           tile={tile}
           panel={panel}
         />
-        <TileFxAnchor tileId={tileId} />
+        <TileFxAnchor
+          tileId={tileId}
+          panel={panel}
+          ownerColor={ownerColor}
+          ownershipChange={ownershipChange}
+          developmentChange={developmentChange}
+          goCrossing={goCrossing}
+        />
       </TilePressRoot>
     </group>
   );

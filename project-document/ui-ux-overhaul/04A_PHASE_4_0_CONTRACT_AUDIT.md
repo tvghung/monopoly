@@ -4,6 +4,12 @@ Status: Phase 4.1 implementation-slice audit and Phase 4.2 handoff. The
 authoritative roll-identity slice is implemented; richer cause/card/transfer
 contracts remain open.
 
+Implementation note (2026-08-22): the bounded remaining client slice consumes
+the already-audited public deltas for generic balance, ownership, development,
+and proof-gated GO feedback, plus authoritative decision ACK/reset guards. It
+does not change the audit verdict or add movement-cause, card-identity,
+transfer-attribution, or private-visibility contracts.
+
 Audit date: 2026-08-20 (Asia/Ho_Chi_Minh)
 
 Audited branch: `overhaul/phase-4-gameplay-actions`

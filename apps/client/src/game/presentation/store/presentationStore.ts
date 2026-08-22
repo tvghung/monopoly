@@ -1,8 +1,12 @@
 import type { DiceValue, PublicRoomState } from '@monopoly/shared';
 import type { AnimationQueueStatus } from '../queue/types';
 import type {
+  BalanceDeltaSignal,
   CharacterMovementSignal,
   CharacterReactionKind,
+  DevelopmentChangeSignal,
+  GoCrossingSignal,
+  OwnershipChangeSignal,
   PresentationListener,
   PresentationState,
   PresentationStoreLike,
@@ -21,11 +25,16 @@ const emptyState: PresentationState = {
   characterMovements: [],
   characterLandings: [],
   characterReactions: [],
+  balanceDeltas: [],
+  ownershipChanges: [],
+  developmentChanges: [],
+  goCrossings: [],
   animationSpeedMultiplier: 1,
   presentationResetEpoch: 0,
 };
 
 const CHARACTER_SIGNAL_LIMIT = 128;
+const ONE_SHOT_SIGNAL_LIMIT = 64;
 
 export class PresentationStore implements PresentationStoreLike {
   private state: PresentationState = emptyState;
@@ -34,8 +43,16 @@ export class PresentationStore implements PresentationStoreLike {
   private nextCharacterMovementSequence = 0;
   private nextCharacterLandingSequence = 0;
   private nextCharacterReactionSequence = 0;
+  private nextBalanceDeltaSequence = 0;
+  private nextOwnershipChangeSequence = 0;
+  private nextDevelopmentChangeSequence = 0;
+  private nextGoCrossingSequence = 0;
   private readonly playerJoinOrder = new Map<string, number>();
   private readonly activeCharacterMovements = new Map<string, CharacterMovementSignal>();
+  private readonly balanceDeltaIds = new Set<string>();
+  private readonly ownershipChangeIds = new Set<string>();
+  private readonly developmentChangeIds = new Set<string>();
+  private readonly goCrossingIds = new Set<string>();
 
   public getSnapshot(): PresentationState {
     return this.state;
@@ -66,6 +83,10 @@ export class PresentationStore implements PresentationStoreLike {
       characterMovements: [],
       characterLandings: [],
       characterReactions: [],
+      balanceDeltas: [],
+      ownershipChanges: [],
+      developmentChanges: [],
+      goCrossings: [],
       animationSpeedMultiplier: this.state.animationSpeedMultiplier,
       presentationResetEpoch: this.state.presentationResetEpoch + 1,
     };
@@ -73,6 +94,14 @@ export class PresentationStore implements PresentationStoreLike {
     this.nextCharacterMovementSequence = 0;
     this.nextCharacterLandingSequence = 0;
     this.nextCharacterReactionSequence = 0;
+    this.nextBalanceDeltaSequence = 0;
+    this.nextOwnershipChangeSequence = 0;
+    this.nextDevelopmentChangeSequence = 0;
+    this.nextGoCrossingSequence = 0;
+    this.balanceDeltaIds.clear();
+    this.ownershipChangeIds.clear();
+    this.developmentChangeIds.clear();
+    this.goCrossingIds.clear();
     this.notify();
   }
 
@@ -298,6 +327,113 @@ export class PresentationStore implements PresentationStoreLike {
     this.notify();
   }
 
+  public emitBalanceDelta(
+    id: string,
+    playerId: string,
+    from: number,
+    to: number,
+    durationMs: number,
+  ): void {
+    if (this.balanceDeltaIds.has(id)) return;
+    this.nextBalanceDeltaSequence += 1;
+    const signal: BalanceDeltaSignal = {
+      id,
+      sequence: this.nextBalanceDeltaSequence,
+      playerId,
+      from,
+      to,
+      delta: to - from,
+      durationMs: Math.max(0, durationMs),
+    };
+    const balanceDeltas = this.appendOneShotSignal(
+      this.state.balanceDeltas,
+      this.balanceDeltaIds,
+      signal,
+    );
+    if (!balanceDeltas) return;
+    this.state = { ...this.state, balanceDeltas };
+    this.notify();
+  }
+
+  public emitOwnershipChange(
+    id: string,
+    tileId: number,
+    fromPlayerId: string | null,
+    toPlayerId: string | null,
+    durationMs: number,
+  ): void {
+    if (this.ownershipChangeIds.has(id)) return;
+    this.nextOwnershipChangeSequence += 1;
+    const signal: OwnershipChangeSignal = {
+      id,
+      sequence: this.nextOwnershipChangeSequence,
+      tileId,
+      fromPlayerId,
+      toPlayerId,
+      durationMs: Math.max(0, durationMs),
+    };
+    const ownershipChanges = this.appendOneShotSignal(
+      this.state.ownershipChanges,
+      this.ownershipChangeIds,
+      signal,
+    );
+    if (!ownershipChanges) return;
+    this.state = { ...this.state, ownershipChanges };
+    this.notify();
+  }
+
+  public emitDevelopmentChange(
+    id: string,
+    tileId: number,
+    playerId: string,
+    fromHouses: number,
+    toHouses: number,
+    durationMs: number,
+  ): void {
+    if (this.developmentChangeIds.has(id)) return;
+    this.nextDevelopmentChangeSequence += 1;
+    const signal: DevelopmentChangeSignal = {
+      id,
+      sequence: this.nextDevelopmentChangeSequence,
+      tileId,
+      playerId,
+      fromHouses,
+      toHouses,
+      delta: toHouses - fromHouses,
+      direction: toHouses >= fromHouses ? 'UP' : 'DOWN',
+      durationMs: Math.max(0, durationMs),
+    };
+    const developmentChanges = this.appendOneShotSignal(
+      this.state.developmentChanges,
+      this.developmentChangeIds,
+      signal,
+    );
+    if (!developmentChanges) return;
+    this.state = { ...this.state, developmentChanges };
+    this.notify();
+  }
+
+  public emitGoCrossing(id: string, playerId: string, fromTileId: number, durationMs: number): void {
+    if (this.goCrossingIds.has(id)) return;
+    this.nextGoCrossingSequence += 1;
+    const signal: GoCrossingSignal = {
+      id,
+      sequence: this.nextGoCrossingSequence,
+      playerId,
+      fromTileId,
+      toTileId: 0,
+      durationMs: Math.max(0, durationMs),
+    };
+    const goCrossings = this.appendOneShotSignal(
+      this.state.goCrossings,
+      this.goCrossingIds,
+      signal,
+    );
+    if (!goCrossings) return;
+    this.state = { ...this.state, goCrossings };
+    this.notify();
+  }
+
   public setAnimationSpeedMultiplier(multiplier: number): void {
     if (!Number.isFinite(multiplier)) return;
     const next = Math.min(2, Math.max(0.75, multiplier));
@@ -318,6 +454,18 @@ export class PresentationStore implements PresentationStoreLike {
 
   private appendCharacterMovement(signal: CharacterMovementSignal): readonly CharacterMovementSignal[] {
     return [...this.state.characterMovements, signal].slice(-CHARACTER_SIGNAL_LIMIT);
+  }
+
+  private appendOneShotSignal<T extends { id: string }>(
+    current: readonly T[],
+    ids: Set<string>,
+    signal: T,
+  ): readonly T[] | null {
+    if (ids.has(signal.id)) return null;
+    const next = [...current, signal].slice(-ONE_SHOT_SIGNAL_LIMIT);
+    ids.clear();
+    next.forEach(item => ids.add(item.id));
+    return next;
   }
 
   private createSnapSignal(

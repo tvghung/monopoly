@@ -161,6 +161,7 @@ export class AnimationQueue {
             Math.max(0, durationMs),
             controller.signal,
           ),
+          isCurrent: () => generation === this.generation,
         };
         try {
           if (executor) await executor.run(item.event, context);

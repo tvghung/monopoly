@@ -203,6 +203,46 @@ describe('movement tile-hop presentation', () => {
 
     expect(trace).toEqual(['start:39->0:180', 'wait:180', 'complete:0']);
     expect(store.getSnapshot().characterMovements[0]).toMatchObject({ fromTileId: 39, toTileId: 0 });
+    expect(store.getSnapshot().goCrossings).toMatchObject([{
+      id: 'move:go', playerId: 'player-a', fromTileId: 39, toTileId: 0,
+    }]);
+  });
+
+  it('does not publish GO feedback for SNAP movement', async () => {
+    const store = new PresentationStore();
+    store.resetFromSnapshot(makeRoom());
+
+    await createMovementExecutor(store).run(walkEvent({
+      from: 39, to: 0, steps: 1, presentation: 'SNAP',
+    }), immediateContext);
+
+    expect(store.getSnapshot().goCrossings).toEqual([]);
+  });
+
+  it('keeps the GO semantic cue when a proven WALK is reduced-motion snapped', async () => {
+    const store = new PresentationStore();
+    store.resetFromSnapshot(makeRoom());
+
+    await createMovementExecutor(store).run(walkEvent({
+      from: 39, to: 0, steps: 1,
+    }), { ...immediateContext, reducedMotion: true });
+
+    expect(store.getSnapshot().goCrossings).toMatchObject([{
+      id: 'move:go', playerId: 'player-a', fromTileId: 39, toTileId: 0,
+    }]);
+  });
+
+  it('does not write movement state after its execution becomes stale', async () => {
+    const store = new PresentationStore();
+    store.resetFromSnapshot(makeRoom());
+
+    await createMovementExecutor(store).run(walkEvent(), {
+      ...immediateContext,
+      isCurrent: () => false,
+    });
+
+    expect(store.getSnapshot().characterMovements).toEqual([]);
+    expect(store.getSnapshot().goCrossings).toEqual([]);
   });
 
   it.each([

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type {
+  BalanceChangedPresentationEvent,
   JailStateChangedPresentationEvent,
   LandTilePresentationEvent,
   PlayerFinishedPresentationEvent,
+  PropertyDevelopmentChangedPresentationEvent,
+  PropertyOwnershipChangedPresentationEvent,
 } from '../events/types';
 import type { AnimationExecutionContext, PresentationExecutor } from '../queue/types';
 import { makeRoom } from '../testFixtures';
@@ -163,5 +166,41 @@ describe('presentation reaction executors', () => {
       presentationTiming.characterReaction.jail / 2,
     );
     expect(waits[0]).toBeCloseTo(presentationTiming.characterReaction.jail / 2);
+  });
+
+  it('emits authoritative consequence feedback without mutating the room model', async () => {
+    const store = new PresentationStore();
+    store.resetFromSnapshot(makeRoom());
+    const executors = createBasicExecutors(store);
+
+    await (executors.BALANCE_CHANGED as unknown as PresentationExecutor<BalanceChangedPresentationEvent>).run({
+      id: 'balance', roomId: 'room-1', roomVersion: 2, type: 'BALANCE_CHANGED', entityId: 'player-a',
+      playerId: 'player-a', from: 1500, to: 1320,
+    }, immediateContext);
+    await (executors.PROPERTY_OWNERSHIP_CHANGED as unknown as PresentationExecutor<PropertyOwnershipChangedPresentationEvent>).run({
+      id: 'ownership', roomId: 'room-1', roomVersion: 2, type: 'PROPERTY_OWNERSHIP_CHANGED', entityId: '1',
+      tileId: 1, fromPlayerId: null, toPlayerId: 'player-a',
+    }, immediateContext);
+    await (executors.PROPERTY_DEVELOPMENT_CHANGED as unknown as PresentationExecutor<PropertyDevelopmentChangedPresentationEvent>).run({
+      id: 'development', roomId: 'room-1', roomVersion: 2, type: 'PROPERTY_DEVELOPMENT_CHANGED', entityId: '1',
+      tileId: 1, playerId: 'player-a', fromHouses: 4, toHouses: 5,
+    }, immediateContext);
+
+    expect(store.getSnapshot().balanceDeltas[0]).toMatchObject({ delta: -180, durationMs: 120 });
+    expect(store.getSnapshot().ownershipChanges[0]).toMatchObject({ tileId: 1, toPlayerId: 'player-a' });
+    expect(store.getSnapshot().developmentChanges[0]).toMatchObject({ delta: 1, direction: 'UP' });
+  });
+
+  it('does not let a stale consequence executor publish a signal', async () => {
+    const store = new PresentationStore();
+    store.resetFromSnapshot(makeRoom());
+    const executor = createBasicExecutors(store).BALANCE_CHANGED as unknown as PresentationExecutor<BalanceChangedPresentationEvent>;
+
+    await executor.run({
+      id: 'stale-balance', roomId: 'room-1', roomVersion: 2, type: 'BALANCE_CHANGED', entityId: 'player-a',
+      playerId: 'player-a', from: 1500, to: 1300,
+    }, { ...immediateContext, isCurrent: () => false });
+
+    expect(store.getSnapshot().balanceDeltas).toEqual([]);
   });
 });

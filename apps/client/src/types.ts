@@ -17,26 +17,26 @@ export type DevelopmentRequest = Parameters<ClientToServerEvents['resolve develo
 
 export interface SocketFunctions {
   rollDice: () => Promise<Ack>;
-  buyProperty: (operationId: string) => void;
-  doNotBuy?: (operationId: string) => void;
-  resolveDevelopment?: (request: DevelopmentRequest) => void;
-  waitInJail?: () => void;
+  buyProperty: (operationId: string) => void | Promise<Ack>;
+  doNotBuy?: (operationId: string) => void | Promise<Ack>;
+  resolveDevelopment?: (request: DevelopmentRequest) => void | Promise<Ack>;
+  waitInJail?: () => void | Promise<Ack>;
   sendChat: (message: string) => void;
   makeOffer: (offerInfo: OfferInfo) => void;
   acceptOffer: (offerId: OfferId) => void;
   declineOffer: (offerId: OfferId) => void;
   sellHouse: (tileID: number) => void;
-  payBail: () => void;
-  useJailCard: () => void;
-  sellPropertyToBank?: (request: { paymentOperationId: string; claimId: string; tileID: number }) => void;
+  payBail: () => void | Promise<Ack>;
+  useJailCard: () => void | Promise<Ack>;
+  sellPropertyToBank?: (request: { paymentOperationId: string; claimId: string; tileID: number }) => void | Promise<Ack>;
   proposeForcedSale?: (request: {
     paymentOperationId: string;
     claimId: string;
     tileID: number;
     buyerPlayerId: string;
-  }) => void;
-  acceptForcedSale?: (proposalId: string) => void;
-  rejectForcedSale?: (proposalId: string) => void;
+  }) => void | Promise<Ack>;
+  acceptForcedSale?: (proposalId: string) => void | Promise<Ack>;
+  rejectForcedSale?: (proposalId: string) => void | Promise<Ack>;
 }
 
 export interface StateContextValue {

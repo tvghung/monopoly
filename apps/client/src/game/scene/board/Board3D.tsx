@@ -32,6 +32,11 @@ export default function Board3D({
     propertyColor: tile.color,
     houses: 0,
   }));
+  const latestOwnershipChanges = new Map<number, BoardRenderModel['ownershipChanges'][number]>();
+  const latestDevelopmentChanges = new Map<number, BoardRenderModel['developmentChanges'][number]>();
+  model?.ownershipChanges.forEach(signal => latestOwnershipChanges.set(signal.tileId, signal));
+  model?.developmentChanges.forEach(signal => latestDevelopmentChanges.set(signal.tileId, signal));
+  const latestGoCrossing = model?.goCrossings.at(-1);
   return (
     <group name="Board3D">
       <BoardFoundation />
@@ -61,6 +66,9 @@ export default function Board3D({
             houses={tile.houses}
             hovered={hoveredTileId === tile.tileId}
             selected={selectedTileId === tile.tileId}
+            ownershipChange={latestOwnershipChanges.get(tile.tileId)}
+            developmentChange={latestDevelopmentChanges.get(tile.tileId)}
+            goCrossing={tile.tileId === 0 ? latestGoCrossing : undefined}
             onHover={onTileHover}
             onSelect={onTileSelect}
           />

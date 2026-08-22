@@ -48,6 +48,10 @@ export interface BoardRenderModel {
   characterMovements: PresentationState['characterMovements'];
   characterLandings: PresentationState['characterLandings'];
   characterReactions: PresentationState['characterReactions'];
+  balanceDeltas: PresentationState['balanceDeltas'];
+  ownershipChanges: PresentationState['ownershipChanges'];
+  developmentChanges: PresentationState['developmentChanges'];
+  goCrossings: PresentationState['goCrossings'];
   animationSpeedMultiplier: number;
   presentationResetEpoch: number;
 }
@@ -120,6 +124,10 @@ export function buildBoardRenderModel(
     characterMovements: presentationState.characterMovements,
     characterLandings: presentationState.characterLandings,
     characterReactions: presentationState.characterReactions,
+    balanceDeltas: presentationState.balanceDeltas,
+    ownershipChanges: presentationState.ownershipChanges,
+    developmentChanges: presentationState.developmentChanges,
+    goCrossings: presentationState.goCrossings,
     animationSpeedMultiplier: presentationState.animationSpeedMultiplier,
     presentationResetEpoch: presentationState.presentationResetEpoch,
   };
