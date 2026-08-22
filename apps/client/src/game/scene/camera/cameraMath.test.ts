@@ -12,6 +12,7 @@ import {
   getCameraPosition,
   getOrthographicCameraPosition,
   ORTHOGRAPHIC_CAMERA_DISTANCE,
+  SCENE_FIT_POINTS,
 } from './cameraMath';
 
 describe('fixed board camera math', () => {
@@ -64,7 +65,7 @@ describe('fixed board camera math', () => {
         Math.tan((DEFAULT_CAMERA_FOV * Math.PI / 180) / 2) * aspect,
       );
       const horizontalLimit = Math.tan(horizontalFov / 2);
-      BOARD_FIT_CORNERS.forEach(corner => {
+      SCENE_FIT_POINTS.forEach(corner => {
         const depth = distance + corner[0] * CAMERA_FORWARD[0]
           + corner[1] * CAMERA_FORWARD[1]
           + corner[2] * CAMERA_FORWARD[2];
@@ -85,7 +86,7 @@ describe('fixed board camera math', () => {
     [0.75, 1, 16 / 9, 2].forEach(aspect => {
       const halfHeight = calculateOrthographicHalfHeight(aspect);
       const halfWidth = halfHeight * aspect;
-      BOARD_FIT_CORNERS.forEach(corner => {
+      SCENE_FIT_POINTS.forEach(corner => {
         const horizontal = Math.abs(corner[0] * CAMERA_RIGHT[0]
           + corner[1] * CAMERA_RIGHT[1]
           + corner[2] * CAMERA_RIGHT[2]);

@@ -19,6 +19,12 @@ const endpointPlayerId = (endpoint: MoneyTransferPresentationEvent['source']): s
   endpoint.kind === 'PLAYER' ? endpoint.playerId : null
 );
 
+const sameEndpoint = (
+  left: MoneyTransferPresentationEvent['source'],
+  right: MoneyTransferPresentationEvent['source'],
+): boolean => left.kind === right.kind
+  && (left.kind === 'BANK' || (right.kind === 'PLAYER' && left.playerId === right.playerId));
+
 export function createSemanticExecutors(store: PresentationStoreLike): PresentationExecutorMap {
   const money: PresentationExecutor<MoneyTransferPresentationEvent> = {
     async run(event, context) {
@@ -66,12 +72,19 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
         transfer.fromPlayerId,
         transfer.toPlayerId,
       ]).filter((id): id is string => Boolean(id)))];
+      const source = event.transfers[0]?.from;
+      const destination = event.transfers[0]?.to;
+      const hasOneEndpointPair = Boolean(source && destination && event.transfers.every(transfer => (
+        sameEndpoint(transfer.from, source)
+        && sameEndpoint(transfer.to, destination)
+      )));
       store.showBoardEvent({
         id: event.id,
         kind: event.cause === 'BANK_PURCHASE' ? 'PROPERTY_PURCHASE' : 'PROPERTY_TRANSFER',
         playerIds,
         tileIds: event.transfers.map(transfer => transfer.tileId),
         ...(event.amount ? { amount: event.amount } : {}),
+        ...(hasOneEndpointPair && source && destination ? { source, destination } : {}),
         cause: event.cause,
         durationMs: semanticDuration,
       });
@@ -215,7 +228,17 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
         return;
       }
       if (event.stage === 'AWAITING_DRAW') {
+        const duration = context.getDuration(presentationTiming.cardDraw);
         store.setCardPresentation({
+          operationId: event.operationId,
+          playerId: event.playerId,
+          deck: event.deck,
+          sourceTile: event.sourceTile,
+          stage: duration > 0 ? 'DRAWING' : 'AWAITING_DRAW',
+          durationMs: duration,
+        });
+        await context.waitForDuration(duration);
+        if (current(context)) store.setCardPresentation({
           operationId: event.operationId,
           playerId: event.playerId,
           deck: event.deck,
@@ -225,13 +248,14 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
         });
         return;
       }
-      const duration = context.getDuration(presentationTiming.cardDraw);
+      const duration = context.getDuration(presentationTiming.cardReveal);
       store.setCardPresentation({
         operationId: event.operationId,
         playerId: event.playerId,
         deck: event.deck,
         sourceTile: event.sourceTile,
-        stage: duration > 0 ? 'DRAWING' : 'REVEALED',
+        stage: duration > 0 ? 'REVEALING' : 'REVEALED',
+        ...(event.revealedCardId ? { revealedCardId: event.revealedCardId } : {}),
         durationMs: duration,
       });
       await context.waitForDuration(duration);
@@ -241,6 +265,7 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
         deck: event.deck,
         sourceTile: event.sourceTile,
         stage: 'REVEALED',
+        ...(event.revealedCardId ? { revealedCardId: event.revealedCardId } : {}),
         durationMs: 0,
       });
     },

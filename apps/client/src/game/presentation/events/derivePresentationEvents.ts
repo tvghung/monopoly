@@ -93,6 +93,9 @@ function cardEvent(
     deck: interaction.deck,
     sourceTile: interaction.sourceTile,
     stage,
+    ...(stage === 'REVEALED' && interaction.revealedCardId
+      ? { revealedCardId: interaction.revealedCardId }
+      : {}),
   };
 }
 
@@ -162,6 +165,8 @@ function deriveSemanticPresentationEvents(
           transfers: grouped.map(transfer => ({
             eventId: transfer.eventId,
             tileId: transfer.tileID,
+            from: transfer.from,
+            to: transfer.to,
             fromPlayerId: transfer.from.kind === 'PLAYER' ? transfer.from.playerId : null,
             toPlayerId: transfer.to.kind === 'PLAYER' ? transfer.to.playerId : null,
           })),
@@ -196,8 +201,10 @@ export function derivePresentationEvents(
   const passGoEvents = semanticEvents.filter(
     (event): event is PassGoSemanticEvent => event.type === 'PASS_GO',
   );
-  const sentToJailPlayers = new Set(
-    semanticEvents.filter(event => event.type === 'SENT_TO_JAIL').map(event => event.playerId),
+  const sentToJailByPlayer = new Map(
+    semanticEvents
+      .filter((event): event is Extract<GameplaySemanticEvent, { type: 'SENT_TO_JAIL' }> => event.type === 'SENT_TO_JAIL')
+      .map(event => [event.playerId, event]),
   );
   const jailSemanticPlayers = new Set(
     semanticEvents
@@ -249,46 +256,53 @@ export function derivePresentationEvents(
     const oldPlayer = previousGame.players[playerId];
     const newPlayer = nextGame.players[playerId];
     if (!oldPlayer || !newPlayer) continue;
-    if (oldPlayer.currentTile !== newPlayer.currentTile && !sentToJailPlayers.has(playerId)) {
-      const steps = forwardDistance(oldPlayer.currentTile, newPlayer.currentTile);
+    if (oldPlayer.currentTile !== newPlayer.currentTile) {
+      const sentToJail = sentToJailByPlayer.get(playerId);
+      const diceDestination = sentToJail?.cause === 'BOARD_TILE'
+        ? sentToJail.fromTile
+        : newPlayer.currentTile;
+      const steps = forwardDistance(oldPlayer.currentTile, diceDestination);
       const walk = isProvenDiceMovement(
         previous,
         next,
         playerId,
         oldPlayer.currentTile,
-        newPlayer.currentTile,
+        diceDestination,
         oldPlayer.isJail,
       ) && steps > 0 && steps <= MAX_WALK;
-      const passGo = walk ? passGoEvents.find(event => (
-        event.playerId === playerId
-        && event.movement.kind === 'DICE_WALK'
-        && event.movement.rollSequence === nextGame.boardState.rollSequence
-      )) : undefined;
-      if (passGo) {
-        suppressedSemanticIds.add(passGo.eventId);
+      const presentsMovement = !sentToJail || (sentToJail.cause === 'BOARD_TILE' && walk);
+      if (presentsMovement) {
+        const passGo = walk ? passGoEvents.find(event => (
+          event.playerId === playerId
+          && event.movement.kind === 'DICE_WALK'
+          && event.movement.rollSequence === nextGame.boardState.rollSequence
+        )) : undefined;
+        if (passGo) {
+          suppressedSemanticIds.add(passGo.eventId);
+        }
+        movementEvents.push({
+          id: eventId(next, 'MOVE_CHARACTER', playerId),
+          roomId: next.roomId,
+          roomVersion: next.version,
+          type: 'MOVE_CHARACTER',
+          entityId: playerId,
+          playerId,
+          from: oldPlayer.currentTile,
+          to: diceDestination,
+          steps,
+          presentation: walk ? 'WALK' : 'SNAP',
+          ...(passGo ? { passGo } : {}),
+        });
+        landingEvents.push({
+          id: eventId(next, 'LAND_TILE', playerId),
+          roomId: next.roomId,
+          roomVersion: next.version,
+          type: 'LAND_TILE',
+          entityId: playerId,
+          playerId,
+          tileId: diceDestination,
+        });
       }
-      movementEvents.push({
-        id: eventId(next, 'MOVE_CHARACTER', playerId),
-        roomId: next.roomId,
-        roomVersion: next.version,
-        type: 'MOVE_CHARACTER',
-        entityId: playerId,
-        playerId,
-        from: oldPlayer.currentTile,
-        to: newPlayer.currentTile,
-        steps,
-        presentation: walk ? 'WALK' : 'SNAP',
-        ...(passGo ? { passGo } : {}),
-      });
-      landingEvents.push({
-        id: eventId(next, 'LAND_TILE', playerId),
-        roomId: next.roomId,
-        roomVersion: next.version,
-        type: 'LAND_TILE',
-        entityId: playerId,
-        playerId,
-        tileId: newPlayer.currentTile,
-      });
     }
     if (oldPlayer.accountBalance !== newPlayer.accountBalance) {
       balanceEvents.push({

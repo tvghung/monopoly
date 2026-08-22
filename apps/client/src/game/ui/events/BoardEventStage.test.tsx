@@ -12,6 +12,7 @@ import type { AnimationQueue } from '../../presentation/queue/AnimationQueue';
 import { PresentationStore } from '../../presentation/store/presentationStore';
 import type { BoardEventSignal } from '../../presentation/store/types';
 import { cloneRoom, makeRoom } from '../../presentation/testFixtures';
+import { presentationTiming } from '../../presentation/timings';
 import BoardEventStage from './BoardEventStage';
 
 afterEach(() => {
@@ -24,6 +25,7 @@ function renderStage(options: {
   viewerPlayerId?: string | null;
   role?: StateContextValue['role'];
   boardEvent?: BoardEventSignal;
+  presentationStage?: 'DRAWING' | 'REVEALING';
 }) {
   const room = cloneRoom(makeRoom());
   room.gameState.players['player-a'].currentTile = 7;
@@ -40,6 +42,17 @@ function renderStage(options: {
   };
   const store = new PresentationStore();
   store.resetFromSnapshot(room);
+  if (options.presentationStage) store.setCardPresentation({
+    operationId: '00000000-0000-4000-8000-000000000700',
+    playerId: 'player-a',
+    deck: 'chance',
+    sourceTile: 7,
+    stage: options.presentationStage,
+    ...(options.presentationStage === 'REVEALING'
+      ? { revealedCardId: 'chance-dividend' as const }
+      : {}),
+    durationMs: 720,
+  });
   if (options.boardEvent) store.showBoardEvent(options.boardEvent);
   const drawCard = vi.fn(() => Promise.resolve({
     ok: true as const,
@@ -52,6 +65,7 @@ function renderStage(options: {
     revision: 3,
   }));
   const socketFunctions = { drawCard, dismissCard } as unknown as SocketFunctions;
+  const onCardDraw = vi.fn();
   const context: StateContextValue = {
     state: room.gameState,
     socketFunctions,
@@ -69,11 +83,17 @@ function renderStage(options: {
         state: store.getSnapshot(),
         queue: null as unknown as AnimationQueue,
       }}>
-        <BoardEventStage />
+        <BoardEventStage
+          cardDrawError=""
+          cardDrawPending={false}
+          onCardDraw={onCardDraw}
+        />
       </presentationContext.Provider>
     </stateContext.Provider>,
   );
-  return { ...view, dismissCard, drawCard };
+  return {
+    ...view, dismissCard, drawCard, onCardDraw,
+  };
 }
 
 describe('BoardEventStage card authority', () => {
@@ -84,7 +104,7 @@ describe('BoardEventStage card authority', () => {
       playerIds: ['player-a'],
       tileIds: [],
       amount: 200,
-      reason: 'PASS_GO' as const,
+      reason: 'OTHER' as const,
       durationMs: 1_000,
     };
     const view = renderStage({
@@ -110,18 +130,56 @@ describe('BoardEventStage card authority', () => {
     expect(screen.getByText('An → Ngân hàng')).toBeTruthy();
   });
 
-  it('gives only the active player the awaiting-draw command', () => {
+  it('preserves BANK as a named property-transfer endpoint', () => {
+    renderStage({
+      stage: 'AWAITING_DRAW',
+      boardEvent: {
+        id: 'property-bank-transfer',
+        kind: 'PROPERTY_TRANSFER',
+        playerIds: ['player-a'],
+        tileIds: [1],
+        source: { kind: 'PLAYER', playerId: 'player-a' },
+        destination: { kind: 'BANK' },
+        durationMs: 1_000,
+      },
+    });
+    expect(screen.getByText('An → Ngân hàng')).toBeTruthy();
+  });
+
+  it('does not render a global PASS GO banner', () => {
+    const { container } = renderStage({
+      stage: 'AWAITING_DRAW',
+      boardEvent: {
+        id: 'pass-go',
+        kind: 'PASS_GO',
+        playerIds: ['player-a'],
+        tileIds: [0],
+        amount: 200,
+        durationMs: 1_000,
+      },
+    });
+    expect(container.querySelector('.board-event-stage')).toBeNull();
+  });
+
+  it('gives only the active player the settled physical-card command', () => {
     const active = renderStage({ stage: 'AWAITING_DRAW' });
-    fireEvent.click(screen.getByRole('button', { name: 'RÚT THẺ' }));
-    expect(active.drawCard).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000700');
+    fireEvent.click(screen.getByRole('button', { name: 'Nhấn vào thẻ để xem' }));
+    expect(active.onCardDraw).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000700');
+    expect(active.drawCard).not.toHaveBeenCalled();
     active.unmount();
 
     renderStage({ stage: 'AWAITING_DRAW', viewerPlayerId: 'player-b' });
-    expect(screen.queryByRole('button', { name: 'RÚT THẺ' })).toBeNull();
-    expect(screen.getByText(/Đang chờ An rút thẻ/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Nhấn vào thẻ để xem' })).toBeNull();
+    expect(screen.getByText(/Đang chờ An xem thẻ/)).toBeTruthy();
   });
 
-  it('blocks close and Escape for 700ms after reveal, then permits the active player', async () => {
+  it('shows no instruction before the physical flight has settled', () => {
+    renderStage({ stage: 'AWAITING_DRAW', presentationStage: 'DRAWING' });
+    expect(screen.queryByText('Nhấn vào thẻ để xem')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('blocks close and Escape for the reveal dwell, then permits the active player', async () => {
     vi.useFakeTimers();
     const { dismissCard } = renderStage({ stage: 'REVEALED' });
     const close = screen.getByRole<HTMLButtonElement>('button', { name: 'Đóng thẻ' });
@@ -129,7 +187,7 @@ describe('BoardEventStage card authority', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(dismissCard).not.toHaveBeenCalled();
 
-    await act(async () => vi.advanceTimersByTimeAsync(700));
+    await act(async () => vi.advanceTimersByTimeAsync(presentationTiming.cardRevealLock));
     expect(close.disabled).toBe(false);
     expect(document.activeElement).toBe(close);
     fireEvent.keyDown(window, { key: 'Escape' });
@@ -139,18 +197,18 @@ describe('BoardEventStage card authority', () => {
   it('never lets another player or a spectator dismiss the revealed card', async () => {
     vi.useFakeTimers();
     const other = renderStage({ stage: 'REVEALED', viewerPlayerId: 'player-b' });
-    await act(async () => vi.advanceTimersByTimeAsync(700));
+    await act(async () => vi.advanceTimersByTimeAsync(presentationTiming.cardRevealLock));
     fireEvent.keyDown(window, { key: 'Escape' });
-    const backdrop = other.container.querySelector('.card-interaction-backdrop');
+    const backdrop = other.container.querySelector('.card-focus-overlay');
     if (backdrop) fireEvent.mouseDown(backdrop);
     expect(other.dismissCard).not.toHaveBeenCalled();
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đóng thẻ' }).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Đóng thẻ' })).toBeNull();
     other.unmount();
 
     const spectator = renderStage({ stage: 'REVEALED', viewerPlayerId: null, role: 'SPECTATOR' });
-    await act(async () => vi.advanceTimersByTimeAsync(700));
+    await act(async () => vi.advanceTimersByTimeAsync(presentationTiming.cardRevealLock));
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(spectator.dismissCard).not.toHaveBeenCalled();
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đóng thẻ' }).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Đóng thẻ' })).toBeNull();
   });
 });

@@ -55,10 +55,13 @@ const scenarios = [
   ['leave-mid-motion', '19 · Rời giữa chuyển động'],
   ['reconnect-awaiting', '20 · Kết nối lại khi chờ rút'],
   ['reconnect-revealed', '20 · Kết nối lại khi đã mở'],
-  ['spectator-card', '21 · Khán giả xem thẻ'],
+  ['spectator-awaiting', '21 · Khán giả chờ mở thẻ'],
+  ['spectator-revealed', '21 · Khán giả xem thẻ đã mở'],
   ['speed-walk', '22 · Kiểm tra tốc độ'],
   ['reduced-motion', '23 · Giảm chuyển động'],
   ['skip-motion', '24 · Bỏ qua chuyển động'],
+  ['skip-card-flight', '24 · Bỏ qua khi thẻ đang bay'],
+  ['skip-card-reveal', '24 · Bỏ qua khi thẻ đang lật'],
   ['keyboard-card', '26 · Focus / Escape thẻ'],
   ['stress', 'Hiệu năng · trạng thái đồng thời'],
 ] as const;
@@ -177,6 +180,15 @@ function cardForScenario(scenario: ScenarioKey): string {
   return 'chance-dividend';
 }
 
+function cardDeckForScenario(scenario: ScenarioKey): 'chance' | 'chest' {
+  return scenario === 'chest' || scenario === 'collect-each' ? 'chest' : 'chance';
+}
+
+const liveCardScenarios: readonly ScenarioKey[] = [
+  'chance', 'chest', 'pay-each', 'collect-each', 'card-chain', 'keyboard-card',
+  'skip-card-flight', 'skip-card-reveal',
+];
+
 function configureBaseline(
   room: PublicRoomState,
   scenario: ScenarioKey,
@@ -203,14 +215,35 @@ function configureBaseline(
   if (scenario === 'hotel') {
     room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 4 };
   }
-  if (['chance', 'chest', 'pay-each', 'collect-each', 'card-chain', 'keyboard-card'].includes(scenario)) {
-    setPendingCard(room, scenario === 'chest' || scenario === 'collect-each' ? 'chest' : 'chance', 'AWAITING_DRAW');
+  if (scenario === 'stations-2' || scenario === 'stations-4') {
+    room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 2 };
+    room.gameState.boardState.ownedProps[3] = { id: 'player-b', color: 'blue', houses: 5 };
+    if (scenario === 'stations-4') {
+      room.gameState.boardState.ownedProps[5] = { id: 'player-c', color: 'green', houses: 0 };
+      room.gameState.boardState.ownedProps[6] = { id: 'player-d', color: 'yellow', houses: 0 };
+      const disconnected = room.players.find(player => player.playerId === 'player-c');
+      if (disconnected) disconnected.connected = false;
+    }
+  }
+  if (liveCardScenarios.includes(scenario)) {
+    room.gameState.players['player-a'].currentTile = cardDeckForScenario(scenario) === 'chance' ? 7 : 2;
   }
   if (scenario === 'reconnect-awaiting') setPendingCard(room, 'chance', 'AWAITING_DRAW');
   if (scenario === 'reconnect-revealed') setPendingCard(room, 'chance', 'REVEALED', 'chance-dividend');
-  if (scenario === 'spectator-card') {
+  if (scenario === 'spectator-awaiting') {
+    setPendingCard(room, 'chest', 'AWAITING_DRAW');
+    return { playerId: null, role: 'SPECTATOR' };
+  }
+  if (scenario === 'spectator-revealed') {
     setPendingCard(room, 'chest', 'REVEALED', 'chest-bank-adjustment');
     return { playerId: null, role: 'SPECTATOR' };
+  }
+  if (scenario === 'pass-go') room.gameState.players['player-a'].currentTile = 37;
+  if (scenario === 'jail') room.gameState.players['player-a'].currentTile = 25;
+  if (scenario === 'just-visiting') room.gameState.players['player-a'].currentTile = 8;
+  if (scenario === 'jail-bail' || scenario === 'jail-free') {
+    room.gameState.players['player-a'].currentTile = 10;
+    room.gameState.players['player-a'].isJail = true;
   }
   if (scenario === 'bankrupt') {
     const bankrupt = room.gameState.players['player-b'];
@@ -250,6 +283,7 @@ function Phase4UatSurface() {
     playerId: 'player-a', role: 'PLAYER',
   });
   const [rendererMetrics, setRendererMetrics] = useState<Record<string, unknown> | null>(null);
+  const [controlsCollapsed, setControlsCollapsed] = useState(false);
   const runNumberRef = useRef(1);
   const roomRef = useRef(room);
   const scenarioRef = useRef(scenario);
@@ -272,6 +306,26 @@ function Phase4UatSurface() {
   }, [controller]);
 
   const applyAnimatedScenario = useCallback((key: ScenarioKey) => {
+    if (liveCardScenarios.includes(key)) {
+      commit(next => setPendingCard(next, cardDeckForScenario(key), 'AWAITING_DRAW'));
+      if (key === 'skip-card-flight') {
+        schedule(() => controller.skipAllAndSnap(), 240);
+      }
+      if (key === 'skip-card-reveal') {
+        schedule(() => commit(next => {
+          const pending = next.gameState.turnInfo.pendingCardInteraction;
+          if (!pending) return;
+          pending.stage = 'REVEALED';
+          pending.revealedCardId = cardForScenario(key);
+          next.gameState.deckCounts[pending.deck] = Math.max(
+            0,
+            next.gameState.deckCounts[pending.deck] - 1,
+          );
+        }), 900);
+        schedule(() => controller.skipAllAndSnap(), 1_100);
+      }
+      return;
+    }
     if (key === 'walk' || key === 'speed-walk' || key === 'skip-motion' || key === 'reduced-motion') {
       commit(next => {
         next.gameState.boardState.diceValue = { dice1: 2, dice2: 3 };
@@ -281,8 +335,6 @@ function Phase4UatSurface() {
       return;
     }
     if (key === 'pass-go') {
-      roomRef.current.gameState.players['player-a'].currentTile = 37;
-      controller.acceptRoomSnapshot(roomRef.current, 'SESSION_SYNC');
       commit(next => {
         next.gameState.boardState.diceValue = { dice1: 2, dice2: 3 };
         next.gameState.boardState.rollSequence = 1;
@@ -382,9 +434,9 @@ function Phase4UatSurface() {
       return;
     }
     if (key === 'jail') {
-      roomRef.current.gameState.players['player-a'].currentTile = 30;
-      controller.acceptRoomSnapshot(roomRef.current, 'SESSION_SYNC');
       commit(next => {
+        next.gameState.boardState.diceValue = { dice1: 2, dice2: 3 };
+        next.gameState.boardState.rollSequence = 1;
         next.gameState.players['player-a'].currentTile = 10;
         next.gameState.players['player-a'].isJail = true;
         appendSemantic(next, [{
@@ -395,8 +447,6 @@ function Phase4UatSurface() {
       return;
     }
     if (key === 'just-visiting') {
-      roomRef.current.gameState.players['player-a'].currentTile = 8;
-      controller.acceptRoomSnapshot(roomRef.current, 'SESSION_SYNC');
       commit(next => {
         next.gameState.boardState.diceValue = { dice1: 1, dice2: 1 };
         next.gameState.boardState.rollSequence = 1;
@@ -413,9 +463,6 @@ function Phase4UatSurface() {
       return;
     }
     if (key === 'jail-bail' || key === 'jail-free') {
-      roomRef.current.gameState.players['player-a'].currentTile = 10;
-      roomRef.current.gameState.players['player-a'].isJail = true;
-      controller.acceptRoomSnapshot(roomRef.current, 'SESSION_SYNC');
       commit(next => {
         next.gameState.players['player-a'].isJail = false;
         appendSemantic(next, [{
@@ -482,8 +529,7 @@ function Phase4UatSurface() {
     updateSettings({ reducedMotion: key === 'reduced-motion' });
     controller.acceptRoomSnapshot(nextRoom, 'SESSION_SYNC');
     if (![
-      'stations-2', 'stations-4', 'bankrupt', 'chance', 'chest', 'pay-each',
-      'collect-each', 'card-chain', 'keyboard-card', 'spectator-card',
+      'stations-2', 'stations-4', 'bankrupt', 'spectator-awaiting', 'spectator-revealed',
     ].includes(key)) schedule(() => applyAnimatedScenario(key), 180);
   }, [applyAnimatedScenario, clearTimers, controller, schedule, updateSettings]);
   const runNextScenario = useCallback(() => {
@@ -500,6 +546,10 @@ function Phase4UatSurface() {
       pending.stage = 'REVEALED';
       pending.revealedCardId = cardForScenario(scenarioRef.current);
       pending.deadlineAt = '2030-01-01T00:01:00.000Z';
+      next.gameState.deckCounts[pending.deck] = Math.max(
+        0,
+        next.gameState.deckCounts[pending.deck] - 1,
+      );
     });
     return Promise.resolve(successfulAck(roomRef.current.version));
   }, [commit, viewer.role]);
@@ -509,6 +559,7 @@ function Phase4UatSurface() {
     commit(next => {
       const pending = next.gameState.turnInfo.pendingCardInteraction;
       if (!pending) return;
+      next.gameState.deckCounts[pending.deck] += 1;
       delete next.gameState.turnInfo.pendingCardInteraction;
       const key = scenarioRef.current;
       if (key === 'pay-each' || key === 'collect-each') {
@@ -590,8 +641,16 @@ function Phase4UatSurface() {
     <PresentationProvider controller={controller}>
       <stateContext.Provider value={contextValue}>
         <main className="phase4-uat" data-scenario={scenario}>
-          <aside className="phase4-uat__controls" aria-label="Điều khiển UAT Phase 4">
-            <strong>PHASE 4 UAT</strong>
+          <aside
+            className={`phase4-uat__controls${controlsCollapsed ? ' phase4-uat__controls--collapsed' : ''}`}
+            aria-label="Điều khiển UAT Phase 4"
+          >
+            <button
+              type="button"
+              aria-label={controlsCollapsed ? 'Mở điều khiển UAT' : 'Ẩn điều khiển UAT'}
+              onClick={() => setControlsCollapsed(value => !value)}
+            >{controlsCollapsed ? 'UAT' : 'Ẩn'}</button>
+            {!controlsCollapsed ? <><strong>PHASE 4 UAT</strong>
             <select
               aria-label="Kịch bản"
               value={scenario}
@@ -627,13 +686,14 @@ function Phase4UatSurface() {
                 : ''}
               {` · queue ${presentationState.status}`}
               {` · dice ${presentationState.diceRoll?.lifecycle ?? 'settled'}`}
+              {` · card ${presentationState.cardPresentation?.stage ?? 'direct'}`}
               {` · preview ${presentationState.destinationPreview ? 'on' : 'off'}`}
             </output>
             {rendererMetrics ? (
               <output data-testid="renderer-metrics">
                 {`draw ${String(rendererMetrics.drawCalls)} · tri ${String(rendererMetrics.triangles)} · active ${String(rendererMetrics.activeAnimatedObjects)}`}
               </output>
-            ) : null}
+            ) : null}</> : null}
           </aside>
           <Board />
         </main>

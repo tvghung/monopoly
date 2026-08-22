@@ -22,6 +22,7 @@ export interface SdfTextConfig {
   value: string;
   fontSize: number;
   maxWidth: number;
+  maxHeight?: number;
   color?: string;
   lineHeight?: number;
   sdfGlyphSize?: number;
@@ -36,7 +37,7 @@ export function configureSdfText(
   text.font = BOARD_FONT_URL;
   text.fontSize = props.fontSize;
   text.maxWidth = props.maxWidth;
-  text.maxHeight = props.fontSize * 3.4;
+  text.maxHeight = props.maxHeight ?? props.fontSize * 3.4;
   text.anchorX = 'center';
   text.anchorY = 'middle';
   text.textAlign = 'center';

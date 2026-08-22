@@ -126,8 +126,9 @@
   position: absolute;
   z-index: 45;
   bottom: clamp(0.75rem, 2vw, 1.25rem);
-  left: clamp(0.75rem, 2vw, 1.25rem);
+  left: calc(50% - min(7.5rem, 22vw));
   pointer-events: auto;
+  transform: translateX(-100%);
 }
 
 .game-board__property-button {

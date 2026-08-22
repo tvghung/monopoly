@@ -1,79 +1,294 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import {
+  useEffect, useLayoutEffect, useMemo, useRef,
+} from 'react';
+import type { ThreeEvent } from '@react-three/fiber';
 import { useFrame, useThree } from '@react-three/fiber';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { gameCardsById, type CardDeck, type DeckCounts } from '@monopoly/shared';
 import * as THREE from 'three';
 import type { CardPresentationSignal } from '../../presentation/store/types';
 import SdfSurfaceText from '../board/tiles/SdfSurfaceText';
+import {
+  FIXED_CAMERA_QUATERNION,
+  FIXED_CARD_BACK_QUATERNION,
+} from '../camera/fixedCameraOrientation';
+import {
+  CARD_FOCUS_SCRIM_POSITION,
+  CARD_PRESENTATION_POSITION,
+  CARD_PRESENTATION_SCALE,
+  CARD_REVEAL_ROTATIONS,
+  getCardLayerTransform,
+  getIdleDeckCardCount,
+  PHYSICAL_CARD_BEVEL,
+  PHYSICAL_CARD_DEPTH,
+  PHYSICAL_CARD_THICKNESS,
+  PHYSICAL_CARD_WIDTH,
+} from './physicalCardLayout';
 
-const DECK_ANCHORS = {
-  chance: [-3.35, 0.39, 1.2],
-  chest: [3.35, 0.39, 1.2],
-} as const;
+const CARD_BODY_GEOMETRY = new RoundedBoxGeometry(
+  PHYSICAL_CARD_WIDTH,
+  PHYSICAL_CARD_THICKNESS,
+  PHYSICAL_CARD_DEPTH,
+  2,
+  PHYSICAL_CARD_BEVEL,
+);
+const CARD_BACK_GEOMETRY = new THREE.PlaneGeometry(
+  PHYSICAL_CARD_WIDTH * 0.94,
+  PHYSICAL_CARD_DEPTH * 0.9,
+);
+CARD_BACK_GEOMETRY.rotateX(-Math.PI / 2);
+CARD_BACK_GEOMETRY.translate(0, PHYSICAL_CARD_THICKNESS / 2 + 0.002, 0);
+const CARD_FRONT_GEOMETRY = new THREE.PlaneGeometry(
+  PHYSICAL_CARD_WIDTH * 0.94,
+  PHYSICAL_CARD_DEPTH * 0.9,
+);
+CARD_FRONT_GEOMETRY.rotateX(Math.PI / 2);
+CARD_FRONT_GEOMETRY.translate(0, -PHYSICAL_CARD_THICKNESS / 2 - 0.002, 0);
+const CARD_BODY_MATERIAL = new THREE.MeshStandardMaterial({
+  color: '#eadfca', roughness: 0.66, metalness: 0.01,
+});
+const CARD_BACK_MATERIALS: Record<CardDeck, THREE.MeshStandardMaterial> = {
+  chance: new THREE.MeshStandardMaterial({ color: '#d86843', roughness: 0.58, metalness: 0.01 }),
+  chest: new THREE.MeshStandardMaterial({ color: '#159b8e', roughness: 0.58, metalness: 0.01 }),
+};
+const CARD_FRONT_MATERIAL = new THREE.MeshStandardMaterial({
+  color: '#fff1cf', roughness: 0.72, metalness: 0,
+});
+const CARD_SCRIM_GEOMETRY = new THREE.PlaneGeometry(80, 80);
+const CARD_SCRIM_MATERIAL = new THREE.MeshBasicMaterial({
+  color: '#071c23', transparent: true, opacity: 0.32, depthWrite: false,
+});
+const LOCAL_X_AXIS = new THREE.Vector3(1, 0, 0);
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
-function DeckStack({ deck }: { deck: keyof typeof DECK_ANCHORS }) {
-  const stackRef = useRef<THREE.InstancedMesh>(null);
-  const matrix = useMemo(() => new THREE.Matrix4(), []);
-  const invalidate = useThree(state => state.invalidate);
-  useLayoutEffect(() => {
-    const mesh = stackRef.current;
-    if (!mesh) return;
-    const anchor = DECK_ANCHORS[deck];
-    for (let layer = 0; layer < 5; layer += 1) {
-      matrix.makeTranslation(anchor[0], anchor[1] + layer * 0.042, anchor[2]);
-      mesh.setMatrixAt(layer, matrix);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-    invalidate();
-  }, [deck, invalidate, matrix]);
-  return (
-    <instancedMesh ref={stackRef} args={[undefined, undefined, 5]} name={`${deck}CardStack`}>
-      <boxGeometry args={[1.18, 0.035, 0.76]} />
-      <meshStandardMaterial color={deck === 'chance' ? '#cf6845' : '#d9ad3f'} roughness={0.7} />
-    </instancedMesh>
-  );
+export interface PhysicalCardInteraction {
+  canDraw: boolean;
+  drawPending: boolean;
+  onDraw: (operationId: string) => void;
 }
 
-function AnimatedTopCard({ signal }: { signal: CardPresentationSignal }) {
-  const groupRef = useRef<THREE.Group>(null);
-  const elapsedRef = useRef(0);
+function deckLabel(deck: CardDeck): string {
+  return deck === 'chance' ? 'CƠ HỘI' : 'KHÍ VẬN';
+}
+
+function IdleDeckStack({
+  deck,
+  count,
+  authoritativeCount,
+}: {
+  deck: CardDeck;
+  count: number;
+  authoritativeCount: number;
+}) {
+  const bodyRef = useRef<THREE.InstancedMesh>(null);
+  const backRef = useRef<THREE.InstancedMesh>(null);
   const invalidate = useThree(state => state.invalidate);
-  const source = DECK_ANCHORS[signal.deck];
-  useEffect(() => {
-    elapsedRef.current = 0;
+  const object = useMemo(() => new THREE.Object3D(), []);
+
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    const back = backRef.current;
+    if (!body || !back) return;
+    for (let index = 0; index < count; index += 1) {
+      const transform = getCardLayerTransform(deck, index);
+      object.position.set(...transform.position);
+      object.rotation.set(0, transform.rotationY, 0);
+      object.scale.set(1, 1, 1);
+      object.updateMatrix();
+      body.setMatrixAt(index, object.matrix);
+      back.setMatrixAt(index, object.matrix);
+    }
+    body.instanceMatrix.needsUpdate = true;
+    back.instanceMatrix.needsUpdate = true;
     invalidate();
-  }, [invalidate, signal.operationId, signal.stage]);
-  useFrame((_, delta) => {
-    const group = groupRef.current;
-    if (!group || signal.stage !== 'DRAWING' || signal.durationMs <= 0) return;
-    elapsedRef.current += delta * 1000;
-    const progress = THREE.MathUtils.clamp(elapsedRef.current / signal.durationMs, 0, 1);
-    const eased = 1 - (1 - progress) ** 3;
-    group.position.set(
-      THREE.MathUtils.lerp(source[0], 0, eased),
-      THREE.MathUtils.lerp(source[1] + 0.2, 1.22, eased) + Math.sin(progress * Math.PI) * 0.34,
-      THREE.MathUtils.lerp(source[2], 0.55, eased),
-    );
-    group.rotation.set(0, progress * Math.PI, progress * 0.18);
-    if (progress < 1) invalidate();
-  });
-  if (signal.stage === 'REVEALED') return null;
+  }, [count, deck, invalidate, object]);
+
   return (
-    <group ref={groupRef} position={[source[0], source[1] + (signal.stage === 'AWAITING_DRAW' ? 0.28 : 0.2), source[2]]}>
-      <mesh>
-        <boxGeometry args={[1.18, 0.055, 0.76]} />
-        <meshStandardMaterial color={signal.deck === 'chance' ? '#d96a43' : '#e6bc4b'} roughness={0.62} />
-      </mesh>
+    <group name={`${deck}PhysicalCardStack`} userData={{ physicalCount: count, authoritativeCount }}>
+      <instancedMesh
+        ref={bodyRef}
+        args={[CARD_BODY_GEOMETRY, CARD_BODY_MATERIAL, count]}
+        name={`${deck}CardBodies`}
+      />
+      <instancedMesh
+        ref={backRef}
+        args={[CARD_BACK_GEOMETRY, CARD_BACK_MATERIALS[deck], count]}
+        name={`${deck}CardBacks`}
+      />
     </group>
   );
 }
 
-export default function PhysicalCardDecks({ signal }: { signal: CardPresentationSignal | null }) {
+function CardFocusScrim() {
+  return (
+    <mesh
+      geometry={CARD_SCRIM_GEOMETRY}
+      material={CARD_SCRIM_MATERIAL}
+      position={CARD_FOCUS_SCRIM_POSITION}
+      quaternion={FIXED_CAMERA_QUATERNION}
+      renderOrder={20}
+      raycast={() => undefined}
+      name="PhysicalCardFocusScrim"
+    />
+  );
+}
+
+function ActivePhysicalCard({
+  signal,
+  deckCounts,
+  interaction,
+}: {
+  signal: CardPresentationSignal;
+  deckCounts: DeckCounts;
+  interaction: PhysicalCardInteraction;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const elapsedRef = useRef(0);
+  const invalidate = useThree(state => state.invalidate);
+  const gl = useThree(state => state.gl);
+  const sourceQuaternion = useMemo(() => new THREE.Quaternion(), []);
+  const spinQuaternion = useMemo(() => new THREE.Quaternion(), []);
+  const authoritativeDeckCount = deckCounts[signal.deck];
+  const sourceTransform = useMemo(() => getCardLayerTransform(
+    signal.deck,
+    Math.max(0, authoritativeDeckCount - 1),
+  ), [authoritativeDeckCount, signal.deck]);
+  const card = signal.revealedCardId ? gameCardsById[signal.revealedCardId] : undefined;
+  const interactive = signal.stage === 'AWAITING_DRAW'
+    && interaction.canDraw
+    && !interaction.drawPending;
+
+  useLayoutEffect(() => {
+    const group = groupRef.current;
+    if (!group) return;
+    elapsedRef.current = 0;
+    if (signal.stage === 'DRAWING') {
+      group.position.set(...sourceTransform.position);
+      group.rotation.set(0, sourceTransform.rotationY, 0);
+      group.scale.setScalar(1);
+    } else {
+      group.position.set(...CARD_PRESENTATION_POSITION);
+      group.quaternion.copy(FIXED_CARD_BACK_QUATERNION);
+      if (signal.stage === 'REVEALED') {
+        spinQuaternion.setFromAxisAngle(LOCAL_X_AXIS, Math.PI * CARD_REVEAL_ROTATIONS * 2);
+        group.quaternion.multiply(spinQuaternion);
+      }
+      group.scale.setScalar(CARD_PRESENTATION_SCALE);
+    }
+    invalidate();
+  }, [invalidate, signal.operationId, signal.stage, sourceTransform.position, sourceTransform.rotationY, spinQuaternion]);
+
+  useEffect(() => () => {
+    if (gl.domElement.style.cursor === 'pointer') gl.domElement.style.cursor = '';
+  }, [gl]);
+
+  useFrame((_, delta) => {
+    const group = groupRef.current;
+    if (!group || signal.durationMs <= 0) return;
+    if (signal.stage !== 'DRAWING' && signal.stage !== 'REVEALING') return;
+    elapsedRef.current += delta * 1000;
+    const progress = THREE.MathUtils.clamp(elapsedRef.current / signal.durationMs, 0, 1);
+    const eased = 1 - (1 - progress) ** 3;
+    if (signal.stage === 'DRAWING') {
+      group.position.set(
+        THREE.MathUtils.lerp(sourceTransform.position[0], CARD_PRESENTATION_POSITION[0], eased),
+        THREE.MathUtils.lerp(sourceTransform.position[1], CARD_PRESENTATION_POSITION[1], eased)
+          + Math.sin(progress * Math.PI) * 0.48,
+        THREE.MathUtils.lerp(sourceTransform.position[2], CARD_PRESENTATION_POSITION[2], eased),
+      );
+      sourceQuaternion.setFromAxisAngle(WORLD_UP, sourceTransform.rotationY);
+      group.quaternion.slerpQuaternions(sourceQuaternion, FIXED_CARD_BACK_QUATERNION, eased);
+      group.scale.setScalar(THREE.MathUtils.lerp(1, CARD_PRESENTATION_SCALE, eased));
+    } else {
+      group.position.set(...CARD_PRESENTATION_POSITION);
+      spinQuaternion.setFromAxisAngle(
+        LOCAL_X_AXIS,
+        Math.PI * CARD_REVEAL_ROTATIONS * 2 * eased,
+      );
+      group.quaternion.copy(FIXED_CARD_BACK_QUATERNION).multiply(spinQuaternion);
+      group.scale.setScalar(CARD_PRESENTATION_SCALE * (1 + Math.sin(progress * Math.PI) * 0.055));
+    }
+    if (progress < 1) invalidate();
+  });
+
+  const handleClick = (event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation();
+    if (interactive) interaction.onDraw(signal.operationId);
+  };
+  const handlePointerEnter = (event: ThreeEvent<PointerEvent>) => {
+    event.stopPropagation();
+    if (interactive && event.nativeEvent.target instanceof HTMLElement) {
+      event.nativeEvent.target.style.cursor = 'pointer';
+    }
+  };
+  const handlePointerLeave = (event: ThreeEvent<PointerEvent>) => {
+    if (event.nativeEvent.target instanceof HTMLElement) {
+      event.nativeEvent.target.style.cursor = '';
+    }
+  };
+
+  return (
+    <group
+      ref={groupRef}
+      name={`ActivePhysicalCard:${signal.operationId}`}
+      userData={{ stage: signal.stage, deck: signal.deck, physical: true }}
+      onClick={handleClick}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
+    >
+      <mesh geometry={CARD_BODY_GEOMETRY} material={CARD_BODY_MATERIAL} name="ActivePhysicalCardBody" />
+      <mesh geometry={CARD_BACK_GEOMETRY} material={CARD_BACK_MATERIALS[signal.deck]} name="ActivePhysicalCardBack" />
+      <mesh geometry={CARD_FRONT_GEOMETRY} material={CARD_FRONT_MATERIAL} name="ActivePhysicalCardFront" />
+      <SdfSurfaceText
+        value={deckLabel(signal.deck)}
+        position={[0, PHYSICAL_CARD_THICKNESS / 2 + 0.006, 0]}
+        fontSize={0.2}
+        maxWidth={1.35}
+        color="#fff4d2"
+        name="ActivePhysicalCardBackLabel"
+      />
+      {card
+        ? (
+          <SdfSurfaceText
+            value={card.message}
+            position={[0, -PHYSICAL_CARD_THICKNESS / 2 - 0.006, 0]}
+            fontSize={0.125}
+            maxWidth={1.48}
+            maxHeight={0.82}
+            lineHeight={1.12}
+            rotationX={Math.PI / 2}
+            color="#173d43"
+            name="ActivePhysicalCardMessage"
+          />
+        )
+        : null}
+    </group>
+  );
+}
+
+export default function PhysicalCardDecks({
+  signal,
+  deckCounts,
+  interaction,
+}: {
+  signal: CardPresentationSignal | null;
+  deckCounts: DeckCounts;
+  interaction: PhysicalCardInteraction;
+}) {
+  const chanceCount = getIdleDeckCardCount('chance', deckCounts, signal);
+  const chestCount = getIdleDeckCardCount('chest', deckCounts, signal);
   return (
     <group name="PhysicalCardDecks">
-      <DeckStack deck="chance" />
-      <DeckStack deck="chest" />
-      <SdfSurfaceText value="CƠ HỘI" position={[-3.35, 0.62, 1.2]} fontSize={0.18} maxWidth={1} color="#fff2d6" name="ChanceDeckLabel" />
-      <SdfSurfaceText value="KHÍ VẬN" position={[3.35, 0.62, 1.2]} fontSize={0.18} maxWidth={1} color="#fff8dc" name="ChestDeckLabel" />
-      {signal ? <AnimatedTopCard signal={signal} /> : null}
+      <IdleDeckStack deck="chance" count={chanceCount} authoritativeCount={deckCounts.chance} />
+      <IdleDeckStack deck="chest" count={chestCount} authoritativeCount={deckCounts.chest} />
+      {signal
+        ? (
+          <>
+            <CardFocusScrim />
+            <ActivePhysicalCard signal={signal} deckCounts={deckCounts} interaction={interaction} />
+          </>
+        )
+        : null}
     </group>
   );
 }

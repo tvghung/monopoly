@@ -233,7 +233,17 @@ describe('derivePresentationEvents', () => {
     };
 
     expect(derivePresentationEvents(previous, next).find(event => event.type === 'PROPERTY_TRANSFER'))
-      .toMatchObject({ type: 'PROPERTY_TRANSFER', cause: 'BANK_PURCHASE', amount: 60 });
+      .toMatchObject({
+        type: 'PROPERTY_TRANSFER',
+        cause: 'BANK_PURCHASE',
+        amount: 60,
+        transfers: [{
+          from: { kind: 'BANK' },
+          to: { kind: 'PLAYER', playerId: 'player-a' },
+          fromPlayerId: null,
+          toPlayerId: 'player-a',
+        }],
+      });
   });
 
   it('shows a semantic GO moment for card movement without inventing a walk or duplicate coins', () => {
@@ -295,6 +305,42 @@ describe('derivePresentationEvents', () => {
     expect(events.filter(event => event.type === 'MOVE_CHARACTER')).toHaveLength(0);
     expect(events.filter(event => event.type === 'PASS_GO')).toHaveLength(0);
     expect(events.filter(event => event.type === 'SENT_TO_JAIL')).toHaveLength(1);
+  });
+
+  it('orders a proven roll to tile 30 before the semantic transfer to jail', () => {
+    const previous = makeRoom();
+    previous.gameState.players['player-a'].currentTile = 25;
+    const next = cloneRoom(previous);
+    next.gameState.boardState.diceValue = { dice1: 2, dice2: 3 };
+    next.gameState.boardState.rollSequence = 1;
+    next.gameState.players['player-a'].currentTile = 10;
+    next.gameState.players['player-a'].isJail = true;
+    next.gameState.boardState.gameplayEvents = {
+      sequence: 1,
+      events: [{
+        eventId: 'jail-after-roll',
+        sequence: 1,
+        type: 'SENT_TO_JAIL',
+        playerId: 'player-a',
+        fromTile: 30,
+        destinationTile: 10,
+        cause: 'BOARD_TILE',
+      }],
+    };
+
+    const events = derivePresentationEvents(previous, next);
+    expect(events.map(event => event.type)).toEqual([
+      'ROLL_DICE', 'MOVE_CHARACTER', 'LAND_TILE', 'SENT_TO_JAIL',
+    ]);
+    expect(events[1]).toMatchObject({
+      type: 'MOVE_CHARACTER', from: 25, to: 30, steps: 5, presentation: 'WALK',
+    });
+    expect(events[2]).toMatchObject({ type: 'LAND_TILE', tileId: 30 });
+    expect(events[3]).toMatchObject({
+      type: 'SENT_TO_JAIL',
+      event: { fromTile: 30, destinationTile: 10, cause: 'BOARD_TILE' },
+    });
+    expect(events.some(event => event.type === 'PASS_GO')).toBe(false);
   });
 
   it('closes the old card before movement and opens a chained card only after LAND', () => {

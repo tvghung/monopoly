@@ -1140,3 +1140,111 @@ Phase 4 therefore remains **NOT CLOSED**. Automated contract coverage is green
 apart from the explicitly identified configured-database checksum state, but
 the missing browser and Electron manual gates cannot be promoted to passes by
 unit tests or fixture availability.
+
+## 16. Final visual correction pass closure (2026-08-22)
+
+This section is the current record for the requested final Phase 4 visual
+correction pass. It supersedes the stale status statements in sections 15.3
+and 15.4; those sections are retained as historical evidence from the earlier
+V7 review.
+
+### 16.1 Final presentation architecture
+
+- `PlayerStationLayer` is now the visible station system. Each player has a
+  raised world-space platform at the center of its viewer-relative board edge,
+  portrait/mascot, readable SDF identity and exact balance, property/house/
+  hotel counts, bounded symbolic wealth coins, turn state, and connection or
+  bankruptcy/leave styling. The old DOM station cards remain only as a
+  screen-reader status surface.
+- Station anchors derive from `OUTER_BOARD_SIZE`; the camera fit includes the
+  complete outside station extents and the fixed isometric direction is
+  unchanged. `MoneyTransferLayer` consumes the same anchors, including the
+  explicit BANK endpoint.
+- Coins use one shared low-poly geometry/material family. The bank footprint,
+  permanent bank pile, station piles, and transfer coins use the measured
+  physical scale without representing one mesh per currency unit.
+- `PhysicalCardDecks` uses authoritative public `deckCounts` and one physical
+  instanced mesh layer per remaining card, with cached beveled geometry and
+  deck-specific backs. The detached top card remains the same 3D object through
+  face-down flight, authoritative reveal, front-facing message, and dismissal.
+- The V7 `AWAITING_DRAW -> REVEALED -> DISMISS` contract remains unchanged.
+  Reconnect restores the durable stage without replay, Reduced Motion removes
+  flight/spin, and Skip only settles physical presentation. No second queue,
+  client rule authority, log-derived event, or V8 contract was added.
+- PASS GO is now a compact exact amount above the receiving station plus the
+  existing bank-to-player coins; the global `QUA XUẤT PHÁT` banner is gone.
+  Board-tile jail preserves the proven walk to tile 30 before the direct jail
+  transfer to tile 10, while card jail uses the authoritative source directly.
+
+### 16.2 Automated validation evidence
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Root typecheck | **PASS** | Workspace TypeScript checks passed after the final renderer/package changes. |
+| Lint | **PASS** | Full workspace lint passed. |
+| Client tests | **PASS** | 82 files, 393 tests. Windows `spawn EPERM` was handled with the approved safe retry where required. |
+| Server tests without database | **PASS** | 12 files, 142 tests passed; 1 file and 9 database-gated tests skipped. |
+| PostgreSQL-backed server tests | **PASS** | 13 files, 151 tests passed with `TEST_DATABASE_URL`. |
+| Desktop tests | **PASS** | 4 files, 12 tests passed. |
+| Production build | **PASS** | Client/Vite build passed; the production UAT stub remained 0.04 kB. |
+| Win32 Electron package | **PASS** | `pnpm desktop:package` completed for Windows x64 after the final source fixes. |
+| Production artifact UAT-label scan | **PASS** | No Phase 4 UAT labels were present in the rebuilt client distribution or packaged output. |
+| Database migration status | **PASS** | Migrations 001 through 008 reported applied. |
+| `git diff --check` | **PASS** | No whitespace errors. |
+| Remote CI / push / merge | **NOT RUN** | No remote operation was authorized. |
+
+### 16.3 Deterministic visual UAT and measured scene metrics
+
+The deterministic harness used the real presentation controller, store, queue,
+and renderer. The visible DOM station count was zero in every settled fixture.
+
+| Fixture | Draw calls | Triangles | Active animations | Result |
+| --- | ---: | ---: | ---: | --- |
+| 2 players, settled | 194 | 53,010 | 0 | **PASS** |
+| 4 players, settled | 206 | 55,150 | 0 | **PASS** |
+| Active Chance card, `AWAITING_DRAW` | 198 | 53,254 | 0 | **PASS** |
+| Active Chance card, `REVEALED` | 199 | 53,256 | 0 | **PASS** |
+| Stress fixture peak | 216 | 56,042 | 25 | **PASS**; below 240 draw calls / 100,000 triangles |
+
+The 2-player and 4-player station layouts passed at 1280x720, 1440x900, and
+1920x1080. Chance and Khí Vận face-down stacks, actual card click, physical
+reveal, spectator waiting, reconnect at both durable card stages, pay-each
+after close, amount-only PASS GO, BANK transfer, bankrupt and left-player
+stations, dice-to-Go-To-Jail-to-jail, Reduced Motion, 0.75x/1x/1.5x/2x,
+physical-flight skip, reveal skip, and stress metrics all passed in the
+deterministic harness. Resize-specific manual capture was **NOT RUN**.
+
+### 16.4 Live multiplayer and Electron UAT
+
+- **Live browser: PASS.** Host and guest joined room `P4UAT22`; both clients
+  observed the same authoritative `3 + 2 = 5` roll, the guest bought Ga Hà
+  Nội and both clients showed the same ownership/balance result, and a later
+  host `6 + 2 = 8` roll matched on both clients. World-space stations were
+  visible without the old DOM HUD.
+- **Packaged Electron visual smoke: PASS.** The rebuilt
+  `OwnTheBlock.exe` joined `P4UAT22` through the dedicated validation socket,
+  rendered the board, dice, physical decks, and colored outside-edge stations,
+  and exposed the spectator state without a CTA. The earlier stale package
+  showing black stations was discarded; the final package was rebuilt before
+  this check.
+- Full semantic Electron gameplay coverage (all card, debt, development,
+  reconnect, reduced-motion, skip, and resize combinations) remains
+  **NOT RUN** in the packaged client. Remote CI remains **NOT RUN**.
+
+### 16.5 Manual-gate summary
+
+| Manual gate | Browser deterministic | Live browser | Packaged Electron |
+| --- | --- | --- | --- |
+| Outside-edge stations / no DOM HUD | **PASS** | **PASS** | **PASS** |
+| Bank, decks, coins, and settled scene budget | **PASS** | **PASS** | **PASS** visual smoke |
+| Card face-down, click, reveal, spectator, reconnect | **PASS** | **NOT RUN** | **NOT RUN** full semantic matrix |
+| PASS GO amount-only and BANK endpoint | **PASS** | **NOT RUN** | **NOT RUN** |
+| Jail walk/transfer, bankrupt/left station styling | **PASS** | **NOT RUN** | **NOT RUN** |
+| Reduced Motion, speed, and Skip | **PASS** | **NOT RUN** | **NOT RUN** |
+| Resize during gameplay | **NOT RUN** | **NOT RUN** | **NOT RUN** |
+| Remote CI and push/merge | **NOT RUN** | **NOT RUN** | **NOT RUN** |
+
+The requested visual correction implementation is complete and locally
+validated. Full Phase 4 remains open only for the explicitly listed manual
+Electron/resize and remote-CI gates; no test-only result is being promoted to
+those unavailable checks.

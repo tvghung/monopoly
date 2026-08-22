@@ -4,6 +4,11 @@ import {
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { BoardRenderModel } from '../board/boardRenderModel';
+import {
+  COIN_GOLD,
+  SHARED_COIN_GEOMETRY,
+  SHARED_COIN_MATERIAL,
+} from './coinVisuals';
 import { resolveMoneyEndpointAnchor, type WorldAnchor } from './stationWorld';
 
 export default function MoneyTransferLayer({ model }: { model?: BoardRenderModel }) {
@@ -20,8 +25,14 @@ export default function MoneyTransferLayer({ model }: { model?: BoardRenderModel
   const to = signal ? resolveMoneyEndpointAnchor(signal.destination, anchors) : null;
 
   useLayoutEffect(() => {
-    meshRef.current?.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  }, [signal?.id]);
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    for (let index = 0; index < (signal?.coinCount ?? 0); index += 1) {
+      mesh.setColorAt(index, COIN_GOLD);
+    }
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }, [signal?.coinCount, signal?.id]);
 
   useEffect(() => {
     if (!signal || signal.sequence === activeSequenceRef.current) return;
@@ -42,8 +53,8 @@ export default function MoneyTransferLayer({ model }: { model?: BoardRenderModel
         0,
         1,
       );
-      const arc = Math.sin(progress * Math.PI) * (0.58 + (index % 3) * 0.08);
-      const lane = (index - (signal.coinCount - 1) / 2) * 0.035;
+      const arc = Math.sin(progress * Math.PI) * (0.78 + (index % 3) * 0.09);
+      const lane = (index - (signal.coinCount - 1) / 2) * 0.055;
       object.position.set(
         THREE.MathUtils.lerp(from[0], to[0], progress) + lane,
         THREE.MathUtils.lerp(from[1], to[1], progress) + arc,
@@ -64,12 +75,9 @@ export default function MoneyTransferLayer({ model }: { model?: BoardRenderModel
   return (
     <instancedMesh
       ref={meshRef}
-      args={[undefined, undefined, signal.coinCount]}
+      args={[SHARED_COIN_GEOMETRY, SHARED_COIN_MATERIAL, signal.coinCount]}
       name={`MoneyTransfer:${signal.id}`}
       frustumCulled={false}
-    >
-      <cylinderGeometry args={[0.09, 0.09, 0.035, 12]} />
-      <meshStandardMaterial color="#ffd45d" emissive="#9d6b12" emissiveIntensity={0.16} metalness={0.38} roughness={0.42} />
-    </instancedMesh>
+    />
   );
 }

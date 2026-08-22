@@ -1,6 +1,7 @@
 import type {
   CardDeck,
   DiceValue,
+  GameCardId,
   MoneyEndpoint,
   MoneyTransferReason,
   JailReleasedSemanticEvent,
@@ -128,7 +129,8 @@ export interface CardPresentationSignal {
   playerId: string;
   deck: CardDeck;
   sourceTile: number;
-  stage: 'AWAITING_DRAW' | 'DRAWING' | 'REVEALED';
+  stage: 'DRAWING' | 'AWAITING_DRAW' | 'REVEALING' | 'REVEALED';
+  revealedCardId?: GameCardId;
   durationMs: number;
 }
 

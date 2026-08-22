@@ -3,13 +3,16 @@ import {
   Suspense,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import stateContext from '../internal';
 import displayPositionsContext from '../displayPositionsContext';
 import tradePromptContext from '../tradePromptContext';
 import { usePresentation } from '../game/presentation/PresentationProvider';
+import { localizeAckError } from '../presentation';
 import { buildBoardRenderModel } from '../game/scene/board/boardRenderModel';
 import SceneErrorBoundary from '../game/scene/fallback/SceneErrorBoundary';
 import { supportsWebGL } from '../game/scene/fallback/webglSupport';
@@ -31,7 +34,9 @@ import './style/BoardShell.css';
 const GameScene = lazy(() => import('../game/scene/GameScene'));
 
 export default function Board() {
-  const { state, connected, canMutate, roomPlayers, playerId, role } = useContext(stateContext);
+  const {
+    state, connected, canMutate, roomPlayers, playerId, role, socketFunctions,
+  } = useContext(stateContext);
   const { state: presentationState } = usePresentation();
   const [rendererMode, setRendererMode] = useState<RendererMode>(
     () => resolveInitialRendererMode(supportsWebGL()),
@@ -39,6 +44,9 @@ export default function Board() {
   const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
   const [hoveredTileId, setHoveredTileId] = useState<number | null>(null);
   const [tradeTarget, setTradeTarget] = useState<number | null>(null);
+  const [cardDrawPendingOperation, setCardDrawPendingOperation] = useState<string | null>(null);
+  const [cardDrawError, setCardDrawError] = useState('');
+  const cardDrawPendingRef = useRef<string | null>(null);
   const displayPositions = presentationState.displayPositions;
   const renderModel = useMemo(
     () => buildBoardRenderModel(state, presentationState, roomPlayers, playerId, role),
@@ -79,6 +87,44 @@ export default function Board() {
       dice={renderModel.dice}
     />
   );
+  const pendingCard = state.turnInfo.pendingCardInteraction;
+  const canDrawCard = Boolean(
+    pendingCard
+    && pendingCard.stage === 'AWAITING_DRAW'
+    && pendingCard.playerId === playerId
+    && role === 'PLAYER'
+    && canMutate
+    && connected
+    && socketFunctions.drawCard,
+  );
+
+  useEffect(() => {
+    const operationStillAwaiting = pendingCard?.stage === 'AWAITING_DRAW'
+      && pendingCard.operationId === cardDrawPendingRef.current;
+    if (operationStillAwaiting && connected) return;
+    cardDrawPendingRef.current = null;
+    setCardDrawPendingOperation(null);
+    setCardDrawError('');
+  }, [connected, pendingCard?.operationId, pendingCard?.stage, presentationState.presentationResetEpoch]);
+
+  const requestCardDraw = useCallback((operationId: string) => {
+    if (!canDrawCard || pendingCard?.operationId !== operationId || cardDrawPendingRef.current) return;
+    cardDrawPendingRef.current = operationId;
+    setCardDrawPendingOperation(operationId);
+    setCardDrawError('');
+    void Promise.resolve(socketFunctions.drawCard?.(operationId))
+      .then(response => {
+        if (!response || response.ok) return;
+        cardDrawPendingRef.current = null;
+        setCardDrawPendingOperation(null);
+        setCardDrawError(localizeAckError(response.error));
+      })
+      .catch(() => {
+        cardDrawPendingRef.current = null;
+        setCardDrawPendingOperation(null);
+        setCardDrawError('Không thể gửi lệnh rút thẻ.');
+      });
+  }, [canDrawCard, pendingCard?.operationId, socketFunctions]);
 
   return (
     <tradePromptContext.Provider value={{
@@ -115,6 +161,11 @@ export default function Board() {
                       selectedTileId={selectedTileId}
                       onTileHover={setHoveredTileId}
                       onTileSelect={selectTile}
+                      cardInteraction={{
+                        canDraw: canDrawCard,
+                        drawPending: cardDrawPendingOperation === pendingCard?.operationId,
+                        onDraw: requestCardDraw,
+                      }}
                     />
                   </Suspense>
                 </SceneErrorBoundary>
@@ -123,7 +174,11 @@ export default function Board() {
             <PlayerStations
               activePlayerId={presentationState.displayActivePlayerId ?? state.boardState.currentPlayer.id}
             />
-            <BoardEventStage />
+            <BoardEventStage
+              cardDrawError={cardDrawError}
+              cardDrawPending={cardDrawPendingOperation === pendingCard?.operationId}
+              onCardDraw={requestCardDraw}
+            />
             <Dashboard />
             <RollControl />
             <OwnedPropertiesControl onSelect={selectTile} />

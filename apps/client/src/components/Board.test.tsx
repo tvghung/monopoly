@@ -169,7 +169,8 @@ describe('Vietnamese game board', () => {
     expect(container.querySelector('.game-board__left-rail')).toBeNull();
     expect(container.querySelector('.game-board__right-rail')).toBeNull();
     expect(container.querySelector('.gameplay-action-layer')).toBeTruthy();
-    expect(container.querySelector('.player-stations')).toBeTruthy();
+    expect(container.querySelector('.player-stations')).toBeNull();
+    expect(container.querySelector('.player-stations-accessibility.sr-only')).toBeTruthy();
     expect(container.querySelector('[data-testid="roll-control"]')).toBeTruthy();
     expect(container.querySelectorAll('.dice')).toHaveLength(0);
     expect(renderer?.querySelectorAll('.center__room')).toHaveLength(1);
@@ -272,6 +273,49 @@ describe('Vietnamese game board', () => {
     );
 
     expect(screen.queryByText('Thị trường tài sản')).toBeNull();
+  });
+
+  it('locks an authoritative card draw locally before a second command can be sent', () => {
+    const state = makeGameState({
+      players: { a: { ...makePlayer('An', 'red'), currentTile: 7 } },
+      currentPlayerId: 'a',
+    });
+    state.turnInfo.pendingCardInteraction = {
+      operationId: '00000000-0000-4000-8000-000000000700',
+      playerId: 'a',
+      turnNumber: 1,
+      deck: 'chance',
+      sourceTile: 7,
+      stage: 'AWAITING_DRAW',
+      continuation: { playerId: 'a', turnNumber: 1 },
+      deadlineAt: '2030-01-01T00:00:30.000Z',
+    };
+    const drawCard = vi.fn(() => new Promise<Ack>(() => {}));
+    const socketFunctions = { ...makeSocketFunctions(), drawCard };
+    render(
+      <stateContext.Provider value={makeContextValue(state, {
+        playerId: 'a', role: 'PLAYER', canMutate: true, socketFunctions,
+      })}
+      >
+        <presentationContext.Provider value={{
+          state: makePresentationState({
+            displayPositions: { a: 7 },
+            settledPositions: { a: 7 },
+          }),
+          queue: null as unknown as AnimationQueue,
+        }}
+        >
+          <Board />
+        </presentationContext.Provider>
+      </stateContext.Provider>,
+    );
+
+    const draw = screen.getByRole<HTMLButtonElement>('button', { name: 'Nhấn vào thẻ để xem' });
+    fireEvent.click(draw);
+    fireEvent.click(draw);
+    expect(drawCard).toHaveBeenCalledTimes(1);
+    expect(drawCard).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000700');
+    expect(draw.disabled).toBe(true);
   });
 
   it('opens owned properties as a separate access path before inspection', async () => {
@@ -635,8 +679,8 @@ describe('Vietnamese game board', () => {
     );
 
     expect(screen.getByText('An đang chơi')).toBeTruthy();
-    expect(document.querySelector('[data-player-id="a"]')?.className).toContain('player-station--active');
-    expect(document.querySelector('[data-player-id="b"]')?.className).not.toContain('player-station--active');
+    expect(document.querySelector('[data-player-id="a"]')?.getAttribute('data-current-turn')).toBe('true');
+    expect(document.querySelector('[data-player-id="b"]')?.getAttribute('data-current-turn')).toBe('false');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ Xúc Xắc' }).disabled).toBe(false);
 
     view.rerender(
@@ -662,6 +706,6 @@ describe('Vietnamese game board', () => {
 
     expect(screen.queryByText('An đang chơi')).toBeNull();
     expect(screen.getByText('Lượt của bạn')).toBeTruthy();
-    expect(document.querySelector('[data-player-id="b"]')?.className).toContain('player-station--active');
+    expect(document.querySelector('[data-player-id="b"]')?.getAttribute('data-current-turn')).toBe('true');
   });
 });

@@ -29,9 +29,25 @@ describe('SDF surface text contract', () => {
       'Cơ hội',
     ]);
     expect(target.maxWidth).toBe(1.1);
+    expect(target.maxHeight).toBeCloseTo(0.16 * 3.4);
     expect(target.sdfGlyphSize).toBe(TILE_SDF_GLYPH_SIZE);
     expect(target.sync).toHaveBeenCalledTimes(1);
     expect(target.sync).toHaveBeenCalledWith(onSync);
+  });
+
+  it('accepts a taller physical-card text area without changing tile defaults', () => {
+    const target = {
+      text: '', font: null, fontSize: 0, maxWidth: 0, maxHeight: 0,
+      anchorX: 0, anchorY: 0, textAlign: '', lineHeight: 0, color: '',
+      sdfGlyphSize: 0, sync: vi.fn(),
+    };
+    configureSdfText(target, {
+      value: 'Tổ chức sự kiện cộng đồng, tặng mỗi người chơi 50.000 ₫.',
+      fontSize: 0.125,
+      maxWidth: 1.48,
+      maxHeight: 0.82,
+    });
+    expect(target.maxHeight).toBe(0.82);
   });
 
   it('limits surface labels to a compact number of lines without generic filler', () => {

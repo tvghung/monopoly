@@ -1,5 +1,6 @@
 import type {
   CardDeck,
+  GameCardId,
   GameplaySemanticEvent,
   MoneyEndpoint,
   MoneyTransferReason,
@@ -119,6 +120,8 @@ export interface PropertyTransferPresentationEvent extends PresentationEventBase
   transfers: Array<{
     eventId: string;
     tileId: number;
+    from: MoneyEndpoint;
+    to: MoneyEndpoint;
     fromPlayerId: string | null;
     toPlayerId: string | null;
   }>;
@@ -155,6 +158,7 @@ export interface CardInteractionChangedPresentationEvent extends PresentationEve
   deck: CardDeck;
   sourceTile: number;
   stage: 'AWAITING_DRAW' | 'REVEALED' | 'CLOSED';
+  revealedCardId?: GameCardId;
 }
 
 export type PresentationEvent =

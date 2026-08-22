@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import {
+  afterEach, describe, expect, it, vi,
+} from 'vitest';
 import { cloneRoom, makeRoom } from '../testFixtures';
 import { presentationTiming } from '../timings';
 import { PresentationStore } from './presentationStore';
@@ -8,6 +10,8 @@ const impactTiming = {
   depressDurationMs: presentationTiming.tileImpact.stepDepress,
   reboundDurationMs: presentationTiming.tileImpact.stepRebound,
 };
+
+afterEach(() => vi.useRealTimers());
 
 describe('PresentationStore reset and impact generations', () => {
   it('keeps ordinary impacts out of the presentation reset generation', () => {
@@ -214,6 +218,30 @@ describe('PresentationStore reset and impact generations', () => {
 
     expect(store.getSnapshot().ownershipChanges[0]?.consequenceOrder).toBe(1);
     expect(store.getSnapshot().developmentChanges[0]?.consequenceOrder).toBe(2);
+  });
+
+  it('deduplicates and removes transient station money amounts after their bounded dwell', () => {
+    vi.useFakeTimers();
+    const store = new PresentationStore();
+    store.resetFromSnapshot(makeRoom());
+    const transfer = {
+      id: 'money',
+      source: { kind: 'BANK' as const },
+      destination: { kind: 'PLAYER' as const, playerId: 'player-a' },
+      amount: 200,
+      reason: 'PASS_GO' as const,
+      durationMs: 100,
+    };
+
+    store.emitMoneyTransfer(transfer);
+    store.emitMoneyTransfer(transfer);
+    expect(store.getSnapshot().moneyTransfers).toHaveLength(1);
+    expect(store.getSnapshot().moneyTransfers[0]).toMatchObject({ amount: 200, durationMs: 100 });
+
+    vi.advanceTimersByTime(149);
+    expect(store.getSnapshot().moneyTransfers).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(store.getSnapshot().moneyTransfers).toEqual([]);
   });
 
   it('deduplicates and bounds one-shot signals, then clears them on reset', () => {

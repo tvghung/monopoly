@@ -10,7 +10,7 @@ import CharactersLayer from '../characters/CharactersLayer';
 import DiceLayer from '../dice/DiceLayer';
 import PlayerStationLayer from '../stations/PlayerStationLayer';
 import MoneyTransferLayer from '../stations/MoneyTransferLayer';
-import PhysicalCardDecks from '../cards/PhysicalCardDecks';
+import PhysicalCardDecks, { type PhysicalCardInteraction } from '../cards/PhysicalCardDecks';
 
 interface Board3DProps {
   model?: BoardRenderModel;
@@ -18,7 +18,14 @@ interface Board3DProps {
   selectedTileId?: number | null;
   onTileHover?: (tileId: number | null) => void;
   onTileSelect?: (tileId: number) => void;
+  cardInteraction?: PhysicalCardInteraction;
 }
+
+const inactiveCardInteraction: PhysicalCardInteraction = {
+  canDraw: false,
+  drawPending: false,
+  onDraw: () => {},
+};
 
 export default function Board3D({
   model,
@@ -26,6 +33,7 @@ export default function Board3D({
   selectedTileId = null,
   onTileHover,
   onTileSelect,
+  cardInteraction = inactiveCardInteraction,
 }: Board3DProps) {
   const tiles: readonly BoardTileRenderModel[] = model?.tiles ?? tileState.map((tile, tileId) => ({
     tileId,
@@ -87,8 +95,15 @@ export default function Board3D({
         phase: 'HIDDEN',
         durationMs: 0,
       }} />
-      <PhysicalCardDecks signal={model?.cardPresentation ?? null} />
-      <PlayerStationLayer stations={model?.stations ?? []} />
+      <PhysicalCardDecks
+        signal={model?.cardPresentation ?? null}
+        deckCounts={model?.deckCounts ?? { chance: 0, chest: 0 }}
+        interaction={cardInteraction}
+      />
+      <PlayerStationLayer
+        stations={model?.stations ?? []}
+        moneyTransfers={model?.moneyTransfers ?? []}
+      />
       <MoneyTransferLayer model={model} />
       <CharactersLayer
         players={model?.players ?? []}

@@ -16,6 +16,8 @@ import {
 } from './board/architecture/sceneBudget';
 import TileMotionProvider from './board/motion/TileMotionProvider';
 import './GameScene.css';
+import type { PhysicalCardInteraction } from './cards/PhysicalCardDecks';
+import type { DeckCounts } from '@monopoly/shared';
 
 export interface GameSceneProps {
   model?: BoardRenderModel;
@@ -23,6 +25,7 @@ export interface GameSceneProps {
   selectedTileId?: number | null;
   onTileHover?: (tileId: number | null) => void;
   onTileSelect?: (tileId: number) => void;
+  cardInteraction?: PhysicalCardInteraction;
 }
 
 interface BoardSceneContentsProps extends GameSceneProps {
@@ -32,11 +35,19 @@ interface BoardSceneContentsProps extends GameSceneProps {
 function RendererDiagnostics({
   activityKey,
   activeAnimatedObjects,
+  stationCount,
+  deckCounts,
+  activeCardStage,
   hoveredTileId,
   selectedTileId,
 }: {
   activityKey: string;
   activeAnimatedObjects: number;
+  stationCount: number;
+  deckCounts: DeckCounts;
+  activeCardStage: BoardRenderModel['cardPresentation'] extends infer Signal
+    ? Signal extends { stage: infer Stage } ? Stage : null
+    : null;
   hoveredTileId?: number | null;
   selectedTileId?: number | null;
 }) {
@@ -58,6 +69,12 @@ function RendererDiagnostics({
     let measurementFrame = 0;
     const publish = () => {
       const drawingBufferSize = gl.getDrawingBufferSize(new THREE.Vector2());
+      const sceneObjects: THREE.Object3D[] = [];
+      scene.traverse(object => sceneObjects.push(object));
+      const stationBases = scene.getObjectByName('PlayerStationLowerBases');
+      const sharedCoins = scene.getObjectByName('SharedStationAndBankCoins');
+      const chanceCards = scene.getObjectByName('chanceCardBodies');
+      const chestCards = scene.getObjectByName('chestCardBodies');
       const diagnostics = {
         pixelRatio: gl.getPixelRatio(),
         drawingBuffer: { width: drawingBufferSize.x, height: drawingBufferSize.y },
@@ -74,6 +91,26 @@ function RendererDiagnostics({
         stressDrawCallLimit: STRESS_DRAW_CALL_LIMIT,
         targetTriangles: TARGET_TRIANGLES,
         hardTriangleLimit: HARD_TRIANGLE_LIMIT,
+        physicalScene: {
+          stationLayer: Boolean(scene.getObjectByName('PlayerStationLayer')),
+          stationCount: stationBases instanceof THREE.InstancedMesh ? stationBases.count : 0,
+          authoritativeStationCount: stationCount,
+          stationLabelCount: sceneObjects.filter(object => object.name.startsWith('PlayerStationName:')).length,
+          bankTreasury: Boolean(scene.getObjectByName('BankTreasury')),
+          sharedCoinInstanceCount: sharedCoins instanceof THREE.InstancedMesh ? sharedCoins.count : 0,
+          decks: {
+            chance: {
+              physicalCount: chanceCards instanceof THREE.InstancedMesh ? chanceCards.count : 0,
+              authoritativeCount: deckCounts.chance,
+            },
+            chest: {
+              physicalCount: chestCards instanceof THREE.InstancedMesh ? chestCards.count : 0,
+              authoritativeCount: deckCounts.chest,
+            },
+          },
+          activeCardStage,
+          cardFocusScrim: Boolean(scene.getObjectByName('PhysicalCardFocusScrim')),
+        },
       };
       window.__OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__ = diagnostics;
       window.dispatchEvent(new CustomEvent('own-the-block-renderer', { detail: diagnostics }));
@@ -92,7 +129,7 @@ function RendererDiagnostics({
       window.cancelAnimationFrame(firstFrame);
       window.cancelAnimationFrame(measurementFrame);
     };
-  }, [activeAnimatedObjects, activityKey, camera, gl, height, hoveredTileId, invalidate, scene, selectedTileId, width]);
+  }, [activeAnimatedObjects, activeCardStage, activityKey, camera, deckCounts.chance, deckCounts.chest, gl, height, hoveredTileId, invalidate, scene, selectedTileId, stationCount, width]);
 
   return null;
 }
@@ -103,6 +140,7 @@ function BoardSceneContents({
   selectedTileId,
   onTileHover,
   onTileSelect,
+  cardInteraction,
 }: BoardSceneContentsProps) {
   const latestMovementByPlayer = new Map<string, BoardRenderModel['characterMovements'][number]>();
   model?.characterMovements.forEach(signal => latestMovementByPlayer.set(signal.playerId, signal));
@@ -119,7 +157,8 @@ function BoardSceneContents({
     + (model?.dice.phase === 'ROLLING' ? 2 : 0)
     + (model?.destinationPreview ? 1 : 0)
     + (model?.moneyTransfers.at(-1)?.coinCount ?? 0)
-    + (model?.cardPresentation?.stage === 'DRAWING' ? 1 : 0)
+    + (model?.cardPresentation?.stage === 'DRAWING'
+      || model?.cardPresentation?.stage === 'REVEALING' ? 1 : 0)
     + developmentObjects;
   const activityKey = [
     model?.players.map(player => `${player.playerId}:${player.tileId}`).join('|') ?? '',
@@ -136,6 +175,9 @@ function BoardSceneContents({
       <RendererDiagnostics
         activityKey={activityKey}
         activeAnimatedObjects={activeAnimatedObjects}
+        stationCount={model?.stations.length ?? 0}
+        deckCounts={model?.deckCounts ?? { chance: 0, chest: 0 }}
+        activeCardStage={model?.cardPresentation?.stage ?? null}
         hoveredTileId={hoveredTileId}
         selectedTileId={selectedTileId}
       />
@@ -149,6 +191,7 @@ function BoardSceneContents({
           selectedTileId={selectedTileId}
           onTileHover={onTileHover}
           onTileSelect={onTileSelect}
+          cardInteraction={cardInteraction}
         />
       </TileMotionProvider>
     </>
@@ -161,6 +204,7 @@ export default function GameScene({
   selectedTileId,
   onTileHover,
   onTileSelect,
+  cardInteraction,
 }: GameSceneProps) {
   return (
     <div className="game-scene" data-testid="game-scene">
@@ -195,6 +239,7 @@ export default function GameScene({
           selectedTileId={selectedTileId}
           onTileHover={onTileHover}
           onTileSelect={onTileSelect}
+          cardInteraction={cardInteraction}
         />
       </Canvas>
     </div>

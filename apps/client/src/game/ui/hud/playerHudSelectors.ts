@@ -35,7 +35,7 @@ function countDevelopment(state: PublicGameState, playerId: string): { propertyC
 export function selectPlayerHudViewModels(
   state: PublicGameState,
   activePlayerId: string,
-  roomPlayers: RoomPlayerMeta[] = [],
+  roomPlayers: readonly RoomPlayerMeta[] = [],
 ): PlayerHudViewModel[] {
   const roomOrder = new Map(roomPlayers.map(player => [player.playerId, player]));
   const playerIds = new Set([

@@ -1,5 +1,6 @@
 import type {
   CharacterId,
+  DeckCounts,
   DiceValue,
   PlayerColorId,
   PublicGameState,
@@ -11,6 +12,7 @@ import { tileState } from '@monopoly/shared';
 import type { PresentationState } from '../../presentation/store/types';
 import type { TileImpactSignal } from './motion/tileMotionTypes';
 import { getTileName } from '../../../presentation';
+import { selectPlayerHudViewModels } from '../../ui/hud/playerHudSelectors';
 import { resolvePlayerStationSlots, type PlayerStationSlot } from '../../ui/stations/stationSlots';
 import { PLAYER_STATION_WORLD_ANCHORS, type WorldAnchor } from '../stations/stationWorld';
 
@@ -45,12 +47,18 @@ export interface DiceRenderModel {
 
 export interface PlayerStationRenderModel {
   playerId: string;
+  name: string;
   slot: PlayerStationSlot;
   anchor: WorldAnchor;
   color: PlayerColorId;
+  characterId: CharacterId | null;
   accountBalance: number;
+  propertyCount: number;
+  houseCount: number;
+  hotelCount: number;
   status: 'ACTIVE' | 'BANKRUPT' | 'LEFT';
   isCurrentTurn: boolean;
+  isConnected: boolean;
 }
 
 export interface BoardRenderModel {
@@ -68,6 +76,7 @@ export interface BoardRenderModel {
   destinationPreview: PresentationState['destinationPreview'];
   moneyTransfers: PresentationState['moneyTransfers'];
   cardPresentation: PresentationState['cardPresentation'];
+  deckCounts: DeckCounts;
   stations: PlayerStationRenderModel[];
   animationSpeedMultiplier: number;
   presentationResetEpoch: number;
@@ -127,21 +136,47 @@ export function buildBoardRenderModel(
   const dice = activeDice?.dice ?? presentationState.displayDice;
   const diceRollSequence = activeDice?.rollSequence ?? presentationState.displayRollSequence;
   const stationSlots = resolvePlayerStationSlots(roomPlayers, viewerPlayerId, viewerRole);
-  const stations = roomPlayers.flatMap((meta): PlayerStationRenderModel[] => {
-    const slot = stationSlots.get(meta.playerId);
+  const stationViews = selectPlayerHudViewModels(state, activePlayerId, roomPlayers);
+  const stations = stationViews.flatMap((station): PlayerStationRenderModel[] => {
+    const slot = stationSlots.get(station.playerId);
     if (!slot) return [];
-    const player = state.players[meta.playerId];
-    const finished = state.boardState.finishedPlayers[meta.playerId];
     return [{
-      playerId: meta.playerId,
+      playerId: station.playerId,
+      name: station.name,
       slot,
       anchor: PLAYER_STATION_WORLD_ANCHORS[slot],
-      color: player?.color ?? finished?.color ?? meta.color,
-      accountBalance: player?.accountBalance ?? finished?.accountBalance ?? 0,
-      status: finished?.reason ?? 'ACTIVE',
-      isCurrentTurn: meta.playerId === activePlayerId,
+      color: station.color,
+      characterId: station.characterId,
+      accountBalance: station.money,
+      propertyCount: station.propertyCount,
+      houseCount: station.houseCount,
+      hotelCount: station.hotelCount,
+      status: station.isBankrupt ? 'BANKRUPT' : station.hasLeft ? 'LEFT' : 'ACTIVE',
+      isCurrentTurn: station.isCurrentTurn,
+      isConnected: station.isConnected,
     }];
   });
+
+  const pendingCard = state.turnInfo.pendingCardInteraction;
+  const cardPresentation = presentationState.cardPresentation
+    ? {
+        ...presentationState.cardPresentation,
+        ...(pendingCard?.operationId === presentationState.cardPresentation.operationId
+          && pendingCard.revealedCardId
+          ? { revealedCardId: pendingCard.revealedCardId }
+          : {}),
+      }
+    : pendingCard
+      ? {
+          operationId: pendingCard.operationId,
+          playerId: pendingCard.playerId,
+          deck: pendingCard.deck,
+          sourceTile: pendingCard.sourceTile,
+          stage: pendingCard.stage,
+          durationMs: 0,
+          ...(pendingCard.revealedCardId ? { revealedCardId: pendingCard.revealedCardId } : {}),
+        }
+      : null;
 
   return {
     tiles,
@@ -165,17 +200,8 @@ export function buildBoardRenderModel(
     goCrossings: presentationState.goCrossings,
     destinationPreview: presentationState.destinationPreview,
     moneyTransfers: presentationState.moneyTransfers,
-    cardPresentation: presentationState.cardPresentation
-      ?? (state.turnInfo.pendingCardInteraction
-        ? {
-            operationId: state.turnInfo.pendingCardInteraction.operationId,
-            playerId: state.turnInfo.pendingCardInteraction.playerId,
-            deck: state.turnInfo.pendingCardInteraction.deck,
-            sourceTile: state.turnInfo.pendingCardInteraction.sourceTile,
-            stage: state.turnInfo.pendingCardInteraction.stage,
-            durationMs: 0,
-          }
-        : null),
+    cardPresentation,
+    deckCounts: { ...state.deckCounts },
     stations,
     animationSpeedMultiplier: presentationState.animationSpeedMultiplier,
     presentationResetEpoch: presentationState.presentationResetEpoch,

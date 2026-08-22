@@ -2,6 +2,8 @@ import type { PublicGameState } from '@monopoly/shared';
 import { describe, expect, it } from 'vitest';
 import { buildBoardRenderModel } from './boardRenderModel';
 import type { PresentationState } from '../../presentation/store/types';
+import { cloneRoom, makeRoom } from '../../presentation/testFixtures';
+import { PLAYER_STATION_WORLD_ANCHORS } from '../stations/stationWorld';
 
 const presentation = (overrides: Partial<PresentationState> = {}): PresentationState => ({
   displayPositions: {},
@@ -176,6 +178,80 @@ describe('board render model', () => {
       dice: { dice1: 5, dice2: 6 },
       rollSequence: 2,
       phase: 'SETTLED',
+    });
+  });
+
+  it('builds complete edge-station data from authoritative state and room presence', () => {
+    const room = makeRoom();
+    room.gameState.boardState.ownedProps = {
+      1: { id: 'player-a', color: 'red', houses: 3 },
+      3: { id: 'player-a', color: 'red', houses: 5 },
+    };
+    room.players[1].connected = false;
+    const model = buildBoardRenderModel(
+      room.gameState,
+      presentation({ displayActivePlayerId: 'player-a' }),
+      room.players,
+      'player-a',
+      'PLAYER',
+    );
+
+    expect(model.stations).toHaveLength(2);
+    expect(model.stations.find(station => station.playerId === 'player-a')).toMatchObject({
+      name: 'An',
+      characterId: 'dog',
+      slot: 'BOTTOM',
+      anchor: PLAYER_STATION_WORLD_ANCHORS.BOTTOM,
+      accountBalance: 1500,
+      propertyCount: 2,
+      houseCount: 3,
+      hotelCount: 1,
+      status: 'ACTIVE',
+      isCurrentTurn: true,
+      isConnected: true,
+    });
+    expect(model.stations.find(station => station.playerId === 'player-b')).toMatchObject({
+      slot: 'TOP',
+      anchor: PLAYER_STATION_WORLD_ANCHORS.TOP,
+      isConnected: false,
+    });
+    expect(model.deckCounts).toEqual({ chance: 16, chest: 16 });
+  });
+
+  it('projects bankrupt stations and reconnects directly to authoritative card state', () => {
+    const room = makeRoom();
+    const reconnect = cloneRoom(room);
+    reconnect.gameState.boardState.finishedPlayers['player-b'] = {
+      name: 'Bình', color: 'blue', characterId: 'panda', accountBalance: 0, reason: 'BANKRUPT',
+    };
+    reconnect.gameState.turnInfo.pendingCardInteraction = {
+      operationId: '00000000-0000-4000-8000-000000000700',
+      playerId: 'player-a',
+      turnNumber: 1,
+      deck: 'chance',
+      sourceTile: 7,
+      stage: 'REVEALED',
+      revealedCardId: 'chance-dividend',
+      continuation: { playerId: 'player-a', turnNumber: 1 },
+      deadlineAt: '2030-01-01T00:00:30.000Z',
+    };
+
+    const model = buildBoardRenderModel(
+      reconnect.gameState,
+      presentation(),
+      reconnect.players,
+      'player-a',
+      'PLAYER',
+    );
+    expect(model.stations.find(station => station.playerId === 'player-b')?.status).toBe('BANKRUPT');
+    expect(model.cardPresentation).toEqual({
+      operationId: '00000000-0000-4000-8000-000000000700',
+      playerId: 'player-a',
+      deck: 'chance',
+      sourceTile: 7,
+      stage: 'REVEALED',
+      revealedCardId: 'chance-dividend',
+      durationMs: 0,
     });
   });
 });

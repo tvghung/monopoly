@@ -7,4 +7,6 @@
 .phase4-uat__controls button { cursor: pointer; }
 .phase4-uat__controls :focus-visible { outline: 3px solid #ffe081; outline-offset: 2px; }
 .phase4-uat__controls output { white-space: nowrap; color: #d6eadf; }
+.phase4-uat__controls--collapsed { width: auto; padding: 0.25rem; }
+.phase4-uat__controls--collapsed button { min-width: 2.8rem; }
 @media (max-width: 78rem) { .phase4-uat__controls { flex-wrap: wrap; } }

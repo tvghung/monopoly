@@ -10,9 +10,11 @@ export interface SdfSurfaceTextProps {
   position: readonly [number, number, number];
   fontSize: number;
   maxWidth: number;
+  maxHeight?: number;
   color?: string;
   lineHeight?: number;
   sdfGlyphSize?: number;
+  rotationX?: number;
   rotationZ?: number;
   name?: string;
 }
@@ -31,9 +33,11 @@ export default function SdfSurfaceText({
   position,
   fontSize,
   maxWidth,
+  maxHeight,
   color = boardVisualTokens.tileText,
   lineHeight = 1.05,
   sdfGlyphSize = TILE_SDF_GLYPH_SIZE,
+  rotationX = -Math.PI / 2,
   rotationZ = 0,
   name,
 }: SdfSurfaceTextProps) {
@@ -49,11 +53,12 @@ export default function SdfSurfaceText({
       value,
       fontSize,
       maxWidth,
+      maxHeight,
       color,
       lineHeight,
       sdfGlyphSize,
     }, invalidate);
-  }, [color, fontSize, invalidate, lineHeight, maxWidth, sdfGlyphSize, textObject, value]);
+  }, [color, fontSize, invalidate, lineHeight, maxHeight, maxWidth, sdfGlyphSize, textObject, value]);
 
   useEffect(() => {
     const generation = disposeGeneration.current + 1;
@@ -71,7 +76,7 @@ export default function SdfSurfaceText({
       object={textObject}
       name={name}
       position={position}
-      rotation={[-Math.PI / 2, 0, rotationZ]}
+      rotation={[rotationX, 0, rotationZ]}
     />
   );
 }
