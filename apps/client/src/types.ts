@@ -20,6 +20,8 @@ export interface SocketFunctions {
   buyProperty: (operationId: string) => void | Promise<Ack>;
   doNotBuy?: (operationId: string) => void | Promise<Ack>;
   resolveDevelopment?: (request: DevelopmentRequest) => void | Promise<Ack>;
+  drawCard?: (operationId: string) => void | Promise<Ack>;
+  dismissCard?: (operationId: string) => void | Promise<Ack>;
   waitInJail?: () => void | Promise<Ack>;
   sendChat: (message: string) => void;
   makeOffer: (offerInfo: OfferInfo) => void;

@@ -5,6 +5,7 @@ import {
   type TradeBundle,
 } from '@monopoly/shared';
 import { isPropertyLockedByLandingDecision } from './property';
+import { recordPrivateGameplayEvent, recordPublicGameplayEvent } from './semanticEvents';
 
 export type PropertyTransferPolicy =
   | 'VOLUNTARY'
@@ -23,6 +24,7 @@ export const transferProperty = (
   fromPlayerId: PlayerId | null,
   toPlayerId: PlayerId | null,
   policy: PropertyTransferPolicy,
+  options: { operationId?: string; cause?: 'BANK_SALE' | 'BANKRUPTCY' | 'PLAYER_LEFT' } = {},
 ): PropertyTransferResult => {
   const property = state.boardState.ownedProps[tileID];
   if (fromPlayerId && (!property || property.id !== fromPlayerId)) {
@@ -30,6 +32,20 @@ export const transferProperty = (
   }
   if (policy === 'RETURN_TO_BANK') {
     delete state.boardState.ownedProps[tileID];
+    const finishedReason = fromPlayerId
+      ? state.boardState.finishedPlayers[fromPlayerId]?.reason
+      : undefined;
+    recordPublicGameplayEvent(state, {
+      type: 'PROPERTY_TRANSFER',
+      tileID,
+      from: fromPlayerId ? { kind: 'PLAYER', playerId: fromPlayerId } : { kind: 'BANK' },
+      to: { kind: 'BANK' },
+      cause: options.cause
+        ?? (finishedReason === 'BANKRUPT'
+          ? 'BANKRUPTCY'
+          : finishedReason === 'LEFT' ? 'PLAYER_LEFT' : 'OTHER'),
+      ...(options.operationId ? { operationId: options.operationId } : {}),
+    });
     return { ok: true };
   }
   if (!toPlayerId || !state.players[toPlayerId]) {
@@ -49,11 +65,27 @@ export const transferProperty = (
       color: state.players[toPlayerId].color,
       houses: 0,
     };
+    recordPublicGameplayEvent(state, {
+      type: 'PROPERTY_TRANSFER',
+      tileID,
+      from: { kind: 'BANK' },
+      to: { kind: 'PLAYER', playerId: toPlayerId },
+      cause: 'BANK_PURCHASE',
+      ...(options.operationId ? { operationId: options.operationId } : {}),
+    });
     return { ok: true };
   }
 
   property.id = toPlayerId;
   property.color = state.players[toPlayerId].color;
+  recordPublicGameplayEvent(state, {
+    type: 'PROPERTY_TRANSFER',
+    tileID,
+    from: fromPlayerId ? { kind: 'PLAYER', playerId: fromPlayerId } : { kind: 'BANK' },
+    to: { kind: 'PLAYER', playerId: toPlayerId },
+    cause: policy === 'VOLUNTARY' ? 'VOLUNTARY_TRADE' : 'FORCED_SALE',
+    ...(options.operationId ? { operationId: options.operationId } : {}),
+  });
   return { ok: true };
 };
 
@@ -83,6 +115,7 @@ export const executeVoluntaryTrade = (
   recipientId: PlayerId,
   offered: TradeBundle,
   requested: TradeBundle,
+  operationId?: string,
 ): PropertyTransferResult => {
   if (state.boardState.paymentQueue) {
     return { ok: false, reason: 'Không thể giao dịch trong lúc thanh toán thiếu hụt.' };
@@ -108,8 +141,37 @@ export const executeVoluntaryTrade = (
 
   proposer.accountBalance += requested.cash - offered.cash;
   recipient.accountBalance += offered.cash - requested.cash;
-  for (const tileID of offered.propertyIds) transferProperty(state, tileID, proposerId, recipientId, 'VOLUNTARY');
-  for (const tileID of requested.propertyIds) transferProperty(state, tileID, recipientId, proposerId, 'VOLUNTARY');
+  const netCash = offered.cash - requested.cash;
+  if (netCash !== 0) {
+    recordPrivateGameplayEvent(state, [proposerId, recipientId], {
+      type: 'MONEY_TRANSFER',
+      source: { kind: 'PLAYER', playerId: netCash > 0 ? proposerId : recipientId },
+      destination: { kind: 'PLAYER', playerId: netCash > 0 ? recipientId : proposerId },
+      amount: Math.abs(netCash),
+      reason: 'TRADE',
+      ...(operationId ? { operationId } : {}),
+    });
+  }
+  for (const tileID of offered.propertyIds) {
+    transferProperty(
+      state,
+      tileID,
+      proposerId,
+      recipientId,
+      'VOLUNTARY',
+      operationId ? { operationId } : {},
+    );
+  }
+  for (const tileID of requested.propertyIds) {
+    transferProperty(
+      state,
+      tileID,
+      recipientId,
+      proposerId,
+      'VOLUNTARY',
+      operationId ? { operationId } : {},
+    );
+  }
   transferCards(state, proposerId, recipientId, offered.jailFreeCardIds);
   transferCards(state, recipientId, proposerId, requested.jailFreeCardIds);
   return { ok: true };

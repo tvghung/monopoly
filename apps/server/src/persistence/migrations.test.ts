@@ -14,6 +14,7 @@ describe('database migrations', () => {
       '005_remove_mortgage_open_market.sql',
       '006_appearance_system_v5.sql',
       '007_roll_sequence_v6.sql',
+      '008_semantic_card_v7.sql',
     ]);
     expect(migrations[0]?.checksum).toMatch(/^[a-f0-9]{64}$/u);
     expect(migrations[0]?.sql).toContain('CREATE TABLE rooms');
@@ -33,6 +34,12 @@ describe('database migrations', () => {
     expect(migrations[6]?.sql).toContain("'rollSequence', 0");
     expect(migrations[6]?.sql).toContain('snapshot_schema_version = 6');
     expect(migrations[6]?.sql).toContain('aggregate_version = aggregate_version + 1');
+    expect(migrations[7]?.sql).toContain("'gameplayEvents'");
+    expect(migrations[7]?.sql).toContain("'privateGameplayEventsByPlayer'");
+    expect(migrations[7]?.sql).toContain("'completedCardOperations'");
+    expect(migrations[7]?.sql).toContain('snapshot_schema_version = 7');
+    expect(migrations[7]?.sql).toContain("- 'gameplayEvents'::TEXT");
+    expect(migrations[7]?.sql).toContain('aggregate_version = aggregate_version + 1');
   });
 
   it('canonicalizes checkout line endings before hashing or executing SQL', () => {

@@ -4,12 +4,15 @@ import type {
   PlayerColorId,
   PublicGameState,
   RoomPlayerMeta,
+  RoomRole,
   TileType,
 } from '@monopoly/shared';
 import { tileState } from '@monopoly/shared';
 import type { PresentationState } from '../../presentation/store/types';
 import type { TileImpactSignal } from './motion/tileMotionTypes';
 import { getTileName } from '../../../presentation';
+import { resolvePlayerStationSlots, type PlayerStationSlot } from '../../ui/stations/stationSlots';
+import { PLAYER_STATION_WORLD_ANCHORS, type WorldAnchor } from '../stations/stationWorld';
 
 export interface BoardTileRenderModel {
   tileId: number;
@@ -40,6 +43,16 @@ export interface DiceRenderModel {
   durationMs: number;
 }
 
+export interface PlayerStationRenderModel {
+  playerId: string;
+  slot: PlayerStationSlot;
+  anchor: WorldAnchor;
+  color: PlayerColorId;
+  accountBalance: number;
+  status: 'ACTIVE' | 'BANKRUPT' | 'LEFT';
+  isCurrentTurn: boolean;
+}
+
 export interface BoardRenderModel {
   tiles: BoardTileRenderModel[];
   players: CharacterPlayerModel[];
@@ -52,6 +65,10 @@ export interface BoardRenderModel {
   ownershipChanges: PresentationState['ownershipChanges'];
   developmentChanges: PresentationState['developmentChanges'];
   goCrossings: PresentationState['goCrossings'];
+  destinationPreview: PresentationState['destinationPreview'];
+  moneyTransfers: PresentationState['moneyTransfers'];
+  cardPresentation: PresentationState['cardPresentation'];
+  stations: PlayerStationRenderModel[];
   animationSpeedMultiplier: number;
   presentationResetEpoch: number;
 }
@@ -70,6 +87,8 @@ export function buildBoardRenderModel(
   state: PublicGameState,
   presentationState: PresentationState,
   roomPlayers: readonly RoomPlayerMeta[] = [],
+  viewerPlayerId: string | null = null,
+  viewerRole: RoomRole | null = null,
 ): BoardRenderModel {
   const tiles = tileState.map((tile, tileId): BoardTileRenderModel => {
     const owned = state.boardState.ownedProps[tileId];
@@ -107,6 +126,22 @@ export function buildBoardRenderModel(
   const activeDice = presentationState.diceRoll;
   const dice = activeDice?.dice ?? presentationState.displayDice;
   const diceRollSequence = activeDice?.rollSequence ?? presentationState.displayRollSequence;
+  const stationSlots = resolvePlayerStationSlots(roomPlayers, viewerPlayerId, viewerRole);
+  const stations = roomPlayers.flatMap((meta): PlayerStationRenderModel[] => {
+    const slot = stationSlots.get(meta.playerId);
+    if (!slot) return [];
+    const player = state.players[meta.playerId];
+    const finished = state.boardState.finishedPlayers[meta.playerId];
+    return [{
+      playerId: meta.playerId,
+      slot,
+      anchor: PLAYER_STATION_WORLD_ANCHORS[slot],
+      color: player?.color ?? finished?.color ?? meta.color,
+      accountBalance: player?.accountBalance ?? finished?.accountBalance ?? 0,
+      status: finished?.reason ?? 'ACTIVE',
+      isCurrentTurn: meta.playerId === activePlayerId,
+    }];
+  });
 
   return {
     tiles,
@@ -128,6 +163,20 @@ export function buildBoardRenderModel(
     ownershipChanges: presentationState.ownershipChanges,
     developmentChanges: presentationState.developmentChanges,
     goCrossings: presentationState.goCrossings,
+    destinationPreview: presentationState.destinationPreview,
+    moneyTransfers: presentationState.moneyTransfers,
+    cardPresentation: presentationState.cardPresentation
+      ?? (state.turnInfo.pendingCardInteraction
+        ? {
+            operationId: state.turnInfo.pendingCardInteraction.operationId,
+            playerId: state.turnInfo.pendingCardInteraction.playerId,
+            deck: state.turnInfo.pendingCardInteraction.deck,
+            sourceTile: state.turnInfo.pendingCardInteraction.sourceTile,
+            stage: state.turnInfo.pendingCardInteraction.stage,
+            durationMs: 0,
+          }
+        : null),
+    stations,
     animationSpeedMultiplier: presentationState.animationSpeedMultiplier,
     presentationResetEpoch: presentationState.presentationResetEpoch,
   };

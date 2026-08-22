@@ -59,6 +59,7 @@ const initialState: PublicGameState = {
     logs: [],
     diceValue: { dice1: 0, dice2: 0 },
     rollSequence: 0,
+    gameplayEvents: { sequence: 0, events: [] },
     ownedProps: {},
     winner: null,
     paymentShortfall: null,
@@ -266,10 +267,15 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
           ? response.data.privatePlayerState
           : null,
       );
+      presentationController.acceptPrivatePlayerState(
+        response.data.privatePlayerState,
+        response.data.room,
+        'SESSION_SYNC',
+      );
       setPrivateOffers(response.data.pendingOffers.filter(offer => offer.status === 'PENDING'));
        applyRoom(response.data.room, true, 'SESSION_SYNC');
     });
-  }, [applyRoom, failSession, setIdentity, socket, transition]);
+  }, [applyRoom, failSession, presentationController, setIdentity, socket, transition]);
 
   const joinRoom = useCallback((request: JoinRoomRequest, reconnecting = false) => {
     if (!socket.connected) {
@@ -394,6 +400,8 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
     const onPrivatePlayerState = (incoming: PrivatePlayerState) => {
       if (roleRef.current !== 'PLAYER' || playerIdRef.current !== incoming.playerId) return;
       setPrivatePlayerState(incoming);
+      const currentRoom = roomRef.current;
+      if (currentRoom) presentationController.acceptPrivatePlayerState(incoming, currentRoom, 'LIVE_UPDATE');
     };
 
     const onForcedSaleProposal = (proposal: ForcedSaleProposal | null) => {
@@ -472,7 +480,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       socket.off('session replaced', onSessionReplaced);
       socket.disconnect();
     };
-  }, [applyRoom, joinRoom, resumeSession, socket, toast, transition]);
+  }, [applyRoom, joinRoom, presentationController, resumeSession, socket, toast, transition]);
 
   const showCommandFailure = useCallback((response: { ok: true } | { ok: false; error: AckError }) => {
     if (!response.ok) toast.show(localizeAckError(response.error));
@@ -534,6 +542,14 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       resolveDevelopment: (request) => {
         if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
         return sendAck(callback => socket.emit('resolve development', request, callback));
+      },
+      drawCard: (operationId) => {
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('draw card', { operationId }, callback));
+      },
+      dismissCard: (operationId) => {
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('dismiss card', { operationId }, callback));
       },
       waitInJail: () => {
         if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());

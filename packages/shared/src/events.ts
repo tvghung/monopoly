@@ -100,6 +100,8 @@ export interface ClientToServerEvents {
       | { operationId: string; action: 'UPGRADE_HOTEL' },
     acknowledge: AckCallback,
   ) => void;
+  'draw card': (request: { operationId: string }, acknowledge: AckCallback) => void;
+  'dismiss card': (request: { operationId: string }, acknowledge: AckCallback) => void;
   'make offer': (
     offerInfo: OfferInfo,
     acknowledge: AckCallback<MakeOfferResult>,

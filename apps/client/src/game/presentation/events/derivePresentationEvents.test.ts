@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cloneRoom, makeRoom } from '../testFixtures';
-import { derivePresentationEvents } from './derivePresentationEvents';
+import { derivePresentationEvents, semanticEventsSince } from './derivePresentationEvents';
 
 describe('derivePresentationEvents', () => {
   it('derives only observable state changes in a deterministic order', () => {
@@ -163,5 +163,189 @@ describe('derivePresentationEvents', () => {
       { type: 'ROLL_DICE', rollSequence: 1 },
       { type: 'MOVE_CHARACTER', from: 10, to: 14, presentation: 'WALK' },
     ]);
+  });
+
+  it('attaches one authoritative PASS_GO fact to a proven walk and suppresses duplicate reward events', () => {
+    const previous = makeRoom();
+    previous.gameState.players['player-a'].currentTile = 39;
+    const next = cloneRoom(previous);
+    next.gameState.boardState.diceValue = { dice1: 1, dice2: 1 };
+    next.gameState.boardState.rollSequence = 1;
+    next.gameState.players['player-a'].currentTile = 1;
+    next.gameState.players['player-a'].accountBalance = 1700;
+    next.gameState.boardState.gameplayEvents = {
+      sequence: 2,
+      events: [{
+        eventId: 'pass-go-1',
+        sequence: 1,
+        type: 'PASS_GO',
+        playerId: 'player-a',
+        reward: 200,
+        fromTile: 39,
+        destinationTile: 1,
+        movement: { kind: 'DICE_WALK', rollSequence: 1 },
+      }, {
+        eventId: 'pass-go-money-1',
+        sequence: 2,
+        type: 'MONEY_TRANSFER',
+        source: { kind: 'BANK' },
+        destination: { kind: 'PLAYER', playerId: 'player-a' },
+        amount: 200,
+        reason: 'PASS_GO',
+      }],
+    };
+
+    const events = derivePresentationEvents(previous, next);
+    expect(events.filter(event => event.type === 'PASS_GO')).toHaveLength(0);
+    expect(events.filter(event => event.type === 'MONEY_TRANSFER')).toHaveLength(0);
+    expect(events.find(event => event.type === 'MOVE_CHARACTER')).toMatchObject({
+      presentation: 'WALK',
+      passGo: { eventId: 'pass-go-1', reward: 200 },
+    });
+  });
+
+  it('carries the authoritative purchase amount into the grouped purchase moment', () => {
+    const previous = makeRoom();
+    const next = cloneRoom(previous);
+    next.gameState.players['player-a'].accountBalance = 1_440;
+    next.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 0 };
+    next.gameState.boardState.gameplayEvents = {
+      sequence: 2,
+      events: [{
+        eventId: 'purchase-money',
+        sequence: 1,
+        operationId: 'purchase-operation',
+        type: 'MONEY_TRANSFER',
+        source: { kind: 'PLAYER', playerId: 'player-a' },
+        destination: { kind: 'BANK' },
+        amount: 60,
+        reason: 'PROPERTY_PURCHASE',
+      }, {
+        eventId: 'purchase-property',
+        sequence: 2,
+        operationId: 'purchase-operation',
+        type: 'PROPERTY_TRANSFER',
+        tileID: 1,
+        from: { kind: 'BANK' },
+        to: { kind: 'PLAYER', playerId: 'player-a' },
+        cause: 'BANK_PURCHASE',
+      }],
+    };
+
+    expect(derivePresentationEvents(previous, next).find(event => event.type === 'PROPERTY_TRANSFER'))
+      .toMatchObject({ type: 'PROPERTY_TRANSFER', cause: 'BANK_PURCHASE', amount: 60 });
+  });
+
+  it('shows a semantic GO moment for card movement without inventing a walk or duplicate coins', () => {
+    const previous = makeRoom();
+    previous.gameState.players['player-a'].currentTile = 7;
+    const next = cloneRoom(previous);
+    next.gameState.players['player-a'].currentTile = 0;
+    next.gameState.players['player-a'].accountBalance = 1700;
+    next.gameState.boardState.gameplayEvents = {
+      sequence: 2,
+      events: [{
+        eventId: 'card-pass-go',
+        sequence: 1,
+        operationId: 'card-operation',
+        type: 'PASS_GO',
+        playerId: 'player-a',
+        reward: 200,
+        fromTile: 7,
+        destinationTile: 0,
+        movement: { kind: 'CARD', cardId: 'chance-advance-start' },
+      }, {
+        eventId: 'card-pass-go-money',
+        sequence: 2,
+        operationId: 'card-operation',
+        type: 'MONEY_TRANSFER',
+        source: { kind: 'BANK' },
+        destination: { kind: 'PLAYER', playerId: 'player-a' },
+        amount: 200,
+        reason: 'PASS_GO',
+      }],
+    };
+
+    const events = derivePresentationEvents(previous, next);
+    expect(events.find(event => event.type === 'MOVE_CHARACTER')).toMatchObject({ presentation: 'SNAP' });
+    expect(events.filter(event => event.type === 'PASS_GO')).toHaveLength(1);
+    expect(events.filter(event => event.type === 'MONEY_TRANSFER')).toHaveLength(0);
+  });
+
+  it('uses SENT_TO_JAIL as the only movement authority and never fabricates GO', () => {
+    const previous = makeRoom();
+    previous.gameState.players['player-a'].currentTile = 30;
+    const next = cloneRoom(previous);
+    next.gameState.players['player-a'].currentTile = 10;
+    next.gameState.players['player-a'].isJail = true;
+    next.gameState.boardState.gameplayEvents = {
+      sequence: 1,
+      events: [{
+        eventId: 'jail-1',
+        sequence: 1,
+        type: 'SENT_TO_JAIL',
+        playerId: 'player-a',
+        fromTile: 30,
+        destinationTile: 10,
+        cause: 'BOARD_TILE',
+      }],
+    };
+
+    const events = derivePresentationEvents(previous, next);
+    expect(events.filter(event => event.type === 'MOVE_CHARACTER')).toHaveLength(0);
+    expect(events.filter(event => event.type === 'PASS_GO')).toHaveLength(0);
+    expect(events.filter(event => event.type === 'SENT_TO_JAIL')).toHaveLength(1);
+  });
+
+  it('closes the old card before movement and opens a chained card only after LAND', () => {
+    const previous = makeRoom();
+    previous.gameState.players['player-a'].currentTile = 7;
+    previous.gameState.turnInfo.pendingCardInteraction = {
+      operationId: 'card-operation-1',
+      playerId: 'player-a',
+      turnNumber: 1,
+      deck: 'chance',
+      sourceTile: 7,
+      stage: 'REVEALED',
+      revealedCardId: 'chance-advance-start',
+      continuation: { playerId: 'player-a', turnNumber: 1 },
+      deadlineAt: '2026-08-22T00:00:30.000Z',
+    };
+    const next = cloneRoom(previous);
+    next.gameState.players['player-a'].currentTile = 36;
+    next.gameState.turnInfo.pendingCardInteraction = {
+      operationId: 'card-operation-2',
+      playerId: 'player-a',
+      turnNumber: 1,
+      deck: 'chance',
+      sourceTile: 36,
+      stage: 'AWAITING_DRAW',
+      continuation: { playerId: 'player-a', turnNumber: 1 },
+      deadlineAt: '2026-08-22T00:01:00.000Z',
+    };
+
+    expect(derivePresentationEvents(previous, next).map(event => (
+      event.type === 'CARD_INTERACTION_CHANGED' ? `${event.type}:${event.stage}` : event.type
+    ))).toEqual([
+      'CARD_INTERACTION_CHANGED:CLOSED',
+      'MOVE_CHARACTER',
+      'LAND_TILE',
+      'CARD_INTERACTION_CHANGED:AWAITING_DRAW',
+    ]);
+  });
+
+  it('rejects a truncated semantic lane instead of treating a sequence gap as complete history', () => {
+    const previous = makeRoom();
+    const next = cloneRoom(previous);
+    next.gameState.boardState.gameplayEvents = {
+      sequence: 3,
+      events: [{
+        eventId: 'event-3',
+        sequence: 3,
+        type: 'JAIL_ROLL_FAILED',
+        playerId: 'player-a',
+      }],
+    };
+    expect(semanticEventsSince(previous, next)).toBeNull();
   });
 });

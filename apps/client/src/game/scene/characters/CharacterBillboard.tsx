@@ -20,6 +20,7 @@ import {
   getCharacterGroundingTransforms,
   getCharacterTargetTransition,
   sampleCharacterHop,
+  sampleCharacterJailTransfer,
   sampleCharacterLanding,
   sampleCharacterSlotReflow,
 } from './characterMotion';
@@ -40,7 +41,7 @@ interface CharacterBillboardProps {
   reaction?: CharacterReactionSignal;
 }
 
-type CharacterMotionKind = 'TILE_HOP' | 'SLOT_REFLOW';
+type CharacterMotionKind = 'TILE_HOP' | 'JAIL_TRANSFER' | 'SLOT_REFLOW';
 
 interface ActiveCharacterMotion {
   kind: CharacterMotionKind;
@@ -241,7 +242,7 @@ export default function CharacterBillboard({
         }
         activeLandingRef.current = null;
         activeMotionRef.current = {
-          kind: 'TILE_HOP',
+          kind: signal.transition === 'JAIL_TRANSFER' ? 'JAIL_TRANSFER' : 'TILE_HOP',
           from,
           to,
           elapsedMs: 0,
@@ -391,7 +392,9 @@ export default function CharacterBillboard({
       motion.elapsedMs += delta * 1000;
       const sample = motion.kind === 'TILE_HOP'
         ? sampleCharacterHop(motion.elapsedMs, motion.from, motion.to, motion.durationMs)
-        : sampleCharacterSlotReflow(motion.elapsedMs, motion.from, motion.to, motion.durationMs);
+        : motion.kind === 'JAIL_TRANSFER'
+          ? sampleCharacterJailTransfer(motion.elapsedMs, motion.from, motion.to, motion.durationMs)
+          : sampleCharacterSlotReflow(motion.elapsedMs, motion.from, motion.to, motion.durationMs);
       bodyPosition.set(...sample.position);
       bodyRotationZ = sample.rotationZ;
       bodyScaleX = sample.scaleXZ;
@@ -424,6 +427,7 @@ export default function CharacterBillboard({
     const reactionActive = reactionWasActive || !reactionSample.done;
     const currentTileMotionOffsetY = tileMotionController?.getTileOffsetY(player.tileId) ?? 0;
     const activeHop = activeMotionRef.current?.kind === 'TILE_HOP'
+      || activeMotionRef.current?.kind === 'JAIL_TRANSFER'
       ? activeMotionRef.current
       : null;
     const bodyTileOffsetY = getCharacterBodyTileOffsetY(

@@ -22,6 +22,7 @@ describe('IncomingOffers', () => {
         logs: [],
         diceValue: { dice1: 2, dice2: 3 },
         rollSequence: 1,
+        gameplayEvents: { sequence: 0, events: [] },
         ownedProps: {
           1: { id: 'proposer', color: 'red', houses: 0 },
           37: { id: 'recipient', color: 'blue', houses: 0 },

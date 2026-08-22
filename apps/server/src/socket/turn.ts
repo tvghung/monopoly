@@ -23,6 +23,7 @@ import { broadcastRoom } from './broadcast';
 import { CommandError, acknowledgeFailure, successAck } from './errors';
 import { commitRoomCommand } from './roomCommands';
 import type { AppServer, AppSocket } from './types';
+import { recordPublicGameplayEvent } from '../game/semanticEvents';
 
 const currentTurnContinuation = (state: Parameters<typeof continuationForRoll>[0], playerId: string) => (
   continuationForRoll(state, playerId)
@@ -53,6 +54,7 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
           state.boardState.currentPlayer.hasMoved
           || state.turnInfo.pendingPropertyDecision
           || state.turnInfo.pendingDevelopmentDecision
+          || state.turnInfo.pendingCardInteraction
         ) {
           throw new CommandError('CONFLICT', 'Lượt này chưa thể đổ xúc xắc tiếp.');
         }
@@ -67,16 +69,23 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
           handleJailRoll(state, actor.playerId, dice, continuation, {
             now: now.getTime(),
             paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+            cardAwaitingDrawTimeoutMs: runtime.timing.cardAwaitingDrawTimeoutMs,
+            cardRevealedTimeoutMs: runtime.timing.cardRevealedTimeoutMs,
           });
           return;
         }
         state.boardState.diceValue = dice;
         state.boardState.currentPlayer.hasMoved = true;
         sendToLog(state, `${player.name} đổ được ${total}${isDouble(dice) ? ' (đôi)' : ''}.`);
-        movePlayer(state, actor.playerId, total);
+        movePlayer(state, actor.playerId, total, {
+          kind: 'DICE_WALK',
+          rollSequence: state.boardState.rollSequence,
+        });
         resolveTile(state, actor.playerId, total, continuation, {
           now: now.getTime(),
           paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+          cardAwaitingDrawTimeoutMs: runtime.timing.cardAwaitingDrawTimeoutMs,
+          cardRevealedTimeoutMs: runtime.timing.cardRevealedTimeoutMs,
         });
       }, now, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
@@ -116,7 +125,22 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
             throw new CommandError('CONFLICT', `Bạn không đủ tiền mua ${tile.streetName}.`);
           }
           player.accountBalance -= price;
-          if (!transferProperty(state, decision.tileID, null, actor.playerId, 'BANK_PURCHASE').ok) {
+          recordPublicGameplayEvent(state, {
+            type: 'MONEY_TRANSFER',
+            source: { kind: 'PLAYER', playerId: actor.playerId },
+            destination: { kind: 'BANK' },
+            amount: price,
+            reason: 'PROPERTY_PURCHASE',
+            operationId: decision.operationId,
+          });
+          if (!transferProperty(
+            state,
+            decision.tileID,
+            null,
+            actor.playerId,
+            'BANK_PURCHASE',
+            { operationId: decision.operationId },
+          ).ok) {
             throw new CommandError('CONFLICT', 'Không thể chuyển quyền sở hữu tài sản.');
           }
           sendToLog(state, `${player.name} đã mua ${tile.streetName}.`);
@@ -169,6 +193,14 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
           const cost = request.quantity * tile.houseCost;
           if (player.accountBalance < cost) throw new CommandError('CONFLICT', 'Không đủ tiền xây Nhà.');
           player.accountBalance -= cost;
+          recordPublicGameplayEvent(state, {
+            type: 'MONEY_TRANSFER',
+            source: { kind: 'PLAYER', playerId: actor.playerId },
+            destination: { kind: 'BANK' },
+            amount: cost,
+            reason: 'DEVELOPMENT',
+            operationId: decision.operationId,
+          });
           property.houses += request.quantity;
         } else if (request.action === 'UPGRADE_HOTEL') {
           if (decision.kind !== 'HOTEL' || decision.levelAtLanding !== 4 || property.houses !== 4) {
@@ -176,6 +208,14 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
           }
           if (player.accountBalance < tile.houseCost) throw new CommandError('CONFLICT', 'Không đủ tiền nâng cấp.');
           player.accountBalance -= tile.houseCost;
+          recordPublicGameplayEvent(state, {
+            type: 'MONEY_TRANSFER',
+            source: { kind: 'PLAYER', playerId: actor.playerId },
+            destination: { kind: 'BANK' },
+            amount: tile.houseCost,
+            reason: 'DEVELOPMENT',
+            operationId: decision.operationId,
+          });
           property.houses = 5;
         }
         if (request.action !== 'SKIP') {

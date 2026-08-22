@@ -4,9 +4,13 @@ import type {
   BalanceDeltaSignal,
   CharacterMovementSignal,
   CharacterReactionKind,
+  BoardEventSignal,
+  CardPresentationSignal,
   DevelopmentChangeSignal,
+  DestinationPreviewSignal,
   GoCrossingSignal,
   OwnershipChangeSignal,
+  MoneyTransferSignal,
   PresentationListener,
   PresentationState,
   PresentationStoreLike,
@@ -29,6 +33,10 @@ const emptyState: PresentationState = {
   ownershipChanges: [],
   developmentChanges: [],
   goCrossings: [],
+  destinationPreview: null,
+  moneyTransfers: [],
+  activeBoardEvent: null,
+  cardPresentation: null,
   animationSpeedMultiplier: 1,
   presentationResetEpoch: 0,
 };
@@ -48,12 +56,16 @@ export class PresentationStore implements PresentationStoreLike {
   private nextOwnershipChangeSequence = 0;
   private nextDevelopmentChangeSequence = 0;
   private nextGoCrossingSequence = 0;
+  private nextMoneyTransferSequence = 0;
   private readonly playerJoinOrder = new Map<string, number>();
   private readonly activeCharacterMovements = new Map<string, CharacterMovementSignal>();
   private readonly balanceDeltaIds = new Set<string>();
   private readonly ownershipChangeIds = new Set<string>();
   private readonly developmentChangeIds = new Set<string>();
   private readonly goCrossingIds = new Set<string>();
+  private readonly moneyTransferIds = new Set<string>();
+  private readonly developmentCleanupTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly moneyTransferCleanupTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   public getSnapshot(): PresentationState {
     return this.state;
@@ -65,6 +77,10 @@ export class PresentationStore implements PresentationStoreLike {
   }
 
   public resetFromSnapshot(room: PublicRoomState): void {
+    this.developmentCleanupTimers.forEach(timer => clearTimeout(timer));
+    this.developmentCleanupTimers.clear();
+    this.moneyTransferCleanupTimers.forEach(timer => clearTimeout(timer));
+    this.moneyTransferCleanupTimers.clear();
     const positions: Record<string, number> = {};
     Object.entries(room.gameState.players).forEach(([playerId, player]) => {
       positions[playerId] = player.currentTile;
@@ -88,6 +104,10 @@ export class PresentationStore implements PresentationStoreLike {
       ownershipChanges: [],
       developmentChanges: [],
       goCrossings: [],
+      destinationPreview: null,
+      moneyTransfers: [],
+      activeBoardEvent: null,
+      cardPresentation: null,
       animationSpeedMultiplier: this.state.animationSpeedMultiplier,
       presentationResetEpoch: this.state.presentationResetEpoch + 1,
     };
@@ -100,10 +120,12 @@ export class PresentationStore implements PresentationStoreLike {
     this.nextOwnershipChangeSequence = 0;
     this.nextDevelopmentChangeSequence = 0;
     this.nextGoCrossingSequence = 0;
+    this.nextMoneyTransferSequence = 0;
     this.balanceDeltaIds.clear();
     this.ownershipChangeIds.clear();
     this.developmentChangeIds.clear();
     this.goCrossingIds.clear();
+    this.moneyTransferIds.clear();
     this.notify();
   }
 
@@ -144,6 +166,39 @@ export class PresentationStore implements PresentationStoreLike {
       sequence: this.nextCharacterMovementSequence,
       playerId,
       transition: 'TILE_HOP',
+      phase: 'START',
+      fromTileId,
+      toTileId,
+      fromSlotIndex: fromSlot.slotIndex,
+      fromOccupantCount: fromSlot.occupantCount,
+      toSlotIndex: toSlot.slotIndex,
+      toOccupantCount: toSlot.occupantCount,
+      durationMs: Math.max(0, durationMs),
+    };
+    this.activeCharacterMovements.set(playerId, signal);
+    this.state = {
+      ...this.state,
+      displayPositions: nextPositions,
+      characterMovements: this.appendCharacterMovement(signal),
+    };
+    this.notify();
+  }
+
+  public startJailTransfer(
+    playerId: string,
+    fromTileId: number,
+    toTileId: number,
+    durationMs: number,
+  ): void {
+    const currentPositions = this.state.displayPositions;
+    const nextPositions = { ...currentPositions, [playerId]: toTileId };
+    const fromSlot = this.getSlotInfo(currentPositions, playerId, fromTileId);
+    const toSlot = this.getSlotInfo(nextPositions, playerId, toTileId);
+    this.nextCharacterMovementSequence += 1;
+    const signal: CharacterMovementSignal = {
+      sequence: this.nextCharacterMovementSequence,
+      playerId,
+      transition: 'JAIL_TRANSFER',
       phase: 'START',
       fromTileId,
       toTileId,
@@ -419,6 +474,16 @@ export class PresentationStore implements PresentationStoreLike {
     if (!developmentChanges) return;
     this.state = { ...this.state, developmentChanges };
     this.notify();
+    const cleanupTimer = setTimeout(() => {
+      this.developmentCleanupTimers.delete(id);
+      if (!this.state.developmentChanges.some(signal => signal.id === id)) return;
+      this.state = {
+        ...this.state,
+        developmentChanges: this.state.developmentChanges.filter(signal => signal.id !== id),
+      };
+      this.notify();
+    }, Math.max(0, durationMs) + 50);
+    this.developmentCleanupTimers.set(id, cleanupTimer);
   }
 
   public emitGoCrossing(id: string, playerId: string, fromTileId: number, durationMs: number): void {
@@ -441,6 +506,71 @@ export class PresentationStore implements PresentationStoreLike {
     );
     if (!goCrossings) return;
     this.state = { ...this.state, goCrossings };
+    this.notify();
+  }
+
+  public showDestinationPreview(signal: DestinationPreviewSignal): void {
+    this.state = {
+      ...this.state,
+      destinationPreview: { ...signal, strongDurationMs: Math.max(0, signal.strongDurationMs) },
+    };
+    this.notify();
+  }
+
+  public clearDestinationPreview(id?: string): void {
+    if (!this.state.destinationPreview) return;
+    if (id && this.state.destinationPreview.id !== id) return;
+    this.state = { ...this.state, destinationPreview: null };
+    this.notify();
+  }
+
+  public emitMoneyTransfer(
+    signal: Omit<MoneyTransferSignal, 'sequence' | 'coinCount'>,
+  ): void {
+    if (this.moneyTransferIds.has(signal.id)) return;
+    this.nextMoneyTransferSequence += 1;
+    const amount = Math.max(1, signal.amount);
+    const coinCount = Math.min(8, Math.max(2, 2 + Math.floor(Math.log10(amount))));
+    const next: MoneyTransferSignal = {
+      ...signal,
+      sequence: this.nextMoneyTransferSequence,
+      coinCount,
+      durationMs: Math.max(0, signal.durationMs),
+    };
+    const moneyTransfers = this.appendOneShotSignal(
+      this.state.moneyTransfers,
+      this.moneyTransferIds,
+      next,
+    );
+    if (!moneyTransfers) return;
+    this.state = { ...this.state, moneyTransfers };
+    this.notify();
+    const cleanupTimer = setTimeout(() => {
+      this.moneyTransferCleanupTimers.delete(signal.id);
+      if (!this.state.moneyTransfers.some(transfer => transfer.id === signal.id)) return;
+      this.state = {
+        ...this.state,
+        moneyTransfers: this.state.moneyTransfers.filter(transfer => transfer.id !== signal.id),
+      };
+      this.notify();
+    }, Math.max(0, signal.durationMs) + 50);
+    this.moneyTransferCleanupTimers.set(signal.id, cleanupTimer);
+  }
+
+  public showBoardEvent(signal: BoardEventSignal): void {
+    this.state = { ...this.state, activeBoardEvent: signal };
+    this.notify();
+  }
+
+  public clearBoardEvent(id?: string): void {
+    if (!this.state.activeBoardEvent) return;
+    if (id && this.state.activeBoardEvent.id !== id) return;
+    this.state = { ...this.state, activeBoardEvent: null };
+    this.notify();
+  }
+
+  public setCardPresentation(signal: CardPresentationSignal | null): void {
+    this.state = { ...this.state, cardPresentation: signal };
     this.notify();
   }
 

@@ -33,6 +33,8 @@ function createRuntime(
   const runtime = createAppRuntime(persistence, {
     reconnectGraceMs: 60_000,
     paymentShortfallActionTimeoutMs: 120_000,
+    cardAwaitingDrawTimeoutMs: 20_000,
+    cardRevealedTimeoutMs: 30_000,
     pendingSessionTtlMs: 300_000,
     terminalSessionRetentionMs: 604_800_000,
     lobbyRetentionMs: 86_400_000,
@@ -174,6 +176,70 @@ describe('durable deadline recovery', () => {
       finishedPlayers: { [PLAYER_A]: { reason: 'BANKRUPT' } },
       winner: { playerId: PLAYER_B },
     });
+  });
+
+  it('auto-draws then auto-dismisses one durable card without duplicating its consequence', async () => {
+    const { persistence, runtime, io } = createRuntime();
+    const now = new Date('2026-08-12T12:10:00.000Z');
+    const roomId = randomUUID();
+    const snapshot = activeSnapshot();
+    snapshot.gameState.players[PLAYER_A].currentTile = 7;
+    snapshot.gameState.players[PLAYER_A].accountBalance = 100;
+    const chancePile = snapshot.gameState.privateState.decks.chance.drawPile;
+    snapshot.gameState.privateState.decks.chance.drawPile = [
+      'chance-dividend',
+      ...chancePile.filter(cardId => cardId !== 'chance-dividend'),
+    ];
+    const operationId = randomUUID();
+    snapshot.gameState.turnInfo.pendingCardInteraction = {
+      operationId,
+      playerId: PLAYER_A,
+      turnNumber: 4,
+      deck: 'chance',
+      sourceTile: 7,
+      stage: 'AWAITING_DRAW',
+      continuation: { playerId: PLAYER_A, turnNumber: 4 },
+      deadlineAt: now.toISOString(),
+    };
+    await persistence.rooms.create({
+      id: roomId,
+      code: 'CARD-RECOVERY',
+      status: 'IN_PROGRESS',
+      hostPlayerId: PLAYER_A,
+      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
+      gameSnapshot: snapshot,
+      nextActionAt: now,
+      expiresAt: new Date(now.getTime() + 86_400_000),
+    });
+
+    await Promise.all([
+      recoverRoomIfDue(io, runtime, roomId, now),
+      recoverRoomIfDue(io, runtime, roomId, now),
+    ]);
+    const revealed = await persistence.rooms.findById(roomId);
+    expect(revealed?.gameSnapshot.gameState.turnInfo.pendingCardInteraction).toMatchObject({
+      operationId,
+      stage: 'REVEALED',
+      revealedCardId: 'chance-dividend',
+    });
+    expect(revealed?.gameSnapshot.gameState.players[PLAYER_A].accountBalance).toBe(100);
+    const revealDeadline = new Date(
+      revealed?.gameSnapshot.gameState.turnInfo.pendingCardInteraction?.deadlineAt ?? '',
+    );
+    expect(Number.isFinite(revealDeadline.getTime())).toBe(true);
+
+    await Promise.all([
+      recoverRoomIfDue(io, runtime, roomId, revealDeadline),
+      recoverRoomIfDue(io, runtime, roomId, revealDeadline),
+    ]);
+    const resolved = await persistence.rooms.findById(roomId);
+    expect(resolved?.gameSnapshot.gameState.turnInfo.pendingCardInteraction).toBeUndefined();
+    expect(resolved?.gameSnapshot.gameState.players[PLAYER_A].accountBalance).toBe(150);
+    expect(resolved?.gameSnapshot.gameState.privateState.decks.chance.drawPile.at(-1))
+      .toBe('chance-dividend');
+    expect(resolved?.gameSnapshot.gameState.boardState.gameplayEvents.events.filter(
+      event => event.type === 'MONEY_TRANSFER' && event.reason === 'CARD',
+    )).toHaveLength(1);
   });
 
 

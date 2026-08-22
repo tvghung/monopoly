@@ -8,6 +8,8 @@ export interface DatabaseConfig {
 export interface PersistenceTimingConfig {
   reconnectGraceMs: number;
   paymentShortfallActionTimeoutMs: number;
+  cardAwaitingDrawTimeoutMs: number;
+  cardRevealedTimeoutMs: number;
   pendingSessionTtlMs: number;
   terminalSessionRetentionMs: number;
   lobbyRetentionMs: number;
@@ -95,6 +97,16 @@ export function loadServerConfig(
         environment,
         'PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS',
         120_000,
+      ),
+      cardAwaitingDrawTimeoutMs: readPositiveInteger(
+        environment,
+        'CARD_AWAITING_DRAW_TIMEOUT_MS',
+        20_000,
+      ),
+      cardRevealedTimeoutMs: readPositiveInteger(
+        environment,
+        'CARD_REVEALED_TIMEOUT_MS',
+        30_000,
       ),
       pendingSessionTtlMs: readPositiveInteger(
         environment,

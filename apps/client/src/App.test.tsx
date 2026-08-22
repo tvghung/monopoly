@@ -101,6 +101,7 @@ const room: PublicRoomState = {
     logs: [],
     diceValue: { dice1: 0, dice2: 0 },
     rollSequence: 0,
+    gameplayEvents: { sequence: 0, events: [] },
     ownedProps: {},
       winner: null,
     },
@@ -185,6 +186,7 @@ describe('App session admission', () => {
             privatePlayerState: {
               playerId: 'stable-player-id',
               heldJailFreeCardIds: [],
+              gameplayEvents: { sequence: 0, events: [] },
             },
             pendingOffers: [],
           },
@@ -214,6 +216,7 @@ describe('App session admission', () => {
             privatePlayerState: {
               playerId: 'stable-player-id',
               heldJailFreeCardIds: [],
+              gameplayEvents: { sequence: 0, events: [] },
             },
             pendingOffers: [],
           },
@@ -328,6 +331,7 @@ describe('App session admission', () => {
             privatePlayerState: {
               playerId: 'stable-player-id',
               heldJailFreeCardIds: [],
+              gameplayEvents: { sequence: 0, events: [] },
             },
             pendingOffers: [],
           },
@@ -401,6 +405,7 @@ describe('App session admission', () => {
             privatePlayerState: {
               playerId: 'stable-player-id',
               heldJailFreeCardIds: [],
+              gameplayEvents: { sequence: 0, events: [] },
             },
             pendingOffers: [],
           },
@@ -572,6 +577,7 @@ describe('App session admission', () => {
             privatePlayerState: {
               playerId: 'stable-player-id',
               heldJailFreeCardIds: ['chance-jail-free'],
+              gameplayEvents: { sequence: 0, events: [] },
             },
             pendingOffers: [],
           },
@@ -587,6 +593,7 @@ describe('App session admission', () => {
       socketHarness.trigger('private player state', {
         playerId: 'other-player-id',
         heldJailFreeCardIds: ['chest-jail-free'],
+        gameplayEvents: { sequence: 0, events: [] },
       });
     });
     expect(screen.getByLabelText(/Thẻ Thoát Tù Miễn Phí \(Cơ Hội\)/)).toBeTruthy();
@@ -596,6 +603,7 @@ describe('App session admission', () => {
       socketHarness.trigger('private player state', {
         playerId: 'stable-player-id',
         heldJailFreeCardIds: ['chest-jail-free'],
+        gameplayEvents: { sequence: 0, events: [] },
       });
     });
     expect(screen.getByLabelText(/Thẻ Thoát Tù Miễn Phí \(Khí Vận\)/)).toBeTruthy();

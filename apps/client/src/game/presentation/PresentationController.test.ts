@@ -93,6 +93,33 @@ describe('PresentationController', () => {
     controller.dispose();
   });
 
+  it('cancels active movement when its player leaves and snaps to the authoritative roster', async () => {
+    const controller = new PresentationController();
+    const initial = makeRoom();
+    controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
+    const moving = cloneRoom(initial);
+    moving.gameState.boardState.diceValue = { dice1: 3, dice2: 3 };
+    moving.gameState.boardState.rollSequence = 1;
+    moving.gameState.players['player-a'].currentTile = 6;
+    controller.acceptRoomSnapshot(moving, 'LIVE_UPDATE');
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(controller.queue.getStatus()).toBe('playing');
+
+    const left = cloneRoom(moving);
+    delete left.gameState.players['player-a'];
+    left.gameState.boardState.players = ['player-b'];
+    left.gameState.boardState.finishedPlayers['player-a'] = {
+      name: 'An', color: 'red', characterId: 'dog', reason: 'LEFT', accountBalance: 1_500,
+    };
+    controller.acceptRoomSnapshot(left, 'LIVE_UPDATE');
+    await controller.queue.whenIdle();
+
+    expect(controller.getState().displayPositions['player-a']).toBeUndefined();
+    expect(controller.getState().displayPositions['player-b']).toBe(5);
+    expect(controller.getState().characterMovements).toEqual([]);
+    controller.dispose();
+  });
+
   it('snaps an unexpected roll-sequence gap to the current authoritative dice', () => {
     const controller = new PresentationController();
     const initial = makeRoom();
@@ -107,6 +134,32 @@ describe('PresentationController', () => {
     expect(controller.getState().displayDice).toEqual({ dice1: 5, dice2: 6 });
     expect(controller.getState().displayRollSequence).toBe(2);
     expect(controller.getState().displayPositions['player-a']).toBe(11);
+    expect(controller.queue.getStatus()).toBe('idle');
+    controller.dispose();
+  });
+
+  it('snaps without fabricating transfers when the semantic sequence tail has a gap', () => {
+    const controller = new PresentationController();
+    const initial = makeRoom();
+    controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
+    const gap = cloneRoom(initial);
+    gap.gameState.players['player-a'].currentTile = 9;
+    gap.gameState.players['player-a'].accountBalance = 900;
+    gap.gameState.boardState.gameplayEvents = {
+      sequence: 3,
+      events: [{
+        eventId: '00000000-0000-4000-8000-000000000003',
+        sequence: 3,
+        type: 'JAIL_ROLL_FAILED',
+        playerId: 'player-a',
+      }],
+    };
+
+    controller.acceptRoomSnapshot(gap, 'LIVE_UPDATE');
+
+    expect(controller.getState().displayPositions['player-a']).toBe(9);
+    expect(controller.getState().activeBoardEvent).toBeNull();
+    expect(controller.getState().moneyTransfers).toEqual([]);
     expect(controller.queue.getStatus()).toBe('idle');
     controller.dispose();
   });

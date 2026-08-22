@@ -48,10 +48,16 @@ const makeState = (): GameState => ({
     ownedProps: {},
     winner: null,
     paymentQueue: null,
+    gameplayEvents: { sequence: 0, events: [] },
   },
   players: {},
   turnInfo: {},
-  privateState: { decks: createCanonicalDecks(), forcedSaleProposal: null },
+  privateState: {
+    decks: createCanonicalDecks(),
+    forcedSaleProposal: null,
+    privateGameplayEventsByPlayer: {},
+    completedCardOperations: [],
+  },
   loaded: true,
 });
 
@@ -200,6 +206,19 @@ describe('simplified v4 rules', () => {
     expect(first).toMatchObject({ ok: true, changed: true });
     const balanceAfterFirstSale = state.players.p1.accountBalance;
     const queueAfterFirstSale = structuredClone(state.boardState.paymentQueue);
+    const eventCountAfterFirstSale = state.boardState.gameplayEvents.events.length;
+    expect(state.boardState.gameplayEvents.events.slice(-2)).toMatchObject([{
+      type: 'PROPERTY_TRANSFER',
+      tileID: 1,
+      cause: 'BANK_SALE',
+      to: { kind: 'BANK' },
+    }, {
+      type: 'MONEY_TRANSFER',
+      source: { kind: 'BANK' },
+      destination: { kind: 'PLAYER', playerId: 'p1' },
+      amount: forcedSaleGrossPrice(1, 0),
+      reason: 'PROPERTY_SALE',
+    }]);
 
     const repeated = sellPropertyToBankForPayment(
       state,
@@ -213,6 +232,7 @@ describe('simplified v4 rules', () => {
     expect(state.players.p1.accountBalance).toBe(balanceAfterFirstSale);
     expect(state.boardState.ownedProps[1]).toBeUndefined();
     expect(state.boardState.paymentQueue).toEqual(queueAfterFirstSale);
+    expect(state.boardState.gameplayEvents.events).toHaveLength(eventCountAfterFirstSale);
   });
 
   it('keeps the shortfall open while another property remains', () => {
@@ -259,6 +279,7 @@ describe('simplified v4 rules', () => {
     const state = makeState();
     addPlayer(state, 'p1', { accountBalance: 0 });
     addPlayer(state, 'p2', { accountBalance: 1000, color: 'blue' });
+    addPlayer(state, 'p3', { accountBalance: 1000, color: 'green' });
     own(state, 1, 'p1');
     const queue = createPaymentQueue(
       [{
@@ -286,6 +307,24 @@ describe('simplified v4 rules', () => {
     expect(state.players.p1.accountBalance).toBe(0);
     expect(state.boardState.paymentQueue).toBeNull();
     expect(state.privateState.forcedSaleProposal).toBeNull();
+    expect(state.boardState.gameplayEvents.events.some(event => (
+      event.type === 'PROPERTY_TRANSFER'
+      && event.tileID === 1
+      && event.cause === 'FORCED_SALE'
+    ))).toBe(true);
+    expect(state.boardState.gameplayEvents.events.some(event => (
+      event.type === 'MONEY_TRANSFER' && event.reason === 'FORCED_SALE'
+    ))).toBe(false);
+    expect(state.privateState.privateGameplayEventsByPlayer.p1.events).toMatchObject([{
+      type: 'MONEY_TRANSFER',
+      source: { kind: 'PLAYER', playerId: 'p2' },
+      destination: { kind: 'PLAYER', playerId: 'p1' },
+      amount: forcedSaleGrossPrice(1, 0),
+      reason: 'FORCED_SALE',
+    }]);
+    expect(state.privateState.privateGameplayEventsByPlayer.p2.events[0]?.eventId)
+      .toBe(state.privateState.privateGameplayEventsByPlayer.p1.events[0]?.eventId);
+    expect(state.privateState.privateGameplayEventsByPlayer.p3).toBeUndefined();
   });
 
   it('rebases a remaining payment queue when its current debtor is eliminated', () => {

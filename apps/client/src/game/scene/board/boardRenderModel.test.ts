@@ -19,6 +19,10 @@ const presentation = (overrides: Partial<PresentationState> = {}): PresentationS
   ownershipChanges: [],
   developmentChanges: [],
   goCrossings: [],
+  destinationPreview: null,
+  moneyTransfers: [],
+  activeBoardEvent: null,
+  cardPresentation: null,
   animationSpeedMultiplier: 1,
   presentationResetEpoch: 0,
   ...overrides,
@@ -37,6 +41,7 @@ const state = (overrides: Partial<PublicGameState> = {}): PublicGameState => ({
     logs: [],
     diceValue: { dice1: 2, dice2: 3 },
     rollSequence: 1,
+    gameplayEvents: { sequence: 0, events: [] },
     ownedProps: {
       1: { id: 'active', color: 'red', houses: 2 },
       3: { id: 'finished', color: 'purple', houses: 5 },

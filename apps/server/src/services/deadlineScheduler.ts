@@ -2,6 +2,8 @@ import type { OfferResult, PlayerId } from '@monopoly/shared';
 import {
   activeDebtClaim,
   completeTurnResolution,
+  dismissPendingCard,
+  drawPendingCard,
   nextTurn,
   progressPaymentQueue,
   resumePaymentContinuation,
@@ -178,6 +180,15 @@ export async function recoverRoomIfDue(
     && Date.parse(candidateProposal.expiresAt) <= now.getTime()
     ? { proposalId: candidateProposal.proposalId, expiresAt: candidateProposal.expiresAt }
     : undefined;
+  const candidateCard = candidate.gameSnapshot.gameState.turnInfo.pendingCardInteraction;
+  const expectedCard = candidateCard && Date.parse(candidateCard.deadlineAt) <= now.getTime()
+    ? {
+        operationId: candidateCard.operationId,
+        playerId: candidateCard.playerId,
+        stage: candidateCard.stage,
+        deadlineAt: candidateCard.deadlineAt,
+      }
+    : undefined;
 
   try {
     const committed = await commitRoomCommand(runtime, roomId, async (context): Promise<RecoveryResult> => {
@@ -220,6 +231,30 @@ export async function recoverRoomIfDue(
         forcedSalePlayers.push(...paymentResult.forcedSalePlayers);
       }
 
+      const card = state.turnInfo.pendingCardInteraction;
+      if (
+        expectedCard
+        && card?.operationId === expectedCard.operationId
+        && card.playerId === expectedCard.playerId
+        && card.stage === expectedCard.stage
+        && card.deadlineAt === expectedCard.deadlineAt
+        && Date.parse(card.deadlineAt) <= now.getTime()
+      ) {
+        const options = {
+          now: now.getTime(),
+          paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+          cardAwaitingDrawTimeoutMs: runtime.timing.cardAwaitingDrawTimeoutMs,
+          cardRevealedTimeoutMs: runtime.timing.cardRevealedTimeoutMs,
+        };
+        if (card.stage === 'AWAITING_DRAW') {
+          drawPendingCard(state, card.playerId, card.operationId, options);
+        } else {
+          dismissPendingCard(state, card.playerId, card.operationId, options);
+        }
+        state.boardState.turnRecovery = null;
+        changed = true;
+      }
+
       const recovery = state.boardState.turnRecovery;
       if (
         expectedRecovery
@@ -243,7 +278,7 @@ export async function recoverRoomIfDue(
             const continuation = state.turnInfo.pendingDevelopmentDecision.continuation;
             state.turnInfo = {};
             completeTurnResolution(state, continuation);
-          } else {
+          } else if (!state.turnInfo.pendingCardInteraction) {
             nextTurn(state);
           }
         }
@@ -279,7 +314,13 @@ export async function reconcileTurnPresence(
   assertSupportedRoomSnapshot(current);
   const board = current.gameSnapshot.gameState.boardState;
   const currentPlayerId = board.currentPlayer.id;
-  if (!currentPlayerId || board.paymentQueue || current.gameSnapshot.gameState.privateState.forcedSaleProposal || board.winner) return;
+  if (
+    !currentPlayerId
+    || board.paymentQueue
+    || current.gameSnapshot.gameState.turnInfo.pendingCardInteraction
+    || current.gameSnapshot.gameState.privateState.forcedSaleProposal
+    || board.winner
+  ) return;
 
   const shouldClear = reconnectingPlayerId === currentPlayerId
     && board.turnRecovery?.playerId === currentPlayerId
@@ -306,6 +347,7 @@ export async function reconcileTurnPresence(
       shouldArm
       && !latestBoard.turnRecovery
       && !latestBoard.paymentQueue
+      && !state.turnInfo.pendingCardInteraction
       && latestBoard.currentPlayer.id
       && !runtime.connections.isConnected(latestBoard.currentPlayer.id)
     ) {
@@ -338,6 +380,7 @@ export async function armDisconnectedCurrentPlayer(
     || room.status !== 'IN_PROGRESS'
     || board?.currentPlayer.id !== disconnectedPlayerId
     || board.paymentQueue
+    || room.gameSnapshot.gameState.turnInfo.pendingCardInteraction
     || room.gameSnapshot.gameState.privateState.forcedSaleProposal
     || board.turnRecovery
     || board.winner
@@ -348,6 +391,7 @@ export async function armDisconnectedCurrentPlayer(
       runtime.connections.isConnected(disconnectedPlayerId)
       || state.boardState.currentPlayer.id !== disconnectedPlayerId
       || state.boardState.paymentQueue
+      || state.turnInfo.pendingCardInteraction
       || state.boardState.turnRecovery
       || state.boardState.winner
     ) return;

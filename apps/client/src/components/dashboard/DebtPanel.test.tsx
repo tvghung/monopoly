@@ -162,6 +162,7 @@ describe('DebtPanel', () => {
       <stateContext.Provider value={makeContext(initial, { proposeForcedSale }, {
         playerId: 'player-a',
         heldJailFreeCardIds: [],
+        gameplayEvents: { sequence: 0, events: [] },
         forcedSaleProposal: proposal(),
       })}>
         <DebtPanel />
@@ -178,6 +179,7 @@ describe('DebtPanel', () => {
     const activePrivateState: PrivatePlayerState = {
       playerId: 'player-a',
       heldJailFreeCardIds: [],
+      gameplayEvents: { sequence: 0, events: [] },
       forcedSaleProposal: proposal(),
     };
     const view = renderDebt(debtState(), {}, activePrivateState);
@@ -187,6 +189,7 @@ describe('DebtPanel', () => {
       <stateContext.Provider value={makeContext(debtState(), {}, {
         playerId: 'player-a',
         heldJailFreeCardIds: [],
+        gameplayEvents: { sequence: 0, events: [] },
         forcedSaleProposal: null,
       })}>
         <DebtPanel />

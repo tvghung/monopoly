@@ -128,6 +128,8 @@ pnpm desktop:make    # create configured platform makers (Windows Squirrel on Wi
 | `CLIENT_DIST` | `apps/client/dist` | Static client directory override. |
 | `RECONNECT_GRACE_MS` | `60000` | Grace before an offline current player's turn is resolved. |
 | `PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS` | `120000` | Thời hạn xử lý thanh toán thiếu hụt trước auto-liquidation xác định. |
+| `CARD_AWAITING_DRAW_TIMEOUT_MS` | `20000` | Thời hạn để người chơi chủ động rút thẻ trước khi server tự rút. |
+| `CARD_REVEALED_TIMEOUT_MS` | `30000` | Thời hạn đọc thẻ trước khi server tự đóng và áp dụng hiệu lực. |
 | `PENDING_SESSION_TTL_MS` | `300000` | Unactivated first-join token TTL. |
 | `TERMINAL_SESSION_RETENTION_MS` | `604800000` | Retain revoked/expired session rows for seven days before purge. |
 | `LOBBY_RETENTION_MS` | `86400000` | Inactive lobby retention. |

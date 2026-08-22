@@ -1,10 +1,12 @@
 import type {
   DevelopmentChangeSignal,
+  DestinationPreviewSignal,
   GoCrossingSignal,
   OwnershipChangeSignal,
 } from '../../../presentation/store/types';
 import TileActionFeedback from './TileActionFeedback';
 import type { TilePanelLayout } from './tilePanelLayout';
+import TileDestinationPreview from './TileDestinationPreview';
 
 interface TileFxAnchorProps {
   tileId: number;
@@ -13,6 +15,7 @@ interface TileFxAnchorProps {
   ownershipChange?: OwnershipChangeSignal;
   developmentChange?: DevelopmentChangeSignal;
   goCrossing?: GoCrossingSignal;
+  destinationPreview?: DestinationPreviewSignal;
 }
 
 export default function TileFxAnchor({
@@ -22,6 +25,7 @@ export default function TileFxAnchor({
   ownershipChange,
   developmentChange,
   goCrossing,
+  destinationPreview,
 }: TileFxAnchorProps) {
   return (
     <group name={`TileFxAnchor:${tileId}`} userData={{ tileId }}>
@@ -32,6 +36,7 @@ export default function TileFxAnchor({
         developmentChange={developmentChange}
         goCrossing={goCrossing}
       />
+      {destinationPreview ? <TileDestinationPreview panel={panel} signal={destinationPreview} /> : null}
     </group>
   );
 }

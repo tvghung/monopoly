@@ -15,8 +15,9 @@ import {
   tileState,
 } from '@monopoly/shared';
 import { z } from 'zod';
+import { createEmptyGameplayEventStream } from './game/semanticEvents';
 
-export const ROOM_SNAPSHOT_SCHEMA_VERSION = 6;
+export const ROOM_SNAPSHOT_SCHEMA_VERSION = 7;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 4;
 
@@ -186,6 +187,44 @@ export const upgradeRoomSnapshotV5ToV6 = (
   };
 };
 
+/**
+ * V7 starts both semantic lanes at an empty reconnect baseline. Historical
+ * balance/log diffs are deliberately not reinterpreted as gameplay facts.
+ */
+export const upgradeRoomSnapshotV6ToV7 = (
+  input: unknown,
+): PersistedRoomSnapshotEnvelope => {
+  const envelope = structuredClone(input) as {
+    snapshotSchemaVersion: number;
+    gameSnapshot: {
+      gameState: {
+        boardState: { gameplayEvents?: unknown; [key: string]: unknown };
+        privateState: {
+          privateGameplayEventsByPlayer?: unknown;
+          completedCardOperations?: unknown;
+          [key: string]: unknown;
+        };
+        [key: string]: unknown;
+      };
+      [key: string]: unknown;
+    };
+    hostPlayerId?: PlayerId | null;
+    status?: RoomStatus;
+  };
+  if (envelope.snapshotSchemaVersion !== 6) {
+    throw new Error('Only V6 room snapshots can be upgraded to V7');
+  }
+
+  envelope.gameSnapshot.gameState.boardState.gameplayEvents = createEmptyGameplayEventStream();
+  envelope.gameSnapshot.gameState.privateState.privateGameplayEventsByPlayer = {};
+  envelope.gameSnapshot.gameState.privateState.completedCardOperations = [];
+  return {
+    ...envelope,
+    snapshotSchemaVersion: 7,
+    gameSnapshot: envelope.gameSnapshot as unknown as RoomSnapshot,
+  };
+};
+
 export class UnsupportedRoomSnapshotVersionError extends Error {
   constructor(readonly snapshotSchemaVersion: number) {
     super(
@@ -219,10 +258,16 @@ export const freshState = (): GameState => ({
     ownedProps: {},
     winner: null,
     paymentQueue: null,
+    gameplayEvents: createEmptyGameplayEventStream(),
   },
   players: {},
   turnInfo: {},
-  privateState: { decks: createCanonicalDecks(), forcedSaleProposal: null },
+  privateState: {
+    decks: createCanonicalDecks(),
+    forcedSaleProposal: null,
+    privateGameplayEventsByPlayer: {},
+    completedCardOperations: [],
+  },
   loaded: true,
 });
 
@@ -302,6 +347,7 @@ export const calculateNextActionAt = (snapshot: RoomSnapshot): Date | null => {
     snapshot.gameState.boardState.turnRecovery?.deadlineAt,
     snapshot.gameState.boardState.paymentQueue?.actionDeadlineAt,
     snapshot.gameState.privateState.forcedSaleProposal?.expiresAt,
+    snapshot.gameState.turnInfo.pendingCardInteraction?.deadlineAt,
   ]
     .filter((value): value is string => typeof value === 'string')
     .map((value) => new Date(value))
@@ -333,6 +379,7 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
     state.boardState.turnRecovery?.playerId,
     state.turnInfo.pendingPropertyDecision?.playerId,
     state.turnInfo.pendingDevelopmentDecision?.playerId,
+    state.turnInfo.pendingCardInteraction?.playerId,
     state.privateState.forcedSaleProposal?.sellerPlayerId,
     state.privateState.forcedSaleProposal?.buyerPlayerId,
     ...(state.boardState.paymentQueue?.orderedClaims.flatMap((claim) => [
@@ -401,11 +448,12 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
 
   const decision = state.turnInfo.pendingPropertyDecision;
   const development = state.turnInfo.pendingDevelopmentDecision;
-  if (decision && development) {
-    throw new Error('Room snapshot cannot contain two pending landing decisions');
+  const cardInteraction = state.turnInfo.pendingCardInteraction;
+  if ([decision, development, cardInteraction].filter(Boolean).length > 1) {
+    throw new Error('Room snapshot cannot contain multiple pending landing operations');
   }
-  if (state.boardState.paymentQueue && (decision || development)) {
-    throw new Error('Room snapshot cannot contain a landing decision during payment shortfall');
+  if (state.boardState.paymentQueue && (decision || development || cardInteraction)) {
+    throw new Error('Room snapshot cannot contain a landing operation during payment shortfall');
   }
   if (decision && (
     decision.playerId !== state.boardState.currentPlayer.id
@@ -440,8 +488,22 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
     ) throw new Error('Room snapshot development target is inconsistent');
   }
 
+  if (cardInteraction && (
+    cardInteraction.playerId !== state.boardState.currentPlayer.id
+    || cardInteraction.turnNumber !== state.boardState.turnNumber
+    || cardInteraction.continuation.playerId !== cardInteraction.playerId
+    || cardInteraction.continuation.turnNumber !== cardInteraction.turnNumber
+    || state.players[cardInteraction.playerId]?.currentTile !== cardInteraction.sourceTile
+    || tileState[cardInteraction.sourceTile]?.tileType !== cardInteraction.deck
+  )) {
+    throw new Error('Room snapshot card interaction does not match the current turn');
+  }
+
   if (recovery?.pendingOperationId !== undefined) {
-    const pendingOperationId = decision?.operationId ?? development?.operationId ?? null;
+    const pendingOperationId = decision?.operationId
+      ?? development?.operationId
+      ?? cardInteraction?.operationId
+      ?? null;
     if (recovery.pendingOperationId !== pendingOperationId) {
       throw new Error('Room snapshot turn recovery does not match the pending operation');
     }
@@ -516,6 +578,7 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
     ...chancePile,
     ...chestPile,
     ...Object.values(state.players).flatMap((player) => player.heldJailFreeCardIds),
+    ...(cardInteraction?.revealedCardId ? [cardInteraction.revealedCardId] : []),
   ];
   if (
     cardLocations.some((cardId) => !knownCardIds.has(cardId))
@@ -526,7 +589,7 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
   }
 };
 
-/** Older rows are upgraded transactionally; current V6 rows normalize legacy mascot ids at the boundary. */
+/** Older rows are upgraded transactionally; current V7 rows normalize legacy mascot ids at the boundary. */
 export const assertSupportedRoomSnapshot = (
   room: PersistedRoomSnapshotEnvelope,
 ): void => {
@@ -571,6 +634,7 @@ export const assertSupportedRoomSnapshot = (
       || room.gameSnapshot.gameState.boardState.paymentQueue
       || room.gameSnapshot.gameState.turnInfo.pendingPropertyDecision
       || room.gameSnapshot.gameState.turnInfo.pendingDevelopmentDecision
+      || room.gameSnapshot.gameState.turnInfo.pendingCardInteraction
       || room.gameSnapshot.gameState.privateState.forcedSaleProposal
     )
   ) {

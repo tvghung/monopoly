@@ -23,11 +23,18 @@ import { progressPaymentQueue } from './paymentResolution';
 import { streetRent } from './property';
 import { sendToLog } from './text';
 import { completeTurnResolution } from './turn';
+import { recordPublicGameplayEvent } from './semanticEvents';
 
 export interface TileResolutionOptions {
   now?: number;
   paymentShortfallActionTimeoutMs?: number;
+  cardAwaitingDrawTimeoutMs?: number;
+  cardRevealedTimeoutMs?: number;
+  resolutionCause?: RentResolutionCause;
 }
+
+export const DEFAULT_CARD_AWAITING_DRAW_TIMEOUT_MS = 20_000;
+export const DEFAULT_CARD_REVEALED_TIMEOUT_MS = 30_000;
 
 const orderedOtherPlayers = (state: GameState, playerId: PlayerId): PlayerId[] => {
   const order = state.boardState.players.filter((id) => id !== playerId && state.players[id]);
@@ -66,14 +73,36 @@ const processPayments = (
   return true;
 };
 
-const drawCard = (state: GameState, deckName: CardDeck): GameCard => {
+const takeTopCard = (state: GameState, deckName: CardDeck): GameCard => {
   const deck = state.privateState.decks[deckName].drawPile;
   const cardId = deck.shift();
   if (!cardId) throw new Error(`Bộ thẻ ${deckName} không còn lá để rút.`);
   const card = gameCardsById[cardId];
   if (!card) throw new Error(`Không tìm thấy thẻ ${cardId}.`);
-  if (!card.getOutOfJailFree) deck.push(cardId);
   return card;
+};
+
+const beginCardInteraction = (
+  state: GameState,
+  playerId: PlayerId,
+  deck: CardDeck,
+  sourceTile: number,
+  continuation: PendingTurnContinuation,
+  options: TileResolutionOptions,
+): void => {
+  const now = options.now ?? Date.now();
+  state.turnInfo.pendingCardInteraction = {
+    operationId: randomUUID(),
+    playerId,
+    turnNumber: state.boardState.turnNumber,
+    deck,
+    sourceTile,
+    stage: 'AWAITING_DRAW',
+    continuation,
+    deadlineAt: new Date(
+      now + (options.cardAwaitingDrawTimeoutMs ?? DEFAULT_CARD_AWAITING_DRAW_TIMEOUT_MS),
+    ).toISOString(),
+  };
 };
 
 const resolveOwnedProperty = (
@@ -145,6 +174,7 @@ export const utilityRent = (state: GameState, tileID: number, diceTotal: number)
 
 interface CardResolutionResult {
   continueDestination: boolean;
+  awaitingExternalResolution: boolean;
 }
 
 type RentResolutionCause = 'DICE' | 'CARD';
@@ -182,11 +212,22 @@ export const applyCard = (
   card: GameCard,
   continuation?: PendingTurnContinuation,
   options: TileResolutionOptions = {},
+  operationId?: string,
 ): CardResolutionResult => {
   const player = state.players[playerId];
-  if (!player) return { continueDestination: false };
+  if (!player) return { continueDestination: false, awaitingExternalResolution: false };
   sendToLog(state, `${player.name}: ${card.message}`);
-  if (card.reward) player.accountBalance += card.reward;
+  if (card.reward) {
+    player.accountBalance += card.reward;
+    recordPublicGameplayEvent(state, {
+      type: 'MONEY_TRANSFER',
+      source: { kind: 'BANK' },
+      destination: { kind: 'PLAYER', playerId },
+      amount: card.reward,
+      reason: 'CARD',
+      ...(operationId ? { operationId } : {}),
+    });
+  }
   if (card.getOutOfJailFree) player.heldJailFreeCardIds.push(card.id);
 
   const resume = continuation ?? {
@@ -206,22 +247,110 @@ export const applyCard = (
     }
   }
   if (payments.length > 0 && !processPayments(state, payments, resume, options)) {
-    return { continueDestination: false };
+    return { continueDestination: false, awaitingExternalResolution: true };
   }
 
   if (card.goToJail) {
-    moveToJail(state, playerId);
-    return { continueDestination: false };
+    moveToJail(state, playerId, 'CARD', operationId);
+    return { continueDestination: false, awaitingExternalResolution: false };
   }
   if (typeof card.moveToTile === 'number') {
-    moveToTile(state, playerId, card.moveToTile);
-    return { continueDestination: true };
+    moveToTile(state, playerId, card.moveToTile, { kind: 'CARD', cardId: card.id }, operationId);
+    return { continueDestination: true, awaitingExternalResolution: false };
   }
   if (typeof card.moveBy === 'number') {
-    moveBy(state, playerId, card.moveBy);
-    return { continueDestination: true };
+    moveBy(state, playerId, card.moveBy, { kind: 'CARD', cardId: card.id }, operationId);
+    return { continueDestination: true, awaitingExternalResolution: false };
   }
-  return { continueDestination: false };
+  return { continueDestination: false, awaitingExternalResolution: false };
+};
+
+export type CardCommandResult = 'APPLIED' | 'ALREADY_APPLIED' | 'STALE' | 'NOT_REVEALED';
+
+export const drawPendingCard = (
+  state: GameState,
+  playerId: PlayerId,
+  operationId: string,
+  options: TileResolutionOptions = {},
+): CardCommandResult => {
+  if (state.privateState.completedCardOperations.some(
+    operation => operation.operationId === operationId && operation.playerId === playerId,
+  )) return 'ALREADY_APPLIED';
+  const interaction = state.turnInfo.pendingCardInteraction;
+  if (!interaction || interaction.operationId !== operationId || interaction.playerId !== playerId) {
+    return 'STALE';
+  }
+  if (interaction.stage === 'REVEALED') return 'ALREADY_APPLIED';
+
+  const card = takeTopCard(state, interaction.deck);
+  interaction.stage = 'REVEALED';
+  interaction.revealedCardId = card.id;
+  interaction.deadlineAt = new Date(
+    (options.now ?? Date.now())
+      + (options.cardRevealedTimeoutMs ?? DEFAULT_CARD_REVEALED_TIMEOUT_MS),
+  ).toISOString();
+  return 'APPLIED';
+};
+
+const rememberCompletedCardOperation = (
+  state: GameState,
+  operationId: string,
+  playerId: PlayerId,
+): void => {
+  if (!state.privateState.completedCardOperations.some(
+    operation => operation.operationId === operationId,
+  )) {
+    state.privateState.completedCardOperations.push({ operationId, playerId });
+  }
+  if (state.privateState.completedCardOperations.length > 64) {
+    state.privateState.completedCardOperations.splice(
+      0,
+      state.privateState.completedCardOperations.length - 64,
+    );
+  }
+};
+
+export const dismissPendingCard = (
+  state: GameState,
+  playerId: PlayerId,
+  operationId: string,
+  options: TileResolutionOptions = {},
+): CardCommandResult => {
+  if (state.privateState.completedCardOperations.some(
+    operation => operation.operationId === operationId && operation.playerId === playerId,
+  )) return 'ALREADY_APPLIED';
+  const interaction = state.turnInfo.pendingCardInteraction;
+  if (!interaction || interaction.operationId !== operationId || interaction.playerId !== playerId) {
+    return 'STALE';
+  }
+  if (interaction.stage !== 'REVEALED' || !interaction.revealedCardId) return 'NOT_REVEALED';
+
+  const card = gameCardsById[interaction.revealedCardId];
+  if (!card) throw new Error(`Không tìm thấy thẻ ${interaction.revealedCardId}.`);
+  const continuation = interaction.continuation;
+  if (!card.getOutOfJailFree) state.privateState.decks[interaction.deck].drawPile.push(card.id);
+  delete state.turnInfo.pendingCardInteraction;
+  rememberCompletedCardOperation(state, operationId, playerId);
+
+  const result = applyCard(state, playerId, card, continuation, options, operationId);
+  if (result.continueDestination) {
+    resolveTile(state, playerId, state.boardState.diceValue.dice1 + state.boardState.diceValue.dice2, continuation, {
+      ...options,
+      resolutionCause: 'CARD',
+    });
+  } else if (!result.awaitingExternalResolution) {
+    completeTurnResolution(state, continuation);
+  }
+  return 'APPLIED';
+};
+
+export const cancelPendingCardInteraction = (state: GameState): void => {
+  const interaction = state.turnInfo.pendingCardInteraction;
+  if (!interaction) return;
+  if (interaction.revealedCardId) {
+    state.privateState.decks[interaction.deck].drawPile.push(interaction.revealedCardId);
+  }
+  delete state.turnInfo.pendingCardInteraction;
 };
 
 /** Resolve the destination synchronously until an external wait is encountered. */
@@ -237,10 +366,7 @@ export const resolveTile = (
 ): void => {
   const player = state.players[playerId];
   if (!player) return;
-  let chainDepth = 0;
-  let resolutionCause: RentResolutionCause = 'DICE';
-  while (chainDepth < 32 && state.players[playerId] && !state.boardState.paymentQueue) {
-    chainDepth += 1;
+  const resolutionCause: RentResolutionCause = options.resolutionCause ?? 'DICE';
     const tileID = player.currentTile;
     const tile = tileState[tileID];
     let complete = true;
@@ -287,17 +413,12 @@ export const resolveTile = (
         complete = true;
         break;
       case 'gojail':
-        moveToJail(state, playerId);
+        moveToJail(state, playerId, 'BOARD_TILE');
         break;
       case 'chance':
       case 'chest': {
-        const card = drawCard(state, tile.tileType);
-        const result = applyCard(state, playerId, card, continuation, options);
-        if (!result.continueDestination) {
-          break;
-        }
-        resolutionCause = 'CARD';
-        continue;
+        beginCardInteraction(state, playerId, tile.tileType, tileID, continuation, options);
+        return;
       }
       case 'parking':
         sendToLog(state, `${player.name} dừng tại Bãi Đỗ Xe.`);
@@ -309,11 +430,14 @@ export const resolveTile = (
         break;
     }
 
-    if (!complete || state.boardState.paymentQueue || state.turnInfo.pendingPropertyDecision) return;
+    if (
+      !complete
+      || state.boardState.paymentQueue
+      || state.turnInfo.pendingPropertyDecision
+      || state.turnInfo.pendingDevelopmentDecision
+      || state.turnInfo.pendingCardInteraction
+    ) return;
     completeTurnResolution(state, continuation);
-    return;
-  }
-  if (chainDepth >= 32) throw new Error('Chuỗi thẻ vượt quá giới hạn an toàn.');
 };
 
 // Compatibility helper retained for callers while ownership waits move into resolveTile.
@@ -349,11 +473,16 @@ export const handleJailRoll = (
   if (isDoubles) {
     player.isJail = false;
     player.jailOpponentRoundsElapsed = 0;
-    moveBy(state, playerId, total);
+    recordPublicGameplayEvent(state, { type: 'JAIL_RELEASED', playerId, cause: 'DOUBLES' });
+    moveBy(state, playerId, total, {
+      kind: 'DICE_WALK',
+      rollSequence: state.boardState.rollSequence,
+    });
     sendToLog(state, `${player.name} đổ đôi và được ra tù.`);
     resolveTile(state, playerId, total, resume, options);
     return;
   }
+  recordPublicGameplayEvent(state, { type: 'JAIL_ROLL_FAILED', playerId });
   sendToLog(state, `${player.name} chưa đổ được đôi và tiếp tục ở tù.`);
   completeTurnResolution(state, resume);
 };

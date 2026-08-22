@@ -996,3 +996,147 @@ Phase 4.1 changed the shared/server/client roll-identity contract and its
 forward migration. Phase 4.2 consumes that contract without further shared or
 server changes; it does not authorize card reveal, transfer attribution, or
 new client rule authority.
+
+## 15. Final Phase 4 experience pass (2026-08-22)
+
+This section supersedes the three open contract gates in section 14. It records
+the implemented V7 contract and the evidence gathered for the final experience
+pass. It does **not** close Phase 4: the complete browser and packaged Electron
+manual matrix has not passed.
+
+### 15.1 V7 authoritative contract
+
+- Protocol V7 adds bounded public semantic gameplay events plus per-player
+  private lanes. Every committed event has a stable id and a monotonic sequence;
+  snapshots retain at most 64 events per lane.
+- Structured facts cover exact committed money transfers, property transfers,
+  GO rewards, jail entry, failed jail rolls, and jail release. Payer, recipient,
+  amount, property, cause, and audience come from the authoritative mutation
+  path rather than balance diffs or log parsing.
+- Private trade and forced-sale terms remain in the authorized player's private
+  lane. Public ownership consequences can still be presented without disclosing
+  private financial terms.
+- The durable card interaction is `AWAITING_DRAW -> REVEALED -> DISMISS`. Draw
+  and dismiss commands carry an operation id, reject stale/unauthorized use,
+  survive reconnect, and use server deadlines for auto-draw/auto-dismiss. Card
+  consequences occur only after dismissal; a legitimate card chain creates a
+  new operation instead of reusing or collapsing the previous one.
+- `008_semantic_card_v7.sql` upgrades only V6 snapshots, initializes empty
+  semantic histories without inventing past facts, adds the completed-operation
+  ledger, uses explicit JSONB text casts, and bumps aggregate versions inside
+  the migration transaction. Shared state and socket schemas validate the new
+  fields strictly.
+
+### 15.2 Presentation implementation
+
+- The client still has one `PresentationController`, one `AnimationQueue`, and
+  one `PresentationStore`. V7 event gaps reset to the snapshot baseline; old
+  non-blocking spectacle is not replayed on reconnect.
+- A proven dice `WALK` gets the destination preview and the frozen Phase 3 hop
+  motion. SNAP, jail transfer, card relocation, and ambiguous causes never
+  fabricate a walking route. Proven GO crossings pause at GO and combine the
+  authoritative reward event with the central stage and bank-to-player coins.
+- Deterministic world-space player stations replace the old top HUD. Local
+  players keep BOTTOM, opponents keep TOP/LEFT/RIGHT by stable membership order,
+  spectator layout uses canonical order, and LEFT/BANKRUPT players retain their
+  original slot. Station anchors are shared by station and money-transfer FX.
+- `BoardEventStage` presents exact source, destination, amount, purchase,
+  ownership, GO, jail, card, and development semantics. Physical animation
+  scales with presentation speed; semantic dwell retains a readable minimum at
+  2x and under Reduced Motion.
+- The board contains a clear bank endpoint, symbolic instanced coin piles, and
+  two low-poly physical card stacks. Blocking cards dim the board, expose the
+  active-player CTA only, restore their durable stage after reconnect, and
+  enforce the reveal dismissal guard.
+- Building anchors are stable 2x2 house slots. Only newly committed houses
+  animate, in sequence; the hotel transition and lightweight construction FX
+  settle to the authoritative count. Reduced Motion shows the final committed
+  model and semantic result without bounce or particles.
+- A compile-time-gated deterministic UAT harness supplies rare presentation
+  states through the real controller/store/queue. Normal production output uses
+  the empty virtual-module stub; neither the client distribution nor packaged
+  `app.asar` contains the UAT labels.
+
+### 15.3 Automated validation evidence
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Typecheck | **PASS** | desktop, shared, client, and server workspace checks passed. |
+| Lint | **PASS** | Full workspace lint passed. |
+| Client tests | **PASS** | 77 files, 370 tests. The sandbox attempt hit Windows `spawn EPERM`; the identical approved Windows-safe retry passed. |
+| Server tests without configured database | **PASS** | 12 files passed, 1 skipped; 142 tests passed, 9 database-gated tests skipped. |
+| PostgreSQL-backed server tests | **PASS** | Single-worker Windows-safe run: 13 files and 151 tests passed with `TEST_DATABASE_URL`, including V6-to-V7 snapshot migration. |
+| Desktop tests | **PASS** | 4 files, 12 tests. The sandbox attempt hit `spawn EPERM`; the identical approved retry passed. |
+| Production client build | **PASS** | Vite production build passed; the UAT virtual stub is 0.04 kB and fixture labels are absent. |
+| Production Electron package | **PASS** | Win32 x64 package completed and packaged `app.asar` has no Phase 4 UAT labels. |
+| Diff whitespace check | **PASS** | `git diff --check` passed; Git reported only the repository's CRLF conversion warnings. |
+| Fresh V6 migration path | **PASS** | PostgreSQL integration test upgrades a locked V6 room to empty V7 lanes without changing prior gameplay facts. |
+| Configured developer DB migrate/status | **FAIL** | This session applied an earlier draft of migration 008 before its completed-operation ledger was finalized. The tracked checksum now differs from the local migration ledger. The database was audited read-only and left untouched because checksum/snapshot repair was not authorized. |
+| Remote CI | **NOT RUN** | No push or remote workflow was authorized. |
+
+The configured developer-database failure is separate from the passing fresh
+V6 migration test. It must be repaired explicitly before `db:migrate` and
+`db:status` can pass against that already-modified local database.
+
+### 15.4 Visual UAT and measured scene metrics
+
+The first in-app-browser pass at 1440x900 verified WebGL rendering, the 2-player
+and 4-player station layouts, the absence of the old top HUD, and idle cleanup.
+Recorded browser baselines were 177 draw calls / 40,120 triangles / 0 active
+animations for two players and 185 / 40,628 / 0 for four players. After hot
+reload, the browser safety policy rejected further localhost navigation; no
+alternate browser surface was used.
+
+The packaged Electron UAT recorded:
+
+- two players: 178 draw calls / 40,120 triangles / 0 active animations;
+- four players: 186 / 40,628 / 0;
+- dice/normal walk: 202 / 53,924 / 2 while rolling, 204 / 53,928 / 1 during
+  destination preview, then 203 / 53,926 / 0 after LAND;
+- PASS GO: the central `QUA XUẤT PHÁT` and `+200.000 ₫` stage was visible with
+  bank-to-An coins at 206 / 54,122 / 5, and then settled;
+- property purchase: the settled authoritative result showed An at 1,440,000 ₫,
+  `-60,000 ₫`, ownership of Cà Mau, and 187 / 40,604 / 0; the full transient
+  purchase-stage gate was not captured;
+- blocking card reveal: the revealed card and shared dimmed backdrop were
+  visible, and dismissal remained disabled inside the first approximately
+  700 ms. A card-chain fixture restored a new revealed `Lùi lại 3 ô.` card.
+
+All recorded measurements remain below the 80,000-triangle target and
+210-draw-call target. `active 0` after settle confirms that retained one-shot
+history is not counted as an active renderer and does not keep demand rendering
+alive.
+
+| Manual scenario | Browser | Packaged Electron |
+| --- | --- | --- |
+| 2-player and 4-player station layouts | **PASS** | **PASS** |
+| Roll -> destination highlight -> movement | **NOT RUN** | **PASS** |
+| PASS GO with bank-to-player coins | **NOT RUN** | **PASS** |
+| Buy property, money flow, and central purchase moment | **NOT RUN** | **NOT RUN** - settled result observed; full transient gate not captured |
+| Decline without a global event | **NOT RUN** | **NOT RUN** |
+| Rent player-to-player | **NOT RUN** | **NOT RUN** |
+| Partial debt | **NOT RUN** | **NOT RUN** |
+| Bank sale | **NOT RUN** | **NOT RUN** |
+| Forced-sale ownership transfer | **NOT RUN** | **NOT RUN** |
+| Houses 1/2/3/4 and hotel | **NOT RUN** | **NOT RUN** |
+| Chance draw/reveal | **NOT RUN** | **PASS** - reveal and dismissal guard observed |
+| Khí Vận draw/reveal | **NOT RUN** | **NOT RUN** |
+| Pay-each / collect-each after card close | **NOT RUN** | **NOT RUN** |
+| Card movement into a new card interaction | **NOT RUN** | **PASS** - new revealed chain card observed |
+| Go-to-jail card/tile | **NOT RUN** | **NOT RUN** |
+| Just Visiting | **NOT RUN** | **NOT RUN** |
+| Failed jail roll and bail/jail-free release | **NOT RUN** | **NOT RUN** |
+| Bankruptcy station remains grey in its slot | **NOT RUN** | **NOT RUN** |
+| Player leaves mid-animation | **NOT RUN** | **NOT RUN** |
+| Reconnect at awaiting-draw and revealed stages | **NOT RUN** | **NOT RUN** |
+| Spectator global/card view with zero CTA | **NOT RUN** | **NOT RUN** |
+| Speeds 0.75x / 1x / 1.5x / 2x | **NOT RUN** | **NOT RUN** |
+| Reduced Motion | **NOT RUN** | **NOT RUN** |
+| Skip during physical animation | **NOT RUN** | **NOT RUN** |
+| Resize during gameplay | **NOT RUN** | **NOT RUN** |
+| Keyboard, focus, backdrop, and Escape card behavior | **NOT RUN** | **NOT RUN** |
+
+Phase 4 therefore remains **NOT CLOSED**. Automated contract coverage is green
+apart from the explicitly identified configured-database checksum state, but
+the missing browser and Electron manual gates cannot be promoted to passes by
+unit tests or fixture availability.

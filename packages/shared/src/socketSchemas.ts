@@ -167,6 +167,8 @@ export const clientEventPayloadSchemas = {
   'buy property': purchaseDecisionRequestSchema,
   'do not buy': purchaseDecisionRequestSchema,
   'resolve development': developmentDecisionRequestSchema,
+  'draw card': purchaseDecisionRequestSchema,
+  'dismiss card': purchaseDecisionRequestSchema,
   'make offer': offerInfoSchema,
   'accept offer': offerActionSchema,
   'decline offer': offerActionSchema,

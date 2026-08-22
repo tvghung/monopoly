@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { boardStateSchema } from '@monopoly/shared';
+import { boardStateSchema, gameplayEventStreamSchema } from '@monopoly/shared';
 import {
   MAX_PLAYERS,
   MIN_PLAYERS,
@@ -13,6 +13,7 @@ import {
   storeGameState,
   upgradeRoomSnapshotV4ToV5,
   upgradeRoomSnapshotV5ToV6,
+  upgradeRoomSnapshotV6ToV7,
 } from './rooms.js';
 import { freshState } from './rooms.js';
 import type { RoomRecord } from './persistence/types.js';
@@ -152,7 +153,43 @@ describe('durable room snapshot compatibility', () => {
       .toThrow('Only V5 room snapshots can be upgraded to V6');
   });
 
-  it('requires a non-negative safe roll sequence in the V6 board schema', () => {
+  it('upgrades V6 state to V7 with empty semantic baselines and no invented history', () => {
+    const v6 = {
+      snapshotSchemaVersion: 6,
+      gameSnapshot: createRoomSnapshot(),
+      hostPlayerId: null,
+      status: 'LOBBY' as const,
+    };
+    delete (v6.gameSnapshot.gameState.boardState as unknown as { gameplayEvents?: unknown }).gameplayEvents;
+    delete (v6.gameSnapshot.gameState.privateState as unknown as {
+      privateGameplayEventsByPlayer?: unknown;
+      completedCardOperations?: unknown;
+    }).privateGameplayEventsByPlayer;
+    delete (v6.gameSnapshot.gameState.privateState as unknown as {
+      completedCardOperations?: unknown;
+    }).completedCardOperations;
+    const original = structuredClone(v6);
+
+    const upgraded = upgradeRoomSnapshotV6ToV7(v6);
+
+    expect(upgraded).toMatchObject({
+      snapshotSchemaVersion: 7,
+      gameSnapshot: {
+        gameState: {
+          boardState: { gameplayEvents: { sequence: 0, events: [] } },
+          privateState: {
+            privateGameplayEventsByPlayer: {},
+            completedCardOperations: [],
+          },
+        },
+      },
+    });
+    expect(v6).toEqual(original);
+    expect(() => upgradeRoomSnapshotV6ToV7({ ...v6, snapshotSchemaVersion: 7 }))
+      .toThrow('Only V6 room snapshots can be upgraded to V7');
+  });
+
+  it('requires a non-negative safe roll sequence in the V7 board schema', () => {
     const board = createRoomSnapshot().gameState.boardState;
     expect(boardStateSchema.safeParse(board).success).toBe(true);
     expect(boardStateSchema.safeParse({ ...board, rollSequence: -1 }).success).toBe(false);
@@ -160,7 +197,7 @@ describe('durable room snapshot compatibility', () => {
     expect(boardStateSchema.safeParse({ ...board, rollSequence: Number.MAX_SAFE_INTEGER + 1 }).success).toBe(false);
   });
 
-  it('rejects a current V6 snapshot that omits roll sequence', () => {
+  it('rejects a current V7 snapshot that omits roll sequence', () => {
     const gameSnapshot = createRoomSnapshot();
     delete (gameSnapshot.gameState.boardState as unknown as { rollSequence?: number }).rollSequence;
 
@@ -169,6 +206,30 @@ describe('durable room snapshot compatibility', () => {
       gameSnapshot,
       status: 'LOBBY',
     })).toThrow(/rollSequence/);
+  });
+
+  it('requires a bounded contiguous semantic tail ending at the authoritative sequence', () => {
+    const event = {
+      eventId: '00000000-0000-4000-8000-000000000099',
+      sequence: 3,
+      type: 'JAIL_ROLL_FAILED' as const,
+      playerId: PLAYER_ONE,
+    };
+    expect(gameplayEventStreamSchema.safeParse({ sequence: 3, events: [event] }).success).toBe(true);
+    expect(gameplayEventStreamSchema.safeParse({ sequence: 4, events: [event] }).success).toBe(false);
+    expect(gameplayEventStreamSchema.safeParse({ sequence: 1, events: [] }).success).toBe(false);
+    expect(gameplayEventStreamSchema.safeParse({
+      sequence: 3,
+      events: [{ ...event, sequence: 1 }, event],
+    }).success).toBe(false);
+    expect(gameplayEventStreamSchema.safeParse({
+      sequence: 65,
+      events: Array.from({ length: 65 }, (_, index) => ({
+        ...event,
+        eventId: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+        sequence: index + 1,
+      })),
+    }).success).toBe(false);
   });
 
   it('allocates the first unused color from the ten-color palette', () => {
@@ -362,6 +423,42 @@ describe('durable room snapshot compatibility', () => {
     });
   });
 
+  it.each(['AWAITING_DRAW', 'REVEALED'] as const)(
+    'preserves a blocking card interaction across restart at %s',
+    stage => {
+      const gameSnapshot = createActiveSnapshot();
+      gameSnapshot.gameState.players[PLAYER_ONE].currentTile = 7;
+      const operationId = '00000000-0000-4000-8000-000000000120';
+      if (stage === 'REVEALED') {
+        gameSnapshot.gameState.privateState.decks.chance.drawPile = gameSnapshot.gameState.privateState.decks.chance.drawPile
+          .filter(cardId => cardId !== 'chance-dividend');
+      }
+      gameSnapshot.gameState.turnInfo.pendingCardInteraction = {
+        operationId,
+        playerId: PLAYER_ONE,
+        turnNumber: 7,
+        deck: 'chance',
+        sourceTile: 7,
+        stage,
+        ...(stage === 'REVEALED' ? { revealedCardId: 'chance-dividend' as const } : {}),
+        continuation: { playerId: PLAYER_ONE, turnNumber: 7 },
+        deadlineAt: '2030-01-01T00:02:00.000Z',
+      };
+
+      expect(() => assertSupportedRoomSnapshot({
+        snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
+        gameSnapshot,
+        hostPlayerId: PLAYER_ONE,
+        status: 'IN_PROGRESS',
+      })).not.toThrow();
+      const state = hydrateGameState(gameSnapshot, 'IN_PROGRESS');
+      storeGameState(gameSnapshot, state, 'IN_PROGRESS');
+      expect(gameSnapshot.gameState.turnInfo.pendingCardInteraction).toEqual(
+        state.turnInfo.pendingCardInteraction,
+      );
+    },
+  );
+
 
 
 });
@@ -426,6 +523,42 @@ describe('public room projection', () => {
       sellableProperties: [],
     });
   });
+
+  it.each(['AWAITING_DRAW', 'REVEALED'] as const)(
+    'projects the exact public-safe card state at %s without deck order',
+    stage => {
+      const gameSnapshot = createActiveSnapshot();
+      gameSnapshot.gameState.players[PLAYER_ONE].currentTile = 7;
+      if (stage === 'REVEALED') {
+        gameSnapshot.gameState.privateState.decks.chance.drawPile = gameSnapshot.gameState.privateState.decks.chance.drawPile
+          .filter(cardId => cardId !== 'chance-dividend');
+      }
+      gameSnapshot.gameState.turnInfo.pendingCardInteraction = {
+        operationId: '00000000-0000-4000-8000-000000000121',
+        playerId: PLAYER_ONE,
+        turnNumber: 7,
+        deck: 'chance',
+        sourceTile: 7,
+        stage,
+        ...(stage === 'REVEALED' ? { revealedCardId: 'chance-dividend' as const } : {}),
+        continuation: { playerId: PLAYER_ONE, turnNumber: 7 },
+        deadlineAt: '2030-01-01T00:02:00.000Z',
+      };
+      const projected = projectPublicRoomState(
+        roomFromSnapshot(gameSnapshot),
+        new ConnectionRegistry(),
+      );
+
+      expect(projected.gameState.turnInfo.pendingCardInteraction).toMatchObject({
+        stage,
+        ...(stage === 'REVEALED' ? { revealedCardId: 'chance-dividend' } : {}),
+      });
+      if (stage === 'AWAITING_DRAW') {
+        expect(projected.gameState.turnInfo.pendingCardInteraction).not.toHaveProperty('revealedCardId');
+      }
+      expect(projected.gameState).not.toHaveProperty('privateState');
+    },
+  );
 
   it('projects the supported two-to-four player room limits', () => {
     const projected = projectPublicRoomState(

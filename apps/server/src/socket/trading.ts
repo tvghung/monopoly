@@ -127,6 +127,7 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
           offer.recipientPlayerId,
           offer.offered,
           offer.requested,
+          offer.id,
         );
         if (!preview.ok) throw new CommandError('CONFLICT', preview.reason ?? 'Giao dịch không còn hợp lệ.');
         const result = executeVoluntaryTrade(
@@ -135,6 +136,7 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
           offer.recipientPlayerId,
           offer.offered,
           offer.requested,
+          offer.id,
         );
         if (!result.ok) throw new CommandError('CONFLICT', result.reason ?? 'Giao dịch không còn hợp lệ.');
         const resolved = await transaction.tradeOffers.resolve(offer.id, 'ACCEPTED', now);

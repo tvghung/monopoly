@@ -57,7 +57,7 @@ export function selectPlayerHudViewModels(
         name: player?.name ?? finished?.name ?? meta?.name ?? 'Người chơi',
         color: player?.color ?? finished?.color ?? meta?.color ?? 'cyan',
         characterId: player?.characterId ?? finished?.characterId ?? meta?.characterId ?? null,
-        money: player?.accountBalance ?? 0,
+        money: player?.accountBalance ?? finished?.accountBalance ?? 0,
         ...development,
         isCurrentTurn: activePlayerId === playerId,
         isConnected: !hasLeft && (meta?.connected ?? true),

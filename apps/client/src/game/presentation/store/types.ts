@@ -1,17 +1,26 @@
-import type { DiceValue, PublicRoomState } from '@monopoly/shared';
+import type {
+  CardDeck,
+  DiceValue,
+  MoneyEndpoint,
+  MoneyTransferReason,
+  JailReleasedSemanticEvent,
+  PropertyTransferCause,
+  PublicRoomState,
+  SentToJailCause,
+} from '@monopoly/shared';
 import type { AnimationQueueStatus } from '../queue/types';
 import type { TileImpactSignal, TileImpactTiming } from '../../scene/board/motion/tileMotionTypes';
 
 export type CharacterReactionKind = 'happy' | 'sad' | 'jail' | 'bankrupt' | 'emote';
 
-export type CharacterTransition = 'TILE_HOP' | 'SLOT_REFLOW' | 'SNAP' | 'NONE';
+export type CharacterTransition = 'TILE_HOP' | 'JAIL_TRANSFER' | 'SLOT_REFLOW' | 'SNAP' | 'NONE';
 
 export type CharacterMovementPhase = 'START' | 'COMPLETE';
 
 export interface CharacterMovementSignal {
   sequence: number;
   playerId: string;
-  transition: Extract<CharacterTransition, 'TILE_HOP' | 'SNAP'>;
+  transition: Extract<CharacterTransition, 'TILE_HOP' | 'JAIL_TRANSFER' | 'SNAP'>;
   phase: CharacterMovementPhase;
   fromTileId: number;
   toTileId: number;
@@ -80,6 +89,49 @@ export interface GoCrossingSignal {
   durationMs: number;
 }
 
+export interface DestinationPreviewSignal {
+  id: string;
+  playerId: string;
+  tileId: number;
+  strongDurationMs: number;
+}
+
+export interface MoneyTransferSignal {
+  id: string;
+  sequence: number;
+  source: MoneyEndpoint;
+  destination: MoneyEndpoint;
+  amount: number;
+  reason: MoneyTransferReason;
+  coinCount: number;
+  durationMs: number;
+}
+
+export interface BoardEventSignal {
+  id: string;
+  kind: 'MONEY_TRANSFER' | 'PROPERTY_PURCHASE' | 'PROPERTY_TRANSFER' | 'PASS_GO'
+    | 'DEVELOPMENT' | 'SENT_TO_JAIL' | 'JAIL_ROLL_FAILED' | 'JAIL_RELEASED';
+  playerIds: string[];
+  tileIds: number[];
+  amount?: number;
+  reason?: MoneyTransferReason;
+  source?: MoneyEndpoint;
+  destination?: MoneyEndpoint;
+  fromHouses?: number;
+  toHouses?: number;
+  cause?: PropertyTransferCause | SentToJailCause | JailReleasedSemanticEvent['cause'];
+  durationMs: number;
+}
+
+export interface CardPresentationSignal {
+  operationId: string;
+  playerId: string;
+  deck: CardDeck;
+  sourceTile: number;
+  stage: 'AWAITING_DRAW' | 'DRAWING' | 'REVEALED';
+  durationMs: number;
+}
+
 export interface DiceRollPresentation {
   lifecycle: 'rolling';
   dice: DiceValue;
@@ -104,6 +156,10 @@ export interface PresentationState {
   ownershipChanges: readonly OwnershipChangeSignal[];
   developmentChanges: readonly DevelopmentChangeSignal[];
   goCrossings: readonly GoCrossingSignal[];
+  destinationPreview: DestinationPreviewSignal | null;
+  moneyTransfers: readonly MoneyTransferSignal[];
+  activeBoardEvent: BoardEventSignal | null;
+  cardPresentation: CardPresentationSignal | null;
   animationSpeedMultiplier: number;
   presentationResetEpoch: number;
 }
@@ -116,6 +172,7 @@ export interface PresentationStoreLike {
   resetFromSnapshot: (room: PublicRoomState) => void;
   syncPlayers: (room: PublicRoomState) => void;
   startCharacterHop: (playerId: string, fromTileId: number, toTileId: number, durationMs: number) => void;
+  startJailTransfer: (playerId: string, fromTileId: number, toTileId: number, durationMs: number) => void;
   completeCharacterHop: (playerId: string, tileId: number) => void;
   snapDisplayPosition: (playerId: string, tileId: number) => void;
   emitCharacterLanding: (playerId: string, tileId: number, durationMs: number) => void;
@@ -143,6 +200,12 @@ export interface PresentationStoreLike {
     durationMs: number,
   ) => void;
   emitGoCrossing: (id: string, playerId: string, fromTileId: number, durationMs: number) => void;
+  showDestinationPreview: (signal: DestinationPreviewSignal) => void;
+  clearDestinationPreview: (id?: string) => void;
+  emitMoneyTransfer: (signal: Omit<MoneyTransferSignal, 'sequence' | 'coinCount'>) => void;
+  showBoardEvent: (signal: BoardEventSignal) => void;
+  clearBoardEvent: (id?: string) => void;
+  setCardPresentation: (signal: CardPresentationSignal | null) => void;
   setAnimationSpeedMultiplier: (multiplier: number) => void;
   setStatus: (status: AnimationQueueStatus) => void;
 }

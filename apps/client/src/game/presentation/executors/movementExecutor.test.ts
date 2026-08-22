@@ -12,8 +12,10 @@ const immediateContext: AnimationExecutionContext = {
   speedMultiplier: 1,
   reducedMotion: false,
   getDuration: duration => duration,
+  getSemanticDuration: duration => duration,
   wait: () => Promise.resolve(),
   waitForDuration: () => Promise.resolve(),
+  waitForSemanticDuration: () => Promise.resolve(),
 };
 
 function walkEvent(overrides: Partial<MoveCharacterPresentationEvent> = {}): MoveCharacterPresentationEvent {
@@ -196,16 +198,74 @@ describe('movement tile-hop presentation', () => {
     const trace: string[] = [];
     store.resetFromSnapshot(makeRoom());
     traceStore(store, trace);
-    await createMovementExecutor(store).run(walkEvent({ from: 39, to: 0, steps: 1 }), {
+    await createMovementExecutor(store).run(walkEvent({
+      from: 39,
+      to: 0,
+      steps: 1,
+      passGo: {
+        eventId: 'move:go',
+        sequence: 1,
+        type: 'PASS_GO',
+        playerId: 'player-a',
+        reward: 200,
+        fromTile: 39,
+        destinationTile: 0,
+        movement: { kind: 'DICE_WALK', rollSequence: 1 },
+      },
+    }), {
       ...immediateContext,
       waitForDuration: duration => { trace.push(`wait:${duration}`); return Promise.resolve(); },
     });
 
-    expect(trace).toEqual(['start:39->0:180', 'wait:180', 'complete:0']);
+    expect(trace).toEqual([
+      'start:39->0:180',
+      'wait:180',
+      'complete:0',
+      `wait:${presentationTiming.goHold}`,
+    ]);
     expect(store.getSnapshot().characterMovements[0]).toMatchObject({ fromTileId: 39, toTileId: 0 });
     expect(store.getSnapshot().goCrossings).toMatchObject([{
       id: 'move:go', playerId: 'player-a', fromTileId: 39, toTileId: 0,
     }]);
+  });
+
+  it('holds briefly at GO while the longer semantic moment continues', async () => {
+    const store = new PresentationStore();
+    const trace: string[] = [];
+    store.resetFromSnapshot(makeRoom());
+    traceStore(store, trace);
+
+    await createMovementExecutor(store).run(walkEvent({
+      from: 39,
+      to: 1,
+      steps: 2,
+      passGo: {
+        eventId: 'move:go-overlap',
+        sequence: 1,
+        type: 'PASS_GO',
+        playerId: 'player-a',
+        reward: 200,
+        fromTile: 39,
+        destinationTile: 1,
+        movement: { kind: 'DICE_WALK', rollSequence: 1 },
+      },
+    }), {
+      ...immediateContext,
+      waitForDuration: duration => { trace.push(`physical:${duration}`); return Promise.resolve(); },
+      waitForSemanticDuration: duration => { trace.push(`semantic:${duration}`); return Promise.resolve(); },
+    });
+
+    expect(trace).toEqual([
+      'start:39->0:180',
+      'impact:STEP:0:144/36/78',
+      'physical:180',
+      'complete:0',
+      `semantic:${presentationTiming.goMoment}`,
+      `physical:${presentationTiming.goHold}`,
+      'start:0->1:180',
+      'physical:180',
+      'complete:1',
+    ]);
   });
 
   it('does not publish GO feedback for SNAP movement', async () => {
@@ -224,7 +284,19 @@ describe('movement tile-hop presentation', () => {
     store.resetFromSnapshot(makeRoom());
 
     await createMovementExecutor(store).run(walkEvent({
-      from: 39, to: 0, steps: 1,
+      from: 39,
+      to: 0,
+      steps: 1,
+      passGo: {
+        eventId: 'move:go',
+        sequence: 1,
+        type: 'PASS_GO',
+        playerId: 'player-a',
+        reward: 200,
+        fromTile: 39,
+        destinationTile: 0,
+        movement: { kind: 'DICE_WALK', rollSequence: 1 },
+      },
     }), { ...immediateContext, reducedMotion: true });
 
     expect(store.getSnapshot().goCrossings).toMatchObject([{
@@ -308,6 +380,37 @@ describe('movement tile-hop presentation', () => {
       toTileId: 4,
       durationMs: 0,
     });
+  });
+
+  it('keeps a destination preview only for a proven WALK until LAND clears it', async () => {
+    const store = new PresentationStore();
+    store.resetFromSnapshot(makeRoom());
+    await createMovementExecutor(store).run(walkEvent({ to: 3, steps: 3 }), immediateContext);
+    expect(store.getSnapshot().destinationPreview).toMatchObject({
+      playerId: 'player-a',
+      tileId: 3,
+      strongDurationMs: presentationTiming.destinationPreviewStrong,
+    });
+
+    const landing = createBasicExecutors(store).LAND_TILE as unknown as PresentationExecutor<LandTilePresentationEvent>;
+    await landing.run({
+      id: 'land-preview',
+      roomId: 'room-1',
+      roomVersion: 2,
+      type: 'LAND_TILE',
+      entityId: 'player-a',
+      playerId: 'player-a',
+      tileId: 3,
+    }, immediateContext);
+    expect(store.getSnapshot().destinationPreview).toBeNull();
+
+    const snapStore = new PresentationStore();
+    snapStore.resetFromSnapshot(makeRoom());
+    await createMovementExecutor(snapStore).run(
+      walkEvent({ to: 3, steps: 3, presentation: 'SNAP' }),
+      immediateContext,
+    );
+    expect(snapStore.getSnapshot().destinationPreview).toBeNull();
   });
 
   it('snaps instead of creating a giant hop when the active executor is interrupted', async () => {

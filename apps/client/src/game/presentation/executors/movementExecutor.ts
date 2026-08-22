@@ -10,37 +10,75 @@ function isExecutionCurrent(context: AnimationExecutionContext): boolean {
 }
 
 export function createMovementExecutor(store: PresentationStoreLike): PresentationExecutor<MoveCharacterPresentationEvent> {
-  const emitGoCrossing = (
+  const startPassGoMoment = (
     event: MoveCharacterPresentationEvent,
     fromTileId: number,
-    toTileId: number,
     context: AnimationExecutionContext,
-  ) => {
-    if (event.presentation !== 'WALK' || toTileId !== 0 || !isExecutionCurrent(context)) return;
+  ): { holdDurationMs: number; completion: Promise<void> } | null => {
+    const passGo = event.passGo;
+    if (!passGo || !isExecutionCurrent(context)) return null;
+    const duration = context.getSemanticDuration(
+      presentationTiming.goMoment,
+      presentationTiming.goMomentMinimum,
+    );
     store.emitGoCrossing(
-      `${event.id}:go`,
+      passGo.eventId,
       event.playerId,
       fromTileId,
-      context.getDuration(presentationTiming.balanceChange),
+      duration,
     );
+    store.emitMoneyTransfer({
+      id: `${passGo.eventId}:money`,
+      source: { kind: 'BANK' },
+      destination: { kind: 'PLAYER', playerId: event.playerId },
+      amount: passGo.reward,
+      reason: 'PASS_GO',
+      durationMs: context.getDuration(presentationTiming.moneyTransfer),
+    });
+    store.showBoardEvent({
+      id: passGo.eventId,
+      kind: 'PASS_GO',
+      playerIds: [event.playerId],
+      tileIds: [0],
+      amount: passGo.reward,
+      source: { kind: 'BANK' },
+      destination: { kind: 'PLAYER', playerId: event.playerId },
+      durationMs: duration,
+    });
+    return {
+      holdDurationMs: context.getDuration(presentationTiming.goHold),
+      completion: context.waitForSemanticDuration(duration).then(
+        () => {
+          if (isExecutionCurrent(context)) store.clearBoardEvent(passGo.eventId);
+        },
+        error => {
+          if (!(error instanceof Error) || error.name !== 'AbortError') throw error;
+        },
+      ),
+    };
   };
 
   return {
     async run(event, context) {
       if (event.presentation === 'SNAP' || context.reducedMotion) {
-        if (event.presentation === 'WALK' && context.reducedMotion) {
-          let routeTileId = event.from;
-          for (let step = 1; step <= event.steps; step += 1) {
-            const tileId = (routeTileId + 1) % BOARD_SIZE;
-            emitGoCrossing(event, routeTileId, tileId, context);
-            routeTileId = tileId;
-          }
-        }
         if (!isExecutionCurrent(context)) return;
         store.snapDisplayPosition(event.playerId, event.to);
+        if (event.presentation === 'WALK' && event.passGo) {
+          const passGoMoment = startPassGoMoment(event, event.passGo.fromTile, context);
+          if (passGoMoment) await passGoMoment.completion;
+        }
         return;
       }
+      const previewId = `${event.id}:destination-preview`;
+      store.showDestinationPreview({
+        id: previewId,
+        playerId: event.playerId,
+        tileId: event.to,
+        strongDurationMs: context.getDuration(presentationTiming.destinationPreviewStrong),
+      });
+      await context.wait(presentationTiming.destinationPreviewLead);
       let fromTileId = event.from;
+      let passGoCompletion: Promise<void> | null = null;
       for (let step = 1; step <= event.steps; step += 1) {
         if (!isExecutionCurrent(context)) return;
         const tileId = (fromTileId + 1) % BOARD_SIZE;
@@ -58,13 +96,22 @@ export function createMovementExecutor(store: PresentationStoreLike): Presentati
         await context.waitForDuration(hopDurationMs);
         if (!isExecutionCurrent(context)) return;
         store.completeCharacterHop(event.playerId, tileId);
-        emitGoCrossing(event, fromTileId, tileId, context);
+        if (tileId === 0 && event.passGo) {
+          const passGoMoment = startPassGoMoment(event, fromTileId, context);
+          if (passGoMoment) {
+            passGoCompletion = passGoMoment.completion;
+            await context.waitForDuration(passGoMoment.holdDurationMs);
+          }
+        }
         fromTileId = tileId;
       }
+      if (passGoCompletion) await passGoCompletion;
     },
     finish(event, context) {
       if (context.signal.aborted && (context.isCurrent?.() ?? true)) {
         store.snapDisplayPosition(event.playerId, event.to);
+        store.clearDestinationPreview(`${event.id}:destination-preview`);
+        if (event.passGo) store.clearBoardEvent(event.passGo.eventId);
       }
     },
   };

@@ -1,8 +1,10 @@
-import type { PublicRoomState } from '@monopoly/shared';
-import { derivePresentationEvents } from './events/derivePresentationEvents';
+import type { PrivatePlayerState, PublicRoomState } from '@monopoly/shared';
+import type { MoneyTransferPresentationEvent } from './events/types';
+import { derivePresentationEvents, semanticEventsSince } from './events/derivePresentationEvents';
 import { createBasicExecutors } from './executors/basicExecutors';
 import { createDiceExecutor } from './executors/diceExecutor';
 import { createMovementExecutor } from './executors/movementExecutor';
+import { createSemanticExecutors } from './executors/semanticExecutors';
 import { AnimationQueue } from './queue/AnimationQueue';
 import { PresentationStore } from './store/presentationStore';
 import type { PresentationState } from './store/types';
@@ -16,11 +18,13 @@ export class PresentationController {
   private consumerCount = 0;
   private disposalGeneration = 0;
   private disposed = false;
+  private readonly privateSemanticSequences = new Map<string, number>();
 
   public constructor(reducedMotion = false, speedMultiplier = 1) {
     this.store.setAnimationSpeedMultiplier(speedMultiplier);
     const executors = {
       ...createBasicExecutors(this.store),
+      ...createSemanticExecutors(this.store),
       ROLL_DICE: createDiceExecutor(this.store),
       MOVE_CHARACTER: createMovementExecutor(this.store),
     };
@@ -52,10 +56,17 @@ export class PresentationController {
       return true;
     }
 
+    const playerRemovedDuringPresentation = this.queue.getStatus() !== 'idle'
+      && Object.keys(previous.gameState.players).some(playerId => !room.gameState.players[playerId]);
+    if (playerRemovedDuringPresentation) {
+      this.queue.reset(room);
+      return true;
+    }
+
     this.store.syncPlayers(room);
     const rollSequenceDelta = room.gameState.boardState.rollSequence
       - previous.gameState.boardState.rollSequence;
-    if (rollSequenceDelta > 1) {
+    if (rollSequenceDelta > 1 || semanticEventsSince(previous, room) === null) {
       this.queue.reset(room);
       return true;
     }
@@ -68,6 +79,45 @@ export class PresentationController {
     }
     void Promise.all(this.queue.enqueueMany(events));
     return true;
+  }
+
+  public acceptPrivatePlayerState(
+    privateState: PrivatePlayerState,
+    room: PublicRoomState,
+    source: 'LIVE_UPDATE' | 'SESSION_SYNC',
+  ): void {
+    const previousSequence = this.privateSemanticSequences.get(privateState.playerId);
+    const stream = privateState.gameplayEvents;
+    this.privateSemanticSequences.set(privateState.playerId, stream.sequence);
+    if (source !== 'LIVE_UPDATE' || previousSequence === undefined) return;
+    const events = stream.events
+      .filter(event => event.sequence > previousSequence)
+      .sort((left, right) => left.sequence - right.sequence);
+    if (
+      stream.sequence < previousSequence
+      || events.length !== stream.sequence - previousSequence
+      || (events.length > 0 && events[0]?.sequence !== previousSequence + 1)
+    ) {
+      this.queue.reset(room);
+      return;
+    }
+    const presentationEvents = events.flatMap((event): MoneyTransferPresentationEvent[] => (
+      event.type === 'MONEY_TRANSFER'
+        ? [{
+            id: event.eventId,
+            roomId: room.roomId,
+            roomVersion: room.version,
+            type: 'MONEY_TRANSFER',
+            entityId: event.operationId ?? event.eventId,
+            source: event.source,
+            destination: event.destination,
+            amount: event.amount,
+            reason: event.reason,
+            ...(event.operationId ? { operationId: event.operationId } : {}),
+          }]
+        : []
+    ));
+    void Promise.all(this.queue.enqueueMany(presentationEvents));
   }
 
   public setPreferences(reducedMotion: boolean, speedMultiplier: number): void {

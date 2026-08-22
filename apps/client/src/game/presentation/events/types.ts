@@ -1,3 +1,12 @@
+import type {
+  CardDeck,
+  GameplaySemanticEvent,
+  MoneyEndpoint,
+  MoneyTransferReason,
+  PassGoSemanticEvent,
+  PropertyTransferCause,
+} from '@monopoly/shared';
+
 export type PresentationEventType =
   | 'ROLL_DICE'
   | 'MOVE_CHARACTER'
@@ -6,6 +15,13 @@ export type PresentationEventType =
   | 'PROPERTY_OWNERSHIP_CHANGED'
   | 'PROPERTY_DEVELOPMENT_CHANGED'
   | 'JAIL_STATE_CHANGED'
+  | 'MONEY_TRANSFER'
+  | 'PROPERTY_TRANSFER'
+  | 'PASS_GO'
+  | 'SENT_TO_JAIL'
+  | 'JAIL_ROLL_FAILED'
+  | 'JAIL_RELEASED'
+  | 'CARD_INTERACTION_CHANGED'
   | 'PLAYER_FINISHED'
   | 'TURN_CHANGED'
   | 'GAME_FINISHED';
@@ -33,6 +49,7 @@ export interface MoveCharacterPresentationEvent extends PresentationEventBase {
   to: number;
   steps: number;
   presentation: 'WALK' | 'SNAP';
+  passGo?: PassGoSemanticEvent;
 }
 
 export interface LandTilePresentationEvent extends PresentationEventBase {
@@ -88,6 +105,58 @@ export interface GameFinishedPresentationEvent extends PresentationEventBase {
   winnerPlayerId: string | null;
 }
 
+export interface MoneyTransferPresentationEvent extends PresentationEventBase {
+  type: 'MONEY_TRANSFER';
+  source: MoneyEndpoint;
+  destination: MoneyEndpoint;
+  amount: number;
+  reason: MoneyTransferReason;
+  operationId?: string;
+}
+
+export interface PropertyTransferPresentationEvent extends PresentationEventBase {
+  type: 'PROPERTY_TRANSFER';
+  transfers: Array<{
+    eventId: string;
+    tileId: number;
+    fromPlayerId: string | null;
+    toPlayerId: string | null;
+  }>;
+  cause: PropertyTransferCause;
+  amount?: number;
+  operationId?: string;
+}
+
+export interface PassGoPresentationEvent extends PresentationEventBase {
+  type: 'PASS_GO';
+  event: Extract<GameplaySemanticEvent, { type: 'PASS_GO' }>;
+}
+
+export interface SentToJailPresentationEvent extends PresentationEventBase {
+  type: 'SENT_TO_JAIL';
+  event: Extract<GameplaySemanticEvent, { type: 'SENT_TO_JAIL' }>;
+}
+
+export interface JailRollFailedPresentationEvent extends PresentationEventBase {
+  type: 'JAIL_ROLL_FAILED';
+  playerId: string;
+}
+
+export interface JailReleasedPresentationEvent extends PresentationEventBase {
+  type: 'JAIL_RELEASED';
+  playerId: string;
+  cause: Extract<GameplaySemanticEvent, { type: 'JAIL_RELEASED' }>['cause'];
+}
+
+export interface CardInteractionChangedPresentationEvent extends PresentationEventBase {
+  type: 'CARD_INTERACTION_CHANGED';
+  operationId: string;
+  playerId: string;
+  deck: CardDeck;
+  sourceTile: number;
+  stage: 'AWAITING_DRAW' | 'REVEALED' | 'CLOSED';
+}
+
 export type PresentationEvent =
   | RollDicePresentationEvent
   | MoveCharacterPresentationEvent
@@ -96,6 +165,13 @@ export type PresentationEvent =
   | PropertyOwnershipChangedPresentationEvent
   | PropertyDevelopmentChangedPresentationEvent
   | JailStateChangedPresentationEvent
+  | MoneyTransferPresentationEvent
+  | PropertyTransferPresentationEvent
+  | PassGoPresentationEvent
+  | SentToJailPresentationEvent
+  | JailRollFailedPresentationEvent
+  | JailReleasedPresentationEvent
+  | CardInteractionChangedPresentationEvent
   | PlayerFinishedPresentationEvent
   | TurnChangedPresentationEvent
   | GameFinishedPresentationEvent;

@@ -58,6 +58,7 @@ const makeGameState = (options: {
       logs: [],
       diceValue: { dice1: 0, dice2: 0 },
       rollSequence: 0,
+      gameplayEvents: { sequence: 0, events: [] },
       ownedProps: options.ownedProps ?? {},
       winner: null,
     },
@@ -86,6 +87,16 @@ const makeContextValue = (
   canMutate: options.canMutate ?? false,
   privatePlayerState: null,
   privateOffers: [],
+  roomPlayers: Object.entries(state.players).map(([playerId, player], index) => ({
+    playerId,
+    name: player.name,
+    color: player.color,
+    characterId: player.characterId,
+    joinOrder: index + 1,
+    membershipStatus: 'ACTIVE',
+    ready: true,
+    connected: true,
+  })),
 });
 
 const makePresentationState = (overrides: Partial<PresentationState> = {}): PresentationState => ({
@@ -104,6 +115,10 @@ const makePresentationState = (overrides: Partial<PresentationState> = {}): Pres
   ownershipChanges: [],
   developmentChanges: [],
   goCrossings: [],
+  destinationPreview: null,
+  moneyTransfers: [],
+  activeBoardEvent: null,
+  cardPresentation: null,
   animationSpeedMultiplier: 1,
   presentationResetEpoch: 0,
   ...overrides,
@@ -154,7 +169,7 @@ describe('Vietnamese game board', () => {
     expect(container.querySelector('.game-board__left-rail')).toBeNull();
     expect(container.querySelector('.game-board__right-rail')).toBeNull();
     expect(container.querySelector('.gameplay-action-layer')).toBeTruthy();
-    expect(container.querySelector('.player-hud')).toBeTruthy();
+    expect(container.querySelector('.player-stations')).toBeTruthy();
     expect(container.querySelector('[data-testid="roll-control"]')).toBeTruthy();
     expect(container.querySelectorAll('.dice')).toHaveLength(0);
     expect(renderer?.querySelectorAll('.center__room')).toHaveLength(1);
@@ -620,8 +635,8 @@ describe('Vietnamese game board', () => {
     );
 
     expect(screen.getByText('An đang chơi')).toBeTruthy();
-    expect(document.querySelector('[data-player-id="a"]')?.className).toContain('player-card--active');
-    expect(document.querySelector('[data-player-id="b"]')?.className).not.toContain('player-card--active');
+    expect(document.querySelector('[data-player-id="a"]')?.className).toContain('player-station--active');
+    expect(document.querySelector('[data-player-id="b"]')?.className).not.toContain('player-station--active');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ Xúc Xắc' }).disabled).toBe(false);
 
     view.rerender(
@@ -647,6 +662,6 @@ describe('Vietnamese game board', () => {
 
     expect(screen.queryByText('An đang chơi')).toBeNull();
     expect(screen.getByText('Lượt của bạn')).toBeTruthy();
-    expect(document.querySelector('[data-player-id="b"]')?.className).toContain('player-card--active');
+    expect(document.querySelector('[data-player-id="b"]')?.className).toContain('player-station--active');
   });
 });

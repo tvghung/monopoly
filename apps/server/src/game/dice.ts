@@ -2,9 +2,12 @@ import type {
   DiceValue,
   Die,
   GameState,
+  PassGoMovementContext,
   PlayerId,
+  SentToJailCause,
 } from '@monopoly/shared';
 import { sendToLog } from './text';
+import { recordPublicGameplayEvent } from './semanticEvents';
 
 export const BOARD_SIZE = 40;
 export const START_TILE = 0;
@@ -66,10 +69,34 @@ export const rotateSeatOrder = (
   return [...seatOrder.slice(firstIndex), ...seatOrder.slice(0, firstIndex)];
 };
 
-const awardStartReward = (state: GameState, playerId: PlayerId): void => {
+const awardStartReward = (
+  state: GameState,
+  playerId: PlayerId,
+  fromTile: number,
+  destinationTile: number,
+  movement: PassGoMovementContext,
+  operationId?: string,
+): void => {
   const player = state.players[playerId];
   if (!player) return;
   player.accountBalance += START_REWARD;
+  recordPublicGameplayEvent(state, {
+    type: 'PASS_GO',
+    playerId,
+    reward: START_REWARD,
+    fromTile,
+    destinationTile,
+    movement,
+    ...(operationId ? { operationId } : {}),
+  });
+  recordPublicGameplayEvent(state, {
+    type: 'MONEY_TRANSFER',
+    source: { kind: 'BANK' },
+    destination: { kind: 'PLAYER', playerId },
+    amount: START_REWARD,
+    reason: 'PASS_GO',
+    ...(operationId ? { operationId } : {}),
+  });
   sendToLog(state, `${player.name} đi qua Xuất Phát và nhận 200.000 ₫.`);
 };
 
@@ -78,13 +105,20 @@ export const moveBy = (
   state: GameState,
   playerId: PlayerId,
   steps: number,
+  movement: PassGoMovementContext = {
+    kind: 'DICE_WALK',
+    rollSequence: state.boardState.rollSequence,
+  },
+  operationId?: string,
 ): boolean => {
   const player = state.players[playerId];
   if (!player || !Number.isSafeInteger(steps)) return false;
   const from = player.currentTile;
   const unwrapped = from + steps;
   player.currentTile = ((unwrapped % BOARD_SIZE) + BOARD_SIZE) % BOARD_SIZE;
-  if (steps > 0 && unwrapped >= BOARD_SIZE) awardStartReward(state, playerId);
+  if (steps > 0 && unwrapped >= BOARD_SIZE) {
+    awardStartReward(state, playerId, from, player.currentTile, movement, operationId);
+  }
   return true;
 };
 
@@ -97,6 +131,11 @@ export const moveToTile = (
   state: GameState,
   playerId: PlayerId,
   destination: number,
+  movement: PassGoMovementContext = {
+    kind: 'DICE_WALK',
+    rollSequence: state.boardState.rollSequence,
+  },
+  operationId?: string,
 ): boolean => {
   const player = state.players[playerId];
   if (!player || !Number.isSafeInteger(destination) || destination < 0 || destination >= BOARD_SIZE) {
@@ -104,17 +143,33 @@ export const moveToTile = (
   }
   const from = player.currentTile;
   player.currentTile = destination;
-  if (from !== START_TILE && destination <= from) awardStartReward(state, playerId);
+  if (from !== START_TILE && destination <= from) {
+    awardStartReward(state, playerId, from, destination, movement, operationId);
+  }
   return true;
 };
 
 /** Terminal movement: no pass-start reward and no Jail/Visiting resolution. */
-export const moveToJail = (state: GameState, playerId: PlayerId): boolean => {
+export const moveToJail = (
+  state: GameState,
+  playerId: PlayerId,
+  cause: SentToJailCause = 'BOARD_TILE',
+  operationId?: string,
+): boolean => {
   const player = state.players[playerId];
   if (!player) return false;
+  const fromTile = player.currentTile;
   player.currentTile = JAIL_TILE;
   player.isJail = true;
   player.jailOpponentRoundsElapsed = 0;
+  recordPublicGameplayEvent(state, {
+    type: 'SENT_TO_JAIL',
+    playerId,
+    fromTile,
+    destinationTile: JAIL_TILE,
+    cause,
+    ...(operationId ? { operationId } : {}),
+  });
   return true;
 };
 

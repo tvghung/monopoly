@@ -23,6 +23,7 @@ const state: PublicGameState = {
     logs: [],
     diceValue: { dice1: 2, dice2: 3 },
     rollSequence: 1,
+    gameplayEvents: { sequence: 0, events: [] },
     ownedProps: {
       1: { id: 'them', color: 'blue', houses: 0 },
       3: { id: 'them', color: 'blue', houses: 0 },
@@ -72,6 +73,7 @@ describe('TradeOfferModal', () => {
       privatePlayerState: {
         playerId: 'me',
         heldJailFreeCardIds: ['chance-jail-free'],
+        gameplayEvents: { sequence: 0, events: [] },
       },
       privateOffers: [],
     };

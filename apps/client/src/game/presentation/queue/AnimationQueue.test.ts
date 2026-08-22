@@ -127,6 +127,28 @@ describe('AnimationQueue', () => {
     queue.dispose();
   });
 
+  it('keeps semantic copy readable at 2x and with reduced motion', async () => {
+    vi.useFakeTimers();
+    const durations: number[] = [];
+    const queue = new AnimationQueue({
+      reducedMotion: true,
+      speedMultiplier: 2,
+      executors: makeExecutor(async (_current, context) => {
+        durations.push(context.getDuration(1_300));
+        const semanticDuration = context.getSemanticDuration(1_300, 700);
+        durations.push(semanticDuration);
+        await context.waitForSemanticDuration(semanticDuration);
+      }),
+    });
+
+    const pending = queue.enqueue(event('semantic-dwell'));
+    await vi.runAllTimersAsync();
+    await pending;
+
+    expect(durations).toEqual([0, 700]);
+    queue.dispose();
+  });
+
   it('lets movement consume one resolved duration for both queue wait and rendering', async () => {
     vi.useFakeTimers();
     const durations: number[] = [];

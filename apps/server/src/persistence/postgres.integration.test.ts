@@ -16,13 +16,14 @@ const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 describe.runIf(Boolean(testDatabaseUrl))('PostgresPersistenceStore', () => {
   const schemaName = `monopoly_test_${randomUUID().replaceAll('-', '')}`;
   let administrativePool: Pool;
+  let applicationPool: Pool;
   let persistence: PostgresPersistenceStore<TestSnapshot>;
 
   beforeAll(async () => {
     administrativePool = new Pool({ connectionString: testDatabaseUrl });
     await administrativePool.query(`CREATE SCHEMA "${schemaName}"`);
 
-    const applicationPool = new Pool({
+    applicationPool = new Pool({
       connectionString: testDatabaseUrl,
       options: `-c search_path=${schemaName}`,
     });
@@ -74,6 +75,58 @@ describe.runIf(Boolean(testDatabaseUrl))('PostgresPersistenceStore', () => {
         expiresAt: null,
       }),
     ).rejects.toBeInstanceOf(RoomVersionConflictError);
+  });
+
+  it('migrates a V6 room to an empty V7 semantic baseline without changing existing facts', async () => {
+    await applicationPool.query(
+      'DELETE FROM schema_migrations WHERE version = $1',
+      ['008_semantic_card_v7.sql'],
+    );
+    const roomId = randomUUID();
+    const v6Snapshot = {
+      members: {},
+      nextJoinOrder: 1,
+      gameState: {
+        boardState: { rollSequence: 9, logs: ['durable-v6-fact'] },
+        players: {},
+        turnInfo: {},
+        privateState: { decks: { chance: { drawPile: [] }, chest: { drawPile: [] } } },
+      },
+    };
+    await applicationPool.query(
+      `INSERT INTO rooms (id, code, status, snapshot_schema_version, game_snapshot)
+       VALUES ($1, $2, 'LOBBY', 6, $3::jsonb)`,
+      [roomId, 'V6-V7-MIGRATION', JSON.stringify(v6Snapshot)],
+    );
+
+    await expect(migrateDatabase(applicationPool)).resolves.toContain('008_semantic_card_v7.sql');
+    const result = await applicationPool.query<{
+      snapshot_schema_version: number;
+      aggregate_version: string;
+      game_snapshot: typeof v6Snapshot & {
+        gameState: typeof v6Snapshot.gameState & {
+          boardState: typeof v6Snapshot.gameState.boardState & { gameplayEvents: unknown };
+          privateState: typeof v6Snapshot.gameState.privateState & {
+            privateGameplayEventsByPlayer: unknown;
+            completedCardOperations: unknown;
+          };
+        };
+      };
+    }>(
+      'SELECT snapshot_schema_version, aggregate_version, game_snapshot FROM rooms WHERE id = $1',
+      [roomId],
+    );
+    const migrated = result.rows[0];
+    expect(migrated).toMatchObject({ snapshot_schema_version: 7, aggregate_version: '2' });
+    expect(migrated?.game_snapshot.gameState.boardState).toMatchObject({
+      rollSequence: 9,
+      logs: ['durable-v6-fact'],
+      gameplayEvents: { sequence: 0, events: [] },
+    });
+    expect(migrated?.game_snapshot.gameState.privateState).toMatchObject({
+      privateGameplayEventsByPlayer: {},
+      completedCardOperations: [],
+    });
   });
 
   it('stores and looks up only a token digest through the repository', async () => {

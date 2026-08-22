@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net';
 import {
   createCanonicalDecks,
   SOCKET_PROTOCOL_VERSION,
+  tileState,
   type Ack,
   type AckCallback,
   type ClientToServerEvents,
@@ -69,6 +70,8 @@ class FailAfterCommandPersistenceStore extends InMemoryPersistenceStore<RoomSnap
 const TEST_TIMING: PersistenceTimingConfig = {
   reconnectGraceMs: 60_000,
   paymentShortfallActionTimeoutMs: 120_000,
+  cardAwaitingDrawTimeoutMs: 20_000,
+  cardRevealedTimeoutMs: 30_000,
   pendingSessionTtlMs: 5 * 60_000,
   terminalSessionRetentionMs: 7 * 24 * 60 * 60_000,
   lobbyRetentionMs: 24 * 60 * 60_000,
@@ -240,6 +243,18 @@ async function rollDice(socket: TestSocket): Promise<Ack> {
 async function buyProperty(socket: TestSocket, operationId: string): Promise<Ack> {
   return waitForAck((acknowledge) => {
     socket.emit('buy property', { operationId }, acknowledge);
+  });
+}
+
+async function drawCard(socket: TestSocket, operationId: string): Promise<Ack> {
+  return waitForAck((acknowledge) => {
+    socket.emit('draw card', { operationId }, acknowledge);
+  });
+}
+
+async function dismissCard(socket: TestSocket, operationId: string): Promise<Ack> {
+  return waitForAck((acknowledge) => {
+    socket.emit('dismiss card', { operationId }, acknowledge);
   });
 }
 
@@ -541,6 +556,86 @@ describe('Socket.IO durable player lifecycle', () => {
     } finally {
       randomSpy.mockRestore();
     }
+  });
+
+  it('authorizes and idempotently commits the two-stage card interaction', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const host = await joinPlayer(await connect(subject.url), 'Host', 'card-authority');
+    const guest = await joinPlayer(await connect(subject.url), 'Guest', 'card-authority');
+    await setReady(host.socket);
+    await setReady(guest.socket);
+    expect((await startGame(host.socket)).ok).toBe(true);
+    const started = await persistence.rooms.findById(host.room.roomId);
+    if (!started) throw new Error('Expected the started room');
+    const actor = started.gameSnapshot.gameState.boardState.currentPlayer.id === host.playerId
+      ? host
+      : guest;
+    const other = actor.playerId === host.playerId ? guest : host;
+    const operationId = randomUUID();
+    const originalBalance = started.gameSnapshot.gameState.players[actor.playerId].accountBalance;
+    const originalDeckLength = started.gameSnapshot.gameState.privateState.decks.chance.drawPile.length;
+    await mutateRoom(persistence, host.room.roomId, room => {
+      const state = room.gameSnapshot.gameState;
+      state.players[actor.playerId].currentTile = 7;
+      state.boardState.currentPlayer = { id: actor.playerId, hasMoved: true };
+      const chancePile = state.privateState.decks.chance.drawPile;
+      state.privateState.decks.chance.drawPile = [
+        'chance-dividend',
+        ...chancePile.filter(cardId => cardId !== 'chance-dividend'),
+      ];
+      state.turnInfo = {
+        pendingCardInteraction: {
+          operationId,
+          playerId: actor.playerId,
+          turnNumber: state.boardState.turnNumber,
+          deck: 'chance',
+          sourceTile: 7,
+          stage: 'AWAITING_DRAW',
+          continuation: {
+            playerId: actor.playerId,
+            turnNumber: state.boardState.turnNumber,
+          },
+          deadlineAt: new Date(Date.now() + 20_000).toISOString(),
+        },
+      };
+      state.boardState.turnRecovery = null;
+    });
+
+    expect(await drawCard(actor.socket, 'not-an-operation-id')).toMatchObject({
+      ok: false, error: { code: 'INVALID_REQUEST' },
+    });
+    expect(await drawCard(other.socket, operationId)).toMatchObject({
+      ok: false, error: { code: 'CONFLICT' },
+    });
+    expect(await dismissCard(actor.socket, operationId)).toMatchObject({
+      ok: false, error: { code: 'CONFLICT' },
+    });
+    expect((await drawCard(actor.socket, operationId)).ok).toBe(true);
+    expect((await drawCard(actor.socket, operationId)).ok).toBe(true);
+    const revealed = await persistence.rooms.findById(host.room.roomId);
+    expect(revealed?.gameSnapshot.gameState.turnInfo.pendingCardInteraction).toMatchObject({
+      operationId,
+      stage: 'REVEALED',
+      revealedCardId: 'chance-dividend',
+    });
+    expect(revealed?.gameSnapshot.gameState.privateState.decks.chance.drawPile)
+      .toHaveLength(originalDeckLength - 1);
+    expect(revealed?.gameSnapshot.gameState.players[actor.playerId].accountBalance)
+      .toBe(originalBalance);
+    expect(await dismissCard(other.socket, operationId)).toMatchObject({
+      ok: false, error: { code: 'CONFLICT' },
+    });
+
+    expect((await dismissCard(actor.socket, operationId)).ok).toBe(true);
+    expect((await dismissCard(actor.socket, operationId)).ok).toBe(true);
+    const resolved = await persistence.rooms.findById(host.room.roomId);
+    expect(resolved?.gameSnapshot.gameState.turnInfo.pendingCardInteraction).toBeUndefined();
+    expect(resolved?.gameSnapshot.gameState.players[actor.playerId].accountBalance)
+      .toBe(originalBalance + 50);
+    expect(resolved?.gameSnapshot.gameState.boardState.gameplayEvents.events.filter(
+      event => event.type === 'MONEY_TRANSFER' && event.reason === 'CARD',
+    )).toHaveLength(1);
   });
 
   it('does not persist a roll sequence when the durable roll transaction fails', async () => {
@@ -1025,6 +1120,22 @@ describe('Socket.IO durable player lifecycle', () => {
           (beforeHandoff?.gameSnapshot.gameState.boardState.turnNumber ?? 0) + 1,
       },
     });
+    expect(handedOff?.gameSnapshot.gameState.boardState.gameplayEvents.events.slice(-2))
+      .toMatchObject([{
+        type: 'MONEY_TRANSFER',
+        operationId: pendingOperationId,
+        source: { kind: 'PLAYER', playerId: host.playerId },
+        destination: { kind: 'BANK' },
+        amount: tileState[1].price,
+        reason: 'PROPERTY_PURCHASE',
+      }, {
+        type: 'PROPERTY_TRANSFER',
+        operationId: pendingOperationId,
+        tileID: 1,
+        from: { kind: 'BANK' },
+        to: { kind: 'PLAYER', playerId: host.playerId },
+        cause: 'BANK_PURCHASE',
+      }]);
 
     const resumed = await resumePlayer(await connect(subject.url), guest.token);
     expect(resumed.room.gameState.boardState).toMatchObject({
@@ -1620,11 +1731,12 @@ describe.runIf(Boolean(testDatabaseUrl))(
              '004_simplified_rules_v3.sql',
              '005_remove_mortgage_open_market.sql',
              '006_appearance_system_v5.sql',
-             '007_roll_sequence_v6.sql'
+             '007_roll_sequence_v6.sql',
+             '008_semantic_card_v7.sql'
            )
            RETURNING checksum`,
         );
-        expect(migrationRows.rows).toHaveLength(5);
+        expect(migrationRows.rows).toHaveLength(6);
 
         const roomId = randomUUID();
         const hostPlayerId = randomUUID();
@@ -1720,8 +1832,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V1-IDENTITY',
           status: 'IN_PROGRESS',
           hostPlayerId,
-          aggregateVersion: 12,
-          snapshotSchemaVersion: 6,
+          aggregateVersion: 13,
+          snapshotSchemaVersion: 7,
           gameSnapshot: {
             members: {
               [hostPlayerId]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
@@ -1805,7 +1917,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
              '004_simplified_rules_v3.sql',
              '005_remove_mortgage_open_market.sql',
              '006_appearance_system_v5.sql',
-             '007_roll_sequence_v6.sql'
+             '007_roll_sequence_v6.sql',
+             '008_semantic_card_v7.sql'
            )`,
         );
 
@@ -1919,8 +2032,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V2-TO-V4',
           status: 'IN_PROGRESS',
           hostPlayerId,
-          aggregateVersion: 16,
-          snapshotSchemaVersion: 6,
+          aggregateVersion: 17,
+          snapshotSchemaVersion: 7,
           gameSnapshot: {
             gameState: {
               boardState: {
@@ -1994,7 +2107,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
            WHERE version IN (
              '005_remove_mortgage_open_market.sql',
              '006_appearance_system_v5.sql',
-             '007_roll_sequence_v6.sql'
+             '007_roll_sequence_v6.sql',
+             '008_semantic_card_v7.sql'
            )`,
         );
 
@@ -2132,8 +2246,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V3-CLEANUP',
           status: 'IN_PROGRESS',
           hostPlayerId: sellerPlayerId,
-          aggregateVersion: 23,
-          snapshotSchemaVersion: 6,
+          aggregateVersion: 24,
+          snapshotSchemaVersion: 7,
         });
         const migratedState = migrated.gameSnapshot.gameState;
         expect(migratedState.boardState.rollSequence).toBe(0);

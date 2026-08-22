@@ -6,6 +6,13 @@ import type {
 } from '@monopoly/shared';
 import { sendToLog } from './text';
 import { transferProperty } from './transfer';
+import { recordPublicGameplayEvent } from './semanticEvents';
+
+const returnPendingCardToDeck = (state: GameState): void => {
+  const interaction = state.turnInfo.pendingCardInteraction;
+  if (!interaction?.revealedCardId) return;
+  state.privateState.decks[interaction.deck].drawPile.push(interaction.revealedCardId);
+};
 
 const orderedPlayerIds = (state: GameState): PlayerId[] => {
   const inTurnOrder = state.boardState.players.filter((id) => Boolean(state.players[id]));
@@ -68,11 +75,23 @@ const removePlayerRecord = (
   const player = state.players[playerId];
   if (!player) return false;
 
+  if (player.accountBalance > 0) {
+    recordPublicGameplayEvent(state, {
+      type: 'MONEY_TRANSFER',
+      source: { kind: 'PLAYER', playerId },
+      destination: { kind: 'BANK' },
+      amount: player.accountBalance,
+      reason: 'FORFEIT',
+    });
+  }
+  player.accountBalance = 0;
+
   state.boardState.finishedPlayers[playerId] = {
     name: player.name,
     color: player.color,
     characterId: player.characterId,
     reason,
+    accountBalance: player.accountBalance,
   };
   sendToLog(
     state,
@@ -162,6 +181,7 @@ export const removePlayerFromGame = (
   state.boardState.players = orderedPlayerIds(state);
   const remaining = new Set(state.boardState.players);
   if (wasCurrent) {
+    returnPendingCardToDeck(state);
     const successor = successorAfter(previousOrder, playerId, remaining);
     if (options.deferTurnHandoff && successor) {
       const successorIndex = state.boardState.players.indexOf(successor);
@@ -269,6 +289,11 @@ export const nextTurn = (state: GameState): void => {
     if (selected.jailOpponentRoundsElapsed >= 2) {
       selected.isJail = false;
       selected.jailOpponentRoundsElapsed = 0;
+      recordPublicGameplayEvent(state, {
+        type: 'JAIL_RELEASED',
+        playerId: state.boardState.currentPlayer.id,
+        cause: 'TIME_SERVED',
+      });
       sendToLog(state, `${selected.name} đã tự động ra tù sau hai vòng đối thủ.`);
     }
   }
@@ -303,6 +328,7 @@ export const completeTurnResolution = (
     || state.boardState.paymentQueue
     || state.turnInfo.pendingPropertyDecision
     || state.turnInfo.pendingDevelopmentDecision
+    || state.turnInfo.pendingCardInteraction
   ) {
     return null;
   }

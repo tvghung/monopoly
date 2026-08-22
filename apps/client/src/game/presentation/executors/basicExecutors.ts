@@ -54,6 +54,7 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
   );
   const landingExecutor: PresentationExecutor<LandTilePresentationEvent> = {
     async run(event, context) {
+      store.clearDestinationPreview();
       const durationMs = context.getDuration(presentationTiming.landing);
       const depressDurationMs = context.getDuration(presentationTiming.tileImpact.landDepress);
       const reboundDurationMs = context.getDuration(presentationTiming.tileImpact.landRebound);
@@ -115,17 +116,42 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
       durationMs,
     ),
   );
-  const developmentExecutor = createConsequenceExecutor<PropertyDevelopmentChangedPresentationEvent>(
-    presentationTiming.buildPop,
-    (event, durationMs) => store.emitDevelopmentChange(
-      event.id,
-      event.tileId,
-      event.playerId,
-      event.fromHouses,
-      event.toHouses,
-      durationMs,
-    ),
-  );
+  const developmentExecutor: PresentationExecutor<PropertyDevelopmentChangedPresentationEvent> = {
+    async run(event, context) {
+      if (!isExecutionCurrent(context)) return;
+      const added = Math.max(0, Math.min(4, event.toHouses) - Math.min(4, event.fromHouses));
+      const baseDuration = event.fromHouses === 4 && event.toHouses === 5
+        ? presentationTiming.hotelTransition
+        : added > 0
+          ? presentationTiming.housePop + (added - 1) * presentationTiming.houseStagger
+          : 0;
+      const durationMs = context.getDuration(baseDuration);
+      const semanticDurationMs = context.getSemanticDuration(
+        presentationTiming.developmentMoment,
+        presentationTiming.developmentMomentMinimum,
+      );
+      store.showBoardEvent({
+        id: event.id,
+        kind: 'DEVELOPMENT',
+        playerIds: [event.playerId],
+        tileIds: [event.tileId],
+        fromHouses: event.fromHouses,
+        toHouses: event.toHouses,
+        durationMs: semanticDurationMs,
+      });
+      store.emitDevelopmentChange(
+        event.id,
+        event.tileId,
+        event.playerId,
+        event.fromHouses,
+        event.toHouses,
+        durationMs,
+      );
+      await context.waitForSemanticDuration(semanticDurationMs);
+      if (isExecutionCurrent(context)) store.clearBoardEvent(event.id);
+    },
+    finish() {},
+  };
   return {
     LAND_TILE: landingExecutor,
     BALANCE_CHANGED: balanceExecutor,
@@ -147,6 +173,13 @@ export function isPresentationEventType(value: string): value is PresentationEve
     PROPERTY_OWNERSHIP_CHANGED: true,
     PROPERTY_DEVELOPMENT_CHANGED: true,
     JAIL_STATE_CHANGED: true,
+    MONEY_TRANSFER: true,
+    PROPERTY_TRANSFER: true,
+    PASS_GO: true,
+    SENT_TO_JAIL: true,
+    JAIL_ROLL_FAILED: true,
+    JAIL_RELEASED: true,
+    CARD_INTERACTION_CHANGED: true,
     PLAYER_FINISHED: true,
     TURN_CHANGED: true,
     GAME_FINISHED: true,

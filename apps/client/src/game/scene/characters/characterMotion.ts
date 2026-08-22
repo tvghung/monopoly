@@ -7,6 +7,7 @@ export const CHARACTER_HOP_DURATION_MS = presentationTiming.tileHop;
 export const CHARACTER_SLOT_REFLOW_DURATION_MS = presentationTiming.slotReflow;
 export const CHARACTER_LANDING_DURATION_MS = presentationTiming.landing;
 export const CHARACTER_HOP_HEIGHT = 0.22;
+export const CHARACTER_JAIL_TRANSFER_HEIGHT = 1.15;
 export const CHARACTER_SHADOW_OPACITY = 0.24;
 
 const CHARACTER_LEAN_MAX_RADIANS = THREE.MathUtils.degToRad(3);
@@ -131,6 +132,33 @@ export function sampleCharacterHop(
     scaleY: 1 + takeoffStretch * 0.022 - contactSquash * 0.026,
     shadowScale: 1 - arc * 0.18,
     shadowOpacity: CHARACTER_SHADOW_OPACITY - arc * 0.055,
+    done: false,
+  };
+}
+
+/** Direct authoritative jail transfer: one lifted curved path, never board-walking. */
+export function sampleCharacterJailTransfer(
+  elapsedMs: number,
+  from: THREE.Vector3,
+  to: THREE.Vector3,
+  durationMs: number,
+): CharacterMotionSample {
+  const progress = progressFor(Math.max(0, elapsedMs), durationMs);
+  if (progress >= 1) return sampleCharacterSlotReflow(durationMs, from, to, durationMs);
+  const travel = smoothStep(progress);
+  const arc = Math.sin(progress * Math.PI);
+  const curve = Math.sin(progress * Math.PI) * 0.72;
+  return {
+    position: [
+      THREE.MathUtils.lerp(from.x, to.x, travel) + CAMERA_RIGHT[0] * curve,
+      THREE.MathUtils.lerp(from.y, to.y, travel) + arc * CHARACTER_JAIL_TRANSFER_HEIGHT,
+      THREE.MathUtils.lerp(from.z, to.z, travel) + CAMERA_RIGHT[2] * curve,
+    ],
+    rotationZ: getCharacterTravelLean(from, to) * arc * 1.8,
+    scaleXZ: 1 - arc * 0.04,
+    scaleY: 1 + arc * 0.07,
+    shadowScale: 1 - arc * 0.42,
+    shadowOpacity: CHARACTER_SHADOW_OPACITY - arc * 0.13,
     done: false,
   };
 }

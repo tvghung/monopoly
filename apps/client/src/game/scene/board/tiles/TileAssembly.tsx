@@ -1,6 +1,7 @@
 import type { Tile } from '@monopoly/shared';
 import type {
   DevelopmentChangeSignal,
+  DestinationPreviewSignal,
   GoCrossingSignal,
   OwnershipChangeSignal,
 } from '../../../presentation/store/types';
@@ -30,6 +31,7 @@ export interface TileAssemblyProps {
   ownershipChange?: OwnershipChangeSignal;
   developmentChange?: DevelopmentChangeSignal;
   goCrossing?: GoCrossingSignal;
+  destinationPreview?: DestinationPreviewSignal;
   onHover?: (tileId: number | null) => void;
   onSelect?: (tileId: number) => void;
 }
@@ -45,6 +47,7 @@ export default function TileAssembly({
   ownershipChange,
   developmentChange,
   goCrossing,
+  destinationPreview,
 }: TileAssemblyProps) {
   const layout = getBoardTileLayout(tileId);
   if (!layout) return null;
@@ -96,6 +99,7 @@ export default function TileAssembly({
           ownershipChange={ownershipChange}
           developmentChange={developmentChange}
           goCrossing={goCrossing}
+          destinationPreview={destinationPreview}
         />
       </TilePressRoot>
     </group>

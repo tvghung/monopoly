@@ -71,6 +71,7 @@ export async function commitRoomCommand<TResult>(
       && !runtime.flags.shuttingDown
       && !state.boardState.winner
       && !state.boardState.paymentQueue
+      && !state.turnInfo.pendingCardInteraction
       && state.boardState.currentPlayer.id
       && !state.boardState.turnRecovery
       && !runtime.connections.isConnected(state.boardState.currentPlayer.id)

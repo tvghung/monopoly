@@ -25,6 +25,10 @@ const emptyPresentationState: PresentationState = {
   ownershipChanges: [],
   developmentChanges: [],
   goCrossings: [],
+  destinationPreview: null,
+  moneyTransfers: [],
+  activeBoardEvent: null,
+  cardPresentation: null,
   animationSpeedMultiplier: 1,
   presentationResetEpoch: 0,
 };

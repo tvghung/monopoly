@@ -67,6 +67,7 @@ export function projectPublicRoomState(
       rollSequence: boardState.rollSequence,
       ownedProps: boardState.ownedProps,
       winner: boardState.winner,
+      gameplayEvents: structuredClone(boardState.gameplayEvents),
       turnRecovery: boardState.turnRecovery
         ? {
           playerId: boardState.turnRecovery.playerId,
@@ -112,6 +113,10 @@ export function projectPublicRoomState(
     turnInfo: (() => {
       const purchase = gameState.turnInfo.pendingPropertyDecision;
       const development = gameState.turnInfo.pendingDevelopmentDecision;
+      const card = gameState.turnInfo.pendingCardInteraction;
+      if (card) {
+        return { pendingCardInteraction: structuredClone(card) };
+      }
       if (purchase) {
         return {
           pendingLandingDecision: {
@@ -166,6 +171,10 @@ export function projectPrivatePlayerState(
 ): PrivatePlayerState {
   assertSupportedRoomSnapshot(room);
   const player = room.gameSnapshot.gameState.players[playerId];
+  const gameplayEvents = structuredClone(
+    room.gameSnapshot.gameState.privateState.privateGameplayEventsByPlayer[playerId]
+      ?? { sequence: 0, events: [] },
+  );
   if (player) return {
     playerId,
     heldJailFreeCardIds: [...player.heldJailFreeCardIds],
@@ -176,9 +185,10 @@ export function projectPrivatePlayerState(
       ].includes(playerId)
       ? structuredClone(room.gameSnapshot.gameState.privateState.forcedSaleProposal)
       : null,
+    gameplayEvents,
   };
   if (room.gameSnapshot.gameState.boardState.finishedPlayers[playerId]) {
-    return { playerId, heldJailFreeCardIds: [] };
+    return { playerId, heldJailFreeCardIds: [], gameplayEvents };
   }
   throw new Error(`Player ${playerId} does not belong to this room`);
 }

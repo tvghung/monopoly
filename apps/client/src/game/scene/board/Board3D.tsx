@@ -8,6 +8,9 @@ import TileImpactHighlightBatch from './tiles/TileImpactHighlightBatch';
 import type { BoardRenderModel, BoardTileRenderModel } from './boardRenderModel';
 import CharactersLayer from '../characters/CharactersLayer';
 import DiceLayer from '../dice/DiceLayer';
+import PlayerStationLayer from '../stations/PlayerStationLayer';
+import MoneyTransferLayer from '../stations/MoneyTransferLayer';
+import PhysicalCardDecks from '../cards/PhysicalCardDecks';
 
 interface Board3DProps {
   model?: BoardRenderModel;
@@ -69,6 +72,9 @@ export default function Board3D({
             ownershipChange={latestOwnershipChanges.get(tile.tileId)}
             developmentChange={latestDevelopmentChanges.get(tile.tileId)}
             goCrossing={tile.tileId === 0 ? latestGoCrossing : undefined}
+            destinationPreview={model?.destinationPreview?.tileId === tile.tileId
+              ? model.destinationPreview
+              : undefined}
             onHover={onTileHover}
             onSelect={onTileSelect}
           />
@@ -81,6 +87,9 @@ export default function Board3D({
         phase: 'HIDDEN',
         durationMs: 0,
       }} />
+      <PhysicalCardDecks signal={model?.cardPresentation ?? null} />
+      <PlayerStationLayer stations={model?.stations ?? []} />
+      <MoneyTransferLayer model={model} />
       <CharactersLayer
         players={model?.players ?? []}
         movementSignals={model?.characterMovements ?? []}
