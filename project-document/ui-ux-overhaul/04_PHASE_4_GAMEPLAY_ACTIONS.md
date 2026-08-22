@@ -1,10 +1,13 @@
 # Phase 4 - Gameplay Actions and Presentation Orchestration
 
-Status: Phase 4.2 is completed/current, including Phase 4.2.1 gameplay HUD
-hardening and dice visual polish and Phase 4.2.2 final dice feel/rent feedback
-polish. The bounded remaining Phase 4 A-F implementation slice is now
-completed/current on the client. Richer movement-cause, card-identity, and
-transfer-attribution contracts remain open. Phase 4.0/4.1 contract audit:
+Status: The bounded corrective Phase 4 client implementation slice (A-F) is
+complete in this branch, including gameplay HUD/consequence hardening and the
+existing dice/rent presentation work. Phase 4 closure remains pending live
+2-player WebGL gameplay UAT and Electron gameplay UAT; database, remote-CI,
+and unavailable-environment checks remain separately reported. This is not a
+full Phase 4 closure sign-off until those manual gates are run. Richer
+movement-cause, card-identity, and transfer-attribution contracts remain open.
+Phase 4.0/4.1 contract audit:
 [04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md).
 Movement cause/route, card identity, and transfer attribution remain open
 contracts.
@@ -19,10 +22,10 @@ bankruptcy, turn order, and the winner. The client presents committed state
 transitions through the existing presentation pipeline.
 
 The Phase 4.1 foundation implemented the smallest shared/server/client contract
-needed for authoritative roll identity and safe movement classification. Phase
-4.2.2 now adds the bounded dice-feel and rent-feedback polish below without
-expanding the gameplay protocol. It does not implement the richer Phase 4
-visual/action polish described below.
+needed for authoritative roll identity and safe movement classification. The
+Phase 4.2.2 dice/rent polish and the corrective client slice below remain
+client-only presentation work without expanding the gameplay protocol. The
+manual gameplay UAT gates are still outstanding.
 
 ### Phase 4.2.2 implemented slice
 
@@ -74,11 +77,13 @@ visual/action polish described below.
 - The Roll reset epoch clears both a pending command and a stale error. The
   legacy overlay no longer contributes a second live announcement source.
 
-### Remaining Phase 4 bounded implementation slice (A-F)
+### Corrective Phase 4 bounded implementation slice (A-F)
 
 This slice stays within the existing public event taxonomy, one
 `PresentationController`, one `AnimationQueue`, and one `PresentationStore`.
-It does not add a shared/server protocol field or a client gameplay rule.
+The implementation and focused automated coverage are complete; live gameplay
+UAT remains a separate closure gate. It does not add a shared/server protocol
+field or a client gameplay rule.
 
 - **A, bounded presentation signals:** `PresentationStore` now exposes typed
   one-shot balance deltas, ownership transitions, development deltas, and

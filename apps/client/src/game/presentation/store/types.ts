@@ -39,6 +39,7 @@ export interface CharacterReactionSignal {
 export interface BalanceDeltaSignal {
   id: string;
   sequence: number;
+  consequenceOrder: number;
   playerId: string;
   from: number;
   to: number;
@@ -49,6 +50,7 @@ export interface BalanceDeltaSignal {
 export interface OwnershipChangeSignal {
   id: string;
   sequence: number;
+  consequenceOrder: number;
   tileId: number;
   fromPlayerId: string | null;
   toPlayerId: string | null;
@@ -58,6 +60,7 @@ export interface OwnershipChangeSignal {
 export interface DevelopmentChangeSignal {
   id: string;
   sequence: number;
+  consequenceOrder: number;
   tileId: number;
   playerId: string;
   fromHouses: number;
@@ -70,6 +73,7 @@ export interface DevelopmentChangeSignal {
 export interface GoCrossingSignal {
   id: string;
   sequence: number;
+  consequenceOrder: number;
   playerId: string;
   fromTileId: number;
   toTileId: 0;

@@ -7,6 +7,8 @@ export const presentationTiming = {
   balanceChange: 120,
   propertyPurchase: 180,
   buildPop: 140,
+  feedbackPulse: 180,
+  feedbackDwell: 900,
   turnChange: 80,
   finish: 180,
   tileImpact: {

@@ -106,3 +106,6 @@ dist
 
 # Electron build artifacts
 apps/desktop/out/
+
+# macOS metadata
+.DS_Store

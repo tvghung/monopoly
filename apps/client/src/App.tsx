@@ -485,9 +485,11 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
     && room.players.some(player => player.playerId === playerId && player.membershipStatus === 'ACTIVE');
 
   const socketFunctions = useMemo<SocketFunctions>(() => {
-    const gameCommandAllowed = () => {
+    const gameCommandAllowed = (showFailure = true) => {
       if (canMutate) return true;
-      toast.show('Không thể thao tác khi đang kết nối lại hoặc xem với vai trò khán giả.');
+      if (showFailure) {
+        toast.show('Không thể thao tác khi đang kết nối lại hoặc xem với vai trò khán giả.');
+      }
       return false;
     };
     const ack: AckCallback = showCommandFailure;
@@ -502,14 +504,13 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
     });
     const sendAck = <T = void>(send: (callback: AckCallback<T>) => void): Promise<Ack<T>> => new Promise(resolve => {
       send(response => {
-        showCommandFailure(response);
         resolve(response);
       });
     });
 
     return {
       rollDice: () => {
-        if (!gameCommandAllowed()) {
+        if (!gameCommandAllowed(false)) {
           return Promise.resolve({
             ok: false,
             protocolVersion: SOCKET_PROTOCOL_VERSION,
@@ -523,19 +524,19 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
         return requestRollDiceAck(socket);
       },
       buyProperty: (operationId) => {
-        if (!gameCommandAllowed()) return Promise.resolve(unavailableAck());
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
         return sendAck(callback => socket.emit('buy property', { operationId }, callback));
       },
       doNotBuy: (operationId) => {
-        if (!gameCommandAllowed()) return Promise.resolve(unavailableAck());
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
         return sendAck(callback => socket.emit('do not buy', { operationId }, callback));
       },
       resolveDevelopment: (request) => {
-        if (!gameCommandAllowed()) return Promise.resolve(unavailableAck());
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
         return sendAck(callback => socket.emit('resolve development', request, callback));
       },
       waitInJail: () => {
-        if (!gameCommandAllowed()) return Promise.resolve(unavailableAck());
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
         return sendAck(callback => socket.emit('wait in jail', callback));
       },
       sendChat: (message) => {
@@ -555,29 +556,29 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
         if (gameCommandAllowed()) socket.emit('sell house', tileID, ack);
       },
       payBail: () => {
-        if (!gameCommandAllowed()) return Promise.resolve(unavailableAck());
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
         return sendAck(callback => socket.emit('pay bail', callback));
       },
       useJailCard: () => {
-        if (!gameCommandAllowed()) return Promise.resolve(unavailableAck());
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
         return sendAck(callback => socket.emit('use jail card', callback));
       },
       sellPropertyToBank: (request) => {
-        if (!gameCommandAllowed()) return Promise.resolve(unavailableAck());
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
         return sendAck(callback => socket.emit('sell property to bank', request, callback));
       },
       proposeForcedSale: (request) => {
-        if (!gameCommandAllowed()) return Promise.resolve(unavailableAck());
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
         return sendAck<{ proposalId: string; expiresAt: string }>(
           callback => socket.emit('propose forced sale', request, callback),
         ) as Promise<Ack>;
       },
       acceptForcedSale: (proposalId) => {
-        if (!gameCommandAllowed()) return Promise.resolve(unavailableAck());
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
         return sendAck(callback => socket.emit('accept forced sale', { proposalId }, callback));
       },
       rejectForcedSale: (proposalId) => {
-        if (!gameCommandAllowed()) return Promise.resolve(unavailableAck());
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
         return sendAck(callback => socket.emit('reject forced sale', { proposalId }, callback));
       },
     };

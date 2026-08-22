@@ -43,6 +43,7 @@ export class PresentationStore implements PresentationStoreLike {
   private nextCharacterMovementSequence = 0;
   private nextCharacterLandingSequence = 0;
   private nextCharacterReactionSequence = 0;
+  private nextConsequenceOrder = 0;
   private nextBalanceDeltaSequence = 0;
   private nextOwnershipChangeSequence = 0;
   private nextDevelopmentChangeSequence = 0;
@@ -94,6 +95,7 @@ export class PresentationStore implements PresentationStoreLike {
     this.nextCharacterMovementSequence = 0;
     this.nextCharacterLandingSequence = 0;
     this.nextCharacterReactionSequence = 0;
+    this.nextConsequenceOrder = 0;
     this.nextBalanceDeltaSequence = 0;
     this.nextOwnershipChangeSequence = 0;
     this.nextDevelopmentChangeSequence = 0;
@@ -335,10 +337,12 @@ export class PresentationStore implements PresentationStoreLike {
     durationMs: number,
   ): void {
     if (this.balanceDeltaIds.has(id)) return;
+    this.nextConsequenceOrder += 1;
     this.nextBalanceDeltaSequence += 1;
     const signal: BalanceDeltaSignal = {
       id,
       sequence: this.nextBalanceDeltaSequence,
+      consequenceOrder: this.nextConsequenceOrder,
       playerId,
       from,
       to,
@@ -363,10 +367,12 @@ export class PresentationStore implements PresentationStoreLike {
     durationMs: number,
   ): void {
     if (this.ownershipChangeIds.has(id)) return;
+    this.nextConsequenceOrder += 1;
     this.nextOwnershipChangeSequence += 1;
     const signal: OwnershipChangeSignal = {
       id,
       sequence: this.nextOwnershipChangeSequence,
+      consequenceOrder: this.nextConsequenceOrder,
       tileId,
       fromPlayerId,
       toPlayerId,
@@ -391,10 +397,12 @@ export class PresentationStore implements PresentationStoreLike {
     durationMs: number,
   ): void {
     if (this.developmentChangeIds.has(id)) return;
+    this.nextConsequenceOrder += 1;
     this.nextDevelopmentChangeSequence += 1;
     const signal: DevelopmentChangeSignal = {
       id,
       sequence: this.nextDevelopmentChangeSequence,
+      consequenceOrder: this.nextConsequenceOrder,
       tileId,
       playerId,
       fromHouses,
@@ -415,10 +423,12 @@ export class PresentationStore implements PresentationStoreLike {
 
   public emitGoCrossing(id: string, playerId: string, fromTileId: number, durationMs: number): void {
     if (this.goCrossingIds.has(id)) return;
+    this.nextConsequenceOrder += 1;
     this.nextGoCrossingSequence += 1;
     const signal: GoCrossingSignal = {
       id,
       sequence: this.nextGoCrossingSequence,
+      consequenceOrder: this.nextConsequenceOrder,
       playerId,
       fromTileId,
       toTileId: 0,

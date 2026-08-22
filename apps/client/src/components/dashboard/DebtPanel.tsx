@@ -1,17 +1,48 @@
 import { useContext, useEffect, useState } from 'react';
-import type { Ack } from '@monopoly/shared';
+import type { Ack, PublicGameState } from '@monopoly/shared';
 import stateContext from '../../internal';
 import { formatMoney, getTileName, localizeAckError } from '../../presentation';
 
+type DebtClaimProjection = NonNullable<PublicGameState['boardState']['paymentShortfall']>;
+
+interface PendingDebtAction {
+  key: string;
+  initialProjectionKey: string | null;
+  ackResolved: boolean;
+  projectionAdvanced: boolean;
+  awaitingProposal: boolean;
+}
+
+function getDebtProjectionKey(claim: DebtClaimProjection): string {
+  return [
+    claim.paymentOperationId ?? '',
+    claim.claimId ?? '',
+    claim.debtorPlayerId,
+    claim.creditor,
+    claim.creditorPlayerId ?? '',
+    claim.amount,
+    claim.remainingAmount,
+    claim.remainingClaimCount,
+    claim.actionDeadlineAt,
+    JSON.stringify(claim.source),
+    (claim.sellableProperties ?? [])
+      .map(property => `${property.tileID}:${property.grossPrice}:${property.houses}`)
+      .sort()
+      .join(','),
+  ].join('|');
+}
+
 export default function DebtPanel() {
   const {
-    state, playerId, canMutate, socketFunctions, connected,
+    state, playerId, canMutate, socketFunctions, connected, privatePlayerState,
   } = useContext(stateContext);
   const [now, setNow] = useState(() => Date.now());
   const claim = state.boardState.paymentShortfall;
   const isMyShortfall = claim?.debtorPlayerId === playerId;
-  const claimKey = claim ? `${claim.paymentOperationId ?? ''}:${claim.claimId ?? ''}` : null;
-  const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const claimProjectionKey = claim ? getDebtProjectionKey(claim) : null;
+  const forcedSaleProposal = privatePlayerState?.forcedSaleProposal ?? null;
+  const forcedSaleActive = Boolean(forcedSaleProposal && forcedSaleProposal.sellerPlayerId === playerId);
+  const [pendingAction, setPendingAction] = useState<PendingDebtAction | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,24 +52,51 @@ export default function DebtPanel() {
   }, [claim]);
 
   useEffect(() => {
+    if (canMutate && connected && isMyShortfall) return;
     setPendingAction(null);
     setError(null);
-  }, [canMutate, claimKey, connected, isMyShortfall]);
+  }, [canMutate, connected, isMyShortfall]);
+
+  useEffect(() => {
+    setPendingAction(current => {
+      if (!current || current.initialProjectionKey === claimProjectionKey) return current;
+      return current.ackResolved ? null : { ...current, projectionAdvanced: true };
+    });
+  }, [claimProjectionKey]);
+
+  useEffect(() => {
+    if (!forcedSaleActive || !pendingAction?.awaitingProposal || !pendingAction.ackResolved) return;
+    setPendingAction(null);
+  }, [forcedSaleActive, pendingAction]);
 
   const submit = (key: string, command?: () => void | Promise<Ack>) => {
-    if (pendingAction || !command) return;
-    setPendingAction(key);
+    if (pendingAction || forcedSaleActive || !command) return;
+    setPendingAction({
+      key,
+      initialProjectionKey: claimProjectionKey,
+      ackResolved: false,
+      projectionAdvanced: false,
+      awaitingProposal: key.startsWith('forced:'),
+    });
     setError(null);
-    void Promise.resolve(command())
-      .then(response => {
-        if (!response || response.ok) return;
+    void (async () => {
+      try {
+        const response = await command();
+        if (!response || response.ok) {
+          setPendingAction(current => {
+            if (!current || current.key !== key) return current;
+            if (current.awaitingProposal && forcedSaleActive) return null;
+            return current.projectionAdvanced ? null : { ...current, ackResolved: true };
+          });
+          return;
+        }
         setPendingAction(null);
         setError(localizeAckError(response.error));
-      })
-      .catch(() => {
+      } catch {
         setPendingAction(null);
         setError('Không thể gửi thao tác. Vui lòng thử lại.');
-      });
+      }
+    })();
   };
 
   if (!state.loaded || !claim) return null;
@@ -58,6 +116,9 @@ export default function DebtPanel() {
         {` cần trả ${formatMoney(claim.remainingAmount)} cho ${creditor}.`}
       </p>
       <p>{`Còn ${seconds} giây để bán tài sản bắt buộc.`}</p>
+      {forcedSaleActive
+        ? <p role="status">Đang chờ xử lý đề nghị bán bắt buộc.</p>
+        : null}
       {isMyShortfall && canMutate
         ? (
           <div className="debt-panel__actions">
@@ -69,8 +130,8 @@ export default function DebtPanel() {
                 </p>
                 <button
                   type="button"
-                  disabled={pendingAction !== null}
-                  aria-busy={pendingAction === `bank:${property.tileID}`}
+                  disabled={pendingAction !== null || forcedSaleActive}
+                  aria-busy={pendingAction?.key === `bank:${property.tileID}`}
                   onClick={() => submit(`bank:${property.tileID}`, () => socketFunctions.sellPropertyToBank?.({
                     paymentOperationId: claim.paymentOperationId ?? '',
                     claimId: claim.claimId ?? '',
@@ -81,8 +142,8 @@ export default function DebtPanel() {
                   <button
                     key={buyerId}
                     type="button"
-                    disabled={pendingAction !== null || buyer.accountBalance < property.grossPrice}
-                    aria-busy={pendingAction === `forced:${property.tileID}:${buyerId}`}
+                    disabled={pendingAction !== null || forcedSaleActive || buyer.accountBalance < property.grossPrice}
+                    aria-busy={pendingAction?.key === `forced:${property.tileID}:${buyerId}`}
                     onClick={() => submit(`forced:${property.tileID}:${buyerId}`, () => socketFunctions.proposeForcedSale?.({
                       paymentOperationId: claim.paymentOperationId ?? '',
                       claimId: claim.claimId ?? '',

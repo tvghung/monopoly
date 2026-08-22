@@ -184,6 +184,7 @@ describe('PresentationStore reset and impact generations', () => {
     expect(store.getSnapshot().balanceDeltas).toEqual([{
       id: 'balance-1',
       sequence: 1,
+      consequenceOrder: 1,
       playerId: 'player-a',
       from: 1500,
       to: 1320,
@@ -192,13 +193,27 @@ describe('PresentationStore reset and impact generations', () => {
     }]);
     expect(store.getSnapshot().ownershipChanges[0]).toMatchObject({
       id: 'ownership-1', tileId: 1, fromPlayerId: null, toPlayerId: 'player-a', durationMs: 180,
+      consequenceOrder: 2,
     });
     expect(store.getSnapshot().developmentChanges[0]).toMatchObject({
       id: 'development-1', tileId: 1, delta: 3, direction: 'UP', durationMs: 140,
+      consequenceOrder: 3,
     });
     expect(store.getSnapshot().goCrossings[0]).toMatchObject({
       id: 'go-1', playerId: 'player-a', fromTileId: 39, toTileId: 0, durationMs: 120,
+      consequenceOrder: 4,
     });
+  });
+
+  it('uses one cross-family consequence order in actual emission order', () => {
+    const store = new PresentationStore();
+    store.resetFromSnapshot(makeRoom());
+
+    store.emitOwnershipChange('ownership', 1, null, 'player-a', 180);
+    store.emitDevelopmentChange('development', 1, 'player-a', 0, 1, 140);
+
+    expect(store.getSnapshot().ownershipChanges[0]?.consequenceOrder).toBe(1);
+    expect(store.getSnapshot().developmentChanges[0]?.consequenceOrder).toBe(2);
   });
 
   it('deduplicates and bounds one-shot signals, then clears them on reset', () => {
@@ -220,7 +235,9 @@ describe('PresentationStore reset and impact generations', () => {
     expect(store.getSnapshot().ownershipChanges).toEqual([]);
     expect(store.getSnapshot().developmentChanges).toEqual([]);
     expect(store.getSnapshot().goCrossings).toEqual([]);
+    expect(store.getSnapshot().balanceDeltas).toEqual([]);
     store.emitBalanceDelta('same', 'player-a', 30, 40, 120);
     expect(store.getSnapshot().balanceDeltas[0]?.sequence).toBe(1);
+    expect(store.getSnapshot().balanceDeltas[0]?.consequenceOrder).toBe(1);
   });
 });

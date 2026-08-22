@@ -84,7 +84,7 @@ export default function TileAssembly({
           panel={panel}
           selected={selected}
         />
-        <TileDevelopmentLayer houses={houses} />
+        <TileDevelopmentLayer houses={houses} developmentChange={developmentChange} />
         <TileSpecialLayer
           tile={tile}
           panel={panel}

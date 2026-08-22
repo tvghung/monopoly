@@ -123,6 +123,24 @@ describe('board render model', () => {
     expect(state().players.active.currentTile).toBe(4);
   });
 
+  it('keeps consequence feedback separate from authoritative ownership and buildings', () => {
+    const model = buildBoardRenderModel(state(), presentation({
+      ownershipChanges: [{
+        id: 'ownership', sequence: 1, consequenceOrder: 1, tileId: 1,
+        fromPlayerId: null, toPlayerId: 'active', durationMs: 180,
+      }],
+      developmentChanges: [{
+        id: 'development', sequence: 1, consequenceOrder: 2, tileId: 1,
+        playerId: 'active', fromHouses: 1, toHouses: 2, delta: 1,
+        direction: 'UP', durationMs: 140,
+      }],
+    }));
+
+    expect(model.tiles[1]).toMatchObject({ ownerId: 'active', ownerColor: 'red', houses: 2 });
+    expect(model.ownershipChanges[0]?.id).toBe('ownership');
+    expect(model.developmentChanges[0]?.id).toBe('development');
+  });
+
   it('projects hidden, rolling, and settled dice from the presentation state', () => {
     const hidden = buildBoardRenderModel(state(), presentation());
     expect(hidden.dice).toMatchObject({ phase: 'HIDDEN', rollSequence: 0 });
