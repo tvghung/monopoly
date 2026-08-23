@@ -20,6 +20,7 @@ const emptyState: PresentationState = {
   displayLogs: [],
   displayPositions: {},
   settledPositions: {},
+  displayDevelopmentLevels: {},
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
   displayRollSequence: 0,
@@ -37,6 +38,7 @@ const emptyState: PresentationState = {
   moneyTransfers: [],
   cardPresentation: null,
   animationSpeedMultiplier: 1,
+  reducedMotion: false,
   presentationResetEpoch: 0,
 };
 
@@ -81,8 +83,12 @@ export class PresentationStore implements PresentationStoreLike {
     this.moneyTransferCleanupTimers.forEach(timer => clearTimeout(timer));
     this.moneyTransferCleanupTimers.clear();
     const positions: Record<string, number> = {};
+    const developmentLevels: Record<number, number> = {};
     Object.entries(room.gameState.players).forEach(([playerId, player]) => {
       positions[playerId] = player.currentTile;
+    });
+    Object.entries(room.gameState.boardState.ownedProps).forEach(([tileId, property]) => {
+      developmentLevels[Number(tileId)] = property.houses;
     });
     this.playerJoinOrder.clear();
     room.players.forEach(player => this.playerJoinOrder.set(player.playerId, player.joinOrder));
@@ -92,6 +98,7 @@ export class PresentationStore implements PresentationStoreLike {
       displayLogs: [...room.gameState.boardState.logs],
       displayPositions: positions,
       settledPositions: positions,
+      displayDevelopmentLevels: developmentLevels,
       displayActivePlayerId: room.gameState.boardState.currentPlayer.id || null,
       displayDice: { ...room.gameState.boardState.diceValue },
       displayRollSequence: room.gameState.boardState.rollSequence,
@@ -119,6 +126,7 @@ export class PresentationStore implements PresentationStoreLike {
           }
         : null,
       animationSpeedMultiplier: this.state.animationSpeedMultiplier,
+      reducedMotion: this.state.reducedMotion,
       presentationResetEpoch: this.state.presentationResetEpoch + 1,
     };
     this.nextTileImpactSequence = 0;
@@ -165,6 +173,31 @@ export class PresentationStore implements PresentationStoreLike {
       displayPositions: nextPositions,
       settledPositions: nextSettledPositions,
     };
+    this.notify();
+  }
+
+  public syncDisplayDevelopmentLevels(
+    levels: Readonly<Record<number, number | { houses: number }>>,
+    delayedChanges: readonly Pick<DevelopmentChangeSignal, 'tileId' | 'fromHouses' | 'toHouses'>[] = [],
+  ): void {
+    const delayedByTile = new Map(delayedChanges.map(change => [change.tileId, change]));
+    const nextLevels: Record<number, number> = {};
+    Object.entries(levels).forEach(([rawTileId, value]) => {
+      const tileId = Number(rawTileId);
+      const authoritativeLevel = typeof value === 'number' ? value : value.houses;
+      const delayed = delayedByTile.get(tileId);
+      nextLevels[tileId] = delayed
+        ? Math.min(
+          this.state.displayDevelopmentLevels[tileId] ?? delayed.fromHouses,
+          delayed.fromHouses,
+        )
+        : authoritativeLevel;
+    });
+    const currentEntries = Object.entries(this.state.displayDevelopmentLevels);
+    const unchanged = currentEntries.length === Object.keys(nextLevels).length
+      && currentEntries.every(([tileId, level]) => nextLevels[Number(tileId)] === level);
+    if (unchanged) return;
+    this.state = { ...this.state, displayDevelopmentLevels: nextLevels };
     this.notify();
   }
 
@@ -489,7 +522,14 @@ export class PresentationStore implements PresentationStoreLike {
       signal,
     );
     if (!developmentChanges) return;
-    this.state = { ...this.state, developmentChanges };
+    this.state = {
+      ...this.state,
+      displayDevelopmentLevels: {
+        ...this.state.displayDevelopmentLevels,
+        [tileId]: Math.max(0, Math.min(5, toHouses)),
+      },
+      developmentChanges,
+    };
     this.notify();
     const cleanupTimer = setTimeout(() => {
       this.developmentCleanupTimers.delete(id);
@@ -584,6 +624,12 @@ export class PresentationStore implements PresentationStoreLike {
     const next = Math.min(2, Math.max(0.75, multiplier));
     if (this.state.animationSpeedMultiplier === next) return;
     this.state = { ...this.state, animationSpeedMultiplier: next };
+    this.notify();
+  }
+
+  public setReducedMotion(reducedMotion: boolean): void {
+    if (this.state.reducedMotion === reducedMotion) return;
+    this.state = { ...this.state, reducedMotion };
     this.notify();
   }
 

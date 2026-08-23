@@ -13,6 +13,7 @@ const emptyPresentationState: PresentationState = {
   displayLogs: [],
   displayPositions: {},
   settledPositions: {},
+  displayDevelopmentLevels: {},
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
   displayRollSequence: 0,
@@ -30,6 +31,7 @@ const emptyPresentationState: PresentationState = {
   moneyTransfers: [],
   cardPresentation: null,
   animationSpeedMultiplier: 1,
+  reducedMotion: false,
   presentationResetEpoch: 0,
 };
 

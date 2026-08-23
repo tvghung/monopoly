@@ -31,6 +31,7 @@ const CHAIN_OPERATION = '00000000-0000-4000-8000-000000004002';
 const scenarios = [
   ['stations-2', '01 · Trạm 2 người'],
   ['stations-4', '01 · Trạm 4 người'],
+  ['focus-card', '01 · Focus thẻ toàn viewport'],
   ['walk', '02 · Đích đến → di chuyển'],
   ['roll-chance', '02 · Đổ → Cơ Hội → LAND → thẻ'],
   ['roll-chest', '02 · Đổ → Khí Vận → LAND → thẻ'],
@@ -46,6 +47,8 @@ const scenarios = [
   ['house-3', '10 · Xây 3 nhà'],
   ['house-4', '10 · Xây 4 nhà'],
   ['hotel', '10 · 4 nhà → khách sạn'],
+  ['building-preflash', '10 · Không pre-flash xây dựng'],
+  ['owner-recolor', '10 · Xây dựng theo màu chủ'],
   ['chance', '11 · Rút Cơ Hội'],
   ['chest', '12 · Rút Khí Vận'],
   ['pay-each', '13 · Thẻ trả mỗi người'],
@@ -64,6 +67,7 @@ const scenarios = [
   ['spectator-revealed', '21 · Khán giả xem thẻ đã mở'],
   ['speed-walk', '22 · Kiểm tra tốc độ'],
   ['reduced-motion', '23 · Giảm chuyển động'],
+  ['construction-reduced', '23 · Xây dựng giảm chuyển động'],
   ['skip-motion', '24 · Bỏ qua chuyển động'],
   ['skip-card-flight', '24 · Bỏ qua khi thẻ đang bay'],
   ['skip-card-reveal', '24 · Bỏ qua khi thẻ đang lật'],
@@ -216,10 +220,13 @@ function configureBaseline(
   if (scenario === 'bank-sale' || scenario === 'forced-sale') {
     room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 0 };
   }
-  if (scenario.startsWith('house-')) {
+  if (scenario.startsWith('house-') || scenario === 'building-preflash' || scenario === 'construction-reduced') {
     room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 0 };
   }
   if (scenario === 'hotel') {
+    room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 4 };
+  }
+  if (scenario === 'owner-recolor') {
     room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 4 };
   }
   if (scenario === 'stations-2' || scenario === 'stations-4') {
@@ -232,7 +239,7 @@ function configureBaseline(
       if (disconnected) disconnected.connected = false;
     }
   }
-  if (liveCardScenarios.includes(scenario)) {
+  if (liveCardScenarios.includes(scenario) || scenario === 'focus-card') {
     room.gameState.players['player-a'].currentTile = cardDeckForScenario(scenario) === 'chance' ? 7 : 2;
   }
   if (scenario === 'reconnect-awaiting') setPendingCard(room, 'chance', 'AWAITING_DRAW');
@@ -393,6 +400,13 @@ function Phase4UatSurface() {
       }
       return;
     }
+    if (key === 'focus-card') {
+      commit(next => {
+        setPendingCard(next, 'chance', 'AWAITING_DRAW');
+        next.gameState.boardState.logs = ['An đáp xuống ô Cơ Hội'];
+      });
+      return;
+    }
     if (key === 'walk' || key === 'speed-walk' || key === 'skip-motion' || key === 'reduced-motion') {
       commit(next => {
         next.gameState.boardState.diceValue = { dice1: 2, dice2: 3 };
@@ -491,8 +505,8 @@ function Phase4UatSurface() {
       });
       return;
     }
-    if (key.startsWith('house-') || key === 'hotel') {
-      const target = key === 'hotel' ? 5 : Number(key.slice(-1));
+    if (key.startsWith('house-') || key === 'hotel' || key === 'building-preflash' || key === 'construction-reduced') {
+      const target = key === 'hotel' ? 5 : 1;
       commit(next => {
         const owned = next.gameState.boardState.ownedProps[1];
         if (owned) owned.houses = target;
@@ -501,6 +515,18 @@ function Phase4UatSurface() {
           type: 'MONEY_TRANSFER', source: { kind: 'PLAYER', playerId: 'player-a' },
           destination: { kind: 'BANK' }, amount: target === 5 ? 50 : target * 50,
           reason: 'DEVELOPMENT', operationId: `uat-build-${target}`,
+        }]);
+      });
+      return;
+    }
+    if (key === 'owner-recolor') {
+      commit(next => {
+        next.gameState.boardState.ownedProps[1] = { id: 'player-b', color: 'blue', houses: 4 };
+        appendSemantic(next, [{
+          type: 'PROPERTY_TRANSFER', tileID: 1,
+          from: { kind: 'PLAYER', playerId: 'player-a' },
+          to: { kind: 'PLAYER', playerId: 'player-b' },
+          cause: 'FORCED_SALE', operationId: 'uat-owner-recolor',
         }]);
       });
       return;
@@ -598,7 +624,7 @@ function Phase4UatSurface() {
     roomRef.current = nextRoom;
     setRoom(nextRoom);
     setViewer(nextViewer);
-    updateSettings({ reducedMotion: key === 'reduced-motion' });
+    updateSettings({ reducedMotion: key === 'reduced-motion' || key === 'construction-reduced' });
     controller.acceptRoomSnapshot(nextRoom, 'SESSION_SYNC');
     if (![
       'stations-2', 'stations-4', 'bankrupt', 'spectator-awaiting', 'spectator-revealed',
@@ -766,11 +792,13 @@ function Phase4UatSurface() {
               {` · trace ${traceRef.current.steps.join(' > ') || '—'}`}
               {traceRef.current.previewBeforeWalk ? ' · preview-before-walk yes' : ''}
               {traceRef.current.previewBeforeLand ? ' · preview-before-land yes' : ''}
+              {` · build ${String(presentationState.displayDevelopmentLevels[1] ?? 0)}/${String(room.gameState.boardState.ownedProps[1]?.houses ?? 0)}`}
+              {` · logs ${presentationState.displayLogs.length}/${room.gameState.boardState.logs.length}`}
             </output>
-            {rendererMetrics ? (
-              <output data-testid="renderer-metrics">
-                {`draw ${String(rendererMetrics.drawCalls)} · tri ${String(rendererMetrics.triangles)} · active ${String(rendererMetrics.activeAnimatedObjects)}`}
-              </output>
+              {rendererMetrics ? (
+                <output data-testid="renderer-metrics">
+                {`draw ${String(rendererMetrics.drawCalls)} · tri ${String(rendererMetrics.triangles)} · combined ${String(rendererMetrics.combinedDrawCalls ?? rendererMetrics.drawCalls)} / ${String(rendererMetrics.combinedTriangles ?? rendererMetrics.triangles)} · focus ${(Number(rendererMetrics.cardFocusWidthRatio ?? 0) * 100).toFixed(0)}% · active ${String(rendererMetrics.activeAnimatedObjects)}`}
+                </output>
             ) : null}</> : null}
           </aside>
           <Board />

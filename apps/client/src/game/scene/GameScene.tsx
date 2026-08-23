@@ -71,6 +71,19 @@ function RendererDiagnostics({
     let measurementFrame = 0;
     const publish = () => {
       const drawingBufferSize = gl.getDrawingBufferSize(new THREE.Vector2());
+      const focusDiagnostics = window.__OWN_THE_BLOCK_CARD_FOCUS_DIAGNOSTICS__ ?? {};
+      const focusDrawCalls = typeof focusDiagnostics.drawCalls === 'number'
+        ? focusDiagnostics.drawCalls
+        : 0;
+      const focusTriangles = typeof focusDiagnostics.triangles === 'number'
+        ? focusDiagnostics.triangles
+        : 0;
+      const focusCardWidthRatio = typeof focusDiagnostics.cardWidthRatio === 'number'
+        ? focusDiagnostics.cardWidthRatio
+        : 0;
+      const focusCardHeightRatio = typeof focusDiagnostics.cardHeightRatio === 'number'
+        ? focusDiagnostics.cardHeightRatio
+        : 0;
       const sceneObjects: THREE.Object3D[] = [];
       scene.traverse(object => sceneObjects.push(object));
       const stationCoinMeshes = sceneObjects.filter(object => object.name.startsWith('StationCoins:'));
@@ -87,6 +100,12 @@ function RendererDiagnostics({
         textureMaxAnisotropy: gl.capabilities.getMaxAnisotropy(),
         drawCalls: gl.info.render.calls,
         triangles: estimateSceneTriangles(scene),
+        focusCanvasDrawCalls: focusDrawCalls,
+        focusCanvasTriangles: focusTriangles,
+        cardFocusWidthRatio: focusCardWidthRatio,
+        cardFocusHeightRatio: focusCardHeightRatio,
+        combinedDrawCalls: gl.info.render.calls + focusDrawCalls,
+        combinedTriangles: estimateSceneTriangles(scene) + focusTriangles,
         activeAnimatedObjects,
         targetDrawCalls: TARGET_DRAW_CALLS,
         stressDrawCallLimit: STRESS_DRAW_CALL_LIMIT,
@@ -117,7 +136,7 @@ function RendererDiagnostics({
           activeTurnRingCount: sceneObjects.filter(object => (
             object.name.includes('ActiveTurn') || object.name.includes('PlayerActiveRing')
           )).length,
-          cardFocusScrim: false,
+          cardFocusScrim: 'root-dom-plus-r3f',
         },
       };
       window.__OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__ = diagnostics;

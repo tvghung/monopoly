@@ -43,6 +43,7 @@ export class PresentationController {
         }
       },
       onError: (error, event) => {
+        if (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError') return;
         console.error('Presentation animation failed.', event.type, error);
       },
     });
@@ -79,6 +80,17 @@ export class PresentationController {
       return true;
     }
     const events = derivePresentationEvents(previous, room);
+    this.store.syncDisplayDevelopmentLevels(
+      room.gameState.boardState.ownedProps,
+      events.flatMap(event => event.type === 'PROPERTY_DEVELOPMENT_CHANGED'
+        && event.toHouses > event.fromHouses
+        ? [{
+            tileId: event.tileId,
+            fromHouses: event.fromHouses,
+            toHouses: event.toHouses,
+          }]
+        : []),
+    );
     this.updateLogGate(previous, room, events);
     if (!events.some(event => event.type === 'ROLL_DICE')) {
       this.store.syncDisplayDice(
@@ -133,6 +145,7 @@ export class PresentationController {
   public setPreferences(reducedMotion: boolean, speedMultiplier: number): void {
     this.queue.setReducedMotion(reducedMotion);
     this.queue.setSpeedMultiplier(speedMultiplier);
+    this.store.setReducedMotion(reducedMotion);
     this.store.setAnimationSpeedMultiplier(speedMultiplier);
     if (reducedMotion) this.skipAllAndSnap();
   }

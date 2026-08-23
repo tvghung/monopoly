@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   CARD_PRESENTATION_SCALE,
   CARD_REVEAL_ROTATIONS,
+  CARD_FOCUS_VIEWPORT_WIDTH_RATIO,
+  CARD_FOCUS_VIEWPORT_HEIGHT_RATIO,
   DECK_ANCHORS,
   DECK_ROTATION_Y,
   getCardLayerTransform,
@@ -24,6 +26,9 @@ describe('physical card deck layout', () => {
     expect(PHYSICAL_CARD_THICKNESS).toBeGreaterThan(0.04);
     expect(CARD_PRESENTATION_SCALE).toBeGreaterThanOrEqual(2.5);
     expect(CARD_REVEAL_ROTATIONS).toBeGreaterThanOrEqual(2);
+    expect(CARD_FOCUS_VIEWPORT_WIDTH_RATIO).toBeGreaterThanOrEqual(0.36);
+    expect(CARD_FOCUS_VIEWPORT_WIDTH_RATIO).toBeLessThanOrEqual(0.44);
+    expect(CARD_FOCUS_VIEWPORT_HEIGHT_RATIO).toBeGreaterThan(0.6);
   });
 
   it('places enlarged decks symmetrically on the Parking to Start diagonal with perpendicular long axes', () => {

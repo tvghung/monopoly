@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 
-export const COIN_RADIUS = 0.14;
-export const COIN_THICKNESS = 0.06;
-export const COIN_RADIAL_SEGMENTS = 14;
+export const COIN_RADIUS = 0.21;
+export const COIN_THICKNESS = 0.082;
+export const COIN_RADIAL_SEGMENTS = 16;
 export type CoinFinish = 'COPPER' | 'SILVER' | 'GOLD';
 
-export const COIN_COPPER = new THREE.Color('#bd7048');
-export const COIN_SILVER = new THREE.Color('#d7e0e2');
-export const COIN_GOLD = new THREE.Color('#e6ad36');
+export const COIN_COPPER = new THREE.Color('#d98250');
+export const COIN_SILVER = new THREE.Color('#edf5f7');
+export const COIN_GOLD = new THREE.Color('#f2bd3f');
 export const COIN_DISABLED = new THREE.Color('#8d9692');
 export const COIN_FINISH_ORDER: readonly CoinFinish[] = ['COPPER', 'SILVER', 'GOLD'];
 export const COIN_FINISH_SEQUENCE: readonly CoinFinish[] = [
@@ -23,21 +23,30 @@ export const SHARED_COIN_GEOMETRY = new THREE.CylinderGeometry(
   COIN_RADIAL_SEGMENTS,
 );
 
-export const COIN_FINISH_MATERIALS: Record<CoinFinish, THREE.MeshStandardMaterial> = {
-  COPPER: new THREE.MeshStandardMaterial({
+export const COIN_FINISH_MATERIALS: Record<CoinFinish, THREE.MeshPhysicalMaterial> = {
+  COPPER: new THREE.MeshPhysicalMaterial({
     color: COIN_COPPER,
-    roughness: 0.22,
-    metalness: 0.84,
-  }),
-  SILVER: new THREE.MeshStandardMaterial({
-    color: COIN_SILVER,
-    roughness: 0.2,
-    metalness: 0.88,
-  }),
-  GOLD: new THREE.MeshStandardMaterial({
-    color: COIN_GOLD,
     roughness: 0.2,
     metalness: 0.86,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.16,
+    reflectivity: 0.7,
+  }),
+  SILVER: new THREE.MeshPhysicalMaterial({
+    color: COIN_SILVER,
+    roughness: 0.18,
+    metalness: 0.9,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.14,
+    reflectivity: 0.72,
+  }),
+  GOLD: new THREE.MeshPhysicalMaterial({
+    color: COIN_GOLD,
+    roughness: 0.19,
+    metalness: 0.88,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.15,
+    reflectivity: 0.72,
   }),
 };
 

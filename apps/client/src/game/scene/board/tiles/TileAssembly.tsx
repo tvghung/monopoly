@@ -32,6 +32,7 @@ export interface TileAssemblyProps {
   developmentChange?: DevelopmentChangeSignal;
   goCrossing?: GoCrossingSignal;
   destinationPreview?: DestinationPreviewSignal;
+  reducedMotion?: boolean;
   onHover?: (tileId: number | null) => void;
   onSelect?: (tileId: number) => void;
 }
@@ -48,6 +49,7 @@ export default function TileAssembly({
   developmentChange,
   goCrossing,
   destinationPreview,
+  reducedMotion = false,
 }: TileAssemblyProps) {
   const layout = getBoardTileLayout(tileId);
   if (!layout) return null;
@@ -87,7 +89,12 @@ export default function TileAssembly({
           panel={panel}
           selected={selected}
         />
-        <TileDevelopmentLayer houses={houses} developmentChange={developmentChange} />
+        <TileDevelopmentLayer
+          houses={houses}
+          developmentChange={developmentChange}
+          ownerColor={ownerColor}
+          reducedMotion={reducedMotion}
+        />
         <TileSpecialLayer
           tile={tile}
           panel={panel}
@@ -100,6 +107,7 @@ export default function TileAssembly({
           developmentChange={developmentChange}
           goCrossing={goCrossing}
           destinationPreview={destinationPreview}
+          reducedMotion={reducedMotion}
         />
       </TilePressRoot>
     </group>

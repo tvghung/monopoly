@@ -207,6 +207,26 @@ describe('PresentationStore reset and impact generations', () => {
       id: 'go-1', playerId: 'player-a', fromTileId: 39, toTileId: 0, durationMs: 120,
       consequenceOrder: 4,
     });
+    expect(store.getSnapshot().displayDevelopmentLevels[1]).toBe(5);
+  });
+
+  it('advances the display development level in the same write as its construction signal', () => {
+    const store = new PresentationStore();
+    const room = makeRoom();
+    room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 2 };
+    store.resetFromSnapshot(room);
+    expect(store.getSnapshot().displayDevelopmentLevels[1]).toBe(2);
+
+    store.syncDisplayDevelopmentLevels({ 1: { houses: 4 } }, [{
+      tileId: 1, fromHouses: 2, toHouses: 4,
+    }]);
+    expect(store.getSnapshot().displayDevelopmentLevels[1]).toBe(2);
+
+    store.emitDevelopmentChange('development-preflash', 1, 'player-a', 2, 4, 260);
+    expect(store.getSnapshot().displayDevelopmentLevels[1]).toBe(4);
+    expect(store.getSnapshot().developmentChanges[0]).toMatchObject({
+      fromHouses: 2, toHouses: 4,
+    });
   });
 
   it('uses one cross-family consequence order in actual emission order', () => {

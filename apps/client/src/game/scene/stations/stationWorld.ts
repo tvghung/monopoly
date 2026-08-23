@@ -5,10 +5,10 @@ import type { PlayerStationSlot } from '../../ui/stations/stationSlots';
 
 export type WorldAnchor = readonly [number, number, number];
 
-export const PLAYER_STATION_WIDTH = 2.68;
-export const PLAYER_STATION_DEPTH = 1.18;
-export const PLAYER_STATION_MAX_Y = 1.42;
-export const PLAYER_STATION_CENTER_OFFSET = OUTER_BOARD_SIZE / 2 + 1.66;
+export const PLAYER_STATION_WIDTH = 3.6;
+export const PLAYER_STATION_DEPTH = 1.65;
+export const PLAYER_STATION_MAX_Y = 2.55;
+export const PLAYER_STATION_CENTER_OFFSET = OUTER_BOARD_SIZE / 2 + 2.25;
 export const PLAYER_STATION_BOARD_GAP = PLAYER_STATION_CENTER_OFFSET
   - OUTER_BOARD_SIZE / 2
   - PLAYER_STATION_DEPTH / 2;

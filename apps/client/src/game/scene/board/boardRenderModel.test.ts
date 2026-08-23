@@ -9,6 +9,7 @@ const presentation = (overrides: Partial<PresentationState> = {}): PresentationS
   displayLogs: [],
   displayPositions: {},
   settledPositions: {},
+  displayDevelopmentLevels: {},
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
   displayRollSequence: 0,
@@ -26,6 +27,7 @@ const presentation = (overrides: Partial<PresentationState> = {}): PresentationS
   moneyTransfers: [],
   cardPresentation: null,
   animationSpeedMultiplier: 1,
+  reducedMotion: false,
   presentationResetEpoch: 0,
   ...overrides,
 });
@@ -146,6 +148,15 @@ describe('board render model', () => {
     expect(model.tiles[1]).toMatchObject({ ownerId: 'active', ownerColor: 'red', houses: 2 });
     expect(model.ownershipChanges[0]?.id).toBe('ownership');
     expect(model.developmentChanges[0]?.id).toBe('development');
+  });
+
+  it('uses the presentation-owned building level to prevent authoritative pre-flash', () => {
+    const model = buildBoardRenderModel(state(), presentation({
+      displayDevelopmentLevels: { 1: 1, 3: 4 },
+    }));
+
+    expect(model.tiles[1]).toMatchObject({ houses: 1 });
+    expect(model.tiles[3]).toMatchObject({ houses: 4 });
   });
 
   it('projects hidden, rolling, and settled dice from the presentation state', () => {

@@ -128,7 +128,9 @@ describe('CardInteractionOverlay', () => {
     });
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(dismissCard).toHaveBeenCalledWith('revealed-card');
-    const backdrop = document.querySelector('.card-focus-overlay__panel--bottom');
+    expect(document.querySelector('.card-focus-overlay__panel')).toBeNull();
+    expect(document.querySelector('.card-focus-overlay__scrim')).toBeTruthy();
+    const backdrop = document.querySelector('.card-focus-layer__test-surface');
     if (backdrop) fireEvent.pointerDown(backdrop);
     controller.dispose();
   });

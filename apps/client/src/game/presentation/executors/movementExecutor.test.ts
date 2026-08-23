@@ -378,6 +378,9 @@ describe('movement tile-hop presentation', () => {
       toTileId: 4,
       durationMs: 0,
     });
+    expect(store.getSnapshot().destinationPreview).toMatchObject({
+      tileId: 4,
+    });
   });
 
   it('keeps a destination preview only for a proven WALK until LAND clears it', async () => {

@@ -35,8 +35,8 @@ export const PROPERTY_NAME_Y = PROPERTY_TEXT_Y + 0.002;
 export const TILE_STEP_PRESS_DEPTH = 0.036;
 export const TILE_LAND_PRESS_DEPTH = 0.058;
 
-export const HOUSE_BODY_HEIGHT = 0.24;
-export const HOTEL_BODY_HEIGHT = 0.52;
+export const HOUSE_BODY_HEIGHT = 0.32;
+export const HOTEL_BODY_HEIGHT = 0.68;
 export const PLAYER_MARKER_BODY_HEIGHT = 0.26;
 
 export const CENTER_AIRPORT_SURFACE_Y = BOARD_FOUNDATION_HEIGHT + 0.045;

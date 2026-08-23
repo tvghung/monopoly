@@ -6,7 +6,6 @@ import * as THREE from 'three';
 import type { BoardRenderModel } from '../board/boardRenderModel';
 import type { MoneyTransferSignal } from '../../presentation/store/types';
 import {
-  COIN_DISABLED,
   COIN_FINISH_MATERIALS,
   COIN_FINISH_ORDER,
   coinFinishForIndex,
@@ -40,7 +39,7 @@ function TransferCoinFinish({
     if (!mesh) return;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     indices.forEach((_, index) => {
-      mesh.setColorAt(index, COIN_DISABLED.clone().lerp(new THREE.Color('#ffffff'), 0.72));
+      mesh.setColorAt(index, new THREE.Color('#ffffff'));
     });
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }, [indices, signal.id]);

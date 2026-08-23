@@ -1366,3 +1366,138 @@ semantic coverage, resize during gameplay, and remote CI remain **NOT RUN**.
 No gameplay rule, server authority, V8 contract, Phase 3 hop baseline, fixed
 camera direction, Reduced Motion/Skip guarantee, or semantic event privacy
 boundary was expanded to compensate for those unavailable manual paths.
+
+## 18. Focused Phase 4 visual/presentation correction pass (2026-08-23)
+
+This section records the follow-up correction pass implemented on top of the
+reviewed Phase 4 branch. The implementation was inspected against the current
+branch before editing. It remains V7-only: one `PresentationController`, one
+`AnimationQueue`, one `PresentationStore`, the approved dice implementation,
+the Phase 3 hop baseline, fixed isometric camera direction, demand rendering,
+and the existing reconnect/Reduced Motion/Skip guarantees are preserved.
+
+### 18.1 Presentation architecture corrections
+
+- A live authoritative snapshot containing dice, a final Chance/Khí Vận tile,
+  and `pendingCardInteraction` now queues `ROLL -> WALK -> LAND -> CARD`.
+  `pendingCardInteraction` is not exposed as a live card presentation before
+  the landing animation completes. Session sync/reset hydrates the centered
+  face-down or revealed card directly without replaying deck flight/reveal.
+- Card focus is now a dedicated root-level portal with one fixed full-viewport
+  scrim and a transparent R3F focus canvas. It covers the toolbar, FPS,
+  settings, leave/forfeit controls, outer teal area, and renderer surroundings;
+  only the physical card region remains interactive. The former R3F scrim is
+  no longer the main dimming layer. The revealed view retains authoritative
+  backdrop/Escape dismissal and reveal locking but has no visible instruction
+  copy or close button.
+- Development levels are presentation-owned until the queued construction
+  change is displayed, preventing authoritative building state from flashing
+  before payment/building presentation. The client log gate buffers gameplay
+  logs through movement, decisions, card interaction, and physical effects,
+  then flushes in original order at a safe turn handoff. Historical reconnect
+  logs hydrate immediately; chat remains independent when no gameplay gate is
+  active. Expected queue aborts do not surface as presentation errors.
+
+### 18.2 Visual corrections
+
+- Board/station/player/transfer coins use one shared low-poly geometry and
+  deterministic copper/silver/gold materials normalized from `60:20:10`.
+  Metalness/roughness are tuned for the existing board lights rather than
+  adding a separate lighting system.
+- Stations are farther from the board and intentionally contain only a
+  prominent player name, a physical mixed-metal wealth pile, and the exact
+  money value. Visible platforms, portraits, connection dots, property/building
+  counts, labels, and active-turn rings are removed. Bank identity is a pile,
+  not a visible `NGÂN HÀNG` label.
+- Destination preview is created only for a proven normal `DICE_WALK`, appears
+  before the first hop, remains through approach, and clears at `LAND`. The
+  surface/edge contrast and restrained pulse are stronger while preserving
+  readability of characters, buildings, and property information. Reconnect,
+  card movement, direct jail movement, and reduced-motion SNAP do not invent a
+  route preview.
+- Physical decks are `2.2 x 1.38`, derived from the Parking-to-Start board
+  diagonal, symmetric around board center, and oriented with their long axis
+  perpendicular to that diagonal. Existing Chance question-mark and Khí Vận
+  wheel assets are shared across idle and detached backs. The renderer border
+  is transparent without changing its measured geometry.
+- Informational BoardEventStage cards and their presentation-only dwell waits
+  are retired. Physical payment coins, ownership feedback, construction,
+  movement, jail reactions, decisions, and card interaction remain. PASS GO is
+  amount-only with Bank-to-player coins. Roll is absent on opponent turns and
+  appears only for a locally safe legal turn.
+
+### 18.3 Automated validation
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Root typecheck | **PASS** | `pnpm typecheck` |
+| Workspace lint | **PASS** | `pnpm lint` |
+| Client tests | **PASS** | 82 files, 400 tests |
+| Server tests without database | **PASS** | 12 files, 142 passed; 1 file and 9 database-gated tests skipped |
+| PostgreSQL-backed server tests | **PASS** | 13 files, 151 tests with `TEST_DATABASE_URL` |
+| Desktop tests | **PASS** | 4 files, 12 tests |
+| Production build | **PASS** | Vite build completed; only the existing large-chunk warning remained |
+| Win32 desktop package | **PASS** | rebuilt `apps/desktop/out/Own the Block-win32-x64` |
+| Database migration status | **PASS** | migrations 001 through 008 applied |
+| `git diff --check` | **PASS** | no whitespace errors; CRLF normalization warnings only |
+| Remote CI / push / merge | **NOT RUN** | not authorized |
+
+### 18.4 Deterministic harness evidence
+
+The existing `Phase4UatHarness` was updated; no second harness was created.
+At the available in-app browser viewport of `1280x720`, observed evidence was:
+
+| Scenario | Evidence | Result |
+| --- | --- | --- |
+| Normal roll destination preview | `PREVIEW > WALK > LAND`; preview before first hop and before LAND | **PASS** |
+| Chance / Khí Vận landing | `PREVIEW > WALK > LAND > CARD`; card remains in deck until LAND completes | **PASS** |
+| Root card focus | fixed `1280x720` scrim, blur `5px`, no split panels; focus ratio `42%` | **PASS** |
+| Idle/deferred card backs | Chance question mark and Khí Vận wheel visible on idle and active backs | **PASS** |
+| 2-player stations | settled `194` draw calls / `53,064` triangles; 2 stations, 57 shared coin instances | **PASS** |
+| 4-player stations | settled `187` draw calls / `53,590` triangles; 4 stations, 94 shared coin instances | **PASS** |
+| Active card focus | scene `191` / `53,278` plus focus `5` / `314`, combined `196` / `53,592`; width ratio `42%` | **PASS** |
+| Building preflash | queued sample observed `build 0/1` before animation and `build 1/1` after; Reduced Motion was immediate | **PASS** |
+| Informational events / PASS GO | no BoardEventStage or visible rent/purchase/development/PASS GO modal; amount-only transfer retained | **PASS** |
+| Roll gate | opponent count `0`; local safe turn count `1`, enabled | **PASS** |
+| Log gate | roll/card logs absent during active presentation and present in order after handoff | **PASS** |
+| Stress budget | peak `216` draw calls / `56,584` triangles with 25 animated objects; settled `206` / `56,032` | **PASS**; under `240` / `100,000` |
+
+The active-card sample used the shared root focus canvas at `42%` viewport
+width and approximately `46.8%` viewport height; the stress sample returned to
+focus `0%` after cleanup. Browser capability did not expose runtime viewport
+resizing, so live resize at `1280x720`, `1440x900`, and
+`1920x1080` is **NOT RUN**; layout/camera unit coverage remains automated.
+
+### 18.5 Live browser and Electron evidence
+
+- **Live browser: PARTIAL PASS.** In the real server-backed room `P4UAT22`, a
+  normal roll produced an authoritative `2+5=7` destination and purchase
+  decision. Declining purchase completed the presentation; the roll log was
+  not visible during the decision/animation, then appeared after handoff, and
+  the next-player Roll CTA became visible only for the eligible player. Live
+  Chance, Khí Vận, rent, and development were **NOT RUN** because the second
+  player disconnected before those paths could be reached.
+- **Electron: PARTIAL PASS for rebuilt-shell smoke.** The rebuilt x64 package
+  launched at `1440x900`; title, branded recovery screen, loading state, and
+  accessibility tree were observed. With no persisted desktop session, the
+  package stayed at `Đang khôi phục ván chơi…`, so packaged Join/Board/card/
+  rent/development/Reduced Motion/Skip/reconnect/resize semantics are **NOT
+  RUN**. A scoped `--socket-url`/environment launch attempt failed at the
+  Windows process layer before Electron created a window; no source change was
+  made for that validation-only environment issue.
+
+### 18.6 Requested behavior status
+
+The following statuses are for this correction pass, not inferred from
+historical logs: card-after-LAND **PASS**; full-viewport card focus and input
+isolation **PASS**; invisible renderer border **PASS**; mixed metallic coins
+**PASS**; simplified/farther stations for 2 and 4 players **PASS**; removed
+character/station active rings **PASS**; visible destination preview **PASS**;
+retired informational modals and PASS GO modal **PASS**; deck icons and
+diagonal enlargement **PASS**; opponent-hidden/local-safe Roll **PASS**;
+revealed-card cleanup **PASS**; delayed roll/card logs and turn-handoff flush
+**PASS**; reconnect log/card hydration **PASS**; Reduced Motion and speed
+settings **PASS**; stress budget **PASS**. Live Chance/Khí Vận/rent/development,
+full packaged gameplay semantics, and live viewport-resize checks are **NOT
+RUN**. No remaining gameplay-rule, authority, V8, Phase 3 movement, camera,
+privacy, or Phase 5-audio gap was introduced by this pass.

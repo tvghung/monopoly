@@ -14,6 +14,7 @@ import stateContext from '../../../internal';
 import { localizeAckError } from '../../../presentation';
 import { usePresentation } from '../../presentation/PresentationProvider';
 import { presentationTiming } from '../../presentation/timings';
+import CardFocusLayer from './CardFocusLayer';
 import './CardInteractionOverlay.css';
 
 interface CardInteractionContextValue {
@@ -159,9 +160,7 @@ export default function CardInteractionOverlay() {
   const revealed = pendingCard.stage === 'REVEALED';
   const statusCopy = awaiting
     ? activeCard ? 'Nhấn vào thẻ để xem' : 'Đang chờ người chơi rút thẻ'
-    : cardPresentation.stage === 'DRAWING'
-      ? 'Đang đưa thẻ lên…'
-      : null;
+    : null;
 
   return createPortal(
     <div
@@ -171,24 +170,14 @@ export default function CardInteractionOverlay() {
       aria-live="polite"
     >
       <div
-        className="card-focus-overlay__panel card-focus-overlay__panel--top"
+        className="card-focus-overlay__scrim"
         aria-hidden="true"
-        onPointerDown={revealed && revealUnlocked ? () => void dismiss() : undefined}
       />
-      <div
-        className="card-focus-overlay__panel card-focus-overlay__panel--left"
-        aria-hidden="true"
-        onPointerDown={revealed && revealUnlocked ? () => void dismiss() : undefined}
-      />
-      <div
-        className="card-focus-overlay__panel card-focus-overlay__panel--right"
-        aria-hidden="true"
-        onPointerDown={revealed && revealUnlocked ? () => void dismiss() : undefined}
-      />
-      <div
-        className="card-focus-overlay__panel card-focus-overlay__panel--bottom"
-        aria-hidden="true"
-        onPointerDown={revealed && revealUnlocked ? () => void dismiss() : undefined}
+      <CardFocusLayer
+        signal={cardPresentation}
+        deckCounts={state.deckCounts}
+        interaction={cardInteraction}
+        onBackdropClick={revealed && revealUnlocked && activeCard ? () => void dismiss() : undefined}
       />
       {statusCopy ? <p className="card-focus-overlay__instruction">{statusCopy}</p> : null}
       <div className="sr-only" role="status">

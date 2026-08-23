@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   COIN_FINISH_MATERIALS,
   COIN_FINISH_SEQUENCE,
+  COIN_RADIUS,
+  COIN_THICKNESS,
   coinFinishForIndex,
   stableCoinSeed,
 } from './coinVisuals';
+import { wealthCoinCount } from './PlayerStationLayer';
 
 describe('shared metallic coin system', () => {
   it('uses one deterministic copper/silver/gold composition at the requested relative weights', () => {
@@ -24,6 +27,15 @@ describe('shared metallic coin system', () => {
       expect(material.metalness).toBeGreaterThanOrEqual(0.75);
       expect(material.roughness).toBeGreaterThanOrEqual(0.18);
       expect(material.roughness).toBeLessThanOrEqual(0.28);
+      expect(material).toHaveProperty('clearcoat');
     });
+    expect(COIN_RADIUS).toBeGreaterThanOrEqual(0.2);
+    expect(COIN_THICKNESS).toBeGreaterThanOrEqual(0.075);
+  });
+
+  it('keeps positive wealth piles symbolic but visually substantial', () => {
+    expect(wealthCoinCount(1)).toBeGreaterThanOrEqual(9);
+    expect(wealthCoinCount(1_500)).toBe(20);
+    expect(wealthCoinCount(1_500_000)).toBe(20);
   });
 });

@@ -83,6 +83,7 @@ export default function Board3D({
             destinationPreview={model?.destinationPreview?.tileId === tile.tileId
               ? model.destinationPreview
               : undefined}
+            reducedMotion={model?.reducedMotion ?? false}
             onHover={onTileHover}
             onSelect={onTileSelect}
           />
@@ -99,6 +100,7 @@ export default function Board3D({
         signal={model?.cardPresentation ?? null}
         deckCounts={model?.deckCounts ?? { chance: 0, chest: 0 }}
         interaction={cardInteraction}
+        renderActiveCard={false}
       />
       <PlayerStationLayer
         stations={model?.stations ?? []}

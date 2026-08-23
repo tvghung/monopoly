@@ -18,6 +18,8 @@ export const PHYSICAL_CARD_LAYER_STEP = PHYSICAL_CARD_THICKNESS + PHYSICAL_CARD_
 export const PHYSICAL_CARD_BEVEL = 0.022;
 export const CARD_PRESENTATION_SCALE = 2.65;
 export const CARD_REVEAL_ROTATIONS = 2.5;
+export const CARD_FOCUS_VIEWPORT_WIDTH_RATIO = 0.42;
+export const CARD_FOCUS_VIEWPORT_HEIGHT_RATIO = 0.7;
 
 const parkingCorner = getBoardTileLayout(20)?.position ?? [-1, 0, -1];
 const startCorner = getBoardTileLayout(0)?.position ?? [1, 0, 1];

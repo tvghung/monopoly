@@ -17,10 +17,10 @@ export const CHARACTER_BILLBOARD_HEIGHT = 1.22;
 export const CHARACTER_BASE_Y = TILE_SURFACE_Y + TILE_SURFACE_EPSILON;
 
 const HOUSE_SLOTS: readonly (readonly [number, number, number])[] = [
-  [-0.25, HOUSE_CENTER_Y, 0.19],
-  [0.25, HOUSE_CENTER_Y, 0.19],
-  [-0.25, HOUSE_CENTER_Y, -0.19],
-  [0.25, HOUSE_CENTER_Y, -0.19],
+  [-0.27, HOUSE_CENTER_Y, 0.23],
+  [0.27, HOUSE_CENTER_Y, 0.23],
+  [-0.27, HOUSE_CENTER_Y, -0.23],
+  [0.27, HOUSE_CENTER_Y, -0.23],
 ];
 
 type LocalPoint = readonly [number, number, number];

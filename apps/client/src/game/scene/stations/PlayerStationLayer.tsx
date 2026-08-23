@@ -26,13 +26,7 @@ import {
 
 export function wealthCoinCount(balance: number): number {
   if (balance <= 0) return 0;
-  if (balance < 200) return 4;
-  if (balance < 500) return 5;
-  if (balance < 1_000) return 6;
-  if (balance < 1_500) return 7;
-  if (balance < 2_000) return 8;
-  if (balance < 3_000) return 10;
-  return 12;
+  return Math.min(20, 9 + Math.floor(Math.sqrt(balance / 1_500) * 11));
 }
 
 interface CoinInstance {
@@ -81,14 +75,14 @@ function CoinFinishPile({
 
 function CoinPiles({ stations }: { stations: readonly PlayerStationRenderModel[] }) {
   const instances = useMemo((): CoinInstance[] => {
-    const bankCoins = Array.from({ length: 15 }, (_, index): CoinInstance => {
-      const column = index % 5;
-      const layer = Math.floor(index / 5);
+    const bankCoins = Array.from({ length: 18 }, (_, index): CoinInstance => {
+      const column = index % 6;
+      const layer = Math.floor(index / 6);
       return {
         position: [
-          BANK_WORLD_ANCHOR[0] + (column - 2) * 0.22,
+          BANK_WORLD_ANCHOR[0] + (column - 2.5) * 0.24,
           0.36 + layer * (COIN_THICKNESS + 0.008),
-          BANK_WORLD_ANCHOR[2] + 0.08 + (index % 2) * 0.08,
+          BANK_WORLD_ANCHOR[2] + 0.04 + (index % 2) * 0.1,
         ],
         finish: coinFinishForIndex(index, stableCoinSeed('bank')),
         disabled: false,
@@ -97,14 +91,14 @@ function CoinPiles({ stations }: { stations: readonly PlayerStationRenderModel[]
     const stationCoins = stations.flatMap(station => {
       const count = station.status === 'ACTIVE' ? wealthCoinCount(station.accountBalance) : 3;
       return Array.from({ length: count }, (_, index): CoinInstance => {
-        const column = index % 4;
-        const layer = Math.floor(index / 4);
+        const column = index % 7;
+        const layer = Math.floor(index / 7);
         return {
           position: getStationWorldPoint(
             station.slot,
-            0.88 + (column - 1.5) * 0.18,
-            (index % 2) * 0.075 - 0.04,
-            0.43 + layer * (COIN_THICKNESS + 0.008),
+            (column - 3) * 0.28,
+            0.12 + (index % 2) * 0.1,
+            0.62 + layer * (COIN_THICKNESS + 0.018),
           ),
           finish: coinFinishForIndex(index, stableCoinSeed(station.playerId)),
           disabled: station.status !== 'ACTIVE',
@@ -115,7 +109,7 @@ function CoinPiles({ stations }: { stations: readonly PlayerStationRenderModel[]
   }, [stations]);
 
   return (
-    <group name="SharedStationAndBankCoins" userData={{ bankCoinCount: 15, symbolicWealth: true }}>
+    <group name="SharedStationAndBankCoins" userData={{ bankCoinCount: 18, symbolicWealth: true }}>
       {COIN_FINISH_ORDER.map(finish => <CoinFinishPile key={finish} finish={finish} instances={instances} />)}
     </group>
   );
@@ -136,17 +130,17 @@ function StationInformation({ station }: { station: PlayerStationRenderModel }) 
     <>
       <SdfBillboardText
         value={`${station.name}${status ? ` · ${status}` : ''}`}
-        position={getStationWorldPoint(station.slot, -0.1, 0, 0.92)}
-        fontSize={status ? 0.16 : 0.2}
-        maxWidth={2.35}
+        position={getStationWorldPoint(station.slot, 0, 0, 1.92)}
+        fontSize={status ? 0.26 : 0.31}
+        maxWidth={3.25}
         color={primary}
         name={`PlayerStationName:${station.playerId}`}
       />
       <SdfBillboardText
         value={formatMoney(station.accountBalance)}
-        position={getStationWorldPoint(station.slot, -0.1, 0, 0.62)}
-        fontSize={0.29}
-        maxWidth={1.9}
+        position={getStationWorldPoint(station.slot, 0, 0, 1.4)}
+        fontSize={0.42}
+        maxWidth={2.8}
         color={primary}
         name={`PlayerStationBalance:${station.playerId}`}
       />
@@ -191,9 +185,9 @@ function StationMoneyAmounts({
           <SdfBillboardText
             key={`${signal.id}:${station.playerId}`}
             value={`${positive ? '+' : '-'}${formatMoney(Math.abs(amount))}`}
-            position={getStationWorldPoint(station.slot, 0, 0, 1.3)}
-            fontSize={0.25}
-            maxWidth={1.8}
+            position={getStationWorldPoint(station.slot, 0, 0, 2.35)}
+            fontSize={0.31}
+            maxWidth={2.4}
             color={positive ? '#bdf58d' : '#ffd0bb'}
             name={`PlayerStationAmount:${station.playerId}`}
           />

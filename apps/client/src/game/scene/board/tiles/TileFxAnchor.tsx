@@ -16,6 +16,7 @@ interface TileFxAnchorProps {
   developmentChange?: DevelopmentChangeSignal;
   goCrossing?: GoCrossingSignal;
   destinationPreview?: DestinationPreviewSignal;
+  reducedMotion?: boolean;
 }
 
 export default function TileFxAnchor({
@@ -26,6 +27,7 @@ export default function TileFxAnchor({
   developmentChange,
   goCrossing,
   destinationPreview,
+  reducedMotion = false,
 }: TileFxAnchorProps) {
   return (
     <group name={`TileFxAnchor:${tileId}`} userData={{ tileId }}>
@@ -36,7 +38,9 @@ export default function TileFxAnchor({
         developmentChange={developmentChange}
         goCrossing={goCrossing}
       />
-      {destinationPreview ? <TileDestinationPreview panel={panel} signal={destinationPreview} /> : null}
+      {destinationPreview
+        ? <TileDestinationPreview panel={panel} signal={destinationPreview} reducedMotion={reducedMotion} />
+        : null}
     </group>
   );
 }

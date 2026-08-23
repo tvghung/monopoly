@@ -127,6 +127,7 @@ export interface PresentationState {
   displayLogs: readonly string[];
   displayPositions: Record<string, number>;
   settledPositions: Record<string, number>;
+  displayDevelopmentLevels: Record<number, number>;
   displayActivePlayerId: string | null;
   displayDice: DiceValue;
   displayRollSequence: number;
@@ -144,6 +145,7 @@ export interface PresentationState {
   moneyTransfers: readonly MoneyTransferSignal[];
   cardPresentation: CardPresentationSignal | null;
   animationSpeedMultiplier: number;
+  reducedMotion: boolean;
   presentationResetEpoch: number;
 }
 
@@ -155,6 +157,10 @@ export interface PresentationStoreLike {
   resetFromSnapshot: (room: PublicRoomState) => void;
   setDisplayLogs: (logs: readonly string[]) => void;
   syncPlayers: (room: PublicRoomState) => void;
+  syncDisplayDevelopmentLevels: (
+    levels: Readonly<Record<number, number | { houses: number }>>,
+    delayedChanges?: readonly Pick<DevelopmentChangeSignal, 'tileId' | 'fromHouses' | 'toHouses'>[],
+  ) => void;
   startCharacterHop: (playerId: string, fromTileId: number, toTileId: number, durationMs: number) => void;
   startJailTransfer: (playerId: string, fromTileId: number, toTileId: number, durationMs: number) => void;
   completeCharacterHop: (playerId: string, tileId: number) => void;
@@ -189,6 +195,7 @@ export interface PresentationStoreLike {
   emitMoneyTransfer: (signal: Omit<MoneyTransferSignal, 'sequence' | 'coinCount'>) => void;
   setCardPresentation: (signal: CardPresentationSignal | null) => void;
   setAnimationSpeedMultiplier: (multiplier: number) => void;
+  setReducedMotion: (reducedMotion: boolean) => void;
   setStatus: (status: AnimationQueueStatus) => void;
 }
 

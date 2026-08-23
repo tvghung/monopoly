@@ -40,6 +40,15 @@ export function createMovementExecutor(store: PresentationStoreLike): Presentati
 
   return {
     async run(event, context) {
+      const previewId = `${event.id}:destination-preview`;
+      if (event.presentation === 'WALK') {
+        store.showDestinationPreview({
+          id: previewId,
+          playerId: event.playerId,
+          tileId: event.to,
+          strongDurationMs: context.getDuration(presentationTiming.destinationPreviewStrong),
+        });
+      }
       if (event.presentation === 'SNAP' || context.reducedMotion) {
         if (!isExecutionCurrent(context)) return;
         store.snapDisplayPosition(event.playerId, event.to);
@@ -49,13 +58,6 @@ export function createMovementExecutor(store: PresentationStoreLike): Presentati
         }
         return;
       }
-      const previewId = `${event.id}:destination-preview`;
-      store.showDestinationPreview({
-        id: previewId,
-        playerId: event.playerId,
-        tileId: event.to,
-        strongDurationMs: context.getDuration(presentationTiming.destinationPreviewStrong),
-      });
       await context.wait(presentationTiming.destinationPreviewLead);
       let fromTileId = event.from;
       let passGoCompletion: Promise<void> | null = null;

@@ -243,6 +243,45 @@ describe('PresentationController', () => {
     vi.restoreAllMocks();
   });
 
+  it('flushes a roll log only after the card interaction hands off the turn', async () => {
+    const controller = new PresentationController();
+    controller.setPreferences(true, 1);
+    const initial = makeRoom();
+    controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
+
+    const roll = cloneRoom(initial);
+    roll.gameState.boardState.diceValue = { dice1: 3, dice2: 4 };
+    roll.gameState.boardState.rollSequence = 1;
+    roll.gameState.boardState.currentPlayer.hasMoved = true;
+    roll.gameState.players['player-a'].currentTile = 7;
+    roll.gameState.turnInfo.pendingCardInteraction = {
+      operationId: 'card-handoff-log', playerId: 'player-a', turnNumber: 1,
+      deck: 'chance', sourceTile: 7, stage: 'AWAITING_DRAW',
+      continuation: { playerId: 'player-a', turnNumber: 1 },
+      deadlineAt: '2026-08-22T00:00:30.000Z',
+    };
+    roll.gameState.boardState.logs = ['An đổ được 7'];
+    controller.acceptRoomSnapshot(roll, 'LIVE_UPDATE');
+    await controller.queue.whenIdle();
+    expect(controller.getState().displayLogs).toEqual([]);
+
+    const revealed = cloneRoom(roll);
+    revealed.gameState.turnInfo.pendingCardInteraction!.stage = 'REVEALED';
+    revealed.gameState.turnInfo.pendingCardInteraction!.revealedCardId = 'chance-dividend';
+    controller.acceptRoomSnapshot(revealed, 'LIVE_UPDATE');
+    await controller.queue.whenIdle();
+    expect(controller.getState().displayLogs).toEqual([]);
+
+    const handoff = cloneRoom(revealed);
+    delete handoff.gameState.turnInfo.pendingCardInteraction;
+    handoff.gameState.boardState.currentPlayer = { id: 'player-b', hasMoved: false };
+    handoff.gameState.boardState.turnNumber = 2;
+    controller.acceptRoomSnapshot(handoff, 'LIVE_UPDATE');
+    await controller.queue.whenIdle();
+    expect(controller.getState().displayLogs).toEqual(['An đổ được 7']);
+    controller.dispose();
+  });
+
   it('hydrates active card state on session sync without replaying flight or reveal', () => {
     const controller = new PresentationController();
     const initial = makeRoom();
@@ -260,6 +299,28 @@ describe('PresentationController', () => {
       stage: 'REVEALED', revealedCardId: 'chance-dividend', durationMs: 0,
     });
     expect(controller.getState().characterMovements).toEqual([]);
+    controller.dispose();
+  });
+
+  it('keeps authoritative buildings at their old display level until the executor starts', async () => {
+    const controller = new PresentationController();
+    const initial = makeRoom();
+    initial.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 0 };
+    controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
+
+    const development = cloneRoom(initial);
+    development.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 1 };
+    controller.queue.pause();
+    controller.acceptRoomSnapshot(development, 'LIVE_UPDATE');
+
+    expect(controller.getState().displayDevelopmentLevels[1]).toBe(0);
+    expect(controller.getState().developmentChanges).toEqual([]);
+    controller.queue.resume();
+    await controller.queue.whenIdle();
+    expect(controller.getState().displayDevelopmentLevels[1]).toBe(1);
+    expect(controller.getState().developmentChanges.at(-1)).toMatchObject({
+      fromHouses: 0, toHouses: 1,
+    });
     controller.dispose();
   });
 });

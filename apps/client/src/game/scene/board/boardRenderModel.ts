@@ -79,6 +79,7 @@ export interface BoardRenderModel {
   deckCounts: DeckCounts;
   stations: PlayerStationRenderModel[];
   animationSpeedMultiplier: number;
+  reducedMotion: boolean;
   presentationResetEpoch: number;
 }
 
@@ -111,7 +112,7 @@ export function buildBoardRenderModel(
         ? {
           ownerId: owned.id,
           ownerColor: resolveOwnerColor(state, owned.id, owned.color),
-          houses: owned.houses,
+          houses: presentationState.displayDevelopmentLevels[tileId] ?? owned.houses,
         }
         : { houses: 0 }),
     };
@@ -188,6 +189,7 @@ export function buildBoardRenderModel(
     deckCounts: { ...state.deckCounts },
     stations,
     animationSpeedMultiplier: presentationState.animationSpeedMultiplier,
+    reducedMotion: presentationState.reducedMotion,
     presentationResetEpoch: presentationState.presentationResetEpoch,
   };
 }
