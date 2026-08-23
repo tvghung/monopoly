@@ -61,6 +61,12 @@ function startSvgImageLoad(url: string, entry: SvgImageCacheEntry): void {
   image.src = url;
 }
 
+/** Start shared card/tile icon loading before a physical card enters focus. */
+export function prewarmSharedSvgTexture(url: string): void {
+  const entry = getSvgImageCacheEntry(url);
+  startSvgImageLoad(url, entry);
+}
+
 function useSvgImage(url: string): HTMLImageElement | null {
   const [image, setImage] = useState<HTMLImageElement | null>(
     () => getSvgImageCacheEntry(url).image,

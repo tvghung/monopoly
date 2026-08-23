@@ -187,6 +187,7 @@ describe('presentation reaction executors', () => {
     }, immediateContext);
 
     expect(store.getSnapshot().balanceDeltas[0]).toMatchObject({ delta: -180, durationMs: 120 });
+    expect(store.getSnapshot().displayBalances['player-a']).toBe(1_320);
     expect(store.getSnapshot().ownershipChanges[0]).toMatchObject({ tileId: 1, toPlayerId: 'player-a' });
     expect(store.getSnapshot().developmentChanges[0]).toMatchObject({ delta: 1, direction: 'UP' });
   });

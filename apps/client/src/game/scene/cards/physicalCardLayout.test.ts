@@ -4,10 +4,17 @@ import {
   CARD_REVEAL_ROTATIONS,
   CARD_FOCUS_VIEWPORT_WIDTH_RATIO,
   CARD_FOCUS_VIEWPORT_HEIGHT_RATIO,
+  CARD_FOCUS_CAMERA_FAR,
+  CARD_FOCUS_CAMERA_NEAR,
+  CARD_FOCUS_CAMERA_Z,
+  CARD_FOCUS_CAMERA_ZOOM,
+  CARD_FRAME_BORDER,
   DECK_ANCHORS,
   DECK_ROTATION_Y,
+  getCardFocusCameraSpaceDepth,
   getCardLayerTransform,
   getIdleDeckCardCount,
+  isCardFocusDepthSafe,
   isCenterAssetLayoutClear,
   DECK_AXIS_OFFSET,
   PHYSICAL_CARD_DEPTH,
@@ -29,7 +36,24 @@ describe('physical card deck layout', () => {
     expect(CARD_FOCUS_VIEWPORT_WIDTH_RATIO).toBeGreaterThanOrEqual(0.36);
     expect(CARD_FOCUS_VIEWPORT_WIDTH_RATIO).toBeLessThanOrEqual(0.44);
     expect(CARD_FOCUS_VIEWPORT_HEIGHT_RATIO).toBeGreaterThan(0.6);
+    expect(CARD_FRAME_BORDER).toBeGreaterThanOrEqual(0.045);
+    expect(CARD_FRAME_BORDER).toBeLessThanOrEqual(0.055);
   });
+
+  it.each([[1280, 720], [1440, 900], [1920, 1080]])(
+    'keeps all focused card geometry inside the orthographic camera depth at %sx%s',
+    (width, height) => {
+      const depth = getCardFocusCameraSpaceDepth(
+        width / CARD_FOCUS_CAMERA_ZOOM,
+        height / CARD_FOCUS_CAMERA_ZOOM,
+      );
+      expect(depth.minZ).toBeGreaterThan(CARD_FOCUS_CAMERA_NEAR + 0.5);
+      expect(depth.maxZ).toBeLessThan(CARD_FOCUS_CAMERA_FAR - 0.5);
+      expect(depth.minZ).toBeGreaterThan(CARD_FOCUS_CAMERA_Z - 1);
+      expect(depth.maxZ).toBeLessThan(CARD_FOCUS_CAMERA_Z + 1);
+      expect(isCardFocusDepthSafe(width / CARD_FOCUS_CAMERA_ZOOM, height / CARD_FOCUS_CAMERA_ZOOM)).toBe(true);
+    },
+  );
 
   it('places enlarged decks symmetrically on the Parking to Start diagonal with perpendicular long axes', () => {
     const parking = getBoardTileLayout(20)?.position;

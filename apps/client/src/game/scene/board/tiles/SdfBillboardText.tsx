@@ -11,6 +11,9 @@ interface SdfBillboardTextProps {
   fontSize: number;
   maxWidth: number;
   color: string;
+  outlineColor?: string | number;
+  outlineWidth?: number | string;
+  outlineOpacity?: number;
   lineHeight?: number;
   sdfGlyphSize?: number;
   name?: string;
@@ -22,6 +25,9 @@ export default function SdfBillboardText({
   fontSize,
   maxWidth,
   color,
+  outlineColor,
+  outlineWidth,
+  outlineOpacity,
   lineHeight = 1.05,
   sdfGlyphSize = TILE_SDF_GLYPH_SIZE,
   name,
@@ -38,10 +44,13 @@ export default function SdfBillboardText({
       fontSize,
       maxWidth,
       color,
+      outlineColor,
+      outlineWidth,
+      outlineOpacity,
       lineHeight,
       sdfGlyphSize,
     }, invalidate);
-  }, [color, fontSize, invalidate, lineHeight, maxWidth, sdfGlyphSize, textObject, value]);
+  }, [color, fontSize, invalidate, lineHeight, maxWidth, outlineColor, outlineOpacity, outlineWidth, sdfGlyphSize, textObject, value]);
 
   useLayoutEffect(() => {
     textObject.position.set(...position);

@@ -87,6 +87,14 @@ function RendererDiagnostics({
       const sceneObjects: THREE.Object3D[] = [];
       scene.traverse(object => sceneObjects.push(object));
       const stationCoinMeshes = sceneObjects.filter(object => object.name.startsWith('StationCoins:'));
+      const sharedCoinFinishInstances = Object.fromEntries(
+        (['COPPER', 'SILVER', 'GOLD'] as const).map(finish => [
+          finish,
+          stationCoinMeshes
+            .filter(object => object.name === `StationCoins:${finish}`)
+            .reduce((count, object) => count + (object instanceof THREE.InstancedMesh ? object.count : 0), 0),
+        ]),
+      );
       const chanceCards = scene.getObjectByName('chanceCardBodies');
       const chestCards = scene.getObjectByName('chestCardBodies');
       const diagnostics = {
@@ -104,6 +112,7 @@ function RendererDiagnostics({
         focusCanvasTriangles: focusTriangles,
         cardFocusWidthRatio: focusCardWidthRatio,
         cardFocusHeightRatio: focusCardHeightRatio,
+        cardFocusCameraSpaceDepth: focusDiagnostics.cameraSpaceDepth ?? null,
         combinedDrawCalls: gl.info.render.calls + focusDrawCalls,
         combinedTriangles: estimateSceneTriangles(scene) + focusTriangles,
         activeAnimatedObjects,
@@ -121,6 +130,7 @@ function RendererDiagnostics({
             (count, object) => count + (object instanceof THREE.InstancedMesh ? object.count : 0),
             0,
           ),
+          sharedCoinFinishInstances,
           decks: {
             chance: {
               physicalCount: chanceCards instanceof THREE.InstancedMesh ? chanceCards.count : 0,

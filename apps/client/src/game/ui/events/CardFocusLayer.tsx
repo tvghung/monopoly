@@ -7,10 +7,14 @@ import {
   type PhysicalCardInteraction,
 } from '../../scene/cards/PhysicalCardDecks';
 import {
-  CARD_FOCUS_VIEWPORT_HEIGHT_RATIO,
-  CARD_FOCUS_VIEWPORT_WIDTH_RATIO,
+  CARD_FOCUS_CAMERA_FAR,
+  CARD_FOCUS_CAMERA_NEAR,
+  CARD_FOCUS_CAMERA_Z,
+  CARD_FOCUS_CAMERA_ZOOM,
   PHYSICAL_CARD_DEPTH,
   PHYSICAL_CARD_WIDTH,
+  getCardFocusCameraSpaceDepth,
+  getCardFocusScale,
 } from '../../scene/cards/physicalCardLayout';
 
 function FocusRendererDiagnostics({ stage }: { stage: CardPresentationSignal['stage'] }) {
@@ -24,16 +28,15 @@ function FocusRendererDiagnostics({ stage }: { stage: CardPresentationSignal['st
     if (!localDiagnostics) return undefined;
     let measurementFrame = 0;
     const publish = () => {
-      const focusScale = Math.min(
-        viewportWidth * CARD_FOCUS_VIEWPORT_WIDTH_RATIO / PHYSICAL_CARD_WIDTH,
-        viewportHeight * CARD_FOCUS_VIEWPORT_HEIGHT_RATIO / PHYSICAL_CARD_DEPTH,
-      );
+      const focusScale = getCardFocusScale(viewportWidth, viewportHeight);
+      const cameraDepth = getCardFocusCameraSpaceDepth(viewportWidth, viewportHeight);
       const diagnostics = {
         stage,
         drawCalls: gl.info.render.calls,
         triangles: gl.info.render.triangles,
         cardWidthRatio: viewportWidth > 0 ? focusScale * PHYSICAL_CARD_WIDTH / viewportWidth : 0,
         cardHeightRatio: viewportHeight > 0 ? focusScale * PHYSICAL_CARD_DEPTH / viewportHeight : 0,
+        cameraSpaceDepth: cameraDepth,
       };
       window.__OWN_THE_BLOCK_CARD_FOCUS_DIAGNOSTICS__ = diagnostics;
       window.dispatchEvent(new CustomEvent('own-the-block-card-focus', { detail: diagnostics }));
@@ -69,7 +72,12 @@ export default function CardFocusLayer({
     >
       {canRenderCanvas ? <Canvas
         orthographic
-        camera={{ position: [0, 0, 10], near: 0.1, far: 100, zoom: 1 }}
+        camera={{
+          position: [0, 0, CARD_FOCUS_CAMERA_Z],
+          near: CARD_FOCUS_CAMERA_NEAR,
+          far: CARD_FOCUS_CAMERA_FAR,
+          zoom: CARD_FOCUS_CAMERA_ZOOM,
+        }}
         dpr={[1, 1.5]}
         frameloop="demand"
         shadows={false}

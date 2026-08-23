@@ -134,6 +134,9 @@ function StationInformation({ station }: { station: PlayerStationRenderModel }) 
         fontSize={status ? 0.26 : 0.31}
         maxWidth={3.25}
         color={primary}
+        outlineColor="#14231f"
+        outlineWidth={status ? 0.0104 : 0.0124}
+        outlineOpacity={0.72}
         name={`PlayerStationName:${station.playerId}`}
       />
       <SdfBillboardText
@@ -142,6 +145,9 @@ function StationInformation({ station }: { station: PlayerStationRenderModel }) 
         fontSize={0.42}
         maxWidth={2.8}
         color={primary}
+        outlineColor="#14231f"
+        outlineWidth={0.0168}
+        outlineOpacity={0.72}
         name={`PlayerStationBalance:${station.playerId}`}
       />
     </>
@@ -189,6 +195,9 @@ function StationMoneyAmounts({
             fontSize={0.31}
             maxWidth={2.4}
             color={positive ? '#bdf58d' : '#ffd0bb'}
+            outlineColor="#14231f"
+            outlineWidth={0.0124}
+            outlineOpacity={0.72}
             name={`PlayerStationAmount:${station.playerId}`}
           />
         )];

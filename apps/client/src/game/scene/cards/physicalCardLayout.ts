@@ -20,6 +20,13 @@ export const CARD_PRESENTATION_SCALE = 2.65;
 export const CARD_REVEAL_ROTATIONS = 2.5;
 export const CARD_FOCUS_VIEWPORT_WIDTH_RATIO = 0.42;
 export const CARD_FOCUS_VIEWPORT_HEIGHT_RATIO = 0.7;
+export const CARD_FOCUS_CAMERA_Z = 10;
+export const CARD_FOCUS_CAMERA_NEAR = 0.1;
+export const CARD_FOCUS_CAMERA_FAR = 30;
+/** One hundred world units per CSS pixel keeps focus depth normalized. */
+export const CARD_FOCUS_CAMERA_ZOOM = 100;
+export const CARD_FOCUS_LOCAL_DEPTH_LIMIT = 0.035;
+export const CARD_FRAME_BORDER = 0.05;
 
 const parkingCorner = getBoardTileLayout(20)?.position ?? [-1, 0, -1];
 const startCorner = getBoardTileLayout(0)?.position ?? [1, 0, 1];
@@ -50,6 +57,39 @@ export const CARD_PRESENTATION_POSITION: readonly [number, number, number] = [
   CAMERA_DIRECTION[1] * 3.4,
   CAMERA_DIRECTION[2] * 3.4,
 ];
+
+export function getCardFocusScale(viewportWidth: number, viewportHeight: number): number {
+  if (!Number.isFinite(viewportWidth) || !Number.isFinite(viewportHeight)
+    || viewportWidth <= 0 || viewportHeight <= 0) return 1;
+  return Math.min(
+    viewportWidth * CARD_FOCUS_VIEWPORT_WIDTH_RATIO / PHYSICAL_CARD_WIDTH,
+    viewportHeight * CARD_FOCUS_VIEWPORT_HEIGHT_RATIO / PHYSICAL_CARD_DEPTH,
+  );
+}
+
+export interface CardFocusCameraSpaceDepth {
+  minZ: number;
+  maxZ: number;
+  scale: number;
+}
+
+export function getCardFocusCameraSpaceDepth(
+  viewportWidth: number,
+  viewportHeight: number,
+): CardFocusCameraSpaceDepth {
+  const scale = getCardFocusScale(viewportWidth, viewportHeight);
+  const halfExtent = CARD_FOCUS_LOCAL_DEPTH_LIMIT * scale;
+  return {
+    minZ: CARD_FOCUS_CAMERA_Z - halfExtent,
+    maxZ: CARD_FOCUS_CAMERA_Z + halfExtent,
+    scale,
+  };
+}
+
+export function isCardFocusDepthSafe(viewportWidth: number, viewportHeight: number): boolean {
+  const depth = getCardFocusCameraSpaceDepth(viewportWidth, viewportHeight);
+  return depth.minZ > CARD_FOCUS_CAMERA_NEAR && depth.maxZ < CARD_FOCUS_CAMERA_FAR;
+}
 
 export interface CardLayerTransform {
   position: readonly [number, number, number];

@@ -2,12 +2,14 @@ import * as THREE from 'three';
 
 export const COIN_RADIUS = 0.21;
 export const COIN_THICKNESS = 0.082;
-export const COIN_RADIAL_SEGMENTS = 16;
+export const COIN_RADIAL_SEGMENTS = 12;
+export const COIN_BEVEL_SIZE = 0.018;
+export const COIN_BEVEL_THICKNESS = 0.012;
 export type CoinFinish = 'COPPER' | 'SILVER' | 'GOLD';
 
-export const COIN_COPPER = new THREE.Color('#d98250');
-export const COIN_SILVER = new THREE.Color('#edf5f7');
-export const COIN_GOLD = new THREE.Color('#f2bd3f');
+export const COIN_COPPER = new THREE.Color('#e7a070');
+export const COIN_SILVER = new THREE.Color('#f6fbff');
+export const COIN_GOLD = new THREE.Color('#ffd45f');
 export const COIN_DISABLED = new THREE.Color('#8d9692');
 export const COIN_FINISH_ORDER: readonly CoinFinish[] = ['COPPER', 'SILVER', 'GOLD'];
 export const COIN_FINISH_SEQUENCE: readonly CoinFinish[] = [
@@ -16,37 +18,52 @@ export const COIN_FINISH_SEQUENCE: readonly CoinFinish[] = [
   'GOLD',
 ];
 
-export const SHARED_COIN_GEOMETRY = new THREE.CylinderGeometry(
-  COIN_RADIUS,
-  COIN_RADIUS,
-  COIN_THICKNESS,
-  COIN_RADIAL_SEGMENTS,
-);
+const coinShape = new THREE.Shape();
+coinShape.absarc(0, 0, COIN_RADIUS, 0, Math.PI * 2, false);
+
+export const SHARED_COIN_GEOMETRY = new THREE.ExtrudeGeometry(coinShape, {
+  depth: COIN_THICKNESS,
+  curveSegments: COIN_RADIAL_SEGMENTS,
+  bevelEnabled: true,
+  bevelSegments: 1,
+  steps: 1,
+  bevelSize: COIN_BEVEL_SIZE,
+  bevelThickness: COIN_BEVEL_THICKNESS,
+});
+SHARED_COIN_GEOMETRY.translate(0, 0, -COIN_THICKNESS / 2);
+SHARED_COIN_GEOMETRY.rotateX(Math.PI / 2);
+SHARED_COIN_GEOMETRY.computeVertexNormals();
 
 export const COIN_FINISH_MATERIALS: Record<CoinFinish, THREE.MeshPhysicalMaterial> = {
   COPPER: new THREE.MeshPhysicalMaterial({
     color: COIN_COPPER,
-    roughness: 0.2,
-    metalness: 0.86,
-    clearcoat: 0.32,
-    clearcoatRoughness: 0.16,
-    reflectivity: 0.7,
+    roughness: 0.18,
+    metalness: 0.56,
+    clearcoat: 0.62,
+    clearcoatRoughness: 0.1,
+    reflectivity: 0.9,
+    emissive: COIN_COPPER,
+    emissiveIntensity: 0.025,
   }),
   SILVER: new THREE.MeshPhysicalMaterial({
     color: COIN_SILVER,
-    roughness: 0.18,
-    metalness: 0.9,
-    clearcoat: 0.3,
-    clearcoatRoughness: 0.14,
-    reflectivity: 0.72,
+    roughness: 0.15,
+    metalness: 0.62,
+    clearcoat: 0.7,
+    clearcoatRoughness: 0.08,
+    reflectivity: 0.95,
+    emissive: COIN_SILVER,
+    emissiveIntensity: 0.02,
   }),
   GOLD: new THREE.MeshPhysicalMaterial({
     color: COIN_GOLD,
-    roughness: 0.19,
-    metalness: 0.88,
-    clearcoat: 0.32,
-    clearcoatRoughness: 0.15,
-    reflectivity: 0.72,
+    roughness: 0.17,
+    metalness: 0.58,
+    clearcoat: 0.66,
+    clearcoatRoughness: 0.09,
+    reflectivity: 0.92,
+    emissive: COIN_GOLD,
+    emissiveIntensity: 0.025,
   }),
 };
 

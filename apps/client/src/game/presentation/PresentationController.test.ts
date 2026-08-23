@@ -323,4 +323,21 @@ describe('PresentationController', () => {
     });
     controller.dispose();
   });
+
+  it('keeps station balances at the old display value until the queued balance consequence starts', async () => {
+    const controller = new PresentationController();
+    const initial = makeRoom();
+    controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
+    const changed = cloneRoom(initial);
+    changed.gameState.players['player-a'].accountBalance = 1_320;
+
+    controller.queue.pause();
+    controller.acceptRoomSnapshot(changed, 'LIVE_UPDATE');
+    expect(controller.getState().displayBalances['player-a']).toBe(1_500);
+
+    controller.queue.resume();
+    await controller.queue.whenIdle();
+    expect(controller.getState().displayBalances['player-a']).toBe(1_320);
+    controller.dispose();
+  });
 });

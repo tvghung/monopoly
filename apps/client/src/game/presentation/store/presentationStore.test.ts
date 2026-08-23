@@ -45,6 +45,29 @@ describe('PresentationStore reset and impact generations', () => {
     expect(store.getSnapshot().tileImpacts[0]?.sequence).toBe(1);
   });
 
+  it('hydrates balances on reset and holds an authoritative update until its queued consequence starts', () => {
+    const store = new PresentationStore();
+    const room = makeRoom();
+    room.gameState.boardState.finishedPlayers['player-c'] = {
+      name: 'Chi', color: 'green', characterId: 'cat', reason: 'LEFT', accountBalance: 320,
+    };
+    store.resetFromSnapshot(room);
+
+    expect(store.getSnapshot().displayBalances).toMatchObject({
+      'player-a': 1_500,
+      'player-b': 1_500,
+      'player-c': 320,
+    });
+
+    store.syncDisplayBalances({ 'player-a': 1_320, 'player-b': 1_500, 'player-c': 320 }, [{
+      id: 'balance-1', playerId: 'player-a', from: 1_500, to: 1_320,
+    }]);
+    expect(store.getSnapshot().displayBalances['player-a']).toBe(1_500);
+
+    store.emitBalanceDelta('balance-1', 'player-a', 1_500, 1_320, 120);
+    expect(store.getSnapshot().displayBalances['player-a']).toBe(1_320);
+  });
+
   it('keeps logical hop origins and resolved durations independent of rendered frames', () => {
     const store = new PresentationStore();
     store.resetFromSnapshot(makeRoom());

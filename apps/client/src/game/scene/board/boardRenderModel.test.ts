@@ -9,6 +9,7 @@ const presentation = (overrides: Partial<PresentationState> = {}): PresentationS
   displayLogs: [],
   displayPositions: {},
   settledPositions: {},
+  displayBalances: {},
   displayDevelopmentLevels: {},
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
@@ -104,6 +105,20 @@ describe('board render model', () => {
     expect(model.players.find(player => player.playerId === 'active')).toMatchObject({ tileId: 17, isActive: false });
     expect(model.players.find(player => player.playerId === 'finished')).toMatchObject({ tileId: 8, isActive: false });
     expect(model.players.find(player => player.playerId === 'fallback')).toMatchObject({ tileId: 9, isActive: true });
+  });
+
+  it('uses presentation-owned balances for station text and coin piles', () => {
+    const room = makeRoom();
+    const model = buildBoardRenderModel(
+      room.gameState,
+      presentation({ displayBalances: { 'player-a': 2_400, 'player-b': 120 } }),
+      room.players,
+      'player-a',
+      'PLAYER',
+    );
+
+    expect(model.stations.find(station => station.playerId === 'player-a')?.accountBalance).toBe(2_400);
+    expect(model.stations.find(station => station.playerId === 'player-b')?.accountBalance).toBe(120);
   });
 
   it('forwards visual movement contracts without changing authoritative player data', () => {

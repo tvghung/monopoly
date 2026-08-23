@@ -7,6 +7,7 @@ const presentation = (overrides: Partial<PresentationState> = {}): PresentationS
   displayLogs: [],
   displayPositions: { me: 0 },
   settledPositions: { me: 0 },
+  displayBalances: {},
   displayDevelopmentLevels: {},
   displayActivePlayerId: 'me',
   displayDice: { dice1: 0, dice2: 0 },

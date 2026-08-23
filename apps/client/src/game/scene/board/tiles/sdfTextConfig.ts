@@ -14,6 +14,9 @@ export interface SdfTextTarget {
   textAlign: string;
   lineHeight: number | string;
   color: string | number;
+  outlineColor?: string | number;
+  outlineWidth?: number | string;
+  outlineOpacity?: number;
   sdfGlyphSize: number;
   sync: (callback?: () => void) => void;
 }
@@ -24,6 +27,9 @@ export interface SdfTextConfig {
   maxWidth: number;
   maxHeight?: number;
   color?: string;
+  outlineColor?: string | number;
+  outlineWidth?: number | string;
+  outlineOpacity?: number;
   lineHeight?: number;
   sdfGlyphSize?: number;
 }
@@ -43,6 +49,9 @@ export function configureSdfText(
   text.textAlign = 'center';
   text.lineHeight = props.lineHeight ?? 1.05;
   text.color = props.color ?? boardVisualTokens.tileText;
+  text.outlineColor = props.outlineColor ?? '#000000';
+  text.outlineWidth = props.outlineWidth ?? 0;
+  text.outlineOpacity = props.outlineOpacity ?? 0;
   text.sdfGlyphSize = props.sdfGlyphSize ?? TILE_SDF_GLYPH_SIZE;
   text.sync(onSync);
 }

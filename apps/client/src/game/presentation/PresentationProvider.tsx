@@ -13,6 +13,7 @@ const emptyPresentationState: PresentationState = {
   displayLogs: [],
   displayPositions: {},
   settledPositions: {},
+  displayBalances: {},
   displayDevelopmentLevels: {},
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },

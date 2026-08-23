@@ -148,7 +148,7 @@ export function buildBoardRenderModel(
       anchor: PLAYER_STATION_WORLD_ANCHORS[slot],
       color: station.color,
       characterId: station.characterId,
-      accountBalance: station.money,
+      accountBalance: presentationState.displayBalances[station.playerId] ?? station.money,
       propertyCount: station.propertyCount,
       houseCount: station.houseCount,
       hotelCount: station.hotelCount,

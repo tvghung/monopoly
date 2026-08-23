@@ -8,7 +8,7 @@ import { gameCardsById, type CardDeck, type DeckCounts } from '@monopoly/shared'
 import * as THREE from 'three';
 import type { CardPresentationSignal } from '../../presentation/store/types';
 import { BOARD_SVG_TILE_ICON_ASSETS } from '../special/boardIconAssets';
-import { useSharedSvgTexture } from '../special/RaisedSvgTileIcon';
+import { prewarmSharedSvgTexture, useSharedSvgTexture } from '../special/RaisedSvgTileIcon';
 import SdfSurfaceText from '../board/tiles/SdfSurfaceText';
 import {
   FIXED_CARD_BACK_QUATERNION,
@@ -17,10 +17,10 @@ import { CAMERA_RIGHT, CAMERA_UP } from '../camera/cameraMath';
 import {
   CARD_PRESENTATION_POSITION,
   CARD_PRESENTATION_SCALE,
-  CARD_FOCUS_VIEWPORT_HEIGHT_RATIO,
-  CARD_FOCUS_VIEWPORT_WIDTH_RATIO,
+  CARD_FRAME_BORDER,
   CARD_REVEAL_ROTATIONS,
   DECK_ANCHORS,
+  getCardFocusScale,
   getCardLayerTransform,
   getIdleDeckCardCount,
   PHYSICAL_CARD_BEVEL,
@@ -28,6 +28,9 @@ import {
   PHYSICAL_CARD_THICKNESS,
   PHYSICAL_CARD_WIDTH,
 } from './physicalCardLayout';
+
+prewarmSharedSvgTexture(BOARD_SVG_TILE_ICON_ASSETS['chance-question-svg'].url);
+prewarmSharedSvgTexture(BOARD_SVG_TILE_ICON_ASSETS['fortune-wheel-svg'].url);
 
 const CARD_BODY_GEOMETRY = new RoundedBoxGeometry(
   PHYSICAL_CARD_WIDTH,
@@ -76,14 +79,14 @@ function createCardFrameGeometry(
 const CARD_BACK_FRAME_GEOMETRY = createCardFrameGeometry(
   PHYSICAL_CARD_WIDTH * 0.97,
   PHYSICAL_CARD_DEPTH * 0.93,
-  0.1,
+  CARD_FRAME_BORDER,
   PHYSICAL_CARD_THICKNESS / 2 + 0.005,
   -Math.PI / 2,
 );
 const CARD_FRONT_FRAME_GEOMETRY = createCardFrameGeometry(
   PHYSICAL_CARD_WIDTH * 0.97,
   PHYSICAL_CARD_DEPTH * 0.93,
-  0.1,
+  CARD_FRAME_BORDER,
   -PHYSICAL_CARD_THICKNESS / 2 - 0.005,
   Math.PI / 2,
 );
@@ -243,10 +246,7 @@ export function ActivePhysicalCard({
       0,
     ] as const;
   }, [signal.deck, viewportHeight, viewportWidth]);
-  const focusScale = Math.min(
-    viewportWidth * CARD_FOCUS_VIEWPORT_WIDTH_RATIO / PHYSICAL_CARD_WIDTH,
-    viewportHeight * CARD_FOCUS_VIEWPORT_HEIGHT_RATIO / PHYSICAL_CARD_DEPTH,
-  );
+  const focusScale = getCardFocusScale(viewportWidth, viewportHeight);
   const card = signal.revealedCardId ? gameCardsById[signal.revealedCardId] : undefined;
   const icon = signal.deck === 'chance'
     ? BOARD_SVG_TILE_ICON_ASSETS['chance-question-svg']

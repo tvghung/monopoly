@@ -32,13 +32,17 @@ const scenarios = [
   ['stations-2', '01 · Trạm 2 người'],
   ['stations-4', '01 · Trạm 4 người'],
   ['focus-card', '01 · Focus thẻ toàn viewport'],
+  ['card-depth', '01 · Depth thẻ 3 viewport'],
   ['walk', '02 · Đích đến → di chuyển'],
+  ['destination-geometry', '02 · Preview trên mặt ô'],
   ['roll-chance', '02 · Đổ → Cơ Hội → LAND → thẻ'],
   ['roll-chest', '02 · Đổ → Khí Vận → LAND → thẻ'],
+  ['coin-materials', '03 · Đồng / bạc / vàng'],
   ['pass-go', '03 · Qua Xuất Phát'],
   ['purchase', '04 · Mua tài sản'],
   ['decline', '05 · Từ chối mua'],
   ['rent', '06 · Trả tiền thuê'],
+  ['balance-gate', '06 · Balance sau chuyển tiền'],
   ['partial-debt', '07 · Thanh toán thiếu'],
   ['bank-sale', '08 · Bán lại ngân hàng'],
   ['forced-sale', '09 · Đổi chủ bắt buộc'],
@@ -229,7 +233,7 @@ function configureBaseline(
   if (scenario === 'owner-recolor') {
     room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 4 };
   }
-  if (scenario === 'stations-2' || scenario === 'stations-4') {
+  if (scenario === 'stations-2' || scenario === 'stations-4' || scenario === 'coin-materials') {
     room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 2 };
     room.gameState.boardState.ownedProps[3] = { id: 'player-b', color: 'blue', houses: 5 };
     if (scenario === 'stations-4') {
@@ -239,7 +243,7 @@ function configureBaseline(
       if (disconnected) disconnected.connected = false;
     }
   }
-  if (liveCardScenarios.includes(scenario) || scenario === 'focus-card') {
+  if (liveCardScenarios.includes(scenario) || scenario === 'focus-card' || scenario === 'card-depth') {
     room.gameState.players['player-a'].currentTile = cardDeckForScenario(scenario) === 'chance' ? 7 : 2;
   }
   if (scenario === 'reconnect-awaiting') setPendingCard(room, 'chance', 'AWAITING_DRAW');
@@ -344,7 +348,15 @@ function Phase4UatSurface() {
     if (presentationState.characterLandings.length > 0) addStep('LAND');
     if (presentationState.cardPresentation?.stage === 'AWAITING_DRAW'
       || presentationState.cardPresentation?.stage === 'REVEALED') addStep('CARD');
-  }, [presentationState, scenario]);
+    if (scenario === 'balance-gate') {
+      const displayBalance = presentationState.displayBalances['player-a'];
+      const authoritativeBalance = room.gameState.players['player-a']?.accountBalance;
+      if (displayBalance !== undefined && authoritativeBalance !== undefined
+        && displayBalance !== authoritativeBalance) addStep('BALANCE_HELD');
+      if (trace.steps.includes('BALANCE_HELD')
+        && displayBalance === authoritativeBalance) addStep('BALANCE_COMMITTED');
+    }
+  }, [presentationState, room, scenario]);
 
   const clearTimers = useCallback(() => {
     timersRef.current.forEach(timer => window.clearTimeout(timer));
@@ -400,14 +412,14 @@ function Phase4UatSurface() {
       }
       return;
     }
-    if (key === 'focus-card') {
+    if (key === 'focus-card' || key === 'card-depth') {
       commit(next => {
         setPendingCard(next, 'chance', 'AWAITING_DRAW');
         next.gameState.boardState.logs = ['An đáp xuống ô Cơ Hội'];
       });
       return;
     }
-    if (key === 'walk' || key === 'speed-walk' || key === 'skip-motion' || key === 'reduced-motion') {
+    if (key === 'walk' || key === 'destination-geometry' || key === 'speed-walk' || key === 'skip-motion' || key === 'reduced-motion') {
       commit(next => {
         next.gameState.boardState.diceValue = { dice1: 2, dice2: 3 };
         next.gameState.boardState.rollSequence = 1;
@@ -458,7 +470,7 @@ function Phase4UatSurface() {
       commit(next => { delete next.gameState.turnInfo.pendingLandingDecision; });
       return;
     }
-    if (key === 'rent' || key === 'partial-debt') {
+    if (key === 'rent' || key === 'balance-gate' || key === 'partial-debt') {
       commit(next => {
         const paid = key === 'partial-debt' ? 10 : 80;
         next.gameState.players['player-a'].accountBalance = key === 'partial-debt' ? 0 : 1_500 - paid;
@@ -627,7 +639,7 @@ function Phase4UatSurface() {
     updateSettings({ reducedMotion: key === 'reduced-motion' || key === 'construction-reduced' });
     controller.acceptRoomSnapshot(nextRoom, 'SESSION_SYNC');
     if (![
-      'stations-2', 'stations-4', 'bankrupt', 'spectator-awaiting', 'spectator-revealed',
+      'stations-2', 'stations-4', 'coin-materials', 'bankrupt', 'spectator-awaiting', 'spectator-revealed',
     ].includes(key)) schedule(() => applyAnimatedScenario(key), 180);
   }, [applyAnimatedScenario, clearTimers, controller, schedule, updateSettings]);
   const runNextScenario = useCallback(() => {
@@ -794,10 +806,13 @@ function Phase4UatSurface() {
               {traceRef.current.previewBeforeLand ? ' · preview-before-land yes' : ''}
               {` · build ${String(presentationState.displayDevelopmentLevels[1] ?? 0)}/${String(room.gameState.boardState.ownedProps[1]?.houses ?? 0)}`}
               {` · logs ${presentationState.displayLogs.length}/${room.gameState.boardState.logs.length}`}
+              {scenario === 'balance-gate'
+                ? ` · balance ${String(presentationState.displayBalances['player-a'] ?? '—')}/${String(room.gameState.players['player-a']?.accountBalance ?? '—')}`
+                : ''}
             </output>
               {rendererMetrics ? (
                 <output data-testid="renderer-metrics">
-                {`draw ${String(rendererMetrics.drawCalls)} · tri ${String(rendererMetrics.triangles)} · combined ${String(rendererMetrics.combinedDrawCalls ?? rendererMetrics.drawCalls)} / ${String(rendererMetrics.combinedTriangles ?? rendererMetrics.triangles)} · focus ${(Number(rendererMetrics.cardFocusWidthRatio ?? 0) * 100).toFixed(0)}% · active ${String(rendererMetrics.activeAnimatedObjects)}`}
+                {`draw ${String(rendererMetrics.drawCalls)} · tri ${String(rendererMetrics.triangles)} · combined ${String(rendererMetrics.combinedDrawCalls ?? rendererMetrics.drawCalls)} / ${String(rendererMetrics.combinedTriangles ?? rendererMetrics.triangles)} · focus ${(Number(rendererMetrics.cardFocusWidthRatio ?? 0) * 100).toFixed(0)}% · depth ${String(rendererMetrics.cardFocusCameraSpaceDepth ? 'safe-contract' : '—')} · active ${String(rendererMetrics.activeAnimatedObjects)}`}
                 </output>
             ) : null}</> : null}
           </aside>

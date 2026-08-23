@@ -1501,3 +1501,105 @@ settings **PASS**; stress budget **PASS**. Live Chance/Khí Vận/rent/developme
 full packaged gameplay semantics, and live viewport-resize checks are **NOT
 RUN**. No remaining gameplay-rule, authority, V8, Phase 3 movement, camera,
 privacy, or Phase 5-audio gap was introduced by this pass.
+
+## 19. Focused Phase 4 rendering/presentation correction pass (2026-08-23)
+
+This narrower follow-up pass addresses five reviewed rendering/presentation
+issues without changing the V7 gameplay contract. The current branch was
+inspected before editing. One presentation controller, animation queue, and
+presentation store remain in use; the approved dice, Phase 3 hop behavior,
+fixed camera direction, demand rendering, reconnect hydration, and
+Reduced Motion/Skip guarantees remain unchanged.
+
+### 19.1 Implemented corrections
+
+- Shared coin piles now use a beveled, low-poly circular geometry with
+  deterministic copper/silver/gold assignment normalized from `60:20:10`.
+  The shared station, bank, and transfer paths use brighter practical
+  metallic materials and retain instanced pile placement.
+- Card focus now uses a normalized orthographic camera/depth contract rather
+  than viewport-sized local geometry. Shared Chance question and Khí Vận wheel
+  textures are prewarmed, and the card frame is consistently `0.05` world
+  units. The physical card remains the single active card implementation.
+- Optional SDF outline fields are available only to the station name/status,
+  exact balance, and temporary amount text. They use thin dark outlines with
+  warm fills and restrained opacity.
+- Destination-preview elevation is derived from the canonical tile-surface
+  position and clearance constants, with a regression test proving the
+  surface and edge remain above the actual tile surface.
+- `displayBalances` is presentation-owned. A live
+  `BALANCE_CHANGED` event keeps the prior visible balance until its
+  queued executor starts, then atomically commits the event's `to` value
+  and emits the existing balance delta signal. Session sync/reset hydrates
+  authoritative balances directly without replay.
+
+### 19.2 Automated validation
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Root typecheck | **PASS** | `pnpm typecheck` |
+| Workspace lint | **PASS** | `pnpm lint` |
+| Client tests | **PASS** | 83 files, 408 tests |
+| Server tests without database | **PASS** | 12 files passed; 142 passed and 9 skipped |
+| PostgreSQL-backed server tests | **PASS** | 13 files, 151 tests |
+| Desktop tests | **PASS** | 4 files, 12 tests |
+| Production client build | **PASS** | `pnpm build`; existing large-chunk warning only |
+| Win32 desktop package | **PASS** | rebuilt `apps/desktop/out/Own the Block-win32-x64` |
+| Database migration status | **PASS** | migrations 001 through 008 applied |
+| `git diff --check` | **PASS** | no whitespace errors; CRLF normalization warnings only |
+| Remote CI / push / merge | **NOT RUN** | not authorized |
+
+### 19.3 Deterministic Phase4UatHarness evidence
+
+The existing `Phase4UatHarness` was extended; no second harness was created.
+The available browser viewport was `1280x720`.
+
+| Scenario | Observed evidence | Result |
+| --- | --- | --- |
+| Destination preview | `PREVIEW > WALK`; preview-before-walk and preview-before-land both `yes`; active `218 / 78,554` | **PASS** behavior; normal draw target is **CONDITIONAL** |
+| Chance / Khí Vận landing | `PREVIEW > WALK > LAND > CARD`; card handling follows LAND | **PASS** |
+| Card focus depth | unit coverage for `1280x720`, `1440x900`, `1920x1080`; focus depth approximately `9.914–10.086` around camera Z `10` | **PASS** |
+| Full-viewport focus layer | root/scrim `1280x720`, transparent focus canvas, scrim `rgba(3,16,21,.72)` with `blur(5px)`, no visible close copy/button | **PASS** |
+| Active focused card | combined `204` draw calls / `65,248` triangles; focus width `42%`; depth `safe-contract` | **PASS** |
+| Copper/silver/gold coins | deterministic material/geometry tests and visible shared piles | **PASS** |
+| 2-player stations | settled `198` draw calls / `60,132` triangles | **PASS** |
+| 4-player stations | settled `212` draw calls / `67,148` triangles | **CONDITIONAL**; two above the `<=210` normal target |
+| Active money transfer | balance gate active `206` draw calls / `65,814` triangles; display balance held before commit | **PASS** |
+| Balance gate | `BALANCE_HELD > BALANCE_COMMITTED`; held `1,500/1,420`, then `1,420/1,420` | **PASS** |
+| Stress budget | peak `226` draw calls / `68,736` triangles with 25 active objects | **PASS**; below hard `240 / 100,000` |
+
+The current four-player and active-preview measurements are slightly above the
+stated normal draw-call target, while all observed paths remain below the
+stress hard limit and under `80,000` triangles. This is the remaining measured
+performance gap for the pass; the correction itself did not add a second
+renderer, random coin placement, or a new presentation queue.
+
+### 19.4 Live browser, Electron, and viewport evidence
+
+- **Live browser: PARTIAL PASS.** A real server-backed normal roll produced a
+  Chance destination, showed the face-down physical card only after landing,
+  revealed the card through the physical interaction, and dismissed it via
+  the authoritative backdrop path. After the presentation completed, the
+  corresponding gameplay logs appeared; the revealed view showed no visible
+  instruction or X. Live Khí Vận, rent, development, and a second eligible
+  local-player turn were **NOT RUN** because the available room's other
+  player was disconnected.
+- **Electron visual/semantic smoke: NOT RUN.** The updated Win32 package was
+  rebuilt successfully, but this session has no cross-application desktop
+  interaction/capture capability. Packaging is not treated as visual UAT.
+- **Live resize: NOT RUN.** The in-app browser capability did not apply the
+  requested runtime viewport override. Card depth/layout tests cover all three
+  requested CSS viewport sizes.
+
+### 19.5 Requested behavior status and remaining gap
+
+Mixed-metal coins, normalized card focus depth, root card-focus treatment,
+station-only SDF outlines, canonical destination elevation, and
+presentation-owned balance timing are **PASS** by code/tests and deterministic
+harness evidence. Live gameplay coverage beyond the observed normal
+Chance-card path, Electron visual/semantic UAT, and runtime resize remain
+**NOT RUN**. The only measured implementation gap is the normal draw-call
+target in the four-player settled and active-preview fixtures (`212` and
+`218`; stress hard budget passes). No gameplay-rule, server-authority,
+V8, Phase 3 movement, fixed-camera, privacy, or Phase 5-audio boundary was
+expanded.

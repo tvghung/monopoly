@@ -20,6 +20,7 @@ const emptyState: PresentationState = {
   displayLogs: [],
   displayPositions: {},
   settledPositions: {},
+  displayBalances: {},
   displayDevelopmentLevels: {},
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
@@ -60,6 +61,7 @@ export class PresentationStore implements PresentationStoreLike {
   private nextMoneyTransferSequence = 0;
   private readonly playerJoinOrder = new Map<string, number>();
   private readonly activeCharacterMovements = new Map<string, CharacterMovementSignal>();
+  private readonly pendingBalanceChanges = new Map<string, Set<string>>();
   private readonly balanceDeltaIds = new Set<string>();
   private readonly ownershipChangeIds = new Set<string>();
   private readonly developmentChangeIds = new Set<string>();
@@ -83,9 +85,14 @@ export class PresentationStore implements PresentationStoreLike {
     this.moneyTransferCleanupTimers.forEach(timer => clearTimeout(timer));
     this.moneyTransferCleanupTimers.clear();
     const positions: Record<string, number> = {};
+    const balances: Record<string, number> = {};
     const developmentLevels: Record<number, number> = {};
     Object.entries(room.gameState.players).forEach(([playerId, player]) => {
       positions[playerId] = player.currentTile;
+      balances[playerId] = player.accountBalance;
+    });
+    Object.entries(room.gameState.boardState.finishedPlayers).forEach(([playerId, player]) => {
+      if (balances[playerId] === undefined) balances[playerId] = player.accountBalance ?? 0;
     });
     Object.entries(room.gameState.boardState.ownedProps).forEach(([tileId, property]) => {
       developmentLevels[Number(tileId)] = property.houses;
@@ -98,6 +105,7 @@ export class PresentationStore implements PresentationStoreLike {
       displayLogs: [...room.gameState.boardState.logs],
       displayPositions: positions,
       settledPositions: positions,
+      displayBalances: balances,
       displayDevelopmentLevels: developmentLevels,
       displayActivePlayerId: room.gameState.boardState.currentPlayer.id || null,
       displayDice: { ...room.gameState.boardState.diceValue },
@@ -140,6 +148,7 @@ export class PresentationStore implements PresentationStoreLike {
     this.nextGoCrossingSequence = 0;
     this.nextMoneyTransferSequence = 0;
     this.balanceDeltaIds.clear();
+    this.pendingBalanceChanges.clear();
     this.ownershipChangeIds.clear();
     this.developmentChangeIds.clear();
     this.goCrossingIds.clear();
@@ -173,6 +182,39 @@ export class PresentationStore implements PresentationStoreLike {
       displayPositions: nextPositions,
       settledPositions: nextSettledPositions,
     };
+    this.notify();
+  }
+
+  public syncDisplayBalances(
+    balances: Readonly<Record<string, number>>,
+    delayedChanges: readonly Pick<BalanceDeltaSignal, 'id' | 'playerId' | 'from' | 'to'>[] = [],
+  ): void {
+    delayedChanges.forEach(change => {
+      const pending = this.pendingBalanceChanges.get(change.playerId) ?? new Set<string>();
+      pending.add(change.id);
+      this.pendingBalanceChanges.set(change.playerId, pending);
+    });
+
+    const nextBalances: Record<string, number> = {};
+    Object.entries(balances).forEach(([playerId, authoritativeBalance]) => {
+      const pending = this.pendingBalanceChanges.get(playerId);
+      nextBalances[playerId] = pending && pending.size > 0
+        ? this.state.displayBalances[playerId]
+          ?? delayedChanges.find(change => change.playerId === playerId)?.from
+          ?? authoritativeBalance
+        : authoritativeBalance;
+    });
+    this.pendingBalanceChanges.forEach((pending, playerId) => {
+      if (nextBalances[playerId] !== undefined || pending.size === 0) return;
+      const fallback = delayedChanges.find(change => change.playerId === playerId);
+      if (fallback) nextBalances[playerId] = this.state.displayBalances[playerId] ?? fallback.from;
+    });
+
+    const currentEntries = Object.entries(this.state.displayBalances);
+    const unchanged = currentEntries.length === Object.keys(nextBalances).length
+      && currentEntries.every(([playerId, balance]) => nextBalances[playerId] === balance);
+    if (unchanged) return;
+    this.state = { ...this.state, displayBalances: nextBalances };
     this.notify();
   }
 
@@ -460,7 +502,14 @@ export class PresentationStore implements PresentationStoreLike {
       signal,
     );
     if (!balanceDeltas) return;
-    this.state = { ...this.state, balanceDeltas };
+    const pending = this.pendingBalanceChanges.get(playerId);
+    pending?.delete(id);
+    if (pending && pending.size === 0) this.pendingBalanceChanges.delete(playerId);
+    this.state = {
+      ...this.state,
+      displayBalances: { ...this.state.displayBalances, [playerId]: to },
+      balanceDeltas,
+    };
     this.notify();
   }
 

@@ -127,6 +127,7 @@ export interface PresentationState {
   displayLogs: readonly string[];
   displayPositions: Record<string, number>;
   settledPositions: Record<string, number>;
+  displayBalances: Record<string, number>;
   displayDevelopmentLevels: Record<number, number>;
   displayActivePlayerId: string | null;
   displayDice: DiceValue;
@@ -157,6 +158,10 @@ export interface PresentationStoreLike {
   resetFromSnapshot: (room: PublicRoomState) => void;
   setDisplayLogs: (logs: readonly string[]) => void;
   syncPlayers: (room: PublicRoomState) => void;
+  syncDisplayBalances: (
+    balances: Readonly<Record<string, number>>,
+    delayedChanges?: readonly Pick<BalanceDeltaSignal, 'id' | 'playerId' | 'from' | 'to'>[],
+  ) => void;
   syncDisplayDevelopmentLevels: (
     levels: Readonly<Record<number, number | { houses: number }>>,
     delayedChanges?: readonly Pick<DevelopmentChangeSignal, 'tileId' | 'fromHouses' | 'toHouses'>[],

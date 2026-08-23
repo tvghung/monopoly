@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   COIN_FINISH_MATERIALS,
   COIN_FINISH_SEQUENCE,
+  COIN_BEVEL_SIZE,
+  COIN_BEVEL_THICKNESS,
   COIN_RADIUS,
+  SHARED_COIN_GEOMETRY,
   COIN_THICKNESS,
   coinFinishForIndex,
   stableCoinSeed,
@@ -22,11 +25,16 @@ describe('shared metallic coin system', () => {
     )));
   });
 
-  it('uses shared high-metalness, low-roughness finishes', () => {
+  it('uses a shared beveled coin geometry and readable metallic finishes', () => {
+    expect(SHARED_COIN_GEOMETRY.type).toBe('ExtrudeGeometry');
+    expect(COIN_BEVEL_SIZE).toBeGreaterThan(0);
+    expect(COIN_BEVEL_THICKNESS).toBeGreaterThan(0);
     Object.values(COIN_FINISH_MATERIALS).forEach(material => {
-      expect(material.metalness).toBeGreaterThanOrEqual(0.75);
-      expect(material.roughness).toBeGreaterThanOrEqual(0.18);
+      expect(material.metalness).toBeGreaterThanOrEqual(0.5);
+      expect(material.metalness).toBeLessThanOrEqual(0.65);
+      expect(material.roughness).toBeGreaterThanOrEqual(0.14);
       expect(material.roughness).toBeLessThanOrEqual(0.28);
+      expect(material.clearcoat).toBeGreaterThanOrEqual(0.6);
       expect(material).toHaveProperty('clearcoat');
     });
     expect(COIN_RADIUS).toBeGreaterThanOrEqual(0.2);

@@ -8,6 +8,7 @@ describe('SDF surface text contract', () => {
     const target = {
       text: '', font: null, fontSize: 0, maxWidth: 0, maxHeight: 0,
       anchorX: 0, anchorY: 0, textAlign: '', lineHeight: 0, color: '',
+      outlineColor: '', outlineWidth: 0, outlineOpacity: 0,
       sdfGlyphSize: 0, sync: vi.fn(),
     };
     const onSync = vi.fn();
@@ -39,6 +40,7 @@ describe('SDF surface text contract', () => {
     const target = {
       text: '', font: null, fontSize: 0, maxWidth: 0, maxHeight: 0,
       anchorX: 0, anchorY: 0, textAlign: '', lineHeight: 0, color: '',
+      outlineColor: '', outlineWidth: 0, outlineOpacity: 0,
       sdfGlyphSize: 0, sync: vi.fn(),
     };
     configureSdfText(target, {
@@ -48,6 +50,28 @@ describe('SDF surface text contract', () => {
       maxHeight: 0.82,
     });
     expect(target.maxHeight).toBe(0.82);
+  });
+
+  it('configures a restrained readable outline without changing the fill', () => {
+    const target = {
+      text: '', font: null, fontSize: 0, maxWidth: 0, maxHeight: 0,
+      anchorX: 0, anchorY: 0, textAlign: '', lineHeight: 0, color: '',
+      outlineColor: '', outlineWidth: 0, outlineOpacity: 0,
+      sdfGlyphSize: 0, sync: vi.fn(),
+    };
+    configureSdfText(target, {
+      value: '2.400.000 ₫',
+      fontSize: 0.42,
+      maxWidth: 2.8,
+      color: '#f7f1d8',
+      outlineColor: '#14231f',
+      outlineWidth: 0.0168,
+      outlineOpacity: 0.72,
+    });
+    expect(target.color).toBe('#f7f1d8');
+    expect(target.outlineColor).toBe('#14231f');
+    expect(target.outlineWidth).toBe(0.0168);
+    expect(target.outlineOpacity).toBe(0.72);
   });
 
   it('limits surface labels to a compact number of lines without generic filler', () => {

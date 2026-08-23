@@ -11,6 +11,17 @@ import type { PresentationState } from './store/types';
 
 export type SnapshotSource = 'LIVE_UPDATE' | 'SESSION_SYNC' | 'SPECTATOR_SYNC';
 
+function getAuthoritativeBalances(room: PublicRoomState): Record<string, number> {
+  const balances: Record<string, number> = {};
+  Object.entries(room.gameState.players).forEach(([playerId, player]) => {
+    balances[playerId] = player.accountBalance;
+  });
+  Object.entries(room.gameState.boardState.finishedPlayers).forEach(([playerId, player]) => {
+    if (balances[playerId] === undefined) balances[playerId] = player.accountBalance ?? 0;
+  });
+  return balances;
+}
+
 export class PresentationController {
   public readonly store = new PresentationStore();
   public readonly queue: AnimationQueue;
@@ -80,6 +91,12 @@ export class PresentationController {
       return true;
     }
     const events = derivePresentationEvents(previous, room);
+    this.store.syncDisplayBalances(
+      getAuthoritativeBalances(room),
+      events.flatMap(event => event.type === 'BALANCE_CHANGED'
+        ? [{ id: event.id, playerId: event.playerId, from: event.from, to: event.to }]
+        : []),
+    );
     this.store.syncDisplayDevelopmentLevels(
       room.gameState.boardState.ownedProps,
       events.flatMap(event => event.type === 'PROPERTY_DEVELOPMENT_CHANGED'

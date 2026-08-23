@@ -2,7 +2,15 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { DestinationPreviewSignal } from '../../../presentation/store/types';
+import { TILE_SURFACE_CLEARANCE_Y, TILE_SURFACE_LOCAL_POSITION } from '../boardLayout';
 import type { TilePanelLayout } from './tilePanelLayout';
+
+export const DESTINATION_PREVIEW_EPSILON = 0.012;
+export const DESTINATION_PREVIEW_SURFACE_Y = Math.max(
+  TILE_SURFACE_LOCAL_POSITION[1],
+  TILE_SURFACE_CLEARANCE_Y,
+) + DESTINATION_PREVIEW_EPSILON;
+export const DESTINATION_PREVIEW_FRAME_Y = DESTINATION_PREVIEW_SURFACE_Y + 0.008;
 
 function createDestinationFrameGeometry(width: number, depth: number, thickness: number) {
   const shape = new THREE.Shape();
@@ -69,11 +77,11 @@ export default function TileDestinationPreview({
   });
   return (
     <group name={`DestinationPreview:${signal.tileId}`}>
-      <mesh position={[0, 0.31, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[0, DESTINATION_PREVIEW_SURFACE_Y, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[surfaceWidth, surfaceDepth]} />
         <meshBasicMaterial ref={surfaceMaterialRef} color="#fffdf2" transparent opacity={0.7} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
-      <mesh geometry={frameGeometry} position={[0, 0.325, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh geometry={frameGeometry} position={[0, DESTINATION_PREVIEW_FRAME_Y, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <meshBasicMaterial ref={edgeMaterialRef} color="#ffffff" transparent opacity={1} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
     </group>
