@@ -2,7 +2,8 @@
 
 ## Entry/code
 
-Board nằm tại `/` cho activated Player hoặc Spectator. `Board.tsx` giữ HUD, semantic
+Board nằm tại `/` cho activated Player hoặc Spectator. `Board.tsx` giữ gameplay
+overlays, semantic
 tile controls, property dialog và chọn WebGL/fallback. WebGL code chính nằm trong
 `game/scene/`: `GameScene.tsx`, `board/Board3D.tsx`, `boardRenderModel.ts`, tile
 batches/materials/motion và local SDF text. Không có detail route hay permission key.
@@ -38,7 +39,8 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   với cloth dùng canonical player display color. Flag derive từ authoritative
   `ownedProps` qua `BoardRenderModel`, coexist với houses/hotel/selection và không
   xuất hiện trên tile unowned. Owner state vẫn nằm trong `BoardRenderModel` cho
-  property inspection, HUD, houses/hotel và state presentation.
+  property inspection, world-space player stations, houses/hotel và state
+  presentation.
 - Mỗi edge tile có upper art panel 70%, footer nền sáng 30% và divider near-black;
   một side-aware `TilePanelLayout` duy nhất cung cấp kích thước, offset, divider,
   upper-art/footer anchors, footer text và content rotation cho surface batch,

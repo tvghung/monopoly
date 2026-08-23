@@ -754,7 +754,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
         <>
           {role === 'SPECTATOR' ? <SpectatorBanner /> : null}
           <div className="room-toolbar" aria-label="Điều khiển ván chơi">
-            <FpsBadge />
+            {import.meta.env.DEV || __PHASE4_UAT__ ? <FpsBadge /> : null}
             <button
               type="button"
               className="room-settings-button"

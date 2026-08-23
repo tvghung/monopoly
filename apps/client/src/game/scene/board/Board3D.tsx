@@ -75,7 +75,6 @@ export default function Board3D({
             name={tile.name}
             ownerColor={tile.ownerColor}
             houses={tile.houses}
-            hovered={hoveredTileId === tile.tileId}
             selected={selectedTileId === tile.tileId}
             ownershipChange={latestOwnershipChanges.get(tile.tileId)}
             developmentChange={latestDevelopmentChanges.get(tile.tileId)}
@@ -84,8 +83,6 @@ export default function Board3D({
               ? model.destinationPreview
               : undefined}
             reducedMotion={model?.reducedMotion ?? false}
-            onHover={onTileHover}
-            onSelect={onTileSelect}
           />
         ))}
       </group>

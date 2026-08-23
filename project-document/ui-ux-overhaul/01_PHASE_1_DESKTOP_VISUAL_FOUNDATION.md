@@ -99,7 +99,7 @@ Refactor/tạo:
 - Modal
 - Toast
 - Badge
-- PlayerCard
+- Player status surface (world-space station plus accessibility surface)
 - PropertyCard
 - ConfirmationDialog
 - SettingsPanel

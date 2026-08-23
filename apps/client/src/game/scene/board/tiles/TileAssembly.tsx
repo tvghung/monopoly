@@ -7,16 +7,11 @@ import type {
 } from '../../../presentation/store/types';
 import { getBoardTileLayout } from '../boardLayout';
 import { TILE_ASSEMBLY_LAYER_ORDER, TILE_TRANSFORM_CONTRACT } from '../architecture/tileAssemblyContracts';
-import { boardVisualTokens } from '../boardVisualTokens';
-import { TileSocketAnchor } from '../foundation/TileSocket';
 import TileFxAnchor from './TileFxAnchor';
-import TileBodyLayer from './TileBodyLayer';
 import TileDevelopmentLayer from './TileDevelopmentLayer';
-import TileInteractionLayer from './TileInteractionLayer';
 import TileOwnershipLayer from './TileOwnershipLayer';
 import TilePressRoot from './TilePressRoot';
 import TileSpecialLayer from './TileSpecialLayer';
-import TileSurfaceLayer from './TileSurfaceLayer';
 import TileTextLayer from './TileTextLayer';
 import { getOrientedTilePanelLayoutForTileSize } from './tilePanelLayout';
 
@@ -24,7 +19,6 @@ export interface TileAssemblyProps {
   tileId: number;
   tile: Tile;
   name?: string;
-  hovered?: boolean;
   selected?: boolean;
   ownerColor?: string;
   houses?: number;
@@ -33,15 +27,12 @@ export interface TileAssemblyProps {
   goCrossing?: GoCrossingSignal;
   destinationPreview?: DestinationPreviewSignal;
   reducedMotion?: boolean;
-  onHover?: (tileId: number | null) => void;
-  onSelect?: (tileId: number) => void;
 }
 
 export default function TileAssembly({
   tileId,
   tile,
   name = tile.streetName,
-  hovered = false,
   selected = false,
   ownerColor,
   houses = 0,
@@ -66,22 +57,7 @@ export default function TileAssembly({
         transformContract: TILE_TRANSFORM_CONTRACT,
       }}
     >
-      <TileSocketAnchor tileId={tileId} />
-      <TileInteractionLayer tileId={tileId} />
       <TilePressRoot tileId={tileId}>
-        <TileBodyLayer
-          tileId={tileId}
-          size={layout.size}
-          color={tile.tileType === 'normal'
-            ? boardVisualTokens.tileChassis
-            : boardVisualTokens.tileChassisSpecial}
-          selected={selected}
-          hovered={hovered}
-        />
-        <TileSurfaceLayer
-          tile={tile}
-          size={layout.size}
-        />
         <TileTextLayer tile={tile} name={name} panel={panel} />
         <TileOwnershipLayer
           ownerColor={ownerColor}

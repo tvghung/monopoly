@@ -103,10 +103,10 @@ field or a client gameplay rule.
   path; authoritative ownership flags, house counts, base tile materials, and
   Phase 3 tile-impact layers remain separate. The cues are bounded and
   demand-rendered, with no per-frame React state loop.
-- **C, player HUD:** the compact top strip shows a fixed-space signed balance
-  delta beside the authoritative balance. A single concise polite live region
-  announces the latest committed balance change and active turn without adding
-  a second announcement source. Reduced motion retains the text/state cue.
+- **C, player status:** the world-space `PlayerStationLayer` shows each
+  authoritative balance and typed transfer amounts when available. The
+  accessibility-only `PlayerStations` DOM surface exposes player status and
+  active-turn text; the superseded visible DOM HUD is not mounted.
 - **D, GO:** a GO cue is emitted only when a proven `WALK` execution enters
   tile `0`, including its reduced-motion semantic snap. `SNAP`, reconnect,
   card/teleport/ambiguous movement, and destination-only updates do not emit
@@ -212,7 +212,7 @@ The following is the observed baseline to preserve while implementing Phase 4.
 | Board render | GameScene.tsx and Board3D.tsx | Keep demand rendering, instancing, orthographic framing, and server-derived board state. |
 | Tile feedback | TileMotionController, TileMotionProvider, TileBodyBatch, TileSurfaceBatch, TileImpactHighlightBatch | Add action feedback through existing lifecycle signals and imperatively updated layers. |
 | Dice | Board3D renders a procedural R3F DiceLayer in a board-world center arena; RollControl calls the existing server roll command | Keep the server result authoritative, preserve the fixed camera, and keep the client wrapper protocol-compatible. |
-| Decision UI | Dashboard.tsx and the existing BuyPrompt, DevelopmentPrompt, JailPanel, DebtPanel, ForcedSaleProposalPanel, plus compact PlayerHud, RollControl, and OwnedPropertiesControl | Keep decision components alive as a lightweight action layer; separate stable turn/property access from transient decisions. |
+| Decision UI | Dashboard.tsx and the existing BuyPrompt, DevelopmentPrompt, JailPanel, DebtPanel, ForcedSaleProposalPanel, RollControl, and OwnedPropertiesControl; player status uses the world-space `PlayerStationLayer` plus accessibility-only `PlayerStations` | Keep decision components alive as a lightweight action layer; separate stable turn/property access from transient decisions. |
 | Shared state | packages/shared/src/types.ts | Use pendingLandingDecision, paymentShortfall, ownership, development, jail, turn, deckCounts, and forced-sale fields as exposed. |
 | Commands | packages/shared/src/events.ts and server socket handlers | Use the existing command names and operation ids. Any new command needs a protocol review. |
 | Tile resolution | apps/server/src/game/tiles.ts | Treat card draw and tile effects as server-internal unless an approved safe presentation signal is added. |
@@ -383,12 +383,12 @@ ordering, duplicate snapshot handling, and reset behavior.
 
 Current contract baseline:
 
-- The former gameplay side HUD/right rail is gone. The board renderer occupies
-  the primary single-column screen area, and the current `PlayerHud`,
-  `Dashboard`, `RollControl`, `OwnedPropertiesControl`, and `Log` are mounted
-  as overlays inside that board renderer. The compact player strip remains at
-  the top, the Roll CTA is bottom-centered, and property access is a separate
-  control rather than part of the Roll CTA.
+- The former gameplay side HUD/right rail and visible top player strip are gone.
+  The board renderer occupies the primary single-column screen area. The
+  world-space `PlayerStationLayer`, accessibility-only `PlayerStations`,
+  `Dashboard`, `RollControl`, `OwnedPropertiesControl`, and `Log` provide the
+  current player-status and action surfaces. The Roll CTA is bottom-centered,
+  and property access is a separate control rather than part of the Roll CTA.
 - The existing authoritative decision panels remain mounted in the gameplay
   action layer. Buy and development decisions use authoritative pending state
   and remain gated by `settledPositions`/token arrival; the client presents
@@ -423,7 +423,7 @@ Implemented bounded behavior:
 - Keep the local-turn, current-state, settled-token, pending-decision, and
   no-double-roll gates in RollControl and the server. The CTA locks before
   emitting and unlocks only after an authoritative sequence or turn outcome.
-- Use a compact top player strip, a stable bottom-centered Roll CTA, and a
+- Use the world-space player stations, a stable bottom-centered Roll CTA, and a
   separate owned-property access button. Dashboard decision components remain
   mounted in the lightweight action layer and continue to use authoritative
   state and existing modals.
@@ -437,8 +437,9 @@ Required tests:
   duplicate sequence/faces are a no-op.
 - The transient dice state remains separate from the committed display baseline
   until the roll duration completes, and the result hold precedes movement.
-- The player strip, turn label, CTA lock, property access path, keyboard status,
-  and reduced-motion behavior remain readable without covering the board.
+- The player stations, turn label, CTA lock, property access path, keyboard
+  status, and reduced-motion behavior remain readable without covering the
+  board.
 - Skip, reduced motion, speed changes, and reconnect leave the dice and queue
   consistent.
 
@@ -469,7 +470,7 @@ Roll recovery adds a bounded 8-second client-only ACK timeout and immediate
 disconnect rejection without retrying the non-idempotent command. The local
 lock clears on transport loss, presentation reset, or an authoritative higher
 `rollSequence`; a committed reconnect state therefore cannot cause a duplicate
-request. The visible turn label and player strip follow
+request. The visible turn label and player stations follow
 `displayActivePlayerId`, while Roll permission continues to use authoritative
 state. `LegacyDiceOverlay` consumes the same `DiceRenderModel`, hides sequence
 zero/reset baselines, and presents settled or rolling authoritative values
@@ -525,8 +526,8 @@ Implemented bounded behavior:
   an approved server presentation signal proves that the token crossed GO.
 - If crossing is not provable, present the committed balance change without
   claiming a GO reward.
-- When proven, use the existing GO tile FX anchor and generic HUD balance
-  update. Keep it non-blocking and do not expose a reward amount.
+- When proven, use the existing GO tile FX anchor and generic player-station
+  balance update. Keep it non-blocking and do not expose a reward amount.
 - Never calculate the reward, infer a pass from a destination alone, or issue a
   second client command.
 - Test a path that crosses GO, a path that lands before GO, a direct
@@ -601,8 +602,8 @@ If any condition fails, show a safe balance change without a payer/receiver
 label. Do not invent rent, tax, card, bail, purchase, development, or forced
 sale attribution from timing alone.
 
-The implemented visual uses a compact signed HUD delta and does not simulate
-individual coins or require a permanent particle loop. Test:
+The implemented visual uses the world-space station balance/transfer amount and
+does not simulate individual coins or require a permanent particle loop. Test:
 
 - player to player rent or forced-sale payment;
 - player to bank purchase, tax, bail, or development payment;
@@ -749,7 +750,7 @@ TURN_CHANGED is the handoff boundary. The planned presentation is compact:
 
 - previous active-player emphasis clears;
 - next player emphasis appears;
-- the turn indicator and HUD update;
+- the turn indicator and player-station update;
 - the local Roll button enables only when local authority, settled positions,
   and queue status all permit it;
 - a short turn cue may overlap the board state.
@@ -1188,7 +1189,7 @@ alive.
 | Resize during gameplay | **NOT RUN** | **NOT RUN** |
 | Keyboard, focus, backdrop, and Escape card behavior | **NOT RUN** | **NOT RUN** |
 
-Phase 4 therefore remains **NOT CLOSED**. Automated contract coverage is green
+At this historical checkpoint, Phase 4 remained **NOT CLOSED**. Automated contract coverage is green
 apart from the explicitly identified configured-database checksum state, but
 the missing browser and Electron manual gates cannot be promoted to passes by
 unit tests or fixture availability.
@@ -1932,3 +1933,18 @@ published on the tracked Phase 4 remote branch, remote CI is unverified/not run,
 and merge is not run. This documentation-only closeout verifies docs scope and
 whitespace; it does not promote historical manual, Electron, database, or remote
 checks to PASS.
+
+## 23. Final Phase 4 code cleanup (2026-08-23)
+
+Phase 4 — IMPLEMENTATION COMPLETE / CLOSED FOR FEATURE WORK
+Next implementation phase — Phase 5
+
+This bounded hygiene pass removed the orphaned visible player HUD path, four
+empty per-tile metadata groups, and unused board compatibility aliases. The
+world-space player stations, accessibility-only `PlayerStations`, board-wide
+body/surface/socket batches, `TilePressRoot`, `SelectionMarker`, legacy
+fallbacks, and Phase 4 UAT gate remain intact. `FpsBadge` remains available in
+development and explicit Phase 4 UAT builds only; its label continues to mean
+browser `requestAnimationFrame` cadence, not R3F render cadence. No server,
+shared, protocol, migration, gameplay, timing, or visual-design behavior was
+changed.
