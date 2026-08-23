@@ -8,6 +8,7 @@ import type { MoneyTransferSignal } from '../../presentation/store/types';
 import {
   COIN_FINISH_MATERIALS,
   COIN_FINISH_ORDER,
+  coinTiltForIndex,
   coinFinishForIndex,
   SHARED_COIN_GEOMETRY,
   stableCoinSeed,
@@ -70,7 +71,12 @@ function TransferCoinFinish({
         THREE.MathUtils.lerp(from[1], to[1], progress) + arc,
         THREE.MathUtils.lerp(from[2], to[2], progress) - lane,
       );
-      object.rotation.set(Math.PI / 2, progress * Math.PI * 3 + globalIndex, 0);
+      const [tiltX, tiltZ] = coinTiltForIndex(
+        globalIndex,
+        stableCoinSeed(signal.id),
+        globalIndex % 3 === 0 || globalIndex >= signal.coinCount - 2,
+      );
+      object.rotation.set(Math.PI / 2 + tiltX, progress * Math.PI * 3 + globalIndex, tiltZ);
       object.scale.setScalar(progress < 1 ? 1 : 0);
       object.updateMatrix();
       mesh.setMatrixAt(index, object.matrix);

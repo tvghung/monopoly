@@ -1603,3 +1603,149 @@ target in the four-player settled and active-preview fixtures (`212` and
 `218`; stress hard budget passes). No gameplay-rule, server-authority,
 V8, Phase 3 movement, fixed-camera, privacy, or Phase 5-audio boundary was
 expanded.
+
+## 20. Focused Phase 4 game-feel visual polish pass (2026-08-23)
+
+This pass is limited to the four reviewed visual goals: destination-preview
+readability, shared metallic coin finish, faster construction/ownership pops,
+and a slightly smaller, more dimensional focused card. V7 authority, the
+single PresentationController/AnimationQueue/PresentationStore, approved dice,
+Phase 3 movement, fixed camera direction, display-balance/development timing,
+card LAND-before-draw/reconnect behavior, Reduced Motion, Skip, and
+`frameloop="demand"` remain unchanged. No V8 or Phase 5 audio work was added.
+
+### 20.1 Destination preview
+
+`TileDestinationPreview` now uses normal transparent alpha blending for both
+existing meshes (`depthWrite=false`) instead of additive blending. The wash and
+frame remain translucent white, with a deterministic shaped pulse at `460ms`:
+surface `0.12–0.37`, frame `0.42–0.88`; Reduced Motion holds a static `0.20`
+surface / `0.62` frame. The canonical surface elevation and the existing
+PREVIEW → WALK → LAND lifecycle were preserved. The existing UAT fixture now
+publishes sampled alpha evidence as well as `preview-before-walk` and
+`preview-before-land` flags; the `5`-step walk spans multiple pulse cycles.
+
+### 20.2 Shared metallic currency
+
+The shared coin is one low-poly `LatheGeometry` profile with a thicker outer
+edge, subtly raised rim, recessed face, and soft bevel. Copper, silver, and
+gold use shared `MeshPhysicalMaterial` finishes in the approved deterministic
+`6:2:1` sequence. A single `RoomEnvironment` PMREM is generated per board
+renderer and assigned only to those shared coin materials; `scene.environment`
+remains unset. Material tuning is copper `0.74/0.17`, silver `0.80/0.13`, and
+gold `0.77/0.15` for metalness/roughness, with finish-specific environment
+intensity `1.08/1.24/1.14` and emissive intensity `0`. Selected station and
+transfer coins receive deterministic small X/Z tilts; bank, station, and
+transfer paths retain instanced shared geometry.
+
+### 20.3 Construction and ownership timing
+
+Final presentation timings are:
+
+| Effect | Final value | Visual contract |
+| --- | ---: | --- |
+| House pop | `180ms` | one `1.30` overshoot, then exact scale `1` |
+| House stagger | `125ms` | sequential house slots remain `1 → 4` |
+| Hotel transition | `520ms` | house compression, burst, `1.25` hotel overshoot, settle |
+| Construction burst | `130ms` base | 11 instanced owner/dust particles, speed-scaled |
+| Ownership flag pop | `180ms` | `0 → 1.28 → 1`, no acquisition replay on sync |
+
+House-step and burst durations derive from the already speed-resolved
+development signal, keeping queue and R3F timing synchronized at `0.75×`,
+`1×`, `1.5×`, and `2×`. Reduced Motion renders no construction particles and
+snaps the building/flag to the authoritative result.
+
+### 20.4 Focused card composition
+
+Focused card width is now `39%` of the normalized orthographic viewport. The
+camera-space base tilt is yaw `6°`, pitch `4°`, roll `0.5°`; reveal spin is
+composed on top and settles back to that same tilt. The normalized depth
+contract remains safe at `1280×720`, `1440×900`, and `1920×1080`. The active
+card screenshot shows the root scrim covering the toolbar and board while the
+physical card remains undimmed; the revealed screenshot contains no visible
+instruction or close button.
+
+### 20.5 Automated validation
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Root typecheck | **PASS** | `pnpm typecheck` |
+| Workspace lint | **PASS** | `pnpm lint` |
+| Client tests | **PASS** | 83 files, 419 tests |
+| Server tests without database | **PASS** | 12 files, 142 passed; 9 database-gated tests skipped |
+| PostgreSQL-backed server tests | **PASS** | 13 files, 151 tests |
+| Desktop tests | **PASS** | 4 files, 12 tests |
+| Full workspace tests | **PASS** | desktop 12; server 142; client 419 |
+| Production client build | **PASS** | `pnpm build`; existing large-chunk warning only |
+| Win32 desktop package | **PASS** | `pnpm desktop:package` rebuilt x64 package |
+| Database migration status | **PASS** | migrations 001 through 008 applied |
+| `git diff --check` | **PASS** | no whitespace errors; only CRLF normalization warnings |
+| Remote CI / push / merge | **NOT RUN** | not authorized |
+
+### 20.6 Deterministic harness and visual evidence
+
+The existing `Phase4UatHarness` was extended; no second harness was created.
+At its default `1280×720` browser viewport:
+
+| Scenario | Observed evidence | Result |
+| --- | --- | --- |
+| Destination flicker | `PREVIEW > WALK > LAND`; preview before first hop and before LAND; alpha sample `0.12 → 0.36` and repeated console samples across the `460ms` period | **PASS** |
+| Chance landing | fresh fixture settles at `PREVIEW > WALK > LAND > CARD`, then face-down Chance card awaits draw | **PASS** |
+| Khí Vận landing | fresh fixture settles at `PREVIEW > WALK > LAND > CARD`, then face-down Khí Vận card awaits draw | **PASS** |
+| Shared coins | LatheGeometry, `sceneEnvironment=false`, env maps true only on coin finishes; 4-player finish instances `61/23/10` | **PASS** |
+| 2-player settled | `198` draw calls / `58,992` triangles | **PASS** |
+| 4-player settled | `208` draw calls / `65,268` triangles | **PASS** |
+| Active destination | `218` draw calls / `76,674` triangles; pulse samples include surface `0.125/0.364`, edge `0.430/0.869` | **FAIL** normal target; **PASS** hard limit |
+| Active money transfer | `204` draw calls / `63,874` triangles; balance remains held during queue | **PASS** |
+| Active 4-house build | `203` draw calls / `64,064` triangles; `build 0/4` sampled while active and `4/4` after settle | **PASS** |
+| Active hotel build | `215` draw calls / `66,304` triangles | **FAIL** normal target; **PASS** hard limit |
+| Active focused card | scene `199` / `63,054`, focus `5` / `314`, combined `204` / `63,368`; width `39%` | **PASS** |
+| Stress | `222` draw calls / `66,836` triangles with 25 active objects | **PASS**; below `<240` / `<100,000` |
+| Resize sweep | names and board content present at `1280×720`, `1440×900`, `1920×1080`; settled 4-player `212` / `65,268` at each viewport run | **CONDITIONAL**; layout readable, normal target varies by fixture |
+
+The active destination and hotel samples remain above the normal `≤210`
+draw-call target; no budget was raised. All observed samples remain below the
+hard stress limits. The deterministic card screenshots show full-viewport
+scrim/blur, readable question-mark back, focused 39% card with visible edge
+depth, and a clean revealed card without visible instruction or X.
+
+### 20.7 Live browser and Electron evidence
+
+- **Live browser: PARTIAL PASS.** A fresh two-player server-backed room was
+  created using isolated local origins. The guest-only Roll CTA was visible;
+  the host did not receive it. A real `6 + 2 = 8` roll landed on Cần Thơ,
+  showed the authoritative purchase decision, kept the roll/purchase logs out
+  of the visible log during presentation, then flushed them after purchase.
+  The property became owned and the next-turn Roll CTA appeared only for the
+  host. The host then made a real `5 + 4 = 9` roll to Hải Phòng and declined
+  purchase. A later guest `6 + 5 = 11` roll produced renderer diagnostics for
+  an active tile-19 preview with repeated alpha samples (`0.123`, `0.302`,
+  `0.120`, `0.369`, `0.878` frame peak) before the preview cleared at LAND.
+  Real live property acquisition, declined purchase, and station coins were
+  observed. Chance/Khí Vận landing, house/hotel construction, and focused card were not
+  reached in this short authoritative session; the deterministic fixtures
+  cover those paths.
+- **Electron visual/semantic smoke: NOT RUN.** The Win32 package was rebuilt,
+  but this session did not have cross-application Electron capture/control.
+  Packaging success is not counted as visual UAT.
+
+### 20.8 Requested behavior status and remaining gap
+
+| Behavior | Result |
+| --- | --- |
+| Normal-alpha destination pulse, persists through WALK, clears at LAND | **PASS** by code/tests, deterministic visual harness, and live renderer diagnostics |
+| Reduced Motion static destination highlight | **PASS** by test and harness control |
+| One shared raised-rim coin geometry, PMREM coin-only reflection, deterministic 6:2:1 finishes/tilts | **PASS** |
+| Bank/station/transfer shared coin system | **PASS** by shared path/diagnostics and visual fixtures |
+| Punchier house/hotel/flag timing and speed synchronization | **PASS** by tests and deterministic fixtures |
+| Initial/reconnect ownership does not replay acquisition pop | **PASS** by presentation boundary and static-sync behavior |
+| Focused card `39%` with subtle 3D tilt, reveal composition, safe depth | **PASS** |
+| Live browser gameplay coverage requested above | **PARTIAL PASS** |
+| Electron visual/semantic smoke | **NOT RUN** |
+| Normal draw-call target for active destination/hotel fixtures | **FAIL**; measured `218` and `215`, hard budget still passes |
+
+Remaining gaps are limited to the two normal-budget fixture overages, live
+Chance/Khí Vận/build/card paths not reached during this short server-backed
+session, and Electron visual/semantic UAT not run. No gameplay-rule,
+server-authority, V8, Phase 3 movement, reconnect, privacy, fixed-camera, or
+Phase 5-audio gap was introduced.

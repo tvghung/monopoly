@@ -35,6 +35,7 @@ const scenarios = [
   ['card-depth', '01 · Depth thẻ 3 viewport'],
   ['walk', '02 · Đích đến → di chuyển'],
   ['destination-geometry', '02 · Preview trên mặt ô'],
+  ['destination-flicker', '02 · Preview flicker alpha'],
   ['roll-chance', '02 · Đổ → Cơ Hội → LAND → thẻ'],
   ['roll-chest', '02 · Đổ → Khí Vận → LAND → thẻ'],
   ['coin-materials', '03 · Đồng / bạc / vàng'],
@@ -310,6 +311,7 @@ function Phase4UatSurface() {
     playerId: 'player-a', role: 'PLAYER',
   });
   const [rendererMetrics, setRendererMetrics] = useState<Record<string, unknown> | null>(null);
+  const [destinationPreviewDiagnostics, setDestinationPreviewDiagnostics] = useState<Record<string, unknown> | null>(null);
   const [controlsCollapsed, setControlsCollapsed] = useState(false);
   const traceRef = useRef<{
     scenario: ScenarioKey;
@@ -419,7 +421,7 @@ function Phase4UatSurface() {
       });
       return;
     }
-    if (key === 'walk' || key === 'destination-geometry' || key === 'speed-walk' || key === 'skip-motion' || key === 'reduced-motion') {
+    if (key === 'walk' || key === 'destination-geometry' || key === 'destination-flicker' || key === 'speed-walk' || key === 'skip-motion' || key === 'reduced-motion') {
       commit(next => {
         next.gameState.boardState.diceValue = { dice1: 2, dice2: 3 };
         next.gameState.boardState.rollSequence = 1;
@@ -518,7 +520,11 @@ function Phase4UatSurface() {
       return;
     }
     if (key.startsWith('house-') || key === 'hotel' || key === 'building-preflash' || key === 'construction-reduced') {
-      const target = key === 'hotel' ? 5 : 1;
+      const target = key === 'hotel'
+        ? 5
+        : key.startsWith('house-')
+          ? Number(key.slice('house-'.length))
+          : 1;
       commit(next => {
         const owned = next.gameState.boardState.ownedProps[1];
         if (owned) owned.houses = target;
@@ -730,10 +736,15 @@ function Phase4UatSurface() {
     const onMetrics = (event: Event) => {
       setRendererMetrics((event as CustomEvent<Record<string, unknown>>).detail);
     };
+    const onDestinationPreview = (event: Event) => {
+      setDestinationPreviewDiagnostics((event as CustomEvent<Record<string, unknown>>).detail);
+    };
     window.addEventListener('own-the-block-renderer', onMetrics);
+    window.addEventListener('own-the-block-destination-preview', onDestinationPreview);
     return () => {
       clearTimers();
       window.removeEventListener('own-the-block-renderer', onMetrics);
+      window.removeEventListener('own-the-block-destination-preview', onDestinationPreview);
     };
   }, [clearTimers, controller]);
 
@@ -748,6 +759,9 @@ function Phase4UatSurface() {
     privateOffers: [],
     roomPlayers: room.players,
   }), [room, socketFunctions, viewer]);
+  const destinationPreviewOpacity = typeof destinationPreviewDiagnostics?.surfaceOpacity === 'number'
+    ? Number(destinationPreviewDiagnostics.surfaceOpacity)
+    : null;
 
   return (
     <PresentationProvider controller={controller}>
@@ -806,6 +820,9 @@ function Phase4UatSurface() {
               {traceRef.current.previewBeforeLand ? ' · preview-before-land yes' : ''}
               {` · build ${String(presentationState.displayDevelopmentLevels[1] ?? 0)}/${String(room.gameState.boardState.ownedProps[1]?.houses ?? 0)}`}
               {` · logs ${presentationState.displayLogs.length}/${room.gameState.boardState.logs.length}`}
+              {scenario === 'destination-flicker'
+                ? ` · alpha ${destinationPreviewOpacity === null ? '—' : destinationPreviewOpacity.toFixed(2)}`
+                : ''}
               {scenario === 'balance-gate'
                 ? ` · balance ${String(presentationState.displayBalances['player-a'] ?? '—')}/${String(room.gameState.players['player-a']?.accountBalance ?? '—')}`
                 : ''}

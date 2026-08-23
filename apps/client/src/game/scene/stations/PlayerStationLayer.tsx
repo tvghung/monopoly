@@ -11,6 +11,7 @@ import SdfBillboardText from '../board/tiles/SdfBillboardText';
 import {
   COIN_FINISH_MATERIALS,
   COIN_FINISH_ORDER,
+  coinTiltForIndex,
   coinFinishForIndex,
   COIN_DISABLED,
   COIN_THICKNESS,
@@ -31,6 +32,7 @@ export function wealthCoinCount(balance: number): number {
 
 interface CoinInstance {
   position: readonly [number, number, number];
+  rotation: readonly [number, number, number];
   finish: CoinFinish;
   disabled: boolean;
 }
@@ -52,7 +54,7 @@ function CoinFinishPile({
     if (!mesh) return;
     finishInstances.forEach((instance, index) => {
       object.position.set(...instance.position);
-      object.rotation.set(0, (index % 3) * 0.035, 0);
+      object.rotation.set(...instance.rotation);
       object.scale.set(1, 1, 1);
       object.updateMatrix();
       mesh.setMatrixAt(index, object.matrix);
@@ -84,6 +86,14 @@ function CoinPiles({ stations }: { stations: readonly PlayerStationRenderModel[]
           0.36 + layer * (COIN_THICKNESS + 0.008),
           BANK_WORLD_ANCHOR[2] + 0.04 + (index % 2) * 0.1,
         ],
+        rotation: (() => {
+          const [tiltX, tiltZ] = coinTiltForIndex(
+            index,
+            stableCoinSeed('bank'),
+            layer === 2 || column === 0,
+          );
+          return [tiltX, (index % 3) * 0.035, tiltZ] as const;
+        })(),
         finish: coinFinishForIndex(index, stableCoinSeed('bank')),
         disabled: false,
       };
@@ -100,6 +110,14 @@ function CoinPiles({ stations }: { stations: readonly PlayerStationRenderModel[]
             0.12 + (index % 2) * 0.1,
             0.62 + layer * (COIN_THICKNESS + 0.018),
           ),
+          rotation: (() => {
+            const [tiltX, tiltZ] = coinTiltForIndex(
+              index,
+              stableCoinSeed(station.playerId),
+              layer === Math.floor((count - 1) / 7) || column === 0,
+            );
+            return [tiltX, (index % 3) * 0.035, tiltZ] as const;
+          })(),
           finish: coinFinishForIndex(index, stableCoinSeed(station.playerId)),
           disabled: station.status !== 'ACTIVE',
         };

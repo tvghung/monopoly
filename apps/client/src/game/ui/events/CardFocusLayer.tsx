@@ -11,6 +11,9 @@ import {
   CARD_FOCUS_CAMERA_NEAR,
   CARD_FOCUS_CAMERA_Z,
   CARD_FOCUS_CAMERA_ZOOM,
+  CARD_FOCUS_TILT_PITCH,
+  CARD_FOCUS_TILT_ROLL,
+  CARD_FOCUS_TILT_YAW,
   PHYSICAL_CARD_DEPTH,
   PHYSICAL_CARD_WIDTH,
   getCardFocusCameraSpaceDepth,
@@ -34,8 +37,17 @@ function FocusRendererDiagnostics({ stage }: { stage: CardPresentationSignal['st
         stage,
         drawCalls: gl.info.render.calls,
         triangles: gl.info.render.triangles,
-        cardWidthRatio: viewportWidth > 0 ? focusScale * PHYSICAL_CARD_WIDTH / viewportWidth : 0,
-        cardHeightRatio: viewportHeight > 0 ? focusScale * PHYSICAL_CARD_DEPTH / viewportHeight : 0,
+        cardWidthRatio: viewportWidth > 0
+          ? focusScale * PHYSICAL_CARD_WIDTH / viewportWidth
+          : 0,
+        cardHeightRatio: viewportHeight > 0
+          ? focusScale * PHYSICAL_CARD_DEPTH / viewportHeight
+          : 0,
+        tilt: {
+          yaw: CARD_FOCUS_TILT_YAW,
+          pitch: CARD_FOCUS_TILT_PITCH,
+          roll: CARD_FOCUS_TILT_ROLL,
+        },
         cameraSpaceDepth: cameraDepth,
       };
       window.__OWN_THE_BLOCK_CARD_FOCUS_DIAGNOSTICS__ = diagnostics;

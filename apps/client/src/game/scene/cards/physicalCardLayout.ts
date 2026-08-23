@@ -18,7 +18,7 @@ export const PHYSICAL_CARD_LAYER_STEP = PHYSICAL_CARD_THICKNESS + PHYSICAL_CARD_
 export const PHYSICAL_CARD_BEVEL = 0.022;
 export const CARD_PRESENTATION_SCALE = 2.65;
 export const CARD_REVEAL_ROTATIONS = 2.5;
-export const CARD_FOCUS_VIEWPORT_WIDTH_RATIO = 0.42;
+export const CARD_FOCUS_VIEWPORT_WIDTH_RATIO = 0.39;
 export const CARD_FOCUS_VIEWPORT_HEIGHT_RATIO = 0.7;
 export const CARD_FOCUS_CAMERA_Z = 10;
 export const CARD_FOCUS_CAMERA_NEAR = 0.1;
@@ -26,7 +26,14 @@ export const CARD_FOCUS_CAMERA_FAR = 30;
 /** One hundred world units per CSS pixel keeps focus depth normalized. */
 export const CARD_FOCUS_CAMERA_ZOOM = 100;
 export const CARD_FOCUS_LOCAL_DEPTH_LIMIT = 0.035;
+export const CARD_FOCUS_TILT_YAW = degreesToRadians(6);
+export const CARD_FOCUS_TILT_PITCH = degreesToRadians(4);
+export const CARD_FOCUS_TILT_ROLL = degreesToRadians(0.5);
 export const CARD_FRAME_BORDER = 0.05;
+
+function degreesToRadians(degrees: number): number {
+  return degrees * Math.PI / 180;
+}
 
 const parkingCorner = getBoardTileLayout(20)?.position ?? [-1, 0, -1];
 const startCorner = getBoardTileLayout(0)?.position ?? [1, 0, 1];
@@ -71,6 +78,7 @@ export interface CardFocusCameraSpaceDepth {
   minZ: number;
   maxZ: number;
   scale: number;
+  halfExtent: number;
 }
 
 export function getCardFocusCameraSpaceDepth(
@@ -78,11 +86,16 @@ export function getCardFocusCameraSpaceDepth(
   viewportHeight: number,
 ): CardFocusCameraSpaceDepth {
   const scale = getCardFocusScale(viewportWidth, viewportHeight);
-  const halfExtent = CARD_FOCUS_LOCAL_DEPTH_LIMIT * scale;
+  const halfWidth = PHYSICAL_CARD_WIDTH * scale / 2;
+  const halfDepth = PHYSICAL_CARD_DEPTH * scale / 2;
+  const halfThickness = PHYSICAL_CARD_THICKNESS * scale / 2;
+  const halfExtent = Math.hypot(halfWidth, halfDepth, halfThickness)
+    + CARD_FOCUS_LOCAL_DEPTH_LIMIT * scale;
   return {
     minZ: CARD_FOCUS_CAMERA_Z - halfExtent,
     maxZ: CARD_FOCUS_CAMERA_Z + halfExtent,
     scale,
+    halfExtent,
   };
 }
 

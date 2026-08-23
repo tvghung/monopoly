@@ -7,6 +7,7 @@ import {
   OWNERSHIP_FLAG_CLOTH_WIDTH,
   OWNERSHIP_FLAG_POLE_WIDTH,
   getOwnershipFlagClothColor,
+  getOwnershipFlagPopScale,
   getOwnershipFlagPlacement,
 } from './OwnershipFlag';
 import TileOwnershipLayer from './TileOwnershipLayer';
@@ -84,6 +85,13 @@ describe('tile ownership layer', () => {
     );
     expect(getOwnershipFlagClothColor('blue')).toBe(getPlayerDisplayColor('blue'));
     expect(getFlagMesh(view.container)).not.toBeNull();
+  });
+
+  it('uses a deterministic overshoot and settles the ownership flag at full scale', () => {
+    expect(getOwnershipFlagPopScale(0)).toBe(0);
+    expect(getOwnershipFlagPopScale(0.56)).toBeGreaterThan(1);
+    expect(getOwnershipFlagPopScale(1)).toBe(1);
+    expect(getOwnershipFlagPopScale(2)).toBe(1);
   });
 
   it('removes the flag when authoritative ownership is removed', () => {

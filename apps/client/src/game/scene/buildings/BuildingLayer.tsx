@@ -21,14 +21,70 @@ export interface SequentialHouseBuildStep {
   durationMs: number;
 }
 
-export function getSequentialHouseBuildSteps(fromHouses: number, toHouses: number): SequentialHouseBuildStep[] {
+export function getSequentialHouseBuildSteps(
+  fromHouses: number,
+  toHouses: number,
+  totalDurationMs?: number,
+): SequentialHouseBuildStep[] {
   const from = Math.max(0, Math.min(4, fromHouses));
   const to = Math.max(from, Math.min(4, toHouses));
+  const count = to - from;
+  const baseDuration = count > 0
+    ? presentationTiming.housePop + (count - 1) * presentationTiming.houseStagger
+    : 0;
+  const scale = baseDuration > 0 && totalDurationMs !== undefined
+    ? Math.max(0, totalDurationMs) / baseDuration
+    : 1;
   return Array.from({ length: to - from }, (_, index) => ({
     houseIndex: from + index,
-    delayMs: index * presentationTiming.houseStagger,
-    durationMs: presentationTiming.housePop,
+    delayMs: index * presentationTiming.houseStagger * scale,
+    durationMs: presentationTiming.housePop * scale,
   }));
+}
+
+export function getHousePopScale(progress: number): number {
+  const clamped = THREE.MathUtils.clamp(progress, 0, 1);
+  if (clamped <= 0) return 0;
+  if (clamped >= 1) return 1;
+  if (clamped < 0.58) {
+    const t = clamped / 0.58;
+    return 1.3 * (1 - (1 - t) ** 3);
+  }
+  const t = (clamped - 0.58) / 0.42;
+  const eased = t * t * (3 - 2 * t);
+  return THREE.MathUtils.lerp(1.3, 1, eased);
+}
+
+export interface HotelTransitionScales {
+  oldScale: number;
+  hotelScale: number;
+}
+
+export function getHotelTransitionScales(progress: number): HotelTransitionScales {
+  const clamped = THREE.MathUtils.clamp(progress, 0, 1);
+  const oldProgress = THREE.MathUtils.clamp(clamped / 0.22, 0, 1);
+  const oldEased = oldProgress * oldProgress * (3 - 2 * oldProgress);
+  const hotelProgress = THREE.MathUtils.clamp((clamped - 0.15) / 0.85, 0, 1);
+  const hotelScale = hotelProgress < 0.62
+    ? 1.25 * (1 - (1 - hotelProgress / 0.62) ** 3)
+    : THREE.MathUtils.lerp(
+      1.25,
+      1,
+      ((hotelProgress - 0.62) / 0.38) ** 2
+        * (3 - 2 * ((hotelProgress - 0.62) / 0.38)),
+    );
+  return {
+    oldScale: 1 - oldEased,
+    hotelScale,
+  };
+}
+
+export function getScaledConstructionBurstDuration(
+  effectiveDurationMs: number,
+  baseAnimationDurationMs: number,
+): number {
+  if (effectiveDurationMs <= 0 || baseAnimationDurationMs <= 0) return 0;
+  return effectiveDurationMs / baseAnimationDurationMs * presentationTiming.buildPop;
 }
 
 function BuildingShapes({ houses, ownerColor }: { houses: number; ownerColor?: string }) {
@@ -42,9 +98,9 @@ function ConstructionPuff({
   delayMs,
   durationMs,
   ownerColor,
-  particleCount = 9,
-  spread = 0.26,
-  lift = 0.16,
+  particleCount = 11,
+  spread = 0.32,
+  lift = 0.22,
 }: {
   delayMs: number;
   durationMs: number;
@@ -75,10 +131,11 @@ function ConstructionPuff({
     elapsedRef.current += delta * 1000;
     const local = elapsedRef.current - delayMs;
     const progress = THREE.MathUtils.clamp(local / Math.max(1, durationMs), 0, 1);
+    const burstProgress = 1 - (1 - progress) ** 3;
     for (let index = 0; index < particleCount; index += 1) {
       const angle = index / particleCount * Math.PI * 2;
-      const distance = progress * spread;
-      object.position.set(Math.cos(angle) * distance, 0.03 + progress * lift, Math.sin(angle) * distance);
+      const distance = burstProgress * spread;
+      object.position.set(Math.cos(angle) * distance, 0.03 + burstProgress * lift, Math.sin(angle) * distance);
       object.scale.setScalar(local >= 0 && progress < 1 ? (1 - progress) * 0.85 : 0);
       object.updateMatrix();
       mesh.setMatrixAt(index, object.matrix);
@@ -89,7 +146,7 @@ function ConstructionPuff({
   useEffect(() => { invalidate(); }, [invalidate]);
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, particleCount]}>
-      <octahedronGeometry args={[0.06, 0]} />
+      <octahedronGeometry args={[0.068, 0]} />
       <meshStandardMaterial vertexColors color="#ffffff" transparent opacity={0.86} roughness={0.94} />
     </instancedMesh>
   );
@@ -118,17 +175,18 @@ function AnimatedHouse({
     elapsedRef.current += delta * 1000;
     const local = elapsedRef.current - delayMs;
     const progress = THREE.MathUtils.clamp(local / Math.max(1, durationMs), 0, 1);
-    const overshoot = progress < 0.72
-      ? 1.12 * (progress / 0.72)
-      : THREE.MathUtils.lerp(1.12, 1, (progress - 0.72) / 0.28);
-    group.scale.setScalar(local < 0 ? 0 : overshoot);
+    group.scale.setScalar(local < 0 ? 0 : getHousePopScale(progress));
     if (progress < 1) invalidate();
   });
   return (
     <group ref={groupRef} position={position} scale={0}>
       <HouseMesh position={[0, 0, 0]} ownerColor={ownerColor} />
       {!reducedMotion
-        ? <ConstructionPuff delayMs={delayMs} durationMs={durationMs} ownerColor={ownerColor} />
+        ? <ConstructionPuff
+          delayMs={delayMs}
+          durationMs={getScaledConstructionBurstDuration(durationMs, presentationTiming.housePop)}
+          ownerColor={ownerColor}
+        />
         : null}
     </group>
   );
@@ -151,12 +209,9 @@ function HotelTransition({
   useFrame((_, delta) => {
     elapsedRef.current += delta * 1000;
     const progress = THREE.MathUtils.clamp(elapsedRef.current / Math.max(1, durationMs), 0, 1);
-    oldRef.current?.scale.setScalar(Math.max(0, 1 - progress / 0.38));
-    const hotelProgress = THREE.MathUtils.clamp((progress - 0.22) / 0.78, 0, 1);
-    const hotelScale = hotelProgress < 0.75
-      ? hotelProgress / 0.75 * 1.1
-      : THREE.MathUtils.lerp(1.1, 1, (hotelProgress - 0.75) / 0.25);
-    hotelRef.current?.scale.setScalar(hotelScale);
+    const scales = getHotelTransitionScales(progress);
+    oldRef.current?.scale.setScalar(scales.oldScale);
+    hotelRef.current?.scale.setScalar(scales.hotelScale);
     if (progress < 1) invalidate();
   });
   return (
@@ -167,12 +222,12 @@ function HotelTransition({
         ? (
           <group position={getHotelSlot()}>
             <ConstructionPuff
-              delayMs={Math.round(durationMs * 0.2)}
-              durationMs={Math.round(durationMs * 0.42)}
+              delayMs={Math.round(durationMs * 0.18)}
+              durationMs={Math.round(getScaledConstructionBurstDuration(durationMs, presentationTiming.hotelTransition))}
               ownerColor={ownerColor}
-              particleCount={10}
-              spread={0.38}
-              lift={0.24}
+              particleCount={11}
+              spread={0.44}
+              lift={0.3}
             />
           </group>
         )
@@ -209,7 +264,7 @@ export default function BuildingLayer({
   const from = Math.max(0, Math.min(4, developmentChange.fromHouses));
   const to = Math.max(from, Math.min(4, developmentChange.toHouses));
   const slots = getBuildingSlots(to);
-  const buildSteps = getSequentialHouseBuildSteps(from, to);
+  const buildSteps = getSequentialHouseBuildSteps(from, to, developmentChange.durationMs);
   return (
     <group name="SequentialHouseBuild">
       {slots.slice(0, from).map((position, index) => (

@@ -15,6 +15,12 @@ import {
   getTileTextureAnisotropy,
 } from './board/architecture/sceneBudget';
 import TileMotionProvider from './board/motion/TileMotionProvider';
+import CoinMaterialEnvironment from './stations/CoinMaterialEnvironment';
+import {
+  COIN_FINISH_MATERIALS,
+  COIN_FINISH_ORDER,
+  SHARED_COIN_GEOMETRY,
+} from './stations/coinVisuals';
 import './GameScene.css';
 import type { PhysicalCardInteraction } from './cards/PhysicalCardDecks';
 import type { DeckCounts } from '@monopoly/shared';
@@ -78,6 +84,7 @@ function RendererDiagnostics({
       const focusTriangles = typeof focusDiagnostics.triangles === 'number'
         ? focusDiagnostics.triangles
         : 0;
+      const destinationPreviewDiagnostics = window.__OWN_THE_BLOCK_DESTINATION_PREVIEW_DIAGNOSTICS__ ?? {};
       const focusCardWidthRatio = typeof focusDiagnostics.cardWidthRatio === 'number'
         ? focusDiagnostics.cardWidthRatio
         : 0;
@@ -142,7 +149,21 @@ function RendererDiagnostics({
             },
           },
           activeCardStage,
-          destinationPreviewTileId,
+        destinationPreviewTileId,
+        destinationPreview: destinationPreviewDiagnostics,
+        coinSystem: {
+          geometryType: SHARED_COIN_GEOMETRY.type,
+          sceneEnvironment: Boolean(scene.environment),
+          finishes: Object.fromEntries(COIN_FINISH_ORDER.map(finish => {
+            const material = COIN_FINISH_MATERIALS[finish];
+            return [finish, {
+              metalness: material.metalness,
+              roughness: material.roughness,
+              envMap: Boolean(material.envMap),
+              envMapIntensity: material.envMapIntensity,
+            }];
+          })),
+        },
           activeTurnRingCount: sceneObjects.filter(object => (
             object.name.includes('ActiveTurn') || object.name.includes('PlayerActiveRing')
           )).length,
@@ -271,6 +292,7 @@ export default function GameScene({
           intensity={1.7}
           color="#fff8e8"
         />
+        <CoinMaterialEnvironment />
         <BoardSceneContents
           model={model}
           hoveredTileId={hoveredTileId}

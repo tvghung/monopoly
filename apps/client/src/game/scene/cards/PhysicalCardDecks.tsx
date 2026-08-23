@@ -18,6 +18,9 @@ import {
   CARD_PRESENTATION_POSITION,
   CARD_PRESENTATION_SCALE,
   CARD_FRAME_BORDER,
+  CARD_FOCUS_TILT_PITCH,
+  CARD_FOCUS_TILT_ROLL,
+  CARD_FOCUS_TILT_YAW,
   CARD_REVEAL_ROTATIONS,
   DECK_ANCHORS,
   getCardFocusScale,
@@ -224,7 +227,17 @@ export function ActivePhysicalCard({
   const sourceQuaternion = useMemo(() => new THREE.Quaternion(), []);
   const spinQuaternion = useMemo(() => new THREE.Quaternion(), []);
   const focusQuaternion = useMemo(
-    () => new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0)),
+    () => {
+      const baseQuaternion = new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(Math.PI / 2, 0, 0),
+      );
+      const cameraTilt = new THREE.Quaternion().setFromEuler(new THREE.Euler(
+        CARD_FOCUS_TILT_PITCH,
+        CARD_FOCUS_TILT_YAW,
+        CARD_FOCUS_TILT_ROLL,
+      ));
+      return baseQuaternion.premultiply(cameraTilt);
+    },
     [],
   );
   const authoritativeDeckCount = deckCounts[signal.deck];

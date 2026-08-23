@@ -88,6 +88,8 @@ export default function TileAssembly({
           size={layout.size}
           panel={panel}
           selected={selected}
+          ownershipChange={ownershipChange}
+          reducedMotion={reducedMotion}
         />
         <TileDevelopmentLayer
           houses={houses}

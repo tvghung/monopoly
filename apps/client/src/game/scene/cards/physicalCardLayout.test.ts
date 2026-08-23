@@ -8,6 +8,9 @@ import {
   CARD_FOCUS_CAMERA_NEAR,
   CARD_FOCUS_CAMERA_Z,
   CARD_FOCUS_CAMERA_ZOOM,
+  CARD_FOCUS_TILT_PITCH,
+  CARD_FOCUS_TILT_ROLL,
+  CARD_FOCUS_TILT_YAW,
   CARD_FRAME_BORDER,
   DECK_ANCHORS,
   DECK_ROTATION_Y,
@@ -33,11 +36,17 @@ describe('physical card deck layout', () => {
     expect(PHYSICAL_CARD_THICKNESS).toBeGreaterThan(0.04);
     expect(CARD_PRESENTATION_SCALE).toBeGreaterThanOrEqual(2.5);
     expect(CARD_REVEAL_ROTATIONS).toBeGreaterThanOrEqual(2);
-    expect(CARD_FOCUS_VIEWPORT_WIDTH_RATIO).toBeGreaterThanOrEqual(0.36);
-    expect(CARD_FOCUS_VIEWPORT_WIDTH_RATIO).toBeLessThanOrEqual(0.44);
+    expect(CARD_FOCUS_VIEWPORT_WIDTH_RATIO).toBeGreaterThanOrEqual(0.38);
+    expect(CARD_FOCUS_VIEWPORT_WIDTH_RATIO).toBeLessThanOrEqual(0.4);
     expect(CARD_FOCUS_VIEWPORT_HEIGHT_RATIO).toBeGreaterThan(0.6);
     expect(CARD_FRAME_BORDER).toBeGreaterThanOrEqual(0.045);
     expect(CARD_FRAME_BORDER).toBeLessThanOrEqual(0.055);
+    expect(CARD_FOCUS_TILT_YAW).toBeGreaterThanOrEqual(5 * Math.PI / 180);
+    expect(CARD_FOCUS_TILT_YAW).toBeLessThanOrEqual(7 * Math.PI / 180);
+    expect(CARD_FOCUS_TILT_PITCH).toBeGreaterThanOrEqual(3 * Math.PI / 180);
+    expect(CARD_FOCUS_TILT_PITCH).toBeLessThanOrEqual(5 * Math.PI / 180);
+    expect(CARD_FOCUS_TILT_ROLL).toBeGreaterThanOrEqual(0);
+    expect(CARD_FOCUS_TILT_ROLL).toBeLessThanOrEqual(1 * Math.PI / 180);
   });
 
   it.each([[1280, 720], [1440, 900], [1920, 1080]])(
@@ -47,10 +56,11 @@ describe('physical card deck layout', () => {
         width / CARD_FOCUS_CAMERA_ZOOM,
         height / CARD_FOCUS_CAMERA_ZOOM,
       );
-      expect(depth.minZ).toBeGreaterThan(CARD_FOCUS_CAMERA_NEAR + 0.5);
-      expect(depth.maxZ).toBeLessThan(CARD_FOCUS_CAMERA_FAR - 0.5);
-      expect(depth.minZ).toBeGreaterThan(CARD_FOCUS_CAMERA_Z - 1);
-      expect(depth.maxZ).toBeLessThan(CARD_FOCUS_CAMERA_Z + 1);
+      expect(depth.minZ).toBeGreaterThan(CARD_FOCUS_CAMERA_NEAR);
+      expect(depth.maxZ).toBeLessThan(CARD_FOCUS_CAMERA_FAR);
+      expect(depth.halfExtent).toBeGreaterThan(1);
+      expect(depth.minZ).toBeCloseTo(CARD_FOCUS_CAMERA_Z - depth.halfExtent);
+      expect(depth.maxZ).toBeCloseTo(CARD_FOCUS_CAMERA_Z + depth.halfExtent);
       expect(isCardFocusDepthSafe(width / CARD_FOCUS_CAMERA_ZOOM, height / CARD_FOCUS_CAMERA_ZOOM)).toBe(true);
     },
   );
