@@ -12,12 +12,13 @@ interface ParkingLotVisualProps {
 export const PARKING_ART_WIDTH_RATIO = 0.78;
 export const PARKING_STALL_COUNT = 6;
 export const PARKING_CAR_COUNT = 4;
+export const PARKING_CAR_SCALE = 1.18;
 
 const PARKING_CAR_SPECS = [
-  { position: [-0.25, -0.22] as const, rotation: 0.02, color: boardVisualTokens.parkingCarCyan },
-  { position: [0.25, -0.22] as const, rotation: -0.025, color: boardVisualTokens.parkingCarOrange },
-  { position: [-0.25, 0.22] as const, rotation: Math.PI + 0.02, color: boardVisualTokens.parkingCarCream },
-  { position: [0.25, 0.22] as const, rotation: Math.PI - 0.025, color: boardVisualTokens.parkingCarGreen },
+  { position: [-0.22, -0.2] as const, rotation: 0.02, color: boardVisualTokens.parkingCarCyan },
+  { position: [0.22, -0.2] as const, rotation: -0.025, color: boardVisualTokens.parkingCarOrange },
+  { position: [-0.22, 0.2] as const, rotation: Math.PI + 0.02, color: boardVisualTokens.parkingCarCream },
+  { position: [0.22, 0.2] as const, rotation: Math.PI - 0.025, color: boardVisualTokens.parkingCarGreen },
 ] as const;
 
 function ParkingLaneMarkings({ width, depth }: { width: number; depth: number }) {
@@ -60,11 +61,28 @@ function ParkingCars({ width, depth }: { width: number; depth: number }) {
   const cabinRef = useRef<THREE.InstancedMesh>(null);
   const windowRef = useRef<THREE.InstancedMesh>(null);
   const wheelRef = useRef<THREE.InstancedMesh>(null);
-  const bodyGeometry = useMemo(() => new THREE.BoxGeometry(0.38, 0.075, 0.2), []);
-  const cabinGeometry = useMemo(() => new THREE.BoxGeometry(0.22, 0.065, 0.15), []);
-  const windowGeometry = useMemo(() => new THREE.BoxGeometry(0.16, 0.012, 0.11), []);
+  const bodyGeometry = useMemo(() => new THREE.BoxGeometry(
+    0.38 * PARKING_CAR_SCALE,
+    0.075 * PARKING_CAR_SCALE,
+    0.2 * PARKING_CAR_SCALE,
+  ), []);
+  const cabinGeometry = useMemo(() => new THREE.BoxGeometry(
+    0.22 * PARKING_CAR_SCALE,
+    0.065 * PARKING_CAR_SCALE,
+    0.15 * PARKING_CAR_SCALE,
+  ), []);
+  const windowGeometry = useMemo(() => new THREE.BoxGeometry(
+    0.16 * PARKING_CAR_SCALE,
+    0.012 * PARKING_CAR_SCALE,
+    0.11 * PARKING_CAR_SCALE,
+  ), []);
   const wheelGeometry = useMemo(() => {
-    const geometry = new THREE.CylinderGeometry(0.042, 0.042, 0.026, 10);
+    const geometry = new THREE.CylinderGeometry(
+      0.042 * PARKING_CAR_SCALE,
+      0.042 * PARKING_CAR_SCALE,
+      0.026 * PARKING_CAR_SCALE,
+      10,
+    );
     geometry.rotateX(Math.PI / 2);
     return geometry;
   }, []);
@@ -113,10 +131,10 @@ function ParkingCars({ width, depth }: { width: number; depth: number }) {
 
     positions.forEach(([x, z, rotation], index) => {
       const wheelPair = [
-        [-0.12, -0.11],
-        [0.12, -0.11],
-        [-0.12, 0.11],
-        [0.12, 0.11],
+        [-0.12 * PARKING_CAR_SCALE, -0.11 * PARKING_CAR_SCALE],
+        [0.12 * PARKING_CAR_SCALE, -0.11 * PARKING_CAR_SCALE],
+        [-0.12 * PARKING_CAR_SCALE, 0.11 * PARKING_CAR_SCALE],
+        [0.12 * PARKING_CAR_SCALE, 0.11 * PARKING_CAR_SCALE],
       ] as const;
       wheelPair.forEach(([localX, localZ], wheelIndex) => {
         const rotatedX = localX * Math.cos(rotation) - localZ * Math.sin(rotation);

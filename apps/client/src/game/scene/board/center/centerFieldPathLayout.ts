@@ -1,6 +1,6 @@
 import { AIRPORT_RUNWAY_INNER_HALF_SIZE } from './airportRunwayGeometry';
 
-export const CENTER_ORTHOGONAL_PATH_WIDTH = 0.36;
+export const CENTER_ORTHOGONAL_PATH_WIDTH = 0.44;
 export const CENTER_ORTHOGONAL_PATH_COVERAGE_TARGET = 0.05;
 export const CENTER_PATH_BOUNDARY_MARGIN = 0.18;
 

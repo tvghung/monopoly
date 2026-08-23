@@ -13,6 +13,8 @@ import { PLAYER_STATION_SCENE_POINTS } from '../stations/stationWorld';
 export const DEFAULT_CAMERA_FOV = 40;
 export const DEFAULT_FRAMING_MARGIN = 1.02;
 export const ORTHOGRAPHIC_CAMERA_DISTANCE = 32;
+/** Centralized readability framing for the fixed orthographic board view. */
+export const ORTHOGRAPHIC_READABILITY_ZOOM = 1.08;
 export const CAMERA_DIRECTION: readonly [number, number, number] = (() => {
   const length = Math.hypot(1, 1.25, 1);
   return [1 / length, 1.25 / length, 1 / length];

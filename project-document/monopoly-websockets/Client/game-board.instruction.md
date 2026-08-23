@@ -76,18 +76,18 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   contract chung trên tile surface, depth test và alpha test để tránh chìm hoặc
   z-fight; icon footprint giữ divider của upper 70% clear. Tax dùng paper stack nhỏ hơn
   với rear sheet xám đậm hơn và five red placeholder marks nằm trong front sheet; START dùng
-  planted left-pointing `Start` sign rộng 82% usable corner surface; Parking dùng
+  planted left-pointing `Start` sign rộng 92% usable corner surface; Parking dùng
   asphalt runway-gray với lane marks và deterministic parked cars; Go To Jail dùng
   handcuffs còn Jail dùng cell bars. District art không tràn sang special tile.
 - Beach district dùng shoreline uốn lượn với wave contour thứ hai; palette board/UI
   tăng saturation nhưng giữ upper/footer sáng để text đen vẫn rõ.
-- Final pre-Phase-5 readability geometry dùng edge width `1.86`, depth `5.9`, corner
-  `2.72`, gap `0.05`; mọi body/surface/socket/foundation đều derive từ registry.
-  Center platform dùng inset `0.6` so với inward surface boundary, BoardFrame rộng
-  `0.14`, tạo một gutter liên tục để tile ring đọc rõ mà không có crack/overlap.
-  Foundation middle layer là `boardBase #70787b`, giữ lower dark layer và upper light
-  layer hiện hành. Outer board size và orthographic fit tự derive từ layout; camera
-  giữ hướng cố định và margin `1.02`, không bỏ fit point của board/dice/stations.
+- Corrective pre-Phase-5 readability geometry dùng edge width `1.6`, depth `3.2`,
+  corner `2.46`, gap `0.05`; mọi body/surface/socket/foundation đều derive từ
+  registry. Center platform dùng `INNER_TILE_SURFACE_BOUNDARY * 2`, không còn
+  inset `0.6`; `BoardFrame` rộng `0.14` và center path rộng `0.44` giữ gutter
+  liên tục. Foundation middle layer là `boardBase #70787b`, giữa lower dark
+  layer và upper light layer. Camera giữ hướng cố định, dùng
+  `ORTHOGRAPHIC_READABILITY_ZOOM=1.08`, không bỏ fit point của board/dice/stations.
 
 ## State/rendering
 

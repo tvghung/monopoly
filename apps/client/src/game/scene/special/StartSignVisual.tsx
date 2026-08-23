@@ -18,7 +18,7 @@ interface StartSignVisualProps {
 export const START_SIGN_LABEL = 'Start';
 export const START_SIGN_TRAVEL_ROTATION_Y = getBoardTileLayout(0)?.rotation[1] ?? 0;
 export const START_SIGN_NATIVE_WIDTH = 1.55;
-export const START_SIGN_TARGET_WIDTH_RATIO = 0.82;
+export const START_SIGN_TARGET_WIDTH_RATIO = 0.92;
 export const START_SIGN_HEIGHT_SCALE = 1.2;
 
 export function getStartSignWidthScale(panel: TilePanelLayout): number {

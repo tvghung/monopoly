@@ -13,6 +13,7 @@ import {
   getCameraPosition,
   getOrthographicCameraPosition,
   ORTHOGRAPHIC_CAMERA_DISTANCE,
+  ORTHOGRAPHIC_READABILITY_ZOOM,
   SCENE_FIT_POINTS,
 } from './cameraMath';
 
@@ -104,6 +105,7 @@ describe('fixed board camera math', () => {
 
   it('uses the final tight readability margin without dropping any fit points', () => {
     expect(DEFAULT_FRAMING_MARGIN).toBe(1.02);
+    expect(ORTHOGRAPHIC_READABILITY_ZOOM).toBe(1.08);
     [1280 / 720, 1440 / 900, 1920 / 1080].forEach(aspect => {
       expect(calculateOrthographicHalfHeight(aspect)).toBeGreaterThan(0);
     });

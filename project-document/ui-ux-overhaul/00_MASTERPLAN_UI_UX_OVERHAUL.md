@@ -465,11 +465,12 @@ File:
 
 ## Phase 4 — Gameplay Actions & Animations
 
-Status: Phase 4 implementation is complete after the final pre-Phase-5 board
-readability pass on 2026-08-23. Phase 5 is the next planned implementation
-slice. Live gameplay/Electron checks that were unavailable remain reported as
-separate NOT RUN validation gates; they do not change the client-only visual
-contract recorded in Phase 4.
+Status: Phase 4 gameplay implementation is complete; the corrective
+pre-Phase-5 board-proportion/readability pass on 2026-08-23 is the final Phase 4
+visual gate before Phase 5. Phase 5 remains the next planned implementation
+slice only after the documented board-readability visual acceptance is recorded
+as PASS. Live gameplay/Electron checks remain separate validation gates and are
+not inferred from the client-only visual contract.
 
 Mục tiêu:
 

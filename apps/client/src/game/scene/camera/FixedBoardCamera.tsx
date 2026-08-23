@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import {
   calculateOrthographicHalfHeight,
   getOrthographicCameraPosition,
+  ORTHOGRAPHIC_READABILITY_ZOOM,
 } from './cameraMath';
 
 function configureOrthographicCamera(
@@ -15,6 +16,7 @@ function configureOrthographicCamera(
   camera.right = halfHeight * aspect;
   camera.top = halfHeight;
   camera.bottom = -halfHeight;
+  camera.zoom = ORTHOGRAPHIC_READABILITY_ZOOM;
   camera.position.set(...getOrthographicCameraPosition());
   camera.lookAt(0, 0, 0);
   camera.updateProjectionMatrix();

@@ -1751,21 +1751,22 @@ session, and Electron visual/semantic UAT not run. No gameplay-rule,
 server-authority, V8, Phase 3 movement, reconnect, privacy, fixed-camera, or
 Phase 5-audio gap was introduced.
 
-## 21. Final pre-Phase-5 board readability pass (2026-08-23)
+## 21. Corrective pre-Phase-5 board proportion/readability pass (2026-08-23)
 
-This client-only pass closes the requested pre-Phase-5 board readability scope.
-It changes no server rule, protocol, authoritative state, movement baseline,
-dice/card contract, reconnect behavior, reduced-motion semantics, presentation
-queue, or render architecture.
+This client-only corrective pass closes the requested pre-Phase-5 board
+proportion/readability scope. It changes no server rule, protocol, authoritative
+state, movement baseline, dice/card contract, reconnect behavior, reduced-motion
+semantics, presentation queue, or render architecture.
 
 ### 21.1 Final geometry and visual contract
 
-- The canonical registry now uses `EDGE_TILE_WIDTH=1.86`,
-  `EDGE_TILE_DEPTH=5.9`, `CORNER_SIZE=2.72`, and `TILE_GAP=0.05`. Body,
+- The canonical registry now uses `EDGE_TILE_WIDTH=1.6`,
+  `EDGE_TILE_DEPTH=3.2`, `CORNER_SIZE=2.46`, and `TILE_GAP=0.05`. Body,
   surface, socket, foundation, frame and outer accent derive from this layout;
   there are no per-tile geometry overrides.
-- The enlarged ring leaves a `CENTER_PLATFORM_INSET=0.6` inner clearance.
-  `BOARD_FRAME_WIDTH=0.14` and `CENTER_ORTHOGONAL_PATH_WIDTH=0.36` retain a
+- `CENTER_PLATFORM_SIZE` derives from `INNER_TILE_SURFACE_BOUNDARY * 2`; the
+  distorted-layout compensation `CENTER_PLATFORM_INSET=0.6` is removed.
+  `BOARD_FRAME_WIDTH=0.14` and `CENTER_ORTHOGONAL_PATH_WIDTH=0.44` retain a
   continuous readable ring without overlapping the airport field. The middle
   foundation is `boardBase #70787b`, between the existing dark lower and light
   upper layers.
@@ -1776,14 +1777,20 @@ queue, or render architecture.
   TileOwnershipLayer` path. The flag is now `0.56` pole height with cloth
   `0.48 × 0.25`, canonical player colors, and tile-local placement outside the
   upper panel so it remains separate from text, divider and buildings.
-- Start derives its scale from tile `0`'s real corner panel and targets `82%`
+- Start derives its scale from tile `0`'s real corner panel and targets `92%`
   of usable corner width. Its planted left-pointing body, enlarged posts and
   label remain inside the corner surface.
+- Jail now uses `72%` corner width and `68%` depth without the old `0.9` depth
+  cap. Parking keeps the clean `78%` asphalt footprint while scaling actual
+  cars `1.18×` and tightening their spacing. Go To Jail handcuffs use `89%`
+  corner width and `82%` height; side railroad, utility, Chance and Khí Vận
+  safe ratios remain unchanged.
 - House/hotel dimensions and `tileAnchors` were enlarged together. Levels 1–4
   still render Nhà and level 5 still renders Khách Sạn; existing sequential
   build, hotel transition, recolor, reconnect and Reduced Motion paths remain.
-- Fixed orthographic direction and board/dice/station fit points are unchanged;
-  framing margin is `1.02`. The board remains uncropped at `1280×720`,
+- Fixed orthographic direction, distance and board/dice/station fit points are
+  unchanged; `FixedBoardCamera` applies centralized
+  `ORTHOGRAPHIC_READABILITY_ZOOM=1.08`. The board remains uncropped at `1280×720`,
   `1440×900` and `1920×1080`.
 
 ### 21.2 Deterministic UAT fixture and visual evidence
@@ -1798,15 +1805,19 @@ fixture remains representative without adding unnecessary render load.
 
 | Viewport | Visual result | Renderer diagnostics |
 | --- | --- | --- |
-| `1280×720` | Full board, wider side tiles, enlarged corners, readable text/icons/buildings, visible Start, no crop/overlap | `227` draw / `68,182` triangles |
-| `1440×900` | Same fixed direction and complete ring; Start and station/HUD context remain visible | `227` draw / `68,182` triangles |
-| `1920×1080` | Same proportions with clear center ring and all four sides/corners | `227` draw / `68,182` triangles |
+| `1280×720` | Full board, natural side proportions, enlarged corners, readable text/icons/buildings, visible Start | `227` draw / `68,230` triangles |
+| `1440×900` | Same fixed direction and complete ring; Start and station/HUD context remain visible | `227` draw / `68,230` triangles |
+| `1920×1080` | Same proportions with clear center ring and all four sides/corners | `227` draw / `68,230` triangles |
 
 The fixture is below the hard `<240` draw-call and `<100,000` triangle limits;
 it is above the normal `≤210` target because it deliberately combines four
 players with all four ownership/building cases. No budget constant was raised.
-The stored captures are the three `board-readability-after-*.png` artifacts
-from this validation run.
+The stored captures are `corrective-board-readability-after-1280x720.png`,
+`corrective-board-readability-after-1440x900.png` and
+`corrective-board-readability-after-1920x1080.png`; the earlier 1280 capture is
+the same-fixture before evidence for the proportion comparison. A separate
+`roll-chance` check showed the dice arena at 1280×720 with `216` draw calls and
+`76,304` triangles; only the existing Three.js deprecation warning appeared.
 
 The same harness also completed `house-4` (`queue idle`, `build 4/4`), `hotel`
 (`queue idle`, `build 5/5`), `construction-reduced` (`queue idle`, `active 0`)

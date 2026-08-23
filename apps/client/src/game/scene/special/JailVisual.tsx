@@ -7,10 +7,15 @@ interface JailVisualProps {
   panel: TilePanelLayout;
 }
 
+export const JAIL_CORNER_WIDTH_RATIO = 0.72;
+export const JAIL_CORNER_DEPTH_RATIO = 0.68;
+
 export default function JailVisual({ panel }: JailVisualProps) {
   const isCorner = panel.side === 'CORNER';
-  const width = panel.upperSize[0] * (isCorner ? 0.54 : 0.78);
-  const depth = Math.min(panel.upperSize[1] * 0.68, 0.9);
+  const width = panel.upperSize[0] * (isCorner ? JAIL_CORNER_WIDTH_RATIO : 0.78);
+  const depth = isCorner
+    ? panel.upperSize[1] * JAIL_CORNER_DEPTH_RATIO
+    : Math.min(panel.upperSize[1] * 0.68, 0.9);
   const barCount = 9;
   const barSpacing = width / (barCount - 1);
 

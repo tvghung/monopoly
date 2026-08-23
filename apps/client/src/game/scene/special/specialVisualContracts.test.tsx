@@ -14,9 +14,11 @@ import {
 import { getBoardTileLayout } from '../board/boardLayout';
 import HandcuffVisual, { HANDCUFF_ART_FOOTPRINT_RATIO } from './HandcuffVisual';
 import CardDeckVisual from './CardDeckVisual';
+import JailVisual, { JAIL_CORNER_DEPTH_RATIO, JAIL_CORNER_WIDTH_RATIO } from './JailVisual';
 import ParkingLotVisual, {
   PARKING_ART_WIDTH_RATIO,
   PARKING_CAR_COUNT,
+  PARKING_CAR_SCALE,
   PARKING_STALL_COUNT,
 } from './ParkingLotVisual';
 import RailroadVisual, {
@@ -82,7 +84,7 @@ describe('Phase 2.5G special visual contracts', () => {
     expect(TRAIN_ART_WIDTH_RATIO).toBeGreaterThanOrEqual(0.8);
     expect(TRAIN_ART_HEIGHT_RATIO).toBeGreaterThanOrEqual(0.7);
     expect(WATER_ICON_SAFE_WIDTH_RATIO).toBeGreaterThanOrEqual(0.8);
-    expect(HANDCUFF_ART_FOOTPRINT_RATIO).toBeGreaterThanOrEqual(0.8);
+    expect(HANDCUFF_ART_FOOTPRINT_RATIO).toBeCloseTo(0.89);
     expect(BOARD_SVG_TILE_ICON_ASSETS['chance-question-svg'].safeWidthRatio)
       .toBeGreaterThan(0.72);
     expect(BOARD_SVG_TILE_ICON_ASSETS['fortune-wheel-svg'].safeWidthRatio)
@@ -163,7 +165,15 @@ describe('Phase 2.5G special visual contracts', () => {
     expect(PARKING_CAR_COUNT).toBeGreaterThanOrEqual(4);
     expect(PARKING_STALL_COUNT).toBeGreaterThanOrEqual(4);
     expect(PARKING_ART_WIDTH_RATIO).toBeGreaterThanOrEqual(0.75);
+    expect(PARKING_CAR_SCALE).toBeCloseTo(1.18);
     parking.unmount();
+
+    const jail = render(<JailVisual panel={cornerPanel} />);
+    expect(jail.container.querySelector('[name="JailCellBars2D"]')).not.toBeNull();
+    expect(JAIL_CORNER_WIDTH_RATIO).toBeGreaterThanOrEqual(0.7);
+    expect(JAIL_CORNER_WIDTH_RATIO).toBeLessThanOrEqual(0.75);
+    expect(JAIL_CORNER_DEPTH_RATIO).toBeGreaterThanOrEqual(0.65);
+    jail.unmount();
 
     const startGeometry = createStartSignGeometry();
     expect(startGeometry.parameters.options.depth).toBeGreaterThan(0);

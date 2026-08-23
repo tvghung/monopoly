@@ -6,13 +6,15 @@ interface HandcuffVisualProps {
   panel: TilePanelLayout;
 }
 
-export const HANDCUFF_ART_FOOTPRINT_RATIO = BOARD_SVG_TILE_ICON_ASSETS['handcuffs-svg'].safeWidthRatio;
+const HANDCUFF_ASSET = BOARD_SVG_TILE_ICON_ASSETS['handcuffs-svg'];
+export const HANDCUFF_ART_FOOTPRINT_RATIO = HANDCUFF_ASSET.cornerSafeWidthRatio
+  ?? HANDCUFF_ASSET.safeWidthRatio;
 
 export default function HandcuffVisual({ panel }: HandcuffVisualProps) {
   return (
     <RaisedSvgTileIcon
       panel={panel}
-      icon={BOARD_SVG_TILE_ICON_ASSETS['handcuffs-svg']}
+      icon={HANDCUFF_ASSET}
       name="HandcuffsRaisedSvgIcon"
     />
   );
