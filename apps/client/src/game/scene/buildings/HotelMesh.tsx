@@ -9,14 +9,26 @@ import {
 import { boardVisualTokens } from '../board/boardVisualTokens';
 import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
 import ContactShadow from '../fx/ContactShadow';
-import { getPlayerAccentDarkColor, getPlayerDisplayColor } from '../../ui/playerVisualColors';
+import { getPlayerDisplayColor } from '../../ui/playerVisualColors';
+import {
+  FACADE_TEXTURE_TINT,
+  HOTEL_FACADE_TEXTURE,
+  HOTEL_FACADE_WALL_COLOR,
+} from './buildingFacadeTextures';
+
+export function getHotelFacadeColor(): string {
+  return HOTEL_FACADE_WALL_COLOR;
+}
+
+export function getHotelCrownColor(ownerColor?: string): string {
+  return ownerColor ? getPlayerDisplayColor(ownerColor) : boardVisualTokens.hotelDark;
+}
 
 export default function HotelMesh({
   position,
   ownerColor,
 }: { position: readonly [number, number, number]; ownerColor?: string }) {
-  const facadeColor = ownerColor ? getPlayerDisplayColor(ownerColor) : boardVisualTokens.hotel;
-  const crownColor = ownerColor ? getPlayerAccentDarkColor(ownerColor) : boardVisualTokens.hotelDark;
+  const crownColor = getHotelCrownColor(ownerColor);
   return (
     <group name="HotelVisual" position={position}>
       <RoundedBoxMesh
@@ -25,7 +37,8 @@ export default function HotelMesh({
         height={HOTEL_BODY_HEIGHT}
         depth={HOTEL_BODY_DEPTH}
         radius={0.06}
-        color={facadeColor}
+        color={FACADE_TEXTURE_TINT}
+        map={HOTEL_FACADE_TEXTURE}
         materialProfile="hotel"
       />
       <RoundedBoxMesh

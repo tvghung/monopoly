@@ -101,6 +101,14 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   committed `PublicRoomState`; stable IDs điều khiển token/owner.
 - Level 1–4 render Nhà; level 5 render Khách Sạn. Forced-sale gross values come
   from the public shortfall projection; không client-counter.
+- Nhà giữ body `0.48 × 0.39 × 0.36` với facade plaster trung tính khoảng
+  `#d9d2c2`, một shared opaque sRGB procedural texture cho hai cửa sổ bốn ô
+  trên mỗi vertical face, và một pitched roof riêng khoảng `0.56 × 0.47` với
+  rise `0.18`; chỉ roof dùng canonical owner display color. Khách sạn giữ body
+  `0.92 × 0.60 × 0.78` với facade khoảng `#d5d8d6`, shared texture hai cột × ba
+  tầng, mỗi panel bốn ô, và crown/roof riêng dùng canonical owner display color.
+  Đây là texture detail trên body, không phải các mesh frame/window riêng; slot,
+  anchor, shadow và timing hiện hữu không đổi.
 - Tất cả amounts dùng shared client money formatter VNĐ.
 - Exact deck order/next card không có trong public state hoặc DOM.
 
@@ -127,7 +135,8 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   clearance, selective divider eligibility, 70/30 panel ratio,
   side-aware Parking-adjacent orientation, final widened/deepened edge and corner
   dimensions, 1.5–1.7× ownership flag proportions, Start width ratio, enlarged
-  house/hotel geometry plus canonical anchors, frame dimensions, scene budget,
+  house/hotel geometry plus canonical anchors, neutral facade/window-grid textures,
+  pitched roof/crown owner-color split, frame dimensions, scene budget,
   orthographic camera/tone mapping
   và SDF sync invalidation.
 - Special art contracts cover approved Chance question mark, simplified pointer-free

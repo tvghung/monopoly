@@ -154,23 +154,35 @@ Player color phải consistent với HUD.
 
 ---
 
-# 9. House & Hotel placeholders
+# 9. House & Hotel visual authoring
 
-Dựng geometry đơn giản bằng code.
+Buildings remain procedural client presentation derived from the existing
+authoritative building count. The authored pass keeps the existing slots,
+anchors, dimensions, contact shadows, level mapping and construction timing.
 
 House:
 
-- box body
-- roof
+- neutral plaster body `0.48 × 0.39 × 0.36`, approximately `#d9d2c2`, roughness
+  `0.76`, metalness `0`
+- one shared opaque sRGB façade `DataTexture` applied to the body; every
+  vertical face reads as one row of two four-pane windows
+- one genuine pitched/gable roof mesh with approximately `0.56 × 0.47`
+  footprint and `0.18` rise; only the roof uses the owner's canonical display
+  color
 
 Hotel:
 
-- taller box
-- roof/sign
+- neutral facade `0.92 × 0.60 × 0.78`, approximately `#d5d8d6`, roughness
+  `0.68`, metalness `0`
+- one shared opaque sRGB façade `DataTexture`; every vertical face reads as
+  two columns × three floors, with four panes per panel
+- the existing separate crown/roof keeps its footprint and height and uses the
+  owner's canonical display color
 
-Cần support đúng building count theo luật hiện tại.
-
-Không cần final animation trong phase này.
+Window grids are procedural texture detail, not individual frame/window
+meshes. No external model or second presentation path is introduced; the
+existing `TileAssembly → TileDevelopmentLayer → BuildingLayer` ownership path
+remains the source of the visual owner color and building level.
 
 ---
 
@@ -250,6 +262,7 @@ Board phải:
 - tile → world position lookup
 - ownership render mapping
 - building count mapping
+- house/hotel facade texture layout, material profiles and canonical roof color
 - selected tile state
 
 ## Manual
@@ -331,6 +344,9 @@ authority boundary, movement baseline or presentation queue.
   scaled `1.20×`; posts, text, orientation and horizontal footprint remain
   planted in the corner panel. House/hotel footprints and `tileAnchors` grow
   together; levels `1–4` and `5` continue to map to Nhà and Khách Sạn.
+- House/hotel bodies use the authored neutral facades and shared procedural
+  window grids described in Section 9. Roof/crown owner color uses the same
+  canonical display color as the HUD; no individual window/frame mesh is added.
 - Visible dice use one instanced two-shadow batch. Each shadow stays on the
   airport field and interpolates from approximately `0.21` opacity at rest
   to `0.07` at the existing maximum lift, with a maximum `1.35×` footprint;

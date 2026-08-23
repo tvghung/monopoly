@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
+import type { Texture } from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import type { BoardMaterialProfile } from '../materials/boardMaterialSpecs';
 import { getBoardMaterialProps } from '../materials/boardMaterialSpecs';
@@ -13,6 +14,7 @@ interface RoundedBoxMeshProps {
   segments?: number;
   cornerSegments?: number;
   color: string;
+  map?: Texture;
   materialProfile: BoardMaterialProfile;
   position?: readonly [number, number, number];
   rotation?: readonly [number, number, number];
@@ -30,6 +32,7 @@ export default function RoundedBoxMesh({
   segments = 2,
   cornerSegments,
   color,
+  map,
   materialProfile,
   position,
   rotation,
@@ -57,7 +60,7 @@ export default function RoundedBoxMesh({
       onClick={onClick}
     >
       <primitive object={geometry} attach="geometry" />
-      <meshStandardMaterial {...getBoardMaterialProps(materialProfile, color)} />
+      <meshStandardMaterial {...getBoardMaterialProps(materialProfile, color)} map={map} />
     </mesh>
   );
 }

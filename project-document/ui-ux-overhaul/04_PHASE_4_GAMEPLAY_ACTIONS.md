@@ -621,6 +621,25 @@ the authoritative count must appear immediately in the render model. Preserve
 all current server validation, group constraints, affordability checks, and
 hotel rules.
 
+The static building authoring remains presentation-only within the same path:
+
+- House keeps the `0.48 × 0.39 × 0.36` body, uses a neutral plaster facade
+  around `#d9d2c2`, roughness `0.76`, metalness `0`, and one shared opaque sRGB
+  procedural texture whose vertical faces show two four-pane windows in one
+  row. A single pitched/gable roof keeps the approximately `0.56 × 0.47`
+  footprint, rises approximately `0.18`, and alone uses the owner's canonical
+  display color.
+- Hotel keeps the `0.92 × 0.60 × 0.78` body, uses a neutral facade around
+  `#d5d8d6`, roughness `0.68`, metalness `0`, and one shared opaque sRGB
+  procedural texture whose vertical faces show two columns × three floors of
+  four-pane panels. Its existing separate crown/roof keeps its footprint and
+  height and uses the owner's canonical display color.
+- The body/roof split, slot centers, hotel slot, contact shadows, level `1–4`
+  to House and level `5` to Hotel mapping, construction durations and reduced
+  motion are unchanged. The window grids are texture detail rather than extra
+  window/frame meshes, and the building render path remains
+  `TileAssembly → TileDevelopmentLayer → BuildingLayer`.
+
 ### 7.9 Workstream I - Chance and Khí Vận cards
 
 Observed server behavior:
@@ -1781,6 +1800,12 @@ queue, or camera.
   footprint at rest to `0.07` opacity and `1.35×` footprint at maximum lift,
   using the die's actual vertical animation offset for first drop, reroll,
   tumble/bounce, settled and hidden states.
+- House/hotel visual authoring uses the existing building slots and anchors.
+  Each body uses one shared procedural opaque sRGB facade texture; House has a
+  separate pitched owner-color roof and Hotel has its existing separate
+  owner-color crown. This preserves the building presentation architecture and
+  adds no draw call; the pitched House roof also reduces geometry versus the
+  former rounded-box roof.
 
 ### 21.2 Deterministic UAT fixture and visual evidence
 
@@ -1793,31 +1818,55 @@ validated separately by the animated scenario.
 
 | Scenario / viewport | Observed result | Renderer diagnostics |
 | --- | --- | --- |
-| `board-readability` / `1280×720` | Full board, natural side proportions, readable labels/icons/buildings, visible Start and foundation | `227` draw / `68,278` triangles; logs `0/0` |
-| `board-readability` / `1440×900` | Same fixed direction and complete ring with a clear center | `227` draw / `68,278` triangles; logs `0/0` |
-| `board-readability` / `1920×1080` | Same proportions with all four sides/corners and readable center typography | `227` draw / `68,278` triangles; logs `0/0` |
+| `board-readability` / `1280×720` | Full board, natural side proportions, readable labels/icons/buildings, visible Start and foundation | `227` draw / `66,234` triangles; logs `0/0` |
+| `board-readability` / `1440×900` | Same fixed direction and complete ring with a clear center | `227` draw / `66,234` triangles; logs `0/0` |
+| `board-readability` / `1920×1080` | Same proportions with all four sides/corners and readable center typography | `227` draw / `66,234` triangles; logs `0/0` |
 | `dice-contact-shadows` / `1280×720` | Initial lift, reroll/tumble and settled states observed; shadows stay under the dice | Rolling: `216` draw / `76,666` triangles / active `2`; settled: queue idle, dice settled |
 | `dice-contact-shadows` / `1440×900` | Active dice and compact contact shadows remain visible without board clipping | Rolling: `216` draw / `76,666` triangles / active `2` |
 | `dice-contact-shadows` / `1920×1080` | Active dice and contact shadows remain visible at the wide viewport | Rolling: `216` draw / `76,666` triangles / active `2` |
 
 The board fixture remains below the hard `<240` draw-call and `<100,000`
 triangle limits; no budget constant was raised. Screenshots were captured in
-the in-app Browser during this pass at all requested viewports; no persisted
-local screenshot filenames are claimed. The only browser console message was
-the pre-existing `THREE.Clock` deprecation warning; no shader or runtime error
-was observed after the shared shadow material was corrected.
+the in-app Browser during this pass at all requested viewports; representative
+captures are stored outside the repository. Fixture counters remained `logs
+0/0`; the development session retained the pre-existing `THREE.Clock`
+deprecation warning and one HMR-era WebGL context-lost log, but no shader or
+settled-fixture runtime error was observed.
 
-### 21.3 Validation status for this pass
+### 21.3 House/hotel authoring fixtures
+
+The existing `Phase4UatHarness` was reused for all building states; no second
+harness or gameplay fixture was added. At `1440×900`, level `1–4`, Hotel,
+owner recolor and reduced-motion fixtures all settled with `logs 0/0`. Draw
+calls remain at the pre-pass level while the shared facade textures and single
+pitched roof keep the hard scene limits intact.
+
+| Scenario | Observed result | Renderer diagnostics |
+| --- | --- | --- |
+| `house-1` / `house-2` / `house-3` / `house-4` | Correct level count settles to `build 1/1` through `build 4/4` | `203/63,532`, `206/63,842`, `209/64,152`, `213/64,462` draw/triangles; logs `0/0` |
+| `hotel` | Hotel replacement settles to `build 5/5`; facade and owner-color crown remain visible | `204` draw / `63,824` triangles; logs `0/0` |
+| `owner-recolor` | Owner display color changes on roof/crown while neutral bodies remain neutral | `203` draw / `63,532` triangles; logs `0/0` |
+| `construction-reduced` | Reduced-motion state settles without an active animation | `203` draw / `63,532` triangles; logs `0/0` |
+| `stress` / `1280×720` | Existing stress preview remains within the hard budget during active presentation | Peak `226` draw / `65,672` triangles / active `25`; logs `0/0` |
+
+The normal target of `≤210` draw calls is an existing board baseline concern
+(`board-readability` measures `227`); this pass adds zero draw calls and stays
+well below the hard `<240` draw-call and `<100,000` triangle limits. The
+browser evidence is from the in-app Browser at `1280×720`, `1440×900` and
+`1920×1080`; Electron, PostgreSQL-backed integration, remote CI and repository
+publication remain separate gates.
+
+### 21.4 Validation status for this pass
 
 | Gate | Result | Evidence |
 | --- | --- | --- |
 | Database migration status | **PASS** | `pnpm db:status`; migrations 001–008 reported applied |
 | Root typecheck | **PASS** | `pnpm typecheck` |
 | Workspace lint | **PASS** | `pnpm lint` |
-| Full workspace tests | **PASS** | desktop 12; server 142 passed with 9 database-gated skipped; client 435 |
+| Full workspace tests | **PASS** | desktop 12; server 142 passed with 9 database-gated skipped; client 441 |
 | PostgreSQL-backed server tests | **NOT RUN** | The 9 database-gated tests remained skipped because no `TEST_DATABASE_URL` run was authorized/available |
 | Production client build | **PASS** | `pnpm build`; existing large-chunk warning only |
-| Focused board/dice tests | **PASS** | 9 focused suites, 66 tests passed |
+| Focused building/placement tests | **PASS** | 5 focused suites, 32 tests passed |
 | Phase4UatHarness visual fixtures | **PASS** | Board readability and dice shadow states observed at all three viewports |
 | Electron visual/semantic smoke | **NOT RUN** | No cross-application capture/control in this pass |
 | Remote CI / push / merge | **NOT RUN** | Not authorized |
