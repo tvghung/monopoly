@@ -32,8 +32,14 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
 - Mọi game-unit hiển thị qua một formatter: `60 → 60.000 ₫`,
   `1500 → 1.500.000 ₫`; không còn `$`, `$M`, USD.
 - Client không nhận/render exact `DeckState` hoặc credential. Pending landing,
-  payment shortfall và seller/buyer forced-sale proposal chỉ dùng projection cần
-  cho quyết định UX.
+  payment shortfall, `pendingCardInteraction` và seller/buyer forced-sale proposal
+  chỉ dùng projection cần cho quyết định UX. Card stages are durable
+  `AWAITING_DRAW`/`REVEALED`; `draw card`/`dismiss card` use the operation ID and
+  never reveal the private draw pile.
+- Public `gameplayEvents` and the active player's private semantic lane are consumed
+  through the single `PresentationController → AnimationQueue → PresentationStore`
+  path. Card reveal is queued after LAND; session/reconnect hydration snaps to the
+  current durable stage without replaying the old card animation.
 - Settings dùng key `own-the-block.settings.v1`, normalize/clamp defensive và tách
   khỏi reconnect token. Reduced motion hiệu lực là user setting hoặc OS
   preference. Audio provider mới chỉ cung cấp gain interfaces, chưa tự phát âm thanh.

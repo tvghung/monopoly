@@ -465,12 +465,15 @@ File:
 
 ## Phase 4 — Gameplay Actions & Animations
 
-Status: Phase 4 gameplay implementation is complete; the corrective
-pre-Phase-5 board-proportion/readability pass on 2026-08-23 is the final Phase 4
-visual gate before Phase 5. Phase 5 remains the next planned implementation
-slice only after the documented board-readability visual acceptance is recorded
-as PASS. Live gameplay/Electron checks remain separate validation gates and are
-not inferred from the client-only visual contract.
+Status: Phase 4 gameplay/presentation feature implementation is CLOSED. The
+2026-08-23 board-proportion/readability pass is the final Phase 4 feature slice;
+no new Phase 4 gameplay feature is required before Phase 5. The current
+board-readability fixture measures about `227` draw calls, above the normal
+`≤210` target but below the hard `<240` limit; this is accepted Phase 5
+performance debt/guardrail, not unfinished gameplay authority. Phase 5 is the
+next implementation slice and must preserve the V7 authority and single
+presentation pipeline. Live gameplay, Electron, and remote-CI checks remain
+separate validation gates and are not inferred from client-only fixtures.
 
 Mục tiêu:
 

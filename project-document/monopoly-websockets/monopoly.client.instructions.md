@@ -99,6 +99,19 @@ formatter dùng `1 game unit = 1.000 VNĐ` và player-facing UI/log/error là ti
   trước khi chờ hop, settle sau khi hop, phát `STEP` chỉ cho tile trung gian và để
   `LAND` xử lý riêng đúng một lần sau tile cuối. Lùi/teleport snap. Buy/turn prompt
   chờ `settledPositions`/queue settle; command vẫn gửi theo authoritative state.
+- Public `gameplayEvents` is consumed as bounded semantic input for committed money,
+  property, GO and jail consequences; the active player's private gameplay lane is
+  consumed only through the same `PresentationController → AnimationQueue →
+  PresentationStore` path. A missing/non-contiguous semantic tail resets to the
+  authoritative snapshot instead of fabricating a consequence.
+- `pendingCardInteraction` is durable and operation-scoped. `AWAITING_DRAW` exposes
+  the face-down interaction, `REVEALED` exposes `revealedCardId`, and `draw card` /
+  `dismiss card` send that operation ID through authoritative ACK flow. The card
+  presentation is queued after the appropriate `LAND` boundary; a chained card
+  closes before movement and opens the next interaction after landing.
+- Session/reconnect hydration resets the queue/store to the current pending-card
+  stage without replaying the old draw/reveal. Exact deck order remains server-private;
+  `deckCounts` is the only deck aggregate used by the public board presentation.
 
 ## Quy tắc sửa
 

@@ -44,10 +44,14 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
 - Successful `completeTurnResolution` chỉ handoff `ADVANCE_TURN`; buy/development
   landing decision dùng operation ID, còn payment/forced-sale wait nhúng durable
   `PendingTurnContinuation` thay vì advance sớm.
-- Hidden `GamePrivateState.decks`, `PaymentQueue` và forced-sale proposal nằm trong
-  snapshot v6 nhưng public projector không được lộ deck order hoặc proposal terms
-  cho người chơi khác. Appearance identity dùng `CharacterId` nullable và
-  `PlayerColorId` ổn định.
+- Hidden `GamePrivateState.decks`, `PaymentQueue`, `PendingCardInteraction` và
+  forced-sale proposal nằm trong snapshot v7 nhưng public projector không được lộ
+  exact deck order hoặc proposal terms cho người chơi khác. V7 bổ sung bounded
+  public `gameplayEvents`, per-player private semantic lanes và
+  `completedCardOperations`; card draw/dismiss vẫn do server commit và operation ID
+  điều khiển. Appearance identity dùng `CharacterId` nullable và `PlayerColorId`
+  ổn định. Migration `008_semantic_card_v7.sql` nâng V6 snapshot lên V7 với
+  semantic baselines và completed-card ledger rỗng, không dựng lại lịch sử.
 - Client presentation queue is a derived display layer only: reconnect/session
   snapshots snap/reset and live public revisions may animate observable diffs.
   Board đọc display target, còn action gates đọc settled position; reset epoch không

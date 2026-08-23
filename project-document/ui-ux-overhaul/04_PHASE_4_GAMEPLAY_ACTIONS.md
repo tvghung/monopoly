@@ -1,17 +1,22 @@
 # Phase 4 - Gameplay Actions and Presentation Orchestration
 
-Status: The bounded corrective Phase 4 client implementation slice (A-F) and
-the final pre-Phase-5 board readability pass are complete in this branch,
-including gameplay HUD/consequence hardening and the existing dice/rent
-presentation work. Live 2-player WebGL gameplay UAT and Electron gameplay UAT,
-database, remote-CI, and unavailable-environment checks remain separately
-reported as PASS/PARTIAL/NOT RUN gates; this document does not turn those
-unavailable checks into passes. Richer
-movement-cause, card-identity, and transfer-attribution contracts remain open.
-Phase 4.0/4.1 contract audit:
+CURRENT STATUS — 2026-08-23: Phase 4 gameplay/presentation feature
+implementation is CLOSED. The V7 authority, durable card interaction, bounded
+semantic event lanes, single presentation pipeline, approved board/dice/building
+contracts, and final pre-Phase-5 readability slice are the current source of
+truth. Phase 5 is the next implementation phase; no new Phase 4 gameplay feature
+is required before it. This closeout does not imply that every manual,
+environment, database, Electron, or remote-CI gate was run: those remain
+explicitly reported as PASS/PARTIAL/NOT RUN below. The current board-readability
+fixture is about `227` draw calls, above the normal `≤210` target but below the
+hard `<240` limit; accept this as a Phase-5 performance guardrail, not unfinished
+gameplay authority.
+
+Historical Phase 4.0/4.1 contract audit:
 [04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md).
-Movement cause/route, card identity, and transfer attribution remain open
-contracts.
+Its pre-V7 open findings remain historical; the current V7 resolutions and the
+intentional unsupported-movement `SNAP` fallback are recorded in that audit's
+current-status note and Section 15 below.
 
 Base: the completed Phase 3 character and movement system on
 overhaul/phase-3-character-system.
@@ -158,8 +163,9 @@ server decision or imply an outcome that has not been committed.
 - No second animation queue, parallel event bus, or duplicated presentation
   store.
 - No old mortgage, open-market, or auction rules.
-- No client gameplay commands named DRAW or CONTINUE unless a separately
-  approved protocol design introduces them. They are not current commands.
+- The pre-V7 design did not use client commands named DRAW or CONTINUE. Current
+  V7 card interaction uses operation-scoped `draw card` and `dismiss card` with
+  durable pending state and authoritative ACK flow.
 - No automatic push, merge, or Phase 5 implementation as part of this plan.
 
 ## 2. Authority and presentation pipeline
@@ -290,36 +296,42 @@ implementation must first answer:
 If the answer is not deterministic, present the safe generic state change and
 record the richer semantic label as an open contract decision.
 
-### 5.3 Known snapshot limits
+### 5.3 Historical pre-V7 snapshot limits (superseded by Section 15 and the current closeout)
 
-The current snapshot adapter can derive a bounded forward movement path, with a
+The following limits describe the pre-V7 contract audited on 2026-08-20. Keep
+them as evidence of the earlier design boundary; do not use them as the current
+V7 contract.
+
+The pre-V7 snapshot adapter could derive a bounded forward movement path, with a
 maximum of 12 steps, from the available state. A snapshot alone does not always
 prove whether a move came from dice, a card, a teleport, a backward effect, or
 another server rule.
 
-The current public state also exposes deck counts, not deck order or a
+The pre-V7 public state exposed deck counts, not deck order or a
 guaranteed card identity/result event. The server draws and applies cards
 inside tile resolution.
 
-The current balance event is a balance transition, not a guaranteed
+The pre-V7 balance event was a balance transition, not a guaranteed
 source/destination transfer record. A pair of balance differences may be
 correlated only when the same authoritative revision makes the parties and
 amount unambiguous.
 
 These limits are presentation-contract limits, not permission to guess.
 
-Phase 4.1 resolves the repeated-dice identity gate with a server-owned public
-durable `BoardState.rollSequence` in protocol/snapshot V6. It starts at zero,
+At the time of the Phase 4.1 audit, the repeated-dice identity gate was resolved
+with a server-owned public durable `BoardState.rollSequence` in protocol/snapshot
+V6. It started at zero,
 increments once per committed gameplay roll (including jail attempts), excludes
 starting-player tie-break rolls, and is preserved by persistence, duplicate
 snapshot handling, reconnect/reset, and spectator sync. `ROLL_DICE` derives
 only from an exact one-step sequence advance, so identical faces still present
 as a new roll.
 
-Movement uses the conservative Phase 4.1 boundary:
+The historical movement rule used the conservative Phase 4.1 boundary:
 `PROVEN DICE ROUTE -> WALK`; `OTHER / AMBIGUOUS -> SNAP`. The general
-movement-cause/route, card-identity, and transfer-attribution decisions remain
-open for later phases.
+movement-cause/route, card-identity, and transfer-attribution decisions were
+open at that audit point. The current V7 status is documented in Section 15 and
+the current closeout section.
 
 ## 6. Serial versus overlapping presentation
 
@@ -430,9 +442,10 @@ Required tests:
 - Skip, reduced motion, speed changes, and reconnect leave the dice and queue
   consistent.
 
-No server or shared-source changes are required for this Phase 4.2 slice; the
-existing V6 `rollSequence` contract and Phase 4.1 movement classifier are
-consumed as implemented.
+No server or shared-source changes were required for the historical Phase 4.2
+slice; it consumed the then-current V6 `rollSequence` contract and Phase 4.1
+movement classifier as implemented. The current runtime contract is V7, as
+recorded in Section 15 and the current closeout.
 
 ### 7.2.1 Phase 4.2.1 hardening and dice visual polish
 
@@ -640,22 +653,26 @@ The static building authoring remains presentation-only within the same path:
   window/frame meshes, and the building render path remains
   `TileAssembly → TileDevelopmentLayer → BuildingLayer`.
 
-### 7.9 Workstream I - Chance and Khí Vận cards
+### 7.9 Workstream I - Chance and Khí Vận cards (historical pre-V7 baseline)
 
-Observed server behavior:
+This workstream text records the pre-V7 generic-card baseline. The current
+operation-scoped card contract is in Section 15 and the current closeout section.
+
+Observed server behavior at the pre-V7 audit:
 
 - apps/server/src/game/tiles.ts draws a card internally during tile
   resolution.
 - Card effects are applied by the server and may include payment, movement,
   GO-related effects, or jail.
 - Public state exposes deck counts, not deck order.
-- The current client/server command surface does not contain DRAW or CONTINUE
+- The pre-V7 client/server command surface did not contain DRAW or CONTINUE
   commands.
 
-The old plan's flow of showing a DRAW button and waiting for CONTINUE is
-therefore removed from the baseline.
+The old plan's flow of showing a DRAW button and waiting for CONTINUE was
+therefore removed from that baseline. V7 later introduced operation-scoped
+`draw card`/`dismiss card` commands and durable `PendingCardInteraction`.
 
-Phase 4 baseline:
+Pre-V7 Phase 4 baseline:
 
 - Present a special-tile pulse when the authoritative landing is known.
 - Present only a card identity or result that the current public/private
@@ -966,9 +983,12 @@ Each step should be a reviewable implementation slice with focused tests. Do
 not bundle a protocol change, renderer rewrite, and gameplay rule change into
 one visual commit.
 
-## 13. Definition of Done
+## 13. Definition of Done (historical checklist reconciled to current V7)
 
-Phase 4 is complete only when all of the following are true:
+The original checklist remains useful as acceptance evidence. Feature closure is
+now recorded by the current status at the top and the closeout section at the end;
+manual/environment gates remain independently reported and do not reopen the
+implemented feature scope.
 
 - Dice presentation always matches the committed server result.
 - Normal movement uses the frozen Phase 3 hop and landing primitives.
@@ -977,8 +997,8 @@ Phase 4 is complete only when all of the following are true:
 - Landing, purchase, payment, development, jail, debt, forced sale, finish,
   and turn states remain server-authoritative.
 - Balance presentation never invents a payer, receiver, amount, or cause.
-- Card presentation does not leak deck order or rely on nonexistent DRAW or
-  CONTINUE commands.
+- Card presentation uses durable operation-scoped `draw card`/`dismiss card`
+  interaction and does not leak deck order or private draw-pile state.
 - Existing simplified rules remain intact, with no mortgage, open-market, or
   legacy auction behavior.
 - Required decision controls wait for settledPositions and current operation
@@ -990,10 +1010,16 @@ Phase 4 is complete only when all of the following are true:
 - PostgreSQL-backed tests are either passed with the configured database or
   clearly reported unavailable.
 - Browser and Electron/manual checks are reported independently.
-- Scene measurements remain within the current triangle and draw-call budget.
+- Scene measurements remain below the hard triangle/draw-call limits; the current
+  normal draw-call target is explicitly **NOT PASS** at the `227` board-
+  readability measurement and is carried as accepted Phase-5 performance debt.
 - No duplicate animation architecture or client-side rule authority was added.
 
-## 14. Open decisions and handoff gates
+## 14. Historical open decisions and handoff gates (superseded by Section 15)
+
+The following was the open-decision list at the pre-V7 handoff. Do not treat it as
+the current Phase 4 blocker list; the current V7 resolution and intentional SNAP
+limitation are recorded in Section 15 and the current closeout section.
 
 The bounded Phase 4.2 client slice consumes the Phase 4.1 foundation. The
 repeated-dice-pair identity gate is resolved by `rollSequence`; the following
@@ -1017,18 +1043,24 @@ forward migration. Phase 4.2 consumes that contract without further shared or
 server changes; it does not authorize card reveal, transfer attribution, or
 new client rule authority.
 
-## 15. Final Phase 4 experience pass (2026-08-22)
+## 15. Historical V7 experience pass record (2026-08-22; status superseded)
 
 This section supersedes the three open contract gates in section 14. It records
 the implemented V7 contract and the evidence gathered for the final experience
-pass. It does **not** close Phase 4: the complete browser and packaged Electron
-manual matrix has not passed.
+pass. At the time of recording, it did **not** close the Phase 4 feature gate
+because the complete browser and packaged Electron manual matrix had not passed.
+Sections 15–20 retain their original PASS/PARTIAL/NOT RUN evidence and are
+historical records; the current feature-closeout status is at the top and in
+Section 22.
 
 ### 15.1 V7 authoritative contract
 
 - Protocol V7 adds bounded public semantic gameplay events plus per-player
   private lanes. Every committed event has a stable id and a monotonic sequence;
-  snapshots retain at most 64 events per lane.
+  snapshots retain at most 64 events per lane. Public families are
+  `MONEY_TRANSFER`, `PROPERTY_TRANSFER`, `PASS_GO`, `SENT_TO_JAIL`,
+  `JAIL_ROLL_FAILED` and `JAIL_RELEASED`; participant-scoped money facts use the
+  private lane.
 - Structured facts cover exact committed money transfers, property transfers,
   GO rewards, jail entry, failed jail rolls, and jail release. Payer, recipient,
   amount, property, cause, and audience come from the authoritative mutation
@@ -1036,8 +1068,8 @@ manual matrix has not passed.
 - Private trade and forced-sale terms remain in the authorized player's private
   lane. Public ownership consequences can still be presented without disclosing
   private financial terms.
-- The durable card interaction is `AWAITING_DRAW -> REVEALED -> DISMISS`. Draw
-  and dismiss commands carry an operation id, reject stale/unauthorized use,
+- The durable `PendingCardInteraction` is `AWAITING_DRAW -> REVEALED -> DISMISS`.
+  `draw card` and `dismiss card` carry an operation id, reject stale/unauthorized use,
   survive reconnect, and use server deadlines for auto-draw/auto-dismiss. Card
   consequences occur only after dismissal; a legitimate card chain creates a
   new operation instead of reusing or collapsing the previous one.
@@ -1849,12 +1881,12 @@ pitched roof keep the hard scene limits intact.
 | `construction-reduced` | Reduced-motion state settles without an active animation | `203` draw / `63,532` triangles; logs `0/0` |
 | `stress` / `1280×720` | Existing stress preview remains within the hard budget during active presentation | Peak `226` draw / `65,672` triangles / active `25`; logs `0/0` |
 
-The normal target of `≤210` draw calls is an existing board baseline concern
+The normal target of `≤210` draw calls is **NOT PASS** for this fixture
 (`board-readability` measures `227`); this pass adds zero draw calls and stays
 well below the hard `<240` draw-call and `<100,000` triangle limits. The
 browser evidence is from the in-app Browser at `1280×720`, `1440×900` and
-`1920×1080`; Electron, PostgreSQL-backed integration, remote CI and repository
-publication remain separate gates.
+`1920×1080`; Electron, PostgreSQL-backed integration, remote CI and merge remain
+separate gates. Branch publication is recorded in the current closeout status.
 
 ### 21.4 Validation status for this pass
 
@@ -1869,8 +1901,34 @@ publication remain separate gates.
 | Focused building/placement tests | **PASS** | 5 focused suites, 32 tests passed |
 | Phase4UatHarness visual fixtures | **PASS** | Board readability and dice shadow states observed at all three viewports |
 | Electron visual/semantic smoke | **NOT RUN** | No cross-application capture/control in this pass |
-| Remote CI / push / merge | **NOT RUN** | Not authorized |
+| Remote branch publication | **PUBLISHED** | Local `origin/overhaul/phase-4-3-4-4-gameplay-presentation` points to the audited HEAD; a live remote refresh was unavailable. |
+| Remote CI | **UNVERIFIED / NOT RUN** | No workflow result was verified in this closeout. |
+| Merge | **NOT RUN** | No merge evidence; the branch remains the Phase 4 branch. |
 
-The implementation remains a local working-tree change. Live multiplayer
-gameplay evidence and Electron visual evidence remain separate unavailable
-gates, not inferred from the deterministic board fixture.
+The Phase 4 implementation is published on the tracked remote Phase 4 branch.
+This documentation closeout has not committed or published its own edits. Live
+multiplayer gameplay evidence and Electron visual evidence remain separate
+unavailable gates, not inferred from the deterministic board fixture.
+
+## 22. Current Phase 4 closeout and Phase 5 handoff (2026-08-23)
+
+Phase 4 gameplay/presentation feature work is **CLOSED**. No new Phase 4
+gameplay feature is required before Phase 5. The V7 contract is the preservation
+boundary for the next slice:
+
+- Server/GameCore/PostgreSQL remain authoritative for rules, card order, pending
+  operations, semantic event lanes and committed revisions.
+- The client keeps one `PresentationController → AnimationQueue →
+  PresentationStore` pipeline, queues card reveal only after the appropriate
+  landing boundary, hydrates durable card stages without replay on reconnect, and
+  uses `SNAP` for unsupported or ambiguous movement.
+- Phase 5 must treat the current board-readability measurement (`~227` draw
+  calls, above the normal `≤210` target and below the hard `<240` limit) as a
+  performance constraint/guardrail when adding effects. It is accepted debt, not
+  unfinished Phase 4 gameplay authority.
+
+Current publication/validation boundaries are separate: the implementation is
+published on the tracked Phase 4 remote branch, remote CI is unverified/not run,
+and merge is not run. This documentation-only closeout verifies docs scope and
+whitespace; it does not promote historical manual, Electron, database, or remote
+checks to PASS.

@@ -51,6 +51,9 @@ functions must not broadcast, ACK or assume persistence has already succeeded.
 - Reconnect before committed expiry clears marker and preserves exact turn.
 - Expiry resolves a pending purchase as Do Not Buy or a development prompt as Skip;
   otherwise it advances the turn.
+- Card landing creates durable `PendingCardInteraction` with an operation ID,
+  continuation and deadline. `AWAITING_DRAW` and `REVEALED` are authoritative
+  stages; deadline recovery is idempotent and never exposes the private draw pile.
 - Payment shortfall expiry sells owned properties in deterministic tile order and
   eliminates the debtor only after all sellable properties are exhausted.
 - Forced-sale proposal persists its proposal ID and absolute expiry inside the
@@ -71,7 +74,8 @@ functions must not broadcast, ACK or assume persistence has already succeeded.
 - Houses/hotels have no finite Bank inventory or colour-group/even-building gate;
   property invariant remains 0..5, non-street properties have zero buildings.
 - Deck order/jail-free ownership là authoritative private state và phải giữ nguyên
-  qua reconnect/restart.
+  qua reconnect/restart. V7 semantic event lanes and `completedCardOperations` are
+  also persisted; public viewers receive only bounded safe events.
 
 ## Kiểm tra
 

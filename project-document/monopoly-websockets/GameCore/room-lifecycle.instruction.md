@@ -73,9 +73,10 @@ Finished history records reason (`BANKRUPT | LEFT`); it is not erased by disconn
 - Public connected flags derive from runtime registry after load/restart.
 - Raw token, SocketData, presence, command queue and scheduler timer handles never
   enter snapshot.
-- Snapshot v6 persists pending landing decisions, ordered payments, private deck
-  state, turn recovery, forced-sale proposals and appearance identity; auction/
-  contention/Bank queue state is not part of the schema.
+- Snapshot v7 persists pending landing/card decisions, ordered payments, private deck
+  state, bounded semantic lanes, completed card operations, turn recovery,
+  forced-sale proposals and appearance identity; auction/contention/Bank queue state
+  is not part of the schema. Exact deck order remains private.
 - Room code is normalized/unique but is not password/credential.
 
 ## Tests

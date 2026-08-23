@@ -1,14 +1,28 @@
 # Own the Block — Phase 4.0 Authoritative Gameplay → Presentation Contract Audit
 
-Status: Phase 4.1 implementation-slice audit and Phase 4.2 handoff. The
-authoritative roll-identity slice is implemented; richer cause/card/transfer
-contracts remain open.
+Status: HISTORICAL Phase 4.1 implementation-slice audit and Phase 4.2 handoff.
+At the audit date, the authoritative roll-identity slice was implemented and
+richer cause/card/transfer contracts were open.
 
-Implementation note (2026-08-22): the bounded remaining client slice consumes
+Historical implementation note (2026-08-22): the bounded remaining client slice consumes
 the already-audited public deltas for generic balance, ownership, development,
 and proof-gated GO feedback, plus authoritative decision ACK/reset guards. It
 does not change the audit verdict or add movement-cause, card-identity,
 transfer-attribution, or private-visibility contracts.
+
+> **CURRENT STATUS — 2026-08-23:** This document preserves the pre-V7 audit as
+> historical evidence; its original V6 findings and `OPEN` labels are not a
+> statement of the current runtime. V7 is now the current protocol and snapshot
+> contract. `008_semantic_card_v7.sql` upgrades V6 snapshots to empty V7 semantic
+> baselines and a completed-card ledger. P4-D-003 (card identity/result/chain) was subsequently
+> resolved by durable `PendingCardInteraction`, operation-scoped `draw card` /
+> `dismiss card`, `AWAITING_DRAW`/`REVEALED`, and `revealedCardId`; exact deck order
+> remains private. P4-D-004 (transfer attribution) was subsequently resolved for
+> the implemented bounded families through public `gameplayEvents` and
+> participant-scoped private lanes. P4-D-002 remains intentionally bounded:
+> only a proven dice route may use `WALK`; unsupported or ambiguous movement uses
+> `SNAP` rather than fabricating a route. Use the current Phase 4 status in
+> [04_PHASE_4_GAMEPLAY_ACTIONS.md](04_PHASE_4_GAMEPLAY_ACTIONS.md) for closeout.
 
 Audit date: 2026-08-20 (Asia/Ho_Chi_Minh)
 

@@ -99,6 +99,12 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
 
 - Ownership, buildings, player position và pending landing/payment state từ
   committed `PublicRoomState`; stable IDs điều khiển token/owner.
+- `pendingCardInteraction` cũng là committed public state cho card interaction:
+  `AWAITING_DRAW` chờ player gửi `draw card`, `REVEALED` giữ `revealedCardId` cho
+  tới `dismiss card`; cả hai command đều operation-scoped và không làm lộ deck order.
+  Public `gameplayEvents` và private player semantic events đi qua cùng
+  `PresentationController → AnimationQueue → PresentationStore`; thiếu semantic
+  sequence thì reset/snap về snapshot thay vì dựng cause.
 - Level 1–4 render Nhà; level 5 render Khách Sạn. Forced-sale gross values come
   from the public shortfall projection; không client-counter.
 - Nhà giữ body `0.48 × 0.39 × 0.36` với facade plaster trung tính khoảng
@@ -133,8 +139,9 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
 - Property name-only typography (short/canonical/long), textless jail/go-to-jail,
   upper 70% art/footer 30% text anchors, top-biased raised-icon placement with divider
   clearance, selective divider eligibility, 70/30 panel ratio,
-  side-aware Parking-adjacent orientation, final widened/deepened edge and corner
-  dimensions, 1.5–1.7× ownership flag proportions, Start width ratio, enlarged
+  side-aware Parking-adjacent orientation, restored canonical edge/corner geometry
+  (`1.6 × 2.58`, corner `2.46`) with natural center derivation,
+  1.5–1.7× ownership flag proportions, Start width ratio, enlarged
   house/hotel geometry plus canonical anchors, neutral facade/window-grid textures,
   pitched roof/crown owner-color split, frame dimensions, scene budget,
   orthographic camera/tone mapping

@@ -342,8 +342,9 @@ authority boundary, movement baseline or presentation queue.
 - Start derives its scale from tile `0`'s actual usable corner surface and
   targets `92%` of that width. Only the yellow arrow face is vertically
   scaled `1.20×`; posts, text, orientation and horizontal footprint remain
-  planted in the corner panel. House/hotel footprints and `tileAnchors` grow
-  together; levels `1–4` and `5` continue to map to Nhà and Khách Sạn.
+  planted in the corner panel. Approved House/Hotel dimensions are preserved and
+  `tileAnchors` remain synchronized with those dimensions; levels `1–4` and `5`
+  continue to map to Nhà and Khách Sạn.
 - House/hotel bodies use the authored neutral facades and shared procedural
   window grids described in Section 9. Roof/crown owner color uses the same
   canonical display color as the HUD; no individual window/frame mesh is added.
