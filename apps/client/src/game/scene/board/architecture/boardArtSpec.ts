@@ -11,7 +11,7 @@ export const BOARD_LOWER_CHASSIS_HEIGHT = 0.16;
 export const BOARD_TOP_DECK_HEIGHT = 0.12;
 export const BOARD_FRAME_HEIGHT = 0.07;
 export const BOARD_FRAME_BEVEL = 0.025;
-export const BOARD_FRAME_WIDTH = 0.12;
+export const BOARD_FRAME_WIDTH = 0.14;
 export const BOARD_CENTER_INSET = 0.14;
 
 export const TILE_BODY_HEIGHT = 0.3;
@@ -35,8 +35,18 @@ export const PROPERTY_NAME_Y = PROPERTY_TEXT_Y + 0.002;
 export const TILE_STEP_PRESS_DEPTH = 0.036;
 export const TILE_LAND_PRESS_DEPTH = 0.058;
 
-export const HOUSE_BODY_HEIGHT = 0.32;
-export const HOTEL_BODY_HEIGHT = 0.68;
+export const HOUSE_BODY_HEIGHT = 0.36;
+export const HOUSE_BODY_WIDTH = 0.48;
+export const HOUSE_BODY_DEPTH = 0.39;
+export const HOUSE_ROOF_WIDTH = 0.56;
+export const HOUSE_ROOF_HEIGHT = 0.09;
+export const HOUSE_ROOF_DEPTH = 0.47;
+export const HOTEL_BODY_HEIGHT = 0.78;
+export const HOTEL_BODY_WIDTH = 0.92;
+export const HOTEL_BODY_DEPTH = 0.6;
+export const HOTEL_CROWN_WIDTH = 1.04;
+export const HOTEL_CROWN_HEIGHT = 0.15;
+export const HOTEL_CROWN_DEPTH = 0.7;
 export const PLAYER_MARKER_BODY_HEIGHT = 0.26;
 
 export const CENTER_AIRPORT_SURFACE_Y = BOARD_FOUNDATION_HEIGHT + 0.045;

@@ -78,6 +78,7 @@ const scenarios = [
   ['skip-card-reveal', '24 · Bỏ qua khi thẻ đang lật'],
   ['keyboard-card', '26 · Focus / Escape thẻ'],
   ['opponent-turn', '27 · Ẩn Roll khi đối thủ chơi'],
+  ['board-readability', '28 · Board readability fixture'],
   ['stress', 'Hiệu năng · trạng thái đồng thời'],
 ] as const;
 
@@ -233,6 +234,18 @@ function configureBaseline(
   }
   if (scenario === 'owner-recolor') {
     room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 4 };
+  }
+  if (scenario === 'board-readability') {
+    room.gameState.boardState.ownedProps = {
+      1: { id: 'player-a', color: 'red', houses: 1 },
+      3: { id: 'player-b', color: 'blue', houses: 2 },
+      6: { id: 'player-c', color: 'green', houses: 4 },
+      9: { id: 'player-d', color: 'yellow', houses: 5 },
+    };
+    room.gameState.players['player-a'].currentTile = 8;
+    room.gameState.players['player-b'].currentTile = 12;
+    room.gameState.players['player-c'].currentTile = 25;
+    room.gameState.players['player-d'].currentTile = 37;
   }
   if (scenario === 'stations-2' || scenario === 'stations-4' || scenario === 'coin-materials') {
     room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 2 };
@@ -646,6 +659,7 @@ function Phase4UatSurface() {
     controller.acceptRoomSnapshot(nextRoom, 'SESSION_SYNC');
     if (![
       'stations-2', 'stations-4', 'coin-materials', 'bankrupt', 'spectator-awaiting', 'spectator-revealed',
+      'board-readability',
     ].includes(key)) schedule(() => applyAnimatedScenario(key), 180);
   }, [applyAnimatedScenario, clearTimers, controller, schedule, updateSettings]);
   const runNextScenario = useCallback(() => {

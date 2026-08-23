@@ -1,4 +1,11 @@
-import { HOUSE_BODY_HEIGHT } from '../board/architecture/boardArtSpec';
+import {
+  HOUSE_BODY_DEPTH,
+  HOUSE_BODY_HEIGHT,
+  HOUSE_BODY_WIDTH,
+  HOUSE_ROOF_DEPTH,
+  HOUSE_ROOF_HEIGHT,
+  HOUSE_ROOF_WIDTH,
+} from '../board/architecture/boardArtSpec';
 import { boardVisualTokens } from '../board/boardVisualTokens';
 import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
 import ContactShadow from '../fx/ContactShadow';
@@ -14,24 +21,24 @@ export default function HouseMesh({
     <group name="HouseVisual" position={position}>
       <RoundedBoxMesh
         name="HouseWall"
-        width={0.4}
+        width={HOUSE_BODY_WIDTH}
         height={HOUSE_BODY_HEIGHT}
-        depth={0.32}
+        depth={HOUSE_BODY_DEPTH}
         radius={0.045}
         color={wallColor}
         materialProfile="houseWall"
       />
       <RoundedBoxMesh
         name="HouseRoof"
-        width={0.46}
-        height={0.075}
-        depth={0.39}
+        width={HOUSE_ROOF_WIDTH}
+        height={HOUSE_ROOF_HEIGHT}
+        depth={HOUSE_ROOF_DEPTH}
         radius={0.035}
         color={roofColor}
         materialProfile="houseRoof"
-        position={[0, HOUSE_BODY_HEIGHT / 2 + 0.035, 0]}
+        position={[0, HOUSE_BODY_HEIGHT / 2 + HOUSE_ROOF_HEIGHT / 2, 0]}
       />
-      <ContactShadow scale={[0.48, 0.4]} opacity={0.2} />
+      <ContactShadow scale={[0.58, 0.48]} opacity={0.2} />
     </group>
   );
 }

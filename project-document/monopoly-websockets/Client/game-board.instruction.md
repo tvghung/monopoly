@@ -48,8 +48,9 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   compose từ translation + quaternion XZ orientation + scale, giữ normal hướng lên
   ở cả bốn cạnh và footprint khớp tile thật.
 - Property thường chỉ in tên, không in giá trên mặt ô. Cỡ local SDF adaptive là
-  `0.31`/`0.25`: một dòng cho tên ngắn, hai dòng cho tên dài thông thường; maxWidth
-  bằng 92% vùng usable footer. Normal/company và nhãn Chance/Chest/Tax/Railroad đều
+  `0.40`/`0.33` cho normal và `0.36`/`0.30` cho special: một dòng cho tên ngắn,
+  tối đa hai dòng cho tên dài; maxWidth bằng 94% vùng usable footer/corner.
+  Normal/company và nhãn Chance/Chest/Tax/Railroad đều
   dùng footer anchor; raised SVG art dùng top-biased upper anchor; price không render trên
   mặt tile. Text dùng một canonical inward-facing rule theo side, gồm cả hai run
   sát Parking; hai run `LEFT`/`TOP` dùng cùng một camera-facing half-turn cho text và
@@ -75,15 +76,18 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   contract chung trên tile surface, depth test và alpha test để tránh chìm hoặc
   z-fight; icon footprint giữ divider của upper 70% clear. Tax dùng paper stack nhỏ hơn
   với rear sheet xám đậm hơn và five red placeholder marks nằm trong front sheet; START dùng
-  planted left-pointing `Start` sign; Parking dùng
+  planted left-pointing `Start` sign rộng 82% usable corner surface; Parking dùng
   asphalt runway-gray với lane marks và deterministic parked cars; Go To Jail dùng
   handcuffs còn Jail dùng cell bars. District art không tràn sang special tile.
 - Beach district dùng shoreline uốn lượn với wave contour thứ hai; palette board/UI
   tăng saturation nhưng giữ upper/footer sáng để text đen vẫn rõ.
-- Edge tile nominal width là `1.60`, depth là `2.58` (corner `2.46`); center boundary
-  derive từ inward tile-surface boundary và clearance nên field nhỏ hơn nhưng vẫn
-  đồng tâm. Outer board size và orthographic fit tự derive từ layout nên camera vẫn
-  frame đủ board.
+- Final pre-Phase-5 readability geometry dùng edge width `1.86`, depth `5.9`, corner
+  `2.72`, gap `0.05`; mọi body/surface/socket/foundation đều derive từ registry.
+  Center platform dùng inset `0.6` so với inward surface boundary, BoardFrame rộng
+  `0.14`, tạo một gutter liên tục để tile ring đọc rõ mà không có crack/overlap.
+  Foundation middle layer là `boardBase #70787b`, giữ lower dark layer và upper light
+  layer hiện hành. Outer board size và orthographic fit tự derive từ layout; camera
+  giữ hướng cố định và margin `1.02`, không bỏ fit point của board/dice/stations.
 
 ## State/rendering
 
@@ -115,8 +119,10 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
 - Property name-only typography (short/canonical/long), textless jail/go-to-jail,
   upper 70% art/footer 30% text anchors, top-biased raised-icon placement with divider
   clearance, selective divider eligibility, 70/30 panel ratio,
-  side-aware Parking-adjacent orientation, widened edge/corner dimensions, frame
-  dimensions, scene budget, orthographic camera/tone mapping
+  side-aware Parking-adjacent orientation, final widened/deepened edge and corner
+  dimensions, 1.5–1.7× ownership flag proportions, Start width ratio, enlarged
+  house/hotel geometry plus canonical anchors, frame dimensions, scene budget,
+  orthographic camera/tone mapping
   và SDF sync invalidation.
 - Special art contracts cover approved Chance question mark, simplified pointer-free
   fortune wheel, locomotive/one-wagon silhouette, light bulb, large faucet, tax paper stack, START
@@ -125,3 +131,6 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
 - Owner/house/hotel/inventory/token update theo revision.
 - Normal/pass-GO/jail/card movement; buy/development/payment settlement.
 - Card flip, outside close, multiple token, reduced-motion, reconnect/no-duplicate.
+- `Phase4UatHarness` board-readability fixture at `1280×720`, `1440×900` and
+  `1920×1080`, covering four corners, all four runs, short/two-line Vietnamese
+  names, special icons, unowned/owned/1–4 Nhà/Khách sạn and flag+building states.

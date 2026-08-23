@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   CORNER_SIZE,
+  CORNER_CENTER,
   CENTER_PLATFORM_SIZE,
+  CENTER_PLATFORM_INSET,
   EDGE_TILE_DEPTH,
   EDGE_TILE_WIDTH,
   JAIL_BASE_CENTER_Y,
@@ -18,13 +20,15 @@ import {
   TILE_SURFACE_Y,
   TILE_SURFACE_LOCAL_POSITION,
   TILE_SURFACE_LOCAL_ROTATION,
+  INNER_SIDE_BOUNDARY,
+  INNER_TILE_SURFACE_BOUNDARY,
   boardLayout,
   getGeometryBottomY,
   getBoardTileLayout,
   getTileSurfaceGeometry,
   getTileSurfaceWorldCorners,
 } from './boardLayout';
-import { TILE_SOCKET_GAP } from './architecture/boardArtSpec';
+import { BOARD_FRAME_WIDTH, TILE_SOCKET_GAP } from './architecture/boardArtSpec';
 
 describe('canonical 2.5D board layout', () => {
   it('contains exactly the canonical 40 tile IDs without duplicate centers', () => {
@@ -70,11 +74,14 @@ describe('canonical 2.5D board layout', () => {
     expect(SURFACE_EPSILON).toBeGreaterThan(0);
   });
 
-  it('deepens edge tiles while keeping the corner footprint unchanged', () => {
-    expect(EDGE_TILE_WIDTH).toBeGreaterThan(1.4);
-    expect(EDGE_TILE_DEPTH).toBe(3.2);
-    expect(CORNER_SIZE).toBe(2.46);
-    expect(CENTER_PLATFORM_SIZE).toBeLessThan(14.41);
+  it('uses the final readability dimensions across sides, corners and center ring', () => {
+    expect(EDGE_TILE_WIDTH).toBe(1.86);
+    expect(EDGE_TILE_DEPTH).toBe(5.9);
+    expect(CORNER_SIZE).toBe(2.72);
+    expect(CENTER_PLATFORM_INSET).toBe(0.6);
+    expect(CENTER_PLATFORM_SIZE).toBeLessThan(INNER_TILE_SURFACE_BOUNDARY * 2);
+    expect(CENTER_PLATFORM_SIZE + 2 * BOARD_FRAME_WIDTH)
+      .toBeLessThan(INNER_TILE_SURFACE_BOUNDARY * 2);
     expect(boardLayout.filter(layout => layout.side !== 'CORNER')
       .every(layout => layout.size[0] === EDGE_TILE_WIDTH - TILE_GAP)).toBe(true);
     expect(boardLayout.filter(layout => layout.side === 'CORNER')
@@ -92,10 +99,10 @@ describe('canonical 2.5D board layout', () => {
   });
 
   it.each([
-    [1, 'BOTTOM', [6.4, 0, 8.43], 0],
-    [11, 'LEFT', [-8.43, 0, 6.4], -Math.PI / 2],
-    [21, 'TOP', [-6.4, 0, -8.43], Math.PI],
-    [31, 'RIGHT', [8.43, 0, -6.4], Math.PI / 2],
+    [1, 'BOTTOM', [INNER_SIDE_BOUNDARY - EDGE_TILE_WIDTH / 2, 0, CORNER_CENTER], 0],
+    [11, 'LEFT', [-CORNER_CENTER, 0, INNER_SIDE_BOUNDARY - EDGE_TILE_WIDTH / 2], -Math.PI / 2],
+    [21, 'TOP', [-(INNER_SIDE_BOUNDARY - EDGE_TILE_WIDTH / 2), 0, -CORNER_CENTER], Math.PI],
+    [31, 'RIGHT', [CORNER_CENTER, 0, -(INNER_SIDE_BOUNDARY - EDGE_TILE_WIDTH / 2)], Math.PI / 2],
   ] as const)('keeps tile %i on its canonical world transform', (tileId, side, position, rotationY) => {
     const layout = getBoardTileLayout(tileId);
     expect(layout?.side).toBe(side);

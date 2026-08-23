@@ -12,10 +12,10 @@ import {
 
 export type BoardSide = 'BOTTOM' | 'LEFT' | 'TOP' | 'RIGHT' | 'CORNER';
 
-export const CORNER_SIZE = 2.46;
-export const EDGE_TILE_WIDTH = 1.6;
-/** Extra inward depth makes the outer tiles more legible while reducing the center well. */
-export const EDGE_TILE_DEPTH = 3.2;
+/** Final pre-Phase-5 readability dimensions for the canonical 40-tile ring. */
+export const CORNER_SIZE = 2.72;
+export const EDGE_TILE_WIDTH = 1.86;
+export const EDGE_TILE_DEPTH = 5.9;
 export const TILE_GAP = 0.05;
 export const TILE_HEIGHT = TILE_BODY_HEIGHT;
 export const PLATFORM_HEIGHT = BOARD_FOUNDATION_HEIGHT;
@@ -55,7 +55,12 @@ export const INNER_TILE_SURFACE_BOUNDARY = CORNER_CENTER
   - (EDGE_TILE_DEPTH - TILE_GAP - TILE_SURFACE_INSET) / 2;
 /** Deliberate breathing room between the center field and the inward tile edge. */
 export const CENTER_FIELD_CLEARANCE = 0.92;
-export const CENTER_PLATFORM_SIZE = INNER_TILE_SURFACE_BOUNDARY * 2;
+/** Keeps the center frame visibly inside the enlarged tile ring without a crack. */
+export const CENTER_PLATFORM_INSET = 0.6;
+export const CENTER_PLATFORM_SIZE = Math.max(
+  0.3,
+  INNER_TILE_SURFACE_BOUNDARY * 2 - CENTER_PLATFORM_INSET,
+);
 
 const SIDE_ROTATIONS: Record<Exclude<BoardSide, 'CORNER'>, number> = {
   BOTTOM: 0,

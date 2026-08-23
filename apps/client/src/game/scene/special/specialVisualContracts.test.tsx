@@ -11,6 +11,7 @@ import {
   TILE_ICON_FACE_Y_OFFSET,
   TILE_SURFACE_EPSILON,
 } from '../board/architecture/boardArtSpec';
+import { getBoardTileLayout } from '../board/boardLayout';
 import HandcuffVisual, { HANDCUFF_ART_FOOTPRINT_RATIO } from './HandcuffVisual';
 import CardDeckVisual from './CardDeckVisual';
 import ParkingLotVisual, {
@@ -26,8 +27,11 @@ import RailroadVisual, {
 import StartSignVisual, {
   START_SIGN_HEIGHT_SCALE,
   START_SIGN_LABEL,
+  START_SIGN_NATIVE_WIDTH,
   START_SIGN_TRAVEL_ROTATION_Y,
   START_SIGN_WIDTH_SCALE,
+  START_SIGN_TARGET_WIDTH_RATIO,
+  getStartSignWidthScale,
   createStartSignGeometry,
 } from './StartSignVisual';
 import TaxVisual, {
@@ -51,8 +55,8 @@ import {
   getRaisedSvgTileIconArtSize,
 } from './RaisedSvgTileIcon';
 
-const edgePanel = getOrientedTilePanelLayoutForTileSize([1.55, 2.4], 'BOTTOM');
-const cornerPanel = getOrientedTilePanelLayoutForTileSize([2.46, 2.46], 'CORNER');
+const edgePanel = getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(1)!.size, 'BOTTOM');
+const cornerPanel = getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(0)!.size, 'CORNER');
 
 describe('Phase 2.5G special visual contracts', () => {
   it('maps all approved special art to local SVG texture assets', () => {
@@ -165,8 +169,11 @@ describe('Phase 2.5G special visual contracts', () => {
     expect(startGeometry.parameters.options.depth).toBeGreaterThan(0);
     expect(START_SIGN_LABEL).toBe('Start');
     expect(START_SIGN_TRAVEL_ROTATION_Y).toBe(0);
-    expect(START_SIGN_WIDTH_SCALE).toBeGreaterThanOrEqual(1.1);
-    expect(START_SIGN_HEIGHT_SCALE).toBeGreaterThanOrEqual(1.08);
+    expect(START_SIGN_WIDTH_SCALE).toBeGreaterThan(1.25);
+    expect(START_SIGN_HEIGHT_SCALE).toBeGreaterThanOrEqual(1.16);
+    expect(getStartSignWidthScale(cornerPanel)).toBeCloseTo(START_SIGN_WIDTH_SCALE);
+    expect((START_SIGN_NATIVE_WIDTH * START_SIGN_WIDTH_SCALE) / cornerPanel.surfaceSize[0])
+      .toBeCloseTo(START_SIGN_TARGET_WIDTH_RATIO);
     startGeometry.dispose();
     expect(StartSignVisual).toBeTypeOf('function');
   });

@@ -465,8 +465,11 @@ File:
 
 ## Phase 4 — Gameplay Actions & Animations
 
-Status: Phase 4.2 is completed/current. Phase 4.3 and Phase 4.4 are the next
-planned implementation slices and have not started.
+Status: Phase 4 implementation is complete after the final pre-Phase-5 board
+readability pass on 2026-08-23. Phase 5 is the next planned implementation
+slice. Live gameplay/Electron checks that were unavailable remain reported as
+separate NOT RUN validation gates; they do not change the client-only visual
+contract recorded in Phase 4.
 
 Mục tiêu:
 

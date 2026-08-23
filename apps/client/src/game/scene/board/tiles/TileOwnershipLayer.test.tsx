@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { getPlayerDisplayColor } from '../../../ui/playerVisualColors';
-import { TILE_SURFACE_Y } from '../boardLayout';
+import { getBoardTileLayout, TILE_SURFACE_Y } from '../boardLayout';
 import {
   OWNERSHIP_FLAG_CLOTH_DEPTH,
   OWNERSHIP_FLAG_CLOTH_WIDTH,
@@ -13,7 +13,7 @@ import {
 import TileOwnershipLayer from './TileOwnershipLayer';
 import { getOrientedTilePanelLayoutForTileSize } from './tilePanelLayout';
 
-const size = [1.5, 2.4] as const;
+const size = getBoardTileLayout(1)!.size;
 const panel = getOrientedTilePanelLayoutForTileSize(size, 'BOTTOM');
 
 function renderLayer(ownerColor: string | undefined, selected = false) {
@@ -85,6 +85,12 @@ describe('tile ownership layer', () => {
     );
     expect(getOwnershipFlagClothColor('blue')).toBe(getPlayerDisplayColor('blue'));
     expect(getFlagMesh(view.container)).not.toBeNull();
+  });
+
+  it('uses the enlarged readability flag proportions', () => {
+    expect(OWNERSHIP_FLAG_POLE_WIDTH).toBeCloseTo(0.05);
+    expect(OWNERSHIP_FLAG_CLOTH_WIDTH).toBeCloseTo(0.48);
+    expect(OWNERSHIP_FLAG_CLOTH_DEPTH).toBeCloseTo(0.04);
   });
 
   it('uses a deterministic overshoot and settles the ownership flag at full scale', () => {

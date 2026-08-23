@@ -6,7 +6,10 @@ import { BOARD_FONT_URL } from '../../../design-system/typography/gameFonts';
 import { getBoardTileLayout, TILE_SURFACE_CLEARANCE_Y } from '../board/boardLayout';
 import { boardVisualTokens } from '../board/boardVisualTokens';
 import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
-import type { TilePanelLayout } from '../board/tiles/tilePanelLayout';
+import {
+  getOrientedTilePanelLayoutForTileSize,
+  type TilePanelLayout,
+} from '../board/tiles/tilePanelLayout';
 
 interface StartSignVisualProps {
   panel: TilePanelLayout;
@@ -14,8 +17,20 @@ interface StartSignVisualProps {
 
 export const START_SIGN_LABEL = 'Start';
 export const START_SIGN_TRAVEL_ROTATION_Y = getBoardTileLayout(0)?.rotation[1] ?? 0;
-export const START_SIGN_WIDTH_SCALE = 1.12;
-export const START_SIGN_HEIGHT_SCALE = 1.1;
+export const START_SIGN_NATIVE_WIDTH = 1.55;
+export const START_SIGN_TARGET_WIDTH_RATIO = 0.82;
+export const START_SIGN_HEIGHT_SCALE = 1.2;
+
+export function getStartSignWidthScale(panel: TilePanelLayout): number {
+  return panel.surfaceSize[0] * START_SIGN_TARGET_WIDTH_RATIO / START_SIGN_NATIVE_WIDTH;
+}
+
+const START_CORNER_PANEL = getBoardTileLayout(0)
+  ? getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(0)!.size, 'CORNER')
+  : null;
+export const START_SIGN_WIDTH_SCALE = START_CORNER_PANEL
+  ? getStartSignWidthScale(START_CORNER_PANEL)
+  : 1;
 
 export function createStartSignGeometry(): THREE.ExtrudeGeometry {
   const shape = new THREE.Shape();
@@ -48,8 +63,8 @@ function StartSignText() {
   useEffect(() => {
     textObject.text = START_SIGN_LABEL;
     textObject.font = BOARD_FONT_URL;
-    textObject.fontSize = 0.35;
-    textObject.maxWidth = 0.86;
+    textObject.fontSize = 0.44;
+    textObject.maxWidth = 0.96;
     textObject.anchorX = 'center';
     textObject.anchorY = 'middle';
     textObject.textAlign = 'center';
@@ -71,6 +86,7 @@ function StartSignText() {
 
 export default function StartSignVisual({ panel }: StartSignVisualProps) {
   const geometry = useMemo(() => createStartSignGeometry(), []);
+  const widthScale = getStartSignWidthScale(panel);
   useEffect(() => () => geometry.dispose(), [geometry]);
 
   return (
@@ -78,32 +94,34 @@ export default function StartSignVisual({ panel }: StartSignVisualProps) {
       name="StartSignVisual"
       position={[0, TILE_SURFACE_CLEARANCE_Y, 0]}
       rotation={[0, START_SIGN_TRAVEL_ROTATION_Y + panel.contentRotationY, 0]}
-      scale={[START_SIGN_WIDTH_SCALE, START_SIGN_HEIGHT_SCALE, START_SIGN_WIDTH_SCALE]}
+      scale={[widthScale, START_SIGN_HEIGHT_SCALE, widthScale]}
       userData={{
         label: START_SIGN_LABEL,
         points: 'tile-0-travel-left',
-        visualScale: [START_SIGN_WIDTH_SCALE, START_SIGN_HEIGHT_SCALE],
+        visualScale: [widthScale, START_SIGN_HEIGHT_SCALE],
+        usableCornerWidth: panel.surfaceSize[0],
+        targetWidthRatio: START_SIGN_TARGET_WIDTH_RATIO,
       }}
     >
       <RoundedBoxMesh
         name="StartSignPostLeft"
-        width={0.09}
-        height={0.38}
-        depth={0.09}
+        width={0.11}
+        height={0.46}
+        depth={0.11}
         radius={0.025}
         color={boardVisualTokens.startSignSide}
         materialProfile="propertyTrim"
-        position={[-0.34, 0.18, 0]}
+        position={[-0.42, 0.22, 0]}
       />
       <RoundedBoxMesh
         name="StartSignPostRight"
-        width={0.09}
-        height={0.38}
-        depth={0.09}
+        width={0.11}
+        height={0.46}
+        depth={0.11}
         radius={0.025}
         color={boardVisualTokens.startSignSide}
         materialProfile="propertyTrim"
-        position={[0.34, 0.18, 0]}
+        position={[0.42, 0.22, 0]}
       />
       <mesh name="StartArrowSign" geometry={geometry} position={[0, 0.5, 0]}>
         <meshStandardMaterial color={boardVisualTokens.startSignFace} roughness={0.38} metalness={0.04} />

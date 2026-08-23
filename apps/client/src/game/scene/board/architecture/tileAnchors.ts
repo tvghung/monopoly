@@ -16,11 +16,14 @@ export const PLAYER_MARKER_Y = TILE_SURFACE_Y + TILE_SURFACE_EPSILON + PLAYER_MA
 export const CHARACTER_BILLBOARD_HEIGHT = 1.22;
 export const CHARACTER_BASE_Y = TILE_SURFACE_Y + TILE_SURFACE_EPSILON;
 
+export const HOUSE_SLOT_X = 0.31;
+export const HOUSE_SLOT_Z = 0.28;
+
 const HOUSE_SLOTS: readonly (readonly [number, number, number])[] = [
-  [-0.27, HOUSE_CENTER_Y, 0.23],
-  [0.27, HOUSE_CENTER_Y, 0.23],
-  [-0.27, HOUSE_CENTER_Y, -0.23],
-  [0.27, HOUSE_CENTER_Y, -0.23],
+  [-HOUSE_SLOT_X, HOUSE_CENTER_Y, HOUSE_SLOT_Z],
+  [HOUSE_SLOT_X, HOUSE_CENTER_Y, HOUSE_SLOT_Z],
+  [-HOUSE_SLOT_X, HOUSE_CENTER_Y, -HOUSE_SLOT_Z],
+  [HOUSE_SLOT_X, HOUSE_CENTER_Y, -HOUSE_SLOT_Z],
 ];
 
 type LocalPoint = readonly [number, number, number];

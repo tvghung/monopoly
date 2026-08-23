@@ -291,3 +291,44 @@ Board phải:
 - rich particles
 - final build animation
 - end-game cinematic
+
+## Final pre-Phase-5 board readability contract (2026-08-23)
+
+The board remains a client-only projection of the canonical shared 40-tile
+registry. This final readability pass changes no server rule, protocol,
+authority boundary, movement baseline or presentation queue.
+
+- Canonical geometry is `EDGE_TILE_WIDTH=1.86`, `EDGE_TILE_DEPTH=5.9`,
+  `CORNER_SIZE=2.72`, `TILE_GAP=0.05`. `TileBodyBatch`, `TileSurfaceBatch`,
+  `TileSocket`, `BoardFoundation`, `BoardFrame` and `outerBoardAccent` consume
+  these values through `boardLayout`; there are no per-tile geometry hacks.
+- `CENTER_PLATFORM_INSET=0.6` keeps the center frame and airport field visibly
+  inside the enlarged tile ring. The `CENTER_ORTHOGONAL_PATH_WIDTH=0.36`
+  path keeps center coverage near the existing 5% contract after that shrink.
+  The `BOARD_FRAME_WIDTH=0.14` frame and the continuous top-deck gutter
+  emphasize the ring while retaining a connected foundation. The middle
+  foundation layer is the neutral grey `#70787b` between the dark lower chassis
+  and light upper deck.
+- Property typography is local SDF, inward-facing and capped at two lines:
+  normal `0.40/0.33`, special `0.36/0.30`, maxWidth `94%` of the usable panel.
+  The shared 70/30 upper/footer panel contract remains the source for text and
+  raised SVG icon placement; individual icon safe ratios are unchanged.
+- Ownership uses the existing authoritative `ownedProps → BoardRenderModel →
+  TileOwnershipLayer` path. The planted pole/cloth is enlarged to
+  `0.56/0.48×0.25` with canonical player colors and remains separate from
+  houses, hotel, divider, text and selection feedback. No `OwnerTab` or full
+  width strip is reintroduced.
+- Start derives its scale from tile `0`'s actual usable corner surface and
+  targets `82%` of that width. The planted left-pointing body, posts and label
+  remain in the corner panel. House/hotel footprints and `tileAnchors` grow
+  together; levels `1–4` and `5` continue to map to Nhà and Khách Sạn.
+- Fixed orthographic camera direction and board/dice/station fit points remain
+  unchanged. The framing margin is `1.02`; the board must remain uncropped at
+  `1280×720`, `1440×900` and `1920×1080`. Normal/stress budgets remain
+  `≤210/<240` draw calls and `≤80,000/<100,000` triangles.
+
+The existing `Phase4UatHarness` now includes a `board-readability` fixture for
+the manual visual sweep. Automated tests cover canonical transforms, surface
+and center-frame clearance, adaptive text, flag footprint, Start ratio,
+building anchors and camera fit. Visual evidence and any unavailable live or
+Electron checks must remain reported separately.

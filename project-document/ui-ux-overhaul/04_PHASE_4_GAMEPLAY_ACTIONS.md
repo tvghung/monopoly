@@ -1,11 +1,12 @@
 # Phase 4 - Gameplay Actions and Presentation Orchestration
 
-Status: The bounded corrective Phase 4 client implementation slice (A-F) is
-complete in this branch, including gameplay HUD/consequence hardening and the
-existing dice/rent presentation work. Phase 4 closure remains pending live
-2-player WebGL gameplay UAT and Electron gameplay UAT; database, remote-CI,
-and unavailable-environment checks remain separately reported. This is not a
-full Phase 4 closure sign-off until those manual gates are run. Richer
+Status: The bounded corrective Phase 4 client implementation slice (A-F) and
+the final pre-Phase-5 board readability pass are complete in this branch,
+including gameplay HUD/consequence hardening and the existing dice/rent
+presentation work. Live 2-player WebGL gameplay UAT and Electron gameplay UAT,
+database, remote-CI, and unavailable-environment checks remain separately
+reported as PASS/PARTIAL/NOT RUN gates; this document does not turn those
+unavailable checks into passes. Richer
 movement-cause, card-identity, and transfer-attribution contracts remain open.
 Phase 4.0/4.1 contract audit:
 [04A_PHASE_4_0_CONTRACT_AUDIT.md](04A_PHASE_4_0_CONTRACT_AUDIT.md).
@@ -1749,3 +1750,84 @@ Chance/Khí Vận/build/card paths not reached during this short server-backed
 session, and Electron visual/semantic UAT not run. No gameplay-rule,
 server-authority, V8, Phase 3 movement, reconnect, privacy, fixed-camera, or
 Phase 5-audio gap was introduced.
+
+## 21. Final pre-Phase-5 board readability pass (2026-08-23)
+
+This client-only pass closes the requested pre-Phase-5 board readability scope.
+It changes no server rule, protocol, authoritative state, movement baseline,
+dice/card contract, reconnect behavior, reduced-motion semantics, presentation
+queue, or render architecture.
+
+### 21.1 Final geometry and visual contract
+
+- The canonical registry now uses `EDGE_TILE_WIDTH=1.86`,
+  `EDGE_TILE_DEPTH=5.9`, `CORNER_SIZE=2.72`, and `TILE_GAP=0.05`. Body,
+  surface, socket, foundation, frame and outer accent derive from this layout;
+  there are no per-tile geometry overrides.
+- The enlarged ring leaves a `CENTER_PLATFORM_INSET=0.6` inner clearance.
+  `BOARD_FRAME_WIDTH=0.14` and `CENTER_ORTHOGONAL_PATH_WIDTH=0.36` retain a
+  continuous readable ring without overlapping the airport field. The middle
+  foundation is `boardBase #70787b`, between the existing dark lower and light
+  upper layers.
+- Local SDF text remains inward-facing and capped at two lines. Final sizes are
+  normal `0.40/0.33`, special `0.36/0.30`, with max width `94%` of the usable
+  panel. The existing 70/30 panel and canonical SVG/icon anchors remain shared.
+- Ownership remains the authoritative `ownedProps → BoardRenderModel →
+  TileOwnershipLayer` path. The flag is now `0.56` pole height with cloth
+  `0.48 × 0.25`, canonical player colors, and tile-local placement outside the
+  upper panel so it remains separate from text, divider and buildings.
+- Start derives its scale from tile `0`'s real corner panel and targets `82%`
+  of usable corner width. Its planted left-pointing body, enlarged posts and
+  label remain inside the corner surface.
+- House/hotel dimensions and `tileAnchors` were enlarged together. Levels 1–4
+  still render Nhà and level 5 still renders Khách Sạn; existing sequential
+  build, hotel transition, recolor, reconnect and Reduced Motion paths remain.
+- Fixed orthographic direction and board/dice/station fit points are unchanged;
+  framing margin is `1.02`. The board remains uncropped at `1280×720`,
+  `1440×900` and `1920×1080`.
+
+### 21.2 Deterministic UAT fixture and visual evidence
+
+The existing `Phase4UatHarness` was extended with one static
+`board-readability` scenario; no second harness was created. It renders all 40
+semantic tiles, all four corners, short and two-line Vietnamese names, special
+SVGs, unowned tiles, four canonical ownership colors, 1/2/4-house examples,
+hotel, Start, Jail, Parking, Go To Jail, dice/station context and the grey
+foundation. The four owned examples are tiles `1`, `3`, `6`, and `9` so the
+fixture remains representative without adding unnecessary render load.
+
+| Viewport | Visual result | Renderer diagnostics |
+| --- | --- | --- |
+| `1280×720` | Full board, wider side tiles, enlarged corners, readable text/icons/buildings, visible Start, no crop/overlap | `227` draw / `68,182` triangles |
+| `1440×900` | Same fixed direction and complete ring; Start and station/HUD context remain visible | `227` draw / `68,182` triangles |
+| `1920×1080` | Same proportions with clear center ring and all four sides/corners | `227` draw / `68,182` triangles |
+
+The fixture is below the hard `<240` draw-call and `<100,000` triangle limits;
+it is above the normal `≤210` target because it deliberately combines four
+players with all four ownership/building cases. No budget constant was raised.
+The stored captures are the three `board-readability-after-*.png` artifacts
+from this validation run.
+
+The same harness also completed `house-4` (`queue idle`, `build 4/4`), `hotel`
+(`queue idle`, `build 5/5`), `construction-reduced` (`queue idle`, `active 0`)
+and `owner-recolor` (`build 4/4`). Browser logs contained only the pre-existing
+Three.js `THREE.Clock` deprecation warning; no runtime error was observed.
+
+### 21.3 Validation status for this pass
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Database migration status | **PASS** | `pnpm db:status`; migrations 001–008 applied |
+| Root typecheck | **PASS** | `pnpm typecheck` |
+| Workspace lint | **PASS** | `pnpm lint` |
+| Full workspace tests | **PASS** | desktop 12; server 142 passed with 9 database-gated skipped; client 422 |
+| PostgreSQL-backed server tests | **NOT RUN** | no `TEST_DATABASE_URL` execution in this pass |
+| Production client build | **PASS** | `pnpm build`; existing large-chunk warning only |
+| Focused board tests | **PASS** | board/layout, text, ownership, special, building and camera suites |
+| Phase4UatHarness visual fixtures | **PASS** | board readability at all three viewports; building/reduced-motion fixtures above |
+| Electron visual/semantic smoke | **NOT RUN** | no cross-application capture/control in this pass |
+| Remote CI / push / merge | **NOT RUN** | not authorized |
+
+The implementation is ready for Phase 5 as a local working-tree change. Live
+multiplayer gameplay evidence and Electron visual evidence remain separate
+unavailable gates, not inferred from the deterministic board fixture.

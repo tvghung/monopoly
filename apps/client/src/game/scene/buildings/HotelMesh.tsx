@@ -1,4 +1,11 @@
-import { HOTEL_BODY_HEIGHT } from '../board/architecture/boardArtSpec';
+import {
+  HOTEL_BODY_DEPTH,
+  HOTEL_BODY_HEIGHT,
+  HOTEL_BODY_WIDTH,
+  HOTEL_CROWN_DEPTH,
+  HOTEL_CROWN_HEIGHT,
+  HOTEL_CROWN_WIDTH,
+} from '../board/architecture/boardArtSpec';
 import { boardVisualTokens } from '../board/boardVisualTokens';
 import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
 import ContactShadow from '../fx/ContactShadow';
@@ -14,24 +21,24 @@ export default function HotelMesh({
     <group name="HotelVisual" position={position}>
       <RoundedBoxMesh
         name="HotelFacade"
-        width={0.76}
+        width={HOTEL_BODY_WIDTH}
         height={HOTEL_BODY_HEIGHT}
-        depth={0.5}
+        depth={HOTEL_BODY_DEPTH}
         radius={0.06}
         color={facadeColor}
         materialProfile="hotel"
       />
       <RoundedBoxMesh
         name="HotelCrown"
-        width={0.86}
-        height={0.13}
-        depth={0.58}
+        width={HOTEL_CROWN_WIDTH}
+        height={HOTEL_CROWN_HEIGHT}
+        depth={HOTEL_CROWN_DEPTH}
         radius={0.04}
         color={crownColor}
         materialProfile="houseRoof"
-        position={[0, HOTEL_BODY_HEIGHT / 2 + 0.065, 0]}
+        position={[0, HOTEL_BODY_HEIGHT / 2 + HOTEL_CROWN_HEIGHT / 2, 0]}
       />
-      <ContactShadow scale={[0.92, 0.52]} opacity={0.2} />
+      <ContactShadow scale={[1.1, 0.64]} opacity={0.2} />
     </group>
   );
 }

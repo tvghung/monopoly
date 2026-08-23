@@ -8,12 +8,12 @@ import { boardVisualTokens } from '../boardVisualTokens';
 import { getPlayerDisplayColor } from '../../../ui/playerVisualColors';
 import type { TilePanelLayout } from './tilePanelLayout';
 
-export const OWNERSHIP_FLAG_POLE_HEIGHT = 0.36;
-export const OWNERSHIP_FLAG_POLE_WIDTH = 0.035;
-export const OWNERSHIP_FLAG_CLOTH_WIDTH = 0.3;
-export const OWNERSHIP_FLAG_CLOTH_HEIGHT = 0.16;
-export const OWNERSHIP_FLAG_CLOTH_DEPTH = 0.028;
-const OWNERSHIP_FLAG_LATERAL_INSET = 0.16;
+export const OWNERSHIP_FLAG_POLE_HEIGHT = 0.56;
+export const OWNERSHIP_FLAG_POLE_WIDTH = 0.05;
+export const OWNERSHIP_FLAG_CLOTH_WIDTH = 0.48;
+export const OWNERSHIP_FLAG_CLOTH_HEIGHT = 0.25;
+export const OWNERSHIP_FLAG_CLOTH_DEPTH = 0.04;
+const OWNERSHIP_FLAG_LATERAL_INSET = 0.18;
 const OWNERSHIP_FLAG_OUTER_INSET_RATIO = 0.08;
 
 function appendBoxVertices(

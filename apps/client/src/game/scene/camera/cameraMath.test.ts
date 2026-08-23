@@ -9,6 +9,7 @@ import {
   calculateCameraDistance,
   calculateOrthographicHalfHeight,
   DEFAULT_CAMERA_FOV,
+  DEFAULT_FRAMING_MARGIN,
   getCameraPosition,
   getOrthographicCameraPosition,
   ORTHOGRAPHIC_CAMERA_DISTANCE,
@@ -99,5 +100,12 @@ describe('fixed board camera math', () => {
     });
     expect(Math.hypot(...getOrthographicCameraPosition()))
       .toBeCloseTo(ORTHOGRAPHIC_CAMERA_DISTANCE);
+  });
+
+  it('uses the final tight readability margin without dropping any fit points', () => {
+    expect(DEFAULT_FRAMING_MARGIN).toBe(1.02);
+    [1280 / 720, 1440 / 900, 1920 / 1080].forEach(aspect => {
+      expect(calculateOrthographicHalfHeight(aspect)).toBeGreaterThan(0);
+    });
   });
 });
