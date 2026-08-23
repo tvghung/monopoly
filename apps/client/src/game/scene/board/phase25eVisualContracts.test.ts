@@ -52,7 +52,7 @@ describe('Phase 2.5E visual contracts', () => {
     expect(boardVisualTokens.tileSurface).toBe('#ffffff');
     expect(boardVisualTokens.tileFooter).toBe('#ffffff');
     expect(boardVisualTokens.sceneBackground).toBe('#62ddcc');
-    expect(boardVisualTokens.boardBase).toBe('#168c82');
+    expect(boardVisualTokens.boardBase).toBe('#70787b');
     expect(boardVisualTokens.boardBaseEdge).toBe('#113c49');
     expect(boardVisualTokens.boardAccent).toBe('#00c7b4');
   });

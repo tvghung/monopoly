@@ -64,8 +64,8 @@ export function getTileTextPresentation(
     const lineCount = getPropertyLineCount(normalizedName);
     return {
       value: wrapPropertyName(normalizedName, lineCount),
-      fontSize: lineCount === 1 ? 0.31 : 0.25,
-      maxWidth: surfaceWidth * 0.92,
+      fontSize: lineCount === 1 ? 0.34 : 0.28,
+      maxWidth: surfaceWidth * 0.95,
       lineHeight: 1.03,
       positionZ: isCorner ? 0 : panel.footerCenterLocalZ,
       footer: !isCorner,
@@ -78,8 +78,8 @@ export function getTileTextPresentation(
   const cornerScale = isCorner ? 1.12 : 1;
   return {
     value: wrapPropertyName(label, lineCount),
-    fontSize: (lineCount === 1 ? 0.27 : 0.23) * cornerScale,
-    maxWidth: surfaceWidth * 0.92,
+    fontSize: (lineCount === 1 ? 0.30 : 0.255) * cornerScale,
+    maxWidth: surfaceWidth * 0.95,
     lineHeight: 1.03,
     positionZ: isCorner
       ? 0

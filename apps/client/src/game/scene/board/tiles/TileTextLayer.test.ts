@@ -19,8 +19,8 @@ describe('commercial tile typography', () => {
 
     expect(presentation.value).toBe('Cà Mau');
     expect(presentation.value).not.toContain('60.000');
-    expect(presentation.fontSize).toBe(0.31);
-    expect(presentation.maxWidth).toBeCloseTo((size[0] - 0.08) * 0.92);
+    expect(presentation.fontSize).toBe(0.34);
+    expect(presentation.maxWidth).toBeCloseTo((size[0] - 0.08) * 0.95);
     expect(presentation.footer).toBe(true);
     expect(presentation.region).toBe('footer');
     expect(presentation.positionZ).toBeCloseTo(
@@ -38,7 +38,7 @@ describe('commercial tile typography', () => {
 
     expect(tile.streetName).toBe('Buôn Ma Thuột');
     expect(presentation.value).toBe('Buôn Ma\nThuột');
-    expect(presentation.fontSize).toBe(0.25);
+    expect(presentation.fontSize).toBe(0.28);
     expect(presentation.value.split('\n')).toHaveLength(2);
   });
 
@@ -51,7 +51,7 @@ describe('commercial tile typography', () => {
     );
 
     expect(presentation.value).toBe('Khu đô thị\nmới Thủ Thiêm');
-    expect(presentation.fontSize).toBe(0.25);
+    expect(presentation.fontSize).toBe(0.28);
     expect(presentation.value.split('\n')).toHaveLength(2);
   });
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CORNER_SIZE,
+  CENTER_PLATFORM_SIZE,
   EDGE_TILE_DEPTH,
   EDGE_TILE_WIDTH,
   JAIL_BASE_CENTER_Y,
@@ -69,9 +70,11 @@ describe('canonical 2.5D board layout', () => {
     expect(SURFACE_EPSILON).toBeGreaterThan(0);
   });
 
-  it('widens edge tiles while keeping the corner footprint unchanged', () => {
+  it('deepens edge tiles while keeping the corner footprint unchanged', () => {
     expect(EDGE_TILE_WIDTH).toBeGreaterThan(1.4);
+    expect(EDGE_TILE_DEPTH).toBe(3.2);
     expect(CORNER_SIZE).toBe(2.46);
+    expect(CENTER_PLATFORM_SIZE).toBeLessThan(14.41);
     expect(boardLayout.filter(layout => layout.side !== 'CORNER')
       .every(layout => layout.size[0] === EDGE_TILE_WIDTH - TILE_GAP)).toBe(true);
     expect(boardLayout.filter(layout => layout.side === 'CORNER')
