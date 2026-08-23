@@ -19,14 +19,14 @@ for (let y = 0; y < TEXTURE_SIZE; y += 1) {
   }
 }
 
-const CONTACT_SHADOW_TEXTURE = new THREE.DataTexture(
+export const CONTACT_SHADOW_TEXTURE = new THREE.DataTexture(
   textureData,
   TEXTURE_SIZE,
   TEXTURE_SIZE,
   THREE.RGBAFormat,
 );
 CONTACT_SHADOW_TEXTURE.needsUpdate = true;
-const CONTACT_SHADOW_GEOMETRY = new THREE.PlaneGeometry(1, 1);
+export const CONTACT_SHADOW_GEOMETRY = new THREE.PlaneGeometry(1, 1);
 const CONTACT_SHADOW_MATERIAL = new THREE.MeshBasicMaterial({
   map: CONTACT_SHADOW_TEXTURE,
   transparent: true,

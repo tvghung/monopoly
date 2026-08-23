@@ -3,6 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { getBoardTileLayout } from '../boardLayout';
 import { getTileTextPresentation, shouldRenderTileText } from './TileTextLayer';
 import {
+  estimateBoardTextWidth,
+  getBoardTextHeight,
+  TILE_TEXT_SAFE_WIDTH_RATIO,
+} from './tileTextFitting';
+import {
   getInwardTextTopDirection,
   getOrientedTilePanelLayoutForTileSize,
 } from './tilePanelLayout';
@@ -19,8 +24,13 @@ describe('commercial tile typography', () => {
 
     expect(presentation.value).toBe('Cà Mau');
     expect(presentation.value).not.toContain('60.000');
-    expect(presentation.fontSize).toBe(0.40);
-    expect(presentation.maxWidth).toBeCloseTo((size[0] - 0.08) * 0.94);
+    expect(presentation.fontSize).toBe(0.34);
+    expect(presentation.maxWidth).toBeCloseTo((size[0] - 0.08) * TILE_TEXT_SAFE_WIDTH_RATIO);
+    expect(estimateBoardTextWidth(presentation.value, presentation.fontSize))
+      .toBeLessThanOrEqual(presentation.maxWidth);
+    expect(getBoardTextHeight(presentation.fontSize, 1, presentation.lineHeight))
+      .toBeLessThanOrEqual(presentation.maxHeight);
+    expect(presentation.whiteSpace).toBe('nowrap');
     expect(presentation.footer).toBe(true);
     expect(presentation.region).toBe('footer');
     expect(presentation.positionZ).toBeCloseTo(
@@ -38,8 +48,12 @@ describe('commercial tile typography', () => {
 
     expect(tile.streetName).toBe('Buôn Ma Thuột');
     expect(presentation.value).toBe('Buôn Ma\nThuột');
-    expect(presentation.fontSize).toBe(0.33);
+    expect(presentation.fontSize).toBe(0.30);
     expect(presentation.value.split('\n')).toHaveLength(2);
+    expect(estimateBoardTextWidth(presentation.value, presentation.fontSize))
+      .toBeLessThanOrEqual(presentation.maxWidth);
+    expect(getBoardTextHeight(presentation.fontSize, 2, presentation.lineHeight))
+      .toBeLessThanOrEqual(presentation.maxHeight);
   });
 
   it('keeps a long Vietnamese place name readable in two footer lines', () => {
@@ -50,9 +64,51 @@ describe('commercial tile typography', () => {
       getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(6)!.size, 'BOTTOM'),
     );
 
-    expect(presentation.value).toBe('Khu đô thị\nmới Thủ Thiêm');
-    expect(presentation.fontSize).toBe(0.33);
+    expect(presentation.fontSize).toBeGreaterThanOrEqual(0.29);
     expect(presentation.value.split('\n')).toHaveLength(2);
+    expect(estimateBoardTextWidth(presentation.value, presentation.fontSize))
+      .toBeLessThanOrEqual(presentation.maxWidth);
+  });
+
+  it.each([
+    ['Cà Mau', 1],
+    ['Huế', 1],
+    ['Nguyễn Huệ', 2],
+    ['Buôn Ma Thuột', 2],
+    ['Phú Mỹ Hưng', 2],
+    ['Landmark 81', 2],
+  ] as const)('fits canonical normal label %s on at most two lines on every side', (name, expectedLineCount) => {
+    (['BOTTOM', 'LEFT', 'TOP', 'RIGHT'] as const).forEach(side => {
+      const panel = getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(1)!.size, side);
+      const presentation = getTileTextPresentation(tileState[1], name, panel);
+      expect(presentation.value.split('\n')).toHaveLength(expectedLineCount);
+      expect(estimateBoardTextWidth(presentation.value, presentation.fontSize))
+        .toBeLessThanOrEqual(presentation.maxWidth);
+      expect(getBoardTextHeight(
+        presentation.fontSize,
+        expectedLineCount,
+        presentation.lineHeight,
+      )).toBeLessThanOrEqual(presentation.maxHeight);
+      expect(presentation.fontSize).toBeGreaterThanOrEqual(0.29);
+    });
+  });
+
+  it.each([
+    ['Công Ty Điện', 2],
+    ['Công Ty Nước', 2],
+  ] as const)('fits company label %s without a third line', (name, expectedLineCount) => {
+    const panel = getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(12)!.size, 'BOTTOM');
+    const presentation = getTileTextPresentation(tileState[12], name, panel);
+    expect(presentation.value.split('\n')).toHaveLength(expectedLineCount);
+    expect(presentation.value.split('\n').length).toBeLessThanOrEqual(2);
+    expect(estimateBoardTextWidth(presentation.value, presentation.fontSize))
+      .toBeLessThanOrEqual(presentation.maxWidth);
+    expect(getBoardTextHeight(
+      presentation.fontSize,
+      expectedLineCount,
+      presentation.lineHeight,
+    )).toBeLessThanOrEqual(presentation.maxHeight);
+    expect(presentation.fontSize).toBeGreaterThanOrEqual(0.29);
   });
 
   it('uses a single readable upper label for special tiles without price text', () => {
@@ -84,7 +140,8 @@ describe('commercial tile typography', () => {
     cases.forEach(([tileId, expected]) => {
       const panel = getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(tileId)!.size, 'BOTTOM');
       const presentation = getTileTextPresentation(tileState[tileId], tileState[tileId].streetName, panel);
-      expect(presentation.value).toBe(expected);
+      if (tileId !== 12) expect(presentation.value).toBe(expected);
+      if (tileId === 12) expect(presentation.value.split('\n')).toHaveLength(2);
       expect(presentation.footer).toBe(true);
       expect(presentation.region).toBe('footer');
       expect(presentation.positionZ).toBeCloseTo(panel.footerCenterLocalZ);

@@ -13,6 +13,8 @@ export interface SdfTextTarget {
   anchorY: number | string;
   textAlign: string;
   lineHeight: number | string;
+  whiteSpace?: string;
+  overflowWrap?: string;
   color: string | number;
   outlineColor?: string | number;
   outlineWidth?: number | string;
@@ -31,6 +33,8 @@ export interface SdfTextConfig {
   outlineWidth?: number | string;
   outlineOpacity?: number;
   lineHeight?: number;
+  whiteSpace?: 'normal' | 'nowrap';
+  overflowWrap?: 'normal' | 'break-word';
   sdfGlyphSize?: number;
 }
 
@@ -48,6 +52,8 @@ export function configureSdfText(
   text.anchorY = 'middle';
   text.textAlign = 'center';
   text.lineHeight = props.lineHeight ?? 1.05;
+  text.whiteSpace = props.whiteSpace ?? 'normal';
+  text.overflowWrap = props.overflowWrap ?? 'normal';
   text.color = props.color ?? boardVisualTokens.tileText;
   text.outlineColor = props.outlineColor ?? '#000000';
   text.outlineWidth = props.outlineWidth ?? 0;

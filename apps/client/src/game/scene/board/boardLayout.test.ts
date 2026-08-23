@@ -75,10 +75,10 @@ describe('canonical 2.5D board layout', () => {
 
   it('uses the final readability dimensions across sides, corners and center ring', () => {
     expect(EDGE_TILE_WIDTH).toBe(1.6);
-    expect(EDGE_TILE_DEPTH).toBe(3.2);
+    expect(EDGE_TILE_DEPTH).toBe(2.58);
     expect(CORNER_SIZE).toBe(2.46);
     expect(CENTER_PLATFORM_SIZE).toBeCloseTo(INNER_TILE_SURFACE_BOUNDARY * 2);
-    expect(CENTER_PLATFORM_SIZE).toBeLessThan(14.41);
+    expect(CENTER_PLATFORM_SIZE).toBeCloseTo(14.41);
     expect(boardLayout.filter(layout => layout.side !== 'CORNER')
       .every(layout => layout.size[0] === EDGE_TILE_WIDTH - TILE_GAP)).toBe(true);
     expect(boardLayout.filter(layout => layout.side === 'CORNER')

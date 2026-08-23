@@ -4,6 +4,7 @@ import {
   BOARD_FOUNDATION_BEVEL,
   BOARD_FOUNDATION_HEIGHT,
   BOARD_LOWER_CHASSIS_HEIGHT,
+  BOARD_MIDDLE_WALL_HEIGHT,
   BOARD_TOP_DECK_HEIGHT,
   BOARD_CENTER_INSET,
 } from '../architecture/boardArtSpec';
@@ -19,8 +20,6 @@ import {
   FOUNDATION_SIZE,
   OUTER_BOARD_ACCENT_LIFT_Y,
 } from './outerBoardAccent';
-
-const SIDE_WALL_HEIGHT = BOARD_FOUNDATION_HEIGHT - BOARD_LOWER_CHASSIS_HEIGHT - BOARD_TOP_DECK_HEIGHT;
 
 function FoundationOuterAccentLoop() {
   const geometry = useMemo(() => createOuterBoardAccentGeometry(), []);
@@ -61,12 +60,12 @@ export default function BoardFoundation() {
       <RoundedBoxMesh
         name="MutedSideWall"
         width={FOUNDATION_SIZE}
-        height={SIDE_WALL_HEIGHT}
+        height={BOARD_MIDDLE_WALL_HEIGHT}
         depth={FOUNDATION_SIZE}
         radius={BOARD_FOUNDATION_BEVEL * 0.8}
         color={boardVisualTokens.boardBase}
         materialProfile="boardBody"
-        position={[0, BOARD_LOWER_CHASSIS_HEIGHT + SIDE_WALL_HEIGHT / 2, 0]}
+        position={[0, BOARD_LOWER_CHASSIS_HEIGHT + BOARD_MIDDLE_WALL_HEIGHT / 2, 0]}
       />
       <RoundedBoxMesh
         name="TopDeck"

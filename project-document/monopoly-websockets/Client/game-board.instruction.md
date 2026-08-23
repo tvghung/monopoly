@@ -49,8 +49,9 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   ở cả bốn cạnh và footprint khớp tile thật.
 - Property thường chỉ in tên, không in giá trên mặt ô. Cỡ local SDF adaptive là
   `0.40`/`0.33` cho normal và `0.36`/`0.30` cho special: một dòng cho tên ngắn,
-  tối đa hai dòng cho tên dài; maxWidth bằng 94% vùng usable footer/corner.
-  Normal/company và nhãn Chance/Chest/Tax/Railroad đều
+  tối đa hai dòng cho tên dài; manual fitting là source of truth, Troika nhận
+  `whiteSpace='nowrap'`, safe width bằng 90% vùng usable footer/corner và
+  vertical fit kiểm tra theo footer height. Normal/company và nhãn Chance/Chest/Tax/Railroad đều
   dùng footer anchor; raised SVG art dùng top-biased upper anchor; price không render trên
   mặt tile. Text dùng một canonical inward-facing rule theo side, gồm cả hai run
   sát Parking; hai run `LEFT`/`TOP` dùng cùng một camera-facing half-turn cho text và
@@ -81,12 +82,17 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   handcuffs còn Jail dùng cell bars. District art không tràn sang special tile.
 - Beach district dùng shoreline uốn lượn với wave contour thứ hai; palette board/UI
   tăng saturation nhưng giữ upper/footer sáng để text đen vẫn rõ.
-- Corrective pre-Phase-5 readability geometry dùng edge width `1.6`, depth `3.2`,
+- Corrective pre-Phase-5 readability geometry dùng edge width `1.6`, depth `2.58`,
   corner `2.46`, gap `0.05`; mọi body/surface/socket/foundation đều derive từ
   registry. Center platform dùng `INNER_TILE_SURFACE_BOUNDARY * 2`, không còn
-  inset `0.6`; `BoardFrame` rộng `0.14` và center path rộng `0.44` giữ gutter
-  liên tục. Foundation middle layer là `boardBase #70787b`, giữa lower dark
-  layer và upper light layer. Camera giữ hướng cố định, dùng
+  inset `0.6`; shorter depth tự nhiên mở rộng center, `BoardFrame` rộng `0.14`
+  và center path rộng `0.44` giữ gutter liên tục. Foundation là lower `0.16`,
+  middle `0.20`, top `0.12`, tổng `0.48`; middle layer là `boardBase #858d90`,
+  giữa lower dark layer và upper light layer. Text tile dùng manual fitting,
+  hard tối đa 2 dòng, Troika `whiteSpace='nowrap'`, safe width `90%` và floor
+  normal khoảng `0.29`; Start chỉ kéo cao mặt mũi tên vàng `1.20×`. Dice dùng
+  một instanced two-shadow batch, ground-locked, opacity khoảng `0.21 → 0.07`
+  và footprint tối đa `1.35×`, dùng chung vertical-offset helper. Camera giữ hướng cố định, dùng
   `ORTHOGRAPHIC_READABILITY_ZOOM=1.08`, không bỏ fit point của board/dice/stations.
 
 ## State/rendering

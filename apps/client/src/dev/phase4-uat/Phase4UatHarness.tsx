@@ -79,6 +79,7 @@ const scenarios = [
   ['keyboard-card', '26 · Focus / Escape thẻ'],
   ['opponent-turn', '27 · Ẩn Roll khi đối thủ chơi'],
   ['board-readability', '28 · Board readability fixture'],
+  ['dice-contact-shadows', '28 · Dice contact shadows'],
   ['stress', 'Hiệu năng · trạng thái đồng thời'],
 ] as const;
 
@@ -389,6 +390,17 @@ function Phase4UatSurface() {
   }, [controller]);
 
   const applyAnimatedScenario = useCallback((key: ScenarioKey) => {
+    if (key === 'dice-contact-shadows') {
+      commit(next => {
+        next.gameState.boardState.diceValue = { dice1: 5, dice2: 2 };
+        next.gameState.boardState.rollSequence = 1;
+      });
+      schedule(() => commit(next => {
+        next.gameState.boardState.diceValue = { dice1: 2, dice2: 5 };
+        next.gameState.boardState.rollSequence = 2;
+      }), 1_000);
+      return;
+    }
     if (key === 'roll-chance' || key === 'roll-chest') {
       commit(next => {
         const deck = key === 'roll-chance' ? 'chance' : 'chest';

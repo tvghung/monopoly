@@ -11,6 +11,8 @@ export interface SdfSurfaceTextProps {
   fontSize: number;
   maxWidth: number;
   maxHeight?: number;
+  whiteSpace?: 'normal' | 'nowrap';
+  overflowWrap?: 'normal' | 'break-word';
   color?: string;
   lineHeight?: number;
   sdfGlyphSize?: number;
@@ -35,6 +37,8 @@ export default function SdfSurfaceText({
   fontSize,
   maxWidth,
   maxHeight,
+  whiteSpace = 'normal',
+  overflowWrap = 'normal',
   color = boardVisualTokens.tileText,
   lineHeight = 1.05,
   sdfGlyphSize = TILE_SDF_GLYPH_SIZE,
@@ -57,11 +61,13 @@ export default function SdfSurfaceText({
       fontSize,
       maxWidth,
       maxHeight,
+      whiteSpace,
+      overflowWrap,
       color,
       lineHeight,
       sdfGlyphSize,
     }, invalidate);
-  }, [color, fontSize, invalidate, lineHeight, maxHeight, maxWidth, sdfGlyphSize, textObject, value]);
+  }, [color, fontSize, invalidate, lineHeight, maxHeight, maxWidth, overflowWrap, sdfGlyphSize, textObject, value, whiteSpace]);
 
   useEffect(() => {
     const generation = disposeGeneration.current + 1;

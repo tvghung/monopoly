@@ -1,9 +1,10 @@
-import { DICE_DROP_HEIGHT } from './diceLayout';
+import { BASE_DICE_SIZE, DICE_DROP_HEIGHT } from './diceLayout';
 
 export type DiceEuler = readonly [number, number, number];
 
 const TWO_PI = Math.PI * 2;
 export const DICE_REROLL_LIFT_RATIO = 0.18;
+export const DICE_BOUNCE_HEIGHT = BASE_DICE_SIZE * 0.13;
 
 const SETTLED_FACE_ROTATIONS: Record<number, DiceEuler> = {
   // The procedural die labels its top face as 1. These rotations put the
@@ -55,6 +56,22 @@ export function getDiceAnimationHeight(progress: number, hasPreviousDice: boolea
   }
   const dropProgress = (clamped - DICE_REROLL_LIFT_RATIO) / (1 - DICE_REROLL_LIFT_RATIO);
   return (1 - easeOutCubic(dropProgress)) * DICE_DROP_HEIGHT;
+}
+
+export function getDiceBounceOffset(progress: number): number {
+  const clamped = Math.min(1, Math.max(0, progress));
+  const bounceProgress = clamped <= 0.72 ? 0 : (clamped - 0.72) / 0.28;
+  return Math.sin(bounceProgress * Math.PI * 2.5)
+    * DICE_BOUNCE_HEIGHT
+    * (1 - Math.min(1, bounceProgress));
+}
+
+/** Shared vertical offset for the die mesh and its ground shadow. */
+export function getDiceAnimationVerticalOffset(
+  progress: number,
+  hasPreviousDice: boolean,
+): number {
+  return getDiceAnimationHeight(progress, hasPreviousDice) + getDiceBounceOffset(progress);
 }
 
 export function getDiceAnimationRotation(

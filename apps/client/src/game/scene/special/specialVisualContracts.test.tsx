@@ -27,6 +27,7 @@ import RailroadVisual, {
   TRAIN_WAGON_COUNT,
 } from './RailroadVisual';
 import StartSignVisual, {
+  START_SIGN_ARROW_HEIGHT_SCALE,
   START_SIGN_HEIGHT_SCALE,
   START_SIGN_LABEL,
   START_SIGN_NATIVE_WIDTH,
@@ -180,7 +181,9 @@ describe('Phase 2.5G special visual contracts', () => {
     expect(START_SIGN_LABEL).toBe('Start');
     expect(START_SIGN_TRAVEL_ROTATION_Y).toBe(0);
     expect(START_SIGN_WIDTH_SCALE).toBeGreaterThan(1.25);
-    expect(START_SIGN_HEIGHT_SCALE).toBeGreaterThanOrEqual(1.16);
+    expect(START_SIGN_ARROW_HEIGHT_SCALE).toBeGreaterThanOrEqual(1.18);
+    expect(START_SIGN_ARROW_HEIGHT_SCALE).toBeLessThanOrEqual(1.22);
+    expect(START_SIGN_HEIGHT_SCALE).toBe(START_SIGN_ARROW_HEIGHT_SCALE);
     expect(getStartSignWidthScale(cornerPanel)).toBeCloseTo(START_SIGN_WIDTH_SCALE);
     expect((START_SIGN_NATIVE_WIDTH * START_SIGN_WIDTH_SCALE) / cornerPanel.surfaceSize[0])
       .toBeCloseTo(START_SIGN_TARGET_WIDTH_RATIO);

@@ -19,7 +19,10 @@ export const START_SIGN_LABEL = 'Start';
 export const START_SIGN_TRAVEL_ROTATION_Y = getBoardTileLayout(0)?.rotation[1] ?? 0;
 export const START_SIGN_NATIVE_WIDTH = 1.55;
 export const START_SIGN_TARGET_WIDTH_RATIO = 0.92;
-export const START_SIGN_HEIGHT_SCALE = 1.2;
+/** The arrow face is taller; the planted posts and label keep their native height. */
+export const START_SIGN_ARROW_HEIGHT_SCALE = 1.2;
+/** @deprecated Use START_SIGN_ARROW_HEIGHT_SCALE; retained for existing visual-contract consumers. */
+export const START_SIGN_HEIGHT_SCALE = START_SIGN_ARROW_HEIGHT_SCALE;
 
 export function getStartSignWidthScale(panel: TilePanelLayout): number {
   return panel.surfaceSize[0] * START_SIGN_TARGET_WIDTH_RATIO / START_SIGN_NATIVE_WIDTH;
@@ -94,11 +97,12 @@ export default function StartSignVisual({ panel }: StartSignVisualProps) {
       name="StartSignVisual"
       position={[0, TILE_SURFACE_CLEARANCE_Y, 0]}
       rotation={[0, START_SIGN_TRAVEL_ROTATION_Y + panel.contentRotationY, 0]}
-      scale={[widthScale, START_SIGN_HEIGHT_SCALE, widthScale]}
+      scale={[widthScale, 1, widthScale]}
       userData={{
         label: START_SIGN_LABEL,
         points: 'tile-0-travel-left',
-        visualScale: [widthScale, START_SIGN_HEIGHT_SCALE],
+        visualScale: [widthScale, 1],
+        arrowHeightScale: START_SIGN_ARROW_HEIGHT_SCALE,
         usableCornerWidth: panel.surfaceSize[0],
         targetWidthRatio: START_SIGN_TARGET_WIDTH_RATIO,
       }}
@@ -123,7 +127,13 @@ export default function StartSignVisual({ panel }: StartSignVisualProps) {
         materialProfile="propertyTrim"
         position={[0.42, 0.22, 0]}
       />
-      <mesh name="StartArrowSign" geometry={geometry} position={[0, 0.5, 0]}>
+      <mesh
+        name="StartArrowSign"
+        geometry={geometry}
+        position={[0, 0.5, 0]}
+        scale={[1, START_SIGN_ARROW_HEIGHT_SCALE, 1]}
+        userData={{ surface: 'yellow-arrow-face', heightScale: START_SIGN_ARROW_HEIGHT_SCALE }}
+      >
         <meshStandardMaterial color={boardVisualTokens.startSignFace} roughness={0.38} metalness={0.04} />
       </mesh>
       <StartSignText />

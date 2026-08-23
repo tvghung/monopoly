@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { DiceValue } from '@monopoly/shared';
 import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
@@ -7,7 +7,6 @@ import { boardVisualTokens } from '../board/boardVisualTokens';
 import SdfSurfaceText from '../board/tiles/SdfSurfaceText';
 import type { DiceRenderModel } from '../board/boardRenderModel';
 import {
-  BASE_DICE_SIZE,
   DICE_SIZE,
   getDicePosition,
   getDiceResultPosition,
@@ -19,8 +18,8 @@ import {
 } from './diceGeometry';
 import {
   easeOutCubic,
-  getDiceAnimationHeight,
   getDiceAnimationRotation,
+  getDiceAnimationVerticalOffset,
   getSettledDiceRotation,
   isValidDiceFace,
 } from './diceOrientation';
@@ -42,8 +41,8 @@ import {
   DICE_PIP_RADIUS,
   DICE_RESULT_FONT_SIZE,
 } from './diceVisualConfig';
-
-const DICE_BOUNCE_HEIGHT = BASE_DICE_SIZE * 0.13;
+import DiceContactShadowBatch from './DiceContactShadowBatch';
+import { DiceAnimationClock, useDiceAnimationProgressRef } from './diceAnimationClock';
 
 function DieFaces() {
   const faces = useMemo(() => getDiceFaceSpecs(), []);
@@ -116,46 +115,30 @@ function Die({
   value,
   phase,
   rollSequence,
-  durationMs,
   fromValue,
 }: {
   dieIndex: 0 | 1;
   value: number;
   phase: DiceRenderModel['phase'];
   rollSequence: number;
-  durationMs: number;
   fromValue?: number;
 }) {
   const groupRef = useRef<THREE.Group>(null);
-  const invalidate = useThree(state => state.invalidate);
-  const animationStartRef = useRef<number | null>(null);
+  const progressRef = useDiceAnimationProgressRef();
   const basePosition = getDicePosition(dieIndex);
   const isRolling = phase === 'ROLLING';
   const hasPreviousDice = isValidDiceFace(fromValue ?? 0);
 
-  useEffect(() => {
-    animationStartRef.current = isRolling ? performance.now() : null;
-    if (isRolling) invalidate();
-  }, [invalidate, isRolling, rollSequence]);
-
   useFrame(() => {
-    if (!isRolling || !groupRef.current || animationStartRef.current === null) return;
-    const progress = durationMs <= 0
-      ? 1
-      : Math.min(1, Math.max(0, (performance.now() - animationStartRef.current) / durationMs));
+    if (!isRolling || !groupRef.current) return;
+    const progress = progressRef.current.progress;
     const eased = easeOutCubic(progress);
-    const bounceProgress = progress <= 0.72 ? 0 : (progress - 0.72) / 0.28;
-    const bounce = Math.sin(bounceProgress * Math.PI * 2.5)
-      * DICE_BOUNCE_HEIGHT
-      * (1 - Math.min(1, bounceProgress));
     const rotation = getDiceAnimationRotation(value, rollSequence, dieIndex, progress, fromValue);
     groupRef.current.rotation.set(...rotation);
     groupRef.current.position.y = basePosition[1]
-      + getDiceAnimationHeight(progress, hasPreviousDice)
-      + bounce;
+      + getDiceAnimationVerticalOffset(progress, hasPreviousDice);
     const scale = hasPreviousDice ? 1 : 0.86 + eased * 0.14;
     groupRef.current.scale.setScalar(scale);
-    if (progress < 1) invalidate();
   });
 
   const rotation = isRolling
@@ -167,7 +150,7 @@ function Die({
       ref={groupRef}
       name={`ProceduralDie${dieIndex + 1}`}
       position={isRolling
-        ? [basePosition[0], basePosition[1] + getDiceAnimationHeight(0, hasPreviousDice), basePosition[2]]
+        ? [basePosition[0], basePosition[1] + getDiceAnimationVerticalOffset(0, hasPreviousDice), basePosition[2]]
         : basePosition}
       rotation={rotation}
       scale={isRolling && !hasPreviousDice ? 0.86 : 1}
@@ -203,13 +186,17 @@ export default function DiceLayer({ model }: { model: DiceRenderModel }) {
     >
       {hasVisibleDice
         ? (
-          <>
+          <DiceAnimationClock
+            phase={model.phase === 'ROLLING' ? 'ROLLING' : 'SETTLED'}
+            rollSequence={model.rollSequence}
+            durationMs={model.durationMs}
+          >
+            <DiceContactShadowBatch fromDice={model.fromDice} />
             <Die
               dieIndex={0}
               value={model.dice.dice1}
               phase={model.phase}
               rollSequence={model.rollSequence}
-              durationMs={model.durationMs}
               fromValue={model.fromDice?.dice1}
             />
             <Die
@@ -217,7 +204,6 @@ export default function DiceLayer({ model }: { model: DiceRenderModel }) {
               value={model.dice.dice2}
               phase={model.phase}
               rollSequence={model.rollSequence}
-              durationMs={model.durationMs}
               fromValue={model.fromDice?.dice2}
             />
             {model.phase === 'SETTLED'
@@ -232,7 +218,7 @@ export default function DiceLayer({ model }: { model: DiceRenderModel }) {
                 />
               )
               : null}
-          </>
+          </DiceAnimationClock>
         )
         : null}
     </group>

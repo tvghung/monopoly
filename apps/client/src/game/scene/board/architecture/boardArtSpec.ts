@@ -5,10 +5,13 @@
  * thickness, bevel, clearance, and presentation dimensions used to build the
  * physical board around that layout.
  */
-export const BOARD_FOUNDATION_HEIGHT = 0.42;
+export const BOARD_FOUNDATION_HEIGHT = 0.48;
 export const BOARD_FOUNDATION_BEVEL = 0.16;
 export const BOARD_LOWER_CHASSIS_HEIGHT = 0.16;
 export const BOARD_TOP_DECK_HEIGHT = 0.12;
+export const BOARD_MIDDLE_WALL_HEIGHT = BOARD_FOUNDATION_HEIGHT
+  - BOARD_LOWER_CHASSIS_HEIGHT
+  - BOARD_TOP_DECK_HEIGHT;
 export const BOARD_FRAME_HEIGHT = 0.07;
 export const BOARD_FRAME_BEVEL = 0.025;
 export const BOARD_FRAME_WIDTH = 0.14;

@@ -15,7 +15,7 @@ export type BoardSide = 'BOTTOM' | 'LEFT' | 'TOP' | 'RIGHT' | 'CORNER';
 /** Canonical 40-tile ring dimensions; readability comes from camera framing. */
 export const CORNER_SIZE = 2.46;
 export const EDGE_TILE_WIDTH = 1.6;
-export const EDGE_TILE_DEPTH = 3.2;
+export const EDGE_TILE_DEPTH = 2.58;
 export const TILE_GAP = 0.05;
 export const TILE_HEIGHT = TILE_BODY_HEIGHT;
 export const PLATFORM_HEIGHT = BOARD_FOUNDATION_HEIGHT;

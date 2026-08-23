@@ -1753,92 +1753,75 @@ Phase 5-audio gap was introduced.
 
 ## 21. Corrective pre-Phase-5 board proportion/readability pass (2026-08-23)
 
-This client-only corrective pass closes the requested pre-Phase-5 board
-proportion/readability scope. It changes no server rule, protocol, authoritative
-state, movement baseline, dice/card contract, reconnect behavior, reduced-motion
-semantics, presentation queue, or render architecture.
+This client-only pass is bounded to the five requested board corrections. It
+changes no server rule, protocol, authoritative state, movement baseline,
+dice/card contract, reconnect behavior, reduced-motion semantics, presentation
+queue, or camera.
 
 ### 21.1 Final geometry and visual contract
 
-- The canonical registry now uses `EDGE_TILE_WIDTH=1.6`,
-  `EDGE_TILE_DEPTH=3.2`, `CORNER_SIZE=2.46`, and `TILE_GAP=0.05`. Body,
-  surface, socket, foundation, frame and outer accent derive from this layout;
-  there are no per-tile geometry overrides.
-- `CENTER_PLATFORM_SIZE` derives from `INNER_TILE_SURFACE_BOUNDARY * 2`; the
-  distorted-layout compensation `CENTER_PLATFORM_INSET=0.6` is removed.
-  `BOARD_FRAME_WIDTH=0.14` and `CENTER_ORTHOGONAL_PATH_WIDTH=0.44` retain a
-  continuous readable ring without overlapping the airport field. The middle
-  foundation is `boardBase #70787b`, between the existing dark lower and light
-  upper layers.
-- Local SDF text remains inward-facing and capped at two lines. Final sizes are
-  normal `0.40/0.33`, special `0.36/0.30`, with max width `94%` of the usable
-  panel. The existing 70/30 panel and canonical SVG/icon anchors remain shared.
-- Ownership remains the authoritative `ownedProps → BoardRenderModel →
-  TileOwnershipLayer` path. The flag is now `0.56` pole height with cloth
-  `0.48 × 0.25`, canonical player colors, and tile-local placement outside the
-  upper panel so it remains separate from text, divider and buildings.
-- Start derives its scale from tile `0`'s real corner panel and targets `92%`
-  of usable corner width. Its planted left-pointing body, enlarged posts and
-  label remain inside the corner surface.
-- Jail now uses `72%` corner width and `68%` depth without the old `0.9` depth
-  cap. Parking keeps the clean `78%` asphalt footprint while scaling actual
-  cars `1.18×` and tightening their spacing. Go To Jail handcuffs use `89%`
-  corner width and `82%` height; side railroad, utility, Chance and Khí Vận
-  safe ratios remain unchanged.
-- House/hotel dimensions and `tileAnchors` were enlarged together. Levels 1–4
-  still render Nhà and level 5 still renders Khách Sạn; existing sequential
-  build, hotel transition, recolor, reconnect and Reduced Motion paths remain.
-- Fixed orthographic direction, distance and board/dice/station fit points are
-  unchanged; `FixedBoardCamera` applies centralized
-  `ORTHOGRAPHIC_READABILITY_ZOOM=1.08`. The board remains uncropped at `1280×720`,
-  `1440×900` and `1920×1080`.
+- The canonical registry uses `EDGE_TILE_WIDTH=1.6`, `EDGE_TILE_DEPTH=2.58`,
+  `CORNER_SIZE=2.46`, and the existing `TILE_GAP=0.05`. `CENTER_PLATFORM_SIZE`
+  remains a natural derivation from the inner boundary, so the shorter edge
+  depth enlarges the center without a separate center override. The center path
+  remains `0.44`.
+- Foundation height is `0.48`, split into lower `0.16`, middle `0.20`, and
+  top `0.12`. The middle layer uses `boardBase #858d90`; all layer positions
+  derive from those constants.
+- Local SDF text has a hard maximum of two visible lines. Manual fitting is the
+  source of truth, Troika receives explicit `whiteSpace='nowrap'`, safe width
+  is `90%` of the usable panel, and two-line text is checked against the footer
+  height. Normal fitting floors at approximately `0.29`; regression coverage
+  includes `Cà Mau`, `Huế`, `Nguyễn Huệ`, `Buôn Ma Thuột`, `Phú Mỹ Hưng`,
+  `Landmark 81`, `Công Ty Điện` and `Công Ty Nước`.
+- Start preserves the existing width ratio, planted posts, label, orientation
+  and corner footprint. Only the yellow arrow face is `1.20×` taller.
+- Dice use one instanced two-shadow batch on the airport field. Shadows remain
+  ground-locked and interpolate from approximately `0.21` opacity and `1.0×`
+  footprint at rest to `0.07` opacity and `1.35×` footprint at maximum lift,
+  using the die's actual vertical animation offset for first drop, reroll,
+  tumble/bounce, settled and hidden states.
 
 ### 21.2 Deterministic UAT fixture and visual evidence
 
-The existing `Phase4UatHarness` was extended with one static
-`board-readability` scenario; no second harness was created. It renders all 40
-semantic tiles, all four corners, short and two-line Vietnamese names, special
-SVGs, unowned tiles, four canonical ownership colors, 1/2/4-house examples,
-hotel, Start, Jail, Parking, Go To Jail, dice/station context and the grey
-foundation. The four owned examples are tiles `1`, `3`, `6`, and `9` so the
-fixture remains representative without adding unnecessary render load.
+The existing `Phase4UatHarness` was extended with the static
+`board-readability` scenario and the animated `dice-contact-shadows` scenario;
+no second harness was created. The board scenario renders the complete ring,
+all corners, short and two-line Vietnamese names, special SVGs, ownership and
+building examples, Start, foundation and the unchanged center field. Dice are
+validated separately by the animated scenario.
 
-| Viewport | Visual result | Renderer diagnostics |
+| Scenario / viewport | Observed result | Renderer diagnostics |
 | --- | --- | --- |
-| `1280×720` | Full board, natural side proportions, enlarged corners, readable text/icons/buildings, visible Start | `227` draw / `68,230` triangles |
-| `1440×900` | Same fixed direction and complete ring; Start and station/HUD context remain visible | `227` draw / `68,230` triangles |
-| `1920×1080` | Same proportions with clear center ring and all four sides/corners | `227` draw / `68,230` triangles |
+| `board-readability` / `1280×720` | Full board, natural side proportions, readable labels/icons/buildings, visible Start and foundation | `227` draw / `68,278` triangles; logs `0/0` |
+| `board-readability` / `1440×900` | Same fixed direction and complete ring with a clear center | `227` draw / `68,278` triangles; logs `0/0` |
+| `board-readability` / `1920×1080` | Same proportions with all four sides/corners and readable center typography | `227` draw / `68,278` triangles; logs `0/0` |
+| `dice-contact-shadows` / `1280×720` | Initial lift, reroll/tumble and settled states observed; shadows stay under the dice | Rolling: `216` draw / `76,666` triangles / active `2`; settled: queue idle, dice settled |
+| `dice-contact-shadows` / `1440×900` | Active dice and compact contact shadows remain visible without board clipping | Rolling: `216` draw / `76,666` triangles / active `2` |
+| `dice-contact-shadows` / `1920×1080` | Active dice and contact shadows remain visible at the wide viewport | Rolling: `216` draw / `76,666` triangles / active `2` |
 
-The fixture is below the hard `<240` draw-call and `<100,000` triangle limits;
-it is above the normal `≤210` target because it deliberately combines four
-players with all four ownership/building cases. No budget constant was raised.
-The stored captures are `corrective-board-readability-after-1280x720.png`,
-`corrective-board-readability-after-1440x900.png` and
-`corrective-board-readability-after-1920x1080.png`; the earlier 1280 capture is
-the same-fixture before evidence for the proportion comparison. A separate
-`roll-chance` check showed the dice arena at 1280×720 with `216` draw calls and
-`76,304` triangles; only the existing Three.js deprecation warning appeared.
-
-The same harness also completed `house-4` (`queue idle`, `build 4/4`), `hotel`
-(`queue idle`, `build 5/5`), `construction-reduced` (`queue idle`, `active 0`)
-and `owner-recolor` (`build 4/4`). Browser logs contained only the pre-existing
-Three.js `THREE.Clock` deprecation warning; no runtime error was observed.
+The board fixture remains below the hard `<240` draw-call and `<100,000`
+triangle limits; no budget constant was raised. Screenshots were captured in
+the in-app Browser during this pass at all requested viewports; no persisted
+local screenshot filenames are claimed. The only browser console message was
+the pre-existing `THREE.Clock` deprecation warning; no shader or runtime error
+was observed after the shared shadow material was corrected.
 
 ### 21.3 Validation status for this pass
 
 | Gate | Result | Evidence |
 | --- | --- | --- |
-| Database migration status | **PASS** | `pnpm db:status`; migrations 001–008 applied |
+| Database migration status | **PASS** | `pnpm db:status`; migrations 001–008 reported applied |
 | Root typecheck | **PASS** | `pnpm typecheck` |
 | Workspace lint | **PASS** | `pnpm lint` |
-| Full workspace tests | **PASS** | desktop 12; server 142 passed with 9 database-gated skipped; client 422 |
-| PostgreSQL-backed server tests | **NOT RUN** | no `TEST_DATABASE_URL` execution in this pass |
+| Full workspace tests | **PASS** | desktop 12; server 142 passed with 9 database-gated skipped; client 435 |
+| PostgreSQL-backed server tests | **NOT RUN** | The 9 database-gated tests remained skipped because no `TEST_DATABASE_URL` run was authorized/available |
 | Production client build | **PASS** | `pnpm build`; existing large-chunk warning only |
-| Focused board tests | **PASS** | board/layout, text, ownership, special, building and camera suites |
-| Phase4UatHarness visual fixtures | **PASS** | board readability at all three viewports; building/reduced-motion fixtures above |
-| Electron visual/semantic smoke | **NOT RUN** | no cross-application capture/control in this pass |
-| Remote CI / push / merge | **NOT RUN** | not authorized |
+| Focused board/dice tests | **PASS** | 9 focused suites, 66 tests passed |
+| Phase4UatHarness visual fixtures | **PASS** | Board readability and dice shadow states observed at all three viewports |
+| Electron visual/semantic smoke | **NOT RUN** | No cross-application capture/control in this pass |
+| Remote CI / push / merge | **NOT RUN** | Not authorized |
 
-The implementation is ready for Phase 5 as a local working-tree change. Live
-multiplayer gameplay evidence and Electron visual evidence remain separate
-unavailable gates, not inferred from the deterministic board fixture.
+The implementation remains a local working-tree change. Live multiplayer
+gameplay evidence and Electron visual evidence remain separate unavailable
+gates, not inferred from the deterministic board fixture.
