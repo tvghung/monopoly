@@ -2,10 +2,19 @@ import {
   BOARD_BOUNDING_RADIUS,
   OUTER_BOARD_SIZE,
 } from '../board/boardLayout';
+import {
+  DICE_DROP_HEIGHT,
+  DICE_SIZE,
+  getDiceArenaBounds,
+  getDicePosition,
+} from '../dice/diceLayout';
+import { PLAYER_STATION_SCENE_POINTS } from '../stations/stationWorld';
 
 export const DEFAULT_CAMERA_FOV = 40;
-export const DEFAULT_FRAMING_MARGIN = 1.06;
+export const DEFAULT_FRAMING_MARGIN = 1.02;
 export const ORTHOGRAPHIC_CAMERA_DISTANCE = 32;
+/** Centralized readability framing for the fixed orthographic board view. */
+export const ORTHOGRAPHIC_READABILITY_ZOOM = 1.08;
 export const CAMERA_DIRECTION: readonly [number, number, number] = (() => {
   const length = Math.hypot(1, 1.25, 1);
   return [1 / length, 1.25 / length, 1 / length];
@@ -48,6 +57,22 @@ export const BOARD_FIT_CORNERS: readonly Vector3[] = [
       [-BOARD_FIT_HALF_EXTENT, BOARD_FIT_HALF_EXTENT].map(z => [x, y, z] as Vector3)
     ))
   )),
+];
+
+const diceBounds = getDiceArenaBounds();
+const diceCenterY = getDicePosition(0)[1];
+export const DICE_ANIMATION_FIT_POINTS: readonly Vector3[] = [
+  ...[diceCenterY - DICE_SIZE / 2, diceCenterY + DICE_DROP_HEIGHT + DICE_SIZE / 2].flatMap(y => (
+    [diceBounds.minX, diceBounds.maxX].flatMap(x => (
+      [diceBounds.minZ, diceBounds.maxZ].map(z => [x, y, z] as Vector3)
+    ))
+  )),
+];
+
+export const SCENE_FIT_POINTS: readonly Vector3[] = [
+  ...BOARD_FIT_CORNERS,
+  ...PLAYER_STATION_SCENE_POINTS,
+  ...DICE_ANIMATION_FIT_POINTS,
 ];
 
 export interface CameraFramingOptions {
@@ -93,7 +118,7 @@ export function calculateProjectedCornerCameraDistance(
   const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * safeAspect);
   const verticalLimit = Math.tan(verticalFov / 2);
   const horizontalLimit = Math.tan(horizontalFov / 2);
-  const corners = options.boardCorners ?? BOARD_FIT_CORNERS;
+  const corners = options.boardCorners ?? SCENE_FIT_POINTS;
 
   const requiredDistance = corners.reduce((required, corner) => {
     const depthOffset = dot(corner, CAMERA_FORWARD);
@@ -131,7 +156,7 @@ export function calculateOrthographicHalfHeight(
 ): number {
   const safeAspect = Number.isFinite(aspect) && aspect > 0 ? aspect : 1;
   const framingMargin = getSafeFramingMargin(options.framingMargin);
-  const corners = options.boardCorners ?? BOARD_FIT_CORNERS;
+  const corners = options.boardCorners ?? SCENE_FIT_POINTS;
   const projectedHalfWidth = Math.max(...corners.map(corner => Math.abs(dot(corner, CAMERA_RIGHT))));
   const projectedHalfHeight = Math.max(...corners.map(corner => Math.abs(dot(corner, CAMERA_UP))));
   return Math.max(projectedHalfHeight, projectedHalfWidth / safeAspect) * framingMargin;

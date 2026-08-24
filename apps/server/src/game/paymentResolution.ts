@@ -44,7 +44,6 @@ const returnHeldCardsToDeck = (state: GameState, playerId: PlayerId): void => {
 const finishElimination = (state: GameState, playerId: PlayerId, reason: FinishedPlayerReason): void => {
   const player = state.players[playerId];
   if (!player) return;
-  player.accountBalance = 0;
   returnHeldCardsToDeck(state, playerId);
   removePlayerFromGame(state, playerId, reason, { deferWinner: true });
   checkWinner(state);

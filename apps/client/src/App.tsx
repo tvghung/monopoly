@@ -7,6 +7,7 @@ import {
 } from 'react';
 import type {
   AckError,
+  Ack,
   AckCallback,
   JoinRoomRequest,
   OfferResult,
@@ -17,7 +18,9 @@ import type {
   RoomRole,
   SessionReplacedInfo,
   ForcedSaleProposal,
+  SetAppearanceRequest,
 } from '@monopoly/shared';
+import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
 import Board from './components/Board';
 import ConnectionOverlay from './components/ConnectionOverlay';
 import JoinForm from './components/JoinForm';
@@ -33,12 +36,16 @@ import { localizeAckError } from './presentation';
 import { createSocket } from './network/createSocket';
 import { PresentationController, type SnapshotSource } from './game/presentation/PresentationController';
 import { PresentationProvider } from './game/presentation/PresentationProvider';
+import CardInteractionOverlay, {
+  CardInteractionProvider,
+} from './game/ui/events/CardInteractionOverlay';
 import {
   clearPlayerSession,
   readPlayerSession,
   writePlayerSession,
 } from './playerSessionStorage';
 import type { AppSocket, SocketFunctions } from './types';
+import { requestRollDiceAck } from './rollDiceRequest';
 import { getDefaultWebRuntimeConfig } from './runtime/runtimeConfig';
 import type { RuntimeConfig } from './runtime/types';
 import './App.css';
@@ -54,6 +61,8 @@ const initialState: PublicGameState = {
     turnRecovery: null,
     logs: [],
     diceValue: { dice1: 0, dice2: 0 },
+    rollSequence: 0,
+    gameplayEvents: { sequence: 0, events: [] },
     ownedProps: {},
     winner: null,
     paymentShortfall: null,
@@ -157,7 +166,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
   const [role, setRole] = useState<RoomRole | null>(null);
   const [connected, setConnected] = useState(socket.connected);
   const [failure, setFailure] = useState<AppFailure | null>(null);
-  const [operation, setOperation] = useState<'ready' | 'start' | 'leave' | null>(null);
+  const [operation, setOperation] = useState<'ready' | 'appearance' | 'start' | 'leave' | null>(null);
   const [operationError, setOperationError] = useState<string | null>(null);
   const [privatePlayerState, setPrivatePlayerState] = useState<PrivatePlayerState | null>(null);
   const [privateOffers, setPrivateOffers] = useState<PrivateOffer[]>([]);
@@ -261,10 +270,15 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
           ? response.data.privatePlayerState
           : null,
       );
+      presentationController.acceptPrivatePlayerState(
+        response.data.privatePlayerState,
+        response.data.room,
+        'SESSION_SYNC',
+      );
       setPrivateOffers(response.data.pendingOffers.filter(offer => offer.status === 'PENDING'));
        applyRoom(response.data.room, true, 'SESSION_SYNC');
     });
-  }, [applyRoom, failSession, setIdentity, socket, transition]);
+  }, [applyRoom, failSession, presentationController, setIdentity, socket, transition]);
 
   const joinRoom = useCallback((request: JoinRoomRequest, reconnecting = false) => {
     if (!socket.connected) {
@@ -389,6 +403,8 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
     const onPrivatePlayerState = (incoming: PrivatePlayerState) => {
       if (roleRef.current !== 'PLAYER' || playerIdRef.current !== incoming.playerId) return;
       setPrivatePlayerState(incoming);
+      const currentRoom = roomRef.current;
+      if (currentRoom) presentationController.acceptPrivatePlayerState(incoming, currentRoom, 'LIVE_UPDATE');
     };
 
     const onForcedSaleProposal = (proposal: ForcedSaleProposal | null) => {
@@ -467,7 +483,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       socket.off('session replaced', onSessionReplaced);
       socket.disconnect();
     };
-  }, [applyRoom, joinRoom, resumeSession, socket, toast, transition]);
+  }, [applyRoom, joinRoom, presentationController, resumeSession, socket, toast, transition]);
 
   const showCommandFailure = useCallback((response: { ok: true } | { ok: false; error: AckError }) => {
     if (!response.ok) toast.show(localizeAckError(response.error));
@@ -480,26 +496,68 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
     && room.players.some(player => player.playerId === playerId && player.membershipStatus === 'ACTIVE');
 
   const socketFunctions = useMemo<SocketFunctions>(() => {
-    const gameCommandAllowed = () => {
+    const gameCommandAllowed = (showFailure = true) => {
       if (canMutate) return true;
-      toast.show('Không thể thao tác khi đang kết nối lại hoặc xem với vai trò khán giả.');
+      if (showFailure) {
+        toast.show('Không thể thao tác khi đang kết nối lại hoặc xem với vai trò khán giả.');
+      }
       return false;
     };
     const ack: AckCallback = showCommandFailure;
+    const unavailableAck = (): Ack => ({
+      ok: false,
+      protocolVersion: SOCKET_PROTOCOL_VERSION,
+      error: {
+        code: 'FORBIDDEN',
+        message: 'Gameplay action is not available.',
+        retryable: false,
+      },
+    });
+    const sendAck = <T = void>(send: (callback: AckCallback<T>) => void): Promise<Ack<T>> => new Promise(resolve => {
+      send(response => {
+        resolve(response);
+      });
+    });
 
     return {
-      rollDice: () => { if (gameCommandAllowed()) socket.emit('roll dice', ack); },
+      rollDice: () => {
+        if (!gameCommandAllowed(false)) {
+          return Promise.resolve({
+            ok: false,
+            protocolVersion: SOCKET_PROTOCOL_VERSION,
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Gameplay action is not available.',
+              retryable: false,
+            },
+          } satisfies Ack);
+        }
+        return requestRollDiceAck(socket);
+      },
       buyProperty: (operationId) => {
-        if (!gameCommandAllowed()) return;
-        socket.emit('buy property', { operationId }, ack);
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('buy property', { operationId }, callback));
       },
       doNotBuy: (operationId) => {
-        if (gameCommandAllowed()) socket.emit('do not buy', { operationId }, ack);
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('do not buy', { operationId }, callback));
       },
       resolveDevelopment: (request) => {
-        if (gameCommandAllowed()) socket.emit('resolve development', request, ack);
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('resolve development', request, callback));
       },
-      waitInJail: () => { if (gameCommandAllowed()) socket.emit('wait in jail', ack); },
+      drawCard: (operationId) => {
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('draw card', { operationId }, callback));
+      },
+      dismissCard: (operationId) => {
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('dismiss card', { operationId }, callback));
+      },
+      waitInJail: () => {
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('wait in jail', callback));
+      },
       sendChat: (message) => {
         if (connected) socket.emit('send chat', message, ack);
       },
@@ -516,19 +574,31 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       sellHouse: (tileID) => {
         if (gameCommandAllowed()) socket.emit('sell house', tileID, ack);
       },
-      payBail: () => { if (gameCommandAllowed()) socket.emit('pay bail', ack); },
-      useJailCard: () => { if (gameCommandAllowed()) socket.emit('use jail card', ack); },
+      payBail: () => {
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('pay bail', callback));
+      },
+      useJailCard: () => {
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('use jail card', callback));
+      },
       sellPropertyToBank: (request) => {
-        if (gameCommandAllowed()) socket.emit('sell property to bank', request, ack);
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('sell property to bank', request, callback));
       },
       proposeForcedSale: (request) => {
-        if (gameCommandAllowed()) socket.emit('propose forced sale', request, response => showCommandFailure(response));
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck<{ proposalId: string; expiresAt: string }>(
+          callback => socket.emit('propose forced sale', request, callback),
+        ) as Promise<Ack>;
       },
       acceptForcedSale: (proposalId) => {
-        if (gameCommandAllowed()) socket.emit('accept forced sale', { proposalId }, ack);
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('accept forced sale', { proposalId }, callback));
       },
       rejectForcedSale: (proposalId) => {
-        if (gameCommandAllowed()) socket.emit('reject forced sale', { proposalId }, ack);
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('reject forced sale', { proposalId }, callback));
       },
     };
   }, [canMutate, connected, showCommandFailure, socket, toast]);
@@ -541,6 +611,15 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
     setOperation('ready');
     setOperationError(null);
     socket.emit('set ready', { ready }, (response) => {
+      setOperation(null);
+      if (!response.ok) setOperationError(localizeAckError(response.error));
+    });
+  }, [socket]);
+
+  const handleAppearance = useCallback((request: SetAppearanceRequest) => {
+    setOperation('appearance');
+    setOperationError(null);
+    socket.emit('set appearance', request, (response) => {
       setOperation(null);
       if (!response.ok) setOperationError(localizeAckError(response.error));
     });
@@ -654,7 +733,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
               id: member.playerId,
               name: member.name,
               color: member.color,
-              characterId: null,
+              characterId: member.characterId,
               ready: member.ready,
               connected: member.connected,
             }))}
@@ -665,6 +744,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
           busy={operation !== null}
           error={operationError}
           onSetReady={handleReady}
+          onSetAppearance={handleAppearance}
           onStart={handleStart}
           onLeave={handleLeave}
           onSettings={() => setSettingsOpen(true)}
@@ -674,7 +754,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
         <>
           {role === 'SPECTATOR' ? <SpectatorBanner /> : null}
           <div className="room-toolbar" aria-label="Điều khiển ván chơi">
-            <FpsBadge />
+            {import.meta.env.DEV || __PHASE4_UAT__ ? <FpsBadge /> : null}
             <button
               type="button"
               className="room-settings-button"
@@ -702,7 +782,8 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
   return (
     <PresentationProvider controller={presentationController}>
       <stateContext.Provider value={contextValue}>
-        <main className="App">
+        <CardInteractionProvider>
+          <main className="App">
           {phase === 'RESTORING' ? <LoadingScreen message="Đang khôi phục ván chơi…" /> : null}
           {phase === 'JOIN' || phase === 'JOINING'
             ? (
@@ -733,7 +814,9 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
             onCancel={cancelConfirmation}
             onConfirm={confirmConfirmation}
           />
-        </main>
+          </main>
+          <CardInteractionOverlay />
+        </CardInteractionProvider>
       </stateContext.Provider>
     </PresentationProvider>
   );

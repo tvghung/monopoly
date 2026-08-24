@@ -1,4 +1,5 @@
 import type { PresentationEvent } from '../events/types';
+import { resolvePresentationDuration } from '../timings';
 import { waitForDelay } from './helpers';
 import type {
   AnimationExecutionContext,
@@ -147,17 +148,20 @@ export class AnimationQueue {
         const generation = this.generation;
         this.setStatus('playing');
         const executor = this.executors[item.event.type] as PresentationExecutor | undefined;
+        const resolveDuration = (baseDuration: number): number => this.reducedMotion
+          ? 0
+          : resolvePresentationDuration(baseDuration, this.speedMultiplier);
         const context: AnimationExecutionContext = {
           signal: controller.signal,
           speedMultiplier: this.speedMultiplier,
           reducedMotion: this.reducedMotion,
-          getDuration: baseDuration => this.reducedMotion
-            ? 0
-            : Math.max(0, baseDuration / this.speedMultiplier),
-          wait: baseDuration => waitForDelay(
-            this.reducedMotion ? 0 : Math.max(0, baseDuration / this.speedMultiplier),
+          getDuration: resolveDuration,
+          wait: baseDuration => waitForDelay(resolveDuration(baseDuration), controller.signal),
+          waitForDuration: durationMs => waitForDelay(
+            Math.max(0, durationMs),
             controller.signal,
           ),
+          isCurrent: () => generation === this.generation,
         };
         try {
           if (executor) await executor.run(item.event, context);

@@ -60,6 +60,7 @@ describe('district surface material library', () => {
     expect(library.dividerMaterial.polygonOffset).toBe(true);
     expect(library.dividerMaterial.polygonOffsetFactor).toBe(-1);
     expect(library.dividerMaterial.polygonOffsetUnits).toBe(-1);
+    expect(library.dividerMaterial.vertexColors).toBe(false);
     library.dispose();
   });
 
@@ -69,6 +70,7 @@ describe('district surface material library', () => {
       const textureSet = library.getWhitePebbleTextureSet(variant);
       const material = library.getWhitePebbleMaterial(variant);
       expect(material.color.getHexString()).toBe('ffffff');
+      expect(material.vertexColors).toBe(false);
       expect(textureSet.albedo.image.width).toBe(WHITE_PEBBLE_TEXTURE_SIZE);
       expect(textureSet.albedo.image.height).toBe(WHITE_PEBBLE_TEXTURE_SIZE);
       expect(textureSet.bump.image.width).toBe(WHITE_PEBBLE_TEXTURE_SIZE);
@@ -106,6 +108,7 @@ describe('district surface material library', () => {
       expect(material.map).toBe(textureSet.albedo);
       expect(material.bumpMap).toBe(textureSet.bump);
       expect(material.bumpScale).toBe(descriptor.bumpScale);
+      expect(material.vertexColors).toBe(false);
       expect(library.getMaterial(surfaceKey)).toBe(material);
       albedoTextures.add(textureSet.albedo);
       bumpTextures.add(textureSet.bump);

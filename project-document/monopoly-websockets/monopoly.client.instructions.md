@@ -77,9 +77,11 @@ Development endpoint contract:
 
 ## Animation/presentation
 
-Token display position có thể trễ hơn authoritative position. Dice/buy/turn-marker
-settlement rules tiếp tục áp dụng. Reconnect snapshot không được tạo duplicate timer,
-listener hoặc replay mutation.
+`displayPositions` là target display map cho board/character movement; nó có thể đi
+trước authoritative settlement. `settledPositions` là map riêng dùng để gate dice,
+buy và turn prompts cho tới khi presentation tới đúng tile. Không dùng display map
+cho business authority. Reconnect snapshot không được tạo duplicate timer, listener
+hoặc replay mutation.
 
 Board/property presentation derive trực tiếp từ canonical shared `tileState`; không
 duy trì bản sao `BoardInitState.ts` hoặc `backOfCards.ts`. Tất cả tiền hiển thị qua
@@ -90,10 +92,26 @@ formatter dùng `1 game unit = 1.000 VNĐ` và player-facing UI/log/error là ti
 - `derivePresentationEvents(previous, next)` chỉ phát event chứng minh được từ
   hai `PublicRoomState`; không suy đoán rent/cause từ một diff chung.
 - `AnimationQueue` là FIFO, cancellable, có pause/resume/skip/reset/speed và luôn
-  resolve item khi executor lỗi. `reset` phải snap authoritative snapshot và không
-  để executor cũ ghi đè sau reconnect.
-- Movement walk chỉ áp dụng cho bước tiến nhỏ; lùi/teleport snap. Buy/turn prompt
-  chờ display token/queue settle; command vẫn gửi theo authoritative state.
+  resolve item khi executor lỗi. `reset` phải snap authoritative snapshot, tăng
+  `presentationResetEpoch`, xoá tile/reaction signals và không để executor cũ ghi
+  đè sau reconnect. Reset epoch độc lập với sequence của tile impact.
+- Movement walk chỉ áp dụng cho bước tiến nhỏ; executor công bố target từng tile
+  trước khi chờ hop, settle sau khi hop, phát `STEP` chỉ cho tile trung gian và để
+  `LAND` xử lý riêng đúng một lần sau tile cuối. Lùi/teleport snap. Buy/turn prompt
+  chờ `settledPositions`/queue settle; command vẫn gửi theo authoritative state.
+- Public `gameplayEvents` is consumed as bounded semantic input for committed money,
+  property, GO and jail consequences; the active player's private gameplay lane is
+  consumed only through the same `PresentationController → AnimationQueue →
+  PresentationStore` path. A missing/non-contiguous semantic tail resets to the
+  authoritative snapshot instead of fabricating a consequence.
+- `pendingCardInteraction` is durable and operation-scoped. `AWAITING_DRAW` exposes
+  the face-down interaction, `REVEALED` exposes `revealedCardId`, and `draw card` /
+  `dismiss card` send that operation ID through authoritative ACK flow. The card
+  presentation is queued after the appropriate `LAND` boundary; a chained card
+  closes before movement and opens the next interaction after landing.
+- Session/reconnect hydration resets the queue/store to the current pending-card
+  stage without replaying the old draw/reveal. Exact deck order remains server-private;
+  `deckCounts` is the only deck aggregate used by the public board presentation.
 
 ## Quy tắc sửa
 

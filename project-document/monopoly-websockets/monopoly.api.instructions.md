@@ -48,6 +48,9 @@ Mọi state-changing request có request-scoped `Ack<T>`:
 - Success chỉ sau PostgreSQL commit.
 - Failure có stable code/message/retryable.
 - Không broadcast state từ failed draft.
+- Current transport uses protocol V7. The card commands below carry only the
+  operation ID; the authenticated actor, pending state, card order and consequence
+  remain server-authoritative.
 
 ## Command handler pattern
 
@@ -75,11 +78,15 @@ Actor không bao giờ lấy từ client payload. Handler không tự viết SQL
 | Trading | durable bilateral offer events |
 | Property | sell-house và landing development |
 | Jail | `pay bail`, `use jail card`, `wait in jail` |
+| Card | `draw card`, `dismiss card` |
 | Payment shortfall | sell to Bank / propose / accept / reject forced sale |
 
-Pending purchase/development decisions, payment shortfall and forced-sale proposals
-carry operation/claim IDs. Turn handler không tự advance: domain
-`completeTurnResolution` handoff sau khi decision/payment continuation hoàn tất.
+Pending purchase/development decisions, `PendingCardInteraction`, payment shortfall
+and forced-sale proposals carry operation/claim IDs. Card draw/dismiss uses the
+durable `AWAITING_DRAW`/`REVEALED` state and server deadline/continuation; the
+handler commits the draft and only then broadcasts/ACKs. Turn handler không tự
+advance: domain `completeTurnResolution` handoff sau khi decision/card/payment
+continuation hoàn tất.
 
 `new player` không còn là operational event. Dummy payload của start/buy đã bị xóa.
 

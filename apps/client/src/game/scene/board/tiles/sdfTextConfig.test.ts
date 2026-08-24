@@ -8,6 +8,8 @@ describe('SDF surface text contract', () => {
     const target = {
       text: '', font: null, fontSize: 0, maxWidth: 0, maxHeight: 0,
       anchorX: 0, anchorY: 0, textAlign: '', lineHeight: 0, color: '',
+      whiteSpace: 'normal', overflowWrap: 'normal',
+      outlineColor: '', outlineWidth: 0, outlineOpacity: 0,
       sdfGlyphSize: 0, sync: vi.fn(),
     };
     const onSync = vi.fn();
@@ -29,9 +31,71 @@ describe('SDF surface text contract', () => {
       'Cơ hội',
     ]);
     expect(target.maxWidth).toBe(1.1);
+    expect(target.maxHeight).toBeCloseTo(0.16 * 3.4);
+    expect(target.whiteSpace).toBe('normal');
+    expect(target.overflowWrap).toBe('normal');
     expect(target.sdfGlyphSize).toBe(TILE_SDF_GLYPH_SIZE);
     expect(target.sync).toHaveBeenCalledTimes(1);
     expect(target.sync).toHaveBeenCalledWith(onSync);
+  });
+
+  it('accepts a taller physical-card text area without changing tile defaults', () => {
+    const target = {
+      text: '', font: null, fontSize: 0, maxWidth: 0, maxHeight: 0,
+      anchorX: 0, anchorY: 0, textAlign: '', lineHeight: 0, color: '',
+      whiteSpace: 'normal', overflowWrap: 'normal',
+      outlineColor: '', outlineWidth: 0, outlineOpacity: 0,
+      sdfGlyphSize: 0, sync: vi.fn(),
+    };
+    configureSdfText(target, {
+      value: 'Tổ chức sự kiện cộng đồng, tặng mỗi người chơi 50.000 ₫.',
+      fontSize: 0.125,
+      maxWidth: 1.48,
+      maxHeight: 0.82,
+    });
+    expect(target.maxHeight).toBe(0.82);
+  });
+
+  it('can preserve deterministic board line breaks without Troika reflow', () => {
+    const target = {
+      text: '', font: null, fontSize: 0, maxWidth: 0, maxHeight: 0,
+      anchorX: 0, anchorY: 0, textAlign: '', lineHeight: 0, color: '',
+      whiteSpace: 'normal', overflowWrap: 'normal',
+      outlineColor: '', outlineWidth: 0, outlineOpacity: 0,
+      sdfGlyphSize: 0, sync: vi.fn(),
+    };
+    configureSdfText(target, {
+      value: 'Buôn Ma\nThuột',
+      fontSize: 0.29,
+      maxWidth: 1.31,
+      whiteSpace: 'nowrap',
+      overflowWrap: 'normal',
+    });
+    expect(target.whiteSpace).toBe('nowrap');
+    expect(target.overflowWrap).toBe('normal');
+  });
+
+  it('configures a restrained readable outline without changing the fill', () => {
+    const target = {
+      text: '', font: null, fontSize: 0, maxWidth: 0, maxHeight: 0,
+      anchorX: 0, anchorY: 0, textAlign: '', lineHeight: 0, color: '',
+      whiteSpace: 'normal', overflowWrap: 'normal',
+      outlineColor: '', outlineWidth: 0, outlineOpacity: 0,
+      sdfGlyphSize: 0, sync: vi.fn(),
+    };
+    configureSdfText(target, {
+      value: '2.400.000 ₫',
+      fontSize: 0.42,
+      maxWidth: 2.8,
+      color: '#f7f1d8',
+      outlineColor: '#14231f',
+      outlineWidth: 0.0168,
+      outlineOpacity: 0.72,
+    });
+    expect(target.color).toBe('#f7f1d8');
+    expect(target.outlineColor).toBe('#14231f');
+    expect(target.outlineWidth).toBe(0.0168);
+    expect(target.outlineOpacity).toBe(0.72);
   });
 
   it('limits surface labels to a compact number of lines without generic filler', () => {

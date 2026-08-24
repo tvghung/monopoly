@@ -1,7 +1,12 @@
 import {
+  getAppearanceCombinationKey,
+  setAppearanceRequestSchema,
   setReadyRequestSchema,
+  type CharacterId,
+  type GameState,
   type LeaveRoomResult,
   type OfferResult,
+  type PlayerColorId,
 } from '@monopoly/shared';
 import {
   chooseStartingPlayer,
@@ -12,7 +17,12 @@ import {
   sendToLog,
   surrenderPlayerToBank,
 } from '../game';
-import { activePlayerIds, MAX_PLAYERS, MIN_PLAYERS } from '../rooms';
+import {
+  activePlayerIds,
+  MAX_PLAYERS,
+  MIN_PLAYERS,
+  type RoomSnapshot,
+} from '../rooms';
 import type { AppRuntime } from '../services/runtime';
 import type { TradeOfferRecord } from '../persistence';
 import { projectPrivateOffer } from '../services/privateOffers';
@@ -27,23 +37,92 @@ import { commitRoomCommand } from './roomCommands';
 import type { AppServer, AppSocket } from './types';
 import { parsePayload } from './validation';
 
+function hasAppearanceCombinationConflict(
+  room: RoomSnapshot,
+  state: GameState,
+  playerId: string,
+  characterId: CharacterId | null,
+  color: PlayerColorId,
+): boolean {
+  const key = getAppearanceCombinationKey(characterId, color);
+  if (key === null) return false;
+  return activePlayerIds(room).some(candidateId => {
+    if (candidateId === playerId) return false;
+    const candidate = state.players[candidateId];
+    return candidate !== undefined
+      && getAppearanceCombinationKey(candidate.characterId, candidate.color) === key;
+  });
+}
+
 export function registerLobbyHandlers(
   io: AppServer,
   socket: AppSocket,
   runtime: AppRuntime,
 ): void {
+  socket.on('set appearance', async (rawRequest, acknowledge) => {
+    try {
+      const request = parsePayload(setAppearanceRequestSchema, rawRequest);
+      const actor = requirePlayer(socket, runtime);
+      const { roomId, playerId } = actor;
+      const committed = await commitRoomCommand(runtime, roomId, ({ room, state }) => {
+        if (room.status !== 'LOBBY') {
+          throw new CommandError('GAME_ALREADY_STARTED', 'Appearance can only change in the lobby.');
+        }
+        const member = room.gameSnapshot.members[playerId];
+        const player = state.players[playerId];
+        if (!member || member.membershipStatus !== 'ACTIVE' || !player) {
+          throw new CommandError('FORBIDDEN', 'Only an active player can change appearance.');
+        }
+
+        const nextCharacterId = request.characterId ?? player.characterId;
+        const nextColor = request.color ?? player.color;
+        if (hasAppearanceCombinationConflict(room.gameSnapshot, state, playerId, nextCharacterId, nextColor)) {
+          throw new CommandError('CONFLICT', 'Tổ hợp mascot và màu này đã được người chơi khác chọn.');
+        }
+
+        const changed = (request.characterId !== undefined && request.characterId !== player.characterId)
+          || (request.color !== undefined && request.color !== player.color);
+        if (request.characterId !== undefined) player.characterId = request.characterId;
+        if (request.color !== undefined) player.color = request.color;
+        if (changed) member.ready = false;
+      }, undefined, actor);
+      if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
+      broadcastRoom(io, runtime, committed.room);
+      acknowledge(successAck(committed.room.aggregateVersion));
+    } catch (error) {
+      acknowledgeFailure(acknowledge, error);
+    }
+  });
+
   socket.on('set ready', async (rawRequest, acknowledge) => {
     try {
       const request = parsePayload(setReadyRequestSchema, rawRequest);
       const actor = requirePlayer(socket, runtime);
       const { roomId, playerId } = actor;
-      const committed = await commitRoomCommand(runtime, roomId, ({ room }) => {
+      const committed = await commitRoomCommand(runtime, roomId, ({ room, state }) => {
         if (room.status !== 'LOBBY') {
           throw new CommandError('CONFLICT', 'Ready state can only change in the lobby.');
         }
         const member = room.gameSnapshot.members[playerId];
         if (!member || member.membershipStatus !== 'ACTIVE') {
           throw new CommandError('FORBIDDEN', 'Only an active player can become ready.');
+        }
+        const player = state.players[playerId];
+        if (request.ready && (!player || player.characterId === null)) {
+          throw new CommandError('CONFLICT', 'Vui lòng chọn nhân vật trước khi sẵn sàng.');
+        }
+        if (
+          request.ready
+          && player
+          && hasAppearanceCombinationConflict(
+            room.gameSnapshot,
+            state,
+            playerId,
+            player.characterId,
+            player.color,
+          )
+        ) {
+          throw new CommandError('CONFLICT', 'Tổ hợp mascot và màu này đã được người chơi khác chọn.');
         }
         member.ready = request.ready;
       }, undefined, actor);
@@ -75,6 +154,23 @@ export function registerLobbyHandlers(
         }
         if (players.some((id) => !room.gameSnapshot.members[id]?.ready)) {
           throw new CommandError('CONFLICT', 'Every active player must be ready.');
+        }
+        const activePlayers = players.map(id => state.players[id]);
+        if (activePlayers.some(player => !player || player.characterId === null)) {
+          throw new CommandError('CONFLICT', 'Mọi người chơi phải chọn nhân vật trước khi bắt đầu.');
+        }
+        const appearanceKeys = activePlayers
+          .filter((player): player is NonNullable<typeof player> => player !== undefined)
+          .map(player => getAppearanceCombinationKey(player.characterId, player.color));
+        if (
+          appearanceKeys.length !== activePlayers.length
+          || appearanceKeys.some(key => key === null)
+          || new Set(appearanceKeys).size !== appearanceKeys.length
+        ) {
+          throw new CommandError(
+            'CONFLICT',
+            'Mỗi người chơi phải có một tổ hợp mascot và màu riêng trước khi bắt đầu.',
+          );
         }
         if (players.some((id) => !runtime.connections.isConnected(id))) {
           throw new CommandError('CONFLICT', 'Every active player must be connected.');

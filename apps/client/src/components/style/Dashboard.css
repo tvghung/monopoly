@@ -1,211 +1,28 @@
-.center__dashboard--container {
-  position: relative;
-  display: flex;
-  flex: 1;
-  width: 100%;
-  min-height: 0;
-  overflow: hidden;
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-large);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-card);
-}
-
-.center__dashboard {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-}
-
-.center__dashboard--brand {
+.gameplay-action-layer {
   position: absolute;
-  right: 1.5vmin;
-  bottom: 1vmin;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  color: var(--color-accent-primary-strong);
-  font-size: 2.6vmin;
-  font-weight: 900;
-  line-height: 0.9;
-  letter-spacing: 0.08em;
-  opacity: 0.2;
+  z-index: 40;
+  inset: 0;
   pointer-events: none;
 }
 
-.center__dashboard--brand span {
-  margin-top: 0.45vmin;
-  color: var(--color-warning);
-  font-size: 1.6vmin;
-  letter-spacing: 0.22em;
-}
-
-.center__dashboard__players {
-  margin-bottom: 1vmin;
-}
-
-.center__dashboard__block {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  min-width: 0;
-  padding: var(--space-2);
-  /* border: 1px solid black; */
-}
-
-.center__dashboard__block--players {
-  flex: 1;
-  gap: 1vmin;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.center__dashboard__block--players .player-list {
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.center__dashboard__title {
-  margin-bottom: 1.5vmin;
-  font-size: 2.25vmin;
-}
-
-.center__dashboard__title--sub {
-  margin-top: 1vmin;
-  margin-bottom: 0.5vmin;
-  font-size: 1.7vmin;
-  color: var(--color-text-secondary);
-}
-
-/* --- Player roster cards --- */
-.player-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 1vmin;
-  width: 100%;
-}
-
-.player-card {
-  display: flex;
-  align-items: center;
-  gap: 1vmin;
-  padding: 0.7vmin 1vmin;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-left: 0.5vmin solid var(--color-border-strong);
-  border-radius: 0.7vmin;
-  transition: box-shadow 0.2s ease, background 0.2s ease;
-}
-
-.player-card--active {
-  background: var(--color-accent-secondary-soft);
-  box-shadow: 0 0 0 0.18vmin var(--color-accent-secondary);
-}
-
-.player-card--out {
-  opacity: 0.55;
-}
-
-.player-card--out .player-card__name {
-  text-decoration: line-through;
-}
-
-/* Glossy disc that mirrors the player's board token. */
-.player-card__disc {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 2.6vmin;
-  height: 2.6vmin;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 50%;
-  overflow: hidden;
-  box-shadow:
-    inset 0 0.35vmin 0.35vmin rgba(255, 255, 255, 0.55),
-    inset 0 -0.3vmin 0.3vmin rgb(74 98 94 / 20%);
-}
-
-.player-card__disc::after {
-  content: '';
+.gameplay-action-layer__context {
   position: absolute;
-  top: 10%;
-  left: 16%;
-  width: 45%;
-  height: 32%;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 50%;
-  filter: blur(0.15vmin);
+  left: 50%;
+  bottom: clamp(7rem, 15%, 10rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(92%, 36rem);
+  transform: translateX(-50%);
   pointer-events: none;
 }
 
-.player-card__initial {
-  position: relative;
-  z-index: 1;
-  color: var(--color-text-inverse);
-  font-size: 1.3vmin;
-  font-weight: 700;
-  line-height: 1;
-  text-shadow: none;
+.gameplay-action-layer__context > * {
+  pointer-events: auto;
 }
 
-.player-card__info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  flex: 1;
-  min-width: 0;
-}
-
-.player-card__name {
-  font-size: 1.55vmin;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.player-card__balance {
-  font-size: 1.25vmin;
-  color: var(--color-text-secondary);
-}
-
-.player-card__turn {
-  display: flex;
-  align-items: center;
-  gap: 0.5vmin;
-  flex: 0 0 auto;
-  color: var(--color-success);
-  font-size: 1.1vmin;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05vmin;
-}
-
-.player-card__turn-dot {
-  width: 0.9vmin;
-  height: 0.9vmin;
-  background: var(--color-success);
-  border-radius: 50%;
-  animation: turn-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes turn-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.35; transform: scale(0.75); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .player-card__turn-dot {
-    animation: none;
-  }
+.gameplay-action-layer > * {
+  pointer-events: auto;
 }
 
 .button__purchase--yes, .button__purchase--no, .button__start-game {

@@ -1,10 +1,15 @@
-import type { PublicGameState, RoomPlayerMeta } from '@monopoly/shared';
+import type {
+  CharacterId,
+  PlayerColorId,
+  PublicGameState,
+  RoomPlayerMeta,
+} from '@monopoly/shared';
 
 export interface PlayerHudViewModel {
   playerId: string;
   name: string;
-  color: string;
-  characterId: null;
+  color: PlayerColorId;
+  characterId: CharacterId | null;
   money: number;
   propertyCount: number;
   houseCount: number;
@@ -30,7 +35,7 @@ function countDevelopment(state: PublicGameState, playerId: string): { propertyC
 export function selectPlayerHudViewModels(
   state: PublicGameState,
   activePlayerId: string,
-  roomPlayers: RoomPlayerMeta[] = [],
+  roomPlayers: readonly RoomPlayerMeta[] = [],
 ): PlayerHudViewModel[] {
   const roomOrder = new Map(roomPlayers.map(player => [player.playerId, player]));
   const playerIds = new Set([
@@ -50,9 +55,9 @@ export function selectPlayerHudViewModels(
       return {
         playerId,
         name: player?.name ?? finished?.name ?? meta?.name ?? 'Người chơi',
-        color: player?.color ?? finished?.color ?? meta?.color ?? 'var(--color-accent-secondary)',
-        characterId: null,
-        money: player?.accountBalance ?? 0,
+        color: player?.color ?? finished?.color ?? meta?.color ?? 'cyan',
+        characterId: player?.characterId ?? finished?.characterId ?? meta?.characterId ?? null,
+        money: player?.accountBalance ?? finished?.accountBalance ?? 0,
         ...development,
         isCurrentTurn: activePlayerId === playerId,
         isConnected: !hasLeft && (meta?.connected ?? true),

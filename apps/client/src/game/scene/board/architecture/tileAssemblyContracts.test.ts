@@ -10,8 +10,6 @@ describe('tile assembly contracts', () => {
       childCoordinates: 'tile-local',
     });
     expect(TILE_ASSEMBLY_LAYER_ORDER).toEqual([
-      'TileBodyLayer',
-      'TileSurfaceLayer',
       'TileTextLayer',
       'TileOwnershipLayer',
       'TileDevelopmentLayer',

@@ -2,7 +2,8 @@
 
 ## Entry/code
 
-Board nằm tại `/` cho activated Player hoặc Spectator. `Board.tsx` giữ HUD, semantic
+Board nằm tại `/` cho activated Player hoặc Spectator. `Board.tsx` giữ gameplay
+overlays, semantic
 tile controls, property dialog và chọn WebGL/fallback. WebGL code chính nằm trong
 `game/scene/`: `GameScene.tsx`, `board/Board3D.tsx`, `boardRenderModel.ts`, tile
 batches/materials/motion và local SDF text. Không có detail route hay permission key.
@@ -38,7 +39,8 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   với cloth dùng canonical player display color. Flag derive từ authoritative
   `ownedProps` qua `BoardRenderModel`, coexist với houses/hotel/selection và không
   xuất hiện trên tile unowned. Owner state vẫn nằm trong `BoardRenderModel` cho
-  property inspection, HUD, houses/hotel và state presentation.
+  property inspection, world-space player stations, houses/hotel và state
+  presentation.
 - Mỗi edge tile có upper art panel 70%, footer nền sáng 30% và divider near-black;
   một side-aware `TilePanelLayout` duy nhất cung cấp kích thước, offset, divider,
   upper-art/footer anchors, footer text và content rotation cho surface batch,
@@ -48,8 +50,10 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   compose từ translation + quaternion XZ orientation + scale, giữ normal hướng lên
   ở cả bốn cạnh và footprint khớp tile thật.
 - Property thường chỉ in tên, không in giá trên mặt ô. Cỡ local SDF adaptive là
-  `0.31`/`0.25`: một dòng cho tên ngắn, hai dòng cho tên dài thông thường; maxWidth
-  bằng 92% vùng usable footer. Normal/company và nhãn Chance/Chest/Tax/Railroad đều
+  `0.40`/`0.33` cho normal và `0.36`/`0.30` cho special: một dòng cho tên ngắn,
+  tối đa hai dòng cho tên dài; manual fitting là source of truth, Troika nhận
+  `whiteSpace='nowrap'`, safe width bằng 90% vùng usable footer/corner và
+  vertical fit kiểm tra theo footer height. Normal/company và nhãn Chance/Chest/Tax/Railroad đều
   dùng footer anchor; raised SVG art dùng top-biased upper anchor; price không render trên
   mặt tile. Text dùng một canonical inward-facing rule theo side, gồm cả hai run
   sát Parking; hai run `LEFT`/`TOP` dùng cùng một camera-facing half-turn cho text và
@@ -75,22 +79,44 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   contract chung trên tile surface, depth test và alpha test để tránh chìm hoặc
   z-fight; icon footprint giữ divider của upper 70% clear. Tax dùng paper stack nhỏ hơn
   với rear sheet xám đậm hơn và five red placeholder marks nằm trong front sheet; START dùng
-  planted left-pointing `Start` sign; Parking dùng
+  planted left-pointing `Start` sign rộng 92% usable corner surface; Parking dùng
   asphalt runway-gray với lane marks và deterministic parked cars; Go To Jail dùng
   handcuffs còn Jail dùng cell bars. District art không tràn sang special tile.
 - Beach district dùng shoreline uốn lượn với wave contour thứ hai; palette board/UI
   tăng saturation nhưng giữ upper/footer sáng để text đen vẫn rõ.
-- Edge tile nominal width là `1.60`, depth là `2.58` (corner `2.46`); center boundary
-  derive từ inward tile-surface boundary và clearance nên field nhỏ hơn nhưng vẫn
-  đồng tâm. Outer board size và orthographic fit tự derive từ layout nên camera vẫn
-  frame đủ board.
+- Corrective pre-Phase-5 readability geometry dùng edge width `1.6`, depth `2.58`,
+  corner `2.46`, gap `0.05`; mọi body/surface/socket/foundation đều derive từ
+  registry. Center platform dùng `INNER_TILE_SURFACE_BOUNDARY * 2`, không còn
+  inset `0.6`; shorter depth tự nhiên mở rộng center, `BoardFrame` rộng `0.14`
+  và center path rộng `0.44` giữ gutter liên tục. Foundation là lower `0.16`,
+  middle `0.20`, top `0.12`, tổng `0.48`; middle layer là `boardBase #858d90`,
+  giữa lower dark layer và upper light layer. Text tile dùng manual fitting,
+  hard tối đa 2 dòng, Troika `whiteSpace='nowrap'`, safe width `90%` và floor
+  normal khoảng `0.29`; Start chỉ kéo cao mặt mũi tên vàng `1.20×`. Dice dùng
+  một instanced two-shadow batch, ground-locked, opacity khoảng `0.21 → 0.07`
+  và footprint tối đa `1.35×`, dùng chung vertical-offset helper. Camera giữ hướng cố định, dùng
+  `ORTHOGRAPHIC_READABILITY_ZOOM=1.08`, không bỏ fit point của board/dice/stations.
 
 ## State/rendering
 
 - Ownership, buildings, player position và pending landing/payment state từ
   committed `PublicRoomState`; stable IDs điều khiển token/owner.
+- `pendingCardInteraction` cũng là committed public state cho card interaction:
+  `AWAITING_DRAW` chờ player gửi `draw card`, `REVEALED` giữ `revealedCardId` cho
+  tới `dismiss card`; cả hai command đều operation-scoped và không làm lộ deck order.
+  Public `gameplayEvents` và private player semantic events đi qua cùng
+  `PresentationController → AnimationQueue → PresentationStore`; thiếu semantic
+  sequence thì reset/snap về snapshot thay vì dựng cause.
 - Level 1–4 render Nhà; level 5 render Khách Sạn. Forced-sale gross values come
   from the public shortfall projection; không client-counter.
+- Nhà giữ body `0.48 × 0.39 × 0.36` với facade plaster trung tính khoảng
+  `#d9d2c2`, một shared opaque sRGB procedural texture cho hai cửa sổ bốn ô
+  trên mỗi vertical face, và một pitched roof riêng khoảng `0.56 × 0.47` với
+  rise `0.18`; chỉ roof dùng canonical owner display color. Khách sạn giữ body
+  `0.92 × 0.60 × 0.78` với facade khoảng `#d5d8d6`, shared texture hai cột × ba
+  tầng, mỗi panel bốn ô, và crown/roof riêng dùng canonical owner display color.
+  Đây là texture detail trên body, không phải các mesh frame/window riêng; slot,
+  anchor, shadow và timing hiện hữu không đổi.
 - Tất cả amounts dùng shared client money formatter VNĐ.
 - Exact deck order/next card không có trong public state hoặc DOM.
 
@@ -115,8 +141,12 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
 - Property name-only typography (short/canonical/long), textless jail/go-to-jail,
   upper 70% art/footer 30% text anchors, top-biased raised-icon placement with divider
   clearance, selective divider eligibility, 70/30 panel ratio,
-  side-aware Parking-adjacent orientation, widened edge/corner dimensions, frame
-  dimensions, scene budget, orthographic camera/tone mapping
+  side-aware Parking-adjacent orientation, restored canonical edge/corner geometry
+  (`1.6 × 2.58`, corner `2.46`) with natural center derivation,
+  1.5–1.7× ownership flag proportions, Start width ratio, enlarged
+  house/hotel geometry plus canonical anchors, neutral facade/window-grid textures,
+  pitched roof/crown owner-color split, frame dimensions, scene budget,
+  orthographic camera/tone mapping
   và SDF sync invalidation.
 - Special art contracts cover approved Chance question mark, simplified pointer-free
   fortune wheel, locomotive/one-wagon silhouette, light bulb, large faucet, tax paper stack, START
@@ -125,3 +155,6 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
 - Owner/house/hotel/inventory/token update theo revision.
 - Normal/pass-GO/jail/card movement; buy/development/payment settlement.
 - Card flip, outside close, multiple token, reduced-motion, reconnect/no-duplicate.
+- `Phase4UatHarness` board-readability fixture at `1280×720`, `1440×900` and
+  `1920×1080`, covering four corners, all four runs, short/two-line Vietnamese
+  names, special icons, unowned/owned/1–4 Nhà/Khách sạn and flag+building states.

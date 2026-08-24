@@ -1,33 +1,57 @@
-import { HOTEL_BODY_HEIGHT } from '../board/architecture/boardArtSpec';
+import {
+  HOTEL_BODY_DEPTH,
+  HOTEL_BODY_HEIGHT,
+  HOTEL_BODY_WIDTH,
+  HOTEL_CROWN_DEPTH,
+  HOTEL_CROWN_HEIGHT,
+  HOTEL_CROWN_WIDTH,
+} from '../board/architecture/boardArtSpec';
 import { boardVisualTokens } from '../board/boardVisualTokens';
 import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
 import ContactShadow from '../fx/ContactShadow';
+import { getPlayerDisplayColor } from '../../ui/playerVisualColors';
+import {
+  FACADE_TEXTURE_TINT,
+  HOTEL_FACADE_TEXTURE,
+  HOTEL_FACADE_WALL_COLOR,
+} from './buildingFacadeTextures';
+
+export function getHotelFacadeColor(): string {
+  return HOTEL_FACADE_WALL_COLOR;
+}
+
+export function getHotelCrownColor(ownerColor?: string): string {
+  return ownerColor ? getPlayerDisplayColor(ownerColor) : boardVisualTokens.hotelDark;
+}
 
 export default function HotelMesh({
   position,
-}: { position: readonly [number, number, number] }) {
+  ownerColor,
+}: { position: readonly [number, number, number]; ownerColor?: string }) {
+  const crownColor = getHotelCrownColor(ownerColor);
   return (
     <group name="HotelVisual" position={position}>
       <RoundedBoxMesh
         name="HotelFacade"
-        width={0.58}
+        width={HOTEL_BODY_WIDTH}
         height={HOTEL_BODY_HEIGHT}
-        depth={0.38}
+        depth={HOTEL_BODY_DEPTH}
         radius={0.06}
-        color={boardVisualTokens.hotel}
+        color={FACADE_TEXTURE_TINT}
+        map={HOTEL_FACADE_TEXTURE}
         materialProfile="hotel"
       />
       <RoundedBoxMesh
         name="HotelCrown"
-        width={0.66}
-        height={0.1}
-        depth={0.44}
+        width={HOTEL_CROWN_WIDTH}
+        height={HOTEL_CROWN_HEIGHT}
+        depth={HOTEL_CROWN_DEPTH}
         radius={0.04}
-        color={boardVisualTokens.hotelDark}
+        color={crownColor}
         materialProfile="houseRoof"
-        position={[0, HOTEL_BODY_HEIGHT / 2 + 0.05, 0]}
+        position={[0, HOTEL_BODY_HEIGHT / 2 + HOTEL_CROWN_HEIGHT / 2, 0]}
       />
-      <ContactShadow scale={[0.68, 0.38]} opacity={0.18} />
+      <ContactShadow scale={[1.1, 0.64]} opacity={0.2} />
     </group>
   );
 }

@@ -86,8 +86,16 @@ function createWindow(): BrowserWindow {
   registerWindowHandlers(window, development, quitController);
   installExternalNavigationGuards(window, development);
 
-  if (development) void window.loadURL(DEV_RENDERER_URL);
-  else void window.loadURL('app://own-the-block/index.html');
+  const phase4Uat = process.argv.includes('--phase4-uat')
+    || process.env.OWN_THE_BLOCK_PHASE4_UAT === '1';
+  if (development) void window.loadURL(
+    phase4Uat ? `${DEV_RENDERER_URL}?phase4-uat=1` : DEV_RENDERER_URL,
+  );
+  else void window.loadURL(
+    phase4Uat
+      ? 'app://own-the-block/index.html?phase4-uat=1'
+      : 'app://own-the-block/index.html',
+  );
   return window;
 }
 

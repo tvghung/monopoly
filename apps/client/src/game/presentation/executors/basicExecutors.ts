@@ -1,5 +1,11 @@
-import type { PresentationEvent, PresentationEventType } from '../events/types';
-import type { LandTilePresentationEvent } from '../events/types';
+import type {
+  BalanceChangedPresentationEvent,
+  LandTilePresentationEvent,
+  PresentationEvent,
+  PresentationEventType,
+  PropertyDevelopmentChangedPresentationEvent,
+  PropertyOwnershipChangedPresentationEvent,
+} from '../events/types';
 import type { AnimationExecutionContext, PresentationExecutor, PresentationExecutorMap } from '../queue/types';
 import type { PresentationStoreLike } from '../store/types';
 import { presentationTiming } from '../timings';
@@ -19,6 +25,25 @@ function createTimedExecutor(
   };
 }
 
+function isExecutionCurrent(context: AnimationExecutionContext): boolean {
+  return !context.signal.aborted && (context.isCurrent?.() ?? true);
+}
+
+function createConsequenceExecutor<E extends PresentationEvent>(
+  duration: number,
+  emit: (event: E, durationMs: number) => void,
+): PresentationExecutor<E> {
+  return {
+    async run(event, context) {
+      if (!isExecutionCurrent(context)) return;
+      const durationMs = context.getDuration(duration);
+      emit(event, durationMs);
+      await context.waitForDuration(durationMs);
+    },
+    finish() {},
+  };
+}
+
 export function createBasicExecutors(store: PresentationStoreLike): PresentationExecutorMap {
   const turnExecutor = createTimedExecutor(
     presentationTiming.turnChange,
@@ -29,18 +54,97 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
   );
   const landingExecutor: PresentationExecutor<LandTilePresentationEvent> = {
     async run(event, context) {
-      store.emitTileImpact(event.playerId, event.tileId, 'LAND');
-      await context.wait(presentationTiming.landing);
+      store.clearDestinationPreview();
+      const durationMs = context.getDuration(presentationTiming.landing);
+      const depressDurationMs = context.getDuration(presentationTiming.tileImpact.landDepress);
+      const reboundDurationMs = context.getDuration(presentationTiming.tileImpact.landRebound);
+      if (!context.reducedMotion) {
+        store.emitTileImpact(event.playerId, event.tileId, 'LAND', {
+          delayMs: 0,
+          depressDurationMs,
+          reboundDurationMs,
+        });
+        store.emitCharacterLanding(event.playerId, event.tileId, durationMs);
+      }
+      await context.waitForDuration(durationMs);
+    },
+    finish() {},
+  };
+  const jailExecutor: PresentationExecutor = {
+    async run(event, context) {
+      const durationMs = context.getDuration(presentationTiming.characterReaction.jail);
+      if (event.type === 'JAIL_STATE_CHANGED' && event.isJail) {
+        if (!context.reducedMotion) store.emitCharacterReaction(event.playerId, 'jail', durationMs);
+      }
+      await context.waitForDuration(durationMs);
+    },
+    finish() {},
+  };
+  const finishedExecutor: PresentationExecutor = {
+    async run(event, context) {
+      const durationMs = context.getDuration(presentationTiming.characterReaction.bankrupt);
+      if (event.type === 'PLAYER_FINISHED') {
+        if (!context.reducedMotion) {
+          store.emitCharacterReaction(
+            event.playerId,
+            event.reason === 'BANKRUPT' ? 'bankrupt' : 'sad',
+            durationMs,
+          );
+        }
+      }
+      await context.waitForDuration(durationMs);
+    },
+    finish() {},
+  };
+  const balanceExecutor = createConsequenceExecutor<BalanceChangedPresentationEvent>(
+    presentationTiming.balanceChange,
+    (event, durationMs) => store.emitBalanceDelta(
+      event.id,
+      event.playerId,
+      event.from,
+      event.to,
+      durationMs,
+    ),
+  );
+  const ownershipExecutor = createConsequenceExecutor<PropertyOwnershipChangedPresentationEvent>(
+    presentationTiming.propertyPurchase,
+    (event, durationMs) => store.emitOwnershipChange(
+      event.id,
+      event.tileId,
+      event.fromPlayerId,
+      event.toPlayerId,
+      durationMs,
+    ),
+  );
+  const developmentExecutor: PresentationExecutor<PropertyDevelopmentChangedPresentationEvent> = {
+    async run(event, context) {
+      if (!isExecutionCurrent(context)) return;
+      const added = Math.max(0, Math.min(4, event.toHouses) - Math.min(4, event.fromHouses));
+      const baseDuration = event.fromHouses === 4 && event.toHouses === 5
+        ? presentationTiming.hotelTransition
+        : added > 0
+          ? presentationTiming.housePop + (added - 1) * presentationTiming.houseStagger
+          : 0;
+      const durationMs = context.getDuration(baseDuration);
+      store.emitDevelopmentChange(
+        event.id,
+        event.tileId,
+        event.playerId,
+        event.fromHouses,
+        event.toHouses,
+        durationMs,
+      );
+      await context.waitForDuration(durationMs);
     },
     finish() {},
   };
   return {
     LAND_TILE: landingExecutor,
-    BALANCE_CHANGED: createTimedExecutor(presentationTiming.balanceChange),
-    PROPERTY_OWNERSHIP_CHANGED: createTimedExecutor(presentationTiming.propertyPurchase),
-    PROPERTY_DEVELOPMENT_CHANGED: createTimedExecutor(presentationTiming.buildPop),
-    JAIL_STATE_CHANGED: createTimedExecutor(presentationTiming.landing),
-    PLAYER_FINISHED: createTimedExecutor(presentationTiming.finish),
+    BALANCE_CHANGED: balanceExecutor,
+    PROPERTY_OWNERSHIP_CHANGED: ownershipExecutor,
+    PROPERTY_DEVELOPMENT_CHANGED: developmentExecutor,
+    JAIL_STATE_CHANGED: jailExecutor,
+    PLAYER_FINISHED: finishedExecutor,
     TURN_CHANGED: turnExecutor,
     GAME_FINISHED: createTimedExecutor(presentationTiming.finish),
   };
@@ -55,6 +159,13 @@ export function isPresentationEventType(value: string): value is PresentationEve
     PROPERTY_OWNERSHIP_CHANGED: true,
     PROPERTY_DEVELOPMENT_CHANGED: true,
     JAIL_STATE_CHANGED: true,
+    MONEY_TRANSFER: true,
+    PROPERTY_TRANSFER: true,
+    PASS_GO: true,
+    SENT_TO_JAIL: true,
+    JAIL_ROLL_FAILED: true,
+    JAIL_RELEASED: true,
+    CARD_INTERACTION_CHANGED: true,
     PLAYER_FINISHED: true,
     TURN_CHANGED: true,
     GAME_FINISHED: true,

@@ -53,16 +53,25 @@ thay đổi chưa hoàn tất.
 - Host là stable player; disconnect không transfer host. Lobby cần 2–4 active,
   connected và ready players để host start.
 - Standard Mode dùng board Việt Nam cố định 40 ô, đơn vị số nguyên game-unit
-  (`1 unit = 1.000 VNĐ`) và protocol/snapshot schema v4. Không đổi index hoặc
+  (`1 unit = 1.000 VNĐ`) và protocol/snapshot schema v7
+  (`SOCKET_PROTOCOL_VERSION = 7`, `ROOM_SNAPSHOT_SCHEMA_VERSION = 7`). `BoardState.rollSequence`
+  là public durable identity, bắt đầu từ `0`, tăng đúng một lần cho mỗi gameplay
+  roll đã commit, không tăng cho starting-player tie-break hoặc command rollback.
+  Không đổi index hoặc
   economy chỉ vì đổi nhãn hiển thị.
 - `completeTurnResolution` là điểm duy nhất handoff và v4 chỉ có
   `ADVANCE_TURN`; đổ đôi không cấp thêm lượt. `PendingTurnContinuation` nhúng trong
   các wait, pending purchase/development landing decision, `PaymentQueue`, private
-  `GamePrivateState.decks` và forced-sale proposal đều thuộc authoritative room
-  aggregate và phải recovery-safe.
-- `DeckState` và thứ tự thẻ không được phát trong public DTO. Client chỉ nhận dữ
-  liệu công khai cần để render; credential, private offer và hidden deck state vẫn
-  giữ ngoài public projection.
+  `GamePrivateState.decks`, `PendingCardInteraction` và forced-sale proposal đều
+  thuộc authoritative room aggregate và phải recovery-safe. Card interaction dùng
+  operation ID, `AWAITING_DRAW`/`REVEALED`, `revealedCardId` chỉ khi đã reveal,
+  continuation và server deadline; `draw card`/`dismiss card` chỉ ACK sau commit.
+- `DeckState` và thứ tự thẻ không được phát trong public DTO. Public V7 có bounded
+  `gameplayEvents`; private durable state có per-player semantic lanes và
+  `completedCardOperations`, nhưng client chỉ nhận đúng projection được phép để
+  render. Credential, private offer và hidden deck order vẫn nằm ngoài public
+  projection. Migration `008_semantic_card_v7.sql` nâng V6 snapshot lên V7 bằng
+  semantic baselines và completed-card ledger rỗng, không dựng lại lịch sử.
 - Client display state không thay authoritative room state. `SESSION_SYNC` và
   `SPECTATOR_SYNC` reset presentation queue/snap; chỉ `LIVE_UPDATE` mới animate
   state diff. Queue failure phải resolve, và reconnect không replay lịch sử.

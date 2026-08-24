@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { useEffect, useMemo } from 'react';
+import type { MutableRefObject } from 'react';
 import { CONTACT_SHADOW_Y } from '../board/architecture/boardArtSpec';
 
 const TEXTURE_SIZE = 32;
@@ -17,14 +19,14 @@ for (let y = 0; y < TEXTURE_SIZE; y += 1) {
   }
 }
 
-const CONTACT_SHADOW_TEXTURE = new THREE.DataTexture(
+export const CONTACT_SHADOW_TEXTURE = new THREE.DataTexture(
   textureData,
   TEXTURE_SIZE,
   TEXTURE_SIZE,
   THREE.RGBAFormat,
 );
 CONTACT_SHADOW_TEXTURE.needsUpdate = true;
-const CONTACT_SHADOW_GEOMETRY = new THREE.PlaneGeometry(1, 1);
+export const CONTACT_SHADOW_GEOMETRY = new THREE.PlaneGeometry(1, 1);
 const CONTACT_SHADOW_MATERIAL = new THREE.MeshBasicMaterial({
   map: CONTACT_SHADOW_TEXTURE,
   transparent: true,
@@ -49,17 +51,38 @@ interface ContactShadowProps {
   scale?: readonly [number, number];
   opacity?: number;
   position?: readonly [number, number, number];
+  materialRef?: MutableRefObject<THREE.MeshBasicMaterial | null>;
+  uniqueMaterial?: boolean;
 }
 
 export default function ContactShadow({
   scale = [0.7, 0.42],
   opacity = 0.22,
   position = [0, CONTACT_SHADOW_Y, 0],
+  materialRef,
+  uniqueMaterial = false,
 }: ContactShadowProps) {
+  const material = useMemo(() => {
+    const baseMaterial = getContactShadowMaterial(opacity);
+    return uniqueMaterial ? baseMaterial.clone() : baseMaterial;
+  }, [opacity, uniqueMaterial]);
+
+  useEffect(() => {
+    if (!materialRef) return undefined;
+    materialRef.current = material;
+    return () => {
+      if (materialRef.current === material) materialRef.current = null;
+    };
+  }, [material, materialRef]);
+
+  useEffect(() => () => {
+    if (uniqueMaterial) material.dispose();
+  }, [material, uniqueMaterial]);
+
   return (
     <mesh
       geometry={CONTACT_SHADOW_GEOMETRY}
-      material={getContactShadowMaterial(opacity)}
+      material={material}
       position={position}
       rotation={[-Math.PI / 2, 0, 0]}
       scale={[scale[0], scale[1], 1]}

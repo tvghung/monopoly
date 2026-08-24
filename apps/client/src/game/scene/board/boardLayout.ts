@@ -12,6 +12,7 @@ import {
 
 export type BoardSide = 'BOTTOM' | 'LEFT' | 'TOP' | 'RIGHT' | 'CORNER';
 
+/** Canonical 40-tile ring dimensions; readability comes from camera framing. */
 export const CORNER_SIZE = 2.46;
 export const EDGE_TILE_WIDTH = 1.6;
 export const EDGE_TILE_DEPTH = 2.58;
@@ -54,6 +55,7 @@ export const INNER_TILE_SURFACE_BOUNDARY = CORNER_CENTER
   - (EDGE_TILE_DEPTH - TILE_GAP - TILE_SURFACE_INSET) / 2;
 /** Deliberate breathing room between the center field and the inward tile edge. */
 export const CENTER_FIELD_CLEARANCE = 0.92;
+/** Natural center size derived from the inward edge of the tile surfaces. */
 export const CENTER_PLATFORM_SIZE = INNER_TILE_SURFACE_BOUNDARY * 2;
 
 const SIDE_ROTATIONS: Record<Exclude<BoardSide, 'CORNER'>, number> = {

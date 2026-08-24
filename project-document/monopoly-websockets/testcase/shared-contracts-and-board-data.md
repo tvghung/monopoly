@@ -1,19 +1,31 @@
-# Checklist — protocol/snapshot v4, board Việt Nam và decks
+# Checklist — protocol/snapshot v7, board Việt Nam và decks
 
 ## Protocol/contracts/privacy
 
-- [ ] `[AUTO][SOCKET]` Protocol v4 client/server works; older/mismatch gets
+- [ ] `[AUTO][SOCKET]` Protocol v7 client/server works; older/mismatch gets
   `UPGRADE_REQUIRED`; every mutation has typed ACK and strict payload shape.
+- [ ] `[AUTO][SOCKET]` `set appearance` accepts strict character/color combinations,
+  allows duplicate characters and colors, rejects conflicting exact combinations,
+  and preserves
+  committed appearance through public projection/reconnect.
 - [ ] `[AUTO]` Runtime schemas cover `TurnInfo.pendingPropertyDecision`,
   `PendingTurnContinuation`, `DebtClaim/PaymentQueue`, landing decisions,
   `TradeOfferRequest/TradeBundle`, transfer policies and IDs.
 - [ ] `[AUTO]` Continuation schema accepts only the supported card/jail/payment
   resume kinds; stale operation IDs cannot advance another Player.
+- [ ] `[AUTO][SOCKET]` Durable `PendingCardInteraction` accepts only
+  `AWAITING_DRAW` without `revealedCardId` or `REVEALED` with a valid card ID;
+  operation-scoped `draw card` and `dismiss card` commit/ACK exactly once.
+- [ ] `[AUTO]` Public semantic event lanes validate contiguous bounded tails for
+  `MONEY_TRANSFER`, `PROPERTY_TRANSFER`, `PASS_GO`, `SENT_TO_JAIL`,
+  `JAIL_ROLL_FAILED` and `JAIL_RELEASED`; private lanes stay participant-scoped.
 - [ ] `[AUTO]` Public projection contains no raw/hash token, session row, private
   offer terms or exact `DeckState`/next card; snapshot omits presence/socket/timer.
-- [ ] `[AUTO]` Snapshot v4 deep validation rejects dangling player/card/creditor,
+- [ ] `[AUTO]` Snapshot v7 deep validation rejects dangling player/card/creditor,
   invalid claim index, duplicate card, two landing decisions, malformed proposal
-  binding and any removed auction/contention/Bank queue state.
+  binding and any removed auction/contention/Bank queue state; migration 008
+  upgrades V6 to empty V7 semantic baselines and a completed-card ledger without
+  inventing history.
 
 ## Board/card data
 

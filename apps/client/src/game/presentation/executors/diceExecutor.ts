@@ -6,11 +6,31 @@ import { presentationTiming } from '../timings';
 export function createDiceExecutor(store: PresentationStoreLike): PresentationExecutor<RollDicePresentationEvent> {
   return {
     async run(event, context) {
-      await context.wait(presentationTiming.diceRoll);
-      store.setDisplayDice({ dice1: event.dice1, dice2: event.dice2 });
+      const durationMs = context.getDuration(presentationTiming.diceRoll);
+      store.startDiceRoll(
+        { dice1: event.dice1, dice2: event.dice2 },
+        event.rollSequence,
+        durationMs,
+      );
+      if (context.reducedMotion) {
+        store.settleDiceRoll(
+          { dice1: event.dice1, dice2: event.dice2 },
+          event.rollSequence,
+        );
+        return;
+      }
+      await context.waitForDuration(durationMs);
+      store.settleDiceRoll(
+        { dice1: event.dice1, dice2: event.dice2 },
+        event.rollSequence,
+      );
+      await context.wait(presentationTiming.diceResultHold);
     },
     finish(event) {
-      store.setDisplayDice({ dice1: event.dice1, dice2: event.dice2 });
+      store.settleDiceRoll(
+        { dice1: event.dice1, dice2: event.dice2 },
+        event.rollSequence,
+      );
     },
   };
 }

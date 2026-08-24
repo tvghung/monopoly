@@ -46,8 +46,8 @@ export const BOARD_SVG_TILE_ICON_ASSETS: Record<BoardSvgTileIconKind, BoardSvgTi
     safeWidthRatio: 0.86,
     safeHeightRatio: 0.7,
     verticalBias: 0,
-    cornerSafeWidthRatio: 0.8,
-    cornerSafeHeightRatio: 0.78,
+    cornerSafeWidthRatio: 0.89,
+    cornerSafeHeightRatio: 0.82,
     backingColor: '#080808',
   },
   'water-faucet-svg': {

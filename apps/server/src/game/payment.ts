@@ -14,6 +14,7 @@ import {
   isPropertyLockedByLandingDecision,
 } from './property';
 import { transferProperty } from './transfer';
+import { recordPrivateGameplayEvent, recordPublicGameplayEvent } from './semanticEvents';
 
 export const DEFAULT_PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS = 120_000;
 export const DEFAULT_FORCED_SALE_PROPOSAL_TIMEOUT_MS = 20_000;
@@ -106,6 +107,20 @@ const settleCurrentClaim = (state: GameState, queue: PaymentQueue): boolean => {
   const paid = Math.min(debtor.accountBalance, claim.remainingAmount);
   debtor.accountBalance -= paid;
   if (creditor) creditor.accountBalance += paid;
+  if (paid > 0) {
+    recordPublicGameplayEvent(state, {
+      type: 'MONEY_TRANSFER',
+      source: { kind: 'PLAYER', playerId: claim.debtorPlayerId },
+      destination: claim.creditor === 'PLAYER' && claim.creditorPlayerId
+        ? { kind: 'PLAYER', playerId: claim.creditorPlayerId }
+        : { kind: 'BANK' },
+      amount: paid,
+      reason: claim.source.kind === 'RENT'
+        ? 'RENT'
+        : claim.source.kind === 'CARD' ? 'CARD' : 'OTHER',
+      operationId: queue.operationId,
+    });
+  }
   claim.remainingAmount -= paid;
   if (claim.remainingAmount > 0) return false;
   claim.status = 'SETTLED';
@@ -222,9 +237,20 @@ export const sellPropertyToBankForPayment = (
   if (!seller || gross <= 0) {
     return { ok: false, changed: false, reason: 'Tài sản không có giá thanh lý hợp lệ.' };
   }
-  const transfer = transferProperty(state, tileID, sellerId, null, 'RETURN_TO_BANK');
+  const transfer = transferProperty(state, tileID, sellerId, null, 'RETURN_TO_BANK', {
+    operationId: paymentOperationId,
+    cause: 'BANK_SALE',
+  });
   if (!transfer.ok) return { ok: false, changed: false, reason: transfer.reason ?? 'Không thể chuyển tài sản về Ngân hàng.' };
   seller.accountBalance += gross;
+  recordPublicGameplayEvent(state, {
+    type: 'MONEY_TRANSFER',
+    source: { kind: 'BANK' },
+    destination: { kind: 'PLAYER', playerId: sellerId },
+    amount: gross,
+    reason: 'PROPERTY_SALE',
+    operationId: paymentOperationId,
+  });
   sendToLog(state, `${seller.name} đã bị buộc bán tài sản ${tileID} cho Ngân hàng.`);
   return { ok: true, changed: true, tileID, grossPrice: gross };
 };
@@ -315,10 +341,19 @@ export const acceptForcedSaleProposal = (
     proposal.sellerPlayerId,
     proposal.buyerPlayerId,
     'FORCED_SALE',
+    { operationId: proposal.proposalId },
   );
   if (!transfer.ok) return { ok: false, changed: false, reason: transfer.reason ?? 'Không thể chuyển tài sản.' };
   buyer.accountBalance -= proposal.grossPrice;
   seller.accountBalance += proposal.grossPrice;
+  recordPrivateGameplayEvent(state, [proposal.buyerPlayerId, proposal.sellerPlayerId], {
+    type: 'MONEY_TRANSFER',
+    source: { kind: 'PLAYER', playerId: proposal.buyerPlayerId },
+    destination: { kind: 'PLAYER', playerId: proposal.sellerPlayerId },
+    amount: proposal.grossPrice,
+    reason: 'FORCED_SALE',
+    operationId: proposal.proposalId,
+  });
   state.privateState.forcedSaleProposal = null;
   return {
     ok: true,

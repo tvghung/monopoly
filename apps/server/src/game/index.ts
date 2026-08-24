@@ -63,12 +63,17 @@ export {
 export type { BankruptcyResult } from './bankruptcy';
 export {
   applyCard,
+  cancelPendingCardInteraction,
   cardTileIndices,
   checkOwned,
+  dismissPendingCard,
+  drawPendingCard,
   handleJailRoll,
   railroadRent,
   resolveTile,
   resumePaymentContinuation,
   utilityRent,
+  DEFAULT_CARD_AWAITING_DRAW_TIMEOUT_MS,
+  DEFAULT_CARD_REVEALED_TIMEOUT_MS,
 } from './tiles';
-export type { TileResolutionOptions } from './tiles';
+export type { CardCommandResult, TileResolutionOptions } from './tiles';

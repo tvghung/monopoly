@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CHARACTER_IDS, PLAYER_COLOR_IDS } from './types';
 import type {
   BoardState,
   CurrentPlayer,
@@ -7,10 +8,13 @@ import type {
   DeckState,
   GameDecks,
   GamePrivateState,
+  GameplayEventStream,
+  GameplaySemanticEvent,
   OwnedProp,
   PaymentQueue,
   PendingPropertyDecision,
   PendingDevelopmentDecision,
+  PendingCardInteraction,
   PendingTurnContinuation,
   PrivatePlayerState,
   PersistedGameState,
@@ -54,10 +58,133 @@ export const pendingDevelopmentDecisionSchema = z.strictObject({
   continuation: pendingTurnContinuationSchema,
 }) satisfies z.ZodType<PendingDevelopmentDecision>;
 
+export const pendingCardInteractionSchema = z.strictObject({
+  operationId: operationIdSchema,
+  playerId: playerIdSchema,
+  turnNumber: turnNumberSchema,
+  deck: z.enum(['chance', 'chest']),
+  sourceTile: tileIdSchema,
+  stage: z.enum(['AWAITING_DRAW', 'REVEALED']),
+  revealedCardId: gameCardIdSchema.optional(),
+  continuation: pendingTurnContinuationSchema,
+  deadlineAt: isoTimestampSchema,
+}).superRefine((interaction, context) => {
+  if (interaction.stage === 'AWAITING_DRAW' && interaction.revealedCardId !== undefined) {
+    context.addIssue({
+      code: 'custom',
+      path: ['revealedCardId'],
+      message: 'An awaiting card interaction cannot expose a card id',
+    });
+  }
+  if (interaction.stage === 'REVEALED' && interaction.revealedCardId === undefined) {
+    context.addIssue({
+      code: 'custom',
+      path: ['revealedCardId'],
+      message: 'A revealed card interaction requires a card id',
+    });
+  }
+}) satisfies z.ZodType<PendingCardInteraction>;
+
 export const turnInfoSchema = z.strictObject({
   pendingPropertyDecision: pendingPropertyDecisionSchema.optional(),
   pendingDevelopmentDecision: pendingDevelopmentDecisionSchema.optional(),
+  pendingCardInteraction: pendingCardInteractionSchema.optional(),
 }) satisfies z.ZodType<TurnInfo>;
+
+const moneyEndpointSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('BANK') }),
+  z.strictObject({ kind: z.literal('PLAYER'), playerId: playerIdSchema }),
+]);
+
+const semanticEventBase = {
+  eventId: operationIdSchema,
+  sequence: z.number().int().positive().safe(),
+  operationId: operationIdSchema.optional(),
+};
+
+export const gameplaySemanticEventSchema: z.ZodType<GameplaySemanticEvent> = z.discriminatedUnion('type', [
+  z.strictObject({
+    ...semanticEventBase,
+    type: z.literal('MONEY_TRANSFER'),
+    source: moneyEndpointSchema,
+    destination: moneyEndpointSchema,
+    amount: moneyAmountSchema,
+    reason: z.enum([
+      'PROPERTY_PURCHASE', 'PROPERTY_SALE', 'RENT', 'PASS_GO', 'CARD',
+      'DEVELOPMENT', 'BAIL', 'TRADE', 'FORCED_SALE', 'FORFEIT', 'OTHER',
+    ]),
+  }),
+  z.strictObject({
+    ...semanticEventBase,
+    type: z.literal('PROPERTY_TRANSFER'),
+    tileID: tileIdSchema,
+    from: moneyEndpointSchema,
+    to: moneyEndpointSchema,
+    cause: z.enum([
+      'BANK_PURCHASE', 'BANK_SALE', 'VOLUNTARY_TRADE', 'FORCED_SALE',
+      'BANKRUPTCY', 'PLAYER_LEFT', 'OTHER',
+    ]),
+  }),
+  z.strictObject({
+    ...semanticEventBase,
+    type: z.literal('PASS_GO'),
+    playerId: playerIdSchema,
+    reward: moneyAmountSchema,
+    fromTile: tileIdSchema,
+    destinationTile: tileIdSchema,
+    movement: z.discriminatedUnion('kind', [
+      z.strictObject({
+        kind: z.literal('DICE_WALK'),
+        rollSequence: z.number().int().nonnegative().safe(),
+      }),
+      z.strictObject({ kind: z.literal('CARD'), cardId: gameCardIdSchema }),
+    ]),
+  }),
+  z.strictObject({
+    ...semanticEventBase,
+    type: z.literal('SENT_TO_JAIL'),
+    playerId: playerIdSchema,
+    fromTile: tileIdSchema,
+    destinationTile: tileIdSchema,
+    cause: z.enum(['BOARD_TILE', 'CARD']),
+  }),
+  z.strictObject({
+    ...semanticEventBase,
+    type: z.literal('JAIL_ROLL_FAILED'),
+    playerId: playerIdSchema,
+  }),
+  z.strictObject({
+    ...semanticEventBase,
+    type: z.literal('JAIL_RELEASED'),
+    playerId: playerIdSchema,
+    cause: z.enum(['BAIL', 'JAIL_FREE_CARD', 'DOUBLES', 'TIME_SERVED']),
+  }),
+]);
+
+export const gameplayEventStreamSchema = z.strictObject({
+  sequence: z.number().int().nonnegative().safe(),
+  events: z.array(gameplaySemanticEventSchema).max(64),
+}).superRefine((stream, context) => {
+  const sequences = stream.events.map(event => event.sequence);
+  if ((stream.sequence === 0) !== (stream.events.length === 0)) {
+    context.addIssue({ code: 'custom', path: ['events'], message: 'Only an empty baseline may omit semantic events' });
+  }
+  if (new Set(sequences).size !== sequences.length) {
+    context.addIssue({ code: 'custom', path: ['events'], message: 'Semantic sequences must be unique' });
+  }
+  if (stream.events.some(event => event.sequence > stream.sequence)) {
+    context.addIssue({ code: 'custom', path: ['events'], message: 'Semantic event exceeds stream sequence' });
+  }
+  for (let index = 1; index < sequences.length; index += 1) {
+    if (sequences[index] !== sequences[index - 1] + 1) {
+      context.addIssue({ code: 'custom', path: ['events'], message: 'Semantic events must form a contiguous tail' });
+      break;
+    }
+  }
+  if (sequences.length > 0 && sequences.at(-1) !== stream.sequence) {
+    context.addIssue({ code: 'custom', path: ['events'], message: 'Semantic tail must end at the authoritative sequence' });
+  }
+}) satisfies z.ZodType<GameplayEventStream>;
 
 export const currentPlayerSchema = z.strictObject({
   id: z.union([z.literal(''), playerIdSchema]),
@@ -89,6 +216,16 @@ export const gamePrivateStateSchema = z.strictObject({
     expectedHouses: z.number().int().min(0).max(5),
     expiresAt: isoTimestampSchema,
   }).nullable().optional(),
+  privateGameplayEventsByPlayer: z.record(playerIdSchema, gameplayEventStreamSchema),
+  completedCardOperations: z.array(z.strictObject({
+    operationId: operationIdSchema,
+    playerId: playerIdSchema,
+  })).max(64),
+}).superRefine((privateState, context) => {
+  const operationIds = privateState.completedCardOperations.map(operation => operation.operationId);
+  if (new Set(operationIds).size !== operationIds.length) {
+    context.addIssue({ code: 'custom', path: ['completedCardOperations'], message: 'Completed card operations must be unique' });
+  }
 }) satisfies z.ZodType<GamePrivateState>;
 
 export const privatePlayerStateSchema = z.strictObject({
@@ -108,6 +245,7 @@ export const privatePlayerStateSchema = z.strictObject({
     expectedHouses: z.number().int().min(0).max(5),
     expiresAt: isoTimestampSchema,
   }).nullable().optional(),
+  gameplayEvents: gameplayEventStreamSchema,
 }) satisfies z.ZodType<PrivatePlayerState>;
 
 export const debtSourceSchema: z.ZodType<DebtSource> = z.discriminatedUnion('kind', [
@@ -199,7 +337,8 @@ export const paymentQueueSchema = z.strictObject({
 export const playerSchema = z.strictObject({
   name: z.string().min(1).max(20),
   currentTile: tileIdSchema,
-  color: z.string().min(1).max(32),
+  color: z.enum(PLAYER_COLOR_IDS),
+  characterId: z.enum(CHARACTER_IDS).nullable(),
   accountBalance: z.number().int().min(0).max(2_147_483_647),
   isJail: z.boolean(),
   jailOpponentRoundsElapsed: z.number().int().min(0).max(2),
@@ -208,14 +347,16 @@ export const playerSchema = z.strictObject({
 
 export const ownedPropertySchema = z.strictObject({
   id: playerIdSchema,
-  color: z.string().min(1).max(32),
+  color: z.enum(PLAYER_COLOR_IDS),
   houses: z.number().int().min(0).max(5),
 }) satisfies z.ZodType<OwnedProp>;
 
 const finishedPlayerSchema = z.strictObject({
   name: z.string().min(1).max(20),
-  color: z.string().min(1).max(32),
+  color: z.enum(PLAYER_COLOR_IDS),
+  characterId: z.enum(CHARACTER_IDS).nullable(),
   reason: z.enum(['BANKRUPT', 'LEFT']).optional(),
+  accountBalance: nonNegativeMoneyAmountSchema.optional(),
 });
 
 export const boardStateSchema = z.strictObject({
@@ -237,9 +378,11 @@ export const boardStateSchema = z.strictObject({
     dice1: z.number().int().min(0).max(6),
     dice2: z.number().int().min(0).max(6),
   }),
+  rollSequence: z.number().int().nonnegative().safe(),
   ownedProps: z.record(z.string().regex(/^\d+$/), ownedPropertySchema),
   winner: finishedPlayerSchema.extend({ playerId: playerIdSchema }).nullable(),
   paymentQueue: paymentQueueSchema.nullable(),
+  gameplayEvents: gameplayEventStreamSchema,
 }) satisfies z.ZodType<BoardState>;
 
 export const persistedGameStateSchema = z.strictObject({

@@ -13,14 +13,16 @@ Express runtime và Socket.IO command modules. PostgreSQL/session/recovery detai
 | Trading | bilateral `TradeOfferRequest` và private offer lifecycle | [socket-trading](./socket-trading.instruction.md) |
 | Building/property | sell-house và landing development | [socket-building](./socket-building.instruction.md) |
 | Jail | `pay bail`, `use jail card`, `wait in jail` | [socket-jail](./socket-jail.instruction.md) |
+| Card | `draw card`, `dismiss card` | [monopoly.api.instructions.md](../monopoly.api.instructions.md) |
 | Payment shortfall | Bank forced sale and bilateral forced-sale proposal events | [payment-shortfall-and-forced-sale](../testcase/payment-shortfall-and-forced-sale.md) |
 
 ## Authority/commit
 
-Protocol v4 schema → authenticated role/actor → serialized room draft → PostgreSQL
+Protocol v7 schema → authenticated role/actor → serialized room draft → PostgreSQL
 CAS commit → public/private projection → ACK. Save failure phát không state/update/
 success. Actor/owner/dice/debt target và forced-sale price không lấy từ payload.
 
 Public `update` tới `room:<roomId>`; session/private trade/forced-sale results chỉ tới
-relevant `player:<playerId>`. Exact deck order và credentials không thuộc public
-projection.
+relevant `player:<playerId>`. Bounded semantic event families are projected publicly
+when safe; participant-scoped money events use `private player state`. Exact deck
+order, card draw pile and credentials không thuộc public projection.

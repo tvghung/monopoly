@@ -19,6 +19,7 @@ import type {
   RoomRole,
   SessionId,
   SessionReplacedInfo,
+  SetAppearanceRequest,
   SetReadyRequest,
   SocketProtocolVersion,
   ForcedSaleProposal,
@@ -84,6 +85,7 @@ export interface ClientToServerEvents {
     acknowledge: AckCallback<ResumeSessionResult>,
   ) => void;
   'set ready': (request: SetReadyRequest, acknowledge: AckCallback) => void;
+  'set appearance': (request: SetAppearanceRequest, acknowledge: AckCallback) => void;
   'leave room': (acknowledge: AckCallback<LeaveRoomResult>) => void;
   'start game': (acknowledge: AckCallback) => void;
   'send chat': (message: string, acknowledge: AckCallback) => void;
@@ -98,6 +100,8 @@ export interface ClientToServerEvents {
       | { operationId: string; action: 'UPGRADE_HOTEL' },
     acknowledge: AckCallback,
   ) => void;
+  'draw card': (request: { operationId: string }, acknowledge: AckCallback) => void;
+  'dismiss card': (request: { operationId: string }, acknowledge: AckCallback) => void;
   'make offer': (
     offerInfo: OfferInfo,
     acknowledge: AckCallback<MakeOfferResult>,

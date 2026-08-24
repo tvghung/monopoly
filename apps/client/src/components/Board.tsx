@@ -14,30 +14,38 @@ import { buildBoardRenderModel } from '../game/scene/board/boardRenderModel';
 import SceneErrorBoundary from '../game/scene/fallback/SceneErrorBoundary';
 import { supportsWebGL } from '../game/scene/fallback/webglSupport';
 import PropertyInspectionModal from '../game/ui/property/PropertyInspectionModal';
+import OwnedPropertiesControl from '../game/ui/property/OwnedPropertiesControl';
+import PlayerStations from '../game/ui/stations/PlayerStations';
+import { useCardInteraction } from '../game/ui/events/CardInteractionOverlay';
+import RollControl from '../game/ui/hud/RollControl';
 import BoardAccessibilityControls from './BoardAccessibilityControls';
 import LegacyBoardView from './legacy-board/LegacyBoardView';
-import Dice from './Dice';
 import Log from './Log';
 import Dashboard from './Dashboard';
+import {
+  resolveInitialRendererMode,
+  type RendererMode,
+} from './rendererMode';
 import './style/BoardShell.css';
 
 const GameScene = lazy(() => import('../game/scene/GameScene'));
 
-type RendererMode = 'webgl' | 'legacy';
-
 export default function Board() {
-  const { state, connected, canMutate } = useContext(stateContext);
+  const {
+    state, connected, canMutate, roomPlayers, playerId, role,
+  } = useContext(stateContext);
   const { state: presentationState } = usePresentation();
   const [rendererMode, setRendererMode] = useState<RendererMode>(
-    () => supportsWebGL() ? 'webgl' : 'legacy',
+    () => resolveInitialRendererMode(supportsWebGL()),
   );
   const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
   const [hoveredTileId, setHoveredTileId] = useState<number | null>(null);
   const [tradeTarget, setTradeTarget] = useState<number | null>(null);
+  const { cardInteraction } = useCardInteraction();
   const displayPositions = presentationState.displayPositions;
   const renderModel = useMemo(
-    () => buildBoardRenderModel(state, presentationState),
-    [presentationState, state],
+    () => buildBoardRenderModel(state, presentationState, roomPlayers, playerId, role),
+    [playerId, presentationState, role, roomPlayers, state],
   );
 
   const selectTile = useCallback((tileId: number) => {
@@ -68,9 +76,12 @@ export default function Board() {
   }, []);
 
   const legacyBoard = (
-    <LegacyBoardView selectedTileId={selectedTileId} onTileSelect={selectTile} />
+    <LegacyBoardView
+      selectedTileId={selectedTileId}
+      onTileSelect={selectTile}
+      dice={renderModel.dice}
+    />
   );
-
   return (
     <tradePromptContext.Provider value={{
       tradeTarget: tradeTarget === null ? null : { tileID: tradeTarget },
@@ -91,13 +102,9 @@ export default function Board() {
             <span>Bàn cờ hiển thị tốt nhất ở chế độ ngang.</span>
           </aside>
 
-          <aside className="game-board__left-rail" aria-label="Xúc xắc và trạng thái người chơi">
-            <Dice />
-            <Dashboard />
-          </aside>
-
           <section
             className={`game-board__renderer${rendererMode === 'legacy' ? ' game-board__renderer--legacy' : ''}`}
+            data-renderer-mode={rendererMode}
             aria-label="Khu vực bàn cờ trực quan"
           >
             {rendererMode === 'webgl'
@@ -110,11 +117,22 @@ export default function Board() {
                       selectedTileId={selectedTileId}
                       onTileHover={setHoveredTileId}
                       onTileSelect={selectTile}
+                      cardInteraction={{
+                        canDraw: cardInteraction.canDraw,
+                        drawPending: cardInteraction.drawPending,
+                        onDraw: cardInteraction.onDraw,
+                      }}
                     />
                   </Suspense>
                 </SceneErrorBoundary>
               )
               : legacyBoard}
+            <PlayerStations
+              activePlayerId={presentationState.displayActivePlayerId ?? state.boardState.currentPlayer.id}
+            />
+            <Dashboard />
+            <RollControl />
+            <OwnedPropertiesControl onSelect={selectTile} />
             <Log />
           </section>
 

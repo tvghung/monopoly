@@ -1,6 +1,4 @@
 export const TILE_ASSEMBLY_LAYER_ORDER = [
-  'TileBodyLayer',
-  'TileSurfaceLayer',
   'TileTextLayer',
   'TileOwnershipLayer',
   'TileDevelopmentLayer',

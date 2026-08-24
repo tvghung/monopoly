@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createCanonicalDecks,
+  formatMoney,
   type GameCard,
   type GameState,
   type Player,
@@ -14,6 +15,7 @@ import {
   applyCard,
   railroadRent,
   resolveTile,
+  progressPaymentQueue,
   utilityRent,
   nextTurn,
   checkBalance,
@@ -23,6 +25,9 @@ import {
   chooseStartingPlayer,
   rotateSeatOrder,
   createShuffledDecks,
+  drawPendingCard,
+  dismissPendingCard,
+  executeVoluntaryTrade,
 } from './game';
 
 // ---- Test fixtures ----
@@ -40,6 +45,7 @@ const makePlayer = (over: Partial<Player> = {}): Player => ({
   jailOpponentRoundsElapsed: 0,
   heldJailFreeCardIds: [],
   ...over,
+  characterId: over.characterId ?? 'dog',
 });
 
 const makeState = (): GameState => ({
@@ -52,13 +58,19 @@ const makeState = (): GameState => ({
     turnRecovery: null,
     logs: [],
     diceValue: { dice1: 0, dice2: 0 },
+    rollSequence: 0,
     ownedProps: {},
     winner: null,
     paymentQueue: null,
+    gameplayEvents: { sequence: 0, events: [] },
   },
   players: {},
   turnInfo: {},
-  privateState: { decks: createCanonicalDecks() },
+  privateState: {
+    decks: createCanonicalDecks(),
+    privateGameplayEventsByPlayer: {},
+    completedCardOperations: [],
+  },
   loaded: true,
 });
 
@@ -67,6 +79,19 @@ const addPlayer = (state: GameState, id: PlayerId, over: Partial<Player> = {}): 
   state.boardState.players = Object.keys(state.players);
   if (!state.boardState.currentPlayer.id) state.boardState.currentPlayer.id = id;
   return state.players[id];
+};
+
+const revealAndDismissPendingCard = (state: GameState, playerId: PlayerId): string => {
+  const pending = state.turnInfo.pendingCardInteraction;
+  expect(pending).toMatchObject({ playerId, stage: 'AWAITING_DRAW' });
+  if (!pending) throw new Error('Expected a pending card interaction.');
+  const { operationId } = pending;
+  expect(drawPendingCard(state, playerId, operationId)).toBe('APPLIED');
+  expect(state.turnInfo.pendingCardInteraction).toMatchObject({ operationId, stage: 'REVEALED' });
+  expect(drawPendingCard(state, playerId, operationId)).toBe('ALREADY_APPLIED');
+  expect(dismissPendingCard(state, playerId, operationId)).toBe('APPLIED');
+  expect(dismissPendingCard(state, playerId, operationId)).toBe('ALREADY_APPLIED');
+  return operationId;
 };
 
 // Mark a tile as owned by a player with sensible defaults.
@@ -216,8 +241,8 @@ describe('railroadRent / utilityRent tiers', () => {
   it('counts all owned railroads for the tier', () => {
     const state = makeState();
     addPlayer(state, 'p1');
-    own(state, 5, 'p1', { color: 'railroad' });
-    own(state, 15, 'p1', { color: 'railroad' });
+    own(state, 5, 'p1', { color: 'red' });
+    own(state, 15, 'p1', { color: 'red' });
 
     expect(railroadRent(state, 5)).toBe(50);
     expect(railroadRent(state, 15)).toBe(50);
@@ -226,8 +251,8 @@ describe('railroadRent / utilityRent tiers', () => {
   it('uses the two-utility tier while the landed utility is active', () => {
     const state = makeState();
     addPlayer(state, 'p1');
-    own(state, 12, 'p1', { color: 'company' });
-    own(state, 28, 'p1', { color: 'company' });
+    own(state, 12, 'p1', { color: 'red' });
+    own(state, 28, 'p1', { color: 'red' });
 
     expect(utilityRent(state, 12, 8)).toBe(80);
     expect(utilityRent(state, 28, 8)).toBe(80);
@@ -243,13 +268,54 @@ describe('property transfer', () => {
     own(state, 3, 'p1', { houses: 1 });
     expect(transferProperty(state, 1, 'p1', 'p2', 'VOLUNTARY')).toMatchObject({ ok: true });
     expect(state.boardState.ownedProps[1].id).toBe('p2');
+    expect(state.boardState.gameplayEvents.events.at(-1)).toMatchObject({
+      type: 'PROPERTY_TRANSFER',
+      tileID: 1,
+      from: { kind: 'PLAYER', playerId: 'p1' },
+      to: { kind: 'PLAYER', playerId: 'p2' },
+      cause: 'VOLUNTARY_TRADE',
+    });
 
-    own(state, 5, 'p1', { color: 'railroad' });
+    own(state, 5, 'p1', { color: 'red' });
     expect(transferProperty(state, 5, 'p1', 'p2', 'VOLUNTARY')).toMatchObject({
       ok: true,
     });
     expect(state.players.p2.accountBalance).toBe(9);
     expect(state.boardState.ownedProps[5]).toMatchObject({ id: 'p2' });
+  });
+
+  it('keeps voluntary cash terms private while publishing the grouped ownership cause', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { accountBalance: 100 });
+    addPlayer(state, 'p2', { accountBalance: 100 });
+    addPlayer(state, 'p3', { accountBalance: 100 });
+    own(state, 1, 'p1');
+
+    expect(executeVoluntaryTrade(
+      state,
+      'p1',
+      'p2',
+      { cash: 10, propertyIds: [1], jailFreeCardIds: [] },
+      { cash: 0, propertyIds: [], jailFreeCardIds: [] },
+      'trade-operation',
+    )).toEqual({ ok: true });
+
+    expect(state.players.p1.accountBalance).toBe(90);
+    expect(state.players.p2.accountBalance).toBe(110);
+    expect(state.boardState.gameplayEvents.events).toMatchObject([{
+      type: 'PROPERTY_TRANSFER',
+      operationId: 'trade-operation',
+      tileID: 1,
+      cause: 'VOLUNTARY_TRADE',
+    }]);
+    expect(state.boardState.gameplayEvents.events.some(event => event.type === 'MONEY_TRANSFER'))
+      .toBe(false);
+    expect(state.privateState.privateGameplayEventsByPlayer.p1.events).toMatchObject([{
+      type: 'MONEY_TRANSFER', amount: 10, reason: 'TRADE', operationId: 'trade-operation',
+    }]);
+    expect(state.privateState.privateGameplayEventsByPlayer.p2.events[0]?.eventId)
+      .toBe(state.privateState.privateGameplayEventsByPlayer.p1.events[0]?.eventId);
+    expect(state.privateState.privateGameplayEventsByPlayer.p3).toBeUndefined();
   });
 });
 
@@ -261,6 +327,19 @@ describe('applyCard', () => {
     expect(state.players.p1.accountBalance).toBe(150);
     applyCard(state, 'p1', chanceCard('penalty-test', { message: 'pay the bank', penalty: 30 }));
     expect(state.players.p1.accountBalance).toBe(120);
+    expect(state.boardState.gameplayEvents.events).toMatchObject([{
+      type: 'MONEY_TRANSFER',
+      source: { kind: 'BANK' },
+      destination: { kind: 'PLAYER', playerId: 'p1' },
+      amount: 50,
+      reason: 'CARD',
+    }, {
+      type: 'MONEY_TRANSFER',
+      source: { kind: 'PLAYER', playerId: 'p1' },
+      destination: { kind: 'BANK' },
+      amount: 30,
+      reason: 'CARD',
+    }]);
   });
 
   it('collects from every other player', () => {
@@ -276,6 +355,19 @@ describe('applyCard', () => {
     expect(state.players.p1.accountBalance).toBe(120);
     expect(state.players.p2.accountBalance).toBe(90);
     expect(state.players.p3.accountBalance).toBe(90);
+    expect(state.boardState.gameplayEvents.events.map(event => ({
+      type: event.type,
+      source: event.type === 'MONEY_TRANSFER' ? event.source : null,
+      destination: event.type === 'MONEY_TRANSFER' ? event.destination : null,
+      amount: event.type === 'MONEY_TRANSFER' ? event.amount : null,
+    }))).toEqual([
+      {
+        type: 'MONEY_TRANSFER', source: { kind: 'PLAYER', playerId: 'p2' }, destination: { kind: 'PLAYER', playerId: 'p1' }, amount: 10,
+      },
+      {
+        type: 'MONEY_TRANSFER', source: { kind: 'PLAYER', playerId: 'p3' }, destination: { kind: 'PLAYER', playerId: 'p1' }, amount: 10,
+      },
+    ]);
   });
 
   it('pays every other player', () => {
@@ -285,6 +377,13 @@ describe('applyCard', () => {
     applyCard(state, 'p1', chanceCard('pay-test', { message: 'chairman', payEachPlayer: 40 }));
     expect(state.players.p1.accountBalance).toBe(60);
     expect(state.players.p2.accountBalance).toBe(140);
+    expect(state.boardState.gameplayEvents.events).toMatchObject([{
+      type: 'MONEY_TRANSFER',
+      source: { kind: 'PLAYER', playerId: 'p1' },
+      destination: { kind: 'PLAYER', playerId: 'p2' },
+      amount: 40,
+      reason: 'CARD',
+    }]);
   });
 
   it('grants a get-out-of-jail card and sends a player to jail', () => {
@@ -299,6 +398,8 @@ describe('applyCard', () => {
     applyCard(state, 'p1', chanceCard('jail-test', { message: 'go to jail', goToJail: true }));
     expect(state.players.p1.isJail).toBe(true);
     expect(state.players.p1.currentTile).toBe(10);
+    expect(state.boardState.gameplayEvents.events.filter(event => event.type === 'SENT_TO_JAIL')).toHaveLength(1);
+    expect(state.boardState.gameplayEvents.events.filter(event => event.type === 'PASS_GO')).toHaveLength(0);
   });
 
   it('moves relative to the current tile and wraps the board', () => {
@@ -331,6 +432,56 @@ describe('applyCard', () => {
 });
 
 describe('resolveTile', () => {
+  it('keeps the authoritative top card and its consequence behind draw then dismiss', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { currentTile: 7, accountBalance: 100 });
+    addPlayer(state, 'p2');
+    putCardOnTop(state, 'chance', 'chance-dividend');
+    const originalDeckLength = state.privateState.decks.chance.drawPile.length;
+
+    resolveTile(state, 'p1', 0);
+    const pending = state.turnInfo.pendingCardInteraction;
+    expect(pending).toMatchObject({
+      playerId: 'p1', deck: 'chance', sourceTile: 7, stage: 'AWAITING_DRAW',
+    });
+    if (!pending) throw new Error('Expected a pending card interaction.');
+    expect(state.privateState.decks.chance.drawPile).toHaveLength(originalDeckLength);
+    expect(state.players.p1.accountBalance).toBe(100);
+    expect(drawPendingCard(state, 'p2', pending.operationId)).toBe('STALE');
+    expect(drawPendingCard(state, 'p1', 'stale-operation')).toBe('STALE');
+
+    expect(drawPendingCard(state, 'p1', pending.operationId)).toBe('APPLIED');
+    expect(state.turnInfo.pendingCardInteraction).toMatchObject({
+      operationId: pending.operationId,
+      stage: 'REVEALED',
+      revealedCardId: 'chance-dividend',
+    });
+    expect(state.privateState.decks.chance.drawPile).toHaveLength(originalDeckLength - 1);
+    expect(state.players.p1.accountBalance).toBe(100);
+    expect(dismissPendingCard(state, 'p1', 'stale-operation')).toBe('STALE');
+
+    expect(dismissPendingCard(state, 'p1', pending.operationId)).toBe('APPLIED');
+    expect(state.players.p1.accountBalance).toBe(150);
+    expect(state.privateState.decks.chance.drawPile).toHaveLength(originalDeckLength);
+    expect(state.privateState.decks.chance.drawPile.at(-1)).toBe('chance-dividend');
+    expect(dismissPendingCard(state, 'p1', pending.operationId)).toBe('ALREADY_APPLIED');
+  });
+
+  it('keeps a drawn get-out-of-jail card with the player instead of rotating it', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { currentTile: 2 });
+    addPlayer(state, 'p2');
+    putCardOnTop(state, 'chest', 'chest-jail-free');
+    const originalDeckLength = state.privateState.decks.chest.drawPile.length;
+
+    resolveTile(state, 'p1', 0);
+    revealAndDismissPendingCard(state, 'p1');
+
+    expect(state.players.p1.heldJailFreeCardIds).toEqual(['chest-jail-free']);
+    expect(state.privateState.decks.chest.drawPile).toHaveLength(originalDeckLength - 1);
+    expect(state.privateState.decks.chest.drawPile).not.toContain('chest-jail-free');
+  });
+
   it('awards exactly 200 once when a card advances to GO', () => {
     const state = makeState();
     addPlayer(state, 'p1', { currentTile: 7, accountBalance: 1500 });
@@ -339,9 +490,17 @@ describe('resolveTile', () => {
 
     resolveTile(state, 'p1', 0);
 
+    expect(state.players.p1.currentTile).toBe(7);
+    expect(state.players.p1.accountBalance).toBe(1500);
+    revealAndDismissPendingCard(state, 'p1');
+
     expect(state.players.p1.currentTile).toBe(0);
     expect(state.players.p1.accountBalance).toBe(1700);
     expect(state.boardState.logs.filter((log) => log.includes('200.000 ₫'))).toHaveLength(1);
+    expect(state.boardState.gameplayEvents.events.filter(event => event.type === 'PASS_GO')).toHaveLength(1);
+    expect(state.boardState.gameplayEvents.events.filter(
+      event => event.type === 'MONEY_TRANSFER' && event.reason === 'PASS_GO',
+    )).toHaveLength(1);
   });
 
   it('resolves the destination after a card moves the player back three tiles', () => {
@@ -351,6 +510,8 @@ describe('resolveTile', () => {
     putCardOnTop(state, 'chance', 'chance-back-three');
 
     resolveTile(state, 'p1', 0);
+
+    revealAndDismissPendingCard(state, 'p1');
 
     expect(state.players.p1.currentTile).toBe(4);
     expect(state.players.p1.accountBalance).toBe(500);
@@ -365,6 +526,11 @@ describe('resolveTile', () => {
     putCardOnTop(state, 'chest', 'chest-consulting-fee');
 
     resolveTile(state, 'p1', 0);
+
+    const firstOperationId = revealAndDismissPendingCard(state, 'p1');
+    expect(state.turnInfo.pendingCardInteraction).toMatchObject({ stage: 'AWAITING_DRAW', deck: 'chest' });
+    expect(state.turnInfo.pendingCardInteraction?.operationId).not.toBe(firstOperationId);
+    revealAndDismissPendingCard(state, 'p1');
 
     expect(state.players.p1.currentTile).toBe(33);
     expect(state.players.p1.accountBalance).toBe(125);
@@ -394,13 +560,118 @@ describe('resolveTile', () => {
     expect(state.players.p2.accountBalance).toBe(1002);
   });
 
+  it('logs the base street rent with the dice total, tile, and owner', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { name: 'An', currentTile: 1, accountBalance: 1000 });
+    addPlayer(state, 'p2', { name: 'Bình', accountBalance: 1000 });
+    own(state, 1, 'p2');
+
+    resolveTile(state, 'p1', 4);
+
+    expect(state.boardState.logs.filter(log => log.includes('tiền thuê'))).toHaveLength(1);
+    expect(state.boardState.logs.at(-1)).toContain(
+      `An đổ được 4 và phải trả ${formatMoney(streetRent(state, 1))} tiền thuê Cà Mau cho Bình.`,
+    );
+  });
+
+  it('logs the authoritative house tier and hotel label once', () => {
+    const housesState = makeState();
+    addPlayer(housesState, 'p1', { name: 'An', currentTile: 1, accountBalance: 1000 });
+    addPlayer(housesState, 'p2', { name: 'Bình', accountBalance: 1000 });
+    own(housesState, 1, 'p2', { houses: 3 });
+
+    resolveTile(housesState, 'p1', 4);
+
+    expect(housesState.boardState.logs.at(-1)).toContain(
+      `An đổ được 4 và phải trả ${formatMoney(streetRent(housesState, 1))} tiền thuê 3 Nhà tại Cà Mau cho Bình.`,
+    );
+
+    const hotelState = makeState();
+    addPlayer(hotelState, 'p1', { name: 'An', currentTile: 1, accountBalance: 1000 });
+    addPlayer(hotelState, 'p2', { name: 'Bình', accountBalance: 1000 });
+    own(hotelState, 1, 'p2', { houses: 5 });
+
+    resolveTile(hotelState, 'p1', 4);
+
+    expect(hotelState.boardState.logs.at(-1)).toContain(
+      `An đổ được 4 và phải trả ${formatMoney(streetRent(hotelState, 1))} tiền thuê Khách sạn tại Cà Mau cho Bình.`,
+    );
+  });
+
+  it('logs railroad and utility rent from their exact payment amounts', () => {
+    const railroadState = makeState();
+    addPlayer(railroadState, 'p1', { name: 'An', currentTile: 5, accountBalance: 1000 });
+    addPlayer(railroadState, 'p2', { name: 'Bình', accountBalance: 1000 });
+    own(railroadState, 5, 'p2', { color: 'blue' });
+    own(railroadState, 15, 'p2', { color: 'blue' });
+
+    resolveTile(railroadState, 'p1', 4);
+
+    expect(railroadState.boardState.logs.at(-1)).toContain(
+      `An đổ được 4 và phải trả ${formatMoney(50)} tiền thuê Ga Hà Nội cho Bình.`,
+    );
+
+    const utilityState = makeState();
+    addPlayer(utilityState, 'p1', { name: 'An', currentTile: 12, accountBalance: 1000 });
+    addPlayer(utilityState, 'p2', { name: 'Bình', accountBalance: 1000 });
+    own(utilityState, 12, 'p2', { color: 'blue' });
+
+    resolveTile(utilityState, 'p1', 8);
+
+    expect(utilityState.boardState.logs.at(-1)).toContain(
+      `An đổ được 8 và phải trả ${formatMoney(32)} tiền thuê Công Ty Điện cho Bình.`,
+    );
+  });
+
+  it('logs the full rent once when payment starts in shortfall and later resumes', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { name: 'An', currentTile: 1, accountBalance: 10 });
+    addPlayer(state, 'p2', { name: 'Bình', accountBalance: 1000 });
+    own(state, 3, 'p1', { color: 'green' });
+    own(state, 1, 'p2', { houses: 3 });
+
+    resolveTile(state, 'p1', 4);
+
+    const rentMessage = `An đổ được 4 và phải trả ${formatMoney(90)} tiền thuê 3 Nhà tại Cà Mau cho Bình.`;
+    expect(state.boardState.logs.filter(log => log.includes(rentMessage))).toHaveLength(1);
+    expect(state.boardState.paymentQueue?.orderedClaims[0]?.remainingAmount).toBe(80);
+    expect(state.boardState.gameplayEvents.events.filter(
+      event => event.type === 'MONEY_TRANSFER' && event.reason === 'RENT',
+    )).toMatchObject([{ amount: 10 }]);
+
+    state.players.p1.accountBalance = 80;
+    progressPaymentQueue(state);
+
+    expect(state.boardState.paymentQueue).toBeNull();
+    expect(state.boardState.logs.filter(log => log.includes(rentMessage))).toHaveLength(1);
+    expect(state.boardState.gameplayEvents.events.filter(
+      event => event.type === 'MONEY_TRANSFER' && event.reason === 'RENT',
+    )).toMatchObject([{ amount: 10 }, { amount: 80 }]);
+  });
+
+  it('does not attribute card-destination rent to the original dice total', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { name: 'An', currentTile: 7, accountBalance: 1000 });
+    addPlayer(state, 'p2', { name: 'Bình', accountBalance: 1000 });
+    own(state, 5, 'p2', { color: 'blue' });
+    putCardOnTop(state, 'chance', 'chance-trip-ga-ha-noi');
+
+    resolveTile(state, 'p1', 4);
+
+    revealAndDismissPendingCard(state, 'p1');
+
+    const rentMessage = `An phải trả ${formatMoney(25)} tiền thuê Ga Hà Nội cho Bình.`;
+    expect(state.boardState.logs).toContainEqual(expect.stringContaining(rentMessage));
+    expect(state.boardState.logs.some(log => log.includes('An đổ được 4 và phải trả'))).toBe(false);
+  });
+
   it('scales railroad rent with the number owned', () => {
     const state = makeState();
     addPlayer(state, 'p1', { currentTile: 5, accountBalance: 1000 });
     addPlayer(state, 'p2', { accountBalance: 1000 });
     // p2 owns two railroads: rent is 25 * 2^(2-1) = 50.
-    own(state, 5, 'p2', { color: 'railroad' });
-    own(state, 15, 'p2', { color: 'railroad' });
+    own(state, 5, 'p2', { color: 'blue' });
+    own(state, 15, 'p2', { color: 'blue' });
     resolveTile(state, 'p1', 0);
     expect(state.players.p1.accountBalance).toBe(950);
     expect(state.players.p2.accountBalance).toBe(1050);
@@ -411,7 +682,7 @@ describe('resolveTile', () => {
     addPlayer(state, 'p1', { currentTile: 12, accountBalance: 1000 });
     addPlayer(state, 'p2', { accountBalance: 1000 });
     // One utility owned: rent is diceResult * 4.
-    own(state, 12, 'p2', { color: 'company' });
+    own(state, 12, 'p2', { color: 'blue' });
     resolveTile(state, 'p1', 8);
     expect(state.players.p1.accountBalance).toBe(968);
     expect(state.players.p2.accountBalance).toBe(1032);
@@ -473,6 +744,7 @@ describe('checkBalance / winner', () => {
     expect(state.players.p1).toBeUndefined();
     expect(state.boardState.finishedPlayers.p1).toBeDefined();
     expect(state.boardState.finishedPlayers.p1.reason).toBe('BANKRUPT');
+    expect(state.boardState.finishedPlayers.p1.accountBalance).toBe(0);
     expect(state.boardState.ownedProps[1]).toBeUndefined();
     expect(state.boardState.winner).toMatchObject({ playerId: 'p2', name: 'Player' });
   });
@@ -521,6 +793,7 @@ describe('checkBalance / winner', () => {
     state.boardState.finishedPlayers.loser = {
       name: 'Grace',
       color: 'green',
+      characterId: 'panda',
       reason: 'BANKRUPT',
     };
     const logsBefore = state.boardState.logs.length;
@@ -532,6 +805,7 @@ describe('checkBalance / winner', () => {
       playerId: 'winner',
       name: 'Ada',
       color: 'purple',
+      characterId: 'dog',
     });
     expect(state.boardState.logs).toHaveLength(logsBefore + 1);
   });

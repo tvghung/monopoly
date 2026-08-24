@@ -154,23 +154,35 @@ Player color phải consistent với HUD.
 
 ---
 
-# 9. House & Hotel placeholders
+# 9. House & Hotel visual authoring
 
-Dựng geometry đơn giản bằng code.
+Buildings remain procedural client presentation derived from the existing
+authoritative building count. The authored pass keeps the existing slots,
+anchors, dimensions, contact shadows, level mapping and construction timing.
 
 House:
 
-- box body
-- roof
+- neutral plaster body `0.48 × 0.39 × 0.36`, approximately `#d9d2c2`, roughness
+  `0.76`, metalness `0`
+- one shared opaque sRGB façade `DataTexture` applied to the body; every
+  vertical face reads as one row of two four-pane windows
+- one genuine pitched/gable roof mesh with approximately `0.56 × 0.47`
+  footprint and `0.18` rise; only the roof uses the owner's canonical display
+  color
 
 Hotel:
 
-- taller box
-- roof/sign
+- neutral facade `0.92 × 0.60 × 0.78`, approximately `#d5d8d6`, roughness
+  `0.68`, metalness `0`
+- one shared opaque sRGB façade `DataTexture`; every vertical face reads as
+  two columns × three floors, with four panes per panel
+- the existing separate crown/roof keeps its footprint and height and uses the
+  owner's canonical display color
 
-Cần support đúng building count theo luật hiện tại.
-
-Không cần final animation trong phase này.
+Window grids are procedural texture detail, not individual frame/window
+meshes. No external model or second presentation path is introduced; the
+existing `TileAssembly → TileDevelopmentLayer → BuildingLayer` ownership path
+remains the source of the visual owner color and building level.
 
 ---
 
@@ -250,6 +262,7 @@ Board phải:
 - tile → world position lookup
 - ownership render mapping
 - building count mapping
+- house/hotel facade texture layout, material profiles and canonical roof color
 - selected tile state
 
 ## Manual
@@ -291,3 +304,69 @@ Board phải:
 - rich particles
 - final build animation
 - end-game cinematic
+
+## Corrective pre-Phase-5 board proportion/readability contract (2026-08-23)
+
+The board remains a client-only projection of the canonical shared 40-tile
+registry. This corrective pass changes no server rule, protocol,
+authority boundary, movement baseline or presentation queue.
+
+- Canonical geometry is `EDGE_TILE_WIDTH=1.6`, `EDGE_TILE_DEPTH=2.58`,
+  `CORNER_SIZE=2.46`, `TILE_GAP=0.05`. `TileBodyBatch`, `TileSurfaceBatch`,
+  `TileSocket`, `BoardFoundation`, `BoardFrame` and `outerBoardAccent` consume
+  these values through `boardLayout`; there are no per-tile geometry hacks.
+- `CENTER_PLATFORM_SIZE` derives directly from
+  `INNER_TILE_SURFACE_BOUNDARY * 2`; the distorted-layout compensation
+  `CENTER_PLATFORM_INSET=0.6` is removed. Restoring the shorter depth
+  naturally enlarges the center through that formula; the
+  `CENTER_ORTHOGONAL_PATH_WIDTH=0.44` path remains unchanged.
+  The `BOARD_FRAME_WIDTH=0.14` frame and the continuous top-deck gutter
+  emphasize the ring while retaining a connected foundation. Foundation
+  layers are lower `0.16`, middle `0.20`, top `0.12`, total `0.48`; the middle
+  neutral grey is `#858d90`.
+- Property typography is local SDF, inward-facing and hard-capped at two lines:
+  manual fitting chooses the lines and font size, Troika receives
+  `whiteSpace='nowrap'`, and the safe width is `90%` of the usable panel.
+  Normal/special starting sizes remain `0.40/0.33` and `0.36/0.30`; normal
+  fitting floors at approximately `0.29` and two-line text also fits the
+  30% footer height. The regression set includes `Cà Mau`, `Huế`,
+  `Nguyễn Huệ`, `Buôn Ma Thuột`, `Phú Mỹ Hưng`, `Landmark 81`,
+  `Công Ty Điện` and `Công Ty Nước`.
+  The shared 70/30 upper/footer panel contract remains the source for text and
+  raised SVG icon placement; individual icon safe ratios are unchanged.
+- Ownership uses the existing authoritative `ownedProps → BoardRenderModel →
+  TileOwnershipLayer` path. The planted pole/cloth is enlarged to
+  `0.56/0.48×0.25` with canonical player colors and remains separate from
+  houses, hotel, divider, text and selection feedback. No `OwnerTab` or full
+  width strip is reintroduced.
+- Start derives its scale from tile `0`'s actual usable corner surface and
+  targets `92%` of that width. Only the yellow arrow face is vertically
+  scaled `1.20×`; posts, text, orientation and horizontal footprint remain
+  planted in the corner panel. Approved House/Hotel dimensions are preserved and
+  `tileAnchors` remain synchronized with those dimensions; levels `1–4` and `5`
+  continue to map to Nhà and Khách Sạn.
+- House/hotel bodies use the authored neutral facades and shared procedural
+  window grids described in Section 9. Roof/crown owner color uses the same
+  canonical display color as the HUD; no individual window/frame mesh is added.
+- Visible dice use one instanced two-shadow batch. Each shadow stays on the
+  airport field and interpolates from approximately `0.21` opacity at rest
+  to `0.07` at the existing maximum lift, with a maximum `1.35×` footprint;
+  both shadows use the shared die vertical-offset helper, including the
+  first drop, reroll lift, tumble/bounce, settled and hidden states.
+- Fixed orthographic camera direction, distance and board/dice/station fit
+  points remain unchanged. `FixedBoardCamera` applies one centralized
+  `ORTHOGRAPHIC_READABILITY_ZOOM=1.08`; the board remains uncropped at
+  `1280×720`, `1440×900` and `1920×1080`. Normal/stress budgets remain
+  `≤210/<240` draw calls and `≤80,000/<100,000` triangles.
+
+- Corner-specific art is tuned without a global SVG multiplier: Jail uses
+  `72%` width and `68%` depth, Parking cars use a `1.18×` geometry scale with
+  tighter spacing, and Go To Jail handcuffs use `89%` width and `82%` height.
+
+The existing `Phase4UatHarness` now includes `board-readability` for the static
+board sweep and `dice-contact-shadows` for the animated first-roll/reroll
+shadow sweep. Automated tests cover canonical transforms, surface and
+center-frame clearance, adaptive text, flag footprint, Start ratio, foundation
+layers, dice shadow interpolation, building anchors, corner-art ratios and
+camera fit. Visual evidence and any unavailable live or Electron checks remain
+reported separately.

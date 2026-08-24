@@ -13,8 +13,11 @@
   operation IDs cần cho durable continuation.
 - `RoomStatus`: `LOBBY | IN_PROGRESS | FINISHED`; `RoomRole`:
   `PLAYER | SPECTATOR`.
-- `SOCKET_PROTOCOL_VERSION = 4`; older clients nhận `UPGRADE_REQUIRED`, không chạy legacy
+- `SOCKET_PROTOCOL_VERSION = 7`; older clients nhận `UPGRADE_REQUIRED`, không chạy legacy
   state/payload.
+- `CharacterId` và `PlayerColorId` là stable shared appearance IDs. `set appearance`
+  nhận strict character-only, color-only hoặc combined payload; empty/unknown keys
+  bị từ chối.
 - Stable public ID không phải credential. Raw reconnect token không thuộc
   `PublicRoomState`, `GameState`, `SocketData`, log hoặc snapshot.
 
@@ -35,17 +38,31 @@ Public/persisted types dùng stable IDs và phân biệt hidden state:
   deterministic forced-sale proposal (tối đa một proposal trong snapshot).
 - Cards: private persisted `GamePrivateState.decks.chance.drawPile` và
   `.chest.drawPile`; Player giữ `heldJailFreeCardIds`. Public projection chỉ lộ
-  counts cần cho UI, không lộ holder IDs/order/card kế tiếp.
+  counts cần cho UI, không lộ holder IDs/order/card kế tiếp. `PendingCardInteraction`
+  is durable and operation-scoped with `AWAITING_DRAW`/`REVEALED`, optional
+  `revealedCardId`, continuation and deadline; `draw card` and `dismiss card` are
+  authoritative commit/ACK commands.
+- `BoardState.gameplayEvents` is a bounded public semantic stream for
+  `MONEY_TRANSFER`, `PROPERTY_TRANSFER`, `PASS_GO`, `SENT_TO_JAIL`,
+  `JAIL_ROLL_FAILED` and `JAIL_RELEASED`. `GamePrivateState` additionally stores
+  per-player private gameplay lanes and `completedCardOperations`.
 - Jail wait progress (`jailOpponentRoundsElapsed`) là state authoritative, được giữ
   nguyên qua payment/restart; không có third-failed-roll hoặc stored-dice state.
 
-`PersistedGameState`/room snapshot chứa durable fields trên và bỏ `loaded`, presence,
+`PersistedGameState`/room snapshot V7 chứa durable fields trên và bỏ `loaded`, presence,
 credential, socket ID, countdown tick/timer handle. `BoardState.gameStartedAt?: string | null`
 là ISO timestamp authoritative được set tại transition `LOBBY -> IN_PROGRESS`; `freshState()`
 dùng `null`, schema chấp nhận missing/null để hydrate snapshot cũ, và public projection
 giữ giá trị này cho compatibility/public state. Board client hiện không render center timer
 và không cần đưa timestamp vào scene render model. Client không tự khởi tạo timestamp từ
 mount/reconnect.
+
+`BoardState.rollSequence` là public durable non-negative safe integer. Fresh state
+starts at `0`; historical V5 → V6 migration 007 also starts at `0` without
+reconstructing historical rolls. Current V6 → V7 migration 008 initializes empty
+semantic/card baselines without reconstructing history. The server increments it once after accepted dice generation
+inside the gameplay transaction, including jail attempts but excluding
+starting-player tie-breaks, rejected commands, and rolled-back transactions.
 
 ## Transfer/trading
 
@@ -93,8 +110,9 @@ hay board label hiện tại.
 
 ## Tests
 
-- Protocol v4 mismatch; payload/ACK compile/runtime validation.
-- Strict `TradeBundle`, payment shortfall, landing decision and snapshot v4 validation.
+- Protocol v7 mismatch; payload/ACK compile/runtime validation.
+- Strict appearance/`TradeBundle`, payment shortfall, landing decision, durable card
+  interaction, semantic lanes and snapshot v7 validation.
 - Strict board snapshot validation cho `gameStartedAt` optional/null và compatibility với
   snapshot cũ không có field; start timestamp persistence/public projection.
 - Public no-leak assertion cho token/hash/session/private offer/exact deck order.

@@ -29,6 +29,7 @@ interface SvgImageCacheEntry {
 }
 
 const SVG_IMAGE_CACHE = new Map<string, SvgImageCacheEntry>();
+const SVG_TEXTURE_CACHE = new Map<string, THREE.Texture>();
 
 function getSvgImageCacheEntry(url: string): SvgImageCacheEntry {
   const existing = SVG_IMAGE_CACHE.get(url);
@@ -58,6 +59,12 @@ function startSvgImageLoad(url: string, entry: SvgImageCacheEntry): void {
     entry.listeners.forEach(listener => listener(null));
   };
   image.src = url;
+}
+
+/** Start shared card/tile icon loading before a physical card enters focus. */
+export function prewarmSharedSvgTexture(url: string): void {
+  const entry = getSvgImageCacheEntry(url);
+  startSvgImageLoad(url, entry);
 }
 
 function useSvgImage(url: string): HTMLImageElement | null {
@@ -99,6 +106,26 @@ function useSvgTexture(url: string): THREE.Texture | null {
 
   useEffect(() => () => texture?.dispose(), [texture]);
   return texture;
+}
+
+/** Shared app-lifetime texture for repeated physical/icon surfaces. */
+export function useSharedSvgTexture(url: string): THREE.Texture | null {
+  const image = useSvgImage(url);
+  return useMemo(() => {
+    if (!image) return SVG_TEXTURE_CACHE.get(url) ?? null;
+    const cached = SVG_TEXTURE_CACHE.get(url);
+    if (cached) return cached;
+    const texture = new THREE.Texture(image);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.generateMipmaps = true;
+    texture.needsUpdate = true;
+    SVG_TEXTURE_CACHE.set(url, texture);
+    return texture;
+  }, [image, url]);
 }
 
 export function getRaisedSvgTileIconArtSize(

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { useThree } from '@react-three/fiber';
 import { useEffectiveReducedMotion } from '../../../../settings/selectors';
 import { TileMotionController } from './TileMotionController';
@@ -8,11 +8,21 @@ const tileMotionContext = createContext<TileMotionController | null>(null);
 
 interface TileMotionProviderProps {
   impacts: readonly TileImpactSignal[];
-  impactEpoch: number;
+  resetEpoch: number;
   children: ReactNode;
 }
 
-export default function TileMotionProvider({ impacts, impactEpoch, children }: TileMotionProviderProps) {
+export function getUnprocessedTileImpacts(
+  impacts: readonly TileImpactSignal[],
+  lastSequence: number,
+): TileImpactSignal[] {
+  return impacts
+    .filter(impact => impact.sequence > lastSequence)
+    .slice()
+    .sort((left, right) => left.sequence - right.sequence);
+}
+
+export default function TileMotionProvider({ impacts, resetEpoch, children }: TileMotionProviderProps) {
   const invalidate = useThree(state => state.invalidate);
   const reducedMotion = useEffectiveReducedMotion();
   const controllerRef = useRef<TileMotionController | null>(null);
@@ -30,7 +40,7 @@ export default function TileMotionProvider({ impacts, impactEpoch, children }: T
   useEffect(() => {
     controller.reset();
     lastSequenceRef.current = 0;
-  }, [controller, impactEpoch]);
+  }, [controller, resetEpoch]);
 
   useEffect(() => {
     if (!initializedRef.current) {
@@ -38,14 +48,8 @@ export default function TileMotionProvider({ impacts, impactEpoch, children }: T
       lastSequenceRef.current = impacts.reduce((latest, impact) => Math.max(latest, impact.sequence), 0);
       return;
     }
-    if (impacts.length === 0) {
-      lastSequenceRef.current = 0;
-      return;
-    }
-    impacts
-      .filter(impact => impact.sequence > lastSequenceRef.current)
-      .sort((left, right) => left.sequence - right.sequence)
-      .forEach(impact => controller.press(impact.tileId, impact.kind));
+    getUnprocessedTileImpacts(impacts, lastSequenceRef.current)
+      .forEach(impact => controller.press(impact.tileId, impact.kind, impact));
     lastSequenceRef.current = impacts.reduce((latest, impact) => Math.max(latest, impact.sequence), lastSequenceRef.current);
   }, [controller, impacts]);
 
@@ -54,22 +58,4 @@ export default function TileMotionProvider({ impacts, impactEpoch, children }: T
 
 export function useTileMotionController(): TileMotionController | null {
   return useContext(tileMotionContext);
-}
-
-export function useTileMotionRevision(): number {
-  const controller = useTileMotionController();
-  return useSyncExternalStore(
-    controller?.subscribe.bind(controller) ?? (() => () => {}),
-    controller ? () => controller.getRevision() : () => 0,
-    () => 0,
-  );
-}
-
-export function useTileMotionOffset(tileId: number): number {
-  const controller = useTileMotionController();
-  return useSyncExternalStore(
-    controller?.subscribe.bind(controller) ?? (() => () => {}),
-    controller ? () => controller.getTileOffsetY(tileId) : () => 0,
-    () => 0,
-  );
 }

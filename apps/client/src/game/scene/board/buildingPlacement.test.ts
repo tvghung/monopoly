@@ -3,7 +3,6 @@ import {
   HOTEL_BODY_HEIGHT,
   HOUSE_BODY_HEIGHT,
   HOUSE_CENTER_Y,
-  PLAYER_ACTIVE_RING_BOTTOM_Y,
   PLAYER_MARKER_BODY_HEIGHT,
   getBuildingSlots,
   getHotelSlot,
@@ -12,8 +11,10 @@ import {
 import {
   SURFACE_EPSILON,
   TILE_SURFACE_Y,
+  getBoardTileLayout,
   transformTileLocalPointToWorld,
 } from './boardLayout';
+import { HOUSE_BODY_DEPTH, HOUSE_BODY_WIDTH } from './architecture/boardArtSpec';
 
 describe('board building and occupant placement', () => {
   it('maps authoritative development levels to visible building slots', () => {
@@ -34,7 +35,14 @@ describe('board building and occupant placement', () => {
       .toBeCloseTo(TILE_SURFACE_Y + SURFACE_EPSILON);
     expect((getOccupantWorldPosition(1, 0)?.[1] ?? 0) - PLAYER_MARKER_BODY_HEIGHT / 2)
       .toBeCloseTo(TILE_SURFACE_Y + SURFACE_EPSILON);
-    expect(PLAYER_ACTIVE_RING_BOTTOM_Y).toBeGreaterThanOrEqual(TILE_SURFACE_Y);
+  });
+
+  it('keeps the enlarged four-house footprint inside the canonical edge tile', () => {
+    const [tileWidth, tileDepth] = getBoardTileLayout(1)!.size;
+    getBuildingSlots(4).forEach(position => {
+      expect(Math.abs(position[0]) + HOUSE_BODY_WIDTH / 2).toBeLessThan(tileWidth / 2);
+      expect(Math.abs(position[2]) + HOUSE_BODY_DEPTH / 2).toBeLessThan(tileDepth / 2);
+    });
   });
 
   it.each([

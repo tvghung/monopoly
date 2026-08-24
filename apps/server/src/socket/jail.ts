@@ -9,6 +9,7 @@ import { broadcastRoom } from './broadcast';
 import { CommandError, acknowledgeFailure, successAck } from './errors';
 import { commitRoomCommand } from './roomCommands';
 import type { AppServer, AppSocket } from './types';
+import { recordPublicGameplayEvent } from '../game/semanticEvents';
 
 export function registerJailHandlers(
   io: AppServer,
@@ -37,8 +38,20 @@ export function registerJailHandlers(
           throw new CommandError('CONFLICT', 'Không đủ 50 để trả tiền bảo lãnh.');
         }
         player.accountBalance -= 50;
+        recordPublicGameplayEvent(state, {
+          type: 'MONEY_TRANSFER',
+          source: { kind: 'PLAYER', playerId },
+          destination: { kind: 'BANK' },
+          amount: 50,
+          reason: 'BAIL',
+        });
         player.isJail = false;
         player.jailOpponentRoundsElapsed = 0;
+        recordPublicGameplayEvent(state, {
+          type: 'JAIL_RELEASED',
+          playerId,
+          cause: 'BAIL',
+        });
         sendToLog(state, `${player.name} đã trả tiền bảo lãnh và được ra tù.`);
       }, now, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
@@ -76,6 +89,11 @@ export function registerJailHandlers(
         state.privateState.decks[deck].drawPile.push(cardId);
         player.isJail = false;
         player.jailOpponentRoundsElapsed = 0;
+        recordPublicGameplayEvent(state, {
+          type: 'JAIL_RELEASED',
+          playerId,
+          cause: 'JAIL_FREE_CARD',
+        });
         sendToLog(state, `${player.name} đã dùng Thẻ Thoát Tù Miễn Phí.`);
       }, undefined, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');

@@ -12,6 +12,7 @@ function event(id: string): PresentationEvent {
     entityId: 'room',
     dice1: 1,
     dice2: 2,
+    rollSequence: 1,
   };
 }
 
@@ -123,6 +124,47 @@ describe('AnimationQueue', () => {
 
     expect(finished).toEqual([]);
     expect(queue.getStatus()).toBe('idle');
+    queue.dispose();
+  });
+
+  it('resolves physical presentation duration for reduced motion', async () => {
+    vi.useFakeTimers();
+    const durations: number[] = [];
+    const queue = new AnimationQueue({
+      reducedMotion: true,
+      speedMultiplier: 2,
+      executors: makeExecutor(async (_current, context) => {
+        durations.push(context.getDuration(1_300));
+        await context.waitForDuration(context.getDuration(1_300));
+      }),
+    });
+
+    const pending = queue.enqueue(event('semantic-dwell'));
+    await vi.runAllTimersAsync();
+    await pending;
+
+    expect(durations).toEqual([0]);
+    queue.dispose();
+  });
+
+  it('lets movement consume one resolved duration for both queue wait and rendering', async () => {
+    vi.useFakeTimers();
+    const durations: number[] = [];
+    const queue = new AnimationQueue({
+      speedMultiplier: 2,
+      executors: makeExecutor(async (_current, context) => {
+        const duration = context.getDuration(180);
+        durations.push(duration);
+        await context.waitForDuration(duration);
+        durations.push(duration);
+      }),
+    });
+
+    const pending = queue.enqueue(event('resolved-duration'));
+    await vi.runAllTimersAsync();
+    await pending;
+
+    expect(durations).toEqual([90, 90]);
     queue.dispose();
   });
 });

@@ -12,6 +12,12 @@ import {
   generateWhitePebbleTextureData,
 } from './materials/whitePebbleSurface';
 import { getOrientedTilePanelLayoutForTileSize } from './tiles/tilePanelLayout';
+import {
+  BOARD_FOUNDATION_HEIGHT,
+  BOARD_LOWER_CHASSIS_HEIGHT,
+  BOARD_MIDDLE_WALL_HEIGHT,
+  BOARD_TOP_DECK_HEIGHT,
+} from './architecture/boardArtSpec';
 
 describe('Phase 2.5E visual contracts', () => {
   it('keeps the exact shared divider boundary on all edge sides', () => {
@@ -52,8 +58,18 @@ describe('Phase 2.5E visual contracts', () => {
     expect(boardVisualTokens.tileSurface).toBe('#ffffff');
     expect(boardVisualTokens.tileFooter).toBe('#ffffff');
     expect(boardVisualTokens.sceneBackground).toBe('#62ddcc');
-    expect(boardVisualTokens.boardBase).toBe('#168c82');
+    expect(boardVisualTokens.boardBase).toBe('#858d90');
     expect(boardVisualTokens.boardBaseEdge).toBe('#113c49');
     expect(boardVisualTokens.boardAccent).toBe('#00c7b4');
+  });
+
+  it('keeps the shared foundation layers derived from the final total height', () => {
+    expect(BOARD_FOUNDATION_HEIGHT).toBe(0.48);
+    expect(BOARD_LOWER_CHASSIS_HEIGHT).toBe(0.16);
+    expect(BOARD_MIDDLE_WALL_HEIGHT).toBeCloseTo(0.20);
+    expect(BOARD_TOP_DECK_HEIGHT).toBe(0.12);
+    expect(
+      BOARD_LOWER_CHASSIS_HEIGHT + BOARD_MIDDLE_WALL_HEIGHT + BOARD_TOP_DECK_HEIGHT,
+    ).toBeCloseTo(BOARD_FOUNDATION_HEIGHT);
   });
 });

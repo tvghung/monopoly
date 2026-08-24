@@ -82,12 +82,12 @@ Không dùng full 3D character rigs trong scope hiện tại.
 
 Nhân vật dùng transparent PNG sprite/billboard:
 
-- Shiba
+- Dog (golden retriever artwork)
 - Capybara
 - Panda
 - Cat
 - Penguin
-- Fox
+- Elephant
 - Rabbit
 - Duck
 
@@ -279,12 +279,12 @@ Board phải trả lời ngay được:
 
 8 character sprite:
 
-1. Shiba
+1. Dog
 2. Capybara
 3. Panda
 4. Cat
 5. Penguin
-6. Fox
+6. Elephant
 7. Rabbit
 8. Duck
 
@@ -436,17 +436,26 @@ File:
 
 ---
 
-## Phase 3 — Character System
+## Phase 3 — Character + Player Color Appearance System
 
 Mục tiêu:
 
-- character selector
-- sprite registry
-- billboard rendering
-- hop movement
-- shadow
-- player color
-- reactions
+- chọn 1 trong 8 mascot SVG và 1 trong 10 màu người chơi trong lobby
+- cho phép trùng mascot và màu, nhưng bắt buộc tổ hợp mascot + màu duy nhất giữa
+  người chơi active
+- dùng một registry màu chung cho lobby/HUD, cờ ownership và accent mascot
+- giữ màu tự nhiên của mascot, chỉ recolor các vùng accent có token ổn định
+- billboard mascot trên board với layout deterministic cho 1–4 người cùng ô
+- hop movement, landing feedback, reduced motion và reconnect snap qua
+  presentation architecture hiện có
+- lưu appearance trong snapshot và nâng protocol/snapshot v4 → v5 an toàn
+
+Implementation note: the Phase 3 presentation layer keeps board target positions
+separate from settled UI-gating positions, uses a dedicated reset epoch for
+reconnect/session snaps, and keeps tile impacts/reactions as independent
+presentation signals. The final movement rhythm uses one resolved wait per hop;
+intermediate `STEP` lightening is non-blocking and is rendered by a separate
+additive impact-highlight batch without changing idle tile materials.
 
 File:
 
@@ -455,6 +464,16 @@ File:
 ---
 
 ## Phase 4 — Gameplay Actions & Animations
+
+Status: Phase 4 gameplay/presentation feature implementation is CLOSED. The
+2026-08-23 board-proportion/readability pass is the final Phase 4 feature slice;
+no new Phase 4 gameplay feature is required before Phase 5. The current
+board-readability fixture measures about `227` draw calls, above the normal
+`≤210` target but below the hard `<240` limit; this is accepted Phase 5
+performance debt/guardrail, not unfinished gameplay authority. Phase 5 is the
+next implementation slice and must preserve the V7 authority and single
+presentation pipeline. Live gameplay, Electron, and remote-CI checks remain
+separate validation gates and are not inferred from client-only fixtures.
 
 Mục tiêu:
 

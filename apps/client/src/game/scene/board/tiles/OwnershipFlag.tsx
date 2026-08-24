@@ -1,16 +1,19 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import type { OwnershipChangeSignal } from '../../../presentation/store/types';
+import { presentationTiming } from '../../../presentation/timings';
 import { TILE_SURFACE_CLEARANCE_Y, TILE_SURFACE_Y } from '../boardLayout';
 import { boardVisualTokens } from '../boardVisualTokens';
 import { getPlayerDisplayColor } from '../../../ui/playerVisualColors';
 import type { TilePanelLayout } from './tilePanelLayout';
 
-export const OWNERSHIP_FLAG_POLE_HEIGHT = 0.36;
-export const OWNERSHIP_FLAG_POLE_WIDTH = 0.035;
-export const OWNERSHIP_FLAG_CLOTH_WIDTH = 0.3;
-export const OWNERSHIP_FLAG_CLOTH_HEIGHT = 0.16;
-export const OWNERSHIP_FLAG_CLOTH_DEPTH = 0.028;
-const OWNERSHIP_FLAG_LATERAL_INSET = 0.16;
+export const OWNERSHIP_FLAG_POLE_HEIGHT = 0.56;
+export const OWNERSHIP_FLAG_POLE_WIDTH = 0.05;
+export const OWNERSHIP_FLAG_CLOTH_WIDTH = 0.48;
+export const OWNERSHIP_FLAG_CLOTH_HEIGHT = 0.25;
+export const OWNERSHIP_FLAG_CLOTH_DEPTH = 0.04;
+const OWNERSHIP_FLAG_LATERAL_INSET = 0.18;
 const OWNERSHIP_FLAG_OUTER_INSET_RATIO = 0.08;
 
 function appendBoxVertices(
@@ -95,20 +98,92 @@ export function getOwnershipFlagPlacement(panel: TilePanelLayout): OwnershipFlag
 interface OwnershipFlagProps {
   ownerColor: string;
   panel: TilePanelLayout;
+  ownershipChange?: OwnershipChangeSignal;
+  reducedMotion?: boolean;
 }
 
-export default function OwnershipFlag({ ownerColor, panel }: OwnershipFlagProps) {
+export function getOwnershipFlagPopScale(progress: number): number {
+  const clamped = THREE.MathUtils.clamp(progress, 0, 1);
+  if (clamped <= 0) return 0;
+  if (clamped >= 1) return 1;
+  if (clamped < 0.56) {
+    const t = clamped / 0.56;
+    return 1.28 * (1 - (1 - t) ** 3);
+  }
+  const t = (clamped - 0.56) / 0.44;
+  const eased = t * t * (3 - 2 * t);
+  return THREE.MathUtils.lerp(1.28, 1, eased);
+}
+
+function OwnershipFlagAnimation({
+  groupRef,
+  ownershipChange,
+}: {
+  groupRef: { current: THREE.Group | null };
+  ownershipChange: OwnershipChangeSignal;
+}) {
+  const elapsedRef = useRef(0);
+  const animatedSignalRef = useRef<string | null>(null);
+  const animatingRef = useRef(false);
+  const invalidate = useThree(state => state.invalidate);
+
+  useLayoutEffect(() => {
+    const group = groupRef.current;
+    if (!group || animatedSignalRef.current === ownershipChange.id) return;
+    animatedSignalRef.current = ownershipChange.id;
+    elapsedRef.current = 0;
+    animatingRef.current = true;
+    group.scale.setScalar(0);
+    invalidate();
+  }, [groupRef, invalidate, ownershipChange.id]);
+
+  useFrame((_, delta) => {
+    if (!animatingRef.current) return;
+    const group = groupRef.current;
+    if (!group) return;
+    elapsedRef.current += delta * 1000;
+    const progress = THREE.MathUtils.clamp(
+      elapsedRef.current / presentationTiming.ownershipPop,
+      0,
+      1,
+    );
+    group.scale.setScalar(getOwnershipFlagPopScale(progress));
+    if (progress >= 1) {
+      animatingRef.current = false;
+      group.scale.setScalar(1);
+    } else {
+      invalidate();
+    }
+  });
+
+  return null;
+}
+
+export default function OwnershipFlag({
+  ownerColor,
+  panel,
+  ownershipChange,
+  reducedMotion = false,
+}: OwnershipFlagProps) {
   const displayColor = getOwnershipFlagClothColor(ownerColor);
   const placement = getOwnershipFlagPlacement(panel);
+  const groupRef = useRef<THREE.Group>(null);
   const geometry = useMemo(
     () => createOwnershipFlagGeometry(displayColor),
     [displayColor],
   );
 
+  useLayoutEffect(() => {
+    if (reducedMotion || !ownershipChange?.toPlayerId) {
+      groupRef.current?.scale?.setScalar(1);
+    }
+  }, [ownershipChange, reducedMotion]);
+
   useEffect(() => () => geometry.dispose(), [geometry]);
 
   return (
     <group
+      ref={groupRef}
       name="OwnershipFlag"
       position={placement.position}
       userData={{
@@ -128,6 +203,9 @@ export default function OwnershipFlag({ ownerColor, panel }: OwnershipFlagProps)
       >
         <meshStandardMaterial vertexColors color="#ffffff" roughness={0.68} metalness={0.02} />
       </mesh>
+      {!reducedMotion && ownershipChange?.toPlayerId
+        ? <OwnershipFlagAnimation groupRef={groupRef} ownershipChange={ownershipChange} />
+        : null}
     </group>
   );
 }

@@ -31,6 +31,8 @@ describe('PresentationProvider', () => {
     const initial = makeRoom();
     const live = cloneRoom(initial);
     live.gameState.players['player-a'].currentTile = 4;
+    live.gameState.boardState.diceValue = { dice1: 2, dice2: 2 };
+    live.gameState.boardState.rollSequence = 1;
     let mountCount = 0;
 
     render(
@@ -63,6 +65,8 @@ describe('PresentationProvider', () => {
     const initial = makeRoom();
     const live = cloneRoom(initial);
     live.gameState.players['player-a'].currentTile = 4;
+    live.gameState.boardState.diceValue = { dice1: 2, dice2: 2 };
+    live.gameState.boardState.rollSequence = 1;
     const view = render(
       <StrictMode>
         <PresentationProvider controller={controller}>

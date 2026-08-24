@@ -22,6 +22,8 @@ const state: PublicGameState = {
     turnRecovery: null,
     logs: [],
     diceValue: { dice1: 2, dice2: 3 },
+    rollSequence: 1,
+    gameplayEvents: { sequence: 0, events: [] },
     ownedProps: {
       1: { id: 'them', color: 'blue', houses: 0 },
       3: { id: 'them', color: 'blue', houses: 0 },
@@ -35,6 +37,7 @@ const state: PublicGameState = {
       name: 'An',
       currentTile: 0,
       color: 'red',
+      characterId: 'dog',
       accountBalance: 1500,
       isJail: false,
       jailOpponentRoundsElapsed: 0,
@@ -44,6 +47,7 @@ const state: PublicGameState = {
       name: 'Bình',
       currentTile: 10,
       color: 'blue',
+      characterId: 'panda',
       accountBalance: 900,
       isJail: false,
       jailOpponentRoundsElapsed: 0,
@@ -69,6 +73,7 @@ describe('TradeOfferModal', () => {
       privatePlayerState: {
         playerId: 'me',
         heldJailFreeCardIds: ['chance-jail-free'],
+        gameplayEvents: { sequence: 0, events: [] },
       },
       privateOffers: [],
     };

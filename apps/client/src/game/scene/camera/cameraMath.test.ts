@@ -9,9 +9,12 @@ import {
   calculateCameraDistance,
   calculateOrthographicHalfHeight,
   DEFAULT_CAMERA_FOV,
+  DEFAULT_FRAMING_MARGIN,
   getCameraPosition,
   getOrthographicCameraPosition,
   ORTHOGRAPHIC_CAMERA_DISTANCE,
+  ORTHOGRAPHIC_READABILITY_ZOOM,
+  SCENE_FIT_POINTS,
 } from './cameraMath';
 
 describe('fixed board camera math', () => {
@@ -64,7 +67,7 @@ describe('fixed board camera math', () => {
         Math.tan((DEFAULT_CAMERA_FOV * Math.PI / 180) / 2) * aspect,
       );
       const horizontalLimit = Math.tan(horizontalFov / 2);
-      BOARD_FIT_CORNERS.forEach(corner => {
+      SCENE_FIT_POINTS.forEach(corner => {
         const depth = distance + corner[0] * CAMERA_FORWARD[0]
           + corner[1] * CAMERA_FORWARD[1]
           + corner[2] * CAMERA_FORWARD[2];
@@ -85,7 +88,7 @@ describe('fixed board camera math', () => {
     [0.75, 1, 16 / 9, 2].forEach(aspect => {
       const halfHeight = calculateOrthographicHalfHeight(aspect);
       const halfWidth = halfHeight * aspect;
-      BOARD_FIT_CORNERS.forEach(corner => {
+      SCENE_FIT_POINTS.forEach(corner => {
         const horizontal = Math.abs(corner[0] * CAMERA_RIGHT[0]
           + corner[1] * CAMERA_RIGHT[1]
           + corner[2] * CAMERA_RIGHT[2]);
@@ -98,5 +101,13 @@ describe('fixed board camera math', () => {
     });
     expect(Math.hypot(...getOrthographicCameraPosition()))
       .toBeCloseTo(ORTHOGRAPHIC_CAMERA_DISTANCE);
+  });
+
+  it('uses the final tight readability margin without dropping any fit points', () => {
+    expect(DEFAULT_FRAMING_MARGIN).toBe(1.02);
+    expect(ORTHOGRAPHIC_READABILITY_ZOOM).toBe(1.08);
+    [1280 / 720, 1440 / 900, 1920 / 1080].forEach(aspect => {
+      expect(calculateOrthographicHalfHeight(aspect)).toBeGreaterThan(0);
+    });
   });
 });

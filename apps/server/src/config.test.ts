@@ -24,6 +24,8 @@ describe('loadServerConfig', () => {
     expect(config.persistenceTiming).toEqual({
       reconnectGraceMs: 60_000,
       paymentShortfallActionTimeoutMs: 120_000,
+      cardAwaitingDrawTimeoutMs: 20_000,
+      cardRevealedTimeoutMs: 30_000,
       pendingSessionTtlMs: 300_000,
       terminalSessionRetentionMs: 604_800_000,
       lobbyRetentionMs: 86_400_000,

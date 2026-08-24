@@ -5,8 +5,9 @@ import { getPropertyGroupDisplayColor, getPropertyGroupVisualStyle } from './pro
 describe('vivid presentation color mappings', () => {
   it('maps semantic player colors to vivid display values', () => {
     expect(getPlayerDisplayColor('red')).toBe('#f2384a');
-    expect(getPlayerDisplayColor('white')).toBe('#fff6dd');
-    expect(getPlayerDisplayForeground('white')).toBe('#183344');
+    expect(getPlayerDisplayColor('charcoal')).toBe('#334155');
+    expect(getPlayerDisplayForeground('yellow')).toBe('#183344');
+    expect(getPlayerDisplayColor('white')).toBe('#06b6d4');
   });
 
   it('keeps canonical property groups visually distinct', () => {

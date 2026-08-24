@@ -1,6 +1,6 @@
 export const boardVisualTokens = {
   sceneBackground: '#62ddcc',
-  boardBase: '#168c82',
+  boardBase: '#858d90',
   boardBaseEdge: '#113c49',
   boardFrame: '#215a58',
   boardTop: '#b8efd0',

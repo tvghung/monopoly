@@ -1,4 +1,4 @@
-# Persistence — snapshot v4 và restart recovery
+# Persistence — snapshot v7 và restart recovery
 
 ## Phạm vi
 
@@ -14,17 +14,26 @@
   ACK/public/private emit. Save failure bỏ toàn bộ draft và related offer writes.
 - Raw token không persist; chỉ SHA-256. Presence/socket/generation/timer handle và
   countdown tick không nằm database.
-- SQL migration version và JSON snapshot schema version độc lập; runtime v4 chỉ nhận
-  protocol/snapshot v4.
+- SQL migration version và JSON snapshot schema version độc lập; current runtime
+  uses protocol v7 and accepts snapshot schema v7.
 
-## Snapshot v4
+## Snapshot v7
 
 Room JSONB giữ stable-ID state, pending purchase/development landing decisions,
-ordered `PaymentQueue`/`DebtClaim`, private deck/card ownership, and one optional
-forced-sale proposal. Public projection loại deck order, continuation internals and
+ordered `PaymentQueue`/`DebtClaim`, durable `PendingCardInteraction`, private
+deck/card ownership, bounded public `gameplayEvents`, per-player private semantic
+lanes, `completedCardOperations` and one optional forced-sale proposal. Live/finished/
+winner identity records also retain nullable `CharacterId` and shared
+`PlayerColorId`. Public projection loại exact deck order, continuation internals and
 proposal terms except to its seller/buyer private rooms. Auction, Bank queue,
-building-contention and finite Bank inventory are not v4 live state. Property rows
-contain only owner, colour and development level.
+building-contention and finite Bank inventory remain outside current V7 live state.
+Property rows contain only owner, colour and development level.
+
+`BoardState.rollSequence` is persisted as a public non-negative safe integer.
+Fresh rooms start at zero. Migration `007_roll_sequence_v6.sql` upgrades V5
+rooms in place to V6 with `rollSequence: 0`, increments the aggregate version
+using the established rewrite convention, and does not reconstruct historical
+roll count.
 
 Property invariants remain houses `0..5` and non-street houses `0`. No colour-group/
 even-building or 32/12 Bank-stock gate is persisted.
@@ -45,6 +54,26 @@ Migration 005 upgrades only snapshot version 3 rows to 4,
 removes retired listing/property fields, clears the private forced-sale proposal,
 preserves payment/turn state, cancels pending offers for those rooms, increments the
 room aggregate once and recomputes `next_action_at`.
+
+Migration 006 upgrades only V4 snapshots to V5 in place. It does not reset gameplay:
+live/finished/winner records receive `characterId: null`, legacy colors map to the
+shared ten-color palette, and owned-property color metadata is normalized from the
+mapped live owner where available. The transformation is transactional and
+checksum-ordered; new lobbies still enforce the current 2–4 admission rule.
+
+Migration 007 upgrades only V5 snapshots to V6, adds the zero roll-identity
+baseline, preserves all other room/game JSON, increments the aggregate version,
+and is forward-only. This is historical V5 → V6 migration history, not the current
+runtime version.
+
+## Current V6 → V7 migration
+
+Migration `008_semantic_card_v7.sql` upgrades only rooms with snapshot schema 6.
+It adds empty public and per-player semantic event baselines plus an empty
+`completedCardOperations` ledger, sets snapshot schema version 7 and increments the
+aggregate version inside the transaction. It does not reconstruct semantic history,
+logs, card order or prior card effects. The current loader/save gate validates the
+V7 card interaction, semantic streams and privacy boundaries.
 
 ## Deadline/restart recovery
 

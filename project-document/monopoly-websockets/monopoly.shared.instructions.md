@@ -50,10 +50,15 @@ chỉ dùng trong test qua dependency injection.
 | Runtime-only | `socket.id`, generation registry, presence, queues và scheduler timer handle |
 | Durable aggregate | Stable-ID GameState, room metadata, absolute deadlines |
 
-Snapshot v4 chứa pending landing decision/continuation, `PaymentQueue`, private
-`GamePrivateState.decks` và forced-sale proposal. Public projection phải loại exact
-deck order và chỉ gửi shortfall summary/sellable values; proposal terms chỉ gửi
-seller/buyer qua private player room.
+Snapshot v7 chứa pending landing decision/continuation, `PaymentQueue`, durable
+`PendingCardInteraction`, private `GamePrivateState.decks`, bounded public
+`gameplayEvents`, per-player private semantic lanes, `completedCardOperations`,
+forced-sale proposal và nullable `CharacterId` cùng `PlayerColorId` trên appearance
+identity records. Public projection phải loại exact deck order và chỉ gửi shortfall
+summary/sellable values; proposal terms chỉ gửi seller/buyer qua private player
+room. Migration `008_semantic_card_v7.sql` nâng V6 snapshots lên V7 bằng empty
+semantic baselines và completed-card ledger, không diễn giải lại logs hay state
+diffs lịch sử.
 
 Public Socket.IO room có tên `room:<roomId>`; private player room có tên
 `player:<playerId>`. Không emit raw database aggregate trực tiếp; dùng whitelist

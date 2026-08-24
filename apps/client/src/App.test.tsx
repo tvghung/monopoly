@@ -84,6 +84,7 @@ const room: PublicRoomState = {
     playerId: 'stable-player-id',
     name: 'Ada',
     color: 'red',
+    characterId: null,
     joinOrder: 1,
     membershipStatus: 'ACTIVE',
     ready: false,
@@ -97,8 +98,10 @@ const room: PublicRoomState = {
       turnNumber: 0,
       currentPlayer: { id: '', hasMoved: false },
       turnRecovery: null,
-      logs: [],
+    logs: [],
     diceValue: { dice1: 0, dice2: 0 },
+    rollSequence: 0,
+    gameplayEvents: { sequence: 0, events: [] },
     ownedProps: {},
       winner: null,
     },
@@ -183,6 +186,7 @@ describe('App session admission', () => {
             privatePlayerState: {
               playerId: 'stable-player-id',
               heldJailFreeCardIds: [],
+              gameplayEvents: { sequence: 0, events: [] },
             },
             pendingOffers: [],
           },
@@ -212,6 +216,7 @@ describe('App session admission', () => {
             privatePlayerState: {
               playerId: 'stable-player-id',
               heldJailFreeCardIds: [],
+              gameplayEvents: { sequence: 0, events: [] },
             },
             pendingOffers: [],
           },
@@ -278,6 +283,7 @@ describe('App session admission', () => {
             name: 'Ada',
             currentTile: 0,
             color: 'red',
+            characterId: 'dog',
             accountBalance: 1500,
             isJail: false,
             jailOpponentRoundsElapsed: 0,
@@ -325,6 +331,7 @@ describe('App session admission', () => {
             privatePlayerState: {
               playerId: 'stable-player-id',
               heldJailFreeCardIds: [],
+              gameplayEvents: { sequence: 0, events: [] },
             },
             pendingOffers: [],
           },
@@ -398,6 +405,7 @@ describe('App session admission', () => {
             privatePlayerState: {
               playerId: 'stable-player-id',
               heldJailFreeCardIds: [],
+              gameplayEvents: { sequence: 0, events: [] },
             },
             pendingOffers: [],
           },
@@ -504,6 +512,7 @@ describe('App session admission', () => {
           playerId: 'other-player-id',
           name: 'Bình',
           color: 'blue',
+          characterId: 'panda',
           joinOrder: 2,
           membershipStatus: 'ACTIVE',
           ready: true,
@@ -525,6 +534,7 @@ describe('App session admission', () => {
             name: 'Ada',
             currentTile: 0,
             color: 'red',
+            characterId: 'dog',
             accountBalance: 1500,
             isJail: false,
             jailOpponentRoundsElapsed: 0,
@@ -534,6 +544,7 @@ describe('App session admission', () => {
             name: 'Bình',
             currentTile: 4,
             color: 'blue',
+            characterId: 'panda',
             accountBalance: 1200,
             isJail: false,
             jailOpponentRoundsElapsed: 0,
@@ -566,6 +577,7 @@ describe('App session admission', () => {
             privatePlayerState: {
               playerId: 'stable-player-id',
               heldJailFreeCardIds: ['chance-jail-free'],
+              gameplayEvents: { sequence: 0, events: [] },
             },
             pendingOffers: [],
           },
@@ -581,6 +593,7 @@ describe('App session admission', () => {
       socketHarness.trigger('private player state', {
         playerId: 'other-player-id',
         heldJailFreeCardIds: ['chest-jail-free'],
+        gameplayEvents: { sequence: 0, events: [] },
       });
     });
     expect(screen.getByLabelText(/Thẻ Thoát Tù Miễn Phí \(Cơ Hội\)/)).toBeTruthy();
@@ -590,6 +603,7 @@ describe('App session admission', () => {
       socketHarness.trigger('private player state', {
         playerId: 'stable-player-id',
         heldJailFreeCardIds: ['chest-jail-free'],
+        gameplayEvents: { sequence: 0, events: [] },
       });
     });
     expect(screen.getByLabelText(/Thẻ Thoát Tù Miễn Phí \(Khí Vận\)/)).toBeTruthy();

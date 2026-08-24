@@ -10,10 +10,15 @@ export interface SdfSurfaceTextProps {
   position: readonly [number, number, number];
   fontSize: number;
   maxWidth: number;
+  maxHeight?: number;
+  whiteSpace?: 'normal' | 'nowrap';
+  overflowWrap?: 'normal' | 'break-word';
   color?: string;
   lineHeight?: number;
   sdfGlyphSize?: number;
+  rotationX?: number;
   rotationZ?: number;
+  renderOrder?: number;
   name?: string;
 }
 
@@ -31,16 +36,22 @@ export default function SdfSurfaceText({
   position,
   fontSize,
   maxWidth,
+  maxHeight,
+  whiteSpace = 'normal',
+  overflowWrap = 'normal',
   color = boardVisualTokens.tileText,
   lineHeight = 1.05,
   sdfGlyphSize = TILE_SDF_GLYPH_SIZE,
+  rotationX = -Math.PI / 2,
   rotationZ = 0,
+  renderOrder = 0,
   name,
 }: SdfSurfaceTextProps) {
   const invalidate = useThree(state => state.invalidate);
   const textObjectRef = useRef<Text | null>(null);
   if (!textObjectRef.current) textObjectRef.current = new Text();
   const textObject = textObjectRef.current;
+  textObject.renderOrder = renderOrder;
   const disposeGeneration = useRef(0);
   const textRef = useRef<THREE.Object3D>(null);
 
@@ -49,11 +60,14 @@ export default function SdfSurfaceText({
       value,
       fontSize,
       maxWidth,
+      maxHeight,
+      whiteSpace,
+      overflowWrap,
       color,
       lineHeight,
       sdfGlyphSize,
     }, invalidate);
-  }, [color, fontSize, invalidate, lineHeight, maxWidth, sdfGlyphSize, textObject, value]);
+  }, [color, fontSize, invalidate, lineHeight, maxHeight, maxWidth, overflowWrap, sdfGlyphSize, textObject, value, whiteSpace]);
 
   useEffect(() => {
     const generation = disposeGeneration.current + 1;
@@ -71,7 +85,7 @@ export default function SdfSurfaceText({
       object={textObject}
       name={name}
       position={position}
-      rotation={[-Math.PI / 2, 0, rotationZ]}
+      rotation={[rotationX, 0, rotationZ]}
     />
   );
 }

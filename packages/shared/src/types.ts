@@ -1,7 +1,7 @@
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
-export const SOCKET_PROTOCOL_VERSION = 4 as const;
+export const SOCKET_PROTOCOL_VERSION = 7 as const;
 
 export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
 export type PlayerId = string;
@@ -13,6 +13,51 @@ export type GameCardId = string;
 export type DebtClaimId = string;
 export type PaymentClaimId = DebtClaimId;
 export type ForcedSaleProposalId = string;
+
+export const CHARACTER_IDS = [
+  'dog',
+  'capybara',
+  'panda',
+  'cat',
+  'penguin',
+  'elephant',
+  'rabbit',
+  'duck',
+] as const;
+
+export type CharacterId = typeof CHARACTER_IDS[number];
+
+/**
+ * Character ids written by the original V5 appearance rollout. They remain
+ * readable at the durable snapshot boundary, but are never emitted by the
+ * current roster or appearance command schema.
+ */
+export const LEGACY_CHARACTER_ID_MAP: Record<string, CharacterId> = {
+  shiba: 'dog',
+  fox: 'elephant',
+};
+
+export const PLAYER_COLOR_IDS = [
+  'red',
+  'blue',
+  'green',
+  'yellow',
+  'orange',
+  'purple',
+  'pink',
+  'cyan',
+  'lime',
+  'charcoal',
+] as const;
+
+export type PlayerColorId = typeof PLAYER_COLOR_IDS[number];
+
+export function getAppearanceCombinationKey(
+  characterId: CharacterId | null,
+  color: PlayerColorId,
+): string | null {
+  return characterId === null ? null : `${characterId}:${color}`;
+}
 
 export type RoomStatus = 'LOBBY' | 'IN_PROGRESS' | 'FINISHED';
 export type RoomRole = 'PLAYER' | 'SPECTATOR';
@@ -81,6 +126,115 @@ export interface GameCard {
 
 export type CardDeck = 'chance' | 'chest';
 
+export type CardInteractionStage = 'AWAITING_DRAW' | 'REVEALED';
+
+export interface PendingCardInteraction {
+  operationId: string;
+  playerId: PlayerId;
+  turnNumber: number;
+  deck: CardDeck;
+  sourceTile: number;
+  stage: CardInteractionStage;
+  revealedCardId?: GameCardId;
+  continuation: PendingTurnContinuation;
+  deadlineAt: string;
+}
+
+export type MoneyEndpoint =
+  | { kind: 'BANK' }
+  | { kind: 'PLAYER'; playerId: PlayerId };
+
+export type MoneyTransferReason =
+  | 'PROPERTY_PURCHASE'
+  | 'PROPERTY_SALE'
+  | 'RENT'
+  | 'PASS_GO'
+  | 'CARD'
+  | 'DEVELOPMENT'
+  | 'BAIL'
+  | 'TRADE'
+  | 'FORCED_SALE'
+  | 'FORFEIT'
+  | 'OTHER';
+
+export type PropertyTransferCause =
+  | 'BANK_PURCHASE'
+  | 'BANK_SALE'
+  | 'VOLUNTARY_TRADE'
+  | 'FORCED_SALE'
+  | 'BANKRUPTCY'
+  | 'PLAYER_LEFT'
+  | 'OTHER';
+
+export type PassGoMovementContext =
+  | { kind: 'DICE_WALK'; rollSequence: number }
+  | { kind: 'CARD'; cardId: GameCardId };
+
+export type SentToJailCause = 'BOARD_TILE' | 'CARD';
+
+interface GameplaySemanticEventBase {
+  eventId: string;
+  sequence: number;
+  operationId?: string;
+}
+
+export interface MoneyTransferSemanticEvent extends GameplaySemanticEventBase {
+  type: 'MONEY_TRANSFER';
+  source: MoneyEndpoint;
+  destination: MoneyEndpoint;
+  amount: number;
+  reason: MoneyTransferReason;
+}
+
+export interface PropertyTransferSemanticEvent extends GameplaySemanticEventBase {
+  type: 'PROPERTY_TRANSFER';
+  tileID: number;
+  from: MoneyEndpoint;
+  to: MoneyEndpoint;
+  cause: PropertyTransferCause;
+}
+
+export interface PassGoSemanticEvent extends GameplaySemanticEventBase {
+  type: 'PASS_GO';
+  playerId: PlayerId;
+  reward: number;
+  fromTile: number;
+  destinationTile: number;
+  movement: PassGoMovementContext;
+}
+
+export interface SentToJailSemanticEvent extends GameplaySemanticEventBase {
+  type: 'SENT_TO_JAIL';
+  playerId: PlayerId;
+  fromTile: number;
+  destinationTile: number;
+  cause: SentToJailCause;
+}
+
+export interface JailRollFailedSemanticEvent extends GameplaySemanticEventBase {
+  type: 'JAIL_ROLL_FAILED';
+  playerId: PlayerId;
+}
+
+export interface JailReleasedSemanticEvent extends GameplaySemanticEventBase {
+  type: 'JAIL_RELEASED';
+  playerId: PlayerId;
+  cause: 'BAIL' | 'JAIL_FREE_CARD' | 'DOUBLES' | 'TIME_SERVED';
+}
+
+export type GameplaySemanticEvent =
+  | MoneyTransferSemanticEvent
+  | PropertyTransferSemanticEvent
+  | PassGoSemanticEvent
+  | SentToJailSemanticEvent
+  | JailRollFailedSemanticEvent
+  | JailReleasedSemanticEvent;
+
+export interface GameplayEventStream {
+  sequence: number;
+  events: GameplaySemanticEvent[];
+}
+
 export interface DeckState {
   // The first id is the next card to draw. Normal cards rotate to the end;
   // held jail-free cards remain absent until returned to this pile.
@@ -93,12 +247,15 @@ export type DeckCounts = Record<CardDeck, number>;
 export interface GamePrivateState {
   decks: GameDecks;
   forcedSaleProposal?: ForcedSaleProposal | null;
+  privateGameplayEventsByPlayer: Record<PlayerId, GameplayEventStream>;
+  completedCardOperations: Array<{ operationId: string; playerId: PlayerId }>;
 }
 
 export interface Player {
   name: string;
   currentTile: number;
-  color: string;
+  color: PlayerColorId;
+  characterId: CharacterId | null;
   accountBalance: number;
   isJail: boolean;
   jailOpponentRoundsElapsed: number;
@@ -114,12 +271,15 @@ export interface PrivatePlayerState {
   playerId: PlayerId;
   heldJailFreeCardIds: GameCardId[];
   forcedSaleProposal?: ForcedSaleProposal | null;
+  gameplayEvents: GameplayEventStream;
 }
 
 export interface FinishedPlayer {
   name: string;
-  color: string;
+  color: PlayerColorId;
+  characterId: CharacterId | null;
   reason?: FinishedPlayerReason;
+  accountBalance?: number;
 }
 
 export interface Winner extends FinishedPlayer {
@@ -128,7 +288,7 @@ export interface Winner extends FinishedPlayer {
 
 export interface OwnedProp {
   id: PlayerId;
-  color: string;
+  color: PlayerColorId;
   // Houses built on this street (0-4 houses, 5 = a hotel).
   houses: number;
 }
@@ -186,6 +346,7 @@ export type PendingLandingDecision = PendingPropertyDecision | PendingDevelopmen
 export interface TurnInfo {
   pendingPropertyDecision?: PendingPropertyDecision;
   pendingDevelopmentDecision?: PendingDevelopmentDecision;
+  pendingCardInteraction?: PendingCardInteraction;
 }
 
 export type DebtCreditor = 'PLAYER' | 'BANK';
@@ -239,10 +400,14 @@ export interface BoardState {
   turnRecovery: TurnRecovery | null;
   logs: string[];
   diceValue: DiceValue;
+  // Monotonic public identity for accepted gameplay rolls. Starting-player
+  // tie-break rolls do not advance this sequence.
+  rollSequence: number;
   ownedProps: Record<number, OwnedProp>;
   // Set once a single player remains; drives the win screen.
   winner: Winner | null;
   paymentQueue: PaymentQueue | null;
+  gameplayEvents: GameplayEventStream;
 }
 
 export interface GameState {
@@ -298,6 +463,7 @@ export interface PublicTurnInfo {
     unitCost?: number;
     price?: number;
   };
+  pendingCardInteraction?: PendingCardInteraction;
 }
 
 export interface PublicGameState {
@@ -313,7 +479,8 @@ export interface PublicGameState {
 export interface RoomPlayerMeta {
   playerId: PlayerId;
   name: string;
-  color: string;
+  color: PlayerColorId;
+  characterId: CharacterId | null;
   joinOrder: number;
   membershipStatus: RoomMembershipStatus;
   ready: boolean;
@@ -353,6 +520,11 @@ export interface ResumeSessionRequest {
 
 export interface SetReadyRequest {
   ready: boolean;
+}
+
+export interface SetAppearanceRequest {
+  characterId?: CharacterId;
+  color?: PlayerColorId;
 }
 
 export interface PendingPlayerAdmission {
