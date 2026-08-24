@@ -1,85 +1,107 @@
 # Phase 5 — Game Feel, Audio & Visual Feedback
 
-**APPROVED — current Phase 5 plan**
+**IN PROGRESS — Phase 5.1 implemented locally; later Phase 5 work remains open**
 
-Phase 5 is documentation-only in this handoff. The detailed audit and scope
-boundary are in [05A_PHASE_5_0_AUDIT_AND_SCOPE.md](05A_PHASE_5_0_AUDIT_AND_SCOPE.md).
+The earlier Phase 5.0 handoff was documentation-only. Phase 5.1 now implements
+the bounded audio slice below; the detailed pre-implementation audit and scope
+boundary remain in [05A_PHASE_5_0_AUDIT_AND_SCOPE.md](05A_PHASE_5_0_AUDIT_AND_SCOPE.md).
 
 ## 1. Current scope
 
-Phase 5 contains exactly two implementation subphases:
+Phase 5 is split into the completed local audio slice and a later closure slice:
 
-1. **Phase 5.1 — Core Game Feel, Audio & Visual Feedback**
-2. **Phase 5.2 — Activity Feed, Victory, Play Again & Final Closure**
+1. **Phase 5.1 — Centralized Audio & Core SFX**
+2. **Phase 5.2 — Remaining Game Feel, Activity Feed, Victory, Play Again & Final Closure**
 
 There is no current Phase 5.3–5.7 plan. The earlier decomposition is superseded.
 Phase 5 must preserve server/GameCore authority, the V7 contract until an
 implementation-level review proves otherwise, and the single
 `PresentationController → AnimationQueue → PresentationStore` pipeline.
 
-## 2. Phase 5.1 — Core Game Feel, Audio & Visual Feedback
+## 2. Phase 5.1 — Centralized Audio & Core SFX
 
-### Audio runtime
+Implementation status: **COMPLETE LOCALLY on 2026-08-24**, subject to the
+separately reported browser/Electron auditory QA and remote-CI boundaries. This
+status covers only the centralized runtime and core SFX below; it does not mark
+the rest of Phase 5 complete.
 
-- Use the Native Web Audio API.
-- Keep one centralized client-owned audio registry and one audio integration/sink
-  attached to accepted typed presentation semantics.
-- Audio is a consumer of approved identities, not a second gameplay scheduler,
-  animation queue, or effects bus.
-- Use Master / Ambience / SFX gain groups.
-- Migrate the current client-local settings field `musicVolume` to
-  `ambienceVolume` through an explicit settings-version normalization path. Do
-  not reinterpret the old field name indefinitely; no server protocol or database
-  migration is required for this local migration.
-- Provide browser first-interaction/autoplay unlock, asset loading/caching,
-  explicit traceable asset provenance/licensing, missing-asset fallback,
-  duplicate-event suppression, bounded concurrency/priority/cooldown, and
-  audio-node/source disposal.
-- Preserve snapshot/reconnect no-replay and clean reset/skip behavior. Optional
-  ducking is allowed only when justified by the approved mix design.
+### Implemented centralized runtime
 
-### Core gameplay SFX
+- `AudioEngine` is the only production owner of `AudioContext`, gain nodes,
+  oscillator/noise synthesis, voice limits, cooldowns, abort-bound playback and
+  disposal. No component creates a separate sound source or timing queue.
+- One typed registry covers UI, Dice, Movement, Money, Property, Build, Card,
+  Jail, Bankruptcy and Victory. Every Phase 5.1 cue is a short original
+  procedural Web Audio recipe; there are no downloaded assets and no fake asset
+  preload stage. The registry source descriptor remains the replacement seam for
+  later approved assets.
+- Existing settings storage remains version `own-the-block.settings.v1` with
+  `masterVolume`, `musicVolume` and `sfxVolume`. Master / SFX / Music buses update
+  live; all current cues route through SFX and the Music bus remains dormant.
+  Phase 5.1 adds no second settings model and performs no field/version migration.
+- Audio context creation/resume occurs only from trusted pointer, keyboard or
+  button interaction. Gameplay cues before unlock are dropped, not queued for
+  replay. The current first UI click may unlock and play its own cue.
+- The provider owns one stable engine, one centralized enabled-button click path,
+  a `data-audio-click="off"` escape hatch, and StrictMode-safe listener/engine
+  cleanup. Unsupported or suspended Web Audio degrades without throwing.
+- `play()` is fire-and-forget. Per-cue gain, cooldown, voice limits and
+  `AbortSignal` cleanup are independent of animation speed and never delay an
+  `AnimationQueue` item until a sound finishes.
 
-Use proven typed/current presentation identities for UI/button, dice shake, dice
-impact, tile hop, landing, money receive, money pay, property purchase, house
-construction, hotel upgrade, card draw/reveal, sent to jail, failed jail attempt
-where appropriate, bankruptcy, and victory. Never infer gameplay meaning from
-HTML log strings.
+### Implemented presentation integration
 
-### Ambience
+- `App` injects the provider's stable audio port into the existing single
+  `PresentationController`, which passes it to the existing dice, movement,
+  basic and semantic executor factories. Default no-op injection preserves
+  isolated tests and non-provider call sites.
+- Normal dice play shake at roll start and impact at authoritative settle;
+  Reduced Motion uses one impact cue. Abort/reset/skip cannot produce a late
+  settle cue.
+- Proven `WALK` movement attempts one subtle hop cue after each completed hop;
+  `SNAP`, reconnect snap and Reduced Motion snap do not. A proven GO crossing
+  plays one receive accent at tile `0`, with the duplicated semantic reward lane
+  already suppressed by the V7 adapter.
+- `MONEY_TRANSFER` routes BANK-to-player, player-to-BANK and player-to-player to
+  receive, pay and one compact transfer cue. `BALANCE_CHANGED` remains visual
+  only and cannot duplicate transfer audio.
+- `PROPERTY_TRANSFER` distinguishes BANK purchase, bank release/sale, and generic
+  transfer. Fallback `PROPERTY_OWNERSHIP_CHANGED` is deliberately generic.
+  Development distinguishes house increase, exact `4 -> 5` hotel upgrade and
+  decrease/removal.
+- Card audio starts only when `CARD_INTERACTION_CHANGED` enters `REVEALED`.
+  `SENT_TO_JAIL` sounds only after arrival at jail; fallback jail entry, failed
+  jail roll and release use their bounded authoritative events without log or
+  private-state inference.
+- `PLAYER_FINISHED` plays bankruptcy only for `BANKRUPT`. `GAME_FINISHED` plays
+  the short stinger only with a committed non-null winner. End-game UI is
+  unchanged.
+- `SESSION_SYNC` and `SPECTATOR_SYNC` still reset/snap without derived events.
+  Queue abort signals stop active presentation voices; queued or stale executors
+  cannot schedule later sounds. Already-started UI one-shots remain independent.
 
-Phase 5 uses ambience only: low intensity, loopable, non-melodic, long-session
-friendly, separately gained, Master-gained, smoothly started/stopped/faded where
-useful, and subordinate to SFX. Background music is explicitly removed/deferred
-from Phase 5.
+### Phase 5.1 evidence boundary
 
-### Remaining visual game feel
+- Automated coverage owns gain/mute, unsupported/suspended fallback, first
+  interaction unlock, no pre-unlock replay, cooldown/polyphony, abort, disposal,
+  StrictMode listeners, dice/movement/GO, semantic money/property/development,
+  card/jail/bankruptcy/victory, generic-balance suppression and reconnect reset.
+- Browser auditory QA, Electron auditory QA, long-session fatigue, clipping,
+  memory and listener observations are reported separately from tests/builds.
+  Unrun scenarios remain `NOT RUN`; a package build is not auditory evidence.
+- This client-only slice changes no server, GameCore, shared contract, protocol,
+  snapshot, migration, database, board/dice/character/building renderer, camera,
+  motion timing or WebGL fallback. Audio adds zero render draw calls.
 
-Preserve the Phase 4 tile STEP/LAND feedback, destination preview, ownership and
-development feedback, construction puff, money-transfer coins, dice and card
-presentation, jail/bankruptcy reactions, fixed board/camera/material system,
-Reduced Motion, Skip, reconnect, and WebGL fallback boundaries.
+## 3. Phase 5.2 — Remaining Game Feel, Activity Feed, Victory, Play Again & Final Closure
 
-Only add bounded missing feedback such as exact `+$amount`/`-$amount`, small typed
-consequence labels where authoritative semantics prove them, or a carefully
-bounded sparkle/impact ring/small burst that improves comprehension. Keep the
-existing limits: no steady-state draw-call growth by default, at most four
-consequence labels, at most three transient particle bursts, shared resources,
-instancing/batching, `frameloop="demand"`, active-only invalidation, and cleanup
-on skip/reset/reconnect.
-
-Do not create a global particle engine, second EffectsBus, postprocessing
-pipeline, cinematic camera, or permanent decorative particles.
-
-### Phase 5.1 acceptance evidence
-
-Automated audio-runtime, settings-migration, trigger/dedupe, reconnect/reset,
-missing-asset, and cleanup tests; browser autoplay/unlock; Electron audio smoke
-after a fresh package; visual consequence fixtures; Reduced Motion; Skip; WebGL
-fallback; renderer diagnostics; and separate audio versus visual evidence are
-required. Existing hard draw/triangle budgets remain unchanged.
-
-## 3. Phase 5.2 — Activity Feed, Victory, Play Again & Final Closure
+Phase 5.2/future bounded Phase 5 work owns ambience content and every visual or
+product surface explicitly deferred from Phase 5.1. It must preserve the Phase 4
+tile STEP/LAND feedback, destination preview, ownership/development feedback,
+construction puff, money-transfer coins, dice/card presentation, fixed board and
+camera, Reduced Motion, Skip, reconnect and WebGL fallback boundaries. It must not
+introduce a global particle engine, second effects bus, postprocessing pipeline,
+cinematic camera or permanent decorative particles.
 
 ### A. Structured activity feed
 
@@ -120,9 +142,10 @@ Use current authoritative final state only. Do not add net worth, historical mat
 statistics, rent paid/received, turns played, cards drawn totals, transaction
 history, historical build counters, or a historical-statistics contract.
 
-Victory SFX, confetti, mascot celebration, and subtle board celebration may reuse
-the Phase 5.1 sinks. No cinematic camera is allowed. Reconnect into `FINISHED`
-shows the final state immediately without replaying stale celebration audio/FX.
+The short committed-winner victory SFX already uses the Phase 5.1 sink. Confetti,
+mascot celebration and subtle board celebration remain future visual work. No
+cinematic camera is allowed. Reconnect into `FINISHED` shows the final state
+immediately without replaying stale celebration audio/FX.
 
 ### C. Host-only same-room Play Again
 
@@ -171,10 +194,14 @@ categories.
 
 ## 4. Explicitly removed or deferred from current Phase 5
 
+- rich particle system and permanent decorative particles;
+- new floating-text visual pass and extended reusable tile FX;
+- structured activity/event feed in the existing `Log` surface;
+- ambience content and any background music content;
+- full victory/end-game visual redesign and final global visual-polish pass;
 - multiplayer emotes, including command, broadcast, persistence, rate limiting,
   bubbles, selector, and protocol changes; existing local reaction primitives are
   not deleted by this documentation task;
-- background music; ambience only remains;
 - historical statistics and net worth;
 - `New Room`;
 - voice chat;
@@ -194,4 +221,4 @@ revision is required until implementation inspection proves it. Change the
 snapshot version only if the durable persisted snapshot shape actually changes.
 This documentation task does not modify V7 code or contracts.
 
-Next: Phase 5.1 — Core Game Feel, Audio & Visual Feedback
+Next: Phase 5.2 planning and the separately reported Phase 5.1 manual auditory gates.

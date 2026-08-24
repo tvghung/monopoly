@@ -48,6 +48,7 @@ import type { AppSocket, SocketFunctions } from './types';
 import { requestRollDiceAck } from './rollDiceRequest';
 import { getDefaultWebRuntimeConfig } from './runtime/runtimeConfig';
 import type { RuntimeConfig } from './runtime/types';
+import { useAudio } from './audio/useAudio';
 import './App.css';
 
 const initialState: PublicGameState = {
@@ -146,11 +147,12 @@ interface AppProps {
 
 export default function App({ socket: injectedSocket, runtimeConfig }: AppProps = {}) {
   const toast = useToast();
+  const audio = useAudio();
   const socket = useMemo(
     () => injectedSocket ?? createSocket(runtimeConfig ?? getDefaultWebRuntimeConfig()),
     [injectedSocket, runtimeConfig],
   );
-  const [presentationController] = useState(() => new PresentationController());
+  const [presentationController] = useState(() => new PresentationController(false, 1, audio));
   const [initialToken] = useState(readPlayerSession);
   const tokenRef = useRef<string | null>(initialToken);
   const spectatorRequestRef = useRef<JoinRoomRequest | null>(null);

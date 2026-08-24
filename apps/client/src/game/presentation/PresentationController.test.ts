@@ -1,8 +1,57 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { AudioCueId, AudioPlayOptions, AudioPort } from '../../audio/types';
 import { cloneRoom, makeRoom } from './testFixtures';
 import { PresentationController } from './PresentationController';
 
 describe('PresentationController', () => {
+  it('does not replay sync audio and aborts an active cue before any late settle sound', async () => {
+    const play = vi.fn<(cueId: AudioCueId, options?: AudioPlayOptions) => void>();
+    const audio: AudioPort = { play, handleUserInteraction: vi.fn() };
+    const controller = new PresentationController(false, 1, audio);
+    const initial = makeRoom();
+    controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
+    expect(play).not.toHaveBeenCalled();
+
+    const live = cloneRoom(initial);
+    live.gameState.boardState.diceValue = { dice1: 2, dice2: 3 };
+    live.gameState.boardState.rollSequence = 1;
+    controller.acceptRoomSnapshot(live, 'LIVE_UPDATE');
+    await Promise.resolve();
+    expect(play.mock.calls.map(call => call[0])).toEqual(['dice.shake']);
+    const activeSignal = play.mock.calls[0]?.[1]?.signal;
+
+    controller.acceptRoomSnapshot(cloneRoom(live), 'SESSION_SYNC');
+    await controller.queue.whenIdle();
+
+    expect(activeSignal?.aborted).toBe(true);
+    expect(play.mock.calls.map(call => call[0])).toEqual(['dice.shake']);
+    controller.dispose();
+  });
+
+  it.each(['skipCurrent', 'skipAll'] as const)(
+    '%s aborts an active cue without producing a late settle sound',
+    async (skipMethod) => {
+      const play = vi.fn<(cueId: AudioCueId, options?: AudioPlayOptions) => void>();
+      const audio: AudioPort = { play, handleUserInteraction: vi.fn() };
+      const controller = new PresentationController(false, 1, audio);
+      const initial = makeRoom();
+      controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
+      const live = cloneRoom(initial);
+      live.gameState.boardState.diceValue = { dice1: 4, dice2: 5 };
+      live.gameState.boardState.rollSequence = 1;
+      controller.acceptRoomSnapshot(live, 'LIVE_UPDATE');
+      await Promise.resolve();
+      const activeSignal = play.mock.calls[0]?.[1]?.signal;
+
+      controller.queue[skipMethod]();
+      await controller.queue.whenIdle();
+
+      expect(activeSignal?.aborted).toBe(true);
+      expect(play.mock.calls.map(call => call[0])).toEqual(['dice.shake']);
+      controller.dispose();
+    },
+  );
+
   it('snaps session sync and queues only live diffs', async () => {
     const controller = new PresentationController();
     const initial = makeRoom();

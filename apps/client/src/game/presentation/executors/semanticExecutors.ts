@@ -1,3 +1,4 @@
+import { NOOP_AUDIO_PORT, type AudioCueId, type AudioPort } from '../../../audio/types';
 import type {
   CardInteractionChangedPresentationEvent,
   JailReleasedPresentationEvent,
@@ -15,7 +16,24 @@ function current(context: Parameters<PresentationExecutor['run']>[1]): boolean {
   return !context.signal.aborted && (context.isCurrent?.() ?? true);
 }
 
-export function createSemanticExecutors(store: PresentationStoreLike): PresentationExecutorMap {
+function moneyCue(event: MoneyTransferPresentationEvent): AudioCueId {
+  if (event.source.kind === 'BANK' && event.destination.kind === 'PLAYER') return 'money.receive';
+  if (event.source.kind === 'PLAYER' && event.destination.kind === 'BANK') return 'money.pay';
+  return 'money.transfer';
+}
+
+function propertyCue(event: PropertyTransferPresentationEvent): AudioCueId {
+  if (event.cause === 'BANK_PURCHASE') return 'property.purchase';
+  if (event.cause === 'BANK_SALE'
+    || event.cause === 'BANKRUPTCY'
+    || event.cause === 'PLAYER_LEFT') return 'property.release';
+  return 'property.transfer';
+}
+
+export function createSemanticExecutors(
+  store: PresentationStoreLike,
+  audio: AudioPort = NOOP_AUDIO_PORT,
+): PresentationExecutorMap {
   const money: PresentationExecutor<MoneyTransferPresentationEvent> = {
     async run(event, context) {
       if (!current(context)) return;
@@ -28,6 +46,7 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
         reason: event.reason,
         durationMs: physicalDuration,
       });
+      audio.play(moneyCue(event), { signal: context.signal });
       await context.waitForDuration(physicalDuration);
     },
     finish() {},
@@ -44,6 +63,7 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
         transfer.toPlayerId,
         pulseDuration,
       ));
+      audio.play(propertyCue(event), { signal: context.signal });
       await context.waitForDuration(pulseDuration);
     },
     finish() {},
@@ -63,6 +83,7 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
         reason: 'PASS_GO',
         durationMs: context.getDuration(presentationTiming.moneyTransfer),
       });
+      audio.play('money.receive', { signal: context.signal });
       await context.waitForDuration(duration);
     },
     finish() {},
@@ -82,6 +103,7 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
       await context.waitForDuration(physicalDuration);
       if (!current(context)) return;
       if (physicalDuration > 0) store.completeCharacterHop(playerId, destinationTile);
+      audio.play('jail.enter', { signal: context.signal });
       store.emitTileImpact(playerId, destinationTile, 'LAND', {
         delayMs: 0,
         depressDurationMs: context.getDuration(presentationTiming.tileImpact.landDepress),
@@ -104,13 +126,17 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
       if (!current(context)) return;
       const duration = context.getDuration(presentationTiming.characterReaction.sad);
       if (!context.reducedMotion) store.emitCharacterReaction(event.playerId, 'sad', duration);
+      audio.play('jail.failed', { signal: context.signal });
       await context.waitForDuration(duration);
     },
     finish() {},
   };
 
   const jailReleased: PresentationExecutor<JailReleasedPresentationEvent> = {
-    async run() {},
+    run(_event, context) {
+      if (current(context)) audio.play('jail.release', { signal: context.signal });
+      return Promise.resolve();
+    },
     finish() {},
   };
 
@@ -143,6 +169,7 @@ export function createSemanticExecutors(store: PresentationStoreLike): Presentat
         return;
       }
       const duration = context.getDuration(presentationTiming.cardReveal);
+      audio.play('card.reveal', { signal: context.signal });
       store.setCardPresentation({
         operationId: event.operationId,
         playerId: event.playerId,

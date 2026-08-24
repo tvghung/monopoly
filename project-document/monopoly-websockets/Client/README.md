@@ -42,7 +42,9 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
   current durable stage without replaying the old card animation.
 - Settings dùng key `own-the-block.settings.v1`, normalize/clamp defensive và tách
   khỏi reconnect token. Reduced motion hiệu lực là user setting hoặc OS
-  preference. Audio provider mới chỉ cung cấp gain interfaces, chưa tự phát âm thanh.
+  preference. Audio provider owns one lazy Web Audio engine and typed procedural
+  registry; existing Master/Music/SFX values update its buses live, while current
+  Phase 5.1 cues use SFX and the Music bus remains available but dormant.
 - Desktop renderer dùng `contextIsolation`, `sandbox`, `nodeIntegration: false` và
   typed preload bridge whitelist; Electron main không chứa GameCore/game action.
 

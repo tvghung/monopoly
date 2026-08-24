@@ -1,4 +1,5 @@
 import type { PrivatePlayerState, PublicRoomState } from '@monopoly/shared';
+import { NOOP_AUDIO_PORT, type AudioPort } from '../../audio/types';
 import type { MoneyTransferPresentationEvent } from './events/types';
 import { derivePresentationEvents, semanticEventsSince } from './events/derivePresentationEvents';
 import { createBasicExecutors } from './executors/basicExecutors';
@@ -33,13 +34,17 @@ export class PresentationController {
   private authoritativeLogs: readonly string[] = [];
   private logGate: { playerId: string; turnNumber: number } | null = null;
 
-  public constructor(reducedMotion = false, speedMultiplier = 1) {
+  public constructor(
+    reducedMotion = false,
+    speedMultiplier = 1,
+    audio: AudioPort = NOOP_AUDIO_PORT,
+  ) {
     this.store.setAnimationSpeedMultiplier(speedMultiplier);
     const executors = {
-      ...createBasicExecutors(this.store),
-      ...createSemanticExecutors(this.store),
-      ROLL_DICE: createDiceExecutor(this.store),
-      MOVE_CHARACTER: createMovementExecutor(this.store),
+      ...createBasicExecutors(this.store, audio),
+      ...createSemanticExecutors(this.store, audio),
+      ROLL_DICE: createDiceExecutor(this.store, audio),
+      MOVE_CHARACTER: createMovementExecutor(this.store, audio),
     };
     this.queue = new AnimationQueue({
       executors,
