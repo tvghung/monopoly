@@ -326,10 +326,12 @@ Không cần nhiều sprite sheet trong v1.
 9. Jail
 10. Bankruptcy
 11. Victory
-12. Emotes
-13. Ambient decoration
+12. Ambient decoration
 
 Nếu phải cắt scope, cắt decoration trước, không cắt feedback gameplay.
+
+Multiplayer emotes are deferred/out of the current Phase 5 scope. Existing local
+reaction primitives remain implementation detail.
 
 ---
 
@@ -349,15 +351,16 @@ Cần audio groups:
 - jail
 - bankruptcy
 - victory
-- reactions
 - ambience
-- music
 
 Mỗi group phải có independent volume hoặc ít nhất:
 
 - Master
-- Music
+- Ambience
 - SFX
+
+Phase 5 uses the Native Web Audio API and ambience only. Background music is
+removed/deferred from the current Phase 5 scope.
 
 Không để sound effect kéo dài làm chậm game.
 
@@ -495,17 +498,25 @@ File:
 
 ## Phase 5 — Game Feel, Audio & Effects
 
+Status: **APPROVED — two implementation subphases only**.
+
 Mục tiêu:
 
-- sound design
-- particles
-- glow
-- floating money
-- micro feedback
-- turn transitions
-- event feed
-- emotes
-- victory presentation
+- Native Web Audio and centralized core SFX;
+- ambience;
+- bounded remaining visual feedback and game feel;
+- structured activity in the existing `Log` surface;
+- fact-only victory presentation;
+- host-only Play Again with same-room `FINISHED → LOBBY` lifecycle;
+- final long-session, accessibility, cleanup, and performance closure.
+
+Phase 5 contains only:
+
+1. [Phase 5.1 — Core Game Feel, Audio & Visual Feedback](05_PHASE_5_GAME_FEEL_AUDIO_EFFECTS.md#2-phase-51--core-game-feel-audio--visual-feedback)
+2. [Phase 5.2 — Activity Feed, Victory, Play Again & Final Closure](05_PHASE_5_GAME_FEEL_AUDIO_EFFECTS.md#3-phase-52--activity-feed-victory-play-again--final-closure)
+
+The detailed approved audit and implementation boundary are in
+[05A_PHASE_5_0_AUDIT_AND_SCOPE.md](05A_PHASE_5_0_AUDIT_AND_SCOPE.md).
 
 File:
 
@@ -653,7 +664,7 @@ Overhaul chỉ được coi là hoàn thành khi:
 - [ ] Dice roll có impact rõ.
 - [ ] Ownership/property development đọc được trực tiếp trên board.
 - [ ] Buy/build/money/Chance/jail/bankruptcy có presentation rõ.
-- [ ] Audio có Master/Music/SFX.
+- [ ] Audio có Master/Ambience/SFX.
 - [ ] Animation queue hoạt động đúng.
 - [ ] Fast animation mode hoạt động.
 - [ ] Reduced motion hoạt động.
