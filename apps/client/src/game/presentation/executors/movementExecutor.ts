@@ -36,7 +36,7 @@ export function createMovementExecutor(
       reason: 'PASS_GO',
       durationMs: context.getDuration(presentationTiming.moneyTransfer),
     });
-    audio.play('money.receive', { signal: context.signal });
+        audio.play('money.receive', { signal: context.signal, scope: 'presentation' });
     return {
       holdDurationMs: context.getDuration(presentationTiming.goHold),
       completion: context.waitForDuration(duration),
@@ -83,7 +83,9 @@ export function createMovementExecutor(
         await context.waitForDuration(hopDurationMs);
         if (!isExecutionCurrent(context)) return;
         store.completeCharacterHop(event.playerId, tileId);
-        audio.play('movement.hop', { signal: context.signal });
+        if (step < event.steps) {
+          audio.play('movement.hop', { signal: context.signal, scope: 'presentation' });
+        }
         if (tileId === 0 && event.passGo) {
           const passGoMoment = startPassGoMoment(event, fromTileId, context);
           if (passGoMoment) {

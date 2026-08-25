@@ -31,6 +31,7 @@ export class PresentationController {
   private disposalGeneration = 0;
   private disposed = false;
   private readonly privateSemanticSequences = new Map<string, number>();
+  private readonly audio: AudioPort;
   private authoritativeLogs: readonly string[] = [];
   private logGate: { playerId: string; turnNumber: number } | null = null;
 
@@ -39,6 +40,7 @@ export class PresentationController {
     speedMultiplier = 1,
     audio: AudioPort = NOOP_AUDIO_PORT,
   ) {
+    this.audio = audio;
     this.store.setAnimationSpeedMultiplier(speedMultiplier);
     const executors = {
       ...createBasicExecutors(this.store, audio),
@@ -51,6 +53,7 @@ export class PresentationController {
       reducedMotion,
       speedMultiplier,
       onReset: snapshot => {
+        audio.stopPresentationVoices?.();
         if (snapshot && typeof snapshot === 'object' && 'gameState' in snapshot) {
           const room = snapshot as PublicRoomState;
           this.authoritativeLogs = [...room.gameState.boardState.logs];
@@ -193,8 +196,12 @@ export class PresentationController {
   }
 
   public skipAllAndSnap(): void {
-    if (this.acceptedRoom) this.queue.reset(this.acceptedRoom);
-    else this.queue.skipAll();
+    if (this.acceptedRoom) {
+      this.queue.reset(this.acceptedRoom);
+      return;
+    }
+    this.audioStopPresentationVoices();
+    this.queue.skipAll();
   }
 
   public getState(): PresentationState {
@@ -206,7 +213,13 @@ export class PresentationController {
     this.disposed = true;
     this.consumerCount = 0;
     this.disposalGeneration += 1;
+    this.audioStopPresentationVoices();
     this.queue.dispose();
+  }
+
+  private audioStopPresentationVoices(): void {
+    // AudioPort keeps this boundary typed; AnimationQueue remains audio-agnostic.
+    this.audio?.stopPresentationVoices?.();
   }
 
   private updateLogGate(

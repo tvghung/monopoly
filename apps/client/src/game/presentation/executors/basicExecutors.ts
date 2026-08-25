@@ -10,6 +10,7 @@ import type {
 } from '../events/types';
 import type { AnimationExecutionContext, PresentationExecutor, PresentationExecutorMap } from '../queue/types';
 import type { PresentationStoreLike } from '../store/types';
+import { getHotelAppearanceDelay, getSequentialHouseBuildSteps } from '../buildingSchedule';
 import { presentationTiming } from '../timings';
 
 function createTimedExecutor(
@@ -61,10 +62,12 @@ export function createBasicExecutors(
   );
   const landingExecutor: PresentationExecutor<LandTilePresentationEvent> = {
     async run(event, context) {
+      if (!isExecutionCurrent(context)) return;
       store.clearDestinationPreview();
       const durationMs = context.getDuration(presentationTiming.landing);
       const depressDurationMs = context.getDuration(presentationTiming.tileImpact.landDepress);
       const reboundDurationMs = context.getDuration(presentationTiming.tileImpact.landRebound);
+      audio.play('movement.land', { signal: context.signal, scope: 'presentation' });
       if (!context.reducedMotion) {
         store.emitTileImpact(event.playerId, event.tileId, 'LAND', {
           delayMs: 0,
@@ -81,7 +84,9 @@ export function createBasicExecutors(
     async run(event, context) {
       const durationMs = context.getDuration(presentationTiming.characterReaction.jail);
       if (event.type === 'JAIL_STATE_CHANGED' && event.isJail) {
-        if (isExecutionCurrent(context)) audio.play('jail.enter', { signal: context.signal });
+        if (isExecutionCurrent(context)) {
+          audio.play('jail.enter', { signal: context.signal, scope: 'presentation' });
+        }
         if (!context.reducedMotion) store.emitCharacterReaction(event.playerId, 'jail', durationMs);
       }
       await context.waitForDuration(durationMs);
@@ -93,7 +98,7 @@ export function createBasicExecutors(
       const durationMs = context.getDuration(presentationTiming.characterReaction.bankrupt);
       if (event.type === 'PLAYER_FINISHED') {
         if (event.reason === 'BANKRUPT' && isExecutionCurrent(context)) {
-          audio.play('bankruptcy', { signal: context.signal });
+          audio.play('bankruptcy', { signal: context.signal, scope: 'presentation' });
         }
         if (!context.reducedMotion) {
           store.emitCharacterReaction(
@@ -126,7 +131,10 @@ export function createBasicExecutors(
       event.toPlayerId,
       durationMs,
     ),
-    (_event, context) => audio.play('property.change', { signal: context.signal }),
+    (_event, context) => audio.play('property.change', {
+      signal: context.signal,
+      scope: 'presentation',
+    }),
   );
   const developmentExecutor: PresentationExecutor<PropertyDevelopmentChangedPresentationEvent> = {
     async run(event, context) {
@@ -147,11 +155,40 @@ export function createBasicExecutors(
         durationMs,
       );
       if (event.fromHouses === 4 && event.toHouses === 5) {
-        audio.play('build.hotel', { signal: context.signal });
-      } else if (event.toHouses > event.fromHouses) {
-        audio.play('build.house', { signal: context.signal });
-      } else if (event.toHouses < event.fromHouses) {
-        audio.play('build.remove', { signal: context.signal });
+        if (context.reducedMotion || durationMs <= 0) {
+          audio.play('build.hotel', { signal: context.signal, scope: 'presentation' });
+          return;
+        }
+        const appearanceDelayMs = getHotelAppearanceDelay(durationMs);
+        await context.waitForDuration(appearanceDelayMs);
+        if (!isExecutionCurrent(context)) return;
+        audio.play('build.hotel', { signal: context.signal, scope: 'presentation' });
+        await context.waitForDuration(Math.max(0, durationMs - appearanceDelayMs));
+        return;
+      }
+      if (event.toHouses > event.fromHouses) {
+        const steps = getSequentialHouseBuildSteps(
+          event.fromHouses,
+          event.toHouses,
+          durationMs,
+        );
+        if (context.reducedMotion || durationMs <= 0) {
+          audio.play('build.house', { signal: context.signal, scope: 'presentation' });
+          return;
+        }
+        let elapsedMs = 0;
+        for (const step of steps) {
+          const delayMs = Math.max(0, step.delayMs - elapsedMs);
+          if (delayMs > 0) await context.waitForDuration(delayMs);
+          if (!isExecutionCurrent(context)) return;
+          audio.play('build.house', { signal: context.signal, scope: 'presentation' });
+          elapsedMs = step.delayMs;
+        }
+        await context.waitForDuration(Math.max(0, durationMs - elapsedMs));
+        return;
+      }
+      if (event.toHouses < event.fromHouses) {
+        audio.play('build.remove', { signal: context.signal, scope: 'presentation' });
       }
       await context.waitForDuration(durationMs);
     },
@@ -160,7 +197,7 @@ export function createBasicExecutors(
   const gameFinishedExecutor: PresentationExecutor<GameFinishedPresentationEvent> = {
     async run(event, context) {
       if (event.winnerPlayerId && isExecutionCurrent(context)) {
-        audio.play('victory', { signal: context.signal });
+        audio.play('victory', { signal: context.signal, scope: 'presentation' });
       }
       await context.wait(presentationTiming.finish);
     },

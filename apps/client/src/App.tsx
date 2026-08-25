@@ -175,6 +175,13 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
   const [confirmation, setConfirmation] = useState<ConfirmationState | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const desktopBridge = getDesktopBridge();
+  const activeRoomId = room?.roomId ?? null;
+
+  useEffect(() => {
+    const roomSessionActive = activeRoomId !== null
+      && (phase === 'LOBBY' || phase === 'GAME' || phase === 'RECONNECTING');
+    audio.setRoomActive?.(roomSessionActive);
+  }, [activeRoomId, audio, phase]);
 
   const transition = useCallback((next: AppPhase) => {
     phaseRef.current = next;

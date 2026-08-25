@@ -4,6 +4,22 @@ import { cloneRoom, makeRoom } from './testFixtures';
 import { PresentationController } from './PresentationController';
 
 describe('PresentationController', () => {
+  it('stops presentation audio on sync reset, skip-all, and disposal', () => {
+    const stopPresentationVoices = vi.fn();
+    const controller = new PresentationController(false, 1, {
+      play: vi.fn(),
+      handleUserInteraction: vi.fn(),
+      stopPresentationVoices,
+    });
+    const initial = makeRoom();
+
+    controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
+    controller.skipAllAndSnap();
+    controller.dispose();
+
+    expect(stopPresentationVoices).toHaveBeenCalledTimes(3);
+  });
+
   it('does not replay sync audio and aborts an active cue before any late settle sound', async () => {
     const play = vi.fn<(cueId: AudioCueId, options?: AudioPlayOptions) => void>();
     const audio: AudioPort = { play, handleUserInteraction: vi.fn() };
@@ -332,7 +348,11 @@ describe('PresentationController', () => {
   });
 
   it('hydrates active card state on session sync without replaying flight or reveal', () => {
-    const controller = new PresentationController();
+    const play = vi.fn<(cueId: AudioCueId, options?: AudioPlayOptions) => void>();
+    const controller = new PresentationController(false, 1, {
+      play,
+      handleUserInteraction: vi.fn(),
+    });
     const initial = makeRoom();
     const sync = cloneRoom(initial);
     sync.gameState.players['player-a'].currentTile = 7;
@@ -348,6 +368,7 @@ describe('PresentationController', () => {
       stage: 'REVEALED', revealedCardId: 'chance-dividend', durationMs: 0,
     });
     expect(controller.getState().characterMovements).toEqual([]);
+    expect(play).not.toHaveBeenCalled();
     controller.dispose();
   });
 

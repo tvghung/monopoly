@@ -19,6 +19,7 @@ import type {
 import type { AnimationExecutionContext, PresentationExecutor } from '../queue/types';
 import { PresentationStore } from '../store/presentationStore';
 import { makeRoom } from '../testFixtures';
+import { presentationTiming } from '../timings';
 import { createBasicExecutors } from './basicExecutors';
 import { createDiceExecutor } from './diceExecutor';
 import { createMovementExecutor } from './movementExecutor';
@@ -137,7 +138,7 @@ describe('presentation audio integration', () => {
   it('plays one hop per completed WALK hop, none for SNAP or Reduced Motion', async () => {
     const audio = createAudioSpy();
     await createMovementExecutor(store(), audio.audio).run(moveEvent(), immediateContext);
-    expect(audio.play.mock.calls.filter(call => call[0] === 'movement.hop')).toHaveLength(4);
+    expect(audio.play.mock.calls.filter(call => call[0] === 'movement.hop')).toHaveLength(3);
 
     audio.play.mockClear();
     await createMovementExecutor(store(), audio.audio).run(
@@ -164,8 +165,22 @@ describe('presentation audio integration', () => {
     }), immediateContext);
 
     expect(audio.play.mock.calls.map(call => call[0])).toEqual([
-      'movement.hop', 'money.receive', 'movement.hop',
+      'movement.hop', 'money.receive',
     ]);
+  });
+
+  it('owns the final destination contact with movement.land instead of a final hop hit', async () => {
+    const audio = createAudioSpy();
+    const basic = createBasicExecutors(store(), audio.audio);
+    const landing = basic.LAND_TILE as unknown as
+      PresentationExecutor<import('../events/types').LandTilePresentationEvent>;
+
+    await landing.run({
+      id: 'land-audio', roomId: 'room-1', roomVersion: 2, type: 'LAND_TILE', entityId: 'player-a',
+      playerId: 'player-a', tileId: 4,
+    }, immediateContext);
+
+    expect(audio.play.mock.calls.map(call => call[0])).toEqual(['movement.land']);
   });
 
   it.each([
@@ -234,10 +249,12 @@ describe('presentation audio integration', () => {
   });
 
   it.each([
-    [0, 2, 'build.house'],
-    [4, 5, 'build.hotel'],
-    [5, 2, 'build.remove'],
-  ] as const)('routes development %i to %i to %s', async (fromHouses, toHouses, cue) => {
+    [0, 1, ['build.house']],
+    [0, 2, ['build.house', 'build.house']],
+    [0, 4, ['build.house', 'build.house', 'build.house', 'build.house']],
+    [4, 5, ['build.hotel']],
+    [5, 2, ['build.remove']],
+  ] as const)('routes development %i to %i to the scheduled cues', async (fromHouses, toHouses, cues) => {
     const audio = createAudioSpy();
     const executor = createBasicExecutors(store(), audio.audio).PROPERTY_DEVELOPMENT_CHANGED as unknown as
       PresentationExecutor<PropertyDevelopmentChangedPresentationEvent>;
@@ -245,10 +262,60 @@ describe('presentation audio integration', () => {
       id: 'development', roomId: 'room-1', roomVersion: 2, type: 'PROPERTY_DEVELOPMENT_CHANGED', entityId: '1',
       tileId: 1, playerId: 'player-a', fromHouses, toHouses,
     }, immediateContext);
-    expect(audio.play.mock.calls.map(call => call[0])).toEqual([cue]);
+    expect(audio.play.mock.calls.map(call => call[0])).toEqual(cues);
   });
 
-  it('plays card audio only when the authoritative interaction enters REVEALED', async () => {
+  it.each([
+    [0, 1, [presentationTiming.housePop]],
+    [0, 2, [presentationTiming.houseStagger, presentationTiming.housePop]],
+    [0, 4, [
+      presentationTiming.houseStagger,
+      presentationTiming.houseStagger,
+      presentationTiming.houseStagger,
+      presentationTiming.housePop,
+    ]],
+  ] as const)('keeps %i to %i house audio on the same sequential schedule', async (fromHouses, toHouses, waits) => {
+    const audio = createAudioSpy();
+    const actualWaits: number[] = [];
+    const executor = createBasicExecutors(store(), audio.audio).PROPERTY_DEVELOPMENT_CHANGED as unknown as
+      PresentationExecutor<PropertyDevelopmentChangedPresentationEvent>;
+
+    await executor.run({
+      id: `development-${fromHouses}-${toHouses}`, roomId: 'room-1', roomVersion: 2,
+      type: 'PROPERTY_DEVELOPMENT_CHANGED', entityId: '1', tileId: 1, playerId: 'player-a',
+      fromHouses, toHouses,
+    }, {
+      ...immediateContext,
+      waitForDuration: duration => { actualWaits.push(duration); return Promise.resolve(); },
+    });
+
+    expect(actualWaits).toEqual(waits);
+    expect(audio.play.mock.calls.map(call => call[0])).toHaveLength(toHouses - fromHouses);
+  });
+
+  it('delays the hotel cue until the hotel visual begins appearing', async () => {
+    const audio = createAudioSpy();
+    const waits: number[] = [];
+    const executor = createBasicExecutors(store(), audio.audio).PROPERTY_DEVELOPMENT_CHANGED as unknown as
+      PresentationExecutor<PropertyDevelopmentChangedPresentationEvent>;
+
+    await executor.run({
+      id: 'development-hotel', roomId: 'room-1', roomVersion: 2,
+      type: 'PROPERTY_DEVELOPMENT_CHANGED', entityId: '1', tileId: 1, playerId: 'player-a',
+      fromHouses: 4, toHouses: 5,
+    }, {
+      ...immediateContext,
+      waitForDuration: duration => { waits.push(duration); return Promise.resolve(); },
+    });
+
+    expect(waits[0]).toBeCloseTo(presentationTiming.hotelTransition * presentationTiming.hotelAppearanceProgress);
+    expect(audio.play.mock.calls.map(call => call[0])).toEqual(['build.hotel']);
+    expect(waits[1]).toBeCloseTo(
+      presentationTiming.hotelTransition * (1 - presentationTiming.hotelAppearanceProgress),
+    );
+  });
+
+  it('plays draw and reveal audio only at their authoritative card milestones', async () => {
     const audio = createAudioSpy();
     const executor = createSemanticExecutors(store(), audio.audio).CARD_INTERACTION_CHANGED as unknown as
       PresentationExecutor<CardInteractionChangedPresentationEvent>;
@@ -258,11 +325,15 @@ describe('presentation audio integration', () => {
     };
 
     await executor.run({ ...base, id: 'awaiting', stage: 'AWAITING_DRAW' }, immediateContext);
-    expect(audio.play).not.toHaveBeenCalled();
+    expect(audio.play.mock.calls.map(call => call[0])).toEqual(['card.draw']);
     await executor.run({
       ...base, id: 'revealed', stage: 'REVEALED', revealedCardId: 'chance-dividend',
     }, immediateContext);
-    expect(audio.play.mock.calls.map(call => call[0])).toEqual(['card.reveal']);
+    expect(audio.play.mock.calls.map(call => call[0])).toEqual(['card.draw', 'card.reveal']);
+
+    audio.play.mockClear();
+    await executor.run({ ...base, id: 'closed', stage: 'CLOSED' }, immediateContext);
+    expect(audio.play).not.toHaveBeenCalled();
   });
 
   it('plays jail entry at arrival and routes fallback, failure, and release cues', async () => {

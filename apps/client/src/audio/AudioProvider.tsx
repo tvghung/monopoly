@@ -51,6 +51,15 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     };
   }, [audio]);
 
+  useEffect(() => {
+    const updateVisibility = () => {
+      audio.setDocumentHidden?.(document.visibilityState === 'hidden');
+    };
+    updateVisibility();
+    document.addEventListener('visibilitychange', updateVisibility);
+    return () => document.removeEventListener('visibilitychange', updateVisibility);
+  }, [audio]);
+
   return <audioContext.Provider value={audio}>{children}</audioContext.Provider>;
 }
 

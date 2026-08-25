@@ -3,6 +3,10 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { DevelopmentChangeSignal } from '../../presentation/store/types';
 import { presentationTiming } from '../../presentation/timings';
+import {
+  getHotelTransitionProgress,
+  getSequentialHouseBuildSteps,
+} from '../../presentation/buildingSchedule';
 import HouseMesh from './HouseMesh';
 import HotelMesh from './HotelMesh';
 import { getBuildingSlots, getHotelSlot } from '../board/architecture/tileAnchors';
@@ -15,32 +19,7 @@ interface BuildingLayerProps {
   reducedMotion?: boolean;
 }
 
-export interface SequentialHouseBuildStep {
-  houseIndex: number;
-  delayMs: number;
-  durationMs: number;
-}
-
-export function getSequentialHouseBuildSteps(
-  fromHouses: number,
-  toHouses: number,
-  totalDurationMs?: number,
-): SequentialHouseBuildStep[] {
-  const from = Math.max(0, Math.min(4, fromHouses));
-  const to = Math.max(from, Math.min(4, toHouses));
-  const count = to - from;
-  const baseDuration = count > 0
-    ? presentationTiming.housePop + (count - 1) * presentationTiming.houseStagger
-    : 0;
-  const scale = baseDuration > 0 && totalDurationMs !== undefined
-    ? Math.max(0, totalDurationMs) / baseDuration
-    : 1;
-  return Array.from({ length: to - from }, (_, index) => ({
-    houseIndex: from + index,
-    delayMs: index * presentationTiming.houseStagger * scale,
-    durationMs: presentationTiming.housePop * scale,
-  }));
-}
+export { getSequentialHouseBuildSteps } from '../../presentation/buildingSchedule';
 
 export function getHousePopScale(progress: number): number {
   const clamped = THREE.MathUtils.clamp(progress, 0, 1);
@@ -64,7 +43,7 @@ export function getHotelTransitionScales(progress: number): HotelTransitionScale
   const clamped = THREE.MathUtils.clamp(progress, 0, 1);
   const oldProgress = THREE.MathUtils.clamp(clamped / 0.22, 0, 1);
   const oldEased = oldProgress * oldProgress * (3 - 2 * oldProgress);
-  const hotelProgress = THREE.MathUtils.clamp((clamped - 0.15) / 0.85, 0, 1);
+  const hotelProgress = getHotelTransitionProgress(clamped);
   const hotelScale = hotelProgress < 0.62
     ? 1.25 * (1 - (1 - hotelProgress / 0.62) ** 3)
     : THREE.MathUtils.lerp(

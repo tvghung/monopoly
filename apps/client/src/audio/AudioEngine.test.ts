@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AudioEngine } from './AudioEngine';
 
 class FakeAudioParam {
@@ -60,6 +60,9 @@ class FakeOscillatorNode extends FakeSourceNode {
 
 class FakeBufferSourceNode extends FakeSourceNode {
   public buffer: AudioBuffer | null = null;
+  public loop = false;
+  public loopStart = 0;
+  public loopEnd = 0;
 }
 
 class FakeAudioBuffer {
@@ -133,6 +136,10 @@ async function flushPromises(): Promise<void> {
   await Promise.resolve();
 }
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('AudioEngine', () => {
   it('applies live Master, SFX, and Music gains and preserves exact zero mute', async () => {
     const context = new FakeAudioContext();
@@ -189,6 +196,64 @@ describe('AudioEngine', () => {
     await flushPromises();
     expect(context.resumeCount).toBe(1);
     expect(context.oscillators).toHaveLength(1);
+  });
+
+  it('starts one deterministic music loop only after unlock and keeps it through repeated room updates', async () => {
+    const context = new FakeAudioContext();
+    const factory = vi.fn(() => context as unknown as AudioContext);
+    const engine = new AudioEngine({ contextFactory: factory });
+
+    engine.setRoomActive(true);
+    expect(factory).not.toHaveBeenCalled();
+    expect(context.bufferSources).toHaveLength(0);
+
+    engine.handleUserInteraction();
+    await flushPromises();
+
+    expect(context.bufferSources).toHaveLength(1);
+    expect(context.bufferSources[0]?.loop).toBe(true);
+    expect(context.bufferSources[0]?.loopEnd).toBeCloseTo(24);
+    expect(context.oscillators).toHaveLength(0);
+
+    engine.setRoomActive(true);
+    engine.handleUserInteraction();
+    await flushPromises();
+    expect(context.bufferSources).toHaveLength(1);
+  });
+
+  it('fades on hidden state, resumes the same source, and stops after leaving the room', () => {
+    vi.useFakeTimers();
+    const context = new FakeAudioContext('running');
+    const engine = makeEngine(context);
+    engine.setRoomActive(true);
+    engine.handleUserInteraction();
+    const source = context.bufferSources[0];
+    expect(source).toBeDefined();
+
+    engine.setDocumentHidden(true);
+    expect(source?.stops).toHaveLength(0);
+    engine.setDocumentHidden(false);
+    expect(context.bufferSources).toHaveLength(1);
+
+    engine.setRoomActive(false);
+    vi.advanceTimersByTime(250);
+    expect(source?.stops).toHaveLength(1);
+  });
+
+  it('stops presentation tails without stopping UI clicks or background music', () => {
+    const context = new FakeAudioContext('running');
+    const engine = makeEngine(context);
+    engine.setRoomActive(true);
+    engine.handleUserInteraction();
+    const music = context.bufferSources[0];
+
+    engine.play('victory', { scope: 'presentation' });
+    engine.play('ui.click');
+    engine.stopPresentationVoices();
+
+    expect(music?.stops).toHaveLength(0);
+    expect(context.oscillators.slice(0, 3).every(source => source.stops.length === 2)).toBe(true);
+    expect(context.oscillators[3]?.stops).toHaveLength(1);
   });
 
   it('enforces cooldown and polyphony limits for spam-prone cues', () => {

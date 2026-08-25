@@ -70,6 +70,13 @@ export const AUDIO_REGISTRY = {
       { kind: 'tone', waveform: 'sine', frequency: 390, endFrequency: 245, durationMs: 42, attackMs: 2, level: 0.62 },
     ] },
   },
+  'movement.land': {
+    family: 'Movement', bus: 'sfx', gain: 0.12, cooldownMs: 90, maxVoices: 1,
+    source: { kind: 'procedural', layers: [
+      { kind: 'noise', durationMs: 34, attackMs: 1, level: 0.22 },
+      { kind: 'tone', waveform: 'triangle', frequency: 280, endFrequency: 165, durationMs: 78, attackMs: 2, level: 0.68 },
+    ] },
+  },
   'money.receive': {
     family: 'Money', bus: 'sfx', gain: 0.14, cooldownMs: 100, maxVoices: 2,
     source: { kind: 'procedural', layers: [
@@ -117,9 +124,10 @@ export const AUDIO_REGISTRY = {
     ] },
   },
   'build.house': {
-    family: 'Build', bus: 'sfx', gain: 0.105, cooldownMs: 72, maxVoices: 2,
+    family: 'Build', bus: 'sfx', gain: 0.12, cooldownMs: 45, maxVoices: 2,
     source: { kind: 'procedural', layers: [
-      { kind: 'tone', waveform: 'sine', frequency: 250, endFrequency: 510, durationMs: 92, attackMs: 3, level: 0.58 },
+      { kind: 'noise', durationMs: 35, attackMs: 1, level: 0.22 },
+      { kind: 'tone', waveform: 'triangle', frequency: 210, endFrequency: 560, durationMs: 76, attackMs: 2, level: 0.68 },
     ] },
   },
   'build.hotel': {
@@ -136,11 +144,18 @@ export const AUDIO_REGISTRY = {
       { kind: 'tone', waveform: 'triangle', frequency: 380, endFrequency: 210, durationMs: 125, attackMs: 3, level: 0.46 },
     ] },
   },
-  'card.reveal': {
-    family: 'Card', bus: 'sfx', gain: 0.105, cooldownMs: 180, maxVoices: 1,
+  'card.draw': {
+    family: 'Card', bus: 'sfx', gain: 0.1, cooldownMs: 180, maxVoices: 1,
     source: { kind: 'procedural', layers: [
-      { kind: 'noise', durationMs: 115, attackMs: 12, level: 0.15 },
-      { kind: 'tone', waveform: 'sine', frequency: 420, endFrequency: 760, durationMs: 170, attackMs: 10, level: 0.4 },
+      { kind: 'noise', durationMs: 42, attackMs: 2, level: 0.2 },
+      { kind: 'tone', waveform: 'triangle', frequency: 300, endFrequency: 470, durationMs: 92, attackMs: 3, level: 0.52 },
+    ] },
+  },
+  'card.reveal': {
+    family: 'Card', bus: 'sfx', gain: 0.14, cooldownMs: 180, maxVoices: 1,
+    source: { kind: 'procedural', layers: [
+      { kind: 'noise', durationMs: 115, attackMs: 8, level: 0.2 },
+      { kind: 'tone', waveform: 'sine', frequency: 420, endFrequency: 820, durationMs: 185, attackMs: 8, level: 0.52 },
     ] },
   },
   'jail.enter': {

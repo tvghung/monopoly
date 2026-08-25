@@ -1,5 +1,6 @@
 export const presentationTiming = {
   diceRoll: 640,
+  diceContactProgress: 0.72,
   diceResultHold: 140,
   tileHop: 180,
   slotReflow: 110,
@@ -15,6 +16,7 @@ export const presentationTiming = {
   cardRevealLock: 700,
   housePop: 180,
   houseStagger: 125,
+  hotelAppearanceProgress: 0.15,
   hotelTransition: 520,
   balanceChange: 120,
   propertyPurchase: 180,

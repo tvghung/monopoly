@@ -17,17 +17,20 @@ export function createDiceExecutor(
         durationMs,
       );
       if (context.reducedMotion) {
-        audio.play('dice.impact', { signal: context.signal });
+        audio.play('dice.impact', { signal: context.signal, scope: 'presentation' });
         store.settleDiceRoll(
           { dice1: event.dice1, dice2: event.dice2 },
           event.rollSequence,
         );
         return;
       }
-      audio.play('dice.shake', { signal: context.signal });
-      await context.waitForDuration(durationMs);
+      audio.play('dice.shake', { signal: context.signal, scope: 'presentation' });
+      const contactDurationMs = durationMs * presentationTiming.diceContactProgress;
+      await context.waitForDuration(contactDurationMs);
       if (context.signal.aborted || !(context.isCurrent?.() ?? true)) return;
-      audio.play('dice.impact', { signal: context.signal });
+      audio.play('dice.impact', { signal: context.signal, scope: 'presentation' });
+      await context.waitForDuration(Math.max(0, durationMs - contactDurationMs));
+      if (context.signal.aborted || !(context.isCurrent?.() ?? true)) return;
       store.settleDiceRoll(
         { dice1: event.dice1, dice2: event.dice2 },
         event.rollSequence,

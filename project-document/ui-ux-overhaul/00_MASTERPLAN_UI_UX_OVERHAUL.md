@@ -351,16 +351,18 @@ Cần audio groups:
 - jail
 - bankruptcy
 - victory
-- ambience
+- music
+- ambience (deferred unless separately approved)
 
 Mỗi group phải có independent volume hoặc ít nhất:
 
 - Master
-- Ambience
+- Music
 - SFX
 
-Phase 5 uses the Native Web Audio API and ambience only. Background music is
-removed/deferred from the current Phase 5 scope.
+Phase 5.1 uses the Native Web Audio API, centralized core SFX, and one original
+background music track through the Music bus. Ambience remains deferred unless
+separately approved later; `musicVolume` is intentionally retained.
 
 Không để sound effect kéo dài làm chậm game.
 
@@ -503,7 +505,8 @@ Status: **APPROVED — two implementation subphases only**.
 Mục tiêu:
 
 - Native Web Audio and centralized core SFX;
-- ambience;
+- one original background music track through the existing Music bus;
+- ambience deferred unless separately approved;
 - bounded remaining visual feedback and game feel;
 - structured activity in the existing `Log` surface;
 - fact-only victory presentation;
@@ -664,7 +667,7 @@ Overhaul chỉ được coi là hoàn thành khi:
 - [ ] Dice roll có impact rõ.
 - [ ] Ownership/property development đọc được trực tiếp trên board.
 - [ ] Buy/build/money/Chance/jail/bankruptcy có presentation rõ.
-- [ ] Audio có Master/Ambience/SFX.
+- [ ] Audio có Master/Music/SFX.
 - [ ] Animation queue hoạt động đúng.
 - [ ] Fast animation mode hoạt động.
 - [ ] Reduced motion hoạt động.

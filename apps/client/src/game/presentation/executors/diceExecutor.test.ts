@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { AudioPort } from '../../../audio/types';
 import type { RollDicePresentationEvent } from '../events/types';
 import type { AnimationExecutionContext } from '../queue/types';
 import { makeRoom } from '../testFixtures';
@@ -29,6 +30,32 @@ function rollEvent(rollSequence: number): RollDicePresentationEvent {
 }
 
 describe('dice presentation executor', () => {
+  it('plays impact at the shared visual contact milestone before final settlement', async () => {
+    const store = new PresentationStore();
+    store.resetFromSnapshot(makeRoom());
+    const waits: number[] = [];
+    let displaySequenceAtImpact: number | undefined;
+    const audio: AudioPort = {
+      play: cue => {
+        if (cue === 'dice.impact') displaySequenceAtImpact = store.getSnapshot().displayRollSequence;
+      },
+      handleUserInteraction: () => {},
+    };
+
+    await createDiceExecutor(store, audio).run(rollEvent(1), {
+      ...immediateContext,
+      waitForDuration: duration => { waits.push(duration); return Promise.resolve(); },
+      wait: () => Promise.resolve(),
+    });
+
+    expect(waits[0]).toBeCloseTo(presentationTiming.diceRoll * presentationTiming.diceContactProgress);
+    expect(waits[1]).toBeCloseTo(
+      presentationTiming.diceRoll * (1 - presentationTiming.diceContactProgress),
+    );
+    expect(displaySequenceAtImpact).toBe(0);
+    expect(store.getSnapshot().displayRollSequence).toBe(1);
+  });
+
   it('publishes identical faces again when the authoritative sequence advances', async () => {
     const store = new PresentationStore();
     store.resetFromSnapshot(makeRoom());
@@ -46,10 +73,16 @@ describe('dice presentation executor', () => {
     store.resetFromSnapshot(makeRoom());
     const executor = createDiceExecutor(store);
     let releaseDuration: (() => void) | undefined;
+    let releaseSettlement: (() => void) | undefined;
     let releaseHold: (() => void) | undefined;
+    let durationWait = 0;
     const context: AnimationExecutionContext = {
       ...immediateContext,
-      waitForDuration: () => new Promise<void>(resolve => { releaseDuration = resolve; }),
+      waitForDuration: () => new Promise<void>(resolve => {
+        if (durationWait === 0) releaseDuration = resolve;
+        else releaseSettlement = resolve;
+        durationWait += 1;
+      }),
       wait: () => new Promise<void>(resolve => { releaseHold = resolve; }),
     };
 
@@ -62,6 +95,11 @@ describe('dice presentation executor', () => {
     expect(store.getSnapshot().displayRollSequence).toBe(0);
 
     releaseDuration?.();
+    await Promise.resolve();
+    expect(store.getSnapshot().diceRoll).toMatchObject({ lifecycle: 'rolling', rollSequence: 1 });
+    expect(store.getSnapshot().displayRollSequence).toBe(0);
+
+    releaseSettlement?.();
     await Promise.resolve();
     expect(store.getSnapshot().diceRoll).toBeNull();
     expect(store.getSnapshot().displayRollSequence).toBe(1);

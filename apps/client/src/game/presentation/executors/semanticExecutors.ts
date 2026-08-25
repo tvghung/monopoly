@@ -46,7 +46,7 @@ export function createSemanticExecutors(
         reason: event.reason,
         durationMs: physicalDuration,
       });
-      audio.play(moneyCue(event), { signal: context.signal });
+      audio.play(moneyCue(event), { signal: context.signal, scope: 'presentation' });
       await context.waitForDuration(physicalDuration);
     },
     finish() {},
@@ -63,7 +63,7 @@ export function createSemanticExecutors(
         transfer.toPlayerId,
         pulseDuration,
       ));
-      audio.play(propertyCue(event), { signal: context.signal });
+      audio.play(propertyCue(event), { signal: context.signal, scope: 'presentation' });
       await context.waitForDuration(pulseDuration);
     },
     finish() {},
@@ -83,7 +83,7 @@ export function createSemanticExecutors(
         reason: 'PASS_GO',
         durationMs: context.getDuration(presentationTiming.moneyTransfer),
       });
-      audio.play('money.receive', { signal: context.signal });
+      audio.play('money.receive', { signal: context.signal, scope: 'presentation' });
       await context.waitForDuration(duration);
     },
     finish() {},
@@ -103,7 +103,7 @@ export function createSemanticExecutors(
       await context.waitForDuration(physicalDuration);
       if (!current(context)) return;
       if (physicalDuration > 0) store.completeCharacterHop(playerId, destinationTile);
-      audio.play('jail.enter', { signal: context.signal });
+      audio.play('jail.enter', { signal: context.signal, scope: 'presentation' });
       store.emitTileImpact(playerId, destinationTile, 'LAND', {
         delayMs: 0,
         depressDurationMs: context.getDuration(presentationTiming.tileImpact.landDepress),
@@ -126,7 +126,7 @@ export function createSemanticExecutors(
       if (!current(context)) return;
       const duration = context.getDuration(presentationTiming.characterReaction.sad);
       if (!context.reducedMotion) store.emitCharacterReaction(event.playerId, 'sad', duration);
-      audio.play('jail.failed', { signal: context.signal });
+      audio.play('jail.failed', { signal: context.signal, scope: 'presentation' });
       await context.waitForDuration(duration);
     },
     finish() {},
@@ -134,7 +134,9 @@ export function createSemanticExecutors(
 
   const jailReleased: PresentationExecutor<JailReleasedPresentationEvent> = {
     run(_event, context) {
-      if (current(context)) audio.play('jail.release', { signal: context.signal });
+      if (current(context)) {
+        audio.play('jail.release', { signal: context.signal, scope: 'presentation' });
+      }
       return Promise.resolve();
     },
     finish() {},
@@ -157,6 +159,7 @@ export function createSemanticExecutors(
           stage: duration > 0 ? 'DRAWING' : 'AWAITING_DRAW',
           durationMs: duration,
         });
+        audio.play('card.draw', { signal: context.signal, scope: 'presentation' });
         await context.waitForDuration(duration);
         if (current(context)) store.setCardPresentation({
           operationId: event.operationId,
@@ -169,7 +172,6 @@ export function createSemanticExecutors(
         return;
       }
       const duration = context.getDuration(presentationTiming.cardReveal);
-      audio.play('card.reveal', { signal: context.signal });
       store.setCardPresentation({
         operationId: event.operationId,
         playerId: event.playerId,
@@ -179,6 +181,7 @@ export function createSemanticExecutors(
         ...(event.revealedCardId ? { revealedCardId: event.revealedCardId } : {}),
         durationMs: duration,
       });
+      audio.play('card.reveal', { signal: context.signal, scope: 'presentation' });
       await context.waitForDuration(duration);
       if (current(context)) store.setCardPresentation({
         operationId: event.operationId,
