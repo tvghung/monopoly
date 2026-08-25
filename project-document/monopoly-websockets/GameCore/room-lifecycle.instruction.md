@@ -33,7 +33,9 @@ presence (`CONNECTED | DISCONNECTED`).
   until one winner, whose stable ID becomes first in persisted turn order. This
   happens inside start command; no client dice/order payload is accepted.
 - Start cannot repeat. `play again` is the only reverse lifecycle command: an
-  authenticated host may transition `FINISHED → LOBBY` in the same room.
+  authenticated host may transition `FINISHED → LOBBY` in the same room, even when
+  only that eligible host remains; a later start still requires 2–4 active ready
+  Players.
 - Temporary host disconnect preserves host. Explicit leave transfers host to lowest
   remaining active join order.
 

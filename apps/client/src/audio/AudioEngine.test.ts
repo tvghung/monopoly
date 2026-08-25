@@ -3,6 +3,7 @@ import {
   AudioEngine,
   createProceduralMusicSamples,
   MUSIC_LOOP_DURATION_SECONDS,
+  MUSIC_MELODY_STRUCTURE,
   MUSIC_TRACK_METADATA,
 } from './AudioEngine';
 
@@ -233,6 +234,15 @@ describe('AudioEngine', () => {
     expect(MUSIC_TRACK_METADATA.bpm).toBeGreaterThanOrEqual(110);
     expect(MUSIC_TRACK_METADATA.bpm).toBeLessThanOrEqual(114);
     expect(MUSIC_TRACK_METADATA.sectionCount).toBe(3);
+    expect(MUSIC_TRACK_METADATA.phrasesPerSection).toBe(4);
+    expect(MUSIC_TRACK_METADATA.eighthNotesPerSection).toBe(64);
+    expect(MUSIC_MELODY_STRUCTURE).toHaveLength(3);
+    MUSIC_MELODY_STRUCTURE.forEach(section => {
+      expect(section.phraseCount).toBe(4);
+      expect(section.phraseLengths).toEqual([16, 16, 16, 16]);
+      expect(new Set(section.phraseSignatures).size).toBeGreaterThan(1);
+      expect(section.restCounts.some(count => count > 0)).toBe(true);
+    });
     expect(MUSIC_TRACK_METADATA.durationSeconds).toBeGreaterThan(45);
     expect(MUSIC_TRACK_METADATA.durationSeconds).toBeLessThan(55);
     const sectionLength = Math.floor(first.length / 3);

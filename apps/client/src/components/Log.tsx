@@ -96,10 +96,11 @@ export default function Log() {
   const [idle, setIdle] = useState(false);
   const scrollRef = useRef<HTMLElement>(null);
   const idleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const visibleLogs = queue ? presentation.displayLogs : state.boardState.logs;
   const visibleActivity = queue ? presentation.displayActivity : state.boardState.activityFeed.events;
+  const visibleLogs = queue
+    ? presentation.displayLogs
+    : visibleActivity.length > 0 ? [] : state.boardState.logs;
   const activitySignature = getActivitySignature(visibleActivity, visibleLogs);
-  const showStructuredActivity = visibleActivity.length > 0;
 
   const clearIdleTimeout = useCallback(() => {
     if (idleTimeoutRef.current !== null) {
@@ -145,16 +146,17 @@ export default function Log() {
     >
       <section ref={scrollRef} className="center__log" role="log" aria-live="polite" aria-label="Nhật ký ván chơi">
         {state.loaded
-          ? showStructuredActivity
-            ? visibleActivity.map(event => (
+          ? [
+            ...visibleLogs.map((entry, index) => <p key={`legacy-${index}`}>{entry}</p>),
+            ...visibleActivity.map(event => (
               <p
                 key={event.eventId}
                 className={`activity-entry activity-entry--${event.type.toLowerCase()}`}
               >
                 {activityText(event)}
               </p>
-            ))
-            : visibleLogs.map((entry, index) => <p key={index}>{entry}</p>)
+            )),
+          ]
           : <p>Đang tải…</p>}
       </section>
       <section className="center__chat">

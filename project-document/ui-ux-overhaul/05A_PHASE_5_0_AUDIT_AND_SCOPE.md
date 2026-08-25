@@ -5,9 +5,9 @@
 Audit date: 2026-08-24
 Branch: `overhaul/phase-5-game-feel-audio-effects`
 Base: `main` at `955e74233e7ae91c0aeb990633295257ea9e3be4` (`Merge Phase 4 gameplay presentation`)
-Protocol: V7
-Status: approved Phase 5.0 audit, amended for the current Phase 5.1 corrective
-implementation; Phase 5.2 remains open
+Protocol: V8
+Status: approved Phase 5.0 audit, amended for the current Phase 5.1 implementation
+and Phase 5.2 corrective pass; live/manual gates remain open
 
 ## 1. Readiness summary
 
@@ -542,10 +542,10 @@ Electron audio smoke after a fresh package; visual consequence fixtures; Reduced
 Motion; Skip; WebGL fallback; renderer diagnostics; and separate audio versus
 visual evidence. Completion leaves all existing hard budgets unchanged.
 
-### Phase 5.2 — Activity Feed, Victory, Play Again & Final Closure
+### Phase 5.2 — Activity Feed, Victory, Play Again & Corrective Pass
 
-**Objective:** close the approved activity, end-game, reusable-room, and
-long-session boundaries without adding a second history or client authority.
+**Objective:** implement and validate the approved activity, end-game, reusable-room,
+and long-session boundaries without adding a second history or client authority.
 
 #### A. Structured activity feed
 
@@ -577,7 +577,7 @@ leaves or convert spectators. Use canonical/fresh game-state construction so no
 old match-specific state, activity, or presentation identity leaks. Do not add a
 separate `New Room` action and do not prescribe manual field-by-field reset.
 
-#### D. Final closure and validation
+#### D. Corrective validation boundary
 
 Required evidence includes typecheck, lint, tests, database status/integration
 where required, build, deterministic renderer fixtures, browser UAT,
@@ -604,7 +604,7 @@ Phase 5.0 approved scope
         |
         +--> Phase 5.1 — Core Game Feel, Audio & Visual Feedback
                      |
-                     +--> Phase 5.2 — Activity Feed, Victory, Play Again & Final Closure
+                     +--> Phase 5.2 — Activity Feed, Victory, Play Again & Corrective Pass
 ```
 
 Phase 5.2 depends on the Phase 5.1 audio/visual sinks and the preserved Phase 4
@@ -672,7 +672,7 @@ remaining completion gates are evidence categories, not scope expansion:
 - the implementation branch remains based on the merged Phase 4 main commit and
   the first Phase 5 commit is limited to the approved slice.
 
-## 18. Phase 5.2 entry criteria and closure
+## 18. Phase 5.2 entry criteria and validation boundary
 
 The following entry criteria were recorded before implementation. The current
 Phase 5.2 slice satisfies the implementation prerequisites; automated, database,
@@ -702,8 +702,12 @@ reported separately:
 This artifact remains the approved scope boundary. The current Phase 5
 implementation includes centralized audio, core SFX, one original background
 music track, typed activity, fact-only victory presentation, and host-only
-same-room Play Again. It preserves the Phase 4 board/camera/gameplay baseline and
-uses the single presentation/audio architecture. The implementation milestones are:
+same-room Play Again, including the focused corrective pass for one-player replay,
+offer cancellation, legacy-log continuity, and non-duplicated activity narration.
+It preserves the Phase 4 board/camera/gameplay baseline and uses the single
+presentation/audio architecture. Automated and database gates must be reported
+separately from the still-open browser/Electron, multiplayer, long-session, and
+remote-CI gates. The implementation milestones are:
 
 1. Phase 5.1 — Core Game Feel, Audio & Visual Feedback.
-2. Phase 5.2 — Activity Feed, Victory, Play Again & Final Closure.
+2. Phase 5.2 — Activity Feed, Victory, Play Again & Corrective Pass.

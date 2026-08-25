@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { freshState } from '../rooms';
 import { MAX_ACTIVITY_FEED_EVENTS, recordActivityEvent } from './activity';
+import { sellHouse } from './property';
 import {
   MAX_GAMEPLAY_SEMANTIC_EVENTS,
   recordPrivateGameplayEvent,
   recordPublicGameplayEvent,
 } from './semanticEvents';
+import { transferProperty } from './transfer';
 
 describe('durable semantic gameplay event lanes', () => {
   it('assigns monotonic sequence numbers while retaining only the bounded tail', () => {
@@ -45,7 +47,7 @@ describe('durable semantic gameplay event lanes', () => {
     expect(state.boardState.activityFeed.events).toEqual([]);
   });
 
-  it('records public money facts in a bounded structured activity tail', () => {
+  it('records standalone public money facts in a bounded structured activity tail', () => {
     const state = freshState();
     state.players['buyer'] = {
       name: 'Buyer',
@@ -62,7 +64,7 @@ describe('durable semantic gameplay event lanes', () => {
       source: { kind: 'PLAYER', playerId: 'buyer' },
       destination: { kind: 'BANK' },
       amount: 200,
-      reason: 'PROPERTY_PURCHASE',
+      reason: 'RENT',
     });
     expect(state.boardState.activityFeed.events.at(-1)).toMatchObject({
       sequence: 1,
@@ -78,5 +80,45 @@ describe('durable semantic gameplay event lanes', () => {
     expect(state.boardState.activityFeed.events).toHaveLength(MAX_ACTIVITY_FEED_EVENTS);
     expect(state.boardState.activityFeed.events.at(-1)?.sequence)
       .toBe(MAX_ACTIVITY_FEED_EVENTS + 3);
+  });
+
+  it('keeps purchase and property-development narration to one primary activity each', () => {
+    const state = freshState();
+    state.players.buyer = {
+      name: 'Buyer',
+      currentTile: 0,
+      color: 'red',
+      characterId: 'dog',
+      accountBalance: 1_500,
+      isJail: false,
+      jailOpponentRoundsElapsed: 0,
+      heldJailFreeCardIds: [],
+    };
+
+    recordPublicGameplayEvent(state, {
+      type: 'MONEY_TRANSFER',
+      source: { kind: 'PLAYER', playerId: 'buyer' },
+      destination: { kind: 'BANK' },
+      amount: 60,
+      reason: 'PROPERTY_PURCHASE',
+      operationId: 'purchase-operation',
+    });
+    expect(transferProperty(state, 1, null, 'buyer', 'BANK_PURCHASE', {
+      operationId: 'purchase-operation',
+    }).ok).toBe(true);
+    expect(state.boardState.activityFeed.events.map(event => event.type)).toEqual(['PROPERTY_PURCHASE']);
+
+    state.boardState.ownedProps[1].houses = 2;
+    expect(sellHouse(state, 'buyer', 1)).toBe(true);
+    expect(state.boardState.activityFeed.events.map(event => event.type)).toEqual([
+      'PROPERTY_PURCHASE',
+      'PROPERTY_DEVELOPMENT',
+    ]);
+    expect(state.boardState.activityFeed.events.at(-1)).toMatchObject({
+      type: 'PROPERTY_DEVELOPMENT',
+      action: 'SELL',
+      fromHouses: 2,
+      toHouses: 1,
+    });
   });
 });

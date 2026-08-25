@@ -56,6 +56,14 @@ export function recordActivityForGameplayEvent(
 ): void {
   switch (event.type) {
     case 'MONEY_TRANSFER':
+      // Purchases and development already have one richer public activity
+      // event at their domain boundary. Keep the semantic money fact for
+      // accounting/presentation consumers without narrating it twice.
+      if (
+        event.reason === 'PROPERTY_PURCHASE'
+        || event.reason === 'DEVELOPMENT'
+        || (event.reason === 'PROPERTY_SALE' && event.operationId === undefined)
+      ) return;
       recordActivityEvent(state, {
         type: 'MONEY_TRANSFER',
         source: activityEndpoint(state, event.source),

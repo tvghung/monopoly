@@ -38,6 +38,8 @@ per-room executor and typed ACK.
 
 - `play again` has no business payload and is accepted only from an authenticated
   Player whose room is `FINISHED` and whose stable ID is the persisted host.
+  Unlike `start game`, it may reset a room with only one eligible active Player;
+  `start game` still requires 2–4 active connected ready Players.
 - The command runs inside the room executor, cancels all pending persisted trade
   offers in the same transaction, reconstructs `freshState()` and canonical player
   defaults, preserves eligible IDs/appearance/join order/sessions, resets ready

@@ -241,8 +241,8 @@ export function registerLobbyHandlers(
             member,
             identity: state.players[playerId] ?? state.boardState.finishedPlayers[playerId],
           }));
-        if (eligible.length < MIN_PLAYERS) {
-          throw new CommandError('CONFLICT', 'Không còn đủ người chơi đủ điều kiện để chơi lại.');
+        if (!eligible.some(candidate => candidate.playerId === actor.playerId)) {
+          throw new CommandError('FORBIDDEN', 'Chỉ người chơi đủ điều kiện mới có thể chơi lại.');
         }
         if (eligible.some(candidate => !candidate.identity)) {
           throw new CommandError('CONFLICT', 'Không thể khôi phục đầy đủ danh tính người chơi.');

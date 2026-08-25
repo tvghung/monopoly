@@ -26,8 +26,9 @@
 ## Service, state, context và socket
 
 - `Log` đọc `state.boardState.activityFeed` and `socketFunctions` from
-  `stateContext`; it falls back to legacy string logs only when the typed tail is
-  empty for compatibility with migrated historical snapshots.
+  `stateContext`; migrated historical snapshots may retain a plain-text legacy
+  prefix before the new typed tail. A fresh V8 snapshot with typed activity does
+  not render its duplicate legacy strings.
 - Local state `chat` giữ nội dung input; `scrollRef` trỏ tới vùng log.
 - `getActivitySignature()` uses typed tail length/sequence/last event identity plus
   the legacy log signature. A new array with equivalent content is not new activity.
@@ -60,8 +61,9 @@
 ## Luồng hiện tại
 
 1. Khi state chưa loaded, vùng log hiển thị `Loading...`.
-2. Khi loaded, component map typed `activityFeed.events` thành các dòng text `<p>`;
-   legacy strings chỉ là compatibility fallback.
+2. Khi loaded, component render legacy compatibility context as plain-text `<p>`
+   entries followed by typed `activityFeed.events`; it never parses the legacy
+   strings as HTML.
 3. Activity signature mới làm overlay sáng lại, reset countdown và auto-scroll xuống cuối.
 4. Sau đúng 3 giây không có activity, root overlay chuyển opacity về `0.2`.
 5. Người dùng nhập chat và submit; typing hoặc pointer/focus interaction cũng wake overlay.
@@ -78,10 +80,11 @@
   cũ nhất bị loại khi server append dòng mới.
 - Modern Activity Feed render bằng React text/typed fields, không dùng
   `dangerouslySetInnerHTML` và không parse HTML logs để phân loại gameplay. Legacy
-  string logs are displayed as text only when the typed tail is empty.
+  string logs are displayed only as a safe historical prefix/context before typed
+  entries.
 - Server hiện escape chat text và sanitize player name; nếu đổi format/nguồn log phải kiểm tra lại boundary này trước khi render HTML.
-- Typed activity entries use server UUID event IDs as React keys; legacy fallback
-  retains index keys only for the compatibility string array.
+- Typed activity entries use server UUID event IDs as React keys; the compatibility
+  prefix retains index keys only for the legacy string array.
 - Disconnected client khóa form; failure ACK không tạo phantom log entry dù input local đã được xóa.
 - Idle overlay không khóa input/nút; pointer interaction trên overlay mờ phải wake lại ngay.
 - Actor là stable authenticated Player hoặc explicit spectator label, không lấy từ client payload/socket ID.

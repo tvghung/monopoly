@@ -1,18 +1,18 @@
 # Phase 5 — Game Feel, Audio & Visual Feedback
 
-**PHASE 5.2 IMPLEMENTED LOCALLY — automated gates run separately; live/manual gates remain explicitly open**
+**PHASE 5.2 CORRECTIVE PASS IMPLEMENTED LOCALLY — automated gates run separately; live/manual gates remain explicitly open**
 
-The earlier Phase 5.0 handoff was documentation-only. Phase 5.1 and the bounded
-Phase 5.2 closure slice are now implemented locally; the detailed audit and scope
+The earlier Phase 5.0 handoff was documentation-only. Phase 5.1 and the focused
+Phase 5.2 corrective pass are implemented locally; the detailed audit and scope
 boundary remain in [05A_PHASE_5_0_AUDIT_AND_SCOPE.md](05A_PHASE_5_0_AUDIT_AND_SCOPE.md).
 
 ## 1. Current scope
 
-Phase 5 is split into the completed bounded Phase 5.1 slice and the completed
-local Phase 5.2 closure slice:
+The current Phase 5 implementation contains the bounded Phase 5.1 slice and the
+focused Phase 5.2 corrective pass:
 
 1. **Phase 5.1 — Centralized Audio, Core SFX, One Background Music Track & Corrective Game Feel**
-2. **Phase 5.2 — Remaining Game Feel, Activity Feed, Victory, Play Again & Final Closure**
+2. **Phase 5.2 — Remaining Game Feel, Activity Feed, Victory, Play Again & Corrective Pass**
 
 There is no Phase 5.3–5.7 plan. The earlier decomposition is superseded. Phase 5
 must preserve server/GameCore authority, the consolidated V8 contract, and the
@@ -25,7 +25,7 @@ Implementation status: **CORRECTIVE PASS IMPLEMENTED LOCALLY on 2026-08-25**, su
 to the separately reported browser/Electron auditory QA, long-session, and
 remote-CI boundaries. This status covers the centralized runtime, core SFX, one
 procedural background music track, and the bounded corrective game-feel work
-below; Phase 5.2 closure is documented in Section 3.
+below. It does not close the manual Phase 5 gates.
 
 ### Implemented centralized runtime
 
@@ -114,9 +114,9 @@ below; Phase 5.2 closure is documented in Section 3.
   snapshot, migration, database, board/dice/character/building renderer, camera,
   motion timing or WebGL fallback. Audio adds zero render draw calls.
 
-## 3. Phase 5.2 — Remaining Game Feel, Activity Feed, Victory, Play Again & Final Closure
+## 3. Phase 5.2 — Remaining Game Feel, Activity Feed, Victory, Play Again & Corrective Pass
 
-Phase 5.2 owns the bounded activity, victory and replay closure below. Ambience
+Phase 5.2 owns the bounded activity, victory and replay corrective scope below. Ambience
 remains deferred unless separately approved. It preserves the Phase 4
 tile STEP/LAND feedback, destination preview, ownership/development feedback,
 construction puff, money-transfer coins, dice/card presentation, fixed board and
@@ -143,9 +143,11 @@ development/card/jail/bankruptcy/finish facts at authoritative server producer
 points. Card activity starts only after reveal; private deck order, hidden cards,
 offers and continuations are never exposed.
 
-The shared schema is V8 `ActivityEvent`/`ActivityFeed`; existing string logs remain
-only as compatibility fallback and are never parsed for gameplay categories. The
-existing Log renders typed text and gates live activity through the existing
+The shared schema is V8 `ActivityEvent`/`ActivityFeed`; migration 009 leaves the
+typed tail empty for historical rows, so the client may retain a plain-text legacy
+prefix/context before later typed events. Fresh V8 typed activity suppresses its
+duplicate legacy strings. Legacy logs are never parsed for gameplay categories;
+the existing Log gates live activity through the existing
 PresentationController/AnimationQueue.
 
 ### B. Victory/end-game
@@ -201,7 +203,7 @@ The local runtime implements this boundary with a typed `play again` command,
 canonical fresh-state reconstruction, same-room broadcast/ACK ordering, and
 `REPLAY_SYNC` presentation reset. It is still subject to the manual UAT gates below.
 
-### D. Final closure and validation
+### D. Corrective validation boundary
 
 Required evidence includes typecheck, lint, tests, database status/integration
 where required, build, deterministic renderer fixtures, browser UAT,
@@ -244,4 +246,8 @@ V8. Migration `009_activity_feed_v8.sql` initializes an empty typed activity tai
 for V7 rows and does not reconstruct legacy logs. No second protocol/snapshot bump
 or ambience migration is part of this phase.
 
-Next: Phase 5.2 planning and the separately reported Phase 5.1 manual auditory gates.
+Next: report the automated/database gates for this corrective pass, then complete
+the separately reported browser/Electron, multiplayer, long-session, and remote-CI
+gates. Phase 6 is the next planned phase after corrective implementation and
+automated validation; Phase 5 is not claimed fully closed while manual gates remain
+NOT RUN.

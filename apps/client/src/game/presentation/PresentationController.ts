@@ -34,6 +34,7 @@ export class PresentationController {
   private readonly audio: AudioPort;
   private authoritativeLogs: readonly string[] = [];
   private authoritativeActivity: PublicRoomState['gameState']['boardState']['activityFeed']['events'] = [];
+  private legacyLogPrefix: readonly string[] = [];
   private logGate: { playerId: string; turnNumber: number } | null = null;
 
   public constructor(
@@ -57,10 +58,15 @@ export class PresentationController {
         audio.stopPresentationVoices?.();
         if (snapshot && typeof snapshot === 'object' && 'gameState' in snapshot) {
           const room = snapshot as PublicRoomState;
-          this.authoritativeLogs = [...room.gameState.boardState.logs];
+          this.legacyLogPrefix = room.gameState.boardState.activityFeed.events.length === 0
+            ? [...room.gameState.boardState.logs]
+            : [];
+          this.authoritativeLogs = [...this.legacyLogPrefix];
           this.authoritativeActivity = [...room.gameState.boardState.activityFeed.events];
           this.logGate = null;
           this.store.resetFromSnapshot(room);
+          this.store.setDisplayLogs(this.authoritativeLogs);
+          this.store.setDisplayActivity(this.authoritativeActivity);
         }
       },
       onError: (error, event) => {
@@ -229,7 +235,13 @@ export class PresentationController {
     next: PublicRoomState,
     events: ReturnType<typeof derivePresentationEvents>,
   ): void {
-    this.authoritativeLogs = [...next.gameState.boardState.logs];
+    if (
+      this.authoritativeActivity.length === 0
+      && next.gameState.boardState.activityFeed.events.length === 0
+    ) {
+      this.legacyLogPrefix = [...next.gameState.boardState.logs];
+    }
+    this.authoritativeLogs = [...this.legacyLogPrefix];
     this.authoritativeActivity = [...next.gameState.boardState.activityFeed.events];
     if (this.logGate) return;
     if (events.length === 0) {

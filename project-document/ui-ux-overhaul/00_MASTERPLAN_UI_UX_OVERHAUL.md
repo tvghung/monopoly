@@ -511,12 +511,12 @@ Mục tiêu:
 - structured activity in the existing `Log` surface;
 - fact-only victory presentation;
 - host-only Play Again with same-room `FINISHED → LOBBY` lifecycle;
-- final long-session, accessibility, cleanup, and performance closure.
+- final long-session, accessibility, cleanup, and performance validation.
 
 Phase 5 contains only:
 
 1. [Phase 5.1 — Core Game Feel, Audio & Visual Feedback](05_PHASE_5_GAME_FEEL_AUDIO_EFFECTS.md#2-phase-51--core-game-feel-audio--visual-feedback)
-2. [Phase 5.2 — Activity Feed, Victory, Play Again & Final Closure](05_PHASE_5_GAME_FEEL_AUDIO_EFFECTS.md#3-phase-52--activity-feed-victory-play-again--final-closure)
+2. [Phase 5.2 — Activity Feed, Victory, Play Again & Corrective Pass](05_PHASE_5_GAME_FEEL_AUDIO_EFFECTS.md#3-phase-52--remaining-game-feel-activity-feed-victory-play-again--corrective-pass)
 
 The detailed approved audit and implementation boundary are in
 [05A_PHASE_5_0_AUDIT_AND_SCOPE.md](05A_PHASE_5_0_AUDIT_AND_SCOPE.md).

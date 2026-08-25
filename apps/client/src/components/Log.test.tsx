@@ -134,7 +134,7 @@ describe('chat and activity log idle presentation', () => {
     errorSpy.mockRestore();
   });
 
-  it('renders typed activity without interpreting legacy HTML log strings', () => {
+  it('does not duplicate legacy markup when a typed activity tail is available', () => {
     renderLog(
       ['<span class="legacy">old</span>'],
       [{
@@ -151,6 +151,7 @@ describe('chat and activity log idle presentation', () => {
 
     expect(screen.getByText('Ada: Xin chào')).toBeTruthy();
     expect(screen.queryByText('<span class="legacy">old</span>')).toBeNull();
+    expect(document.querySelector('.legacy')).toBeNull();
     expect(document.querySelector('.activity-entry--chat')).not.toBeNull();
   });
 });

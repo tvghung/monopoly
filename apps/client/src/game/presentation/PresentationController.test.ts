@@ -372,6 +372,144 @@ describe('PresentationController', () => {
     controller.dispose();
   });
 
+  it('hard-resets replay presentation to the fresh lobby without reverse gameplay effects', async () => {
+    const play = vi.fn<(cueId: AudioCueId, options?: AudioPlayOptions) => void>();
+    const controller = new PresentationController(false, 1, {
+      play,
+      handleUserInteraction: vi.fn(),
+    });
+    const initial = makeRoom();
+    controller.acceptRoomSnapshot(initial, 'SESSION_SYNC');
+
+    const finished = cloneRoom(initial);
+    finished.gameState.players['player-a'].currentTile = 8;
+    finished.gameState.players['player-a'].accountBalance = 900;
+    finished.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 4 };
+    finished.gameState.boardState.diceValue = { dice1: 5, dice2: 6 };
+    finished.gameState.boardState.rollSequence = 1;
+    finished.gameState.boardState.logs = ['Ván cũ'];
+    finished.gameState.boardState.gameplayEvents = {
+      sequence: 1,
+      events: [{
+        eventId: 'old-event',
+        sequence: 1,
+        type: 'JAIL_ROLL_FAILED',
+        playerId: 'player-a',
+      }],
+    };
+    finished.gameState.boardState.activityFeed = {
+      sequence: 1,
+      events: [{
+        eventId: 'old-activity',
+        sequence: 1,
+        occurredAt: '2026-08-25T12:00:00.000Z',
+        type: 'PLAYER_FINISHED',
+        playerId: 'player-a',
+        playerName: 'An',
+        reason: 'BANKRUPT',
+        finalCash: 0,
+      }],
+    };
+    finished.gameState.boardState.winner = {
+      playerId: 'player-b',
+      name: 'Bình',
+      color: 'blue',
+      characterId: 'panda',
+    };
+    controller.queue.pause();
+    controller.acceptRoomSnapshot(finished, 'LIVE_UPDATE');
+    expect(controller.queue.getStatus()).toBe('paused');
+
+    const replay = cloneRoom(finished);
+    replay.status = 'LOBBY';
+    replay.gameState.boardState.gameStarted = false;
+    replay.gameState.boardState.players = ['player-a'];
+    replay.gameState.boardState.finishedPlayers = {};
+    replay.gameState.boardState.currentPlayer = { id: '', hasMoved: false };
+    replay.gameState.boardState.turnNumber = 0;
+    replay.gameState.boardState.logs = [];
+    replay.gameState.boardState.diceValue = { dice1: 0, dice2: 0 };
+    replay.gameState.boardState.rollSequence = 0;
+    replay.gameState.boardState.gameplayEvents = { sequence: 0, events: [] };
+    replay.gameState.boardState.activityFeed = { sequence: 0, events: [] };
+    replay.gameState.boardState.ownedProps = {};
+    replay.gameState.boardState.winner = null;
+    replay.gameState.players = {
+      'player-a': {
+        ...replay.gameState.players['player-a'],
+        currentTile: 0,
+        accountBalance: 1_500,
+        isJail: false,
+        jailOpponentRoundsElapsed: 0,
+        getOutOfJailCardCount: 0,
+      },
+    };
+    replay.gameState.turnInfo = {};
+
+    controller.acceptRoomSnapshot(replay, 'REPLAY_SYNC');
+    await controller.queue.whenIdle();
+
+    const state = controller.getState();
+    expect(controller.queue.getStatus()).toBe('idle');
+    expect(state.displayPositions).toEqual({ 'player-a': 0 });
+    expect(state.displayBalances).toEqual({ 'player-a': 1_500 });
+    expect(state.displayDevelopmentLevels).toEqual({});
+    expect(state.displayDice).toEqual({ dice1: 0, dice2: 0 });
+    expect(state.displayRollSequence).toBe(0);
+    expect(state.displayLogs).toEqual([]);
+    expect(state.displayActivity).toEqual([]);
+    expect(state.moneyTransfers).toEqual([]);
+    expect(state.characterReactions).toEqual([]);
+    expect(state.characterMovements).toEqual([]);
+    expect(state.ownershipChanges).toEqual([]);
+    expect(state.developmentChanges).toEqual([]);
+    expect(state.cardPresentation).toBeNull();
+    expect(play).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it('keeps migrated legacy context as a prefix while fresh typed V8 activity suppresses duplicates', () => {
+    const controller = new PresentationController();
+    const migrated = makeRoom();
+    migrated.gameState.boardState.logs = ['Lịch sử V7'];
+    controller.acceptRoomSnapshot(migrated, 'SESSION_SYNC');
+
+    const typed = cloneRoom(migrated);
+    typed.gameState.boardState.logs = ['Lịch sử V7', 'Dòng cũ tương ứng với sự kiện mới'];
+    typed.gameState.boardState.activityFeed = {
+      sequence: 1,
+      events: [{
+        eventId: 'typed-chat',
+        sequence: 1,
+        occurredAt: '2026-08-25T12:00:00.000Z',
+        type: 'CHAT',
+        senderRole: 'PLAYER',
+        senderPlayerId: 'player-a',
+        senderName: 'An',
+        message: 'Xin chào',
+      }],
+    };
+    controller.acceptRoomSnapshot(typed, 'LIVE_UPDATE');
+    expect(controller.getState().displayLogs).toEqual(['Lịch sử V7']);
+    expect(controller.getState().displayActivity).toHaveLength(1);
+
+    const freshV8 = cloneRoom(typed);
+    freshV8.gameState.boardState.logs = ['Legacy duplicate'];
+    freshV8.gameState.boardState.activityFeed = {
+      sequence: 1,
+      events: [{
+        ...typed.gameState.boardState.activityFeed.events[0],
+        eventId: 'fresh-v8-chat',
+      }],
+    };
+    const freshController = new PresentationController();
+    freshController.acceptRoomSnapshot(freshV8, 'SESSION_SYNC');
+    expect(freshController.getState().displayLogs).toEqual([]);
+    expect(freshController.getState().displayActivity).toHaveLength(1);
+    controller.dispose();
+    freshController.dispose();
+  });
+
   it('keeps authoritative buildings at their old display level until the executor starts', async () => {
     const controller = new PresentationController();
     const initial = makeRoom();

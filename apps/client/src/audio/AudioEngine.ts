@@ -31,20 +31,46 @@ export const MUSIC_BPM = 112;
 export const MUSIC_BEATS = 96;
 export const MUSIC_SECTION_COUNT = 3;
 export const MUSIC_LOOP_DURATION_SECONDS = MUSIC_BEATS * 60 / MUSIC_BPM;
+const MUSIC_FADE_MS = 220;
+
+const melodySections = [
+  [
+    [0, 3, 7, -1, 10, 7, 3, 5, 0, 3, 8, 10, 7, 5, 3, -1],
+    [0, -1, 5, 7, 10, 7, 5, 3, 0, 3, -1, 8, 10, 8, 5, 3],
+    [7, 5, 3, 0, 3, 5, 7, -1, 10, 8, 7, 5, 3, 5, 7, 10],
+    [0, 3, 5, 7, 8, 7, 5, 3, -1, 3, 7, 10, 8, 7, 5, -1],
+  ],
+  [
+    [7, 10, 12, 10, 7, 5, 3, 5, 7, 10, 14, 12, 10, 7, 5, 3],
+    [7, 10, -1, 12, 14, 12, 10, 7, 5, 7, 10, 12, 14, 12, 10, -1],
+    [12, 10, 7, 5, 7, 10, 12, -1, 14, 12, 10, 7, 5, 3, 5, 7],
+    [7, 5, 3, 5, 7, -1, 10, 12, 14, 12, 10, 7, 5, 3, -1, 5],
+  ],
+  [
+    [12, 10, 7, 5, 3, 5, 7, 10, 12, 14, 15, 14, 12, 10, 7, 5],
+    [12, 14, 15, 14, 12, -1, 10, 12, 14, 15, 14, 12, 10, 7, 5, -1],
+    [15, 14, 12, 10, 12, 14, 15, -1, 12, 10, 7, 5, 7, 10, 12, 14],
+    [12, 10, 7, -1, 5, 7, 10, 12, 14, 12, 10, 7, 5, 3, 5, -1],
+  ],
+] as const;
+
+export const MUSIC_MELODY_STRUCTURE = melodySections.map(section => ({
+  phraseCount: section.length,
+  phraseLengths: section.map(phrase => phrase.length),
+  phraseSignatures: section.map(phrase => phrase.join(',')),
+  restCounts: section.map(phrase => phrase.filter(note => note < 0).length),
+}));
+
 export const MUSIC_TRACK_METADATA = {
   bpm: MUSIC_BPM,
   beats: MUSIC_BEATS,
   durationSeconds: MUSIC_LOOP_DURATION_SECONDS,
   sectionCount: MUSIC_SECTION_COUNT,
   sections: ['A', 'B', 'C'] as const,
+  phrasesPerSection: 4,
+  eighthNotesPerPhrase: 16,
+  eighthNotesPerSection: 64,
 };
-const MUSIC_FADE_MS = 220;
-
-const melodySections = [
-  [0, 3, 7, -1, 10, 7, 3, 5, 0, 3, 8, 10, 7, 5, 3, -1],
-  [7, 10, 12, 10, 7, 5, 3, 5, 7, 10, 14, 12, 10, 7, 5, 3],
-  [12, 10, 7, 5, 3, 5, 7, 10, 12, 14, 15, 14, 12, 10, 7, 5],
-] as const;
 
 function deterministicNoise(index: number): number {
   const value = Math.sin(index * 12.9898 + 78.233) * 43758.5453;
@@ -73,7 +99,11 @@ export function createProceduralMusicSamples(sampleRate: number): Float32Array {
     const chord = rootNotes[Math.floor(barBeat / 8) % rootNotes.length];
     const stepIndex = Math.floor(time / eighthNote);
     const stepPhase = (time - stepIndex * eighthNote) / eighthNote;
-    const note = melodySections[section][stepIndex % melodySections[section].length];
+    const sectionStepIndex = stepIndex % MUSIC_TRACK_METADATA.eighthNotesPerSection;
+    const phrase = melodySections[section][
+      Math.floor(sectionStepIndex / MUSIC_TRACK_METADATA.eighthNotesPerPhrase)
+    ];
+    const note = phrase[sectionStepIndex % MUSIC_TRACK_METADATA.eighthNotesPerPhrase];
     const leadEnvelope = note < 0 ? 0 : Math.exp(-stepPhase * 7.5) * Math.min(1, stepPhase * 18);
     const leadFrequency = note < 0 ? 0 : 440 * 2 ** ((note + chord - 9) / 12);
     const lead = leadFrequency === 0
