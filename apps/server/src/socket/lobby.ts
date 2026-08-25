@@ -19,13 +19,17 @@ import {
 } from '../game';
 import {
   activePlayerIds,
+  createFreshPlayer,
   MAX_PLAYERS,
   MIN_PLAYERS,
   type RoomSnapshot,
+  freshState,
 } from '../rooms';
 import type { AppRuntime } from '../services/runtime';
 import type { TradeOfferRecord } from '../persistence';
 import { projectPrivateOffer } from '../services/privateOffers';
+import { emitCancelledOffers } from '../services/offerInvalidation';
+import { recordActivityEvent } from '../game/activity';
 import { requirePlayer } from './authority';
 import {
   broadcastRoom,
@@ -191,6 +195,12 @@ export function registerLobbyHandlers(
         state.boardState.turnRecovery = null;
         state.turnInfo = {};
         state.privateState.decks = createShuffledDecks();
+        recordActivityEvent(state, {
+          type: 'GAME_STARTED',
+          playerIds: [...players],
+          startingPlayerId: startingRoll.winner,
+          startingPlayerName: state.players[startingRoll.winner].name,
+        });
         for (const round of startingRoll.rounds) {
           const rollSummary = round.contenders.map((id) => {
             const dice = round.rolls[id];
@@ -204,6 +214,80 @@ export function registerLobbyHandlers(
         );
       }, undefined, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
+      broadcastRoom(io, runtime, committed.room);
+      acknowledge(successAck(committed.room.aggregateVersion));
+    } catch (error) {
+      acknowledgeFailure(acknowledge, error);
+    }
+  });
+
+  socket.on('play again', async (acknowledge) => {
+    try {
+      const actor = requirePlayer(socket, runtime);
+      const now = new Date();
+      const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }) => {
+        if (room.status !== 'FINISHED') {
+          throw new CommandError('CONFLICT', 'Chỉ có thể chơi lại sau khi ván đã kết thúc.');
+        }
+        if (room.hostPlayerId !== actor.playerId) {
+          throw new CommandError('FORBIDDEN', 'Chỉ chủ phòng mới có thể bắt đầu ván mới.');
+        }
+
+        const eligible = Object.entries(room.gameSnapshot.members)
+          .filter(([, member]) => member.membershipStatus !== 'LEFT')
+          .sort(([, left], [, right]) => left.joinOrder - right.joinOrder)
+          .map(([playerId, member]) => ({
+            playerId,
+            member,
+            identity: state.players[playerId] ?? state.boardState.finishedPlayers[playerId],
+          }));
+        if (eligible.length < MIN_PLAYERS) {
+          throw new CommandError('CONFLICT', 'Không còn đủ người chơi đủ điều kiện để chơi lại.');
+        }
+        if (eligible.some(candidate => !candidate.identity)) {
+          throw new CommandError('CONFLICT', 'Không thể khôi phục đầy đủ danh tính người chơi.');
+        }
+
+        const pendingOffers = await transaction.tradeOffers.listPendingForRoom(actor.roomId);
+        const cancelledOffers = (await Promise.all(
+          pendingOffers.map(offer => transaction.tradeOffers.resolve(offer.id, 'CANCELLED', now)),
+        )).filter((offer): offer is TradeOfferRecord => offer !== null);
+
+        const nextJoinOrder = room.gameSnapshot.nextJoinOrder;
+        const reset = freshState();
+        state.boardState = reset.boardState;
+        state.players = reset.players;
+        state.turnInfo = reset.turnInfo;
+        state.privateState = reset.privateState;
+        room.gameSnapshot.members = {};
+        room.gameSnapshot.nextJoinOrder = nextJoinOrder;
+
+        for (const candidate of eligible) {
+          const identity = candidate.identity;
+          if (!identity) continue;
+          room.gameSnapshot.members[candidate.playerId] = {
+            joinOrder: candidate.member.joinOrder,
+            ready: false,
+            membershipStatus: 'ACTIVE',
+          };
+          state.players[candidate.playerId] = createFreshPlayer(
+            identity.name,
+            identity.color,
+            identity.characterId,
+          );
+          state.boardState.players.push(candidate.playerId);
+        }
+        room.status = 'LOBBY';
+        room.hostPlayerId = room.gameSnapshot.members[actor.playerId]
+          ? actor.playerId
+          : eligible[0]?.playerId ?? null;
+        if (!room.hostPlayerId) {
+          throw new CommandError('CONFLICT', 'Không thể xác định chủ phòng mới.');
+        }
+        return cancelledOffers;
+      }, now, actor);
+      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
+      emitCancelledOffers(io, committed.room, committed.result, now);
       broadcastRoom(io, runtime, committed.room);
       acknowledge(successAck(committed.room.aggregateVersion));
     } catch (error) {

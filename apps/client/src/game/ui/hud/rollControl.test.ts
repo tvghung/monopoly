@@ -5,6 +5,7 @@ import { canRollForState, shouldShowRollButton } from './rollControlLogic';
 
 const presentation = (overrides: Partial<PresentationState> = {}): PresentationState => ({
   displayLogs: [],
+  displayActivity: [],
   displayPositions: { me: 0 },
   settledPositions: { me: 0 },
   displayBalances: {},
@@ -43,6 +44,7 @@ const state = (overrides: Partial<PublicGameState> = {}): PublicGameState => ({
     diceValue: { dice1: 0, dice2: 0 },
     rollSequence: 0,
     gameplayEvents: { sequence: 0, events: [] },
+    activityFeed: { sequence: 0, events: [] },
     ownedProps: {},
     winner: null,
     paymentShortfall: null,

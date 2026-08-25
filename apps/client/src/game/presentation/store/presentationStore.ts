@@ -1,4 +1,4 @@
-import type { DiceValue, PublicRoomState } from '@monopoly/shared';
+import type { ActivityEvent, DiceValue, PublicRoomState } from '@monopoly/shared';
 import type { AnimationQueueStatus } from '../queue/types';
 import type {
   BalanceDeltaSignal,
@@ -18,6 +18,7 @@ import type { TileImpactSignal, TileImpactTiming } from '../../scene/board/motio
 
 const emptyState: PresentationState = {
   displayLogs: [],
+  displayActivity: [],
   displayPositions: {},
   settledPositions: {},
   displayBalances: {},
@@ -103,6 +104,7 @@ export class PresentationStore implements PresentationStoreLike {
     this.activeCharacterMovements.clear();
     this.state = {
       displayLogs: [...room.gameState.boardState.logs],
+      displayActivity: [...room.gameState.boardState.activityFeed.events],
       displayPositions: positions,
       settledPositions: positions,
       displayBalances: balances,
@@ -160,6 +162,13 @@ export class PresentationStore implements PresentationStoreLike {
     if (this.state.displayLogs.length === logs.length
       && this.state.displayLogs.every((log, index) => log === logs[index])) return;
     this.state = { ...this.state, displayLogs: [...logs] };
+    this.notify();
+  }
+
+  public setDisplayActivity(events: readonly ActivityEvent[]): void {
+    if (this.state.displayActivity.length === events.length
+      && this.state.displayActivity.every((event, index) => event.eventId === events[index]?.eventId)) return;
+    this.state = { ...this.state, displayActivity: [...events] };
     this.notify();
   }
 

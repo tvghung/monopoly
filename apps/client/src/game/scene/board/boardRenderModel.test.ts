@@ -7,6 +7,7 @@ import { PLAYER_STATION_WORLD_ANCHORS } from '../stations/stationWorld';
 
 const presentation = (overrides: Partial<PresentationState> = {}): PresentationState => ({
   displayLogs: [],
+  displayActivity: [],
   displayPositions: {},
   settledPositions: {},
   displayBalances: {},
@@ -47,6 +48,7 @@ const state = (overrides: Partial<PublicGameState> = {}): PublicGameState => ({
     diceValue: { dice1: 2, dice2: 3 },
     rollSequence: 1,
     gameplayEvents: { sequence: 0, events: [] },
+    activityFeed: { sequence: 0, events: [] },
     ownedProps: {
       1: { id: 'active', color: 'red', houses: 2 },
       3: { id: 'finished', color: 'purple', houses: 5 },

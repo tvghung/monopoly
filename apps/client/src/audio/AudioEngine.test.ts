@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AudioEngine } from './AudioEngine';
+import {
+  AudioEngine,
+  createProceduralMusicSamples,
+  MUSIC_LOOP_DURATION_SECONDS,
+  MUSIC_TRACK_METADATA,
+} from './AudioEngine';
 
 class FakeAudioParam {
   public value = 1;
@@ -212,13 +217,31 @@ describe('AudioEngine', () => {
 
     expect(context.bufferSources).toHaveLength(1);
     expect(context.bufferSources[0]?.loop).toBe(true);
-    expect(context.bufferSources[0]?.loopEnd).toBeCloseTo(24);
+    expect(context.bufferSources[0]?.loopEnd).toBeCloseTo(MUSIC_LOOP_DURATION_SECONDS);
     expect(context.oscillators).toHaveLength(0);
 
     engine.setRoomActive(true);
     engine.handleUserInteraction();
     await flushPromises();
     expect(context.bufferSources).toHaveLength(1);
+  });
+
+  it('publishes a deterministic three-section music loop with the intended tempo', () => {
+    const first = createProceduralMusicSamples(2_000);
+    const second = createProceduralMusicSamples(2_000);
+    expect(Array.from(first)).toEqual(Array.from(second));
+    expect(MUSIC_TRACK_METADATA.bpm).toBeGreaterThanOrEqual(110);
+    expect(MUSIC_TRACK_METADATA.bpm).toBeLessThanOrEqual(114);
+    expect(MUSIC_TRACK_METADATA.sectionCount).toBe(3);
+    expect(MUSIC_TRACK_METADATA.durationSeconds).toBeGreaterThan(45);
+    expect(MUSIC_TRACK_METADATA.durationSeconds).toBeLessThan(55);
+    const sectionLength = Math.floor(first.length / 3);
+    const energy = [0, 1, 2].map(section => {
+      const start = section * sectionLength;
+      const end = section === 2 ? first.length : start + sectionLength;
+      return Array.from(first.slice(start, end)).reduce((total, sample) => total + Math.abs(sample), 0);
+    });
+    expect(new Set(energy.map(value => value.toFixed(3))).size).toBeGreaterThan(1);
   });
 
   it('fades on hidden state, resumes the same source, and stops after leaving the room', () => {

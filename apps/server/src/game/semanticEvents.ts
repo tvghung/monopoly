@@ -5,6 +5,7 @@ import type {
   GameplaySemanticEvent,
   PlayerId,
 } from '@monopoly/shared';
+import { recordActivityForGameplayEvent } from './activity';
 
 export const MAX_GAMEPLAY_SEMANTIC_EVENTS = 64;
 
@@ -37,7 +38,9 @@ export function recordPublicGameplayEvent(
   state: GameState,
   input: GameplaySemanticEventInput,
 ): GameplaySemanticEvent {
-  return appendGameplayEvent(state.boardState.gameplayEvents, input, randomUUID());
+  const event = appendGameplayEvent(state.boardState.gameplayEvents, input, randomUUID());
+  recordActivityForGameplayEvent(state, event);
+  return event;
 }
 
 export function recordPrivateGameplayEvent(

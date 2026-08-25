@@ -1,4 +1,4 @@
-# PostgreSQL, snapshot v7, CAS và recovery
+# PostgreSQL, snapshot v8, CAS và recovery
 
 ## Relational model
 
@@ -10,9 +10,9 @@ proposals live inside the active room snapshot and do not require a new table.
 
 ## Strict snapshot validation
 
-The v7 loader/save gate validates player/member references, ordered payment claims,
+The v8 loader/save gate validates player/member references, ordered payment claims,
 pending landing/turn/card continuation correlation, property/building shape,
-private deck/card one-location invariants, semantic event stream tails,
+private deck/card one-location invariants, semantic and typed activity stream tails,
 `completedCardOperations` uniqueness and forced-sale proposal binding:
 seller=active debtor, buyer=distinct ACTIVE player, property fingerprint unchanged,
 gross recomputed, and proposal expiry no later than the payment deadline.
@@ -26,7 +26,7 @@ landing/payment/proposal/turn-recovery state.
 protocol/schema gate
 → authenticated actor
 → per-room FIFO + row lock
-→ clone/validate v7 snapshot
+→ clone/validate v8 snapshot
 → mutate GameCore and related ordinary-offer rows
 → revalidate + expected-version CAS
 → public/private projection + ACK
@@ -59,11 +59,10 @@ Migration 006 upgrades V4 snapshots to V5 without inventing a mascot or resettin
 gameplay; it normalizes legacy player/property colors and adds nullable character IDs.
 Migration 007 upgrades V5 snapshots to V6 with `rollSequence: 0` without
 reconstructing historical roll count. This is historical migration history; the
-current loader is V7 and requires the roll and semantic fields.
-Migration `008_semantic_card_v7.sql` upgrades V6 snapshots to V7 with empty public
-and private semantic lanes plus `completedCardOperations: []`; it deliberately does
-not reconstruct historical events or deck order. The server appends semantic events
-and advances card operations only inside committed room commands.
+current loader is V8 and requires the roll, semantic and activity fields.
+Migration `009_activity_feed_v8.sql` upgrades V7 snapshots to V8 with an empty typed
+activity tail; it deliberately does not reconstruct historical events or deck order.
+The server appends semantic/activity events only inside committed room commands.
 Tests must cover idempotence, identity/session/token preservation, offer cancellation,
 fresh-runtime pending Buy/development/Jail/payment/proposal recovery, CAS/save failure
 and public/private no-leak behavior.

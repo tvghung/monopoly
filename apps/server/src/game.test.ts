@@ -63,6 +63,7 @@ const makeState = (): GameState => ({
     winner: null,
     paymentQueue: null,
     gameplayEvents: { sequence: 0, events: [] },
+    activityFeed: { sequence: 0, events: [] },
   },
   players: {},
   turnInfo: {},

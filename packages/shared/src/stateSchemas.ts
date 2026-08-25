@@ -1,6 +1,8 @@
 import { z } from 'zod';
-import { CHARACTER_IDS, PLAYER_COLOR_IDS } from './types';
+import { ACTIVITY_FEED_MAX_EVENTS, CHARACTER_IDS, PLAYER_COLOR_IDS } from './types';
 import type {
+  ActivityEvent,
+  ActivityFeed,
   BoardState,
   CurrentPlayer,
   DebtClaim,
@@ -185,6 +187,154 @@ export const gameplayEventStreamSchema = z.strictObject({
     context.addIssue({ code: 'custom', path: ['events'], message: 'Semantic tail must end at the authoritative sequence' });
   }
 }) satisfies z.ZodType<GameplayEventStream>;
+
+const activityEventBase = {
+  eventId: operationIdSchema,
+  sequence: z.number().int().positive().safe(),
+  occurredAt: isoTimestampSchema,
+};
+
+const activityMoneyEndpointSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('BANK') }),
+  z.strictObject({ kind: z.literal('PLAYER'), playerId: playerIdSchema, name: z.string().min(1).max(20) }),
+]);
+
+export const activityEventSchema: z.ZodType<ActivityEvent> = z.discriminatedUnion('type', [
+  z.strictObject({
+    ...activityEventBase,
+    type: z.literal('PLAYER_JOINED'),
+    playerId: playerIdSchema,
+    playerName: z.string().min(1).max(20),
+    color: z.enum(PLAYER_COLOR_IDS),
+    characterId: z.enum(CHARACTER_IDS).nullable(),
+  }),
+  z.strictObject({
+    ...activityEventBase,
+    type: z.literal('GAME_STARTED'),
+    playerIds: z.array(playerIdSchema).min(2).max(4),
+    startingPlayerId: playerIdSchema,
+    startingPlayerName: z.string().min(1).max(20),
+  }),
+  z.strictObject({
+    ...activityEventBase,
+    type: z.literal('CHAT'),
+    senderRole: z.enum(['PLAYER', 'SPECTATOR']),
+    senderPlayerId: playerIdSchema.optional(),
+    senderName: z.string().min(1).max(20),
+    message: z.string().min(1).max(500),
+  }),
+  z.strictObject({
+    ...activityEventBase,
+    type: z.literal('DICE_ROLL'),
+    playerId: playerIdSchema,
+    playerName: z.string().min(1).max(20),
+    dice1: z.number().int().min(1).max(6),
+    dice2: z.number().int().min(1).max(6),
+    total: z.number().int().min(2).max(12),
+    context: z.enum(['TURN', 'JAIL']),
+  }),
+  z.strictObject({
+    ...activityEventBase,
+    type: z.literal('PROPERTY_PURCHASE'),
+    playerId: playerIdSchema,
+    playerName: z.string().min(1).max(20),
+    tileID: tileIdSchema,
+    price: moneyAmountSchema,
+  }),
+  z.strictObject({
+    ...activityEventBase,
+    type: z.literal('PROPERTY_TRANSFER'),
+    tileID: tileIdSchema,
+    from: activityMoneyEndpointSchema,
+    to: activityMoneyEndpointSchema,
+    cause: z.enum([
+      'BANK_PURCHASE', 'BANK_SALE', 'VOLUNTARY_TRADE', 'FORCED_SALE',
+      'BANKRUPTCY', 'PLAYER_LEFT', 'OTHER',
+    ]),
+  }),
+  z.strictObject({
+    ...activityEventBase,
+    type: z.literal('MONEY_TRANSFER'),
+    source: activityMoneyEndpointSchema,
+    destination: activityMoneyEndpointSchema,
+    amount: moneyAmountSchema,
+    reason: z.enum([
+      'PROPERTY_PURCHASE', 'PROPERTY_SALE', 'RENT', 'PASS_GO', 'CARD',
+      'DEVELOPMENT', 'BAIL', 'TRADE', 'FORCED_SALE', 'FORFEIT', 'OTHER',
+    ]),
+  }),
+  z.strictObject({
+    ...activityEventBase,
+    type: z.literal('PROPERTY_DEVELOPMENT'),
+    playerId: playerIdSchema,
+    playerName: z.string().min(1).max(20),
+    tileID: tileIdSchema,
+    fromHouses: z.number().int().min(0).max(5),
+    toHouses: z.number().int().min(0).max(5),
+    action: z.enum(['BUILD', 'UPGRADE_HOTEL', 'SELL']),
+    cost: nonNegativeMoneyAmountSchema.optional(),
+  }),
+  z.strictObject({
+    ...activityEventBase,
+    type: z.literal('CARD_REVEALED'),
+    playerId: playerIdSchema,
+    playerName: z.string().min(1).max(20),
+    deck: z.enum(['chance', 'chest']),
+    cardId: gameCardIdSchema,
+  }),
+  z.strictObject({
+    ...activityEventBase,
+    type: z.literal('JAIL'),
+    action: z.enum(['ENTRY', 'RELEASE', 'FAILED_ROLL']),
+    playerId: playerIdSchema,
+    playerName: z.string().min(1).max(20),
+    cause: z.enum([
+      'BOARD_TILE', 'CARD', 'BAIL', 'JAIL_FREE_CARD', 'DOUBLES', 'TIME_SERVED',
+    ]).optional(),
+  }),
+  z.strictObject({
+    ...activityEventBase,
+    type: z.literal('PLAYER_FINISHED'),
+    playerId: playerIdSchema,
+    playerName: z.string().min(1).max(20),
+    reason: z.enum(['BANKRUPT', 'LEFT']),
+    finalCash: nonNegativeMoneyAmountSchema,
+  }),
+  z.strictObject({
+    ...activityEventBase,
+    type: z.literal('GAME_FINISHED'),
+    winnerPlayerId: playerIdSchema,
+    winnerName: z.string().min(1).max(20),
+    winnerColor: z.enum(PLAYER_COLOR_IDS),
+    winnerCharacterId: z.enum(CHARACTER_IDS).nullable(),
+    finalCash: nonNegativeMoneyAmountSchema,
+  }),
+]);
+
+export const activityFeedSchema = z.strictObject({
+  sequence: z.number().int().nonnegative().safe(),
+  events: z.array(activityEventSchema).max(ACTIVITY_FEED_MAX_EVENTS),
+}).superRefine((feed, context) => {
+  const sequences = feed.events.map(event => event.sequence);
+  if ((feed.sequence === 0) !== (feed.events.length === 0)) {
+    context.addIssue({ code: 'custom', path: ['events'], message: 'Only an empty baseline may omit activity events' });
+  }
+  if (new Set(sequences).size !== sequences.length) {
+    context.addIssue({ code: 'custom', path: ['events'], message: 'Activity sequences must be unique' });
+  }
+  if (feed.events.some(event => event.sequence > feed.sequence)) {
+    context.addIssue({ code: 'custom', path: ['events'], message: 'Activity event exceeds feed sequence' });
+  }
+  for (let index = 1; index < sequences.length; index += 1) {
+    if (sequences[index] !== sequences[index - 1] + 1) {
+      context.addIssue({ code: 'custom', path: ['events'], message: 'Activity events must form a contiguous tail' });
+      break;
+    }
+  }
+  if (sequences.length > 0 && sequences.at(-1) !== feed.sequence) {
+    context.addIssue({ code: 'custom', path: ['events'], message: 'Activity tail must end at the authoritative sequence' });
+  }
+}) satisfies z.ZodType<ActivityFeed>;
 
 export const currentPlayerSchema = z.strictObject({
   id: z.union([z.literal(''), playerIdSchema]),
@@ -383,6 +533,7 @@ export const boardStateSchema = z.strictObject({
   winner: finishedPlayerSchema.extend({ playerId: playerIdSchema }).nullable(),
   paymentQueue: paymentQueueSchema.nullable(),
   gameplayEvents: gameplayEventStreamSchema,
+  activityFeed: activityFeedSchema,
 }) satisfies z.ZodType<BoardState>;
 
 export const persistedGameStateSchema = z.strictObject({

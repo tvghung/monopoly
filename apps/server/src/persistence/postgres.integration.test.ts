@@ -77,10 +77,10 @@ describe.runIf(Boolean(testDatabaseUrl))('PostgresPersistenceStore', () => {
     ).rejects.toBeInstanceOf(RoomVersionConflictError);
   });
 
-  it('migrates a V6 room to an empty V7 semantic baseline without changing existing facts', async () => {
+  it('migrates a V6 room through V8 without changing existing facts', async () => {
     await applicationPool.query(
-      'DELETE FROM schema_migrations WHERE version = $1',
-      ['008_semantic_card_v7.sql'],
+      'DELETE FROM schema_migrations WHERE version = ANY($1::text[])',
+      [['008_semantic_card_v7.sql', '009_activity_feed_v8.sql']],
     );
     const roomId = randomUUID();
     const v6Snapshot = {
@@ -96,16 +96,22 @@ describe.runIf(Boolean(testDatabaseUrl))('PostgresPersistenceStore', () => {
     await applicationPool.query(
       `INSERT INTO rooms (id, code, status, snapshot_schema_version, game_snapshot)
        VALUES ($1, $2, 'LOBBY', 6, $3::jsonb)`,
-      [roomId, 'V6-V7-MIGRATION', JSON.stringify(v6Snapshot)],
+      [roomId, 'V6-V8-MIGRATION', JSON.stringify(v6Snapshot)],
     );
 
-    await expect(migrateDatabase(applicationPool)).resolves.toContain('008_semantic_card_v7.sql');
+    await expect(migrateDatabase(applicationPool)).resolves.toEqual([
+      '008_semantic_card_v7.sql',
+      '009_activity_feed_v8.sql',
+    ]);
     const result = await applicationPool.query<{
       snapshot_schema_version: number;
       aggregate_version: string;
       game_snapshot: typeof v6Snapshot & {
         gameState: typeof v6Snapshot.gameState & {
-          boardState: typeof v6Snapshot.gameState.boardState & { gameplayEvents: unknown };
+          boardState: typeof v6Snapshot.gameState.boardState & {
+            gameplayEvents: unknown;
+            activityFeed: unknown;
+          };
           privateState: typeof v6Snapshot.gameState.privateState & {
             privateGameplayEventsByPlayer: unknown;
             completedCardOperations: unknown;
@@ -117,11 +123,12 @@ describe.runIf(Boolean(testDatabaseUrl))('PostgresPersistenceStore', () => {
       [roomId],
     );
     const migrated = result.rows[0];
-    expect(migrated).toMatchObject({ snapshot_schema_version: 7, aggregate_version: '2' });
+    expect(migrated).toMatchObject({ snapshot_schema_version: 8, aggregate_version: '3' });
     expect(migrated?.game_snapshot.gameState.boardState).toMatchObject({
       rollSequence: 9,
       logs: ['durable-v6-fact'],
       gameplayEvents: { sequence: 0, events: [] },
+      activityFeed: { sequence: 0, events: [] },
     });
     expect(migrated?.game_snapshot.gameState.privateState).toMatchObject({
       privateGameplayEventsByPlayer: {},

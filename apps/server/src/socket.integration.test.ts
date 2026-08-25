@@ -234,6 +234,12 @@ async function startGame(socket: TestSocket): Promise<Ack> {
   });
 }
 
+async function playAgain(socket: TestSocket): Promise<Ack> {
+  return waitForAck((acknowledge) => {
+    socket.emit('play again', acknowledge);
+  });
+}
+
 async function rollDice(socket: TestSocket): Promise<Ack> {
   return waitForAck((acknowledge) => {
     socket.emit('roll dice', acknowledge);
@@ -518,6 +524,101 @@ describe('Socket.IO durable player lifecycle', () => {
     const startingPlayerId = stored?.gameSnapshot.gameState.boardState.currentPlayer.id;
     expect([host.playerId, guest.playerId]).toContain(startingPlayerId);
     expect(stored?.gameSnapshot.gameState.boardState.players[0]).toBe(startingPlayerId);
+  });
+
+  it('lets only the finished host reset the same room for eligible players', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const host = await joinPlayer(await connect(subject.url), 'Host', 'play-again');
+    const guest = await joinPlayer(await connect(subject.url), 'Guest', 'play-again');
+    const left = await joinPlayer(await connect(subject.url), 'Left', 'play-again');
+    await setReady(host.socket);
+    await setReady(guest.socket);
+    await setReady(left.socket);
+    expect((await startGame(host.socket)).ok).toBe(true);
+
+    await mutateRoom(persistence, host.room.roomId, room => {
+      const state = room.gameSnapshot.gameState;
+      const hostPlayer = state.players[host.playerId];
+      if (!hostPlayer) throw new Error('Expected the host player');
+      state.boardState.gameStarted = true;
+      state.boardState.winner = {
+        playerId: host.playerId,
+        name: hostPlayer.name,
+        color: hostPlayer.color,
+        characterId: hostPlayer.characterId,
+      };
+      state.boardState.players = [host.playerId];
+      state.boardState.currentPlayer = { id: host.playerId, hasMoved: false };
+      state.boardState.finishedPlayers[guest.playerId] = {
+        name: 'Guest',
+        color: 'blue',
+        characterId: 'dog',
+        reason: 'BANKRUPT',
+        accountBalance: 0,
+      };
+      state.boardState.finishedPlayers[left.playerId] = {
+        name: 'Left',
+        color: 'green',
+        characterId: 'dog',
+        reason: 'LEFT',
+        accountBalance: 0,
+      };
+      delete state.players[guest.playerId];
+      delete state.players[left.playerId];
+      room.gameSnapshot.members[guest.playerId].membershipStatus = 'FINISHED';
+      room.gameSnapshot.members[guest.playerId].ready = false;
+      room.gameSnapshot.members[left.playerId].membershipStatus = 'LEFT';
+      room.gameSnapshot.members[left.playerId].ready = false;
+      state.boardState.logs = ['old match log'];
+      state.boardState.ownedProps[1] = { id: host.playerId, color: hostPlayer.color, houses: 3 };
+    });
+
+    const before = await persistence.rooms.findById(host.room.roomId);
+    if (!before) throw new Error('Expected the finished room');
+    await mutateRoom(persistence, host.room.roomId, room => {
+      room.status = 'FINISHED';
+    });
+    const guestAttempt = await playAgain(guest.socket);
+    expect(guestAttempt).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
+    expect((await playAgain(host.socket)).ok).toBe(true);
+
+    const replayed = await persistence.rooms.findById(host.room.roomId);
+    expect(replayed).toMatchObject({
+      id: host.room.roomId,
+      status: 'LOBBY',
+      hostPlayerId: host.playerId,
+      gameSnapshot: {
+        members: {
+          [host.playerId]: { membershipStatus: 'ACTIVE', ready: false },
+          [guest.playerId]: { membershipStatus: 'ACTIVE', ready: false },
+        },
+        gameState: {
+          boardState: {
+            gameStarted: false,
+            players: [host.playerId, guest.playerId],
+            finishedPlayers: {},
+            currentPlayer: { id: '', hasMoved: false },
+            turnNumber: 0,
+            logs: [],
+            diceValue: { dice1: 0, dice2: 0 },
+            rollSequence: 0,
+            ownedProps: {},
+            winner: null,
+            paymentQueue: null,
+            gameplayEvents: { sequence: 0, events: [] },
+            activityFeed: { sequence: 0, events: [] },
+          },
+          players: {
+            [host.playerId]: { currentTile: 0, accountBalance: 1500, heldJailFreeCardIds: [] },
+            [guest.playerId]: { currentTile: 0, accountBalance: 1500, heldJailFreeCardIds: [] },
+          },
+          turnInfo: {},
+        },
+      },
+    });
+    expect(replayed?.gameSnapshot.members[left.playerId]).toBeUndefined();
+    expect((await playAgain(host.socket)).ok).toBe(false);
   });
 
   it('increments the durable gameplay roll sequence once for consecutive identical rolls', async () => {
@@ -1730,13 +1831,14 @@ describe.runIf(Boolean(testDatabaseUrl))(
              '003_reset_v1_snapshots.sql',
              '004_simplified_rules_v3.sql',
              '005_remove_mortgage_open_market.sql',
-             '006_appearance_system_v5.sql',
-             '007_roll_sequence_v6.sql',
-             '008_semantic_card_v7.sql'
+              '006_appearance_system_v5.sql',
+              '007_roll_sequence_v6.sql',
+              '008_semantic_card_v7.sql',
+              '009_activity_feed_v8.sql'
            )
            RETURNING checksum`,
         );
-        expect(migrationRows.rows).toHaveLength(6);
+        expect(migrationRows.rows).toHaveLength(7);
 
         const roomId = randomUUID();
         const hostPlayerId = randomUUID();
@@ -1832,8 +1934,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V1-IDENTITY',
           status: 'IN_PROGRESS',
           hostPlayerId,
-          aggregateVersion: 13,
-          snapshotSchemaVersion: 7,
+          aggregateVersion: 14,
+          snapshotSchemaVersion: 8,
           gameSnapshot: {
             members: {
               [hostPlayerId]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
@@ -1916,9 +2018,10 @@ describe.runIf(Boolean(testDatabaseUrl))(
            WHERE version IN (
              '004_simplified_rules_v3.sql',
              '005_remove_mortgage_open_market.sql',
-             '006_appearance_system_v5.sql',
-             '007_roll_sequence_v6.sql',
-             '008_semantic_card_v7.sql'
+              '006_appearance_system_v5.sql',
+              '007_roll_sequence_v6.sql',
+              '008_semantic_card_v7.sql',
+              '009_activity_feed_v8.sql'
            )`,
         );
 
@@ -2032,8 +2135,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V2-TO-V4',
           status: 'IN_PROGRESS',
           hostPlayerId,
-          aggregateVersion: 17,
-          snapshotSchemaVersion: 7,
+          aggregateVersion: 18,
+          snapshotSchemaVersion: 8,
           gameSnapshot: {
             gameState: {
               boardState: {
@@ -2106,9 +2209,10 @@ describe.runIf(Boolean(testDatabaseUrl))(
           `DELETE FROM schema_migrations
            WHERE version IN (
              '005_remove_mortgage_open_market.sql',
-             '006_appearance_system_v5.sql',
-             '007_roll_sequence_v6.sql',
-             '008_semantic_card_v7.sql'
+              '006_appearance_system_v5.sql',
+              '007_roll_sequence_v6.sql',
+              '008_semantic_card_v7.sql',
+              '009_activity_feed_v8.sql'
            )`,
         );
 
@@ -2246,8 +2350,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V3-CLEANUP',
           status: 'IN_PROGRESS',
           hostPlayerId: sellerPlayerId,
-          aggregateVersion: 24,
-          snapshotSchemaVersion: 7,
+          aggregateVersion: 25,
+          snapshotSchemaVersion: 8,
         });
         const migratedState = migrated.gameSnapshot.gameState;
         expect(migratedState.boardState.rollSequence).toBe(0);

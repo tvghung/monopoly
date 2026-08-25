@@ -1,21 +1,22 @@
 # Phase 5 — Game Feel, Audio & Visual Feedback
 
-**IN PROGRESS — Phase 5.1 corrective pass implemented locally; later Phase 5 work remains open**
+**PHASE 5.2 IMPLEMENTED LOCALLY — automated gates run separately; live/manual gates remain explicitly open**
 
-The earlier Phase 5.0 handoff was documentation-only. Phase 5.1 now implements
-the bounded audio slice below; the detailed pre-implementation audit and scope
+The earlier Phase 5.0 handoff was documentation-only. Phase 5.1 and the bounded
+Phase 5.2 closure slice are now implemented locally; the detailed audit and scope
 boundary remain in [05A_PHASE_5_0_AUDIT_AND_SCOPE.md](05A_PHASE_5_0_AUDIT_AND_SCOPE.md).
 
 ## 1. Current scope
 
-Phase 5 is split into the current bounded Phase 5.1 slice and a later closure slice:
+Phase 5 is split into the completed bounded Phase 5.1 slice and the completed
+local Phase 5.2 closure slice:
 
 1. **Phase 5.1 — Centralized Audio, Core SFX, One Background Music Track & Corrective Game Feel**
 2. **Phase 5.2 — Remaining Game Feel, Activity Feed, Victory, Play Again & Final Closure**
 
-There is no current Phase 5.3–5.7 plan. The earlier decomposition is superseded.
-Phase 5 must preserve server/GameCore authority, the V7 contract until an
-implementation-level review proves otherwise, and the single
+There is no Phase 5.3–5.7 plan. The earlier decomposition is superseded. Phase 5
+must preserve server/GameCore authority, the consolidated V8 contract, and the
+single
 `PresentationController → AnimationQueue → PresentationStore` pipeline.
 
 ## 2. Phase 5.1 — Centralized Audio, Core SFX, One Background Music Track & Corrective Game Feel
@@ -24,7 +25,7 @@ Implementation status: **CORRECTIVE PASS IMPLEMENTED LOCALLY on 2026-08-25**, su
 to the separately reported browser/Electron auditory QA, long-session, and
 remote-CI boundaries. This status covers the centralized runtime, core SFX, one
 procedural background music track, and the bounded corrective game-feel work
-below; it does not mark Phase 5.2 complete.
+below; Phase 5.2 closure is documented in Section 3.
 
 ### Implemented centralized runtime
 
@@ -88,6 +89,10 @@ below; it does not mark Phase 5.2 complete.
   trusted Web Audio unlock while a room session is active, remains one source
   through lobby/game/reconnect revisions, fades for hidden documents and room
   leave, and applies live Master/Music gain changes.
+- The revised composition is deterministic at 112 BPM, 96 beats and about 51.4
+  seconds, with three distinct sections, varied lead/rest patterns, bass,
+  restrained percussion and a quiet counter-line/pad. It remains one Music-bus
+  source with headroom for gameplay SFX.
 - `PLAYER_FINISHED` plays bankruptcy only for `BANKRUPT`. `GAME_FINISHED` plays
   the short stinger only with a committed non-null winner. End-game UI is
   unchanged.
@@ -111,9 +116,8 @@ below; it does not mark Phase 5.2 complete.
 
 ## 3. Phase 5.2 — Remaining Game Feel, Activity Feed, Victory, Play Again & Final Closure
 
-Phase 5.2/future bounded Phase 5 work owns future ambience content only if it is
-separately approved, and every visual or
-product surface explicitly deferred from Phase 5.1. It must preserve the Phase 4
+Phase 5.2 owns the bounded activity, victory and replay closure below. Ambience
+remains deferred unless separately approved. It preserves the Phase 4
 tile STEP/LAND feedback, destination preview, ownership/development feedback,
 construction puff, money-transfer coins, dice/card presentation, fixed board and
 camera, Reduced Motion, Skip, reconnect and WebGL fallback boundaries. It must not
@@ -132,20 +136,21 @@ server-authored structured activity
   → existing Log UI
 ```
 
-The implementation must define categories, ordering, reconnect hydration,
-spectator visibility, gameplay/chat visual distinction, ARIA/readability, and
-bounded tail behavior. Target categories include rolled, property bought,
-rent/payment, property built/upgraded, safely represented card draw/resolution,
-jail, bankruptcy, and game finished.
+The implementation defines typed categories, ordering, reconnect hydration,
+spectator visibility, gameplay/chat visual distinction, ARIA/readability, and a
+128-event bounded tail. It records join/chat/start/dice/purchase/transfer/
+development/card/jail/bankruptcy/finish facts at authoritative server producer
+points. Card activity starts only after reveal; private deck order, hidden cards,
+offers and continuations are never exposed.
 
-The exact shared schema/event design must be derived from the real server model
-during implementation. Existing string logs and chat may remain for
-compatibility/history where appropriate. Do not create a second history surface or
-reconstruct gameplay facts by parsing HTML logs.
+The shared schema is V8 `ActivityEvent`/`ActivityFeed`; existing string logs remain
+only as compatibility fallback and are never parsed for gameplay categories. The
+existing Log renders typed text and gates live activity through the existing
+PresentationController/AnimationQueue.
 
 ### B. Victory/end-game
 
-Replace/extend the current winner-only presentation with the approved V1 summary:
+The implemented winner presentation uses the approved V1 summary:
 
 - winner name;
 - character/mascot;
@@ -154,6 +159,8 @@ Replace/extend the current winner-only presentation with the approved V1 summary
 - property count;
 - house count;
 - hotel count.
+
+Level `5` in `ownedProps` counts as one hotel and zero houses in the summary.
 
 Use current authoritative final state only. Do not add net worth, historical match
 statistics, rent paid/received, turns played, cards drawn totals, transaction
@@ -190,9 +197,9 @@ state, pending landing/card/debt/payment operations, decks, completed card
 operations, forced-sale state, semantic event tails, match logs/activity, or
 presentation identities.
 
-The current runtime remains one-way until this future command is implemented; this
-document records the approved implementation boundary and does not change runtime
-behavior.
+The local runtime implements this boundary with a typed `play again` command,
+canonical fresh-state reconstruction, same-room broadcast/ACK ordering, and
+`REPLAY_SYNC` presentation reset. It is still subject to the manual UAT gates below.
 
 ### D. Final closure and validation
 
@@ -213,11 +220,11 @@ categories.
 
 - rich particle system and permanent decorative particles;
 - new floating-text visual pass and extended reusable tile FX;
-- structured activity/event feed in the existing `Log` surface;
 - ambience content; the earlier ambience-only / `Music → Ambience` direction is
   superseded by the user's manual-testing decision, while background music is
   now one Phase 5.1 track;
-- full victory/end-game visual redesign and final global visual-polish pass;
+- full global visual-polish pass; the fact-only victory summary is implemented,
+  while confetti/celebration remains out of scope;
 - multiplayer emotes, including command, broadcast, persistence, rate limiting,
   bubbles, selector, and protocol changes; existing local reaction primitives are
   not deleted by this documentation task;
@@ -232,12 +239,9 @@ categories.
 
 ## 5. Contract/version rule
 
-Phase 5.2 may require shared/network contract expansion for structured activity
-and Play Again. During implementation, inspect compatibility rules first. If a
-protocol revision is genuinely required, prefer one consolidated Phase 5.2
-revision for the approved contract changes. Do not state that a particular
-revision is required until implementation inspection proves it. Change the
-snapshot version only if the durable persisted snapshot shape actually changes.
-This documentation task does not modify V7 code or contracts.
+Phase 5.2 made one consolidated contract revision: protocol V8 and room snapshot
+V8. Migration `009_activity_feed_v8.sql` initializes an empty typed activity tail
+for V7 rows and does not reconstruct legacy logs. No second protocol/snapshot bump
+or ambience migration is part of this phase.
 
 Next: Phase 5.2 planning and the separately reported Phase 5.1 manual auditory gates.

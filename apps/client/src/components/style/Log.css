@@ -49,6 +49,16 @@
 
 .center__log p { margin: 0 0 0.2rem; }
 
+.activity-entry {
+  padding-left: 0.55rem;
+  border-left: 2px solid rgb(255 255 255 / 35%);
+}
+
+.activity-entry--chat { border-left-color: var(--color-accent-secondary); }
+.activity-entry--dice_roll { border-left-color: var(--color-accent-primary); }
+.activity-entry--game_finished { border-left-color: var(--color-warning); font-weight: 800; }
+.activity-entry--player_finished { border-left-color: var(--color-danger); }
+
 .center__chat {
   width: 100%;
   padding: 0.45rem;

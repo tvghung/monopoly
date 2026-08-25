@@ -60,6 +60,7 @@ const makeGameState = (options: {
       diceValue: { dice1: 0, dice2: 0 },
       rollSequence: 0,
       gameplayEvents: { sequence: 0, events: [] },
+      activityFeed: { sequence: 0, events: [] },
       ownedProps: options.ownedProps ?? {},
       winner: null,
     },
@@ -102,6 +103,7 @@ const makeContextValue = (
 
 const makePresentationState = (overrides: Partial<PresentationState> = {}): PresentationState => ({
   displayLogs: [],
+  displayActivity: [],
   displayPositions: {},
   settledPositions: {},
   displayBalances: {},

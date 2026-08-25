@@ -24,6 +24,7 @@ import { CommandError, acknowledgeFailure, successAck } from './errors';
 import { commitRoomCommand } from './roomCommands';
 import type { AppServer, AppSocket } from './types';
 import { recordPublicGameplayEvent } from '../game/semanticEvents';
+import { activityPlayerName, recordActivityEvent } from '../game/activity';
 
 const currentTurnContinuation = (state: Parameters<typeof continuationForRoll>[0], playerId: string) => (
   continuationForRoll(state, playerId)
@@ -64,6 +65,15 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
         }
         state.boardState.rollSequence += 1;
         const total = dice.dice1 + dice.dice2;
+        recordActivityEvent(state, {
+          type: 'DICE_ROLL',
+          playerId: actor.playerId,
+          playerName: activityPlayerName(state, actor.playerId),
+          dice1: dice.dice1,
+          dice2: dice.dice2,
+          total,
+          context: player.isJail ? 'JAIL' : 'TURN',
+        });
         const continuation = currentTurnContinuation(state, actor.playerId);
         if (player.isJail) {
           handleJailRoll(state, actor.playerId, dice, continuation, {
@@ -202,6 +212,16 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
             operationId: decision.operationId,
           });
           property.houses += request.quantity;
+          recordActivityEvent(state, {
+            type: 'PROPERTY_DEVELOPMENT',
+            playerId: actor.playerId,
+            playerName: activityPlayerName(state, actor.playerId),
+            tileID: decision.tileID,
+            fromHouses: decision.levelAtLanding,
+            toHouses: property.houses,
+            action: 'BUILD',
+            cost,
+          });
         } else if (request.action === 'UPGRADE_HOTEL') {
           if (decision.kind !== 'HOTEL' || decision.levelAtLanding !== 4 || property.houses !== 4) {
             throw new CommandError('CONFLICT', 'Tài sản chưa đủ điều kiện nâng cấp Khách sạn.');
@@ -217,6 +237,16 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
             operationId: decision.operationId,
           });
           property.houses = 5;
+          recordActivityEvent(state, {
+            type: 'PROPERTY_DEVELOPMENT',
+            playerId: actor.playerId,
+            playerName: activityPlayerName(state, actor.playerId),
+            tileID: decision.tileID,
+            fromHouses: 4,
+            toHouses: 5,
+            action: 'UPGRADE_HOTEL',
+            cost: tile.houseCost,
+          });
         }
         if (request.action !== 'SKIP') {
           const cancelled = await cancelPendingOffersForAssets(

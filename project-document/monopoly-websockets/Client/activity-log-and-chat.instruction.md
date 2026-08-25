@@ -12,20 +12,25 @@
 
 ## Code và component path
 
-- Log/chat UI: `apps/client/src/components/Log.tsx`.
+- Log/chat UI: `apps/client/src/components/Log.tsx`; V8 typed Activity Feed is the
+  single modern source rendered by this surface.
 - Board composition: `apps/client/src/components/Board.tsx`.
 - Socket wrapper: `apps/client/src/App.tsx`.
 - Log/chat style: `apps/client/src/components/style/Log.css`.
 - Server chat handler liên quan: `apps/server/src/socket/chat.ts`.
 - Escape/sanitize và append log: `apps/server/src/game/text.ts`.
 - State/event contract: `packages/shared/src/types.ts`, `packages/shared/src/events.ts`.
+  `BoardState.activityFeed` is server-authored, bounded and public-safe; it is not
+  reconstructed from `boardState.logs`.
 
 ## Service, state, context và socket
 
-- `Log` đọc `state.boardState.logs` và `socketFunctions` từ `stateContext`.
+- `Log` đọc `state.boardState.activityFeed` and `socketFunctions` from
+  `stateContext`; it falls back to legacy string logs only when the typed tail is
+  empty for compatibility with migrated historical snapshots.
 - Local state `chat` giữ nội dung input; `scrollRef` trỏ tới vùng log.
-- `getLogActivitySignature()` dùng `[logs.length, logs.at(-1)]`; broadcast tạo array
-  mới nhưng giữ nguyên nội dung log không được coi là activity mới.
+- `getActivitySignature()` uses typed tail length/sequence/last event identity plus
+  the legacy log signature. A new array with equivalent content is not new activity.
 - Root overlay giữ local active/idle state. Mount, log cuối thay đổi, typing, submit,
   focus hoặc pointer interaction gọi `markActive()`; timeout ref duy nhất chuyển sang
   idle sau `3000ms` và được clear khi unmount.
@@ -33,7 +38,8 @@
   nút `Gửi` cùng fade), không dùng `display:none`/`visibility:hidden` và vẫn nhận
   pointer events để wake ngay.
 - Submit có nội dung truthy emit `send chat(message)`, sau đó reset local state và form.
-- `send chat` có request-scoped ACK. Server append log trong room command rồi phát committed `update`; client render mảng log mới.
+- `send chat` có request-scoped ACK. Server appends both the compatibility string log
+  and a typed `CHAT` event in one room command, then emits the committed `update`.
 - Server giới hạn một chat attempt mỗi socket trong 750 ms và chỉ giữ 500 log entries
   mới nhất trong durable snapshot.
 - Effect theo dõi activity signature và cuộn vùng log xuống `scrollHeight` sau mỗi
@@ -43,32 +49,39 @@
 
 ## Phạm vi UI
 
-- Danh sách activity/game log của room.
-- Dòng chat nằm chung trong cùng mảng log với message nghiệp vụ game.
+- Danh sách activity/game log của room trong cùng `Log` surface.
+- Dòng chat typed nằm chung với gameplay entries nhưng có visual treatment riêng.
 - Input/nút/chat role/loading/empty state đều dùng tiếng Việt.
 - Game amounts dùng formatter VNĐ; không còn `$`, `$M` hoặc copy tiếng Anh.
-- Animation xuất hiện cho từng dòng log; tắt animation khi user chọn reduced motion.
+- Gameplay display entries follow the existing PresentationQueue gate; reconnect and
+  replay hydrate the current tail without replaying it. Reduced motion keeps the
+  existing snap behavior.
 
 ## Luồng hiện tại
 
 1. Khi state chưa loaded, vùng log hiển thị `Loading...`.
-2. Khi loaded, component map toàn bộ `boardState.logs` thành các dòng `<p>`.
+2. Khi loaded, component map typed `activityFeed.events` thành các dòng text `<p>`;
+   legacy strings chỉ là compatibility fallback.
 3. Activity signature mới làm overlay sáng lại, reset countdown và auto-scroll xuống cuối.
 4. Sau đúng 3 giây không có activity, root overlay chuyển opacity về `0.2`.
 5. Người dùng nhập chat và submit; typing hoặc pointer/focus interaction cũng wake overlay.
 6. Nếu chuỗi local `chat` truthy, client emit `send chat` nguyên giá trị đang có.
 7. Client xóa input sau emit; ACK failure được App hiển thị qua toast và không tự retry message.
-8. Server escape nội dung do người dùng gửi, ghép authoritative actor markup, commit log và emit `update` cho room.
-9. Client render dòng mới, wake overlay và auto-scroll.
+8. Server records typed chat data and an escaped compatibility log, commits and emits
+   `update` cho room.
+9. Client renders typed text (never HTML interpolation), wakes overlay and auto-scrolls.
 
 ## Rule và caveat
 
 - Client UI validation không phải safety boundary. Runtime schema server từ chối chuỗi rỗng/chỉ khoảng trắng và message trên 500 ký tự.
 - Chat gửi nhanh hơn 750 ms bị ACK failure; giới hạn log 500 dòng có nghĩa các dòng
   cũ nhất bị loại khi server append dòng mới.
-- Log render bằng `dangerouslySetInnerHTML` vì server đưa markup màu/tên vào log. An toàn hiện tại phụ thuộc mọi dữ liệu do người dùng kiểm soát tiếp tục được escape/sanitize ở server.
+- Modern Activity Feed render bằng React text/typed fields, không dùng
+  `dangerouslySetInnerHTML` và không parse HTML logs để phân loại gameplay. Legacy
+  string logs are displayed as text only when the typed tail is empty.
 - Server hiện escape chat text và sanitize player name; nếu đổi format/nguồn log phải kiểm tra lại boundary này trước khi render HTML.
-- Component dùng array index làm React key cho log line; code hiện append log theo thứ tự.
+- Typed activity entries use server UUID event IDs as React keys; legacy fallback
+  retains index keys only for the compatibility string array.
 - Disconnected client khóa form; failure ACK không tạo phantom log entry dù input local đã được xóa.
 - Idle overlay không khóa input/nút; pointer interaction trên overlay mờ phải wake lại ngay.
 - Actor là stable authenticated Player hoặc explicit spectator label, không lấy từ client payload/socket ID.
@@ -77,6 +90,8 @@
 - Các action game khác cũng append vào cùng log; thay schema log ảnh hưởng nhiều GameCore module.
 - Card/turn/payment/bankruptcy log giữ deterministic order từ committed
   `PaymentQueue`/continuation; Client không tự dựng translated gameplay result.
+- Card activity appears only after the authoritative card reveal; public activity
+  never contains deck order, hidden card identity, private offers or continuation data.
 
 ## Tài liệu liên quan
 
@@ -96,12 +111,14 @@ Khi sửa activity log/chat, kiểm tra tối thiểu:
 - Message bình thường tới đúng room và không rò sang room khác.
 - Active player, finished player và spectator nhận đúng label/name/color hiện tại.
 - Payload chứa `<`, `>`, `&`, quote và script-like text chỉ hiển thị như text, không thực thi HTML/script.
-- Game-generated markup vẫn render đúng sau mọi thay đổi sanitize/render.
+- Legacy string logs remain readable as text; structured chat is never HTML markup.
 - Input được xóa sau submit và log auto-scroll khi có dòng mới.
 - Overlay active ban đầu, idle sau đúng `3000ms`, wake khi có log mới/typing/submit/focus/pointer;
   state broadcast giữ nguyên `[count,last]` không reset timer.
 - Log body còn scroll được bằng wheel/touchpad nhưng không có vertical scrollbar nhìn thấy.
 - Nhiều log liên tiếp giữ đúng thứ tự và không mất dòng khi committed public snapshot đến.
+- Activity sequence remains monotonic and bounded; spectator projection and reconnect
+  preserve the same ordered public tail without duplicate entries.
 - Reduced-motion không chạy entry animation.
 - Listener `update` không bị nhân đôi sau rerender/reconnect.
 - Audit không còn player-facing English/USD trong chat hoặc game-generated log.

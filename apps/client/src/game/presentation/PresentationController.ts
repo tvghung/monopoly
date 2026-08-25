@@ -10,7 +10,7 @@ import { AnimationQueue } from './queue/AnimationQueue';
 import { PresentationStore } from './store/presentationStore';
 import type { PresentationState } from './store/types';
 
-export type SnapshotSource = 'LIVE_UPDATE' | 'SESSION_SYNC' | 'SPECTATOR_SYNC';
+export type SnapshotSource = 'LIVE_UPDATE' | 'SESSION_SYNC' | 'SPECTATOR_SYNC' | 'REPLAY_SYNC';
 
 function getAuthoritativeBalances(room: PublicRoomState): Record<string, number> {
   const balances: Record<string, number> = {};
@@ -33,6 +33,7 @@ export class PresentationController {
   private readonly privateSemanticSequences = new Map<string, number>();
   private readonly audio: AudioPort;
   private authoritativeLogs: readonly string[] = [];
+  private authoritativeActivity: PublicRoomState['gameState']['boardState']['activityFeed']['events'] = [];
   private logGate: { playerId: string; turnNumber: number } | null = null;
 
   public constructor(
@@ -57,6 +58,7 @@ export class PresentationController {
         if (snapshot && typeof snapshot === 'object' && 'gameState' in snapshot) {
           const room = snapshot as PublicRoomState;
           this.authoritativeLogs = [...room.gameState.boardState.logs];
+          this.authoritativeActivity = [...room.gameState.boardState.activityFeed.events];
           this.logGate = null;
           this.store.resetFromSnapshot(room);
         }
@@ -228,9 +230,11 @@ export class PresentationController {
     events: ReturnType<typeof derivePresentationEvents>,
   ): void {
     this.authoritativeLogs = [...next.gameState.boardState.logs];
+    this.authoritativeActivity = [...next.gameState.boardState.activityFeed.events];
     if (this.logGate) return;
     if (events.length === 0) {
       this.store.setDisplayLogs(this.authoritativeLogs);
+      this.store.setDisplayActivity(this.authoritativeActivity);
       return;
     }
     this.logGate = {
@@ -255,6 +259,7 @@ export class PresentationController {
     if (!turnReady && !gameFinished) return;
     if (interactionPending) return;
     this.store.setDisplayLogs(this.authoritativeLogs);
+    this.store.setDisplayActivity(this.authoritativeActivity);
     this.logGate = null;
   }
 }

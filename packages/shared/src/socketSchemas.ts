@@ -162,6 +162,7 @@ export const clientEventPayloadSchemas = {
   'set appearance': setAppearanceRequestSchema,
   'leave room': noPayloadSchema,
   'start game': noPayloadSchema,
+  'play again': noPayloadSchema,
   'send chat': chatMessageSchema,
   'roll dice': noPayloadSchema,
   'buy property': purchaseDecisionRequestSchema,

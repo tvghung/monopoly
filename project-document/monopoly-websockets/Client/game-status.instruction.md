@@ -16,13 +16,19 @@
   UI không tự random/reorder roster.
 - Temporary host disconnect không transfer; explicit leave transfer theo join order.
 
-## In-game/finished
+## In-game/finished/replay
 
 - Roster/turn/payment/winner key bằng stable IDs. Temporary disconnect không
   xóa Seat/assets; spectator read-only.
 - Finished reason phân biệt `BANKRUPT` và `LEFT`; forfeit confirmation mô tả asset
   destination theo active creditor/Bank nhưng không đổi reason.
-- Winner set một lần, room `FINISHED`, không rematch/reverse lifecycle.
+- Winner set một lần, room `FINISHED`, and `WinnerBanner` shows only authoritative
+  name/mascot/color/final cash/property/house/hotel facts. Reconnect hydrates this
+  surface immediately without replaying stale presentation.
+- The existing winner surface exposes `play again` only to the authenticated host.
+  The command resets the same room to `LOBBY`; the server reuses canonical fresh
+  state, keeps eligible stable IDs/appearance/join order/sessions, revives finished
+  players, never revives `LEFT` members, and clears old offers and match state.
 
 ## Tests
 

@@ -75,9 +75,9 @@ Each original area has exactly one classification.
 | 5. Floating text/consequence | **PARTIAL** | `PresentationStore` exposes typed `BalanceDeltaSignal`, `MoneyTransferSignal`, `OwnershipChangeSignal`, `DevelopmentChangeSignal`, and `GoCrossingSignal`; `TileActionFeedback.tsx` shows `Nhận chủ`, `Trả chủ`, `Đổi chủ`, `+N Nhà`, `Khách sạn`, and `Qua Xuất Phát`; station SDF text shows authoritative balance. | Exact balance and property/development consequences already have one-shot signals, timing, reset clearing, and readable tile feedback. | No bounded `+$200`/`-$450` floating label family or explicit `RENT`/`DOUBLE`/`JAIL`/`BANKRUPT` consequence surface exists. No semantic label should be inferred from HTML logs. | Add a small, typed consequence presentation in the existing store/render model, with exact amounts/typed reasons only and a non-WebGL semantic fallback. |
 | 6. Tile feedback | **COMPLETE** | `Board.tsx`, `TileAssembly.tsx`, `TileDestinationPreview.tsx`, `TileImpactHighlightBatch.tsx`, `TileMotionController.ts`, `TileActionFeedback.tsx`, `OwnershipFlag.tsx`, and the tile interaction/accessibility controls cover interactive and presentation states. | Hover/selected/active/landed/purchase/build feedback, destination preview, ownership flag, and reduced-motion behavior exist without flashing-heavy treatment. | Optional danger/high-rent emphasis is not a current requirement or proven contract. Manual readability across all requested viewports remains a validation gate. | Preserve the current tile feedback and timing. Only fix a reproducible readability problem; do not redesign the Phase 4 board/camera or add a second tile-effects path. |
 | 7. Reactions/multiplayer emotes | **DEFER / OUT OF PHASE 5** | `CharacterReactionKind` in `presentation/store/types.ts` includes local reaction values, including `emote`; `characterReaction.ts` and `CharacterBillboard.tsx` implement a short imperative reaction controller. `basicExecutors.ts` and `semanticExecutors.ts` produce jail/sad/bankrupt reactions. `packages/shared/src/events.ts` and `socketSchemas.ts` contain chat but no multiplayer-emote command/event. | Local character reaction primitives, reduced motion, cleanup, and bankruptcy/jail/sad producers exist as current implementation detail. | No multiplayer-emote contract exists, and none is approved for Phase 5. | Do not add an emote command, broadcast, persistence, rate limit, bubble, selector, or protocol change. Do not delete existing reaction code in this documentation task; classify the original emote requirement as deferred/out of Phase 5. |
-| 8. Event feed | **PARTIAL** | Server `apps/server/src/game/text.ts` owns a bounded 500-entry `logs` history; `apps/server/src/socket/chat.ts` appends escaped chat with a 750 ms per-socket throttle. Client `apps/client/src/components/Log.tsx` renders the same `boardState.logs`/`PresentationStore.displayLogs` as one combined history-and-chat surface. | Reconnect receives authoritative history; presentation gating prevents the log from racing ahead of queued consequences; chat is escaped and available to spectators. | There is no structured compact event-feed contract, category model, or bounded semantic tail. Parsing HTML log strings is prohibited. | Phase 5.2 adds a server-authored bounded structured activity tail, projects it safely for reconnect, and renders it inside the existing Log surface. It must not create a second gameplay-history UI. |
+| 8. Event feed | **IMPLEMENTED LOCALLY; UAT GATE OPEN** | Server `apps/server/src/game/activity.ts` owns the bounded V8 `ActivityFeed`; authoritative producers append typed chat/dice/purchase/transfer/development/card/jail/finish events. `publicState.ts`, `PresentationController.ts`, and `Log.tsx` preserve public projection and queue gating in the existing surface. | Reconnect/spectator projection, monotonic UUID/sequence ordering, public-safe card reveal, text-rendered chat, gameplay/chat distinction, and legacy-log compatibility are implemented and covered by automated tests. | Browser readability, long-session clutter, and live multi-player evidence remain separate manual gates. | Preserve one bounded typed activity tail and the existing Log/presentation architecture. |
 | 9. Ambience | **DEFERRED / OUT OF CURRENT 5.1** | No ambience layer is added. The existing Music bus is intentionally used for the one approved background music track. | Ambience remains outside the current decision and may be separately approved later. | No `ambienceVolume` field, ambience asset, or ambience runtime should be invented in this pass. | Keep `musicVolume` and the single Phase 5.1 background music track; defer ambience. |
-| 10. Victory/end-game | **PARTIAL** | Server `apps/server/src/game/turn.ts` `checkWinner` sets authoritative `boardState.winner` once and writes a winner log; `commitRoomCommand` transitions the room to `FINISHED`; `services/publicState.ts` projects winner, finished players, current players, balances, ownership, and development. Client `WinnerBanner.tsx` is a winner-name/color modal included by `Dashboard.tsx`. | Winner authority, terminal room status, winner name/color, character id in the contract, finished-player records, current balances, and current properties are available. | Current UI does not display the approved complete summary, bounded celebration, or same-room Play Again action. Historical statistics, net worth, and a separate New Room action are not Phase 5 contracts. | Phase 5.2 builds the approved fact-only victory surface and host-only same-room Play Again lifecycle from authoritative state. |
+| 10. Victory/end-game | **IMPLEMENTED LOCALLY; UAT GATE OPEN** | Server `checkWinner` sets authoritative `boardState.winner` once and `commitRoomCommand` transitions the room to `FINISHED`; `publicState.ts` projects winner, finished players, current players, balances, ownership, and development. `WinnerBanner.tsx` renders the fact-only summary and host-only Play Again action. | Winner name/mascot/color, final cash, property count, houses, hotels, reconnect-safe terminal state, and same-room host replay are implemented and covered by automated tests. | Browser/Electron end-game, reconnect, second-match, and manual celebration/audio evidence remain separate gates; historical statistics and New Room remain out of scope. | Preserve the authoritative fact-only victory surface and same-room `FINISHED → LOBBY` lifecycle. |
 | 11. Visual polish | **PARTIAL** | Existing design tokens/CSS, `BoardShell`, `Dashboard`, `Log`, settings/modal components, `BoardAccessibilityControls`, fixed orthographic scene, and Phase 4 readability fixtures provide a strong baseline. | Hierarchy, disabled states, modal primitives, board readability diagnostics, keyboard/accessibility controls, reduced motion, and WebGL fallback exist. | A Phase 5-specific visual review and manual 2–4-player/long-session sign-off have not been completed; broad “polish” is not a license to alter frozen Phase 4 composition. | Limit this to targeted consequence, feed, victory, and accessibility readability issues found by UAT. Preserve board/camera/material architecture. |
 | 12. Long-session/clutter/audio-fatigue/performance validation | **PARTIAL** | `GameScene.tsx` exposes draw calls, triangles, drawing buffer, active animated objects, card/station/coin diagnostics; `sceneBudget.ts` defines `210/240` draw and `80k/100k` triangle limits; `Phase4UatHarness.tsx` has deterministic action, reduced-motion, skip, reconnect, board-readability, and stress scenarios. | There is a repeatable deterministic fixture and a measurable renderer budget. | The 30–60 minute manual session, music/SFX fatigue checks, particle-overload check, multi-action clutter review, and live browser/Electron/remote gates are not proven by the fixture. | Fold the complete long-session, accessibility, renderer, audio-cleanup, browser, Electron, and remote-CI evidence matrix into Phase 5.2. Do not replace the heavy `~227` board-readability/stress evidence with a lighter sample. |
 
@@ -121,7 +121,7 @@ current Phase 5.1 implementation and the still-separate manual evidence gates.
 
 The preserved path is:
 
-`authoritative snapshot / accepted V7 semantic lane` → `PresentationController` →
+`authoritative snapshot / accepted typed semantic lane` → `PresentationController` →
 `AnimationQueue` + `PresentationStore` → `BoardRenderModel` and existing scene/UI
 executors.
 
@@ -134,7 +134,7 @@ Relevant owners are:
 - `apps/client/src/game/presentation/store/presentationStore.ts` and `store/types.ts`
   for bounded one-shot signals and reset-cleared transient state;
 - `apps/client/src/game/presentation/events/derivePresentationEvents.ts` for
-  proven roll identity, semantic V7 events, movement proof, card boundaries, and
+  proven roll identity, typed semantic events, movement proof, card boundaries, and
   duplicate suppression;
 - `apps/client/src/game/presentation/executors/basicExecutors.ts`,
   `semanticExecutors.ts`, `movementExecutor.ts`, and `diceExecutor.ts` for current
@@ -177,7 +177,7 @@ sequence, and consequence.
   feature in Phase 5. Chat has a different audience, history, escaping,
   rate-limit, and persistence purpose.
 - Do not infer rent, card identity, transfer attribution, or a richer movement
-  route when the current public lane does not prove it. Use the typed V7 semantic
+  route when the current public lane does not prove it. Use the typed semantic
   reason/event only where its audience and identity are explicit.
 - Do not add per-instance Three.js materials, geometries, textures, or a second
   postprocess renderer for small feedback. Reuse instanced/shared resources and
@@ -195,16 +195,15 @@ sequence, and consequence.
 
 - Server/GameCore/PostgreSQL remain authoritative for rules, pending operations,
   card order, revisions, winner, and public/private visibility.
-- V7 remains the baseline. `packages/shared/src/types.ts` contains bounded public
+- Phase 5.2 is now implemented on consolidated V8. `packages/shared/src/types.ts`
+  contains bounded public
   `GameplaySemanticEvent` types for money transfer, property transfer, GO, jail,
   failed jail roll, and jail release. `apps/server/src/game/semanticEvents.ts`
   owns the 64-event public/private tails and stable event ids.
-- `packages/shared/src/events.ts` currently has `send chat` but no structured
-  activity command or Play Again command. Phase 5.2 may require one consolidated
-  shared/network contract expansion for structured activity and Play Again.
-  Implementation must first inspect compatibility rules: do not predeclare a
-  protocol revision, and do not call it V8 until the contract requires it. The
-  snapshot version changes only if the durable persisted snapshot shape changes.
+- `packages/shared/src/events.ts` now includes the no-payload `play again` command;
+  `BoardState.activityFeed` is the typed public event tail. The implementation made
+  one consolidated protocol/snapshot revision to V8 and migration `009`, which
+  initializes empty activity rather than reconstructing legacy logs.
 - `FinishedPlayer` and `Winner` expose current identity fields and optional final
   balance, but not historical statistics. Phase 5.2 uses only the approved current
   summary facts.
@@ -338,11 +337,10 @@ product decision belongs to a separate scope after Phase 5.
 
 ### Current finding
 
-There is one server-authoritative `boardState.logs` array, bounded to 500 entries.
-It contains gameplay history and escaped chat. `Log.tsx` renders that same source,
-using `PresentationStore.displayLogs` while the presentation queue is active, and
-the client scrolls/attenuates the combined surface when idle. This is a coherent
-reconnect story, but it is not a typed compact event feed.
+There remains a compatibility `boardState.logs` array bounded to 500 entries.
+V8 adds a bounded server-authoritative typed `boardState.activityFeed`; `Log.tsx`
+renders that tail, using `PresentationStore.displayActivity` while the existing
+presentation queue is active. The legacy array is not parsed or duplicated.
 
 ### Approved direction for Phase 5.2
 
@@ -361,10 +359,10 @@ bankruptcy, and game finished. The implementation must define ordering,
 reconnect hydration, spectator visibility, gameplay/chat visual distinction,
 ARIA/readability, and bounded tail storage.
 
-The exact shared schema/event design must be derived from the real server model
-during Phase 5.2; this document does not invent fields as if they were already
-implemented. Existing string logs and chat may remain for compatibility/history
-where appropriate, but the gameplay category UI must not reconstruct facts by
+The shared `ActivityEvent`/`ActivityFeed` schema is implemented from the real server
+producers with monotonic sequence/UUID identity, a 128-event tail, public-safe card
+reveal data, spectator/reconnect projection and the existing queue gate. Existing
+strings remain compatibility data; gameplay categories are never reconstructed by
 parsing HTML strings. No second gameplay-history panel or client-fabricated event
 source is allowed.
 
@@ -380,13 +378,13 @@ source is allowed.
 - `apps/server/src/services/publicState.ts` exposes the authoritative winner,
   finished-player records, current balances, owned properties, development, and
   room membership state.
-- `apps/client/src/components/dashboard/WinnerBanner.tsx` currently renders a
-  winner-name/color modal. `Dashboard.tsx` owns its placement in the existing
-  gameplay action layer.
+- `apps/client/src/components/dashboard/WinnerBanner.tsx` renders the fact-only
+  winner summary and host-only Play Again control. `Dashboard.tsx` owns its
+  placement in the existing gameplay action layer.
 
 ### Approved V1 victory surface
 
-Phase 5.2 may display only current authoritative facts:
+The implemented Phase 5.2 surface displays only current authoritative facts:
 
 - winner name;
 - character/mascot;
@@ -402,8 +400,8 @@ historical-statistics contract. Do not infer any displayed fact from logs or
 client timing. Bounded victory SFX, confetti, mascot celebration, and subtle board
 celebration may reuse Phase 5.1 infrastructure, with no cinematic camera.
 
-Reconnect into a `FINISHED` room must show the final state immediately without
-replaying stale confetti or audio.
+Reconnect into a `FINISHED` room shows the final state immediately without replaying
+stale confetti or audio; replay uses the existing `REPLAY_SYNC` reset boundary.
 
 ### Approved same-room Play Again boundary
 
@@ -423,16 +421,15 @@ players may join available slots. Bankrupt players from the completed match may
 return. Players who explicitly left are not revived, and spectators are not
 converted into players.
 
-Implementation must use a transaction-safe, persistence/recovery-safe room
-transition and the canonical/fresh game-state construction path. Do not prescribe
-manual field-by-field mutation. The fresh match must not leak winner or finished
-players, positions, balances, properties, houses/hotels, dice, roll sequence,
-turn state, pending landing/card/debt/payment operations, decks, completed card
+Implementation uses a transaction-safe, persistence/recovery-safe room transition
+and the canonical/fresh game-state construction path. The fresh match does not leak
+winner or finished players, positions, balances, properties, houses/hotels, dice,
+roll sequence, turn state, pending landing/card/debt/payment operations, decks, completed card
 operations, forced-sale state, semantic event tails, match logs/activity, or
 presentation identities from the old match. `New Room` is not a Phase 5 action.
 
-The current runtime remains one-way until this future command is implemented;
-this section records the approved Phase 5.2 implementation boundary only.
+The command and reset boundary are implemented in the current Phase 5.2 slice;
+the remaining evidence is reported separately by validation category.
 
 ## 12. Performance and UAT plan
 
@@ -562,7 +559,7 @@ appropriate; no second gameplay-history UI is allowed.
 
 #### B. Victory/end-game
 
-Extend the current winner-only surface using only the approved facts: winner,
+The current winner surface is extended using only the approved facts: winner,
 mascot, color, final cash, property count, house count, and hotel count. No net
 worth and no historical-statistics contract. Reuse Phase 5.1 celebration sinks for
 bounded victory SFX/FX. Reconnect into `FINISHED` shows final state immediately and
@@ -595,13 +592,10 @@ Electron/manual, remote-CI, commit, and push status remain separately reported.
 
 #### Contract/version rule
 
-Phase 5.2 may require shared/network contract expansion for structured activity and
-Play Again. Inspect compatibility rules during implementation first. If a
-protocol revision is genuinely required, prefer one consolidated Phase 5.2
-revision for these approved changes; do not state that a particular revision is
-required until inspection proves it. Change the snapshot version only when the
-durable persisted snapshot shape changes. This documentation task does not modify
-V7 code or contracts.
+The implementation consolidated structured activity and Play Again on protocol
+version 8 and room snapshot schema version 8. Migration `009_activity_feed_v8.sql`
+upgrades V7 snapshots by initializing an empty activity tail; it does not
+reconstruct legacy log strings. No second Phase 5.2 contract revision is planned.
 
 ## 14. Dependencies and approved order
 
@@ -614,24 +608,23 @@ Phase 5.0 approved scope
 ```
 
 Phase 5.2 depends on the Phase 5.1 audio/visual sinks and the preserved Phase 4
-presentation baseline. The activity contract and Play Again command are derived
-from the real server model during implementation; they are not prerequisites for
-starting the client-local Phase 5.1 work.
+presentation baseline. The activity contract and Play Again command were derived
+from the real server model and are now implemented; remaining work is validation
+and evidence capture.
 
-## 15. Implementation-level decisions remaining
+## 15. Implementation-level decisions recorded
 
-The product scope decisions are resolved. Only implementation-level questions
-remain:
+The product scope and Phase 5.2 implementation decisions are resolved. The
+following records preserve the original implementation questions and their result:
 
 1. **Exact audio asset pack and provenance:** select only assets with explicit,
    traceable licensing/provenance and record the source for every shipped asset.
-2. **Exact structured activity schema/event design:** derive fields, categories,
-   ordering, audience, bounded tail, and reconnect projection from the real server
-   model during Phase 5.2; do not invent a fake contract in this audit.
-3. **Protocol compatibility outcome:** inspect compatibility rules when the
-   activity and Play Again contracts are implemented. If a revision is genuinely
-   required, prefer one consolidated Phase 5.2 revision; do not predeclare a
-   protocol number or snapshot bump.
+2. **Exact structured activity schema/event design:** implemented as the shared
+   V8 `ActivityEvent`/`ActivityFeed` contract with authoritative producer points,
+   UUID/sequence identity, public-safe card reveal, reconnect projection, and a
+   bounded 128-event tail.
+3. **Protocol compatibility outcome:** implemented as one consolidated protocol /
+   snapshot V8 revision with migration `009`; no second bump is planned.
 4. **Detailed runtime policy:** finalize the bounded SFX priority/cooldown table,
    missing-asset behavior, and optional ducking only within the approved mix and
    resource budgets.
@@ -641,8 +634,8 @@ remain:
 - Audio autoplay and Electron packaging may behave differently from a browser
   fixture; both need fresh manual evidence.
 - Unlicensed or inconsistent audio assets can block 5.1 even if code is ready.
-- The structured activity and Play Again contracts can expand V7 compatibility and
-  reconnect obligations; no protocol or snapshot revision is assumed in advance.
+- The structured activity and Play Again contracts are implemented on V8; migration
+  and reconnect obligations remain validation gates rather than deferred scope.
 - The `~227` board-readability baseline leaves limited draw-call headroom. Effects
   that look small in isolation may breach the hard budget when combined with card,
   construction, money, or dice fixtures.
@@ -679,9 +672,12 @@ remaining completion gates are evidence categories, not scope expansion:
 - the implementation branch remains based on the merged Phase 4 main commit and
   the first Phase 5 commit is limited to the approved slice.
 
-## 18. Phase 5.2 entry criteria
+## 18. Phase 5.2 entry criteria and closure
 
-Phase 5.2 implementation should not start until:
+The following entry criteria were recorded before implementation. The current
+Phase 5.2 slice satisfies the implementation prerequisites; automated, database,
+browser, Electron/manual, performance, commit, and remote-CI evidence remains
+reported separately:
 
 - Phase 5.1 audio/visual boundaries and hard budgets are recorded, including
   cleanup, Reduced Motion, Skip, reconnect, and WebGL fallback behavior;
@@ -703,11 +699,11 @@ Phase 5.2 implementation should not start until:
 
 ## 19. Approved Phase 5 handoff
 
-This artifact remains the approved scope boundary. Phase 5.1 now includes
-centralized audio, core SFX, one original background music track, and the bounded
-corrective game-feel work recorded in the current Phase 5 document. It changes no
-server, GameCore, shared contract, protocol, snapshot, migration, database,
-board/camera, or gameplay rule. The only implementation milestones remain:
+This artifact remains the approved scope boundary. The current Phase 5
+implementation includes centralized audio, core SFX, one original background
+music track, typed activity, fact-only victory presentation, and host-only
+same-room Play Again. It preserves the Phase 4 board/camera/gameplay baseline and
+uses the single presentation/audio architecture. The implementation milestones are:
 
 1. Phase 5.1 — Core Game Feel, Audio & Visual Feedback.
 2. Phase 5.2 — Activity Feed, Victory, Play Again & Final Closure.

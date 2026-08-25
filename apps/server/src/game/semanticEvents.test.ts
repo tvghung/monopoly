@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { freshState } from '../rooms';
+import { MAX_ACTIVITY_FEED_EVENTS, recordActivityEvent } from './activity';
 import {
   MAX_GAMEPLAY_SEMANTIC_EVENTS,
   recordPrivateGameplayEvent,
@@ -41,5 +42,41 @@ describe('durable semantic gameplay event lanes', () => {
     expect(seller).toMatchObject({ sequence: 1, events: [{ sequence: 1, amount: 70 }] });
     expect(buyer.events[0]?.eventId).toBe(seller.events[0]?.eventId);
     expect(state.boardState.gameplayEvents.events).toEqual([]);
+    expect(state.boardState.activityFeed.events).toEqual([]);
+  });
+
+  it('records public money facts in a bounded structured activity tail', () => {
+    const state = freshState();
+    state.players['buyer'] = {
+      name: 'Buyer',
+      currentTile: 0,
+      color: 'red',
+      characterId: 'dog',
+      accountBalance: 1_000,
+      isJail: false,
+      jailOpponentRoundsElapsed: 0,
+      heldJailFreeCardIds: [],
+    };
+    recordPublicGameplayEvent(state, {
+      type: 'MONEY_TRANSFER',
+      source: { kind: 'PLAYER', playerId: 'buyer' },
+      destination: { kind: 'BANK' },
+      amount: 200,
+      reason: 'PROPERTY_PURCHASE',
+    });
+    expect(state.boardState.activityFeed.events.at(-1)).toMatchObject({
+      sequence: 1,
+      type: 'MONEY_TRANSFER',
+      source: { kind: 'PLAYER', playerId: 'buyer', name: 'Buyer' },
+      destination: { kind: 'BANK' },
+      amount: 200,
+    });
+
+    for (let index = 0; index < MAX_ACTIVITY_FEED_EVENTS + 2; index += 1) {
+      recordActivityEvent(state, { type: 'GAME_STARTED', playerIds: ['buyer', 'seller'], startingPlayerId: 'buyer', startingPlayerName: 'Buyer' });
+    }
+    expect(state.boardState.activityFeed.events).toHaveLength(MAX_ACTIVITY_FEED_EVENTS);
+    expect(state.boardState.activityFeed.events.at(-1)?.sequence)
+      .toBe(MAX_ACTIVITY_FEED_EVENTS + 3);
   });
 });

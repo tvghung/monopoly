@@ -50,15 +50,15 @@ chỉ dùng trong test qua dependency injection.
 | Runtime-only | `socket.id`, generation registry, presence, queues và scheduler timer handle |
 | Durable aggregate | Stable-ID GameState, room metadata, absolute deadlines |
 
-Snapshot v7 chứa pending landing decision/continuation, `PaymentQueue`, durable
+Snapshot v8 chứa pending landing decision/continuation, `PaymentQueue`, durable
 `PendingCardInteraction`, private `GamePrivateState.decks`, bounded public
-`gameplayEvents`, per-player private semantic lanes, `completedCardOperations`,
-forced-sale proposal và nullable `CharacterId` cùng `PlayerColorId` trên appearance
-identity records. Public projection phải loại exact deck order và chỉ gửi shortfall
-summary/sellable values; proposal terms chỉ gửi seller/buyer qua private player
-room. Migration `008_semantic_card_v7.sql` nâng V6 snapshots lên V7 bằng empty
-semantic baselines và completed-card ledger, không diễn giải lại logs hay state
-diffs lịch sử.
+`gameplayEvents`, bounded typed `activityFeed`, per-player private semantic lanes,
+`completedCardOperations`, forced-sale proposal và nullable `CharacterId` cùng
+`PlayerColorId` trên appearance identity records. Public projection phải loại exact
+deck order/private offer terms và chỉ gửi shortfall summary/sellable values;
+proposal terms chỉ gửi seller/buyer qua private player room. Migration
+`009_activity_feed_v8.sql` nâng V7 snapshots lên V8 bằng empty activity baseline,
+không diễn giải lại logs hay state diffs lịch sử.
 
 Public Socket.IO room có tên `room:<roomId>`; private player room có tên
 `player:<playerId>`. Không emit raw database aggregate trực tiếp; dùng whitelist
@@ -68,8 +68,9 @@ projector.
 
 - User payload luôn qua runtime schema; domain handler vẫn phải kiểm tra authority và
   business state sau khi parse.
-- Chat/name phải được escape trước khi đi vào HTML log. Client vẫn render log markup,
-  nên không đưa raw user string vào `dangerouslySetInnerHTML`.
+- Chat/name của legacy string log vẫn được escape trước khi append. V8 Activity Feed
+  truyền structured chat và client render text/typed data; không dùng HTML log để
+  suy ra gameplay category và không đưa activity payload vào `dangerouslySetInnerHTML`.
 - Inbound bid/listing/offer amount là positive integer không vượt `2_147_483_647`
   (PostgreSQL `integer`); tile index là integer `0..39`; offer action chỉ nhận UUID
   `offerId`.

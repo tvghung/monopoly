@@ -26,3 +26,15 @@
   all live operation/deadline state clear; bankruptcy and leave reasons differ.
 - [ ] `[PG]` Finished/winner history restores and obeys retention; reconnect identity
   and credential privacy remain intact.
+- [ ] `[AUTO][CLIENT]` WinnerBanner shows only authoritative winner name, mascot,
+  color, final cash, owned-property count, houses and hotel count; level `5` counts
+  as one hotel.
+- [ ] `[AUTO][SOCKET]` `play again` is host-only and FINISHED-only; it preserves the
+  room/code, eligible IDs/appearance/join order/sessions, resets ready and fresh
+  gameplay state, revives finished players, excludes `LEFT`, clears offers and
+  permits a second normal start.
+- [ ] `[AUTO][CLIENT]` FINISHED reconnect hydrates the fact-only winner surface;
+  replay update resets the existing presentation queue without reversal feedback.
+- [ ] `[MANUAL-E2E]` Two-player/four-player finish, host replay, bankrupt return,
+  explicit-left exclusion, spectator continuity, reconnect around replay, activity
+  readability, reduced motion, WebGL fallback and one full second match.

@@ -1,6 +1,8 @@
 import {
   useCallback, useContext, useRef, useEffect, useState, type FormEvent,
 } from 'react';
+import type { ActivityEvent, MoneyTransferReason } from '@monopoly/shared';
+import { formatMoney, gameCardsById, tileState } from '@monopoly/shared';
 import './style/Log.css';
 import stateContext from '../internal';
 import { usePresentation } from '../game/presentation/PresentationProvider';
@@ -11,6 +13,82 @@ export function getLogActivitySignature(logs: readonly string[]): string {
   return JSON.stringify([logs.length, logs.at(-1) ?? '']);
 }
 
+export function getActivitySignature(
+  activity: readonly ActivityEvent[],
+  logs: readonly string[],
+): string {
+  const last = activity.at(-1);
+  return JSON.stringify([
+    activity.length,
+    last?.sequence ?? 0,
+    last?.eventId ?? '',
+    getLogActivitySignature(logs),
+  ]);
+}
+
+const moneyReasonLabel: Record<MoneyTransferReason, string> = {
+  PROPERTY_PURCHASE: 'mua tài sản',
+  PROPERTY_SALE: 'bán tài sản',
+  RENT: 'tiền thuê',
+  PASS_GO: 'đi qua GO',
+  CARD: 'hiệu ứng thẻ',
+  DEVELOPMENT: 'phát triển tài sản',
+  BAIL: 'tiền bảo lãnh',
+  TRADE: 'giao dịch',
+  FORCED_SALE: 'bán bắt buộc',
+  FORFEIT: 'bỏ cuộc',
+  OTHER: 'giao dịch tiền',
+};
+
+const jailActionLabel: Record<Extract<ActivityEvent, { type: 'JAIL' }>['action'], string> = {
+  ENTRY: 'vào tù',
+  RELEASE: 'ra tù',
+  FAILED_ROLL: 'chưa đổ được đôi trong tù',
+};
+
+const endpointName = (endpoint: Extract<ActivityEvent, { type: 'MONEY_TRANSFER' }>['source']): string => (
+  endpoint.kind === 'BANK' ? 'Ngân hàng' : endpoint.name
+);
+
+function activityText(event: ActivityEvent): string {
+  switch (event.type) {
+    case 'PLAYER_JOINED':
+      return `${event.playerName} đã tham gia phòng.`;
+    case 'GAME_STARTED':
+      return `Ván chơi bắt đầu. ${event.startingPlayerName} đi trước.`;
+    case 'CHAT':
+      return `${event.senderName}: ${event.message}`;
+    case 'DICE_ROLL':
+      return `${event.playerName} đổ ${event.dice1} + ${event.dice2} = ${event.total}${event.context === 'JAIL' ? ' trong tù' : ''}.`;
+    case 'PROPERTY_PURCHASE':
+      return `${event.playerName} đã mua ${tileState[event.tileID]?.streetName ?? `ô ${event.tileID}`} với giá ${formatMoney(event.price)}.`;
+    case 'PROPERTY_TRANSFER':
+      return `${endpointName(event.from)} chuyển ${tileState[event.tileID]?.streetName ?? `ô ${event.tileID}`} cho ${endpointName(event.to)}.`;
+    case 'MONEY_TRANSFER':
+      return `${endpointName(event.source)} trả ${formatMoney(event.amount)} cho ${endpointName(event.destination)} (${moneyReasonLabel[event.reason]}).`;
+    case 'PROPERTY_DEVELOPMENT':
+      return event.action === 'SELL'
+        ? `${event.playerName} bán một cấp công trình tại ${tileState[event.tileID]?.streetName ?? `ô ${event.tileID}`} và nhận ${formatMoney(event.cost ?? 0)}.`
+        : event.action === 'UPGRADE_HOTEL'
+          ? `${event.playerName} nâng cấp Khách sạn tại ${tileState[event.tileID]?.streetName ?? `ô ${event.tileID}`}.`
+          : `${event.playerName} xây ${event.toHouses - event.fromHouses} Nhà tại ${tileState[event.tileID]?.streetName ?? `ô ${event.tileID}`}.`;
+    case 'CARD_REVEALED':
+      return `${event.playerName} rút thẻ ${event.deck === 'chance' ? 'Cơ hội' : 'Khí vận'}: ${gameCardsById[event.cardId]?.message ?? event.cardId}`;
+    case 'JAIL':
+      return `${event.playerName} ${jailActionLabel[event.action]}.`;
+    case 'PLAYER_FINISHED':
+      return event.reason === 'BANKRUPT'
+        ? `${event.playerName} đã phá sản và rời khỏi ván chơi.`
+        : `${event.playerName} đã rời ván chơi.`;
+    case 'GAME_FINISHED':
+      return `${event.winnerName} chiến thắng với ${formatMoney(event.finalCash)}.`;
+    default: {
+      const exhaustive: never = event;
+      return exhaustive;
+    }
+  }
+}
+
 export default function Log() {
   const { state, socketFunctions, connected } = useContext(stateContext);
   const { state: presentation, queue } = usePresentation();
@@ -19,7 +97,9 @@ export default function Log() {
   const scrollRef = useRef<HTMLElement>(null);
   const idleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const visibleLogs = queue ? presentation.displayLogs : state.boardState.logs;
-  const activitySignature = getLogActivitySignature(visibleLogs);
+  const visibleActivity = queue ? presentation.displayActivity : state.boardState.activityFeed.events;
+  const activitySignature = getActivitySignature(visibleActivity, visibleLogs);
+  const showStructuredActivity = visibleActivity.length > 0;
 
   const clearIdleTimeout = useCallback(() => {
     if (idleTimeoutRef.current !== null) {
@@ -65,12 +145,16 @@ export default function Log() {
     >
       <section ref={scrollRef} className="center__log" role="log" aria-live="polite" aria-label="Nhật ký ván chơi">
         {state.loaded
-          ? visibleLogs.map((e, i) => (
-            <p
-              key={i}
-              dangerouslySetInnerHTML={{ __html: e }}
-            />
-          ))
+          ? showStructuredActivity
+            ? visibleActivity.map(event => (
+              <p
+                key={event.eventId}
+                className={`activity-entry activity-entry--${event.type.toLowerCase()}`}
+              >
+                {activityText(event)}
+              </p>
+            ))
+            : visibleLogs.map((entry, index) => <p key={index}>{entry}</p>)
           : <p>Đang tải…</p>}
       </section>
       <section className="center__chat">

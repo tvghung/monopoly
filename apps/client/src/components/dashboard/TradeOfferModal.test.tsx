@@ -24,6 +24,7 @@ const state: PublicGameState = {
     diceValue: { dice1: 2, dice2: 3 },
     rollSequence: 1,
     gameplayEvents: { sequence: 0, events: [] },
+    activityFeed: { sequence: 0, events: [] },
     ownedProps: {
       1: { id: 'them', color: 'blue', houses: 0 },
       3: { id: 'them', color: 'blue', houses: 0 },

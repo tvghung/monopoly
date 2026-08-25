@@ -5,6 +5,7 @@ import {
 } from '@monopoly/shared';
 import { sendToLog } from './text';
 import { recordPublicGameplayEvent } from './semanticEvents';
+import { activityPlayerName, recordActivityEvent } from './activity';
 
 export const isPropertyLockedByLandingDecision = (state: GameState, tileID: number): boolean => (
   state.turnInfo.pendingDevelopmentDecision?.tileID === tileID
@@ -37,6 +38,16 @@ export const sellHouse = (state: GameState, playerId: PlayerId, tileID: number):
     destination: { kind: 'PLAYER', playerId },
     amount: refund,
     reason: 'PROPERTY_SALE',
+  });
+  recordActivityEvent(state, {
+    type: 'PROPERTY_DEVELOPMENT',
+    playerId,
+    playerName: activityPlayerName(state, playerId),
+    tileID,
+    fromHouses: owned.houses + 1,
+    toHouses: owned.houses,
+    action: 'SELL',
+    cost: refund,
   });
   sendToLog(state, `${player.name} đã bán một cấp công trình tại ${tile.streetName} với giá ${refund.toLocaleString('vi-VN')}.000 ₫.`);
   return true;

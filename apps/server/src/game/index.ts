@@ -4,6 +4,14 @@ export {
   date, escapeHtml, sanitizeName, sendToLog,
 } from './text';
 export {
+  createEmptyActivityFeed,
+  recordActivityEvent,
+  recordActivityForGameplayEvent,
+  activityEndpoint,
+  activityPlayerName,
+  MAX_ACTIVITY_FEED_EVENTS,
+} from './activity';
+export {
   checkBalance,
   checkWinner,
   completeTurnResolution,

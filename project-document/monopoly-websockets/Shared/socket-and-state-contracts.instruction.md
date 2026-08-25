@@ -13,7 +13,7 @@
   operation IDs cần cho durable continuation.
 - `RoomStatus`: `LOBBY | IN_PROGRESS | FINISHED`; `RoomRole`:
   `PLAYER | SPECTATOR`.
-- `SOCKET_PROTOCOL_VERSION = 7`; older clients nhận `UPGRADE_REQUIRED`, không chạy legacy
+- `SOCKET_PROTOCOL_VERSION = 8`; older clients nhận `UPGRADE_REQUIRED`, không chạy legacy
   state/payload.
 - `CharacterId` và `PlayerColorId` là stable shared appearance IDs. `set appearance`
   nhận strict character-only, color-only hoặc combined payload; empty/unknown keys
@@ -46,10 +46,14 @@ Public/persisted types dùng stable IDs và phân biệt hidden state:
   `MONEY_TRANSFER`, `PROPERTY_TRANSFER`, `PASS_GO`, `SENT_TO_JAIL`,
   `JAIL_ROLL_FAILED` and `JAIL_RELEASED`. `GamePrivateState` additionally stores
   per-player private gameplay lanes and `completedCardOperations`.
+- `BoardState.activityFeed` is a separate bounded public typed tail for the
+  existing Log surface. Server producers append join/chat/dice/property/money/
+  development/card/jail/bankruptcy/start/finish facts with monotonic sequence and
+  UUID identity; clients never infer categories from legacy HTML logs.
 - Jail wait progress (`jailOpponentRoundsElapsed`) là state authoritative, được giữ
   nguyên qua payment/restart; không có third-failed-roll hoặc stored-dice state.
 
-`PersistedGameState`/room snapshot V7 chứa durable fields trên và bỏ `loaded`, presence,
+`PersistedGameState`/room snapshot V8 chứa durable fields trên và bỏ `loaded`, presence,
 credential, socket ID, countdown tick/timer handle. `BoardState.gameStartedAt?: string | null`
 là ISO timestamp authoritative được set tại transition `LOBBY -> IN_PROGRESS`; `freshState()`
 dùng `null`, schema chấp nhận missing/null để hydrate snapshot cũ, và public projection
@@ -59,8 +63,8 @@ mount/reconnect.
 
 `BoardState.rollSequence` là public durable non-negative safe integer. Fresh state
 starts at `0`; historical V5 → V6 migration 007 also starts at `0` without
-reconstructing historical rolls. Current V6 → V7 migration 008 initializes empty
-semantic/card baselines without reconstructing history. The server increments it once after accepted dice generation
+reconstructing historical rolls. Current V7 → V8 migration 009 initializes an empty
+activity baseline without reconstructing history. The server increments it once after accepted dice generation
 inside the gameplay transaction, including jail attempts but excluding
 starting-player tie-breaks, rejected commands, and rolled-back transactions.
 
@@ -98,7 +102,10 @@ hay board label hiện tại.
 - Buy/development/forced-sale payloads chỉ mang operation/claim/proposal IDs; tile,
   owner, seller, buyer and price đều được derive từ snapshot.
 - Public `update(PublicRoomState)` tách khỏi private offer/session delivery.
-- Không có `new player`, dummy payload hoặc client-supplied actor.
+- `play again` is a no-payload, host-only command accepted only in `FINISHED`; it
+  resets the same room through the canonical fresh-state path and ACKs only after
+  the committed `FINISHED → LOBBY` transition. No `new player` payload or
+  client-supplied actor is accepted.
 
 ## Runtime schemas và boundaries
 
@@ -110,10 +117,11 @@ hay board label hiện tại.
 
 ## Tests
 
-- Protocol v7 mismatch; payload/ACK compile/runtime validation.
+- Protocol v8 mismatch; payload/ACK compile/runtime validation, including `play again`.
 - Strict appearance/`TradeBundle`, payment shortfall, landing decision, durable card
   interaction, semantic lanes and snapshot v7 validation.
-- Strict board snapshot validation cho `gameStartedAt` optional/null và compatibility với
+- Strict board snapshot validation cho `activityFeed`, `gameStartedAt` optional/null và compatibility với
   snapshot cũ không có field; start timestamp persistence/public projection.
-- Public no-leak assertion cho token/hash/session/private offer/exact deck order.
+- Public no-leak assertion cho token/hash/session/private offer/exact deck order and
+  hidden pre-reveal card state; activity projection remains spectator-safe.
 - Socket actor spoof/spectator rejection và save-failure no-publish.

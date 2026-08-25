@@ -1,8 +1,10 @@
 import type {
   GameState,
+  CharacterId,
   PersistedGameState,
   PlayerColorId,
   PlayerId,
+  Player,
   RoomMembershipStatus,
   RoomStatus,
 } from '@monopoly/shared';
@@ -15,9 +17,10 @@ import {
   tileState,
 } from '@monopoly/shared';
 import { z } from 'zod';
+import { createEmptyActivityFeed } from './game/activity';
 import { createEmptyGameplayEventStream } from './game/semanticEvents';
 
-export const ROOM_SNAPSHOT_SCHEMA_VERSION = 7;
+export const ROOM_SNAPSHOT_SCHEMA_VERSION = 8;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 4;
 
@@ -225,6 +228,34 @@ export const upgradeRoomSnapshotV6ToV7 = (
   };
 };
 
+/** V8 adds the typed public activity tail without reconstructing old logs. */
+export const upgradeRoomSnapshotV7ToV8 = (
+  input: unknown,
+): PersistedRoomSnapshotEnvelope => {
+  const envelope = structuredClone(input) as {
+    snapshotSchemaVersion: number;
+    gameSnapshot: {
+      gameState: {
+        boardState: { activityFeed?: unknown; [key: string]: unknown };
+        [key: string]: unknown;
+      };
+      [key: string]: unknown;
+    };
+    hostPlayerId?: PlayerId | null;
+    status?: RoomStatus;
+  };
+  if (envelope.snapshotSchemaVersion !== 7) {
+    throw new Error('Only V7 room snapshots can be upgraded to V8');
+  }
+
+  envelope.gameSnapshot.gameState.boardState.activityFeed = createEmptyActivityFeed();
+  return {
+    ...envelope,
+    snapshotSchemaVersion: 8,
+    gameSnapshot: envelope.gameSnapshot as unknown as RoomSnapshot,
+  };
+};
+
 export class UnsupportedRoomSnapshotVersionError extends Error {
   constructor(readonly snapshotSchemaVersion: number) {
     super(
@@ -259,6 +290,7 @@ export const freshState = (): GameState => ({
     winner: null,
     paymentQueue: null,
     gameplayEvents: createEmptyGameplayEventStream(),
+    activityFeed: createEmptyActivityFeed(),
   },
   players: {},
   turnInfo: {},
@@ -269,6 +301,21 @@ export const freshState = (): GameState => ({
     completedCardOperations: [],
   },
   loaded: true,
+});
+
+export const createFreshPlayer = (
+  name: string,
+  color: PlayerColorId,
+  characterId: CharacterId | null = null,
+): Player => ({
+  name,
+  currentTile: 0,
+  color,
+  characterId,
+  accountBalance: 1500,
+  isJail: false,
+  jailOpponentRoundsElapsed: 0,
+  heldJailFreeCardIds: [],
 });
 
 export const createRoomSnapshot = (): RoomSnapshot => {
@@ -589,7 +636,7 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
   }
 };
 
-/** Older rows are upgraded transactionally; current V7 rows normalize legacy mascot ids at the boundary. */
+/** Older rows are upgraded transactionally; current V8 rows normalize legacy mascot ids at the boundary. */
 export const assertSupportedRoomSnapshot = (
   room: PersistedRoomSnapshotEnvelope,
 ): void => {

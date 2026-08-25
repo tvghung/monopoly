@@ -27,10 +27,98 @@ const DEFAULT_MIX: AudioMix = {
   sfxGain: 0.8,
 };
 
-const MUSIC_BPM = 100;
-const MUSIC_BEATS = 40;
-const MUSIC_LOOP_DURATION_SECONDS = MUSIC_BEATS * 60 / MUSIC_BPM;
+export const MUSIC_BPM = 112;
+export const MUSIC_BEATS = 96;
+export const MUSIC_SECTION_COUNT = 3;
+export const MUSIC_LOOP_DURATION_SECONDS = MUSIC_BEATS * 60 / MUSIC_BPM;
+export const MUSIC_TRACK_METADATA = {
+  bpm: MUSIC_BPM,
+  beats: MUSIC_BEATS,
+  durationSeconds: MUSIC_LOOP_DURATION_SECONDS,
+  sectionCount: MUSIC_SECTION_COUNT,
+  sections: ['A', 'B', 'C'] as const,
+};
 const MUSIC_FADE_MS = 220;
+
+const melodySections = [
+  [0, 3, 7, -1, 10, 7, 3, 5, 0, 3, 8, 10, 7, 5, 3, -1],
+  [7, 10, 12, 10, 7, 5, 3, 5, 7, 10, 14, 12, 10, 7, 5, 3],
+  [12, 10, 7, 5, 3, 5, 7, 10, 12, 14, 15, 14, 12, 10, 7, 5],
+] as const;
+
+function deterministicNoise(index: number): number {
+  const value = Math.sin(index * 12.9898 + 78.233) * 43758.5453;
+  return (value - Math.floor(value)) * 2 - 1;
+}
+
+export function createProceduralMusicSamples(sampleRate: number): Float32Array {
+  const sampleCount = Math.max(1, Math.floor(sampleRate * MUSIC_LOOP_DURATION_SECONDS));
+  // Synthesize at a modest control rate and linearly upsample into the
+  // AudioBuffer. This keeps unlock/start cheap on the main thread while the
+  // long loop still has a full-rate buffer at the output boundary.
+  const renderSampleRate = Math.min(sampleRate, 8_000);
+  const renderCount = Math.max(1, Math.floor(renderSampleRate * MUSIC_LOOP_DURATION_SECONDS));
+  const rendered = new Float32Array(renderCount);
+  const secondsPerBeat = 60 / MUSIC_BPM;
+  const eighthNote = secondsPerBeat / 2;
+  const rootNotes = [0, 5, 3, 7] as const;
+
+  for (let index = 0; index < renderCount; index += 1) {
+    const time = index / renderSampleRate;
+    const beat = time / secondsPerBeat;
+    const beatIndex = Math.floor(beat);
+    const beatPhase = beat - beatIndex;
+    const section = Math.min(MUSIC_SECTION_COUNT - 1, Math.floor(beatIndex / 32));
+    const barBeat = beatIndex % 32;
+    const chord = rootNotes[Math.floor(barBeat / 8) % rootNotes.length];
+    const stepIndex = Math.floor(time / eighthNote);
+    const stepPhase = (time - stepIndex * eighthNote) / eighthNote;
+    const note = melodySections[section][stepIndex % melodySections[section].length];
+    const leadEnvelope = note < 0 ? 0 : Math.exp(-stepPhase * 7.5) * Math.min(1, stepPhase * 18);
+    const leadFrequency = note < 0 ? 0 : 440 * 2 ** ((note + chord - 9) / 12);
+    const lead = leadFrequency === 0
+      ? 0
+      : (Math.sin(Math.PI * 2 * leadFrequency * time)
+        + 0.22 * Math.sin(Math.PI * 4 * leadFrequency * time)) * leadEnvelope * 0.075;
+
+    const bassFrequency = 110 * 2 ** ((chord - 5 + (section === 1 && beatIndex % 8 >= 6 ? 7 : 0)) / 12);
+    const bassEnvelope = Math.exp(-beatPhase * 4.5);
+    const bass = Math.sin(Math.PI * 2 * bassFrequency * time) * bassEnvelope * 0.09;
+
+    const kick = (beatIndex % 4 === 0 || (section > 0 && beatIndex % 8 === 3))
+      ? Math.sin(Math.PI * 2 * (78 - beatPhase * 38) * time) * Math.exp(-beatPhase * 15) * 0.08
+      : 0;
+    const snarePhase = beatIndex % 4 === 1 || beatIndex % 4 === 3 ? beatPhase : 1;
+    const snare = snarePhase < 0.32
+      ? deterministicNoise(index) * Math.exp(-snarePhase * 18) * (section === 0 ? 0.018 : 0.027)
+      : 0;
+    const hatPhase = (time / eighthNote) % 1;
+    const hat = hatPhase < 0.12
+      ? deterministicNoise(index + 17) * Math.exp(-hatPhase * 28) * (section === 2 ? 0.013 : 0.009)
+      : 0;
+    const padFrequency = 220 * 2 ** ((chord - 9) / 12);
+    const pad = (
+      Math.sin(Math.PI * 2 * padFrequency * time)
+      + 0.5 * Math.sin(Math.PI * 2 * padFrequency * 1.5 * time)
+    ) * 0.018;
+    const counter = section === 2
+      ? Math.sin(Math.PI * 2 * 659.25 * time) * Math.exp(-((beatPhase - 0.5) ** 2) * 18) * 0.018
+      : 0;
+    const edgeFade = Math.min(1, time / 0.08, (MUSIC_LOOP_DURATION_SECONDS - time) / 0.08);
+    rendered[index] = edgeFade * (lead + bass + kick + snare + hat + pad + counter);
+  }
+  if (renderSampleRate === sampleRate) return rendered;
+  const samples = new Float32Array(sampleCount);
+  const scale = renderSampleRate / sampleRate;
+  for (let index = 0; index < sampleCount; index += 1) {
+    const position = index * scale;
+    const left = Math.min(renderCount - 1, Math.floor(position));
+    const right = Math.min(renderCount - 1, left + 1);
+    const fraction = position - left;
+    samples[index] = rendered[left] * (1 - fraction) + rendered[right] * fraction;
+  }
+  return samples;
+}
 
 function clampGain(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -358,32 +446,7 @@ export class AudioEngine implements AudioPort {
       Math.floor(context.sampleRate * MUSIC_LOOP_DURATION_SECONDS),
     );
     const buffer = context.createBuffer(1, sampleCount, context.sampleRate);
-    const samples = buffer.getChannelData(0);
-    const secondsPerBeat = 60 / MUSIC_BPM;
-    const pattern = [0, 3, 7, 5, 10, 7, 3, 5] as const;
-    const bassPattern = [0, -2, -5, -3, 0, -2, -7, -5] as const;
-    const rootFrequency = 220;
-    for (let index = 0; index < samples.length; index += 1) {
-      const time = index / context.sampleRate;
-      const beatIndex = Math.floor(time / secondsPerBeat);
-      const beatTime = time - beatIndex * secondsPerBeat;
-      const patternIndex = beatIndex % pattern.length;
-      const noteFrequency = rootFrequency * 2 ** (pattern[patternIndex] / 12);
-      const pluckEnvelope = Math.exp(-beatTime * 8.5);
-      const pluck = Math.sin(Math.PI * 2 * noteFrequency * time)
-        + 0.32 * Math.sin(Math.PI * 4 * noteFrequency * time);
-      const bassFrequency = 110 * 2 ** (bassPattern[Math.floor(beatIndex / 4) % bassPattern.length] / 12);
-      const barTime = time - Math.floor(time / (secondsPerBeat * 4)) * secondsPerBeat * 4;
-      const bassEnvelope = Math.exp(-barTime * 2.4);
-      const pad = Math.sin(Math.PI * 2 * 220 * time)
-        + 0.65 * Math.sin(Math.PI * 2 * 277.18 * time);
-      const edgeFade = Math.min(1, time / 0.04, (MUSIC_LOOP_DURATION_SECONDS - time) / 0.04);
-      samples[index] = edgeFade * (
-        pluck * pluckEnvelope * 0.075
-        + Math.sin(Math.PI * 2 * bassFrequency * time) * bassEnvelope * 0.08
-        + pad * 0.025
-      );
-    }
+    buffer.getChannelData(0).set(createProceduralMusicSamples(context.sampleRate));
     return buffer;
   }
 
