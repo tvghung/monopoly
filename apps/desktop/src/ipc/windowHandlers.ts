@@ -80,11 +80,14 @@ export function registerWindowHandlers(
   development: boolean,
   quitController: QuitRequestController,
 ): void {
-  const runtimeConfig = getDesktopRuntimeConfig();
-
   ipcMain.handle(IPC_CHANNELS.runtimeConfig, event => {
     if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
-    return runtimeConfig;
+    try {
+      return getDesktopRuntimeConfig();
+    } catch (error) {
+      console.error('Desktop runtime configuration is unavailable.', error);
+      throw error;
+    }
   });
   ipcMain.handle(IPC_CHANNELS.windowGetState, event => {
     if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
@@ -108,7 +111,11 @@ export function registerWindowHandlers(
   });
 
   const sendFullscreenState = () => {
-    if (!window.isDestroyed()) window.webContents.send(IPC_CHANNELS.windowFullscreenChanged, getWindowState(window));
+    setTimeout(() => {
+      if (!window.isDestroyed()) {
+        window.webContents.send(IPC_CHANNELS.windowFullscreenChanged, getWindowState(window));
+      }
+    }, 0);
   };
   window.on('enter-full-screen', sendFullscreenState);
   window.on('leave-full-screen', sendFullscreenState);

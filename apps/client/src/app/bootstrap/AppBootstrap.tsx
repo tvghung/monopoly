@@ -3,32 +3,30 @@ import App from '../../App';
 import { AudioProvider } from '../../audio/AudioProvider';
 import { ToastProvider } from '../../components/Toast';
 import { SettingsProvider } from '../../settings/SettingsProvider';
-import BootstrapErrorScreen from '../screens/BootstrapErrorScreen';
+import BootstrapErrorScreen, {
+  type BootstrapErrorKind,
+} from '../screens/BootstrapErrorScreen';
 import LoadingScreen from '../screens/LoadingScreen';
 import { bootstrap } from './bootstrap';
-import { getSafeAssetReadinessMessage } from './assetReadiness';
-import type { BootStage, BootstrapProgress, BootstrapResult } from './types';
+import type { BootStage, BootstrapResult } from './types';
 
 interface BootstrapState {
   stage: BootStage;
   result: BootstrapResult | null;
-  error: string | null;
-  progress: BootstrapProgress;
+  errorKind: BootstrapErrorKind | null;
 }
 
 const initialState: BootstrapState = {
   stage: 'loading-settings',
   result: null,
-  error: null,
-  progress: {
-    stage: 'loading-settings',
-    loaded: 0,
-    total: 0,
-    failed: 0,
-    currentAssetId: null,
-    currentAssetLabel: null,
-  },
+  errorKind: null,
 };
+
+function getBootstrapErrorKind(error: unknown): BootstrapErrorKind {
+  return error instanceof Error && error.name === 'DesktopRuntimeConfigError'
+    ? 'runtime-config'
+    : 'bootstrap';
+}
 
 export default function AppBootstrap() {
   const [retryNumber, setRetryNumber] = useState(0);
@@ -37,19 +35,10 @@ export default function AppBootstrap() {
   useEffect(() => {
     let active = true;
     setState(initialState);
-    void bootstrap(progress => {
-      if (active) setState(current => ({
-        ...current,
-        stage: progress.stage,
-        progress,
-      }));
+    void bootstrap(stage => {
+      if (active) setState(current => ({ ...current, stage }));
     }).then(result => {
-      if (active) setState({
-        stage: 'ready',
-        result,
-        error: null,
-        progress: { ...initialState.progress, stage: 'ready' },
-      });
+      if (active) setState({ stage: 'ready', result, errorKind: null });
       else result.socket.disconnect();
     }).catch(error => {
       if (!active) return;
@@ -57,8 +46,7 @@ export default function AppBootstrap() {
       setState({
         stage: 'error',
         result: null,
-        error: getSafeAssetReadinessMessage(error),
-        progress: { ...initialState.progress, stage: 'error' },
+        errorKind: getBootstrapErrorKind(error),
       });
     });
     return () => {
@@ -67,10 +55,22 @@ export default function AppBootstrap() {
   }, [retryNumber]);
 
   if (state.stage === 'error') {
-    return <BootstrapErrorScreen error={state.error ?? 'Không rõ lỗi khởi động.'} onRetry={() => setRetryNumber(value => value + 1)} />;
+    return (
+      <BootstrapErrorScreen
+        kind={state.errorKind ?? 'bootstrap'}
+        onRetry={() => setRetryNumber(value => value + 1)}
+      />
+    );
   }
   if (state.stage === 'ready') {
-    if (!state.result) return <BootstrapErrorScreen error="Không có dữ liệu khởi động." onRetry={() => setRetryNumber(value => value + 1)} />;
+    if (!state.result) {
+      return (
+        <BootstrapErrorScreen
+          kind="bootstrap"
+          onRetry={() => setRetryNumber(value => value + 1)}
+        />
+      );
+    }
     return (
       <SettingsProvider initialSettings={state.result.settings}>
         <AudioProvider>
@@ -82,5 +82,5 @@ export default function AppBootstrap() {
     );
   }
 
-  return <LoadingScreen stage={state.stage} progress={state.progress} />;
+  return <LoadingScreen stage={state.stage} />;
 }

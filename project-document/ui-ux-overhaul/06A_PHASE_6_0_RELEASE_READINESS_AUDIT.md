@@ -1,6 +1,7 @@
 # Phase 6.0 — Release Readiness Audit & Scope Lock
 
-**Status: AUDIT COMPLETE — scope locked; no Phase 6 production implementation performed**
+**Status: AUDIT COMPLETE — scope locked; Phase 6.1 corrective implementation
+recorded below; Phase 6.2 not started**
 
 Audit date: 2026-08-26
 Repository: tvghung/monopoly
@@ -27,15 +28,86 @@ server by default. The smallest safe fix is a release-time endpoint decision and
 validated injection, with a fail-closed packaged path; no URL is invented in
 this audit.
 
-Other confirmed implementation gaps are persisted fullscreen intent, top-level
-React failure containment with safe production error copy, and native desktop
-icon/version metadata. Long-session, live multiplayer, audible, install,
-signing, notarization, and cross-OS acceptance remain open release gates rather
-than claims inferred from automated tests or packaging.
+At audit time, other confirmed implementation gaps were persisted fullscreen
+intent, top-level React failure containment with safe production error copy,
+and native desktop icon/version metadata. Long-session, live multiplayer,
+audible, install, signing, notarization, and cross-OS acceptance remain open
+release gates rather than claims inferred from automated tests or packaging.
+
+## 1A. Phase 6.1 corrective implementation record — 2026-08-26
+
+This section supersedes the audit-time C1–C3 implementation claims where the
+follow-up code has now been applied. The audit matrix and proposals below remain
+the evidence-first Phase 6.0 baseline; they are not a claim that the external
+release gates are complete.
+
+### C1 endpoint lifecycle
+
+- Development still resolves to `http://127.0.0.1:8080` when no value is
+  supplied.
+- Packaged Electron requires `--socket-url=<absolute HTTP(S) URL>` or
+  `OWN_THE_BLOCK_SOCKET_URL`; missing or invalid values throw a typed runtime
+  configuration error. An explicitly injected loopback URL is accepted for
+  test/development use, but no production URL was invented or committed.
+- `main.ts` no longer resolves runtime configuration before the BrowserWindow
+  loads, and IPC resolves it only when the renderer requests it. Technical
+  details stay in logs; the renderer maps the failure to safe copy instead of
+  quitting or displaying a raw exception.
+- Runtime-config tests cover development fallback, valid configuration,
+  invalid protocol, packaged missing configuration, and explicit packaged
+  loopback. The packaged missing-endpoint smoke showed the safe renderer error
+  while the window remained open. Interactive packaged launch with an explicit
+  endpoint was not completed in this host environment, so real endpoint
+  connectivity remains **OPEN**.
+
+### C2 fullscreen lifecycle
+
+The persisted fullscreen intent is captured before native state synchronization,
+applied once through the existing bridge, and then governed by settled native
+enter/leave events. Provider/window-handler tests cover startup intent, false
+startup, subsequent native synchronization, and reset. Electron development
+smoke passed across restart with fullscreen enabled and after reset to a normal
+window; a separate native OS shortcut/leave acceptance pass remains open.
+
+### C3 top-level failure containment
+
+`index.tsx` now has exactly one top-level app boundary outside the existing
+`SceneErrorBoundary`. It logs technical details, renders a safe localized
+fallback, and exposes a reload/recovery action. Bootstrap failures use the same
+safe presentation without rendering the raw error. Focused tests deliberately
+throw a child render error and reject bootstrap with a technical message; both
+prove safe copy, raw-message absence, logging, and recovery. A deliberate live
+browser render-failure smoke was **NOT RUN**; the tested boundary is still
+automated evidence rather than a claim of full accessibility or installed-app
+acceptance.
+
+### Asset scope decision
+
+No targeted Phase 6.1 asset prewarm was justified by the available evidence.
+The generic asset-readiness authority and its associated progress/gating code
+were removed, while the pre-Phase-6 reference-counted cache, shared SVG/card
+ownership, procedural/lazy assets, and legacy rendering fallback were retained.
+This keeps asset ownership in the existing components and does not turn client
+readiness into a server or room authority.
+
+### Local validation record
+
+The final local code passed `pnpm install --frozen-lockfile`, root typecheck,
+lint, database-enabled root tests, production build, focused client/desktop
+tests, and Windows x64 desktop packaging. PostgreSQL status and migration checks
+also passed using the repository-configured local environment. The initial
+Windows `spawn EPERM` retries were environment retries of the same commands,
+not changes to test or lint configuration. Remote CI and Desktop Build are not
+inferred from these local results; the exact pushed SHA is checked separately
+after commit.
 
 ## 2. Evidence snapshot
 
-- Current HEAD is e4ce23d on the new local Phase 6 branch. The worktree was clean
+The following is retained as the Phase 6.0 audit-time evidence snapshot; the
+Phase 6.1 results are recorded in section 8A and must not be inferred from this
+older baseline.
+
+- Audit-time HEAD was e4ce23d on the new local Phase 6 branch. The worktree was clean
   before the documentation changes.
 - Current local Phase 4 UAT renderer measurements in the in-app browser at the
   observed 1280 × 720 viewport were: four-station baseline 199 draw calls and
@@ -50,8 +122,8 @@ than claims inferred from automated tests or packaging.
   THREE.Clock deprecation warning. The renderer diagnostic is a demand-render
   scene measurement. FpsBadge measures browser requestAnimationFrame cadence and
   is not proof of continuous R3F rendering.
-- User-supplied remote evidence for this exact SHA records CI PASS and Desktop
-  Build PASS. CI provisions PostgreSQL 17, sets DATABASE_URL and
+- User-supplied remote evidence for that audit-time SHA records CI PASS and
+  Desktop Build PASS. CI provisions PostgreSQL 17, sets DATABASE_URL and
   TEST_DATABASE_URL, applies migrations, and runs the workspace gates. Desktop
   Build runs the Windows and macOS makers. This is recorded separately from the
   local reruns below.
@@ -67,6 +139,11 @@ than claims inferred from automated tests or packaging.
 - **F** — obsolete or superseded by the current architecture.
 
 ## 4. Current-code capability matrix
+
+The following matrix is the Phase 6.0 audit-time snapshot. Section 1A records
+the subsequent Phase 6.1 implementation and the remaining proof boundaries;
+historical classifications are retained so the original audit evidence is not
+silently rewritten.
 
 | Area | Current implementation/evidence | Classification | Gap/risk | Severity | Exact files | Recommended action | Automated validation | Manual/external validation | Phase assignment |
 |---|---|---|---|---|---|---|---|---|---|
@@ -93,7 +170,9 @@ than claims inferred from automated tests or packaging.
 ## 5. Confirmed C gaps and bounded proposals
 
 The following are the only implementation gaps approved by this audit. They are
-documentation decisions, not changes made in Phase 6.0.
+documentation decisions from the audit snapshot, not changes made in Phase 6.0.
+Section 1A records the Phase 6.1 follow-up for C1–C3; C4 and the external
+release gates remain open.
 
 ### C1. Packaged endpoint configuration — P0
 
@@ -259,6 +338,25 @@ Auto-update remains post-v1. No third implementation subphase is justified.
 | User-supplied remote CI at e4ce23d | **PASS** | CI passed with PostgreSQL 17 and both database variables. |
 | User-supplied remote Desktop Build at e4ce23d | **PASS** | Windows and macOS maker jobs passed. This does not prove signed/notarized or installed runtime behavior. |
 
+## 8A. Validation record for the Phase 6.1 corrective pass
+
+| Command or evidence | Result | Record |
+|---|---|---|
+| `pnpm install --frozen-lockfile` | **PASS** | Dependencies were already current; pnpm metadata refresh emitted a non-blocking fetch warning. |
+| `pnpm typecheck` | **PASS** | Workspace typecheck completed on the final source and tests. |
+| `pnpm lint` | **PASS** | Final lint completed after the last source/test edits. |
+| `pnpm test` with `TEST_DATABASE_URL` from `.env` | **PASS** | Desktop 6 files/19 tests, server 13 files/159 tests with no PostgreSQL skips, and client 89 files/496 tests. |
+| `pnpm build` | **PASS** | Client production build completed; existing large main-chunk advisory remains. |
+| Focused client tests | **PASS** | 3 files/5 tests, including safe bootstrap and top-level boundary behavior. |
+| Focused desktop tests | **PASS** | 2 files/7 tests, including deferred runtime-config resolution and fullscreen event settlement. |
+| `pnpm db:status` / `pnpm db:migrate` | **PASS** | Repository migrations 001–009 are applied and the schema is current. |
+| `pnpm desktop:package` | **PASS** | Windows x64 Electron package completed. Packaging is not install, signing, endpoint, or multiplayer proof. |
+| Browser normal startup | **PASS** | In-app browser reached Join; deliberate live top-level render failure was not run. |
+| Electron development startup/fullscreen | **PASS** | Normal renderer startup, persisted fullscreen across restart, and reset-to-windowed were observed. Native OS enter/leave acceptance remains open. |
+| Packaged Electron missing endpoint | **PASS** | The package displayed safe bootstrap failure and remained open instead of silently using localhost or quitting early. |
+| Packaged Electron explicit endpoint | **NOT RUN** | Typed injection acceptance is automated; interactive explicit-endpoint launch was not completed in this host environment. |
+| Docker PostgreSQL stack | **NOT RUN** | Docker Desktop named-pipe access was unavailable; native PostgreSQL was used successfully for database-enabled tests. |
+
 ## 9. Open manual and external gates
 
 The following remain open and must be reported separately from automated status:
@@ -288,7 +386,8 @@ and chat checklists.
 
 ## 10. Scope freeze
 
-Phase 6.0 authorizes documentation and validation only. It does not authorize:
+The Phase 6.0 audit-time scope freeze authorized documentation and validation
+only. It did not authorize:
 
 - rules, economy, GameCore, server authority, V8, migration, or snapshot work;
 - board, camera, dice, character, or Phase 4 visual redesign;
@@ -308,4 +407,7 @@ Phase 6.0 authorizes documentation and validation only. It does not authorize:
   project-document/ui-ux-overhaul/05A_PHASE_5_0_AUDIT_AND_SCOPE.md only to
   correct pushed/remote status; Phase 5 is not marked manually closed
 
-The final Phase 6.0 deliverable is one focused local documentation commit.
+The Phase 6.0 deliverable was one focused local documentation commit. The
+Phase 6.1 corrective pass adds the implementation record in this document and
+in 06_PHASE_6_POLISH_DISTRIBUTION.md; it does not reopen the audit scope or
+start Phase 6.2.

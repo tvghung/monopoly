@@ -12,11 +12,6 @@ export interface CharacterTextureError {
   cause: unknown;
 }
 
-export interface CharacterTexturePreload {
-  promise: Promise<THREE.Texture>;
-  release: () => void;
-}
-
 type TextureErrorListener = (error: CharacterTextureError) => void;
 
 interface CacheEntry {
@@ -182,48 +177,6 @@ export function acquireCharacterTexture(
     entry.texture?.dispose();
     textureCache.delete(key);
   };
-}
-
-/**
- * Warm one character variant through the same reference-counted cache used by
- * CharacterBillboard. The caller keeps the lease until the gameplay surface
- * has mounted, then releases it when the room changes or unmounts.
- */
-export function preloadCharacterTexture(
-  characterId: CharacterId | null,
-  playerColor: PlayerColorId,
-): CharacterTexturePreload {
-  let releaseAcquisition: () => void = () => {};
-  let rejectPromise: ((cause: unknown) => void) | null = null;
-  let settled = false;
-  const promise = new Promise<THREE.Texture>((resolve, reject) => {
-    rejectPromise = reject;
-    releaseAcquisition = acquireCharacterTexture(
-      characterId,
-      playerColor,
-      texture => {
-        settled = true;
-        resolve(texture);
-      },
-      error => {
-        settled = true;
-        reject(error);
-      },
-    );
-  });
-
-  let released = false;
-  const release = () => {
-    if (released) return;
-    released = true;
-    releaseAcquisition();
-    if (!settled) {
-      settled = true;
-      rejectPromise?.(new Error('Character texture preload was cancelled.'));
-    }
-  };
-
-  return { promise, release };
 }
 
 export function getCharacterTextureCacheSize(): number {

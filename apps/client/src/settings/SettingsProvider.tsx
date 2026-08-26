@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -23,6 +24,8 @@ export function SettingsProvider({ children, initialSettings }: SettingsProvider
   const [settings, setSettings] = useState<GameSettings>(
     () => initialSettings ? normalizeSettings(initialSettings) : readGameSettings(),
   );
+  const startupFullscreenIntentRef = useRef(settings.fullscreen);
+  const startupFullscreenAppliedRef = useRef(false);
   const desktopBridge = getDesktopBridge();
 
   useEffect(() => {
@@ -45,12 +48,15 @@ export function SettingsProvider({ children, initialSettings }: SettingsProvider
         ? current
         : normalizeSettings({ ...current, fullscreen }));
     };
-    void desktopBridge.window.getState().then(state => {
+    const removeListener = desktopBridge.window.onFullscreenChanged(state => {
       if (active) syncFullscreen(state.fullscreen);
     });
-    const removeListener = desktopBridge.window.onFullscreenChanged(state => {
-      syncFullscreen(state.fullscreen);
-    });
+    if (!startupFullscreenAppliedRef.current) {
+      startupFullscreenAppliedRef.current = true;
+      void desktopBridge.window.setFullscreen(startupFullscreenIntentRef.current).catch(error => {
+        console.error('Could not apply the saved fullscreen preference.', error);
+      });
+    }
     return () => {
       active = false;
       removeListener();

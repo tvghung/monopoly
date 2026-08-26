@@ -10,15 +10,6 @@ export type BootStage =
   | 'ready'
   | 'error';
 
-export interface BootstrapProgress {
-  stage: BootStage;
-  loaded: number;
-  total: number;
-  failed: number;
-  currentAssetId: string | null;
-  currentAssetLabel: string | null;
-}
-
 export interface BootstrapResult {
   runtimeConfig: RuntimeConfig;
   socket: AppSocket;

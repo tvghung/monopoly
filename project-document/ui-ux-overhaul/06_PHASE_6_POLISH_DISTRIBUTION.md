@@ -1,7 +1,7 @@
 # Phase 6 — Polish & Distribution
 
-**Status: Phase 6.0 audit and scope lock complete; Phase 6.1 and 6.2
-implementation not started**
+**Status: Phase 6.0 audit and scope lock complete; Phase 6.1 corrective
+implementation complete locally; Phase 6.2 not started**
 
 Phase 6 is bounded by the current V8 server/shared contract and the existing
 client presentation architecture:
@@ -32,6 +32,43 @@ polish/distribution plan with current code and records:
 
 Phase 6.0 makes no production code, protocol, migration, dependency, asset, or
 UI change.
+
+### 1.1 Phase 6.1 corrective implementation record — 2026-08-26
+
+The corrective pass reconciled the previous implementation with the Phase 6.0
+scope lock before adding release-hardening code:
+
+- The generic critical-asset readiness manager, room asset gate, asset progress
+  plumbing, character preload lease, SVG preload/retry additions, and Electron
+  MIME additions that existed only to support that gate were removed. No
+  profiling or UAT evidence justified a new generic authority. The existing
+  reference-counted character cache, shared SVG/card ownership, procedural
+  assets, lazy scene loading, and SceneErrorBoundary-to-legacy fallback remain.
+  No new targeted prewarm was added.
+- Development keeps the loopback socket fallback. Packaged Electron now
+  requires an explicitly injected absolute HTTP(S) socket endpoint through the
+  supported CLI or environment mechanism; an explicitly supplied loopback URL
+  is accepted as configuration but is not a release endpoint. Missing or
+  invalid packaged configuration is rejected through the renderer bridge after
+  the BrowserWindow has loaded, and the renderer shows safe localized copy.
+  The real production endpoint remains an open release-owner decision.
+- One top-level React failure boundary now protects the app outside the
+  existing scene boundary, logs technical details, and offers a safe reload
+  action. Bootstrap failures likewise log details without rendering raw
+  exception text.
+- Persisted fullscreen intent is captured and applied once at desktop startup;
+  settled native enter/leave events then remain authoritative. Settings-panel
+  toggling and reset-to-windowed behavior remain intact.
+
+Local validation for this corrective pass completed with root typecheck, lint,
+database-enabled tests, production build, focused client/desktop tests, and
+Windows x64 desktop packaging passing. The build retains the existing large
+main-chunk advisory. Browser Join and Electron development startup/fullscreen
+restart/reset smoke checks passed; live multiplayer, deliberate live
+top-level-failure smoke, installed-runtime, audible, accessibility, soak,
+signing, notarization, and real-endpoint connectivity remain separate open
+gates. Remote CI/Desktop Build status is verified against the pushed SHA and
+reported separately; Phase 6.2 remains deferred.
 
 ## 2. Phase 6.1 — Release Hardening
 

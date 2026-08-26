@@ -1,7 +1,6 @@
 import { app, BrowserWindow, protocol } from 'electron';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { getDesktopRuntimeConfig } from './runtimeConfig';
 import { installExternalNavigationGuards } from './ipc/externalLinks';
 import { QuitRequestController, registerWindowHandlers } from './ipc/windowHandlers';
 import { shouldBlockProductionInput } from './productionPolicy';
@@ -33,11 +32,6 @@ function contentType(filePath: string): string {
     '.jpeg': 'image/jpeg',
     '.gif': 'image/gif',
     '.ico': 'image/x-icon',
-    '.webp': 'image/webp',
-    '.avif': 'image/avif',
-    '.ttf': 'font/ttf',
-    '.woff': 'font/woff',
-    '.woff2': 'font/woff2',
   }[extension] ?? 'application/octet-stream';
 }
 
@@ -106,7 +100,6 @@ function createWindow(): BrowserWindow {
 
 app.whenReady().then(() => {
   if (app.isPackaged) registerProductionRenderer();
-  getDesktopRuntimeConfig();
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
