@@ -1,10 +1,14 @@
 # Phase 5 — Game Feel, Audio & Visual Feedback
 
-**PHASE 5.2 CORRECTIVE PASS IMPLEMENTED LOCALLY — automated gates run separately; live/manual gates remain explicitly open**
+**PHASE 5.2 CORRECTIVE PASS PUSHED at e4ce23d — remote CI and Desktop Build
+PASS; live/manual gates remain explicitly open**
 
 The earlier Phase 5.0 handoff was documentation-only. Phase 5.1 and the focused
-Phase 5.2 corrective pass are implemented locally; the detailed audit and scope
-boundary remain in [05A_PHASE_5_0_AUDIT_AND_SCOPE.md](05A_PHASE_5_0_AUDIT_AND_SCOPE.md).
+Phase 5.2 corrective pass are implemented and pushed at e4ce23d; the detailed
+audit and scope boundary remain in
+[05A_PHASE_5_0_AUDIT_AND_SCOPE.md](05A_PHASE_5_0_AUDIT_AND_SCOPE.md). Remote CI
+and Desktop Build passed for that exact corrective baseline. Manual/live
+acceptance remains separate and is not closed here.
 
 ## 1. Current scope
 
@@ -21,9 +25,10 @@ single
 
 ## 2. Phase 5.1 — Centralized Audio, Core SFX, One Background Music Track & Corrective Game Feel
 
-Implementation status: **CORRECTIVE PASS IMPLEMENTED LOCALLY on 2026-08-25**, subject
-to the separately reported browser/Electron auditory QA, long-session, and
-remote-CI boundaries. This status covers the centralized runtime, core SFX, one
+Implementation status: **CORRECTIVE PASS IMPLEMENTED AND PUSHED at e4ce23d on
+2026-08-25**, with remote CI and Desktop Build PASS for that exact baseline and
+the separately reported browser/Electron auditory QA and long-session
+boundaries. This status covers the centralized runtime, core SFX, one
 procedural background music track, and the bounded corrective game-feel work
 below. It does not close the manual Phase 5 gates.
 
@@ -246,8 +251,9 @@ V8. Migration `009_activity_feed_v8.sql` initializes an empty typed activity tai
 for V7 rows and does not reconstruct legacy logs. No second protocol/snapshot bump
 or ambience migration is part of this phase.
 
-Next: report the automated/database gates for this corrective pass, then complete
-the separately reported browser/Electron, multiplayer, long-session, and remote-CI
-gates. Phase 6 is the next planned phase after corrective implementation and
-automated validation; Phase 5 is not claimed fully closed while manual gates remain
-NOT RUN.
+Next: keep automated/database gates, browser/Electron, multiplayer, long-session,
+and remote evidence separate. Remote CI and Desktop Build are PASS for
+e4ce23d; local database and live/manual gates still require their own evidence.
+Phase 6 is the next planned phase after corrective implementation and automated
+validation; Phase 5 is not claimed fully closed while manual gates remain NOT
+RUN.

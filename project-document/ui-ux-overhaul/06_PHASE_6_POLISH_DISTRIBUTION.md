@@ -1,278 +1,103 @@
 # Phase 6 — Polish & Distribution
 
-## 1. Mục tiêu
-
-Biến overhaul thành build desktop ổn định, có thể dùng thực tế trên Windows và macOS.
-
-Focus:
-
-- performance
-- stability
-- preload
-- reconnect
-- packaging
-- release QA
-
----
-
-# 2. Asset loading
-
-Phân loại assets:
-
-## Critical
-
-Load trước khi vào gameplay:
-
-- board textures
-- character sprites của players trong room
-- dice assets
-- core SFX
-- fonts
-
-## Deferred
-
-- unused character sprites
-- extra music
-- non-critical decorative assets
-
-Không để gameplay bắt đầu khi critical assets chưa ready.
-
----
-
-# 3. Loading screen
-
-Show:
-
-- logo
-- progress
-- current stage
-- error/retry nếu asset fail
-
-Không fake progress vô nghĩa nếu có thể đo thật.
-
----
-
-# 4. Performance audit
-
-Kiểm tra:
-
-- FPS
-- memory
-- React rerenders
-- draw calls
-- geometry/material reuse
-- texture memory
-- particle count
-- audio object lifecycle
-- animation queue growth
-- event listener cleanup
-
----
-
-# 5. Quality settings
-
-Nếu cần:
-
-- High
-- Balanced
-- Low
-
-Có thể điều khiển:
-
-- shadows
-- particles
-- decorative props
-- antialiasing/render scale
-
-Không làm quality system quá phức tạp.
-
----
-
-# 6. Long-session stability
-
-Test trận dài.
-
-Quan sát:
-
-- FPS giảm dần?
-- memory tăng liên tục?
-- duplicate audio?
-- duplicate character?
-- stale event queue?
-- reconnect nhiều lần?
-- modal leak?
-- event feed leak?
-
----
-
-# 7. Reconnect hardening
-
-Scenarios:
-
-- reconnect khi idle
-- reconnect khi dice đang animation
-- reconnect khi movement
-- reconnect khi card modal
-- reconnect khi payment
-- reconnect khi bankruptcy
-
-Behavior:
-
-- reset presentation queue
-- fetch/use authoritative state
-- snap visual state
-- restore correct UI/action availability
-- không replay stale animation
-
----
-
-# 8. Desktop packaging
-
-Windows:
-
-- installer / executable
-- app icon
-- version metadata
-- clean uninstall
-- launch behavior
-
-macOS:
-
-- `.app`
-- `.dmg` nếu pipeline hỗ trợ
-- icon
-- bundle metadata
-- signing/notarization plan nếu distribute rộng
-
----
-
-# 9. Auto-update
-
-Nếu project cần:
-
-- define update channel
-- versioning
-- update check
-- safe restart
-
-Có thể để post-v1 nếu chưa cần public distribution.
-
----
-
-# 10. Crash/error handling
-
-Cần:
-
-- top-level error boundary
-- renderer failure fallback
-- socket failure UI
-- asset failure fallback
-- logging strategy
-- safe recovery
-
-Không show raw stack trace cho player production.
-
----
-
-# 11. Accessibility / comfort
-
-- reduced motion
-- animation speed
-- readable text
-- color + icon, không chỉ color
-- keyboard focus cơ bản
-- sound controls
-- fullscreen/windowed
-
----
-
-# 12. Release QA Matrix
-
-## Windows
-
-- Windows 10
-- Windows 11
-- 1080p
-- 1440p
-- scaling 100/125/150%
-
-## macOS
-
-- Apple Silicon
-- Intel nếu support là requirement
-- Retina
-- fullscreen/windowed
-
----
-
-# 13. Multiplayer QA
-
-Test:
-
-- 2 players
-- 3 players
-- 4 players
-
-Scenarios:
-
-- normal game
-- reconnect
-- bankruptcy
-- multiple builds
-- rapid actions
-- long game
-- leave/rejoin
-- finished room behavior
-
----
-
-# 14. Final Regression
-
-Bắt buộc chạy:
-
-- typecheck
-- lint
-- full test suite
-- persistence tests
-- restart/recovery tests
-- WebSocket tests
-- multiplayer manual test
-
-Overhaul không được phá các rule đã hoàn thành trước đó.
-
----
-
-# 15. Acceptance Criteria
-
-- [ ] Windows build cài/chạy được.
-- [ ] macOS build chạy được.
-- [ ] Critical assets preload đúng.
-- [ ] Không có asset pop-in nghiêm trọng.
-- [ ] Long-session performance ổn.
-- [ ] Reconnect ổn ở các action quan trọng.
-- [ ] Animation queue không leak.
-- [ ] Audio không leak.
-- [ ] Reduced motion hoạt động.
-- [ ] Quality/performance settings nếu cần hoạt động.
-- [ ] End-to-end 2–4 player test pass.
-- [ ] Typecheck pass.
-- [ ] Lint pass.
-- [ ] Full tests pass.
-- [ ] Không có game-rule regression.
-
----
-
-# 16. Release Definition of Done
-
-Chỉ release overhaul khi:
-
-1. Desktop build ổn.
-2. Gameplay rules giữ nguyên.
-3. 2.5D board ổn.
-4. Character selection/movement ổn.
-5. Dice/buy/build/money/card/jail/bankruptcy presentation ổn.
-6. Sound/effects không gây mệt.
-7. Reconnect ổn.
-8. Performance ổn.
-9. End-game ổn.
-10. Full regression pass.
+**Status: Phase 6.0 audit and scope lock complete; Phase 6.1 and 6.2
+implementation not started**
+
+Phase 6 is bounded by the current V8 server/shared contract and the existing
+client presentation architecture:
+
+SERVER OWNS TRUTH → PresentationController → AnimationQueue →
+PresentationStore → GameScene/R3F or the legacy board fallback
+
+Audio remains the single AudioEngine and AudioProvider path. Phase 6 does not
+add a second queue, event bus, history, AudioEngine, renderer, or asset-ready
+authority.
+
+The detailed evidence and classifications are in
+06A_PHASE_6_0_RELEASE_READINESS_AUDIT.md.
+
+## 1. Phase 6.0 — Release Readiness Audit and Scope Lock
+
+This audit phase is documentation and validation only. It reconciles the old
+polish/distribution plan with current code and records:
+
+- baseline branch and SHA;
+- current bootstrap, settings, session/reconnect, presentation, audio,
+  renderer, cache, accessibility, Electron, server, persistence, contract,
+  Forge, and CI evidence;
+- exact A/B/C/D/E/F classifications;
+- current renderer measurements and separate automated, database, browser,
+  Electron, manual, remote-CI, commit, push, and merge status;
+- genuine implementation gaps and conditional profiling work.
+
+Phase 6.0 makes no production code, protocol, migration, dependency, asset, or
+UI change.
+
+## 2. Phase 6.1 — Release Hardening
+
+Implement only the confirmed boundaries from the audit:
+
+1. Decide and inject the real packaged multiplayer endpoint at release time.
+   Validate it, fail closed when a packaged value is missing, retain loopback
+   only for development, and expose a safe bootstrap failure state. Do not
+   invent or commit a deployment URL.
+2. Add one top-level React failure boundary and safe production bootstrap error
+   copy while retaining the existing SceneErrorBoundary-to-legacy fallback.
+3. Restore persisted fullscreen intent once at desktop startup, then keep native
+   enter/leave events authoritative. Preserve reset-to-windowed behavior.
+4. Add targeted board asset prewarm or bundle/quality work only if cold-start or
+   device profiling proves a material problem.
+5. Add focused tests for every changed boundary.
+
+No rules, economy, GameCore, server authority, V8, migration, board/camera,
+dice, character, presentation, audio, or unrelated refactor belongs here.
+
+## 3. Phase 6.2 — Distribution and Release Verification
+
+Complete the release boundary after 6.1:
+
+- choose one release version source and configure native Windows .ico and macOS
+  .icns metadata;
+- build and inspect Windows Squirrel and macOS DMG/app outputs;
+- verify clean install, launch, packaged endpoint connectivity, quit behavior,
+  security policy, and uninstall;
+- run live 2, 3, and 4 player gameplay and all reconnect/recovery scenarios;
+- verify spectator, FINISHED, Play Again, leave/rejoin, and second-match
+  behavior;
+- run browser/Electron accessibility, reduced-motion, focus, contrast, scaling,
+  audio, and visual comfort checks;
+- run a 30–60 minute memory, renderer, queue, activity, and audio soak;
+- complete signing/notarization with the release owner when distribution
+  requires it;
+- preserve the existing remote CI and Desktop Build evidence boundaries.
+
+Packaging or maker success is not installation, runtime, signing, notarization,
+multiplayer, or audible proof.
+
+## 4. Explicitly deferred or superseded
+
+- The old generic “critical assets must all preload” gate is superseded by the
+  current local-bundle, procedural, lazy, and bounded-cache architecture. Add
+  only targeted prewarm after evidence of pop-in.
+- High/Balanced/Low quality modes and arbitrary render-scale changes are
+  conditional on profiling.
+- Auto-update is post-v1.
+- Analytics, accounts, cloud saves, voice, emotes transport, historical
+  statistics, new-room redesign, board/camera redesign, rules/economy changes,
+  and unrelated cleanup are outside Phase 6.
+
+## 5. Release stop conditions
+
+Do not call the distributed desktop build release-ready while any of these
+remain unresolved:
+
+- no explicit production multiplayer endpoint;
+- fullscreen preference restoration is still broken if that behavior is
+  promised;
+- a top-level render failure can blank the client without safe recovery;
+- native icon/version provenance is unresolved for the target artifacts;
+- live multiplayer/reconnect, installed-runtime, accessibility, audible,
+  long-session, signing, or notarization gates are unrun where required.
+
+Automated PASS, package PASS, and remote CI PASS must continue to be reported
+separately from these gates.

@@ -529,17 +529,31 @@ File:
 
 ## Phase 6 — Polish & Distribution
 
+Status: Phase 6.0 release-readiness audit and scope lock is complete on the
+current V8 baseline. No Phase 6 production implementation has started.
+
 Mục tiêu:
 
 - performance
-- preload
+- evidence-backed asset loading
 - settings
 - reconnect
 - accessibility
-- installer
-- Windows EXE
+- release hardening
+- Windows Squirrel
 - macOS APP/DMG
 - release verification
+
+Phase 6 contains only:
+
+1. Phase 6.0 — Release Readiness Audit and Scope Lock.
+2. Phase 6.1 — Release Hardening.
+3. Phase 6.2 — Distribution and Release Verification.
+
+The detailed current-code matrix and scope freeze are in
+[06A_PHASE_6_0_RELEASE_READINESS_AUDIT.md](06A_PHASE_6_0_RELEASE_READINESS_AUDIT.md).
+Auto-update remains post-v1. The current V8 contract, server authority, and
+single presentation/audio architectures remain frozen.
 
 File:
 
