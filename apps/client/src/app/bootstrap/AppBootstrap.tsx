@@ -6,18 +6,28 @@ import { SettingsProvider } from '../../settings/SettingsProvider';
 import BootstrapErrorScreen from '../screens/BootstrapErrorScreen';
 import LoadingScreen from '../screens/LoadingScreen';
 import { bootstrap } from './bootstrap';
-import type { BootStage, BootstrapResult } from './types';
+import { getSafeAssetReadinessMessage } from './assetReadiness';
+import type { BootStage, BootstrapProgress, BootstrapResult } from './types';
 
 interface BootstrapState {
   stage: BootStage;
   result: BootstrapResult | null;
   error: string | null;
+  progress: BootstrapProgress;
 }
 
 const initialState: BootstrapState = {
   stage: 'loading-settings',
   result: null,
   error: null,
+  progress: {
+    stage: 'loading-settings',
+    loaded: 0,
+    total: 0,
+    failed: 0,
+    currentAssetId: null,
+    currentAssetLabel: null,
+  },
 };
 
 export default function AppBootstrap() {
@@ -27,17 +37,28 @@ export default function AppBootstrap() {
   useEffect(() => {
     let active = true;
     setState(initialState);
-    void bootstrap(stage => {
-      if (active) setState(current => ({ ...current, stage }));
+    void bootstrap(progress => {
+      if (active) setState(current => ({
+        ...current,
+        stage: progress.stage,
+        progress,
+      }));
     }).then(result => {
-      if (active) setState({ stage: 'ready', result, error: null });
+      if (active) setState({
+        stage: 'ready',
+        result,
+        error: null,
+        progress: { ...initialState.progress, stage: 'ready' },
+      });
       else result.socket.disconnect();
     }).catch(error => {
       if (!active) return;
+      console.error('Own the Block bootstrap failed.', error);
       setState({
         stage: 'error',
         result: null,
-        error: error instanceof Error ? error.message : 'Không rõ lỗi khởi động.',
+        error: getSafeAssetReadinessMessage(error),
+        progress: { ...initialState.progress, stage: 'error' },
       });
     });
     return () => {
@@ -61,5 +82,5 @@ export default function AppBootstrap() {
     );
   }
 
-  return <LoadingScreen stage={state.stage} />;
+  return <LoadingScreen stage={state.stage} progress={state.progress} />;
 }

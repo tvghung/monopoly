@@ -33,6 +33,11 @@ function contentType(filePath: string): string {
     '.jpeg': 'image/jpeg',
     '.gif': 'image/gif',
     '.ico': 'image/x-icon',
+    '.webp': 'image/webp',
+    '.avif': 'image/avif',
+    '.ttf': 'font/ttf',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
   }[extension] ?? 'application/octet-stream';
 }
 

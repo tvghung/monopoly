@@ -28,6 +28,9 @@ import Lobby from './components/Lobby';
 import SpectatorBanner from './components/SpectatorBanner';
 import { useToast } from './components/Toast';
 import ConfirmationDialog from './design-system/components/ConfirmationDialog/ConfirmationDialog';
+import BootstrapErrorScreen from './app/screens/BootstrapErrorScreen';
+import LoadingScreen from './app/screens/LoadingScreen';
+import { useRoomAssetReadiness } from './app/bootstrap/roomAssetReadiness';
 import SettingsPanel from './settings/SettingsPanel';
 import FpsBadge from './game/ui/FpsBadge';
 import { getDesktopBridge } from './runtime/desktopBridge';
@@ -49,6 +52,7 @@ import { requestRollDiceAck } from './rollDiceRequest';
 import { getDefaultWebRuntimeConfig } from './runtime/runtimeConfig';
 import type { RuntimeConfig } from './runtime/types';
 import { useAudio } from './audio/useAudio';
+import { supportsWebGL } from './game/scene/fallback/webglSupport';
 import './App.css';
 
 const initialState: PublicGameState = {
@@ -102,17 +106,6 @@ const terminalSessionCodes = new Set<AckError['code']>([
   'ROOM_FULL',
 ]);
 const ACK_TIMEOUT_MS = 10_000;
-
-function LoadingScreen({ message }: { message: string }) {
-  return (
-    <section className="app-status" role="status" aria-live="polite">
-      <span className="connection-overlay__spinner" aria-hidden="true" />
-      <h1>Own the Block</h1>
-      <p>Cờ Tỷ Phú Việt Nam</p>
-      <p>{message}</p>
-    </section>
-  );
-}
 
 interface FailureScreenProps {
   title: string;
@@ -177,6 +170,8 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const desktopBridge = getDesktopBridge();
   const activeRoomId = room?.roomId ?? null;
+  const webglSupported = useMemo(() => supportsWebGL(), []);
+  const roomAssetReadiness = useRoomAssetReadiness(room, webglSupported);
 
   useEffect(() => {
     const roomSessionActive = activeRoomId !== null
@@ -811,7 +806,23 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
             </button>
           </div>
           {operationError ? <p className="room-exit-error" role="alert">{operationError}</p> : null}
-          <Board />
+          {roomAssetReadiness.status === 'ready'
+            ? <Board />
+            : roomAssetReadiness.status === 'error'
+              ? (
+                <BootstrapErrorScreen
+                  title="Không thể chuẩn bị bàn cờ"
+                  error={roomAssetReadiness.error ?? 'Không thể chuẩn bị trò chơi. Hãy thử lại.'}
+                  onRetry={roomAssetReadiness.retry}
+                />
+              )
+              : (
+                <LoadingScreen
+                  stage="loading-assets"
+                  message="Đang chuẩn bị bàn cờ…"
+                  progress={roomAssetReadiness.progress}
+                />
+              )}
         </>
       )
     : null;

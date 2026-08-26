@@ -25,11 +25,13 @@ interface SvgImageCacheEntry {
   image: HTMLImageElement | null;
   error: boolean;
   started: boolean;
+  requestId: number;
   listeners: Set<SvgImageListener>;
 }
 
 const SVG_IMAGE_CACHE = new Map<string, SvgImageCacheEntry>();
 const SVG_TEXTURE_CACHE = new Map<string, THREE.Texture>();
+const DEFAULT_SVG_PRELOAD_TIMEOUT_MS = 8_000;
 
 function getSvgImageCacheEntry(url: string): SvgImageCacheEntry {
   const existing = SVG_IMAGE_CACHE.get(url);
@@ -38,33 +40,111 @@ function getSvgImageCacheEntry(url: string): SvgImageCacheEntry {
     image: null,
     error: false,
     started: false,
+    requestId: 0,
     listeners: new Set(),
   };
   SVG_IMAGE_CACHE.set(url, entry);
   return entry;
 }
 
-function startSvgImageLoad(url: string, entry: SvgImageCacheEntry): void {
-  if (entry.started || typeof Image === 'undefined') return;
+function startSvgImageLoad(url: string, entry: SvgImageCacheEntry): number | null {
+  if (entry.image || entry.started || typeof Image === 'undefined') {
+    return entry.started ? entry.requestId : null;
+  }
   entry.started = true;
+  entry.error = false;
+  const requestId = entry.requestId + 1;
+  entry.requestId = requestId;
   const image = new Image();
   image.decoding = 'async';
   image.crossOrigin = 'anonymous';
   image.onload = () => {
+    if (entry.requestId !== requestId) return;
     entry.image = image;
+    entry.started = false;
+    entry.error = false;
     entry.listeners.forEach(listener => listener(image));
   };
-  image.onerror = () => {
+  image.onerror = cause => {
+    if (entry.requestId !== requestId) return;
+    entry.started = false;
     entry.error = true;
     entry.listeners.forEach(listener => listener(null));
+    void cause;
   };
   image.src = url;
+  return requestId;
+}
+
+export interface SvgImagePreloadOptions {
+  timeoutMs?: number;
+  signal?: AbortSignal;
+}
+
+export function preloadSharedSvgImage(
+  url: string,
+  options: SvgImagePreloadOptions = {},
+): Promise<HTMLImageElement> {
+  const entry = getSvgImageCacheEntry(url);
+  if (entry.image) return Promise.resolve(entry.image);
+  if (typeof Image === 'undefined') {
+    return Promise.reject(new Error('The browser image loader is unavailable.'));
+  }
+
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeoutMs = Math.max(1, options.timeoutMs ?? DEFAULT_SVG_PRELOAD_TIMEOUT_MS);
+    let requestId = entry.requestId;
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      options.signal?.removeEventListener('abort', onAbort);
+      entry.listeners.delete(listener);
+      callback();
+    };
+    const abandonRequest = () => {
+      if (entry.requestId !== requestId || !entry.started) return;
+      entry.started = false;
+      entry.error = true;
+      entry.requestId += 1;
+    };
+    const onAbort = () => {
+      abandonRequest();
+      finish(() => reject(new Error('Shared SVG preload was cancelled.')));
+    };
+    const listener: SvgImageListener = image => {
+      if (image) finish(() => resolve(image));
+      else finish(() => reject(new Error('Shared SVG image failed to load.')));
+    };
+
+    entry.listeners.add(listener);
+    if (options.signal?.aborted) {
+      onAbort();
+      return;
+    }
+    options.signal?.addEventListener('abort', onAbort, { once: true });
+    timer = setTimeout(() => {
+      abandonRequest();
+      finish(() => reject(new Error('Shared SVG image load timed out.')));
+    }, timeoutMs);
+
+    if (entry.image) {
+      finish(() => resolve(entry.image as HTMLImageElement));
+    } else if (!entry.started) {
+      requestId = startSvgImageLoad(url, entry) ?? entry.requestId;
+    } else {
+      requestId = entry.requestId;
+    }
+  });
 }
 
 /** Start shared card/tile icon loading before a physical card enters focus. */
 export function prewarmSharedSvgTexture(url: string): void {
-  const entry = getSvgImageCacheEntry(url);
-  startSvgImageLoad(url, entry);
+  void preloadSharedSvgImage(url).catch(error => {
+    console.warn('Optional shared SVG asset failed to preload.', error);
+  });
 }
 
 function useSvgImage(url: string): HTMLImageElement | null {
@@ -126,6 +206,12 @@ export function useSharedSvgTexture(url: string): THREE.Texture | null {
     SVG_TEXTURE_CACHE.set(url, texture);
     return texture;
   }, [image, url]);
+}
+
+export function resetSharedSvgImageCacheForTests(): void {
+  SVG_TEXTURE_CACHE.forEach(texture => texture.dispose());
+  SVG_TEXTURE_CACHE.clear();
+  SVG_IMAGE_CACHE.clear();
 }
 
 export function getRaisedSvgTileIconArtSize(

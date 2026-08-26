@@ -7,6 +7,7 @@ import { characterSvgDataUri } from './characterSvg';
 import {
   acquireCharacterTexture,
   getCharacterTextureCacheSize,
+  preloadCharacterTexture,
   resetCharacterTextureCacheForTests,
 } from './characterTextureCache';
 
@@ -166,6 +167,23 @@ describe('character texture cache lifecycle', () => {
     expect(getCharacterTextureCacheSize()).toBe(1);
     secondRelease();
     expect(dispose).toHaveBeenCalledTimes(1);
+    expect(getCharacterTextureCacheSize()).toBe(0);
+  });
+
+  it('shares the readiness preload lease with the mounted billboard cache consumer', async () => {
+    const { images } = mockImagePipeline();
+    const preload = preloadCharacterTexture('dog', 'red');
+    const ready = vi.fn();
+    const releaseMounted = acquireCharacterTexture('dog', 'red', ready);
+
+    expect(images).toHaveLength(1);
+    images[0].resolve();
+    await expect(preload.promise).resolves.toBeInstanceOf(THREE.CanvasTexture);
+    expect(ready).toHaveBeenCalledTimes(1);
+
+    preload.release();
+    expect(getCharacterTextureCacheSize()).toBe(1);
+    releaseMounted();
     expect(getCharacterTextureCacheSize()).toBe(0);
   });
 });

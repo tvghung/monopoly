@@ -1,37 +1,71 @@
 import { createSocket } from '../../network/createSocket';
 import { loadRuntimeConfig } from '../../runtime/runtimeConfig';
 import { readGameSettings } from '../../settings/storage';
-import type { BootStage, BootstrapResult } from './types';
+import {
+  DEFERRED_ASSET_INVENTORY,
+  GLOBAL_ASSET_INVENTORY,
+  preloadAssetPlan,
+  type AssetPreloadReport,
+  type AssetProgress,
+} from './assetReadiness';
+import type { BootstrapProgress, BootstrapResult } from './types';
 
-type StageListener = (stage: BootStage) => void;
+export type BootstrapProgressListener = (progress: BootstrapProgress) => void;
 
-async function preloadCriticalAssets(): Promise<void> {
-  if (typeof document === 'undefined') return;
-  const assetUrls = ['/favicon.svg'];
-  await Promise.all(assetUrls.map(async url => {
-    try {
-      const response = await fetch(url, { cache: 'force-cache' });
-      if (!response.ok) return;
-      await response.blob();
-    } catch {
-      // Branding is helpful but must not make a playable session unavailable.
-    }
-  }));
+function emptyProgress(stage: BootstrapProgress['stage']): BootstrapProgress {
+  return {
+    stage,
+    loaded: 0,
+    total: 0,
+    failed: 0,
+    currentAssetId: null,
+    currentAssetLabel: null,
+  };
 }
 
-export async function bootstrap(onStage?: StageListener): Promise<BootstrapResult> {
-  onStage?.('loading-settings');
+function reportAssetFailures(scope: string, report: AssetPreloadReport): void {
+  report.failures.forEach(failure => {
+    console.warn(`${scope} asset did not load; using its declared fallback.`, {
+      assetId: failure.id,
+      classification: failure.classification,
+      cause: failure.cause,
+    });
+  });
+}
+
+export async function preloadCriticalAssets(
+  onProgress?: (progress: AssetProgress) => void,
+): Promise<AssetPreloadReport> {
+  return preloadAssetPlan(GLOBAL_ASSET_INVENTORY, { onProgress });
+}
+
+function startDeferredAssetLoading(): void {
+  void preloadAssetPlan(DEFERRED_ASSET_INVENTORY).then(report => {
+    reportAssetFailures('Deferred', report);
+    report.release();
+  }, error => {
+    console.warn('Deferred asset loading stopped unexpectedly.', error);
+  });
+}
+
+export async function bootstrap(onProgress?: BootstrapProgressListener): Promise<BootstrapResult> {
+  onProgress?.(emptyProgress('loading-settings'));
   const settings = readGameSettings();
 
-  onStage?.('loading-runtime-config');
+  onProgress?.(emptyProgress('loading-runtime-config'));
   const runtimeConfig = await loadRuntimeConfig();
 
-  onStage?.('loading-assets');
-  await preloadCriticalAssets();
+  onProgress?.(emptyProgress('loading-assets'));
+  const criticalReport = await preloadCriticalAssets(progress => {
+    onProgress?.({ ...progress, stage: 'loading-assets' });
+  });
+  reportAssetFailures('Critical global', criticalReport);
+  criticalReport.release();
 
-  onStage?.('initializing-client');
+  onProgress?.(emptyProgress('initializing-client'));
   const socket = createSocket(runtimeConfig);
-  onStage?.('ready');
+  onProgress?.(emptyProgress('ready'));
+  startDeferredAssetLoading();
 
   return { runtimeConfig, socket, settings };
 }
