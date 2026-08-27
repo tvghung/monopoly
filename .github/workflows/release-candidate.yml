@@ -1,0 +1,167 @@
+name: Release Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      socket_url:
+        description: Absolute HTTP(S) multiplayer server URL to inject into the packaged app
+        required: true
+        type: string
+      distribution_mode:
+        description: Use signed distribution only when all secure signing inputs are available
+        required: true
+        default: unsigned-validation
+        type: choice
+        options:
+          - unsigned-validation
+          - signed
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Release quality gates
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://monopoly:monopoly@localhost:5432/monopoly
+      TEST_DATABASE_URL: postgresql://monopoly:monopoly@localhost:5432/monopoly
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: monopoly
+          POSTGRES_USER: monopoly
+          POSTGRES_PASSWORD: monopoly
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U monopoly -d monopoly"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable Corepack
+        run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Apply database migrations
+        run: pnpm db:migrate
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Test
+        run: pnpm test
+      - name: Build renderer
+        run: pnpm build
+
+  distributable:
+    name: ${{ matrix.label }}
+    needs: quality
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Windows x64
+            platform: win32
+            os: windows-latest
+            arch: x64
+            artifact: own-the-block-windows-x64
+          - label: macOS x64
+            platform: darwin
+            os: macos-13
+            arch: x64
+            artifact: own-the-block-macos-x64
+          - label: macOS arm64
+            platform: darwin
+            os: macos-14
+            arch: arm64
+            artifact: own-the-block-macos-arm64
+    env:
+      OWN_THE_BLOCK_RELEASE_SOCKET_URL: ${{ inputs.socket_url }}
+      OWN_THE_BLOCK_RELEASE_BUILD: '1'
+      OWN_THE_BLOCK_RELEASE_PLATFORM: ${{ matrix.platform }}
+      OWN_THE_BLOCK_RELEASE_ARCH: ${{ matrix.arch }}
+      OWN_THE_BLOCK_DISTRIBUTION_MODE: ${{ inputs.distribution_mode }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable Corepack
+        run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Prepare Windows signing certificate
+        if: matrix.platform == 'win32' && inputs.distribution_mode == 'signed'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.OWN_THE_BLOCK_WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.OWN_THE_BLOCK_WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_BASE64)) { throw 'Windows signing certificate secret is required for signed distribution.' }
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'own-the-block-signing.pfx'
+          [System.IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
+          "OWN_THE_BLOCK_WINDOWS_CERTIFICATE_FILE=$certificatePath" >> $env:GITHUB_ENV
+          "OWN_THE_BLOCK_WINDOWS_CERTIFICATE_PASSWORD=$env:WINDOWS_CERTIFICATE_PASSWORD" >> $env:GITHUB_ENV
+      - name: Prepare macOS signing and notarization inputs
+        if: matrix.platform == 'darwin' && inputs.distribution_mode == 'signed'
+        shell: bash
+        env:
+          MACOS_SIGN_IDENTITY: ${{ secrets.OWN_THE_BLOCK_MACOS_SIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.OWN_THE_BLOCK_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.OWN_THE_BLOCK_APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.OWN_THE_BLOCK_APPLE_TEAM_ID }}
+        run: |
+          test -n "$MACOS_SIGN_IDENTITY" || { echo 'macOS signing identity secret is required for signed distribution.'; exit 1; }
+          test -n "$APPLE_ID" || { echo 'Apple ID secret is required for signed distribution.'; exit 1; }
+          test -n "$APPLE_APP_SPECIFIC_PASSWORD" || { echo 'Apple app-specific password secret is required for signed distribution.'; exit 1; }
+          test -n "$APPLE_TEAM_ID" || { echo 'Apple team ID secret is required for signed distribution.'; exit 1; }
+          {
+            echo "OWN_THE_BLOCK_MACOS_SIGN_IDENTITY=$MACOS_SIGN_IDENTITY"
+            echo "OWN_THE_BLOCK_APPLE_ID=$APPLE_ID"
+            echo "OWN_THE_BLOCK_APPLE_APP_SPECIFIC_PASSWORD=$APPLE_APP_SPECIFIC_PASSWORD"
+            echo "OWN_THE_BLOCK_APPLE_TEAM_ID=$APPLE_TEAM_ID"
+          } >> "$GITHUB_ENV"
+      - name: Typecheck desktop
+        run: pnpm --filter @monopoly/desktop typecheck
+      - name: Test desktop
+        run: pnpm --filter @monopoly/desktop test
+      - name: Build and collect release candidate
+        run: pnpm desktop:release
+      - name: Verify collected artifact metadata
+        run: pnpm validate:release -- --release --artifacts
+      - name: Verify Windows Authenticode signature
+        if: matrix.platform == 'win32' && inputs.distribution_mode == 'signed'
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem 'apps/desktop/out/make/squirrel.windows/x64/*Setup.exe' | Select-Object -First 1
+          if (-not $setup) { throw 'Squirrel setup executable was not found.' }
+          $signature = Get-AuthenticodeSignature $setup.FullName
+          if ($signature.Status -ne 'Valid') { throw "Authenticode verification failed: $($signature.Status)" }
+      - name: Verify macOS code signature and notarization
+        if: matrix.platform == 'darwin' && inputs.distribution_mode == 'signed'
+        shell: bash
+        run: |
+          app_path=$(find apps/desktop/out -type d -name '*.app' -print -quit)
+          dmg_path=$(find apps/desktop/out/make -type f -name '*.dmg' -print -quit)
+          test -n "$app_path" || { echo 'Packaged macOS app was not found.'; exit 1; }
+          test -n "$dmg_path" || { echo 'Packaged macOS DMG was not found.'; exit 1; }
+          codesign --verify --deep --strict --verbose=2 "$app_path"
+          xcrun stapler validate "$dmg_path"
+      - name: Upload release candidate artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            apps/desktop/out/make/**
+            apps/desktop/out/release-artifacts/**
+          if-no-files-found: error

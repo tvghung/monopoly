@@ -1,7 +1,7 @@
 # Phase 6.0 — Release Readiness Audit & Scope Lock
 
 **Status: AUDIT COMPLETE — scope locked; Phase 6.1 code-hardening closeout
-complete; Phase 6.2 not started and external release gates open**
+complete; Phase 6.2 implementation complete; external release gates open**
 
 Audit date: 2026-08-26
 Repository: tvghung/monopoly
@@ -125,6 +125,45 @@ injection, native Windows/macOS metadata, clean install/launch/uninstall, live
 multiplayer and reconnect matrix, spectator/FINISHED/Play Again/second match,
 accessibility/scaling, audible validation, 30–60 minute soak, and
 signing/notarization remain open Phase 6.2 or external release gates.
+
+## 1C. Phase 6.2 implementation evidence — 2026-08-27
+
+The Phase 6.2 implementation boundary is complete, but the release decision is
+still open. The detailed ledger is in
+[06B_PHASE_6_2_RELEASE_VERIFICATION.md](06B_PHASE_6_2_RELEASE_VERIFICATION.md).
+
+- `package.json` version `3.0.0` is the canonical release source. The desktop
+  package mirrors that version for workspace metadata; deterministic release
+  validation rejects drift. Forge applies the canonical version to Electron
+  metadata and the Squirrel setup name.
+- The existing approved `apps/client/public/favicon.svg` was used to produce
+  validated Windows `.ico` and macOS `.icns` files. The native files are checked
+  for required container headers/entries before packaging.
+- `release-config.json` is generated during renderer preparation and copied to
+  packaged Electron resources. Release mode requires an absolute HTTP(S)
+  endpoint before Forge runs; CLI and `OWN_THE_BLOCK_SOCKET_URL` remain the QA
+  overrides, and missing packaged configuration remains fail-closed.
+- The server default production CORS origin is the explicit packaged origin
+  `app://own-the-block`; `CORS_ORIGIN` still replaces it when configured. The
+  Socket.IO polling test covers same-origin, packaged-origin, and disallowed
+  origin behavior without using permissive `*`.
+- The controlled Windows x64 release produced versioned Squirrel artifacts and
+  validated SHA-256 metadata. A clean Squirrel install created the expected
+  versioned app, registry entry, and shortcuts; the installed execution stub
+  launched the packaged app. The lifecycle handler removed the installer hook
+  timeout. Standard uninstall removed registration and shortcuts but left the
+  application directory after the wait window, so uninstall is recorded as
+  **FAIL**, with only the verified test directory manually cleaned afterward.
+- The release-candidate workflow includes Windows x64, macOS x64, and macOS
+  arm64 jobs, artifact upload, unsigned-validation handling, and secret-backed
+  signing/notarization verification. No current-branch remote run has yet been
+  inspected.
+
+These changes preserve SERVER OWNS TRUTH → PresentationController →
+AnimationQueue → PresentationStore → GameScene/R3F or legacy fallback, and the
+single AudioEngine/AudioProvider path. No gameplay, protocol, migration,
+GameCore, presentation, queue, renderer, or audio architecture change was
+made.
 
 ## 2. Evidence snapshot
 
@@ -383,6 +422,36 @@ Auto-update remains post-v1. No third implementation subphase is justified.
 | Packaged font console/decode inspection | **NOT RUN** | Production asset inventory and MIME tests pass; packaged DevTools/console capture for font decode errors was not available. |
 | Docker PostgreSQL stack | **NOT RUN** | Docker Desktop named-pipe access was unavailable. |
 
+## 8B. Validation record for the Phase 6.2 implementation
+
+| Command or evidence | Result | Record |
+|---|---|---|
+| `pnpm install --frozen-lockfile` | **PASS** | Workspace dependencies were already current. |
+| `pnpm typecheck` | **PASS** | All four typed workspace packages completed. |
+| `pnpm lint` | **PASS** | ESLint completed after the final source edit. |
+| `pnpm test` | **PASS** | Desktop 9 files/36 tests; server 12 files/150 passed and 10 database-gated skips; client 90 files/499 tests. |
+| Database-enabled server suite | **PASS** | With `TEST_DATABASE_URL` set only for the process from the configured local database: 13 files/160 tests passed. |
+| `pnpm db:status` | **PASS** | All nine repository migrations reported applied. |
+| `pnpm build` | **PASS** | Production renderer build completed; existing large main-chunk advisory remains. |
+| `pnpm --filter @monopoly/client test` | **PASS** | 90 files/499 tests. |
+| `pnpm --filter @monopoly/desktop typecheck` | **PASS** | Desktop typecheck completed. |
+| `pnpm --filter @monopoly/desktop test` | **PASS** | 9 files/36 tests, including release metadata and Squirrel lifecycle coverage. |
+| `pnpm desktop:package` | **PASS** | Windows x64 sanity package completed without a release endpoint. |
+| `pnpm desktop:make` | **PASS** | Windows x64 Squirrel maker completed without a release endpoint. |
+| `pnpm desktop:release` with controlled endpoint | **PASS** | Windows x64 Squirrel make, endpoint injection, manifest collection, and checksum validation completed. |
+| `git diff --check` | **PASS** | No whitespace errors. Git reported only line-ending normalization warnings. |
+| Windows clean install and installed launch | **PASS** | Setup installed `app-3.0.0`; the root execution stub launched the packaged app and exact observed app processes were stopped after the smoke check. |
+| Windows standard uninstall | **FAIL** | Exit code was 0 and registry/shortcuts were removed, but `app-3.0.0` and updater residue remained after the bounded wait. |
+| macOS x64 package | **NOT RUN** | This Windows host cannot build or mount a macOS DMG/app. |
+| macOS arm64 package | **NOT RUN** | This Windows host cannot build or mount a macOS DMG/app. |
+| Real deployed endpoint | **BLOCKED** | No release-owner production URL is present; only the controlled loopback endpoint was injected. |
+| Live multiplayer/reconnect/replay matrix | **NOT RUN** | Existing integration tests are supporting evidence, not live browser/Electron proof. |
+| Accessibility/scaling/visual comfort | **NOT RUN** | No current Phase 6.2 interactive viewport/OS-scaling pass was run. |
+| Audible audio acceptance | **NOT RUN** | Automated AudioEngine coverage is not audible proof. |
+| 30–60 minute soak | **NOT RUN** | No timed soak was run. |
+| Signing | **BLOCKED** | Local artifact mode was unsigned validation; no certificate was available. |
+| Notarization | **NOT RUN** | macOS signing/notarization was not run; production notarization remains blocked. |
+
 ## 9. Open manual and external gates
 
 The following remain open and must be reported separately from automated status:
@@ -396,8 +465,9 @@ The following remain open and must be reported separately from automated status:
 - keyboard-only, screen-reader, reduced-motion, focus restore, contrast, and
   100/125/150% scaling review;
 - WebGL failure and legacy fallback smoke;
-- clean Windows and macOS install, launch, endpoint connectivity, quit,
-  uninstall, native metadata, signing, and notarization;
+- clean macOS install/launch, real endpoint connectivity, graceful quit,
+  native metadata on both operating systems, signing, and notarization;
+- the Windows standard-uninstall residue observed in section 8B;
 - release-owner confirmation of the actual multiplayer endpoint and version
   source.
 
@@ -432,8 +502,10 @@ only. It did not authorize:
 - project-document/ui-ux-overhaul/05_PHASE_5_GAME_FEEL_AUDIO_EFFECTS.md and
   project-document/ui-ux-overhaul/05A_PHASE_5_0_AUDIT_AND_SCOPE.md only to
   correct pushed/remote status; Phase 5 is not marked manually closed
+- project-document/ui-ux-overhaul/06B_PHASE_6_2_RELEASE_VERIFICATION.md for
+  the current Phase 6.2 evidence ledger
 
 The Phase 6.0 deliverable was one focused local documentation commit. The
-Phase 6.1 corrective pass adds the implementation record in this document and
-in 06_PHASE_6_POLISH_DISTRIBUTION.md; it does not reopen the audit scope or
-start Phase 6.2.
+Phase 6.1 corrective pass and Phase 6.2 distribution implementation add
+evidence records in this document, 06_PHASE_6_POLISH_DISTRIBUTION.md, and the
+06B ledger; they do not alter the V8/gameplay scope freeze.

@@ -1,6 +1,6 @@
 {
   "name": "@monopoly/desktop",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "private": true,
   "productName": "Own the Block",
   "description": "Own the Block desktop client",

@@ -1,4 +1,6 @@
 import { app, BrowserWindow, protocol } from 'electron';
+import { existsSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { installExternalNavigationGuards } from './ipc/externalLinks';
@@ -6,9 +8,38 @@ import { QuitRequestController, registerWindowHandlers } from './ipc/windowHandl
 import { shouldBlockProductionInput } from './productionPolicy';
 import { contentType } from './rendererContentType';
 import { resolveRendererPath } from './security';
+import { resolveSquirrelEvent } from './squirrelEvents';
 
 const DEV_RENDERER_URL = process.env.OWN_THE_BLOCK_DEV_RENDERER_URL?.trim()
   || 'http://127.0.0.1:5173';
+
+function handleSquirrelEvent(): boolean {
+  if (process.platform !== 'win32') return false;
+
+  const event = resolveSquirrelEvent();
+  if (!event) return false;
+
+  const updateExe = path.resolve(path.dirname(process.execPath), '..', 'Update.exe');
+  const executableName = path.basename(process.execPath);
+  const runUpdater = (args: string[]): void => {
+    if (!existsSync(updateExe)) return;
+    const child = spawn(updateExe, args, {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    child.unref();
+  };
+
+  if (event === 'create-shortcut') {
+    runUpdater(['--createShortcut', executableName]);
+  } else if (event === 'remove-shortcut') {
+    runUpdater(['--removeShortcut', executableName]);
+  }
+
+  app.quit();
+  return true;
+}
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'app',
@@ -83,16 +114,18 @@ function createWindow(): BrowserWindow {
   return window;
 }
 
-app.whenReady().then(() => {
-  if (app.isPackaged) registerProductionRenderer();
-  createWindow();
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+if (!handleSquirrelEvent()) {
+  app.whenReady().then(() => {
+    if (app.isPackaged) registerProductionRenderer();
+    createWindow();
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  }).catch(error => {
+    console.error('Own the Block desktop failed to start.', error);
+    app.quit();
   });
-}).catch(error => {
-  console.error('Own the Block desktop failed to start.', error);
-  app.quit();
-});
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

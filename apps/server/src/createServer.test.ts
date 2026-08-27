@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createServer,
   DEVELOPMENT_RENDERER_ORIGIN,
+  PACKAGED_RENDERER_ORIGIN,
   resolveCorsOrigin,
 } from './createServer.js';
 import { InMemoryPersistenceStore } from './persistence/inMemory.js';
@@ -83,7 +84,63 @@ describe('resolveCorsOrigin', () => {
     ).toBe(explicitOrigin);
   });
 
-  it('keeps production same-origin CORS disabled by default', () => {
-    expect(resolveCorsOrigin({ NODE_ENV: 'production' })).toBe(false);
+  it('allows the explicit packaged Electron origin in production by default', () => {
+    expect(resolveCorsOrigin({ NODE_ENV: 'production' })).toBe(PACKAGED_RENDERER_ORIGIN);
+  });
+});
+
+describe('Socket.IO CORS handshake', () => {
+  it('allows the packaged origin, keeps same-origin requests working, and rejects other origins', async () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    const previousCorsOrigin = process.env.CORS_ORIGIN;
+    process.env.NODE_ENV = 'production';
+    delete process.env.CORS_ORIGIN;
+
+    try {
+      const runtime = createAppRuntime(
+        new InMemoryPersistenceStore<RoomSnapshot>(),
+        {
+          reconnectGraceMs: 60_000,
+          paymentShortfallActionTimeoutMs: 120_000,
+          cardAwaitingDrawTimeoutMs: 20_000,
+          cardRevealedTimeoutMs: 30_000,
+          pendingSessionTtlMs: 300_000,
+          terminalSessionRetentionMs: 604_800_000,
+          lobbyRetentionMs: 86_400_000,
+          inProgressRetentionMs: 2_592_000_000,
+          finishedRetentionMs: 604_800_000,
+        },
+      );
+      const { server } = createServer(runtime);
+      servers.push(server);
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as AddressInfo;
+      const handshakeUrl = `http://127.0.0.1:${port}/socket.io/?EIO=4&transport=polling`;
+
+      const sameOrigin = await fetch(handshakeUrl);
+      expect(sameOrigin.status).toBe(200);
+
+      const packaged = await fetch(handshakeUrl, {
+        headers: { Origin: PACKAGED_RENDERER_ORIGIN },
+      });
+      expect(packaged.status).toBe(200);
+      expect(packaged.headers.get('access-control-allow-origin')).toBe(
+        PACKAGED_RENDERER_ORIGIN,
+      );
+
+      const disallowed = await fetch(handshakeUrl, {
+        headers: { Origin: 'https://not-allowed.example' },
+      });
+      // Socket.IO returns the configured allowlist value; the browser rejects
+      // this response because it does not match the requesting origin.
+      expect(disallowed.headers.get('access-control-allow-origin')).not.toBe(
+        'https://not-allowed.example',
+      );
+    } finally {
+      if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previousNodeEnv;
+      if (previousCorsOrigin === undefined) delete process.env.CORS_ORIGIN;
+      else process.env.CORS_ORIGIN = previousCorsOrigin;
+    }
   });
 });
