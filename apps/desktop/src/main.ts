@@ -1,6 +1,6 @@
 import { app, BrowserWindow, protocol } from 'electron';
 import { existsSync } from 'node:fs';
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { installExternalNavigationGuards } from './ipc/externalLinks';
@@ -8,7 +8,11 @@ import { QuitRequestController, registerWindowHandlers } from './ipc/windowHandl
 import { shouldBlockProductionInput } from './productionPolicy';
 import { contentType } from './rendererContentType';
 import { resolveRendererPath } from './security';
-import { resolveSquirrelEvent } from './squirrelEvents';
+import {
+  getSquirrelLifecycleExitDelayMs,
+  resolveSquirrelEvent,
+  SQUIRREL_UPDATER_MAX_WAIT_MS,
+} from './squirrelEvents';
 
 const DEV_RENDERER_URL = process.env.OWN_THE_BLOCK_DEV_RENDERER_URL?.trim()
   || 'http://127.0.0.1:5173';
@@ -21,24 +25,109 @@ function handleSquirrelEvent(): boolean {
 
   const updateExe = path.resolve(path.dirname(process.execPath), '..', 'Update.exe');
   const executableName = path.basename(process.execPath);
-  const runUpdater = (args: string[]): void => {
-    if (!existsSync(updateExe)) return;
+  const runUpdater = (args: string[]): ChildProcess | undefined => {
+    if (!existsSync(updateExe)) return undefined;
     const child = spawn(updateExe, args, {
       detached: true,
       stdio: 'ignore',
       windowsHide: true,
     });
+    child.once('error', () => undefined);
     child.unref();
+    return child;
   };
 
+  let updater: ChildProcess | undefined;
   if (event === 'create-shortcut') {
-    runUpdater(['--createShortcut', executableName]);
+    updater = runUpdater(['--createShortcut', executableName]);
   } else if (event === 'remove-shortcut') {
-    runUpdater(['--removeShortcut', executableName]);
+    updater = runUpdater(['--removeShortcut', executableName]);
+    scheduleUninstallCleanup(path.dirname(updateExe));
   }
 
-  app.quit();
+  scheduleSquirrelLifecycleQuit(event, updater);
   return true;
+}
+
+function scheduleSquirrelLifecycleQuit(
+  event: NonNullable<ReturnType<typeof resolveSquirrelEvent>>,
+  updater: ChildProcess | undefined,
+): void {
+  const exitDelayMs = getSquirrelLifecycleExitDelayMs(event);
+  if (exitDelayMs === 0) {
+    process.exit(0);
+    return;
+  }
+
+  const startedAt = Date.now();
+  let settled = false;
+  let graceTimer: NodeJS.Timeout | undefined;
+  const maxTimer = setTimeout(() => {
+    if (settled) return;
+    settled = true;
+    process.exit(0);
+  }, SQUIRREL_UPDATER_MAX_WAIT_MS);
+
+  const quitAfterGrace = (): void => {
+    if (settled) return;
+    const remainingMs = exitDelayMs - (Date.now() - startedAt);
+    if (remainingMs > 0) {
+      graceTimer = setTimeout(quitAfterGrace, remainingMs);
+      return;
+    }
+    settled = true;
+    clearTimeout(maxTimer);
+    process.exit(0);
+  };
+
+  if (!updater || updater.exitCode !== null || updater.signalCode !== null) {
+    quitAfterGrace();
+  } else {
+    updater.once('close', quitAfterGrace);
+  }
+
+  if (settled && graceTimer) clearTimeout(graceTimer);
+}
+
+function scheduleUninstallCleanup(rootAppDirectory: string): void {
+  const systemRoot = process.env.SystemRoot ?? 'C:\\Windows';
+  const powershell = path.join(
+    systemRoot,
+    'System32',
+    'WindowsPowerShell',
+    'v1.0',
+    'powershell.exe',
+  );
+  if (!existsSync(powershell)) return;
+
+  const cleanupScript = [
+    `$root = '${rootAppDirectory.replace(/'/g, "''")}'`,
+    `$hookPid = ${process.pid}`,
+    'try { Wait-Process -Id $hookPid -Timeout 15 -ErrorAction SilentlyContinue } catch {}',
+    'Start-Sleep -Milliseconds 250',
+    'for ($attempt = 0; $attempt -lt 60; $attempt++) {',
+    '  if (-not (Test-Path -LiteralPath $root)) { break }',
+    '  try { Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction Stop } catch {}',
+    '  if (-not (Test-Path -LiteralPath $root)) { break }',
+    '  Start-Sleep -Milliseconds 250',
+    '}',
+  ].join('; ');
+  const encodedCleanupScript = Buffer.from(cleanupScript, 'utf16le').toString('base64');
+
+  const child = spawn(powershell, [
+    '-NoProfile',
+    '-NonInteractive',
+    '-WindowStyle',
+    'Hidden',
+    '-EncodedCommand',
+    encodedCleanupScript,
+  ], {
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: true,
+  });
+  child.once('error', () => undefined);
+  child.unref();
 }
 
 protocol.registerSchemesAsPrivileged([{

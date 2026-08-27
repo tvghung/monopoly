@@ -5,13 +5,45 @@ import { fileURLToPath } from 'node:url';
 export const RELEASE_CONFIG_FILE_NAME = 'release-config.json';
 export const RELEASE_SOCKET_URL_ENV = 'OWN_THE_BLOCK_RELEASE_SOCKET_URL';
 export const RELEASE_BUILD_ENV = 'OWN_THE_BLOCK_RELEASE_BUILD';
+export const RELEASE_PLATFORM_ENV = 'OWN_THE_BLOCK_RELEASE_PLATFORM';
+export const RELEASE_ARCH_ENV = 'OWN_THE_BLOCK_RELEASE_ARCH';
 export const DISTRIBUTION_MODE_ENV = 'OWN_THE_BLOCK_DISTRIBUTION_MODE';
 export const EXPECTED_PRODUCT_NAME = 'Own the Block';
 export const EXPECTED_EXECUTABLE_NAME = 'OwnTheBlock';
 
 const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+const RELEASE_PLATFORMS = new Set(['win32', 'darwin']);
+const RELEASE_ARCHITECTURES = new Set(['x64', 'arm64']);
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = path.resolve(scriptDirectory, '../../..');
+
+export function resolveReleaseTarget({
+  environment = process.env,
+  actualPlatform = process.platform,
+  actualArchitecture = process.arch,
+} = {}) {
+  const platform = environment[RELEASE_PLATFORM_ENV]?.trim() || actualPlatform;
+  const architecture = environment[RELEASE_ARCH_ENV]?.trim() || actualArchitecture;
+
+  if (!RELEASE_PLATFORMS.has(platform)) {
+    throw new Error(`${RELEASE_PLATFORM_ENV} must be win32 or darwin.`);
+  }
+  if (platform !== actualPlatform) {
+    throw new Error(
+      `${RELEASE_PLATFORM_ENV}=${platform} does not match the current host platform ${actualPlatform}.`,
+    );
+  }
+  if (!RELEASE_ARCHITECTURES.has(architecture)) {
+    throw new Error(`${RELEASE_ARCH_ENV} must be x64 or arm64.`);
+  }
+  if (architecture !== actualArchitecture) {
+    throw new Error(
+      `${RELEASE_ARCH_ENV}=${architecture} does not match the current host architecture ${actualArchitecture}.`,
+    );
+  }
+
+  return { platform, architecture };
+}
 
 function readJson(filePath) {
   try {
@@ -172,6 +204,9 @@ export function signingStatus({
     };
   }
   if (mode !== 'signed') throw new Error(`${DISTRIBUTION_MODE_ENV} must be signed or unsigned-validation.`);
+  if (!RELEASE_PLATFORMS.has(platform)) {
+    throw new Error(`Signed distribution is unsupported on ${platform}.`);
+  }
 
   const required = platform === 'win32'
     ? [
@@ -179,14 +214,26 @@ export function signingStatus({
         'OWN_THE_BLOCK_WINDOWS_CERTIFICATE_PASSWORD',
       ]
     : [
+        'OWN_THE_BLOCK_MACOS_CERTIFICATE_FILE',
+        'OWN_THE_BLOCK_MACOS_KEYCHAIN',
         'OWN_THE_BLOCK_MACOS_SIGN_IDENTITY',
         'OWN_THE_BLOCK_APPLE_ID',
         'OWN_THE_BLOCK_APPLE_APP_SPECIFIC_PASSWORD',
         'OWN_THE_BLOCK_APPLE_TEAM_ID',
       ];
-  const missing = required.filter(name => !environment[name]?.trim());
+  const missing = required.filter(name => (
+    typeof environment[name] !== 'string' || !environment[name].trim()
+  ));
   if (missing.length > 0) {
     throw new Error(`Signed distribution is missing secure CI input: ${missing.join(', ')}.`);
+  }
+
+  const fileInputs = platform === 'win32'
+    ? ['OWN_THE_BLOCK_WINDOWS_CERTIFICATE_FILE']
+    : ['OWN_THE_BLOCK_MACOS_CERTIFICATE_FILE', 'OWN_THE_BLOCK_MACOS_KEYCHAIN'];
+  const missingFiles = fileInputs.filter(name => !existsSync(environment[name].trim()));
+  if (missingFiles.length > 0) {
+    throw new Error(`Signed distribution secure file input does not exist: ${missingFiles.join(', ')}.`);
   }
 
   return {

@@ -76,12 +76,12 @@ jobs:
             artifact: own-the-block-windows-x64
           - label: macOS x64
             platform: darwin
-            os: macos-13
+            os: macos-15-intel
             arch: x64
             artifact: own-the-block-macos-x64
           - label: macOS arm64
             platform: darwin
-            os: macos-14
+            os: macos-15
             arch: arm64
             artifact: own-the-block-macos-arm64
     env:
@@ -108,6 +108,7 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.OWN_THE_BLOCK_WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_BASE64)) { throw 'Windows signing certificate secret is required for signed distribution.' }
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) { throw 'Windows signing certificate password secret is required for signed distribution.' }
           $certificatePath = Join-Path $env:RUNNER_TEMP 'own-the-block-signing.pfx'
           [System.IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
           "OWN_THE_BLOCK_WINDOWS_CERTIFICATE_FILE=$certificatePath" >> $env:GITHUB_ENV
@@ -116,20 +117,61 @@ jobs:
         if: matrix.platform == 'darwin' && inputs.distribution_mode == 'signed'
         shell: bash
         env:
+          MACOS_CERTIFICATE_BASE64: ${{ secrets.OWN_THE_BLOCK_MACOS_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.OWN_THE_BLOCK_MACOS_CERTIFICATE_PASSWORD }}
           MACOS_SIGN_IDENTITY: ${{ secrets.OWN_THE_BLOCK_MACOS_SIGN_IDENTITY }}
           APPLE_ID: ${{ secrets.OWN_THE_BLOCK_APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.OWN_THE_BLOCK_APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.OWN_THE_BLOCK_APPLE_TEAM_ID }}
         run: |
-          test -n "$MACOS_SIGN_IDENTITY" || { echo 'macOS signing identity secret is required for signed distribution.'; exit 1; }
-          test -n "$APPLE_ID" || { echo 'Apple ID secret is required for signed distribution.'; exit 1; }
-          test -n "$APPLE_APP_SPECIFIC_PASSWORD" || { echo 'Apple app-specific password secret is required for signed distribution.'; exit 1; }
-          test -n "$APPLE_TEAM_ID" || { echo 'Apple team ID secret is required for signed distribution.'; exit 1; }
+          set -euo pipefail
+          required_names=(
+            MACOS_CERTIFICATE_BASE64
+            MACOS_CERTIFICATE_PASSWORD
+            MACOS_SIGN_IDENTITY
+            APPLE_ID
+            APPLE_APP_SPECIFIC_PASSWORD
+            APPLE_TEAM_ID
+          )
+          for name in "${required_names[@]}"; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "$name secret is required for signed distribution."
+              exit 1
+            fi
+          done
+
+          certificate_path="$RUNNER_TEMP/own-the-block-macos-signing.p12"
+          keychain_path="$RUNNER_TEMP/own-the-block-macos-signing.keychain-db"
+          keychain_password="$(openssl rand -hex 32)"
+          printf '%s' "$MACOS_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
+          chmod 600 "$certificate_path"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" \
+            -k "$keychain_path" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$keychain_password" \
+            "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+          security default-keychain -s "$keychain_path"
+          if ! security find-identity -v -p codesigning "$keychain_path" | grep -Fq "$MACOS_SIGN_IDENTITY"; then
+            echo 'Requested Developer ID Application identity was not found in the temporary keychain.'
+            exit 1
+          fi
+
           {
             echo "OWN_THE_BLOCK_MACOS_SIGN_IDENTITY=$MACOS_SIGN_IDENTITY"
             echo "OWN_THE_BLOCK_APPLE_ID=$APPLE_ID"
             echo "OWN_THE_BLOCK_APPLE_APP_SPECIFIC_PASSWORD=$APPLE_APP_SPECIFIC_PASSWORD"
             echo "OWN_THE_BLOCK_APPLE_TEAM_ID=$APPLE_TEAM_ID"
+            echo "OWN_THE_BLOCK_MACOS_CERTIFICATE_FILE=$certificate_path"
+            echo "OWN_THE_BLOCK_MACOS_KEYCHAIN=$keychain_path"
           } >> "$GITHUB_ENV"
       - name: Typecheck desktop
         run: pnpm --filter @monopoly/desktop typecheck
@@ -156,6 +198,7 @@ jobs:
           test -n "$app_path" || { echo 'Packaged macOS app was not found.'; exit 1; }
           test -n "$dmg_path" || { echo 'Packaged macOS DMG was not found.'; exit 1; }
           codesign --verify --deep --strict --verbose=2 "$app_path"
+          codesign --verify --verbose=2 "$dmg_path"
           xcrun stapler validate "$dmg_path"
       - name: Upload release candidate artifacts
         uses: actions/upload-artifact@v4
@@ -165,3 +208,9 @@ jobs:
             apps/desktop/out/make/**
             apps/desktop/out/release-artifacts/**
           if-no-files-found: error
+      - name: Clean up macOS signing material
+        if: matrix.platform == 'darwin' && inputs.distribution_mode == 'signed' && always()
+        shell: bash
+        run: |
+          security delete-keychain "$RUNNER_TEMP/own-the-block-macos-signing.keychain-db" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/own-the-block-macos-signing.p12"

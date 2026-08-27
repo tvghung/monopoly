@@ -4,6 +4,7 @@ import path from 'node:path';
 import {
   assertCanonicalReleaseMetadata,
   repositoryRoot,
+  resolveReleaseTarget,
   signingStatus,
 } from './releaseMetadata.mjs';
 
@@ -28,6 +29,7 @@ const metadata = assertCanonicalReleaseMetadata({
   root: repositoryRoot,
   requireEndpoint: true,
 });
+const target = resolveReleaseTarget();
 const files = await listFiles(makeRoot);
 if (files.length === 0) throw new Error(`No distributable artifacts found under ${makeRoot}.`);
 
@@ -43,14 +45,15 @@ for (const filePath of files.sort()) {
 }
 
 const signing = signingStatus({
-  platform: process.env.OWN_THE_BLOCK_RELEASE_PLATFORM || process.platform,
+  platform: target.platform,
+  environment: process.env,
 });
 const manifest = {
   version: metadata.version,
   productName: metadata.productName,
   executableName: metadata.executableName,
-  platform: process.env.OWN_THE_BLOCK_RELEASE_PLATFORM || process.platform,
-  architecture: process.env.OWN_THE_BLOCK_RELEASE_ARCH || process.arch,
+  platform: target.platform,
+  architecture: target.architecture,
   signing,
   artifacts,
 };

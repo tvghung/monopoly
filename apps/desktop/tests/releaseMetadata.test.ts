@@ -5,6 +5,7 @@ import {
   nativeIconPaths,
   normalizeReleaseSocketUrl,
   readCanonicalReleaseMetadata,
+  resolveReleaseTarget,
   signingStatus,
 } from '../scripts/releaseMetadata.mjs';
 
@@ -41,5 +42,26 @@ describe('desktop release metadata', () => {
       signing: 'BLOCKED',
       notarization: 'NOT RUN',
     });
+  });
+
+  it('requires release metadata to match the host platform and architecture', () => {
+    expect(resolveReleaseTarget({
+      environment: {
+        OWN_THE_BLOCK_RELEASE_PLATFORM: 'darwin',
+        OWN_THE_BLOCK_RELEASE_ARCH: 'arm64',
+      },
+      actualPlatform: 'darwin',
+      actualArchitecture: 'arm64',
+    })).toEqual({ platform: 'darwin', architecture: 'arm64' });
+    expect(() => resolveReleaseTarget({
+      environment: { OWN_THE_BLOCK_RELEASE_PLATFORM: 'win32' },
+      actualPlatform: 'darwin',
+      actualArchitecture: 'arm64',
+    })).toThrow('does not match the current host platform');
+    expect(() => resolveReleaseTarget({
+      environment: { OWN_THE_BLOCK_RELEASE_ARCH: 'x64' },
+      actualPlatform: 'darwin',
+      actualArchitecture: 'arm64',
+    })).toThrow('does not match the current host architecture');
   });
 });

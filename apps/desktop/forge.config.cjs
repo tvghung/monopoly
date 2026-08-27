@@ -18,16 +18,9 @@ const windowsSigning = signedDistribution
   : {};
 
 const osxSign = signedDistribution && process.env.OWN_THE_BLOCK_MACOS_SIGN_IDENTITY
-  ? { identity: process.env.OWN_THE_BLOCK_MACOS_SIGN_IDENTITY }
-  : undefined;
-const osxNotarize = signedDistribution
-  && process.env.OWN_THE_BLOCK_APPLE_ID
-  && process.env.OWN_THE_BLOCK_APPLE_APP_SPECIFIC_PASSWORD
-  && process.env.OWN_THE_BLOCK_APPLE_TEAM_ID
   ? {
-      appleId: process.env.OWN_THE_BLOCK_APPLE_ID,
-      appleIdPassword: process.env.OWN_THE_BLOCK_APPLE_APP_SPECIFIC_PASSWORD,
-      teamId: process.env.OWN_THE_BLOCK_APPLE_TEAM_ID,
+      identity: process.env.OWN_THE_BLOCK_MACOS_SIGN_IDENTITY,
+      keychain: process.env.OWN_THE_BLOCK_MACOS_KEYCHAIN,
     }
   : undefined;
 
@@ -38,7 +31,6 @@ module.exports = {
     appVersion: releaseVersion,
     icon: nativeIcon,
     osxSign,
-    osxNotarize,
     asar: true,
     // The compiled main/preload code has no runtime npm dependencies. Keep the
     // development workspace out of the packaged app without invoking pnpm's
@@ -54,6 +46,7 @@ module.exports = {
       config: {
         name: 'own_the_block',
         setupExe: `OwnTheBlock-${releaseVersion}-win32-x64-Setup.exe`,
+        setupIcon: nativeIcon,
         ...windowsSigning,
       },
     },
@@ -62,6 +55,7 @@ module.exports = {
       platforms: ['darwin'],
       config: {
         format: 'ULFO',
+        icon: nativeIcon,
       },
     },
   ],

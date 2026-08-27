@@ -90,7 +90,7 @@ describe('resolveCorsOrigin', () => {
 });
 
 describe('Socket.IO CORS handshake', () => {
-  it('allows the packaged origin, keeps same-origin requests working, and rejects other origins', async () => {
+  it('authorizes the packaged browser origin without claiming WebSocket-client rejection', async () => {
     const previousNodeEnv = process.env.NODE_ENV;
     const previousCorsOrigin = process.env.CORS_ORIGIN;
     process.env.NODE_ENV = 'production';
@@ -131,8 +131,9 @@ describe('Socket.IO CORS handshake', () => {
       const disallowed = await fetch(handshakeUrl, {
         headers: { Origin: 'https://not-allowed.example' },
       });
-      // Socket.IO returns the configured allowlist value; the browser rejects
-      // this response because it does not match the requesting origin.
+      // The HTTP endpoint can still be reached by a non-browser client. Browser
+      // CORS authorization is not server-side WebSocket authentication.
+      expect(disallowed.status).toBe(200);
       expect(disallowed.headers.get('access-control-allow-origin')).not.toBe(
         'https://not-allowed.example',
       );

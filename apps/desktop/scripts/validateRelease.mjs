@@ -5,11 +5,13 @@ import {
   assertCanonicalReleaseMetadata,
   readGeneratedReleaseConfig,
   repositoryRoot,
+  resolveReleaseTarget,
   signingStatus,
 } from './releaseMetadata.mjs';
 
 const argumentsSet = new Set(process.argv.slice(2));
 const requireEndpoint = argumentsSet.has('--release');
+const target = resolveReleaseTarget();
 const metadata = assertCanonicalReleaseMetadata({
   root: repositoryRoot,
   requireEndpoint,
@@ -26,7 +28,8 @@ if (requireEndpoint && generatedConfig.socketUrl !== metadata.endpoint) {
 }
 
 const signing = signingStatus({
-  platform: process.env.OWN_THE_BLOCK_RELEASE_PLATFORM || process.platform,
+  platform: target.platform,
+  environment: process.env,
 });
 let artifactManifest;
 if (argumentsSet.has('--artifacts')) {
@@ -39,7 +42,10 @@ if (argumentsSet.has('--artifacts')) {
     'manifest.json',
   );
   artifactManifest = JSON.parse(await readFile(manifestPath, 'utf8'));
-  if (artifactManifest.version !== metadata.version || artifactManifest.artifacts?.length === 0) {
+  if (artifactManifest.version !== metadata.version
+    || artifactManifest.platform !== target.platform
+    || artifactManifest.architecture !== target.architecture
+    || artifactManifest.artifacts?.length === 0) {
     throw new Error('Release artifact metadata is missing the canonical version or artifacts.');
   }
   for (const artifact of artifactManifest.artifacts) {

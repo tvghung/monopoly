@@ -1,7 +1,7 @@
 # Phase 6.0 — Release Readiness Audit & Scope Lock
 
 **Status: AUDIT COMPLETE — scope locked; Phase 6.1 code-hardening closeout
-complete; Phase 6.2 implementation complete; external release gates open**
+complete; Phase 6.2 corrective implementation complete; external release gates open**
 
 Audit date: 2026-08-26
 Repository: tvghung/monopoly
@@ -147,13 +147,13 @@ still open. The detailed ledger is in
   `app://own-the-block`; `CORS_ORIGIN` still replaces it when configured. The
   Socket.IO polling test covers same-origin, packaged-origin, and disallowed
   origin behavior without using permissive `*`.
-- The controlled Windows x64 release produced versioned Squirrel artifacts and
-  validated SHA-256 metadata. A clean Squirrel install created the expected
-  versioned app, registry entry, and shortcuts; the installed execution stub
-  launched the packaged app. The lifecycle handler removed the installer hook
-  timeout. Standard uninstall removed registration and shortcuts but left the
-  application directory after the wait window, so uninstall is recorded as
-  **FAIL**, with only the verified test directory manually cleaned afterward.
+- The pre-correction controlled Windows x64 release produced versioned Squirrel
+  artifacts and validated SHA-256 metadata. Its clean install created the
+  expected app, registry entry, and shortcuts, and its execution stub launched
+  an executable process. That process-existence observation was not a renderer,
+  Join-screen, graceful-quit, relaunch, or installed-runtime PASS. Standard
+  uninstall removed registration and shortcuts but left the application
+  directory after the wait window; that reproduction remains **FAIL**.
 - The release-candidate workflow includes Windows x64, macOS x64, and macOS
   arm64 jobs, artifact upload, unsigned-validation handling, and secret-backed
   signing/notarization verification. No current-branch remote run has yet been
@@ -164,6 +164,32 @@ AnimationQueue → PresentationStore → GameScene/R3F or legacy fallback, and t
 single AudioEngine/AudioProvider path. No gameplay, protocol, migration,
 GameCore, presentation, queue, renderer, or audio architecture change was
 made.
+
+## 1D. Corrective Phase 6.2 pass — 2026-08-27
+
+The corrective pass began at the required starting SHA
+`e035e34ecd7cb0d587cda4c555bb914f2d701b67` with a clean worktree. The
+implementation changes are limited to the Release Candidate matrix and
+deterministic generated-output cleanup, macOS temporary-keychain/signing and
+final-DMG notarization order, Squirrel lifecycle/uninstall cleanup, native icon
+wiring, CORS wording/tests, and the three evidence ledgers.
+
+The final local unsigned-validation release build passed with the test-only
+endpoint `http://127.0.0.1:8080`. The final manifest and checksums were produced
+after the make step and, for signed macOS, the final DMG mutation steps are
+ordered before collection. macOS x64 (`macos-15-intel`) and arm64 (`macos-15`)
+jobs are source-configured but were not executable on this Windows host; no
+real signing credentials were supplied.
+
+The pre-correction Squirrel uninstall failure was reproduced: exit code 0 did
+not prevent `app-3.0.0`, `.dead`, and `Update.exe` residue after registry and
+shortcut removal. The corrected final artifact could not be installed in the
+last host attempt because Windows UAC canceled before setup ran. Therefore the
+final clean install, renderer/Join observation, graceful quit, relaunch, and
+standard-uninstall acceptance are **NOT RUN**; the earlier residue remains a
+separate **FAIL** gate. No source-valid workflow is treated as an executed
+workflow result, and no polling CORS result is treated as WebSocket-origin
+rejection or authentication.
 
 ## 2. Evidence snapshot
 
@@ -426,22 +452,24 @@ Auto-update remains post-v1. No third implementation subphase is justified.
 
 | Command or evidence | Result | Record |
 |---|---|---|
-| `pnpm install --frozen-lockfile` | **PASS** | Workspace dependencies were already current. |
+| `pnpm install --frozen-lockfile` | **PASS** | Workspace dependencies were already current with pnpm 11.15.1. |
+| `pnpm db:migrate` | **PASS** | Database schema was already up to date. |
 | `pnpm typecheck` | **PASS** | All four typed workspace packages completed. |
 | `pnpm lint` | **PASS** | ESLint completed after the final source edit. |
-| `pnpm test` | **PASS** | Desktop 9 files/36 tests; server 12 files/150 passed and 10 database-gated skips; client 90 files/499 tests. |
+| `pnpm test` | **PASS** | Desktop 9 files/38 tests; server 12 files/150 passed and 10 database-gated skips; client 90 files/499 tests. |
 | Database-enabled server suite | **PASS** | With `TEST_DATABASE_URL` set only for the process from the configured local database: 13 files/160 tests passed. |
 | `pnpm db:status` | **PASS** | All nine repository migrations reported applied. |
 | `pnpm build` | **PASS** | Production renderer build completed; existing large main-chunk advisory remains. |
 | `pnpm --filter @monopoly/client test` | **PASS** | 90 files/499 tests. |
 | `pnpm --filter @monopoly/desktop typecheck` | **PASS** | Desktop typecheck completed. |
-| `pnpm --filter @monopoly/desktop test` | **PASS** | 9 files/36 tests, including release metadata and Squirrel lifecycle coverage. |
+| `pnpm --filter @monopoly/desktop test` | **PASS** | 9 files/38 tests, including release metadata and Squirrel lifecycle coverage. |
 | `pnpm desktop:package` | **PASS** | Windows x64 sanity package completed without a release endpoint. |
 | `pnpm desktop:make` | **PASS** | Windows x64 Squirrel maker completed without a release endpoint. |
 | `pnpm desktop:release` with controlled endpoint | **PASS** | Windows x64 Squirrel make, endpoint injection, manifest collection, and checksum validation completed. |
 | `git diff --check` | **PASS** | No whitespace errors. Git reported only line-ending normalization warnings. |
-| Windows clean install and installed launch | **PASS** | Setup installed `app-3.0.0`; the root execution stub launched the packaged app and exact observed app processes were stopped after the smoke check. |
-| Windows standard uninstall | **FAIL** | Exit code was 0 and registry/shortcuts were removed, but `app-3.0.0` and updater residue remained after the bounded wait. |
+| Pre-correction Windows install and process launch | **PASS: limited evidence** | Setup created `app-3.0.0`, registry/shortcuts, and an executable process. This did not observe the renderer, Join screen, graceful quit, relaunch, or establish installed-runtime PASS. |
+| Pre-correction Windows standard uninstall | **FAIL** | Exit code was 0 and registry/shortcuts were removed, but `app-3.0.0` and updater residue remained after the bounded wait; residue was recorded before exact-root cleanup. |
+| Corrected final-artifact Windows install/launch/uninstall | **NOT RUN** | The final unsigned artifact was built and hashed, but Windows UAC canceled the installer attempt before installation. |
 | macOS x64 package | **NOT RUN** | This Windows host cannot build or mount a macOS DMG/app. |
 | macOS arm64 package | **NOT RUN** | This Windows host cannot build or mount a macOS DMG/app. |
 | Real deployed endpoint | **BLOCKED** | No release-owner production URL is present; only the controlled loopback endpoint was injected. |

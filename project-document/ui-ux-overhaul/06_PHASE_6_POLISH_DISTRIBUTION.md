@@ -1,7 +1,7 @@
 # Phase 6 — Polish & Distribution
 
 **Status: Phase 6.0 audit and scope lock complete; Phase 6.1 code-hardening
-closeout complete; Phase 6.2 implementation complete; release gates open**
+closeout complete; Phase 6.2 corrective implementation complete; release gates open**
 
 Phase 6 is bounded by the current V8 server/shared contract and the existing
 client presentation architecture:
@@ -121,20 +121,50 @@ The factual evidence ledger is
   default while preserving explicit `CORS_ORIGIN` override and same-origin
   browser behavior. A real Socket.IO polling handshake test covers the allowed
   packaged origin and a disallowed origin.
-- Windows x64 Squirrel packaging, artifact collection, SHA-256 validation, a
-  clean install, and installed execution-stub launch were observed. The
-  Squirrel lifecycle handler fixed the install-hook timeout and produced
-  uninstall registration/shortcuts. The standard uninstaller removed those
-  registrations but left the test directory, so uninstall remains a failed
-  release gate until resolved.
+- The pre-correction Windows x64 Squirrel artifact installed and launched an
+  executable process, but standard uninstall removed registration/shortcuts
+  while leaving the test directory and updater residue. That reproduction is
+  retained as **FAIL** evidence; it is not an installed-runtime PASS.
 - The distinct release-candidate workflow covers Windows x64, macOS x64, and
   macOS arm64, with secure signing/notarization inputs only from CI secrets.
   The current branch has not yet had its exact-SHA workflow runs inspected.
 
 No gameplay, protocol, migration, GameCore, presentation, queue, renderer
 architecture, or audio architecture change was introduced by Phase 6.2. This
-phase is not marked complete or release-ready while the gates in the evidence
-ledger remain open.
+phase is not marked release-ready while the gates in the evidence ledger remain
+open.
+
+### 1.4 Corrective Phase 6.2 pass — 2026-08-27
+
+The corrective pass started from `e035e34ecd7cb0d587cda4c555bb914f2d701b67`.
+It made only distribution/runtime-evidence changes:
+
+- Release Candidate uses explicit `windows-latest` x64,
+  `macos-15-intel` x64, and `macos-15` arm64 jobs, separate from Desktop
+  Build. Release scripts reject a target platform/architecture that does not
+  match the host and clean only generated target output before making.
+- Signed macOS jobs decode the certificate into `RUNNER_TEMP`, use a temporary
+  keychain, verify the requested Developer ID Application identity before
+  Forge, sign the app and final DMG, submit the final DMG to notarytool, staple
+  it, validate the stapled DMG, and collect checksums afterward. Unsigned mode
+  does not require signing secrets. No real signed run was available locally.
+- Squirrel install/update/uninstall hooks now keep the lifecycle process alive
+  for a bounded one-second updater grace, use a pre-ready process exit, and
+  schedule bounded exact-root cleanup after the uninstall hook. Pure lifecycle
+  tests cover install/update, uninstall, obsolete/unknown events, and the
+  bounded policy. The pre-correction residue reproduction remains **FAIL**;
+  the final clean install/uninstall run was **NOT RUN** because Windows UAC
+  canceled the installer before installation in this host session.
+- Forge keeps the existing native ICO/ICNS assets for the packager, Squirrel
+  setup, and DMG. CORS tests and source-of-truth docs now describe browser CORS
+  authorization rather than WebSocket-client rejection or authentication.
+
+The final local unsigned-validation artifact was built with the test-only
+endpoint `http://127.0.0.1:8080`; it is not a production endpoint. The complete
+checkpoint ledger, including the distinction between installer creation,
+process launch, renderer/Join observation, graceful quit, relaunch, maker
+success, and remote exact-SHA evidence, is in
+[06B_PHASE_6_2_RELEASE_VERIFICATION.md](06B_PHASE_6_2_RELEASE_VERIFICATION.md).
 
 ## 2. Phase 6.1 — Release Hardening (closed)
 
@@ -163,10 +193,12 @@ The release boundary is implemented and partially verified:
 
 - canonical version, native icon metadata, release configuration injection,
   artifact checksums, and the release-candidate workflow are implemented;
-- Windows x64 Squirrel output, clean install, installed launch, and packaged
-  endpoint/configuration inspection pass under the controlled local endpoint;
-- the standard Squirrel uninstall leaves an `own_the_block` test directory after
-  removing its registry entry and shortcuts, so this gate is **FAIL**;
+- Windows x64 Squirrel output, endpoint injection, manifest collection, and
+  packaged metadata validation pass under the controlled local endpoint;
+- the pre-correction standard Squirrel uninstall left an `own_the_block` test
+  directory after removing its registry entry and shortcuts (**FAIL**), while
+  final corrected-artifact install/uninstall acceptance is **NOT RUN** because
+  UAC canceled before installation;
 - macOS x64/arm64 output, real deployed endpoint connectivity, live multiplayer
   and recovery, accessibility/scaling, audible audio, long-session soak, and
   signed/notarized distribution remain **NOT RUN**, **BLOCKED**, or **FAIL** as
