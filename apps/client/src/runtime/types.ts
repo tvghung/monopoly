@@ -8,6 +8,21 @@ export interface RuntimeConfig {
   appVersion?: string;
 }
 
+export type DesktopRuntimeConfigErrorCode =
+  | 'PACKAGED_SOCKET_URL_MISSING'
+  | 'SOCKET_URL_INVALID';
+
+export interface DesktopRuntimeConfig extends RuntimeConfig {
+  target: 'desktop';
+  socketUrl: string;
+  platform: DesktopPlatform;
+  appVersion: string;
+}
+
+export type DesktopRuntimeConfigResult =
+  | { ok: true; config: DesktopRuntimeConfig }
+  | { ok: false; code: DesktopRuntimeConfigErrorCode };
+
 export interface DesktopWindowState {
   fullscreen: boolean;
   maximized: boolean;
@@ -15,7 +30,7 @@ export interface DesktopWindowState {
 }
 
 export interface OwnTheBlockDesktopBridge {
-  getRuntimeConfig(): Promise<RuntimeConfig & { target: 'desktop' }>;
+  getRuntimeConfig(): Promise<DesktopRuntimeConfigResult>;
   window: {
     getState(): Promise<DesktopWindowState>;
     setFullscreen(value: boolean): Promise<void>;

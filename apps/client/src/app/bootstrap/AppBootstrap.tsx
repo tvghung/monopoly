@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import App from '../../App';
 import { AudioProvider } from '../../audio/AudioProvider';
 import { ToastProvider } from '../../components/Toast';
+import { isRuntimeConfigLoadError } from '../../runtime/runtimeConfig';
 import { SettingsProvider } from '../../settings/SettingsProvider';
 import BootstrapErrorScreen, {
   type BootstrapErrorKind,
@@ -23,7 +24,7 @@ const initialState: BootstrapState = {
 };
 
 function getBootstrapErrorKind(error: unknown): BootstrapErrorKind {
-  return error instanceof Error && error.name === 'DesktopRuntimeConfigError'
+  return isRuntimeConfigLoadError(error)
     ? 'runtime-config'
     : 'bootstrap';
 }

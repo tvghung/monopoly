@@ -31,6 +31,10 @@ export interface DesktopRuntimeConfig {
   appVersion: string;
 }
 
+export type DesktopRuntimeConfigResult =
+  | { ok: true; config: DesktopRuntimeConfig }
+  | { ok: false; code: DesktopRuntimeConfigErrorCode };
+
 export function resolveSocketUrl({
   isPackaged,
   argv = process.argv,

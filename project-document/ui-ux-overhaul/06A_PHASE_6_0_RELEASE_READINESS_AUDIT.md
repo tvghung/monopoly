@@ -1,7 +1,7 @@
 # Phase 6.0 — Release Readiness Audit & Scope Lock
 
-**Status: AUDIT COMPLETE — scope locked; Phase 6.1 corrective implementation
-recorded below; Phase 6.2 not started**
+**Status: AUDIT COMPLETE — scope locked; Phase 6.1 code-hardening closeout
+complete; Phase 6.2 not started and external release gates open**
 
 Audit date: 2026-08-26
 Repository: tvghung/monopoly
@@ -90,16 +90,41 @@ ownership, procedural/lazy assets, and legacy rendering fallback were retained.
 This keeps asset ownership in the existing components and does not turn client
 readiness into a server or room authority.
 
-### Local validation record
+### Local validation record for the 2026-08-26 corrective pass
 
-The final local code passed `pnpm install --frozen-lockfile`, root typecheck,
+That corrective pass recorded `pnpm install --frozen-lockfile`, root typecheck,
 lint, database-enabled root tests, production build, focused client/desktop
-tests, and Windows x64 desktop packaging. PostgreSQL status and migration checks
-also passed using the repository-configured local environment. The initial
-Windows `spawn EPERM` retries were environment retries of the same commands,
-not changes to test or lint configuration. Remote CI and Desktop Build are not
-inferred from these local results; the exact pushed SHA is checked separately
-after commit.
+tests, and Windows x64 desktop packaging as passing. Its PostgreSQL and
+interactive smoke evidence is historical; the final closeout evidence is in
+section 8A. Remote CI and Desktop Build are not inferred from local results.
+
+## 1B. Final Phase 6.1 closeout — 2026-08-27
+
+This closeout fixes the two remaining verified runtime gaps and closes the
+Phase 6.1 implementation boundary from a code-hardening perspective:
+
+- The desktop runtime-config IPC handler now returns the explicit serializable
+  result `{ ok: true, config }` or `{ ok: false, code }`, with only the two
+  expected codes `PACKAGED_SOCKET_URL_MISSING` and `SOCKET_URL_INVALID`.
+  Expected technical details remain in main-process logs; unexpected errors
+  still reject. The preload type exposes that result, the renderer converts an
+  expected failure to local `RuntimeConfigLoadError`, and `AppBootstrap` uses a
+  renderer-local predicate rather than IPC Error identity/name/message.
+- The final production renderer inventory contains `.woff`, `.woff2`, and
+  `.ttf` files, including the board `BeVietnamPro-ExtraBold-…​.ttf`. The pure
+  packaged-renderer MIME helper maps those formats to `font/woff`, `font/woff2`,
+  and `font/ttf` while preserving the existing mappings and safe unknown-file
+  fallback.
+- No generic asset-readiness authority, room/gameplay asset gate, duplicate
+  presentation path, rule authority, or Phase 6.2 packaging metadata was
+  introduced.
+
+The implementation boundary is closed; the distributed app is not claimed to
+be release-ready. The actual production endpoint value and normal installed-app
+injection, native Windows/macOS metadata, clean install/launch/uninstall, live
+multiplayer and reconnect matrix, spectator/FINISHED/Play Again/second match,
+accessibility/scaling, audible validation, 30–60 minute soak, and
+signing/notarization remain open Phase 6.2 or external release gates.
 
 ## 2. Evidence snapshot
 
@@ -338,24 +363,25 @@ Auto-update remains post-v1. No third implementation subphase is justified.
 | User-supplied remote CI at e4ce23d | **PASS** | CI passed with PostgreSQL 17 and both database variables. |
 | User-supplied remote Desktop Build at e4ce23d | **PASS** | Windows and macOS maker jobs passed. This does not prove signed/notarized or installed runtime behavior. |
 
-## 8A. Validation record for the Phase 6.1 corrective pass
+## 8A. Validation record for the final Phase 6.1 closeout
 
 | Command or evidence | Result | Record |
 |---|---|---|
-| `pnpm install --frozen-lockfile` | **PASS** | Dependencies were already current; pnpm metadata refresh emitted a non-blocking fetch warning. |
+| `pnpm install --frozen-lockfile` | **PASS** | Dependencies were already current; the registry update check emitted a non-blocking warning. |
 | `pnpm typecheck` | **PASS** | Workspace typecheck completed on the final source and tests. |
 | `pnpm lint` | **PASS** | Final lint completed after the last source/test edits. |
-| `pnpm test` with `TEST_DATABASE_URL` from `.env` | **PASS** | Desktop 6 files/19 tests, server 13 files/159 tests with no PostgreSQL skips, and client 89 files/496 tests. |
+| `pnpm test` | **PASS** | Desktop 7 files/24 tests; server 12 files/149 passed and 10 database-gated skips; client 90 files/499 tests. |
 | `pnpm build` | **PASS** | Client production build completed; existing large main-chunk advisory remains. |
-| Focused client tests | **PASS** | 3 files/5 tests, including safe bootstrap and top-level boundary behavior. |
-| Focused desktop tests | **PASS** | 2 files/7 tests, including deferred runtime-config resolution and fullscreen event settlement. |
-| `pnpm db:status` / `pnpm db:migrate` | **PASS** | Repository migrations 001–009 are applied and the schema is current. |
+| Focused client tests | **PASS** | 3 files/5 tests, covering structured runtime conversion, safe bootstrap copy, and top-level recovery. |
+| Focused desktop tests | **PASS** | 3 files/12 tests, covering runtime resolution, all IPC result outcomes, fullscreen settlement, and MIME mappings. |
+| `pnpm db:migrate` | **FAIL** | The configured `127.0.0.1:5433` endpoint refused the connection. A process-local retry against the running `5432` PostgreSQL service reached the server but failed password authentication; no credentials or repository database configuration were changed. |
 | `pnpm desktop:package` | **PASS** | Windows x64 Electron package completed. Packaging is not install, signing, endpoint, or multiplayer proof. |
-| Browser normal startup | **PASS** | In-app browser reached Join; deliberate live top-level render failure was not run. |
-| Electron development startup/fullscreen | **PASS** | Normal renderer startup, persisted fullscreen across restart, and reset-to-windowed were observed. Native OS enter/leave acceptance remains open. |
-| Packaged Electron missing endpoint | **PASS** | The package displayed safe bootstrap failure and remained open instead of silently using localhost or quitting early. |
-| Packaged Electron explicit endpoint | **NOT RUN** | Typed injection acceptance is automated; interactive explicit-endpoint launch was not completed in this host environment. |
-| Docker PostgreSQL stack | **NOT RUN** | Docker Desktop named-pipe access was unavailable; native PostgreSQL was used successfully for database-enabled tests. |
+| Browser normal startup | **PASS** | Local Vite startup reached Join, reported no browser error/warn logs, and `document.fonts` reported loaded with Be Vietnam Pro available. |
+| Electron development startup/fullscreen | **NOT RUN** | This final closeout used the packaged smoke; existing automated fullscreen regression coverage remains PASS, while interactive development restart/native shortcut evidence is retained as a separate gate. |
+| Packaged Electron missing endpoint | **PASS** | The built package stayed open on `app://own-the-block` and displayed the runtime-config-safe copy instead of quitting or rendering technical detail. |
+| Packaged Electron explicit loopback | **PASS for configuration/renderer smoke** | Explicit `--socket-url=http://127.0.0.1:8080` was accepted and the packaged renderer loaded; no live server endpoint was supplied. |
+| Packaged font console/decode inspection | **NOT RUN** | Production asset inventory and MIME tests pass; packaged DevTools/console capture for font decode errors was not available. |
+| Docker PostgreSQL stack | **NOT RUN** | Docker Desktop named-pipe access was unavailable. |
 
 ## 9. Open manual and external gates
 

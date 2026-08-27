@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { RuntimeConfigLoadError } from '../../runtime/runtimeConfig';
 
 const bootstrapMock = vi.hoisted(() => ({
   bootstrap: vi.fn(),
@@ -49,5 +50,21 @@ describe('AppBootstrap failure handling', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
     await waitFor(() => expect(bootstrapMock.bootstrap).toHaveBeenCalledTimes(2));
     consoleError.mockRestore();
+  });
+
+  it('shows the runtime-config safe copy for a typed local runtime failure', async () => {
+    bootstrapMock.bootstrap.mockRejectedValue(
+      new RuntimeConfigLoadError('PACKAGED_SOCKET_URL_MISSING'),
+    );
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(<AppBootstrap />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Không thể chuẩn bị kết nối trò chơi. Hãy thử lại.')).toBeTruthy();
+    });
+    expect(screen.queryByText('PACKAGED_SOCKET_URL_MISSING')).toBeNull();
+    expect(screen.queryByText('secret main-process endpoint detail')).toBeNull();
+    expect(screen.queryByText('Desktop runtime configuration could not be loaded.')).toBeNull();
   });
 });

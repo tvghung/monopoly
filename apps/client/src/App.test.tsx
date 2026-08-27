@@ -466,7 +466,15 @@ describe('App session admission', () => {
     let quitListener: ((requestId: string) => void) | undefined;
     const respond = vi.fn();
     const bridge: OwnTheBlockDesktopBridge = {
-      getRuntimeConfig: () => Promise.resolve({ target: 'desktop' }),
+      getRuntimeConfig: () => Promise.resolve({
+        ok: true,
+        config: {
+          target: 'desktop',
+          socketUrl: 'http://127.0.0.1:8080',
+          platform: 'win32',
+          appVersion: '1.0.0',
+        },
+      }),
       window: {
         getState: () => Promise.resolve({ fullscreen: false, maximized: false, resizable: true }),
         setFullscreen: () => Promise.resolve(),

@@ -1,7 +1,7 @@
 # Phase 6 — Polish & Distribution
 
-**Status: Phase 6.0 audit and scope lock complete; Phase 6.1 corrective
-implementation complete locally; Phase 6.2 not started**
+**Status: Phase 6.0 audit and scope lock complete; Phase 6.1 code-hardening
+closeout complete; Phase 6.2 not started and external release gates open**
 
 Phase 6 is bounded by the current V8 server/shared contract and the existing
 client presentation architecture:
@@ -70,14 +70,45 @@ signing, notarization, and real-endpoint connectivity remain separate open
 gates. Remote CI/Desktop Build status is verified against the pushed SHA and
 reported separately; Phase 6.2 remains deferred.
 
-## 2. Phase 6.1 — Release Hardening
+### 1.2 Final Phase 6.1 closeout record — 2026-08-27
 
-Implement only the confirmed boundaries from the audit:
+The two remaining verified runtime gaps are now closed within the Phase 6.1
+implementation boundary:
 
-1. Decide and inject the real packaged multiplayer endpoint at release time.
-   Validate it, fail closed when a packaged value is missing, retain loopback
-   only for development, and expose a safe bootstrap failure state. Do not
-   invent or commit a deployment URL.
+- Desktop runtime configuration uses an explicit serializable bridge result:
+  `{ ok: true, config: DesktopRuntimeConfig }` or
+  `{ ok: false, code: 'PACKAGED_SOCKET_URL_MISSING' | 'SOCKET_URL_INVALID' }`.
+  Expected main-process failures log technical details in the main process and
+  return only the code; unexpected failures still reject. The renderer converts
+  the expected result to a local typed `RuntimeConfigLoadError`, and
+  `AppBootstrap` classifies it with a renderer-local predicate rather than an
+  IPC error name or message.
+- The final renderer build emitted `.woff`, `.woff2`, and `.ttf` files. The
+  packaged `app://own-the-block` protocol now serves them as `font/woff`,
+  `font/woff2`, and `font/ttf`; the existing HTML, script, stylesheet, SVG,
+  image, and unknown-file mappings remain unchanged.
+- Focused tests cover the four main IPC outcomes, renderer conversion, safe
+  runtime-config copy, raw-detail absence, actual emitted font extensions, and
+  the existing MIME mappings. The generic asset-readiness architecture and all
+  unrelated Phase 6.1 boundaries remain unchanged.
+
+This closes Phase 6.1 from a code-hardening perspective. It does not make the
+distributed desktop app release-ready: the actual production endpoint value
+and normal installed-app injection, native metadata, clean install/launch/
+uninstall, live multiplayer/reconnect, spectator and second-match behavior,
+accessibility/scaling, audible validation, 30–60 minute soak, and
+signing/notarization remain Phase 6.2 or external release gates.
+
+## 2. Phase 6.1 — Release Hardening (closed)
+
+The confirmed code-hardening boundaries from the audit are implemented and
+validated as recorded above. The release-owner decisions and external proof
+remain open:
+
+1. Supply the real packaged multiplayer endpoint at release time. The code
+   validates the supplied value, fails closed when a packaged value is missing,
+   retains loopback only for development, and exposes a safe bootstrap failure
+   state. No deployment URL is invented or committed here.
 2. Add one top-level React failure boundary and safe production bootstrap error
    copy while retaining the existing SceneErrorBoundary-to-legacy fallback.
 3. Restore persisted fullscreen intent once at desktop startup, then keep native

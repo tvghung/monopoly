@@ -4,6 +4,7 @@ import path from 'node:path';
 import { installExternalNavigationGuards } from './ipc/externalLinks';
 import { QuitRequestController, registerWindowHandlers } from './ipc/windowHandlers';
 import { shouldBlockProductionInput } from './productionPolicy';
+import { contentType } from './rendererContentType';
 import { resolveRendererPath } from './security';
 
 const DEV_RENDERER_URL = process.env.OWN_THE_BLOCK_DEV_RENDERER_URL?.trim()
@@ -17,22 +18,6 @@ protocol.registerSchemesAsPrivileged([{
 function rendererRoot(): string {
   if (app.isPackaged) return path.join(process.resourcesPath, 'dist');
   return path.resolve(__dirname, '../../client/dist');
-}
-
-function contentType(filePath: string): string {
-  const extension = path.extname(filePath).toLowerCase();
-  return {
-    '.html': 'text/html; charset=utf-8',
-    '.js': 'text/javascript; charset=utf-8',
-    '.css': 'text/css; charset=utf-8',
-    '.json': 'application/json; charset=utf-8',
-    '.svg': 'image/svg+xml',
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.ico': 'image/x-icon',
-  }[extension] ?? 'application/octet-stream';
 }
 
 function registerProductionRenderer(): void {
