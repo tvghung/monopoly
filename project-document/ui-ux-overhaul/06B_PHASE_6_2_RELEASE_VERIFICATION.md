@@ -1,8 +1,8 @@
 # Phase 6.2 — Distribution and Release Verification
 
-**Status: CORRECTIVE IMPLEMENTATION COMPLETE; RELEASE GATES OPEN**
+**Status: CORRECTIVE IMPLEMENTATION COMPLETE; WINDOWS INSTALLER LIFECYCLE BLOCKED; RELEASE GATES OPEN**
 
-Verification date: 2026-08-27
+Verification date: 2026-08-28
 
 Repository: `tvghung/monopoly`
 
@@ -31,13 +31,13 @@ architecture was changed for this phase.
 | 2. Version, native identity, icons, and artifacts | **PASS** | Root `3.0.0` is the canonical release source; validated `.ico`/`.icns` assets are configured; Windows executable and Squirrel names carry `3.0.0`. macOS packaging itself remains unrun. |
 | 3. Distribution workflow | **PASS** | `.github/workflows/release-candidate.yml` adds a distinct manual Windows x64/macOS x64/macOS arm64 release-candidate matrix with frozen install, quality gates, endpoint input, artifact upload, and secret-backed signing checks. |
 | 4. Packaged Electron ↔ server connectivity | **PASS** | Controlled Socket.IO polling handshake tests cover same-origin, `app://own-the-block`, and disallowed origin behavior; the real deployed endpoint remains blocked. |
-| 5. Package/install/launch verification | **NOT RUN** | The pre-correction artifact reproduced a standard-uninstall **FAIL**: registry/shortcuts were removed but the application directory/residue remained. The corrected final artifact was built, but its final installer run was blocked by Windows UAC cancellation before installation; no final install, renderer/Join, graceful-quit, relaunch, or uninstall result is claimed. |
+| 5. Package/install/launch verification | **FAIL/BLOCKED** | Fresh final-artifact install, Join renderer, graceful quit, and relaunch passed. Standard Squirrel uninstall removed registration and shortcuts but left the exact install root/app/updater residue; host launch context also reproduced a native breakpoint. |
 | 6. Live multiplayer and recovery | **NOT RUN** | No live 2/3/4-player browser/Electron session or reconnect/replay matrix was run. |
 | 7. Accessibility, scaling, visual comfort, and audio | **NOT RUN** | No current Phase 6.2 interactive viewport, OS-scaling, keyboard/screen-reader, or audible speaker pass was run. |
 | 8. 30–60 minute soak | **NOT RUN** | No timed resource/presentation/audio soak was run. |
-| 9. Final validation | **PASS** | Required local commands, database-enabled tests, focused tests, packaging, deterministic release build, and checksum validation are recorded in section 8. |
+| 9. Final validation | **PASS with DB test BLOCKED** | Required non-database local commands, focused tests, packaging, deterministic release build, and checksum validation passed; the database-enabled rerun was blocked by the safety guard and is reported separately in section 8. |
 | 10. Documentation and evidence | **PASS** | The corrective evidence updates preserve the pre-correction failure and separate source, local, manual, signing, and remote evidence. |
-| 11. Commit, push, and exact-SHA remote verification | **NOT RUN** | Commit and push occur after this ledger; current-SHA Actions verification is not yet available. |
+| 11. Commit, push, and exact-SHA remote verification | **PENDING** | Documentation commit/push and exact-SHA Actions verification follow this local ledger. |
 
 ## 2. Release configuration contract
 
@@ -71,13 +71,13 @@ URL was invented, committed, or presented as production configuration.
 - The unpacked Windows executable reports product/version/file version
   `Own the Block` / `3.0.0` / `3.0.0`.
 
-Final controlled Windows x64 artifact manifest:
+Final controlled Windows x64 artifact manifest (tested on 2026-08-28):
 
 | Artifact | SHA-256 |
 |---|---|
-| `apps/desktop/out/make/squirrel.windows/x64/OwnTheBlock-3.0.0-win32-x64-Setup.exe` | `eda111e8262a22e33be2cfbcfaec0c486ce66460c58bc0691902d159fad84b5a` |
-| `apps/desktop/out/make/squirrel.windows/x64/RELEASES` | `3ade81bb02cbafa24ddc28ab3f62407b71629bab68cd627fea52e730fa6275cd` |
-| `apps/desktop/out/make/squirrel.windows/x64/own_the_block-3.0.0-full.nupkg` | `2a675667a4e13553cc306f88f32b0b9c8693ec6d1356e02e89f42b6059d8896f` |
+| `apps/desktop/out/make/squirrel.windows/x64/OwnTheBlock-3.0.0-win32-x64-Setup.exe` | `cd6c760f0e532b8a0ffc6f16b3497f1b029819ab34c74a7c6535c76853c3b859` |
+| `apps/desktop/out/make/squirrel.windows/x64/RELEASES` | `a32b3d5f277bf10966584cb150c8303095cc5c3b473c584bc1cca5e0d1371063` |
+| `apps/desktop/out/make/squirrel.windows/x64/own_the_block-3.0.0-full.nupkg` | `b085c6bf8a6ef14c6f8d85d615e9f86023e9f2502b765d2e518d73c9fd07d5af` |
 
 The manifest and checksum file are generated under the ignored local output
 directory `apps/desktop/out/release-artifacts/`.
@@ -112,11 +112,11 @@ five seconds is not an installed interactive-runtime PASS.
 | Pre-correction installer-created installation | **PASS** | Before the corrective edits, the controlled setup run confirmed the root was absent, setup exited 0, and `app-3.0.0`, `Update.exe`, registry data, and shortcuts were created. |
 | Pre-correction executable process launch | **PASS: process existence only** | The installed executable produced observed `OwnTheBlock.exe` processes. No renderer, Join screen, endpoint, gameplay, graceful quit, or relaunch was observed. |
 | Pre-correction standard Squirrel uninstall | **FAIL** | `Update.exe --uninstall` exited 0 and removed the uninstall key and shortcuts, but `app-3.0.0`, `.dead`, `Update.exe`, and inner updater residue remained after the bounded wait. Residue was recorded before the exact test root was manually cleaned. |
-| Corrected final-artifact clean install | **NOT RUN** | The final unsigned-validation artifact was ready and hashed, but Windows UAC canceled the last installer attempt before setup ran. |
-| Corrected final-artifact install hook/registry/shortcuts | **NOT RUN** | No final installer execution occurred after the UAC cancellation. |
-| Corrected final-artifact renderer/Join observation | **NOT RUN** | No final installed window was interactively observed. |
-| Corrected final-artifact graceful quit/relaunch | **NOT RUN** | No user-driven graceful quit or relaunch was observed; process termination in the earlier smoke was harness-controlled. |
-| Corrected final-artifact standard Squirrel uninstall | **NOT RUN** | No final installation was available to uninstall. The pre-correction residue **FAIL** remains an open release gate; it is not converted to PASS by exit code 0. |
+| Corrected final-artifact clean install | **PASS** | Fresh setup created the exact `app-3.0.0` root, `Update.exe`, HKCU uninstall registration, Start Menu shortcut, and Desktop shortcut. |
+| Corrected final-artifact install configuration | **PASS** | Installed `resources/release-config.json` contained version `3.0.0` and `http://127.0.0.1:8080`. |
+| Corrected final-artifact renderer/Join observation | **PASS** | Computer Use observed `Cờ Tỷ Phú Việt Nam`, the Join heading, both name/room edits, and the disabled Join button in the installed renderer. |
+| Corrected final-artifact graceful quit/relaunch | **PASS** | Alt+F4 closed the installed app; relaunch returned to the same Join renderer; the app was then closed again. |
+| Corrected final-artifact standard Squirrel uninstall | **FAIL/BLOCKED** | On this exact artifact, `Update.exe --uninstall` returned 0 and removed the uninstall key and shortcuts, but the exact install root, `app-3.0.0`, and `Update.exe` remained after the bounded wait. Host-launched direct executions also reproduced `0x80000003`; exact residue was cleaned after evidence capture. |
 | macOS x64 install/launch/uninstall | **NOT RUN** | The execution host is Windows. |
 | macOS arm64 install/launch/uninstall | **NOT RUN** | The execution host is Windows. |
 
@@ -163,7 +163,7 @@ not run.
 | `pnpm typecheck` | **PASS** | All workspace typechecks completed. |
 | `pnpm lint` | **PASS** | ESLint completed after the final source edit. |
 | `pnpm test` | **PASS** | Desktop 9 files/38 tests; server 12 files/150 passed and 10 database-gated skips; client 90 files/499 tests. |
-| Database-enabled server test | **PASS** | `TEST_DATABASE_URL` was process-local from `.env` `DATABASE_URL`; 13 files/160 tests passed. |
+| Database-enabled server test | **BLOCKED** | Not run: the safety guard rejected using the configured database URL because isolation was not proven. The root suite retained 10 database-gated skips. |
 | `pnpm build` | **PASS** | Renderer production build completed with the existing large-chunk advisory. |
 | `pnpm --filter @monopoly/client typecheck` | **PASS** | Client typecheck completed. |
 | `pnpm --filter @monopoly/client test` | **PASS** | 90 files/499 tests. |
@@ -172,6 +172,7 @@ not run.
 | `pnpm desktop:package` | **PASS** | Windows x64 package sanity build without an endpoint. |
 | `pnpm desktop:make` | **PASS** | Windows x64 Squirrel maker without an endpoint. |
 | `pnpm desktop:release` with controlled endpoint | **PASS** | Deterministic cleanup, endpoint injection, Windows x64 make, post-make collection, manifest platform/architecture validation, and SHA-256 generation passed. |
+| `pnpm validate:release -- --release --artifacts` with controlled endpoint | **PASS** | Final manifest checksums and canonical release metadata validated. |
 | `git diff --check` | **PASS** | No whitespace errors; line-ending warnings only. |
 
 The renderer build retains the pre-existing Vite warning about the large main
@@ -203,10 +204,9 @@ checksums. No signed macOS run or real credentials were available locally.
 
 The result is **IMPLEMENTATION COMPLETE BUT RELEASE GATES OPEN**.
 
-Release readiness is blocked by the missing real deployed endpoint, failed
-standard-uninstall residue reproduction and unrun final corrected-artifact
-acceptance, UAC-blocked final installer execution, unrun macOS artifacts/install
-checks, unrun live multiplayer/reconnect/spectator/second-match checks, unrun
-accessibility, audible, and soak checks, unavailable signing/notarization
-inputs, and pending exact-SHA remote workflow verification. No release-ready or
-Phase 6-complete claim is made.
+Release readiness is blocked by the missing real deployed endpoint, the
+`FAIL/BLOCKED` standard-uninstall residue on the fresh final artifact, unrun
+macOS artifacts/install checks, unrun live multiplayer/reconnect/spectator/
+second-match checks, unrun accessibility, audible, and soak checks, unavailable
+signing/notarization inputs, and pending exact-SHA remote workflow verification.
+No release-ready or Phase 6-complete claim is made.

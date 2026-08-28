@@ -183,13 +183,26 @@ real signing credentials were supplied.
 
 The pre-correction Squirrel uninstall failure was reproduced: exit code 0 did
 not prevent `app-3.0.0`, `.dead`, and `Update.exe` residue after registry and
-shortcut removal. The corrected final artifact could not be installed in the
-last host attempt because Windows UAC canceled before setup ran. Therefore the
-final clean install, renderer/Join observation, graceful quit, relaunch, and
-standard-uninstall acceptance are **NOT RUN**; the earlier residue remains a
-separate **FAIL** gate. No source-valid workflow is treated as an executed
-workflow result, and no polling CORS result is treated as WebSocket-origin
-rejection or authentication.
+shortcut removal. The 2026-08-27 UAC-canceled attempt was superseded on
+2026-08-28 by a fresh final-artifact install: install registration, packaged
+configuration, renderer/Join observation, graceful quit, and relaunch passed.
+The standard uninstaller still removed registration and shortcuts while leaving
+the exact install root, `app-3.0.0`, and `Update.exe` after the bounded wait, so
+that gate is **FAIL/BLOCKED**. Host-launched direct executions also reproduced a
+native `0x80000003` breakpoint while the Computer Use launch path opened the
+renderer; no source change is claimed for this host-context failure. Exact test
+residue was cleaned after capture. No source-valid workflow is treated as an
+executed workflow result, and no polling CORS result is treated as
+WebSocket-origin rejection or authentication.
+
+## 1E. Final Phase 6.2 Windows closeout — 2026-08-28
+
+The final controlled Windows x64 artifact was rebuilt and checksum validated
+with the test-only loopback endpoint `http://127.0.0.1:8080`; the exact hashes
+and complete installer ledger are in `06B_PHASE_6_2_RELEASE_VERIFICATION.md`.
+The database-enabled test rerun was **BLOCKED** by the safety guard because the
+configured database URL was not proven isolated. Migration/status checks and
+non-database tests are reported separately.
 
 ## 2. Evidence snapshot
 
@@ -457,10 +470,11 @@ Auto-update remains post-v1. No third implementation subphase is justified.
 | `pnpm typecheck` | **PASS** | All four typed workspace packages completed. |
 | `pnpm lint` | **PASS** | ESLint completed after the final source edit. |
 | `pnpm test` | **PASS** | Desktop 9 files/38 tests; server 12 files/150 passed and 10 database-gated skips; client 90 files/499 tests. |
-| Database-enabled server suite | **PASS** | With `TEST_DATABASE_URL` set only for the process from the configured local database: 13 files/160 tests passed. |
+| Database-enabled server suite | **BLOCKED** | Not rerun: the safety guard rejected using the configured database URL because isolation was not proven. The root suite retained its 10 database-gated skips. |
 | `pnpm db:status` | **PASS** | All nine repository migrations reported applied. |
 | `pnpm build` | **PASS** | Production renderer build completed; existing large main-chunk advisory remains. |
 | `pnpm --filter @monopoly/client test` | **PASS** | 90 files/499 tests. |
+| `pnpm --filter @monopoly/client typecheck` | **PASS** | Client typecheck completed. |
 | `pnpm --filter @monopoly/desktop typecheck` | **PASS** | Desktop typecheck completed. |
 | `pnpm --filter @monopoly/desktop test` | **PASS** | 9 files/38 tests, including release metadata and Squirrel lifecycle coverage. |
 | `pnpm desktop:package` | **PASS** | Windows x64 sanity package completed without a release endpoint. |
@@ -469,7 +483,8 @@ Auto-update remains post-v1. No third implementation subphase is justified.
 | `git diff --check` | **PASS** | No whitespace errors. Git reported only line-ending normalization warnings. |
 | Pre-correction Windows install and process launch | **PASS: limited evidence** | Setup created `app-3.0.0`, registry/shortcuts, and an executable process. This did not observe the renderer, Join screen, graceful quit, relaunch, or establish installed-runtime PASS. |
 | Pre-correction Windows standard uninstall | **FAIL** | Exit code was 0 and registry/shortcuts were removed, but `app-3.0.0` and updater residue remained after the bounded wait; residue was recorded before exact-root cleanup. |
-| Corrected final-artifact Windows install/launch/uninstall | **NOT RUN** | The final unsigned artifact was built and hashed, but Windows UAC canceled the installer attempt before installation. |
+| Corrected final-artifact Windows install/renderer/quit/relaunch | **PASS** | Fresh final artifact installed; exact registration/shortcuts/config were present; Computer Use observed the Join renderer, graceful close, and Join after relaunch. |
+| Corrected final-artifact standard Squirrel uninstall | **FAIL/BLOCKED** | `Update.exe --uninstall` returned 0 and removed the uninstall key and shortcuts, but the exact install root, `app-3.0.0`, and `Update.exe` remained after the bounded wait. Host-launched direct executions also reproduced `0x80000003`; exact residue was cleaned after capture. |
 | macOS x64 package | **NOT RUN** | This Windows host cannot build or mount a macOS DMG/app. |
 | macOS arm64 package | **NOT RUN** | This Windows host cannot build or mount a macOS DMG/app. |
 | Real deployed endpoint | **BLOCKED** | No release-owner production URL is present; only the controlled loopback endpoint was injected. |

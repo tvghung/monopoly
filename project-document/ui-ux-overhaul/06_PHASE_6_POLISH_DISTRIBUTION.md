@@ -153,8 +153,8 @@ It made only distribution/runtime-evidence changes:
   schedule bounded exact-root cleanup after the uninstall hook. Pure lifecycle
   tests cover install/update, uninstall, obsolete/unknown events, and the
   bounded policy. The pre-correction residue reproduction remains **FAIL**;
-  the final clean install/uninstall run was **NOT RUN** because Windows UAC
-  canceled the installer before installation in this host session.
+  the 2026-08-27 final install attempt was canceled by Windows UAC; the
+  superseding 2026-08-28 final-artifact evidence is recorded below.
 - Forge keeps the existing native ICO/ICNS assets for the packager, Squirrel
   setup, and DMG. CORS tests and source-of-truth docs now describe browser CORS
   authorization rather than WebSocket-client rejection or authentication.
@@ -165,6 +165,24 @@ checkpoint ledger, including the distinction between installer creation,
 process launch, renderer/Join observation, graceful quit, relaunch, maker
 success, and remote exact-SHA evidence, is in
 [06B_PHASE_6_2_RELEASE_VERIFICATION.md](06B_PHASE_6_2_RELEASE_VERIFICATION.md).
+
+### 1.5 Final Phase 6.2 Windows closeout — 2026-08-28
+
+- The final controlled Windows x64 artifact was freshly rebuilt and checksum
+  validated with the test-only endpoint `http://127.0.0.1:8080`.
+- Clean Squirrel install created the exact `app-3.0.0` root, `Update.exe`, HKCU
+  uninstall registration, Start Menu shortcut, Desktop shortcut, and packaged
+  `resources/release-config.json`. The installed renderer exposed the Join form;
+  graceful close and relaunch returned to the Join form. These are **PASS**.
+- Standard `Update.exe --uninstall` removed registration and shortcuts but left
+  the exact install root, `app-3.0.0`, and `Update.exe` after the bounded wait.
+  The lifecycle gate is **FAIL/BLOCKED**. Host-launched executable attempts also
+  reproduced a native `0x80000003` breakpoint while the Computer Use launch
+  path opened the renderer, so no source change is claimed for this host-context
+  failure. Exact test residue was cleaned after evidence capture.
+- The database-enabled test rerun was **BLOCKED** by the safety guard because
+  the configured database URL was not proven isolated; migration/status checks
+  and the non-database suites remain separately reported as passing.
 
 ## 2. Phase 6.1 — Release Hardening (closed)
 
@@ -195,10 +213,9 @@ The release boundary is implemented and partially verified:
   artifact checksums, and the release-candidate workflow are implemented;
 - Windows x64 Squirrel output, endpoint injection, manifest collection, and
   packaged metadata validation pass under the controlled local endpoint;
-- the pre-correction standard Squirrel uninstall left an `own_the_block` test
-  directory after removing its registry entry and shortcuts (**FAIL**), while
-  final corrected-artifact install/uninstall acceptance is **NOT RUN** because
-  UAC canceled before installation;
+- the final corrected-artifact clean install, Join renderer observation,
+  graceful quit, and relaunch are **PASS**; standard Squirrel uninstall still
+  leaves the exact install root/app/updater residue (**FAIL/BLOCKED**);
 - macOS x64/arm64 output, real deployed endpoint connectivity, live multiplayer
   and recovery, accessibility/scaling, audible audio, long-session soak, and
   signed/notarized distribution remain **NOT RUN**, **BLOCKED**, or **FAIL** as
@@ -230,9 +247,9 @@ remain unresolved:
 - fullscreen preference restoration is still broken if that behavior is
   promised;
 - a top-level render failure can blank the client without safe recovery;
-- native icon/version provenance is unresolved for the target artifacts;
-- live multiplayer/reconnect, installed-runtime, accessibility, audible,
-  long-session, signing, or notarization gates are unrun where required.
+- the Windows standard-uninstall lifecycle remains **FAIL/BLOCKED**;
+- live multiplayer/reconnect, accessibility, audible, long-session, macOS
+  install, signing, or notarization gates are unrun where required.
 
 Automated PASS, package PASS, and remote CI PASS must continue to be reported
 separately from these gates.
