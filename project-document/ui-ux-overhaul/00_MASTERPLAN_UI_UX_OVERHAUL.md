@@ -529,8 +529,11 @@ File:
 
 ## Phase 6 — Polish & Distribution
 
-Status: Phase 6.0 release-readiness audit and scope lock is complete on the
-current V8 baseline. No Phase 6 production implementation has started.
+Status: Phase 6 engineering is COMPLETE at merge commit
+`c78dece5a307e815801972b2044d2093f2b78677` on `main`, with the annotated
+checkpoint tag `v3.0.0-phase6-stable`. Production release readiness remains NOT
+YET APPROVED. Phase 7 has no approved implementation scope; discovery only is
+recorded in [07A_PHASE_7_DISCOVERY_AND_OPTIONS.md](07A_PHASE_7_DISCOVERY_AND_OPTIONS.md).
 
 Mục tiêu:
 
