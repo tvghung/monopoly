@@ -172,7 +172,7 @@ The corrective pass began at the required starting SHA
 `e035e34ecd7cb0d587cda4c555bb914f2d701b67` with a clean worktree. The
 implementation changes are limited to the Release Candidate matrix and
 deterministic generated-output cleanup, macOS temporary-keychain/signing and
-final-DMG notarization order, Squirrel lifecycle/uninstall cleanup, native icon
+final-DMG notarization order, Squirrel lifecycle/updater-grace behavior, native icon
 wiring, CORS wording/tests, and the three evidence ledgers.
 
 The final local unsigned-validation release build passed with the test-only

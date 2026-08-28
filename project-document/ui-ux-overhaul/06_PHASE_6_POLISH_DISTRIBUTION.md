@@ -149,10 +149,10 @@ It made only distribution/runtime-evidence changes:
   it, validate the stapled DMG, and collect checksums afterward. Unsigned mode
   does not require signing secrets. No real signed run was available locally.
 - Squirrel install/update/uninstall hooks now keep the lifecycle process alive
-  for a bounded one-second updater grace, use a pre-ready process exit, and
-  schedule bounded exact-root cleanup after the uninstall hook. Pure lifecycle
-  tests cover install/update, uninstall, obsolete/unknown events, and the
-  bounded policy. The pre-correction residue reproduction remains **FAIL**;
+  for a bounded one-second updater grace, then use the supplied `app.quit()`
+  path; Squirrel retains installation-tree ownership. Pure lifecycle tests
+  cover install/update, uninstall, obsolete/unknown events, and the bounded
+  policy. The pre-correction residue reproduction remains **FAIL**;
   the 2026-08-27 final install attempt was canceled by Windows UAC; the
   superseding 2026-08-28 final-artifact evidence is recorded below.
 - Forge keeps the existing native ICO/ICNS assets for the packager, Squirrel
