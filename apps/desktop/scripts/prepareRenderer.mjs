@@ -5,6 +5,16 @@ import { fileURLToPath } from 'node:url';
 const desktopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repositoryRoot = path.resolve(desktopRoot, '../..');
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+const releaseConfig = spawnSync(process.execPath, [
+  path.join(desktopRoot, 'scripts', 'writeReleaseConfig.mjs'),
+], {
+  cwd: repositoryRoot,
+  stdio: 'inherit',
+  env: process.env,
+});
+
+if (releaseConfig.status !== 0) process.exit(releaseConfig.status ?? 1);
+
 const result = spawnSync(pnpm, ['--filter', '@monopoly/client', 'build'], {
   cwd: repositoryRoot,
   stdio: 'inherit',

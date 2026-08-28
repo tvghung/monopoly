@@ -1,4 +1,5 @@
 import { BASE_DICE_SIZE, DICE_DROP_HEIGHT } from './diceLayout';
+import { presentationTiming } from '../../presentation/timings';
 
 export type DiceEuler = readonly [number, number, number];
 
@@ -60,7 +61,10 @@ export function getDiceAnimationHeight(progress: number, hasPreviousDice: boolea
 
 export function getDiceBounceOffset(progress: number): number {
   const clamped = Math.min(1, Math.max(0, progress));
-  const bounceProgress = clamped <= 0.72 ? 0 : (clamped - 0.72) / 0.28;
+  const contactProgress = presentationTiming.diceContactProgress;
+  const bounceProgress = clamped <= contactProgress
+    ? 0
+    : (clamped - contactProgress) / (1 - contactProgress);
   return Math.sin(bounceProgress * Math.PI * 2.5)
     * DICE_BOUNCE_HEIGHT
     * (1 - Math.min(1, bounceProgress));

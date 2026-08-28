@@ -2,7 +2,7 @@ import {
   act, cleanup, fireEvent, render, screen,
 } from '@testing-library/react';
 import { StrictMode } from 'react';
-import type { PublicRoomState } from '@monopoly/shared';
+import type { PrivateOffer, PublicRoomState } from '@monopoly/shared';
 import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
 import {
   afterEach, beforeEach, describe, expect, it, vi,
@@ -102,6 +102,7 @@ const room: PublicRoomState = {
     diceValue: { dice1: 0, dice2: 0 },
     rollSequence: 0,
     gameplayEvents: { sequence: 0, events: [] },
+    activityFeed: { sequence: 0, events: [] },
     ownedProps: {},
       winner: null,
     },
@@ -226,6 +227,116 @@ describe('App session admission', () => {
 
     expect(screen.queryByText(/Đã mất kết nối/)).toBeNull();
     expect(screen.getByText('Ada (bạn)')).toBeTruthy();
+  });
+
+  it('clears private offers and presentation history when a finished room replays', () => {
+    const finishedRoom: PublicRoomState = {
+      ...room,
+      version: 2,
+      status: 'FINISHED',
+      players: [{ ...room.players[0], ready: true }],
+      gameState: {
+        ...room.gameState,
+        boardState: {
+          ...room.gameState.boardState,
+          gameStarted: true,
+          players: ['stable-player-id'],
+          winner: {
+            playerId: 'stable-player-id',
+            name: 'Ada',
+            color: 'red',
+            characterId: null,
+          },
+        },
+        players: {
+          'stable-player-id': {
+            name: 'Ada',
+            currentTile: 7,
+            color: 'red',
+            characterId: null,
+            accountBalance: 900,
+            isJail: false,
+            jailOpponentRoundsElapsed: 0,
+            getOutOfJailCardCount: 1,
+          },
+        },
+      },
+    };
+    const replayRoom: PublicRoomState = {
+      ...room,
+      version: 3,
+      gameState: {
+        ...room.gameState,
+        boardState: {
+          ...room.gameState.boardState,
+          players: ['stable-player-id'],
+        },
+      },
+    };
+    const pendingOffer: PrivateOffer = {
+      offerId: '00000000-0000-4000-8000-000000000021',
+      roomId: room.roomId,
+      proposerPlayerId: 'other-player',
+      recipientPlayerId: 'stable-player-id',
+      proposerName: 'Bình',
+      recipientName: 'Ada',
+      offered: { cash: 100, propertyIds: [], jailFreeCardIds: [] },
+      requested: { cash: 0, propertyIds: [], jailFreeCardIds: [] },
+      status: 'PENDING',
+      createdAt: '2026-08-25T12:00:00.000Z',
+      expiresAt: '2026-08-25T13:00:00.000Z',
+      resolvedAt: null,
+    };
+
+    render(
+      <ToastProvider>
+        <App />
+      </ToastProvider>,
+    );
+    fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Ada' } });
+    fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'room-42' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Vào phòng' }));
+
+    const joinAck = lastEmission('join room')?.args[1];
+    act(() => {
+      if (isAckCallback(joinAck)) {
+        joinAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          data: {
+            kind: 'PENDING',
+            role: 'PLAYER',
+            token: RECONNECT_TOKEN,
+            expiresAt: new Date(Date.now() + 300_000).toISOString(),
+          },
+        });
+      }
+    });
+    const resumeAck = lastEmission('resume session')?.args[1];
+    act(() => {
+      if (isAckCallback(resumeAck)) {
+        resumeAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          revision: finishedRoom.version,
+          data: {
+            role: 'PLAYER',
+            playerId: 'stable-player-id',
+            room: finishedRoom,
+            privatePlayerState: {
+              playerId: 'stable-player-id',
+              heldJailFreeCardIds: ['chance-jail-free'],
+              gameplayEvents: { sequence: 0, events: [] },
+            },
+            pendingOffers: [pendingOffer],
+          },
+        });
+      }
+    });
+
+    expect(screen.getByText('Đề nghị từ Bình')).toBeTruthy();
+    act(() => socketHarness.trigger('update', replayRoom));
+    expect(screen.queryByText('Đề nghị từ Bình')).toBeNull();
   });
 
   it('abandons an unactivatable admission when browser storage is unavailable', () => {
@@ -355,7 +466,15 @@ describe('App session admission', () => {
     let quitListener: ((requestId: string) => void) | undefined;
     const respond = vi.fn();
     const bridge: OwnTheBlockDesktopBridge = {
-      getRuntimeConfig: () => Promise.resolve({ target: 'desktop' }),
+      getRuntimeConfig: () => Promise.resolve({
+        ok: true,
+        config: {
+          target: 'desktop',
+          socketUrl: 'http://127.0.0.1:8080',
+          platform: 'win32',
+          appVersion: '1.0.0',
+        },
+      }),
       window: {
         getState: () => Promise.resolve({ fullscreen: false, maximized: false, resizable: true }),
         setFullscreen: () => Promise.resolve(),

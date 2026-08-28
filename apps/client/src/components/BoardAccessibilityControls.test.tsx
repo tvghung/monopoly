@@ -19,6 +19,7 @@ const state: PublicGameState = {
     diceValue: { dice1: 0, dice2: 0 },
     rollSequence: 0,
     gameplayEvents: { sequence: 0, events: [] },
+    activityFeed: { sequence: 0, events: [] },
     ownedProps: {},
     winner: null,
   },

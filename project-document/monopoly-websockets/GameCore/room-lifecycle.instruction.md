@@ -6,10 +6,10 @@ Room has internal UUID/code, lifecycle status, stable host ID, version, Seat/gam
 snapshot and durable deadlines. Runtime connection registry/command queue are not
 the durable store.
 
-Lifecycle only moves:
+Lifecycle moves through the authoritative host replay boundary:
 
 ```text
-LOBBY → IN_PROGRESS → FINISHED
+LOBBY → IN_PROGRESS → FINISHED → LOBBY
 ```
 
 Player Seat membership (`ACTIVE | FINISHED | LEFT`) is independent from runtime
@@ -32,7 +32,10 @@ presence (`CONNECTED | DISCONNECTED`).
 - Start rolls server-side 2d6 for all active Player; tied highest rollers reroll
   until one winner, whose stable ID becomes first in persisted turn order. This
   happens inside start command; no client dice/order payload is accepted.
-- Start cannot repeat and no reverse/rematch lifecycle exists.
+- Start cannot repeat. `play again` is the only reverse lifecycle command: an
+  authenticated host may transition `FINISHED → LOBBY` in the same room, even when
+  only that eligible host remains; a later start still requires 2–4 active ready
+  Players.
 - Temporary host disconnect preserves host. Explicit leave transfers host to lowest
   remaining active join order.
 
@@ -73,8 +76,8 @@ Finished history records reason (`BANKRUPT | LEFT`); it is not erased by disconn
 - Public connected flags derive from runtime registry after load/restart.
 - Raw token, SocketData, presence, command queue and scheduler timer handles never
   enter snapshot.
-- Snapshot v7 persists pending landing/card decisions, ordered payments, private deck
-  state, bounded semantic lanes, completed card operations, turn recovery,
+- Snapshot v8 persists pending landing/card decisions, ordered payments, private deck
+  state, bounded semantic/activity lanes, completed card operations, turn recovery,
   forced-sale proposals and appearance identity; auction/contention/Bank queue state
   is not part of the schema. Exact deck order remains private.
 - Room code is normalized/unique but is not password/credential.
@@ -86,4 +89,6 @@ Finished history records reason (`BANKRUPT | LEFT`); it is not erased by disconn
 - Reconnect same Seat; newest-wins/stale disconnect.
 - Disconnect preserves all game state; explicit leave cleans atomically.
 - Spectator versus reconnect after start.
+- Finished reconnect, host-only same-room replay, finished-player return and explicit
+  LEFT exclusion; spectator role/session continuity and fresh second match.
 - Retention cleanup and room restart from PostgreSQL.

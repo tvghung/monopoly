@@ -88,6 +88,7 @@ export interface ClientToServerEvents {
   'set appearance': (request: SetAppearanceRequest, acknowledge: AckCallback) => void;
   'leave room': (acknowledge: AckCallback<LeaveRoomResult>) => void;
   'start game': (acknowledge: AckCallback) => void;
+  'play again': (acknowledge: AckCallback) => void;
   'send chat': (message: string, acknowledge: AckCallback) => void;
   // The server rolls the dice, moves the player, and resolves the landed tile.
   'roll dice': (acknowledge: AckCallback) => void;

@@ -9,6 +9,7 @@ import type {
   PublicGameState,
   RoomPlayerMeta,
   RoomRole,
+  RoomStatus,
   ServerToClientEvents,
 } from '@monopoly/shared';
 
@@ -39,6 +40,7 @@ export interface SocketFunctions {
   }) => void | Promise<Ack>;
   acceptForcedSale?: (proposalId: string) => void | Promise<Ack>;
   rejectForcedSale?: (proposalId: string) => void | Promise<Ack>;
+  playAgain?: () => Promise<Ack>;
 }
 
 export interface StateContextValue {
@@ -51,6 +53,9 @@ export interface StateContextValue {
   privatePlayerState: PrivatePlayerState | null;
   privateOffers: PrivateOffer[];
   roomPlayers?: RoomPlayerMeta[];
+  roomStatus?: RoomStatus;
+  hostPlayerId?: string | null;
+  canPlayAgain?: boolean;
 }
 
 export interface TradeTarget {

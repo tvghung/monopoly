@@ -10,15 +10,19 @@ import type { AppServer } from './socket/types';
 const { env } = process;
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 export const DEVELOPMENT_RENDERER_ORIGIN = 'http://127.0.0.1:5173';
+export const PACKAGED_RENDERER_ORIGIN = 'app://own-the-block';
 
 export function resolveCorsOrigin(environment: NodeJS.ProcessEnv): string | false {
   return environment.CORS_ORIGIN
-    || (environment.NODE_ENV === 'production' ? false : DEVELOPMENT_RENDERER_ORIGIN);
+    || (environment.NODE_ENV === 'production'
+      ? PACKAGED_RENDERER_ORIGIN
+      : DEVELOPMENT_RENDERER_ORIGIN);
 }
 
 // Build the Express app, HTTP server, and typed Socket.IO server. In production
-// the client is served same-origin (with a SPA fallback), so cross-origin
-// requests are disallowed by default; set CORS_ORIGIN to allow another origin.
+// the client is served same-origin (with a SPA fallback). The packaged Electron
+// origin is the one explicit cross-origin client allowed by default; set
+// CORS_ORIGIN to replace it with another explicit deployment origin.
 export function createServer(runtime: AppRuntime): { server: HttpServer; io: AppServer } {
   const app = express();
   const server = createHttpServer(app);

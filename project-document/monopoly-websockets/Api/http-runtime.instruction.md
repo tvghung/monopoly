@@ -14,8 +14,11 @@ Development endpoint contract:
 - Game server and Socket.IO server: `http://127.0.0.1:8080`.
 - Vite renderer origin: `http://127.0.0.1:5173`.
 - Socket.IO development CORS default: exactly `http://127.0.0.1:5173`.
-- `CORS_ORIGIN` explicitly overrides the development default; production remains
-  same-origin by default.
+- Packaged Electron uses `app://own-the-block` as the production CORS default.
+- Same-origin browser requests remain valid; a browser request without an `Origin`
+  header is not made invalid by the packaged Electron allowlist.
+- `CORS_ORIGIN` explicitly overrides the applicable development or production
+  default.
 
 No REST gameplay controller/auth route is added.
 
@@ -43,10 +46,13 @@ before propagating the failure.
 - `LOBBY_RETENTION_MS=86400000`, `IN_PROGRESS_RETENTION_MS=2592000000`,
   `FINISHED_RETENTION_MS=604800000`.
 - Existing `NODE_ENV`, `CORS_ORIGIN`, `CLIENT_DIST` behavior remains. In development,
-  the default `CORS_ORIGIN` is `http://127.0.0.1:5173`; production remains disabled
-  by default.
+  the default `CORS_ORIGIN` is `http://127.0.0.1:5173`; packaged Electron uses
+  `app://own-the-block` in production by default. `CORS_ORIGIN` replaces either
+  default when explicitly configured.
 
-Room code and CORS are not authentication.
+Room code and CORS are not authentication. Browser CORS authorizes whether a
+browser may expose a transport response to a requesting origin; it is not a
+server-side rejection or authentication mechanism for arbitrary WebSocket clients.
 
 ## Runtime failure/shutdown
 

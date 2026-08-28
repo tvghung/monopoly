@@ -1,5 +1,6 @@
 import { chatMessageSchema } from '@monopoly/shared';
 import { escapeHtml, sendToLog } from '../game';
+import { recordActivityEvent } from '../game/activity';
 import type { AppRuntime } from '../services/runtime';
 import { requirePlayer, requireRoom } from './authority';
 import { broadcastRoom } from './broadcast';
@@ -32,6 +33,13 @@ export function registerChatHandlers(
           ? state.players[socket.data.playerId]
             ?? state.boardState.finishedPlayers[socket.data.playerId]
           : undefined;
+        recordActivityEvent(state, {
+          type: 'CHAT',
+          senderRole: identity ? 'PLAYER' : 'SPECTATOR',
+          ...(identity && socket.data.playerId ? { senderPlayerId: socket.data.playerId } : {}),
+          senderName: identity?.name ?? 'Khán giả',
+          message,
+        });
         const safeMessage = escapeHtml(message);
         if (identity) {
           sendToLog(

@@ -31,7 +31,10 @@
   cross-reference/invariant failures, over-500 logs and non-v4 version fail explicitly.
 - [ ] Expected-version conflict cannot silently overwrite a newer room.
 - [ ] Local `compose.yaml` + `.env.example` support migrate/dev/restart workflow.
-- [ ] Production same-origin static/SPA and Socket.IO work; CORS is not authentication.
+- [ ] Production same-origin static/SPA and Socket.IO work; development defaults to
+  `http://127.0.0.1:5173`, packaged Electron defaults to `app://own-the-block`, and
+  `CORS_ORIGIN` overrides the applicable default. CORS is browser authorization,
+  not authentication or server-side rejection of arbitrary WebSocket clients.
 - [ ] Production proxy/static limiter uses one trusted hop and does not throttle
   Socket.IO or health probes.
 - [ ] CI migrates PostgreSQL before integration tests and runs typecheck/lint/test/build.

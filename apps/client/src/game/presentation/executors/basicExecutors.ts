@@ -1,5 +1,7 @@
+import { NOOP_AUDIO_PORT, type AudioPort } from '../../../audio/types';
 import type {
   BalanceChangedPresentationEvent,
+  GameFinishedPresentationEvent,
   LandTilePresentationEvent,
   PresentationEvent,
   PresentationEventType,
@@ -8,6 +10,7 @@ import type {
 } from '../events/types';
 import type { AnimationExecutionContext, PresentationExecutor, PresentationExecutorMap } from '../queue/types';
 import type { PresentationStoreLike } from '../store/types';
+import { getHotelAppearanceDelay, getSequentialHouseBuildSteps } from '../buildingSchedule';
 import { presentationTiming } from '../timings';
 
 function createTimedExecutor(
@@ -32,19 +35,24 @@ function isExecutionCurrent(context: AnimationExecutionContext): boolean {
 function createConsequenceExecutor<E extends PresentationEvent>(
   duration: number,
   emit: (event: E, durationMs: number) => void,
+  play?: (event: E, context: AnimationExecutionContext) => void,
 ): PresentationExecutor<E> {
   return {
     async run(event, context) {
       if (!isExecutionCurrent(context)) return;
       const durationMs = context.getDuration(duration);
       emit(event, durationMs);
+      play?.(event, context);
       await context.waitForDuration(durationMs);
     },
     finish() {},
   };
 }
 
-export function createBasicExecutors(store: PresentationStoreLike): PresentationExecutorMap {
+export function createBasicExecutors(
+  store: PresentationStoreLike,
+  audio: AudioPort = NOOP_AUDIO_PORT,
+): PresentationExecutorMap {
   const turnExecutor = createTimedExecutor(
     presentationTiming.turnChange,
     (event, target) => {
@@ -54,10 +62,12 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
   );
   const landingExecutor: PresentationExecutor<LandTilePresentationEvent> = {
     async run(event, context) {
+      if (!isExecutionCurrent(context)) return;
       store.clearDestinationPreview();
       const durationMs = context.getDuration(presentationTiming.landing);
       const depressDurationMs = context.getDuration(presentationTiming.tileImpact.landDepress);
       const reboundDurationMs = context.getDuration(presentationTiming.tileImpact.landRebound);
+      audio.play('movement.land', { signal: context.signal, scope: 'presentation' });
       if (!context.reducedMotion) {
         store.emitTileImpact(event.playerId, event.tileId, 'LAND', {
           delayMs: 0,
@@ -74,6 +84,9 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
     async run(event, context) {
       const durationMs = context.getDuration(presentationTiming.characterReaction.jail);
       if (event.type === 'JAIL_STATE_CHANGED' && event.isJail) {
+        if (isExecutionCurrent(context)) {
+          audio.play('jail.enter', { signal: context.signal, scope: 'presentation' });
+        }
         if (!context.reducedMotion) store.emitCharacterReaction(event.playerId, 'jail', durationMs);
       }
       await context.waitForDuration(durationMs);
@@ -84,6 +97,9 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
     async run(event, context) {
       const durationMs = context.getDuration(presentationTiming.characterReaction.bankrupt);
       if (event.type === 'PLAYER_FINISHED') {
+        if (event.reason === 'BANKRUPT' && isExecutionCurrent(context)) {
+          audio.play('bankruptcy', { signal: context.signal, scope: 'presentation' });
+        }
         if (!context.reducedMotion) {
           store.emitCharacterReaction(
             event.playerId,
@@ -115,6 +131,10 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
       event.toPlayerId,
       durationMs,
     ),
+    (_event, context) => audio.play('property.change', {
+      signal: context.signal,
+      scope: 'presentation',
+    }),
   );
   const developmentExecutor: PresentationExecutor<PropertyDevelopmentChangedPresentationEvent> = {
     async run(event, context) {
@@ -134,7 +154,52 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
         event.toHouses,
         durationMs,
       );
+      if (event.fromHouses === 4 && event.toHouses === 5) {
+        if (context.reducedMotion || durationMs <= 0) {
+          audio.play('build.hotel', { signal: context.signal, scope: 'presentation' });
+          return;
+        }
+        const appearanceDelayMs = getHotelAppearanceDelay(durationMs);
+        await context.waitForDuration(appearanceDelayMs);
+        if (!isExecutionCurrent(context)) return;
+        audio.play('build.hotel', { signal: context.signal, scope: 'presentation' });
+        await context.waitForDuration(Math.max(0, durationMs - appearanceDelayMs));
+        return;
+      }
+      if (event.toHouses > event.fromHouses) {
+        const steps = getSequentialHouseBuildSteps(
+          event.fromHouses,
+          event.toHouses,
+          durationMs,
+        );
+        if (context.reducedMotion || durationMs <= 0) {
+          audio.play('build.house', { signal: context.signal, scope: 'presentation' });
+          return;
+        }
+        let elapsedMs = 0;
+        for (const step of steps) {
+          const delayMs = Math.max(0, step.delayMs - elapsedMs);
+          if (delayMs > 0) await context.waitForDuration(delayMs);
+          if (!isExecutionCurrent(context)) return;
+          audio.play('build.house', { signal: context.signal, scope: 'presentation' });
+          elapsedMs = step.delayMs;
+        }
+        await context.waitForDuration(Math.max(0, durationMs - elapsedMs));
+        return;
+      }
+      if (event.toHouses < event.fromHouses) {
+        audio.play('build.remove', { signal: context.signal, scope: 'presentation' });
+      }
       await context.waitForDuration(durationMs);
+    },
+    finish() {},
+  };
+  const gameFinishedExecutor: PresentationExecutor<GameFinishedPresentationEvent> = {
+    async run(event, context) {
+      if (event.winnerPlayerId && isExecutionCurrent(context)) {
+        audio.play('victory', { signal: context.signal, scope: 'presentation' });
+      }
+      await context.wait(presentationTiming.finish);
     },
     finish() {},
   };
@@ -146,7 +211,7 @@ export function createBasicExecutors(store: PresentationStoreLike): Presentation
     JAIL_STATE_CHANGED: jailExecutor,
     PLAYER_FINISHED: finishedExecutor,
     TURN_CHANGED: turnExecutor,
-    GAME_FINISHED: createTimedExecutor(presentationTiming.finish),
+    GAME_FINISHED: gameFinishedExecutor,
   };
 }
 

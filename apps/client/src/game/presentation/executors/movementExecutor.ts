@@ -1,3 +1,4 @@
+import { NOOP_AUDIO_PORT, type AudioPort } from '../../../audio/types';
 import type { MoveCharacterPresentationEvent } from '../events/types';
 import { presentationTiming } from '../timings';
 import type { AnimationExecutionContext, PresentationExecutor } from '../queue/types';
@@ -9,7 +10,10 @@ function isExecutionCurrent(context: AnimationExecutionContext): boolean {
   return !context.signal.aborted && (context.isCurrent?.() ?? true);
 }
 
-export function createMovementExecutor(store: PresentationStoreLike): PresentationExecutor<MoveCharacterPresentationEvent> {
+export function createMovementExecutor(
+  store: PresentationStoreLike,
+  audio: AudioPort = NOOP_AUDIO_PORT,
+): PresentationExecutor<MoveCharacterPresentationEvent> {
   const startPassGoMoment = (
     event: MoveCharacterPresentationEvent,
     fromTileId: number,
@@ -32,6 +36,7 @@ export function createMovementExecutor(store: PresentationStoreLike): Presentati
       reason: 'PASS_GO',
       durationMs: context.getDuration(presentationTiming.moneyTransfer),
     });
+        audio.play('money.receive', { signal: context.signal, scope: 'presentation' });
     return {
       holdDurationMs: context.getDuration(presentationTiming.goHold),
       completion: context.waitForDuration(duration),
@@ -78,6 +83,9 @@ export function createMovementExecutor(store: PresentationStoreLike): Presentati
         await context.waitForDuration(hopDurationMs);
         if (!isExecutionCurrent(context)) return;
         store.completeCharacterHop(event.playerId, tileId);
+        if (step < event.steps) {
+          audio.play('movement.hop', { signal: context.signal, scope: 'presentation' });
+        }
         if (tileId === 0 && event.passGo) {
           const passGoMoment = startPassGoMoment(event, fromTileId, context);
           if (passGoMoment) {

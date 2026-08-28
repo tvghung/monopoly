@@ -30,7 +30,8 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
 - Browser giữ raw reconnect token; database chỉ giữ SHA-256 hash.
 - Valid token reclaim đúng Seat. Newest authenticated connection wins.
 - Disconnect chỉ đổi runtime presence; explicit `leave room` mới revoke/remove.
-- Room lifecycle là `LOBBY → IN_PROGRESS → FINISHED`; host/ready thuộc durable room.
+- Room lifecycle là `LOBBY → IN_PROGRESS → FINISHED → LOBBY`; bước cuối chỉ do
+  command `play again` của host đủ quyền thực hiện trong cùng room.
 - Lobby cần 2–4 active players, tất cả connected và ready; chỉ host được start.
 - Join không token sau start là spectator; valid player token luôn được xét trước.
 - Mọi inbound payload qua runtime schema. Actor lấy từ authenticated SocketData.
@@ -45,15 +46,16 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
   landing decision dùng operation ID, còn payment/forced-sale wait nhúng durable
   `PendingTurnContinuation` thay vì advance sớm.
 - Hidden `GamePrivateState.decks`, `PaymentQueue`, `PendingCardInteraction` và
-  forced-sale proposal nằm trong snapshot v7 nhưng public projector không được lộ
-  exact deck order hoặc proposal terms cho người chơi khác. V7 bổ sung bounded
-  public `gameplayEvents`, per-player private semantic lanes và
-  `completedCardOperations`; card draw/dismiss vẫn do server commit và operation ID
-  điều khiển. Appearance identity dùng `CharacterId` nullable và `PlayerColorId`
-  ổn định. Migration `008_semantic_card_v7.sql` nâng V6 snapshot lên V7 với
-  semantic baselines và completed-card ledger rỗng, không dựng lại lịch sử.
-- Client presentation queue is a derived display layer only: reconnect/session
-  snapshots snap/reset and live public revisions may animate observable diffs.
+  forced-sale proposal nằm trong snapshot v8 nhưng public projector không được lộ
+  exact deck order hoặc proposal terms cho người chơi khác. V8 bổ sung bounded
+  public `gameplayEvents` và typed `activityFeed`, cùng per-player private
+  semantic lanes và `completedCardOperations`; card draw/dismiss vẫn do server
+  commit và operation ID điều khiển. Appearance identity dùng `CharacterId`
+  nullable và `PlayerColorId` ổn định. Migration `009_activity_feed_v8.sql` nâng
+  V7 snapshot lên V8 bằng activity baseline rỗng, không dựng lại lịch sử.
+- Client presentation queue is a derived display layer only: reconnect/session and
+  `FINISHED → LOBBY` replay snapshots snap/reset; live public revisions may animate
+  observable diffs, with the typed activity tail gated by the same queue.
   Board đọc display target, còn action gates đọc settled position; reset epoch không
   dùng chung sequence với tile impact.
 - Electron is an optional desktop shell around the same client/server contract;

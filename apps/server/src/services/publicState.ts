@@ -68,6 +68,7 @@ export function projectPublicRoomState(
       ownedProps: boardState.ownedProps,
       winner: boardState.winner,
       gameplayEvents: structuredClone(boardState.gameplayEvents),
+      activityFeed: structuredClone(boardState.activityFeed),
       turnRecovery: boardState.turnRecovery
         ? {
           playerId: boardState.turnRecovery.playerId,

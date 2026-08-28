@@ -24,6 +24,7 @@ import { streetRent } from './property';
 import { sendToLog } from './text';
 import { completeTurnResolution } from './turn';
 import { recordPublicGameplayEvent } from './semanticEvents';
+import { activityPlayerName, recordActivityEvent } from './activity';
 
 export interface TileResolutionOptions {
   now?: number;
@@ -285,6 +286,13 @@ export const drawPendingCard = (
   const card = takeTopCard(state, interaction.deck);
   interaction.stage = 'REVEALED';
   interaction.revealedCardId = card.id;
+  recordActivityEvent(state, {
+    type: 'CARD_REVEALED',
+    playerId,
+    playerName: activityPlayerName(state, playerId),
+    deck: interaction.deck,
+    cardId: card.id,
+  });
   interaction.deadlineAt = new Date(
     (options.now ?? Date.now())
       + (options.cardRevealedTimeoutMs ?? DEFAULT_CARD_REVEALED_TIMEOUT_MS),

@@ -54,7 +54,7 @@ recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
 
 ## Standard Mode contracts và game data
 
-- `SOCKET_PROTOCOL_VERSION = 7`; client/server cũ bị từ chối bằng
+- `SOCKET_PROTOCOL_VERSION = 8`; client/server cũ bị từ chối bằng
   `UPGRADE_REQUIRED`.
 - Appearance contract dùng stable `CharacterId`/`PlayerColorId`; `set appearance`
   is strict, lobby-only, allows duplicate characters and enforces unique active
@@ -71,6 +71,10 @@ recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
   `MONEY_TRANSFER`, `PROPERTY_TRANSFER`, `PASS_GO`, `SENT_TO_JAIL`,
   `JAIL_ROLL_FAILED` và `JAIL_RELEASED`. Private lanes are participant-scoped;
   exact deck order vẫn không thuộc public projection.
+- Public `BoardState.activityFeed` là bounded typed event tail, ghi tại server
+  producer points theo sequence riêng. Nó bao gồm join/chat/dice/purchase/
+  transfer/development/card/jail/finish/start facts cần để render Log; không bao
+  giờ được dựng từ `boardState.logs`, private deck order hoặc private offer terms.
 - `BoardState.rollSequence` là public non-negative safe integer, bắt đầu từ `0`
   và tăng đúng một lần cho gameplay `roll dice` đã commit; starting-player
   tie-break, rejected command và rollback không tăng sequence. `ROLL_DICE` phía
@@ -79,9 +83,9 @@ recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
   `GamePrivateState.decks.chest.drawPile` giữ exact draw order;
   `heldJailFreeCardIds` nằm trên Player/private player projection. Các ID/order này
   không thuộc public `GameState`.
-- V6 snapshots are upgraded by `008_semantic_card_v7.sql` to snapshot V7;
-  the migration initializes empty semantic lanes and completed-card history rather
-  than inventing historical events.
+- V7 snapshots are upgraded by `009_activity_feed_v8.sql` to snapshot V8; the
+  migration initializes an empty activity tail rather than inventing historical
+  events from legacy HTML logs.
 
 Khi đổi static data/contract, đọc
 [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md).

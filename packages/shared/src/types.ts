@@ -1,7 +1,7 @@
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
-export const SOCKET_PROTOCOL_VERSION = 7 as const;
+export const SOCKET_PROTOCOL_VERSION = 8 as const;
 
 export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
 export type PlayerId = string;
@@ -235,6 +235,121 @@ export interface GameplayEventStream {
   events: GameplaySemanticEvent[];
 }
 
+export interface ActivityEventBase {
+  eventId: string;
+  sequence: number;
+  occurredAt: string;
+}
+
+export type ActivityMoneyEndpoint =
+  | { kind: 'BANK' }
+  | { kind: 'PLAYER'; playerId: PlayerId; name: string };
+
+export type ActivityEvent = ActivityEventBase & (
+  | {
+    type: 'PLAYER_JOINED';
+    playerId: PlayerId;
+    playerName: string;
+    color: PlayerColorId;
+    characterId: CharacterId | null;
+  }
+  | {
+    type: 'GAME_STARTED';
+    playerIds: PlayerId[];
+    startingPlayerId: PlayerId;
+    startingPlayerName: string;
+  }
+  | {
+    type: 'CHAT';
+    senderRole: RoomRole;
+    senderPlayerId?: PlayerId;
+    senderName: string;
+    message: string;
+  }
+  | {
+    type: 'DICE_ROLL';
+    playerId: PlayerId;
+    playerName: string;
+    dice1: number;
+    dice2: number;
+    total: number;
+    context: 'TURN' | 'JAIL';
+  }
+  | {
+    type: 'PROPERTY_PURCHASE';
+    playerId: PlayerId;
+    playerName: string;
+    tileID: number;
+    price: number;
+  }
+  | {
+    type: 'PROPERTY_TRANSFER';
+    tileID: number;
+    from: ActivityMoneyEndpoint;
+    to: ActivityMoneyEndpoint;
+    cause: PropertyTransferCause;
+  }
+  | {
+    type: 'MONEY_TRANSFER';
+    source: ActivityMoneyEndpoint;
+    destination: ActivityMoneyEndpoint;
+    amount: number;
+    reason: MoneyTransferReason;
+  }
+  | {
+    type: 'PROPERTY_DEVELOPMENT';
+    playerId: PlayerId;
+    playerName: string;
+    tileID: number;
+    fromHouses: number;
+    toHouses: number;
+    action: 'BUILD' | 'UPGRADE_HOTEL' | 'SELL';
+    cost?: number;
+  }
+  | {
+    type: 'CARD_REVEALED';
+    playerId: PlayerId;
+    playerName: string;
+    deck: CardDeck;
+    cardId: GameCardId;
+  }
+  | {
+    type: 'JAIL';
+    action: 'ENTRY' | 'RELEASE' | 'FAILED_ROLL';
+    playerId: PlayerId;
+    playerName: string;
+    cause?: SentToJailCause | 'BAIL' | 'JAIL_FREE_CARD' | 'DOUBLES' | 'TIME_SERVED';
+  }
+  | {
+    type: 'PLAYER_FINISHED';
+    playerId: PlayerId;
+    playerName: string;
+    reason: FinishedPlayerReason;
+    finalCash: number;
+  }
+  | {
+    type: 'GAME_FINISHED';
+    winnerPlayerId: PlayerId;
+    winnerName: string;
+    winnerColor: PlayerColorId;
+    winnerCharacterId: CharacterId | null;
+    finalCash: number;
+  }
+);
+
+export type ActivityEventInput = ActivityEvent extends infer Event
+  ? Event extends ActivityEvent
+    ? Omit<Event, 'eventId' | 'sequence' | 'occurredAt'>
+    : never
+  : never;
+
+export const ACTIVITY_FEED_MAX_EVENTS = 128 as const;
+
+export interface ActivityFeed {
+  sequence: number;
+  events: ActivityEvent[];
+}
+
 export interface DeckState {
   // The first id is the next card to draw. Normal cards rotate to the end;
   // held jail-free cards remain absent until returned to this pile.
@@ -408,6 +523,7 @@ export interface BoardState {
   winner: Winner | null;
   paymentQueue: PaymentQueue | null;
   gameplayEvents: GameplayEventStream;
+  activityFeed: ActivityFeed;
 }
 
 export interface GameState {

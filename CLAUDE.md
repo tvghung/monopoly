@@ -49,12 +49,13 @@ thay đổi chưa hoàn tất.
 - Không có production memory fallback. In-memory repository chỉ dành cho test.
 - Không persist presence, socket mapping, raw token, timer handle hoặc countdown
   tick. Offer/turn/payment-shortfall/forced-sale recovery persist absolute deadline.
-- Lifecycle room chỉ tiến `LOBBY → IN_PROGRESS → FINISHED`.
+- Lifecycle room là `LOBBY → IN_PROGRESS → FINISHED`; chỉ command `play again` của
+  host đã xác thực mới mở lại cùng room theo `FINISHED → LOBBY`.
 - Host là stable player; disconnect không transfer host. Lobby cần 2–4 active,
   connected và ready players để host start.
 - Standard Mode dùng board Việt Nam cố định 40 ô, đơn vị số nguyên game-unit
-  (`1 unit = 1.000 VNĐ`) và protocol/snapshot schema v7
-  (`SOCKET_PROTOCOL_VERSION = 7`, `ROOM_SNAPSHOT_SCHEMA_VERSION = 7`). `BoardState.rollSequence`
+  (`1 unit = 1.000 VNĐ`) và protocol/snapshot schema v8
+  (`SOCKET_PROTOCOL_VERSION = 8`, `ROOM_SNAPSHOT_SCHEMA_VERSION = 8`). `BoardState.rollSequence`
   là public durable identity, bắt đầu từ `0`, tăng đúng một lần cho mỗi gameplay
   roll đã commit, không tăng cho starting-player tie-break hoặc command rollback.
   Không đổi index hoặc
@@ -66,15 +67,17 @@ thay đổi chưa hoàn tất.
   thuộc authoritative room aggregate và phải recovery-safe. Card interaction dùng
   operation ID, `AWAITING_DRAW`/`REVEALED`, `revealedCardId` chỉ khi đã reveal,
   continuation và server deadline; `draw card`/`dismiss card` chỉ ACK sau commit.
-- `DeckState` và thứ tự thẻ không được phát trong public DTO. Public V7 có bounded
-  `gameplayEvents`; private durable state có per-player semantic lanes và
-  `completedCardOperations`, nhưng client chỉ nhận đúng projection được phép để
-  render. Credential, private offer và hidden deck order vẫn nằm ngoài public
-  projection. Migration `008_semantic_card_v7.sql` nâng V6 snapshot lên V7 bằng
-  semantic baselines và completed-card ledger rỗng, không dựng lại lịch sử.
-- Client display state không thay authoritative room state. `SESSION_SYNC` và
-  `SPECTATOR_SYNC` reset presentation queue/snap; chỉ `LIVE_UPDATE` mới animate
-  state diff. Queue failure phải resolve, và reconnect không replay lịch sử.
+- `DeckState` và thứ tự thẻ không được phát trong public DTO. Public V8 có bounded
+  `gameplayEvents` và typed `activityFeed`; private durable state có per-player
+  semantic lanes và `completedCardOperations`, nhưng client chỉ nhận đúng
+  projection được phép để render. Credential, private offer và hidden deck order
+  vẫn nằm ngoài public projection. Migration `009_activity_feed_v8.sql` nâng V7
+  snapshot lên V8 bằng activity baseline rỗng, không dựng lại lịch sử log.
+- Client display state không thay authoritative room state. `SESSION_SYNC`,
+  `SPECTATOR_SYNC` và `REPLAY_SYNC` reset presentation queue/snap; chỉ
+  `LIVE_UPDATE` mới animate state diff. Activity tail trong live update phải chờ
+  cùng PresentationQueue gate, còn reconnect/replay chỉ hydrate snapshot hiện tại.
+  Queue failure phải resolve, và reconnect không replay lịch sử.
 - WebGL board chỉ render `BoardRenderModel` derive từ authoritative state cộng
   presentation state. Camera orthographic cố định, `frameloop="demand"`; callback
   hoàn tất local SDF text phải invalidate frame để tên ô hiện mà không cần tương tác.

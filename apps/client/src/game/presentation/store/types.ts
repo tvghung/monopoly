@@ -1,4 +1,5 @@
 import type {
+  ActivityEvent,
   CardDeck,
   DiceValue,
   GameCardId,
@@ -125,6 +126,7 @@ export interface DiceRollPresentation {
 
 export interface PresentationState {
   displayLogs: readonly string[];
+  displayActivity: readonly ActivityEvent[];
   displayPositions: Record<string, number>;
   settledPositions: Record<string, number>;
   displayBalances: Record<string, number>;
@@ -157,6 +159,7 @@ export interface PresentationStoreLike {
   subscribe: (listener: PresentationListener) => () => void;
   resetFromSnapshot: (room: PublicRoomState) => void;
   setDisplayLogs: (logs: readonly string[]) => void;
+  setDisplayActivity: (events: readonly ActivityEvent[]) => void;
   syncPlayers: (room: PublicRoomState) => void;
   syncDisplayBalances: (
     balances: Readonly<Record<string, number>>,

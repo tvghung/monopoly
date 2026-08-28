@@ -326,10 +326,12 @@ Không cần nhiều sprite sheet trong v1.
 9. Jail
 10. Bankruptcy
 11. Victory
-12. Emotes
-13. Ambient decoration
+12. Ambient decoration
 
 Nếu phải cắt scope, cắt decoration trước, không cắt feedback gameplay.
+
+Multiplayer emotes are deferred/out of the current Phase 5 scope. Existing local
+reaction primitives remain implementation detail.
 
 ---
 
@@ -349,15 +351,18 @@ Cần audio groups:
 - jail
 - bankruptcy
 - victory
-- reactions
-- ambience
 - music
+- ambience (deferred unless separately approved)
 
 Mỗi group phải có independent volume hoặc ít nhất:
 
 - Master
 - Music
 - SFX
+
+Phase 5.1 uses the Native Web Audio API, centralized core SFX, and one original
+background music track through the Music bus. Ambience remains deferred unless
+separately approved later; `musicVolume` is intentionally retained.
 
 Không để sound effect kéo dài làm chậm game.
 
@@ -495,17 +500,26 @@ File:
 
 ## Phase 5 — Game Feel, Audio & Effects
 
+Status: **APPROVED — two implementation subphases only**.
+
 Mục tiêu:
 
-- sound design
-- particles
-- glow
-- floating money
-- micro feedback
-- turn transitions
-- event feed
-- emotes
-- victory presentation
+- Native Web Audio and centralized core SFX;
+- one original background music track through the existing Music bus;
+- ambience deferred unless separately approved;
+- bounded remaining visual feedback and game feel;
+- structured activity in the existing `Log` surface;
+- fact-only victory presentation;
+- host-only Play Again with same-room `FINISHED → LOBBY` lifecycle;
+- final long-session, accessibility, cleanup, and performance validation.
+
+Phase 5 contains only:
+
+1. [Phase 5.1 — Core Game Feel, Audio & Visual Feedback](05_PHASE_5_GAME_FEEL_AUDIO_EFFECTS.md#2-phase-51--core-game-feel-audio--visual-feedback)
+2. [Phase 5.2 — Activity Feed, Victory, Play Again & Corrective Pass](05_PHASE_5_GAME_FEEL_AUDIO_EFFECTS.md#3-phase-52--remaining-game-feel-activity-feed-victory-play-again--corrective-pass)
+
+The detailed approved audit and implementation boundary are in
+[05A_PHASE_5_0_AUDIT_AND_SCOPE.md](05A_PHASE_5_0_AUDIT_AND_SCOPE.md).
 
 File:
 
@@ -515,17 +529,31 @@ File:
 
 ## Phase 6 — Polish & Distribution
 
+Status: Phase 6.0 release-readiness audit and scope lock is complete on the
+current V8 baseline. No Phase 6 production implementation has started.
+
 Mục tiêu:
 
 - performance
-- preload
+- evidence-backed asset loading
 - settings
 - reconnect
 - accessibility
-- installer
-- Windows EXE
+- release hardening
+- Windows Squirrel
 - macOS APP/DMG
 - release verification
+
+Phase 6 contains only:
+
+1. Phase 6.0 — Release Readiness Audit and Scope Lock.
+2. Phase 6.1 — Release Hardening.
+3. Phase 6.2 — Distribution and Release Verification.
+
+The detailed current-code matrix and scope freeze are in
+[06A_PHASE_6_0_RELEASE_READINESS_AUDIT.md](06A_PHASE_6_0_RELEASE_READINESS_AUDIT.md).
+Auto-update remains post-v1. The current V8 contract, server authority, and
+single presentation/audio architectures remain frozen.
 
 File:
 

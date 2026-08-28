@@ -1,4 +1,4 @@
-# Persistence — snapshot v7 và restart recovery
+# Persistence — snapshot v8 và restart recovery
 
 ## Phạm vi
 
@@ -15,18 +15,19 @@
 - Raw token không persist; chỉ SHA-256. Presence/socket/generation/timer handle và
   countdown tick không nằm database.
 - SQL migration version và JSON snapshot schema version độc lập; current runtime
-  uses protocol v7 and accepts snapshot schema v7.
+  uses protocol v8 and accepts snapshot schema v8.
 
-## Snapshot v7
+## Snapshot v8
 
 Room JSONB giữ stable-ID state, pending purchase/development landing decisions,
 ordered `PaymentQueue`/`DebtClaim`, durable `PendingCardInteraction`, private
-deck/card ownership, bounded public `gameplayEvents`, per-player private semantic
-lanes, `completedCardOperations` and one optional forced-sale proposal. Live/finished/
+deck/card ownership, bounded public `gameplayEvents` and typed `activityFeed`,
+per-player private semantic lanes, `completedCardOperations` and one optional
+forced-sale proposal. Live/finished/
 winner identity records also retain nullable `CharacterId` and shared
 `PlayerColorId`. Public projection loại exact deck order, continuation internals and
 proposal terms except to its seller/buyer private rooms. Auction, Bank queue,
-building-contention and finite Bank inventory remain outside current V7 live state.
+building-contention and finite Bank inventory remain outside current V8 live state.
 Property rows contain only owner, colour and development level.
 
 `BoardState.rollSequence` is persisted as a public non-negative safe integer.
@@ -66,14 +67,14 @@ baseline, preserves all other room/game JSON, increments the aggregate version,
 and is forward-only. This is historical V5 → V6 migration history, not the current
 runtime version.
 
-## Current V6 → V7 migration
+## Current V7 → V8 migration
 
-Migration `008_semantic_card_v7.sql` upgrades only rooms with snapshot schema 6.
-It adds empty public and per-player semantic event baselines plus an empty
-`completedCardOperations` ledger, sets snapshot schema version 7 and increments the
-aggregate version inside the transaction. It does not reconstruct semantic history,
-logs, card order or prior card effects. The current loader/save gate validates the
-V7 card interaction, semantic streams and privacy boundaries.
+Migration `009_activity_feed_v8.sql` upgrades only rooms with snapshot schema 7.
+It initializes an empty bounded public typed `activityFeed`, sets snapshot schema
+version 8 and increments the aggregate version inside the transaction. It does not
+reconstruct activity from legacy logs, card order or prior card effects. The current
+loader/save gate validates the V8 activity, card interaction, semantic streams and
+privacy boundaries.
 
 ## Deadline/restart recovery
 

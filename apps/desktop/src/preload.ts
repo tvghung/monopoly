@@ -1,9 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS, type DesktopWindowState } from './ipc/channels';
-import type { DesktopRuntimeConfig } from './runtimeConfig';
+import type { DesktopRuntimeConfigResult } from './runtimeConfig';
 
 export interface OwnTheBlockDesktopBridge {
-  getRuntimeConfig(): Promise<DesktopRuntimeConfig>;
+  getRuntimeConfig(): Promise<DesktopRuntimeConfigResult>;
   window: {
     getState(): Promise<DesktopWindowState>;
     setFullscreen(value: boolean): Promise<void>;

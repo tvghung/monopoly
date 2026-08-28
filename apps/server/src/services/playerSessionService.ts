@@ -8,12 +8,13 @@ import {
   activePlayerIds,
   assertSupportedRoomSnapshot,
   calculateNextActionAt,
+  createFreshPlayer,
   createRoomSnapshot,
   nextAvailableColor,
   normalizeRoomId,
   type RoomSnapshot,
 } from '../rooms';
-import { sanitizeName, sendToLog } from '../game';
+import { recordActivityEvent, sanitizeName, sendToLog } from '../game';
 import { CommandError } from '../socket/errors';
 
 export interface PendingAdmissionResult {
@@ -264,17 +265,15 @@ export class PlayerSessionService {
       membershipStatus: 'ACTIVE',
     };
     snapshot.nextJoinOrder += 1;
-    snapshot.gameState.players[playerId] = {
-      name,
-      currentTile: 0,
+    snapshot.gameState.players[playerId] = createFreshPlayer(name, color);
+    snapshot.gameState.boardState.players = activePlayerIds(snapshot);
+    recordActivityEvent(snapshot.gameState, {
+      type: 'PLAYER_JOINED',
+      playerId,
+      playerName: name,
       color,
       characterId: null,
-      accountBalance: 1500,
-      isJail: false,
-      jailOpponentRoundsElapsed: 0,
-      heldJailFreeCardIds: [],
-    };
-    snapshot.gameState.boardState.players = activePlayerIds(snapshot);
+    });
     sendToLog(snapshot.gameState, `${name} đã tham gia phòng.`);
   }
 

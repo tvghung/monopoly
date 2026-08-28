@@ -48,6 +48,7 @@ import type { AppSocket, SocketFunctions } from './types';
 import { requestRollDiceAck } from './rollDiceRequest';
 import { getDefaultWebRuntimeConfig } from './runtime/runtimeConfig';
 import type { RuntimeConfig } from './runtime/types';
+import { useAudio } from './audio/useAudio';
 import './App.css';
 
 const initialState: PublicGameState = {
@@ -63,6 +64,7 @@ const initialState: PublicGameState = {
     diceValue: { dice1: 0, dice2: 0 },
     rollSequence: 0,
     gameplayEvents: { sequence: 0, events: [] },
+    activityFeed: { sequence: 0, events: [] },
     ownedProps: {},
     winner: null,
     paymentShortfall: null,
@@ -146,11 +148,12 @@ interface AppProps {
 
 export default function App({ socket: injectedSocket, runtimeConfig }: AppProps = {}) {
   const toast = useToast();
+  const audio = useAudio();
   const socket = useMemo(
     () => injectedSocket ?? createSocket(runtimeConfig ?? getDefaultWebRuntimeConfig()),
     [injectedSocket, runtimeConfig],
   );
-  const [presentationController] = useState(() => new PresentationController());
+  const [presentationController] = useState(() => new PresentationController(false, 1, audio));
   const [initialToken] = useState(readPlayerSession);
   const tokenRef = useRef<string | null>(initialToken);
   const spectatorRequestRef = useRef<JoinRoomRequest | null>(null);
@@ -173,6 +176,13 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
   const [confirmation, setConfirmation] = useState<ConfirmationState | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const desktopBridge = getDesktopBridge();
+  const activeRoomId = room?.roomId ?? null;
+
+  useEffect(() => {
+    const roomSessionActive = activeRoomId !== null
+      && (phase === 'LOBBY' || phase === 'GAME' || phase === 'RECONNECTING');
+    audio.setRoomActive?.(roomSessionActive);
+  }, [activeRoomId, audio, phase]);
 
   const transition = useCallback((next: AppPhase) => {
     phaseRef.current = next;
@@ -201,9 +211,17 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       return;
     }
 
+    const replaySync = current?.roomId === incoming.roomId
+      && current.status === 'FINISHED'
+      && incoming.status === 'LOBBY';
+    if (replaySync) {
+      setPrivatePlayerState(null);
+      setPrivateOffers([]);
+    }
+
     roomRef.current = incoming;
     setRoom(incoming);
-    presentationController.acceptRoomSnapshot(incoming, source);
+    presentationController.acceptRoomSnapshot(incoming, replaySync ? 'REPLAY_SYNC' : source);
 
     if (!advancePhase || phaseRef.current === 'REPLACED') return;
     transition(roleRef.current === 'PLAYER' && incoming.status === 'LOBBY' ? 'LOBBY' : 'GAME');
@@ -389,7 +407,12 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       const connecting = phaseRef.current === 'RESTORING'
         || phaseRef.current === 'JOINING'
         || phaseRef.current === 'RECONNECTING';
-      applyRoom(incoming, !connecting && roleRef.current !== null, connecting ? 'SESSION_SYNC' : 'LIVE_UPDATE');
+      const replaySync = roomRef.current?.status === 'FINISHED' && incoming.status === 'LOBBY';
+      applyRoom(
+        incoming,
+        !connecting && roleRef.current !== null,
+        connecting ? 'SESSION_SYNC' : replaySync ? 'REPLAY_SYNC' : 'LIVE_UPDATE',
+      );
     };
 
     const onOffer = (offer: PrivateOffer) => {
@@ -494,6 +517,13 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
     && role === 'PLAYER'
     && room?.status === 'IN_PROGRESS'
     && room.players.some(player => player.playerId === playerId && player.membershipStatus === 'ACTIVE');
+
+  const canPlayAgain = connected
+    && phase === 'GAME'
+    && role === 'PLAYER'
+    && room?.status === 'FINISHED'
+    && room.hostPlayerId === playerId
+    && room.players.some(player => player.playerId === playerId && player.membershipStatus !== 'LEFT');
 
   const socketFunctions = useMemo<SocketFunctions>(() => {
     const gameCommandAllowed = (showFailure = true) => {
@@ -600,8 +630,12 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
         if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
         return sendAck(callback => socket.emit('reject forced sale', { proposalId }, callback));
       },
+      playAgain: () => {
+        if (!canPlayAgain) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('play again', callback));
+      },
     };
-  }, [canMutate, connected, showCommandFailure, socket, toast]);
+  }, [canMutate, canPlayAgain, connected, showCommandFailure, socket, toast]);
 
   const handleJoin = useCallback((name: string, roomCode: string) => {
     joinRoom({ name, roomCode });
@@ -720,7 +754,10 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
     privatePlayerState,
     privateOffers,
     roomPlayers: room?.players ?? [],
-  }), [canMutate, connected, playerId, privateOffers, privatePlayerState, role, room, socketFunctions]);
+    roomStatus: room?.status,
+    hostPlayerId: room?.hostPlayerId,
+    canPlayAgain,
+  }), [canMutate, canPlayAgain, connected, playerId, privateOffers, privatePlayerState, role, room, socketFunctions]);
 
   const roomContent = room && role
     ? role === 'PLAYER' && room.status === 'LOBBY' && playerId

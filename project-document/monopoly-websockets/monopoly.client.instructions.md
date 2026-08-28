@@ -13,7 +13,8 @@ library; các view đều nằm trên `/`.
 - `JOINING`: chờ pending-token rồi activation ACK.
 - `RESTORING`: có stored token và đang resume.
 - `LOBBY`: active player trong room `LOBBY`.
-- `GAME`: active player trong `IN_PROGRESS`/`FINISHED`.
+- `GAME`: active player trong `IN_PROGRESS`/`FINISHED`; the finished state may
+  transition to the existing lobby through host-only same-room Play Again.
 - `RECONNECTING`: giữ snapshot, khóa mutation trong lúc transport/session phục hồi.
 - `REPLACED`: connection mới hơn đã chiếm session; tab cũ dừng reconnect.
 - `ERROR`: terminal hoặc retryable state có message rõ ràng.
@@ -62,7 +63,8 @@ Development endpoint contract:
 - Mọi mutation command có ACK. Authoritative UI state chỉ đổi theo committed update;
   form local có thể đóng sau emit nhưng ACK failure phải được hiển thị, không được
   tự tạo game-state success.
-- During reconnect, gameplay/trading/lobby mutation controls bị disable.
+- During reconnect, gameplay/trading/lobby mutation controls bị disable; the typed
+  activity tail hydrates on sync without replaying stale presentation.
 - Private offer listeners dùng unique `offerId`; server `expiresAt` là authority.
 - Listener/timer phải cleanup dưới React `StrictMode`.
 

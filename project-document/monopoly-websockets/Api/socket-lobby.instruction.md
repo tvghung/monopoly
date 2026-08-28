@@ -2,7 +2,8 @@
 
 ## Scope
 
-`apps/server/src/socket/lobby.ts` handles `set ready`, `start game` and `leave room`.
+`apps/server/src/socket/lobby.ts` handles `set ready`, `start game`, `play again` and
+`leave room`.
 All Player commands use authenticated stable actor, runtime schema where applicable,
 per-room executor and typed ACK.
 
@@ -32,6 +33,21 @@ per-room executor and typed ACK.
   preserve it. The board may keep this compatibility field without rendering a visible
   timer. Client supplies no dice/order.
 - Repeat/non-host/spectator/offline/unready start returns explicit failure.
+
+## Same-room Play Again
+
+- `play again` has no business payload and is accepted only from an authenticated
+  Player whose room is `FINISHED` and whose stable ID is the persisted host.
+  Unlike `start game`, it may reset a room with only one eligible active Player;
+  `start game` still requires 2–4 active connected ready Players.
+- The command runs inside the room executor, cancels all pending persisted trade
+  offers in the same transaction, reconstructs `freshState()` and canonical player
+  defaults, preserves eligible IDs/appearance/join order/sessions, resets ready
+  flags, and removes `LEFT` members from the next lobby.
+- The room ID/code and eligible host remain stable. Winner/finished records,
+  positions/balances/ownership/debt/card/presentation/log/activity state and roll
+  identities are not carried into the next match. Commit emits the new `LOBBY`
+  snapshot before the ACK; a repeated/in-flight command cannot reset twice.
 
 First activated Seat is host. Temporary disconnect never transfers host or ready.
 
@@ -66,3 +82,6 @@ leave clears runtime binding/admission lock so the same Socket can join another 
 - Current/non-current leave, property/listing/offer cleanup and winner.
 - Active-payer leave settles creditor and leaves no auction/proposal; non-payer leave
   returns assets without proceeds.
+- Host-only replay, finished/non-finished authorization, same-room identity,
+  finished-player return, explicit-LEFT exclusion, session/spectator continuity,
+  fresh state, offer cancellation and second-match start.

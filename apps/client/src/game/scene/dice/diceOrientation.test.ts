@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DICE_DROP_HEIGHT } from './diceLayout';
+import { presentationTiming } from '../../presentation/timings';
 import {
   DICE_REROLL_LIFT_RATIO,
   getDiceAnimationHeight,
+  getDiceBounceOffset,
   getDiceAnimationRotation,
   getDiceTumbleTurns,
   getSettledDiceRotation,
@@ -53,5 +55,10 @@ describe('procedural dice orientation', () => {
     expect(atLift).toEqual(previous);
     expect(afterLift).not.toEqual(previous);
     expect(getDiceAnimationRotation(3, 7, 0, 1, 3)).toEqual(previous);
+  });
+
+  it('uses the shared primary contact milestone for the bounce phase', () => {
+    expect(getDiceBounceOffset(presentationTiming.diceContactProgress - 0.001)).toBe(0);
+    expect(getDiceBounceOffset(presentationTiming.diceContactProgress + 0.01)).not.toBe(0);
   });
 });

@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import type { PublicGameState } from '@monopoly/shared';
+import type { ActivityEvent, PublicGameState } from '@monopoly/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import stateContext from '../internal';
 import type { SocketFunctions, StateContextValue } from '../types';
@@ -17,7 +17,7 @@ const makeSocketFunctions = (): SocketFunctions => ({
   useJailCard: vi.fn(),
 });
 
-function makeState(logs: string[] = []): PublicGameState {
+function makeState(logs: string[] = [], activity: ActivityEvent[] = []): PublicGameState {
   return {
     boardState: {
       gameStarted: true,
@@ -30,6 +30,7 @@ function makeState(logs: string[] = []): PublicGameState {
       diceValue: { dice1: 0, dice2: 0 },
       rollSequence: 0,
       gameplayEvents: { sequence: 0, events: [] },
+      activityFeed: { sequence: activity.at(-1)?.sequence ?? 0, events: activity },
       ownedProps: {},
       winner: null,
     },
@@ -53,9 +54,9 @@ function makeContext(state: PublicGameState): StateContextValue {
   };
 }
 
-function renderLog(logs: string[] = []) {
+function renderLog(logs: string[] = [], activity: ActivityEvent[] = []) {
   return render(
-    <stateContext.Provider value={makeContext(makeState(logs))}>
+    <stateContext.Provider value={makeContext(makeState(logs, activity))}>
       <Log />
     </stateContext.Provider>,
   );
@@ -131,5 +132,26 @@ describe('chat and activity log idle presentation', () => {
     void act(() => vi.advanceTimersByTime(LOG_IDLE_TIMEOUT_MS));
     expect(errorSpy).not.toHaveBeenCalled();
     errorSpy.mockRestore();
+  });
+
+  it('does not duplicate legacy markup when a typed activity tail is available', () => {
+    renderLog(
+      ['<span class="legacy">old</span>'],
+      [{
+        eventId: '00000000-0000-4000-8000-000000000010',
+        sequence: 1,
+        occurredAt: '2026-08-25T12:00:00.000Z',
+        type: 'CHAT',
+        senderRole: 'PLAYER',
+        senderPlayerId: '00000000-0000-4000-8000-000000000001',
+        senderName: 'Ada',
+        message: 'Xin chào',
+      }],
+    );
+
+    expect(screen.getByText('Ada: Xin chào')).toBeTruthy();
+    expect(screen.queryByText('<span class="legacy">old</span>')).toBeNull();
+    expect(document.querySelector('.legacy')).toBeNull();
+    expect(document.querySelector('.activity-entry--chat')).not.toBeNull();
   });
 });

@@ -11,6 +11,7 @@ interface PresentationContextValue {
 
 const emptyPresentationState: PresentationState = {
   displayLogs: [],
+  displayActivity: [],
   displayPositions: {},
   settledPositions: {},
   displayBalances: {},

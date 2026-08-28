@@ -1,6 +1,7 @@
 import {
   cleanup, fireEvent, render, screen, waitFor,
 } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopWindowState, OwnTheBlockDesktopBridge } from '../runtime/types';
 import { DEFAULT_GAME_SETTINGS } from './defaults';
@@ -51,24 +52,45 @@ function makeBridge(fullscreen: boolean) {
   };
   return {
     bridge,
+    getState,
     setFullscreen,
     emit: (nextFullscreen: boolean) => listener?.({ fullscreen: nextFullscreen, maximized: false, resizable: true }),
   };
 }
 
 describe('SettingsProvider desktop fullscreen synchronization', () => {
-  it('follows native fullscreen changes even when settings UI is closed', async () => {
-    const { bridge, emit } = makeBridge(true);
+  it('applies persisted fullscreen intent without letting native startup state erase it', async () => {
+    const { bridge, getState, setFullscreen, emit } = makeBridge(false);
     window.ownTheBlockDesktop = bridge;
     render(
-      <SettingsProvider initialSettings={{ ...DEFAULT_GAME_SETTINGS, fullscreen: false }}>
+      <SettingsProvider initialSettings={{ ...DEFAULT_GAME_SETTINGS, fullscreen: true }}>
         <SettingsProbe />
       </SettingsProvider>,
     );
 
-    await waitFor(() => expect(screen.getByTestId('fullscreen').textContent).toBe('true'));
+    await waitFor(() => expect(setFullscreen).toHaveBeenCalledWith(true));
+    expect(getState).not.toHaveBeenCalled();
+    expect(screen.getByTestId('fullscreen').textContent).toBe('true');
     emit(false);
     await waitFor(() => expect(screen.getByTestId('fullscreen').textContent).toBe('false'));
+    emit(true);
+    await waitFor(() => expect(screen.getByTestId('fullscreen').textContent).toBe('true'));
+  });
+
+  it('applies a persisted windowed intent once at startup', async () => {
+    const { bridge, setFullscreen } = makeBridge(false);
+    window.ownTheBlockDesktop = bridge;
+    render(
+      <StrictMode>
+        <SettingsProvider initialSettings={{ ...DEFAULT_GAME_SETTINGS, fullscreen: false }}>
+          <SettingsProbe />
+        </SettingsProvider>
+      </StrictMode>,
+    );
+
+    await waitFor(() => expect(setFullscreen).toHaveBeenCalledWith(false));
+    expect(setFullscreen).toHaveBeenCalledOnce();
+    expect(screen.getByTestId('fullscreen').textContent).toBe('false');
   });
 
   it('resets the native BrowserWindow fullscreen state with the settings reset', async () => {
@@ -80,8 +102,11 @@ describe('SettingsProvider desktop fullscreen synchronization', () => {
       </SettingsProvider>,
     );
 
+    await waitFor(() => expect(setFullscreen).toHaveBeenCalledWith(true));
+    setFullscreen.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'reset' }));
     await waitFor(() => expect(setFullscreen).toHaveBeenCalledWith(false));
+    expect(setFullscreen).toHaveBeenCalledOnce();
     expect(screen.getByTestId('fullscreen').textContent).toBe('false');
   });
 });

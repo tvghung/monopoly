@@ -7,6 +7,7 @@ import type {
 import { sendToLog } from './text';
 import { transferProperty } from './transfer';
 import { recordPublicGameplayEvent } from './semanticEvents';
+import { recordActivityEvent } from './activity';
 
 const returnPendingCardToDeck = (state: GameState): void => {
   const interaction = state.turnInfo.pendingCardInteraction;
@@ -93,6 +94,13 @@ const removePlayerRecord = (
     reason,
     accountBalance: player.accountBalance,
   };
+  recordActivityEvent(state, {
+    type: 'PLAYER_FINISHED',
+    playerId,
+    playerName: player.name,
+    reason,
+    finalCash: player.accountBalance,
+  });
   sendToLog(
     state,
     `<span class="bankrupt-message">${removalMessage(player.name, reason)}</span>`,
@@ -161,6 +169,14 @@ export const checkWinner = (state: GameState): void => {
       color: winner.color,
       characterId: winner.characterId,
     };
+    recordActivityEvent(state, {
+      type: 'GAME_FINISHED',
+      winnerPlayerId: playerId,
+      winnerName: winner.name,
+      winnerColor: winner.color,
+      winnerCharacterId: winner.characterId,
+      finalCash: winner.accountBalance,
+    });
     sendToLog(state, `<span class="bankrupt-message">${winner.name} đã chiến thắng!</span>`);
   }
 };

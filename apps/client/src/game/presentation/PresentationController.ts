@@ -1,4 +1,5 @@
 import type { PrivatePlayerState, PublicRoomState } from '@monopoly/shared';
+import { NOOP_AUDIO_PORT, type AudioPort } from '../../audio/types';
 import type { MoneyTransferPresentationEvent } from './events/types';
 import { derivePresentationEvents, semanticEventsSince } from './events/derivePresentationEvents';
 import { createBasicExecutors } from './executors/basicExecutors';
@@ -9,7 +10,7 @@ import { AnimationQueue } from './queue/AnimationQueue';
 import { PresentationStore } from './store/presentationStore';
 import type { PresentationState } from './store/types';
 
-export type SnapshotSource = 'LIVE_UPDATE' | 'SESSION_SYNC' | 'SPECTATOR_SYNC';
+export type SnapshotSource = 'LIVE_UPDATE' | 'SESSION_SYNC' | 'SPECTATOR_SYNC' | 'REPLAY_SYNC';
 
 function getAuthoritativeBalances(room: PublicRoomState): Record<string, number> {
   const balances: Record<string, number> = {};
@@ -30,27 +31,42 @@ export class PresentationController {
   private disposalGeneration = 0;
   private disposed = false;
   private readonly privateSemanticSequences = new Map<string, number>();
+  private readonly audio: AudioPort;
   private authoritativeLogs: readonly string[] = [];
+  private authoritativeActivity: PublicRoomState['gameState']['boardState']['activityFeed']['events'] = [];
+  private legacyLogPrefix: readonly string[] = [];
   private logGate: { playerId: string; turnNumber: number } | null = null;
 
-  public constructor(reducedMotion = false, speedMultiplier = 1) {
+  public constructor(
+    reducedMotion = false,
+    speedMultiplier = 1,
+    audio: AudioPort = NOOP_AUDIO_PORT,
+  ) {
+    this.audio = audio;
     this.store.setAnimationSpeedMultiplier(speedMultiplier);
     const executors = {
-      ...createBasicExecutors(this.store),
-      ...createSemanticExecutors(this.store),
-      ROLL_DICE: createDiceExecutor(this.store),
-      MOVE_CHARACTER: createMovementExecutor(this.store),
+      ...createBasicExecutors(this.store, audio),
+      ...createSemanticExecutors(this.store, audio),
+      ROLL_DICE: createDiceExecutor(this.store, audio),
+      MOVE_CHARACTER: createMovementExecutor(this.store, audio),
     };
     this.queue = new AnimationQueue({
       executors,
       reducedMotion,
       speedMultiplier,
       onReset: snapshot => {
+        audio.stopPresentationVoices?.();
         if (snapshot && typeof snapshot === 'object' && 'gameState' in snapshot) {
           const room = snapshot as PublicRoomState;
-          this.authoritativeLogs = [...room.gameState.boardState.logs];
+          this.legacyLogPrefix = room.gameState.boardState.activityFeed.events.length === 0
+            ? [...room.gameState.boardState.logs]
+            : [];
+          this.authoritativeLogs = [...this.legacyLogPrefix];
+          this.authoritativeActivity = [...room.gameState.boardState.activityFeed.events];
           this.logGate = null;
           this.store.resetFromSnapshot(room);
+          this.store.setDisplayLogs(this.authoritativeLogs);
+          this.store.setDisplayActivity(this.authoritativeActivity);
         }
       },
       onError: (error, event) => {
@@ -188,8 +204,12 @@ export class PresentationController {
   }
 
   public skipAllAndSnap(): void {
-    if (this.acceptedRoom) this.queue.reset(this.acceptedRoom);
-    else this.queue.skipAll();
+    if (this.acceptedRoom) {
+      this.queue.reset(this.acceptedRoom);
+      return;
+    }
+    this.audioStopPresentationVoices();
+    this.queue.skipAll();
   }
 
   public getState(): PresentationState {
@@ -201,7 +221,13 @@ export class PresentationController {
     this.disposed = true;
     this.consumerCount = 0;
     this.disposalGeneration += 1;
+    this.audioStopPresentationVoices();
     this.queue.dispose();
+  }
+
+  private audioStopPresentationVoices(): void {
+    // AudioPort keeps this boundary typed; AnimationQueue remains audio-agnostic.
+    this.audio?.stopPresentationVoices?.();
   }
 
   private updateLogGate(
@@ -209,10 +235,18 @@ export class PresentationController {
     next: PublicRoomState,
     events: ReturnType<typeof derivePresentationEvents>,
   ): void {
-    this.authoritativeLogs = [...next.gameState.boardState.logs];
+    if (
+      this.authoritativeActivity.length === 0
+      && next.gameState.boardState.activityFeed.events.length === 0
+    ) {
+      this.legacyLogPrefix = [...next.gameState.boardState.logs];
+    }
+    this.authoritativeLogs = [...this.legacyLogPrefix];
+    this.authoritativeActivity = [...next.gameState.boardState.activityFeed.events];
     if (this.logGate) return;
     if (events.length === 0) {
       this.store.setDisplayLogs(this.authoritativeLogs);
+      this.store.setDisplayActivity(this.authoritativeActivity);
       return;
     }
     this.logGate = {
@@ -237,6 +271,7 @@ export class PresentationController {
     if (!turnReady && !gameFinished) return;
     if (interactionPending) return;
     this.store.setDisplayLogs(this.authoritativeLogs);
+    this.store.setDisplayActivity(this.authoritativeActivity);
     this.logGate = null;
   }
 }

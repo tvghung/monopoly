@@ -48,7 +48,7 @@ Mọi state-changing request có request-scoped `Ack<T>`:
 - Success chỉ sau PostgreSQL commit.
 - Failure có stable code/message/retryable.
 - Không broadcast state từ failed draft.
-- Current transport uses protocol V7. The card commands below carry only the
+- Current transport uses protocol V8. The card commands below carry only the
   operation ID; the authenticated actor, pending state, card order and consequence
   remain server-authoritative.
 

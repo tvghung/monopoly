@@ -25,6 +25,7 @@ checklist item phải map tới assertion executable hoặc giữ nhãn missing/
 | Protocol/snapshot/board/decks | [shared](./shared-contracts-and-board-data.md) | schema + room + data audit |
 | Vietnamese client/motion | [client](./client-state-sync-motion-and-accessibility.md) | client + audit |
 | Chat/log safety | [chat](./chat-log-and-input-safety.md) | Socket + client |
+| Activity/victory/replay | [game status](./game-status-bankruptcy-and-winner.md), [client sync](./client-state-sync-motion-and-accessibility.md) | Activity schema + Socket + client |
 | DB/runtime/deploy | [runtime](./http-runtime-and-deployment.md) | migration + HTTP + PG |
 
 ## Full gates
@@ -42,3 +43,7 @@ pool/server restart against the same disposable DB. Conditional/skipped suites d
 not satisfy V5 appearance/reset/recovery requirements. CI parity means both
 database variables are set before `pnpm db:migrate` and `pnpm test`; an unset
 `TEST_DATABASE_URL` is an explicitly skipped/conditional run.
+
+Phase 5.2 additionally distinguishes structured Activity Feed assertions from
+legacy string-log compatibility, and marks browser/Electron replay, reduced-motion,
+WebGL fallback and long-session audio checks as `[MANUAL-E2E]` unless executed live.

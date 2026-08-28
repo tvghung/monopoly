@@ -81,6 +81,69 @@
   margin-bottom: 2vmin;
 }
 
+.winner-banner-modal { width: min(94vw, 34rem); }
+
+.winner-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.winner-banner__identity {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.winner-banner__mascot {
+  width: 4.5rem;
+  height: 4.5rem;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.winner-banner__mascot--empty {
+  border-radius: 50%;
+  background: var(--color-surface-soft);
+}
+
+.winner-banner__eyebrow,
+.winner-banner__identity p,
+.winner-banner__hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.winner-banner__identity h3 {
+  margin: 0.15rem 0;
+  font-size: 1.45rem;
+}
+
+.winner-banner__summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin: 0;
+}
+
+.winner-banner__summary div {
+  padding: 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  background: var(--color-surface-soft);
+}
+
+.winner-banner__summary dt { color: var(--color-text-secondary); font-size: 0.8rem; }
+.winner-banner__summary dd { margin: 0.25rem 0 0; font-weight: 800; }
+
+.winner-banner__actions { display: grid; gap: 0.5rem; }
+.winner-banner__actions button { min-height: 2.75rem; }
+.winner-banner__error { margin: 0; color: var(--color-danger-strong); }
+
+@media (prefers-reduced-motion: reduce) {
+  .winner-banner__actions button { transition: none; }
+}
+
 .trade-offer-modal {
 display: flex;
 flex-direction: column;

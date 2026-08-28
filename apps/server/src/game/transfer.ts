@@ -1,4 +1,5 @@
 import {
+  tileState,
   type GameCardId,
   type GameState,
   type PlayerId,
@@ -6,6 +7,7 @@ import {
 } from '@monopoly/shared';
 import { isPropertyLockedByLandingDecision } from './property';
 import { recordPrivateGameplayEvent, recordPublicGameplayEvent } from './semanticEvents';
+import { activityEndpoint, activityPlayerName, recordActivityEvent } from './activity';
 
 export type PropertyTransferPolicy =
   | 'VOLUNTARY'
@@ -46,6 +48,18 @@ export const transferProperty = (
           : finishedReason === 'LEFT' ? 'PLAYER_LEFT' : 'OTHER'),
       ...(options.operationId ? { operationId: options.operationId } : {}),
     });
+    recordActivityEvent(state, {
+      type: 'PROPERTY_TRANSFER',
+      tileID,
+      from: fromPlayerId
+        ? activityEndpoint(state, { kind: 'PLAYER', playerId: fromPlayerId })
+        : { kind: 'BANK' },
+      to: { kind: 'BANK' },
+      cause: options.cause
+        ?? (finishedReason === 'BANKRUPT'
+          ? 'BANKRUPTCY'
+          : finishedReason === 'LEFT' ? 'PLAYER_LEFT' : 'OTHER'),
+    });
     return { ok: true };
   }
   if (!toPlayerId || !state.players[toPlayerId]) {
@@ -73,6 +87,13 @@ export const transferProperty = (
       cause: 'BANK_PURCHASE',
       ...(options.operationId ? { operationId: options.operationId } : {}),
     });
+    recordActivityEvent(state, {
+      type: 'PROPERTY_PURCHASE',
+      playerId: toPlayerId,
+      playerName: activityPlayerName(state, toPlayerId),
+      tileID,
+      price: tileState[tileID]?.price ?? 1,
+    });
     return { ok: true };
   }
 
@@ -85,6 +106,15 @@ export const transferProperty = (
     to: { kind: 'PLAYER', playerId: toPlayerId },
     cause: policy === 'VOLUNTARY' ? 'VOLUNTARY_TRADE' : 'FORCED_SALE',
     ...(options.operationId ? { operationId: options.operationId } : {}),
+  });
+  recordActivityEvent(state, {
+    type: 'PROPERTY_TRANSFER',
+    tileID,
+    from: fromPlayerId
+      ? activityEndpoint(state, { kind: 'PLAYER', playerId: fromPlayerId })
+      : { kind: 'BANK' },
+    to: activityEndpoint(state, { kind: 'PLAYER', playerId: toPlayerId }),
+    cause: policy === 'VOLUNTARY' ? 'VOLUNTARY_TRADE' : 'FORCED_SALE',
   });
   return { ok: true };
 };

@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { ipcMain, type BrowserWindow, type WebContents } from 'electron';
-import { getDesktopRuntimeConfig } from '../runtimeConfig';
+import {
+  DesktopRuntimeConfigError,
+  getDesktopRuntimeConfig,
+  type DesktopRuntimeConfigResult,
+} from '../runtimeConfig';
 import { openExternalUrl } from './externalLinks';
 import { IPC_CHANNELS, isQuitRequestId, type DesktopWindowState } from './channels';
 
@@ -75,16 +79,26 @@ function getWindowState(window: BrowserWindow): DesktopWindowState {
   };
 }
 
+function getRuntimeConfigResult(): DesktopRuntimeConfigResult {
+  try {
+    return { ok: true, config: getDesktopRuntimeConfig() };
+  } catch (error) {
+    console.error('Desktop runtime configuration is unavailable.', error);
+    if (error instanceof DesktopRuntimeConfigError) {
+      return { ok: false, code: error.code };
+    }
+    throw error;
+  }
+}
+
 export function registerWindowHandlers(
   window: BrowserWindow,
   development: boolean,
   quitController: QuitRequestController,
 ): void {
-  const runtimeConfig = getDesktopRuntimeConfig();
-
   ipcMain.handle(IPC_CHANNELS.runtimeConfig, event => {
     if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
-    return runtimeConfig;
+    return getRuntimeConfigResult();
   });
   ipcMain.handle(IPC_CHANNELS.windowGetState, event => {
     if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
@@ -108,7 +122,11 @@ export function registerWindowHandlers(
   });
 
   const sendFullscreenState = () => {
-    if (!window.isDestroyed()) window.webContents.send(IPC_CHANNELS.windowFullscreenChanged, getWindowState(window));
+    setTimeout(() => {
+      if (!window.isDestroyed()) {
+        window.webContents.send(IPC_CHANNELS.windowFullscreenChanged, getWindowState(window));
+      }
+    }, 0);
   };
   window.on('enter-full-screen', sendFullscreenState);
   window.on('leave-full-screen', sendFullscreenState);

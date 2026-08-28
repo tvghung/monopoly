@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { boardStateSchema, gameplayEventStreamSchema } from '@monopoly/shared';
+import { activityFeedSchema, boardStateSchema, gameplayEventStreamSchema } from '@monopoly/shared';
 import {
   MAX_PLAYERS,
   MIN_PLAYERS,
@@ -14,6 +14,7 @@ import {
   upgradeRoomSnapshotV4ToV5,
   upgradeRoomSnapshotV5ToV6,
   upgradeRoomSnapshotV6ToV7,
+  upgradeRoomSnapshotV7ToV8,
 } from './rooms.js';
 import { freshState } from './rooms.js';
 import type { RoomRecord } from './persistence/types.js';
@@ -195,6 +196,43 @@ describe('durable room snapshot compatibility', () => {
     expect(boardStateSchema.safeParse({ ...board, rollSequence: -1 }).success).toBe(false);
     expect(boardStateSchema.safeParse({ ...board, rollSequence: Number.MAX_SAFE_INTEGER }).success).toBe(true);
     expect(boardStateSchema.safeParse({ ...board, rollSequence: Number.MAX_SAFE_INTEGER + 1 }).success).toBe(false);
+  });
+
+  it('upgrades V7 activity history to an empty V8 tail without inventing events', () => {
+    const v7 = {
+      snapshotSchemaVersion: 7,
+      gameSnapshot: createRoomSnapshot(),
+      hostPlayerId: null,
+      status: 'LOBBY' as const,
+    };
+    v7.gameSnapshot.gameState.boardState.logs = ['historical log'];
+    delete (v7.gameSnapshot.gameState.boardState as unknown as { activityFeed?: unknown }).activityFeed;
+
+    const upgraded = upgradeRoomSnapshotV7ToV8(v7);
+
+    expect(upgraded).toMatchObject({
+      snapshotSchemaVersion: 8,
+      gameSnapshot: {
+        gameState: { boardState: { activityFeed: { sequence: 0, events: [] }, logs: ['historical log'] } },
+      },
+    });
+    expect(() => upgradeRoomSnapshotV7ToV8({ ...v7, snapshotSchemaVersion: 8 }))
+      .toThrow('Only V7 room snapshots can be upgraded to V8');
+  });
+
+  it('validates the bounded contiguous activity tail', () => {
+    const event = {
+      eventId: '00000000-0000-4000-8000-000000000098',
+      sequence: 2,
+      occurredAt: '2026-08-25T12:00:00.000Z',
+      type: 'GAME_STARTED' as const,
+      playerIds: [PLAYER_ONE, PLAYER_TWO],
+      startingPlayerId: PLAYER_ONE,
+      startingPlayerName: 'Player One',
+    };
+    expect(activityFeedSchema.safeParse({ sequence: 2, events: [event] }).success).toBe(true);
+    expect(activityFeedSchema.safeParse({ sequence: 3, events: [event] }).success).toBe(false);
+    expect(activityFeedSchema.safeParse({ sequence: 1, events: [] }).success).toBe(false);
   });
 
   it('rejects a current V7 snapshot that omits roll sequence', () => {
@@ -559,6 +597,31 @@ describe('public room projection', () => {
       expect(projected.gameState).not.toHaveProperty('privateState');
     },
   );
+
+  it('projects the bounded typed activity tail without private state', () => {
+    const gameSnapshot = createActiveSnapshot();
+    gameSnapshot.gameState.boardState.activityFeed = {
+      sequence: 1,
+      events: [{
+        eventId: '00000000-0000-4000-8000-000000000130',
+        sequence: 1,
+        occurredAt: '2030-01-01T00:00:00.000Z',
+        type: 'CHAT',
+        senderRole: 'PLAYER',
+        senderPlayerId: PLAYER_ONE,
+        senderName: 'Player One',
+        message: 'Xin chào',
+      }],
+    };
+
+    const projected = projectPublicRoomState(
+      roomFromSnapshot(gameSnapshot),
+      new ConnectionRegistry(),
+    );
+
+    expect(projected.gameState.boardState.activityFeed).toEqual(gameSnapshot.gameState.boardState.activityFeed);
+    expect(projected.gameState).not.toHaveProperty('privateState');
+  });
 
   it('projects the supported two-to-four player room limits', () => {
     const projected = projectPublicRoomState(
