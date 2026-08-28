@@ -1,6 +1,6 @@
 # Phase 6.2 — Distribution and Release Verification
 
-**Status: CORRECTIVE IMPLEMENTATION COMPLETE; WINDOWS INSTALLER LIFECYCLE BLOCKED; RELEASE GATES OPEN**
+**Status: Phase 6 engineering COMPLETE; production release readiness NOT YET APPROVED**
 
 Verification date: 2026-08-28
 
@@ -37,7 +37,7 @@ architecture was changed for this phase.
 | 8. 30–60 minute soak | **NOT RUN** | No timed resource/presentation/audio soak was run. |
 | 9. Final validation | **PASS with DB test BLOCKED** | Required non-database local commands, focused tests, packaging, deterministic release build, and checksum validation passed; the database-enabled rerun was blocked by the safety guard and is reported separately in section 8. |
 | 10. Documentation and evidence | **PASS** | The corrective evidence updates preserve the pre-correction failure and separate source, local, manual, signing, and remote evidence. |
-| 11. Commit, push, and exact-SHA remote verification | **PENDING** | Documentation commit/push and exact-SHA Actions verification follow this local ledger. |
+| 11. Commit, push, and exact-SHA remote verification | **PASS** | Workflow-only PR #1 was merged into `main`; exact-SHA CI, Desktop Build, and Release Candidate all passed. Documentation closeout push is recorded in section 11. |
 
 ## 2. Release configuration contract
 
@@ -186,9 +186,9 @@ chunk. It is a performance advisory, not evidence of runtime release readiness.
 | Signing | **BLOCKED** | No certificate or signing identity was supplied; the artifact is not a production-distribution claim. |
 | Notarization | **NOT RUN** | macOS jobs were not run on this Windows host; signed notarization remains blocked. |
 | Release-candidate workflow source | **PASS** | `.github/workflows/release-candidate.yml` contains manual endpoint input, quality gates, three OS/architecture targets, checksums, uploads, and secure signing branches. |
-| Exact-SHA remote CI | **NOT RUN** | Must be checked after push for the final commit SHA. |
-| Exact-SHA remote Desktop Build | **NOT RUN** | Must be checked after push for the final commit SHA. |
-| Exact-SHA remote Release Candidate | **NOT RUN** | Workflow dispatch is pending the final focused commit and push; the unsigned-validation run can use the test-only endpoint without signing credentials. |
+| Exact-SHA remote CI | **PASS** | Run `33179037021`; head SHA `05c2cf0b626c4db8a43b7fe31bd53122f161fa78`. |
+| Exact-SHA remote Desktop Build | **PASS** | Run `33179037009`; head SHA `05c2cf0b626c4db8a43b7fe31bd53122f161fa78`. |
+| Exact-SHA remote Release Candidate | **PASS** | Run `33181099766`; head SHA `05c2cf0b626c4db8a43b7fe31bd53122f161fa78`; quality, Windows x64, macOS x64, and macOS arm64 jobs passed. |
 
 The Release Candidate matrix is explicit: Windows x64 on `windows-latest`,
 macOS x64 on `macos-15-intel`, and macOS arm64 on `macos-15`. It remains a
@@ -202,11 +202,46 @@ checksums. No signed macOS run or real credentials were available locally.
 
 ## 10. Release decision
 
-The result is **IMPLEMENTATION COMPLETE BUT RELEASE GATES OPEN**.
+The final result separates engineering completion from production release
+approval. The exact-SHA CI, Desktop Build, and Release Candidate matrix passed;
+therefore **Phase 6 engineering: COMPLETE**.
 
-Release readiness is blocked by the missing real deployed endpoint, the
-`FAIL/BLOCKED` standard-uninstall residue on the fresh final artifact, unrun
-macOS artifacts/install checks, unrun live multiplayer/reconnect/spectator/
-second-match checks, unrun accessibility, audible, and soak checks, unavailable
-signing/notarization inputs, and pending exact-SHA remote workflow verification.
-No release-ready or Phase 6-complete claim is made.
+Production release readiness remains **NOT YET APPROVED** because of the missing
+real deployed endpoint, the accepted upstream Squirrel zero-residue limitation,
+unrun live multiplayer/reconnect/spectator/second-match checks, unrun
+accessibility, audible, and soak checks, and unavailable production
+signing/notarization inputs. The historical standard-uninstall
+`FAIL/BLOCKED` evidence is retained in section 5; it is not reclassified as an
+Own the Block lifecycle implementation defect.
+
+## 11. Final Phase 6 engineering closeout — 2026-08-28
+
+`VERIFIED_PHASE_6_ENGINEERING_SHA=05c2cf0b626c4db8a43b7fe31bd53122f161fa78`
+
+| Evidence | Result | Record |
+|---|---|---|
+| Starting SHA | **PASS** | `05c2cf0b626c4db8a43b7fe31bd53122f161fa78` |
+| CI | **PASS** | Run `33179037021`; exact SHA verified |
+| Desktop Build | **PASS** | Run `33179037009`; exact SHA verified |
+| Release Candidate quality gates | **PASS** | Run `33181099766`, job `98882188069` |
+| Release Candidate Windows x64 | **PASS** | Job `98882750089` |
+| Release Candidate macOS x64 | **PASS** | Job `98882750073` |
+| Release Candidate macOS arm64 | **PASS** | Job `98882750053` |
+| Squirrel lifecycle implementation | **PASS** | Lifecycle hooks use bounded updater grace and `app.quit()`; the app does not recursively delete the Squirrel installation root. |
+| Squirrel zero-residue uninstall | **Accepted upstream Squirrel limitation / external installer behavior** | Final standard uninstall removed registration and shortcuts but left the exact install root, `app-3.0.0`, and `Update.exe` after the bounded wait. |
+
+The Release Candidate was dispatched with
+`socket_url=http://127.0.0.1:8080` and
+`distribution_mode=unsigned-validation`. This endpoint is controlled and
+test-only; it is not production configuration. No production endpoint was
+invented or committed.
+
+Final engineering status: **Phase 6 engineering: COMPLETE**.
+
+Production release readiness: **NOT YET APPROVED**. Remaining external or
+release-owner gates are the real deployed multiplayer endpoint, production
+Windows signing, production Apple signing/notarization, public-network live
+multiplayer validation, speaker-backed audio UAT, accessibility/manual QA, and
+long-session soak where still outstanding.
+
+`PHASE_6_CLOSEOUT_DOCS_SHA=__PHASE_6_CLOSEOUT_DOCS_SHA__`

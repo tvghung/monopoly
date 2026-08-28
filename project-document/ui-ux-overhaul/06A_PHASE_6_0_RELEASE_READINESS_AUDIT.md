@@ -1,7 +1,6 @@
 # Phase 6.0 — Release Readiness Audit & Scope Lock
 
-**Status: AUDIT COMPLETE — scope locked; Phase 6.1 code-hardening closeout
-complete; Phase 6.2 corrective implementation complete; external release gates open**
+**Status: AUDIT COMPLETE — scope locked; Phase 6 engineering COMPLETE; production release readiness NOT YET APPROVED**
 
 Audit date: 2026-08-26
 Repository: tvghung/monopoly
@@ -156,8 +155,9 @@ still open. The detailed ledger is in
   directory after the wait window; that reproduction remains **FAIL**.
 - The release-candidate workflow includes Windows x64, macOS x64, and macOS
   arm64 jobs, artifact upload, unsigned-validation handling, and secret-backed
-  signing/notarization verification. No current-branch remote run has yet been
-  inspected.
+  signing/notarization verification. At the time of this 2026-08-27 entry, no
+  current-branch remote run had yet been inspected; final evidence is recorded
+  in section 1F.
 
 These changes preserve SERVER OWNS TRUTH → PresentationController →
 AnimationQueue → PresentationStore → GameScene/R3F or legacy fallback, and the
@@ -191,9 +191,9 @@ the exact install root, `app-3.0.0`, and `Update.exe` after the bounded wait, so
 that gate is **FAIL/BLOCKED**. Host-launched direct executions also reproduced a
 native `0x80000003` breakpoint while the Computer Use launch path opened the
 renderer; no source change is claimed for this host-context failure. Exact test
-residue was cleaned after capture. No source-valid workflow is treated as an
-executed workflow result, and no polling CORS result is treated as
-WebSocket-origin rejection or authentication.
+residue was cleaned after capture. At the time of this 2026-08-27 entry, no
+source-valid workflow was treated as an executed workflow result, and no
+polling CORS result is treated as WebSocket-origin rejection or authentication.
 
 ## 1E. Final Phase 6.2 Windows closeout — 2026-08-28
 
@@ -203,6 +203,42 @@ and complete installer ledger are in `06B_PHASE_6_2_RELEASE_VERIFICATION.md`.
 The database-enabled test rerun was **BLOCKED** by the safety guard because the
 configured database URL was not proven isolated. Migration/status checks and
 non-database tests are reported separately.
+
+## 1F. Final Phase 6 engineering closeout — 2026-08-28
+
+The executable engineering freeze point is:
+
+`VERIFIED_PHASE_6_ENGINEERING_SHA=05c2cf0b626c4db8a43b7fe31bd53122f161fa78`
+
+The workflow-only PR #1 added only `.github/workflows/release-candidate.yml`
+and merged into `main` as `4727909f51f5ac0efd919bca04f47b280d81636b`. The full
+Phase 6 branch was not merged into `main`.
+
+| Evidence | Result | Record |
+|---|---|---|
+| Starting SHA | **PASS** | `05c2cf0b626c4db8a43b7fe31bd53122f161fa78` |
+| Exact-SHA CI | **PASS** | Run `33179037021`; exact head SHA verified |
+| Exact-SHA Desktop Build | **PASS** | Run `33179037009`; exact head SHA verified |
+| Release Candidate quality gates | **PASS** | Run `33181099766`, job `98882188069` |
+| Release Candidate Windows x64 | **PASS** | Job `98882750089` |
+| Release Candidate macOS x64 | **PASS** | Job `98882750073` |
+| Release Candidate macOS arm64 | **PASS** | Job `98882750053` |
+| Squirrel lifecycle implementation | **PASS** | Bounded updater grace and `app.quit()` remain; the app does not recursively delete the Squirrel root. |
+| Squirrel zero-residue uninstall | **Accepted upstream Squirrel limitation / external installer behavior** | Final standard uninstall removed registration and shortcuts but left the exact install root, `app-3.0.0`, and `Update.exe` after the bounded wait. |
+
+The Release Candidate used the controlled test-only endpoint
+`http://127.0.0.1:8080` with `unsigned-validation`. It is not a production
+endpoint, and no production endpoint was invented or committed.
+
+Final engineering status: **Phase 6 engineering: COMPLETE**.
+
+Production release readiness: **NOT YET APPROVED**. Remaining external or
+release-owner gates are the real deployed multiplayer endpoint, production
+Windows signing, production Apple signing/notarization, public-network live
+multiplayer validation, speaker-backed audio UAT, accessibility/manual QA, and
+long-session soak where still outstanding.
+
+`PHASE_6_CLOSEOUT_DOCS_SHA=__PHASE_6_CLOSEOUT_DOCS_SHA__`
 
 ## 2. Evidence snapshot
 

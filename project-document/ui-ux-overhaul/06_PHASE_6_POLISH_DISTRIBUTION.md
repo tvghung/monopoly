@@ -1,7 +1,6 @@
 # Phase 6 — Polish & Distribution
 
-**Status: Phase 6.0 audit and scope lock complete; Phase 6.1 code-hardening
-closeout complete; Phase 6.2 corrective implementation complete; release gates open**
+**Status: Phase 6 engineering COMPLETE; production release readiness NOT YET APPROVED**
 
 Phase 6 is bounded by the current V8 server/shared contract and the existing
 client presentation architecture:
@@ -127,12 +126,13 @@ The factual evidence ledger is
   retained as **FAIL** evidence; it is not an installed-runtime PASS.
 - The distinct release-candidate workflow covers Windows x64, macOS x64, and
   macOS arm64, with secure signing/notarization inputs only from CI secrets.
-  The current branch has not yet had its exact-SHA workflow runs inspected.
+  At the time of this 2026-08-27 record, the current branch had not yet had its
+  exact-SHA workflow runs inspected; final evidence is recorded in section 6.
 
 No gameplay, protocol, migration, GameCore, presentation, queue, renderer
-architecture, or audio architecture change was introduced by Phase 6.2. This
-phase is not marked release-ready while the gates in the evidence ledger remain
-open.
+architecture, or audio architecture change was introduced by Phase 6.2. At that
+snapshot, production release gates remained open; engineering completion and
+production release readiness are separated in section 6.
 
 ### 1.4 Corrective Phase 6.2 pass — 2026-08-27
 
@@ -205,7 +205,7 @@ remain open:
 No rules, economy, GameCore, server authority, V8, migration, board/camera,
 dice, character, presentation, audio, or unrelated refactor belongs here.
 
-## 3. Phase 6.2 — Distribution and Release Verification (implementation complete; gates open)
+## 3. Phase 6.2 — Distribution and Release Verification (implementation complete; production gates open)
 
 The release boundary is implemented and partially verified:
 
@@ -238,7 +238,7 @@ release endpoint.
   statistics, new-room redesign, board/camera redesign, rules/economy changes,
   and unrelated cleanup are outside Phase 6.
 
-## 5. Release stop conditions
+## 5. Production release stop conditions
 
 Do not call the distributed desktop build release-ready while any of these
 remain unresolved:
@@ -253,3 +253,42 @@ remain unresolved:
 
 Automated PASS, package PASS, and remote CI PASS must continue to be reported
 separately from these gates.
+
+## 6. Final Phase 6 engineering closeout — 2026-08-28
+
+The executable engineering freeze point is:
+
+`VERIFIED_PHASE_6_ENGINEERING_SHA=05c2cf0b626c4db8a43b7fe31bd53122f161fa78`
+
+The pre-closeout Phase 6 branch HEAD matched that SHA. The workflow-only PR
+required to register Release Candidate was merged into `main` as
+`4727909f51f5ac0efd919bca04f47b280d81636b`; the Phase 6 branch was not merged
+into `main`.
+
+| Evidence | Result | Record |
+|---|---|---|
+| Starting SHA | **PASS** | `05c2cf0b626c4db8a43b7fe31bd53122f161fa78` |
+| Exact-SHA CI | **PASS** | Run `33179037021`; head SHA `05c2cf0b…` |
+| Exact-SHA Desktop Build | **PASS** | Run `33179037009`; head SHA `05c2cf0b…` |
+| Release Candidate quality gates | **PASS** | Run `33181099766`, job `98882188069` |
+| Release Candidate Windows x64 | **PASS** | Job `98882750089` |
+| Release Candidate macOS x64 | **PASS** | Job `98882750073` |
+| Release Candidate macOS arm64 | **PASS** | Job `98882750053` |
+| Squirrel lifecycle implementation | **PASS** | Lifecycle hooks use the bounded updater grace and `app.quit()`; the app does not recursively delete the Squirrel installation root. |
+| Squirrel zero-residue uninstall | **Accepted upstream Squirrel limitation / external installer behavior** | On the final controlled artifact, standard uninstall removed registration and shortcuts but left the exact install root, `app-3.0.0`, and `Update.exe` after the bounded wait. |
+
+The Release Candidate used `socket_url=http://127.0.0.1:8080` and
+`distribution_mode=unsigned-validation`. This is a controlled test-only
+loopback endpoint, not a production endpoint; no production endpoint was
+invented or committed. Signing and notarization were not asserted by this
+unsigned run.
+
+Final engineering status: **Phase 6 engineering: COMPLETE**.
+
+Production release readiness: **NOT YET APPROVED**. Remaining external or
+release-owner gates are the real deployed multiplayer endpoint, production
+Windows signing, production Apple signing/notarization, public-network live
+multiplayer validation, speaker-backed audio UAT, accessibility/manual QA, and
+long-session soak where still outstanding.
+
+`PHASE_6_CLOSEOUT_DOCS_SHA=__PHASE_6_CLOSEOUT_DOCS_SHA__`
