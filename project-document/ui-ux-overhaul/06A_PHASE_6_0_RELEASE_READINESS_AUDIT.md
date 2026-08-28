@@ -18,7 +18,8 @@ PresentationController → AnimationQueue → PresentationStore path, one
 AudioEngine, bounded presentation signals, a WebGL-to-legacy fallback, and
 secure Electron boundary tests.
 
-Release is not yet ready for a normally distributed multiplayer desktop build.
+At audit time, the release was not yet ready for a normally distributed
+multiplayer desktop build.
 The confirmed stop-ship issue is the packaged socket endpoint: desktop runtime
 configuration falls back to http://127.0.0.1:8080 unless a CLI argument or
 environment variable is supplied, and no release endpoint is defined in the
@@ -521,8 +522,8 @@ Auto-update remains post-v1. No third implementation subphase is justified.
 | Pre-correction Windows standard uninstall | **FAIL** | Exit code was 0 and registry/shortcuts were removed, but `app-3.0.0` and updater residue remained after the bounded wait; residue was recorded before exact-root cleanup. |
 | Corrected final-artifact Windows install/renderer/quit/relaunch | **PASS** | Fresh final artifact installed; exact registration/shortcuts/config were present; Computer Use observed the Join renderer, graceful close, and Join after relaunch. |
 | Corrected final-artifact standard Squirrel uninstall | **FAIL/BLOCKED** | `Update.exe --uninstall` returned 0 and removed the uninstall key and shortcuts, but the exact install root, `app-3.0.0`, and `Update.exe` remained after the bounded wait. Host-launched direct executions also reproduced `0x80000003`; exact residue was cleaned after capture. |
-| macOS x64 package | **NOT RUN** | This Windows host cannot build or mount a macOS DMG/app. |
-| macOS arm64 package | **NOT RUN** | This Windows host cannot build or mount a macOS DMG/app. |
+| macOS x64 Release Candidate package | **PASS** | Remote unsigned RC job `98882750073` completed the macOS x64 artifact build; local installation remains unrun on this Windows host. |
+| macOS arm64 Release Candidate package | **PASS** | Remote unsigned RC job `98882750053` completed the macOS arm64 artifact build; local installation remains unrun on this Windows host. |
 | Real deployed endpoint | **BLOCKED** | No release-owner production URL is present; only the controlled loopback endpoint was injected. |
 | Live multiplayer/reconnect/replay matrix | **NOT RUN** | Existing integration tests are supporting evidence, not live browser/Electron proof. |
 | Accessibility/scaling/visual comfort | **NOT RUN** | No current Phase 6.2 interactive viewport/OS-scaling pass was run. |
