@@ -187,39 +187,39 @@ success, and remote exact-SHA evidence, is in
 ## 2. Phase 6.1 — Release Hardening (closed)
 
 The confirmed code-hardening boundaries from the audit are implemented and
-validated as recorded above. The release-owner decisions and external proof
-remain open:
+validated as recorded above. The remaining release-owner decisions and
+external proof are:
 
 1. Supply the real packaged multiplayer endpoint at release time. The code
    validates the supplied value, fails closed when a packaged value is missing,
    retains loopback only for development, and exposes a safe bootstrap failure
    state. No deployment URL is invented or committed here.
-2. Add one top-level React failure boundary and safe production bootstrap error
-   copy while retaining the existing SceneErrorBoundary-to-legacy fallback.
-3. Restore persisted fullscreen intent once at desktop startup, then keep native
-   enter/leave events authoritative. Preserve reset-to-windowed behavior.
-4. Add targeted board asset prewarm or bundle/quality work only if cold-start or
+2. Add targeted board asset prewarm or bundle/quality work only if cold-start or
    device profiling proves a material problem.
-5. Add focused tests for every changed boundary.
+3. Complete the remaining live, accessibility, audible, soak, OS-install,
+   signing, and notarization acceptance gates where required.
 
 No rules, economy, GameCore, server authority, V8, migration, board/camera,
 dice, character, presentation, audio, or unrelated refactor belongs here.
 
 ## 3. Phase 6.2 — Distribution and Release Verification (implementation complete; production gates open)
 
-The release boundary is implemented and partially verified:
+The release boundary is implemented and engineering-verified; production gates
+remain open:
 
 - canonical version, native icon metadata, release configuration injection,
   artifact checksums, and the release-candidate workflow are implemented;
 - Windows x64 Squirrel output, endpoint injection, manifest collection, and
   packaged metadata validation pass under the controlled local endpoint;
+- the exact-SHA Release Candidate quality, Windows x64, macOS x64, and macOS
+  arm64 jobs all pass under unsigned validation;
 - the final corrected-artifact clean install, Join renderer observation,
   graceful quit, and relaunch are **PASS**; standard Squirrel uninstall still
   leaves the exact install root/app/updater residue (**FAIL/BLOCKED**);
-- macOS x64/arm64 output, real deployed endpoint connectivity, live multiplayer
-  and recovery, accessibility/scaling, audible audio, long-session soak, and
-  signed/notarized distribution remain **NOT RUN**, **BLOCKED**, or **FAIL** as
-  recorded in 06B.
+- local macOS install/launch/uninstall, real deployed endpoint connectivity,
+  live multiplayer and recovery, accessibility/scaling, audible audio,
+  long-session soak, and signed/notarized distribution remain **NOT RUN**,
+  **BLOCKED**, or **FAIL** as recorded in 06B.
 
 Packaging or maker success is not installation, runtime, signing, notarization,
 multiplayer, or audible proof. The current Windows artifacts used only

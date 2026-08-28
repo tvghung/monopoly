@@ -28,7 +28,7 @@ architecture was changed for this phase.
 |---|---|---|
 | 0. Preflight and source-of-truth audit | **PASS** | Required branch and starting SHA matched; the initial worktree was clean; remotes, Phase 6 documents, desktop/server/client runtime, Forge, and existing CI were inspected. |
 | 1. Release configuration contract | **PASS** | CLI > environment > packaged config > development loopback precedence, valid/malformed/missing config, and release-required endpoint behavior are covered by focused tests and release scripts. |
-| 2. Version, native identity, icons, and artifacts | **PASS** | Root `3.0.0` is the canonical release source; validated `.ico`/`.icns` assets are configured; Windows executable and Squirrel names carry `3.0.0`. macOS packaging itself remains unrun. |
+| 2. Version, native identity, icons, and artifacts | **PASS** | Root `3.0.0` is the canonical release source; validated `.ico`/`.icns` assets are configured; Windows executable and Squirrel names carry `3.0.0`. Local macOS packaging remains unrun on this Windows host; remote unsigned RC macOS artifact jobs passed. |
 | 3. Distribution workflow | **PASS** | `.github/workflows/release-candidate.yml` adds a distinct manual Windows x64/macOS x64/macOS arm64 release-candidate matrix with frozen install, quality gates, endpoint input, artifact upload, and secret-backed signing checks. |
 | 4. Packaged Electron ↔ server connectivity | **PASS** | Controlled Socket.IO polling handshake tests cover same-origin, `app://own-the-block`, and disallowed origin behavior; the real deployed endpoint remains blocked. |
 | 5. Package/install/launch verification | **FAIL/BLOCKED** | Fresh final-artifact install, Join renderer, graceful quit, and relaunch passed. Standard Squirrel uninstall removed registration and shortcuts but left the exact install root/app/updater residue; host launch context also reproduced a native breakpoint. |
@@ -180,11 +180,14 @@ chunk. It is a performance advisory, not evidence of runtime release readiness.
 
 ## 9. Signing, notarization, and workflow status
 
+The pre-dispatch **NOT RUN** statuses from the earlier ledger are historical;
+the final exact-SHA statuses are recorded below.
+
 | Gate | Result | Evidence |
 |---|---|---|
 | Local unsigned validation artifact | **PASS** | `OWN_THE_BLOCK_DISTRIBUTION_MODE=unsigned-validation` completed the Windows controlled build. |
 | Signing | **BLOCKED** | No certificate or signing identity was supplied; the artifact is not a production-distribution claim. |
-| Notarization | **NOT RUN** | macOS jobs were not run on this Windows host; signed notarization remains blocked. |
+| Notarization | **NOT RUN** | Signed notarization was not run; the unsigned macOS RC artifact jobs passed remotely, but no production signing credentials were supplied. |
 | Release-candidate workflow source | **PASS** | `.github/workflows/release-candidate.yml` contains manual endpoint input, quality gates, three OS/architecture targets, checksums, uploads, and secure signing branches. |
 | Exact-SHA remote CI | **PASS** | Run `33179037021`; head SHA `05c2cf0b626c4db8a43b7fe31bd53122f161fa78`. |
 | Exact-SHA remote Desktop Build | **PASS** | Run `33179037009`; head SHA `05c2cf0b626c4db8a43b7fe31bd53122f161fa78`. |

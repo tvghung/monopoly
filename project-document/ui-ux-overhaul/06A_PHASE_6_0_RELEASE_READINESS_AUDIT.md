@@ -531,7 +531,7 @@ Auto-update remains post-v1. No third implementation subphase is justified.
 | Signing | **BLOCKED** | Local artifact mode was unsigned validation; no certificate was available. |
 | Notarization | **NOT RUN** | macOS signing/notarization was not run; production notarization remains blocked. |
 
-## 9. Open manual and external gates
+## 9. Open manual and external release gates
 
 The following remain open and must be reported separately from automated status:
 
