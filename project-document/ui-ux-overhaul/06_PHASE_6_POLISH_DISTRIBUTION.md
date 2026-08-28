@@ -291,4 +291,4 @@ Windows signing, production Apple signing/notarization, public-network live
 multiplayer validation, speaker-backed audio UAT, accessibility/manual QA, and
 long-session soak where still outstanding.
 
-`PHASE_6_CLOSEOUT_DOCS_SHA=__PHASE_6_CLOSEOUT_DOCS_SHA__`
+`PHASE_6_CLOSEOUT_DOCS_SHA=88f1eb10ba85114486c29e79e3d9509e13c03d6a`
