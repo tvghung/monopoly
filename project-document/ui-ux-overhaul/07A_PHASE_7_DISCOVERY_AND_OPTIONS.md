@@ -4,7 +4,7 @@
 
 **PHASE 7 DISCOVERY: COMPLETE**
 
-**PHASE 7 IMPLEMENTATION: NOT STARTED**
+**PHASE 7.0 IMPLEMENTATION/PROOF: NOT STARTED**
 
 This is the authoritative Phase 7 discovery record. It defines the product
 boundary, current-code evidence, candidate architecture, risks, future
@@ -18,7 +18,8 @@ Phase 7 is a private LAN/Wi-Fi multiplayer mode:
 
 - A Windows or macOS desktop can host a room or join a room.
 - The desktop host runs the authoritative Own the Block server for that LAN
-  session and uses local durable persistence.
+  session and uses a selected local durable persistence backend; Phase 7.0
+  decides which backend is feasible.
 - iPhone, iPad, and Android devices join through the browser/PWA web client;
   mobile devices never host authority in this phase.
 - A paid Internet multiplayer service, hosted PostgreSQL, OAuth/account system,
@@ -26,8 +27,9 @@ Phase 7 is a private LAN/Wi-Fi multiplayer mode:
 - The server remains authoritative for room membership, GameCore rules,
   persistence, timers, reconnect sessions, public/private projection, and
   recovery. `SERVER OWNS TRUTH` remains unchanged.
-- The existing V8 protocol, `freshState()` reset path, PostgreSQL aggregate
-  semantics, and single presentation architecture remain frozen.
+- The existing V8 protocol, `freshState()` reset path, current PostgreSQL
+  aggregate semantics, and single presentation architecture remain frozen.
+  Any selected local backend must preserve the observable persistence contract.
 
 The host mode is a desktop lifecycle and network-delivery feature around the
 existing server. It is not a second game implementation and it is not a
@@ -36,7 +38,12 @@ permission for Electron main or a browser client to decide gameplay.
 ## 2. Verified baseline
 
 - Repository: `tvghung/monopoly`.
-- Starting `main` and `origin/main`:
+- Current branch: `overhaul/phase-7-lan-discovery`.
+- Current branch HEAD:
+  `524308604b1bf25407e9e72a0cad0bfe1ac4a995`.
+- Its parent/base:
+  `36adeac0bfae4beb025497455016b1d74890acc6`.
+- `main` and `origin/main`:
   `36adeac0bfae4beb025497455016b1d74890acc6`.
 - Phase 6 merge: `c78dece5a307e815801972b2044d2093f2b78677`.
 - `v3.0.0-phase6-stable^{}` resolves to
@@ -44,8 +51,8 @@ permission for Electron main or a browser client to decide gameplay.
 - Phase 6 branch remains at
   `4c84e76bbbc3f502c536e658575fe09be20f71f6`.
 - The previous discovery-only commit was
-  `36adeac0bfae4beb025497455016b1d74890acc6`; this document corrects its
-  product direction in a new documentation commit.
+  `36adeac0bfae4beb025497455016b1d74890acc6`; this document is the final
+  corrective discovery pass before Phase 7.0 approval.
 - Phase 6 engineering is complete. Production release readiness remains a
   separate approval gate; the Phase 6 documentation records the unrun manual,
   live multiplayer, signing, and production checks.
@@ -74,19 +81,32 @@ permission for Electron main or a browser client to decide gameplay.
 - Electron already has a hardened `app://own-the-block` renderer shell and a
   typed preload bridge for runtime configuration, window state, external links,
   and quit confirmation.
+- Packaged desktop bootstrap resolves the socket endpoint before the gameplay
+  `App` is mounted: `AppBootstrap → bootstrap() → loadRuntimeConfig() →
+  createSocket()`. Packaged `runtimeConfig.ts` rejects a missing socket
+  endpoint, so this is a pre-socket lifecycle blocker for Host mode.
 
 ### What does not exist yet
 
 - Electron main does not start, stop, monitor, or recover a local server.
 - The packaged desktop artifact contains the desktop shell and client assets,
   not a server helper, local PostgreSQL binaries, or a managed data directory.
-- Server configuration has a port but no explicit LAN host/bind setting;
-  current documented development behavior is loopback.
+- `apps/server/src/index.ts` calls `server.listen(config.port)` with no explicit
+  host. Vite development is explicitly bound to `127.0.0.1` and documentation
+  or development URLs use loopback, but that does not mean the Node HTTP server
+  is loopback-bound. With no host, Node may listen on unspecified IPv6/IPv4
+  addresses and therefore potentially accept LAN traffic.
+- `NODE_ENV=production` currently couples separate choices: durable PostgreSQL
+  requirement, built-client serving, packaged Electron CORS default, and
+  `trust proxy = 1`. There is no independent LAN/cloud runtime profile yet.
 - The server has no local-IP selection, interface labeling, LAN discovery,
   QR generation, room URL parsing, or host/join mode flow.
 - There is no embedded database adapter or desktop PostgreSQL manager.
 - The current JoinForm is one name/room-code flow; it has no Host/Join mode,
   LAN address, QR, or host lifecycle state.
+- Adding “Host LAN Game” to that JoinForm alone cannot work: a desktop Host/Join
+  launcher or equivalent pre-socket runtime state must select or resolve an
+  endpoint before the normal gameplay socket is created.
 - The current blank room-code behavior targets the shared normalized `LOBBY`
   room; Phase 7 still needs an explicit host-room code allocation decision.
 - Existing tests use loopback sockets and test persistence, with PostgreSQL
@@ -101,9 +121,10 @@ scope.
 Every Phase 7 implementation subphase must preserve:
 
 1. Server/GameCore authority and the existing room/session contracts.
-2. PostgreSQL transaction, CAS, JSONB snapshot, migration, deadline, and
-   recovery semantics unless a separately approved persistence decision changes
-   the storage implementation without changing those observable contracts.
+2. The current PostgreSQL transaction, CAS, JSONB snapshot, migration, deadline,
+   and recovery semantics are the compatibility baseline. A separately approved
+   local backend may change the storage implementation only after Phase 7.0
+   proves the same observable contracts.
 3. Protocol V8 and the existing public/private state boundary.
 4. `PresentationController → AnimationQueue → PresentationStore` as the only
    client presentation path. No second event bus, animation queue, cache, or
@@ -120,15 +141,16 @@ Every Phase 7 implementation subphase must preserve:
 
 ### Recommended lifecycle
 
-The preferred model is one Electron main process supervising one packaged
-server-helper child process, with a desktop-managed local PostgreSQL instance as
-a separate child/service concern:
+The preferred shape is one Electron main process supervising one packaged
+server-helper child process, with the selected local durable persistence backend
+as a separate child/service concern. The helper and persistence choices remain
+Phase 7.0 decisions:
 
 ```text
 IDLE
   └─ start LAN host
        ↓
-STARTING_LOCAL_SERVER ── failure ──> FAILED
+STARTING_LOCAL_PERSISTENCE_AND_SERVER ── failure ──> FAILED
        ↓ /readyz + /healthz
 READY / HOSTING ── stop or quit ──> STOPPING ──> IDLE
 ```
@@ -139,9 +161,10 @@ The host flow should:
    server. Repeated start requests must not create duplicate children.
 2. Start the existing server bootstrap and GameCore path as a packaged helper;
    do not copy rules into Electron main.
-3. Supply explicit production runtime configuration: packaged client assets,
-   local database connection, LAN bind policy, chosen port, and the packaged
-   renderer origin allowlist.
+3. Supply an explicit runtime/deployment profile: packaged client assets, the
+   selected local database connection, explicit bind policy, chosen port, and
+   the renderer origin allowlist. Do not let a LAN host inherit cloud proxy
+   trust merely because it serves the built client.
 4. Wait for readiness before mounting or connecting the host gameplay client.
    `/readyz` must be the database/schema gate; `/healthz` is liveness.
 5. Return only non-secret runtime data to the renderer: state, actual port,
@@ -152,6 +175,29 @@ The host flow should:
 7. Keep the child alive across a renderer reload. A renderer reload is not a
    host shutdown.
 
+### Pre-socket bootstrap blocker
+
+The packaged desktop resolves its socket URL during bootstrap, before the
+normal gameplay `App` is available:
+
+```text
+AppBootstrap → bootstrap() → loadRuntimeConfig() → createSocket()
+```
+
+Packaged `runtimeConfig.ts` rejects a missing socket endpoint. Therefore Phase 7
+cannot be implemented by adding “Host LAN Game” to the existing JoinForm. A
+desktop Host/Join launcher, or equivalent pre-socket runtime state, must exist
+before the gameplay socket is created.
+
+The required sequencing is:
+
+- Host: user selects Host → local persistence/server becomes ready → the actual
+  endpoint is obtained → the normal socket/client is created.
+- Join: user selects Join → an endpoint is provided or resolved → the normal
+  socket/client is created.
+
+This discovery does not design the visual UI.
+
 The current packaged runtime endpoint mechanism is designed for an explicit
 external HTTP(S) endpoint. It must not be silently repurposed as a dynamic LAN
 host endpoint. A future host flow should establish the local endpoint first,
@@ -161,14 +207,36 @@ then initialize the normal client socket against that endpoint.
 
 | Option | Fit with current code | Complexity and risk | Decision |
 | --- | --- | --- | --- |
-| Package the existing server as a supervised helper child | Reuses startup, Socket.IO, GameCore, persistence, migrations, and recovery | Requires a server build/helper artifact, child supervision, readiness IPC, logs, and packaging tests | **Recommended** |
+| Package the existing server as a supervised helper child | Reuses startup, Socket.IO, GameCore, persistence, migrations, and recovery | Requires a server build/helper artifact, child supervision, readiness IPC, logs, and packaging tests | **Preferred candidate; proof pending** |
 | Ask users to run a separate server and PostgreSQL | Smallest Electron change | Poor normal-user experience, separate lifecycle, address setup, and failure ownership | Defer; useful only as a developer fallback |
 | Move server/GameCore into Electron main | No separate helper | Breaks authority boundaries, couples gameplay to shell lifecycle, and risks a second implementation | Reject |
 | Use a remote/cloud server for host mode | Existing endpoint configuration can connect to one | Violates the private LAN/no-paid-server direction and adds Internet dependency | Future Internet Multiplayer only |
 
-The recommended option still needs a packaging proof. Current Forge config does
-not package the server, Node helper runtime, PostgreSQL binaries, or a local data
-directory, so the existing desktop installer cannot yet be called a LAN host.
+### Server-helper packaging finding
+
+Reuse of the existing authoritative server remains the direction, but it is not
+package-ready today:
+
+- `@monopoly/server` has no production JavaScript build artifact; its normal
+  start path runs TypeScript through `tsx`.
+- Desktop Forge currently packages client `dist` and release configuration only.
+  It does not package a server helper, PostgreSQL binaries, or a managed data
+  directory.
+- Desktop packaging intentionally excludes workspace `node_modules`.
+- Migration discovery is relative to `import.meta.url`.
+- Production static-client discovery uses a relative default path, with
+  `CLIENT_DIST` available as an override.
+
+For Phase 7.0, evaluate Electron `utilityProcess.fork()` as the preferred
+Node server-helper process API because it fits Electron’s process model. Keep it
+as a candidate until packaged helper startup, dependency/resource layout,
+migration-file lookup, client-dist lookup, readiness, stdout/stderr diagnostics,
+graceful shutdown, and Windows/macOS behavior are proven.
+
+The existing packaged runtime endpoint mechanism is designed for an explicit
+external HTTP(S) endpoint. It must not be silently repurposed as a dynamic LAN
+host endpoint; the local endpoint must be established before the normal client
+socket is created.
 
 ## 6. Local persistence options
 
@@ -180,61 +248,112 @@ schema migration checksums. The in-memory store is a test adapter, not a
 desktop production fallback. The room command executor relies on transaction
 boundaries and aggregate-version CAS.
 
+The compatibility surface that a local backend must prove includes:
+
+- the `pg` Pool with the configured default maximum of 10 connections;
+- `BEGIN` / `COMMIT` / `ROLLBACK` transaction behavior;
+- room `FOR UPDATE` and session cleanup `FOR UPDATE SKIP LOCKED`;
+- aggregate-version compare-and-swap;
+- migration `pg_advisory_lock(hashtext(...))` locking and SHA-256 checksums;
+- JSONB, UUID, BYTEA, and TIMESTAMPTZ data types;
+- partial indexes and CHECK constraints; and
+- restart durability, migration checks, deadlines, and recovery.
+
 ### Options
 
-| Option | Package/OS impact | Data safety and migration | GameCore impact | Assessment |
-| --- | --- | --- | --- | --- |
-| A. Require a user-installed PostgreSQL | Low product packaging work; high setup/support burden across Windows/macOS | Existing migrations and recovery remain intact; users must install, configure, and preserve the database | Minimal | Good developer fallback, not a normal-user V1 |
-| B. Bundle and manage a private local PostgreSQL instance | High: platform binaries, data directory, init, port, credentials, upgrades, AV/UAC, clean stop, and repair | Best preservation of current transaction/CAS/migration semantics if data lives under app data and is never treated as an app resource | Minimal | **Recommended for a normal desktop host** |
-| C. Replace or add an embedded database such as SQLite | New adapter, locking/CAS behavior, migration path, backup/recovery proof, and platform edge cases | High risk of semantic drift and migration/data-loss defects | Likely changes repository assumptions and tests | Reject for Phase 7 |
-| D. Use hosted PostgreSQL/cloud storage | Low local packaging work; requires network/service operations | Existing semantics can remain, but LAN mode becomes cloud-dependent | Minimal | Future Internet Multiplayer only |
+| Strategy | Package/OS impact | Compatibility and data safety | Status |
+| --- | --- | --- | --- |
+| Managed native PostgreSQL | High: platform binaries, data directory, init, port, credentials, upgrades, AV/UAC, clean stop, and repair | Compatibility baseline and least semantic change; preserves the current PostgreSQL path if durable data remains under app data | **Leading candidate; NOT YET APPROVED** |
+| PGlite/PGlite Socket | Potentially smaller native packaging footprint, but adds a database-server process and a compatibility boundary | PGlite is single-connection; PGlite Socket multiplexes simultaneous PostgreSQL connections, and its official documentation does not guarantee all use cases. Exact repository-contract proof is required | **EXPERIMENTAL Phase 7.0 candidate; not production-ready** |
+| User-installed PostgreSQL | Lower packaging work but high setup/support burden across Windows/macOS | Existing semantics remain available if users install, configure, and preserve the database | Developer fallback only; not a normal-user decision for 7.0 |
+| Hosted PostgreSQL/cloud storage | Low local packaging work but adds network/service operations | Existing semantics can remain, but LAN mode becomes cloud-dependent | Future Internet Multiplayer only |
 
-Recommendation: use a desktop-managed private PostgreSQL sidecar/data directory
-for the intended V1 user experience. Phase 7.0 must prove this choice on the
-supported Windows and macOS packaging targets before host UX is built. The
-database must be initialized and migrated through the existing startup path,
-with generated local credentials kept out of UI, QR data, command-line logs,
-and ordinary diagnostics. Data belongs under the platform application-data
-directory, not inside a read-only packaged resource or temporary directory.
+Desktop-managed native PostgreSQL is the compatibility baseline and leading
+candidate because it preserves current behavior with the least semantic change.
+It is **NOT YET APPROVED**: bundling it creates substantial packaging and
+lifecycle cost. PGlite/PGlite Socket is an **EXPERIMENTAL Phase 7.0 candidate**,
+not a production recommendation, and no PGlite dependency is added in this
+discovery pass.
 
-The lifecycle order should be database start/ready → server migration/readiness
-→ host client connect, and the reverse on shutdown. Upgrade, backup/repair,
-uninstall-retention, and interrupted-migration behavior require explicit
-acceptance cases; deleting a user's local room data must never be an incidental
-installer action.
+Phase 7.0 must compare the two candidates against the exact contract above. Do
+not assume that setting the pool to `max=1` solves the PGlite connection model;
+any LAN-specific pool-size change also requires concurrency and recovery
+evidence. A direct new PGlite `PersistenceStore` adapter would be a broader
+architectural change and may be considered later only if socket compatibility
+fails and that adapter is separately approved.
+
+For either local strategy, the database must be initialized and migrated through
+the existing startup path, with generated credentials kept out of UI, QR data,
+command-line logs, and ordinary diagnostics. Data belongs under the platform
+application-data directory, not inside a read-only packaged resource or temporary
+directory. The lifecycle order is selected persistence ready → server
+migration/readiness → host client connect, and the reverse on shutdown.
+Upgrade, backup/repair, uninstall-retention, and interrupted-migration behavior
+require explicit acceptance cases; deleting a user's local room data must never
+be an incidental installer action.
 
 ## 7. LAN binding and runtime configuration
 
+### Current bind/runtime findings
+
 Current `apps/server/src/index.ts` calls `server.listen(config.port)` and
-`apps/server/src/config.ts` has no explicit bind-address setting. Development
-documentation and integration tests use loopback. A future host mode must make
-LAN exposure an explicit runtime mode.
+`apps/server/src/config.ts` has no explicit bind-address setting. Vite development
+is explicitly bound to `127.0.0.1`, and documentation or development URLs use
+loopback. The Node HTTP server itself is not explicitly loopback-bound: when the
+host argument is omitted, Node may listen on the unspecified IPv6 address (`::`)
+or unspecified IPv4 address (`0.0.0.0`), potentially accepting LAN traffic.
 
-Recommended V1 behavior:
+This is an exposure ambiguity, not an existing LAN-host feature. Phase 7 must
+introduce an explicit bind policy rather than merely changing loopback to
+`0.0.0.0`. Do not freeze an environment-variable name in discovery.
 
-- Keep normal web/development mode on `127.0.0.1` unless the operator explicitly
-  selects LAN host mode.
-- In LAN host mode, bind explicitly to IPv4 `0.0.0.0` or to a selected private
-  interface address. Never advertise `0.0.0.0` as a join address.
+### Required bind policy
+
+- Normal development must bind explicitly to loopback, normally `127.0.0.1`.
+- LAN host mode must bind explicitly to an approved LAN-capable address, such
+  as `0.0.0.0` or a selected private interface address. Never advertise
+  `0.0.0.0` as a join address.
+- Cloud deployment must have its own explicit deployment bind policy; it must
+  not inherit LAN or development assumptions.
 - Use one actual HTTP port for the static client, health endpoints, and
-  Socket.IO. Default to the existing port policy, but report the actual bound
-  port to the host UI.
+  Socket.IO. Keep the existing port policy unless a later decision changes it,
+  and report the actual bound port to the host UI.
 - If the requested port is occupied or the interface cannot bind, fail with an
   actionable error and let the user retry or choose a port. Do not silently
   change the port and leave an old QR/link looking valid.
-- Serve the built client from the host server so mobile browsers use one
-  same-origin HTTP URL. Desktop `app://own-the-block` still needs its explicit
-  CORS allowance; CORS is browser authorization, not client authentication.
-- Keep `/healthz` and `/readyz` available only as status endpoints. Readiness
-  must not be treated as proof that a remote client is authorized.
-- Apply an OS firewall rule scoped to the private/home network profile, the
-  selected program, and the actual port. Do not use UPnP, public NAT exposure,
-  or an Internet-facing bind.
 
-The server currently accepts player authority through the existing session
-protocol, not through CORS. A LAN warning is therefore required: room codes are
-not credentials and any reachable client may be able to request spectator or
+### Required runtime-profile separation
+
+The current `NODE_ENV=production` behavior combines several unrelated choices:
+PostgreSQL-required startup, built-client serving, the packaged Electron CORS
+default, and `trust proxy = 1` for a reverse-proxied deployment. A LAN host
+needs durable local persistence and static client serving, but LAN clients
+connect directly and normally have no reverse proxy.
+
+Phase 7 must introduce an explicit server runtime/deployment profile or
+equivalent configuration so these decisions are independently controlled:
+
+- LAN must not inherit cloud `trust proxy = 1` accidentally.
+- Static client serving must not imply reverse-proxy trust.
+- Bind address must be explicit.
+- CORS must remain separate from authentication; it is browser-origin
+  authorization, not a client credential.
+- `/healthz` and `/readyz` remain status endpoints. Readiness is not proof that
+  a remote client is authorized.
+
+The server accepts player authority through the existing session protocol, not
+through CORS. A LAN warning is therefore required: room codes are not
+credentials, and any reachable client may be able to request spectator or
 admission behavior allowed by the existing contract.
+
+### Firewall and network permission boundary
+
+For V1 discovery, require actionable firewall and network diagnostics, allow
+normal Windows/macOS OS firewall permission prompts, and provide clear user
+guidance. Do not require automatic OS firewall-rule creation. Programmatic
+Windows/macOS firewall modification requires a separate security/installer
+decision and is not assumed. Do not use UPnP, public NAT exposure, or an
+Internet-facing bind.
 
 ## 8. Local IP detection and LAN discovery
 
@@ -329,7 +448,7 @@ the minimum contract for a later design and implementation review.
 
 ```text
 Host unavailable
-  → Starting local database/server
+  → Starting selected local persistence/server
   → Ready to host
   → Room lobby
   → Game
@@ -362,10 +481,10 @@ action is not an acceptable terminal state.
 
 | Failure | Required V1 behavior |
 | --- | --- |
-| Local PostgreSQL missing, corrupt, locked, or migration failed | Do not show the host room as ready; show a repair/support action and preserve the data directory |
+| Selected local durable persistence backend missing, corrupt, locked, or migration failed | Do not show the host room as ready; show a repair/support action and preserve the data directory |
 | Server helper failed to start or exited | Show explicit failed state with a safe diagnostic; never silently fall back to an in-memory production store |
 | Port occupied or bind denied | Explain the port/address, offer retry/change-port, and invalidate any old URL/QR |
-| Windows/macOS firewall blocks the port | Explain private-network firewall permission and provide manual retry/check guidance; do not claim the client failed authentication |
+| Windows/macOS firewall blocks the port | Report actionable private-network firewall diagnostics, allow the normal OS permission prompt, and provide manual retry/check guidance; do not claim the client failed authentication |
 | Wi-Fi/Ethernet is different, client isolation is enabled, or VPN routes traffic elsewhere | Report host unreachable and show the current advertised interface/address; retain manual fallback |
 | Host IP changes | Re-enumerate addresses, refresh URL/QR, and tell connected/returning clients to use the new address |
 | Wrong room code, full lobby, or active game | Return the existing server admission result; do not create a second hidden room or bypass lifecycle rules |
@@ -380,9 +499,9 @@ action is not an acceptable terminal state.
 ### MUST for the first usable LAN host
 
 - A peer can reconnect after a temporary network loss while the host server and
-  local database remain alive, using the existing stable session/reconnect
-  contract.
-- A renderer reload does not stop the helper or discard the local database.
+  selected local persistence backend remain alive, using the existing stable
+  session/reconnect contract.
+- A renderer reload does not stop the helper or discard local durable data.
 - Server shutdown remains graceful and does not manufacture player leave,
   forfeit, or turn-resolution commands.
 - Host quit, child failure, and unreachable network are visible, bounded
@@ -409,8 +528,8 @@ action is not an acceptable terminal state.
 
 The existing server can recover durable room deadlines after a database/process
 restart, but that does not prove a packaged desktop restart experience. The
-packaged data directory, credentials, IP changes, and client reconnection path
-must be tested before making a restart claim.
+selected persistence data directory, any credentials, IP changes, and client
+reconnection path must be tested before making a restart claim.
 
 ## 14. Security and trust boundary
 
@@ -421,7 +540,7 @@ must be tested before making a restart claim.
 - The server continues to derive player authority from authenticated session
   data and to validate every command. Electron main only supervises processes
   and reports runtime status.
-- Generated local PostgreSQL credentials and connection strings stay in the
+- Any generated local persistence credentials and connection strings stay in the
   private application-data boundary. They do not appear in QR, renderer state,
   ordinary logs, screenshots, or IPC command arguments.
 - LAN exposure must be limited to private interface/firewall policy. No public
@@ -433,7 +552,7 @@ must be tested before making a restart claim.
 - CORS allowlisting remains a browser-origin control only. It must not be
   presented as authentication or as proof that a LAN client is safe.
 
-## 15. Recommended target architecture
+## 15. Target architecture pending Phase 7.0 decisions
 
 ```text
 Windows/macOS Electron renderer
@@ -450,7 +569,8 @@ Packaged existing server bootstrap
   - Express + Socket.IO + GameCore + V8 persistence contract
           │ local connection
           ▼
-Desktop-managed private PostgreSQL + app-data directory
+Selected local durable persistence backend — decided by Phase 7.0
+  - app-data directory
 
 iPhone/iPad/Android browser
   ── HTTP + Socket.IO over the private LAN ──► the same server authority
@@ -460,27 +580,71 @@ The host player's game socket and every mobile/desktop joiner use the same
 server protocol. The existing server remains the only authority and the
 existing client presentation path remains the only animation/state path. No
 new client event bus, gameplay cache, or Electron-side GameCore is needed.
+The preferred helper candidate is Electron `utilityProcess.fork()`, pending the
+Phase 7.0 packaging and lifecycle proof.
 
 ## 16. Proposed implementation subphases
 
 These are reviewable future scopes, not authorization to implement them now.
 
-### 7.0 — LAN architecture and persistence proof
+### 7.0 — LAN Runtime & Persistence Proof
 
-- **Objective:** prove the packaged server-helper and recommended local
-  PostgreSQL strategy on the supported Windows/macOS targets.
+This is a decision gate, not host UX implementation. It must resolve two
+decisions before 7.1.
+
+#### Decision A — server-helper process
+
+- Preferred candidate: Electron `utilityProcess.fork()`.
+- Fallback candidate only if evidence requires it: another supervised process
+  model.
+- Required proof: packaged launch, one-instance guard, readiness, graceful
+  stop, crash reporting, and no renderer/GameCore authority leakage.
+
+#### Decision B — local persistence
+
+Compare:
+
+1. managed native PostgreSQL;
+2. PGlite/PGlite Socket compatibility spike.
+
+The second option is experimental and is not production approval. No PGlite
+dependency or adapter is added in this documentation pass.
+
+Phase 7.0 acceptance must eventually exercise, at minimum:
+
+- migrations 001–009;
+- migration checksums and advisory locking;
+- healthcheck;
+- room create/read;
+- JSONB snapshot round-trip;
+- aggregate CAS conflict;
+- transaction rollback;
+- `FOR UPDATE` and `FOR UPDATE SKIP LOCKED`;
+- session token digest storage;
+- concurrent room operations;
+- deadlines/recovery; and
+- process/database restart against retained data.
+
+Existing PostgreSQL integration tests are supporting baseline evidence, not
+complete proof of an alternative backend. Any LAN-specific pool-size change
+also requires concurrency and recovery evidence.
+
+- **Objective:** prove the selected packaged server-helper and one local
+  persistence strategy on the supported Windows/macOS targets.
 - **In scope:** helper artifact shape, managed data-directory lifecycle,
-  generated local credentials, migration/startup/readiness, stop/repair behavior,
-  explicit bind/port configuration, and a minimal persistence/restart proof.
+  generated credentials where applicable, migration/startup/readiness,
+  explicit bind/port configuration, stop/repair behavior, and the compatibility
+  and restart proof above.
 - **Excluded:** host/join redesign, QR, mobile UX, protocol/game-rule changes,
   cloud deployment, and production release claims.
-- **Prerequisites:** PO approval of managed local PostgreSQL and supported OS/
-  architecture matrix.
-- **Acceptance:** a clean packaged host can initialize/migrate local data,
-  reach `/readyz`, stop without data loss, restart against the same data, and
-  show safe failure states; no client or GameCore authority moves into main.
+- **Prerequisites:** approval to run this narrow feasibility proof; native
+  PostgreSQL, PGlite/PGlite Socket, and the helper process remain undecided.
+- **Exit gate:** exactly one persistence strategy and one server-helper strategy
+  are approved before Phase 7.1. No Phase 7.0 proof is executed by this
+  documentation task.
 - **Risks:** platform binaries, AV/UAC, licensing, data-directory permissions,
-  interrupted migration, and installer/uninstaller behavior.
+  interrupted migration, dependency/resource layout, and installer/uninstaller
+  behavior.
 
 ### 7.1 — Desktop host runtime
 
@@ -490,7 +654,8 @@ These are reviewable future scopes, not authorization to implement them now.
   endpoint handoff before the gameplay socket connects.
 - **Excluded:** gameplay rules, host migration, remote/cloud endpoint support,
   and a second authoritative state store.
-- **Prerequisites:** 7.0 helper/persistence proof.
+- **Prerequisites:** Phase 7.0 has approved exactly one helper and one local
+  persistence strategy.
 - **Acceptance:** Windows/macOS host can start one ready server, host a normal
   room, reload the renderer without stopping it, and stop cleanly with bounded
   failure handling.
@@ -565,23 +730,30 @@ Existing automated tests provide useful server/contract evidence but are not
 cross-device acceptance. Loopback, `InMemoryPersistenceStore`, and
 `TEST_DATABASE_URL`-gated PostgreSQL tests must remain labeled as such.
 
-## 18. Product-owner decisions required before implementation
+## 18. Product-owner approval sequence
 
-1. Approve managed private PostgreSQL as the intended desktop host persistence
-   model, or explicitly accept the setup burden of user-installed PostgreSQL.
-2. Approve IPv4-only V1, the default port, and “fail with an actionable error”
-   when that port is occupied.
-3. Approve host-room code allocation, the room URL/prefill syntax, and whether
-   the host shows one selected IP or all valid private interface candidates.
-4. Approve the host-quit policy: peers see host unavailable; no host transfer.
-5. Approve whether explicit host restart may reattach to a retained room, with
-   no promise of seamless client recovery after machine restart.
-6. Approve the supported iOS/iPadOS Safari and Android Chrome device/browser
-   matrix and the landscape-first mobile game boundary.
-7. Approve whether a late mobile/browser join follows the current spectator
-   behavior when a game is already in progress.
-8. Approve local data retention, backup/repair, and uninstall behavior before
-   packaging a database manager.
+The next approval is only:
+
+1. Approve Phase 7.0 to perform the narrow server-helper and local-persistence
+   feasibility proof described in Section 16.
+
+This does not select native PostgreSQL or PGlite/PGlite Socket, approve a
+production backend, or authorize Phase 7.1–7.4. Phase 7 implementation remains
+**NOT STARTED**.
+
+The following decisions stay with their relevant later subphases and do not
+block Phase 7.0:
+
+- IPv4-only V1, default port, occupied-port behavior, and explicit bind policy
+  details for 7.2;
+- host-room code allocation, URL/prefill syntax, and IP-candidate presentation
+  for 7.2;
+- host-quit and retained-room restart behavior for 7.1/7.4;
+- supported iOS/iPadOS Safari and Android Chrome matrix and the landscape-first
+  mobile boundary for 7.3;
+- late-join/spectator behavior for 7.2/7.3; and
+- local data retention, backup/repair, and uninstall behavior for the packaging
+  and hardening work in 7.4.
 
 ## 19. Deferred and separate work
 
@@ -603,20 +775,39 @@ The following must not be mixed into Phase 7 LAN implementation:
 | `CLAUDE.md` | Authority, V8, `freshState()`, reconnect/session privacy, PG/CAS, lifecycle, presentation, and Electron security invariants |
 | `README.md` | Current dev loopback ports, PostgreSQL requirement, packaged endpoint policy, health/readiness, and one-process cloud deployment notes |
 | `project-document/monopoly-websockets/` | Server bootstrap, API, room lifecycle, client join/resume, persistence, recovery, and authority contracts |
-| `apps/server/src/config.ts` | Database/port configuration; no LAN host setting |
-| `apps/server/src/index.ts` | Migration/readiness/startup, `server.listen(config.port)`, scheduler, and graceful shutdown |
+| `apps/server/src/config.ts` | Database/port configuration; no explicit bind or independent LAN/cloud runtime profile |
+| `apps/server/src/index.ts` | Migration/readiness/startup, `server.listen(config.port)` with omitted host, scheduler, and graceful shutdown |
 | `apps/server/src/createServer.ts` | Same HTTP/Socket.IO server, static client, `/healthz`, `/readyz`, and CORS behavior |
-| `apps/server/src/persistence/` and `apps/server/src/migrations/` | PostgreSQL repositories, transaction/CAS semantics, migration checksums, V8 snapshot path, and test-only in-memory adapter |
+| `apps/server/src/persistence/` and `apps/server/migrations/` | PostgreSQL repositories, Pool/transaction/lock/CAS semantics, migration checksums, V8 snapshot path, and test-only in-memory adapter |
 | `apps/server/src/socket/` and `apps/server/src/services/` | Admission/resume, host/lobby rules, connection registry, deadlines, reconnect, and recovery behavior |
 | `apps/desktop/src/main.ts` and `desktopBootstrap.ts` | Secure Electron shell and current absence of server lifecycle ownership |
-| `apps/desktop/src/runtimeConfig.ts`, `preload.ts`, `ipc/`, `forge.config.cjs` | Explicit packaged endpoint, typed IPC boundary, and current package contents; no server/PG helper artifact |
+| `apps/desktop/src/runtimeConfig.ts`, `preload.ts`, `ipc/`, `forge.config.cjs`, `apps/desktop/package.json` | Pre-socket explicit packaged endpoint, typed IPC boundary, `tsx`/Forge packaging constraints, and no server/PG helper artifact |
 | `apps/desktop/scripts/` | Development wrapper owns separate web processes; packaged shell does not |
-| `apps/client/src/App.tsx` and `components/` | Current join/resume state machine, single JoinForm, lobby, quit behavior, and missing host/QR flow |
+| `apps/client/src/app/bootstrap/`, `apps/client/src/runtime/`, `apps/client/src/network/`, `apps/client/src/App.tsx`, and `components/` | Pre-socket bootstrap/runtime endpoint resolution, socket creation, current join/resume state machine, single JoinForm, lobby, quit behavior, and missing host/QR flow |
 | `apps/client/src/Board.tsx`, `GameScene`, CSS, `public/manifest.json` | WebGL2/fallback, landscape/touch-responsive boundaries, audio unlock, and existing PWA shell |
 | `apps/server/src/**/*.test.ts` | Loopback/in-memory/integration evidence; no cross-device LAN acceptance |
 | `compose.yaml`, `.env.example`, `Dockerfile`, `render.yaml` | Developer/production PostgreSQL and cloud packaging assumptions; none is a desktop LAN-host package |
 | `project-document/ui-ux-overhaul/06A_PHASE_6_0_RELEASE_READINESS_AUDIT.md`, `06B_PHASE_6_2_RELEASE_VERIFICATION.md` | Phase 6 engineering-complete checkpoint and separate production/signing/manual validation boundary |
 
-**Final gate:** Phase 7 discovery is complete in this document. Phase 7
-implementation remains **NOT STARTED** until the decisions in Section 18 are
-approved and a specific subphase is separately scoped.
+**Final gate:** Phase 7 discovery is complete in this document. Phase 7.0
+implementation/proof remains **NOT STARTED** until the narrow feasibility proof
+is explicitly approved. Do not begin Phase 7.0 until this corrective commit is
+reviewed and approved.
+
+### External feasibility notes
+
+These official references document feasibility signals only; they do not approve
+an architecture:
+
+- [Node.js `server.listen()`](https://nodejs.org/api/net.html#serverlisten): an
+  omitted host may bind the unspecified IPv6 or IPv4 address.
+- [Electron `utilityProcess`](https://www.electronjs.org/docs/latest/api/utility-process)
+  and the [Electron process model](https://www.electronjs.org/docs/latest/tutorial/process-model):
+  `utilityProcess.fork()` is the preferred helper candidate for Phase 7.0.
+- [PGlite Socket](https://pglite.dev/docs/pglite-socket): PGlite is
+  single-connection, simultaneous connections are multiplexed, and not all use
+  cases are guaranteed.
+
+PHASE 7 DISCOVERY: COMPLETE — corrected
+
+PHASE 7.0 IMPLEMENTATION/PROOF: NOT STARTED
