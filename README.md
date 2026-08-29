@@ -111,6 +111,7 @@ pnpm lint        # eslint across the repo
 pnpm test        # unit/client/socket tests; PostgreSQL suite is conditional
 pnpm desktop:package # package the Windows/macOS Electron application
 pnpm desktop:make    # create configured platform makers (Windows Squirrel on Windows)
+pnpm --filter @monopoly/desktop proof:packaged # run the packaged Phase 7.0B loopback proof
 pnpm validate:release # validate canonical release metadata and generated config
 pnpm desktop:release  # release-candidate build; requires OWN_THE_BLOCK_RELEASE_SOCKET_URL
 ```
@@ -126,7 +127,10 @@ pnpm desktop:release  # release-candidate build; requires OWN_THE_BLOCK_RELEASE_
 | `TEST_DATABASE_URL` | unset | Enables the PostgreSQL integration suite; CI sets it alongside `DATABASE_URL`. A run without it is not CI-equivalent, and the test output must make conditional/skipped coverage explicit. |
 | `PORT` | `8080` | HTTP/Socket server port. |
 | `NODE_ENV` | `development` | `production` also serves the built client. |
+| `SERVER_RUNTIME_PROFILE` | `development` locally; `cloud` in production | Server profile; the packaged proof uses `desktop`. |
+| `SERVER_HOST` | `127.0.0.1` locally/desktop; `0.0.0.0` cloud | Explicit server bind address. |
 | `CORS_ORIGIN` | `http://127.0.0.1:5173` in development; `app://own-the-block` in production | Explicit cross-origin allowlist; not authentication. |
+| `OWN_THE_BLOCK_MIGRATIONS_DIR` | unset | Internal packaged-helper seam for the external migration directory. |
 | `OWN_THE_BLOCK_SOCKET_URL` | unset | Packaged desktop override; CLI `--socket-url=` has higher precedence. |
 | `OWN_THE_BLOCK_RELEASE_SOCKET_URL` | unset | Required by `pnpm desktop:release`; written to generated packaged release configuration. |
 | `CLIENT_DIST` | `apps/client/dist` | Static client directory override. |

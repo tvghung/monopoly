@@ -85,6 +85,19 @@ export function startDesktopRuntime(): void {
   }]);
 
   app.whenReady().then(() => {
+    if (process.argv.includes('--phase7-runtime-proof')) {
+      void import('./phase7RuntimeProof.js')
+        .then(({ runPhase7RuntimeProof }) => runPhase7RuntimeProof())
+        .then(result => {
+          console.log(`Phase 7 packaged runtime proof PASS ${JSON.stringify(result)}`);
+          app.exit(0);
+        })
+        .catch(error => {
+          console.error('Phase 7 packaged runtime proof failed.', error);
+          app.exit(1);
+        });
+      return;
+    }
     if (app.isPackaged) registerProductionRenderer();
     createWindow();
     app.on('activate', () => {

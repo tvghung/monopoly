@@ -5,6 +5,8 @@ export interface DatabaseConfig {
   maxConnections: number;
 }
 
+export type ServerRuntimeProfile = 'development' | 'cloud' | 'desktop';
+
 export interface PersistenceTimingConfig {
   reconnectGraceMs: number;
   paymentShortfallActionTimeoutMs: number;
@@ -19,6 +21,8 @@ export interface PersistenceTimingConfig {
 
 export interface ServerConfig {
   nodeEnv: string;
+  runtimeProfile: ServerRuntimeProfile;
+  listenHost: string;
   port: number;
   database: DatabaseConfig | null;
   persistenceTiming: PersistenceTimingConfig;
@@ -56,11 +60,41 @@ function readBoolean(
   throw new Error(`${name} must be either true or false`);
 }
 
+export function resolveRuntimeProfile(
+  environment: NodeJS.ProcessEnv,
+): ServerRuntimeProfile {
+  const configured = environment.SERVER_RUNTIME_PROFILE?.trim();
+  if (configured === undefined || configured === '') {
+    return environment.NODE_ENV === 'production' ? 'cloud' : 'development';
+  }
+  if (
+    configured !== 'development'
+    && configured !== 'cloud'
+    && configured !== 'desktop'
+  ) {
+    throw new Error(
+      'SERVER_RUNTIME_PROFILE must be development, cloud, or desktop',
+    );
+  }
+  return configured;
+}
+
+function readListenHost(
+  environment: NodeJS.ProcessEnv,
+  runtimeProfile: ServerRuntimeProfile,
+): string {
+  const configured = environment.SERVER_HOST?.trim();
+  if (configured === '') throw new Error('SERVER_HOST must not be empty');
+  return configured
+    || (runtimeProfile === 'cloud' ? '0.0.0.0' : '127.0.0.1');
+}
+
 export function loadServerConfig(
   environment: NodeJS.ProcessEnv = process.env,
   options: LoadServerConfigOptions = {},
 ): ServerConfig {
   const nodeEnv = environment.NODE_ENV ?? 'development';
+  const runtimeProfile = resolveRuntimeProfile(environment);
   const databaseUrl = environment.DATABASE_URL?.trim();
   const requireDatabase = options.requireDatabase ?? nodeEnv === 'production';
 
@@ -70,6 +104,8 @@ export function loadServerConfig(
 
   return {
     nodeEnv,
+    runtimeProfile,
+    listenHost: readListenHost(environment, runtimeProfile),
     port: readPositiveInteger(environment, 'PORT', 8080),
     database: databaseUrl
       ? {

@@ -2,10 +2,16 @@
 
 ## Status
 
-**BLOCKED at Phase 7.0.** The required PGlite Socket candidate did not preserve
-the existing PostgreSQL multi-connection transaction contract. Phase 7.1–7.4
-was not started. No gameplay, protocol V8, migration, server bootstrap,
-Electron, client, packaging, or workflow implementation was changed.
+**7.0A historical gate: FAIL / REJECTED.** The required PGlite Socket candidate
+did not preserve the existing PostgreSQL multi-connection transaction
+contract.
+
+**7.0B corrective gate: PASS on Windows; NOT RUN on macOS; overall Phase 7.0
+BLOCKED.** A managed native PostgreSQL 17.11 runtime and packaged Electron
+`utilityProcess.fork()` server helper were implemented and proved on Windows.
+The macOS package and native runtime were not executed in this workspace.
+Phase 7.1–7.4 was not started. The corrective work does not change gameplay,
+protocol V8, GameCore, migrations, persistence semantics, or client UI.
 
 ## Candidate and test shape
 
@@ -95,8 +101,86 @@ the multiplexing limitation, and the upstream
 [concurrent-connection issue](https://github.com/electric-sql/pglite/issues/1046)
 tracks the same class of failure.
 
-## Gate result
+## 7.0A historical gate result
 
-**FAIL / BLOCKED — stop Phase 7 implementation here.** Native PostgreSQL was
-not silently substituted, no in-memory production fallback was added, and no
-Phase 7.1–7.4 acceptance claim is made.
+**FAIL / REJECTED — stop the PGlite candidate here.** Native PostgreSQL was not
+silently substituted during the original probe, no in-memory production
+fallback was added, and no GameCore, protocol, migration, pool, or persistence
+semantic change was made to accommodate PGlite.
+
+## Corrective 7.0B implementation and proof
+
+The narrow corrective continuation selected managed native PostgreSQL because
+the required multi-connection contract could not be established with PGlite
+Socket. The implementation keeps PostgreSQL and the existing persistence
+store authoritative and adds only the desktop runtime seams needed to execute
+the proof:
+
+- PostgreSQL 17.11 is sourced from the official EDB binary archives, verified
+  by size and SHA-256, and staged outside `app.asar` under the packaged
+  resources directory.
+- The desktop controller creates or reuses an app-data PostgreSQL 17 data
+  directory, generates a private password file, chooses a validated loopback
+  port, writes loopback-only authentication/listen configuration, and uses
+  bounded `pg_ctl` startup and fast shutdown.
+- The authoritative server is reusable through
+  `startAuthoritativeServer(...).shutdown()`. Its migration directory is
+  explicit so bundled code does not depend on a source-tree `import.meta.url`.
+- The packaged helper is an external `server-helper.cjs` launched by Electron
+  `utilityProcess.fork()`. The database URL is passed through private child
+  environment state, never renderer state or command-line arguments.
+- The hidden `--phase7-runtime-proof` executes the packaged helper and native
+  PostgreSQL, checks `/healthz` and `/readyz`, migrations 001–009, typed values,
+  CAS/rollback/session behavior, two independent `BEGIN` calls,
+  `FOR UPDATE`, `FOR UPDATE SKIP LOCKED`, shutdown, same-directory restart,
+  and retained JSONB data. It exits zero only when all checks pass.
+
+### Corrective proof result
+
+| Gate | Status | Evidence boundary |
+| --- | --- | --- |
+| Managed PostgreSQL 17.11 | **PASS — Windows** | Official EDB archive, SHA-256 verification, loopback startup, migration/checksum and persistence contract checks, bounded shutdown, restart, and retained data. |
+| Packaged server helper | **PASS — Windows** | External bundled artifact, `utilityProcess.fork()`, private environment configuration, duplicate-start guard, health/readiness, graceful shutdown, restart, and sanitized diagnostics. |
+| macOS native/package proof | **NOT RUN / BLOCKED** | No macOS package or native execution was available in this Windows workspace. |
+| Overall Phase 7.0 | **BLOCKED** | Windows evidence is insufficient for the required cross-platform gate; Phase 7.1–7.4 remain not started. |
+
+### Windows evidence captured
+
+- `apps/desktop/postgres-resources.json` records PostgreSQL 17.11 from the
+  official EDB catalog. The Windows archive was verified before staging at
+  `340719294` bytes with SHA-256
+  `6eabdf00d2893713b75db4336a23c3fdf505f056e217ec6e2e95d901750cfea3`.
+- `pnpm --filter @monopoly/desktop package` — **PASS**. The packaged artifact
+  contains the PostgreSQL `bin`, `lib`, and `share` trees plus the external
+  `server-helper/server-helper.cjs`, contract bundle, and canonical migrations
+  under `resources/`, outside `app.asar`.
+- `pnpm desktop:make` — **PASS** on Windows. Squirrel produced the ignored
+  installer output under `apps/desktop/out/make/squirrel.windows/`.
+- `pnpm --filter @monopoly/desktop proof:packaged` — **PASS**, exit code `0`.
+  The final packaged run returned `platform=win32`, `architecture=x64`, and
+  passed PostgreSQL major-version, loopback binding, migrations/checksums,
+  advisory lock, health/readiness, typed UUID/BYTEA/TIMESTAMPTZ, JSONB,
+  room/CAS/rollback, session digest/expiry/purge, two-client independent
+  `BEGIN`, `FOR UPDATE SKIP LOCKED`, duplicate-start, clean shutdown, same
+  data-directory restart, retained data, and private-URL checks.
+- Server-helper bundle syntax/export smoke, migration-resource smoke, helper
+  timeout/crash tests, and duplicate-start tests — **PASS**. The normal
+  workspace suite finished with desktop `48 passed`, server `153 passed / 10
+  skipped` (without `TEST_DATABASE_URL`), and client `499 passed`. The isolated
+  PostgreSQL integration files then finished with `48 passed` against managed
+  PostgreSQL 17 using Vitest's single-thread pool after the default Windows
+  worker-fork path emitted an unexpected-worker error.
+- `pnpm db:status`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`,
+  and `git diff --check` — **PASS**. The database status showed migrations
+  `001` through `009` applied. No CI or Desktop Build run was created because
+  this branch was not pushed.
+- macOS package/native/runtime proof — **NOT RUN / BLOCKED**. No macOS runner
+  or executable was available in this workspace, so no cross-platform PASS is
+  claimed.
+
+## Current final decision
+
+Phase 7.0A is **REJECTED**. Phase 7.0B is **PASS on Windows / NOT RUN on
+macOS**, so the overall Phase 7.0 decision is **BLOCKED**. The loopback proof
+does not approve LAN host/join UX, QR/mobile flows, production endpoints, or
+release readiness. Phase 7.1–7.4 were **NOT STARTED**.

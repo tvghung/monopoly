@@ -1,0 +1,32 @@
+{
+  "postgresMajor": "17",
+  "postgresVersion": "17.11",
+  "license": "PostgreSQL License; EDB binary distribution",
+  "sourceCatalog": "https://www.enterprisedb.com/download-postgresql-binaries",
+  "targets": {
+    "win32-x64": {
+      "archiveName": "postgresql-17.11-1-windows-x64-binaries.zip",
+      "source": "https://get.enterprisedb.com/postgresql/postgresql-17.11-1-windows-x64-binaries.zip",
+      "sha256": "6eabdf00d2893713b75db4336a23c3fdf505f056e217ec6e2e95d901750cfea3",
+      "archiveBytes": 340719294,
+      "archiveRoot": "pgsql",
+      "runtimeLayout": ["bin", "lib", "share"]
+    },
+    "darwin-x64": {
+      "archiveName": "postgresql-17.11-1-osx-binaries.zip",
+      "source": "https://get.enterprisedb.com/postgresql/postgresql-17.11-1-osx-binaries.zip",
+      "sha256": "a540ac46eea5a2c612a8e097fd9aa75e41ac3f3b49bf10ffd75ecf5b1efc2997",
+      "archiveBytes": 436669780,
+      "archiveRoot": "pgsql",
+      "runtimeLayout": ["bin", "lib", "share"]
+    },
+    "darwin-arm64": {
+      "archiveName": "postgresql-17.11-1-osx-binaries.zip",
+      "source": "https://get.enterprisedb.com/postgresql/postgresql-17.11-1-osx-binaries.zip",
+      "sha256": "a540ac46eea5a2c612a8e097fd9aa75e41ac3f3b49bf10ffd75ecf5b1efc2997",
+      "archiveBytes": 436669780,
+      "archiveRoot": "pgsql",
+      "runtimeLayout": ["bin", "lib", "share"]
+    }
+  }
+}
