@@ -532,8 +532,11 @@ File:
 Status: Phase 6 engineering is COMPLETE at merge commit
 `c78dece5a307e815801972b2044d2093f2b78677` on `main`, with the annotated
 checkpoint tag `v3.0.0-phase6-stable`. Production release readiness remains NOT
-YET APPROVED. Phase 7 has no approved implementation scope; discovery only is
-recorded in [07A_PHASE_7_DISCOVERY_AND_OPTIONS.md](07A_PHASE_7_DISCOVERY_AND_OPTIONS.md).
+YET APPROVED. Phase 7 product direction is **LAN MULTIPLAYER & DESKTOP HOST
+MODE**. Discovery is complete in
+[07A_PHASE_7_DISCOVERY_AND_OPTIONS.md](07A_PHASE_7_DISCOVERY_AND_OPTIONS.md);
+Phase 7 implementation is NOT STARTED and requires explicit approval of its
+subphase and persistence decisions.
 
 Mục tiêu:
 
@@ -561,6 +564,36 @@ single presentation/audio architectures remain frozen.
 File:
 
 `06_PHASE_6_POLISH_DISTRIBUTION.md`
+
+---
+
+## Phase 7 — LAN Multiplayer & Desktop Host Mode
+
+Status: **PHASE 7 DISCOVERY — COMPLETE. PHASE 7 IMPLEMENTATION — NOT STARTED.**
+
+Phase 7 is limited to private LAN/Wi-Fi multiplayer and desktop host mode:
+
+- Windows and macOS desktops may host or join through the existing
+  server-authoritative V8 contract.
+- The desktop host supervises the existing server as a local helper and uses
+  local durable persistence; Electron main owns lifecycle only, not gameplay.
+- iPhone, iPad, and Android devices join through the browser/PWA web client;
+  mobile does not host authority.
+- Manual private-IP + room-code entry is required. QR is the recommended
+  convenience path; mDNS, UDP discovery, IPv6 V1, and public exposure are
+  deferred.
+- `PresentationController → AnimationQueue → PresentationStore`, GameCore,
+  `freshState()`, room/session authority, protocol V8, and PostgreSQL aggregate
+  semantics remain frozen.
+
+The full discovery, current-code evidence, persistence comparison, lifecycle
+and recovery policy, mobile boundary, acceptance matrix, and product-owner
+decisions are recorded in
+[07A_PHASE_7_DISCOVERY_AND_OPTIONS.md](07A_PHASE_7_DISCOVERY_AND_OPTIONS.md).
+No Phase 7 source, protocol, migration, deployment, endpoint, credential, or
+production cloud change is authorized by this masterplan update. Internet
+multiplayer/cloud hosting and signed public distribution remain separate future
+or release-gate work.
 
 ---
 
