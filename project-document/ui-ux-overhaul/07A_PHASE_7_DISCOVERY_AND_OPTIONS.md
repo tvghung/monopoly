@@ -39,9 +39,9 @@ permission for Electron main or a browser client to decide gameplay.
 
 - Repository: `tvghung/monopoly`.
 - Current branch: `overhaul/phase-7-lan-discovery`.
-- Current branch HEAD:
+- This final corrective discovery pass started from:
   `524308604b1bf25407e9e72a0cad0bfe1ac4a995`.
-- Its parent/base:
+- That corrective branch descends from the original Phase 7 discovery base:
   `36adeac0bfae4beb025497455016b1d74890acc6`.
 - `main` and `origin/main`:
   `36adeac0bfae4beb025497455016b1d74890acc6`.
