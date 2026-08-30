@@ -34,7 +34,8 @@ Development endpoint contract:
 
 - Desktop renders `DesktopMultiplayerLauncher` before any gameplay Socket.IO
   client is created. Host mode starts the main-process runtime first; Join mode
-  resolves discovery or a validated manual endpoint first. Web bootstrap retains
+  resolves a validated explicit IPv4 endpoint first. No UDP/mDNS discovery path
+  exists. Web bootstrap retains
   the normal `loading-settings` → `loading-runtime-config` →
   `loading-assets` → `initializing-client` → `ready`/`error`; loading UI chỉ hiển
   thị stage thực, không dựng phần trăm giả.
@@ -48,9 +49,10 @@ Development endpoint contract:
 ## Session storage và reconnect
 
 - Socket không dùng `socket.id` làm player identity.
-- Versioned localStorage key là `monopoly.player-session.v2` và lưu token theo
-  canonical HTTP(S) origin. The packaged `app://` renderer never imports an
-  unscoped legacy token; web v1 records migrate on first read.
+- Versioned localStorage key là `monopoly.player-session.v3` và lưu token theo
+  canonical HTTP(S) authority plus canonical room code. V1/V2 records migrate as
+  unscoped and are not sent to a newly selected room until authoritative recovery
+  supplies the room scope.
 - First join là hai bước: `join room` trả pending token → client lưu token →
   `resume session` activate/reclaim Seat.
 - Mỗi Socket.IO `connect` có stored token phải resume trước khi bật gameplay action.

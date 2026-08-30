@@ -65,7 +65,9 @@ ACK is resumable because token was stored first.
 - Refresh never derives identity from a new `socket.id`.
 - Desktop Host/Join resolves the endpoint before creating the gameplay socket.
   Host admission still uses the ordinary `join room` → `resume session` flow;
-  the host runtime never creates a room or player directly.
+  the host runtime never creates a room or player directly. In desktop server
+  profile, only this loopback Host path may activate an unused room code; remote
+  LAN peers receive the existing localized `NOT_FOUND` error for a wrong code.
 - Configured-server Join uses the supplied valid HTTP/HTTPS endpoint as
   informational, keeps the room code editable, and does not apply private-LAN
   address normalization.
@@ -73,9 +75,9 @@ ACK is resumable because token was stored first.
 ## Explicit leave
 
 `leave room` has success ACK. Only after success does client clear its Player token
-or in-memory spectator request. Desktop Player, spectator, and hosting leave stop
-local advertising when applicable, disconnect the gameplay socket, and return to
-the LAN launcher without stopping the host runtime. Web leave returns to JoinForm.
+or in-memory spectator request. Desktop Player, spectator, and hosting leave
+disconnect the gameplay socket and return to the LAN launcher without stopping the
+app-owned host runtime. Web leave returns to JoinForm.
 In-game Player requires explicit forfeit confirmation. Browser close, refresh and
 network loss are not leave.
 
@@ -98,3 +100,8 @@ network loss are not leave.
 - Newest-wins/old tab does not clear token.
 - Spectator versus valid reconnect after start.
 - StrictMode listener cleanup and mutation controls disabled while reconnecting.
+- Desktop launcher resolves Host/Join before socket creation; abandoning an
+  endpoint does not retain a stale socket.
+- `?room=` accepts only the canonical room schema, prefills JoinForm, and never
+  auto-submits. Visibility, `pageshow`, and `online` recovery resume without
+  emitting leave.

@@ -40,7 +40,7 @@
 - [ ] Public/private Socket.IO rooms isolate room updates and private session/offer data.
 - [ ] All-offline room survives; explicit empty lobby/retention cleanup follows policy.
 
-## Phase 7.1 correction evidence
+## Phase 7.2 evidence
 
 - `[AUTO][PASS]` Client reconnect storage uses V3 records scoped by canonical
   HTTP(S) authority and room code; a selected-room mismatch or legacy unscoped
@@ -50,17 +50,25 @@
   insertion order before the maximum eight-entry retention limit is applied.
 - `[AUTO][PASS]` Desktop terminal resume failure clears the scoped session and
   returns to the LAN launcher; it does not silently fall back to a fresh join.
-- `[AUTO][PASS]` Desktop leave clears client session state, stops host discovery
-  advertising when hosting, disconnects, and returns to the launcher.
-- `[AUTO][PASS]` Packaged Windows LAN core proof reports `coreStatus=PASS` and
-  `lanHttp=PASS`; discovery is `PASS` only after an actual advertisement is
-  received, and physical LAN acceptance is `MANUAL_REQUIRED`.
-- `[MANUAL REQUIRED]` Physical Windows/macOS host/join, discovery, reconnect,
-  2/3/4-player lobby, fallback and host-loss acceptance remain unclaimed.
+- `[AUTO][PASS]` Desktop leave clears the scoped client session, disconnects, and
+  returns to the launcher without stopping the app-owned Host runtime.
+- `[SOCKET][PASS]` Desktop loopback remains the only unused-code creator; remote
+  LAN admission policy rejects an unknown room with `NOT_FOUND` and creates no
+  replacement room or pending session.
+- `[SOCKET][PACKAGED][PASS-WINDOWS]` Four real clients enter one room under a
+  stable first host; a fifth is rejected; reconnect retains PlayerId/room; the
+  newest authenticated connection replaces the old one; helper and PostgreSQL
+  restart retain the session.
+- `[BROWSER][PASS]` Mobile Chromium/WebKit cover invitation prefill without
+  auto-submit, two-client admission, lobby/start, reload resume, background/network
+  recovery, and mobile layout boundaries.
+- `[MANUAL DEFERRED / NOT RUN]` Physical Windows/macOS host/join, real mobile
+  browsers, firewall/client isolation, sleep/Wi-Fi/IP changes, and host loss remain
+  unclaimed.
 
 ## Restart evidence boundary
 
 The executable PostgreSQL Socket suite must prove fresh pool/persistence/server
-recovery with both tokens and exact v5 game state, plus V4→V5 appearance migration
+recovery with both tokens and exact v8 game state, plus historical snapshot migration
 identity preservation, when `TEST_DATABASE_URL` is set. A real process-manager/container kill
 and browser reload remains a separate deployment E2E.

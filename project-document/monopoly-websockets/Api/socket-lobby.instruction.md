@@ -85,3 +85,7 @@ leave clears runtime binding/admission lock so the same Socket can join another 
 - Host-only replay, finished/non-finished authorization, same-room identity,
   finished-player return, explicit-LEFT exclusion, session/spectator continuity,
   fresh state, offer cancellation and second-match start.
+- Phase 7.2 reuses these protocol-V8 handlers unchanged. The packaged Host proof
+  adds 2–4-player capacity/host/reconnect evidence; the existing deterministic
+  Socket/GameCore tests remain the `LOBBY → IN_PROGRESS → FINISHED → Play Again →
+  LOBBY` authority gate.

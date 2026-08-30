@@ -1,6 +1,12 @@
 # Phase 7.1 — Desktop Host Runtime + LAN Multiplayer
 
-## Final engineering status
+> **HISTORICAL / SUPERSEDED INPUT — NOT A PHASE 7.1 PASS.** Phase 7.1 never
+> received exact-SHA Windows/macOS closure. Phase 7.2 absorbed this branch and
+> removed its UDP advertiser/discovery path. All discovery results and scope
+> statements below are retained only as evidence of the superseded branch; the
+> current contract is `07C_PHASE_7_2_FINAL_ENGINEERING.md`.
+
+## Historical branch status
 
 **Final correction status: VERIFIED LOCALLY on Windows; Phase 7.1 remains open
 for exact-SHA Windows/macOS CI and physical LAN acceptance.** The current

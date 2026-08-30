@@ -28,7 +28,7 @@
 - [ ] `/healthz` remains liveness; `/readyz` reports healthy/unhealthy DB/schema.
 - [ ] DB save failure returns retryable ACK, leaves revision unchanged and emits no update.
 - [ ] Snapshot round-trip preserves stable references; unknown/deep-malformed fields,
-  cross-reference/invariant failures, over-500 logs and non-v4 version fail explicitly.
+  cross-reference/invariant failures, over-500 logs and non-v8 version fail explicitly.
 - [ ] Expected-version conflict cannot silently overwrite a newer room.
 - [ ] Local `compose.yaml` + `.env.example` support migrate/dev/restart workflow.
 - [ ] Production same-origin static/SPA and Socket.IO work; development defaults to
@@ -37,9 +37,9 @@
   not authentication or server-side rejection of arbitrary WebSocket clients.
 - [ ] Desktop Host starts managed PostgreSQL on loopback and the authoritative
   game server on the selected LAN-capable port; PostgreSQL is not LAN reachable.
-- [ ] Desktop Join discovers a host or accepts a configured valid HTTP(S) endpoint
-  plus room code before creating the gameplay socket; configured endpoints are not
-  silently normalized to a private IPv4 address.
+- [ ] Desktop Join accepts a validated explicit IPv4/port plus room code before
+  creating the gameplay socket; configured developer/release endpoints remain a
+  separate HTTP(S) override.
 - [ ] Physical Windows/macOS host/join pairs, reconnect, 2/3/4-player lobby,
   manual fallback, and host loss are recorded separately as manual acceptance.
 - [ ] Production proxy/static limiter uses one trusted hop and does not throttle
@@ -55,30 +55,34 @@
 - [ ] Scheduler/bootstrap/listen failure before ready closes opened Socket.IO/DB resources.
 - [ ] Backup/forward-fix procedure avoids destructive down migration.
 
-## Phase 7.1 correction evidence
+## Phase 7.2 evidence
 
-- `[AUTO][PASS]` Windows packaged LAN core proof requires the advertiser to bind
-  a real UDP socket and enable broadcast before it can report
-  `coreStatus=PASS; lanHttp=PASS`. Discovery is `PASS` only after a listener
-  receives the advertisement; the receive round trip may be `NOT_RUN`, and
-  `physicalLanAcceptance=MANUAL_REQUIRED`.
-- `[AUTO][PASS]` The proof validates the external helper resource, authoritative
-  `0.0.0.0` bind, packaged health/readiness, two-client admission/reconnect,
-  same-room identity and clean shutdown. Serialization-only fallback cannot
-  convert failed advertiser startup into a core pass.
+- `[AUTO][PASS]` Desktop tests prove single-start, helper-before-database shutdown,
+  renderer-independent ownership, bounded helper/database recovery, actual-port
+  propagation, IPv4 filtering/selection/refresh, safe status projection, and
+  validated sender-scoped IPC.
+- `[PACKAGED][PASS-WINDOWS]` The Host proof validates the external helper/client
+  resources, PostgreSQL loopback, authoritative `0.0.0.0` bind, actual port,
+  health/readiness, bundled page/asset, explicit origin policy, real local IPv4
+  access, four-client capacity/reconnect/newest-wins, restart retention, deadline
+  recovery, redaction, and ordered clean shutdown.
+- `[BROWSER][PASS]` Mobile Chromium and WebKit load the host-served page, prefill
+  without auto-submit, join/lobby/start, exercise portrait/landscape boundaries,
+  legacy rendering, settings/audio UI, reload resume, and offline/online recovery.
 - `[AUTO][PASS]` Application-level quit coordination is idempotent: cancellation
   leaves runtime resources running; confirmed quit stops runtime once and closes
   only after cleanup.
 - `[NOT RUN/BLOCKED]` Local `db:status` is blocked when PostgreSQL is unavailable;
   this does not replace configured PostgreSQL integration evidence.
-- `[MANUAL REQUIRED]` Physical Windows/macOS LAN pairs, discovery, reconnect,
-  2/3/4-player, fallback and host-loss acceptance remain separate.
+- `[MANUAL DEFERRED / NOT RUN]` Physical Windows/macOS LAN pairs, real devices,
+  firewall/network-isolation behavior, install, upgrade, and uninstall remain
+  separate.
 
 ## Restart/recovery
 
 - [ ] Same DB restores room/session/host/ready plus pending landing decision/
   continuation, payment claim/index, private decks/card holders and proposal terms.
-- [ ] v2 IN_PROGRESS reset is transactional/idempotent, preserves room/member/host/
+- [ ] Historical snapshot upgrades are transactional/idempotent and preserve room/member/host/
   active session identity and never cascades reconnect credentials.
 - [ ] Due offer/turn/payment/proposal deadline is applied exactly once before state is served.
 - [ ] Cleanup honors pending/lobby/in-progress/finished TTL and never deletes merely-offline room.

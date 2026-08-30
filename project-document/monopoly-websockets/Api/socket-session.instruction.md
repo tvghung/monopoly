@@ -10,8 +10,12 @@ disconnect. Durable token/Seat work is delegated to `playerSessionService.ts`.
 - Runtime schema validates and normalizes input.
 - Existing `IN_PROGRESS`/`FINISHED` room returns explicit spectator admission with no
   Seat or token.
-- Lobby/new-room intent creates a five-minute `PENDING` session with random 32-byte
-  token; only SHA-256 hash is persisted.
+- In development/cloud profiles, lobby/new-room intent preserves the existing
+  create-or-join behavior. In desktop profile, only a loopback Host connection may
+  activate an unused room code; a remote LAN peer receives `NOT_FOUND` for an
+  unknown code instead of silently creating another room.
+- An accepted lobby admission creates a five-minute `PENDING` session with random
+  32-byte token; only SHA-256 hash is persisted.
 - Pending admission does not reserve color, join order, host or capacity.
 
 ## `resume session({token})`
@@ -46,7 +50,7 @@ current Player. Controlled shutdown does not arm artificial deadlines.
 
 ## Broadcast/ACK
 
-Admission/resume uses protocol-v7 typed ACK. Resume returns stable Player identity,
+Admission/resume uses protocol-v8 typed ACK. Resume returns stable Player identity,
 public room, persisted `PlayerColorId`/`CharacterId` and pending private offers.
 Public presence projection is broadcast after binding;
 session/token/offer/exact private deck state remain private.
@@ -58,3 +62,8 @@ session/token/offer/exact private deck state remain private.
 - Newest-wins and stale generation race.
 - Disconnect preserves domain state and arms only valid current-turn grace.
 - Spectator admission versus valid Player reclaim; public/private room isolation.
+- Desktop loopback-only room creation and remote unknown-room rejection.
+- Phase 7.2 packaged Host contract uses four real Socket.IO clients, rejects a
+  fifth with `ROOM_FULL`, preserves PlayerId/room on reconnect, proves newest-wins,
+  and resumes the retained session after helper/PostgreSQL restart. Physical LAN
+  devices remain manual evidence.

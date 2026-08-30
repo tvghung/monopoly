@@ -11,15 +11,19 @@ phải được cập nhật trong cùng thay đổi.
 | Khối | Code | Trách nhiệm | Bắt đầu đọc |
 | --- | --- | --- | --- |
 | Client | `apps/client/` | React/Vite; admission, lobby, reconnect/spectator UX và game UI | [monopoly.client.instructions.md](./monopoly.client.instructions.md) |
-| Desktop | `apps/desktop/` | Electron shell, secure preload bridge, runtime/fullscreen/quit/external-link boundary, packaging | [../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md](../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md) |
+| Desktop | `apps/desktop/` | Electron shell, secure preload bridge, app-owned managed PostgreSQL/server-helper Host runtime, LAN interface state, packaging | [../ui-ux-overhaul/07C_PHASE_7_2_FINAL_ENGINEERING.md](../ui-ux-overhaul/07C_PHASE_7_2_FINAL_ENGINEERING.md) |
 | API | `apps/server/src/createServer.ts`, `apps/server/src/socket/` | Express/Socket.IO, runtime validation, authenticated commands và ACK | [monopoly.api.instructions.md](./monopoly.api.instructions.md) |
 | GameCore | `apps/server/src/rooms.ts`, `apps/server/src/game/` | Room aggregate và luật game dùng stable player ID | [monopoly.game-core.instructions.md](./monopoly.game-core.instructions.md) |
 | Persistence | `apps/server/src/persistence/`, `apps/server/src/services/`, `apps/server/migrations/` | PostgreSQL, sessions, CAS command execution và recovery | [Persistence/README.md](./Persistence/README.md) |
 | Shared | `packages/shared/src/` | State/event/ACK types, Zod schemas, board/card data | [monopoly.contracts.instructions.md](./monopoly.contracts.instructions.md) |
 | Test/deploy | `apps/**/*.test.ts*`, `.github/`, root configs | Unit, Socket/client/PostgreSQL/restart gates và single-service deployment | [testcase/README.md](./testcase/README.md) |
 
-Ứng dụng vẫn là một Node service phục vụ client cùng origin. PostgreSQL là durable
-dependency bắt buộc trong production; không có runtime memory fallback. Player-facing
+Cloud deployment is one Node service serving the same-origin client. Packaged
+desktop Host mode instead supervises the same server plus managed PostgreSQL:
+PostgreSQL stays on `127.0.0.1`, while the game HTTP/Socket server binds
+`0.0.0.0` on an OS-selected port and serves the explicit bundled client root.
+Remote browsers use the selected IPv4 URL; the host renderer uses loopback. There
+is no UDP/mDNS discovery or runtime memory fallback. Player-facing
 product là Vietnamese-only **Cờ Tỷ Phú Việt Nam — Standard Mode**; package/path kỹ
 thuật `monopoly-*` được giữ để tránh cosmetic refactor.
 
@@ -59,7 +63,8 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
   Board đọc display target, còn action gates đọc settled position; reset epoch không
   dùng chung sequence với tile impact.
 - Electron is an optional desktop shell around the same client/server contract;
-  it does not own gameplay state, identity, persistence or server authority.
+  it owns process lifecycle but not gameplay state, identity, persistence rules or
+  server authority. Renderer reload does not stop Host authority.
 
 ## Thứ tự đọc
 
@@ -105,7 +110,7 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
 | Session/room lifecycle | Client join/lobby + socket session/lobby + room lifecycle + persistence + restart test |
 | SQL/snapshot/deadline | Persistence + HTTP/deploy + affected GameCore/Api + integration test |
 | Tile/card index/data | Shared data + client duplicates + hard-coded core indices + testcase |
-| Desktop shell/runtime | Client/runtime docs + `apps/desktop` security tests + manual quit/fullscreen checklist |
+| Desktop shell/runtime | Client/runtime + API HTTP + persistence docs + packaged proofs + manual install/device checklist |
 
 ## Baseline
 
@@ -119,3 +124,16 @@ pnpm build
 
 Persistence change còn phải chạy PostgreSQL integration và server-restart scenario
 trên cùng database.
+
+Phase 7.2 desktop/mobile gates additionally use:
+
+```bash
+pnpm desktop:package
+pnpm --filter @monopoly/desktop proof:packaged
+pnpm desktop:proof:host
+pnpm test:e2e:mobile
+```
+
+The packaged proofs are platform-scoped automated evidence. Physical
+desktop-to-desktop LAN, real phones/tablets, installers, firewall prompts, signing,
+and notarization remain separately recorded manual/release evidence.
