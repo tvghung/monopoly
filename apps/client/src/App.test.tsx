@@ -13,11 +13,13 @@ type SocketHandler = (...args: unknown[]) => void;
 const socketHarness = vi.hoisted(() => {
   const handlers = new Map<string, Set<SocketHandler>>();
   const emissions: Array<{ event: string; args: unknown[] }> = [];
+  let connectCount = 0;
 
   const socket = {
     id: 'transport-only-id',
     connected: false,
     auth: {},
+    io: { reconnection: vi.fn() },
     on(event: string, handler: SocketHandler) {
       const eventHandlers = handlers.get(event) ?? new Set<SocketHandler>();
       eventHandlers.add(handler);
@@ -33,6 +35,7 @@ const socketHarness = vi.hoisted(() => {
       return socket;
     },
     connect() {
+      connectCount += 1;
       socket.connected = true;
       handlers.get('connect')?.forEach(handler => handler());
       return socket;
@@ -47,6 +50,7 @@ const socketHarness = vi.hoisted(() => {
   return {
     socket,
     emissions,
+    get connectCount() { return connectCount; },
     trigger(event: string, ...args: unknown[]) {
       handlers.get(event)?.forEach(handler => handler(...args));
     },
@@ -56,7 +60,9 @@ const socketHarness = vi.hoisted(() => {
     reset() {
       handlers.clear();
       emissions.length = 0;
+      connectCount = 0;
       socket.connected = false;
+      socket.io.reconnection.mockReset();
     },
   };
 });
@@ -134,6 +140,43 @@ describe('App session admission', () => {
   afterEach(() => {
     cleanup();
     delete window.ownTheBlockDesktop;
+    Reflect.deleteProperty(document, 'visibilityState');
+    window.history.replaceState({}, '', '/');
+  });
+
+  it('prefills a valid invitation room without submitting it automatically', () => {
+    window.history.replaceState({}, '', '/?room=otb-abc234');
+
+    render(
+      <ToastProvider>
+        <App />
+      </ToastProvider>,
+    );
+
+    expect(screen.getByLabelText<HTMLInputElement>('Mã phòng').value).toBe('OTB-ABC234');
+    expect(lastEmission('join room')).toBeUndefined();
+  });
+
+  it('reconnects after foreground and network resume without emitting a leave command', () => {
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'visible',
+    });
+    render(
+      <ToastProvider>
+        <App />
+      </ToastProvider>,
+    );
+    expect(socketHarness.connectCount).toBe(1);
+
+    act(() => { socketHarness.socket.disconnect(); });
+    act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+    expect(socketHarness.connectCount).toBe(2);
+
+    act(() => { socketHarness.socket.disconnect(); });
+    act(() => { window.dispatchEvent(new Event('online')); });
+    expect(socketHarness.connectCount).toBe(3);
+    expect(lastEmission('leave room')).toBeUndefined();
   });
 
   it('persists a pending token before resuming with a stable player identity', () => {
@@ -387,6 +430,48 @@ describe('App session admission', () => {
     expect(onExitToLauncher).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    ['timeout', 'Kết nối đã hết thời gian chờ'],
+    ['websocket error', 'Không thể tới Host'],
+  ])('surfaces a desktop %s failure and abandons the stale socket', (message, expected) => {
+    const runtimeConfig = {
+      target: 'desktop' as const,
+      socketUrl: 'http://192.168.1.15:8080',
+      platform: 'win32' as const,
+      appVersion: '3.0.0',
+    };
+    const onExitToLauncher = vi.fn();
+    window.ownTheBlockDesktop = {
+      quit: {
+        onQuitRequested: () => () => undefined,
+        respond: vi.fn(),
+      },
+    } as unknown as OwnTheBlockDesktopBridge;
+
+    render(
+      <ToastProvider>
+        <App
+          runtimeConfig={runtimeConfig}
+          launch={{
+            runtimeConfig,
+            initialJoin: { name: 'Ada', roomCode: 'LAN-42' },
+            targetRoomCode: 'LAN-42',
+            hosting: false,
+          }}
+          onExitToLauncher={onExitToLauncher}
+        />
+      </ToastProvider>,
+    );
+
+    act(() => socketHarness.trigger('connect_error', new Error(message)));
+
+    expect(screen.getByText(new RegExp(expected, 'u'))).toBeTruthy();
+    expect(socketHarness.socket.io.reconnection).toHaveBeenCalledWith(false);
+    expect(socketHarness.socket.connected).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Quay về trình khởi động LAN' }));
+    expect(onExitToLauncher).toHaveBeenCalledOnce();
+  });
+
   it('clears private offers and presentation history when a finished room replays', () => {
     const finishedRoom: PublicRoomState = {
       ...room,
@@ -620,7 +705,7 @@ describe('App session admission', () => {
     expect(lastEmission('leave room')).toBeDefined();
   });
 
-  it('stops hosted LAN advertising before disconnecting and returning to the launcher', async () => {
+  it('disconnects the renderer without stopping the independent desktop host', async () => {
     const gameRoom: PublicRoomState = {
       ...room,
       status: 'IN_PROGRESS',
@@ -653,17 +738,12 @@ describe('App session admission', () => {
       platform: 'win32' as const,
       appVersion: '3.0.0',
     };
-    const stopAdvertising = vi.fn(() => Promise.resolve());
     const stopHost = vi.fn(() => Promise.resolve());
     const onExitToLauncher = vi.fn();
     window.ownTheBlockDesktop = {
       quit: {
         onQuitRequested: () => () => undefined,
         respond: vi.fn(),
-      },
-      discovery: {
-        startAdvertising: vi.fn(() => Promise.resolve({ ok: true as const })),
-        stopAdvertising,
       },
       host: { stop: stopHost },
     } as unknown as OwnTheBlockDesktopBridge;
@@ -720,7 +800,6 @@ describe('App session admission', () => {
       }
     });
 
-    expect(stopAdvertising).toHaveBeenCalledOnce();
     expect(stopHost).not.toHaveBeenCalled();
     expect(socketHarness.socket.connected).toBe(false);
     expect(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY)).toBeNull();

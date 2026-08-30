@@ -44,10 +44,9 @@ export default function AppBootstrap() {
     if (!desktopBridge) return undefined;
     let active = true;
     void loadRuntimeConfig().then(config => {
-      if (active) setConfiguredRuntimeConfig(config);
-    }).catch(error => {
-      if (!active || isRuntimeConfigLoadError(error)
-        && error.code === 'PACKAGED_SOCKET_URL_MISSING') return;
+      if (active && config.socketUrl) setConfiguredRuntimeConfig(config);
+    }).catch(() => {
+      if (!active) return;
       if (active) setConfigurationError('Endpoint máy chủ đã cấu hình không khả dụng.');
     });
     return () => {

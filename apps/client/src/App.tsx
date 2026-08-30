@@ -50,6 +50,7 @@ import type { AppSocket, SocketFunctions } from './types';
 import { requestRollDiceAck } from './rollDiceRequest';
 import { getDefaultWebRuntimeConfig } from './runtime/runtimeConfig';
 import type { DesktopLaunchSelection, RuntimeConfig } from './runtime/types';
+import { roomCodeFromLocation } from './runtime/lanSharing';
 import { useAudio } from './audio/useAudio';
 import './App.css';
 
@@ -170,6 +171,7 @@ export default function App({
   const [initialToken] = useState(() => launch?.targetRoomCode !== undefined
     ? readPlayerSessionForRoom(sessionAuthority, launch.targetRoomCode)
     : readPlayerSession(sessionAuthority));
+  const [initialRoomCode] = useState(() => roomCodeFromLocation());
   const tokenRef = useRef<string | null>(initialToken);
   const initialJoinRef = useRef(launch?.initialJoin ?? null);
   const spectatorRequestRef = useRef<JoinRoomRequest | null>(null);
@@ -496,11 +498,14 @@ export default function App({
       setFailure({
         message: details?.code
           ? localizeAckError({ code: details.code, message: details.message ?? '' })
-          : 'Không thể kết nối đến máy chủ trò chơi.',
+          : /timeout/iu.test(error.message)
+            ? 'Kết nối đã hết thời gian chờ. Xác nhận Host đang chạy và hai thiết bị cùng mạng LAN.'
+            : 'Không thể tới Host. Kiểm tra địa chỉ, cùng Wi-Fi/LAN, tường lửa, mạng khách hoặc VPN.',
         retryable: details?.retryable ?? true,
         reloadRequired: details?.code === 'UPGRADE_REQUIRED',
+        returnToLauncher: Boolean(desktopBridge && launch),
       });
-      if (details?.code === 'UPGRADE_REQUIRED') {
+      if (details?.code === 'UPGRADE_REQUIRED' || desktopBridge && launch) {
         socket.io.reconnection(false);
         socket.disconnect();
         transition('ERROR');
@@ -537,17 +542,24 @@ export default function App({
       socket.off('session replaced', onSessionReplaced);
       socket.disconnect();
     };
-  }, [applyRoom, joinRoom, presentationController, resumeSession, socket, toast, transition]);
+  }, [applyRoom, desktopBridge, joinRoom, launch, presentationController, resumeSession, socket, toast, transition]);
 
   useEffect(() => {
-    if (!launch?.hosting || !desktopBridge?.discovery || !room?.roomCode) return undefined;
-    void desktopBridge.discovery.startAdvertising({ roomCode: room.roomCode })
-      .then(result => {
-        if (!result.ok) toast.show('Không thể tự động tìm thấy phòng này; hãy chia sẻ địa chỉ LAN thủ công.');
-      })
-      .catch(() => toast.show('Không thể tự động tìm thấy phòng này; hãy chia sẻ địa chỉ LAN thủ công.'));
-    return undefined;
-  }, [desktopBridge, launch?.hosting, room?.roomCode, toast]);
+    const reconnect = () => {
+      if (phaseRef.current !== 'REPLACED' && !socket.connected) socket.connect();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') reconnect();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pageshow', reconnect);
+    window.addEventListener('online', reconnect);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pageshow', reconnect);
+      window.removeEventListener('online', reconnect);
+    };
+  }, [socket]);
 
   const showCommandFailure = useCallback((response: { ok: true } | { ok: false; error: AckError }) => {
     if (!response.ok) toast.show(localizeAckError(response.error));
@@ -713,40 +725,31 @@ export default function App({
     setOperation('leave');
     setOperationError(null);
     socket.emit('leave room', (response) => {
-      void (async () => {
-        setOperation(null);
-        if (!response.ok) {
-          setOperationError(localizeAckError(response.error));
-          return;
-        }
+      setOperation(null);
+      if (!response.ok) {
+        setOperationError(localizeAckError(response.error));
+        return;
+      }
 
-        tokenRef.current = null;
-        spectatorRequestRef.current = null;
-        clearPlayerSession(sessionAuthority);
-        roomRef.current = null;
-        setRoom(null);
-        setPrivatePlayerState(null);
-        setPrivateOffers([]);
-        setIdentity(null, null);
+      tokenRef.current = null;
+      spectatorRequestRef.current = null;
+      clearPlayerSession(sessionAuthority);
+      roomRef.current = null;
+      setRoom(null);
+      setPrivatePlayerState(null);
+      setPrivateOffers([]);
+      setIdentity(null, null);
 
-        if (desktopBridge) {
-          if (launch?.hosting) {
-            try {
-              await desktopBridge.discovery?.stopAdvertising();
-            } catch {
-              // Leaving the room must still release the renderer and socket.
-            }
-          }
-          socket.disconnect();
-          onExitToLauncher?.();
-          if (!onExitToLauncher) transition('JOIN');
-          return;
-        }
+      if (desktopBridge) {
+        socket.disconnect();
+        onExitToLauncher?.();
+        if (!onExitToLauncher) transition('JOIN');
+        return;
+      }
 
-        transition('JOIN');
-      })();
+      transition('JOIN');
     });
-  }, [desktopBridge, launch?.hosting, onExitToLauncher, sessionAuthority, setIdentity, socket, transition]);
+  }, [desktopBridge, onExitToLauncher, sessionAuthority, setIdentity, socket, transition]);
 
   const handleLeave = useCallback(() => {
     const currentRoom = roomRef.current;
@@ -851,6 +854,7 @@ export default function App({
           onStart={handleStart}
           onLeave={handleLeave}
           onSettings={() => setSettingsOpen(true)}
+          showLanSharing={Boolean(launch?.hosting)}
         />
       )
       : (
@@ -895,6 +899,7 @@ export default function App({
                 busy={phase === 'JOINING'}
                 connected={connected}
                 error={failure?.message ?? null}
+                initialRoomCode={initialRoomCode}
               />
             )
             : null}
@@ -912,7 +917,9 @@ export default function App({
             title={confirmation === 'LEAVE' ? 'Bỏ cuộc khỏi ván chơi?' : 'Đóng Own the Block?'}
             message={confirmation === 'LEAVE'
               ? 'Rời phòng lúc này đồng nghĩa với bỏ cuộc và thu hồi phiên chơi.'
-              : 'Đóng cửa sổ sẽ ngắt kết nối nhưng không bỏ cuộc; bạn có thể kết nối lại bằng phiên đã lưu.'}
+              : launch?.hosting
+                ? 'Đóng Own the Block sẽ dừng máy chủ LAN cho mọi người. Dữ liệu phòng được giữ lại để khôi phục khi Host khởi động lại.'
+                : 'Đóng cửa sổ sẽ ngắt kết nối nhưng không bỏ cuộc; bạn có thể kết nối lại bằng phiên đã lưu.'}
             confirmLabel={confirmation === 'LEAVE' ? 'Bỏ cuộc' : 'Đóng cửa sổ'}
             onCancel={cancelConfirmation}
             onConfirm={confirmConfirmation}

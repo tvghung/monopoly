@@ -57,7 +57,7 @@ describe('AppBootstrap failure handling', () => {
 
   it('shows the runtime-config safe copy for a typed local runtime failure', async () => {
     bootstrapMock.bootstrap.mockRejectedValue(
-      new RuntimeConfigLoadError('PACKAGED_SOCKET_URL_MISSING'),
+      new RuntimeConfigLoadError('SOCKET_URL_INVALID'),
     );
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -66,7 +66,7 @@ describe('AppBootstrap failure handling', () => {
     await waitFor(() => {
       expect(screen.getByText('Không thể chuẩn bị kết nối trò chơi. Hãy thử lại.')).toBeTruthy();
     });
-    expect(screen.queryByText('PACKAGED_SOCKET_URL_MISSING')).toBeNull();
+    expect(screen.queryByText('SOCKET_URL_INVALID')).toBeNull();
     expect(screen.queryByText('secret main-process endpoint detail')).toBeNull();
     expect(screen.queryByText('Desktop runtime configuration could not be loaded.')).toBeNull();
   });
@@ -81,9 +81,17 @@ describe('AppBootstrap failure handling', () => {
       lanAvailable: false,
       interfaces: [],
       advertisedEndpoints: [],
+      selectedLanUrl: null,
     };
     const bridge = {
-      getRuntimeConfig: vi.fn(() => Promise.resolve({ ok: false as const, code: 'PACKAGED_SOCKET_URL_MISSING' as const })),
+      getRuntimeConfig: vi.fn(() => Promise.resolve({
+        ok: true as const,
+        config: {
+          target: 'desktop' as const,
+          platform: 'win32' as const,
+          appVersion: '3.0.0',
+        },
+      })),
       window: {
         getState: vi.fn(),
         setFullscreen: vi.fn(() => Promise.resolve()),
@@ -99,16 +107,8 @@ describe('AppBootstrap failure handling', () => {
         getStatus: vi.fn(() => Promise.resolve(hostStatus)),
         start: vi.fn(),
         stop: vi.fn(),
+        refreshNetwork: vi.fn(() => Promise.resolve(hostStatus)),
         onStatusChanged: vi.fn(() => () => undefined),
-      },
-      lan: { getInterfaces: vi.fn(() => Promise.resolve([])) },
-      discovery: {
-        startBrowsing: vi.fn(() => Promise.resolve({ ok: true as const })),
-        stopBrowsing: vi.fn(() => Promise.resolve()),
-        getGames: vi.fn(() => Promise.resolve([])),
-        onGamesChanged: vi.fn(() => () => undefined),
-        startAdvertising: vi.fn(() => Promise.resolve({ ok: true as const })),
-        stopAdvertising: vi.fn(() => Promise.resolve()),
       },
     };
     window.ownTheBlockDesktop = bridge;
@@ -132,12 +132,12 @@ describe('AppBootstrap failure handling', () => {
     });
 
     render(<AppBootstrap />);
-    expect(screen.getByRole('button', { name: /Tham gia phòng LAN/u })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Join Game/u })).toBeTruthy();
     expect(bootstrapMock.bootstrap).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: /Join Game/u }));
     fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Guest' } });
-    fireEvent.change(screen.getByLabelText('Địa chỉ máy chủ LAN'), { target: { value: '192.168.1.15:8080' } });
+    fireEvent.change(screen.getByLabelText('Địa chỉ Host'), { target: { value: '192.168.1.15:8080' } });
     fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'LAN-1234' } });
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
 

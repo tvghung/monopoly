@@ -4,8 +4,9 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
   background-color: var(--color-canvas);
 }
 
@@ -14,9 +15,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 100vw;
-  min-height: 100vh;
-  padding: 2rem;
+  width: 100%;
+  min-height: 100dvh;
+  padding: max(2rem, env(safe-area-inset-top)) max(2rem, env(safe-area-inset-right)) max(2rem, env(safe-area-inset-bottom)) max(2rem, env(safe-area-inset-left));
   background: linear-gradient(160deg, var(--color-canvas-deep), var(--color-info-soft));
   color: var(--color-text-primary);
 }
@@ -84,8 +85,8 @@
 .room-toolbar {
   position: fixed;
   z-index: 9001;
-  top: 0.75rem;
-  right: 0.75rem;
+  top: max(0.75rem, env(safe-area-inset-top));
+  right: max(0.75rem, env(safe-area-inset-right));
   display: flex;
   align-items: center;
   gap: 0.5rem;

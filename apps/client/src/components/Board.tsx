@@ -122,6 +122,7 @@ export default function Board() {
                         drawPending: cardInteraction.drawPending,
                         onDraw: cardInteraction.onDraw,
                       }}
+                      onRendererFailure={switchToLegacy}
                     />
                   </Suspense>
                 </SceneErrorBoundary>

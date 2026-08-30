@@ -14,8 +14,16 @@ const status: HostRuntimeStatus = {
   gamePort: null,
   localEndpoint: null,
   lanAvailable: false,
-  interfaces: [],
+  interfaces: [{
+    name: 'Wi-Fi',
+    displayName: 'Wi-Fi',
+    address: '192.168.1.15',
+    netmask: '255.255.255.0',
+    preference: 'preferred',
+    rank: 0,
+  }],
   advertisedEndpoints: [],
+  selectedLanUrl: null,
 };
 
 afterEach(() => {
@@ -67,22 +75,27 @@ describe('DesktopMultiplayerLauncher', () => {
       ...status,
       state: 'HOSTING',
       gamePort: 8080,
-      localEndpoint: 'http://192.168.1.15:8080',
+      localEndpoint: 'http://127.0.0.1:8080',
       lanAvailable: true,
+      advertisedEndpoints: ['http://192.168.1.15:8080'],
+      selectedLanUrl: 'http://192.168.1.15:8080',
     };
     window.ownTheBlockDesktop = {
       host: {
         getStatus: vi.fn(() => Promise.resolve(status)),
         start: vi.fn(() => Promise.resolve({ ok: true as const, status: hostStatus })),
         stop: vi.fn(() => Promise.resolve({ ok: true as const, status })),
+        refreshNetwork: vi.fn(() => Promise.resolve(status)),
         onStatusChanged: vi.fn(() => () => undefined),
       },
     } as unknown as OwnTheBlockDesktopBridge;
 
     render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: /Tạo phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: /Host Game/u }));
     fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Ada' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo và vào phòng' }));
+    const submit = screen.getByRole('button', { name: 'Tạo và vào phòng' });
+    await waitFor(() => expect(submit.getAttribute('disabled')).toBeNull());
+    fireEvent.click(submit);
 
     await waitFor(() => expect(onReady).toHaveBeenCalledOnce());
     const selection = onReady.mock.calls[0]?.[0] as DesktopLaunchSelection;

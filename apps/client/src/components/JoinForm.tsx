@@ -6,13 +6,14 @@ interface JoinFormProps {
   busy: boolean;
   connected: boolean;
   error: string | null;
+  initialRoomCode?: string;
 }
 
 export default function JoinForm({
-  onJoin, busy, connected, error,
+  onJoin, busy, connected, error, initialRoomCode,
 }: JoinFormProps) {
   const [name, setName] = useState('');
-  const [roomId, setRoomId] = useState('');
+  const [roomId, setRoomId] = useState(initialRoomCode ?? '');
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -41,6 +42,8 @@ export default function JoinForm({
           maxLength={20}
           placeholder="Ví dụ: Minh"
           onChange={e => setName(e.target.value)}
+          autoComplete="nickname"
+          enterKeyHint="next"
           autoFocus
         />
 
@@ -53,6 +56,8 @@ export default function JoinForm({
           maxLength={20}
           placeholder="Ví dụ: GAME-1234 (để trống để vào phòng chung)"
           onChange={e => setRoomId(e.target.value)}
+          autoCapitalize="characters"
+          enterKeyHint="go"
         />
 
         <button className="join__button" type="submit" disabled={!name.trim() || busy || !connected}>

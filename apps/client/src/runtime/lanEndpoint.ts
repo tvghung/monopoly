@@ -1,11 +1,10 @@
-function privateIPv4(value: string): boolean {
+function usableIPv4(value: string): boolean {
   const parts = value.split('.').map(Number);
   if (parts.length !== 4 || parts.some(part => !Number.isInteger(part) || part < 0 || part > 255)) {
     return false;
   }
   const [first, second] = parts;
-  return first === 10 || first === 192 && second === 168
-    || first === 172 && second >= 16 && second <= 31;
+  return value !== '0.0.0.0' && first !== 127 && !(first === 169 && second === 254);
 }
 export function normalizeLanEndpoint(value: string): string | undefined {
   const trimmed = value.trim();
@@ -21,8 +20,8 @@ export function normalizeLanEndpoint(value: string): string | undefined {
   }
   if (parsed.protocol !== 'http:' || parsed.username || parsed.password
     || parsed.pathname !== '/' || parsed.search || parsed.hash
-    || !privateIPv4(parsed.hostname)) return undefined;
-  const port = parsed.port ? Number(parsed.port) : 8080;
+    || !usableIPv4(parsed.hostname) || !parsed.port) return undefined;
+  const port = Number(parsed.port);
   if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) return undefined;
   return `http://${parsed.hostname}:${String(port)}`;
 }

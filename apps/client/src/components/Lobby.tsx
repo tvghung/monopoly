@@ -16,6 +16,7 @@ import {
   getPlayerColorLabel,
   getPlayerDisplayColor,
 } from '../game/ui/playerVisualColors';
+import HostLanSharing from './HostLanSharing';
 
 export interface LobbyPlayerView {
   id: string;
@@ -40,6 +41,7 @@ interface LobbyProps {
   onStart: () => void;
   onLeave: () => void;
   onSettings?: () => void;
+  showLanSharing?: boolean;
 }
 
 function ReadyActionIcon({ cancel = false }: { cancel?: boolean }) {
@@ -84,6 +86,7 @@ export default function Lobby({
   onStart,
   onLeave,
   onSettings,
+  showLanSharing = false,
 }: LobbyProps) {
   const me = players.find(player => player.id === playerId);
   const isHost = hostPlayerId === playerId;
@@ -133,6 +136,8 @@ export default function Lobby({
               : null}
           </div>
         </header>
+
+        {showLanSharing && isHost ? <HostLanSharing roomCode={roomCode} /> : null}
 
         <ul className="lobby__players" aria-label="Danh sách người chơi">
           {slots.map((player, index) => player

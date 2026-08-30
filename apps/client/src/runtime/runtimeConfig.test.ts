@@ -27,15 +27,15 @@ function bridgeWithResult(result: Awaited<ReturnType<OwnTheBlockDesktopBridge['g
 }
 
 describe('renderer desktop runtime-config bridge', () => {
-  it('converts a structured expected failure into a local typed error', async () => {
+  it('converts an invalid configured endpoint into a local typed error', async () => {
     const bridge = bridgeWithResult({
       ok: false,
-      code: 'PACKAGED_SOCKET_URL_MISSING',
+      code: 'SOCKET_URL_INVALID',
     });
     window.ownTheBlockDesktop = bridge;
 
     await expect(loadRuntimeConfig()).rejects.toMatchObject({
-      code: 'PACKAGED_SOCKET_URL_MISSING',
+      code: 'SOCKET_URL_INVALID',
     });
 
     try {

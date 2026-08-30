@@ -32,10 +32,25 @@ export interface GameSceneProps {
   onTileHover?: (tileId: number | null) => void;
   onTileSelect?: (tileId: number) => void;
   cardInteraction?: PhysicalCardInteraction;
+  onRendererFailure?: (error: Error) => void;
 }
 
 interface BoardSceneContentsProps extends GameSceneProps {
   model?: BoardRenderModel;
+}
+
+export function RendererLifecycleGuard({ onFailure }: { onFailure?: (error: Error) => void }) {
+  const gl = useThree(state => state.gl);
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+      onFailure?.(new Error('WebGL context was lost'));
+    };
+    canvas.addEventListener('webglcontextlost', onContextLost);
+    return () => canvas.removeEventListener('webglcontextlost', onContextLost);
+  }, [gl, onFailure]);
+  return null;
 }
 
 function RendererDiagnostics({
@@ -264,6 +279,7 @@ export default function GameScene({
   onTileHover,
   onTileSelect,
   cardInteraction,
+  onRendererFailure,
 }: GameSceneProps) {
   return (
     <div className="game-scene" data-testid="game-scene">
@@ -285,6 +301,7 @@ export default function GameScene({
           toneMappingExposure: 1,
         }}
       >
+        <RendererLifecycleGuard onFailure={onRendererFailure} />
         <color attach="background" args={[boardVisualTokens.sceneBackground]} />
         <hemisphereLight args={['#fff8e2', '#9fd6c4', 1.8]} />
         <directionalLight

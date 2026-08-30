@@ -17,17 +17,20 @@
     "dev:desktop:shell": "pnpm --filter @monopoly/desktop dev:shell",
     "desktop:package": "pnpm --filter @monopoly/desktop package",
     "desktop:make": "pnpm --filter @monopoly/desktop make",
-    "desktop:proof:lan": "pnpm --filter @monopoly/desktop proof:packaged:lan",
+    "desktop:run:packaged": "pnpm --filter @monopoly/desktop start:packaged",
+    "desktop:proof:host": "pnpm --filter @monopoly/desktop proof:packaged:host",
     "desktop:release": "node apps/desktop/scripts/release.mjs",
     "validate:release": "node apps/desktop/scripts/validateRelease.mjs",
     "build": "pnpm --filter @monopoly/client build",
     "start": "pnpm --filter @monopoly/server start",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "test:e2e:mobile": "pnpm --filter @monopoly/client build && pnpm --filter @monopoly/desktop prepare:postgres && playwright test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.1",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.9.0",

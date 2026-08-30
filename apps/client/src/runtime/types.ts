@@ -9,7 +9,6 @@ export interface RuntimeConfig {
 }
 
 export type DesktopRuntimeConfigErrorCode =
-  | 'PACKAGED_SOCKET_URL_MISSING'
   | 'SOCKET_URL_INVALID';
 
 export type HostRuntimeState =
@@ -37,7 +36,6 @@ export interface NetworkInterfaceCandidate {
   displayName: string;
   address: string;
   netmask: string;
-  broadcast: string;
   preference: 'preferred' | 'fallback';
   rank: number;
 }
@@ -51,6 +49,7 @@ export interface HostRuntimeStatus {
   lanAvailable: boolean;
   interfaces: NetworkInterfaceCandidate[];
   advertisedEndpoints: string[];
+  selectedLanUrl: string | null;
   errorCode?: HostRuntimeErrorCode;
   diagnostic?: string;
 }
@@ -58,17 +57,6 @@ export interface HostRuntimeStatus {
 export type HostRuntimeOperationResult =
   | { ok: true; status: HostRuntimeStatus }
   | { ok: false; status: HostRuntimeStatus };
-
-export interface DiscoveredLanGame {
-  gameId: string;
-  roomCode: string;
-  appVersion: string;
-  protocolVersion: 8;
-  endpoints: string[];
-  lastSeenAt: number;
-}
-
-export type DiscoveryOperationResult = { ok: true } | { ok: false; code: 'UNAVAILABLE' | 'FAILED' };
 
 export interface DesktopLaunchSelection {
   runtimeConfig: DesktopRuntimeConfig;
@@ -79,7 +67,7 @@ export interface DesktopLaunchSelection {
 
 export interface DesktopRuntimeConfig extends RuntimeConfig {
   target: 'desktop';
-  socketUrl: string;
+  socketUrl?: string;
   platform: DesktopPlatform;
   appVersion: string;
 }
@@ -109,20 +97,10 @@ export interface OwnTheBlockDesktopBridge {
   openExternal(url: string): Promise<void>;
   host?: {
     getStatus(): Promise<HostRuntimeStatus>;
-    start(options?: { port?: number }): Promise<HostRuntimeOperationResult>;
+    start(options?: { port?: number; preferredAddress?: string }): Promise<HostRuntimeOperationResult>;
     stop(): Promise<HostRuntimeOperationResult>;
+    refreshNetwork(options?: { preferredAddress?: string }): Promise<HostRuntimeStatus>;
     onStatusChanged(listener: (status: HostRuntimeStatus) => void): () => void;
-  };
-  lan?: {
-    getInterfaces(): Promise<NetworkInterfaceCandidate[]>;
-  };
-  discovery?: {
-    startBrowsing(): Promise<DiscoveryOperationResult>;
-    stopBrowsing(): Promise<void>;
-    getGames(): Promise<DiscoveredLanGame[]>;
-    onGamesChanged(listener: (games: DiscoveredLanGame[]) => void): () => void;
-    startAdvertising(options: { roomCode: string }): Promise<DiscoveryOperationResult>;
-    stopAdvertising(): Promise<void>;
   };
 }
 
