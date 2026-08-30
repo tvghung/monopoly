@@ -21,8 +21,17 @@ interface CloseEventLike {
   preventDefault(): void;
 }
 
+type QuitIntent = 'window-close' | 'application-quit';
+
+interface PendingQuitRequest {
+  requestId: string;
+  intent: QuitIntent;
+  promise: Promise<boolean>;
+  resolve: (allowQuit: boolean) => void;
+}
+
 export class QuitRequestController {
-  private pendingRequestId: string | null = null;
+  private pendingRequest: PendingQuitRequest | null = null;
   private allowNextClose = false;
   private timeout: NodeJS.Timeout | null = null;
 
@@ -35,42 +44,66 @@ export class QuitRequestController {
     }
 
     event.preventDefault();
-    if (this.pendingRequestId || this.window.isDestroyed()) return;
+    if (this.pendingRequest || this.window.isDestroyed()) return;
 
-    const requestId = randomUUID();
-    this.pendingRequestId = requestId;
-    try {
-      this.window.webContents.send(IPC_CHANNELS.quitRequested, requestId);
-    } catch {
-      this.allowAndClose(requestId);
-      return;
-    }
-    this.timeout = setTimeout(() => this.allowAndClose(requestId), QUIT_RESPONSE_TIMEOUT_MS);
+    void this.request('window-close');
+  }
+
+  public requestApplicationQuit(): Promise<boolean> {
+    if (this.window.isDestroyed()) return Promise.resolve(true);
+    return this.pendingRequest?.promise ?? this.request('application-quit');
   }
 
   public respond(requestId: string, allowQuit: boolean): void {
-    if (requestId !== this.pendingRequestId) return;
-    this.clearPending();
-    if (allowQuit) this.allowAndClose(requestId);
+    if (requestId !== this.pendingRequest?.requestId) return;
+    this.resolvePending(allowQuit);
+  }
+
+  public armNextClose(): void {
+    this.allowNextClose = true;
   }
 
   public dispose(): void {
+    const pending = this.pendingRequest;
     this.clearPending();
-    this.pendingRequestId = null;
+    pending?.resolve(false);
   }
 
-  private allowAndClose(requestId: string): void {
-    if (requestId !== this.pendingRequestId && this.pendingRequestId !== null) return;
+  private request(intent: QuitIntent): Promise<boolean> {
+    const requestId = randomUUID();
+    let resolve!: (allowQuit: boolean) => void;
+    const promise = new Promise<boolean>(settle => {
+      resolve = settle;
+    });
+    this.pendingRequest = { requestId, intent, promise, resolve };
+    try {
+      this.window.webContents.send(IPC_CHANNELS.quitRequested, requestId);
+    } catch {
+      this.resolvePending(true);
+      return promise;
+    }
+    this.timeout = setTimeout(() => this.resolvePending(true), QUIT_RESPONSE_TIMEOUT_MS);
+    return promise;
+  }
+
+  private resolvePending(allowQuit: boolean): void {
+    const pending = this.pendingRequest;
+    if (!pending) return;
     this.clearPending();
-    if (this.window.isDestroyed()) return;
-    this.allowNextClose = true;
-    this.window.close();
+    pending.resolve(allowQuit);
+    if (pending.intent === 'window-close' && allowQuit) this.allowAndClose();
   }
 
   private clearPending(): void {
     if (this.timeout) clearTimeout(this.timeout);
     this.timeout = null;
-    this.pendingRequestId = null;
+    this.pendingRequest = null;
+  }
+
+  private allowAndClose(): void {
+    if (this.window.isDestroyed()) return;
+    this.allowNextClose = true;
+    this.window.close();
   }
 }
 
@@ -210,13 +243,13 @@ export function registerWindowHandlers(
       const options = parseAdvertisingOptions(value);
       const port = services.hostRuntime.gamePort;
       if (port === null) return { ok: false, code: 'FAILED' };
-      services.hostRuntime.setHosting(true);
-      try {
-        services.discovery.startAdvertising({ roomCode: options.roomCode, port });
-        return { ok: true };
-      } catch {
-        return { ok: false, code: 'FAILED' };
-      }
+      return Promise.resolve()
+        .then(() => services.discovery.startAdvertising({ roomCode: options.roomCode, port }))
+        .then(() => {
+          services.hostRuntime.setHosting(true);
+          return { ok: true as const };
+        })
+        .catch(() => ({ ok: false as const, code: 'FAILED' as const }));
     });
     ipcMain.handle(IPC_CHANNELS.discoveryStopAdvertising, async event => {
       if (!isSender(window, event)) throw new Error('Invalid IPC sender.');

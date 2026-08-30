@@ -73,6 +73,7 @@ export type DiscoveryOperationResult = { ok: true } | { ok: false; code: 'UNAVAI
 export interface DesktopLaunchSelection {
   runtimeConfig: DesktopRuntimeConfig;
   initialJoin?: { name: string; roomCode: string };
+  targetRoomCode?: string;
   hosting: boolean;
 }
 

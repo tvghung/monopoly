@@ -72,7 +72,7 @@ jobs:
       - name: Run packaged Phase 7 runtime proof
         run: pnpm --filter @monopoly/desktop proof:packaged
 
-      - name: Run packaged Phase 7.1 LAN proof
+      - name: Run packaged Phase 7.1 LAN core proof
         run: pnpm --filter @monopoly/desktop proof:packaged:lan
 
       - name: Upload Windows Squirrel artifact

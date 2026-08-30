@@ -116,6 +116,7 @@ export default function AppBootstrap() {
               socket={state.result.socket}
               runtimeConfig={state.result.runtimeConfig}
               launch={state.result.launch}
+              onExitToLauncher={() => setLaunch(null)}
             />
           </ToastProvider>
         </AudioProvider>

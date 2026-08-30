@@ -5,9 +5,10 @@ import { RuntimeConfigLoadError } from '../../runtime/runtimeConfig';
 const bootstrapMock = vi.hoisted(() => ({
   bootstrap: vi.fn(),
 }));
+const appMock = vi.hoisted(() => vi.fn());
 
 vi.mock('./bootstrap', () => bootstrapMock);
-vi.mock('../../App', () => ({ default: () => <p>ready</p> }));
+vi.mock('../../App', () => ({ default: appMock }));
 
 import AppBootstrap from './AppBootstrap';
 
@@ -16,6 +17,7 @@ afterEach(() => {
   delete window.ownTheBlockDesktop;
   vi.restoreAllMocks();
   bootstrapMock.bootstrap.mockReset();
+  appMock.mockReset();
 });
 
 describe('AppBootstrap failure handling', () => {
@@ -147,8 +149,71 @@ describe('AppBootstrap failure handling', () => {
       },
       launch: {
         initialJoin: { name: 'Guest', roomCode: 'LAN-1234' },
+        targetRoomCode: 'LAN-1234',
         hosting: false,
       },
     });
+  });
+
+  it('passes the launcher exit callback through to the desktop app', async () => {
+    const bridge = {
+      getRuntimeConfig: vi.fn(() => Promise.resolve({
+        ok: true as const,
+        config: {
+          target: 'desktop' as const,
+          socketUrl: 'http://192.168.1.15:8080',
+          platform: 'win32' as const,
+          appVersion: '3.0.0',
+        },
+      })),
+      window: {
+        onFullscreenChanged: vi.fn(() => () => undefined),
+        setFullscreen: vi.fn(() => Promise.resolve()),
+      },
+    };
+    window.ownTheBlockDesktop = bridge as never;
+    appMock.mockImplementation(({ onExitToLauncher }: { onExitToLauncher?: () => void }) => (
+      <button type="button" onClick={onExitToLauncher}>ready</button>
+    ));
+    bootstrapMock.bootstrap.mockResolvedValue({
+      runtimeConfig: {
+        target: 'desktop',
+        socketUrl: 'http://192.168.1.15:8080',
+        platform: 'win32',
+        appVersion: '3.0.0',
+      },
+      launch: {
+        runtimeConfig: {
+          target: 'desktop',
+          socketUrl: 'http://192.168.1.15:8080',
+          platform: 'win32',
+          appVersion: '3.0.0',
+        },
+        targetRoomCode: 'LAN-1234',
+        hosting: false,
+      },
+      socket: { disconnect: vi.fn() },
+      settings: {
+        version: 1,
+        masterVolume: 1,
+        musicVolume: 0.7,
+        sfxVolume: 0.8,
+        animationSpeed: 1,
+        reducedMotion: false,
+        fullscreen: false,
+      },
+    });
+
+    render(<AppBootstrap />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /Máy chủ đã cấu hình/u })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /Máy chủ đã cấu hình/u }));
+    fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Ada' } });
+    fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'LAN-1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
+    await waitFor(() => expect(bootstrapMock.bootstrap).toHaveBeenCalledOnce());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'ready' })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'ready' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Máy chủ đã cấu hình/u })).toBeTruthy());
   });
 });

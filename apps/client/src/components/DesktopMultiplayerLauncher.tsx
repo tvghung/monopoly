@@ -155,6 +155,7 @@ export default function DesktopMultiplayerLauncher({
       onReady({
         runtimeConfig: runtimeConfig(result.status.localEndpoint, result.status),
         initialJoin: { name: name.trim(), roomCode: nextRoomCode },
+        targetRoomCode: nextRoomCode,
         hosting: true,
       });
     } catch {
@@ -170,12 +171,24 @@ export default function DesktopMultiplayerLauncher({
       ? configuredRuntimeConfig?.socketUrl
       : normalizeLanEndpoint(address);
     if (!endpoint) {
-      setError('Nhập địa chỉ IPv4 riêng dạng 192.168.1.15:8080.');
+      setError(mode === 'configured'
+        ? 'Endpoint máy chủ đã cấu hình không khả dụng.'
+        : 'Nhập địa chỉ IPv4 riêng dạng 192.168.1.15:8080.');
       return;
     }
+    const selectedRuntimeConfig = mode === 'configured'
+      ? {
+        target: 'desktop' as const,
+        socketUrl: endpoint,
+        platform: configuredRuntimeConfig?.platform ?? fallbackPlatform(),
+        appVersion: configuredRuntimeConfig?.appVersion ?? 'unknown',
+      }
+      : runtimeConfig(endpoint, hostStatus ?? undefined);
+    const normalizedRoomCode = roomCode.trim().toUpperCase();
     onReady({
-      runtimeConfig: runtimeConfig(endpoint, hostStatus ?? undefined),
-      initialJoin: { name: name.trim(), roomCode: roomCode.trim().toUpperCase() },
+      runtimeConfig: selectedRuntimeConfig,
+      initialJoin: { name: name.trim(), roomCode: normalizedRoomCode },
+      targetRoomCode: normalizedRoomCode,
       hosting: false,
     });
   };
@@ -246,15 +259,23 @@ export default function DesktopMultiplayerLauncher({
                 />
                 <p className="desktop-launcher__hint">Mặc định 8080. Không tự đổi cổng khi cổng này đang bận.</p>
               </>
-            ) : mode === 'configured' ? null : (
+            ) : (
               <>
-                <label htmlFor="desktop-lan-address">Địa chỉ máy chủ LAN</label>
-                <input
-                  id="desktop-lan-address"
-                  value={address}
-                  placeholder="192.168.1.15:8080"
-                  onChange={event => { setAddress(event.target.value); setError(null); }}
-                />
+                {mode === 'configured' ? (
+                  <p className="desktop-launcher__endpoint" role="note">
+                    Endpoint đã cấu hình: <code>{configuredRuntimeConfig?.socketUrl}</code>
+                  </p>
+                ) : (
+                  <>
+                    <label htmlFor="desktop-lan-address">Địa chỉ máy chủ LAN</label>
+                    <input
+                      id="desktop-lan-address"
+                      value={address}
+                      placeholder="192.168.1.15:8080"
+                      onChange={event => { setAddress(event.target.value); setError(null); }}
+                    />
+                  </>
+                )}
                 <label htmlFor="desktop-lan-room">Mã phòng</label>
                 <input
                   id="desktop-lan-room"
@@ -262,21 +283,23 @@ export default function DesktopMultiplayerLauncher({
                   maxLength={20}
                   onChange={event => setRoomCode(event.target.value.toUpperCase())}
                 />
-                <div className="desktop-launcher__discoveries" aria-live="polite">
-                  <h3>Máy chủ được tìm thấy</h3>
-                  {games.length === 0 ? <p>Chưa tìm thấy máy chủ. Bạn vẫn có thể nhập địa chỉ thủ công.</p> : null}
-                  {games.map(game => (
-                    <button
-                      key={game.gameId}
-                      type="button"
-                      className={selectedGame?.gameId === game.gameId ? 'is-selected' : ''}
-                      onClick={() => chooseGame(game)}
-                    >
-                      <strong>Phòng {game.roomCode}</strong>
-                      <span>{game.endpoints[0]} · Own the Block {game.appVersion}</span>
-                    </button>
-                  ))}
-                </div>
+                {mode === 'join' ? (
+                  <div className="desktop-launcher__discoveries" aria-live="polite">
+                    <h3>Máy chủ được tìm thấy</h3>
+                    {games.length === 0 ? <p>Chưa tìm thấy máy chủ. Bạn vẫn có thể nhập địa chỉ thủ công.</p> : null}
+                    {games.map(game => (
+                      <button
+                        key={game.gameId}
+                        type="button"
+                        className={selectedGame?.gameId === game.gameId ? 'is-selected' : ''}
+                        onClick={() => chooseGame(game)}
+                      >
+                        <strong>Phòng {game.roomCode}</strong>
+                        <span>{game.endpoints[0]} · Own the Block {game.appVersion}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </>
             )}
 

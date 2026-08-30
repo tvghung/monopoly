@@ -34,16 +34,15 @@ interface ContractModule {
   }>;
 }
 
-export type Phase71LanProofStatus = 'PASS' | 'PARTIAL';
-
 export interface Phase71LanProofResult {
-  status: Phase71LanProofStatus;
+  coreStatus: 'PASS';
   platform: NodeJS.Platform;
   architecture: string;
   serverPort: number;
   interfaceCount: number;
   lanHttp: 'PASS' | 'NOT_RUN';
   discovery: 'PASS' | 'NOT_RUN';
+  physicalLanAcceptance: 'MANUAL_REQUIRED';
   checks: Record<string, true>;
 }
 
@@ -105,6 +104,16 @@ function checkDiscoverySerialization(
   return parseAdvertisement(payload)?.gameId === instanceId;
 }
 
+const deterministicPrivateInterface: NetworkInterfaceCandidate = {
+  name: 'phase71-proof',
+  displayName: 'Phase 7.1 proof',
+  address: '192.168.1.15',
+  netmask: '255.255.255.0',
+  broadcast: '192.168.1.255',
+  preference: 'fallback',
+  rank: 0,
+};
+
 export async function runPhase71LanProof(
   resourcesRoot = process.resourcesPath,
 ): Promise<Phase71LanProofResult> {
@@ -139,6 +148,7 @@ export async function runPhase71LanProof(
   const roomCode = `LAN-${randomUUID().slice(0, 6).toUpperCase()}`;
   const discoveryInstanceId = randomUUID();
   let proofResult: Phase71LanProofResult | undefined;
+  let cleanupError: unknown;
 
   try {
     const postgresStarts = await Promise.all([postgres.start(), postgres.start()]);
@@ -171,6 +181,9 @@ export async function runPhase71LanProof(
     const lanHttp = (await Promise.all(lanEndpoints.map(checkEndpoint))).some(Boolean)
       ? 'PASS' as const
       : 'NOT_RUN' as const;
+    if (!(await checkEndpoint(`http://127.0.0.1:${String(serverPort)}`))) {
+      throw new Error('Phase 7.1 packaged helper health/readiness check failed');
+    }
     const contractResult = await contract.runPhase71LanContract({
       serverUrl: `http://127.0.0.1:${String(serverPort)}`,
       roomCode,
@@ -191,41 +204,62 @@ export async function runPhase71LanProof(
       }
     }
     const serializedDiscovery = checkDiscoverySerialization(
-      candidates,
+      candidates.length > 0 ? candidates : [deterministicPrivateInterface],
       serverPort,
       discoveryInstanceId,
       roomCode,
     );
-    const status: Phase71LanProofStatus = lanHttp === 'PASS'
-      && discovery === 'PASS'
-      && serializedDiscovery
-      ? 'PASS'
-      : 'PARTIAL';
+    if (!serializedDiscovery) throw new Error('Phase 7.1 discovery serialization contract failed');
     proofResult = {
-      status,
+      coreStatus: 'PASS',
       platform: process.platform,
       architecture: process.arch,
       serverPort,
       interfaceCount: candidates.length,
       lanHttp,
       discovery,
+      physicalLanAcceptance: 'MANUAL_REQUIRED',
       checks: {
         'external-resources': true,
         'server-binds-0.0.0.0': true,
         'packaged-healthz-readyz': true,
         'two-client-reconnect-contract': true,
-        ...(serializedDiscovery ? { 'discovery-serialization': true } : {}),
+        'discovery-serialization': true,
         ...contractResult.checks,
       },
     };
   } finally {
-    await browserDiscovery?.dispose().catch(() => undefined);
-    await hostDiscovery?.dispose().catch(() => undefined);
-    await helper?.stop().catch(() => undefined);
-    await postgres.stop().catch(() => undefined);
-    await rm(proofRoot, { recursive: true, force: true });
+    try {
+      await browserDiscovery?.dispose();
+    } catch (error) {
+      cleanupError ??= error;
+    }
+    try {
+      await hostDiscovery?.dispose();
+    } catch (error) {
+      cleanupError ??= error;
+    }
+    try {
+      await helper?.stop();
+    } catch (error) {
+      cleanupError ??= error;
+    }
+    try {
+      await postgres.stop();
+    } catch (error) {
+      cleanupError ??= error;
+    }
+    try {
+      await rm(proofRoot, { recursive: true, force: true });
+    } catch (error) {
+      cleanupError ??= error;
+    }
   }
 
+  if (cleanupError) {
+    if (cleanupError instanceof Error) throw cleanupError;
+    throw new Error('Phase 7.1 proof cleanup failed');
+  }
   if (!proofResult) throw new Error('Phase 7.1 proof did not produce a result');
   if (postgres.state !== 'STOPPED'
     || helper?.state !== 'STOPPED'

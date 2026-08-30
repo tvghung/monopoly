@@ -8,13 +8,14 @@ import { contentType } from './rendererContentType';
 import { resolveRendererPath } from './security';
 import { HostRuntimeController } from './hostRuntime';
 import { LANDiscoveryController } from './lanDiscovery';
+import { AppQuitCoordinator } from './appQuitCoordinator';
 
 const DEV_RENDERER_URL = process.env.OWN_THE_BLOCK_DEV_RENDERER_URL?.trim()
   || 'http://127.0.0.1:5173';
 
 let hostRuntime: HostRuntimeController | undefined;
 let discovery: LANDiscoveryController | undefined;
-let quitAfterRuntimeStop = false;
+let quitController: QuitRequestController | undefined;
 
 function createHostServices(): void {
   const generatedRoot = path.join(__dirname, '../generated');
@@ -33,28 +34,28 @@ function createHostServices(): void {
   });
 }
 
-function installRuntimeShutdown(): void {
-  app.on('before-quit', event => {
-    if (quitAfterRuntimeStop) return;
-    const needsStop = hostRuntime?.status.state !== 'IDLE'
-      || discovery?.status.browsing
-      || discovery?.status.advertising;
-    if (!needsStop) return;
+async function stopRuntime(): Promise<void> {
+  const needsStop = hostRuntime?.status.state !== 'IDLE'
+    || discovery?.status.browsing
+    || discovery?.status.advertising;
+  if (!needsStop) return;
+  try {
+    await hostRuntime?.stop();
+  } finally {
+    await discovery?.dispose();
+  }
+}
 
-    event.preventDefault();
-    void (async () => {
-      try {
-        await hostRuntime?.stop();
-      } finally {
-        await discovery?.dispose();
-      }
-    })().catch(error => {
-      console.error('Desktop host runtime shutdown failed.', error);
-    }).finally(() => {
-      quitAfterRuntimeStop = true;
-      app.quit();
-    });
+function installRuntimeShutdown(): void {
+  const coordinator = new AppQuitCoordinator({
+    hasLiveWindow: () => BrowserWindow.getAllWindows().some(window => !window.isDestroyed()),
+    requestRendererDecision: () => quitController?.requestApplicationQuit() ?? Promise.resolve(true),
+    stopRuntime,
+    armFinalWindowClose: () => quitController?.armNextClose(),
+    quitApp: () => app.quit(),
+    reportError: error => console.error('Desktop host runtime shutdown failed.', error),
   });
+  app.on('before-quit', event => coordinator.handleBeforeQuit(event));
 }
 
 function rendererRoot(): string {
@@ -107,12 +108,13 @@ function createWindow(): BrowserWindow {
   window.webContents.on('devtools-opened', () => {
     if (!development) window.webContents.closeDevTools();
   });
-  const quitController = new QuitRequestController(window);
-  window.on('close', event => quitController.handleClose(event));
+  const windowQuitController = new QuitRequestController(window);
+  quitController = windowQuitController;
+  window.on('close', event => windowQuitController.handleClose(event));
   registerWindowHandlers(
     window,
     development,
-    quitController,
+    windowQuitController,
     hostRuntime && discovery ? { hostRuntime, discovery } : undefined,
   );
   installExternalNavigationGuards(window, development);
@@ -154,7 +156,12 @@ export function startDesktopRuntime(): void {
       void import('./phase71LanProof.js')
         .then(({ runPhase71LanProof }) => runPhase71LanProof())
         .then(result => {
-          console.log(`Phase 7.1 packaged LAN proof ${result.status} ${JSON.stringify(result)}`);
+          console.log(
+            `Phase 7.1 packaged LAN core proof core=${result.coreStatus}`
+            + ` lanHttp=${result.lanHttp} discovery=${result.discovery}`
+            + ` physicalLanAcceptance=${result.physicalLanAcceptance}`
+            + ` ${JSON.stringify(result)}`,
+          );
           app.exit(0);
         })
         .catch(error => {
