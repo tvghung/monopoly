@@ -9,7 +9,17 @@ import {
   migrateDatabase,
 } from './persistence/migrate.js';
 import { PostgresPersistenceStore } from './persistence/postgres.js';
-import { RoomVersionConflictError } from './persistence/types.js';
+import {
+  RoomVersionConflictError,
+  type RoomRecord,
+} from './persistence/types.js';
+import {
+  assertSupportedRoomSnapshot,
+  createFreshPlayer,
+  createRoomSnapshot,
+  ROOM_SNAPSHOT_SCHEMA_VERSION,
+  type RoomSnapshot,
+} from './rooms.js';
 
 const CONTRACT_TIMEOUT_MS = 5_000;
 
@@ -31,6 +41,21 @@ export interface Phase7ContractResult {
     listenAddresses: string;
     port: number;
   };
+}
+
+export interface DeadlineRecoveryProofFixture {
+  roomId: string;
+  originalAggregateVersion: number;
+  duePlayerId: string;
+  expectedNextPlayerId: string;
+  expectedNextTurnNumber: number;
+}
+
+export interface DeadlineRecoveryProofResult {
+  roomId: string;
+  aggregateVersion: number;
+  currentPlayerId: string;
+  turnNumber: number;
 }
 
 function databaseConfig(connectionString: string): DatabaseConfig {
@@ -95,6 +120,116 @@ async function checkIndependentTransactions(
     await second.query('ROLLBACK').catch(() => undefined);
     first.release();
     second.release();
+  }
+}
+
+export async function prepareDeadlineRecoveryProof(
+  options: Phase7ContractOptions,
+): Promise<DeadlineRecoveryProofFixture> {
+  const pool = new Pool({
+    connectionString: options.connectionString,
+    max: databaseConfig(options.connectionString).maxConnections,
+  });
+  const persistence = new PostgresPersistenceStore<RoomSnapshot>(pool);
+  const duePlayerId = randomUUID();
+  const expectedNextPlayerId = randomUUID();
+  const turnNumber = 7;
+  const now = new Date();
+  const dueAt = new Date(now.getTime() - 60_000);
+  const snapshot = createRoomSnapshot();
+  snapshot.members = {
+    [duePlayerId]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
+    [expectedNextPlayerId]: { joinOrder: 2, ready: true, membershipStatus: 'ACTIVE' },
+  };
+  snapshot.nextJoinOrder = 3;
+  snapshot.gameState.players = {
+    [duePlayerId]: createFreshPlayer('Ada', 'red', 'dog'),
+    [expectedNextPlayerId]: createFreshPlayer('Grace', 'blue', 'panda'),
+  };
+  snapshot.gameState.boardState.gameStarted = true;
+  snapshot.gameState.boardState.gameStartedAt = now.toISOString();
+  snapshot.gameState.boardState.players = [duePlayerId, expectedNextPlayerId];
+  snapshot.gameState.boardState.currentPlayer = { id: duePlayerId, hasMoved: false };
+  snapshot.gameState.boardState.turnNumber = turnNumber;
+  snapshot.gameState.boardState.turnRecovery = {
+    playerId: duePlayerId,
+    turnNumber,
+    deadlineAt: dueAt.toISOString(),
+    pendingOperationId: null,
+  };
+  assertSupportedRoomSnapshot({
+    snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
+    gameSnapshot: snapshot,
+    hostPlayerId: duePlayerId,
+    status: 'IN_PROGRESS',
+  });
+
+  try {
+    const created = await persistence.rooms.create({
+      id: randomUUID(),
+      code: 'RECOVERY-' + randomUUID().slice(0, 12),
+      status: 'IN_PROGRESS',
+      hostPlayerId: duePlayerId,
+      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
+      gameSnapshot: snapshot,
+      nextActionAt: dueAt,
+      lastActivityAt: now,
+      expiresAt: new Date(now.getTime() + 86_400_000),
+    });
+    return {
+      roomId: created.id,
+      originalAggregateVersion: created.aggregateVersion,
+      duePlayerId,
+      expectedNextPlayerId,
+      expectedNextTurnNumber: turnNumber + 1,
+    };
+  } finally {
+    await persistence.close();
+  }
+}
+
+export async function verifyDeadlineRecoveryProof(
+  options: Phase7ContractOptions & DeadlineRecoveryProofFixture,
+): Promise<DeadlineRecoveryProofResult> {
+  const pool = new Pool({
+    connectionString: options.connectionString,
+    max: databaseConfig(options.connectionString).maxConnections,
+  });
+  const persistence = new PostgresPersistenceStore<RoomSnapshot>(pool);
+  try {
+    const room = await persistence.rooms.findById(options.roomId);
+    if (!room) throw new Error('deadline recovery proof room was not retained');
+    assertSupportedRoomSnapshot(room);
+    if (room.aggregateVersion !== options.originalAggregateVersion + 1) {
+      throw new Error(
+        'deadline recovery proof aggregate version was not advanced exactly once',
+      );
+    }
+    const board = room.gameSnapshot.gameState.boardState;
+    if (
+      board.currentPlayer.id !== options.expectedNextPlayerId
+      || board.turnNumber !== options.expectedNextTurnNumber
+    ) {
+      throw new Error('deadline recovery proof did not advance to the expected turn');
+    }
+    if (
+      board.turnRecovery
+      && (
+        board.turnRecovery.playerId === options.duePlayerId
+        || board.turnRecovery.turnNumber < options.expectedNextTurnNumber
+        || Date.parse(board.turnRecovery.deadlineAt) <= Date.now()
+      )
+    ) {
+      throw new Error('deadline recovery proof left the original due recovery pending');
+    }
+    return {
+      roomId: room.id,
+      aggregateVersion: room.aggregateVersion,
+      currentPlayerId: board.currentPlayer.id,
+      turnNumber: board.turnNumber,
+    };
+  } finally {
+    await persistence.close();
   }
 }
 
@@ -238,6 +373,89 @@ export async function runNativePostgresContract(
     }
     check('compare-and-swap-conflict', conflict, 'stale room write was accepted');
     await persistence.rooms.delete(casRoomId);
+
+    const concurrentRoomId = randomUUID();
+    const concurrentRoom = await persistence.rooms.create({
+      id: concurrentRoomId,
+      code: 'CONCURRENT-' + randomUUID().slice(0, 12),
+      status: 'LOBBY',
+      snapshotSchemaVersion: 8,
+      gameSnapshot: { marker: 'cas-concurrent-initial' },
+    });
+    const concurrentStores = [
+      new PostgresPersistenceStore<Record<string, unknown>>(new Pool({
+        connectionString: options.connectionString,
+        max: 1,
+        options: '-c statement_timeout=' + String(timeoutMs),
+      })),
+      new PostgresPersistenceStore<Record<string, unknown>>(new Pool({
+        connectionString: options.connectionString,
+        max: 1,
+        options: '-c statement_timeout=' + String(timeoutMs),
+      })),
+    ];
+    let releaseConcurrentTransactions: () => void = () => undefined;
+    const bothTransactionsStarted = new Promise<void>(resolve => {
+      releaseConcurrentTransactions = resolve;
+    });
+    let transactionsStarted = 0;
+    const attempts: Array<Promise<RoomRecord<Record<string, unknown>>>> = [];
+    try {
+      for (const [index, store] of concurrentStores.entries()) {
+        const marker = 'cas-concurrent-' + String(index);
+        attempts.push(store.transaction(async ({ rooms }) => {
+          transactionsStarted += 1;
+          if (transactionsStarted === concurrentStores.length) {
+            releaseConcurrentTransactions();
+          }
+          await bothTransactionsStarted;
+          return rooms.save({
+            id: concurrentRoomId,
+            expectedVersion: concurrentRoom.aggregateVersion,
+            status: 'IN_PROGRESS',
+            hostPlayerId: null,
+            snapshotSchemaVersion: 8,
+            gameSnapshot: { marker },
+            nextActionAt: null,
+            lastActivityAt: new Date(),
+            expiresAt: null,
+          });
+        }));
+      }
+      const outcomes = await withTimeout(
+        Promise.allSettled(attempts),
+        timeoutMs,
+        'concurrent same-room CAS',
+      );
+      const winners = outcomes.filter((outcome): outcome is PromiseFulfilledResult<RoomRecord<Record<string, unknown>>> => (
+        outcome.status === 'fulfilled'
+      ));
+      const conflicts = outcomes.filter(outcome => (
+        outcome.status === 'rejected' && outcome.reason instanceof RoomVersionConflictError
+      ));
+      check(
+        'concurrent-same-room-cas-one-winner',
+        winners.length === 1 && conflicts.length === 1,
+        'same-room concurrent CAS did not produce one winner and one conflict',
+      );
+      const concurrentFinal = await persistence.rooms.findById(concurrentRoomId);
+      const winnerMarker = winners[0]?.value.gameSnapshot.marker;
+      check(
+        'concurrent-same-room-cas-final-version',
+        concurrentFinal?.aggregateVersion === concurrentRoom.aggregateVersion + 1,
+        'same-room concurrent CAS advanced the aggregate more than once or not at all',
+      );
+      check(
+        'concurrent-same-room-cas-final-marker',
+        concurrentFinal?.gameSnapshot.marker === winnerMarker,
+        'final same-room snapshot does not match the winning write',
+      );
+    } finally {
+      releaseConcurrentTransactions();
+      await Promise.allSettled(attempts);
+      await Promise.all(concurrentStores.map(store => store.close()));
+      await persistence.rooms.delete(concurrentRoomId).catch(() => undefined);
+    }
 
     const rollbackSessionId = randomUUID();
     try {

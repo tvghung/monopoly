@@ -45,6 +45,7 @@ export interface ManagedPostgresOptions {
   platform?: NodeJS.Platform;
   startupTimeoutMs?: number;
   shutdownTimeoutMs?: number;
+  commandRunner?: ManagedPostgresCommandRunner;
 }
 
 export interface PostgresExecutables {
@@ -56,17 +57,37 @@ export interface PostgresExecutables {
   psql: string;
 }
 
-interface CommandResult {
+export interface ManagedPostgresCommandResult {
   code: number;
   stdout: string;
   stderr: string;
 }
 
+export interface ManagedPostgresCommandOptions {
+  env?: NodeJS.ProcessEnv;
+  timeoutMs: number;
+  cwd?: string;
+}
+
+export type ManagedPostgresCommandRunner = (
+  filePath: string,
+  args: string[],
+  options: ManagedPostgresCommandOptions,
+) => Promise<ManagedPostgresCommandResult>;
+
 function boundedOutput(value: string): string {
   return value.slice(-COMMAND_OUTPUT_LIMIT);
 }
 
-function commandError(filePath: string, result: CommandResult): Error {
+function errorMessage(value: unknown): string {
+  return value instanceof Error
+    ? value.message
+    : typeof value === 'string'
+      ? value
+      : 'Unknown error';
+}
+
+function commandError(filePath: string, result: ManagedPostgresCommandResult): Error {
   const output = boundedOutput(`${result.stdout}\n${result.stderr}`.trim());
   return new Error(
     `${path.basename(filePath)} exited with code ${String(result.code)}${output ? `: ${output}` : ''}`,
@@ -76,8 +97,9 @@ function commandError(filePath: string, result: CommandResult): Error {
 function runCommand(
   filePath: string,
   args: string[],
-  options: { env?: NodeJS.ProcessEnv; timeoutMs: number; cwd?: string },
-): Promise<CommandResult> {
+  options: ManagedPostgresCommandOptions,
+): Promise<ManagedPostgresCommandResult> {
+  const terminationTimeoutMs = 1_000;
   return new Promise((resolve, reject) => {
     const child = spawn(filePath, args, {
       cwd: options.cwd,
@@ -88,28 +110,105 @@ function runCommand(
     });
     let stdout = '';
     let stderr = '';
-    const timer = setTimeout(() => {
-      child.kill();
+    let settled = false;
+    let timedOut = false;
+    let terminationObserved = false;
+    let resolveTermination: (() => void) | undefined;
+    const termination = new Promise<void>(resolvePromise => {
+      resolveTermination = resolvePromise;
+    });
+    const clearTimer = (): void => {
+      if (timer) clearTimeout(timer);
+    };
+    const finishError = (error: Error): void => {
+      if (settled) return;
+      settled = true;
+      clearTimer();
       child.stdout?.destroy();
       child.stderr?.destroy();
-      reject(new Error(`${path.basename(filePath)} timed out`));
-    }, options.timeoutMs);
+      reject(error);
+    };
+    const finishResult = (result: ManagedPostgresCommandResult): void => {
+      if (settled) return;
+      settled = true;
+      clearTimer();
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      resolve(result);
+    };
+    const markTerminated = (): void => {
+      if (terminationObserved) return;
+      terminationObserved = true;
+      resolveTermination?.();
+    };
+    const waitForTermination = (timeoutMs: number): Promise<boolean> => {
+      if (terminationObserved) return Promise.resolve(true);
+      return new Promise(resolvePromise => {
+        const waitTimer = setTimeout(() => resolvePromise(false), timeoutMs);
+        void termination.then(() => {
+          clearTimeout(waitTimer);
+          resolvePromise(true);
+        });
+      });
+    };
+    const killCommand = (force: boolean): void => {
+      try {
+        child.kill(force ? 'SIGKILL' : undefined);
+      } catch {
+        if (force) {
+          try {
+            child.kill();
+          } catch {
+            // The bounded timeout below still settles the command promise.
+          }
+        }
+      }
+    };
+    const timeoutError = (): Error => new Error(path.basename(filePath) + ' timed out');
+    const handleTimeout = async (): Promise<void> => {
+      timedOut = true;
+      killCommand(false);
+      if (await waitForTermination(terminationTimeoutMs)) {
+        finishError(timeoutError());
+        return;
+      }
+      killCommand(true);
+      if (await waitForTermination(terminationTimeoutMs)) {
+        finishError(timeoutError());
+        return;
+      }
+      finishError(new Error(
+        path.basename(filePath) + ' timed out and did not exit after forced termination',
+      ));
+    };
     child.stdout?.on('data', chunk => {
-      stdout = boundedOutput(`${stdout}${String(chunk)}`);
+      stdout = boundedOutput(stdout + String(chunk));
     });
     child.stderr?.on('data', chunk => {
-      stderr = boundedOutput(`${stderr}${String(chunk)}`);
+      stderr = boundedOutput(stderr + String(chunk));
     });
     child.once('error', error => {
-      clearTimeout(timer);
-      reject(error);
+      if (!timedOut) finishError(error);
     });
     child.once('exit', code => {
-      clearTimeout(timer);
-      child.stdout?.destroy();
-      child.stderr?.destroy();
-      resolve({ code: code ?? 1, stdout, stderr });
+      markTerminated();
+      if (timedOut) {
+        finishError(timeoutError());
+        return;
+      }
+      finishResult({ code: code ?? 1, stdout, stderr });
     });
+    child.once('close', code => {
+      markTerminated();
+      if (timedOut) {
+        finishError(timeoutError());
+        return;
+      }
+      finishResult({ code: code ?? 1, stdout, stderr });
+    });
+    const timer = setTimeout(() => {
+      void handleTimeout();
+    }, options.timeoutMs);
   });
 }
 
@@ -225,6 +324,8 @@ export class ManagedPostgresController {
 
   private readonly shutdownTimeoutMs: number;
 
+  private readonly commandRunner: ManagedPostgresCommandRunner;
+
   public constructor(private readonly options: ManagedPostgresOptions) {
     this.paths = resolveManagedPostgresPaths(options);
     this.executables = resolvePostgresExecutables(
@@ -233,6 +334,7 @@ export class ManagedPostgresController {
     );
     this.startupTimeoutMs = options.startupTimeoutMs ?? 30_000;
     this.shutdownTimeoutMs = options.shutdownTimeoutMs ?? 10_000;
+    this.commandRunner = options.commandRunner ?? runCommand;
   }
 
   public get state(): ManagedPostgresState {
@@ -263,7 +365,7 @@ export class ManagedPostgresController {
 
   private async startInternal(): Promise<ManagedPostgresInfo> {
     this.currentState = 'INITIALIZING';
-    let serverStarted = false;
+    let startAttempted = false;
     try {
       await Promise.all([
         access(this.executables.initdb),
@@ -279,7 +381,7 @@ export class ManagedPostgresController {
       const password = await this.ensurePassword();
       const existingCluster = await this.inspectDataDirectory();
       if (!existingCluster) {
-        const initResult = await runCommand(this.executables.initdb, [
+        const initResult = await this.commandRunner(this.executables.initdb, [
           '-D', this.paths.dataDirectory,
           '-U', DATABASE_USER,
           '--encoding=UTF8',
@@ -301,7 +403,8 @@ export class ManagedPostgresController {
       await writeFile(this.paths.portFile, `${String(port)}\n`, 'utf8');
       this.currentState = 'STARTING';
 
-      const startResult = await runCommand(this.executables.pgCtl, [
+      startAttempted = true;
+      const startResult = await this.commandRunner(this.executables.pgCtl, [
         '-D', this.paths.dataDirectory,
         '-l', this.paths.logFile,
         '-o', `-p ${String(port)} -h ${LOOPBACK_HOST}`,
@@ -310,24 +413,23 @@ export class ManagedPostgresController {
         'start',
       ], { timeoutMs: this.startupTimeoutMs + 2_000 });
       if (startResult.code !== 0) throw commandError(this.executables.pgCtl, startResult);
-      serverStarted = true;
 
       await this.waitUntilReady(port);
       const environment = this.databaseEnvironment(password, port);
-      const probe = await runCommand(this.executables.psql, [
+      const probe = await this.commandRunner(this.executables.psql, [
         '-w', '-X', '-v', 'ON_ERROR_STOP=1',
         '-h', LOOPBACK_HOST, '-p', String(port), '-U', DATABASE_USER,
         '-d', 'postgres', '-tAc', 'SELECT 1',
       ], { env: environment, timeoutMs: this.startupTimeoutMs });
       if (probe.code !== 0) throw commandError(this.executables.psql, probe);
-      const databaseExists = await runCommand(this.executables.psql, [
+      const databaseExists = await this.commandRunner(this.executables.psql, [
         '-w', '-X', '-v', 'ON_ERROR_STOP=1',
         '-h', LOOPBACK_HOST, '-p', String(port), '-U', DATABASE_USER,
         '-d', 'postgres', '-tAc', `SELECT 1 FROM pg_database WHERE datname = '${DATABASE_NAME}'`,
       ], { env: environment, timeoutMs: this.startupTimeoutMs });
       if (databaseExists.code !== 0) throw commandError(this.executables.psql, databaseExists);
       if (!databaseExists.stdout.includes('1')) {
-        const created = await runCommand(this.executables.createdb, [
+        const created = await this.commandRunner(this.executables.createdb, [
           '-w', '-h', LOOPBACK_HOST, '-p', String(port), '-U', DATABASE_USER, DATABASE_NAME,
         ], { env: environment, timeoutMs: this.startupTimeoutMs });
         if (created.code !== 0) throw commandError(this.executables.createdb, created);
@@ -343,16 +445,24 @@ export class ManagedPostgresController {
       this.currentState = 'READY';
       return this.currentInfo;
     } catch (error) {
-      if (serverStarted) {
-        await runCommand(this.executables.pgCtl, [
-          '-D', this.paths.dataDirectory,
-          '-m', 'fast',
-          '-w',
-          '-t', String(Math.max(1, Math.ceil(this.shutdownTimeoutMs / 1_000))),
-          'stop',
-        ], { timeoutMs: this.shutdownTimeoutMs + 2_000 }).catch(() => undefined);
+      let cleanupError: unknown;
+      if (startAttempted) {
+        try {
+          await this.stopAfterFailedStart();
+        } catch (errorDuringCleanup) {
+          cleanupError = errorDuringCleanup;
+        }
       }
+      this.currentInfo = undefined;
       this.currentState = 'FAILED';
+      if (cleanupError) {
+        const primary = errorMessage(error);
+        const cleanup = errorMessage(cleanupError);
+        throw new Error(
+          primary + '; managed PostgreSQL cleanup failed: ' + cleanup,
+          { cause: error },
+        );
+      }
       throw error;
     }
   }
@@ -360,7 +470,7 @@ export class ManagedPostgresController {
   private async stopInternal(): Promise<void> {
     this.currentState = 'STOPPING';
     try {
-      const result = await runCommand(this.executables.pgCtl, [
+      const result = await this.commandRunner(this.executables.pgCtl, [
         '-D', this.paths.dataDirectory,
         '-m', 'fast',
         '-w',
@@ -374,6 +484,52 @@ export class ManagedPostgresController {
       this.currentState = 'FAILED';
       throw error;
     }
+  }
+
+  private async stopAfterFailedStart(): Promise<void> {
+    let stopError: unknown;
+    try {
+      const result = await this.commandRunner(this.executables.pgCtl, [
+        '-D', this.paths.dataDirectory,
+        '-m', 'fast',
+        '-w',
+        '-t', String(Math.max(1, Math.ceil(this.shutdownTimeoutMs / 1_000))),
+        'stop',
+      ], { timeoutMs: this.shutdownTimeoutMs + 2_000 });
+      if (result.code !== 0) stopError = commandError(this.executables.pgCtl, result);
+    } catch (error) {
+      stopError = error;
+    }
+
+    try {
+      await this.waitUntilStopped();
+    } catch (statusError) {
+      const stopMessage = stopError ? errorMessage(stopError) : '';
+      const statusMessage = errorMessage(statusError);
+      throw new Error(
+        (stopMessage ? stopMessage + '; ' : '') + statusMessage,
+        { cause: statusError },
+      );
+    }
+    if (stopError) {
+      throw stopError instanceof Error ? stopError : new Error(errorMessage(stopError));
+    }
+  }
+
+  private async waitUntilStopped(): Promise<void> {
+    const deadline = Date.now() + this.shutdownTimeoutMs;
+    const statusTimeoutMs = Math.max(1, Math.min(this.shutdownTimeoutMs, 2_000));
+    while (Date.now() <= deadline) {
+      const status = await this.commandRunner(this.executables.pgCtl, [
+        '-D', this.paths.dataDirectory,
+        'status',
+      ], { timeoutMs: statusTimeoutMs });
+      if (status.code !== 0) return;
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      await new Promise(resolve => setTimeout(resolve, Math.min(100, remaining)));
+    }
+    throw new Error('Managed PostgreSQL did not stop before the shutdown deadline');
   }
 
   private async ensurePassword(): Promise<string> {
@@ -446,7 +602,7 @@ export class ManagedPostgresController {
   private async waitUntilReady(port: number): Promise<void> {
     const deadline = Date.now() + this.startupTimeoutMs;
     while (Date.now() < deadline) {
-      const result = await runCommand(this.executables.pgIsReady, [
+      const result = await this.commandRunner(this.executables.pgIsReady, [
         '-h', LOOPBACK_HOST, '-p', String(port), '-t', '1',
       ], { timeoutMs: 2_000 });
       if (result.code === 0) return;

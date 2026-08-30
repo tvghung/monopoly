@@ -5,13 +5,30 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { migrateDatabase } from './migrate.js';
 import { PostgresPersistenceStore } from './postgres.js';
-import { RoomVersionConflictError } from './types.js';
+import {
+  RoomVersionConflictError,
+  type RoomRecord,
+} from './types.js';
 
 interface TestSnapshot {
   value: number;
 }
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('concurrent CAS test timed out')), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 describe.runIf(Boolean(testDatabaseUrl))('PostgresPersistenceStore', () => {
   const schemaName = `monopoly_test_${randomUUID().replaceAll('-', '')}`;
@@ -75,6 +92,72 @@ describe.runIf(Boolean(testDatabaseUrl))('PostgresPersistenceStore', () => {
         expiresAt: null,
       }),
     ).rejects.toBeInstanceOf(RoomVersionConflictError);
+  });
+
+  it('proves a concurrent same-room CAS has one winner', async () => {
+    const roomId = randomUUID();
+    const created = await persistence.rooms.create({
+      id: roomId,
+      code: 'concurrent-cas-room',
+      status: 'LOBBY',
+      snapshotSchemaVersion: 1,
+      gameSnapshot: { value: 1 },
+    });
+    const stores = [
+      new PostgresPersistenceStore<TestSnapshot>(new Pool({
+        connectionString: testDatabaseUrl,
+        max: 1,
+        options: '-c search_path=' + schemaName + ' -c statement_timeout=5000',
+      })),
+      new PostgresPersistenceStore<TestSnapshot>(new Pool({
+        connectionString: testDatabaseUrl,
+        max: 1,
+        options: '-c search_path=' + schemaName + ' -c statement_timeout=5000',
+      })),
+    ];
+    let releaseTransactions: () => void = () => undefined;
+    const bothTransactionsStarted = new Promise<void>(resolve => {
+      releaseTransactions = resolve;
+    });
+    let transactionsStarted = 0;
+    const attempts = stores.map((store, index) => store.transaction(async ({ rooms }) => {
+      transactionsStarted += 1;
+      if (transactionsStarted === stores.length) releaseTransactions();
+      await bothTransactionsStarted;
+      return rooms.save({
+        id: roomId,
+        expectedVersion: created.aggregateVersion,
+        status: 'IN_PROGRESS',
+        hostPlayerId: null,
+        snapshotSchemaVersion: 1,
+        gameSnapshot: { value: index + 2 },
+        nextActionAt: null,
+        lastActivityAt: new Date(),
+        expiresAt: null,
+      });
+    }));
+
+    try {
+      const outcomes = await withTimeout(Promise.allSettled(attempts), 5_000);
+      const winners = outcomes.filter((
+        outcome,
+      ): outcome is PromiseFulfilledResult<RoomRecord<TestSnapshot>> => (
+        outcome.status === 'fulfilled'
+      ));
+      const conflicts = outcomes.filter(outcome => (
+        outcome.status === 'rejected' && outcome.reason instanceof RoomVersionConflictError
+      ));
+      expect(winners).toHaveLength(1);
+      expect(conflicts).toHaveLength(1);
+      const final = await persistence.rooms.findById(roomId);
+      expect(final?.aggregateVersion).toBe(created.aggregateVersion + 1);
+      expect(final?.gameSnapshot.value).toBe(winners[0]?.value.gameSnapshot.value);
+    } finally {
+      releaseTransactions();
+      await Promise.allSettled(attempts);
+      await Promise.all(stores.map(store => store.close()));
+      await persistence.rooms.delete(roomId);
+    }
   });
 
   it('migrates a V6 room through V8 without changing existing facts', async () => {

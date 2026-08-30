@@ -28,6 +28,30 @@ interface ContractModule {
     migrationDirectory: string;
     expectedRoomId?: string;
   }): Promise<ContractResult>;
+  prepareDeadlineRecoveryProof(options: {
+    connectionString: string;
+    migrationDirectory: string;
+  }): Promise<{
+    roomId: string;
+    originalAggregateVersion: number;
+    duePlayerId: string;
+    expectedNextPlayerId: string;
+    expectedNextTurnNumber: number;
+  }>;
+  verifyDeadlineRecoveryProof(options: {
+    connectionString: string;
+    migrationDirectory: string;
+    roomId: string;
+    originalAggregateVersion: number;
+    duePlayerId: string;
+    expectedNextPlayerId: string;
+    expectedNextTurnNumber: number;
+  }): Promise<{
+    roomId: string;
+    aggregateVersion: number;
+    currentPlayerId: string;
+    turnNumber: number;
+  }>;
 }
 
 export interface Phase7RuntimeProofResult {
@@ -119,6 +143,10 @@ export async function runPhase7RuntimeProof(
     });
 
     await helper.stop();
+    const deadlineRecovery = await contract.prepareDeadlineRecoveryProof({
+      connectionString: postgresInfo.databaseUrl,
+      migrationDirectory,
+    });
     await postgres.stop();
     if (postgres.state !== 'STOPPED') throw new Error('PostgreSQL did not stop cleanly');
 
@@ -137,6 +165,11 @@ export async function runPhase7RuntimeProof(
     await Promise.all([restartedHelper.start(), restartedHelper.start()]);
     await checkEndpoint(restartedServerPort, '/healthz', 'ok');
     await checkEndpoint(restartedServerPort, '/readyz', 'ready');
+    await contract.verifyDeadlineRecoveryProof({
+      connectionString: restartedPostgres.databaseUrl,
+      migrationDirectory,
+      ...deadlineRecovery,
+    });
     const second = await contract.runNativePostgresContract({
       connectionString: restartedPostgres.databaseUrl,
       migrationDirectory,
@@ -171,6 +204,7 @@ export async function runPhase7RuntimeProof(
       checks: {
         ...first.checks,
         ...second.checks,
+        'restart-deadline-recovery': true,
         'restart-retained-room': true,
         'packaged-healthz': true,
         'packaged-readyz': true,

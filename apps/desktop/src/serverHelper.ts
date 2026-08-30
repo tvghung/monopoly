@@ -200,8 +200,13 @@ export class ServerHelperController {
       return this.currentInfo;
     } catch (error) {
       this.currentState = 'FAILED';
-      child.kill();
-      throw new Error(sanitizeDiagnostic(error, this.options.databaseUrl), { cause: error });
+      let cleanupError: unknown;
+      try {
+        await this.terminateAfterFailure(child);
+      } catch (terminationError) {
+        cleanupError = terminationError;
+      }
+      throw this.failureError(error, cleanupError);
     }
   }
 
@@ -278,18 +283,50 @@ export class ServerHelperController {
       this.childExit = undefined;
       this.currentState = 'STOPPED';
     } catch (error) {
-      child.kill();
+      let cleanupError: unknown;
+      try {
+        await this.terminateAfterFailure(child);
+      } catch (terminationError) {
+        cleanupError = terminationError;
+      }
       this.currentState = 'FAILED';
-      throw new Error(sanitizeDiagnostic(error, this.options.databaseUrl), { cause: error });
+      throw this.failureError(error, cleanupError);
     }
   }
 
-  private async waitForExit(exitPromise: Promise<number>): Promise<void> {
+  private async terminateAfterFailure(child: UtilityProcess): Promise<void> {
+    const exitPromise = this.childExit ?? Promise.resolve(0);
+    child.kill();
+    await this.waitForExit(exitPromise, false);
+    if (this.child === child) {
+      this.currentInfo = undefined;
+      this.child = undefined;
+      this.childExit = undefined;
+    }
+  }
+
+  private failureError(error: unknown, cleanupError?: unknown): Error {
+    const primary = sanitizeDiagnostic(error, this.options.databaseUrl);
+    const cleanup = cleanupError
+      ? sanitizeDiagnostic(cleanupError, this.options.databaseUrl)
+      : '';
+    return new Error(
+      cleanup ? primary + '; helper cleanup failed: ' + cleanup : primary,
+      { cause: new Error(primary) },
+    );
+  }
+
+  private async waitForExit(
+    exitPromise: Promise<number>,
+    requireCleanExit = true,
+  ): Promise<void> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
         exitPromise.then(code => {
-          if (code !== 0) throw new Error(`Server helper exited with code ${String(code)}`);
+          if (requireCleanExit && code !== 0) {
+            throw new Error(`Server helper exited with code ${String(code)}`);
+          }
         }),
         new Promise<never>((_, reject) => {
           timer = setTimeout(() => reject(new Error('Server helper shutdown timed out')), this.shutdownTimeoutMs);
