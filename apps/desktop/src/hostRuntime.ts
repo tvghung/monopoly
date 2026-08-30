@@ -1,4 +1,3 @@
-import { createServer } from 'node:net';
 import path from 'node:path';
 
 import {
@@ -41,6 +40,7 @@ export type DesktopPlatform = 'win32' | 'darwin' | 'linux';
 
 export interface HostStartOptions {
   port?: number;
+  preferredAddress?: string;
 }
 
 export interface HostRuntimeStatus {
@@ -52,6 +52,7 @@ export interface HostRuntimeStatus {
   lanAvailable: boolean;
   interfaces: NetworkInterfaceCandidate[];
   advertisedEndpoints: string[];
+  selectedLanUrl: string | null;
   errorCode?: HostRuntimeErrorCode;
   diagnostic?: string;
 }
@@ -73,12 +74,15 @@ export interface ServerHelperLike {
   readonly diagnostic: string;
   start(): Promise<ServerHelperInfo>;
   stop(): Promise<void>;
+  checkHealth?(): Promise<void>;
+  onUnexpectedExit?(listener: (diagnostic: string) => void): () => void;
 }
 
 export interface HostRuntimeOptions {
   resourceRoot: string;
   helperPath: string;
   migrationDirectory: string;
+  clientDist: string;
   userDataPath: string;
   appVersion: string;
   platform?: DesktopPlatform;
@@ -86,12 +90,15 @@ export interface HostRuntimeOptions {
   interfaceProvider?: () => NetworkInterfaceCandidate[];
   postgres?: ManagedPostgresLike;
   helperFactory?: (databaseUrl: string, port: number) => ServerHelperLike;
-  stopAdvertisement?: () => void | Promise<void>;
+  healthCheckIntervalMs?: number;
 }
 
 const LOOPBACK_HOST = '127.0.0.1';
 const LAN_BIND_HOST = '0.0.0.0';
-const DEFAULT_GAME_PORT = 8080;
+const AUTO_GAME_PORT = 0;
+const AUTO_PORT_ATTEMPTS = 3;
+const RECOVERY_ATTEMPTS = 2;
+const RECOVERY_BACKOFF_MS = 250;
 const DIAGNOSTIC_LIMIT = 512;
 
 function platformName(value: NodeJS.Platform = process.platform): DesktopPlatform {
@@ -104,40 +111,16 @@ function errorText(error: unknown): string {
 
 function safeDiagnostic(error: unknown): string {
   return errorText(error)
-    .replace(/postgres(?:ql)?(?:\+[^:]+)?:\/\/[^\s"'`]+/giu, 'postgresql://[redacted]')
+    .replace(/postgres(?:ql)?(?:\+[^:]+)?:\/\/[^\s"'\x60]+/giu, 'postgresql://[redacted]')
     .replace(/(DATABASE_URL|PGPASSWORD)\s*[=:]\s*[^\s]+/giu, '$1=[redacted]')
     .slice(-DIAGNOSTIC_LIMIT);
 }
 
 function validatePort(port: number): number {
-  if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) {
-    throw new Error('Game port must be between 1 and 65535');
+  if (!Number.isSafeInteger(port) || port < 0 || port > 65_535) {
+    throw new Error('Game port must be between 0 and 65535');
   }
   return port;
-}
-
-export async function assertGamePortAvailable(port: number): Promise<void> {
-  validatePort(port);
-  const server = createServer();
-  await new Promise<void>((resolve, reject) => {
-    const handleError = (error: Error): void => {
-      server.off('listening', handleListening);
-      reject(error);
-    };
-    const handleListening = (): void => {
-      server.off('error', handleError);
-      resolve();
-    };
-    server.once('error', handleError);
-    server.once('listening', handleListening);
-    server.listen(port, LAN_BIND_HOST);
-  }).finally(() => new Promise<void>(resolve => {
-    if (!server.listening) {
-      resolve();
-      return;
-    }
-    server.close(() => resolve());
-  }));
 }
 
 export function classifyHostRuntimeError(error: unknown): HostRuntimeErrorCode {
@@ -172,29 +155,34 @@ function initialStatus(options: HostRuntimeOptions): HostRuntimeStatus {
     lanAvailable: false,
     interfaces: [],
     advertisedEndpoints: [],
+    selectedLanUrl: null,
   };
 }
 
 export class HostRuntimeController {
   private currentStatus: HostRuntimeStatus;
-
   private postgres: ManagedPostgresLike | undefined;
-
   private helper: ServerHelperLike | undefined;
-
+  private databaseUrl: string | undefined;
   private startPromise: Promise<HostRuntimeStatus> | undefined;
-
   private stopPromise: Promise<HostRuntimeStatus> | undefined;
-
+  private recoveryPromise: Promise<void> | undefined;
+  private recoveryAttemptsUsed = 0;
+  private healthTimer: NodeJS.Timeout | undefined;
+  private removeUnexpectedExitListener: (() => void) | undefined;
   private readonly listeners = new Set<HostRuntimeListener>();
-
   private readonly interfaceProvider: () => NetworkInterfaceCandidate[];
 
   public constructor(private readonly options: HostRuntimeOptions) {
-    if (!path.isAbsolute(options.resourceRoot)) throw new Error('Host PostgreSQL resource root must be absolute');
-    if (!path.isAbsolute(options.helperPath)) throw new Error('Host helper path must be absolute');
-    if (!path.isAbsolute(options.migrationDirectory)) throw new Error('Host migration directory must be absolute');
-    if (!path.isAbsolute(options.userDataPath)) throw new Error('Host user data path must be absolute');
+    for (const [name, value] of [
+      ['Host PostgreSQL resource root', options.resourceRoot],
+      ['Host helper path', options.helperPath],
+      ['Host migration directory', options.migrationDirectory],
+      ['Host client distribution', options.clientDist],
+      ['Host user data path', options.userDataPath],
+    ] as const) {
+      if (!path.isAbsolute(value)) throw new Error(`${name} must be absolute`);
+    }
     this.currentStatus = initialStatus(options);
     this.postgres = options.postgres;
     this.interfaceProvider = options.interfaceProvider ?? (() => resolveNetworkInterfaces());
@@ -219,6 +207,7 @@ export class HostRuntimeController {
     }
     if (this.startPromise) return this.startPromise;
     if (this.stopPromise) await this.stopPromise;
+    this.recoveryAttemptsUsed = 0;
     this.startPromise = this.startInternal(options).finally(() => {
       this.startPromise = undefined;
     });
@@ -229,8 +218,10 @@ export class HostRuntimeController {
     if (this.currentStatus.state === 'IDLE') return this.status;
     if (this.stopPromise) return this.stopPromise;
     const pendingStart = this.startPromise;
+    const pendingRecovery = this.recoveryPromise;
     this.stopPromise = (async () => {
       await pendingStart?.catch(() => undefined);
+      await pendingRecovery?.catch(() => undefined);
       return this.stopInternal();
     })().finally(() => {
       this.stopPromise = undefined;
@@ -238,18 +229,67 @@ export class HostRuntimeController {
     return this.stopPromise;
   }
 
-  public setHosting(hosting: boolean): HostRuntimeStatus {
-    if (hosting && this.currentStatus.state === 'READY') this.update({ state: 'HOSTING' });
-    if (!hosting && this.currentStatus.state === 'HOSTING') this.update({ state: 'READY' });
+  public refreshNetwork(preferredAddress?: string): HostRuntimeStatus {
+    const interfaces = this.interfaceProvider();
+    if (preferredAddress && !interfaces.some(candidate => candidate.address === preferredAddress)) {
+      throw new Error('Selected LAN address is not available');
+    }
+    const currentAddress = this.currentStatus.selectedLanUrl
+      ? new URL(this.currentStatus.selectedLanUrl).hostname
+      : undefined;
+    const selectedAddress = preferredAddress
+      ?? (interfaces.some(candidate => candidate.address === currentAddress) ? currentAddress : undefined)
+      ?? interfaces[0]?.address;
+    const port = this.currentStatus.gamePort;
+    this.update({
+      interfaces,
+      lanAvailable: interfaces.length > 0,
+      advertisedEndpoints: port ? advertisedEndpoints(interfaces, port) : [],
+      selectedLanUrl: selectedAddress && port
+        ? `http://${selectedAddress}:${String(port)}`
+        : null,
+      ...(interfaces.length > 0
+        ? { errorCode: this.currentStatus.errorCode === 'NO_LAN_INTERFACE' ? undefined : this.currentStatus.errorCode }
+        : { errorCode: 'NO_LAN_INTERFACE' as const }),
+    });
+    return this.status;
+  }
+
+  public async verifyAndRecover(): Promise<HostRuntimeStatus> {
+    this.refreshNetwork();
+    if (this.currentStatus.state !== 'HOSTING' || !this.helper?.checkHealth) return this.status;
+    try {
+      await this.helper.checkHealth();
+    } catch (error) {
+      await this.beginRecovery('database', error);
+    }
     return this.status;
   }
 
   private async startInternal(options: HostStartOptions): Promise<HostRuntimeStatus> {
-    const port = validatePort(options.port ?? this.options.defaultPort ?? DEFAULT_GAME_PORT);
+    const requestedPort = validatePort(options.port ?? this.options.defaultPort ?? AUTO_GAME_PORT);
+    const interfaces = this.interfaceProvider();
+    const preferredAddress = options.preferredAddress ?? interfaces[0]?.address;
+    if (!preferredAddress || !interfaces.some(candidate => candidate.address === preferredAddress)) {
+      const error = new Error('No usable LAN IPv4 interface is available');
+      this.update({
+        state: 'FAILED',
+        interfaces,
+        lanAvailable: false,
+        errorCode: 'NO_LAN_INTERFACE',
+        diagnostic: safeDiagnostic(error),
+      });
+      throw error;
+    }
+
     this.update({
       state: 'STARTING_POSTGRES',
-      gamePort: port,
-      localEndpoint: `http://${LOOPBACK_HOST}:${String(port)}`,
+      gamePort: requestedPort || null,
+      localEndpoint: requestedPort ? `http://${LOOPBACK_HOST}:${String(requestedPort)}` : null,
+      interfaces,
+      lanAvailable: true,
+      advertisedEndpoints: requestedPort ? advertisedEndpoints(interfaces, requestedPort) : [],
+      selectedLanUrl: requestedPort ? `http://${preferredAddress}:${String(requestedPort)}` : null,
       errorCode: undefined,
       diagnostic: undefined,
     });
@@ -260,59 +300,170 @@ export class HostRuntimeController {
         userDataPath: this.options.userDataPath,
       });
       const postgresInfo = await this.postgres.start();
+      this.databaseUrl = postgresInfo.databaseUrl;
       postgresStarted = true;
-      await assertGamePortAvailable(port);
       this.update({ state: 'STARTING_SERVER' });
-      this.helper = this.options.helperFactory?.(postgresInfo.databaseUrl, port)
-        ?? new ServerHelperController({
-          modulePath: this.options.helperPath,
-          migrationDirectory: this.options.migrationDirectory,
-          databaseUrl: postgresInfo.databaseUrl,
-          host: LAN_BIND_HOST,
-          port,
-        });
-      const helperInfo = await this.helper.start();
-      if (helperInfo.host !== LAN_BIND_HOST || helperInfo.port !== port) {
-        throw new Error('Server helper announced an unexpected LAN endpoint');
-      }
-      const interfaces = this.interfaceProvider();
+      const helperInfo = await this.startHelperWithRetry(postgresInfo.databaseUrl, requestedPort);
+      const port = helperInfo.port;
       this.update({
-        state: 'READY',
+        state: 'HOSTING',
+        gamePort: port,
+        localEndpoint: `http://${LOOPBACK_HOST}:${String(port)}`,
         interfaces,
         advertisedEndpoints: advertisedEndpoints(interfaces, port),
-        lanAvailable: interfaces.length > 0,
-        ...(interfaces.length > 0 ? {} : { errorCode: 'NO_LAN_INTERFACE' as const }),
+        selectedLanUrl: `http://${preferredAddress}:${String(port)}`,
+        lanAvailable: true,
+        errorCode: undefined,
+        diagnostic: undefined,
       });
+      this.startHealthMonitor();
       return this.status;
     } catch (error) {
+      this.detachHelperListener();
       await this.helper?.stop().catch(() => undefined);
       this.helper = undefined;
       if (postgresStarted) await this.postgres?.stop().catch(() => undefined);
-      const errorCode = this.interfaceProvider().length === 0
-        && errorText(error).includes('No usable')
-        ? 'NO_LAN_INTERFACE'
-        : classifyHostRuntimeError(error);
+      this.databaseUrl = undefined;
       this.update({
         state: 'FAILED',
-        errorCode,
+        errorCode: classifyHostRuntimeError(error),
         diagnostic: safeDiagnostic(error),
       });
       throw error;
     }
   }
 
+  private createHelper(databaseUrl: string, port: number): ServerHelperLike {
+    return this.options.helperFactory?.(databaseUrl, port)
+      ?? new ServerHelperController({
+        modulePath: this.options.helperPath,
+        migrationDirectory: this.options.migrationDirectory,
+        clientDist: this.options.clientDist,
+        databaseUrl,
+        host: LAN_BIND_HOST,
+        port,
+      });
+  }
+
+  private async startHelperWithRetry(databaseUrl: string, requestedPort: number): Promise<ServerHelperInfo> {
+    const attempts = requestedPort === AUTO_GAME_PORT ? AUTO_PORT_ATTEMPTS : 1;
+    let lastError: unknown;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const helper = this.createHelper(databaseUrl, requestedPort);
+      this.helper = helper;
+      try {
+        const info = await helper.start();
+        if (info.host !== LAN_BIND_HOST
+          || requestedPort !== AUTO_GAME_PORT && info.port !== requestedPort) {
+          throw new Error('Server helper announced an unexpected LAN endpoint');
+        }
+        this.attachHelperListener(helper);
+        return info;
+      } catch (error) {
+        lastError = error;
+        await helper.stop().catch(() => undefined);
+        if (requestedPort !== AUTO_GAME_PORT || classifyHostRuntimeError(error) !== 'PORT_OCCUPIED') break;
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error(errorText(lastError));
+  }
+
+  private attachHelperListener(helper: ServerHelperLike): void {
+    this.detachHelperListener();
+    this.removeUnexpectedExitListener = helper.onUnexpectedExit?.(diagnostic => {
+      if (this.helper !== helper || this.currentStatus.state !== 'HOSTING') return;
+      void this.beginRecovery('helper', new Error(diagnostic || 'Server helper exited unexpectedly'));
+    });
+  }
+
+  private detachHelperListener(): void {
+    this.removeUnexpectedExitListener?.();
+    this.removeUnexpectedExitListener = undefined;
+  }
+
+  private startHealthMonitor(): void {
+    this.stopHealthMonitor();
+    const intervalMs = this.options.healthCheckIntervalMs ?? 5_000;
+    if (intervalMs <= 0 || !this.helper?.checkHealth) return;
+    this.healthTimer = setInterval(() => {
+      void this.verifyAndRecover().catch(() => undefined);
+    }, intervalMs);
+    this.healthTimer.unref();
+  }
+
+  private stopHealthMonitor(): void {
+    if (this.healthTimer) clearInterval(this.healthTimer);
+    this.healthTimer = undefined;
+  }
+
+  private beginRecovery(kind: 'helper' | 'database', error: unknown): Promise<void> {
+    if (this.recoveryPromise) return this.recoveryPromise;
+    if (this.currentStatus.state === 'IDLE' || this.currentStatus.state === 'STOPPING') {
+      return Promise.resolve();
+    }
+    this.recoveryPromise = this.recover(kind, error).finally(() => {
+      this.recoveryPromise = undefined;
+    });
+    return this.recoveryPromise;
+  }
+
+  private async recover(kind: 'helper' | 'database', initialError: unknown): Promise<void> {
+    this.stopHealthMonitor();
+    const port = this.currentStatus.gamePort;
+    if (!port || !this.postgres || !this.databaseUrl) {
+      this.failRecovery(initialError);
+      return;
+    }
+    let lastError = initialError;
+    while (this.recoveryAttemptsUsed < RECOVERY_ATTEMPTS) {
+      this.recoveryAttemptsUsed += 1;
+      if (this.recoveryAttemptsUsed > 1) {
+        await new Promise(resolve => setTimeout(resolve, RECOVERY_BACKOFF_MS));
+      }
+      try {
+        this.detachHelperListener();
+        if (kind === 'database') {
+          this.update({ state: 'STARTING_POSTGRES', errorCode: undefined, diagnostic: undefined });
+          await this.helper?.stop().catch(() => undefined);
+          this.helper = undefined;
+          await this.postgres.stop().catch(() => undefined);
+          const postgresInfo = await this.postgres.start();
+          this.databaseUrl = postgresInfo.databaseUrl;
+        } else {
+          this.helper = undefined;
+        }
+        this.update({ state: 'STARTING_SERVER', errorCode: undefined, diagnostic: undefined });
+        const helperInfo = await this.startHelperWithRetry(this.databaseUrl, port);
+        if (helperInfo.port !== port) throw new Error('Recovered helper changed the game port');
+        this.update({ state: 'HOSTING', errorCode: undefined, diagnostic: undefined });
+        this.refreshNetwork();
+        this.startHealthMonitor();
+        return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    this.failRecovery(lastError);
+  }
+
+  private failRecovery(error: unknown): void {
+    this.stopHealthMonitor();
+    this.update({
+      state: 'FAILED',
+      errorCode: classifyHostRuntimeError(error),
+      diagnostic: safeDiagnostic(error),
+    });
+  }
+
   private async stopInternal(): Promise<HostRuntimeStatus> {
+    this.stopHealthMonitor();
     this.update({ state: 'STOPPING', errorCode: undefined, diagnostic: undefined });
     let firstError: unknown;
-    try {
-      await this.options.stopAdvertisement?.();
-    } catch (error) {
-      firstError = error;
-    }
+    this.detachHelperListener();
     try {
       await this.helper?.stop();
     } catch (error) {
-      firstError ??= error;
+      firstError = error;
     }
     this.helper = undefined;
     try {
@@ -320,6 +471,7 @@ export class HostRuntimeController {
     } catch (error) {
       firstError ??= error;
     }
+    this.databaseUrl = undefined;
     if (firstError) {
       this.update({
         state: 'FAILED',
@@ -328,6 +480,7 @@ export class HostRuntimeController {
       });
       throw firstError instanceof Error ? firstError : new Error(errorText(firstError));
     }
+    this.recoveryAttemptsUsed = 0;
     this.update({
       state: 'IDLE',
       gamePort: null,
@@ -335,6 +488,7 @@ export class HostRuntimeController {
       lanAvailable: false,
       interfaces: [],
       advertisedEndpoints: [],
+      selectedLanUrl: null,
     });
     return this.status;
   }

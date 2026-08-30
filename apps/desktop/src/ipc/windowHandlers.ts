@@ -12,8 +12,6 @@ import {
   type HostRuntimeStatus,
   type HostStartOptions,
 } from '../hostRuntime';
-import { LANDiscoveryController } from '../lanDiscovery';
-import { resolveNetworkInterfaces } from '../networkInterfaces';
 
 const QUIT_RESPONSE_TIMEOUT_MS = 2_000;
 
@@ -133,7 +131,6 @@ function getRuntimeConfigResult(): DesktopRuntimeConfigResult {
 
 export interface DesktopIpcServices {
   hostRuntime: HostRuntimeController;
-  discovery: LANDiscoveryController;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -142,24 +139,36 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseHostStartOptions(value: unknown): HostStartOptions {
   if (value === undefined) return {};
-  if (!isRecord(value) || Object.keys(value).some(key => key !== 'port')) {
+  if (!isRecord(value) || Object.keys(value).some(
+    key => key !== 'port' && key !== 'preferredAddress',
+  )) {
     throw new Error('Invalid host start request.');
   }
   const port = value.port;
   if (port !== undefined
-    && (typeof port !== 'number' || !Number.isSafeInteger(port) || port < 1 || port > 65_535)) {
+    && (typeof port !== 'number' || !Number.isSafeInteger(port) || port < 0 || port > 65_535)) {
     throw new Error('Invalid host game port.');
   }
-  return port === undefined ? {} : { port };
+  const preferredAddress = value.preferredAddress;
+  if (preferredAddress !== undefined
+    && (typeof preferredAddress !== 'string'
+      || !/^\d{1,3}(?:\.\d{1,3}){3}$/u.test(preferredAddress))) {
+    throw new Error('Invalid preferred LAN address.');
+  }
+  return {
+    ...(port === undefined ? {} : { port }),
+    ...(preferredAddress === undefined ? {} : { preferredAddress }),
+  };
 }
 
-function parseAdvertisingOptions(value: unknown): { roomCode: string } {
-  if (!isRecord(value) || Object.keys(value).some(key => key !== 'roomCode')
-    || typeof value.roomCode !== 'string'
-    || !/^[A-Z0-9-]{1,20}$/u.test(value.roomCode.trim().toUpperCase())) {
-    throw new Error('Invalid LAN advertisement request.');
+function parseNetworkRefresh(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value) || Object.keys(value).some(key => key !== 'preferredAddress')
+    || typeof value.preferredAddress !== 'string'
+    || !/^\d{1,3}(?:\.\d{1,3}){3}$/u.test(value.preferredAddress)) {
+    throw new Error('Invalid network refresh request.');
   }
-  return { roomCode: value.roomCode.trim().toUpperCase() };
+  return value.preferredAddress;
 }
 
 export function registerWindowHandlers(
@@ -194,7 +203,6 @@ export function registerWindowHandlers(
   });
 
   let removeHostStatusListener: (() => void) | undefined;
-  let removeGamesListener: (() => void) | undefined;
   if (services) {
     ipcMain.handle(IPC_CHANNELS.hostGetStatus, event => {
       if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
@@ -217,50 +225,12 @@ export function registerWindowHandlers(
         return { ok: false, status: services.hostRuntime.status };
       }
     });
-    ipcMain.handle(IPC_CHANNELS.lanGetInterfaces, event => {
+    ipcMain.handle(IPC_CHANNELS.hostRefreshNetwork, (event, value: unknown) => {
       if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
-      return resolveNetworkInterfaces();
-    });
-    ipcMain.handle(IPC_CHANNELS.discoveryStartBrowsing, async event => {
-      if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
-      try {
-        await services.discovery.startBrowsing();
-        return { ok: true };
-      } catch {
-        return { ok: false, code: 'FAILED' };
-      }
-    });
-    ipcMain.handle(IPC_CHANNELS.discoveryStopBrowsing, async event => {
-      if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
-      await services.discovery.stopBrowsing();
-    });
-    ipcMain.handle(IPC_CHANNELS.discoveryGetGames, event => {
-      if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
-      return services.discovery.getGames();
-    });
-    ipcMain.handle(IPC_CHANNELS.discoveryStartAdvertising, (event, value: unknown) => {
-      if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
-      const options = parseAdvertisingOptions(value);
-      const port = services.hostRuntime.gamePort;
-      if (port === null) return { ok: false, code: 'FAILED' };
-      return Promise.resolve()
-        .then(() => services.discovery.startAdvertising({ roomCode: options.roomCode, port }))
-        .then(() => {
-          services.hostRuntime.setHosting(true);
-          return { ok: true as const };
-        })
-        .catch(() => ({ ok: false as const, code: 'FAILED' as const }));
-    });
-    ipcMain.handle(IPC_CHANNELS.discoveryStopAdvertising, async event => {
-      if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
-      await services.discovery.stopAdvertising();
-      services.hostRuntime.setHosting(false);
+      return services.hostRuntime.refreshNetwork(parseNetworkRefresh(value));
     });
     removeHostStatusListener = services.hostRuntime.onStatusChanged((status: HostRuntimeStatus) => {
       if (!window.isDestroyed()) window.webContents.send(IPC_CHANNELS.hostStatusChanged, status);
-    });
-    removeGamesListener = services.discovery.onGamesChanged(games => {
-      if (!window.isDestroyed()) window.webContents.send(IPC_CHANNELS.discoveryGamesChanged, games);
     });
   }
 
@@ -276,7 +246,6 @@ export function registerWindowHandlers(
   window.on('closed', () => {
     quitController.dispose();
     removeHostStatusListener?.();
-    removeGamesListener?.();
     ipcMain.removeHandler(IPC_CHANNELS.runtimeConfig);
     ipcMain.removeHandler(IPC_CHANNELS.windowGetState);
     ipcMain.removeHandler(IPC_CHANNELS.windowSetFullscreen);
@@ -285,12 +254,7 @@ export function registerWindowHandlers(
     ipcMain.removeHandler(IPC_CHANNELS.hostGetStatus);
     ipcMain.removeHandler(IPC_CHANNELS.hostStart);
     ipcMain.removeHandler(IPC_CHANNELS.hostStop);
-    ipcMain.removeHandler(IPC_CHANNELS.lanGetInterfaces);
-    ipcMain.removeHandler(IPC_CHANNELS.discoveryStartBrowsing);
-    ipcMain.removeHandler(IPC_CHANNELS.discoveryStopBrowsing);
-    ipcMain.removeHandler(IPC_CHANNELS.discoveryGetGames);
-    ipcMain.removeHandler(IPC_CHANNELS.discoveryStartAdvertising);
-    ipcMain.removeHandler(IPC_CHANNELS.discoveryStopAdvertising);
+    ipcMain.removeHandler(IPC_CHANNELS.hostRefreshNetwork);
     ipcMain.removeAllListeners(IPC_CHANNELS.quitResponse);
   });
 }

@@ -5,6 +5,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const desktopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const operation = process.argv[2] ?? '--phase7-runtime-proof';
+if (!['--launch', '--phase7-runtime-proof', '--phase7-2-host-proof'].includes(operation)) {
+  throw new Error(`Unsupported packaged operation: ${operation}`);
+}
 const outRoot = path.join(desktopRoot, 'out');
 const packageEntries = await readdir(outRoot, { withFileTypes: true });
 const platformToken = process.platform === 'win32' ? 'win32-' : 'darwin-';
@@ -26,7 +30,7 @@ const executable = executableCandidates.find(candidate => {
 });
 if (!executable) throw new Error(`Packaged Own the Block executable was not found under ${packageRoot}`);
 
-const child = spawn(executable, ['--phase7-runtime-proof'], {
+const child = spawn(executable, operation === '--launch' ? [] : [operation], {
   cwd: packageRoot,
   stdio: 'inherit',
   windowsHide: true,

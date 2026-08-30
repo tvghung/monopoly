@@ -35,7 +35,7 @@ import type {
 } from './persistence/types.js';
 import { assertSupportedRoomSnapshot, type RoomSnapshot } from './rooms.js';
 import { createAppRuntime, type AppRuntime } from './services/runtime.js';
-import { registerSocketHandlers } from './socket/index.js';
+import { canCreateRoomForPeer, registerSocketHandlers } from './socket/index.js';
 
 type TestSocket = ClientSocket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -93,7 +93,7 @@ async function startServer(
 ): Promise<RunningServer> {
   const runtime = createAppRuntime(persistence, TEST_TIMING);
   const { server, io } = createServer(runtime);
-  registerSocketHandlers(io, runtime);
+  registerSocketHandlers(io, runtime, 'development');
 
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
@@ -377,6 +377,23 @@ describe('Socket.IO durable player lifecycle', () => {
       ],
     });
     expect(JSON.stringify(resumed.room)).not.toContain(join.token);
+  });
+
+  it('lets only the desktop loopback host create an unused room code', async () => {
+    expect(canCreateRoomForPeer('desktop', '127.0.0.1')).toBe(true);
+    expect(canCreateRoomForPeer('desktop', '::ffff:127.0.0.1')).toBe(true);
+    expect(canCreateRoomForPeer('desktop', '192.168.1.20')).toBe(false);
+    expect(canCreateRoomForPeer('cloud', '192.168.1.20')).toBe(true);
+
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const runtime = createAppRuntime(persistence, TEST_TIMING);
+    await expect(runtime.sessions.beginAdmission(
+      'Guest',
+      'MISSING-ROOM',
+      new Date(),
+      false,
+    )).rejects.toMatchObject({ code: 'NOT_FOUND', retryable: false });
+    expect(await persistence.rooms.findByCode('MISSING-ROOM')).toBeNull();
   });
 
   it('rejects an unknown reconnect credential without creating or binding a seat', async () => {

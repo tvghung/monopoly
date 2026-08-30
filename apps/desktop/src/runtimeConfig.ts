@@ -7,7 +7,6 @@ const SOCKET_URL_ARGUMENT_PREFIX = '--socket-url=';
 export const RELEASE_CONFIG_FILE_NAME = 'release-config.json';
 
 export type DesktopRuntimeConfigErrorCode =
-  | 'PACKAGED_SOCKET_URL_MISSING'
   | 'SOCKET_URL_INVALID';
 
 export class DesktopRuntimeConfigError extends Error {
@@ -35,7 +34,7 @@ export interface DesktopReleaseConfig {
 
 export interface DesktopRuntimeConfig {
   target: 'desktop';
-  socketUrl: string;
+  socketUrl?: string;
   platform: 'win32' | 'darwin' | 'linux';
   appVersion: string;
 }
@@ -106,7 +105,7 @@ export function resolveSocketUrl({
   argv = process.argv,
   env = process.env,
   packagedConfig,
-}: DesktopSocketUrlOptions): string {
+}: DesktopSocketUrlOptions): string | undefined {
   const argument = argv.find(value => value.startsWith(SOCKET_URL_ARGUMENT_PREFIX));
   const configured = argument !== undefined
     ? argument.slice(SOCKET_URL_ARGUMENT_PREFIX.length).trim()
@@ -114,13 +113,7 @@ export function resolveSocketUrl({
       ?? packagedConfig?.socketUrl;
 
   if (configured === undefined) {
-    if (isPackaged) {
-      throw new DesktopRuntimeConfigError(
-        'PACKAGED_SOCKET_URL_MISSING',
-        'Packaged desktop requires an explicitly supplied socket endpoint.',
-      );
-    }
-    return LOOPBACK_SOCKET_URL;
+    return isPackaged ? undefined : LOOPBACK_SOCKET_URL;
   }
 
   return normalizeSocketUrl(configured);

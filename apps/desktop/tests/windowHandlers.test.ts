@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { HostRuntimeStatus } from '../src/hostRuntime';
+
 type IpcHandler = (event: { sender: object }, ...args: unknown[]) => unknown;
 
 const harness = vi.hoisted(() => ({
@@ -31,8 +33,6 @@ vi.mock('../src/runtimeConfig', async importOriginal => ({
 import { IPC_CHANNELS } from '../src/ipc/channels';
 import { QuitRequestController, registerWindowHandlers } from '../src/ipc/windowHandlers';
 import { DesktopRuntimeConfigError } from '../src/runtimeConfig';
-import type { HostRuntimeStatus } from '../src/hostRuntime';
-import type { DiscoveredLanGame } from '../src/lanDiscovery';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -41,253 +41,144 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('runtime config IPC lifecycle', () => {
-  function registerRuntimeConfigHandler() {
-    const webContents = { send: vi.fn() };
-    const window = {
-      webContents,
-      close: vi.fn(),
-      isDestroyed: () => false,
-      isFullScreen: () => false,
-      isMaximized: () => false,
-      isResizable: () => true,
-      setFullScreen: vi.fn(),
-      on: vi.fn(),
+function createWindow() {
+  const fullscreenHandlers = new Map<string, () => void>();
+  let fullscreen = false;
+  const webContents = { send: vi.fn() };
+  const window = {
+    webContents,
+    close: vi.fn(),
+    isDestroyed: () => false,
+    isFullScreen: () => fullscreen,
+    isMaximized: () => false,
+    isResizable: () => true,
+    setFullScreen: vi.fn(),
+    on: vi.fn((event: string, handler: () => void) => {
+      fullscreenHandlers.set(event, handler);
+    }),
+  };
+  return {
+    fullscreenHandlers,
+    setFullscreen: (value: boolean) => { fullscreen = value; },
+    webContents,
+    window,
+  };
+}
+
+function registerRuntimeConfigHandler() {
+  const fixture = createWindow();
+  registerWindowHandlers(
+    fixture.window as never,
+    false,
+    new QuitRequestController(fixture.window as never),
+  );
+  return {
+    ...fixture,
+    handler: harness.handlers.get(IPC_CHANNELS.runtimeConfig)!,
+  };
+}
+
+describe('desktop IPC lifecycle', () => {
+  it('returns packaged runtime configuration without requiring an external socket URL', () => {
+    const config = {
+      target: 'desktop' as const,
+      platform: 'win32' as const,
+      appVersion: '3.0.0',
     };
-    const quitController = new QuitRequestController(window as never);
+    harness.getDesktopRuntimeConfig.mockReturnValue(config);
+    const { handler, webContents } = registerRuntimeConfigHandler();
 
-    registerWindowHandlers(window as never, false, quitController);
-
-    const runtimeConfigHandler = harness.handlers.get(IPC_CHANNELS.runtimeConfig);
-    expect(runtimeConfigHandler).toBeDefined();
-    return { runtimeConfigHandler: runtimeConfigHandler!, webContents, window };
-  }
-
-  it('returns a structured failure for a missing packaged endpoint', async () => {
-    const error = new DesktopRuntimeConfigError(
-      'PACKAGED_SOCKET_URL_MISSING',
-      'secret main-process endpoint detail',
-    );
-    harness.getDesktopRuntimeConfig.mockImplementation(() => { throw error; });
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const { runtimeConfigHandler, window, webContents } = registerRuntimeConfigHandler();
-
-    expect(runtimeConfigHandler({ sender: webContents })).toEqual({
-      ok: false,
-      code: 'PACKAGED_SOCKET_URL_MISSING',
-    });
-    expect(consoleError).toHaveBeenCalledWith(
-      'Desktop runtime configuration is unavailable.',
-      error,
-    );
-    expect(window.close).not.toHaveBeenCalled();
+    expect(handler({ sender: webContents })).toEqual({ ok: true, config });
   });
 
-  it('returns a structured failure for an invalid endpoint', async () => {
+  it('returns a structured failure for an invalid configured endpoint', () => {
     harness.getDesktopRuntimeConfig.mockImplementation(() => {
-      throw new DesktopRuntimeConfigError('SOCKET_URL_INVALID', 'secret invalid endpoint detail');
+      throw new DesktopRuntimeConfigError('SOCKET_URL_INVALID', 'secret endpoint detail');
     });
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    const { runtimeConfigHandler, webContents } = registerRuntimeConfigHandler();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { handler, webContents } = registerRuntimeConfigHandler();
 
-    expect(runtimeConfigHandler({ sender: webContents })).toEqual({
+    expect(handler({ sender: webContents })).toEqual({
       ok: false,
       code: 'SOCKET_URL_INVALID',
     });
   });
 
-  it('returns a structured success for a valid endpoint', async () => {
-    const config = {
-      target: 'desktop' as const,
-      socketUrl: 'https://play.example.test',
-      platform: 'win32' as const,
-      appVersion: '1.0.0',
-    };
-    harness.getDesktopRuntimeConfig.mockReturnValue(config);
-    const { runtimeConfigHandler, webContents } = registerRuntimeConfigHandler();
-
-    expect(runtimeConfigHandler({ sender: webContents })).toEqual({
-      ok: true,
-      config,
+  it('reports the settled fullscreen state after Electron transitions', () => {
+    vi.useFakeTimers();
+    harness.getDesktopRuntimeConfig.mockReturnValue({
+      target: 'desktop',
+      platform: 'win32',
+      appVersion: '3.0.0',
     });
-  });
+    const fixture = registerRuntimeConfigHandler();
+    fixture.setFullscreen(true);
+    fixture.fullscreenHandlers.get('enter-full-screen')?.();
 
-  it('rethrows unexpected main-process errors for generic renderer handling', async () => {
-    const error = new Error('secret unexpected main-process detail');
-    harness.getDesktopRuntimeConfig.mockImplementation(() => { throw error; });
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const { runtimeConfigHandler, webContents } = registerRuntimeConfigHandler();
-
-    await expect(Promise.resolve().then(() => runtimeConfigHandler({ sender: webContents })))
-      .rejects.toBe(error);
-    expect(consoleError).toHaveBeenCalledWith(
-      'Desktop runtime configuration is unavailable.',
-      error,
+    expect(fixture.webContents.send).not.toHaveBeenCalled();
+    vi.runAllTimers();
+    expect(fixture.webContents.send).toHaveBeenCalledWith(
+      IPC_CHANNELS.windowFullscreenChanged,
+      { fullscreen: true, maximized: false, resizable: true },
     );
   });
 
-  it('reports the settled fullscreen state after an Electron transition', () => {
-    vi.useFakeTimers();
-    const webContents = { send: vi.fn() };
-    const fullscreenHandlers = new Map<string, () => void>();
-    let fullscreen = false;
-    const window = {
-      webContents,
-      close: vi.fn(),
-      isDestroyed: () => false,
-      isFullScreen: () => fullscreen,
-      isMaximized: () => false,
-      isResizable: () => true,
-      setFullScreen: vi.fn(),
-      on: vi.fn((event: string, handler: () => void) => {
-        fullscreenHandlers.set(event, handler);
-      }),
-    };
-    const quitController = new QuitRequestController(window as never);
-
-    registerWindowHandlers(window as never, false, quitController);
-    fullscreen = true;
-    fullscreenHandlers.get('enter-full-screen')?.();
-
-    expect(webContents.send).not.toHaveBeenCalled();
-    vi.runAllTimers();
-
-    expect(webContents.send).toHaveBeenCalledWith(IPC_CHANNELS.windowFullscreenChanged, {
-      fullscreen: true,
-      maximized: false,
-      resizable: true,
-    });
-  });
-
-  it('validates LAN payloads and keeps discovery data scoped to the renderer', async () => {
-    const webContents = { send: vi.fn() };
-    const window = {
-      webContents,
-      close: vi.fn(),
-      isDestroyed: () => false,
-      isFullScreen: () => false,
-      isMaximized: () => false,
-      isResizable: () => true,
-      setFullScreen: vi.fn(),
-      on: vi.fn(),
-    };
+  it('validates host start and network refresh requests at the IPC boundary', async () => {
+    const fixture = createWindow();
     const status: HostRuntimeStatus = {
-      state: 'READY',
+      state: 'HOSTING',
       platform: 'win32',
       appVersion: '3.0.0',
       gamePort: 43_123,
       localEndpoint: 'http://127.0.0.1:43123',
       lanAvailable: true,
       interfaces: [],
-      advertisedEndpoints: [],
+      advertisedEndpoints: ['http://192.168.1.15:43123'],
+      selectedLanUrl: 'http://192.168.1.15:43123',
     };
     const hostRuntime = {
       status,
-      gamePort: 43_123,
       start: vi.fn(async () => status),
       stop: vi.fn(async () => status),
-      setHosting: vi.fn(),
+      refreshNetwork: vi.fn(() => status),
       onStatusChanged: vi.fn(() => () => undefined),
     };
-    const games: DiscoveredLanGame[] = [];
-    const discovery = {
-      startBrowsing: vi.fn(async () => undefined),
-      stopBrowsing: vi.fn(async () => undefined),
-      getGames: vi.fn(() => games),
-      startAdvertising: vi.fn(async () => undefined),
-      stopAdvertising: vi.fn(async () => undefined),
-      onGamesChanged: vi.fn(() => () => undefined),
-    };
-    const quitController = new QuitRequestController(window as never);
-    registerWindowHandlers(window as never, false, quitController, {
-      hostRuntime: hostRuntime as never,
-      discovery: discovery as never,
-    });
+    registerWindowHandlers(
+      fixture.window as never,
+      false,
+      new QuitRequestController(fixture.window as never),
+      { hostRuntime: hostRuntime as never },
+    );
+    const start = harness.handlers.get(IPC_CHANNELS.hostStart)!;
+    const refresh = harness.handlers.get(IPC_CHANNELS.hostRefreshNetwork)!;
 
-    const hostStart = harness.handlers.get(IPC_CHANNELS.hostStart)!;
-    const discoveryStart = harness.handlers.get(IPC_CHANNELS.discoveryStartAdvertising)!;
-    await expect(Promise.resolve().then(() => hostStart({ sender: webContents }, { port: 0 })))
-      .rejects.toThrow('Invalid host game port');
-    await expect(Promise.resolve().then(() => discoveryStart(
-      { sender: webContents },
-      { roomCode: 'LAN-1234', token: 'secret' },
-    ))).rejects.toThrow('Invalid LAN advertisement request');
-    expect(hostRuntime.start).not.toHaveBeenCalled();
-    expect(discovery.startAdvertising).not.toHaveBeenCalled();
-    await expect(Promise.resolve().then(() => hostStart({ sender: {} }, {})))
+    await expect(start(
+      { sender: fixture.webContents },
+      { port: 0, preferredAddress: '192.168.1.15' },
+    )).resolves.toEqual({ ok: true, status });
+    expect(hostRuntime.start).toHaveBeenCalledWith({
+      port: 0,
+      preferredAddress: '192.168.1.15',
+    });
+    expect(refresh(
+      { sender: fixture.webContents },
+      { preferredAddress: '100.64.0.4' },
+    )).toEqual(status);
+    expect(hostRuntime.refreshNetwork).toHaveBeenCalledWith('100.64.0.4');
+
+    await expect(Promise.resolve().then(() => start(
+      { sender: fixture.webContents },
+      { port: -1 },
+    ))).rejects.toThrow('Invalid host game port');
+    await expect(Promise.resolve().then(() => start(
+      { sender: fixture.webContents },
+      { environment: 'production' },
+    ))).rejects.toThrow('Invalid host start request');
+    await expect(Promise.resolve().then(() => refresh(
+      { sender: fixture.webContents },
+      { preferredAddress: '192.168.1.15', extra: true },
+    ))).rejects.toThrow('Invalid network refresh request');
+    await expect(Promise.resolve().then(() => start({ sender: {} }, {})))
       .rejects.toThrow('Invalid IPC sender');
-  });
-
-  it('marks hosting only after LAN advertising succeeds', async () => {
-    const webContents = { send: vi.fn() };
-    const window = {
-      webContents,
-      close: vi.fn(),
-      isDestroyed: () => false,
-      isFullScreen: () => false,
-      isMaximized: () => false,
-      isResizable: () => true,
-      setFullScreen: vi.fn(),
-      on: vi.fn(),
-    };
-    const events: string[] = [];
-    const hostRuntime = {
-      gamePort: 43_123,
-      setHosting: vi.fn(() => { events.push('hosting'); }),
-      onStatusChanged: vi.fn(() => () => undefined),
-    };
-    const discovery = {
-      startAdvertising: vi.fn(async () => {
-        events.push('advertising');
-        throw new Error('broadcast unavailable');
-      }),
-      onGamesChanged: vi.fn(() => () => undefined),
-    };
-    const quitController = new QuitRequestController(window as never);
-    registerWindowHandlers(window as never, false, quitController, {
-      hostRuntime: hostRuntime as never,
-      discovery: discovery as never,
-    });
-
-    const discoveryStart = harness.handlers.get(IPC_CHANNELS.discoveryStartAdvertising)!;
-    await expect(Promise.resolve(discoveryStart({ sender: webContents }, { roomCode: 'LAN-1234' })))
-      .resolves.toEqual({ ok: false, code: 'FAILED' });
-    expect(events).toEqual(['advertising']);
-    expect(hostRuntime.setHosting).not.toHaveBeenCalled();
-  });
-
-  it('marks hosting after a successful LAN advertisement', async () => {
-    const webContents = { send: vi.fn() };
-    const window = {
-      webContents,
-      close: vi.fn(),
-      isDestroyed: () => false,
-      isFullScreen: () => false,
-      isMaximized: () => false,
-      isResizable: () => true,
-      setFullScreen: vi.fn(),
-      on: vi.fn(),
-    };
-    const events: string[] = [];
-    const hostRuntime = {
-      gamePort: 43_123,
-      setHosting: vi.fn(() => { events.push('hosting'); }),
-      onStatusChanged: vi.fn(() => () => undefined),
-    };
-    const discovery = {
-      startAdvertising: vi.fn(async () => { events.push('advertising'); }),
-      onGamesChanged: vi.fn(() => () => undefined),
-    };
-    const quitController = new QuitRequestController(window as never);
-    registerWindowHandlers(window as never, false, quitController, {
-      hostRuntime: hostRuntime as never,
-      discovery: discovery as never,
-    });
-
-    const discoveryStart = harness.handlers.get(IPC_CHANNELS.discoveryStartAdvertising)!;
-    await expect(Promise.resolve(discoveryStart({ sender: webContents }, { roomCode: 'LAN-1234' })))
-      .resolves.toEqual({ ok: true });
-    expect(events).toEqual(['advertising', 'hosting']);
-    expect(hostRuntime.setHosting).toHaveBeenCalledOnce();
   });
 });

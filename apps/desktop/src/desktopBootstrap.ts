@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol } from 'electron';
+import { app, BrowserWindow, powerMonitor, protocol } from 'electron';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { installExternalNavigationGuards } from './ipc/externalLinks';
@@ -7,14 +7,12 @@ import { shouldBlockProductionInput } from './productionPolicy';
 import { contentType } from './rendererContentType';
 import { resolveRendererPath } from './security';
 import { HostRuntimeController } from './hostRuntime';
-import { LANDiscoveryController } from './lanDiscovery';
 import { AppQuitCoordinator } from './appQuitCoordinator';
 
 const DEV_RENDERER_URL = process.env.OWN_THE_BLOCK_DEV_RENDERER_URL?.trim()
   || 'http://127.0.0.1:5173';
 
 let hostRuntime: HostRuntimeController | undefined;
-let discovery: LANDiscoveryController | undefined;
 let quitController: QuitRequestController | undefined;
 
 function createHostServices(): void {
@@ -23,27 +21,20 @@ function createHostServices(): void {
   const targetKey = `${process.platform}-${process.arch}`;
   const postgresRoot = path.join(resourcesRoot, 'postgres', targetKey);
   const helperRoot = path.join(resourcesRoot, 'server-helper');
-  discovery = new LANDiscoveryController({ appVersion: app.getVersion() });
   hostRuntime = new HostRuntimeController({
     resourceRoot: postgresRoot,
     helperPath: path.join(helperRoot, 'server-helper.cjs'),
     migrationDirectory: path.join(helperRoot, 'migrations'),
+    clientDist: rendererRoot(),
     userDataPath: app.getPath('userData'),
     appVersion: app.getVersion(),
-    stopAdvertisement: () => discovery?.stopAdvertising(),
   });
 }
 
 async function stopRuntime(): Promise<void> {
-  const needsStop = hostRuntime?.status.state !== 'IDLE'
-    || discovery?.status.browsing
-    || discovery?.status.advertising;
+  const needsStop = hostRuntime?.status.state !== 'IDLE';
   if (!needsStop) return;
-  try {
-    await hostRuntime?.stop();
-  } finally {
-    await discovery?.dispose();
-  }
+  await hostRuntime?.stop();
 }
 
 function installRuntimeShutdown(): void {
@@ -115,7 +106,7 @@ function createWindow(): BrowserWindow {
     window,
     development,
     windowQuitController,
-    hostRuntime && discovery ? { hostRuntime, discovery } : undefined,
+    hostRuntime ? { hostRuntime } : undefined,
   );
   installExternalNavigationGuards(window, development);
 
@@ -152,25 +143,25 @@ export function startDesktopRuntime(): void {
         });
       return;
     }
-    if (process.argv.includes('--phase7-1-lan-proof')) {
-      void import('./phase71LanProof.js')
-        .then(({ runPhase71LanProof }) => runPhase71LanProof())
+    if (process.argv.includes('--phase7-2-host-proof')) {
+      void import('./phase72HostProof.js')
+        .then(({ runPhase72HostProof }) => runPhase72HostProof())
         .then(result => {
-          console.log(
-            `Phase 7.1 packaged LAN core proof core=${result.coreStatus}`
-            + ` lanHttp=${result.lanHttp} discovery=${result.discovery}`
-            + ` physicalLanAcceptance=${result.physicalLanAcceptance}`
-            + ` ${JSON.stringify(result)}`,
-          );
+          console.log(`Phase 7.2 packaged Host proof PASS ${JSON.stringify(result)}`);
           app.exit(0);
         })
         .catch(error => {
-          console.error('Phase 7.1 packaged LAN proof failed.', error);
+          console.error('Phase 7.2 packaged Host proof failed.', error);
           app.exit(1);
         });
       return;
     }
     createHostServices();
+    powerMonitor.on('resume', () => {
+      void hostRuntime?.verifyAndRecover().catch(error => {
+        console.error('Desktop host recovery after resume failed.', error);
+      });
+    });
     if (app.isPackaged) registerProductionRenderer();
     createWindow();
     app.on('activate', () => {

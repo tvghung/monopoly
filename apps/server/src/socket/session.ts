@@ -46,6 +46,7 @@ export function registerSessionHandlers(
   io: AppServer,
   socket: AppSocket,
   runtime: AppRuntime,
+  allowRoomCreation: boolean,
 ): void {
   const admissionAttempts = peerAdmissionAttempts(runtime, socket);
 
@@ -80,7 +81,12 @@ export function registerSessionHandlers(
       socket.data.pendingAdmission = true;
       ownsAdmissionLock = true;
       const request = parsePayload(joinRoomRequestSchema, rawRequest);
-      const admission = await runtime.sessions.beginAdmission(request.name, request.roomCode);
+      const admission = await runtime.sessions.beginAdmission(
+        request.name,
+        request.roomCode,
+        new Date(),
+        allowRoomCreation,
+      );
       if (admission.kind === 'PENDING') {
         ownsAdmissionLock = false;
         const result: JoinRoomResult = {

@@ -1,4 +1,5 @@
 import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
+import type { ServerRuntimeProfile } from '../config';
 import type { AppRuntime } from '../services/runtime';
 import { registerBuildingHandlers } from './building';
 import { registerCardHandlers } from './card';
@@ -12,7 +13,20 @@ import { registerTurnHandlers } from './turn';
 import { installInboundValidation } from './validation';
 import type { AppServer } from './types';
 
-export function registerSocketHandlers(io: AppServer, runtime: AppRuntime): void {
+export function canCreateRoomForPeer(
+  runtimeProfile: ServerRuntimeProfile,
+  address: string,
+): boolean {
+  if (runtimeProfile !== 'desktop') return true;
+  const normalized = address.startsWith('::ffff:') ? address.slice(7) : address;
+  return normalized === '::1' || normalized.startsWith('127.');
+}
+
+export function registerSocketHandlers(
+  io: AppServer,
+  runtime: AppRuntime,
+  runtimeProfile: ServerRuntimeProfile,
+): void {
   io.use((socket, next) => {
     if (socket.handshake.auth.protocolVersion !== SOCKET_PROTOCOL_VERSION) {
       const message = 'Client protocol version is no longer supported.';
@@ -28,7 +42,12 @@ export function registerSocketHandlers(io: AppServer, runtime: AppRuntime): void
 
   io.on('connection', (socket) => {
     installInboundValidation(socket);
-    registerSessionHandlers(io, socket, runtime);
+    registerSessionHandlers(
+      io,
+      socket,
+      runtime,
+      canCreateRoomForPeer(runtimeProfile, socket.handshake.address),
+    );
     registerLobbyHandlers(io, socket, runtime);
     registerTurnHandlers(io, socket, runtime);
     registerChatHandlers(io, socket, runtime);

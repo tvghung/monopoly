@@ -7,7 +7,6 @@ export interface NetworkInterfaceCandidate {
   displayName: string;
   address: string;
   netmask: string;
-  broadcast: string;
   preference: NetworkInterfacePreference;
   rank: number;
 }
@@ -21,22 +20,12 @@ function ipv4Parts(value: string): number[] | undefined {
     : undefined;
 }
 
-export function isPrivateIPv4(value: unknown): value is string {
+export function isUsableLanIPv4(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   const parts = ipv4Parts(value);
   if (!parts) return false;
   const [first, second] = parts;
-  if (first === 10 || first === 192 && second === 168) return true;
-  return first === 172 && second >= 16 && second <= 31;
-}
-
-function broadcastAddress(address: string, netmask: string): string {
-  const addressParts = ipv4Parts(address);
-  const maskParts = ipv4Parts(netmask);
-  if (!addressParts || !maskParts) return address;
-  return addressParts.map((part, index) => (
-    String((part & maskParts[index]) | (255 ^ maskParts[index]))
-  )).join('.');
+  return value !== '0.0.0.0' && first !== 127 && !(first === 169 && second === 254);
 }
 
 function interfaceRank(name: string): number {
@@ -64,14 +53,13 @@ export function resolveNetworkInterfaces(
     for (const entry of entries) {
       const family = (entry as unknown as { family: string | number }).family;
       if (family !== 'IPv4' && family !== 4) continue;
-      if (entry.internal || !isPrivateIPv4(entry.address)) continue;
+      if (entry.internal || !isUsableLanIPv4(entry.address)) continue;
       const rank = interfaceRank(name);
       candidates.push({
         name,
         displayName: displayName(name, rank),
         address: entry.address,
         netmask: entry.netmask,
-        broadcast: broadcastAddress(entry.address, entry.netmask),
         preference: rank <= 1 ? 'preferred' : 'fallback',
         rank,
       });
@@ -93,5 +81,8 @@ export function advertisedEndpoints(
   candidates: readonly NetworkInterfaceCandidate[],
   port: number,
 ): string[] {
+  if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) {
+    throw new Error('Game port must be between 1 and 65535');
+  }
   return [...new Set(candidates.map(candidate => `http://${candidate.address}:${String(port)}`))];
 }

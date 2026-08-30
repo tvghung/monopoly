@@ -62,6 +62,7 @@ export class PlayerSessionService {
     rawName: string,
     rawRoomCode: string,
     now = new Date(),
+    allowRoomCreation = true,
   ): Promise<BeginAdmissionResult> {
     const roomCode = normalizeRoomId(rawRoomCode);
     const name = sanitizeName(rawName) || 'Người chơi';
@@ -79,6 +80,8 @@ export class PlayerSessionService {
             `The lobby already has ${MAX_PLAYERS} active players.`,
           );
         }
+      } else if (!allowRoomCreation) {
+        throw new CommandError('NOT_FOUND', 'Room code was not found on this host.');
       }
 
       await transaction.playerSessions.createPending({
