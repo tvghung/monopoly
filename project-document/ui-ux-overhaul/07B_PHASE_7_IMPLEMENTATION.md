@@ -6,12 +6,12 @@
 did not preserve the existing PostgreSQL multi-connection transaction
 contract.
 
-**7.0B corrective gate: PASS on Windows; NOT RUN on macOS; overall Phase 7.0
-BLOCKED.** A managed native PostgreSQL 17.11 runtime and packaged Electron
-`utilityProcess.fork()` server helper were implemented and proved on Windows.
-The macOS package and native runtime were not executed in this workspace.
-Phase 7.1–7.4 was not started. The corrective work does not change gameplay,
-protocol V8, GameCore, migrations, persistence semantics, or client UI.
+**7.0B corrective gate: PASS on Windows and macOS; overall Phase 7.0 PASS.**
+A managed native PostgreSQL 17.11 runtime and packaged Electron
+`utilityProcess.fork()` server helper were implemented and proved on both
+required desktop targets. Phase 7.1–7.4 was not started. The corrective work
+does not change gameplay, protocol V8, GameCore, migrations, persistence
+semantics, or client UI.
 
 ## Candidate and test shape
 
@@ -131,18 +131,19 @@ the proof:
   environment state, never renderer state or command-line arguments.
 - The hidden `--phase7-runtime-proof` executes the packaged helper and native
   PostgreSQL, checks `/healthz` and `/readyz`, migrations 001–009, typed values,
-  CAS/rollback/session behavior, two independent `BEGIN` calls,
-  `FOR UPDATE`, `FOR UPDATE SKIP LOCKED`, shutdown, same-directory restart,
-  and retained JSONB data. It exits zero only when all checks pass.
+  sequential and concurrent same-room CAS, rollback/session behavior, two
+  independent `BEGIN` calls, `FOR UPDATE`, `FOR UPDATE SKIP LOCKED`, shutdown,
+  same-directory restart, deadline recovery after restart, and retained JSONB
+  data. It exits zero only when all checks pass.
 
 ### Corrective proof result
 
 | Gate | Status | Evidence boundary |
 | --- | --- | --- |
-| Managed PostgreSQL 17.11 | **PASS — Windows** | Official EDB archive, SHA-256 verification, loopback startup, migration/checksum and persistence contract checks, bounded shutdown, restart, and retained data. |
-| Packaged server helper | **PASS — Windows** | External bundled artifact, `utilityProcess.fork()`, private environment configuration, duplicate-start guard, health/readiness, graceful shutdown, restart, and sanitized diagnostics. |
-| macOS native/package proof | **NOT RUN / BLOCKED** | No macOS package or native execution was available in this Windows workspace. |
-| Overall Phase 7.0 | **BLOCKED** | Windows evidence is insufficient for the required cross-platform gate; Phase 7.1–7.4 remain not started. |
+| Managed PostgreSQL 17.11 | **PASS — Windows + macOS** | Official EDB archive, SHA-256 verification, loopback startup, migration/checksum and persistence contract checks, bounded shutdown, restart, and retained data on both `macos-latest` and `windows-latest`. |
+| Packaged server helper | **PASS — Windows + macOS** | External bundled artifact, `utilityProcess.fork()`, private environment configuration, duplicate-start guard, health/readiness, graceful shutdown, restart, and sanitized diagnostics on both targets. |
+| macOS native/package proof | **PASS** | Exact code-SHA Desktop Build job completed the distributable build, packaged Phase 7 runtime proof, and DMG artifact upload. |
+| Overall Phase 7.0 | **PASS** | Both required desktop packaged proofs passed; Phase 7.1–7.4 remain not started pending explicit approval. |
 
 ### Windows evidence captured
 
@@ -157,30 +158,37 @@ the proof:
 - `pnpm desktop:make` — **PASS** on Windows. Squirrel produced the ignored
   installer output under `apps/desktop/out/make/squirrel.windows/`.
 - `pnpm --filter @monopoly/desktop proof:packaged` — **PASS**, exit code `0`.
-  The final packaged run returned `platform=win32`, `architecture=x64`, and
-  passed PostgreSQL major-version, loopback binding, migrations/checksums,
+  The final local packaged run returned `platform=win32`, `architecture=x64`,
+  and passed PostgreSQL major-version, loopback binding, migrations/checksums,
   advisory lock, health/readiness, typed UUID/BYTEA/TIMESTAMPTZ, JSONB,
-  room/CAS/rollback, session digest/expiry/purge, two-client independent
-  `BEGIN`, `FOR UPDATE SKIP LOCKED`, duplicate-start, clean shutdown, same
-  data-directory restart, retained data, and private-URL checks.
+  room/CAS/rollback, concurrent same-room CAS one-winner/final-version/final-
+  marker checks, session digest/expiry/purge, two-client independent `BEGIN`,
+  `FOR UPDATE SKIP LOCKED`, duplicate-start, clean shutdown, same
+  data-directory restart, deadline recovery, retained data, and private-URL
+  checks.
 - Server-helper bundle syntax/export smoke, migration-resource smoke, helper
-  timeout/crash tests, and duplicate-start tests — **PASS**. The normal
-  workspace suite finished with desktop `48 passed`, server `153 passed / 10
-  skipped` (without `TEST_DATABASE_URL`), and client `499 passed`. The isolated
-  PostgreSQL integration files then finished with `48 passed` against managed
-  PostgreSQL 17 using Vitest's single-thread pool after the default Windows
-  worker-fork path emitted an unexpected-worker error.
+  timeout/crash tests, lifecycle cleanup tests, and duplicate-start tests —
+  **PASS**. The final workspace suite finished with desktop `51 passed`, server
+  `153 passed / 11 skipped`, and client `499 passed`; the skipped server tests
+  are the `TEST_DATABASE_URL`-gated PostgreSQL integration tests, which were not
+  claimed as local integration PASS without that variable.
 - `pnpm db:status`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`,
   and `git diff --check` — **PASS**. The database status showed migrations
-  `001` through `009` applied. No CI or Desktop Build run was created because
-  this branch was not pushed.
-- macOS package/native/runtime proof — **NOT RUN / BLOCKED**. No macOS runner
-  or executable was available in this workspace, so no cross-platform PASS is
-  claimed.
+  `001` through `009` applied.
+
+### Exact-SHA remote evidence
+
+The code commit under test is
+`0a9c0e474d679371cd51b90a861c3ee105a6ceec`.
+
+| Remote gate | Result | Evidence |
+| --- | --- | --- |
+| [CI run 33288649135](https://github.com/tvghung/monopoly/actions/runs/33288649135) | **PASS** | Checkout, migrations, typecheck, lint, full PostgreSQL-backed test suite, and build all completed successfully at the exact code SHA. |
+| [Desktop Build run 33288649087](https://github.com/tvghung/monopoly/actions/runs/33288649087) | **PASS** | `Desktop (windows-latest)` job `99196257689` and `Desktop (macos-latest)` job `99196257341` both completed the distributable build and packaged Phase 7 runtime proof successfully; Windows Squirrel and macOS DMG artifact uploads passed. |
 
 ## Current final decision
 
-Phase 7.0A is **REJECTED**. Phase 7.0B is **PASS on Windows / NOT RUN on
-macOS**, so the overall Phase 7.0 decision is **BLOCKED**. The loopback proof
-does not approve LAN host/join UX, QR/mobile flows, production endpoints, or
-release readiness. Phase 7.1–7.4 were **NOT STARTED**.
+Phase 7.0A is **REJECTED**. Phase 7.0B is **PASS on Windows and macOS**, so
+the overall Phase 7.0 decision is **PASS**. The loopback proof does not
+approve LAN host/join UX, QR/mobile flows, production endpoints, or release
+readiness. Phase 7.1–7.4 remain **NOT STARTED** pending explicit approval.

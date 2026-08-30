@@ -6,13 +6,12 @@
 
 **PHASE 7.0A PERSISTENCE CANDIDATE: REJECTED — PGlite Socket contract failure**
 
-**PHASE 7.0B CORRECTIVE PROOF: WINDOWS PASS; OVERALL BLOCKED — macOS NOT RUN**
+**PHASE 7.0B CORRECTIVE PROOF: WINDOWS + macOS PASS; OVERALL PHASE 7.0 PASS**
 
 The original 2026-08-29 PGlite Socket failure remains the 7.0A hard-gate
 record. The corrective 7.0B continuation proves managed native PostgreSQL 17.11
-and a packaged Electron `utilityProcess.fork()` server helper on Windows. The
-macOS target was not executed in this workspace, so the cross-platform 7.0
-gate remains BLOCKED. Phase 7.1–7.4 implementation did not start.
+and a packaged Electron `utilityProcess.fork()` server helper on both Windows
+and macOS. Phase 7.1–7.4 implementation did not start.
 
 This is the authoritative Phase 7 discovery and gate record. The original
 discovery sections below remain historical context; the 7.0B correction at the
@@ -649,8 +648,7 @@ also requires concurrency and recovery evidence.
   PostgreSQL, PGlite/PGlite Socket, and the helper process remain undecided.
 - **Exit gate:** exactly one persistence strategy and one server-helper strategy
   must be proven before Phase 7.1. 7.0B selected managed native PostgreSQL and
-  Electron `utilityProcess.fork()` for the Windows proof; the macOS proof remains
-  NOT RUN.
+  Electron `utilityProcess.fork()` and proved both on Windows and macOS.
 - **Risks:** platform binaries, AV/UAC, licensing, data-directory permissions,
   interrupted migration, dependency/resource layout, and installer/uninstaller
   behavior.
@@ -743,8 +741,7 @@ cross-device acceptance. Loopback, `InMemoryPersistenceStore`, and
 
 The next approval is only:
 
-1. Close the macOS 7.0B packaged proof with exact evidence before approving
-   Phase 7.1.
+1. Explicitly approve Phase 7.1 after the completed 7.0B packaged proof.
 
 This does not approve LAN host UX, a production backend, or Phase 7.1–7.4.
 Phase 7.1–7.4 remain **NOT STARTED**.
@@ -798,8 +795,9 @@ The following must not be mixed into Phase 7 LAN implementation:
 | `project-document/ui-ux-overhaul/06A_PHASE_6_0_RELEASE_READINESS_AUDIT.md`, `06B_PHASE_6_2_RELEASE_VERIFICATION.md` | Phase 6 engineering-complete checkpoint and separate production/signing/manual validation boundary |
 
 **Final gate:** Phase 7 discovery is complete. Phase 7.0A is **REJECTED** and
-Phase 7.0B is **PASS on Windows / NOT RUN on macOS**, therefore the overall
-Phase 7.0 gate is **BLOCKED**. Do not claim Phase 7.0 PASS or begin Phase 7.1.
+Phase 7.0B is **PASS on Windows and macOS**, therefore the overall Phase 7.0
+gate is **PASS**. Phase 7.1–7.4 remain **NOT STARTED** pending explicit
+approval.
 
 ### External feasibility notes
 
@@ -820,18 +818,28 @@ an architecture:
 | Gate | Status | Evidence boundary |
 | --- | --- | --- |
 | 7.0A PGlite Socket | **FAIL / REJECTED** | Exact two-client `BEGIN` hang remains recorded in 07B; no pool or persistence semantics were weakened. |
-| 7.0B managed native PostgreSQL | **PASS — Windows** | PostgreSQL 17.11 official EDB binary archive, SHA-256 `6eabdf00d2893713b75db4336a23c3fdf505f056e217ec6e2e95d901750cfea3`, packaged loopback startup, migrations/checksums, health/readiness, typed values, CAS, rollback, digest-only session, expiry/purge, two-client independent `BEGIN`, `FOR UPDATE SKIP LOCKED`, stop, restart, and retained JSONB marker. |
-| 7.0B packaged server helper | **PASS — Windows** | External `server-helper.cjs`, Electron `utilityProcess.fork()`, one-process concurrent-start guard, `/healthz`, `/readyz`, graceful helper-before-PostgreSQL shutdown, restart, and sanitized diagnostics. |
-| 7.0B macOS | **NOT RUN / BLOCKED** | This workspace is Windows; no macOS package, helper, native binary execution, or restart evidence is claimed. |
+| 7.0B managed native PostgreSQL | **PASS — Windows + macOS** | PostgreSQL 17.11 official EDB binary archive, SHA-256 `6eabdf00d2893713b75db4336a23c3fdf505f056e217ec6e2e95d901750cfea3`, packaged loopback startup, migrations/checksums, health/readiness, typed values, sequential/concurrent CAS, rollback, digest-only session, expiry/purge, two-client independent `BEGIN`, `FOR UPDATE SKIP LOCKED`, stop, restart, deadline recovery, and retained JSONB marker. |
+| 7.0B packaged server helper | **PASS — Windows + macOS** | External `server-helper.cjs`, Electron `utilityProcess.fork()`, one-process concurrent-start guard, `/healthz`, `/readyz`, graceful helper-before-PostgreSQL shutdown, restart, lifecycle cleanup, and sanitized diagnostics. |
+| 7.0B macOS | **PASS** | Exact-SHA `macos-latest` packaged build, native PostgreSQL/helper proof, and DMG artifact upload completed successfully. |
 | Phase 7.1–7.4 | **NOT STARTED** | No LAN bind, host/join, QR, mobile, gameplay, or cross-device acceptance was executed. |
 
 The proof is a loopback feasibility gate, not production readiness. It does not
-approve the server as a cloud backend, publish credentials/endpoints, or claim
-Phase 7.0 PASS while macOS evidence is absent.
+approve the server as a cloud backend, publish credentials/endpoints, or approve
+Phase 7.1–7.4 without explicit product-owner direction.
+
+### Exact-SHA remote evidence
+
+The code commit under test is
+`0a9c0e474d679371cd51b90a861c3ee105a6ceec`.
+
+| Remote gate | Result | Evidence |
+| --- | --- | --- |
+| [CI run 33288649135](https://github.com/tvghung/monopoly/actions/runs/33288649135) | **PASS** | Checkout, migrations, typecheck, lint, full PostgreSQL-backed test suite, and build all completed successfully at the exact code SHA. |
+| [Desktop Build run 33288649087](https://github.com/tvghung/monopoly/actions/runs/33288649087) | **PASS** | `Desktop (windows-latest)` job `99196257689` and `Desktop (macos-latest)` job `99196257341` both completed the distributable build and packaged Phase 7 runtime proof successfully; Windows Squirrel and macOS DMG artifact uploads passed. |
 
 PHASE 7 DISCOVERY: COMPLETE — corrected
 
 PHASE 7.0A: REJECTED — PGlite Socket contract failure
 
-PHASE 7.0B: WINDOWS PASS; macOS NOT RUN; OVERALL BLOCKED — see
+PHASE 7.0B: WINDOWS + macOS PASS; OVERALL PASS — see
 07B_PHASE_7_IMPLEMENTATION.md
