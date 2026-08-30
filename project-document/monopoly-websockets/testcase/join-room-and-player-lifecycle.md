@@ -20,7 +20,7 @@
 - [ ] `resume session` activates exactly one stable UUID Seat; lost ACK is resumable.
 - [ ] Newest valid socket wins; old receives `session replaced`; stale disconnect no-ops.
 - [ ] Refresh/network reconnect/new socket keeps Player ID, Seat, ready, money and assets.
-- [ ] Protocol/snapshot v7 identity-preserving reset keeps room/code, stable Player
+- [ ] Protocol/snapshot V8 identity-preserving reset keeps room/code, stable Player
   IDs, join order/name/color/ready, host, `IN_PROGRESS` status and active reconnect
   token hashes while preserving the current appearance fields and gameplay state.
 - [ ] Existing tokens reclaim the same Seats after reset; pending old-game offers are
@@ -39,6 +39,21 @@
 - [ ] Join after start without token is spectator; valid existing token reclaims Player.
 - [ ] Public/private Socket.IO rooms isolate room updates and private session/offer data.
 - [ ] All-offline room survives; explicit empty lobby/retention cleanup follows policy.
+
+## Phase 7.1 correction evidence
+
+- `[AUTO][PASS]` Client reconnect storage uses V3 records scoped by canonical
+  HTTP(S) authority and room code; a selected-room mismatch or legacy unscoped
+  V1/V2 record cannot resume the wrong room.
+- `[AUTO][PASS]` Desktop terminal resume failure clears the scoped session and
+  returns to the LAN launcher; it does not silently fall back to a fresh join.
+- `[AUTO][PASS]` Desktop leave clears client session state, stops host discovery
+  advertising when hosting, disconnects, and returns to the launcher.
+- `[AUTO][PASS]` Packaged Windows LAN core proof reports `coreStatus=PASS` and
+  `lanHttp=PASS`; discovery is `NOT_RUN` and physical LAN acceptance is
+  `MANUAL_REQUIRED`.
+- `[MANUAL REQUIRED]` Physical Windows/macOS host/join, discovery, reconnect,
+  2/3/4-player lobby, fallback and host-loss acceptance remain unclaimed.
 
 ## Restart evidence boundary
 

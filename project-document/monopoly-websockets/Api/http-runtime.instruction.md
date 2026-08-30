@@ -18,6 +18,9 @@ Development endpoint contract:
 - Desktop Host uses the explicit LAN profile: the game HTTP/Socket.IO server
   binds `0.0.0.0:<game-port>` while managed PostgreSQL remains loopback-only;
   the host renderer connects to `127.0.0.1:<game-port>`.
+- Desktop Join uses the selected room code with either a discovered LAN endpoint
+  or a configured valid `http://`/`https://` endpoint; configured endpoints are
+  used as entered and are not silently normalized to a private address.
 - Same-origin browser requests remain valid; a browser request without an `Origin`
   header is not made invalid by the packaged Electron allowlist.
 - `CORS_ORIGIN` explicitly overrides the applicable development or production
@@ -85,6 +88,20 @@ player-disconnect grace, close Socket.IO/HTTP and PostgreSQL pool cleanly.
   version against persisted games.
 
 ## Tests
+
+### Phase 7.1 correction evidence
+
+- `[AUTO][PASS]` Windows packaged LAN core proof: `coreStatus=PASS` and
+  `lanHttp=PASS`; discovery is `NOT_RUN` when no real advertisement client is
+  available, and `physicalLanAcceptance=MANUAL_REQUIRED`.
+- `[AUTO][PASS]` The proof checks the `0.0.0.0` bind, packaged health/readiness,
+  two-client connection/admission/reconnect, same-room identity preservation and
+  clean shutdown. A deterministic private interface is used only for serialization
+  checks when the host exposes no candidate; it is not physical LAN evidence.
+- `[NOT RUN/BLOCKED]` Database integration requires `TEST_DATABASE_URL`; local
+  `db:status` without the configured PostgreSQL service is not a substitute.
+- `[MANUAL REQUIRED]` Physical Windows/macOS host/join, discovery, reconnect,
+  2/3/4-player, host loss and fallback acceptance remain separate evidence.
 
 - Liveness/readiness under healthy/unhealthy DB.
 - Missing config/schema mismatch fail before listen.

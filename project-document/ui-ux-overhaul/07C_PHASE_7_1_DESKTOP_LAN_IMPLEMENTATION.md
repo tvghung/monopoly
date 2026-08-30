@@ -2,17 +2,20 @@
 
 ## Final engineering status
 
-**Implementation status: COMPLETE for the implementable desktop scope; physical
-LAN acceptance remains MANUAL ACCEPTANCE REQUIRED.** The packaged Windows proof
-is `PARTIAL` because the same-machine UDP broadcast round trip was not observed;
-the manual private-endpoint path remains available and the proof did pass LAN
-HTTP reachability, two-client admission/reconnect, privacy, and cleanup checks.
+**Correction status: COMPLETE locally for the requested client/desktop scope;
+Phase 7.1 remains open for physical LAN acceptance and exact-SHA CI.** The
+packaged Windows proof now reports typed results: `coreStatus=PASS`,
+`lanHttp=PASS`, `discovery=NOT_RUN`, and
+`physicalLanAcceptance=MANUAL_REQUIRED`. The manual private-endpoint path
+remains available; no same-machine UDP result is treated as physical acceptance.
 
 | Field | Value |
 | --- | --- |
 | Starting main SHA | `68c364d2b88aaa24edfafa16d9157672c3099e31` |
 | Implementation branch | `overhaul/phase-7-1-lan-multiplayer` |
 | Code-bearing implementation SHA | `1465ceb` |
+| Correction pass starting SHA | `e6e3714bf93c22203730f14a8741d18e8955c8d6` |
+| Correction code SHA | `98d68b12660f31b840f5a16c2aa53f12cfee6878` |
 | Documentation closeout | Follow-up commit after the code-bearing SHA; final branch HEAD is reported with the delivery evidence |
 | Scope | Windows/macOS desktop Host and Join over private LAN, automatic desktop discovery, manual fallback, reconnect hardening |
 | Excluded | mobile/QR, Internet multiplayer, host migration, P2P authority, GameCore/protocol redesign, new gameplay migrations |
@@ -81,7 +84,9 @@ Existing App / admission / lobby / gameplay / reconnect state machine
 `HostRuntimeController` states are `IDLE`, `STARTING_POSTGRES`,
 `STARTING_SERVER`, `READY`, `HOSTING`, `STOPPING`, and `FAILED`. Starts and
 stops are concurrent-call safe. Renderer reload does not own or stop the
-runtime; application shutdown stops advertisement, helper, then PostgreSQL.
+runtime; application shutdown requests renderer confirmation first, then stops
+advertisement, helper, PostgreSQL, and discovery exactly once. Returning to the
+desktop launcher after an explicit leave does not stop the host runtime.
 
 The V1 bind policy is explicit:
 
@@ -98,12 +103,21 @@ internal, invalid, and public addresses are excluded.
 
 ## Session and failure behavior
 
-The client session record is now `monopoly.player-session.v2` and stores valid
-reconnect tokens by canonical HTTP(S) origin. The old web v1 record migrates
-only in a web origin; an `app://` packaged renderer never imports an unscoped
-legacy token. Host A's token is therefore not sent to Host B, while returning
-to Host A can resume its scoped token. Tokens do not enter discovery, URLs,
-IPC status, diagnostics, or logs.
+The client session record is now `monopoly.player-session.v3` and stores valid
+reconnect tokens by canonical HTTP(S) origin plus canonical room code. V1 and
+V2 records migrate as `roomCode: null` unscoped records; generic restore may
+attempt them, but an explicit desktop target room accepts only an exact V3
+authority-and-room match. Host A's token is therefore not sent to Host B, and a
+different selected room cannot resume the old room. A successful resume rewrites
+the authoritative room code. A terminal matching-resume failure clears the
+session, shows safe recovery, and offers a deliberate return to the desktop LAN
+launcher without silently fresh-joining as a spectator. Tokens do not enter
+discovery, URLs, IPC status, diagnostics, or logs.
+
+Successful desktop Leave/Forfeit clears client room/private state, stops local
+advertising when hosting, disconnects the old gameplay socket, and returns to the
+launcher. Spectator leave follows the same desktop path; web leave still returns
+to the existing JoinForm.
 
 Host runtime and discovery failures have bounded safe error states. Discovery
 failure leaves the manual address path available. Host loss enters the existing
@@ -153,12 +167,12 @@ a hidden second server. Firewall changes are not automated.
 
 ## Automated and packaged evidence
 
-The exact local command results are recorded below. The new packaged command is
-`pnpm --filter @monopoly/desktop proof:packaged:lan`, and it is separate from
-the existing Phase 7.0B proof. It reports `PASS` only when a real private
-interface endpoint and discovery round trip are reachable in that environment;
-otherwise it reports `PARTIAL` while still failing on helper, readiness,
-admission, or reconnect errors.
+The exact local command results are recorded below. The packaged command
+`pnpm --filter @monopoly/desktop proof:packaged:lan` is separate from the
+existing Phase 7.0B proof. Its `coreStatus` can be `PASS` only after strict
+resource, bind, readiness, protocol, admission, reconnect, privacy, and cleanup
+checks. `lanHttp` and `discovery` are environment evidence; unavailable physical
+or same-machine UDP evidence is `NOT_RUN`, never an ambiguous partial core pass.
 
 The proof checks external resources, loopback PostgreSQL, LAN-capable helper
 bind, `/healthz`, `/readyz`, private endpoint reachability where available,
@@ -171,15 +185,15 @@ desktop-to-desktop interoperability.
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| `pnpm db:status` | BLOCKED | PostgreSQL at `127.0.0.1:5433` refused the connection; Docker Desktop was not running. |
-| `pnpm typecheck` | PASS | Workspace packages, including client, server, and desktop. |
+| `pnpm db:status` | BLOCKED | PostgreSQL at `127.0.0.1:5433` refused the connection (`ECONNREFUSED`). |
+| `pnpm typecheck` | PASS | All workspace typechecks passed, including client, server, shared, and desktop. |
 | `pnpm lint` | PASS | Workspace lint completed successfully. |
-| `pnpm test` | PASS | Desktop 59 passed; client 503 passed; server 153 passed and 11 PostgreSQL-gated tests skipped. |
+| `pnpm test` | PASS | Desktop 68 passed; client 515 passed; server 153 passed and 11 PostgreSQL-gated tests skipped. |
 | `pnpm build` | PASS | Client build completed; only existing large-chunk warnings were emitted. |
-| `pnpm desktop:package` | PASS | Windows packaged Electron application created. |
-| `pnpm desktop:make` | PASS | Windows Squirrel maker completed with exit code 0. |
-| Existing Phase 7.0B packaged proof | PASS | Windows x64; PostgreSQL 17, migrations, advisory lock, JSONB, room/CAS/rollback, sessions, restart, health/readiness, and loopback privacy checks passed. |
-| Phase 7.1 packaged LAN proof | PARTIAL | Windows x64; external resources, `0.0.0.0` helper bind, LAN HTTP, protocol V8, two-client same-room/host-authority, reconnect identity, discovery serialization/privacy, and clean shutdown passed. `interfaceCount=2`; same-machine UDP discovery was `NOT_RUN`. |
+| `pnpm desktop:package` | PASS | Windows x64 packaged Electron application created. |
+| `pnpm desktop:make` | PASS | Windows x64 Squirrel maker completed successfully. |
+| Existing Phase 7 packaged proof | PASS | Windows x64; PostgreSQL 17, migrations 001–009, locks, JSONB, sessions, restart, health/readiness, and loopback privacy checks passed. |
+| Phase 7.1 packaged LAN core proof | `coreStatus=PASS`; `lanHttp=PASS`; `discovery=NOT_RUN`; `physicalLanAcceptance=MANUAL_REQUIRED` | Windows x64; helper `0.0.0.0` bind, strict health/readiness, protocol V8, two-client same-room/host authority, reconnect identity/room, discovery serialization/privacy, and clean shutdown passed; `interfaceCount=2`. |
 | `git diff --check` | PASS | No whitespace errors. |
 
 The local proof does not substitute for a second physical desktop. macOS
