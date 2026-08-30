@@ -2,13 +2,18 @@
 
 ## Final engineering status
 
-**Implementation status: in progress until the final validation and commit below.**
+**Implementation status: COMPLETE for the implementable desktop scope; physical
+LAN acceptance remains MANUAL ACCEPTANCE REQUIRED.** The packaged Windows proof
+is `PARTIAL` because the same-machine UDP broadcast round trip was not observed;
+the manual private-endpoint path remains available and the proof did pass LAN
+HTTP reachability, two-client admission/reconnect, privacy, and cleanup checks.
 
 | Field | Value |
 | --- | --- |
 | Starting main SHA | `68c364d2b88aaa24edfafa16d9157672c3099e31` |
 | Implementation branch | `overhaul/phase-7-1-lan-multiplayer` |
-| Final branch SHA | recorded at closeout |
+| Code-bearing implementation SHA | `1465ceb` |
+| Documentation closeout | Follow-up commit after the code-bearing SHA; final branch HEAD is reported with the delivery evidence |
 | Scope | Windows/macOS desktop Host and Join over private LAN, automatic desktop discovery, manual fallback, reconnect hardening |
 | Excluded | mobile/QR, Internet multiplayer, host migration, P2P authority, GameCore/protocol redesign, new gameplay migrations |
 
@@ -148,9 +153,9 @@ a hidden second server. Firewall changes are not automated.
 
 ## Automated and packaged evidence
 
-The exact command results are filled in at closeout. The new packaged command
-is `pnpm --filter @monopoly/desktop proof:packaged:lan`, and it is separate
-from the existing Phase 7.0B proof. It reports `PASS` only when a real private
+The exact local command results are recorded below. The new packaged command is
+`pnpm --filter @monopoly/desktop proof:packaged:lan`, and it is separate from
+the existing Phase 7.0B proof. It reports `PASS` only when a real private
 interface endpoint and discovery round trip are reachable in that environment;
 otherwise it reports `PARTIAL` while still failing on helper, readiness,
 admission, or reconnect errors.
@@ -161,6 +166,25 @@ discovery serialization/round trip where available, two independent Socket.IO
 clients, first-player host authority, same-room admission, guest disconnect,
 same-token resume, same player ID, and cleanup. It does not claim physical
 desktop-to-desktop interoperability.
+
+### Local validation matrix
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| `pnpm db:status` | BLOCKED | PostgreSQL at `127.0.0.1:5433` refused the connection; Docker Desktop was not running. |
+| `pnpm typecheck` | PASS | Workspace packages, including client, server, and desktop. |
+| `pnpm lint` | PASS | Workspace lint completed successfully. |
+| `pnpm test` | PASS | Desktop 59 passed; client 503 passed; server 153 passed and 11 PostgreSQL-gated tests skipped. |
+| `pnpm build` | PASS | Client build completed; only existing large-chunk warnings were emitted. |
+| `pnpm desktop:package` | PASS | Windows packaged Electron application created. |
+| `pnpm desktop:make` | PASS | Windows Squirrel maker completed with exit code 0. |
+| Existing Phase 7.0B packaged proof | PASS | Windows x64; PostgreSQL 17, migrations, advisory lock, JSONB, room/CAS/rollback, sessions, restart, health/readiness, and loopback privacy checks passed. |
+| Phase 7.1 packaged LAN proof | PARTIAL | Windows x64; external resources, `0.0.0.0` helper bind, LAN HTTP, protocol V8, two-client same-room/host-authority, reconnect identity, discovery serialization/privacy, and clean shutdown passed. `interfaceCount=2`; same-machine UDP discovery was `NOT_RUN`. |
+| `git diff --check` | PASS | No whitespace errors. |
+
+The local proof does not substitute for a second physical desktop. macOS
+packaging/runtime and the four physical Windows/macOS host/join pairs remain
+manual or CI evidence, not local PASS claims.
 
 ## Manual acceptance boundary
 
