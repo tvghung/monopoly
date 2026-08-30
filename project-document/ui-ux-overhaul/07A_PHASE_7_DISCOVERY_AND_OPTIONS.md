@@ -833,3 +833,14 @@ PHASE 7.0A: REJECTED — PGlite Socket contract failure
 
 PHASE 7.0B: WINDOWS + macOS PASS; OVERALL PASS — see
 07B_PHASE_7_IMPLEMENTATION.md
+
+## Phase 7.0 main closure record
+
+- Source proof code SHA: `0a9c0e474d679371cd51b90a861c3ee105a6ceec`.
+- Proof branch HEAD: `9e77fef7de7692861a31ade5d0896d1ccba01116`.
+- Code-bearing main integration SHA: `fa0461abe6496c54a864207f06ad3c99bd5e49b1`.
+- [Main CI run 33290328484](https://github.com/tvghung/monopoly/actions/runs/33290328484) — **PASS**; migrations, PostgreSQL-backed tests, typecheck, lint, and build passed.
+- [Main Desktop Build run 33290328403](https://github.com/tvghung/monopoly/actions/runs/33290328403) — **PASS**; Windows x64 and macOS ARM64 distributables were built and packaged proof passed on both platforms ([Windows job 99200722104](https://github.com/tvghung/monopoly/actions/runs/33290328403/job/99200722104), [macOS ARM64 job 99200722006](https://github.com/tvghung/monopoly/actions/runs/33290328403/job/99200722006)).
+- Overall Phase 7.0: **CLOSED / PASS**.
+- New roadmap baseline: **Phase 7.1 — Desktop Host Runtime + LAN Multiplayer**; **Phase 7.2 — Mobile Compatibility + Recovery & Final Hardening**. Both phases are **NOT STARTED**; no Phase 7.1 or 7.2 implementation or acceptance was included here.
+- This documentation-only closure commit is distinct from the code-bearing SHA above and has no new packaged proof; its exact SHA is the final `origin/main` recorded with this closeout.
