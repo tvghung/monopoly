@@ -155,6 +155,25 @@ function closeSocket(socket: DiscoverySocket | undefined): Promise<void> {
   });
 }
 
+function bindSocket(socket: DiscoverySocket, port: number, address: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const handleError = (error: Error): void => {
+      socket.off('error', handleError);
+      reject(error);
+    };
+    socket.once('error', handleError);
+    socket.bind(port, address, () => {
+      socket.off('error', handleError);
+      resolve();
+    });
+  });
+}
+
+interface PreparedAdvertisement {
+  advertisement: DiscoveryAdvertisement;
+  interfaces: NetworkInterfaceCandidate[];
+}
+
 export class LANDiscoveryController {
   private readonly appVersion: string;
 
@@ -173,6 +192,16 @@ export class LANDiscoveryController {
   private advertiseSocket: DiscoverySocket | undefined;
 
   private browsePromise: Promise<void> | undefined;
+
+  private browseStopPromise: Promise<void> | undefined;
+
+  private browseGeneration = 0;
+
+  private advertisePromise: Promise<void> | undefined;
+
+  private advertiseStopPromise: Promise<void> | undefined;
+
+  private advertiseGeneration = 0;
 
   private expireTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -214,63 +243,84 @@ export class LANDiscoveryController {
     return () => this.listeners.delete(listener);
   }
 
-  public async startBrowsing(): Promise<void> {
-    if (this.browseSocket) return;
+  public startBrowsing(): Promise<void> {
+    if (this.browseStopPromise) {
+      return this.browseStopPromise.then(() => this.startBrowsing());
+    }
+    if (this.browseSocket) return Promise.resolve();
     if (this.browsePromise) return this.browsePromise;
-    this.browsePromise = this.startBrowsingInternal().finally(() => {
+    const generation = this.browseGeneration;
+    this.browsePromise = this.startBrowsingInternal(generation).finally(() => {
       this.browsePromise = undefined;
     });
     return this.browsePromise;
   }
 
-  public async stopBrowsing(): Promise<void> {
+  public stopBrowsing(): Promise<void> {
+    this.browseGeneration += 1;
     if (this.expireTimer) clearInterval(this.expireTimer);
     this.expireTimer = undefined;
-    const socket = this.browseSocket;
-    this.browseSocket = undefined;
     this.games.clear();
     this.emitGamesChanged();
-    await closeSocket(socket);
+    if (this.browseStopPromise) return this.browseStopPromise;
+    const pendingStart = this.browsePromise;
+    this.browseStopPromise = (async () => {
+      await pendingStart?.catch(() => undefined);
+      if (this.expireTimer) clearInterval(this.expireTimer);
+      this.expireTimer = undefined;
+      const socket = this.browseSocket;
+      this.browseSocket = undefined;
+      await closeSocket(socket);
+    })().finally(() => {
+      this.browseStopPromise = undefined;
+    });
+    return this.browseStopPromise;
   }
 
-  public startAdvertising(options: { roomCode: string; port: number }): void {
-    const roomCode = normalizeRoomCode(options.roomCode);
-    if (!roomCode) throw new Error('LAN room code is invalid');
-    if (!Number.isSafeInteger(options.port) || options.port < 1 || options.port > 65_535) {
-      throw new Error('LAN game port is invalid');
+  public async startAdvertising(options: { roomCode: string; port: number }): Promise<void> {
+    const prepared = this.prepareAdvertisement(options);
+    if (this.advertiseStopPromise) {
+      await this.advertiseStopPromise;
+      return this.startAdvertising(options);
     }
-    const interfaces = this.interfaceProvider();
-    if (interfaces.length === 0) throw new Error('No usable private LAN interface was found');
-
-    this.advertisement = {
-      type: 'own-the-block-lan',
-      version: LAN_DISCOVERY_VERSION,
-      instanceId: this.instanceId,
-      appVersion: this.appVersion,
-      protocolVersion: 8,
-      roomCode,
-      port: options.port,
-      endpoints: advertisedEndpoints(interfaces, options.port),
-      expiresInMs: LAN_DISCOVERY_TTL_MS,
-    };
-
-    if (!this.advertiseSocket) {
-      this.advertiseSocket = this.socketFactory();
-      this.advertiseSocket.setBroadcast(true);
-      this.sendAdvertisement();
-      this.advertiseTimer = setInterval(() => this.sendAdvertisement(), LAN_DISCOVERY_INTERVAL_MS);
-    } else {
-      this.sendAdvertisement();
+    if (this.advertiseSocket) {
+      this.advertisement = prepared.advertisement;
+      this.sendAdvertisement(prepared.interfaces);
+      return;
     }
+    if (this.advertisePromise) {
+      await this.advertisePromise;
+      if (this.advertiseSocket) {
+        this.advertisement = prepared.advertisement;
+        this.sendAdvertisement(prepared.interfaces);
+      }
+      return;
+    }
+    const generation = this.advertiseGeneration;
+    this.advertisePromise = this.startAdvertisingInternal(prepared, generation).finally(() => {
+      this.advertisePromise = undefined;
+    });
+    await this.advertisePromise;
   }
 
-  public async stopAdvertising(): Promise<void> {
+  public stopAdvertising(): Promise<void> {
+    this.advertiseGeneration += 1;
     if (this.advertiseTimer) clearInterval(this.advertiseTimer);
     this.advertiseTimer = undefined;
-    const socket = this.advertiseSocket;
-    this.advertiseSocket = undefined;
-    this.advertisement = undefined;
-    await closeSocket(socket);
+    if (this.advertiseStopPromise) return this.advertiseStopPromise;
+    const pendingStart = this.advertisePromise;
+    this.advertiseStopPromise = (async () => {
+      await pendingStart?.catch(() => undefined);
+      if (this.advertiseTimer) clearInterval(this.advertiseTimer);
+      this.advertiseTimer = undefined;
+      const socket = this.advertiseSocket;
+      this.advertiseSocket = undefined;
+      this.advertisement = undefined;
+      await closeSocket(socket);
+    })().finally(() => {
+      this.advertiseStopPromise = undefined;
+    });
+    return this.advertiseStopPromise;
   }
 
   public async dispose(): Promise<void> {
@@ -278,41 +328,94 @@ export class LANDiscoveryController {
     this.listeners.clear();
   }
 
-  private async startBrowsingInternal(): Promise<void> {
+  private async startBrowsingInternal(generation: number): Promise<void> {
     const socket = this.socketFactory();
-    this.browseSocket = socket;
     socket.on('error', () => undefined);
     socket.on('message', message => {
+      if (generation !== this.browseGeneration) return;
       const game = parseAdvertisement(message, this.now());
       if (!game) return;
       this.games.set(game.gameId, game);
       this.emitGamesChanged();
     });
     try {
-      await new Promise<void>((resolve, reject) => {
-        const handleError = (error: Error): void => {
-          socket.off('error', handleError);
-          reject(error);
-        };
-        socket.once('error', handleError);
-        socket.bind(this.discoveryPort, '0.0.0.0', () => {
-          socket.off('error', handleError);
-          resolve();
-        });
-      });
+      await bindSocket(socket, this.discoveryPort, '0.0.0.0');
+      if (generation !== this.browseGeneration) {
+        await closeSocket(socket);
+        return;
+      }
+      socket.setBroadcast(true);
+      if (generation !== this.browseGeneration) {
+        await closeSocket(socket);
+        return;
+      }
+      this.browseSocket = socket;
+      this.expireTimer = setInterval(() => this.expireGames(), 1_000);
     } catch (error) {
-      this.browseSocket = undefined;
+      if (this.browseSocket === socket) this.browseSocket = undefined;
       await closeSocket(socket).catch(() => undefined);
       throw error;
     }
-    socket.setBroadcast(true);
-    this.expireTimer = setInterval(() => this.expireGames(), 1_000);
   }
 
-  private sendAdvertisement(): void {
+  private prepareAdvertisement(options: { roomCode: string; port: number }): PreparedAdvertisement {
+    const roomCode = normalizeRoomCode(options.roomCode);
+    if (!roomCode) throw new Error('LAN room code is invalid');
+    if (!Number.isSafeInteger(options.port) || options.port < 1 || options.port > 65_535) {
+      throw new Error('LAN game port is invalid');
+    }
+    const interfaces = this.interfaceProvider();
+    if (interfaces.length === 0) throw new Error('No usable private LAN interface was found');
+    return {
+      advertisement: {
+        type: 'own-the-block-lan',
+        version: LAN_DISCOVERY_VERSION,
+        instanceId: this.instanceId,
+        appVersion: this.appVersion,
+        protocolVersion: 8,
+        roomCode,
+        port: options.port,
+        endpoints: advertisedEndpoints(interfaces, options.port),
+        expiresInMs: LAN_DISCOVERY_TTL_MS,
+      },
+      interfaces,
+    };
+  }
+
+  private async startAdvertisingInternal(
+    prepared: PreparedAdvertisement,
+    generation: number,
+  ): Promise<void> {
+    const socket = this.socketFactory();
+    socket.on('error', () => undefined);
+    try {
+      await bindSocket(socket, 0, '0.0.0.0');
+      if (generation !== this.advertiseGeneration) {
+        await closeSocket(socket);
+        return;
+      }
+      socket.setBroadcast(true);
+      if (generation !== this.advertiseGeneration) {
+        await closeSocket(socket);
+        return;
+      }
+      this.advertiseSocket = socket;
+      this.advertisement = prepared.advertisement;
+      this.sendAdvertisement(prepared.interfaces);
+      this.advertiseTimer = setInterval(() => this.sendAdvertisement(), LAN_DISCOVERY_INTERVAL_MS);
+    } catch (error) {
+      if (this.advertiseTimer) clearInterval(this.advertiseTimer);
+      this.advertiseTimer = undefined;
+      if (this.advertiseSocket === socket) this.advertiseSocket = undefined;
+      this.advertisement = undefined;
+      await closeSocket(socket).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  private sendAdvertisement(interfaces = this.interfaceProvider()): void {
     const socket = this.advertiseSocket;
     if (!socket || !this.advertisement) return;
-    const interfaces = this.interfaceProvider();
     if (interfaces.length === 0) return;
     this.advertisement = {
       ...this.advertisement,

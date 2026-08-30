@@ -72,6 +72,22 @@ describe('playerSessionStorage', () => {
     expect(storage.values.has('monopoly.player-session.v2')).toBe(true);
   });
 
+  it('preserves remaining legacy V2 entries in their original wire shape when clearing one', () => {
+    const storage = createStorage();
+    storage.setItem('monopoly.player-session.v2', JSON.stringify({
+      version: 2,
+      sessions: { [AUTHORITY_A]: TOKEN_A, [AUTHORITY_B]: TOKEN_B },
+    }));
+
+    clearPlayerSession(AUTHORITY_A, storage);
+
+    expect(JSON.parse(storage.values.get('monopoly.player-session.v2') ?? '{}')).toEqual({
+      version: 2,
+      sessions: { [AUTHORITY_B]: TOKEN_B },
+    });
+    expect(readPlayerSession(AUTHORITY_B, storage)).toBe(TOKEN_B);
+  });
+
   it('migrates a valid V1 record for generic restore but keeps it unscoped', () => {
     const storage = createStorage();
     storage.setItem('monopoly.player-session.v1', JSON.stringify({ version: 1, token: TOKEN_A }));
@@ -115,6 +131,38 @@ describe('playerSessionStorage', () => {
     };
     expect(Object.keys(record.sessions ?? {})).toHaveLength(8);
     expect(readPlayerSessionForRoom(AUTHORITY_B, 'LAN-ROOM', storage)).toBeNull();
+  });
+
+  it('refreshes an existing authority before evicting the oldest session', () => {
+    const storage = createStorage();
+    for (let index = 0; index < 8; index += 1) {
+      writePlayerSessionForRoom(
+        TOKEN_A,
+        `http://host-${String.fromCharCode(65 + index)}:8080`,
+        'LAN-ROOM',
+        storage,
+      );
+    }
+
+    writePlayerSessionForRoom(TOKEN_B, 'http://host-A:8080', 'LAN-ROOM', storage);
+    writePlayerSessionForRoom(TOKEN_A, 'http://host-I:8080', 'LAN-ROOM', storage);
+
+    const record = JSON.parse(storage.values.get(PLAYER_SESSION_STORAGE_KEY) ?? '{}') as {
+      sessions?: Record<string, unknown>;
+    };
+    expect(Object.keys(record.sessions ?? {})).toEqual([
+      'http://host-c:8080',
+      'http://host-d:8080',
+      'http://host-e:8080',
+      'http://host-f:8080',
+      'http://host-g:8080',
+      'http://host-h:8080',
+      'http://host-a:8080',
+      'http://host-i:8080',
+    ]);
+    expect(readPlayerSessionForRoom('http://host-A:8080', 'LAN-ROOM', storage)).toBe(TOKEN_B);
+    expect(readPlayerSessionForRoom('http://host-I:8080', 'LAN-ROOM', storage)).toBe(TOKEN_A);
+    expect(readPlayerSessionForRoom('http://host-B:8080', 'LAN-ROOM', storage)).toBeNull();
   });
 
   it('treats storage failures as non-fatal', () => {

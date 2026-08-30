@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       socket_url:
-        description: Absolute HTTP(S) multiplayer server URL to inject into the packaged app
-        required: true
+        description: Optional absolute HTTP(S) multiplayer server URL to inject into the packaged app
+        required: false
         type: string
       distribution_mode:
         description: Use signed distribution only when all secure signing inputs are available

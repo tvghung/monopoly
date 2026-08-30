@@ -49,6 +49,25 @@ function emptyStoredSessions(): StoredPlayerSessions {
   return { version: PLAYER_SESSION_STORAGE_VERSION, sessions: {} };
 }
 
+function storeSession(
+  stored: StoredPlayerSessions,
+  authority: string,
+  session: StoredPlayerSession,
+): void {
+  delete stored.sessions[authority];
+  stored.sessions[authority] = session;
+  limitAuthorities(stored);
+}
+
+function serializeLegacyV2Sessions(sessions: Record<string, StoredPlayerSession>): string {
+  return JSON.stringify({
+    version: 2,
+    sessions: Object.fromEntries(
+      Object.entries(sessions).map(([authority, session]) => [authority, session.token]),
+    ),
+  });
+}
+
 function limitAuthorities(stored: StoredPlayerSessions): void {
   const authorities = Object.keys(stored.sessions);
   for (const oldAuthority of authorities.slice(
@@ -149,8 +168,7 @@ function migrateSession(
   session: StoredPlayerSession,
   cleanupKeys: string[],
 ): string {
-  stored.sessions[authority] = session;
-  limitAuthorities(stored);
+  storeSession(stored, authority, session);
   if (persistSessions(storage, stored)) {
     for (const key of cleanupKeys) {
       try {
@@ -221,8 +239,7 @@ function writeStoredPlayerSession(
   if (!storage || !normalizedAuthority || !parsedToken.success) return false;
 
   const stored = readStoredSessions(storage);
-  stored.sessions[normalizedAuthority] = { token: parsedToken.data, roomCode };
-  limitAuthorities(stored);
+  storeSession(stored, normalizedAuthority, { token: parsedToken.data, roomCode });
   return persistSessions(storage, stored);
 }
 
@@ -268,7 +285,7 @@ export function clearPlayerSession(
     delete legacyV2[normalizedAuthority];
     try {
       if (Object.keys(legacyV2).length === 0) storage.removeItem(LEGACY_PLAYER_SESSION_STORAGE_V2_KEY);
-      else storage.setItem(LEGACY_PLAYER_SESSION_STORAGE_V2_KEY, JSON.stringify({ version: 2, sessions: legacyV2 }));
+      else storage.setItem(LEGACY_PLAYER_SESSION_STORAGE_V2_KEY, serializeLegacyV2Sessions(legacyV2));
     } catch {
       // Clearing the V3 record remains non-fatal if legacy cleanup is blocked.
     }

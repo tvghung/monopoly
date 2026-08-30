@@ -6,6 +6,7 @@ import {
   normalizeReleaseSocketUrl,
   readCanonicalReleaseMetadata,
   resolveReleaseTarget,
+  resolveReleaseSocketUrl,
   signingStatus,
 } from '../scripts/releaseMetadata.mjs';
 
@@ -31,12 +32,26 @@ describe('desktop release metadata', () => {
     expect(() => normalizeReleaseSocketUrl('')).toThrow();
   });
 
-  it('requires an endpoint for release builds and marks unsigned validation explicitly', () => {
+  it('allows LAN-only release builds while explicit endpoint validation stays strict', () => {
+    const environment = { OWN_THE_BLOCK_RELEASE_BUILD: '1' };
+    expect(resolveReleaseSocketUrl({ environment })).toBeUndefined();
+    expect(assertCanonicalReleaseMetadata({
+      root: repositoryRoot,
+      environment,
+    }).endpoint).toBeUndefined();
+    expect(() => resolveReleaseSocketUrl({ environment, required: true }))
+      .toThrow('is required for a release build');
+    expect(assertCanonicalReleaseMetadata({
+      root: repositoryRoot,
+      environment: { OWN_THE_BLOCK_RELEASE_SOCKET_URL: 'https://play.example.test/' },
+    }).endpoint).toBe('https://play.example.test');
+  });
+
+  it('marks unsigned validation explicitly', () => {
     expect(() => assertCanonicalReleaseMetadata({
       root: repositoryRoot,
-      requireEndpoint: true,
       environment: {},
-    })).toThrow('is required for a release build');
+    })).not.toThrow();
     expect(signingStatus({ platform: 'win32', mode: 'unsigned-validation', environment: {} })).toEqual({
       mode: 'unsigned-validation',
       signing: 'BLOCKED',

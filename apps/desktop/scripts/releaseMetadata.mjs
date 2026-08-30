@@ -171,7 +171,7 @@ export function resolveReleaseSocketUrl({
 } = {}) {
   const rawValue = environment[RELEASE_SOCKET_URL_ENV];
   if (rawValue === undefined || rawValue.trim() === '') {
-    if (required || environment[RELEASE_BUILD_ENV] === '1') {
+    if (required) {
       throw new Error(
         `${RELEASE_SOCKET_URL_ENV} is required for a release build; no production endpoint was supplied.`,
       );

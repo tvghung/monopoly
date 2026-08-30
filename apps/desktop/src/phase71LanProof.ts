@@ -189,19 +189,20 @@ export async function runPhase71LanProof(
       roomCode,
     });
     let discovery: 'PASS' | 'NOT_RUN' = 'NOT_RUN';
-    if (candidates.length > 0) {
-      hostDiscovery = new LANDiscoveryController({
-        appVersion: '3.0.0',
-        instanceId: discoveryInstanceId,
-      });
-      browserDiscovery = new LANDiscoveryController({ appVersion: '3.0.0' });
-      try {
-        await browserDiscovery.startBrowsing();
-        hostDiscovery.startAdvertising({ roomCode, port: serverPort });
-        discovery = await waitForDiscovery(browserDiscovery, discoveryInstanceId) ? 'PASS' : 'NOT_RUN';
-      } catch {
-        discovery = 'NOT_RUN';
-      }
+    hostDiscovery = new LANDiscoveryController({
+      appVersion: '3.0.0',
+      instanceId: discoveryInstanceId,
+    });
+    browserDiscovery = new LANDiscoveryController({ appVersion: '3.0.0' });
+    await hostDiscovery.startAdvertising({ roomCode, port: serverPort });
+    if (!hostDiscovery.status.advertising) {
+      throw new Error('Phase 7.1 LAN advertiser did not become active');
+    }
+    try {
+      await browserDiscovery.startBrowsing();
+      discovery = await waitForDiscovery(browserDiscovery, discoveryInstanceId) ? 'PASS' : 'NOT_RUN';
+    } catch {
+      discovery = 'NOT_RUN';
     }
     const serializedDiscovery = checkDiscoverySerialization(
       candidates.length > 0 ? candidates : [deterministicPrivateInterface],
