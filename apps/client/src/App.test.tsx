@@ -169,7 +169,12 @@ describe('App session admission', () => {
       }
     });
 
-    expect(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY)).toContain(RECONNECT_TOKEN);
+    expect(JSON.parse(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY) ?? '{}')).toMatchObject({
+      version: 3,
+      sessions: {
+        'http://localhost:3000': { token: RECONNECT_TOKEN, roomCode: 'ROOM-42' },
+      },
+    });
     const resume = lastEmission('resume session');
     expect(resume?.args[0]).toEqual({ token: RECONNECT_TOKEN });
     const resumeAck = resume?.args[1];
@@ -227,6 +232,159 @@ describe('App session admission', () => {
 
     expect(screen.queryByText(/Đã mất kết nối/)).toBeNull();
     expect(screen.getByText('Ada (bạn)')).toBeTruthy();
+  });
+
+  it('prefers a matching desktop session token over the initial join request', () => {
+    const socketUrl = 'http://192.168.1.15:8080';
+    const runtimeConfig = {
+      target: 'desktop' as const,
+      socketUrl,
+      platform: 'win32' as const,
+      appVersion: '3.0.0',
+    };
+    window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, JSON.stringify({
+      version: 3,
+      sessions: {
+        [socketUrl]: { token: RECONNECT_TOKEN, roomCode: 'LAN-42' },
+      },
+    }));
+    window.localStorage.setItem('monopoly.player-session.v2', JSON.stringify({
+      version: 2,
+      sessions: { [socketUrl]: RECONNECT_TOKEN },
+    }));
+
+    render(
+      <ToastProvider>
+        <App
+          runtimeConfig={runtimeConfig}
+          launch={{
+            runtimeConfig,
+            initialJoin: { name: 'Ada', roomCode: 'LAN-42' },
+            targetRoomCode: 'LAN-42',
+            hosting: false,
+          }}
+        />
+      </ToastProvider>,
+    );
+
+    const resume = lastEmission('resume session');
+    expect(resume?.args[0]).toEqual({ token: RECONNECT_TOKEN });
+    expect(lastEmission('join room')).toBeUndefined();
+
+    const resumeAck = resume?.args[1];
+    act(() => {
+      if (isAckCallback(resumeAck)) {
+        resumeAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          revision: 1,
+          data: {
+            role: 'PLAYER',
+            playerId: 'stable-player-id',
+            room: { ...room, roomCode: 'LAN-42' },
+            privatePlayerState: {
+              playerId: 'stable-player-id',
+              heldJailFreeCardIds: [],
+              gameplayEvents: { sequence: 0, events: [] },
+            },
+            pendingOffers: [],
+          },
+        });
+      }
+    });
+
+    expect(screen.getByText('Ada (bạn)')).toBeTruthy();
+  });
+
+  it('joins the selected room when the stored session belongs to another room', () => {
+    const socketUrl = 'http://192.168.1.15:8080';
+    const runtimeConfig = {
+      target: 'desktop' as const,
+      socketUrl,
+      platform: 'win32' as const,
+      appVersion: '3.0.0',
+    };
+    window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, JSON.stringify({
+      version: 3,
+      sessions: {
+        [socketUrl]: { token: RECONNECT_TOKEN, roomCode: 'LAN-OLD' },
+      },
+    }));
+
+    render(
+      <ToastProvider>
+        <App
+          runtimeConfig={runtimeConfig}
+          launch={{
+            runtimeConfig,
+            initialJoin: { name: 'Ada', roomCode: 'LAN-NEW' },
+            targetRoomCode: 'LAN-NEW',
+            hosting: false,
+          }}
+        />
+      </ToastProvider>,
+    );
+
+    expect(lastEmission('resume session')).toBeUndefined();
+    expect(lastEmission('join room')?.args[0]).toEqual({ name: 'Ada', roomCode: 'LAN-NEW' });
+  });
+
+  it('clears a terminal desktop session and returns to the launcher without fallback join', () => {
+    const socketUrl = 'http://192.168.1.15:8080';
+    const runtimeConfig = {
+      target: 'desktop' as const,
+      socketUrl,
+      platform: 'win32' as const,
+      appVersion: '3.0.0',
+    };
+    const onExitToLauncher = vi.fn();
+    window.ownTheBlockDesktop = {
+      quit: {
+        onQuitRequested: () => () => undefined,
+        respond: vi.fn(),
+      },
+    } as unknown as OwnTheBlockDesktopBridge;
+    window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, JSON.stringify({
+      version: 3,
+      sessions: {
+        [socketUrl]: { token: RECONNECT_TOKEN, roomCode: 'LAN-42' },
+      },
+    }));
+
+    render(
+      <ToastProvider>
+        <App
+          runtimeConfig={runtimeConfig}
+          launch={{
+            runtimeConfig,
+            initialJoin: { name: 'Ada', roomCode: 'LAN-42' },
+            targetRoomCode: 'LAN-42',
+            hosting: false,
+          }}
+          onExitToLauncher={onExitToLauncher}
+        />
+      </ToastProvider>,
+    );
+
+    const resumeAck = lastEmission('resume session')?.args[1];
+    act(() => {
+      if (isAckCallback(resumeAck)) {
+        resumeAck({
+          ok: false,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          error: {
+            code: 'SESSION_INVALID',
+            message: 'session invalid',
+            retryable: false,
+          },
+        });
+      }
+    });
+
+    expect(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY)).toBeNull();
+    expect(lastEmission('join room')).toBeUndefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Quay về trình khởi động LAN' }));
+    expect(onExitToLauncher).toHaveBeenCalledOnce();
   });
 
   it('clears private offers and presentation history when a finished room replays', () => {
@@ -462,6 +620,186 @@ describe('App session admission', () => {
     expect(lastEmission('leave room')).toBeDefined();
   });
 
+  it('stops hosted LAN advertising before disconnecting and returning to the launcher', async () => {
+    const gameRoom: PublicRoomState = {
+      ...room,
+      status: 'IN_PROGRESS',
+      version: 3,
+      gameState: {
+        ...room.gameState,
+        boardState: {
+          ...room.gameState.boardState,
+          gameStarted: true,
+          players: ['stable-player-id'],
+        },
+        players: {
+          'stable-player-id': {
+            name: 'Ada',
+            currentTile: 0,
+            color: 'red',
+            characterId: 'dog',
+            accountBalance: 1500,
+            isJail: false,
+            jailOpponentRoundsElapsed: 0,
+            getOutOfJailCardCount: 0,
+          },
+        },
+      },
+    };
+    const socketUrl = 'http://192.168.1.15:8080';
+    const runtimeConfig = {
+      target: 'desktop' as const,
+      socketUrl,
+      platform: 'win32' as const,
+      appVersion: '3.0.0',
+    };
+    const stopAdvertising = vi.fn(() => Promise.resolve());
+    const stopHost = vi.fn(() => Promise.resolve());
+    const onExitToLauncher = vi.fn();
+    window.ownTheBlockDesktop = {
+      quit: {
+        onQuitRequested: () => () => undefined,
+        respond: vi.fn(),
+      },
+      discovery: {
+        startAdvertising: vi.fn(() => Promise.resolve({ ok: true as const })),
+        stopAdvertising,
+      },
+      host: { stop: stopHost },
+    } as unknown as OwnTheBlockDesktopBridge;
+    window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, JSON.stringify({
+      version: 3,
+      sessions: {
+        [socketUrl]: { token: FORFEIT_TOKEN, roomCode: 'ROOM-42' },
+      },
+    }));
+
+    render(
+      <ToastProvider>
+        <App
+          runtimeConfig={runtimeConfig}
+          launch={{ runtimeConfig, targetRoomCode: 'ROOM-42', hosting: true }}
+          onExitToLauncher={onExitToLauncher}
+        />
+      </ToastProvider>,
+    );
+    const resumeAck = lastEmission('resume session')?.args[1];
+    act(() => {
+      if (isAckCallback(resumeAck)) {
+        resumeAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          revision: gameRoom.version,
+          data: {
+            role: 'PLAYER',
+            playerId: 'stable-player-id',
+            room: gameRoom,
+            privatePlayerState: {
+              playerId: 'stable-player-id',
+              heldJailFreeCardIds: [],
+              gameplayEvents: { sequence: 0, events: [] },
+            },
+            pendingOffers: [],
+          },
+        });
+      }
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ cuộc' }));
+    const confirmationButtons = screen.getAllByRole('button', { name: 'Bỏ cuộc' });
+    fireEvent.click(confirmationButtons[confirmationButtons.length - 1]);
+    const leaveAck = lastEmission('leave room')?.args[0];
+    await act(async () => {
+      if (isAckCallback(leaveAck)) {
+        leaveAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          data: { roomDeleted: false },
+        });
+        await Promise.resolve();
+      }
+    });
+
+    expect(stopAdvertising).toHaveBeenCalledOnce();
+    expect(stopHost).not.toHaveBeenCalled();
+    expect(socketHarness.socket.connected).toBe(false);
+    expect(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY)).toBeNull();
+    expect(onExitToLauncher).toHaveBeenCalledOnce();
+  });
+
+  it('returns a desktop spectator to the launcher after leaving', async () => {
+    const spectatorRoom: PublicRoomState = {
+      ...room,
+      roomCode: 'LAN-SPECTATOR',
+      status: 'IN_PROGRESS',
+      hostPlayerId: 'another-player',
+      gameState: {
+        ...room.gameState,
+        boardState: { ...room.gameState.boardState, gameStarted: true },
+      },
+    };
+    const runtimeConfig = {
+      target: 'desktop' as const,
+      socketUrl: 'http://192.168.1.15:8080',
+      platform: 'win32' as const,
+      appVersion: '3.0.0',
+    };
+    const onExitToLauncher = vi.fn();
+    window.ownTheBlockDesktop = {
+      quit: {
+        onQuitRequested: () => () => undefined,
+        respond: vi.fn(),
+      },
+    } as unknown as OwnTheBlockDesktopBridge;
+
+    render(
+      <ToastProvider>
+        <App
+          runtimeConfig={runtimeConfig}
+          launch={{
+            runtimeConfig,
+            initialJoin: { name: 'Viewer', roomCode: spectatorRoom.roomCode },
+            targetRoomCode: spectatorRoom.roomCode,
+            hosting: false,
+          }}
+          onExitToLauncher={onExitToLauncher}
+        />
+      </ToastProvider>,
+    );
+    const joinAck = lastEmission('join room')?.args[1];
+    act(() => {
+      if (isAckCallback(joinAck)) {
+        joinAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          revision: spectatorRoom.version,
+          data: {
+            kind: 'SPECTATOR',
+            role: 'SPECTATOR',
+            playerId: null,
+            room: spectatorRoom,
+          },
+        });
+      }
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rời phòng' }));
+    const leaveAck = lastEmission('leave room')?.args[0];
+    await act(async () => {
+      if (isAckCallback(leaveAck)) {
+        leaveAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          data: { roomDeleted: false },
+        });
+        await Promise.resolve();
+      }
+    });
+
+    expect(socketHarness.socket.connected).toBe(false);
+    expect(onExitToLauncher).toHaveBeenCalledOnce();
+  });
+
   it('confirms active desktop close without emitting leave room', () => {
     let quitListener: ((requestId: string) => void) | undefined;
     const respond = vi.fn();
@@ -500,7 +838,7 @@ describe('App session admission', () => {
         boardState: { ...room.gameState.boardState, gameStarted: true },
       },
     };
-    window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, JSON.stringify({
+    window.localStorage.setItem('monopoly.player-session.v1', JSON.stringify({
       version: 1,
       token: RECONNECT_TOKEN,
     }));
@@ -672,7 +1010,7 @@ describe('App session admission', () => {
         },
       },
     };
-    window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, JSON.stringify({
+    window.localStorage.setItem('monopoly.player-session.v1', JSON.stringify({
       version: 1,
       token: RECONNECT_TOKEN,
     }));

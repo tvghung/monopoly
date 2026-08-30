@@ -15,6 +15,12 @@ Development endpoint contract:
 - Vite renderer origin: `http://127.0.0.1:5173`.
 - Socket.IO development CORS default: exactly `http://127.0.0.1:5173`.
 - Packaged Electron uses `app://own-the-block` as the production CORS default.
+- Desktop Host uses the explicit LAN profile: the game HTTP/Socket.IO server
+  binds `0.0.0.0:<game-port>` while managed PostgreSQL remains loopback-only;
+  the host renderer connects to `127.0.0.1:<game-port>`.
+- Desktop Join uses the selected room code with either a discovered LAN endpoint
+  or a configured valid `http://`/`https://` endpoint; configured endpoints are
+  used as entered and are not silently normalized to a private address.
 - Same-origin browser requests remain valid; a browser request without an `Origin`
   header is not made invalid by the packaged Electron allowlist.
 - `CORS_ORIGIN` explicitly overrides the applicable development or production
@@ -83,8 +89,28 @@ player-disconnect grace, close Socket.IO/HTTP and PostgreSQL pool cleanly.
 
 ## Tests
 
+### Phase 7.1 correction evidence
+
+- `[AUTO][PASS]` Windows packaged LAN core proof requires advertiser startup,
+  real UDP bind, and `SO_BROADCAST`; it reports `coreStatus=PASS` and
+  `lanHttp=PASS`. Discovery is `PASS` only when a listener receives an actual
+  advertisement; the receive round trip may be `NOT_RUN`, and
+  `physicalLanAcceptance=MANUAL_REQUIRED`.
+- `[AUTO][PASS]` The proof checks the `0.0.0.0` bind, packaged health/readiness,
+  two-client connection/admission/reconnect, same-room identity preservation and
+  clean shutdown. Serialization/privacy checks cannot replace failed advertiser
+  startup and are not physical LAN evidence.
+- `[NOT RUN/BLOCKED]` Database integration requires `TEST_DATABASE_URL`; local
+  `db:status` without the configured PostgreSQL service is not a substitute.
+- `[MANUAL REQUIRED]` Physical Windows/macOS host/join, discovery, reconnect,
+  2/3/4-player, host loss and fallback acceptance remain separate evidence.
+
 - Liveness/readiness under healthy/unhealthy DB.
 - Missing config/schema mismatch fail before listen.
 - Static/SPA/CORS and Socket proxy behavior.
 - Clean migration/status, production image start and graceful shutdown.
 - Restart same DB restores sessions/room/game/deadlines.
+- Desktop LAN proof additionally checks the external helper resource, LAN-capable
+  bind, private endpoint/discovery where the machine exposes one, two-client
+  admission, reconnect identity, and ordered cleanup. Physical desktop pairs
+  remain manual acceptance evidence.

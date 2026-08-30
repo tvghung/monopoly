@@ -10,11 +10,9 @@ import {
 } from './releaseMetadata.mjs';
 
 const argumentsSet = new Set(process.argv.slice(2));
-const requireEndpoint = argumentsSet.has('--release');
 const target = resolveReleaseTarget();
 const metadata = assertCanonicalReleaseMetadata({
   root: repositoryRoot,
-  requireEndpoint,
 });
 const generatedConfig = readGeneratedReleaseConfig(repositoryRoot);
 
@@ -23,8 +21,11 @@ if (generatedConfig.version !== metadata.version) {
     `Generated release configuration version drift: expected ${metadata.version}, found ${String(generatedConfig.version)}.`,
   );
 }
-if (requireEndpoint && generatedConfig.socketUrl !== metadata.endpoint) {
+if (metadata.endpoint !== undefined && generatedConfig.socketUrl !== metadata.endpoint) {
   throw new Error('Generated release configuration does not contain the validated release endpoint.');
+}
+if (metadata.endpoint === undefined && Object.hasOwn(generatedConfig, 'socketUrl')) {
+  throw new Error('Generated release configuration must omit socketUrl when no endpoint was supplied.');
 }
 
 const signing = signingStatus({

@@ -2,8 +2,14 @@ import { createSocket } from '../../network/createSocket';
 import { loadRuntimeConfig } from '../../runtime/runtimeConfig';
 import { readGameSettings } from '../../settings/storage';
 import type { BootStage, BootstrapResult } from './types';
+import type { DesktopLaunchSelection, RuntimeConfig } from '../../runtime/types';
 
 type StageListener = (stage: BootStage) => void;
+
+export interface BootstrapOptions {
+  runtimeConfig?: RuntimeConfig;
+  launch?: DesktopLaunchSelection;
+}
 
 async function preloadCriticalAssets(): Promise<void> {
   if (typeof document === 'undefined') return;
@@ -19,12 +25,15 @@ async function preloadCriticalAssets(): Promise<void> {
   }));
 }
 
-export async function bootstrap(onStage?: StageListener): Promise<BootstrapResult> {
+export async function bootstrap(
+  onStage?: StageListener,
+  options: BootstrapOptions = {},
+): Promise<BootstrapResult> {
   onStage?.('loading-settings');
   const settings = readGameSettings();
 
   onStage?.('loading-runtime-config');
-  const runtimeConfig = await loadRuntimeConfig();
+  const runtimeConfig = options.runtimeConfig ?? await loadRuntimeConfig();
 
   onStage?.('loading-assets');
   await preloadCriticalAssets();
@@ -33,6 +42,6 @@ export async function bootstrap(onStage?: StageListener): Promise<BootstrapResul
   const socket = createSocket(runtimeConfig);
   onStage?.('ready');
 
-  return { runtimeConfig, socket, settings };
+  return { runtimeConfig, socket, settings, launch: options.launch };
 }
 

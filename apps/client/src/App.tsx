@@ -41,13 +41,15 @@ import CardInteractionOverlay, {
 } from './game/ui/events/CardInteractionOverlay';
 import {
   clearPlayerSession,
+  getSessionAuthority,
   readPlayerSession,
-  writePlayerSession,
+  readPlayerSessionForRoom,
+  writePlayerSessionForRoom,
 } from './playerSessionStorage';
 import type { AppSocket, SocketFunctions } from './types';
 import { requestRollDiceAck } from './rollDiceRequest';
 import { getDefaultWebRuntimeConfig } from './runtime/runtimeConfig';
-import type { RuntimeConfig } from './runtime/types';
+import type { DesktopLaunchSelection, RuntimeConfig } from './runtime/types';
 import { useAudio } from './audio/useAudio';
 import './App.css';
 
@@ -89,6 +91,7 @@ interface AppFailure {
   message: string;
   retryable: boolean;
   reloadRequired?: boolean;
+  returnToLauncher?: boolean;
 }
 
 type ConfirmationState = 'LEAVE' | { kind: 'QUIT'; requestId: string };
@@ -133,7 +136,9 @@ function FailureScreen({ title, failure, onRetry }: FailureScreenProps) {
           >
             {failure.reloadRequired
               ? 'Tải lại trò chơi'
-              : failure.retryable ? 'Thử lại' : 'Quay về màn hình vào phòng'}
+              : failure.returnToLauncher
+                ? 'Quay về trình khởi động LAN'
+                : failure.retryable ? 'Thử lại' : 'Quay về màn hình vào phòng'}
           </button>
         )
         : null}
@@ -144,9 +149,16 @@ function FailureScreen({ title, failure, onRetry }: FailureScreenProps) {
 interface AppProps {
   socket?: AppSocket;
   runtimeConfig?: RuntimeConfig;
+  launch?: DesktopLaunchSelection;
+  onExitToLauncher?: () => void;
 }
 
-export default function App({ socket: injectedSocket, runtimeConfig }: AppProps = {}) {
+export default function App({
+  socket: injectedSocket,
+  runtimeConfig,
+  launch,
+  onExitToLauncher,
+}: AppProps = {}) {
   const toast = useToast();
   const audio = useAudio();
   const socket = useMemo(
@@ -154,8 +166,12 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
     [injectedSocket, runtimeConfig],
   );
   const [presentationController] = useState(() => new PresentationController(false, 1, audio));
-  const [initialToken] = useState(readPlayerSession);
+  const sessionAuthority = getSessionAuthority(runtimeConfig?.socketUrl);
+  const [initialToken] = useState(() => launch?.targetRoomCode !== undefined
+    ? readPlayerSessionForRoom(sessionAuthority, launch.targetRoomCode)
+    : readPlayerSession(sessionAuthority));
   const tokenRef = useRef<string | null>(initialToken);
+  const initialJoinRef = useRef(launch?.initialJoin ?? null);
   const spectatorRequestRef = useRef<JoinRoomRequest | null>(null);
   const phaseRef = useRef<AppPhase>(initialToken ? 'RESTORING' : 'JOIN');
   const roleRef = useRef<RoomRole | null>(null);
@@ -239,10 +255,12 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       return;
     }
 
+    const returnToLauncher = terminalSessionCodes.has(error.code)
+      && Boolean(desktopBridge && tokenRef.current);
     if (terminalSessionCodes.has(error.code)) {
       tokenRef.current = null;
       spectatorRequestRef.current = null;
-      clearPlayerSession();
+      clearPlayerSession(sessionAuthority);
       roomRef.current = null;
       setRoom(null);
       setPrivatePlayerState(null);
@@ -250,9 +268,13 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       setIdentity(null, null);
     }
 
-    setFailure({ message: localizeAckError(error), retryable: error.retryable });
+    setFailure({
+      message: localizeAckError(error),
+      retryable: error.retryable,
+      returnToLauncher,
+    });
     transition('ERROR');
-  }, [setIdentity, socket, transition]);
+  }, [desktopBridge, sessionAuthority, setIdentity, socket, transition]);
 
   const resumeSession = useCallback((token: string) => {
     if (!socket.connected) {
@@ -294,9 +316,10 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
         'SESSION_SYNC',
       );
       setPrivateOffers(response.data.pendingOffers.filter(offer => offer.status === 'PENDING'));
-       applyRoom(response.data.room, true, 'SESSION_SYNC');
+      writePlayerSessionForRoom(token, sessionAuthority, response.data.room.roomCode);
+      applyRoom(response.data.room, true, 'SESSION_SYNC');
     });
-  }, [applyRoom, failSession, presentationController, setIdentity, socket, transition]);
+  }, [applyRoom, failSession, presentationController, sessionAuthority, setIdentity, socket, transition]);
 
   const joinRoom = useCallback((request: JoinRoomRequest, reconnecting = false) => {
     if (!socket.connected) {
@@ -344,7 +367,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
         return;
       }
 
-      if (!writePlayerSession(response.data.token)) {
+      if (!writePlayerSessionForRoom(response.data.token, sessionAuthority, request.roomCode)) {
         // The server now has a socket-scoped pending admission, but no durable
         // browser credential exists to activate it safely. Closing this transport
         // abandons that pending admission and lets a later retry start cleanly.
@@ -362,7 +385,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       transition('RESTORING');
       resumeSession(response.data.token);
     });
-  }, [applyRoom, resumeSession, setIdentity, socket, transition]);
+  }, [applyRoom, resumeSession, sessionAuthority, setIdentity, socket, transition]);
 
   useEffect(() => {
     const onConnect = () => {
@@ -375,8 +398,16 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
 
       const token = tokenRef.current;
       if (token) {
+        initialJoinRef.current = null;
         transition(roomRef.current ? 'RECONNECTING' : 'RESTORING');
         resumeSession(token);
+        return;
+      }
+
+      const initialJoin = initialJoinRef.current;
+      if (initialJoin) {
+        initialJoinRef.current = null;
+        joinRoom(initialJoin);
         return;
       }
 
@@ -507,6 +538,16 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       socket.disconnect();
     };
   }, [applyRoom, joinRoom, presentationController, resumeSession, socket, toast, transition]);
+
+  useEffect(() => {
+    if (!launch?.hosting || !desktopBridge?.discovery || !room?.roomCode) return undefined;
+    void desktopBridge.discovery.startAdvertising({ roomCode: room.roomCode })
+      .then(result => {
+        if (!result.ok) toast.show('Không thể tự động tìm thấy phòng này; hãy chia sẻ địa chỉ LAN thủ công.');
+      })
+      .catch(() => toast.show('Không thể tự động tìm thấy phòng này; hãy chia sẻ địa chỉ LAN thủ công.'));
+    return undefined;
+  }, [desktopBridge, launch?.hosting, room?.roomCode, toast]);
 
   const showCommandFailure = useCallback((response: { ok: true } | { ok: false; error: AckError }) => {
     if (!response.ok) toast.show(localizeAckError(response.error));
@@ -672,23 +713,40 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
     setOperation('leave');
     setOperationError(null);
     socket.emit('leave room', (response) => {
-      setOperation(null);
-      if (!response.ok) {
-        setOperationError(localizeAckError(response.error));
-        return;
-      }
+      void (async () => {
+        setOperation(null);
+        if (!response.ok) {
+          setOperationError(localizeAckError(response.error));
+          return;
+        }
 
-      tokenRef.current = null;
-      spectatorRequestRef.current = null;
-      clearPlayerSession();
-      roomRef.current = null;
-      setRoom(null);
-      setPrivatePlayerState(null);
-      setPrivateOffers([]);
-      setIdentity(null, null);
-      transition('JOIN');
+        tokenRef.current = null;
+        spectatorRequestRef.current = null;
+        clearPlayerSession(sessionAuthority);
+        roomRef.current = null;
+        setRoom(null);
+        setPrivatePlayerState(null);
+        setPrivateOffers([]);
+        setIdentity(null, null);
+
+        if (desktopBridge) {
+          if (launch?.hosting) {
+            try {
+              await desktopBridge.discovery?.stopAdvertising();
+            } catch {
+              // Leaving the room must still release the renderer and socket.
+            }
+          }
+          socket.disconnect();
+          onExitToLauncher?.();
+          if (!onExitToLauncher) transition('JOIN');
+          return;
+        }
+
+        transition('JOIN');
+      })();
     });
-  }, [setIdentity, socket, transition]);
+  }, [desktopBridge, launch?.hosting, onExitToLauncher, sessionAuthority, setIdentity, socket, transition]);
 
   const handleLeave = useCallback(() => {
     const currentRoom = roomRef.current;
@@ -743,6 +801,14 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
     transition('JOIN');
     if (!socket.connected) socket.connect();
   }, [resumeSession, socket, transition]);
+
+  const recoverFromFailure = useCallback(() => {
+    if (failure?.returnToLauncher && onExitToLauncher) {
+      onExitToLauncher();
+      return;
+    }
+    retry();
+  }, [failure?.returnToLauncher, onExitToLauncher, retry]);
 
   const contextValue = useMemo(() => ({
     state: room?.gameState ?? initialState,
@@ -838,7 +904,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
             ? <FailureScreen title="Phiên chơi đã được mở ở nơi khác" failure={failure} />
             : null}
           {phase === 'ERROR' && failure
-            ? <FailureScreen title="Không thể khôi phục ván chơi" failure={failure} onRetry={retry} />
+            ? <FailureScreen title="Không thể khôi phục ván chơi" failure={failure} onRetry={recoverFromFailure} />
             : null}
           <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
           <ConfirmationDialog

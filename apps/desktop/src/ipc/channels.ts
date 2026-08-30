@@ -7,6 +7,17 @@ export const IPC_CHANNELS = {
   quitRequested: 'ownTheBlock:quit:requested',
   quitResponse: 'ownTheBlock:quit:response',
   openExternal: 'ownTheBlock:open-external',
+  hostGetStatus: 'ownTheBlock:host:get-status',
+  hostStart: 'ownTheBlock:host:start',
+  hostStop: 'ownTheBlock:host:stop',
+  hostStatusChanged: 'ownTheBlock:host:status-changed',
+  lanGetInterfaces: 'ownTheBlock:lan:get-interfaces',
+  discoveryStartBrowsing: 'ownTheBlock:discovery:start-browsing',
+  discoveryStopBrowsing: 'ownTheBlock:discovery:stop-browsing',
+  discoveryGetGames: 'ownTheBlock:discovery:get-games',
+  discoveryGamesChanged: 'ownTheBlock:discovery:games-changed',
+  discoveryStartAdvertising: 'ownTheBlock:discovery:start-advertising',
+  discoveryStopAdvertising: 'ownTheBlock:discovery:stop-advertising',
 } as const;
 
 export interface DesktopWindowState {

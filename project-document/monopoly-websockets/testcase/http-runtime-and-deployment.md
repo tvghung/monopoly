@@ -35,6 +35,13 @@
   `http://127.0.0.1:5173`, packaged Electron defaults to `app://own-the-block`, and
   `CORS_ORIGIN` overrides the applicable default. CORS is browser authorization,
   not authentication or server-side rejection of arbitrary WebSocket clients.
+- [ ] Desktop Host starts managed PostgreSQL on loopback and the authoritative
+  game server on the selected LAN-capable port; PostgreSQL is not LAN reachable.
+- [ ] Desktop Join discovers a host or accepts a configured valid HTTP(S) endpoint
+  plus room code before creating the gameplay socket; configured endpoints are not
+  silently normalized to a private IPv4 address.
+- [ ] Physical Windows/macOS host/join pairs, reconnect, 2/3/4-player lobby,
+  manual fallback, and host loss are recorded separately as manual acceptance.
 - [ ] Production proxy/static limiter uses one trusted hop and does not throttle
   Socket.IO or health probes.
 - [ ] CI migrates PostgreSQL before integration tests and runs typecheck/lint/test/build.
@@ -47,6 +54,25 @@
 - [ ] SIGTERM stops commands and closes scheduler/socket/http/pool without fake turn grace.
 - [ ] Scheduler/bootstrap/listen failure before ready closes opened Socket.IO/DB resources.
 - [ ] Backup/forward-fix procedure avoids destructive down migration.
+
+## Phase 7.1 correction evidence
+
+- `[AUTO][PASS]` Windows packaged LAN core proof requires the advertiser to bind
+  a real UDP socket and enable broadcast before it can report
+  `coreStatus=PASS; lanHttp=PASS`. Discovery is `PASS` only after a listener
+  receives the advertisement; the receive round trip may be `NOT_RUN`, and
+  `physicalLanAcceptance=MANUAL_REQUIRED`.
+- `[AUTO][PASS]` The proof validates the external helper resource, authoritative
+  `0.0.0.0` bind, packaged health/readiness, two-client admission/reconnect,
+  same-room identity and clean shutdown. Serialization-only fallback cannot
+  convert failed advertiser startup into a core pass.
+- `[AUTO][PASS]` Application-level quit coordination is idempotent: cancellation
+  leaves runtime resources running; confirmed quit stops runtime once and closes
+  only after cleanup.
+- `[NOT RUN/BLOCKED]` Local `db:status` is blocked when PostgreSQL is unavailable;
+  this does not replace configured PostgreSQL integration evidence.
+- `[MANUAL REQUIRED]` Physical Windows/macOS LAN pairs, discovery, reconnect,
+  2/3/4-player, fallback and host-loss acceptance remain separate.
 
 ## Restart/recovery
 

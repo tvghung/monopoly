@@ -59,4 +59,62 @@ describe('QuitRequestController', () => {
     expect(close).toHaveBeenCalledTimes(2);
     controller.dispose();
   });
+
+  it('uses the same renderer decision for an application quit and honors cancellation', async () => {
+    const close = vi.fn();
+    const send = vi.fn();
+    const window = {
+      close,
+      isDestroyed: () => false,
+      webContents: { send },
+    } as unknown as BrowserWindow;
+    const controller = new QuitRequestController(window);
+
+    const first = controller.requestApplicationQuit();
+    const second = controller.requestApplicationQuit();
+    const requestId = send.mock.calls[0]?.[1] as string;
+    expect(send).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledWith(IPC_CHANNELS.quitRequested, requestId);
+    controller.respond(requestId, false);
+
+    await expect(first).resolves.toBe(false);
+    await expect(second).resolves.toBe(false);
+    expect(close).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it('fails open for an application quit when the renderer does not respond', async () => {
+    const send = vi.fn();
+    const window = {
+      close: vi.fn(),
+      isDestroyed: () => false,
+      webContents: { send },
+    } as unknown as BrowserWindow;
+    const controller = new QuitRequestController(window);
+
+    const decision = controller.requestApplicationQuit();
+    vi.advanceTimersByTime(2_000);
+
+    await expect(decision).resolves.toBe(true);
+    expect(window.close).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it('bypasses the final browser-window close after application quit approval', () => {
+    const preventDefault = vi.fn();
+    const send = vi.fn();
+    const window = {
+      close: vi.fn(),
+      isDestroyed: () => false,
+      webContents: { send },
+    } as unknown as BrowserWindow;
+    const controller = new QuitRequestController(window);
+
+    controller.armNextClose();
+    controller.handleClose({ preventDefault });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    controller.dispose();
+  });
 });

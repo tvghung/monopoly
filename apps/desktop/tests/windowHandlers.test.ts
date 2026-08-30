@@ -31,6 +31,8 @@ vi.mock('../src/runtimeConfig', async importOriginal => ({
 import { IPC_CHANNELS } from '../src/ipc/channels';
 import { QuitRequestController, registerWindowHandlers } from '../src/ipc/windowHandlers';
 import { DesktopRuntimeConfigError } from '../src/runtimeConfig';
+import type { HostRuntimeStatus } from '../src/hostRuntime';
+import type { DiscoveredLanGame } from '../src/lanDiscovery';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -155,5 +157,137 @@ describe('runtime config IPC lifecycle', () => {
       maximized: false,
       resizable: true,
     });
+  });
+
+  it('validates LAN payloads and keeps discovery data scoped to the renderer', async () => {
+    const webContents = { send: vi.fn() };
+    const window = {
+      webContents,
+      close: vi.fn(),
+      isDestroyed: () => false,
+      isFullScreen: () => false,
+      isMaximized: () => false,
+      isResizable: () => true,
+      setFullScreen: vi.fn(),
+      on: vi.fn(),
+    };
+    const status: HostRuntimeStatus = {
+      state: 'READY',
+      platform: 'win32',
+      appVersion: '3.0.0',
+      gamePort: 43_123,
+      localEndpoint: 'http://127.0.0.1:43123',
+      lanAvailable: true,
+      interfaces: [],
+      advertisedEndpoints: [],
+    };
+    const hostRuntime = {
+      status,
+      gamePort: 43_123,
+      start: vi.fn(async () => status),
+      stop: vi.fn(async () => status),
+      setHosting: vi.fn(),
+      onStatusChanged: vi.fn(() => () => undefined),
+    };
+    const games: DiscoveredLanGame[] = [];
+    const discovery = {
+      startBrowsing: vi.fn(async () => undefined),
+      stopBrowsing: vi.fn(async () => undefined),
+      getGames: vi.fn(() => games),
+      startAdvertising: vi.fn(async () => undefined),
+      stopAdvertising: vi.fn(async () => undefined),
+      onGamesChanged: vi.fn(() => () => undefined),
+    };
+    const quitController = new QuitRequestController(window as never);
+    registerWindowHandlers(window as never, false, quitController, {
+      hostRuntime: hostRuntime as never,
+      discovery: discovery as never,
+    });
+
+    const hostStart = harness.handlers.get(IPC_CHANNELS.hostStart)!;
+    const discoveryStart = harness.handlers.get(IPC_CHANNELS.discoveryStartAdvertising)!;
+    await expect(Promise.resolve().then(() => hostStart({ sender: webContents }, { port: 0 })))
+      .rejects.toThrow('Invalid host game port');
+    await expect(Promise.resolve().then(() => discoveryStart(
+      { sender: webContents },
+      { roomCode: 'LAN-1234', token: 'secret' },
+    ))).rejects.toThrow('Invalid LAN advertisement request');
+    expect(hostRuntime.start).not.toHaveBeenCalled();
+    expect(discovery.startAdvertising).not.toHaveBeenCalled();
+    await expect(Promise.resolve().then(() => hostStart({ sender: {} }, {})))
+      .rejects.toThrow('Invalid IPC sender');
+  });
+
+  it('marks hosting only after LAN advertising succeeds', async () => {
+    const webContents = { send: vi.fn() };
+    const window = {
+      webContents,
+      close: vi.fn(),
+      isDestroyed: () => false,
+      isFullScreen: () => false,
+      isMaximized: () => false,
+      isResizable: () => true,
+      setFullScreen: vi.fn(),
+      on: vi.fn(),
+    };
+    const events: string[] = [];
+    const hostRuntime = {
+      gamePort: 43_123,
+      setHosting: vi.fn(() => { events.push('hosting'); }),
+      onStatusChanged: vi.fn(() => () => undefined),
+    };
+    const discovery = {
+      startAdvertising: vi.fn(async () => {
+        events.push('advertising');
+        throw new Error('broadcast unavailable');
+      }),
+      onGamesChanged: vi.fn(() => () => undefined),
+    };
+    const quitController = new QuitRequestController(window as never);
+    registerWindowHandlers(window as never, false, quitController, {
+      hostRuntime: hostRuntime as never,
+      discovery: discovery as never,
+    });
+
+    const discoveryStart = harness.handlers.get(IPC_CHANNELS.discoveryStartAdvertising)!;
+    await expect(Promise.resolve(discoveryStart({ sender: webContents }, { roomCode: 'LAN-1234' })))
+      .resolves.toEqual({ ok: false, code: 'FAILED' });
+    expect(events).toEqual(['advertising']);
+    expect(hostRuntime.setHosting).not.toHaveBeenCalled();
+  });
+
+  it('marks hosting after a successful LAN advertisement', async () => {
+    const webContents = { send: vi.fn() };
+    const window = {
+      webContents,
+      close: vi.fn(),
+      isDestroyed: () => false,
+      isFullScreen: () => false,
+      isMaximized: () => false,
+      isResizable: () => true,
+      setFullScreen: vi.fn(),
+      on: vi.fn(),
+    };
+    const events: string[] = [];
+    const hostRuntime = {
+      gamePort: 43_123,
+      setHosting: vi.fn(() => { events.push('hosting'); }),
+      onStatusChanged: vi.fn(() => () => undefined),
+    };
+    const discovery = {
+      startAdvertising: vi.fn(async () => { events.push('advertising'); }),
+      onGamesChanged: vi.fn(() => () => undefined),
+    };
+    const quitController = new QuitRequestController(window as never);
+    registerWindowHandlers(window as never, false, quitController, {
+      hostRuntime: hostRuntime as never,
+      discovery: discovery as never,
+    });
+
+    const discoveryStart = harness.handlers.get(IPC_CHANNELS.discoveryStartAdvertising)!;
+    await expect(Promise.resolve(discoveryStart({ sender: webContents }, { roomCode: 'LAN-1234' })))
+      .resolves.toEqual({ ok: true });
+    expect(events).toEqual(['advertising', 'hosting']);
+    expect(hostRuntime.setHosting).toHaveBeenCalledOnce();
   });
 });

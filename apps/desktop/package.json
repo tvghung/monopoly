@@ -14,6 +14,7 @@
     "prepare:postgres": "node scripts/preparePostgres.mjs",
     "compile": "node scripts/compile.mjs",
     "proof:packaged": "node scripts/runPackagedProof.mjs",
+    "proof:packaged:lan": "node scripts/runPackagedLanProof.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --pool=threads --maxWorkers=1 --no-file-parallelism",
     "package": "pnpm run prepare:renderer && pnpm run prepare:postgres && pnpm run compile && electron-forge package",

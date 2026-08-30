@@ -32,7 +32,10 @@ Development endpoint contract:
 - Vite proxies `/socket.io` to the server, while Electron connects directly to
   `http://127.0.0.1:8080`; the server allows the exact renderer origin by default.
 
-- `AppBootstrap` chạy các stage `loading-settings` → `loading-runtime-config` →
+- Desktop renders `DesktopMultiplayerLauncher` before any gameplay Socket.IO
+  client is created. Host mode starts the main-process runtime first; Join mode
+  resolves discovery or a validated manual endpoint first. Web bootstrap retains
+  the normal `loading-settings` → `loading-runtime-config` →
   `loading-assets` → `initializing-client` → `ready`/`error`; loading UI chỉ hiển
   thị stage thực, không dựng phần trăm giả.
 - Web đọc `__SOCKET_URL__`; desktop lấy `socketUrl`, `platform` và `appVersion`
@@ -45,8 +48,9 @@ Development endpoint contract:
 ## Session storage và reconnect
 
 - Socket không dùng `socket.id` làm player identity.
-- Versioned localStorage key là `monopoly.player-session.v1` và chỉ chứa
-  `{version: 1, token}`.
+- Versioned localStorage key là `monopoly.player-session.v2` và lưu token theo
+  canonical HTTP(S) origin. The packaged `app://` renderer never imports an
+  unscoped legacy token; web v1 records migrate on first read.
 - First join là hai bước: `join room` trả pending token → client lưu token →
   `resume session` activate/reclaim Seat.
 - Mỗi Socket.IO `connect` có stored token phải resume trước khi bật gameplay action.

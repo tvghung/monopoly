@@ -27,7 +27,6 @@ async function listFiles(directory) {
 
 const metadata = assertCanonicalReleaseMetadata({
   root: repositoryRoot,
-  requireEndpoint: true,
 });
 const target = resolveReleaseTarget();
 const files = await listFiles(makeRoot);
