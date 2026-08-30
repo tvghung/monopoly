@@ -7,10 +7,16 @@ on:
       - 'apps/desktop/**'
       - 'apps/server/**'
       - 'packages/shared/**'
+      - 'e2e/**'
+      - 'playwright.config.ts'
+      - 'playwright.global-setup.ts'
+      - 'project-document/**'
+      - 'README.md'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.github/workflows/desktop-build.yml'
+      - '.github/workflows/release-candidate.yml'
   push:
     branches:
       - main
@@ -20,10 +26,16 @@ on:
       - 'apps/desktop/**'
       - 'apps/server/**'
       - 'packages/shared/**'
+      - 'e2e/**'
+      - 'playwright.config.ts'
+      - 'playwright.global-setup.ts'
+      - 'project-document/**'
+      - 'README.md'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.github/workflows/desktop-build.yml'
+      - '.github/workflows/release-candidate.yml'
   workflow_dispatch:
 
 permissions:
@@ -72,8 +84,14 @@ jobs:
       - name: Run packaged Phase 7 runtime proof
         run: pnpm --filter @monopoly/desktop proof:packaged
 
-      - name: Run packaged Phase 7.1 LAN core proof
-        run: pnpm --filter @monopoly/desktop proof:packaged:lan
+      - name: Run packaged Phase 7.2 Host proof
+        run: pnpm --filter @monopoly/desktop proof:packaged:host
+
+      - name: Install mobile browser engines
+        run: pnpm exec playwright install chromium webkit
+
+      - name: Run mobile Chromium and WebKit flows
+        run: pnpm exec playwright test
 
       - name: Upload Windows Squirrel artifact
         if: runner.os == 'Windows'
