@@ -3,10 +3,12 @@
 > **Phase 7.2 current-state addendum (2026-08-30):** Phase 7.2 now absorbs the
 > unfinished Phase 7.1 implementation. The final V1 uses explicit IPv4
 > interface selection, room-code entry, Copy Link, and QR; the carried UDP
-> discovery implementation was removed. Local Windows automated gates are a
-> candidate PASS, while exact-SHA Windows/macOS CI and physical-device/install
-> acceptance remain pending. See `07C_PHASE_7_2_FINAL_ENGINEERING.md`. The
-> older status statements below describe their historical checkpoint only.
+> discovery implementation was removed. Phase 7.2 engineering passed exact-SHA
+> PostgreSQL CI and Windows x64/macOS arm64 Desktop Build at
+> `c756536dc919e9f264e01784a38ec283761dcaf4`; physical-device/install and
+> release-signing acceptance remain deferred. See
+> `07C_PHASE_7_2_FINAL_ENGINEERING.md`. The older status statements below
+> describe their historical checkpoint only.
 
 **PHASE 7 PRODUCT DIRECTION: LAN MULTIPLAYER & DESKTOP HOST MODE**
 

@@ -570,9 +570,12 @@ File:
 
 ## Phase 7 — LAN Multiplayer & Desktop Host Mode
 
-Status: **PHASE 7.0 PASS. PHASE 7.2 LOCAL AUTOMATED CANDIDATE PASS;
-EXACT-SHA WINDOWS/macOS CI PENDING.** Phase 7.1 is not retroactively passed;
-its unfinished scope is absorbed by Phase 7.2.
+Status: **PHASE 7.0 PASS. PHASE 7.2 ENGINEERING PASS** at code-bearing SHA
+`c756536dc919e9f264e01784a38ec283761dcaf4`, including exact-SHA PostgreSQL
+CI and Windows x64/macOS arm64 Desktop Build. Phase 7.1 is not retroactively
+passed; its unfinished scope was absorbed by Phase 7.2. Physical LAN,
+fresh-install, signing/notarization, and public-release acceptance remain
+separate deferred gates.
 
 Phase 7 is limited to private LAN/Wi-Fi multiplayer and desktop host mode:
 

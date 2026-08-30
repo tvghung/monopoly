@@ -2,10 +2,11 @@
 
 ## Status
 
-**LOCAL AUTOMATED CANDIDATE PASS; EXACT-SHA WINDOWS/macOS CI PENDING.** This
-record is the implementation and evidence ledger for the final Phase 7
-engineering scope. It does not claim Phase 7.1 passed and it does not claim
-real-device, installer, signing, or public-release acceptance.
+**PHASE 7.2 ENGINEERING PASS.** Code-bearing SHA
+`c756536dc919e9f264e01784a38ec283761dcaf4` passed the exact-SHA PostgreSQL CI
+gate and Windows x64/macOS arm64 Desktop Build gate. This record does not claim
+Phase 7.1 passed, physical-device LAN acceptance, fresh installer/uninstaller
+acceptance, signing, notarization, or public-release approval.
 
 Phase 7.2 absorbs the still-unimplemented Desktop Host Runtime + LAN Multiplayer
 work required from Phase 7.1 and then completes Mobile Compatibility + Recovery
@@ -21,6 +22,7 @@ work required from Phase 7.1 and then completes Mobile Compatibility + Recovery
 | Phase 7.1 source branch head | `f47c8d87004b338ea34aff7b2b5651bce6a5c570` |
 | Phase 7.2 branch | `overhaul/phase-7.2-final-engineering` |
 | Phase 7.1 carry-forward merge | `fbc6b2ad1fc5e3bbc986cf4f24e3efca64d75550` |
+| Phase 7.2 code-bearing proof SHA | `c756536dc919e9f264e01784a38ec283761dcaf4` |
 
 The Phase 7.2 branch was created from the clean, fetched `origin/main` baseline.
 The six unmerged Phase 7.1 commits were then preserved through an auditable merge
@@ -157,7 +159,7 @@ Phase 7.2 must close these code-backed gaps:
 | Sharing | PASS | Host-only lobby panel shows selected LAN URL, room code, Copy Link, QR, network selector, and refresh. The canonical invitation is `http://<IPv4>:<actual-port>/?room=<room-code>` and contains no session/database secret. |
 | Mobile browser compatibility | PASS | Safe areas, dynamic viewport units, scrollable panels/modals, >=44 px primary controls, portrait guidance, landscape compression, visibility/pageshow/online recovery, WebGL context-loss/unavailable legacy fallback, and audio-unavailable no-op behavior use the existing game/presentation state. |
 | Multiplayer and lifecycle | PASS | The existing protocol-V8 authoritative admission/room handlers remain the only implementation. In desktop profile only the loopback Host may activate an unused code; remote LAN peers receive typed `NOT_FOUND` for a wrong code. Automated tests cover 2–4 active players, fifth-player rejection, stable host, reconnect/newest-wins, spectator/leave rules, deterministic `FINISHED -> Play Again -> LOBBY`, and second-match start. |
-| Packaging and CI | LOCAL PASS / REMOTE PENDING | Phase 7.0 proof is retained. A separate Phase 7.2 packaged Host proof and mobile Chromium/WebKit flow are wired into Windows/macOS Desktop Build; the self-contained Release Candidate keeps an optional endpoint and runs both packaged proofs. |
+| Packaging and CI | PASS | Phase 7.0 proof is retained. The separate Phase 7.2 packaged Host proof and mobile Chromium/WebKit flow passed on Windows x64 and macOS arm64; both platform artifacts uploaded. The self-contained Release Candidate keeps an optional endpoint and runs both packaged proofs. |
 
 ### Room-code collision strategy
 
@@ -235,12 +237,16 @@ existing lobby is full.
 
 | Workflow | Platform/job | SHA | Result |
 | --- | --- | --- | --- |
-| CI | PostgreSQL-backed Linux quality gate | Pending first code-bearing push | PENDING |
-| Desktop Build | Windows x64 | Pending first code-bearing push | PENDING |
-| Desktop Build | macOS runner architecture | Pending first code-bearing push | PENDING |
+| CI run `33311264156` | PostgreSQL-backed Linux job `99256630443` | `c756536dc919e9f264e01784a38ec283761dcaf4` | PASS — migrations 001-009; desktop 69, server 168 with no skips, client 525; typecheck, lint, build. |
+| Desktop Build run `33311264200` | Windows x64 job `99256630545` | `c756536dc919e9f264e01784a38ec283761dcaf4` | PASS — distributable, both packaged proofs, Chromium/WebKit, Squirrel upload. |
+| Desktop Build run `33311264200` | macOS arm64 job `99256630416` | `c756536dc919e9f264e01784a38ec283761dcaf4` | PASS — distributable, both packaged proofs, Chromium/WebKit, DMG upload. |
 
-Remote PASS will be recorded only after each exact SHA reaches a final successful
-conclusion and its distributable artifact upload plus both packaged proofs finish.
+Uploaded workflow artifacts:
+
+| Artifact | ID | Uploaded ZIP bytes | GitHub SHA-256 digest |
+| --- | ---: | ---: | --- |
+| `own-the-block-windows-squirrel` | `9732126408` | 470,494,623 | `befe680b44203bc7c0d1533cf5ecbf6c66d40eced24bd7b6d6362ecaf32ce5da` |
+| `own-the-block-macos-dmg` | `9732075708` | 368,543,107 | `fc2b55cfe125e19de535ec8ecfee22872e5ef8e143811a813e97017cda97cc30` |
 
 ## Deferred manual matrix
 
@@ -266,10 +272,9 @@ conclusion and its distributable artifact upload plus both packaged proofs finis
 
 ## Closeout decision
 
-The only permitted final decisions are:
+`PHASE 7.2 ENGINEERING PASS`
 
-- `PHASE 7.2 ENGINEERING PASS` after every automated hard gate passes; or
-- `PHASE 7.2 BLOCKED` with the exact failed automated gate.
-
-Until that closeout is recorded, Own the Block must not be described as fully
-engineering-complete or public-release validated.
+The automated engineering hard gates are complete at the code-bearing proof SHA.
+The deferred manual matrix and unsigned release-validation results above remain
+separate and prevent any claim of physical LAN, installed-runtime, signed release,
+notarized release, or public-production acceptance.

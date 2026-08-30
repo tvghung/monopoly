@@ -3,10 +3,12 @@
 > **Phase 7.2 current-state addendum (2026-08-30):** The final phase now absorbs
 > unfinished Phase 7.1 Host/LAN work and adds mobile/recovery hardening. UDP
 > discovery was removed in favor of explicit IPv4 selection, URL/room entry,
-> Copy Link, and QR. Local Windows automated gates are a candidate PASS;
-> exact-SHA Windows/macOS CI is pending and physical-device/install evidence is
-> still deferred. See `07C_PHASE_7_2_FINAL_ENGINEERING.md`. Earlier decisions
-> below remain historical Phase 7.0/7.1 evidence.
+> Copy Link, and QR. Phase 7.2 engineering passed exact-SHA PostgreSQL CI and
+> Windows x64/macOS arm64 Desktop Build at
+> `c756536dc919e9f264e01784a38ec283761dcaf4`; physical-device/install and
+> release-signing evidence remains deferred. See
+> `07C_PHASE_7_2_FINAL_ENGINEERING.md`. Earlier decisions below remain
+> historical Phase 7.0/7.1 evidence.
 
 ## Status
 
