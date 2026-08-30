@@ -45,13 +45,16 @@
 - `[AUTO][PASS]` Client reconnect storage uses V3 records scoped by canonical
   HTTP(S) authority and room code; a selected-room mismatch or legacy unscoped
   V1/V2 record cannot resume the wrong room.
+- `[AUTO][PASS]` Clearing a V2 record preserves remaining entries as
+  `authority -> token` strings, and V3 writes refresh an existing authority's
+  insertion order before the maximum eight-entry retention limit is applied.
 - `[AUTO][PASS]` Desktop terminal resume failure clears the scoped session and
   returns to the LAN launcher; it does not silently fall back to a fresh join.
 - `[AUTO][PASS]` Desktop leave clears client session state, stops host discovery
   advertising when hosting, disconnects, and returns to the launcher.
 - `[AUTO][PASS]` Packaged Windows LAN core proof reports `coreStatus=PASS` and
-  `lanHttp=PASS`; discovery is `NOT_RUN` and physical LAN acceptance is
-  `MANUAL_REQUIRED`.
+  `lanHttp=PASS`; discovery is `PASS` only after an actual advertisement is
+  received, and physical LAN acceptance is `MANUAL_REQUIRED`.
 - `[MANUAL REQUIRED]` Physical Windows/macOS host/join, discovery, reconnect,
   2/3/4-player lobby, fallback and host-loss acceptance remain unclaimed.
 

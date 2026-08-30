@@ -2,12 +2,12 @@
 
 ## Final engineering status
 
-**Correction status: COMPLETE locally for the requested client/desktop scope;
-Phase 7.1 remains open for physical LAN acceptance and exact-SHA CI.** The
-packaged Windows proof now reports typed results: `coreStatus=PASS`,
-`lanHttp=PASS`, `discovery=NOT_RUN`, and
-`physicalLanAcceptance=MANUAL_REQUIRED`. The manual private-endpoint path
-remains available; no same-machine UDP result is treated as physical acceptance.
+**Final correction status: VERIFIED LOCALLY on Windows; Phase 7.1 remains open
+for exact-SHA Windows/macOS CI and physical LAN acceptance.** The current
+packaged LAN proof reports `coreStatus=PASS`, `lanHttp=PASS`,
+`discovery=PASS` in this same-machine environment, and
+`physicalLanAcceptance=MANUAL_REQUIRED`. The discovery result is not a
+physical desktop-to-desktop acceptance result.
 
 | Field | Value |
 | --- | --- |
@@ -16,7 +16,9 @@ remains available; no same-machine UDP result is treated as physical acceptance.
 | Code-bearing implementation SHA | `1465ceb` |
 | Correction pass starting SHA | `e6e3714bf93c22203730f14a8741d18e8955c8d6` |
 | Correction code SHA | `98d68b12660f31b840f5a16c2aa53f12cfee6878` |
-| Documentation closeout | Follow-up commit after the code-bearing SHA; final branch HEAD is reported with the delivery evidence |
+| Final correction pass starting SHA | `9e4afcf172fd424306577ba6ffd78a6eaeac535c` |
+| Final correction code SHA | `72143cd5fd5eca1efeb3a7935af9490188b2197f` |
+| Documentation closeout | Separate docs-only commit after the code-bearing SHA; final branch HEAD is reported with the delivery evidence |
 | Scope | Windows/macOS desktop Host and Join over private LAN, automatic desktop discovery, manual fallback, reconnect hardening |
 | Excluded | mobile/QR, Internet multiplayer, host migration, P2P authority, GameCore/protocol redesign, new gameplay migrations |
 
@@ -124,6 +126,22 @@ failure leaves the manual address path available. Host loss enters the existing
 reconnect/host-unavailable boundary; it never promotes another player or starts
 a hidden second server. Firewall changes are not automated.
 
+### Final correction pass
+
+- Advertiser startup uses a real `dgram` socket, binds `0.0.0.0:0`, enables
+  broadcast only after bind, publishes active state only after setup, and rolls
+  back sockets/timers on failure. Concurrent starts coalesce; pending starts can
+  be cancelled safely by stop/dispose.
+- Browsing also cancels pending bind work and closes a late socket without
+  resurrecting timers or state.
+- Packaged proof treats advertiser startup/bind/broadcast failure as a core
+  failure. Only receiving an advertisement may be `PASS` or `NOT_RUN`; physical
+  LAN acceptance remains manual.
+- Legacy V2 cleanup preserves its `authority -> token` wire shape. V3 writes
+  refresh existing authority order before enforcing the eight-entry limit.
+- Release metadata supports endpoint-less LAN-first builds; an absolute HTTP(S)
+  endpoint remains an optional configured override.
+
 ## Files changed
 
 ### Desktop runtime
@@ -171,8 +189,9 @@ The exact local command results are recorded below. The packaged command
 `pnpm --filter @monopoly/desktop proof:packaged:lan` is separate from the
 existing Phase 7.0B proof. Its `coreStatus` can be `PASS` only after strict
 resource, bind, readiness, protocol, admission, reconnect, privacy, and cleanup
-checks. `lanHttp` and `discovery` are environment evidence; unavailable physical
-or same-machine UDP evidence is `NOT_RUN`, never an ambiguous partial core pass.
+checks, including mandatory advertiser startup. `lanHttp` and `discovery` are
+environment evidence; discovery is `PASS` only after a listener receives an
+actual advertisement. Physical desktop-to-desktop evidence is never inferred.
 
 The proof checks external resources, loopback PostgreSQL, LAN-capable helper
 bind, `/healthz`, `/readyz`, private endpoint reachability where available,
@@ -188,12 +207,13 @@ desktop-to-desktop interoperability.
 | `pnpm db:status` | BLOCKED | PostgreSQL at `127.0.0.1:5433` refused the connection (`ECONNREFUSED`). |
 | `pnpm typecheck` | PASS | All workspace typechecks passed, including client, server, shared, and desktop. |
 | `pnpm lint` | PASS | Workspace lint completed successfully. |
-| `pnpm test` | PASS | Desktop 68 passed; client 515 passed; server 153 passed and 11 PostgreSQL-gated tests skipped. |
+| `pnpm test` | PASS | Desktop 76 passed; client 517 passed; server 153 passed and 11 PostgreSQL-gated tests skipped. |
 | `pnpm build` | PASS | Client build completed; only existing large-chunk warnings were emitted. |
-| `pnpm desktop:package` | PASS | Windows x64 packaged Electron application created. |
+| `pnpm desktop:package` | PASS | Windows x64 packaged Electron application created with endpoint-less LAN-first release configuration. |
 | `pnpm desktop:make` | PASS | Windows x64 Squirrel maker completed successfully. |
 | Existing Phase 7 packaged proof | PASS | Windows x64; PostgreSQL 17, migrations 001–009, locks, JSONB, sessions, restart, health/readiness, and loopback privacy checks passed. |
-| Phase 7.1 packaged LAN core proof | `coreStatus=PASS`; `lanHttp=PASS`; `discovery=NOT_RUN`; `physicalLanAcceptance=MANUAL_REQUIRED` | Windows x64; helper `0.0.0.0` bind, strict health/readiness, protocol V8, two-client same-room/host authority, reconnect identity/room, discovery serialization/privacy, and clean shutdown passed; `interfaceCount=2`. |
+| Phase 7.1 packaged LAN core proof | `coreStatus=PASS`; `lanHttp=PASS`; `discovery=PASS`; `physicalLanAcceptance=MANUAL_REQUIRED` | Windows x64; mandatory advertiser bind/broadcast, helper `0.0.0.0` bind, strict health/readiness, protocol V8, two-client same-room/host authority, reconnect identity/room, discovery serialization/privacy, and clean shutdown passed; `interfaceCount=3`. |
+| LAN-first release configuration contract | PASS | Endpoint-less and configured HTTP(S) release configurations validated; invalid `ws://` endpoint rejected. |
 | `git diff --check` | PASS | No whitespace errors. |
 
 The local proof does not substitute for a second physical desktop. macOS

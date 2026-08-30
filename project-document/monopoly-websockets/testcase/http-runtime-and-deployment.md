@@ -57,12 +57,15 @@
 
 ## Phase 7.1 correction evidence
 
-- `[AUTO][PASS]` Windows packaged LAN core proof reports
-  `coreStatus=PASS; lanHttp=PASS; discovery=NOT_RUN; physicalLanAcceptance=MANUAL_REQUIRED`.
+- `[AUTO][PASS]` Windows packaged LAN core proof requires the advertiser to bind
+  a real UDP socket and enable broadcast before it can report
+  `coreStatus=PASS; lanHttp=PASS`. Discovery is `PASS` only after a listener
+  receives the advertisement; the receive round trip may be `NOT_RUN`, and
+  `physicalLanAcceptance=MANUAL_REQUIRED`.
 - `[AUTO][PASS]` The proof validates the external helper resource, authoritative
   `0.0.0.0` bind, packaged health/readiness, two-client admission/reconnect,
-  same-room identity and clean shutdown. Discovery is not inferred from a
-  serialization-only fallback interface.
+  same-room identity and clean shutdown. Serialization-only fallback cannot
+  convert failed advertiser startup into a core pass.
 - `[AUTO][PASS]` Application-level quit coordination is idempotent: cancellation
   leaves runtime resources running; confirmed quit stops runtime once and closes
   only after cleanup.

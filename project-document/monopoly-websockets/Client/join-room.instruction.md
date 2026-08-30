@@ -86,6 +86,8 @@ network loss are not leave.
 - Client-side storage is versioned as V3, stores canonical room codes, and rejects
   malformed entries safely. V1/V2 migrations remain unscoped until a successful
   authoritative resume supplies the room code.
+- Legacy V2 cleanup preserves its `authority -> token` wire shape; V3 writes
+  refresh existing authority order before the eight-entry retention limit.
 
 ## Required tests
 

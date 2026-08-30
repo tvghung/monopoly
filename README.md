@@ -114,7 +114,7 @@ pnpm desktop:make    # create configured platform makers (Windows Squirrel on Wi
 pnpm --filter @monopoly/desktop proof:packaged # run the packaged Phase 7.0B loopback proof
 pnpm desktop:proof:lan # run the packaged Phase 7.1 LAN-capable host/join proof
 pnpm validate:release # validate canonical release metadata and generated config
-pnpm desktop:release  # release-candidate build; requires OWN_THE_BLOCK_RELEASE_SOCKET_URL
+pnpm desktop:release  # LAN-first release-candidate build; endpoint override is optional
 ```
 
 ## Environment variables
@@ -133,7 +133,7 @@ pnpm desktop:release  # release-candidate build; requires OWN_THE_BLOCK_RELEASE_
 | `CORS_ORIGIN` | `http://127.0.0.1:5173` in development; `app://own-the-block` in production | Explicit cross-origin allowlist; not authentication. |
 | `OWN_THE_BLOCK_MIGRATIONS_DIR` | unset | Internal packaged-helper seam for the external migration directory. |
 | `OWN_THE_BLOCK_SOCKET_URL` | unset | Packaged desktop override; CLI `--socket-url=` has higher precedence. |
-| `OWN_THE_BLOCK_RELEASE_SOCKET_URL` | unset | Required by `pnpm desktop:release`; written to generated packaged release configuration. |
+| `OWN_THE_BLOCK_RELEASE_SOCKET_URL` | unset | Optional HTTP(S) endpoint override for a release; written to generated packaged release configuration when supplied. LAN Host/Join is the default path. |
 | `CLIENT_DIST` | `apps/client/dist` | Static client directory override. |
 | `RECONNECT_GRACE_MS` | `60000` | Grace before an offline current player's turn is resolved. |
 | `PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS` | `120000` | Thời hạn xử lý thanh toán thiếu hụt trước auto-liquidation xác định. |

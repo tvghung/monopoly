@@ -91,13 +91,15 @@ player-disconnect grace, close Socket.IO/HTTP and PostgreSQL pool cleanly.
 
 ### Phase 7.1 correction evidence
 
-- `[AUTO][PASS]` Windows packaged LAN core proof: `coreStatus=PASS` and
-  `lanHttp=PASS`; discovery is `NOT_RUN` when no real advertisement client is
-  available, and `physicalLanAcceptance=MANUAL_REQUIRED`.
+- `[AUTO][PASS]` Windows packaged LAN core proof requires advertiser startup,
+  real UDP bind, and `SO_BROADCAST`; it reports `coreStatus=PASS` and
+  `lanHttp=PASS`. Discovery is `PASS` only when a listener receives an actual
+  advertisement; the receive round trip may be `NOT_RUN`, and
+  `physicalLanAcceptance=MANUAL_REQUIRED`.
 - `[AUTO][PASS]` The proof checks the `0.0.0.0` bind, packaged health/readiness,
   two-client connection/admission/reconnect, same-room identity preservation and
-  clean shutdown. A deterministic private interface is used only for serialization
-  checks when the host exposes no candidate; it is not physical LAN evidence.
+  clean shutdown. Serialization/privacy checks cannot replace failed advertiser
+  startup and are not physical LAN evidence.
 - `[NOT RUN/BLOCKED]` Database integration requires `TEST_DATABASE_URL`; local
   `db:status` without the configured PostgreSQL service is not a substitute.
 - `[MANUAL REQUIRED]` Physical Windows/macOS host/join, discovery, reconnect,
