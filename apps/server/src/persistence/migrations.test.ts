@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { canonicalizeMigrationSql, loadMigrationFiles } from './migrate.js';
+import {
+  canonicalizeMigrationSql,
+  loadMigrationFiles,
+  resolveMigrationDirectory,
+} from './migrate.js';
 
 describe('database migrations', () => {
   it('loads ordered, checksummed SQL migrations', async () => {
@@ -51,6 +55,11 @@ describe('database migrations', () => {
     expect(canonicalizeMigrationSql('SELECT 1;\r\nSELECT 2;\r')).toBe(
       'SELECT 1;\nSELECT 2;\n',
     );
+  });
+
+  it('resolves an explicit migration directory for bundled runtimes', () => {
+    const directory = resolveMigrationDirectory('generated/server-helper/migrations');
+    expect(directory).toMatch(/[\\/]generated[\\/]server-helper[\\/]migrations$/u);
   });
 
   it('pins the checksum of the historical v3 migration', async () => {

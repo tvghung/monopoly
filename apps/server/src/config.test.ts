@@ -15,6 +15,9 @@ describe('loadServerConfig', () => {
       DATABASE_URL: 'postgresql://example.invalid/monopoly',
     });
 
+    expect(config.runtimeProfile).toBe('development');
+    expect(config.listenHost).toBe('127.0.0.1');
+
     expect(config.database).toMatchObject({
       connectionString: 'postgresql://example.invalid/monopoly',
       ssl: false,
@@ -44,5 +47,29 @@ describe('loadServerConfig', () => {
         DATABASE_SSL: 'yes',
       }),
     ).toThrow('DATABASE_SSL must be either true or false');
+  });
+
+  it('uses an explicit loopback desktop profile and a cloud bind by default', () => {
+    expect(loadServerConfig({
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://example.invalid/monopoly',
+    }).listenHost).toBe('0.0.0.0');
+    expect(loadServerConfig({
+      NODE_ENV: 'production',
+      SERVER_RUNTIME_PROFILE: 'desktop',
+      DATABASE_URL: 'postgresql://example.invalid/monopoly',
+    })).toMatchObject({
+      runtimeProfile: 'desktop',
+      listenHost: '127.0.0.1',
+    });
+  });
+
+  it('rejects invalid runtime profile and empty host configuration', () => {
+    expect(() => loadServerConfig({ SERVER_RUNTIME_PROFILE: 'lan' })).toThrow(
+      'SERVER_RUNTIME_PROFILE must be development, cloud, or desktop',
+    );
+    expect(() => loadServerConfig({ SERVER_HOST: ' ' })).toThrow(
+      'SERVER_HOST must not be empty',
+    );
   });
 });

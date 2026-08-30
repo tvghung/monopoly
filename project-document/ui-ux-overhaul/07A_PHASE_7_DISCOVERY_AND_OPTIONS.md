@@ -4,13 +4,19 @@
 
 **PHASE 7 DISCOVERY: COMPLETE**
 
-**PHASE 7.0 IMPLEMENTATION/PROOF: NOT STARTED**
+**PHASE 7.0A PERSISTENCE CANDIDATE: REJECTED — PGlite Socket contract failure**
 
-This is the authoritative Phase 7 discovery record. It defines the product
-boundary, current-code evidence, candidate architecture, risks, future
-subphases, and approval decisions. It does not authorize Phase 7 source code,
-database migrations, protocol changes, infrastructure, deployment, endpoint
-creation, credentials, or production operations.
+**PHASE 7.0B CORRECTIVE PROOF: WINDOWS + macOS PASS; OVERALL PHASE 7.0 PASS**
+
+The original 2026-08-29 PGlite Socket failure remains the 7.0A hard-gate
+record. The corrective 7.0B continuation proves managed native PostgreSQL 17.11
+and a packaged Electron `utilityProcess.fork()` server helper on both Windows
+and macOS. Phase 7.1–7.2 implementation did not start.
+
+This is the authoritative Phase 7 discovery and gate record. The original
+discovery sections below remain historical context; the 7.0B correction at the
+end is the current implementation/proof status. No LAN host/join UX, protocol,
+game-rule, production endpoint, or release approval is implied.
 
 ## 1. Approved product direction
 
@@ -589,8 +595,9 @@ These are reviewable future scopes, not authorization to implement them now.
 
 ### 7.0 — LAN Runtime & Persistence Proof
 
-This is a decision gate, not host UX implementation. It must resolve two
-decisions before 7.1.
+This is a decision gate, not host UX implementation. The original 7.0A
+candidate comparison is retained below; the corrective 7.0B evidence is recorded
+in the addendum at the end of this document.
 
 #### Decision A — server-helper process
 
@@ -640,79 +647,69 @@ also requires concurrency and recovery evidence.
 - **Prerequisites:** approval to run this narrow feasibility proof; native
   PostgreSQL, PGlite/PGlite Socket, and the helper process remain undecided.
 - **Exit gate:** exactly one persistence strategy and one server-helper strategy
-  are approved before Phase 7.1. No Phase 7.0 proof is executed by this
-  documentation task.
+  must be proven before Phase 7.1. 7.0B selected managed native PostgreSQL and
+  Electron `utilityProcess.fork()` and proved both on Windows and macOS.
 - **Risks:** platform binaries, AV/UAC, licensing, data-directory permissions,
   interrupted migration, dependency/resource layout, and installer/uninstaller
   behavior.
 
-### 7.1 — Desktop host runtime
+### Phase 7.1 — Desktop Host Runtime + LAN Multiplayer
 
-- **Objective:** add one supervised local server lifecycle to Electron.
-- **In scope:** typed start/stop/status IPC, no-duplicate guard, readiness
-  handshake, child exit handling, quit ordering, explicit host mode, and
-  endpoint handoff before the gameplay socket connects.
-- **Excluded:** gameplay rules, host migration, remote/cloud endpoint support,
-  and a second authoritative state store.
-- **Prerequisites:** Phase 7.0 has approved exactly one helper and one local
-  persistence strategy.
-- **Acceptance:** Windows/macOS host can start one ready server, host a normal
-  room, reload the renderer without stopping it, and stop cleanly with bounded
-  failure handling.
-- **Risks:** deadlocks during quit, orphaned children, renderer/main timing,
-  and accidental reuse of static release endpoint configuration.
+This combines the previous 7.1 and 7.2.
 
-### 7.2 — LAN join, IP, QR, and network UX
+#### Milestone A — Desktop Host Runtime
 
-- **Objective:** make a private-LAN room joinable without service discovery.
-- **In scope:** explicit IPv4 bind, deterministic interface candidates, actual
-  port reporting, manual IP + room code, QR/copy URL, query prefill, firewall
-  and wrong-network messages, and stale-link handling.
-- **Excluded:** mDNS, UDP discovery, IPv6 V1 support, public exposure, and
-  Internet matchmaking.
-- **Prerequisites:** 7.1 and a final URL/room-prefill decision.
-- **Acceptance:** a second desktop and a browser device can join through manual
-  entry and QR, with explicit errors for blocked/occupied/unreachable cases.
-- **Risks:** multiple adapters, client isolation, changing addresses, QR
-  accessibility, and CORS being mistaken for authentication.
+- Electron-managed PostgreSQL/server lifecycle;
+- typed host IPC;
+- startup/readiness/shutdown;
+- renderer reload/reconnect;
+- no duplicate processes;
+- endpoint resolution before gameplay socket creation.
 
-### 7.3 — Mobile browser join compatibility
+#### Milestone B — LAN Join & Network UX
 
-- **Objective:** validate mobile join/play without creating a native client.
-- **In scope:** iOS/iPadOS Safari and Android Chrome target flows, landscape
-  join/lobby/game, touch/keyboard/scroll checks, WebGL2 fallback, reconnect,
-  and non-blocking audio behavior.
-- **Excluded:** mobile host, offline gameplay, native apps, whole visual
-  redesign, and PWA service-worker delivery.
-- **Prerequisites:** 7.2 reachable host URL and a device/browser support list.
-- **Acceptance:** supported mobile browsers can join a real LAN room, play a
-  complete server-authoritative match, reconnect within the existing contract,
-  and report unsupported WebGL/network/audio states clearly.
-- **Risks:** browser privacy/network restrictions, mobile viewport changes,
-  WebGL2 differences, autoplay policy, and touch-only regressions.
+- explicit LAN server exposure while PostgreSQL remains loopback-only;
+- LAN IPv4/interface handling;
+- Host/Join flow;
+- room join address;
+- copied join URL;
+- QR;
+- firewall/wrong-network/occupied-port handling;
+- real desktop-to-desktop LAN acceptance.
 
-### 7.4 — Recovery, cross-device acceptance, and hardening
+Milestone A must pass before Milestone B is considered complete.
 
-- **Objective:** prove the failure/recovery matrix before calling LAN host mode
-  usable.
-- **In scope:** 2/3/4-player permutations, spectator behavior where the current
-  contract permits it, disconnect/reconnect, Play Again, FINISHED, renderer and
-  helper restart, host quit, IP change, firewall/port errors, logs, and final
-  security/data-safety review.
-- **Excluded:** host transfer, horizontal scale, cloud failover, signing,
-  auto-update, and production Internet release.
-- **Prerequisites:** 7.1–7.3 and explicit PO decisions below.
-- **Acceptance:** the matrix in Section 17 is executed on real supported
-  devices/OSes, with PASS/FAIL evidence; no discovery document is used as a
-  substitute for manual acceptance.
-- **Risks:** environment-specific Wi-Fi/firewall behavior and overclaiming
-  recovery after a host process or machine is gone.
+### Phase 7.2 — Mobile Compatibility + Recovery & Final Hardening
+
+This combines the previous 7.3 and 7.4.
+
+#### Milestone A — Mobile Browser Compatibility
+
+- iPhone/iPad Safari;
+- Android Chrome;
+- touch/viewport/landscape;
+- WebGL fallback;
+- browser suspend/reconnect;
+- audio gesture policy;
+- real LAN gameplay.
+
+#### Milestone B — Cross-device Recovery & Final Hardening
+
+- 2/3/4-player real-device matrix;
+- disconnect/reconnect;
+- renderer/helper/host lifecycle failures;
+- sleep/Wi-Fi/IP change;
+- firewall/network errors;
+- full match + FINISHED + Play Again;
+- security and local-data review.
+
+Milestone A must pass before the final Phase 7.2 hardening gate closes.
 
 ## 17. Cross-device acceptance matrix
 
-This discovery pass does not run or pass these checks. Every row is a future
-test gate and must retain exact OS/browser/device, host address, port, commit,
-and evidence.
+The cross-device rows remain future gates. The 7.0B package proof is a loopback
+runtime/database gate only and is not LAN, browser, mobile, or gameplay
+acceptance.
 
 | Area | Required scenarios | Discovery status |
 | --- | --- | --- |
@@ -734,26 +731,24 @@ cross-device acceptance. Loopback, `InMemoryPersistenceStore`, and
 
 The next approval is only:
 
-1. Approve Phase 7.0 to perform the narrow server-helper and local-persistence
-   feasibility proof described in Section 16.
+1. Explicitly approve Phase 7.1 after the completed 7.0B packaged proof.
 
-This does not select native PostgreSQL or PGlite/PGlite Socket, approve a
-production backend, or authorize Phase 7.1–7.4. Phase 7 implementation remains
-**NOT STARTED**.
+This does not approve LAN host UX, a production backend, or Phase 7.1–7.2.
+Phase 7.1–7.2 remain **NOT STARTED**.
 
 The following decisions stay with their relevant later subphases and do not
 block Phase 7.0:
 
 - IPv4-only V1, default port, occupied-port behavior, and explicit bind policy
-  details for 7.2;
+  details for 7.1;
 - host-room code allocation, URL/prefill syntax, and IP-candidate presentation
-  for 7.2;
-- host-quit and retained-room restart behavior for 7.1/7.4;
+  for 7.1;
+- host-quit and retained-room restart behavior for 7.1/7.2;
 - supported iOS/iPadOS Safari and Android Chrome matrix and the landscape-first
-  mobile boundary for 7.3;
-- late-join/spectator behavior for 7.2/7.3; and
+  mobile boundary for 7.2;
+- late-join/spectator behavior for 7.1/7.2; and
 - local data retention, backup/repair, and uninstall behavior for the packaging
-  and hardening work in 7.4.
+  and hardening work in 7.2.
 
 ## 19. Deferred and separate work
 
@@ -789,10 +784,10 @@ The following must not be mixed into Phase 7 LAN implementation:
 | `compose.yaml`, `.env.example`, `Dockerfile`, `render.yaml` | Developer/production PostgreSQL and cloud packaging assumptions; none is a desktop LAN-host package |
 | `project-document/ui-ux-overhaul/06A_PHASE_6_0_RELEASE_READINESS_AUDIT.md`, `06B_PHASE_6_2_RELEASE_VERIFICATION.md` | Phase 6 engineering-complete checkpoint and separate production/signing/manual validation boundary |
 
-**Final gate:** Phase 7 discovery is complete in this document. Phase 7.0
-implementation/proof remains **NOT STARTED** until the narrow feasibility proof
-is explicitly approved. Do not begin Phase 7.0 until this corrective commit is
-reviewed and approved.
+**Final gate:** Phase 7 discovery is complete. Phase 7.0A is **REJECTED** and
+Phase 7.0B is **PASS on Windows and macOS**, therefore the overall Phase 7.0
+gate is **PASS**. Phase 7.1–7.2 remain **NOT STARTED** pending explicit
+approval.
 
 ### External feasibility notes
 
@@ -808,6 +803,33 @@ an architecture:
   single-connection, simultaneous connections are multiplexed, and not all use
   cases are guaranteed.
 
+## 21. Corrective 7.0B evidence
+
+| Gate | Status | Evidence boundary |
+| --- | --- | --- |
+| 7.0A PGlite Socket | **FAIL / REJECTED** | Exact two-client `BEGIN` hang remains recorded in 07B; no pool or persistence semantics were weakened. |
+| 7.0B managed native PostgreSQL | **PASS — Windows + macOS** | PostgreSQL 17.11 official EDB binary archive, SHA-256 `6eabdf00d2893713b75db4336a23c3fdf505f056e217ec6e2e95d901750cfea3`, packaged loopback startup, migrations/checksums, health/readiness, typed values, sequential/concurrent CAS, rollback, digest-only session, expiry/purge, two-client independent `BEGIN`, `FOR UPDATE SKIP LOCKED`, stop, restart, deadline recovery, and retained JSONB marker. |
+| 7.0B packaged server helper | **PASS — Windows + macOS** | External `server-helper.cjs`, Electron `utilityProcess.fork()`, one-process concurrent-start guard, `/healthz`, `/readyz`, graceful helper-before-PostgreSQL shutdown, restart, lifecycle cleanup, and sanitized diagnostics. |
+| 7.0B macOS | **PASS** | Exact-SHA `macos-latest` packaged build, native PostgreSQL/helper proof, and DMG artifact upload completed successfully. |
+| Phase 7.1–7.2 | **NOT STARTED** | No LAN bind, host/join, QR, mobile, gameplay, or cross-device acceptance was executed. |
+
+The proof is a loopback feasibility gate, not production readiness. It does not
+approve the server as a cloud backend, publish credentials/endpoints, or approve
+Phase 7.1–7.2 without explicit product-owner direction.
+
+### Exact-SHA remote evidence
+
+The code commit under test is
+`0a9c0e474d679371cd51b90a861c3ee105a6ceec`.
+
+| Remote gate | Result | Evidence |
+| --- | --- | --- |
+| [CI run 33288649135](https://github.com/tvghung/monopoly/actions/runs/33288649135) | **PASS** | Checkout, migrations, typecheck, lint, full PostgreSQL-backed test suite, and build all completed successfully at the exact code SHA. |
+| [Desktop Build run 33288649087](https://github.com/tvghung/monopoly/actions/runs/33288649087) | **PASS** | `Desktop (windows-latest)` job `99196257689` and `Desktop (macos-latest)` job `99196257341` both completed the distributable build and packaged Phase 7 runtime proof successfully; Windows Squirrel and macOS DMG artifact uploads passed. |
+
 PHASE 7 DISCOVERY: COMPLETE — corrected
 
-PHASE 7.0 IMPLEMENTATION/PROOF: NOT STARTED
+PHASE 7.0A: REJECTED — PGlite Socket contract failure
+
+PHASE 7.0B: WINDOWS + macOS PASS; OVERALL PASS — see
+07B_PHASE_7_IMPLEMENTATION.md

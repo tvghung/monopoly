@@ -8,7 +8,11 @@ import { Pool, type PoolClient } from 'pg';
 import { loadServerConfig, type DatabaseConfig } from '../config.js';
 
 const MIGRATION_LOCK_NAME = 'monopoly-websockets-schema-migrations';
-const MIGRATIONS_DIRECTORY = new URL('../../migrations/', import.meta.url);
+function defaultMigrationsDirectory(): string {
+  return typeof import.meta.url === 'string'
+    ? fileURLToPath(new URL('../../migrations/', import.meta.url))
+    : resolve(process.cwd(), 'migrations');
+}
 
 interface MigrationFile {
   version: string;
@@ -35,15 +39,25 @@ export function createMigrationPool(config: DatabaseConfig): Pool {
   });
 }
 
-export async function loadMigrationFiles(): Promise<MigrationFile[]> {
-  const fileNames = (await readdir(MIGRATIONS_DIRECTORY))
+export function resolveMigrationDirectory(
+  directory?: string | URL,
+): string {
+  if (directory === undefined) return defaultMigrationsDirectory();
+  return typeof directory === 'string' ? resolve(directory) : fileURLToPath(directory);
+}
+
+export async function loadMigrationFiles(
+  directory?: string | URL,
+): Promise<MigrationFile[]> {
+  const migrationsDirectory = resolveMigrationDirectory(directory);
+  const fileNames = (await readdir(migrationsDirectory))
     .filter((fileName) => /^\d+_[a-z0-9_]+\.sql$/u.test(fileName))
     .sort((left, right) => left.localeCompare(right));
 
   const migrations = await Promise.all(
     fileNames.map(async (fileName): Promise<MigrationFile> => {
       const sql = canonicalizeMigrationSql(
-        await readFile(new URL(fileName, MIGRATIONS_DIRECTORY), 'utf8'),
+        await readFile(resolve(migrationsDirectory, fileName), 'utf8'),
       );
       return {
         version: fileName,
@@ -78,8 +92,11 @@ async function readAppliedMigrations(
   return new Map(result.rows.map(({ version, checksum }) => [version, checksum]));
 }
 
-export async function migrateDatabase(pool: Pool): Promise<string[]> {
-  const migrations = await loadMigrationFiles();
+export async function migrateDatabase(
+  pool: Pool,
+  directory?: string | URL,
+): Promise<string[]> {
+  const migrations = await loadMigrationFiles(directory);
   const client = await pool.connect();
   const appliedNow: string[] = [];
   let lockAcquired = false;
@@ -134,8 +151,9 @@ export async function migrateDatabase(pool: Pool): Promise<string[]> {
 
 export async function getMigrationStatus(
   pool: Pool,
+  directory?: string | URL,
 ): Promise<Array<{ version: string; applied: boolean }>> {
-  const migrations = await loadMigrationFiles();
+  const migrations = await loadMigrationFiles(directory);
   const client = await pool.connect();
   try {
     await ensureMigrationTable(client);
@@ -180,7 +198,11 @@ async function main(): Promise<void> {
 const invokedPath = process.argv[1];
 if (
   invokedPath !== undefined &&
+  typeof import.meta.url === 'string' &&
   resolve(invokedPath) === fileURLToPath(import.meta.url)
 ) {
-  await main();
+  void main().catch((error: unknown) => {
+    console.error('Migration command failed', error);
+    process.exitCode = 1;
+  });
 }

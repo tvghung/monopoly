@@ -37,7 +37,12 @@ module.exports = {
     // dependency-pruning walker over its symlink layout.
     prune: false,
     ignore: [/^\/node_modules/],
-    extraResource: [path.resolve(__dirname, '../client/dist'), releaseConfig],
+    extraResource: [
+      path.resolve(__dirname, '../client/dist'),
+      releaseConfig,
+      path.resolve(__dirname, 'generated/postgres'),
+      path.resolve(__dirname, 'generated/server-helper'),
+    ],
   },
   makers: [
     {
