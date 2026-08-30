@@ -18,6 +18,14 @@ discovery sections below remain historical context; the 7.0B correction at the
 end is the current implementation/proof status. No LAN host/join UX, protocol,
 game-rule, production endpoint, or release approval is implied.
 
+**Phase 7.1 direction correction:** the product-owner implementation brief now
+authorizes desktop Host/Join, automatic desktop LAN discovery, manual fallback,
+and reconnect hardening. That decision overrides the earlier recommendation in
+this historical discovery record that deferred automatic discovery and placed
+QR/mobile work earlier. See
+`07C_PHASE_7_1_DESKTOP_LAN_IMPLEMENTATION.md`; the historical evidence below is
+unchanged.
+
 ## 1. Approved product direction
 
 Phase 7 is a private LAN/Wi-Fi multiplayer mode:

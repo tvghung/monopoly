@@ -112,6 +112,7 @@ pnpm test        # unit/client/socket tests; PostgreSQL suite is conditional
 pnpm desktop:package # package the Windows/macOS Electron application
 pnpm desktop:make    # create configured platform makers (Windows Squirrel on Windows)
 pnpm --filter @monopoly/desktop proof:packaged # run the packaged Phase 7.0B loopback proof
+pnpm desktop:proof:lan # run the packaged Phase 7.1 LAN-capable host/join proof
 pnpm validate:release # validate canonical release metadata and generated config
 pnpm desktop:release  # release-candidate build; requires OWN_THE_BLOCK_RELEASE_SOCKET_URL
 ```

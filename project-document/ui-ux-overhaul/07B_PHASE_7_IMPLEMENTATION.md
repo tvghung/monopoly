@@ -13,6 +13,13 @@ required desktop targets. Phase 7.1–7.2 were not started. The corrective work
 does not change gameplay, protocol V8, GameCore, migrations, persistence
 semantics, or client UI.
 
+**Phase 7.1 follow-up:** the product-owner implementation brief authorizes the
+next desktop Host/Join LAN phase, including automatic desktop discovery and the
+manual fallback. This supersedes the historical roadmap statement above that
+7.1 remained pending approval. See
+`07C_PHASE_7_1_DESKTOP_LAN_IMPLEMENTATION.md`; all 7.0A/7.0B evidence remains
+historical and unchanged.
+
 ## Candidate and test shape
 
 - Date: 2026-08-29

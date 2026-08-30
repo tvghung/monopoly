@@ -15,6 +15,9 @@ Development endpoint contract:
 - Vite renderer origin: `http://127.0.0.1:5173`.
 - Socket.IO development CORS default: exactly `http://127.0.0.1:5173`.
 - Packaged Electron uses `app://own-the-block` as the production CORS default.
+- Desktop Host uses the explicit LAN profile: the game HTTP/Socket.IO server
+  binds `0.0.0.0:<game-port>` while managed PostgreSQL remains loopback-only;
+  the host renderer connects to `127.0.0.1:<game-port>`.
 - Same-origin browser requests remain valid; a browser request without an `Origin`
   header is not made invalid by the packaged Electron allowlist.
 - `CORS_ORIGIN` explicitly overrides the applicable development or production
@@ -88,3 +91,7 @@ player-disconnect grace, close Socket.IO/HTTP and PostgreSQL pool cleanly.
 - Static/SPA/CORS and Socket proxy behavior.
 - Clean migration/status, production image start and graceful shutdown.
 - Restart same DB restores sessions/room/game/deadlines.
+- Desktop LAN proof additionally checks the external helper resource, LAN-capable
+  bind, private endpoint/discovery where the machine exposes one, two-client
+  admission, reconnect identity, and ordered cleanup. Physical desktop pairs
+  remain manual acceptance evidence.

@@ -17,6 +17,7 @@
     "dev:desktop:shell": "pnpm --filter @monopoly/desktop dev:shell",
     "desktop:package": "pnpm --filter @monopoly/desktop package",
     "desktop:make": "pnpm --filter @monopoly/desktop make",
+    "desktop:proof:lan": "pnpm --filter @monopoly/desktop proof:packaged:lan",
     "desktop:release": "node apps/desktop/scripts/release.mjs",
     "validate:release": "node apps/desktop/scripts/validateRelease.mjs",
     "build": "pnpm --filter @monopoly/client build",

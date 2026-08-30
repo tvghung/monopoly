@@ -24,7 +24,9 @@ bằng application session state, không bằng `socket.id` hay optimistic `join
 2. Client emit `join room({name, roomCode})` và ở state `JOINING`.
 3. Running game may ACK explicit `SPECTATOR`; spectator gets no Player session/token.
 4. Lobby admission ACK returns `PENDING` raw token/expiry; no Seat yet.
-5. Client writes versioned record `monopoly.player-session.v1`.
+5. Client writes versioned record `monopoly.player-session.v2` under the
+   selected server authority origin; a token from another LAN host is never
+   sent to this endpoint.
 6. Client immediately emits `resume session({token})`.
 7. Success ACK supplies stable `playerId`, role, public room and pending offers.
 8. Only then App renders Lobby/Board.
@@ -55,6 +57,9 @@ ACK is resumable because token was stored first.
 - Spectator has no durable identity/token; a temporary transport reconnect reissues
   the remembered room request and receives a fresh spectator admission.
 - Refresh never derives identity from a new `socket.id`.
+- Desktop Host/Join resolves the endpoint before creating the gameplay socket.
+  Host admission still uses the ordinary `join room` → `resume session` flow;
+  the host runtime never creates a room or player directly.
 
 ## Explicit leave
 

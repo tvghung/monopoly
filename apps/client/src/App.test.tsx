@@ -500,7 +500,7 @@ describe('App session admission', () => {
         boardState: { ...room.gameState.boardState, gameStarted: true },
       },
     };
-    window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, JSON.stringify({
+    window.localStorage.setItem('monopoly.player-session.v1', JSON.stringify({
       version: 1,
       token: RECONNECT_TOKEN,
     }));
@@ -672,7 +672,7 @@ describe('App session admission', () => {
         },
       },
     };
-    window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, JSON.stringify({
+    window.localStorage.setItem('monopoly.player-session.v1', JSON.stringify({
       version: 1,
       token: RECONNECT_TOKEN,
     }));

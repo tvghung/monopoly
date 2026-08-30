@@ -41,13 +41,14 @@ import CardInteractionOverlay, {
 } from './game/ui/events/CardInteractionOverlay';
 import {
   clearPlayerSession,
+  getSessionAuthority,
   readPlayerSession,
   writePlayerSession,
 } from './playerSessionStorage';
 import type { AppSocket, SocketFunctions } from './types';
 import { requestRollDiceAck } from './rollDiceRequest';
 import { getDefaultWebRuntimeConfig } from './runtime/runtimeConfig';
-import type { RuntimeConfig } from './runtime/types';
+import type { DesktopLaunchSelection, RuntimeConfig } from './runtime/types';
 import { useAudio } from './audio/useAudio';
 import './App.css';
 
@@ -144,9 +145,10 @@ function FailureScreen({ title, failure, onRetry }: FailureScreenProps) {
 interface AppProps {
   socket?: AppSocket;
   runtimeConfig?: RuntimeConfig;
+  launch?: DesktopLaunchSelection;
 }
 
-export default function App({ socket: injectedSocket, runtimeConfig }: AppProps = {}) {
+export default function App({ socket: injectedSocket, runtimeConfig, launch }: AppProps = {}) {
   const toast = useToast();
   const audio = useAudio();
   const socket = useMemo(
@@ -154,8 +156,10 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
     [injectedSocket, runtimeConfig],
   );
   const [presentationController] = useState(() => new PresentationController(false, 1, audio));
-  const [initialToken] = useState(readPlayerSession);
+  const sessionAuthority = getSessionAuthority(runtimeConfig?.socketUrl);
+  const [initialToken] = useState(() => readPlayerSession(sessionAuthority));
   const tokenRef = useRef<string | null>(initialToken);
+  const initialJoinRef = useRef(launch?.initialJoin ?? null);
   const spectatorRequestRef = useRef<JoinRoomRequest | null>(null);
   const phaseRef = useRef<AppPhase>(initialToken ? 'RESTORING' : 'JOIN');
   const roleRef = useRef<RoomRole | null>(null);
@@ -242,7 +246,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
     if (terminalSessionCodes.has(error.code)) {
       tokenRef.current = null;
       spectatorRequestRef.current = null;
-      clearPlayerSession();
+      clearPlayerSession(sessionAuthority);
       roomRef.current = null;
       setRoom(null);
       setPrivatePlayerState(null);
@@ -252,7 +256,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
 
     setFailure({ message: localizeAckError(error), retryable: error.retryable });
     transition('ERROR');
-  }, [setIdentity, socket, transition]);
+  }, [sessionAuthority, setIdentity, socket, transition]);
 
   const resumeSession = useCallback((token: string) => {
     if (!socket.connected) {
@@ -344,7 +348,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
         return;
       }
 
-      if (!writePlayerSession(response.data.token)) {
+      if (!writePlayerSession(response.data.token, sessionAuthority)) {
         // The server now has a socket-scoped pending admission, but no durable
         // browser credential exists to activate it safely. Closing this transport
         // abandons that pending admission and lets a later retry start cleanly.
@@ -362,7 +366,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       transition('RESTORING');
       resumeSession(response.data.token);
     });
-  }, [applyRoom, resumeSession, setIdentity, socket, transition]);
+  }, [applyRoom, resumeSession, sessionAuthority, setIdentity, socket, transition]);
 
   useEffect(() => {
     const onConnect = () => {
@@ -370,6 +374,13 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       setOperation(null);
       if (phaseRef.current === 'REPLACED') {
         socket.disconnect();
+        return;
+      }
+
+      const initialJoin = initialJoinRef.current;
+      if (initialJoin) {
+        initialJoinRef.current = null;
+        joinRoom(initialJoin);
         return;
       }
 
@@ -507,6 +518,16 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       socket.disconnect();
     };
   }, [applyRoom, joinRoom, presentationController, resumeSession, socket, toast, transition]);
+
+  useEffect(() => {
+    if (!launch?.hosting || !desktopBridge?.discovery || !room?.roomCode) return undefined;
+    void desktopBridge.discovery.startAdvertising({ roomCode: room.roomCode })
+      .then(result => {
+        if (!result.ok) toast.show('Không thể tự động tìm thấy phòng này; hãy chia sẻ địa chỉ LAN thủ công.');
+      })
+      .catch(() => toast.show('Không thể tự động tìm thấy phòng này; hãy chia sẻ địa chỉ LAN thủ công.'));
+    return undefined;
+  }, [desktopBridge, launch?.hosting, room?.roomCode, toast]);
 
   const showCommandFailure = useCallback((response: { ok: true } | { ok: false; error: AckError }) => {
     if (!response.ok) toast.show(localizeAckError(response.error));
@@ -680,7 +701,8 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
 
       tokenRef.current = null;
       spectatorRequestRef.current = null;
-      clearPlayerSession();
+      if (launch?.hosting) void desktopBridge?.discovery?.stopAdvertising();
+      clearPlayerSession(sessionAuthority);
       roomRef.current = null;
       setRoom(null);
       setPrivatePlayerState(null);
@@ -688,7 +710,7 @@ export default function App({ socket: injectedSocket, runtimeConfig }: AppProps 
       setIdentity(null, null);
       transition('JOIN');
     });
-  }, [setIdentity, socket, transition]);
+  }, [desktopBridge, launch?.hosting, sessionAuthority, setIdentity, socket, transition]);
 
   const handleLeave = useCallback(() => {
     const currentRoom = roomRef.current;

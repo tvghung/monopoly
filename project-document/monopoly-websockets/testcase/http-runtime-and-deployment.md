@@ -35,6 +35,12 @@
   `http://127.0.0.1:5173`, packaged Electron defaults to `app://own-the-block`, and
   `CORS_ORIGIN` overrides the applicable default. CORS is browser authorization,
   not authentication or server-side rejection of arbitrary WebSocket clients.
+- [ ] Desktop Host starts managed PostgreSQL on loopback and the authoritative
+  game server on the selected LAN-capable port; PostgreSQL is not LAN reachable.
+- [ ] Desktop Join discovers a host or accepts only a validated private IPv4
+  endpoint plus room code before creating the gameplay socket.
+- [ ] Physical Windows/macOS host/join pairs, reconnect, 2/3/4-player lobby,
+  manual fallback, and host loss are recorded separately as manual acceptance.
 - [ ] Production proxy/static limiter uses one trusted hop and does not throttle
   Socket.IO or health probes.
 - [ ] CI migrates PostgreSQL before integration tests and runs typecheck/lint/test/build.

@@ -23,7 +23,7 @@ if (typeScript.status !== 0) process.exit(typeScript.status ?? 1);
 await rm(helperOutputRoot, { recursive: true, force: true });
 await mkdir(path.join(helperOutputRoot, 'migrations'), { recursive: true });
 
-for (const entryPoint of ['desktopServerHelper.ts', 'phase7Contract.ts']) {
+for (const entryPoint of ['desktopServerHelper.ts', 'phase7Contract.ts', 'phase71LanContract.ts']) {
   await build({
     entryPoints: [path.join(serverRoot, 'src', entryPoint)],
     bundle: true,
@@ -32,7 +32,11 @@ for (const entryPoint of ['desktopServerHelper.ts', 'phase7Contract.ts']) {
     target: 'node24',
     outfile: path.join(
       helperOutputRoot,
-      entryPoint === 'desktopServerHelper.ts' ? 'server-helper.cjs' : 'phase7-contract.cjs',
+      entryPoint === 'desktopServerHelper.ts'
+        ? 'server-helper.cjs'
+        : entryPoint === 'phase7Contract.ts'
+          ? 'phase7-contract.cjs'
+          : 'phase71-lan-contract.cjs',
     ),
     sourcemap: false,
     legalComments: 'none',

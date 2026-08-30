@@ -1,0 +1,189 @@
+.desktop-launcher {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: var(--space-6);
+  background: radial-gradient(circle at 50% 0%, var(--color-warning-soft), var(--color-info-soft) 70%);
+  color: var(--color-text-primary);
+}
+
+.desktop-launcher__card {
+  display: flex;
+  flex-direction: column;
+  width: min(94vw, 42rem);
+  padding: 2.5rem;
+  border-radius: 1rem;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-floating);
+}
+
+.desktop-launcher__brand {
+  margin: 0 0 0.75rem;
+  color: var(--color-accent-primary-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-align: center;
+}
+
+.desktop-launcher h1,
+.desktop-launcher h2,
+.desktop-launcher h3 {
+  margin-top: 0;
+}
+
+.desktop-launcher h1 {
+  margin-bottom: 0.25rem;
+  color: var(--color-accent-primary-strong);
+  font-size: clamp(2rem, 6vw, 2.75rem);
+  text-align: center;
+}
+
+.desktop-launcher__subtitle,
+.desktop-launcher__security,
+.desktop-launcher__hint {
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}
+
+.desktop-launcher__subtitle {
+  margin: 0 0 1.5rem;
+  text-align: center;
+}
+
+.desktop-launcher__security {
+  margin: 1.5rem 0 0;
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.desktop-launcher__error {
+  margin: 0 0 1rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.45rem;
+}
+
+.desktop-launcher__error {
+  background: var(--color-danger-soft);
+  color: var(--color-danger-strong);
+}
+
+.desktop-launcher__choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.desktop-launcher__choices button,
+.desktop-launcher__discoveries button {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.65rem;
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.desktop-launcher__choices button:hover,
+.desktop-launcher__discoveries button:hover,
+.desktop-launcher__discoveries button.is-selected {
+  border-color: var(--color-accent-secondary);
+  box-shadow: var(--shadow-focus);
+}
+
+.desktop-launcher__choices span,
+.desktop-launcher__discoveries span {
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.desktop-launcher__form {
+  display: flex;
+  flex-direction: column;
+}
+
+.desktop-launcher__form h2 {
+  margin-bottom: 1rem;
+}
+
+.desktop-launcher__form label {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+}
+
+.desktop-launcher__form input {
+  margin-bottom: 1rem;
+  padding: 0.7rem 0.8rem;
+  border: 2px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font: inherit;
+}
+
+.desktop-launcher__form input:focus {
+  border-color: var(--color-accent-secondary);
+  box-shadow: var(--shadow-focus);
+  outline: none;
+}
+
+.desktop-launcher__back {
+  align-self: flex-start;
+  margin-bottom: 1rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent-primary-strong);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.desktop-launcher__hint {
+  margin: -0.55rem 0 1rem;
+  font-size: 0.8rem;
+}
+
+.desktop-launcher__discoveries {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+}
+
+.desktop-launcher__discoveries h3 {
+  margin-bottom: 0;
+  font-size: 1rem;
+}
+
+.desktop-launcher__discoveries p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.desktop-launcher__submit {
+  min-height: 2.75rem;
+  padding: 0.8rem 1rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--color-accent-primary-strong);
+  color: var(--color-text-inverse);
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.desktop-launcher__submit:disabled {
+  background: var(--color-border);
+  cursor: wait;
+}
+
+@media (max-width: 38rem) {
+  .desktop-launcher__card { padding: 1.5rem; }
+  .desktop-launcher__choices { grid-template-columns: 1fr; }
+}

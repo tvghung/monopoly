@@ -14,5 +14,6 @@ export interface BootstrapResult {
   runtimeConfig: RuntimeConfig;
   socket: AppSocket;
   settings: GameSettings;
+  launch?: import('../../runtime/types').DesktopLaunchSelection;
 }
 
