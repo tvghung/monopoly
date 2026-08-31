@@ -4,7 +4,7 @@ import path from 'node:path';
 import { installExternalNavigationGuards } from './ipc/externalLinks';
 import { QuitRequestController, registerWindowHandlers } from './ipc/windowHandlers';
 import { shouldBlockProductionInput } from './productionPolicy';
-import { contentType } from './rendererContentType';
+import { contentType, PRODUCTION_RENDERER_CSP } from './rendererContentType';
 import { resolveRendererPath } from './security';
 import { HostRuntimeController } from './hostRuntime';
 import { AppQuitCoordinator } from './appQuitCoordinator';
@@ -64,7 +64,7 @@ function registerProductionRenderer(): void {
       return new Response(body, {
         headers: {
           'content-type': contentType(filePath),
-          'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http: https: ws: wss:;",
+          'content-security-policy': PRODUCTION_RENDERER_CSP,
         },
       });
     } catch {

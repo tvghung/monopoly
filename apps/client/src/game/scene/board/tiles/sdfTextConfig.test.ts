@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { BOARD_FONT_GLYPH_SAMPLES, BOARD_FONT_URL } from '../../../../design-system/typography/gameFonts';
 import { configureSdfText, TILE_SDF_GLYPH_SIZE } from './sdfTextConfig';
@@ -27,8 +29,8 @@ describe('SDF surface text contract', () => {
       'Đà Nẵng',
       'Phú Quốc',
       'Công Ty Nước',
-      'Khí vận',
-      'Cơ hội',
+      'Khí Vận',
+      'Cơ Hội',
     ]);
     expect(target.maxWidth).toBe(1.1);
     expect(target.maxHeight).toBeCloseTo(0.16 * 3.4);
@@ -101,5 +103,22 @@ describe('SDF surface text contract', () => {
   it('limits surface labels to a compact number of lines without generic filler', () => {
     expect(limitSurfaceTextLines('Cà Mau')).toBe('Cà Mau');
     expect(limitSurfaceTextLines('Khu phố có rất nhiều tên dài cần gói lại', 2, 3)).toBe('Khu phố có rất nhiều…');
+  });
+
+  it('routes every affected board label through the shared SDF components', () => {
+    const readSource = (relativePath: string) => readFileSync(
+      fileURLToPath(new URL(relativePath, import.meta.url)),
+      'utf8',
+    );
+
+    expect(readSource('./TileTextLayer.tsx')).toContain('<SdfSurfaceText');
+    const stations = readSource('../../stations/PlayerStationLayer.tsx');
+    expect(stations).toContain('<SdfBillboardText');
+    expect(stations).toContain('name={`PlayerStationName:');
+    expect(stations).toContain('name={`PlayerStationBalance:');
+    expect(readSource('../../dice/DiceLayer.tsx')).toContain('name="DiceResultTotal"');
+    const cards = readSource('../../cards/PhysicalCardDecks.tsx');
+    expect(cards).toContain('<SdfSurfaceText');
+    expect(cards).toContain('value={card.message}');
   });
 });

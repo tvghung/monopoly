@@ -84,7 +84,7 @@ class FakeAudioBuffer {
 }
 
 class FakeAudioContext {
-  public state: AudioContextState;
+  public state: AudioContextState | 'interrupted';
   public currentTime = 0;
   public readonly sampleRate = 48_000;
   public readonly destination = new FakeNode();
@@ -93,6 +93,7 @@ class FakeAudioContext {
   public readonly bufferSources: FakeBufferSourceNode[] = [];
   public resumeCount = 0;
   public closeCount = 0;
+  public resumeImplementation?: () => Promise<void>;
 
   public constructor(state: AudioContextState = 'suspended') {
     this.state = state;
@@ -122,6 +123,7 @@ class FakeAudioContext {
 
   public resume(): Promise<void> {
     this.resumeCount += 1;
+    if (this.resumeImplementation) return this.resumeImplementation();
     this.state = 'running';
     return Promise.resolve();
   }
@@ -224,6 +226,81 @@ describe('AudioEngine', () => {
     engine.setRoomActive(true);
     engine.handleUserInteraction();
     await flushPromises();
+    expect(context.bufferSources).toHaveLength(1);
+  });
+
+  it('starts music when the room becomes active after an earlier unlock', async () => {
+    const context = new FakeAudioContext();
+    const engine = makeEngine(context);
+
+    engine.handleUserInteraction();
+    await flushPromises();
+    expect(context.bufferSources).toHaveLength(0);
+
+    engine.setRoomActive(true);
+    expect(context.bufferSources).toHaveLength(1);
+  });
+
+  it('serializes rapid pointer and click unlocks without losing music or the click cue', async () => {
+    const context = new FakeAudioContext();
+    let finishFirstResume: (() => void) | undefined;
+    context.resumeImplementation = vi.fn()
+      .mockImplementationOnce(() => new Promise<void>(resolve => {
+        finishFirstResume = () => {
+          context.state = 'running';
+          resolve();
+        };
+      }))
+      .mockRejectedValueOnce(new Error('resume already in progress'));
+    const engine = makeEngine(context);
+    engine.setRoomActive(true);
+
+    engine.handleUserInteraction();
+    engine.handleUserInteraction('ui.click');
+    finishFirstResume?.();
+    await flushPromises();
+
+    expect(context.resumeCount).toBe(1);
+    expect(context.bufferSources).toHaveLength(1);
+    expect(context.oscillators).toHaveLength(1);
+  });
+
+  it('retries a temporary resume rejection on the next trusted interaction', async () => {
+    const context = new FakeAudioContext();
+    context.resumeImplementation = vi.fn()
+      .mockRejectedValueOnce(new Error('temporarily unavailable'))
+      .mockImplementationOnce(() => {
+        context.state = 'running';
+        return Promise.resolve();
+      });
+    const engine = makeEngine(context);
+    engine.setRoomActive(true);
+
+    engine.handleUserInteraction();
+    await flushPromises();
+    expect(context.bufferSources).toHaveLength(0);
+
+    engine.handleUserInteraction('ui.click');
+    await flushPromises();
+    expect(context.resumeCount).toBe(2);
+    expect(context.bufferSources).toHaveLength(1);
+    expect(context.oscillators).toHaveLength(1);
+  });
+
+  it('treats Safari interrupted state as recoverable on the next interaction', async () => {
+    const context = new FakeAudioContext();
+    context.state = 'interrupted';
+    context.resumeImplementation = vi.fn(() => {
+      context.state = 'running';
+      return Promise.resolve();
+    });
+    const engine = makeEngine(context);
+    engine.setRoomActive(true);
+
+    engine.handleUserInteraction();
+    await flushPromises();
+
+    expect(context.resumeCount).toBe(1);
     expect(context.bufferSources).toHaveLength(1);
   });
 
@@ -338,5 +415,20 @@ describe('AudioEngine', () => {
     expect(context.oscillators.every(source => source.stops.length === 2)).toBe(true);
     expect(context.gains.slice(0, 3).every(node => node.disconnectCount === 1)).toBe(true);
     expect(context.gains.slice(4).every(node => node.disconnectCount === 1)).toBe(true);
+  });
+
+  it('survives a StrictMode-style release and immediate retain before disposal', async () => {
+    const context = new FakeAudioContext('running');
+    const engine = makeEngine(context);
+    engine.retain();
+    engine.handleUserInteraction();
+    engine.release();
+    engine.retain();
+    await flushPromises();
+
+    expect(context.closeCount).toBe(0);
+    engine.release();
+    await flushPromises();
+    expect(context.closeCount).toBe(1);
   });
 });

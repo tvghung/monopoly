@@ -196,7 +196,9 @@ export class AudioEngine implements AudioPort {
   private musicVoiceLevel = 0;
   private roomActive = false;
   private documentHidden = false;
-  private interactionGeneration = 0;
+  private resumePromise: Promise<void> | null = null;
+  private resumeContext: AudioContext | null = null;
+  private pendingInteractionCue: AudioCueId | undefined;
   private retainCount = 0;
   private disposalGeneration = 0;
   private disposed = false;
@@ -249,22 +251,40 @@ export class AudioEngine implements AudioPort {
     if (this.disposed) return;
     const context = this.ensureContext();
     if (!context) return;
-    const generation = ++this.interactionGeneration;
-    const playCurrentCue = () => {
-      if (this.disposed
-        || generation !== this.interactionGeneration
-        || context !== this.context
-        || context.state !== 'running'
-        ) return;
-      this.syncMusicLifecycle();
-      if (cueId) this.startCue(context, cueId, {});
-    };
+    if (cueId) this.pendingInteractionCue = cueId;
+    if (this.resumePromise && this.resumeContext === context) return;
     if (context.state === 'running') {
-      playCurrentCue();
+      const pendingCue = this.pendingInteractionCue;
+      this.pendingInteractionCue = undefined;
+      this.syncMusicLifecycle();
+      if (pendingCue) this.startCue(context, pendingCue, {});
       return;
     }
-    if (context.state !== 'suspended') return;
-    void context.resume().then(playCurrentCue).catch(() => {});
+    if (context.state === 'closed') {
+      this.pendingInteractionCue = undefined;
+      return;
+    }
+    let resumePromise: Promise<void>;
+    try {
+      resumePromise = context.resume();
+    } catch {
+      this.pendingInteractionCue = undefined;
+      return;
+    }
+    this.resumePromise = resumePromise;
+    this.resumeContext = context;
+    void resumePromise.then(() => {
+      if (this.disposed || context !== this.context || context.state !== 'running') return;
+      const pendingCue = this.pendingInteractionCue;
+      this.pendingInteractionCue = undefined;
+      this.syncMusicLifecycle();
+      if (pendingCue) this.startCue(context, pendingCue, {});
+    }).catch(() => {}).finally(() => {
+      if (this.resumePromise !== resumePromise) return;
+      this.resumePromise = null;
+      this.resumeContext = null;
+      this.pendingInteractionCue = undefined;
+    });
   }
 
   public retain(): void {
@@ -286,7 +306,9 @@ export class AudioEngine implements AudioPort {
   public dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    this.interactionGeneration += 1;
+    this.resumePromise = null;
+    this.resumeContext = null;
+    this.pendingInteractionCue = undefined;
     this.stopMusicImmediately();
     this.activeVoices.forEach(voices => {
       [...voices].forEach(voice => this.stopVoice(voice));

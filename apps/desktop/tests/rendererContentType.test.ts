@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { contentType } from '../src/rendererContentType';
+import { contentType, PRODUCTION_RENDERER_CSP } from '../src/rendererContentType';
 
 describe('packaged renderer content types', () => {
+  it('permits only the trusted worker and font sources required by bundled SDF text', () => {
+    expect(PRODUCTION_RENDERER_CSP).toBe(
+      "default-src 'self'; script-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:; worker-src 'self' blob:;",
+    );
+  });
+
   it('serves every font format emitted by the production renderer', () => {
     expect(contentType('BeVietnamPro-ExtraBold-DczkUabF.ttf')).toBe('font/ttf');
     expect(contentType('be-vietnam-pro-latin-800-normal-BpHZASpI.woff2')).toBe('font/woff2');

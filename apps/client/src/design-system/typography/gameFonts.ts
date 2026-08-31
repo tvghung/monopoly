@@ -14,6 +14,6 @@ export const BOARD_FONT_GLYPH_SAMPLES = [
   'Đà Nẵng',
   'Phú Quốc',
   'Công Ty Nước',
-  'Khí vận',
-  'Cơ hội',
+  'Khí Vận',
+  'Cơ Hội',
 ] as const;
