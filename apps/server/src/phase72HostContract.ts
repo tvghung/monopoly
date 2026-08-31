@@ -261,7 +261,7 @@ export async function runPhase72HostContract(options: {
         roomCode: host.result.room.roomCode,
       },
       checks: {
-        'protocol-v8': true,
+        [`protocol-v${SOCKET_PROTOCOL_VERSION}`]: true,
         'four-client-connect': true,
         'same-room': true,
         'stable-host': true,
