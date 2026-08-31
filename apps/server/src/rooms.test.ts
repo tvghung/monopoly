@@ -235,6 +235,36 @@ describe('durable room snapshot compatibility', () => {
     expect(activityFeedSchema.safeParse({ sequence: 1, events: [] }).success).toBe(false);
   });
 
+  it('accepts V9 landing and tax variants without invalidating V8 activity history', () => {
+    const base = {
+      eventId: '00000000-0000-4000-8000-000000000097',
+      sequence: 1,
+      occurredAt: '2026-08-25T12:00:00.000Z',
+    };
+    expect(activityFeedSchema.safeParse({
+      sequence: 1,
+      events: [{
+        ...base,
+        type: 'TILE_LANDED',
+        playerId: PLAYER_ONE,
+        playerName: 'Player One',
+        tileID: 4,
+      }],
+    }).success).toBe(true);
+    expect(gameplayEventStreamSchema.safeParse({
+      sequence: 1,
+      events: [{
+        eventId: base.eventId,
+        sequence: 1,
+        type: 'MONEY_TRANSFER',
+        source: { kind: 'PLAYER', playerId: PLAYER_ONE },
+        destination: { kind: 'BANK' },
+        amount: 50,
+        reason: 'TAX',
+      }],
+    }).success).toBe(true);
+  });
+
   it('rejects a current V7 snapshot that omits roll sequence', () => {
     const gameSnapshot = createRoomSnapshot();
     delete (gameSnapshot.gameState.boardState as unknown as { rollSequence?: number }).rollSequence;
@@ -459,6 +489,43 @@ describe('durable room snapshot compatibility', () => {
         { status: 'PENDING', remainingAmount: 20 },
       ],
     });
+  });
+
+  it('preserves a TAX shortfall across storage and hydration', () => {
+    const gameSnapshot = createActiveSnapshot();
+    gameSnapshot.gameState.boardState.paymentQueue = {
+      operationId: '00000000-0000-4000-8000-000000000020',
+      orderedClaims: [{
+        claimId: '00000000-0000-4000-8000-000000000021',
+        debtorPlayerId: PLAYER_ONE,
+        creditor: 'BANK',
+        amount: 200,
+        remainingAmount: 150,
+        source: { kind: 'TAX', tileID: 4 },
+        status: 'PENDING',
+      }],
+      activeClaimIndex: 0,
+      continuation: { playerId: PLAYER_ONE, turnNumber: 7 },
+      actionDeadlineAt: '2030-01-01T00:02:00.000Z',
+    };
+
+    expect(() => assertSupportedRoomSnapshot({
+      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
+      gameSnapshot,
+      hostPlayerId: PLAYER_ONE,
+      status: 'IN_PROGRESS',
+    })).not.toThrow();
+    const state = hydrateGameState(gameSnapshot, 'IN_PROGRESS');
+    storeGameState(gameSnapshot, state, 'IN_PROGRESS');
+
+    expect(hydrateGameState(gameSnapshot, 'IN_PROGRESS').boardState.paymentQueue)
+      .toMatchObject({
+        activeClaimIndex: 0,
+        orderedClaims: [{
+          remainingAmount: 150,
+          source: { kind: 'TAX', tileID: 4 },
+        }],
+      });
   });
 
   it.each(['AWAITING_DRAW', 'REVEALED'] as const)(

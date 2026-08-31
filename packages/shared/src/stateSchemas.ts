@@ -112,7 +112,7 @@ export const gameplaySemanticEventSchema: z.ZodType<GameplaySemanticEvent> = z.d
     destination: moneyEndpointSchema,
     amount: moneyAmountSchema,
     reason: z.enum([
-      'PROPERTY_PURCHASE', 'PROPERTY_SALE', 'RENT', 'PASS_GO', 'CARD',
+      'PROPERTY_PURCHASE', 'PROPERTY_SALE', 'RENT', 'TAX', 'PASS_GO', 'CARD',
       'DEVELOPMENT', 'BAIL', 'TRADE', 'FORCED_SALE', 'FORFEIT', 'OTHER',
     ]),
   }),
@@ -235,6 +235,13 @@ export const activityEventSchema: z.ZodType<ActivityEvent> = z.discriminatedUnio
   }),
   z.strictObject({
     ...activityEventBase,
+    type: z.literal('TILE_LANDED'),
+    playerId: playerIdSchema,
+    playerName: z.string().min(1).max(20),
+    tileID: tileIdSchema,
+  }),
+  z.strictObject({
+    ...activityEventBase,
     type: z.literal('PROPERTY_PURCHASE'),
     playerId: playerIdSchema,
     playerName: z.string().min(1).max(20),
@@ -259,7 +266,7 @@ export const activityEventSchema: z.ZodType<ActivityEvent> = z.discriminatedUnio
     destination: activityMoneyEndpointSchema,
     amount: moneyAmountSchema,
     reason: z.enum([
-      'PROPERTY_PURCHASE', 'PROPERTY_SALE', 'RENT', 'PASS_GO', 'CARD',
+      'PROPERTY_PURCHASE', 'PROPERTY_SALE', 'RENT', 'TAX', 'PASS_GO', 'CARD',
       'DEVELOPMENT', 'BAIL', 'TRADE', 'FORCED_SALE', 'FORFEIT', 'OTHER',
     ]),
   }),
@@ -400,6 +407,7 @@ export const privatePlayerStateSchema = z.strictObject({
 
 export const debtSourceSchema: z.ZodType<DebtSource> = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('RENT'), tileID: tileIdSchema }),
+  z.strictObject({ kind: z.literal('TAX'), tileID: tileIdSchema }),
   z.strictObject({ kind: z.literal('CARD'), cardId: gameCardIdSchema }),
   z.strictObject({ kind: z.literal('OTHER'), description: z.string().min(1).max(200) }),
 ]);

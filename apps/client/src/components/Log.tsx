@@ -30,6 +30,7 @@ const moneyReasonLabel: Record<MoneyTransferReason, string> = {
   PROPERTY_PURCHASE: 'mua tài sản',
   PROPERTY_SALE: 'bán tài sản',
   RENT: 'tiền thuê',
+  TAX: 'thuế',
   PASS_GO: 'đi qua GO',
   CARD: 'hiệu ứng thẻ',
   DEVELOPMENT: 'phát triển tài sản',
@@ -60,6 +61,12 @@ function activityText(event: ActivityEvent): string {
       return `${event.senderName}: ${event.message}`;
     case 'DICE_ROLL':
       return `${event.playerName} đổ ${event.dice1} + ${event.dice2} = ${event.total}${event.context === 'JAIL' ? ' trong tù' : ''}.`;
+    case 'TILE_LANDED': {
+      const tile = tileState[event.tileID];
+      if (tile?.tileType === 'jail') return `${event.playerName} đang Thăm Tù.`;
+      if (tile?.tileType === 'gojail') return `${event.playerName} đã tới ô Vào Tù.`;
+      return `${event.playerName} đã tới ${tile?.streetName ?? `ô ${event.tileID}`}.`;
+    }
     case 'PROPERTY_PURCHASE':
       return `${event.playerName} đã mua ${tileState[event.tileID]?.streetName ?? `ô ${event.tileID}`} với giá ${formatMoney(event.price)}.`;
     case 'PROPERTY_TRANSFER':
@@ -97,6 +104,7 @@ export default function Log() {
   const scrollRef = useRef<HTMLElement>(null);
   const idleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const visibleActivity = queue ? presentation.displayActivity : state.boardState.activityFeed.events;
+  const narrativeActivity = visibleActivity.filter(event => event.type !== 'DICE_ROLL');
   const visibleLogs = queue
     ? presentation.displayLogs
     : visibleActivity.length > 0 ? [] : state.boardState.logs;
@@ -148,7 +156,7 @@ export default function Log() {
         {state.loaded
           ? [
             ...visibleLogs.map((entry, index) => <p key={`legacy-${index}`}>{entry}</p>),
-            ...visibleActivity.map(event => (
+            ...narrativeActivity.map(event => (
               <p
                 key={event.eventId}
                 className={`activity-entry activity-entry--${event.type.toLowerCase()}`}

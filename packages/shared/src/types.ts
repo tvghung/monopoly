@@ -1,7 +1,7 @@
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
-export const SOCKET_PROTOCOL_VERSION = 8 as const;
+export const SOCKET_PROTOCOL_VERSION = 9 as const;
 
 export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
 export type PlayerId = string;
@@ -94,6 +94,8 @@ export interface Tile {
   rentTiers?: number[];
   // Cost of one house/hotel on this tile's colour group.
   houseCost?: number;
+  // Fixed compulsory payment to the bank when landing on an expense tile.
+  expenseAmount?: number;
 }
 
 // A Cơ Hội / Khí Vận card. Identity, source deck and message are required; the
@@ -148,6 +150,7 @@ export type MoneyTransferReason =
   | 'PROPERTY_PURCHASE'
   | 'PROPERTY_SALE'
   | 'RENT'
+  | 'TAX'
   | 'PASS_GO'
   | 'CARD'
   | 'DEVELOPMENT'
@@ -274,6 +277,12 @@ export type ActivityEvent = ActivityEventBase & (
     dice2: number;
     total: number;
     context: 'TURN' | 'JAIL';
+  }
+  | {
+    type: 'TILE_LANDED';
+    playerId: PlayerId;
+    playerName: string;
+    tileID: number;
   }
   | {
     type: 'PROPERTY_PURCHASE';
@@ -468,6 +477,7 @@ export type DebtCreditor = 'PLAYER' | 'BANK';
 
 export type DebtSource =
   | { kind: 'RENT'; tileID: number }
+  | { kind: 'TAX'; tileID: number }
   | { kind: 'CARD'; cardId: GameCardId }
   | { kind: 'OTHER'; description: string };
 

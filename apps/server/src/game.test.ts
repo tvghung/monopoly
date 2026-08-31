@@ -28,6 +28,11 @@ import {
   drawPendingCard,
   dismissPendingCard,
   executeVoluntaryTrade,
+  acceptForcedSaleProposal,
+  createForcedSaleProposal,
+  sellHouse,
+  sellPropertyToBankForPayment,
+  resumePaymentContinuation,
 } from './game';
 
 // ---- Test fixtures ----
@@ -515,8 +520,14 @@ describe('resolveTile', () => {
     revealAndDismissPendingCard(state, 'p1');
 
     expect(state.players.p1.currentTile).toBe(4);
-    expect(state.players.p1.accountBalance).toBe(500);
+    expect(state.players.p1.accountBalance).toBe(300);
     expect(state.boardState.paymentQueue).toBeNull();
+    expect(state.boardState.activityFeed.events.filter(event => (
+      event.type === 'TILE_LANDED' && event.tileID === 4
+    ))).toHaveLength(1);
+    expect(state.boardState.gameplayEvents.events).toContainEqual(expect.objectContaining({
+      type: 'MONEY_TRANSFER', amount: 200, reason: 'TAX',
+    }));
   });
 
   it('draws each deck once when card movement chains onto another card tile', () => {
@@ -689,12 +700,147 @@ describe('resolveTile', () => {
     expect(state.players.p2.accountBalance).toBe(1032);
   });
 
-  it('charges a tax tile against the bank', () => {
+  it.each([
+    { tileID: 4, openingBalance: 200, closingBalance: 0, amount: 200 },
+    { tileID: 4, openingBalance: 450, closingBalance: 250, amount: 200 },
+    { tileID: 38, openingBalance: 100, closingBalance: 0, amount: 100 },
+  ])('charges tile $tileID tax through the bank payment pipeline', ({
+    tileID, openingBalance, closingBalance, amount,
+  }) => {
     const state = makeState();
-    addPlayer(state, 'p1', { currentTile: 4, accountBalance: 1000 });
+    addPlayer(state, 'p1', { currentTile: tileID, accountBalance: openingBalance });
+    addPlayer(state, 'p2');
+
     resolveTile(state, 'p1', 0);
-    // Income Tax on tile 4 is 200.
-    expect(state.players.p1.accountBalance).toBe(1000);
+
+    expect(state.players.p1.accountBalance).toBe(closingBalance);
+    expect(state.boardState.paymentQueue).toBeNull();
+    expect(state.boardState.gameplayEvents.events).toContainEqual(expect.objectContaining({
+      type: 'MONEY_TRANSFER',
+      source: { kind: 'PLAYER', playerId: 'p1' },
+      destination: { kind: 'BANK' },
+      amount,
+      reason: 'TAX',
+    }));
+  });
+
+  it.each([
+    { tileID: 4, openingBalance: 199 },
+    { tileID: 4, openingBalance: 0 },
+    { tileID: 38, openingBalance: 99 },
+  ])('bankrupts a cash-short player without assets on tax tile $tileID', ({ tileID, openingBalance }) => {
+    const state = makeState();
+    addPlayer(state, 'p1', { currentTile: tileID, accountBalance: openingBalance });
+    addPlayer(state, 'p2');
+
+    resolveTile(state, 'p1', 0);
+
+    expect(state.players.p1).toBeUndefined();
+    expect(state.boardState.finishedPlayers.p1?.accountBalance).toBe(0);
+    expect(state.boardState.paymentQueue).toBeNull();
+    expect(state.boardState.gameplayEvents.events.every(event => (
+      event.type !== 'MONEY_TRANSFER' || event.amount <= openingBalance
+    ))).toBe(true);
+  });
+
+  it('pauses a TAX debt for liquidation and never charges the landing twice', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { currentTile: 4, accountBalance: 50 });
+    addPlayer(state, 'p2');
+    own(state, 1, 'p1');
+
+    resolveTile(state, 'p1', 0);
+
+    expect(state.players.p1.accountBalance).toBe(0);
+    expect(state.boardState.paymentQueue?.orderedClaims[0]).toMatchObject({
+      amount: 200,
+      remainingAmount: 150,
+      source: { kind: 'TAX', tileID: 4 },
+    });
+    expect(state.boardState.currentPlayer.id).toBe('p1');
+    expect(state.boardState.currentPlayer.hasMoved).toBe(false);
+
+    progressPaymentQueue(state);
+
+    expect(state.boardState.paymentQueue?.orderedClaims[0]?.remainingAmount).toBe(150);
+    expect(state.boardState.gameplayEvents.events.filter(event => (
+      event.type === 'MONEY_TRANSFER' && event.reason === 'TAX'
+    ))).toHaveLength(1);
+  });
+
+  it('resumes one tax turn after developed-property liquidation', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { currentTile: 4, accountBalance: 0 });
+    addPlayer(state, 'p2');
+    own(state, 39, 'p1', { houses: 1 });
+
+    resolveTile(state, 'p1', 0);
+    const queue = state.boardState.paymentQueue;
+    const claim = queue?.orderedClaims[0];
+    if (!queue || !claim) throw new Error('Expected a tax payment shortfall.');
+
+    expect(sellPropertyToBankForPayment(
+      state, 'p1', 'stale-operation', claim.claimId, 39,
+    ).ok).toBe(false);
+    expect(sellHouse(state, 'p1', 39)).toBe(true);
+    expect(progressPaymentQueue(state).status).toBe('WAITING_FOR_LIQUIDATION');
+    expect(claim.remainingAmount).toBe(100);
+
+    const sale = sellPropertyToBankForPayment(
+      state, 'p1', queue.operationId, claim.claimId, 39,
+    );
+    expect(sale.ok).toBe(true);
+    const progress = progressPaymentQueue(state);
+    expect(progress).toMatchObject({ status: 'COMPLETED' });
+    if (progress.continuation) resumePaymentContinuation(state, progress.continuation);
+
+    expect(state.players.p1.accountBalance).toBe(180);
+    expect(state.boardState.paymentQueue).toBeNull();
+    expect(state.boardState.turnNumber).toBe(1);
+    expect(state.boardState.currentPlayer.id).toBe('p2');
+    expect(state.boardState.activityFeed.events.filter(event => event.type === 'TILE_LANDED'))
+      .toHaveLength(1);
+  });
+
+  it('lets an existing forced-sale proposal clear a tax shortfall', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { currentTile: 38, accountBalance: 0 });
+    addPlayer(state, 'p2', { accountBalance: 500 });
+    own(state, 39, 'p1');
+
+    resolveTile(state, 'p1', 0, undefined, { now: 1_000 });
+    const queue = state.boardState.paymentQueue;
+    const claim = queue?.orderedClaims[0];
+    if (!queue || !claim) throw new Error('Expected a tax payment shortfall.');
+    const proposal = createForcedSaleProposal(
+      state, 'p1', queue.operationId, claim.claimId, 39, 'p2', 1_000,
+    );
+    if (!proposal) throw new Error('Expected a forced-sale proposal.');
+
+    expect(acceptForcedSaleProposal(state, 'p2', proposal.proposalId, { now: 1_001 }).ok)
+      .toBe(true);
+    const progress = progressPaymentQueue(state, { now: 1_001 });
+
+    expect(progress.status).toBe('COMPLETED');
+    expect(state.players.p1.accountBalance).toBe(180);
+    expect(state.players.p2.accountBalance).toBe(220);
+    expect(state.boardState.ownedProps[39]?.id).toBe('p2');
+  });
+
+  it('records one authoritative landing before Go To Jail activity', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { name: 'An', currentTile: 30 });
+    addPlayer(state, 'p2');
+
+    resolveTile(state, 'p1', 0);
+
+    expect(state.boardState.activityFeed.events.map(event => event.type)).toEqual([
+      'TILE_LANDED',
+      'JAIL',
+    ]);
+    expect(state.boardState.activityFeed.events[0]).toMatchObject({
+      playerId: 'p1', playerName: 'An', tileID: 30,
+    });
   });
 
   it('sends a player to jail from the go-to-jail tile', () => {

@@ -154,4 +154,62 @@ describe('chat and activity log idle presentation', () => {
     expect(document.querySelector('.legacy')).toBeNull();
     expect(document.querySelector('.activity-entry--chat')).not.toBeNull();
   });
+
+  it('shows authoritative landing narration and suppresses dice arithmetic', () => {
+    renderLog([], [
+      {
+        eventId: '00000000-0000-4000-8000-000000000011',
+        sequence: 1,
+        occurredAt: '2026-08-25T12:00:00.000Z',
+        type: 'DICE_ROLL',
+        playerId: '00000000-0000-4000-8000-000000000001',
+        playerName: 'An',
+        dice1: 3,
+        dice2: 5,
+        total: 8,
+        context: 'TURN',
+      },
+      {
+        eventId: '00000000-0000-4000-8000-000000000012',
+        sequence: 2,
+        occurredAt: '2026-08-25T12:00:01.000Z',
+        type: 'TILE_LANDED',
+        playerId: '00000000-0000-4000-8000-000000000001',
+        playerName: 'An',
+        tileID: 10,
+      },
+    ]);
+
+    expect(screen.getByText('An đang Thăm Tù.')).toBeTruthy();
+    expect(screen.queryByText(/3 \+ 5 = 8/u)).toBeNull();
+    expect(document.querySelector('.activity-entry--dice_roll')).toBeNull();
+  });
+
+  it('renders every landing category from canonical tile data', () => {
+    const cases = [
+      [0, 'An đã tới Xuất Phát.'],
+      [1, 'An đã tới Cà Mau.'],
+      [2, 'An đã tới Khí Vận.'],
+      [4, 'An đã tới Thuế Thu Nhập.'],
+      [5, 'An đã tới Ga Hà Nội.'],
+      [7, 'An đã tới Cơ Hội.'],
+      [10, 'An đang Thăm Tù.'],
+      [12, 'An đã tới Công Ty Điện.'],
+      [20, 'An đã tới Bãi Đỗ Xe.'],
+      [30, 'An đã tới ô Vào Tù.'],
+    ] as const;
+    const events: ActivityEvent[] = cases.map(([tileID], index) => ({
+      eventId: `00000000-0000-4000-8000-${String(index + 20).padStart(12, '0')}`,
+      sequence: index + 1,
+      occurredAt: `2026-08-25T12:00:${String(index).padStart(2, '0')}.000Z`,
+      type: 'TILE_LANDED',
+      playerId: '00000000-0000-4000-8000-000000000001',
+      playerName: 'An',
+      tileID,
+    }));
+
+    renderLog([], events);
+
+    for (const [, text] of cases) expect(screen.getByText(text)).toBeTruthy();
+  });
 });

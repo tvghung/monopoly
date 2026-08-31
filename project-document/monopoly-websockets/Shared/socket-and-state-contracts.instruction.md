@@ -13,7 +13,7 @@
   operation IDs cần cho durable continuation.
 - `RoomStatus`: `LOBBY | IN_PROGRESS | FINISHED`; `RoomRole`:
   `PLAYER | SPECTATOR`.
-- `SOCKET_PROTOCOL_VERSION = 8`; older clients nhận `UPGRADE_REQUIRED`, không chạy legacy
+- `SOCKET_PROTOCOL_VERSION = 9`; older clients nhận `UPGRADE_REQUIRED`, không chạy legacy
   state/payload.
 - `CharacterId` và `PlayerColorId` là stable shared appearance IDs. `set appearance`
   nhận strict character-only, color-only hoặc combined payload; empty/unknown keys

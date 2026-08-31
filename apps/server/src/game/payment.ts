@@ -117,7 +117,9 @@ const settleCurrentClaim = (state: GameState, queue: PaymentQueue): boolean => {
       amount: paid,
       reason: claim.source.kind === 'RENT'
         ? 'RENT'
-        : claim.source.kind === 'CARD' ? 'CARD' : 'OTHER',
+        : claim.source.kind === 'TAX'
+          ? 'TAX'
+          : claim.source.kind === 'CARD' ? 'CARD' : 'OTHER',
       operationId: queue.operationId,
     });
   }

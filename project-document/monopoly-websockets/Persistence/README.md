@@ -15,7 +15,7 @@
 - Raw token không persist; chỉ SHA-256. Presence/socket/generation/timer handle và
   countdown tick không nằm database.
 - SQL migration version và JSON snapshot schema version độc lập; current runtime
-  uses protocol v8 and accepts snapshot schema v8.
+  uses protocol v9 and accepts snapshot schema v8.
 
 ## Snapshot v8
 
