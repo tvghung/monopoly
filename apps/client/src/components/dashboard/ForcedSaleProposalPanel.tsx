@@ -39,16 +39,20 @@ export default function ForcedSaleProposalPanel() {
   };
 
   if (!visible || !proposal) return null;
+  const buyerName = state.players[proposal.buyerPlayerId]?.name ?? 'Người mua';
+  const sellerName = state.players[proposal.sellerPlayerId]?.name ?? 'Người bán';
   return (
     <Modal open title="Đề nghị bán bắt buộc" className="forced-sale-proposal">
       {error ? <p role="alert">{error}</p> : null}
-      <p>{getTileName(proposal.tileID)}</p>
-      <p>Giá giao dịch cố định: {formatMoney(proposal.grossPrice)}</p>
-      {isSeller ? <p>Bạn nhận đủ giá giao dịch trước khi hàng đợi thanh toán tiếp tục xử lý khoản nợ.</p> : null}
-      <p>Giá do máy chủ xác định; mức phát triển hiện tại được giữ nguyên.</p>
+      <p className="forced-sale-proposal__property"><strong>{getTileName(proposal.tileID)}</strong></p>
+      <dl className="forced-sale-proposal__facts">
+        <div><dt>Giá cố định</dt><dd>{formatMoney(proposal.grossPrice)}</dd></div>
+        <div><dt>Người bán</dt><dd>{sellerName}</dd></div>
+        <div><dt>Người mua</dt><dd>{buyerName}</dd></div>
+      </dl>
       {isBuyer
         ? (
-          <div>
+          <div className="forced-sale-proposal__actions">
             <Button
               data-modal-autofocus
               type="button"
@@ -69,7 +73,7 @@ export default function ForcedSaleProposalPanel() {
         )
         : (
           <div>
-            <p>Đang chờ người mua {state.players[proposal.buyerPlayerId]?.name ?? ''} phản hồi.</p>
+            <p>Đang chờ {buyerName} phản hồi.</p>
             {isSeller
               ? (
                 <Button

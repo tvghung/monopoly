@@ -1,8 +1,9 @@
 import { useContext, useEffect, useState } from 'react';
 import type { Ack, PublicGameState } from '@monopoly/shared';
-import { HandCoins, Landmark } from 'lucide-react';
+import { Handshake, Landmark } from 'lucide-react';
 import stateContext from '../../internal';
 import { formatMoney, getTileName, localizeAckError } from '../../presentation';
+import Modal from '../../design-system/components/Modal/Modal';
 
 type DebtClaimProjection = NonNullable<PublicGameState['boardState']['paymentShortfall']>;
 
@@ -44,6 +45,8 @@ export default function DebtPanel() {
   const forcedSaleProposal = privatePlayerState?.forcedSaleProposal ?? null;
   const forcedSaleActive = Boolean(forcedSaleProposal && forcedSaleProposal.sellerPlayerId === playerId);
   const [pendingAction, setPendingAction] = useState<PendingDebtAction | null>(null);
+  const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
+  const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -63,6 +66,8 @@ export default function DebtPanel() {
       if (!current || current.initialProjectionKey === claimProjectionKey) return current;
       return current.ackResolved ? null : { ...current, projectionAdvanced: true };
     });
+    setSelectedTileId(null);
+    setSelectedBuyerId(null);
   }, [claimProjectionKey]);
 
   useEffect(() => {
@@ -107,30 +112,56 @@ export default function DebtPanel() {
     : state.players[claim.creditorPlayerId ?? '']?.name ?? 'người chơi khác';
   const seconds = Math.max(0, Math.ceil((Date.parse(claim.actionDeadlineAt) - now) / 1000));
   const buyers = Object.entries(state.players).filter(([id]) => id !== playerId);
+  const properties = claim.sellableProperties ?? [];
+  const selectedProperty = properties.find(property => property.tileID === selectedTileId);
+  const selectedBuyer = buyers.find(([buyerId]) => buyerId === selectedBuyerId);
+
+  if (!isMyShortfall || !canMutate) {
+    return (
+      <section className="debt-panel debt-panel--status" role="status">
+        <strong>{debtor?.name ?? 'Người chơi'} đang xử lý khoản thiếu {formatMoney(claim.remainingAmount)}.</strong>
+        <span>{seconds} giây còn lại</span>
+      </section>
+    );
+  }
+
+  if (forcedSaleActive) return null;
 
   return (
-    <section className="debt-panel" role="alert" aria-labelledby="payment-shortfall-title">
-      <h3 id="payment-shortfall-title">Thanh toán thiếu hụt</h3>
-      {error ? <p>{error}</p> : null}
-      <p>
-        <strong>{debtor?.name ?? 'Người chơi'}</strong>
-        {` cần trả ${formatMoney(claim.remainingAmount)} cho ${creditor}.`}
-      </p>
-      <p>{`Còn ${seconds} giây để bán tài sản bắt buộc.`}</p>
-      {forcedSaleActive
-        ? <p role="status">Đang chờ xử lý đề nghị bán bắt buộc.</p>
-        : null}
-      {isMyShortfall && canMutate
+    <Modal open title="Cần thanh toán" role="alertdialog" className="debt-panel-modal">
+      <div className="debt-panel__summary">
+        <strong>{formatMoney(claim.remainingAmount)}</strong>
+        <span>Trả cho {creditor}</span>
+        <span>{seconds} giây còn lại</span>
+      </div>
+      {error ? <p className="debt-panel__error" role="alert">{error}</p> : null}
+      {pendingAction
         ? (
-          <div className="debt-panel__actions">
-            {(claim.sellableProperties ?? []).map(property => (
-              <article key={property.tileID} className="debt-panel__property">
-                <p>
-                  {getTileName(property.tileID)}, tổng giá {formatMoney(property.grossPrice)},
-                  {' '}bạn nhận {formatMoney(property.grossPrice)}
-                </p>
+          <p className="debt-panel__pending" role="status">
+            {pendingAction.ackResolved ? 'Đã xác nhận. Đang cập nhật khoản nợ…' : 'Đang gửi yêu cầu…'}
+          </p>
+        )
+        : null}
+      <div className="debt-panel__properties">
+        {properties.map((property, index) => {
+          const propertyName = getTileName(property.tileID);
+          const development = property.houses === 5
+            ? '1 Khách sạn'
+            : property.houses > 0 ? `${property.houses} Nhà` : 'Chưa xây';
+          const choosingBuyer = selectedTileId === property.tileID;
+          return (
+            <article key={property.tileID} className="debt-panel__property">
+              <div className="debt-panel__property-copy">
+                <strong>{propertyName}</strong>
+                <span>{development} · Nhận {formatMoney(property.grossPrice)}</span>
+              </div>
+              <div className="debt-panel__property-actions">
                 <button
+                  data-modal-autofocus={index === 0 ? true : undefined}
+                  className="debt-panel__icon-action"
                   type="button"
+                  aria-label={`Bán ${propertyName} cho Ngân hàng`}
+                  title={`Bán ${propertyName} cho Ngân hàng`}
                   disabled={pendingAction !== null || forcedSaleActive}
                   aria-busy={pendingAction?.key === `bank:${property.tileID}`}
                   onClick={() => submit(`bank:${property.tileID}`, () => socketFunctions.sellPropertyToBank?.({
@@ -138,26 +169,63 @@ export default function DebtPanel() {
                     claimId: claim.claimId ?? '',
                     tileID: property.tileID,
                   }))}
-                ><Landmark className="action-icon" aria-hidden="true" />Bán cho Ngân hàng</button>
-                {buyers.map(([buyerId, buyer]) => (
-                  <button
-                    key={buyerId}
-                    type="button"
-                    disabled={pendingAction !== null || forcedSaleActive || buyer.accountBalance < property.grossPrice}
-                    aria-busy={pendingAction?.key === `forced:${property.tileID}:${buyerId}`}
-                    onClick={() => submit(`forced:${property.tileID}:${buyerId}`, () => socketFunctions.proposeForcedSale?.({
-                      paymentOperationId: claim.paymentOperationId ?? '',
-                      claimId: claim.claimId ?? '',
-                      tileID: property.tileID,
-                      buyerPlayerId: buyerId,
-                    }))}
-                  ><HandCoins className="action-icon" aria-hidden="true" />{`Đề nghị ${buyer.name} mua`}</button>
-                ))}
+                ><Landmark className="action-icon action-icon--only" aria-hidden="true" /></button>
+                <button
+                  className="debt-panel__icon-action"
+                  type="button"
+                  aria-label={`Đề nghị người chơi mua ${propertyName}`}
+                  title={`Đề nghị người chơi mua ${propertyName}`}
+                  aria-pressed={choosingBuyer}
+                  disabled={pendingAction !== null || forcedSaleActive || buyers.length === 0}
+                  onClick={() => {
+                    setSelectedTileId(choosingBuyer ? null : property.tileID);
+                    setSelectedBuyerId(null);
+                  }}
+                ><Handshake className="action-icon action-icon--only" aria-hidden="true" /></button>
+              </div>
+              {choosingBuyer
+                ? (
+                  <fieldset className="debt-panel__buyer-picker">
+                    <legend>Chọn người mua</legend>
+                    {buyers.map(([buyerId, buyer]) => {
+                      const affordable = buyer.accountBalance >= property.grossPrice;
+                      return (
+                        <label key={buyerId} className="debt-panel__buyer">
+                          <input
+                            type="radio"
+                            name={`buyer-${property.tileID}`}
+                            value={buyerId}
+                            checked={selectedBuyerId === buyerId}
+                            disabled={!affordable || pendingAction !== null}
+                            onChange={() => setSelectedBuyerId(buyerId)}
+                          />
+                          <span>{buyer.name}</span>
+                          <small>{affordable ? formatMoney(buyer.accountBalance) : 'Không đủ tiền'}</small>
+                        </label>
+                      );
+                    })}
+                    <button
+                      className="debt-panel__send"
+                      type="button"
+                      disabled={!selectedBuyer || !selectedProperty || selectedBuyer[1].accountBalance < selectedProperty.grossPrice || pendingAction !== null}
+                      aria-busy={pendingAction?.key === `forced:${property.tileID}:${selectedBuyerId ?? ''}`}
+                      onClick={() => {
+                        if (!selectedBuyerId) return;
+                        submit(`forced:${property.tileID}:${selectedBuyerId}`, () => socketFunctions.proposeForcedSale?.({
+                          paymentOperationId: claim.paymentOperationId ?? '',
+                          claimId: claim.claimId ?? '',
+                          tileID: property.tileID,
+                          buyerPlayerId: selectedBuyerId,
+                        }));
+                      }}
+                    >Gửi đề nghị bán</button>
+                  </fieldset>
+                )
+                : null}
               </article>
-            ))}
-          </div>
-        )
-        : null}
-    </section>
+          );
+        })}
+      </div>
+    </Modal>
   );
 }

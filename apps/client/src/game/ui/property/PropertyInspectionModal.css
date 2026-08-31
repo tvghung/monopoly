@@ -5,7 +5,7 @@
 }
 
 .property-inspection__price,
-.property-inspection__buildings {
+.property-inspection__development {
   margin: 0;
   font-weight: var(--font-weight-semibold);
 }
@@ -28,6 +28,23 @@
 .property-inspection__detail strong {
   text-align: right;
 }
+
+.property-inspection__detail--current {
+  padding: var(--space-3);
+  border: 1px solid var(--color-accent-secondary);
+  border-radius: var(--radius-medium);
+  background: var(--color-accent-secondary-soft);
+}
+
+.property-inspection__disclosure > summary {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  cursor: pointer;
+  font-weight: var(--font-weight-semibold);
+}
+
+.property-inspection__disclosure[open] > summary { margin-bottom: var(--space-2); }
 
 .property-inspection__action {
   min-height: 2.75rem;

@@ -128,4 +128,24 @@ describe('OwnedPropertiesControl', () => {
     expect(screen.getByText('0 tài sản')).toBeTruthy();
     expect(screen.getByText('Bạn chưa sở hữu tài sản nào.')).toBeTruthy();
   });
+
+  it('keeps a large authoritative inventory reachable in one modal', () => {
+    const state = makeState(900);
+    state.boardState.ownedProps = Object.fromEntries(
+      Array.from({ length: 20 }, (_, index) => [index + 1, {
+        id: playerId,
+        color: 'red' as const,
+        houses: 0,
+      }]),
+    );
+    render(
+      <stateContext.Provider value={context(state)}>
+        <OwnedPropertiesControl onSelect={vi.fn()} />
+      </stateContext.Provider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tài sản của tôi (20)' }));
+    expect(document.querySelectorAll('.owned-properties-list__item')).toHaveLength(20);
+    expect(document.querySelectorAll('.owned-properties-list__inspect')).toHaveLength(20);
+  });
 });

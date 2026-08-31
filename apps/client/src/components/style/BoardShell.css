@@ -56,7 +56,7 @@
 
 .game-board__accessibility-layer {
   position: absolute;
-  z-index: 20;
+  z-index: var(--z-hud);
   inset: 0;
   pointer-events: none;
 }
@@ -71,7 +71,7 @@
 
 .game-board__roll-controls {
   position: absolute;
-  z-index: 45;
+  z-index: var(--z-action-surface);
   bottom: max(clamp(0.75rem, 2vw, 1.25rem), env(safe-area-inset-bottom));
   left: 50%;
   display: flex;
@@ -128,7 +128,7 @@
 
 .game-board__property-access {
   position: absolute;
-  z-index: 45;
+  z-index: var(--z-action-surface);
   bottom: max(clamp(0.75rem, 2vw, 1.25rem), env(safe-area-inset-bottom));
   left: calc(50% - min(7.5rem, 22vw));
   pointer-events: auto;
@@ -153,12 +153,15 @@
 .owned-properties-modal { width: min(100%, 32rem); }
 
 .owned-properties-summary {
+  position: sticky;
+  z-index: 1;
+  top: -1rem;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: var(--space-1) var(--space-3);
   align-items: baseline;
-  margin-bottom: var(--space-4);
-  padding: var(--space-3);
+  margin: -1rem -1.5rem var(--space-4);
+  padding: var(--space-3) var(--space-5);
   border-radius: var(--radius-medium);
   background: var(--color-accent-secondary-soft);
 }
@@ -206,7 +209,7 @@
 @media (orientation: portrait) and (max-width: 48rem) {
   .game-board__orientation-notice {
     position: fixed;
-    z-index: 12000;
+    z-index: var(--z-orientation-notice);
     inset: 0;
     display: flex;
     flex-direction: column;
@@ -224,6 +227,18 @@
 
 @media (max-width: 900px) {
   .game-board {
-    padding: var(--space-2);
+    padding:
+      max(var(--space-2), env(safe-area-inset-top))
+      max(var(--space-2), env(safe-area-inset-right))
+      max(var(--space-2), env(safe-area-inset-bottom))
+      max(var(--space-2), env(safe-area-inset-left));
+  }
+}
+
+@media (orientation: landscape) and (max-height: 31rem) {
+  .owned-properties-summary {
+    top: -0.6rem;
+    margin: -0.6rem -0.75rem var(--space-3);
+    padding: var(--space-2) var(--space-3);
   }
 }

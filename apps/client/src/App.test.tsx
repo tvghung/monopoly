@@ -694,8 +694,16 @@ describe('App session admission', () => {
     });
 
     expect(screen.getByText(/^FPS (?:--|\d+)$/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Cài đặt' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Bỏ cuộc' })).toBeTruthy();
+    const settingsButton = screen.getByRole('button', { name: 'Cài đặt' });
+    const surrenderButton = screen.getByRole('button', { name: 'Bỏ cuộc' });
+    expect(settingsButton.textContent).toBe('');
+    expect(surrenderButton.textContent).toBe('');
+    expect(settingsButton.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(settingsButton);
+    expect(settingsButton.className).toContain('room-settings-button--open');
+    expect(settingsButton.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
+    expect(settingsButton.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(screen.getByRole('button', { name: 'Bỏ cuộc' }));
     expect(screen.getByRole('alertdialog')).toBeTruthy();
     expect(lastEmission('leave room')).toBeUndefined();

@@ -9,8 +9,8 @@
      ultra-wide rectangle. 180vh = at most a 1.8:1 ratio (normal 16:9/16:10
      screens fill completely; only very wide windows get letterboxed).
      Lower this number for a squarer board, raise it to allow more stretch. */
-  height: 100vh;
-  width: min(100vw, 180vh);
+  height: 100dvh;
+  width: min(100vw, 180dvh);
   background: var(--color-canvas-deep);
   border: 2px solid var(--color-border-strong);
 }
@@ -489,14 +489,14 @@
 @media (orientation: portrait) and (max-width: 48rem) {
   .orientation-notice {
     position: fixed;
-    z-index: 12000;
+    z-index: var(--z-orientation-notice);
     inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
-    padding: 2rem;
+    padding: max(2rem, env(safe-area-inset-top)) max(2rem, env(safe-area-inset-right)) max(2rem, env(safe-area-inset-bottom)) max(2rem, env(safe-area-inset-left));
     background: var(--color-info-soft);
   color: var(--color-text-primary);
     font-size: clamp(1rem, 5vw, 1.4rem);

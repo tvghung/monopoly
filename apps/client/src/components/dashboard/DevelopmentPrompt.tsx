@@ -67,7 +67,7 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
         ? (
           <>
             <p>Chọn số Nhà (tối đa {max}) — {formatMoney(unitCost)} mỗi Nhà.</p>
-            <div>
+            <div className="development-prompt__options">
               {Array.from({ length: max }, (_, index) => {
                 const quantity = index + 1;
                 return (
@@ -99,6 +99,7 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
           </Button>
         )}
       <Button
+        className="development-prompt__skip"
         variant="secondary"
         icon={<SkipForward />}
         type="button"

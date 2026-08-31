@@ -696,13 +696,15 @@ duplicate snapshots, skip, reduced motion, and reconnect.
 
 ### 7.10 Workstream J - Jail
 
-Current JailPanel actions are pay bail, use a jail-free card, and wait in jail.
+Current JailPanel actions are pay bail or use a jail-free card; the shared roll
+control remains the doubles escape path. `wait in jail` is transport compatibility
+only and is not rendered as a client action.
 The server owns the bail amount, card validity, jail rounds, dice result, and
 turn outcome. The client sends the existing commands:
 
 - pay bail;
 - use jail card;
-- wait in jail.
+- failed roll auto-handoff (with `wait in jail` retained only for compatibility).
 
 Use JAIL_STATE_CHANGED and the existing jail reaction timing. A compact lock,
 slot, or status cue may reinforce the state, but it must not obscure the

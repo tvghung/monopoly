@@ -9,6 +9,7 @@ import type { SocketFunctions, StateContextValue } from '../../types';
 import { makeRoom } from '../../game/presentation/testFixtures';
 import BuyPrompt from './BuyPrompt';
 import DevelopmentPrompt from './DevelopmentPrompt';
+import JailPanel from './JailPanel';
 
 afterEach(cleanup);
 
@@ -71,6 +72,13 @@ function developmentState(operationId = 'development-1'): PublicGameState {
     unitCost: 50,
     maxQuantity: 2,
   };
+  return room.gameState;
+}
+
+function jailState(balance = 25): PublicGameState {
+  const room = makeRoom();
+  room.gameState.players['player-a'].accountBalance = balance;
+  room.gameState.players['player-a'].isJail = true;
   return room.gameState;
 }
 
@@ -154,5 +162,65 @@ describe('authoritative decision prompts', () => {
     });
 
     expect(screen.getByRole('button', { name: /Xây 1 Nhà/ }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('offers the canonical bail action without a manual wait action', () => {
+    render(
+      <stateContext.Provider value={makeContext(jailState(), makeSocketFunctions())}>
+        <JailPanel />
+      </stateContext.Provider>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Trả 25.000 ₫' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Chờ hết lượt/ })).toBeNull();
+  });
+
+  it('guards duplicate bail clicks and shows a delayed-projection state after success', async () => {
+    let resolveBail!: (acknowledgement: Ack) => void;
+    const payBail = vi.fn(() => new Promise<Ack>(resolve => { resolveBail = resolve; }));
+    const socketFunctions = makeSocketFunctions({ payBail });
+    render(
+      <stateContext.Provider value={makeContext(jailState(), socketFunctions)}>
+        <JailPanel />
+      </stateContext.Provider>,
+    );
+
+    const button = screen.getByRole('button', { name: 'Trả 25.000 ₫' });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(payBail).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      resolveBail({ ok: true, protocolVersion: SOCKET_PROTOCOL_VERSION });
+    });
+    await waitFor(() => expect(screen.getByText('Đã xác nhận. Đang cập nhật ván chơi…')).toBeTruthy());
+    expect(button.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('disables bail below the canonical amount', () => {
+    render(
+      <stateContext.Provider value={makeContext(jailState(24), makeSocketFunctions())}>
+        <JailPanel />
+      </stateContext.Provider>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Trả 25.000 ₫' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText('Cần 25.000 ₫ để trả bảo lãnh.')).toBeTruthy();
+  });
+
+  it('re-enables bail after a stale ACK failure without changing projected jail state', async () => {
+    const payBail = vi.fn(() => Promise.resolve(failure));
+    const state = jailState();
+    render(
+      <stateContext.Provider value={makeContext(state, makeSocketFunctions({ payBail }))}>
+        <JailPanel />
+      </stateContext.Provider>,
+    );
+
+    const button = screen.getByRole('button', { name: 'Trả 25.000 ₫' });
+    fireEvent.click(button);
+    await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
+    expect(state.players['player-a'].isJail).toBe(true);
+    expect(screen.getByRole('alert').textContent).toContain('Không thể thực hiện hành động ở trạng thái hiện tại.');
   });
 });

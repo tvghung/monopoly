@@ -6,7 +6,7 @@ import type {
   SetAppearanceRequest,
 } from '@monopoly/shared';
 import {
-  Check, LogOut, Play, Settings, X,
+  Check, LogOut, Play, Settings, WifiOff, X,
 } from 'lucide-react';
 import Button from '../design-system/components/Button/Button';
 import Badge from '../design-system/components/Badge/Badge';
@@ -117,7 +117,7 @@ export default function Lobby({
         <ul className="lobby__players" aria-label="Danh sách người chơi">
           {slots.map((player, index) => player
             ? (
-              <li className="lobby-player lobby-player--occupied" key={player.id}>
+              <li className={`lobby-player lobby-player--occupied${player.connected ? '' : ' lobby-player--disconnected'}`} key={player.id}>
                 <span
                   className="lobby-player__disc"
                   style={{ backgroundColor: getPlayerDisplayColor(player.color) }}
@@ -138,12 +138,19 @@ export default function Lobby({
                 </span>
                 {player.id === hostPlayerId ? <Badge variant="warning">Chủ phòng</Badge> : null}
                 <span
-                  className={`lobby-player__presence-dot ${player.connected
-                    ? 'lobby-player__presence-dot--online'
-                    : 'lobby-player__presence-dot--offline'}`}
-                  aria-label={player.connected ? 'Trực tuyến' : 'Mất kết nối'}
-                  title={player.connected ? 'Trực tuyến' : 'Mất kết nối'}
+                  className={`lobby-player__ready-dot ${player.ready
+                    ? 'lobby-player__ready-dot--ready'
+                    : 'lobby-player__ready-dot--not-ready'}`}
+                  aria-label={player.ready ? 'Đã sẵn sàng' : 'Chưa sẵn sàng'}
+                  title={player.ready ? 'Đã sẵn sàng' : 'Chưa sẵn sàng'}
                 />
+                {!player.connected
+                  ? (
+                    <span className="lobby-player__disconnect" aria-label="Mất kết nối" title="Mất kết nối">
+                      <WifiOff className="action-icon action-icon--only" aria-hidden="true" />
+                    </span>
+                  )
+                  : null}
                 {player.id === playerId
                   ? (
                     <Button

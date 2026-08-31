@@ -63,7 +63,7 @@ export default function WinnerBanner() {
             <div>
               <p className="winner-banner__eyebrow">Người chiến thắng</p>
               <h3 style={{ color: getPlayerDisplayColor(winner.color) }}>{winner.name}</h3>
-              <p>{character?.displayName ?? 'Chưa chọn mascot'} · {getPlayerColorLabel(winner.color)}</p>
+              <p>{getPlayerColorLabel(winner.color)}</p>
             </div>
           </div>
           <dl className="winner-banner__summary">

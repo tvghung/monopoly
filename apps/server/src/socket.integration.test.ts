@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 
 import {
+  BAIL_AMOUNT,
   createCanonicalDecks,
   SOCKET_PROTOCOL_VERSION,
   tileState,
@@ -1574,7 +1575,7 @@ describe('Socket.IO durable player lifecycle', () => {
 
       };
       const player = room.gameSnapshot.gameState.players[host.playerId];
-      player.accountBalance = 49;
+      player.accountBalance = BAIL_AMOUNT - 1;
       player.isJail = true;
       player.jailOpponentRoundsElapsed = 2;
       room.gameSnapshot.gameState.boardState.currentPlayer.hasMoved = false;
@@ -1589,10 +1590,59 @@ describe('Socket.IO durable player lifecycle', () => {
     });
     const after = await persistence.rooms.findById(host.room.roomId);
     expect(after?.gameSnapshot.gameState.players[host.playerId]).toMatchObject({
-      accountBalance: 49,
+      accountBalance: BAIL_AMOUNT - 1,
       isJail: true,
     });
     expect(after?.gameSnapshot.gameState.boardState.paymentQueue).toBeNull();
+  });
+
+  it('charges exact bail once and preserves release across reconnect and stale retries', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const host = await joinPlayer(await connect(subject.url), 'Host', 'exact-bail');
+    const guest = await joinPlayer(await connect(subject.url), 'Guest', 'exact-bail');
+    await setReady(host.socket);
+    await setReady(guest.socket);
+    expect((await startGame(host.socket)).ok).toBe(true);
+    await mutateRoom(persistence, host.room.roomId, (room) => {
+      room.gameSnapshot.gameState.boardState.currentPlayer = {
+        id: host.playerId,
+        hasMoved: false,
+      };
+      const player = room.gameSnapshot.gameState.players[host.playerId];
+      player.accountBalance = BAIL_AMOUNT;
+      player.isJail = true;
+      player.jailOpponentRoundsElapsed = 2;
+    });
+
+    const acknowledgements = await Promise.all([
+      waitForAck(acknowledge => host.socket.emit('pay bail', acknowledge)),
+      waitForAck(acknowledge => host.socket.emit('pay bail', acknowledge)),
+    ]);
+    expect(acknowledgements.filter(acknowledgement => acknowledgement.ok)).toHaveLength(1);
+    expect(acknowledgements.filter(acknowledgement => !acknowledgement.ok)).toHaveLength(1);
+
+    const stored = await persistence.rooms.findById(host.room.roomId);
+    expect(stored?.gameSnapshot.gameState.players[host.playerId]).toMatchObject({
+      accountBalance: 0,
+      isJail: false,
+      jailOpponentRoundsElapsed: 0,
+    });
+    expect(stored?.gameSnapshot.gameState.boardState.gameplayEvents.events).toContainEqual(
+      expect.objectContaining({ type: 'MONEY_TRANSFER', amount: BAIL_AMOUNT, reason: 'BAIL' }),
+    );
+    expect(stored?.gameSnapshot.gameState.boardState.logs.at(-1)).toContain('25.000 ₫');
+
+    const resumedSocket = await connect(subject.url);
+    const resumed = await resumePlayer(resumedSocket, host.token);
+    expect(resumed.room.gameState.players[host.playerId]).toMatchObject({
+      accountBalance: 0,
+      isJail: false,
+    });
+    const staleRetry = await waitForAck(acknowledge => {
+      resumedSocket.emit('pay bail', acknowledge);
+    });
+    expect(staleRetry).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
   });
 
   it('rejects a payload inserted into a no-payload command without committing', async () => {

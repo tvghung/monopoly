@@ -106,7 +106,7 @@ describe('DebtPanel', () => {
     renderDebt(debtState(), { sellPropertyToBank });
 
     expect(screen.getByText(/200\.000 ₫/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Bán cho Ngân hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Bán Cà Mau cho Ngân hàng' }));
     expect(sellPropertyToBank).toHaveBeenCalledWith({
       paymentOperationId: '00000000-0000-4000-8000-000000000001',
       claimId: '00000000-0000-4000-8000-000000000002',
@@ -118,7 +118,7 @@ describe('DebtPanel', () => {
     const sellPropertyToBank = vi.fn(() => new Promise<Ack>(() => {}));
     renderDebt(debtState(), { sellPropertyToBank });
 
-    const button = screen.getByRole('button', { name: 'Bán cho Ngân hàng' });
+    const button = screen.getByRole('button', { name: 'Bán Cà Mau cho Ngân hàng' });
     fireEvent.click(button);
     fireEvent.click(button);
 
@@ -132,9 +132,9 @@ describe('DebtPanel', () => {
     const initial = debtState();
     const view = renderDebt(initial, { sellPropertyToBank });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Bán cho Ngân hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Bán Cà Mau cho Ngân hàng' }));
     act(() => { resolveSale(success); });
-    expect(screen.getByRole('button', { name: 'Bán cho Ngân hàng' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Bán Cà Mau cho Ngân hàng' }).hasAttribute('disabled')).toBe(true);
 
     const advanced = debtState({
       remainingAmount: 88,
@@ -147,7 +147,7 @@ describe('DebtPanel', () => {
       </stateContext.Provider>,
     );
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Bán cho Ngân hàng' }).hasAttribute('disabled')).toBe(false));
+    await waitFor(() => expect(screen.getByRole('button', { name: /cho Ngân hàng/ }).hasAttribute('disabled')).toBe(false));
   });
 
   it('keeps debt actions blocked while the seller proposal is active', async () => {
@@ -155,7 +155,9 @@ describe('DebtPanel', () => {
     const initial = debtState();
     const view = renderDebt(initial, { proposeForcedSale });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Đề nghị Bình mua' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đề nghị người chơi mua Cà Mau' }));
+    fireEvent.click(screen.getByRole('radio', { name: /Bình/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi đề nghị bán' }));
     await waitFor(() => expect(proposeForcedSale).toHaveBeenCalledTimes(1));
 
     view.rerender(
@@ -169,10 +171,7 @@ describe('DebtPanel', () => {
       </stateContext.Provider>,
     );
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Bán cho Ngân hàng' }).hasAttribute('disabled')).toBe(true);
-      expect(screen.getByRole('button', { name: 'Đề nghị Bình mua' }).hasAttribute('disabled')).toBe(true);
-    });
+    await waitFor(() => expect(screen.queryByRole('alertdialog', { name: 'Cần thanh toán' })).toBeNull());
   });
 
   it('unlocks debt actions when the active proposal is cleared', async () => {
@@ -183,7 +182,7 @@ describe('DebtPanel', () => {
       forcedSaleProposal: proposal(),
     };
     const view = renderDebt(debtState(), {}, activePrivateState);
-    expect(screen.getByRole('button', { name: 'Bán cho Ngân hàng' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.queryByRole('alertdialog', { name: 'Cần thanh toán' })).toBeNull();
 
     view.rerender(
       <stateContext.Provider value={makeContext(debtState(), {}, {
@@ -196,17 +195,40 @@ describe('DebtPanel', () => {
       </stateContext.Provider>,
     );
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Bán cho Ngân hàng' }).hasAttribute('disabled')).toBe(false));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Bán Cà Mau cho Ngân hàng' }).hasAttribute('disabled')).toBe(false));
   });
 
   it('unlocks after ACK failure and shows one localized inline error', async () => {
     const sellPropertyToBank = vi.fn(() => Promise.resolve(failure));
     renderDebt(debtState(), { sellPropertyToBank });
 
-    const button = screen.getByRole('button', { name: 'Bán cho Ngân hàng' });
+    const button = screen.getByRole('button', { name: 'Bán Cà Mau cho Ngân hàng' });
     fireEvent.click(button);
 
     await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
     expect(screen.getAllByText('Không thể thực hiện hành động ở trạng thái hiện tại.')).toHaveLength(1);
+  });
+
+  it('keeps large inventories at two primary actions per property', () => {
+    const sellableProperties = Array.from({ length: 22 }, (_, index) => ({
+      tileID: index + 1,
+      grossPrice: 50 + index,
+      houses: index % 6,
+    }));
+    renderDebt(debtState({ sellableProperties }));
+
+    expect(screen.getAllByRole('button', { name: /cho Ngân hàng$/ })).toHaveLength(22);
+    expect(screen.getAllByRole('button', { name: /^Đề nghị người chơi mua/ })).toHaveLength(22);
+    expect(screen.queryByRole('radio')).toBeNull();
+  });
+
+  it('disables buyers who cannot afford the authoritative fixed price', () => {
+    renderDebt(debtState({
+      sellableProperties: [{ tileID: 1, grossPrice: 600, houses: 0 }],
+    }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đề nghị người chơi mua Cà Mau' }));
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: /Bình/ }).disabled).toBe(true);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Gửi đề nghị bán' }).disabled).toBe(true);
   });
 });

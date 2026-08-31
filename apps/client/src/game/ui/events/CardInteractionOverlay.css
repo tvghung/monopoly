@@ -1,6 +1,6 @@
 .card-focus-overlay {
   position: fixed;
-  z-index: 13000;
+  z-index: var(--z-card-overlay);
   inset: 0;
   pointer-events: none;
   isolation: isolate;

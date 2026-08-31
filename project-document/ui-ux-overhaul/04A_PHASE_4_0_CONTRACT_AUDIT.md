@@ -485,7 +485,7 @@ It does not provide a universal cause field.
 | Transition | What is proven | What remains ambiguous |
 | --- | --- | --- |
 | Tile 10/jail false to true | Player is now jailed at tile 10 | Card, jail tile, or another server cause. |
-| Jail true to false with no movement and balance -50 | Strong evidence for pay bail under current handlers | No command identity in the public snapshot; avoid universal label without operation correlation. |
+| Jail true to false with no movement and balance reduced by shared `BAIL_AMOUNT` (currently 25) | Strong evidence for pay bail under current handlers | No command identity in the public snapshot; avoid universal label without operation correlation. |
 | Jail true to false with private jail-free count/ID decrease | Strong private evidence for card use | Other viewers cannot see exact card ID. |
 | Jail true to false with movement and a new dice result | Consistent with a successful jail double | Roll identity and exact movement cause still require the dice gate. |
 | Jail remains true, tile unchanged, turn advances | Consistent with failed roll or wait | The current adapter ignores log semantics and does not expose a cause. |

@@ -45,9 +45,9 @@ describe('Lobby', () => {
     expect(screen.queryByText('OWN THE BLOCK')).toBeNull();
     expect(document.querySelectorAll('.lobby-player__character')).toHaveLength(0);
     expect(document.querySelectorAll('.lobby-player .ds-badge')).toHaveLength(1);
-    const onlineDots = screen.getAllByLabelText('Trực tuyến');
-    expect(onlineDots).toHaveLength(2);
-    expect(onlineDots.every(dot => dot.className.includes('lobby-player__presence-dot--online'))).toBe(true);
+    const readyDots = screen.getAllByLabelText('Đã sẵn sàng');
+    expect(readyDots).toHaveLength(2);
+    expect(readyDots.every(dot => dot.className.includes('lobby-player__ready-dot--ready'))).toBe(true);
     expect(screen.queryByLabelText('Mất kết nối')).toBeNull();
   });
 
@@ -70,8 +70,8 @@ describe('Lobby', () => {
     );
 
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Bắt đầu' }).disabled).toBe(true);
-    expect(screen.getByLabelText('Mất kết nối').className).toContain('lobby-player__presence-dot--offline');
-    expect(screen.queryByText('Chưa sẵn sàng')).toBeNull();
+    expect(screen.getByLabelText('Mất kết nối')).toBeTruthy();
+    expect(screen.getByLabelText('Chưa sẵn sàng').className).toContain('lobby-player__ready-dot--not-ready');
   });
 
   it('does not render a start action for a non-host', () => {
@@ -116,8 +116,8 @@ describe('Lobby', () => {
     );
 
     expect(screen.getByLabelText('Chọn nhân vật của bạn')).toBeTruthy();
-    expect(screen.getAllByText('Dog').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Panda').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Dog')).toBeNull();
+    expect(screen.queryByText('Panda')).toBeNull();
     const characterGroup = screen.getByRole('group', { name: 'Chọn mascot' });
     const colorGroup = screen.getByRole('group', { name: 'Chọn màu người chơi' });
     expect(characterGroup.querySelectorAll('button')).toHaveLength(8);
@@ -180,6 +180,34 @@ describe('Lobby', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sẵn sàng' }));
     expect(onSetReady).toHaveBeenCalledWith(true);
     expect(screen.getAllByRole('button', { name: 'Sẵn sàng' })).toHaveLength(1);
+  });
+
+  it('keeps readiness and connectivity as independent roster states', () => {
+    render(
+      <Lobby
+        roomCode="ROOM-STATUS"
+        players={[
+          readyPlayers[0],
+          { ...readyPlayers[1], ready: false },
+          { id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: true, connected: false },
+          { id: 'player-d', name: 'Sam', color: 'yellow', characterId: 'duck', ready: false, connected: false },
+        ]}
+        playerId="player-a"
+        hostPlayerId="player-a"
+        minPlayers={2}
+        maxPlayers={4}
+        busy={false}
+        error={null}
+        onSetReady={vi.fn()}
+        onSetAppearance={vi.fn()}
+        onStart={vi.fn()}
+        onLeave={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByLabelText('Đã sẵn sàng')).toHaveLength(2);
+    expect(screen.getAllByLabelText('Chưa sẵn sàng')).toHaveLength(2);
+    expect(screen.getAllByLabelText('Mất kết nối')).toHaveLength(2);
   });
 
   it('supports carousel keyboard navigation and keeps color selection in the same appearance flow', () => {

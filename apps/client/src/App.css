@@ -35,7 +35,7 @@
 
 .connection-overlay {
   position: fixed;
-  z-index: 10000;
+  z-index: var(--z-connection-overlay);
   inset: 0;
   display: grid;
   place-items: center;
@@ -68,8 +68,8 @@
 
 .spectator-banner {
   position: fixed;
-  z-index: 9000;
-  top: 0.75rem;
+  z-index: var(--z-floating-control);
+  top: max(0.75rem, env(safe-area-inset-top));
   left: 50%;
   max-width: calc(100vw - 2rem);
   padding: 0.6rem 0.9rem;
@@ -84,7 +84,7 @@
 
 .room-toolbar {
   position: fixed;
-  z-index: 9001;
+  z-index: var(--z-floating-control);
   top: max(0.75rem, env(safe-area-inset-top));
   right: max(0.75rem, env(safe-area-inset-right));
   display: flex;
@@ -93,25 +93,50 @@
 }
 
 .room-exit-button {
-  padding: 0.55rem 0.8rem;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
   border: 0;
   border-radius: 0.5rem;
   background: var(--color-danger-strong);
   color: var(--color-text-inverse);
   cursor: pointer;
   font-weight: 700;
-  min-height: 2.75rem;
 }
 
 .room-settings-button {
-  min-height: 2.75rem;
-  padding: 0.55rem 0.8rem;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-medium);
   background: var(--color-surface);
   color: var(--color-text-primary);
   cursor: pointer;
   font-weight: var(--font-weight-semibold);
+}
+
+.room-settings-button__icon {
+  transition: transform 200ms ease;
+}
+
+.room-settings-button--open .room-settings-button__icon {
+  transform: rotate(45deg);
+}
+
+.room-settings-button:active:not(:disabled),
+.room-exit-button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+}
+
+.room-settings-button:focus-visible,
+.room-exit-button:focus-visible {
+  outline: 0;
+  box-shadow: var(--shadow-focus);
 }
 
 .fps-badge {
@@ -142,9 +167,9 @@
 
 .room-exit-error {
   position: fixed;
-  z-index: 9002;
-  top: 3.6rem;
-  right: 0.75rem;
+  z-index: var(--z-floating-control);
+  top: max(3.6rem, calc(env(safe-area-inset-top) + 3rem));
+  right: max(0.75rem, env(safe-area-inset-right));
   max-width: 20rem;
   margin: 0;
   padding: 0.5rem 0.7rem;
@@ -162,4 +187,8 @@
   .connection-overlay__spinner {
     animation: none;
   }
+
+  .room-settings-button__icon { transition: none; }
+  .room-settings-button:active:not(:disabled),
+  .room-exit-button:active:not(:disabled) { transform: none; }
 }

@@ -8,10 +8,16 @@
 .settings-panel__toggle { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); }
 .settings-panel__toggle input { width: 1.1rem; height: 1.1rem; accent-color: var(--color-accent-primary); }
 .settings-panel__hint { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-sm); }
-.settings-panel__actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.settings-panel__actions { position: sticky; bottom: -1.5rem; display: flex; justify-content: flex-end; gap: var(--space-2); margin: 0 -1.5rem -1.5rem; padding: var(--space-3) var(--space-5) var(--space-5); border-top: 1px solid var(--color-border); background: var(--color-surface); }
 @media (max-width: 36rem) {
   .settings-panel__control { grid-template-columns: 1fr auto; }
   .settings-panel__control input[type='range'] { grid-column: 1 / -1; grid-row: 2; }
   .settings-panel__actions { flex-direction: column-reverse; }
+}
+
+@media (orientation: landscape) and (max-height: 31rem) {
+  .settings-panel { gap: var(--space-3); }
+  .settings-panel__section { gap: var(--space-2); }
+  .settings-panel__actions { bottom: -0.75rem; margin: 0 -0.75rem -0.75rem; padding: 0.5rem 0.75rem 0.75rem; }
 }
 

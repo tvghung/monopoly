@@ -871,24 +871,25 @@ export default function App({
             {import.meta.env.DEV || __PHASE4_UAT__ ? <FpsBadge /> : null}
             <button
               type="button"
-              className="room-settings-button"
+              className={`room-settings-button${settingsOpen ? ' room-settings-button--open' : ''}`}
+              aria-label="Cài đặt"
+              title="Cài đặt"
+              aria-expanded={settingsOpen}
               onClick={() => setSettingsOpen(true)}
             >
-              <Settings className="action-icon" aria-hidden="true" />
-              Cài đặt
+              <Settings className="action-icon action-icon--only room-settings-button__icon" aria-hidden="true" />
             </button>
             <button
               type="button"
               className="room-exit-button"
+              aria-label={role === 'PLAYER' && room.status === 'IN_PROGRESS' ? 'Bỏ cuộc' : 'Rời phòng'}
+              title={role === 'PLAYER' && room.status === 'IN_PROGRESS' ? 'Bỏ cuộc' : 'Rời phòng'}
               disabled={operation !== null}
               onClick={handleLeave}
             >
               {role === 'PLAYER' && room.status === 'IN_PROGRESS'
-                ? <Flag className="action-icon" aria-hidden="true" />
-                : <LogOut className="action-icon" aria-hidden="true" />}
-              {role === 'PLAYER' && room.status === 'IN_PROGRESS'
-                ? 'Bỏ cuộc'
-                : 'Rời phòng'}
+                ? <Flag className="action-icon action-icon--only" aria-hidden="true" />
+                : <LogOut className="action-icon action-icon--only" aria-hidden="true" />}
             </button>
           </div>
           {operationError ? <p className="room-exit-error" role="alert">{operationError}</p> : null}

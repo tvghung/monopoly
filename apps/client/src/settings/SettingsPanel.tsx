@@ -48,7 +48,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   };
 
   return (
-    <Modal open={open} title="Cài đặt" onClose={onClose}>
+    <Modal open={open} title="Cài đặt" onClose={onClose} className="settings-panel-modal">
       <div className="settings-panel">
         <section className="settings-panel__section" aria-labelledby="settings-audio-title">
           <h3 id="settings-audio-title">Âm thanh</h3>

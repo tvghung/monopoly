@@ -1,10 +1,13 @@
 :root {
   --z-base: 0;
   --z-hud: 10;
-  --z-floating-control: 20;
-  --z-dropdown: 30;
-  --z-modal: 40;
-  --z-toast: 50;
-  --z-connection-overlay: 60;
+  --z-action-surface: 20;
+  --z-orientation-notice: 30;
+  --z-floating-control: 40;
+  --z-dropdown: 50;
+  --z-modal: 60;
+  --z-card-overlay: 70;
+  --z-toast: 80;
+  --z-connection-overlay: 90;
 }
 

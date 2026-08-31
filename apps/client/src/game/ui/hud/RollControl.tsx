@@ -112,7 +112,7 @@ export default function RollControl() {
             onClick={handleRoll}
           >
             <Dices className="action-icon action-icon--major" aria-hidden="true" />
-            {pendingRoll !== null ? 'Đang chờ máy chủ…' : 'Đổ Xúc Xắc'}
+            {pendingRoll !== null ? 'Đang chờ…' : 'Chơi'}
           </button>
         )
         : null}

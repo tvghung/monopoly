@@ -1,11 +1,11 @@
 .center__room {
   position: absolute;
-  z-index: 30;
-  top: clamp(0.75rem, 1.5vw, 1.25rem);
-  left: clamp(0.75rem, 1.5vw, 1.25rem);
+  z-index: var(--z-action-surface);
+  top: max(clamp(0.75rem, 1.5vw, 1.25rem), env(safe-area-inset-top));
+  left: max(clamp(0.75rem, 1.5vw, 1.25rem), env(safe-area-inset-left));
   bottom: auto;
   width: min(24rem, 32%);
-  max-width: calc(100% - 1.5rem);
+  max-width: calc(100% - 1.5rem - env(safe-area-inset-left) - env(safe-area-inset-right));
   max-height: min(13rem, 34%);
   display: flex;
   flex-direction: column;
