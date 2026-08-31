@@ -11,6 +11,7 @@ import type {
   PlayerColorId,
   SetAppearanceRequest,
 } from '@monopoly/shared';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { CHARACTER_IDS, PLAYER_COLOR_IDS } from '@monopoly/shared';
 import { characterSvgDataUri } from '../../game/characters/characterSvg';
 import { CHARACTER_REGISTRY } from '../../game/characters/characterRegistry';
@@ -109,7 +110,7 @@ export default function MascotPicker({
           disabled={busy}
           onClick={() => selectCharacter(previousCharacterId)}
         >
-          ←
+          <ChevronLeft className="action-icon action-icon--only" aria-hidden="true" />
         </button>
         <button
           className="mascot-picker__side mascot-picker__side--previous"
@@ -172,7 +173,7 @@ export default function MascotPicker({
           disabled={busy}
           onClick={() => selectCharacter(nextCharacterId)}
         >
-          →
+          <ChevronRight className="action-icon action-icon--only" aria-hidden="true" />
         </button>
       </div>
 

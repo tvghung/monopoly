@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import type { Ack } from '@monopoly/shared';
+import { Clock, TicketCheck, Unlock } from 'lucide-react';
 import stateContext from '../../internal';
 import { formatMoney, localizeAckError } from '../../presentation';
 
@@ -54,7 +55,7 @@ export default function JailPanel() {
           aria-busy={pendingAction === 'PAY_BAIL'}
           onClick={() => submit('PAY_BAIL', () => socketFunctions.payBail())}
         >
-          Trả {formatMoney(50)} tiền bảo lãnh
+          <Unlock className="action-icon" aria-hidden="true" />Trả {formatMoney(50)} tiền bảo lãnh
         </button>
         {myPlayer.getOutOfJailCardCount > 0
           ? (
@@ -65,6 +66,7 @@ export default function JailPanel() {
               aria-busy={pendingAction === 'USE_CARD'}
               onClick={() => submit('USE_CARD', () => socketFunctions.useJailCard())}
             >
+              <TicketCheck className="action-icon" aria-hidden="true" />
               {`Dùng thẻ Thoát Tù Miễn Phí (${myPlayer.getOutOfJailCardCount})`}
             </button>
           )
@@ -75,7 +77,7 @@ export default function JailPanel() {
           aria-busy={pendingAction === 'WAIT'}
           onClick={() => submit('WAIT', () => socketFunctions.waitInJail?.())}
         >
-          Chờ hết lượt trong tù
+          <Clock className="action-icon" aria-hidden="true" />Chờ hết lượt trong tù
         </button>
       </div>
     </section>

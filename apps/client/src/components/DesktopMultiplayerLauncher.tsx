@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import {
+  ArrowLeft, LogIn, Play, Plug, Server, Square,
+} from 'lucide-react';
 import { getDesktopBridge } from '../runtime/desktopBridge';
 import { normalizeLanEndpoint } from '../runtime/lanEndpoint';
 import { generateHostRoomCode, normalizeRoomCode } from '../runtime/lanSharing';
@@ -203,25 +206,25 @@ export default function DesktopMultiplayerLauncher({
                   runtimeConfig: runtimeConfig(hostStatus.localEndpoint as string, hostStatus),
                   hosting: true,
                 })}>
-                  <strong>Tiếp tục Host đang chạy</strong>
+                  <strong><Play className="action-icon" aria-hidden="true" />Tiếp tục Host đang chạy</strong>
                   <span>Máy chủ LAN vẫn giữ dữ liệu phòng trên máy này.</span>
                 </button>
                 <button type="button" className="desktop-launcher__stop" disabled={busy} onClick={() => void stopHost()}>
-                  Dừng Host
+                  <Square className="action-icon" aria-hidden="true" />Dừng Host
                 </button>
               </div>
             ) : null}
             <button type="button" onClick={() => { setMode('host'); setError(null); }}>
-              <strong>Host Game</strong>
+              <strong><Server className="action-icon" aria-hidden="true" />Host Game</strong>
               <span>Khởi động máy chủ riêng trên máy này.</span>
             </button>
             <button type="button" onClick={() => { setMode('join'); setError(null); }}>
-              <strong>Join Game</strong>
+              <strong><LogIn className="action-icon" aria-hidden="true" />Join Game</strong>
               <span>Nhập địa chỉ IPv4 và mã phòng do Host chia sẻ.</span>
             </button>
             {configuredRuntimeConfig?.socketUrl ? (
               <button type="button" onClick={() => { setMode('configured'); setError(null); }}>
-                <strong>Máy chủ đã cấu hình</strong>
+                <strong><Plug className="action-icon" aria-hidden="true" />Máy chủ đã cấu hình</strong>
                 <span>Dùng địa chỉ thử nghiệm hoặc máy chủ cũ đã cung cấp.</span>
               </button>
             ) : null}
@@ -232,7 +235,7 @@ export default function DesktopMultiplayerLauncher({
             void (mode === 'host' ? startHost() : joinHost());
           }}>
             <button className="desktop-launcher__back" type="button" onClick={() => setMode(null)}>
-              ← Chọn lại chế độ
+              <ArrowLeft className="action-icon" aria-hidden="true" />Chọn lại chế độ
             </button>
             <h2>{mode === 'host' ? 'Host Game' : 'Join Game'}</h2>
 
@@ -308,6 +311,9 @@ export default function DesktopMultiplayerLauncher({
               disabled={busy || hostStarting || !name.trim()
                 || (mode === 'host' ? !preferredAddress : !roomCode.trim())}
             >
+              {mode === 'host'
+                ? <Server className="action-icon" aria-hidden="true" />
+                : <LogIn className="action-icon" aria-hidden="true" />}
               {busy || hostStarting
                 ? startingLabel(hostStatus)
                 : mode === 'host' ? 'Tạo và vào phòng' : 'Kết nối và vào phòng'}

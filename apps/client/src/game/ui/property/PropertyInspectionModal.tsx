@@ -1,5 +1,6 @@
 import { useContext } from 'react';
 import { tileState } from '@monopoly/shared';
+import { CircleMinus, Handshake } from 'lucide-react';
 import Modal from '../../../design-system/components/Modal/Modal';
 import stateContext from '../../../internal';
 import tradePromptContext from '../../../tradePromptContext';
@@ -55,7 +56,7 @@ export default function PropertyInspectionModal({ tileId, onClose }: PropertyIns
                 className="property-inspection__action"
                 onClick={() => openTradeForProperty(tileId)}
               >
-                Đề nghị mua
+                <Handshake className="action-icon" aria-hidden="true" />Đề nghị mua
               </button>
             )
             : isStreet
@@ -67,7 +68,7 @@ export default function PropertyInspectionModal({ tileId, onClose }: PropertyIns
                   title={canSellHouse ? 'Bán một Nhà về Ngân hàng' : 'Tài sản không có Nhà để bán'}
                   onClick={() => socketFunctions.sellHouse(tileId)}
                 >
-                  Bán Nhà
+                  <CircleMinus className="action-icon" aria-hidden="true" />Bán Nhà
                 </button>
               )
               : null

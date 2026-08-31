@@ -23,6 +23,8 @@
 .ds-button--danger { background: var(--color-danger-strong); color: var(--color-text-inverse); }
 .ds-button--ghost { background: transparent; color: var(--color-text-primary); }
 .ds-button:focus-visible { outline: 0; box-shadow: var(--shadow-focus); }
+.ds-button__icon { display: inline-flex; flex: none; color: currentColor; }
+.ds-button__icon > svg { width: 1.05rem; height: 1.05rem; stroke-width: 2.25; }
 .ds-button__spinner { width: 0.9rem; height: 0.9rem; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: ds-button-spin 0.7s linear infinite; }
 @keyframes ds-button-spin { to { transform: rotate(360deg); } }
 

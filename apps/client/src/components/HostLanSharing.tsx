@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Copy, RefreshCw } from 'lucide-react';
 import QRCode from 'qrcode';
 import { getDesktopBridge } from '../runtime/desktopBridge';
 import { buildLanJoinUrl } from '../runtime/lanSharing';
@@ -126,9 +127,10 @@ export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
               void copyLanJoinUrl(joinUrl).then(copied => setCopyState(copied ? 'copied' : 'failed'));
             }}
           >
-            Sao chép liên kết
+            <Copy className="action-icon" aria-hidden="true" />Sao chép liên kết
           </button>
           <button type="button" disabled={refreshing} onClick={() => void refresh()}>
+            <RefreshCw className="action-icon" aria-hidden="true" />
             {refreshing ? 'Đang làm mới…' : 'Làm mới mạng'}
           </button>
         </div>

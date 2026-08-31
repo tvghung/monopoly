@@ -7,6 +7,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
+import { X } from 'lucide-react';
 import { useEffectiveReducedMotion } from '../../../settings/selectors';
 import './Modal.css';
 
@@ -103,7 +104,11 @@ export default function Modal({
         <header className="ds-modal__header">
           <h2 id={titleId} className="ds-modal__title">{title}</h2>
           {onClose
-            ? <button type="button" className="ds-modal__close" aria-label="Đóng" onClick={onClose}>×</button>
+            ? (
+              <button type="button" className="ds-modal__close" aria-label="Đóng" title="Đóng" onClick={onClose}>
+                <X className="action-icon action-icon--only" aria-hidden="true" />
+              </button>
+            )
             : null}
         </header>
         <div className="ds-modal__body">{children}</div>

@@ -21,6 +21,9 @@ import type {
   SetAppearanceRequest,
 } from '@monopoly/shared';
 import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
+import {
+  ArrowLeft, Flag, LogOut, RefreshCw, Settings, X as XIcon,
+} from 'lucide-react';
 import Board from './components/Board';
 import ConnectionOverlay from './components/ConnectionOverlay';
 import JoinForm from './components/JoinForm';
@@ -125,6 +128,9 @@ interface FailureScreenProps {
 }
 
 function FailureScreen({ title, failure, onRetry }: FailureScreenProps) {
+  const ActionIcon = failure.reloadRequired
+    ? RefreshCw
+    : failure.returnToLauncher ? ArrowLeft : RefreshCw;
   return (
     <section className="app-status" role="alert">
       <h1>{title}</h1>
@@ -135,6 +141,7 @@ function FailureScreen({ title, failure, onRetry }: FailureScreenProps) {
             type="button"
             onClick={failure.reloadRequired ? () => window.location.reload() : onRetry}
           >
+            <ActionIcon className="action-icon" aria-hidden="true" />
             {failure.reloadRequired
               ? 'Tải lại trò chơi'
               : failure.returnToLauncher
@@ -867,6 +874,7 @@ export default function App({
               className="room-settings-button"
               onClick={() => setSettingsOpen(true)}
             >
+              <Settings className="action-icon" aria-hidden="true" />
               Cài đặt
             </button>
             <button
@@ -875,6 +883,9 @@ export default function App({
               disabled={operation !== null}
               onClick={handleLeave}
             >
+              {role === 'PLAYER' && room.status === 'IN_PROGRESS'
+                ? <Flag className="action-icon" aria-hidden="true" />
+                : <LogOut className="action-icon" aria-hidden="true" />}
               {role === 'PLAYER' && room.status === 'IN_PROGRESS'
                 ? 'Bỏ cuộc'
                 : 'Rời phòng'}
@@ -921,6 +932,7 @@ export default function App({
                 ? 'Đóng Own the Block sẽ dừng máy chủ LAN cho mọi người. Dữ liệu phòng được giữ lại để khôi phục khi Host khởi động lại.'
                 : 'Đóng cửa sổ sẽ ngắt kết nối nhưng không bỏ cuộc; bạn có thể kết nối lại bằng phiên đã lưu.'}
             confirmLabel={confirmation === 'LEAVE' ? 'Bỏ cuộc' : 'Đóng cửa sổ'}
+            confirmIcon={confirmation === 'LEAVE' ? <Flag /> : <XIcon />}
             onCancel={cancelConfirmation}
             onConfirm={confirmConfirmation}
           />

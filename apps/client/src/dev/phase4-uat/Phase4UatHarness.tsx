@@ -8,6 +8,9 @@ import {
   type PublicRoomState,
   type RoomRole,
 } from '@monopoly/shared';
+import {
+  PanelLeftClose, PanelLeftOpen, RefreshCw, SkipForward, StepForward,
+} from 'lucide-react';
 import Board from '../../components/Board';
 import stateContext from '../../internal';
 import { PresentationController } from '../../game/presentation/PresentationController';
@@ -803,7 +806,12 @@ function Phase4UatSurface() {
               type="button"
               aria-label={controlsCollapsed ? 'Mở điều khiển UAT' : 'Ẩn điều khiển UAT'}
               onClick={() => setControlsCollapsed(value => !value)}
-            >{controlsCollapsed ? 'UAT' : 'Ẩn'}</button>
+            >
+              {controlsCollapsed
+                ? <PanelLeftOpen className="action-icon" aria-hidden="true" />
+                : <PanelLeftClose className="action-icon" aria-hidden="true" />}
+              {controlsCollapsed ? 'UAT' : 'Ẩn'}
+            </button>
             {!controlsCollapsed ? <><strong>PHASE 4 UAT</strong>
             <select
               aria-label="Kịch bản"
@@ -812,9 +820,9 @@ function Phase4UatSurface() {
             >
               {scenarios.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
             </select>
-            <button type="button" onClick={() => runScenario()}>Chạy lại</button>
-            <button type="button" onClick={runNextScenario}>Kịch bản kế</button>
-            <button type="button" onClick={() => controller.skipAllAndSnap()}>Bỏ qua trình bày</button>
+            <button type="button" onClick={() => runScenario()}><RefreshCw className="action-icon" aria-hidden="true" />Chạy lại</button>
+            <button type="button" onClick={runNextScenario}><StepForward className="action-icon" aria-hidden="true" />Kịch bản kế</button>
+            <button type="button" onClick={() => controller.skipAllAndSnap()}><SkipForward className="action-icon" aria-hidden="true" />Bỏ qua trình bày</button>
             <label>
               Tốc độ
               <select

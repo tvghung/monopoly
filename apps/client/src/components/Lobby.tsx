@@ -5,6 +5,9 @@ import type {
   PlayerColorId,
   SetAppearanceRequest,
 } from '@monopoly/shared';
+import {
+  Check, LogOut, Play, Settings, X,
+} from 'lucide-react';
 import Button from '../design-system/components/Button/Button';
 import Badge from '../design-system/components/Badge/Badge';
 import MascotPicker from './lobby/MascotPicker';
@@ -42,34 +45,6 @@ interface LobbyProps {
   onLeave: () => void;
   onSettings?: () => void;
   showLanSharing?: boolean;
-}
-
-function ReadyActionIcon({ cancel = false }: { cancel?: boolean }) {
-  return (
-    <svg
-      className="lobby__button-icon"
-      viewBox="0 0 16 16"
-      aria-hidden="true"
-      focusable="false"
-    >
-      {cancel
-        ? <path d="m4.25 4.25 7.5 7.5m0-7.5-7.5 7.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
-        : <path d="m3.25 8.25 3.05 3.05 6.45-6.6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />}
-    </svg>
-  );
-}
-
-function StartActionIcon() {
-  return (
-    <svg
-      className="lobby__button-icon"
-      viewBox="0 0 16 16"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d="m5 3.25 7 4.75-7 4.75z" fill="currentColor" />
-    </svg>
-  );
 }
 
 export default function Lobby({
@@ -117,19 +92,19 @@ export default function Lobby({
             <h1 id="lobby-title" className="lobby__title">{roomCode}</h1>
           </div>
           <div className="lobby__header-actions">
-            {onSettings ? <Button variant="ghost" type="button" onClick={onSettings}>Cài đặt</Button> : null}
-            <Button className="lobby__leave" variant="secondary" type="button" disabled={busy} onClick={onLeave}>
+            {onSettings ? <Button variant="ghost" icon={<Settings />} type="button" onClick={onSettings}>Cài đặt</Button> : null}
+            <Button className="lobby__leave" variant="secondary" icon={<LogOut />} type="button" disabled={busy} onClick={onLeave}>
               Rời phòng
             </Button>
             {isHost
               ? (
                 <Button
                   className="lobby__start"
+                  icon={<Play />}
                   type="button"
                   disabled={busy || !canStart}
                   onClick={onStart}
                 >
-                  <StartActionIcon />
                   <span>Bắt đầu</span>
                 </Button>
               )
@@ -174,14 +149,13 @@ export default function Lobby({
                     <Button
                       variant={player.ready ? 'secondary' : 'primary'}
                       className="lobby-player__ready-action"
+                      icon={player.ready ? <X /> : <Check />}
                       type="button"
                       disabled={busy || !player.connected || player.characterId === null}
                       title={player.characterId === null ? 'Chọn mascot trước để sẵn sàng' : undefined}
                       onClick={() => onSetReady(!player.ready)}
                     >
-                      {player.ready
-                        ? <><ReadyActionIcon cancel /><span>Hủy sẵn sàng</span></>
-                        : <><ReadyActionIcon /><span>Sẵn sàng</span></>}
+                      <span>{player.ready ? 'Hủy sẵn sàng' : 'Sẵn sàng'}</span>
                     </Button>
                   )
                   : null}

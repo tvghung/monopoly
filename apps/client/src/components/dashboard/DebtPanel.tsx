@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import type { Ack, PublicGameState } from '@monopoly/shared';
+import { HandCoins, Landmark } from 'lucide-react';
 import stateContext from '../../internal';
 import { formatMoney, getTileName, localizeAckError } from '../../presentation';
 
@@ -137,7 +138,7 @@ export default function DebtPanel() {
                     claimId: claim.claimId ?? '',
                     tileID: property.tileID,
                   }))}
-                >Bán cho Ngân hàng</button>
+                ><Landmark className="action-icon" aria-hidden="true" />Bán cho Ngân hàng</button>
                 {buyers.map(([buyerId, buyer]) => (
                   <button
                     key={buyerId}
@@ -150,7 +151,7 @@ export default function DebtPanel() {
                       tileID: property.tileID,
                       buyerPlayerId: buyerId,
                     }))}
-                  >{`Đề nghị ${buyer.name} mua`}</button>
+                  ><HandCoins className="action-icon" aria-hidden="true" />{`Đề nghị ${buyer.name} mua`}</button>
                 ))}
               </article>
             ))}

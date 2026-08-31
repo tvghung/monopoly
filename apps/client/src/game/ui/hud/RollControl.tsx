@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Ack } from '@monopoly/shared';
+import { Dices } from 'lucide-react';
 import stateContext from '../../../internal';
 import { localizeAckError } from '../../../presentation';
 import { usePresentation } from '../../presentation/PresentationProvider';
@@ -110,6 +111,7 @@ export default function RollControl() {
             aria-busy={pendingRoll !== null}
             onClick={handleRoll}
           >
+            <Dices className="action-icon action-icon--major" aria-hidden="true" />
             {pendingRoll !== null ? 'Đang chờ máy chủ…' : 'Đổ Xúc Xắc'}
           </button>
         )

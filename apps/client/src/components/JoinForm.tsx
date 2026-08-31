@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { LogIn } from 'lucide-react';
 import './style/JoinForm.css';
 
 interface JoinFormProps {
@@ -61,6 +62,7 @@ export default function JoinForm({
         />
 
         <button className="join__button" type="submit" disabled={!name.trim() || busy || !connected}>
+          <LogIn className="action-icon" aria-hidden="true" />
           {busy ? 'Đang vào phòng…' : 'Vào phòng'}
         </button>
       </form>

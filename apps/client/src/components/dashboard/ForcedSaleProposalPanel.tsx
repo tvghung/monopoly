@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import type { Ack } from '@monopoly/shared';
+import { Check, CircleX, X } from 'lucide-react';
 import stateContext from '../../internal';
 import { formatMoney, getTileName, localizeAckError } from '../../presentation';
 import Modal from '../../design-system/components/Modal/Modal';
@@ -51,12 +52,14 @@ export default function ForcedSaleProposalPanel() {
             <Button
               data-modal-autofocus
               type="button"
+              icon={<Check />}
               busy={pendingAction === 'ACCEPT'}
               disabled={pendingAction !== null}
               onClick={() => submit('ACCEPT', () => socketFunctions.acceptForcedSale?.(proposal.proposalId))}
             >Chấp nhận</Button>
             <Button
               variant="secondary"
+              icon={<X />}
               type="button"
               busy={pendingAction === 'REJECT'}
               disabled={pendingAction !== null}
@@ -71,6 +74,7 @@ export default function ForcedSaleProposalPanel() {
               ? (
                 <Button
                   variant="secondary"
+                  icon={<CircleX />}
                   type="button"
                   busy={pendingAction === 'CANCEL'}
                   disabled={pendingAction !== null}

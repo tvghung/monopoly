@@ -1,3 +1,4 @@
+import { RefreshCw } from 'lucide-react';
 import Button from '../../design-system/components/Button/Button';
 import './screens.css';
 
@@ -27,7 +28,7 @@ export default function BootstrapErrorScreen({
       <p className="app-screen__brand-mark" aria-hidden="true">OWN THE BLOCK</p>
       <h1>{title}</h1>
       <p>{errorCopy[kind]}</p>
-      <Button onClick={onRetry}>{actionLabel}</Button>
+      <Button icon={<RefreshCw />} onClick={onRetry}>{actionLabel}</Button>
     </main>
   );
 }
