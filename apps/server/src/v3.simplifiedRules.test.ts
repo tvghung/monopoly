@@ -117,14 +117,20 @@ describe('simplified v4 rules', () => {
     expect(state.turnInfo.pendingDevelopmentDecision?.operationId).toEqual(expect.any(String));
   });
 
-  it('does not charge the tax/expense tile', () => {
+  it('charges the fixed Income Tax amount through the bank payment pipeline', () => {
     const state = makeState();
     addPlayer(state, 'p1', { currentTile: 4, accountBalance: 1000 });
 
     resolveTile(state, 'p1', 0, { playerId: 'p1', turnNumber: 1 });
 
-    expect(state.players.p1.accountBalance).toBe(1000);
+    expect(state.players.p1.accountBalance).toBe(800);
     expect(state.boardState.paymentQueue).toBeNull();
+    expect(state.boardState.gameplayEvents.events).toContainEqual(expect.objectContaining({
+      type: 'MONEY_TRANSFER',
+      destination: { kind: 'BANK' },
+      amount: 200,
+      reason: 'TAX',
+    }));
   });
 
   it('counts jailed opponent cycles and releases before the second jailed turn', () => {
