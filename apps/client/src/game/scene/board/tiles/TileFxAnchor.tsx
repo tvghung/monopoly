@@ -1,9 +1,9 @@
 import type {
   DevelopmentChangeSignal,
-  DestinationPreviewSignal,
   GoCrossingSignal,
   OwnershipChangeSignal,
 } from '../../../presentation/store/types';
+import type { DestinationPreviewRenderModel } from '../boardRenderModel';
 import TileActionFeedback from './TileActionFeedback';
 import type { TilePanelLayout } from './tilePanelLayout';
 import TileDestinationPreview from './TileDestinationPreview';
@@ -15,7 +15,7 @@ interface TileFxAnchorProps {
   ownershipChange?: OwnershipChangeSignal;
   developmentChange?: DevelopmentChangeSignal;
   goCrossing?: GoCrossingSignal;
-  destinationPreview?: DestinationPreviewSignal;
+  destinationPreview?: DestinationPreviewRenderModel;
   reducedMotion?: boolean;
 }
 

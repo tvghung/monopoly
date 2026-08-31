@@ -1,9 +1,10 @@
-import type { PublicGameState } from '@monopoly/shared';
+import { PLAYER_COLOR_IDS, type PublicGameState } from '@monopoly/shared';
 import { describe, expect, it } from 'vitest';
 import { buildBoardRenderModel } from './boardRenderModel';
 import type { PresentationState } from '../../presentation/store/types';
 import { cloneRoom, makeRoom } from '../../presentation/testFixtures';
 import { PLAYER_STATION_WORLD_ANCHORS } from '../stations/stationWorld';
+import { PLAYER_COLOR_VISUALS } from '../../ui/playerVisualColors';
 
 const presentation = (overrides: Partial<PresentationState> = {}): PresentationState => ({
   displayLogs: [],
@@ -107,6 +108,26 @@ describe('board render model', () => {
     expect(model.players.find(player => player.playerId === 'active')).toMatchObject({ tileId: 17, isActive: false });
     expect(model.players.find(player => player.playerId === 'finished')).toMatchObject({ tileId: 8, isActive: false });
     expect(model.players.find(player => player.playerId === 'fallback')).toMatchObject({ tileId: 9, isActive: true });
+  });
+
+  it.each(PLAYER_COLOR_IDS)('resolves %s destination fill and edge from the preview player', color => {
+    const current = state();
+    current.players.active.color = color;
+    const model = buildBoardRenderModel(current, presentation({
+      destinationPreview: {
+        id: `preview-${color}`,
+        playerId: 'active',
+        tileId: 12,
+        strongDurationMs: 460,
+      },
+    }));
+
+    expect(model.destinationPreview).toMatchObject({
+      playerId: 'active',
+      tileId: 12,
+      surfaceColor: PLAYER_COLOR_VISUALS[color].display,
+      edgeColor: PLAYER_COLOR_VISUALS[color].accentDark,
+    });
   });
 
   it('uses presentation-owned balances for station text and coin piles', () => {

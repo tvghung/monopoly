@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import type { DestinationPreviewSignal } from '../../../presentation/store/types';
+import type { DestinationPreviewRenderModel } from '../boardRenderModel';
 import { TILE_SURFACE_CLEARANCE_Y, TILE_SURFACE_LOCAL_POSITION } from '../boardLayout';
 import type { TilePanelLayout } from './tilePanelLayout';
 
@@ -63,7 +63,7 @@ export default function TileDestinationPreview({
   reducedMotion = false,
 }: {
   panel: TilePanelLayout;
-  signal: DestinationPreviewSignal;
+  signal: DestinationPreviewRenderModel;
   reducedMotion?: boolean;
 }) {
   const surfaceWidth = panel.surfaceSize[0] * 0.92;
@@ -106,6 +106,8 @@ export default function TileDestinationPreview({
         elapsedMs: elapsedRef.current,
         surfaceOpacity: opacity.surfaceOpacity,
         edgeOpacity: opacity.edgeOpacity,
+        surfaceColor: signal.surfaceColor,
+        edgeColor: signal.edgeColor,
       };
       window.__OWN_THE_BLOCK_DESTINATION_PREVIEW_DIAGNOSTICS__ = diagnostics;
       if (elapsedRef.current - lastDiagnosticEventMsRef.current >= 100) {
@@ -121,10 +123,10 @@ export default function TileDestinationPreview({
     <group name={`DestinationPreview:${signal.tileId}`}>
       <mesh position={[0, DESTINATION_PREVIEW_SURFACE_Y, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[surfaceWidth, surfaceDepth]} />
-        <meshBasicMaterial ref={surfaceMaterialRef} color="#fffdf2" transparent opacity={DESTINATION_PREVIEW_STATIC_SURFACE_OPACITY} depthWrite={false} blending={THREE.NormalBlending} toneMapped={false} />
+        <meshBasicMaterial ref={surfaceMaterialRef} color={signal.surfaceColor} transparent opacity={DESTINATION_PREVIEW_STATIC_SURFACE_OPACITY} depthWrite={false} blending={THREE.NormalBlending} toneMapped={false} />
       </mesh>
       <mesh geometry={frameGeometry} position={[0, DESTINATION_PREVIEW_FRAME_Y, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <meshBasicMaterial ref={edgeMaterialRef} color="#ffffff" transparent opacity={DESTINATION_PREVIEW_STATIC_EDGE_OPACITY} depthWrite={false} blending={THREE.NormalBlending} toneMapped={false} />
+        <meshBasicMaterial ref={edgeMaterialRef} color={signal.edgeColor} transparent opacity={DESTINATION_PREVIEW_STATIC_EDGE_OPACITY} depthWrite={false} blending={THREE.NormalBlending} toneMapped={false} />
       </mesh>
     </group>
   );

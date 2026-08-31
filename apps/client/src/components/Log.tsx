@@ -3,6 +3,7 @@ import {
 } from 'react';
 import type { ActivityEvent, MoneyTransferReason } from '@monopoly/shared';
 import { formatMoney, gameCardsById, tileState } from '@monopoly/shared';
+import { MessageCircle, Send } from 'lucide-react';
 import './style/Log.css';
 import stateContext from '../internal';
 import { usePresentation } from '../game/presentation/PresentationProvider';
@@ -97,18 +98,30 @@ function activityText(event: ActivityEvent): string {
 }
 
 export default function Log() {
-  const { state, socketFunctions, connected } = useContext(stateContext);
+  const {
+    state, socketFunctions, connected, playerId,
+  } = useContext(stateContext);
   const { state: presentation, queue } = usePresentation();
   const [chat, setChat] = useState('');
   const [idle, setIdle] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
   const scrollRef = useRef<HTMLElement>(null);
   const idleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastProcessedSequenceRef = useRef<number | null>(null);
+  const lastSeenChatSequenceRef = useRef(0);
+  const resetEpochRef = useRef(presentation.presentationResetEpoch);
   const visibleActivity = queue ? presentation.displayActivity : state.boardState.activityFeed.events;
   const narrativeActivity = visibleActivity.filter(event => event.type !== 'DICE_ROLL');
   const visibleLogs = queue
     ? presentation.displayLogs
     : visibleActivity.length > 0 ? [] : state.boardState.logs;
   const activitySignature = getActivitySignature(visibleActivity, visibleLogs);
+  const latestActivitySequence = visibleActivity.at(-1)?.sequence ?? 0;
+  const latestChatSequence = visibleActivity.reduce(
+    (latest, event) => event.type === 'CHAT' ? Math.max(latest, event.sequence) : latest,
+    0,
+  );
 
   const clearIdleTimeout = useCallback(() => {
     if (idleTimeoutRef.current !== null) {
@@ -135,6 +148,37 @@ export default function Log() {
     return clearIdleTimeout;
   }, [activitySignature, clearIdleTimeout, markActive]);
 
+  useEffect(() => {
+    const lastProcessed = lastProcessedSequenceRef.current;
+    const reset = resetEpochRef.current !== presentation.presentationResetEpoch
+      || (lastProcessed !== null && latestActivitySequence < lastProcessed);
+    if (lastProcessed === null || reset) {
+      lastProcessedSequenceRef.current = latestActivitySequence;
+      lastSeenChatSequenceRef.current = latestChatSequence;
+      resetEpochRef.current = presentation.presentationResetEpoch;
+      setUnreadCount(0);
+      return;
+    }
+
+    if (latestActivitySequence > lastProcessed) {
+      if (!panelOpen) {
+        const newUnread = visibleActivity.filter(event => (
+          event.type === 'CHAT'
+          && event.sequence > lastProcessed
+          && event.sequence > lastSeenChatSequenceRef.current
+          && (playerId === null || event.senderPlayerId !== playerId)
+        )).length;
+        if (newUnread > 0) setUnreadCount(count => count + newUnread);
+      }
+      lastProcessedSequenceRef.current = latestActivitySequence;
+    }
+
+    if (panelOpen) {
+      lastSeenChatSequenceRef.current = latestChatSequence;
+      setUnreadCount(0);
+    }
+  }, [latestActivitySequence, latestChatSequence, panelOpen, playerId, presentation.presentationResetEpoch, visibleActivity]);
+
   const sendChat = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     markActive();
@@ -145,47 +189,77 @@ export default function Log() {
 
   return (
     <section
-      className={`center__room${idle ? ' center__room--idle' : ''}`}
+      className={`center__room${idle ? ' center__room--idle' : ''}${panelOpen ? '' : ' center__room--collapsed'}`}
       data-testid="board-log-overlay"
       data-idle={idle}
       aria-label="Nhật ký và trò chuyện"
       onPointerDown={markActive}
       onFocusCapture={markActive}
     >
-      <section ref={scrollRef} className="center__log" role="log" aria-live="polite" aria-label="Nhật ký ván chơi">
-        {state.loaded
-          ? [
-            ...visibleLogs.map((entry, index) => <p key={`legacy-${index}`}>{entry}</p>),
-            ...narrativeActivity.map(event => (
-              <p
-                key={event.eventId}
-                className={`activity-entry activity-entry--${event.type.toLowerCase()}`}
-              >
-                {activityText(event)}
-              </p>
-            )),
-          ]
-          : <p>Đang tải…</p>}
-      </section>
-      <section className="center__chat">
-        <form className="center__chat--form" onSubmit={sendChat}>
-          <input
-            className="center__chat--input"
-            aria-label="Tin nhắn"
-            disabled={!connected}
-            onChange={e => {
-              markActive();
-              setChat(e.target.value);
-            }}
-            type="text"
-            name="chat"
-            id="chat"
-            autoComplete="off"
-            placeholder="Nhập tin nhắn…"
-          />
-          <button className="center__chat--button" type="submit" disabled={!connected}>Gửi</button>
-        </form>
-      </section>
+      <button
+        className="center__room-toggle"
+        type="button"
+        aria-expanded={panelOpen}
+        aria-controls="board-log-panel"
+        aria-label={panelOpen ? 'Ẩn nhật ký và trò chuyện' : 'Hiện nhật ký và trò chuyện'}
+        title={panelOpen ? 'Ẩn nhật ký và trò chuyện' : 'Hiện nhật ký và trò chuyện'}
+        onClick={() => setPanelOpen(open => !open)}
+      >
+        <MessageCircle aria-hidden="true" size={19} strokeWidth={2.25} />
+        {unreadCount > 0
+          ? (
+            <span
+              className="center__room-unread"
+              aria-label={`${unreadCount} tin nhắn chưa đọc`}
+            >
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )
+          : null}
+      </button>
+      {panelOpen
+        ? (
+          <div id="board-log-panel" className="center__room-panel">
+            <section ref={scrollRef} className="center__log" role="log" aria-live="polite" aria-label="Nhật ký ván chơi">
+              {state.loaded
+                ? [
+                  ...visibleLogs.map((entry, index) => <p key={`legacy-${index}`}>{entry}</p>),
+                  ...narrativeActivity.map(event => (
+                    <p
+                      key={event.eventId}
+                      className={`activity-entry activity-entry--${event.type.toLowerCase()}`}
+                    >
+                      {activityText(event)}
+                    </p>
+                  )),
+                ]
+                : <p>Đang tải…</p>}
+            </section>
+            <section className="center__chat">
+              <form className="center__chat--form" onSubmit={sendChat}>
+                <input
+                  className="center__chat--input"
+                  aria-label="Tin nhắn"
+                  disabled={!connected}
+                  onChange={e => {
+                    markActive();
+                    setChat(e.target.value);
+                  }}
+                  type="text"
+                  name="chat"
+                  id="chat"
+                  autoComplete="off"
+                  placeholder="Nhập tin nhắn…"
+                />
+                <button className="center__chat--button" type="submit" disabled={!connected}>
+                  <Send aria-hidden="true" size={16} strokeWidth={2.25} />
+                  <span>Gửi</span>
+                </button>
+              </form>
+            </section>
+          </div>
+        )
+        : null}
     </section>
   );
 }

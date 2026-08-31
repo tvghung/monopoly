@@ -352,7 +352,7 @@ describe('Vietnamese game board', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Tài sản của tôi (1)' }));
     expect(screen.getByRole('dialog', { name: 'Tài sản của tôi' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /^Cà Mau$/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xem Cà Mau' }));
 
     await waitFor(() => {
       expect(screen.getByRole('dialog', { name: 'Cà Mau' })).toBeTruthy();

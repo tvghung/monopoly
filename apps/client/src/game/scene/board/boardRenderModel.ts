@@ -15,6 +15,7 @@ import { getTileName } from '../../../presentation';
 import { selectPlayerHudViewModels } from '../../ui/hud/playerHudSelectors';
 import { resolvePlayerStationSlots, type PlayerStationSlot } from '../../ui/stations/stationSlots';
 import { PLAYER_STATION_WORLD_ANCHORS, type WorldAnchor } from '../stations/stationWorld';
+import { getPlayerAccentDarkColor, getPlayerDisplayColor } from '../../ui/playerVisualColors';
 
 export interface BoardTileRenderModel {
   tileId: number;
@@ -61,6 +62,11 @@ export interface PlayerStationRenderModel {
   isConnected: boolean;
 }
 
+export type DestinationPreviewRenderModel = NonNullable<PresentationState['destinationPreview']> & {
+  surfaceColor: string;
+  edgeColor: string;
+};
+
 export interface BoardRenderModel {
   tiles: BoardTileRenderModel[];
   players: CharacterPlayerModel[];
@@ -73,7 +79,7 @@ export interface BoardRenderModel {
   ownershipChanges: PresentationState['ownershipChanges'];
   developmentChanges: PresentationState['developmentChanges'];
   goCrossings: PresentationState['goCrossings'];
-  destinationPreview: PresentationState['destinationPreview'];
+  destinationPreview: DestinationPreviewRenderModel | null;
   moneyTransfers: PresentationState['moneyTransfers'];
   cardPresentation: PresentationState['cardPresentation'];
   deckCounts: DeckCounts;
@@ -132,6 +138,10 @@ export function buildBoardRenderModel(
       joinOrder: roomOrder.get(playerId)?.joinOrder ?? Number.MAX_SAFE_INTEGER,
     }))
     .sort((left, right) => left.joinOrder - right.joinOrder || left.playerId.localeCompare(right.playerId));
+  const destinationPreview = presentationState.destinationPreview;
+  const destinationPlayerColor = players.find(
+    player => player.playerId === destinationPreview?.playerId,
+  )?.color;
 
   const activeDice = presentationState.diceRoll;
   const dice = activeDice?.dice ?? presentationState.displayDice;
@@ -183,7 +193,13 @@ export function buildBoardRenderModel(
     ownershipChanges: presentationState.ownershipChanges,
     developmentChanges: presentationState.developmentChanges,
     goCrossings: presentationState.goCrossings,
-    destinationPreview: presentationState.destinationPreview,
+    destinationPreview: destinationPreview
+      ? {
+        ...destinationPreview,
+        surfaceColor: getPlayerDisplayColor(destinationPlayerColor),
+        edgeColor: getPlayerAccentDarkColor(destinationPlayerColor),
+      }
+      : null,
     moneyTransfers: presentationState.moneyTransfers,
     cardPresentation,
     deckCounts: { ...state.deckCounts },

@@ -1,10 +1,10 @@
 import type { Tile } from '@monopoly/shared';
 import type {
   DevelopmentChangeSignal,
-  DestinationPreviewSignal,
   GoCrossingSignal,
   OwnershipChangeSignal,
 } from '../../../presentation/store/types';
+import type { DestinationPreviewRenderModel } from '../boardRenderModel';
 import { getBoardTileLayout } from '../boardLayout';
 import { TILE_ASSEMBLY_LAYER_ORDER, TILE_TRANSFORM_CONTRACT } from '../architecture/tileAssemblyContracts';
 import TileFxAnchor from './TileFxAnchor';
@@ -25,7 +25,7 @@ export interface TileAssemblyProps {
   ownershipChange?: OwnershipChangeSignal;
   developmentChange?: DevelopmentChangeSignal;
   goCrossing?: GoCrossingSignal;
-  destinationPreview?: DestinationPreviewSignal;
+  destinationPreview?: DestinationPreviewRenderModel;
   reducedMotion?: boolean;
 }
 
