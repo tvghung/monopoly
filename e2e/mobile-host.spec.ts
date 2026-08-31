@@ -24,6 +24,14 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
   browser,
   page,
 }, testInfo) => {
+  const browserErrors: string[] = [];
+  const watchErrors = (target: Page) => {
+    target.on('console', message => {
+      if (message.type() === 'error') browserErrors.push(message.text());
+    });
+    target.on('pageerror', error => browserErrors.push(error.message));
+  };
+  watchErrors(page);
   const roomCode = `OTB-${Date.now().toString(36).slice(-6).toUpperCase()}`;
   await page.addInitScript(() => {
     const original = HTMLCanvasElement.prototype.getContext;
@@ -48,9 +56,10 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
       : { width: 390, height: 844 },
   });
   const guest = await guestContext.newPage();
+  watchErrors(guest);
   try {
-    await joinRoom(page, 'Host Mobile', roomCode);
-    await joinRoom(guest, 'Guest Mobile', roomCode);
+    await joinRoom(page, 'Host Mobile LongName', roomCode);
+    await joinRoom(guest, 'Guest Mobile LongNam', roomCode);
     await chooseAndReady(page, 'Dog');
     await chooseAndReady(guest, 'Capybara');
 
@@ -62,12 +71,33 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
     await expect(page.locator('.legacy-board')).toBeVisible();
     await expect(page.getByText('Hãy xoay ngang thiết bị')).toBeVisible();
 
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(page.getByTestId('game-board')).toBeVisible();
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect(page.getByTestId('game-board')).toBeVisible();
     await page.setViewportSize({ width: 844, height: 390 });
+    await guest.setViewportSize({ width: 844, height: 390 });
     await expect(page.getByText('Hãy xoay ngang thiết bị')).toBeHidden();
     await page.getByRole('button', { name: 'Cài đặt' }).click();
     await expect(page.getByRole('dialog', { name: 'Cài đặt' })).toBeVisible();
     await expect(page.getByText('Âm lượng tổng')).toBeVisible();
     await page.getByRole('button', { name: 'Xong' }).click();
+
+    const longMessage = 'Tin nhắn kiểm tra dài vẫn hiển thị rõ trên màn hình ngang.';
+    await page.getByLabel('Tin nhắn').fill(longMessage);
+    await page.getByRole('button', { name: 'Gửi' }).click();
+    await expect(guest.getByText(new RegExp(longMessage, 'u'))).toBeVisible();
+    await guest.getByRole('button', { name: 'Ẩn nhật ký và trò chuyện' }).click();
+    await page.waitForTimeout(800);
+    await page.getByLabel('Tin nhắn').fill('Tin chưa đọc một.');
+    await page.getByRole('button', { name: 'Gửi' }).click();
+    await expect(guest.getByLabel('1 tin nhắn chưa đọc')).toBeVisible();
+    await page.waitForTimeout(800);
+    await page.getByLabel('Tin nhắn').fill('Tin chưa đọc hai.');
+    await page.getByRole('button', { name: 'Gửi' }).click();
+    await expect(guest.getByLabel('2 tin nhắn chưa đọc')).toBeVisible();
+    await guest.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }).click();
+    await expect(guest.getByLabel('2 tin nhắn chưa đọc')).toBeHidden();
 
     await page.setViewportSize({ width: 768, height: 1024 });
     await expect(page.getByText('Hãy xoay ngang thiết bị')).toBeVisible();
@@ -93,6 +123,7 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
     await expect(page.getByTestId('game-board')).toBeVisible();
     await expect(page.getByText('Đã mất kết nối. Đang kết nối lại vào ván chơi…'))
       .toBeHidden({ timeout: 15_000 });
+    expect(browserErrors).toEqual([]);
   } finally {
     await guestContext.close();
   }
