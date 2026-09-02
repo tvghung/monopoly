@@ -48,6 +48,18 @@
   Vietnamese text and short board labels fit desktop/mobile without hiding critical
   action.
 
+## Gameplay audio
+
+- [x] `[CLIENT][AUTOMATED]` One trusted unlock starts exactly four equal-length
+  stems at one timestamp; repeated room/state updates do not duplicate sources,
+  leave stops every stem, and re-entry reuses the cached buffers.
+- [x] `[CLIENT][AUTOMATED]` The 64-bar score metadata, melody register/rest/rise
+  constraints, deterministic stem rendering, bounded sample peak, weighted
+  intensity examples, hysteresis and four-bar transition scheduling are asserted.
+- [ ] `[CLIENT][MANUAL-E2E]` Headphone/speaker melody, timbre, treble, loop seam,
+  SFX masking, multi-loop fatigue and real browser/Electron/device output remain
+  listening gates; automated waveform checks do not prove perceived mix quality.
+
 ## Phase 2.5B commercial WebGL board
 
 - [x] `[CLIENT][AUTOMATED]` Tile surface matrix keeps upward normals and matching

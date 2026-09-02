@@ -55,6 +55,8 @@ import { getDefaultWebRuntimeConfig } from './runtime/runtimeConfig';
 import type { DesktopLaunchSelection, RuntimeConfig } from './runtime/types';
 import { roomCodeFromLocation } from './runtime/lanSharing';
 import { useAudio } from './audio/useAudio';
+import { deriveMusicIntensity } from './audio/music';
+import type { MusicIntensity } from './audio/types';
 import './App.css';
 
 const initialState: PublicGameState = {
@@ -187,6 +189,7 @@ export default function App({
   const playerIdRef = useRef<string | null>(null);
   const roomRef = useRef<PublicRoomState | null>(null);
   const admissionAttemptRef = useRef(0);
+  const musicIntensityRef = useRef<MusicIntensity>(0);
 
   const [phase, setPhase] = useState<AppPhase>(phaseRef.current);
   const [room, setRoom] = useState<PublicRoomState | null>(null);
@@ -206,8 +209,13 @@ export default function App({
   useEffect(() => {
     const roomSessionActive = activeRoomId !== null
       && (phase === 'LOBBY' || phase === 'GAME' || phase === 'RECONNECTING');
+    const nextIntensity = roomSessionActive
+      ? deriveMusicIntensity(room?.gameState, musicIntensityRef.current)
+      : 0;
+    musicIntensityRef.current = nextIntensity;
+    audio.setMusicIntensity?.(nextIntensity);
     audio.setRoomActive?.(roomSessionActive);
-  }, [activeRoomId, audio, phase]);
+  }, [activeRoomId, audio, phase, room]);
 
   const transition = useCallback((next: AppPhase) => {
     phaseRef.current = next;

@@ -44,9 +44,11 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
   khỏi reconnect token. Reduced motion hiệu lực là user setting hoặc OS
   preference. Audio provider owns one lazy Web Audio engine and typed procedural
   registry; existing Master/Music/SFX values update its buses live. Phase 5.1
-  uses the SFX bus for typed gameplay cues and one original deterministic
-  background music loop through the Music bus; `musicVolume` is intentionally
-  retained and ambience is deferred.
+  uses the SFX bus for typed gameplay cues. The Music bus now plays one original
+  64-bar, 110 BPM procedural composition as four cached synchronized stems;
+  authoritative public board state selects a hysteretic `0..3` orchestration
+  level and gain changes wait for a four-bar boundary. `musicVolume` is
+  intentionally retained and ambience is deferred.
 - Desktop renderer dùng `contextIsolation`, `sandbox`, `nodeIntegration: false` và
   typed preload bridge whitelist; Electron main không chứa GameCore/game action.
 
