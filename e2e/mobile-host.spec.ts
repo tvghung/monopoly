@@ -29,7 +29,12 @@ async function expectTouchTarget(
   expect(box ? box.y + box.height : viewport.height + 1).toBeLessThanOrEqual(viewport.height + 1);
 }
 
-async function joinRoom(page: Page, name: string, roomCode: string): Promise<void> {
+async function joinRoom(
+  page: Page,
+  name: string,
+  roomCode: string,
+  interaction: 'click' | 'tap' = 'click',
+): Promise<void> {
   await page.goto(`/?room=${roomCode.toLowerCase()}`);
   await expect(page.getByLabel('Mã phòng')).toHaveValue(roomCode);
   await expect(page.getByRole('heading', { name: 'Cờ Tỷ Phú Việt Nam' })).toBeVisible();
@@ -38,7 +43,18 @@ async function joinRoom(page: Page, name: string, roomCode: string): Promise<voi
   await expect(join).toBeEnabled();
   const box = await join.boundingBox();
   expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
-  await join.click();
+  if (interaction === 'tap') {
+    await page.evaluate(() => {
+      const events: string[] = [];
+      const record = (event: PointerEvent) => events.push(`${event.type}:${event.pointerType}`);
+      document.addEventListener('pointerdown', record, true);
+      document.addEventListener('pointerup', record, true);
+      (window as typeof window & { __audioPointerEvents?: string[] }).__audioPointerEvents = events;
+    });
+    await join.tap();
+  } else {
+    await join.click();
+  }
   await expect(page.getByRole('heading', { name: roomCode })).toBeVisible();
 }
 
@@ -88,7 +104,10 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
   const guest = await guestContext.newPage();
   watchErrors(guest);
   try {
-    await joinRoom(page, 'Host Mobile LongName', roomCode);
+    await joinRoom(page, 'Host Mobile LongName', roomCode, 'tap');
+    expect(await page.evaluate(() => (
+      (window as typeof window & { __audioPointerEvents?: string[] }).__audioPointerEvents ?? []
+    ))).toEqual(expect.arrayContaining(['pointerdown:touch', 'pointerup:touch']));
     await joinRoom(guest, 'Guest Mobile LongNam', roomCode);
     await page.setViewportSize({ width: 360, height: 800 });
     await guest.setViewportSize({ width: 390, height: 844 });

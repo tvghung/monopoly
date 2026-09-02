@@ -6,6 +6,8 @@ import { DEFAULT_GAME_SETTINGS } from '../settings/defaults';
 import {
   AudioProvider,
   handleAudioButtonClick,
+  handleAudioKeyDown,
+  handleAudioPointerInteraction,
 } from './AudioProvider';
 import type { AudioPort } from './types';
 
@@ -13,11 +15,47 @@ function trustedClick(target: EventTarget): MouseEvent {
   return { isTrusted: true, target } as MouseEvent;
 }
 
+function trustedPointer(type: 'pointerdown' | 'pointerup', pointerType: string): PointerEvent {
+  return { isTrusted: true, pointerType, type } as PointerEvent;
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
 describe('central UI audio', () => {
+  it('unlocks on mouse pointerdown but not mouse pointerup', () => {
+    const audio: AudioPort = { play: vi.fn(), handleUserInteraction: vi.fn() };
+
+    handleAudioPointerInteraction(trustedPointer('pointerdown', 'mouse'), audio);
+    handleAudioPointerInteraction(trustedPointer('pointerup', 'mouse'), audio);
+
+    expect(audio.handleUserInteraction).toHaveBeenCalledOnce();
+  });
+
+  it.each(['touch', 'pen'])('unlocks %s on pointerup, not pointerdown', pointerType => {
+    const audio: AudioPort = { play: vi.fn(), handleUserInteraction: vi.fn() };
+
+    handleAudioPointerInteraction(trustedPointer('pointerdown', pointerType), audio);
+    expect(audio.handleUserInteraction).not.toHaveBeenCalled();
+    handleAudioPointerInteraction(trustedPointer('pointerup', pointerType), audio);
+
+    expect(audio.handleUserInteraction).toHaveBeenCalledOnce();
+  });
+
+  it('keeps trusted keyboard unlock and ignores untrusted pointer input', () => {
+    const audio: AudioPort = { play: vi.fn(), handleUserInteraction: vi.fn() };
+
+    handleAudioPointerInteraction({
+      isTrusted: false,
+      pointerType: 'mouse',
+      type: 'pointerdown',
+    } as PointerEvent, audio);
+    handleAudioKeyDown({ isTrusted: true } as KeyboardEvent, audio);
+
+    expect(audio.handleUserInteraction).toHaveBeenCalledOnce();
+  });
+
   it('plays for enabled button activation, including a nested keyboard click target', () => {
     const audio: AudioPort = {
       play: vi.fn(),
@@ -63,14 +101,14 @@ describe('central UI audio', () => {
       </StrictMode>,
     );
 
-    for (const eventType of ['pointerdown', 'keydown', 'click']) {
+    for (const eventType of ['pointerdown', 'pointerup', 'keydown', 'click']) {
       const adds = add.mock.calls.filter(call => call[0] === eventType).length;
       const removes = remove.mock.calls.filter(call => call[0] === eventType).length;
       expect(adds - removes).toBe(1);
     }
 
     view.unmount();
-    for (const eventType of ['pointerdown', 'keydown', 'click']) {
+    for (const eventType of ['pointerdown', 'pointerup', 'keydown', 'click']) {
       const adds = add.mock.calls.filter(call => call[0] === eventType).length;
       const removes = remove.mock.calls.filter(call => call[0] === eventType).length;
       expect(adds - removes).toBe(0);

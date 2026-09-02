@@ -15,17 +15,30 @@ export function handleAudioButtonClick(event: MouseEvent, audio: AudioPort): voi
   audio.handleUserInteraction('ui.click');
 }
 
+export function handleAudioPointerInteraction(event: PointerEvent, audio: AudioPort): void {
+  if (!event.isTrusted) return;
+  const isActivationEvent = event.pointerType === 'mouse'
+    ? event.type === 'pointerdown'
+    : event.type === 'pointerup';
+  if (isActivationEvent) audio.handleUserInteraction();
+}
+
+export function handleAudioKeyDown(event: KeyboardEvent, audio: AudioPort): void {
+  if (event.isTrusted) audio.handleUserInteraction();
+}
+
 export function attachAudioInteractionListeners(target: Document, audio: AudioPort): () => void {
-  const unlock = (event: Event) => {
-    if (event.isTrusted) audio.handleUserInteraction();
-  };
+  const pointer = (event: PointerEvent) => handleAudioPointerInteraction(event, audio);
+  const keydown = (event: KeyboardEvent) => handleAudioKeyDown(event, audio);
   const click = (event: MouseEvent) => handleAudioButtonClick(event, audio);
-  target.addEventListener('pointerdown', unlock, true);
-  target.addEventListener('keydown', unlock, true);
+  target.addEventListener('pointerdown', pointer, true);
+  target.addEventListener('pointerup', pointer, true);
+  target.addEventListener('keydown', keydown, true);
   target.addEventListener('click', click, true);
   return () => {
-    target.removeEventListener('pointerdown', unlock, true);
-    target.removeEventListener('keydown', unlock, true);
+    target.removeEventListener('pointerdown', pointer, true);
+    target.removeEventListener('pointerup', pointer, true);
+    target.removeEventListener('keydown', keydown, true);
     target.removeEventListener('click', click, true);
   };
 }

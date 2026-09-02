@@ -46,7 +46,12 @@ class FakeSourceNode extends FakeNode {
   public readonly starts: number[] = [];
   public readonly stops: Array<number | undefined> = [];
 
+  public constructor(private readonly recordStart?: () => void) {
+    super();
+  }
+
   public start(when = 0): void {
+    this.recordStart?.();
     this.starts.push(when);
   }
 
@@ -91,6 +96,7 @@ class FakeAudioContext {
   public readonly gains: FakeGainNode[] = [];
   public readonly oscillators: FakeOscillatorNode[] = [];
   public readonly bufferSources: FakeBufferSourceNode[] = [];
+  public readonly operations: string[] = [];
   public resumeCount = 0;
   public closeCount = 0;
   public resumeImplementation?: () => Promise<void>;
@@ -106,18 +112,19 @@ class FakeAudioContext {
   }
 
   public createOscillator(): OscillatorNode {
-    const node = new FakeOscillatorNode();
+    const node = new FakeOscillatorNode(() => this.operations.push('oscillator-start'));
     this.oscillators.push(node);
     return Object.assign(node, { frequency: node.frequencyValue }) as unknown as OscillatorNode;
   }
 
   public createBufferSource(): AudioBufferSourceNode {
-    const node = new FakeBufferSourceNode();
+    const node = new FakeBufferSourceNode(() => this.operations.push('buffer-source-start'));
     this.bufferSources.push(node);
     return node as unknown as AudioBufferSourceNode;
   }
 
   public createBuffer(_channels: number, length: number): AudioBuffer {
+    this.operations.push('buffer-create');
     return new FakeAudioBuffer(length) as unknown as AudioBuffer;
   }
 
@@ -206,6 +213,24 @@ describe('AudioEngine', () => {
     expect(context.oscillators).toHaveLength(1);
   });
 
+  it('resumes one suspended context and starts the pending cue before music initialization', async () => {
+    const context = new FakeAudioContext();
+    const factory = vi.fn(() => context as unknown as AudioContext);
+    const engine = new AudioEngine({ contextFactory: factory });
+    engine.setRoomActive(true);
+
+    engine.handleUserInteraction('ui.click');
+    await flushPromises();
+
+    expect(factory).toHaveBeenCalledOnce();
+    expect(context.resumeCount).toBe(1);
+    expect(context.state).toBe('running');
+    expect(context.oscillators).toHaveLength(1);
+    expect(context.bufferSources.filter(source => source.loop)).toHaveLength(1);
+    expect(context.operations.indexOf('oscillator-start'))
+      .toBeLessThan(context.operations.indexOf('buffer-create'));
+  });
+
   it('starts one deterministic music loop only after unlock and keeps it through repeated room updates', async () => {
     const context = new FakeAudioContext();
     const factory = vi.fn(() => context as unknown as AudioContext);
@@ -241,26 +266,30 @@ describe('AudioEngine', () => {
     expect(context.bufferSources).toHaveLength(1);
   });
 
-  it('serializes rapid pointer and click unlocks without losing music or the click cue', async () => {
+  it('recovers on a later activation while an ineffective resume remains unresolved', async () => {
     const context = new FakeAudioContext();
-    let finishFirstResume: (() => void) | undefined;
+    let settleFirstResume: (() => void) | undefined;
     context.resumeImplementation = vi.fn()
       .mockImplementationOnce(() => new Promise<void>(resolve => {
-        finishFirstResume = () => {
-          context.state = 'running';
-          resolve();
-        };
+        settleFirstResume = resolve;
       }))
-      .mockRejectedValueOnce(new Error('resume already in progress'));
+      .mockImplementationOnce(() => {
+        context.state = 'running';
+        return Promise.resolve();
+      });
     const engine = makeEngine(context);
     engine.setRoomActive(true);
 
     engine.handleUserInteraction();
     engine.handleUserInteraction('ui.click');
-    finishFirstResume?.();
     await flushPromises();
 
-    expect(context.resumeCount).toBe(1);
+    expect(context.resumeCount).toBe(2);
+    expect(context.bufferSources).toHaveLength(1);
+    expect(context.oscillators).toHaveLength(1);
+
+    settleFirstResume?.();
+    await flushPromises();
     expect(context.bufferSources).toHaveLength(1);
     expect(context.oscillators).toHaveLength(1);
   });

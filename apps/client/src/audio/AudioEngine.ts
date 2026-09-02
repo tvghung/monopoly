@@ -161,6 +161,14 @@ function defaultContextFactory(): AudioContext | null {
     ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AudioContextConstructor) return null;
   try {
+    const audioSession = typeof navigator === 'undefined'
+      ? undefined
+      : (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (audioSession) audioSession.type = 'playback';
+  } catch {
+    // Optional WebKit API; context creation remains the primary audio path.
+  }
+  try {
     return new AudioContextConstructor();
   } catch {
     return null;
@@ -197,7 +205,6 @@ export class AudioEngine implements AudioPort {
   private roomActive = false;
   private documentHidden = false;
   private resumePromise: Promise<void> | null = null;
-  private resumeContext: AudioContext | null = null;
   private pendingInteractionCue: AudioCueId | undefined;
   private retainCount = 0;
   private disposalGeneration = 0;
@@ -252,12 +259,8 @@ export class AudioEngine implements AudioPort {
     const context = this.ensureContext();
     if (!context) return;
     if (cueId) this.pendingInteractionCue = cueId;
-    if (this.resumePromise && this.resumeContext === context) return;
     if (context.state === 'running') {
-      const pendingCue = this.pendingInteractionCue;
-      this.pendingInteractionCue = undefined;
-      this.syncMusicLifecycle();
-      if (pendingCue) this.startCue(context, pendingCue, {});
+      this.completeInteraction(context);
       return;
     }
     if (context.state === 'closed') {
@@ -271,19 +274,16 @@ export class AudioEngine implements AudioPort {
       this.pendingInteractionCue = undefined;
       return;
     }
+    // Web Audio queues resume promises. A fresh trusted activation must not be
+    // blocked by an older attempt that never settled outside valid activation.
     this.resumePromise = resumePromise;
-    this.resumeContext = context;
     void resumePromise.then(() => {
       if (this.disposed || context !== this.context || context.state !== 'running') return;
-      const pendingCue = this.pendingInteractionCue;
-      this.pendingInteractionCue = undefined;
-      this.syncMusicLifecycle();
-      if (pendingCue) this.startCue(context, pendingCue, {});
+      this.completeInteraction(context);
     }).catch(() => {}).finally(() => {
       if (this.resumePromise !== resumePromise) return;
       this.resumePromise = null;
-      this.resumeContext = null;
-      this.pendingInteractionCue = undefined;
+      if (context.state !== 'running') this.pendingInteractionCue = undefined;
     });
   }
 
@@ -307,7 +307,6 @@ export class AudioEngine implements AudioPort {
     if (this.disposed) return;
     this.disposed = true;
     this.resumePromise = null;
-    this.resumeContext = null;
     this.pendingInteractionCue = undefined;
     this.stopMusicImmediately();
     this.activeVoices.forEach(voices => {
@@ -364,6 +363,13 @@ export class AudioEngine implements AudioPort {
     if (this.masterGainNode) setAudioParam(this.masterGainNode.gain, this.mix.masterGain, context.currentTime);
     if (this.musicGainNode) setAudioParam(this.musicGainNode.gain, this.mix.musicGain, context.currentTime);
     if (this.sfxGainNode) setAudioParam(this.sfxGainNode.gain, this.mix.sfxGain, context.currentTime);
+  }
+
+  private completeInteraction(context: AudioContext): void {
+    const pendingCue = this.pendingInteractionCue;
+    this.pendingInteractionCue = undefined;
+    if (pendingCue) this.startCue(context, pendingCue, {});
+    this.syncMusicLifecycle();
   }
 
   private syncMusicLifecycle(): void {
