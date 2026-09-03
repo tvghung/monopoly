@@ -6,6 +6,10 @@ import {
   MUSIC_PHRASE_BEATS,
   MUSIC_STEM_LEVELS,
 } from './music';
+import {
+  createProceduralMusicStems,
+  MUSIC_BUFFER_SAMPLE_RATE,
+} from './legacyMusic';
 import type {
   AudioCueId,
   AudioMix,
@@ -128,6 +132,7 @@ export class AudioEngine implements AudioPort {
   private readonly presentationVoices = new Set<ActiveVoice>();
   private readonly lastStartedAt = new Map<AudioCueId, number>();
   private musicBuffers: AudioBuffer[] | null = null;
+  private legacyMusicBuffers: AudioBuffer[] | null = null;
   private musicLoadPromise: Promise<AudioBuffer[]> | null = null;
   private musicStartPromise: Promise<void> | null = null;
   private musicSources: AudioBufferSourceNode[] = [];
@@ -138,6 +143,7 @@ export class AudioEngine implements AudioPort {
   private musicStartedAt = 0;
   private musicIntensity: MusicIntensity = 0;
   private musicScheduledIntensity: MusicIntensity = 0;
+  private legacyFallbackAnnounced = false;
   private roomActive = false;
   private documentHidden = false;
   private resumePromise: Promise<void> | null = null;
@@ -254,6 +260,7 @@ export class AudioEngine implements AudioPort {
     this.pendingInteractionCue = undefined;
     this.stopMusicImmediately();
     this.musicBuffers = null;
+    this.legacyMusicBuffers = null;
     this.musicLoadPromise = null;
     this.musicStartPromise = null;
     this.activeVoices.forEach(voices => {
@@ -283,6 +290,7 @@ export class AudioEngine implements AudioPort {
       this.musicGainNode = null;
       this.sfxGainNode = null;
       this.musicBuffers = null;
+      this.legacyMusicBuffers = null;
       this.musicLoadPromise = null;
       this.musicStartPromise = null;
     }
@@ -342,14 +350,14 @@ export class AudioEngine implements AudioPort {
     if (!this.musicGainNode || this.musicStartPromise) return;
 
     const startPromise = this.getMusicBuffers(context).then(buffers => {
-      if (buffers.length === 0
-        || this.disposed
+      if (this.disposed
         || context !== this.context
         || context.state !== 'running'
         || !this.roomActive
         || this.documentHidden
         || this.musicSources.length > 0) return;
-      this.startMusicSources(context, buffers);
+      if (buffers.length > 0 && this.startMusicSources(context, buffers)) return;
+      this.startLegacyMusicSources(context);
     });
     this.musicStartPromise = startPromise;
     void startPromise.then(() => {
@@ -357,8 +365,8 @@ export class AudioEngine implements AudioPort {
     });
   }
 
-  private startMusicSources(context: AudioContext, buffers: readonly AudioBuffer[]): void {
-    if (!this.musicGainNode) return;
+  private startMusicSources(context: AudioContext, buffers: readonly AudioBuffer[]): boolean {
+    if (!this.musicGainNode || buffers.length === 0) return false;
 
     const createdSources: AudioBufferSourceNode[] = [];
     const createdStemGains: GainNode[] = [];
@@ -394,6 +402,7 @@ export class AudioEngine implements AudioPort {
       this.musicStartedAt = startAt;
       this.musicScheduledIntensity = this.musicIntensity;
       this.rampMusicGain(1, context);
+      return true;
     } catch {
       createdSources.forEach(source => {
         source.onended = null;
@@ -406,7 +415,33 @@ export class AudioEngine implements AudioPort {
       });
       createdStemGains.forEach(gain => gain.disconnect());
       createdVoiceGain?.disconnect();
+      return false;
     }
+  }
+
+  private startLegacyMusicSources(context: AudioContext): void {
+    if (this.musicSources.length > 0 || !this.musicGainNode) return;
+    if (!this.legacyFallbackAnnounced) {
+      warnMusic('Falling back to temporary legacy BGM.');
+      this.legacyFallbackAnnounced = true;
+    }
+    if (!this.legacyMusicBuffers) {
+      try {
+        const sampleRate = Math.floor(Math.min(context.sampleRate, MUSIC_BUFFER_SAMPLE_RATE));
+        const stems = createProceduralMusicStems(sampleRate);
+        this.legacyMusicBuffers = stems.map(stem => {
+          const buffer = context.createBuffer(2, stem.left.length, sampleRate);
+          buffer.getChannelData(0).set(stem.left);
+          buffer.getChannelData(1).set(stem.right);
+          return buffer;
+        });
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        warnMusic(`Temporary legacy BGM could not start: ${detail}`);
+        this.legacyMusicBuffers = [];
+      }
+    }
+    if (this.legacyMusicBuffers.length > 0) this.startMusicSources(context, this.legacyMusicBuffers);
   }
 
   private scheduleMusicIntensityTransition(context: AudioContext): void {
@@ -526,13 +561,13 @@ export class AudioEngine implements AudioPort {
       if (this.disposed || context !== this.context) return [];
       const foundation = decoded[0];
       if (!foundation) {
-        warnMusic('Foundation is unavailable; gameplay music will remain silent.');
+        warnMusic('Rendered gameplay music Foundation unavailable.');
         this.musicBuffers = [];
         return this.musicBuffers;
       }
       const foundationIssue = musicBufferCompatibilityIssue([foundation]);
       if (foundationIssue) {
-        warnMusic(`${foundationIssue} Gameplay music will remain silent.`);
+        warnMusic(`Rendered gameplay music Foundation unavailable: ${foundationIssue}`);
         this.musicBuffers = [];
         return this.musicBuffers;
       }
@@ -549,6 +584,7 @@ export class AudioEngine implements AudioPort {
         return this.musicBuffers;
       }
       this.musicBuffers = buffers;
+      warnMusic('Rendered gameplay music loaded successfully.');
       return this.musicBuffers;
     });
     return this.musicLoadPromise;

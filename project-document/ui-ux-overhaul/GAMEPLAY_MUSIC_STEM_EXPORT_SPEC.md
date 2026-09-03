@@ -4,7 +4,10 @@
 
 This is the production contract for the adaptive gameplay soundtrack. The four
 final rendered stems are not currently present in the repository. Runtime
-integration can therefore play only silence until matching assets are supplied.
+integration temporarily falls back to the legacy procedural BGM when Foundation
+cannot load; that fallback is compatibility debt, not final soundtrack quality.
+Run `pnpm validate:music-assets` as the hard presence gate before a rendered
+release.
 
 ## Musical timeline
 

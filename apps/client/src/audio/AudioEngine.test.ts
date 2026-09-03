@@ -131,6 +131,7 @@ class FakeAudioContext {
   public readonly operations: string[] = [];
   public decodedBuffers: AudioBuffer[] = [];
   public decodeCount = 0;
+  public decodeFailures = 0;
   public resumeCount = 0;
   public closeCount = 0;
   public resumeImplementation?: () => Promise<void>;
@@ -165,6 +166,10 @@ class FakeAudioContext {
   public decodeAudioData(): Promise<AudioBuffer> {
     this.decodeCount += 1;
     this.operations.push('decode-start');
+    if (this.decodeFailures > 0) {
+      this.decodeFailures -= 1;
+      return Promise.reject(new Error('decode failed'));
+    }
     const buffer = this.decodedBuffers.shift() ?? new FakeAudioBuffer(
       2,
       Math.round(this.sampleRate * MUSIC_LOOP_DURATION_SECONDS),
@@ -347,6 +352,7 @@ describe('AudioEngine', () => {
     expect(fetcher.mock.calls.map(([input]) => fetchUrl(input)))
       .toEqual(GAMEPLAY_MUSIC_STEMS.map(stem => stem.url));
     expect(context.decodeCount).toBe(GAMEPLAY_MUSIC_STEMS.length);
+    expect(context.operations.filter(operation => operation === 'buffer-create')).toHaveLength(0);
 
     engine.setRoomActive(true);
     engine.handleUserInteraction();
@@ -356,7 +362,7 @@ describe('AudioEngine', () => {
     expect(context.decodeCount).toBe(GAMEPLAY_MUSIC_STEMS.length);
   });
 
-  it('starts music when the room becomes active after an earlier unlock', async () => {
+  it('starts lobby music when the room becomes active after an earlier unlock', async () => {
     const context = new FakeAudioContext();
     const engine = makeEngine(context);
 
@@ -383,13 +389,14 @@ describe('AudioEngine', () => {
     expect(context.decodeCount).toBe(GAMEPLAY_MUSIC_STEMS.length - 1);
     expect(context.bufferSources).toHaveLength(1);
     expect(context.bufferSources[0]?.loop).toBe(true);
+    expect(context.operations.filter(operation => operation === 'buffer-create')).toHaveLength(0);
     expect(warning).toHaveBeenCalledWith(expect.stringContaining('gameplay-city.ogg'));
   });
 
-  it('remains silent when Foundation is unavailable', async () => {
+  it('falls back to one temporary legacy BGM when Foundation is unavailable', async () => {
     const context = new FakeAudioContext();
     const fetcher = makeFetcher(url => url.endsWith('gameplay-foundation.ogg') ? 404 : 200);
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const engine = makeEngine(context, fetcher);
     engine.setRoomActive(true);
 
@@ -397,10 +404,13 @@ describe('AudioEngine', () => {
     await flushPromises();
 
     expect(context.decodeCount).toBe(GAMEPLAY_MUSIC_STEMS.length - 1);
-    expect(context.bufferSources).toHaveLength(0);
+    expect(context.bufferSources).toHaveLength(MUSIC_STEM_IDS.length);
+    expect(context.operations.filter(operation => operation === 'buffer-create'))
+      .toHaveLength(MUSIC_STEM_IDS.length);
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining('Falling back to temporary legacy BGM'));
   });
 
-  it('remains silent when Foundation is incompatible', async () => {
+  it('falls back when Foundation is incompatible', async () => {
     const context = new FakeAudioContext();
     context.decodedBuffers = [makeMusicBuffer(context, 0, 1)];
     const fetcher = makeFetcher(url => url.endsWith('gameplay-city.ogg') ? 404 : 200);
@@ -411,8 +421,44 @@ describe('AudioEngine', () => {
     engine.handleUserInteraction();
     await flushPromises();
 
-    expect(context.bufferSources).toHaveLength(0);
+    expect(context.bufferSources).toHaveLength(MUSIC_STEM_IDS.length);
+    expect(context.operations.filter(operation => operation === 'buffer-create'))
+      .toHaveLength(MUSIC_STEM_IDS.length);
     expect(warning).toHaveBeenCalledWith(expect.stringContaining('foundation is not stereo'));
+  });
+
+  it('falls back when Foundation decoding fails', async () => {
+    const context = new FakeAudioContext();
+    context.decodeFailures = 1;
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const engine = makeEngine(context);
+    engine.setRoomActive(true);
+
+    engine.handleUserInteraction();
+    await flushPromises();
+
+    expect(context.bufferSources).toHaveLength(MUSIC_STEM_IDS.length);
+    expect(context.operations.filter(operation => operation === 'buffer-create'))
+      .toHaveLength(MUSIC_STEM_IDS.length);
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining('Falling back to temporary legacy BGM'));
+  });
+
+  it('uses one cached legacy fallback when every rendered stem is unavailable', async () => {
+    const context = new FakeAudioContext();
+    const fetcher = makeFetcher(() => 404);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const engine = makeEngine(context, fetcher);
+    engine.setRoomActive(true);
+
+    engine.handleUserInteraction();
+    await flushPromises();
+    engine.handleUserInteraction();
+    await flushPromises();
+
+    expect(context.bufferSources).toHaveLength(MUSIC_STEM_IDS.length);
+    expect(context.operations.filter(operation => operation === 'buffer-create'))
+      .toHaveLength(MUSIC_STEM_IDS.length);
+    expect(fetcher).toHaveBeenCalledTimes(GAMEPLAY_MUSIC_STEMS.length);
   });
 
   it('rejects an incompatible adaptive set and uses Foundation only', async () => {

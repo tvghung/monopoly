@@ -48,9 +48,11 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
   manifest, decodes each once, validates their shared timeline, and starts them
   together. Authoritative public board state selects a hysteretic `0..3`
   orchestration level and gain changes wait for a four-bar boundary. Missing or
-  incompatible sets degrade to Foundation-only playback or silence, never
-  procedural music. `musicVolume` is intentionally retained and ambience is
-  deferred. Final rendered stems are still required; see
+  incompatible secondary stems degrade to Foundation-only playback. If
+  Foundation cannot load, the temporary legacy BGM compatibility fallback keeps
+  the room audible; it is not the final soundtrack. `musicVolume` is intentionally
+  retained and ambience is deferred. Run `pnpm validate:music-assets` before
+  accepting a rendered release. Final rendered stems are still required; see
   [GAMEPLAY_MUSIC_STEM_EXPORT_SPEC.md](../../ui-ux-overhaul/GAMEPLAY_MUSIC_STEM_EXPORT_SPEC.md).
 - Desktop renderer dùng `contextIsolation`, `sandbox`, `nodeIntegration: false` và
   typed preload bridge whitelist; Electron main không chứa GameCore/game action.
