@@ -43,12 +43,15 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
 - Settings dùng key `own-the-block.settings.v1`, normalize/clamp defensive và tách
   khỏi reconnect token. Reduced motion hiệu lực là user setting hoặc OS
   preference. Audio provider owns one lazy Web Audio engine and typed procedural
-  registry; existing Master/Music/SFX values update its buses live. Phase 5.1
-  uses the SFX bus for typed gameplay cues. The Music bus now plays one original
-  64-bar, 110 BPM procedural composition as four cached synchronized stems;
-  authoritative public board state selects a hysteretic `0..3` orchestration
-  level and gain changes wait for a four-bar boundary. `musicVolume` is
-  intentionally retained and ambience is deferred.
+  SFX registry; existing Master/Music/SFX values update its buses live. The Music
+  bus loads four rendered 64-bar, 110 BPM stems from the centralized asset
+  manifest, decodes each once, validates their shared timeline, and starts them
+  together. Authoritative public board state selects a hysteretic `0..3`
+  orchestration level and gain changes wait for a four-bar boundary. Missing or
+  incompatible sets degrade to Foundation-only playback or silence, never
+  procedural music. `musicVolume` is intentionally retained and ambience is
+  deferred. Final rendered stems are still required; see
+  [GAMEPLAY_MUSIC_STEM_EXPORT_SPEC.md](../../ui-ux-overhaul/GAMEPLAY_MUSIC_STEM_EXPORT_SPEC.md).
 - Desktop renderer dùng `contextIsolation`, `sandbox`, `nodeIntegration: false` và
   typed preload bridge whitelist; Electron main không chứa GameCore/game action.
 

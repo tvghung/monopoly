@@ -1,12 +1,10 @@
 import { AUDIO_REGISTRY, type ProceduralAudioLayer } from './audioRegistry';
 import {
-  MUSIC_BUFFER_SAMPLE_RATE,
+  GAMEPLAY_MUSIC_STEMS,
   MUSIC_BPM,
   MUSIC_LOOP_DURATION_SECONDS,
   MUSIC_PHRASE_BEATS,
-  MUSIC_STEM_IDS,
   MUSIC_STEM_LEVELS,
-  renderProceduralMusicStems,
 } from './music';
 import type {
   AudioCueId,
@@ -19,20 +17,21 @@ import type {
 
 export {
   calculateMusicIntensityScore,
-  createProceduralMusicStems,
   deriveMusicIntensity,
+  GAMEPLAY_MUSIC_STEMS,
   MUSIC_BARS,
   MUSIC_BEATS,
   MUSIC_BPM,
   MUSIC_LOOP_DURATION_SECONDS,
-  MUSIC_MAIN_MELODY_PHRASES,
   MUSIC_SECTIONS,
   MUSIC_STEM_IDS,
+  MUSIC_STEM_LEVELS,
   MUSIC_TRACK_METADATA,
 } from './music';
 
 interface AudioEngineOptions {
   contextFactory?: () => AudioContext | null;
+  fetcher?: typeof fetch;
 }
 
 interface ActiveVoice {
@@ -52,6 +51,7 @@ const DEFAULT_MIX: AudioMix = {
 };
 
 const MUSIC_FADE_MS = 220;
+const MUSIC_BUFFER_DURATION_TOLERANCE_SECONDS = 0.01;
 
 function clampGain(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -91,8 +91,34 @@ function cueSeed(cueId: AudioCueId, layerIndex: number): number {
   return seed >>> 0;
 }
 
+function warnMusic(message: string): void {
+  if (import.meta.env.DEV) console.warn(`[AudioEngine] ${message}`);
+}
+
+function musicBufferCompatibilityIssue(buffers: readonly AudioBuffer[]): string | null {
+  const foundation = buffers[0];
+  if (!foundation) return 'Foundation did not decode.';
+  if (Math.abs(foundation.duration - MUSIC_LOOP_DURATION_SECONDS)
+    > MUSIC_BUFFER_DURATION_TOLERANCE_SECONDS) {
+    return `Foundation duration ${foundation.duration.toFixed(6)}s does not match the expected ${MUSIC_LOOP_DURATION_SECONDS.toFixed(6)}s timeline.`;
+  }
+  for (let index = 0; index < buffers.length; index += 1) {
+    const buffer = buffers[index];
+    if (!buffer) return `Stem ${GAMEPLAY_MUSIC_STEMS[index]?.id ?? index} did not decode.`;
+    if (buffer.numberOfChannels !== 2) {
+      return `Stem ${GAMEPLAY_MUSIC_STEMS[index]?.id ?? index} is not stereo.`;
+    }
+    if (buffer.sampleRate !== foundation.sampleRate || buffer.length !== foundation.length
+      || Math.abs(buffer.duration - foundation.duration) > MUSIC_BUFFER_DURATION_TOLERANCE_SECONDS) {
+      return `Stem ${GAMEPLAY_MUSIC_STEMS[index]?.id ?? index} does not share Foundation's exact timeline.`;
+    }
+  }
+  return null;
+}
+
 export class AudioEngine implements AudioPort {
   private readonly contextFactory: () => AudioContext | null;
+  private readonly fetcher: typeof fetch;
   private context: AudioContext | null = null;
   private masterGainNode: GainNode | null = null;
   private musicGainNode: GainNode | null = null;
@@ -102,6 +128,8 @@ export class AudioEngine implements AudioPort {
   private readonly presentationVoices = new Set<ActiveVoice>();
   private readonly lastStartedAt = new Map<AudioCueId, number>();
   private musicBuffers: AudioBuffer[] | null = null;
+  private musicLoadPromise: Promise<AudioBuffer[]> | null = null;
+  private musicStartPromise: Promise<void> | null = null;
   private musicSources: AudioBufferSourceNode[] = [];
   private musicStemGainNodes: GainNode[] = [];
   private musicVoiceGainNode: GainNode | null = null;
@@ -120,6 +148,7 @@ export class AudioEngine implements AudioPort {
 
   public constructor(options: AudioEngineOptions = {}) {
     this.contextFactory = options.contextFactory ?? defaultContextFactory;
+    this.fetcher = options.fetcher ?? ((input, init) => fetch(input, init));
   }
 
   public setMix(mix: AudioMix): void {
@@ -225,6 +254,8 @@ export class AudioEngine implements AudioPort {
     this.pendingInteractionCue = undefined;
     this.stopMusicImmediately();
     this.musicBuffers = null;
+    this.musicLoadPromise = null;
+    this.musicStartPromise = null;
     this.activeVoices.forEach(voices => {
       [...voices].forEach(voice => this.stopVoice(voice));
     });
@@ -246,11 +277,14 @@ export class AudioEngine implements AudioPort {
 
   private ensureContext(): AudioContext | null {
     if (this.context?.state === 'closed') {
+      this.stopMusicImmediately();
       this.context = null;
       this.masterGainNode = null;
       this.musicGainNode = null;
       this.sfxGainNode = null;
       this.musicBuffers = null;
+      this.musicLoadPromise = null;
+      this.musicStartPromise = null;
     }
     if (this.context) return this.context;
     const context = this.contextFactory();
@@ -286,6 +320,7 @@ export class AudioEngine implements AudioPort {
     const pendingCue = this.pendingInteractionCue;
     this.pendingInteractionCue = undefined;
     if (pendingCue) this.startCue(context, pendingCue, {});
+    void this.getMusicBuffers(context);
     this.syncMusicLifecycle();
   }
 
@@ -304,6 +339,25 @@ export class AudioEngine implements AudioPort {
       this.rampMusicGain(1, context);
       return;
     }
+    if (!this.musicGainNode || this.musicStartPromise) return;
+
+    const startPromise = this.getMusicBuffers(context).then(buffers => {
+      if (buffers.length === 0
+        || this.disposed
+        || context !== this.context
+        || context.state !== 'running'
+        || !this.roomActive
+        || this.documentHidden
+        || this.musicSources.length > 0) return;
+      this.startMusicSources(context, buffers);
+    });
+    this.musicStartPromise = startPromise;
+    void startPromise.then(() => {
+      if (this.musicStartPromise === startPromise) this.musicStartPromise = null;
+    });
+  }
+
+  private startMusicSources(context: AudioContext, buffers: readonly AudioBuffer[]): void {
     if (!this.musicGainNode) return;
 
     const createdSources: AudioBufferSourceNode[] = [];
@@ -316,7 +370,7 @@ export class AudioEngine implements AudioPort {
       voiceGain.connect(this.musicGainNode);
       const startAt = context.currentTime + 0.02;
       const levels = MUSIC_STEM_LEVELS[this.musicIntensity];
-      this.getMusicBuffers(context).forEach((buffer, index) => {
+      buffers.forEach((buffer, index) => {
         const source = context.createBufferSource();
         const stemGain = context.createGain();
         source.buffer = buffer;
@@ -455,17 +509,49 @@ export class AudioEngine implements AudioPort {
     this.stopMusicSources(source);
   }
 
-  private getMusicBuffers(context: AudioContext): AudioBuffer[] {
-    if (this.musicBuffers) return this.musicBuffers;
-    const sampleRate = Math.floor(Math.min(context.sampleRate, MUSIC_BUFFER_SAMPLE_RATE));
-    const sampleCount = Math.max(1, Math.floor(sampleRate * MUSIC_LOOP_DURATION_SECONDS));
-    const buffers = MUSIC_STEM_IDS.map(() => context.createBuffer(2, sampleCount, sampleRate));
-    renderProceduralMusicStems(buffers.map(buffer => ({
-      left: buffer.getChannelData(0),
-      right: buffer.getChannelData(1),
-    })), sampleRate);
-    this.musicBuffers = buffers;
-    return this.musicBuffers;
+  private getMusicBuffers(context: AudioContext): Promise<AudioBuffer[]> {
+    if (this.musicBuffers) return Promise.resolve(this.musicBuffers);
+    if (this.musicLoadPromise) return this.musicLoadPromise;
+    this.musicLoadPromise = Promise.all(GAMEPLAY_MUSIC_STEMS.map(async stem => {
+      try {
+        const response = await this.fetcher(stem.url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await context.decodeAudioData(await response.arrayBuffer());
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        warnMusic(`Could not load ${stem.id} stem (${stem.url}): ${detail}`);
+        return null;
+      }
+    })).then(decoded => {
+      if (this.disposed || context !== this.context) return [];
+      const foundation = decoded[0];
+      if (!foundation) {
+        warnMusic('Foundation is unavailable; gameplay music will remain silent.');
+        this.musicBuffers = [];
+        return this.musicBuffers;
+      }
+      const foundationIssue = musicBufferCompatibilityIssue([foundation]);
+      if (foundationIssue) {
+        warnMusic(`${foundationIssue} Gameplay music will remain silent.`);
+        this.musicBuffers = [];
+        return this.musicBuffers;
+      }
+      if (decoded.some(buffer => buffer === null)) {
+        warnMusic('The complete stem set is unavailable; using Foundation only.');
+        this.musicBuffers = [foundation];
+        return this.musicBuffers;
+      }
+      const buffers = decoded as AudioBuffer[];
+      const issue = musicBufferCompatibilityIssue(buffers);
+      if (issue) {
+        warnMusic(`${issue} Using Foundation only.`);
+        this.musicBuffers = [foundation];
+        return this.musicBuffers;
+      }
+      this.musicBuffers = buffers;
+      return this.musicBuffers;
+    });
+    return this.musicLoadPromise;
   }
 
   private startCue(context: AudioContext, cueId: AudioCueId, options: AudioPlayOptions): void {
