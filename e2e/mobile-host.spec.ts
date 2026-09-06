@@ -2,6 +2,102 @@ import {
   expect, test, type BrowserContext, type Locator, type Page,
 } from '@playwright/test';
 
+const MUSIC_PATHS = ['foundation', 'city', 'wealth', 'competition']
+  .map(id => `/audio/music/gameplay/gameplay-${id}.ogg`);
+
+interface MusicObservation {
+  available: boolean;
+  decodeCount: number;
+  starts: {
+    at: number;
+    context: number;
+    state: AudioContextState;
+    frames: number;
+    sampleRate: number;
+    channels: number;
+    duration: number;
+    decoded: boolean;
+    loopStart: number;
+    loopEnd: number;
+  }[];
+}
+
+async function observeMusic(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const contextConstructor = window.AudioContext
+      ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const observation: MusicObservation = {
+      available: Boolean(contextConstructor),
+      decodeCount: 0,
+      starts: [],
+    };
+    (window as typeof window & { __musicObservation: MusicObservation }).__musicObservation = observation;
+    if (!contextConstructor) return;
+    const decoded = new WeakSet<AudioBuffer>();
+    const contexts: BaseAudioContext[] = [];
+    const decodeAudioData = contextConstructor.prototype.decodeAudioData;
+    contextConstructor.prototype.decodeAudioData = function (...args) {
+      observation.decodeCount += 1;
+      return Reflect.apply(decodeAudioData, this, args).then((buffer: AudioBuffer) => {
+        decoded.add(buffer);
+        return buffer;
+      });
+    };
+    const createBufferSource = contextConstructor.prototype.createBufferSource;
+    contextConstructor.prototype.createBufferSource = function () {
+      const source = createBufferSource.call(this);
+      const start = source.start;
+      source.start = function (...args) {
+        if (this.loop && this.buffer) {
+          if (!contexts.includes(this.context)) contexts.push(this.context);
+          observation.starts.push({
+            at: args[0] ?? 0,
+            context: contexts.indexOf(this.context),
+            state: this.context.state,
+            frames: this.buffer.length,
+            sampleRate: this.buffer.sampleRate,
+            channels: this.buffer.numberOfChannels,
+            duration: this.buffer.duration,
+            decoded: decoded.has(this.buffer),
+            loopStart: this.loopStart,
+            loopEnd: this.loopEnd,
+          });
+        }
+        return Reflect.apply(start, this, args);
+      };
+      return source;
+    };
+  });
+}
+
+async function expectMusicRuntime(page: Page): Promise<void> {
+  const snapshot = () => page.evaluate(() => (
+    (window as typeof window & { __musicObservation: MusicObservation }).__musicObservation
+  ));
+  const initial = await snapshot();
+  if (!initial.available) {
+    expect(initial.decodeCount).toBe(0);
+    expect(initial.starts).toEqual([]);
+    return;
+  }
+  await expect.poll(async () => (await snapshot()).starts.length, { timeout: 30_000 }).toBe(4);
+  const observation = await snapshot();
+  expect(observation.decodeCount).toBe(4);
+  const foundation = observation.starts[0];
+  expect(foundation.duration).toBeCloseTo(256 * 60 / 110, 2);
+  for (const stem of observation.starts) {
+    expect(stem).toEqual({
+      ...foundation,
+      channels: 2,
+      decoded: true,
+      context: 0,
+      state: 'running',
+      loopStart: 0,
+      loopEnd: foundation.duration,
+    });
+  }
+}
+
 const ACCEPTANCE_VIEWPORTS = [
   { width: 360, height: 800 },
   { width: 390, height: 844 },
@@ -245,4 +341,53 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
   } finally {
     await guestContext.close();
   }
+});
+
+test('real rendered music assets and supported Web Audio lifecycle', async ({ page }) => {
+  test.setTimeout(120_000);
+  const browserErrors: string[] = [];
+  page.on('pageerror', error => browserErrors.push(error.message));
+  await observeMusic(page);
+  await page.goto('/');
+  const responses = await page.evaluate(async paths => Promise.all(paths.map(async path => {
+    const response = await fetch(path);
+    return {
+      url: response.url,
+      status: response.status,
+      contentType: response.headers.get('content-type')?.split(';')[0],
+      bytes: (await response.arrayBuffer()).byteLength,
+    };
+  })), MUSIC_PATHS);
+  for (const response of responses) {
+    expect(response.status, response.url).toBe(200);
+    expect(response.contentType, response.url).toBe('audio/ogg');
+    expect(response.bytes, response.url).toBeGreaterThan(0);
+  }
+  const roomCode = `OTB-${Date.now().toString(36).slice(-6).toUpperCase()}`;
+  await joinRoom(page, 'Audio Review', roomCode, 'tap');
+  if (!await page.evaluate(() => (
+    (window as typeof window & { __musicObservation: MusicObservation }).__musicObservation.available
+  ))) {
+    test.info().annotations.push({
+      type: 'audio-evidence',
+      description: 'Web Audio unavailable: fallback only; decoded playback remains unverified.',
+    });
+  }
+  await expectMusicRuntime(page);
+
+  await page.reload();
+  await expect(page.getByRole('heading', { name: roomCode })).toBeVisible();
+  // A restored room still needs a real gesture to unlock the new AudioContext.
+  await page.getByRole('button', { name: 'Cài đặt' }).tap();
+  await page.getByRole('dialog', { name: 'Cài đặt' }).getByRole('button', { name: 'Đóng' }).tap();
+  await expectMusicRuntime(page);
+
+  await page.context().setOffline(true);
+  await expect(page.getByText('Đã mất kết nối. Đang kết nối lại vào ván chơi…'))
+    .toBeVisible({ timeout: 15_000 });
+  await page.context().setOffline(false);
+  await expect(page.getByText('Đã mất kết nối. Đang kết nối lại vào ván chơi…'))
+    .toBeHidden({ timeout: 15_000 });
+  await expectMusicRuntime(page);
+  expect(browserErrors).toEqual([]);
 });

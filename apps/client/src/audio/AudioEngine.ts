@@ -6,10 +6,6 @@ import {
   MUSIC_PHRASE_BEATS,
   MUSIC_STEM_LEVELS,
 } from './music';
-import {
-  createProceduralMusicStems,
-  MUSIC_BUFFER_SAMPLE_RATE,
-} from './legacyMusic';
 import type {
   AudioCueId,
   AudioMix,
@@ -132,7 +128,9 @@ export class AudioEngine implements AudioPort {
   private readonly presentationVoices = new Set<ActiveVoice>();
   private readonly lastStartedAt = new Map<AudioCueId, number>();
   private musicBuffers: AudioBuffer[] | null = null;
-  private legacyMusicBuffers: AudioBuffer[] | null = null;
+  private musicStemBuffers: Array<AudioBuffer | null | undefined> = [];
+  private musicLoadAttempts = 0;
+  private musicRetryPending = false;
   private musicLoadPromise: Promise<AudioBuffer[]> | null = null;
   private musicStartPromise: Promise<void> | null = null;
   private musicSources: AudioBufferSourceNode[] = [];
@@ -143,7 +141,6 @@ export class AudioEngine implements AudioPort {
   private musicStartedAt = 0;
   private musicIntensity: MusicIntensity = 0;
   private musicScheduledIntensity: MusicIntensity = 0;
-  private legacyFallbackAnnounced = false;
   private roomActive = false;
   private documentHidden = false;
   private resumePromise: Promise<void> | null = null;
@@ -175,6 +172,10 @@ export class AudioEngine implements AudioPort {
 
   public setRoomActive(active: boolean): void {
     if (this.disposed) return;
+    if (active && !this.roomActive) {
+      this.stopMusicImmediately();
+      this.retryMusicLoad();
+    }
     this.roomActive = active;
     if (!active) {
       this.fadeMusicToZero(true);
@@ -260,7 +261,7 @@ export class AudioEngine implements AudioPort {
     this.pendingInteractionCue = undefined;
     this.stopMusicImmediately();
     this.musicBuffers = null;
-    this.legacyMusicBuffers = null;
+    this.musicStemBuffers = [];
     this.musicLoadPromise = null;
     this.musicStartPromise = null;
     this.activeVoices.forEach(voices => {
@@ -290,7 +291,9 @@ export class AudioEngine implements AudioPort {
       this.musicGainNode = null;
       this.sfxGainNode = null;
       this.musicBuffers = null;
-      this.legacyMusicBuffers = null;
+      this.musicStemBuffers = [];
+      this.musicLoadAttempts = 0;
+      this.musicRetryPending = false;
       this.musicLoadPromise = null;
       this.musicStartPromise = null;
     }
@@ -328,6 +331,7 @@ export class AudioEngine implements AudioPort {
     const pendingCue = this.pendingInteractionCue;
     this.pendingInteractionCue = undefined;
     if (pendingCue) this.startCue(context, pendingCue, {});
+    this.retryMusicLoad();
     void this.getMusicBuffers(context);
     this.syncMusicLifecycle();
   }
@@ -356,8 +360,7 @@ export class AudioEngine implements AudioPort {
         || !this.roomActive
         || this.documentHidden
         || this.musicSources.length > 0) return;
-      if (buffers.length > 0 && this.startMusicSources(context, buffers)) return;
-      this.startLegacyMusicSources(context);
+      this.startMusicSources(context, buffers);
     });
     this.musicStartPromise = startPromise;
     void startPromise.then(() => {
@@ -365,8 +368,8 @@ export class AudioEngine implements AudioPort {
     });
   }
 
-  private startMusicSources(context: AudioContext, buffers: readonly AudioBuffer[]): boolean {
-    if (!this.musicGainNode || buffers.length === 0) return false;
+  private startMusicSources(context: AudioContext, buffers: readonly AudioBuffer[]): void {
+    if (!this.musicGainNode || buffers.length === 0) return;
 
     const createdSources: AudioBufferSourceNode[] = [];
     const createdStemGains: GainNode[] = [];
@@ -402,7 +405,6 @@ export class AudioEngine implements AudioPort {
       this.musicStartedAt = startAt;
       this.musicScheduledIntensity = this.musicIntensity;
       this.rampMusicGain(1, context);
-      return true;
     } catch {
       createdSources.forEach(source => {
         source.onended = null;
@@ -415,33 +417,7 @@ export class AudioEngine implements AudioPort {
       });
       createdStemGains.forEach(gain => gain.disconnect());
       createdVoiceGain?.disconnect();
-      return false;
     }
-  }
-
-  private startLegacyMusicSources(context: AudioContext): void {
-    if (this.musicSources.length > 0 || !this.musicGainNode) return;
-    if (!this.legacyFallbackAnnounced) {
-      warnMusic('Falling back to temporary legacy BGM.');
-      this.legacyFallbackAnnounced = true;
-    }
-    if (!this.legacyMusicBuffers) {
-      try {
-        const sampleRate = Math.floor(Math.min(context.sampleRate, MUSIC_BUFFER_SAMPLE_RATE));
-        const stems = createProceduralMusicStems(sampleRate);
-        this.legacyMusicBuffers = stems.map(stem => {
-          const buffer = context.createBuffer(2, stem.left.length, sampleRate);
-          buffer.getChannelData(0).set(stem.left);
-          buffer.getChannelData(1).set(stem.right);
-          return buffer;
-        });
-      } catch (error) {
-        const detail = error instanceof Error ? error.message : String(error);
-        warnMusic(`Temporary legacy BGM could not start: ${detail}`);
-        this.legacyMusicBuffers = [];
-      }
-    }
-    if (this.legacyMusicBuffers.length > 0) this.startMusicSources(context, this.legacyMusicBuffers);
   }
 
   private scheduleMusicIntensityTransition(context: AudioContext): void {
@@ -544,34 +520,61 @@ export class AudioEngine implements AudioPort {
     this.stopMusicSources(source);
   }
 
+  private retryMusicLoad(): void {
+    if (!this.musicRetryPending) return;
+    this.musicRetryPending = false;
+    this.musicBuffers = null;
+    this.musicLoadPromise = null;
+  }
+
   private getMusicBuffers(context: AudioContext): Promise<AudioBuffer[]> {
     if (this.musicBuffers) return Promise.resolve(this.musicBuffers);
     if (this.musicLoadPromise) return this.musicLoadPromise;
-    this.musicLoadPromise = Promise.all(GAMEPLAY_MUSIC_STEMS.map(async stem => {
+    this.musicLoadAttempts += 1;
+    this.musicLoadPromise = Promise.all(GAMEPLAY_MUSIC_STEMS.map(async (stem, index) => {
+      const cached = this.musicStemBuffers[index];
+      if (cached !== undefined) return cached;
+      let data: ArrayBuffer;
       try {
         const response = await this.fetcher(stem.url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return await context.decodeAudioData(await response.arrayBuffer());
+        if (!response.ok) {
+          warnMusic(`Could not load ${stem.id} stem (${stem.url}): HTTP ${response.status}`);
+          return response.status === 404 || response.status === 410 ? null : undefined;
+        }
+        data = await response.arrayBuffer();
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
         warnMusic(`Could not load ${stem.id} stem (${stem.url}): ${detail}`);
+        return undefined;
+      }
+      try {
+        return await context.decodeAudioData(data);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        warnMusic(`Could not decode ${stem.id} stem (${stem.url}): ${detail}`);
         return null;
       }
     })).then(decoded => {
       if (this.disposed || context !== this.context) return [];
+      this.musicStemBuffers = decoded;
+      // Retry only once, on a later activation; preserve every successful decode.
+      this.musicRetryPending = this.musicLoadAttempts < 2
+        && decoded.some(buffer => buffer === undefined);
       const foundation = decoded[0];
       if (!foundation) {
+        if (foundation === null) this.musicRetryPending = false;
         warnMusic('Rendered gameplay music Foundation unavailable.');
         this.musicBuffers = [];
         return this.musicBuffers;
       }
       const foundationIssue = musicBufferCompatibilityIssue([foundation]);
       if (foundationIssue) {
+        this.musicRetryPending = false;
         warnMusic(`Rendered gameplay music Foundation unavailable: ${foundationIssue}`);
         this.musicBuffers = [];
         return this.musicBuffers;
       }
-      if (decoded.some(buffer => buffer === null)) {
+      if (decoded.some(buffer => !buffer)) {
         warnMusic('The complete stem set is unavailable; using Foundation only.');
         this.musicBuffers = [foundation];
         return this.musicBuffers;

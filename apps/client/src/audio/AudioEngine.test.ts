@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { tileState, type PublicGameState } from '@monopoly/shared';
 import { makeRoom } from '../game/presentation/testFixtures';
+import { AUDIO_REGISTRY } from './audioRegistry';
+import type { AudioCueId } from './types';
 import {
   AudioEngine,
   calculateMusicIntensityScore,
@@ -49,8 +51,10 @@ class FakeAudioParam {
 
 class FakeNode {
   public disconnectCount = 0;
+  public readonly connections: AudioNode[] = [];
 
   public connect(destination: AudioNode): AudioNode {
+    this.connections.push(destination);
     return destination;
   }
 
@@ -278,6 +282,23 @@ describe('AudioEngine', () => {
     expect(factory).toHaveBeenCalledOnce();
   });
 
+  it('routes every registered cue through SFX while synchronized music uses the Music bus', async () => {
+    const context = new FakeAudioContext('running');
+    const engine = makeEngine(context);
+    engine.setRoomActive(true);
+    engine.handleUserInteraction();
+    await flushPromises();
+
+    expect(context.gains[1]?.connections).toEqual([context.gains[0]]);
+    expect(context.gains[2]?.connections).toEqual([context.gains[0]]);
+    expect(context.gains[3]?.connections).toEqual([context.gains[2]]);
+    for (const cue of Object.keys(AUDIO_REGISTRY) as AudioCueId[]) {
+      const voiceGainIndex = context.gains.length;
+      engine.play(cue);
+      expect(context.gains[voiceGainIndex]?.connections).toEqual([context.gains[1]]);
+    }
+  });
+
   it('unlocks only on interaction and never replays a pre-unlock gameplay cue', async () => {
     const context = new FakeAudioContext();
     const factory = vi.fn(() => context as unknown as AudioContext);
@@ -393,7 +414,7 @@ describe('AudioEngine', () => {
     expect(warning).toHaveBeenCalledWith(expect.stringContaining('gameplay-city.ogg'));
   });
 
-  it('falls back to one temporary legacy BGM when Foundation is unavailable', async () => {
+  it('stays silent when Foundation is unavailable without synthesizing music', async () => {
     const context = new FakeAudioContext();
     const fetcher = makeFetcher(url => url.endsWith('gameplay-foundation.ogg') ? 404 : 200);
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -404,13 +425,14 @@ describe('AudioEngine', () => {
     await flushPromises();
 
     expect(context.decodeCount).toBe(GAMEPLAY_MUSIC_STEMS.length - 1);
-    expect(context.bufferSources).toHaveLength(MUSIC_STEM_IDS.length);
+    expect(context.bufferSources).toHaveLength(0);
     expect(context.operations.filter(operation => operation === 'buffer-create'))
-      .toHaveLength(MUSIC_STEM_IDS.length);
-    expect(warning).toHaveBeenCalledWith(expect.stringContaining('Falling back to temporary legacy BGM'));
+      .toHaveLength(0);
+    expect(context.oscillators).toHaveLength(0);
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining('Foundation unavailable'));
   });
 
-  it('falls back when Foundation is incompatible', async () => {
+  it('stays silent for the session when Foundation is incompatible', async () => {
     const context = new FakeAudioContext();
     context.decodedBuffers = [makeMusicBuffer(context, 0, 1)];
     const fetcher = makeFetcher(url => url.endsWith('gameplay-city.ogg') ? 404 : 200);
@@ -421,13 +443,19 @@ describe('AudioEngine', () => {
     engine.handleUserInteraction();
     await flushPromises();
 
-    expect(context.bufferSources).toHaveLength(MUSIC_STEM_IDS.length);
+    engine.handleUserInteraction();
+    engine.setRoomActive(false);
+    engine.setRoomActive(true);
+    await flushPromises();
+
+    expect(context.bufferSources).toHaveLength(0);
     expect(context.operations.filter(operation => operation === 'buffer-create'))
-      .toHaveLength(MUSIC_STEM_IDS.length);
+      .toHaveLength(0);
+    expect(fetcher).toHaveBeenCalledTimes(MUSIC_STEM_IDS.length);
     expect(warning).toHaveBeenCalledWith(expect.stringContaining('foundation is not stereo'));
   });
 
-  it('falls back when Foundation decoding fails', async () => {
+  it('stays silent without retrying corrupt Foundation data', async () => {
     const context = new FakeAudioContext();
     context.decodeFailures = 1;
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -436,14 +464,17 @@ describe('AudioEngine', () => {
 
     engine.handleUserInteraction();
     await flushPromises();
+    engine.handleUserInteraction();
+    await flushPromises();
 
-    expect(context.bufferSources).toHaveLength(MUSIC_STEM_IDS.length);
+    expect(context.bufferSources).toHaveLength(0);
     expect(context.operations.filter(operation => operation === 'buffer-create'))
-      .toHaveLength(MUSIC_STEM_IDS.length);
-    expect(warning).toHaveBeenCalledWith(expect.stringContaining('Falling back to temporary legacy BGM'));
+      .toHaveLength(0);
+    expect(context.decodeCount).toBe(MUSIC_STEM_IDS.length);
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining('Could not decode foundation'));
   });
 
-  it('uses one cached legacy fallback when every rendered stem is unavailable', async () => {
+  it('caches permanent missing-asset results without generating replacement music', async () => {
     const context = new FakeAudioContext();
     const fetcher = makeFetcher(() => 404);
     vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -455,10 +486,103 @@ describe('AudioEngine', () => {
     engine.handleUserInteraction();
     await flushPromises();
 
-    expect(context.bufferSources).toHaveLength(MUSIC_STEM_IDS.length);
+    expect(context.bufferSources).toHaveLength(0);
     expect(context.operations.filter(operation => operation === 'buffer-create'))
-      .toHaveLength(MUSIC_STEM_IDS.length);
+      .toHaveLength(0);
     expect(fetcher).toHaveBeenCalledTimes(GAMEPLAY_MUSIC_STEMS.length);
+  });
+
+  it.each(['fetch', 'read', 'HTTP'] as const)(
+    'retries a transient Foundation %s failure only on a later activation and reuses decoded stems',
+    async failure => {
+      const context = new FakeAudioContext('running');
+      const fetcher = makeFetcher();
+      if (failure === 'fetch') {
+        fetcher.mockRejectedValueOnce(new Error('interrupted request'));
+      } else {
+        fetcher.mockResolvedValueOnce({
+          ok: failure === 'read',
+          status: 503,
+          arrayBuffer: () => Promise.reject(new Error('interrupted read')),
+        } as Response);
+      }
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const engine = makeEngine(context, fetcher);
+      engine.setRoomActive(true);
+      engine.handleUserInteraction();
+      await flushPromises();
+
+      expect(context.bufferSources).toHaveLength(0);
+      expect(context.decodeCount).toBe(3);
+      engine.setRoomActive(true);
+      engine.setDocumentHidden(true);
+      engine.setDocumentHidden(false);
+      engine.setMusicIntensity(3);
+      await flushPromises();
+      expect(fetcher).toHaveBeenCalledTimes(4);
+
+      engine.handleUserInteraction();
+      await flushPromises();
+      expect(fetcher.mock.calls.map(([input]) => fetchUrl(input)))
+        .toEqual([...GAMEPLAY_MUSIC_STEMS.map(stem => stem.url), GAMEPLAY_MUSIC_STEMS[0].url]);
+      expect(context.decodeCount).toBe(4);
+      expect(context.bufferSources).toHaveLength(4);
+      expect(new Set(context.bufferSources.flatMap(source => source.starts))).toEqual(new Set([0.02]));
+    },
+  );
+
+  it('bounds transient failures to one later retry even across repeated interactions and rooms', async () => {
+    const context = new FakeAudioContext('running');
+    const fetcher = makeFetcher(() => 503);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const engine = makeEngine(context, fetcher);
+    engine.setRoomActive(true);
+    engine.handleUserInteraction();
+    await flushPromises();
+    expect(fetcher).toHaveBeenCalledTimes(4);
+
+    engine.setRoomActive(false);
+    engine.setRoomActive(true);
+    await flushPromises();
+    expect(fetcher).toHaveBeenCalledTimes(8);
+    engine.handleUserInteraction();
+    engine.setRoomActive(false);
+    engine.setRoomActive(true);
+    await flushPromises();
+    expect(fetcher).toHaveBeenCalledTimes(8);
+    expect(context.bufferSources).toHaveLength(0);
+    expect(context.decodeCount).toBe(0);
+  });
+
+  it('recovers an optional stem without restarting Foundation and uses the full set in the next room', async () => {
+    const context = new FakeAudioContext('running');
+    let unavailable = true;
+    const fetcher = makeFetcher(url => unavailable && url.endsWith('gameplay-city.ogg') ? 503 : 200);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const engine = makeEngine(context, fetcher);
+    engine.setRoomActive(true);
+    engine.handleUserInteraction();
+    await flushPromises();
+    const foundation = context.bufferSources[0];
+    expect(context.bufferSources).toHaveLength(1);
+
+    unavailable = false;
+    engine.handleUserInteraction();
+    await flushPromises();
+    expect(context.bufferSources).toHaveLength(1);
+    expect(foundation?.stops).toHaveLength(0);
+    expect(context.decodeCount).toBe(4);
+    expect(fetcher).toHaveBeenCalledTimes(5);
+
+    engine.setRoomActive(false);
+    engine.setRoomActive(true);
+    await flushPromises();
+    expect(foundation?.stops).toHaveLength(1);
+    expect(context.bufferSources).toHaveLength(5);
+    expect(new Set(context.bufferSources.slice(1).flatMap(source => source.starts)))
+      .toEqual(new Set([0.02]));
+    expect(fetcher).toHaveBeenCalledTimes(5);
+    expect(context.decodeCount).toBe(4);
   });
 
   it('rejects an incompatible adaptive set and uses Foundation only', async () => {
@@ -645,6 +769,24 @@ describe('AudioEngine', () => {
     const wealthGain = context.gains[6];
     engine.setMusicIntensity(1);
     expect(wealthGain?.gainValue.events.filter(event => event.type === 'linear').at(-1)?.value).toBe(0);
+    expect(context.bufferSources).toHaveLength(MUSIC_STEM_IDS.length);
+    expect(context.bufferSources.every(source => source.stops.length === 0)).toBe(true);
+  });
+
+  it('holds the previous intensity inside the hysteresis band', () => {
+    const state = makeRoom().gameState;
+    state.boardState.turnNumber = 0;
+    developBoard(state, 12, 0);
+    expect(calculateMusicIntensityScore(state)).toBeGreaterThan(0.145);
+    expect(calculateMusicIntensityScore(state)).toBeLessThan(0.215);
+    expect(deriveMusicIntensity(state, 0)).toBe(0);
+    expect(deriveMusicIntensity(state, 1)).toBe(1);
+    developBoard(state, 16, 0);
+    expect(deriveMusicIntensity(state, 0)).toBe(1);
+    developBoard(state, 11, 0);
+    expect(deriveMusicIntensity(state, 1)).toBe(1);
+    developBoard(state, 10, 0);
+    expect(deriveMusicIntensity(state, 1)).toBe(0);
   });
 
   it('fades on hidden state, resumes the same source, and stops after leaving the room', async () => {
@@ -674,7 +816,7 @@ describe('AudioEngine', () => {
     expect(context.decodeCount).toBe(MUSIC_STEM_IDS.length);
   });
 
-  it('stops presentation tails without stopping UI clicks or background music', async () => {
+  it('stops presentation tails without stopping UI, unrelated gameplay SFX, or music', async () => {
     const context = new FakeAudioContext('running');
     const engine = makeEngine(context);
     engine.setRoomActive(true);
@@ -684,11 +826,13 @@ describe('AudioEngine', () => {
 
     engine.play('victory', { scope: 'presentation' });
     engine.play('ui.click');
+    engine.play('movement.hop');
     engine.stopPresentationVoices();
 
     expect(music.every(source => source.stops.length === 0)).toBe(true);
     expect(context.oscillators.slice(0, 3).every(source => source.stops.length === 2)).toBe(true);
     expect(context.oscillators[3]?.stops).toHaveLength(1);
+    expect(context.oscillators[4]?.stops).toHaveLength(1);
   });
 
   it('enforces cooldown and polyphony limits for spam-prone cues', () => {
@@ -729,7 +873,9 @@ describe('AudioEngine', () => {
   it('stops voices, disconnects buses, and closes the context on dispose', async () => {
     const context = new FakeAudioContext('running');
     const engine = makeEngine(context);
+    engine.setRoomActive(true);
     engine.handleUserInteraction();
+    await flushPromises();
     engine.play('victory');
 
     engine.dispose();
@@ -738,6 +884,8 @@ describe('AudioEngine', () => {
     expect(context.closeCount).toBe(1);
     expect(context.oscillators).toHaveLength(3);
     expect(context.oscillators.every(source => source.stops.length === 2)).toBe(true);
+    expect(context.bufferSources).toHaveLength(MUSIC_STEM_IDS.length);
+    expect(context.bufferSources.every(source => source.stops.length === 1)).toBe(true);
     expect(context.gains.slice(0, 3).every(node => node.disconnectCount === 1)).toBe(true);
     expect(context.gains.slice(4).every(node => node.disconnectCount === 1)).toBe(true);
   });

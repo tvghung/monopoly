@@ -130,6 +130,20 @@ export function startDesktopRuntime(): void {
   }]);
 
   app.whenReady().then(() => {
+    if (process.argv.includes('--audio-renderer-proof')) {
+      registerProductionRenderer();
+      void import('./audioRendererProof.js')
+        .then(({ runAudioRendererProof }) => runAudioRendererProof())
+        .then(result => {
+          console.log(`Packaged audio renderer proof PASS ${JSON.stringify(result)}`);
+          app.exit(0);
+        })
+        .catch(error => {
+          console.error('Packaged audio renderer proof failed.', error);
+          app.exit(1);
+        });
+      return;
+    }
     if (process.argv.includes('--phase7-runtime-proof')) {
       void import('./phase7RuntimeProof.js')
         .then(({ runPhase7RuntimeProof }) => runPhase7RuntimeProof())
@@ -175,6 +189,7 @@ export function startDesktopRuntime(): void {
   installRuntimeShutdown();
 
   app.on('window-all-closed', () => {
+    if (process.argv.includes('--audio-renderer-proof')) return;
     if (process.platform !== 'darwin') app.quit();
   });
 }

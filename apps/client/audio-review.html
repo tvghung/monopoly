@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Own the Block — Audio review</title>
+<style>
+  body { font: 18px system-ui; max-width: 46rem; margin: 2rem auto; padding: 1rem; }
+  label { display: block; margin: 1rem 0; }
+  button, select { font: inherit; padding: .5rem; }
+</style>
+<h1>V1 audio listening review</h1>
+<p>Development only. Run <code>pnpm validate:music-assets</code> successfully first.
+  This page uses the game's AudioEngine and is excluded from the release build.</p>
+<label>Arrangement
+  <select id="level">
+    <option value="0">0 — Foundation</option>
+    <option value="1">1 — Foundation + City</option>
+    <option value="2">2 — Foundation + City + Wealth</option>
+    <option value="3">3 — Foundation + City + Wealth + Competition</option>
+  </select>
+</label>
+<button id="play">Start / resume</button>
+<button id="stop">Leave room / stop</button>
+<label>Master <input id="master" type="range" min="0" max="1" step=".01" value="1"></label>
+<label>Music <input id="music" type="range" min="0" max="1" step=".01" value=".7"></label>
+<label>SFX <input id="sfx" type="range" min="0" max="1" step=".01" value=".8"></label>
+<button data-cue="dice.impact">Dice</button>
+<button data-cue="money.pay">Money</button>
+<button data-cue="ui.click">UI click</button>
+<p>Changes take effect at the next four-bar boundary (up to 8.73 seconds),
+  followed by a two-beat fade. Stop, choose a level, then start to hear that
+  arrangement immediately. Two full loops take about 4 minutes 40 seconds.</p>
+<p id="status" role="status">Waiting for your Start gesture.</p>
+<script type="module">
+  import { AudioEngine } from '/src/audio/AudioEngine.ts';
+  const audio = new AudioEngine();
+  const field = id => document.getElementById(id);
+  const mix = () => audio.setMix({
+    masterGain: Number(field('master').value),
+    musicGain: Number(field('music').value),
+    sfxGain: Number(field('sfx').value),
+  });
+  ['master', 'music', 'sfx'].forEach(id => field(id).addEventListener('input', mix));
+  mix();
+  field('level').addEventListener('change', () => audio.setMusicIntensity(Number(field('level').value)));
+  field('play').addEventListener('click', () => {
+    audio.handleUserInteraction();
+    audio.setRoomActive(true);
+    field('status').textContent = 'Playback requested. Missing or invalid Foundation remains silent; check the validation command and browser console.';
+  });
+  field('stop').addEventListener('click', () => {
+    audio.setRoomActive(false);
+    field('status').textContent = 'Room left; music fades out.';
+  });
+  document.querySelectorAll('[data-cue]').forEach(button => {
+    button.addEventListener('click', () => audio.handleUserInteraction(button.dataset.cue));
+  });
+  document.addEventListener('visibilitychange', () => audio.setDocumentHidden(document.hidden));
+  window.addEventListener('pagehide', () => audio.dispose(), { once: true });
+</script>
+</html>

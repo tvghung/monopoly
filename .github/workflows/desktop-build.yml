@@ -21,6 +21,7 @@ on:
     branches:
       - main
       - 'overhaul/**'
+      - 'codex/**'
     paths:
       - 'apps/client/**'
       - 'apps/desktop/**'
@@ -66,6 +67,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install audio validation tools (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --yes --no-progress
+
+      - name: Install audio validation tools (macOS)
+        if: runner.os == 'macOS'
+        run: command -v ffmpeg && command -v ffprobe || brew install ffmpeg
+
       - name: Typecheck desktop
         run: pnpm --filter @monopoly/desktop typecheck
 
@@ -86,6 +95,9 @@ jobs:
 
       - name: Run packaged Phase 7.2 Host proof
         run: pnpm --filter @monopoly/desktop proof:packaged:host
+
+      - name: Verify packaged gameplay music
+        run: pnpm --filter @monopoly/desktop proof:packaged:audio
 
       - name: Install mobile browser engines
         run: pnpm exec playwright install chromium webkit

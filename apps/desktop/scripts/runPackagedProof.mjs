@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const desktopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const operation = process.argv[2] ?? '--phase7-runtime-proof';
-if (!['--launch', '--phase7-runtime-proof', '--phase7-2-host-proof'].includes(operation)) {
+if (!['--launch', '--phase7-runtime-proof', '--phase7-2-host-proof', '--audio-renderer-proof'].includes(operation)) {
   throw new Error(`Unsupported packaged operation: ${operation}`);
 }
 const outRoot = path.join(desktopRoot, 'out');

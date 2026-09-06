@@ -50,6 +50,8 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Install audio validation tools
+        run: command -v ffmpeg && command -v ffprobe || (sudo apt-get update && sudo apt-get install -y ffmpeg)
       - name: Apply database migrations
         run: pnpm db:migrate
       - name: Typecheck
@@ -100,6 +102,12 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Install audio validation tools (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --yes --no-progress
+      - name: Install audio validation tools (macOS)
+        if: runner.os == 'macOS'
+        run: command -v ffmpeg && command -v ffprobe || brew install ffmpeg
       - name: Prepare Windows signing certificate
         if: matrix.platform == 'win32' && inputs.distribution_mode == 'signed'
         shell: pwsh
@@ -183,6 +191,8 @@ jobs:
         run: pnpm --filter @monopoly/desktop proof:packaged
       - name: Run packaged Phase 7.2 Host proof
         run: pnpm --filter @monopoly/desktop proof:packaged:host
+      - name: Verify packaged gameplay music
+        run: pnpm --filter @monopoly/desktop proof:packaged:audio
       - name: Verify collected artifact metadata
         run: pnpm validate:release -- --release --artifacts
       - name: Verify Windows Authenticode signature
