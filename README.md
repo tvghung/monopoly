@@ -1,5 +1,10 @@
 # Cờ Tỷ Phú Việt Nam
 
+Current release identity: **Own the Block V1 / 1.0.0**, Socket protocol **9**.
+See the [V1 release contract](project-document/ui-ux-overhaul/V1_RELEASE_CONTRACT.md)
+for the LAN-first desktop architecture and pending production soundtrack gate.
+Validate identity with `pnpm validate:v1-contract`.
+
 [![CI](https://github.com/terragady/monopoly-websockets/actions/workflows/ci.yml/badge.svg)](https://github.com/terragady/monopoly-websockets/actions/workflows/ci.yml)
 ![GitHub top language](https://img.shields.io/github/languages/top/terragady/monopoly-websockets)
 ![GitHub repo size](https://img.shields.io/github/repo-size/terragady/monopoly-websockets)

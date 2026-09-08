@@ -1,5 +1,11 @@
 # Phase 7.2 - Final Engineering Record
 
+> **HISTORICAL ENGINEERING RECORD**
+> This document records Phase 7.2 at its original proof SHAs. Its version and
+> protocol references are historical, including V8 evidence; they do not define
+> the current V1 release. Current source of truth:
+> [V1 Release Contract](V1_RELEASE_CONTRACT.md).
+
 ## Status
 
 **PHASE 7.2 ENGINEERING PASS.** Code-bearing SHA

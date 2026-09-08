@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validateV1Contract } from '../../../scripts/validateV1Contract.mjs';
 
 export const RELEASE_CONFIG_FILE_NAME = 'release-config.json';
 export const RELEASE_SOCKET_URL_ENV = 'OWN_THE_BLOCK_RELEASE_SOCKET_URL';
@@ -122,6 +123,12 @@ export function readCanonicalReleaseMetadata(root = repositoryRoot) {
     throw new Error(
       `Desktop package version drift: expected ${version}, found ${String(desktopPackage.version)}.`,
     );
+  }
+  for (const application of ['client', 'server']) {
+    const applicationPackage = readJson(path.join(root, 'apps', application, 'package.json'));
+    if (applicationPackage.version !== version) {
+      throw new Error(`${application} package version drift: expected ${version}, found ${String(applicationPackage.version)}.`);
+    }
   }
   if (desktopPackage.productName !== EXPECTED_PRODUCT_NAME) {
     throw new Error(`Desktop productName must be ${EXPECTED_PRODUCT_NAME}.`);
@@ -249,6 +256,7 @@ export function assertCanonicalReleaseMetadata({
   environment = process.env,
 } = {}) {
   const metadata = readCanonicalReleaseMetadata(root);
+  validateV1Contract(root);
   const endpoint = resolveReleaseSocketUrl({ environment, required: requireEndpoint });
   return { ...metadata, endpoint };
 }

@@ -1,6 +1,6 @@
 {
   "name": "monopoly-websockets",
-  "version": "3.0.0",
+  "version": "1.0.0",
   "description": "Real-time multiplayer Monopoly (Express + Socket.IO + React/Vite)",
   "private": true,
   "type": "module",
@@ -21,13 +21,15 @@
     "desktop:proof:host": "pnpm --filter @monopoly/desktop proof:packaged:host",
     "desktop:release": "node apps/desktop/scripts/release.mjs",
     "validate:release": "node apps/desktop/scripts/validateRelease.mjs",
+    "validate:v1-contract": "node scripts/validateV1Contract.mjs",
+    "test:v1-contract": "node --test scripts/validateV1Contract.check.mjs",
     "build": "pnpm --filter @monopoly/client build",
     "validate:music-assets": "pnpm --filter @monopoly/client validate:music-assets",
     "test:music-validator": "node --test apps/client/scripts/validateGameplayMusicAssets.check.mjs",
     "start": "pnpm --filter @monopoly/server start",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm test:music-validator && pnpm -r test",
+    "test": "pnpm test:v1-contract && pnpm test:music-validator && pnpm -r test",
     "test:e2e:mobile": "pnpm --filter @monopoly/client build && pnpm --filter @monopoly/desktop prepare:postgres && playwright test"
   },
   "devDependencies": {
