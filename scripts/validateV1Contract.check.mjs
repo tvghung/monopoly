@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { test } from 'node:test';
 import { fileURLToPath, URL } from 'node:url';
-import { contractPath, historicalPath, packagePaths, validateV1Contract } from './validateV1Contract.mjs';
+import { contractPath, historicalPath, isCliEntry, packagePaths, validateV1Contract } from './validateV1Contract.mjs';
 import { assertCanonicalReleaseMetadata, readCanonicalReleaseMetadata } from '../apps/desktop/scripts/releaseMetadata.mjs';
 
 const repositoryRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -31,6 +31,33 @@ function fixture(t) {
 }
 
 test('current repository contract passes', () => validateV1Contract(repositoryRoot));
+
+test('entry detection handles absent, missing, and unrelated entry paths', () => {
+  assert.equal(isCliEntry(''), false);
+  assert.equal(isCliEntry(path.join(repositoryRoot, 'package.json', 'missing')), false);
+  assert.equal(isCliEntry(path.join(repositoryRoot, 'package.json')), false);
+  assert.equal(isCliEntry(fileURLToPath(new URL('./validateV1Contract.mjs', import.meta.url))), true);
+});
+
+test('CLI validates the fixture through a filesystem-equivalent directory alias', t => {
+  const root = fixture(t);
+  const alias = `${root}-alias`;
+  symlinkSync(root, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  t.after(() => rmSync(alias, { recursive: true, force: true }));
+  const run = () => spawnSync(process.execPath, [path.join(alias, 'scripts/validateV1Contract.mjs')], { encoding: 'utf8' });
+  const passing = run();
+  assert.ifError(passing.error);
+  assert.equal(passing.status, 0, passing.stderr);
+  assert.match(passing.stdout, /V1 release contract PASS/);
+  assert.equal(passing.stderr, '');
+
+  write(root, 'package.json', packageJson('2.0.0'));
+  const failing = run();
+  assert.ifError(failing.error);
+  assert.equal(failing.status, 1);
+  assert.equal(failing.stdout, '');
+  assert.match(failing.stderr, /package\.json: expected V1 version 1\.0\.0, found 2\.0\.0/);
+});
 
 const cases = [
   ['correct contract and historical V8 / 3.0.0', null, null, null],
