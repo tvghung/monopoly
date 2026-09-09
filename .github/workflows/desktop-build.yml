@@ -84,7 +84,13 @@ jobs:
 
       - name: Install audio validation tools (macOS)
         if: runner.os == 'macOS'
-        run: command -v ffmpeg && command -v ffprobe || brew install ffmpeg
+        run: |
+          brew update
+          brew install ffmpeg
+          brew reinstall ffmpeg
+          brew link --overwrite ffmpeg
+          ffmpeg -hide_banner -encoders | grep -q 'libvorbis'
+          ffprobe -version
 
       - name: Test production music pipeline
         run: pnpm test:music-pipeline
