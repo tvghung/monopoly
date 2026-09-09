@@ -48,7 +48,7 @@ async function renderWav(file, {
   await runCommand(ffmpeg, [
     '-hide_banner', '-loglevel', 'error', '-nostdin', '-y',
     '-f', 'lavfi', '-i', source,
-    '-frames:a', String(frames),
+    '-af', `atrim=start_sample=0:end_sample=${frames},asetpts=PTS-STARTPTS`,
     '-ar', String(sampleRate), '-ac', String(channels),
     '-c:a', 'pcm_s16le', '-map_metadata', '-1', file,
   ]);
