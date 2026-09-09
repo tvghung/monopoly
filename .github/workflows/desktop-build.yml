@@ -86,10 +86,11 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew update
-          brew install ffmpeg
-          brew reinstall ffmpeg
-          brew unlink ffmpeg || true
-          brew link ffmpeg
+          brew install ffmpeg@7
+          brew reinstall ffmpeg@7
+          ffmpeg_bin="$(brew --prefix ffmpeg@7)/bin"
+          echo "$ffmpeg_bin" >> "$GITHUB_PATH"
+          export PATH="$ffmpeg_bin:$PATH"
           ffmpeg -hide_banner -encoders | grep -q 'libvorbis'
           ffprobe -version
 
