@@ -25,7 +25,7 @@ describe('packaged renderer content types', () => {
     expect(contentType('image.jpeg')).toBe('image/jpeg');
     expect(contentType('image.gif')).toBe('image/gif');
     expect(contentType('favicon.ico')).toBe('image/x-icon');
-    expect(contentType('gameplay-foundation.ogg')).toBe('audio/ogg');
+    expect(contentType('segments/foundation/00.ogg')).toBe('audio/ogg');
     expect(contentType('asset.bin')).toBe('application/octet-stream');
   });
 });

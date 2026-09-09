@@ -86,6 +86,12 @@ jobs:
         if: runner.os == 'macOS'
         run: command -v ffmpeg && command -v ffprobe || brew install ffmpeg
 
+      - name: Test production music pipeline
+        run: pnpm test:music-pipeline
+
+      - name: Test segmented production music validator
+        run: pnpm test:music-validator
+
       - name: Typecheck desktop
         run: pnpm --filter @monopoly/desktop typecheck
 

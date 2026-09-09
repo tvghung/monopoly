@@ -1,7 +1,13 @@
 # V1 Segmented Rendered Music Transport
 
-Status: Pass B engineering transport implemented; production soundtrack remains
-blocked pending Pass C.
+Status: Pass B engineering transport implemented and frozen; Pass C production
+pipeline/gates are implemented, but the production soundtrack remains blocked
+pending real master import and acceptance.
+
+The current source-to-runtime contract is documented in
+[V1_AUDIO_PRODUCTION_PIPELINE.md](V1_AUDIO_PRODUCTION_PIPELINE.md). This
+transport document describes the runtime behavior that Pass C supplies with a
+manifest and 64 generated chunks.
 
 ## Baseline
 
@@ -76,10 +82,12 @@ sequence.
 The dedicated `pnpm test:music-transport` command covers manifest rejection,
 startup gating, absolute scheduling across segment 15/0 and multiple loops,
 bounded PCM, intensity transitions, degradation, retries, visibility, room
-cleanup, buses, SFX, and disposal. Existing production validators remain
-unchanged and continue to block the normal test/build/package path while the
-four real full source masters and the Pass C-generated runtime manifest/chunks
-are absent.
+cleanup, buses, SFX, and disposal. The Pass C commands
+`pnpm test:music-pipeline`, `pnpm test:music-validator`, and
+`pnpm validate:music-release` cover generation, real codec validation, exact
+hash/build propagation, and the human-acceptance binding. The normal
+test/build/package path remains blocked while the four real source masters and
+the generated runtime manifest/chunks are absent.
 
 Not proven by Pass B: production Ogg generation, real SHA-256 values, loudness,
 true peak, seam quality, browser real-asset decode, packaged real-audio proof,

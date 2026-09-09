@@ -47,13 +47,17 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
   bus loads four rendered 64-bar, 110 BPM stems from the centralized asset
   manifest, decodes each once, validates their shared timeline, and starts them
   together. Authoritative public board state selects a hysteretic `0..3`
-  orchestration level and gain changes wait for a four-bar boundary. Missing or
-  incompatible secondary stems degrade to Foundation-only playback. If
-  Foundation cannot load, the temporary legacy BGM compatibility fallback keeps
-  the room audible; it is not the final soundtrack. `musicVolume` is intentionally
+  orchestration level and gain changes wait for a four-bar boundary. The Music
+  bus loads the four rendered stems as 16 four-bar chunks from the centralized
+  manifest, decodes only the bounded startup window, and validates each shared
+  timeline. Missing or incompatible secondary stems degrade to Foundation-only
+  playback. If Foundation cannot load, gameplay BGM is silent; no procedural or
+  placeholder production fallback is permitted. `musicVolume` is intentionally
   retained and ambience is deferred. Run `pnpm validate:music-assets` before
-  accepting a rendered release. Final rendered stems are still required; see
-  [GAMEPLAY_MUSIC_STEM_EXPORT_SPEC.md](../../ui-ux-overhaul/GAMEPLAY_MUSIC_STEM_EXPORT_SPEC.md).
+  accepting a rendered release. Final source masters and generated runtime
+  chunks are still required; see
+  [GAMEPLAY_MUSIC_STEM_EXPORT_SPEC.md](../../ui-ux-overhaul/GAMEPLAY_MUSIC_STEM_EXPORT_SPEC.md)
+  and [V1_AUDIO_PRODUCTION_PIPELINE.md](../../ui-ux-overhaul/V1_AUDIO_PRODUCTION_PIPELINE.md).
 - Desktop renderer dùng `contextIsolation`, `sandbox`, `nodeIntegration: false` và
   typed preload bridge whitelist; Electron main không chứa GameCore/game action.
 

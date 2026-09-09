@@ -8,6 +8,10 @@ import {
   resolveReleaseTarget,
   signingStatus,
 } from './releaseMetadata.mjs';
+import {
+  formatMusicReleaseResult,
+  validateMusicRelease,
+} from '../../client/scripts/validateMusicRelease.mjs';
 
 const argumentsSet = new Set(process.argv.slice(2));
 const target = resolveReleaseTarget();
@@ -26,6 +30,11 @@ if (metadata.endpoint !== undefined && generatedConfig.socketUrl !== metadata.en
 }
 if (metadata.endpoint === undefined && Object.hasOwn(generatedConfig, 'socketUrl')) {
   throw new Error('Generated release configuration must omit socketUrl when no endpoint was supplied.');
+}
+
+if (argumentsSet.has('--release')) {
+  const musicRelease = await validateMusicRelease();
+  if (!musicRelease.pass) throw new Error(formatMusicReleaseResult(musicRelease));
 }
 
 const signing = signingStatus({

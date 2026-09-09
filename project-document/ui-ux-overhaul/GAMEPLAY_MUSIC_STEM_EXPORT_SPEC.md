@@ -2,15 +2,16 @@
 
 ## Status
 
-**AUDIO BLOCKED (2026-09-06).** All four production stems remain absent. The
-temporary procedural fallback has been removed. Invalid Foundation produces
-silence; an incomplete/incompatible optional set uses Foundation only. No
-replacement music was generated or imported. Production builds and the normal
-client test command now fail on missing assets.
+**AUDIO BLOCKED (2026-09-09).** Pass C now supplies the production authoring,
+segmentation, hashing, technical validation, human-acceptance record, and
+release-gate infrastructure. The four real soundtrack masters have not been
+imported, so no production runtime audio is present and no audio acceptance is
+claimed.
 
-See [V1_AUDIO_FINAL_ACCEPTANCE.md](V1_AUDIO_FINAL_ACCEPTANCE.md) for the exact
-baseline, checks, limitations, and listening procedure. This specification is
-an export requirement, not evidence that the soundtrack has been produced.
+The historical [V1_AUDIO_FINAL_ACCEPTANCE.md](V1_AUDIO_FINAL_ACCEPTANCE.md)
+is retained unchanged as evidence from the earlier full-stem contract. The
+current source-to-runtime procedure is documented in
+[V1_AUDIO_PRODUCTION_PIPELINE.md](V1_AUDIO_PRODUCTION_PIPELINE.md).
 
 ## Musical timeline
 
@@ -18,23 +19,38 @@ an export requirement, not evidence that the soundtrack has been produced.
 - Meter: `4/4`
 - Key: `F Major`
 - Length: `64 bars` / `256 beats`
+- Source sample rate: `48,000 Hz`
+- Exact source timeline: `6,702,545` stereo frames
 - Theoretical duration: `139.6363636 seconds`
 - Form: Intro / A / A' / B / Bridge / C / D / A'' / Loop Bridge
 
 All stems must be exported from the same DAW project, timeline selection, and
-render operation. The common selection may end on the nearest sample to the
-theoretical duration, but every stem must have the same exact sample count.
-
-## Required files
-
-Place these files in `apps/client/public/audio/music/gameplay/`:
+render operation. The source frame count is defined by cumulative rounded
+musical boundaries, not by multiplying one rounded phrase duration:
 
 ```text
-gameplay-foundation.ogg
-gameplay-city.ogg
-gameplay-wealth.ogg
-gameplay-competition.ogg
+boundary(i) = round(i * 16 beats * 60 / 110 * 48000)
+segment(i) = [boundary(i), boundary(i + 1))
 ```
+
+This yields 16 four-bar segments and a final boundary of `6,702,545` frames.
+
+## Required source masters
+
+Place these local, untracked files in `audio-source/gameplay/`:
+
+```text
+gameplay-foundation.wav
+gameplay-city.wav
+gameplay-wealth.wav
+gameplay-competition.wav
+```
+
+Every master must be a lossless PCM WAV, stereo, 48 kHz, exactly 6,702,545
+frames, non-silent, finite, and below full-scale sample clipping. The four
+masters must share the same start, end, bar alignment, channel layout, and
+loop preparation. Do not place WAV masters in `apps/client/public/`, commit
+them, or package them.
 
 The files are synchronized layers of one composition, not separate songs.
 
@@ -48,118 +64,117 @@ The files are synchronized layers of one composition, not separate songs.
 - Competition: stronger syncopation, additional brushed percussion, harmonic
   tension, and extremely subtle accordion.
 
-## Export contract
-
-- Export stereo Ogg files at one shared sample rate; `48 kHz` is preferred.
-- Use the exact same start point, end point, bar alignment, loop point, channel
-  layout, encoding settings, duration, and sample count for all four files.
-- Do not trim stems independently or introduce different leading/trailing
-  silence.
-- Prepare a seamless loop in the source session. Do not leave an uncontrolled
-  reverb tail beyond the common boundary, and do not rely on runtime crossfades
-  to repair the export.
-- Avoid clipped peaks and verify the seam over multiple complete loops.
-- Do not normalize or master stems independently. Preserve their intended level
-  relationships and test the maximum-density Foundation + City + Wealth +
-  Competition mix.
-- Do not depend on embedded metadata, browser processing, or runtime gain as a
-  substitute for a correct render.
-
-## Musical and mix direction
+## Authoring and mix direction
 
 Target a polished, warm, playful, clever, slightly mischievous city-tycoon party
 game. Piano and marimba are the main identity. Keep the primary melody roughly
 within `F4–E5`; treble may support it but must not become a repetitive lead.
 Intensity must come from arrangement density and tension, not higher pitch,
-brightness, or a large loudness increase. Leave space for dice, money, property,
-card, building, jail, turn, and UI sound effects.
+brightness, or a large loudness increase. Leave space for dice, money,
+property, card, building, jail, turn, and UI sound effects.
 
-Avoid General MIDI character, fake acoustic timbres, glockenspiel, bright plucks,
-constant high ostinatos, endless ascending patterns, EDM elements, excessive
-cymbals, and nursery-rhyme phrasing.
+Avoid General MIDI character, fake acoustic timbres, glockenspiel, bright
+plucks, constant high ostinatos, endless ascending patterns, EDM elements,
+excessive cymbals, and nursery-rhyme phrasing. Do not synthesize instruments in
+production code and do not use placeholder, personal, test-noise, or procedural
+replacement audio.
 
-## External verification
-
-Use proper audio tooling to measure integrated loudness, true peak, spectral
-balance, stereo compatibility, and the loop seam. `-17 LUFS integrated` and a
-true peak no higher than approximately `-1.5 dBTP` are working targets, not
-claims. Record measured results before reporting them.
-
-Final acceptance requires manual listening for instrument realism, melodic and
-treble balance, multiple loop cycles, long-session fatigue, SFX readability, and
-all four adaptive levels. Automated runtime tests cannot pass this gate.
-
-## Validation and measured asset record
+## Deterministic runtime generation
 
 From the repository root, with FFmpeg and ffprobe available:
 
 ```text
+pnpm prepare:music-assets
+```
+
+The command validates all four source masters, stages output outside the
+destination, and uses one FFmpeg command per stem with:
+
+- `atrim=start_sample=<boundary(i)>:end_sample=<boundary(i+1)>`
+- `asetpts=PTS-STARTPTS`
+- stereo 48 kHz output
+- one `libvorbis -q:a 6` encode per segment
+- no normalization, fades, or runtime FFmpeg dependency
+
+Only after all 64 chunks encode, structural validation succeeds, and the
+manifest SHA-256 fields are written does the command promote the known output
+paths. A failure leaves the previous destination intact and removes only known
+generated staging/backup paths.
+
+## Canonical shipped output
+
+The output directory is `apps/client/public/audio/music/gameplay/` and must
+contain exactly this set:
+
+```text
+gameplay-music.manifest.json
+segments/foundation/00.ogg ... segments/foundation/15.ogg
+segments/city/00.ogg ... segments/city/15.ogg
+segments/wealth/00.ogg ... segments/wealth/15.ogg
+segments/competition/00.ogg ... segments/competition/15.ogg
+```
+
+Each chunk is one stereo Ogg/Vorbis stream at 48 kHz. The manifest remains
+schema version `1` and contains the exact track contract, cumulative
+`startFrame`/`frameCount` values, safe relative paths, and a lowercase
+64-character SHA-256 for every chunk. Legacy full-stem OGG files and stale
+chunks are forbidden.
+
+## Technical validation and measured evidence
+
+The real-asset validator uses FFmpeg and ffprobe; it never mocks codec or
+decoded-audio behavior. Run:
+
+```text
+pnpm test:music-pipeline
 pnpm test:music-validator
 pnpm validate:music-assets
 pnpm build
 node apps/client/scripts/validateGameplayMusicAssets.mjs --build-output --report project-document/ui-ux-overhaul/V1_AUDIO_ASSET_MEASUREMENTS.json
 ```
 
-Use `FFMPEG_PATH` / `FFPROBE_PATH` for explicit executable paths. These are
-development/build tools, not shipped runtime dependencies. CI installs them;
-no npm dependency or lockfile change is needed.
+The tests create synthetic WAV/OGG fixtures only in isolated temporary
+directories. They never install those fixtures into `public/` or use them as
+production listening evidence.
 
-The validator reads the actual files and enforces one stereo Ogg/Vorbis stream,
-at least 65,536 bytes, zero timeline start, one sample rate, container frame
-count within one frame of `round(256 * 60 / 110 * sampleRate)`, decoded duration
-within 10 ms, and exact matching container/decoded frame counts between stems.
-It rejects corrupt/silent data, sample peaks at or above full scale, true peaks
-at or above 0 dBTP, and extreme seam jumps. `--build-output` also requires each
-Vite output file to match the source SHA-256.
+Validation hard-fails missing/corrupt files, unsafe paths, bad hashes, legacy
+full OGGs, stale files, wrong codec/rate/channel count, non-finite or clipped
+PCM, silence, decoded frame error above one frame, cross-stem timeline drift,
+and reconstructed timeline drift. It reconstructs every stem from the shipped
+chunks and checks all 15 internal seams plus the `15 → 00` loop seam.
 
-The JSON records file sizes/hashes, codec, channels, sample rate, container and
-decoded timelines, decoded PCM bytes, LUFS, true peak, and endpoint samples.
-The full-density measurement sums all four stems at unity without normalization.
-It reports headroom and warns outside the working -17 +/- 2 LUFS or -1.5 dBTP
-targets. Runtime Level 3 uses the existing gains `[1, 0.9, 0.8, 0.75]`; the
-unity sum is the conservative production headroom check.
+Runtime Level 3 is measured with gains `[1, 0.9, 0.8, 0.75]` and hard-gated to
+integrated loudness `-19..-15 LUFS` inclusive and true peak `<= -1.5 dBTP`,
+with no clipping, silence, or non-finite samples. Unity-sum `[1,1,1,1]` is
+measured separately as a conservative headroom diagnostic; it has no LUFS
+hard target. The build-output check requires the manifest and all 64 chunks to
+match the source SHA-256 values exactly.
 
-The seam screen fails a boundary jump exceeding both 0.5 full scale and four
-times the largest within-track adjacent jump. A change above 0.05 full scale
-between the first/last 10 ms means produces a warning. This cannot certify a
-musical loop bridge or prove that a source-session tail was prepared correctly.
+The validator records actual file hashes, codec, channels, rate, container and
+decoded timelines, PCM peaks, LUFS, true peak, mix gains, and seam statistics.
+No measurement is reported until the actual files have been read and decoded.
 
-| Required file under `apps/client/public/audio/music/gameplay/` | Current status | Size / rate / channels / duration / SHA-256 / LUFS / dBTP |
-| --- | --- | --- |
-| `gameplay-foundation.ogg` | MISSING | Not measurable |
-| `gameplay-city.ogg` | MISSING | Not measurable |
-| `gameplay-wealth.ogg` | MISSING | Not measurable |
-| `gameplay-competition.ogg` | MISSING | Not measurable |
+## Manual acceptance and release binding
 
-No production audio measurement report exists yet. Temporary noise used to
-test the validator is never installed in public assets and is not soundtrack
-or listening evidence. No third-party music/sample redistribution rights have
-been asserted; supply the composition/source license with the final exports.
+Technical validation does not certify instrument realism, musical loop
+quality, long-session fatigue, SFX readability, or all four adaptive levels.
+The reviewer must listen to multiple loop cycles and all runtime intensity
+levels, then update `V1_AUDIO_HUMAN_ACCEPTANCE.json` with `accepted: true`, a
+reviewer, timestamp, and the exact released manifest SHA-256.
 
-## Runtime contract and limitations
+`pnpm validate:music-release` distinguishes:
 
-- One shared AudioContext, separate Master/Music/SFX buses, legitimate user
-  activation, and synchronized phrase sources remain intact. Pass B consumes a
-  16-segment runtime manifest; the four full stems below remain the intended
-  human-delivered source masters for Pass C.
-- Level 0 is Foundation; 1 adds City; 2 adds Wealth; 3 adds Competition. Existing
-  public-state intensity weights and hysteresis remain unchanged. Changes use
-  four-bar boundaries with two-beat gain fades, without restarting stems.
-- Successful phrase decodes are retained only in the current/next bounded
-  window. HTTP 404/410, corrupt data, and incompatible timelines are permanent
-  failures; other fetch/read failures allow one controlled retry on a later
-  activation. Visibility/state updates do not repeatedly fetch. Optional stem
-  failure degrades the room to Foundation-only and a transient optional asset
-  is eligible for one later clean-room retry.
-- Hiding fades and stops scheduled phrase sources, aborts transport work, and
-  releases decoded buffers; leaving does the same. Entering another room starts
-  a fresh sequence and decodes only the bounded startup window. Disposal stops
-  voices, drops phrase buffers, disconnects buses, and closes context.
-- At the preferred 48 kHz, the old four full float32 stereo buffers cost
-  approximately 204.55 MiB (`4 * round(48000 * 256 * 60 / 110) * 2 * 4` bytes).
-  Pass B retains at most two four-stem phrase sets, below 32 MiB of owned
-  decoded PCM in the 48 kHz engineering calculation. This is not total browser
-  memory; Web Audio may resample to the device context rate and real mobile
-  compatibility remains unverified until production assets exist.
-- Human listening: **PENDING HUMAN ACCEPTANCE**. Physical iPhone Safari audio:
-  **RETEST REQUIRED**. Final V1 acceptance: **HOLD**.
+- `TECHNICAL AUDIO FAILURE` — the shipped segmented assets or technical gates
+  fail; or
+- `HUMAN AUDIO ACCEPTANCE PENDING` — technical assets pass but the signed-off
+  acceptance record is absent, false, incomplete, or bound to another manifest.
+
+Only `pnpm validate:release -- --release` invokes this human-bound gate.
+Ordinary contract validation does not require human acceptance. Packaged audio
+proof remains nonzero when production assets are absent or the proof result is
+false. Physical iPhone Safari listening, installer lifecycle, signing,
+notarization, and V1 certification remain separate gates.
+
+No production soundtrack was imported or generated in Pass C. Pass D is the
+authorized next step for importing the real masters and completing technical
+audio acceptance.

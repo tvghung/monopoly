@@ -108,5 +108,8 @@ dist
 apps/desktop/out/
 apps/desktop/generated/
 
+# Production soundtrack source masters are supplied locally and never committed.
+/audio-source/gameplay/*.wav
+
 # macOS metadata
 .DS_Store

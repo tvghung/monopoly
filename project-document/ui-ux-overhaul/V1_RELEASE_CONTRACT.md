@@ -57,12 +57,14 @@ Tests may generate synthetic fixtures only in isolated test locations. They must
 never silently promote placeholders into shipped production soundtrack content.
 
 The current rendered-stem runtime now uses the Pass B segmented rendered music
-transport documented in [V1_AUDIO_SEGMENTED_TRANSPORT.md](V1_AUDIO_SEGMENTED_TRANSPORT.md).
-Production source masters and generated runtime segments are still missing; the
+transport documented in [V1_AUDIO_SEGMENTED_TRANSPORT.md](V1_AUDIO_SEGMENTED_TRANSPORT.md)
+and the Pass C authoring/validation/release pipeline documented in
+[V1_AUDIO_PRODUCTION_PIPELINE.md](V1_AUDIO_PRODUCTION_PIPELINE.md). Production
+source masters and generated runtime segments are still missing; the
 approximately 204.55 MiB full-track decoded-memory concern is addressed by the
-bounded phrase window, but production audio, device acceptance, successful
-packaging, signing, and notarization remain pending. This contract does not
-declare release readiness.
+bounded phrase window, but technical production audio, human acceptance,
+device acceptance, successful packaging, signing, and notarization remain
+pending. This contract does not declare release readiness.
 
 ## Baseline and enforcement
 

@@ -33,7 +33,8 @@ export async function runAudioRendererProof(): Promise<unknown> {
 }
 
 // Runs inside the real packaged renderer, through its registered app:// handler.
-// Pass B can only report a pending result until Pass C supplies the manifest and chunks.
+// It proves the shipped manifest, hashes, MIME types, and Web Audio timelines;
+// it does not replace human listening or physical-device acceptance.
 async function inspectGameplayMusicAssets() {
   const context = new AudioContext();
   try {
@@ -52,38 +53,74 @@ async function inspectGameplayMusicAssets() {
       throw new Error(`${manifestUrl}: HTTP ${String(manifestResponse.status)}, Content-Type ${String(manifestContentType)}`);
     }
     type RendererMusicManifest = {
-      track: { sampleRate: number };
+      schemaVersion: number;
+      track: {
+        bpm: number;
+        beatsPerBar: number;
+        bars: number;
+        segmentBars: number;
+        segmentCount: number;
+        sampleRate: number;
+        totalFrames: number;
+      };
       stems: Array<{
         id: string;
-        segments: Array<{ index: number; file: string; frameCount: number }>;
+        segments: Array<{
+          index: number;
+          file: string;
+          startFrame: number;
+          frameCount: number;
+          sha256: string;
+        }>;
       }>;
     };
     const isRecord = (value: unknown): value is Record<string, unknown> => (
       typeof value === 'object' && value !== null && !Array.isArray(value)
     );
     const isManifest = (value: unknown): value is RendererMusicManifest => {
-      if (!isRecord(value) || !isRecord(value.track) || typeof value.track.sampleRate !== 'number'
+      if (!isRecord(value) || typeof value.schemaVersion !== 'number' || !isRecord(value.track)
+        || typeof value.track.bpm !== 'number'
+        || typeof value.track.beatsPerBar !== 'number'
+        || typeof value.track.bars !== 'number'
+        || typeof value.track.segmentBars !== 'number'
+        || typeof value.track.segmentCount !== 'number'
+        || typeof value.track.sampleRate !== 'number'
+        || typeof value.track.totalFrames !== 'number'
         || !Array.isArray(value.stems)) return false;
       return value.stems.every(stem => {
         if (!isRecord(stem) || typeof stem.id !== 'string' || !Array.isArray(stem.segments)) return false;
         return stem.segments.every(segment => isRecord(segment)
           && typeof segment.index === 'number'
           && typeof segment.file === 'string'
-          && typeof segment.frameCount === 'number');
+          && typeof segment.startFrame === 'number'
+          && typeof segment.frameCount === 'number'
+          && typeof segment.sha256 === 'string');
       });
     };
     const manifestPayload: unknown = await manifestResponse.json();
-    if (!isManifest(manifestPayload) || manifestPayload.stems.length !== 4
-      || manifestPayload.track.sampleRate <= 0
+    if (!isManifest(manifestPayload) || manifestPayload.schemaVersion !== 1
+      || manifestPayload.stems.length !== 4
+      || manifestPayload.track.bpm !== 110
+      || manifestPayload.track.beatsPerBar !== 4
+      || manifestPayload.track.bars !== 64
+      || manifestPayload.track.segmentBars !== 4
+      || manifestPayload.track.segmentCount !== 16
+      || manifestPayload.track.sampleRate !== 48000
+      || manifestPayload.track.totalFrames !== 6702545
       || manifestPayload.stems.some(stem => stem.segments.length !== 16)) {
       throw new Error(`${manifestUrl}: expected four stems`);
     }
     const manifest = manifestPayload;
-    const stemIds = new Set(['foundation', 'city', 'wealth', 'competition']);
-    if (manifest.stems.some(stem => !stemIds.has(stem.id))
-      || new Set(manifest.stems.map(stem => stem.id)).size !== 4) {
+    const stemIds = ['foundation', 'city', 'wealth', 'competition'];
+    if (manifest.stems.some((stem, index) => stem.id !== stemIds[index])
+      || new Set(manifest.stems.map(stem => stem.id)).size !== stemIds.length) {
       throw new Error(`${manifestUrl}: invalid stem identities`);
     }
+    const phraseFrames = (index: number) => Math.round(index * 16 * 60 / 110 * 48000);
+    const sha256Hex = async (payload: ArrayBuffer) => {
+      const digest = await crypto.subtle.digest('SHA-256', payload);
+      return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    };
     const timelines = new Map<number, {
       sampleRate: number;
       frames: number;
@@ -93,9 +130,13 @@ async function inspectGameplayMusicAssets() {
     for (const stem of manifest.stems) {
       for (const [segmentPosition, segment] of stem.segments.entries()) {
         const prefix = `segments/${stem.id}/`;
+        const expectedStartFrame = phraseFrames(segmentPosition);
+        const expectedEndFrame = phraseFrames(segmentPosition + 1);
         if (segment.index !== segmentPosition
-          || !segment.file.startsWith(prefix)
-          || !/^[A-Za-z0-9_-]+\.ogg$/.test(segment.file.slice(prefix.length))) {
+          || segment.startFrame !== expectedStartFrame
+          || segment.frameCount !== expectedEndFrame - expectedStartFrame
+          || segment.file !== `${prefix}${String(segmentPosition).padStart(2, '0')}.ogg`
+          || !/^[a-f0-9]{64}$/.test(segment.sha256)) {
           throw new Error(`${manifestUrl}: unsafe segment path ${segment.file}`);
         }
         const url = new URL(`/audio/music/gameplay/${segment.file}`, location.href).href;
@@ -106,6 +147,7 @@ async function inspectGameplayMusicAssets() {
         }
         const payload = await response.arrayBuffer();
         if (payload.byteLength === 0) throw new Error(`${url}: empty audio payload`);
+        if (await sha256Hex(payload) !== segment.sha256) throw new Error(`${url}: SHA-256 mismatch`);
         const buffer = await context.decodeAudioData(payload.slice(0));
         const expectedDecodedFrames = Math.round(
           (segment.frameCount / manifest.track.sampleRate) * buffer.sampleRate,

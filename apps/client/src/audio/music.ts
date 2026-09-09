@@ -1,23 +1,24 @@
 import { tileState, type PublicGameState } from '@monopoly/shared';
 import type { MusicIntensity } from './types';
+import musicContract from './music-contract.json';
 
-export const MUSIC_BPM = 110;
-export const MUSIC_BARS = 64;
-export const MUSIC_BEATS = MUSIC_BARS * 4;
+export const MUSIC_BPM = musicContract.bpm;
+export const MUSIC_BARS = musicContract.bars;
+export const MUSIC_BEATS = MUSIC_BARS * musicContract.beatsPerBar;
 export const MUSIC_LOOP_DURATION_SECONDS = MUSIC_BEATS * 60 / MUSIC_BPM;
-export const MUSIC_PHRASE_BEATS = 16;
-export const MUSIC_BEATS_PER_BAR = 4;
-export const MUSIC_SEGMENT_BARS = 4;
+export const MUSIC_PHRASE_BEATS = musicContract.segmentBars * musicContract.beatsPerBar;
+export const MUSIC_BEATS_PER_BAR = musicContract.beatsPerBar;
+export const MUSIC_SEGMENT_BARS = musicContract.segmentBars;
 export const MUSIC_SEGMENT_COUNT = MUSIC_BARS / MUSIC_SEGMENT_BARS;
-export const MUSIC_SAMPLE_RATE = 48_000;
+export const MUSIC_SAMPLE_RATE = musicContract.sampleRate;
 export const MUSIC_MANIFEST_URL = '/audio/music/gameplay/gameplay-music.manifest.json';
 export const MUSIC_ASSET_ROOT = '/audio/music/gameplay/';
 
 export const GAMEPLAY_MUSIC_STEMS = [
-  { id: 'foundation', url: '/audio/music/gameplay/gameplay-foundation.ogg' },
-  { id: 'city', url: '/audio/music/gameplay/gameplay-city.ogg' },
-  { id: 'wealth', url: '/audio/music/gameplay/gameplay-wealth.ogg' },
-  { id: 'competition', url: '/audio/music/gameplay/gameplay-competition.ogg' },
+  { id: 'foundation' },
+  { id: 'city' },
+  { id: 'wealth' },
+  { id: 'competition' },
 ] as const;
 
 export const MUSIC_STEM_IDS = GAMEPLAY_MUSIC_STEMS.map(stem => stem.id);
@@ -216,7 +217,7 @@ export const MUSIC_SECTIONS = [
 
 export const MUSIC_TRACK_METADATA = {
   bpm: MUSIC_BPM,
-  beatsPerBar: 4,
+  beatsPerBar: MUSIC_BEATS_PER_BAR,
   beats: MUSIC_BEATS,
   bars: MUSIC_BARS,
   durationSeconds: MUSIC_LOOP_DURATION_SECONDS,
