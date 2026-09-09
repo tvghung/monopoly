@@ -102,7 +102,6 @@ export async function validateSourceMasters({
 
 async function encodeStem(sourceFile, stemId, stageDirectory, ffmpeg) {
   const labels = MUSIC_SEGMENT_BOUNDARIES.map(segment => `s${segment.index}`);
-  const outputs = MUSIC_SEGMENT_BOUNDARIES.map(segment => `o${segment.index}`);
   const filters = [
     `[0:a]asplit=${MUSIC_SEGMENT_COUNT}${labels.map(label => `[${label}]`).join('')}`,
     ...MUSIC_SEGMENT_BOUNDARIES.map(segment => (
@@ -112,15 +111,18 @@ async function encodeStem(sourceFile, stemId, stageDirectory, ffmpeg) {
   const outputFiles = MUSIC_SEGMENT_BOUNDARIES.map(segment => (
     path.join(stageDirectory, ...runtimeSegmentPath(stemId, segment.index).split('/'))
   ));
+  const outputArgs = MUSIC_SEGMENT_BOUNDARIES.flatMap((segment, index) => [
+    '-map', `[o${index}]`,
+    '-map_metadata', '-1',
+    '-c:a', 'libvorbis', '-q:a', encodingQuality,
+    '-ar', String(MUSIC_SAMPLE_RATE), '-ac', '2',
+    outputFiles[index],
+  ]);
   await runCommand(ffmpeg, [
     '-hide_banner', '-nostdin', '-xerror', '-y',
     '-i', sourceFile,
     '-filter_complex', filters,
-    ...outputs.flatMap(output => ['-map', `[${output}]`]),
-    '-map_metadata', '-1',
-    '-c:a', 'libvorbis', '-q:a', encodingQuality,
-    '-ar', String(MUSIC_SAMPLE_RATE), '-ac', '2',
-    ...outputFiles,
+    ...outputArgs,
   ]);
   return outputFiles;
 }
