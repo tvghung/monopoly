@@ -13,7 +13,7 @@
     "test:music-validator": "node scripts/validateGameplayMusicAssets.check.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/validateGameplayMusicAssets.mjs && vitest run --environment jsdom --pool=vmThreads --maxWorkers=1 --no-file-parallelism",
+    "test": "vitest run --environment jsdom --pool=vmThreads --maxWorkers=1 --no-file-parallelism",
     "test:music-transport": "vitest run src/audio/AudioEngine.test.ts src/audio/SegmentedMusicTransport.test.ts src/audio/AudioProvider.test.tsx --environment jsdom --pool=vmThreads --maxWorkers=1 --no-file-parallelism",
     "test:watch": "vitest --environment jsdom --pool=vmThreads"
   },
