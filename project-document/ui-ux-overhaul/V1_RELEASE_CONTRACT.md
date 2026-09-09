@@ -56,11 +56,13 @@ output check and packaged audio proof.
 Tests may generate synthetic fixtures only in isolated test locations. They must
 never silently promote placeholders into shipped production soundtrack content.
 
-The current rendered-stem runtime is baseline behavior. Segmented rendered music
-transport is pending Pass B, not implemented by this contract. Production assets
-are still missing; the approximately 204.55 MiB audio-memory concern remains
-unresolved. This contract does not declare release readiness, device acceptance,
-successful packaging, signing, or notarization.
+The current rendered-stem runtime now uses the Pass B segmented rendered music
+transport documented in [V1_AUDIO_SEGMENTED_TRANSPORT.md](V1_AUDIO_SEGMENTED_TRANSPORT.md).
+Production source masters and generated runtime segments are still missing; the
+approximately 204.55 MiB full-track decoded-memory concern is addressed by the
+bounded phrase window, but production audio, device acceptance, successful
+packaging, signing, and notarization remain pending. This contract does not
+declare release readiness.
 
 ## Baseline and enforcement
 

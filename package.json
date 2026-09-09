@@ -26,6 +26,7 @@
     "build": "pnpm --filter @monopoly/client build",
     "validate:music-assets": "pnpm --filter @monopoly/client validate:music-assets",
     "test:music-validator": "node --test apps/client/scripts/validateGameplayMusicAssets.check.mjs",
+    "test:music-transport": "pnpm --filter @monopoly/client test:music-transport",
     "start": "pnpm --filter @monopoly/server start",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",

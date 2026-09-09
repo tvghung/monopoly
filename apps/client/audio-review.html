@@ -9,8 +9,9 @@
   button, select { font: inherit; padding: .5rem; }
 </style>
 <h1>V1 audio listening review</h1>
-<p>Development only. Run <code>pnpm validate:music-assets</code> successfully first.
-  This page uses the game's AudioEngine and is excluded from the release build.</p>
+<p>Development only. This page uses the game's segmented <code>AudioEngine</code>
+  and is excluded from the release build. Pass C production assets are required
+  for audible review; the transport starts with the current and next phrase.</p>
 <label>Arrangement
   <select id="level">
     <option value="0">0 — Foundation</option>
@@ -29,7 +30,8 @@
 <button data-cue="ui.click">UI click</button>
 <p>Changes take effect at the next four-bar boundary (up to 8.73 seconds),
   followed by a two-beat fade. Stop, choose a level, then start to hear that
-  arrangement immediately. Two full loops take about 4 minutes 40 seconds.</p>
+  arrangement immediately. The transport keeps only the current and next
+  phrase decoded; long listening remains a Pass C/human-acceptance activity.</p>
 <p id="status" role="status">Waiting for your Start gesture.</p>
 <script type="module">
   import { AudioEngine } from '/src/audio/AudioEngine.ts';

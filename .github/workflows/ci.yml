@@ -53,6 +53,9 @@ jobs:
       - name: Test V1 release contract
         run: pnpm test:v1-contract
 
+      - name: Test segmented music transport
+        run: pnpm test:music-transport
+
       - name: Install audio validation tools
         run: command -v ffmpeg && command -v ffprobe || (sudo apt-get update && sudo apt-get install -y ffmpeg)
 

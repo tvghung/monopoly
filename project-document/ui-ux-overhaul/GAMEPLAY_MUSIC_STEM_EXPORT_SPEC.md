@@ -139,23 +139,27 @@ been asserted; supply the composition/source license with the final exports.
 ## Runtime contract and limitations
 
 - One shared AudioContext, separate Master/Music/SFX buses, legitimate user
-  activation, and four sources starting at one common timestamp remain intact.
+  activation, and synchronized phrase sources remain intact. Pass B consumes a
+  16-segment runtime manifest; the four full stems below remain the intended
+  human-delivered source masters for Pass C.
 - Level 0 is Foundation; 1 adds City; 2 adds Wealth; 3 adds Competition. Existing
   public-state intensity weights and hysteresis remain unchanged. Changes use
   four-bar boundaries with two-beat gain fades, without restarting stems.
-- Successful decodes and permanent failures are cached per context. HTTP
-  404/410, corrupt data, and incompatible timelines remain failed for that
-  context. Other fetch/read failures allow one controlled retry on a later
-  trusted interaction or new room activation. Visibility/state updates do not
-  repeatedly fetch. If Foundation is already playing, recovered optional stems
-  become active in the next clean room session without interrupting it.
-- Hiding fades the same sources; leaving stops them after the fade; entering
-  another room starts a fresh synchronized set using cached buffers. Disposal
-  stops voices, drops buffer references, disconnects buses, and closes context.
-- At the preferred 48 kHz, four float32 stereo buffers cost approximately
-  204.55 MiB (`4 * round(48000 * 256 * 60 / 110) * 2 * 4` bytes), before decode
-  overhead. This is a calculation, not measured browser memory. Web Audio may
-  resample to the device context rate. Actual mobile memory and decoding
-  compatibility remain unverified until production assets exist.
+- Successful phrase decodes are retained only in the current/next bounded
+  window. HTTP 404/410, corrupt data, and incompatible timelines are permanent
+  failures; other fetch/read failures allow one controlled retry on a later
+  activation. Visibility/state updates do not repeatedly fetch. Optional stem
+  failure degrades the room to Foundation-only and a transient optional asset
+  is eligible for one later clean-room retry.
+- Hiding fades and stops scheduled phrase sources, aborts transport work, and
+  releases decoded buffers; leaving does the same. Entering another room starts
+  a fresh sequence and decodes only the bounded startup window. Disposal stops
+  voices, drops phrase buffers, disconnects buses, and closes context.
+- At the preferred 48 kHz, the old four full float32 stereo buffers cost
+  approximately 204.55 MiB (`4 * round(48000 * 256 * 60 / 110) * 2 * 4` bytes).
+  Pass B retains at most two four-stem phrase sets, below 32 MiB of owned
+  decoded PCM in the 48 kHz engineering calculation. This is not total browser
+  memory; Web Audio may resample to the device context rate and real mobile
+  compatibility remains unverified until production assets exist.
 - Human listening: **PENDING HUMAN ACCEPTANCE**. Physical iPhone Safari audio:
   **RETEST REQUIRED**. Final V1 acceptance: **HOLD**.

@@ -135,7 +135,7 @@ export function startDesktopRuntime(): void {
       void import('./audioRendererProof.js')
         .then(({ runAudioRendererProof }) => runAudioRendererProof())
         .then(result => {
-          console.log(`Packaged audio renderer proof PASS ${JSON.stringify(result)}`);
+          console.log(`Packaged audio renderer proof RESULT ${JSON.stringify(result)}`);
           app.exit(0);
         })
         .catch(error => {

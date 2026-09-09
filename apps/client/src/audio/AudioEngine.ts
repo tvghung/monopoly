@@ -1,11 +1,5 @@
 import { AUDIO_REGISTRY, type ProceduralAudioLayer } from './audioRegistry';
-import {
-  GAMEPLAY_MUSIC_STEMS,
-  MUSIC_BPM,
-  MUSIC_LOOP_DURATION_SECONDS,
-  MUSIC_PHRASE_BEATS,
-  MUSIC_STEM_LEVELS,
-} from './music';
+import { SegmentedMusicTransport, type SegmentedMusicTransportSnapshot } from './SegmentedMusicTransport';
 import type {
   AudioCueId,
   AudioMix,
@@ -19,17 +13,37 @@ export {
   calculateMusicIntensityScore,
   deriveMusicIntensity,
   GAMEPLAY_MUSIC_STEMS,
+  MUSIC_ASSET_ROOT,
+  MUSIC_BEATS_PER_BAR,
   MUSIC_BARS,
   MUSIC_BEATS,
   MUSIC_BPM,
+  MUSIC_MANIFEST_URL,
   MUSIC_LOOP_DURATION_SECONDS,
+  MUSIC_PHRASE_BEATS,
+  MUSIC_SAMPLE_RATE,
   MUSIC_SECTIONS,
+  MUSIC_SEGMENT_BARS,
+  MUSIC_SEGMENT_COUNT,
   MUSIC_STEM_IDS,
   MUSIC_STEM_LEVELS,
+  MUSIC_TOTAL_SOURCE_FRAMES,
   MUSIC_TRACK_METADATA,
+  calculateMusicSegmentBoundaries,
+  isSafeGameplayMusicSegmentPath,
+  musicBoundaryFrame,
+  parseGameplayMusicManifest,
+} from './music';
+export type {
+  GameplayMusicManifest,
+  GameplayMusicSegment,
+  GameplayMusicStem,
+  GameplayMusicTrack,
+  MusicSegmentBoundary,
+  MusicStemId,
 } from './music';
 
-interface AudioEngineOptions {
+export interface AudioEngineOptions {
   contextFactory?: () => AudioContext | null;
   fetcher?: typeof fetch;
 }
@@ -49,9 +63,6 @@ const DEFAULT_MIX: AudioMix = {
   musicGain: 0.7,
   sfxGain: 0.8,
 };
-
-const MUSIC_FADE_MS = 220;
-const MUSIC_BUFFER_DURATION_TOLERANCE_SECONDS = 0.01;
 
 function clampGain(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -95,27 +106,6 @@ function warnMusic(message: string): void {
   if (import.meta.env.DEV) console.warn(`[AudioEngine] ${message}`);
 }
 
-function musicBufferCompatibilityIssue(buffers: readonly AudioBuffer[]): string | null {
-  const foundation = buffers[0];
-  if (!foundation) return 'Foundation did not decode.';
-  if (Math.abs(foundation.duration - MUSIC_LOOP_DURATION_SECONDS)
-    > MUSIC_BUFFER_DURATION_TOLERANCE_SECONDS) {
-    return `Foundation duration ${foundation.duration.toFixed(6)}s does not match the expected ${MUSIC_LOOP_DURATION_SECONDS.toFixed(6)}s timeline.`;
-  }
-  for (let index = 0; index < buffers.length; index += 1) {
-    const buffer = buffers[index];
-    if (!buffer) return `Stem ${GAMEPLAY_MUSIC_STEMS[index]?.id ?? index} did not decode.`;
-    if (buffer.numberOfChannels !== 2) {
-      return `Stem ${GAMEPLAY_MUSIC_STEMS[index]?.id ?? index} is not stereo.`;
-    }
-    if (buffer.sampleRate !== foundation.sampleRate || buffer.length !== foundation.length
-      || Math.abs(buffer.duration - foundation.duration) > MUSIC_BUFFER_DURATION_TOLERANCE_SECONDS) {
-      return `Stem ${GAMEPLAY_MUSIC_STEMS[index]?.id ?? index} does not share Foundation's exact timeline.`;
-    }
-  }
-  return null;
-}
-
 export class AudioEngine implements AudioPort {
   private readonly contextFactory: () => AudioContext | null;
   private readonly fetcher: typeof fetch;
@@ -127,20 +117,8 @@ export class AudioEngine implements AudioPort {
   private readonly activeVoices = new Map<AudioCueId, Set<ActiveVoice>>();
   private readonly presentationVoices = new Set<ActiveVoice>();
   private readonly lastStartedAt = new Map<AudioCueId, number>();
-  private musicBuffers: AudioBuffer[] | null = null;
-  private musicStemBuffers: Array<AudioBuffer | null | undefined> = [];
-  private musicLoadAttempts = 0;
-  private musicRetryPending = false;
-  private musicLoadPromise: Promise<AudioBuffer[]> | null = null;
-  private musicStartPromise: Promise<void> | null = null;
-  private musicSources: AudioBufferSourceNode[] = [];
-  private musicStemGainNodes: GainNode[] = [];
-  private musicVoiceGainNode: GainNode | null = null;
-  private musicStopTimer: ReturnType<typeof setTimeout> | null = null;
-  private musicVoiceLevel = 0;
-  private musicStartedAt = 0;
+  private musicTransport: SegmentedMusicTransport | null = null;
   private musicIntensity: MusicIntensity = 0;
-  private musicScheduledIntensity: MusicIntensity = 0;
   private roomActive = false;
   private documentHidden = false;
   private resumePromise: Promise<void> | null = null;
@@ -172,33 +150,34 @@ export class AudioEngine implements AudioPort {
 
   public setRoomActive(active: boolean): void {
     if (this.disposed) return;
-    if (active && !this.roomActive) {
-      this.stopMusicImmediately();
-      this.retryMusicLoad();
-    }
+    const changed = active !== this.roomActive;
     this.roomActive = active;
     if (!active) {
-      this.fadeMusicToZero(true);
+      this.musicTransport?.stop({ roomLeave: true });
       return;
     }
-    this.syncMusicLifecycle();
+    this.syncMusicLifecycle(changed);
   }
 
   public setDocumentHidden(hidden: boolean): void {
     if (this.disposed) return;
+    if (hidden === this.documentHidden) return;
     this.documentHidden = hidden;
     if (hidden) {
-      this.fadeMusicToZero(false);
+      this.musicTransport?.stop();
       return;
     }
-    this.syncMusicLifecycle();
+    this.syncMusicLifecycle(true);
   }
 
   public setMusicIntensity(intensity: MusicIntensity): void {
     if (this.disposed || intensity === this.musicIntensity) return;
     this.musicIntensity = intensity;
-    const context = this.context;
-    if (context?.state === 'running') this.scheduleMusicIntensityTransition(context);
+    this.musicTransport?.setIntensity(intensity);
+  }
+
+  public getMusicTransportSnapshot(): SegmentedMusicTransportSnapshot | null {
+    return this.musicTransport?.getDebugSnapshot() ?? null;
   }
 
   public stopPresentationVoices(): void {
@@ -259,11 +238,8 @@ export class AudioEngine implements AudioPort {
     this.disposed = true;
     this.resumePromise = null;
     this.pendingInteractionCue = undefined;
-    this.stopMusicImmediately();
-    this.musicBuffers = null;
-    this.musicStemBuffers = [];
-    this.musicLoadPromise = null;
-    this.musicStartPromise = null;
+    this.musicTransport?.dispose();
+    this.musicTransport = null;
     this.activeVoices.forEach(voices => {
       [...voices].forEach(voice => this.stopVoice(voice));
     });
@@ -285,17 +261,12 @@ export class AudioEngine implements AudioPort {
 
   private ensureContext(): AudioContext | null {
     if (this.context?.state === 'closed') {
-      this.stopMusicImmediately();
+      this.musicTransport?.dispose();
+      this.musicTransport = null;
       this.context = null;
       this.masterGainNode = null;
       this.musicGainNode = null;
       this.sfxGainNode = null;
-      this.musicBuffers = null;
-      this.musicStemBuffers = [];
-      this.musicLoadAttempts = 0;
-      this.musicRetryPending = false;
-      this.musicLoadPromise = null;
-      this.musicStartPromise = null;
     }
     if (this.context) return this.context;
     const context = this.contextFactory();
@@ -311,6 +282,13 @@ export class AudioEngine implements AudioPort {
       this.masterGainNode = masterGainNode;
       this.sfxGainNode = sfxGainNode;
       this.musicGainNode = musicGainNode;
+      this.musicTransport = new SegmentedMusicTransport({
+        context,
+        output: musicGainNode,
+        fetcher: this.fetcher,
+        warn: warnMusic,
+      });
+      this.musicTransport.setIntensity(this.musicIntensity);
       this.applyMix();
       return context;
     } catch {
@@ -331,266 +309,13 @@ export class AudioEngine implements AudioPort {
     const pendingCue = this.pendingInteractionCue;
     this.pendingInteractionCue = undefined;
     if (pendingCue) this.startCue(context, pendingCue, {});
-    this.retryMusicLoad();
-    void this.getMusicBuffers(context);
-    this.syncMusicLifecycle();
+    this.syncMusicLifecycle(true);
   }
 
-  private syncMusicLifecycle(): void {
+  private syncMusicLifecycle(allowRetry = false): void {
     const context = this.context;
     if (!context || context.state !== 'running' || !this.roomActive || this.documentHidden) return;
-    this.startOrResumeMusic(context);
-  }
-
-  private startOrResumeMusic(context: AudioContext): void {
-    this.clearMusicStopTimer();
-    if (this.musicSources.length > 0) {
-      if (this.musicScheduledIntensity !== this.musicIntensity) {
-        this.scheduleMusicIntensityTransition(context);
-      }
-      this.rampMusicGain(1, context);
-      return;
-    }
-    if (!this.musicGainNode || this.musicStartPromise) return;
-
-    const startPromise = this.getMusicBuffers(context).then(buffers => {
-      if (this.disposed
-        || context !== this.context
-        || context.state !== 'running'
-        || !this.roomActive
-        || this.documentHidden
-        || this.musicSources.length > 0) return;
-      this.startMusicSources(context, buffers);
-    });
-    this.musicStartPromise = startPromise;
-    void startPromise.then(() => {
-      if (this.musicStartPromise === startPromise) this.musicStartPromise = null;
-    });
-  }
-
-  private startMusicSources(context: AudioContext, buffers: readonly AudioBuffer[]): void {
-    if (!this.musicGainNode || buffers.length === 0) return;
-
-    const createdSources: AudioBufferSourceNode[] = [];
-    const createdStemGains: GainNode[] = [];
-    let createdVoiceGain: GainNode | null = null;
-    try {
-      const voiceGain = context.createGain();
-      createdVoiceGain = voiceGain;
-      voiceGain.gain.setValueAtTime(0, context.currentTime);
-      voiceGain.connect(this.musicGainNode);
-      const startAt = context.currentTime + 0.02;
-      const levels = MUSIC_STEM_LEVELS[this.musicIntensity];
-      buffers.forEach((buffer, index) => {
-        const source = context.createBufferSource();
-        const stemGain = context.createGain();
-        source.buffer = buffer;
-        source.loop = true;
-        source.loopStart = 0;
-        source.loopEnd = buffer.duration;
-        stemGain.gain.setValueAtTime(levels[index] ?? 0, startAt);
-        source.connect(stemGain);
-        stemGain.connect(voiceGain);
-        createdSources.push(source);
-        createdStemGains.push(stemGain);
-      });
-      createdSources.forEach(source => {
-        source.onended = () => this.finishMusicSource(source);
-        source.start(startAt);
-      });
-      this.musicSources = createdSources;
-      this.musicStemGainNodes = createdStemGains;
-      this.musicVoiceGainNode = voiceGain;
-      this.musicVoiceLevel = 0;
-      this.musicStartedAt = startAt;
-      this.musicScheduledIntensity = this.musicIntensity;
-      this.rampMusicGain(1, context);
-    } catch {
-      createdSources.forEach(source => {
-        source.onended = null;
-        try {
-          source.stop();
-        } catch {
-          // The source may not have started yet.
-        }
-        source.disconnect();
-      });
-      createdStemGains.forEach(gain => gain.disconnect());
-      createdVoiceGain?.disconnect();
-    }
-  }
-
-  private scheduleMusicIntensityTransition(context: AudioContext): void {
-    if (this.musicStemGainNodes.length === 0) return;
-    const secondsPerBeat = 60 / MUSIC_BPM;
-    const phraseDuration = MUSIC_PHRASE_BEATS * secondsPerBeat;
-    const elapsed = Math.max(0, context.currentTime - this.musicStartedAt);
-    const position = elapsed % MUSIC_LOOP_DURATION_SECONDS;
-    const boundaryAt = context.currentTime + phraseDuration - position % phraseDuration;
-    const endAt = boundaryAt + secondsPerBeat * 2;
-    const levels = MUSIC_STEM_LEVELS[this.musicIntensity];
-    this.musicStemGainNodes.forEach((gainNode, index) => {
-      const param = gainNode.gain;
-      if (typeof param.cancelAndHoldAtTime === 'function') {
-        param.cancelAndHoldAtTime(context.currentTime);
-      } else {
-        const currentValue = param.value;
-        param.cancelScheduledValues(context.currentTime);
-        param.setValueAtTime(currentValue, context.currentTime);
-      }
-      param.setValueAtTime(param.value, boundaryAt);
-      param.linearRampToValueAtTime(levels[index] ?? 0, endAt);
-    });
-    this.musicScheduledIntensity = this.musicIntensity;
-  }
-
-  private rampMusicGain(target: 0 | 1, context: AudioContext): void {
-    const gainNode = this.musicVoiceGainNode;
-    if (!gainNode) return;
-    const startAt = context.currentTime;
-    const endAt = startAt + MUSIC_FADE_MS / 1_000;
-    gainNode.gain.cancelScheduledValues(startAt);
-    gainNode.gain.setValueAtTime(this.musicVoiceLevel > 0 ? 1 : 0.0001, startAt);
-    if (target === 1) {
-      gainNode.gain.exponentialRampToValueAtTime(1, endAt);
-    } else {
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, endAt);
-      gainNode.gain.setValueAtTime(0, endAt);
-    }
-    this.musicVoiceLevel = target;
-  }
-
-  private fadeMusicToZero(stopWhenDone: boolean): void {
-    const source = this.musicSources[0];
-    const context = this.context;
-    if (!source || !context || !this.musicVoiceGainNode) return;
-    this.clearMusicStopTimer();
-    this.rampMusicGain(0, context);
-    if (!stopWhenDone) return;
-    this.musicStopTimer = setTimeout(() => {
-      this.musicStopTimer = null;
-      if (!this.roomActive && this.musicSources.includes(source)) this.stopMusicSources(source);
-    }, MUSIC_FADE_MS + 25);
-  }
-
-  private clearMusicStopTimer(): void {
-    if (this.musicStopTimer === null) return;
-    clearTimeout(this.musicStopTimer);
-    this.musicStopTimer = null;
-  }
-
-  private stopMusicImmediately(): void {
-    this.clearMusicStopTimer();
-    if (this.musicSources.length > 0) this.stopMusicSources();
-    else {
-      this.musicStemGainNodes.forEach(gain => gain.disconnect());
-      this.musicStemGainNodes = [];
-      this.musicVoiceGainNode?.disconnect();
-      this.musicVoiceGainNode = null;
-      this.musicVoiceLevel = 0;
-      this.musicStartedAt = 0;
-    }
-  }
-
-  private stopMusicSources(expectedSource?: AudioBufferSourceNode): void {
-    if (expectedSource && !this.musicSources.includes(expectedSource)) return;
-    this.clearMusicStopTimer();
-    const sources = this.musicSources;
-    const stemGains = this.musicStemGainNodes;
-    this.musicSources = [];
-    this.musicStemGainNodes = [];
-    const voiceGain = this.musicVoiceGainNode;
-    this.musicVoiceGainNode = null;
-    this.musicVoiceLevel = 0;
-    this.musicStartedAt = 0;
-    sources.forEach(source => {
-      source.onended = null;
-      try {
-        source.stop();
-      } catch {
-        // The source may already have stopped during teardown.
-      }
-      source.disconnect();
-    });
-    stemGains.forEach(gain => gain.disconnect());
-    voiceGain?.disconnect();
-  }
-
-  private finishMusicSource(source: AudioBufferSourceNode): void {
-    this.stopMusicSources(source);
-  }
-
-  private retryMusicLoad(): void {
-    if (!this.musicRetryPending) return;
-    this.musicRetryPending = false;
-    this.musicBuffers = null;
-    this.musicLoadPromise = null;
-  }
-
-  private getMusicBuffers(context: AudioContext): Promise<AudioBuffer[]> {
-    if (this.musicBuffers) return Promise.resolve(this.musicBuffers);
-    if (this.musicLoadPromise) return this.musicLoadPromise;
-    this.musicLoadAttempts += 1;
-    this.musicLoadPromise = Promise.all(GAMEPLAY_MUSIC_STEMS.map(async (stem, index) => {
-      const cached = this.musicStemBuffers[index];
-      if (cached !== undefined) return cached;
-      let data: ArrayBuffer;
-      try {
-        const response = await this.fetcher(stem.url);
-        if (!response.ok) {
-          warnMusic(`Could not load ${stem.id} stem (${stem.url}): HTTP ${response.status}`);
-          return response.status === 404 || response.status === 410 ? null : undefined;
-        }
-        data = await response.arrayBuffer();
-      } catch (error) {
-        const detail = error instanceof Error ? error.message : String(error);
-        warnMusic(`Could not load ${stem.id} stem (${stem.url}): ${detail}`);
-        return undefined;
-      }
-      try {
-        return await context.decodeAudioData(data);
-      } catch (error) {
-        const detail = error instanceof Error ? error.message : String(error);
-        warnMusic(`Could not decode ${stem.id} stem (${stem.url}): ${detail}`);
-        return null;
-      }
-    })).then(decoded => {
-      if (this.disposed || context !== this.context) return [];
-      this.musicStemBuffers = decoded;
-      // Retry only once, on a later activation; preserve every successful decode.
-      this.musicRetryPending = this.musicLoadAttempts < 2
-        && decoded.some(buffer => buffer === undefined);
-      const foundation = decoded[0];
-      if (!foundation) {
-        if (foundation === null) this.musicRetryPending = false;
-        warnMusic('Rendered gameplay music Foundation unavailable.');
-        this.musicBuffers = [];
-        return this.musicBuffers;
-      }
-      const foundationIssue = musicBufferCompatibilityIssue([foundation]);
-      if (foundationIssue) {
-        this.musicRetryPending = false;
-        warnMusic(`Rendered gameplay music Foundation unavailable: ${foundationIssue}`);
-        this.musicBuffers = [];
-        return this.musicBuffers;
-      }
-      if (decoded.some(buffer => !buffer)) {
-        warnMusic('The complete stem set is unavailable; using Foundation only.');
-        this.musicBuffers = [foundation];
-        return this.musicBuffers;
-      }
-      const buffers = decoded as AudioBuffer[];
-      const issue = musicBufferCompatibilityIssue(buffers);
-      if (issue) {
-        warnMusic(`${issue} Using Foundation only.`);
-        this.musicBuffers = [foundation];
-        return this.musicBuffers;
-      }
-      this.musicBuffers = buffers;
-      warnMusic('Rendered gameplay music loaded successfully.');
-      return this.musicBuffers;
-    });
-    return this.musicLoadPromise;
+    this.musicTransport?.activate(allowRetry);
   }
 
   private startCue(context: AudioContext, cueId: AudioCueId, options: AudioPlayOptions): void {

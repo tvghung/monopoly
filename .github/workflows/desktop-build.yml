@@ -75,6 +75,9 @@ jobs:
       - name: Test V1 release contract
         run: pnpm test:v1-contract
 
+      - name: Test segmented music transport
+        run: pnpm test:music-transport
+
       - name: Install audio validation tools (Windows)
         if: runner.os == 'Windows'
         run: choco install ffmpeg --yes --no-progress
