@@ -116,6 +116,7 @@ async function encodeStem(sourceFile, stemId, stageDirectory, ffmpeg) {
     '-map_metadata', '-1',
     '-c:a', 'libvorbis', '-q:a', encodingQuality,
     '-ar', String(MUSIC_SAMPLE_RATE), '-ac', '2',
+    '-serial_offset', String(segment.index + 1),
     outputFiles[index],
   ]);
   await runCommand(ffmpeg, [
