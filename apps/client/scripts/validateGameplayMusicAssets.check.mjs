@@ -35,7 +35,7 @@ async function renderWav(file, { frames = MUSIC_TOTAL_FRAMES } = {}) {
   await runCommand(ffmpeg, [
     '-hide_banner', '-loglevel', 'error', '-nostdin', '-y',
     '-f', 'lavfi', '-i', 'sine=frequency=220:sample_rate=48000',
-    '-frames:a', String(frames),
+    '-af', `atrim=start_sample=0:end_sample=${frames},asetpts=PTS-STARTPTS`,
     '-ar', String(MUSIC_SAMPLE_RATE), '-ac', '2', '-c:a', 'pcm_s16le',
     '-map_metadata', '-1', file,
   ]);
@@ -50,7 +50,7 @@ async function renderOgg(file, {
   await runCommand(ffmpeg, [
     '-hide_banner', '-loglevel', 'error', '-nostdin', '-y',
     '-f', 'lavfi', '-i', source,
-    '-frames:a', String(frames),
+    '-af', `atrim=start_sample=0:end_sample=${frames},asetpts=PTS-STARTPTS`,
     '-ar', String(sampleRate), '-ac', String(channels),
     '-c:a', 'libvorbis', '-q:a', '6', '-map_metadata', '-1', file,
   ]);
@@ -59,20 +59,28 @@ async function renderOgg(file, {
 async function encodeStem(sourceFile, stemDirectory) {
   await mkdir(stemDirectory, { recursive: true });
   const labels = MUSIC_SEGMENT_BOUNDARIES.map(segment => `s${segment.index}`);
-  const outputs = MUSIC_SEGMENT_BOUNDARIES.map(segment => `o${segment.index}`);
   const filters = [
     `[0:a]asplit=${MUSIC_SEGMENT_COUNT}${labels.map(label => `[${label}]`).join('')}`,
     ...MUSIC_SEGMENT_BOUNDARIES.map(segment => (
       `[s${segment.index}]atrim=start_sample=${segment.startFrame}:end_sample=${segment.startFrame + segment.frameCount},asetpts=PTS-STARTPTS[o${segment.index}]`
     )),
   ].join(';');
-  await runCommand(ffmpeg, [
-    '-hide_banner', '-loglevel', 'error', '-nostdin', '-y', '-i', sourceFile,
-    '-filter_complex', filters,
-    ...outputs.flatMap(output => ['-map', `[${output}]`]),
-    '-map_metadata', '-1', '-c:a', 'libvorbis', '-q:a', '6',
+  const outputFiles = MUSIC_SEGMENT_BOUNDARIES.map(segment => (
+    path.join(stemDirectory, `${String(segment.index).padStart(2, '0')}.ogg`)
+  ));
+  const outputArgs = MUSIC_SEGMENT_BOUNDARIES.flatMap((segment, index) => [
+    '-map', `[o${segment.index}]`,
+    '-map_metadata', '-1', '-fflags', '+bitexact', '-flags:a', '+bitexact',
+    '-c:a', 'libvorbis', '-q:a', '6',
     '-ar', String(MUSIC_SAMPLE_RATE), '-ac', '2',
-    ...MUSIC_SEGMENT_BOUNDARIES.map(segment => path.join(stemDirectory, `${String(segment.index).padStart(2, '0')}.ogg`)),
+    '-serial_offset', String(segment.index + 1),
+    outputFiles[index],
+  ]);
+  await runCommand(ffmpeg, [
+    '-hide_banner', '-loglevel', 'error', '-nostdin', '-bitexact',
+    '-threads', '1', '-filter_threads', '1', '-filter_complex_threads', '1', '-y', '-i', sourceFile,
+    '-filter_complex', filters,
+    ...outputArgs,
   ]);
 }
 
