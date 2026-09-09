@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { link, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -58,12 +58,12 @@ async function createValidSources(directory) {
   await mkdir(directory, { recursive: true });
   const first = path.join(directory, SOURCE_MASTER_FILES[0]);
   await renderWav(first);
-  for (const fileName of SOURCE_MASTER_FILES.slice(1)) await copyFile(first, path.join(directory, fileName));
+  for (const fileName of SOURCE_MASTER_FILES.slice(1)) await link(first, path.join(directory, fileName));
 }
 
 async function copySources(sourceDirectory, targetDirectory) {
   await mkdir(targetDirectory, { recursive: true });
-  for (const fileName of SOURCE_MASTER_FILES) await copyFile(
+  for (const fileName of SOURCE_MASTER_FILES) await link(
     path.join(sourceDirectory, fileName),
     path.join(targetDirectory, fileName),
   );
@@ -96,13 +96,15 @@ test('production music generation validates source masters and promotes determin
     assert.deepEqual((await listFiles(outputDirectory)).sort(), expectedRuntimePaths().sort());
 
     const manifestBeforeFailure = await readFile(path.join(outputDirectory, 'gameplay-music.manifest.json'));
+    await rm(path.join(sourceDirectory, SOURCE_MASTER_FILES[1]), { force: true });
     await writeFile(path.join(sourceDirectory, SOURCE_MASTER_FILES[1]), 'corrupt source');
     await assert.rejects(
       generateGameplayMusicSegments({ sourceDirectory, outputDirectory }),
       /lossless PCM WAV|Invalid data|ffprobe/u,
     );
     assert.deepEqual(await readFile(path.join(outputDirectory, 'gameplay-music.manifest.json')), manifestBeforeFailure);
-    await copyFile(
+    await rm(path.join(sourceDirectory, SOURCE_MASTER_FILES[1]), { force: true });
+    await link(
       path.join(sourceDirectory, SOURCE_MASTER_FILES[0]),
       path.join(sourceDirectory, SOURCE_MASTER_FILES[1]),
     );
@@ -110,28 +112,38 @@ test('production music generation validates source masters and promotes determin
     const invalidCases = [
       {
         name: 'corrupt',
-        mutate: async directory => writeFile(path.join(directory, SOURCE_MASTER_FILES[3]), 'not a wav'),
+        mutate: async directory => {
+          const file = path.join(directory, SOURCE_MASTER_FILES[3]);
+          await rm(file, { force: true });
+          await writeFile(file, 'not a wav');
+        },
         message: /lossless PCM WAV|Invalid data|ffprobe/u,
       },
       {
         name: 'wrong-channel-count',
-        mutate: directory => renderWav(path.join(directory, SOURCE_MASTER_FILES[1]), {
-          frames: 1_000,
-          channels: 1,
-        }),
+        mutate: async directory => {
+          const file = path.join(directory, SOURCE_MASTER_FILES[1]);
+          await rm(file, { force: true });
+          await renderWav(file, { frames: 1_000, channels: 1 });
+        },
         message: /source must be stereo/u,
       },
       {
         name: 'wrong-sample-rate',
-        mutate: directory => renderWav(path.join(directory, SOURCE_MASTER_FILES[1]), {
-          frames: 1_000,
-          sampleRate: 44_100,
-        }),
+        mutate: async directory => {
+          const file = path.join(directory, SOURCE_MASTER_FILES[1]);
+          await rm(file, { force: true });
+          await renderWav(file, { frames: 1_000, sampleRate: 44_100 });
+        },
         message: /source sample rate/u,
       },
       {
         name: 'wrong-frame-count',
-        mutate: directory => renderWav(path.join(directory, SOURCE_MASTER_FILES[1]), { frames: 1_000 }),
+        mutate: async directory => {
+          const file = path.join(directory, SOURCE_MASTER_FILES[1]);
+          await rm(file, { force: true });
+          await renderWav(file, { frames: 1_000 });
+        },
         message: /source must contain/u,
       },
       {
@@ -139,7 +151,9 @@ test('production music generation validates source masters and promotes determin
         mutate: async directory => {
           const bytes = await readFile(path.join(sourceDirectory, SOURCE_MASTER_FILES[0]));
           bytes.fill(0, 44);
-          await writeFile(path.join(directory, SOURCE_MASTER_FILES[1]), bytes);
+          const file = path.join(directory, SOURCE_MASTER_FILES[1]);
+          await rm(file, { force: true });
+          await writeFile(file, bytes);
         },
         message: /meaningfully silent/u,
       },
