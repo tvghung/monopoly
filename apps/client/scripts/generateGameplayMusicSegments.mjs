@@ -114,6 +114,7 @@ async function encodeStem(sourceFile, stemId, stageDirectory, ffmpeg) {
   const outputArgs = MUSIC_SEGMENT_BOUNDARIES.flatMap((segment, index) => [
     '-map', `[o${index}]`,
     '-map_metadata', '-1',
+    '-fflags', '+bitexact', '-flags:a', '+bitexact',
     '-c:a', 'libvorbis', '-q:a', encodingQuality,
     '-ar', String(MUSIC_SAMPLE_RATE), '-ac', '2',
     '-serial_offset', String(segment.index + 1),
