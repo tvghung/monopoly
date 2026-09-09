@@ -120,7 +120,8 @@ async function encodeStem(sourceFile, stemId, stageDirectory, ffmpeg) {
     outputFiles[index],
   ]);
   await runCommand(ffmpeg, [
-    '-hide_banner', '-nostdin', '-xerror', '-bitexact', '-y',
+    '-hide_banner', '-nostdin', '-xerror', '-bitexact', '-threads', '1',
+    '-filter_threads', '1', '-filter_complex_threads', '1', '-y',
     '-i', sourceFile,
     '-filter_complex', filters,
     ...outputArgs,
