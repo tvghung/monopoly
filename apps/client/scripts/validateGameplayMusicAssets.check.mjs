@@ -177,7 +177,7 @@ test('real FFmpeg/ffprobe validation rejects segmented runtime regressions and p
     const missingManifest = path.join(root, 'missing-manifest');
     await copyRuntime(fixture.assetDirectory, missingManifest);
     await rm(path.join(missingManifest, MANIFEST_FILE));
-    const missingReport = await assertErrors(missingManifest, /production manifest missing/u);
+    const missingReport = await assertErrors(missingManifest, /missing production manifest/u);
     assert.equal(isExpectedProductionBlock(missingReport), true);
 
     const badManifest = path.join(root, 'bad-manifest');
