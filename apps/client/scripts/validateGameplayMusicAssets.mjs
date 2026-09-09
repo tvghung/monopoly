@@ -206,9 +206,13 @@ function mixArgs(listFiles, gains) {
 
 async function writeConcatList(listDirectory, assetDirectory, stem) {
   const file = path.join(listDirectory, `${stem.id}.ffconcat`);
-  const lines = stem.segments.map(segment => (
-    `file '${path.join(assetDirectory, ...segment.file.split('/')).replaceAll('\\', '/').replaceAll("'", "'\\''")}'`
-  ));
+  const lines = ['ffconcat version 1.0'];
+  for (const segment of stem.segments) {
+    lines.push(
+      `file '${path.join(assetDirectory, ...segment.file.split('/')).replaceAll('\\', '/').replaceAll("'", "'\\''")}'`,
+      `duration ${(segment.frameCount / MUSIC_SAMPLE_RATE).toFixed(12)}`,
+    );
+  }
   await writeFile(file, `${lines.join('\n')}\n`, 'utf8');
   return file;
 }
