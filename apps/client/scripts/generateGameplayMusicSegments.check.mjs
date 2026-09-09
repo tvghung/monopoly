@@ -149,11 +149,11 @@ test('production music generation validates source masters and promotes determin
       {
         name: 'silent',
         mutate: async directory => {
-          const bytes = await readFile(path.join(sourceDirectory, SOURCE_MASTER_FILES[0]));
-          bytes.fill(0, 44);
           const file = path.join(directory, SOURCE_MASTER_FILES[1]);
           await rm(file, { force: true });
-          await writeFile(file, bytes);
+          await renderWav(file, {
+            source: 'anullsrc=channel_layout=stereo:sample_rate=48000',
+          });
         },
         message: /meaningfully silent/u,
       },
