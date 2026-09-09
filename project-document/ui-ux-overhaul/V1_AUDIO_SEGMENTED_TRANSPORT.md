@@ -35,6 +35,9 @@ For sequence `n`, `segmentIndex = n % 16` and `loopIndex = floor(n / 16)`.
 The start time is derived from `(loopIndex * totalFrames + startFrame) /
 sourceSampleRate` relative to the transport anchor. Boundaries use cumulative
 rounding of each phrase boundary, never one rounded duration multiplied by 16.
+Decoded segments are validated against the manifest frame count after Web Audio
+resampling, with a maximum one decoded-frame tolerance. Every source is also
+explicitly stopped at the next cumulative manifest boundary.
 
 ## Memory and lifecycle
 
@@ -81,4 +84,5 @@ are absent.
 Not proven by Pass B: production Ogg generation, real SHA-256 values, loudness,
 true peak, seam quality, browser real-asset decode, packaged real-audio proof,
 human listening, physical iPhone Safari output, signing, release, or V1
-certification.
+certification. The packaged audio proof returns a non-zero result while the
+Pass C production assets are pending.

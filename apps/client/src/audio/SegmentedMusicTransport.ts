@@ -2,7 +2,6 @@ import {
   MUSIC_ASSET_ROOT,
   MUSIC_BPM,
   MUSIC_MANIFEST_URL,
-  MUSIC_SAMPLE_RATE,
   MUSIC_SEGMENT_COUNT,
   MUSIC_STEM_IDS,
   MUSIC_STEM_LEVELS,
@@ -15,7 +14,6 @@ import type { MusicIntensity } from './types';
 
 const MUSIC_FADE_MS = 220;
 const MUSIC_START_LEAD_SECONDS = 0.02;
-const MUSIC_BUFFER_DURATION_TOLERANCE_SECONDS = 0.01;
 const FLOAT32_BYTES = Float32Array.BYTES_PER_ELEMENT;
 
 interface TransportFailure {
@@ -469,12 +467,15 @@ export class SegmentedMusicTransport {
         );
       }
       if (!this.isCurrent(generation)) throw new StaleTransportOperation();
-      const expectedDuration = segment.frameCount / (this.manifest?.track.sampleRate ?? MUSIC_SAMPLE_RATE);
       if (buffer.numberOfChannels !== 2) {
         throw new SegmentFailure(`${stemId} segment ${segment.index} is not stereo`, false);
       }
-      if (Math.abs(buffer.duration - expectedDuration) > MUSIC_BUFFER_DURATION_TOLERANCE_SECONDS) {
-        throw new SegmentFailure(`${stemId} segment ${segment.index} has an invalid duration`, false);
+      const manifest = this.manifest;
+      const expectedDecodedFrames = manifest
+        ? Math.round((segment.frameCount / manifest.track.sampleRate) * buffer.sampleRate)
+        : 0;
+      if (Math.abs(buffer.length - expectedDecodedFrames) > 1) {
+        throw new SegmentFailure(`${stemId} segment ${segment.index} has an invalid decoded frame count`, false);
       }
       this.segmentAttempts.delete(key);
       return buffer;
@@ -506,7 +507,7 @@ export class SegmentedMusicTransport {
         return { message: `Stem ${stemId} is not stereo.`, stemId };
       }
       if (buffer.sampleRate !== foundation.sampleRate || buffer.length !== foundation.length
-      || Math.abs(buffer.duration - foundation.duration) > MUSIC_BUFFER_DURATION_TOLERANCE_SECONDS) {
+      || buffer.duration !== foundation.duration) {
         return {
           message: `Stem ${stemId} segment ${segmentIndex} does not share Foundation's decoded timeline.`,
           stemId,
@@ -514,8 +515,10 @@ export class SegmentedMusicTransport {
       }
     }
     const expected = manifest.stems[0]?.segments[segmentIndex];
-    if (!expected || Math.abs(foundation.duration - expected.frameCount / manifest.track.sampleRate)
-      > MUSIC_BUFFER_DURATION_TOLERANCE_SECONDS) {
+    const expectedDecodedFrames = expected
+      ? Math.round((expected.frameCount / manifest.track.sampleRate) * foundation.sampleRate)
+      : 0;
+    if (!expected || Math.abs(foundation.length - expectedDecodedFrames) > 1) {
       return {
         message: `Foundation segment ${segmentIndex} does not match the manifest timeline.`,
         stemId: 'foundation',
@@ -528,6 +531,7 @@ export class SegmentedMusicTransport {
     const manifest = this.manifest;
     if (!manifest || this.phraseGroups.has(phrase.sequence)) return true;
     const startAt = getMusicSequenceStartTime(manifest, phrase.sequence, this.anchorTime);
+    const endAt = getMusicSequenceStartTime(manifest, phrase.sequence + 1, this.anchorTime);
     if (startAt < this.context.currentTime) return false;
     const previous = this.previousPhraseGroup(phrase.sequence);
     const targetLevels = levelsFor(this.desiredIntensity);
@@ -560,6 +564,7 @@ export class SegmentedMusicTransport {
       group.sources.forEach(source => {
         source.onended = () => this.handleGroupEnded(group);
         source.start(startAt);
+        source.stop(endAt);
       });
       return true;
     } catch (error) {

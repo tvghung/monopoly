@@ -262,13 +262,14 @@ function makeSegmentBuffer(
   segmentIndex: number,
   channels = 2,
   lengthOffset = 0,
+  sampleRate = context.sampleRate,
 ): AudioBuffer {
   const segment = calculateMusicSegmentBoundaries()[segmentIndex];
   if (!segment) throw new RangeError(`Missing test segment ${segmentIndex}`);
   return new FakeAudioBuffer(
     channels,
-    segment.frameCount + lengthOffset,
-    context.sampleRate,
+    Math.round((segment.frameCount / MUSIC_SAMPLE_RATE) * sampleRate) + lengthOffset,
+    sampleRate,
   ) as unknown as AudioBuffer;
 }
 
@@ -385,6 +386,79 @@ describe('AudioEngine', () => {
       Math.abs((source.starts[0] ?? 0) - (0.02 + calculateMusicSegmentBoundaries()[1].startFrame / MUSIC_SAMPLE_RATE))
         < 0.000001
     ))).toBe(true);
+  });
+
+  it('accepts exact decoded frame counts and one-frame resampling rounding', async () => {
+    const context = new FakeAudioContext();
+    const decodedSampleRate = 44_100;
+    context.decodedBuffers = [
+      ...[0, 0, 0, 0].map(segmentIndex => makeSegmentBuffer(context, segmentIndex)),
+      ...[1, 1, 1, 1].map(segmentIndex => (
+        makeSegmentBuffer(context, segmentIndex, 2, 1, decodedSampleRate)
+      )),
+    ];
+    const engine = makeEngine(context);
+    engine.setRoomActive(true);
+    engine.handleUserInteraction();
+    await flushPromises();
+
+    expect(engine.getMusicTransportSnapshot()?.status).toBe('playing');
+    expect(engine.getMusicTransportSnapshot()?.adaptive).toBe(true);
+    expect(context.bufferSources).toHaveLength(8);
+  });
+
+  it('rejects a shared roughly 10 ms decoded mismatch against the manifest', async () => {
+    const context = new FakeAudioContext();
+    const lengthOffset = Math.round(context.sampleRate * 0.01);
+    context.decodedBuffers = [0, 0, 0, 0].map(segmentIndex => (
+      makeSegmentBuffer(context, segmentIndex, 2, lengthOffset)
+    ));
+    const engine = makeEngine(context);
+    engine.setRoomActive(true);
+    engine.handleUserInteraction();
+    await flushPromises();
+
+    expect(engine.getMusicTransportSnapshot()?.status).toBe('failed');
+    expect(context.bufferSources).toHaveLength(0);
+  });
+
+  it('stops every phrase at the next cumulative manifest boundary', async () => {
+    const context = new FakeAudioContext('running');
+    const engine = makeEngine(context);
+    engine.setRoomActive(true);
+    engine.handleUserInteraction();
+    await flushPromises();
+
+    const anchor = engine.getMusicTransportSnapshot()?.anchorTime ?? 0;
+    const boundaries = calculateMusicSegmentBoundaries();
+    const sequenceTime = (sequence: number) => {
+      const loopIndex = Math.floor(sequence / MUSIC_SEGMENT_COUNT);
+      return anchor + (
+        loopIndex * MUSIC_TOTAL_SOURCE_FRAMES + boundaries[sequence % MUSIC_SEGMENT_COUNT].startFrame
+      ) / MUSIC_SAMPLE_RATE;
+    };
+    const sourcesFor = (sequence: number) => context.bufferSources.filter(source => (
+      source.starts[0] !== undefined
+      && Math.abs(source.starts[0] - sequenceTime(sequence)) < 0.000001
+    ));
+    const expectBoundary = (sequence: number, nextSequence: number) => {
+      const sources = sourcesFor(sequence);
+      expect(sources).toHaveLength(4);
+      expect(sources.every(source => (
+        Math.abs((source.starts[0] ?? 0) - sequenceTime(sequence)) < 0.000001
+        && Math.abs((source.stops[0] ?? 0) - sequenceTime(nextSequence)) < 0.000001
+      ))).toBe(true);
+    };
+
+    expectBoundary(0, 1);
+    expectBoundary(1, 2);
+    for (let sequence = 0; sequence < 15; sequence += 1) {
+      sourcesFor(sequence)[0]?.end();
+      await flushPromises();
+    }
+    expectBoundary(15, 16);
+    expectBoundary(16, 17);
+    expect(sequenceTime(16)).toBeCloseTo(anchor + MUSIC_TOTAL_SOURCE_FRAMES / MUSIC_SAMPLE_RATE, 6);
   });
 
   it('keeps the musical clock on absolute AudioContext scheduling across segment and loop boundaries', async () => {
@@ -588,7 +662,7 @@ describe('AudioEngine', () => {
   });
 
   it.each([
-    ['timeline', () => ({ channels: 2, lengthOffset: 1 })],
+    ['timeline', () => ({ channels: 2, lengthOffset: 2 })],
     ['stereo', () => ({ channels: 1, lengthOffset: 0 })],
   ])('degrades an optional %s incompatibility to Foundation-only', async (_name, makeIssue) => {
     const context = new FakeAudioContext();
@@ -642,7 +716,7 @@ describe('AudioEngine', () => {
     engine.setDocumentHidden(true);
     expect(engine.getMusicTransportSnapshot()?.retainedDecodedBuffers).toBe(0);
     vi.advanceTimersByTime(250);
-    expect(firstSources.every(source => source.stops.length === 1)).toBe(true);
+    expect(firstSources.every(source => source.stops.length === 2)).toBe(true);
 
     engine.setDocumentHidden(false);
     await flushPromises();
@@ -666,8 +740,8 @@ describe('AudioEngine', () => {
     engine.setRoomActive(true);
     await flushPromises();
 
-    expect(oldSources.every(source => source.stops.length === 1)).toBe(true);
-    expect(context.bufferSources.slice(8).every(source => source.stops.length === 0)).toBe(true);
+    expect(oldSources.every(source => source.stops.length === 2)).toBe(true);
+    expect(context.bufferSources.slice(8).every(source => source.stops.length === 1)).toBe(true);
     expect(engine.getMusicTransportSnapshot()?.scheduledSequences).toEqual([0, 1]);
     expect(engine.getMusicTransportSnapshot()?.activeSourceCount).toBe(8);
   });
@@ -702,7 +776,7 @@ describe('AudioEngine', () => {
     await flushPromises();
 
     expect(factory).toHaveBeenCalledTimes(2);
-    expect(first.bufferSources.every(source => source.stops.length === 1)).toBe(true);
+    expect(first.bufferSources.every(source => source.stops.length === 2)).toBe(true);
     expect(second.bufferSources).toHaveLength(8);
   });
 

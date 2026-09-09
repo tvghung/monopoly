@@ -8,6 +8,7 @@ import { contentType, PRODUCTION_RENDERER_CSP } from './rendererContentType';
 import { resolveRendererPath } from './security';
 import { HostRuntimeController } from './hostRuntime';
 import { AppQuitCoordinator } from './appQuitCoordinator';
+import { audioRendererProofExitCode } from './audioRendererProofResult';
 
 const DEV_RENDERER_URL = process.env.OWN_THE_BLOCK_DEV_RENDERER_URL?.trim()
   || 'http://127.0.0.1:5173';
@@ -136,7 +137,7 @@ export function startDesktopRuntime(): void {
         .then(({ runAudioRendererProof }) => runAudioRendererProof())
         .then(result => {
           console.log(`Packaged audio renderer proof RESULT ${JSON.stringify(result)}`);
-          app.exit(0);
+          app.exit(audioRendererProofExitCode(result));
         })
         .catch(error => {
           console.error('Packaged audio renderer proof failed.', error);

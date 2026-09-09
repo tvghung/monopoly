@@ -107,9 +107,11 @@ async function inspectGameplayMusicAssets() {
         const payload = await response.arrayBuffer();
         if (payload.byteLength === 0) throw new Error(`${url}: empty audio payload`);
         const buffer = await context.decodeAudioData(payload.slice(0));
-        const expectedDuration = segment.frameCount / manifest.track.sampleRate;
-        if (buffer.numberOfChannels !== 2 || Math.abs(buffer.duration - expectedDuration) > 0.01) {
-          throw new Error(`${url}: invalid decoded segment timeline`);
+        const expectedDecodedFrames = Math.round(
+          (segment.frameCount / manifest.track.sampleRate) * buffer.sampleRate,
+        );
+        if (buffer.numberOfChannels !== 2 || Math.abs(buffer.length - expectedDecodedFrames) > 1) {
+          throw new Error(`${url}: invalid decoded segment frame count`);
         }
         const prior = timelines.get(segment.index);
         if (prior && (prior.sampleRate !== buffer.sampleRate || prior.frames !== buffer.length)) {
