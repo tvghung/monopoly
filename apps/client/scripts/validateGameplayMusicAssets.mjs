@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
-import os from 'node:os';
+import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -181,40 +180,50 @@ async function inspectRuntimeSegment(file, segment, ffmpeg, ffprobe, sourceSampl
   };
 }
 
-function loudnessArgs(listFile, filter) {
+function concatGraph(files, frameCounts, inputOffset, outputLabel) {
+  const segmentLabels = files.map((_, index) => `${outputLabel}_${index}`);
+  const trims = files.map((_, index) => (
+    `[${inputOffset + index}:a]atrim=start_sample=0:end_sample=${frameCounts[index]},asetpts=PTS-STARTPTS[${segmentLabels[index]}]`
+  ));
   return [
-    '-hide_banner', '-nostdin', '-xerror',
-    '-f', 'concat', '-safe', '0', '-i', listFile,
-    '-filter_complex', `[0:a]${filter}ebur128=peak=true[out]`,
-    '-map', '[out]', '-ac', '2', '-ar', String(MUSIC_SAMPLE_RATE),
-    '-c:a', 'pcm_f32le', '-f', 'f32le', 'pipe:1',
-  ];
+    ...trims,
+    `${segmentLabels.map(label => `[${label}]`).join('')}concat=n=${files.length}:v=0:a=1[${outputLabel}]`,
+  ].join(';');
 }
 
-function mixArgs(listFiles, gains) {
-  const inputs = listFiles.flatMap(file => ['-f', 'concat', '-safe', '0', '-i', file]);
-  const volumes = gains.map((gain, index) => `[${index}:a]volume=${gain}[stem${index}]`).join(';');
-  const names = gains.map((_, index) => `[stem${index}]`).join('');
+function loudnessArgs(files, frameCounts) {
+  const inputs = files.flatMap(file => ['-i', file]);
+  const graph = concatGraph(files, frameCounts, 0, 'joined');
   return [
     '-hide_banner', '-nostdin', '-xerror',
     ...inputs,
-    '-filter_complex', `${volumes};${names}amix=inputs=${gains.length}:normalize=0:duration=longest,ebur128=peak=true[out]`,
+    '-filter_complex', `${graph};[joined]ebur128=peak=true[out]`,
     '-map', '[out]', '-ac', '2', '-ar', String(MUSIC_SAMPLE_RATE),
     '-c:a', 'pcm_f32le', '-f', 'f32le', 'pipe:1',
   ];
 }
 
-async function writeConcatList(listDirectory, assetDirectory, stem) {
-  const file = path.join(listDirectory, `${stem.id}.ffconcat`);
-  const lines = ['ffconcat version 1.0'];
-  for (const segment of stem.segments) {
-    lines.push(
-      `file '${path.join(assetDirectory, ...segment.file.split('/')).replaceAll('\\', '/').replaceAll("'", "'\\''")}'`,
-      `duration ${(segment.frameCount / MUSIC_SAMPLE_RATE).toFixed(12)}`,
-    );
+function mixArgs(stems, gains) {
+  const files = stems.flatMap(stem => stem.files);
+  const inputs = files.flatMap(file => ['-i', file]);
+  const graph = [];
+  const names = [];
+  let inputOffset = 0;
+  for (const [index, stem] of stems.entries()) {
+    const joined = `joined${index}`;
+    graph.push(concatGraph(stem.files, stem.frameCounts, inputOffset, joined));
+    graph.push(`[${joined}]volume=${gains[index]}[stem${index}]`);
+    names.push(`[stem${index}]`);
+    inputOffset += stem.files.length;
   }
-  await writeFile(file, `${lines.join('\n')}\n`, 'utf8');
-  return file;
+  graph.push(`${names.join('')}amix=inputs=${gains.length}:normalize=0:duration=longest,ebur128=peak=true[out]`);
+  return [
+    '-hide_banner', '-nostdin', '-xerror',
+    ...inputs,
+    '-filter_complex', graph.join(';'),
+    '-map', '[out]', '-ac', '2', '-ar', String(MUSIC_SAMPLE_RATE),
+    '-c:a', 'pcm_f32le', '-f', 'f32le', 'pipe:1',
+  ];
 }
 
 function validateSeams(stemId, measurement, report) {
@@ -338,87 +347,84 @@ export async function validateGameplayMusicAssets(
   }
   if (report.errors.length) return report;
 
-  const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), 'own-the-block-music-validator-'));
-  try {
-    const lists = [];
-    for (const stem of manifest.stems) lists.push(await writeConcatList(temporaryRoot, directory, stem));
-    for (let index = 0; index < manifest.stems.length; index += 1) {
-      const stem = manifest.stems[index];
-      let reconstructedBoundary = 0;
-      const boundaryFrames = report.stems[index].segments.slice(0, -1).map(segment => {
-        reconstructedBoundary += segment.decodedFrames;
-        return reconstructedBoundary;
-      });
-      const measurement = await measurePcm(
-        ffmpeg,
-        loudnessArgs(lists[index], ''),
-        {
-          sampleRate: MUSIC_SAMPLE_RATE,
-          boundaryFrames,
-          withLoudness: true,
-        },
-      );
-      if (Math.abs(measurement.decodedFrames - MUSIC_TOTAL_FRAMES) > 1) {
-        report.errors.push(`${stem.id}: reconstructed runtime timeline differs from ${MUSIC_TOTAL_FRAMES} frames`);
-      }
-      if (!Number.isFinite(measurement.integratedLufs) || !Number.isFinite(measurement.truePeakDbtp)) {
-        report.errors.push(`${stem.id}: no finite loudness/true-peak measurement`);
-      }
-      if (measurement.samplePeak >= 1 || measurement.nonZeroSamples === 0) {
-        report.errors.push(`${stem.id}: reconstructed PCM is clipped or silent`);
-      }
-      validateSeams(stem.id, measurement, report);
-      Object.assign(report.stems[index], {
-        reconstructedFrames: measurement.decodedFrames,
-        integratedLufs: measurement.integratedLufs,
-        truePeakDbtp: measurement.truePeakDbtp,
-        samplePeak: measurement.samplePeak,
-        decodedPcmBytes: measurement.decodedPcmBytes,
-      });
-    }
-    const level3 = await measurePcm(
+  const stems = manifest.stems.map(stem => ({
+    files: stem.segments.map(segment => path.join(directory, ...segment.file.split('/'))),
+    frameCounts: stem.segments.map(segment => segment.frameCount),
+  }));
+  for (let index = 0; index < manifest.stems.length; index += 1) {
+    const stem = manifest.stems[index];
+    let reconstructedBoundary = 0;
+    const boundaryFrames = stem.segments.slice(0, -1).map(segment => {
+      reconstructedBoundary += segment.frameCount;
+      return reconstructedBoundary;
+    });
+    const measurement = await measurePcm(
       ffmpeg,
-      mixArgs(lists, RUNTIME_LEVEL_3_GAINS),
-      { sampleRate: MUSIC_SAMPLE_RATE, withLoudness: true },
+      loudnessArgs(stems[index].files, stems[index].frameCounts),
+      {
+        sampleRate: MUSIC_SAMPLE_RATE,
+        boundaryFrames,
+        withLoudness: true,
+      },
     );
-    const unity = await measurePcm(
-      ffmpeg,
-      mixArgs(lists, [1, 1, 1, 1]),
-      { sampleRate: MUSIC_SAMPLE_RATE, withLoudness: true },
-    );
-    report.runtimeLevel3Mix = {
-      gains: RUNTIME_LEVEL_3_GAINS,
-      decodedFrames: level3.decodedFrames,
-      integratedLufs: level3.integratedLufs,
-      truePeakDbtp: level3.truePeakDbtp,
-      samplePeak: level3.samplePeak,
-      headroomDb: -level3.truePeakDbtp,
-    };
-    report.unitySumMix = {
-      gains: [1, 1, 1, 1],
-      decodedFrames: unity.decodedFrames,
-      integratedLufs: unity.integratedLufs,
-      truePeakDbtp: unity.truePeakDbtp,
-      samplePeak: unity.samplePeak,
-      headroomDb: -unity.truePeakDbtp,
-    };
-    for (const [label, measurement] of [['Level 3 runtime mix', level3], ['Unity-sum mix', unity]]) {
-      if (measurement.samplePeak >= 1) report.errors.push(`${label}: sample clipping`);
-      if (measurement.nonZeroSamples === 0) report.errors.push(`${label}: silence`);
-      if (!Number.isFinite(measurement.integratedLufs) || !Number.isFinite(measurement.truePeakDbtp)) {
-        report.errors.push(`${label}: non-finite loudness or true peak`);
-      }
+    if (Math.abs(measurement.decodedFrames - MUSIC_TOTAL_FRAMES) > 1) {
+      report.errors.push(`${stem.id}: reconstructed runtime timeline differs from ${MUSIC_TOTAL_FRAMES} frames`);
     }
-    if (enforceReleaseGates) {
-      if (level3.integratedLufs < -19 || level3.integratedLufs > -15) {
-        report.errors.push(`Level 3 runtime mix: integrated loudness ${level3.integratedLufs} LUFS is outside -19 to -15 LUFS`);
-      }
-      if (level3.truePeakDbtp > -1.5) {
-        report.errors.push(`Level 3 runtime mix: true peak ${level3.truePeakDbtp} dBTP exceeds -1.5 dBTP`);
-      }
+    if (!Number.isFinite(measurement.integratedLufs) || !Number.isFinite(measurement.truePeakDbtp)) {
+      report.errors.push(`${stem.id}: no finite loudness/true-peak measurement`);
     }
-  } finally {
-    await rm(temporaryRoot, { recursive: true, force: true });
+    if (measurement.samplePeak >= 1 || measurement.nonZeroSamples === 0) {
+      report.errors.push(`${stem.id}: reconstructed PCM is clipped or silent`);
+    }
+    validateSeams(stem.id, measurement, report);
+    Object.assign(report.stems[index], {
+      reconstructedFrames: measurement.decodedFrames,
+      integratedLufs: measurement.integratedLufs,
+      truePeakDbtp: measurement.truePeakDbtp,
+      samplePeak: measurement.samplePeak,
+      decodedPcmBytes: measurement.decodedPcmBytes,
+    });
+  }
+  const level3 = await measurePcm(
+    ffmpeg,
+    mixArgs(stems, RUNTIME_LEVEL_3_GAINS),
+    { sampleRate: MUSIC_SAMPLE_RATE, withLoudness: true },
+  );
+  const unity = await measurePcm(
+    ffmpeg,
+    mixArgs(stems, [1, 1, 1, 1]),
+    { sampleRate: MUSIC_SAMPLE_RATE, withLoudness: true },
+  );
+  report.runtimeLevel3Mix = {
+    gains: RUNTIME_LEVEL_3_GAINS,
+    decodedFrames: level3.decodedFrames,
+    integratedLufs: level3.integratedLufs,
+    truePeakDbtp: level3.truePeakDbtp,
+    samplePeak: level3.samplePeak,
+    headroomDb: -level3.truePeakDbtp,
+  };
+  report.unitySumMix = {
+    gains: [1, 1, 1, 1],
+    decodedFrames: unity.decodedFrames,
+    integratedLufs: unity.integratedLufs,
+    truePeakDbtp: unity.truePeakDbtp,
+    samplePeak: unity.samplePeak,
+    headroomDb: -unity.truePeakDbtp,
+  };
+  for (const [label, measurement] of [['Level 3 runtime mix', level3], ['Unity-sum mix', unity]]) {
+    if (measurement.samplePeak >= 1) report.errors.push(`${label}: sample clipping`);
+    if (measurement.nonZeroSamples === 0) report.errors.push(`${label}: silence`);
+    if (!Number.isFinite(measurement.integratedLufs) || !Number.isFinite(measurement.truePeakDbtp)) {
+      report.errors.push(`${label}: non-finite loudness or true peak`);
+    }
+  }
+  if (enforceReleaseGates) {
+    if (level3.integratedLufs < -19 || level3.integratedLufs > -15) {
+      report.errors.push(`Level 3 runtime mix: integrated loudness ${level3.integratedLufs} LUFS is outside -19 to -15 LUFS`);
+    }
+    if (level3.truePeakDbtp > -1.5) {
+      report.errors.push(`Level 3 runtime mix: true peak ${level3.truePeakDbtp} dBTP exceeds -1.5 dBTP`);
+    }
   }
 
   if (buildDirectory) {
