@@ -88,7 +88,8 @@ jobs:
           brew update
           brew install ffmpeg
           brew reinstall ffmpeg
-          brew link --overwrite ffmpeg
+          brew unlink ffmpeg || true
+          brew link ffmpeg
           ffmpeg -hide_banner -encoders | grep -q 'libvorbis'
           ffprobe -version
 
