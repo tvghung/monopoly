@@ -2,7 +2,7 @@ import {
   expect, test, type BrowserContext, type Locator, type Page,
 } from '@playwright/test';
 
-const MUSIC_MANIFEST_PATH = '/audio/music/gameplay/gameplay-music.manifest.json';
+const MUSIC_PATH = '/audio/music/own-the-block-main-theme-loop.wav';
 
 interface MusicObservation {
   available: boolean;
@@ -67,10 +67,7 @@ async function observeMusic(page: Page): Promise<void> {
   });
 }
 
-async function expectMusicRuntime(
-  page: Page,
-  manifest?: { track: { sampleRate: number }; stems: Array<{ segments: Array<{ startFrame: number }> }> },
-): Promise<void> {
+async function expectMusicRuntime(page: Page): Promise<void> {
   const snapshot = () => page.evaluate(() => (
     (window as typeof window & { __musicObservation: MusicObservation }).__musicObservation
   ));
@@ -80,25 +77,17 @@ async function expectMusicRuntime(
     expect(initial.starts).toEqual([]);
     return;
   }
-  await expect.poll(async () => (await snapshot()).starts.length, { timeout: 30_000 }).toBeGreaterThanOrEqual(8);
+  await expect.poll(async () => (await snapshot()).starts.length, { timeout: 30_000 }).toBeGreaterThanOrEqual(1);
   const observation = await snapshot();
-  expect(observation.decodeCount).toBeGreaterThanOrEqual(8);
-  expect(new Set(observation.starts.slice(0, 8).map(start => start.context)).size).toBe(1);
-  expect(new Set(observation.starts.slice(0, 4).map(start => start.at)).size).toBe(1);
-  expect(new Set(observation.starts.slice(4, 8).map(start => start.at)).size).toBe(1);
-  expect(observation.starts.slice(0, 8).every(start => (
+  expect(observation.decodeCount).toBeGreaterThanOrEqual(1);
+  expect(new Set(observation.starts.map(start => start.context)).size).toBe(1);
+  expect(observation.starts.slice(0, 1).every(start => (
     start.channels === 2
     && start.decoded
     && start.context === 0
     && start.state === 'running'
-    && !start.loop
+    && start.loop
   ))).toBe(true);
-  if (manifest) {
-    expect(observation.starts[4]!.at - observation.starts[0]!.at).toBeCloseTo(
-      manifest.stems[0]!.segments[1]!.startFrame / manifest.track.sampleRate,
-      3,
-    );
-  }
 }
 
 const ACCEPTANCE_VIEWPORTS = [
@@ -346,62 +335,23 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
   }
 });
 
-test('segmented rendered music assets and supported Web Audio lifecycle', async ({ page }) => {
+test('single rendered WAV music asset and supported Web Audio lifecycle', async ({ page }) => {
   test.setTimeout(120_000);
   const browserErrors: string[] = [];
   page.on('pageerror', error => browserErrors.push(error.message));
   await observeMusic(page);
   await page.goto('/');
-  const manifestResponse = await page.evaluate(async path => {
+  const musicResponse = await page.evaluate(async path => {
     const response = await fetch(path);
     return {
-      status: response.status,
-      contentType: response.headers.get('content-type')?.split(';')[0],
-      body: await response.text(),
-    };
-  }, MUSIC_MANIFEST_PATH);
-  if (manifestResponse.status === 404 || manifestResponse.status === 410
-    || (manifestResponse.status === 200 && manifestResponse.contentType !== 'application/json')) {
-    test.info().annotations.push({
-      type: 'audio-evidence',
-      description: 'PASS B transport is present; production segmented manifest/assets remain pending Pass C.',
-    });
-    return;
-  }
-  expect(manifestResponse.status).toBe(200);
-  expect(manifestResponse.contentType).toBe('application/json');
-  const manifest = JSON.parse(manifestResponse.body) as {
-    track: { sampleRate: number };
-    stems: Array<{ segments: Array<{ file: string; startFrame: number }> }>;
-  };
-  expect(manifest.stems).toHaveLength(4);
-  expect(manifest.stems.every(stem => stem.segments.length === 16)).toBe(true);
-  const segmentPaths = manifest.stems.flatMap(stem => stem.segments.map(segment => (
-    `/audio/music/gameplay/${segment.file}`
-  )));
-  expect(segmentPaths).toHaveLength(64);
-  const responses = await page.evaluate(async paths => Promise.all(paths.map(async path => {
-    const response = await fetch(path);
-    return {
-      url: response.url,
       status: response.status,
       contentType: response.headers.get('content-type')?.split(';')[0],
       bytes: (await response.arrayBuffer()).byteLength,
     };
-  })), segmentPaths);
-  if (responses.some(response => response.status === 404 || response.status === 410
-    || (response.status === 200 && response.contentType === 'text/html'))) {
-    test.info().annotations.push({
-      type: 'audio-evidence',
-      description: 'Segmented manifest exists but production segment validation is pending Pass C.',
-    });
-    return;
-  }
-  for (const response of responses) {
-    expect(response.status, response.url).toBe(200);
-    expect(response.contentType, response.url).toBe('audio/ogg');
-    expect(response.bytes, response.url).toBeGreaterThan(0);
-  }
+  }, MUSIC_PATH);
+  expect(musicResponse.status).toBe(200);
+  expect(musicResponse.contentType).toBe('audio/wav');
+  expect(musicResponse.bytes).toBeGreaterThan(0);
   const roomCode = `OTB-${Date.now().toString(36).slice(-6).toUpperCase()}`;
   await joinRoom(page, 'Audio Review', roomCode, 'tap');
   if (!await page.evaluate(() => (
@@ -412,14 +362,14 @@ test('segmented rendered music assets and supported Web Audio lifecycle', async 
       description: 'Web Audio unavailable: fallback only; decoded playback remains unverified.',
     });
   }
-  await expectMusicRuntime(page, manifest);
+  await expectMusicRuntime(page);
 
   await page.reload();
   await expect(page.getByRole('heading', { name: roomCode })).toBeVisible();
   // A restored room still needs a real gesture to unlock the new AudioContext.
   await page.getByRole('button', { name: 'Cài đặt' }).tap();
   await page.getByRole('dialog', { name: 'Cài đặt' }).getByRole('button', { name: 'Đóng' }).tap();
-  await expectMusicRuntime(page, manifest);
+  await expectMusicRuntime(page);
 
   await page.context().setOffline(true);
   await expect(page.getByText('Đã mất kết nối. Đang kết nối lại vào ván chơi…'))
@@ -427,6 +377,6 @@ test('segmented rendered music assets and supported Web Audio lifecycle', async 
   await page.context().setOffline(false);
   await expect(page.getByText('Đã mất kết nối. Đang kết nối lại vào ván chơi…'))
     .toBeHidden({ timeout: 15_000 });
-  await expectMusicRuntime(page, manifest);
+  await expectMusicRuntime(page);
   expect(browserErrors).toEqual([]);
 });

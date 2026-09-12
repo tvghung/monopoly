@@ -14,6 +14,7 @@ const CONTENT_TYPES: Readonly<Record<string, string>> = {
   '.gif': 'image/gif',
   '.ico': 'image/x-icon',
   '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav',
   '.ttf': 'font/ttf',
   '.woff2': 'font/woff2',
   '.woff': 'font/woff',

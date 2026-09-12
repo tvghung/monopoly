@@ -4,8 +4,6 @@ export interface AudioMix {
   sfxGain: number;
 }
 
-export type MusicIntensity = 0 | 1 | 2 | 3;
-
 export type AudioCueId =
   | 'ui.click'
   | 'dice.shake'
@@ -42,17 +40,15 @@ export interface AudioPort {
   play: (cueId: AudioCueId, options?: AudioPlayOptions) => void;
   handleUserInteraction: (cueId?: AudioCueId) => void;
   stopPresentationVoices?: () => void;
-  setRoomActive?: (active: boolean) => void;
+  setGameActive?: (active: boolean) => void;
   setDocumentHidden?: (hidden: boolean) => void;
-  setMusicIntensity?: (intensity: MusicIntensity) => void;
 }
 
 export const NOOP_AUDIO_PORT: AudioPort = Object.freeze({
   play: () => {},
   handleUserInteraction: () => {},
   stopPresentationVoices: () => {},
-  setRoomActive: () => {},
+  setGameActive: () => {},
   setDocumentHidden: () => {},
-  setMusicIntensity: () => {},
 });
 

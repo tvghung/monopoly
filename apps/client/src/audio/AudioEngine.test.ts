@@ -1,27 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { tileState, type PublicGameState } from '@monopoly/shared';
-import { makeRoom } from '../game/presentation/testFixtures';
-import { AUDIO_REGISTRY } from './audioRegistry';
-import type { AudioCueId } from './types';
-import {
-  AudioEngine,
-  calculateMusicIntensityScore,
-  deriveMusicIntensity,
-  GAMEPLAY_MUSIC_STEMS,
-  MUSIC_BARS,
-  MUSIC_BEATS,
-  MUSIC_BPM,
-  MUSIC_LOOP_DURATION_SECONDS,
-  MUSIC_MANIFEST_URL,
-  MUSIC_PHRASE_BEATS,
-  MUSIC_SAMPLE_RATE,
-  MUSIC_SEGMENT_COUNT,
-  MUSIC_STEM_IDS,
-  MUSIC_STEM_LEVELS,
-  MUSIC_TRACK_METADATA,
-  calculateMusicSegmentBoundaries,
-  MUSIC_TOTAL_SOURCE_FRAMES,
-} from './AudioEngine';
+import { AudioEngine, GAMEPLAY_MUSIC_URL } from './AudioEngine';
 
 class FakeAudioParam {
   public value = 1;
@@ -43,19 +21,13 @@ class FakeAudioParam {
     this.events.push({ type: 'exponential', value, time });
     return this as unknown as AudioParam;
   }
-
-  public linearRampToValueAtTime(value: number, time: number): AudioParam {
-    this.value = value;
-    this.events.push({ type: 'linear', value, time });
-    return this as unknown as AudioParam;
-  }
 }
 
 class FakeNode {
   public disconnectCount = 0;
-  public readonly connections: AudioNode[] = [];
+  public readonly connections: unknown[] = [];
 
-  public connect(destination: AudioNode): AudioNode {
+  public connect(destination: unknown): unknown {
     this.connections.push(destination);
     return destination;
   }
@@ -74,12 +46,7 @@ class FakeSourceNode extends FakeNode {
   public readonly starts: number[] = [];
   public readonly stops: Array<number | undefined> = [];
 
-  public constructor(private readonly recordStart?: () => void) {
-    super();
-  }
-
   public start(when = 0): void {
-    this.recordStart?.();
     this.starts.push(when);
   }
 
@@ -103,7 +70,6 @@ class FakeBufferSourceNode extends FakeSourceNode {
 }
 
 class FakeAudioBuffer {
-  private readonly data: Array<Float32Array | undefined>;
   public readonly duration: number;
   public readonly numberOfChannels: number;
 
@@ -112,17 +78,8 @@ class FakeAudioBuffer {
     public readonly length: number,
     public readonly sampleRate: number,
   ) {
-    this.data = Array.from({ length: channels });
     this.duration = length / sampleRate;
     this.numberOfChannels = channels;
-  }
-
-  public getChannelData(channel: number): Float32Array {
-    const existing = this.data[channel];
-    if (existing) return existing;
-    const data = new Float32Array(this.length);
-    this.data[channel] = data;
-    return data;
   }
 }
 
@@ -134,12 +91,10 @@ class FakeAudioContext {
   public readonly gains: FakeGainNode[] = [];
   public readonly oscillators: FakeOscillatorNode[] = [];
   public readonly bufferSources: FakeBufferSourceNode[] = [];
-  public readonly operations: string[] = [];
-  public decodedBuffers: AudioBuffer[] = [];
   public decodeCount = 0;
-  public decodeFailures = 0;
   public resumeCount = 0;
   public closeCount = 0;
+  public decodeImplementation?: () => Promise<AudioBuffer>;
   public resumeImplementation?: () => Promise<void>;
 
   public constructor(state: FakeAudioContext['state'] = 'suspended') {
@@ -153,35 +108,26 @@ class FakeAudioContext {
   }
 
   public createOscillator(): OscillatorNode {
-    const node = new FakeOscillatorNode(() => this.operations.push('oscillator-start'));
+    const node = new FakeOscillatorNode();
     this.oscillators.push(node);
     return Object.assign(node, { frequency: node.frequencyValue }) as unknown as OscillatorNode;
   }
 
   public createBufferSource(): AudioBufferSourceNode {
-    const node = new FakeBufferSourceNode(() => this.operations.push('buffer-source-start'));
+    const node = new FakeBufferSourceNode();
     this.bufferSources.push(node);
     return node as unknown as AudioBufferSourceNode;
   }
 
   public createBuffer(channels: number, length: number, sampleRate = this.sampleRate): AudioBuffer {
-    this.operations.push('buffer-create');
     return new FakeAudioBuffer(channels, length, sampleRate) as unknown as AudioBuffer;
   }
 
   public decodeAudioData(): Promise<AudioBuffer> {
     this.decodeCount += 1;
-    this.operations.push('decode-start');
-    if (this.decodeFailures > 0) {
-      this.decodeFailures -= 1;
-      return Promise.reject(new Error('decode failed'));
-    }
-    const buffer = this.decodedBuffers.shift() ?? new FakeAudioBuffer(
-      2,
-      Math.round(this.sampleRate * MUSIC_PHRASE_BEATS * 60 / MUSIC_BPM),
-      this.sampleRate,
-    ) as unknown as AudioBuffer;
-    return Promise.resolve(buffer);
+    return this.decodeImplementation?.() ?? Promise.resolve(
+      new FakeAudioBuffer(2, this.sampleRate, this.sampleRate) as unknown as AudioBuffer,
+    );
   }
 
   public resume(): Promise<void> {
@@ -200,54 +146,36 @@ class FakeAudioContext {
 
 type FetchMock = ReturnType<typeof vi.fn<typeof fetch>>;
 
+interface Deferred<T> {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (error: unknown) => void;
+}
+
+function deferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+function response(status = 200, body: ArrayBuffer | Promise<ArrayBuffer> = new ArrayBuffer(8)): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    arrayBuffer: async () => body,
+  } as Response;
+}
+
 function fetchUrl(input: RequestInfo | URL): string {
   return typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 }
 
-function response(status: number, body: ArrayBuffer | string = new ArrayBuffer(8)): Response {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    text: () => Promise.resolve(typeof body === 'string' ? body : ''),
-    arrayBuffer: () => Promise.resolve(typeof body === 'string' ? new ArrayBuffer(8) : body),
-  } as Response;
-}
-
-function makeManifest(): Record<string, unknown> {
-  const boundaries = calculateMusicSegmentBoundaries();
-  const last = boundaries.at(-1)!;
-  return {
-    schemaVersion: 1,
-    track: {
-      bpm: MUSIC_BPM,
-      beatsPerBar: 4,
-      bars: MUSIC_BARS,
-      segmentBars: 4,
-      segmentCount: MUSIC_SEGMENT_COUNT,
-      sampleRate: 48_000,
-      totalFrames: last.startFrame + last.frameCount,
-    },
-    stems: GAMEPLAY_MUSIC_STEMS.map(stem => ({
-      id: stem.id,
-      segments: boundaries.map(segment => ({
-        ...segment,
-        file: `segments/${stem.id}/${String(segment.index).padStart(2, '0')}.ogg`,
-        sha256: '',
-      })),
-    })),
-  };
-}
-
-function makeFetcher(
-  statusForUrl: (url: string) => number = () => 200,
-): FetchMock {
-  return vi.fn<typeof fetch>(input => {
-    const url = fetchUrl(input);
-    const status = statusForUrl(url);
-    return Promise.resolve(url === MUSIC_MANIFEST_URL
-      ? response(status, JSON.stringify(makeManifest()))
-      : response(status));
-  });
+function makeFetcher(handler: (url: string) => Promise<Response> | Response = () => response()): FetchMock {
+  return vi.fn<typeof fetch>(async input => handler(fetchUrl(input)));
 }
 
 function makeEngine(context: FakeAudioContext, fetcher = makeFetcher()): AudioEngine {
@@ -257,37 +185,12 @@ function makeEngine(context: FakeAudioContext, fetcher = makeFetcher()): AudioEn
   });
 }
 
-function makeSegmentBuffer(
-  context: FakeAudioContext,
-  segmentIndex: number,
-  channels = 2,
-  lengthOffset = 0,
-  sampleRate = context.sampleRate,
-): AudioBuffer {
-  const segment = calculateMusicSegmentBoundaries()[segmentIndex];
-  if (!segment) throw new RangeError(`Missing test segment ${segmentIndex}`);
-  return new FakeAudioBuffer(
-    channels,
-    Math.round((segment.frameCount / MUSIC_SAMPLE_RATE) * sampleRate) + lengthOffset,
-    sampleRate,
-  ) as unknown as AudioBuffer;
-}
-
-function developBoard(state: PublicGameState, count: number, level: number): void {
-  state.boardState.ownedProps = Object.fromEntries(
-    tileState
-      .map((tile, tileID) => ({ tile, tileID }))
-      .filter(({ tile }) => tile.price !== undefined)
-      .slice(0, count)
-      .map(({ tile, tileID }) => [
-        tileID,
-        { id: 'player-a', color: 'red' as const, houses: tile.rentTiers ? level : 0 },
-      ]),
-  );
-}
-
 async function flushPromises(): Promise<void> {
-  for (let index = 0; index < 100; index += 1) await Promise.resolve();
+  for (let index = 0; index < 20; index += 1) await Promise.resolve();
+}
+
+function musicSources(context: FakeAudioContext): FakeBufferSourceNode[] {
+  return context.bufferSources.filter(source => source.loop);
 }
 
 afterEach(() => {
@@ -296,649 +199,219 @@ afterEach(() => {
 });
 
 describe('AudioEngine', () => {
-  it('applies live Master, SFX, and Music gains while preserving exact zero mute', async () => {
-    const context = new FakeAudioContext();
-    const engine = makeEngine(context);
-    engine.setMix({ masterGain: 0.6, sfxGain: 0.4, musicGain: 0.2 });
+  it('creates one context and applies master, music, and SFX gains', () => {
+    const context = new FakeAudioContext('running');
+    const factory = vi.fn(() => context as unknown as AudioContext);
+    const engine = new AudioEngine({ contextFactory: factory, fetcher: makeFetcher() });
 
+    engine.setMix({ masterGain: 0.6, musicGain: 0.2, sfxGain: 0.4 });
     engine.handleUserInteraction();
-    await flushPromises();
+    engine.setMix({ masterGain: 0, musicGain: 0.5, sfxGain: 0 });
 
-    expect(context.gains.slice(0, 3).map(node => node.gainValue.value)).toEqual([0.6, 0.4, 0.2]);
-    engine.setMix({ masterGain: 0, sfxGain: 0, musicGain: 0.5 });
+    expect(factory).toHaveBeenCalledOnce();
     expect(context.gains.slice(0, 3).map(node => node.gainValue.value)).toEqual([0, 0, 0.5]);
   });
 
-  it('is a graceful no-op when Web Audio is unsupported', () => {
-    const factory = vi.fn(() => null);
-    const engine = new AudioEngine({ contextFactory: factory, fetcher: makeFetcher() });
-
-    expect(() => engine.play('dice.impact')).not.toThrow();
-    expect(factory).not.toHaveBeenCalled();
-    expect(() => engine.handleUserInteraction('ui.click')).not.toThrow();
-    expect(factory).toHaveBeenCalledOnce();
-  });
-
-  it('unlocks only on interaction and does not replay a pre-unlock SFX', async () => {
+  it('does not create audio or play ordinary cues before unlock', () => {
     const context = new FakeAudioContext();
     const factory = vi.fn(() => context as unknown as AudioContext);
     const engine = new AudioEngine({ contextFactory: factory, fetcher: makeFetcher() });
 
-    engine.play('money.receive');
-    expect(factory).not.toHaveBeenCalled();
-    engine.handleUserInteraction();
-    await flushPromises();
-    expect(context.resumeCount).toBe(1);
-    expect(context.oscillators).toHaveLength(0);
-    engine.handleUserInteraction('ui.click');
-    expect(context.oscillators).toHaveLength(1);
-  });
-
-  it('drops ordinary SFX while suspended but allows the current unlock cue', async () => {
-    const context = new FakeAudioContext('running');
-    const engine = makeEngine(context);
-    engine.handleUserInteraction();
-    context.state = 'suspended';
-
     engine.play('dice.impact');
+
+    expect(factory).not.toHaveBeenCalled();
     expect(context.oscillators).toHaveLength(0);
-    expect(context.bufferSources).toHaveLength(0);
-    engine.handleUserInteraction('ui.click');
-    await flushPromises();
-    expect(context.resumeCount).toBe(1);
-    expect(context.oscillators).toHaveLength(1);
   });
 
-  it('keeps unlock/SFX initialization free of gameplay music when no room is active', async () => {
-    const context = new FakeAudioContext();
+  it('keeps music silent outside an active game and loads one looping WAV while active', async () => {
+    const context = new FakeAudioContext('running');
     const fetcher = makeFetcher();
     const engine = makeEngine(context, fetcher);
 
-    engine.handleUserInteraction('ui.click');
+    engine.setGameActive(false);
+    engine.handleUserInteraction();
+    await flushPromises();
+    expect(fetcher).not.toHaveBeenCalledWith(GAMEPLAY_MUSIC_URL, expect.anything());
+
+    engine.setGameActive(true);
+    await flushPromises();
+    expect(fetcher.mock.calls.filter(([input]) => fetchUrl(input) === GAMEPLAY_MUSIC_URL)).toHaveLength(1);
+    expect(musicSources(context)).toHaveLength(1);
+    expect(musicSources(context)[0]?.loop).toBe(true);
+
+    engine.setGameActive(true);
+    await flushPromises();
+    expect(fetcher.mock.calls.filter(([input]) => fetchUrl(input) === GAMEPLAY_MUSIC_URL)).toHaveLength(1);
+    expect(musicSources(context)).toHaveLength(1);
+  });
+
+  it('starts active music after a suspended context is resumed by interaction', async () => {
+    const context = new FakeAudioContext();
+    const engine = makeEngine(context);
+
+    engine.setGameActive(true);
+    expect(musicSources(context)).toHaveLength(0);
+    engine.handleUserInteraction();
     await flushPromises();
 
     expect(context.resumeCount).toBe(1);
-    expect(context.oscillators).toHaveLength(1);
-    expect(fetcher).not.toHaveBeenCalled();
-    expect(context.decodeCount).toBe(0);
+    expect(musicSources(context)).toHaveLength(1);
   });
 
-  it('starts current and next rendered phrases with one shared timestamp per phrase', async () => {
-    const context = new FakeAudioContext();
-    const fetcher = makeFetcher();
-    const engine = makeEngine(context, fetcher);
-    engine.setRoomActive(true);
-
-    engine.handleUserInteraction();
-    await flushPromises();
-
-    const snapshot = engine.getMusicTransportSnapshot();
-    expect(snapshot?.status).toBe('playing');
-    expect(snapshot?.retainedPhraseSequences).toEqual([0, 1]);
-    expect(snapshot?.retainedDecodedBuffers).toBe(8);
-    expect(snapshot?.retainedDecodedPcmBytes).toBeLessThan(32 * 1024 * 1024);
-    expect(context.decodeCount).toBe(8);
-    expect(fetcher).toHaveBeenCalledTimes(9);
-    expect(context.bufferSources).toHaveLength(8);
-    expect(context.bufferSources.every(source => !source.loop)).toBe(true);
-    expect(new Set(context.bufferSources.slice(0, 4).flatMap(source => source.starts))).toEqual(new Set([0.02]));
-    expect(context.bufferSources.slice(4).every(source => (
-      Math.abs((source.starts[0] ?? 0) - (0.02 + calculateMusicSegmentBoundaries()[1].startFrame / MUSIC_SAMPLE_RATE))
-        < 0.000001
-    ))).toBe(true);
-  });
-
-  it('accepts exact decoded frame counts and one-frame resampling rounding', async () => {
-    const context = new FakeAudioContext();
-    const decodedSampleRate = 44_100;
-    context.decodedBuffers = [
-      ...[0, 0, 0, 0].map(segmentIndex => makeSegmentBuffer(context, segmentIndex)),
-      ...[1, 1, 1, 1].map(segmentIndex => (
-        makeSegmentBuffer(context, segmentIndex, 2, 1, decodedSampleRate)
-      )),
-    ];
-    const engine = makeEngine(context);
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-
-    expect(engine.getMusicTransportSnapshot()?.status).toBe('playing');
-    expect(engine.getMusicTransportSnapshot()?.adaptive).toBe(true);
-    expect(context.bufferSources).toHaveLength(8);
-  });
-
-  it('rejects a shared roughly 10 ms decoded mismatch against the manifest', async () => {
-    const context = new FakeAudioContext();
-    const lengthOffset = Math.round(context.sampleRate * 0.01);
-    context.decodedBuffers = [0, 0, 0, 0].map(segmentIndex => (
-      makeSegmentBuffer(context, segmentIndex, 2, lengthOffset)
-    ));
-    const engine = makeEngine(context);
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-
-    expect(engine.getMusicTransportSnapshot()?.status).toBe('failed');
-    expect(context.bufferSources).toHaveLength(0);
-  });
-
-  it('stops every phrase at the next cumulative manifest boundary', async () => {
-    const context = new FakeAudioContext('running');
-    const engine = makeEngine(context);
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-
-    const anchor = engine.getMusicTransportSnapshot()?.anchorTime ?? 0;
-    const boundaries = calculateMusicSegmentBoundaries();
-    const sequenceTime = (sequence: number) => {
-      const loopIndex = Math.floor(sequence / MUSIC_SEGMENT_COUNT);
-      return anchor + (
-        loopIndex * MUSIC_TOTAL_SOURCE_FRAMES + boundaries[sequence % MUSIC_SEGMENT_COUNT].startFrame
-      ) / MUSIC_SAMPLE_RATE;
-    };
-    const sourcesFor = (sequence: number) => context.bufferSources.filter(source => (
-      source.starts[0] !== undefined
-      && Math.abs(source.starts[0] - sequenceTime(sequence)) < 0.000001
-    ));
-    const expectBoundary = (sequence: number, nextSequence: number) => {
-      const sources = sourcesFor(sequence);
-      expect(sources).toHaveLength(4);
-      expect(sources.every(source => (
-        Math.abs((source.starts[0] ?? 0) - sequenceTime(sequence)) < 0.000001
-        && Math.abs((source.stops[0] ?? 0) - sequenceTime(nextSequence)) < 0.000001
-      ))).toBe(true);
-    };
-
-    expectBoundary(0, 1);
-    expectBoundary(1, 2);
-    for (let sequence = 0; sequence < 15; sequence += 1) {
-      sourcesFor(sequence)[0]?.end();
-      await flushPromises();
-    }
-    expectBoundary(15, 16);
-    expectBoundary(16, 17);
-    expect(sequenceTime(16)).toBeCloseTo(anchor + MUSIC_TOTAL_SOURCE_FRAMES / MUSIC_SAMPLE_RATE, 6);
-  });
-
-  it('keeps the musical clock on absolute AudioContext scheduling across segment and loop boundaries', async () => {
-    const context = new FakeAudioContext('running');
-    const engine = makeEngine(context);
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-
-    const anchor = engine.getMusicTransportSnapshot()?.anchorTime ?? 0;
-    const boundaries = calculateMusicSegmentBoundaries();
-    const endSequence = (sequence: number) => {
-      const loopIndex = Math.floor(sequence / MUSIC_SEGMENT_COUNT);
-      const start = anchor + (
-        loopIndex * MUSIC_TOTAL_SOURCE_FRAMES + boundaries[sequence % MUSIC_SEGMENT_COUNT].startFrame
-      ) / MUSIC_SAMPLE_RATE;
-      const source = context.bufferSources.find(candidate => (
-        candidate.starts[0] !== undefined
-        && Math.abs(candidate.starts[0] - start) < 0.000001
-        && candidate.onended !== null
-      ));
-      expect(source, `sequence ${sequence} source`).toBeDefined();
-      source?.end();
-    };
-
-    for (let sequence = 0; sequence < 50; sequence += 1) {
-      endSequence(sequence);
-      await flushPromises();
-    }
-
-    const sequence16 = context.bufferSources.find(source => (
-      source.starts[0] !== undefined
-      && Math.abs(source.starts[0] - (anchor + MUSIC_TOTAL_SOURCE_FRAMES / MUSIC_SAMPLE_RATE)) < 0.000001
-    ));
-    expect(sequence16).toBeDefined();
-    expect(engine.getMusicTransportSnapshot()?.retainedPhraseSequences.length).toBeLessThanOrEqual(2);
-    expect(engine.getMusicTransportSnapshot()?.retainedDecodedBuffers).toBeLessThanOrEqual(8);
-    expect(engine.getMusicTransportSnapshot()?.scheduledSequences.length).toBeLessThanOrEqual(2);
-  });
-
-  it.each([0, 1, 2, 3] as const)('restored intensity %i starts directly at that level', async intensity => {
-    const context = new FakeAudioContext();
-    const engine = makeEngine(context);
-    engine.setMusicIntensity(intensity);
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-
-    expect(context.gains.slice(4, 8).map(gain => gain.gainValue.value))
-      .toEqual(MUSIC_STEM_LEVELS[intensity]);
-  });
-
-  it('applies the latest intensity at the next phrase boundary with a two-beat fade', async () => {
-    const context = new FakeAudioContext('running');
-    const engine = makeEngine(context);
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-    context.currentTime = 1;
-
-    engine.setMusicIntensity(1);
-    engine.setMusicIntensity(2);
-    const cityGain = context.gains[9]?.gainValue;
-    const ramp = cityGain?.events.filter(event => event.type === 'linear').at(-1);
-    const boundary = cityGain?.events.find(event => event.type === 'set' && event.time > 1);
-
-    expect(boundary?.time).toBeCloseTo(
-      0.02 + calculateMusicSegmentBoundaries()[1].startFrame / MUSIC_SAMPLE_RATE,
-      6,
-    );
-    expect(ramp?.value).toBe(MUSIC_STEM_LEVELS[2][1]);
-    expect((ramp?.time ?? 0) - (boundary?.time ?? 0)).toBeCloseTo(2 * 60 / MUSIC_BPM, 6);
-    expect(context.bufferSources).toHaveLength(8);
-  });
-
-  it('degrades optional stems to Foundation-only without restarting the phrase', async () => {
-    const context = new FakeAudioContext();
-    const fetcher = makeFetcher(url => url.includes('/city/') ? 404 : 200);
-    const engine = makeEngine(context, fetcher);
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-
-    expect(context.bufferSources).toHaveLength(2);
-    expect(engine.getMusicTransportSnapshot()?.adaptive).toBe(false);
-    expect(engine.getMusicTransportSnapshot()?.retainedDecodedBuffers).toBe(2);
-  });
-
-  it('fades to silence and does not synthesize gameplay music when Foundation is unavailable', async () => {
-    const context = new FakeAudioContext();
-    const fetcher = makeFetcher(url => url.includes('/foundation/') ? 404 : 200);
-    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const engine = makeEngine(context, fetcher);
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-
-    expect(context.bufferSources).toHaveLength(0);
-    expect(context.oscillators).toHaveLength(0);
-    expect(engine.getMusicTransportSnapshot()?.status).toBe('failed');
-    expect(warning).toHaveBeenCalledWith(expect.stringContaining('Foundation unavailable'));
-  });
-
-  it('treats a missing manifest as permanent and does not retry it on interaction', async () => {
-    const context = new FakeAudioContext();
-    const fetcher = makeFetcher(url => url === MUSIC_MANIFEST_URL ? 404 : 200);
-    const engine = makeEngine(context, fetcher);
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-
-    expect(engine.getMusicTransportSnapshot()?.status).toBe('failed');
-    expect(context.bufferSources).toHaveLength(0);
-    engine.handleUserInteraction();
-    await flushPromises();
-    expect(fetcher).toHaveBeenCalledTimes(1);
-  });
-
-  it.each([
-    ['malformed JSON', '{'],
-    ['invalid schema', JSON.stringify({ schemaVersion: 2 })],
-  ])('treats %s as a permanent manifest failure', async (_name, body) => {
-    const context = new FakeAudioContext();
-    const fetcher = vi.fn<typeof fetch>(input => Promise.resolve(
-      fetchUrl(input) === MUSIC_MANIFEST_URL ? response(200, body) : response(200),
-    ));
-    const engine = makeEngine(context, fetcher);
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-
-    expect(engine.getMusicTransportSnapshot()?.status).toBe('failed');
-    expect(context.bufferSources).toHaveLength(0);
-    engine.handleUserInteraction();
-    await flushPromises();
-    expect(fetcher).toHaveBeenCalledTimes(1);
-  });
-
-  it('allows one later activation retry for a transient manifest failure', async () => {
-    const context = new FakeAudioContext();
-    let manifestRequests = 0;
-    const fetcher = vi.fn<typeof fetch>(input => {
-      const url = fetchUrl(input);
-      if (url === MUSIC_MANIFEST_URL && manifestRequests++ === 0) {
-        return Promise.reject(new Error('temporary manifest network failure'));
-      }
-      return Promise.resolve(url === MUSIC_MANIFEST_URL
-        ? response(200, JSON.stringify(makeManifest()))
-        : response(200));
-    });
-    const engine = makeEngine(context, fetcher);
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-    expect(engine.getMusicTransportSnapshot()?.status).toBe('failed');
-
-    engine.handleUserInteraction();
-    await flushPromises();
-    expect(engine.getMusicTransportSnapshot()?.status).toBe('playing');
-    expect(context.bufferSources).toHaveLength(8);
-    expect(manifestRequests).toBe(2);
-  });
-
-  it('keeps silence after a permanent Foundation decode failure', async () => {
-    const context = new FakeAudioContext();
-    context.decodeFailures = 1;
-    const engine = makeEngine(context);
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-
-    expect(engine.getMusicTransportSnapshot()?.status).toBe('failed');
-    expect(context.bufferSources).toHaveLength(0);
-    expect(context.oscillators).toHaveLength(0);
-    const decodes = context.decodeCount;
-    engine.handleUserInteraction();
-    await flushPromises();
-    expect(context.decodeCount).toBe(decodes);
-  });
-
-  it('retries an optional transient stem only in a clean room session', async () => {
-    const context = new FakeAudioContext('running');
-    let cityRequests = 0;
-    const fetcher = makeFetcher(url => {
-      if (url.includes('/city/')) return cityRequests++ === 0 ? 503 : 200;
-      return 200;
-    });
-    const engine = makeEngine(context, fetcher);
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-    expect(context.bufferSources).toHaveLength(2);
-    expect(engine.getMusicTransportSnapshot()?.adaptive).toBe(false);
-
-    engine.setRoomActive(false);
-    engine.setRoomActive(true);
-    await flushPromises();
-    expect(context.bufferSources).toHaveLength(10);
-    expect(engine.getMusicTransportSnapshot()?.adaptive).toBe(true);
-    expect(cityRequests).toBe(3);
-  });
-
-  it.each([
-    ['timeline', () => ({ channels: 2, lengthOffset: 2 })],
-    ['stereo', () => ({ channels: 1, lengthOffset: 0 })],
-  ])('degrades an optional %s incompatibility to Foundation-only', async (_name, makeIssue) => {
-    const context = new FakeAudioContext();
-    const issue = makeIssue();
-    context.decodedBuffers = [
-      makeSegmentBuffer(context, 0),
-      makeSegmentBuffer(context, 0, issue.channels, issue.lengthOffset),
-      makeSegmentBuffer(context, 0),
-      makeSegmentBuffer(context, 0),
-    ];
-    const engine = makeEngine(context);
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-
-    expect(context.bufferSources).toHaveLength(2);
-    expect(engine.getMusicTransportSnapshot()?.adaptive).toBe(false);
-  });
-
-  it('allows one later activation retry for a transient segment request', async () => {
-    const context = new FakeAudioContext('running');
-    let foundationRequests = 0;
-    const fetcher = makeFetcher(url => {
-      if (url.includes('/foundation/')) {
-        foundationRequests += 1;
-        return foundationRequests === 1 ? 503 : 200;
-      }
-      return 200;
-    });
-    const engine = makeEngine(context, fetcher);
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-    expect(context.bufferSources).toHaveLength(0);
-
-    engine.handleUserInteraction();
-    await flushPromises();
-    expect(context.bufferSources).toHaveLength(8);
-    expect(foundationRequests).toBe(3);
-  });
-
-  it('releases scheduled sources and decoded phrases on hidden/leave, then re-enters cleanly', async () => {
+  it('fades out on game exit and starts a fresh source on re-entry', async () => {
     vi.useFakeTimers();
     const context = new FakeAudioContext('running');
     const engine = makeEngine(context);
-    engine.setRoomActive(true);
+    engine.setGameActive(true);
     engine.handleUserInteraction();
     await flushPromises();
-    const firstSources = context.bufferSources.slice();
+    expect(musicSources(context)).toHaveLength(1);
 
-    engine.setDocumentHidden(true);
-    expect(engine.getMusicTransportSnapshot()?.retainedDecodedBuffers).toBe(0);
-    vi.advanceTimersByTime(250);
-    expect(firstSources.every(source => source.stops.length === 2)).toBe(true);
+    engine.setGameActive(false);
+    expect(musicSources(context)[0]?.stops).toHaveLength(1);
+    vi.advanceTimersByTime(300);
+    expect(musicSources(context)).toHaveLength(1);
 
-    engine.setDocumentHidden(false);
+    engine.setGameActive(true);
     await flushPromises();
-    expect(context.bufferSources).toHaveLength(16);
-    expect(engine.getMusicTransportSnapshot()?.scheduledSequences).toEqual([0, 1]);
-
-    engine.setRoomActive(false);
-    vi.advanceTimersByTime(250);
-    expect(engine.getMusicTransportSnapshot()?.retainedDecodedBuffers).toBe(0);
+    expect(musicSources(context)).toHaveLength(2);
   });
 
-  it('does not overlap transports during rapid room re-entry', async () => {
+  it('does not start music when an old load resolves after exit or dispose', async () => {
+    const body = deferred<ArrayBuffer>();
+    const fetcher = makeFetcher(url => url === GAMEPLAY_MUSIC_URL
+      ? response(200, body.promise)
+      : response());
     const context = new FakeAudioContext('running');
-    const engine = makeEngine(context);
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-    const oldSources = context.bufferSources.slice();
-
-    engine.setRoomActive(false);
-    engine.setRoomActive(true);
-    await flushPromises();
-
-    expect(oldSources.every(source => source.stops.length === 2)).toBe(true);
-    expect(context.bufferSources.slice(8).every(source => source.stops.length === 1)).toBe(true);
-    expect(engine.getMusicTransportSnapshot()?.scheduledSequences).toEqual([0, 1]);
-    expect(engine.getMusicTransportSnapshot()?.activeSourceCount).toBe(8);
-  });
-
-  it.each(['suspended', 'interrupted'] as const)('resumes a %s context only after trusted interaction', async state => {
-    const context = new FakeAudioContext(state);
-    const engine = makeEngine(context);
-    engine.setRoomActive(true);
-    engine.setMusicIntensity(2);
-    engine.handleUserInteraction();
-    await flushPromises();
-
-    expect(context.resumeCount).toBe(1);
-    expect(context.bufferSources).toHaveLength(8);
-    expect(context.gains.slice(4, 8).map(gain => gain.gainValue.value)).toEqual(MUSIC_STEM_LEVELS[2]);
-  });
-
-  it('discards the old transport when a closed context is replaced', async () => {
-    const first = new FakeAudioContext('running');
-    const second = new FakeAudioContext('running');
-    let contextIndex = 0;
-    const factory = vi.fn(() => contextIndex++ === 0
-      ? first as unknown as AudioContext
-      : second as unknown as AudioContext);
-    const engine = new AudioEngine({ contextFactory: factory, fetcher: makeFetcher() });
-    engine.setRoomActive(true);
-    engine.handleUserInteraction();
-    await flushPromises();
-    first.state = 'closed';
-
-    engine.handleUserInteraction();
-    await flushPromises();
-
-    expect(factory).toHaveBeenCalledTimes(2);
-    expect(first.bufferSources.every(source => source.stops.length === 2)).toBe(true);
-    expect(second.bufferSources).toHaveLength(8);
-  });
-
-  it('ignores a late manifest completion after room leave and disposal', async () => {
-    let resolveManifest!: (value: Response) => void;
-    const pendingManifest = new Promise<Response>(resolve => { resolveManifest = resolve; });
-    const context = new FakeAudioContext('running');
-    const fetcher = vi.fn<typeof fetch>(() => pendingManifest);
     const engine = makeEngine(context, fetcher);
-    engine.setRoomActive(true);
+    engine.setGameActive(true);
     engine.handleUserInteraction();
-    await Promise.resolve();
-    engine.setRoomActive(false);
-    resolveManifest(response(200, JSON.stringify(makeManifest())));
     await flushPromises();
-    expect(context.bufferSources).toHaveLength(0);
-    expect(engine.getMusicTransportSnapshot()?.retainedDecodedBuffers).toBe(0);
+    engine.setGameActive(false);
+    body.resolve(new ArrayBuffer(8));
+    await flushPromises();
+    expect(musicSources(context)).toHaveLength(0);
 
-    let resolveDisposed!: (value: Response) => void;
-    const pendingDisposed = new Promise<Response>(resolve => { resolveDisposed = resolve; });
-    const disposedContext = new FakeAudioContext('running');
-    const disposedFetcher = vi.fn<typeof fetch>(() => pendingDisposed);
-    const disposedEngine = makeEngine(disposedContext, disposedFetcher);
-    disposedEngine.setRoomActive(true);
+    const secondBody = deferred<ArrayBuffer>();
+    const secondFetcher = makeFetcher(url => url === GAMEPLAY_MUSIC_URL
+      ? response(200, secondBody.promise)
+      : response());
+    const secondContext = new FakeAudioContext('running');
+    const disposedEngine = makeEngine(secondContext, secondFetcher);
+    disposedEngine.setGameActive(true);
     disposedEngine.handleUserInteraction();
-    await Promise.resolve();
+    await flushPromises();
     disposedEngine.dispose();
-    resolveDisposed(response(200, JSON.stringify(makeManifest())));
+    secondBody.resolve(new ArrayBuffer(8));
     await flushPromises();
-    expect(disposedContext.bufferSources).toHaveLength(0);
-    expect(disposedEngine.getMusicTransportSnapshot()).toBeNull();
+    expect(musicSources(secondContext)).toHaveLength(0);
   });
 
-  it('preserves the shared Master/Music/SFX buses and every registered cue remains SFX', async () => {
+  it('stops and resumes music around document visibility without duplicating sources', async () => {
+    vi.useFakeTimers();
+    const context = new FakeAudioContext('running');
+    const engine = makeEngine(context);
+    engine.setGameActive(true);
+    engine.handleUserInteraction();
+    await flushPromises();
+    engine.setDocumentHidden(true);
+    engine.setDocumentHidden(false);
+    vi.advanceTimersByTime(300);
+    await flushPromises();
+
+    expect(musicSources(context)).toHaveLength(2);
+  });
+
+  it('keeps procedural cues available while sample cues load', async () => {
     const context = new FakeAudioContext('running');
     const engine = makeEngine(context);
     engine.handleUserInteraction();
     await flushPromises();
 
-    expect(context.gains[1]?.connections).toEqual([context.gains[0]]);
-    expect(context.gains[2]?.connections).toEqual([context.gains[0]]);
-    expect(context.gains[3]?.connections).toEqual([context.gains[2]]);
-    for (const cue of Object.keys(AUDIO_REGISTRY) as AudioCueId[]) {
-      const voiceGainIndex = context.gains.length;
-      engine.play(cue);
-      expect(context.gains[voiceGainIndex]?.connections).toEqual([context.gains[1]]);
+    engine.play('movement.hop');
+    expect(context.oscillators).toHaveLength(1);
+  });
+
+  it('uses a cached sample after immediate procedural fallback', async () => {
+    const sampleBody = deferred<ArrayBuffer>();
+    const context = new FakeAudioContext('running');
+    const fetcher = makeFetcher(url => url.endsWith('money-pay-01.ogg')
+      ? response(200, sampleBody.promise)
+      : response());
+    const engine = makeEngine(context, fetcher);
+    engine.handleUserInteraction();
+    await flushPromises();
+    engine.play('money.pay');
+    expect(context.oscillators.length).toBeGreaterThan(0);
+
+    sampleBody.resolve(new ArrayBuffer(8));
+    await flushPromises();
+    const decodeCount = context.decodeCount;
+    context.currentTime = 1;
+    engine.play('money.pay');
+    expect(context.bufferSources.some(source => !source.loop && source.buffer)).toBe(true);
+    expect(context.decodeCount).toBe(decodeCount);
+    expect(fetcher.mock.calls.filter(([input]) => fetchUrl(input).endsWith('money-pay-01.ogg'))).toHaveLength(1);
+  });
+
+  it('falls back once and warns once when a sample cannot be fetched', async () => {
+    const context = new FakeAudioContext('running');
+    const fetcher = makeFetcher(url => url.endsWith('money-pay-01.ogg') ? response(404) : response());
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const engine = makeEngine(context, fetcher);
+    engine.handleUserInteraction();
+    await flushPromises();
+    context.currentTime = 1;
+    engine.play('money.pay');
+    await flushPromises();
+    context.currentTime = 2;
+    engine.play('money.pay');
+    await flushPromises();
+
+    expect(context.oscillators.length).toBeGreaterThan(0);
+    expect(warning.mock.calls.filter(([message]) => String(message).includes('money-pay-01.ogg'))).toHaveLength(1);
+  });
+
+  it('bounds voices, honors cooldown, and aborts presentation voices', () => {
+    const context = new FakeAudioContext('running');
+    const engine = makeEngine(context);
+    engine.handleUserInteraction();
+    const signalController = new AbortController();
+    engine.play('ui.click', { scope: 'presentation', signal: signalController.signal });
+    const oscillatorCount = context.oscillators.length;
+    engine.play('ui.click', { scope: 'presentation' });
+    expect(context.oscillators).toHaveLength(oscillatorCount);
+
+    signalController.abort();
+    expect(context.oscillators[0]?.stops.length).toBeGreaterThan(0);
+    engine.stopPresentationVoices();
+    expect(context.oscillators[0]?.disconnectCount).toBeGreaterThan(0);
+  });
+
+  it('keeps deterministic sample variations bounded across repeated plays', async () => {
+    const context = new FakeAudioContext('running');
+    const engine = makeEngine(context);
+    engine.handleUserInteraction();
+    await flushPromises();
+    for (let index = 0; index < 5; index += 1) {
+      context.currentTime = index + 1;
+      engine.play('dice.impact');
+      context.bufferSources.at(-1)?.end();
     }
+
+    expect(context.bufferSources.filter(source => !source.loop && source.buffer)).toHaveLength(5);
   });
 
-  it('stops presentation tails without stopping UI, unrelated SFX, or music', () => {
+  it('disposes voices, buses, and the single context', async () => {
     const context = new FakeAudioContext('running');
     const engine = makeEngine(context);
+    engine.setGameActive(true);
     engine.handleUserInteraction();
-    engine.play('victory', { scope: 'presentation' });
+    await flushPromises();
     engine.play('ui.click');
-    engine.play('movement.hop');
-    engine.stopPresentationVoices();
-
-    expect(context.oscillators.slice(0, 3).every(source => source.stops.length === 2)).toBe(true);
-    expect(context.oscillators[3]?.stops).toHaveLength(1);
-    expect(context.oscillators[4]?.stops).toHaveLength(1);
-  });
-
-  it('enforces cooldown and polyphony limits for spam-prone SFX', () => {
-    const context = new FakeAudioContext('running');
-    const engine = makeEngine(context);
-    engine.handleUserInteraction();
-
-    engine.play('movement.hop');
-    context.currentTime = 0.1;
-    engine.play('movement.hop');
-    expect(context.oscillators).toHaveLength(1);
-    context.oscillators[0]?.end();
-    engine.play('movement.hop');
-    expect(context.oscillators).toHaveLength(2);
-    context.oscillators[1]?.end();
-    context.currentTime = 0.12;
-    engine.play('movement.hop');
-    expect(context.oscillators).toHaveLength(2);
-  });
-
-  it('stops an active presentation voice when its abort signal fires', () => {
-    const context = new FakeAudioContext('running');
-    const engine = makeEngine(context);
-    const controller = new AbortController();
-    engine.handleUserInteraction();
-
-    engine.play('dice.shake', { signal: controller.signal });
-    expect(context.oscillators[0]?.stops).toHaveLength(1);
-    expect(context.bufferSources[0]?.stops).toHaveLength(1);
-    controller.abort();
-    expect(context.oscillators[0]?.stops).toHaveLength(2);
-    expect(context.bufferSources[0]?.stops).toHaveLength(2);
-  });
-
-  it('preserves exact zero mix mute, cooldowns, presentation cancellation, and disposal', async () => {
-    const context = new FakeAudioContext('running');
-    const engine = makeEngine(context);
-    engine.handleUserInteraction();
-    await flushPromises();
-    engine.setMix({ masterGain: 0, musicGain: 0, sfxGain: 0 });
-    expect(context.gains.slice(0, 3).map(node => node.gainValue.value)).toEqual([0, 0, 0]);
-
-    engine.play('movement.hop');
-    context.currentTime = 0.1;
-    engine.play('movement.hop');
-    expect(context.oscillators).toHaveLength(1);
-    engine.play('victory', { scope: 'presentation' });
-    engine.stopPresentationVoices();
-    expect(context.oscillators.at(-1)?.stops).toHaveLength(2);
-
     engine.dispose();
-    await flushPromises();
+
     expect(context.closeCount).toBe(1);
-  });
-
-  it('survives StrictMode-style release followed by immediate retain', async () => {
-    const context = new FakeAudioContext('running');
-    const engine = makeEngine(context);
-    engine.retain();
-    engine.handleUserInteraction();
-    engine.release();
-    engine.retain();
-    await flushPromises();
-    expect(context.closeCount).toBe(0);
-    engine.release();
-    await flushPromises();
-    expect(context.closeCount).toBe(1);
-  });
-
-  it('preserves the existing public-state intensity weights and hysteresis', () => {
-    const early = makeRoom().gameState;
-    expect(deriveMusicIntensity(early)).toBe(0);
-
-    const developing = makeRoom().gameState;
-    developBoard(developing, 16, 2);
-    developing.boardState.turnNumber = 36;
-    expect(deriveMusicIntensity(developing)).toBe(2);
-
-    const late = makeRoom().gameState;
-    developBoard(late, 28, 4);
-    late.boardState.turnNumber = 60;
-    expect(deriveMusicIntensity(late)).toBe(3);
-
-    const state = makeRoom().gameState;
-    developBoard(state, 12, 0);
-    expect(calculateMusicIntensityScore(state)).toBeGreaterThan(0.145);
-    expect(calculateMusicIntensityScore(state)).toBeLessThan(0.215);
-    expect(deriveMusicIntensity(state, 0)).toBe(0);
-    expect(deriveMusicIntensity(state, 1)).toBe(1);
-  });
-
-  it('keeps the four-stem 64-bar contract while exposing the segmented timeline', () => {
-    expect(GAMEPLAY_MUSIC_STEMS).toHaveLength(4);
-    expect(MUSIC_STEM_IDS).toEqual(['foundation', 'city', 'wealth', 'competition']);
-    expect(MUSIC_BARS).toBe(64);
-    expect(MUSIC_BEATS).toBe(256);
-    expect(MUSIC_TRACK_METADATA.bpm).toBe(110);
-    expect(MUSIC_TRACK_METADATA.transitionBars).toBe(4);
-    expect(MUSIC_TRACK_METADATA.transitionFadeBeats).toBe(2);
-    expect(MUSIC_LOOP_DURATION_SECONDS).toBeCloseTo(256 * 60 / MUSIC_BPM, 8);
-    expect(calculateMusicSegmentBoundaries()).toHaveLength(16);
-    expect(MUSIC_TOTAL_SOURCE_FRAMES).toBe(6_702_545);
+    expect(() => engine.play('ui.click')).not.toThrow();
   });
 });

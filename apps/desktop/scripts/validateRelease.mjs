@@ -9,9 +9,9 @@ import {
   signingStatus,
 } from './releaseMetadata.mjs';
 import {
-  formatMusicReleaseResult,
-  validateMusicRelease,
-} from '../../client/scripts/validateMusicRelease.mjs';
+  assetRoot,
+  validateGameplayMusicAssets,
+} from '../../client/scripts/validateGameplayMusicAssets.mjs';
 
 const argumentsSet = new Set(process.argv.slice(2));
 const target = resolveReleaseTarget();
@@ -33,8 +33,11 @@ if (metadata.endpoint === undefined && Object.hasOwn(generatedConfig, 'socketUrl
 }
 
 if (argumentsSet.has('--release')) {
-  const musicRelease = await validateMusicRelease();
-  if (!musicRelease.pass) throw new Error(formatMusicReleaseResult(musicRelease));
+  const audioReport = await validateGameplayMusicAssets(
+    assetRoot,
+    path.join(repositoryRoot, 'apps', 'client', 'dist', 'audio'),
+  );
+  if (audioReport.errors.length) throw new Error(audioReport.errors.join('\n'));
 }
 
 const signing = signingStatus({

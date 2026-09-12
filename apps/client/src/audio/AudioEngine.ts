@@ -1,47 +1,19 @@
-import { AUDIO_REGISTRY, type ProceduralAudioLayer } from './audioRegistry';
-import { SegmentedMusicTransport, type SegmentedMusicTransportSnapshot } from './SegmentedMusicTransport';
+import {
+  AUDIO_REGISTRY,
+  GAMEPLAY_MUSIC_URL,
+  type ProceduralAudioLayer,
+  type ProceduralAudioSource,
+  type SampleAudioSource,
+} from './audioRegistry';
 import type {
   AudioCueId,
   AudioMix,
   AudioPlayOptions,
   AudioPort,
   AudioVoiceScope,
-  MusicIntensity,
 } from './types';
 
-export {
-  calculateMusicIntensityScore,
-  deriveMusicIntensity,
-  GAMEPLAY_MUSIC_STEMS,
-  MUSIC_ASSET_ROOT,
-  MUSIC_BEATS_PER_BAR,
-  MUSIC_BARS,
-  MUSIC_BEATS,
-  MUSIC_BPM,
-  MUSIC_MANIFEST_URL,
-  MUSIC_LOOP_DURATION_SECONDS,
-  MUSIC_PHRASE_BEATS,
-  MUSIC_SAMPLE_RATE,
-  MUSIC_SECTIONS,
-  MUSIC_SEGMENT_BARS,
-  MUSIC_SEGMENT_COUNT,
-  MUSIC_STEM_IDS,
-  MUSIC_STEM_LEVELS,
-  MUSIC_TOTAL_SOURCE_FRAMES,
-  MUSIC_TRACK_METADATA,
-  calculateMusicSegmentBoundaries,
-  isSafeGameplayMusicSegmentPath,
-  musicBoundaryFrame,
-  parseGameplayMusicManifest,
-} from './music';
-export type {
-  GameplayMusicManifest,
-  GameplayMusicSegment,
-  GameplayMusicStem,
-  GameplayMusicTrack,
-  MusicSegmentBoundary,
-  MusicStemId,
-} from './music';
+export { AUDIO_REGISTRY, GAMEPLAY_MUSIC_URL } from './audioRegistry';
 
 export interface AudioEngineOptions {
   contextFactory?: () => AudioContext | null;
@@ -51,7 +23,7 @@ export interface AudioEngineOptions {
 interface ActiveVoice {
   cueId: AudioCueId;
   gainNode: GainNode;
-  sources: Map<AudioScheduledSourceNode, GainNode>;
+  sources: Map<AudioScheduledSourceNode, GainNode | null>;
   scope?: AudioVoiceScope;
   signal?: AbortSignal;
   abortListener?: () => void;
@@ -63,6 +35,7 @@ const DEFAULT_MIX: AudioMix = {
   musicGain: 0.7,
   sfxGain: 0.8,
 };
+const MUSIC_FADE_MS = 220;
 
 function clampGain(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -102,8 +75,22 @@ function cueSeed(cueId: AudioCueId, layerIndex: number): number {
   return seed >>> 0;
 }
 
-function warnMusic(message: string): void {
-  if (import.meta.env.DEV) console.warn(`[AudioEngine] ${message}`);
+function failureMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isAbortError(error: unknown): boolean {
+  return typeof DOMException !== 'undefined'
+    && error instanceof DOMException
+    && error.name === 'AbortError';
+}
+
+function isContextClosed(context: AudioContext): boolean {
+  return (context.state as string) === 'closed';
+}
+
+function warnAudio(message: string): void {
+  console.warn(`[AudioEngine] ${message}`);
 }
 
 export class AudioEngine implements AudioPort {
@@ -117,9 +104,21 @@ export class AudioEngine implements AudioPort {
   private readonly activeVoices = new Map<AudioCueId, Set<ActiveVoice>>();
   private readonly presentationVoices = new Set<ActiveVoice>();
   private readonly lastStartedAt = new Map<AudioCueId, number>();
-  private musicTransport: SegmentedMusicTransport | null = null;
-  private musicIntensity: MusicIntensity = 0;
-  private roomActive = false;
+  private readonly sampleBuffers = new Map<string, AudioBuffer>();
+  private readonly sampleLoads = new Map<string, Promise<AudioBuffer | null>>();
+  private readonly failedSamples = new Set<string>();
+  private readonly variationIndexes = new Map<AudioCueId, number>();
+  private sampleAbortController: AbortController | null = null;
+  private musicBuffer: AudioBuffer | null = null;
+  private musicSource: AudioBufferSourceNode | null = null;
+  private musicVoiceGainNode: GainNode | null = null;
+  private musicStopTimer: ReturnType<typeof setTimeout> | null = null;
+  private musicAbortController: AbortController | null = null;
+  private musicLoadPromise: Promise<AudioBuffer | null> | null = null;
+  private musicGeneration = 0;
+  private musicAttempted = false;
+  private musicFailureLogged = false;
+  private gameActive = false;
   private documentHidden = false;
   private resumePromise: Promise<void> | null = null;
   private pendingInteractionCue: AudioCueId | undefined;
@@ -148,36 +147,34 @@ export class AudioEngine implements AudioPort {
     this.startCue(context, cueId, options);
   }
 
-  public setRoomActive(active: boolean): void {
+  public setGameActive(active: boolean): void {
     if (this.disposed) return;
-    const changed = active !== this.roomActive;
-    this.roomActive = active;
-    if (!active) {
-      this.musicTransport?.stop({ roomLeave: true });
+    if (active === this.gameActive) {
+      if (active) this.syncMusicLifecycle();
       return;
     }
-    this.syncMusicLifecycle(changed);
+    this.gameActive = active;
+    if (!active) {
+      this.invalidateMusicLoad();
+      this.musicAttempted = false;
+      this.stopMusic();
+      return;
+    }
+    this.musicAttempted = false;
+    this.syncMusicLifecycle();
   }
 
   public setDocumentHidden(hidden: boolean): void {
-    if (this.disposed) return;
-    if (hidden === this.documentHidden) return;
+    if (this.disposed || hidden === this.documentHidden) return;
     this.documentHidden = hidden;
     if (hidden) {
-      this.musicTransport?.stop();
+      this.invalidateMusicLoad();
+      this.musicAttempted = false;
+      this.stopMusic();
       return;
     }
-    this.syncMusicLifecycle(true);
-  }
-
-  public setMusicIntensity(intensity: MusicIntensity): void {
-    if (this.disposed || intensity === this.musicIntensity) return;
-    this.musicIntensity = intensity;
-    this.musicTransport?.setIntensity(intensity);
-  }
-
-  public getMusicTransportSnapshot(): SegmentedMusicTransportSnapshot | null {
-    return this.musicTransport?.getDebugSnapshot() ?? null;
+    this.musicAttempted = false;
+    this.syncMusicLifecycle();
   }
 
   public stopPresentationVoices(): void {
@@ -204,8 +201,6 @@ export class AudioEngine implements AudioPort {
       this.pendingInteractionCue = undefined;
       return;
     }
-    // Web Audio queues resume promises. A fresh trusted activation must not be
-    // blocked by an older attempt that never settled outside valid activation.
     this.resumePromise = resumePromise;
     void resumePromise.then(() => {
       if (this.disposed || context !== this.context || context.state !== 'running') return;
@@ -238,14 +233,20 @@ export class AudioEngine implements AudioPort {
     this.disposed = true;
     this.resumePromise = null;
     this.pendingInteractionCue = undefined;
-    this.musicTransport?.dispose();
-    this.musicTransport = null;
+    this.invalidateMusicLoad();
+    this.sampleAbortController?.abort();
+    this.sampleAbortController = null;
+    this.stopMusic(true);
     this.activeVoices.forEach(voices => {
       [...voices].forEach(voice => this.stopVoice(voice));
     });
     this.activeVoices.clear();
     this.presentationVoices.clear();
     this.lastStartedAt.clear();
+    this.sampleBuffers.clear();
+    this.sampleLoads.clear();
+    this.failedSamples.clear();
+    this.musicBuffer = null;
     this.sfxGainNode?.disconnect();
     this.musicGainNode?.disconnect();
     this.masterGainNode?.disconnect();
@@ -261,8 +262,15 @@ export class AudioEngine implements AudioPort {
 
   private ensureContext(): AudioContext | null {
     if (this.context?.state === 'closed') {
-      this.musicTransport?.dispose();
-      this.musicTransport = null;
+      this.invalidateMusicLoad();
+      this.sampleAbortController?.abort();
+      this.sampleAbortController = null;
+      this.musicBuffer = null;
+      this.sampleBuffers.clear();
+      this.sampleLoads.clear();
+      this.musicSource = null;
+      this.musicVoiceGainNode = null;
+      this.clearMusicStopTimer();
       this.context = null;
       this.masterGainNode = null;
       this.musicGainNode = null;
@@ -282,13 +290,7 @@ export class AudioEngine implements AudioPort {
       this.masterGainNode = masterGainNode;
       this.sfxGainNode = sfxGainNode;
       this.musicGainNode = musicGainNode;
-      this.musicTransport = new SegmentedMusicTransport({
-        context,
-        output: musicGainNode,
-        fetcher: this.fetcher,
-        warn: warnMusic,
-      });
-      this.musicTransport.setIntensity(this.musicIntensity);
+      this.sampleAbortController = new AbortController();
       this.applyMix();
       return context;
     } catch {
@@ -309,13 +311,194 @@ export class AudioEngine implements AudioPort {
     const pendingCue = this.pendingInteractionCue;
     this.pendingInteractionCue = undefined;
     if (pendingCue) this.startCue(context, pendingCue, {});
-    this.syncMusicLifecycle(true);
+    this.preloadSamples(context);
+    this.syncMusicLifecycle();
   }
 
-  private syncMusicLifecycle(allowRetry = false): void {
+  private syncMusicLifecycle(): void {
     const context = this.context;
-    if (!context || context.state !== 'running' || !this.roomActive || this.documentHidden) return;
-    this.musicTransport?.activate(allowRetry);
+    if (!context || context.state !== 'running' || !this.gameActive || this.documentHidden) return;
+    if (this.musicSource || this.musicStopTimer !== null) return;
+    if (this.musicBuffer) {
+      this.startMusic(context, this.musicBuffer);
+      return;
+    }
+    if (this.musicLoadPromise || this.musicAttempted) return;
+    this.musicAttempted = true;
+    this.loadMusic(context);
+  }
+
+  private invalidateMusicLoad(): void {
+    this.musicGeneration += 1;
+    this.musicAbortController?.abort();
+    this.musicAbortController = null;
+    this.musicLoadPromise = null;
+  }
+
+  private loadMusic(context: AudioContext): void {
+    const generation = this.musicGeneration;
+    const controller = new AbortController();
+    this.musicAbortController = controller;
+    const load = (async (): Promise<AudioBuffer | null> => {
+      try {
+        const response = await this.fetcher(GAMEPLAY_MUSIC_URL, { signal: controller.signal });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.arrayBuffer();
+        if (this.context !== context || isContextClosed(context) || this.disposed) return null;
+        const buffer = await context.decodeAudioData(data);
+        if (this.context !== context || isContextClosed(context) || this.disposed) return null;
+        this.musicBuffer = buffer;
+        return buffer;
+      } catch (error) {
+        if (isAbortError(error) || this.musicGeneration !== generation
+          || this.context !== context || this.disposed) return null;
+        if (!this.musicFailureLogged) {
+          this.musicFailureLogged = true;
+          warnAudio(`Gameplay music unavailable: ${failureMessage(error)}`);
+        }
+        return null;
+      }
+    })();
+    this.musicLoadPromise = load;
+    void load.then(buffer => {
+      if (!buffer || this.musicGeneration !== generation || this.context !== context
+        || !this.gameActive || this.documentHidden || context.state !== 'running') return;
+      this.startMusic(context, buffer);
+    }).catch(() => {}).finally(() => {
+      if (this.musicLoadPromise === load) this.musicLoadPromise = null;
+      if (this.musicAbortController?.signal === controller.signal) this.musicAbortController = null;
+    });
+  }
+
+  private startMusic(context: AudioContext, buffer: AudioBuffer): void {
+    if (this.disposed || this.musicSource || this.musicStopTimer !== null || !this.musicGainNode) return;
+    const voiceGain = context.createGain();
+    const source = context.createBufferSource();
+    const startAt = context.currentTime;
+    const fadeEnd = startAt + MUSIC_FADE_MS / 1_000;
+    try {
+      voiceGain.gain.setValueAtTime(0.0001, startAt);
+      voiceGain.gain.exponentialRampToValueAtTime(1, fadeEnd);
+      voiceGain.connect(this.musicGainNode);
+      source.buffer = buffer;
+      source.loop = true;
+      source.connect(voiceGain);
+      source.onended = () => this.finishMusicSource(source);
+      source.start(startAt);
+      this.musicVoiceGainNode = voiceGain;
+      this.musicSource = source;
+    } catch (error) {
+      source.onended = null;
+      source.disconnect();
+      voiceGain.disconnect();
+      warnAudio(`Could not start gameplay music: ${failureMessage(error)}`);
+    }
+  }
+
+  private stopMusic(immediate = false): void {
+    const source = this.musicSource;
+    const voiceGain = this.musicVoiceGainNode;
+    if (!source || !voiceGain || !this.context) {
+      if (immediate) this.clearMusicStopTimer();
+      return;
+    }
+    if (this.musicStopTimer !== null) return;
+    if (immediate) {
+      source.onended = null;
+      try {
+        source.stop();
+      } catch {
+        // The source may already have ended.
+      }
+      source.disconnect();
+      voiceGain.disconnect();
+      this.musicSource = null;
+      this.musicVoiceGainNode = null;
+      this.clearMusicStopTimer();
+      return;
+    }
+    const now = this.context.currentTime;
+    const endAt = now + MUSIC_FADE_MS / 1_000;
+    voiceGain.gain.cancelScheduledValues(now);
+    voiceGain.gain.setValueAtTime(Math.max(0.0001, voiceGain.gain.value), now);
+    voiceGain.gain.exponentialRampToValueAtTime(0.0001, endAt);
+    voiceGain.gain.setValueAtTime(0, endAt);
+    try {
+      source.stop(endAt);
+    } catch {
+      this.finishMusicSource(source);
+      return;
+    }
+    this.musicStopTimer = setTimeout(() => {
+      if (this.musicSource === source) this.finishMusicSource(source);
+    }, MUSIC_FADE_MS + 40);
+  }
+
+  private finishMusicSource(source: AudioBufferSourceNode): void {
+    if (this.musicSource !== source) return;
+    source.onended = null;
+    source.disconnect();
+    this.musicVoiceGainNode?.disconnect();
+    this.musicSource = null;
+    this.musicVoiceGainNode = null;
+    this.clearMusicStopTimer();
+    this.syncMusicLifecycle();
+  }
+
+  private clearMusicStopTimer(): void {
+    if (this.musicStopTimer === null) return;
+    clearTimeout(this.musicStopTimer);
+    this.musicStopTimer = null;
+  }
+
+  private preloadSamples(context: AudioContext): void {
+    const urls = new Set<string>();
+    Object.values(AUDIO_REGISTRY).forEach(definition => {
+      if (definition.source.kind === 'sample') {
+        definition.source.files.forEach(file => urls.add(file));
+      }
+    });
+    urls.forEach(url => { void this.loadSample(context, url); });
+  }
+
+  private loadSample(context: AudioContext, url: string): Promise<AudioBuffer | null> {
+    const cached = this.sampleBuffers.get(url);
+    if (cached) return Promise.resolve(cached);
+    if (this.failedSamples.has(url)) return Promise.resolve(null);
+    const existing = this.sampleLoads.get(url);
+    if (existing) return existing;
+    const signal = this.sampleAbortController?.signal;
+    const load = (async (): Promise<AudioBuffer | null> => {
+      try {
+        const response = await this.fetcher(url, signal ? { signal } : undefined);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.arrayBuffer();
+        if (this.context !== context || isContextClosed(context) || this.disposed) return null;
+        const buffer = await context.decodeAudioData(data);
+        if (this.context !== context || isContextClosed(context) || this.disposed) return null;
+        this.sampleBuffers.set(url, buffer);
+        return buffer;
+      } catch (error) {
+        if (isAbortError(error) || this.context !== context || isContextClosed(context) || this.disposed) {
+          return null;
+        }
+        this.failedSamples.add(url);
+        warnAudio(`SFX sample unavailable (${url}): ${failureMessage(error)}`);
+        return null;
+      }
+    })();
+    this.sampleLoads.set(url, load);
+    void load.finally(() => {
+      if (this.sampleLoads.get(url) === load) this.sampleLoads.delete(url);
+    }).catch(() => {});
+    return load;
+  }
+
+  private selectSampleFile(cueId: AudioCueId, source: SampleAudioSource): string {
+    const previous = this.variationIndexes.get(cueId) ?? -1;
+    const index = source.files.length === 0 ? 0 : (previous + 1) % source.files.length;
+    this.variationIndexes.set(cueId, index);
+    return source.files[index] ?? source.files[0] ?? '';
   }
 
   private startCue(context: AudioContext, cueId: AudioCueId, options: AudioPlayOptions): void {
@@ -342,16 +525,25 @@ export class AudioEngine implements AudioPort {
     };
 
     try {
-      definition.source.layers.forEach((layer, layerIndex) => {
-        const { source, envelope } = this.createLayer(
-          context,
-          voiceGain,
-          cueId,
-          layer,
-          layerIndex,
-        );
-        voice.sources.set(source, envelope);
-      });
+      if (definition.source.kind === 'sample') {
+        const url = this.selectSampleFile(cueId, definition.source);
+        const buffer = url ? this.sampleBuffers.get(url) : undefined;
+        if (buffer) {
+          const source = this.createSampleSource(context, voiceGain, buffer);
+          voice.sources.set(source, null);
+        } else {
+          if (url) void this.loadSample(context, url);
+          this.createProceduralSources(
+            context,
+            voiceGain,
+            cueId,
+            definition.source.proceduralFallback,
+            voice,
+          );
+        }
+      } else {
+        this.createProceduralSources(context, voiceGain, cueId, definition.source, voice);
+      }
     } catch {
       this.stopVoice(voice);
       return;
@@ -372,6 +564,38 @@ export class AudioEngine implements AudioPort {
       voice.abortListener = abortListener;
       options.signal.addEventListener('abort', abortListener, { once: true });
     }
+  }
+
+  private createProceduralSources(
+    context: AudioContext,
+    output: GainNode,
+    cueId: AudioCueId,
+    source: ProceduralAudioSource,
+    voice: ActiveVoice,
+  ): void {
+    source.layers.forEach((layer, layerIndex) => {
+      const { source: scheduledSource, envelope } = this.createLayer(
+        context,
+        output,
+        cueId,
+        layer,
+        layerIndex,
+      );
+      voice.sources.set(scheduledSource, envelope);
+    });
+  }
+
+  private createSampleSource(
+    context: AudioContext,
+    output: GainNode,
+    buffer: AudioBuffer,
+  ): AudioBufferSourceNode {
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.loop = false;
+    source.connect(output);
+    source.start(context.currentTime);
+    return source;
   }
 
   private createLayer(
@@ -439,7 +663,7 @@ export class AudioEngine implements AudioPort {
         // The source may already have ended; cleanup below is still required.
       }
       source.disconnect();
-      envelope.disconnect();
+      envelope?.disconnect();
     });
     voice.sources.clear();
     this.cleanupVoice(voice);

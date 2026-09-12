@@ -9,17 +9,9 @@
   button, select { font: inherit; padding: .5rem; }
 </style>
 <h1>V1 audio listening review</h1>
-<p>Development only. This page uses the game's segmented <code>AudioEngine</code>
-  and is excluded from the release build. Pass C production assets are required
-  for audible review; the transport starts with the current and next phrase.</p>
-<label>Arrangement
-  <select id="level">
-    <option value="0">0 — Foundation</option>
-    <option value="1">1 — Foundation + City</option>
-    <option value="2">2 — Foundation + City + Wealth</option>
-    <option value="3">3 — Foundation + City + Wealth + Competition</option>
-  </select>
-</label>
+<p>Development only. This page uses the game's single decoded looping WAV and
+  is excluded from the release build. Human listening acceptance remains a
+  separate release activity.</p>
 <button id="play">Start / resume</button>
 <button id="stop">Leave room / stop</button>
 <label>Master <input id="master" type="range" min="0" max="1" step=".01" value="1"></label>
@@ -28,10 +20,8 @@
 <button data-cue="dice.impact">Dice</button>
 <button data-cue="money.pay">Money</button>
 <button data-cue="ui.click">UI click</button>
-<p>Changes take effect at the next four-bar boundary (up to 8.73 seconds),
-  followed by a two-beat fade. Stop, choose a level, then start to hear that
-  arrangement immediately. The transport keeps only the current and next
-  phrase decoded; long listening remains a Pass C/human-acceptance activity.</p>
+<p>Start unlocks audio and begins the game loop. Stop simulates leaving the
+  room; the music fades out.</p>
 <p id="status" role="status">Waiting for your Start gesture.</p>
 <script type="module">
   import { AudioEngine } from '/src/audio/AudioEngine.ts';
@@ -44,14 +34,13 @@
   });
   ['master', 'music', 'sfx'].forEach(id => field(id).addEventListener('input', mix));
   mix();
-  field('level').addEventListener('change', () => audio.setMusicIntensity(Number(field('level').value)));
   field('play').addEventListener('click', () => {
     audio.handleUserInteraction();
-    audio.setRoomActive(true);
-    field('status').textContent = 'Playback requested. Missing or invalid Foundation remains silent; check the validation command and browser console.';
+    audio.setGameActive(true);
+    field('status').textContent = 'Playback requested. Check the validation command and browser console if silent.';
   });
   field('stop').addEventListener('click', () => {
-    audio.setRoomActive(false);
+    audio.setGameActive(false);
     field('status').textContent = 'Room left; music fades out.';
   });
   document.querySelectorAll('[data-cue]').forEach(button => {
