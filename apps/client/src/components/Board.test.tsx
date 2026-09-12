@@ -10,7 +10,7 @@ import type { SocketFunctions, StateContextValue } from '../types';
 import { presentationContext } from '../game/presentation/PresentationProvider';
 import type { PresentationState } from '../game/presentation/store/types';
 import type { AnimationQueue } from '../game/presentation/queue/AnimationQueue';
-import CardInteractionOverlay, { CardInteractionProvider } from '../game/ui/events/CardInteractionOverlay';
+import CardInteractionOverlay from '../game/ui/events/CardInteractionOverlay';
 import Board from './Board';
 
 vi.mock('../game/scene/GameScene', () => ({
@@ -281,7 +281,7 @@ describe('Vietnamese game board', () => {
     expect(screen.queryByText('Thị trường tài sản')).toBeNull();
   });
 
-  it('locks an authoritative card draw locally before a second command can be sent', () => {
+  it('locks an authoritative card close locally before a second command can be sent', () => {
     const state = makeGameState({
       players: { a: { ...makePlayer('An', 'red'), currentTile: 7 } },
       currentPlayerId: 'a',
@@ -292,12 +292,14 @@ describe('Vietnamese game board', () => {
       turnNumber: 1,
       deck: 'chance',
       sourceTile: 7,
-      stage: 'AWAITING_DRAW',
+      stage: 'REVEALED',
+      revealedCardId: 'chance-dividend',
       continuation: { playerId: 'a', turnNumber: 1 },
       deadlineAt: '2030-01-01T00:00:30.000Z',
     };
-    const drawCard = vi.fn(() => new Promise<Ack>(() => {}));
-    const socketFunctions = { ...makeSocketFunctions(), drawCard };
+    state.deckCounts.chance = 15;
+    const dismissCard = vi.fn(() => new Promise<Ack>(() => {}));
+    const socketFunctions = { ...makeSocketFunctions(), dismissCard };
     render(
       <stateContext.Provider value={makeContextValue(state, {
         playerId: 'a', role: 'PLAYER', canMutate: true, socketFunctions,
@@ -312,24 +314,25 @@ describe('Vietnamese game board', () => {
               playerId: 'a',
               deck: 'chance',
               sourceTile: 7,
-              stage: 'AWAITING_DRAW',
+              stage: 'REVEALED',
+              revealedCardId: 'chance-dividend',
               durationMs: 0,
             },
           }),
           queue: null as unknown as AnimationQueue,
         }}
         >
-          <CardInteractionProvider><Board /><CardInteractionOverlay /></CardInteractionProvider>
+          <Board /><CardInteractionOverlay />
         </presentationContext.Provider>
       </stateContext.Provider>,
     );
 
-    const draw = screen.getByRole<HTMLButtonElement>('button', { name: 'Nhấn vào thẻ để xem' });
-    fireEvent.click(draw);
-    fireEvent.click(draw);
-    expect(drawCard).toHaveBeenCalledTimes(1);
-    expect(drawCard).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000700');
-    expect(draw.disabled).toBe(true);
+    const close = screen.getByRole<HTMLButtonElement>('button', { name: 'Đóng' });
+    fireEvent.click(close);
+    fireEvent.click(close);
+    expect(dismissCard).toHaveBeenCalledTimes(1);
+    expect(dismissCard).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000700');
+    expect(close.disabled).toBe(true);
   });
 
   it('opens owned properties as a separate access path before inspection', async () => {

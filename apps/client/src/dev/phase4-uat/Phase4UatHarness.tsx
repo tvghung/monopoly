@@ -15,9 +15,7 @@ import Board from '../../components/Board';
 import stateContext from '../../internal';
 import { PresentationController } from '../../game/presentation/PresentationController';
 import { PresentationProvider } from '../../game/presentation/PresentationProvider';
-import CardInteractionOverlay, {
-  CardInteractionProvider,
-} from '../../game/ui/events/CardInteractionOverlay';
+import CardInteractionOverlay, { CardArtworkGallery } from '../../game/ui/events/CardInteractionOverlay';
 import { DEFAULT_GAME_SETTINGS } from '../../settings/defaults';
 import { useSettings } from '../../settings/selectors';
 import { SettingsProvider } from '../../settings/SettingsProvider';
@@ -34,8 +32,6 @@ const CHAIN_OPERATION = '00000000-0000-4000-8000-000000004002';
 const scenarios = [
   ['stations-2', '01 · Trạm 2 người'],
   ['stations-4', '01 · Trạm 4 người'],
-  ['focus-card', '01 · Focus thẻ toàn viewport'],
-  ['card-depth', '01 · Depth thẻ 3 viewport'],
   ['walk', '02 · Đích đến → di chuyển'],
   ['destination-geometry', '02 · Preview trên mặt ô'],
   ['destination-flicker', '02 · Preview flicker alpha'],
@@ -69,17 +65,15 @@ const scenarios = [
   ['jail-free', '17 · Dùng thẻ ra tù'],
   ['bankrupt', '18 · Phá sản giữ nguyên trạm'],
   ['leave-mid-motion', '19 · Rời giữa chuyển động'],
-  ['reconnect-awaiting', '20 · Kết nối lại khi chờ rút'],
+  ['reconnect-awaiting', '20 · Kết nối lại khi thẻ mở'],
   ['reconnect-revealed', '20 · Kết nối lại khi đã mở'],
-  ['spectator-awaiting', '21 · Khán giả chờ mở thẻ'],
+  ['spectator-awaiting', '21 · Khán giả xem thẻ'],
   ['spectator-revealed', '21 · Khán giả xem thẻ đã mở'],
   ['speed-walk', '22 · Kiểm tra tốc độ'],
   ['reduced-motion', '23 · Giảm chuyển động'],
   ['construction-reduced', '23 · Xây dựng giảm chuyển động'],
   ['skip-motion', '24 · Bỏ qua chuyển động'],
-  ['skip-card-flight', '24 · Bỏ qua khi thẻ đang bay'],
-  ['skip-card-reveal', '24 · Bỏ qua khi thẻ đang lật'],
-  ['keyboard-card', '26 · Focus / Escape thẻ'],
+  ['card-modal', '26 · Modal thẻ / nút Đóng'],
   ['opponent-turn', '27 · Ẩn Roll khi đối thủ chơi'],
   ['board-readability', '28 · Board readability fixture'],
   ['dice-contact-shadows', '28 · Dice contact shadows'],
@@ -174,8 +168,7 @@ function appendSemantic(room: PublicRoomState, inputs: SemanticInput[]): void {
 function setPendingCard(
   room: PublicRoomState,
   deck: 'chance' | 'chest',
-  stage: 'AWAITING_DRAW' | 'REVEALED',
-  cardId?: string,
+  cardId: string,
 ): void {
   const sourceTile = deck === 'chance' ? 7 : 2;
   room.gameState.players['player-a'].currentTile = sourceTile;
@@ -186,11 +179,12 @@ function setPendingCard(
     turnNumber: room.gameState.boardState.turnNumber,
     deck,
     sourceTile,
-    stage,
-    ...(cardId ? { revealedCardId: cardId } : {}),
+    stage: 'REVEALED',
+    revealedCardId: cardId,
     continuation: { playerId: 'player-a', turnNumber: room.gameState.boardState.turnNumber },
     deadlineAt: '2030-01-01T00:00:30.000Z',
   };
+  room.gameState.deckCounts[deck] = Math.max(0, room.gameState.deckCounts[deck] - 1);
 }
 
 function cardForScenario(scenario: ScenarioKey): string {
@@ -207,8 +201,8 @@ function cardDeckForScenario(scenario: ScenarioKey): 'chance' | 'chest' {
 }
 
 const liveCardScenarios: readonly ScenarioKey[] = [
-  'chance', 'chest', 'pay-each', 'collect-each', 'card-chain', 'keyboard-card',
-  'skip-card-flight', 'skip-card-reveal', 'roll-chance', 'roll-chest',
+  'chance', 'chest', 'pay-each', 'collect-each', 'card-chain', 'card-modal',
+  'roll-chance', 'roll-chest',
 ];
 
 function configureBaseline(
@@ -262,20 +256,20 @@ function configureBaseline(
       if (disconnected) disconnected.connected = false;
     }
   }
-  if (liveCardScenarios.includes(scenario) || scenario === 'focus-card' || scenario === 'card-depth') {
+  if (liveCardScenarios.includes(scenario)) {
     room.gameState.players['player-a'].currentTile = cardDeckForScenario(scenario) === 'chance' ? 7 : 2;
   }
-  if (scenario === 'reconnect-awaiting') setPendingCard(room, 'chance', 'AWAITING_DRAW');
+  if (scenario === 'reconnect-awaiting') setPendingCard(room, 'chance', 'chance-dividend');
   if (scenario === 'reconnect-awaiting' || scenario === 'reconnect-revealed') {
     room.gameState.boardState.logs = ['Lịch sử: An đã đáp xuống ô rút thẻ.'];
   }
-  if (scenario === 'reconnect-revealed') setPendingCard(room, 'chance', 'REVEALED', 'chance-dividend');
+  if (scenario === 'reconnect-revealed') setPendingCard(room, 'chance', 'chance-dividend');
   if (scenario === 'spectator-awaiting') {
-    setPendingCard(room, 'chest', 'AWAITING_DRAW');
+    setPendingCard(room, 'chest', 'chest-bank-adjustment');
     return { playerId: null, role: 'SPECTATOR' };
   }
   if (scenario === 'spectator-revealed') {
-    setPendingCard(room, 'chest', 'REVEALED', 'chest-bank-adjustment');
+    setPendingCard(room, 'chest', 'chest-bank-adjustment');
     return { playerId: null, role: 'SPECTATOR' };
   }
   if (scenario === 'pass-go') room.gameState.players['player-a'].currentTile = 37;
@@ -415,38 +409,15 @@ function Phase4UatSurface() {
         next.gameState.boardState.rollSequence = 1;
         next.gameState.boardState.currentPlayer.hasMoved = true;
         next.gameState.players['player-a'].currentTile = destinationTile;
-        setPendingCard(next, deck, 'AWAITING_DRAW');
+        setPendingCard(next, deck, cardForScenario(key));
         next.gameState.boardState.logs = [`An đổ được ${deck === 'chance' ? 7 : 2}`];
       });
       return;
     }
     if (liveCardScenarios.includes(key)) {
       commit(next => {
-        setPendingCard(next, cardDeckForScenario(key), 'AWAITING_DRAW');
+        setPendingCard(next, cardDeckForScenario(key), cardForScenario(key));
         next.gameState.boardState.logs = ['An đáp xuống ô rút thẻ'];
-      });
-      if (key === 'skip-card-flight') {
-        schedule(() => controller.skipAllAndSnap(), 240);
-      }
-      if (key === 'skip-card-reveal') {
-        schedule(() => commit(next => {
-          const pending = next.gameState.turnInfo.pendingCardInteraction;
-          if (!pending) return;
-          pending.stage = 'REVEALED';
-          pending.revealedCardId = cardForScenario(key);
-          next.gameState.deckCounts[pending.deck] = Math.max(
-            0,
-            next.gameState.deckCounts[pending.deck] - 1,
-          );
-        }), 900);
-        schedule(() => controller.skipAllAndSnap(), 1_100);
-      }
-      return;
-    }
-    if (key === 'focus-card' || key === 'card-depth') {
-      commit(next => {
-        setPendingCard(next, 'chance', 'AWAITING_DRAW');
-        next.gameState.boardState.logs = ['An đáp xuống ô Cơ Hội'];
       });
       return;
     }
@@ -684,22 +655,6 @@ function Phase4UatSurface() {
     runScenario(nextScenario);
   }, [runScenario]);
 
-  const drawCard = useCallback((operationId: string): Promise<Ack> => {
-    if (operationId !== CARD_OPERATION || viewer.role !== 'PLAYER') return Promise.resolve(successfulAck(roomRef.current.version));
-    commit(next => {
-      const pending = next.gameState.turnInfo.pendingCardInteraction;
-      if (!pending) return;
-      pending.stage = 'REVEALED';
-      pending.revealedCardId = cardForScenario(scenarioRef.current);
-      pending.deadlineAt = '2030-01-01T00:01:00.000Z';
-      next.gameState.deckCounts[pending.deck] = Math.max(
-        0,
-        next.gameState.deckCounts[pending.deck] - 1,
-      );
-    });
-    return Promise.resolve(successfulAck(roomRef.current.version));
-  }, [commit, viewer.role]);
-
   const dismissCard = useCallback((operationId: string): Promise<Ack> => {
     if (operationId !== CARD_OPERATION || viewer.role !== 'PLAYER') return Promise.resolve(successfulAck(roomRef.current.version));
     commit(next => {
@@ -727,10 +682,11 @@ function Phase4UatSurface() {
         next.gameState.players['player-a'].currentTile = 7;
         next.gameState.turnInfo.pendingCardInteraction = {
           operationId: CHAIN_OPERATION, playerId: 'player-a', turnNumber: 1,
-          deck: 'chance', sourceTile: 7, stage: 'AWAITING_DRAW',
+          deck: 'chance', sourceTile: 7, stage: 'REVEALED', revealedCardId: 'chance-back-three',
           continuation: { playerId: 'player-a', turnNumber: 1 },
           deadlineAt: '2030-01-01T00:02:00.000Z',
         };
+        next.gameState.deckCounts.chance = Math.max(0, next.gameState.deckCounts.chance - 1);
       } else {
         const amount = key === 'chest' ? 200 : 50;
         next.gameState.players['player-a'].accountBalance += amount;
@@ -750,7 +706,6 @@ function Phase4UatSurface() {
     rollDice: () => Promise.resolve(successfulAck(roomRef.current.version)),
     buyProperty: () => Promise.resolve(successfulAck(roomRef.current.version)),
     doNotBuy: () => Promise.resolve(successfulAck(roomRef.current.version)),
-    drawCard,
     dismissCard,
     sendChat: () => {},
     makeOffer: () => {},
@@ -759,7 +714,7 @@ function Phase4UatSurface() {
     sellHouse: () => {},
     payBail: () => Promise.resolve(successfulAck(roomRef.current.version)),
     useJailCard: () => Promise.resolve(successfulAck(roomRef.current.version)),
-  } satisfies SocketFunctions), [dismissCard, drawCard]);
+  } satisfies SocketFunctions), [dismissCard]);
 
   useEffect(() => {
     controller.acceptRoomSnapshot(roomRef.current, 'SESSION_SYNC');
@@ -796,8 +751,7 @@ function Phase4UatSurface() {
   return (
     <PresentationProvider controller={controller}>
       <stateContext.Provider value={contextValue}>
-        <CardInteractionProvider>
-          <main className="phase4-uat" data-scenario={scenario}>
+        <main className="phase4-uat" data-scenario={scenario}>
           <aside
             className={`phase4-uat__controls${controlsCollapsed ? ' phase4-uat__controls--collapsed' : ''}`}
             aria-label="Điều khiển UAT Phase 4"
@@ -864,23 +818,24 @@ function Phase4UatSurface() {
             </output>
               {rendererMetrics ? (
                 <output data-testid="renderer-metrics">
-                {`draw ${String(rendererMetrics.drawCalls)} · tri ${String(rendererMetrics.triangles)} · combined ${String(rendererMetrics.combinedDrawCalls ?? rendererMetrics.drawCalls)} / ${String(rendererMetrics.combinedTriangles ?? rendererMetrics.triangles)} · focus ${(Number(rendererMetrics.cardFocusWidthRatio ?? 0) * 100).toFixed(0)}% · depth ${String(rendererMetrics.cardFocusCameraSpaceDepth ? 'safe-contract' : '—')} · active ${String(rendererMetrics.activeAnimatedObjects)}`}
+                {`draw ${String(rendererMetrics.drawCalls)} · tri ${String(rendererMetrics.triangles)} · combined ${String(rendererMetrics.combinedDrawCalls ?? rendererMetrics.drawCalls)} / ${String(rendererMetrics.combinedTriangles ?? rendererMetrics.triangles)} · active ${String(rendererMetrics.activeAnimatedObjects)}`}
                 </output>
             ) : null}</> : null}
           </aside>
           <Board />
           </main>
           <CardInteractionOverlay />
-        </CardInteractionProvider>
       </stateContext.Provider>
     </PresentationProvider>
   );
 }
 
 export default function Phase4UatHarness() {
+  const gallery = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('card-gallery') === '1';
   return (
     <SettingsProvider initialSettings={{ ...DEFAULT_GAME_SETTINGS, masterVolume: 0 }}>
-      <Phase4UatSurface />
+      {gallery ? <CardArtworkGallery /> : <Phase4UatSurface />}
     </SettingsProvider>
   );
 }

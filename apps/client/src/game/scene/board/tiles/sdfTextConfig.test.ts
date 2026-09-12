@@ -118,7 +118,7 @@ describe('SDF surface text contract', () => {
     expect(stations).toContain('name={`PlayerStationBalance:');
     expect(readSource('../../dice/DiceLayer.tsx')).toContain('name="DiceResultTotal"');
     const cards = readSource('../../cards/PhysicalCardDecks.tsx');
-    expect(cards).toContain('<SdfSurfaceText');
-    expect(cards).toContain('value={card.message}');
+    expect(cards).toContain('function IdleDeckStack');
+    expect(cards).not.toContain('ActivePhysicalCard');
   });
 });

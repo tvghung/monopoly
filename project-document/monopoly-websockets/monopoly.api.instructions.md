@@ -78,13 +78,16 @@ Actor không bao giờ lấy từ client payload. Handler không tự viết SQL
 | Trading | durable bilateral offer events |
 | Property | sell-house và landing development |
 | Jail | `pay bail`, `use jail card`, `wait in jail` |
-| Card | `draw card`, `dismiss card` |
+| Card | `dismiss card` (current client); `draw card` retained for protocol-9 compatibility |
 | Payment shortfall | sell to Bank / propose / accept / reject forced sale |
 
 Pending purchase/development decisions, `PendingCardInteraction`, payment shortfall
-and forced-sale proposals carry operation/claim IDs. Card draw/dismiss uses the
-durable `AWAITING_DRAW`/`REVEALED` state and server deadline/continuation; the
-handler commits the draft and only then broadcasts/ACKs. Turn handler không tự
+and forced-sale proposals carry operation/claim IDs. New card landings are
+immediately `REVEALED`; the current client sends only operation-scoped `dismiss
+card`, which commits the existing effect and continuation once. Persisted
+`AWAITING_DRAW` and `draw card` remain protocol-9 compatibility for legacy state;
+the scheduler may promote that state but never applies a normal `REVEALED` card.
+The handler commits the draft and only then broadcasts/ACKs. Turn handler không tự
 advance: domain `completeTurnResolution` handoff sau khi decision/card/payment
 continuation hoàn tất.
 

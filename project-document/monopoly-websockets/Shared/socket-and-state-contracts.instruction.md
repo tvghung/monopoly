@@ -39,9 +39,10 @@ Public/persisted types dùng stable IDs và phân biệt hidden state:
 - Cards: private persisted `GamePrivateState.decks.chance.drawPile` và
   `.chest.drawPile`; Player giữ `heldJailFreeCardIds`. Public projection chỉ lộ
   counts cần cho UI, không lộ holder IDs/order/card kế tiếp. `PendingCardInteraction`
-  is durable and operation-scoped with `AWAITING_DRAW`/`REVEALED`, optional
-  `revealedCardId`, continuation and deadline; `draw card` and `dismiss card` are
-  authoritative commit/ACK commands.
+  is durable and operation-scoped. New landings are `REVEALED` with
+  `revealedCardId`; legacy `AWAITING_DRAW` remains for protocol-9 compatibility.
+  Continuation and deadline remain durable; `dismiss card` is the current
+  authoritative commit/ACK command, while `draw card` is compatibility-only.
 - `BoardState.gameplayEvents` is a bounded public semantic stream for
   `MONEY_TRANSFER`, `PROPERTY_TRANSFER`, `PASS_GO`, `SENT_TO_JAIL`,
   `JAIL_ROLL_FAILED` and `JAIL_RELEASED`. `GamePrivateState` additionally stores

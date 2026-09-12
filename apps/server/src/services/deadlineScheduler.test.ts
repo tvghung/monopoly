@@ -178,7 +178,7 @@ describe('durable deadline recovery', () => {
     });
   });
 
-  it('auto-draws then auto-dismisses one durable card without duplicating its consequence', async () => {
+  it('recovers a legacy awaiting card as revealed and leaves it durable', async () => {
     const { persistence, runtime, io } = createRuntime();
     const now = new Date('2026-08-12T12:10:00.000Z');
     const roomId = randomUUID();
@@ -227,19 +227,26 @@ describe('durable deadline recovery', () => {
       revealed?.gameSnapshot.gameState.turnInfo.pendingCardInteraction?.deadlineAt ?? '',
     );
     expect(Number.isFinite(revealDeadline.getTime())).toBe(true);
+    expect(revealed?.gameSnapshot.gameState.privateState.decks.chance.drawPile)
+      .not.toContain('chance-dividend');
 
+    const restarted = createRuntime(persistence);
     await Promise.all([
-      recoverRoomIfDue(io, runtime, roomId, revealDeadline),
-      recoverRoomIfDue(io, runtime, roomId, revealDeadline),
+      recoverRoomIfDue(restarted.io, restarted.runtime, roomId, revealDeadline),
+      recoverRoomIfDue(restarted.io, restarted.runtime, roomId, revealDeadline),
     ]);
     const resolved = await persistence.rooms.findById(roomId);
-    expect(resolved?.gameSnapshot.gameState.turnInfo.pendingCardInteraction).toBeUndefined();
-    expect(resolved?.gameSnapshot.gameState.players[PLAYER_A].accountBalance).toBe(150);
-    expect(resolved?.gameSnapshot.gameState.privateState.decks.chance.drawPile.at(-1))
-      .toBe('chance-dividend');
+    expect(resolved?.gameSnapshot.gameState.turnInfo.pendingCardInteraction).toMatchObject({
+      operationId,
+      stage: 'REVEALED',
+      revealedCardId: 'chance-dividend',
+    });
+    expect(resolved?.gameSnapshot.gameState.players[PLAYER_A].accountBalance).toBe(100);
+    expect(resolved?.gameSnapshot.gameState.privateState.decks.chance.drawPile)
+      .not.toContain('chance-dividend');
     expect(resolved?.gameSnapshot.gameState.boardState.gameplayEvents.events.filter(
       event => event.type === 'MONEY_TRANSFER' && event.reason === 'CARD',
-    )).toHaveLength(1);
+    )).toHaveLength(0);
   });
 
 

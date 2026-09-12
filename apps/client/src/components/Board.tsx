@@ -16,7 +16,6 @@ import { supportsWebGL } from '../game/scene/fallback/webglSupport';
 import PropertyInspectionModal from '../game/ui/property/PropertyInspectionModal';
 import OwnedPropertiesControl from '../game/ui/property/OwnedPropertiesControl';
 import PlayerStations from '../game/ui/stations/PlayerStations';
-import { useCardInteraction } from '../game/ui/events/CardInteractionOverlay';
 import RollControl from '../game/ui/hud/RollControl';
 import BoardAccessibilityControls from './BoardAccessibilityControls';
 import LegacyBoardView from './legacy-board/LegacyBoardView';
@@ -41,7 +40,6 @@ export default function Board() {
   const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
   const [hoveredTileId, setHoveredTileId] = useState<number | null>(null);
   const [tradeTarget, setTradeTarget] = useState<number | null>(null);
-  const { cardInteraction } = useCardInteraction();
   const displayPositions = presentationState.displayPositions;
   const renderModel = useMemo(
     () => buildBoardRenderModel(state, presentationState, roomPlayers, playerId, role),
@@ -117,11 +115,6 @@ export default function Board() {
                       selectedTileId={selectedTileId}
                       onTileHover={setHoveredTileId}
                       onTileSelect={selectTile}
-                      cardInteraction={{
-                        canDraw: cardInteraction.canDraw,
-                        drawPending: cardInteraction.drawPending,
-                        onDraw: cardInteraction.onDraw,
-                      }}
                       onRendererFailure={switchToLegacy}
                     />
                   </Suspense>

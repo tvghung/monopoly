@@ -26,11 +26,13 @@
     "build": "pnpm --filter @monopoly/client build",
     "validate:music-assets": "pnpm --filter @monopoly/client validate:music-assets",
     "test:music-validator": "node --test apps/client/scripts/validateGameplayMusicAssets.check.mjs",
+    "validate:card-art": "pnpm --filter @monopoly/client validate:card-art",
+    "test:card-art": "pnpm --filter @monopoly/client test:card-art",
     "test:music-transport": "pnpm --filter @monopoly/client test:music-transport",
     "start": "pnpm --filter @monopoly/server start",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm test:v1-contract && pnpm test:music-validator && pnpm -r test",
+    "test": "pnpm test:v1-contract && pnpm test:music-validator && pnpm test:card-art && pnpm -r test",
     "test:e2e:mobile": "pnpm --filter @monopoly/client build && pnpm --filter @monopoly/desktop prepare:postgres && playwright test"
   },
   "devDependencies": {

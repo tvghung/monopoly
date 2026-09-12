@@ -1,5 +1,9 @@
 # Phase 4 - Gameplay Actions and Presentation Orchestration
 
+> HISTORICAL phase record. The current V1 card presentation contract is in
+> [V1_RELEASE_CONTRACT.md](V1_RELEASE_CONTRACT.md). Phase 4 metrics and proof
+> are retained as historical evidence.
+
 CURRENT STATUS — 2026-08-23: Phase 4 gameplay/presentation feature
 implementation is CLOSED. The V7 authority, durable card interaction, bounded
 semantic event lanes, single presentation pipeline, approved board/dice/building

@@ -39,9 +39,7 @@ import { localizeAckError } from './presentation';
 import { createSocket } from './network/createSocket';
 import { PresentationController, type SnapshotSource } from './game/presentation/PresentationController';
 import { PresentationProvider } from './game/presentation/PresentationProvider';
-import CardInteractionOverlay, {
-  CardInteractionProvider,
-} from './game/ui/events/CardInteractionOverlay';
+import CardInteractionOverlay from './game/ui/events/CardInteractionOverlay';
 import {
   clearPlayerSession,
   getSessionAuthority,
@@ -633,10 +631,6 @@ export default function App({
         if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
         return sendAck(callback => socket.emit('resolve development', request, callback));
       },
-      drawCard: (operationId) => {
-        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
-        return sendAck(callback => socket.emit('draw card', { operationId }, callback));
-      },
       dismissCard: (operationId) => {
         if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
         return sendAck(callback => socket.emit('dismiss card', { operationId }, callback));
@@ -898,8 +892,7 @@ export default function App({
   return (
     <PresentationProvider controller={presentationController}>
       <stateContext.Provider value={contextValue}>
-        <CardInteractionProvider>
-          <main className="App">
+        <main className="App">
           {phase === 'RESTORING' ? <LoadingScreen message="Đang khôi phục ván chơi…" /> : null}
           {phase === 'JOIN' || phase === 'JOINING'
             ? (
@@ -934,9 +927,8 @@ export default function App({
             onCancel={cancelConfirmation}
             onConfirm={confirmConfirmation}
           />
-          </main>
-          <CardInteractionOverlay />
-        </CardInteractionProvider>
+        </main>
+        <CardInteractionOverlay />
       </stateContext.Provider>
     </PresentationProvider>
   );

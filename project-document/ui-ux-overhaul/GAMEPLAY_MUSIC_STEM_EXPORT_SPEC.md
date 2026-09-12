@@ -2,6 +2,11 @@
 
 ## Status
 
+> SUPERSEDED / HISTORICAL. This is the earlier multi-stem export contract. The
+> current V1 architecture is documented in
+> [V1_RELEASE_CONTRACT.md](V1_RELEASE_CONTRACT.md); retain this file as design
+> history only.
+
 **AUDIO BLOCKED (2026-09-09).** Pass C now supplies the production authoring,
 segmentation, hashing, technical validation, human-acceptance record, and
 release-gate infrastructure. The four real soundtrack masters have not been

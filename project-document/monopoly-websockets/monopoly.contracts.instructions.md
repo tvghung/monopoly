@@ -64,9 +64,10 @@ recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
 - Shared state định nghĩa `PendingTurnContinuation`, pending purchase/development
   landing decisions, `PaymentQueue`/`DebtClaim`, forced-sale proposal, `TradeBundle`,
   transfer policy và public deck/card projections. `PendingCardInteraction` là
-  durable operation-scoped state với `AWAITING_DRAW`/`REVEALED`, optional
-  `revealedCardId`, continuation và deadline; `GamePrivateState` giữ private
-  semantic lanes và `completedCardOperations`.
+  durable operation-scoped state. New landings are `REVEALED` with
+  `revealedCardId`; persisted `AWAITING_DRAW` is retained only for protocol-9
+  compatibility. The continuation and deadline remain durable; `GamePrivateState`
+  giữ private semantic lanes và `completedCardOperations`.
 - Public `gameplayEvents` chỉ chứa bounded authoritative semantic families:
   `MONEY_TRANSFER`, `PROPERTY_TRANSFER`, `PASS_GO`, `SENT_TO_JAIL`,
   `JAIL_ROLL_FAILED` và `JAIL_RELEASED`. Private lanes are participant-scoped;

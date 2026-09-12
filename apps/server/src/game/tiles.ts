@@ -92,18 +92,27 @@ const beginCardInteraction = (
   options: TileResolutionOptions,
 ): void => {
   const now = options.now ?? Date.now();
+  const card = takeTopCard(state, deck);
   state.turnInfo.pendingCardInteraction = {
     operationId: randomUUID(),
     playerId,
     turnNumber: state.boardState.turnNumber,
     deck,
     sourceTile,
-    stage: 'AWAITING_DRAW',
+    stage: 'REVEALED',
+    revealedCardId: card.id,
     continuation,
     deadlineAt: new Date(
-      now + (options.cardAwaitingDrawTimeoutMs ?? DEFAULT_CARD_AWAITING_DRAW_TIMEOUT_MS),
+      now + (options.cardRevealedTimeoutMs ?? DEFAULT_CARD_REVEALED_TIMEOUT_MS),
     ).toISOString(),
   };
+  recordActivityEvent(state, {
+    type: 'CARD_REVEALED',
+    playerId,
+    playerName: activityPlayerName(state, playerId),
+    deck,
+    cardId: card.id,
+  });
 };
 
 const resolveOwnedProperty = (
@@ -274,6 +283,8 @@ export const drawPendingCard = (
   operationId: string,
   options: TileResolutionOptions = {},
 ): CardCommandResult => {
+  // Protocol 9 compatibility: only legacy persisted AWAITING_DRAW records use
+  // this command. New landings are revealed by beginCardInteraction.
   if (state.privateState.completedCardOperations.some(
     operation => operation.operationId === operationId && operation.playerId === playerId,
   )) return 'ALREADY_APPLIED';

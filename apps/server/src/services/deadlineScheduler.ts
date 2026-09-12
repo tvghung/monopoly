@@ -2,7 +2,6 @@ import type { OfferResult, PlayerId } from '@monopoly/shared';
 import {
   activeDebtClaim,
   completeTurnResolution,
-  dismissPendingCard,
   drawPendingCard,
   nextTurn,
   progressPaymentQueue,
@@ -181,7 +180,8 @@ export async function recoverRoomIfDue(
     ? { proposalId: candidateProposal.proposalId, expiresAt: candidateProposal.expiresAt }
     : undefined;
   const candidateCard = candidate.gameSnapshot.gameState.turnInfo.pendingCardInteraction;
-  const expectedCard = candidateCard && Date.parse(candidateCard.deadlineAt) <= now.getTime()
+  const expectedCard = candidateCard?.stage === 'AWAITING_DRAW'
+    && Date.parse(candidateCard.deadlineAt) <= now.getTime()
     ? {
         operationId: candidateCard.operationId,
         playerId: candidateCard.playerId,
@@ -246,11 +246,9 @@ export async function recoverRoomIfDue(
           cardAwaitingDrawTimeoutMs: runtime.timing.cardAwaitingDrawTimeoutMs,
           cardRevealedTimeoutMs: runtime.timing.cardRevealedTimeoutMs,
         };
-        if (card.stage === 'AWAITING_DRAW') {
-          drawPendingCard(state, card.playerId, card.operationId, options);
-        } else {
-          dismissPendingCard(state, card.playerId, card.operationId, options);
-        }
+        // Only legacy AWAITING_DRAW records are promoted automatically. A
+        // normal REVEALED card waits indefinitely for its actor to dismiss it.
+        drawPendingCard(state, card.playerId, card.operationId, options);
         state.boardState.turnRecovery = null;
         changed = true;
       }

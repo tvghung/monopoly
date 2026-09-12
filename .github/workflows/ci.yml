@@ -53,17 +53,23 @@ jobs:
       - name: Test V1 release contract
         run: pnpm test:v1-contract
 
-      - name: Test segmented music transport
+      - name: Test gameplay music transport
         run: pnpm test:music-transport
 
       - name: Install audio validation tools
         run: command -v ffmpeg && command -v ffprobe || (sudo apt-get update && sudo apt-get install -y ffmpeg)
 
-      - name: Test production music pipeline
-        run: pnpm test:music-pipeline
+      - name: Validate gameplay music assets
+        run: pnpm validate:music-assets
 
-      - name: Test segmented production music validator
+      - name: Test gameplay music validator
         run: pnpm test:music-validator
+
+      - name: Validate card artwork
+        run: pnpm validate:card-art
+
+      - name: Test card artwork validator
+        run: pnpm test:card-art
 
       - name: Apply database migrations
         run: pnpm db:migrate

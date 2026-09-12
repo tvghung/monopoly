@@ -21,7 +21,6 @@ export type AudioCueId =
   | 'build.hotel'
   | 'build.remove'
   | 'card.draw'
-  | 'card.reveal'
   | 'jail.enter'
   | 'jail.failed'
   | 'jail.release'

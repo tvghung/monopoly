@@ -30,8 +30,6 @@ export const SFX_ASSET_PATHS = [
   'sfx/card/card-draw-01.ogg',
   'sfx/card/card-draw-02.ogg',
   'sfx/card/card-draw-03.ogg',
-  'sfx/card/card-reveal-01.ogg',
-  'sfx/card/card-reveal-02.ogg',
   'sfx/jail/jail-enter-01.ogg',
   'sfx/jail/jail-release-01.ogg',
   'sfx/bankruptcy/bankruptcy-01.ogg',

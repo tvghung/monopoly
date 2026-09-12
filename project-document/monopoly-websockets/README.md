@@ -53,8 +53,9 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
   forced-sale proposal nằm trong snapshot v8 nhưng public projector không được lộ
   exact deck order hoặc proposal terms cho người chơi khác. V8 bổ sung bounded
   public `gameplayEvents` và typed `activityFeed`, cùng per-player private
-  semantic lanes và `completedCardOperations`; card draw/dismiss vẫn do server
-  commit và operation ID điều khiển. Appearance identity dùng `CharacterId`
+  semantic lanes và `completedCardOperations`; card landing reveals immediately,
+  while dismiss remains a server commit controlled by operation ID. The legacy
+  draw command is retained only for protocol-9 compatibility. Appearance identity dùng `CharacterId`
   nullable và `PlayerColorId` ổn định. Migration `009_activity_feed_v8.sql` nâng
   V7 snapshot lên V8 bằng activity baseline rỗng, không dựng lại lịch sử.
 - Client presentation queue is a derived display layer only: reconnect/session and

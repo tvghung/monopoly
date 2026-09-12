@@ -25,7 +25,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { PersistenceTimingConfig } from './config.js';
 import { createServer } from './createServer.js';
-import { forcedSaleGrossPrice } from './game';
+import { forcedSaleGrossPrice, resolveTile } from './game';
 import { InMemoryPersistenceStore } from './persistence/inMemory.js';
 import { migrateDatabase } from './persistence/migrate.js';
 import { PostgresPersistenceStore } from './persistence/postgres.js';
@@ -34,7 +34,12 @@ import type {
   PersistenceUnitOfWork,
   RoomRecord,
 } from './persistence/types.js';
-import { assertSupportedRoomSnapshot, type RoomSnapshot } from './rooms.js';
+import {
+  assertSupportedRoomSnapshot,
+  hydrateGameState,
+  storeGameState,
+  type RoomSnapshot,
+} from './rooms.js';
 import { createAppRuntime, type AppRuntime } from './services/runtime.js';
 import { canCreateRoomForPeer, registerSocketHandlers } from './socket/index.js';
 
@@ -809,7 +814,7 @@ describe('Socket.IO durable player lifecycle', () => {
     }
   });
 
-  it('authorizes and idempotently commits the two-stage card interaction', async () => {
+  it('reveals on landing and authorizes an idempotent card close', async () => {
     const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
     const subject = await startServer(persistence);
     const host = await joinPlayer(await connect(subject.url), 'Host', 'card-authority');
@@ -823,11 +828,11 @@ describe('Socket.IO durable player lifecycle', () => {
       ? host
       : guest;
     const other = actor.playerId === host.playerId ? guest : host;
-    const operationId = randomUUID();
+    let operationId = '';
     const originalBalance = started.gameSnapshot.gameState.players[actor.playerId].accountBalance;
     const originalDeckLength = started.gameSnapshot.gameState.privateState.decks.chance.drawPile.length;
     await mutateRoom(persistence, host.room.roomId, room => {
-      const state = room.gameSnapshot.gameState;
+      const state = hydrateGameState(room.gameSnapshot, room.status);
       state.players[actor.playerId].currentTile = 7;
       state.boardState.currentPlayer = { id: actor.playerId, hasMoved: true };
       const chancePile = state.privateState.decks.chance.drawPile;
@@ -835,31 +840,25 @@ describe('Socket.IO durable player lifecycle', () => {
         'chance-dividend',
         ...chancePile.filter(cardId => cardId !== 'chance-dividend'),
       ];
-      state.turnInfo = {
-        pendingCardInteraction: {
-          operationId,
-          playerId: actor.playerId,
-          turnNumber: state.boardState.turnNumber,
-          deck: 'chance',
-          sourceTile: 7,
-          stage: 'AWAITING_DRAW',
-          continuation: {
-            playerId: actor.playerId,
-            turnNumber: state.boardState.turnNumber,
-          },
-          deadlineAt: new Date(Date.now() + 20_000).toISOString(),
-        },
-      };
+      state.turnInfo = {};
       state.boardState.turnRecovery = null;
+      resolveTile(
+        state,
+        actor.playerId,
+        0,
+        { playerId: actor.playerId, turnNumber: state.boardState.turnNumber },
+        { now: Date.now() },
+      );
+      const pending = state.turnInfo.pendingCardInteraction;
+      if (!pending) throw new Error('Expected landing to reveal a card');
+      operationId = pending.operationId;
+      storeGameState(room.gameSnapshot, state, room.status);
     });
 
     expect(await drawCard(actor.socket, 'not-an-operation-id')).toMatchObject({
       ok: false, error: { code: 'INVALID_REQUEST' },
     });
     expect(await drawCard(other.socket, operationId)).toMatchObject({
-      ok: false, error: { code: 'CONFLICT' },
-    });
-    expect(await dismissCard(actor.socket, operationId)).toMatchObject({
       ok: false, error: { code: 'CONFLICT' },
     });
     expect((await drawCard(actor.socket, operationId)).ok).toBe(true);
@@ -874,6 +873,9 @@ describe('Socket.IO durable player lifecycle', () => {
       .toHaveLength(originalDeckLength - 1);
     expect(revealed?.gameSnapshot.gameState.players[actor.playerId].accountBalance)
       .toBe(originalBalance);
+    expect(revealed?.gameSnapshot.gameState.boardState.activityFeed.events.filter(
+      event => event.type === 'CARD_REVEALED',
+    )).toHaveLength(1);
     expect(await dismissCard(other.socket, operationId)).toMatchObject({
       ok: false, error: { code: 'CONFLICT' },
     });

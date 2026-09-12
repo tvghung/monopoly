@@ -1,5 +1,10 @@
 # V1 Production Audio Pipeline and Release Gates
 
+> SUPERSEDED / HISTORICAL. This document records the earlier four-master,
+> segmented production pipeline. The current V1 contract is the single rendered
+> loop in [V1_RELEASE_CONTRACT.md](V1_RELEASE_CONTRACT.md). Preserve the
+> evidence below; do not use it as an active implementation or release gate.
+
 ## Pass C boundary
 
 Pass C starts exactly from Pass B SHA

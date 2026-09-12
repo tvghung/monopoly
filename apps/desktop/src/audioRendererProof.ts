@@ -61,8 +61,6 @@ async function inspectGameplayAudioAssets() {
     '/audio/sfx/card/card-draw-01.ogg',
     '/audio/sfx/card/card-draw-02.ogg',
     '/audio/sfx/card/card-draw-03.ogg',
-    '/audio/sfx/card/card-reveal-01.ogg',
-    '/audio/sfx/card/card-reveal-02.ogg',
     '/audio/sfx/jail/jail-enter-01.ogg',
     '/audio/sfx/jail/jail-release-01.ogg',
     '/audio/sfx/bankruptcy/bankruptcy-01.ogg',

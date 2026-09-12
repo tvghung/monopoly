@@ -1,13 +1,23 @@
 # V1 Audio Final Acceptance
 
-Engineering checks: 2026-09-06. CI closeout verified: 2026-09-08.
-Outcome: **AUDIO BLOCKED**.
+Current V1 audio contract: one rendered looping gameplay track at
+`apps/client/public/audio/music/own-the-block-main-theme-loop.wav`. It is
+decoded once and played only while authoritative room status is `IN_PROGRESS`;
+lobby, finished, and replay-lobby states remain silent. The adaptive four-stem
+design and its missing-master result below are historical, superseded evidence,
+not the current release architecture.
 
-The four production OGG stems do not exist. Engineering safeguards and review
-tools are committed, but production audio, measurements, real-asset playback,
-and packaged audio acceptance cannot pass. **NOT READY FOR V1 RELEASE.**
+Current engineering status: automated asset/build/package checks are separate
+from human listening. No human listening, physical-device, signing,
+notarization, or release approval is claimed here. Final unchecked manual items
+are in [V1_FINAL_MANUAL_ACCEPTANCE.md](V1_FINAL_MANUAL_ACCEPTANCE.md).
 
-## Baseline
+## Historical superseded full-stem acceptance record
+
+The following sections preserve the earlier full-stem evidence and its original
+limits. They must not be read as the current V1 audio contract.
+
+### Historical baseline
 
 - Starting branch: `overhaul/v1-final-acceptance-responsive-jail` (clean).
 - Starting SHA: `9523161f7a6562b189c9b112709b3f19e2afe78e`.
@@ -19,7 +29,7 @@ and packaged audio acceptance cannot pass. **NOT READY FOR V1 RELEASE.**
   `9523161` temporary fallback/presence gate. The current pass removes that
   temporary fallback. No history rewrite, main merge, or release occurred.
 
-## Acceptance status
+### Historical acceptance status
 
 | Area | Result | Evidence / limitation |
 | --- | --- | --- |
@@ -33,7 +43,7 @@ and packaged audio acceptance cannot pass. **NOT READY FOR V1 RELEASE.**
 | CI | FAIL | Exact code SHA tested on Linux, Windows, and macOS. All fail on missing stems; no packaged artifacts. |
 | Human listening | PENDING HUMAN ACCEPTANCE | No human listening approval supplied. |
 
-## Production soundtrack and measurements
+### Historical production soundtrack and measurements
 
 All paths below are under `apps/client/public/audio/music/gameplay/`.
 
@@ -63,7 +73,7 @@ redistribution rights. FFmpeg provides encoding/inspection, not the required
 composition or believable instrumental performances. Supply the four aligned
 production exports and their source/redistribution license to resolve this P0.
 
-## Implementation and automated evidence
+### Historical implementation and automated evidence
 
 - `AudioEngine.ts` / tests: rendered-only playback, permanent versus transient
   failures, one later activation retry, successful decode reuse, clean rapid
@@ -121,7 +131,7 @@ The local FFmpeg/ffprobe 9.0.1 tool ZIP came from the Windows build linked by
 Set `FFMPEG_PATH` and `FFPROBE_PATH` to their installed executables when they are
 not on PATH. These tools are not packaged with the game.
 
-## Memory and lifecycle
+### Historical memory and lifecycle
 
 At 48 kHz: `round(48000 * 256 * 60 / 110) = 6,702,545` frames per stem.
 Float32 stereo costs 53,620,360 bytes/stem; four buffers cost 214,481,440 bytes
@@ -135,7 +145,7 @@ sets. A failed optional request can recover for the next room; an already-playin
 Foundation is not restarted. Disposal drops caches and closes context. No
 streaming rewrite was justified by the available evidence.
 
-## CI
+### Historical CI
 
 Code commit pushed: `66c46b631886b7fa899bb619563f78571fc8108d`.
 The following completed runs all report that exact `headSha`:
@@ -160,7 +170,7 @@ for Own the Block. Explicit fork queries confirmed the automatic runs above.
 No merge or release occurred. Failing asset gates must stay failing until real
 assets exist.
 
-## Listening procedure after technical blockers are cleared
+### Historical listening procedure after technical blockers are cleared
 
 1. Run the asset, production build, browser, and fresh packaged proof gates above
    successfully before requesting final listening acceptance.
@@ -181,7 +191,7 @@ assets exist.
 6. Physical iPhone Safari audio: **RETEST REQUIRED**. Human listening remains
    **PENDING HUMAN ACCEPTANCE**; final V1 acceptance stays **HOLD**.
 
-## Human acceptance checklist
+### Historical human acceptance checklist
 
 - [ ] Instruments sound believable and do not have cheap General-MIDI character
 - [ ] Piano sounds warm and natural enough for V1

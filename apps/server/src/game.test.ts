@@ -89,11 +89,9 @@ const addPlayer = (state: GameState, id: PlayerId, over: Partial<Player> = {}): 
 
 const revealAndDismissPendingCard = (state: GameState, playerId: PlayerId): string => {
   const pending = state.turnInfo.pendingCardInteraction;
-  expect(pending).toMatchObject({ playerId, stage: 'AWAITING_DRAW' });
+  expect(pending).toMatchObject({ playerId, stage: 'REVEALED' });
   if (!pending) throw new Error('Expected a pending card interaction.');
   const { operationId } = pending;
-  expect(drawPendingCard(state, playerId, operationId)).toBe('APPLIED');
-  expect(state.turnInfo.pendingCardInteraction).toMatchObject({ operationId, stage: 'REVEALED' });
   expect(drawPendingCard(state, playerId, operationId)).toBe('ALREADY_APPLIED');
   expect(dismissPendingCard(state, playerId, operationId)).toBe('APPLIED');
   expect(dismissPendingCard(state, playerId, operationId)).toBe('ALREADY_APPLIED');
@@ -438,7 +436,7 @@ describe('applyCard', () => {
 });
 
 describe('resolveTile', () => {
-  it('keeps the authoritative top card and its consequence behind draw then dismiss', () => {
+  it('reveals the authoritative top card on LAND and applies its consequence on dismiss', () => {
     const state = makeState();
     addPlayer(state, 'p1', { currentTile: 7, accountBalance: 100 });
     addPlayer(state, 'p2');
@@ -448,21 +446,15 @@ describe('resolveTile', () => {
     resolveTile(state, 'p1', 0);
     const pending = state.turnInfo.pendingCardInteraction;
     expect(pending).toMatchObject({
-      playerId: 'p1', deck: 'chance', sourceTile: 7, stage: 'AWAITING_DRAW',
+      playerId: 'p1', deck: 'chance', sourceTile: 7,
+      stage: 'REVEALED', revealedCardId: 'chance-dividend',
     });
     if (!pending) throw new Error('Expected a pending card interaction.');
-    expect(state.privateState.decks.chance.drawPile).toHaveLength(originalDeckLength);
+    expect(state.privateState.decks.chance.drawPile).toHaveLength(originalDeckLength - 1);
     expect(state.players.p1.accountBalance).toBe(100);
     expect(drawPendingCard(state, 'p2', pending.operationId)).toBe('STALE');
     expect(drawPendingCard(state, 'p1', 'stale-operation')).toBe('STALE');
-
-    expect(drawPendingCard(state, 'p1', pending.operationId)).toBe('APPLIED');
-    expect(state.turnInfo.pendingCardInteraction).toMatchObject({
-      operationId: pending.operationId,
-      stage: 'REVEALED',
-      revealedCardId: 'chance-dividend',
-    });
-    expect(state.privateState.decks.chance.drawPile).toHaveLength(originalDeckLength - 1);
+    expect(drawPendingCard(state, 'p1', pending.operationId)).toBe('ALREADY_APPLIED');
     expect(state.players.p1.accountBalance).toBe(100);
     expect(dismissPendingCard(state, 'p1', 'stale-operation')).toBe('STALE');
 
@@ -530,6 +522,63 @@ describe('resolveTile', () => {
     }));
   });
 
+  it('applies real bank-penalty and pay-each cards only after dismiss', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { currentTile: 7, accountBalance: 1000 });
+    addPlayer(state, 'p2', { accountBalance: 100 });
+    addPlayer(state, 'p3', { accountBalance: 100 });
+    putCardOnTop(state, 'chance', 'chance-traffic-fine');
+
+    resolveTile(state, 'p1', 0);
+    expect(state.players.p1.accountBalance).toBe(1000);
+    revealAndDismissPendingCard(state, 'p1');
+    expect(state.players.p1.accountBalance).toBe(985);
+
+    putCardOnTop(state, 'chance', 'chance-community-event');
+    resolveTile(state, 'p1', 0);
+    expect(state.players.p1.accountBalance).toBe(985);
+    expect(state.players.p2.accountBalance).toBe(100);
+    expect(state.players.p3.accountBalance).toBe(100);
+    revealAndDismissPendingCard(state, 'p1');
+
+    expect(state.players.p1.accountBalance).toBe(885);
+    expect(state.players.p2.accountBalance).toBe(150);
+    expect(state.players.p3.accountBalance).toBe(150);
+  });
+
+  it('applies the real birthday collection card only after dismiss', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { currentTile: 2, accountBalance: 100 });
+    addPlayer(state, 'p2', { accountBalance: 100 });
+    addPlayer(state, 'p3', { accountBalance: 100 });
+    putCardOnTop(state, 'chest', 'chest-birthday');
+
+    resolveTile(state, 'p1', 0);
+    expect(state.players.p1.accountBalance).toBe(100);
+    expect(state.players.p2.accountBalance).toBe(100);
+    expect(state.players.p3.accountBalance).toBe(100);
+    revealAndDismissPendingCard(state, 'p1');
+
+    expect(state.players.p1.accountBalance).toBe(120);
+    expect(state.players.p2.accountBalance).toBe(90);
+    expect(state.players.p3.accountBalance).toBe(90);
+  });
+
+  it('applies the real go-to-jail card only after dismiss', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { currentTile: 7 });
+    addPlayer(state, 'p2');
+    putCardOnTop(state, 'chance', 'chance-go-to-jail');
+
+    resolveTile(state, 'p1', 0);
+    expect(state.players.p1.currentTile).toBe(7);
+    expect(state.players.p1.isJail).toBe(false);
+    revealAndDismissPendingCard(state, 'p1');
+
+    expect(state.players.p1.currentTile).toBe(10);
+    expect(state.players.p1.isJail).toBe(true);
+  });
+
   it('draws each deck once when card movement chains onto another card tile', () => {
     const state = makeState();
     addPlayer(state, 'p1', { currentTile: 36, accountBalance: 100 });
@@ -540,7 +589,7 @@ describe('resolveTile', () => {
     resolveTile(state, 'p1', 0);
 
     const firstOperationId = revealAndDismissPendingCard(state, 'p1');
-    expect(state.turnInfo.pendingCardInteraction).toMatchObject({ stage: 'AWAITING_DRAW', deck: 'chest' });
+    expect(state.turnInfo.pendingCardInteraction).toMatchObject({ stage: 'REVEALED', deck: 'chest' });
     expect(state.turnInfo.pendingCardInteraction?.operationId).not.toBe(firstOperationId);
     revealAndDismissPendingCard(state, 'p1');
 

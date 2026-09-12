@@ -12,6 +12,10 @@ import {
   assetRoot,
   validateGameplayMusicAssets,
 } from '../../client/scripts/validateGameplayMusicAssets.mjs';
+import {
+  artworkRoot,
+  validateCardArtwork,
+} from '../../client/scripts/validateCardArtwork.mjs';
 
 const argumentsSet = new Set(process.argv.slice(2));
 const target = resolveReleaseTarget();
@@ -38,6 +42,11 @@ if (argumentsSet.has('--release')) {
     path.join(repositoryRoot, 'apps', 'client', 'dist', 'audio'),
   );
   if (audioReport.errors.length) throw new Error(audioReport.errors.join('\n'));
+  const cardArtworkReport = await validateCardArtwork({
+    sourceDirectory: artworkRoot,
+    buildDirectory: path.join(repositoryRoot, 'apps', 'client', 'dist'),
+  });
+  if (cardArtworkReport.errors.length) throw new Error(cardArtworkReport.errors.join('\n'));
 }
 
 const signing = signingStatus({

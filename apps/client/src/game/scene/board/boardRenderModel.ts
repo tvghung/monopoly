@@ -81,7 +81,6 @@ export interface BoardRenderModel {
   goCrossings: PresentationState['goCrossings'];
   destinationPreview: DestinationPreviewRenderModel | null;
   moneyTransfers: PresentationState['moneyTransfers'];
-  cardPresentation: PresentationState['cardPresentation'];
   deckCounts: DeckCounts;
   stations: PlayerStationRenderModel[];
   animationSpeedMultiplier: number;
@@ -168,11 +167,6 @@ export function buildBoardRenderModel(
     }];
   });
 
-  // LIVE_UPDATE card visuals are emitted by the presentation queue only. A
-  // reset/sync hydrates the authoritative interaction into PresentationStore,
-  // so a live snapshot cannot skip movement and landing.
-  const cardPresentation = presentationState.cardPresentation;
-
   return {
     tiles,
     players,
@@ -201,7 +195,6 @@ export function buildBoardRenderModel(
       }
       : null,
     moneyTransfers: presentationState.moneyTransfers,
-    cardPresentation,
     deckCounts: { ...state.deckCounts },
     stations,
     animationSpeedMultiplier: presentationState.animationSpeedMultiplier,

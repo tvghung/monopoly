@@ -1,5 +1,10 @@
 # V1 Segmented Rendered Music Transport
 
+> SUPERSEDED / HISTORICAL. This document records the earlier segmented
+> multi-stem design. The current V1 contract is the single rendered loop in
+> [V1_RELEASE_CONTRACT.md](V1_RELEASE_CONTRACT.md). Preserve the evidence below;
+> do not use it as an active implementation or release requirement.
+
 Status: Pass B engineering transport implemented and frozen; Pass C production
 pipeline/gates are implemented, but the production soundtrack remains blocked
 pending real master import and acceptance.

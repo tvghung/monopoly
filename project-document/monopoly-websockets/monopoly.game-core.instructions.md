@@ -51,9 +51,11 @@ functions must not broadcast, ACK or assume persistence has already succeeded.
 - Reconnect before committed expiry clears marker and preserves exact turn.
 - Expiry resolves a pending purchase as Do Not Buy or a development prompt as Skip;
   otherwise it advances the turn.
-- Card landing creates durable `PendingCardInteraction` with an operation ID,
-  continuation and deadline. `AWAITING_DRAW` and `REVEALED` are authoritative
-  stages; deadline recovery is idempotent and never exposes the private draw pile.
+- Card landing immediately takes and reveals the top card into durable
+  `PendingCardInteraction` with an operation ID, continuation, card ID, and
+  deadline. `REVEALED` waits for the actor's operation-scoped dismiss; only
+  persisted legacy `AWAITING_DRAW` records are scheduler-promotable. Recovery is
+  idempotent and never exposes the private draw pile.
 - Payment shortfall expiry sells owned properties in deterministic tile order and
   eliminates the debtor only after all sellable properties are exhausted.
 - Forced-sale proposal persists its proposal ID and absolute expiry inside the

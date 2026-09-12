@@ -213,16 +213,6 @@ export const AUDIO_REGISTRY = {
       { kind: 'tone', waveform: 'triangle', frequency: 300, endFrequency: 470, durationMs: 92, attackMs: 3, level: 0.52 },
     ]),
   },
-  'card.reveal': {
-    family: 'Card', bus: 'sfx', gain: 0.1, cooldownMs: 180, maxVoices: 1,
-    source: sample([
-      'sfx/card/card-reveal-01.ogg',
-      'sfx/card/card-reveal-02.ogg',
-    ], [
-      { kind: 'noise', durationMs: 115, attackMs: 8, level: 0.2 },
-      { kind: 'tone', waveform: 'sine', frequency: 420, endFrequency: 820, durationMs: 185, attackMs: 8, level: 0.52 },
-    ]),
-  },
   'jail.enter': {
     family: 'Jail', bus: 'sfx', gain: 0.12, cooldownMs: 180, maxVoices: 1,
     source: sample(['sfx/jail/jail-enter-01.ogg'], [

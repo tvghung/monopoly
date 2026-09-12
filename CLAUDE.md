@@ -64,9 +64,10 @@ thay đổi chưa hoàn tất.
   `ADVANCE_TURN`; đổ đôi không cấp thêm lượt. `PendingTurnContinuation` nhúng trong
   các wait, pending purchase/development landing decision, `PaymentQueue`, private
   `GamePrivateState.decks`, `PendingCardInteraction` và forced-sale proposal đều
-  thuộc authoritative room aggregate và phải recovery-safe. Card interaction dùng
-  operation ID, `AWAITING_DRAW`/`REVEALED`, `revealedCardId` chỉ khi đã reveal,
-  continuation và server deadline; `draw card`/`dismiss card` chỉ ACK sau commit.
+  thuộc authoritative room aggregate và phải recovery-safe. Card landing lấy và
+  reveal ngay top card vào operation ID, `REVEALED` state với `revealedCardId`,
+  continuation và server deadline; chỉ `dismiss card` hiện hành áp dụng sau
+  commit. `AWAITING_DRAW`/`draw card` chỉ còn cho protocol-9 legacy compatibility.
 - `DeckState` và thứ tự thẻ không được phát trong public DTO. Public V8 có bounded
   `gameplayEvents` và typed `activityFeed`; private durable state có per-player
   semantic lanes và `completedCardOperations`, nhưng client chỉ nhận đúng

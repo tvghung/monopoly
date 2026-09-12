@@ -27,7 +27,6 @@ authoritative room status is `IN_PROGRESS`.
 | `sfx/build/build-house-01.ogg`, `sfx/build/build-house-02.ogg` | Kenney Impact Sounds: `impactWood_light_000.ogg`, `impactWood_light_001.ogg` | [Impact Sounds](https://kenney.nl/assets/impact-sounds), Kenney | CC0 | None |
 | `sfx/build/build-hotel-01.ogg`, `sfx/build/build-hotel-02.ogg` | Kenney Impact Sounds: `impactWood_medium_000.ogg`, `impactWood_medium_001.ogg` | [Impact Sounds](https://kenney.nl/assets/impact-sounds), Kenney | CC0 | None |
 | `sfx/card/card-draw-01.ogg`, `sfx/card/card-draw-02.ogg`, `sfx/card/card-draw-03.ogg` | Kenney Casino Audio: `card-slide-1.ogg`, `card-slide-2.ogg`, `card-slide-3.ogg` | [Casino Audio](https://kenney.nl/assets/casino-audio), Kenney | CC0 | None |
-| `sfx/card/card-reveal-01.ogg`, `sfx/card/card-reveal-02.ogg` | Kenney Casino Audio: `card-fan-1.ogg`, `card-fan-2.ogg` | [Casino Audio](https://kenney.nl/assets/casino-audio), Kenney | CC0 | None |
 | `sfx/jail/jail-enter-01.ogg` | Cough-E: `DoorLock.ogg` | [Door Lock Sounds](https://opengameart.org/content/door-lock-sounds), Cough-E | CC0 | None |
 | `sfx/jail/jail-release-01.ogg` | Cough-E: `UnlockDoor.ogg` | [Door Lock Sounds](https://opengameart.org/content/door-lock-sounds), Cough-E | CC0 | None |
 | `sfx/bankruptcy/bankruptcy-01.ogg` | Kenney Impact Sounds: `impactSoft_heavy_000.ogg` | [Impact Sounds](https://kenney.nl/assets/impact-sounds), Kenney | CC0 | None |

@@ -112,11 +112,13 @@ formatter dùng `1 game unit = 1.000 VNĐ` và player-facing UI/log/error là ti
   consumed only through the same `PresentationController → AnimationQueue →
   PresentationStore` path. A missing/non-contiguous semantic tail resets to the
   authoritative snapshot instead of fabricating a consequence.
-- `pendingCardInteraction` is durable and operation-scoped. `AWAITING_DRAW` exposes
-  the face-down interaction, `REVEALED` exposes `revealedCardId`, and `draw card` /
-  `dismiss card` send that operation ID through authoritative ACK flow. The card
-  presentation is queued after the appropriate `LAND` boundary; a chained card
-  closes before movement and opens the next interaction after landing.
+- `pendingCardInteraction` is durable and operation-scoped. A new card landing is
+  immediately `REVEALED` with `revealedCardId`; `dismiss card` sends its operation
+  ID through authoritative ACK flow and applies the effect only after the actor
+  presses `Đóng`. Persisted `AWAITING_DRAW` is legacy protocol-9 compatibility;
+  the current client does not expose or emit `draw card`. The card presentation
+  is queued after the appropriate `LAND` boundary; a chained card closes before
+  movement and opens the next interaction after landing.
 - Session/reconnect hydration resets the queue/store to the current pending-card
   stage without replaying the old draw/reveal. Exact deck order remains server-private;
   `deckCounts` is the only deck aggregate used by the public board presentation.

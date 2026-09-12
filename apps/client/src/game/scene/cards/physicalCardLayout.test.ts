@@ -1,25 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CARD_PRESENTATION_SCALE,
-  CARD_REVEAL_ROTATIONS,
-  CARD_FOCUS_VIEWPORT_WIDTH_RATIO,
-  CARD_FOCUS_VIEWPORT_HEIGHT_RATIO,
-  CARD_FOCUS_CAMERA_FAR,
-  CARD_FOCUS_CAMERA_NEAR,
-  CARD_FOCUS_CAMERA_Z,
-  CARD_FOCUS_CAMERA_ZOOM,
-  CARD_FOCUS_TILT_PITCH,
-  CARD_FOCUS_TILT_ROLL,
-  CARD_FOCUS_TILT_YAW,
   CARD_FRAME_BORDER,
   DECK_ANCHORS,
+  DECK_AXIS_OFFSET,
   DECK_ROTATION_Y,
-  getCardFocusCameraSpaceDepth,
   getCardLayerTransform,
   getIdleDeckCardCount,
-  isCardFocusDepthSafe,
   isCenterAssetLayoutClear,
-  DECK_AXIS_OFFSET,
   PHYSICAL_CARD_DEPTH,
   PHYSICAL_CARD_LAYER_STEP,
   PHYSICAL_CARD_THICKNESS,
@@ -28,44 +15,17 @@ import {
 import { getBoardTileLayout } from '../board/boardLayout';
 
 describe('physical card deck layout', () => {
-  it('uses substantial card dimensions, scale, and multiple reveal rotations', () => {
+  it('keeps the idle deck geometry substantial and layered', () => {
     expect(PHYSICAL_CARD_WIDTH).toBeGreaterThanOrEqual(2.1);
     expect(PHYSICAL_CARD_WIDTH).toBeLessThanOrEqual(2.3);
     expect(PHYSICAL_CARD_DEPTH).toBeGreaterThanOrEqual(1.3);
     expect(PHYSICAL_CARD_DEPTH).toBeLessThanOrEqual(1.45);
     expect(PHYSICAL_CARD_THICKNESS).toBeGreaterThan(0.04);
-    expect(CARD_PRESENTATION_SCALE).toBeGreaterThanOrEqual(2.5);
-    expect(CARD_REVEAL_ROTATIONS).toBeGreaterThanOrEqual(2);
-    expect(CARD_FOCUS_VIEWPORT_WIDTH_RATIO).toBeGreaterThanOrEqual(0.38);
-    expect(CARD_FOCUS_VIEWPORT_WIDTH_RATIO).toBeLessThanOrEqual(0.4);
-    expect(CARD_FOCUS_VIEWPORT_HEIGHT_RATIO).toBeGreaterThan(0.6);
     expect(CARD_FRAME_BORDER).toBeGreaterThanOrEqual(0.045);
     expect(CARD_FRAME_BORDER).toBeLessThanOrEqual(0.055);
-    expect(CARD_FOCUS_TILT_YAW).toBeGreaterThanOrEqual(5 * Math.PI / 180);
-    expect(CARD_FOCUS_TILT_YAW).toBeLessThanOrEqual(7 * Math.PI / 180);
-    expect(CARD_FOCUS_TILT_PITCH).toBeGreaterThanOrEqual(3 * Math.PI / 180);
-    expect(CARD_FOCUS_TILT_PITCH).toBeLessThanOrEqual(5 * Math.PI / 180);
-    expect(CARD_FOCUS_TILT_ROLL).toBeGreaterThanOrEqual(0);
-    expect(CARD_FOCUS_TILT_ROLL).toBeLessThanOrEqual(1 * Math.PI / 180);
   });
 
-  it.each([[1280, 720], [1440, 900], [1920, 1080]])(
-    'keeps all focused card geometry inside the orthographic camera depth at %sx%s',
-    (width, height) => {
-      const depth = getCardFocusCameraSpaceDepth(
-        width / CARD_FOCUS_CAMERA_ZOOM,
-        height / CARD_FOCUS_CAMERA_ZOOM,
-      );
-      expect(depth.minZ).toBeGreaterThan(CARD_FOCUS_CAMERA_NEAR);
-      expect(depth.maxZ).toBeLessThan(CARD_FOCUS_CAMERA_FAR);
-      expect(depth.halfExtent).toBeGreaterThan(1);
-      expect(depth.minZ).toBeCloseTo(CARD_FOCUS_CAMERA_Z - depth.halfExtent);
-      expect(depth.maxZ).toBeCloseTo(CARD_FOCUS_CAMERA_Z + depth.halfExtent);
-      expect(isCardFocusDepthSafe(width / CARD_FOCUS_CAMERA_ZOOM, height / CARD_FOCUS_CAMERA_ZOOM)).toBe(true);
-    },
-  );
-
-  it('places enlarged decks symmetrically on the Parking to Start diagonal with perpendicular long axes', () => {
+  it('places idle decks symmetrically on the Parking to Start diagonal', () => {
     const parking = getBoardTileLayout(20)?.position;
     const start = getBoardTileLayout(0)?.position;
     expect(parking).toBeDefined();
@@ -93,18 +53,10 @@ describe('physical card deck layout', () => {
     expect(getCardLayerTransform('chance', 7)).toEqual(getCardLayerTransform('chance', 7));
   });
 
-  it('detaches exactly one face-down card before the authoritative draw and no extra card after reveal', () => {
-    const counts = { chance: 16, chest: 12 };
-    const awaiting = {
-      operationId: 'operation', playerId: 'player-a', deck: 'chance' as const, sourceTile: 7,
-      stage: 'AWAITING_DRAW' as const, durationMs: 0,
-    };
-    const revealed = {
-      ...awaiting, stage: 'REVEALED' as const, revealedCardId: 'chance-dividend' as const,
-    };
-    expect(getIdleDeckCardCount('chance', counts, awaiting)).toBe(15);
-    expect(getIdleDeckCardCount('chance', { ...counts, chance: 15 }, revealed)).toBe(15);
-    expect(getIdleDeckCardCount('chest', counts, awaiting)).toBe(12);
+  it('renders exactly the authoritative pile count because the drawn card is already removed on LAND', () => {
+    expect(getIdleDeckCardCount('chance', { chance: 16, chest: 12 })).toBe(16);
+    expect(getIdleDeckCardCount('chance', { chance: 15, chest: 12 })).toBe(15);
+    expect(getIdleDeckCardCount('chest', { chance: 16, chest: 12 })).toBe(12);
   });
 
   it('keeps decks and bank clear of dice, paths, and one another', () => {

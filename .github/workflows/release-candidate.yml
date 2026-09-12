@@ -56,14 +56,18 @@ jobs:
 
       - name: Test V1 release contract
         run: pnpm test:v1-contract
-      - name: Test segmented music transport
+      - name: Test gameplay music transport
         run: pnpm test:music-transport
       - name: Install audio validation tools
         run: command -v ffmpeg && command -v ffprobe || (sudo apt-get update && sudo apt-get install -y ffmpeg)
-      - name: Test production music pipeline
-        run: pnpm test:music-pipeline
-      - name: Test segmented production music validator
+      - name: Validate gameplay music assets
+        run: pnpm validate:music-assets
+      - name: Test gameplay music validator
         run: pnpm test:music-validator
+      - name: Validate card artwork
+        run: pnpm validate:card-art
+      - name: Test card artwork validator
+        run: pnpm test:card-art
       - name: Apply database migrations
         run: pnpm db:migrate
       - name: Typecheck
@@ -120,7 +124,7 @@ jobs:
 
       - name: Test V1 release contract
         run: pnpm test:v1-contract
-      - name: Test segmented music transport
+      - name: Test gameplay music transport
         run: pnpm test:music-transport
       - name: Install audio validation tools (Windows)
         if: runner.os == 'Windows'
@@ -128,10 +132,14 @@ jobs:
       - name: Install audio validation tools (macOS)
         if: runner.os == 'macOS'
         run: command -v ffmpeg && command -v ffprobe || brew install ffmpeg
-      - name: Test production music pipeline
-        run: pnpm test:music-pipeline
-      - name: Test segmented production music validator
+      - name: Validate gameplay music assets
+        run: pnpm validate:music-assets
+      - name: Test gameplay music validator
         run: pnpm test:music-validator
+      - name: Validate card artwork
+        run: pnpm validate:card-art
+      - name: Test card artwork validator
+        run: pnpm test:card-art
       - name: Prepare Windows signing certificate
         if: matrix.platform == 'win32' && inputs.distribution_mode == 'signed'
         shell: pwsh
@@ -217,6 +225,8 @@ jobs:
         run: pnpm --filter @monopoly/desktop proof:packaged:host
       - name: Verify packaged gameplay music
         run: pnpm --filter @monopoly/desktop proof:packaged:audio
+      - name: Verify packaged card artwork
+        run: pnpm --filter @monopoly/desktop proof:packaged:cards
       - name: Verify collected artifact metadata
         run: pnpm validate:release -- --release --artifacts
       - name: Verify Windows Authenticode signature

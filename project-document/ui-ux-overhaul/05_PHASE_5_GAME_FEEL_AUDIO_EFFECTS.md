@@ -1,5 +1,9 @@
 # Phase 5 — Game Feel, Audio & Visual Feedback
 
+> HISTORICAL phase record. The current V1 audio/card contract is
+> [V1_RELEASE_CONTRACT.md](V1_RELEASE_CONTRACT.md); implementation and status
+> statements below are retained as evidence from this phase.
+
 **PHASE 5.2 CORRECTIVE PASS PUSHED at e4ce23d — remote CI and Desktop Build
 PASS; live/manual gates remain explicitly open**
 
@@ -10,10 +14,9 @@ audit and scope boundary remain in
 and Desktop Build passed for that exact corrective baseline. Manual/live
 acceptance remains separate and is not closed here.
 
-The current V1 branch supersedes only the background-music implementation details
-below with the centralized Phase 5 runtime: the loop is now a synchronized
-four-stem, board-state-adaptive composition. Manual listening, long-session and
-physical-device acceptance remain open.
+The current V1 branch supersedes the background-music implementation details
+below with one centralized rendered gameplay loop. Manual listening, long-session
+and physical-device acceptance remain open.
 
 ## 1. Current scope
 

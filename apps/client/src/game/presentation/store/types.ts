@@ -111,7 +111,7 @@ export interface CardPresentationSignal {
   playerId: string;
   deck: CardDeck;
   sourceTile: number;
-  stage: 'DRAWING' | 'AWAITING_DRAW' | 'REVEALING' | 'REVEALED';
+  stage: 'AWAITING_DRAW' | 'REVEALED';
   revealedCardId?: GameCardId;
   durationMs: number;
 }

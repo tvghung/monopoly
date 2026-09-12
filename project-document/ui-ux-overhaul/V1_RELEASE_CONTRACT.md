@@ -45,26 +45,51 @@ manifest derive their version from package metadata. These are configuration exp
 not claims that new artifacts were built. Release metadata rejects mismatched
 application package versions; signing/notarization semantics remain unchanged.
 
-## Audio release policy and pending work
+## Audio release policy
 
-Production gameplay music uses rendered soundtrack assets and a multi-stem
-architecture. No procedural soundtrack is permitted as a production fallback.
-Missing mandatory production music must prevent production build/release. The
-existing client test/build music validators remain mandatory, including the build
-output check and packaged audio proof.
+V1 gameplay music is exactly one rendered looping track:
+`apps/client/public/audio/music/own-the-block-main-theme-loop.wav`. The client
+decodes one looping `AudioBuffer` and starts it only while authoritative room
+status is `IN_PROGRESS`; lobby, finished, and replay-lobby states are silent.
+There is no procedural BGM fallback and no adaptive multi-stem soundtrack.
 
-Tests may generate synthetic fixtures only in isolated test locations. They must
-never silently promote placeholders into shipped production soundtrack content.
+The existing Audio/Music/SFX buses, settings, visibility handling, context
+reuse, and disposal remain in force. Curated local sample SFX and deliberately
+light procedural SFX remain valid; sampled cues may retain their designed
+procedural fallback. Source provenance is recorded in
+`apps/client/public/audio/SOURCES.md`.
 
-The current rendered-stem runtime now uses the Pass B segmented rendered music
-transport documented in [V1_AUDIO_SEGMENTED_TRANSPORT.md](V1_AUDIO_SEGMENTED_TRANSPORT.md)
-and the Pass C authoring/validation/release pipeline documented in
-[V1_AUDIO_PRODUCTION_PIPELINE.md](V1_AUDIO_PRODUCTION_PIPELINE.md). Production
-source masters and generated runtime segments are still missing; the
-approximately 204.55 MiB full-track decoded-memory concern is addressed by the
-bounded phrase window, but technical production audio, human acceptance,
-device acceptance, successful packaging, signing, and notarization remain
-pending. This contract does not declare release readiness.
+`pnpm validate:music-assets` is the source/build asset gate and packaged audio
+proof remains separate. Synthetic fixtures are allowed only in isolated tests;
+they must never be promoted into production soundtrack content. Automated
+checks do not constitute human listening, device, signing, notarization, or
+release approval.
+
+## Card presentation contract
+
+Landing on Chance (`CƠ HỘI`) or Khí Vận (`KHÍ VẬN`) immediately takes the top
+private card, creates a durable operation with `stage: REVEALED`, publishes its
+card ID/message, and records `CARD_REVEALED`. The card effect is not applied at
+landing. The client shows the real artwork, title, deck badge, and authoritative
+message in a DOM modal; there is no player Draw step, face-down wait, flip, spin,
+or focused WebGL card canvas.
+
+Only the acting player can press the visible `Đóng` button. Dismissal is an
+operation-scoped authoritative command: it applies the existing card effect,
+rotates ordinary cards only after application, preserves jail-free ownership
+semantics, and continues the existing turn flow exactly once. Duplicate or
+stale dismissals cannot apply a second effect. A normal `REVEALED` operation
+waits indefinitely for dismissal; its operation ID, card ID, message, and
+deadline survive reconnect/session hydration. Persisted `AWAITING_DRAW` records
+are retained only for protocol-9 compatibility and may be promoted by the
+server scheduler; the current client does not expose or emit Draw.
+
+All 28 shared Chance/Khí Vận cards have one exact `CardVisualDefinition` and an
+original local SVG under `apps/client/public/art/cards/`. The card-art validator
+checks exact deck coverage, safe SVG content, build copies, and packaged
+renderer resources. The development-only gallery is available at
+`http://127.0.0.1:5173/?phase4-uat=1&card-gallery=1` after starting the client;
+it is a visual-review aid, not production navigation or automated acceptance.
 
 ## Baseline and enforcement
 

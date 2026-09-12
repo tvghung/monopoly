@@ -315,7 +315,7 @@ describe('presentation audio integration', () => {
     );
   });
 
-  it('plays draw and reveal audio only at their authoritative card milestones', async () => {
+  it('plays one draw cue only when the authoritative card is revealed', async () => {
     const audio = createAudioSpy();
     const executor = createSemanticExecutors(store(), audio.audio).CARD_INTERACTION_CHANGED as unknown as
       PresentationExecutor<CardInteractionChangedPresentationEvent>;
@@ -325,11 +325,11 @@ describe('presentation audio integration', () => {
     };
 
     await executor.run({ ...base, id: 'awaiting', stage: 'AWAITING_DRAW' }, immediateContext);
-    expect(audio.play.mock.calls.map(call => call[0])).toEqual(['card.draw']);
+    expect(audio.play).not.toHaveBeenCalled();
     await executor.run({
       ...base, id: 'revealed', stage: 'REVEALED', revealedCardId: 'chance-dividend',
     }, immediateContext);
-    expect(audio.play.mock.calls.map(call => call[0])).toEqual(['card.draw', 'card.reveal']);
+    expect(audio.play.mock.calls.map(call => call[0])).toEqual(['card.draw']);
 
     audio.play.mockClear();
     await executor.run({ ...base, id: 'closed', stage: 'CLOSED' }, immediateContext);

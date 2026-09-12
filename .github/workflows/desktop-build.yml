@@ -75,7 +75,7 @@ jobs:
       - name: Test V1 release contract
         run: pnpm test:v1-contract
 
-      - name: Test segmented music transport
+      - name: Test gameplay music transport
         run: pnpm test:music-transport
 
       - name: Install audio validation tools (Windows)
@@ -94,11 +94,17 @@ jobs:
           ffmpeg -hide_banner -encoders | grep -q 'libvorbis'
           ffprobe -version
 
-      - name: Test production music pipeline
-        run: pnpm test:music-pipeline
+      - name: Validate gameplay music assets
+        run: pnpm validate:music-assets
 
-      - name: Test segmented production music validator
+      - name: Test gameplay music validator
         run: pnpm test:music-validator
+
+      - name: Validate card artwork
+        run: pnpm validate:card-art
+
+      - name: Test card artwork validator
+        run: pnpm test:card-art
 
       - name: Typecheck desktop
         run: pnpm --filter @monopoly/desktop typecheck
@@ -123,6 +129,9 @@ jobs:
 
       - name: Verify packaged gameplay music
         run: pnpm --filter @monopoly/desktop proof:packaged:audio
+
+      - name: Verify packaged card artwork
+        run: pnpm --filter @monopoly/desktop proof:packaged:cards
 
       - name: Install mobile browser engines
         run: pnpm exec playwright install chromium webkit
