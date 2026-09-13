@@ -36,16 +36,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.15.1
+          run_install: false
+
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: pnpm
 
-      - name: Enable Corepack
-        run: corepack enable
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Verify Node and pnpm toolchain
+        run: |
+          node --version
+          pnpm --version
+          pnpm exec node --version
+          pnpm exec node --input-type=module -e "import { readFileSync } from 'node:fs'; import { strict as assert } from 'node:assert'; const packageJson = JSON.parse(readFileSync('package.json', 'utf8')); const minimumNodeMajor = Number(/^>=\s*(\d+)/.exec(packageJson.engines.node)?.[1]); const expectedPnpmVersion = /^pnpm@(.+)$/.exec(packageJson.packageManager)?.[1]; const userAgent = process.env.npm_config_user_agent ?? ''; const pnpmVersion = /^pnpm\/([^ ]+)/.exec(userAgent)?.[1]; const agentNodeVersion = /node\/v([^ ]+)/.exec(userAgent)?.[1]; assert(Number(process.versions.node.split('.')[0]) >= minimumNodeMajor, 'Node runtime does not satisfy package.json engines.node'); assert.strictEqual(pnpmVersion, expectedPnpmVersion, 'pnpm runtime does not match package.json packageManager'); assert.strictEqual(agentNodeVersion, process.versions.node, 'pnpm exec node did not resolve to the setup-node runtime');"
 
       - name: Validate V1 release contract
         run: pnpm validate:v1-contract
