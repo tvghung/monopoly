@@ -32,7 +32,11 @@ Development endpoint contract:
 - Vite proxies `/socket.io` to the server, while Electron connects directly to
   `http://127.0.0.1:8080`; the server allows the exact renderer origin by default.
 
-- `AppBootstrap` chạy các stage `loading-settings` → `loading-runtime-config` →
+- Desktop renders `DesktopMultiplayerLauncher` before any gameplay Socket.IO
+  client is created. Host mode starts the main-process runtime first; Join mode
+  resolves a validated explicit IPv4 endpoint first. No UDP/mDNS discovery path
+  exists. Web bootstrap retains
+  the normal `loading-settings` → `loading-runtime-config` →
   `loading-assets` → `initializing-client` → `ready`/`error`; loading UI chỉ hiển
   thị stage thực, không dựng phần trăm giả.
 - Web đọc `__SOCKET_URL__`; desktop lấy `socketUrl`, `platform` và `appVersion`
@@ -45,8 +49,10 @@ Development endpoint contract:
 ## Session storage và reconnect
 
 - Socket không dùng `socket.id` làm player identity.
-- Versioned localStorage key là `monopoly.player-session.v1` và chỉ chứa
-  `{version: 1, token}`.
+- Versioned localStorage key là `monopoly.player-session.v3` và lưu token theo
+  canonical HTTP(S) authority plus canonical room code. V1/V2 records migrate as
+  unscoped and are not sent to a newly selected room until authoritative recovery
+  supplies the room scope.
 - First join là hai bước: `join room` trả pending token → client lưu token →
   `resume session` activate/reclaim Seat.
 - Mỗi Socket.IO `connect` có stored token phải resume trước khi bật gameplay action.
@@ -106,11 +112,13 @@ formatter dùng `1 game unit = 1.000 VNĐ` và player-facing UI/log/error là ti
   consumed only through the same `PresentationController → AnimationQueue →
   PresentationStore` path. A missing/non-contiguous semantic tail resets to the
   authoritative snapshot instead of fabricating a consequence.
-- `pendingCardInteraction` is durable and operation-scoped. `AWAITING_DRAW` exposes
-  the face-down interaction, `REVEALED` exposes `revealedCardId`, and `draw card` /
-  `dismiss card` send that operation ID through authoritative ACK flow. The card
-  presentation is queued after the appropriate `LAND` boundary; a chained card
-  closes before movement and opens the next interaction after landing.
+- `pendingCardInteraction` is durable and operation-scoped. A new card landing is
+  immediately `REVEALED` with `revealedCardId`; `dismiss card` sends its operation
+  ID through authoritative ACK flow and applies the effect only after the actor
+  presses `Đóng`. Persisted `AWAITING_DRAW` is legacy protocol-9 compatibility;
+  the current client does not expose or emit `draw card`. The card presentation
+  is queued after the appropriate `LAND` boundary; a chained card closes before
+  movement and opens the next interaction after landing.
 - Session/reconnect hydration resets the queue/store to the current pending-card
   stage without replaying the old draw/reveal. Exact deck order remains server-private;
   `deckCounts` is the only deck aggregate used by the public board presentation.

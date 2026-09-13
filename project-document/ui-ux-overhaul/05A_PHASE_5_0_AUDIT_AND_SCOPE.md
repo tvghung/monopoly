@@ -1,5 +1,9 @@
 # Phase 5.0 — Current-Code Audit and Approved Scope
 
+> HISTORICAL phase audit. The current V1 card/audio contract is in
+> [V1_RELEASE_CONTRACT.md](V1_RELEASE_CONTRACT.md); the implementation names and
+> scope decisions below are retained as historical evidence.
+
 **APPROVED — Phase 5 scope finalized after user review**
 
 Audit date: 2026-08-24

@@ -2,15 +2,21 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  min-height: 100dvh;
+  padding:
+    max(1rem, env(safe-area-inset-top))
+    max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
+  overflow-y: auto;
   background: radial-gradient(circle at 50% 0%, var(--color-warning-soft) 0%, var(--color-accent-secondary-soft) 48%, var(--color-info-soft) 100%);
 }
 
 .join__card {
   display: flex;
   flex-direction: column;
-  width: min(90vw, 26rem);
+  width: min(100%, 26rem);
   padding: 2.5rem 2rem;
   border-radius: 1rem;
   background: var(--color-surface);
@@ -68,6 +74,7 @@
 }
 
 .join__input {
+  min-height: 2.75rem;
   margin-bottom: 1.25rem;
   padding: 0.7rem 0.9rem;
   border: 2px solid var(--color-border);
@@ -77,6 +84,16 @@
   font-size: 1rem;
   outline: none;
   transition: border-color 0.15s ease;
+}
+
+@media (max-height: 38rem) {
+  .join {
+    align-items: flex-start;
+  }
+
+  .join__card {
+    padding: 1.25rem;
+  }
 }
 
 .join__input:focus {

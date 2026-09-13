@@ -1,9 +1,10 @@
-import type { PublicGameState } from '@monopoly/shared';
+import { PLAYER_COLOR_IDS, type PublicGameState } from '@monopoly/shared';
 import { describe, expect, it } from 'vitest';
 import { buildBoardRenderModel } from './boardRenderModel';
 import type { PresentationState } from '../../presentation/store/types';
-import { cloneRoom, makeRoom } from '../../presentation/testFixtures';
+import { makeRoom } from '../../presentation/testFixtures';
 import { PLAYER_STATION_WORLD_ANCHORS } from '../stations/stationWorld';
+import { PLAYER_COLOR_VISUALS } from '../../ui/playerVisualColors';
 
 const presentation = (overrides: Partial<PresentationState> = {}): PresentationState => ({
   displayLogs: [],
@@ -107,6 +108,26 @@ describe('board render model', () => {
     expect(model.players.find(player => player.playerId === 'active')).toMatchObject({ tileId: 17, isActive: false });
     expect(model.players.find(player => player.playerId === 'finished')).toMatchObject({ tileId: 8, isActive: false });
     expect(model.players.find(player => player.playerId === 'fallback')).toMatchObject({ tileId: 9, isActive: true });
+  });
+
+  it.each(PLAYER_COLOR_IDS)('resolves %s destination fill and edge on the Income Tax tile', color => {
+    const current = state();
+    current.players.active.color = color;
+    const model = buildBoardRenderModel(current, presentation({
+      destinationPreview: {
+        id: `preview-${color}`,
+        playerId: 'active',
+        tileId: 4,
+        strongDurationMs: 460,
+      },
+    }));
+
+    expect(model.destinationPreview).toMatchObject({
+      playerId: 'active',
+      tileId: 4,
+      surfaceColor: PLAYER_COLOR_VISUALS[color].display,
+      edgeColor: PLAYER_COLOR_VISUALS[color].accentDark,
+    });
   });
 
   it('uses presentation-owned balances for station text and coin piles', () => {
@@ -246,57 +267,4 @@ describe('board render model', () => {
     expect(model.deckCounts).toEqual({ chance: 16, chest: 16 });
   });
 
-  it('does not bypass queued card presentation with an authoritative pending interaction', () => {
-    const room = makeRoom();
-    const reconnect = cloneRoom(room);
-    reconnect.gameState.boardState.finishedPlayers['player-b'] = {
-      name: 'Bình', color: 'blue', characterId: 'panda', accountBalance: 0, reason: 'BANKRUPT',
-    };
-    reconnect.gameState.turnInfo.pendingCardInteraction = {
-      operationId: '00000000-0000-4000-8000-000000000700',
-      playerId: 'player-a',
-      turnNumber: 1,
-      deck: 'chance',
-      sourceTile: 7,
-      stage: 'REVEALED',
-      revealedCardId: 'chance-dividend',
-      continuation: { playerId: 'player-a', turnNumber: 1 },
-      deadlineAt: '2030-01-01T00:00:30.000Z',
-    };
-
-    const model = buildBoardRenderModel(
-      reconnect.gameState,
-      presentation(),
-      reconnect.players,
-      'player-a',
-      'PLAYER',
-    );
-    expect(model.stations.find(station => station.playerId === 'player-b')?.status).toBe('BANKRUPT');
-    expect(model.cardPresentation).toBeNull();
-    expect(buildBoardRenderModel(
-      reconnect.gameState,
-      presentation({
-        cardPresentation: {
-          operationId: '00000000-0000-4000-8000-000000000700',
-          playerId: 'player-a',
-          deck: 'chance',
-          sourceTile: 7,
-          stage: 'REVEALED',
-          revealedCardId: 'chance-dividend',
-          durationMs: 0,
-        },
-      }),
-      reconnect.players,
-      'player-a',
-      'PLAYER',
-    ).cardPresentation).toEqual({
-      operationId: '00000000-0000-4000-8000-000000000700',
-      playerId: 'player-a',
-      deck: 'chance',
-      sourceTile: 7,
-      stage: 'REVEALED',
-      revealedCardId: 'chance-dividend',
-      durationMs: 0,
-    });
-  });
 });

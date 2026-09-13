@@ -248,3 +248,14 @@ multiplayer validation, speaker-backed audio UAT, accessibility/manual QA, and
 long-session soak where still outstanding.
 
 `PHASE_6_CLOSEOUT_DOCS_SHA=88f1eb10ba85114486c29e79e3d9509e13c03d6a`
+
+## Phase 7.2 release-path addendum — 2026-08-30
+
+Phase 6 evidence above remains historical. The current LAN release path no longer
+requires a remote Socket.IO URL: an endpoint override is optional, and an
+ordinary packaged application opens the pre-socket Host/Join launcher. Host mode
+uses the packaged managed PostgreSQL and authoritative helper. The Release
+Candidate matrix now retains the Phase 7.0 packaged proof and adds the separate
+Phase 7.2 Host proof for Windows x64, macOS x64, and macOS arm64. Signing and
+notarization remain separate secret-backed release gates; no public release is
+claimed by Phase 7.2 engineering evidence.

@@ -48,6 +48,24 @@ function readPositiveInteger(
   return value;
 }
 
+function readPort(
+  environment: NodeJS.ProcessEnv,
+  runtimeProfile: ServerRuntimeProfile,
+): number {
+  const rawValue = environment.PORT;
+  if (rawValue === undefined || rawValue === '') return 8080;
+  const value = Number(rawValue);
+  const minimum = runtimeProfile === 'desktop' ? 0 : 1;
+  if (!Number.isSafeInteger(value) || value < minimum || value > 65_535) {
+    throw new Error(
+      runtimeProfile === 'desktop'
+        ? 'PORT must be an integer between 0 and 65535'
+        : 'PORT must be an integer between 1 and 65535',
+    );
+  }
+  return value;
+}
+
 function readBoolean(
   environment: NodeJS.ProcessEnv,
   name: string,
@@ -106,7 +124,7 @@ export function loadServerConfig(
     nodeEnv,
     runtimeProfile,
     listenHost: readListenHost(environment, runtimeProfile),
-    port: readPositiveInteger(environment, 'PORT', 8080),
+    port: readPort(environment, runtimeProfile),
     database: databaseUrl
       ? {
           connectionString: databaseUrl,

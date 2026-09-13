@@ -6,7 +6,6 @@ import type {
 import type { AnimationExecutionContext, PresentationExecutor } from '../queue/types';
 import { PresentationStore } from '../store/presentationStore';
 import { makeRoom } from '../testFixtures';
-import { presentationTiming } from '../timings';
 import { createSemanticExecutors } from './semanticExecutors';
 
 const immediateContext: AnimationExecutionContext = {
@@ -37,46 +36,17 @@ function cardEvent(
 }
 
 describe('semantic presentation executors', () => {
-  it('publishes face-down flight, settled click, reveal spin, and final revealed stages', async () => {
+  it('publishes a revealed card immediately and clears it only on close', async () => {
     const store = new PresentationStore();
     store.resetFromSnapshot(makeRoom());
     const executor = createSemanticExecutors(store).CARD_INTERACTION_CHANGED as unknown as
       PresentationExecutor<CardInteractionChangedPresentationEvent>;
 
-    let releaseDraw = () => {};
-    const drawWait = new Promise<void>(resolve => { releaseDraw = resolve; });
-    const drawing = executor.run(cardEvent('AWAITING_DRAW'), {
-      ...immediateContext,
-      waitForDuration: duration => {
-        expect(duration).toBe(presentationTiming.cardDraw);
-        return drawWait;
-      },
-    });
-    expect(store.getSnapshot().cardPresentation).toMatchObject({
-      stage: 'DRAWING', durationMs: presentationTiming.cardDraw,
-    });
-    releaseDraw();
-    await drawing;
+    await executor.run(cardEvent('AWAITING_DRAW'), immediateContext);
     expect(store.getSnapshot().cardPresentation).toMatchObject({
       stage: 'AWAITING_DRAW', durationMs: 0,
     });
-
-    let releaseReveal = () => {};
-    const revealWait = new Promise<void>(resolve => { releaseReveal = resolve; });
-    const revealing = executor.run(cardEvent('REVEALED'), {
-      ...immediateContext,
-      waitForDuration: duration => {
-        expect(duration).toBe(presentationTiming.cardReveal);
-        return revealWait;
-      },
-    });
-    expect(store.getSnapshot().cardPresentation).toMatchObject({
-      stage: 'REVEALING',
-      revealedCardId: 'chance-dividend',
-      durationMs: presentationTiming.cardReveal,
-    });
-    releaseReveal();
-    await revealing;
+    await executor.run(cardEvent('REVEALED'), immediateContext);
     expect(store.getSnapshot().cardPresentation).toMatchObject({
       stage: 'REVEALED',
       revealedCardId: 'chance-dividend',

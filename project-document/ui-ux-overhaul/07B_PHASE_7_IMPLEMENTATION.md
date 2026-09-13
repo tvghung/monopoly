@@ -1,5 +1,15 @@
 # Phase 7 — Implementation Gate Record
 
+> **Phase 7.2 current-state addendum (2026-08-30):** The final phase now absorbs
+> unfinished Phase 7.1 Host/LAN work and adds mobile/recovery hardening. UDP
+> discovery was removed in favor of explicit IPv4 selection, URL/room entry,
+> Copy Link, and QR. Phase 7.2 engineering passed exact-SHA PostgreSQL CI and
+> Windows x64/macOS arm64 Desktop Build at
+> `c756536dc919e9f264e01784a38ec283761dcaf4`; physical-device/install and
+> release-signing evidence remains deferred. See
+> `07C_PHASE_7_2_FINAL_ENGINEERING.md`. Earlier decisions below remain
+> historical Phase 7.0/7.1 evidence.
+
 ## Status
 
 **7.0A historical gate: FAIL / REJECTED.** The required PGlite Socket candidate
@@ -9,9 +19,13 @@ contract.
 **7.0B corrective gate: PASS on Windows and macOS; overall Phase 7.0 PASS.**
 A managed native PostgreSQL 17.11 runtime and packaged Electron
 `utilityProcess.fork()` server helper were implemented and proved on both
-required desktop targets. Phase 7.1–7.2 were not started. The corrective work
+required desktop targets. Phase 7.1–7.2 were not started at that checkpoint. The corrective work
 does not change gameplay, protocol V8, GameCore, migrations, persistence
 semantics, or client UI.
+
+**Historical Phase 7.1 follow-up:** the earlier brief authorized Host/Join plus
+UDP discovery. Phase 7.2 supersedes that incomplete implementation and uses the
+explicit IPv4/manual-link/QR boundary. All 7.0A/7.0B evidence remains unchanged.
 
 ## Candidate and test shape
 

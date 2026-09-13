@@ -4,8 +4,8 @@
 
 - `GET /healthz`: public liveness; process is running.
 - `GET /readyz`: readiness; PostgreSQL reachable and schema compatible.
-- Production static client and SPA fallback on same origin.
-- Production trusts exactly one reverse-proxy hop and limits static/SPA requests to
+- Cloud and desktop profiles serve an explicit static client root plus SPA fallback.
+- Cloud trusts exactly one reverse-proxy hop and limits static/SPA requests to
   1,000 per IP per 15 minutes; Socket.IO and health routes are outside that limiter.
 - Socket.IO shares the HTTP server at default path/namespace.
 
@@ -14,9 +14,15 @@ Development endpoint contract:
 - Game server and Socket.IO server: `http://127.0.0.1:8080`.
 - Vite renderer origin: `http://127.0.0.1:5173`.
 - Socket.IO development CORS default: exactly `http://127.0.0.1:5173`.
-- Packaged Electron uses `app://own-the-block` as the production CORS default.
-- Same-origin browser requests remain valid; a browser request without an `Origin`
-  header is not made invalid by the packaged Electron allowlist.
+- Desktop Host uses the explicit LAN profile: the game HTTP/Socket.IO server
+  binds `0.0.0.0:<actual-game-port>` while managed PostgreSQL remains loopback-only;
+  the host renderer connects to `127.0.0.1:<game-port>`.
+- Desktop Join accepts an explicit validated HTTP IPv4/port plus room code. A
+  configured developer/release endpoint may remain HTTP(S); no UDP/mDNS discovery
+  path exists.
+- Desktop Socket.IO admits `app://own-the-block`, origin-less native clients, and
+  browser origins whose exact host/port matches the HTTP `Host` header. An unrelated
+  browser origin is rejected. No wildcard is used.
 - `CORS_ORIGIN` explicitly overrides the applicable development or production
   default.
 
@@ -38,7 +44,7 @@ before propagating the failure.
 
 ## Environment
 
-- `PORT` default `8080`.
+- `PORT` default `8080`; desktop accepts `0` and reports the actual OS-selected port.
 - `DATABASE_URL`, `DATABASE_SSL`, `DATABASE_SSL_REJECT_UNAUTHORIZED`,
   `DATABASE_MAX_CONNECTIONS`.
 - `RECONNECT_GRACE_MS=60000`, `PENDING_SESSION_TTL_MS=300000`,
@@ -46,9 +52,9 @@ before propagating the failure.
 - `LOBBY_RETENTION_MS=86400000`, `IN_PROGRESS_RETENTION_MS=2592000000`,
   `FINISHED_RETENTION_MS=604800000`.
 - Existing `NODE_ENV`, `CORS_ORIGIN`, `CLIENT_DIST` behavior remains. In development,
-  the default `CORS_ORIGIN` is `http://127.0.0.1:5173`; packaged Electron uses
-  `app://own-the-block` in production by default. `CORS_ORIGIN` replaces either
-  default when explicitly configured.
+  the default `CORS_ORIGIN` is `http://127.0.0.1:5173`. Desktop requires an absolute
+  explicit client distribution and applies its dynamic Electron/same-origin policy;
+  `CORS_ORIGIN` remains an explicit override.
 
 Room code and CORS are not authentication. Browser CORS authorizes whether a
 browser may expose a transport response to a requesting origin; it is not a
@@ -83,8 +89,29 @@ player-disconnect grace, close Socket.IO/HTTP and PostgreSQL pool cleanly.
 
 ## Tests
 
+### Phase 7.2 automated evidence
+
+- `[PACKAGED][PASS-WINDOWS]` The separate Host proof starts packaged PostgreSQL
+  on loopback, starts the external helper on `0.0.0.0` with an OS-selected port,
+  verifies health/readiness, serves the bundled renderer/asset, checks Electron
+  and browser same-origin admission plus unrelated-origin rejection, reaches a
+  real local IPv4 candidate, and shuts down cleanly.
+- `[SOCKET][PACKAGED][PASS-WINDOWS]` Four real protocol-V8 clients share one room,
+  the fifth receives `ROOM_FULL`, reconnect preserves identity/room, newest
+  connection wins, and helper/PostgreSQL restarts retain the room/session and
+  deadline recovery.
+- `[AUTO][PASS]` `createServer.test.ts` covers desktop static root, asset, SPA,
+  origin, no cloud proxy trust, plus unchanged cloud/development policies.
+- `[NOT RUN/BLOCKED]` Database integration requires `TEST_DATABASE_URL`; local
+  `db:status` without the configured PostgreSQL service is not a substitute.
+- `[MANUAL DEFERRED / NOT RUN]` Physical Windows/macOS host/join, real phones,
+  firewall prompts, and install/upgrade/uninstall remain separate evidence.
+
 - Liveness/readiness under healthy/unhealthy DB.
 - Missing config/schema mismatch fail before listen.
 - Static/SPA/CORS and Socket proxy behavior.
 - Clean migration/status, production image start and graceful shutdown.
 - Restart same DB restores sessions/room/game/deadlines.
+- The Phase 7.0 packaged proof remains an independent regression gate. The Phase
+  7.2 Host proof adds product-stack LAN-equivalent and recovery evidence; neither
+  is physical desktop-to-desktop acceptance.

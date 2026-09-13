@@ -143,25 +143,14 @@ export function createSemanticExecutors(
   };
 
   const card: PresentationExecutor<CardInteractionChangedPresentationEvent> = {
-    async run(event, context) {
-      if (!current(context)) return;
+    run(event, context) {
+      if (!current(context)) return Promise.resolve();
       if (event.stage === 'CLOSED') {
         store.setCardPresentation(null);
-        return;
+        return Promise.resolve();
       }
       if (event.stage === 'AWAITING_DRAW') {
-        const duration = context.getDuration(presentationTiming.cardDraw);
         store.setCardPresentation({
-          operationId: event.operationId,
-          playerId: event.playerId,
-          deck: event.deck,
-          sourceTile: event.sourceTile,
-          stage: duration > 0 ? 'DRAWING' : 'AWAITING_DRAW',
-          durationMs: duration,
-        });
-        audio.play('card.draw', { signal: context.signal, scope: 'presentation' });
-        await context.waitForDuration(duration);
-        if (current(context)) store.setCardPresentation({
           operationId: event.operationId,
           playerId: event.playerId,
           deck: event.deck,
@@ -169,21 +158,9 @@ export function createSemanticExecutors(
           stage: 'AWAITING_DRAW',
           durationMs: 0,
         });
-        return;
+        return Promise.resolve();
       }
-      const duration = context.getDuration(presentationTiming.cardReveal);
       store.setCardPresentation({
-        operationId: event.operationId,
-        playerId: event.playerId,
-        deck: event.deck,
-        sourceTile: event.sourceTile,
-        stage: duration > 0 ? 'REVEALING' : 'REVEALED',
-        ...(event.revealedCardId ? { revealedCardId: event.revealedCardId } : {}),
-        durationMs: duration,
-      });
-      audio.play('card.reveal', { signal: context.signal, scope: 'presentation' });
-      await context.waitForDuration(duration);
-      if (current(context)) store.setCardPresentation({
         operationId: event.operationId,
         playerId: event.playerId,
         deck: event.deck,
@@ -192,6 +169,8 @@ export function createSemanticExecutors(
         ...(event.revealedCardId ? { revealedCardId: event.revealedCardId } : {}),
         durationMs: 0,
       });
+      audio.play('card.draw', { signal: context.signal, scope: 'presentation' });
+      return Promise.resolve();
     },
     finish() {},
   };

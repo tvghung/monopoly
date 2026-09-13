@@ -21,7 +21,6 @@ export type AudioCueId =
   | 'build.hotel'
   | 'build.remove'
   | 'card.draw'
-  | 'card.reveal'
   | 'jail.enter'
   | 'jail.failed'
   | 'jail.release'
@@ -40,7 +39,7 @@ export interface AudioPort {
   play: (cueId: AudioCueId, options?: AudioPlayOptions) => void;
   handleUserInteraction: (cueId?: AudioCueId) => void;
   stopPresentationVoices?: () => void;
-  setRoomActive?: (active: boolean) => void;
+  setGameActive?: (active: boolean) => void;
   setDocumentHidden?: (hidden: boolean) => void;
 }
 
@@ -48,7 +47,7 @@ export const NOOP_AUDIO_PORT: AudioPort = Object.freeze({
   play: () => {},
   handleUserInteraction: () => {},
   stopPresentationVoices: () => {},
-  setRoomActive: () => {},
+  setGameActive: () => {},
   setDocumentHidden: () => {},
 });
 

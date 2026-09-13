@@ -1,5 +1,6 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { tileState } from '@monopoly/shared';
+import { ShoppingCart, X } from 'lucide-react';
 import stateContext from '../../internal';
 import { formatMoney, getTileName, localizeAckError } from '../../presentation';
 import Modal from '../../design-system/components/Modal/Modal';
@@ -73,6 +74,7 @@ export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
         <Button
           data-modal-autofocus
           className="button__purchase--yes"
+          icon={<ShoppingCart />}
           type="button"
           busy={pendingAction === 'BUY'}
           disabled={pendingAction !== null
@@ -82,6 +84,7 @@ export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
         <Button
           variant="secondary"
           className="button__purchase--no"
+          icon={<X />}
           type="button"
           busy={pendingAction === 'DECLINE'}
           disabled={pendingAction !== null}

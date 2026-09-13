@@ -1,4 +1,5 @@
 export const GAME_UNIT_IN_VND = 1_000;
+export const BAIL_AMOUNT = 25;
 
 const vndInteger = new Intl.NumberFormat('vi-VN', {
   maximumFractionDigits: 0,

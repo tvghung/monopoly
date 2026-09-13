@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 
 import {
+  BAIL_AMOUNT,
   createCanonicalDecks,
   SOCKET_PROTOCOL_VERSION,
   tileState,
@@ -24,7 +25,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { PersistenceTimingConfig } from './config.js';
 import { createServer } from './createServer.js';
-import { forcedSaleGrossPrice } from './game';
+import { forcedSaleGrossPrice, resolveTile } from './game';
 import { InMemoryPersistenceStore } from './persistence/inMemory.js';
 import { migrateDatabase } from './persistence/migrate.js';
 import { PostgresPersistenceStore } from './persistence/postgres.js';
@@ -33,9 +34,14 @@ import type {
   PersistenceUnitOfWork,
   RoomRecord,
 } from './persistence/types.js';
-import { assertSupportedRoomSnapshot, type RoomSnapshot } from './rooms.js';
+import {
+  assertSupportedRoomSnapshot,
+  hydrateGameState,
+  storeGameState,
+  type RoomSnapshot,
+} from './rooms.js';
 import { createAppRuntime, type AppRuntime } from './services/runtime.js';
-import { registerSocketHandlers } from './socket/index.js';
+import { canCreateRoomForPeer, registerSocketHandlers } from './socket/index.js';
 
 type TestSocket = ClientSocket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -93,7 +99,7 @@ async function startServer(
 ): Promise<RunningServer> {
   const runtime = createAppRuntime(persistence, TEST_TIMING);
   const { server, io } = createServer(runtime);
-  registerSocketHandlers(io, runtime);
+  registerSocketHandlers(io, runtime, 'development');
 
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
@@ -377,6 +383,23 @@ describe('Socket.IO durable player lifecycle', () => {
       ],
     });
     expect(JSON.stringify(resumed.room)).not.toContain(join.token);
+  });
+
+  it('lets only the desktop loopback host create an unused room code', async () => {
+    expect(canCreateRoomForPeer('desktop', '127.0.0.1')).toBe(true);
+    expect(canCreateRoomForPeer('desktop', '::ffff:127.0.0.1')).toBe(true);
+    expect(canCreateRoomForPeer('desktop', '192.168.1.20')).toBe(false);
+    expect(canCreateRoomForPeer('cloud', '192.168.1.20')).toBe(true);
+
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const runtime = createAppRuntime(persistence, TEST_TIMING);
+    await expect(runtime.sessions.beginAdmission(
+      'Guest',
+      'MISSING-ROOM',
+      new Date(),
+      false,
+    )).rejects.toMatchObject({ code: 'NOT_FOUND', retryable: false });
+    expect(await persistence.rooms.findByCode('MISSING-ROOM')).toBeNull();
   });
 
   it('rejects an unknown reconnect credential without creating or binding a seat', async () => {
@@ -791,7 +814,7 @@ describe('Socket.IO durable player lifecycle', () => {
     }
   });
 
-  it('authorizes and idempotently commits the two-stage card interaction', async () => {
+  it('reveals on landing and authorizes an idempotent card close', async () => {
     const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
     const subject = await startServer(persistence);
     const host = await joinPlayer(await connect(subject.url), 'Host', 'card-authority');
@@ -805,11 +828,11 @@ describe('Socket.IO durable player lifecycle', () => {
       ? host
       : guest;
     const other = actor.playerId === host.playerId ? guest : host;
-    const operationId = randomUUID();
+    let operationId = '';
     const originalBalance = started.gameSnapshot.gameState.players[actor.playerId].accountBalance;
     const originalDeckLength = started.gameSnapshot.gameState.privateState.decks.chance.drawPile.length;
     await mutateRoom(persistence, host.room.roomId, room => {
-      const state = room.gameSnapshot.gameState;
+      const state = hydrateGameState(room.gameSnapshot, room.status);
       state.players[actor.playerId].currentTile = 7;
       state.boardState.currentPlayer = { id: actor.playerId, hasMoved: true };
       const chancePile = state.privateState.decks.chance.drawPile;
@@ -817,31 +840,25 @@ describe('Socket.IO durable player lifecycle', () => {
         'chance-dividend',
         ...chancePile.filter(cardId => cardId !== 'chance-dividend'),
       ];
-      state.turnInfo = {
-        pendingCardInteraction: {
-          operationId,
-          playerId: actor.playerId,
-          turnNumber: state.boardState.turnNumber,
-          deck: 'chance',
-          sourceTile: 7,
-          stage: 'AWAITING_DRAW',
-          continuation: {
-            playerId: actor.playerId,
-            turnNumber: state.boardState.turnNumber,
-          },
-          deadlineAt: new Date(Date.now() + 20_000).toISOString(),
-        },
-      };
+      state.turnInfo = {};
       state.boardState.turnRecovery = null;
+      resolveTile(
+        state,
+        actor.playerId,
+        0,
+        { playerId: actor.playerId, turnNumber: state.boardState.turnNumber },
+        { now: Date.now() },
+      );
+      const pending = state.turnInfo.pendingCardInteraction;
+      if (!pending) throw new Error('Expected landing to reveal a card');
+      operationId = pending.operationId;
+      storeGameState(room.gameSnapshot, state, room.status);
     });
 
     expect(await drawCard(actor.socket, 'not-an-operation-id')).toMatchObject({
       ok: false, error: { code: 'INVALID_REQUEST' },
     });
     expect(await drawCard(other.socket, operationId)).toMatchObject({
-      ok: false, error: { code: 'CONFLICT' },
-    });
-    expect(await dismissCard(actor.socket, operationId)).toMatchObject({
       ok: false, error: { code: 'CONFLICT' },
     });
     expect((await drawCard(actor.socket, operationId)).ok).toBe(true);
@@ -856,6 +873,9 @@ describe('Socket.IO durable player lifecycle', () => {
       .toHaveLength(originalDeckLength - 1);
     expect(revealed?.gameSnapshot.gameState.players[actor.playerId].accountBalance)
       .toBe(originalBalance);
+    expect(revealed?.gameSnapshot.gameState.boardState.activityFeed.events.filter(
+      event => event.type === 'CARD_REVEALED',
+    )).toHaveLength(1);
     expect(await dismissCard(other.socket, operationId)).toMatchObject({
       ok: false, error: { code: 'CONFLICT' },
     });
@@ -1557,7 +1577,7 @@ describe('Socket.IO durable player lifecycle', () => {
 
       };
       const player = room.gameSnapshot.gameState.players[host.playerId];
-      player.accountBalance = 49;
+      player.accountBalance = BAIL_AMOUNT - 1;
       player.isJail = true;
       player.jailOpponentRoundsElapsed = 2;
       room.gameSnapshot.gameState.boardState.currentPlayer.hasMoved = false;
@@ -1572,10 +1592,59 @@ describe('Socket.IO durable player lifecycle', () => {
     });
     const after = await persistence.rooms.findById(host.room.roomId);
     expect(after?.gameSnapshot.gameState.players[host.playerId]).toMatchObject({
-      accountBalance: 49,
+      accountBalance: BAIL_AMOUNT - 1,
       isJail: true,
     });
     expect(after?.gameSnapshot.gameState.boardState.paymentQueue).toBeNull();
+  });
+
+  it('charges exact bail once and preserves release across reconnect and stale retries', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const host = await joinPlayer(await connect(subject.url), 'Host', 'exact-bail');
+    const guest = await joinPlayer(await connect(subject.url), 'Guest', 'exact-bail');
+    await setReady(host.socket);
+    await setReady(guest.socket);
+    expect((await startGame(host.socket)).ok).toBe(true);
+    await mutateRoom(persistence, host.room.roomId, (room) => {
+      room.gameSnapshot.gameState.boardState.currentPlayer = {
+        id: host.playerId,
+        hasMoved: false,
+      };
+      const player = room.gameSnapshot.gameState.players[host.playerId];
+      player.accountBalance = BAIL_AMOUNT;
+      player.isJail = true;
+      player.jailOpponentRoundsElapsed = 2;
+    });
+
+    const acknowledgements = await Promise.all([
+      waitForAck(acknowledge => host.socket.emit('pay bail', acknowledge)),
+      waitForAck(acknowledge => host.socket.emit('pay bail', acknowledge)),
+    ]);
+    expect(acknowledgements.filter(acknowledgement => acknowledgement.ok)).toHaveLength(1);
+    expect(acknowledgements.filter(acknowledgement => !acknowledgement.ok)).toHaveLength(1);
+
+    const stored = await persistence.rooms.findById(host.room.roomId);
+    expect(stored?.gameSnapshot.gameState.players[host.playerId]).toMatchObject({
+      accountBalance: 0,
+      isJail: false,
+      jailOpponentRoundsElapsed: 0,
+    });
+    expect(stored?.gameSnapshot.gameState.boardState.gameplayEvents.events).toContainEqual(
+      expect.objectContaining({ type: 'MONEY_TRANSFER', amount: BAIL_AMOUNT, reason: 'BAIL' }),
+    );
+    expect(stored?.gameSnapshot.gameState.boardState.logs.at(-1)).toContain('25.000 ₫');
+
+    const resumedSocket = await connect(subject.url);
+    const resumed = await resumePlayer(resumedSocket, host.token);
+    expect(resumed.room.gameState.players[host.playerId]).toMatchObject({
+      accountBalance: 0,
+      isJail: false,
+    });
+    const staleRetry = await waitForAck(acknowledge => {
+      resumedSocket.emit('pay bail', acknowledge);
+    });
+    expect(staleRetry).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
   });
 
   it('rejects a payload inserted into a no-payload command without committing', async () => {

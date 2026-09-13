@@ -1,6 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS, type DesktopWindowState } from './ipc/channels';
 import type { DesktopRuntimeConfigResult } from './runtimeConfig';
+import type {
+  HostRuntimeOperationResult,
+  HostRuntimeStatus,
+  HostStartOptions,
+} from './hostRuntime';
 
 export interface OwnTheBlockDesktopBridge {
   getRuntimeConfig(): Promise<DesktopRuntimeConfigResult>;
@@ -15,6 +20,13 @@ export interface OwnTheBlockDesktopBridge {
     respond(requestId: string, allowQuit: boolean): void;
   };
   openExternal(url: string): Promise<void>;
+  host: {
+    getStatus(): Promise<HostRuntimeStatus>;
+    start(options?: HostStartOptions): Promise<HostRuntimeOperationResult>;
+    stop(): Promise<HostRuntimeOperationResult>;
+    refreshNetwork(options?: { preferredAddress?: string }): Promise<HostRuntimeStatus>;
+    onStatusChanged(listener: (status: HostRuntimeStatus) => void): () => void;
+  };
 }
 
 const bridge: OwnTheBlockDesktopBridge = {
@@ -40,6 +52,17 @@ const bridge: OwnTheBlockDesktopBridge = {
     },
   },
   openExternal: url => ipcRenderer.invoke(IPC_CHANNELS.openExternal, url),
+  host: {
+    getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.hostGetStatus),
+    start: options => ipcRenderer.invoke(IPC_CHANNELS.hostStart, options),
+    stop: () => ipcRenderer.invoke(IPC_CHANNELS.hostStop),
+    refreshNetwork: options => ipcRenderer.invoke(IPC_CHANNELS.hostRefreshNetwork, options),
+    onStatusChanged: listener => {
+      const handler = (_event: Electron.IpcRendererEvent, status: HostRuntimeStatus) => listener(status);
+      ipcRenderer.on(IPC_CHANNELS.hostStatusChanged, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.hostStatusChanged, handler);
+    },
+  },
 };
 
 contextBridge.exposeInMainWorld('ownTheBlockDesktop', bridge);

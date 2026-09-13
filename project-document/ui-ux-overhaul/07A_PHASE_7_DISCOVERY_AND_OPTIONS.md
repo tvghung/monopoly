@@ -1,5 +1,15 @@
 # Phase 7 — LAN Multiplayer & Desktop Host Mode Discovery
 
+> **Phase 7.2 current-state addendum (2026-08-30):** Phase 7.2 now absorbs the
+> unfinished Phase 7.1 implementation. The final V1 uses explicit IPv4
+> interface selection, room-code entry, Copy Link, and QR; the carried UDP
+> discovery implementation was removed. Phase 7.2 engineering passed exact-SHA
+> PostgreSQL CI and Windows x64/macOS arm64 Desktop Build at
+> `c756536dc919e9f264e01784a38ec283761dcaf4`; physical-device/install and
+> release-signing acceptance remain deferred. See
+> `07C_PHASE_7_2_FINAL_ENGINEERING.md`. The older status statements below
+> describe their historical checkpoint only.
+
 **PHASE 7 PRODUCT DIRECTION: LAN MULTIPLAYER & DESKTOP HOST MODE**
 
 **PHASE 7 DISCOVERY: COMPLETE**
@@ -11,12 +21,17 @@
 The original 2026-08-29 PGlite Socket failure remains the 7.0A hard-gate
 record. The corrective 7.0B continuation proves managed native PostgreSQL 17.11
 and a packaged Electron `utilityProcess.fork()` server helper on both Windows
-and macOS. Phase 7.1–7.2 implementation did not start.
+and macOS. Phase 7.1–7.2 implementation had not started at that checkpoint.
 
 This is the authoritative Phase 7 discovery and gate record. The original
 discovery sections below remain historical context; the 7.0B correction at the
 end is the current implementation/proof status. No LAN host/join UX, protocol,
 game-rule, production endpoint, or release approval is implied.
+
+**Historical Phase 7.1 direction:** the earlier product-owner brief authorized
+desktop Host/Join plus UDP discovery. Phase 7.2 supersedes that incomplete branch
+and deliberately removes UDP discovery; `07C_PHASE_7_1_DESKTOP_LAN_IMPLEMENTATION.md`
+is retained only as branch history.
 
 ## 1. Approved product direction
 

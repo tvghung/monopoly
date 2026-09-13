@@ -24,7 +24,6 @@ let signing;
 try {
   metadata = assertCanonicalReleaseMetadata({
     root: repositoryRoot,
-    requireEndpoint: true,
     environment,
   });
   target = resolveReleaseTarget({ environment });

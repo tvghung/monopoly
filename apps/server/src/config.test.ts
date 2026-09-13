@@ -39,7 +39,7 @@ describe('loadServerConfig', () => {
 
   it('rejects invalid numeric and boolean configuration', () => {
     expect(() => loadServerConfig({ PORT: '0' })).toThrow(
-      'PORT must be a positive integer',
+      'PORT must be an integer between 1 and 65535',
     );
     expect(() =>
       loadServerConfig({
@@ -62,6 +62,12 @@ describe('loadServerConfig', () => {
       runtimeProfile: 'desktop',
       listenHost: '127.0.0.1',
     });
+    expect(loadServerConfig({
+      NODE_ENV: 'production',
+      SERVER_RUNTIME_PROFILE: 'desktop',
+      DATABASE_URL: 'postgresql://example.invalid/monopoly',
+      PORT: '0',
+    }).port).toBe(0);
   });
 
   it('rejects invalid runtime profile and empty host configuration', () => {

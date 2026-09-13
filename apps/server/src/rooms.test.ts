@@ -17,6 +17,12 @@ import {
   upgradeRoomSnapshotV7ToV8,
 } from './rooms.js';
 import { freshState } from './rooms.js';
+import {
+  progressPaymentQueue,
+  resolveTile,
+  resumePaymentContinuation,
+  sellPropertyToBankForPayment,
+} from './game/index.js';
 import type { RoomRecord } from './persistence/types.js';
 import { ConnectionRegistry } from './services/connectionRegistry.js';
 import { projectPublicRoomState } from './services/publicState.js';
@@ -233,6 +239,36 @@ describe('durable room snapshot compatibility', () => {
     expect(activityFeedSchema.safeParse({ sequence: 2, events: [event] }).success).toBe(true);
     expect(activityFeedSchema.safeParse({ sequence: 3, events: [event] }).success).toBe(false);
     expect(activityFeedSchema.safeParse({ sequence: 1, events: [] }).success).toBe(false);
+  });
+
+  it('accepts V9 landing and tax variants without invalidating V8 activity history', () => {
+    const base = {
+      eventId: '00000000-0000-4000-8000-000000000097',
+      sequence: 1,
+      occurredAt: '2026-08-25T12:00:00.000Z',
+    };
+    expect(activityFeedSchema.safeParse({
+      sequence: 1,
+      events: [{
+        ...base,
+        type: 'TILE_LANDED',
+        playerId: PLAYER_ONE,
+        playerName: 'Player One',
+        tileID: 4,
+      }],
+    }).success).toBe(true);
+    expect(gameplayEventStreamSchema.safeParse({
+      sequence: 1,
+      events: [{
+        eventId: base.eventId,
+        sequence: 1,
+        type: 'MONEY_TRANSFER',
+        source: { kind: 'PLAYER', playerId: PLAYER_ONE },
+        destination: { kind: 'BANK' },
+        amount: 50,
+        reason: 'TAX',
+      }],
+    }).success).toBe(true);
   });
 
   it('rejects a current V7 snapshot that omits roll sequence', () => {
@@ -459,6 +495,86 @@ describe('durable room snapshot compatibility', () => {
         { status: 'PENDING', remainingAmount: 20 },
       ],
     });
+  });
+
+  it('preserves a TAX shortfall across storage and hydration', () => {
+    const gameSnapshot = createActiveSnapshot();
+    gameSnapshot.gameState.boardState.paymentQueue = {
+      operationId: '00000000-0000-4000-8000-000000000020',
+      orderedClaims: [{
+        claimId: '00000000-0000-4000-8000-000000000021',
+        debtorPlayerId: PLAYER_ONE,
+        creditor: 'BANK',
+        amount: 200,
+        remainingAmount: 150,
+        source: { kind: 'TAX', tileID: 4 },
+        status: 'PENDING',
+      }],
+      activeClaimIndex: 0,
+      continuation: { playerId: PLAYER_ONE, turnNumber: 7 },
+      actionDeadlineAt: '2030-01-01T00:02:00.000Z',
+    };
+
+    expect(() => assertSupportedRoomSnapshot({
+      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
+      gameSnapshot,
+      hostPlayerId: PLAYER_ONE,
+      status: 'IN_PROGRESS',
+    })).not.toThrow();
+    const state = hydrateGameState(gameSnapshot, 'IN_PROGRESS');
+    storeGameState(gameSnapshot, state, 'IN_PROGRESS');
+
+    expect(hydrateGameState(gameSnapshot, 'IN_PROGRESS').boardState.paymentQueue)
+      .toMatchObject({
+        activeClaimIndex: 0,
+        orderedClaims: [{
+          remainingAmount: 150,
+          source: { kind: 'TAX', tileID: 4 },
+        }],
+      });
+  });
+
+  it('resumes a hydrated TAX shortfall once without duplicating the landing or charge', () => {
+    const gameSnapshot = createActiveSnapshot();
+    const state = hydrateGameState(gameSnapshot, 'IN_PROGRESS');
+    state.players[PLAYER_ONE].currentTile = 4;
+    state.players[PLAYER_ONE].accountBalance = 50;
+    state.boardState.currentPlayer = { id: PLAYER_ONE, hasMoved: false };
+    state.boardState.ownedProps[39] = { id: PLAYER_ONE, color: 'red', houses: 0 };
+
+    resolveTile(state, PLAYER_ONE, 0, undefined, { now: 1_000 });
+    storeGameState(gameSnapshot, state, 'IN_PROGRESS');
+
+    const reconnected = hydrateGameState(gameSnapshot, 'IN_PROGRESS');
+    const queue = reconnected.boardState.paymentQueue;
+    const claim = queue?.orderedClaims[0];
+    if (!queue || !claim) throw new Error('Expected a hydrated TAX shortfall.');
+    expect(progressPaymentQueue(reconnected, { now: 1_001 }).status)
+      .toBe('WAITING_FOR_LIQUIDATION');
+    expect(sellPropertyToBankForPayment(
+      reconnected,
+      PLAYER_ONE,
+      queue.operationId,
+      claim.claimId,
+      39,
+      { now: 1_001 },
+    ).ok).toBe(true);
+
+    const progress = progressPaymentQueue(reconnected, { now: 1_001 });
+    expect(progress.status).toBe('COMPLETED');
+    if (progress.continuation) resumePaymentContinuation(reconnected, progress.continuation);
+
+    const taxPaid = reconnected.boardState.gameplayEvents.events.reduce(
+      (total, event) => event.type === 'MONEY_TRANSFER' && event.reason === 'TAX'
+        ? total + event.amount
+        : total,
+      0,
+    );
+    expect(taxPaid).toBe(200);
+    expect(reconnected.boardState.activityFeed.events.filter(event => event.type === 'TILE_LANDED'))
+      .toHaveLength(1);
+    expect(reconnected.boardState.paymentQueue).toBeNull();
+    expect(reconnected.boardState.currentPlayer.id).toBe(PLAYER_TWO);
   });
 
   it.each(['AWAITING_DRAW', 'REVEALED'] as const)(

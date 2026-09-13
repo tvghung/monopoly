@@ -7,7 +7,7 @@
 | Runtime network schemas | `socketSchemas.ts` | Cùng instruction |
 | Board/color groups/cards | `tileState.ts`, Chance/Chest files | [board-and-card-data.instruction.md](./board-and-card-data.instruction.md) |
 
-`SOCKET_PROTOCOL_VERSION = 8` and `ROOM_SNAPSHOT_SCHEMA_VERSION = 8`. Compile-time
+`SOCKET_PROTOCOL_VERSION = 9` and `ROOM_SNAPSHOT_SCHEMA_VERSION = 8`. Compile-time
 types và Zod validation runtime là hai lớp khác nhau; schema parse không thay server
 authority.
 
@@ -22,3 +22,7 @@ presence/socket/timer handle. Historical V5 rooms được nâng lên V6 với
 reconstructing history. Exact deck order remains private. Mọi contract change phải
 sửa server producer, client consumer, public projector, runtime schema và executable
 testcase.
+
+Protocol V9 adds `TAX` money/debt semantics and `TILE_LANDED`. This widens the
+validated JSON unions without changing the persisted JSON shape, so existing V8
+snapshots remain valid and no SQL migration is required.

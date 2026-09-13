@@ -33,20 +33,27 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
   `1500 → 1.500.000 ₫`; không còn `$`, `$M`, USD.
 - Client không nhận/render exact `DeckState` hoặc credential. Pending landing,
   payment shortfall, `pendingCardInteraction` và seller/buyer forced-sale proposal
-  chỉ dùng projection cần cho quyết định UX. Card stages are durable
-  `AWAITING_DRAW`/`REVEALED`; `draw card`/`dismiss card` use the operation ID and
-  never reveal the private draw pile.
+  chỉ dùng projection cần cho quyết định UX. A normal card landing is immediately
+  `REVEALED`; the operation ID and `dismiss card` command remain durable and never
+  reveal the private draw pile. Persisted `AWAITING_DRAW` is legacy protocol-9
+  compatibility only; the current client has no Draw action or emission.
 - Public `gameplayEvents` and the active player's private semantic lane are consumed
   through the single `PresentationController → AnimationQueue → PresentationStore`
-  path. Card reveal is queued after LAND; session/reconnect hydration snaps to the
-  current durable stage without replaying the old card animation.
+  path. Card reveal is queued after the authoritative LAND boundary; session/
+  reconnect hydration snaps to the current revealed card without replaying a draw
+  animation. The effect waits for the acting player to press `Đóng`.
 - Settings dùng key `own-the-block.settings.v1`, normalize/clamp defensive và tách
   khỏi reconnect token. Reduced motion hiệu lực là user setting hoặc OS
-  preference. Audio provider owns one lazy Web Audio engine and typed procedural
-  registry; existing Master/Music/SFX values update its buses live. Phase 5.1
-  uses the SFX bus for typed gameplay cues and one original deterministic
-  background music loop through the Music bus; `musicVolume` is intentionally
-  retained and ambience is deferred.
+  preference. Audio provider owns one lazy Web Audio engine and typed SFX
+  registry; existing Master/Music/SFX values update its buses live. The Music
+  bus loads exactly one rendered loop from
+  `audio/music/own-the-block-main-theme-loop.wav`, decodes one looping buffer,
+  and runs only while authoritative room status is `IN_PROGRESS`. Lobby,
+  finished, and replay-lobby states are silent; no procedural BGM fallback or
+  adaptive multi-stem arrangement exists. Run `pnpm validate:music-assets` before
+  accepting a rendered release. The earlier stem design is historical in
+  [V1_AUDIO_SEGMENTED_TRANSPORT.md](../../ui-ux-overhaul/V1_AUDIO_SEGMENTED_TRANSPORT.md)
+  and [V1_AUDIO_PRODUCTION_PIPELINE.md](../../ui-ux-overhaul/V1_AUDIO_PRODUCTION_PIPELINE.md).
 - Desktop renderer dùng `contextIsolation`, `sandbox`, `nodeIntegration: false` và
   typed preload bridge whitelist; Electron main không chứa GameCore/game action.
 

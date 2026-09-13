@@ -22,7 +22,6 @@ import {
   SHARED_COIN_GEOMETRY,
 } from './stations/coinVisuals';
 import './GameScene.css';
-import type { PhysicalCardInteraction } from './cards/PhysicalCardDecks';
 import type { DeckCounts } from '@monopoly/shared';
 
 export interface GameSceneProps {
@@ -31,11 +30,25 @@ export interface GameSceneProps {
   selectedTileId?: number | null;
   onTileHover?: (tileId: number | null) => void;
   onTileSelect?: (tileId: number) => void;
-  cardInteraction?: PhysicalCardInteraction;
+  onRendererFailure?: (error: Error) => void;
 }
 
 interface BoardSceneContentsProps extends GameSceneProps {
   model?: BoardRenderModel;
+}
+
+export function RendererLifecycleGuard({ onFailure }: { onFailure?: (error: Error) => void }) {
+  const gl = useThree(state => state.gl);
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+      onFailure?.(new Error('WebGL context was lost'));
+    };
+    canvas.addEventListener('webglcontextlost', onContextLost);
+    return () => canvas.removeEventListener('webglcontextlost', onContextLost);
+  }, [gl, onFailure]);
+  return null;
 }
 
 function RendererDiagnostics({
@@ -43,7 +56,6 @@ function RendererDiagnostics({
   activeAnimatedObjects,
   stationCount,
   deckCounts,
-  activeCardStage,
   destinationPreviewTileId,
   hoveredTileId,
   selectedTileId,
@@ -52,9 +64,6 @@ function RendererDiagnostics({
   activeAnimatedObjects: number;
   stationCount: number;
   deckCounts: DeckCounts;
-  activeCardStage: BoardRenderModel['cardPresentation'] extends infer Signal
-    ? Signal extends { stage: infer Stage } ? Stage : null
-    : null;
   destinationPreviewTileId: number | null;
   hoveredTileId?: number | null;
   selectedTileId?: number | null;
@@ -77,20 +86,7 @@ function RendererDiagnostics({
     let measurementFrame = 0;
     const publish = () => {
       const drawingBufferSize = gl.getDrawingBufferSize(new THREE.Vector2());
-      const focusDiagnostics = window.__OWN_THE_BLOCK_CARD_FOCUS_DIAGNOSTICS__ ?? {};
-      const focusDrawCalls = typeof focusDiagnostics.drawCalls === 'number'
-        ? focusDiagnostics.drawCalls
-        : 0;
-      const focusTriangles = typeof focusDiagnostics.triangles === 'number'
-        ? focusDiagnostics.triangles
-        : 0;
       const destinationPreviewDiagnostics = window.__OWN_THE_BLOCK_DESTINATION_PREVIEW_DIAGNOSTICS__ ?? {};
-      const focusCardWidthRatio = typeof focusDiagnostics.cardWidthRatio === 'number'
-        ? focusDiagnostics.cardWidthRatio
-        : 0;
-      const focusCardHeightRatio = typeof focusDiagnostics.cardHeightRatio === 'number'
-        ? focusDiagnostics.cardHeightRatio
-        : 0;
       const sceneObjects: THREE.Object3D[] = [];
       scene.traverse(object => sceneObjects.push(object));
       const stationCoinMeshes = sceneObjects.filter(object => object.name.startsWith('StationCoins:'));
@@ -115,13 +111,8 @@ function RendererDiagnostics({
         textureMaxAnisotropy: gl.capabilities.getMaxAnisotropy(),
         drawCalls: gl.info.render.calls,
         triangles: estimateSceneTriangles(scene),
-        focusCanvasDrawCalls: focusDrawCalls,
-        focusCanvasTriangles: focusTriangles,
-        cardFocusWidthRatio: focusCardWidthRatio,
-        cardFocusHeightRatio: focusCardHeightRatio,
-        cardFocusCameraSpaceDepth: focusDiagnostics.cameraSpaceDepth ?? null,
-        combinedDrawCalls: gl.info.render.calls + focusDrawCalls,
-        combinedTriangles: estimateSceneTriangles(scene) + focusTriangles,
+        combinedDrawCalls: gl.info.render.calls,
+        combinedTriangles: estimateSceneTriangles(scene),
         activeAnimatedObjects,
         targetDrawCalls: TARGET_DRAW_CALLS,
         stressDrawCallLimit: STRESS_DRAW_CALL_LIMIT,
@@ -148,26 +139,24 @@ function RendererDiagnostics({
               authoritativeCount: deckCounts.chest,
             },
           },
-          activeCardStage,
-        destinationPreviewTileId,
-        destinationPreview: destinationPreviewDiagnostics,
-        coinSystem: {
-          geometryType: SHARED_COIN_GEOMETRY.type,
-          sceneEnvironment: Boolean(scene.environment),
-          finishes: Object.fromEntries(COIN_FINISH_ORDER.map(finish => {
-            const material = COIN_FINISH_MATERIALS[finish];
-            return [finish, {
-              metalness: material.metalness,
-              roughness: material.roughness,
-              envMap: Boolean(material.envMap),
-              envMapIntensity: material.envMapIntensity,
-            }];
-          })),
-        },
+          destinationPreviewTileId,
+          destinationPreview: destinationPreviewDiagnostics,
+          coinSystem: {
+            geometryType: SHARED_COIN_GEOMETRY.type,
+            sceneEnvironment: Boolean(scene.environment),
+            finishes: Object.fromEntries(COIN_FINISH_ORDER.map(finish => {
+              const material = COIN_FINISH_MATERIALS[finish];
+              return [finish, {
+                metalness: material.metalness,
+                roughness: material.roughness,
+                envMap: Boolean(material.envMap),
+                envMapIntensity: material.envMapIntensity,
+              }];
+            })),
+          },
           activeTurnRingCount: sceneObjects.filter(object => (
             object.name.includes('ActiveTurn') || object.name.includes('PlayerActiveRing')
           )).length,
-          cardFocusScrim: 'root-dom-plus-r3f',
         },
       };
       window.__OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__ = diagnostics;
@@ -187,7 +176,7 @@ function RendererDiagnostics({
       window.cancelAnimationFrame(firstFrame);
       window.cancelAnimationFrame(measurementFrame);
     };
-  }, [activeAnimatedObjects, activeCardStage, activityKey, camera, deckCounts.chance, deckCounts.chest, destinationPreviewTileId, gl, height, hoveredTileId, invalidate, scene, selectedTileId, stationCount, width]);
+  }, [activeAnimatedObjects, activityKey, camera, deckCounts.chance, deckCounts.chest, destinationPreviewTileId, gl, height, hoveredTileId, invalidate, scene, selectedTileId, stationCount, width]);
 
   return null;
 }
@@ -198,7 +187,6 @@ function BoardSceneContents({
   selectedTileId,
   onTileHover,
   onTileSelect,
-  cardInteraction,
 }: BoardSceneContentsProps) {
   const latestMovementByPlayer = new Map<string, BoardRenderModel['characterMovements'][number]>();
   model?.characterMovements.forEach(signal => latestMovementByPlayer.set(signal.playerId, signal));
@@ -215,15 +203,12 @@ function BoardSceneContents({
     + (model?.dice.phase === 'ROLLING' ? 2 : 0)
     + (model?.destinationPreview ? 1 : 0)
     + (model?.moneyTransfers.at(-1)?.coinCount ?? 0)
-    + (model?.cardPresentation?.stage === 'DRAWING'
-      || model?.cardPresentation?.stage === 'REVEALING' ? 1 : 0)
     + developmentObjects;
   const activityKey = [
     model?.players.map(player => `${player.playerId}:${player.tileId}`).join('|') ?? '',
     model?.tileImpacts.at(-1)?.sequence ?? 0,
     model?.moneyTransfers.at(-1)?.sequence ?? 0,
     model?.developmentChanges.at(-1)?.sequence ?? 0,
-    model?.cardPresentation?.stage ?? '',
     model?.destinationPreview?.id ?? '',
   ].join('|');
 
@@ -235,7 +220,6 @@ function BoardSceneContents({
         activeAnimatedObjects={activeAnimatedObjects}
         stationCount={model?.stations.length ?? 0}
         deckCounts={model?.deckCounts ?? { chance: 0, chest: 0 }}
-        activeCardStage={model?.cardPresentation?.stage ?? null}
         destinationPreviewTileId={model?.destinationPreview?.tileId ?? null}
         hoveredTileId={hoveredTileId}
         selectedTileId={selectedTileId}
@@ -250,7 +234,6 @@ function BoardSceneContents({
           selectedTileId={selectedTileId}
           onTileHover={onTileHover}
           onTileSelect={onTileSelect}
-          cardInteraction={cardInteraction}
         />
       </TileMotionProvider>
     </>
@@ -263,7 +246,7 @@ export default function GameScene({
   selectedTileId,
   onTileHover,
   onTileSelect,
-  cardInteraction,
+  onRendererFailure,
 }: GameSceneProps) {
   return (
     <div className="game-scene" data-testid="game-scene">
@@ -285,6 +268,7 @@ export default function GameScene({
           toneMappingExposure: 1,
         }}
       >
+        <RendererLifecycleGuard onFailure={onRendererFailure} />
         <color attach="background" args={[boardVisualTokens.sceneBackground]} />
         <hemisphereLight args={['#fff8e2', '#9fd6c4', 1.8]} />
         <directionalLight
@@ -299,7 +283,6 @@ export default function GameScene({
           selectedTileId={selectedTileId}
           onTileHover={onTileHover}
           onTileSelect={onTileSelect}
-          cardInteraction={cardInteraction}
         />
       </Canvas>
     </div>

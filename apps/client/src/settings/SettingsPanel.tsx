@@ -1,3 +1,4 @@
+import { Check, RotateCcw } from 'lucide-react';
 import Button from '../design-system/components/Button/Button';
 import Modal from '../design-system/components/Modal/Modal';
 import { getDesktopBridge, isDesktopRuntime } from '../runtime/desktopBridge';
@@ -47,7 +48,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   };
 
   return (
-    <Modal open={open} title="Cài đặt" onClose={onClose}>
+    <Modal open={open} title="Cài đặt" onClose={onClose} className="settings-panel-modal">
       <div className="settings-panel">
         <section className="settings-panel__section" aria-labelledby="settings-audio-title">
           <h3 id="settings-audio-title">Âm thanh</h3>
@@ -99,8 +100,8 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
           : null}
 
         <div className="settings-panel__actions">
-          <Button variant="secondary" onClick={resetSettings}>Khôi phục mặc định</Button>
-          <Button onClick={onClose}>Xong</Button>
+          <Button variant="secondary" icon={<RotateCcw />} onClick={resetSettings}>Khôi phục mặc định</Button>
+          <Button icon={<Check />} onClick={onClose}>Xong</Button>
         </div>
       </div>
     </Modal>

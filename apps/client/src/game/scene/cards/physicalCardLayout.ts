@@ -1,12 +1,10 @@
 import type { CardDeck, DeckCounts } from '@monopoly/shared';
-import type { CardPresentationSignal } from '../../presentation/store/types';
 import { CENTER_AIRPORT_FIELD_TOP_Y } from '../board/architecture/boardArtSpec';
 import {
   CENTER_ORTHOGONAL_PATH_SEGMENTS,
   getCenterPathBounds,
 } from '../board/center/centerFieldPathLayout';
 import { getBoardTileLayout } from '../board/boardLayout';
-import { CAMERA_DIRECTION } from '../camera/cameraMath';
 import { getDiceArenaBounds, type DiceArenaBounds } from '../dice/diceLayout';
 import { BANK_WORLD_ANCHOR } from '../stations/stationWorld';
 
@@ -16,24 +14,7 @@ export const PHYSICAL_CARD_THICKNESS = 0.046;
 export const PHYSICAL_CARD_LAYER_GAP = 0.008;
 export const PHYSICAL_CARD_LAYER_STEP = PHYSICAL_CARD_THICKNESS + PHYSICAL_CARD_LAYER_GAP;
 export const PHYSICAL_CARD_BEVEL = 0.022;
-export const CARD_PRESENTATION_SCALE = 2.65;
-export const CARD_REVEAL_ROTATIONS = 2.5;
-export const CARD_FOCUS_VIEWPORT_WIDTH_RATIO = 0.39;
-export const CARD_FOCUS_VIEWPORT_HEIGHT_RATIO = 0.7;
-export const CARD_FOCUS_CAMERA_Z = 10;
-export const CARD_FOCUS_CAMERA_NEAR = 0.1;
-export const CARD_FOCUS_CAMERA_FAR = 30;
-/** One hundred world units per CSS pixel keeps focus depth normalized. */
-export const CARD_FOCUS_CAMERA_ZOOM = 100;
-export const CARD_FOCUS_LOCAL_DEPTH_LIMIT = 0.035;
-export const CARD_FOCUS_TILT_YAW = degreesToRadians(6);
-export const CARD_FOCUS_TILT_PITCH = degreesToRadians(4);
-export const CARD_FOCUS_TILT_ROLL = degreesToRadians(0.5);
 export const CARD_FRAME_BORDER = 0.05;
-
-function degreesToRadians(degrees: number): number {
-  return degrees * Math.PI / 180;
-}
 
 const parkingCorner = getBoardTileLayout(20)?.position ?? [-1, 0, -1];
 const startCorner = getBoardTileLayout(0)?.position ?? [1, 0, 1];
@@ -59,50 +40,6 @@ export const DECK_BASE_CENTER_Y = CENTER_AIRPORT_FIELD_TOP_Y
   + PHYSICAL_CARD_THICKNESS / 2
   + 0.02;
 
-export const CARD_PRESENTATION_POSITION: readonly [number, number, number] = [
-  CAMERA_DIRECTION[0] * 3.4,
-  CAMERA_DIRECTION[1] * 3.4,
-  CAMERA_DIRECTION[2] * 3.4,
-];
-
-export function getCardFocusScale(viewportWidth: number, viewportHeight: number): number {
-  if (!Number.isFinite(viewportWidth) || !Number.isFinite(viewportHeight)
-    || viewportWidth <= 0 || viewportHeight <= 0) return 1;
-  return Math.min(
-    viewportWidth * CARD_FOCUS_VIEWPORT_WIDTH_RATIO / PHYSICAL_CARD_WIDTH,
-    viewportHeight * CARD_FOCUS_VIEWPORT_HEIGHT_RATIO / PHYSICAL_CARD_DEPTH,
-  );
-}
-
-export interface CardFocusCameraSpaceDepth {
-  minZ: number;
-  maxZ: number;
-  scale: number;
-  halfExtent: number;
-}
-
-export function getCardFocusCameraSpaceDepth(
-  viewportWidth: number,
-  viewportHeight: number,
-): CardFocusCameraSpaceDepth {
-  const scale = getCardFocusScale(viewportWidth, viewportHeight);
-  const halfWidth = PHYSICAL_CARD_WIDTH * scale / 2;
-  const halfDepth = PHYSICAL_CARD_DEPTH * scale / 2;
-  const halfThickness = PHYSICAL_CARD_THICKNESS * scale / 2;
-  const halfExtent = Math.hypot(halfWidth, halfDepth, halfThickness)
-    + CARD_FOCUS_LOCAL_DEPTH_LIMIT * scale;
-  return {
-    minZ: CARD_FOCUS_CAMERA_Z - halfExtent,
-    maxZ: CARD_FOCUS_CAMERA_Z + halfExtent,
-    scale,
-    halfExtent,
-  };
-}
-
-export function isCardFocusDepthSafe(viewportWidth: number, viewportHeight: number): boolean {
-  const depth = getCardFocusCameraSpaceDepth(viewportWidth, viewportHeight);
-  return depth.minZ > CARD_FOCUS_CAMERA_NEAR && depth.maxZ < CARD_FOCUS_CAMERA_FAR;
-}
 
 export interface CardLayerTransform {
   position: readonly [number, number, number];
@@ -127,12 +64,8 @@ export function getCardLayerTransform(deck: CardDeck, index: number): CardLayerT
 export function getIdleDeckCardCount(
   deck: CardDeck,
   deckCounts: DeckCounts,
-  signal: CardPresentationSignal | null,
 ): number {
-  const authoritativeCount = Math.max(0, Math.floor(deckCounts[deck]));
-  const detachedBeforeAuthoritativeDraw = signal?.deck === deck
-    && (signal.stage === 'DRAWING' || signal.stage === 'AWAITING_DRAW');
-  return Math.max(0, authoritativeCount - (detachedBeforeAuthoritativeDraw ? 1 : 0));
+  return Math.max(0, Math.floor(deckCounts[deck]));
 }
 
 export function getDeckFootprintBounds(deck: CardDeck): DiceArenaBounds {

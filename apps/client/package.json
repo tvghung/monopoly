@@ -5,10 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node scripts/validateGameplayMusicAssets.mjs --build-output && node scripts/validateCardArtwork.mjs --build-output",
+    "validate:music-assets": "node scripts/validateGameplayMusicAssets.mjs",
+    "test:music-validator": "node scripts/validateGameplayMusicAssets.check.mjs",
+    "validate:card-art": "node scripts/validateCardArtwork.mjs",
+    "test:card-art": "node scripts/validateCardArtwork.check.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --environment jsdom --pool=vmThreads --maxWorkers=1 --no-file-parallelism",
+    "test:music-transport": "vitest run src/audio/AudioEngine.test.ts src/audio/AudioProvider.test.tsx --environment jsdom --pool=vmThreads --maxWorkers=1 --no-file-parallelism",
     "test:watch": "vitest --environment jsdom --pool=vmThreads"
   },
   "dependencies": {
@@ -16,6 +21,8 @@
     "@monopoly/shared": "workspace:*",
     "@react-three/fiber": "^9.6.1",
     "framer-motion": "^13.0.0",
+    "lucide-react": "^1.37.0",
+    "qrcode": "^1.5.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "socket.io-client": "^4.8.3",
@@ -24,6 +31,7 @@
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@types/three": "^0.185.4",

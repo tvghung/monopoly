@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Own the Block — Audio review</title>
+<style>
+  body { font: 18px system-ui; max-width: 46rem; margin: 2rem auto; padding: 1rem; }
+  label { display: block; margin: 1rem 0; }
+  button, select { font: inherit; padding: .5rem; }
+</style>
+<h1>V1 audio listening review</h1>
+<p>Development only. This page uses the game's single decoded looping WAV and
+  is excluded from the release build. Human listening acceptance remains a
+  separate release activity.</p>
+<button id="play">Start / resume</button>
+<button id="stop">Leave room / stop</button>
+<label>Master <input id="master" type="range" min="0" max="1" step=".01" value="1"></label>
+<label>Music <input id="music" type="range" min="0" max="1" step=".01" value=".7"></label>
+<label>SFX <input id="sfx" type="range" min="0" max="1" step=".01" value=".8"></label>
+<button data-cue="dice.impact">Dice</button>
+<button data-cue="money.pay">Money</button>
+<button data-cue="ui.click">UI click</button>
+<p>Start unlocks audio and begins the game loop. Stop simulates leaving the
+  room; the music fades out.</p>
+<p id="status" role="status">Waiting for your Start gesture.</p>
+<script type="module">
+  import { AudioEngine } from '/src/audio/AudioEngine.ts';
+  const audio = new AudioEngine();
+  const field = id => document.getElementById(id);
+  const mix = () => audio.setMix({
+    masterGain: Number(field('master').value),
+    musicGain: Number(field('music').value),
+    sfxGain: Number(field('sfx').value),
+  });
+  ['master', 'music', 'sfx'].forEach(id => field(id).addEventListener('input', mix));
+  mix();
+  field('play').addEventListener('click', () => {
+    audio.handleUserInteraction();
+    audio.setGameActive(true);
+    field('status').textContent = 'Playback requested. Check the validation command and browser console if silent.';
+  });
+  field('stop').addEventListener('click', () => {
+    audio.setGameActive(false);
+    field('status').textContent = 'Room left; music fades out.';
+  });
+  document.querySelectorAll('[data-cue]').forEach(button => {
+    button.addEventListener('click', () => audio.handleUserInteraction(button.dataset.cue));
+  });
+  document.addEventListener('visibilitychange', () => audio.setDocumentHidden(document.hidden));
+  window.addEventListener('pagehide', () => audio.dispose(), { once: true });
+</script>
+</html>

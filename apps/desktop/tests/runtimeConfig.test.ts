@@ -63,14 +63,12 @@ describe('desktop socket endpoint configuration', () => {
     ));
   });
 
-  it('fails closed when a packaged build has no endpoint', () => {
-    expect(() => resolveSocketUrl(options({ isPackaged: true }))).toThrowError(
-      expect.objectContaining({ code: 'PACKAGED_SOCKET_URL_MISSING' }),
-    );
+  it('opens a packaged LAN-first build without an external endpoint', () => {
+    expect(resolveSocketUrl(options({ isPackaged: true }))).toBeUndefined();
   });
 
   it('does not substitute loopback in a packaged build, but accepts an explicitly supplied loopback endpoint', () => {
-    expect(() => resolveSocketUrl(options({ isPackaged: true }))).toThrow();
+    expect(resolveSocketUrl(options({ isPackaged: true }))).toBeUndefined();
     expect(resolveSocketUrl(options({
       isPackaged: true,
       argv: ['--socket-url=http://127.0.0.1:8080'],

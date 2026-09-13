@@ -24,6 +24,19 @@ button:hover {
   cursor: pointer;
 }
 
+.action-icon {
+  display: inline-block;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-inline-end: 0.4rem;
+  color: currentColor;
+  stroke-width: 2.25;
+  vertical-align: -0.2em;
+}
+
+.action-icon--major { width: 1.2rem; height: 1.2rem; }
+.action-icon--only { margin-inline-end: 0; vertical-align: middle; }
+
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,

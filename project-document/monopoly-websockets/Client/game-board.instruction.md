@@ -102,9 +102,12 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
 - Ownership, buildings, player position và pending landing/payment state từ
   committed `PublicRoomState`; stable IDs điều khiển token/owner.
 - `pendingCardInteraction` cũng là committed public state cho card interaction:
-  `AWAITING_DRAW` chờ player gửi `draw card`, `REVEALED` giữ `revealedCardId` cho
-  tới `dismiss card`; cả hai command đều operation-scoped và không làm lộ deck order.
-  Public `gameplayEvents` và private player semantic events đi qua cùng
+  a new Chance/Khí Vận landing is immediately `REVEALED` with
+  `revealedCardId`, and the effect waits for the acting player to send
+  `dismiss card`. Persisted `AWAITING_DRAW` remains only as protocol-9
+  compatibility for legacy snapshots; the current client has no Draw action.
+  Commands are operation-scoped and do not expose deck order. Public
+  `gameplayEvents` and private player semantic events đi qua cùng
   `PresentationController → AnimationQueue → PresentationStore`; thiếu semantic
   sequence thì reset/snap về snapshot thay vì dựng cause.
 - Level 1–4 render Nhà; level 5 render Khách Sạn. Forced-sale gross values come
@@ -154,7 +157,8 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   layer exposes no `OwnerTab` and seven legacy accent-line tiles expose no accent channel.
 - Owner/house/hotel/inventory/token update theo revision.
 - Normal/pass-GO/jail/card movement; buy/development/payment settlement.
-- Card flip, outside close, multiple token, reduced-motion, reconnect/no-duplicate.
+- Card modal artwork/message, actor-only `Đóng`, no outside close, reduced-motion,
+  reconnect/no-duplicate.
 - `Phase4UatHarness` board-readability fixture at `1280×720`, `1440×900` and
   `1920×1080`, covering four corners, all four runs, short/two-line Vietnamese
   names, special icons, unowned/owned/1–4 Nhà/Khách sạn and flag+building states.

@@ -100,9 +100,10 @@ export async function runPhase7RuntimeProof(
   const targetKey = `${process.platform}-${process.arch}`;
   const postgresRoot = path.join(resourcesRoot, 'postgres', targetKey);
   const helperPath = path.join(resourcesRoot, 'server-helper', 'server-helper.cjs');
+  const clientDist = path.join(resourcesRoot, 'dist');
   const contractPath = path.join(resourcesRoot, 'server-helper', 'phase7-contract.cjs');
   const migrationDirectory = path.join(resourcesRoot, 'server-helper', 'migrations');
-  for (const target of [postgresRoot, helperPath, contractPath, migrationDirectory]) {
+  for (const target of [postgresRoot, helperPath, contractPath, migrationDirectory, clientDist]) {
     requireAbsolute('Packaged Phase 7 resource', target);
     if (containsAsar(target)) throw new Error('Phase 7 proof resources must be external to asar');
   }
@@ -127,6 +128,7 @@ export async function runPhase7RuntimeProof(
     helper = new ServerHelperController({
       modulePath: helperPath,
       migrationDirectory,
+      clientDist,
       databaseUrl: postgresInfo.databaseUrl,
       host: '127.0.0.1',
       port: serverPort,
@@ -158,6 +160,7 @@ export async function runPhase7RuntimeProof(
     restartedHelper = new ServerHelperController({
       modulePath: helperPath,
       migrationDirectory,
+      clientDist,
       databaseUrl: restartedPostgres.databaseUrl,
       host: '127.0.0.1',
       port: restartedServerPort,

@@ -1,5 +1,10 @@
 # Cờ Tỷ Phú Việt Nam
 
+Current release identity: **Own the Block V1 / 1.0.0**, Socket protocol **9**.
+See the [V1 release contract](project-document/ui-ux-overhaul/V1_RELEASE_CONTRACT.md)
+for the LAN-first desktop architecture and pending production soundtrack gate.
+Validate identity with `pnpm validate:v1-contract`.
+
 [![CI](https://github.com/terragady/monopoly-websockets/actions/workflows/ci.yml/badge.svg)](https://github.com/terragady/monopoly-websockets/actions/workflows/ci.yml)
 ![GitHub top language](https://img.shields.io/github/languages/top/terragady/monopoly-websockets)
 ![GitHub repo size](https://img.shields.io/github/repo-size/terragady/monopoly-websockets)
@@ -111,10 +116,22 @@ pnpm lint        # eslint across the repo
 pnpm test        # unit/client/socket tests; PostgreSQL suite is conditional
 pnpm desktop:package # package the Windows/macOS Electron application
 pnpm desktop:make    # create configured platform makers (Windows Squirrel on Windows)
+pnpm desktop:run:packaged # launch the latest local packaged app for Host/Join testing
 pnpm --filter @monopoly/desktop proof:packaged # run the packaged Phase 7.0B loopback proof
+pnpm desktop:proof:host # run the separate packaged Phase 7.2 Host/LAN proof
+pnpm test:e2e:mobile # build/prepare and run mobile Chromium + WebKit flows
 pnpm validate:release # validate canonical release metadata and generated config
-pnpm desktop:release  # release-candidate build; requires OWN_THE_BLOCK_RELEASE_SOCKET_URL
+pnpm desktop:release  # LAN-first release-candidate build; endpoint override is optional
 ```
+
+For a self-contained Host check, run `pnpm desktop:package`, then
+`pnpm desktop:run:packaged` and choose **Host Game**. The packaged app starts its
+own loopback-only PostgreSQL and authoritative server; no developer PostgreSQL or
+external Socket.IO URL is required. To test Join, open the Host URL in a browser
+on the same LAN or run a second packaged desktop instance, choose **Join Game**,
+and enter the Host IPv4/port plus `OTB-XXXXXX` room code. The invite URL format is
+`http://<host-ip>:<actual-port>/?room=<room-code>`; opening it prefills but does not
+submit the room.
 
 ## Environment variables
 
@@ -125,14 +142,14 @@ pnpm desktop:release  # release-candidate build; requires OWN_THE_BLOCK_RELEASE_
 | `DATABASE_SSL_REJECT_UNAUTHORIZED` | `true` | Certificate verification policy. |
 | `DATABASE_MAX_CONNECTIONS` | `10` | PostgreSQL pool size. |
 | `TEST_DATABASE_URL` | unset | Enables the PostgreSQL integration suite; CI sets it alongside `DATABASE_URL`. A run without it is not CI-equivalent, and the test output must make conditional/skipped coverage explicit. |
-| `PORT` | `8080` | HTTP/Socket server port. |
+| `PORT` | `8080` | HTTP/Socket server port; desktop Host accepts `0` for OS-selected actual port. |
 | `NODE_ENV` | `development` | `production` also serves the built client. |
 | `SERVER_RUNTIME_PROFILE` | `development` locally; `cloud` in production | Server profile; the packaged proof uses `desktop`. |
-| `SERVER_HOST` | `127.0.0.1` locally/desktop; `0.0.0.0` cloud | Explicit server bind address. |
-| `CORS_ORIGIN` | `http://127.0.0.1:5173` in development; `app://own-the-block` in production | Explicit cross-origin allowlist; not authentication. |
+| `SERVER_HOST` | `127.0.0.1` development; `0.0.0.0` cloud/packaged Host | Explicit server bind address; managed PostgreSQL remains `127.0.0.1` only. |
+| `CORS_ORIGIN` | `http://127.0.0.1:5173` in development | Optional override. Packaged Host explicitly admits `app://own-the-block` and browser requests whose origin matches the requested Host IPv4/port; no wildcard is used. |
 | `OWN_THE_BLOCK_MIGRATIONS_DIR` | unset | Internal packaged-helper seam for the external migration directory. |
 | `OWN_THE_BLOCK_SOCKET_URL` | unset | Packaged desktop override; CLI `--socket-url=` has higher precedence. |
-| `OWN_THE_BLOCK_RELEASE_SOCKET_URL` | unset | Required by `pnpm desktop:release`; written to generated packaged release configuration. |
+| `OWN_THE_BLOCK_RELEASE_SOCKET_URL` | unset | Optional HTTP(S) endpoint override for a release; written to generated packaged release configuration when supplied. LAN Host/Join is the default path. |
 | `CLIENT_DIST` | `apps/client/dist` | Static client directory override. |
 | `RECONNECT_GRACE_MS` | `60000` | Grace before an offline current player's turn is resolved. |
 | `PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS` | `120000` | Thời hạn xử lý thanh toán thiếu hụt trước auto-liquidation xác định. |

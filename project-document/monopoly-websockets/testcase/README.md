@@ -6,6 +6,9 @@
 - `[SOCKET]`: real Socket.IO client/server integration.
 - `[PG]`: requires disposable PostgreSQL via `DATABASE_URL` and `TEST_DATABASE_URL`.
 - `[CLIENT]`: Vitest + React Testing Library.
+- `[BROWSER]`: automated Playwright browser-engine flow; not a physical device.
+- `[PACKAGED]`: packaged Electron/helper/PostgreSQL process proof, scoped to the
+  reported OS/architecture.
 - `[AUDIT]`: deterministic repository/content audit implemented as test/script.
 - `[MANUAL-E2E]`: browser/process validation; never called automated.
 
@@ -27,6 +30,7 @@ checklist item phải map tới assertion executable hoặc giữ nhãn missing/
 | Chat/log safety | [chat](./chat-log-and-input-safety.md) | Socket + client |
 | Activity/victory/replay | [game status](./game-status-bankruptcy-and-winner.md), [client sync](./client-state-sync-motion-and-accessibility.md) | Activity schema + Socket + client |
 | DB/runtime/deploy | [runtime](./http-runtime-and-deployment.md) | migration + HTTP + PG |
+| Desktop Host/LAN/mobile | [runtime](./http-runtime-and-deployment.md), [join lifecycle](./join-room-and-player-lifecycle.md) | packaged Phase 7.0/7.2 + Chromium/WebKit |
 
 ## Full gates
 
@@ -47,3 +51,7 @@ database variables are set before `pnpm db:migrate` and `pnpm test`; an unset
 Phase 5.2 additionally distinguishes structured Activity Feed assertions from
 legacy string-log compatibility, and marks browser/Electron replay, reduced-motion,
 WebGL fallback and long-session audio checks as `[MANUAL-E2E]` unless executed live.
+
+Phase 7.2 runs `pnpm desktop:proof:host` separately from the retained Phase 7.0
+proof and `pnpm test:e2e:mobile` on mobile Chromium/WebKit profiles. Browser-engine
+PASS does not convert real iPhone/iPad/Android or physical LAN rows to PASS.

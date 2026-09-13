@@ -38,11 +38,14 @@ describe('server helper controller', () => {
     const fork = vi.fn<ServerHelperFork>((_modulePath, _args, options) => {
       queueMicrotask(() => child.emit('message', { type: 'ready', host: '127.0.0.1', port: 43123 }));
       expect(options.env.DATABASE_URL).toContain('own_the_block');
+      expect(options.env.OWN_THE_BLOCK_CLIENT_DIST).toBe(path.resolve('proof', 'client'));
+      expect(options.env.CORS_ORIGIN).toBeUndefined();
       return child as unknown as UtilityProcess;
     });
     const controller = new ServerHelperController({
       modulePath: path.resolve('proof', 'server-helper.cjs'),
       migrationDirectory: path.resolve('proof', 'migrations'),
+      clientDist: path.resolve('proof', 'client'),
       databaseUrl: 'postgresql://postgres@127.0.0.1:43122/own_the_block',
       host: '127.0.0.1',
       port: 43123,
@@ -72,6 +75,7 @@ describe('server helper controller', () => {
     const controller = new ServerHelperController({
       modulePath: path.resolve('proof', 'server-helper.cjs'),
       migrationDirectory: path.resolve('proof', 'migrations'),
+      clientDist: path.resolve('proof', 'client'),
       databaseUrl: 'postgresql://postgres@127.0.0.1:43122/own_the_block',
       host: '127.0.0.1',
       port: 43123,
@@ -89,6 +93,7 @@ describe('server helper controller', () => {
     const controller = new ServerHelperController({
       modulePath: path.resolve('proof', 'server-helper.cjs'),
       migrationDirectory: path.resolve('proof', 'migrations'),
+      clientDist: path.resolve('proof', 'client'),
       databaseUrl: 'postgresql://postgres@127.0.0.1:43122/own_the_block',
       host: '127.0.0.1',
       port: 43123,
@@ -115,6 +120,7 @@ describe('server helper controller', () => {
     expect(() => new ServerHelperController({
       modulePath: 'proof/server-helper.cjs',
       migrationDirectory: path.resolve('proof', 'migrations'),
+      clientDist: path.resolve('proof', 'client'),
       databaseUrl: 'postgresql://postgres@127.0.0.1:43122/own_the_block',
       host: '127.0.0.1',
       port: 43123,
@@ -122,9 +128,39 @@ describe('server helper controller', () => {
     expect(() => new ServerHelperController({
       modulePath: path.resolve('proof', 'server-helper.cjs'),
       migrationDirectory: 'proof/migrations',
+      clientDist: path.resolve('proof', 'client'),
       databaseUrl: 'postgresql://postgres@127.0.0.1:43122/own_the_block',
       host: '127.0.0.1',
       port: 43123,
     })).toThrow('Server helper migration directory must be absolute');
+  });
+
+  it('accepts an automatically selected port and reports an unexpected post-ready exit', async () => {
+    const child = new FakeUtilityProcess();
+    const fork = vi.fn<ServerHelperFork>(() => {
+      queueMicrotask(() => child.emit('message', { type: 'ready', host: '0.0.0.0', port: 53_120 }));
+      return child as unknown as UtilityProcess;
+    });
+    const controller = new ServerHelperController({
+      modulePath: path.resolve('proof', 'server-helper.cjs'),
+      migrationDirectory: path.resolve('proof', 'migrations'),
+      clientDist: path.resolve('proof', 'client'),
+      databaseUrl: 'postgresql://postgres@127.0.0.1:43122/own_the_block',
+      host: '0.0.0.0',
+      port: 0,
+      fork,
+      fetch: vi.fn(async (url: string) => new Response(
+        url.endsWith('/readyz') ? 'ready' : 'ok',
+        { status: 200 },
+      )),
+    });
+    const unexpected = vi.fn();
+    controller.onUnexpectedExit(unexpected);
+
+    await expect(controller.start()).resolves.toMatchObject({ port: 53_120 });
+    child.emit('exit', 7);
+
+    expect(controller.state).toBe('FAILED');
+    expect(unexpected).toHaveBeenCalledWith(expect.stringContaining('exited with code 7'));
   });
 });

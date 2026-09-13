@@ -1,5 +1,6 @@
 import { useContext } from 'react';
 import { tileState } from '@monopoly/shared';
+import { CircleMinus, Handshake } from 'lucide-react';
 import Modal from '../../../design-system/components/Modal/Modal';
 import stateContext from '../../../internal';
 import tradePromptContext from '../../../tradePromptContext';
@@ -24,29 +25,54 @@ export default function PropertyInspectionModal({ tileId, onClose }: PropertyIns
   const details = getTileDetails(tile);
   const houses = owned?.houses ?? 0;
   const isStreet = tile.tileType === 'normal' && typeof tile.houseCost === 'number';
+  const hasRentTable = tile.tileType === 'normal' || tile.tileType === 'railroad' || tile.tileType === 'company';
   const canSellHouse = isStreet && houses > 0;
+  const portfolioCount = owned
+    ? Object.entries(state.boardState.ownedProps).filter(([ownedTileId, property]) => (
+      property.id === owned.id && tileState[Number(ownedTileId)]?.tileType === tile.tileType
+    )).length
+    : 1;
+  const currentDetail = tile.tileType === 'normal'
+    ? details[Math.min(houses, 5)]
+    : details[Math.min(Math.max(portfolioCount, 1), details.length) - 1];
+  const development = !owned
+    ? 'Chưa có chủ sở hữu'
+    : houses === 5 ? '1 Khách sạn' : houses > 0 ? `${houses} Nhà` : 'Chưa xây';
 
   return (
     <Modal open title={name} onClose={onClose} closeOnOutsideClick>
-      <PropertyCard tileId={tileId} ownedProp={owned} className="property-inspection-card">
+      <PropertyCard tileId={tileId} className="property-inspection-card">
         {typeof tile.price === 'number'
           ? <p className="property-inspection__price">Giá mua: {formatMoney(tile.price)}</p>
           : null}
-        <div className="property-inspection__details">
-          {details.map(detail => (
-            <p className="property-inspection__detail" key={`${detail.label}-${detail.value ?? ''}`}>
-              <span>{detail.label}</span>
-              {detail.value ? <strong>{detail.value}</strong> : null}
-            </p>
-          ))}
-        </div>
-        {owned && houses > 0
+        {isStreet ? <p className="property-inspection__development">Phát triển: {development}</p> : null}
+        {hasRentTable && currentDetail
           ? (
-            <p className="property-inspection__buildings">
-              {houses === 5 ? '🏨 1 Khách Sạn' : `🏠 ${houses} Nhà`}
+            <p className="property-inspection__detail property-inspection__detail--current">
+              <span>{currentDetail.label}</span>
+              {currentDetail.value ? <strong>{currentDetail.value}</strong> : null}
             </p>
           )
           : null}
+        {hasRentTable
+          ? (
+            <details className="property-inspection__disclosure">
+              <summary>Xem bảng giá thuê</summary>
+              <div className="property-inspection__details">
+                {details.map(detail => (
+                  <p className="property-inspection__detail" key={`${detail.label}-${detail.value ?? ''}`}>
+                    <span>{detail.label}</span>
+                    {detail.value ? <strong>{detail.value}</strong> : null}
+                  </p>
+                ))}
+              </div>
+            </details>
+          )
+          : (
+            <div className="property-inspection__details">
+              {details.map(detail => <p className="property-inspection__detail" key={detail.label}>{detail.label}</p>)}
+            </div>
+          )}
         {owned && canMutate
           ? owned.id !== playerId
             ? (
@@ -55,7 +81,7 @@ export default function PropertyInspectionModal({ tileId, onClose }: PropertyIns
                 className="property-inspection__action"
                 onClick={() => openTradeForProperty(tileId)}
               >
-                Đề nghị mua
+                <Handshake className="action-icon" aria-hidden="true" />Đề nghị mua
               </button>
             )
             : isStreet
@@ -67,7 +93,7 @@ export default function PropertyInspectionModal({ tileId, onClose }: PropertyIns
                   title={canSellHouse ? 'Bán một Nhà về Ngân hàng' : 'Tài sản không có Nhà để bán'}
                   onClick={() => socketFunctions.sellHouse(tileId)}
                 >
-                  Bán Nhà
+                  <CircleMinus className="action-icon" aria-hidden="true" />Bán Nhà
                 </button>
               )
               : null

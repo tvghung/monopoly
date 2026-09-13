@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react';
+import { Building2, HousePlus, SkipForward } from 'lucide-react';
 import stateContext from '../../internal';
 import { formatMoney, getTileName, localizeAckError } from '../../presentation';
 import Modal from '../../design-system/components/Modal/Modal';
@@ -66,12 +67,13 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
         ? (
           <>
             <p>Chọn số Nhà (tối đa {max}) — {formatMoney(unitCost)} mỗi Nhà.</p>
-            <div>
+            <div className="development-prompt__options">
               {Array.from({ length: max }, (_, index) => {
                 const quantity = index + 1;
                 return (
                   <Button
                     variant="secondary"
+                    icon={<HousePlus />}
                     key={quantity}
                     type="button"
                     busy={pendingAction === `BUILD_HOUSES:${quantity}`}
@@ -88,6 +90,7 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
         : (
           <Button
             type="button"
+            icon={<Building2 />}
             busy={pendingAction === 'UPGRADE_HOTEL'}
             disabled={pendingAction !== null || (player?.accountBalance ?? 0) < total}
             onClick={() => submit('UPGRADE_HOTEL')}
@@ -96,7 +99,9 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
           </Button>
         )}
       <Button
+        className="development-prompt__skip"
         variant="secondary"
+        icon={<SkipForward />}
         type="button"
         busy={pendingAction === 'SKIP'}
         disabled={pendingAction !== null}

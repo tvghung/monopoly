@@ -66,3 +66,17 @@ The server appends semantic/activity events only inside committed room commands.
 Tests must cover idempotence, identity/session/token preservation, offer cancellation,
 fresh-runtime pending Buy/development/Jail/payment/proposal recovery, CAS/save failure
 and public/private no-leak behavior.
+
+## Packaged desktop Host runtime
+
+Electron stores the managed PostgreSQL cluster under `app.getPath('userData')` and
+binds it to `127.0.0.1` only. Database files never live under `app.asar`, packaged
+resources, temporary directories, or the installer tree. The renderer receives no
+database URL, password, PID, passfile, or helper environment.
+
+The app-owned Host controller starts/reuses PostgreSQL before the authoritative
+helper, waits for helper readiness plus `/healthz` and `/readyz`, and remains alive
+across renderer reload. Shutdown and recovery stop the helper before PostgreSQL.
+Helper death and database health failure have bounded recovery attempts; the same
+data directory, room, session, and deadline records are reused. Startup failure does
+not delete or reset the existing data directory.

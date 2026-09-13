@@ -7,23 +7,38 @@ on:
       - 'apps/desktop/**'
       - 'apps/server/**'
       - 'packages/shared/**'
+      - 'scripts/**'
+      - 'e2e/**'
+      - 'playwright.config.ts'
+      - 'playwright.global-setup.ts'
+      - 'project-document/**'
+      - 'README.md'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.github/workflows/desktop-build.yml'
+      - '.github/workflows/release-candidate.yml'
   push:
     branches:
       - main
       - 'overhaul/**'
+      - 'codex/**'
     paths:
       - 'apps/client/**'
       - 'apps/desktop/**'
       - 'apps/server/**'
       - 'packages/shared/**'
+      - 'scripts/**'
+      - 'e2e/**'
+      - 'playwright.config.ts'
+      - 'playwright.global-setup.ts'
+      - 'project-document/**'
+      - 'README.md'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.github/workflows/desktop-build.yml'
+      - '.github/workflows/release-candidate.yml'
   workflow_dispatch:
 
 permissions:
@@ -43,8 +58,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Enable Corepack
-        run: corepack enable
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.15.1
+          run_install: false
 
       - uses: actions/setup-node@v4
         with:
@@ -53,6 +70,50 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Verify Node and pnpm toolchain
+        run: |
+          node --version
+          pnpm --version
+          pnpm exec node --version
+          pnpm exec node --input-type=module -e "import { readFileSync } from 'node:fs'; import { strict as assert } from 'node:assert'; const packageJson = JSON.parse(readFileSync('package.json', 'utf8')); const minimumNodeMajor = Number(/^>=\s*(\d+)/.exec(packageJson.engines.node)?.[1]); const expectedPnpmVersion = /^pnpm@(.+)$/.exec(packageJson.packageManager)?.[1]; const userAgent = process.env.npm_config_user_agent ?? ''; const pnpmVersion = /^pnpm\/([^ ]+)/.exec(userAgent)?.[1]; const agentNodeVersion = /node\/v([^ ]+)/.exec(userAgent)?.[1]; assert(Number(process.versions.node.split('.')[0]) >= minimumNodeMajor, 'Node runtime does not satisfy package.json engines.node'); assert.strictEqual(pnpmVersion, expectedPnpmVersion, 'pnpm runtime does not match package.json packageManager'); assert.strictEqual(agentNodeVersion, process.versions.node, 'pnpm exec node did not resolve to the setup-node runtime');"
+
+      - name: Validate V1 release contract
+        run: pnpm validate:v1-contract
+
+      - name: Test V1 release contract
+        run: pnpm test:v1-contract
+
+      - name: Test gameplay music transport
+        run: pnpm test:music-transport
+
+      - name: Install audio validation tools (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --yes --no-progress
+
+      - name: Install audio validation tools (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install ffmpeg@7
+          brew reinstall ffmpeg@7
+          ffmpeg_bin="$(brew --prefix ffmpeg@7)/bin"
+          echo "$ffmpeg_bin" >> "$GITHUB_PATH"
+          export PATH="$ffmpeg_bin:$PATH"
+          ffmpeg -hide_banner -encoders | grep -q 'libvorbis'
+          ffprobe -version
+
+      - name: Validate gameplay music assets
+        run: pnpm validate:music-assets
+
+      - name: Test gameplay music validator
+        run: pnpm test:music-validator
+
+      - name: Validate card artwork
+        run: pnpm validate:card-art
+
+      - name: Test card artwork validator
+        run: pnpm test:card-art
 
       - name: Typecheck desktop
         run: pnpm --filter @monopoly/desktop typecheck
@@ -71,6 +132,21 @@ jobs:
 
       - name: Run packaged Phase 7 runtime proof
         run: pnpm --filter @monopoly/desktop proof:packaged
+
+      - name: Run packaged Phase 7.2 Host proof
+        run: pnpm --filter @monopoly/desktop proof:packaged:host
+
+      - name: Verify packaged gameplay music
+        run: pnpm --filter @monopoly/desktop proof:packaged:audio
+
+      - name: Verify packaged card artwork
+        run: pnpm --filter @monopoly/desktop proof:packaged:cards
+
+      - name: Install mobile browser engines
+        run: pnpm exec playwright install chromium webkit
+
+      - name: Run mobile Chromium and WebKit flows
+        run: pnpm exec playwright test
 
       - name: Upload Windows Squirrel artifact
         if: runner.os == 'Windows'

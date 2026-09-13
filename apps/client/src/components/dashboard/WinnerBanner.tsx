@@ -1,5 +1,6 @@
 import { useContext, useState } from 'react';
 import type { PublicGameState } from '@monopoly/shared';
+import { RotateCcw } from 'lucide-react';
 import { formatMoney, localizeAckError } from '../../presentation';
 import { CHARACTER_REGISTRY } from '../../game/characters/characterRegistry';
 import { characterSvgDataUri } from '../../game/characters/characterSvg';
@@ -62,7 +63,7 @@ export default function WinnerBanner() {
             <div>
               <p className="winner-banner__eyebrow">Người chiến thắng</p>
               <h3 style={{ color: getPlayerDisplayColor(winner.color) }}>{winner.name}</h3>
-              <p>{character?.displayName ?? 'Chưa chọn mascot'} · {getPlayerColorLabel(winner.color)}</p>
+              <p>{getPlayerColorLabel(winner.color)}</p>
             </div>
           </div>
           <dl className="winner-banner__summary">
@@ -80,6 +81,7 @@ export default function WinnerBanner() {
                   disabled={replaying}
                   onClick={() => { void playAgain(); }}
                 >
+                  <RotateCcw className="action-icon" aria-hidden="true" />
                   {replaying ? 'Đang chuẩn bị ván mới…' : 'Chơi lại'}
                 </button>
                 <p className="winner-banner__hint">Ván mới giữ nguyên phòng và danh sách người chơi đủ điều kiện.</p>

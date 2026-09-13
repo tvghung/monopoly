@@ -8,13 +8,19 @@ import {
   resolveReleaseTarget,
   signingStatus,
 } from './releaseMetadata.mjs';
+import {
+  assetRoot,
+  validateGameplayMusicAssets,
+} from '../../client/scripts/validateGameplayMusicAssets.mjs';
+import {
+  artworkRoot,
+  validateCardArtwork,
+} from '../../client/scripts/validateCardArtwork.mjs';
 
 const argumentsSet = new Set(process.argv.slice(2));
-const requireEndpoint = argumentsSet.has('--release');
 const target = resolveReleaseTarget();
 const metadata = assertCanonicalReleaseMetadata({
   root: repositoryRoot,
-  requireEndpoint,
 });
 const generatedConfig = readGeneratedReleaseConfig(repositoryRoot);
 
@@ -23,8 +29,24 @@ if (generatedConfig.version !== metadata.version) {
     `Generated release configuration version drift: expected ${metadata.version}, found ${String(generatedConfig.version)}.`,
   );
 }
-if (requireEndpoint && generatedConfig.socketUrl !== metadata.endpoint) {
+if (metadata.endpoint !== undefined && generatedConfig.socketUrl !== metadata.endpoint) {
   throw new Error('Generated release configuration does not contain the validated release endpoint.');
+}
+if (metadata.endpoint === undefined && Object.hasOwn(generatedConfig, 'socketUrl')) {
+  throw new Error('Generated release configuration must omit socketUrl when no endpoint was supplied.');
+}
+
+if (argumentsSet.has('--release')) {
+  const audioReport = await validateGameplayMusicAssets(
+    assetRoot,
+    path.join(repositoryRoot, 'apps', 'client', 'dist', 'audio'),
+  );
+  if (audioReport.errors.length) throw new Error(audioReport.errors.join('\n'));
+  const cardArtworkReport = await validateCardArtwork({
+    sourceDirectory: artworkRoot,
+    buildDirectory: path.join(repositoryRoot, 'apps', 'client', 'dist'),
+  });
+  if (cardArtworkReport.errors.length) throw new Error(cardArtworkReport.errors.join('\n'));
 }
 
 const signing = signingStatus({

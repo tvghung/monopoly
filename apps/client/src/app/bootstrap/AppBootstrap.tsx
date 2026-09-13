@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import App from '../../App';
 import { AudioProvider } from '../../audio/AudioProvider';
+import DesktopMultiplayerLauncher from '../../components/DesktopMultiplayerLauncher';
 import { ToastProvider } from '../../components/Toast';
-import { isRuntimeConfigLoadError } from '../../runtime/runtimeConfig';
+import { getDesktopBridge } from '../../runtime/desktopBridge';
+import { isRuntimeConfigLoadError, loadRuntimeConfig } from '../../runtime/runtimeConfig';
+import type { DesktopLaunchSelection, RuntimeConfig } from '../../runtime/types';
 import { SettingsProvider } from '../../settings/SettingsProvider';
 import BootstrapErrorScreen, {
   type BootstrapErrorKind,
@@ -31,14 +34,36 @@ function getBootstrapErrorKind(error: unknown): BootstrapErrorKind {
 
 export default function AppBootstrap() {
   const [retryNumber, setRetryNumber] = useState(0);
+  const [launch, setLaunch] = useState<DesktopLaunchSelection | null>(null);
+  const [configuredRuntimeConfig, setConfiguredRuntimeConfig] = useState<RuntimeConfig | undefined>();
+  const [configurationError, setConfigurationError] = useState<string | null>(null);
   const [state, setState] = useState<BootstrapState>(initialState);
+  const desktopBridge = getDesktopBridge();
 
   useEffect(() => {
+    if (!desktopBridge) return undefined;
+    let active = true;
+    void loadRuntimeConfig().then(config => {
+      if (active && config.socketUrl) setConfiguredRuntimeConfig(config);
+    }).catch(() => {
+      if (!active) return;
+      if (active) setConfigurationError('Endpoint máy chủ đã cấu hình không khả dụng.');
+    });
+    return () => {
+      active = false;
+    };
+  }, [desktopBridge]);
+
+  useEffect(() => {
+    if (desktopBridge && !launch) {
+      setState(initialState);
+      return undefined;
+    }
     let active = true;
     setState(initialState);
     void bootstrap(stage => {
       if (active) setState(current => ({ ...current, stage }));
-    }).then(result => {
+    }, launch ? { runtimeConfig: launch.runtimeConfig, launch } : undefined).then(result => {
       if (active) setState({ stage: 'ready', result, errorKind: null });
       else result.socket.disconnect();
     }).catch(error => {
@@ -53,7 +78,17 @@ export default function AppBootstrap() {
     return () => {
       active = false;
     };
-  }, [retryNumber]);
+  }, [desktopBridge, launch, retryNumber]);
+
+  if (desktopBridge && !launch) {
+    return (
+      <DesktopMultiplayerLauncher
+        configuredRuntimeConfig={configuredRuntimeConfig}
+        configurationError={configurationError}
+        onReady={setLaunch}
+      />
+    );
+  }
 
   if (state.stage === 'error') {
     return (
@@ -76,7 +111,12 @@ export default function AppBootstrap() {
       <SettingsProvider initialSettings={state.result.settings}>
         <AudioProvider>
           <ToastProvider>
-            <App socket={state.result.socket} runtimeConfig={state.result.runtimeConfig} />
+            <App
+              socket={state.result.socket}
+              runtimeConfig={state.result.runtimeConfig}
+              launch={state.result.launch}
+              onExitToLauncher={() => setLaunch(null)}
+            />
           </ToastProvider>
         </AudioProvider>
       </SettingsProvider>

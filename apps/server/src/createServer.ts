@@ -14,13 +14,48 @@ const currentDir = typeof import.meta.url === 'string'
 export const DEVELOPMENT_RENDERER_ORIGIN = 'http://127.0.0.1:5173';
 export const PACKAGED_RENDERER_ORIGIN = 'app://own-the-block';
 
+type CorsOrigin = string | false | ((origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => void);
+
+function isIPv4Hostname(value: string): boolean {
+  const parts = value.split('.').map(Number);
+  return parts.length === 4
+    && parts.every(part => Number.isInteger(part) && part >= 0 && part <= 255);
+}
+
+export function isDesktopBrowserOrigin(origin: string): boolean {
+  try {
+    const parsed = new URL(origin);
+    return parsed.protocol === 'http:'
+      && parsed.origin === origin
+      && isIPv4Hostname(parsed.hostname)
+      && parsed.port !== '';
+  } catch {
+    return false;
+  }
+}
+
+export function isDesktopRequestOriginAllowed(
+  origin: string | undefined,
+  requestHost: string | undefined,
+): boolean {
+  if (origin === undefined || origin === PACKAGED_RENDERER_ORIGIN) return true;
+  return requestHost !== undefined
+    && isDesktopBrowserOrigin(origin)
+    && new URL(origin).host === requestHost;
+}
+
 export function resolveCorsOrigin(
   environment: NodeJS.ProcessEnv = process.env,
-): string | false {
-  return environment.CORS_ORIGIN
-    || (resolveRuntimeProfile(environment) !== 'development'
-      ? PACKAGED_RENDERER_ORIGIN
-      : DEVELOPMENT_RENDERER_ORIGIN);
+): CorsOrigin {
+  if (environment.CORS_ORIGIN) return environment.CORS_ORIGIN;
+  const runtimeProfile = resolveRuntimeProfile(environment);
+  if (runtimeProfile === 'development') return DEVELOPMENT_RENDERER_ORIGIN;
+  if (runtimeProfile === 'cloud') return PACKAGED_RENDERER_ORIGIN;
+  return (origin, callback) => {
+    callback(null, origin === undefined
+      || origin === PACKAGED_RENDERER_ORIGIN
+      || isDesktopBrowserOrigin(origin));
+  };
 }
 
 export interface CreateServerOptions {
@@ -28,14 +63,30 @@ export interface CreateServerOptions {
   clientDist?: string;
 }
 
-// Build the Express app, HTTP server, and typed Socket.IO server. In production
-// the client is served same-origin (with a SPA fallback). The packaged Electron
-// origin is the one explicit cross-origin client allowed by default; set
-// CORS_ORIGIN to replace it with another explicit deployment origin.
+function staticClientRoot(
+  runtimeProfile: ReturnType<typeof resolveRuntimeProfile>,
+  options: CreateServerOptions,
+  environment: NodeJS.ProcessEnv,
+): string | undefined {
+  if (runtimeProfile === 'development') return undefined;
+  const configured = options.clientDist
+    || environment.CLIENT_DIST
+    || (runtimeProfile === 'cloud'
+      ? path.join(currentDir, '..', '..', 'client', 'dist')
+      : undefined);
+  if (!configured) throw new Error('Desktop runtime requires an explicit clientDist');
+  if (runtimeProfile === 'desktop' && !path.isAbsolute(configured)) {
+    throw new Error('Desktop clientDist must be absolute');
+  }
+  return path.resolve(configured);
+}
+
+// Build the Express app, HTTP server, and typed Socket.IO server. Cloud and
+// desktop both serve the client same-origin, but retain separate runtime policy.
 export function createServer(
   runtime: AppRuntime,
   options: CreateServerOptions = {},
-): { server: HttpServer; io: AppServer } {
+): { app: express.Express; server: HttpServer; io: AppServer } {
   const environment = options.environment ?? process.env;
   const runtimeProfile = resolveRuntimeProfile(environment);
   const app = express();
@@ -54,6 +105,14 @@ export function createServer(
 
   const io: AppServer = new Server(server, {
     cors: { origin: corsOrigin },
+    ...(runtimeProfile === 'desktop'
+      ? {
+          allowRequest: (request, callback) => callback(
+            null,
+            isDesktopRequestOriginAllowed(request.headers.origin, request.headers.host),
+          ),
+        }
+      : {}),
   });
 
   app.get('/healthz', (_req, res) => res.status(200).send('ok'));
@@ -70,10 +129,8 @@ export function createServer(
     }
   });
 
-  if (runtimeProfile === 'cloud') {
-    const clientDist = options.clientDist
-      || environment.CLIENT_DIST
-      || path.join(currentDir, '..', '..', 'client', 'dist');
+  const clientDist = staticClientRoot(runtimeProfile, options, environment);
+  if (clientDist) {
     // Cap requests to the static file server so a single client can't hammer the
     // filesystem. Scoped to the asset/SPA routes only, so it never throttles the
     // Socket.IO transport (which has its own connection handling).
@@ -83,7 +140,7 @@ export function createServer(
       standardHeaders: 'draft-8',
       legacyHeaders: false,
     });
-    app.use(staticLimiter, express.static(clientDist));
+    app.use(staticLimiter, express.static(clientDist, { dotfiles: 'deny' }));
     // SPA fallback: serve index.html for any other GET. Express 5 (path-to-regexp
     // v8) no longer accepts the bare '*' string route, so match with a RegExp.
     app.get(/.*/, staticLimiter, (_req, res) => {
@@ -91,5 +148,5 @@ export function createServer(
     });
   }
 
-  return { server, io };
+  return { app, server, io };
 }

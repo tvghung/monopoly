@@ -54,8 +54,8 @@ thay đổi chưa hoàn tất.
 - Host là stable player; disconnect không transfer host. Lobby cần 2–4 active,
   connected và ready players để host start.
 - Standard Mode dùng board Việt Nam cố định 40 ô, đơn vị số nguyên game-unit
-  (`1 unit = 1.000 VNĐ`) và protocol/snapshot schema v8
-  (`SOCKET_PROTOCOL_VERSION = 8`, `ROOM_SNAPSHOT_SCHEMA_VERSION = 8`). `BoardState.rollSequence`
+  (`1 unit = 1.000 VNĐ`), socket protocol v9 và snapshot schema v8
+  (`SOCKET_PROTOCOL_VERSION = 9`, `ROOM_SNAPSHOT_SCHEMA_VERSION = 8`). `BoardState.rollSequence`
   là public durable identity, bắt đầu từ `0`, tăng đúng một lần cho mỗi gameplay
   roll đã commit, không tăng cho starting-player tie-break hoặc command rollback.
   Không đổi index hoặc
@@ -64,15 +64,18 @@ thay đổi chưa hoàn tất.
   `ADVANCE_TURN`; đổ đôi không cấp thêm lượt. `PendingTurnContinuation` nhúng trong
   các wait, pending purchase/development landing decision, `PaymentQueue`, private
   `GamePrivateState.decks`, `PendingCardInteraction` và forced-sale proposal đều
-  thuộc authoritative room aggregate và phải recovery-safe. Card interaction dùng
-  operation ID, `AWAITING_DRAW`/`REVEALED`, `revealedCardId` chỉ khi đã reveal,
-  continuation và server deadline; `draw card`/`dismiss card` chỉ ACK sau commit.
+  thuộc authoritative room aggregate và phải recovery-safe. Card landing lấy và
+  reveal ngay top card vào operation ID, `REVEALED` state với `revealedCardId`,
+  continuation và server deadline; chỉ `dismiss card` hiện hành áp dụng sau
+  commit. `AWAITING_DRAW`/`draw card` chỉ còn cho protocol-9 legacy compatibility.
 - `DeckState` và thứ tự thẻ không được phát trong public DTO. Public V8 có bounded
   `gameplayEvents` và typed `activityFeed`; private durable state có per-player
   semantic lanes và `completedCardOperations`, nhưng client chỉ nhận đúng
   projection được phép để render. Credential, private offer và hidden deck order
   vẫn nằm ngoài public projection. Migration `009_activity_feed_v8.sql` nâng V7
   snapshot lên V8 bằng activity baseline rỗng, không dựng lại lịch sử log.
+  Protocol V9 bổ sung `TAX` money/debt semantics và `TILE_LANDED`; snapshot V8 cũ
+  vẫn hợp lệ nên không cần migration dữ liệu.
 - Client display state không thay authoritative room state. `SESSION_SYNC`,
   `SPECTATOR_SYNC` và `REPLAY_SYNC` reset presentation queue/snap; chỉ
   `LIVE_UPDATE` mới animate state diff. Activity tail trong live update phải chờ

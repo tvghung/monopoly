@@ -50,12 +50,13 @@ Player.heldJailFreeCardIds: GameCardId[]
 
 Ba cách xử lý lượt tù:
 
-1. Trả 50 units bail trực tiếp nếu đủ tiền, rồi roll bình thường.
+1. Trả `BAIL_AMOUNT=25` units bail trực tiếp nếu đủ tiền, rồi roll bình thường.
 2. Dùng held jail-free `cardId`, trả card về đúng deck, rồi roll bình thường.
 3. Roll doubles để ra tù và di chuyển; không extra roll.
 
 - Doubles ở tù: clear jail, di chuyển bằng roll, resolve tile; không extra roll.
-- Failed roll hoặc `wait in jail` kết thúc lượt; persisted
+- Failed roll tự động kết thúc lượt. Event `wait in jail` tương thích cũ cũng kết
+  thúc lượt nhưng không còn là action hiển thị trong client. Persisted
   `jailOpponentRoundsElapsed` tăng khi lượt đi qua người đang bị tù. Lần đến thứ hai
   tự động ra tù trước khi hành động.
 - Player trong tù vẫn có thể nhận rent và quản lý property khi các
@@ -66,6 +67,7 @@ Ba cách xử lý lượt tù:
 - Deck initialization/order/draw/rotate, hidden public state và restart exactness.
 - Jail-free removal/return/use/transfer/elimination theo source deck.
 - Card movement/pass-GO/destination resolution/card-to-jail.
-- Bail trực tiếp, jail-free card, doubles escape và wait; không có third-fail
+- Bail trực tiếp, jail-free card, doubles escape, failed-roll auto-handoff và
+  compatibility wait; không có third-fail
   forced-bail hay stored-dice continuation.
 - Tax và Bãi Đỗ Xe no-op; save failure không publish partial resolution.

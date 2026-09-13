@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - 'overhaul/**'
+      - 'codex/**'
   pull_request:
   workflow_dispatch:
 
@@ -35,8 +36,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Enable Corepack
-        run: corepack enable
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.15.1
+          run_install: false
 
       - uses: actions/setup-node@v4
         with:
@@ -45,6 +48,37 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Verify Node and pnpm toolchain
+        run: |
+          node --version
+          pnpm --version
+          pnpm exec node --version
+          pnpm exec node --input-type=module -e "import { readFileSync } from 'node:fs'; import { strict as assert } from 'node:assert'; const packageJson = JSON.parse(readFileSync('package.json', 'utf8')); const minimumNodeMajor = Number(/^>=\s*(\d+)/.exec(packageJson.engines.node)?.[1]); const expectedPnpmVersion = /^pnpm@(.+)$/.exec(packageJson.packageManager)?.[1]; const userAgent = process.env.npm_config_user_agent ?? ''; const pnpmVersion = /^pnpm\/([^ ]+)/.exec(userAgent)?.[1]; const agentNodeVersion = /node\/v([^ ]+)/.exec(userAgent)?.[1]; assert(Number(process.versions.node.split('.')[0]) >= minimumNodeMajor, 'Node runtime does not satisfy package.json engines.node'); assert.strictEqual(pnpmVersion, expectedPnpmVersion, 'pnpm runtime does not match package.json packageManager'); assert.strictEqual(agentNodeVersion, process.versions.node, 'pnpm exec node did not resolve to the setup-node runtime');"
+
+      - name: Validate V1 release contract
+        run: pnpm validate:v1-contract
+
+      - name: Test V1 release contract
+        run: pnpm test:v1-contract
+
+      - name: Test gameplay music transport
+        run: pnpm test:music-transport
+
+      - name: Install audio validation tools
+        run: command -v ffmpeg && command -v ffprobe || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+
+      - name: Validate gameplay music assets
+        run: pnpm validate:music-assets
+
+      - name: Test gameplay music validator
+        run: pnpm test:music-validator
+
+      - name: Validate card artwork
+        run: pnpm validate:card-art
+
+      - name: Test card artwork validator
+        run: pnpm test:card-art
 
       - name: Apply database migrations
         run: pnpm db:migrate

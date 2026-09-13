@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import type { Ack } from '@monopoly/shared';
+import { Check, CircleX, X } from 'lucide-react';
 import stateContext from '../../internal';
 import { formatMoney, getTileName, localizeAckError } from '../../presentation';
 import Modal from '../../design-system/components/Modal/Modal';
@@ -38,25 +39,31 @@ export default function ForcedSaleProposalPanel() {
   };
 
   if (!visible || !proposal) return null;
+  const buyerName = state.players[proposal.buyerPlayerId]?.name ?? 'Người mua';
+  const sellerName = state.players[proposal.sellerPlayerId]?.name ?? 'Người bán';
   return (
     <Modal open title="Đề nghị bán bắt buộc" className="forced-sale-proposal">
       {error ? <p role="alert">{error}</p> : null}
-      <p>{getTileName(proposal.tileID)}</p>
-      <p>Giá giao dịch cố định: {formatMoney(proposal.grossPrice)}</p>
-      {isSeller ? <p>Bạn nhận đủ giá giao dịch trước khi hàng đợi thanh toán tiếp tục xử lý khoản nợ.</p> : null}
-      <p>Giá do máy chủ xác định; mức phát triển hiện tại được giữ nguyên.</p>
+      <p className="forced-sale-proposal__property"><strong>{getTileName(proposal.tileID)}</strong></p>
+      <dl className="forced-sale-proposal__facts">
+        <div><dt>Giá cố định</dt><dd>{formatMoney(proposal.grossPrice)}</dd></div>
+        <div><dt>Người bán</dt><dd>{sellerName}</dd></div>
+        <div><dt>Người mua</dt><dd>{buyerName}</dd></div>
+      </dl>
       {isBuyer
         ? (
-          <div>
+          <div className="forced-sale-proposal__actions">
             <Button
               data-modal-autofocus
               type="button"
+              icon={<Check />}
               busy={pendingAction === 'ACCEPT'}
               disabled={pendingAction !== null}
               onClick={() => submit('ACCEPT', () => socketFunctions.acceptForcedSale?.(proposal.proposalId))}
             >Chấp nhận</Button>
             <Button
               variant="secondary"
+              icon={<X />}
               type="button"
               busy={pendingAction === 'REJECT'}
               disabled={pendingAction !== null}
@@ -66,11 +73,12 @@ export default function ForcedSaleProposalPanel() {
         )
         : (
           <div>
-            <p>Đang chờ người mua {state.players[proposal.buyerPlayerId]?.name ?? ''} phản hồi.</p>
+            <p>Đang chờ {buyerName} phản hồi.</p>
             {isSeller
               ? (
                 <Button
                   variant="secondary"
+                  icon={<CircleX />}
                   type="button"
                   busy={pendingAction === 'CANCEL'}
                   disabled={pendingAction !== null}

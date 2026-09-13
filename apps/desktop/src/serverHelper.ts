@@ -14,6 +14,7 @@ export interface ServerHelperInfo {
 export interface ServerHelperOptions {
   modulePath: string;
   migrationDirectory: string;
+  clientDist: string;
   databaseUrl: string;
   host: string;
   port: number;
@@ -89,6 +90,8 @@ export class ServerHelperController {
 
   private diagnostics = '';
 
+  private readonly unexpectedExitListeners = new Set<(diagnostic: string) => void>();
+
   private readonly startupTimeoutMs: number;
 
   private readonly shutdownTimeoutMs: number;
@@ -98,9 +101,10 @@ export class ServerHelperController {
   public constructor(private readonly options: ServerHelperOptions) {
     assertAbsolute('Server helper module path', options.modulePath);
     assertAbsolute('Server helper migration directory', options.migrationDirectory);
+    assertAbsolute('Server helper client distribution', options.clientDist);
     if (!options.databaseUrl.trim()) throw new Error('Server helper database URL is required');
-    if (!Number.isSafeInteger(options.port) || options.port < 1 || options.port > 65_535) {
-      throw new Error('Server helper port must be between 1 and 65535');
+    if (!Number.isSafeInteger(options.port) || options.port < 0 || options.port > 65_535) {
+      throw new Error('Server helper port must be between 0 and 65535');
     }
     this.startupTimeoutMs = options.startupTimeoutMs ?? 30_000;
     this.shutdownTimeoutMs = options.shutdownTimeoutMs ?? 10_000;
@@ -113,6 +117,30 @@ export class ServerHelperController {
 
   public get diagnostic(): string {
     return this.diagnostics;
+  }
+
+  public onUnexpectedExit(listener: (diagnostic: string) => void): () => void {
+    this.unexpectedExitListeners.add(listener);
+    return () => this.unexpectedExitListeners.delete(listener);
+  }
+
+  public async checkHealth(): Promise<void> {
+    const port = this.currentInfo?.port;
+    if (this.currentState !== 'READY' || port === undefined) {
+      throw new Error('Server helper is not ready');
+    }
+    const [health, ready] = await Promise.all([
+      this.fetchImplementation(`http://127.0.0.1:${String(port)}/healthz`, {
+        signal: AbortSignal.timeout(1_000),
+      }),
+      this.fetchImplementation(`http://127.0.0.1:${String(port)}/readyz`, {
+        signal: AbortSignal.timeout(1_000),
+      }),
+    ]);
+    if (health.status !== 200 || (await health.text()) !== 'ok'
+      || ready.status !== 200 || (await ready.text()) !== 'ready') {
+      throw new Error('Server helper health or readiness endpoint is unavailable');
+    }
   }
 
   public async start(): Promise<ServerHelperInfo> {
@@ -141,11 +169,11 @@ export class ServerHelperController {
       ...this.options.environment,
       DATABASE_URL: this.options.databaseUrl,
       OWN_THE_BLOCK_MIGRATIONS_DIR: this.options.migrationDirectory,
+      OWN_THE_BLOCK_CLIENT_DIST: this.options.clientDist,
       SERVER_HOST: this.options.host,
       SERVER_RUNTIME_PROFILE: 'desktop',
       NODE_ENV: 'production',
       PORT: String(this.options.port),
-      CORS_ORIGIN: 'app://own-the-block',
     });
     const fork = this.options.fork ?? ((modulePath, args, forkOptions) => (
       utilityProcess.fork(modulePath, args, forkOptions)
@@ -173,20 +201,28 @@ export class ServerHelperController {
       );
     });
     child.on('exit', code => {
+      const wasReady = this.currentState === 'READY';
       if (this.currentState !== 'STOPPING' && this.currentState !== 'STOPPED') {
         this.currentState = 'FAILED';
         this.diagnostics = boundedAppend(
           this.diagnostics,
           `Server helper exited with code ${String(code)}`,
         );
+        if (wasReady) {
+          for (const listener of this.unexpectedExitListeners) listener(this.diagnostics);
+        }
       }
     });
     child.on('error', (type, location, report) => {
+      const wasReady = this.currentState === 'READY';
       this.diagnostics = sanitizeDiagnostic(
         `${String(type)} ${String(location)} ${String(report)}`,
         this.options.databaseUrl,
       );
       if (this.currentState !== 'STOPPING') this.currentState = 'FAILED';
+      if (wasReady) {
+        for (const listener of this.unexpectedExitListeners) listener(this.diagnostics);
+      }
     });
 
     try {
@@ -225,7 +261,9 @@ export class ServerHelperController {
           return;
         }
         if (!isReadyMessage(value)) return;
-        if (value.host !== this.options.host || value.port !== this.options.port) {
+        const validPort = Number.isSafeInteger(value.port) && value.port >= 1 && value.port <= 65_535;
+        if (value.host !== this.options.host || !validPort
+          || this.options.port !== 0 && value.port !== this.options.port) {
           clearTimeout(timer);
           reject(new Error('Server helper announced an unexpected endpoint'));
           return;

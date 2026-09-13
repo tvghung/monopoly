@@ -28,9 +28,11 @@
 
 ## Jail
 
-- [ ] `[AUTO][SOCKET]` Pay bail 50 then roll; use held card then roll; doubles escapes,
-  moves/resolves and ends turn.
-- [ ] `[AUTO]` Failed roll or explicit wait ends the jailed turn; the persisted
+- [ ] `[AUTO][SOCKET]` Pay shared `BAIL_AMOUNT=25` then roll; exact funds succeed,
+  insufficient/duplicate/stale attempts do not double-charge; use held card then
+  roll; doubles escapes, moves/resolves and ends turn.
+- [ ] `[AUTO]` Failed roll automatically ends the jailed turn; compatibility wait
+  does the same without a visible client action. The persisted
   opponent-round counter increments on handoff and releases before the second
   jailed turn.
 - [ ] `[PG]` Restart preserves jail progress and card identities exactly.

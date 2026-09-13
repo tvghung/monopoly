@@ -1,5 +1,9 @@
 # Phase 5 — Game Feel, Audio & Visual Feedback
 
+> HISTORICAL phase record. The current V1 audio/card contract is
+> [V1_RELEASE_CONTRACT.md](V1_RELEASE_CONTRACT.md); implementation and status
+> statements below are retained as evidence from this phase.
+
 **PHASE 5.2 CORRECTIVE PASS PUSHED at e4ce23d — remote CI and Desktop Build
 PASS; live/manual gates remain explicitly open**
 
@@ -9,6 +13,10 @@ audit and scope boundary remain in
 [05A_PHASE_5_0_AUDIT_AND_SCOPE.md](05A_PHASE_5_0_AUDIT_AND_SCOPE.md). Remote CI
 and Desktop Build passed for that exact corrective baseline. Manual/live
 acceptance remains separate and is not closed here.
+
+The current V1 branch supersedes the background-music implementation details
+below with one centralized rendered gameplay loop. Manual listening, long-session
+and physical-device acceptance remain open.
 
 ## 1. Current scope
 
@@ -91,13 +99,19 @@ below. It does not close the manual Phase 5 gates.
   sync, skip-all, and disposal even after their executor has resolved. UI clicks
   and background music remain independent.
 - One original deterministic procedural background music loop starts only after
-  trusted Web Audio unlock while a room session is active, remains one source
-  through lobby/game/reconnect revisions, fades for hidden documents and room
-  leave, and applies live Master/Music gain changes.
-- The revised composition is deterministic at 112 BPM, 96 beats and about 51.4
-  seconds, with three distinct sections, varied lead/rest patterns, bass,
-  restrained percussion and a quiet counter-line/pad. It remains one Music-bus
-  source with headroom for gameplay SFX.
+  trusted Web Audio unlock while a room session is active. Four cached stereo
+  stem buffers share one start timestamp and loop length, remain one logical
+  composition through lobby/game/reconnect revisions, fade for hidden documents
+  and room leave, and apply live Master/Music gain changes.
+- The current composition is 64 bars / 256 beats at 110 BPM (about 2:20), in F
+  major with 55% swing. Its INTRO/A/A'/B/BRIDGE/C/D/A''/LOOP BRIDGE structure uses
+  a piano lead, marimba answers, upright-bass-style foundation, brushed percussion
+  and restrained character layers. Melody data stays in F4-E5, includes explicit
+  rests/descending answers, and caps synthesized partials at 4.8 kHz.
+- Presentation-only intensity `0..3` derives deterministically from public property
+  ownership (40%), development (25%), turn progression (20%) and financial/
+  elimination pressure (15%). A 3.5-point hysteresis band prevents threshold
+  chatter; stem gains ramp over two beats beginning at the next four-bar boundary.
 - `PLAYER_FINISHED` plays bankruptcy only for `BANKRUPT`. `GAME_FINISHED` plays
   the short stinger only with a committed non-null winner. End-game UI is
   unchanged.

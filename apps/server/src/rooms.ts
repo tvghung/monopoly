@@ -394,7 +394,9 @@ export const calculateNextActionAt = (snapshot: RoomSnapshot): Date | null => {
     snapshot.gameState.boardState.turnRecovery?.deadlineAt,
     snapshot.gameState.boardState.paymentQueue?.actionDeadlineAt,
     snapshot.gameState.privateState.forcedSaleProposal?.expiresAt,
-    snapshot.gameState.turnInfo.pendingCardInteraction?.deadlineAt,
+    snapshot.gameState.turnInfo.pendingCardInteraction?.stage === 'AWAITING_DRAW'
+      ? snapshot.gameState.turnInfo.pendingCardInteraction.deadlineAt
+      : undefined,
   ]
     .filter((value): value is string => typeof value === 'string')
     .map((value) => new Date(value))

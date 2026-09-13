@@ -59,7 +59,7 @@ export async function startAuthoritativeServer(
     environment,
     clientDist: options.clientDist,
   });
-  registerSocketHandlers(io, runtime);
+  registerSocketHandlers(io, runtime, config.runtimeProfile);
   const scheduler = new DeadlineScheduler(io, runtime);
   let shutdownPromise: Promise<void> | undefined;
 
@@ -89,16 +89,21 @@ export async function startAuthoritativeServer(
     await scheduler.runOnce();
     scheduler.start();
     const host = options.host ?? config.listenHost;
-    const port = options.port ?? config.port;
+    const requestedPort = options.port ?? config.port;
     await new Promise<void>((resolve, reject) => {
       const handleError = (error: Error): void => reject(error);
       server.once('error', handleError);
-      server.listen(port, host, () => {
+      server.listen(requestedPort, host, () => {
         server.off('error', handleError);
-        console.log(`Server is running on ${host}:${String(port)}`);
         resolve();
       });
     });
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Authoritative server did not publish a TCP address');
+    }
+    const port = address.port;
+    console.log(`Server is running on ${host}:${String(port)}`);
     return { runtime, host, port, shutdown };
   } catch (error) {
     await shutdown('startup failure').catch(() => undefined);

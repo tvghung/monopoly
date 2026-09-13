@@ -14,7 +14,7 @@ const defaultScheduler: TileMotionScheduler = {
   now: () => (typeof performance === 'undefined' ? Date.now() : performance.now()),
   requestFrame: callback => {
     if (typeof window !== 'undefined') return window.requestAnimationFrame(callback);
-    return globalThis.setTimeout(() => callback(Date.now()), 16);
+    return globalThis.setTimeout(() => callback(Date.now()), 16) as unknown as number;
   },
   cancelFrame: handle => {
     if (typeof window !== 'undefined') window.cancelAnimationFrame(handle);

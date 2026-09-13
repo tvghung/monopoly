@@ -11,6 +11,7 @@ import type {
   PlayerColorId,
   SetAppearanceRequest,
 } from '@monopoly/shared';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { CHARACTER_IDS, PLAYER_COLOR_IDS } from '@monopoly/shared';
 import { characterSvgDataUri } from '../../game/characters/characterSvg';
 import { CHARACTER_REGISTRY } from '../../game/characters/characterRegistry';
@@ -109,7 +110,7 @@ export default function MascotPicker({
           disabled={busy}
           onClick={() => selectCharacter(previousCharacterId)}
         >
-          ←
+          <ChevronLeft className="action-icon action-icon--only" aria-hidden="true" />
         </button>
         <button
           className="mascot-picker__side mascot-picker__side--previous"
@@ -122,7 +123,6 @@ export default function MascotPicker({
             src={characterSvgDataUri(CHARACTER_REGISTRY[previousCharacterId].svgSource, playerColor)}
             alt=""
           />
-          <span>{CHARACTER_REGISTRY[previousCharacterId].displayName}</span>
         </button>
 
         <div className="mascot-picker__hero" aria-live="polite">
@@ -149,7 +149,6 @@ export default function MascotPicker({
               />
             </motion.div>
           </div>
-          <strong>{focusedCharacter.displayName}</strong>
         </div>
 
         <button
@@ -163,7 +162,6 @@ export default function MascotPicker({
             src={characterSvgDataUri(CHARACTER_REGISTRY[nextCharacterId].svgSource, playerColor)}
             alt=""
           />
-          <span>{CHARACTER_REGISTRY[nextCharacterId].displayName}</span>
         </button>
         <button
           className="mascot-picker__arrow"
@@ -172,7 +170,7 @@ export default function MascotPicker({
           disabled={busy}
           onClick={() => selectCharacter(nextCharacterId)}
         >
-          →
+          <ChevronRight className="action-icon action-icon--only" aria-hidden="true" />
         </button>
       </div>
 
@@ -192,7 +190,6 @@ export default function MascotPicker({
               onClick={() => selectCharacter(characterId)}
             >
               <img src={characterSvgDataUri(character.svgSource, playerColor)} alt="" />
-              <span>{character.displayName}</span>
             </button>
           );
         })}

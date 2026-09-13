@@ -30,6 +30,7 @@ const tileState: Tile[] = [
   {
     streetName: 'Thuế Thu Nhập',
     tileType: 'expense',
+    expenseAmount: 200,
   },
   {
     streetName: 'Ga Hà Nội',
@@ -271,6 +272,7 @@ const tileState: Tile[] = [
   {
     streetName: 'Thuế Xa Xỉ',
     tileType: 'expense',
+    expenseAmount: 100,
   },
   {
     streetName: 'Landmark 81',

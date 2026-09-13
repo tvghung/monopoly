@@ -1,5 +1,6 @@
 import { useContext } from 'react';
 import type { TradeBundle } from '@monopoly/shared';
+import { Check, X } from 'lucide-react';
 import stateContext from '../../internal';
 import {
   formatMoney,
@@ -38,6 +39,7 @@ export default function IncomingOffers() {
             <div className="trade-offers-modal__offer__buttons">
               <Button
                 data-modal-autofocus={index === 0 ? true : undefined}
+                icon={<Check />}
                 className="trade-offers-modal__button--yes"
                 onClick={() => acceptOffer(current)}
                 type="button"
@@ -47,6 +49,7 @@ export default function IncomingOffers() {
               </Button>
               <Button
                 variant="secondary"
+                icon={<X />}
                 className="trade-offers-modal__button--no"
                 onClick={() => declineOffer(current)}
                 type="button"

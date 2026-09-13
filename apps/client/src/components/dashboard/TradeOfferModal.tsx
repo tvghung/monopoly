@@ -5,6 +5,7 @@ import {
   gameCardsById,
 } from '@monopoly/shared';
 import type { GameCardId } from '@monopoly/shared';
+import { Send } from 'lucide-react';
 import stateContext from '../../internal';
 import tradePromptContext from '../../tradePromptContext';
 import {
@@ -215,7 +216,7 @@ export default function TradeOfferModal() {
                 type="submit"
                 disabled={!recipientPlayerId || recipientPlayerId === playerId || !hasBundleValue}
               >
-                Gửi đề nghị
+                <Send className="action-icon" aria-hidden="true" />Gửi đề nghị
               </button>
             </form>
           </>

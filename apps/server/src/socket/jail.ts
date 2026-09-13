@@ -1,4 +1,4 @@
-import { gameCardsById } from '@monopoly/shared';
+import { BAIL_AMOUNT, formatMoney, gameCardsById } from '@monopoly/shared';
 import {
   assertDebtActionAllowed,
   sendToLog,
@@ -34,15 +34,15 @@ export function registerJailHandlers(
         if (!assertDebtActionAllowed(state, playerId, 'BUY')) {
           throw new CommandError('CONFLICT', 'Phải xử lý khoản nợ đang chờ trước.');
         }
-        if (player.accountBalance < 50) {
-          throw new CommandError('CONFLICT', 'Không đủ 50 để trả tiền bảo lãnh.');
+        if (player.accountBalance < BAIL_AMOUNT) {
+          throw new CommandError('CONFLICT', `Không đủ ${formatMoney(BAIL_AMOUNT)} để trả tiền bảo lãnh.`);
         }
-        player.accountBalance -= 50;
+        player.accountBalance -= BAIL_AMOUNT;
         recordPublicGameplayEvent(state, {
           type: 'MONEY_TRANSFER',
           source: { kind: 'PLAYER', playerId },
           destination: { kind: 'BANK' },
-          amount: 50,
+          amount: BAIL_AMOUNT,
           reason: 'BAIL',
         });
         player.isJail = false;
@@ -52,7 +52,7 @@ export function registerJailHandlers(
           playerId,
           cause: 'BAIL',
         });
-        sendToLog(state, `${player.name} đã trả tiền bảo lãnh và được ra tù.`);
+        sendToLog(state, `${player.name} đã trả ${formatMoney(BAIL_AMOUNT)} tiền bảo lãnh và được ra tù.`);
       }, now, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'The room no longer exists.');
       broadcastRoom(io, runtime, committed.room);

@@ -7,6 +7,11 @@ export const IPC_CHANNELS = {
   quitRequested: 'ownTheBlock:quit:requested',
   quitResponse: 'ownTheBlock:quit:response',
   openExternal: 'ownTheBlock:open-external',
+  hostGetStatus: 'ownTheBlock:host:get-status',
+  hostStart: 'ownTheBlock:host:start',
+  hostStop: 'ownTheBlock:host:stop',
+  hostRefreshNetwork: 'ownTheBlock:host:refresh-network',
+  hostStatusChanged: 'ownTheBlock:host:status-changed',
 } as const;
 
 export interface DesktopWindowState {

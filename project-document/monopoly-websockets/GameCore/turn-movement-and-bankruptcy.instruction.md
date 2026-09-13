@@ -14,13 +14,14 @@
 ## Jail
 
 - Vào tù đặt `isJail=true`, `jailOpponentRoundsElapsed=0`.
-- Double giải phóng và di chuyển nhưng vẫn hoàn tất lượt; failed roll hoặc
-  `wait in jail` kết thúc lượt.
+- Double giải phóng và di chuyển nhưng vẫn hoàn tất lượt; failed roll tự động
+  kết thúc lượt. `wait in jail` chỉ còn là transport tương thích cũ.
 - Khi handoff chạm tới seat đang bị tù, counter tăng một lần. Counter đạt 2 thì
   tự động giải phóng trước lượt của seat đó. Người chơi rời/disconnect không làm
   counter tăng ngoài handoff đã commit.
-- `pay bail` chỉ được phép khi balance đủ 50 và trừ trực tiếp; không mở payment
-  queue mới. Jail-free card giữ identity và trả về đúng deck khi dùng.
+- `pay bail` dùng shared `BAIL_AMOUNT=25`, chỉ được phép khi balance đủ và trừ
+  trực tiếp; không mở payment queue mới. Jail-free card giữ identity và trả về
+  đúng deck khi dùng.
 
 ## Payment shortfall
 
