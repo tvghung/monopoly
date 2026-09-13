@@ -81,13 +81,15 @@ async function expectMusicRuntime(page: Page): Promise<void> {
   const observation = await snapshot();
   expect(observation.decodeCount).toBeGreaterThanOrEqual(1);
   expect(new Set(observation.starts.map(start => start.context)).size).toBe(1);
-  expect(observation.starts.slice(0, 1).every(start => (
-    start.channels === 2
-    && start.decoded
-    && start.context === 0
-    && start.state === 'running'
-    && start.loop
-  ))).toBe(true);
+  expect(observation.starts).toHaveLength(1);
+  expect(observation.starts[0]).toMatchObject({
+    channels: 2,
+    decoded: true,
+    context: 0,
+    state: 'running',
+    loop: true,
+  });
+  expect(observation.starts[0]?.duration ?? 0).toBeGreaterThan(1);
 }
 
 const ACCEPTANCE_VIEWPORTS = [
@@ -335,7 +337,7 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
   }
 });
 
-test('single rendered WAV music asset and supported Web Audio lifecycle', async ({ page }) => {
+test('single rendered WAV music asset and supported Web Audio lifecycle', async ({ browser, page }) => {
   test.setTimeout(120_000);
   const browserErrors: string[] = [];
   page.on('pageerror', error => browserErrors.push(error.message));
@@ -354,29 +356,57 @@ test('single rendered WAV music asset and supported Web Audio lifecycle', async 
   expect(musicResponse.bytes).toBeGreaterThan(0);
   const roomCode = `OTB-${Date.now().toString(36).slice(-6).toUpperCase()}`;
   await joinRoom(page, 'Audio Review', roomCode, 'tap');
-  if (!await page.evaluate(() => (
-    (window as typeof window & { __musicObservation: MusicObservation }).__musicObservation.available
-  ))) {
-    test.info().annotations.push({
-      type: 'audio-evidence',
-      description: 'Web Audio unavailable: fallback only; decoded playback remains unverified.',
-    });
+  await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeVisible();
+  expect((await page.evaluate(() => (
+    (window as typeof window & { __musicObservation: MusicObservation }).__musicObservation
+  ))).starts).toEqual([]);
+
+  const guestContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+  });
+  const guest = await guestContext.newPage();
+  try {
+    await joinRoom(guest, 'Audio Guest', roomCode);
+    expect((await page.evaluate(() => (
+      (window as typeof window & { __musicObservation: MusicObservation }).__musicObservation
+    ))).starts).toEqual([]);
+    await chooseAndReady(page, 'Dog');
+    await chooseAndReady(guest, 'Capybara');
+    await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeEnabled();
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await expect(page.getByTestId('game-board')).toBeVisible();
+    await expect(guest.getByTestId('game-board')).toBeVisible();
+
+    if (!await page.evaluate(() => (
+      (window as typeof window & { __musicObservation: MusicObservation }).__musicObservation.available
+    ))) {
+      test.info().annotations.push({
+        type: 'audio-evidence',
+        description: 'Web Audio unavailable: fallback only; decoded playback remains unverified.',
+      });
+    }
+    await expectMusicRuntime(page);
+
+    await page.reload();
+    await expect(page.getByTestId('game-board')).toBeVisible();
+    const restoredObservation = await page.evaluate(() => (
+      (window as typeof window & { __musicObservation: MusicObservation }).__musicObservation
+    ));
+    if (restoredObservation.available) expect(restoredObservation.starts).toEqual([]);
+    // A restored room still needs a real gesture to unlock the new AudioContext.
+    await page.getByRole('button', { name: 'Cài đặt' }).tap();
+    await page.getByRole('dialog', { name: 'Cài đặt' }).getByRole('button', { name: 'Đóng' }).tap();
+    await expectMusicRuntime(page);
+
+    await page.context().setOffline(true);
+    await expect(page.getByText('Đã mất kết nối. Đang kết nối lại vào ván chơi…'))
+      .toBeVisible({ timeout: 15_000 });
+    await page.context().setOffline(false);
+    await expect(page.getByText('Đã mất kết nối. Đang kết nối lại vào ván chơi…'))
+      .toBeHidden({ timeout: 15_000 });
+    await expectMusicRuntime(page);
+    expect(browserErrors).toEqual([]);
+  } finally {
+    await guestContext.close();
   }
-  await expectMusicRuntime(page);
-
-  await page.reload();
-  await expect(page.getByRole('heading', { name: roomCode })).toBeVisible();
-  // A restored room still needs a real gesture to unlock the new AudioContext.
-  await page.getByRole('button', { name: 'Cài đặt' }).tap();
-  await page.getByRole('dialog', { name: 'Cài đặt' }).getByRole('button', { name: 'Đóng' }).tap();
-  await expectMusicRuntime(page);
-
-  await page.context().setOffline(true);
-  await expect(page.getByText('Đã mất kết nối. Đang kết nối lại vào ván chơi…'))
-    .toBeVisible({ timeout: 15_000 });
-  await page.context().setOffline(false);
-  await expect(page.getByText('Đã mất kết nối. Đang kết nối lại vào ván chơi…'))
-    .toBeHidden({ timeout: 15_000 });
-  await expectMusicRuntime(page);
-  expect(browserErrors).toEqual([]);
 });
