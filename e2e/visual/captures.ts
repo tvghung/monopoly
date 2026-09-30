@@ -94,6 +94,37 @@ function labCaptures(options: {
 
 const LAB_VIEWPORTS = [VIEWPORTS.laptop, VIEWPORTS.phoneLandscape] as const;
 
+/**
+ * Real-component surfaces of the Design Lab (plan 04 §9, `dev/design-lab/surfaces/surfaceRegistry.tsx`): one capture per
+ * surface, alone on the page (`chrome=hidden`), viewport only because dialogs are fixed overlays. Keep the ids in step
+ * with the registry.
+ */
+function surfaceCaptures(options: {
+  plan: string;
+  folder: string;
+  surfaces: readonly string[];
+  viewports: readonly CaptureViewport[];
+  theme?: 'v1' | 'v2';
+}): CaptureEntry[] {
+  const { plan, folder, surfaces, viewports, theme = 'v2' } = options;
+  return surfaces.flatMap(surface => viewports.map(viewport => ({
+    id: `${plan}-${folder}-surface-${surface}-${viewport.width}x${viewport.height}`,
+    plan,
+    folder,
+    name: `${plan}-surface-${surface}`,
+    url: designLabUrl('surfaces', `&surface=${surface}&theme=${theme}&chrome=hidden`),
+    viewport,
+    kind: 'design-lab' as const,
+    webgl: false,
+  })));
+}
+
+/** The surfaces that exist before plan 04 restyles them (baseline) and, later, the G4 package. */
+export const PLAN04_SURFACES = [
+  'landing', 'landing-prefilled', 'lobby-host', 'lobby-guest', 'lobby-alone', 'settings', 'loading', 'bootstrap-error', 'connection',
+  'spectator', 'buy', 'buy-short', 'development-houses', 'development-hotel', 'jail', 'winner-host', 'winner-guest',
+] as const;
+
 function harnessCaptures(options: {
   plan: string;
   folder?: string;
@@ -296,6 +327,13 @@ export const CAPTURES: readonly CaptureEntry[] = [
     surface: 'hud',
     variant: 'legacy',
     noWebglContext: true,
+  }),
+  // Plan 04 T04.0: every surface as it looks before the restyle (real components on fixture state).
+  ...surfaceCaptures({
+    plan: '04',
+    folder: 'baseline',
+    surfaces: PLAN04_SURFACES,
+    viewports: [VIEWPORTS.laptop, VIEWPORTS.phoneLandscape],
   }),
   // Concept screens at the standard viewports (plan 01 T01.10).
   ...labCaptures({ plan: '01', folder: 'concepts', sections: LAB_CONCEPT_SCREENS, viewports: STANDARD_VIEWPORTS, surface: 'concept' }),

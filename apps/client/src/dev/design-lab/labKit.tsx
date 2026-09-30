@@ -13,6 +13,7 @@ export const LAB_SECTIONS = [
   { id: 'purchase', label: 'Screen: Purchase' },
   { id: 'lobby', label: 'Screen: Lobby' },
   { id: 'landing', label: 'Screen: Landing' },
+  { id: 'surfaces', label: 'Surfaces (real components)' },
   { id: 'hud', label: 'Screen: HUD' },
 ] as const;
 
@@ -35,6 +36,19 @@ export function readDesignLabParams(search: string): DesignLabParams {
     section: isLabSectionId(section) ? section : null,
     theme: params.get('theme') === 'v1' ? 'v1' : 'v2',
   };
+}
+
+export interface SurfaceParams {
+  /** Which real-component fixture to render alone (plan 04 §9), or null for the index. */
+  surface: string | null;
+  /** `chrome=hidden`: no Lab bar or section header, so the surface fills the viewport for captures. */
+  chromeHidden: boolean;
+}
+
+/** `&surface=<id>&chrome=hidden`, read by the Surfaces section and by the Lab shell. */
+export function readSurfaceParams(search: string): SurfaceParams {
+  const params = new URLSearchParams(search);
+  return { surface: params.get('surface'), chromeHidden: params.get('chrome') === 'hidden' };
 }
 
 export { applyVisualTheme };

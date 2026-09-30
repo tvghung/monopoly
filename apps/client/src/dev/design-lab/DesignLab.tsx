@@ -5,6 +5,7 @@ import type { VisualTheme } from '../../game/ui/propertyVisualColors';
 import ComponentsSection from './sections/ComponentsSection';
 import GameUiSection from './sections/GameUiSection';
 import ScenePaletteSection from './sections/ScenePaletteSection';
+import SurfacesSection from './sections/SurfacesSection';
 import TokensSection from './sections/TokensSection';
 import TypographySection from './sections/TypographySection';
 import LandingConcept from './screens/LandingConcept';
@@ -14,6 +15,7 @@ import {
   LAB_SECTIONS,
   applyVisualTheme,
   readDesignLabParams,
+  readSurfaceParams,
   useLabFontsLoaded,
   type LabSectionId,
 } from './labKit';
@@ -28,6 +30,7 @@ const SECTION_COMPONENTS: Record<Exclude<LabSectionId, 'hud'>, ComponentType> = 
   purchase: PurchaseConcept,
   lobby: LobbyConcept,
   landing: LandingConcept,
+  surfaces: SurfacesSection,
 };
 
 /** Keeps `<html data-visual-theme>` in sync with the Lab toggle and restores the app default on unmount. */
@@ -55,6 +58,7 @@ function themeHref(section: LabSectionId | null, theme: VisualTheme): string {
 export default function DesignLab() {
   const [params] = useState(() => readDesignLabParams(window.location.search));
   const [theme, setTheme] = useLabTheme(params.theme);
+  const [{ chromeHidden }] = useState(() => readSurfaceParams(window.location.search));
   const fontsLoaded = useLabFontsLoaded();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -65,7 +69,7 @@ export default function DesignLab() {
 
   return (
     <div className="design-lab" data-design-lab-ready={fontsLoaded && mounted ? 'true' : 'false'} data-theme-under-review={theme}>
-      <header className="design-lab__bar">
+      {chromeHidden ? null : <header className="design-lab__bar">
         <strong className="design-lab__brand">Design Lab · Own the Block V2</strong>
         <nav className="design-lab__nav" aria-label="Design Lab sections">
           <a href={themeHref(null, theme)}>All</a>
@@ -81,7 +85,7 @@ export default function DesignLab() {
           value={theme}
           onChange={setTheme}
         />
-      </header>
+      </header>}
       <main className="design-lab__content" key={theme}>
         {visibleSections.map(section => {
           const Section = SECTION_COMPONENTS[section.id];
