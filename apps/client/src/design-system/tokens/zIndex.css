@@ -1,6 +1,13 @@
 :root {
   --z-base: 0;
   --z-hud: 10;
+  /* Game HUD layers inside .game-board__renderer (plan 03): scene 0 < cards < center < dock < ticker < banner < drawer. */
+  --z-hud-cards: 10;
+  --z-hud-center: 12;
+  --z-hud-dock: 14;
+  --z-hud-ticker: 16;
+  --z-hud-banner: 18;
+  --z-hud-drawer: 20;
   --z-action-surface: 20;
   --z-orientation-notice: 30;
   --z-floating-control: 40;

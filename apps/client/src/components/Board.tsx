@@ -15,7 +15,7 @@ import SceneErrorBoundary from '../game/scene/fallback/SceneErrorBoundary';
 import { supportsWebGL } from '../game/scene/fallback/webglSupport';
 import PropertyInspectionModal from '../game/ui/property/PropertyInspectionModal';
 import OwnedPropertiesControl from '../game/ui/property/OwnedPropertiesControl';
-import PlayerStations from '../game/ui/stations/PlayerStations';
+import GameHud from '../game/ui/hud/GameHud';
 import RollControl from '../game/ui/hud/RollControl';
 import BoardAccessibilityControls from './BoardAccessibilityControls';
 import LegacyBoardView from './legacy-board/LegacyBoardView';
@@ -121,10 +121,8 @@ export default function Board() {
                 </SceneErrorBoundary>
               )
               : legacyBoard}
-            <PlayerStations
-              activePlayerId={presentationState.displayActivePlayerId ?? state.boardState.currentPlayer.id}
-            />
             <Dashboard />
+            <GameHud />
             <RollControl />
             <OwnedPropertiesControl onSelect={selectTile} />
             <Log />

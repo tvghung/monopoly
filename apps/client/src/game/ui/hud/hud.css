@@ -1,0 +1,167 @@
+/*
+ * Game HUD (visual overhaul V2, plan 03). Everything here lives inside `.game-board__renderer`, over the WebGL
+ * scene or the legacy board, and consumes the semantic tokens of the design system. z-order comes from the
+ * `--z-hud-*` tokens in `design-system/tokens/zIndex.css`.
+ */
+.game-hud {
+  --hud-inset: 16px;
+  --hud-toolbar-offset: calc(44px + 8px);
+  --hud-speed: 1;
+  --player-card-width: 272px;
+  --player-card-height: 96px;
+  --player-card-local-width: 300px;
+  --player-card-local-height: 108px;
+  --player-avatar-size: 52px;
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-hud-cards);
+  pointer-events: none;
+}
+
+/* ---------- Player cards ---------- */
+
+.player-card-list {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.player-card-list__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.player-card {
+  position: absolute;
+  width: var(--player-card-width);
+  height: var(--player-card-height);
+  pointer-events: none;
+}
+
+.player-card--local {
+  width: var(--player-card-local-width);
+  height: var(--player-card-local-height);
+}
+
+/* The corner follows the seat: BOTTOM is lower-left, TOP upper-right, LEFT upper-left, RIGHT lower-right. */
+.player-card[data-slot='LEFT'] { top: var(--hud-inset); left: var(--hud-inset); }
+.player-card[data-slot='TOP'] { top: calc(var(--hud-inset) + var(--hud-toolbar-offset)); right: var(--hud-inset); }
+.player-card[data-slot='BOTTOM'] { bottom: var(--hud-inset); left: var(--hud-inset); }
+.player-card[data-slot='RIGHT'] { right: var(--hud-inset); bottom: var(--hud-inset); }
+/* A player outside the four seats has no corner and no face. */
+.player-card:not([data-slot]) { display: none; }
+
+.player-card__face {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  padding: 10px 12px 10px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  background-image: var(--paper-grain);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
+}
+
+.player-card .ds-avatar { --ds-avatar-size: var(--player-avatar-size) !important; }
+
+.player-card__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.player-card__name-row,
+.player-card__money-row,
+.player-card__footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.player-card__name {
+  min-width: 0;
+  overflow: hidden;
+  font: var(--type-label);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-card__tag { flex: none; }
+
+.player-card__money-row { flex-wrap: wrap; row-gap: 2px; }
+.player-card__money { font: var(--type-money-l); font-variant-numeric: tabular-nums; }
+.player-card__chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.player-card__recovery { display: flex; }
+
+.player-card__footer { gap: 6px; color: var(--color-text-secondary); font: var(--type-caption); }
+.player-card__counts { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.player-card .ds-group-pips { gap: 2px; }
+.player-card .ds-group-pips__pip { width: 10px; height: 10px; border-width: 1.5px; border-radius: 2px; }
+.player-card__count { display: inline-flex; align-items: center; gap: 2px; }
+
+/* ---------- Turn, lifecycle states ---------- */
+
+.player-card--active .player-card__face {
+  box-shadow: 0 0 0 3px var(--color-turn-active), 0 0 0 7px rgb(242 182 50 / 35%), var(--elevation-2);
+  animation: player-card-pulse calc(var(--motion-duration-emphasis) / var(--hud-speed)) var(--motion-ease-out) both;
+}
+
+.player-card[data-state='offline'] .ds-avatar { opacity: 0.6; }
+.player-card[data-state='bankrupt'] .player-card__face { filter: grayscale(0.8); }
+.player-card[data-state='left'] .player-card__face { opacity: 0.5; }
+
+@keyframes player-card-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+/* Reduced motion: no pulse (the ring itself is the information). */
+:root[data-reduced-motion='true'] .player-card--active .player-card__face { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .player-card--active .player-card__face { animation: none; }
+}
+
+/* ---------- Breakpoints (plan 03 section 8.10) ---------- */
+
+/* Compact: 961-1279 wide or 600-719 tall, and tablet landscape. */
+@media (max-width: 1279px), (max-height: 719px) {
+  .game-hud {
+    --hud-inset: 12px;
+    --player-card-width: 220px;
+    --player-card-height: 72px;
+    --player-card-local-width: 220px;
+    --player-card-local-height: 72px;
+    --player-avatar-size: 44px;
+  }
+
+  .player-card__face { gap: 8px; padding: 8px 10px 8px 8px; }
+  .player-card__footer { display: none; }
+  .player-card__money { font: var(--type-title-s); }
+}
+
+/* Phone landscape: money first, the name is shortened and its full text stays in the accessible summary. */
+@media (max-height: 500px) {
+  .game-hud {
+    --hud-inset: max(8px, env(safe-area-inset-left, 0px));
+    --hud-toolbar-offset: calc(44px + 4px);
+    --player-card-width: 168px;
+    --player-card-height: 52px;
+    --player-card-local-width: 168px;
+    --player-card-local-height: 52px;
+    --player-avatar-size: 36px;
+  }
+
+  .player-card__face { gap: 6px; padding: 6px 8px 6px 6px; }
+  .player-card__name { max-width: 10ch; font: var(--type-caption); }
+  .player-card__tag { display: none; }
+  .player-card__money { font: var(--type-label); font-weight: 800; }
+}

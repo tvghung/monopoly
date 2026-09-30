@@ -176,7 +176,10 @@ describe('Vietnamese game board', () => {
     expect(container.querySelector('.game-board__right-rail')).toBeNull();
     expect(container.querySelector('.gameplay-action-layer')).toBeTruthy();
     expect(container.querySelector('.player-stations')).toBeNull();
-    expect(container.querySelector('.player-stations-accessibility.sr-only')).toBeTruthy();
+    // Plan 03 T03.4: the sr-only station roster was replaced by the player card list (a named section, an ordered
+    // list, one summary item per seated player).
+    expect(container.querySelector('.player-stations-accessibility')).toBeNull();
+    expect(container.querySelector('section.player-card-list[aria-label="Người chơi"] ol')).toBeTruthy();
     expect(container.querySelector('[data-testid="roll-control"]')).toBeTruthy();
     expect(container.querySelectorAll('.dice')).toHaveLength(0);
     expect(renderer?.querySelectorAll('.center__room')).toHaveLength(1);

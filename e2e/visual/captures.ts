@@ -265,6 +265,14 @@ export const CAPTURES: readonly CaptureEntry[] = [
     viewports: [VIEWPORTS.laptop, VIEWPORTS.phoneLandscape],
     surface: 'hud',
   }),
+  // Plan 03: the HUD after the restructure (iteration captures and the G3 package).
+  ...harnessCaptures({
+    plan: '03',
+    folder: 'hud',
+    scenarios: [...PLAN03_SCENARIOS, 'stations-3', 'offline', 'turn-recovery'],
+    viewports: [VIEWPORTS.laptop, VIEWPORTS.phoneLandscape],
+    surface: 'hud',
+  }),
   // Concept screens at the standard viewports (plan 01 T01.10).
   ...labCaptures({ plan: '01', folder: 'concepts', sections: LAB_CONCEPT_SCREENS, viewports: STANDARD_VIEWPORTS, surface: 'concept' }),
 ];

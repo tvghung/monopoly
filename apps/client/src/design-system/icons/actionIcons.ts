@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  Ban,
   Building2,
   Check,
   ChevronLeft,
@@ -11,9 +12,11 @@ import {
   Eye,
   Flag,
   Handshake,
+  House,
   HousePlus,
   Landmark,
   LogIn,
+  Lock,
   LogOut,
   MessageCircle,
   Play,
@@ -49,6 +52,8 @@ export const ACTION_ICON_NAMES = [
   'bail', 'jailCard', 'sellToBank', 'propose',
   'view', 'sellHouse', 'reject',
   'offline', 'previous', 'next',
+  // Player card statuses and counters (plan 03).
+  'jail', 'bankrupt', 'house', 'hotel',
 ] as const;
 
 export type ActionIconName = typeof ACTION_ICON_NAMES[number];
@@ -92,6 +97,10 @@ export const ACTION_ICONS = {
   offline: WifiOff,
   previous: ChevronLeft,
   next: ChevronRight,
+  jail: Lock,
+  bankrupt: Ban,
+  house: House,
+  hotel: Building2,
 } satisfies Record<ActionIconName, LucideIcon>;
 
 export function isActionIconName(value: string): value is ActionIconName {
