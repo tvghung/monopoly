@@ -1,0 +1,67 @@
+/*
+ * Shared layout of the buy and development sheets (plan 04 §8.3): the deed card on the left, the decision on the right.
+ * The sheet itself is a Modal with placement="sheet" and backdrop="clear", so the board stays visible behind it.
+ */
+.decision-sheet__layout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-5);
+}
+.decision-sheet__decision { display: grid; gap: var(--space-3); min-width: 0; }
+
+.decision-sheet__price {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--type-caption);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.decision-sheet__price strong { color: var(--color-text-primary); font: var(--type-title-l); font-variant-numeric: tabular-nums; letter-spacing: 0; text-transform: none; white-space: nowrap; }
+
+.decision-sheet__math {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-soft);
+  font: var(--type-small);
+}
+.decision-sheet__math > div { display: flex; justify-content: space-between; gap: var(--space-3); }
+.decision-sheet__math dt { color: var(--color-text-secondary); white-space: nowrap; }
+.decision-sheet__math dd { margin: 0; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.decision-sheet__math--short dd { color: var(--color-money-loss); }
+
+.decision-sheet__hint { margin: 0; color: var(--color-success-strong); font: var(--type-small); font-weight: 700; }
+.decision-sheet__reason {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 0.25rem solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-soft);
+  color: var(--color-text-primary);
+  font: var(--type-small);
+  font-weight: 700;
+}
+.decision-sheet__error { margin: 0; color: var(--color-danger-strong); font: var(--type-small); font-weight: 700; }
+
+.decision-sheet__actions { display: grid; gap: var(--space-2); }
+.decision-sheet__actions .ds-button { width: 100%; }
+
+@media (max-width: 40rem) {
+  .decision-sheet__layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+  .decision-sheet__deed { width: 100%; }
+}
+
+/* A phone held sideways: the compact deed stays on the left, the decision and its buttons on the right. */
+@media (orientation: landscape) and (max-height: 31rem) {
+  .decision-sheet__layout { grid-template-columns: auto minmax(0, 1fr); gap: var(--space-3); }
+  .decision-sheet__price strong { font: var(--type-title-m); }
+  .decision-sheet__decision { gap: var(--space-2); }
+  .decision-sheet__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .decision-sheet__math { padding: var(--space-2); }
+}

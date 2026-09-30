@@ -1,17 +1,39 @@
-import { useContext, useEffect, useRef, useState } from 'react';
-import { tileState } from '@monopoly/shared';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { colorGroups, tileState } from '@monopoly/shared';
 import { ShoppingCart, X } from 'lucide-react';
 import stateContext from '../../internal';
 import { formatMoney, getTileName, localizeAckError } from '../../presentation';
 import Modal from '../../design-system/components/Modal/Modal';
 import Button from '../../design-system/components/Button/Button';
+import { SHORT_VIEWPORT_QUERY, useMediaQuery } from '../../design-system/useMediaQuery';
 import { usePresentation } from '../../game/presentation/PresentationProvider';
+import { buildDeedCardModel } from '../../game/ui/property/deedCardModel';
+import PropertyDeedCard from '../../game/ui/property/PropertyDeedCard';
+import { getPropertyGroupVisualStyle } from '../../game/ui/propertyVisualColors';
+import './DecisionSheet.css';
+
+/** "Sở hữu 2/3 nhóm Xanh nhạt sau khi mua", or null when the purchase does not bring the group closer in a way worth saying. */
+export function groupProgressHint(
+  tileId: number,
+  ownerId: string | undefined,
+  ownedProps: Record<number, { id: string }>,
+): string | null {
+  const tile = tileState[tileId];
+  if (!tile || !ownerId) return null;
+  const tiles = tile.tileType === 'normal' && tile.color ? colorGroups[tile.color] : undefined;
+  if (!tiles || tiles.length < 2) return null;
+  const after = tiles.filter(groupTileId => groupTileId === tileId || ownedProps[groupTileId]?.id === ownerId).length;
+  const label = getPropertyGroupVisualStyle(tile.color).label;
+  if (after === tiles.length) return `Hoàn thành ${label.toLowerCase()} sau khi mua`;
+  return after >= 2 ? `Sở hữu ${after}/${tiles.length} ${label.toLowerCase()} sau khi mua` : null;
+}
 
 export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
   const {
-    state, socketFunctions, playerId, canMutate, connected,
+    state, socketFunctions, playerId, canMutate, connected, roomPlayers,
   } = useContext(stateContext);
   const { state: presentationState } = usePresentation();
+  const short = useMediaQuery(SHORT_VIEWPORT_QUERY);
   const [pendingAction, setPendingAction] = useState<'BUY' | 'DECLINE' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const requestGeneration = useRef(0);
@@ -25,6 +47,10 @@ export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
     && pending?.kind === 'PURCHASE'
     && tokenArrived;
   const operationId = pending?.kind === 'PURCHASE' ? pending.operationId : null;
+  const deed = useMemo(
+    () => (show && typeof tileId === 'number' ? buildDeedCardModel({ tileId, state, roomPlayers }) : null),
+    [roomPlayers, show, state, tileId],
+  );
 
   useEffect(() => {
     requestGeneration.current += 1;
@@ -62,34 +88,73 @@ export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
       });
   };
 
+  const price = typeof tile?.price === 'number' ? tile.price : null;
+  const balance = player?.accountBalance ?? 0;
+  const shortBy = price !== null && balance < price ? price - balance : 0;
+  const hint = typeof tileId === 'number' ? groupProgressHint(tileId, playerId ?? undefined, state.boardState.ownedProps) : null;
+  const name = typeof tileId === 'number' ? getTileName(tileId) : null;
+
   return (
     <Modal
       open={show}
-      title={tile && typeof tileId === 'number' && typeof tile.price === 'number'
-        ? `Mua ${getTileName(tileId)} với giá ${formatMoney(tile.price)}?`
-        : 'Mua tài sản này?'}
+      title={name ? `Mua ${name}?` : 'Mua tài sản này?'}
+      eyebrow="Ô đất trống"
+      size="lg"
+      placement="sheet"
+      backdrop="clear"
+      className="decision-sheet buy-prompt"
     >
-      {error ? <p role="alert">{error}</p> : null}
-      <div className="center__dashboard__button__purchase">
-        <Button
-          data-modal-autofocus
-          className="button__purchase--yes"
-          icon={<ShoppingCart />}
-          type="button"
-          busy={pendingAction === 'BUY'}
-          disabled={pendingAction !== null
-            || (typeof tile?.price === 'number' && (player?.accountBalance ?? 0) < tile.price)}
-          onClick={() => submit('BUY')}
-        >Mua tài sản</Button>
-        <Button
-          variant="secondary"
-          className="button__purchase--no"
-          icon={<X />}
-          type="button"
-          busy={pendingAction === 'DECLINE'}
-          disabled={pendingAction !== null}
-          onClick={() => submit('DECLINE')}
-        >Không mua</Button>
+      <div className="decision-sheet__layout">
+        {deed ? (
+          <PropertyDeedCard
+            model={deed}
+            variant={short ? 'compact' : 'full'}
+            showOwner={false}
+            className="decision-sheet__deed"
+          />
+        ) : null}
+        <div className="decision-sheet__decision">
+          {price !== null ? (
+            <p className="decision-sheet__price">
+              <span>Giá mua</span>
+              <strong>{formatMoney(price)}</strong>
+            </p>
+          ) : null}
+          {price !== null ? (
+            <dl className="decision-sheet__math">
+              <div><dt>Số dư hiện tại</dt><dd>{formatMoney(balance)}</dd></div>
+              <div className={shortBy > 0 ? 'decision-sheet__math--short' : undefined}>
+                <dt>Số dư sau khi mua</dt>
+                <dd>{shortBy > 0 ? `−${formatMoney(shortBy)}` : formatMoney(balance - price)}</dd>
+              </div>
+            </dl>
+          ) : null}
+          {hint ? <p className="decision-sheet__hint">{hint}</p> : null}
+          {shortBy > 0 ? (
+            <p className="decision-sheet__reason" role="note">{`Bạn còn thiếu ${formatMoney(shortBy)} để mua ô đất này.`}</p>
+          ) : null}
+          {error ? <p className="decision-sheet__error" role="alert">{error}</p> : null}
+          <div className="decision-sheet__actions">
+            <Button
+              data-modal-autofocus
+              size="lg"
+              icon={<ShoppingCart />}
+              type="button"
+              busy={pendingAction === 'BUY'}
+              disabled={pendingAction !== null || shortBy > 0}
+              onClick={() => submit('BUY')}
+            >Mua tài sản</Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              icon={<X />}
+              type="button"
+              busy={pendingAction === 'DECLINE'}
+              disabled={pendingAction !== null}
+              onClick={() => submit('DECLINE')}
+            >Không mua</Button>
+          </div>
+        </div>
       </div>
     </Modal>
   );
