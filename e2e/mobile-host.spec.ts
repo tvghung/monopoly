@@ -254,7 +254,8 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
       const modalMetrics = await dialog.evaluate(element => {
         const body = element.querySelector<HTMLElement>('.ds-modal__body');
         const rect = element.getBoundingClientRect();
-        if (body && window.innerHeight <= 430) body.scrollTop = body.scrollHeight;
+        // Scroll whenever the body overflows: the graphics section (plan 02) made the dialog taller than 430 px.
+        if (body && (window.innerHeight <= 430 || body.scrollHeight > body.clientHeight)) body.scrollTop = body.scrollHeight;
         return {
           top: rect.top,
           bottom: rect.bottom,
