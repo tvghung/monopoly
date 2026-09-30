@@ -14,7 +14,12 @@ import {
 import { getBoardTileLayout } from '../board/boardLayout';
 import HandcuffVisual, { HANDCUFF_ART_FOOTPRINT_RATIO } from './HandcuffVisual';
 import CardDeckVisual from './CardDeckVisual';
-import JailVisual, { JAIL_CORNER_DEPTH_RATIO, JAIL_CORNER_WIDTH_RATIO } from './JailVisual';
+import JailVisual, {
+  JAIL_BAR_COUNT,
+  JAIL_CORNER_DEPTH_RATIO,
+  JAIL_CORNER_WIDTH_RATIO,
+  createJailCellSpecs,
+} from './JailVisual';
 import ParkingLotVisual, {
   PARKING_ART_WIDTH_RATIO,
   PARKING_CAR_COUNT,
@@ -30,6 +35,7 @@ import StartSignVisual, {
   START_SIGN_ARROW_HEIGHT_SCALE,
   START_SIGN_HEIGHT_SCALE,
   START_SIGN_LABEL,
+  START_SIGN_POST_SPECS,
   START_SIGN_NATIVE_WIDTH,
   START_SIGN_TRAVEL_ROTATION_Y,
   START_SIGN_WIDTH_SCALE,
@@ -42,6 +48,7 @@ import TaxVisual, {
   TAX_ART_SAFE_WIDTH_RATIO,
   TAX_BACK_PAPER_COLOR,
   TAX_PLACEHOLDER_LINE_COUNT,
+  createTaxVisualSpecs,
 } from './TaxVisual';
 import UtilityVisual, { WATER_ICON_SAFE_WIDTH_RATIO } from './UtilityVisual';
 import { BOARD_SVG_TILE_ICON_ASSETS } from './boardIconAssets';
@@ -150,10 +157,13 @@ describe('Phase 2.5G special visual contracts', () => {
   it('keeps the tax stack, planted start sign and asphalt parking lot contracts', () => {
     const tax = render(<TaxVisual panel={edgePanel} />);
     expect(tax.container.querySelector('[name="TaxVisual"]')).not.toBeNull();
-    expect(tax.container.querySelector('[name="TaxPaperBack"]')).not.toBeNull();
-    expect(tax.container.querySelector('[name="TaxPaperFront"]')).not.toBeNull();
-    expect(tax.container.querySelectorAll('[name^="TaxPaperMark"]').length)
-      .toBe(TAX_PLACEHOLDER_LINE_COUNT);
+    // Budget recovery BR-2: the parts are baked per material, so the stack is two meshes, not seven.
+    expect(tax.container.querySelector('[name="TaxPapers"]')).not.toBeNull();
+    expect(tax.container.querySelector('[name="TaxPaperMarks"]')).not.toBeNull();
+    expect(tax.container.querySelectorAll('mesh')).toHaveLength(2);
+    const taxSpecs = createTaxVisualSpecs(edgePanel);
+    expect(taxSpecs.papers.map(paper => paper.color)).toEqual([TAX_BACK_PAPER_COLOR, '#fffdf3']);
+    expect(taxSpecs.marks).toHaveLength(TAX_PLACEHOLDER_LINE_COUNT);
     expect(TAX_ART_SAFE_WIDTH_RATIO).toBeLessThan(0.8);
     expect(TAX_ART_SAFE_DEPTH_RATIO).toBeLessThan(0.6);
     expect(TAX_BACK_PAPER_COLOR).toBe('#b7c0be');
@@ -171,6 +181,9 @@ describe('Phase 2.5G special visual contracts', () => {
 
     const jail = render(<JailVisual panel={cornerPanel} />);
     expect(jail.container.querySelector('[name="JailCellBars2D"]')).not.toBeNull();
+    // Budget recovery BR-2: threshold, header, nine bars and two sides are one mesh.
+    expect(jail.container.querySelectorAll('mesh')).toHaveLength(1);
+    expect(createJailCellSpecs(cornerPanel)).toHaveLength(JAIL_BAR_COUNT + 4);
     expect(JAIL_CORNER_WIDTH_RATIO).toBeGreaterThanOrEqual(0.7);
     expect(JAIL_CORNER_WIDTH_RATIO).toBeLessThanOrEqual(0.75);
     expect(JAIL_CORNER_DEPTH_RATIO).toBeGreaterThanOrEqual(0.65);
@@ -179,6 +192,7 @@ describe('Phase 2.5G special visual contracts', () => {
     const startGeometry = createStartSignGeometry();
     expect(startGeometry.parameters.options.depth).toBeGreaterThan(0);
     expect(START_SIGN_LABEL).toBe('Start');
+    expect(START_SIGN_POST_SPECS).toHaveLength(2);
     expect(START_SIGN_TRAVEL_ROTATION_Y).toBe(0);
     expect(START_SIGN_WIDTH_SCALE).toBeGreaterThan(1.25);
     expect(START_SIGN_ARROW_HEIGHT_SCALE).toBeGreaterThanOrEqual(1.18);

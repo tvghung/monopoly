@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { BOARD_FONT_URL } from '../../../design-system/typography/gameFonts';
 import { getBoardTileLayout, TILE_SURFACE_CLEARANCE_Y } from '../board/boardLayout';
 import { boardVisualTokens } from '../board/boardVisualTokens';
-import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
+import MergedRoundedBoxes, { type MergedBoxSpec } from '../board/geometry/MergedRoundedBoxes';
 import {
   getOrientedTilePanelLayoutForTileSize,
   type TilePanelLayout,
@@ -34,6 +34,16 @@ const START_CORNER_PANEL = getBoardTileLayout(0)
 export const START_SIGN_WIDTH_SCALE = START_CORNER_PANEL
   ? getStartSignWidthScale(START_CORNER_PANEL)
   : 1;
+
+/** Both planted posts share one material, so they are baked into one mesh. */
+export const START_SIGN_POST_SPECS: readonly MergedBoxSpec[] = [-0.42, 0.42].map(x => ({
+  width: 0.11,
+  height: 0.46,
+  depth: 0.11,
+  radius: 0.025,
+  color: boardVisualTokens.startSignSide,
+  position: [x, 0.22, 0] as const,
+}));
 
 export function createStartSignGeometry(): THREE.ExtrudeGeometry {
   const shape = new THREE.Shape();
@@ -107,26 +117,7 @@ export default function StartSignVisual({ panel }: StartSignVisualProps) {
         targetWidthRatio: START_SIGN_TARGET_WIDTH_RATIO,
       }}
     >
-      <RoundedBoxMesh
-        name="StartSignPostLeft"
-        width={0.11}
-        height={0.46}
-        depth={0.11}
-        radius={0.025}
-        color={boardVisualTokens.startSignSide}
-        materialProfile="propertyTrim"
-        position={[-0.42, 0.22, 0]}
-      />
-      <RoundedBoxMesh
-        name="StartSignPostRight"
-        width={0.11}
-        height={0.46}
-        depth={0.11}
-        radius={0.025}
-        color={boardVisualTokens.startSignSide}
-        materialProfile="propertyTrim"
-        position={[0.42, 0.22, 0]}
-      />
+      <MergedRoundedBoxes name="StartSignPosts" specs={START_SIGN_POST_SPECS} materialProfile="propertyTrim" />
       <mesh
         name="StartArrowSign"
         geometry={geometry}
