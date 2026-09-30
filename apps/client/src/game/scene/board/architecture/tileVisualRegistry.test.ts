@@ -58,8 +58,9 @@ describe('tile visual registry', () => {
     expect(boardVisualTokens.tileDivider).toBe('#111318');
     expect(boardVisualTokens.utilityBulb).toBe('#ffd400');
     expect(boardVisualTokens.utilityWater).toBe('#19bdeb');
-    expect(getPropertyVisualDescriptor('lightblue').baseColor).toBe('#5fc9e3');
-    expect(getPropertyVisualDescriptor('yellow').baseColor).toBe('#f4c83f');
+    // Plan 02 T02.16: hue and saturation follow plan 01 section 8.4 at the v1 luminance (scenePalette.test.ts).
+    expect(getPropertyVisualDescriptor('lightblue').baseColor).toBe('#74c5e9');
+    expect(getPropertyVisualDescriptor('yellow').baseColor).toBe('#f3c846');
   });
 
   it('keeps the three canonical harbor-blue properties on one descriptor', () => {
@@ -67,8 +68,8 @@ describe('tile visual registry', () => {
     [6, 8, 9].forEach(tileId => {
       expect(getDistrictSurfaceDescriptor(tileState[tileId])).toMatchObject(harborDescriptor);
     });
-    expect(harborDescriptor.secondaryColor).toBe('#c4ecf5');
-    expect(harborDescriptor.groutColor).toBe('#5cafc4');
+    expect(harborDescriptor.secondaryColor).toBe('#cceaf7');
+    expect(harborDescriptor.groutColor).toBe('#3cafe0');
   });
 
   it('maps normal tiles to districts and keeps special labels as plain metadata', () => {

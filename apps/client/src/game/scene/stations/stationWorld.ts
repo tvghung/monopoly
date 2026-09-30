@@ -2,6 +2,8 @@ import type { MoneyEndpoint } from '@monopoly/shared';
 import type { MoneyTransferSignal } from '../../presentation/store/types';
 import { CENTER_AIRPORT_FIELD_TOP_Y } from '../board/architecture/boardArtSpec';
 import { OUTER_BOARD_SIZE } from '../board/boardLayout';
+import { mixHex } from '../../../design-system/tokens/contrast';
+import { OTB_PALETTE } from '../../../design-system/tokens/palette';
 import type { PlayerStationSlot } from '../../ui/stations/stationSlots';
 
 export type WorldAnchor = readonly [number, number, number];
@@ -24,7 +26,8 @@ export const STATION_TRAY_HEIGHT = 0.14;
 export const STATION_TRAY_RIM_HEIGHT = 0.05;
 export const STATION_TRAY_RIM_WIDTH = 0.11;
 export const BANK_TRAY_SCALE = 0.775;
-export const TRAY_LACQUER_COLOR = '#3a2418';
+/** Dark ink with a breath of lacquer red: the tray finish, taken from the palette (plan 02 T02.16). */
+export const TRAY_LACQUER_COLOR = mixHex(OTB_PALETTE['ink-900'], OTB_PALETTE['lacquer-700'], 0.85);
 /** Coin half thickness (0.05) plus a hair of clearance, resting on the tray top. */
 export const COIN_REST_CLEARANCE = 0.06;
 

@@ -8,14 +8,34 @@ import { OTB_PALETTE } from '../../../design-system/tokens/palette';
 export const SCENE_BACKDROP_OAK_SHARE = 0.75;
 export const SCENE_BACKDROP = mixHex(OTB_PALETTE['table-oak'], OTB_PALETTE['table-oak-dark'], SCENE_BACKDROP_OAK_SHARE);
 
+/**
+ * Scene palette harmonization (plan 02 T02.16). The board frame, foundation, center field and sockets take
+ * their hue from OTB_PALETTE (jade, ink, paper, gold) instead of the v1 teal / lime. Derived colors keep the
+ * luminance of the v1 value they replace, so light surfaces stay light and the tile text stays readable;
+ * only hue and saturation moved. Each derived value names its source; `boardVisualTokens.test.ts` checks
+ * that the hue family and the luminance still match.
+ */
+export const SCENE_PALETTE_SOURCES = {
+  boardFrame: 'jade-700',
+  boardBaseEdge: 'jade-700',
+  tileSocket: 'jade-700',
+  boardTop: 'jade-600',
+  airportField: 'jade-600',
+  airportFieldDark: 'jade-600',
+  boardCenter: 'jade-600',
+  centerPath: 'jade-600',
+  boardBase: 'ink-500',
+  boardOuterAccent: 'paper-300',
+} as const;
+
 export const boardVisualTokens = {
   sceneBackground: SCENE_BACKDROP,
-  boardBase: '#858d90',
-  boardBaseEdge: '#113c49',
-  boardFrame: '#215a58',
-  boardTop: '#b8efd0',
-  boardCenter: '#9bd667',
-  boardAccent: '#00c7b4',
+  boardBase: '#99897b',
+  boardBaseEdge: '#0a3f33',
+  boardFrame: OTB_PALETTE['jade-700'],
+  boardTop: '#c5ebe2',
+  boardCenter: '#8dd4b4',
+  boardAccent: OTB_PALETTE['gold-400'],
   plazaBase: '#5f7e54',
   plazaGroundDetail: '#375d4d',
   plazaPath: '#d8e8df',
@@ -33,7 +53,7 @@ export const boardVisualTokens = {
   tileUpperSpecial: '#ffffff',
   tileFooter: '#ffffff',
   tileDivider: '#111318',
-  tileSocket: '#355250',
+  tileSocket: '#0e5847',
   tileChassis: '#737b79',
   tileChassisSpecial: '#5d6868',
   tileChassisHover: '#88918d',
@@ -93,12 +113,12 @@ export const boardVisualTokens = {
   startSignFace: '#ffca24',
   startSignSide: '#8f4b2c',
   startSignText: '#1b2528',
-  airportField: '#8bcf4a',
-  airportFieldDark: '#4f8f43',
+  airportField: '#7acda7',
+  airportFieldDark: '#379067',
   airportRunway: '#59616b',
   airportRunwayEdge: '#3f474f',
   airportMarking: '#ffffff',
   airportTaxiway: '#b3c9af',
-  centerPath: '#b6db7c',
-  boardOuterAccent: '#e7ebea',
+  centerPath: '#a1dbc1',
+  boardOuterAccent: '#f3e9da',
 } as const;

@@ -59,9 +59,11 @@ describe('Phase 2.5E visual contracts', () => {
     expect(boardVisualTokens.tileFooter).toBe('#ffffff');
     // Visual overhaul V2 (plan 02 T02.11): the teal void became the light oak table backdrop.
     expect(boardVisualTokens.sceneBackground).toBe('#d2af83');
-    expect(boardVisualTokens.boardBase).toBe('#858d90');
-    expect(boardVisualTokens.boardBaseEdge).toBe('#113c49');
-    expect(boardVisualTokens.boardAccent).toBe('#00c7b4');
+    // Plan 02 T02.16: the v1 grey / dark teal / teal foundation tokens moved to the OTB palette family
+    // (warm stone, deep jade, gold-400); see scenePalette.test.ts for the hue and luminance guard.
+    expect(boardVisualTokens.boardBase).toBe('#99897b');
+    expect(boardVisualTokens.boardBaseEdge).toBe('#0a3f33');
+    expect(boardVisualTokens.boardAccent).toBe('#F2B632');
   });
 
   it('keeps the shared foundation layers derived from the final total height', () => {
