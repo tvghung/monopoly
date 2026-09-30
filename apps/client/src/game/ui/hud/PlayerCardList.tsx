@@ -8,6 +8,8 @@ export interface PlayerCardListProps {
   reducedMotion: boolean;
   speed: number;
   resetEpoch: number;
+  /** Latest chat text per player id, for the speech bubbles. */
+  bubbles?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -15,7 +17,7 @@ export interface PlayerCardListProps {
  * summary. The card faces inside are decorative. This list replaces the old sr-only station roster.
  */
 export default function PlayerCardList({
-  cards, deltas, reducedMotion, speed, resetEpoch,
+  cards, deltas, reducedMotion, speed, resetEpoch, bubbles,
 }: PlayerCardListProps) {
   return (
     <section className="player-card-list" aria-label="Người chơi">
@@ -28,6 +30,7 @@ export default function PlayerCardList({
             reducedMotion={reducedMotion}
             speed={speed}
             resetEpoch={resetEpoch}
+            bubble={bubbles?.[card.playerId]}
           />
         ))}
       </ol>

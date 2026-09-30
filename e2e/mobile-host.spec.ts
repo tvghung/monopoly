@@ -169,6 +169,8 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
   };
   watchErrors(page);
   const roomCode = `OTB-${Date.now().toString(36).slice(-6).toUpperCase()}`;
+  // The HUD drawer remembers its state per viewer; start every run from the default (closed).
+  await page.addInitScript(() => window.localStorage.removeItem('own-the-block.hud.drawer.v1'));
   await page.addInitScript(() => {
     const original = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function getContext(
@@ -192,6 +194,7 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
       : { width: 390, height: 844 },
   });
   const guest = await guestContext.newPage();
+  await guest.addInitScript(() => window.localStorage.removeItem('own-the-block.hud.drawer.v1'));
   watchErrors(guest);
   try {
     await joinRoom(page, 'Host Mobile LongName', roomCode, 'tap');
@@ -302,8 +305,11 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
     await page.getByRole('button', { name: 'Hủy' }).click();
 
     const longMessage = 'Tin nhắn kiểm tra dài vẫn hiển thị rõ trên màn hình ngang.';
+    // The activity drawer starts closed (plan 03): open it before typing or reading.
+    await page.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }).click();
     await page.getByLabel('Tin nhắn').fill(longMessage);
     await page.getByRole('button', { name: 'Gửi' }).click();
+    await guest.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }).click();
     await expect(guest.getByText(new RegExp(longMessage, 'u'))).toBeVisible();
     await guest.getByRole('button', { name: 'Ẩn nhật ký và trò chuyện' }).click();
     await page.waitForTimeout(800);

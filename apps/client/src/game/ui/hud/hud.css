@@ -340,3 +340,87 @@
   .dice-callout { left: calc(50% + 120px); top: calc(50% - 70px + var(--hud-center-offset-y, 0px)); padding: 4px 10px; gap: 8px; }
   .dice-callout__total { font: var(--type-title-m); }
 }
+
+/* ---------- Bottom column: context stack and action dock ---------- */
+
+.hud-bottom {
+  position: absolute;
+  left: 50%;
+  bottom: max(var(--hud-inset), env(safe-area-inset-bottom));
+  z-index: var(--z-hud-dock);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(520px, calc(100% - 2 * (var(--player-card-local-width) + var(--hud-inset) * 2)));
+  min-width: 260px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.hud-context {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.hud-context > * { pointer-events: auto; }
+.hud-context:empty { display: none; }
+
+.action-dock { display: flex; justify-content: center; pointer-events: none; }
+.action-dock .game-board__property-access { display: flex; }
+
+/* ---------- Activity ticker and chat bubbles ---------- */
+
+.activity-ticker {
+  max-width: min(560px, 100%);
+  padding: 6px 14px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface);
+  box-shadow: var(--elevation-1);
+  color: var(--color-text-primary);
+  font: var(--type-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  animation: activity-ticker-in calc(var(--motion-duration-ui) / var(--hud-speed)) var(--motion-ease-out) both;
+}
+
+@keyframes activity-ticker-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+:root[data-reduced-motion='true'] .activity-ticker { animation: none; }
+@media (prefers-reduced-motion: reduce) { .activity-ticker { animation: none; } }
+
+.player-card__bubble {
+  position: absolute;
+  z-index: 1;
+  max-width: 240px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 12px);
+  background-color: var(--color-surface);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
+  font: var(--type-small);
+  overflow-wrap: anywhere;
+  animation: activity-ticker-in calc(var(--motion-duration-ui) / var(--hud-speed)) var(--motion-ease-out) both;
+}
+
+/* The bubble opens toward the middle of the screen, away from the corner the card sits in. */
+.player-card[data-slot='LEFT'] .player-card__bubble,
+.player-card[data-slot='TOP'] .player-card__bubble { top: calc(100% + 6px); }
+.player-card[data-slot='BOTTOM'] .player-card__bubble,
+.player-card[data-slot='RIGHT'] .player-card__bubble { bottom: calc(100% + 6px); }
+.player-card[data-slot='LEFT'] .player-card__bubble,
+.player-card[data-slot='BOTTOM'] .player-card__bubble { left: 0; }
+.player-card[data-slot='TOP'] .player-card__bubble,
+.player-card[data-slot='RIGHT'] .player-card__bubble { right: 0; }
+:root[data-reduced-motion='true'] .player-card__bubble { animation: none; }
+@media (prefers-reduced-motion: reduce) { .player-card__bubble { animation: none; } }
+
+@media (max-height: 500px) {
+  .hud-bottom { width: min(380px, calc(100% - 2 * (var(--player-card-local-width) + var(--hud-inset) * 2))); }
+  .activity-ticker { display: none; }
+}

@@ -95,29 +95,8 @@
   font-size: 0.78rem;
 }
 
-.game-board__property-access {
-  position: absolute;
-  z-index: var(--z-action-surface);
-  bottom: max(clamp(0.75rem, 2vw, 1.25rem), env(safe-area-inset-bottom));
-  left: calc(50% - min(7.5rem, 22vw));
-  pointer-events: auto;
-  transform: translateX(-100%);
-}
-
-.game-board__property-button {
-  min-height: 2.75rem;
-  padding: 0.6rem 0.85rem;
-  border: 1px solid rgb(255 255 255 / 48%);
-  border-radius: var(--radius-medium);
-  background: rgb(8 31 43 / 68%);
-  color: var(--color-text-inverse);
-  cursor: pointer;
-  font-size: clamp(0.72rem, 0.9vw, 0.85rem);
-  font-weight: var(--font-weight-semibold);
-  box-shadow: 0 0.35rem 0.8rem rgb(8 31 43 / 18%);
-}
-
-.game-board__property-button:active { transform: translateY(1px) scale(0.98); }
+/* The assets button lives in the HUD action dock (game/ui/hud/hud.css). */
+.game-board__property-access { position: static; pointer-events: auto; }
 
 .owned-properties-modal { width: min(100%, 32rem); }
 
@@ -167,11 +146,6 @@
 .owned-properties-list__inspect:hover { background: var(--color-accent-secondary-soft); }
 .owned-properties-list__inspect:focus-visible { outline: 0; box-shadow: var(--shadow-focus); }
 .owned-properties-empty { margin: 0; color: var(--color-text-secondary); }
-
-@media (prefers-reduced-motion: reduce) {
-  .game-board__property-button { transition: none; }
-  .game-board__property-button:active { transform: none; }
-}
 
 @media (orientation: portrait) and (max-width: 48rem) {
   .game-board__orientation-notice {

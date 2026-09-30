@@ -1,8 +1,10 @@
 import { useContext, useState, type CSSProperties } from 'react';
-import { Building2, Eye } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { tileState } from '@monopoly/shared';
 import stateContext from '../../../internal';
+import Button from '../../../design-system/components/Button/Button';
 import Modal from '../../../design-system/components/Modal/Modal';
+import { ActionIcon } from '../../../design-system/icons/ActionIcon';
 import { formatMoney, getTileName } from '../formatters';
 import { getPropertyGroupVisualStyle } from '../propertyVisualColors';
 
@@ -19,14 +21,15 @@ export default function OwnedPropertiesControl({ onSelect }: { onSelect: (tileId
 
   return (
     <aside className="game-board__property-access" aria-label="Tài sản của tôi">
-      <button
+      <Button
         className="game-board__property-button"
-        type="button"
+        variant="secondary"
+        size="md"
+        icon={<ActionIcon name="buildHotel" />}
         onClick={() => setOpen(true)}
       >
-        <Building2 className="action-icon" aria-hidden="true" />
         {`Tài sản của tôi (${ownedTileIds.length})`}
-      </button>
+      </Button>
       <Modal
         open={open}
         title="Tài sản của tôi"

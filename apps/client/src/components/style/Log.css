@@ -1,120 +1,133 @@
+/*
+ * Activity drawer (visual overhaul V2, plan 03). It sits at the right edge inside .game-board__renderer, above the
+ * scene and the cards. Collapsed, only a tab (icon, label and unread badge) is visible; open, an opaque paper panel
+ * slides in. Nothing fades when idle.
+ */
 .center__room {
   position: absolute;
-  z-index: var(--z-action-surface);
-  top: max(clamp(0.75rem, 1.5vw, 1.25rem), env(safe-area-inset-top));
-  left: max(clamp(0.75rem, 1.5vw, 1.25rem), env(safe-area-inset-left));
-  bottom: auto;
-  width: min(24rem, 32%);
-  max-width: calc(100% - 1.5rem - env(safe-area-inset-left) - env(safe-area-inset-right));
-  max-height: min(13rem, 34%);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  transform: none;
-  overflow: hidden;
-  opacity: 1;
-  transition: width 180ms ease, max-height 180ms ease;
-  border: 1px solid rgb(255 255 255 / 28%);
-  border-radius: var(--radius-medium);
-  background: rgb(8 31 43 / 14%);
-  box-shadow: 0 0.45rem 1rem rgb(8 31 43 / 12%);
-  pointer-events: auto;
+  z-index: var(--z-hud-drawer, 20);
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  pointer-events: none;
 }
-
-.center__room--collapsed {
-  width: 2.75rem;
-  max-width: 2.75rem;
-  max-height: 2.75rem;
-}
-
-.center__room-panel {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  transition: opacity 220ms ease;
-}
-
-.center__room--idle .center__room-panel { opacity: 0.2; }
 
 .center__room-toggle {
-  position: relative;
-  align-self: flex-end;
-  display: grid;
-  flex: 0 0 2.75rem;
-  width: 2.75rem;
-  min-height: 2.75rem;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-text-inverse);
+  position: absolute;
+  top: 50%;
+  right: max(0px, env(safe-area-inset-right));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 44px;
+  min-height: 96px;
+  padding: 8px 0;
+  border: 1px solid var(--color-border);
+  border-right: 0;
+  border-radius: var(--radius-md, 12px) 0 0 var(--radius-md, 12px);
+  background-color: var(--color-surface);
+  background-image: var(--paper-grain);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
   cursor: pointer;
-  place-items: center;
+  pointer-events: auto;
+  transform: translateY(-50%);
+}
+
+.center__room-toggle-label {
+  font: var(--type-caption);
+  letter-spacing: 0.02em;
+  writing-mode: vertical-rl;
 }
 
 .center__room-toggle:focus-visible {
-  outline: 2px solid var(--color-accent-secondary);
-  outline-offset: -3px;
+  outline: 0;
+  box-shadow: var(--focus-ring, 0 0 0 3px var(--color-turn-active)), var(--elevation-2);
 }
 
 .center__room-unread {
   position: absolute;
-  top: 0.2rem;
-  right: 0.15rem;
-  min-width: 1.15rem;
-  height: 1.15rem;
-  padding: 0 0.25rem;
-  border: 1px solid rgb(255 255 255 / 80%);
+  top: -6px;
+  left: -6px;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.3rem;
+  border: 2px solid var(--color-surface);
   border-radius: 999px;
-  background: var(--color-danger);
+  background: var(--color-danger-strong, var(--color-danger));
   color: var(--color-text-inverse);
-  font-size: 0.63rem;
+  font-size: 0.68rem;
   font-weight: 800;
-  line-height: 1.05rem;
+  line-height: 1rem;
   text-align: center;
+}
+
+.center__room-panel {
+  position: absolute;
+  top: var(--hud-inset, 16px);
+  right: max(var(--hud-inset, 16px), env(safe-area-inset-right));
+  bottom: var(--hud-inset, 16px);
+  display: flex;
+  flex-direction: column;
+  width: min(360px, 40vw);
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 20px);
+  background-color: var(--color-surface);
+  background-image: var(--paper-grain);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
+  pointer-events: auto;
+  animation: log-drawer-in calc(var(--motion-duration-panel, 280ms) / var(--hud-speed, 1)) var(--motion-ease-out, ease-out) both;
+}
+
+.center__room-panel:focus-visible { outline: 0; box-shadow: var(--focus-ring, 0 0 0 3px var(--color-turn-active)), var(--elevation-2); }
+
+@keyframes log-drawer-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* With the panel open the tab rides on its left edge. */
+.center__room--open .center__room-toggle {
+  right: calc(min(360px, 40vw) + max(var(--hud-inset, 16px), env(safe-area-inset-right)));
 }
 
 .center__log {
   flex: 1;
   min-height: 0;
   margin: 0;
-  padding: 0.65rem 0.8rem 0.45rem;
-  color: var(--color-text-inverse);
-  font-size: clamp(0.7rem, 0.9vw, 0.9rem);
+  padding: 0.75rem 0.9rem 0.5rem;
+  color: var(--color-text-primary);
+  font: var(--type-small);
   text-align: left;
-  line-height: 1.45;
-  text-shadow: 0 1px 2px var(--color-shadow);
   overflow-x: hidden;
   overflow-y: auto;
   overflow-wrap: break-word;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
   pointer-events: auto;
 }
 
-.center__log::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
-}
-
-.center__log p { margin: 0 0 0.2rem; }
+.center__log p { margin: 0 0 0.35rem; }
 
 .activity-entry {
   padding-left: 0.55rem;
-  border-left: 2px solid rgb(255 255 255 / 35%);
+  border-left: 3px solid var(--color-border-strong, var(--color-border));
 }
 
-.activity-entry--chat { border-left-color: var(--color-accent-secondary); }
+.activity-entry--chat { border-left-color: var(--color-info-strong, var(--color-accent-secondary)); }
 .activity-entry--dice_roll { border-left-color: var(--color-accent-primary); }
 .activity-entry--game_finished { border-left-color: var(--color-warning); font-weight: 800; }
 .activity-entry--player_finished { border-left-color: var(--color-danger); }
 
 .center__chat {
   width: 100%;
-  padding: 0.45rem;
-  border-top: 1px solid rgb(255 255 255 / 22%);
-  background: rgb(8 31 43 / 24%);
+  padding: 0.6rem;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-soft, transparent);
   pointer-events: auto;
 }
 
@@ -127,32 +140,48 @@
 
 .center__chat--input {
   width: 100%;
-  min-height: 2.35rem;
-  background: rgb(255 255 255 / 92%);
-  padding: 0 0.7rem;
-  border: 1px solid rgb(255 255 255 / 70%);
-  border-right: 0px;
-  border-radius: var(--radius-small) 0 0 var(--radius-small);
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-border-strong, var(--color-border));
+  border-right: 0;
+  border-radius: var(--radius-sm, 8px) 0 0 var(--radius-sm, 8px);
+  background: var(--color-surface);
   color: var(--color-text-primary);
-  font-size: clamp(0.8rem, 0.9vw, 1rem);
+  font: var(--type-small);
 }
 
 .center__chat--button {
-  align-self: center;
+  align-self: stretch;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  width: auto;
-  font-size: clamp(0.8rem, 0.9vw, 1rem);
-  min-width: 4.2rem;
-  min-height: 2.35rem;
+  min-width: 4.5rem;
+  min-height: 2.75rem;
   border: 1px solid var(--color-accent-primary-strong);
-  border-radius: 0 var(--radius-small) var(--radius-small) 0;
+  border-radius: 0 var(--radius-sm, 8px) var(--radius-sm, 8px) 0;
   background: var(--color-accent-primary-strong);
   color: var(--color-text-inverse);
   cursor: pointer;
+  font: var(--type-label);
 }
 
 .center__chat--input:disabled,
 .center__chat--button:disabled { cursor: not-allowed; opacity: 0.65; }
+
+/* Reduced motion: the panel appears without sliding. */
+:root[data-reduced-motion='true'] .center__room-panel { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .center__room-panel { animation: none; }
+}
+
+/* Tablet landscape and phones: the panel is an overlay and the tab hugs the edge. */
+@media (max-width: 960px) {
+  .center__room-panel { width: min(92vw, 360px); }
+  .center__room--open .center__room-toggle { right: calc(min(92vw, 360px) + max(var(--hud-inset, 12px), env(safe-area-inset-right))); }
+}
+
+@media (max-height: 500px) {
+  .center__room-panel { top: 0; bottom: 0; right: 0; border-radius: var(--radius-lg, 20px) 0 0 var(--radius-lg, 20px); }
+  .center__room--open .center__room-toggle { right: min(92vw, 360px); }
+}

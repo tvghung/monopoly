@@ -1,13 +1,11 @@
 import { useContext } from 'react';
 import './style/Dashboard.css';
 import stateContext from '../internal';
-import JailPanel from './dashboard/JailPanel';
 import BuyPrompt from './dashboard/BuyPrompt';
 import DevelopmentPrompt from './dashboard/DevelopmentPrompt';
 import TradeOfferModal from './dashboard/TradeOfferModal';
 import IncomingOffers from './dashboard/IncomingOffers';
 import WinnerBanner from './dashboard/WinnerBanner';
-import DebtPanel from './dashboard/DebtPanel';
 import ForcedSaleProposalPanel from './dashboard/ForcedSaleProposalPanel';
 import { usePresentation } from '../game/presentation/PresentationProvider';
 
@@ -25,10 +23,6 @@ export default function Dashboard() {
 
   return (
     <section className="gameplay-action-layer" aria-label="Quyết định trong lượt chơi">
-      <div className="gameplay-action-layer__context">
-        <DebtPanel />
-        <JailPanel />
-      </div>
       <BuyPrompt tokenArrived={tokenArrived} />
       <DevelopmentPrompt tokenArrived={tokenArrived} />
       <ForcedSaleProposalPanel />

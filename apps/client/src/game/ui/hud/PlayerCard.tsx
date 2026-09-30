@@ -19,6 +19,8 @@ export interface PlayerCardProps {
   reducedMotion: boolean;
   speed: number;
   resetEpoch: number;
+  /** The latest chat message of this player, shown for a few seconds while the drawer is closed. */
+  bubble?: string;
 }
 
 function avatarStatus(card: PlayerCardViewModel): PlayerAvatarStatus {
@@ -52,7 +54,7 @@ function RecoveryChip({ deadlineAt }: { deadlineAt: string }) {
  * from presentation state, and every status carries text as well as an icon.
  */
 export default function PlayerCard({
-  card, deltas, reducedMotion, speed, resetEpoch,
+  card, deltas, reducedMotion, speed, resetEpoch, bubble,
 }: PlayerCardProps) {
   const money = useAnimatedNumber(card.displayMoney, { reducedMotion, speed, resetEpoch });
   const chips = useBalanceDeltaFeed(card.playerId, deltas, { resetEpoch, speed });
@@ -73,6 +75,7 @@ export default function PlayerCard({
       style={style}
     >
       <span className="sr-only">{describePlayerCard(card)}</span>
+      {bubble ? <div className="player-card__bubble" aria-hidden="true">{bubble}</div> : null}
       <div className="player-card__face" aria-hidden="true">
         <PlayerAvatar
           characterId={card.characterId}

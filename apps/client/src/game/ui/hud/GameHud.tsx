@@ -4,12 +4,17 @@ import stateContext from '../../../internal';
 import { useEffectiveReducedMotion } from '../../../settings/selectors';
 import { usePresentationSelector } from '../../presentation/usePresentationSelector';
 import type { PresentationState } from '../../presentation/store/types';
+import BottomDock from './BottomDock';
+import ActivityTicker from './ActivityTicker';
 import CenterStage from './CenterStage';
 import DiceResultCallout from './DiceResultCallout';
 import PlayerCardList from './PlayerCardList';
+import Log from '../../../components/Log';
+import { HudDrawerProvider, useHudDrawer } from './hudDrawer';
 import { selectPlayerCardViewModels } from './playerCardSelectors';
 import StatusPill from './StatusPill';
 import TurnBanner from './TurnBanner';
+import { useChatBubbles } from './useChatBubbles';
 import './hud.css';
 
 const selectCardSlice = (state: PresentationState) => ({
@@ -24,6 +29,7 @@ const sameCardSlice = (
   && previous.displayBalances === next.displayBalances
   && previous.displayDevelopmentLevels === next.displayDevelopmentLevels;
 const NO_PLAYERS: readonly RoomPlayerMeta[] = [];
+const selectActivity = (state: PresentationState) => state.displayActivity;
 const selectBalanceDeltas = (state: PresentationState) => state.balanceDeltas;
 const selectResetEpoch = (state: PresentationState) => state.presentationResetEpoch;
 const selectSpeed = (state: PresentationState) => state.animationSpeedMultiplier;
@@ -37,7 +43,10 @@ function PlayerCards() {
   const deltas = usePresentationSelector(selectBalanceDeltas);
   const resetEpoch = usePresentationSelector(selectResetEpoch);
   const speed = usePresentationSelector(selectSpeed);
+  const activity = usePresentationSelector(selectActivity);
   const reducedMotion = useEffectiveReducedMotion();
+  const drawer = useHudDrawer();
+  const bubbles = useChatBubbles(activity, playerId ?? null, { resetEpoch, speed, suppressed: drawer.open });
 
   const cards = useMemo(
     () => (state.loaded ? selectPlayerCardViewModels(state, slice, roomPlayers, playerId ?? null, role ?? null) : []),
@@ -51,6 +60,7 @@ function PlayerCards() {
       reducedMotion={reducedMotion}
       speed={speed}
       resetEpoch={resetEpoch}
+      bubbles={bubbles}
     />
   );
 }
@@ -60,17 +70,21 @@ function PlayerCards() {
  * board, and never covers the board center. Each region is a `data-hud-region` container so the overlap checker can
  * measure it. Its children read presentation state through selectors, so the shell itself renders once.
  */
-function GameHudShell() {
+function GameHudShell({ onSelectTile }: { onSelectTile: (tileId: number) => void }) {
   const speed = usePresentationSelector(selectSpeed);
   const style = useMemo(() => ({ '--hud-speed': speed }) as CSSProperties, [speed]);
   return (
-    <div className="game-hud" data-testid="game-hud" style={style}>
-      <StatusPill />
-      <TurnBanner />
-      <PlayerCards />
-      <CenterStage />
-      <DiceResultCallout />
-    </div>
+    <HudDrawerProvider>
+      <div className="game-hud" data-testid="game-hud" style={style}>
+        <StatusPill />
+        <TurnBanner />
+        <PlayerCards />
+        <CenterStage />
+        <DiceResultCallout />
+        <BottomDock onSelectTile={onSelectTile} ticker={<ActivityTicker />} />
+        <Log />
+      </div>
+    </HudDrawerProvider>
   );
 }
 

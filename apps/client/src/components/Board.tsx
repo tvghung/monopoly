@@ -16,11 +16,9 @@ import { buildBoardRenderModel } from '../game/scene/board/boardRenderModel';
 import SceneErrorBoundary from '../game/scene/fallback/SceneErrorBoundary';
 import { supportsWebGL } from '../game/scene/fallback/webglSupport';
 import PropertyInspectionModal from '../game/ui/property/PropertyInspectionModal';
-import OwnedPropertiesControl from '../game/ui/property/OwnedPropertiesControl';
 import GameHud from '../game/ui/hud/GameHud';
 import BoardAccessibilityControls from './BoardAccessibilityControls';
 import LegacyBoardView from './legacy-board/LegacyBoardView';
-import Log from './Log';
 import {
   resolveInitialRendererMode,
   type RendererMode,
@@ -122,9 +120,7 @@ export default function Board() {
               )
               : legacyBoard}
             <Dashboard />
-            <GameHud />
-            <OwnedPropertiesControl onSelect={selectTile} />
-            <Log />
+            <GameHud onSelectTile={selectTile} />
           </section>
 
           {rendererMode === 'webgl'
