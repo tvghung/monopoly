@@ -8,6 +8,14 @@
 - Host=`Chủ Phòng`, Ready=`Sẵn Sàng`, Spectator=`Khán Giả`, Online/Offline và
   bankruptcy/leave reasons đều có Vietnamese copy.
 
+## Player card (HUD)
+
+- Bốn góc màn hình, mỗi người chơi một card (`game/ui/hud/PlayerCard.tsx`); trạng thái luôn có chữ và icon, không chỉ màu:
+  lượt hiện tại ("Đang đi", vòng vàng), "Bạn", "Ở tù n/2" (vòng đối thủ đã qua), "Mất kết nối" kèm "Tự bỏ lượt sau
+  m:ss" khi `turnRecovery` trỏ tới người đó (chỉ hiển thị, deadline do server giữ), "Phá sản" (thay tiền bằng chip,
+  card xám), "Đã rời" (mờ 50%). Người chơi LEFT/BANKRUPT giữ nguyên góc.
+- Tiền, lượt và số nhà/khách sạn theo presentation state; số tài sản và ô sở hữu theo `ownedProps` authoritative.
+
 ## Lobby/start
 
 - Public roster hiển thị stable ID-backed name/color/host/ready/connected.

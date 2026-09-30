@@ -15,7 +15,8 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
 | Property/build/forced sale | [property-management.instruction.md](./property-management.instruction.md) | BackOfCard/Tile/DebtPanel |
 | `TradeBundle`/private offers | [trade-offers.instruction.md](./trade-offers.instruction.md) | BackOfCard/TradeOfferModal/IncomingOffers |
 | Forced sale proposal | [../testcase/payment-shortfall-and-forced-sale.md](../testcase/payment-shortfall-and-forced-sale.md) | DebtPanel/ForcedSaleProposalPanel |
-| Log/chat | [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md) | Log |
+| Log/chat | [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md) | Log (ngăn kéo), `game/ui/hud/` |
+| Game HUD (player card, center stage, status pill, banner, callout, dock, ticker, bong bóng, toolbar, toast) | [game-board.instruction.md](./game-board.instruction.md) mục "Game HUD" | `game/ui/hud/`, `components/Log.tsx`, `App.tsx` (toolbar), `components/Toast.tsx` |
 | Desktop shell/runtime | [../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md](../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md) | `apps/desktop/`, preload bridge, bootstrap/runtime config |
 | Presentation | [../ui-ux-overhaul/PHASE_1_IMPLEMENTATION_PLAN.md](../ui-ux-overhaul/PHASE_1_IMPLEMENTATION_PLAN.md) | `game/presentation/`, `game/ui/`, settings/audio |
 | Design system V2 (tokens, primitive, icon registry, motion, Design Lab, capture) | [design-system.instruction.md](./design-system.instruction.md) | `design-system/`, `settings/ReducedMotionDocumentSync.tsx`, `dev/design-lab/`, `e2e/visual/` |

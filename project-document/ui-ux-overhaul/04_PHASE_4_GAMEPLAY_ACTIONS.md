@@ -385,6 +385,10 @@ ordering, duplicate snapshot handling, and reset behavior.
 
 ### 7.2 Workstream B - Dice result presentation and gameplay HUD
 
+> **Superseded by visual-overhaul-v2 plan 03:** a visible DOM HUD returned (corner player cards, center stage, status
+> pill, action dock, activity drawer). The 3D station name and balance labels are gone; stations stay as coin
+> anchors. See `Client/game-board.instruction.md` "Game HUD".
+
 Current contract baseline:
 
 - The former gameplay side HUD/right rail and visible top player strip are gone.
@@ -1458,6 +1462,9 @@ and the existing reconnect/Reduced Motion/Skip guarantees are preserved.
   active. Expected queue aborts do not surface as presentation errors.
 
 ### 18.2 Visual corrections
+
+> **Superseded by visual-overhaul-v2 plan 03** for the statement that stations carry the name and money: those labels moved
+> to the DOM player cards (`Client/game-board.instruction.md` "Game HUD").
 
 - Board/station/player/transfer coins use one shared low-poly geometry and
   deterministic copper/silver/gold materials normalized from `60:20:10`.

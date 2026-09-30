@@ -98,6 +98,16 @@
   (`tabletopCoverage`, `rendererInfo`, `composerPasses` tests).
 - [x] `[CLIENT][AUTOMATED]` The page shell starts in the v2 theme (`index.html` attribute, bootstrap
   default) and its browser-chrome colors come from the palette (`visualTheme.test.ts`).
+- [x] `[CLIENT][AUTOMATED]` HUD: player card view models (seats, displayed money, displayed turn, building counts, pips,
+  jail / offline / recovery / bankrupt / left), roster semantics and summaries, animated money counter (reduced motion,
+  reset epoch, speed), delta chips (no replay, cap of two, reset), turn banner, dice callout, activity ticker and chat
+  bubbles (gating, reset, text-only), single transient timer, `usePresentationSelector` re-render behavior, Space
+  shortcut guards, and the overlap geometry (`playerCardSelectors`, `PlayerCardList`, `useAnimatedNumber`,
+  `useBalanceDeltaFeed`, `turnAndDiceOverlays`, `tickerAndBubbles`, `centerStage`, `useRollShortcut`,
+  `polygonOverlap`, `tileScreenRects`, `usePresentationSelector` tests).
+- [ ] `[CLIENT][MANUAL-E2E]` HUD overlap report (`evidence/03/g3/*.json`, `hudOverlap`) reviewed at 1440×900,
+  1280×720, 1024×768, 812×375 and 667×375, and the 5-second test (3 people: whose turn, who has the most money)
+  recorded in plan 03 section 17.
 - [ ] `[CLIENT][MANUAL-E2E]` Review the v2-theme sweep (`evidence/01/theme-v2/`, 28 images) against the V1
   baseline; automated candidate review found no confirmed regression, a human pass is still open.
 - [ ] `[CLIENT][MANUAL-E2E]` Review low / balanced / high captures side by side (harness

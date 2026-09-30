@@ -153,6 +153,50 @@ và 40 semantic tile buttons không đổi.
   nội bộ (`postRenders`). Diagnostics chỉ chạy trên localhost/UAT và tắt `gl.info.autoReset`.
   Harness `benchmark=<giây>` ghi median/p95 frame time; `quality=<tier>` chọn preset.
 
+## Game HUD (Visual Overhaul V2 plan 03)
+
+Code: `game/ui/hud/` (`GameHud.tsx`, `hud.css`), gắn trong `.game-board__renderer` cho cả WebGL và legacy
+board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn áp dụng, toolbar nằm ngoài nó.
+
+- **Trạm 3D chỉ còn khay + đống xu**: `StationInformation`/`StationMoneyAmounts` (tên, số dư, ± tiền) đã bị bỏ.
+  Trạm vẫn là anchor bay xu và điểm fit camera. Tên/tiền nằm ở player card (DOM); main pass giảm 16 draw
+  (169 → 153 ở `board-readability`, balanced).
+- **Player card** (`PlayerCard`, `PlayerCardList`, `playerCardSelectors.ts`): bốn góc theo
+  `resolvePlayerStationSlots` (BOTTOM dưới-trái, TOP trên-phải, LEFT trên-trái, RIGHT dưới-phải).
+  Tiền lấy `displayBalances[id] ?? money` và đếm số bằng `useAnimatedNumber` (480 ms / speed; reduced motion
+  hoặc đổi `presentationResetEpoch` thì nhảy ngay); chip biến động từ `balanceDeltas` qua
+  `useBalanceDeltaFeed` (cursor theo sequence, tối đa 2 chip, 1600 ms / speed, không replay lịch sử);
+  lượt hiện tại theo `displayActivePlayerId` (vòng vàng + chip "Đang đi"); nhà/khách sạn theo
+  `displayDevelopmentLevels`; pips theo tám nhóm. Trạng thái luôn có chữ + icon: "Bạn", "Ở tù n/2",
+  "Mất kết nối" (+ "Tự bỏ lượt sau m:ss" từ `turnRecovery.deadlineAt`), "Phá sản", "Đã rời".
+  Mặt card `aria-hidden`; mỗi `li[data-player-id][data-current-turn]` có một câu tóm tắt sr-only
+  (`describePlayerCard`). `section.player-card-list[aria-label="Người chơi"] > ol` thay roster sr-only cũ.
+- **Status pill** (`StatusPill`): mã phòng + avatar + `p.game-board__turn-label` ("Lượt của bạn" /
+  "<tên> đang chơi" / "Đang chờ lượt chơi"), theo `displayActivePlayerId`. **Turn banner**: "Đến lượt bạn!" hoặc
+  "Lượt của <tên>" khi lượt hiển thị đổi trong live presentation (280 + 900 + 280 ms / speed, thay thế thay vì
+  xếp hàng, không chạy khi first render/snap/reset, `aria-hidden`).
+- **Center stage** (`CenterStage`, `RollControl`): nút "Đổ xúc xắc" (đang gửi: "Đang đổ…") ở tâm bàn; lượt
+  đối thủ hiện pill "<tên> đang đi…"; cả hai ẩn khi xúc xắc đang lăn, khi có thẻ trên màn hình và sau khi có
+  người thắng. Quyền lăn vẫn từ `canRollForState` (authoritative). `Space` kích hoạt nút khi đang bật và focus
+  không nằm trong input/textarea/select/button/link/contenteditable, không có dialog, không có modifier hay repeat.
+  **Dice callout**: "4 + 3" và tổng lớn khi `displayRollSequence` tăng và xúc xắc đã dừng (1200 ms / speed),
+  chip "Đổ đôi" chỉ để thông tin; 3D `DiceResultTotal` đã bỏ. Thông báo đọc màn hình duy nhất vẫn là vùng
+  `role="status"` trong roll control.
+- **Cột dưới** (`BottomDock`): ticker (dòng hoạt động mới nhất), context stack (`JailPanel`, `DebtPanel`) và
+  action dock (nút "Tài sản của tôi (N)", tên truy cập giữ nguyên; điện thoại chỉ hiện "Tài sản (N)").
+- **Ngăn nhật ký** (`Log`): xem [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md).
+- **Toolbar** (`App.tsx`): `IconButton` v2 44 px cho "Cài đặt" và "Bỏ cuộc"/"Rời phòng", vẫn ngoài `.game-board`;
+  toast nằm giữa-trên dưới status pill, tối đa 3 cái.
+- **Vị trí không được che ô cờ**: status pill đứng sau card trên-trái, cột dưới đứng sau card dưới-trái, tab ngăn
+  nhật ký đứng dưới card trên-phải; từ 720 px chiều rộng trở xuống pill xếp dưới card trên-trái và cột dưới
+  xếp trên card dưới-trái. `TileScreenRectsPublisher` (chỉ dev/UAT) xuất hình chiếu 40 ô ra
+  `window.__OWN_THE_BLOCK_TILE_SCREEN_RECTS__` và `pnpm visual:capture` (`overlapCheck`) báo mọi vùng
+  `data-hud-region` che quá 4% một ô, tách vùng cố định khỏi vùng tạm (`data-hud-transient`: panel quyết định,
+  banner, callout, ticker, bong bóng, panel ngăn nhật ký). Vùng cố định phải bằng 0 ở 1440×900, 1280×720,
+  1024×768, 812×375 và 667×375; panel Nhà tù trong context stack có thể che ô gần Xuất Phát khi đang mở
+  (plan 04 thu gọn nội dung).
+- Camera fit không đổi: HUD không thêm inset vào `cameraMath.ts`.
+
 ## State/rendering
 
 - Ownership, buildings, player position và pending landing/payment state từ
@@ -206,7 +250,8 @@ và 40 semantic tile buttons không đổi.
   house/hotel geometry plus canonical anchors, neutral facade/window-grid textures,
   pitched roof/crown owner-color split, frame dimensions, scene budget,
   orthographic camera/tone mapping (Neutral), quality resolution per tier, tabletop
-  coverage, diagnostics counting (main/shadow/post) và SDF sync invalidation.
+  coverage, diagnostics counting (main/shadow/post) và SDF sync invalidation. HUD: view model của card, các hook
+  đếm số/chip/countdown/transient, banner, callout, ticker, bong bóng, phím tắt Space và hình học overlap checker.
 - Special art contracts cover approved Chance question mark, simplified pointer-free
   fortune wheel, locomotive/one-wagon silhouette, light bulb, large faucet, tax paper stack, START
   sign, parking lot/cars, handcuffs, jail bars and airport center theme; ownership
