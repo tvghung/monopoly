@@ -104,7 +104,7 @@ export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
       backdrop="clear"
       className="decision-sheet buy-prompt"
     >
-      <div className="decision-sheet__layout">
+      <div className={`decision-sheet__layout${short ? ' decision-sheet__layout--compact' : ''}`}>
         {deed ? (
           <PropertyDeedCard
             model={deed}

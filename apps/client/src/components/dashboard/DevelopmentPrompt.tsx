@@ -89,7 +89,7 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
       backdrop="clear"
       className="decision-sheet development-prompt-modal"
     >
-      <div className="decision-sheet__layout">
+      <div className={`decision-sheet__layout${short ? ' decision-sheet__layout--compact' : ''}`}>
         {deed ? (
           <PropertyDeedCard
             model={deed}
@@ -106,7 +106,7 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
           <dl className="decision-sheet__math">
             <div><dt>Số dư hiện tại</dt><dd>{formatMoney(balance)}</dd></div>
           </dl>
-          {isHouses ? <p>Chọn số Nhà (tối đa {max}) — {formatMoney(unitCost)} mỗi Nhà.</p> : null}
+          {isHouses ? <p className="decision-sheet__note">Chọn số Nhà (tối đa {max}) — {formatMoney(unitCost)} mỗi Nhà.</p> : null}
           {reason ? <p className="decision-sheet__reason" role="note">{reason}</p> : null}
           {error ? <p className="decision-sheet__error" role="alert">{error}</p> : null}
           <div className="decision-sheet__actions development-prompt__options">

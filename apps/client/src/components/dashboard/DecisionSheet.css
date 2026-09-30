@@ -4,10 +4,12 @@
  */
 .decision-sheet__layout {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  /* The track is as wide as the full deed (20rem), not as wide as the deed would like to be (its table is wide). */
+  grid-template-columns: minmax(0, 20rem) minmax(0, 1fr);
   align-items: start;
   gap: var(--space-5);
 }
+.decision-sheet__layout--compact { grid-template-columns: minmax(0, 16.25rem) minmax(0, 1fr); }
 .decision-sheet__decision { display: grid; gap: var(--space-3); min-width: 0; }
 
 .decision-sheet__price {
@@ -50,7 +52,7 @@
 .decision-sheet__error { margin: 0; color: var(--color-danger-strong); font: var(--type-small); font-weight: 700; }
 
 .decision-sheet__actions { display: grid; gap: var(--space-2); }
-.decision-sheet__actions .ds-button { width: 100%; }
+.decision-sheet__actions .ds-button { box-sizing: border-box; width: 100%; }
 
 @media (max-width: 40rem) {
   .decision-sheet__layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
@@ -59,9 +61,12 @@
 
 /* A phone held sideways: the compact deed stays on the left, the decision and its buttons on the right. */
 @media (orientation: landscape) and (max-height: 31rem) {
-  .decision-sheet__layout { grid-template-columns: auto minmax(0, 1fr); gap: var(--space-3); }
+  .decision-sheet__layout { grid-template-columns: minmax(0, 16.25rem) minmax(0, 1fr); gap: var(--space-3); }
   .decision-sheet__price strong { font: var(--type-title-m); }
   .decision-sheet__decision { gap: var(--space-2); }
   .decision-sheet__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .decision-sheet__math { padding: var(--space-2); }
+  /* The buttons already say how many Nhà and what each costs. */
+  .decision-sheet__note { display: none; }
+  .decision-sheet__actions .ds-button { min-height: 3rem; padding-block: var(--space-1); }
 }
