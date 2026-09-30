@@ -208,8 +208,8 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
     await guest.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect(await guest.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await expect(page.getByText('Dog', { exact: true })).toHaveCount(0);
-    await chooseAndReady(page, 'Dog');
+    await expect(page.getByText('Chó', { exact: true })).toHaveCount(0);
+    await chooseAndReady(page, 'Chó');
     await chooseAndReady(guest, 'Capybara');
 
     await page.setViewportSize({ width: 667, height: 375 });
@@ -391,7 +391,7 @@ test('single rendered WAV music asset and supported Web Audio lifecycle', async 
     expect((await page.evaluate(() => (
       (window as typeof window & { __musicObservation: MusicObservation }).__musicObservation
     ))).starts).toEqual([]);
-    await chooseAndReady(page, 'Dog');
+    await chooseAndReady(page, 'Chó');
     await chooseAndReady(guest, 'Capybara');
     await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeEnabled();
     await page.getByRole('button', { name: 'Bắt đầu' }).click();

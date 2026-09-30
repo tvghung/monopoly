@@ -6,8 +6,6 @@ import { CHARACTER_REGISTRY, LEGACY_CHARACTER_DEFINITION } from './characterRegi
 describe('character registry', () => {
   it('has exactly one local SVG definition for every stable character id', () => {
     expect(Object.keys(CHARACTER_REGISTRY).sort()).toEqual([...CHARACTER_IDS].sort());
-    expect(CHARACTER_REGISTRY.dog.displayName).toBe('Dog');
-    expect(CHARACTER_REGISTRY.elephant.displayName).toBe('Elephant');
     expect('shiba' in CHARACTER_REGISTRY).toBe(false);
     expect('fox' in CHARACTER_REGISTRY).toBe(false);
     CHARACTER_IDS.forEach(characterId => {
@@ -32,6 +30,15 @@ describe('character registry', () => {
     const labels = Object.values(CHARACTER_REGISTRY).map(definition => definition.accessibleLabel);
     expect(labels).toEqual(['Chó', 'Capybara', 'Gấu trúc', 'Mèo', 'Chim cánh cụt', 'Voi', 'Thỏ', 'Vịt']);
     expect(LEGACY_CHARACTER_DEFINITION.accessibleLabel).toBe('Mascot cũ');
+  });
+
+  it('has no English mascot names and no display name field (images identify mascots, plan 04 OD-04-1)', () => {
+    const definitions = [...Object.values(CHARACTER_REGISTRY), LEGACY_CHARACTER_DEFINITION];
+    expect(definitions).toHaveLength(9);
+    for (const definition of definitions) {
+      expect('displayName' in definition).toBe(false);
+      expect(definition.accessibleLabel).not.toMatch(/\b(Dog|Panda|Elephant|Cat|Penguin|Rabbit|Duck)\b/u);
+    }
   });
 
   it('keeps base art stable while changing the player accent', () => {

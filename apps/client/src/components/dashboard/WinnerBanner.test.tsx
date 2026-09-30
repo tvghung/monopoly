@@ -103,8 +103,8 @@ describe('getWinnerSummary', () => {
     renderWinner(true, playAgain);
 
     expect(screen.getByRole('heading', { name: 'Ada' })).toBeTruthy();
-    expect(screen.getByAltText('Mascot Dog')).toBeTruthy();
-    expect(screen.queryByText('Dog')).toBeNull();
+    expect(screen.getByAltText('Mascot Chó')).toBeTruthy();
+    expect(screen.queryByText('Chó')).toBeNull();
     expect(screen.getByText('1.200.000 ₫')).toBeTruthy();
     expect(screen.getByText('Chơi lại')).toBeTruthy();
 

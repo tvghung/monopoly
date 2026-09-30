@@ -57,7 +57,7 @@ export default function WinnerBanner() {
               ? <img
                   className="winner-banner__mascot"
                   src={characterSvgDataUri(character.svgSource, winner.color)}
-                  alt={`Mascot ${character.displayName}`}
+                  alt={`Mascot ${character.accessibleLabel}`}
                 />
               : <div className="winner-banner__mascot winner-banner__mascot--empty" aria-hidden="true" />}
             <div>

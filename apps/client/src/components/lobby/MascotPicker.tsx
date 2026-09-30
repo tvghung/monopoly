@@ -100,7 +100,7 @@ export default function MascotPicker({
         className="mascot-picker__stage"
         tabIndex={0}
         role="group"
-        aria-label={`Mascot đang xem: ${focusedCharacter.displayName}. Dùng phím mũi tên trái phải để đổi.`}
+        aria-label={`Mascot đang xem: ${focusedCharacter.accessibleLabel}. Dùng phím mũi tên trái phải để đổi.`}
         onKeyDown={handleKeyboardNavigation}
       >
         <button
@@ -115,7 +115,7 @@ export default function MascotPicker({
         <button
           className="mascot-picker__side mascot-picker__side--previous"
           type="button"
-          aria-label={`Chọn mascot ${CHARACTER_REGISTRY[previousCharacterId].displayName}`}
+          aria-label={`Chọn mascot ${CHARACTER_REGISTRY[previousCharacterId].accessibleLabel}`}
           disabled={busy}
           onClick={() => selectCharacter(previousCharacterId)}
         >
@@ -140,7 +140,7 @@ export default function MascotPicker({
                 key={focusedCharacterId}
                 className="mascot-picker__hero-image"
                 src={characterSvgDataUri(focusedCharacter.svgSource, playerColor)}
-                alt={focusedCharacter.displayName}
+                alt={focusedCharacter.accessibleLabel}
                 initial={reducedMotion ? false : { opacity: 0, scale: 0.86, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={reducedMotion
@@ -154,7 +154,7 @@ export default function MascotPicker({
         <button
           className="mascot-picker__side mascot-picker__side--next"
           type="button"
-          aria-label={`Chọn mascot ${CHARACTER_REGISTRY[nextCharacterId].displayName}`}
+          aria-label={`Chọn mascot ${CHARACTER_REGISTRY[nextCharacterId].accessibleLabel}`}
           disabled={busy}
           onClick={() => selectCharacter(nextCharacterId)}
         >
@@ -184,7 +184,7 @@ export default function MascotPicker({
               key={characterId}
               className={`mascot-picker__thumbnail${selected ? ' mascot-picker__thumbnail--selected' : ''}${focused ? ' mascot-picker__thumbnail--focused' : ''}`}
               type="button"
-              aria-label={character.displayName}
+              aria-label={character.accessibleLabel}
               aria-pressed={selected}
               disabled={busy}
               onClick={() => selectCharacter(characterId)}
@@ -207,7 +207,7 @@ export default function MascotPicker({
                 key={color}
                 className={`mascot-picker__color${selected ? ' mascot-picker__color--selected' : ''}`}
                 type="button"
-                aria-label={`${visual.label}${takenCharacterId ? ` (đã dùng với ${CHARACTER_REGISTRY[takenCharacterId].displayName})` : ''}`}
+                aria-label={`${visual.label}${takenCharacterId ? ` (đã dùng với ${CHARACTER_REGISTRY[takenCharacterId].accessibleLabel})` : ''}`}
                 aria-pressed={selected}
                 disabled={busy || unavailable}
                 onClick={() => selectColor(color)}

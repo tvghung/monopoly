@@ -37,6 +37,7 @@ import SettingsPanel from './settings/SettingsPanel';
 import FpsBadge from './game/ui/FpsBadge';
 import { getDesktopBridge } from './runtime/desktopBridge';
 import stateContext from './internal';
+import { roomExitContext, type RoomExitContextValue } from './roomExitContext';
 import { localizeAckError } from './presentation';
 import { createSocket } from './network/createSocket';
 import { PresentationController, type SnapshotSource } from './game/presentation/PresentationController';
@@ -829,6 +830,12 @@ export default function App({
     canPlayAgain,
   }), [canMutate, canPlayAgain, connected, playerId, privateOffers, privatePlayerState, role, room, socketFunctions]);
 
+  const roomExit = useMemo<RoomExitContextValue>(() => ({
+    requestLeave: handleLeave,
+    leaving: operation === 'leave',
+    label: role === 'PLAYER' && room?.status === 'IN_PROGRESS' ? 'Bỏ cuộc' : 'Rời phòng',
+  }), [handleLeave, operation, role, room?.status]);
+
   const roomContent = room && role
     ? role === 'PLAYER' && room.status === 'LOBBY' && playerId
       ? (
@@ -887,6 +894,7 @@ export default function App({
   return (
     <PresentationProvider controller={presentationController}>
       <stateContext.Provider value={contextValue}>
+        <roomExitContext.Provider value={roomExit}>
         <main className="App">
           {phase === 'RESTORING' ? <LoadingScreen message="Đang khôi phục ván chơi…" /> : null}
           {phase === 'JOIN' || phase === 'JOINING'
@@ -924,6 +932,7 @@ export default function App({
           />
         </main>
         <CardInteractionOverlay />
+        </roomExitContext.Provider>
       </stateContext.Provider>
     </PresentationProvider>
   );

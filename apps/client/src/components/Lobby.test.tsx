@@ -118,11 +118,13 @@ describe('Lobby', () => {
     expect(screen.getByLabelText('Chọn nhân vật của bạn')).toBeTruthy();
     expect(screen.queryByText('Dog')).toBeNull();
     expect(screen.queryByText('Panda')).toBeNull();
+    expect(screen.queryByText('Chó')).toBeNull();
+    expect(screen.queryByText('Gấu trúc')).toBeNull();
     const characterGroup = screen.getByRole('group', { name: 'Chọn mascot' });
     const colorGroup = screen.getByRole('group', { name: 'Chọn màu người chơi' });
     expect(characterGroup.querySelectorAll('button')).toHaveLength(8);
     expect(colorGroup.querySelectorAll('button')).toHaveLength(10);
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Panda' }).disabled).toBe(false);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Gấu trúc' }).disabled).toBe(false);
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Xanh dương' }).disabled).toBe(false);
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đỏ' }).disabled).toBe(false);
     expect(screen.queryByText('Xem trước trong phòng')).toBeNull();
@@ -232,7 +234,7 @@ describe('Lobby', () => {
     const stage = screen.getByRole('group', { name: /Mascot đang xem: Dog/u });
     fireEvent.keyDown(stage, { key: 'ArrowRight' });
     expect(onSetAppearance).toHaveBeenCalledWith({ characterId: 'capybara' });
-    expect(screen.getByRole('button', { name: 'Dog' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Chó' }).getAttribute('aria-pressed')).toBe('true');
 
     fireEvent.click(screen.getByRole('button', { name: 'Xanh lá' }));
     expect(onSetAppearance).toHaveBeenLastCalledWith({ characterId: 'capybara', color: 'green' });
@@ -336,7 +338,7 @@ describe('Lobby', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dog' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chó' }));
     expect(onSetAppearance).not.toHaveBeenCalled();
     expect(screen.getByRole('group', { name: /Mascot đang xem: Dog/u })).toBeTruthy();
     expect(screen.getByRole<HTMLButtonElement>('button', { name: /Xanh dương \(đã dùng với Dog\)/u })).toHaveProperty('disabled', true);
