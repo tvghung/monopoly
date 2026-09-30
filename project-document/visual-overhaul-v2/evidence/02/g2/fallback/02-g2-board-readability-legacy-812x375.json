@@ -1,0 +1,18 @@
+{
+  "id": "02-g2/fallback-g2-board-readability-legacy-812x375",
+  "plan": "02",
+  "folder": "g2/fallback",
+  "name": "02-g2-board-readability-legacy",
+  "url": "/?phase4-uat=1&scenario=board-readability&uat-controls=hidden",
+  "viewport": {
+    "width": 812,
+    "height": 375
+  },
+  "kind": "harness",
+  "rendererMode": null,
+  "browser": "chromium 154.0.8037.58",
+  "captureTool": "e2e/visual/capture.visual.ts",
+  "consoleErrors": [],
+  "benchmark": null,
+  "diagnostics": null
+}

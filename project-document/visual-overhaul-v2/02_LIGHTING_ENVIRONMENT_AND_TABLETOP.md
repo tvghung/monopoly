@@ -1,6 +1,6 @@
 # 02 — Lighting, Environment and Tabletop
 
-**Status: IN PROGRESS — T02.0–T02.15 and T02.18 done (2026-09-30). T02.16 (palette) waits for plan 01 gate G1; T02.17 (G2 package) waits for T02.16 and needs a human verdict. Open decisions answered by the product owner on 2026-09-30 (see the Decisions section).**
+**Status: DONE except the human G2 verdict (2026-09-30) — T02.0–T02.18 are implemented; T02.17 (G2 package) is ready for the product owner in `evidence/02/g2/`. Two items stay open: the G2 verdict and the benchmark on the reference device. Open decisions answered by the product owner on 2026-09-30 (see the Decisions section).**
 
 | Field | Value |
 | --- | --- |
@@ -776,7 +776,7 @@ Answered by the product owner on 2026-09-30; binding for implementation.
 
 ## 15. Definition of Done
 
-- [ ] T02.0–T02.18 complete and logged in §16. _(T02.16 and T02.17 are open: G1, then a human G2 verdict.)_
+- [x] T02.0–T02.18 complete and logged in §16. _(T02.17 is complete as a package; the verdict is a separate line below.)_
 - [x] Budget table (§16) shows every tier within §8.9 limits for `board-readability`
   and `stress` (main ≤ 177, shadow ≤ 25, post passes 3, triangles ≤ 69k).
 - [ ] Benchmark on the reference device recorded; `balanced` and `low` meet §5.3. _(Recorded only on an
@@ -807,8 +807,8 @@ Answered by the product owner on 2026-09-30; binding for implementation.
 | 2026-09-30 | T02.14 | b179766 | — | Material pass: dice clearcoat, roofs, lacquer rails, paper decks. |
 | 2026-09-30 | T02.15 | 98c978d | `evidence/02/tier-shots`, `evidence/02/tiers`, `evidence/02/benchmark` | Lazy high-tier chain N8AO + Bloom + Vignette + Neutral (243 kB chunk, 104 kB gzip, absent from the balanced / low network log and from the main build chunks). Verified in the browser: live switch high ↔ balanced ↔ low, resize, WebGL context loss → legacy board, no console errors. **Deviations, all measured:** (1) N8AO transparency detection is off because it rendered the scene two extra times (main pass 261 → 169); (2) bloom threshold is 1.5 on the HDR buffer, not 0.9, because lit white tiles already sit near 1.0 and would glow (the difference at 1.5 is ≤ 2/255 on 1.4k pixels); (3) "post passes" counts the composer passes (3); the 19 internal full-screen renders are reported separately as `postRenders`; (4) the Canvas `gl.toneMapping` prop is `NoToneMapping` for the high tier because R3F re-applies Canvas props on every render. Known difference: SDF text blends in linear space in the high tier, so it looks slightly thinner and lighter than in balanced; if the G2 review rejects it, remap the text alpha for dark-on-light text. |
 | 2026-09-30 | T02.18 | `git log --grep T02.18` | — | AS-IS `Client/game-board.instruction.md` (lighting, environment, tiers, post chain, budget definitions), `Client/README.md`, testcase rows, and supersession notes in `04_PHASE_4` §20.2, `05_PHASE_5` §3, `05A` §12, `06_PHASE_6` §4 and `06A` renderer / quality rows. `CLAUDE.md` needed no change. |
-| — | T02.16 | — | — | Waiting for plan 01 gate G1 (human). |
-| — | T02.17 | — | `pnpm visual:capture --grep "02-g2/"` (35 entries: 3 tiers × 7 fixtures at 1440×900, 3 tiers × 4 viewports, forced legacy fallback at two sizes) | Manifest ready; take the captures after T02.16 so the review sees the final palette. Needs the reference device and a human verdict. |
+| 2026-09-30 | T02.16 | 40efb72 | `evidence/02/g2/compare/` | Scene palette mapped to `OTB_PALETTE` (jade frame and center field, warm stone base, paper outer accent, gold-400 foundation accent, tray lacquer from ink and lacquer red); district descriptors follow the plan 01 §8.4 hues at the v1 luminance (surface keys, patterns, tuning and white footers untouched; red moved warmer to separate from pink). Pinned token tests updated with the reason; `scenePalette.test.ts` guards the hue family, luminance and district distinctness. G1 was approved 2026-09-30. |
+| 2026-09-30 | T02.17 | see `git log --grep T02.17` | `evidence/02/g2/` (35 captures, `compare/` v1-vs-v2, README with the checklist mapping) | Package assembled after T02.16: 3 tiers × 7 fixtures at 1440×900, 3 tiers × 4 viewports (1920×1080, 1280×720, 812×375, 2560×1080), forced legacy fallback at two sizes, four v1-left / v2-right comparisons. All captures: WebGL, zero console errors, inside the §8.9 limits (main ≤ 177, shadow ≤ 25, post 3). Verdict PENDING (human only). The reference-device benchmark is still open. |
 
 **Budget table** (fill in per fixture, 1920×1080):
 
@@ -838,6 +838,22 @@ median (p95 49.9 ms). `low` (pixel ratio 1, no shadows) holds 60 FPS. Options fo
 `balanced` pixel ratio range, teach `auto` to pick `low` on integrated GPUs, or accept 30 FPS during
 animation on this class of device; measure on an Iris Xe / M1 before choosing. `high` is opt-in and is
 expected to be slow on integrated GPUs.
+
+**G2 checklist** (product owner fills in; images and mapping in `evidence/02/g2/README.md`):
+
+- [ ] Lighting, soft shadows and Neutral tone mapping look right
+- [ ] Light oak table and board ground shadow cover every viewport (including 21:9)
+- [ ] Player trays and the bank treasury look grounded
+- [ ] Scene palette v1 → v2 approved (`compare/`)
+- [ ] Tile text is readable in all three tiers (the eight regression names at 1280×720)
+- [ ] Low / balanced / high differ only in the intended ways
+- [ ] WebGL fallback still works (`fallback/`)
+- [ ] Decision on `balanced` performance on integrated GPUs (lower the pixel ratio / `auto` picks `low` / accept 30 FPS)
+- [ ] Benchmark on the reference device (Iris Xe or M1 class) recorded
+
+| Reviewer | Date | Verdict | Notes |
+| --- | --- | --- | --- |
+| — | — | PENDING | — |
 
 **G2 verdict**: PENDING — a human reviewer must record the verdict after T02.16 and the G2 captures. An agent must not record it.
 
