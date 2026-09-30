@@ -109,7 +109,7 @@ export default function PlayerCard({
               </Chip>
             ) : null}
             {tags.includes('offline') ? (
-              <Chip tone="neutral" className="player-card__tag" icon={<ActionIcon name="offline" size={14} />}>
+              <Chip tone="neutral" className="player-card__tag player-card__tag--offline" icon={<ActionIcon name="offline" size={14} />}>
                 <span className="player-card__tag-text">Mất kết nối</span>
                 {recoverySeconds !== null
                   ? <span className="player-card__tag-countdown">{formatCountdown(recoverySeconds)}</span>

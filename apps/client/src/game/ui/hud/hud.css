@@ -66,7 +66,7 @@
   gap: 10px;
   width: 100%;
   height: 100%;
-  padding: 10px 12px 10px 8px;
+  padding: 10px 10px 10px 8px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background-color: var(--color-surface);
@@ -102,10 +102,11 @@
   white-space: nowrap;
 }
 
-.player-card__tag { flex: 0 1 auto; min-width: 0; overflow: hidden; }
+.player-card__tag { flex: none; }
 .player-card__tag-countdown { display: none; margin-left: 4px; font-variant-numeric: tabular-nums; }
 /* Tags share the name row with the name; compact chips keep "Ban", "Dang di" and "O tu" together on one line. */
-.player-card .ds-chip { padding: 0.1rem 0.4rem; font-size: 0.7rem; }
+.player-card .ds-chip { padding: 0.1rem 0.3rem; font-size: 0.7rem; }
+.player-card__name-row { gap: 4px; }
 
 .player-card__money-row { flex-wrap: wrap; row-gap: 2px; }
 .player-card__money { font: var(--type-money-l); font-variant-numeric: tabular-nums; }
@@ -113,6 +114,8 @@
 .player-card__recovery { display: flex; }
 /* The countdown row takes the footer's place, so the card keeps its three rows. */
 .player-card--recovering .player-card__footer { display: none; }
+/* The countdown row already says the player is away, so the "Mất kết nối" tag steps aside to leave room for the name. */
+.player-card--recovering .player-card__tag--offline { display: none; }
 
 .player-card__footer { gap: 6px; color: var(--color-text-secondary); font: var(--type-caption); }
 .player-card__counts { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
@@ -169,6 +172,11 @@
   /* No room for a third row: the countdown moves into the "Mất kết nối" tag. */
   .player-card__recovery { display: none; }
   .player-card__tag-countdown { display: inline; }
+  .player-card--recovering .player-card__tag--offline { display: inline-flex; }
+  /* ...and its words go too: the icon and the countdown say it, and the avatar carries the offline badge. */
+  .player-card--recovering .player-card__tag--offline .player-card__tag-text { display: none; }
+  /* One status tag fits: a tag with an icon (jail, offline) outranks the text-only ones (Bạn, Đang đi). */
+  .player-card__name-row:has(.player-card__tag:not(.player-card__tag--text)) .player-card__tag--text { display: none; }
 }
 
 /* Phone landscape: money first, the name is shortened and its full text stays in the accessible summary. */
