@@ -128,6 +128,11 @@ function harnessCaptures(options: {
 
 export const GRAPHICS_TIERS = ['low', 'balanced', 'high'] as const;
 
+/** Plan 03 §T03.0: the fixtures the HUD is reviewed with. */
+export const PLAN03_SCENARIOS = [
+  'stations-2', 'stations-4', 'rent', 'balance-gate', 'jail', 'opponent-turn', 'bankrupt', 'reconnect-revealed', 'spectator-revealed',
+] as const;
+
 /** Plan 02 §T02.17: the fixtures every graphics tier is reviewed with. */
 const G2_FIXTURES = ['stations-4', 'board-readability', 'stress', 'hotel', 'rent', 'dice-contact-shadows', 'reduced-motion'] as const;
 
@@ -251,6 +256,14 @@ export const CAPTURES: readonly CaptureEntry[] = [
     surface: 'g2',
     variant: 'legacy',
     noWebglContext: true,
+  }),
+  // Plan 03 T03.0: the HUD as it is before the restructure (v2 tokens, old layout), for before/after review.
+  ...harnessCaptures({
+    plan: '03',
+    folder: 'baseline',
+    scenarios: PLAN03_SCENARIOS,
+    viewports: [VIEWPORTS.laptop, VIEWPORTS.phoneLandscape],
+    surface: 'hud',
   }),
   // Concept screens at the standard viewports (plan 01 T01.10).
   ...labCaptures({ plan: '01', folder: 'concepts', sections: LAB_CONCEPT_SCREENS, viewports: STANDARD_VIEWPORTS, surface: 'concept' }),
