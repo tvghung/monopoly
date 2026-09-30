@@ -427,3 +427,13 @@
   .status-pill__avatar { display: none; }
   .status-pill { padding: 4px 12px; }
 }
+
+/* ---------- Small phone landscape (up to 720 px wide): stack instead of sitting beside the corner cards ---------- */
+
+@media (max-width: 720px) {
+  /* The board leaves no free strip beside the top-left card, so the pill goes under it. */
+  .status-pill { top: calc(var(--hud-inset) + var(--player-card-height) + 6px); left: var(--hud-inset); }
+  .turn-banner { top: calc(var(--hud-inset) + var(--player-card-height) + 44px); left: var(--hud-inset); }
+  /* And the action column goes above the bottom-left card instead of beside it. */
+  .hud-bottom { left: var(--hud-inset); bottom: calc(max(var(--hud-inset), env(safe-area-inset-bottom)) + var(--player-card-local-height) + 6px); }
+}

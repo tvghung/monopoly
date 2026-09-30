@@ -15,7 +15,8 @@
 
 .center__room-toggle {
   position: absolute;
-  top: 50%;
+  /* Under the top-right card and above the right corner of the board, which sits at the vertical middle. */
+  top: calc(var(--hud-inset, 16px) + var(--hud-toolbar-offset, 52px) + var(--player-card-height, 96px) + 16px);
   right: max(0px, env(safe-area-inset-right));
   display: flex;
   flex-direction: column;
@@ -34,7 +35,6 @@
   color: var(--color-text-primary);
   cursor: pointer;
   pointer-events: auto;
-  transform: translateY(-50%);
 }
 
 .center__room-toggle-label {
