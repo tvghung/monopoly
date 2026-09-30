@@ -17,6 +17,7 @@ import {
 import TileMotionProvider from './board/motion/TileMotionProvider';
 import { FrameCounter, shadowMapTypeName, toneMappingName } from './render/diagnostics/rendererInfo';
 import OptionalSceneLayer from './render/OptionalSceneLayer';
+import SceneLightRig from './render/lighting/SceneLightRig';
 import StudioEnvironment from './render/environment/StudioEnvironment';
 import { RenderQualityContext, useRenderQuality } from './render/RenderQualityContext';
 import { probeRenderCapabilities, resolveRenderQuality } from './render/renderQuality';
@@ -340,24 +341,19 @@ export default function GameScene({
         }}
       >
         <RenderQualityContext.Provider value={quality}>
-        <RendererLifecycleGuard onFailure={onRendererFailure} />
-        <color attach="background" args={[boardVisualTokens.sceneBackground]} />
-        <hemisphereLight args={['#fff8e2', '#9fd6c4', 1.8]} />
-        <directionalLight
-          position={[8, 14, 7]}
-          intensity={1.7}
-          color="#fff8e8"
-        />
-        <OptionalSceneLayer name="studio-environment">
-          <StudioEnvironment />
-        </OptionalSceneLayer>
-        <BoardSceneContents
-          model={model}
-          hoveredTileId={hoveredTileId}
-          selectedTileId={selectedTileId}
-          onTileHover={onTileHover}
-          onTileSelect={onTileSelect}
-        />
+          <RendererLifecycleGuard onFailure={onRendererFailure} />
+          <color attach="background" args={[boardVisualTokens.sceneBackground]} />
+          <SceneLightRig />
+          <OptionalSceneLayer name="studio-environment">
+            <StudioEnvironment />
+          </OptionalSceneLayer>
+          <BoardSceneContents
+            model={model}
+            hoveredTileId={hoveredTileId}
+            selectedTileId={selectedTileId}
+            onTileHover={onTileHover}
+            onTileSelect={onTileSelect}
+          />
         </RenderQualityContext.Provider>
       </Canvas>
     </div>
