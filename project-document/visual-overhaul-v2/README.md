@@ -1,6 +1,6 @@
 # Visual Overhaul V2 — "Tabletop Toy Vietnam"
 
-**Status: IN PROGRESS — plan 01 is done (G1 approved 2026-09-30, v2 theme on globally) except the mobile e2e run that needs PostgreSQL. Plan 02 is implemented (T02.0–T02.18); the G2 package is in `evidence/02/g2/` and waits for a human verdict and the reference-device benchmark. Plans 03–05 are not started; 05 needs plan 03. All open decisions were answered by the product owner on 2026-09-30 (§4.1).**
+**Status: IN PROGRESS — plan 01 is done (G1 approved 2026-09-30, v2 theme on globally) and its mobile e2e run now passes (`pnpm test:e2e:mobile`, 2026-10-01). Plan 02 is implemented (T02.0–T02.18); the G2 package is in `evidence/02/g2/` and waits for a human verdict and the reference-device benchmark. Plan 03 is implemented (T03.0–T03.16, reviewed and fixed); the G3 package is in `evidence/03/g3/` and waits for a human verdict and the 5-second test. Plans 04–05 are not started; 05 needs plan 03. All open decisions were answered by the product owner on 2026-09-30 (§4.1).**
 
 - Program created: 2026-09-29
 - Baseline branch / SHA: `codex/v1-production-audio-assets` / `440766a`

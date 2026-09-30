@@ -1,0 +1,19 @@
+{
+  "id": "03-g3/legacy-hud-stations-4-legacy-667x375",
+  "plan": "03",
+  "folder": "g3/legacy",
+  "name": "03-hud-stations-4-legacy",
+  "url": "/?phase4-uat=1&scenario=stations-4&uat-controls=hidden",
+  "viewport": {
+    "width": 667,
+    "height": 375
+  },
+  "kind": "harness",
+  "rendererMode": null,
+  "browser": "chromium 154.0.8037.58",
+  "captureTool": "e2e/visual/capture.visual.ts",
+  "consoleErrors": [],
+  "benchmark": null,
+  "diagnostics": null,
+  "hudOverlap": null
+}

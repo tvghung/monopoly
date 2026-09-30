@@ -1,6 +1,6 @@
 # 01 — Visual Target, Art Direction and Design Tokens V2
 
-**Status: DONE except the mobile e2e run (2026-09-30) — T01.0–T01.13 done; Gate G1 was APPROVED by the product owner on 2026-09-30 (§18). `pnpm test:e2e:mobile` was not run (PostgreSQL and Playwright browsers were not approved for download). Open decisions were answered by the product owner on 2026-09-30 (see the Decisions section).**
+**Status: DONE (2026-09-30) — T01.0–T01.13 done; Gate G1 was APPROVED by the product owner on 2026-09-30 (§18). `pnpm test:e2e:mobile`, first skipped because PostgreSQL and the Playwright browsers were not yet approved, passed on 2026-10-01 (4 tests, mobile-chromium and mobile-webkit, on branch `visual-v2/03-hud`). Open decisions were answered by the product owner on 2026-09-30 (see the Decisions section).**
 
 | Field | Value |
 | --- | --- |

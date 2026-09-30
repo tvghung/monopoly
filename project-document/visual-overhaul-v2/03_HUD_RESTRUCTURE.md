@@ -1,6 +1,6 @@
 # 03 — HUD Restructure
 
-**Status: PLANNED — not started. Open decisions answered by the product owner on 2026-09-30 (see the Decisions section). Requires plan 01 gate G1 (tokens and primitives approved) before production styling.**
+**Status: IMPLEMENTED (T03.0–T03.16) — waiting for the human G3 verdict and the 5-second test (§17). An agent never records the verdict or the test answers. Plan 01 gate G1 was approved by the product owner on 2026-09-30.**
 
 | Field | Value |
 | --- | --- |
@@ -717,12 +717,12 @@ specification in §8 already reflects these choices.
 
 ## 16. Definition of Done
 
-- [ ] T03.0–T03.16 complete and logged in §17.
+- [x] T03.0–T03.16 complete and logged in §17.
 - [ ] G3 verdict recorded by a human; 5-second test results recorded.
-- [ ] Overlap report shows zero overlaps at the standard viewports.
-- [ ] README §9 commands green including `pnpm test:e2e:mobile` and desktop checks.
-- [ ] Draw-call savings recorded here and in plan 02's budget table.
-- [ ] Docs and testcase rows updated (§T03.16).
+- [x] Overlap report shows zero persistent overlaps and zero region overlaps at the standard viewports (transient jail panel: see the known limits in §17).
+- [x] README §9 commands green including `pnpm test:e2e:mobile` and desktop checks. _(Green 2026-10-01: `pnpm typecheck`, `pnpm lint`, `pnpm test` (client 1,003, server 173 + 11 skipped without PostgreSQL, desktop 77), `pnpm build`, desktop typecheck, `pnpm test:e2e:mobile` (4 passed). Not runnable here: `pnpm db:status` (no `DATABASE_URL`; this plan changes no persistence) and `pnpm desktop:package` (no Electron binary was approved for download).)_
+- [x] Draw-call savings recorded here and in plan 02's budget table (169 → 153, −16).
+- [x] Docs and testcase rows updated (§T03.16).
 
 ---
 
@@ -730,11 +730,54 @@ specification in §8 already reflects these choices.
 
 | Date | Task | Commit | Evidence | Result / notes |
 | --- | --- | --- | --- | --- |
-| — | — | — | — | — |
+| 2026-09-30 | T03.0 | f4d26f2 462ff36 40dae64 | `evidence/03/baseline/` | Baseline HUD captures (9 fixtures × 1440×900 and 812×375) before the restructure; harness fixtures `stations-3`, `offline`, `turn-recovery`; the settings-modal e2e scroll check now follows scrollability (plan 02's graphics section made the dialog taller). |
+| 2026-09-30 | T03.1 | 23d3c8e | — | `usePresentationSelector`. `PresentationProvider` now supplies only a stable store / queue context, so it no longer re-renders per presentation tick; `usePresentation()` subscribes per consumer; the static `presentationContext` stays injection-only (tests) and wins over the live store. |
+| 2026-09-30 | T03.2 | b618287 | — | `playerCardSelectors`: seats from `resolvePlayerStationSlots`, displayed money / turn / building counts, district pips, jail, offline + recovery deadline, bankrupt, left. |
+| 2026-09-30 | T03.6 | b40821d | `evidence/03/g3/*.json` | Station name, balance and money labels removed. **Draw calls: `board-readability`, balanced, 1440×900: 169 → 153 main-pass draws (−16); shadow pass 25; triangles 68,932.** Every 4-player HUD fixture shows the same −16 (`balance-gate` 149 → 133, `stations-4` 159 → 143). Recorded in plan 02's budget table (BR-3). |
+| 2026-09-30 | T03.3 T03.4 T03.5 | bacab20 | — | `GameHud`, player cards, animated money counter, delta chips, the single HUD timer (`useTransientList`), icons `jail` / `bankrupt` / `house` / `hotel`; the sr-only `PlayerStations` roster is replaced by `section.player-card-list`. |
+| 2026-09-30 | T03.7 | 695c62a | — | Center stage with the "Đổ xúc xắc" call to action (OD-03-1, OD-03-2), Space shortcut (OD-03-5), status pill; state context carries `roomCode`. |
+| 2026-09-30 | T03.8 T03.9 | 16c12a7 | — | Dice result callout and turn banner; the 3D `DiceResultTotal` is removed (OD-03-7). |
+| 2026-09-30 | T03.10 T03.11 | bdc2f37 | — | Bottom column (context stack + action dock), right-edge activity drawer (closed by default, `own-the-block.hud.drawer.v1`, OD-03-3), ticker, chat bubbles. Idle fade removed. |
+| 2026-09-30 | T03.12 | 36b4198 677119f | — | Toolbar on `IconButton` v2, toasts top-center (max 3), bubbles clear when the drawer opens; the e2e touch-target check tolerates 0.05 px of layout rounding. |
+| 2026-09-30 | T03.14 | a6d93a3 | `evidence/03/g3/*.json` (`hudOverlap`) | Dev / UAT overlap checker (`TileScreenRectsPublisher`, exact convex-quad clipping). Its first run found real overlaps (pill on the Parking corner, dock on the Start corner); the pill, the bottom column and the drawer tab moved. |
+| 2026-09-30 | T03.13 | d196d94 86e977a | `evidence/03/g3/responsive/`, `evidence/03/g3/legacy/` | Compact chips, small-phone stacking (≤ 720 px wide), drawer tab under the top-right card, 667×375 / 1024×768 / legacy captures. |
+| 2026-09-30 | T03.15 | e47dd47, `git log --grep T03.15` | `evidence/03/g3/` (50 captures + README) | The G3 package. See its README for the checklist mapping and the 5-second test script. |
+| 2026-09-30 | T03.16 | c781136 | — | AS-IS docs (`Client/game-board`, `activity-log-and-chat`, `turn-actions`, `game-status`, `Client/README`), testcase rows and supersession notes in the Phase 4 document. |
+| 2026-10-01 | Review | b59b014 af0906d | — | 46-agent adversarial review (presentation gating, accessibility, tests, performance, spec conformance; every finding verified). Fixed: fractional-lifetime timer bug (entries could stay on screen forever at 0.75x / 1.5x speed); chat no longer gated by the presentation queue; turn changes spoken once; Space ignored inside the drawer; stale chat draft; unread count exposed to assistive technology; bankrupt / left player still named in the pill; at most two tags beside the name; recovery countdown layout; phone icon badges; pulse only on a live turn change; chip pop follows the speed; 56 px avatar; railroads / utilities in the summary; `role="list"`; CTA pop and ticker fade-out; `Log` on `usePresentationSelector`; e2e touch-target checks for the tab, dock and CTA; reduced-motion CSS contract test. **The G3 captures also showed that at 812×375 and 667×375 the jail panel covered the roll button; it is now a compact strip (and sits between the two bottom cards up to 720 px wide), and the capture tool reports `regionOverlaps`.** |
 
-**5-second test** (fill in): participant, question, answer, correct?
+**Checks** (2026-10-01, this branch): `pnpm typecheck`, `pnpm lint`, `pnpm --filter @monopoly/client test` (1,003 tests) green; `pnpm test:e2e:mobile` 4 passed (mobile-chromium and mobile-webkit, two tests each) including the new 44 px checks; the G3 capture run (50 captures, zero console errors) reports zero persistent HUD overlaps and zero region overlaps. See §16 for the remaining checks.
 
-**G3 verdict**: PENDING — reviewer, date, notes.
+**Changed assertions** (only where §8 changes the contract; each is also in its commit message): `sdfTextConfig.test.ts` (station layer no longer contains `SdfBillboardText` / `PlayerStationName` / `Balance` / `Amount`; `DiceLayer` no longer contains `DiceResultTotal`); `stationWorld.test.ts` (removed helper); `Board.test.tsx` (roster is `section.player-card-list` > `ol`; the button is "Đổ xúc xắc" in 13 places, "Đang đổ…" while pending); `Log.test.tsx` (the five idle-fade tests became drawer tests; "opens by default" became "counts only new other-player chat while closed"); `PlayerCardList.test.tsx` ("Ở tù 1/2"); `mobile-host.spec.ts` (exact button name, chat steps open the drawer first, drawer preference cleared in setup); `JailPanel` hint copy.
+
+**Deviations and decisions taken while implementing** (none changes gameplay, protocol or persistence):
+
+- **Placement (§8.1).** The status pill sits after the top-left card, the bottom column after the bottom-left card, and the drawer tab under the top-right card instead of at the top / bottom center and the right edge: the overlap checker showed that the board's Parking and Start corners project there. Up to 720 px wide the pill stacks under the top-left card and the bottom column above the bottom-left card.
+- **Center stage.** The call to action sits 64 px right and 6 px below the board center (40 / 24 px on compact / phone cards) so it clears the bank tray and the settled dice; the dice callout keeps its own offset. The dice arena constants stay (they still size the logical arena; camera fit is untouched).
+- **Card tags.** At most two status tags beside the name (priority: Mất kết nối > Ở tù > Đang đi > Bạn); the rest live in the screen-reader summary. Phone cards keep icon badges for jail and offline only; whose turn it is stays readable as text in the status pill.
+- **Avatar** is 56 px on desktop as specified (an interim 52 px was reverted after review).
+- **Not implemented, on purpose:** a 320 px drawer for Desktop M and a 420 px ticker cap for compact (§8.10 contradicts §8.8; one drawer rule `min(360px, 40vw)` applies above 960 px); a help text for the Space shortcut (the client has no help or shortcut screen; `aria-keyshortcuts="Space"` is the only disclosure).
+- **Known limits, for the G3 reviewer.** (1) While a player is in jail the jail panel is a *transient* region that can cover 5 to 15 tiles near Start depending on the viewport (it never covers the roll button); plan 04 restyles the panel and should compact it. (2) On the legacy (no WebGL) board the HUD cards overlap the legacy corner tiles; the legacy board is a fallback and was not re-laid out. (3) High-tier text is slightly lighter (plan 02 finding).
+
+**5-second test** (fill in — human only): show each participant a mid-game screenshot from `evidence/03/g3/` (for example `03-hud-stations-4-1440x900.png`) for five seconds, hide it, and ask the two questions. Target: 3 of 3 answer both correctly (§5.3).
+
+| Participant | Screenshot | "Whose turn is it?" | "Who has the most money?" | Correct? |
+| --- | --- | --- | --- | --- |
+| 1 | | | | |
+| 2 | | | | |
+| 3 | | | | |
+
+**G3 checklist** (tick only after looking; see `evidence/03/g3/README.md` for where to look):
+
+- [ ] Every seated player's name and money are visible in every game-state capture, in WebGL and legacy.
+- [ ] Turn change is visible at a glance (gold ring, "Đang đi" tag, status pill).
+- [ ] No persistent HUD element covers a tile (`hudOverlap.findings` empty in every sidecar); the transient jail panel is acceptable or needs work in plan 04.
+- [ ] The call to action is easy to find and does not fight the dice or the bank tray (jail, rent, stations captures).
+- [ ] Phone landscape (812×375 and 667×375) is usable: nothing important is hidden, targets are comfortable.
+- [ ] Reduced-motion capture shows the same information without motion.
+- [ ] Legacy fallback (no WebGL) is acceptable for a fallback.
+- [ ] The 5-second test above passed with 3 of 3.
+
+**G3 verdict**: PENDING — reviewer, date, notes. (Human only: an agent never records this.)
 
 ---
 
