@@ -16,11 +16,12 @@ import {
 } from './board/architecture/sceneBudget';
 import TileMotionProvider from './board/motion/TileMotionProvider';
 import { FrameCounter, shadowMapTypeName, toneMappingName } from './render/diagnostics/rendererInfo';
+import OptionalSceneLayer from './render/OptionalSceneLayer';
+import StudioEnvironment from './render/environment/StudioEnvironment';
 import { RenderQualityContext, useRenderQuality } from './render/RenderQualityContext';
 import { probeRenderCapabilities, resolveRenderQuality } from './render/renderQuality';
 import { SCENE_TONE_MAPPING, SCENE_TONE_MAPPING_EXPOSURE, parseToneMappingOverride } from './render/toneMapping';
 import { useSettings } from '../../settings/selectors';
-import CoinMaterialEnvironment from './stations/CoinMaterialEnvironment';
 import {
   COIN_FINISH_MATERIALS,
   COIN_FINISH_ORDER,
@@ -347,7 +348,9 @@ export default function GameScene({
           intensity={1.7}
           color="#fff8e8"
         />
-        <CoinMaterialEnvironment />
+        <OptionalSceneLayer name="studio-environment">
+          <StudioEnvironment />
+        </OptionalSceneLayer>
         <BoardSceneContents
           model={model}
           hoveredTileId={hoveredTileId}
