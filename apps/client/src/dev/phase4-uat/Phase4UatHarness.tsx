@@ -81,6 +81,45 @@ const scenarios = [
 ] as const;
 
 type ScenarioKey = typeof scenarios[number][0];
+
+const DEFAULT_SCENARIO: ScenarioKey = 'stations-4';
+const STATIC_SCENARIOS: readonly ScenarioKey[] = [
+  'stations-2', 'stations-4', 'coin-materials', 'bankrupt', 'spectator-awaiting', 'spectator-revealed',
+  'board-readability',
+];
+
+export function isScenarioKey(value: string | null): value is ScenarioKey {
+  return value !== null && scenarios.some(([key]) => key === value);
+}
+
+export interface HarnessUrlParams {
+  scenario: ScenarioKey;
+  controlsCollapsed: boolean;
+  cardGallery: boolean;
+}
+
+/**
+ * Reads the dev-only harness URL contract: `scenario=<key>` (unknown keys fall back to the
+ * default), `uat-controls=collapsed` and `card-gallery=1`.
+ */
+export function readHarnessUrlParams(search: string): HarnessUrlParams {
+  const params = new URLSearchParams(search);
+  const scenario = params.get('scenario');
+  return {
+    scenario: isScenarioKey(scenario) ? scenario : DEFAULT_SCENARIO,
+    controlsCollapsed: params.get('uat-controls') === 'collapsed',
+    cardGallery: params.get('card-gallery') === '1',
+  };
+}
+
+function initialHarnessUrlParams(): HarnessUrlParams {
+  return readHarnessUrlParams(typeof window === 'undefined' ? '' : window.location.search);
+}
+
+function isReducedMotionScenario(key: ScenarioKey): boolean {
+  return key === 'reduced-motion' || key === 'construction-reduced';
+}
+
 type SemanticWithoutIdentity<T> = T extends GameplaySemanticEvent
   ? Omit<T, 'eventId' | 'sequence'>
   : never;
@@ -317,25 +356,44 @@ function Phase4UatSurface() {
     getPresentationSnapshot,
     getPresentationSnapshot,
   );
-  const [scenario, setScenario] = useState<ScenarioKey>('stations-4');
-  const [room, setRoom] = useState(() => createRoom(4, 1));
-  const [viewer, setViewer] = useState<{ playerId: string | null; role: RoomRole }>({
-    playerId: 'player-a', role: 'PLAYER',
+  const [initialParams] = useState(initialHarnessUrlParams);
+  const [initialSetup] = useState(() => {
+    const initialRoom = createRoom(initialParams.scenario === 'stations-2' ? 2 : 4, 1);
+    return { room: initialRoom, viewer: configureBaseline(initialRoom, initialParams.scenario) };
   });
+  const [scenario, setScenario] = useState<ScenarioKey>(initialParams.scenario);
+  const [room, setRoom] = useState(initialSetup.room);
+  const [viewer, setViewer] = useState<{ playerId: string | null; role: RoomRole }>(initialSetup.viewer);
   const [rendererMetrics, setRendererMetrics] = useState<Record<string, unknown> | null>(null);
   const [destinationPreviewDiagnostics, setDestinationPreviewDiagnostics] = useState<Record<string, unknown> | null>(null);
-  const [controlsCollapsed, setControlsCollapsed] = useState(false);
+  const [controlsCollapsed, setControlsCollapsed] = useState(initialParams.controlsCollapsed);
+  const [pendingTimers, setPendingTimers] = useState(0);
+  const [runId, setRunId] = useState(0);
+  const [readyRunId, setReadyRunId] = useState(-1);
   const traceRef = useRef<{
     scenario: ScenarioKey;
     steps: string[];
     previewBeforeWalk: boolean;
     previewBeforeLand: boolean;
-  }>({ scenario: 'stations-4', steps: [], previewBeforeWalk: false, previewBeforeLand: false });
+  }>({
+    scenario: initialParams.scenario, steps: [], previewBeforeWalk: false, previewBeforeLand: false,
+  });
   const runNumberRef = useRef(1);
   const roomRef = useRef(room);
   const scenarioRef = useRef(scenario);
   const timersRef = useRef<number[]>([]);
   const { settings, updateSettings } = useSettings();
+
+  // `data-uat-ready` marks a settled scenario: every scheduled step has fired, the presentation
+  // queue is idle, and that state held for a short debounce. It resets on every replay so
+  // capture tooling can wait on it even when the controls (and their metrics output) are collapsed.
+  const settledNow = pendingTimers === 0 && presentationState.status === 'idle';
+  useEffect(() => {
+    if (!settledNow) return undefined;
+    const timer = window.setTimeout(() => setReadyRunId(runId), 250);
+    return () => window.clearTimeout(timer);
+  }, [runId, settledNow]);
+  const uatReady = settledNow && readyRunId === runId;
 
   useEffect(() => {
     if (traceRef.current.scenario !== scenario) {
@@ -375,9 +433,16 @@ function Phase4UatSurface() {
   const clearTimers = useCallback(() => {
     timersRef.current.forEach(timer => window.clearTimeout(timer));
     timersRef.current = [];
+    setPendingTimers(0);
   }, []);
   const schedule = useCallback((callback: () => void, delayMs: number) => {
-    timersRef.current.push(window.setTimeout(callback, delayMs));
+    setPendingTimers(count => count + 1);
+    const timer = window.setTimeout(() => {
+      timersRef.current = timersRef.current.filter(candidate => candidate !== timer);
+      callback();
+      setPendingTimers(count => Math.max(0, count - 1));
+    }, delayMs);
+    timersRef.current.push(timer);
   }, []);
   const commit = useCallback((mutate: (next: PublicRoomState) => void, source: 'LIVE_UPDATE' | 'SESSION_SYNC' = 'LIVE_UPDATE') => {
     const next = cloneRoom(roomRef.current);
@@ -637,17 +702,15 @@ function Phase4UatSurface() {
     scenarioRef.current = key;
     setScenario(key);
     runNumberRef.current += 1;
+    setRunId(id => id + 1);
     const nextRoom = createRoom(key === 'stations-2' ? 2 : 4, runNumberRef.current);
     const nextViewer = configureBaseline(nextRoom, key);
     roomRef.current = nextRoom;
     setRoom(nextRoom);
     setViewer(nextViewer);
-    updateSettings({ reducedMotion: key === 'reduced-motion' || key === 'construction-reduced' });
+    updateSettings({ reducedMotion: isReducedMotionScenario(key) });
     controller.acceptRoomSnapshot(nextRoom, 'SESSION_SYNC');
-    if (![
-      'stations-2', 'stations-4', 'coin-materials', 'bankrupt', 'spectator-awaiting', 'spectator-revealed',
-      'board-readability',
-    ].includes(key)) schedule(() => applyAnimatedScenario(key), 180);
+    if (!STATIC_SCENARIOS.includes(key)) schedule(() => applyAnimatedScenario(key), 180);
   }, [applyAnimatedScenario, clearTimers, controller, schedule, updateSettings]);
   const runNextScenario = useCallback(() => {
     const currentIndex = scenarios.findIndex(([key]) => key === scenarioRef.current);
@@ -718,6 +781,8 @@ function Phase4UatSurface() {
 
   useEffect(() => {
     controller.acceptRoomSnapshot(roomRef.current, 'SESSION_SYNC');
+    const initialKey = scenarioRef.current;
+    if (!STATIC_SCENARIOS.includes(initialKey)) schedule(() => applyAnimatedScenario(initialKey), 180);
     const onMetrics = (event: Event) => {
       setRendererMetrics((event as CustomEvent<Record<string, unknown>>).detail);
     };
@@ -731,7 +796,7 @@ function Phase4UatSurface() {
       window.removeEventListener('own-the-block-renderer', onMetrics);
       window.removeEventListener('own-the-block-destination-preview', onDestinationPreview);
     };
-  }, [clearTimers, controller]);
+  }, [applyAnimatedScenario, clearTimers, controller, schedule]);
 
   const contextValue = useMemo(() => ({
     state: room.gameState,
@@ -751,7 +816,7 @@ function Phase4UatSurface() {
   return (
     <PresentationProvider controller={controller}>
       <stateContext.Provider value={contextValue}>
-        <main className="phase4-uat" data-scenario={scenario}>
+        <main className="phase4-uat" data-scenario={scenario} data-uat-ready={uatReady ? 'true' : 'false'}>
           <aside
             className={`phase4-uat__controls${controlsCollapsed ? ' phase4-uat__controls--collapsed' : ''}`}
             aria-label="Điều khiển UAT Phase 4"
@@ -831,11 +896,16 @@ function Phase4UatSurface() {
 }
 
 export default function Phase4UatHarness() {
-  const gallery = typeof window !== 'undefined'
-    && new URLSearchParams(window.location.search).get('card-gallery') === '1';
+  const [params] = useState(initialHarnessUrlParams);
   return (
-    <SettingsProvider initialSettings={{ ...DEFAULT_GAME_SETTINGS, masterVolume: 0 }}>
-      {gallery ? <CardArtworkGallery /> : <Phase4UatSurface />}
+    <SettingsProvider
+      initialSettings={{
+        ...DEFAULT_GAME_SETTINGS,
+        masterVolume: 0,
+        reducedMotion: isReducedMotionScenario(params.scenario),
+      }}
+    >
+      {params.cardGallery ? <CardArtworkGallery /> : <Phase4UatSurface />}
     </SettingsProvider>
   );
 }
