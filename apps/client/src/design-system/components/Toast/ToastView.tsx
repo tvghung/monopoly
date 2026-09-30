@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useEffectiveReducedMotion } from '../../../settings/selectors';
+import { motionEase, motionTokens } from '../../motion/motionTokens';
 import './ToastView.css';
 
 interface ToastViewProps {
@@ -16,7 +17,7 @@ export default function ToastView({ message, variant }: ToastViewProps) {
       initial={reduced ? false : { opacity: 0, scale: 0.9 }}
       animate={reduced ? {} : { opacity: 1, scale: 1 }}
       exit={reduced ? {} : { opacity: 0, scale: 0.9 }}
-      transition={{ duration: reduced ? 0 : 0.18, ease: 'easeOut' }}
+      transition={{ duration: reduced ? 0 : motionTokens.toastEnter, ease: motionEase.out }}
     >
       {message}
     </motion.div>

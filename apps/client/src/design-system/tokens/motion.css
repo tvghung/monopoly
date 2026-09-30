@@ -1,15 +1,51 @@
 :root {
+  /* Visual Overhaul V2 motion tokens (plan 01 §8.9); design-system/motion/motionTokens.ts mirrors them. */
+  --motion-duration-micro: 120ms;
+  --motion-duration-ui: 200ms;
+  --motion-duration-panel: 280ms;
+  --motion-duration-emphasis: 480ms;
+  --motion-duration-celebration: 900ms;
+  --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Legacy names, still used by existing components. */
   --motion-fast: 120ms;
   --motion-normal: 200ms;
   --motion-slow: 320ms;
   --motion-ease: cubic-bezier(0.2, 0.75, 0.25, 1);
 }
 
+:root[data-visual-theme='v2'] {
+  --motion-fast: var(--motion-duration-micro);
+  --motion-normal: var(--motion-duration-ui);
+  --motion-slow: var(--motion-duration-panel);
+  --motion-ease: var(--motion-ease-out);
+}
+
+/*
+ * Reduced motion has two sources: the OS media query, and the in-game "Giảm chuyển động" setting,
+ * which ReducedMotionDocumentSync mirrors onto <html data-reduced-motion>. Both zero every duration.
+ */
 @media (prefers-reduced-motion: reduce) {
   :root {
+    --motion-duration-micro: 0ms;
+    --motion-duration-ui: 0ms;
+    --motion-duration-panel: 0ms;
+    --motion-duration-emphasis: 0ms;
+    --motion-duration-celebration: 0ms;
     --motion-fast: 0ms;
     --motion-normal: 0ms;
     --motion-slow: 0ms;
   }
 }
 
+:root[data-reduced-motion='true'] {
+  --motion-duration-micro: 0ms;
+  --motion-duration-ui: 0ms;
+  --motion-duration-panel: 0ms;
+  --motion-duration-emphasis: 0ms;
+  --motion-duration-celebration: 0ms;
+  --motion-fast: 0ms;
+  --motion-normal: 0ms;
+  --motion-slow: 0ms;
+}

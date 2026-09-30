@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useEffectiveReducedMotion } from '../../../settings/selectors';
+import { motionEase, motionTokens } from '../../motion/motionTokens';
 import './Modal.css';
 
 interface ModalProps {
@@ -99,7 +100,7 @@ export default function Modal({
         tabIndex={-1}
         initial={reduced ? false : { opacity: 0, y: 12, scale: 0.96 }}
         animate={reduced ? {} : { opacity: 1, y: 0, scale: 1 }}
-        transition={reduced ? { duration: 0 } : { duration: 0.2, ease: 'easeOut' }}
+        transition={reduced ? { duration: 0 } : { duration: motionTokens.modalEnter, ease: motionEase.out }}
       >
         <header className="ds-modal__header">
           <h2 id={titleId} className="ds-modal__title">{title}</h2>
