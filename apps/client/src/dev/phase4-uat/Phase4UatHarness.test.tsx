@@ -30,6 +30,8 @@ describe('readHarnessUrlParams', () => {
   it('reads the controls and gallery switches', () => {
     expect(readHarnessUrlParams('?uat-controls=collapsed').controlsCollapsed).toBe(true);
     expect(readHarnessUrlParams('?uat-controls=open').controlsCollapsed).toBe(false);
+    expect(readHarnessUrlParams('?uat-controls=hidden').controlsHidden).toBe(true);
+    expect(readHarnessUrlParams('?uat-controls=collapsed').controlsHidden).toBe(false);
     expect(readHarnessUrlParams('?card-gallery=1').cardGallery).toBe(true);
     expect(readHarnessUrlParams('').cardGallery).toBe(false);
   });
@@ -51,6 +53,13 @@ describe('Phase4UatHarness URL contract', () => {
     openHarness('?phase4-uat=1&uat-controls=collapsed');
     expect(screen.queryByLabelText('Kịch bản')).toBeNull();
     expect(screen.getByRole('button', { name: 'Mở điều khiển UAT' })).toBeTruthy();
+  });
+
+  it('removes the controls entirely when hidden', () => {
+    const { container } = openHarness('?phase4-uat=1&uat-controls=hidden');
+    expect(screen.queryByLabelText('Kịch bản')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mở điều khiển UAT' })).toBeNull();
+    expect(harnessMain(container).dataset.scenario).toBe('stations-4');
   });
 
   it('marks a static scenario ready and keeps the marker with collapsed controls', async () => {

@@ -95,12 +95,14 @@ export function isScenarioKey(value: string | null): value is ScenarioKey {
 export interface HarnessUrlParams {
   scenario: ScenarioKey;
   controlsCollapsed: boolean;
+  /** Removes the controls entirely; used by evidence captures so no dev chrome lands in screenshots. */
+  controlsHidden: boolean;
   cardGallery: boolean;
 }
 
 /**
  * Reads the dev-only harness URL contract: `scenario=<key>` (unknown keys fall back to the
- * default), `uat-controls=collapsed` and `card-gallery=1`.
+ * default), `uat-controls=collapsed|hidden` and `card-gallery=1`.
  */
 export function readHarnessUrlParams(search: string): HarnessUrlParams {
   const params = new URLSearchParams(search);
@@ -108,6 +110,7 @@ export function readHarnessUrlParams(search: string): HarnessUrlParams {
   return {
     scenario: isScenarioKey(scenario) ? scenario : DEFAULT_SCENARIO,
     controlsCollapsed: params.get('uat-controls') === 'collapsed',
+    controlsHidden: params.get('uat-controls') === 'hidden',
     cardGallery: params.get('card-gallery') === '1',
   };
 }
@@ -817,7 +820,7 @@ function Phase4UatSurface() {
     <PresentationProvider controller={controller}>
       <stateContext.Provider value={contextValue}>
         <main className="phase4-uat" data-scenario={scenario} data-uat-ready={uatReady ? 'true' : 'false'}>
-          <aside
+          {initialParams.controlsHidden ? null : <aside
             className={`phase4-uat__controls${controlsCollapsed ? ' phase4-uat__controls--collapsed' : ''}`}
             aria-label="Điều khiển UAT Phase 4"
           >
@@ -886,7 +889,7 @@ function Phase4UatSurface() {
                 {`draw ${String(rendererMetrics.drawCalls)} · tri ${String(rendererMetrics.triangles)} · combined ${String(rendererMetrics.combinedDrawCalls ?? rendererMetrics.drawCalls)} / ${String(rendererMetrics.combinedTriangles ?? rendererMetrics.triangles)} · active ${String(rendererMetrics.activeAnimatedObjects)}`}
                 </output>
             ) : null}</> : null}
-          </aside>
+          </aside>}
           <Board />
           </main>
           <CardInteractionOverlay />
