@@ -32,6 +32,9 @@ importers:
 
   apps/client:
     dependencies:
+      '@fontsource/baloo-2':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource/be-vietnam-pro':
         specifier: ^5.3.0
         version: 5.3.0
@@ -657,6 +660,9 @@ packages:
       '@noble/hashes':
         optional: true
 
+  '@fontsource/baloo-2@5.3.0':
+    resolution: {integrity: sha512-CBuxZ27jvMmD5+KaaPkMWv/yjdRNppVAd5/002yAyvyQyLNL3aZCbkx6gbAT/bjxPd1A0VMdDQjfcELI8chccQ==}
+
   '@fontsource/be-vietnam-pro@5.3.0':
     resolution: {integrity: sha512-xhAQBGHDxP5BF8IJxedy5MoWUmc1DlPCcZbMLhvnPkf8TaYCbbUVs3LjpuJ4BYdTrdiCLaewNaY8z+owq/FqFw==}
 
@@ -1223,6 +1229,7 @@ packages:
   '@xmldom/xmldom@0.9.11':
     resolution: {integrity: sha512-tW8bcK3hsG0/uqSnNz6TK4BkcuZSezoU7DlnYssILmZDktPnSHHuDJJFM0AJv+13gz2r0iGdrj6qqKeUnxXEDg==}
     engines: {node: '>=14.6'}
+    deprecated: this version has critical issues, please update to the latest version
 
   '@xtuc/ieee754@1.2.0':
     resolution: {integrity: sha512-DX8nKgqcGwsc0eJSqYt5lwP4DH5FlHnmuWWBRy7X0NcaGR0ZtuyeESgMwTYVEtxmsNGY+qit4QYT/MIYTOTPeA==}
@@ -4632,6 +4639,8 @@ snapshots:
 
   '@exodus/bytes@1.15.1':
     optional: true
+
+  '@fontsource/baloo-2@5.3.0': {}
 
   '@fontsource/be-vietnam-pro@5.3.0': {}
 

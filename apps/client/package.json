@@ -17,6 +17,7 @@
     "test:watch": "vitest --environment jsdom --pool=vmThreads"
   },
   "dependencies": {
+    "@fontsource/baloo-2": "^5.3.0",
     "@fontsource/be-vietnam-pro": "^5.3.0",
     "@monopoly/shared": "workspace:*",
     "@react-three/fiber": "^9.6.1",
