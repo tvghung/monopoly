@@ -118,7 +118,8 @@ describe('SDF surface text contract', () => {
     expect(stations).not.toContain('PlayerStationName');
     expect(stations).not.toContain('PlayerStationBalance');
     expect(stations).not.toContain('PlayerStationAmount');
-    expect(readSource('../../dice/DiceLayer.tsx')).toContain('name="DiceResultTotal"');
+    // Plan 03 T03.8 (OD-03-7): the dice total is a DOM callout now, not 3D text.
+    expect(readSource('../../dice/DiceLayer.tsx')).not.toContain('DiceResultTotal');
     const cards = readSource('../../cards/PhysicalCardDecks.tsx');
     expect(cards).toContain('function IdleDeckStack');
     expect(cards).not.toContain('ActivePhysicalCard');

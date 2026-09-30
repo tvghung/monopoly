@@ -2,14 +2,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { DiceValue } from '@monopoly/shared';
-import { boardVisualTokens } from '../board/boardVisualTokens';
 import { getBoardMaterialProps } from '../board/materials/boardMaterialSpecs';
-import SdfSurfaceText from '../board/tiles/SdfSurfaceText';
 import type { DiceRenderModel } from '../board/boardRenderModel';
-import {
-  getDicePosition,
-  getDiceResultPosition,
-} from './diceLayout';
+import { getDicePosition } from './diceLayout';
 import {
   createDiceBodyGeometry,
   getDicePipCylinderQuaternion,
@@ -32,7 +27,6 @@ import {
   DICE_PIP_POLYGON_OFFSET_UNITS,
   DICE_PIP_SEGMENTS,
   DICE_PIP_RADIUS,
-  DICE_RESULT_FONT_SIZE,
 } from './diceVisualConfig';
 import DiceContactShadowBatch from './DiceContactShadowBatch';
 import { DiceAnimationClock, useDiceAnimationProgressRef } from './diceAnimationClock';
@@ -146,7 +140,6 @@ function Die({
 
 export default function DiceLayer({ model }: { model: DiceRenderModel }) {
   const hasVisibleDice = model.phase !== 'HIDDEN' && isValidDiceValue(model.dice);
-  const resultPosition = getDiceResultPosition();
 
   return (
     <group
@@ -178,18 +171,6 @@ export default function DiceLayer({ model }: { model: DiceRenderModel }) {
               rollSequence={model.rollSequence}
               fromValue={model.fromDice?.dice2}
             />
-            {model.phase === 'SETTLED'
-              ? (
-                <SdfSurfaceText
-                  name="DiceResultTotal"
-                  value={String(model.dice.dice1 + model.dice.dice2)}
-                  position={resultPosition}
-                  fontSize={DICE_RESULT_FONT_SIZE}
-                  maxWidth={0.9}
-                  color={boardVisualTokens.tileText}
-                />
-              )
-              : null}
           </DiceAnimationClock>
         )
         : null}

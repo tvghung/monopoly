@@ -239,3 +239,104 @@
   .center-stage .game-board__roll-button { min-width: 180px; min-height: 52px; font: var(--type-label); }
   .center-stage__pill { padding: 4px 12px 4px 6px; font: var(--type-caption); }
 }
+
+/* ---------- Dice result callout ---------- */
+
+.dice-callout {
+  position: absolute;
+  top: calc(50% - 104px + var(--hud-center-offset-y, 0px));
+  left: calc(50% + 176px);
+  z-index: var(--z-hud-center);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
+  transform-origin: left center;
+  animation: dice-callout-in calc(var(--motion-duration-emphasis) / var(--hud-speed)) var(--motion-ease-out) both;
+  pointer-events: none;
+}
+
+.dice-callout__sum { display: inline-flex; align-items: center; gap: 6px; }
+.dice-callout__plus { font: var(--type-label); color: var(--color-text-secondary); }
+.dice-callout__die {
+  display: inline-grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  gap: 1px;
+  width: 30px;
+  height: 30px;
+  padding: 4px;
+  border: 2px solid var(--color-text-primary);
+  border-radius: 8px;
+  background: #fff;
+}
+.dice-callout__pip { border-radius: 50%; }
+.dice-callout__pip--on { background: var(--color-text-primary); }
+.dice-callout__total { font: var(--type-display); font-variant-numeric: tabular-nums; }
+
+@keyframes dice-callout-in {
+  from { opacity: 0; transform: translateX(-12px) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Turn banner ---------- */
+
+.turn-banner {
+  position: absolute;
+  top: calc(var(--hud-inset) + 52px);
+  left: 50%;
+  z-index: var(--z-hud-banner);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 22px 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
+  animation: turn-banner calc(1460ms / var(--hud-speed)) var(--motion-ease-in-out) both;
+  pointer-events: none;
+}
+
+.turn-banner--mine { border: 2px solid var(--color-turn-active); box-shadow: 0 0 0 4px rgb(242 182 50 / 30%), var(--elevation-2); }
+.turn-banner__text { font: var(--type-title-s); white-space: nowrap; }
+
+/* Enter 280 ms, hold 900 ms, exit 280 ms of a 1460 ms cycle. */
+@keyframes turn-banner {
+  0% { opacity: 0; transform: translate(-50%, -14px); }
+  19% { opacity: 1; transform: translate(-50%, 0); }
+  81% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -8px); }
+}
+
+/* Reduced motion: fades only, nothing slides or scales. */
+@keyframes turn-banner-fade {
+  0% { opacity: 0; transform: translateX(-50%); }
+  19% { opacity: 1; transform: translateX(-50%); }
+  81% { opacity: 1; transform: translateX(-50%); }
+  100% { opacity: 0; transform: translateX(-50%); }
+}
+@keyframes dice-callout-fade { from { opacity: 0; } to { opacity: 1; } }
+:root[data-reduced-motion='true'] .turn-banner { animation-name: turn-banner-fade; }
+:root[data-reduced-motion='true'] .dice-callout { animation: dice-callout-fade 120ms linear both; }
+@media (prefers-reduced-motion: reduce) {
+  .turn-banner { animation-name: turn-banner-fade; }
+  .dice-callout { animation: dice-callout-fade 120ms linear both; }
+}
+
+@media (max-width: 1279px), (max-height: 719px) {
+  .dice-callout { left: calc(50% + 150px); top: calc(50% - 90px + var(--hud-center-offset-y, 0px)); }
+  .dice-callout__total { font: var(--type-title-l); }
+}
+
+@media (max-height: 500px) {
+  .turn-banner { top: calc(var(--hud-inset) + 44px); padding: 4px 16px 4px 6px; }
+  .turn-banner__text { font: var(--type-label); }
+  .dice-callout { left: calc(50% + 120px); top: calc(50% - 70px + var(--hud-center-offset-y, 0px)); padding: 4px 10px; gap: 8px; }
+  .dice-callout__total { font: var(--type-title-m); }
+}
