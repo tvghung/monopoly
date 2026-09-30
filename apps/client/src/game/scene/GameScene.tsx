@@ -1,5 +1,5 @@
-import { Canvas, useThree } from '@react-three/fiber';
-import { useEffect } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import Board3D from './board/Board3D';
 import type { BoardRenderModel } from './board/boardRenderModel';
@@ -15,6 +15,7 @@ import {
   getTileTextureAnisotropy,
 } from './board/architecture/sceneBudget';
 import TileMotionProvider from './board/motion/TileMotionProvider';
+import { FrameCounter, shadowMapTypeName, toneMappingName } from './render/diagnostics/rendererInfo';
 import CoinMaterialEnvironment from './stations/CoinMaterialEnvironment';
 import {
   COIN_FINISH_MATERIALS,
@@ -51,6 +52,15 @@ export function RendererLifecycleGuard({ onFailure }: { onFailure?: (error: Erro
   return null;
 }
 
+/** Diagnostics only run on localhost or in the UAT harness; production pages pay nothing. */
+function isLocalDiagnosticsEnabled(): boolean {
+  return window.location.hostname === '127.0.0.1'
+    || window.location.hostname === 'localhost'
+    || new URLSearchParams(window.location.search).get('phase4-uat') === '1';
+}
+
+const DIAGNOSTICS_DEBOUNCE_MS = 120;
+
 function RendererDiagnostics({
   activityKey,
   activeAnimatedObjects,
@@ -74,17 +84,35 @@ function RendererDiagnostics({
   const width = useThree(state => state.size.width);
   const height = useThree(state => state.size.height);
   const invalidate = useThree(state => state.invalidate);
+  const counterRef = useRef<FrameCounter | null>(null);
 
   useEffect(() => {
-    const localDiagnostics = window.location.hostname === '127.0.0.1'
-      || window.location.hostname === 'localhost'
-      || new URLSearchParams(window.location.search).get('phase4-uat') === '1';
-    if (!localDiagnostics) {
+    if (!isLocalDiagnosticsEnabled()) return undefined;
+    const counter = new FrameCounter(gl, scene);
+    counterRef.current = counter;
+    return () => {
+      counter.dispose();
+      counterRef.current = null;
+    };
+  }, [gl, scene]);
+  // Resets gl.info before each frame, so the counts always describe the last complete frame.
+  useFrame(() => counterRef.current?.beginFrame(), -1000);
+
+  useEffect(() => {
+    if (!isLocalDiagnosticsEnabled()) {
       return undefined;
     }
     let firstFrame = 0;
     let measurementFrame = 0;
+    let debounce = 0;
     const publish = () => {
+      const counter = counterRef.current;
+      if (!counter || counter.stats.frameSequence === 0) {
+        // No frame has been rendered with the counter yet; the subscription publishes after the first one.
+        invalidate();
+        return;
+      }
+      const stats = counter.stats;
       const drawingBufferSize = gl.getDrawingBufferSize(new THREE.Vector2());
       const destinationPreviewDiagnostics = window.__OWN_THE_BLOCK_DESTINATION_PREVIEW_DIAGNOSTICS__ ?? {};
       const sceneObjects: THREE.Object3D[] = [];
@@ -105,13 +133,24 @@ function RendererDiagnostics({
         drawingBuffer: { width: drawingBufferSize.x, height: drawingBufferSize.y },
         camera: 'orthographic',
         cameraPosition: camera.position.toArray(),
-        toneMapping: 'ACESFilmicToneMapping',
-        shadows: 'contact',
+        toneMapping: toneMappingName(gl.toneMapping),
+        toneMappingExposure: gl.toneMappingExposure,
+        shadows: {
+          enabled: gl.shadowMap.enabled,
+          type: gl.shadowMap.enabled ? shadowMapTypeName(gl.shadowMap.type) : 'none',
+        },
+        environment: Boolean(scene.environment),
+        frameSequence: stats.frameSequence,
+        mainDrawCalls: stats.mainDrawCalls,
+        shadowDrawCalls: stats.shadowDrawCalls,
+        postDrawCalls: stats.postDrawCalls,
+        postPasses: stats.postPasses,
+        renderedTriangles: stats.mainTriangles,
         anisotropy: getTileTextureAnisotropy(gl.capabilities.getMaxAnisotropy()),
         textureMaxAnisotropy: gl.capabilities.getMaxAnisotropy(),
-        drawCalls: gl.info.render.calls,
+        drawCalls: stats.mainDrawCalls,
         triangles: estimateSceneTriangles(scene),
-        combinedDrawCalls: gl.info.render.calls,
+        combinedDrawCalls: stats.totalDrawCalls,
         combinedTriangles: estimateSceneTriangles(scene),
         activeAnimatedObjects,
         targetDrawCalls: TARGET_DRAW_CALLS,
@@ -171,7 +210,14 @@ function RendererDiagnostics({
     };
     measureAfterRender();
     const settledMeasurement = window.setTimeout(measureAfterRender, 650);
+    // Async completions (SDF text, textures) render new frames later; republish once frames go quiet.
+    const unsubscribe = counterRef.current?.subscribe(() => {
+      window.clearTimeout(debounce);
+      debounce = window.setTimeout(publish, DIAGNOSTICS_DEBOUNCE_MS);
+    });
     return () => {
+      unsubscribe?.();
+      window.clearTimeout(debounce);
       window.clearTimeout(settledMeasurement);
       window.cancelAnimationFrame(firstFrame);
       window.cancelAnimationFrame(measurementFrame);

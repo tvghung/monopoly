@@ -31,6 +31,8 @@ export interface CaptureEntry {
   osReducedMotion?: boolean;
   /** Capture the whole scrollable page instead of the viewport (Design Lab sections). */
   fullPage?: boolean;
+  /** Measurement only: write the diagnostics JSON and skip the PNG (keeps the repository small). */
+  noScreenshot?: boolean;
 }
 
 export const VIEWPORTS = {
@@ -91,8 +93,11 @@ function harnessCaptures(options: {
   scenarios: readonly string[];
   viewports?: readonly CaptureViewport[];
   surface?: string;
+  noScreenshot?: boolean;
 }): CaptureEntry[] {
-  const { plan, folder, scenarios, viewports = STANDARD_VIEWPORTS, surface = 'board' } = options;
+  const {
+    plan, folder, scenarios, viewports = STANDARD_VIEWPORTS, surface = 'board', noScreenshot,
+  } = options;
   return scenarios.flatMap(scenario => viewports.map(viewport => ({
     id: `${plan}${folder ? `-${folder}` : ''}-${surface}-${scenario}-${viewport.width}x${viewport.height}`,
     plan,
@@ -101,6 +106,7 @@ function harnessCaptures(options: {
     url: harnessUrl(scenario),
     viewport,
     kind: 'harness' as const,
+    noScreenshot,
   })));
 }
 
@@ -115,6 +121,14 @@ export const CAPTURES: readonly CaptureEntry[] = [
   ...labCaptures({ plan: '01', folder: 'lab', sections: LAB_REFERENCE_SECTIONS, viewports: LAB_VIEWPORTS, surface: 'lab' }),
   ...labCaptures({
     plan: '01', folder: 'lab', sections: ['components', 'game-ui'], viewports: [VIEWPORTS.laptop], surface: 'lab', theme: 'v1',
+  }),
+  // Plan 02 T02.0: draw-call and triangle baseline with the corrected diagnostics (JSON only).
+  ...harnessCaptures({
+    plan: '02',
+    folder: 'baseline-measure',
+    scenarios: ['stations-4', 'board-readability', 'stress', 'dice-contact-shadows'],
+    viewports: [VIEWPORTS.fullHd, VIEWPORTS.minimum],
+    noScreenshot: true,
   }),
   // Concept screens at the standard viewports (plan 01 T01.10).
   ...labCaptures({ plan: '01', folder: 'concepts', sections: LAB_CONCEPT_SCREENS, viewports: STANDARD_VIEWPORTS, surface: 'concept' }),

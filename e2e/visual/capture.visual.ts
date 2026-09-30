@@ -10,11 +10,32 @@ const EVIDENCE_ROOT = process.env.VISUAL_EVIDENCE_DIR
   : fileURLToPath(new URL('../../project-document/visual-overhaul-v2/evidence/', import.meta.url));
 
 const READY_TIMEOUT_MS = 60_000;
-/** RendererDiagnostics publishes once right away and again 650 ms later. */
-const DIAGNOSTICS_SETTLE_MS = 900;
+/** The renderer counts as settled once its published frame sequence has not changed for this long. */
+const RENDERER_QUIET_MS = 700;
+const RENDERER_POLL_MS = 100;
 
 interface WindowWithDiagnostics {
   __OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__?: unknown;
+}
+
+/** Async completions (SDF text, textures) render extra frames after readiness; wait until they stop. */
+async function waitForRendererQuiet(page: Page): Promise<void> {
+  const deadline = Date.now() + READY_TIMEOUT_MS;
+  let lastSequence: unknown;
+  let stableSince = Date.now();
+  while (Date.now() < deadline) {
+    const sequence = await page.evaluate(() => (
+      (window as unknown as { __OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__?: { frameSequence?: unknown } })
+        .__OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__?.frameSequence
+    ));
+    if (sequence !== lastSequence) {
+      lastSequence = sequence;
+      stableSince = Date.now();
+    } else if (Date.now() - stableSince >= RENDERER_QUIET_MS) {
+      return;
+    }
+    await page.waitForTimeout(RENDERER_POLL_MS);
+  }
 }
 
 function outputBase(entry: CaptureEntry): string {
@@ -34,7 +55,7 @@ async function waitForReadiness(page: Page, entry: CaptureEntry): Promise<void> 
       undefined,
       { timeout: READY_TIMEOUT_MS },
     );
-    await page.waitForTimeout(DIAGNOSTICS_SETTLE_MS);
+    await waitForRendererQuiet(page);
   }
   await page.waitForLoadState('networkidle');
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
@@ -82,9 +103,11 @@ for (const entry of CAPTURES) {
 
       const base = outputBase(entry);
       await mkdir(path.dirname(base), { recursive: true });
-      await page.screenshot({
-        path: `${base}.png`, animations: 'disabled', caret: 'hide', fullPage: Boolean(entry.fullPage),
-      });
+      if (!entry.noScreenshot) {
+        await page.screenshot({
+          path: `${base}.png`, animations: 'disabled', caret: 'hide', fullPage: Boolean(entry.fullPage),
+        });
+      }
       await writeFile(`${base}.json`, `${JSON.stringify({
         id: entry.id,
         plan: entry.plan,
