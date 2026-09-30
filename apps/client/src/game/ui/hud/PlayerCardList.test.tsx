@@ -70,7 +70,7 @@ describe('PlayerCardList', () => {
       };
     });
     const other = container.querySelector('[data-player-id="player-b"]') as HTMLElement;
-    expect(other.textContent).toContain('Ở tù · 1/2');
+    expect(other.textContent).toContain('Ở tù 1/2');
     expect(other.textContent).toContain('Mất kết nối');
     expect(other.textContent).toMatch(/Tự bỏ lượt sau 1:0[45]/);
     expect(other.getAttribute('data-state')).toBe('offline');

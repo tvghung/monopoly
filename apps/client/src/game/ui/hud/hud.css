@@ -97,6 +97,8 @@
 }
 
 .player-card__tag { flex: none; }
+/* Tags share the name row with the name; compact chips keep "Ban", "Dang di" and "O tu" together on one line. */
+.player-card .ds-chip { padding: 0.1rem 0.4rem; font-size: 0.7rem; }
 
 .player-card__money-row { flex-wrap: wrap; row-gap: 2px; }
 .player-card__money { font: var(--type-money-l); font-variant-numeric: tabular-nums; }

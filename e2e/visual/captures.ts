@@ -279,6 +279,24 @@ export const CAPTURES: readonly CaptureEntry[] = [
     surface: 'hud',
     overlapCheck: true,
   }),
+  // Plan 03 T03.13: crowding at the smallest phone landscape, and legacy-board parity (no WebGL context).
+  ...harnessCaptures({
+    plan: '03',
+    folder: 'responsive',
+    scenarios: ['stations-4', 'jail'],
+    viewports: [VIEWPORTS.smallPhoneLandscape, VIEWPORTS.tabletLandscape],
+    surface: 'hud',
+    overlapCheck: true,
+  }),
+  ...harnessCaptures({
+    plan: '03',
+    folder: 'legacy',
+    scenarios: ['stations-4', 'jail'],
+    viewports: [VIEWPORTS.laptop, VIEWPORTS.smallPhoneLandscape],
+    surface: 'hud',
+    variant: 'legacy',
+    noWebglContext: true,
+  }),
   // Concept screens at the standard viewports (plan 01 T01.10).
   ...labCaptures({ plan: '01', folder: 'concepts', sections: LAB_CONCEPT_SCREENS, viewports: STANDARD_VIEWPORTS, surface: 'concept' }),
 ];

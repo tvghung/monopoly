@@ -92,7 +92,7 @@ export default function PlayerCard({
             {showTurn ? <Chip tone="gold" className="player-card__tag">Đang đi</Chip> : null}
             {showJail ? (
               <Chip tone="loss" className="player-card__tag" icon={<ActionIcon name="jail" size={14} />}>
-                {`Ở tù · ${card.jailRoundsElapsed}/${JAIL_ROUND_LIMIT}`}
+                {`Ở tù ${card.jailRoundsElapsed}/${JAIL_ROUND_LIMIT}`}
               </Chip>
             ) : null}
             {showOffline ? (
