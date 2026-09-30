@@ -44,15 +44,16 @@ describe('Design Lab', () => {
     }
   });
 
-  it('applies the v2 theme by default, switches to v1 and restores the document on unmount', () => {
+  it('applies the v2 theme by default, switches to v1 and restores the app default (v2) on unmount', () => {
     const { unmount } = openLab('?phase4-uat=1&design-lab=1&section=tokens');
     expect(document.documentElement.dataset.visualTheme).toBe('v2');
 
     fireEvent.click(screen.getByRole('radio', { name: 'v1 (current)' }));
     expect(document.documentElement.dataset.visualTheme).toBeUndefined();
 
+    // The whole app runs in v2 since T01.12, so leaving the Lab must not drop the page back to v1.
     unmount();
-    expect(document.documentElement.dataset.visualTheme).toBeUndefined();
+    expect(document.documentElement.dataset.visualTheme).toBe('v2');
   });
 
   it('honors the theme parameter', () => {

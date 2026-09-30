@@ -1,5 +1,6 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import SegmentedControl from '../../design-system/components/SegmentedControl/SegmentedControl';
+import { DEFAULT_VISUAL_THEME } from '../../design-system/theme/visualTheme';
 import type { VisualTheme } from '../../game/ui/propertyVisualColors';
 import ComponentsSection from './sections/ComponentsSection';
 import GameUiSection from './sections/GameUiSection';
@@ -29,7 +30,7 @@ const SECTION_COMPONENTS: Record<Exclude<LabSectionId, 'hud'>, ComponentType> = 
   landing: LandingConcept,
 };
 
-/** Keeps `<html data-visual-theme>` in sync with the Lab toggle and restores it on unmount. */
+/** Keeps `<html data-visual-theme>` in sync with the Lab toggle and restores the app default on unmount. */
 export function useLabTheme(initial: VisualTheme): [VisualTheme, (theme: VisualTheme) => void] {
   const [theme, setTheme] = useState<VisualTheme>(() => {
     // Applied during the first render so components that read the theme (district colors) are right at once.
@@ -39,7 +40,7 @@ export function useLabTheme(initial: VisualTheme): [VisualTheme, (theme: VisualT
   // Re-applied in an effect too: StrictMode runs the cleanup of a mount once before the real mount.
   useEffect(() => {
     applyVisualTheme(theme);
-    return () => applyVisualTheme('v1');
+    return () => applyVisualTheme(DEFAULT_VISUAL_THEME);
   }, [theme]);
   return [theme, next => { applyVisualTheme(next); setTheme(next); }];
 }

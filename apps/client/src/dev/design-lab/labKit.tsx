@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { applyVisualTheme } from '../../design-system/theme/visualTheme';
 import type { VisualTheme } from '../../game/ui/propertyVisualColors';
 
 /** Dev-only review helpers shared by the Design Lab sections. English labels are fine here. */
@@ -36,10 +37,7 @@ export function readDesignLabParams(search: string): DesignLabParams {
   };
 }
 
-export function applyVisualTheme(theme: VisualTheme): void {
-  if (theme === 'v2') document.documentElement.dataset.visualTheme = 'v2';
-  else delete document.documentElement.dataset.visualTheme;
-}
+export { applyVisualTheme };
 
 const LAB_FONT_CHECKS: readonly [font: string, sample: string][] = [
   ['800 1em "Baloo 2"', 'Cờ Tỷ Phú Việt Nam Ỷ Ẫ Ự Ữ Ỹ ở ổ ỡ ợ Đà Nẵng'],

@@ -21,8 +21,12 @@ Không hard-code hex trong CSS component mới. Z-index tập trung ở `tokens/
   `--radius-xs…xl`, `--paper-grain`) tồn tại ở mọi theme để không có biến chưa định nghĩa.
 - Style v2 của primitive bọc bằng `:where(:root[data-visual-theme='v2'])` để độ đặc hiệu
   vẫn bằng một class; các rule v2 luôn đứng sau rule v1 trong cùng file.
-- Trạng thái hiện tại: theme v2 chỉ bật khi thuộc tính được đặt (Design Lab đặt cục bộ).
-  Bật toàn cục là task T01.12 sau khi Gate G1 được product owner duyệt.
+- Trạng thái hiện tại: theme v2 được bật toàn cục (T01.12, sau khi product owner duyệt G1 ngày
+  2026-09-30): `index.html` đặt `<html data-visual-theme="v2">` để lần paint đầu đã đúng token, và
+  `index.tsx` áp lại qua `design-system/theme/visualTheme.ts` (`DEFAULT_VISUAL_THEME`,
+  `applyVisualTheme`). v1 là trạng thái không có thuộc tính; Design Lab dùng `?theme=v1` để so sánh và
+  trả về v2 khi thoát. `theme-color` và manifest dùng màu palette (`backdrop`, `paper-50`); con trỏ
+  chuột tùy chỉnh đã bị bỏ (OS default). Giá trị v1 sẽ được dọn khi plan 03/04 hoàn tất.
 - `--paper-grain` (noise SVG dưới 1 KB, alpha khoảng 3–4%) chỉ tồn tại ở v2 và tắt khi
   `<html data-graphics-quality="low">` (plan 02).
 

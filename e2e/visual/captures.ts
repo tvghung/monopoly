@@ -137,7 +137,11 @@ export const BASELINE_SCENARIOS = [
 ] as const;
 
 export const CAPTURES: readonly CaptureEntry[] = [
+  // `baseline` is the V1 record taken before the global theme switch; re-running it now renders v2.
+  // Compare against it, do not overwrite it.
   ...harnessCaptures({ plan: '01', folder: 'baseline', scenarios: BASELINE_SCENARIOS }),
+  // Plan 01 T01.12: the same surfaces with the v2 theme on globally, for the token-level regression review.
+  ...harnessCaptures({ plan: '01', folder: 'theme-v2', scenarios: BASELINE_SCENARIOS }),
   // Design Lab reference sections, v2 proposal and the v1 look for comparison (plan 01 T01.9).
   ...labCaptures({ plan: '01', folder: 'lab', sections: LAB_REFERENCE_SECTIONS, viewports: LAB_VIEWPORTS, surface: 'lab' }),
   ...labCaptures({

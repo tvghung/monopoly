@@ -1,0 +1,116 @@
+{
+  "id": "01-theme-v2-board-stress-1280x720",
+  "plan": "01",
+  "folder": "theme-v2",
+  "name": "01-board-stress",
+  "url": "/?phase4-uat=1&scenario=stress&uat-controls=hidden",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "kind": "harness",
+  "rendererMode": "webgl",
+  "browser": "chromium 154.0.8037.58",
+  "captureTool": "e2e/visual/capture.visual.ts",
+  "consoleErrors": [],
+  "benchmark": null,
+  "diagnostics": {
+    "glRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "qualityTier": "balanced",
+    "pixelRatio": 1.25,
+    "drawingBuffer": {
+      "width": 1567,
+      "height": 867
+    },
+    "camera": "orthographic",
+    "cameraPosition": [
+      16.95401417043256,
+      21.1925177130407,
+      16.95401417043256
+    ],
+    "toneMapping": "NeutralToneMapping",
+    "toneMappingExposure": 1,
+    "shadows": {
+      "enabled": true,
+      "type": "PCFShadowMap"
+    },
+    "environment": true,
+    "frameSequence": 41,
+    "mainDrawCalls": 160,
+    "shadowDrawCalls": 17,
+    "postDrawCalls": 0,
+    "postPasses": 0,
+    "postRenders": 0,
+    "renderedTriangles": 67550,
+    "anisotropy": 8,
+    "textureMaxAnisotropy": 16,
+    "drawCalls": 160,
+    "triangles": 66956,
+    "combinedDrawCalls": 177,
+    "combinedTriangles": 66956,
+    "activeAnimatedObjects": 1,
+    "targetDrawCalls": 210,
+    "stressDrawCallLimit": 240,
+    "targetTriangles": 80000,
+    "hardTriangleLimit": 100000,
+    "physicalScene": {
+      "stationLayer": true,
+      "stationCount": 4,
+      "authoritativeStationCount": 4,
+      "stationLabelCount": 4,
+      "bankTreasury": false,
+      "sharedCoinInstanceCount": 94,
+      "sharedCoinFinishInstances": {
+        "COPPER": 61,
+        "SILVER": 23,
+        "GOLD": 10
+      },
+      "decks": {
+        "chance": {
+          "physicalCount": 13,
+          "authoritativeCount": 13
+        },
+        "chest": {
+          "physicalCount": 15,
+          "authoritativeCount": 15
+        }
+      },
+      "destinationPreviewTileId": 18,
+      "destinationPreview": {
+        "tileId": 18,
+        "pulsePeriodMs": 460,
+        "reducedMotion": false,
+        "elapsedMs": 82926.59999990463,
+        "surfaceOpacity": 0.27433888240587345,
+        "edgeOpacity": 0.7039835436268072,
+        "surfaceColor": "#ffc400",
+        "edgeColor": "#c18f00"
+      },
+      "coinSystem": {
+        "geometryType": "LatheGeometry",
+        "sceneEnvironment": true,
+        "finishes": {
+          "COPPER": {
+            "metalness": 0.74,
+            "roughness": 0.17,
+            "envMap": true,
+            "envMapIntensity": 1.08
+          },
+          "SILVER": {
+            "metalness": 0.8,
+            "roughness": 0.13,
+            "envMap": true,
+            "envMapIntensity": 1.24
+          },
+          "GOLD": {
+            "metalness": 0.77,
+            "roughness": 0.15,
+            "envMap": true,
+            "envMapIntensity": 1.14
+          }
+        }
+      },
+      "activeTurnRingCount": 0
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # 01 — Visual Target, Art Direction and Design Tokens V2
 
-**Status: IN PROGRESS — T01.0–T01.11 and T01.13 done (2026-09-30); Gate G1 (product-owner approval) is PENDING and blocks T01.12 (global theme switch), plans 03/04 and the final color grading of plan 02. Open decisions were answered by the product owner on 2026-09-30 (see the Decisions section).**
+**Status: DONE except the mobile e2e run (2026-09-30) — T01.0–T01.13 done; Gate G1 was APPROVED by the product owner on 2026-09-30 (§18). `pnpm test:e2e:mobile` was not run (PostgreSQL and Playwright browsers were not approved for download). Open decisions were answered by the product owner on 2026-09-30 (see the Decisions section).**
 
 | Field | Value |
 | --- | --- |
@@ -918,13 +918,13 @@ result in the Design Lab, not these choices.
 
 ## 17. Definition of Done
 
-- [ ] T01.0–T01.13 complete and recorded in §18.
-- [ ] G1 verdict APPROVED recorded by the product owner.
-- [ ] v2 theme on globally; capture sweep committed.
-- [ ] README §9 commands green, including `pnpm test:e2e:mobile` and desktop checks.
-- [ ] No gameplay/server/protocol/persistence diff (`git diff --stat` limited to client
+- [x] T01.0–T01.13 complete and recorded in §18.
+- [x] G1 verdict APPROVED recorded by the product owner (2026-09-30, §18).
+- [x] v2 theme on globally; capture sweep committed (`evidence/01/theme-v2/`).
+- [ ] README §9 commands green, including `pnpm test:e2e:mobile` and desktop checks. _(Green: `pnpm typecheck`, `pnpm lint`, `pnpm test` (client 869, server 173 + 11 skipped without PostgreSQL, desktop 77), `pnpm build`, desktop typecheck. Not run: `pnpm test:e2e:mobile`, `pnpm db:status`, `pnpm desktop:package`.)_
+- [x] No gameplay/server/protocol/persistence diff (`git diff --stat` limited to client
   design system, dev harness, settings bridge, docs, visual tooling).
-- [ ] Documentation updated (§13).
+- [x] Documentation updated (§13).
 
 ---
 
@@ -944,6 +944,8 @@ result in the Design Lab, not these choices.
 | 2026-09-30 | T01.9–T01.10 | 125ca1d, 0def128 | `evidence/01/lab/`, `evidence/01/concepts/` | Design Lab sections + Purchase/Lobby/Landing/HUD concepts (HUD over the real board: 212 draw calls, 64,684 triangles). Committed as one change because the Lab shell imports every section. |
 | 2026-09-30 | T01.11 | — | `evidence/01/g1/README.md` | G1 package assembled; verdict PENDING (human only). |
 | 2026-09-30 | T01.13 | — | — | `Client/design-system.instruction.md` (new), Client README, client rule 7, masterplan §11 pointer, testcase rows. |
+| 2026-09-30 | G1 | 2d6f522 | `evidence/01/g1/` | Product owner APPROVED (checklist ticked and verdict row written by the product owner). |
+| 2026-09-30 | T01.12 | see `git log --grep T01.12` | `evidence/01/theme-v2/` (28 PNG + README) | v2 theme on globally (`index.html`, bootstrap), palette `theme-color` / manifest colors, custom cursor removed (its file deletion is in 2d6f522). Sweep of the 7 baseline scenarios × 4 viewports: 36 candidate regressions, none confirmed after independent refutation; the real weaknesses are pre-existing and are handed to plan 03 (see the README in `evidence/01/theme-v2/`). Landed on the `visual-v2/02-lighting` branch because that branch already contained plan 01. |
 
 **G1 checklist** (product owner fills in):
 

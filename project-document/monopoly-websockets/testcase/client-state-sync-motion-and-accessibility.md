@@ -96,6 +96,10 @@
 - [x] `[CLIENT][AUTOMATED]` The tabletop covers every standard aspect ratio (1 → 2.4) and
   the frame counter splits main / shadow / post draw calls and composer passes
   (`tabletopCoverage`, `rendererInfo`, `composerPasses` tests).
+- [x] `[CLIENT][AUTOMATED]` The page shell starts in the v2 theme (`index.html` attribute, bootstrap
+  default) and its browser-chrome colors come from the palette (`visualTheme.test.ts`).
+- [ ] `[CLIENT][MANUAL-E2E]` Review the v2-theme sweep (`evidence/01/theme-v2/`, 28 images) against the V1
+  baseline; automated candidate review found no confirmed regression, a human pass is still open.
 - [ ] `[CLIENT][MANUAL-E2E]` Review low / balanced / high captures side by side (harness
   `quality=<tier>`, `pnpm visual:capture` group `g2`), including the eight regression tile names
   and the WebGL fallback; gate G2 verdict recorded by the product owner.
