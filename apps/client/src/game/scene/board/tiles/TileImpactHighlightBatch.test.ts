@@ -23,4 +23,11 @@ describe('tile impact highlight FX', () => {
     expect(material.toneMapped).toBe(false);
     material.dispose();
   });
+
+  it('renders its transparent DoubleSide plane in a single pass (budget recovery BR-5)', () => {
+    const material = createTileImpactHighlightMaterial();
+    expect(material.transparent).toBe(true);
+    expect(material.forceSinglePass).toBe(true);
+    material.dispose();
+  });
 });

@@ -18,6 +18,11 @@ import {
 export const RAISED_SVG_RENDERING_PIPELINE = 'local-svg-texture-with-shallow-backing' as const;
 export const RAISED_SVG_BACKING_RENDER_ORDER = 4;
 export const RAISED_SVG_FACE_RENDER_ORDER = 5;
+/**
+ * The icon planes lie flat and face up toward the fixed camera, so only their front face is ever seen.
+ * A transparent DoubleSide material renders in two passes (twice the draw calls), FrontSide in one.
+ */
+export const RAISED_SVG_MATERIAL_SIDE = THREE.FrontSide;
 
 type SvgImageListener = (image: HTMLImageElement | null) => void;
 
@@ -208,7 +213,7 @@ export default function RaisedSvgTileIcon({ panel, icon, name }: RaisedSvgTileIc
               alphaTest={0.01}
               depthTest
               depthWrite={false}
-              side={THREE.DoubleSide}
+              side={RAISED_SVG_MATERIAL_SIDE}
               toneMapped={false}
             />
           </mesh>
@@ -225,7 +230,7 @@ export default function RaisedSvgTileIcon({ panel, icon, name }: RaisedSvgTileIc
               alphaTest={0.01}
               depthTest
               depthWrite={false}
-              side={THREE.DoubleSide}
+              side={RAISED_SVG_MATERIAL_SIDE}
               toneMapped={false}
             />
           </mesh>

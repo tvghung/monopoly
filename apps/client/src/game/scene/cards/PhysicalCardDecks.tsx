@@ -81,10 +81,10 @@ CARD_BACK_ICON_GEOMETRY.rotateX(-Math.PI / 2);
 CARD_BACK_ICON_GEOMETRY.translate(0, PHYSICAL_CARD_THICKNESS / 2 + 0.004, 0);
 const CARD_BACK_ICON_MATERIALS: Record<CardDeck, THREE.MeshBasicMaterial> = {
   chance: new THREE.MeshBasicMaterial({
-    color: '#ffffff', transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, toneMapped: false,
+    color: '#ffffff', transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, forceSinglePass: true, toneMapped: false,
   }),
   chest: new THREE.MeshBasicMaterial({
-    color: '#ffffff', transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, toneMapped: false,
+    color: '#ffffff', transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, forceSinglePass: true, toneMapped: false,
   }),
 };
 
