@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { PublicGameState } from '@monopoly/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import stateContext from '../../../internal';
@@ -70,7 +70,7 @@ function context(state: PublicGameState): StateContextValue {
 describe('OwnedPropertiesControl', () => {
   afterEach(cleanup);
 
-  it('shows authoritative balance, owned count, group identity, development, and inspect actions', () => {
+  it('shows authoritative balance, owned count, group identity, development, and inspect actions', async () => {
     const onSelect = vi.fn();
     render(
       <stateContext.Provider value={context(makeState(1_250))}>
@@ -87,7 +87,8 @@ describe('OwnedPropertiesControl', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Xem Cà Mau' }));
     expect(onSelect).toHaveBeenCalledWith(1);
-    expect(screen.queryByText('Số dư hiện tại')).toBeNull();
+    // The dialog animates out (200 ms) before it leaves the DOM.
+    await waitFor(() => expect(screen.queryByText('Số dư hiện tại')).toBeNull());
   });
 
   it('updates a zero/current balance while open and disappears after player removal', () => {

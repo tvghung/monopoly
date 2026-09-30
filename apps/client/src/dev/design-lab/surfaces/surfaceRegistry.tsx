@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import BootstrapErrorScreen from '../../../app/screens/BootstrapErrorScreen';
 import LoadingScreen from '../../../app/screens/LoadingScreen';
 import BuyPrompt from '../../../components/dashboard/BuyPrompt';
@@ -6,6 +6,8 @@ import DevelopmentPrompt from '../../../components/dashboard/DevelopmentPrompt';
 import JailPanel from '../../../components/dashboard/JailPanel';
 import WinnerBanner from '../../../components/dashboard/WinnerBanner';
 import ConnectionOverlay from '../../../components/ConnectionOverlay';
+import { useToast } from '../../../components/Toast';
+import ConfirmationDialog from '../../../design-system/components/ConfirmationDialog/ConfirmationDialog';
 import JoinForm from '../../../components/JoinForm';
 import Lobby, { type LobbyPlayerView } from '../../../components/Lobby';
 import SpectatorBanner from '../../../components/SpectatorBanner';
@@ -24,6 +26,18 @@ export interface SurfaceFixture {
 }
 
 const noop = () => undefined;
+
+/** Shows one toast per variant on mount, for review captures. */
+function ToastDemo() {
+  const toast = useToast();
+  useEffect(() => {
+    toast.show('An đã mua Cà Mau với giá 60.000 ₫.', { variant: 'success' });
+    toast.show('Bình mất kết nối. Ván chơi tạm dừng.', { variant: 'warning' });
+    toast.show('Không thể gửi lựa chọn. Vui lòng thử lại.', { variant: 'error' });
+    toast.show('Chi vừa vào phòng.', { variant: 'info' });
+  }, [toast]);
+  return <p style={{ padding: '2rem' }}>Bốn thông báo nhỏ hiện ở giữa phía trên.</p>;
+}
 
 const LOBBY_PLAYERS: readonly LobbyPlayerView[] = [
   { id: 'player-a', name: 'An', color: 'red', characterId: 'dog', ready: true, connected: true },
@@ -101,6 +115,29 @@ export const SURFACES: readonly SurfaceFixture[] = [
         <SettingsPanel open onClose={noop} />
       </SurfaceProviders>
     ),
+  },
+  {
+    id: 'confirm-forfeit',
+    label: 'Confirmation, forfeit',
+    group: 'Decisions',
+    render: () => (
+      <SurfaceProviders>
+        <ConfirmationDialog
+          open
+          title="Bỏ cuộc khỏi ván chơi?"
+          message="Bạn sẽ rời ván chơi và mất toàn bộ tài sản. Hành động này không thể hoàn tác."
+          confirmLabel="Bỏ cuộc"
+          onConfirm={noop}
+          onCancel={noop}
+        />
+      </SurfaceProviders>
+    ),
+  },
+  {
+    id: 'toasts',
+    label: 'Toasts',
+    group: 'Screens',
+    render: () => <SurfaceProviders><ToastDemo /></SurfaceProviders>,
   },
   {
     id: 'loading',
