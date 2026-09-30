@@ -1,5 +1,4 @@
 import type { MoneyEndpoint } from '@monopoly/shared';
-import type { MoneyTransferSignal } from '../../presentation/store/types';
 import { CENTER_AIRPORT_FIELD_TOP_Y } from '../board/architecture/boardArtSpec';
 import { OUTER_BOARD_SIZE } from '../board/boardLayout';
 import { mixHex } from '../../../design-system/tokens/contrast';
@@ -103,14 +102,4 @@ export function resolveMoneyEndpointAnchor(
   }
   const anchor = playerAnchors.get(endpoint.playerId);
   return anchor ? [anchor[0], PLAYER_STATION_TRANSFER_Y, anchor[2]] : null;
-}
-
-export function resolveStationTransferAmount(
-  playerId: string,
-  transfer: MoneyTransferSignal,
-): number | null {
-  const outgoing = transfer.source.kind === 'PLAYER' && transfer.source.playerId === playerId;
-  const incoming = transfer.destination.kind === 'PLAYER' && transfer.destination.playerId === playerId;
-  if (outgoing === incoming) return null;
-  return incoming ? transfer.amount : -transfer.amount;
 }

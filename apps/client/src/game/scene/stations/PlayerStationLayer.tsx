@@ -4,9 +4,6 @@ import {
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { PlayerStationRenderModel } from '../board/boardRenderModel';
-import type { MoneyTransferSignal } from '../../presentation/store/types';
-import { formatMoney } from '../../ui/formatters';
-import SdfBillboardText from '../board/tiles/SdfBillboardText';
 import {
   COIN_FINISH_MATERIALS,
   COIN_FINISH_ORDER,
@@ -24,7 +21,6 @@ import {
   BANK_WORLD_ANCHOR,
   PLAYER_STATION_COIN_BASE_Y,
   getStationWorldPoint,
-  resolveStationTransferAmount,
 } from './stationWorld';
 
 export function wealthCoinCount(balance: number): number {
@@ -136,92 +132,15 @@ function CoinPiles({ stations }: { stations: readonly PlayerStationRenderModel[]
   );
 }
 
-function stationStatusLabel(station: PlayerStationRenderModel): string {
-  if (station.status === 'BANKRUPT') return 'PHÁ SẢN';
-  if (station.status === 'LEFT') return 'ĐÃ RỜI';
-  if (!station.isConnected) return 'MẤT KẾT NỐI';
-  return '';
-}
-
-function StationInformation({ station }: { station: PlayerStationRenderModel }) {
-  const disabled = station.status !== 'ACTIVE';
-  const status = stationStatusLabel(station);
-  const primary = disabled ? '#d5dbd7' : '#f7f1d8';
-  return (
-    <>
-      <SdfBillboardText
-        value={`${station.name}${status ? ` · ${status}` : ''}`}
-        position={getStationWorldPoint(station.slot, 0, 0, 1.92)}
-        fontSize={status ? 0.26 : 0.31}
-        maxWidth={3.25}
-        color={primary}
-        outlineColor="#14231f"
-        outlineWidth={status ? 0.0104 : 0.0124}
-        outlineOpacity={0.72}
-        name={`PlayerStationName:${station.playerId}`}
-      />
-      <SdfBillboardText
-        value={formatMoney(station.accountBalance)}
-        position={getStationWorldPoint(station.slot, 0, 0, 1.4)}
-        fontSize={0.42}
-        maxWidth={2.8}
-        color={primary}
-        outlineColor="#14231f"
-        outlineWidth={0.0168}
-        outlineOpacity={0.72}
-        name={`PlayerStationBalance:${station.playerId}`}
-      />
-    </>
-  );
-}
-
-function StationMoneyAmounts({
-  stations,
-  moneyTransfers,
-}: {
-  stations: readonly PlayerStationRenderModel[];
-  moneyTransfers: readonly MoneyTransferSignal[];
-}) {
-  const signal = moneyTransfers.at(-1);
-  if (!signal) return null;
-  return (
-    <>
-      {stations.flatMap(station => {
-        const amount = resolveStationTransferAmount(station.playerId, signal);
-        if (amount === null) return [];
-        const positive = amount > 0;
-        return [(
-          <SdfBillboardText
-            key={`${signal.id}:${station.playerId}`}
-            value={`${positive ? '+' : '-'}${formatMoney(Math.abs(amount))}`}
-            position={getStationWorldPoint(station.slot, 0, 0, 2.35)}
-            fontSize={0.31}
-            maxWidth={2.4}
-            color={positive ? '#bdf58d' : '#ffd0bb'}
-            outlineColor="#14231f"
-            outlineWidth={0.0124}
-            outlineOpacity={0.72}
-            name={`PlayerStationAmount:${station.playerId}`}
-          />
-        )];
-      })}
-    </>
-  );
-}
-
-export default function PlayerStationLayer({
-  stations,
-  moneyTransfers,
-}: {
-  stations: readonly PlayerStationRenderModel[];
-  moneyTransfers: readonly MoneyTransferSignal[];
-}) {
+/**
+ * The world-space part of a player seat: the lacquer tray and the coin piles. Names, balances and money changes are
+ * DOM (the player cards of `GameHud`); the station stays a coin-flight anchor and a camera fit point.
+ */
+export default function PlayerStationLayer({ stations }: { stations: readonly PlayerStationRenderModel[] }) {
   return (
     <group name="PlayerStationLayer">
       <PlayerTrays stations={stations} />
       <CoinPiles stations={stations} />
-      {stations.map(station => <StationInformation key={station.playerId} station={station} />)}
-      <StationMoneyAmounts stations={stations} moneyTransfers={moneyTransfers} />
     </group>
   );
 }

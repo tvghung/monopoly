@@ -88,10 +88,7 @@ export default function Board3D({
       <PhysicalCardDecks
         deckCounts={model?.deckCounts ?? { chance: 0, chest: 0 }}
       />
-      <PlayerStationLayer
-        stations={model?.stations ?? []}
-        moneyTransfers={model?.moneyTransfers ?? []}
-      />
+      <PlayerStationLayer stations={model?.stations ?? []} />
       <MoneyTransferLayer model={model} />
       <CharactersLayer
         players={model?.players ?? []}
