@@ -22,6 +22,7 @@ import { SettingsProvider } from '../../settings/SettingsProvider';
 import DesignLab, { useLabTheme } from '../design-lab/DesignLab';
 import { readDesignLabParams, type LabSectionId } from '../design-lab/labKit';
 import HudConcept from '../design-lab/screens/HudConcept';
+import { parseBenchmarkSeconds, summarizeFrameIntervals, type BenchmarkResult } from './rendererBenchmark';
 import type { SocketFunctions } from '../../types';
 import './Phase4UatHarness.css';
 
@@ -104,6 +105,8 @@ export interface HarnessUrlParams {
   /** `design-lab=1`: render the Design Lab instead of the board (the `hud` section keeps the real board). */
   designLab: boolean;
   labSection: LabSectionId | null;
+  /** `benchmark=<seconds>`: replay the scenario and record frame times once it has settled. */
+  benchmarkSeconds: number | null;
 }
 
 /**
@@ -120,6 +123,7 @@ export function readHarnessUrlParams(search: string): HarnessUrlParams {
     cardGallery: params.get('card-gallery') === '1',
     designLab: params.get('design-lab') === '1',
     labSection: readDesignLabParams(search).section,
+    benchmarkSeconds: parseBenchmarkSeconds(params.get('benchmark')),
   };
 }
 
@@ -416,6 +420,47 @@ function Phase4UatSurface() {
     return () => window.clearTimeout(timer);
   }, [runId, settledNow]);
   const uatReady = settledNow && readyRunId === runId;
+
+  // Benchmark mode: once the scenario has settled, replay it every 2 s while requesting a frame on
+  // every animation frame, record the intervals, then publish the summary (plan 02 §8.10).
+  const benchmarkStartedRef = useRef(false);
+  const benchmarkFrameRef = useRef(0);
+  const [benchmark, setBenchmark] = useState<BenchmarkResult | null>(null);
+  const runScenarioRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    const seconds = initialParams.benchmarkSeconds;
+    if (seconds === null || !uatReady || benchmarkStartedRef.current) return undefined;
+    benchmarkStartedRef.current = true;
+    const intervals: number[] = [];
+    const startedAt = performance.now();
+    let last = startedAt;
+    let lastReplay = startedAt;
+    const tick = (now: number) => {
+      intervals.push(now - last);
+      last = now;
+      window.__OWN_THE_BLOCK_RENDERER_INVALIDATE__?.();
+      if (now - lastReplay >= 2_000) {
+        lastReplay = now;
+        runScenarioRef.current();
+      }
+      if (now - startedAt < seconds * 1_000) {
+        benchmarkFrameRef.current = window.requestAnimationFrame(tick);
+        return;
+      }
+      const result: BenchmarkResult = {
+        ...summarizeFrameIntervals(intervals),
+        scenario: scenarioRef.current,
+        seconds,
+        diagnostics: window.__OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__ ?? null,
+      };
+      window.__OWN_THE_BLOCK_RENDERER_BENCHMARK__ = result;
+      setBenchmark(result);
+    };
+    benchmarkFrameRef.current = window.requestAnimationFrame(tick);
+    // No cleanup here: a replay flips uatReady and must not stop the run; the unmount effect cancels it.
+    return undefined;
+  }, [initialParams.benchmarkSeconds, uatReady]);
+  useEffect(() => () => window.cancelAnimationFrame(benchmarkFrameRef.current), []);
 
   useEffect(() => {
     if (traceRef.current.scenario !== scenario) {
@@ -734,6 +779,7 @@ function Phase4UatSurface() {
     controller.acceptRoomSnapshot(nextRoom, 'SESSION_SYNC');
     if (!STATIC_SCENARIOS.includes(key)) schedule(() => applyAnimatedScenario(key), 180);
   }, [applyAnimatedScenario, clearTimers, controller, schedule, updateSettings]);
+  runScenarioRef.current = () => runScenario();
   const runNextScenario = useCallback(() => {
     const currentIndex = scenarios.findIndex(([key]) => key === scenarioRef.current);
     const nextScenario = scenarios[(currentIndex + 1) % scenarios.length]?.[0] ?? scenarios[0][0];
@@ -915,6 +961,17 @@ function Phase4UatSurface() {
           </aside>}
           <Board />
           {initialParams.designLab ? <HudConceptLayer ready={uatReady} /> : null}
+          {initialParams.benchmarkSeconds !== null ? (
+            <output
+              className="phase4-uat__benchmark"
+              data-testid="renderer-benchmark"
+              data-benchmark-ready={benchmark ? 'true' : 'false'}
+            >
+              {benchmark
+                ? `benchmark ${benchmark.scenario}: median ${benchmark.medianFps.toFixed(1)} fps · p95 ${benchmark.p95FrameMs.toFixed(1)} ms · ${benchmark.frames} frames`
+                : 'benchmark running…'}
+            </output>
+          ) : null}
           </main>
           <CardInteractionOverlay />
       </stateContext.Provider>

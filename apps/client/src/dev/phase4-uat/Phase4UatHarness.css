@@ -10,3 +10,4 @@
 .phase4-uat__controls--collapsed { width: auto; padding: 0.25rem; }
 .phase4-uat__controls--collapsed button { min-width: 2.8rem; }
 @media (max-width: 78rem) { .phase4-uat__controls { flex-wrap: wrap; } }
+.phase4-uat__benchmark { position: fixed; z-index: 120; right: 0.55rem; bottom: 0.55rem; padding: 0.3rem 0.6rem; border-radius: 0.4rem; background: rgb(13 52 60 / 92%); color: #f8edcc; font-size: 0.68rem; }

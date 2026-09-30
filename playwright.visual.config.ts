@@ -4,7 +4,10 @@ import { defineConfig } from '@playwright/test';
 // It drives the dev-only Phase 4 UAT harness / Design Lab, so it needs no database and no
 // global setup. Set VISUAL_BROWSER_CHANNEL=chrome|msedge to reuse an installed browser
 // instead of the Playwright-managed Chromium; set VISUAL_HEADED=1 when headless WebGL fails.
+// Captures use SwiftShader (software WebGL) so screenshots are deterministic; set VISUAL_GPU=hardware
+// for frame-time benchmarks, which are only meaningful on the real GPU.
 const channel = process.env.VISUAL_BROWSER_CHANNEL || undefined;
+const softwareWebgl = process.env.VISUAL_GPU !== 'hardware';
 
 export default defineConfig({
   testDir: './e2e/visual',
@@ -19,11 +22,9 @@ export default defineConfig({
     headless: process.env.VISUAL_HEADED !== '1',
     ...(channel ? { channel } : {}),
     launchOptions: {
-      args: [
-        '--use-angle=swiftshader',
-        '--enable-unsafe-swiftshader',
-        '--ignore-gpu-blocklist',
-      ],
+      args: softwareWebgl
+        ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
+        : ['--ignore-gpu-blocklist'],
     },
   },
   projects: [{ name: 'visual-chromium' }],

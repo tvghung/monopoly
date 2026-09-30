@@ -55,7 +55,8 @@ async function waitForReadiness(page: Page, entry: CaptureEntry): Promise<void> 
       undefined,
       { timeout: READY_TIMEOUT_MS },
     );
-    await waitForRendererQuiet(page);
+    // A running benchmark keeps the renderer busy on purpose: it never goes quiet.
+    if (!entry.benchmarkSeconds) await waitForRendererQuiet(page);
   }
   await page.waitForLoadState('networkidle');
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
@@ -97,6 +98,13 @@ for (const entry of CAPTURES) {
           + 'Run with VISUAL_HEADED=1 or check the SwiftShader launch flags.',
         );
       }
+      const benchmark = entry.benchmarkSeconds
+        ? await page.waitForFunction(
+          () => (window as unknown as { __OWN_THE_BLOCK_RENDERER_BENCHMARK__?: unknown }).__OWN_THE_BLOCK_RENDERER_BENCHMARK__,
+          undefined,
+          { timeout: (entry.benchmarkSeconds + 60) * 1_000 },
+        ).then(handle => handle.jsonValue() as Promise<unknown>)
+        : null;
       const diagnostics = await page.evaluate(() => JSON.parse(JSON.stringify(
         (window as unknown as WindowWithDiagnostics).__OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__ ?? null,
       )) as unknown);
@@ -120,6 +128,7 @@ for (const entry of CAPTURES) {
         browser: `${browser.browserType().name()} ${browser.version()}`,
         captureTool: 'e2e/visual/capture.visual.ts',
         consoleErrors,
+        benchmark,
         diagnostics,
       }, null, 2)}\n`);
     } finally {

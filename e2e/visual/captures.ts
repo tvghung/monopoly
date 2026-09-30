@@ -33,6 +33,8 @@ export interface CaptureEntry {
   fullPage?: boolean;
   /** Measurement only: write the diagnostics JSON and skip the PNG (keeps the repository small). */
   noScreenshot?: boolean;
+  /** Run the harness benchmark for this many seconds and store the summary in the sidecar JSON. */
+  benchmarkSeconds?: number;
 }
 
 export const VIEWPORTS = {
@@ -94,19 +96,26 @@ function harnessCaptures(options: {
   viewports?: readonly CaptureViewport[];
   surface?: string;
   noScreenshot?: boolean;
+  /** Extra query string appended to the harness URL, for example `&quality=low`. */
+  extraQuery?: string;
+  /** Suffix for the file name and id, for example a graphics tier. */
+  variant?: string;
+  benchmarkSeconds?: number;
 }): CaptureEntry[] {
   const {
-    plan, folder, scenarios, viewports = STANDARD_VIEWPORTS, surface = 'board', noScreenshot,
+    plan, folder, scenarios, viewports = STANDARD_VIEWPORTS, surface = 'board', noScreenshot, extraQuery = '', variant, benchmarkSeconds,
   } = options;
+  const suffix = variant ? `-${variant}` : '';
   return scenarios.flatMap(scenario => viewports.map(viewport => ({
-    id: `${plan}${folder ? `-${folder}` : ''}-${surface}-${scenario}-${viewport.width}x${viewport.height}`,
+    id: `${plan}${folder ? `-${folder}` : ''}-${surface}-${scenario}${suffix}-${viewport.width}x${viewport.height}`,
     plan,
     folder,
-    name: `${plan}-${surface}-${scenario}`,
-    url: harnessUrl(scenario),
+    name: `${plan}-${surface}-${scenario}${suffix}`,
+    url: harnessUrl(scenario, `${benchmarkSeconds ? `&benchmark=${benchmarkSeconds}` : ''}${extraQuery}`),
     viewport,
     kind: 'harness' as const,
     noScreenshot,
+    benchmarkSeconds,
   })));
 }
 
@@ -129,6 +138,17 @@ export const CAPTURES: readonly CaptureEntry[] = [
     scenarios: ['stations-4', 'board-readability', 'stress', 'dice-contact-shadows'],
     viewports: [VIEWPORTS.fullHd, VIEWPORTS.minimum],
     noScreenshot: true,
+  }),
+  // Plan 02 T02.2: frame-time benchmark of the current renderer (JSON only).
+  ...harnessCaptures({
+    plan: '02',
+    folder: 'benchmark',
+    scenarios: ['stress', 'board-readability'],
+    viewports: [VIEWPORTS.fullHd],
+    surface: 'bench',
+    variant: 'baseline',
+    noScreenshot: true,
+    benchmarkSeconds: 10,
   }),
   // Concept screens at the standard viewports (plan 01 T01.10).
   ...labCaptures({ plan: '01', folder: 'concepts', sections: LAB_CONCEPT_SCREENS, viewports: STANDARD_VIEWPORTS, surface: 'concept' }),

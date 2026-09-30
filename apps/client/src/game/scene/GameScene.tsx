@@ -90,11 +90,13 @@ function RendererDiagnostics({
     if (!isLocalDiagnosticsEnabled()) return undefined;
     const counter = new FrameCounter(gl, scene);
     counterRef.current = counter;
+    window.__OWN_THE_BLOCK_RENDERER_INVALIDATE__ = () => invalidate();
     return () => {
       counter.dispose();
       counterRef.current = null;
+      delete window.__OWN_THE_BLOCK_RENDERER_INVALIDATE__;
     };
-  }, [gl, scene]);
+  }, [gl, invalidate, scene]);
   // Resets gl.info before each frame, so the counts always describe the last complete frame.
   useFrame(() => counterRef.current?.beginFrame(), -1000);
 
@@ -114,6 +116,11 @@ function RendererDiagnostics({
       }
       const stats = counter.stats;
       const drawingBufferSize = gl.getDrawingBufferSize(new THREE.Vector2());
+      const context = gl.getContext();
+      const debugInfo = context.getExtension('WEBGL_debug_renderer_info');
+      const glRenderer = debugInfo
+        ? String(context.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL))
+        : null;
       const destinationPreviewDiagnostics = window.__OWN_THE_BLOCK_DESTINATION_PREVIEW_DIAGNOSTICS__ ?? {};
       const sceneObjects: THREE.Object3D[] = [];
       scene.traverse(object => sceneObjects.push(object));
@@ -129,6 +136,7 @@ function RendererDiagnostics({
       const chanceCards = scene.getObjectByName('chanceCardBodies');
       const chestCards = scene.getObjectByName('chestCardBodies');
       const diagnostics = {
+        glRenderer,
         pixelRatio: gl.getPixelRatio(),
         drawingBuffer: { width: drawingBufferSize.x, height: drawingBufferSize.y },
         camera: 'orthographic',
