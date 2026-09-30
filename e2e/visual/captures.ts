@@ -139,6 +139,13 @@ export const CAPTURES: readonly CaptureEntry[] = [
     viewports: [VIEWPORTS.fullHd, VIEWPORTS.minimum],
     noScreenshot: true,
   }),
+  // Plan 02 budget-recovery checks: before/after pixel comparisons of the changed visuals.
+  ...harnessCaptures({
+    plan: '02',
+    folder: 'recovery',
+    scenarios: ['dice-contact-shadows', 'roll-chance'],
+    viewports: [VIEWPORTS.laptop],
+  }),
   // Plan 02 T02.2: frame-time benchmark of the current renderer (JSON only).
   ...harnessCaptures({
     plan: '02',
