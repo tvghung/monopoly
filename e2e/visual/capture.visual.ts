@@ -80,6 +80,15 @@ for (const entry of CAPTURES) {
     });
     try {
       const page = await context.newPage();
+      if (entry.noWebglContext) {
+        // No WebGL context: the board must hand over to the legacy DOM view.
+        await page.addInitScript(() => {
+          const original = HTMLCanvasElement.prototype.getContext;
+          HTMLCanvasElement.prototype.getContext = function getContext(this: HTMLCanvasElement, type: string, ...rest: unknown[]) {
+            return /webgl/i.test(type) ? null : (original as (...args: unknown[]) => unknown).call(this, type, ...rest);
+          } as typeof HTMLCanvasElement.prototype.getContext;
+        });
+      }
       const consoleErrors: string[] = [];
       page.on('pageerror', error => consoleErrors.push(`pageerror: ${error.message}`));
       page.on('console', message => {

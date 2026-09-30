@@ -35,6 +35,8 @@ export interface CaptureEntry {
   noScreenshot?: boolean;
   /** Run the harness benchmark for this many seconds and store the summary in the sidecar JSON. */
   benchmarkSeconds?: number;
+  /** Make WebGL unavailable so the board falls back to the legacy DOM view. */
+  noWebglContext?: boolean;
 }
 
 export const VIEWPORTS = {
@@ -102,9 +104,11 @@ function harnessCaptures(options: {
   /** Suffix for the file name and id, for example a graphics tier. */
   variant?: string;
   benchmarkSeconds?: number;
+  noWebglContext?: boolean;
 }): CaptureEntry[] {
   const {
     plan, folder, scenarios, viewports = STANDARD_VIEWPORTS, surface = 'board', noScreenshot, extraQuery = '', variant, benchmarkSeconds,
+    noWebglContext,
   } = options;
   const suffix = variant ? `-${variant}` : '';
   return scenarios.flatMap(scenario => viewports.map(viewport => ({
@@ -117,10 +121,15 @@ function harnessCaptures(options: {
     kind: 'harness' as const,
     noScreenshot,
     benchmarkSeconds,
+    noWebglContext,
+    webgl: noWebglContext ? false : undefined,
   })));
 }
 
 export const GRAPHICS_TIERS = ['low', 'balanced', 'high'] as const;
+
+/** Plan 02 §T02.17: the fixtures every graphics tier is reviewed with. */
+const G2_FIXTURES = ['stations-4', 'board-readability', 'stress', 'hotel', 'rent', 'dice-contact-shadows', 'reduced-motion'] as const;
 
 /** Baseline of the running V1 look before any V2 token or theme change (plan 01 T01.2). */
 export const BASELINE_SCENARIOS = [
@@ -211,6 +220,34 @@ export const CAPTURES: readonly CaptureEntry[] = [
     noScreenshot: true,
     benchmarkSeconds: 10,
   })),
+  // Plan 02 T02.17 (gate G2 package). Take these after T02.16 so the review sees the final palette.
+  ...GRAPHICS_TIERS.flatMap(tier => harnessCaptures({
+    plan: '02',
+    folder: 'g2/fixtures',
+    scenarios: G2_FIXTURES,
+    viewports: [VIEWPORTS.laptop],
+    surface: 'g2',
+    variant: tier,
+    extraQuery: `&quality=${tier}`,
+  })),
+  ...GRAPHICS_TIERS.flatMap(tier => harnessCaptures({
+    plan: '02',
+    folder: 'g2/viewports',
+    scenarios: ['board-readability'],
+    viewports: [VIEWPORTS.fullHd, VIEWPORTS.minimum, VIEWPORTS.phoneLandscape, VIEWPORTS.ultrawide],
+    surface: 'g2',
+    variant: tier,
+    extraQuery: `&quality=${tier}`,
+  })),
+  ...harnessCaptures({
+    plan: '02',
+    folder: 'g2/fallback',
+    scenarios: ['board-readability'],
+    viewports: [VIEWPORTS.laptop, VIEWPORTS.phoneLandscape],
+    surface: 'g2',
+    variant: 'legacy',
+    noWebglContext: true,
+  }),
   // Concept screens at the standard viewports (plan 01 T01.10).
   ...labCaptures({ plan: '01', folder: 'concepts', sections: LAB_CONCEPT_SCREENS, viewports: STANDARD_VIEWPORTS, surface: 'concept' }),
 ];

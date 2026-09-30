@@ -449,6 +449,8 @@ the remaining evidence is reported separately by validation category.
   record settled and active numbers, not only a lighter idle sample.
 - No postprocess, full-screen bloom, scene-wide glow, or separate renderer is
   proposed without a measured need and an approved budget plan.
+  _(Superseded by visual-overhaul-v2 plan 02: that budget plan exists; the `high` tier runs N8AO + bloom + vignette,
+  balanced and low run none. Measurements are in `visual-overhaul-v2/02_LIGHTING_ENVIRONMENT_AND_TABLETOP.md` §16.)_
 
 ### Deterministic fixture coverage
 

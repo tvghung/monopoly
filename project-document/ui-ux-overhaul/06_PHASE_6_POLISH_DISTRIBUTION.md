@@ -233,6 +233,8 @@ release endpoint.
   only targeted prewarm after evidence of pop-in.
 - High/Balanced/Low quality modes and arbitrary render-scale changes are
   conditional on profiling.
+  _(Superseded by visual-overhaul-v2 plan 02: profiling showed the board is fill-rate bound on integrated GPUs, so the
+  `graphicsQuality` setting with `auto`/`high`/`balanced`/`low` now exists.)_
 - Auto-update is post-v1.
 - Analytics, accounts, cloud saves, voice, emotes transport, historical
   statistics, new-room redesign, board/camera redesign, rules/economy changes,

@@ -89,6 +89,19 @@
   orthographic camera, tone mapping, budget constants and the triangle estimator
   are guarded by tests; live diagnostics measure actual draw calls/triangles. WebGL
   lazy routing waits for its dynamic import deterministically.
+- [x] `[CLIENT][AUTOMATED]` Graphics quality resolution (`auto` never picks `high`, low
+  on small touch devices, invalid values normalize to `auto`), the per-tier config table,
+  Neutral tone mapping and the post-chain constants are guarded by `renderQuality`,
+  `toneMapping`, `postSettings` and settings tests.
+- [x] `[CLIENT][AUTOMATED]` The tabletop covers every standard aspect ratio (1 → 2.4) and
+  the frame counter splits main / shadow / post draw calls and composer passes
+  (`tabletopCoverage`, `rendererInfo`, `composerPasses` tests).
+- [ ] `[CLIENT][MANUAL-E2E]` Review low / balanced / high captures side by side (harness
+  `quality=<tier>`, `pnpm visual:capture` group `g2`), including the eight regression tile names
+  and the WebGL fallback; gate G2 verdict recorded by the product owner.
+- [ ] `[CLIENT][MANUAL-E2E]` Benchmark `stress` and `board-readability` per tier on the
+  reference device (Intel Iris Xe or Apple M1 class) with `VISUAL_GPU=hardware`; record model, GPU,
+  OS and browser. Current numbers are from an Intel UHD 630-class GPU, which is not the reference device.
 - [ ] `[CLIENT][MANUAL-E2E]` Record 1920×1080 bottom/left/top/right visual review,
   orange/pink/blue material distinction, center/corner hierarchy, four-player
   developed-property stress scene and active roll/landing action flow.

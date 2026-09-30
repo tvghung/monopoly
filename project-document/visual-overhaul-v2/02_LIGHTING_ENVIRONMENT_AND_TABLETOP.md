@@ -1,6 +1,6 @@
 # 02 — Lighting, Environment and Tabletop
 
-**Status: PLANNED — not started. Open decisions answered by the product owner on 2026-09-30 (see the Decisions section). Technical tasks may start before plan 01 gate G1; color grading (T02.16) waits for G1.**
+**Status: IN PROGRESS — T02.0–T02.15 and T02.18 done (2026-09-30). T02.16 (palette) waits for plan 01 gate G1; T02.17 (G2 package) waits for T02.16 and needs a human verdict. Open decisions answered by the product owner on 2026-09-30 (see the Decisions section).**
 
 | Field | Value |
 | --- | --- |
@@ -776,14 +776,18 @@ Answered by the product owner on 2026-09-30; binding for implementation.
 
 ## 15. Definition of Done
 
-- [ ] T02.0–T02.18 complete and logged in §16.
-- [ ] Budget table (§16) shows every tier within §8.9 limits for `board-readability`
-  and `stress`.
-- [ ] Benchmark on the reference device recorded; `balanced` and `low` meet §5.3.
+- [ ] T02.0–T02.18 complete and logged in §16. _(T02.16 and T02.17 are open: G1, then a human G2 verdict.)_
+- [x] Budget table (§16) shows every tier within §8.9 limits for `board-readability`
+  and `stress` (main ≤ 177, shadow ≤ 25, post passes 3, triangles ≤ 69k).
+- [ ] Benchmark on the reference device recorded; `balanced` and `low` meet §5.3. _(Recorded only on an
+  Intel UHD 630-class GPU, which is not the reference device; `balanced` does not reach 60 FPS there, see §16.)_
 - [ ] G2 verdict recorded by a human.
 - [ ] README §9 commands green (including `pnpm desktop:package` and a packaged run
-  of the high tier to prove the lazy post chunk loads under `app://`).
-- [ ] Docs updated (§T02.18).
+  of the high tier to prove the lazy post chunk loads under `app://`). _(`pnpm typecheck`, `pnpm lint`,
+  `pnpm test` (client 866 tests) and `pnpm build` pass; `pnpm desktop:package`, the WebKit captures,
+  `pnpm test:e2e:mobile` and the PostgreSQL checks were not run in this environment: no Electron binary,
+  Playwright browsers or managed PostgreSQL were downloaded.)_
+- [x] Docs updated (§T02.18).
 
 ---
 
@@ -791,21 +795,51 @@ Answered by the product owner on 2026-09-30; binding for implementation.
 
 | Date | Task | Commit | Evidence | Result / notes |
 | --- | --- | --- | --- | --- |
-| — | — | — | — | — |
+| 2026-09-30 | T02.0 T02.1 | 61ba495 | `evidence/02/baseline-measure` | Diagnostics count main / shadow / post with a wrapped `render`; baseline `board-readability` main pass 227 (not the 171 the old counter suggested), stress 214. |
+| 2026-09-30 | T02.2 | 32d5390 | `evidence/02/benchmark/*baseline*` | Harness `benchmark=<s>` mode; v1 baseline 59.9 FPS median on both fixtures (Intel UHD 630-class GPU, Chrome 154). |
+| 2026-09-30 | T02.3–T02.6 | 4caf52d 4a160f9 4114181 16f7fb2 | `evidence/02/recovery` | Budget recovery before any visual addition: single-pass icons / highlights / card backs, merged special-tile parts, die face plates baked into the body, stable tile body mesh with hover / selection via instance color. Main pass 227 → 161; pixel diffs against the before captures were 0–2/255. |
+| 2026-09-30 | T02.7 | 72d31bd | `evidence/02/tiers` | `RenderQualityConfig`, `resolveRenderQuality`, `graphicsQuality` setting ("Chất lượng đồ họa"), tier diagnostics. `auto` never selects `high`. |
+| 2026-09-30 | T02.8 | 51c3639 | `evidence/02/tonemap` | Khronos PBR Neutral (OD-02-2) with ACES / AgX comparison captures for the G2 package; the `?tonemap=` override is dev-only. |
+| 2026-09-30 | T02.9 | 79d489f | — | One procedural studio PMREM shared by `scene.environment` and the coins; `CoinMaterialEnvironment` removed. |
+| 2026-09-30 | T02.10–T02.11 | 65b663a 0a35b1a | `evidence/02/tabletop` | Key / fill / rim rig; procedural light oak tabletop covering aspect 1 → 2.4 and a board ground-shadow decal. |
+| 2026-09-30 | T02.12 | 689678b | — | Instanced lacquer player trays with player-color rims; bank treasury grounded. |
+| 2026-09-30 | T02.13 | 89f77fb | — | PCF key-light shadows (1024 balanced, 2048 high). Shadow pass 25 draws in `board-readability`. |
+| 2026-09-30 | T02.14 | b179766 | — | Material pass: dice clearcoat, roofs, lacquer rails, paper decks. |
+| 2026-09-30 | T02.15 | 98c978d | `evidence/02/tier-shots`, `evidence/02/tiers`, `evidence/02/benchmark` | Lazy high-tier chain N8AO + Bloom + Vignette + Neutral (243 kB chunk, 104 kB gzip, absent from the balanced / low network log and from the main build chunks). Verified in the browser: live switch high ↔ balanced ↔ low, resize, WebGL context loss → legacy board, no console errors. **Deviations, all measured:** (1) N8AO transparency detection is off because it rendered the scene two extra times (main pass 261 → 169); (2) bloom threshold is 1.5 on the HDR buffer, not 0.9, because lit white tiles already sit near 1.0 and would glow (the difference at 1.5 is ≤ 2/255 on 1.4k pixels); (3) "post passes" counts the composer passes (3); the 19 internal full-screen renders are reported separately as `postRenders`; (4) the Canvas `gl.toneMapping` prop is `NoToneMapping` for the high tier because R3F re-applies Canvas props on every render. Known difference: SDF text blends in linear space in the high tier, so it looks slightly thinner and lighter than in balanced; if the G2 review rejects it, remap the text alpha for dark-on-light text. |
+| 2026-09-30 | T02.18 | `git log --grep T02.18` | — | AS-IS `Client/game-board.instruction.md` (lighting, environment, tiers, post chain, budget definitions), `Client/README.md`, testcase rows, and supersession notes in `04_PHASE_4` §20.2, `05_PHASE_5` §3, `05A` §12, `06_PHASE_6` §4 and `06A` renderer / quality rows. `CLAUDE.md` needed no change. |
+| — | T02.16 | — | — | Waiting for plan 01 gate G1 (human). |
+| — | T02.17 | — | `pnpm visual:capture --grep "02-g2/"` (35 entries: 3 tiers × 7 fixtures at 1440×900, 3 tiers × 4 viewports, forced legacy fallback at two sizes) | Manifest ready; take the captures after T02.16 so the review sees the final palette. Needs the reference device and a human verdict. |
 
 **Budget table** (fill in per fixture, 1920×1080):
 
-| Fixture | Tier | Main | Shadow | Post | Triangles | Median FPS | p95 ms |
+| Fixture | Tier | Main | Shadow | Post passes (+ renders) | Triangles | Median FPS | p95 ms |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| board-readability | baseline (before) | 227 | 0 | 0 | 66,234 | — | — |
-| board-readability | low | — | — | — | — | — | — |
-| board-readability | balanced | — | — | — | — | — | — |
-| board-readability | high | — | — | — | — | — | — |
-| stress | low / balanced / high | — | — | — | — | — | — |
+| board-readability | baseline (before) | 227 | 0 | 0 | 66,234 | 59.9 | 16.8 |
+| board-readability | low | 177 | 0 | 0 | 69,152 | 59.9 | 33.5 |
+| board-readability | balanced | 169 | 25 | 0 | 69,136 | 30.0 | 66.5 |
+| board-readability | high | 169 | 25 | 3 (+19) | 69,136 | 30.1 | 349.7 |
+| stress | baseline (before) | 214 | 0 | 0 | — | 59.9 | 49.9 |
+| stress | low | 164 | 0 | 0 | 67,558 | 59.5 | 83.4 |
+| stress | balanced | 160 | 17 | 0 | 67,550 | 30.0 | 133.2 |
+| stress | high | 160 | 17 | 3 (+19) | 67,550 | 10.0 | 283.0 |
 
-**Reference device**: _model, GPU, OS, browser/Electron version_ — to be filled.
+Draw calls and triangles come from the software-rendered captures (`evidence/02/tiers`, deterministic);
+frame times come from `VISUAL_GPU=hardware` runs of 10 s at 1920×1080 (`evidence/02/benchmark`). Limits met:
+main ≤ 180, shadow ≤ 30, post passes ≤ 6, triangles < 80k.
 
-**G2 verdict**: PENDING — reviewer, date, notes.
+**Reference device**: _not available._ Measured on the development machine instead: Intel UHD Graphics
+(0x9B41, an integrated UHD 630-class GPU, weaker than the Iris Xe / M1 reference), Windows 10 Pro build 19044,
+Chrome 154.0.8037.58, canvas pixel ratio 1.25 (the balanced minimum).
+
+**Performance finding for G2 (not acted on, needs a product decision):** on this GPU `balanced` runs at a
+30 FPS median where the v1 baseline ran at 60. The board is fill-rate bound, not draw-call or shadow bound:
+with real shadows switched off, `balanced` stays at 33.3 ms median; at pixel ratio 1 it returns to 16.8 ms
+median (p95 49.9 ms). `low` (pixel ratio 1, no shadows) holds 60 FPS. Options for the reviewer: lower the
+`balanced` pixel ratio range, teach `auto` to pick `low` on integrated GPUs, or accept 30 FPS during
+animation on this class of device; measure on an Iris Xe / M1 before choosing. `high` is opt-in and is
+expected to be slow on integrated GPUs.
+
+**G2 verdict**: PENDING — a human reviewer must record the verdict after T02.16 and the G2 captures. An agent must not record it.
 
 ---
 

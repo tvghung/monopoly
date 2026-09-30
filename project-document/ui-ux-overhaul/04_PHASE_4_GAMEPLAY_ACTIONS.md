@@ -1697,6 +1697,10 @@ intensity `1.08/1.24/1.14` and emissive intensity `0`. Selected station and
 transfer coins receive deterministic small X/Z tilts; bank, station, and
 transfer paths retain instanced shared geometry.
 
+> **Superseded by visual-overhaul-v2 plan 02:** `scene.environment` is now one shared procedural studio
+> environment (`game/scene/render/environment/`) that the coins also use; the coin-only PMREM
+> (`CoinMaterialEnvironment`) no longer exists. See `Client/game-board.instruction.md`.
+
 ### 20.3 Construction and ownership timing
 
 Final presentation timings are:

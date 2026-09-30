@@ -62,9 +62,11 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   board/Troika dùng một local full-coverage ExtraBold TTF và callback sync invalidate
   demand frame. Các mẫu kiểm tra gồm `Cà Mau`, `Buôn Ma Thuột`, `Đà Nẵng`, `Phú Quốc`,
   `Công Ty Nước`, `Khí vận` và `Cơ hội`.
-- Scene dùng fixed orthographic camera, ACES filmic tone mapping, contact shadows,
-  DPR clamp `1.25..1.5` và `frameloop="demand"`. Budget hiện hành: target 210 draw
-  calls, stress ceiling 240, target 80k triangles và hard ceiling 100k.
+- Scene dùng fixed orthographic camera và `frameloop="demand"` (callback async như SDF
+  text, texture hay post chain phải `invalidate`). Ánh sáng, môi trường, bàn và preset
+  chất lượng nằm ở mục **Lighting, environment và graphics tiers** bên dưới. Budget:
+  main pass target 210 draw calls, stress ceiling 240, target 80k triangles và hard
+  ceiling 100k; định nghĩa main/shadow/post ở mục đó.
 - Foundation/rim trung tính bao quanh center airport field recessed. Outer accent là
   một continuous rounded-square loop near-white; center có field xanh, runway/taxiway
   strips, marking nhẹ và một authored orthogonal S-path deterministic, không có
@@ -96,6 +98,60 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   một instanced two-shadow batch, ground-locked, opacity khoảng `0.21 → 0.07`
   và footprint tối đa `1.35×`, dùng chung vertical-offset helper. Camera giữ hướng cố định, dùng
   `ORTHOGRAPHIC_READABILITY_ZOOM=1.08`, không bỏ fit point của board/dice/stations.
+
+## Lighting, environment và graphics tiers
+
+Visual Overhaul V2 plan 02 (`project-document/visual-overhaul-v2/02_LIGHTING_ENVIRONMENT_AND_TABLETOP.md`).
+Code nằm trong `game/scene/render/`; camera, `BoardRenderModel` boundary, WebGL fallback
+và 40 semantic tile buttons không đổi.
+
+- **Tone mapping**: Khronos PBR Neutral, exposure 1 (`render/toneMapping.ts`). Chỉ trên
+  localhost hoặc UAT harness mới có `?tonemap=aces|agx|neutral` để chụp so sánh. Tier
+  `high` áp dụng Neutral ở bước cuối post chain nên Canvas `gl.toneMapping` là
+  `NoToneMapping` cho tier đó (R3F áp lại prop của Canvas ở mỗi render, nên prop phải khớp).
+- **Light rig** (`render/lighting/lightRigSpec.ts` là nguồn duy nhất): key directional ấm
+  `#FFF1DE` cường độ 2.2 tại `(-9, 16, 5)` có shadow; fill hemisphere sky `#FFF8EC` /
+  ground `table-oak` 0.55; rim lạnh `#DDE9FF` 0.6 tại `(8, 10, -12)`, không shadow.
+- **Environment**: một PMREM studio procedural (`render/environment/`), không file HDR,
+  dùng chung cho `scene.environment` và coin materials. Cường độ 0.6 / 0.7 / 0.8 cho
+  low / balanced / high.
+- **Bàn và trạm**: `Tabletop` là mặt bàn gỗ sồi sáng procedural (texture canvas
+  512² / 1024²) phủ các aspect 1 → 2.4 (test `tabletopCoverage`); `BoardGroundShadow`
+  là decal bóng dưới board; khay người chơi (`PlayerTrays`) là instanced lacquer tray với
+  viền màu người chơi; bank treasury đặt trên nền riêng, tiếp đất bằng shadow thật.
+- **Shadow**: key light PCF, map 1024 (balanced) hoặc 2048 (high), tắt ở low; khi có
+  real shadow thì nhà/khách sạn không render blob shadow. Caster: foundation, nhà, khách sạn,
+  deck, coin pile, khay và (chỉ high) dice; receiver: mặt và footer tile, tile body, center
+  platform, bàn và khay. Text và decal trong suốt không cast.
+- **Optional layer**: environment và bàn nằm trong `OptionalSceneLayer` (Suspense +
+  error boundary). Lỗi của một layer chỉ cảnh báo một lần và bỏ layer, không kéo board
+  sang legacy; chỉ lỗi renderer thật hoặc mất WebGL context mới chuyển sang legacy.
+- **Graphics tiers** (`render/renderQuality.ts`, `GameSettings.graphicsQuality`):
+  `auto` (mặc định) → `balanced`, hoặc `low` khi thiết bị cảm ứng nhỏ, `MAX_TEXTURE_SIZE <
+  8192` hay `hardwareConcurrency <= 4`; `auto` không bao giờ chọn `high`.
+
+  | Tier | DPR | Shadow | Environment | Decal | Post |
+  | --- | --- | --- | --- | --- | --- |
+  | low | 1–1.25 | tắt | 0.6 | 0.35 | không |
+  | balanced | 1.25–1.5 | PCF 1024 | 0.7 | 0.18 | không |
+  | high | 1.25–2 | PCF 2048 | 0.8 | 0.18 | N8AO + bloom + vignette + MSAA |
+
+  Đổi tier lúc chạy không cần reload (Canvas `dpr`/`shadows`/`gl.toneMapping` cập nhật,
+  post chain mount hoặc unmount). Control nằm trong Settings, nhóm “Đồ họa”, tên
+  “Chất lượng đồ họa”.
+- **Post chain (chỉ high)**: `render/post/ScenePostEffects.tsx` là lazy chunk, tier khác
+  không tải. Thứ tự: N8AO (half res, aoRadius 0.8, distanceFalloff 0.6, intensity 1.6,
+  màu AO ấm) → Bloom (mipmapBlur, ngưỡng 1.5 trên HDR buffer, intensity 0.22) →
+  Vignette (0.3 / 0.3) → ToneMapping Neutral. Không có hiệu ứng temporal vì demand
+  rendering dừng sau invalidate cuối. N8AO tự render scene vào buffer của nó nên
+  `transparencyAware` phải tắt (nếu không scene bị render thêm hai lần và main pass tăng gấp đôi).
+  Blend alpha của SDF text diễn ra trong không gian tuyến tính nên chữ ở tier high mảnh và
+  nhạt hơn một chút so với balanced.
+- **Budget definitions** (`render/diagnostics/rendererInfo.ts`, `FrameCounter`): *main* là
+  draw call của pass màu scene, *shadow* là draw call của shadow map trong cùng frame,
+  *post* là số pass full-screen của composer (`postPasses`) cùng số lần render full-screen
+  nội bộ (`postRenders`). Diagnostics chỉ chạy trên localhost/UAT và tắt `gl.info.autoReset`.
+  Harness `benchmark=<giây>` ghi median/p95 frame time; `quality=<tier>` chọn preset.
 
 ## State/rendering
 
@@ -149,8 +205,8 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   1.5–1.7× ownership flag proportions, Start width ratio, enlarged
   house/hotel geometry plus canonical anchors, neutral facade/window-grid textures,
   pitched roof/crown owner-color split, frame dimensions, scene budget,
-  orthographic camera/tone mapping
-  và SDF sync invalidation.
+  orthographic camera/tone mapping (Neutral), quality resolution per tier, tabletop
+  coverage, diagnostics counting (main/shadow/post) và SDF sync invalidation.
 - Special art contracts cover approved Chance question mark, simplified pointer-free
   fortune wheel, locomotive/one-wagon silhouette, light bulb, large faucet, tax paper stack, START
   sign, parking lot/cars, handcuffs, jail bars and airport center theme; ownership

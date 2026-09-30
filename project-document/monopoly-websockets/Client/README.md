@@ -43,6 +43,8 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
   path. Card reveal is queued after the authoritative LAND boundary; session/
   reconnect hydration snaps to the current revealed card without replaying a draw
   animation. The effect waits for the acting player to press `Đóng`.
+- Settings có thêm `graphicsQuality` (`auto` | `high` | `balanced` | `low`, mặc định `auto`);
+  giá trị lạ normalize về `auto`. Chi tiết tier ở [game-board.instruction.md](./game-board.instruction.md).
 - Settings dùng key `own-the-block.settings.v1`, normalize/clamp defensive và tách
   khỏi reconnect token. Reduced motion hiệu lực là user setting hoặc OS
   preference. Audio provider owns one lazy Web Audio engine and typed SFX
