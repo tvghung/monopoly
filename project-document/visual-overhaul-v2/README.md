@@ -1,6 +1,6 @@
 # Visual Overhaul V2 — "Tabletop Toy Vietnam"
 
-**Status: PLANNED — no implementation started. Plans 01–05 are ready for execution; all open decisions were answered by the product owner on 2026-09-30 (§4.1).**
+**Status: IN PROGRESS — plan 01 implemented through T01.11 and waiting for Gate G1 (product-owner review of the rendered Design Lab); plans 02–05 follow. All open decisions were answered by the product owner on 2026-09-30 (§4.1).**
 
 - Program created: 2026-09-29
 - Baseline branch / SHA: `codex/v1-production-audio-assets` / `440766a`
@@ -309,8 +309,13 @@ The existing Phase 4 UAT harness renders the real `Board` and card overlay from
 fixtures, with no socket or database:
 
 ```bash
-pnpm --filter @monopoly/client exec vite --mode phase4-uat
+VITE_PHASE4_UAT=1 pnpm --filter @monopoly/client exec vite --mode phase4-uat
 ```
+
+`.env.phase4-uat` is gitignored, so the gate has to come from the environment (PowerShell: set
+`$env:VITE_PHASE4_UAT = "1"` first). Plan 01 also added the URL parameters `scenario=<key>`,
+`uat-controls=collapsed|hidden` and `design-lab=1`, a `data-uat-ready` marker, and
+`pnpm visual:capture` (see `Client/design-system.instruction.md`).
 
 - Open `http://127.0.0.1:5173/?phase4-uat=1`; pick a scenario in the
   `Kịch bản` select (48 scenarios: `stations-4`, `purchase`, `rent`, `hotel`,

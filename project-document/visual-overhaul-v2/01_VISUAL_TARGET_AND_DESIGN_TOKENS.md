@@ -1,6 +1,6 @@
 # 01 — Visual Target, Art Direction and Design Tokens V2
 
-**Status: PLANNED — not started. Open decisions answered by the product owner on 2026-09-30 (see the Decisions section). Gate G1 (product-owner approval) is blocking for plans 03/04 and for the final color grading of plan 02.**
+**Status: IN PROGRESS — T01.0–T01.11 and T01.13 done (2026-09-30); Gate G1 (product-owner approval) is PENDING and blocks T01.12 (global theme switch), plans 03/04 and the final color grading of plan 02. Open decisions were answered by the product owner on 2026-09-30 (see the Decisions section).**
 
 | Field | Value |
 | --- | --- |
@@ -932,7 +932,18 @@ result in the Design Lab, not these choices.
 
 | Date | Task | Commit | Evidence | Result / notes |
 | --- | --- | --- | --- | --- |
-| — | — | — | — | — |
+| 2026-09-30 | T01.0 | — | — | Baseline on Node 24.21.0 / pnpm 11.15.1: typecheck OK, lint OK, test OK (client 562, server 173 passed + 11 skipped without PostgreSQL, desktop 77). Harness confirmed at `?phase4-uat=1` (WebGL, 227 draw calls on board-readability). |
+| 2026-09-30 | T01.1 | eddb803 | — | Harness `scenario`, `uat-controls` (+ `hidden` extra) and `data-uat-ready`; `Phase4UatHarness.test.tsx`; production bundle has no `Kịch bản` (stub chunk 0.04 kB). |
+| 2026-09-30 | T01.2 | 58e354f, b510dea | `evidence/01/baseline/` (28 PNG + JSON) | `pnpm visual:capture`; two consecutive runs gave the same file set; re-runs are byte-identical except the transient `stress` fixture. Chromium via the installed Chrome (`VISUAL_BROWSER_CHANNEL=chrome`); WebKit is not installed (NOT RUN). |
+| 2026-09-30 | T01.3 | 8a84d95 | — | `palette.css/ts`, `contrast.ts`, `palette.test.ts` (66 assertions; every recorded contrast ratio within 0.02 of §8.2). |
+| 2026-09-30 | T01.4 | 1e51658 | baseline re-run: 23/28 byte-identical, rent-1920x1080 differs by 1 px, stress non-deterministic | Semantic v2 tokens under `data-visual-theme="v2"`; theme-aware district colors with `headerText` (ratios within 0.02 of §8.4). |
+| 2026-09-30 | T01.5 | 5cb3e84 | `evidence/01/lab/01-lab-typography-v2-*` | Baloo 2 700/800 through the combined CSS (per-subset files carry no unicode-range). Stress string renders unclipped in Chromium; WebKit NOT RUN. **tnum decision:** Baloo 2 tnum works (0 px vs 48 px proportional), Be Vietnam Pro tnum does not (58 px), so money uses Baloo 2 everywhere. |
+| 2026-09-30 | T01.6 | 2880c7e | — | Motion tokens + `ReducedMotionDocumentSync`; tests for CSS/TS parity and the bridge. `e2e/mobile-host.spec.ts` (OS media query only) not run: PostgreSQL binaries were not approved for download. |
+| 2026-09-30 | T01.7 | 8ec2eba | baseline re-run as T01.4 | Primitives v2 + tests; v1 unchanged. Audit: no design-system `Button` sits inside a `<form>`. Added an additive `accessibleLabel` to the character registry. |
+| 2026-09-30 | T01.8 | 83accce | — | `actionIcons.ts`, `ActionIcon`, 42 assertions. |
+| 2026-09-30 | T01.9–T01.10 | 125ca1d, 0def128 | `evidence/01/lab/`, `evidence/01/concepts/` | Design Lab sections + Purchase/Lobby/Landing/HUD concepts (HUD over the real board: 212 draw calls, 64,684 triangles). Committed as one change because the Lab shell imports every section. |
+| 2026-09-30 | T01.11 | — | `evidence/01/g1/README.md` | G1 package assembled; verdict PENDING (human only). |
+| 2026-09-30 | T01.13 | — | — | `Client/design-system.instruction.md` (new), Client README, client rule 7, masterplan §11 pointer, testcase rows. |
 
 **G1 checklist** (product owner fills in):
 

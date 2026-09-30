@@ -48,6 +48,20 @@
   Vietnamese text and short board labels fit desktop/mobile without hiding critical
   action.
 
+## Design system V2 (visual-overhaul-v2 plan 01)
+
+- [x] `[CLIENT][AUTOMATED]` `palette.test.ts`: `palette.css` ≡ `OTB_PALETTE`, và mọi cặp contrast
+  đã ghi (≥ 4.5:1 hoặc 3:1 cho chữ lớn/non-text) đạt; `propertyVisualColors.test.ts` kiểm header
+  district v2 ≥ 4.5:1.
+- [x] `[CLIENT][AUTOMATED]` `ReducedMotionDocumentSync.test.tsx`: setting hoặc OS ghi
+  `data-reduced-motion`; `motionTokens.test.ts`: token CSS ≡ mirror TS và duration về 0ms.
+- [x] `[CLIENT][AUTOMATED]` Primitive v2 (Button default type, IconButton, Panel, Chip,
+  SegmentedControl, Switch, Slider, MoneyText, DeltaChip, PlayerAvatar, GroupPips) và icon registry
+  có test render/accessible name/bàn phím; `Phase4UatHarness.test.tsx` và `DesignLab.test.tsx`
+  cover tham số URL, marker `data-uat-ready` và mọi section của Lab.
+- [ ] `[CLIENT][MANUAL-E2E]` Review thị giác Design Lab (Chromium; WebKit NOT RUN vì chưa cài) và
+  Gate G1 của product owner: `project-document/visual-overhaul-v2/evidence/01/`.
+
 ## Gameplay audio
 
 - [x] `[CLIENT][AUTOMATED]` One trusted unlock starts exactly four equal-length

@@ -133,7 +133,12 @@ formatter dùng `1 game unit = 1.000 VNĐ` và player-facing UI/log/error là ti
 6. Không render hidden `DeckState`, raw `PaymentQueue` internals hoặc credential;
    chỉ render public pending landing/payment-shortfall projection và private proposal
    terms for its seller/buyer.
-7. Modal/prompt dùng `Modal`, `ConfirmationDialog` hoặc `Toast`; Escape/outside
+7. Modal/prompt dùng `Modal`, `ConfirmationDialog` hoặc `Toast`; nút/icon/panel/chip/tiền/avatar
+   dùng primitive trong `design-system/components/` (`Button`, `IconButton`, `Panel`, `Chip`,
+   `SegmentedControl`, `Switch`, `Slider`, `MoneyText`, `DeltaChip`, `PlayerAvatar`,
+   `GroupPips`) và icon hành động qua `ActionIcon`/`ACTION_ICONS`; không thêm primitive song
+   song hay hard-code hex — xem [Client/design-system.instruction.md](./Client/design-system.instruction.md).
+   Escape/outside
    behavior, focus restore/trap, reduced motion và z-index phải tập trung ở primitive.
    Active-game `Bỏ cuộc` dùng confirmation; desktop close khi đang chơi chỉ
    disconnect để giữ reconnect token, không emit `leave room`.

@@ -406,6 +406,10 @@ Target:
 
 # 11. Phase breakdown
 
+> **Visual Overhaul V2** (`project-document/visual-overhaul-v2/`) là chương trình thị giác thứ hai
+> sau V1; plan 01 (visual target, tokens V2, Design Lab, công cụ chụp evidence) đã triển khai
+> phần token/primitive/Lab theo theme-scoped, chờ Gate G1. Chi tiết: `Client/design-system.instruction.md`.
+
 ## Phase 1 — Desktop & Visual Foundation
 
 Mục tiêu:

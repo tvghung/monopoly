@@ -17,7 +17,8 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
 | Forced sale proposal | [../testcase/payment-shortfall-and-forced-sale.md](../testcase/payment-shortfall-and-forced-sale.md) | DebtPanel/ForcedSaleProposalPanel |
 | Log/chat | [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md) | Log |
 | Desktop shell/runtime | [../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md](../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md) | `apps/desktop/`, preload bridge, bootstrap/runtime config |
-| Presentation/design system | [../ui-ux-overhaul/PHASE_1_IMPLEMENTATION_PLAN.md](../ui-ux-overhaul/PHASE_1_IMPLEMENTATION_PLAN.md) | `game/presentation/`, `game/ui/`, `design-system/`, settings/audio |
+| Presentation | [../ui-ux-overhaul/PHASE_1_IMPLEMENTATION_PLAN.md](../ui-ux-overhaul/PHASE_1_IMPLEMENTATION_PLAN.md) | `game/presentation/`, `game/ui/`, settings/audio |
+| Design system V2 (tokens, primitive, icon registry, motion, Design Lab, capture) | [design-system.instruction.md](./design-system.instruction.md) | `design-system/`, `settings/ReducedMotionDocumentSync.tsx`, `dev/design-lab/`, `e2e/visual/` |
 
 ## Client invariants
 
