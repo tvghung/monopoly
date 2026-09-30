@@ -19,6 +19,8 @@ import { FrameCounter, shadowMapTypeName, toneMappingName } from './render/diagn
 import OptionalSceneLayer from './render/OptionalSceneLayer';
 import SceneLightRig from './render/lighting/SceneLightRig';
 import StudioEnvironment from './render/environment/StudioEnvironment';
+import BoardGroundShadow from './render/table/BoardGroundShadow';
+import Tabletop from './render/table/Tabletop';
 import { RenderQualityContext, useRenderQuality } from './render/RenderQualityContext';
 import { probeRenderCapabilities, resolveRenderQuality } from './render/renderQuality';
 import { SCENE_TONE_MAPPING, SCENE_TONE_MAPPING_EXPOSURE, parseToneMappingOverride } from './render/toneMapping';
@@ -346,6 +348,10 @@ export default function GameScene({
           <SceneLightRig />
           <OptionalSceneLayer name="studio-environment">
             <StudioEnvironment />
+          </OptionalSceneLayer>
+          <OptionalSceneLayer name="tabletop">
+            <Tabletop />
+            <BoardGroundShadow />
           </OptionalSceneLayer>
           <BoardSceneContents
             model={model}

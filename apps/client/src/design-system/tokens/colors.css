@@ -34,6 +34,14 @@
 
 
 /*
+ * Color behind the game canvas: the light oak table mid tone, so nothing flashes before the first frame.
+ * It equals boardVisualTokens.sceneBackground (75% oak over 25% grain color); colors.test keeps them in sync.
+ */
+:root {
+  --color-scene-backdrop: color-mix(in srgb, var(--otb-table-oak) 75%, var(--otb-table-oak-dark));
+}
+
+/*
  * Semantic tokens introduced by Visual Overhaul V2. They exist in every theme so primitives never
  * reference an undefined variable; the values below are v1-derived and the v2 block overrides them.
  */

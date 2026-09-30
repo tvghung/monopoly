@@ -53,7 +53,8 @@ describe('tile visual registry', () => {
   });
 
   it('keeps the palette vivid while retaining light surfaces for black text', () => {
-    expect(boardVisualTokens.sceneBackground).toBe('#62ddcc');
+    // Visual overhaul V2 (plan 02 T02.11): the teal void became the light oak table backdrop.
+    expect(boardVisualTokens.sceneBackground).toBe('#d2af83');
     expect(boardVisualTokens.tileDivider).toBe('#111318');
     expect(boardVisualTokens.utilityBulb).toBe('#ffd400');
     expect(boardVisualTokens.utilityWater).toBe('#19bdeb');

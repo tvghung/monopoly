@@ -43,6 +43,7 @@ export const VIEWPORTS = {
   minimum: { width: 1280, height: 720 },
   phoneLandscape: { width: 812, height: 375, touch: true },
   smallPhoneLandscape: { width: 667, height: 375, touch: true },
+  ultrawide: { width: 2560, height: 1080 },
   tabletLandscape: { width: 1024, height: 768, touch: true },
 } as const satisfies Record<string, CaptureViewport>;
 
@@ -147,6 +148,14 @@ export const CAPTURES: readonly CaptureEntry[] = [
     folder: 'recovery',
     scenarios: ['dice-contact-shadows', 'roll-chance'],
     viewports: [VIEWPORTS.laptop],
+  }),
+  // Plan 02 T02.11: the table must cover every standard viewport, including 21:9.
+  ...harnessCaptures({
+    plan: '02',
+    folder: 'tabletop',
+    scenarios: ['board-readability'],
+    viewports: [VIEWPORTS.fullHd, VIEWPORTS.minimum, VIEWPORTS.phoneLandscape, VIEWPORTS.ultrawide],
+    surface: 'table',
   }),
   // Plan 02 T02.8: tone mapping comparison (ACES Filmic, AgX, Neutral) for the G2 package.
   ...(['aces', 'agx', 'neutral'] as const).flatMap(mapper => harnessCaptures({

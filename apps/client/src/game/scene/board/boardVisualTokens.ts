@@ -1,5 +1,15 @@
+import { mixHex } from '../../../design-system/tokens/contrast';
+import { OTB_PALETTE } from '../../../design-system/tokens/palette';
+
+/**
+ * The color behind the canvas (before the first frame and past the tabletop edge): a table mid tone,
+ * identical to the CSS token --color-scene-backdrop (75% oak over 25% grain color).
+ */
+export const SCENE_BACKDROP_OAK_SHARE = 0.75;
+export const SCENE_BACKDROP = mixHex(OTB_PALETTE['table-oak'], OTB_PALETTE['table-oak-dark'], SCENE_BACKDROP_OAK_SHARE);
+
 export const boardVisualTokens = {
-  sceneBackground: '#62ddcc',
+  sceneBackground: SCENE_BACKDROP,
   boardBase: '#858d90',
   boardBaseEdge: '#113c49',
   boardFrame: '#215a58',
