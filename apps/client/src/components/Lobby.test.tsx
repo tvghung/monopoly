@@ -231,7 +231,7 @@ describe('Lobby', () => {
       />,
     );
 
-    const stage = screen.getByRole('group', { name: /Mascot đang xem: Dog/u });
+    const stage = screen.getByRole('group', { name: /Mascot đang xem: Chó/u });
     fireEvent.keyDown(stage, { key: 'ArrowRight' });
     expect(onSetAppearance).toHaveBeenCalledWith({ characterId: 'capybara' });
     expect(screen.getByRole('button', { name: 'Chó' }).getAttribute('aria-pressed')).toBe('true');
@@ -340,8 +340,8 @@ describe('Lobby', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Chó' }));
     expect(onSetAppearance).not.toHaveBeenCalled();
-    expect(screen.getByRole('group', { name: /Mascot đang xem: Dog/u })).toBeTruthy();
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: /Xanh dương \(đã dùng với Dog\)/u })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('group', { name: /Mascot đang xem: Chó/u })).toBeTruthy();
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: /Xanh dương \(đã dùng với Chó\)/u })).toHaveProperty('disabled', true);
 
     fireEvent.click(screen.getByRole('button', { name: 'Đỏ' }));
     expect(onSetAppearance).toHaveBeenCalledWith({ characterId: 'dog', color: 'red' });
