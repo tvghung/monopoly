@@ -29,3 +29,15 @@ export function contrastRatio(first: string, second: string): number {
   const b = relativeLuminance(second);
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
+
+function toHex(channel: number): string {
+  return Math.round(Math.min(255, Math.max(0, channel))).toString(16).padStart(2, '0');
+}
+
+/** Opaque mix of `foreground` over `background`; `amount` is the foreground share (0 to 1). */
+export function mixHex(foreground: string, background: string, amount: number): string {
+  const front = parseHex(foreground);
+  const back = parseHex(background);
+  const mixed = front.map((channel, index) => channel * amount + back[index] * (1 - amount));
+  return `#${mixed.map(toHex).join('')}`;
+}

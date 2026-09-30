@@ -32,3 +32,80 @@
   --color-shadow: rgb(17 54 66 / 18%);
 }
 
+
+/*
+ * Semantic tokens introduced by Visual Overhaul V2. They exist in every theme so primitives never
+ * reference an undefined variable; the values below are v1-derived and the v2 block overrides them.
+ */
+:root {
+  --color-surface-sunken: #bff3ea;
+  --color-warning-strong: #8a5a00;
+  --color-gold-soft: #fff1c2;
+  --color-gold-strong: #8a5a00;
+  --color-money-gain: var(--color-success-strong);
+  --color-money-loss: var(--color-danger-strong);
+  --color-turn-active: #f5a900;
+  --color-action-primary-face: var(--color-accent-primary-strong);
+  --color-action-primary-lip: #a80f36;
+  --color-action-primary-text: var(--color-text-inverse);
+  --color-action-secondary-face: var(--color-accent-secondary-strong);
+  --color-action-secondary-lip: #005f5a;
+  --color-action-secondary-text: var(--color-text-inverse);
+  --color-action-neutral-face: var(--color-surface);
+  --color-action-neutral-lip: var(--color-border);
+  --color-action-neutral-text: var(--color-text-primary);
+}
+
+/*
+ * V2 "Tabletop Toy Vietnam" semantic layer (plan 01 §8.3). Active only while
+ * <html data-visual-theme="v2"> is set; legacy --color-* names stay as the public names.
+ */
+:root[data-visual-theme='v2'] {
+  --color-canvas: var(--otb-paper-50);
+  --color-canvas-deep: var(--otb-backdrop);
+  --color-surface: var(--otb-paper-50);
+  --color-surface-raised: var(--otb-paper-50);
+  --color-surface-soft: var(--otb-paper-100);
+  --color-surface-sunken: var(--otb-paper-200);
+  --color-text-primary: var(--otb-ink-900);
+  --color-text-secondary: var(--otb-ink-700);
+  --color-text-muted: var(--otb-ink-500);
+  --color-text-inverse: var(--otb-white);
+  --color-accent-primary: var(--otb-lacquer-600);
+  --color-accent-primary-strong: var(--otb-lacquer-700);
+  --color-accent-primary-soft: var(--otb-lacquer-100);
+  --color-accent-secondary: var(--otb-jade-600);
+  --color-accent-secondary-strong: var(--otb-jade-700);
+  --color-accent-secondary-soft: var(--otb-jade-100);
+  --color-success: var(--otb-gain-600);
+  --color-success-strong: var(--otb-gain-700);
+  --color-success-soft: var(--otb-gain-100);
+  --color-warning: var(--otb-warn-400);
+  --color-warning-strong: var(--otb-warn-700);
+  --color-warning-soft: var(--otb-warn-100);
+  --color-gold-soft: var(--otb-gold-100);
+  --color-gold-strong: var(--otb-gold-700);
+  --color-danger: var(--otb-lacquer-600);
+  --color-danger-strong: var(--otb-lacquer-700);
+  --color-danger-soft: var(--otb-lacquer-100);
+  --color-info: var(--otb-blue-600);
+  --color-info-strong: var(--otb-blue-600);
+  --color-info-soft: var(--otb-blue-100);
+  --color-border: var(--otb-ink-alpha-12);
+  --color-border-strong: var(--otb-paper-300);
+  --color-focus: var(--otb-blue-600);
+  --color-overlay: rgb(43 29 20 / 38%);
+  --color-shadow: rgb(43 29 20 / 18%);
+  --color-money-gain: var(--otb-gain-600);
+  --color-money-loss: var(--otb-lacquer-600);
+  --color-turn-active: var(--otb-gold-400);
+  --color-action-primary-face: var(--otb-lacquer-600);
+  --color-action-primary-lip: var(--otb-lacquer-700);
+  --color-action-primary-text: var(--otb-white);
+  --color-action-secondary-face: var(--otb-jade-600);
+  --color-action-secondary-lip: var(--otb-jade-700);
+  --color-action-secondary-text: var(--otb-white);
+  --color-action-neutral-face: var(--otb-paper-50);
+  --color-action-neutral-lip: var(--otb-paper-300);
+  --color-action-neutral-text: var(--otb-ink-900);
+}
