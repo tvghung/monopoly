@@ -4,9 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { test, type Page } from '@playwright/test';
 import { CAPTURES, type CaptureEntry } from './captures';
 
-const EVIDENCE_ROOT = fileURLToPath(
-  new URL('../../project-document/visual-overhaul-v2/evidence/', import.meta.url),
-);
+// VISUAL_EVIDENCE_DIR redirects the output, for example to compare against committed evidence.
+const EVIDENCE_ROOT = process.env.VISUAL_EVIDENCE_DIR
+  ? path.resolve(process.env.VISUAL_EVIDENCE_DIR)
+  : fileURLToPath(new URL('../../project-document/visual-overhaul-v2/evidence/', import.meta.url));
 
 const READY_TIMEOUT_MS = 60_000;
 /** RendererDiagnostics publishes once right away and again 650 ms later. */
