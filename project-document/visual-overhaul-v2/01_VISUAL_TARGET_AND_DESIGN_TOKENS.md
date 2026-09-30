@@ -947,14 +947,14 @@ result in the Design Lab, not these choices.
 
 **G1 checklist** (product owner fills in):
 
-- [ ] Palette approved as rendered in the Lab (or changes listed)
-- [ ] Baloo 2 headlines render well in Vietnamese (choice decided in OD-01-1)
-- [ ] Light oak table swatch looks right next to the UI (choice decided in OD-01-2)
-- [ ] Lacquer-red primary buttons look right (choice decided in OD-01-3)
-- [ ] Button/panel depth language approved
-- [ ] HUD concept direction approved (details are decided in plan 03)
-- [ ] Deed card concept direction approved (details in plan 04)
-- [ ] Lobby/landing concept direction approved (details in plan 04)
+- [x] Palette approved as rendered in the Lab (or changes listed)
+- [x] Baloo 2 headlines render well in Vietnamese (choice decided in OD-01-1)
+- [x] Light oak table swatch looks right next to the UI (choice decided in OD-01-2)
+- [x] Lacquer-red primary buttons look right (choice decided in OD-01-3)
+- [x] Button/panel depth language approved
+- [x] HUD concept direction approved (details are decided in plan 03)
+- [x] Deed card concept direction approved (details in plan 04)
+- [x] Lobby/landing concept direction approved (details in plan 04)
 
 | Reviewer | Date | Verdict | Notes |
 | --- | --- | --- | --- |
