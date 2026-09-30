@@ -22,6 +22,8 @@ import { SettingsProvider } from '../../settings/SettingsProvider';
 import DesignLab, { useLabTheme } from '../design-lab/DesignLab';
 import { readDesignLabParams, type LabSectionId } from '../design-lab/labKit';
 import HudConcept from '../design-lab/screens/HudConcept';
+import { GRAPHICS_QUALITY_OPTIONS } from '../../settings/defaults';
+import type { GraphicsQualitySetting } from '../../settings/types';
 import { parseBenchmarkSeconds, summarizeFrameIntervals, type BenchmarkResult } from './rendererBenchmark';
 import type { SocketFunctions } from '../../types';
 import './Phase4UatHarness.css';
@@ -107,6 +109,8 @@ export interface HarnessUrlParams {
   labSection: LabSectionId | null;
   /** `benchmark=<seconds>`: replay the scenario and record frame times once it has settled. */
   benchmarkSeconds: number | null;
+  /** `quality=auto|high|balanced|low`: starts the harness with that graphics preset. */
+  graphicsQuality: GraphicsQualitySetting;
 }
 
 /**
@@ -124,7 +128,12 @@ export function readHarnessUrlParams(search: string): HarnessUrlParams {
     designLab: params.get('design-lab') === '1',
     labSection: readDesignLabParams(search).section,
     benchmarkSeconds: parseBenchmarkSeconds(params.get('benchmark')),
+    graphicsQuality: parseGraphicsQuality(params.get('quality')),
   };
+}
+
+function parseGraphicsQuality(raw: string | null): GraphicsQualitySetting {
+  return GRAPHICS_QUALITY_OPTIONS.find(option => option === raw) ?? 'auto';
 }
 
 function initialHarnessUrlParams(): HarnessUrlParams {
@@ -987,6 +996,7 @@ export default function Phase4UatHarness() {
         ...DEFAULT_GAME_SETTINGS,
         masterVolume: 0,
         reducedMotion: isReducedMotionScenario(params.scenario),
+        graphicsQuality: params.graphicsQuality,
       }}
     >
       {params.designLab && params.labSection !== 'hud'

@@ -1,5 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import Board3D from './board/Board3D';
 import type { BoardRenderModel } from './board/boardRenderModel';
@@ -16,6 +16,9 @@ import {
 } from './board/architecture/sceneBudget';
 import TileMotionProvider from './board/motion/TileMotionProvider';
 import { FrameCounter, shadowMapTypeName, toneMappingName } from './render/diagnostics/rendererInfo';
+import { RenderQualityContext, useRenderQuality } from './render/RenderQualityContext';
+import { probeRenderCapabilities, resolveRenderQuality } from './render/renderQuality';
+import { useSettings } from '../../settings/selectors';
 import CoinMaterialEnvironment from './stations/CoinMaterialEnvironment';
 import {
   COIN_FINISH_MATERIALS,
@@ -85,6 +88,7 @@ function RendererDiagnostics({
   const height = useThree(state => state.size.height);
   const invalidate = useThree(state => state.invalidate);
   const counterRef = useRef<FrameCounter | null>(null);
+  const quality = useRenderQuality();
 
   useEffect(() => {
     if (!isLocalDiagnosticsEnabled()) return undefined;
@@ -137,6 +141,7 @@ function RendererDiagnostics({
       const chestCards = scene.getObjectByName('chestCardBodies');
       const diagnostics = {
         glRenderer,
+        qualityTier: quality.tier,
         pixelRatio: gl.getPixelRatio(),
         drawingBuffer: { width: drawingBufferSize.x, height: drawingBufferSize.y },
         camera: 'orthographic',
@@ -230,7 +235,7 @@ function RendererDiagnostics({
       window.cancelAnimationFrame(firstFrame);
       window.cancelAnimationFrame(measurementFrame);
     };
-  }, [activeAnimatedObjects, activityKey, camera, deckCounts.chance, deckCounts.chest, destinationPreviewTileId, gl, height, hoveredTileId, invalidate, scene, selectedTileId, stationCount, width]);
+  }, [activeAnimatedObjects, activityKey, camera, deckCounts.chance, deckCounts.chest, destinationPreviewTileId, gl, height, hoveredTileId, invalidate, quality.tier, scene, selectedTileId, stationCount, width]);
 
   return null;
 }
@@ -302,8 +307,13 @@ export default function GameScene({
   onTileSelect,
   onRendererFailure,
 }: GameSceneProps) {
+  const { settings } = useSettings();
+  const quality = useMemo(
+    () => resolveRenderQuality(settings.graphicsQuality, probeRenderCapabilities()),
+    [settings.graphicsQuality],
+  );
   return (
-    <div className="game-scene" data-testid="game-scene">
+    <div className="game-scene" data-testid="game-scene" data-graphics-tier={quality.tier}>
       <Canvas
         camera={{
           near: 0.1,
@@ -311,7 +321,7 @@ export default function GameScene({
           position: getOrthographicCameraPosition(),
         }}
         orthographic
-        dpr={[1.25, 1.5]}
+        dpr={[quality.dpr[0], quality.dpr[1]]}
         frameloop="demand"
         shadows={false}
         gl={{
@@ -322,6 +332,7 @@ export default function GameScene({
           toneMappingExposure: 1,
         }}
       >
+        <RenderQualityContext.Provider value={quality}>
         <RendererLifecycleGuard onFailure={onRendererFailure} />
         <color attach="background" args={[boardVisualTokens.sceneBackground]} />
         <hemisphereLight args={['#fff8e2', '#9fd6c4', 1.8]} />
@@ -338,6 +349,7 @@ export default function GameScene({
           onTileHover={onTileHover}
           onTileSelect={onTileSelect}
         />
+        </RenderQualityContext.Provider>
       </Canvas>
     </div>
   );

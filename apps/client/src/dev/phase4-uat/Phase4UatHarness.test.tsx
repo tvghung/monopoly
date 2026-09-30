@@ -27,6 +27,13 @@ describe('readHarnessUrlParams', () => {
     expect(readHarnessUrlParams('?phase4-uat=1').scenario).toBe('stations-4');
   });
 
+  it('reads the graphics quality preset and defaults to auto', () => {
+    expect(readHarnessUrlParams('?quality=low').graphicsQuality).toBe('low');
+    expect(readHarnessUrlParams('?quality=high').graphicsQuality).toBe('high');
+    expect(readHarnessUrlParams('?quality=ultra').graphicsQuality).toBe('auto');
+    expect(readHarnessUrlParams('').graphicsQuality).toBe('auto');
+  });
+
   it('reads the controls and gallery switches', () => {
     expect(readHarnessUrlParams('?uat-controls=collapsed').controlsCollapsed).toBe(true);
     expect(readHarnessUrlParams('?uat-controls=open').controlsCollapsed).toBe(false);

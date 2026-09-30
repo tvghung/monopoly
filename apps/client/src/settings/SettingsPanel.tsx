@@ -1,10 +1,19 @@
 import { Check, RotateCcw } from 'lucide-react';
 import Button from '../design-system/components/Button/Button';
 import Modal from '../design-system/components/Modal/Modal';
+import SegmentedControl from '../design-system/components/SegmentedControl/SegmentedControl';
 import { getDesktopBridge, isDesktopRuntime } from '../runtime/desktopBridge';
 import { ANIMATION_SPEED_OPTIONS } from './defaults';
+import type { GraphicsQualitySetting } from './types';
 import { useEffectiveReducedMotion, useSettings } from './selectors';
 import './SettingsPanel.css';
+
+const GRAPHICS_QUALITY_CHOICES: readonly { value: GraphicsQualitySetting; label: string }[] = [
+  { value: 'auto', label: 'Tự động' },
+  { value: 'high', label: 'Cao' },
+  { value: 'balanced', label: 'Cân bằng' },
+  { value: 'low', label: 'Thấp' },
+];
 
 interface SettingsPanelProps {
   open: boolean;
@@ -81,6 +90,17 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
               ? 'Chuyển động hiện đang được giảm theo cài đặt hoặc hệ điều hành.'
               : 'Chuyển động đang dùng thiết lập bình thường.'}
           </p>
+        </section>
+
+        <section className="settings-panel__section" aria-labelledby="settings-graphics-title">
+          <h3 id="settings-graphics-title">Đồ họa</h3>
+          <SegmentedControl
+            label="Chất lượng đồ họa"
+            options={GRAPHICS_QUALITY_CHOICES}
+            value={settings.graphicsQuality}
+            onChange={value => updateSettings({ graphicsQuality: value })}
+          />
+          <p className="settings-panel__hint">Chất lượng Cao cần card đồ họa mạnh.</p>
         </section>
 
         {desktop

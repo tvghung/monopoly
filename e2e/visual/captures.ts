@@ -119,6 +119,8 @@ function harnessCaptures(options: {
   })));
 }
 
+export const GRAPHICS_TIERS = ['low', 'balanced', 'high'] as const;
+
 /** Baseline of the running V1 look before any V2 token or theme change (plan 01 T01.2). */
 export const BASELINE_SCENARIOS = [
   'stations-4', 'board-readability', 'purchase', 'rent', 'chance', 'jail', 'stress',
@@ -146,6 +148,17 @@ export const CAPTURES: readonly CaptureEntry[] = [
     scenarios: ['dice-contact-shadows', 'roll-chance'],
     viewports: [VIEWPORTS.laptop],
   }),
+  // Plan 02 T02.7: draw-call and tier diagnostics per graphics preset (JSON only).
+  ...GRAPHICS_TIERS.flatMap(tier => harnessCaptures({
+    plan: '02',
+    folder: 'tiers',
+    scenarios: ['board-readability', 'stress'],
+    viewports: [VIEWPORTS.fullHd],
+    surface: 'tier',
+    variant: tier,
+    extraQuery: `&quality=${tier}`,
+    noScreenshot: true,
+  })),
   // Plan 02 T02.2: frame-time benchmark of the current renderer (JSON only).
   ...harnessCaptures({
     plan: '02',
