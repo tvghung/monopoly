@@ -10,9 +10,9 @@ import OwnedPropertiesControl from '../property/OwnedPropertiesControl';
  */
 export default function BottomDock({ onSelectTile, ticker }: { onSelectTile: (tileId: number) => void; ticker?: ReactNode }) {
   return (
-    <div className="hud-bottom" data-hud-region="bottom-stack">
+    <div className="hud-bottom">
       {ticker}
-      <div className="hud-context" data-hud-region="context-stack">
+      <div className="hud-context" data-hud-region="context-stack" data-hud-transient="true">
         <DebtPanel />
         <JailPanel />
       </div>

@@ -173,12 +173,13 @@
 .status-pill {
   position: absolute;
   top: var(--hud-inset);
-  left: 50%;
+  /* The board diamond reaches the top center, so the pill sits after the top-left card, over empty table. */
+  left: calc(var(--hud-inset) + var(--player-card-width) + 12px);
   z-index: var(--z-hud-center);
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  max-width: min(60vw, 26rem);
+  max-width: min(40vw, 22rem);
   padding: 6px 14px 6px 8px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
@@ -186,7 +187,6 @@
   background-image: var(--paper-grain);
   box-shadow: var(--elevation-2);
   color: var(--color-text-primary);
-  transform: translateX(-50%);
   pointer-events: none;
 }
 
@@ -288,7 +288,7 @@
 .turn-banner {
   position: absolute;
   top: calc(var(--hud-inset) + 52px);
-  left: 50%;
+  left: calc(var(--hud-inset) + var(--player-card-width) + 12px);
   z-index: var(--z-hud-banner);
   display: flex;
   align-items: center;
@@ -308,18 +308,16 @@
 
 /* Enter 280 ms, hold 900 ms, exit 280 ms of a 1460 ms cycle. */
 @keyframes turn-banner {
-  0% { opacity: 0; transform: translate(-50%, -14px); }
-  19% { opacity: 1; transform: translate(-50%, 0); }
-  81% { opacity: 1; transform: translate(-50%, 0); }
-  100% { opacity: 0; transform: translate(-50%, -8px); }
+  0% { opacity: 0; transform: translateY(-14px); }
+  19% { opacity: 1; transform: translateY(0); }
+  81% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-8px); }
 }
 
 /* Reduced motion: fades only, nothing slides or scales. */
 @keyframes turn-banner-fade {
-  0% { opacity: 0; transform: translateX(-50%); }
-  19% { opacity: 1; transform: translateX(-50%); }
-  81% { opacity: 1; transform: translateX(-50%); }
-  100% { opacity: 0; transform: translateX(-50%); }
+  0%, 100% { opacity: 0; }
+  19%, 81% { opacity: 1; }
 }
 @keyframes dice-callout-fade { from { opacity: 0; } to { opacity: 1; } }
 :root[data-reduced-motion='true'] .turn-banner { animation-name: turn-banner-fade; }
@@ -345,16 +343,14 @@
 
 .hud-bottom {
   position: absolute;
-  left: 50%;
+  left: calc(var(--hud-inset) + var(--player-card-local-width) + 12px);
   bottom: max(var(--hud-inset), env(safe-area-inset-bottom));
   z-index: var(--z-hud-dock);
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
-  width: min(520px, calc(100% - 2 * (var(--player-card-local-width) + var(--hud-inset) * 2)));
-  min-width: 260px;
-  transform: translateX(-50%);
+  max-width: 520px;
   pointer-events: none;
 }
 
@@ -362,12 +358,13 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: 100%;
+  width: min(520px, 100%);
 }
 .hud-context > * { pointer-events: auto; }
 .hud-context:empty { display: none; }
 
-.action-dock { display: flex; justify-content: center; pointer-events: none; }
+.action-dock { display: flex; justify-content: flex-start; pointer-events: none; }
+.dock-label--short { display: none; }
 .action-dock .game-board__property-access { display: flex; }
 
 /* ---------- Activity ticker and chat bubbles ---------- */
@@ -421,6 +418,10 @@
 @media (prefers-reduced-motion: reduce) { .player-card__bubble { animation: none; } }
 
 @media (max-height: 500px) {
-  .hud-bottom { width: min(380px, calc(100% - 2 * (var(--player-card-local-width) + var(--hud-inset) * 2))); }
+  .hud-bottom { max-width: 380px; }
   .activity-ticker { display: none; }
+  .dock-label--long { display: none; }
+  .dock-label--short { display: inline; }
+  .status-pill__avatar { display: none; }
+  .status-pill { padding: 4px 12px; }
 }

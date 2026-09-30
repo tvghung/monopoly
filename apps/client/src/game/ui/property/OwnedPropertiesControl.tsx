@@ -25,10 +25,13 @@ export default function OwnedPropertiesControl({ onSelect }: { onSelect: (tileId
         className="game-board__property-button"
         variant="secondary"
         size="md"
+        aria-label={`Tài sản của tôi (${ownedTileIds.length})`}
         icon={<ActionIcon name="buildHotel" />}
         onClick={() => setOpen(true)}
       >
-        {`Tài sản của tôi (${ownedTileIds.length})`}
+        <span className="dock-label dock-label--long" aria-hidden="true">Tài sản của tôi</span>
+        <span className="dock-label dock-label--short" aria-hidden="true">Tài sản</span>
+        <span aria-hidden="true">{`(${ownedTileIds.length})`}</span>
       </Button>
       <Modal
         open={open}

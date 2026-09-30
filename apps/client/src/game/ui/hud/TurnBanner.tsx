@@ -61,6 +61,7 @@ export default function TurnBanner() {
     <div
       className={`turn-banner${mine ? ' turn-banner--mine' : ''}`}
       data-hud-region="turn-banner"
+      data-hud-transient="true"
       aria-hidden="true"
       key={entry.key}
     >

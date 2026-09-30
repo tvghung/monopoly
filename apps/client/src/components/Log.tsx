@@ -120,13 +120,13 @@ export default function Log() {
     <section
       className={`center__room${panelOpen ? ' center__room--open' : ' center__room--collapsed'}`}
       data-testid="board-log-overlay"
-      data-hud-region="activity-drawer"
       aria-label="Nhật ký và trò chuyện"
       onKeyDown={closeOnEscape}
     >
       <button
         ref={toggleRef}
         className="center__room-toggle"
+        data-hud-region="activity-drawer-tab"
         type="button"
         aria-expanded={panelOpen}
         aria-controls="board-log-panel"
@@ -149,7 +149,14 @@ export default function Log() {
       </button>
       {panelOpen
         ? (
-          <div id="board-log-panel" ref={panelRef} className="center__room-panel" tabIndex={-1}>
+          <div
+            id="board-log-panel"
+            ref={panelRef}
+            className="center__room-panel"
+            data-hud-region="activity-drawer-panel"
+            data-hud-transient="true"
+            tabIndex={-1}
+          >
             <section ref={scrollRef} className="center__log" role="log" aria-live="polite" aria-label="Nhật ký ván chơi">
               {state.loaded
                 ? [

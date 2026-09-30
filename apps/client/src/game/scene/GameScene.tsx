@@ -5,6 +5,7 @@ import Board3D from './board/Board3D';
 import type { BoardRenderModel } from './board/boardRenderModel';
 import { boardVisualTokens } from './board/boardVisualTokens';
 import { getOrthographicCameraPosition } from './camera/cameraMath';
+import TileScreenRectsPublisher from '../../dev/hud-overlap/TileScreenRectsPublisher';
 import FixedBoardCamera from './camera/FixedBoardCamera';
 import {
   HARD_TRIANGLE_LIMIT,
@@ -284,6 +285,7 @@ function BoardSceneContents({
   return (
     <>
       <FixedBoardCamera />
+      {import.meta.env.DEV || __PHASE4_UAT__ ? <TileScreenRectsPublisher /> : null}
       <RendererDiagnostics
         activityKey={activityKey}
         activeAnimatedObjects={activeAnimatedObjects}

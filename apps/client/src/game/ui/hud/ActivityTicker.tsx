@@ -60,6 +60,7 @@ export default function ActivityTicker() {
       key={entry.key}
       className="activity-ticker"
       data-hud-region="activity-ticker"
+      data-hud-transient="true"
       aria-hidden="true"
       onClick={() => drawer.setOpen(true)}
     >

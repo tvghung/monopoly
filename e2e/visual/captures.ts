@@ -37,6 +37,8 @@ export interface CaptureEntry {
   benchmarkSeconds?: number;
   /** Make WebGL unavailable so the board falls back to the legacy DOM view. */
   noWebglContext?: boolean;
+  /** Report every HUD region (`data-hud-region`) that covers more than 4% of a tile (plan 03 T03.14). */
+  overlapCheck?: boolean;
 }
 
 export const VIEWPORTS = {
@@ -105,10 +107,12 @@ function harnessCaptures(options: {
   variant?: string;
   benchmarkSeconds?: number;
   noWebglContext?: boolean;
+  overlapCheck?: boolean;
 }): CaptureEntry[] {
   const {
     plan, folder, scenarios, viewports = STANDARD_VIEWPORTS, surface = 'board', noScreenshot, extraQuery = '', variant, benchmarkSeconds,
     noWebglContext,
+    overlapCheck,
   } = options;
   const suffix = variant ? `-${variant}` : '';
   return scenarios.flatMap(scenario => viewports.map(viewport => ({
@@ -122,6 +126,7 @@ function harnessCaptures(options: {
     noScreenshot,
     benchmarkSeconds,
     noWebglContext,
+    overlapCheck,
     webgl: noWebglContext ? false : undefined,
   })));
 }
@@ -270,8 +275,9 @@ export const CAPTURES: readonly CaptureEntry[] = [
     plan: '03',
     folder: 'hud',
     scenarios: [...PLAN03_SCENARIOS, 'stations-3', 'offline', 'turn-recovery'],
-    viewports: [VIEWPORTS.laptop, VIEWPORTS.phoneLandscape],
+    viewports: [VIEWPORTS.laptop, VIEWPORTS.minimum, VIEWPORTS.phoneLandscape],
     surface: 'hud',
+    overlapCheck: true,
   }),
   // Concept screens at the standard viewports (plan 01 T01.10).
   ...labCaptures({ plan: '01', folder: 'concepts', sections: LAB_CONCEPT_SCREENS, viewports: STANDARD_VIEWPORTS, surface: 'concept' }),

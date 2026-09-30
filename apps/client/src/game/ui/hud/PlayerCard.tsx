@@ -75,7 +75,7 @@ export default function PlayerCard({
       style={style}
     >
       <span className="sr-only">{describePlayerCard(card)}</span>
-      {bubble ? <div className="player-card__bubble" aria-hidden="true">{bubble}</div> : null}
+      {bubble ? <div className="player-card__bubble" data-hud-region="chat-bubble" data-hud-transient="true" aria-hidden="true">{bubble}</div> : null}
       <div className="player-card__face" aria-hidden="true">
         <PlayerAvatar
           characterId={card.characterId}

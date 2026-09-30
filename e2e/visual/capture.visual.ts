@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test, type Page } from '@playwright/test';
+import { findHudTileOverlaps } from '../../apps/client/src/dev/hud-overlap/polygonOverlap';
 import { CAPTURES, type CaptureEntry } from './captures';
 
 // VISUAL_EVIDENCE_DIR redirects the output, for example to compare against committed evidence.
@@ -36,6 +37,41 @@ async function waitForRendererQuiet(page: Page): Promise<void> {
     }
     await page.waitForTimeout(RENDERER_POLL_MS);
   }
+}
+
+type Corners = [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number }];
+
+/** Which HUD regions cover more than 4% of a tile (plan 03 T03.14); null when the tile rectangles are unavailable. */
+async function measureHudOverlap(page: Page) {
+  const measured = await page.evaluate(() => {
+    const tiles = (window as unknown as {
+      __OWN_THE_BLOCK_TILE_SCREEN_RECTS__?: { tiles: { tileId: number; corners: { x: number; y: number }[] }[] };
+    }).__OWN_THE_BLOCK_TILE_SCREEN_RECTS__?.tiles;
+    const regions = [...document.querySelectorAll('[data-hud-region]')].map(element => {
+      const rect = element.getBoundingClientRect();
+      return {
+        region: element.getAttribute('data-hud-region') ?? '',
+        transient: element.closest('[data-hud-transient="true"]') !== null,
+        left: rect.left + window.scrollX,
+        top: rect.top + window.scrollY,
+        right: rect.right + window.scrollX,
+        bottom: rect.bottom + window.scrollY,
+      };
+    }).filter(region => region.right - region.left > 0 && region.bottom - region.top > 0);
+    return { tiles: tiles ?? null, regions };
+  });
+  if (!measured.tiles) return null;
+  const tiles = measured.tiles.map(tile => ({ tileId: tile.tileId, corners: tile.corners as unknown as Corners }));
+  // Persistent HUD must never cover a tile; transient decision panels, banners and bubbles may, briefly.
+  const persistent = measured.regions.filter(region => !region.transient);
+  const transient = measured.regions.filter(region => region.transient);
+  return {
+    threshold: 0.04,
+    regions: persistent.map(region => region.region),
+    transientRegions: transient.map(region => region.region),
+    findings: findHudTileOverlaps(tiles, persistent),
+    transientFindings: findHudTileOverlaps(tiles, transient),
+  };
 }
 
 function outputBase(entry: CaptureEntry): string {
@@ -120,6 +156,8 @@ for (const entry of CAPTURES) {
         (window as unknown as WindowWithDiagnostics).__OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__ ?? null,
       )) as unknown);
 
+      const overlap = entry.overlapCheck && rendererMode === 'webgl' ? await measureHudOverlap(page) : null;
+
       const base = outputBase(entry);
       await mkdir(path.dirname(base), { recursive: true });
       if (!entry.noScreenshot) {
@@ -141,6 +179,7 @@ for (const entry of CAPTURES) {
         consoleErrors,
         benchmark,
         diagnostics,
+        hudOverlap: overlap,
       }, null, 2)}\n`);
     } finally {
       await context.close();

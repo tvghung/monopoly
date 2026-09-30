@@ -92,7 +92,7 @@ export default function DiceResultCallout() {
   if (!entry) return null;
   const { dice, total, doubles } = entry.value;
   return (
-    <div className="dice-callout" data-hud-region="dice-callout" aria-hidden="true" key={entry.key}>
+    <div className="dice-callout" data-hud-region="dice-callout" data-hud-transient="true" aria-hidden="true" key={entry.key}>
       <span className="dice-callout__sum">
         <DieGlyph value={dice.dice1} />
         <span className="dice-callout__plus">+</span>
