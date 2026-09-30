@@ -1,0 +1,11 @@
+.ds-group-pips { display: inline-flex; align-items: center; gap: 3px; }
+.ds-group-pips__pip {
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid var(--ds-pip-color);
+  border-radius: 3px;
+  background: linear-gradient(to top, var(--ds-pip-color) var(--ds-pip-fill), transparent var(--ds-pip-fill));
+  box-sizing: border-box;
+}
+.ds-group-pips__pip--empty { opacity: 0.35; border-style: dashed; }
+.ds-group-pips__pip--complete { outline: 2px solid var(--color-surface); outline-offset: -4px; box-shadow: 0 0 0 1px var(--ds-pip-color); }

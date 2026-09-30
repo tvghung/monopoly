@@ -1,0 +1,14 @@
+.ds-money {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  color: var(--color-text-primary);
+  font: var(--type-label);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ds-money--sm { font: var(--type-small); font-weight: 700; font-variant-numeric: tabular-nums; }
+.ds-money--lg { font: var(--type-money-l); font-variant-numeric: tabular-nums; }
+.ds-money--gain { color: var(--color-money-gain); }
+.ds-money--loss { color: var(--color-money-loss); }
+.ds-money__icon { flex: none; width: 1em; height: 1em; margin: 0; stroke-width: 2.75; }

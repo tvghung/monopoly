@@ -1,4 +1,5 @@
 .ds-icon-button {
+  position: relative;
   display: inline-grid;
   place-items: center;
   width: 2.75rem;
@@ -12,7 +13,52 @@
   cursor: pointer;
   box-shadow: var(--shadow-raised);
 }
+.ds-icon-button--lg { width: 3.5rem; height: 3.5rem; }
 .ds-icon-button:hover:not(:disabled) { background: var(--color-surface-soft); }
 .ds-icon-button:disabled { cursor: not-allowed; opacity: 0.55; }
 .ds-icon-button:focus-visible { outline: 0; box-shadow: var(--shadow-focus); }
+.ds-icon-button__glyph { display: inline-grid; place-items: center; }
+.ds-icon-button__glyph > svg { width: 1.25rem; height: 1.25rem; margin: 0; stroke-width: 2.25; }
+.ds-icon-button--lg .ds-icon-button__glyph > svg { width: 1.5rem; height: 1.5rem; }
+.ds-icon-button__badge {
+  position: absolute;
+  top: -0.25rem;
+  right: -0.25rem;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.3rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-primary-strong);
+  color: var(--color-text-inverse);
+  font: var(--type-caption);
+  line-height: 1.25rem;
+  text-align: center;
+}
 
+/* V2: tactile round key with a visible lip, same recipe as Button. */
+:where(:root[data-visual-theme='v2']) .ds-icon-button {
+  border: 0;
+  background: var(--color-action-neutral-face);
+  color: var(--color-action-neutral-text);
+  box-shadow: 0 3px 0 var(--color-action-neutral-lip), inset 0 1px 0 rgb(255 255 255 / 60%), var(--elevation-1);
+  transition: transform var(--motion-duration-micro) var(--motion-ease-out), box-shadow var(--motion-duration-micro) var(--motion-ease-out);
+}
+:where(:root[data-visual-theme='v2']) .ds-icon-button:hover:not(:disabled) { background: var(--color-action-neutral-face); transform: translateY(-1px); }
+:where(:root[data-visual-theme='v2']) .ds-icon-button:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--color-action-neutral-lip), inset 0 1px 0 rgb(255 255 255 / 60%), var(--elevation-1);
+}
+:where(:root[data-visual-theme='v2']) .ds-icon-button[aria-pressed='true'] {
+  background: var(--color-gold-soft);
+  color: var(--color-gold-strong);
+  box-shadow: 0 1px 0 var(--color-action-neutral-lip), inset 0 2px 4px rgb(43 29 20 / 18%);
+}
+:where(:root[data-visual-theme='v2']) .ds-icon-button:focus-visible { box-shadow: var(--focus-ring), 0 3px 0 var(--color-action-neutral-lip); }
+:where(:root[data-visual-theme='v2']) .ds-icon-button:disabled {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  box-shadow: none;
+  opacity: 1;
+}
+:where(:root[data-reduced-motion='true']) .ds-icon-button:hover:not(:disabled),
+:where(:root[data-reduced-motion='true']) .ds-icon-button:active:not(:disabled) { transform: none; }

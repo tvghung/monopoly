@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CHARACTER_IDS } from '@monopoly/shared';
 import { colorizeCharacterSvg } from './characterSvg';
-import { CHARACTER_REGISTRY } from './characterRegistry';
+import { CHARACTER_REGISTRY, LEGACY_CHARACTER_DEFINITION } from './characterRegistry';
 
 describe('character registry', () => {
   it('has exactly one local SVG definition for every stable character id', () => {
@@ -26,6 +26,12 @@ describe('character registry', () => {
       expect(blue).not.toContain('#FF00FF');
       expect(blue).not.toContain('#CC00CC');
     });
+  });
+
+  it('gives every mascot a Vietnamese accessible label for assistive technology', () => {
+    const labels = Object.values(CHARACTER_REGISTRY).map(definition => definition.accessibleLabel);
+    expect(labels).toEqual(['Chó', 'Capybara', 'Gấu trúc', 'Mèo', 'Chim cánh cụt', 'Voi', 'Thỏ', 'Vịt']);
+    expect(LEGACY_CHARACTER_DEFINITION.accessibleLabel).toBe('Mascot cũ');
   });
 
   it('keeps base art stable while changing the player accent', () => {

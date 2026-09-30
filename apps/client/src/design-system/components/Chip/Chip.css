@@ -1,0 +1,16 @@
+.ds-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-pill);
+  font: var(--type-caption);
+  white-space: nowrap;
+}
+.ds-chip__icon { display: inline-flex; flex: none; }
+.ds-chip__icon > svg { width: 0.875rem; height: 0.875rem; margin: 0; stroke-width: 2.5; }
+.ds-chip--neutral { background: var(--color-surface-soft); color: var(--color-text-secondary); }
+.ds-chip--gain { background: var(--color-success-soft); color: var(--color-success-strong); }
+.ds-chip--loss { background: var(--color-danger-soft); color: var(--color-danger-strong); }
+.ds-chip--info { background: var(--color-info-soft); color: var(--color-info-strong); }
+.ds-chip--gold { background: var(--color-gold-soft); color: var(--color-gold-strong); }
