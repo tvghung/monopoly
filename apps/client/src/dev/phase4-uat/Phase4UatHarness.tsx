@@ -37,7 +37,10 @@ const CHAIN_OPERATION = '00000000-0000-4000-8000-000000004002';
 
 const scenarios = [
   ['stations-2', '01 · Trạm 2 người'],
+  ['stations-3', '01 · Trạm 3 người'],
   ['stations-4', '01 · Trạm 4 người'],
+  ['offline', '01 · Một đối thủ mất kết nối'],
+  ['turn-recovery', '01 · Đối thủ đang đi bị mất kết nối'],
   ['walk', '02 · Đích đến → di chuyển'],
   ['destination-geometry', '02 · Preview trên mặt ô'],
   ['destination-flicker', '02 · Preview flicker alpha'],
@@ -90,8 +93,8 @@ type ScenarioKey = typeof scenarios[number][0];
 
 const DEFAULT_SCENARIO: ScenarioKey = 'stations-4';
 const STATIC_SCENARIOS: readonly ScenarioKey[] = [
-  'stations-2', 'stations-4', 'coin-materials', 'bankrupt', 'spectator-awaiting', 'spectator-revealed',
-  'board-readability',
+  'stations-2', 'stations-3', 'stations-4', 'offline', 'turn-recovery', 'coin-materials', 'bankrupt',
+  'spectator-awaiting', 'spectator-revealed', 'board-readability',
 ];
 
 export function isScenarioKey(value: string | null): value is ScenarioKey {
@@ -157,7 +160,15 @@ function successfulAck(revision: number): Ack {
   return { ok: true, protocolVersion: SOCKET_PROTOCOL_VERSION, revision };
 }
 
-function createRoom(playerCount: 2 | 4, run: number): PublicRoomState {
+type PlayerCount = 2 | 3 | 4;
+
+function scenarioPlayerCount(key: ScenarioKey): PlayerCount {
+  if (key === 'stations-2') return 2;
+  if (key === 'stations-3') return 3;
+  return 4;
+}
+
+function createRoom(playerCount: PlayerCount, run: number): PublicRoomState {
   const ids = PLAYER_IDS.slice(0, playerCount);
   return {
     protocolVersion: SOCKET_PROTOCOL_VERSION,
@@ -313,6 +324,25 @@ function configureBaseline(
     room.gameState.players['player-c'].currentTile = 25;
     room.gameState.players['player-d'].currentTile = 37;
   }
+  if (scenario === 'stations-3') {
+    room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 2 };
+    room.gameState.boardState.ownedProps[3] = { id: 'player-b', color: 'blue', houses: 5 };
+    room.gameState.boardState.ownedProps[5] = { id: 'player-c', color: 'green', houses: 0 };
+  }
+  if (scenario === 'offline' || scenario === 'turn-recovery') {
+    room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 2 };
+    room.gameState.boardState.ownedProps[3] = { id: 'player-b', color: 'blue', houses: 5 };
+    const opponent = room.players.find(player => player.playerId === 'player-b');
+    if (opponent) opponent.connected = false;
+  }
+  if (scenario === 'turn-recovery') {
+    room.gameState.boardState.currentPlayer = { id: 'player-b', hasMoved: false };
+    // A live countdown, so the deadline is relative to when the fixture is built.
+    room.gameState.boardState.turnRecovery = {
+      playerId: 'player-b',
+      deadlineAt: new Date(Date.now() + 90_000).toISOString(),
+    };
+  }
   if (scenario === 'stations-2' || scenario === 'stations-4' || scenario === 'coin-materials') {
     room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 2 };
     room.gameState.boardState.ownedProps[3] = { id: 'player-b', color: 'blue', houses: 5 };
@@ -393,7 +423,7 @@ function Phase4UatSurface() {
   );
   const [initialParams] = useState(initialHarnessUrlParams);
   const [initialSetup] = useState(() => {
-    const initialRoom = createRoom(initialParams.scenario === 'stations-2' ? 2 : 4, 1);
+    const initialRoom = createRoom(scenarioPlayerCount(initialParams.scenario), 1);
     return { room: initialRoom, viewer: configureBaseline(initialRoom, initialParams.scenario) };
   });
   const [scenario, setScenario] = useState<ScenarioKey>(initialParams.scenario);
@@ -779,7 +809,7 @@ function Phase4UatSurface() {
     setScenario(key);
     runNumberRef.current += 1;
     setRunId(id => id + 1);
-    const nextRoom = createRoom(key === 'stations-2' ? 2 : 4, runNumberRef.current);
+    const nextRoom = createRoom(scenarioPlayerCount(key), runNumberRef.current);
     const nextViewer = configureBaseline(nextRoom, key);
     roomRef.current = nextRoom;
     setRoom(nextRoom);
