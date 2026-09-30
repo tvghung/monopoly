@@ -29,6 +29,8 @@ export interface CaptureEntry {
   extraWaitMs?: number;
   /** Emulate `prefers-reduced-motion: reduce`. */
   osReducedMotion?: boolean;
+  /** Capture the whole scrollable page instead of the viewport (Design Lab sections). */
+  fullPage?: boolean;
 }
 
 export const VIEWPORTS = {
@@ -54,6 +56,34 @@ export function harnessUrl(scenario: string, extra = ''): string {
 export function designLabUrl(section: string, extra = ''): string {
   return `/?phase4-uat=1&design-lab=1&section=${section}${extra}`;
 }
+
+export const LAB_REFERENCE_SECTIONS = ['tokens', 'typography', 'components', 'game-ui', 'scene-palette'] as const;
+export const LAB_CONCEPT_SCREENS = ['hud', 'purchase', 'lobby', 'landing'] as const;
+
+function labCaptures(options: {
+  plan: string;
+  folder: string;
+  sections: readonly string[];
+  viewports: readonly CaptureViewport[];
+  surface: string;
+  theme?: 'v1' | 'v2';
+}): CaptureEntry[] {
+  const { plan, folder, sections, viewports, surface, theme = 'v2' } = options;
+  return sections.flatMap(section => viewports.map(viewport => ({
+    id: `${plan}-${folder}-${surface}-${section}-${theme}-${viewport.width}x${viewport.height}`,
+    plan,
+    folder,
+    name: `${plan}-${surface}-${section}-${theme}`,
+    url: designLabUrl(section, `&theme=${theme}`),
+    viewport,
+    kind: 'design-lab' as const,
+    // The HUD concept keeps the real WebGL board; every other section is DOM only.
+    webgl: section === 'hud',
+    fullPage: section !== 'hud',
+  })));
+}
+
+const LAB_VIEWPORTS = [VIEWPORTS.laptop, VIEWPORTS.phoneLandscape] as const;
 
 function harnessCaptures(options: {
   plan: string;
@@ -81,4 +111,11 @@ export const BASELINE_SCENARIOS = [
 
 export const CAPTURES: readonly CaptureEntry[] = [
   ...harnessCaptures({ plan: '01', folder: 'baseline', scenarios: BASELINE_SCENARIOS }),
+  // Design Lab reference sections, v2 proposal and the v1 look for comparison (plan 01 T01.9).
+  ...labCaptures({ plan: '01', folder: 'lab', sections: LAB_REFERENCE_SECTIONS, viewports: LAB_VIEWPORTS, surface: 'lab' }),
+  ...labCaptures({
+    plan: '01', folder: 'lab', sections: ['components', 'game-ui'], viewports: [VIEWPORTS.laptop], surface: 'lab', theme: 'v1',
+  }),
+  // Concept screens at the standard viewports (plan 01 T01.10).
+  ...labCaptures({ plan: '01', folder: 'concepts', sections: LAB_CONCEPT_SCREENS, viewports: STANDARD_VIEWPORTS, surface: 'concept' }),
 ];

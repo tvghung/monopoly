@@ -19,6 +19,9 @@ import CardInteractionOverlay, { CardArtworkGallery } from '../../game/ui/events
 import { DEFAULT_GAME_SETTINGS } from '../../settings/defaults';
 import { useSettings } from '../../settings/selectors';
 import { SettingsProvider } from '../../settings/SettingsProvider';
+import DesignLab, { useLabTheme } from '../design-lab/DesignLab';
+import { readDesignLabParams, type LabSectionId } from '../design-lab/labKit';
+import HudConcept from '../design-lab/screens/HudConcept';
 import type { SocketFunctions } from '../../types';
 import './Phase4UatHarness.css';
 
@@ -98,6 +101,9 @@ export interface HarnessUrlParams {
   /** Removes the controls entirely; used by evidence captures so no dev chrome lands in screenshots. */
   controlsHidden: boolean;
   cardGallery: boolean;
+  /** `design-lab=1`: render the Design Lab instead of the board (the `hud` section keeps the real board). */
+  designLab: boolean;
+  labSection: LabSectionId | null;
 }
 
 /**
@@ -112,11 +118,17 @@ export function readHarnessUrlParams(search: string): HarnessUrlParams {
     controlsCollapsed: params.get('uat-controls') === 'collapsed',
     controlsHidden: params.get('uat-controls') === 'hidden',
     cardGallery: params.get('card-gallery') === '1',
+    designLab: params.get('design-lab') === '1',
+    labSection: readDesignLabParams(search).section,
   };
 }
 
 function initialHarnessUrlParams(): HarnessUrlParams {
-  return readHarnessUrlParams(typeof window === 'undefined' ? '' : window.location.search);
+  const params = readHarnessUrlParams(typeof window === 'undefined' ? '' : window.location.search);
+  // The HUD concept is always drawn over the stations-4 fixture with the dev controls removed.
+  return params.designLab && params.labSection === 'hud'
+    ? { ...params, scenario: 'stations-4', controlsHidden: true }
+    : params;
 }
 
 function isReducedMotionScenario(key: ScenarioKey): boolean {
@@ -342,6 +354,13 @@ function configureBaseline(
     if (meta) meta.membershipStatus = 'FINISHED';
   }
   return { playerId: 'player-a', role: 'PLAYER' };
+}
+
+/** Applies the Design Lab theme and draws the HUD concept over the real board. */
+function HudConceptLayer({ ready }: { ready: boolean }) {
+  const [{ theme }] = useState(() => readDesignLabParams(window.location.search));
+  useLabTheme(theme);
+  return <HudConcept ready={ready} />;
 }
 
 function Phase4UatSurface() {
@@ -819,7 +838,11 @@ function Phase4UatSurface() {
   return (
     <PresentationProvider controller={controller}>
       <stateContext.Provider value={contextValue}>
-        <main className="phase4-uat" data-scenario={scenario} data-uat-ready={uatReady ? 'true' : 'false'}>
+        <main
+          className={`phase4-uat${initialParams.designLab ? ' phase4-uat--lab-hud' : ''}`}
+          data-scenario={scenario}
+          data-uat-ready={uatReady ? 'true' : 'false'}
+        >
           {initialParams.controlsHidden ? null : <aside
             className={`phase4-uat__controls${controlsCollapsed ? ' phase4-uat__controls--collapsed' : ''}`}
             aria-label="Điều khiển UAT Phase 4"
@@ -891,6 +914,7 @@ function Phase4UatSurface() {
             ) : null}</> : null}
           </aside>}
           <Board />
+          {initialParams.designLab ? <HudConceptLayer ready={uatReady} /> : null}
           </main>
           <CardInteractionOverlay />
       </stateContext.Provider>
@@ -908,7 +932,9 @@ export default function Phase4UatHarness() {
         reducedMotion: isReducedMotionScenario(params.scenario),
       }}
     >
-      {params.cardGallery ? <CardArtworkGallery /> : <Phase4UatSurface />}
+      {params.designLab && params.labSection !== 'hud'
+        ? <DesignLab />
+        : params.cardGallery ? <CardArtworkGallery /> : <Phase4UatSurface />}
     </SettingsProvider>
   );
 }

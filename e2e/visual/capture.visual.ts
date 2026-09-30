@@ -65,9 +65,11 @@ for (const entry of CAPTURES) {
       await page.goto(entry.url);
       await waitForReadiness(page, entry);
 
-      const rendererMode = await page.locator('[data-renderer-mode]').first().getAttribute('data-renderer-mode')
-        .catch(() => null);
       const expectsWebgl = entry.webgl ?? entry.kind === 'harness';
+      // Pages without a board (most Design Lab sections) have no renderer element: do not wait for one.
+      const rendererMode = expectsWebgl
+        ? await page.locator('[data-renderer-mode]').first().getAttribute('data-renderer-mode', { timeout: 5_000 }).catch(() => null)
+        : null;
       if (expectsWebgl && rendererMode !== 'webgl') {
         throw new Error(
           `Expected the WebGL board but got renderer mode "${String(rendererMode)}". `
@@ -80,7 +82,9 @@ for (const entry of CAPTURES) {
 
       const base = outputBase(entry);
       await mkdir(path.dirname(base), { recursive: true });
-      await page.screenshot({ path: `${base}.png`, animations: 'disabled', caret: 'hide' });
+      await page.screenshot({
+        path: `${base}.png`, animations: 'disabled', caret: 'hide', fullPage: Boolean(entry.fullPage),
+      });
       await writeFile(`${base}.json`, `${JSON.stringify({
         id: entry.id,
         plan: entry.plan,

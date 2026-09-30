@@ -1,7 +1,7 @@
 .ds-group-pips { display: inline-flex; align-items: center; gap: 3px; }
 .ds-group-pips__pip {
-  width: 0.75rem;
-  height: 0.75rem;
+  width: 0.875rem;
+  height: 0.875rem;
   border: 2px solid var(--ds-pip-color);
   border-radius: 3px;
   background: linear-gradient(to top, var(--ds-pip-color) var(--ds-pip-fill), transparent var(--ds-pip-fill));

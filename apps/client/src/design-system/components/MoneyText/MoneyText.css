@@ -1,13 +1,18 @@
+/*
+ * Money always uses the display face: Baloo 2 has real tabular figures (measured in the Design Lab),
+ * Be Vietnam Pro does not, so counters and column-aligned amounts stay steady only in Baloo 2.
+ * The `font` shorthand resets font-variant-numeric, hence the explicit declarations.
+ */
 .ds-money {
   display: inline-flex;
   align-items: center;
   gap: 0.2em;
   color: var(--color-text-primary);
-  font: var(--type-label);
+  font: 700 1rem/1.25rem var(--font-family-display);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.ds-money--sm { font: var(--type-small); font-weight: 700; font-variant-numeric: tabular-nums; }
+.ds-money--sm { font: 700 0.875rem/1.25rem var(--font-family-display); font-variant-numeric: tabular-nums; }
 .ds-money--lg { font: var(--type-money-l); font-variant-numeric: tabular-nums; }
 .ds-money--gain { color: var(--color-money-gain); }
 .ds-money--loss { color: var(--color-money-loss); }
