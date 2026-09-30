@@ -270,11 +270,11 @@ export const CAPTURES: readonly CaptureEntry[] = [
     viewports: [VIEWPORTS.laptop, VIEWPORTS.phoneLandscape],
     surface: 'hud',
   }),
-  // Plan 03: the HUD after the restructure (iteration captures and the G3 package).
+  // Plan 03 T03.15: the HUD after the restructure = the gate G3 package.
   ...harnessCaptures({
     plan: '03',
-    folder: 'hud',
-    scenarios: [...PLAN03_SCENARIOS, 'stations-3', 'offline', 'turn-recovery'],
+    folder: 'g3',
+    scenarios: [...PLAN03_SCENARIOS, 'stations-3', 'offline', 'turn-recovery', 'purchase', 'reduced-motion'],
     viewports: [VIEWPORTS.laptop, VIEWPORTS.minimum, VIEWPORTS.phoneLandscape],
     surface: 'hud',
     overlapCheck: true,
@@ -282,7 +282,7 @@ export const CAPTURES: readonly CaptureEntry[] = [
   // Plan 03 T03.13: crowding at the smallest phone landscape, and legacy-board parity (no WebGL context).
   ...harnessCaptures({
     plan: '03',
-    folder: 'responsive',
+    folder: 'g3/responsive',
     scenarios: ['stations-4', 'jail'],
     viewports: [VIEWPORTS.smallPhoneLandscape, VIEWPORTS.tabletLandscape],
     surface: 'hud',
@@ -290,7 +290,7 @@ export const CAPTURES: readonly CaptureEntry[] = [
   }),
   ...harnessCaptures({
     plan: '03',
-    folder: 'legacy',
+    folder: 'g3/legacy',
     scenarios: ['stations-4', 'jail'],
     viewports: [VIEWPORTS.laptop, VIEWPORTS.smallPhoneLandscape],
     surface: 'hud',
