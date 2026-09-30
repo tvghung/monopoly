@@ -45,7 +45,8 @@ export interface FrameStats {
   shadowDrawCalls: number;
   /** Draw calls of every non-scene render (post-processing passes). */
   postDrawCalls: number;
-  postPasses: number;
+  /** Number of non-scene renders (full-screen quads) inside the frame, including internal blur levels. */
+  postRenders: number;
   totalDrawCalls: number;
   /** Triangles the GPU was asked to draw in the main pass (shadow and post excluded). */
   mainTriangles: number;
@@ -56,7 +57,7 @@ const emptyStats = (frameSequence: number): FrameStats => ({
   mainDrawCalls: 0,
   shadowDrawCalls: 0,
   postDrawCalls: 0,
-  postPasses: 0,
+  postRenders: 0,
   totalDrawCalls: 0,
   mainTriangles: 0,
 });
@@ -113,7 +114,7 @@ export class FrameCounter {
         this.listeners.forEach(listener => listener());
       } else {
         this.current.postDrawCalls += spent;
-        this.current.postPasses += 1;
+        this.current.postRenders += 1;
         this.current.totalDrawCalls = this.current.mainDrawCalls + this.current.shadowDrawCalls + this.current.postDrawCalls;
       }
     };

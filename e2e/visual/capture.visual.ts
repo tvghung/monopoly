@@ -68,6 +68,8 @@ async function waitForReadiness(page: Page, entry: CaptureEntry): Promise<void> 
 
 for (const entry of CAPTURES) {
   test(`capture ${entry.id}`, async ({ browser }) => {
+    // The high tier renders the post chain in software on the capture machine: allow it three times longer.
+    if (entry.url.includes('quality=high')) test.slow();
     const { width, height, touch } = entry.viewport;
     const context = await browser.newContext({
       viewport: { width, height },
@@ -90,7 +92,7 @@ for (const entry of CAPTURES) {
       const expectsWebgl = entry.webgl ?? entry.kind === 'harness';
       // Pages without a board (most Design Lab sections) have no renderer element: do not wait for one.
       const rendererMode = expectsWebgl
-        ? await page.locator('[data-renderer-mode]').first().getAttribute('data-renderer-mode', { timeout: 5_000 }).catch(() => null)
+        ? await page.locator('[data-renderer-mode]').first().getAttribute('data-renderer-mode', { timeout: 30_000 }).catch(() => null)
         : null;
       if (expectsWebgl && rendererMode !== 'webgl') {
         throw new Error(

@@ -1,12 +1,12 @@
 {
-  "id": "02-tiers-tier-stress-low-1920x1080",
+  "id": "02-tier-shots-tier-board-readability-low-1440x900",
   "plan": "02",
-  "folder": "tiers",
-  "name": "02-tier-stress-low",
-  "url": "/?phase4-uat=1&scenario=stress&uat-controls=hidden&quality=low",
+  "folder": "tier-shots",
+  "name": "02-tier-board-readability-low",
+  "url": "/?phase4-uat=1&scenario=board-readability&uat-controls=hidden&quality=low",
   "viewport": {
-    "width": 1920,
-    "height": 1080
+    "width": 1440,
+    "height": 900
   },
   "kind": "harness",
   "rendererMode": "webgl",
@@ -19,8 +19,8 @@
     "qualityTier": "low",
     "pixelRatio": 1,
     "drawingBuffer": {
-      "width": 1894,
-      "height": 1054
+      "width": 1414,
+      "height": 874
     },
     "camera": "orthographic",
     "cameraPosition": [
@@ -35,20 +35,20 @@
       "type": "none"
     },
     "environment": true,
-    "frameSequence": 15,
-    "mainDrawCalls": 164,
+    "frameSequence": 13,
+    "mainDrawCalls": 177,
     "shadowDrawCalls": 0,
     "postDrawCalls": 0,
     "postPasses": 0,
     "postRenders": 0,
-    "renderedTriangles": 67558,
+    "renderedTriangles": 69152,
     "anisotropy": 8,
     "textureMaxAnisotropy": 16,
-    "drawCalls": 164,
-    "triangles": 66964,
-    "combinedDrawCalls": 164,
-    "combinedTriangles": 66964,
-    "activeAnimatedObjects": 1,
+    "drawCalls": 177,
+    "triangles": 68558,
+    "combinedDrawCalls": 177,
+    "combinedTriangles": 68558,
+    "activeAnimatedObjects": 0,
     "targetDrawCalls": 210,
     "stressDrawCallLimit": 240,
     "targetTriangles": 80000,
@@ -75,17 +75,8 @@
           "authoritativeCount": 15
         }
       },
-      "destinationPreviewTileId": 18,
-      "destinationPreview": {
-        "tileId": 18,
-        "pulsePeriodMs": 460,
-        "reducedMotion": false,
-        "elapsedMs": 43784.5,
-        "surfaceOpacity": 0.17326832948149612,
-        "edgeOpacity": 0.5180137262459529,
-        "surfaceColor": "#ffc400",
-        "edgeColor": "#c18f00"
-      },
+      "destinationPreviewTileId": null,
+      "destinationPreview": {},
       "coinSystem": {
         "geometryType": "LatheGeometry",
         "sceneEnvironment": true,

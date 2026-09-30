@@ -149,6 +149,16 @@ export const CAPTURES: readonly CaptureEntry[] = [
     scenarios: ['dice-contact-shadows', 'roll-chance'],
     viewports: [VIEWPORTS.laptop],
   }),
+  // Plan 02 T02.15: what each graphics preset looks like (screenshots + diagnostics).
+  ...GRAPHICS_TIERS.flatMap(tier => harnessCaptures({
+    plan: '02',
+    folder: 'tier-shots',
+    scenarios: ['board-readability'],
+    viewports: [VIEWPORTS.laptop],
+    surface: 'tier',
+    variant: tier,
+    extraQuery: `&quality=${tier}`,
+  })),
   // Plan 02 T02.11: the table must cover every standard viewport, including 21:9.
   ...harnessCaptures({
     plan: '02',
@@ -189,6 +199,18 @@ export const CAPTURES: readonly CaptureEntry[] = [
     noScreenshot: true,
     benchmarkSeconds: 10,
   }),
+  // Plan 02 T02.15/T02.17: the same benchmark per graphics preset. Meaningful only with VISUAL_GPU=hardware.
+  ...GRAPHICS_TIERS.flatMap(tier => harnessCaptures({
+    plan: '02',
+    folder: 'benchmark',
+    scenarios: ['stress', 'board-readability'],
+    viewports: [VIEWPORTS.fullHd],
+    surface: 'bench',
+    variant: tier,
+    extraQuery: `&quality=${tier}`,
+    noScreenshot: true,
+    benchmarkSeconds: 10,
+  })),
   // Concept screens at the standard viewports (plan 01 T01.10).
   ...labCaptures({ plan: '01', folder: 'concepts', sections: LAB_CONCEPT_SCREENS, viewports: STANDARD_VIEWPORTS, surface: 'concept' }),
 ];

@@ -1,5 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { lazy, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import Board3D from './board/Board3D';
 import type { BoardRenderModel } from './board/boardRenderModel';
@@ -15,6 +15,7 @@ import {
   getTileTextureAnisotropy,
 } from './board/architecture/sceneBudget';
 import TileMotionProvider from './board/motion/TileMotionProvider';
+import { countComposerPasses } from './render/diagnostics/composerPasses';
 import { FrameCounter, shadowMapTypeName, toneMappingName } from './render/diagnostics/rendererInfo';
 import OptionalSceneLayer from './render/OptionalSceneLayer';
 import SceneLightRig from './render/lighting/SceneLightRig';
@@ -32,6 +33,9 @@ import {
 } from './stations/coinVisuals';
 import './GameScene.css';
 import type { DeckCounts } from '@monopoly/shared';
+
+// The post chain only exists for the high tier: its chunk is never requested for balanced or low.
+const ScenePostEffects = lazy(() => import('./render/post/ScenePostEffects'));
 
 export interface GameSceneProps {
   model?: BoardRenderModel;
@@ -162,7 +166,8 @@ function RendererDiagnostics({
         mainDrawCalls: stats.mainDrawCalls,
         shadowDrawCalls: stats.shadowDrawCalls,
         postDrawCalls: stats.postDrawCalls,
-        postPasses: stats.postPasses,
+        postPasses: countComposerPasses(),
+        postRenders: stats.postRenders,
         renderedTriangles: stats.mainTriangles,
         anisotropy: getTileTextureAnisotropy(gl.capabilities.getMaxAnisotropy()),
         textureMaxAnisotropy: gl.capabilities.getMaxAnisotropy(),
@@ -338,7 +343,9 @@ export default function GameScene({
           antialias: true,
           alpha: false,
           powerPreference: 'high-performance',
-          toneMapping,
+          // The high tier applies the Neutral tone mapper in its post chain; the Canvas prop is authoritative
+          // (R3F re-applies it on every render), so it has to say so or the renderer would tone map twice.
+          toneMapping: quality.toneMappingInPost ? THREE.NoToneMapping : toneMapping,
           toneMappingExposure: SCENE_TONE_MAPPING_EXPOSURE,
         }}
       >
@@ -353,6 +360,13 @@ export default function GameScene({
             <Tabletop />
             <BoardGroundShadow />
           </OptionalSceneLayer>
+          {quality.postProcessing
+            ? (
+              <OptionalSceneLayer name="post-processing">
+                <ScenePostEffects />
+              </OptionalSceneLayer>
+            )
+            : null}
           <BoardSceneContents
             model={model}
             hoveredTileId={hoveredTileId}

@@ -64,7 +64,7 @@ describe('FrameCounter', () => {
     renderer.render(main, camera);
 
     expect(counter.stats).toMatchObject({
-      frameSequence: 1, mainDrawCalls: 100, shadowDrawCalls: 0, postDrawCalls: 0, postPasses: 0, totalDrawCalls: 100,
+      frameSequence: 1, mainDrawCalls: 100, shadowDrawCalls: 0, postDrawCalls: 0, postRenders: 0, totalDrawCalls: 100,
       mainTriangles: 5_000,
     });
   });
@@ -94,7 +94,7 @@ describe('FrameCounter', () => {
     renderer.render(post, camera);
     renderer.render(post, camera);
 
-    expect(counter.stats).toMatchObject({ mainDrawCalls: 100, postDrawCalls: 2, postPasses: 2, totalDrawCalls: 102 });
+    expect(counter.stats).toMatchObject({ mainDrawCalls: 100, postDrawCalls: 2, postRenders: 2, totalDrawCalls: 102 });
   });
 
   it('starts every frame from zero while the sequence keeps growing', () => {

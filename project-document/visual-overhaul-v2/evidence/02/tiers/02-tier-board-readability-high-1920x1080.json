@@ -28,25 +28,26 @@
       21.1925177130407,
       16.95401417043256
     ],
-    "toneMapping": "ACESFilmicToneMapping",
+    "toneMapping": "NoToneMapping",
     "toneMappingExposure": 1,
     "shadows": {
-      "enabled": false,
-      "type": "none"
+      "enabled": true,
+      "type": "PCFShadowMap"
     },
-    "environment": false,
-    "frameSequence": 28,
-    "mainDrawCalls": 174,
-    "shadowDrawCalls": 0,
-    "postDrawCalls": 0,
-    "postPasses": 0,
-    "renderedTriangles": 66828,
+    "environment": true,
+    "frameSequence": 6,
+    "mainDrawCalls": 169,
+    "shadowDrawCalls": 25,
+    "postDrawCalls": 19,
+    "postPasses": 3,
+    "postRenders": 19,
+    "renderedTriangles": 69136,
     "anisotropy": 8,
     "textureMaxAnisotropy": 16,
-    "drawCalls": 174,
-    "triangles": 66234,
-    "combinedDrawCalls": 174,
-    "combinedTriangles": 66234,
+    "drawCalls": 169,
+    "triangles": 68542,
+    "combinedDrawCalls": 213,
+    "combinedTriangles": 68542,
     "activeAnimatedObjects": 0,
     "targetDrawCalls": 210,
     "stressDrawCallLimit": 240,
@@ -57,7 +58,7 @@
       "stationCount": 4,
       "authoritativeStationCount": 4,
       "stationLabelCount": 4,
-      "bankTreasury": true,
+      "bankTreasury": false,
       "sharedCoinInstanceCount": 94,
       "sharedCoinFinishInstances": {
         "COPPER": 61,
@@ -78,7 +79,7 @@
       "destinationPreview": {},
       "coinSystem": {
         "geometryType": "LatheGeometry",
-        "sceneEnvironment": false,
+        "sceneEnvironment": true,
         "finishes": {
           "COPPER": {
             "metalness": 0.74,

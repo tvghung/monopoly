@@ -941,6 +941,16 @@ function Phase4UatSurface() {
               />
               Giảm chuyển động
             </label>
+            <label>
+              Đồ họa
+              <select
+                aria-label="Chất lượng đồ họa (UAT)"
+                value={settings.graphicsQuality}
+                onChange={event => updateSettings({ graphicsQuality: parseGraphicsQuality(event.target.value) })}
+              >
+                {GRAPHICS_QUALITY_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+              </select>
+            </label>
             <output aria-live="polite">
               v{room.version} · semantic {room.gameState.boardState.gameplayEvents.sequence}
               {room.gameState.turnInfo.pendingCardInteraction
