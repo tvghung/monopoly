@@ -6,7 +6,6 @@ import * as THREE from 'three';
 import type { PlayerStationRenderModel } from '../board/boardRenderModel';
 import type { MoneyTransferSignal } from '../../presentation/store/types';
 import { formatMoney } from '../../ui/formatters';
-import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
 import SdfBillboardText from '../board/tiles/SdfBillboardText';
 import {
   COIN_FINISH_MATERIALS,
@@ -19,8 +18,11 @@ import {
   stableCoinSeed,
   type CoinFinish,
 } from './coinVisuals';
+import PlayerTrays from './PlayerTrays';
 import {
+  BANK_COIN_BASE_Y,
   BANK_WORLD_ANCHOR,
+  PLAYER_STATION_COIN_BASE_Y,
   getStationWorldPoint,
   resolveStationTransferAmount,
 } from './stationWorld';
@@ -83,7 +85,7 @@ function CoinPiles({ stations }: { stations: readonly PlayerStationRenderModel[]
       return {
         position: [
           BANK_WORLD_ANCHOR[0] + (column - 2.5) * 0.24,
-          0.36 + layer * (COIN_THICKNESS + 0.008),
+          BANK_COIN_BASE_Y + layer * (COIN_THICKNESS + 0.008),
           BANK_WORLD_ANCHOR[2] + 0.04 + (index % 2) * 0.1,
         ],
         rotation: (() => {
@@ -108,7 +110,7 @@ function CoinPiles({ stations }: { stations: readonly PlayerStationRenderModel[]
             station.slot,
             (column - 3) * 0.28,
             0.12 + (index % 2) * 0.1,
-            0.62 + layer * (COIN_THICKNESS + 0.018),
+            PLAYER_STATION_COIN_BASE_Y + layer * (COIN_THICKNESS + 0.018),
           ),
           rotation: (() => {
             const [tiltX, tiltZ] = coinTiltForIndex(
@@ -172,24 +174,6 @@ function StationInformation({ station }: { station: PlayerStationRenderModel }) 
   );
 }
 
-function BankTreasury() {
-  return (
-    <group name="BankTreasury" userData={{ sourceSink: true, footprint: [2.15, 1.02] }}>
-      <RoundedBoxMesh
-        width={2.15}
-        height={0.3}
-        depth={1.02}
-        radius={0.12}
-        segments={2}
-        color="#365247"
-        materialProfile="boardBody"
-        position={[BANK_WORLD_ANCHOR[0], 0.15, BANK_WORLD_ANCHOR[2]]}
-        name="BankTreasuryBase"
-      />
-    </group>
-  );
-}
-
 function StationMoneyAmounts({
   stations,
   moneyTransfers,
@@ -233,7 +217,7 @@ export default function PlayerStationLayer({
 }) {
   return (
     <group name="PlayerStationLayer">
-      <BankTreasury />
+      <PlayerTrays stations={stations} />
       <CoinPiles stations={stations} />
       {stations.map(station => <StationInformation key={station.playerId} station={station} />)}
       <StationMoneyAmounts stations={stations} moneyTransfers={moneyTransfers} />

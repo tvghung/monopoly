@@ -1,5 +1,6 @@
 import type { MoneyEndpoint } from '@monopoly/shared';
 import type { MoneyTransferSignal } from '../../presentation/store/types';
+import { CENTER_AIRPORT_FIELD_TOP_Y } from '../board/architecture/boardArtSpec';
 import { OUTER_BOARD_SIZE } from '../board/boardLayout';
 import type { PlayerStationSlot } from '../../ui/stations/stationSlots';
 
@@ -12,10 +13,30 @@ export const PLAYER_STATION_CENTER_OFFSET = OUTER_BOARD_SIZE / 2 + 2.25;
 export const PLAYER_STATION_BOARD_GAP = PLAYER_STATION_CENTER_OFFSET
   - OUTER_BOARD_SIZE / 2
   - PLAYER_STATION_DEPTH / 2;
-export const PLAYER_STATION_TRANSFER_Y = 1.12;
+/**
+ * Lacquer trays ground the coin piles (plan 02 §8.5). A station tray is 2.8 x 1.3 (tangent x outward, inside
+ * the fitted station envelope) and 0.14 high with a 0.05 colored rim; the bank tray is the same shape at
+ * 0.775 scale so its footprint stays the 2.15 x 1.02 that the dice arena already avoids.
+ */
+export const STATION_TRAY_WIDTH = 2.8;
+export const STATION_TRAY_DEPTH = 1.3;
+export const STATION_TRAY_HEIGHT = 0.14;
+export const STATION_TRAY_RIM_HEIGHT = 0.05;
+export const STATION_TRAY_RIM_WIDTH = 0.11;
+export const BANK_TRAY_SCALE = 0.775;
+export const TRAY_LACQUER_COLOR = '#3a2418';
+/** Coin half thickness (0.05) plus a hair of clearance, resting on the tray top. */
+export const COIN_REST_CLEARANCE = 0.06;
+
+export const PLAYER_STATION_COIN_BASE_Y = STATION_TRAY_HEIGHT + COIN_REST_CLEARANCE;
+/** Coin flights end half a unit above the resting pile base. */
+export const PLAYER_STATION_TRANSFER_Y = PLAYER_STATION_COIN_BASE_Y + 0.5;
 
 export const BANK_WORLD_ANCHOR: WorldAnchor = [0.55, 0, 3.18];
-export const BANK_TRANSFER_Y = 0.98;
+/** The treasury tray rests on the center field, not under it. */
+export const BANK_TRAY_BASE_Y = CENTER_AIRPORT_FIELD_TOP_Y;
+export const BANK_COIN_BASE_Y = BANK_TRAY_BASE_Y + STATION_TRAY_HEIGHT * BANK_TRAY_SCALE + COIN_REST_CLEARANCE;
+export const BANK_TRANSFER_Y = BANK_COIN_BASE_Y + 0.62;
 
 export const PLAYER_STATION_WORLD_ANCHORS: Record<PlayerStationSlot, WorldAnchor> = {
   BOTTOM: [0, 0, PLAYER_STATION_CENTER_OFFSET],
