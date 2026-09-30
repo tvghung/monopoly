@@ -1,18 +1,17 @@
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { DiceValue } from '@monopoly/shared';
-import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
 import { boardVisualTokens } from '../board/boardVisualTokens';
+import { getBoardMaterialProps } from '../board/materials/boardMaterialSpecs';
 import SdfSurfaceText from '../board/tiles/SdfSurfaceText';
 import type { DiceRenderModel } from '../board/boardRenderModel';
 import {
-  DICE_SIZE,
   getDicePosition,
   getDiceResultPosition,
 } from './diceLayout';
 import {
-  getDiceFaceSpecs,
+  createDiceBodyGeometry,
   getDicePipCylinderQuaternion,
   getDicePipInstances,
 } from './diceGeometry';
@@ -25,13 +24,6 @@ import {
 } from './diceOrientation';
 import {
   DICE_BODY_COLOR,
-  DICE_CORNER_SEGMENTS,
-  DICE_EDGE_RADIUS,
-  DICE_EDGE_SEGMENTS,
-  DICE_FACE_COLOR,
-  DICE_FACE_METALNESS,
-  DICE_FACE_ROUGHNESS,
-  DICE_FACE_SIZE,
   DICE_PIP_DEPTH,
   DICE_PIP_DEPTH_TEST,
   DICE_PIP_POLYGON_OFFSET_ENABLED,
@@ -44,26 +36,14 @@ import {
 import DiceContactShadowBatch from './DiceContactShadowBatch';
 import { DiceAnimationClock, useDiceAnimationProgressRef } from './diceAnimationClock';
 
-function DieFaces() {
-  const faces = useMemo(() => getDiceFaceSpecs(), []);
+function DieBody() {
+  const geometry = useMemo(() => createDiceBodyGeometry(), []);
+  useEffect(() => () => geometry.dispose(), [geometry]);
   return (
-    <>
-      {faces.map(face => (
-        <mesh
-          key={face.value}
-          name={`DieFace${face.value}`}
-          position={face.position}
-          rotation={face.rotation}
-        >
-          <planeGeometry args={[DICE_FACE_SIZE, DICE_FACE_SIZE]} />
-          <meshStandardMaterial
-            color={DICE_FACE_COLOR}
-            roughness={DICE_FACE_ROUGHNESS}
-            metalness={DICE_FACE_METALNESS}
-          />
-        </mesh>
-      ))}
-    </>
+    <mesh name="DieBody">
+      <primitive object={geometry} attach="geometry" />
+      <meshStandardMaterial {...getBoardMaterialProps('diceBody', DICE_BODY_COLOR)} />
+    </mesh>
   );
 }
 
@@ -155,18 +135,7 @@ function Die({
       rotation={rotation}
       scale={isRolling && !hasPreviousDice ? 0.86 : 1}
     >
-      <RoundedBoxMesh
-        name="DieBody"
-        width={DICE_SIZE}
-        height={DICE_SIZE}
-        depth={DICE_SIZE}
-        radius={DICE_EDGE_RADIUS}
-        segments={DICE_EDGE_SEGMENTS}
-        cornerSegments={DICE_CORNER_SEGMENTS}
-        color={DICE_BODY_COLOR}
-        materialProfile="diceBody"
-      />
-      <DieFaces />
+      <DieBody />
       <DiePips />
     </group>
   );
