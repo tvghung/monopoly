@@ -18,6 +18,7 @@ import TileMotionProvider from './board/motion/TileMotionProvider';
 import { FrameCounter, shadowMapTypeName, toneMappingName } from './render/diagnostics/rendererInfo';
 import { RenderQualityContext, useRenderQuality } from './render/RenderQualityContext';
 import { probeRenderCapabilities, resolveRenderQuality } from './render/renderQuality';
+import { SCENE_TONE_MAPPING, SCENE_TONE_MAPPING_EXPOSURE, parseToneMappingOverride } from './render/toneMapping';
 import { useSettings } from '../../settings/selectors';
 import CoinMaterialEnvironment from './stations/CoinMaterialEnvironment';
 import {
@@ -312,6 +313,11 @@ export default function GameScene({
     () => resolveRenderQuality(settings.graphicsQuality, probeRenderCapabilities()),
     [settings.graphicsQuality],
   );
+  // Comparison captures may override the tone mapper; real players always get Neutral.
+  const toneMapping = useMemo(
+    () => (isLocalDiagnosticsEnabled() ? parseToneMappingOverride(window.location.search) : SCENE_TONE_MAPPING),
+    [],
+  );
   return (
     <div className="game-scene" data-testid="game-scene" data-graphics-tier={quality.tier}>
       <Canvas
@@ -328,8 +334,8 @@ export default function GameScene({
           antialias: true,
           alpha: false,
           powerPreference: 'high-performance',
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1,
+          toneMapping,
+          toneMappingExposure: SCENE_TONE_MAPPING_EXPOSURE,
         }}
       >
         <RenderQualityContext.Provider value={quality}>

@@ -148,6 +148,16 @@ export const CAPTURES: readonly CaptureEntry[] = [
     scenarios: ['dice-contact-shadows', 'roll-chance'],
     viewports: [VIEWPORTS.laptop],
   }),
+  // Plan 02 T02.8: tone mapping comparison (ACES Filmic, AgX, Neutral) for the G2 package.
+  ...(['aces', 'agx', 'neutral'] as const).flatMap(mapper => harnessCaptures({
+    plan: '02',
+    folder: 'tonemap',
+    scenarios: ['board-readability', 'rent', 'hotel'],
+    viewports: [VIEWPORTS.laptop],
+    surface: 'tonemap',
+    variant: mapper,
+    extraQuery: `&tonemap=${mapper}`,
+  })),
   // Plan 02 T02.7: draw-call and tier diagnostics per graphics preset (JSON only).
   ...GRAPHICS_TIERS.flatMap(tier => harnessCaptures({
     plan: '02',
