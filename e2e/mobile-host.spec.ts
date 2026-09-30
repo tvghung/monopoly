@@ -111,8 +111,10 @@ async function expectTouchTarget(
 ): Promise<void> {
   await expect(locator).toBeVisible();
   const box = await locator.boundingBox();
-  expect(box?.width ?? 0).toBeGreaterThanOrEqual(minimum);
-  expect(box?.height ?? 0).toBeGreaterThanOrEqual(minimum);
+  // A 44px control can measure 43.999999 after layout rounding; that is still a 44px target.
+  const tolerance = 0.05;
+  expect(box?.width ?? 0).toBeGreaterThanOrEqual(minimum - tolerance);
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(minimum - tolerance);
   expect(box?.x ?? -1).toBeGreaterThanOrEqual(0);
   expect(box ? box.x + box.width : viewport.width + 1).toBeLessThanOrEqual(viewport.width + 1);
   expect(box?.y ?? -1).toBeGreaterThanOrEqual(0);
