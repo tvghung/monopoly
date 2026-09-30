@@ -310,7 +310,7 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
     await page.getByLabel('Tin nhắn').fill(longMessage);
     await page.getByRole('button', { name: 'Gửi' }).click();
     await guest.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }).click();
-    await expect(guest.getByText(new RegExp(longMessage, 'u'))).toBeVisible();
+    await expect(guest.getByRole('log', { name: 'Nhật ký ván chơi' }).getByText(new RegExp(longMessage, 'u'))).toBeVisible();
     await guest.getByRole('button', { name: 'Ẩn nhật ký và trò chuyện' }).click();
     await page.waitForTimeout(800);
     await page.getByLabel('Tin nhắn').fill('Tin chưa đọc một.');

@@ -50,7 +50,11 @@ export function useChatBubbles(
     }
     const cursor = cursorRef.current;
     cursorRef.current = Math.max(cursor, newestChat);
-    if (suppressed) return;
+    if (suppressed) {
+      // The drawer shows the messages now; bubbles that are still up would only repeat them.
+      clear();
+      return;
+    }
     const lifetime = CHAT_BUBBLE_LIFETIME_MS / Math.max(0.1, speed);
     activity
       .filter((event): event is Extract<ActivityEvent, { type: 'CHAT' }> & { senderPlayerId: string } => (

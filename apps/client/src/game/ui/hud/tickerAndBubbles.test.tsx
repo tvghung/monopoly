@@ -164,6 +164,14 @@ describe('useChatBubbles', () => {
     expect(result.current).toEqual({});
   });
 
+  it('clears the bubbles that are up as soon as the drawer opens', () => {
+    const { result, rerender } = run([]);
+    rerender({ activity: [chat('player-b', 'Xin chào')], opts: options });
+    expect(result.current).toEqual({ 'player-b': 'Xin chào' });
+    rerender({ activity: [chat('player-b', 'Xin chào')], opts: { ...options, suppressed: true } });
+    expect(result.current).toEqual({});
+  });
+
   it('never replays after a reset epoch or a sequence restart', () => {
     const { result, rerender } = run([]);
     rerender({ activity: [chat('player-b', 'Trước')], opts: options });

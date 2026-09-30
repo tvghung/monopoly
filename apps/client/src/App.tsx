@@ -22,7 +22,7 @@ import type {
 } from '@monopoly/shared';
 import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
 import {
-  ArrowLeft, Flag, LogOut, RefreshCw, Settings, X as XIcon,
+  ArrowLeft, Flag, RefreshCw, X as XIcon,
 } from 'lucide-react';
 import Board from './components/Board';
 import ConnectionOverlay from './components/ConnectionOverlay';
@@ -30,6 +30,8 @@ import JoinForm from './components/JoinForm';
 import Lobby from './components/Lobby';
 import SpectatorBanner from './components/SpectatorBanner';
 import { useToast } from './components/Toast';
+import IconButton from './design-system/components/IconButton/IconButton';
+import { ActionIcon as RegistryIcon } from './design-system/icons/ActionIcon';
 import ConfirmationDialog from './design-system/components/ConfirmationDialog/ConfirmationDialog';
 import SettingsPanel from './settings/SettingsPanel';
 import FpsBadge from './game/ui/FpsBadge';
@@ -861,28 +863,20 @@ export default function App({
           {role === 'SPECTATOR' ? <SpectatorBanner /> : null}
           <div className="room-toolbar" aria-label="Điều khiển ván chơi">
             {import.meta.env.DEV || __PHASE4_UAT__ ? <FpsBadge /> : null}
-            <button
-              type="button"
+            <IconButton
+              label="Cài đặt"
+              icon={<RegistryIcon name="settings" className="room-settings-button__icon" />}
               className={`room-settings-button${settingsOpen ? ' room-settings-button--open' : ''}`}
-              aria-label="Cài đặt"
-              title="Cài đặt"
               aria-expanded={settingsOpen}
               onClick={() => setSettingsOpen(true)}
-            >
-              <Settings className="action-icon action-icon--only room-settings-button__icon" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
+            />
+            <IconButton
+              label={role === 'PLAYER' && room.status === 'IN_PROGRESS' ? 'Bỏ cuộc' : 'Rời phòng'}
+              icon={role === 'PLAYER' && room.status === 'IN_PROGRESS' ? 'forfeit' : 'leave'}
               className="room-exit-button"
-              aria-label={role === 'PLAYER' && room.status === 'IN_PROGRESS' ? 'Bỏ cuộc' : 'Rời phòng'}
-              title={role === 'PLAYER' && room.status === 'IN_PROGRESS' ? 'Bỏ cuộc' : 'Rời phòng'}
               disabled={operation !== null}
               onClick={handleLeave}
-            >
-              {role === 'PLAYER' && room.status === 'IN_PROGRESS'
-                ? <Flag className="action-icon action-icon--only" aria-hidden="true" />
-                : <LogOut className="action-icon action-icon--only" aria-hidden="true" />}
-            </button>
+            />
           </div>
           {operationError ? <p className="room-exit-error" role="alert">{operationError}</p> : null}
           <Board />
