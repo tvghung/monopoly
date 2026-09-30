@@ -12,6 +12,7 @@ import JoinForm from '../../../components/JoinForm';
 import Lobby, { type LobbyPlayerView } from '../../../components/Lobby';
 import SpectatorBanner from '../../../components/SpectatorBanner';
 import SettingsPanel from '../../../settings/SettingsPanel';
+import DeedGallery from './DeedGallery';
 import SurfaceProviders, { makeSurfaceState, type SurfaceStateOptions } from './SurfaceProviders';
 
 /**
@@ -138,6 +139,12 @@ export const SURFACES: readonly SurfaceFixture[] = [
     label: 'Toasts',
     group: 'Screens',
     render: () => <SurfaceProviders><ToastDemo /></SurfaceProviders>,
+  },
+  {
+    id: 'deeds',
+    label: 'Deed cards (all variants)',
+    group: 'Inspection',
+    render: () => <SurfaceProviders><DeedGallery /></SurfaceProviders>,
   },
   {
     id: 'loading',

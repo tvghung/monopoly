@@ -1,0 +1,149 @@
+/*
+ * Property deed card (plan 04 §8.2). The header band takes the district color and its guaranteed-contrast text color from
+ * propertyVisualColors; the rest is paper. `--deed-color`, `--deed-text` and `--deed-tint` are set inline per card.
+ */
+.deed {
+  --deed-color: var(--color-accent-secondary);
+  --deed-text: var(--color-text-inverse);
+  --deed-tint: var(--color-surface-soft);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  background-image: var(--paper-grain);
+  color: var(--color-text-primary);
+  box-shadow: var(--elevation-2);
+  text-align: left;
+}
+.deed--full { width: min(100%, 20rem); min-height: 26rem; }
+.deed--compact { width: min(100%, 16.25rem); }
+
+.deed__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--deed-color);
+  color: var(--deed-text);
+}
+.deed--compact .deed__header { padding: var(--space-2) var(--space-3); }
+.deed__titles { display: grid; gap: 2px; min-width: 0; }
+.deed__group { margin: 0; font: var(--type-caption); letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.92; }
+.deed__name { margin: 0; font: var(--type-title-m); line-height: 1.2; overflow-wrap: anywhere; }
+.deed--compact .deed__name { font: var(--type-title-s); }
+.deed__art {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: var(--radius-md);
+  background: rgb(255 255 255 / 22%);
+}
+.deed--compact .deed__art { width: 2.75rem; height: 2.75rem; }
+.deed--compact .deed__art svg { width: 1.5rem; height: 1.5rem; }
+
+.deed__body { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); }
+.deed--compact .deed__body { gap: var(--space-1); padding: var(--space-2) var(--space-3); }
+
+.deed__price,
+.deed__development,
+.deed__house-cost,
+.deed__current {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0;
+}
+.deed__price { font: var(--type-label); }
+.deed__price strong { font: var(--type-money-l); font-size: 1.375rem; font-variant-numeric: tabular-nums; }
+.deed__development { color: var(--color-text-secondary); font: var(--type-small); }
+.deed__development strong { color: var(--color-text-primary); font-weight: 700; }
+.deed__current { font: var(--type-small); }
+.deed__current strong { font-variant-numeric: tabular-nums; }
+.deed__house-cost { padding-top: var(--space-2); border-top: 1px solid var(--color-border); font: var(--type-small); }
+.deed__house-cost strong { font-variant-numeric: tabular-nums; }
+
+.deed__ladder { width: 100%; border-collapse: collapse; font: var(--type-small); }
+.deed__caption { padding: var(--space-1) 0; color: var(--color-text-secondary); font: var(--type-caption); letter-spacing: 0.06em; text-align: left; text-transform: uppercase; }
+.deed__ladder th,
+.deed__ladder td { padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--color-border); font-weight: 500; }
+.deed__ladder th { text-align: left; }
+.deed__ladder td { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.deed__row--current { background: var(--color-gold-soft); }
+.deed__row--current th,
+.deed__row--current td { font-weight: 800; }
+.deed__row--next { background: var(--deed-tint); }
+.deed__tag {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 0 0.4rem;
+  border-radius: var(--radius-pill);
+  font: var(--type-caption);
+  font-size: 0.6875rem;
+  vertical-align: middle;
+}
+.deed__tag--current { background: var(--color-turn-active); color: var(--color-text-primary); }
+.deed__tag--next { background: var(--color-info-soft); color: var(--color-info-strong); }
+.deed__note { margin: 0; color: var(--color-text-secondary); font: var(--type-caption); }
+.deed__rule { margin: 0; font: var(--type-body); }
+
+.deed__owner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: auto;
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  background: var(--deed-tint);
+  font: var(--type-small);
+}
+.deed--compact .deed__owner { padding: var(--space-1) var(--space-3); }
+.deed__owner-name { display: inline-flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; min-width: 0; }
+.deed__owner-label { color: var(--color-text-secondary); }
+.deed__owner-name--none { color: var(--color-text-secondary); }
+.deed__progress { display: inline-flex; align-items: center; gap: var(--space-2); margin-left: auto; }
+.deed__pips { display: inline-flex; gap: 3px; }
+.deed__pip {
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid var(--deed-color);
+  border-radius: 3px;
+  background: transparent;
+}
+.deed__pip--owned { border-color: var(--color-text-primary); }
+.deed__pip--self { box-shadow: 0 0 0 2px var(--color-turn-active); }
+.deed__progress-text { font-variant-numeric: tabular-nums; font-weight: 700; }
+
+/* One line, 40 px tall: a deed picked in a list (trade offer, incoming offer, portfolio summary). */
+.deed--chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.5rem;
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--elevation-1);
+  font: var(--type-small);
+  font-weight: 700;
+}
+.deed-chip__swatch { flex: none; width: 1.25rem; height: 1.25rem; border-radius: 50%; background: var(--deed-color); box-shadow: inset 0 0 0 2px rgb(255 255 255 / 55%); }
+.deed-chip__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deed-chip__price { flex: none; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* Special tiles carry a neutral paper header instead of a district color. */
+.deed--special { --deed-color: var(--color-surface-sunken); --deed-text: var(--color-text-primary); }
+.deed--special .deed__art { background: var(--color-surface); }
+
+@media (orientation: landscape) and (max-height: 31rem) {
+  .deed--full { min-height: 0; }
+  .deed__header { padding: var(--space-2) var(--space-3); }
+  .deed__art { width: 3rem; height: 3rem; }
+  .deed__body { padding: var(--space-2) var(--space-3); }
+}
