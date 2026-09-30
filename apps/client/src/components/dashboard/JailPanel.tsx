@@ -51,7 +51,7 @@ export default function JailPanel() {
     <section className="jail-panel" role="status" aria-live="polite">
       <h3 className="jail-panel__title">Bạn đang ở Nhà Tù</h3>
       {error ? <p role="alert">{error}</p> : null}
-      <p className="jail-panel__hint">Chọn một cách ra tù, hoặc bấm Chơi để thử đổ đôi.</p>
+      <p className="jail-panel__hint">Chọn một cách ra tù, hoặc bấm Đổ xúc xắc để thử đổ đôi.</p>
       <p className="jail-panel__rounds">Vòng chờ: {myPlayer.jailOpponentRoundsElapsed}/2</p>
       {myPlayer.accountBalance < BAIL_AMOUNT
         ? <p className="jail-panel__balance-warning">Cần {formatMoney(BAIL_AMOUNT)} để trả bảo lãnh.</p>

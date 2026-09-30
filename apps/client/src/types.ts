@@ -53,6 +53,8 @@ export interface StateContextValue {
   privateOffers: PrivateOffer[];
   roomPlayers?: RoomPlayerMeta[];
   roomStatus?: RoomStatus;
+  /** Shown in the HUD status pill. */
+  roomCode?: string;
   hostPlayerId?: string | null;
   canPlayAgain?: boolean;
 }

@@ -1,10 +1,13 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Ack } from '@monopoly/shared';
-import { Dices } from 'lucide-react';
 import stateContext from '../../../internal';
+import Button from '../../../design-system/components/Button/Button';
+import { ActionIcon } from '../../../design-system/icons/ActionIcon';
 import { localizeAckError } from '../../../presentation';
-import { usePresentation } from '../../presentation/PresentationProvider';
+import { usePresentationSelector } from '../../presentation/usePresentationSelector';
+import type { PresentationState } from '../../presentation/store/types';
 import { areAllTokensSettled, canRollForState, shouldShowRollButton } from './rollControlLogic';
+import { useRollShortcut } from './useRollShortcut';
 
 function hasDiceResult(dice: { dice1: number; dice2: number }): boolean {
   return dice.dice1 >= 1 && dice.dice1 <= 6 && dice.dice2 >= 1 && dice.dice2 <= 6;
@@ -15,26 +18,37 @@ interface PendingRoll {
   resetEpoch: number;
 }
 
+/** The presentation fields the roll gate and the dice announcement read. */
+const selectRollSlice = (state: PresentationState) => ({
+  status: state.status,
+  settledPositions: state.settledPositions,
+  presentationResetEpoch: state.presentationResetEpoch,
+  diceRoll: state.diceRoll,
+  displayDice: state.displayDice,
+});
+type RollSlice = ReturnType<typeof selectRollSlice>;
+const sameRollSlice = (previous: RollSlice, next: RollSlice) => previous.status === next.status
+  && previous.settledPositions === next.settledPositions
+  && previous.presentationResetEpoch === next.presentationResetEpoch
+  && previous.diceRoll === next.diceRoll
+  && previous.displayDice === next.displayDice;
+
+/**
+ * The roll permission and the one live announcement of the dice result. The permission still comes from the
+ * authoritative state (`canRollForState`); only how the call to action looks and where it sits changed (it lives in
+ * the center stage). The turn text moved to the status pill.
+ */
 export default function RollControl() {
   const {
     state, socketFunctions, playerId, canMutate, connected,
   } = useContext(stateContext);
-  const { state: presentationState } = usePresentation();
+  const rollSlice = usePresentationSelector(selectRollSlice, sameRollSlice);
   const [pendingRoll, setPendingRoll] = useState<PendingRoll | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const visualActivePlayerId = presentationState.displayActivePlayerId
-    ?? state.boardState.currentPlayer.id;
-  const visualCurrentPlayer = state.players[visualActivePlayerId];
   const isMyTurn = state.boardState.currentPlayer.id === playerId;
-  const isMyVisualTurn = visualActivePlayerId === playerId;
-  const turnLabel = isMyVisualTurn
-    ? 'Lượt của bạn'
-    : visualCurrentPlayer?.name
-      ? `${visualCurrentPlayer.name} đang chơi`
-      : 'Đang chờ lượt chơi';
-  const tokensSettled = areAllTokensSettled(state, presentationState);
-  const canRoll = canRollForState(state, presentationState, {
+  const tokensSettled = areAllTokensSettled(state, rollSlice);
+  const canRoll = canRollForState(state, rollSlice, {
     connected,
     canMutate,
     playerId,
@@ -45,11 +59,11 @@ export default function RollControl() {
     playerId,
     canRoll,
     pendingRoll !== null,
-  );
+  ) && rollSlice.diceRoll === null;
 
   useEffect(() => {
     if (!pendingRoll) return;
-    if (presentationState.presentationResetEpoch !== pendingRoll.resetEpoch) {
+    if (rollSlice.presentationResetEpoch !== pendingRoll.resetEpoch) {
       setPendingRoll(null);
       setError(null);
       return;
@@ -59,11 +73,11 @@ export default function RollControl() {
     const turnMovedForward = currentTurn.id !== playerId
       || (currentTurn.id === playerId && currentTurn.hasMoved);
     if (authoritativeRollArrived || turnMovedForward) setPendingRoll(null);
-  }, [pendingRoll, playerId, presentationState.presentationResetEpoch, state.boardState.currentPlayer, state.boardState.rollSequence]);
+  }, [pendingRoll, playerId, rollSlice.presentationResetEpoch, state.boardState.currentPlayer, state.boardState.rollSequence]);
 
   useEffect(() => {
     setError(null);
-  }, [presentationState.presentationResetEpoch]);
+  }, [rollSlice.presentationResetEpoch]);
 
   useEffect(() => {
     if (!connected && pendingRoll) setPendingRoll(null);
@@ -74,7 +88,7 @@ export default function RollControl() {
     const startingSequence = state.boardState.rollSequence;
     setPendingRoll({
       sequence: startingSequence,
-      resetEpoch: presentationState.presentationResetEpoch,
+      resetEpoch: rollSlice.presentationResetEpoch,
     });
     setError(null);
     void Promise.resolve(socketFunctions.rollDice())
@@ -88,32 +102,33 @@ export default function RollControl() {
         setPendingRoll(null);
         setError('Không thể gửi lệnh đổ xúc xắc.');
       });
-  }, [canRoll, presentationState.presentationResetEpoch, socketFunctions, state.boardState.rollSequence]);
+  }, [canRoll, rollSlice.presentationResetEpoch, socketFunctions, state.boardState.rollSequence]);
+
+  useRollShortcut(showRollButton && canRoll, handleRoll);
 
   const diceAnnouncement = useMemo(() => {
-    if (presentationState.diceRoll) return 'Đang trình bày kết quả đổ xúc xắc.';
-    const dice = presentationState.displayDice;
-    return hasDiceResult(dice)
-      ? `Kết quả đổ xúc xắc: ${dice.dice1} + ${dice.dice2} = ${dice.dice1 + dice.dice2}.`
+    if (rollSlice.diceRoll) return 'Đang trình bày kết quả đổ xúc xắc.';
+    return hasDiceResult(rollSlice.displayDice)
+      ? `Kết quả đổ xúc xắc: ${rollSlice.displayDice.dice1} + ${rollSlice.displayDice.dice2} = ${rollSlice.displayDice.dice1 + rollSlice.displayDice.dice2}.`
       : 'Chưa có kết quả đổ xúc xắc.';
-  }, [presentationState.diceRoll, presentationState.displayDice]);
+  }, [rollSlice.diceRoll, rollSlice.displayDice]);
 
   return (
     <section className="game-board__roll-controls" data-testid="roll-control" aria-label="Điều khiển lượt chơi">
-      <p className="game-board__turn-label">{turnLabel}</p>
       {showRollButton
         ? (
-          <button
+          <Button
             className="game-board__roll-button"
             data-testid="roll-button"
-            type="button"
+            size="xl"
+            busy={pendingRoll !== null}
             disabled={!canRoll}
-            aria-busy={pendingRoll !== null}
+            aria-keyshortcuts="Space"
+            icon={<ActionIcon name="roll" />}
             onClick={handleRoll}
           >
-            <Dices className="action-icon action-icon--major" aria-hidden="true" />
-            {pendingRoll !== null ? 'Đang chờ…' : 'Chơi'}
-          </button>
+            {pendingRoll !== null ? 'Đang đổ…' : 'Đổ xúc xắc'}
+          </Button>
         )
         : null}
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">

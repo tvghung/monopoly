@@ -69,48 +69,17 @@
   display: none;
 }
 
+/* The roll control lives in the center stage (game/ui/hud/hud.css); only its error line is positioned here. */
 .game-board__roll-controls {
-  position: absolute;
-  z-index: var(--z-action-surface);
-  bottom: max(clamp(0.75rem, 2vw, 1.25rem), env(safe-area-inset-bottom));
-  left: 50%;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: min(13rem, 42vw);
-  transform: translateX(-50%);
-  pointer-events: auto;
+  pointer-events: none;
   text-align: center;
 }
 
-.game-board__turn-label {
-  min-height: 1.2rem;
-  margin: 0 0 0.35rem;
-  color: var(--color-text-inverse);
-  font-size: clamp(0.78rem, 1.1vw, 0.95rem);
-  font-weight: var(--font-weight-semibold);
-  line-height: 1.2;
-  text-shadow: 0 1px 3px var(--color-shadow);
-}
-
-.game-board__roll-button {
-  width: 100%;
-  min-height: 3rem;
-  padding: 0.7rem 1rem;
-  border: 1px solid var(--color-accent-secondary-strong);
-  border-radius: var(--radius-medium);
-  background: var(--color-accent-secondary-strong);
-  color: var(--color-text-inverse);
-  cursor: pointer;
-  font-size: clamp(0.9rem, 1.1vw, 1rem);
-  font-weight: var(--font-weight-bold);
-  box-shadow: 0 0.35rem 0.8rem rgb(8 31 43 / 25%);
-  transition: transform 120ms ease, filter 120ms ease, opacity 120ms ease;
-}
-
-.game-board__roll-button:hover:not(:disabled) { filter: brightness(1.06); }
-.game-board__roll-button:active:not(:disabled) { transform: translateY(1px) scale(0.98); }
-.game-board__roll-button:disabled { cursor: not-allowed; opacity: 0.62; }
+.game-board__roll-controls .game-board__roll-button { pointer-events: auto; }
 
 .game-board__roll-error {
   position: absolute;
@@ -200,9 +169,7 @@
 .owned-properties-empty { margin: 0; color: var(--color-text-secondary); }
 
 @media (prefers-reduced-motion: reduce) {
-  .game-board__roll-button,
   .game-board__property-button { transition: none; }
-  .game-board__roll-button:active:not(:disabled),
   .game-board__property-button:active { transform: none; }
 }
 

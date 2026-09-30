@@ -12,6 +12,8 @@
   --player-card-local-width: 300px;
   --player-card-local-height: 108px;
   --player-avatar-size: 52px;
+  /* The board center projects to the canvas center; nudge the stage up so it clears the bank tray. */
+  --hud-center-offset-y: -24px;
   position: absolute;
   inset: 0;
   z-index: var(--z-hud-cards);
@@ -164,4 +166,76 @@
   .player-card__name { max-width: 10ch; font: var(--type-caption); }
   .player-card__tag { display: none; }
   .player-card__money { font: var(--type-label); font-weight: 800; }
+}
+
+/* ---------- Status pill (top center) ---------- */
+
+.status-pill {
+  position: absolute;
+  top: var(--hud-inset);
+  left: 50%;
+  z-index: var(--z-hud-center);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(60vw, 26rem);
+  padding: 6px 14px 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface);
+  background-image: var(--paper-grain);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.status-pill__room { padding-left: 8px; color: var(--color-text-secondary); font: var(--type-caption); white-space: nowrap; }
+.status-pill__avatar { display: inline-flex; }
+.status-pill .game-board__turn-label {
+  margin: 0;
+  font: var(--type-label);
+  line-height: 1.2;
+  text-shadow: none;
+  color: var(--color-text-primary);
+}
+
+/* ---------- Center stage ---------- */
+
+.center-stage {
+  position: absolute;
+  top: calc(50% + var(--hud-center-offset-y, 0px));
+  left: 50%;
+  z-index: var(--z-hud-center);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.center-stage .game-board__roll-button { min-width: 220px; font: var(--type-title-s); }
+
+.center-stage__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 16px 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
+  font: var(--type-label);
+}
+
+@media (max-width: 1279px), (max-height: 719px) {
+  .status-pill__room { display: none; }
+}
+
+@media (max-height: 500px) {
+  .center-stage .game-board__roll-button { min-width: 180px; min-height: 52px; font: var(--type-label); }
+  .center-stage__pill { padding: 4px 12px 4px 6px; font: var(--type-caption); }
 }

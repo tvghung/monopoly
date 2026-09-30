@@ -219,8 +219,8 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
     await expect(page.locator('.legacy-board')).toBeVisible();
     await expect(page.getByText('Hãy xoay ngang thiết bị')).toBeHidden();
     expect(
-      await page.getByRole('button', { name: 'Chơi', exact: true }).count()
-      + await guest.getByRole('button', { name: 'Chơi', exact: true }).count(),
+      await page.getByRole('button', { name: 'Đổ xúc xắc', exact: true }).count()
+      + await guest.getByRole('button', { name: 'Đổ xúc xắc', exact: true }).count(),
     ).toBe(1);
 
     for (const viewport of ACCEPTANCE_VIEWPORTS) {

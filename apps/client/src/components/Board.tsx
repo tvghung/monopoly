@@ -7,6 +7,8 @@ import {
   useState,
 } from 'react';
 import stateContext from '../internal';
+// Keep Dashboard first: its stylesheet must precede Button.css in the bundle (the HUD imports Button).
+import Dashboard from './Dashboard';
 import displayPositionsContext from '../displayPositionsContext';
 import tradePromptContext from '../tradePromptContext';
 import { usePresentation } from '../game/presentation/PresentationProvider';
@@ -16,11 +18,9 @@ import { supportsWebGL } from '../game/scene/fallback/webglSupport';
 import PropertyInspectionModal from '../game/ui/property/PropertyInspectionModal';
 import OwnedPropertiesControl from '../game/ui/property/OwnedPropertiesControl';
 import GameHud from '../game/ui/hud/GameHud';
-import RollControl from '../game/ui/hud/RollControl';
 import BoardAccessibilityControls from './BoardAccessibilityControls';
 import LegacyBoardView from './legacy-board/LegacyBoardView';
 import Log from './Log';
-import Dashboard from './Dashboard';
 import {
   resolveInitialRendererMode,
   type RendererMode,
@@ -123,7 +123,6 @@ export default function Board() {
               : legacyBoard}
             <Dashboard />
             <GameHud />
-            <RollControl />
             <OwnedPropertiesControl onSelect={selectTile} />
             <Log />
           </section>

@@ -3,7 +3,7 @@ import type { PresentationState } from '../../presentation/store/types';
 
 export function areAllTokensSettled(
   state: PublicGameState,
-  presentationState: PresentationState,
+  presentationState: Pick<PresentationState, 'settledPositions'>,
 ): boolean {
   return Object.entries(state.players).every(([playerId, player]) => (
     (presentationState.settledPositions[playerId] ?? player.currentTile) === player.currentTile
@@ -28,7 +28,7 @@ export function shouldShowRollButton(
 
 export function canRollForState(
   state: PublicGameState,
-  presentationState: PresentationState,
+  presentationState: Pick<PresentationState, 'settledPositions' | 'status'>,
   input: RollGateInput,
 ): boolean {
   const currentPlayer = state.boardState.currentPlayer;

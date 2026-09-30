@@ -4,8 +4,10 @@ import stateContext from '../../../internal';
 import { useEffectiveReducedMotion } from '../../../settings/selectors';
 import { usePresentationSelector } from '../../presentation/usePresentationSelector';
 import type { PresentationState } from '../../presentation/store/types';
+import CenterStage from './CenterStage';
 import PlayerCardList from './PlayerCardList';
 import { selectPlayerCardViewModels } from './playerCardSelectors';
+import StatusPill from './StatusPill';
 import './hud.css';
 
 const selectCardSlice = (state: PresentationState) => ({
@@ -61,7 +63,9 @@ function GameHudShell() {
   const style = useMemo(() => ({ '--hud-speed': speed }) as CSSProperties, [speed]);
   return (
     <div className="game-hud" data-testid="game-hud" style={style}>
+      <StatusPill />
       <PlayerCards />
+      <CenterStage />
     </div>
   );
 }

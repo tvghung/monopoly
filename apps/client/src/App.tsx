@@ -822,6 +822,7 @@ export default function App({
     privateOffers,
     roomPlayers: room?.players ?? [],
     roomStatus: room?.status,
+    roomCode: room?.roomCode,
     hostPlayerId: room?.hostPlayerId,
     canPlayAgain,
   }), [canMutate, canPlayAgain, connected, playerId, privateOffers, privatePlayerState, role, room, socketFunctions]);
