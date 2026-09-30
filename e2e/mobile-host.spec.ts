@@ -227,6 +227,11 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
       await page.getByRole('button', { name: 'Đổ xúc xắc', exact: true }).count()
       + await guest.getByRole('button', { name: 'Đổ xúc xắc', exact: true }).count(),
     ).toBe(1);
+    const guestViewport = { width: 667, height: 375 };
+    await expectTouchTarget(guest.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }), guestViewport);
+    await expectTouchTarget(guest.getByRole('button', { name: /^Tài sản của tôi/u }), guestViewport);
+    const guestRoll = guest.getByRole('button', { name: 'Đổ xúc xắc', exact: true });
+    if (await guestRoll.count() > 0) await expectTouchTarget(guestRoll, guestViewport);
 
     for (const viewport of ACCEPTANCE_VIEWPORTS) {
       await page.setViewportSize(viewport);
@@ -245,6 +250,13 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
       const surrender = page.getByRole('button', { name: 'Bỏ cuộc' });
       await expectTouchTarget(settings, viewport);
       await expectTouchTarget(surrender, viewport);
+      if (!(viewport.width < viewport.height && viewport.width <= 768)) {
+        // The HUD controls of plan 03: the activity drawer tab, the assets dock button and the roll call to action.
+        await expectTouchTarget(page.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }), viewport);
+        await expectTouchTarget(page.getByRole('button', { name: /^Tài sản của tôi/u }), viewport);
+        const hostRoll = page.getByRole('button', { name: 'Đổ xúc xắc', exact: true });
+        if (await hostRoll.count() > 0) await expectTouchTarget(hostRoll, viewport);
+      }
       await settings.click();
       await expect(settings).toHaveAttribute('aria-expanded', 'true');
       if (viewport.width === 360) {

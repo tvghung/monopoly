@@ -43,6 +43,14 @@
   `aria-hidden`) và bong bóng chat trên card người gửi (tin của người khác, tối đa 80 ký tự, 4000 ms / speed, chỉ
   render text, không hiện khi ngăn mở và bị xóa khi ngăn mở) không bao giờ replay lịch sử; cursor nhảy tới mới nhất
   khi mount, khi `presentationResetEpoch` đổi hoặc khi sequence lùi. Câu chữ dùng chung ở `game/ui/hud/activityText.ts`.
+- **Chat không bị gate bởi presentation queue**: bong bóng đọc `boardState.activityFeed.events` (authoritative) và
+  Log ghép chat authoritative với các dòng gameplay đã được gate (`mergeUngatedChat`, theo sequence), nên tin chat và
+  badge chưa đọc hiện ngay cả khi người chơi khác còn đang quyết định mua; ticker và nhật ký gameplay vẫn theo
+  `displayActivity`/`displayLogs`.
+- Badge chưa đọc được mô tả cho trình đọc màn hình qua `aria-describedby` của tab ("N tin nhắn chưa đọc").
+  Đóng ngăn kéo xóa tin đang gõ dở để mở lại không gửi nhầm nội dung không còn thấy.
+- Log đọc presentation qua `usePresentationSelector` (chỉ `displayActivity`, `displayLogs`, `presentationResetEpoch`)
+  nên không render lại mỗi tick của store.
 - Submit có nội dung truthy emit `send chat(message)`, sau đó reset local state và form.
 - `send chat` có request-scoped ACK. Server appends both the compatibility string log
   and a typed `CHAT` event in one room command, then emits the committed `update`.

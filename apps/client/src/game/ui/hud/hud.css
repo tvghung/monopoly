@@ -12,8 +12,12 @@
   --player-card-local-width: 300px;
   --player-card-local-height: 108px;
   --player-avatar-size: 56px;
-  /* The board center projects to the canvas center; nudge the stage up so it clears the bank tray. */
-  --hud-center-offset-y: -24px;
+  /* The board center projects to the canvas center. The stage sits a little to the right and down so it clears the bank
+     tray (lower left of center) and the settled dice (upper right of center). */
+  --hud-center-offset-x: 64px;
+  --hud-center-offset-y: 6px;
+  /* The dice callout keeps the place it was designed for next to the dice arena, whatever the stage does. */
+  --hud-callout-offset-y: -24px;
   position: absolute;
   inset: 0;
   z-index: var(--z-hud-cards);
@@ -90,7 +94,7 @@
 
 .player-card__name {
   /* Tags shrink before the name does: a busy seat (local, on the move, in jail) still reads "An", not "A.". */
-  flex: 1 0 4ch;
+  flex: 0 1 auto;
   min-width: 4ch;
   overflow: hidden;
   font: var(--type-label);
@@ -156,6 +160,7 @@
     --player-card-local-width: 220px;
     --player-card-local-height: 72px;
     --player-avatar-size: 44px;
+    --hud-center-offset-x: 40px;
   }
 
   .player-card__face { gap: 8px; padding: 8px 10px 8px 8px; }
@@ -176,6 +181,7 @@
     --player-card-local-width: 168px;
     --player-card-local-height: 52px;
     --player-avatar-size: 36px;
+    --hud-center-offset-x: 24px;
   }
 
   .player-card__face { gap: 6px; padding: 6px 8px 6px 6px; }
@@ -223,7 +229,7 @@
 .center-stage {
   position: absolute;
   top: calc(50% + var(--hud-center-offset-y, 0px));
-  left: 50%;
+  left: calc(50% + var(--hud-center-offset-x, 0px));
   z-index: var(--z-hud-center);
   display: flex;
   flex-direction: column;
@@ -279,7 +285,7 @@
 
 .dice-callout {
   position: absolute;
-  top: calc(50% - 104px + var(--hud-center-offset-y, 0px));
+  top: calc(50% - 104px + var(--hud-callout-offset-y, 0px));
   left: calc(50% + 176px);
   z-index: var(--z-hud-center);
   display: flex;
@@ -363,14 +369,14 @@
 }
 
 @media (max-width: 1279px), (max-height: 719px) {
-  .dice-callout { left: calc(50% + 150px); top: calc(50% - 90px + var(--hud-center-offset-y, 0px)); }
+  .dice-callout { left: calc(50% + 150px); top: calc(50% - 90px + var(--hud-callout-offset-y, 0px)); }
   .dice-callout__total { font: var(--type-title-l); }
 }
 
 @media (max-height: 500px) {
   .turn-banner { top: calc(var(--hud-inset) + 44px); padding: 4px 16px 4px 6px; }
   .turn-banner__text { font: var(--type-label); }
-  .dice-callout { left: calc(50% + 120px); top: calc(50% - 70px + var(--hud-center-offset-y, 0px)); padding: 4px 10px; gap: 8px; }
+  .dice-callout { left: calc(50% + 120px); top: calc(50% - 70px + var(--hud-callout-offset-y, 0px)); padding: 4px 10px; gap: 8px; }
   .dice-callout__total { font: var(--type-title-m); }
 }
 

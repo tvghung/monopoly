@@ -35,6 +35,14 @@
   does the same without a visible client action. The persisted
   opponent-round counter increments on handoff and releases before the second
   jailed turn.
+- [x] `[CLIENT][AUTOMATED]` The roll call to action says "Đổ xúc xắc" ("Đang đổ…" while pending), its permission
+  still comes from authoritative state (`canRollForState`), Space rolls only when that control is enabled and focus
+  is not in an input, button, dialog or the activity drawer, and the turn change is spoken once from the roll
+  control's live region (`rollControl.test.ts`, `Board.test.tsx`, `centerStage.test.tsx`, `useRollShortcut.test.tsx`,
+  `useTurnAnnouncement.test.tsx`).
+- [ ] `[CLIENT][MANUAL-E2E]` While jailed, the jail panel (compact strip at phone landscape, between the two bottom
+  cards at 720 px and below) never hides the roll button: `hudOverlap.regionOverlaps` is empty in
+  `evidence/03/g3/*jail*.json` at 1440×900, 1280×720, 1024×768, 812×375 and 667×375.
 - [ ] `[PG]` Restart preserves jail progress and card identities exactly.
 
 ## Multi-debtor PaymentQueue

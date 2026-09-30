@@ -4,7 +4,9 @@
   from the authoritative `update` projection. The call to action is **"Đổ xúc xắc"** (pending: "Đang đổ…"),
   the v2 `Button` `xl`, hidden while the dice roll, while a card is shown and after a win; on an opponent's turn
   a pill "<tên> đang đi…" replaces it. `Space` triggers it while it is enabled, unless typing, a button/link has
-  focus, a dialog is open, or the press is a repeat or carries a modifier. Permission still comes from
+  focus, focus is inside the activity drawer, a dialog is open, or the press is a repeat or carries a modifier.
+  The roll control's one live region also speaks the turn change ("Đến lượt bạn." / "Lượt của <tên>.") after a live
+  presentation change, never on first render or after a snapshot sync. Permission still comes from
   `canRollForState`; the turn text moved to the status pill. After the dice settle a DOM dice callout shows
   "4 + 3" and the total (the 3D total text was removed); doubles add an informational chip because a double
   never grants another roll.
@@ -13,7 +15,8 @@
 - `DevelopmentPrompt` renders the authoritative landing level and sends only
   operation ID plus `SKIP`, `BUILD_HOUSES` quantity, or `UPGRADE_HOTEL`.
 - `JailPanel` (now in the HUD context stack above the action dock) shows opponent-round progress and direct
-  cash/card/wait actions ("hoặc bấm Đổ xúc xắc để thử đổ đôi"). A failed jail roll ends the turn; a double never
+  cash/card/wait actions ("hoặc bấm Đổ xúc xắc để thử đổ đôi"). On a phone held sideways it is a two-row strip and
+  never covers the roll button. A failed jail roll ends the turn; a double never
   grants another roll.
 - `DebtPanel` renders only public shortfall summary and server-derived gross/net
   sellable values. `ForcedSaleProposalPanel` renders terms only for its seller or

@@ -823,6 +823,11 @@ Answered by the product owner on 2026-09-30; binding for implementation.
 | stress | balanced | 160 | 17 | 0 | 67,550 | 30.0 | 133.2 |
 | stress | high | 160 | 17 | 3 (+19) | 67,550 | 10.0 | 283.0 |
 
+**BR-3 landed with plan 03 (T03.6, b40821d):** removing the station labels and `StationMoneyAmounts` took `board-readability`
+(balanced, 1440×900) from 169 to 153 main-pass draws (−16; shadow pass 25, triangles 68,932). The same −16 shows in every
+4-player HUD fixture of `evidence/03/g3` (for example `balance-gate` 149 → 133, `stations-4` 159 → 143); fixtures with fewer
+stations save less (`stations-2` 145 → 137). Rows above were measured before BR-3.
+
 Draw calls and triangles come from the software-rendered captures (`evidence/02/tiers`, deterministic);
 frame times come from `VISUAL_GPU=hardware` runs of 10 s at 1920×1080 (`evidence/02/benchmark`). Limits met:
 main ≤ 180, shadow ≤ 30, post passes ≤ 6, triangles < 80k.

@@ -13,7 +13,8 @@
 - Bốn góc màn hình, mỗi người chơi một card (`game/ui/hud/PlayerCard.tsx`); trạng thái luôn có chữ và icon, không chỉ màu:
   lượt hiện tại ("Đang đi", vòng vàng), "Bạn", "Ở tù n/2" (vòng đối thủ đã qua), "Mất kết nối" kèm "Tự bỏ lượt sau
   m:ss" khi `turnRecovery` trỏ tới người đó (chỉ hiển thị, deadline do server giữ), "Phá sản" (thay tiền bằng chip,
-  card xám), "Đã rời" (mờ 50%). Người chơi LEFT/BANKRUPT giữ nguyên góc.
+  card xám), "Đã rời" (mờ 50%). Người chơi LEFT/BANKRUPT giữ nguyên góc. Cạnh tên tối đa hai tag (ưu tiên Mất kết nối >
+  Ở tù > Đang đi > Bạn); ở điện thoại ngang chỉ còn badge icon (Ở tù, Mất kết nối + đếm ngược).
 - Tiền, lượt và số nhà/khách sạn theo presentation state; số tài sản và ô sở hữu theo `ownedProps` authoritative.
 
 ## Lobby/start
