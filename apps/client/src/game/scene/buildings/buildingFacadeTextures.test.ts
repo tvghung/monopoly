@@ -77,7 +77,8 @@ describe('authored house and hotel visual contract', () => {
 
     expect(boardMaterialSpecs.houseWall).toEqual({ roughness: 0.76, metalness: 0 });
     expect(boardMaterialSpecs.hotel).toEqual({ roughness: 0.68, metalness: 0 });
-    expect(boardMaterialSpecs.houseRoof).toEqual({ roughness: 0.48, metalness: 0 });
+    // Visual overhaul V2 plan 02 T02.14: roofs and crowns became toy plastic (was 0.48).
+    expect(boardMaterialSpecs.houseRoof).toEqual({ roughness: 0.35, metalness: 0 });
   });
 
   it('keeps the exact house 2-column by 1-row four-pane facade contract', () => {

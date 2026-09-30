@@ -127,7 +127,10 @@ describe('dice visual geometry contract', () => {
     expect(DICE_CORNER_SEGMENTS).toBe(10);
     expect(DICE_FACE_ROUGHNESS).toBeCloseTo(0.18);
     expect(DICE_FACE_METALNESS).toBeCloseTo(0.05);
-    expect(boardMaterialSpecs.diceBody).toEqual({ roughness: 0.16, metalness: 0.02 });
+    // Visual overhaul V2 plan 02 T02.14: a glossy clearcoated toy die (was a plain 0.16 / 0.02 standard body).
+    expect(boardMaterialSpecs.diceBody).toEqual({
+      roughness: 0.28, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.2,
+    });
   });
 
   it('keeps aligned edge and corner subdivision without duplicate patches', () => {

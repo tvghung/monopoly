@@ -61,7 +61,7 @@ export default function BoardFrame() {
           depth={segment.depth}
           radius={BOARD_FRAME_BEVEL}
           color={boardVisualTokens.boardFrame}
-          materialProfile="centerWell"
+          materialProfile="lacquer"
           position={segment.position}
         />
       ))}

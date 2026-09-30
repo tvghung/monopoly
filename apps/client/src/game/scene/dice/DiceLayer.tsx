@@ -24,6 +24,7 @@ import {
 } from './diceOrientation';
 import {
   DICE_BODY_COLOR,
+  DICE_PIP_COLOR,
   DICE_PIP_DEPTH,
   DICE_PIP_DEPTH_TEST,
   DICE_PIP_POLYGON_OFFSET_ENABLED,
@@ -44,7 +45,7 @@ function DieBody() {
   return (
     <mesh name="DieBody" castShadow={tier === 'high'}>
       <primitive object={geometry} attach="geometry" />
-      <meshStandardMaterial {...getBoardMaterialProps('diceBody', DICE_BODY_COLOR)} />
+      <meshPhysicalMaterial {...getBoardMaterialProps('diceBody', DICE_BODY_COLOR)} />
     </mesh>
   );
 }
@@ -76,9 +77,9 @@ function DiePips() {
     >
       <cylinderGeometry args={[DICE_PIP_RADIUS, DICE_PIP_RADIUS, DICE_PIP_DEPTH, DICE_PIP_SEGMENTS, 1, false]} />
       <meshStandardMaterial
-        color={boardVisualTokens.tileText}
-        roughness={0.46}
-        metalness={0.08}
+        color={DICE_PIP_COLOR}
+        roughness={0.5}
+        metalness={0}
         depthTest={DICE_PIP_DEPTH_TEST}
         polygonOffset={DICE_PIP_POLYGON_OFFSET_ENABLED}
         polygonOffsetFactor={DICE_PIP_POLYGON_OFFSET_FACTOR}

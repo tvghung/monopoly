@@ -13,6 +13,7 @@ import {
 } from '../boardLayout';
 import { boardVisualTokens } from '../boardVisualTokens';
 import RoundedBoxMesh from '../geometry/RoundedBoxMesh';
+import { boardMaterialSpecs } from '../materials/boardMaterialSpecs';
 import BoardFrame from './BoardFrame';
 import TileSocket from './TileSocket';
 import {
@@ -35,8 +36,8 @@ function FoundationOuterAccentLoop() {
     >
       <meshStandardMaterial
         color={boardVisualTokens.boardOuterAccent}
-        roughness={0.6}
-        metalness={0}
+        roughness={boardMaterialSpecs.lacquer.roughness}
+        metalness={boardMaterialSpecs.lacquer.metalness}
         side={THREE.DoubleSide}
       />
     </mesh>

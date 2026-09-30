@@ -11,6 +11,8 @@ import { LIGHT_RIG, directionTo } from '../lighting/lightRigSpec';
 export const STUDIO_LIGHT_DISTANCE = 24;
 export const STUDIO_SOFTBOX_EMISSIVE = 7;
 export const STUDIO_RIM_STRIP_EMISSIVE = 5;
+/** The overhead panel is what flat metal (the coins) mostly reflects from the fixed camera. */
+export const STUDIO_CEILING_EMISSIVE = 2.4;
 
 const plane = new THREE.PlaneGeometry(1, 1);
 
@@ -49,7 +51,7 @@ export function createStudioEnvironmentScene(): THREE.Scene {
   room.position.y = 6;
   scene.add(room);
 
-  scene.add(panel('StudioCeiling', emissive('#a0a0a0', 1), [40, 40], [0, 19, 0]));
+  scene.add(panel('StudioCeiling', emissive('#a0a0a0', STUDIO_CEILING_EMISSIVE), [40, 40], [0, 19, 0]));
   scene.add(panel('StudioFloorBounce', emissive(OTB_PALETTE['table-oak'], 0.6), [46, 46], [0, -12, 0]));
 
   const keyDirection = directionTo(LIGHT_RIG.key.position);
