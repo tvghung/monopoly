@@ -1,0 +1,17 @@
+{
+  "id": "01-lab-lab-typography-v2-1440x900",
+  "plan": "01",
+  "folder": "lab",
+  "name": "01-lab-typography-v2",
+  "url": "/?phase4-uat=1&design-lab=1&section=typography&theme=v2",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "kind": "design-lab",
+  "rendererMode": null,
+  "browser": "chromium 154.0.8037.58",
+  "captureTool": "e2e/visual/capture.visual.ts",
+  "consoleErrors": [],
+  "diagnostics": null
+}
