@@ -89,6 +89,7 @@ export function createTileBodyMesh(
   const material = new THREE.MeshStandardMaterial({ ...getBoardMaterialProps('tileChassis', '#ffffff') });
   const mesh = new THREE.InstancedMesh(geometry, material, entries.length);
   mesh.name = 'TileBodies';
+  mesh.receiveShadow = true;
   const dummy = new THREE.Object3D();
   entries.forEach((entry, index) => {
     const layout = getBoardTileLayout(entry.tileId);

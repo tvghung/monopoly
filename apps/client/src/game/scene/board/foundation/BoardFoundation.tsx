@@ -48,6 +48,7 @@ export default function BoardFoundation() {
     <group name="BoardFoundation">
       <RoundedBoxMesh
         name="LowerChassis"
+        castShadow
         width={FOUNDATION_SIZE + 0.16}
         height={BOARD_LOWER_CHASSIS_HEIGHT}
         depth={FOUNDATION_SIZE + 0.16}
@@ -59,6 +60,7 @@ export default function BoardFoundation() {
       <FoundationOuterAccentLoop />
       <RoundedBoxMesh
         name="MutedSideWall"
+        castShadow
         width={FOUNDATION_SIZE}
         height={BOARD_MIDDLE_WALL_HEIGHT}
         depth={FOUNDATION_SIZE}
@@ -69,6 +71,7 @@ export default function BoardFoundation() {
       />
       <RoundedBoxMesh
         name="TopDeck"
+        receiveShadow
         width={FOUNDATION_SIZE - 0.1}
         height={BOARD_TOP_DECK_HEIGHT}
         depth={FOUNDATION_SIZE - 0.1}
@@ -79,6 +82,7 @@ export default function BoardFoundation() {
       />
       <RoundedBoxMesh
         name="CenterInsetPlatform"
+        receiveShadow
         width={CENTER_PLATFORM_SIZE - BOARD_CENTER_INSET}
         height={0.05}
         depth={CENTER_PLATFORM_SIZE - BOARD_CENTER_INSET}

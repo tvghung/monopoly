@@ -73,6 +73,7 @@ function CoinFinishPile({
       ref={meshRef}
       args={[SHARED_COIN_GEOMETRY, COIN_FINISH_MATERIALS[finish], finishInstances.length]}
       name={`StationCoins:${finish}`}
+      castShadow
     />
   );
 }

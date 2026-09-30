@@ -12,6 +12,7 @@ import { boardVisualTokens } from '../board/boardVisualTokens';
 import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
 import { getBoardMaterialProps } from '../board/materials/boardMaterialSpecs';
 import ContactShadow from '../fx/ContactShadow';
+import { useRenderQuality } from '../render/RenderQualityContext';
 import { getPlayerDisplayColor } from '../../ui/playerVisualColors';
 import {
   FACADE_TEXTURE_TINT,
@@ -45,6 +46,7 @@ function PitchedHouseRoof({ color }: { color: string }) {
   return (
     <mesh
       name="HouseRoof"
+      castShadow
       geometry={geometry}
       material={material}
       position={[0, HOUSE_BODY_HEIGHT / 2, 0]}
@@ -58,10 +60,13 @@ export default function HouseMesh({
   ownerColor,
 }: { position: readonly [number, number, number]; ownerColor?: string }) {
   const roofColor = getHouseRoofColor(ownerColor);
+  const { buildingContactShadows } = useRenderQuality();
   return (
     <group name="HouseVisual" position={position}>
       <RoundedBoxMesh
         name="HouseWall"
+        castShadow
+        receiveShadow
         width={HOUSE_BODY_WIDTH}
         height={HOUSE_BODY_HEIGHT}
         depth={HOUSE_BODY_DEPTH}
@@ -71,7 +76,7 @@ export default function HouseMesh({
         materialProfile="houseWall"
       />
       <PitchedHouseRoof color={roofColor} />
-      <ContactShadow scale={[0.58, 0.48]} opacity={0.2} />
+      {buildingContactShadows ? <ContactShadow scale={[0.58, 0.48]} opacity={0.2} /> : null}
     </group>
   );
 }

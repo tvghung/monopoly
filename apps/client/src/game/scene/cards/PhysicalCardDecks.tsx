@@ -145,6 +145,8 @@ function IdleDeckStack({
         ref={bodyRef}
         args={[CARD_BODY_GEOMETRY, CARD_BODY_MATERIAL, count]}
         name={`${deck}CardBodies`}
+        castShadow
+        receiveShadow
       />
       <instancedMesh
         ref={backRef}

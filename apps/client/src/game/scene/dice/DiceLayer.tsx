@@ -35,12 +35,14 @@ import {
 } from './diceVisualConfig';
 import DiceContactShadowBatch from './DiceContactShadowBatch';
 import { DiceAnimationClock, useDiceAnimationProgressRef } from './diceAnimationClock';
+import { useRenderQuality } from '../render/RenderQualityContext';
 
 function DieBody() {
   const geometry = useMemo(() => createDiceBodyGeometry(), []);
+  const { tier } = useRenderQuality();
   useEffect(() => () => geometry.dispose(), [geometry]);
   return (
-    <mesh name="DieBody">
+    <mesh name="DieBody" castShadow={tier === 'high'}>
       <primitive object={geometry} attach="geometry" />
       <meshStandardMaterial {...getBoardMaterialProps('diceBody', DICE_BODY_COLOR)} />
     </mesh>

@@ -19,6 +19,8 @@ interface RoundedBoxMeshProps {
   position?: readonly [number, number, number];
   rotation?: readonly [number, number, number];
   name?: string;
+  castShadow?: boolean;
+  receiveShadow?: boolean;
   onPointerEnter?: (event: ThreeEvent<PointerEvent>) => void;
   onPointerLeave?: (event: ThreeEvent<PointerEvent>) => void;
   onClick?: (event: ThreeEvent<MouseEvent>) => void;
@@ -37,6 +39,8 @@ export default function RoundedBoxMesh({
   position,
   rotation,
   name,
+  castShadow,
+  receiveShadow,
   onPointerEnter,
   onPointerLeave,
   onClick,
@@ -55,6 +59,8 @@ export default function RoundedBoxMesh({
       name={name}
       position={position}
       rotation={rotation}
+      castShadow={castShadow}
+      receiveShadow={receiveShadow}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
       onClick={onClick}

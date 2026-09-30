@@ -333,7 +333,7 @@ export default function GameScene({
         orthographic
         dpr={[quality.dpr[0], quality.dpr[1]]}
         frameloop="demand"
-        shadows={false}
+        shadows={quality.shadows.enabled ? 'percentage' : false}
         gl={{
           antialias: true,
           alpha: false,
