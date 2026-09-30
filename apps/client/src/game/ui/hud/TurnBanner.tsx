@@ -3,6 +3,7 @@ import stateContext from '../../../internal';
 import PlayerAvatar from '../../../design-system/components/PlayerAvatar/PlayerAvatar';
 import { usePresentationSelector } from '../../presentation/usePresentationSelector';
 import type { PresentationState } from '../../presentation/store/types';
+import { resolveDisplayedPlayer } from './displayedPlayer';
 import { useTransientList } from './useTransientList';
 
 /** Enter, hold and exit at speed 1 (divided by the animation speed): 280 + 900 + 280 ms. */
@@ -26,8 +27,8 @@ interface BannerValue {
  * Announces a turn change on screen: "Đến lượt bạn!" for the local player, "Lượt của <tên>" otherwise. It shows only
  * when the displayed active player changes during live presentation, never on the first render, after a snap or
  * a reset (a changed presentation reset epoch), and a newer change replaces the banner instead of queueing behind it.
- * It never takes pointer input and is hidden from assistive technology: the roll control's live region and the status
- * pill carry the turn.
+ * It never takes pointer input and is hidden from assistive technology: the roll control's live region announces the
+ * turn change once (see `useTurnAnnouncement`) and the status pill shows it.
  */
 export default function TurnBanner() {
   const { state, playerId } = useContext(stateContext);
@@ -54,7 +55,7 @@ export default function TurnBanner() {
 
   const entry = list.entries.at(-1);
   if (!entry) return null;
-  const player = state.players[entry.value.playerId];
+  const player = resolveDisplayedPlayer(state, entry.value.playerId);
   if (!player) return null;
   const mine = entry.value.playerId === playerId;
   return (

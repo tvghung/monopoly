@@ -3,6 +3,7 @@ import stateContext from '../../../internal';
 import PlayerAvatar from '../../../design-system/components/PlayerAvatar/PlayerAvatar';
 import { usePresentationSelector } from '../../presentation/usePresentationSelector';
 import type { PresentationState } from '../../presentation/store/types';
+import { resolveDisplayedPlayer } from './displayedPlayer';
 
 const selectActivePlayerId = (state: PresentationState) => state.displayActivePlayerId;
 
@@ -24,7 +25,7 @@ export default function StatusPill() {
   const { state, playerId, roomCode } = useContext(stateContext);
   const displayActive = usePresentationSelector(selectActivePlayerId);
   const activePlayerId = displayActive ?? state.boardState.currentPlayer.id;
-  const active = state.players[activePlayerId];
+  const active = resolveDisplayedPlayer(state, activePlayerId);
   const isMine = activePlayerId === playerId;
 
   return (

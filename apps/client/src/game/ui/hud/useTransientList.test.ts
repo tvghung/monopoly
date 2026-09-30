@@ -24,6 +24,26 @@ describe('useTransientList', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it('expires fractional lifetimes (0.75x and 1.5x animation speed) even when the timer fires a moment early', () => {
+    const { result } = renderHook(() => useTransientList<string>(3));
+    let wall = 1_000_000;
+    // The wall clock lags the fake timer by 1 ms, which is what a timer firing early looks like to Date.now().
+    const now = vi.spyOn(Date, 'now').mockImplementation(() => wall);
+    act(() => { result.current.push('ticker', 'Lan đã mua Hà Nội', 4000 / 1.5); });
+    expect(result.current.entries[0].expiresAt).toBe(1_002_667);
+
+    wall += 2666;
+    act(() => { vi.advanceTimersByTime(2667); });
+    expect(result.current.entries).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(1);
+
+    wall += 1;
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(result.current.entries).toHaveLength(0);
+    expect(vi.getTimerCount()).toBe(0);
+    now.mockRestore();
+  });
+
   it('keeps only the newest entries when the cap is exceeded', () => {
     const { result } = renderHook(() => useTransientList<number>(2));
     act(() => {

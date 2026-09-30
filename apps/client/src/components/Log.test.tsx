@@ -3,8 +3,10 @@ import type { ActivityEvent, PublicGameState } from '@monopoly/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import stateContext from '../internal';
 import type { SocketFunctions, StateContextValue } from '../types';
+import { emptyPresentationState, presentationContext } from '../game/presentation/PresentationProvider';
+import type { AnimationQueue } from '../game/presentation/queue/AnimationQueue';
 import { HUD_DRAWER_STORAGE_KEY } from '../game/ui/hud/hudDrawer';
-import Log from './Log';
+import Log, { mergeUngatedChat } from './Log';
 
 const makeSocketFunctions = (): SocketFunctions => ({
   rollDice: vi.fn(),
@@ -332,5 +334,88 @@ describe('activity drawer', () => {
       </stateContext.Provider>,
     );
     expect(screen.getByLabelText('106 tin nhắn chưa đọc').textContent).toBe('99+');
+  });
+
+  const OTHER = '00000000-0000-4000-8000-000000000002';
+  const landedAt = (sequence: number, tileID: number): ActivityEvent => ({
+    eventId: `00000000-0000-4000-8000-${String(sequence + 200).padStart(12, '0')}`,
+    sequence,
+    occurredAt: '2026-08-25T12:00:00.000Z',
+    type: 'TILE_LANDED',
+    playerId: '00000000-0000-4000-8000-000000000001',
+    playerName: 'An',
+    tileID,
+  });
+  const chatAt = (sequence: number, message: string): ActivityEvent => ({
+    eventId: `00000000-0000-4000-8000-${String(sequence + 300).padStart(12, '0')}`,
+    sequence,
+    occurredAt: '2026-08-25T12:00:00.000Z',
+    type: 'CHAT',
+    senderRole: 'PLAYER',
+    senderPlayerId: OTHER,
+    senderName: 'Bình',
+    message,
+  });
+
+  it('merges chat from the authoritative feed into the gated gameplay entries, ordered by sequence', () => {
+    const gated = [landedAt(1, 1), chatAt(2, 'cũ trong hàng đợi')];
+    const authoritative = [landedAt(1, 1), chatAt(2, 'cũ trong hàng đợi'), landedAt(3, 2), chatAt(4, 'mới nhất')];
+    expect(mergeUngatedChat(gated, authoritative).map(event => event.sequence)).toEqual([1, 2, 4]);
+    expect(mergeUngatedChat(authoritative, authoritative)).toBe(authoritative);
+  });
+
+  it('shows chat and counts it unread at once while gameplay entries wait for the presentation', () => {
+    const gated = [landedAt(1, 1)];
+    const authoritative = [landedAt(1, 1), landedAt(2, 2), chatAt(3, 'nhanh lên!')];
+    const presentation = { ...emptyPresentationState, displayActivity: gated, displayLogs: [] };
+    const renderGated = (feed: ActivityEvent[]) => (
+      <presentationContext.Provider value={{ state: presentation, queue: {} as unknown as AnimationQueue }}>
+        <stateContext.Provider value={makeContext(makeState([], feed))}>
+          <Log />
+        </stateContext.Provider>
+      </presentationContext.Provider>
+    );
+    window.localStorage.setItem(HUD_DRAWER_STORAGE_KEY, 'closed');
+    const view = render(renderGated([landedAt(1, 1)]));
+    view.rerender(renderGated(authoritative));
+    expect(screen.getByLabelText('1 tin nhắn chưa đọc').textContent).toBe('1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }));
+    expect(screen.getByText('Bình: nhanh lên!')).toBeTruthy();
+    expect(screen.getByText('An đã tới Cà Mau.')).toBeTruthy();
+    // The second landing is still held back by the presentation queue.
+    expect(screen.queryByText('An đã tới Khí Vận.')).toBeNull();
+  });
+
+  it('exposes the unread count to assistive technology through the tab’s description', () => {
+    window.localStorage.setItem(HUD_DRAWER_STORAGE_KEY, 'closed');
+    const view = renderLog();
+    view.rerender(
+      <stateContext.Provider value={makeContext(makeState([], [chatAt(5, 'Xin chào'), chatAt(6, 'Còn đó không?')]))}>
+        <Log />
+      </stateContext.Provider>,
+    );
+    const toggle = screen.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' });
+    const badge = screen.getByLabelText('2 tin nhắn chưa đọc');
+    expect(toggle.getAttribute('aria-describedby')).toBe(badge.id);
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button', { name: 'Ẩn nhật ký và trò chuyện' }).hasAttribute('aria-describedby')).toBe(false);
+  });
+
+  it('forgets a half-typed message when the drawer closes so reopening never sends it unseen', () => {
+    const socketFunctions = makeSocketFunctions();
+    render(
+      <stateContext.Provider value={{ ...makeContext(makeState()), socketFunctions }}>
+        <Log />
+      </stateContext.Provider>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Tin nhắn' });
+    fireEvent.change(input, { target: { value: 'abc' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }));
+    const reopened = screen.getByRole('textbox', { name: 'Tin nhắn' });
+    expect((reopened as HTMLInputElement).value).toBe('');
+    fireEvent.submit(reopened.closest('form')!);
+    expect(socketFunctions.sendChat).not.toHaveBeenCalled();
   });
 });

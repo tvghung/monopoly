@@ -134,6 +134,16 @@ export function usePresentationSlice<T>(
   return useSyncExternalStore(source.subscribe, getSnapshot, () => getSelection(emptyPresentationState));
 }
 
+/**
+ * The animation queue of the live (or injected) presentation, or `null` without a provider. Reading it never
+ * subscribes to store ticks, so a component can ask "is there a live presentation?" without re-rendering on every tick.
+ */
+export function usePresentationQueue(): AnimationQueue | null {
+  const injected = useContext(presentationContext);
+  const live = useContext(presentationStoreContext);
+  return injected?.queue ?? live?.queue ?? null;
+}
+
 /** The whole presentation state: every consumer re-renders on every store change. Prefer `usePresentationSelector`. */
 export function usePresentation(): PresentationContextValue {
   const source = usePresentationSource();

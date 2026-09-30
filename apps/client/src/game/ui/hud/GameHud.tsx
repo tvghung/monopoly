@@ -29,7 +29,6 @@ const sameCardSlice = (
   && previous.displayBalances === next.displayBalances
   && previous.displayDevelopmentLevels === next.displayDevelopmentLevels;
 const NO_PLAYERS: readonly RoomPlayerMeta[] = [];
-const selectActivity = (state: PresentationState) => state.displayActivity;
 const selectBalanceDeltas = (state: PresentationState) => state.balanceDeltas;
 const selectResetEpoch = (state: PresentationState) => state.presentationResetEpoch;
 const selectSpeed = (state: PresentationState) => state.animationSpeedMultiplier;
@@ -43,10 +42,13 @@ function PlayerCards() {
   const deltas = usePresentationSelector(selectBalanceDeltas);
   const resetEpoch = usePresentationSelector(selectResetEpoch);
   const speed = usePresentationSelector(selectSpeed);
-  const activity = usePresentationSelector(selectActivity);
   const reducedMotion = useEffectiveReducedMotion();
   const drawer = useHudDrawer();
-  const bubbles = useChatBubbles(activity, playerId ?? null, { resetEpoch, speed, suppressed: drawer.open });
+  // Chat is never held back by the presentation queue (plan 03 section 7.1): a message bubbles as soon as the server
+  // commits it, so the bubbles read the authoritative feed while the ticker and the log follow the presentation.
+  const bubbles = useChatBubbles(state.boardState.activityFeed.events, playerId ?? null, {
+    resetEpoch, speed, suppressed: drawer.open,
+  });
 
   const cards = useMemo(
     () => (state.loaded ? selectPlayerCardViewModels(state, slice, roomPlayers, playerId ?? null, role ?? null) : []),

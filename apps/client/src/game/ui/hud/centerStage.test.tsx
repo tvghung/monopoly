@@ -78,6 +78,20 @@ describe('StatusPill', () => {
     expect(screen.getByText('An đang chơi')).toBeTruthy();
   });
 
+  it('keeps naming a player who went bankrupt while the presentation still shows their turn', () => {
+    renderHud(<StatusPill />, {
+      presentation: { displayActivePlayerId: 'player-b' },
+      mutate: room => {
+        delete room.gameState.players['player-b'];
+        room.gameState.boardState.finishedPlayers['player-b'] = {
+          name: 'Bình', color: 'blue', characterId: 'panda', reason: 'BANKRUPT', accountBalance: 0,
+        };
+        room.gameState.boardState.currentPlayer = { id: 'player-a', hasMoved: false };
+      },
+    });
+    expect(screen.getByText('Bình đang chơi')).toBeTruthy();
+  });
+
   it('hides the mascot from assistive technology; the text carries the turn', () => {
     const { container } = renderHud(<StatusPill />);
     expect(container.querySelector('.status-pill__avatar')?.getAttribute('aria-hidden')).toBe('true');
@@ -103,6 +117,19 @@ describe('CenterStage', () => {
 
   it('follows the displayed turn for the pill', () => {
     renderHud(<CenterStage />, { presentation: { displayActivePlayerId: 'player-b' } });
+    expect(screen.getByText('Bình đang đi…')).toBeTruthy();
+  });
+
+  it('keeps the opponent pill for a player who just finished while their turn is still displayed', () => {
+    renderHud(<CenterStage />, {
+      presentation: { displayActivePlayerId: 'player-b' },
+      mutate: room => {
+        delete room.gameState.players['player-b'];
+        room.gameState.boardState.finishedPlayers['player-b'] = {
+          name: 'Bình', color: 'blue', characterId: 'panda', reason: 'LEFT', accountBalance: 100,
+        };
+      },
+    });
     expect(screen.getByText('Bình đang đi…')).toBeTruthy();
   });
 

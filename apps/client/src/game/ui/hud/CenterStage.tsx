@@ -3,6 +3,7 @@ import stateContext from '../../../internal';
 import PlayerAvatar from '../../../design-system/components/PlayerAvatar/PlayerAvatar';
 import { usePresentationSelector } from '../../presentation/usePresentationSelector';
 import type { PresentationState } from '../../presentation/store/types';
+import { resolveDisplayedPlayer } from './displayedPlayer';
 import RollControl from './RollControl';
 
 const selectStageSlice = (state: PresentationState) => ({
@@ -21,7 +22,7 @@ export default function CenterStage() {
   const { state, playerId } = useContext(stateContext);
   const { displayActivePlayerId, hideStage } = usePresentationSelector(selectStageSlice, sameStageSlice);
   const activePlayerId = displayActivePlayerId ?? state.boardState.currentPlayer.id;
-  const opponent = activePlayerId !== playerId ? state.players[activePlayerId] : undefined;
+  const opponent = activePlayerId !== playerId ? resolveDisplayedPlayer(state, activePlayerId) : undefined;
   const showOpponent = Boolean(opponent) && !hideStage && !state.boardState.winner && state.loaded;
 
   return (

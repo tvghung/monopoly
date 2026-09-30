@@ -47,7 +47,11 @@ async function measureHudOverlap(page: Page) {
     const tiles = (window as unknown as {
       __OWN_THE_BLOCK_TILE_SCREEN_RECTS__?: { tiles: { tileId: number; corners: { x: number; y: number }[] }[] };
     }).__OWN_THE_BLOCK_TILE_SCREEN_RECTS__?.tiles;
-    const regions = [...document.querySelectorAll('[data-hud-region]')].map(element => {
+    const elements = [...document.querySelectorAll('[data-hud-region]')].filter(element => {
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+    const regions = elements.map(element => {
       const rect = element.getBoundingClientRect();
       return {
         region: element.getAttribute('data-hud-region') ?? '',
@@ -57,8 +61,25 @@ async function measureHudOverlap(page: Page) {
         right: rect.right + window.scrollX,
         bottom: rect.bottom + window.scrollY,
       };
-    }).filter(region => region.right - region.left > 0 && region.bottom - region.top > 0);
-    return { tiles: tiles ?? null, regions };
+    });
+    // HUD regions that cover each other (for example a decision panel hiding the roll button). Nested regions are skipped.
+    const regionOverlaps: { a: string; b: string; area: number; transient: boolean }[] = [];
+    for (let first = 0; first < elements.length; first += 1) {
+      for (let second = first + 1; second < elements.length; second += 1) {
+        if (elements[first].contains(elements[second]) || elements[second].contains(elements[first])) continue;
+        const width = Math.min(regions[first].right, regions[second].right) - Math.max(regions[first].left, regions[second].left);
+        const height = Math.min(regions[first].bottom, regions[second].bottom) - Math.max(regions[first].top, regions[second].top);
+        if (width > 1 && height > 1 && width * height > 16) {
+          regionOverlaps.push({
+            a: regions[first].region,
+            b: regions[second].region,
+            area: Math.round(width * height),
+            transient: regions[first].transient || regions[second].transient,
+          });
+        }
+      }
+    }
+    return { tiles: tiles ?? null, regions, regionOverlaps };
   });
   if (!measured.tiles) return null;
   const tiles = measured.tiles.map(tile => ({ tileId: tile.tileId, corners: tile.corners as unknown as Corners }));
@@ -71,6 +92,10 @@ async function measureHudOverlap(page: Page) {
     transientRegions: transient.map(region => region.region),
     findings: findHudTileOverlaps(tiles, persistent),
     transientFindings: findHudTileOverlaps(tiles, transient),
+    regionOverlaps: {
+      persistent: measured.regionOverlaps.filter(overlap => !overlap.transient),
+      transient: measured.regionOverlaps.filter(overlap => overlap.transient),
+    },
   };
 }
 

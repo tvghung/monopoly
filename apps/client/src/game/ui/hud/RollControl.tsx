@@ -6,8 +6,10 @@ import { ActionIcon } from '../../../design-system/icons/ActionIcon';
 import { localizeAckError } from '../../../presentation';
 import { usePresentationSelector } from '../../presentation/usePresentationSelector';
 import type { PresentationState } from '../../presentation/store/types';
+import { resolveDisplayedPlayer } from './displayedPlayer';
 import { areAllTokensSettled, canRollForState, shouldShowRollButton } from './rollControlLogic';
 import { useRollShortcut } from './useRollShortcut';
+import { useTurnAnnouncement } from './useTurnAnnouncement';
 
 function hasDiceResult(dice: { dice1: number; dice2: number }): boolean {
   return dice.dice1 >= 1 && dice.dice1 <= 6 && dice.dice2 >= 1 && dice.dice2 <= 6;
@@ -25,18 +27,20 @@ const selectRollSlice = (state: PresentationState) => ({
   presentationResetEpoch: state.presentationResetEpoch,
   diceRoll: state.diceRoll,
   displayDice: state.displayDice,
+  displayActivePlayerId: state.displayActivePlayerId,
 });
 type RollSlice = ReturnType<typeof selectRollSlice>;
 const sameRollSlice = (previous: RollSlice, next: RollSlice) => previous.status === next.status
   && previous.settledPositions === next.settledPositions
   && previous.presentationResetEpoch === next.presentationResetEpoch
   && previous.diceRoll === next.diceRoll
-  && previous.displayDice === next.displayDice;
+  && previous.displayDice === next.displayDice
+  && previous.displayActivePlayerId === next.displayActivePlayerId;
 
 /**
- * The roll permission and the one live announcement of the dice result. The permission still comes from the
- * authoritative state (`canRollForState`); only how the call to action looks and where it sits changed (it lives in
- * the center stage). The turn text moved to the status pill.
+ * The roll permission and the one live announcement of the turn change and the dice result. The permission still
+ * comes from the authoritative state (`canRollForState`); only how the call to action looks and where it sits changed
+ * (it lives in the center stage). The turn text is shown in the status pill and spoken here.
  */
 export default function RollControl() {
   const {
@@ -106,6 +110,13 @@ export default function RollControl() {
 
   useRollShortcut(showRollButton && canRoll, handleRoll);
 
+  const turnAnnouncement = useTurnAnnouncement(
+    rollSlice.displayActivePlayerId,
+    rollSlice.displayActivePlayerId ? resolveDisplayedPlayer(state, rollSlice.displayActivePlayerId)?.name : undefined,
+    playerId ?? null,
+    rollSlice.presentationResetEpoch,
+  );
+
   const diceAnnouncement = useMemo(() => {
     if (rollSlice.diceRoll) return 'Đang trình bày kết quả đổ xúc xắc.';
     return hasDiceResult(rollSlice.displayDice)
@@ -132,7 +143,7 @@ export default function RollControl() {
         )
         : null}
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        {diceAnnouncement}
+        {turnAnnouncement ? `${turnAnnouncement} ${diceAnnouncement}` : diceAnnouncement}
       </p>
       {error ? <p className="game-board__roll-error" role="alert">{error}</p> : null}
       {!tokensSettled && isMyTurn ? <p className="sr-only">Đang chờ quân cờ về đúng vị trí.</p> : null}

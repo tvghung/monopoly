@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import Chip from '../../../design-system/components/Chip/Chip';
 import DeltaChip from '../../../design-system/components/DeltaChip/DeltaChip';
 import GroupPips from '../../../design-system/components/GroupPips/GroupPips';
@@ -23,6 +23,9 @@ export interface PlayerCardProps {
   bubble?: string;
 }
 
+/** Status tags that fit next to the name; the rest stay in the screen-reader summary. Highest priority first. */
+const MAX_STATUS_TAGS = 2;
+
 function avatarStatus(card: PlayerCardViewModel): PlayerAvatarStatus {
   if (card.hasLeft) return 'left';
   if (card.isBankrupt) return 'bankrupt';
@@ -38,14 +41,16 @@ function cardState(card: PlayerCardViewModel): string {
   return 'playing';
 }
 
-function RecoveryChip({ deadlineAt }: { deadlineAt: string }) {
-  const seconds = useCountdownSeconds(deadlineAt);
-  if (seconds === null) return null;
-  return (
-    <Chip tone="loss" icon={<ActionIcon name="offline" size={14} />}>
-      {`Tự bỏ lượt sau ${formatCountdown(seconds)}`}
-    </Chip>
-  );
+/**
+ * True only for the render in which this card became the active one during live presentation. A card that is already
+ * active on mount, or becomes active together with a snapshot sync (a changed reset epoch), does not pulse.
+ */
+function useTurnPulse(active: boolean, resetEpoch: number): boolean {
+  const [seen, setSeen] = useState({ active, resetEpoch, pulse: false });
+  if (seen.active !== active || seen.resetEpoch !== resetEpoch) {
+    setSeen({ active, resetEpoch, pulse: active && !seen.active && seen.resetEpoch === resetEpoch });
+  }
+  return seen.pulse;
 }
 
 /**
@@ -62,11 +67,19 @@ export default function PlayerCard({
   const showJail = card.isInJail && !out;
   const showOffline = !card.isConnected && !out;
   const showTurn = card.isActive && !out;
+  const pulse = useTurnPulse(showTurn, resetEpoch);
+  const recoverySeconds = useCountdownSeconds(showOffline ? card.recoveryDeadlineAt : null);
   const style = { '--player-card-color': getPlayerDisplayColor(card.color) } as CSSProperties;
+  const tags = [
+    { id: 'offline', show: showOffline },
+    { id: 'jail', show: showJail },
+    { id: 'turn', show: showTurn },
+    { id: 'local', show: card.isLocal },
+  ].filter(tag => tag.show).slice(0, MAX_STATUS_TAGS).map(tag => tag.id);
 
   return (
     <li
-      className={`player-card${showTurn ? ' player-card--active' : ''}${card.isLocal ? ' player-card--local' : ''}`}
+      className={`player-card${showTurn ? ' player-card--active' : ''}${pulse ? ' player-card--pulse' : ''}${card.isLocal ? ' player-card--local' : ''}${recoverySeconds !== null ? ' player-card--recovering' : ''}`}
       data-player-id={card.playerId}
       data-current-turn={card.isActive}
       data-slot={card.slot ?? undefined}
@@ -88,19 +101,22 @@ export default function PlayerCard({
         <div className="player-card__body">
           <div className="player-card__name-row">
             <span className="player-card__name" title={card.name}>{card.name}</span>
-            {card.isLocal ? <Chip tone="info" className="player-card__tag">Bạn</Chip> : null}
-            {showTurn ? <Chip tone="gold" className="player-card__tag">Đang đi</Chip> : null}
-            {showJail ? (
+            {tags.includes('local') ? <Chip tone="info" className="player-card__tag player-card__tag--text">Bạn</Chip> : null}
+            {tags.includes('turn') ? <Chip tone="gold" className="player-card__tag player-card__tag--text">Đang đi</Chip> : null}
+            {tags.includes('jail') ? (
               <Chip tone="loss" className="player-card__tag" icon={<ActionIcon name="jail" size={14} />}>
-                {`Ở tù ${card.jailRoundsElapsed}/${JAIL_ROUND_LIMIT}`}
+                <span className="player-card__tag-text">{`Ở tù ${card.jailRoundsElapsed}/${JAIL_ROUND_LIMIT}`}</span>
               </Chip>
             ) : null}
-            {showOffline ? (
+            {tags.includes('offline') ? (
               <Chip tone="neutral" className="player-card__tag" icon={<ActionIcon name="offline" size={14} />}>
-                Mất kết nối
+                <span className="player-card__tag-text">Mất kết nối</span>
+                {recoverySeconds !== null
+                  ? <span className="player-card__tag-countdown">{formatCountdown(recoverySeconds)}</span>
+                  : null}
               </Chip>
             ) : null}
-            {card.hasLeft ? <Chip tone="neutral" className="player-card__tag">Đã rời</Chip> : null}
+            {card.hasLeft ? <Chip tone="neutral" className="player-card__tag player-card__tag--text">Đã rời</Chip> : null}
           </div>
           <div className="player-card__money-row">
             {card.isBankrupt
@@ -112,8 +128,12 @@ export default function PlayerCard({
               ))}
             </span>
           </div>
-          {showOffline && card.recoveryDeadlineAt ? (
-            <div className="player-card__recovery"><RecoveryChip deadlineAt={card.recoveryDeadlineAt} /></div>
+          {recoverySeconds !== null ? (
+            <div className="player-card__recovery">
+              <Chip tone="loss" icon={<ActionIcon name="offline" size={14} />}>
+                {`Tự bỏ lượt sau ${formatCountdown(recoverySeconds)}`}
+              </Chip>
+            </div>
           ) : null}
           {!out ? (
             <div className="player-card__footer">

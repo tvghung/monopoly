@@ -54,6 +54,18 @@ describe('roll shortcut', () => {
     expect(onRoll).not.toHaveBeenCalled();
   });
 
+  it('ignores Space while focus is inside the activity drawer, where it scrolls the log', () => {
+    const onRoll = vi.fn();
+    render(<Probe enabled onRoll={onRoll} />);
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<section data-testid="board-log-overlay"><div id="board-log-panel" tabindex="-1"><section role="log" tabindex="0"></section></div></section>',
+    );
+    press(document.getElementById('board-log-panel')!);
+    press(document.querySelector('[role="log"]')!);
+    expect(onRoll).not.toHaveBeenCalled();
+  });
+
   it('ignores Space while a dialog is open', () => {
     const onRoll = vi.fn();
     render(<Probe enabled onRoll={onRoll} />);

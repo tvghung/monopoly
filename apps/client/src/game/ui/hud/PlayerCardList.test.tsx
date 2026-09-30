@@ -118,3 +118,81 @@ describe('PlayerCardList', () => {
     expect(describePlayerCard(card)).toBe('An (bạn), 1.500.000 ₫, 0 tài sản, đang đi');
   });
 });
+
+describe('PlayerCard status tags, pulse and summary', () => {
+  it('keeps at most two status tags beside the name; the rest stay in the summary', () => {
+    const { container } = renderRoster(room => {
+      room.gameState.players['player-a'].isJail = true;
+      room.gameState.players['player-a'].jailOpponentRoundsElapsed = 1;
+    });
+    const mine = container.querySelector('[data-player-id="player-a"]') as HTMLElement;
+    const tags = [...mine.querySelectorAll('.player-card__tag')].map(tag => tag.textContent);
+    expect(tags).toEqual(['Đang đi', 'Ở tù 1/2']);
+    expect(mine.textContent).toContain('đang ở tù, vòng chờ 1/2');
+    expect(mine.textContent).toContain('(bạn)');
+  });
+
+  it('pulses only when the turn becomes active during live presentation', () => {
+    const room = makeRoom();
+    const build = (displayActivePlayerId: string | null) => selectPlayerCardViewModels(
+      room.gameState,
+      { displayActivePlayerId, displayBalances: {}, displayDevelopmentLevels: {} },
+      room.players,
+      'player-a',
+      'PLAYER',
+    );
+    const list = (cards: ReturnType<typeof build>, resetEpoch: number) => (
+      <PlayerCardList cards={cards} deltas={[]} reducedMotion={false} speed={1} resetEpoch={resetEpoch} />
+    );
+    const { container, rerender } = render(list(build('player-a'), 0));
+    const card = (id: string) => container.querySelector(`[data-player-id="${id}"]`) as HTMLElement;
+    // Already active on mount: a ring, no pulse.
+    expect(card('player-a').className).toContain('player-card--active');
+    expect(card('player-a').className).not.toContain('player-card--pulse');
+
+    rerender(list(build('player-b'), 0));
+    expect(card('player-b').className).toContain('player-card--pulse');
+    expect(card('player-a').className).not.toContain('player-card--pulse');
+
+    // A snapshot sync hands over a different active player: no pulse.
+    rerender(list(build('player-a'), 1));
+    expect(card('player-a').className).toContain('player-card--active');
+    expect(card('player-a').className).not.toContain('player-card--pulse');
+    expect(card('player-b').className).not.toContain('player-card--pulse');
+  });
+
+  it('puts the recovery countdown on one row that replaces the footer, and in the offline tag for small cards', () => {
+    const { container } = renderRoster(room => {
+      room.players[1].connected = false;
+      room.gameState.boardState.turnRecovery = {
+        playerId: 'player-b',
+        deadlineAt: new Date(Date.now() + 29_000).toISOString(),
+      };
+    });
+    const other = container.querySelector('[data-player-id="player-b"]') as HTMLElement;
+    expect(other.className).toContain('player-card--recovering');
+    expect(other.querySelector('.player-card__recovery')?.textContent).toMatch(/Tự bỏ lượt sau 0:(29|30)/);
+    expect(other.querySelector('.player-card__tag-countdown')?.textContent).toMatch(/0:(29|30)/);
+    expect(other.textContent).toContain('sẽ bị bỏ lượt nếu không quay lại kịp');
+  });
+
+  it('names railroads and utilities in the summary', () => {
+    const { container } = renderRoster(room => {
+      room.gameState.boardState.ownedProps = {
+        1: { id: 'player-a', color: 'red', houses: 0 },
+        5: { id: 'player-a', color: 'red', houses: 0 },
+        15: { id: 'player-a', color: 'red', houses: 0 },
+        12: { id: 'player-a', color: 'red', houses: 0 },
+      };
+    });
+    const mine = container.querySelector('[data-player-id="player-a"] .sr-only') as HTMLElement;
+    expect(mine.textContent).toContain('4 tài sản');
+    expect(mine.textContent).toContain('2 ga tàu');
+    expect(mine.textContent).toContain('1 công ty điện nước');
+  });
+
+  it('keeps list semantics for the roster', () => {
+    const { container } = renderRoster();
+    expect(container.querySelector('ol')?.getAttribute('role')).toBe('list');
+  });
+});

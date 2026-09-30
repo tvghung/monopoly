@@ -21,7 +21,8 @@ export default function PlayerCardList({
 }: PlayerCardListProps) {
   return (
     <section className="player-card-list" aria-label="Người chơi">
-      <ol className="player-card-list__items">
+      {/* role="list" keeps the list semantics in WebKit, which drops them when list-style is none. */}
+      <ol className="player-card-list__items" role="list">
         {cards.map(card => (
           <PlayerCard
             key={card.playerId}

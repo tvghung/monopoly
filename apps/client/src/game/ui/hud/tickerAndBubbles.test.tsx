@@ -112,6 +112,23 @@ describe('ActivityTicker', () => {
   });
 });
 
+describe('ActivityTicker sequence restart', () => {
+  it('treats a sequence that goes backwards (same epoch) as a restart: no backlog, later events still show', () => {
+    const store = new PresentationStore();
+    const { container } = mountTicker(store);
+    act(() => { store.setDisplayActivity([{ ...landed('An', 1), sequence: 90 }]); });
+    expect(container.querySelector('.activity-ticker')).not.toBeNull();
+    act(() => { vi.advanceTimersByTime(ACTIVITY_TICKER_LIFETIME_MS + 10); });
+    expect(container.querySelector('.activity-ticker')).toBeNull();
+
+    act(() => { store.setDisplayActivity([{ ...landed('An', 2), sequence: 3 }, { ...landed('An', 3), sequence: 4 }]); });
+    expect(container.querySelector('.activity-ticker')).toBeNull();
+
+    act(() => { store.setDisplayActivity([{ ...landed('An', 2), sequence: 3 }, { ...landed('An', 3), sequence: 4 }, { ...landed('An', 1), sequence: 5 }]); });
+    expect(container.querySelector('.activity-ticker')?.textContent).toBe('An đã tới Cà Mau.');
+  });
+});
+
 describe('truncateBubbleText', () => {
   it('flattens whitespace and cuts long messages with an ellipsis', () => {
     expect(truncateBubbleText('  xin \n  chào  ')).toBe('xin chào');
@@ -178,6 +195,20 @@ describe('useChatBubbles', () => {
     expect(result.current).toEqual({ 'player-b': 'Trước' });
     rerender({ activity: [chat('player-b', 'Trước'), chat('player-c', 'Backlog')], opts: { ...options, resetEpoch: 1 } });
     expect(result.current).toEqual({});
+  });
+
+  it('treats a sequence that goes backwards (same epoch) as a restart: no backlog, later chat still bubbles', () => {
+    const at = (event: ActivityEvent, n: number): ActivityEvent => ({ ...event, sequence: n });
+    const { result, rerender } = run([]);
+    rerender({ activity: [at(chat('player-b', 'Cao'), 90)], opts: options });
+    expect(result.current).toEqual({ 'player-b': 'Cao' });
+    act(() => { vi.advanceTimersByTime(CHAT_BUBBLE_LIFETIME_MS + 10); });
+    expect(result.current).toEqual({});
+
+    rerender({ activity: [at(chat('player-c', 'Backlog sau khởi động lại'), 4)], opts: options });
+    expect(result.current).toEqual({});
+    rerender({ activity: [at(chat('player-c', 'Backlog sau khởi động lại'), 4), at(chat('player-c', 'Tin mới'), 5)], opts: options });
+    expect(result.current).toEqual({ 'player-c': 'Tin mới' });
   });
 
   it('keeps markup as plain text inside the card', () => {

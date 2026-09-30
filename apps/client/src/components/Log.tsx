@@ -1,13 +1,17 @@
 import {
-  useContext, useRef, useEffect, useState, type FormEvent, type KeyboardEvent,
+  useContext, useMemo, useRef, useEffect, useState, type FormEvent, type KeyboardEvent,
 } from 'react';
 import type { ActivityEvent } from '@monopoly/shared';
 import { MessageCircle, Send } from 'lucide-react';
 import './style/Log.css';
 import stateContext from '../internal';
-import { usePresentation } from '../game/presentation/PresentationProvider';
+import { usePresentationQueue } from '../game/presentation/PresentationProvider';
+import { usePresentationSelector } from '../game/presentation/usePresentationSelector';
+import type { PresentationState } from '../game/presentation/store/types';
 import { activityText } from '../game/ui/hud/activityText';
 import { useHudDrawer } from '../game/ui/hud/hudDrawer';
+
+const NO_LOGS: readonly string[] = [];
 
 export function getLogActivitySignature(logs: readonly string[]): string {
   return JSON.stringify([logs.length, logs.at(-1) ?? '']);
@@ -26,6 +30,31 @@ export function getActivitySignature(
   ]);
 }
 
+const selectLogSlice = (state: PresentationState) => ({
+  displayActivity: state.displayActivity,
+  displayLogs: state.displayLogs,
+  resetEpoch: state.presentationResetEpoch,
+});
+type LogSlice = ReturnType<typeof selectLogSlice>;
+const sameLogSlice = (previous: LogSlice, next: LogSlice) => previous.displayActivity === next.displayActivity
+  && previous.displayLogs === next.displayLogs
+  && previous.resetEpoch === next.resetEpoch;
+
+/**
+ * Gameplay entries follow the presentation (they wait for the animations that explain them); chat does not. The
+ * server commits a chat line at once, so it is taken from the authoritative feed and merged in by sequence.
+ */
+export function mergeUngatedChat(
+  gated: readonly ActivityEvent[],
+  authoritative: readonly ActivityEvent[],
+): readonly ActivityEvent[] {
+  if (gated === authoritative) return gated;
+  return [
+    ...gated.filter(event => event.type !== 'CHAT'),
+    ...authoritative.filter(event => event.type === 'CHAT'),
+  ].sort((left, right) => left.sequence - right.sequence);
+}
+
 /**
  * The activity log and chat as a drawer on the right edge of the board. It is closed by default and remembers the
  * viewer's choice; a tab with an unread badge stays visible while it is closed. It does not fade: the ticker and the
@@ -35,7 +64,8 @@ export default function Log() {
   const {
     state, socketFunctions, connected, playerId,
   } = useContext(stateContext);
-  const { state: presentation, queue } = usePresentation();
+  const presentation = usePresentationSelector(selectLogSlice, sameLogSlice);
+  const hasQueue = usePresentationQueue() !== null;
   const { open: panelOpen, setOpen: setPanelOpen } = useHudDrawer();
   const [chat, setChat] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
@@ -45,17 +75,41 @@ export default function Log() {
   const previousOpenRef = useRef(panelOpen);
   const lastProcessedSequenceRef = useRef<number | null>(null);
   const lastSeenChatSequenceRef = useRef(0);
-  const resetEpochRef = useRef(presentation.presentationResetEpoch);
-  const visibleActivity = queue ? presentation.displayActivity : state.boardState.activityFeed.events;
-  const narrativeActivity = visibleActivity.filter(event => event.type !== 'DICE_ROLL');
-  const visibleLogs = queue
+  const resetEpochRef = useRef(presentation.resetEpoch);
+  const authoritativeActivity = state.boardState.activityFeed.events;
+  const visibleActivity = useMemo(
+    () => (hasQueue ? mergeUngatedChat(presentation.displayActivity, authoritativeActivity) : authoritativeActivity),
+    [authoritativeActivity, hasQueue, presentation.displayActivity],
+  );
+  const narrativeActivity = useMemo(
+    () => visibleActivity.filter(event => event.type !== 'DICE_ROLL'),
+    [visibleActivity],
+  );
+  const visibleLogs = hasQueue
     ? presentation.displayLogs
-    : visibleActivity.length > 0 ? [] : state.boardState.logs;
-  const activitySignature = getActivitySignature(visibleActivity, visibleLogs);
+    : visibleActivity.length > 0 ? NO_LOGS : state.boardState.logs;
+  const activitySignature = useMemo(
+    () => getActivitySignature(visibleActivity, visibleLogs),
+    [visibleActivity, visibleLogs],
+  );
   const latestActivitySequence = visibleActivity.at(-1)?.sequence ?? 0;
-  const latestChatSequence = visibleActivity.reduce(
-    (latest, event) => event.type === 'CHAT' ? Math.max(latest, event.sequence) : latest,
-    0,
+  const latestChatSequence = useMemo(
+    () => visibleActivity.reduce((latest, event) => (event.type === 'CHAT' ? Math.max(latest, event.sequence) : latest), 0),
+    [visibleActivity],
+  );
+  const entries = useMemo(
+    () => [
+      ...visibleLogs.map((entry, index) => <p key={`legacy-${index}`}>{entry}</p>),
+      ...narrativeActivity.map(event => (
+        <p
+          key={event.eventId}
+          className={`activity-entry activity-entry--${event.type.toLowerCase()}`}
+        >
+          {activityText(event)}
+        </p>
+      )),
+    ],
+    [narrativeActivity, visibleLogs],
   );
 
   useEffect(() => {
@@ -71,12 +125,12 @@ export default function Log() {
 
   useEffect(() => {
     const lastProcessed = lastProcessedSequenceRef.current;
-    const reset = resetEpochRef.current !== presentation.presentationResetEpoch
+    const reset = resetEpochRef.current !== presentation.resetEpoch
       || (lastProcessed !== null && latestActivitySequence < lastProcessed);
     if (lastProcessed === null || reset) {
       lastProcessedSequenceRef.current = latestActivitySequence;
       lastSeenChatSequenceRef.current = latestChatSequence;
-      resetEpochRef.current = presentation.presentationResetEpoch;
+      resetEpochRef.current = presentation.resetEpoch;
       setUnreadCount(0);
       return;
     }
@@ -98,7 +152,12 @@ export default function Log() {
       lastSeenChatSequenceRef.current = latestChatSequence;
       setUnreadCount(0);
     }
-  }, [latestActivitySequence, latestChatSequence, panelOpen, playerId, presentation.presentationResetEpoch, visibleActivity]);
+  }, [latestActivitySequence, latestChatSequence, panelOpen, playerId, presentation.resetEpoch, visibleActivity]);
+
+  // A half-typed message does not survive closing the drawer: the field is gone and must not send in the dark.
+  useEffect(() => {
+    if (!panelOpen) setChat('');
+  }, [panelOpen]);
 
   const sendChat = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -130,6 +189,7 @@ export default function Log() {
         type="button"
         aria-expanded={panelOpen}
         aria-controls="board-log-panel"
+        aria-describedby={unreadCount > 0 ? 'board-log-unread' : undefined}
         aria-label={panelOpen ? 'Ẩn nhật ký và trò chuyện' : 'Hiện nhật ký và trò chuyện'}
         title={panelOpen ? 'Ẩn nhật ký và trò chuyện' : 'Hiện nhật ký và trò chuyện'}
         onClick={() => setPanelOpen(open => !open)}
@@ -139,6 +199,7 @@ export default function Log() {
         {unreadCount > 0
           ? (
             <span
+              id="board-log-unread"
               className="center__room-unread"
               aria-label={`${unreadCount} tin nhắn chưa đọc`}
             >
@@ -159,17 +220,7 @@ export default function Log() {
           >
             <section ref={scrollRef} className="center__log" role="log" aria-live="polite" aria-label="Nhật ký ván chơi">
               {state.loaded
-                ? [
-                  ...visibleLogs.map((entry, index) => <p key={`legacy-${index}`}>{entry}</p>),
-                  ...narrativeActivity.map(event => (
-                    <p
-                      key={event.eventId}
-                      className={`activity-entry activity-entry--${event.type.toLowerCase()}`}
-                    >
-                      {activityText(event)}
-                    </p>
-                  )),
-                ]
+                ? entries
                 : <p>Đang tải…</p>}
             </section>
             <section className="center__chat">
