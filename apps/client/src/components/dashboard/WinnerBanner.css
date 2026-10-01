@@ -2,7 +2,8 @@
  * Victory dialog (plan 04 §8.6): a Modal (xl, celebration) whose body holds the winner hero and the other players, and
  * whose footer holds the actions, so they stay reachable when the body scrolls on a short screen.
  */
-.victory__content { display: grid; gap: var(--space-4); }
+.victory__content { display: grid; gap: var(--space-4); border-radius: var(--radius-lg); }
+.victory__content:focus-visible { outline: 2px solid transparent; outline-offset: 2px; box-shadow: var(--focus-ring); }
 
 .victory__hero {
   display: grid;
@@ -127,7 +128,8 @@
 .victory__note { display: grid; flex: 1 1 14rem; gap: var(--space-1); min-width: 0; }
 .victory__hint { margin: 0; color: var(--color-text-secondary); font: var(--type-small); }
 .victory__error { margin: 0; color: var(--color-danger-strong); font: var(--type-small); font-weight: 700; }
-.victory__actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+/* The primary action comes first in the DOM and the Tab order; row-reverse keeps it on the right of the row. */
+.victory__actions { display: flex; flex: 0 1 auto; flex-direction: row-reverse; flex-wrap: wrap; justify-content: flex-start; gap: var(--space-2); }
 
 /* The dialog is 880 px wide only on large screens; below that the cash tile keeps a row to itself. */
 @media (min-width: 58rem) {
@@ -145,8 +147,8 @@
   .victory__tile dt { justify-content: center; }
   .victory__tile dt svg { display: none; }
   .victory__tile dd, .victory__tile dd .ds-money--lg { font: var(--type-title-m); font-variant-numeric: tabular-nums; }
-  /* Stacked, with the primary action on top: side by side the labels would wrap. */
-  .victory__actions { flex: 1 1 100%; flex-direction: column-reverse; }
+  /* Stacked in DOM order, so the primary action is on top: side by side the labels would wrap. */
+  .victory__actions { flex: 1 1 100%; flex-direction: column; }
   .victory__actions .ds-button { box-sizing: border-box; width: 100%; }
 }
 
@@ -172,6 +174,6 @@
   .victory__tile dt svg { display: block; }
   .victory__tile dd, .victory__tile dd .ds-money--lg { font: var(--type-title-s); font-variant-numeric: tabular-nums; }
   .victory__other { min-height: 3rem; }
-  .victory__actions { flex: 0 1 auto; flex-direction: row; }
+  .victory__actions { flex: 0 1 auto; flex-direction: row-reverse; }
   .victory__actions .ds-button { width: auto; }
 }

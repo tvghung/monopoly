@@ -12,6 +12,7 @@ import { PresentationController } from '../../presentation/PresentationControlle
 import { PresentationProvider } from '../../presentation/PresentationProvider';
 import { makeRoom } from '../../presentation/testFixtures';
 import CardInteractionOverlay from './CardInteractionOverlay';
+import { cardVisualFor } from './cardVisuals';
 
 afterEach(() => {
   cleanup();
@@ -131,7 +132,7 @@ describe('CardInteractionOverlay', () => {
 
       const dialog = screen.getByRole('dialog');
       const title = dialog.querySelector('h2')?.textContent ?? '';
-      expect(title.length, card.id).toBeGreaterThan(0);
+      expect(title, card.id).toBe(cardVisualFor(card.id)?.title);
       expect(screen.getByText(card.sourceDeck === 'chance' ? 'CƠ HỘI' : 'KHÍ VẬN'), card.id).toBeTruthy();
       expect(screen.getByText(card.message), card.id).toBeTruthy();
       expect(screen.getAllByRole('button', { name: 'Đóng' }), card.id).toHaveLength(1);
@@ -161,6 +162,75 @@ describe('CardInteractionOverlay', () => {
     expect(dialog.contains(stage)).toBe(true);
     const description = document.getElementById(dialog.getAttribute('aria-describedby') ?? '');
     expect(description?.textContent).toBe('Nhận cổ tức 50.000 ₫.');
+    controller.dispose();
+  });
+
+  it('shows nothing for a legacy card that was never drawn: no face-down card, no Draw control', () => {
+    const controller = new PresentationController();
+    const room = makeRoom();
+    room.gameState.turnInfo.pendingCardInteraction = {
+      operationId: 'legacy-card', playerId: 'player-a', turnNumber: 1, deck: 'chance', sourceTile: 7,
+      stage: 'AWAITING_DRAW',
+      continuation: { playerId: 'player-a', turnNumber: 1 }, deadlineAt: '2030-01-01T00:00:30.000Z',
+    };
+    controller.acceptRoomSnapshot(room, 'SESSION_SYNC');
+    renderOverlay(controller, room);
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+    controller.dispose();
+  });
+
+  it('waits for the presentation to reach the revealed card, then opens with the description and the right focus', () => {
+    const controller = new PresentationController();
+    const room = revealedRoom();
+    renderOverlay(controller, room);
+    // The authoritative card is there, but the presentation has not revealed it yet.
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    act(() => { controller.acceptRoomSnapshot(room, 'SESSION_SYNC'); });
+    const dialog = screen.getByRole('dialog', { name: 'Cổ tức' });
+    expect(document.getElementById(dialog.getAttribute('aria-describedby') ?? '')?.textContent).toBe('Nhận cổ tức 50.000 ₫.');
+    expect(document.activeElement).toBe(closeButton());
+    controller.dispose();
+  });
+
+  it('puts the focus on a player who is waiting on the dialog itself, not on a disabled button', () => {
+    const controller = new PresentationController();
+    const room = revealedRoom();
+    controller.acceptRoomSnapshot(room, 'SESSION_SYNC');
+    renderOverlay(controller, room, { playerId: 'player-b' });
+
+    expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'Cổ tức' }));
+    controller.dispose();
+  });
+
+  it('gives the focus back to "Đóng" after a dismissal fails, so the keyboard keeps working', async () => {
+    const controller = new PresentationController();
+    const room = revealedRoom();
+    controller.acceptRoomSnapshot(room, 'SESSION_SYNC');
+    let settle: (ack: Ack) => void = () => undefined;
+    const dismissCard = vi.fn(() => new Promise<Ack>(resolve => {
+      // A browser drops the focus from a button the moment it becomes disabled.
+      (document.activeElement as HTMLElement | null)?.blur();
+      settle = resolve;
+    }));
+    renderOverlay(controller, room, { socketFunctions: socketFunctions({ dismissCard }) });
+
+    closeButton().focus();
+    fireEvent.click(closeButton());
+    await act(async () => {
+      settle({
+        ok: false,
+        protocolVersion: SOCKET_PROTOCOL_VERSION,
+        error: { code: 'CONFLICT', message: 'Busy.', retryable: true },
+      });
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(closeButton().disabled).toBe(false);
+    expect(document.activeElement).toBe(closeButton());
     controller.dispose();
   });
 

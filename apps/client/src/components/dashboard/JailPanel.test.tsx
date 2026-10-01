@@ -55,10 +55,10 @@ function renderJail(state: PublicGameState, socketFunctions: Partial<SocketFunct
 }
 
 describe('JailPanel', () => {
-  it('is a status sheet with the jail icon, the title, the wait as a chip and the hint', () => {
+  it('is a named sheet with the jail icon, the title, the wait as a chip and the hint', () => {
     const { container } = renderJail(jailedState({ rounds: 1 }));
 
-    const panel = screen.getByRole('status');
+    const panel = screen.getByRole('region', { name: 'Bạn đang ở Nhà Tù' });
     expect(panel.classList.contains('jail-panel')).toBe(true);
     expect(screen.getByRole('heading', { name: 'Bạn đang ở Nhà Tù' })).toBeTruthy();
     expect(container.querySelector('.jail-panel__icon svg')).not.toBeNull();
@@ -78,6 +78,36 @@ describe('JailPanel', () => {
       expect(button.querySelector('.ds-button__icon svg')).not.toBeNull();
     }
     expect(container.querySelector('.button__purchase--yes')).toBeNull();
+  });
+
+  it('has no live region around the buttons, so a changing label is not read out as a status', () => {
+    const payBail = vi.fn(() => new Promise<Ack>(() => {}));
+    renderJail(jailedState(), { payBail });
+
+    const panel = screen.getByRole('region', { name: 'Bạn đang ở Nhà Tù' });
+    expect(panel.getAttribute('role')).toBeNull();
+    expect(panel.getAttribute('aria-live')).toBeNull();
+    const bail = screen.getByRole('button', { name: 'Trả 25.000 ₫' });
+    expect(bail.closest('[role="status"], [aria-live]')).toBeNull();
+    fireEvent.click(bail);
+    expect(screen.getByRole('button', { name: 'Đang gửi…' }).closest('[role="status"], [aria-live]')).toBeNull();
+  });
+
+  it('announces the confirmed request once, as its own status line', async () => {
+    const payBail = vi.fn(() => Promise.resolve(success));
+    renderJail(jailedState(), { payBail });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Trả 25.000 ₫' }));
+    const status = await screen.findByRole('status');
+    expect(status.textContent).toBe('Đã xác nhận. Đang cập nhật ván chơi…');
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+  });
+
+  it('points the disabled bail button at the balance warning', () => {
+    renderJail(jailedState({ balance: 10 }));
+
+    const bail = screen.getByRole('button', { name: 'Trả 25.000 ₫' });
+    expect(document.getElementById(bail.getAttribute('aria-describedby') ?? '')?.textContent).toBe('Cần 25.000 ₫ để trả bảo lãnh.');
   });
 
   it('offers the card only when one is held', () => {

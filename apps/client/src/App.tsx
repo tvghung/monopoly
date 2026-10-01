@@ -818,7 +818,8 @@ export default function App({
     requestLeave: handleLeave,
     leaving: operation === 'leave',
     label: role === 'PLAYER' && room?.status === 'IN_PROGRESS' ? 'Bỏ cuộc' : 'Rời phòng',
-  }), [handleLeave, operation, role, room?.status]);
+    error: operationError,
+  }), [handleLeave, operation, operationError, role, room?.status]);
 
   const roomContent = room && role
     ? role === 'PLAYER' && room.status === 'LOBBY' && playerId

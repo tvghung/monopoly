@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import stateContext from '../../internal';
 import { roomExitContext, type RoomExitContextValue } from '../../roomExitContext';
+import { SHORT_VIEWPORT_QUERY } from '../../design-system/useMediaQuery';
 import { DEFAULT_GAME_SETTINGS } from '../../settings/defaults';
 import { SettingsProvider } from '../../settings/SettingsProvider';
 import { presentationStoreContext } from '../../game/presentation/PresentationProvider';
@@ -20,6 +21,7 @@ import WinnerBanner from './WinnerBanner';
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.unstubAllGlobals();
   window.localStorage.clear();
 });
 
@@ -341,6 +343,77 @@ describe('WinnerBanner', () => {
     ));
     expect(screen.getAllByText('Không thể thực hiện hành động ở trạng thái hiện tại.')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Chơi lại' }).hasAttribute('disabled')).toBe(false);
+  });
+
+  describe('keyboard and assistive technology', () => {
+    it('starts a player who is not the host on the results, never on the leave button', () => {
+      renderWinner({ canPlayAgain: false, playerId: 'player-b', exit: exitContext() });
+      expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Kết quả ván chơi' }));
+      expect(document.activeElement).not.toBe(screen.getByRole('button', { name: 'Rời phòng' }));
+    });
+
+    it('starts a spectator on the results too', () => {
+      renderWinner({ playerId: null, role: 'SPECTATOR', exit: exitContext() });
+      expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Kết quả ván chơi' }));
+    });
+
+    it('makes the results region a tab stop so the scrolling body can be reached by keyboard', () => {
+      renderWinner({ canPlayAgain: true, exit: exitContext() });
+      const region = screen.getByRole('region', { name: 'Kết quả ván chơi' });
+      expect(region.getAttribute('tabindex')).toBe('0');
+      // The host still starts on the primary action.
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Chơi lại' }));
+    });
+
+    it('keeps the DOM and Tab order the same as the drawn order: the primary action first', () => {
+      renderWinner({ canPlayAgain: true, exit: exitContext() });
+      const buttons = screen.getAllByRole('button');
+      expect(buttons.map(button => button.textContent)).toEqual(['Chơi lại', 'Rời phòng']);
+    });
+
+    it('describes the dialog with the winner and the next step', () => {
+      renderWinner({ canPlayAgain: true, exit: exitContext() });
+      const dialog = screen.getByRole('alertdialog', { name: 'Ván chơi kết thúc' });
+      const description = (dialog.getAttribute('aria-describedby') ?? '')
+        .split(' ')
+        .map(id => document.getElementById(id)?.textContent ?? '')
+        .join(' ');
+      expect(description).toContain('Ada');
+      expect(description).toContain('Người chiến thắng');
+      expect(description).toContain('Ván mới giữ nguyên phòng');
+    });
+
+    it('shows a failed leave request inside the dialog, where the toolbar message would be hidden', () => {
+      renderWinner({ exit: exitContext({ error: 'Không thể rời phòng lúc này.' }) });
+      const alert = within(screen.getByRole('alertdialog')).getByRole('alert');
+      expect(alert.textContent).toBe('Không thể rời phòng lúc này.');
+    });
+  });
+
+  describe('sizes', () => {
+    it('uses the 128 px hero and large buttons on a normal screen', () => {
+      renderWinner({ canPlayAgain: true, exit: exitContext() });
+      const avatar = screen.getByAltText('Mascot Chó');
+      expect(avatar.getAttribute('width')).toBe('128');
+      expect(avatar.getAttribute('height')).toBe('128');
+      expect(screen.getByRole('button', { name: 'Chơi lại' }).className).toContain('ds-button--lg');
+      expect(screen.getByRole('button', { name: 'Rời phòng' }).className).toContain('ds-button--lg');
+    });
+
+    it('shrinks the hero to 64 px and uses medium buttons on a phone held sideways', () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query === SHORT_VIEWPORT_QUERY,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }));
+      renderWinner({ canPlayAgain: true, exit: exitContext() });
+      const avatar = screen.getByAltText('Mascot Chó');
+      expect(avatar.getAttribute('width')).toBe('64');
+      expect(avatar.getAttribute('height')).toBe('64');
+      expect(screen.getByRole('button', { name: 'Chơi lại' }).className).toContain('ds-button--md');
+      expect(screen.getByRole('button', { name: 'Rời phòng' }).className).toContain('ds-button--md');
+    });
   });
 
   describe('when it appears', () => {

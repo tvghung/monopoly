@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useId, useMemo, useState } from 'react';
 import { gameCardsById } from '@monopoly/shared';
 import type { Ack, PublicGameState } from '@monopoly/shared';
 import stateContext from '../../internal';
@@ -58,6 +58,7 @@ export default function DebtPanel() {
     state, playerId, canMutate, socketFunctions, connected, privatePlayerState, roomPlayers,
   } = useContext(stateContext);
   const roomExit = useRoomExit();
+  const descriptionId = useId();
   const [now, setNow] = useState(() => Date.now());
   const claim = state.boardState.paymentShortfall;
   const isMyShortfall = claim?.debtorPlayerId === playerId;
@@ -148,12 +149,15 @@ export default function DebtPanel() {
 
   if (!isMyShortfall || !canMutate) {
     return (
-      <section className="debt-panel debt-panel--status" role="status">
-        <div className="debt-panel__status-copy">
+      <section className="debt-panel debt-panel--status">
+        {/* Only this copy is announced, and it changes with the claim. The countdown below ticks every second. */}
+        <div className="debt-panel__status-copy" role="status">
           <strong>{`${debtor?.name ?? 'Người chơi'} đang thiếu ${formatMoney(claim.remainingAmount)}`}</strong>
           <span>{`Trả cho ${creditor}`}</span>
         </div>
-        <Chip tone="loss" icon={<ActionIcon name="clock" />}>{`${seconds} giây còn lại`}</Chip>
+        <span role="timer">
+          <Chip tone="loss" icon={<ActionIcon name="clock" />}>{`${seconds} giây còn lại`}</Chip>
+        </span>
       </section>
     );
   }
@@ -169,10 +173,12 @@ export default function DebtPanel() {
       size="lg"
       tone="danger"
       className="debt-panel-modal"
+      describedBy={descriptionId}
       footer={roomExit
         ? (
           <>
             <span className="debt-panel__footer-note">Không xoay được tiền? Bạn có thể bỏ cuộc.</span>
+            {roomExit.error ? <p className="debt-panel__footer-error" role="alert">{roomExit.error}</p> : null}
             <Button
               variant="ghost"
               className="debt-panel__forfeit"
@@ -184,6 +190,10 @@ export default function DebtPanel() {
         )
         : undefined}
     >
+      {/* What the dialog announces on open: the amount, the creditor and the shortfall. The countdown is left out. */}
+      <p id={descriptionId} className="sr-only">
+        {`Cần trả ${formatMoney(claim.amount)} cho ${creditor}. Còn thiếu ${formatMoney(claim.remainingAmount)}. Tiền mặt hiện có ${formatMoney(debtor?.accountBalance ?? 0)}.`}
+      </p>
       {/* Focus starts on the amount, not on the first sale: on a short screen that button may sit below the fold. */}
       <section className="debt-panel__summary" aria-label="Khoản cần thanh toán" tabIndex={-1} data-modal-autofocus>
         <div className="debt-panel__due">
@@ -230,14 +240,18 @@ export default function DebtPanel() {
           const deed = deeds.get(property.tileID);
           const choosingBuyer = selectedTileId === property.tileID;
           const buyerStatusId = `debt-buyer-status-${property.tileID}`;
+          const saleId = `debt-sale-${property.tileID}`;
           return (
             <article key={property.tileID} className="debt-panel__property">
               {deed ? <PropertyDeedCard model={deed} variant="compact" showOwner={false} className="debt-panel__deed" /> : <strong>{propertyName}</strong>}
               <div className="debt-panel__property-actions">
+                {/* The accessible name keeps the tile; this is what the sale brings, read after it. */}
+                <span id={saleId} className="sr-only">{`Nhận ${formatMoney(property.grossPrice)}`}</span>
                 <Button
                   variant="secondary"
                   icon={<ActionIcon name="sellToBank" />}
                   aria-label={`Bán ${propertyName} cho Ngân hàng`}
+                  aria-describedby={saleId}
                   disabled={pendingAction !== null || forcedSaleActive}
                   busy={pendingAction?.key === `bank:${property.tileID}`}
                   onClick={() => submit(`bank:${property.tileID}`, () => socketFunctions.sellPropertyToBank?.({

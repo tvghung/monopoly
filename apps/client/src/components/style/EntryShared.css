@@ -7,8 +7,8 @@
   --entry-backdrop:
     radial-gradient(ellipse 120% 80% at 50% 0%, var(--color-canvas) 0%, transparent 70%),
     linear-gradient(170deg, var(--color-canvas-deep) 0%, color-mix(in srgb, var(--color-scene-backdrop) 60%, var(--color-canvas-deep)) 100%);
-  /* A field edge that reaches 3:1 against the paper card, unlike the hairline --color-border. */
-  --entry-field-border: color-mix(in srgb, var(--color-text-primary) 45%, var(--color-surface));
+  /* A field edge that reaches 3:1 against the paper card (about 3.5:1 measured), unlike the hairline --color-border. */
+  --entry-field-border: color-mix(in srgb, var(--color-text-primary) 55%, var(--color-surface));
 }
 
 .entry-label {

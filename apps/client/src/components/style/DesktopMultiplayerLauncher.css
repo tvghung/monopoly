@@ -251,6 +251,9 @@
   .desktop-launcher h2 { font: var(--type-title-s); }
   .desktop-launcher__brand,
   .desktop-launcher__subtitle { display: none; }
+  .desktop-launcher__choices { gap: var(--space-1); }
+  /* With a Host already running there are four rows: the security note gives up its line so the card fits 375px. */
+  .desktop-launcher__card:has(.desktop-launcher__running) .desktop-launcher__security { display: none; }
 
   .desktop-launcher__running { grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
 

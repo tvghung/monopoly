@@ -305,3 +305,8 @@
 @media (max-width: 520px) {
   .card-art-gallery { padding: var(--space-4); }
 }
+
+/* A portrait phone with the browser toolbar showing has under 580px: a flatter artwork keeps the longest message above the action bar. */
+@media (orientation: portrait) and (max-height: 580px) {
+  .card-modal__stage .card-face__art { aspect-ratio: 2 / 1; }
+}

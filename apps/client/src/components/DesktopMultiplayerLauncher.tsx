@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Button from '../design-system/components/Button/Button';
 import Panel from '../design-system/components/Panel/Panel';
 import { ActionIcon } from '../design-system/icons/ActionIcon';
@@ -34,6 +34,8 @@ const modeTitle: Record<Exclude<LauncherMode, null>, string> = {
 
 interface ChoiceCardProps {
   icon: ActionIconName;
+  /** Which form the card opens; the back button uses it to return focus here. */
+  choice?: Exclude<LauncherMode, null>;
   title: string;
   description: string;
   className?: string;
@@ -42,11 +44,12 @@ interface ChoiceCardProps {
 
 /** One way to start: a large target with a glyph, what it does, and a line on what it needs. */
 function ChoiceCard({
-  icon, title, description, className = '', onClick,
+  icon, choice, title, description, className = '', onClick,
 }: ChoiceCardProps) {
   return (
     <button
       type="button"
+      data-launcher-choice={choice}
       className={`desktop-launcher__choice${className ? ` ${className}` : ''}`}
       onClick={onClick}
     >
@@ -105,6 +108,8 @@ export default function DesktopMultiplayerLauncher({
 }: DesktopMultiplayerLauncherProps) {
   const bridge = getDesktopBridge();
   const [mode, setMode] = useState<LauncherMode>(initialMode ?? null);
+  const rootRef = useRef<HTMLElement>(null);
+  const returnFocusRef = useRef<Exclude<LauncherMode, null> | null>(null);
   const [name, setName] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [address, setAddress] = useState('');
@@ -134,6 +139,14 @@ export default function DesktopMultiplayerLauncher({
   useEffect(() => {
     if (configurationError) setError(configurationError);
   }, [configurationError]);
+
+  // Leaving a form with "Chọn lại chế độ" removes the focused button: put the focus on the card that opened the form.
+  useEffect(() => {
+    if (mode !== null || !returnFocusRef.current) return;
+    const choice = returnFocusRef.current;
+    returnFocusRef.current = null;
+    rootRef.current?.querySelector<HTMLElement>(`[data-launcher-choice="${choice}"]`)?.focus();
+  }, [mode]);
 
   useEffect(() => {
     if (mode !== 'host' || !bridge?.host) return;
@@ -232,7 +245,7 @@ export default function DesktopMultiplayerLauncher({
     : mode !== 'host' && !roomCode.trim() ? 'Nhập mã phòng do Host chia sẻ.' : null;
 
   return (
-    <main className="desktop-launcher" aria-labelledby="desktop-launcher-title">
+    <main ref={rootRef} className="desktop-launcher" aria-labelledby="desktop-launcher-title">
       <Panel as="section" padding="lg" className="desktop-launcher__card">
         <header className="desktop-launcher__header">
           <p className="desktop-launcher__brand" aria-hidden="true">OWN THE BLOCK</p>
@@ -268,12 +281,14 @@ export default function DesktopMultiplayerLauncher({
             ) : null}
             <ChoiceCard
               icon="host"
+              choice="host"
               title={modeTitle.host}
               description="Máy này làm chủ phòng, người khác vào qua Wi-Fi"
               onClick={() => { setMode('host'); setError(null); }}
             />
             <ChoiceCard
               icon="join"
+              choice="join"
               title={modeTitle.join}
               description="Nhập địa chỉ IPv4 và mã phòng do Host chia sẻ"
               onClick={() => { setMode('join'); setError(null); }}
@@ -281,6 +296,7 @@ export default function DesktopMultiplayerLauncher({
             {configuredRuntimeConfig?.socketUrl ? (
               <ChoiceCard
                 icon="configuredServer"
+                choice="configured"
                 title={modeTitle.configured}
                 description="Dùng địa chỉ thử nghiệm hoặc máy chủ cũ đã cung cấp"
                 onClick={() => { setMode('configured'); setError(null); }}
@@ -296,7 +312,7 @@ export default function DesktopMultiplayerLauncher({
               variant="ghost"
               className="desktop-launcher__back"
               icon={<ActionIcon name="back" className="action-icon--only" />}
-              onClick={() => setMode(null)}
+              onClick={() => { returnFocusRef.current = mode; setMode(null); }}
             >Chọn lại chế độ</Button>
             <h2>{modeTitle[mode]}</h2>
 

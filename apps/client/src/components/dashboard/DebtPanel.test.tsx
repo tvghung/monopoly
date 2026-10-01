@@ -7,6 +7,7 @@ import type {
 import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import stateContext from '../../internal';
+import { getTileName } from '../../presentation';
 import { roomExitContext, type RoomExitContextValue } from '../../roomExitContext';
 import type { SocketFunctions, StateContextValue } from '../../types';
 import { makeRoom } from '../../game/presentation/testFixtures';
@@ -15,6 +16,7 @@ import DebtPanel from './DebtPanel';
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 const success: Ack = { ok: true, protocolVersion: SOCKET_PROTOCOL_VERSION };
@@ -106,7 +108,7 @@ describe('DebtPanel', () => {
     const sellPropertyToBank = vi.fn(() => Promise.resolve(success));
     renderDebt(debtState(), { sellPropertyToBank });
 
-    expect(screen.getByText(/200\.000 ₫/)).toBeTruthy();
+    expect(screen.getByText('Còn thiếu').nextElementSibling?.textContent).toBe('200.000 ₫');
     fireEvent.click(screen.getByRole('button', { name: 'Bán Cà Mau cho Ngân hàng' }));
     expect(sellPropertyToBank).toHaveBeenCalledWith({
       paymentOperationId: '00000000-0000-4000-8000-000000000001',
@@ -269,6 +271,65 @@ describe('DebtPanel', () => {
     expect(screen.getByRole('button', { name: 'Đề nghị người chơi mua Cà Mau' }).textContent).toBe('Đề nghị người chơi mua');
   });
 
+  it('describes the dialog with the amount, the creditor and the shortfall, and the sale with what it brings', () => {
+    renderDebt(debtState());
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Cần thanh toán' });
+    const description = document.getElementById(dialog.getAttribute('aria-describedby') ?? '')?.textContent ?? '';
+    expect(description).toContain('Cần trả 300.000 ₫ cho Ngân hàng');
+    expect(description).toContain('Còn thiếu 200.000 ₫');
+    expect(description).toContain('Tiền mặt hiện có 100.000 ₫');
+    expect(description).not.toMatch(/giây/);
+
+    const sale = screen.getByRole('button', { name: 'Bán Cà Mau cho Ngân hàng' });
+    expect(document.getElementById(sale.getAttribute('aria-describedby') ?? '')?.textContent).toBe('Nhận 112.000 ₫');
+  });
+
+  it('keeps Shift+Tab and Tab inside the alert dialog from the amount it starts on', () => {
+    renderDebt(debtState());
+    expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Khoản cần thanh toán' }));
+    const dialog = screen.getByRole('alertdialog', { name: 'Cần thanh toán' });
+
+    const back = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
+    act(() => { document.dispatchEvent(back); });
+    expect(back.defaultPrevented).toBe(true);
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    screen.getByRole('region', { name: 'Khoản cần thanh toán' }).focus();
+    const forward = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    act(() => { document.dispatchEvent(forward); });
+    expect(forward.defaultPrevented).toBe(true);
+    expect(dialog.contains(document.activeElement)).toBe(true);
+  });
+
+  it('counts the deadline down every second', () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    renderDebt(debtState({ actionDeadlineAt: new Date(Date.now() + 60_000).toISOString() }));
+    const chip = () => document.querySelector('.debt-panel__countdown')?.textContent;
+    expect(chip()).toBe('60 giây còn lại');
+
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(chip()).toBe('58 giây còn lại');
+  });
+
+  it.each([
+    ['TAX', { kind: 'TAX', tileID: 4 }, getTileName(4)],
+    ['CARD from the Cơ Hội deck', { kind: 'CARD', cardId: 'chance-advance-start' }, 'Thẻ Cơ Hội'],
+    ['CARD from the Khí Vận deck', { kind: 'CARD', cardId: 'chest-advance-start' }, 'Thẻ Khí Vận'],
+    ['CARD with an unknown id', { kind: 'CARD', cardId: 'no-such-card' }, 'Thẻ sự kiện'],
+    ['OTHER', { kind: 'OTHER', description: 'Phí đặc biệt' }, 'Phí đặc biệt'],
+  ] as const)('names the source of a %s debt above the title', (_name, source, eyebrow) => {
+    const state = debtState();
+    state.boardState.paymentShortfall = {
+      ...state.boardState.paymentShortfall!,
+      source: source as NonNullable<PublicGameState['boardState']['paymentShortfall']>['source'],
+    };
+    renderDebt(state);
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Cần thanh toán' });
+    expect(dialog.querySelector('.ds-modal__eyebrow')?.textContent).toBe(eyebrow);
+  });
+
   it('starts keyboard focus on the amount owed, so the first sale can sit below the fold', () => {
     renderDebt(debtState());
 
@@ -332,6 +393,15 @@ describe('DebtPanel', () => {
       expect(screen.getByRole('alertdialog', { name: 'Cần thanh toán' })).toBeTruthy();
     });
 
+    it('shows a failed leave request inside the dialog, above the modal layer', () => {
+      renderWithExit({
+        requestLeave: vi.fn(), leaving: false, label: 'Bỏ cuộc', error: 'Không thể rời phòng lúc này.',
+      });
+
+      const dialog = screen.getByRole('alertdialog', { name: 'Cần thanh toán' });
+      expect(within(dialog).getByRole('alert').textContent).toBe('Không thể rời phòng lúc này.');
+    });
+
     it('is not offered outside the app shell', () => {
       renderWithExit(null);
 
@@ -376,7 +446,9 @@ describe('DebtPanel', () => {
       const status = screen.getByRole('status');
       expect(status.textContent).toContain('An đang thiếu 200.000 ₫');
       expect(status.textContent).toContain('Trả cho Ngân hàng');
-      expect(status.textContent).toMatch(/\d+ giây còn lại/);
+      // The countdown ticks every second, so it must not sit inside the live region that would read it out each time.
+      expect(status.textContent).not.toMatch(/giây/);
+      expect(screen.getByRole('timer').textContent).toMatch(/\d+ giây còn lại/);
       expect(screen.queryByRole('alertdialog')).toBeNull();
     });
 

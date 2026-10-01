@@ -244,6 +244,29 @@ describe('DesktopMultiplayerLauncher forms', () => {
     expect(screen.queryByLabelText('Địa chỉ Host')).toBeNull();
   });
 
+  it('returns the focus to the card that opened the form when the player goes back', () => {
+    installHostBridge(status);
+    render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chọn lại chế độ' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Tạo phòng trên máy này/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chọn lại chế độ' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /Tạo phòng trên máy này/u }));
+  });
+
+  it('keeps the field border above 3:1 on the paper card and the hero greeting finite', () => {
+    const mix = /--entry-field-border:\s*color-mix\(in srgb, var\(--color-text-primary\) (\d+)%/.exec(entrySharedCss);
+    expect(Number(mix?.[1])).toBeGreaterThanOrEqual(52);
+
+    const heroCssPath = './style/JoinHero.css';
+    const heroCss = readFileSync(fileURLToPath(new URL(heroCssPath, import.meta.url)), 'utf8');
+    expect(heroCss).not.toMatch(/\binfinite\b/);
+    expect(heroCss).not.toMatch(/rgb\(\s*43 29 20/);
+  });
+
   it('can open a form directly for the design lab', () => {
     installHostBridge(status);
 

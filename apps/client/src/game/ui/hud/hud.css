@@ -523,10 +523,22 @@
   .hud-context .jail-panel__title { font: 700 0.875rem/1.25rem var(--font-family-body); }
   .hud-context .jail-panel__rounds { padding: 1px 8px; }
   .hud-context .jail-panel__hint { display: none; }
-  /* Each extra line (the balance warning, a pending or failed request) grows the strip upward toward the roll button. */
+  /*
+   * A pending or failed request takes the place of the title row, so the strip never grows toward the roll button. The balance
+   * warning is not drawn here at all: the bail button is already disabled, and it points to the warning with aria-describedby.
+   */
   .hud-context .jail-panel > p[role='alert'],
-  .hud-context .jail-panel__pending,
-  .hud-context .jail-panel__balance-warning { flex: 1 1 100%; font: var(--type-caption); line-height: 0.875rem; }
+  .hud-context .jail-panel__pending { flex: 1 1 100%; font: var(--type-caption); line-height: 0.875rem; }
+  .hud-context .jail-panel:has(> p[role='alert'], > .jail-panel__pending) .jail-panel__head { display: none; }
+  .hud-context .jail-panel__balance-warning {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
   .hud-context .jail-panel__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
   .hud-context .jail-panel__actions .ds-button { padding: 2px 6px; font: var(--type-caption); line-height: 1.1; }
 }

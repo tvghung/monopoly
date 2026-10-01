@@ -148,7 +148,20 @@ describe('IncomingOffers', () => {
     renderOffers([makeOffer(), makeOffer({ offerId: 'offer-2' })]);
 
     expect(screen.getAllByRole('button', { name: 'Chấp nhận' })).toHaveLength(2);
-    expect(document.activeElement?.textContent).toContain('Chấp nhận');
+    expect(document.activeElement).toBe(screen.getAllByRole('button', { name: 'Chấp nhận' })[0]);
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  });
+
+  it('tells the answers of several offers apart by the sender in their description', () => {
+    renderOffers([makeOffer(), makeOffer({ offerId: 'offer-2', proposerPlayerId: 'player-c', proposerName: 'Chi' })]);
+
+    const describe = (button: HTMLElement) => document.getElementById(button.getAttribute('aria-describedby') ?? '')?.textContent;
+    const accepts = screen.getAllByRole('button', { name: 'Chấp nhận' });
+    const declines = screen.getAllByRole('button', { name: 'Từ chối' });
+    expect(describe(accepts[0])).toBe(describe(declines[0]));
+    expect(describe(accepts[1])).toBe(describe(declines[1]));
+    expect(describe(accepts[0])).not.toBe(describe(accepts[1]));
+    expect(describe(accepts[1])).toBe('Đề nghị từ Chi');
+    expect(screen.getAllByRole('region', { name: /Đề nghị từ/ })).toHaveLength(2);
   });
 });

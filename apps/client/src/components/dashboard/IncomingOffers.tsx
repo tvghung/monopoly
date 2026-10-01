@@ -52,13 +52,14 @@ export default function IncomingOffers() {
       {offers.map((current, index) => {
         const proposer = state.players[current.proposerPlayerId];
         const expired = current.remainingSeconds <= 0;
+        const titleId = `incoming-offer-${current.offerId}`;
         return (
-          <section key={current.offerId} className="trade-offers-modal__offer">
+          <section key={current.offerId} className="trade-offers-modal__offer" aria-labelledby={titleId}>
             <header className="trade-offers-modal__sender">
               {proposer
                 ? <PlayerAvatar characterId={proposer.characterId ?? null} colorId={proposer.color} size={44} />
                 : null}
-              <h3 className="trade-offers-modal__offer__title">
+              <h3 id={titleId} className="trade-offers-modal__offer__title">
                 {`Đề nghị từ ${current.proposerName}`}
               </h3>
               <Chip tone={current.remainingSeconds <= 10 ? 'loss' : 'neutral'} icon={<ActionIcon name="clock" />}>
@@ -74,6 +75,7 @@ export default function IncomingOffers() {
             <div className="trade-offers-modal__offer__buttons">
               <Button
                 data-modal-autofocus={index === 0 ? true : undefined}
+                aria-describedby={titleId}
                 size="lg"
                 icon={<ActionIcon name="accept" />}
                 onClick={() => acceptOffer(current)}
@@ -83,6 +85,7 @@ export default function IncomingOffers() {
               </Button>
               <Button
                 variant="secondary"
+                aria-describedby={titleId}
                 size="lg"
                 icon={<ActionIcon name="decline" />}
                 onClick={() => declineOffer(current)}

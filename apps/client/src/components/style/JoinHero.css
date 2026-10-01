@@ -41,7 +41,7 @@
   inset: auto 10% 6% 10%;
   height: 16%;
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgb(43 29 20 / 30%), transparent);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--color-shadow) 100%, transparent), transparent);
 }
 
 .join-hero__mascot {
@@ -79,7 +79,10 @@
   background: var(--hero-tile);
 }
 
-/* A gentle hop, staggered along the row; it is absent under both sources of reduced motion. */
+/*
+ * A short greeting, not a loop: two hops per mascot, staggered along the row, over about three seconds. It is absent under both
+ * sources of reduced motion, and the landing is quiet afterwards (plan 01 principle P4).
+ */
 @keyframes join-hero-hop {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5%); }
@@ -87,7 +90,7 @@
 
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-reduced-motion='true']) .join-hero__mascot {
-    animation: join-hero-hop 2.6s var(--motion-ease-in-out) infinite;
-    animation-delay: calc(var(--hero-index, 0) * -0.32s);
+    animation: join-hero-hop 1.2s var(--motion-ease-in-out) 2;
+    animation-delay: calc(var(--hero-index, 0) * 0.12s);
   }
 }

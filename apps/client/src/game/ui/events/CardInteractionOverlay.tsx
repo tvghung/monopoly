@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { allGameCards, gameCardsById, type CardDeck, type GameCard } from '@monopoly/shared';
 import stateContext from '../../../internal';
 import { localizeAckError } from '../../../presentation';
@@ -124,6 +124,7 @@ export default function CardInteractionOverlay() {
   const [dismissPending, setDismissPending] = useState(false);
   const [dismissError, setDismissError] = useState('');
   const dismissPendingRef = useRef(false);
+  const restoreFocusRef = useRef(false);
   const observedOperationRef = useRef<string | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const descriptionId = pendingOperationId ? `card-dialog-description-${safeDomId(pendingOperationId)}` : undefined;
@@ -145,11 +146,13 @@ export default function CardInteractionOverlay() {
     }
   }, [pendingCard?.operationId, pendingCard?.stage]);
 
-  // Modal has no description prop, so the message is wired to the dialog here, before Modal moves focus into it.
-  useLayoutEffect(() => {
-    if (!revealed || !descriptionId) return;
-    stageRef.current?.closest('[role="dialog"]')?.setAttribute('aria-describedby', descriptionId);
-  }, [descriptionId, revealed]);
+  // A button that turns disabled while its request is in flight drops keyboard focus to the page. After a failed request it is
+  // enabled again: put the focus back on it, or Enter and Space would do nothing and Tab would leave the dialog.
+  useEffect(() => {
+    if (dismissPending || !restoreFocusRef.current) return;
+    restoreFocusRef.current = false;
+    stageRef.current?.querySelector<HTMLElement>('[data-modal-autofocus]')?.focus();
+  }, [dismissPending]);
 
   useEffect(() => {
     if (!revealed || !pendingOperationId) return;
@@ -174,10 +177,12 @@ export default function CardInteractionOverlay() {
       const response = await dismissCard(pendingCard.operationId);
       if (!response || response.ok) return;
       dismissPendingRef.current = false;
+      restoreFocusRef.current = true;
       setDismissPending(false);
       setDismissError(localizeAckError(response.error));
     } catch {
       dismissPendingRef.current = false;
+      restoreFocusRef.current = true;
       setDismissPending(false);
       setDismissError('Không thể gửi lệnh đóng thẻ.');
     }
@@ -193,6 +198,7 @@ export default function CardInteractionOverlay() {
       eyebrow={shown ? <DeckBadge deck={deck} /> : null}
       size="sm"
       layer="card"
+      describedBy={shown ? descriptionId : undefined}
       closeOnEscape={false}
       closeOnOutsideClick={false}
       className={`card-modal card-face card-face--${deck}${reducedMotion ? ' card-modal--reduced-motion' : ''}`}

@@ -96,6 +96,8 @@ export default function WinnerBanner() {
   const reducedMotion = useEffectiveReducedMotion();
   const short = useMediaQuery(SHORT_VIEWPORT_QUERY);
   const othersId = useId();
+  const identityId = useId();
+  const hintId = useId();
   const [replaying, setReplaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const winner = state.boardState.winner;
@@ -104,6 +106,8 @@ export default function WinnerBanner() {
   const summary = getWinnerSummary(state);
   const others = getOtherPlayers(state, roomPlayers);
   const buttonSize = short ? 'md' : 'lg';
+  // A failed leave request is only visible here: the toolbar message sits under the modal layer.
+  const shownError = error ?? exit?.error ?? null;
 
   const playAgain = async () => {
     if (!socketFunctions.playAgain || !canPlayAgain || replaying) return;
@@ -119,25 +123,14 @@ export default function WinnerBanner() {
   const footer = (
     <>
       <div className="victory__note">
-        <p className="victory__hint">
+        <p id={hintId} className="victory__hint">
           {canPlayAgain
             ? 'Ván mới giữ nguyên phòng và danh sách người chơi đủ điều kiện.'
             : 'Đang chờ chủ phòng bắt đầu ván mới'}
         </p>
-        {error ? <p className="victory__error" role="alert">{error}</p> : null}
+        {shownError ? <p className="victory__error" role="alert">{shownError}</p> : null}
       </div>
       <div className="victory__actions">
-        {exit
-          ? (
-            <Button
-              variant="secondary"
-              size={buttonSize}
-              icon={<ActionIcon name="leave" />}
-              busy={exit.leaving}
-              onClick={exit.requestLeave}
-            >Rời phòng</Button>
-          )
-          : null}
         {canPlayAgain
           ? (
             <Button
@@ -147,6 +140,17 @@ export default function WinnerBanner() {
               busy={replaying}
               onClick={() => { void playAgain(); }}
             >{replaying ? 'Đang chuẩn bị ván mới…' : 'Chơi lại'}</Button>
+          )
+          : null}
+        {exit
+          ? (
+            <Button
+              variant="secondary"
+              size={buttonSize}
+              icon={<ActionIcon name="leave" />}
+              busy={exit.leaving}
+              onClick={exit.requestLeave}
+            >Rời phòng</Button>
           )
           : null}
       </div>
@@ -162,9 +166,20 @@ export default function WinnerBanner() {
         size="xl"
         tone="celebration"
         className="victory"
+        describedBy={`${identityId} ${hintId}`}
         footer={footer}
       >
-        <div className="victory__content">
+        {/*
+          The scrolling body has no control of its own, so this region is the keyboard stop that lets the arrow keys scroll it on a
+          short screen. Anyone without "Chơi lại" starts here instead of on "Rời phòng", which leaves the room at once.
+        */}
+        <div
+          className="victory__content"
+          role="region"
+          aria-label="Kết quả ván chơi"
+          tabIndex={0}
+          data-modal-autofocus={canPlayAgain ? undefined : true}
+        >
           <section
             className="victory__hero"
             style={{ '--victory-color': getPlayerDisplayColor(winner.color) } as CSSProperties}
@@ -173,7 +188,7 @@ export default function WinnerBanner() {
               <PlayerAvatar characterId={winner.characterId} colorId={winner.color} size={short ? 64 : 128} active />
               <span className="victory__crown"><ActionIcon name="crown" /></span>
             </div>
-            <div className="victory__identity">
+            <div id={identityId} className="victory__identity">
               <p className="victory__eyebrow">Người chiến thắng</p>
               <h3 className="victory__name">{winner.name}</h3>
               <p className="victory__color">

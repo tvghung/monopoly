@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useId, useState } from 'react';
 import { BAIL_AMOUNT, type Ack } from '@monopoly/shared';
 import stateContext from '../../internal';
 import { formatMoney, localizeAckError } from '../../presentation';
@@ -19,6 +19,8 @@ export default function JailPanel() {
     && state.loaded
     && state.boardState.currentPlayer.id === playerId
     && Boolean(myPlayer?.isJail);
+  const titleId = useId();
+  const warningId = useId();
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,10 +54,12 @@ export default function JailPanel() {
   if (!visible || !myPlayer) return null;
 
   return (
-    <section className="jail-panel" role="status" aria-live="polite">
+    // No live region around the whole panel: the buttons change their label while a request is in flight, and the pending and
+    // error lines announce themselves.
+    <section className="jail-panel" aria-labelledby={titleId}>
       <div className="jail-panel__head">
         <span className="jail-panel__icon" aria-hidden="true"><ActionIcon name="jail" /></span>
-        <h3 className="jail-panel__title">Bạn đang ở Nhà Tù</h3>
+        <h3 id={titleId} className="jail-panel__title">Bạn đang ở Nhà Tù</h3>
         <Chip tone="loss" className="jail-panel__rounds">
           {`Vòng chờ: ${myPlayer.jailOpponentRoundsElapsed}/${JAIL_ROUND_LIMIT}`}
         </Chip>
@@ -63,14 +67,15 @@ export default function JailPanel() {
       {error ? <p role="alert">{error}</p> : null}
       <p className="jail-panel__hint">Chọn một cách ra tù, hoặc bấm Đổ xúc xắc để thử đổ đôi.</p>
       {myPlayer.accountBalance < BAIL_AMOUNT
-        ? <p className="jail-panel__balance-warning">Cần {formatMoney(BAIL_AMOUNT)} để trả bảo lãnh.</p>
+        ? <p id={warningId} className="jail-panel__balance-warning">Cần {formatMoney(BAIL_AMOUNT)} để trả bảo lãnh.</p>
         : null}
-      {acknowledged ? <p className="jail-panel__pending">Đã xác nhận. Đang cập nhật ván chơi…</p> : null}
+      {acknowledged ? <p className="jail-panel__pending" role="status">Đã xác nhận. Đang cập nhật ván chơi…</p> : null}
       <div className="jail-panel__actions">
         <Button
           variant="secondary"
           icon={<ActionIcon name="bail" />}
           busy={pendingAction === 'PAY_BAIL'}
+          aria-describedby={myPlayer.accountBalance < BAIL_AMOUNT ? warningId : undefined}
           disabled={pendingAction !== null || myPlayer.accountBalance < BAIL_AMOUNT}
           onClick={() => submit('PAY_BAIL', () => socketFunctions.payBail())}
         >
