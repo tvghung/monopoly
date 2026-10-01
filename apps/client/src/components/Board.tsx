@@ -15,6 +15,7 @@ import { usePresentation } from '../game/presentation/PresentationProvider';
 import { buildBoardRenderModel } from '../game/scene/board/boardRenderModel';
 import SceneErrorBoundary from '../game/scene/fallback/SceneErrorBoundary';
 import { supportsWebGL } from '../game/scene/fallback/webglSupport';
+import PlayerPortfolioModal from '../game/ui/property/PlayerPortfolioModal';
 import PropertyInspectionModal from '../game/ui/property/PropertyInspectionModal';
 import GameHud from '../game/ui/hud/GameHud';
 import BoardAccessibilityControls from './BoardAccessibilityControls';
@@ -36,6 +37,7 @@ export default function Board() {
     () => resolveInitialRendererMode(supportsWebGL()),
   );
   const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
+  const [portfolioPlayerId, setPortfolioPlayerId] = useState<string | null>(null);
   const [hoveredTileId, setHoveredTileId] = useState<number | null>(null);
   const [tradeTarget, setTradeTarget] = useState<number | null>(null);
   const displayPositions = presentationState.displayPositions;
@@ -46,6 +48,9 @@ export default function Board() {
 
   const selectTile = useCallback((tileId: number) => {
     setSelectedTileId(tileId);
+  }, []);
+  const closePortfolio = useCallback(() => {
+    setPortfolioPlayerId(null);
   }, []);
   const openTradeForProperty = useCallback((tileId: number) => {
     if (!canMutate) return;
@@ -120,7 +125,7 @@ export default function Board() {
               )
               : legacyBoard}
             <Dashboard />
-            <GameHud onSelectTile={selectTile} />
+            <GameHud onSelectTile={selectTile} onSelectPlayer={setPortfolioPlayerId} />
           </section>
 
           {rendererMode === 'webgl'
@@ -134,6 +139,7 @@ export default function Board() {
             : null}
 
           <PropertyInspectionModal tileId={selectedTileId} onClose={closeInspection} />
+          <PlayerPortfolioModal playerId={portfolioPlayerId} onClose={closePortfolio} onSelectTile={selectTile} />
         </section>
       </displayPositionsContext.Provider>
     </tradePromptContext.Provider>

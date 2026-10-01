@@ -1,0 +1,77 @@
+/*
+ * Portfolio (plan 04 §8.4): a summary of the balance and the holdings, then the owned deeds as compact cards grouped by
+ * district. Shared by "Tài sản của tôi" and the read-only player portfolio.
+ */
+.portfolio { display: grid; gap: var(--space-4); }
+
+.portfolio-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-soft);
+}
+.portfolio-summary__lead { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); min-width: 0; }
+.portfolio-summary__balance { display: grid; margin: 0; }
+.portfolio-summary__label { color: var(--color-text-secondary); font: var(--type-caption); letter-spacing: 0.06em; text-transform: uppercase; }
+.portfolio-summary__counts { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.portfolio-summary__counts .ds-chip { padding: 0.3rem 0.7rem; font: var(--type-small); font-weight: 700; }
+
+.portfolio-group { display: grid; gap: var(--space-2); }
+.portfolio-group__header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }
+.portfolio-group__swatch {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 4px;
+  background: var(--portfolio-group-color);
+}
+.portfolio-group__label { margin: 0; font: var(--type-label); }
+.portfolio-group__count { color: var(--color-text-secondary); font: var(--type-small); font-variant-numeric: tabular-nums; }
+
+.portfolio-group__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* `.owned-properties-list__item` is kept as a hook class (tests, e2e); the two-class selector wins over its old list-row look. */
+.portfolio-card.owned-properties-list__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--space-2);
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.portfolio-card .deed--compact { width: 100%; }
+/* The amount never breaks away from its currency sign; the label beside it wraps instead. */
+.portfolio-card .deed__current strong { white-space: nowrap; }
+.portfolio-card__inspect { width: 100%; }
+
+.portfolio__empty {
+  margin: 0;
+  padding: var(--space-5) var(--space-4);
+  border: 2px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font: var(--type-body);
+  text-align: center;
+}
+
+/* A phone held sideways: tighter rows. */
+@media (orientation: landscape) and (max-height: 31rem) {
+  .portfolio { gap: var(--space-3); }
+  .portfolio-summary { padding: var(--space-2) var(--space-3); }
+  .portfolio-group__cards { gap: var(--space-2); }
+}

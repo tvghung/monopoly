@@ -34,7 +34,7 @@ const selectResetEpoch = (state: PresentationState) => state.presentationResetEp
 const selectSpeed = (state: PresentationState) => state.animationSpeedMultiplier;
 
 /** The four corner cards, wired to committed state plus the presentation slices they display. */
-function PlayerCards() {
+function PlayerCards({ onSelectPlayer }: { onSelectPlayer: (playerId: string) => void }) {
   const {
     state, roomPlayers = NO_PLAYERS, playerId, role,
   } = useContext(stateContext);
@@ -63,6 +63,7 @@ function PlayerCards() {
       speed={speed}
       resetEpoch={resetEpoch}
       bubbles={bubbles}
+      onSelectPlayer={onSelectPlayer}
     />
   );
 }
@@ -72,7 +73,10 @@ function PlayerCards() {
  * board, and never covers the board center. Each region is a `data-hud-region` container so the overlap checker can
  * measure it. Its children read presentation state through selectors, so the shell itself renders once.
  */
-function GameHudShell({ onSelectTile }: { onSelectTile: (tileId: number) => void }) {
+function GameHudShell({ onSelectTile, onSelectPlayer }: {
+  onSelectTile: (tileId: number) => void;
+  onSelectPlayer: (playerId: string) => void;
+}) {
   const speed = usePresentationSelector(selectSpeed);
   const style = useMemo(() => ({ '--hud-speed': speed }) as CSSProperties, [speed]);
   return (
@@ -80,7 +84,7 @@ function GameHudShell({ onSelectTile }: { onSelectTile: (tileId: number) => void
       <div className="game-hud" data-testid="game-hud" style={style}>
         <StatusPill />
         <TurnBanner />
-        <PlayerCards />
+        <PlayerCards onSelectPlayer={onSelectPlayer} />
         <CenterStage />
         <DiceResultCallout />
         <BottomDock onSelectTile={onSelectTile} ticker={<ActivityTicker />} />

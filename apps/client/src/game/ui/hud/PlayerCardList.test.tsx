@@ -1,5 +1,5 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { makeRoom } from '../../presentation/testFixtures';
 import type { BalanceDeltaSignal } from '../../presentation/store/types';
 import PlayerCardList from './PlayerCardList';
@@ -194,5 +194,97 @@ describe('PlayerCard status tags, pulse and summary', () => {
   it('keeps list semantics for the roster', () => {
     const { container } = renderRoster();
     expect(container.querySelector('ol')?.getAttribute('role')).toBe('list');
+  });
+});
+
+describe('PlayerCard portfolio button (plan 03 OD-03-4)', () => {
+  function renderSelectable(
+    onSelectPlayer: ((playerId: string) => void) | undefined,
+    mutateCards: (cards: ReturnType<typeof selectPlayerCardViewModels>) => ReturnType<typeof selectPlayerCardViewModels> = cards => cards,
+  ) {
+    const room = makeRoom();
+    const cards = mutateCards(selectPlayerCardViewModels(room.gameState, noPresentation, room.players, 'player-a', 'PLAYER'));
+    return render(
+      <PlayerCardList
+        cards={cards}
+        deltas={[]}
+        reducedMotion={false}
+        speed={1}
+        resetEpoch={0}
+        onSelectPlayer={onSelectPlayer}
+      />,
+    );
+  }
+
+  it('puts a real button named after the player inside each card and reports the player id on click', () => {
+    const onSelectPlayer = vi.fn();
+    const { container } = renderSelectable(onSelectPlayer);
+
+    const buttons = screen.getAllByRole('button');
+    expect(buttons.map(button => button.getAttribute('aria-label'))).toEqual(['Xem tài sản của An', 'Xem tài sản của Bình']);
+    const mine = container.querySelector('[data-player-id="player-a"]') as HTMLElement;
+    expect(within(mine).getByRole('button', { name: 'Xem tài sản của An' })).toBe(buttons[0]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xem tài sản của Bình' }));
+    expect(onSelectPlayer).toHaveBeenCalledTimes(1);
+    expect(onSelectPlayer).toHaveBeenCalledWith('player-b');
+  });
+
+  it('is a native, focusable button outside the decorative face, so it is reachable by keyboard', () => {
+    const { container } = renderSelectable(vi.fn());
+
+    const button = screen.getByRole('button', { name: 'Xem tài sản của An' });
+    // A native type="button" activates on Enter and Space in every browser; it must not sit in the aria-hidden subtree.
+    expect(button.tagName).toBe('BUTTON');
+    expect(button.getAttribute('type')).toBe('button');
+    expect(button.hasAttribute('disabled')).toBe(false);
+    expect(button.tabIndex).toBe(0);
+    expect(button.closest('[aria-hidden="true"]')).toBeNull();
+    button.focus();
+    expect(document.activeElement).toBe(button);
+    // It is laid over the face, and the face stays decorative.
+    expect(button.nextElementSibling?.classList.contains('player-card__face')).toBe(true);
+    expect(container.querySelector('[data-player-id="player-a"] .player-card__face')?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('keeps the roster semantics and the screen-reader summary next to the button', () => {
+    const { container } = renderSelectable(vi.fn());
+
+    const roster = screen.getByRole('region', { name: 'Người chơi' });
+    expect(within(roster).getAllByRole('listitem')).toHaveLength(2);
+    expect(container.querySelector('ol')?.getAttribute('role')).toBe('list');
+    const mine = container.querySelector('[data-player-id="player-a"]') as HTMLElement;
+    expect(mine.querySelector('.sr-only')?.textContent).toBe('An (bạn), 1.500.000 ₫, 0 tài sản, đang đi');
+    expect(mine.getAttribute('data-hud-region')).toBe('player-card-bottom');
+  });
+
+  it('renders no button when nothing handles the click, so the cards stay plain displays', () => {
+    renderSelectable(undefined);
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+  });
+
+  it('renders no button for a player without a seat corner (no face is shown for them)', () => {
+    const { container } = renderSelectable(vi.fn(), cards => cards.map(card => (
+      card.playerId === 'player-b' ? { ...card, slot: null } : card
+    )));
+
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(container.querySelector('[data-player-id="player-b"] button')).toBeNull();
+  });
+
+  it('gives a player who left or went bankrupt a button too, so their (empty) portfolio can still be read', () => {
+    const room = makeRoom();
+    room.gameState.boardState.finishedPlayers['player-b'] = {
+      name: 'Bình', color: 'blue', characterId: 'panda', reason: 'BANKRUPT', accountBalance: 0,
+    };
+    delete room.gameState.players['player-b'];
+    const cards = selectPlayerCardViewModels(room.gameState, noPresentation, room.players, 'player-a', 'PLAYER');
+    const onSelectPlayer = vi.fn();
+    render(
+      <PlayerCardList cards={cards} deltas={[]} reducedMotion={false} speed={1} resetEpoch={0} onSelectPlayer={onSelectPlayer} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xem tài sản của Bình' }));
+    expect(onSelectPlayer).toHaveBeenCalledWith('player-b');
   });
 });

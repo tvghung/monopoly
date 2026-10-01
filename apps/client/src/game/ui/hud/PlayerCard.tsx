@@ -21,6 +21,8 @@ export interface PlayerCardProps {
   resetEpoch: number;
   /** The latest chat message of this player, shown for a few seconds while the drawer is closed. */
   bubble?: string;
+  /** Opens this player's portfolio; without it the card is a plain display. */
+  onSelect?: (playerId: string) => void;
 }
 
 /** Status tags that fit next to the name; the rest stay in the screen-reader summary. Highest priority first. */
@@ -56,10 +58,11 @@ function useTurnPulse(active: boolean, resetEpoch: number): boolean {
 /**
  * One player's card. The face is decorative (`aria-hidden`): the accessible name of the seat is the visually hidden
  * summary, so a screen reader hears each player once. Money counts to its new value, delta chips show consequences
- * from presentation state, and every status carries text as well as an icon.
+ * from presentation state, and every status carries text as well as an icon. A real button over the face, outside the
+ * hidden subtree so it stays reachable, opens the player's portfolio.
  */
 export default function PlayerCard({
-  card, deltas, reducedMotion, speed, resetEpoch, bubble,
+  card, deltas, reducedMotion, speed, resetEpoch, bubble, onSelect,
 }: PlayerCardProps) {
   const money = useAnimatedNumber(card.displayMoney, { reducedMotion, speed, resetEpoch });
   const chips = useBalanceDeltaFeed(card.playerId, deltas, { resetEpoch, speed });
@@ -89,6 +92,14 @@ export default function PlayerCard({
     >
       <span className="sr-only">{describePlayerCard(card)}</span>
       {bubble ? <div className="player-card__bubble" data-hud-region="chat-bubble" data-hud-transient="true" aria-hidden="true">{bubble}</div> : null}
+      {onSelect && card.slot ? (
+        <button
+          type="button"
+          className="player-card__open"
+          aria-label={`Xem tài sản của ${card.name}`}
+          onClick={() => onSelect(card.playerId)}
+        />
+      ) : null}
       <div className="player-card__face" aria-hidden="true">
         <PlayerAvatar
           characterId={card.characterId}
