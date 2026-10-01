@@ -1,0 +1,51 @@
+/*
+ * One decorative confetti burst above the victory dialog (plan 04 OD-04-4). The pieces are generated in VictoryConfetti.tsx;
+ * each one is a single element that follows a rise-then-fall arc, so the whole burst is one CSS animation per piece.
+ * Only transform and opacity animate, and the React side never mounts it with reduced motion.
+ */
+.victory-confetti {
+  position: fixed;
+  z-index: calc(var(--z-modal) + 5);
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.victory-confetti__piece {
+  position: absolute;
+  top: 36%;
+  left: 50%;
+  width: 0.55rem;
+  height: 0.95rem;
+  border-radius: 0.125rem;
+  background: var(--color-accent-primary);
+  box-shadow: 0 0 0 1px rgb(43 29 20 / 18%);
+  opacity: 0;
+  animation: victory-confetti-burst 1000ms forwards;
+  will-change: transform, opacity;
+}
+.victory-confetti__piece:nth-child(3n) { width: 0.65rem; height: 0.65rem; border-radius: 50%; }
+.victory-confetti__piece[data-color='gold'] { background: var(--color-turn-active); }
+.victory-confetti__piece[data-color='jade'] { background: var(--color-accent-secondary); }
+.victory-confetti__piece[data-color='paper'] { background: var(--color-surface); }
+
+@keyframes victory-confetti-burst {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, 0) rotate(0deg);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
+  }
+  35% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--dx) * 0.75), var(--rise)) rotate(calc(var(--spin) * 0.4));
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx)), var(--fall)) rotate(var(--spin));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .victory-confetti { display: none; }
+}

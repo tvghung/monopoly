@@ -1,12 +1,21 @@
-import { useContext, useState } from 'react';
-import type { PublicGameState } from '@monopoly/shared';
-import { RotateCcw } from 'lucide-react';
-import { formatMoney, localizeAckError } from '../../presentation';
-import { CHARACTER_REGISTRY } from '../../game/characters/characterRegistry';
-import { characterSvgDataUri } from '../../game/characters/characterSvg';
+import { useContext, useId, useState, type CSSProperties } from 'react';
+import type { CharacterId, FinishedPlayerReason, PlayerColorId, PublicGameState, RoomPlayerMeta } from '@monopoly/shared';
+import { MapPin } from 'lucide-react';
+import { localizeAckError } from '../../presentation';
 import stateContext from '../../internal';
+import { useRoomExit } from '../../roomExitContext';
+import { useEffectiveReducedMotion } from '../../settings/selectors';
 import Modal from '../../design-system/components/Modal/Modal';
+import Button from '../../design-system/components/Button/Button';
+import Chip from '../../design-system/components/Chip/Chip';
+import MoneyText from '../../design-system/components/MoneyText/MoneyText';
+import PlayerAvatar from '../../design-system/components/PlayerAvatar/PlayerAvatar';
+import { ActionIcon } from '../../design-system/icons/ActionIcon';
+import { SHORT_VIEWPORT_QUERY, useMediaQuery } from '../../design-system/useMediaQuery';
 import { getPlayerColorLabel, getPlayerDisplayColor } from '../../game/ui/playerVisualColors';
+import useVictoryVisibility from './useVictoryVisibility';
+import VictoryConfetti from './VictoryConfetti';
+import './WinnerBanner.css';
 
 export interface WinnerSummary {
   finalCash: number;
@@ -28,14 +37,73 @@ export function getWinnerSummary(state: PublicGameState): WinnerSummary {
   };
 }
 
-// Game-over modal announcing the last player standing, tinted with their colour.
+export interface OtherPlayer {
+  playerId: string;
+  name: string;
+  color: PlayerColorId;
+  characterId: CharacterId | null;
+  /** Why the player is out, or `null` for a player still seated when the game ended. */
+  status: FinishedPlayerReason | null;
+  /** Cash at the end, when it is known. */
+  finalCash: number | null;
+}
+
+/**
+ * Everyone but the winner: the players that left the game (`finishedPlayers`) and any still seated. There is no ranking,
+ * because `finishedPlayers` carries no reliable elimination order; the list follows the seat order instead.
+ */
+export function getOtherPlayers(state: PublicGameState, roomPlayers: readonly RoomPlayerMeta[] = []): OtherPlayer[] {
+  const winnerId = state.boardState.winner?.playerId;
+  const { finishedPlayers } = state.boardState;
+  const out = Object.entries(finishedPlayers)
+    .filter(([playerId]) => playerId !== winnerId)
+    .map(([playerId, player]): OtherPlayer => ({
+      playerId,
+      name: player.name,
+      color: player.color,
+      characterId: player.characterId,
+      status: player.reason ?? null,
+      finalCash: player.accountBalance ?? null,
+    }));
+  const seated = Object.entries(state.players)
+    .filter(([playerId]) => playerId !== winnerId && !(playerId in finishedPlayers))
+    .map(([playerId, player]): OtherPlayer => ({
+      playerId,
+      name: player.name,
+      color: player.color,
+      characterId: player.characterId,
+      status: null,
+      finalCash: player.accountBalance,
+    }));
+  const seat = new Map(roomPlayers.map(player => [player.playerId, player.joinOrder]));
+  const order = (player: OtherPlayer) => seat.get(player.playerId) ?? Number.MAX_SAFE_INTEGER;
+  return [...seated, ...out].sort((a, b) => order(a) - order(b));
+}
+
+function StatusChip({ status }: { status: FinishedPlayerReason | null }) {
+  if (status === 'BANKRUPT') return <Chip tone="loss" icon={<ActionIcon name="bankrupt" />}>Phá sản</Chip>;
+  if (status === 'LEFT') return <Chip icon={<ActionIcon name="leave" />}>Đã rời</Chip>;
+  return null;
+}
+
+// Game-over dialog: the last player standing, what they own, the others, and a way forward for every role.
 export default function WinnerBanner() {
-  const { state, canPlayAgain, socketFunctions } = useContext(stateContext);
+  const {
+    state, canPlayAgain, socketFunctions, roomPlayers,
+  } = useContext(stateContext);
+  const exit = useRoomExit();
+  const { visible, celebrate } = useVictoryVisibility();
+  const reducedMotion = useEffectiveReducedMotion();
+  const short = useMediaQuery(SHORT_VIEWPORT_QUERY);
+  const othersId = useId();
   const [replaying, setReplaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const winner = state.boardState.winner;
+  if (!winner) return null;
+
   const summary = getWinnerSummary(state);
-  const character = winner?.characterId ? CHARACTER_REGISTRY[winner.characterId] : null;
+  const others = getOtherPlayers(state, roomPlayers);
+  const buttonSize = short ? 'md' : 'lg';
 
   const playAgain = async () => {
     if (!socketFunctions.playAgain || !canPlayAgain || replaying) return;
@@ -48,49 +116,119 @@ export default function WinnerBanner() {
     }
   };
 
-  return winner
-    ? (
-      <Modal open={state.loaded} title="Ván chơi kết thúc" role="alertdialog" className="winner-banner-modal">
-        <div className="winner-banner">
-          <div className="winner-banner__identity">
-            {character
-              ? <img
-                  className="winner-banner__mascot"
-                  src={characterSvgDataUri(character.svgSource, winner.color)}
-                  alt={`Mascot ${character.accessibleLabel}`}
-                />
-              : <div className="winner-banner__mascot winner-banner__mascot--empty" aria-hidden="true" />}
-            <div>
-              <p className="winner-banner__eyebrow">Người chiến thắng</p>
-              <h3 style={{ color: getPlayerDisplayColor(winner.color) }}>{winner.name}</h3>
-              <p>{getPlayerColorLabel(winner.color)}</p>
-            </div>
-          </div>
-          <dl className="winner-banner__summary">
-            <div><dt>Tiền mặt cuối ván</dt><dd>{formatMoney(summary.finalCash)}</dd></div>
-            <div><dt>Tài sản sở hữu</dt><dd>{summary.propertyCount}</dd></div>
-            <div><dt>Nhà</dt><dd>{summary.houseCount}</dd></div>
-            <div><dt>Khách sạn</dt><dd>{summary.hotelCount}</dd></div>
-          </dl>
+  const footer = (
+    <>
+      <div className="victory__note">
+        <p className="victory__hint">
           {canPlayAgain
-            ? (
-              <div className="winner-banner__actions">
-                <button
-                  type="button"
-                  data-modal-autofocus
-                  disabled={replaying}
-                  onClick={() => { void playAgain(); }}
-                >
-                  <RotateCcw className="action-icon" aria-hidden="true" />
-                  {replaying ? 'Đang chuẩn bị ván mới…' : 'Chơi lại'}
-                </button>
-                <p className="winner-banner__hint">Ván mới giữ nguyên phòng và danh sách người chơi đủ điều kiện.</p>
-                {error ? <p className="winner-banner__error" role="alert">{error}</p> : null}
+            ? 'Ván mới giữ nguyên phòng và danh sách người chơi đủ điều kiện.'
+            : 'Đang chờ chủ phòng bắt đầu ván mới'}
+        </p>
+        {error ? <p className="victory__error" role="alert">{error}</p> : null}
+      </div>
+      <div className="victory__actions">
+        {exit
+          ? (
+            <Button
+              variant="secondary"
+              size={buttonSize}
+              icon={<ActionIcon name="leave" />}
+              busy={exit.leaving}
+              onClick={exit.requestLeave}
+            >Rời phòng</Button>
+          )
+          : null}
+        {canPlayAgain
+          ? (
+            <Button
+              data-modal-autofocus
+              size={buttonSize}
+              icon={<ActionIcon name="playAgain" />}
+              busy={replaying}
+              onClick={() => { void playAgain(); }}
+            >{replaying ? 'Đang chuẩn bị ván mới…' : 'Chơi lại'}</Button>
+          )
+          : null}
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      <Modal
+        open={visible}
+        title="Ván chơi kết thúc"
+        role="alertdialog"
+        size="xl"
+        tone="celebration"
+        className="victory"
+        footer={footer}
+      >
+        <div className="victory__content">
+          <section
+            className="victory__hero"
+            style={{ '--victory-color': getPlayerDisplayColor(winner.color) } as CSSProperties}
+          >
+            <div className="victory__avatar">
+              <PlayerAvatar characterId={winner.characterId} colorId={winner.color} size={short ? 64 : 128} active />
+              <span className="victory__crown"><ActionIcon name="crown" /></span>
+            </div>
+            <div className="victory__identity">
+              <p className="victory__eyebrow">Người chiến thắng</p>
+              <h3 className="victory__name">{winner.name}</h3>
+              <p className="victory__color">
+                <span className="victory__swatch" aria-hidden="true" />
+                {getPlayerColorLabel(winner.color)}
+              </p>
+            </div>
+            <dl className="victory__stats">
+              <div className="victory__tile victory__tile--cash">
+                <dt><ActionIcon name="cash" />Tiền mặt cuối ván</dt>
+                <dd><MoneyText amount={summary.finalCash} size="lg" /></dd>
               </div>
+              <div className="victory__tile">
+                <dt><MapPin aria-hidden="true" focusable="false" />Tài sản sở hữu</dt>
+                <dd>{summary.propertyCount}</dd>
+              </div>
+              <div className="victory__tile">
+                <dt><ActionIcon name="house" />Nhà</dt>
+                <dd>{summary.houseCount}</dd>
+              </div>
+              <div className="victory__tile">
+                <dt><ActionIcon name="hotel" />Khách sạn</dt>
+                <dd>{summary.hotelCount}</dd>
+              </div>
+            </dl>
+          </section>
+          {others.length > 0
+            ? (
+              <section className="victory__others" aria-labelledby={othersId}>
+                <h3 id={othersId} className="victory__section-title">Những người chơi khác</h3>
+                <ul className="victory__others-list">
+                  {others.map(player => (
+                    <li key={player.playerId} className="victory__other">
+                      <PlayerAvatar characterId={player.characterId} colorId={player.color} size={44} />
+                      <div className="victory__other-who">
+                        <span className="victory__other-name">{player.name}</span>
+                        <StatusChip status={player.status} />
+                      </div>
+                      {player.finalCash !== null
+                        ? (
+                          <div className="victory__other-cash">
+                            <span>Tiền mặt</span>
+                            <MoneyText amount={player.finalCash} size="sm" />
+                          </div>
+                        )
+                        : null}
+                    </li>
+                  ))}
+                </ul>
+              </section>
             )
             : null}
         </div>
       </Modal>
-    )
-    : null;
+      {celebrate && !reducedMotion ? <VictoryConfetti /> : null}
+    </>
+  );
 }
