@@ -88,4 +88,77 @@ describe('HostLanSharing', () => {
     }));
     expect(await screen.findByText('http://100.64.0.4:53120/?room=OTB-ABC234')).toBeTruthy();
   });
+
+  function installBridge(
+    status: HostRuntimeStatus,
+    refreshNetwork: (options?: { preferredAddress?: string }) => Promise<HostRuntimeStatus> = () => Promise.resolve(status),
+  ) {
+    const refresh = vi.fn(refreshNetwork);
+    window.ownTheBlockDesktop = {
+      host: {
+        getStatus: vi.fn(() => Promise.resolve(status)),
+        refreshNetwork: refresh,
+        onStatusChanged: vi.fn(() => () => undefined),
+      },
+    } as unknown as OwnTheBlockDesktopBridge;
+    return refresh;
+  }
+
+  it('renders nothing outside the desktop host', () => {
+    const { container } = render(<HostLanSharing roomCode="OTB-ABC234" />);
+    expect(container.firstChild).toBeNull();
+
+    window.ownTheBlockDesktop = {} as unknown as OwnTheBlockDesktopBridge;
+    const withoutHost = render(<HostLanSharing roomCode="OTB-ABC234" />);
+    expect(withoutHost.container.firstChild).toBeNull();
+  });
+
+  it('puts the QR code on a captioned paper card next to the link', async () => {
+    installBridge(hostStatus());
+    render(<HostLanSharing roomCode="OTB-ABC234" />);
+    const qr = await screen.findByAltText('Mã QR tham gia phòng OTB-ABC234');
+    expect(qr.closest('figure')?.textContent).toContain('Quét mã để vào phòng');
+    expect(screen.getByText('Mời qua mạng LAN')).toBeTruthy();
+    expect(screen.getByRole('complementary', { name: 'Mời qua mạng LAN' })).toBeTruthy();
+  });
+
+  it('shows a plain warning, no QR code and no copy action when there is no usable LAN address', async () => {
+    installBridge({ ...hostStatus(), lanAvailable: false, selectedLanUrl: null, interfaces: [], advertisedEndpoints: [] });
+    render(<HostLanSharing roomCode="OTB-ABC234" />);
+    expect((await screen.findByText('Chưa có địa chỉ IPv4 LAN dùng được.')).getAttribute('role')).toBe('status');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Sao chép liên kết' }).disabled).toBe(true);
+    expect(screen.queryByAltText(/Mã QR/u)).toBeNull();
+    expect(qr.toDataURL).not.toHaveBeenCalled();
+  });
+
+  it('only offers the network choice when there is more than one network', async () => {
+    installBridge({ ...hostStatus(), interfaces: [interfaces[0]] });
+    render(<HostLanSharing roomCode="OTB-ABC234" />);
+    await screen.findByText('http://192.168.1.15:53120/?room=OTB-ABC234');
+    expect(screen.queryByLabelText('Mạng chia sẻ')).toBeNull();
+  });
+
+  it('says so when the link cannot be copied automatically', async () => {
+    installBridge(hostStatus());
+    render(<HostLanSharing roomCode="OTB-ABC234" />);
+    await screen.findByText('http://192.168.1.15:53120/?room=OTB-ABC234');
+    fireEvent.click(screen.getByRole('button', { name: 'Sao chép liên kết' }));
+    expect(await screen.findByText('Không thể sao chép tự động; hãy chọn liên kết ở trên.')).toBeTruthy();
+  });
+
+  it('refreshes the network on request and shows the work in progress', async () => {
+    let finish: (status: HostRuntimeStatus) => void = () => undefined;
+    const refreshNetwork = installBridge(hostStatus(), () => new Promise<HostRuntimeStatus>(resolve => { finish = resolve; }));
+    render(<HostLanSharing roomCode="OTB-ABC234" />);
+    await screen.findByText('http://192.168.1.15:53120/?room=OTB-ABC234');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Làm mới mạng' }));
+    expect(refreshNetwork).toHaveBeenCalledWith(undefined);
+    const busy = await screen.findByRole<HTMLButtonElement>('button', { name: 'Đang làm mới…' });
+    expect(busy.disabled).toBe(true);
+
+    finish(hostStatus('100.64.0.4'));
+    expect(await screen.findByText('http://100.64.0.4:53120/?room=OTB-ABC234')).toBeTruthy();
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Làm mới mạng' }).disabled).toBe(false);
+  });
 });

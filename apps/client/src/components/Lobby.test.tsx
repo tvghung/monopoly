@@ -1,12 +1,22 @@
 import {
-  cleanup, fireEvent, render, screen,
+  cleanup, fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
+import type { ComponentProps } from 'react';
 import {
   afterEach, describe, expect, it, vi,
 } from 'vitest';
+import { CHARACTER_IDS } from '@monopoly/shared';
+import { CHARACTER_REGISTRY } from '../game/characters/characterRegistry';
+import type { HostRuntimeStatus, OwnTheBlockDesktopBridge } from '../runtime/types';
 import Lobby from './Lobby';
 
-afterEach(cleanup);
+vi.mock('qrcode', () => ({ default: { toDataURL: vi.fn(() => Promise.resolve('data:image/png;base64,lobby')) } }));
+
+afterEach(() => {
+  cleanup();
+  delete window.ownTheBlockDesktop;
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+});
 
 const readyPlayers = [
   { id: 'player-a', name: 'Ada', color: 'red' as const, characterId: 'dog' as const, ready: true, connected: true },
@@ -345,5 +355,276 @@ describe('Lobby', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Đỏ' }));
     expect(onSetAppearance).toHaveBeenCalledWith({ characterId: 'dog', color: 'red' });
+  });
+});
+
+function makeProps(): ComponentProps<typeof Lobby> {
+  return {
+    roomCode: 'ROOM-1',
+    players: readyPlayers,
+    playerId: 'player-a',
+    hostPlayerId: 'player-a',
+    minPlayers: 2,
+    maxPlayers: 4,
+    busy: false,
+    error: null,
+    onSetReady: vi.fn(),
+    onSetAppearance: vi.fn(),
+    onStart: vi.fn(),
+    onLeave: vi.fn(),
+  };
+}
+
+function renderLobby(overrides: Partial<ComponentProps<typeof Lobby>> = {}) {
+  const props = { ...makeProps(), ...overrides };
+  render(<Lobby {...props} />);
+  return props;
+}
+
+function seatOf(name: string): HTMLElement {
+  const seat = screen.getAllByRole('listitem').find(item => within(item).queryByText(new RegExp(`^${name}`, 'u')));
+  if (!seat) throw new Error(`No seat for ${name}`);
+  return seat;
+}
+
+describe('Lobby header', () => {
+  it('shows the room code as the page heading under the "Mã phòng" eyebrow', () => {
+    renderLobby({ roomCode: 'GAME-1234' });
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading.textContent).toBe('GAME-1234');
+    expect(heading.id).toBe('lobby-title');
+    expect(screen.getByText('Mã phòng')).toBeTruthy();
+  });
+
+  it('copies the room code and says so, then says when copying is impossible', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    renderLobby({ roomCode: 'GAME-1234' });
+
+    expect(screen.queryByText('Đã sao chép.')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Sao chép mã phòng' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('GAME-1234'));
+    expect((await screen.findByText('Đã sao chép.')).getAttribute('role')).toBe('status');
+
+    cleanup();
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+    renderLobby();
+    fireEvent.click(screen.getByRole('button', { name: 'Sao chép mã phòng' }));
+    expect(await screen.findByText('Không thể sao chép tự động; hãy chọn mã phòng ở trên.')).toBeTruthy();
+  });
+
+  it('offers settings only when the shell can open them, and leaving unless a request is in flight', () => {
+    const props = renderLobby();
+    expect(screen.queryByRole('button', { name: 'Cài đặt' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Rời phòng' }));
+    expect(props.onLeave).toHaveBeenCalledOnce();
+
+    cleanup();
+    const withSettings = renderLobby({ onSettings: vi.fn(), busy: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Cài đặt' }));
+    expect(withSettings.onSettings).toHaveBeenCalledOnce();
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Rời phòng' }).disabled).toBe(true);
+  });
+
+  it('shows a request error as an alert', () => {
+    renderLobby({ error: 'Không thể đổi mascot.' });
+    expect(screen.getByRole('alert').textContent).toBe('Không thể đổi mascot.');
+  });
+});
+
+describe('Lobby start reason', () => {
+  const grace = readyPlayers[1];
+  const cases: Array<[string, ComponentProps<typeof Lobby>['players'], string]> = [
+    ['too few players', [readyPlayers[0]], 'Cần ít nhất 2 người chơi'],
+    ['someone is not ready', [readyPlayers[0], { ...grace, ready: false }], 'Chờ mọi người sẵn sàng'],
+    ['someone has no mascot', [readyPlayers[0], { ...grace, characterId: null }], 'Có người chưa chọn mascot'],
+    ['someone is offline', [readyPlayers[0], { ...grace, connected: false }], 'Có người đang mất kết nối'],
+    [
+      'two players wear the same mascot and color',
+      [readyPlayers[0], { ...grace, color: 'red', characterId: 'dog' }],
+      'Hai người đang trùng mascot và màu',
+    ],
+  ];
+
+  it.each(cases)('tells the host why "Bắt đầu" is disabled when %s', (_name, players, reason) => {
+    renderLobby({ players });
+    const startButton = screen.getByRole<HTMLButtonElement>('button', { name: 'Bắt đầu' });
+    const reasonLine = screen.getByText(reason);
+    expect(startButton.disabled).toBe(true);
+    expect(reasonLine.id).not.toBe('');
+    expect(startButton.getAttribute('aria-describedby')).toBe(reasonLine.id);
+    expect(startButton.parentElement?.contains(reasonLine)).toBe(true);
+  });
+
+  it('shows the first applicable reason when several apply', () => {
+    renderLobby({ players: [readyPlayers[0], { ...grace, ready: false, connected: false, characterId: null }] });
+    expect(screen.getByText('Chờ mọi người sẵn sàng')).toBeTruthy();
+    expect(screen.queryByText('Có người chưa chọn mascot')).toBeNull();
+    expect(screen.queryByText('Có người đang mất kết nối')).toBeNull();
+  });
+
+  it('shows no reason and no description once the lobby can start', () => {
+    renderLobby();
+    const startButton = screen.getByRole<HTMLButtonElement>('button', { name: 'Bắt đầu' });
+    expect(startButton.disabled).toBe(false);
+    expect(startButton.hasAttribute('aria-describedby')).toBe(false);
+    expect(document.querySelector('.lobby__start-reason')).toBeNull();
+  });
+
+  it('disables the button without inventing a reason while a request is in flight', () => {
+    renderLobby({ busy: true });
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Bắt đầu' }).disabled).toBe(true);
+    expect(document.querySelector('.lobby__start-reason')).toBeNull();
+  });
+
+  it('keeps the reason to the host: a guest sees neither the button nor the reason', () => {
+    renderLobby({ playerId: 'player-b', players: [readyPlayers[0], { ...grace, ready: false }] });
+    expect(screen.queryByRole('button', { name: 'Bắt đầu' })).toBeNull();
+    expect(document.querySelector('.lobby__start-reason')).toBeNull();
+  });
+
+  it('keeps "Bắt đầu" and "sẵn sàng" out of every other button name (the e2e matches by substring)', () => {
+    renderLobby({ players: [...readyPlayers, { id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: false, connected: true }] });
+    expect(screen.queryAllByRole('button', { name: /Bắt đầu/iu })).toHaveLength(1);
+    expect(screen.queryAllByRole('button', { name: /sẵn sàng/iu })).toHaveLength(1);
+  });
+});
+
+describe('Lobby seats', () => {
+  it('fills the empty seats with their number and how to invite someone', () => {
+    renderLobby();
+    const empty = screen.getAllByRole('listitem').filter(item => item.classList.contains('lobby-player--empty'));
+    expect(empty).toHaveLength(2);
+    expect(within(empty[0]).getByText('Chỗ trống 3')).toBeTruthy();
+    expect(within(empty[1]).getByText('Chỗ trống 4')).toBeTruthy();
+    expect(screen.getAllByText('Chia sẻ mã phòng để mời bạn')).toHaveLength(2);
+  });
+
+  it('has no empty-seat hint when all four seats are taken', () => {
+    renderLobby({
+      players: [
+        ...readyPlayers,
+        { id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: false, connected: true },
+        { id: 'player-d', name: 'Sam', color: 'yellow', characterId: 'duck', ready: false, connected: true },
+      ],
+    });
+    expect(screen.queryByText('Chia sẻ mã phòng để mời bạn')).toBeNull();
+    expect(screen.queryByText(/Chỗ trống/u)).toBeNull();
+  });
+
+  it('puts each mascot on a pedestal in the player color and rings only the viewer\'s own seat', () => {
+    renderLobby();
+    const own = seatOf('Ada');
+    const other = seatOf('Grace');
+    expect(own.classList.contains('lobby-player--self')).toBe(true);
+    expect(other.classList.contains('lobby-player--self')).toBe(false);
+    expect(own.querySelector('.lobby-player__disc')?.getAttribute('aria-label')).toBe('Màu Đỏ');
+    expect(other.querySelector('.lobby-player__disc')?.getAttribute('aria-label')).toBe('Màu Xanh dương');
+    expect(own.style.getPropertyValue('--seat-color')).not.toBe(other.style.getPropertyValue('--seat-color'));
+    expect(own.querySelector('.lobby-player__mascot')?.getAttribute('alt')).toBe('');
+  });
+
+  it('writes the ready stamp in words, on the element and classes the stylesheet keys on', () => {
+    renderLobby({ players: [readyPlayers[0], { ...readyPlayers[1], ready: false }] });
+    const ready = within(seatOf('Ada')).getByLabelText('Đã sẵn sàng');
+    const waiting = within(seatOf('Grace')).getByLabelText('Chưa sẵn sàng');
+    expect(ready.classList.contains('lobby-player__ready-dot--ready')).toBe(true);
+    expect(ready.textContent).toBe('Đã sẵn sàng');
+    expect(waiting.classList.contains('lobby-player__ready-dot--not-ready')).toBe(true);
+    expect(waiting.textContent).toBe('Chưa sẵn sàng');
+  });
+
+  it('marks an offline seat with a labelled icon and a dashed, dimmed card', () => {
+    renderLobby({ players: [readyPlayers[0], { ...readyPlayers[1], connected: false }] });
+    const offline = seatOf('Grace');
+    expect(offline.classList.contains('lobby-player--disconnected')).toBe(true);
+    expect(within(offline).getByLabelText('Mất kết nối')).toBeTruthy();
+    expect(seatOf('Ada').classList.contains('lobby-player--disconnected')).toBe(false);
+  });
+
+  it('gives the host badge to the host seat only', () => {
+    renderLobby();
+    expect(within(seatOf('Ada')).getByText('Chủ phòng')).toBeTruthy();
+    expect(within(seatOf('Grace')).queryByText('Chủ phòng')).toBeNull();
+  });
+
+  it('gives only the viewer\'s own seat a ready button, and that button toggles readiness', () => {
+    const props = renderLobby();
+    expect(within(seatOf('Grace')).queryByRole('button')).toBeNull();
+    fireEvent.click(within(seatOf('Ada')).getByRole('button', { name: 'Hủy sẵn sàng' }));
+    expect(props.onSetReady).toHaveBeenCalledWith(false);
+  });
+
+  it('disables the own ready button while offline or while a request is in flight', () => {
+    renderLobby({ players: [{ ...readyPlayers[0], ready: false, connected: false }, readyPlayers[1]] });
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Sẵn sàng' }).disabled).toBe(true);
+
+    cleanup();
+    renderLobby({ players: [{ ...readyPlayers[0], ready: false }, readyPlayers[1]], busy: true });
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Sẵn sàng' }).disabled).toBe(true);
+  });
+
+  it('explains the disabled ready button in visible words, not only a tooltip', () => {
+    renderLobby({ players: [{ ...readyPlayers[0], ready: false, characterId: null }, readyPlayers[1]] });
+    const readyButton = screen.getByRole('button', { name: 'Sẵn sàng' });
+    const hint = within(seatOf('Ada')).getByText('Chọn mascot trước để sẵn sàng');
+    expect(readyButton.getAttribute('aria-describedby')).toBe(hint.id);
+    expect(screen.getByText('?').getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('never shows a mascot name as text or as a tooltip, in any language', () => {
+    renderLobby();
+    for (const id of CHARACTER_IDS) {
+      expect(screen.queryByText(CHARACTER_REGISTRY[id].accessibleLabel)).toBeNull();
+    }
+    const titles = [...document.querySelectorAll('[title]')].map(element => element.getAttribute('title'));
+    for (const id of CHARACTER_IDS) {
+      expect(titles).not.toContain(CHARACTER_REGISTRY[id].accessibleLabel);
+    }
+  });
+
+  it('has no mascot picker for a viewer without a seat', () => {
+    renderLobby({ playerId: 'nobody' });
+    expect(screen.queryByLabelText('Chọn nhân vật của bạn')).toBeNull();
+  });
+});
+
+describe('Lobby LAN invitation', () => {
+  const status: HostRuntimeStatus = {
+    state: 'HOSTING',
+    platform: 'win32',
+    appVersion: '3.0.0',
+    gamePort: 53_120,
+    localEndpoint: 'http://127.0.0.1:53120',
+    lanAvailable: true,
+    interfaces: [],
+    advertisedEndpoints: ['http://192.168.1.15:53120'],
+    selectedLanUrl: 'http://192.168.1.15:53120',
+  };
+
+  function installBridge() {
+    window.ownTheBlockDesktop = {
+      host: {
+        getStatus: vi.fn(() => Promise.resolve(status)),
+        refreshNetwork: vi.fn(() => Promise.resolve(status)),
+        onStatusChanged: vi.fn(() => () => undefined),
+      },
+    } as unknown as OwnTheBlockDesktopBridge;
+  }
+
+  it('shows the invitation card to the LAN host', async () => {
+    installBridge();
+    renderLobby({ showLanSharing: true });
+    expect(await screen.findByText('http://192.168.1.15:53120/?room=ROOM-1')).toBeTruthy();
+  });
+
+  it('keeps it away from guests and from lobbies that are not hosted on this machine', () => {
+    installBridge();
+    renderLobby({ showLanSharing: true, playerId: 'player-b' });
+    expect(screen.queryByText('Mời qua mạng LAN')).toBeNull();
+
+    cleanup();
+    renderLobby();
+    expect(screen.queryByText('Mời qua mạng LAN')).toBeNull();
   });
 });

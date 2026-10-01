@@ -1,6 +1,5 @@
-import { RefreshCw } from 'lucide-react';
-import Button from '../../design-system/components/Button/Button';
-import './screens.css';
+import { ActionIcon } from '../../design-system/icons/ActionIcon';
+import ErrorScreen from './ErrorScreen';
 
 export type BootstrapErrorKind = 'bootstrap' | 'runtime-config' | 'render';
 
@@ -24,11 +23,10 @@ export default function BootstrapErrorScreen({
   actionLabel = kind === 'render' ? 'Tải lại trò chơi' : 'Thử lại',
 }: BootstrapErrorScreenProps) {
   return (
-    <main className="app-screen app-screen--error" role="alert">
-      <p className="app-screen__brand-mark" aria-hidden="true">OWN THE BLOCK</p>
-      <h1>{title}</h1>
-      <p>{errorCopy[kind]}</p>
-      <Button icon={<RefreshCw />} onClick={onRetry}>{actionLabel}</Button>
-    </main>
+    <ErrorScreen
+      title={title}
+      message={errorCopy[kind]}
+      action={{ label: actionLabel, icon: <ActionIcon name="retry" />, onClick: onRetry }}
+    />
   );
 }

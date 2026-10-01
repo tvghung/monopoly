@@ -1,5 +1,5 @@
 import {
-  act, cleanup, fireEvent, render, screen,
+  act, cleanup, fireEvent, render, screen, within,
 } from '@testing-library/react';
 import { StrictMode } from 'react';
 import type { PrivateOffer, PublicRoomState } from '@monopoly/shared';
@@ -313,6 +313,8 @@ describe('App session admission', () => {
     const resume = lastEmission('resume session');
     expect(resume?.args[0]).toEqual({ token: RECONNECT_TOKEN });
     expect(lastEmission('join room')).toBeUndefined();
+    // While the saved session is being resumed, the shared loading screen says so inside the app shell's own main.
+    expect(screen.getByText('Đang khôi phục ván chơi…').closest('section.app-screen--loading')).not.toBeNull();
 
     const resumeAck = resume?.args[1];
     act(() => {
@@ -337,6 +339,7 @@ describe('App session admission', () => {
     });
 
     expect(screen.getByText('Ada (bạn)')).toBeTruthy();
+    expect(screen.queryByText('Đang khôi phục ván chơi…')).toBeNull();
   });
 
   it('joins the selected room when the stored session belongs to another room', () => {
@@ -870,7 +873,8 @@ describe('App session admission', () => {
       }
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Rời phòng' }));
+    // A spectator can leave from the banner as well as from the toolbar; both run the same leave flow.
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Khán giả' })).getByRole('button', { name: 'Rời phòng' }));
     const leaveAck = lastEmission('leave room')?.args[0];
     await act(async () => {
       if (isAckCallback(leaveAck)) {
@@ -1007,7 +1011,9 @@ describe('App session admission', () => {
 
     expect(screen.getByText(/Chế độ Khán Giả/)).toBeTruthy();
     expect(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY)).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Rời phòng' }));
+    // The banner and the toolbar both offer "Rời phòng"; this test leaves through the toolbar.
+    expect(screen.getAllByRole('button', { name: 'Rời phòng' })).toHaveLength(2);
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.room-toolbar .room-exit-button') as HTMLButtonElement);
     const leaveAck = lastEmission('leave room')?.args[0];
     act(() => {
       if (isAckCallback(leaveAck)) {

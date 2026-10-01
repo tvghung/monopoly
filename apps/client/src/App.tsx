@@ -21,9 +21,9 @@ import type {
   SetAppearanceRequest,
 } from '@monopoly/shared';
 import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
-import {
-  ArrowLeft, Flag, RefreshCw, X as XIcon,
-} from 'lucide-react';
+import { Flag, X as XIcon } from 'lucide-react';
+import ErrorScreen from './app/screens/ErrorScreen';
+import LoadingScreen from './app/screens/LoadingScreen';
 import Board from './components/Board';
 import ConnectionOverlay from './components/ConnectionOverlay';
 import JoinForm from './components/JoinForm';
@@ -111,17 +111,6 @@ const terminalSessionCodes = new Set<AckError['code']>([
 ]);
 const ACK_TIMEOUT_MS = 10_000;
 
-function LoadingScreen({ message }: { message: string }) {
-  return (
-    <section className="app-status" role="status" aria-live="polite">
-      <span className="connection-overlay__spinner" aria-hidden="true" />
-      <h1>Own the Block</h1>
-      <p>Cờ Tỷ Phú Việt Nam</p>
-      <p>{message}</p>
-    </section>
-  );
-}
-
 interface FailureScreenProps {
   title: string;
   failure: AppFailure;
@@ -129,29 +118,24 @@ interface FailureScreenProps {
 }
 
 function FailureScreen({ title, failure, onRetry }: FailureScreenProps) {
-  const ActionIcon = failure.reloadRequired
-    ? RefreshCw
-    : failure.returnToLauncher ? ArrowLeft : RefreshCw;
+  const returnsToLauncher = !failure.reloadRequired && failure.returnToLauncher;
   return (
-    <section className="app-status" role="alert">
-      <h1>{title}</h1>
-      <p>{failure.message}</p>
-      {onRetry
-        ? (
-          <button
-            type="button"
-            onClick={failure.reloadRequired ? () => window.location.reload() : onRetry}
-          >
-            <ActionIcon className="action-icon" aria-hidden="true" />
-            {failure.reloadRequired
-              ? 'Tải lại trò chơi'
-              : failure.returnToLauncher
-                ? 'Quay về trình khởi động LAN'
-                : failure.retryable ? 'Thử lại' : 'Quay về màn hình vào phòng'}
-          </button>
-        )
-        : null}
-    </section>
+    <ErrorScreen
+      as="section"
+      title={title}
+      message={failure.message}
+      action={onRetry
+        ? {
+          label: failure.reloadRequired
+            ? 'Tải lại trò chơi'
+            : failure.returnToLauncher
+              ? 'Quay về trình khởi động LAN'
+              : failure.retryable ? 'Thử lại' : 'Quay về màn hình vào phòng',
+          icon: <RegistryIcon name={returnsToLauncher ? 'back' : 'retry'} />,
+          onClick: failure.reloadRequired ? () => window.location.reload() : onRetry,
+        }
+        : undefined}
+    />
   );
 }
 
@@ -896,7 +880,7 @@ export default function App({
       <stateContext.Provider value={contextValue}>
         <roomExitContext.Provider value={roomExit}>
         <main className="App">
-          {phase === 'RESTORING' ? <LoadingScreen message="Đang khôi phục ván chơi…" /> : null}
+          {phase === 'RESTORING' ? <LoadingScreen as="section" stage="restoring" /> : null}
           {phase === 'JOIN' || phase === 'JOINING'
             ? (
               <JoinForm
