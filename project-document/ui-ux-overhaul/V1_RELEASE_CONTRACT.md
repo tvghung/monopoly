@@ -74,6 +74,13 @@ landing. The client shows the real artwork, title, deck badge, and authoritative
 message in a DOM modal; there is no player Draw step, face-down wait, flip, spin,
 or focused WebGL card canvas.
 
+Visual overhaul V2 (plan 04) restyled this surface without touching the contract: the card is the shared `Modal` primitive on
+its card layer (z-index above ordinary dialogs, below toasts and the connection overlay), drawn as a printed card (deck
+frame, emblem, badge, artwork, message, one `Đóng`). The entrance is a 320 ms translate, slight rotation and fade (a 120 ms
+fade with reduced motion); there is still no flip, spin or Draw step. `data-testid="card-interaction-overlay"` and
+`data-card-stage="REVEALED"` now sit on the stage element inside the dialog. Every clause of this section is still covered by
+`CardInteractionOverlay.test.tsx` and re-reviewed manually at gate G4.
+
 Only the acting player can press the visible `Đóng` button. Dismissal is an
 operation-scoped authoritative command: it applies the existing card effect,
 rotates ordinary cards only after application, preserves jail-free ownership
@@ -89,7 +96,8 @@ original local SVG under `apps/client/public/art/cards/`. The card-art validator
 checks exact deck coverage, safe SVG content, build copies, and packaged
 renderer resources. The development-only gallery is available at
 `http://127.0.0.1:5173/?phase4-uat=1&card-gallery=1` after starting the client;
-it is a visual-review aid, not production navigation or automated acceptance.
+it is a visual-review aid, not production navigation or automated acceptance. It draws each card face with the same
+artwork, title and message as the V2 card modal.
 
 ## Baseline and enforcement
 

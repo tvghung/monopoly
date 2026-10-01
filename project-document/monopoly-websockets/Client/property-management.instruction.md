@@ -2,9 +2,20 @@
 
 ## Entry/data
 
-Inline detail mở khi click tile trên Board `/`; không route/permission key.
-`BackOfCard.tsx` đọc canonical `tileState`, public ownership/building,
-stable `playerId` và typed command functions.
+`PropertyInspectionModal` mở khi click tile trên Board `/` (hoặc nút ô tương ứng); không route/permission key.
+`buildDeedCardModel` (`game/ui/property/deedCardModel.ts`) đọc canonical `tileState`, public ownership/building,
+stable `playerId` và derive mọi dòng của thẻ; `PropertyDeedCard` (`full`/`compact`/`chip`) chỉ vẽ model đó.
+
+## Deed card, inspection và portfolio
+
+- `PropertyDeedCard`: street (dải màu district + bảng tiền thuê 0–5 Nhà với dòng hiện tại `aria-current`), nhà ga, tiện ích,
+  và ô đặc biệt (header giấy trung tính, quy tắc ô). Header dùng màu district chỉ để định danh tài sản, chassis giữ trung tính.
+  Tiền thuê nhóm đầy đủ chỉ là ghi chú quy tắc (client không tính nhân đôi — giới hạn đã ghi nhận).
+- `PropertyInspectionModal` (`Modal` `md`, `headerAccent` = màu district): thẻ đầy đủ + footer hành động (`Bán Nhà` với lý do khi bị
+  khóa, `Đề nghị mua`); không đánh dấu "Sau khi xây". Escape/outside click/focus return như trước.
+- `OwnedPropertiesControl` → "Tài sản của tôi" (`Modal` `lg`): tóm tắt (số dư authoritative, số tài sản/nhà/khách sạn) + deed compact
+  nhóm theo district. `PlayerPortfolioModal` mở từ player card HUD, chỉ đọc.
+- `DebtPanel` bán tài sản qua deed compact; xem [turn-actions.instruction.md](./turn-actions.instruction.md).
 
 ## Presentation
 

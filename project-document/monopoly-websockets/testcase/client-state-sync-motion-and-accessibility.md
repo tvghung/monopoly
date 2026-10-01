@@ -141,3 +141,13 @@ The executable procedure is documented in
 [`project-document/ui-ux-overhaul/PHASE_1_1_MANUAL_ACCEPTANCE.md`](../../ui-ux-overhaul/PHASE_1_1_MANUAL_ACCEPTANCE.md).
 The manual boxes above remain unchecked until a human run records the environment,
 players, and observed result.
+
+## Modal v2 and settings (visual overhaul V2, plan 04)
+
+- [x] `[AUTO][CLIENT]` `Modal.test.tsx`: size/placement/backdrop/footer/tone/layer props, exit animation, only the top dialog handles
+  Escape/Tab, Tab and Shift+Tab from an element outside the ring stay inside, focus returns to the opener (also under React
+  StrictMode) or to the dialog below, `describedBy`.
+- [x] `[AUTO][CLIENT]` `Slider.test.tsx`, `Switch.test.tsx`, `SettingsPanel.test.tsx`, `selectors.test.tsx`: keyboard-operable segmented
+  controls and switches, the slider value is announced once, the reduced-motion hint describes its switch, OS reduced motion is
+  known at the first render, the desktop-only "Cửa sổ" section.
+- [ ] `[MANUAL-E2E]` G4: Vietnamese typography and WebKit rendering of every plan 04 surface (Design Lab `surfaces` captures).

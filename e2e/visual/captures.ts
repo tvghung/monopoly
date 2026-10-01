@@ -369,6 +369,14 @@ export const CAPTURES: readonly CaptureEntry[] = [
     surfaces: PLAN04_SURFACES,
     viewports: [VIEWPORTS.laptop, VIEWPORTS.minimum, VIEWPORTS.phoneLandscape, VIEWPORTS.smallPhoneLandscape],
   }),
+  // Plan 04 T04.16: the V1 card contract review on the real board (the card over the WebGL scene, for each role).
+  ...harnessCaptures({
+    plan: '04',
+    folder: 'g4/cards',
+    scenarios: ['chance', 'chest', 'reconnect-revealed', 'spectator-revealed'],
+    viewports: [VIEWPORTS.laptop, VIEWPORTS.phoneLandscape],
+    surface: 'cards',
+  }),
   // Concept screens at the standard viewports (plan 01 T01.10).
   ...labCaptures({ plan: '01', folder: 'concepts', sections: LAB_CONCEPT_SCREENS, viewports: STANDARD_VIEWPORTS, surface: 'concept' }),
 ];

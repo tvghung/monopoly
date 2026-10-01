@@ -49,3 +49,8 @@
   cyclic Seat order; existing tokens resume the same Seats with no session cascade.
 - [ ] `[PG]` Reset rerun is idempotent and malformed/mid-failure transaction cannot
   leave mixed v2/v3 state.
+
+## Mascot labels (visual overhaul V2, plan 04)
+
+- [x] `[AUTO][CLIENT]` `characterRegistry.test.ts`, `PlayerAvatar.test.tsx`: mascots have a Vietnamese `accessibleLabel` for assistive
+  technology only; `displayName` no longer exists and no screen shows a mascot name (image only).

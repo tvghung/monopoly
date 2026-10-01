@@ -13,10 +13,32 @@ bằng application session state, không bằng `socket.id` hay optimistic `join
 
 - `apps/client/src/App.tsx`
 - `apps/client/src/playerSessionStorage.ts`
-- `apps/client/src/components/JoinForm.tsx`
+- `apps/client/src/components/JoinForm.tsx`, `JoinHero.tsx`, `DesktopMultiplayerLauncher.tsx`
+- `apps/client/src/app/screens/` (`LoadingScreen`, `ErrorScreen`, `BootstrapErrorScreen`, `ScreenBrand`)
 - `apps/client/src/components/ConnectionOverlay.tsx`
 - `apps/client/src/components/SpectatorBanner.tsx`
 - Shared types/events/schemas under `packages/shared/src/`
+
+## Màn hình trước phòng (plan 04)
+
+- **Landing** (`JoinForm`): hero (tám mascot trên một board mini, trang trí, không tên) + thẻ vào phòng.
+  Toggle **"Loại phòng"**: `Có mã phòng` (mặc định, hiện ô mã phòng) / `Phòng chung` (ẩn ô mã, gửi
+  `LOBBY` — mọi người chọn Phòng chung vào cùng một phòng). Khi tên còn trống, nút "Vào phòng" bị disable
+  kèm lý do viết ra. `?room=` vẫn prefill, không bao giờ tự submit. Hero chỉ chào bằng hai cú nhảy lúc mở
+  (không loop; tắt khi reduced motion setting hoặc OS); border ô nhập dùng `--entry-field-border` đạt 3:1.
+- **Launcher desktop** (`DesktopMultiplayerLauncher`, không cần provider): tiêu đề "Chơi qua mạng LAN" và
+  các thẻ chọn `Tạo phòng trên máy này` / `Tham gia phòng LAN` / `Máy chủ đã cấu hình` (chỉ khi có
+  `configuredRuntimeConfig`); khi Host đang chạy có thêm `Tiếp tục Host đang chạy` và `Dừng Host`. Form
+  giữ id `desktop-player-name`, `desktop-lan-address`, `desktop-lan-room`; "Chọn lại chế độ" trả focus về
+  thẻ đã mở form. Ghi chú bảo mật dưới thẻ ẩn trong landscape thấp khi Host đang chạy để vừa 375 px.
+- **Loading**: một `LoadingScreen` (`as="main"` lúc bootstrap, `as="section"` lúc `RESTORING` trong app):
+  brand, hàng mascot, đúng stage thật (không phần trăm giả), ba chấm; đứng yên khi reduced motion hiệu lực.
+- **Lỗi**: `ErrorScreen` (mascot bối rối, tiêu đề, thông điệp, tối đa một hành động) dùng cho `REPLACED`
+  ("Phiên chơi đã được mở ở nơi khác", không có nút), `ERROR` và `BootstrapErrorScreen`. `role="alert"` nằm
+  trên khối chữ, không trên cả `main`.
+- **Mất kết nối**: `ConnectionOverlay` là panel giấy (`role="status"`) nằm trên lớp thẻ bài, giữ snapshot
+  phía dưới và khóa mutation. **Khán giả**: `SpectatorBanner` (pill "Chế độ Khán Giả", giải thích, nút
+  "Rời phòng" chạy flow rời phòng của app qua `useRoomExit()`).
 
 ## First join
 

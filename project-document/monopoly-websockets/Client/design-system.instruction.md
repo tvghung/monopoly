@@ -64,16 +64,26 @@ Kết quả đo trong Design Lab: Baloo 2 có `tnum` thật (chênh lệch bề 
 | `Panel` (`GamePanel` re-export) | `title`, `tone`, `padding`, `as` | Grain giấy ở v2. |
 | `Badge`, `Chip` | variant/tone | Mọi cặp màu là cặp đã kiểm contrast. |
 | `SegmentedControl` | `label`, `options`, `value`, `onChange` | `radiogroup`, phím mũi tên chọn và di chuyển focus, Home/End, một tab stop. |
-| `Switch` | `label`, `checked`, `onChange`, `description` | Checkbox native `role="switch"`. |
-| `Slider` | `label`, `value`, `min`, `max`, `step`, `formatValue` | `input[type=range]` native + `<output>`. |
+| `Switch` | `label`, `checked`, `onChange`, `description`, `describedBy` | Checkbox native `role="switch"`; `aria-describedby` gộp `description` và `describedBy`. |
+| `Slider` | `label`, `value`, `min`, `max`, `step`, `formatValue` | `input[type=range]` native + `<output aria-hidden>` (giá trị được đọc qua `aria-valuetext`, không đọc hai lần). |
 | `MoneyText` | `amount`, `size`, `tone`, `signed` | Luôn qua `formatMoney`; gain/loss có dấu + icon. |
 | `DeltaChip` | `delta`, `reducedMotion` | Thuần trình bày; vòng đời do HUD điều khiển. |
 | `PlayerAvatar` | `characterId`, `colorId`, `size`, `active`, `status` | `alt` = "Mascot <accessibleLabel>" (tiếng Việt), không có `title`, không có tên hiển thị. |
 | `GroupPips` | `groups` | Rỗng / một phần / đủ bộ; `aria-label` tóm tắt. |
-| `Modal`, `ConfirmationDialog`, `ToastView` | như trước | Vẫn là primitive prompt duy nhất; thời lượng lấy từ `motionTokens`. |
+| `Modal` | `open`, `title`, `eyebrow`, `size` (`sm/md/lg/xl` = 400/520/680/880 px), `placement` (`center/sheet`), `backdrop` (`dim/clear`), `footer`, `tone` (`default/danger/celebration`), `layer` (`modal` z 60 / `card` z 70), `headerAccent`, `describedBy`, `role`, `onClose`, `closeOnEscape`, `closeOnOutsideClick` | Xem mục "Modal v2". Vẫn là primitive prompt duy nhất. |
+| `ConfirmationDialog`, `ToastView` | như trước (nội dung/ nút dùng `Button` v2) | `ConfirmationDialog` luôn nằm trên mọi dialog khác; thời lượng lấy từ `motionTokens`. |
 
-`game/characters/characterRegistry.ts` có thêm `accessibleLabel` (Vietnamese, chỉ cho công
-nghệ hỗ trợ); `displayName` cũ còn tồn tại cho tới plan 04.
+`game/characters/characterRegistry.ts` có `accessibleLabel` (Vietnamese, chỉ cho công nghệ hỗ trợ: `alt`/`aria-label`); `displayName` đã bị xóa (plan 04, OD-04-1): mascot chỉ nhận diện bằng hình, không hiện tên nào ở màn hình.
+
+`design-system/useMediaQuery.ts` cung cấp `useMediaQuery(query)` (`useSyncExternalStore`, false khi không có `matchMedia`) và `SHORT_VIEWPORT_QUERY` (`(orientation: landscape) and (max-height: 31rem)`): chỉ dùng để chọn biến thể component (deed `compact`, nút `md`, ảnh 64 px), còn style nằm trong CSS.
+
+## Modal v2
+
+- `Modal` render qua portal với `AnimatePresence` (exit 200 ms, 120 ms fade khi reduced motion). Mọi dialog mở nằm trong một stack ở mức module: **chỉ dialog trên cùng** nhận Escape/Tab; dialog đang đóng mất `aria-modal`, thành `inert` và không còn giữ focus.
+- Focus ban đầu: `[data-modal-autofocus]`, nếu không có thì phần tử tab được đầu tiên, nếu không có thì chính card. Phần tử cần focus nhưng không phải tab stop dùng `tabIndex={-1}` kèm `data-modal-autofocus`; Tab/Shift+Tab từ phần tử nằm ngoài vòng tab vẫn quay lại trong dialog.
+- Khi đóng, focus quay lại phần tử đã mở dialog (chụp một lần, không bị React StrictMode ghi đè), hoặc vào dialog bên dưới nếu phần tử đó nằm trong nó (ví dụ `ConfirmationDialog` mở từ nút trong dialog nợ).
+- `placement="sheet"` + `backdrop="clear"` là cách dựng bottom sheet cho quyết định mua/phát triển: bàn cờ vẫn nhìn thấy, nhưng nền chặn pointer. `layer="card"` (z 70) dành cho thẻ Cơ Hội/Khí Vận: nằm trên dialog thường, dưới toast và `ConnectionOverlay`.
+- `describedBy` bắt buộc cho `alertdialog` (nợ, thắng). `headerAccent` là màu dải trên header (màu district của deed).
 
 ## Icon registry
 
@@ -95,19 +105,21 @@ registry khi plan sau chạm vào.
 
 ## Design Lab (dev-only)
 
-`?phase4-uat=1&design-lab=1[&section=<id>][&theme=v1|v2]` trong harness (build cần
+`?phase4-uat=1&design-lab=1[&section=<id>][&theme=v1|v2][&surface=<id>][&chrome=hidden]` trong harness (build cần
 `VITE_PHASE4_UAT=1`; bản production chỉ chứa stub rỗng). Section: `tokens`, `typography`,
 `components`, `game-ui`, `scene-palette`, `purchase`, `lobby`, `landing`, `hud` (HUD vẽ concept
-lên board thật của fixture `stations-4`). Concept là tài liệu review, không phải component
-production. Sidecar `data-design-lab-ready="true"` báo đã sẵn sàng chụp.
+lên board thật của fixture `stations-4`), `surfaces` (plan 04: **component production thật** với provider/fixture, không
+cần server). Concept là tài liệu review, không phải component production; `surfaces` thì ngược lại.
+
+`surfaces` render từng bề mặt đứng một mình qua `&surface=<id>` (`&chrome=hidden` bỏ thanh Lab để chụp): registry `surfaceRegistry.tsx` gồm 54 id theo cụm — `buy*`/`development-*`, `deeds`, `inspection-*`, `assets*`, `player-portfolio`, `jail`, `debt-*`, `forced-sale-*`, `trade`, `incoming-offers`, `card-*`, `winner-*`, `settings*`, `landing*`, `launcher*`, `lobby-*`, `confirm-forfeit`, `toasts`, `loading*`, `bootstrap-error`, `failure-*`, `connection`, `spectator`. `SurfaceProviders` dựng state/settings giả và khôi phục `localStorage` cài đặt khi surface đóng; fixture desktop cài `window.ownTheBlockDesktop` giả rồi gỡ khi unmount. Thư viện `DeedGallery` hiển thị mọi ô (street, nhà ga, tiện ích, ô đặc biệt) bằng `PropertyDeedCard`. Sidecar `data-design-lab-ready="true"` báo đã sẵn sàng chụp.
 
 Tham số harness khác: `scenario=<key>`, `uat-controls=collapsed|hidden`, và
 `main.phase4-uat[data-uat-ready="true"]` (hàng đợi presentation idle + mọi bước đã chạy).
 
 ## Công cụ chụp evidence
 
-`pnpm visual:capture` (`playwright.visual.config.ts`, `e2e/visual/captures.ts`,
-`e2e/visual/capture.visual.ts`) chụp từng mục manifest thành PNG + JSON diagnostics vào
+`pnpm visual:capture [--grep "<regex id>"]` (`playwright.visual.config.ts`, `e2e/visual/captures.ts`,
+`e2e/visual/capture.visual.ts`; nhóm `04/g4` = 54 surface của Design Lab + kịch bản harness thẻ bài, `surfaceCaptures.test.ts` giữ manifest bằng registry) chụp từng mục manifest thành PNG + JSON diagnostics vào
 `project-document/visual-overhaul-v2/evidence/<plan>/`. Không thuộc `pnpm test`.
 
 - `VISUAL_BROWSER_CHANNEL=chrome|msedge` dùng trình duyệt cài sẵn; `VISUAL_HEADED=1` nếu

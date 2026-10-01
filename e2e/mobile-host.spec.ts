@@ -216,6 +216,9 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
     await guest.setViewportSize({ width: 667, height: 375 });
     const start = page.getByRole('button', { name: 'Bắt đầu' });
     await expect(start).toBeEnabled();
+    // The lobby (header, four seats, mascot picker) is taller than 375px and keeps the scroll offset of the ready step; the
+    // host scrolls to the primary action, which then has to fit and be at least 44px.
+    await start.scrollIntoViewIfNeeded();
     await expectTouchTarget(start, { width: 667, height: 375 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await start.click();

@@ -39,3 +39,18 @@
 - [ ] `[MANUAL-E2E]` Two-player/four-player finish, host replay, bankrupt return,
   explicit-left exclusion, spectator continuity, reconnect around replay, activity
   readability, reduced motion, WebGL fallback and one full second match.
+
+## Victory dialog (visual overhaul V2, plan 04)
+
+- [x] `[AUTO][CLIENT]` `WinnerBanner.test.tsx`: every role has "Rời phòng" through the room exit context (spectators and
+  non-hosts included), only the authenticated host has "Chơi lại", the primary action comes first in DOM/Tab order, the
+  alertdialog is described by the winner and the next step, and a failed leave request (`RoomExitContextValue.error`) is shown
+  inside the dialog.
+- [x] `[AUTO][CLIENT]` `WinnerBanner.test.tsx`: a player without "Chơi lại" starts on the "Kết quả ván chơi" region (a tab
+  stop that lets the keyboard scroll the body), never on "Rời phòng"; the 128 px hero and `lg` buttons switch to 64 px and `md`
+  in `SHORT_VIEWPORT_QUERY`.
+- [x] `[AUTO][CLIENT]` `useVictoryVisibility.test.tsx`, `WinnerBanner.test.tsx`: a winner from a live update waits for the
+  presentation queue to be idle (8 s fallback); a snapshot/reconnect shows at once; one confetti burst (`VictoryConfetti.test.tsx`,
+  ≤ 1200 ms) only on a live appearance and never with reduced motion.
+- [ ] `[MANUAL-E2E]` G4: victory dialog at 360–1920 px in Chromium and WebKit (stats legible, others list scrolls on a short
+  screen, confetti visible once), reduced motion, and a full replay from the host.

@@ -57,3 +57,16 @@
   resumes exactly once.
 - [ ] `[SOCKET]` Save failure causes no partial balance, claim removal, revision,
   ACK success or broadcast.
+
+## Decision sheets, jail and card reveal (visual overhaul V2, plan 04)
+
+- [x] `[AUTO][CLIENT]` `DecisionPrompts.test.tsx`, `DecisionSheets.test.tsx`: Buy and Development are bottom sheets with a clear
+  backdrop, keep their request guards and authoritative gating, and say why "Mua tài sản" is disabled.
+- [x] `[AUTO][CLIENT]` `JailPanel.test.tsx`: a named region without a live region around the buttons, one status line for the
+  confirmation, one alert for an error, the bail button described by the balance warning.
+- [x] `[AUTO][CLIENT]` `CardInteractionOverlay.test.tsx` (V1 card contract): immediate reveal, no Draw step (a legacy
+  `AWAITING_DRAW` card renders nothing), one "Đóng" for the acting player only, no Escape/backdrop close, observers wait, reconnect
+  keeps the card, the presentation must reach `REVEALED` first, all 28 cards (title from the manifest, badge, message, artwork file),
+  focus returns to "Đóng" after a failed dismissal, a confirmation can open above the card.
+- [ ] `[MANUAL-E2E]` G4 V1 card review (harness scenarios `chance`, `chest`, `reconnect-revealed`, `spectator-revealed`) and the
+  jail strip against the roll button at 812×375 and 667×375.
