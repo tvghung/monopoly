@@ -1,5 +1,5 @@
 import {
-  cleanup, fireEvent, render, screen,
+  cleanup, fireEvent, render, screen, within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CHARACTER_IDS } from '@monopoly/shared';
@@ -12,8 +12,10 @@ afterEach(cleanup);
 describe('ErrorScreen', () => {
   it('announces the failure with its title as the heading and its message under it', () => {
     render(<ErrorScreen title="Không thể khôi phục ván chơi" message="Không thể kết nối đến máy chủ trò chơi." />);
-    expect(screen.getByRole('alert')).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 1, name: 'Không thể khôi phục ván chơi' })).toBeTruthy();
+    const alert = screen.getByRole('alert');
+    expect(within(alert).getByRole('heading', { level: 1, name: 'Không thể khôi phục ván chơi' })).toBeTruthy();
+    // The alert is the text, not the whole screen, so the page keeps its main landmark.
+    expect(screen.getByRole('main').getAttribute('role')).toBeNull();
     expect(screen.getByText('Không thể kết nối đến máy chủ trò chơi.')).toBeTruthy();
   });
 

@@ -27,14 +27,17 @@ export default function ErrorScreen({
   title, message, action, as: Element = 'main',
 }: ErrorScreenProps) {
   return (
-    <Element className="app-screen app-screen--error" role="alert">
+    <Element className="app-screen app-screen--error">
       <p className="app-screen__brand-mark" aria-hidden="true">OWN THE BLOCK</p>
       <div className="app-screen__figure" aria-hidden="true">
         <img className="app-screen__puzzled" src={PUZZLED_MASCOT} alt="" draggable={false} />
         <span className="app-screen__question">?</span>
       </div>
-      <h1 className="app-screen__title">{title}</h1>
-      <p className="app-screen__message">{message}</p>
+      {/* The alert is the text only: a role on the whole screen would replace the main landmark. */}
+      <div className="app-screen__alert" role="alert">
+        <h1 className="app-screen__title">{title}</h1>
+        <p className="app-screen__message">{message}</p>
+      </div>
       {action ? <Button size="lg" icon={action.icon} onClick={action.onClick}>{action.label}</Button> : null}
     </Element>
   );
