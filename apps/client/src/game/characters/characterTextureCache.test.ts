@@ -52,6 +52,7 @@ class MockImage {
 function mockImagePipeline(): {
   images: MockImage[];
   drawImage: ReturnType<typeof vi.fn>;
+  context: { fillRect: ReturnType<typeof vi.fn>; globalCompositeOperation: string; fillStyle: string };
 } {
   MockImage.instances = [];
   vi.stubGlobal('Image', MockImage);
@@ -59,9 +60,12 @@ function mockImagePipeline(): {
   const context = {
     clearRect: vi.fn(),
     drawImage,
-  } as unknown as CanvasRenderingContext2D;
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context);
-  return { images: MockImage.instances, drawImage };
+    fillRect: vi.fn(),
+    globalCompositeOperation: 'source-over',
+    fillStyle: '#000000',
+  };
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as unknown as CanvasRenderingContext2D);
+  return { images: MockImage.instances, drawImage, context };
 }
 
 describe('character texture cache lifecycle', () => {
@@ -71,8 +75,8 @@ describe('character texture cache lifecycle', () => {
     resetCharacterTextureCacheForTests();
   });
 
-  it('uses the exact colorized URI and rasterizes a ready 256px CanvasTexture', () => {
-    const { images, drawImage } = mockImagePipeline();
+  it('uses the exact colorized URI and bakes a ready 320px die-cut CanvasTexture', () => {
+    const { images, drawImage, context } = mockImagePipeline();
     const ready = vi.fn();
     const release = acquireCharacterTexture('dog', 'red', ready);
 
@@ -87,13 +91,25 @@ describe('character texture cache lifecycle', () => {
     const texture = ready.mock.calls[0]?.[0] as THREE.CanvasTexture;
     expect(ready).toHaveBeenCalledTimes(1);
     expect(texture).toBeInstanceOf(THREE.CanvasTexture);
-    expect(texture.image.width).toBe(256);
-    expect(texture.image.height).toBe(256);
+    expect(texture.image.width).toBe(320);
+    expect(texture.image.height).toBe(320);
     expect(texture.colorSpace).toBe(THREE.SRGBColorSpace);
     expect(texture.minFilter).toBe(THREE.LinearFilter);
     expect(texture.magFilter).toBe(THREE.LinearFilter);
     expect(texture.generateMipmaps).toBe(false);
-    expect(drawImage).toHaveBeenCalledWith(images[0], 0, 0, 256, 256);
+    // The art keeps 256 px in the middle: 16 offset copies grow the silhouette by 6 px, turned white, then the art on top.
+    expect(drawImage).toHaveBeenCalledTimes(17);
+    for (const call of drawImage.mock.calls.slice(0, 16)) {
+      expect(call[0]).toBe(images[0]);
+      expect(Math.hypot(call[1] - 32, call[2] - 32)).toBeCloseTo(6, 5);
+      expect(call[3]).toBe(256);
+      expect(call[4]).toBe(256);
+    }
+    expect(drawImage).toHaveBeenLastCalledWith(images[0], 32, 32, 256, 256);
+    expect(context.fillRect).toHaveBeenCalledOnce();
+    expect(context.fillRect).toHaveBeenCalledWith(0, 0, 320, 320);
+    expect(context.fillStyle).toBe('#ffffff');
+    expect(context.globalCompositeOperation).toBe('source-over');
     release();
   });
 
