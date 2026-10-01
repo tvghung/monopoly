@@ -119,10 +119,37 @@ function surfaceCaptures(options: {
   })));
 }
 
-/** The surfaces that exist before plan 04 restyles them (baseline) and, later, the G4 package. */
-export const PLAN04_SURFACES = [
+/** The surfaces that existed before plan 04 restyled them: the `04/baseline` group (a historical record, do not extend). */
+export const PLAN04_BASELINE_SURFACES = [
   'landing', 'landing-prefilled', 'lobby-host', 'lobby-guest', 'lobby-alone', 'settings', 'loading', 'bootstrap-error', 'connection',
   'spectator', 'buy', 'buy-short', 'development-houses', 'development-hotel', 'jail', 'winner-host', 'winner-guest',
+] as const;
+
+/**
+ * Every Design Lab surface of plan 04 (`apps/client/src/dev/design-lab/surfaces/*Surfaces.tsx`) for the `04/g4` review package.
+ * `surfaceCaptures.test.ts` in the client keeps this list equal to the registry, so a new fixture fails a test until it is here.
+ */
+export const PLAN04_SURFACES = [
+  // Landing and launcher
+  'landing', 'landing-prefilled', 'landing-public', 'landing-busy',
+  'launcher', 'launcher-running', 'launcher-host', 'launcher-join',
+  // Lobby
+  'lobby-host', 'lobby-guest', 'lobby-alone', 'lobby-full', 'lobby-start-blocked', 'lobby-lan',
+  // Settings
+  'settings', 'settings-desktop', 'settings-reduced-motion',
+  // Decisions
+  'buy', 'buy-short', 'development-houses', 'development-hotel', 'jail',
+  'debt-debtor', 'debt-debtor-sale-open', 'debt-observer', 'forced-sale-buyer', 'forced-sale-seller', 'trade', 'incoming-offers',
+  // Inspection and portfolios
+  'deeds', 'inspection-street', 'inspection-own-street', 'inspection-railroad', 'inspection-unowned', 'inspection-special',
+  'assets', 'assets-empty', 'player-portfolio',
+  // Card reveal
+  'card-chance', 'card-chest', 'card-waiting',
+  // Victory
+  'winner-host', 'winner-guest', 'winner-spectator', 'winner-many-players',
+  // Screens
+  'confirm-forfeit', 'toasts', 'loading', 'loading-restoring', 'bootstrap-error', 'failure-replaced', 'failure-error',
+  'connection', 'spectator',
 ] as const;
 
 function harnessCaptures(options: {
@@ -332,8 +359,15 @@ export const CAPTURES: readonly CaptureEntry[] = [
   ...surfaceCaptures({
     plan: '04',
     folder: 'baseline',
-    surfaces: PLAN04_SURFACES,
+    surfaces: PLAN04_BASELINE_SURFACES,
     viewports: [VIEWPORTS.laptop, VIEWPORTS.phoneLandscape],
+  }),
+  // Plan 04 T04.16: the gate G4 package, every surface at the standard sizes plus the smallest phone landscape.
+  ...surfaceCaptures({
+    plan: '04',
+    folder: 'g4',
+    surfaces: PLAN04_SURFACES,
+    viewports: [VIEWPORTS.laptop, VIEWPORTS.minimum, VIEWPORTS.phoneLandscape, VIEWPORTS.smallPhoneLandscape],
   }),
   // Concept screens at the standard viewports (plan 01 T01.10).
   ...labCaptures({ plan: '01', folder: 'concepts', sections: LAB_CONCEPT_SCREENS, viewports: STANDARD_VIEWPORTS, surface: 'concept' }),

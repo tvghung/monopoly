@@ -123,6 +123,29 @@
 .player-card .ds-group-pips__pip { width: 10px; height: 10px; border-width: 1.5px; border-radius: 2px; }
 .player-card__count { display: inline-flex; align-items: center; gap: 2px; }
 
+/*
+ * The face is decorative, so the control is a transparent button laid over it (plan 03 OD-03-4, plan 04 portfolio).
+ * The list and the card stay pointer-transparent: only the card area takes input, and the board behind is never blocked.
+ */
+.player-card__open {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.player-card__open:focus-visible { outline: 0; box-shadow: var(--focus-ring); }
+.player-card__open + .player-card__face { transition: border-color var(--motion-duration-micro) var(--motion-ease-out), box-shadow var(--motion-duration-micro) var(--motion-ease-out); }
+.player-card__open:hover + .player-card__face { border-color: var(--player-card-color); box-shadow: 0 0 0 2px var(--player-card-color), var(--elevation-2); }
+/* The turn ring is the stronger signal: hovering an active card keeps it and only adds the player color. */
+.player-card--active .player-card__open:hover + .player-card__face {
+  box-shadow: 0 0 0 3px var(--color-turn-active), 0 0 0 7px rgb(242 182 50 / 35%), var(--elevation-2);
+}
+
 /* ---------- Turn, lifecycle states ---------- */
 
 .player-card--active .player-card__face {
@@ -473,9 +496,6 @@
 :root[data-reduced-motion='true'] .player-card__bubble { animation: none; }
 @media (prefers-reduced-motion: reduce) { .player-card__bubble { animation: none; } }
 
-/* The jail panel's buttons used to size their text from the viewport (1.5vmin, about 11px at 720 tall). */
-.hud-context .jail-panel__actions button { font: var(--type-small); }
-
 @media (max-height: 500px) {
   .hud-bottom { max-width: 380px; }
   .activity-ticker { display: none; }
@@ -489,20 +509,31 @@
    * sit on the middle of the board and hide the roll button, which is one of the ways out of jail.
    */
   .hud-context .jail-panel {
+    display: flex;
     flex-flow: row wrap;
-    justify-content: space-between;
-    gap: 2px 8px;
+    align-content: flex-start;
+    gap: 1px 8px;
     margin: 0;
-    padding: 6px 8px;
+    padding: 4px 8px;
+    border-radius: var(--radius-md);
   }
-  .hud-context .jail-panel__title { font: var(--type-label); }
+  .hud-context .jail-panel__head { flex: 1 1 100%; gap: 6px; }
+  .hud-context .jail-panel__icon { width: 1.25rem; height: 1.25rem; }
+  .hud-context .jail-panel__icon > svg { width: 0.75rem; height: 0.75rem; }
+  .hud-context .jail-panel__title { font: 700 0.875rem/1.25rem var(--font-family-body); }
+  .hud-context .jail-panel__rounds { padding: 1px 8px; }
   .hud-context .jail-panel__hint { display: none; }
-  .hud-context .jail-panel__rounds { font: var(--type-caption); }
+  /* Each extra line (the balance warning, a pending or failed request) grows the strip upward toward the roll button. */
   .hud-context .jail-panel > p[role='alert'],
   .hud-context .jail-panel__pending,
-  .hud-context .jail-panel__balance-warning { flex: 1 1 100%; font: var(--type-caption); }
+  .hud-context .jail-panel__balance-warning { flex: 1 1 100%; font: var(--type-caption); line-height: 0.875rem; }
   .hud-context .jail-panel__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-  .hud-context .jail-panel__actions button { padding: 2px 6px; font: var(--type-caption); line-height: 1.1; }
+  .hud-context .jail-panel__actions .ds-button { padding: 2px 6px; font: var(--type-caption); line-height: 1.1; }
+}
+
+/* The strip between the two bottom cards is about 270 px wide: the lock icon goes so the title and the wait chip share a row. */
+@media (max-height: 500px) and (max-width: 720px) {
+  .hud-context .jail-panel__icon { display: none; }
 }
 
 /* ---------- Small phone landscape (up to 720 px wide): stack instead of sitting beside the corner cards ---------- */

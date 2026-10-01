@@ -125,10 +125,10 @@ pnpm desktop:release  # LAN-first release-candidate build; endpoint override is 
 ```
 
 For a self-contained Host check, run `pnpm desktop:package`, then
-`pnpm desktop:run:packaged` and choose **Host Game**. The packaged app starts its
+`pnpm desktop:run:packaged` and choose **Tạo phòng trên máy này**. The packaged app starts its
 own loopback-only PostgreSQL and authoritative server; no developer PostgreSQL or
 external Socket.IO URL is required. To test Join, open the Host URL in a browser
-on the same LAN or run a second packaged desktop instance, choose **Join Game**,
+on the same LAN or run a second packaged desktop instance, choose **Tham gia phòng LAN**,
 and enter the Host IPv4/port plus `OTB-XXXXXX` room code. The invite URL format is
 `http://<host-ip>:<actual-port>/?room=<room-code>`; opening it prefills but does not
 submit the room.
