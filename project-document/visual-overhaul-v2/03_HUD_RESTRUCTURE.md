@@ -1,6 +1,6 @@
 # 03 — HUD Restructure
 
-**Status: IMPLEMENTED (T03.0–T03.16) — waiting for the human G3 verdict and the 5-second test (§17). An agent never records the verdict or the test answers. Plan 01 gate G1 was approved by the product owner on 2026-09-30.**
+**Status: IMPLEMENTED (T03.0–T03.16) — G3 Approved by the product owner on 01/10/2026 (§17); the 5-second test (three real participants) has not been run, and an agent never records its answers. Plan 01 gate G1 was approved by the product owner on 2026-09-30.**
 
 | Field | Value |
 | --- | --- |
@@ -720,7 +720,8 @@ specification in §8 already reflects these choices.
 ## 16. Definition of Done
 
 - [x] T03.0–T03.16 complete and logged in §17.
-- [ ] G3 verdict recorded by a human; 5-second test results recorded.
+- [x] G3 verdict recorded (tvghung, 01/10/2026, Approved; written by the agent at the product owner's request).
+- [ ] 5-second test results recorded. _(Not run.)_
 - [x] Overlap report shows zero persistent overlaps and zero region overlaps at the standard viewports (transient jail panel: see the known limits in §17).
 - [x] README §9 commands green including `pnpm test:e2e:mobile` and desktop checks. _(Green 2026-10-01: `pnpm typecheck`, `pnpm lint`, `pnpm test` (client 1,003, server 173 + 11 skipped without PostgreSQL, desktop 77), `pnpm build`, desktop typecheck, `pnpm test:e2e:mobile` (4 passed). Not runnable here: `pnpm db:status` (no `DATABASE_URL`; this plan changes no persistence) and `pnpm desktop:package` (no Electron binary was approved for download).)_
 - [x] Draw-call savings recorded here and in plan 02's budget table (169 → 153, −16).
@@ -770,16 +771,16 @@ specification in §8 already reflects these choices.
 
 **G3 checklist** (tick only after looking; see `evidence/03/g3/README.md` for where to look):
 
-- [ ] Every seated player's name and money are visible in every game-state capture, in WebGL and legacy.
-- [ ] Turn change is visible at a glance (gold ring, "Đang đi" tag, status pill).
-- [ ] No persistent HUD element covers a tile (`hudOverlap.findings` empty in every sidecar); the transient jail panel is acceptable or needs work in plan 04.
-- [ ] The call to action is easy to find and does not fight the dice or the bank tray (jail, rent, stations captures).
-- [ ] Phone landscape (812×375 and 667×375) is usable: nothing important is hidden, targets are comfortable.
-- [ ] Reduced-motion capture shows the same information without motion.
-- [ ] Legacy fallback (no WebGL) is acceptable for a fallback.
-- [ ] The 5-second test above passed with 3 of 3.
+- [x] Every seated player's name and money are visible in every game-state capture, in WebGL and legacy.
+- [x] Turn change is visible at a glance (gold ring, "Đang đi" tag, status pill).
+- [x] No persistent HUD element covers a tile (`hudOverlap.findings` empty in every sidecar); the transient jail panel is acceptable or needs work in plan 04.
+- [x] The call to action is easy to find and does not fight the dice or the bank tray (jail, rent, stations captures).
+- [x] Phone landscape (812×375 and 667×375) is usable: nothing important is hidden, targets are comfortable.
+- [x] Reduced-motion capture shows the same information without motion.
+- [x] Legacy fallback (no WebGL) is acceptable for a fallback.
+- [ ] The 5-second test above passed with 3 of 3. _(Not run: it needs three real participants; the table above stays empty.)_
 
-**G3 verdict**: PENDING — reviewer, date, notes. (Human only: an agent never records this.)
+**G3 verdict**: Approved — tvghung, 01/10/2026. Approved by the product owner in chat on 01/10/2026 ("tôi duyệt tất cả"); written into this file by the agent at the product owner's explicit request, in the same form as the G1 record. The 5-second test was not run (no participants); its table is left empty and its checklist row unticked.
 
 ---
 

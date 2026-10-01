@@ -2,7 +2,7 @@
 
 Captured 2026-09-30 with `pnpm visual:capture --grep "02-g2/"` (Chrome 154, SwiftShader, deterministic)
 after T02.16, so the images already show the final scene palette. The verdict belongs to the product owner
-and is recorded in `../../../02_LIGHTING_ENVIRONMENT_AND_TABLETOP.md` §16; an agent never records it.
+and is recorded in `../../../02_LIGHTING_ENVIRONMENT_AND_TABLETOP.md` §16. Verdict: Approved by the product owner on 01/10/2026, written by the agent at the product owner's explicit request.
 Every image has a `.json` sidecar with the renderer diagnostics (draw calls, tier, tone mapping, console errors).
 All 35 captures ran with zero console errors.
 

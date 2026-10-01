@@ -1,6 +1,6 @@
 # 02 — Lighting, Environment and Tabletop
 
-**Status: DONE except the human G2 verdict (2026-09-30) — T02.0–T02.18 are implemented; T02.17 (G2 package) is ready for the product owner in `evidence/02/g2/`. Two items stay open: the G2 verdict and the benchmark on the reference device. Open decisions answered by the product owner on 2026-09-30 (see the Decisions section).**
+**Status: DONE — G2 Approved by the product owner on 01/10/2026 (2026-09-30: T02.0–T02.18 implemented; the G2 package is in `evidence/02/g2/`). Two items stay open: the `balanced` performance decision on integrated GPUs and the benchmark on the reference device. Open decisions answered by the product owner on 2026-09-30 (see the Decisions section).**
 
 | Field | Value |
 | --- | --- |
@@ -781,7 +781,7 @@ Answered by the product owner on 2026-09-30; binding for implementation.
   and `stress` (main ≤ 177, shadow ≤ 25, post passes 3, triangles ≤ 69k).
 - [ ] Benchmark on the reference device recorded; `balanced` and `low` meet §5.3. _(Recorded only on an
   Intel UHD 630-class GPU, which is not the reference device; `balanced` does not reach 60 FPS there, see §16.)_
-- [ ] G2 verdict recorded by a human.
+- [x] G2 verdict recorded (tvghung, 01/10/2026, Approved; written by the agent at the product owner's request).
 - [ ] README §9 commands green (including `pnpm desktop:package` and a packaged run
   of the high tier to prove the lazy post chunk loads under `app://`). _(`pnpm typecheck`, `pnpm lint`,
   `pnpm test` (client 866 tests) and `pnpm build` pass; `pnpm desktop:package`, the WebKit captures,
@@ -846,21 +846,21 @@ expected to be slow on integrated GPUs.
 
 **G2 checklist** (product owner fills in; images and mapping in `evidence/02/g2/README.md`):
 
-- [ ] Lighting, soft shadows and Neutral tone mapping look right
-- [ ] Light oak table and board ground shadow cover every viewport (including 21:9)
-- [ ] Player trays and the bank treasury look grounded
-- [ ] Scene palette v1 → v2 approved (`compare/`)
-- [ ] Tile text is readable in all three tiers (the eight regression names at 1280×720)
-- [ ] Low / balanced / high differ only in the intended ways
-- [ ] WebGL fallback still works (`fallback/`)
+- [x] Lighting, soft shadows and Neutral tone mapping look right
+- [x] Light oak table and board ground shadow cover every viewport (including 21:9)
+- [x] Player trays and the bank treasury look grounded
+- [x] Scene palette v1 → v2 approved (`compare/`)
+- [x] Tile text is readable in all three tiers (the eight regression names at 1280×720)
+- [x] Low / balanced / high differ only in the intended ways
+- [x] WebGL fallback still works (`fallback/`)
 - [ ] Decision on `balanced` performance on integrated GPUs (lower the pixel ratio / `auto` picks `low` / accept 30 FPS)
 - [ ] Benchmark on the reference device (Iris Xe or M1 class) recorded
 
 | Reviewer | Date | Verdict | Notes |
 | --- | --- | --- | --- |
-| — | — | PENDING | — |
+| tvghung | 01/10/2026 | Approved | Visual checklist ticked. Still open and NOT decided or measured: the `balanced` performance decision on integrated GPUs and the benchmark on the reference device (Iris Xe / M1 class). |
 
-**G2 verdict**: PENDING — a human reviewer must record the verdict after T02.16 and the G2 captures. An agent must not record it.
+**G2 verdict**: Approved — tvghung, 01/10/2026. Approved by the product owner in chat on 01/10/2026 ("tôi duyệt tất cả"); written into this file by the agent at the product owner's explicit request, in the same form as the G1 record. The two checklist rows above that are left unticked (the `balanced` performance decision and the reference-device benchmark) were not decided or measured and stay open.
 
 ---
 
