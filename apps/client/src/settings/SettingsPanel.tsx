@@ -1,12 +1,24 @@
-import { Check, RotateCcw } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Monitor } from 'lucide-react';
 import Button from '../design-system/components/Button/Button';
 import Modal from '../design-system/components/Modal/Modal';
-import SegmentedControl from '../design-system/components/SegmentedControl/SegmentedControl';
+import SegmentedControl, { type SegmentedControlProps } from '../design-system/components/SegmentedControl/SegmentedControl';
+import Slider from '../design-system/components/Slider/Slider';
+import Switch from '../design-system/components/Switch/Switch';
+import { ActionIcon } from '../design-system/icons/ActionIcon';
 import { getDesktopBridge, isDesktopRuntime } from '../runtime/desktopBridge';
 import { ANIMATION_SPEED_OPTIONS } from './defaults';
 import type { GraphicsQualitySetting } from './types';
 import { useEffectiveReducedMotion, useSettings } from './selectors';
 import './SettingsPanel.css';
+
+const VOLUME_CONTROLS: readonly { key: 'masterVolume' | 'musicVolume' | 'sfxVolume'; label: string }[] = [
+  { key: 'masterVolume', label: 'Âm lượng tổng' },
+  { key: 'musicVolume', label: 'Nhạc nền' },
+  { key: 'sfxVolume', label: 'Hiệu ứng' },
+];
+
+const SPEED_CHOICES = ANIMATION_SPEED_OPTIONS.map(option => ({ value: option, label: `${option}x` }));
 
 const GRAPHICS_QUALITY_CHOICES: readonly { value: GraphicsQualitySetting; label: string }[] = [
   { value: 'auto', label: 'Tự động' },
@@ -15,33 +27,34 @@ const GRAPHICS_QUALITY_CHOICES: readonly { value: GraphicsQualitySetting; label:
   { value: 'low', label: 'Thấp' },
 ];
 
+const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
+
 interface SettingsPanelProps {
   open: boolean;
   onClose: () => void;
 }
 
-function VolumeControl({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-}) {
+function SectionHeading({ id, icon, children }: { id: string; icon: ReactNode; children: string }) {
   return (
-    <label className="settings-panel__control">
-      <span>{label}</span>
-      <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
-        value={value}
-        onChange={event => onChange(Number(event.target.value))}
-      />
-      <output>{Math.round(value * 100)}%</output>
-    </label>
+    <h3 id={id} className="settings-panel__heading">
+      <span className="settings-panel__heading-icon" aria-hidden="true">{icon}</span>
+      {children}
+    </h3>
+  );
+}
+
+/** A segmented choice with a visible label; the group itself carries the same text as its accessible name. */
+function SegmentedField<T extends string | number>({
+  label,
+  hint,
+  ...control
+}: Omit<SegmentedControlProps<T>, 'className'> & { hint?: string }) {
+  return (
+    <div className="settings-panel__field">
+      <span className="settings-panel__label" aria-hidden="true">{label}</span>
+      <SegmentedControl label={label} className="settings-panel__segmented" {...control} />
+      {hint ? <p className="settings-panel__hint">{hint}</p> : null}
+    </div>
   );
 }
 
@@ -57,72 +70,85 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   };
 
   return (
-    <Modal open={open} title="Cài đặt" onClose={onClose} className="settings-panel-modal">
+    <Modal
+      open={open}
+      title="Cài đặt"
+      size="md"
+      onClose={onClose}
+      className="settings-panel-modal"
+      footer={(
+        <>
+          <Button
+            variant="ghost"
+            className="settings-panel__reset"
+            icon={<ActionIcon name="reset" />}
+            onClick={resetSettings}
+          >
+            Khôi phục mặc định
+          </Button>
+          <Button icon={<ActionIcon name="confirm" />} onClick={onClose}>Xong</Button>
+        </>
+      )}
+    >
       <div className="settings-panel">
         <section className="settings-panel__section" aria-labelledby="settings-audio-title">
-          <h3 id="settings-audio-title">Âm thanh</h3>
-          <VolumeControl label="Âm lượng tổng" value={settings.masterVolume} onChange={value => updateSettings({ masterVolume: value })} />
-          <VolumeControl label="Nhạc nền" value={settings.musicVolume} onChange={value => updateSettings({ musicVolume: value })} />
-          <VolumeControl label="Hiệu ứng" value={settings.sfxVolume} onChange={value => updateSettings({ sfxVolume: value })} />
+          <SectionHeading id="settings-audio-title" icon={<ActionIcon name="volume" />}>Âm thanh</SectionHeading>
+          {VOLUME_CONTROLS.map(({ key, label }) => (
+            <Slider
+              key={key}
+              label={label}
+              value={settings[key]}
+              min={0}
+              max={1}
+              step={0.05}
+              className="settings-panel__slider"
+              formatValue={formatPercent}
+              onChange={value => updateSettings({ [key]: value })}
+            />
+          ))}
         </section>
 
         <section className="settings-panel__section" aria-labelledby="settings-motion-title">
-          <h3 id="settings-motion-title">Hiển thị</h3>
-          <label className="settings-panel__control">
-            <span>Tốc độ chuyển động</span>
-            <select
-              value={settings.animationSpeed}
-              onChange={event => updateSettings({ animationSpeed: Number(event.target.value) })}
-            >
-              {ANIMATION_SPEED_OPTIONS.map(option => <option key={option} value={option}>{option}x</option>)}
-            </select>
-          </label>
-          <label className="settings-panel__toggle">
-            <input
-              type="checkbox"
+          <SectionHeading id="settings-motion-title" icon={<ActionIcon name="speed" />}>Hiển thị</SectionHeading>
+          <SegmentedField
+            label="Tốc độ chuyển động"
+            options={SPEED_CHOICES}
+            value={settings.animationSpeed}
+            onChange={value => updateSettings({ animationSpeed: value })}
+          />
+          <div className="settings-panel__field">
+            <Switch
+              label="Giảm chuyển động"
               checked={settings.reducedMotion}
-              onChange={event => updateSettings({ reducedMotion: event.target.checked })}
+              onChange={checked => updateSettings({ reducedMotion: checked })}
             />
-            <span>Giảm chuyển động</span>
-          </label>
-          <p className="settings-panel__hint">
-            {effectiveReducedMotion
-              ? 'Chuyển động hiện đang được giảm theo cài đặt hoặc hệ điều hành.'
-              : 'Chuyển động đang dùng thiết lập bình thường.'}
-          </p>
+            <p className="settings-panel__hint" aria-live="polite">
+              {effectiveReducedMotion
+                ? 'Chuyển động hiện đang được giảm theo cài đặt hoặc hệ điều hành.'
+                : 'Chuyển động đang dùng thiết lập bình thường.'}
+            </p>
+          </div>
         </section>
 
         <section className="settings-panel__section" aria-labelledby="settings-graphics-title">
-          <h3 id="settings-graphics-title">Đồ họa</h3>
-          <SegmentedControl
+          <SectionHeading id="settings-graphics-title" icon={<Monitor />}>Đồ họa</SectionHeading>
+          <SegmentedField
             label="Chất lượng đồ họa"
             options={GRAPHICS_QUALITY_CHOICES}
             value={settings.graphicsQuality}
             onChange={value => updateSettings({ graphicsQuality: value })}
+            hint="Chất lượng Cao cần card đồ họa mạnh."
           />
-          <p className="settings-panel__hint">Chất lượng Cao cần card đồ họa mạnh.</p>
         </section>
 
         {desktop
           ? (
             <section className="settings-panel__section" aria-labelledby="settings-window-title">
-              <h3 id="settings-window-title">Cửa sổ</h3>
-              <label className="settings-panel__toggle">
-                <input
-                  type="checkbox"
-                  checked={settings.fullscreen}
-                  onChange={event => setFullscreen(event.target.checked)}
-                />
-                <span>Toàn màn hình</span>
-              </label>
+              <SectionHeading id="settings-window-title" icon={<ActionIcon name="fullscreen" />}>Cửa sổ</SectionHeading>
+              <Switch label="Toàn màn hình" checked={settings.fullscreen} onChange={setFullscreen} />
             </section>
           )
           : null}
-
-        <div className="settings-panel__actions">
-          <Button variant="secondary" icon={<RotateCcw />} onClick={resetSettings}>Khôi phục mặc định</Button>
-          <Button icon={<Check />} onClick={onClose}>Xong</Button>
-        </div>
       </div>
     </Modal>
   );

@@ -7,6 +7,7 @@ import { makeRoom } from '../../../game/presentation/testFixtures';
 import stateContext from '../../../internal';
 import { DEFAULT_GAME_SETTINGS } from '../../../settings/defaults';
 import { SettingsProvider } from '../../../settings/SettingsProvider';
+import type { GameSettings } from '../../../settings/types';
 import type { SocketFunctions, StateContextValue } from '../../../types';
 
 /**
@@ -77,13 +78,16 @@ export function makeSurfaceState(options: SurfaceStateOptions = {}): StateContex
 /** Settings, toasts, the game state and a static (idle) presentation state around one surface. */
 export default function SurfaceProviders({
   value,
+  settings = DEFAULT_GAME_SETTINGS,
   children,
 }: {
   value?: StateContextValue;
+  /** The settings the surface opens with; defaults to the game defaults. */
+  settings?: GameSettings;
   children: ReactNode;
 }) {
   return (
-    <SettingsProvider initialSettings={DEFAULT_GAME_SETTINGS}>
+    <SettingsProvider initialSettings={settings}>
       <ToastProvider>
         <presentationContext.Provider
           value={{ state: { ...emptyPresentationState, status: 'idle' }, queue: null as unknown as AnimationQueue }}
