@@ -61,20 +61,36 @@ export const LANDMARKS: readonly LandmarkDefinition[] = [
 
 const byTile = new Map(LANDMARKS.map(landmark => [landmark.tileId, landmark]));
 const built = new Map<number, LandmarkGeometry>();
+const failed = new Set<number>();
 
 export function getLandmarkDefinition(tileId: number): LandmarkDefinition | undefined {
   return byTile.get(tileId);
 }
 
-/** The geometry of a tile's landmark, built on first use and cached for the life of the page. */
+/**
+ * The geometry of a tile's landmark, built on first use and cached for the life of the page. A builder that throws is logged
+ * once and treated as missing, so the street keeps showing today's hotel instead of failing the whole scene (plan 05 §7.7).
+ */
 export function getLandmarkGeometry(tileId: number): LandmarkGeometry | undefined {
   const cached = built.get(tileId);
   if (cached) return cached;
+  if (failed.has(tileId)) return undefined;
   const definition = byTile.get(tileId);
   if (!definition) return undefined;
-  const geometry = definition.build();
-  built.set(tileId, geometry);
-  return geometry;
+  try {
+    const geometry = definition.build();
+    built.set(tileId, geometry);
+    return geometry;
+  } catch (error) {
+    failed.add(tileId);
+    console.warn(`[scene] landmark "${definition.slug}" could not be built; the hotel box is shown instead.`, error);
+    return undefined;
+  }
+}
+
+/** True when the street has a landmark that built successfully; otherwise it shows the hotel box. */
+export function hasLandmark(tileId: number): boolean {
+  return getLandmarkGeometry(tileId) !== undefined;
 }
 
 export function resetLandmarkCacheForTests(): void {
@@ -84,4 +100,5 @@ export function resetLandmarkCacheForTests(): void {
     geometry.emissive?.dispose();
   });
   built.clear();
+  failed.clear();
 }

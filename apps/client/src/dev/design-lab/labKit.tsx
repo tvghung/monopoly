@@ -14,6 +14,7 @@ export const LAB_SECTIONS = [
   { id: 'lobby', label: 'Screen: Lobby' },
   { id: 'landing', label: 'Screen: Landing' },
   { id: 'surfaces', label: 'Surfaces (real components)' },
+  { id: 'landmarks', label: 'Landmarks (plan 05)' },
   { id: 'hud', label: 'Screen: HUD' },
 ] as const;
 

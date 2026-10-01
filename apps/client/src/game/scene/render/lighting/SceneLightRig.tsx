@@ -1,4 +1,7 @@
+import { useEffect, useRef } from 'react';
+import type * as THREE from 'three';
 import { useRenderQuality } from '../RenderQualityContext';
+import { SHADOW_ONLY_LAYER } from '../shadowLayers';
 import { LIGHT_RIG } from './lightRigSpec';
 
 /**
@@ -8,10 +11,16 @@ import { LIGHT_RIG } from './lightRigSpec';
 export default function SceneLightRig() {
   const { shadows } = useRenderQuality();
   const { key, fill, rim } = LIGHT_RIG;
+  const keyLight = useRef<THREE.DirectionalLight>(null);
+  // The shadow camera sees the default layer and the shadow-only layer; the main camera sees only the default one.
+  useEffect(() => {
+    keyLight.current?.shadow.camera.layers.enable(SHADOW_ONLY_LAYER);
+  }, []);
   return (
     <>
       <hemisphereLight name="FillLight" args={[fill.skyColor, fill.groundColor, fill.intensity]} />
       <directionalLight
+        ref={keyLight}
         name="KeyLight"
         position={[...key.position]}
         color={key.color}

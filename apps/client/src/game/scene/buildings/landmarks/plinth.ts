@@ -7,17 +7,18 @@ const LACQUER = '#3A2822';
 export const NEUTRAL_RIM = '#C9A24D';
 
 /**
- * The plinth of a landmark (plan 05 §8.3): a lacquer slab below the landmark's origin with a low rim round its top edge. The
- * rim is the owner's color, so ownership reads from the landmark itself; it is returned separately because its vertices are
- * the ones recolored when the owner changes (see `recolorRim`).
+ * The plinth of a landmark (plan 05 §8.3): a lacquer slab whose top is the landmark's origin, with a low rim standing a little
+ * proud of it along the edge. The rim is the owner's color, so ownership reads from the landmark itself; it is returned
+ * separately because its vertices are the ones recolored when the owner changes (see `recolorRim`).
  */
 export function buildPlinthParts(): { slab: THREE.BufferGeometry[]; rim: THREE.BufferGeometry[] } {
   const { size, height, rim } = PLINTH;
-  const rimHeight = 0.02;
+  // The rim runs from 0.02 below the slab top to 0.01 above it, so its sides overlap the slab and its top never shares a plane with it.
+  const rimHeight = 0.03;
   const half = size / 2;
-  const rimY = -rimHeight;
+  const rimY = -0.02;
   return {
-    slab: [box(size, height - rimHeight, size, LACQUER, { position: [0, -height, 0] })],
+    slab: [box(size, height, size, LACQUER, { position: [0, -height, 0] })],
     rim: [
       box(size, rimHeight, rim, NEUTRAL_RIM, { position: [0, rimY, half - rim / 2] }),
       box(size, rimHeight, rim, NEUTRAL_RIM, { position: [0, rimY, -half + rim / 2] }),

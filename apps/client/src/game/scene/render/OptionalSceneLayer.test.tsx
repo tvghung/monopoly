@@ -34,6 +34,15 @@ describe('OptionalSceneLayer', () => {
     expect(String(warn.mock.calls[0][0])).toContain('environment');
   });
 
+  it('tells its parent once when the layer failed, so a placeholder can take over', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onFail = vi.fn();
+    render(<OptionalSceneLayer name="tube-houses" onFail={onFail}><Boom /></OptionalSceneLayer>);
+
+    expect(onFail).toHaveBeenCalledTimes(1);
+  });
+
   it('renders nothing while a lazy layer is loading instead of blocking the board', () => {
     const Pending = lazy(() => new Promise<never>(() => {}));
     const { container } = render(

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CHARACTER_BILLBOARD_HEIGHT } from '../board/architecture/tileAnchors';
 import { applyStandeeOpacity } from './CharacterStandee';
+import { setStandeeBaseSink, syncStandeeBasesNow } from './standeeBaseRegistry';
 import { MAX_STANDEE_BASES, createStandeeBaseGeometry, syncStandeeBases } from './StandeeBases';
 import {
   getStandeeBaseEntries,
@@ -67,6 +68,19 @@ describe('standee face', () => {
     expect(depth.depthPacking).toBe(THREE.RGBADepthPacking);
   });
 
+  it('recompiles the material only when it flips between opaque and faded', () => {
+    const material = new THREE.MeshBasicMaterial({ alphaTest: 0.5, transparent: false });
+    const start = material.version;
+    applyStandeeOpacity(material, 1);
+    expect(material.version).toBe(start);
+    applyStandeeOpacity(material, 0.88);
+    expect(material.version).toBe(start + 1);
+    applyStandeeOpacity(material, 0.7);
+    expect(material.version).toBe(start + 1);
+    applyStandeeOpacity(material, 1);
+    expect(material.version).toBe(start + 2);
+  });
+
   it('fades through real transparency and returns to the alpha-tested silhouette', () => {
     const material = new THREE.MeshBasicMaterial({ alphaTest: 0.5, transparent: false });
     applyStandeeOpacity(material, 0.4);
@@ -128,6 +142,18 @@ describe('standee bases', () => {
     const color = new THREE.Color();
     mesh.getColorAt(0, color);
     expect(color.getHexString()).toBe('ff0000');
+  });
+
+  it('lets a billboard sync the bases at the end of its frame, through the registered sink', () => {
+    const sink = vi.fn();
+    expect(() => syncStandeeBasesNow()).not.toThrow();
+    setStandeeBaseSink(sink);
+    syncStandeeBasesNow();
+    syncStandeeBasesNow();
+    expect(sink).toHaveBeenCalledTimes(2);
+    setStandeeBaseSink(null);
+    syncStandeeBasesNow();
+    expect(sink).toHaveBeenCalledTimes(2);
   });
 
   it('draws no base when nobody is seated', () => {

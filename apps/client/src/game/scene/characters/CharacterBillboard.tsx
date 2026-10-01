@@ -26,6 +26,7 @@ import {
 import { resolvePresentationDuration } from '../../presentation/timings';
 import { CharacterReactionController } from './characterReaction';
 import CharacterStandee, { applyStandeeOpacity } from './CharacterStandee';
+import { syncStandeeBasesNow } from './standeeBaseRegistry';
 import { STANDEE_HEADING_Y } from './standeeMaterial';
 import ContactShadow from '../fx/ContactShadow';
 import { useRenderQuality } from '../render/RenderQualityContext';
@@ -467,6 +468,8 @@ export default function CharacterBillboard({
       applyStandeeOpacity(spriteMaterialRef.current, texture ? reactionSample.spriteOpacity : 0);
     }
 
+    // The base is written after this card moved, so it is in the same place when the renderer uploads the instance buffers.
+    syncStandeeBasesNow();
     if (movementActive || landingActive || reactionActive) invalidate();
   });
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { tileState } from '@monopoly/shared';
 import BoardFoundation from './foundation/BoardFoundation';
 import CenterAirport from './center/CenterAirport';
@@ -40,10 +40,19 @@ export default function Board3D({
     propertyColor: tile.color,
     houses: 0,
   }));
-  const latestOwnershipChanges = new Map<number, BoardRenderModel['ownershipChanges'][number]>();
-  const latestDevelopmentChanges = new Map<number, BoardRenderModel['developmentChanges'][number]>();
-  model?.ownershipChanges.forEach(signal => latestOwnershipChanges.set(signal.tileId, signal));
-  model?.developmentChanges.forEach(signal => latestDevelopmentChanges.set(signal.tileId, signal));
+  // Keyed on the signal lists, not rebuilt on every hover: the instanced houses re-plan only when a signal actually changes.
+  const ownershipChanges = model?.ownershipChanges;
+  const developmentChanges = model?.developmentChanges;
+  const latestOwnershipChanges = useMemo(() => {
+    const latest = new Map<number, BoardRenderModel['ownershipChanges'][number]>();
+    ownershipChanges?.forEach(signal => latest.set(signal.tileId, signal));
+    return latest;
+  }, [ownershipChanges]);
+  const latestDevelopmentChanges = useMemo(() => {
+    const latest = new Map<number, BoardRenderModel['developmentChanges'][number]>();
+    developmentChanges?.forEach(signal => latest.set(signal.tileId, signal));
+    return latest;
+  }, [developmentChanges]);
   const latestGoCrossing = model?.goCrossings.at(-1);
   // The houses of the whole board are three instanced meshes; if that layer ever fails the per-tile boxes take over.
   const [houseMode, setHouseMode] = useState<HouseRenderMode>('instanced');
@@ -98,7 +107,11 @@ export default function Board3D({
         )
         : null}
       <OptionalSceneLayer name="landmark-shadows">
-        <LandmarkShadowProxy tiles={tiles} />
+        <LandmarkShadowProxy
+          tiles={tiles}
+          developmentChanges={latestDevelopmentChanges}
+          reducedMotion={model?.reducedMotion ?? false}
+        />
       </OptionalSceneLayer>
       <CenterAirport />
       <DiceLayer model={model?.dice ?? {

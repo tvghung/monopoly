@@ -31,6 +31,8 @@ function getFacePlane(): THREE.PlaneGeometry {
  */
 export function applyStandeeOpacity(material: THREE.Material, opacity: number): void {
   const faded = opacity < 0.999;
+  // An opaque material is compiled with OPAQUE (alpha forced to 1), so flipping `transparent` needs a new program.
+  if (material.transparent !== faded) material.needsUpdate = true;
   material.opacity = faded ? opacity : 1;
   material.transparent = faded;
   material.alphaTest = faded ? 0.04 : 0.5;

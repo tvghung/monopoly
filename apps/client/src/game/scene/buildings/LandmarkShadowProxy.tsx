@@ -1,16 +1,22 @@
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import type { DevelopmentChangeSignal } from '../../presentation/store/types';
 import { mergeKit } from './kit/lowPolyKit';
 import type { BoardTileRenderModel } from '../board/boardRenderModel';
 import { transformTileLocalPointToWorld, getBoardTileLayout } from '../board/boardLayout';
 import { useRenderQuality } from '../render/RenderQualityContext';
+import { SHADOW_ONLY_LAYER } from '../render/shadowLayers';
 import { getLandmarkLocalOrigin } from './LandmarkMesh';
-import { getLandmarkDefinition, getLandmarkGeometry } from './landmarks/registry';
+import { getLandmarkGeometry, hasLandmark } from './landmarks/registry';
+import { planHouseAnimations } from './tubeHouseAnimation';
 
-/** The tiles that show a landmark right now: a street at the hotel tier with a landmark built for it. */
-export function getVisibleLandmarkTiles(tiles: readonly BoardTileRenderModel[]): number[] {
+/**
+ * The tiles that show a landmark right now: a street at the hotel tier with a landmark built for it. `hidden` lists tiles
+ * whose landmark is still popping in (the 4 → 5 transition), which must not cast a full-size shadow before it exists.
+ */
+export function getVisibleLandmarkTiles(tiles: readonly BoardTileRenderModel[], hidden: ReadonlySet<number> = new Set()): number[] {
   return tiles
-    .filter(tile => tile.houses === 5 && getLandmarkDefinition(tile.tileId) !== undefined)
+    .filter(tile => tile.houses === 5 && !hidden.has(tile.tileId) && hasLandmark(tile.tileId))
     .map(tile => tile.tileId)
     .sort((left, right) => left - right);
 }
@@ -42,22 +48,46 @@ export function buildLandmarkShadowGeometry(tileIds: readonly number[]): THREE.B
 
 let proxyMaterial: THREE.MeshBasicMaterial | null = null;
 function getProxyMaterial(): THREE.MeshBasicMaterial {
-  // Draws nothing in the main pass; the shadow pass swaps in its own depth material and only checks that this one is visible.
+  // The shadow pass swaps in its own depth material and only checks that this one is visible.
   proxyMaterial ??= new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
   return proxyMaterial;
 }
 
+/** The proxy mesh on the shadow-only layer: the key light's shadow camera draws it, the main camera never does. */
+export function createLandmarkShadowMesh(geometry: THREE.BufferGeometry): THREE.Mesh {
+  const mesh = new THREE.Mesh(geometry, getProxyMaterial());
+  mesh.name = 'LandmarkShadowProxy';
+  mesh.layers.set(SHADOW_ONLY_LAYER);
+  mesh.castShadow = true;
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+interface LandmarkShadowProxyProps {
+  tiles: readonly BoardTileRenderModel[];
+  developmentChanges?: ReadonlyMap<number, DevelopmentChangeSignal>;
+  reducedMotion?: boolean;
+}
+
 /**
  * Casts the shadow of every landmark on the board with one mesh, so the shadow pass costs one draw however many landmarks
- * stand (plan 05 §8.8). The geometry is rebuilt only when the set of visible landmarks changes.
+ * stand and the main pass pays nothing (plan 05 §8.8). The geometry is rebuilt only when the set of visible landmarks changes;
+ * a landmark that is still popping in leaves the set until its transition is over.
  */
-export default function LandmarkShadowProxy({ tiles }: { tiles: readonly BoardTileRenderModel[] }) {
+export default function LandmarkShadowProxy({ tiles, developmentChanges, reducedMotion = false }: LandmarkShadowProxyProps) {
   const { shadows } = useRenderQuality();
-  const key = getVisibleLandmarkTiles(tiles).join(',');
-  const geometry = useMemo(() => (shadows.enabled && key
-    ? buildLandmarkShadowGeometry(key.split(',').map(Number))
-    : null), [key, shadows.enabled]);
-  useEffect(() => () => geometry?.dispose(), [geometry]);
-  if (!geometry) return null;
-  return <mesh name="LandmarkShadowProxy" geometry={geometry} material={getProxyMaterial()} castShadow frustumCulled={false} dispose={null} />;
+  const popping = useMemo(() => new Set(
+    planHouseAnimations(tiles, developmentChanges ?? new Map(), reducedMotion)
+      .filter(animation => animation.kind === 'HOTEL')
+      .map(animation => animation.tileId),
+  ), [developmentChanges, reducedMotion, tiles]);
+  const key = getVisibleLandmarkTiles(tiles, popping).join(',');
+  const mesh = useMemo(() => {
+    if (!shadows.enabled || !key) return null;
+    const geometry = buildLandmarkShadowGeometry(key.split(',').map(Number));
+    return geometry ? createLandmarkShadowMesh(geometry) : null;
+  }, [key, shadows.enabled]);
+  useEffect(() => () => mesh?.geometry.dispose(), [mesh]);
+  if (!mesh) return null;
+  return <primitive object={mesh} />;
 }

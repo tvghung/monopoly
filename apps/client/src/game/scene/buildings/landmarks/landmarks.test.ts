@@ -1,9 +1,10 @@
 import { colorGroups, tileState } from '@monopoly/shared';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { measureGeometry, triangleCount } from '../kit/lowPolyKit';
 import { recolorRim } from './assemble';
 import { LANDMARK_LIMITS, PLINTH } from './limits';
-import { LANDMARKS, LANDMARK_PLAN, getLandmarkDefinition, getLandmarkGeometry, resetLandmarkCacheForTests } from './registry';
+import { buildPlinthParts } from './plinth';
+import { LANDMARKS, LANDMARK_PLAN, getLandmarkDefinition, getLandmarkGeometry, hasLandmark, resetLandmarkCacheForTests } from './registry';
 
 const STREETS = Object.values(colorGroups).flat();
 
@@ -75,6 +76,50 @@ describe('built landmarks', () => {
       expect(Array.from(one.getAttribute('position').array)).toEqual(Array.from(two.getAttribute('position').array));
     }
     expect(first.triangles).toBe(second.triangles);
+  });
+
+  it('treats a builder that throws as missing, warning once, so the street keeps its hotel box', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const definition = LANDMARKS.find(landmark => landmark.tileId === 13);
+    if (!definition) throw new Error('missing landmark');
+    const build = vi.spyOn(definition, 'build').mockImplementation(() => { throw new Error('bad geometry'); });
+
+    expect(getLandmarkGeometry(13)).toBeUndefined();
+    expect(hasLandmark(13)).toBe(false);
+    expect(getLandmarkGeometry(13)).toBeUndefined();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(build).toHaveBeenCalledTimes(1);
+    build.mockRestore();
+    warn.mockRestore();
+    // A different street is not affected.
+    expect(hasLandmark(24)).toBe(true);
+    expect(hasLandmark(1)).toBe(false);
+  });
+
+  it('stands the landmark on the slab: the slab top is the landmark base and the rim is a raised border', () => {
+    const { slab, rim } = buildPlinthParts();
+    const slabBox = measureGeometry(slab[0]);
+    expect(slabBox.max[1]).toBeCloseTo(0);
+    expect(slabBox.min[1]).toBeCloseTo(-PLINTH.height);
+    for (const part of rim) {
+      const box = measureGeometry(part);
+      expect(box.max[1]).toBeGreaterThan(0);
+      expect(box.min[1]).toBeLessThan(0);
+    }
+  });
+
+  it('keeps the plinth rim in the leading vertices, so recoloring them can never repaint the building', () => {
+    for (const landmark of LANDMARKS) {
+      const geometry = getLandmarkGeometry(landmark.tileId);
+      if (!geometry) throw new Error('missing landmark');
+      const position = geometry.opaque.getAttribute('position');
+      for (let index = 0; index < geometry.rimVertexCount; index += 1) {
+        expect(position.getY(index), landmark.slug).toBeGreaterThanOrEqual(-0.0201);
+        expect(position.getY(index), landmark.slug).toBeLessThanOrEqual(0.0101);
+        // The rim hugs the plinth edge: at least one of x and z is near the outer edge.
+        expect(Math.max(Math.abs(position.getX(index)), Math.abs(position.getZ(index))), landmark.slug).toBeGreaterThan(PLINTH.size / 2 - PLINTH.rim - 1e-6);
+      }
+    }
   });
 
   it('is built once and cached', () => {

@@ -52,6 +52,7 @@ export default function TubeHouseInstances({ tiles, developmentChanges, reducedM
 
   const animationsRef = useRef<HouseAnimation[]>(animations);
   const entriesRef = useRef(entries);
+  const tileIdsRef = useRef<number[]>([]);
   const elapsedRef = useRef(new Map<string, number>());
   const offsetsRef = useRef(new Map<number, number>());
   const dirtyRef = useRef(true);
@@ -74,6 +75,7 @@ export default function TubeHouseInstances({ tiles, developmentChanges, reducedM
   useLayoutEffect(() => {
     animationsRef.current = animations;
     entriesRef.current = entries;
+    tileIdsRef.current = [...new Set(entries.map(entry => entry.tileId))];
     // Forget clocks of animations that are gone; a new one starts at zero.
     const live = new Set(animations.map(animation => animation.id));
     for (const id of [...elapsedRef.current.keys()]) if (!live.has(id)) elapsedRef.current.delete(id);
@@ -95,7 +97,7 @@ export default function TubeHouseInstances({ tiles, developmentChanges, reducedM
     }
     // A tile pressed by a token moves its houses with it.
     let pressed = false;
-    for (const tileId of new Set(entriesRef.current.map(entry => entry.tileId))) {
+    for (const tileId of tileIdsRef.current) {
       const offset = motionController?.getTileOffsetY(tileId) ?? 0;
       if (offsetsRef.current.get(tileId) !== offset) {
         offsetsRef.current.set(tileId, offset);

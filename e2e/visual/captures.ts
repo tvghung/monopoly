@@ -408,6 +408,17 @@ export const CAPTURES: readonly CaptureEntry[] = [
     variant: 'balanced',
     extraQuery: '&quality=balanced',
   }),
+  // Plan 05 T05.5/T05.10: the same worst-case fixtures with the new kit, every tier (numbers only), for the budget table.
+  ...GRAPHICS_TIERS.flatMap(tier => harnessCaptures({
+    plan: '05',
+    folder: 'g5a/numbers',
+    scenarios: ['board-readability', 'house-4', 'hotel', 'landmarks-all', 'houses-max', 'standees', 'stress'],
+    viewports: [VIEWPORTS.fullHd],
+    surface: 'assets',
+    variant: tier,
+    extraQuery: `&quality=${tier}`,
+    noScreenshot: true,
+  })),
   // Plan 05 T05.5: the pilot landmarks at a size the board never shows them (the style sheet of gate G5a).
   ...([
     ['landmarks', ''],

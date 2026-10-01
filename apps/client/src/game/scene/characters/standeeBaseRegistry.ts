@@ -37,7 +37,24 @@ export function subscribeStandeeBases(listener: () => void): () => void {
   return () => { listeners.delete(listener); };
 }
 
+let sink: (() => void) | null = null;
+
+/** The instanced mesh of the bases registers how to bring itself up to date; `null` removes it. */
+export function setStandeeBaseSink(next: (() => void) | null): void {
+  sink = next;
+}
+
+/**
+ * Brings the instanced bases up to date with the anchors. Every billboard calls this at the end of its own frame update, so the
+ * bases are written after the cards moved and before the renderer uploads the instance buffers (a write in `onBeforeRender`
+ * would come too late and lag a frame).
+ */
+export function syncStandeeBasesNow(): void {
+  sink?.();
+}
+
 export function resetStandeeBasesForTests(): void {
   entries.clear();
   listeners.clear();
+  sink = null;
 }

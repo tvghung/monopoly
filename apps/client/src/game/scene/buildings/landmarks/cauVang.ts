@@ -50,8 +50,8 @@ export function buildCauVang(): LandmarkGeometry {
     ...hand(-1),
     // The golden walkway and its handrails.
     extrude(walkwayOutline(1.2, 0.2, 0.045, 12), 0.15, GOLD, { position: [0, 0.34, 0] }),
-    extrude(walkwayOutline(1.2, 0.2, 0.025, 12), 0.02, GOLD_LIGHT, { position: [0, 0.4, 0.075] }),
-    extrude(walkwayOutline(1.2, 0.2, 0.025, 12), 0.02, GOLD_LIGHT, { position: [0, 0.4, -0.075] }),
+    extrude(walkwayOutline(1.2, 0.2, 0.025, 12), 0.02, GOLD_LIGHT, { position: [0, 0.385, 0.075] }),
+    extrude(walkwayOutline(1.2, 0.2, 0.025, 12), 0.02, GOLD_LIGHT, { position: [0, 0.385, -0.075] }),
   ];
   return assembleLandmark({ opaque });
 }

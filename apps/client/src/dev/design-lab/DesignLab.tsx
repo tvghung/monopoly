@@ -4,6 +4,7 @@ import { DEFAULT_VISUAL_THEME } from '../../design-system/theme/visualTheme';
 import type { VisualTheme } from '../../game/ui/propertyVisualColors';
 import ComponentsSection from './sections/ComponentsSection';
 import GameUiSection from './sections/GameUiSection';
+import LandmarksSection from './sections/LandmarksSection';
 import ScenePaletteSection from './sections/ScenePaletteSection';
 import SurfacesSection from './sections/SurfacesSection';
 import TokensSection from './sections/TokensSection';
@@ -31,6 +32,7 @@ const SECTION_COMPONENTS: Record<Exclude<LabSectionId, 'hud'>, ComponentType> = 
   lobby: LobbyConcept,
   landing: LandingConcept,
   surfaces: SurfacesSection,
+  landmarks: LandmarksSection,
 };
 
 /** Keeps `<html data-visual-theme>` in sync with the Lab toggle and restores the app default on unmount. */

@@ -8,7 +8,7 @@ import HouseMesh from './HouseMesh';
 import HotelMesh from './HotelMesh';
 import ConstructionPuff from './ConstructionPuff';
 import LandmarkMesh, { getLandmarkLocalOrigin } from './LandmarkMesh';
-import { getLandmarkDefinition } from './landmarks/registry';
+import { hasLandmark } from './landmarks/registry';
 import { useHouseRenderMode } from './houseRenderMode';
 import { getHotelTransitionScales, getHousePopScale } from './buildingMotion';
 import { getScaledConstructionBurstDuration } from './constructionTiming';
@@ -27,13 +27,13 @@ export { getHousePopScale, getHotelTransitionScales, type HotelTransitionScales 
 export { getScaledConstructionBurstDuration } from './constructionTiming';
 
 /** Where the hotel (or its landmark) stands in the tile-local frame, and where its dust puff goes. */
-function getHotelAnchor(tileId: number): readonly [number, number, number] {
-  return getLandmarkLocalOrigin(tileId) ?? getHotelSlot();
+export function getHotelAnchor(tileId: number): readonly [number, number, number] {
+  return (hasLandmark(tileId) ? getLandmarkLocalOrigin(tileId) : undefined) ?? getHotelSlot();
 }
 
 /** The hotel tier: the street's landmark when it has one built, otherwise today's hotel box. */
 function Hotel({ tileId, ownerColor }: { tileId: number; ownerColor?: string }) {
-  return getLandmarkDefinition(tileId)
+  return hasLandmark(tileId)
     ? <LandmarkMesh tileId={tileId} ownerColor={ownerColor} />
     : <HotelMesh position={getHotelSlot()} ownerColor={ownerColor} />;
 }
@@ -176,6 +176,8 @@ export default function BuildingLayer({
       />
     );
   }
+  // A jump straight to the hotel tier (not from four houses) has no house animation to wait for: show the hotel.
+  if (houses === 5) return <BuildingShapes tileId={tileId} houses={houses} ownerColor={ownerColor} />;
   // Instanced houses animate (and puff) in TubeHouseInstances.
   if (mode !== 'legacy') return null;
   const from = Math.max(0, Math.min(4, developmentChange.fromHouses));

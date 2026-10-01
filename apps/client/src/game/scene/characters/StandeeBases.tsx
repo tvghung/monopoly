@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from 'react';
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useRenderQuality } from '../render/RenderQualityContext';
-import { getStandeeBaseEntries, subscribeStandeeBases } from './standeeBaseRegistry';
+import { getStandeeBaseEntries, setStandeeBaseSink, subscribeStandeeBases } from './standeeBaseRegistry';
 import { STANDEE_BASE_HEIGHT, STANDEE_BASE_RADIUS } from './standeeMaterial';
 
 /** More than any room seats; a base beyond the capacity is simply not drawn. */
@@ -40,8 +40,9 @@ export function syncStandeeBases(mesh: THREE.InstancedMesh): void {
 }
 
 /**
- * One instanced draw for the round bases of all standees (plan 05 §8.4). The matrices are read in `onBeforeRender`, after
- * every per-frame update of the characters, so the bases never lag a frame behind their cards.
+ * One instanced draw for the round bases of all standees (plan 05 §8.4). The bases are brought up to date by the billboards at
+ * the end of their frame update (`syncStandeeBasesNow`), so they never lag a frame behind their cards; this component also
+ * syncs once per frame itself, for anchors that no billboard drives (the style sheet).
  */
 export default function StandeeBases() {
   const invalidate = useThree(state => state.invalidate);
@@ -63,6 +64,12 @@ export default function StandeeBases() {
   useEffect(() => {
     setBaseShadow(mesh, shadows.enabled);
   }, [mesh, shadows.enabled]);
+
+  useEffect(() => {
+    setStandeeBaseSink(() => syncStandeeBases(mesh));
+    return () => setStandeeBaseSink(null);
+  }, [mesh]);
+  useFrame(() => syncStandeeBases(mesh));
 
   useEffect(() => subscribeStandeeBases(() => invalidate()), [invalidate]);
   useEffect(() => () => geometry.dispose(), [geometry]);

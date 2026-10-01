@@ -1,9 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo } from 'react';
 import { useThree } from '@react-three/fiber';
 import { getPlayerDisplayColor } from '../../ui/playerVisualColors';
-import { CONTACT_SHADOW_Y } from '../board/architecture/boardArtSpec';
-import ContactShadow from '../fx/ContactShadow';
-import { useRenderQuality } from '../render/RenderQualityContext';
 import { kitEmissiveMaterial, kitGlassMaterial, kitOpaqueMaterial } from './kit/kitMaterials';
 import { NEUTRAL_RIM } from './landmarks/plinth';
 import { recolorRim } from './landmarks/assemble';
@@ -14,6 +11,8 @@ import { TUBE_HOUSE_BASE_Y, getTubeHouseRowLocalZ } from './tubeHouseLayout';
 interface LandmarkMeshProps {
   tileId: number;
   ownerColor?: string;
+  /** The board casts all landmark shadows through `LandmarkShadowProxy`; a standalone view (the style sheet) casts its own. */
+  castShadow?: boolean;
 }
 
 /** Where the plinth top is, in the tile-local frame: the landmark stands on it. */
@@ -28,9 +27,8 @@ export function getLandmarkLocalOrigin(tileId: number): readonly [number, number
  * tile's own groups, so the tile press and the hotel transition move and scale it like the hotel it replaces. It casts no
  * shadow itself: `LandmarkShadowProxy` casts the shadow of all landmarks in one draw.
  */
-export function LandmarkBody({ tileId, ownerColor }: LandmarkMeshProps) {
+export function LandmarkBody({ tileId, ownerColor, castShadow = false }: LandmarkMeshProps) {
   const invalidate = useThree(state => state.invalidate);
-  const { buildingContactShadows } = useRenderQuality();
   const source = getLandmarkGeometry(tileId);
   const geometries = useMemo(() => (source
     ? { opaque: source.opaque.clone(), glass: source.glass, emissive: source.emissive }
@@ -46,15 +44,12 @@ export function LandmarkBody({ tileId, ownerColor }: LandmarkMeshProps) {
   if (!geometries) return null;
   return (
     <group name="LandmarkBody">
-      <mesh name="LandmarkOpaque" geometry={geometries.opaque} material={kitOpaqueMaterial} receiveShadow dispose={null} />
+      <mesh name="LandmarkOpaque" geometry={geometries.opaque} material={kitOpaqueMaterial} castShadow={castShadow} receiveShadow dispose={null} />
       {geometries.glass
-        ? <mesh name="LandmarkGlass" geometry={geometries.glass} material={kitGlassMaterial} receiveShadow dispose={null} />
+        ? <mesh name="LandmarkGlass" geometry={geometries.glass} material={kitGlassMaterial} castShadow={castShadow} receiveShadow dispose={null} />
         : null}
       {geometries.emissive
         ? <mesh name="LandmarkEmissive" geometry={geometries.emissive} material={kitEmissiveMaterial} dispose={null} />
-        : null}
-      {buildingContactShadows
-        ? <ContactShadow position={[0, CONTACT_SHADOW_Y - PLINTH.height, 0]} scale={[PLINTH.size * 1.15, PLINTH.size * 1.15]} opacity={0.22} />
         : null}
     </group>
   );
