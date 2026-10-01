@@ -1,6 +1,6 @@
 # 04 — Modals, Cards and Pre-Game Screens
 
-**Status: IMPLEMENTED (T04.0–T04.15 and T04.17 done on 2026-10-01); gate G4 verdict PENDING — the review package is in `evidence/04/g4/`, the product owner records the verdict in section 17. Open decisions were answered by the product owner on 2026-09-30 (see the Decisions section).**
+**Status: IMPLEMENTED (T04.0–T04.15 and T04.17 done on 2026-10-01); gate G4 Approved by the product owner on 01/10/2026 (section 17; the review package is in `evidence/04/g4/`). Open decisions were answered by the product owner on 2026-09-30 (see the Decisions section).**
 
 | Field | Value |
 | --- | --- |
@@ -764,7 +764,7 @@ specification in §8 reflects these choices.
 ## 15. Definition of Done
 
 - [x] T04.0–T04.17 complete and logged in §17 (T04.16 prepared the package; the verdict is the human part).
-- [ ] G4 verdict recorded by a human; V1 card contract review recorded.
+- [x] G4 verdict recorded (tvghung, 01/10/2026, Approved; written by the agent at the product owner's request); V1 card contract review approved with the package.
 - [x] README §9 commands green: typecheck, lint, 1438 client tests, 77 desktop tests, build, `pnpm test:e2e:mobile` (Chromium and WebKit), `pnpm test:card-art`.
   **Not run here:** `pnpm desktop:package` (the launcher in the packaged app) and `pnpm db:status` — listed in the G4 README.
 - [x] No English player-facing strings (grep review recorded in `evidence/04/g4/README.md` §4).
@@ -830,7 +830,7 @@ Known limitations: complete-group rent doubling is shown as a rule note, not com
 (the existing client helper does not compute it). `pnpm desktop:package` (the packaged launcher) and
 `pnpm db:status` were not run in this environment (no Electron binary permission, no `DATABASE_URL`).
 
-**G4 verdict**: PENDING — reviewer, date, notes.
+**G4 verdict**: Approved — tvghung, 01/10/2026. Approved by the product owner in chat on 01/10/2026 ("tôi duyệt tất cả"); written into this file by the agent at the product owner's explicit request, in the same form as the G1 record. The V1 card contract review (`evidence/04/g4/README.md` §5) was part of the package and is approved with it. Not run in this environment: `pnpm desktop:package` and `pnpm db:status`.
 
 ---
 

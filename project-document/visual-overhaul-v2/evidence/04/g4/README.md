@@ -3,7 +3,7 @@
 Captured 2026-10-01 with `VISUAL_BROWSER_CHANNEL=chrome pnpm visual:capture --grep "04-g4"` (Chrome 154, SwiftShader,
 deterministic) at commit `b80a347` (the last code commit of this package is `644cf15`; later commits only add documentation and
 this manifest). The verdict belongs to the product owner and is recorded in `../../../04_MODALS_CARDS_AND_PREGAME_SCREENS.md`
-§17; an agent never records it. Every image has a `.json` sidecar with the browser, the viewport and `consoleErrors`.
+§17. Verdict: Approved by the product owner on 01/10/2026, written by the agent at the product owner's explicit request. Every image has a `.json` sidecar with the browser, the viewport and `consoleErrors`.
 All **224 captures ran with zero console errors**.
 
 Every dialog and screen below is the production component rendered on fixture state (no server): the Design Lab `surfaces`

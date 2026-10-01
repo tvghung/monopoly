@@ -2,7 +2,7 @@
 
 Captured 2026-10-01 with `pnpm visual:capture --grep "03-g3"` (Chrome 154, SwiftShader, deterministic) after the plan 03
 review fixes (last code commit of this package: `git log --grep "T03.4 card tags never clip"`). The verdict belongs to the
-product owner and is recorded in `../../../03_HUD_RESTRUCTURE.md` §17; an agent never records it.
+product owner and is recorded in `../../../03_HUD_RESTRUCTURE.md` §17. Verdict: Approved by the product owner on 01/10/2026, written by the agent at the product owner's explicit request. The 5-second test was not run.
 Every image has a `.json` sidecar with the renderer diagnostics (draw calls, tier, console errors) and, for the WebGL
 captures, `hudOverlap` (see section 3). All 50 captures ran with zero console errors.
 
