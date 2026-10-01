@@ -1,131 +1,259 @@
-.card-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
-    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
-  color: #173d43;
+/*
+ * Chance / Khí Vận card reveal (plan 04 §8.5): a printed card lying on the table. The Modal dialog is the card itself
+ * (deck-colored frame, paper face). Its header holds the deck badge and the title; its body holds the artwork, the
+ * message and the single "Đóng" action. Tokens are local and come from the OTB palette, so the card looks the same in
+ * every theme. The z-index comes from the Modal `card` layer; the connection overlay stays above it.
+ */
+.card-face {
+  --card-paper: var(--otb-paper-50);
+  --card-ink: var(--otb-ink-900);
+  --card-ink-soft: var(--otb-ink-700);
+  --card-gold: var(--otb-gold-400);
+  --card-frame-width: 10px;
+  --card-frame: var(--otb-lacquer-600);
+  --card-frame-deep: var(--otb-lacquer-700);
 }
 
-.card-modal__scrim {
-  position: absolute;
-  inset: 0;
-  background: rgb(9 35 39 / 78%);
-  backdrop-filter: blur(4px);
+.card-face--chest {
+  --card-frame: var(--otb-jade-600);
+  --card-frame-deep: var(--otb-jade-700);
 }
 
-.card-modal__dialog {
-  position: relative;
-  width: min(100%, 36rem);
-  max-height: calc(100dvh - 2rem);
-  overflow: auto;
-  border: 1px solid rgb(255 255 255 / 58%);
-  border-radius: 1.5rem;
-  background: #fffaf0;
-  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 35%);
-  animation: card-modal-enter 180ms ease-out both;
+/* The modal card is also a .ds-modal__card, so it needs the extra class to win over the Modal rules in any bundle order. */
+.card-face,
+.ds-modal__card.card-face {
+  box-sizing: border-box;
+  border: var(--card-frame-width) solid var(--card-frame);
+  border-radius: var(--radius-lg);
+  background-color: var(--card-paper);
+  background-image: var(--paper-grain);
+  color: var(--card-ink);
+  box-shadow: inset 0 0 0 2px var(--card-gold), inset 0 0 0 3px var(--card-frame-deep), var(--elevation-3);
 }
 
-.card-modal__panel {
-  display: grid;
-  gap: 0.9rem;
-  justify-items: center;
-  padding: clamp(1.25rem, 4vw, 2rem);
-  text-align: center;
+.ds-modal__card.card-face:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--card-gold), inset 0 0 0 3px var(--card-frame-deep), var(--elevation-3), var(--focus-ring);
 }
 
-.card-modal__badge {
+.card-face__badge {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-2);
   min-height: 2rem;
-  padding: 0.35rem 0.8rem;
-  border-radius: 999px;
-  color: #fffaf0;
-  font-size: 0.73rem;
-  font-weight: 800;
+  padding: 0.25rem 0.85rem 0.25rem 0.3rem;
+  border-radius: var(--radius-pill);
+  background: var(--card-frame);
+  color: var(--card-paper);
+  font: 800 0.8125rem/1 var(--font-family-body);
   letter-spacing: 0.14em;
 }
 
-.card-modal__badge--chance { background: #d9424d; }
-.card-modal__badge--chest { background: #0b9486; }
-
-.card-modal__art {
-  display: block;
-  width: min(100%, 31rem);
-  max-height: min(42vh, 15rem);
-  object-fit: contain;
-  border-radius: 1rem;
+.card-face__emblem {
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
-.card-modal__copy {
-  display: grid;
-  gap: 0.45rem;
-  width: 100%;
+.card-face__emblem-disc { fill: var(--card-gold); }
+.card-face__emblem-ink { fill: var(--card-frame-deep); }
+.card-face__emblem-line {
+  fill: none;
+  stroke: var(--card-frame-deep);
+  stroke-linecap: round;
+  stroke-width: 2.4;
 }
 
-.card-modal__copy h2 {
+.card-face__title {
   margin: 0;
-  color: #173d43;
-  font-size: clamp(1.35rem, 3vw, 1.9rem);
-  line-height: 1.1;
+  color: var(--card-ink);
+  font: var(--type-title-m);
+  text-wrap: balance;
 }
 
-.card-modal__copy p {
-  margin: 0 auto;
-  max-width: 32rem;
-  color: #355a5e;
-  font-size: clamp(1rem, 2.1vw, 1.12rem);
-  line-height: 1.5;
+.card-face__art {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  background: var(--otb-paper-200);
+  box-shadow: 0 0 0 2px var(--otb-ink-alpha-12);
 }
 
-.card-modal__close {
-  width: min(100%, 20rem);
-  min-height: 3rem;
-  border: 0;
-  border-radius: 0.8rem;
-  background: #d9424d;
-  color: #fffaf0;
-  cursor: pointer;
+.card-face__message {
+  margin: 0;
+  max-width: 30rem;
+  color: var(--card-ink);
+  font: 500 1.125rem/1.55 var(--font-family-body);
+  text-wrap: pretty;
+}
+
+/*
+ * The dialog. 5:7 is the minimum shape (card width times 1.4): a long message or a large text size grows the card first
+ * and only scrolls the body once the viewport is full. The shape gives way to the visible height (a min-height would
+ * otherwise beat the Modal max-height and push the card off a very short portrait window).
+ */
+.ds-modal__card.card-modal {
+  /* A little wider than the Modal `sm` size (25rem), so the card still reads as a card on a desktop. */
+  --ds-modal-width: 26rem;
+  align-self: center;
+  min-height: min(calc(min(var(--ds-modal-width), 100vw - 2rem) * 1.4), calc(100dvh - 2rem));
+  animation: card-modal-enter 320ms var(--motion-ease-out) backwards;
+}
+
+/* Reduced motion (the in-app setting or the OS): the card only fades. */
+.ds-modal__card.card-modal--reduced-motion { animation: card-modal-fade 120ms linear backwards; }
+
+.card-modal .ds-modal__header {
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border-bottom: 0;
+  background: transparent;
+  text-align: center;
+}
+
+.card-modal .ds-modal__heading {
+  justify-items: center;
+  gap: var(--space-2);
+}
+
+.card-modal .ds-modal__eyebrow {
   font: inherit;
-  font-weight: 800;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
-.card-modal__close:hover:not(:disabled),
-.card-modal__close:focus-visible:not(:disabled) { background: #b92f42; }
-
-.card-modal__close:disabled {
-  cursor: wait;
-  opacity: 0.55;
+.card-modal .ds-modal__title {
+  color: var(--card-ink);
+  font: var(--type-title-m);
+  text-wrap: balance;
 }
+
+/* The bottom padding keeps the gold keyline of the card visible under the action. */
+.card-modal .ds-modal__body {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-1) var(--space-4) var(--space-4);
+}
+
+.card-modal__stage {
+  display: grid;
+  flex: 1 0 auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  justify-items: center;
+  text-align: center;
+}
+
+/* The message sits in a printed text box that takes the space between the artwork and the action. */
+.card-modal__stage .card-face__message {
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--otb-ink-alpha-12);
+  border-radius: var(--radius-md);
+  background: var(--otb-paper-100);
+}
+
+/* The action stays reachable when a tiny viewport makes the body scroll; the soft edge fades the text passing under it. */
+.card-modal__actions {
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  gap: var(--space-2);
+  justify-items: stretch;
+  width: 100%;
+  background: var(--card-paper);
+  box-shadow: 0 -0.5rem 0.5rem -0.125rem var(--card-paper);
+}
+
+.card-modal__actions .ds-button { width: 100%; }
 
 .card-modal__helper,
 .card-modal__error {
-  margin: -0.25rem 1.25rem 1.25rem;
+  margin: 0;
+  font: var(--type-small);
   text-align: center;
-  line-height: 1.4;
 }
 
-.card-modal__helper { color: #527174; }
-.card-modal__error { color: #a93245; font-weight: 700; }
+.card-modal__helper { color: var(--card-ink-soft); }
+.card-modal__error { color: var(--otb-lacquer-700); font-weight: 700; }
 
+/* A phone held sideways, or any window too short for the portrait card: artwork on the left, message and action on the right. */
+@media (orientation: landscape) and (max-height: 620px) {
+  .ds-modal__card.card-modal {
+    --ds-modal-width: 40rem;
+    min-height: 0;
+  }
+
+  .card-modal .ds-modal__header {
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: var(--space-2) var(--space-4) var(--space-1);
+    text-align: left;
+  }
+
+  .card-modal .ds-modal__heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-items: start;
+    gap: var(--space-1) var(--space-3);
+  }
+
+  .card-modal .ds-modal__title { font: var(--type-title-s); }
+
+  .card-modal__stage {
+    grid-template-columns: minmax(9rem, 40%) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: var(--space-4);
+    row-gap: var(--space-2);
+    justify-items: stretch;
+    text-align: left;
+  }
+
+  .card-modal .ds-modal__body { padding-bottom: var(--space-3); }
+
+  .card-modal__stage .card-face__art { grid-row: 1 / span 2; }
+
+  .card-modal__stage .card-face__message {
+    grid-column: 2;
+    align-self: center;
+    place-items: center start;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .card-modal__actions {
+    grid-column: 2;
+    position: static;
+    box-shadow: none;
+  }
+}
+
+/* The development-only gallery: the same printed card without the dialog, all 28 cards at once. */
 .card-art-gallery {
   min-height: 100vh;
-  padding: 2rem;
-  background: #edf6f1;
-  color: #173d43;
+  padding: var(--space-6);
+  background: var(--otb-backdrop);
+  color: var(--otb-ink-900);
+  font-family: var(--font-family-body);
 }
 
 .card-art-gallery__header {
   width: min(100%, 72rem);
-  margin: 0 auto 1.5rem;
+  margin: 0 auto var(--space-5);
 }
 
 .card-art-gallery__header .eyebrow {
   margin: 0 0 0.4rem;
-  color: #0b9486;
+  color: var(--otb-jade-700);
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -134,66 +262,46 @@
 .card-art-gallery__header h1,
 .card-art-gallery__header p:last-child { margin: 0; }
 .card-art-gallery__header h1 { font-size: clamp(1.8rem, 4vw, 2.7rem); }
-.card-art-gallery__header p:last-child { color: #527174; }
+.card-art-gallery__header p:last-child { color: var(--otb-ink-700); }
 
 .card-art-gallery__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
-  gap: 1rem;
+  gap: var(--space-4);
   width: min(100%, 72rem);
   margin: 0 auto;
 }
 
-.card-gallery__card {
+.card-face--gallery {
+  --card-frame-width: 6px;
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-3);
   align-content: start;
+  justify-items: center;
   min-width: 0;
-  padding: 1rem;
-  border: 1px solid #c9dfd8;
-  border-radius: 1rem;
-  background: #fffaf0;
-  box-shadow: 0 0.5rem 1.4rem rgb(23 61 67 / 8%);
+  padding: var(--space-3);
   text-align: center;
 }
 
-.card-gallery__card .card-modal__art {
-  width: 100%;
-  max-height: none;
+.card-face--gallery .card-face__header {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: center;
 }
 
-.card-gallery__card .card-modal__copy h2 { font-size: 1.1rem; }
-.card-gallery__card .card-modal__copy p { font-size: 0.92rem; }
+.card-face--gallery .card-face__title { font: var(--type-title-s); }
+.card-face--gallery .card-face__message { font-size: 0.95rem; }
 
 @keyframes card-modal-enter {
-  from { opacity: 0; transform: translateY(0.35rem) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(32px) rotate(-2deg); }
+  to { opacity: 1; transform: none; }
 }
 
-@media (orientation: landscape) and (max-height: 620px) {
-  .card-modal__panel {
-    grid-template-columns: minmax(9rem, 38%) 1fr;
-    align-items: center;
-    justify-items: stretch;
-    text-align: left;
-    gap: 0.75rem 1rem;
-    padding: 1rem 1.25rem;
-  }
-
-  .card-modal__badge,
-  .card-modal__art { grid-row: span 2; }
-  .card-modal__art { width: 100%; max-height: 12rem; }
-  .card-modal__copy p { margin: 0; }
-  .card-modal__close { grid-column: 2; width: 100%; }
-  .card-modal__error { grid-column: 1 / -1; margin: 0; }
-  .card-modal__helper { margin-bottom: 0.75rem; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .card-modal__dialog { animation: none; }
+@keyframes card-modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @media (max-width: 520px) {
-  .card-art-gallery { padding: 1rem; }
-  .card-modal__dialog { border-radius: 1.15rem; }
+  .card-art-gallery { padding: var(--space-4); }
 }
