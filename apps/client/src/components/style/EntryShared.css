@@ -1,0 +1,45 @@
+/*
+ * Shared by the two screens a player sees before a room exists: the landing (JoinForm) and the desktop launcher.
+ * Both stay plain CSS on tokens, because the launcher renders outside the settings, audio and toast providers.
+ */
+:root {
+  /* The table, seen from above: warm paper that deepens towards the oak of the board. */
+  --entry-backdrop:
+    radial-gradient(ellipse 120% 80% at 50% 0%, var(--color-canvas) 0%, transparent 70%),
+    linear-gradient(170deg, var(--color-canvas-deep) 0%, color-mix(in srgb, var(--color-scene-backdrop) 60%, var(--color-canvas-deep)) 100%);
+  /* A field edge that reaches 3:1 against the paper card, unlike the hairline --color-border. */
+  --entry-field-border: color-mix(in srgb, var(--color-text-primary) 45%, var(--color-surface));
+}
+
+.entry-label {
+  display: block;
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-primary);
+  font: var(--type-small);
+  font-weight: 700;
+}
+
+.entry-control {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: 2px solid var(--entry-field-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font: var(--type-body);
+  transition: border-color var(--motion-duration-micro) var(--motion-ease-out), box-shadow var(--motion-duration-micro) var(--motion-ease-out);
+}
+
+.entry-control::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+/* Inputs and the network select share one focus style; the transparent outline keeps it visible in forced-colors mode. */
+.entry-control:focus-visible {
+  border-color: var(--color-focus);
+  outline: 2px solid transparent;
+  box-shadow: var(--focus-ring);
+}

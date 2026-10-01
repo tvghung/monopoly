@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import {
-  ArrowLeft, LogIn, Play, Plug, Server, Square,
-} from 'lucide-react';
+import Button from '../design-system/components/Button/Button';
+import Panel from '../design-system/components/Panel/Panel';
+import { ActionIcon } from '../design-system/icons/ActionIcon';
+import type { ActionIconName } from '../design-system/icons/actionIcons';
 import { getDesktopBridge } from '../runtime/desktopBridge';
 import { normalizeLanEndpoint } from '../runtime/lanEndpoint';
 import { generateHostRoomCode, normalizeRoomCode } from '../runtime/lanSharing';
@@ -12,6 +13,7 @@ import type {
   HostRuntimeStatus,
   RuntimeConfig,
 } from '../runtime/types';
+import './style/EntryShared.css';
 import './style/DesktopMultiplayerLauncher.css';
 
 type LauncherMode = 'host' | 'join' | 'configured' | null;
@@ -20,6 +22,41 @@ interface DesktopMultiplayerLauncherProps {
   configuredRuntimeConfig?: RuntimeConfig;
   configurationError?: string | null;
   onReady: (selection: DesktopLaunchSelection) => void;
+  /** Opens a form directly, for design-lab captures; the launcher itself always starts on the choices. */
+  initialMode?: Exclude<LauncherMode, null>;
+}
+
+const modeTitle: Record<Exclude<LauncherMode, null>, string> = {
+  host: 'Tạo phòng trên máy này',
+  join: 'Tham gia phòng LAN',
+  configured: 'Máy chủ đã cấu hình',
+};
+
+interface ChoiceCardProps {
+  icon: ActionIconName;
+  title: string;
+  description: string;
+  className?: string;
+  onClick: () => void;
+}
+
+/** One way to start: a large target with a glyph, what it does, and a line on what it needs. */
+function ChoiceCard({
+  icon, title, description, className = '', onClick,
+}: ChoiceCardProps) {
+  return (
+    <button
+      type="button"
+      className={`desktop-launcher__choice${className ? ` ${className}` : ''}`}
+      onClick={onClick}
+    >
+      <span className="desktop-launcher__choice-icon" aria-hidden="true">
+        <ActionIcon name={icon} className="action-icon--only" />
+      </span>
+      <span className="desktop-launcher__choice-title">{title}</span>
+      <span className="desktop-launcher__choice-text">{description}</span>
+    </button>
+  );
 }
 
 const hostErrorCopy: Record<HostRuntimeErrorCode, string> = {
@@ -64,9 +101,10 @@ export default function DesktopMultiplayerLauncher({
   configuredRuntimeConfig,
   configurationError,
   onReady,
+  initialMode,
 }: DesktopMultiplayerLauncherProps) {
   const bridge = getDesktopBridge();
-  const [mode, setMode] = useState<LauncherMode>(null);
+  const [mode, setMode] = useState<LauncherMode>(initialMode ?? null);
   const [name, setName] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [address, setAddress] = useState('');
@@ -187,13 +225,20 @@ export default function DesktopMultiplayerLauncher({
   const hostStarting = hostStatus?.state === 'STARTING_POSTGRES'
     || hostStatus?.state === 'STARTING_SERVER'
     || hostStatus?.state === 'STOPPING';
+  const working = busy || hostStarting;
+  // The written reason the submit button is disabled; starting and the missing-network case say so in their own lines.
+  const submitReason = !name.trim()
+    ? 'Nhập tên của bạn để tiếp tục.'
+    : mode !== 'host' && !roomCode.trim() ? 'Nhập mã phòng do Host chia sẻ.' : null;
 
   return (
     <main className="desktop-launcher" aria-labelledby="desktop-launcher-title">
-      <section className="desktop-launcher__card">
-        <p className="desktop-launcher__brand" aria-hidden="true">OWN THE BLOCK</p>
-        <h1 id="desktop-launcher-title">Cờ Tỷ Phú Việt Nam</h1>
-        <p className="desktop-launcher__subtitle">Một máy Host giữ phòng; các thiết bị cùng Wi-Fi hoặc Ethernet tham gia bằng địa chỉ LAN.</p>
+      <Panel as="section" padding="lg" className="desktop-launcher__card">
+        <header className="desktop-launcher__header">
+          <p className="desktop-launcher__brand" aria-hidden="true">OWN THE BLOCK</p>
+          <h1 id="desktop-launcher-title">Chơi qua mạng LAN</h1>
+          <p className="desktop-launcher__subtitle">Một máy Host giữ phòng; các thiết bị cùng Wi-Fi hoặc Ethernet tham gia bằng địa chỉ LAN.</p>
+        </header>
 
         {error ? <p className="desktop-launcher__error" role="alert">{error}</p> : null}
         {hostStarting ? <p className="desktop-launcher__status" role="status">{startingLabel(hostStatus)}</p> : null}
@@ -202,31 +247,44 @@ export default function DesktopMultiplayerLauncher({
           <div className="desktop-launcher__choices">
             {hostStatus?.state === 'HOSTING' && hostStatus.localEndpoint ? (
               <div className="desktop-launcher__running">
-                <button type="button" onClick={() => onReady({
-                  runtimeConfig: runtimeConfig(hostStatus.localEndpoint as string, hostStatus),
-                  hosting: true,
-                })}>
-                  <strong><Play className="action-icon" aria-hidden="true" />Tiếp tục Host đang chạy</strong>
-                  <span>Máy chủ LAN vẫn giữ dữ liệu phòng trên máy này.</span>
-                </button>
-                <button type="button" className="desktop-launcher__stop" disabled={busy} onClick={() => void stopHost()}>
-                  <Square className="action-icon" aria-hidden="true" />Dừng Host
-                </button>
+                <ChoiceCard
+                  icon="start"
+                  title="Tiếp tục Host đang chạy"
+                  description="Máy chủ LAN vẫn giữ dữ liệu phòng trên máy này"
+                  className="desktop-launcher__choice--running"
+                  onClick={() => onReady({
+                    runtimeConfig: runtimeConfig(hostStatus.localEndpoint as string, hostStatus),
+                    hosting: true,
+                  })}
+                />
+                <Button
+                  variant="ghost"
+                  className="desktop-launcher__stop"
+                  icon={<ActionIcon name="stopHost" className="action-icon--only" />}
+                  disabled={busy}
+                  onClick={() => void stopHost()}
+                >Dừng Host</Button>
               </div>
             ) : null}
-            <button type="button" onClick={() => { setMode('host'); setError(null); }}>
-              <strong><Server className="action-icon" aria-hidden="true" />Host Game</strong>
-              <span>Khởi động máy chủ riêng trên máy này.</span>
-            </button>
-            <button type="button" onClick={() => { setMode('join'); setError(null); }}>
-              <strong><LogIn className="action-icon" aria-hidden="true" />Join Game</strong>
-              <span>Nhập địa chỉ IPv4 và mã phòng do Host chia sẻ.</span>
-            </button>
+            <ChoiceCard
+              icon="host"
+              title={modeTitle.host}
+              description="Máy này làm chủ phòng, người khác vào qua Wi-Fi"
+              onClick={() => { setMode('host'); setError(null); }}
+            />
+            <ChoiceCard
+              icon="join"
+              title={modeTitle.join}
+              description="Nhập địa chỉ IPv4 và mã phòng do Host chia sẻ"
+              onClick={() => { setMode('join'); setError(null); }}
+            />
             {configuredRuntimeConfig?.socketUrl ? (
-              <button type="button" onClick={() => { setMode('configured'); setError(null); }}>
-                <strong><Plug className="action-icon" aria-hidden="true" />Máy chủ đã cấu hình</strong>
-                <span>Dùng địa chỉ thử nghiệm hoặc máy chủ cũ đã cung cấp.</span>
-              </button>
+              <ChoiceCard
+                icon="configuredServer"
+                title={modeTitle.configured}
+                description="Dùng địa chỉ thử nghiệm hoặc máy chủ cũ đã cung cấp"
+                onClick={() => { setMode('configured'); setError(null); }}
+              />
             ) : null}
           </div>
         ) : (
@@ -234,28 +292,36 @@ export default function DesktopMultiplayerLauncher({
             event.preventDefault();
             void (mode === 'host' ? startHost() : joinHost());
           }}>
-            <button className="desktop-launcher__back" type="button" onClick={() => setMode(null)}>
-              <ArrowLeft className="action-icon" aria-hidden="true" />Chọn lại chế độ
-            </button>
-            <h2>{mode === 'host' ? 'Host Game' : 'Join Game'}</h2>
+            <Button
+              variant="ghost"
+              className="desktop-launcher__back"
+              icon={<ActionIcon name="back" className="action-icon--only" />}
+              onClick={() => setMode(null)}
+            >Chọn lại chế độ</Button>
+            <h2>{modeTitle[mode]}</h2>
 
-            <label htmlFor="desktop-player-name">Tên của bạn</label>
-            <input
-              id="desktop-player-name"
-              value={name}
-              maxLength={20}
-              onChange={event => setName(event.target.value)}
-              autoFocus
-              autoComplete="nickname"
-            />
+            <div className="desktop-launcher__field">
+              <label className="entry-label" htmlFor="desktop-player-name">Tên của bạn</label>
+              <input
+                id="desktop-player-name"
+                className="entry-control"
+                value={name}
+                maxLength={20}
+                placeholder="Ví dụ: Minh"
+                onChange={event => setName(event.target.value)}
+                autoFocus
+                autoComplete="nickname"
+              />
+            </div>
 
             {mode === 'host' ? (
               <>
                 {hostStatus?.interfaces.length ? (
-                  <>
-                    <label htmlFor="desktop-lan-interface">Mạng dùng để chia sẻ</label>
+                  <div className="desktop-launcher__field">
+                    <label className="entry-label" htmlFor="desktop-lan-interface">Mạng dùng để chia sẻ</label>
                     <select
                       id="desktop-lan-interface"
+                      className="entry-control"
                       value={preferredAddress}
                       onChange={event => setPreferredAddress(event.target.value)}
                     >
@@ -265,7 +331,7 @@ export default function DesktopMultiplayerLauncher({
                         </option>
                       ))}
                     </select>
-                  </>
+                  </div>
                 ) : (
                   <p className="desktop-launcher__hint">Chưa tìm thấy IPv4 LAN dùng được.</p>
                 )}
@@ -278,10 +344,11 @@ export default function DesktopMultiplayerLauncher({
                     Địa chỉ đã cấu hình: <code>{configuredRuntimeConfig?.socketUrl}</code>
                   </p>
                 ) : (
-                  <>
-                    <label htmlFor="desktop-lan-address">Địa chỉ Host</label>
+                  <div className="desktop-launcher__field">
+                    <label className="entry-label" htmlFor="desktop-lan-address">Địa chỉ Host</label>
                     <input
                       id="desktop-lan-address"
+                      className="entry-control"
                       value={address}
                       placeholder="192.168.1.25:53120"
                       inputMode="url"
@@ -289,39 +356,46 @@ export default function DesktopMultiplayerLauncher({
                       spellCheck={false}
                       onChange={event => { setAddress(event.target.value); setError(null); }}
                     />
-                  </>
+                  </div>
                 )}
-                <label htmlFor="desktop-lan-room">Mã phòng</label>
-                <input
-                  id="desktop-lan-room"
-                  value={roomCode}
-                  maxLength={20}
-                  autoCapitalize="characters"
-                  onChange={event => setRoomCode(event.target.value.toUpperCase())}
-                />
+                <div className="desktop-launcher__field">
+                  <label className="entry-label" htmlFor="desktop-lan-room">Mã phòng</label>
+                  <input
+                    id="desktop-lan-room"
+                    className="entry-control"
+                    value={roomCode}
+                    maxLength={20}
+                    placeholder="Ví dụ: OTB-ABC234"
+                    autoCapitalize="characters"
+                    onChange={event => setRoomCode(event.target.value.toUpperCase())}
+                  />
+                </div>
                 <p className="desktop-launcher__hint">
                   Nếu không kết nối được, xác nhận hai thiết bị cùng LAN; tường lửa, mạng khách hoặc VPN có thể chặn kết nối.
                 </p>
               </>
             )}
 
-            <button
-              className="desktop-launcher__submit"
+            <Button
               type="submit"
-              disabled={busy || hostStarting || !name.trim()
-                || (mode === 'host' ? !preferredAddress : !roomCode.trim())}
+              size="lg"
+              className="desktop-launcher__submit"
+              icon={working ? undefined : <ActionIcon name={mode === 'host' ? 'host' : 'join'} className="action-icon--only" />}
+              busy={working}
+              disabled={!name.trim() || (mode === 'host' ? !preferredAddress : !roomCode.trim())}
+              aria-describedby={submitReason && !working ? 'desktop-submit-reason' : undefined}
             >
-              {mode === 'host'
-                ? <Server className="action-icon" aria-hidden="true" />
-                : <LogIn className="action-icon" aria-hidden="true" />}
-              {busy || hostStarting
+              {working
                 ? startingLabel(hostStatus)
                 : mode === 'host' ? 'Tạo và vào phòng' : 'Kết nối và vào phòng'}
-            </button>
+            </Button>
+            {submitReason && !working ? (
+              <p id="desktop-submit-reason" className="desktop-launcher__hint desktop-launcher__reason">{submitReason}</p>
+            ) : null}
           </form>
         )}
         <p className="desktop-launcher__security">Liên kết mời chỉ chứa địa chỉ LAN và mã phòng; không chứa phiên kết nối hay thông tin cơ sở dữ liệu.</p>
-      </section>
+      </Panel>
     </main>
   );
 }

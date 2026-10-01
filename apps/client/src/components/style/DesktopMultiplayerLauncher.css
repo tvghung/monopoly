@@ -1,78 +1,73 @@
+/* The launcher renders outside the settings, audio and toast providers: plain CSS on tokens and provider-free primitives only. */
 .desktop-launcher {
-  display: grid;
-  place-items: center;
+  display: flex;
   min-height: 100dvh;
   padding:
-    max(var(--space-6), env(safe-area-inset-top))
-    max(var(--space-6), env(safe-area-inset-right))
-    max(var(--space-6), env(safe-area-inset-bottom))
-    max(var(--space-6), env(safe-area-inset-left));
-  background: radial-gradient(circle at 50% 0%, var(--color-warning-soft), var(--color-info-soft) 70%);
+    max(var(--space-4), env(safe-area-inset-top))
+    max(var(--space-4), env(safe-area-inset-right))
+    max(var(--space-4), env(safe-area-inset-bottom))
+    max(var(--space-4), env(safe-area-inset-left));
+  background: var(--entry-backdrop);
   color: var(--color-text-primary);
 }
 
-.desktop-launcher__card {
-  display: flex;
-  flex-direction: column;
-  width: min(94vw, 42rem);
-  padding: 2.5rem;
-  border-radius: 1rem;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-floating);
+/* Auto margins center the card when it is shorter than the window and keep its top reachable when it is taller. */
+.desktop-launcher .desktop-launcher__card {
+  display: grid;
+  gap: var(--space-4);
+  width: min(100%, 46rem);
+  margin: auto;
+  padding: var(--space-6);
+}
+
+.desktop-launcher__header {
+  display: grid;
+  gap: var(--space-1);
+  text-align: center;
 }
 
 .desktop-launcher__brand {
-  margin: 0 0 0.75rem;
+  margin: 0;
   color: var(--color-accent-primary-strong);
-  font-size: 0.78rem;
-  font-weight: 700;
+  font: var(--type-caption);
   letter-spacing: 0.18em;
-  text-align: center;
-}
-
-.desktop-launcher h1,
-.desktop-launcher h2,
-.desktop-launcher h3 {
-  margin-top: 0;
 }
 
 .desktop-launcher h1 {
-  margin-bottom: 0.25rem;
+  margin: 0;
   color: var(--color-accent-primary-strong);
-  font-size: clamp(2rem, 6vw, 2.75rem);
-  text-align: center;
+  font: var(--type-display);
+  text-wrap: balance;
 }
 
-.desktop-launcher__subtitle,
-.desktop-launcher__security,
-.desktop-launcher__hint {
-  color: var(--color-text-secondary);
-  line-height: 1.45;
+.desktop-launcher h2 {
+  margin: 0;
+  font: var(--type-title-m);
 }
 
 .desktop-launcher__subtitle {
-  margin: 0 0 1.5rem;
-  text-align: center;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--type-small);
+  text-wrap: balance;
 }
 
 .desktop-launcher__security {
-  margin: 1.5rem 0 0;
-  font-size: 0.78rem;
+  margin: 0;
+  color: var(--color-text-muted);
+  font: var(--type-caption);
   text-align: center;
+  text-wrap: balance;
 }
 
-.desktop-launcher__error {
-  margin: 0 0 1rem;
-  padding: 0.7rem 0.8rem;
-  border-radius: 0.45rem;
-}
-
+.desktop-launcher__error,
 .desktop-launcher__status {
-  margin: 0 0 1rem;
-  padding: 0.7rem 0.8rem;
-  border-radius: 0.45rem;
-  background: var(--color-info-soft);
-  color: var(--color-info-strong);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 0.25rem solid currentColor;
+  border-radius: var(--radius-sm);
+  font: var(--type-small);
+  font-weight: 700;
 }
 
 .desktop-launcher__error {
@@ -80,154 +75,194 @@
   color: var(--color-danger-strong);
 }
 
-.desktop-launcher__choices {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
+.desktop-launcher__status {
+  background: var(--color-info-soft);
+  color: var(--color-info-strong);
 }
 
-.desktop-launcher__choices > button {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding: 1rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 0.65rem;
-  background: var(--color-surface-raised);
-  color: var(--color-text-primary);
-  cursor: pointer;
-  text-align: left;
+/* The choices: equal cards that fill the row, however many there are. */
+.desktop-launcher__choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr));
+  gap: var(--space-3);
 }
 
 .desktop-launcher__running {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.5rem;
   grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
 }
 
-.desktop-launcher__running > button {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding: 1rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 0.65rem;
+.desktop-launcher__choice {
+  display: grid;
+  grid-template-areas:
+    'icon'
+    'title'
+    'text';
+  grid-template-rows: auto auto 1fr;
+  justify-items: start;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: var(--space-4);
+  border: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
   background: var(--color-surface-raised);
   color: var(--color-text-primary);
+  font: inherit;
+  text-align: start;
   cursor: pointer;
-  text-align: left;
+  box-shadow: 0 4px 0 var(--color-action-neutral-lip), var(--elevation-1);
+  transition: transform var(--motion-duration-micro) var(--motion-ease-out), border-color var(--motion-duration-micro) var(--motion-ease-out), box-shadow var(--motion-duration-micro) var(--motion-ease-out);
 }
 
-.desktop-launcher__running .desktop-launcher__stop {
-  border-color: var(--color-danger);
-  color: var(--color-danger-strong);
-  font-weight: 700;
-}
-
-.desktop-launcher__choices button:hover,
-.desktop-launcher__running > button:first-child:hover {
+.desktop-launcher__choice:hover {
   border-color: var(--color-accent-secondary);
-  box-shadow: var(--shadow-focus);
+  transform: translateY(-2px);
 }
 
-.desktop-launcher__choices span,
-.desktop-launcher__running span {
+.desktop-launcher__choice:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--color-action-neutral-lip), var(--elevation-1);
+}
+
+.desktop-launcher__choice:focus-visible {
+  outline: 2px solid transparent;
+  border-color: var(--color-focus);
+  box-shadow: var(--focus-ring), 0 4px 0 var(--color-action-neutral-lip);
+}
+
+.desktop-launcher__choice--running {
+  border-color: var(--color-accent-secondary);
+  background: var(--color-accent-secondary-soft);
+}
+
+.desktop-launcher__choice-icon {
+  grid-area: icon;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-secondary-soft);
+  color: var(--color-accent-secondary-strong);
+}
+
+.desktop-launcher__choice--running .desktop-launcher__choice-icon {
+  background: var(--color-surface-raised);
+}
+
+.desktop-launcher__choice-icon .action-icon {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.desktop-launcher__choice-title {
+  grid-area: title;
+  font: var(--type-title-s);
+}
+
+.desktop-launcher__choice-text {
+  grid-area: text;
   color: var(--color-text-secondary);
-  font-size: 0.82rem;
-  line-height: 1.35;
+  font: var(--type-small);
+}
+
+/* Stopping is not a go-ahead: a neutral button with danger-colored text, not the jade face of the secondary variant. */
+.desktop-launcher .desktop-launcher__stop {
+  --ds-button-text: var(--color-danger-strong);
+  align-self: stretch;
+  color: var(--color-danger-strong);
 }
 
 .desktop-launcher__form {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  gap: var(--space-3);
 }
 
-.desktop-launcher__form h2 {
-  margin-bottom: 1rem;
-}
+.desktop-launcher__back { justify-self: start; }
 
-.desktop-launcher__form label {
-  margin: 0 0 0.35rem;
-  font-weight: 600;
-}
-
-.desktop-launcher__form input {
-  min-height: 2.75rem;
-  margin-bottom: 1rem;
-  padding: 0.7rem 0.8rem;
-  border: 2px solid var(--color-border);
-  border-radius: 0.5rem;
-  background: var(--color-surface-raised);
-  color: var(--color-text-primary);
-  font: inherit;
-}
-
-.desktop-launcher__form select {
-  min-height: 2.75rem;
-  margin-bottom: 1rem;
-  padding: 0.7rem 0.8rem;
-  border: 2px solid var(--color-border);
-  border-radius: 0.5rem;
-  background: var(--color-surface-raised);
-  color: var(--color-text-primary);
-  font: inherit;
-}
-
-.desktop-launcher__form input:focus {
-  border-color: var(--color-accent-secondary);
-  box-shadow: var(--shadow-focus);
-  outline: none;
-}
-
-.desktop-launcher__back {
-  align-self: flex-start;
-  margin-bottom: 1rem;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-accent-primary-strong);
-  cursor: pointer;
-  font-weight: 700;
-}
-
-.desktop-launcher__hint {
-  margin: -0.55rem 0 1rem;
-  font-size: 0.8rem;
-}
-
+.desktop-launcher__hint,
 .desktop-launcher__endpoint {
-  margin: 0 0 1rem;
+  margin: 0;
   color: var(--color-text-secondary);
-  line-height: 1.45;
-  overflow-wrap: anywhere;
+  font: var(--type-small);
 }
+
+.desktop-launcher__endpoint { overflow-wrap: anywhere; }
 
 .desktop-launcher__endpoint code {
   color: var(--color-text-primary);
   font: inherit;
-  font-weight: 600;
-}
-
-.desktop-launcher__submit {
-  min-height: 2.75rem;
-  padding: 0.8rem 1rem;
-  border: 0;
-  border-radius: 0.5rem;
-  background: var(--color-accent-primary-strong);
-  color: var(--color-text-inverse);
-  cursor: pointer;
-  font-size: 1rem;
   font-weight: 700;
 }
 
-.desktop-launcher__submit:disabled {
-  background: var(--color-border);
-  cursor: wait;
+.desktop-launcher__reason { text-align: center; }
+
+/* The Electron window can be as small as 1280x720: a form with an error line still fits without scrolling. */
+@media (max-height: 48rem) {
+  .desktop-launcher .desktop-launcher__card {
+    gap: var(--space-3);
+    padding: var(--space-5);
+  }
 }
 
 @media (max-width: 38rem) {
-  .desktop-launcher__card { padding: 1.5rem; }
-  .desktop-launcher__choices { grid-template-columns: 1fr; }
-  .desktop-launcher__running { grid-template-columns: 1fr; }
+  .desktop-launcher .desktop-launcher__card { padding: var(--space-4); }
+  .desktop-launcher h1 { font: var(--type-title-l); }
+  .desktop-launcher__running { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Narrow or short windows: the choices become rows with the glyph beside the text. */
+@media (max-width: 38rem), (orientation: landscape) and (max-height: 31rem) {
+  .desktop-launcher__choices { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+
+  .desktop-launcher__choice {
+    grid-template-areas:
+      'icon title'
+      'icon text';
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    column-gap: var(--space-3);
+    row-gap: 0;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .desktop-launcher__choice-icon { align-self: center; }
+}
+
+/*
+ * A phone held sideways (the web preview of the launcher): the form uses two columns and the header shrinks, so the
+ * choices and every field stay on screen together.
+ */
+@media (orientation: landscape) and (max-height: 31rem) {
+  .desktop-launcher {
+    padding-block: max(var(--space-2), env(safe-area-inset-top)) max(var(--space-2), env(safe-area-inset-bottom));
+  }
+
+  .desktop-launcher .desktop-launcher__card {
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .desktop-launcher h1 { font: var(--type-title-m); }
+  .desktop-launcher h2 { font: var(--type-title-s); }
+  .desktop-launcher__brand,
+  .desktop-launcher__subtitle { display: none; }
+
+  .desktop-launcher__running { grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
+
+  .desktop-launcher__form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2) var(--space-4);
+    align-items: end;
+  }
+
+  .desktop-launcher__form .entry-label { margin-bottom: 0.15rem; }
+  .desktop-launcher__submit,
+  .desktop-launcher__reason { grid-column: 1 / -1; }
+  .desktop-launcher__form .desktop-launcher__submit { min-height: 2.75rem; }
+  .desktop-launcher__hint { align-self: center; }
 }

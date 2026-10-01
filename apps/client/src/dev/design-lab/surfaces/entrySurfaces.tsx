@@ -1,7 +1,109 @@
+import { useEffect, useState, type ReactNode } from 'react';
+import DesktopMultiplayerLauncher from '../../../components/DesktopMultiplayerLauncher';
 import JoinForm from '../../../components/JoinForm';
+import type {
+  HostRuntimeStatus,
+  OwnTheBlockDesktopBridge,
+  RuntimeConfig,
+} from '../../../runtime/types';
 import { noop, SurfaceProviders, type SurfaceFixture } from './surfaceKit';
 
 /** The landing page and the desktop launcher (plan 04 T04.11 and T04.12). */
+
+const LAB_HOST_STATUS: HostRuntimeStatus = {
+  state: 'IDLE',
+  platform: 'win32',
+  appVersion: '3.0.0',
+  gamePort: null,
+  localEndpoint: null,
+  lanAvailable: true,
+  interfaces: [
+    {
+      name: 'Wi-Fi', displayName: 'Wi-Fi', address: '192.168.1.15', netmask: '255.255.255.0', preference: 'preferred', rank: 0,
+    },
+    {
+      name: 'Ethernet', displayName: 'Ethernet', address: '10.0.0.8', netmask: '255.255.255.0', preference: 'fallback', rank: 1,
+    },
+  ],
+  advertisedEndpoints: [],
+  selectedLanUrl: null,
+};
+
+const LAB_HOSTING_STATUS: HostRuntimeStatus = {
+  ...LAB_HOST_STATUS,
+  state: 'HOSTING',
+  gamePort: 53120,
+  localEndpoint: 'http://127.0.0.1:53120',
+  advertisedEndpoints: ['http://192.168.1.15:53120'],
+  selectedLanUrl: 'http://192.168.1.15:53120',
+};
+
+const LAB_CONFIGURED_CONFIG: RuntimeConfig = {
+  target: 'desktop',
+  socketUrl: 'http://192.168.1.15:8080',
+  platform: 'win32',
+  appVersion: '3.0.0',
+};
+
+/** The Electron bridge as the launcher sees it, answering every call from a fixed status and doing nothing else. */
+function makeLabBridge(status: HostRuntimeStatus): OwnTheBlockDesktopBridge {
+  const result = { ok: true as const, status };
+  return {
+    getRuntimeConfig: () => Promise.resolve({
+      ok: true as const,
+      config: { target: 'desktop' as const, platform: status.platform, appVersion: status.appVersion },
+    }),
+    window: {
+      getState: () => Promise.resolve({ fullscreen: false, maximized: false, resizable: true }),
+      setFullscreen: () => Promise.resolve(),
+      toggleFullscreen: () => Promise.resolve(),
+      onFullscreenChanged: () => noop,
+    },
+    quit: { onQuitRequested: () => noop, respond: noop },
+    openExternal: () => Promise.resolve(),
+    host: {
+      getStatus: () => Promise.resolve(status),
+      start: () => Promise.resolve(result),
+      stop: () => Promise.resolve(result),
+      refreshNetwork: () => Promise.resolve(status),
+      onStatusChanged: () => noop,
+    },
+  };
+}
+
+/**
+ * The launcher reads `window.ownTheBlockDesktop` while it renders, so the stub is installed before the first render of
+ * the children and removed when the surface unmounts. The effect installs it again for a StrictMode remount.
+ */
+function DesktopBridgeStub({ status, children }: { status: HostRuntimeStatus; children: ReactNode }) {
+  const [bridge] = useState(() => {
+    const created = makeLabBridge(status);
+    window.ownTheBlockDesktop = created;
+    return created;
+  });
+  useEffect(() => {
+    window.ownTheBlockDesktop = bridge;
+    return () => { delete window.ownTheBlockDesktop; };
+  }, [bridge]);
+  return children;
+}
+
+/** The launcher sits outside the settings, audio and toast providers in production, so no `SurfaceProviders` here. */
+function launcher(
+  props: Partial<Parameters<typeof DesktopMultiplayerLauncher>[0]> = {},
+  status: HostRuntimeStatus = LAB_HOST_STATUS,
+) {
+  return (
+    <DesktopBridgeStub status={status}>
+      <DesktopMultiplayerLauncher
+        configuredRuntimeConfig={LAB_CONFIGURED_CONFIG}
+        onReady={noop}
+        {...props}
+      />
+    </DesktopBridgeStub>
+  );
+}
+
 export const ENTRY_SURFACES: readonly SurfaceFixture[] = [
   {
     id: 'landing',
@@ -22,5 +124,49 @@ export const ENTRY_SURFACES: readonly SurfaceFixture[] = [
         <JoinForm onJoin={noop} busy={false} connected={false} error="Không thể vào phòng. Hãy thử lại." initialRoomCode="GAME-1234" />
       </SurfaceProviders>
     ),
+  },
+  {
+    id: 'landing-public',
+    label: 'Landing, public room selected',
+    group: 'Pre-game',
+    render: () => (
+      <SurfaceProviders>
+        <JoinForm onJoin={noop} busy={false} connected error={null} initialMode="public" />
+      </SurfaceProviders>
+    ),
+  },
+  {
+    id: 'landing-busy',
+    label: 'Landing, joining',
+    group: 'Pre-game',
+    render: () => (
+      <SurfaceProviders>
+        <JoinForm onJoin={noop} busy connected error={null} initialRoomCode="GAME-1234" />
+      </SurfaceProviders>
+    ),
+  },
+  {
+    id: 'launcher',
+    label: 'Desktop launcher, choices',
+    group: 'Pre-game',
+    render: () => launcher(),
+  },
+  {
+    id: 'launcher-running',
+    label: 'Desktop launcher, host already running',
+    group: 'Pre-game',
+    render: () => launcher({}, LAB_HOSTING_STATUS),
+  },
+  {
+    id: 'launcher-host',
+    label: 'Desktop launcher, host form',
+    group: 'Pre-game',
+    render: () => launcher({ initialMode: 'host' }),
+  },
+  {
+    id: 'launcher-join',
+    label: 'Desktop launcher, join form',
+    group: 'Pre-game',
+    render: () => launcher({ initialMode: 'join' }),
   },
 ];
