@@ -2,8 +2,9 @@
 
 Captured 2026-10-01 with `VISUAL_BROWSER_CHANNEL=chrome pnpm visual:capture --grep "05-g5a"` (Chrome 154, SwiftShader,
 deterministic). The verdict belongs to the product owner and a Vietnamese reviewer and is recorded in
-`../../../05_3D_ASSETS_LANDMARKS_AND_STANDEES.md` §17; an agent never records it. **Gate G5a blocks the other 19 landmarks**
-(plan 05 T05.5/T05.6): nothing beyond the three pilots is built until the style is approved or changed.
+`../../../05_3D_ASSETS_LANDMARKS_AND_STANDEES.md` §17. **Verdict: Approved by the product owner on 01/10/2026, written by the agent at the
+product owner's explicit request** (no separate Vietnamese-reviewer sign-off is recorded). Gate G5a blocked the other 19 landmarks (plan 05
+T05.5/T05.6); with the approval they are built in this style.
 
 ## 1. What this package asks for
 

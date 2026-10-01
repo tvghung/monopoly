@@ -1,6 +1,6 @@
 # 05 — 3D Assets: Landmarks, Tube Houses, Standees and Props
 
-**Status: IN PROGRESS — T05.0–T05.5 are done (fixtures, baseline, kit, tube houses, standees, the three pilot landmarks) on 2026-10-01 and the work is stopped at gate G5a (pilot review), verdict PENDING. The other 19 landmarks (T05.6), the 2D art (T05.7), the table props (T05.8), the budget pass (T05.10), gate G5 and the final docs (T05.12) wait for the verdict of the product owner and the Vietnamese reviewer. Open decisions were answered on 2026-09-30.**
+**Status: IN PROGRESS — T05.0–T05.5 are done (fixtures, baseline, kit, tube houses, standees, the three pilot landmarks) and gate G5a was Approved by the product owner on 01/10/2026 (§17). T05.6 onward (the other 19 landmarks, the 2D art, the table props, the budget pass, gate G5 and the final docs) is in progress. Open decisions were answered on 2026-09-30.**
 
 | Field | Value |
 | --- | --- |
@@ -572,7 +572,13 @@ Confirmed by two independent skeptics each: standee bases lagged a frame behind 
 
 **Landmark review** (fill per landmark): tile, name, reviewer, verdict, notes.
 
-**G5a verdict**: PENDING. **G5 verdict**: PENDING.
+| Tile | Landmark | Reviewer | Verdict | Notes |
+| --- | --- | --- | --- | --- |
+| 13 | Chùa Cầu | tvghung (product owner) | Approved (pilot, G5a) | "rất đẹp" (very beautiful) |
+| 24 | Cầu Vàng | tvghung (product owner) | Approved (pilot, G5a) | "rất đẹp" |
+| 39 | Landmark 81 | tvghung (product owner) | Approved (pilot, G5a) | "rất đẹp" |
+
+**G5a verdict**: Approved — tvghung, 01/10/2026. Approved by the product owner in chat on 01/10/2026 ("tôi duyệt tất cả … 3 landmarks mẫu rất đẹp"); written into this file by the agent at the product owner's explicit request, in the same form as the G1 record. The style of the code-built "toy diorama" assets is approved, so T05.6 builds the other 19 landmarks in it. No separate Vietnamese-reviewer sign-off is recorded: the G5 cultural review of all 22 landmarks stays open. **G5 verdict**: PENDING.
 
 ---
 
