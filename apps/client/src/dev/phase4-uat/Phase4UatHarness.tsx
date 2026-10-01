@@ -3,6 +3,7 @@ import {
 } from 'react';
 import {
   SOCKET_PROTOCOL_VERSION,
+  colorGroups,
   type Ack,
   type GameplaySemanticEvent,
   type PublicRoomState,
@@ -32,6 +33,8 @@ const PLAYER_IDS = ['player-a', 'player-b', 'player-c', 'player-d'] as const;
 const PLAYER_NAMES = ['An', 'Bình', 'Chi', 'Dũng'] as const;
 const PLAYER_COLORS = ['red', 'blue', 'green', 'yellow'] as const;
 const PLAYER_CHARACTERS = ['dog', 'panda', 'cat', 'penguin'] as const;
+/** The 22 buildable streets (plan 05 worst-case fixtures put a house set or a landmark on every one). */
+const STREET_TILE_IDS = Object.values(colorGroups).flat();
 const CARD_OPERATION = '00000000-0000-4000-8000-000000004001';
 const CHAIN_OPERATION = '00000000-0000-4000-8000-000000004002';
 
@@ -86,6 +89,9 @@ const scenarios = [
   ['opponent-turn', '27 · Ẩn Roll khi đối thủ chơi'],
   ['board-readability', '28 · Board readability fixture'],
   ['dice-contact-shadows', '28 · Dice contact shadows'],
+  ['landmarks-all', '29 · Mọi phố ở bậc khách sạn'],
+  ['houses-max', '29 · Mọi phố có 4 nhà'],
+  ['standees', '29 · Bốn quân trên một ô'],
   ['stress', 'Hiệu năng · trạng thái đồng thời'],
 ] as const;
 
@@ -94,7 +100,7 @@ type ScenarioKey = typeof scenarios[number][0];
 const DEFAULT_SCENARIO: ScenarioKey = 'stations-4';
 const STATIC_SCENARIOS: readonly ScenarioKey[] = [
   'stations-2', 'stations-3', 'stations-4', 'offline', 'turn-recovery', 'coin-materials', 'bankrupt',
-  'spectator-awaiting', 'spectator-revealed', 'board-readability',
+  'spectator-awaiting', 'spectator-revealed', 'board-readability', 'landmarks-all', 'houses-max', 'standees',
 ];
 
 export function isScenarioKey(value: string | null): value is ScenarioKey {
@@ -323,6 +329,24 @@ function configureBaseline(
     room.gameState.players['player-b'].currentTile = 12;
     room.gameState.players['player-c'].currentTile = 25;
     room.gameState.players['player-d'].currentTile = 37;
+  }
+  if (scenario === 'landmarks-all' || scenario === 'houses-max') {
+    // Plan 05 worst cases: every street developed (hotel tier or four houses), owners rotating over the four players.
+    const houses = scenario === 'landmarks-all' ? 5 : 4;
+    const owned: PublicRoomState['gameState']['boardState']['ownedProps'] = {};
+    STREET_TILE_IDS.forEach((tileId, index) => {
+      owned[tileId] = { id: PLAYER_IDS[index % 4], color: PLAYER_COLORS[index % 4], houses };
+    });
+    room.gameState.boardState.ownedProps = owned;
+    room.gameState.players['player-a'].currentTile = 8;
+    room.gameState.players['player-b'].currentTile = 12;
+    room.gameState.players['player-c'].currentTile = 25;
+    room.gameState.players['player-d'].currentTile = 37;
+  }
+  if (scenario === 'standees') {
+    // All four standees on one tile: the densest slot layout.
+    for (const playerId of PLAYER_IDS) room.gameState.players[playerId].currentTile = 8;
+    room.gameState.boardState.ownedProps[8] = { id: 'player-a', color: 'red', houses: 2 };
   }
   if (scenario === 'stations-3') {
     room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 2 };

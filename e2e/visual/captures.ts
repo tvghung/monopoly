@@ -377,6 +377,54 @@ export const CAPTURES: readonly CaptureEntry[] = [
     viewports: [VIEWPORTS.laptop, VIEWPORTS.phoneLandscape],
     surface: 'cards',
   }),
+  // Plan 05 T05.0/T05.1: today's houses, hotels and sprites in the worst-case fixtures, every tier (numbers only, no PNG) ...
+  ...GRAPHICS_TIERS.flatMap(tier => harnessCaptures({
+    plan: '05',
+    folder: 'baseline/numbers',
+    scenarios: ['board-readability', 'house-4', 'hotel', 'landmarks-all', 'houses-max', 'standees'],
+    viewports: [VIEWPORTS.fullHd],
+    surface: 'assets',
+    variant: tier,
+    extraQuery: `&quality=${tier}`,
+    noScreenshot: true,
+  })),
+  // ... and a few pictures of them at the minimum window (balanced tier) for the before/after comparison.
+  ...harnessCaptures({
+    plan: '05',
+    folder: 'baseline',
+    scenarios: ['house-4', 'hotel', 'landmarks-all', 'houses-max', 'standees'],
+    viewports: [VIEWPORTS.minimum],
+    surface: 'assets',
+    variant: 'balanced',
+    extraQuery: '&quality=balanced',
+  }),
+  // Plan 05: the new kit on the live board, balanced tier, at the minimum window (iteration and the G5a package).
+  ...harnessCaptures({
+    plan: '05',
+    folder: 'g5a',
+    scenarios: ['house-4', 'hotel', 'landmarks-all', 'houses-max', 'standees'],
+    viewports: [VIEWPORTS.minimum],
+    surface: 'assets',
+    variant: 'balanced',
+    extraQuery: '&quality=balanced',
+  }),
+  // Plan 05 T05.5: the pilot landmarks at a size the board never shows them (the style sheet of gate G5a).
+  ...([
+    ['landmarks', ''],
+    ['chua-cau', '&landmark=13'],
+    ['cau-vang', '&landmark=24'],
+    ['landmark-81', '&landmark=39'],
+  ] as const).map(([slug, query]): CaptureEntry => ({
+    id: `05-g5a-sheet-${slug}-1440x900`,
+    plan: '05',
+    folder: 'g5a',
+    name: `05-sheet-${slug}`,
+    url: designLabUrl('landmarks', `&theme=v2${query}`),
+    viewport: VIEWPORTS.laptop,
+    kind: 'design-lab',
+    webgl: false,
+    extraWaitMs: 4000,
+  })),
   // Concept screens at the standard viewports (plan 01 T01.10).
   ...labCaptures({ plan: '01', folder: 'concepts', sections: LAB_CONCEPT_SCREENS, viewports: STANDARD_VIEWPORTS, surface: 'concept' }),
 ];
