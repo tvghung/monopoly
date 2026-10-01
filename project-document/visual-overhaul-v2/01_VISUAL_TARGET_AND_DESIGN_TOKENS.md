@@ -544,7 +544,8 @@ Rules:
 - Numbers always via `formatMoney` (`1.500.000 ₫`).
 - Disabled controls explain why nearby ("Cần ít nhất 2 người chơi sẵn sàng").
 - No English in player-facing UI (current exceptions such as `Dog`,
-  `Host Game`, and `Join Game` are fixed in plan 04).
+  `Host Game`, and `Join Game` are fixed in plan 04 — done 2026-10-01: mascot names are image-only, the launcher and landing
+  labels are Vietnamese).
 
 ### 8.11 Layout foundations
 

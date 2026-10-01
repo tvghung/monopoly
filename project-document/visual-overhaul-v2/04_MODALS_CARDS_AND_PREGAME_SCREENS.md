@@ -1,6 +1,6 @@
 # 04 — Modals, Cards and Pre-Game Screens
 
-**Status: PLANNED — not started. Open decisions answered by the product owner on 2026-09-30 (see the Decisions section). Requires plan 01 gate G1 before production styling.**
+**Status: IMPLEMENTED (T04.0–T04.15 and T04.17 done on 2026-10-01); gate G4 verdict PENDING — the review package is in `evidence/04/g4/`, the product owner records the verdict in section 17. Open decisions were answered by the product owner on 2026-09-30 (see the Decisions section).**
 
 | Field | Value |
 | --- | --- |
@@ -763,12 +763,12 @@ specification in §8 reflects these choices.
 
 ## 15. Definition of Done
 
-- [ ] T04.0–T04.17 complete and logged in §17.
+- [x] T04.0–T04.17 complete and logged in §17 (T04.16 prepared the package; the verdict is the human part).
 - [ ] G4 verdict recorded by a human; V1 card contract review recorded.
-- [ ] README §9 commands green including `pnpm test:e2e:mobile`, `pnpm test:card-art`, and
-  desktop checks (launcher in the packaged app).
-- [ ] No English player-facing strings (grep review recorded).
-- [ ] Docs and testcase rows updated (§T04.17).
+- [x] README §9 commands green: typecheck, lint, 1438 client tests, 77 desktop tests, build, `pnpm test:e2e:mobile` (Chromium and WebKit), `pnpm test:card-art`.
+  **Not run here:** `pnpm desktop:package` (the launcher in the packaged app) and `pnpm db:status` — listed in the G4 README.
+- [x] No English player-facing strings (grep review recorded in `evidence/04/g4/README.md` §4).
+- [x] Docs and testcase rows updated (§T04.17).
 
 ---
 
@@ -788,10 +788,47 @@ specification in §8 reflects these choices.
 
 | Date | Task | Commit | Evidence | Result / notes |
 | --- | --- | --- | --- | --- |
-| — | — | — | — | — |
+| 2026-10-01 | T04.1 | `844aef0` | — | Design Lab `surfaces` section: real components on fixture state, `&surface=<id>&chrome=hidden`, per-cluster registries. |
+| 2026-10-01 | T04.0 | `49421d3` | `evidence/04/baseline/` | 17 surfaces × 1440×900 and 812×375 before the restyle. |
+| 2026-10-01 | T04.2 | `38e4442` | `Modal.test.tsx` | Modal v2 (size, placement, backdrop, footer, tone, layer, headerAccent), module-level modal stack, ConfirmationDialog v2, Toast v2. |
+| 2026-10-01 | T04.3 | `a7ac54b` | `deedCardModel.test.ts`, `PropertyDeedCard.test.tsx` | Deed model, `full/compact/chip` card, shared current-rent helper. |
+| 2026-10-01 | groundwork | `a06f3f8`, `4fb17c1` | — | Mascot names removed (image only, `accessibleLabel`), `roomExitContext`, per-cluster lab fixtures. |
+| 2026-10-01 | T04.4 | `ed0399f`, `ce19ea9` | `DecisionSheets.test.tsx` | Buy and Development bottom sheets over a clear backdrop with the deed and written disabled reasons. |
+| 2026-10-01 | T04.5, T04.6 | `9dbd76f` | property tests | Inspection, "Tài sản của tôi", read-only `PlayerPortfolioModal` opened by a real button on the HUD player card (OD-03-4). `PropertyCard` removed. |
+| 2026-10-01 | T04.7 | `f853cbc` | dashboard tests | Jail, debt (with "Bỏ cuộc" through the room exit flow, OD-04-8), forced sale, trade, incoming offers. `.button__purchase--*` cascade hazard removed. |
+| 2026-10-01 | T04.8 | `67d5d6b` | `CardInteractionOverlay.test.tsx` | Card reveal as a printed card inside `Modal` on the card layer (OD-04-3); all V1 clauses still tested. |
+| 2026-10-01 | T04.9 | `9f8c216` | `WinnerBanner.test.tsx`, `useVictoryVisibility.test.tsx` | Victory dialog, "Rời phòng" for every role, idle gating (OD-04-5), one confetti burst (OD-04-4). |
+| 2026-10-01 | T04.10 | `014d9b3` | `SettingsPanel.test.tsx` | Settings on Slider, SegmentedControl, Switch; footer slot; desktop-only "Cửa sổ". |
+| 2026-10-01 | T04.11, T04.12 | `0447cd4` | entry tests | Landing hero + "Loại phòng" toggle (OD-04-6, OD-04-7); launcher cards. |
+| 2026-10-01 | T04.13, T04.14 | `c507e1e` | lobby/screens tests | Lobby seats and start reasons, picker follows the effective reduced motion, unified loading and failure screens. |
+| 2026-10-01 | integration | `b72a31a` | `surfaceCaptures.test.ts` | HUD card button and jail strip styles, G4 capture manifest (54 surfaces), README launcher labels. |
+| 2026-10-01 | review fixes | `f4beef6`, `9dfc5d7`, `644cf15` | tests | 79 review findings triaged and fixed: Modal `describedBy` and Tab ring, StrictMode-safe focus restore, victory focus/order/error, debt and jail announcements, card focus after a failed dismissal, entry contrast and hero motion, failure screen landmark. |
+| 2026-10-01 | T04.15 | `b80a347` | `pnpm test:e2e:mobile` | Chromium and WebKit pass; the lobby test scrolls to "Bắt đầu" before the 44 px check (the 667×375 lobby is taller than the screen). |
+| 2026-10-01 | T04.16 | `da9727e` | `evidence/04/g4/` | 224 captures (54 surfaces × 4 viewports + 8 card scenes), 0 console errors, about 33 MB; its README holds the checklist and the V1 card review. The G4 verdict is the product owner's. |
+| 2026-10-01 | T04.17 | `b80a347` | — | Client docs, rule 7, V1 card contract note, testcase rows. |
+
+### As built — differences from the specification
+
+- **Modal `describedBy`** is an addition to section 8.1 (an `alertdialog` needs a description; the DOM patch used by the first card draft is gone).
+  Tab and Shift+Tab from an element outside the tab ring (a `tabindex="-1"` start element, the card) stay inside the dialog.
+- **Card reveal.** `data-testid="card-interaction-overlay"` / `data-card-stage="REVEALED"` sit on `.card-modal__stage`, a child of the dialog
+  (Modal has no `data-*` passthrough), and `.card-modal` is on the dialog element itself. Nothing in the tests or e2e depends on the old nesting.
+- **Victory.** The primary action is first in DOM and Tab order (`row-reverse` keeps it on the right). Anyone without "Chơi lại" starts on a
+  "Kết quả ván chơi" region that is also the keyboard stop for scrolling. A failed leave request is shown in the dialog (`RoomExitContextValue.error`).
+  No `winner-live` fixture exists: confetti is a ≤ 1200 ms burst that a still capture cannot show; it is covered by unit tests and the manual G4 check.
+- **Jail strip (phone landscape).** A pending or failed line replaces the title row, and the balance warning is not drawn (the disabled bail button
+  already says what is missing and points to the warning with `aria-describedby`), so the strip never grows toward the roll button.
+- **Trade (section 8.3 "Phone: columns stack").** Portrait phones stack; a phone held sideways keeps two columns on purpose so both sides are visible at once.
+- **Debtor dialog on a phone held sideways.** The summary shares one row and each sellable property is a row with its sale actions beside the deed, so a sale
+  is visible without scrolling.
+- **Landing hero.** The mascots greet with two hops over about three seconds (plan 01 principle P4: no idle loops); both reduced-motion sources stop it.
+- **Settings.** The dialog may grow to 60 rem (the desktop "Cửa sổ" section needs about 900 px); the footer keeps DOM order on phones; sliders stay two-row in the
+  two-column landscape layout. In the compact launcher, the security note hides while a Host is running (four rows must fit 375 px).
+- **Failure screens.** `role="alert"` is on the text block, not on `main`.
 
 Known limitations: complete-group rent doubling is shown as a rule note, not computed
-(the existing client helper does not compute it).
+(the existing client helper does not compute it). `pnpm desktop:package` (the packaged launcher) and
+`pnpm db:status` were not run in this environment (no Electron binary permission, no `DATABASE_URL`).
 
 **G4 verdict**: PENDING — reviewer, date, notes.
 

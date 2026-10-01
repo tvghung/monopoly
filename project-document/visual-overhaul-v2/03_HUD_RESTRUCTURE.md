@@ -282,7 +282,7 @@ HUD z-order inside `.game-board__renderer` (add these as `--z-hud-*` tokens in
 them): scene 0 < cards 10 < center stage 12 < dock/context 14 < ticker 16 <
 banner 18 < drawer 20. Outside the renderer (unchanged tokens):
 accessibility layer 10, orientation gate 30, toolbar 40, modal 60, card overlay 70
-(plan 04 replaces the hard-coded 1000), toast 80, connection overlay 90.
+(plan 04 replaced the hard-coded 1000: the card is a `Modal` with `layer="card"`), toast 80, connection overlay 90.
 
 ### 8.2 Player card
 
@@ -328,7 +328,9 @@ Anatomy (desktop):
   `player-stations` (negative assertion); use `player-card-list`.
 - Decided (OD-03-4): clicking a card opens that player's read-only portfolio (plan 04
   `PlayerPortfolioModal`). Until plan 04 provides it, cards are not interactive (no
-  hover affordance).
+  hover affordance). **Done in plan 04 (2026-10-01):** a card with `onSelectPlayer` renders a real
+  button "Xem tài sản của <tên>" (forced-colors safe focus ring); `GameHud`/`PlayerCards` take
+  `onSelectPlayer` as optional and without it no button renders.
 
 ### 8.3 Center stage
 
@@ -402,7 +404,7 @@ Anatomy (desktop):
   the element; keep its modal).
 - **Context stack** (above the dock, max-width 520px): hosts `JailPanel` and the
   non-debtor `DebtPanel` status (today inside `Dashboard`'s `__context` stack). Plan 03
-  owns the container position; plan 04 restyles the panel contents. Update the
+  owns the container position; plan 04 restyled the panel contents (jail strip: a pending or failed line replaces the title row and the balance warning is only read, so the strip never grows toward the roll button). Update the
   `JailPanel` copy if the CTA label changes ("…hoặc bấm **Đổ xúc xắc** để thử đổ đôi").
 
 ### 8.8 Activity drawer, ticker, chat bubbles
