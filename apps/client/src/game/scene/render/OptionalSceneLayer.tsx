@@ -4,6 +4,8 @@ interface OptionalSceneLayerProps {
   /** Shown in the single warning logged when the layer fails. */
   name: string;
   children: ReactNode;
+  /** Called once when the layer fails, so a parent can swap in a placeholder (plan 05 §7.7). */
+  onFail?: () => void;
 }
 
 interface OptionalSceneLayerState {
@@ -24,6 +26,7 @@ export default class OptionalSceneLayer extends Component<OptionalSceneLayerProp
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.warn(`[scene] optional layer "${this.props.name}" was disabled after an error.`, error, info.componentStack);
+    this.props.onFail?.();
   }
 
   render(): ReactNode {

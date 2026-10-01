@@ -1,18 +1,21 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { DevelopmentChangeSignal } from '../../presentation/store/types';
 import { presentationTiming } from '../../presentation/timings';
-import {
-  getHotelTransitionProgress,
-  getSequentialHouseBuildSteps,
-} from '../../presentation/buildingSchedule';
+import { getSequentialHouseBuildSteps } from '../../presentation/buildingSchedule';
 import HouseMesh from './HouseMesh';
 import HotelMesh from './HotelMesh';
+import ConstructionPuff from './ConstructionPuff';
+import LandmarkMesh, { getLandmarkLocalOrigin } from './LandmarkMesh';
+import { getLandmarkDefinition } from './landmarks/registry';
+import { useHouseRenderMode } from './houseRenderMode';
+import { getHotelTransitionScales, getHousePopScale } from './buildingMotion';
+import { getScaledConstructionBurstDuration } from './constructionTiming';
 import { getBuildingSlots, getHotelSlot } from '../board/architecture/tileAnchors';
-import { getPlayerDisplayColor } from '../../ui/playerVisualColors';
 
 interface BuildingLayerProps {
+  tileId: number;
   houses: number;
   developmentChange?: DevelopmentChangeSignal;
   ownerColor?: string;
@@ -20,118 +23,38 @@ interface BuildingLayerProps {
 }
 
 export { getSequentialHouseBuildSteps } from '../../presentation/buildingSchedule';
+export { getHousePopScale, getHotelTransitionScales, type HotelTransitionScales } from './buildingMotion';
+export { getScaledConstructionBurstDuration } from './constructionTiming';
 
-export function getHousePopScale(progress: number): number {
-  const clamped = THREE.MathUtils.clamp(progress, 0, 1);
-  if (clamped <= 0) return 0;
-  if (clamped >= 1) return 1;
-  if (clamped < 0.58) {
-    const t = clamped / 0.58;
-    return 1.3 * (1 - (1 - t) ** 3);
-  }
-  const t = (clamped - 0.58) / 0.42;
-  const eased = t * t * (3 - 2 * t);
-  return THREE.MathUtils.lerp(1.3, 1, eased);
+/** Where the hotel (or its landmark) stands in the tile-local frame, and where its dust puff goes. */
+function getHotelAnchor(tileId: number): readonly [number, number, number] {
+  return getLandmarkLocalOrigin(tileId) ?? getHotelSlot();
 }
 
-export interface HotelTransitionScales {
-  oldScale: number;
-  hotelScale: number;
+/** The hotel tier: the street's landmark when it has one built, otherwise today's hotel box. */
+function Hotel({ tileId, ownerColor }: { tileId: number; ownerColor?: string }) {
+  return getLandmarkDefinition(tileId)
+    ? <LandmarkMesh tileId={tileId} ownerColor={ownerColor} />
+    : <HotelMesh position={getHotelSlot()} ownerColor={ownerColor} />;
 }
 
-export function getHotelTransitionScales(progress: number): HotelTransitionScales {
-  const clamped = THREE.MathUtils.clamp(progress, 0, 1);
-  const oldProgress = THREE.MathUtils.clamp(clamped / 0.22, 0, 1);
-  const oldEased = oldProgress * oldProgress * (3 - 2 * oldProgress);
-  const hotelProgress = getHotelTransitionProgress(clamped);
-  const hotelScale = hotelProgress < 0.62
-    ? 1.25 * (1 - (1 - hotelProgress / 0.62) ** 3)
-    : THREE.MathUtils.lerp(
-      1.25,
-      1,
-      ((hotelProgress - 0.62) / 0.38) ** 2
-        * (3 - 2 * ((hotelProgress - 0.62) / 0.38)),
-    );
-  return {
-    oldScale: 1 - oldEased,
-    hotelScale,
-  };
-}
-
-export function getScaledConstructionBurstDuration(
-  effectiveDurationMs: number,
-  baseAnimationDurationMs: number,
-): number {
-  if (effectiveDurationMs <= 0 || baseAnimationDurationMs <= 0) return 0;
-  return effectiveDurationMs / baseAnimationDurationMs * presentationTiming.buildPop;
-}
-
-function BuildingShapes({ houses, ownerColor }: { houses: number; ownerColor?: string }) {
-  if (houses === 5) return <HotelMesh position={getHotelSlot()} ownerColor={ownerColor} />;
+/**
+ * Houses as per-tile groups: only used when the instanced tube houses are off (a failure fell back to the placeholder, plan 05
+ * §7.7). While they are on, `TubeHouseInstances` draws every house of the board and this layer draws nothing for 1 to 4 houses.
+ */
+function LegacyHouses({ houses, ownerColor }: { houses: number; ownerColor?: string }) {
   return <>{getBuildingSlots(houses).map((position, index) => (
     <HouseMesh key={index} position={position} ownerColor={ownerColor} />
   ))}</>;
 }
 
-function ConstructionPuff({
-  delayMs,
-  durationMs,
-  ownerColor,
-  particleCount = 11,
-  spread = 0.32,
-  lift = 0.22,
-}: {
-  delayMs: number;
-  durationMs: number;
-  ownerColor?: string;
-  particleCount?: number;
-  spread?: number;
-  lift?: number;
-}) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const elapsedRef = useRef(0);
-  const objectRef = useRef<THREE.Object3D>(new THREE.Object3D());
-  const invalidate = useThree(state => state.invalidate);
-  const ownerDisplayColor = useMemo(() => new THREE.Color(getPlayerDisplayColor(ownerColor)), [ownerColor]);
-  const dustColor = useMemo(() => new THREE.Color('#e8d8bb'), []);
-  useLayoutEffect(() => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    for (let index = 0; index < particleCount; index += 1) {
-      mesh.setColorAt(index, index % 3 === 0 ? ownerDisplayColor : dustColor);
-    }
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [dustColor, ownerDisplayColor, particleCount]);
-  useFrame((_, delta) => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
-    const object = objectRef.current;
-    elapsedRef.current += delta * 1000;
-    const local = elapsedRef.current - delayMs;
-    const progress = THREE.MathUtils.clamp(local / Math.max(1, durationMs), 0, 1);
-    const burstProgress = 1 - (1 - progress) ** 3;
-    for (let index = 0; index < particleCount; index += 1) {
-      const angle = index / particleCount * Math.PI * 2;
-      const distance = burstProgress * spread;
-      object.position.set(Math.cos(angle) * distance, 0.03 + burstProgress * lift, Math.sin(angle) * distance);
-      object.scale.setScalar(local >= 0 && progress < 1 ? (1 - progress) * 0.85 : 0);
-      object.updateMatrix();
-      mesh.setMatrixAt(index, object.matrix);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-    if (local < durationMs) invalidate();
-  });
-  useEffect(() => { invalidate(); }, [invalidate]);
-  return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, particleCount]}>
-      <octahedronGeometry args={[0.068, 0]} />
-      <meshStandardMaterial vertexColors color="#ffffff" transparent opacity={0.86} roughness={0.94} />
-    </instancedMesh>
-  );
+function BuildingShapes({ tileId, houses, ownerColor }: { tileId: number; houses: number; ownerColor?: string }) {
+  const mode = useHouseRenderMode();
+  if (houses === 5) return <Hotel tileId={tileId} ownerColor={ownerColor} />;
+  return mode === 'legacy' ? <LegacyHouses houses={houses} ownerColor={ownerColor} /> : null;
 }
 
-function AnimatedHouse({
+function AnimatedLegacyHouse({
   position,
   delayMs,
   durationMs,
@@ -171,15 +94,22 @@ function AnimatedHouse({
   );
 }
 
+/**
+ * The 4 → 5 transition: the hotel (or landmark) pops in with its dust puff. The four old houses shrink away too, either here
+ * (legacy houses) or in `TubeHouseInstances` (instanced houses, which plays the same curve).
+ */
 function HotelTransition({
+  tileId,
   durationMs,
   ownerColor,
   reducedMotion,
 }: {
+  tileId: number;
   durationMs: number;
   ownerColor?: string;
   reducedMotion: boolean;
 }) {
+  const mode = useHouseRenderMode();
   const oldRef = useRef<THREE.Group>(null);
   const hotelRef = useRef<THREE.Group>(null);
   const elapsedRef = useRef(0);
@@ -193,13 +123,16 @@ function HotelTransition({
     hotelRef.current?.scale.setScalar(scales.hotelScale);
     if (progress < 1) invalidate();
   });
+  const anchor = getHotelAnchor(tileId);
   return (
     <group name="HotelTransition">
-      <group ref={oldRef}><BuildingShapes houses={4} ownerColor={ownerColor} /></group>
-      <group ref={hotelRef} scale={0}><HotelMesh position={getHotelSlot()} ownerColor={ownerColor} /></group>
+      {mode === 'legacy'
+        ? <group ref={oldRef}><LegacyHouses houses={4} ownerColor={ownerColor} /></group>
+        : null}
+      <group ref={hotelRef} scale={0}><Hotel tileId={tileId} ownerColor={ownerColor} /></group>
       {!reducedMotion
         ? (
-          <group position={getHotelSlot()}>
+          <group position={anchor}>
             <ConstructionPuff
               delayMs={Math.round(durationMs * 0.18)}
               durationMs={Math.round(getScaledConstructionBurstDuration(durationMs, presentationTiming.hotelTransition))}
@@ -216,11 +149,13 @@ function HotelTransition({
 }
 
 export default function BuildingLayer({
+  tileId,
   houses,
   developmentChange,
   ownerColor,
   reducedMotion = false,
 }: BuildingLayerProps) {
+  const mode = useHouseRenderMode();
   if (
     reducedMotion
     ||
@@ -228,18 +163,21 @@ export default function BuildingLayer({
     || developmentChange.durationMs <= 0
     || developmentChange.direction === 'DOWN'
     || developmentChange.toHouses !== houses
-  ) return <BuildingShapes houses={houses} ownerColor={ownerColor} />;
+  ) return <BuildingShapes tileId={tileId} houses={houses} ownerColor={ownerColor} />;
 
   if (developmentChange.fromHouses === 4 && developmentChange.toHouses === 5) {
     return (
       <HotelTransition
         key={developmentChange.id}
+        tileId={tileId}
         durationMs={developmentChange.durationMs}
         ownerColor={ownerColor}
         reducedMotion={reducedMotion}
       />
     );
   }
+  // Instanced houses animate (and puff) in TubeHouseInstances.
+  if (mode !== 'legacy') return null;
   const from = Math.max(0, Math.min(4, developmentChange.fromHouses));
   const to = Math.max(from, Math.min(4, developmentChange.toHouses));
   const slots = getBuildingSlots(to);
@@ -250,7 +188,7 @@ export default function BuildingLayer({
         <HouseMesh key={`existing-${index}`} position={position} ownerColor={ownerColor} />
       ))}
       {buildSteps.map(step => (
-        <AnimatedHouse
+        <AnimatedLegacyHouse
           key={`${developmentChange.id}:${step.houseIndex}`}
           position={slots[step.houseIndex]}
           delayMs={step.delayMs}
@@ -262,3 +200,4 @@ export default function BuildingLayer({
     </group>
   );
 }
+
