@@ -8,11 +8,11 @@ afterEach(cleanup);
 
 type Owned = Record<number, { id: string; color: 'red'; houses: number }>;
 
-function renderDeed(tileId: number, ownedProps: Owned = {}, variant: DeedVariant = 'full', showOwner = true) {
+function renderDeed(tileId: number, ownedProps: Owned = {}, variant: DeedVariant = 'full', showOwner = true, showNext = false) {
   const room = makeRoom();
   room.gameState.boardState.ownedProps = ownedProps;
   const model = buildDeedCardModel({ tileId, state: room.gameState, roomPlayers: room.players, theme: 'v2' })!;
-  return render(<PropertyDeedCard model={model} variant={variant} showOwner={showOwner} />);
+  return render(<PropertyDeedCard model={model} variant={variant} showOwner={showOwner} showNext={showNext} />);
 }
 
 describe('PropertyDeedCard', () => {
@@ -27,7 +27,7 @@ describe('PropertyDeedCard', () => {
   });
 
   it('prints the price and the rent ladder as a table with a caption and one current row', () => {
-    const { container } = renderDeed(1, { 1: { id: 'player-a', color: 'red', houses: 2 } });
+    const { container } = renderDeed(1, { 1: { id: 'player-a', color: 'red', houses: 2 } }, 'full', true, true);
     expect(screen.getByText('Giá mua').nextElementSibling?.textContent).toBe('60.000 ₫');
     const table = screen.getByRole('table', { name: 'Bảng giá thuê' });
     const rows = within(table).getAllByRole('row');
@@ -42,6 +42,16 @@ describe('PropertyDeedCard', () => {
     expect(screen.getByText('Giá mỗi Nhà / Khách Sạn').nextElementSibling?.textContent).toBe('50.000 ₫');
     expect(screen.getByText(/Sở hữu cả nhóm/u)).toBeTruthy();
     expect(screen.getByText('Phát triển').nextElementSibling?.textContent).toBe('2 Nhà');
+  });
+
+  it('marks the next development row only when asked to (the development sheet), never in a plain view', () => {
+    const owned: Owned = { 1: { id: 'player-a', color: 'red', houses: 2 } };
+    const { unmount } = renderDeed(1, owned);
+    expect(screen.queryByText('Sau khi xây')).toBeNull();
+    expect(document.querySelector('.deed__row--next')).toBeNull();
+    unmount();
+    renderDeed(1, owned, 'full', true, true);
+    expect(screen.getByText('Sau khi xây')).toBeTruthy();
   });
 
   it('shows the owner and the group progress, labelled for assistive technology', () => {
@@ -96,5 +106,9 @@ describe('PropertyDeedCard', () => {
     expect(screen.queryByRole('table')).toBeNull();
     expect(container.querySelector('.deed__owner')).toBeNull();
     expect(container.querySelector('.deed__price')).toBeNull();
+    // The neutral paper header comes from the .deed--special rule, so no district color is set inline.
+    const card = screen.getByRole('article', { name: 'Thuế Thu Nhập' });
+    expect(card.style.getPropertyValue('--deed-color')).toBe('');
+    expect(card.style.getPropertyValue('--deed-text')).toBe('');
   });
 });

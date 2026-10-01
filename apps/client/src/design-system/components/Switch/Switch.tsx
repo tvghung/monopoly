@@ -6,6 +6,8 @@ export interface SwitchProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
   description?: ReactNode;
+  /** Id of an element elsewhere on the page that also describes the switch (appended to aria-describedby). */
+  describedBy?: string;
   disabled?: boolean;
   className?: string;
 }
@@ -16,6 +18,7 @@ export default function Switch({
   checked,
   onChange,
   description,
+  describedBy,
   disabled = false,
   className = '',
 }: SwitchProps) {
@@ -28,7 +31,7 @@ export default function Switch({
         role="switch"
         checked={checked}
         disabled={disabled}
-        aria-describedby={description ? descriptionId : undefined}
+        aria-describedby={[description ? descriptionId : null, describedBy].filter(Boolean).join(' ') || undefined}
         onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.checked)}
       />
       <span className="ds-switch__track" aria-hidden="true"><span className="ds-switch__thumb" /></span>

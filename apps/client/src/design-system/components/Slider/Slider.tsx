@@ -31,7 +31,8 @@ export default function Slider({
   return (
     <div className={`ds-slider${className ? ` ${className}` : ''}`}>
       <label className="ds-slider__label" htmlFor={inputId}>{label}</label>
-      <output className="ds-slider__value" htmlFor={inputId}>{readout}</output>
+      {/* Visual only: the input announces the same text through aria-valuetext, a live output would say it twice. */}
+      <output className="ds-slider__value" htmlFor={inputId} aria-hidden="true">{readout}</output>
       <input
         id={inputId}
         className="ds-slider__input"

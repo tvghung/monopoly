@@ -1,11 +1,11 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { SOCKET_PROTOCOL_VERSION, type PublicRoomState, type RoomRole } from '@monopoly/shared';
 import { ToastProvider } from '../../../components/Toast';
 import { emptyPresentationState, presentationContext } from '../../../game/presentation/PresentationProvider';
 import type { AnimationQueue } from '../../../game/presentation/queue/AnimationQueue';
 import { makeRoom } from '../../../game/presentation/testFixtures';
 import stateContext from '../../../internal';
-import { DEFAULT_GAME_SETTINGS } from '../../../settings/defaults';
+import { DEFAULT_GAME_SETTINGS, SETTINGS_STORAGE_KEY } from '../../../settings/defaults';
 import { SettingsProvider } from '../../../settings/SettingsProvider';
 import type { GameSettings } from '../../../settings/types';
 import type { SocketFunctions, StateContextValue } from '../../../types';
@@ -75,6 +75,28 @@ export function makeSurfaceState(options: SurfaceStateOptions = {}): StateContex
   };
 }
 
+/**
+ * The settings provider saves its state to localStorage as soon as it mounts, and the Lab shares an origin with the app in
+ * development. Put back what was stored before the surface opened, so reviewing a surface never changes the saved settings.
+ */
+function useRestoreStoredSettings() {
+  const [stored] = useState(() => {
+    try {
+      return window.localStorage.getItem(SETTINGS_STORAGE_KEY);
+    } catch {
+      return null;
+    }
+  });
+  useEffect(() => () => {
+    try {
+      if (stored === null) window.localStorage.removeItem(SETTINGS_STORAGE_KEY);
+      else window.localStorage.setItem(SETTINGS_STORAGE_KEY, stored);
+    } catch {
+      // Storage may be blocked; there is nothing to restore then.
+    }
+  }, [stored]);
+}
+
 /** Settings, toasts, the game state and a static (idle) presentation state around one surface. */
 export default function SurfaceProviders({
   value,
@@ -86,6 +108,7 @@ export default function SurfaceProviders({
   settings?: GameSettings;
   children: ReactNode;
 }) {
+  useRestoreStoredSettings();
   return (
     <SettingsProvider initialSettings={settings}>
       <ToastProvider>

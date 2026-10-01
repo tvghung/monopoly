@@ -138,7 +138,7 @@
   cursor: pointer;
   pointer-events: auto;
 }
-.player-card__open:focus-visible { outline: 0; box-shadow: var(--focus-ring); }
+.player-card__open:focus-visible { outline: 2px solid transparent; outline-offset: 2px; box-shadow: var(--focus-ring); }
 .player-card__open + .player-card__face { transition: border-color var(--motion-duration-micro) var(--motion-ease-out), box-shadow var(--motion-duration-micro) var(--motion-ease-out); }
 .player-card__open:hover + .player-card__face { border-color: var(--player-card-color); box-shadow: 0 0 0 2px var(--player-card-color), var(--elevation-2); }
 /* The turn ring is the stronger signal: hovering an active card keeps it and only adds the player color. */

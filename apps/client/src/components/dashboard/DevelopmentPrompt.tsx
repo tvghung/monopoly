@@ -95,6 +95,7 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
             model={deed}
             variant={short ? 'compact' : 'full'}
             showOwner={false}
+            showNext
             className="decision-sheet__deed"
           />
         ) : null}

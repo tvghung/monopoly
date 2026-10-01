@@ -42,8 +42,8 @@
   padding: 0;
   list-style: none;
 }
-/* `.owned-properties-list__item` is kept as a hook class (tests, e2e); the two-class selector wins over its old list-row look. */
-.portfolio-card.owned-properties-list__item {
+/* `.owned-properties-list__item` stays on the li as a hook class (tests, e2e); it carries no styles of its own any more. */
+.portfolio-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-content: start;

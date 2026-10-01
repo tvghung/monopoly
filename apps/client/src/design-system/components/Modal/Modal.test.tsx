@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { StrictMode, useState } from 'react';
 import {
   act, cleanup, fireEvent, render, screen, waitFor,
 } from '@testing-library/react';
@@ -193,5 +193,54 @@ describe('Modal v2 exit and focus', () => {
     act(() => { fireEvent.keyDown(document, { key: 'Escape' }); });
     expect(closeTop).toHaveBeenCalledTimes(1);
     expect(closeBottom).not.toHaveBeenCalled();
+  });
+});
+
+describe('Modal v2 accessibility details', () => {
+  it('forwards describedBy as aria-describedby on the dialog', () => {
+    render(
+      <Modal open title="Cần thanh toán" role="alertdialog" describedBy="debt-description">
+        <p id="debt-description">Cần trả 250.000 ₫ cho Bình.</p>
+      </Modal>,
+    );
+    const dialog = screen.getByRole('alertdialog', { name: 'Cần thanh toán' });
+    expect(dialog.getAttribute('aria-describedby')).toBe('debt-description');
+    expect(document.getElementById('debt-description')?.textContent).toContain('250.000');
+  });
+
+  it('keeps Shift+Tab inside the dialog when focus starts on an element that is not in the tab ring', () => {
+    render(
+      <Modal open title="Hộp" footer={<button type="button">Cuối</button>}>
+        <section tabIndex={-1} data-modal-autofocus>Tóm tắt</section>
+        <button type="button">Đầu</button>
+      </Modal>,
+    );
+    expect(document.activeElement?.textContent).toBe('Tóm tắt');
+    const event = new KeyboardEvent('keydown', {
+      key: 'Tab', shiftKey: true, bubbles: true, cancelable: true,
+    });
+    act(() => { document.dispatchEvent(event); });
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement?.textContent).toBe('Cuối');
+  });
+
+  it('keeps forward Tab inside the dialog when the dialog card itself has focus', () => {
+    render(<Modal open title="Hộp"><button type="button">Một</button><button type="button">Hai</button></Modal>);
+    const dialog = screen.getByRole('dialog');
+    dialog.focus();
+    const event = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    act(() => { document.dispatchEvent(event); });
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement?.textContent).toBe('Một');
+  });
+
+  it('still returns focus to the opener when React StrictMode runs the mount effect twice', async () => {
+    render(<StrictMode><Harness initiallyOpen={false} /></StrictMode>);
+    const opener = screen.getByRole('button', { name: 'Mở hộp thoại' });
+    opener.focus();
+    fireEvent.click(opener);
+    await waitFor(() => expect(dialog()).not.toBeNull());
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
+    await waitFor(() => expect(document.activeElement).toBe(opener));
   });
 });

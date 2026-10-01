@@ -44,3 +44,13 @@ describe('Slider', () => {
     expect(screen.getByRole('slider', { name: 'Nhạc' })).toHaveProperty('disabled', true);
   });
 });
+
+describe('Slider announcement', () => {
+  it('keeps the readout visual only: the input already announces the value through aria-valuetext', () => {
+    const { container } = render(<Slider label="Nhạc nền" value={0.7} min={0} max={1} step={0.05} onChange={() => undefined} formatValue={value => `${Math.round(value * 100)}%`} />);
+    const output = container.querySelector('output') as HTMLOutputElement;
+    expect(output.textContent).toBe('70%');
+    expect(output.getAttribute('aria-hidden')).toBe('true');
+    expect(screen.getByRole('slider', { name: 'Nhạc nền' }).getAttribute('aria-valuetext')).toBe('70%');
+  });
+});

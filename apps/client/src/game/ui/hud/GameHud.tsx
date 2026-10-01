@@ -34,7 +34,7 @@ const selectResetEpoch = (state: PresentationState) => state.presentationResetEp
 const selectSpeed = (state: PresentationState) => state.animationSpeedMultiplier;
 
 /** The four corner cards, wired to committed state plus the presentation slices they display. */
-function PlayerCards({ onSelectPlayer }: { onSelectPlayer: (playerId: string) => void }) {
+function PlayerCards({ onSelectPlayer }: { onSelectPlayer?: (playerId: string) => void }) {
   const {
     state, roomPlayers = NO_PLAYERS, playerId, role,
   } = useContext(stateContext);
@@ -75,7 +75,8 @@ function PlayerCards({ onSelectPlayer }: { onSelectPlayer: (playerId: string) =>
  */
 function GameHudShell({ onSelectTile, onSelectPlayer }: {
   onSelectTile: (tileId: number) => void;
-  onSelectPlayer: (playerId: string) => void;
+  /** Opens a player's portfolio from the card; without it the cards render no button. */
+  onSelectPlayer?: (playerId: string) => void;
 }) {
   const speed = usePresentationSelector(selectSpeed);
   const style = useMemo(() => ({ '--hud-speed': speed }) as CSSProperties, [speed]);

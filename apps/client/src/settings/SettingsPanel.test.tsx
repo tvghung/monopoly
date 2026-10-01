@@ -97,6 +97,28 @@ describe('SettingsPanel layout', () => {
     const buttons = within(footer!).getAllByRole('button');
     expect(buttons.map(button => button.textContent)).toEqual(['Khôi phục mặc định', 'Xong']);
     expect(buttons.every(button => button.closest('.ds-modal__body') === null)).toBe(true);
+    // Plan 04 section 8.7: the reset is a ghost button, "Xong" is the primary action.
+    expect(buttons[0].className).toContain('ds-button--ghost');
+    expect(buttons[1].className).toContain('ds-button--primary');
+  });
+
+  it('keeps the switches keyboard operable and ties the reduced-motion hint to its switch', () => {
+    renderPanel();
+
+    const motion = screen.getByRole('switch', { name: 'Giảm chuyển động' });
+    // A native checkbox: focusable, toggled by Space, reachable by its visible label.
+    expect(motion.tagName).toBe('INPUT');
+    expect(motion.getAttribute('type')).toBe('checkbox');
+    expect(motion.tabIndex).not.toBe(-1);
+    motion.focus();
+    expect(document.activeElement).toBe(motion);
+    expect(screen.getByLabelText('Giảm chuyển động')).toBe(motion);
+
+    const hint = document.getElementById(motion.getAttribute('aria-describedby') ?? '');
+    expect(hint?.textContent).toBe('Chuyển động đang dùng thiết lập bình thường.');
+    expect(hint?.getAttribute('aria-live')).toBe('polite');
+    fireEvent.click(motion);
+    expect(hint?.textContent).toBe('Chuyển động hiện đang được giảm theo cài đặt hoặc hệ điều hành.');
   });
 });
 

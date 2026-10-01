@@ -120,9 +120,10 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
             <Switch
               label="Giảm chuyển động"
               checked={settings.reducedMotion}
+              describedBy="settings-motion-hint"
               onChange={checked => updateSettings({ reducedMotion: checked })}
             />
-            <p className="settings-panel__hint" aria-live="polite">
+            <p id="settings-motion-hint" className="settings-panel__hint" aria-live="polite">
               {effectiveReducedMotion
                 ? 'Chuyển động hiện đang được giảm theo cài đặt hoặc hệ điều hành.'
                 : 'Chuyển động đang dùng thiết lập bình thường.'}

@@ -44,13 +44,15 @@ export interface ModalProps {
   layer?: ModalLayer;
   /** Color of a band above the header, for example a deed's district color. */
   headerAccent?: string;
+  /** Id of the element that describes the dialog (aria-describedby); alertdialogs should always have one. */
+  describedBy?: string;
 }
 
 const SIZE_CLASS: Record<ModalSize, string> = {
   sm: 'ds-modal--sm', md: 'ds-modal--md', lg: 'ds-modal--lg', xl: 'ds-modal--xl',
 };
 
-const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], summary, [tabindex]:not([tabindex="-1"])';
 
 interface ModalEntry {
   node: RefObject<HTMLElement | null>;
@@ -104,22 +106,27 @@ function ModalSurface({
   tone = 'default',
   layer = 'modal',
   headerAccent,
+  describedBy,
 }: Omit<ModalProps, 'open'>) {
   const reduced = useEffectiveReducedMotion();
   const isPresent = useIsPresent();
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const entryRef = useRef<ModalEntry | null>(null);
+  // Captured on the first mount effect only: React StrictMode runs it twice in development, and the second run would
+  // otherwise record the dialog's own button (focused by the first run) as the opener.
+  const openerRef = useRef<HTMLElement | null | undefined>(undefined);
   const closeRef = useRef(onClose);
   useEffect(() => {
     closeRef.current = onClose;
   }, [onClose]);
 
   useEffect(() => {
-    const entry: ModalEntry = {
-      node: dialogRef,
-      opener: document.activeElement instanceof HTMLElement ? document.activeElement : null,
-    };
+    if (openerRef.current === undefined) {
+      const active = document.activeElement;
+      openerRef.current = active instanceof HTMLElement && !dialogRef.current?.contains(active) ? active : null;
+    }
+    const entry: ModalEntry = { node: dialogRef, opener: openerRef.current };
     entryRef.current = entry;
     modalStack.push(entry);
     focusInto(dialogRef.current);
@@ -147,10 +154,14 @@ function ModalSurface({
       }
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      const active = document.activeElement;
+      // Focus on something that is not in the tab ring (a tabindex="-1" start element, the card itself) must not let the
+      // first Tab or Shift+Tab walk out of the dialog.
+      const outsideRing = !(active instanceof HTMLElement) || !focusable.includes(active);
+      if (event.shiftKey && (active === first || outsideRing)) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && (active === last || outsideRing)) {
         event.preventDefault();
         first.focus();
       }
@@ -209,6 +220,7 @@ function ModalSurface({
         aria-hidden={isPresent ? undefined : true}
         inert={!isPresent}
         aria-labelledby={titleId}
+        aria-describedby={describedBy}
         tabIndex={-1}
         {...cardMotion}
       >

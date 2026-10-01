@@ -12,10 +12,14 @@ export interface PropertyDeedCardProps {
   variant?: DeedVariant;
   /** Show the owner row and the group progress (the buy prompt shows the group but no owner). */
   showOwner?: boolean;
+  /** Mark the row a street reaches after the next Nhà ("Sau khi xây"); only the development sheet asks for it. */
+  showNext?: boolean;
   className?: string;
 }
 
 function deedStyle(model: DeedCardModel): CSSProperties {
+  // A special tile has no district: its neutral paper header comes from the .deed--special rule, so no inline color here.
+  if (model.kind === 'special') return {};
   return {
     '--deed-color': model.headerColor,
     '--deed-text': model.headerTextColor,
@@ -77,7 +81,7 @@ function OwnerRow({ model }: { model: DeedCardModel }) {
  * It is a pure view of a `DeedCardModel` (see `buildDeedCardModel`).
  */
 export default function PropertyDeedCard({
-  model, variant = 'full', showOwner = true, className = '',
+  model, variant = 'full', showOwner = true, showNext = false, className = '',
 }: PropertyDeedCardProps) {
   const nameId = useId();
   const classes = `deed deed--${variant} deed--${model.kind}${className ? ` ${className}` : ''}`;
@@ -131,13 +135,13 @@ export default function PropertyDeedCard({
                 {model.rows.map(row => (
                   <tr
                     key={row.label}
-                    className={`deed__row${row.current ? ' deed__row--current property-inspection__detail--current' : ''}${row.next ? ' deed__row--next' : ''}`}
+                    className={`deed__row${row.current ? ' deed__row--current property-inspection__detail--current' : ''}${row.next && showNext ? ' deed__row--next' : ''}`}
                     aria-current={row.current ? 'true' : undefined}
                   >
                     <th scope="row">
                       {row.label}
                       {row.current ? <span className="deed__tag deed__tag--current">Hiện tại</span> : null}
-                      {row.next ? <span className="deed__tag deed__tag--next">Sau khi xây</span> : null}
+                      {row.next && showNext ? <span className="deed__tag deed__tag--next">Sau khi xây</span> : null}
                     </th>
                     <td>{row.value}</td>
                   </tr>
