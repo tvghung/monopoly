@@ -1,5 +1,5 @@
 import {
-  act, cleanup, fireEvent, render, screen, waitFor,
+  act, cleanup, fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
 import type {
   Ack, ForcedSaleProposal, PublicGameState, PrivatePlayerState,
@@ -7,6 +7,7 @@ import type {
 import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import stateContext from '../../internal';
+import { roomExitContext, type RoomExitContextValue } from '../../roomExitContext';
 import type { SocketFunctions, StateContextValue } from '../../types';
 import { makeRoom } from '../../game/presentation/testFixtures';
 import DebtPanel from './DebtPanel';
@@ -230,5 +231,164 @@ describe('DebtPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Đề nghị người chơi mua Cà Mau' }));
     expect(screen.getByRole<HTMLInputElement>('radio', { name: /Bình/ }).disabled).toBe(true);
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Gửi đề nghị bán' }).disabled).toBe(true);
+    expect(screen.getByText('Không ai đủ tiền để mua với giá 600.000 ₫.')).toBeTruthy();
+  });
+
+  it('says what is owed, to whom, what is missing and the cash at hand', () => {
+    renderDebt(debtState());
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Cần thanh toán' });
+    expect(within(dialog).getByText('Tiền thuê Bạc Liêu')).toBeTruthy();
+    expect(within(dialog).getByText('300.000 ₫').previousElementSibling?.textContent).toBe('Cần trả');
+    expect(within(dialog).getByText('Ngân hàng')).toBeTruthy();
+    expect(within(dialog).getByText('Còn thiếu').nextElementSibling?.textContent).toBe('200.000 ₫');
+    expect(within(dialog).getByText('Tiền mặt hiện có').nextElementSibling?.textContent).toBe('100.000 ₫');
+    expect(within(dialog).getByText(/giây còn lại$/)).toBeTruthy();
+  });
+
+  it('shows the creditor player with an avatar instead of the Bank', () => {
+    const state = debtState();
+    state.boardState.paymentShortfall = {
+      ...state.boardState.paymentShortfall!,
+      creditor: 'PLAYER',
+      creditorPlayerId: 'player-b',
+    };
+    renderDebt(state);
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Cần thanh toán' });
+    expect(within(dialog).getByText('Bình')).toBeTruthy();
+    expect(dialog.querySelector('.debt-panel__creditor img')).not.toBeNull();
+    expect(within(dialog).queryByText('Ngân hàng')).toBeNull();
+  });
+
+  it('labels each sale with the amount it brings while keeping the tile in the accessible names', () => {
+    renderDebt(debtState());
+
+    const sale = screen.getByRole('button', { name: 'Bán Cà Mau cho Ngân hàng' });
+    expect(sale.textContent).toBe('Bán cho Ngân hàng +112.000 ₫');
+    expect(screen.getByRole('button', { name: 'Đề nghị người chơi mua Cà Mau' }).textContent).toBe('Đề nghị người chơi mua');
+  });
+
+  it('starts keyboard focus on the amount owed, so the first sale can sit below the fold', () => {
+    renderDebt(debtState());
+
+    const summary = screen.getByRole('region', { name: 'Khoản cần thanh toán' });
+    expect(document.activeElement).toBe(summary);
+    expect(summary.textContent).toContain('Cần trả');
+  });
+
+  it('draws each sellable property as a compact deed under its own heading', () => {
+    renderDebt(debtState({ sellableProperties: [{ tileID: 1, grossPrice: 112, houses: 2 }, { tileID: 3, grossPrice: 60, houses: 5 }] }));
+
+    const deeds = document.querySelectorAll('.debt-panel__property .deed--compact');
+    expect(deeds).toHaveLength(2);
+    expect([...deeds].map(deed => deed.querySelector('.deed__name')?.textContent)).toEqual(['Cà Mau', 'Bạc Liêu']);
+    expect(screen.getByRole('heading', { name: 'Bán tài sản để có tiền' })).toBeTruthy();
+  });
+
+  it('explains what the buyer picker still needs before an offer can go out', () => {
+    renderDebt(debtState());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đề nghị người chơi mua Cà Mau' }));
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Gửi đề nghị bán' }).disabled).toBe(true);
+    expect(screen.getByText('Chọn một người mua để gửi đề nghị.')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('radio', { name: /Bình/ }));
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Gửi đề nghị bán' }).disabled).toBe(false);
+    expect(screen.getByText('Giá cố định 112.000 ₫.')).toBeTruthy();
+  });
+
+  it('says so when nothing is left to sell', () => {
+    renderDebt(debtState({ sellableProperties: [] }));
+
+    expect(screen.getByText('Bạn không còn tài sản nào để bán.')).toBeTruthy();
+    expect(screen.queryByText('Bán tài sản để có tiền')).toBeNull();
+  });
+
+  describe('forfeit', () => {
+    function renderWithExit(exit: RoomExitContextValue | null, socketFunctions: Partial<SocketFunctions> = {}) {
+      return render(
+        <roomExitContext.Provider value={exit}>
+          <stateContext.Provider value={makeContext(debtState(), socketFunctions)}>
+            <DebtPanel />
+          </stateContext.Provider>
+        </roomExitContext.Provider>,
+      );
+    }
+
+    it('asks the room exit flow once and sends no command of its own', () => {
+      const requestLeave = vi.fn();
+      const sellPropertyToBank = vi.fn();
+      const proposeForcedSale = vi.fn();
+      renderWithExit({ requestLeave, leaving: false, label: 'Bỏ cuộc' }, { sellPropertyToBank, proposeForcedSale });
+
+      const footer = screen.getByRole('alertdialog', { name: 'Cần thanh toán' }).querySelector('.ds-modal__footer') as HTMLElement;
+      fireEvent.click(within(footer).getByRole('button', { name: 'Bỏ cuộc' }));
+
+      expect(requestLeave).toHaveBeenCalledTimes(1);
+      expect(requestLeave).toHaveBeenCalledWith();
+      expect(sellPropertyToBank).not.toHaveBeenCalled();
+      expect(proposeForcedSale).not.toHaveBeenCalled();
+      expect(screen.getByRole('alertdialog', { name: 'Cần thanh toán' })).toBeTruthy();
+    });
+
+    it('is not offered outside the app shell', () => {
+      renderWithExit(null);
+
+      expect(screen.getByRole('alertdialog', { name: 'Cần thanh toán' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Bỏ cuộc' })).toBeNull();
+    });
+
+    it('waits while the leave request is in flight', () => {
+      renderWithExit({ requestLeave: vi.fn(), leaving: true, label: 'Bỏ cuộc' });
+
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Bỏ cuộc' }).disabled).toBe(true);
+    });
+
+    it('stays reachable when a sale is pending and when nothing can be sold', () => {
+      const requestLeave = vi.fn();
+      const exit = { requestLeave, leaving: false, label: 'Bỏ cuộc' } as const;
+      const pending = renderWithExit(exit, { sellPropertyToBank: vi.fn(() => new Promise<Ack>(() => {})) });
+      fireEvent.click(screen.getByRole('button', { name: 'Bán Cà Mau cho Ngân hàng' }));
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Bỏ cuộc' }).disabled).toBe(false);
+      pending.unmount();
+
+      render(
+        <roomExitContext.Provider value={exit}>
+          <stateContext.Provider value={makeContext(debtState({ sellableProperties: [] }))}>
+            <DebtPanel />
+          </stateContext.Provider>
+        </roomExitContext.Provider>,
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Bỏ cuộc' }));
+      expect(requestLeave).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('observer status', () => {
+    it('names the debtor, the creditor and the countdown for another player', () => {
+      render(
+        <stateContext.Provider value={{ ...makeContext(debtState()), playerId: 'player-b' }}>
+          <DebtPanel />
+        </stateContext.Provider>,
+      );
+
+      const status = screen.getByRole('status');
+      expect(status.textContent).toContain('An đang thiếu 200.000 ₫');
+      expect(status.textContent).toContain('Trả cho Ngân hàng');
+      expect(status.textContent).toMatch(/\d+ giây còn lại/);
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
+
+    it('is also what the debtor sees while commands cannot be sent', () => {
+      render(
+        <stateContext.Provider value={{ ...makeContext(debtState()), canMutate: false }}>
+          <DebtPanel />
+        </stateContext.Provider>,
+      );
+
+      expect(screen.getByRole('status').textContent).toContain('An đang thiếu 200.000 ₫');
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
   });
 });

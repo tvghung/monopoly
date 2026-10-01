@@ -1,4 +1,6 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import {
+  cleanup, fireEvent, render, screen, within,
+} from '@testing-library/react';
 import type { PrivateOffer, PublicGameState } from '@monopoly/shared';
 import {
   afterEach, describe, expect, it, vi,
@@ -9,67 +11,144 @@ import IncomingOffers from './IncomingOffers';
 
 afterEach(cleanup);
 
+const state: PublicGameState = {
+  boardState: {
+    gameStarted: true,
+    players: ['proposer', 'recipient'],
+    finishedPlayers: {},
+    turnNumber: 2,
+    currentPlayer: { id: '', hasMoved: false },
+    turnRecovery: null,
+    logs: [],
+    diceValue: { dice1: 2, dice2: 3 },
+    rollSequence: 1,
+    gameplayEvents: { sequence: 0, events: [] },
+    activityFeed: { sequence: 0, events: [] },
+    ownedProps: {
+      1: { id: 'proposer', color: 'red', houses: 0 },
+      37: { id: 'recipient', color: 'blue', houses: 0 },
+    },
+    winner: null,
+  },
+  players: {
+    proposer: {
+      name: 'An',
+      currentTile: 0,
+      color: 'red',
+      characterId: 'dog',
+      accountBalance: 1500,
+      isJail: false,
+      jailOpponentRoundsElapsed: 0,
+      getOutOfJailCardCount: 0,
+    },
+    recipient: {
+      name: 'Bình',
+      currentTile: 0,
+      color: 'blue',
+      characterId: 'panda',
+      accountBalance: 1500,
+      isJail: false,
+      jailOpponentRoundsElapsed: 0,
+      getOutOfJailCardCount: 0,
+    },
+  },
+  turnInfo: {},
+  deckCounts: { chance: 16, chest: 16 },
+  loaded: true,
+};
+
+function makeOffer(overrides: Partial<PrivateOffer> = {}): PrivateOffer {
+  return {
+    offerId: 'offer-1',
+    roomId: 'room-1',
+    proposerPlayerId: 'proposer',
+    recipientPlayerId: 'recipient',
+    proposerName: 'An',
+    recipientName: 'Bình',
+    offered: { cash: 100, propertyIds: [1], jailFreeCardIds: [] },
+    requested: { cash: 25, propertyIds: [37], jailFreeCardIds: [] },
+    status: 'PENDING',
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    resolvedAt: null,
+    ...overrides,
+  };
+}
+
+function renderOffers(offers: PrivateOffer[], socketFunctions: Partial<SocketFunctions> = {}) {
+  const contextValue: StateContextValue = {
+    state,
+    socketFunctions: {
+      acceptOffer: vi.fn(),
+      declineOffer: vi.fn(),
+      ...socketFunctions,
+    } as unknown as SocketFunctions,
+    playerId: 'recipient',
+    role: 'PLAYER',
+    connected: true,
+    canMutate: true,
+    privatePlayerState: null,
+    privateOffers: offers,
+  };
+  return render(
+    <stateContext.Provider value={contextValue}>
+      <IncomingOffers />
+    </stateContext.Provider>,
+  );
+}
+
 describe('IncomingOffers', () => {
-  it('shows the bilateral bundles with explicit terms only', () => {
-    const state: PublicGameState = {
-      boardState: {
-        gameStarted: true,
-        players: ['proposer', 'recipient'],
-        finishedPlayers: {},
-        turnNumber: 2,
-        currentPlayer: { id: '', hasMoved: false },
-        turnRecovery: null,
-        logs: [],
-        diceValue: { dice1: 2, dice2: 3 },
-        rollSequence: 1,
-        gameplayEvents: { sequence: 0, events: [] },
-        activityFeed: { sequence: 0, events: [] },
-        ownedProps: {
-          1: { id: 'proposer', color: 'red', houses: 0 },
-          37: { id: 'recipient', color: 'blue', houses: 0 },
-        },
-        winner: null,
-      },
-      players: {},
-      turnInfo: {},
-      deckCounts: { chance: 16, chest: 16 },
-      loaded: true,
-    };
-    const offer: PrivateOffer = {
-      offerId: 'offer-1',
-      roomId: 'room-1',
-      proposerPlayerId: 'proposer',
-      recipientPlayerId: 'recipient',
-      proposerName: 'An',
-      recipientName: 'Bình',
-      offered: { cash: 100, propertyIds: [1], jailFreeCardIds: [] },
-      requested: { cash: 25, propertyIds: [37], jailFreeCardIds: [] },
-      status: 'PENDING',
-      createdAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
-      resolvedAt: null,
-    };
-    const contextValue: StateContextValue = {
-      state,
-      socketFunctions: {
-        acceptOffer: vi.fn(),
-        declineOffer: vi.fn(),
-      } as unknown as SocketFunctions,
-      playerId: 'recipient',
-      role: 'PLAYER',
-      connected: true,
-      canMutate: true,
-      privatePlayerState: null,
-      privateOffers: [offer],
-    };
+  it('shows each side of the offer as deed chips and cash, with the sender avatar', () => {
+    renderOffers([makeOffer()]);
 
-    render(
-      <stateContext.Provider value={contextValue}>
-        <IncomingOffers />
-      </stateContext.Provider>,
-    );
+    const theirs = screen.getByRole('group', { name: 'An giao' });
+    expect(within(theirs).getByText('Cà Mau')).toBeTruthy();
+    expect(within(theirs).getByText('100.000 ₫')).toBeTruthy();
+    const yours = screen.getByRole('group', { name: 'Bạn giao' });
+    expect(within(yours).getByText('Đồng Khởi')).toBeTruthy();
+    expect(within(yours).getByText('25.000 ₫')).toBeTruthy();
 
-    expect(screen.getByText('An giao: 100.000 ₫, Cà Mau')).toBeTruthy();
-    expect(screen.getByText('Bạn giao: 25.000 ₫, Đồng Khởi')).toBeTruthy();
+    const dialog = screen.getByRole('dialog', { name: 'Đề nghị giao dịch' });
+    expect(within(dialog).getByRole('heading', { name: 'Đề nghị từ An' })).toBeTruthy();
+    expect(dialog.querySelector('.trade-offers-modal__sender img')).not.toBeNull();
+    expect(within(dialog).getByText('Hết hạn sau: 60 giây')).toBeTruthy();
+  });
+
+  it('names Get Out Of Jail Free cards and an empty side', () => {
+    renderOffers([makeOffer({
+      offered: { cash: 0, propertyIds: [], jailFreeCardIds: ['chance-jail-free'] },
+      requested: { cash: 0, propertyIds: [], jailFreeCardIds: [] },
+    })]);
+
+    expect(within(screen.getByRole('group', { name: 'An giao' })).getByText('1 thẻ Thoát Tù Miễn Phí')).toBeTruthy();
+    expect(within(screen.getByRole('group', { name: 'Bạn giao' })).getByText('Không có tài sản')).toBeTruthy();
+  });
+
+  it('accepts or declines the offer by id and has no close button', () => {
+    const acceptOffer = vi.fn();
+    const declineOffer = vi.fn();
+    renderOffers([makeOffer()], { acceptOffer, declineOffer });
+
+    expect(screen.queryByRole('button', { name: 'Đóng' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Chấp nhận' }));
+    expect(acceptOffer).toHaveBeenCalledWith('offer-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Từ chối' }));
+    expect(declineOffer).toHaveBeenCalledWith('offer-1');
+  });
+
+  it('disables both answers and says why once the offer has expired', () => {
+    renderOffers([makeOffer({ expiresAt: new Date(Date.now() - 1000).toISOString() })]);
+
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Chấp nhận' }).disabled).toBe(true);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Từ chối' }).disabled).toBe(true);
+    expect(screen.getByText('Đề nghị đã hết hạn.')).toBeTruthy();
+  });
+
+  it('stacks several offers in one dialog and focuses the first answer', () => {
+    renderOffers([makeOffer(), makeOffer({ offerId: 'offer-2' })]);
+
+    expect(screen.getAllByRole('button', { name: 'Chấp nhận' })).toHaveLength(2);
+    expect(document.activeElement?.textContent).toContain('Chấp nhận');
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
   });
 });

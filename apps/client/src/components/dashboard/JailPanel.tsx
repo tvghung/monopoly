@@ -1,8 +1,12 @@
 import { useContext, useEffect, useState } from 'react';
 import { BAIL_AMOUNT, type Ack } from '@monopoly/shared';
-import { TicketCheck, Unlock } from 'lucide-react';
 import stateContext from '../../internal';
 import { formatMoney, localizeAckError } from '../../presentation';
+import Button from '../../design-system/components/Button/Button';
+import Chip from '../../design-system/components/Chip/Chip';
+import { ActionIcon } from '../../design-system/icons/ActionIcon';
+import { JAIL_ROUND_LIMIT } from '../../game/ui/hud/playerCardText';
+import './JailPanel.css';
 
 // Shown to the current player while they're in jail on their own turn: pay bail
 // or spend a Get Out Of Jail Free card (they can still roll for a double too).
@@ -49,41 +53,44 @@ export default function JailPanel() {
 
   return (
     <section className="jail-panel" role="status" aria-live="polite">
-      <h3 className="jail-panel__title">Bạn đang ở Nhà Tù</h3>
+      <div className="jail-panel__head">
+        <span className="jail-panel__icon" aria-hidden="true"><ActionIcon name="jail" /></span>
+        <h3 className="jail-panel__title">Bạn đang ở Nhà Tù</h3>
+        <Chip tone="loss" className="jail-panel__rounds">
+          {`Vòng chờ: ${myPlayer.jailOpponentRoundsElapsed}/${JAIL_ROUND_LIMIT}`}
+        </Chip>
+      </div>
       {error ? <p role="alert">{error}</p> : null}
       <p className="jail-panel__hint">Chọn một cách ra tù, hoặc bấm Đổ xúc xắc để thử đổ đôi.</p>
-      <p className="jail-panel__rounds">Vòng chờ: {myPlayer.jailOpponentRoundsElapsed}/2</p>
       {myPlayer.accountBalance < BAIL_AMOUNT
         ? <p className="jail-panel__balance-warning">Cần {formatMoney(BAIL_AMOUNT)} để trả bảo lãnh.</p>
         : null}
       {acknowledged ? <p className="jail-panel__pending">Đã xác nhận. Đang cập nhật ván chơi…</p> : null}
       <div className="jail-panel__actions">
-        <button
-          className="button__purchase--yes"
-          type="button"
+        <Button
+          variant="secondary"
+          icon={<ActionIcon name="bail" />}
+          busy={pendingAction === 'PAY_BAIL'}
           disabled={pendingAction !== null || myPlayer.accountBalance < BAIL_AMOUNT}
-          aria-busy={pendingAction === 'PAY_BAIL'}
           onClick={() => submit('PAY_BAIL', () => socketFunctions.payBail())}
         >
-          <Unlock className="action-icon" aria-hidden="true" />
           {pendingAction === 'PAY_BAIL'
             ? acknowledged ? 'Đang cập nhật…' : 'Đang gửi…'
             : `Trả ${formatMoney(BAIL_AMOUNT)}`}
-        </button>
+        </Button>
         {myPlayer.getOutOfJailCardCount > 0
           ? (
-            <button
-              className="button__purchase--yes"
-              type="button"
+            <Button
+              variant="secondary"
+              icon={<ActionIcon name="jailCard" />}
+              busy={pendingAction === 'USE_CARD'}
               disabled={pendingAction !== null}
-              aria-busy={pendingAction === 'USE_CARD'}
               onClick={() => submit('USE_CARD', () => socketFunctions.useJailCard())}
             >
-              <TicketCheck className="action-icon" aria-hidden="true" />
               {pendingAction === 'USE_CARD'
                 ? acknowledged ? 'Đang cập nhật…' : 'Đang gửi…'
                 : `Dùng thẻ Thoát Tù Miễn Phí (${myPlayer.getOutOfJailCardCount})`}
-            </button>
+            </Button>
           )
           : null}
       </div>

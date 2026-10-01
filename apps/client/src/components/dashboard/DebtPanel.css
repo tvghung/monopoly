@@ -1,0 +1,169 @@
+/*
+ * Debt surfaces (plan 04 §8.3): the debtor's "Cần thanh toán" alert dialog, and the observer status in the HUD context stack.
+ * The dialog is Modal v2 (size lg, tone danger); these rules style what is inside.
+ */
+.debt-panel__label {
+  color: var(--color-text-secondary);
+  font: var(--type-caption);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---------- Debtor dialog ---------- */
+
+.debt-panel__summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'due creditor countdown'
+    'facts facts facts';
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--elevation-1);
+}
+/* Focus starts here (tabindex -1, never a Tab stop), so the ring would only suggest a control that is not there. */
+.debt-panel__summary:focus-visible { outline: 0; }
+.debt-panel__due { display: grid; grid-area: due; min-width: 0; }
+.debt-panel__due-amount {
+  color: var(--color-danger-strong);
+  font: var(--type-title-l);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.debt-panel__countdown { grid-area: countdown; justify-self: end; align-self: start; }
+.debt-panel__creditor { display: flex; grid-area: creditor; align-items: center; gap: var(--space-2); min-width: 0; padding-inline: var(--space-2); }
+.debt-panel__bank {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--color-surface-soft);
+  color: var(--color-text-primary);
+}
+.debt-panel__bank > svg { width: 1.125rem; height: 1.125rem; }
+.debt-panel__creditor-name { display: grid; min-width: 0; }
+.debt-panel__creditor-name strong { overflow: hidden; font: var(--type-label); text-overflow: ellipsis; white-space: nowrap; }
+
+.debt-panel__facts { display: grid; grid-area: facts; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin: 0; }
+.debt-panel__fact {
+  display: grid;
+  gap: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-soft);
+}
+.debt-panel__fact dt { color: var(--color-text-secondary); font: var(--type-caption); }
+.debt-panel__fact dd { margin: 0; font: var(--type-label); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.debt-panel__fact--short { border-color: var(--color-danger); background: var(--color-danger-soft); }
+.debt-panel__fact--short dd { color: var(--color-danger-strong); }
+
+.debt-panel__error,
+.debt-panel__pending { margin: var(--space-3) 0 0; font: var(--type-small); font-weight: var(--font-weight-semibold); }
+.debt-panel__error { color: var(--color-danger-strong); }
+.debt-panel__pending { color: var(--color-text-secondary); }
+
+.debt-panel__heading { margin: var(--space-4) 0 var(--space-2); font: var(--type-label); }
+.debt-panel__empty { margin: var(--space-4) 0 0; color: var(--color-text-secondary); font: var(--type-small); }
+
+.debt-panel__properties {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16.25rem, 100%), 1fr));
+  gap: var(--space-3);
+}
+.debt-panel__property { display: grid; align-content: start; gap: var(--space-2); min-width: 0; }
+.debt-panel__property .debt-panel__deed { width: 100%; }
+.debt-panel__property-actions { display: grid; gap: var(--space-2); }
+.debt-panel__property-actions .ds-button,
+.debt-panel__buyer-picker .ds-button { box-sizing: border-box; width: 100%; text-align: center; }
+/* The offer flow is open: tinted like a selected option, so it is not mistaken for keyboard focus. */
+.debt-panel__property-actions .ds-button[aria-pressed='true'] {
+  --ds-button-face: var(--color-accent-secondary-soft);
+  --ds-button-lip: var(--color-accent-secondary-strong);
+  background: var(--color-accent-secondary-soft);
+  color: var(--color-accent-secondary-strong);
+}
+/* The sale reads as two lines: what it is, and what it brings. */
+.debt-panel__sale-label { display: grid; justify-items: center; }
+.debt-panel__sale-label > span { white-space: nowrap; }
+.debt-panel__sale-label > strong { font: var(--type-small); font-variant-numeric: tabular-nums; font-weight: 800; white-space: nowrap; }
+
+.debt-panel__buyer-picker {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-soft);
+}
+.debt-panel__buyer-picker legend { padding: 0 var(--space-1); font: var(--type-label); }
+.debt-panel__buyer { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); min-height: 2.75rem; }
+.debt-panel__buyer input { width: 1.25rem; height: 1.25rem; accent-color: var(--color-accent-primary); }
+.debt-panel__buyer-avatar { display: inline-flex; }
+.debt-panel__buyer-name { min-width: 0; overflow: hidden; font-weight: var(--font-weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
+.debt-panel__buyer small { color: var(--color-text-secondary); font: var(--type-small); font-variant-numeric: tabular-nums; }
+.debt-panel__buyer:has(input:disabled) { color: var(--color-text-muted); }
+.debt-panel__buyer-hint { margin: 0; color: var(--color-text-secondary); font: var(--type-small); }
+
+.debt-panel-modal .ds-modal__footer { justify-content: space-between; }
+.debt-panel__footer-note { min-width: 0; color: var(--color-text-secondary); font: var(--type-small); }
+.debt-panel__forfeit.ds-button { margin-left: auto; color: var(--color-danger-strong); --ds-button-text: var(--color-danger-strong); }
+
+/* ---------- Observer status (HUD context stack) ---------- */
+
+.debt-panel--status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  box-sizing: border-box;
+  width: min(100%, 32rem);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  background-image: var(--paper-grain);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
+}
+.debt-panel__status-copy { display: grid; min-width: 0; }
+.debt-panel__status-copy strong { font: var(--type-label); overflow-wrap: anywhere; }
+.debt-panel__status-copy span { color: var(--color-text-secondary); font: var(--type-small); }
+
+@media (max-width: 40rem) {
+  .debt-panel__summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'due countdown'
+      'creditor creditor'
+      'facts facts';
+  }
+  .debt-panel__creditor { padding-inline: 0; }
+  .debt-panel__footer-note { flex: 1 1 100%; }
+}
+
+/* A phone held sideways: a tighter summary, no footer note, and the status strip shrinks to one row. */
+@media (orientation: landscape) and (max-height: 31rem) {
+  .debt-panel__summary { gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); }
+  .debt-panel__due-amount { font: var(--type-title-m); }
+  .debt-panel__facts { gap: var(--space-1); }
+  .debt-panel__fact { padding: var(--space-1) var(--space-2); }
+  .debt-panel__heading { margin-top: var(--space-3); }
+  .debt-panel__footer-note { display: none; }
+}
+
+@media (max-height: 500px) {
+  .debt-panel--status { padding: 4px 8px; border-radius: var(--radius-md); }
+  .debt-panel__status-copy strong { font: 700 0.875rem/1.25rem var(--font-family-body); }
+  .debt-panel__status-copy span { font: var(--type-caption); }
+}
