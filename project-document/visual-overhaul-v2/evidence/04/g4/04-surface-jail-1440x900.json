@@ -1,0 +1,19 @@
+{
+  "id": "04-g4-surface-jail-1440x900",
+  "plan": "04",
+  "folder": "g4",
+  "name": "04-surface-jail",
+  "url": "/?phase4-uat=1&design-lab=1&section=surfaces&surface=jail&theme=v2&chrome=hidden",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "kind": "design-lab",
+  "rendererMode": null,
+  "browser": "chromium 154.0.8037.58",
+  "captureTool": "e2e/visual/capture.visual.ts",
+  "consoleErrors": [],
+  "benchmark": null,
+  "diagnostics": null,
+  "hudOverlap": null
+}

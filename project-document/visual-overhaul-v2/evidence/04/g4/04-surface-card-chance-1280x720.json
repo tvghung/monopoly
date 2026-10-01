@@ -1,0 +1,19 @@
+{
+  "id": "04-g4-surface-card-chance-1280x720",
+  "plan": "04",
+  "folder": "g4",
+  "name": "04-surface-card-chance",
+  "url": "/?phase4-uat=1&design-lab=1&section=surfaces&surface=card-chance&theme=v2&chrome=hidden",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "kind": "design-lab",
+  "rendererMode": null,
+  "browser": "chromium 154.0.8037.58",
+  "captureTool": "e2e/visual/capture.visual.ts",
+  "consoleErrors": [],
+  "benchmark": null,
+  "diagnostics": null,
+  "hudOverlap": null
+}
