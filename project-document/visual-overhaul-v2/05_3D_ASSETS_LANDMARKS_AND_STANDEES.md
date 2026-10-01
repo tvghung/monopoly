@@ -1,6 +1,6 @@
 # 05 — 3D Assets: Landmarks, Tube Houses, Standees and Props
 
-**Status: PLANNED — not started. Open decisions answered by the product owner on 2026-09-30 (see the Decisions section). Starts after plan 02 (lighting) lands; gate G5a (pilot review) is blocking before the full landmark set.**
+**Status: IN PROGRESS — T05.0–T05.5 are done (fixtures, baseline, kit, tube houses, standees, the three pilot landmarks) on 2026-10-01 and the work is stopped at gate G5a (pilot review), verdict PENDING. The other 19 landmarks (T05.6), the 2D art (T05.7), the table props (T05.8), the budget pass (T05.10), gate G5 and the final docs (T05.12) wait for the verdict of the product owner and the Vietnamese reviewer. Open decisions were answered on 2026-09-30.**
 
 | Field | Value |
 | --- | --- |
@@ -539,16 +539,36 @@ triangles each). It is out of scope for this program and needs a separate plan.
 
 | Date | Task | Commit | Evidence | Result / notes |
 | --- | --- | --- | --- | --- |
-| — | — | — | — | — |
+| 2026-10-01 | T05.0, T05.1 | `922b5e0` | `evidence/05/baseline/` | Fixtures `landmarks-all`, `houses-max`, `standees`; today's boxes and sprites measured in every tier (houses-max: 331 main and 185 shadow draws, 93.7k triangles). |
+| 2026-10-01 | T05.2, T05.3, T05.5 | `9c5364d` | `kit/lowPolyKit.test.ts`, `tubeHouse*.test.ts`, `landmarks/landmarks.test.ts` | Low-poly kit and three shared materials; instanced tube houses (3 draws for the whole board); Chùa Cầu, Cầu Vàng and Landmark 81 on plinths; one shadow proxy. |
+| 2026-10-01 | T05.4 | `be405e5` | `characters/standee.test.ts` | Die-cut standees (320 px bake, white 6 px border) on instanced round bases; motion semantics unchanged. |
+| 2026-10-01 | review | `39d6c93` | five-lens review | Five read-only reviewers (instancing, standee, landmarks, budgets, tests) with two skeptics per finding; the fixes below. |
+| 2026-10-01 | T05.5 | G5a package commit | `evidence/05/g5a/` | Style sheet, board captures, budget JSON; `pnpm test:e2e:mobile` passes on Chromium and WebKit with the new meshes. **Stopped for the G5a verdict.** |
 
-**Budget table** (1920×1080):
+### As built — differences from the specification
 
-| Fixture | Tier | Main | Shadow | Post | Triangles | Median FPS | p95 ms |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| board-readability | low / balanced / high | — | — | — | — | — | — |
-| landmarks-all | low / balanced / high | — | — | — | — | — | — |
-| houses-max | low / balanced / high | — | — | — | — | — | — |
-| stress | low / balanced / high | — | — | — | — | — | — |
+- **Plinth.** Merged into each landmark's own opaque geometry (slab + a raised rim whose vertices come first), not a shared instanced plinth mesh: 0 extra draws, and the rim takes the owner's color by rewriting those vertices in the mounted copy (`recolorRim`). Landmark footprint and height are measured without the plinth.
+- **Shadows.** The landmark shadow proxy (`LandmarkShadowProxy`) lives on a shadow-only layer (`SHADOW_ONLY_LAYER`, enabled on the key light's shadow camera in `SceneLightRig`), so it costs one shadow draw and nothing in the main pass; a landmark leaves it while its 4 → 5 transition pops it in. Tube houses cast through their three instanced meshes. Landmarks have no contact shadow at any tier (22 of them would push the low tier over the 240 draw limit; the lacquer plinth grounds them).
+- **Height class.** Three landmarks whose `Max H` is above 1.2 (Tháp Trầm Hương 1.4, Vịnh Hạ Long 1.3, UBND TP.HCM 1.3) take the `slim` class (limit 2.0); the table is otherwise implemented as written.
+- **Tube houses.** One row on the middle of the tile's upper art panel (the facade is on both long faces so it shows from any board side); the roof, not a separate awning, carries the owner color. Fail-soft: `OptionalSceneLayer onFail` switches `houseRenderMode` to `legacy` (today's per-tile boxes). A landmark builder that throws is logged once and the street keeps its hotel box (`hasLandmark`).
+- **Standees.** The cache key is unchanged (`characterId:color`, in memory per page, so no version suffix is needed); `CharacterSprite` and its material were deleted instead of kept as a fallback. The bases are one `InstancedMesh` written by each billboard at the end of its frame update (a write in `onBeforeRender` came after three.js uploads instance buffers and lagged a frame).
+- **OD-05-4** (the "Khánh thành …" banner) has no task in the execution guide and is not implemented yet; it comes with the full landmark set.
+
+### Review fixes (commit `39d6c93`)
+
+Confirmed by two independent skeptics each: standee bases lagged a frame behind their cards (blocker); the bankruptcy fade never compiled (`needsUpdate`); the hotel dust puff used the landmark origin on every street; the landmark shadow appeared full size before the landmark popped in; Board3D rebuilt its signal maps on every hover. Confirmed once or assessed by hand after the session limit cut the verification short: the proxy drew invisibly in the main pass; a throwing landmark builder was not fail-soft; the plinth slab floated 0.02 below the landmark; the Cầu Vàng handrails floated above the deck. Not a defect: the unverified claim that a landmark's front can face away from the camera on some board sides (each landmark is a rotated tile child and reads from every side by design).
+
+**Budget table** (1920×1080, SwiftShader counts from the `diagnostics` of each capture; FPS needs a reference device and was not measured):
+
+| Fixture | Tier | Main | Shadow | Post | Triangles | Before (main / shadow / triangles) |
+| --- | --- | --- | --- | --- | --- | --- |
+| board-readability | low / balanced / high | 144 / 139 / 139 | 0 / 19 / 19 | 0 / 0 / 19 | 67.6k | 161 / 153 / 153; 25; 68.9k |
+| houses-max | low / balanced / high | 159 / 155 / 155 | 0 / 17 / 17 | 0 / 0 / 19 | 73.3k | 419 / 331 / 331; 185; 93.7k |
+| landmarks-all (3 landmarks, 19 hotel boxes) | low / balanced / high | 219 / 196 / 196 | 0 / 52 / 52 | 0 / 0 / 19 | 79.5k | 221 / 199 / 199; 53; 79.8k |
+| standees | low / balanced / high | 138 / 134 / 134 | 0 / 17 / 17 | 0 / 0 / 19 | 66.6k | 140 / 138 / 138; 13; 66.7k |
+| stress | low / balanced / high | 140 / 136 / 136 | 0 / 17 / 17 | 0 / 0 / 19 | 66.7k | — |
+
+**Budget watch.** `houses-max` is now far inside every limit (it was 331 draws, above the 240 hard limit). `landmarks-all` is **not yet the real worst case**: only 3 of 22 landmarks exist. The pilots measure 308, 356 and 544 triangles with their plinth (average 403, limit 900). Nineteen more at that size add about 7.7k triangles and remove the 19 hotel boxes they replace, so the fixture lands between the current 79.5k and at most about 87k: possibly above the 80k target, certainly below the 100k hard limit. An "over target" result is the case §5.3 sends to the product owner at gate G5 (the target is not raised); T05.6 keeps the average near the pilots', and T05.10 re-measures every fixture.
 
 **Landmark review** (fill per landmark): tile, name, reviewer, verdict, notes.
 

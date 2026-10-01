@@ -151,3 +151,18 @@ players, and observed result.
   controls and switches, the slider value is announced once, the reduced-motion hint describes its switch, OS reduced motion is
   known at the first render, the desktop-only "Cửa sổ" section.
 - [ ] `[MANUAL-E2E]` G4: Vietnamese typography and WebKit rendering of every plan 04 surface (Design Lab `surfaces` captures).
+
+## 3D asset kit (visual overhaul V2, plan 05)
+
+- [x] `[AUTO][CLIENT]` `kit/lowPolyKit.test.ts`: every primitive is a faceted part with exactly position, normal and color, deterministic, standing on y = 0
+  and outward-wound; merging keeps the sum of triangles.
+- [x] `[AUTO][CLIENT]` `tubeHouseGeometry.test.ts`, `tubeHouseLayout.test.ts`, `tubeHouseMeshes.test.ts`: ≤ 180 triangles per house, rows of 1–4 houses stay inside
+  the tile and its upper art panel on all 22 streets and all four board sides, three instanced meshes with room for 88 houses, facade pastel and owner color,
+  the Phase 4 pop and hotel-transition curves (nothing plays with reduced motion, a downgrade, zero duration or a stale signal).
+- [x] `[AUTO][CLIENT]` `landmarks/landmarks.test.ts`, `LandmarkShadowProxy.test.ts`: the plan lists exactly the 22 streets; every built landmark stays under 900 triangles,
+  3 draws, 1.30 footprint and its `Max H`; plinth below the landmark with the rim first and recolored alone; one shadow proxy for all visible landmarks.
+- [x] `[AUTO][CLIENT]` `characters/standee.test.ts`, `characterTextureCache.test.ts`: the standee faces the camera azimuth only and is as tall on screen as the old sprite;
+  unlit alpha-tested face, mascot-shaped depth material, opacity fade, instanced bases follow their anchors, the 320 px die-cut bake.
+  Movement semantics (`characterMotion.test.ts`, `characterPlacement.test.ts`, `characterReaction.test.ts`) are unchanged.
+- [ ] `[MANUAL-E2E]` Worst-case budgets (`landmarks-all`, `houses-max`, `standees`, `stress`) in every tier and the reference-device benchmark: `evidence/05/g5a/numbers`;
+  pilot style review (gate G5a) and the cultural review of all 22 landmarks (gate G5).

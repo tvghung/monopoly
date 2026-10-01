@@ -225,14 +225,28 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
   sequence thì reset/snap về snapshot thay vì dựng cause.
 - Level 1–4 render Nhà; level 5 render Khách Sạn. Forced-sale gross values come
   from the public shortfall projection; không client-counter.
-- Nhà giữ body `0.48 × 0.39 × 0.36` với facade plaster trung tính khoảng
-  `#d9d2c2`, một shared opaque sRGB procedural texture cho hai cửa sổ bốn ô
-  trên mỗi vertical face, và một pitched roof riêng khoảng `0.56 × 0.47` với
-  rise `0.18`; chỉ roof dùng canonical owner display color. Khách sạn giữ body
-  `0.92 × 0.60 × 0.78` với facade khoảng `#d5d8d6`, shared texture hai cột × ba
-  tầng, mỗi panel bốn ô, và crown/roof riêng dùng canonical owner display color.
-  Đây là texture detail trên body, không phải các mesh frame/window riêng; slot,
-  anchor, shadow và timing hiện hữu không đổi.
+- **Nhà ống (plan 05, thay Nhà hộp phẳng):** mọi Nhà của board là ba `InstancedMesh` dùng chung
+  (`TubeHouseInstances`): thân `bevelBox 0.30 × 0.50 × 0.36` (instance color = màu pastel phố, chọn xác định
+  theo `(tileId × 7 + slot) % 6`), trim (cửa sổ, cửa chính, lan can; vertex color, trên cả hai mặt dài) và mái
+  gable thấp có ridge dọc X (instance color = **màu chủ sở hữu**). Tối đa 4 Nhà xếp một hàng giữa panel nghệ thuật
+  phía trên (70%) của ô, cách nhau `0.06`; hình học tối đa 180 tam giác/nhà (thực tế 72). Ba mesh này tốn 3 draw
+  chính + 3 draw shadow cho toàn board (88 instance tối đa). Pop/puff theo lịch Phase 4 cố định chạy trên instance
+  matrix; `TilePressRoot` offset được áp theo từng frame. Nếu lớp instanced lỗi, `OptionalSceneLayer onFail` đặt
+  `houseRenderMode = 'legacy'` và `BuildingLayer` vẽ lại Nhà hộp cũ từng ô (placeholder, plan 05 §7.7).
+- **Landmark = bậc Khách sạn (plan 05):** mỗi phố có một landmark (bảng 22 mục `LANDMARK_PLAN` trong
+  `buildings/landmarks/registry.ts`); đã dựng ba bản pilot — Chùa Cầu (ô 13), Cầu Vàng (ô 24), Landmark 81 (ô 39) —
+  và các phố còn lại vẫn hiển thị Khách sạn cũ `0.92 × 0.60 × 0.78` cho tới khi landmark của chúng được dựng.
+  Landmark là hình học low-poly (≤ 900 tam giác, ≤ 3 draw: opaque + glass + emissive, chân đế ≤ 1.30 × 1.30) trên
+  bệ sơn mài `1.36 × 1.36 × 0.08` có viền màu chủ (rim được tô lại khi đổi chủ, không thêm draw). `LandmarkShadowProxy`
+  gộp hình học mọi landmark đang hiển thị thành một mesh world-space chỉ để đổ bóng (1 draw shadow). Builder nằm ở
+  `buildings/kit/lowPolyKit.ts` (primitive faceted, vertex color, merge) với ba material dùng chung `kitMaterials.ts`.
+- **Standee linh vật (plan 05):** quân cờ là thẻ die-cut đứng thẳng (texture 320² gồm viền trắng 6 px quanh art 256²)
+  quay theo azimuth camera, cao `1.22 / cos(41.5°) ≈ 1.63` trong thế giới để cao bằng sprite cũ trên màn hình, trên đế
+  tròn `r 0.30` (một `InstancedMesh`, matrix theo anchor trong body group, đọc ở `onBeforeRender`). Mặt thẻ là
+  `MeshBasicMaterial` unlit alpha-test `toneMapped: false`; bóng có hình dáng mascot nhờ `customDepthMaterial`;
+  contact shadow chỉ còn ở tier low. Hop, lean, reaction, slot reflow, jail transfer và snap vẫn do body group
+  (`CharacterBillboard`) điều khiển, không đổi; body group dùng `rotation.order = 'YXZ'` với heading cố định nên
+  lean là nghiêng ngang thẻ.
 - Tất cả amounts dùng shared client money formatter VNĐ.
 - Exact deck order/next card không có trong public state hoặc DOM.
 

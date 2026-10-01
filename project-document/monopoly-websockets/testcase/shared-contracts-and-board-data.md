@@ -54,3 +54,8 @@
 
 - [x] `[AUTO][CLIENT]` `characterRegistry.test.ts`, `PlayerAvatar.test.tsx`: mascots have a Vietnamese `accessibleLabel` for assistive
   technology only; `displayName` no longer exists and no screen shows a mascot name (image only).
+
+## Landmark plan (visual overhaul V2, plan 05)
+
+- [x] `[AUTO][CLIENT]` `landmarks/landmarks.test.ts`: `LANDMARK_PLAN` names exactly the 22 street tiles of `colorGroups` once each, in tile order, on tiles with a price;
+  built landmarks (3 pilots so far) match their plan entry. Full coverage of the 22 is gate G5.
