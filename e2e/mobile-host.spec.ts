@@ -5,6 +5,8 @@ import {
 const MUSIC_PATH = '/audio/music/own-the-block-main-theme-loop.wav';
 /** Hosted CI runners have no GPU and fewer cores (software WebGL): the same flows get twice the time there. */
 const TIME_FACTOR = process.env.CI ? 2 : 1;
+/** What Chromium logs for a request that fails while the browser context is offline. */
+const OFFLINE_REQUEST_FAILURE = /^Failed to load resource: net::ERR_INTERNET_DISCONNECTED$/u;
 
 interface MusicObservation {
   available: boolean;
@@ -167,7 +169,9 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
   const browserErrors: string[] = [];
   const watchErrors = (target: Page) => {
     target.on('console', message => {
-      if (message.type() === 'error') browserErrors.push(message.text());
+      // The flow cuts the network on purpose (setOffline): whatever the page then tries to load (a socket reconnect, a font
+      // subset, an image) fails with this message. That is the simulated outage, not a defect; every other error still counts.
+      if (message.type() === 'error' && !OFFLINE_REQUEST_FAILURE.test(message.text())) browserErrors.push(message.text());
     });
     target.on('pageerror', error => browserErrors.push(error.message));
   };
