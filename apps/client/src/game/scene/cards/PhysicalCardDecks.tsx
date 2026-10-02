@@ -64,14 +64,14 @@ const CARD_BACK_FRAME_GEOMETRY = createCardFrameGeometry(
   PHYSICAL_CARD_THICKNESS / 2 + 0.005,
 );
 const CARD_BODY_MATERIAL = new THREE.MeshStandardMaterial({
-  color: '#fbf8ef', roughness: 0.48, metalness: 0.01,
+  color: '#fbf8ef', roughness: 0.85, metalness: 0,
 });
 const CARD_FACE_MATERIAL = new THREE.MeshStandardMaterial({
-  color: '#fffdf8', roughness: 0.42, metalness: 0,
+  color: '#fffdf8', roughness: 0.85, metalness: 0,
 });
 const CARD_FRAME_MATERIALS: Record<CardDeck, THREE.MeshStandardMaterial> = {
-  chance: new THREE.MeshStandardMaterial({ color: '#d9424d', roughness: 0.38, metalness: 0.02 }),
-  chest: new THREE.MeshStandardMaterial({ color: '#0b9486', roughness: 0.38, metalness: 0.02 }),
+  chance: new THREE.MeshStandardMaterial({ color: '#d9424d', roughness: 0.8, metalness: 0 }),
+  chest: new THREE.MeshStandardMaterial({ color: '#0b9486', roughness: 0.8, metalness: 0 }),
 };
 const CARD_BACK_ICON_GEOMETRY = new THREE.PlaneGeometry(
   PHYSICAL_CARD_WIDTH * 0.38,
@@ -81,10 +81,10 @@ CARD_BACK_ICON_GEOMETRY.rotateX(-Math.PI / 2);
 CARD_BACK_ICON_GEOMETRY.translate(0, PHYSICAL_CARD_THICKNESS / 2 + 0.004, 0);
 const CARD_BACK_ICON_MATERIALS: Record<CardDeck, THREE.MeshBasicMaterial> = {
   chance: new THREE.MeshBasicMaterial({
-    color: '#ffffff', transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, toneMapped: false,
+    color: '#ffffff', transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, forceSinglePass: true, toneMapped: false,
   }),
   chest: new THREE.MeshBasicMaterial({
-    color: '#ffffff', transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, toneMapped: false,
+    color: '#ffffff', transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, forceSinglePass: true, toneMapped: false,
   }),
 };
 
@@ -145,6 +145,8 @@ function IdleDeckStack({
         ref={bodyRef}
         args={[CARD_BODY_GEOMETRY, CARD_BODY_MATERIAL, count]}
         name={`${deck}CardBodies`}
+        castShadow
+        receiveShadow
       />
       <instancedMesh
         ref={backRef}

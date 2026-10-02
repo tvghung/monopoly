@@ -1,0 +1,19 @@
+{
+  "id": "05-g5/legacy-assets-standees-legacy-812x375",
+  "plan": "05",
+  "folder": "g5/legacy",
+  "name": "05-assets-standees-legacy",
+  "url": "/?phase4-uat=1&scenario=standees&uat-controls=hidden",
+  "viewport": {
+    "width": 812,
+    "height": 375
+  },
+  "kind": "harness",
+  "rendererMode": null,
+  "browser": "chromium 154.0.8037.58",
+  "captureTool": "e2e/visual/capture.visual.ts",
+  "consoleErrors": [],
+  "benchmark": null,
+  "diagnostics": null,
+  "hudOverlap": null
+}

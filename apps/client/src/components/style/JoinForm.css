@@ -1,59 +1,72 @@
 .join {
   display: flex;
-  align-items: center;
-  justify-content: center;
   width: 100%;
   min-height: 100dvh;
   padding:
-    max(1rem, env(safe-area-inset-top))
-    max(1rem, env(safe-area-inset-right))
-    max(1rem, env(safe-area-inset-bottom))
-    max(1rem, env(safe-area-inset-left));
+    max(var(--space-4), env(safe-area-inset-top))
+    max(var(--space-4), env(safe-area-inset-right))
+    max(var(--space-4), env(safe-area-inset-bottom))
+    max(var(--space-4), env(safe-area-inset-left));
   overflow-y: auto;
-  background: radial-gradient(circle at 50% 0%, var(--color-warning-soft) 0%, var(--color-accent-secondary-soft) 48%, var(--color-info-soft) 100%);
+  background: var(--entry-backdrop);
+  color: var(--color-text-primary);
+  text-align: start;
 }
 
-.join__card {
-  display: flex;
-  flex-direction: column;
-  width: min(100%, 26rem);
-  padding: 2.5rem 2rem;
-  border-radius: 1rem;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-floating);
+/* Auto margins center the layout when it is shorter than the screen and never push its top out of reach when it is taller. */
+.join__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  width: min(100%, 27rem);
+  margin: auto;
 }
 
-.join__title {
-  margin: 0 0 0.25rem;
-  font-size: 2.5rem;
+.join__hero {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  min-width: 0;
   text-align: center;
-  color: var(--color-accent-primary-strong);
-  letter-spacing: 0.05em;
-}
-
-.join__subtitle {
-  margin: 0 0 1.5rem;
-  text-align: center;
-  color: var(--color-text-secondary);
-  font-size: 0.95rem;
-  line-height: 1.4;
 }
 
 .join__brand {
-  margin: 0 0 0.75rem;
+  margin: 0;
   color: var(--color-accent-primary-strong);
-  font-size: 0.78rem;
-  font-weight: 700;
+  font: var(--type-caption);
   letter-spacing: 0.18em;
-  text-align: center;
+}
+
+.join__title {
+  margin: 0;
+  color: var(--color-accent-primary-strong);
+  font: var(--type-title-l);
+  text-wrap: balance;
+}
+
+.join__subtitle {
+  max-width: 30rem;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--type-small);
+  text-wrap: balance;
+}
+
+.join__hero .join-hero { margin-top: var(--space-2); }
+
+.join__form {
+  display: grid;
+  gap: var(--space-4);
 }
 
 .join__error,
 .join__connection {
-  margin: 0 0 1rem;
-  padding: 0.65rem 0.75rem;
-  border-radius: 0.4rem;
-  font-size: 0.9rem;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 0.25rem solid currentColor;
+  border-radius: var(--radius-sm);
+  font: var(--type-small);
+  font-weight: 700;
 }
 
 .join__error {
@@ -66,63 +79,104 @@
   color: var(--color-info-strong);
 }
 
-.join__label {
-  margin-bottom: 0.35rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  font-size: 0.9rem;
+.join__form .join__modes {
+  display: flex;
+  width: 100%;
 }
 
-.join__input {
-  min-height: 2.75rem;
-  margin-bottom: 1.25rem;
-  padding: 0.7rem 0.9rem;
-  border: 2px solid var(--color-border);
-  background: var(--color-surface-raised);
-  color: var(--color-text-primary);
-  border-radius: 0.5rem;
-  font-size: 1rem;
-  outline: none;
-  transition: border-color 0.15s ease;
+.join__form .join__modes .ds-segmented__option {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
-@media (max-height: 38rem) {
+/* Both modes reserve the height of the code field, so the submit button does not jump when the mode changes. */
+.join__room { min-height: 4.25rem; }
+
+.join__hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--type-small);
+  text-wrap: balance;
+}
+
+.join__reason { text-align: center; }
+
+/* Phones in portrait: a tighter card, and on the shortest screens the subtitle gives way so the button stays in view. */
+@media (max-width: 39.99rem) {
+  .join__panel.ds-panel { padding: var(--space-4); }
+}
+
+@media (max-width: 39.99rem) and (max-height: 41rem) {
+  .join__subtitle { display: none; }
+}
+
+/* Tablet and wide phones in portrait: still one column, with a larger title. */
+@media (min-width: 40rem) {
+  .join__layout { gap: var(--space-5); }
+  .join__title { font: var(--type-display); }
+  .join__subtitle { font: var(--type-body); }
+}
+
+/* Desktop: the hero on the left, the join card on the right. The title is on one line from 1200px. */
+@media (min-width: 64rem) {
+  .join__layout {
+    grid-template-columns: minmax(0, 1fr) 26rem;
+    align-items: center;
+    gap: var(--space-8);
+    width: min(100%, 72rem);
+  }
+
+  .join__hero {
+    justify-items: start;
+    gap: var(--space-3);
+    text-align: start;
+  }
+
+  .join__brand { font-size: var(--font-size-sm); }
+  .join__title { font: var(--type-hero); }
+  .join__hero .join-hero {
+    margin-top: var(--space-5);
+    margin-inline: 0;
+  }
+}
+
+@media (min-width: 75rem) {
+  .join__title { white-space: nowrap; }
+}
+
+/*
+ * A phone held sideways: the hero shrinks to brand, title and the mascot row on the left, and the card keeps every
+ * field and the submit button on screen at 812x375 without scrolling.
+ */
+@media (orientation: landscape) and (max-height: 31rem) and (min-width: 36rem) {
   .join {
-    align-items: flex-start;
+    padding-block: max(var(--space-2), env(safe-area-inset-top)) max(var(--space-2), env(safe-area-inset-bottom));
   }
 
-  .join__card {
-    padding: 1.25rem;
+  .join__layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 20rem);
+    align-items: center;
+    gap: var(--space-4);
+    width: min(100%, 52rem);
   }
-}
 
-.join__input:focus {
-  border-color: var(--color-accent-secondary);
-  box-shadow: var(--shadow-focus);
-}
+  .join__hero {
+    justify-items: start;
+    gap: var(--space-1);
+    text-align: start;
+  }
 
-.join__button {
-  min-height: 2.75rem;
-  padding: 0.8rem 1rem;
-  border: none;
-  border-radius: 0.5rem;
-  background: var(--color-accent-primary-strong);
-  color: var(--color-text-inverse);
-  font-size: 1.05rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s ease, transform 0.05s ease;
-}
+  .join__title { font: var(--type-title-l); }
+  .join__subtitle { font: var(--type-small); }
+  .join__hero .join-hero {
+    margin-top: var(--space-2);
+    margin-inline: 0;
+  }
 
-.join__button:hover:not(:disabled) {
-  background: var(--color-accent-primary);
-}
-
-.join__button:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.join__button:disabled {
-  background: var(--color-border);
-  cursor: not-allowed;
+  .join__panel.ds-panel { padding: var(--space-3); }
+  .join__form { gap: var(--space-2); }
+  .join__form .entry-label { margin-bottom: 0.15rem; }
+  .join__room { min-height: 4rem; }
+  .join__form .join__submit { min-height: 2.75rem; }
+  .join__reason { line-height: 1.1; }
 }

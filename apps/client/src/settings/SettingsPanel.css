@@ -1,23 +1,47 @@
+/*
+ * Settings dialog (plan 04 §8.7): a Modal whose footer slot holds the actions, so the layout needs no knowledge of the
+ * Modal padding. Sections are separated by a rule; every control keeps the 44px touch target of its design-system primitive.
+ */
 .settings-panel { display: grid; gap: var(--space-5); }
-.settings-panel__section { display: grid; gap: var(--space-3); }
-.settings-panel__section h3 { margin: 0; font-size: var(--font-size-md); }
-.settings-panel__control { display: grid; grid-template-columns: minmax(8rem, 1fr) minmax(8rem, 1.4fr) 3rem; align-items: center; gap: var(--space-3); color: var(--color-text-secondary); }
-.settings-panel__control input[type='range'] { accent-color: var(--color-accent-primary); }
-.settings-panel__control output { color: var(--color-text-primary); font-variant-numeric: tabular-nums; text-align: right; }
-.settings-panel__control select { min-height: 2.5rem; padding: var(--space-2); border: 1px solid var(--color-border-strong); border-radius: var(--radius-small); background: var(--color-surface-raised); color: var(--color-text-primary); font: inherit; }
-.settings-panel__toggle { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); }
-.settings-panel__toggle input { width: 1.1rem; height: 1.1rem; accent-color: var(--color-accent-primary); }
-.settings-panel__hint { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-sm); }
-.settings-panel__actions { position: sticky; bottom: -1.5rem; display: flex; justify-content: flex-end; gap: var(--space-2); margin: 0 -1.5rem -1.5rem; padding: var(--space-3) var(--space-5) var(--space-5); border-top: 1px solid var(--color-border); background: var(--color-surface); }
-@media (max-width: 36rem) {
-  .settings-panel__control { grid-template-columns: 1fr auto; }
-  .settings-panel__control input[type='range'] { grid-column: 1 / -1; grid-row: 2; }
-  .settings-panel__actions { flex-direction: column-reverse; }
+.settings-panel__section { display: grid; gap: var(--space-3); min-width: 0; }
+.settings-panel__section + .settings-panel__section { padding-top: var(--space-5); border-top: 1px solid var(--color-border); }
+.settings-panel__heading { display: flex; align-items: center; gap: var(--space-2); margin: 0; font: var(--type-label); }
+.settings-panel__heading-icon { display: inline-flex; justify-content: center; width: 1.5rem; color: var(--color-text-secondary); }
+.settings-panel__heading-icon > svg { width: 1.1rem; height: 1.1rem; margin: 0; stroke-width: 2.25; }
+.settings-panel__field { display: grid; gap: var(--space-2); }
+.settings-panel__label { font: var(--type-label); }
+/* The segments share the row in equal parts; none is ever narrower than the 44px touch target. */
+.settings-panel .settings-panel__segmented { display: flex; width: 100%; }
+.settings-panel .settings-panel__segmented .ds-segmented__option { flex: 1 1 auto; min-width: 2.75rem; padding: 0 var(--space-1); white-space: nowrap; }
+.settings-panel__hint { margin: 0; color: var(--color-text-secondary); font: var(--type-small); }
+.settings-panel__reset { margin-right: auto; }
+
+/* Wider than a phone, a slider is one row (label, track, value) instead of two; not in the two-column landscape layout, where it would starve the track. */
+@media (min-width: 30rem) and (not ((orientation: landscape) and (max-height: 31rem))) {
+  .settings-panel .settings-panel__slider { grid-template-columns: 7.5rem minmax(0, 1fr) 2.75rem; align-items: center; }
+  .settings-panel .settings-panel__slider .ds-slider__label { grid-column: 1; grid-row: 1; }
+  .settings-panel .settings-panel__slider .ds-slider__input { grid-column: 2; grid-row: 1; }
+  .settings-panel .settings-panel__slider .ds-slider__value { grid-column: 3; grid-row: 1; text-align: right; }
 }
 
+/* Below 360px the smaller type and a wrapping row keep the four segments inside the dialog without shrinking a target. */
+@media (max-width: 22.5rem) {
+  .settings-panel .settings-panel__segmented { flex-wrap: wrap; }
+  .settings-panel .settings-panel__segmented .ds-segmented__option { font-size: var(--font-size-sm); }
+}
+
+/* On a phone the two footer actions are full-width rows in the same order as the DOM and the Tab key. */
+@media (max-width: 30rem) {
+  .settings-panel-modal .ds-modal__footer { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+  .settings-panel__reset { margin-right: 0; }
+}
+
+/* The sections need about 900px with the desktop window section: taller than the default 48rem Modal cap. */
+.settings-panel-modal.ds-modal__card { max-height: min(100%, 60rem); }
+
+/* A phone held sideways: two columns, so less of the dialog sits below the fold. */
 @media (orientation: landscape) and (max-height: 31rem) {
-  .settings-panel { gap: var(--space-3); }
+  .settings-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--space-4) var(--space-5); }
   .settings-panel__section { gap: var(--space-2); }
-  .settings-panel__actions { bottom: -0.75rem; margin: 0 -0.75rem -0.75rem; padding: 0.5rem 0.75rem 0.75rem; }
+  .settings-panel__section + .settings-panel__section { padding-top: 0; border-top: 0; }
 }
-

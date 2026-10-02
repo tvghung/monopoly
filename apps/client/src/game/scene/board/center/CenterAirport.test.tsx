@@ -21,7 +21,8 @@ describe('airport center composition', () => {
   it('stays within the lightweight Phase 2 mesh budget', () => {
     expect(CENTER_DECORATION_MESH_COUNT).toBeLessThanOrEqual(6);
     expect(CENTER_DECORATION_THEME).toBe('airport');
-    expect(boardVisualTokens.centerPath).toBe('#b6db7c');
-    expect(boardVisualTokens.boardOuterAccent).toBe('#e7ebea');
+    // Plan 02 T02.16: jade-tinted path and a paper-toned outer accent replace the lime path and cool white.
+    expect(boardVisualTokens.centerPath).toBe('#a1dbc1');
+    expect(boardVisualTokens.boardOuterAccent).toBe('#f3e9da');
   });
 });

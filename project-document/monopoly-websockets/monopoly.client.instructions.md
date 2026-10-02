@@ -133,8 +133,24 @@ formatter dùng `1 game unit = 1.000 VNĐ` và player-facing UI/log/error là ti
 6. Không render hidden `DeckState`, raw `PaymentQueue` internals hoặc credential;
    chỉ render public pending landing/payment-shortfall projection và private proposal
    terms for its seller/buyer.
-7. Modal/prompt dùng `Modal`, `ConfirmationDialog` hoặc `Toast`; Escape/outside
+7. Modal/prompt dùng `Modal`, `ConfirmationDialog` hoặc `Toast`; nút/icon/panel/chip/tiền/avatar
+   dùng primitive trong `design-system/components/` (`Button`, `IconButton`, `Panel`, `Chip`,
+   `SegmentedControl`, `Switch`, `Slider`, `MoneyText`, `DeltaChip`, `PlayerAvatar`,
+   `GroupPips`) và icon hành động qua `ActionIcon`/`ACTION_ICONS`; không thêm primitive song
+   song hay hard-code hex — xem [Client/design-system.instruction.md](./Client/design-system.instruction.md).
+   Escape/outside
    behavior, focus restore/trap, reduced motion và z-index phải tập trung ở primitive.
+   `Modal` v2 nhận `size` (`sm|md|lg|xl` = 400/520/680/880 px), `placement` (`center|sheet`),
+   `backdrop` (`dim|clear`; `clear` vẫn chặn pointer), `eyebrow`, `footer` (sticky), `tone`
+   (`default|danger|celebration`), `layer` (`modal` z 60 | `card` z 70), `headerAccent` và
+   `describedBy` (bắt buộc cho `alertdialog`). Các dialog xếp thành một stack: chỉ dialog trên cùng
+   xử lý Escape/Tab, Tab từ phần tử ngoài vòng tab (ví dụ `tabindex="-1"` làm điểm bắt đầu) vẫn quay
+   lại trong dialog, dialog đang đóng bị `inert`, và focus trả về phần tử đã mở dialog (hoặc dialog
+   bên dưới). Focus ban đầu: phần tử `[data-modal-autofocus]`, nếu không có thì phần tử tab được đầu
+   tiên — người chơi không có hành động an toàn nào (ví dụ không phải host trên màn hình thắng) phải
+   bắt đầu ở vùng nội dung chứ không ở nút rời phòng. Dialog che toolbar (nợ, thắng) rời phòng qua
+   `useRoomExit()` (`roomExitContext`: `requestLeave`, `leaving`, `label`, `error`); không gửi command
+   mới và không tự dựng confirmation thứ hai.
    Active-game `Bỏ cuộc` dùng confirmation; desktop close khi đang chơi chỉ
    disconnect để giữ reconnect token, không emit `leave room`.
 - Desktop shell development có hai đường chạy: `pnpm dev:desktop` tự khởi động

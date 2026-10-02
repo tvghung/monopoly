@@ -1,10 +1,12 @@
-import { Canvas, useThree } from '@react-three/fiber';
-import { useEffect } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { lazy, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import Board3D from './board/Board3D';
 import type { BoardRenderModel } from './board/boardRenderModel';
 import { boardVisualTokens } from './board/boardVisualTokens';
 import { getOrthographicCameraPosition } from './camera/cameraMath';
+import PropScreenRectsPublisher from '../../dev/hud-overlap/PropScreenRectsPublisher';
+import TileScreenRectsPublisher from '../../dev/hud-overlap/TileScreenRectsPublisher';
 import FixedBoardCamera from './camera/FixedBoardCamera';
 import {
   HARD_TRIANGLE_LIMIT,
@@ -15,7 +17,18 @@ import {
   getTileTextureAnisotropy,
 } from './board/architecture/sceneBudget';
 import TileMotionProvider from './board/motion/TileMotionProvider';
-import CoinMaterialEnvironment from './stations/CoinMaterialEnvironment';
+import { countComposerPasses } from './render/diagnostics/composerPasses';
+import { FrameCounter, shadowMapTypeName, toneMappingName } from './render/diagnostics/rendererInfo';
+import OptionalSceneLayer from './render/OptionalSceneLayer';
+import SceneLightRig from './render/lighting/SceneLightRig';
+import StudioEnvironment from './render/environment/StudioEnvironment';
+import TableProps from './props/TableProps';
+import BoardGroundShadow from './render/table/BoardGroundShadow';
+import Tabletop from './render/table/Tabletop';
+import { RenderQualityContext, useRenderQuality } from './render/RenderQualityContext';
+import { probeRenderCapabilities, resolveRenderQuality } from './render/renderQuality';
+import { SCENE_TONE_MAPPING, SCENE_TONE_MAPPING_EXPOSURE, parseToneMappingOverride } from './render/toneMapping';
+import { useSettings } from '../../settings/selectors';
 import {
   COIN_FINISH_MATERIALS,
   COIN_FINISH_ORDER,
@@ -23,6 +36,9 @@ import {
 } from './stations/coinVisuals';
 import './GameScene.css';
 import type { DeckCounts } from '@monopoly/shared';
+
+// The post chain only exists for the high tier: its chunk is never requested for balanced or low.
+const ScenePostEffects = lazy(() => import('./render/post/ScenePostEffects'));
 
 export interface GameSceneProps {
   model?: BoardRenderModel;
@@ -51,6 +67,15 @@ export function RendererLifecycleGuard({ onFailure }: { onFailure?: (error: Erro
   return null;
 }
 
+/** Diagnostics only run on localhost or in the UAT harness; production pages pay nothing. */
+function isLocalDiagnosticsEnabled(): boolean {
+  return window.location.hostname === '127.0.0.1'
+    || window.location.hostname === 'localhost'
+    || new URLSearchParams(window.location.search).get('phase4-uat') === '1';
+}
+
+const DIAGNOSTICS_DEBOUNCE_MS = 120;
+
 function RendererDiagnostics({
   activityKey,
   activeAnimatedObjects,
@@ -74,18 +99,44 @@ function RendererDiagnostics({
   const width = useThree(state => state.size.width);
   const height = useThree(state => state.size.height);
   const invalidate = useThree(state => state.invalidate);
+  const counterRef = useRef<FrameCounter | null>(null);
+  const quality = useRenderQuality();
 
   useEffect(() => {
-    const localDiagnostics = window.location.hostname === '127.0.0.1'
-      || window.location.hostname === 'localhost'
-      || new URLSearchParams(window.location.search).get('phase4-uat') === '1';
-    if (!localDiagnostics) {
+    if (!isLocalDiagnosticsEnabled()) return undefined;
+    const counter = new FrameCounter(gl, scene);
+    counterRef.current = counter;
+    window.__OWN_THE_BLOCK_RENDERER_INVALIDATE__ = () => invalidate();
+    return () => {
+      counter.dispose();
+      counterRef.current = null;
+      delete window.__OWN_THE_BLOCK_RENDERER_INVALIDATE__;
+    };
+  }, [gl, invalidate, scene]);
+  // Resets gl.info before each frame, so the counts always describe the last complete frame.
+  useFrame(() => counterRef.current?.beginFrame(), -1000);
+
+  useEffect(() => {
+    if (!isLocalDiagnosticsEnabled()) {
       return undefined;
     }
     let firstFrame = 0;
     let measurementFrame = 0;
+    let debounce = 0;
     const publish = () => {
+      const counter = counterRef.current;
+      if (!counter || counter.stats.frameSequence === 0) {
+        // No frame has been rendered with the counter yet; the subscription publishes after the first one.
+        invalidate();
+        return;
+      }
+      const stats = counter.stats;
       const drawingBufferSize = gl.getDrawingBufferSize(new THREE.Vector2());
+      const context = gl.getContext();
+      const debugInfo = context.getExtension('WEBGL_debug_renderer_info');
+      const glRenderer = debugInfo
+        ? String(context.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL))
+        : null;
       const destinationPreviewDiagnostics = window.__OWN_THE_BLOCK_DESTINATION_PREVIEW_DIAGNOSTICS__ ?? {};
       const sceneObjects: THREE.Object3D[] = [];
       scene.traverse(object => sceneObjects.push(object));
@@ -101,17 +152,31 @@ function RendererDiagnostics({
       const chanceCards = scene.getObjectByName('chanceCardBodies');
       const chestCards = scene.getObjectByName('chestCardBodies');
       const diagnostics = {
+        glRenderer,
+        qualityTier: quality.tier,
         pixelRatio: gl.getPixelRatio(),
         drawingBuffer: { width: drawingBufferSize.x, height: drawingBufferSize.y },
         camera: 'orthographic',
         cameraPosition: camera.position.toArray(),
-        toneMapping: 'ACESFilmicToneMapping',
-        shadows: 'contact',
+        toneMapping: toneMappingName(gl.toneMapping),
+        toneMappingExposure: gl.toneMappingExposure,
+        shadows: {
+          enabled: gl.shadowMap.enabled,
+          type: gl.shadowMap.enabled ? shadowMapTypeName(gl.shadowMap.type) : 'none',
+        },
+        environment: Boolean(scene.environment),
+        frameSequence: stats.frameSequence,
+        mainDrawCalls: stats.mainDrawCalls,
+        shadowDrawCalls: stats.shadowDrawCalls,
+        postDrawCalls: stats.postDrawCalls,
+        postPasses: countComposerPasses(),
+        postRenders: stats.postRenders,
+        renderedTriangles: stats.mainTriangles,
         anisotropy: getTileTextureAnisotropy(gl.capabilities.getMaxAnisotropy()),
         textureMaxAnisotropy: gl.capabilities.getMaxAnisotropy(),
-        drawCalls: gl.info.render.calls,
+        drawCalls: stats.mainDrawCalls,
         triangles: estimateSceneTriangles(scene),
-        combinedDrawCalls: gl.info.render.calls,
+        combinedDrawCalls: stats.totalDrawCalls,
         combinedTriangles: estimateSceneTriangles(scene),
         activeAnimatedObjects,
         targetDrawCalls: TARGET_DRAW_CALLS,
@@ -171,12 +236,19 @@ function RendererDiagnostics({
     };
     measureAfterRender();
     const settledMeasurement = window.setTimeout(measureAfterRender, 650);
+    // Async completions (SDF text, textures) render new frames later; republish once frames go quiet.
+    const unsubscribe = counterRef.current?.subscribe(() => {
+      window.clearTimeout(debounce);
+      debounce = window.setTimeout(publish, DIAGNOSTICS_DEBOUNCE_MS);
+    });
     return () => {
+      unsubscribe?.();
+      window.clearTimeout(debounce);
       window.clearTimeout(settledMeasurement);
       window.cancelAnimationFrame(firstFrame);
       window.cancelAnimationFrame(measurementFrame);
     };
-  }, [activeAnimatedObjects, activityKey, camera, deckCounts.chance, deckCounts.chest, destinationPreviewTileId, gl, height, hoveredTileId, invalidate, scene, selectedTileId, stationCount, width]);
+  }, [activeAnimatedObjects, activityKey, camera, deckCounts.chance, deckCounts.chest, destinationPreviewTileId, gl, height, hoveredTileId, invalidate, quality.tier, scene, selectedTileId, stationCount, width]);
 
   return null;
 }
@@ -215,6 +287,8 @@ function BoardSceneContents({
   return (
     <>
       <FixedBoardCamera />
+      {import.meta.env.DEV || __PHASE4_UAT__ ? <TileScreenRectsPublisher /> : null}
+      {import.meta.env.DEV || __PHASE4_UAT__ ? <PropScreenRectsPublisher /> : null}
       <RendererDiagnostics
         activityKey={activityKey}
         activeAnimatedObjects={activeAnimatedObjects}
@@ -248,8 +322,18 @@ export default function GameScene({
   onTileSelect,
   onRendererFailure,
 }: GameSceneProps) {
+  const { settings } = useSettings();
+  const quality = useMemo(
+    () => resolveRenderQuality(settings.graphicsQuality, probeRenderCapabilities()),
+    [settings.graphicsQuality],
+  );
+  // Comparison captures may override the tone mapper; real players always get Neutral.
+  const toneMapping = useMemo(
+    () => (isLocalDiagnosticsEnabled() ? parseToneMappingOverride(window.location.search) : SCENE_TONE_MAPPING),
+    [],
+  );
   return (
-    <div className="game-scene" data-testid="game-scene">
+    <div className="game-scene" data-testid="game-scene" data-graphics-tier={quality.tier}>
       <Canvas
         camera={{
           near: 0.1,
@@ -257,33 +341,48 @@ export default function GameScene({
           position: getOrthographicCameraPosition(),
         }}
         orthographic
-        dpr={[1.25, 1.5]}
+        dpr={[quality.dpr[0], quality.dpr[1]]}
         frameloop="demand"
-        shadows={false}
+        shadows={quality.shadows.enabled ? 'percentage' : false}
         gl={{
           antialias: true,
           alpha: false,
           powerPreference: 'high-performance',
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1,
+          // The high tier applies the Neutral tone mapper in its post chain; the Canvas prop is authoritative
+          // (R3F re-applies it on every render), so it has to say so or the renderer would tone map twice.
+          toneMapping: quality.toneMappingInPost ? THREE.NoToneMapping : toneMapping,
+          toneMappingExposure: SCENE_TONE_MAPPING_EXPOSURE,
         }}
       >
-        <RendererLifecycleGuard onFailure={onRendererFailure} />
-        <color attach="background" args={[boardVisualTokens.sceneBackground]} />
-        <hemisphereLight args={['#fff8e2', '#9fd6c4', 1.8]} />
-        <directionalLight
-          position={[8, 14, 7]}
-          intensity={1.7}
-          color="#fff8e8"
-        />
-        <CoinMaterialEnvironment />
-        <BoardSceneContents
-          model={model}
-          hoveredTileId={hoveredTileId}
-          selectedTileId={selectedTileId}
-          onTileHover={onTileHover}
-          onTileSelect={onTileSelect}
-        />
+        <RenderQualityContext.Provider value={quality}>
+          <RendererLifecycleGuard onFailure={onRendererFailure} />
+          <color attach="background" args={[boardVisualTokens.sceneBackground]} />
+          <SceneLightRig />
+          <OptionalSceneLayer name="studio-environment">
+            <StudioEnvironment />
+          </OptionalSceneLayer>
+          <OptionalSceneLayer name="tabletop">
+            <Tabletop />
+            <BoardGroundShadow />
+          </OptionalSceneLayer>
+          <OptionalSceneLayer name="table-props">
+            <TableProps />
+          </OptionalSceneLayer>
+          {quality.postProcessing
+            ? (
+              <OptionalSceneLayer name="post-processing">
+                <ScenePostEffects />
+              </OptionalSceneLayer>
+            )
+            : null}
+          <BoardSceneContents
+            model={model}
+            hoveredTileId={hoveredTileId}
+            selectedTileId={selectedTileId}
+            onTileHover={onTileHover}
+            onTileSelect={onTileSelect}
+          />
+        </RenderQualityContext.Provider>
       </Canvas>
     </div>
   );

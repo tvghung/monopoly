@@ -4,10 +4,6 @@ import {
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { PlayerStationRenderModel } from '../board/boardRenderModel';
-import type { MoneyTransferSignal } from '../../presentation/store/types';
-import { formatMoney } from '../../ui/formatters';
-import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
-import SdfBillboardText from '../board/tiles/SdfBillboardText';
 import {
   COIN_FINISH_MATERIALS,
   COIN_FINISH_ORDER,
@@ -19,10 +15,12 @@ import {
   stableCoinSeed,
   type CoinFinish,
 } from './coinVisuals';
+import PlayerTrays from './PlayerTrays';
 import {
+  BANK_COIN_BASE_Y,
   BANK_WORLD_ANCHOR,
+  PLAYER_STATION_COIN_BASE_Y,
   getStationWorldPoint,
-  resolveStationTransferAmount,
 } from './stationWorld';
 
 export function wealthCoinCount(balance: number): number {
@@ -71,6 +69,7 @@ function CoinFinishPile({
       ref={meshRef}
       args={[SHARED_COIN_GEOMETRY, COIN_FINISH_MATERIALS[finish], finishInstances.length]}
       name={`StationCoins:${finish}`}
+      castShadow
     />
   );
 }
@@ -83,7 +82,7 @@ function CoinPiles({ stations }: { stations: readonly PlayerStationRenderModel[]
       return {
         position: [
           BANK_WORLD_ANCHOR[0] + (column - 2.5) * 0.24,
-          0.36 + layer * (COIN_THICKNESS + 0.008),
+          BANK_COIN_BASE_Y + layer * (COIN_THICKNESS + 0.008),
           BANK_WORLD_ANCHOR[2] + 0.04 + (index % 2) * 0.1,
         ],
         rotation: (() => {
@@ -108,7 +107,7 @@ function CoinPiles({ stations }: { stations: readonly PlayerStationRenderModel[]
             station.slot,
             (column - 3) * 0.28,
             0.12 + (index % 2) * 0.1,
-            0.62 + layer * (COIN_THICKNESS + 0.018),
+            PLAYER_STATION_COIN_BASE_Y + layer * (COIN_THICKNESS + 0.018),
           ),
           rotation: (() => {
             const [tiltX, tiltZ] = coinTiltForIndex(
@@ -133,110 +132,15 @@ function CoinPiles({ stations }: { stations: readonly PlayerStationRenderModel[]
   );
 }
 
-function stationStatusLabel(station: PlayerStationRenderModel): string {
-  if (station.status === 'BANKRUPT') return 'PHÁ SẢN';
-  if (station.status === 'LEFT') return 'ĐÃ RỜI';
-  if (!station.isConnected) return 'MẤT KẾT NỐI';
-  return '';
-}
-
-function StationInformation({ station }: { station: PlayerStationRenderModel }) {
-  const disabled = station.status !== 'ACTIVE';
-  const status = stationStatusLabel(station);
-  const primary = disabled ? '#d5dbd7' : '#f7f1d8';
-  return (
-    <>
-      <SdfBillboardText
-        value={`${station.name}${status ? ` · ${status}` : ''}`}
-        position={getStationWorldPoint(station.slot, 0, 0, 1.92)}
-        fontSize={status ? 0.26 : 0.31}
-        maxWidth={3.25}
-        color={primary}
-        outlineColor="#14231f"
-        outlineWidth={status ? 0.0104 : 0.0124}
-        outlineOpacity={0.72}
-        name={`PlayerStationName:${station.playerId}`}
-      />
-      <SdfBillboardText
-        value={formatMoney(station.accountBalance)}
-        position={getStationWorldPoint(station.slot, 0, 0, 1.4)}
-        fontSize={0.42}
-        maxWidth={2.8}
-        color={primary}
-        outlineColor="#14231f"
-        outlineWidth={0.0168}
-        outlineOpacity={0.72}
-        name={`PlayerStationBalance:${station.playerId}`}
-      />
-    </>
-  );
-}
-
-function BankTreasury() {
-  return (
-    <group name="BankTreasury" userData={{ sourceSink: true, footprint: [2.15, 1.02] }}>
-      <RoundedBoxMesh
-        width={2.15}
-        height={0.3}
-        depth={1.02}
-        radius={0.12}
-        segments={2}
-        color="#365247"
-        materialProfile="boardBody"
-        position={[BANK_WORLD_ANCHOR[0], 0.15, BANK_WORLD_ANCHOR[2]]}
-        name="BankTreasuryBase"
-      />
-    </group>
-  );
-}
-
-function StationMoneyAmounts({
-  stations,
-  moneyTransfers,
-}: {
-  stations: readonly PlayerStationRenderModel[];
-  moneyTransfers: readonly MoneyTransferSignal[];
-}) {
-  const signal = moneyTransfers.at(-1);
-  if (!signal) return null;
-  return (
-    <>
-      {stations.flatMap(station => {
-        const amount = resolveStationTransferAmount(station.playerId, signal);
-        if (amount === null) return [];
-        const positive = amount > 0;
-        return [(
-          <SdfBillboardText
-            key={`${signal.id}:${station.playerId}`}
-            value={`${positive ? '+' : '-'}${formatMoney(Math.abs(amount))}`}
-            position={getStationWorldPoint(station.slot, 0, 0, 2.35)}
-            fontSize={0.31}
-            maxWidth={2.4}
-            color={positive ? '#bdf58d' : '#ffd0bb'}
-            outlineColor="#14231f"
-            outlineWidth={0.0124}
-            outlineOpacity={0.72}
-            name={`PlayerStationAmount:${station.playerId}`}
-          />
-        )];
-      })}
-    </>
-  );
-}
-
-export default function PlayerStationLayer({
-  stations,
-  moneyTransfers,
-}: {
-  stations: readonly PlayerStationRenderModel[];
-  moneyTransfers: readonly MoneyTransferSignal[];
-}) {
+/**
+ * The world-space part of a player seat: the lacquer tray and the coin piles. Names, balances and money changes are
+ * DOM (the player cards of `GameHud`); the station stays a coin-flight anchor and a camera fit point.
+ */
+export default function PlayerStationLayer({ stations }: { stations: readonly PlayerStationRenderModel[] }) {
   return (
     <group name="PlayerStationLayer">
-      <BankTreasury />
+      <PlayerTrays stations={stations} />
       <CoinPiles stations={stations} />
-      {stations.map(station => <StationInformation key={station.playerId} station={station} />)}
-      <StationMoneyAmounts stations={stations} moneyTransfers={moneyTransfers} />
     </group>
   );
 }

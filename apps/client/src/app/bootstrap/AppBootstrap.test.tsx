@@ -132,10 +132,10 @@ describe('AppBootstrap failure handling', () => {
     });
 
     render(<AppBootstrap />);
-    expect(screen.getByRole('button', { name: /Join Game/u })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Tham gia phòng LAN/u })).toBeTruthy();
     expect(bootstrapMock.bootstrap).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: /Join Game/u }));
+    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
     fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Guest' } });
     fireEvent.change(screen.getByLabelText('Địa chỉ Host'), { target: { value: '192.168.1.15:8080' } });
     fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'LAN-1234' } });

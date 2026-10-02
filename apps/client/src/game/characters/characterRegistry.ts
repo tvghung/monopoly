@@ -11,7 +11,11 @@ import legacySvg from './assets/legacy.svg?raw';
 
 export interface CharacterDefinition {
   id: CharacterId | null;
-  displayName: string;
+  /**
+   * Vietnamese label for assistive technology only (alt, aria-label). Mascots are identified by their image: the label is
+   * never rendered as visible text and never used as a `title` tooltip (plan 04 OD-04-1).
+   */
+  accessibleLabel: string;
   svgSource: string;
   scale: number;
   verticalOffset: number;
@@ -20,11 +24,11 @@ export interface CharacterDefinition {
 
 const definition = (
   id: CharacterId,
-  displayName: string,
+  accessibleLabel: string,
   svgSource: string,
 ): CharacterDefinition => ({
   id,
-  displayName,
+  accessibleLabel,
   svgSource,
   scale: 1,
   verticalOffset: 0,
@@ -32,19 +36,19 @@ const definition = (
 });
 
 export const CHARACTER_REGISTRY: Record<CharacterId, CharacterDefinition> = {
-  dog: definition('dog', 'Dog', dogSvg),
+  dog: definition('dog', 'Chó', dogSvg),
   capybara: definition('capybara', 'Capybara', capybaraSvg),
-  panda: definition('panda', 'Panda', pandaSvg),
+  panda: definition('panda', 'Gấu trúc', pandaSvg),
   cat: definition('cat', 'Mèo', catSvg),
   penguin: definition('penguin', 'Chim cánh cụt', penguinSvg),
-  elephant: definition('elephant', 'Elephant', elephantSvg),
+  elephant: definition('elephant', 'Voi', elephantSvg),
   rabbit: definition('rabbit', 'Thỏ', rabbitSvg),
   duck: definition('duck', 'Vịt', duckSvg),
 };
 
 export const LEGACY_CHARACTER_DEFINITION: CharacterDefinition = {
   id: null,
-  displayName: 'Mascot cũ',
+  accessibleLabel: 'Mascot cũ',
   svgSource: legacySvg,
   scale: 0.92,
   verticalOffset: 0,

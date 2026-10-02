@@ -37,6 +37,12 @@ export function getTileDetails(tile: Tile): TileDetail[] {
     ];
   }
 
+  if (tile.tileType === 'expense') {
+    // Display text for the existing shared value; the amount is charged by the server, not computed here.
+    return typeof tile.expenseAmount === 'number'
+      ? [{ label: `Nộp ${formatMoney(tile.expenseAmount)} cho Ngân hàng khi dừng tại đây.` }]
+      : [];
+  }
   if (tile.tileType === 'chance') {
     return [{ label: 'Rút thẻ Cơ Hội trên cùng và thực hiện nội dung trên thẻ.' }];
   }
@@ -56,4 +62,22 @@ export function getTileDetails(tile: Tile): TileDetail[] {
     return [{ label: 'Không nhận thưởng; lượt chơi tiếp tục theo luật thông thường.' }];
   }
   return [];
+}
+
+/**
+ * Which row of `getTileDetails(tile)` is in force for the current owner: a street shows the row for its development level
+ * (base rent, then 1 to 4 Nhà, then the hotel), a railroad or a utility the row for how many of its kind the owner holds.
+ * Returns null when the tile has no rent ladder. Shared by the inspection dialog and the deed card.
+ */
+export function getCurrentRentDetailIndex(
+  tile: Tile,
+  details: readonly TileDetail[],
+  ownership: { houses: number; sameTypeOwned: number },
+): number | null {
+  if (details.length === 0) return null;
+  if (tile.tileType === 'normal') return Math.min(Math.max(ownership.houses, 0), details.length - 1);
+  if (tile.tileType === 'railroad' || tile.tileType === 'company') {
+    return Math.min(Math.max(ownership.sameTypeOwned, 1), details.length) - 1;
+  }
+  return null;
 }

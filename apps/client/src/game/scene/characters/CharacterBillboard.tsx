@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type {
@@ -25,8 +25,11 @@ import {
 } from './characterMotion';
 import { resolvePresentationDuration } from '../../presentation/timings';
 import { CharacterReactionController } from './characterReaction';
-import CharacterSprite from './CharacterSprite';
+import CharacterStandee, { applyStandeeOpacity } from './CharacterStandee';
+import { syncStandeeBasesNow } from './standeeBaseRegistry';
+import { STANDEE_HEADING_Y } from './standeeMaterial';
 import ContactShadow from '../fx/ContactShadow';
+import { useRenderQuality } from '../render/RenderQualityContext';
 
 interface CharacterBillboardProps {
   player: CharacterPlayerModel;
@@ -62,16 +65,16 @@ function snapCharacter(
   target: THREE.Vector3,
   tileMotionOffsetY: number,
   shadowMaterial: THREE.MeshBasicMaterial | null,
-  spriteMaterial: THREE.SpriteMaterial | null,
+  spriteMaterial: THREE.MeshBasicMaterial | null,
 ): void {
   group.position.set(target.x, 0, target.z);
   ground.position.set(0, target.y + tileMotionOffsetY, 0);
   body.position.set(0, target.y, 0);
-  body.rotation.set(0, 0, 0);
+  body.rotation.set(0, STANDEE_HEADING_Y, 0);
   body.scale.set(1, 1, 1);
   shadow.scale.set(1, 1, 1);
   if (shadowMaterial) shadowMaterial.opacity = CHARACTER_SHADOW_OPACITY;
-  if (spriteMaterial) spriteMaterial.opacity = spriteMaterial.map ? 1 : 0;
+  if (spriteMaterial) applyStandeeOpacity(spriteMaterial, spriteMaterial.map ? 1 : 0);
 }
 
 function signalAnchor(
@@ -98,7 +101,7 @@ export default function CharacterBillboard({
   const bodyGroupRef = useRef<THREE.Group>(null);
   const shadowGroupRef = useRef<THREE.Group>(null);
   const shadowMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
-  const spriteMaterialRef = useRef<THREE.SpriteMaterial | null>(null);
+  const spriteMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
   const activeMotionRef = useRef<ActiveCharacterMotion | null>(null);
   const activeLandingRef = useRef<ActiveLanding | null>(null);
   const reactionControllerRef = useRef(new CharacterReactionController());
@@ -113,6 +116,7 @@ export default function CharacterBillboard({
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
   const invalidate = useThree(state => state.invalidate);
   const reducedMotion = useEffectiveReducedMotion();
+  const { buildingContactShadows } = useRenderQuality();
   const tileMotionController = useTileMotionController();
   const tileMotionOffsetYSnapshot = tileMotionController?.getTileOffsetY(player.tileId) ?? 0;
   const definition = getCharacterDefinition(player.characterId);
@@ -120,6 +124,14 @@ export default function CharacterBillboard({
   const targetX = anchor?.[0];
   const targetY = anchor?.[1];
   const targetZ = anchor?.[2];
+
+  // The card faces the camera azimuth; the lean (rotation about Z) is applied after the heading, so it tilts the card sideways.
+  useLayoutEffect(() => {
+    const body = bodyGroupRef.current;
+    if (!body) return;
+    body.rotation.order = 'YXZ';
+    body.rotation.set(0, STANDEE_HEADING_Y, 0);
+  }, []);
 
   useEffect(() => {
     setTexture(null);
@@ -444,7 +456,7 @@ export default function CharacterBillboard({
       grounding.body[1] + bodyTileOffsetY + landingOffsetY + reactionSample.offsetY,
       grounding.body[2],
     );
-    body.rotation.set(0, 0, bodyRotationZ + landingRotationZ + reactionSample.rotationZ);
+    body.rotation.set(0, STANDEE_HEADING_Y, bodyRotationZ + landingRotationZ + reactionSample.rotationZ);
     body.scale.set(
       bodyScaleX * landingScaleX * reactionSample.scaleX,
       bodyScaleY * landingScaleY * reactionSample.scaleY,
@@ -453,9 +465,11 @@ export default function CharacterBillboard({
     shadow.scale.set(shadowScale, shadowScale, 1);
     if (shadowMaterialRef.current) shadowMaterialRef.current.opacity = shadowOpacity;
     if (spriteMaterialRef.current) {
-      spriteMaterialRef.current.opacity = texture ? reactionSample.spriteOpacity : 0;
+      applyStandeeOpacity(spriteMaterialRef.current, texture ? reactionSample.spriteOpacity : 0);
     }
 
+    // The base is written after this card moved, so it is in the same place when the renderer uploads the instance buffers.
+    syncStandeeBasesNow();
     if (movementActive || landingActive || reactionActive) invalidate();
   });
 
@@ -464,18 +478,23 @@ export default function CharacterBillboard({
     <group ref={groupRef}>
       <group ref={groundGroupRef} position={[0, groundY + tileMotionOffsetYSnapshot, 0]}>
         <group ref={shadowGroupRef}>
-          <ContactShadow
-            scale={definition.shadowScale}
-            opacity={CHARACTER_SHADOW_OPACITY}
-            materialRef={shadowMaterialRef}
-            uniqueMaterial
-          />
+          {buildingContactShadows
+            ? (
+              <ContactShadow
+                scale={definition.shadowScale}
+                opacity={CHARACTER_SHADOW_OPACITY}
+                materialRef={shadowMaterialRef}
+                uniqueMaterial
+              />
+            )
+            : null}
         </group>
       </group>
       <group ref={bodyGroupRef} position={[0, groundY, 0]}>
-        <CharacterSprite
+        <CharacterStandee
           texture={texture}
           definition={definition}
+          playerColor={player.color}
           materialRef={spriteMaterialRef}
         />
       </group>

@@ -57,52 +57,58 @@ export interface DistrictSurfaceDescriptor {
   waterColor?: string;
 }
 
+/**
+ * Plan 02 T02.16: base / secondary / grout take the hue and saturation of the plan 01 section 8.4 district
+ * colors (the same colors the deed headers use) at the luminance of the v1 value they replace, so the tiles
+ * stay light and sparse and the pattern contrast is unchanged. Surface keys, patterns and tuning did not
+ * change. The brown and blue districts keep their warm stone secondary / grout by design.
+ */
 const PROPERTY_DESCRIPTORS: Record<string, DistrictSurfaceDescriptor> = {
   brown: {
     surfaceKey: 'oldTownStone', pattern: 'cobble', emblem: 'heritage',
-    baseColor: '#d59b4a', secondaryColor: '#f1d1a2', groutColor: '#b18b62',
+    baseColor: '#c89d83', secondaryColor: '#f1d1a2', groutColor: '#b18b62',
     materialProfile: 'districtStone', bumpScale: 0.055, patternScale: 5,
     patternTuning: { patternDensity: 0.54, contrast: 0.24, seamWidth: 0.028, spacing: 1.18 },
   },
   lightblue: {
     surfaceKey: 'harborCeramic', pattern: 'ceramic', emblem: 'harbor',
-    baseColor: '#5fc9e3', secondaryColor: '#c4ecf5', groutColor: '#5cafc4',
+    baseColor: '#74c5e9', secondaryColor: '#cceaf7', groutColor: '#3cafe0',
     materialProfile: 'districtStone', bumpScale: 0.032, patternScale: 4,
     patternTuning: { patternDensity: 0.48, contrast: 0.2, seamWidth: 0.022, spacing: 1.22 },
   },
   pink: {
     surfaceKey: 'coolGranite', pattern: 'granite', emblem: 'boutique',
-    baseColor: '#e088bd', secondaryColor: '#f1d4e2', groutColor: '#b98cae',
+    baseColor: '#eb84b0', secondaryColor: '#f7d1e2', groutColor: '#e872a5',
     materialProfile: 'districtStone', bumpScale: 0.04, patternScale: 6,
     patternTuning: { patternDensity: 0.42, contrast: 0.18, seamWidth: 0.018, spacing: 1.26 },
   },
   orange: {
     surfaceKey: 'terracottaBrick', pattern: 'brick', emblem: 'market',
-    baseColor: '#f07a3c', secondaryColor: '#f2b18b', groutColor: '#b86849',
+    baseColor: '#ef7c13', secondaryColor: '#f6b072', groutColor: '#c3630d',
     materialProfile: 'districtBrick', bumpScale: 0.06, patternScale: 5,
     patternTuning: { patternDensity: 0.52, contrast: 0.22, seamWidth: 0.024, spacing: 1.16 },
   },
   red: {
     surfaceKey: 'metroConcrete', pattern: 'concrete', emblem: 'skyline',
-    baseColor: '#e4767e', secondaryColor: '#edb5b1', groutColor: '#a96671',
+    baseColor: '#dd7c70', secondaryColor: '#ecb6af', groutColor: '#d14d3c',
     materialProfile: 'districtConcrete', bumpScale: 0.045, patternScale: 5,
     patternTuning: { patternDensity: 0.38, contrast: 0.16, seamWidth: 0.015, spacing: 1.3 },
   },
   yellow: {
     surfaceKey: 'sandstoneTerrazzo', pattern: 'beach', emblem: 'marquee',
-    baseColor: '#f4c83f', secondaryColor: '#fff0bd', groutColor: '#cba75b',
+    baseColor: '#f3c846', secondaryColor: '#fcf0ca', groutColor: '#d6a50d',
     waterColor: '#70cbd1', materialProfile: 'districtStone', bumpScale: 0.028, patternScale: 4,
     patternTuning: { patternDensity: 0.34, contrast: 0.14, seamWidth: 0.012, spacing: 1.34 },
   },
   green: {
     surfaceKey: 'ecoSlate', pattern: 'paver', emblem: 'leaf',
-    baseColor: '#75ca78', secondaryColor: '#d6edcf', groutColor: '#7da47f',
+    baseColor: '#74c98b', secondaryColor: '#d2eeda', groutColor: '#43af61',
     materialProfile: 'districtPremium', bumpScale: 0.034, patternScale: 4,
     patternTuning: { patternDensity: 0.42, contrast: 0.16, seamWidth: 0.018, spacing: 1.34 },
   },
   blue: {
     surfaceKey: 'premiumBrownStone', pattern: 'slab', emblem: 'landmark',
-    baseColor: '#6da0e3', secondaryColor: '#ebccb0', groutColor: '#9c7255',
+    baseColor: '#7c9edd', secondaryColor: '#ebccb0', groutColor: '#9c7255',
     materialProfile: 'districtPremium', bumpScale: 0.032, patternScale: 3,
     patternTuning: { patternDensity: 0.38, contrast: 0.15, seamWidth: 0.016, spacing: 1.4 },
   },

@@ -39,6 +39,8 @@ export function createTileImpactHighlightMaterial(): THREE.MeshBasicMaterial {
     polygonOffsetFactor: -1,
     polygonOffsetUnits: -1,
     side: THREE.DoubleSide,
+    // A transparent DoubleSide material otherwise renders in two passes (twice the draw calls).
+    forceSinglePass: true,
     toneMapped: false,
   });
 }

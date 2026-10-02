@@ -143,6 +143,10 @@ camera, Reduced Motion, Skip, reconnect and WebGL fallback boundaries. It must n
 introduce a global particle engine, second effects bus, postprocessing pipeline,
 cinematic camera or permanent decorative particles.
 
+> **Superseded by visual-overhaul-v2 plan 02:** a post-processing chain now exists for the opt-in `high` graphics
+> tier only (lazy chunk, no temporal effects). Effects buses, particles and the camera limits above
+> still apply. See `Client/game-board.instruction.md`.
+
 ### A. Structured activity feed
 
 Upgrade the existing `Log` surface. Use a bounded server-authored structured

@@ -68,6 +68,7 @@ export default function TileAssembly({
           reducedMotion={reducedMotion}
         />
         <TileDevelopmentLayer
+          tileId={tileId}
           houses={houses}
           developmentChange={developmentChange}
           ownerColor={ownerColor}

@@ -385,6 +385,10 @@ ordering, duplicate snapshot handling, and reset behavior.
 
 ### 7.2 Workstream B - Dice result presentation and gameplay HUD
 
+> **Superseded by visual-overhaul-v2 plan 03:** a visible DOM HUD returned (corner player cards, center stage, status
+> pill, action dock, activity drawer). The 3D station name and balance labels are gone; stations stay as coin
+> anchors. See `Client/game-board.instruction.md` "Game HUD".
+
 Current contract baseline:
 
 - The former gameplay side HUD/right rail and visible top player strip are gone.
@@ -652,6 +656,11 @@ The static building authoring remains presentation-only within the same path:
   procedural texture whose vertical faces show two columns × three floors of
   four-pane panels. Its existing separate crown/roof keeps its footprint and
   height and uses the owner's canonical display color.
+> **Visuals superseded by visual-overhaul-v2 plan 05:** houses are instanced nhà ống tube houses (body/trim/roof, the roof in
+> the owner's color) in a row on the tile's art panel, and a street's hotel becomes its landmark on a plinth (all 22 streets
+> have one; a landmark that fails to build falls back to the hotel box). The mapping (level `1–4` → houses, level `5` → hotel), the construction durations, the pop curves and the reduced
+> motion rules below are unchanged and now drive instance matrices.
+
 - The body/roof split, slot centers, hotel slot, contact shadows, level `1–4`
   to House and level `5` to Hotel mapping, construction durations and reduced
   motion are unchanged. The window grids are texture detail rather than extra
@@ -1459,6 +1468,9 @@ and the existing reconnect/Reduced Motion/Skip guarantees are preserved.
 
 ### 18.2 Visual corrections
 
+> **Superseded by visual-overhaul-v2 plan 03** for the statement that stations carry the name and money: those labels moved
+> to the DOM player cards (`Client/game-board.instruction.md` "Game HUD").
+
 - Board/station/player/transfer coins use one shared low-poly geometry and
   deterministic copper/silver/gold materials normalized from `60:20:10`.
   Metalness/roughness are tuned for the existing board lights rather than
@@ -1696,6 +1708,10 @@ gold `0.77/0.15` for metalness/roughness, with finish-specific environment
 intensity `1.08/1.24/1.14` and emissive intensity `0`. Selected station and
 transfer coins receive deterministic small X/Z tilts; bank, station, and
 transfer paths retain instanced shared geometry.
+
+> **Superseded by visual-overhaul-v2 plan 02:** `scene.environment` is now one shared procedural studio
+> environment (`game/scene/render/environment/`) that the coins also use; the coin-only PMREM
+> (`CoinMaterialEnvironment`) no longer exists. See `Client/game-board.instruction.md`.
 
 ### 20.3 Construction and ownership timing
 

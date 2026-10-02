@@ -1,19 +1,18 @@
-import { useFrame, type ThreeEvent } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
-import * as THREE from 'three';
-import { tileState } from '@monopoly/shared';
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import {
-  BOARD_FOUNDATION_HEIGHT,
-  TILE_BODY_BEVEL,
-  TILE_BODY_HEIGHT,
-  TILE_SOCKET_GAP,
-} from '../architecture/boardArtSpec';
-import { getBoardTileLayout } from '../boardLayout';
+  useEffect, useLayoutEffect, useMemo, useRef,
+} from 'react';
 import type { BoardTileRenderModel } from '../boardRenderModel';
-import { boardVisualTokens } from '../boardVisualTokens';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { useTileMotionController } from '../motion/TileMotionProvider';
-import { getBoardMaterialProps } from '../materials/boardMaterialSpecs';
+import {
+  applyTileBodyColors,
+  buildBodyEntries,
+  createTileBodyGeometry,
+  createTileBodyMesh,
+  sameBodyEntries,
+  syncTileBodyOffsets,
+  type BodyEntry,
+} from './tileBodyInstances';
 
 interface TileBodyBatchProps {
   tiles: readonly BoardTileRenderModel[];
@@ -23,21 +22,15 @@ interface TileBodyBatchProps {
   onSelect?: (tileId: number) => void;
 }
 
-interface BodyEntry {
-  tileId: number;
-  size: readonly [number, number];
-  baseColor: string;
-}
-
-interface BodyBatch {
-  color: string;
-  entries: readonly BodyEntry[];
-  mesh: THREE.InstancedMesh;
-  material: THREE.MeshStandardMaterial;
-}
-
 function stopPointerEvent(event: { stopPropagation: () => void }): void {
   event.stopPropagation();
+}
+
+/** The render model changes identity often; the bodies only change when the tile set does. */
+function useStableBodyEntries(next: BodyEntry[]): BodyEntry[] {
+  const ref = useRef(next);
+  if (!sameBodyEntries(ref.current, next)) ref.current = next;
+  return ref.current;
 }
 
 export default function TileBodyBatch({
@@ -47,115 +40,52 @@ export default function TileBodyBatch({
   onHover,
   onSelect,
 }: TileBodyBatchProps) {
-  const entries = useMemo(() => tiles.map<BodyEntry | null>(tile => {
-    const layout = getBoardTileLayout(tile.tileId);
-    const sourceTile = tileState[tile.tileId];
-    if (!layout || !sourceTile) return null;
-    return {
-      tileId: tile.tileId,
-      size: layout.size,
-      baseColor: sourceTile.tileType === 'normal'
-        ? boardVisualTokens.tileChassis
-        : boardVisualTokens.tileChassisSpecial,
-    } satisfies BodyEntry;
-  }).filter((entry): entry is BodyEntry => entry !== null), [tiles]);
-  const geometry = useMemo(
-    () => new RoundedBoxGeometry(1, TILE_BODY_HEIGHT, 1, 2, TILE_BODY_BEVEL),
-    [],
-  );
+  const invalidate = useThree(state => state.invalidate);
+  const rawEntries = useMemo(() => buildBodyEntries(tiles), [tiles]);
+  const entries = useStableBodyEntries(rawEntries);
+  const geometry = useMemo(() => createTileBodyGeometry(), []);
+  const mesh = useMemo(() => createTileBodyMesh(entries, geometry), [entries, geometry]);
   const motionController = useTileMotionController();
-  const previousOffsetsRef = useRef(new Map<string, number>());
-  const batches = useMemo(() => {
-    const byColor = new Map<string, BodyEntry[]>();
-    entries.forEach(entry => {
-      const color = entry.tileId === selectedTileId
-        ? boardVisualTokens.tileChassisSelected
-        : entry.tileId === hoveredTileId
-          ? boardVisualTokens.tileChassisHover
-          : entry.baseColor;
-      const group = byColor.get(color) ?? [];
-      group.push(entry);
-      byColor.set(color, group);
-    });
-    const bodyCenterY = BOARD_FOUNDATION_HEIGHT + TILE_SOCKET_GAP + TILE_BODY_HEIGHT / 2;
-    return [...byColor.entries()].map(([color, groupedEntries], batchIndex): BodyBatch => {
-      const material = new THREE.MeshStandardMaterial({
-        ...getBoardMaterialProps('tileChassis', color),
-      });
-      const mesh = new THREE.InstancedMesh(geometry, material, groupedEntries.length);
-      mesh.name = `TileBodies:${batchIndex}`;
-      const dummy = new THREE.Object3D();
-      groupedEntries.forEach((entry, index) => {
-        const layout = getBoardTileLayout(entry.tileId);
-        if (!layout) return;
-        dummy.position.set(layout.position[0], bodyCenterY, layout.position[2]);
-        dummy.rotation.set(0, layout.rotation[1], 0);
-        dummy.scale.set(entry.size[0], 1, entry.size[1]);
-        dummy.updateMatrix();
-        mesh.setMatrixAt(index, dummy.matrix);
-      });
-      mesh.instanceMatrix.needsUpdate = true;
-      return { color, entries: groupedEntries, mesh, material };
-    });
-  }, [entries, geometry, hoveredTileId, selectedTileId]);
+  const previousOffsetsRef = useRef(new Map<number, number>());
+
+  // Hover and selection only rewrite instance colors on the one stable mesh.
+  useLayoutEffect(() => {
+    if (applyTileBodyColors(mesh, entries, hoveredTileId, selectedTileId)) invalidate();
+  }, [entries, hoveredTileId, invalidate, mesh, selectedTileId]);
 
   useFrame(() => {
-    const dummy = new THREE.Object3D();
-    const bodyCenterY = BOARD_FOUNDATION_HEIGHT + TILE_SOCKET_GAP + TILE_BODY_HEIGHT / 2;
-    batches.forEach(batch => {
-      let changed = false;
-      batch.entries.forEach((entry, index) => {
-        const layout = getBoardTileLayout(entry.tileId);
-        if (!layout) return;
-        const offsetY = motionController?.getTileOffsetY(entry.tileId) ?? 0;
-        const offsetKey = `${batch.mesh.uuid}:${entry.tileId}`;
-        if (previousOffsetsRef.current.get(offsetKey) === offsetY) return;
-        dummy.position.set(
-          layout.position[0],
-          bodyCenterY + offsetY,
-          layout.position[2],
-        );
-        dummy.rotation.set(0, layout.rotation[1], 0);
-        dummy.scale.set(entry.size[0], 1, entry.size[1]);
-        dummy.updateMatrix();
-        batch.mesh.setMatrixAt(index, dummy.matrix);
-        previousOffsetsRef.current.set(offsetKey, offsetY);
-        changed = true;
-      });
-      if (changed) batch.mesh.instanceMatrix.needsUpdate = true;
-    });
+    syncTileBodyOffsets(mesh, entries, tileId => motionController?.getTileOffsetY(tileId) ?? 0, previousOffsetsRef.current);
   });
 
   useEffect(() => () => {
-    batches.forEach(batch => batch.material.dispose());
-  }, [batches]);
+    if (Array.isArray(mesh.material)) mesh.material.forEach(material => material.dispose());
+    else mesh.material.dispose();
+    previousOffsetsRef.current.clear();
+  }, [mesh]);
 
   useEffect(() => () => geometry.dispose(), [geometry]);
 
   return (
     <group name="TileBodyBatch">
-      {batches.map(batch => (
-        <primitive
-          key={batch.mesh.uuid}
-          object={batch.mesh}
-          userData={{ batchColor: batch.color, tileIds: batch.entries.map(entry => entry.tileId) }}
-          onPointerEnter={(event: ThreeEvent<PointerEvent>) => {
-            stopPointerEvent(event);
-            const entry = event.instanceId === undefined ? undefined : batch.entries[event.instanceId];
-            if (entry) onHover?.(entry.tileId);
-          }}
-          onPointerLeave={(event: ThreeEvent<PointerEvent>) => {
-            stopPointerEvent(event);
-            onHover?.(null);
-          }}
-          onClick={(event: ThreeEvent<MouseEvent>) => {
-            stopPointerEvent(event);
-            const entry = event.instanceId === undefined ? undefined : batch.entries[event.instanceId];
-            if (entry) onSelect?.(entry.tileId);
-          }}
-          dispose={null}
-        />
-      ))}
+      <primitive
+        object={mesh}
+        userData={{ tileIds: entries.map(entry => entry.tileId) }}
+        onPointerEnter={(event: ThreeEvent<PointerEvent>) => {
+          stopPointerEvent(event);
+          const entry = event.instanceId === undefined ? undefined : entries[event.instanceId];
+          if (entry) onHover?.(entry.tileId);
+        }}
+        onPointerLeave={(event: ThreeEvent<PointerEvent>) => {
+          stopPointerEvent(event);
+          onHover?.(null);
+        }}
+        onClick={(event: ThreeEvent<MouseEvent>) => {
+          stopPointerEvent(event);
+          const entry = event.instanceId === undefined ? undefined : entries[event.instanceId];
+          if (entry) onSelect?.(entry.tileId);
+        }}
+        dispose={null}
+      />
     </group>
   );
 }

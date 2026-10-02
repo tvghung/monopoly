@@ -1,34 +1,18 @@
 import './style/Lobby.css';
+import { useId } from 'react';
 import { getAppearanceCombinationKey } from '@monopoly/shared';
-import type {
-  CharacterId,
-  PlayerColorId,
-  SetAppearanceRequest,
-} from '@monopoly/shared';
-import {
-  Check, LogOut, Play, Settings, WifiOff, X,
-} from 'lucide-react';
+import type { SetAppearanceRequest } from '@monopoly/shared';
 import Button from '../design-system/components/Button/Button';
-import Badge from '../design-system/components/Badge/Badge';
+import IconButton from '../design-system/components/IconButton/IconButton';
+import { ActionIcon } from '../design-system/icons/ActionIcon';
+import { EmptySeat, LobbySeat } from './lobby/LobbySeat';
 import MascotPicker from './lobby/MascotPicker';
-import {
-  characterSvgDataUri,
-} from '../game/characters/characterSvg';
-import { CHARACTER_REGISTRY } from '../game/characters/characterRegistry';
-import {
-  getPlayerColorLabel,
-  getPlayerDisplayColor,
-} from '../game/ui/playerVisualColors';
+import { useCopyFeedback } from './lobby/copyText';
+import { getStartBlockReason } from './lobby/startReadiness';
+import type { LobbyPlayerView } from './lobby/lobbyTypes';
 import HostLanSharing from './HostLanSharing';
 
-export interface LobbyPlayerView {
-  id: string;
-  name: string;
-  color: PlayerColorId;
-  characterId: CharacterId | null;
-  ready: boolean;
-  connected: boolean;
-}
+export type { LobbyPlayerView } from './lobby/lobbyTypes';
 
 interface LobbyProps {
   roomCode: string;
@@ -47,6 +31,12 @@ interface LobbyProps {
   showLanSharing?: boolean;
 }
 
+const COPY_NOTICES = {
+  idle: '',
+  copied: 'Đã sao chép.',
+  failed: 'Không thể sao chép tự động; hãy chọn mã phòng ở trên.',
+} as const;
+
 export default function Lobby({
   roomCode,
   players,
@@ -63,6 +53,8 @@ export default function Lobby({
   onSettings,
   showLanSharing = false,
 }: LobbyProps) {
+  const startReasonId = useId();
+  const codeCopy = useCopyFeedback();
   const me = players.find(player => player.id === playerId);
   const isHost = hostPlayerId === playerId;
   const takenAppearanceKeys = new Set(
@@ -71,42 +63,42 @@ export default function Lobby({
       .map(player => getAppearanceCombinationKey(player.characterId, player.color))
       .filter((key): key is string => key !== null),
   );
-  const appearanceKeys = players
-    .map(player => getAppearanceCombinationKey(player.characterId, player.color))
-    .filter((key): key is string => key !== null);
-  const appearanceCombinationsAreUnique = appearanceKeys.length === players.length
-    && new Set(appearanceKeys).size === appearanceKeys.length;
-  const canStart = isHost
-    && players.length >= minPlayers
-    && players.length <= maxPlayers
-    && players.every(player => player.ready && player.connected && player.characterId !== null)
-    && appearanceCombinationsAreUnique;
+  const startBlockReason = isHost ? getStartBlockReason(players, minPlayers, maxPlayers) : null;
+  const canStart = isHost && startBlockReason === null;
   const slots = Array.from({ length: maxPlayers }, (_, index) => players[index] ?? null);
 
   return (
     <section className="lobby" aria-labelledby="lobby-title">
       <article className="lobby__card">
         <header className="lobby__header">
-          <div>
+          <div className="lobby__code">
             <p className="lobby__eyebrow">Mã phòng</p>
-            <h1 id="lobby-title" className="lobby__title">{roomCode}</h1>
+            <div className="lobby__code-row">
+              <h1 id="lobby-title" className="lobby__title">{roomCode}</h1>
+              <IconButton label="Sao chép mã phòng" icon="copy" onClick={() => codeCopy.copy(roomCode)} />
+              <span className="lobby__copy-state" role="status">{COPY_NOTICES[codeCopy.state]}</span>
+            </div>
           </div>
           <div className="lobby__header-actions">
-            {onSettings ? <Button variant="ghost" icon={<Settings />} type="button" onClick={onSettings}>Cài đặt</Button> : null}
-            <Button className="lobby__leave" variant="secondary" icon={<LogOut />} type="button" disabled={busy} onClick={onLeave}>
+            {onSettings ? <Button variant="ghost" icon={<ActionIcon name="settings" />} onClick={onSettings}>Cài đặt</Button> : null}
+            <Button className="lobby__leave" variant="secondary" icon={<ActionIcon name="leave" />} disabled={busy} onClick={onLeave}>
               Rời phòng
             </Button>
             {isHost
               ? (
-                <Button
-                  className="lobby__start"
-                  icon={<Play />}
-                  type="button"
-                  disabled={busy || !canStart}
-                  onClick={onStart}
-                >
-                  <span>Bắt đầu</span>
-                </Button>
+                <div className="lobby__start-group">
+                  <Button
+                    className="lobby__start"
+                    size="lg"
+                    icon={<ActionIcon name="start" />}
+                    disabled={busy || !canStart}
+                    aria-describedby={startBlockReason ? startReasonId : undefined}
+                    onClick={onStart}
+                  >
+                    <span>Bắt đầu</span>
+                  </Button>
+                  {startBlockReason ? <p className="lobby__start-reason" id={startReasonId}>{startBlockReason}</p> : null}
+                </div>
               )
               : null}
           </div>
@@ -117,63 +109,16 @@ export default function Lobby({
         <ul className="lobby__players" aria-label="Danh sách người chơi">
           {slots.map((player, index) => player
             ? (
-              <li className={`lobby-player lobby-player--occupied${player.connected ? '' : ' lobby-player--disconnected'}`} key={player.id}>
-                <span
-                  className="lobby-player__disc"
-                  style={{ backgroundColor: getPlayerDisplayColor(player.color) }}
-                  aria-label={`Màu ${getPlayerColorLabel(player.color)}`}
-                />
-                {player.characterId
-                  ? (
-                    <img
-                      className="lobby-player__mascot"
-                      src={characterSvgDataUri(CHARACTER_REGISTRY[player.characterId].svgSource, player.color)}
-                      alt=""
-                    />
-                  )
-                  : <span className="lobby-player__mascot lobby-player__mascot--empty" aria-hidden="true">?</span>}
-                <span className="lobby-player__name">
-                  {player.name}
-                  {player.id === playerId ? ' (bạn)' : ''}
-                </span>
-                {player.id === hostPlayerId ? <Badge variant="warning">Chủ phòng</Badge> : null}
-                <span
-                  className={`lobby-player__ready-dot ${player.ready
-                    ? 'lobby-player__ready-dot--ready'
-                    : 'lobby-player__ready-dot--not-ready'}`}
-                  aria-label={player.ready ? 'Đã sẵn sàng' : 'Chưa sẵn sàng'}
-                  title={player.ready ? 'Đã sẵn sàng' : 'Chưa sẵn sàng'}
-                />
-                {!player.connected
-                  ? (
-                    <span className="lobby-player__disconnect" aria-label="Mất kết nối" title="Mất kết nối">
-                      <WifiOff className="action-icon action-icon--only" aria-hidden="true" />
-                    </span>
-                  )
-                  : null}
-                {player.id === playerId
-                  ? (
-                    <Button
-                      variant={player.ready ? 'secondary' : 'primary'}
-                      className="lobby-player__ready-action"
-                      icon={player.ready ? <X /> : <Check />}
-                      type="button"
-                      disabled={busy || !player.connected || player.characterId === null}
-                      title={player.characterId === null ? 'Chọn mascot trước để sẵn sàng' : undefined}
-                      onClick={() => onSetReady(!player.ready)}
-                    >
-                      <span>{player.ready ? 'Hủy sẵn sàng' : 'Sẵn sàng'}</span>
-                    </Button>
-                  )
-                  : null}
-              </li>
+              <LobbySeat
+                key={player.id}
+                player={player}
+                isSelf={player.id === playerId}
+                isHost={player.id === hostPlayerId}
+                busy={busy}
+                onSetReady={onSetReady}
+              />
             )
-            : (
-              <li className="lobby-player lobby-player--empty" key={`empty-${index}`}>
-                <span className="lobby-player__disc" aria-hidden="true" />
-                <span className="lobby-player__name">Chỗ trống {index + 1}</span>
-              </li>
-            ))}
+            : <EmptySeat key={`empty-${index}`} number={index + 1} />)}
         </ul>
 
         {me

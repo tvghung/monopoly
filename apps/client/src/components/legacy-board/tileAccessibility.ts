@@ -1,7 +1,12 @@
 import type { PublicGameState } from '@monopoly/shared';
 import { tileState } from '@monopoly/shared';
 import { formatMoney, getTileName } from '../../presentation';
+import { getLandmarkHotelLabel } from '../../game/ui/property/landmarkVisuals';
 
+/**
+ * The accessible name of a tile button (the 40 semantic buttons of the WebGL board and the legacy tiles). A hotel is named by
+ * the landmark that stands for it: "Có Khách sạn · Chùa Cầu".
+ */
 export function getTileAccessibilityLabel(tileId: number, state: PublicGameState): string {
   const tile = tileState[tileId];
   const owned = state.boardState.ownedProps[tileId];
@@ -14,7 +19,7 @@ export function getTileAccessibilityLabel(tileId: number, state: PublicGameState
     .filter(player => player.currentTile === tileId)
     .map(player => player.name);
   const buildingLabel = owned && owned.houses > 0
-    ? owned.houses === 5 ? '1 Khách Sạn' : `${owned.houses} Nhà`
+    ? owned.houses === 5 ? getLandmarkHotelLabel(tileId) ?? '1 Khách Sạn' : `${owned.houses} Nhà`
     : null;
   return [
     `Ô ${tileId}: ${getTileName(tileId)}`,

@@ -8,7 +8,6 @@ import {
   PLAYER_STATION_TRANSFER_Y,
   PLAYER_STATION_WORLD_ANCHORS,
   resolveMoneyEndpointAnchor,
-  resolveStationTransferAmount,
 } from './stationWorld';
 
 describe('world-space player stations', () => {
@@ -32,21 +31,5 @@ describe('world-space player stations', () => {
     expect(resolveMoneyEndpointAnchor({ kind: 'PLAYER', playerId: 'player-a' }, anchors))
       .toEqual([0, PLAYER_STATION_TRANSFER_Y, PLAYER_STATION_CENTER_OFFSET]);
     expect(resolveMoneyEndpointAnchor({ kind: 'PLAYER', playerId: 'missing' }, anchors)).toBeNull();
-  });
-
-  it('derives exact signed station amounts from typed endpoints only', () => {
-    const transfer = {
-      id: 'transfer',
-      sequence: 1,
-      source: { kind: 'PLAYER' as const, playerId: 'player-a' },
-      destination: { kind: 'PLAYER' as const, playerId: 'player-b' },
-      amount: 240,
-      reason: 'RENT' as const,
-      coinCount: 4,
-      durationMs: 1_300,
-    };
-    expect(resolveStationTransferAmount('player-a', transfer)).toBe(-240);
-    expect(resolveStationTransferAmount('player-b', transfer)).toBe(240);
-    expect(resolveStationTransferAmount('player-c', transfer)).toBeNull();
   });
 });

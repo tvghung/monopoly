@@ -1,65 +1,71 @@
-import { useCallback, useContext, useEffect, useRef, useState, type RefObject } from 'react';
-import { createPortal } from 'react-dom';
-import { allGameCards, gameCardsById, type GameCard } from '@monopoly/shared';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { allGameCards, gameCardsById, type CardDeck, type GameCard } from '@monopoly/shared';
 import stateContext from '../../../internal';
 import { localizeAckError } from '../../../presentation';
+import Button from '../../../design-system/components/Button/Button';
+import Modal from '../../../design-system/components/Modal/Modal';
+import { useEffectiveReducedMotion } from '../../../settings/selectors';
 import { usePresentation } from '../../presentation/PresentationProvider';
 import { cardVisualFor, type CardVisualDefinition } from './cardVisuals';
 import './CardInteractionOverlay.css';
 
-interface CardPanelProps {
-  card: GameCard;
-  visual: CardVisualDefinition;
-  dialog?: boolean;
-  titleId?: string;
-  descriptionId?: string;
-  closeButtonRef?: RefObject<HTMLButtonElement | null>;
-  closeDisabled?: boolean;
-  error?: string;
-  onClose?: () => void;
+const DECK_LABEL: Record<CardDeck, string> = { chance: 'CƠ HỘI', chest: 'KHÍ VẬN' };
+
+/** The gold medallion of a deck: a question mark for Cơ Hội, a treasure chest for Khí Vận. Drawn here, no art file. */
+function DeckEmblem({ deck }: { deck: CardDeck }) {
+  return (
+    <svg className="card-face__emblem" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle className="card-face__emblem-disc" cx="12" cy="12" r="11" />
+      {deck === 'chance'
+        ? (
+          <>
+            <path className="card-face__emblem-line" d="M8.9 9.4a3.2 3.2 0 1 1 4.9 2.7c-1 .6-1.7 1.3-1.7 2.5" />
+            <circle className="card-face__emblem-ink" cx="12.1" cy="17.6" r="1.4" />
+          </>
+        )
+        : (
+          <>
+            <path className="card-face__emblem-ink" d="M5.6 11.2a6.4 4.6 0 0 1 12.8 0z" />
+            <rect className="card-face__emblem-ink" x="5.6" y="11.8" width="12.8" height="6" rx="1.2" />
+            <rect className="card-face__emblem-disc" x="10.6" y="10.2" width="2.8" height="3.6" rx="0.7" />
+          </>
+        )}
+    </svg>
+  );
 }
 
-function CardPanel({
-  card,
-  visual,
-  dialog = false,
-  titleId,
-  descriptionId,
-  closeButtonRef,
-  closeDisabled = false,
-  error = '',
-  onClose,
-}: CardPanelProps) {
-  const content = (
-    <>
-      <span className={`card-modal__badge card-modal__badge--${visual.deck}`}>
-        {visual.deck === 'chance' ? 'CƠ HỘI' : 'KHÍ VẬN'}
-      </span>
-      <img className="card-modal__art" src={visual.artworkUrl} alt={`${visual.title} — minh họa`} />
-      <div className="card-modal__copy">
-        <h2 id={titleId}>{visual.title}</h2>
-        <p id={descriptionId}>{card.message}</p>
-      </div>
-      {onClose
-        ? (
-          <button
-            ref={closeButtonRef}
-            className="card-modal__close"
-            type="button"
-            disabled={closeDisabled}
-            onClick={onClose}
-          >
-            Đóng
-          </button>
-        )
-        : null}
-      {error ? <p className="card-modal__error" role="alert">{error}</p> : null}
-    </>
+function DeckBadge({ deck }: { deck: CardDeck }) {
+  return (
+    <span className="card-face__badge">
+      <DeckEmblem deck={deck} />
+      {DECK_LABEL[deck]}
+    </span>
   );
+}
 
-  return dialog
-    ? <section className="card-modal__panel">{content}</section>
-    : <article className="card-gallery__card">{content}</article>;
+function CardArtwork({ visual }: { visual: CardVisualDefinition }) {
+  return (
+    <img
+      className="card-face__art"
+      src={visual.artworkUrl}
+      width={640}
+      height={400}
+      alt={`${visual.title} — minh họa`}
+    />
+  );
+}
+
+function CardGalleryItem({ card, visual }: { card: GameCard; visual: CardVisualDefinition }) {
+  return (
+    <article className={`card-face card-face--${visual.deck} card-face--gallery`}>
+      <header className="card-face__header">
+        <DeckBadge deck={visual.deck} />
+        <h2 className="card-face__title">{visual.title}</h2>
+      </header>
+      <CardArtwork visual={visual} />
+      <p className="card-face__message">{card.message}</p>
+    </article>
+  );
 }
 
 export function CardArtworkGallery() {
@@ -74,7 +80,7 @@ export function CardArtworkGallery() {
         {allGameCards.map(card => {
           const visual = cardVisualFor(card.id);
           if (!visual) return null;
-          return <CardPanel key={card.id} card={card} visual={visual} />;
+          return <CardGalleryItem key={card.id} card={card} visual={visual} />;
         })}
       </div>
     </main>
@@ -83,9 +89,14 @@ export function CardArtworkGallery() {
 
 const safeDomId = (operationId: string): string => operationId.replace(/[^a-zA-Z0-9_-]/g, '-');
 
+/**
+ * The revealed Chance / Khí Vận card (plan 04 §8.5), a printed card on the table. It is a card-layer Modal with no close
+ * control, Escape or backdrop dismissal: only the acting player's "Đóng" ends it, and it waits for that indefinitely.
+ */
 export default function CardInteractionOverlay() {
   const { state, playerId, role, canMutate, connected, socketFunctions } = useContext(stateContext);
   const { state: presentation } = usePresentation();
+  const reducedMotion = useEffectiveReducedMotion();
   const pendingCard = state.turnInfo.pendingCardInteraction;
   const cardPresentation = pendingCard
     && presentation.cardPresentation?.operationId === pendingCard.operationId
@@ -113,9 +124,10 @@ export default function CardInteractionOverlay() {
   const [dismissPending, setDismissPending] = useState(false);
   const [dismissError, setDismissError] = useState('');
   const dismissPendingRef = useRef(false);
+  const restoreFocusRef = useRef(false);
   const observedOperationRef = useRef<string | null>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const dialogRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const descriptionId = pendingOperationId ? `card-dialog-description-${safeDomId(pendingOperationId)}` : undefined;
 
   useEffect(() => {
     const operationId = pendingCard?.operationId ?? null;
@@ -134,9 +146,20 @@ export default function CardInteractionOverlay() {
     }
   }, [pendingCard?.operationId, pendingCard?.stage]);
 
+  // A button that turns disabled while its request is in flight drops keyboard focus to the page. After a failed request it is
+  // enabled again: put the focus back on it, or Enter and Space would do nothing and Tab would leave the dialog.
+  useEffect(() => {
+    if (dismissPending || !restoreFocusRef.current) return;
+    restoreFocusRef.current = false;
+    stageRef.current?.querySelector<HTMLElement>('[data-modal-autofocus]')?.focus();
+  }, [dismissPending]);
+
   useEffect(() => {
     if (!revealed || !pendingOperationId) return;
-    const target = actor ? closeButtonRef.current : dialogRef.current;
+    const stage = stageRef.current;
+    const target = actor
+      ? stage?.querySelector<HTMLElement>('[data-modal-autofocus]')
+      : stage?.closest<HTMLElement>('[role="dialog"]');
     target?.focus();
   }, [actor, pendingOperationId, revealed]);
 
@@ -154,48 +177,58 @@ export default function CardInteractionOverlay() {
       const response = await dismissCard(pendingCard.operationId);
       if (!response || response.ok) return;
       dismissPendingRef.current = false;
+      restoreFocusRef.current = true;
       setDismissPending(false);
       setDismissError(localizeAckError(response.error));
     } catch {
       dismissPendingRef.current = false;
+      restoreFocusRef.current = true;
       setDismissPending(false);
       setDismissError('Không thể gửi lệnh đóng thẻ.');
     }
   }, [actor, pendingCard, revealed, socketFunctions.dismissCard]);
 
-  if (!revealed || !pendingCard || !card || !visual || typeof document === 'undefined') return null;
+  const shown = revealed && card && visual ? { card, visual } : null;
+  const deck = shown?.visual.deck ?? 'chance';
 
-  const ids = safeDomId(pendingCard.operationId);
-  const titleId = `card-dialog-title-${ids}`;
-  const descriptionId = `card-dialog-description-${ids}`;
-  const closeDisabled = !actor || dismissPending;
-
-  return createPortal(
-    <div className="card-modal" data-testid="card-interaction-overlay" data-card-stage="REVEALED">
-      <div className="card-modal__scrim" aria-hidden="true" />
-      <section
-        ref={dialogRef}
-        className="card-modal__dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={descriptionId}
-        tabIndex={-1}
-      >
-        <CardPanel
-          card={card}
-          visual={visual}
-          dialog
-          titleId={titleId}
-          descriptionId={descriptionId}
-          closeButtonRef={closeButtonRef}
-          closeDisabled={closeDisabled}
-          onClose={() => void dismiss()}
-          error={dismissError}
-        />
-        {!actor ? <p className="card-modal__helper">Đang chờ người chơi đóng thẻ</p> : null}
-      </section>
-    </div>,
-    document.body,
+  return (
+    <Modal
+      open={shown !== null}
+      title={shown?.visual.title ?? ''}
+      eyebrow={shown ? <DeckBadge deck={deck} /> : null}
+      size="sm"
+      layer="card"
+      describedBy={shown ? descriptionId : undefined}
+      closeOnEscape={false}
+      closeOnOutsideClick={false}
+      className={`card-modal card-face card-face--${deck}${reducedMotion ? ' card-modal--reduced-motion' : ''}`}
+    >
+      {shown
+        ? (
+          <div
+            ref={stageRef}
+            className="card-modal__stage"
+            data-testid="card-interaction-overlay"
+            data-card-stage="REVEALED"
+          >
+            <CardArtwork visual={shown.visual} />
+            <p id={descriptionId} className="card-face__message">{shown.card.message}</p>
+            <div className="card-modal__actions">
+              {dismissError ? <p className="card-modal__error" role="alert">{dismissError}</p> : null}
+              {!actor ? <p className="card-modal__helper">Đang chờ người chơi đóng thẻ</p> : null}
+              <Button
+                data-modal-autofocus={actor ? true : undefined}
+                size="lg"
+                busy={dismissPending}
+                disabled={!actor}
+                onClick={() => void dismiss()}
+              >
+                Đóng
+              </Button>
+            </div>
+          </div>
+        )
+        : null}
+    </Modal>
   );
 }

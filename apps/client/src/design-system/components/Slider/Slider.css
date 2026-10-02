@@ -1,0 +1,19 @@
+.ds-slider {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0 var(--space-3);
+}
+.ds-slider__label { font: var(--type-label); color: var(--color-text-primary); }
+.ds-slider__value { font: 700 1rem/1.25rem var(--font-family-display); font-variant-numeric: tabular-nums; color: var(--color-text-secondary); }
+.ds-slider__input {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 2.75rem;
+  margin: 0;
+  background: transparent;
+  accent-color: var(--color-action-secondary-face);
+  cursor: pointer;
+}
+.ds-slider__input:disabled { cursor: not-allowed; opacity: 0.55; }
+.ds-slider__input:focus-visible { outline: 0; border-radius: var(--radius-md); box-shadow: var(--focus-ring); }

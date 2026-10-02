@@ -17,6 +17,7 @@ export default function CenterAirport() {
     <group name="CenterAirport" position={[0, CENTER_AIRPORT_SURFACE_Y, 0]}>
       <RoundedBoxMesh
         name="AirportField"
+        receiveShadow
         width={AIRPORT_FIELD_SIZE}
         height={CENTER_AIRPORT_FIELD_HEIGHT}
         depth={AIRPORT_FIELD_SIZE}

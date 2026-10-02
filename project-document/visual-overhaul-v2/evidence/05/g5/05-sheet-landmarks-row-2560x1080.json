@@ -1,0 +1,19 @@
+{
+  "id": "05-g5-sheet-landmarks-row-2560x1080",
+  "plan": "05",
+  "folder": "g5",
+  "name": "05-sheet-landmarks-row",
+  "url": "/?phase4-uat=1&design-lab=1&section=landmarks&theme=v2",
+  "viewport": {
+    "width": 2560,
+    "height": 1080
+  },
+  "kind": "design-lab",
+  "rendererMode": null,
+  "browser": "chromium 154.0.8037.58",
+  "captureTool": "e2e/visual/capture.visual.ts",
+  "consoleErrors": [],
+  "benchmark": null,
+  "diagnostics": null,
+  "hudOverlap": null
+}

@@ -8,16 +8,18 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
 
 | View/feature | Instruction | Code chính |
 | --- | --- | --- |
-| Join/restore/reconnect | [join-room.instruction.md](./join-room.instruction.md) | `App.tsx`, `JoinForm.tsx`, session storage, overlay |
-| Lobby/roster/start/winner | [game-status.instruction.md](./game-status.instruction.md) | Lobby/Dashboard/PlayerList/WinnerBanner |
+| Join/restore/reconnect, landing, launcher, loading/failure screens | [join-room.instruction.md](./join-room.instruction.md) | `App.tsx`, `JoinForm.tsx`, `JoinHero.tsx`, `DesktopMultiplayerLauncher.tsx`, `app/screens/`, session storage, `ConnectionOverlay` |
+| Lobby/roster/start/winner/spectator | [game-status.instruction.md](./game-status.instruction.md) | `Lobby.tsx`, `components/lobby/`, `HostLanSharing.tsx`, `WinnerBanner.tsx`, `useVictoryVisibility.ts`, `SpectatorBanner.tsx` |
 | Board/spectator/WebGL surface | [game-board.instruction.md](./game-board.instruction.md) | `Board.tsx`, `game/scene/GameScene.tsx`, `game/scene/board/`, fallback |
-| Turn/landing/payment/jail | [turn-actions.instruction.md](./turn-actions.instruction.md) | Dice/BuyPrompt/DevelopmentPrompt/Jail/Debt controls |
-| Property/build/forced sale | [property-management.instruction.md](./property-management.instruction.md) | BackOfCard/Tile/DebtPanel |
-| `TradeBundle`/private offers | [trade-offers.instruction.md](./trade-offers.instruction.md) | BackOfCard/TradeOfferModal/IncomingOffers |
+| Turn/landing/payment/jail | [turn-actions.instruction.md](./turn-actions.instruction.md) | `RollControl`, `BuyPrompt`, `DevelopmentPrompt`, `JailPanel`, `DebtPanel`, `CardInteractionOverlay` |
+| Property deed/inspection/portfolio/build/forced sale | [property-management.instruction.md](./property-management.instruction.md) | `game/ui/property/` (`PropertyDeedCard`, `PropertyInspectionModal`, `OwnedPropertiesControl`, `PlayerPortfolioModal`), `DebtPanel` |
+| `TradeBundle`/private offers | [trade-offers.instruction.md](./trade-offers.instruction.md) | `TradeOfferModal`, `IncomingOffers`, `useIncomingOffers` |
 | Forced sale proposal | [../testcase/payment-shortfall-and-forced-sale.md](../testcase/payment-shortfall-and-forced-sale.md) | DebtPanel/ForcedSaleProposalPanel |
-| Log/chat | [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md) | Log |
+| Log/chat | [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md) | Log (ngăn kéo), `game/ui/hud/` |
+| Game HUD (player card, center stage, status pill, banner, callout, dock, ticker, bong bóng, toolbar, toast) | [game-board.instruction.md](./game-board.instruction.md) mục "Game HUD" | `game/ui/hud/`, `components/Log.tsx`, `App.tsx` (toolbar), `components/Toast.tsx` |
 | Desktop shell/runtime | [../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md](../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md) | `apps/desktop/`, preload bridge, bootstrap/runtime config |
-| Presentation/design system | [../ui-ux-overhaul/PHASE_1_IMPLEMENTATION_PLAN.md](../ui-ux-overhaul/PHASE_1_IMPLEMENTATION_PLAN.md) | `game/presentation/`, `game/ui/`, `design-system/`, settings/audio |
+| Presentation | [../ui-ux-overhaul/PHASE_1_IMPLEMENTATION_PLAN.md](../ui-ux-overhaul/PHASE_1_IMPLEMENTATION_PLAN.md) | `game/presentation/`, `game/ui/`, settings/audio |
+| Design system V2 (tokens, primitive, Modal v2, icon registry, motion, Design Lab + `surfaces`, capture) | [design-system.instruction.md](./design-system.instruction.md) | `design-system/`, `settings/ReducedMotionDocumentSync.tsx`, `dev/design-lab/`, `e2e/visual/` |
 
 ## Client invariants
 
@@ -42,6 +44,8 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
   path. Card reveal is queued after the authoritative LAND boundary; session/
   reconnect hydration snaps to the current revealed card without replaying a draw
   animation. The effect waits for the acting player to press `Đóng`.
+- Settings có thêm `graphicsQuality` (`auto` | `high` | `balanced` | `low`, mặc định `auto`);
+  giá trị lạ normalize về `auto`. Chi tiết tier ở [game-board.instruction.md](./game-board.instruction.md).
 - Settings dùng key `own-the-block.settings.v1`, normalize/clamp defensive và tách
   khỏi reconnect token. Reduced motion hiệu lực là user setting hoặc OS
   preference. Audio provider owns one lazy Web Audio engine and typed SFX

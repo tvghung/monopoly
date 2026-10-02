@@ -62,9 +62,11 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   board/Troika dùng một local full-coverage ExtraBold TTF và callback sync invalidate
   demand frame. Các mẫu kiểm tra gồm `Cà Mau`, `Buôn Ma Thuột`, `Đà Nẵng`, `Phú Quốc`,
   `Công Ty Nước`, `Khí vận` và `Cơ hội`.
-- Scene dùng fixed orthographic camera, ACES filmic tone mapping, contact shadows,
-  DPR clamp `1.25..1.5` và `frameloop="demand"`. Budget hiện hành: target 210 draw
-  calls, stress ceiling 240, target 80k triangles và hard ceiling 100k.
+- Scene dùng fixed orthographic camera và `frameloop="demand"` (callback async như SDF
+  text, texture hay post chain phải `invalidate`). Ánh sáng, môi trường, bàn và preset
+  chất lượng nằm ở mục **Lighting, environment và graphics tiers** bên dưới. Budget:
+  main pass target 210 draw calls, stress ceiling 240, target 80k triangles và hard
+  ceiling 100k; định nghĩa main/shadow/post ở mục đó.
 - Foundation/rim trung tính bao quanh center airport field recessed. Outer accent là
   một continuous rounded-square loop near-white; center có field xanh, runway/taxiway
   strips, marking nhẹ và một authored orthogonal S-path deterministic, không có
@@ -97,6 +99,117 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   và footprint tối đa `1.35×`, dùng chung vertical-offset helper. Camera giữ hướng cố định, dùng
   `ORTHOGRAPHIC_READABILITY_ZOOM=1.08`, không bỏ fit point của board/dice/stations.
 
+## Lighting, environment và graphics tiers
+
+Visual Overhaul V2 plan 02 (`project-document/visual-overhaul-v2/02_LIGHTING_ENVIRONMENT_AND_TABLETOP.md`).
+Code nằm trong `game/scene/render/`; camera, `BoardRenderModel` boundary, WebGL fallback
+và 40 semantic tile buttons không đổi.
+
+- **Tone mapping**: Khronos PBR Neutral, exposure 1 (`render/toneMapping.ts`). Chỉ trên
+  localhost hoặc UAT harness mới có `?tonemap=aces|agx|neutral` để chụp so sánh. Tier
+  `high` áp dụng Neutral ở bước cuối post chain nên Canvas `gl.toneMapping` là
+  `NoToneMapping` cho tier đó (R3F áp lại prop của Canvas ở mỗi render, nên prop phải khớp).
+- **Light rig** (`render/lighting/lightRigSpec.ts` là nguồn duy nhất): key directional ấm
+  `#FFF1DE` cường độ 2.2 tại `(-9, 16, 5)` có shadow; fill hemisphere sky `#FFF8EC` /
+  ground `table-oak` 0.55; rim lạnh `#DDE9FF` 0.6 tại `(8, 10, -12)`, không shadow.
+- **Environment**: một PMREM studio procedural (`render/environment/`), không file HDR,
+  dùng chung cho `scene.environment` và coin materials. Cường độ 0.6 / 0.7 / 0.8 cho
+  low / balanced / high.
+- **Bàn và trạm**: `Tabletop` là mặt bàn gỗ sồi sáng procedural (texture canvas
+  512² / 1024²) phủ các aspect 1 → 2.4 (test `tabletopCoverage`); `BoardGroundShadow`
+  là decal bóng dưới board; khay người chơi (`PlayerTrays`) là instanced lacquer tray với
+  viền màu người chơi; bank treasury đặt trên nền riêng, tiếp đất bằng shadow thật.
+- **Shadow**: key light PCF, map 1024 (balanced) hoặc 2048 (high), tắt ở low; khi có
+  real shadow thì nhà/khách sạn không render blob shadow. Caster: foundation, nhà, khách sạn,
+  deck, coin pile, khay và (chỉ high) dice; receiver: mặt và footer tile, tile body, center
+  platform, bàn và khay. Text và decal trong suốt không cast.
+- **Optional layer**: environment và bàn nằm trong `OptionalSceneLayer` (Suspense +
+  error boundary). Lỗi của một layer chỉ cảnh báo một lần và bỏ layer, không kéo board
+  sang legacy; chỉ lỗi renderer thật hoặc mất WebGL context mới chuyển sang legacy.
+- **Graphics tiers** (`render/renderQuality.ts`, `GameSettings.graphicsQuality`):
+  `auto` (mặc định) → `balanced`, hoặc `low` khi thiết bị cảm ứng nhỏ, `MAX_TEXTURE_SIZE <
+  8192` hay `hardwareConcurrency <= 4`; `auto` không bao giờ chọn `high`.
+
+  | Tier | DPR | Shadow | Environment | Decal | Post |
+  | --- | --- | --- | --- | --- | --- |
+  | low | 1–1.25 | tắt | 0.6 | 0.35 | không |
+  | balanced | 1.25–1.5 | PCF 1024 | 0.7 | 0.18 | không |
+  | high | 1.25–2 | PCF 2048 | 0.8 | 0.18 | N8AO + bloom + vignette + MSAA |
+
+  Đổi tier lúc chạy không cần reload (Canvas `dpr`/`shadows`/`gl.toneMapping` cập nhật,
+  post chain mount hoặc unmount). Control nằm trong Settings, nhóm “Đồ họa”, tên
+  “Chất lượng đồ họa”.
+- **Post chain (chỉ high)**: `render/post/ScenePostEffects.tsx` là lazy chunk, tier khác
+  không tải. Thứ tự: N8AO (half res, aoRadius 0.8, distanceFalloff 0.6, intensity 1.6,
+  màu AO ấm) → Bloom (mipmapBlur, ngưỡng 1.5 trên HDR buffer, intensity 0.22) →
+  Vignette (0.3 / 0.3) → ToneMapping Neutral. Không có hiệu ứng temporal vì demand
+  rendering dừng sau invalidate cuối. N8AO tự render scene vào buffer của nó nên
+  `transparencyAware` phải tắt (nếu không scene bị render thêm hai lần và main pass tăng gấp đôi).
+  Blend alpha của SDF text diễn ra trong không gian tuyến tính nên chữ ở tier high mảnh và
+  nhạt hơn một chút so với balanced.
+- **Budget definitions** (`render/diagnostics/rendererInfo.ts`, `FrameCounter`): *main* là
+  draw call của pass màu scene, *shadow* là draw call của shadow map trong cùng frame,
+  *post* là số pass full-screen của composer (`postPasses`) cùng số lần render full-screen
+  nội bộ (`postRenders`). Diagnostics chỉ chạy trên localhost/UAT và tắt `gl.info.autoReset`.
+  Harness `benchmark=<giây>` ghi median/p95 frame time; `quality=<tier>` chọn preset.
+
+## Game HUD (Visual Overhaul V2 plan 03)
+
+Code: `game/ui/hud/` (`GameHud.tsx`, `hud.css`), gắn trong `.game-board__renderer` cho cả WebGL và legacy
+board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn áp dụng, toolbar nằm ngoài nó.
+
+- **Trạm 3D chỉ còn khay + đống xu**: `StationInformation`/`StationMoneyAmounts` (tên, số dư, ± tiền) đã bị bỏ.
+  Trạm vẫn là anchor bay xu và điểm fit camera. Tên/tiền nằm ở player card (DOM); main pass giảm 16 draw
+  (169 → 153 ở `board-readability`, balanced).
+- **Player card** (`PlayerCard`, `PlayerCardList`, `playerCardSelectors.ts`): bốn góc theo
+  `resolvePlayerStationSlots` (BOTTOM dưới-trái, TOP trên-phải, LEFT trên-trái, RIGHT dưới-phải).
+  Tiền lấy `displayBalances[id] ?? money` và đếm số bằng `useAnimatedNumber` (480 ms / speed; reduced motion
+  hoặc đổi `presentationResetEpoch` thì nhảy ngay); chip biến động từ `balanceDeltas` qua
+  `useBalanceDeltaFeed` (cursor theo sequence, tối đa 2 chip, 1600 ms / speed, không replay lịch sử);
+  lượt hiện tại theo `displayActivePlayerId` (vòng vàng + chip "Đang đi"); nhà/khách sạn theo
+  `displayDevelopmentLevels`; pips theo tám nhóm. Trạng thái luôn có chữ + icon: "Bạn", "Ở tù n/2",
+  "Mất kết nối" (+ "Tự bỏ lượt sau m:ss" từ `turnRecovery.deadlineAt`), "Phá sản", "Đã rời". Cạnh tên chỉ hiện
+  tối đa hai tag theo ưu tiên Mất kết nối > Ở tù > Đang đi > Bạn (tên không bao giờ bị ép còn một chữ); phần còn
+  lại nằm trong tóm tắt sr-only. Hàng đếm ngược hồi phục thay cho footer; card compact/điện thoại không đủ chỗ nên
+  đếm ngược nằm trong tag "Mất kết nối". Điện thoại ngang (cao ≤ 500 px) chỉ hiện badge icon cho Ở tù/Mất kết nối;
+  lượt hiện tại vẫn đọc được bằng chữ ở status pill. Vòng pulse (`player-card--pulse`) chỉ chạy khi lượt đổi
+  trong live presentation, không chạy khi mount hay sau reset/snap.
+  Mặt card `aria-hidden`; mỗi `li[data-player-id][data-current-turn]` có một câu tóm tắt sr-only
+  (`describePlayerCard`: tiền, tài sản, nhà, khách sạn, ga tàu, công ty điện nước, ở tù, mất kết nối, đang đi).
+  `section.player-card-list[aria-label="Người chơi"] > ol[role=list]` thay roster sr-only cũ.
+- **Status pill** (`StatusPill`): mã phòng + avatar + `p.game-board__turn-label` ("Lượt của bạn" /
+  "<tên> đang chơi" / "Đang chờ lượt chơi"), theo `displayActivePlayerId`; người vừa phá sản/rời vẫn được gọi
+  tên qua `finishedPlayers` (`resolveDisplayedPlayer`). **Turn banner**: "Đến lượt bạn!" hoặc
+  "Lượt của <tên>" khi lượt hiển thị đổi trong live presentation (280 + 900 + 280 ms / speed, thay thế thay vì
+  xếp hàng, không chạy khi first render/snap/reset, `aria-hidden`).
+- **Center stage** (`CenterStage`, `RollControl`): nút "Đổ xúc xắc" (đang gửi: "Đang đổ…") ở tâm bàn; lượt
+  đối thủ hiện pill "<tên> đang đi…"; cả hai ẩn khi xúc xắc đang lăn, khi có thẻ trên màn hình và sau khi có
+  người thắng. Nút có một lần pop khi xuất hiện (reduced motion: fade) và lệch phải 40 px / lên 6 px so với tâm
+  (`--hud-center-offset-x/-y`) để không đè xúc xắc đã dừng (phía trên-phải tâm) và khay ngân hàng (dưới-trái tâm).
+  Quyền lăn vẫn từ `canRollForState` (authoritative). `Space` kích hoạt nút khi đang bật và focus không nằm trong
+  input/textarea/select/button/link/contenteditable hay ngăn nhật ký, không có dialog, không có modifier hay repeat.
+  **Dice callout**: "4 + 3" và tổng lớn khi `displayRollSequence` tăng và xúc xắc đã dừng (1200 ms / speed),
+  chip "Đổ đôi" chỉ để thông tin; 3D `DiceResultTotal` đã bỏ. Thông báo đọc màn hình duy nhất vẫn là vùng
+  `role="status"` trong roll control; vùng này cũng đọc "Đến lượt bạn." / "Lượt của <tên>." một lần khi lượt hiển thị
+  đổi trong live presentation (`useTurnAnnouncement`, không đọc khi first render hay sau reset/snap).
+- **Cột dưới** (`BottomDock`): ticker (dòng hoạt động mới nhất), context stack (`JailPanel`, `DebtPanel`) và
+  action dock (nút "Tài sản của tôi (N)", tên truy cập giữ nguyên; điện thoại chỉ hiện "Tài sản (N)"). Ở điện thoại
+  ngang (cao ≤ 500 px) `JailPanel` thu thành dải hai hàng (tiêu đề + vòng chờ, rồi hai nút); từ 720 px chiều rộng
+  trở xuống context stack nằm ở khoảng giữa hai card dưới, nên không bao giờ che nút "Đổ xúc xắc".
+- **Ngăn nhật ký** (`Log`): xem [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md).
+- **Toolbar** (`App.tsx`): `IconButton` v2 44 px cho "Cài đặt" và "Bỏ cuộc"/"Rời phòng", vẫn ngoài `.game-board`;
+  toast nằm giữa-trên dưới status pill, tối đa 3 cái.
+- **Vị trí không được che ô cờ**: status pill đứng sau card trên-trái, cột dưới đứng sau card dưới-trái, tab ngăn
+  nhật ký đứng dưới card trên-phải; từ 720 px chiều rộng trở xuống pill xếp dưới card trên-trái và cột dưới
+  xếp trên card dưới-trái. `TileScreenRectsPublisher` (chỉ dev/UAT) xuất hình chiếu 40 ô ra
+  `window.__OWN_THE_BLOCK_TILE_SCREEN_RECTS__` và `pnpm visual:capture` (`overlapCheck`) báo mọi vùng
+  `data-hud-region` che quá 4% một ô, tách vùng cố định khỏi vùng tạm (`data-hud-transient`: panel quyết định,
+  banner, callout, ticker, bong bóng, panel ngăn nhật ký). Vùng cố định phải bằng 0 ở 1440×900, 1280×720,
+  1024×768, 812×375 và 667×375; panel Nhà tù trong context stack có thể che một số ô gần Xuất Phát khi đang mở
+  (plan 04 thu gọn nội dung). Cùng công cụ báo `regionOverlaps`: hai vùng HUD chồng lên nhau (ví dụ panel quyết định
+  che nút lăn) — phải rỗng ở mọi ảnh G3.
+- Camera fit không đổi: HUD không thêm inset vào `cameraMath.ts`.
+
 ## State/rendering
 
 - Ownership, buildings, player position và pending landing/payment state từ
@@ -112,14 +225,50 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   sequence thì reset/snap về snapshot thay vì dựng cause.
 - Level 1–4 render Nhà; level 5 render Khách Sạn. Forced-sale gross values come
   from the public shortfall projection; không client-counter.
-- Nhà giữ body `0.48 × 0.39 × 0.36` với facade plaster trung tính khoảng
-  `#d9d2c2`, một shared opaque sRGB procedural texture cho hai cửa sổ bốn ô
-  trên mỗi vertical face, và một pitched roof riêng khoảng `0.56 × 0.47` với
-  rise `0.18`; chỉ roof dùng canonical owner display color. Khách sạn giữ body
-  `0.92 × 0.60 × 0.78` với facade khoảng `#d5d8d6`, shared texture hai cột × ba
-  tầng, mỗi panel bốn ô, và crown/roof riêng dùng canonical owner display color.
-  Đây là texture detail trên body, không phải các mesh frame/window riêng; slot,
-  anchor, shadow và timing hiện hữu không đổi.
+- **Nhà ống (plan 05, thay Nhà hộp phẳng):** mọi Nhà của board là ba `InstancedMesh` dùng chung
+  (`TubeHouseInstances`): thân `bevelBox 0.30 × 0.50 × 0.36` (instance color = màu pastel phố, chọn xác định
+  theo `(tileId × 7 + slot) % 6`), trim (cửa sổ, cửa chính, lan can; vertex color, trên cả hai mặt dài) và mái
+  gable thấp có ridge dọc X (instance color = **màu chủ sở hữu**). Tối đa 4 Nhà xếp một hàng giữa panel nghệ thuật
+  phía trên (70%) của ô, cách nhau `0.06`; hình học tối đa 180 tam giác/nhà (thực tế 72). Ba mesh này tốn 3 draw
+  chính + 3 draw shadow cho toàn board (88 instance tối đa). Pop/puff theo lịch Phase 4 cố định chạy trên instance
+  matrix; `TilePressRoot` offset được áp theo từng frame. Nếu lớp instanced lỗi, `OptionalSceneLayer onFail` đặt
+  `houseRenderMode = 'legacy'` và `BuildingLayer` vẽ lại Nhà hộp cũ từng ô (placeholder, plan 05 §7.7).
+- **Landmark = bậc Khách sạn (plan 05):** cả 22 phố có landmark riêng (bảng `LANDMARK_PLAN` trong
+  `buildings/landmarks/plan.ts`, dữ liệu thuần không three.js; `registry.ts` dựng hình học). Một phố mà builder lỗi vẫn
+  hiển thị Khách sạn hộp cũ `0.92 × 0.60 × 0.78` (`hasLandmark`, fail-soft). Landmark là hình học low-poly (≤ 900 tam
+  giác — trung bình khoảng 380 gồm bệ —, ≤ 3 draw: opaque + glass + emissive, chân đế ≤ 1.30 × 1.30, nằm trọn trong bệ
+  và không chìm dưới mặt bệ) trên bệ sơn mài `1.36 × 1.36 × 0.08` có viền màu chủ (rim được tô lại khi đổi chủ, không
+  thêm draw). `LandmarkShadowProxy` gộp hình học mọi landmark đang hiển thị thành một mesh world-space chỉ để đổ bóng
+  (1 draw shadow). Builder nằm ở `buildings/landmarks/<tên>.ts`, dựng bằng `buildings/kit/lowPolyKit.ts` (primitive
+  faceted, vertex color, merge; có `arcadeWall`, `prism`, `blob`, `dome`) và các mảnh dùng chung `landmarks/parts.ts`,
+  với ba material dùng chung `kitMaterials.ts`.
+- **Tranh 2D của landmark và thẻ tài sản (plan 05 §8.5):** 22 SVG phẳng `public/art/landmarks/<tileId>.svg`
+  (`viewBox 0 0 160 160`, không text/script/image/href); registry `game/ui/property/landmarkVisuals.ts`
+  `{ tileId, landmarkName, artUrl }`. `PropertyDeedCard` hiển thị tranh trong slot art 64 px (rơi về motif của nhóm màu
+  nếu ảnh không tải được) và dòng "Khách sạn · <tên landmark>" dưới tên ô; dòng đó mô tả thẻ cho assistive technology,
+  và nhãn truy cập của ô cờ khi có Khách sạn là "Có Khách sạn · <landmark>". Validator
+  `scripts/validateLandmarkArtwork.mjs` (phủ đúng 22 ô phố, an toàn SVG, file thừa, SHA-256 bản build,
+  `--build-output`) chạy trong `pnpm build`; bản đóng gói kiểm bằng
+  `pnpm --filter @monopoly/desktop proof:packaged:landmarks`.
+- **Banner khánh thành (OD-05-4):** `LandmarkBanner` trong HUD, cạnh `TurnBanner`: khi một phố lên bậc Khách sạn lúc
+  trình bày trực tiếp thì hiện "Khánh thành <landmark>!" kèm tranh 2D (2,2 giây chia theo tốc độ animation, bản mới
+  thay bản cũ). Dùng chung shell, keyframes và fade reduced-motion của turn banner; không bao giờ hiện cho trạng thái có
+  sẵn khi mount HUD hay sau snap/reconnect/reset (đổi `presentationResetEpoch`); reduced motion chỉ còn chữ, không có
+  tranh; `aria-hidden` vì activity log đã thông báo.
+- **Vật phẩm trên bàn (plan 05 §8.6):** cà phê phin, nón lá, bát sen, tiền chơi dựng bằng kit
+  (`props/tablePropGeometry.ts`: mỗi vật một geometry gộp = 1 draw; tổng ≤ 4 draw và ≤ 3.000 tam giác, thực tế +4 draw
+  main, +4 draw shadow, +1.560 tam giác). Đặt cạnh góc trái/phải của board (`props/tablePropLayout.ts`) và chỉ hiện khi
+  mép bàn đủ rộng và không bị HUD che (≥ 30 px mỗi đơn vị, trong dải giữa các thẻ người chơi, cách mép ≥ 12 px, bên phải
+  nằm dưới tab nhật ký): hiện cả bốn từ 1280×720 trở lên, ẩn cả bốn ở tablet và phone landscape, và ẩn ở tier low;
+  không bao giờ dời xuống dưới HUD. Là trang trí, không có accessible name. Overlap checker của plan 03 kiểm cả vật
+  phẩm (`PropScreenRectsPublisher`, `findHudPropOverlaps`, `findPropTileOverlaps`; sidecar `hudOverlap.props`).
+- **Standee linh vật (plan 05):** quân cờ là thẻ die-cut đứng thẳng (texture 320² gồm viền trắng 6 px quanh art 256²)
+  quay theo azimuth camera, cao `1.22 / cos(41.5°) ≈ 1.63` trong thế giới để cao bằng sprite cũ trên màn hình, trên đế
+  tròn `r 0.30` (một `InstancedMesh`, matrix theo anchor trong body group, đọc ở `onBeforeRender`). Mặt thẻ là
+  `MeshBasicMaterial` unlit alpha-test `toneMapped: false`; bóng có hình dáng mascot nhờ `customDepthMaterial`;
+  contact shadow chỉ còn ở tier low. Hop, lean, reaction, slot reflow, jail transfer và snap vẫn do body group
+  (`CharacterBillboard`) điều khiển, không đổi; body group dùng `rotation.order = 'YXZ'` với heading cố định nên
+  lean là nghiêng ngang thẻ.
 - Tất cả amounts dùng shared client money formatter VNĐ.
 - Exact deck order/next card không có trong public state hoặc DOM.
 
@@ -149,8 +298,9 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   1.5–1.7× ownership flag proportions, Start width ratio, enlarged
   house/hotel geometry plus canonical anchors, neutral facade/window-grid textures,
   pitched roof/crown owner-color split, frame dimensions, scene budget,
-  orthographic camera/tone mapping
-  và SDF sync invalidation.
+  orthographic camera/tone mapping (Neutral), quality resolution per tier, tabletop
+  coverage, diagnostics counting (main/shadow/post) và SDF sync invalidation. HUD: view model của card, các hook
+  đếm số/chip/countdown/transient, banner, callout, ticker, bong bóng, phím tắt Space và hình học overlap checker.
 - Special art contracts cover approved Chance question mark, simplified pointer-free
   fortune wheel, locomotive/one-wagon silhouette, light bulb, large faucet, tax paper stack, START
   sign, parking lot/cars, handcuffs, jail bars and airport center theme; ownership

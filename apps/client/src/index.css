@@ -13,7 +13,6 @@ html, body, #root {
 }
 
 body {
-  cursor: url('./cursor.png'), auto;
   background: var(--color-canvas);
   color: var(--color-text-primary);
   font-size: clamp(0.875rem, calc(min(100vw, 180vh) * 0.008), 1rem);

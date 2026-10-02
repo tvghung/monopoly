@@ -1,7 +1,8 @@
-import type { GameSettings } from './types';
+import type { GameSettings, GraphicsQualitySetting } from './types';
 
 export const SETTINGS_STORAGE_KEY = 'own-the-block.settings.v1';
 export const ANIMATION_SPEED_OPTIONS = [0.75, 1, 1.5, 2] as const;
+export const GRAPHICS_QUALITY_OPTIONS = ['auto', 'high', 'balanced', 'low'] as const satisfies readonly GraphicsQualitySetting[];
 
 export const DEFAULT_GAME_SETTINGS: GameSettings = {
   version: 1,
@@ -11,6 +12,7 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   animationSpeed: 1,
   reducedMotion: false,
   fullscreen: false,
+  graphicsQuality: 'auto',
 };
 
 function validNumber(value: unknown): value is number {
@@ -25,6 +27,12 @@ export function normalizeAnimationSpeed(value: unknown): number {
   return validNumber(value) && ANIMATION_SPEED_OPTIONS.includes(value as typeof ANIMATION_SPEED_OPTIONS[number])
     ? value
     : DEFAULT_GAME_SETTINGS.animationSpeed;
+}
+
+export function normalizeGraphicsQuality(value: unknown): GraphicsQualitySetting {
+  return typeof value === 'string' && (GRAPHICS_QUALITY_OPTIONS as readonly string[]).includes(value)
+    ? value as GraphicsQualitySetting
+    : DEFAULT_GAME_SETTINGS.graphicsQuality;
 }
 
 export function normalizeSettings(value: unknown): GameSettings {
@@ -42,6 +50,7 @@ export function normalizeSettings(value: unknown): GameSettings {
     fullscreen: typeof candidate.fullscreen === 'boolean'
       ? candidate.fullscreen
       : DEFAULT_GAME_SETTINGS.fullscreen,
+    graphicsQuality: normalizeGraphicsQuality(candidate.graphicsQuality),
   };
 }
 

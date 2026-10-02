@@ -5,8 +5,16 @@ export function useSettings() {
   return useContext(settingsContext);
 }
 
+function systemPrefersReducedMotion(): boolean {
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 function useSystemReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
+  // Read at the first render: a dialog that mounts under an OS-level reduced-motion preference must not start from its
+  // normal entrance and then stay half-scaled when the preference is noticed one effect later.
+  const [reduced, setReduced] = useState(systemPrefersReducedMotion);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return undefined;

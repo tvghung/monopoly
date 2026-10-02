@@ -21,6 +21,9 @@ checks, and CI do not complete these items.
 
 ## Cards
 
+Since visual overhaul V2 (plan 04) the card is a printed-card modal on the shared `Modal` primitive; every check below
+applies to that surface unchanged, and the gate G4 package also records them.
+
 - [ ] Landing on Chance immediately opens the revealed card.
 - [ ] Landing on Khí Vận immediately opens the revealed card.
 - [ ] No Draw action is visible or required.
@@ -65,7 +68,7 @@ Open:
 http://127.0.0.1:5173/?phase4-uat=1&card-gallery=1
 ```
 
-The gallery is development-only, renders the same card panel and 28 local SVG
+The gallery is development-only, renders the same card face (artwork, title, message) and 28 local SVG
 assets used by the game, and is not part of normal production navigation. It is
 visual-review support, not a replacement for gameplay or package tests.
 

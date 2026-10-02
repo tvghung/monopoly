@@ -1,0 +1,37 @@
+/*
+ * Primitive craft palette of Visual Overhaul V2, "Tabletop Toy Vietnam".
+ * Always present (theme independent). Components never read these directly: they use the
+ * semantic tokens in colors.css. palette.ts mirrors these values and palette.test.ts keeps
+ * both in sync and checks the contrast pairs.
+ */
+:root {
+  --otb-paper-50: #FFFBF3;
+  --otb-paper-100: #FBF3E4;
+  --otb-paper-200: #F2E4CC;
+  --otb-paper-300: #E6D2B2;
+  --otb-ink-900: #2B1D14;
+  --otb-ink-700: #5A4636;
+  --otb-ink-500: #7A6553;
+  --otb-ink-alpha-12: rgb(43 29 20 / 12%);
+  --otb-lacquer-600: #C4302B;
+  --otb-lacquer-700: #A32520;
+  --otb-lacquer-100: #FBE3DF;
+  --otb-gold-400: #F2B632;
+  --otb-gold-700: #8C6200;
+  --otb-gold-100: #FDF0CF;
+  --otb-jade-600: #177A63;
+  --otb-jade-700: #0F5E4C;
+  --otb-jade-100: #DDF3EC;
+  --otb-blue-600: #1F4E9C;
+  --otb-blue-100: #E1EAF8;
+  --otb-gain-600: #1E7F3C;
+  --otb-gain-700: #166B31;
+  --otb-gain-100: #DDF3E3;
+  --otb-warn-400: #FFB020;
+  --otb-warn-700: #8A4F00;
+  --otb-warn-100: #FFF0CC;
+  --otb-white: #FFFFFF;
+  --otb-table-oak: #DDBB8F;
+  --otb-table-oak-dark: #B08A5F;
+  --otb-backdrop: #F4E6D0;
+}

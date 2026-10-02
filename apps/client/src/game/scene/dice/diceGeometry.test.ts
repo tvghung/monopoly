@@ -26,6 +26,7 @@ import {
 import { BASE_DICE_SIZE, DICE_SCALE, DICE_SIZE } from './diceLayout';
 import { DICE_PIP_OFFSET } from './diceVisualConfig';
 import {
+  createDiceBodyGeometry,
   getDiceFaceSpecs,
   getDicePipCylinderQuaternion,
   getDicePipInstances,
@@ -48,7 +49,11 @@ function countMeshes(root: THREE.Object3D): number {
   return count;
 }
 
-function buildDiceCost({ rounded, instancedPips }: { rounded: boolean; instancedPips: boolean }) {
+function buildDiceCost({ rounded, instancedPips, mergedFaces = false }: {
+  rounded: boolean;
+  instancedPips: boolean;
+  mergedFaces?: boolean;
+}) {
   const root = new THREE.Group();
   const material = new THREE.MeshBasicMaterial();
   const faceGeometry = new THREE.PlaneGeometry(DICE_FACE_SIZE, DICE_FACE_SIZE);
@@ -64,7 +69,9 @@ function buildDiceCost({ rounded, instancedPips }: { rounded: boolean; instanced
     : new THREE.SphereGeometry(DICE_PIP_RADIUS, 8, 6);
 
   for (let dieIndex = 0; dieIndex < 2; dieIndex += 1) {
-    const bodyGeometry = rounded
+    const bodyGeometry = mergedFaces
+      ? createDiceBodyGeometry()
+      : rounded
       ? new SelectiveRoundedBoxGeometry(
         DICE_SIZE,
         DICE_SIZE,
@@ -76,8 +83,10 @@ function buildDiceCost({ rounded, instancedPips }: { rounded: boolean; instanced
       : new THREE.BoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE);
     root.add(new THREE.Mesh(bodyGeometry, material));
   }
-  for (let faceIndex = 0; faceIndex < 12; faceIndex += 1) {
-    root.add(new THREE.Mesh(faceGeometry, material));
+  if (!mergedFaces) {
+    for (let faceIndex = 0; faceIndex < 12; faceIndex += 1) {
+      root.add(new THREE.Mesh(faceGeometry, material));
+    }
   }
   if (instancedPips) {
     root.add(new THREE.InstancedMesh(pipGeometry, material, 21));
@@ -118,7 +127,10 @@ describe('dice visual geometry contract', () => {
     expect(DICE_CORNER_SEGMENTS).toBe(10);
     expect(DICE_FACE_ROUGHNESS).toBeCloseTo(0.18);
     expect(DICE_FACE_METALNESS).toBeCloseTo(0.05);
-    expect(boardMaterialSpecs.diceBody).toEqual({ roughness: 0.16, metalness: 0.02 });
+    // Visual overhaul V2 plan 02 T02.14: a glossy clearcoated toy die (was a plain 0.16 / 0.02 standard body).
+    expect(boardMaterialSpecs.diceBody).toEqual({
+      roughness: 0.28, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.2,
+    });
   });
 
   it('keeps aligned edge and corner subdivision without duplicate patches', () => {
@@ -269,14 +281,34 @@ describe('dice visual geometry contract', () => {
     expect(DICE_RESULT_FONT_SIZE / 0.36).toBeLessThanOrEqual(1.2);
   });
 
+  it('bakes the six face plates into the body geometry without losing any vertex', () => {
+    const merged = createDiceBodyGeometry();
+    const body = new SelectiveRoundedBoxGeometry(
+      DICE_SIZE, DICE_SIZE, DICE_SIZE, DICE_EDGE_SEGMENTS, DICE_CORNER_SEGMENTS, DICE_EDGE_RADIUS,
+    ).toNonIndexed();
+
+    expect(merged.getAttribute('position').count).toBe(body.getAttribute('position').count + 6 * 6);
+    merged.computeBoundingBox();
+    const extent = DICE_SIZE / 2 + DICE_SURFACE_EPSILON;
+    expect(merged.boundingBox?.max.x).toBeCloseTo(extent, 6);
+    expect(merged.boundingBox?.min.y).toBeCloseTo(-extent, 6);
+    merged.dispose();
+    body.dispose();
+  });
+
   it('reduces settled dice draw calls while remaining inside the existing scene budget', () => {
     const baseline = buildDiceCost({ rounded: false, instancedPips: false });
-    const optimized = buildDiceCost({ rounded: true, instancedPips: true });
+    const instancedPips = buildDiceCost({ rounded: true, instancedPips: true });
+    const optimized = buildDiceCost({ rounded: true, instancedPips: true, mergedFaces: true });
 
     expect(baseline).toEqual({ drawCalls: 56, triangles: 3408 });
-    expect(optimized.drawCalls).toBe(16);
+    // Phase 4 structure: a body mesh, six face plates and one instanced pip mesh per die.
+    expect(instancedPips.drawCalls).toBe(16);
+    // Budget recovery BR-4: the plates are baked into the body, leaving body + pips per die.
+    expect(optimized.drawCalls).toBe(4);
     expect(optimized.drawCalls).toBeLessThan(TARGET_DRAW_CALLS);
     expect(optimized.drawCalls).toBeLessThan(STRESS_DRAW_CALL_LIMIT);
+    expect(optimized.triangles).toBe(instancedPips.triangles);
     expect(optimized.triangles).toBe(13296);
     expect(optimized.triangles).toBeLessThan(TARGET_TRIANGLES);
   });

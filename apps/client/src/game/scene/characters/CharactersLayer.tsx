@@ -6,6 +6,7 @@ import type {
 } from '../../presentation/store/types';
 import CharacterBillboard from './CharacterBillboard';
 import { assignCharacterSlots } from './characterPlacement';
+import StandeeBases from './StandeeBases';
 
 interface CharactersLayerProps {
   players: readonly CharacterPlayerModel[];
@@ -45,6 +46,7 @@ export default function CharactersLayer({
   });
   return (
     <group name="CharactersLayer">
+      <StandeeBases />
       {assignCharacterSlots(players).map(({ player, slotIndex, occupantCount }) => (
         <CharacterBillboard
           key={player.playerId}

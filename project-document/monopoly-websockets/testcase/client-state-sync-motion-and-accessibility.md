@@ -48,6 +48,20 @@
   Vietnamese text and short board labels fit desktop/mobile without hiding critical
   action.
 
+## Design system V2 (visual-overhaul-v2 plan 01)
+
+- [x] `[CLIENT][AUTOMATED]` `palette.test.ts`: `palette.css` ≡ `OTB_PALETTE`, và mọi cặp contrast
+  đã ghi (≥ 4.5:1 hoặc 3:1 cho chữ lớn/non-text) đạt; `propertyVisualColors.test.ts` kiểm header
+  district v2 ≥ 4.5:1.
+- [x] `[CLIENT][AUTOMATED]` `ReducedMotionDocumentSync.test.tsx`: setting hoặc OS ghi
+  `data-reduced-motion`; `motionTokens.test.ts`: token CSS ≡ mirror TS và duration về 0ms.
+- [x] `[CLIENT][AUTOMATED]` Primitive v2 (Button default type, IconButton, Panel, Chip,
+  SegmentedControl, Switch, Slider, MoneyText, DeltaChip, PlayerAvatar, GroupPips) và icon registry
+  có test render/accessible name/bàn phím; `Phase4UatHarness.test.tsx` và `DesignLab.test.tsx`
+  cover tham số URL, marker `data-uat-ready` và mọi section của Lab.
+- [ ] `[CLIENT][MANUAL-E2E]` Review thị giác Design Lab (Chromium; WebKit NOT RUN vì chưa cài) và
+  Gate G1 của product owner: `project-document/visual-overhaul-v2/evidence/01/`.
+
 ## Gameplay audio
 
 - [x] `[CLIENT][AUTOMATED]` One trusted unlock starts exactly four equal-length
@@ -75,6 +89,33 @@
   orthographic camera, tone mapping, budget constants and the triangle estimator
   are guarded by tests; live diagnostics measure actual draw calls/triangles. WebGL
   lazy routing waits for its dynamic import deterministically.
+- [x] `[CLIENT][AUTOMATED]` Graphics quality resolution (`auto` never picks `high`, low
+  on small touch devices, invalid values normalize to `auto`), the per-tier config table,
+  Neutral tone mapping and the post-chain constants are guarded by `renderQuality`,
+  `toneMapping`, `postSettings` and settings tests.
+- [x] `[CLIENT][AUTOMATED]` The tabletop covers every standard aspect ratio (1 → 2.4) and
+  the frame counter splits main / shadow / post draw calls and composer passes
+  (`tabletopCoverage`, `rendererInfo`, `composerPasses` tests).
+- [x] `[CLIENT][AUTOMATED]` The page shell starts in the v2 theme (`index.html` attribute, bootstrap
+  default) and its browser-chrome colors come from the palette (`visualTheme.test.ts`).
+- [x] `[CLIENT][AUTOMATED]` HUD: player card view models (seats, displayed money, displayed turn, building counts, pips,
+  jail / offline / recovery / bankrupt / left), roster semantics and summaries, animated money counter (reduced motion,
+  reset epoch, speed), delta chips (no replay, cap of two, reset), turn banner, dice callout, activity ticker and chat
+  bubbles (gating, reset, text-only), single transient timer, `usePresentationSelector` re-render behavior, Space
+  shortcut guards, and the overlap geometry (`playerCardSelectors`, `PlayerCardList`, `useAnimatedNumber`,
+  `useBalanceDeltaFeed`, `turnAndDiceOverlays`, `tickerAndBubbles`, `centerStage`, `useRollShortcut`,
+  `polygonOverlap`, `tileScreenRects`, `usePresentationSelector` tests).
+- [ ] `[CLIENT][MANUAL-E2E]` HUD overlap report (`evidence/03/g3/*.json`, `hudOverlap`) reviewed at 1440×900,
+  1280×720, 1024×768, 812×375 and 667×375, and the 5-second test (3 people: whose turn, who has the most money)
+  recorded in plan 03 section 17.
+- [ ] `[CLIENT][MANUAL-E2E]` Review the v2-theme sweep (`evidence/01/theme-v2/`, 28 images) against the V1
+  baseline; automated candidate review found no confirmed regression, a human pass is still open.
+- [ ] `[CLIENT][MANUAL-E2E]` Review low / balanced / high captures side by side (harness
+  `quality=<tier>`, `pnpm visual:capture` group `g2`), including the eight regression tile names
+  and the WebGL fallback; gate G2 verdict recorded by the product owner.
+- [ ] `[CLIENT][MANUAL-E2E]` Benchmark `stress` and `board-readability` per tier on the
+  reference device (Intel Iris Xe or Apple M1 class) with `VISUAL_GPU=hardware`; record model, GPU,
+  OS and browser. Current numbers are from an Intel UHD 630-class GPU, which is not the reference device.
 - [ ] `[CLIENT][MANUAL-E2E]` Record 1920×1080 bottom/left/top/right visual review,
   orange/pink/blue material distinction, center/corner hierarchy, four-player
   developed-property stress scene and active roll/landing action flow.
@@ -100,3 +141,46 @@ The executable procedure is documented in
 [`project-document/ui-ux-overhaul/PHASE_1_1_MANUAL_ACCEPTANCE.md`](../../ui-ux-overhaul/PHASE_1_1_MANUAL_ACCEPTANCE.md).
 The manual boxes above remain unchecked until a human run records the environment,
 players, and observed result.
+
+## Modal v2 and settings (visual overhaul V2, plan 04)
+
+- [x] `[AUTO][CLIENT]` `Modal.test.tsx`: size/placement/backdrop/footer/tone/layer props, exit animation, only the top dialog handles
+  Escape/Tab, Tab and Shift+Tab from an element outside the ring stay inside, focus returns to the opener (also under React
+  StrictMode) or to the dialog below, `describedBy`.
+- [x] `[AUTO][CLIENT]` `Slider.test.tsx`, `Switch.test.tsx`, `SettingsPanel.test.tsx`, `selectors.test.tsx`: keyboard-operable segmented
+  controls and switches, the slider value is announced once, the reduced-motion hint describes its switch, OS reduced motion is
+  known at the first render, the desktop-only "Cửa sổ" section.
+- [ ] `[MANUAL-E2E]` G4: Vietnamese typography and WebKit rendering of every plan 04 surface (Design Lab `surfaces` captures).
+
+## 3D asset kit (visual overhaul V2, plan 05)
+
+- [x] `[AUTO][CLIENT]` `kit/lowPolyKit.test.ts`: every primitive (including `arcadeWall`, `prism`, `blob` and `dome`) is a faceted part with exactly position,
+  normal and color, deterministic, standing on y = 0 and outward-wound; a `dome` never goes below the ground; merging keeps the sum of triangles.
+- [x] `[AUTO][CLIENT]` `tubeHouseGeometry.test.ts`, `tubeHouseLayout.test.ts`, `tubeHouseMeshes.test.ts`: ≤ 180 triangles per house, rows of 1–4 houses stay inside
+  the tile and its upper art panel on all 22 streets and all four board sides, three instanced meshes with room for 88 houses, facade pastel and owner color,
+  the Phase 4 pop and hotel-transition curves (nothing plays with reduced motion, a downgrade, zero duration or a stale signal).
+- [x] `[AUTO][CLIENT]` `landmarks/landmarks.test.ts`, `LandmarkShadowProxy.test.ts`: the plan lists exactly the 22 streets and all 22 are built, in tile order; every
+  built landmark stays under 900 triangles, 3 draws, 1.30 footprint and its `Max H`, stands inside the plinth slab and never below the ground, is faceted and
+  deterministic; plinth below the landmark with the rim first and recolored alone; one shadow proxy for all visible landmarks.
+- [x] `[AUTO][CLIENT]` `landmarkVisuals.test.ts`, `deedCardModel.test.ts`, `PropertyDeedCard.test.tsx`, `tileAccessibility.test.ts`: 22 flat 160 x 160 landmark SVGs, one per street, named from
+  the plan; the deed card shows the landmark picture (district motif on a load error) and "Khách sạn · <landmark>" under the tile name and describes the card with it; stations,
+  utilities and special tiles have none; a hotel tile button is named "Có Khách sạn · <landmark>".
+- [x] `[AUDIT]` `pnpm test:landmark-art` (`validateLandmarkArtwork.check.mjs`) and `pnpm validate:landmark-art`, run by `pnpm build` (`--build-output`) and CI: exact coverage of the 22
+  street tiles, no script / text / foreignObject / raster / href / external URL, viewBox `0 0 160 160`, no orphan file, built copies identical to the source;
+  `pnpm test:card-art` keeps its behavior on the shared validation helper.
+- [x] `[PACKAGED]` `pnpm --filter @monopoly/desktop proof:packaged:landmarks` verified the 22 landmark SVGs (and `proof:packaged:cards` the 28 card SVGs) inside the packaged renderer of `pnpm desktop:package`;
+  the runtime proof `pnpm --filter @monopoly/desktop proof:packaged` also passed. Scope: Windows x64, 02/10/2026; nothing in these proofs draws the board.
+- [x] `[AUTO][CLIENT]` `props/tablePropGeometry.test.ts`, `props/tablePropLayout.test.ts`, `hud-overlap/polygonOverlap.test.ts`: four props, at most 4 draws and 3,000 triangles
+  together, faceted and deterministic, standing on the table, inside their placement envelope; the analytic projection equals the fixed camera; every prop clear of the board,
+  the stations and each other; all four shown from 1280 x 720 up and hidden on tablet and phone landscape; never over a tile; HUD and tile overlap helpers.
+- [x] `[AUTO][CLIENT]` `LandmarkBanner.test.tsx`: "Khánh thành <landmark>!" only for a street reaching the hotel tier in live presentation; silent for houses, a hotel coming
+  down, a hotel already on the board when the HUD mounts and after a snap, reconnect or reset; lifetime scaled by the animation speed; text only under reduced motion.
+- [x] `[AUTO][CLIENT]` `characters/standee.test.ts`, `characterTextureCache.test.ts`: the standee faces the camera azimuth only and is as tall on screen as the old sprite;
+  unlit alpha-tested face, mascot-shaped depth material, opacity fade, instanced bases follow their anchors, the 320 px die-cut bake.
+  Movement semantics (`characterMotion.test.ts`, `characterPlacement.test.ts`, `characterReaction.test.ts`) are unchanged.
+- [x] `[MANUAL-E2E]` Style review of the three pilots (gate G5a, approved by the product owner on 01/10/2026) and review of all 22 landmarks, the table props, the "Khánh thành" banner and the
+  deed card art (gate G5, approved by the product owner on 02/10/2026; no separate Vietnamese reviewer is named): `evidence/05/g5/`, `evidence/05/props/`. Overlap checker JSON: no HUD or tile finding.
+- [x] `[MANUAL-E2E]` Worst-case budgets (`landmarks-all`, `houses-max`, `standees`, `stress`) measured in every tier: `evidence/05/g5/numbers` (the pilots' numbers are in `evidence/05/g5a/numbers`),
+  all inside the plan 05 §5.3 budgets.
+- [ ] `[MANUAL-E2E]` The reference-device benchmark (`stress` balanced): only the machine's own Intel UHD GPU was measured (`evidence/05/g5/benchmark`, 30 FPS in `balanced`, as before plan 05);
+  and a human look at the packaged window (`pnpm desktop:run:packaged`) for landmarks, standees and props under `app://`.

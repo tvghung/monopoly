@@ -3,6 +3,7 @@ import {
 } from 'react';
 import {
   SOCKET_PROTOCOL_VERSION,
+  colorGroups,
   type Ack,
   type GameplaySemanticEvent,
   type PublicRoomState,
@@ -19,6 +20,12 @@ import CardInteractionOverlay, { CardArtworkGallery } from '../../game/ui/events
 import { DEFAULT_GAME_SETTINGS } from '../../settings/defaults';
 import { useSettings } from '../../settings/selectors';
 import { SettingsProvider } from '../../settings/SettingsProvider';
+import DesignLab, { useLabTheme } from '../design-lab/DesignLab';
+import { readDesignLabParams, type LabSectionId } from '../design-lab/labKit';
+import HudConcept from '../design-lab/screens/HudConcept';
+import { GRAPHICS_QUALITY_OPTIONS } from '../../settings/defaults';
+import type { GraphicsQualitySetting } from '../../settings/types';
+import { parseBenchmarkSeconds, summarizeFrameIntervals, type BenchmarkResult } from './rendererBenchmark';
 import type { SocketFunctions } from '../../types';
 import './Phase4UatHarness.css';
 
@@ -26,12 +33,17 @@ const PLAYER_IDS = ['player-a', 'player-b', 'player-c', 'player-d'] as const;
 const PLAYER_NAMES = ['An', 'Bình', 'Chi', 'Dũng'] as const;
 const PLAYER_COLORS = ['red', 'blue', 'green', 'yellow'] as const;
 const PLAYER_CHARACTERS = ['dog', 'panda', 'cat', 'penguin'] as const;
+/** The 22 buildable streets (plan 05 worst-case fixtures put a house set or a landmark on every one). */
+const STREET_TILE_IDS = Object.values(colorGroups).flat();
 const CARD_OPERATION = '00000000-0000-4000-8000-000000004001';
 const CHAIN_OPERATION = '00000000-0000-4000-8000-000000004002';
 
 const scenarios = [
   ['stations-2', '01 · Trạm 2 người'],
+  ['stations-3', '01 · Trạm 3 người'],
   ['stations-4', '01 · Trạm 4 người'],
+  ['offline', '01 · Một đối thủ mất kết nối'],
+  ['turn-recovery', '01 · Đối thủ đang đi bị mất kết nối'],
   ['walk', '02 · Đích đến → di chuyển'],
   ['destination-geometry', '02 · Preview trên mặt ô'],
   ['destination-flicker', '02 · Preview flicker alpha'],
@@ -77,10 +89,74 @@ const scenarios = [
   ['opponent-turn', '27 · Ẩn Roll khi đối thủ chơi'],
   ['board-readability', '28 · Board readability fixture'],
   ['dice-contact-shadows', '28 · Dice contact shadows'],
+  ['landmarks-all', '29 · Mọi phố ở bậc khách sạn'],
+  ['houses-max', '29 · Mọi phố có 4 nhà'],
+  ['standees', '29 · Bốn quân trên một ô'],
   ['stress', 'Hiệu năng · trạng thái đồng thời'],
 ] as const;
 
 type ScenarioKey = typeof scenarios[number][0];
+
+const DEFAULT_SCENARIO: ScenarioKey = 'stations-4';
+const STATIC_SCENARIOS: readonly ScenarioKey[] = [
+  'stations-2', 'stations-3', 'stations-4', 'offline', 'turn-recovery', 'coin-materials', 'bankrupt',
+  'spectator-awaiting', 'spectator-revealed', 'board-readability', 'landmarks-all', 'houses-max', 'standees',
+];
+
+export function isScenarioKey(value: string | null): value is ScenarioKey {
+  return value !== null && scenarios.some(([key]) => key === value);
+}
+
+export interface HarnessUrlParams {
+  scenario: ScenarioKey;
+  controlsCollapsed: boolean;
+  /** Removes the controls entirely; used by evidence captures so no dev chrome lands in screenshots. */
+  controlsHidden: boolean;
+  cardGallery: boolean;
+  /** `design-lab=1`: render the Design Lab instead of the board (the `hud` section keeps the real board). */
+  designLab: boolean;
+  labSection: LabSectionId | null;
+  /** `benchmark=<seconds>`: replay the scenario and record frame times once it has settled. */
+  benchmarkSeconds: number | null;
+  /** `quality=auto|high|balanced|low`: starts the harness with that graphics preset. */
+  graphicsQuality: GraphicsQualitySetting;
+}
+
+/**
+ * Reads the dev-only harness URL contract: `scenario=<key>` (unknown keys fall back to the
+ * default), `uat-controls=collapsed|hidden` and `card-gallery=1`.
+ */
+export function readHarnessUrlParams(search: string): HarnessUrlParams {
+  const params = new URLSearchParams(search);
+  const scenario = params.get('scenario');
+  return {
+    scenario: isScenarioKey(scenario) ? scenario : DEFAULT_SCENARIO,
+    controlsCollapsed: params.get('uat-controls') === 'collapsed',
+    controlsHidden: params.get('uat-controls') === 'hidden',
+    cardGallery: params.get('card-gallery') === '1',
+    designLab: params.get('design-lab') === '1',
+    labSection: readDesignLabParams(search).section,
+    benchmarkSeconds: parseBenchmarkSeconds(params.get('benchmark')),
+    graphicsQuality: parseGraphicsQuality(params.get('quality')),
+  };
+}
+
+function parseGraphicsQuality(raw: string | null): GraphicsQualitySetting {
+  return GRAPHICS_QUALITY_OPTIONS.find(option => option === raw) ?? 'auto';
+}
+
+function initialHarnessUrlParams(): HarnessUrlParams {
+  const params = readHarnessUrlParams(typeof window === 'undefined' ? '' : window.location.search);
+  // The HUD concept is always drawn over the stations-4 fixture with the dev controls removed.
+  return params.designLab && params.labSection === 'hud'
+    ? { ...params, scenario: 'stations-4', controlsHidden: true }
+    : params;
+}
+
+function isReducedMotionScenario(key: ScenarioKey): boolean {
+  return key === 'reduced-motion' || key === 'construction-reduced';
+}
+
 type SemanticWithoutIdentity<T> = T extends GameplaySemanticEvent
   ? Omit<T, 'eventId' | 'sequence'>
   : never;
@@ -90,7 +166,15 @@ function successfulAck(revision: number): Ack {
   return { ok: true, protocolVersion: SOCKET_PROTOCOL_VERSION, revision };
 }
 
-function createRoom(playerCount: 2 | 4, run: number): PublicRoomState {
+type PlayerCount = 2 | 3 | 4;
+
+function scenarioPlayerCount(key: ScenarioKey): PlayerCount {
+  if (key === 'stations-2') return 2;
+  if (key === 'stations-3') return 3;
+  return 4;
+}
+
+function createRoom(playerCount: PlayerCount, run: number): PublicRoomState {
   const ids = PLAYER_IDS.slice(0, playerCount);
   return {
     protocolVersion: SOCKET_PROTOCOL_VERSION,
@@ -246,6 +330,43 @@ function configureBaseline(
     room.gameState.players['player-c'].currentTile = 25;
     room.gameState.players['player-d'].currentTile = 37;
   }
+  if (scenario === 'landmarks-all' || scenario === 'houses-max') {
+    // Plan 05 worst cases: every street developed (hotel tier or four houses), owners rotating over the four players.
+    const houses = scenario === 'landmarks-all' ? 5 : 4;
+    const owned: PublicRoomState['gameState']['boardState']['ownedProps'] = {};
+    STREET_TILE_IDS.forEach((tileId, index) => {
+      owned[tileId] = { id: PLAYER_IDS[index % 4], color: PLAYER_COLORS[index % 4], houses };
+    });
+    room.gameState.boardState.ownedProps = owned;
+    room.gameState.players['player-a'].currentTile = 8;
+    room.gameState.players['player-b'].currentTile = 12;
+    room.gameState.players['player-c'].currentTile = 25;
+    room.gameState.players['player-d'].currentTile = 37;
+  }
+  if (scenario === 'standees') {
+    // All four standees on one tile: the densest slot layout.
+    for (const playerId of PLAYER_IDS) room.gameState.players[playerId].currentTile = 8;
+    room.gameState.boardState.ownedProps[8] = { id: 'player-a', color: 'red', houses: 2 };
+  }
+  if (scenario === 'stations-3') {
+    room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 2 };
+    room.gameState.boardState.ownedProps[3] = { id: 'player-b', color: 'blue', houses: 5 };
+    room.gameState.boardState.ownedProps[5] = { id: 'player-c', color: 'green', houses: 0 };
+  }
+  if (scenario === 'offline' || scenario === 'turn-recovery') {
+    room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 2 };
+    room.gameState.boardState.ownedProps[3] = { id: 'player-b', color: 'blue', houses: 5 };
+    const opponent = room.players.find(player => player.playerId === 'player-b');
+    if (opponent) opponent.connected = false;
+  }
+  if (scenario === 'turn-recovery') {
+    room.gameState.boardState.currentPlayer = { id: 'player-b', hasMoved: false };
+    // A live countdown, so the deadline is relative to when the fixture is built.
+    room.gameState.boardState.turnRecovery = {
+      playerId: 'player-b',
+      deadlineAt: new Date(Date.now() + 90_000).toISOString(),
+    };
+  }
   if (scenario === 'stations-2' || scenario === 'stations-4' || scenario === 'coin-materials') {
     room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 2 };
     room.gameState.boardState.ownedProps[3] = { id: 'player-b', color: 'blue', houses: 5 };
@@ -302,6 +423,13 @@ function configureBaseline(
   return { playerId: 'player-a', role: 'PLAYER' };
 }
 
+/** Applies the Design Lab theme and draws the HUD concept over the real board. */
+function HudConceptLayer({ ready }: { ready: boolean }) {
+  const [{ theme }] = useState(() => readDesignLabParams(window.location.search));
+  useLabTheme(theme);
+  return <HudConcept ready={ready} />;
+}
+
 function Phase4UatSurface() {
   const [controller] = useState(() => new PresentationController());
   const subscribeToPresentation = useMemo(
@@ -317,25 +445,85 @@ function Phase4UatSurface() {
     getPresentationSnapshot,
     getPresentationSnapshot,
   );
-  const [scenario, setScenario] = useState<ScenarioKey>('stations-4');
-  const [room, setRoom] = useState(() => createRoom(4, 1));
-  const [viewer, setViewer] = useState<{ playerId: string | null; role: RoomRole }>({
-    playerId: 'player-a', role: 'PLAYER',
+  const [initialParams] = useState(initialHarnessUrlParams);
+  const [initialSetup] = useState(() => {
+    const initialRoom = createRoom(scenarioPlayerCount(initialParams.scenario), 1);
+    return { room: initialRoom, viewer: configureBaseline(initialRoom, initialParams.scenario) };
   });
+  const [scenario, setScenario] = useState<ScenarioKey>(initialParams.scenario);
+  const [room, setRoom] = useState(initialSetup.room);
+  const [viewer, setViewer] = useState<{ playerId: string | null; role: RoomRole }>(initialSetup.viewer);
   const [rendererMetrics, setRendererMetrics] = useState<Record<string, unknown> | null>(null);
   const [destinationPreviewDiagnostics, setDestinationPreviewDiagnostics] = useState<Record<string, unknown> | null>(null);
-  const [controlsCollapsed, setControlsCollapsed] = useState(false);
+  const [controlsCollapsed, setControlsCollapsed] = useState(initialParams.controlsCollapsed);
+  const [pendingTimers, setPendingTimers] = useState(0);
+  const [runId, setRunId] = useState(0);
+  const [readyRunId, setReadyRunId] = useState(-1);
   const traceRef = useRef<{
     scenario: ScenarioKey;
     steps: string[];
     previewBeforeWalk: boolean;
     previewBeforeLand: boolean;
-  }>({ scenario: 'stations-4', steps: [], previewBeforeWalk: false, previewBeforeLand: false });
+  }>({
+    scenario: initialParams.scenario, steps: [], previewBeforeWalk: false, previewBeforeLand: false,
+  });
   const runNumberRef = useRef(1);
   const roomRef = useRef(room);
   const scenarioRef = useRef(scenario);
   const timersRef = useRef<number[]>([]);
   const { settings, updateSettings } = useSettings();
+
+  // `data-uat-ready` marks a settled scenario: every scheduled step has fired, the presentation
+  // queue is idle, and that state held for a short debounce. It resets on every replay so
+  // capture tooling can wait on it even when the controls (and their metrics output) are collapsed.
+  const settledNow = pendingTimers === 0 && presentationState.status === 'idle';
+  useEffect(() => {
+    if (!settledNow) return undefined;
+    const timer = window.setTimeout(() => setReadyRunId(runId), 250);
+    return () => window.clearTimeout(timer);
+  }, [runId, settledNow]);
+  const uatReady = settledNow && readyRunId === runId;
+
+  // Benchmark mode: once the scenario has settled, replay it every 2 s while requesting a frame on
+  // every animation frame, record the intervals, then publish the summary (plan 02 §8.10).
+  const benchmarkStartedRef = useRef(false);
+  const benchmarkFrameRef = useRef(0);
+  const [benchmark, setBenchmark] = useState<BenchmarkResult | null>(null);
+  const runScenarioRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    const seconds = initialParams.benchmarkSeconds;
+    if (seconds === null || !uatReady || benchmarkStartedRef.current) return undefined;
+    benchmarkStartedRef.current = true;
+    const intervals: number[] = [];
+    const startedAt = performance.now();
+    let last = startedAt;
+    let lastReplay = startedAt;
+    const tick = (now: number) => {
+      intervals.push(now - last);
+      last = now;
+      window.__OWN_THE_BLOCK_RENDERER_INVALIDATE__?.();
+      if (now - lastReplay >= 2_000) {
+        lastReplay = now;
+        runScenarioRef.current();
+      }
+      if (now - startedAt < seconds * 1_000) {
+        benchmarkFrameRef.current = window.requestAnimationFrame(tick);
+        return;
+      }
+      const result: BenchmarkResult = {
+        ...summarizeFrameIntervals(intervals),
+        scenario: scenarioRef.current,
+        seconds,
+        diagnostics: window.__OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__ ?? null,
+      };
+      window.__OWN_THE_BLOCK_RENDERER_BENCHMARK__ = result;
+      setBenchmark(result);
+    };
+    benchmarkFrameRef.current = window.requestAnimationFrame(tick);
+    // No cleanup here: a replay flips uatReady and must not stop the run; the unmount effect cancels it.
+    return undefined;
+  }, [initialParams.benchmarkSeconds, uatReady]);
+  useEffect(() => () => window.cancelAnimationFrame(benchmarkFrameRef.current), []);
 
   useEffect(() => {
     if (traceRef.current.scenario !== scenario) {
@@ -375,9 +563,16 @@ function Phase4UatSurface() {
   const clearTimers = useCallback(() => {
     timersRef.current.forEach(timer => window.clearTimeout(timer));
     timersRef.current = [];
+    setPendingTimers(0);
   }, []);
   const schedule = useCallback((callback: () => void, delayMs: number) => {
-    timersRef.current.push(window.setTimeout(callback, delayMs));
+    setPendingTimers(count => count + 1);
+    const timer = window.setTimeout(() => {
+      timersRef.current = timersRef.current.filter(candidate => candidate !== timer);
+      callback();
+      setPendingTimers(count => Math.max(0, count - 1));
+    }, delayMs);
+    timersRef.current.push(timer);
   }, []);
   const commit = useCallback((mutate: (next: PublicRoomState) => void, source: 'LIVE_UPDATE' | 'SESSION_SYNC' = 'LIVE_UPDATE') => {
     const next = cloneRoom(roomRef.current);
@@ -637,18 +832,17 @@ function Phase4UatSurface() {
     scenarioRef.current = key;
     setScenario(key);
     runNumberRef.current += 1;
-    const nextRoom = createRoom(key === 'stations-2' ? 2 : 4, runNumberRef.current);
+    setRunId(id => id + 1);
+    const nextRoom = createRoom(scenarioPlayerCount(key), runNumberRef.current);
     const nextViewer = configureBaseline(nextRoom, key);
     roomRef.current = nextRoom;
     setRoom(nextRoom);
     setViewer(nextViewer);
-    updateSettings({ reducedMotion: key === 'reduced-motion' || key === 'construction-reduced' });
+    updateSettings({ reducedMotion: isReducedMotionScenario(key) });
     controller.acceptRoomSnapshot(nextRoom, 'SESSION_SYNC');
-    if (![
-      'stations-2', 'stations-4', 'coin-materials', 'bankrupt', 'spectator-awaiting', 'spectator-revealed',
-      'board-readability',
-    ].includes(key)) schedule(() => applyAnimatedScenario(key), 180);
+    if (!STATIC_SCENARIOS.includes(key)) schedule(() => applyAnimatedScenario(key), 180);
   }, [applyAnimatedScenario, clearTimers, controller, schedule, updateSettings]);
+  runScenarioRef.current = () => runScenario();
   const runNextScenario = useCallback(() => {
     const currentIndex = scenarios.findIndex(([key]) => key === scenarioRef.current);
     const nextScenario = scenarios[(currentIndex + 1) % scenarios.length]?.[0] ?? scenarios[0][0];
@@ -718,6 +912,8 @@ function Phase4UatSurface() {
 
   useEffect(() => {
     controller.acceptRoomSnapshot(roomRef.current, 'SESSION_SYNC');
+    const initialKey = scenarioRef.current;
+    if (!STATIC_SCENARIOS.includes(initialKey)) schedule(() => applyAnimatedScenario(initialKey), 180);
     const onMetrics = (event: Event) => {
       setRendererMetrics((event as CustomEvent<Record<string, unknown>>).detail);
     };
@@ -731,7 +927,7 @@ function Phase4UatSurface() {
       window.removeEventListener('own-the-block-renderer', onMetrics);
       window.removeEventListener('own-the-block-destination-preview', onDestinationPreview);
     };
-  }, [clearTimers, controller]);
+  }, [applyAnimatedScenario, clearTimers, controller, schedule]);
 
   const contextValue = useMemo(() => ({
     state: room.gameState,
@@ -751,8 +947,12 @@ function Phase4UatSurface() {
   return (
     <PresentationProvider controller={controller}>
       <stateContext.Provider value={contextValue}>
-        <main className="phase4-uat" data-scenario={scenario}>
-          <aside
+        <main
+          className={`phase4-uat${initialParams.designLab ? ' phase4-uat--lab-hud' : ''}`}
+          data-scenario={scenario}
+          data-uat-ready={uatReady ? 'true' : 'false'}
+        >
+          {initialParams.controlsHidden ? null : <aside
             className={`phase4-uat__controls${controlsCollapsed ? ' phase4-uat__controls--collapsed' : ''}`}
             aria-label="Điều khiển UAT Phase 4"
           >
@@ -795,6 +995,16 @@ function Phase4UatSurface() {
               />
               Giảm chuyển động
             </label>
+            <label>
+              Đồ họa
+              <select
+                aria-label="Chất lượng đồ họa (UAT)"
+                value={settings.graphicsQuality}
+                onChange={event => updateSettings({ graphicsQuality: parseGraphicsQuality(event.target.value) })}
+              >
+                {GRAPHICS_QUALITY_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+              </select>
+            </label>
             <output aria-live="polite">
               v{room.version} · semantic {room.gameState.boardState.gameplayEvents.sequence}
               {room.gameState.turnInfo.pendingCardInteraction
@@ -821,8 +1031,20 @@ function Phase4UatSurface() {
                 {`draw ${String(rendererMetrics.drawCalls)} · tri ${String(rendererMetrics.triangles)} · combined ${String(rendererMetrics.combinedDrawCalls ?? rendererMetrics.drawCalls)} / ${String(rendererMetrics.combinedTriangles ?? rendererMetrics.triangles)} · active ${String(rendererMetrics.activeAnimatedObjects)}`}
                 </output>
             ) : null}</> : null}
-          </aside>
+          </aside>}
           <Board />
+          {initialParams.designLab ? <HudConceptLayer ready={uatReady} /> : null}
+          {initialParams.benchmarkSeconds !== null ? (
+            <output
+              className="phase4-uat__benchmark"
+              data-testid="renderer-benchmark"
+              data-benchmark-ready={benchmark ? 'true' : 'false'}
+            >
+              {benchmark
+                ? `benchmark ${benchmark.scenario}: median ${benchmark.medianFps.toFixed(1)} fps · p95 ${benchmark.p95FrameMs.toFixed(1)} ms · ${benchmark.frames} frames`
+                : 'benchmark running…'}
+            </output>
+          ) : null}
           </main>
           <CardInteractionOverlay />
       </stateContext.Provider>
@@ -831,11 +1053,19 @@ function Phase4UatSurface() {
 }
 
 export default function Phase4UatHarness() {
-  const gallery = typeof window !== 'undefined'
-    && new URLSearchParams(window.location.search).get('card-gallery') === '1';
+  const [params] = useState(initialHarnessUrlParams);
   return (
-    <SettingsProvider initialSettings={{ ...DEFAULT_GAME_SETTINGS, masterVolume: 0 }}>
-      {gallery ? <CardArtworkGallery /> : <Phase4UatSurface />}
+    <SettingsProvider
+      initialSettings={{
+        ...DEFAULT_GAME_SETTINGS,
+        masterVolume: 0,
+        reducedMotion: isReducedMotionScenario(params.scenario),
+        graphicsQuality: params.graphicsQuality,
+      }}
+    >
+      {params.designLab && params.labSection !== 'hud'
+        ? <DesignLab />
+        : params.cardGallery ? <CardArtworkGallery /> : <Phase4UatSurface />}
     </SettingsProvider>
   );
 }

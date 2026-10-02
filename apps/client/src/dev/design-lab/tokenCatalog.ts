@@ -1,0 +1,52 @@
+import type { OtbPaletteKey } from '../../design-system/tokens/palette';
+
+/** Roles from plan 01 §8.2, shown next to each swatch in the Design Lab. */
+export const PALETTE_ROLES: Record<OtbPaletteKey, string> = {
+  'paper-50': 'Primary surface: panels, cards, modals',
+  'paper-100': 'Secondary surface, list rows',
+  'paper-200': 'Tertiary fill, disabled fill, dividers',
+  'paper-300': 'Strong border on paper',
+  'ink-900': 'Primary text, icons',
+  'ink-700': 'Secondary text',
+  'ink-500': 'Muted text (paper-50/100/white only)',
+  'ink-alpha-12': 'Hairline borders',
+  'lacquer-600': 'Primary action fill, danger, money loss',
+  'lacquer-700': 'Primary lip/pressed, text on lacquer-100',
+  'lacquer-100': 'Soft red background',
+  'gold-400': 'Money/turn highlight, active-turn ring',
+  'gold-700': 'Gold text on paper',
+  'gold-100': 'Soft gold background',
+  'jade-600': 'Secondary action fill',
+  'jade-700': 'Secondary lip, text on jade-100',
+  'jade-100': 'Soft jade background',
+  'blue-600': 'Info, links, focus ring',
+  'blue-100': 'Soft info background',
+  'gain-600': 'Money gain text on paper',
+  'gain-700': 'Gain text on gain-100',
+  'gain-100': 'Soft gain background',
+  'warn-400': 'Warning fill (ink text)',
+  'warn-700': 'Warning text',
+  'warn-100': 'Soft warning background',
+  white: 'Text on lacquer / jade / blue',
+  'table-oak': 'Scene: light oak table base (plan 02)',
+  'table-oak-dark': 'Scene: table grain, seams, edge (plan 02)',
+  backdrop: 'DOM behind the canvas before the first frame',
+};
+
+/** Semantic custom properties resolved live in the Tokens section. */
+export const CSS_SEMANTIC_TOKENS = [
+  '--color-canvas', '--color-canvas-deep', '--color-surface', '--color-surface-raised',
+  '--color-surface-soft', '--color-surface-sunken',
+  '--color-text-primary', '--color-text-secondary', '--color-text-muted', '--color-text-inverse',
+  '--color-accent-primary', '--color-accent-primary-strong', '--color-accent-primary-soft',
+  '--color-accent-secondary', '--color-accent-secondary-strong', '--color-accent-secondary-soft',
+  '--color-success', '--color-success-strong', '--color-success-soft',
+  '--color-warning', '--color-warning-strong', '--color-warning-soft',
+  '--color-danger', '--color-danger-strong', '--color-danger-soft',
+  '--color-info', '--color-info-strong', '--color-info-soft',
+  '--color-border', '--color-border-strong', '--color-focus',
+  '--color-money-gain', '--color-money-loss', '--color-turn-active',
+  '--color-action-primary-face', '--color-action-primary-lip',
+  '--color-action-secondary-face', '--color-action-secondary-lip',
+  '--color-action-neutral-face', '--color-action-neutral-lip',
+] as const;

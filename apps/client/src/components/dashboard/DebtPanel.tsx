@@ -1,9 +1,17 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useId, useMemo, useState } from 'react';
+import { gameCardsById } from '@monopoly/shared';
 import type { Ack, PublicGameState } from '@monopoly/shared';
-import { Handshake, Landmark } from 'lucide-react';
 import stateContext from '../../internal';
 import { formatMoney, getTileName, localizeAckError } from '../../presentation';
+import { useRoomExit } from '../../roomExitContext';
 import Modal from '../../design-system/components/Modal/Modal';
+import Button from '../../design-system/components/Button/Button';
+import Chip from '../../design-system/components/Chip/Chip';
+import PlayerAvatar from '../../design-system/components/PlayerAvatar/PlayerAvatar';
+import { ActionIcon } from '../../design-system/icons/ActionIcon';
+import { buildDeedCardModel, type DeedCardModel } from '../../game/ui/property/deedCardModel';
+import PropertyDeedCard from '../../game/ui/property/PropertyDeedCard';
+import './DebtPanel.css';
 
 type DebtClaimProjection = NonNullable<PublicGameState['boardState']['paymentShortfall']>;
 
@@ -34,10 +42,23 @@ function getDebtProjectionKey(claim: DebtClaimProjection): string {
   ].join('|');
 }
 
+/** What the debt is for, as one short line above the title ("Tiền thuê Cà Mau"). */
+function describeDebtSource(source: DebtClaimProjection['source']): string {
+  if (source.kind === 'RENT') return `Tiền thuê ${getTileName(source.tileID)}`;
+  if (source.kind === 'TAX') return getTileName(source.tileID);
+  if (source.kind === 'CARD') {
+    const deck = gameCardsById[source.cardId]?.sourceDeck;
+    return deck === 'chance' ? 'Thẻ Cơ Hội' : deck === 'chest' ? 'Thẻ Khí Vận' : 'Thẻ sự kiện';
+  }
+  return source.description;
+}
+
 export default function DebtPanel() {
   const {
-    state, playerId, canMutate, socketFunctions, connected, privatePlayerState,
+    state, playerId, canMutate, socketFunctions, connected, privatePlayerState, roomPlayers,
   } = useContext(stateContext);
+  const roomExit = useRoomExit();
+  const descriptionId = useId();
   const [now, setNow] = useState(() => Date.now());
   const claim = state.boardState.paymentShortfall;
   const isMyShortfall = claim?.debtorPlayerId === playerId;
@@ -48,6 +69,15 @@ export default function DebtPanel() {
   const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
   const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const sellable = isMyShortfall ? claim?.sellableProperties : undefined;
+  const deeds = useMemo(() => {
+    const models = new Map<number, DeedCardModel>();
+    for (const property of sellable ?? []) {
+      const model = buildDeedCardModel({ tileId: property.tileID, state, roomPlayers });
+      if (model) models.set(property.tileID, model);
+    }
+    return models;
+  }, [roomPlayers, sellable, state]);
 
   useEffect(() => {
     if (!claim) return undefined;
@@ -107,9 +137,10 @@ export default function DebtPanel() {
 
   if (!state.loaded || !claim) return null;
   const debtor = state.players[claim.debtorPlayerId];
+  const creditorPlayer = claim.creditor === 'BANK' ? undefined : state.players[claim.creditorPlayerId ?? ''];
   const creditor = claim.creditor === 'BANK'
     ? 'Ngân hàng'
-    : state.players[claim.creditorPlayerId ?? '']?.name ?? 'người chơi khác';
+    : creditorPlayer?.name ?? 'người chơi khác';
   const seconds = Math.max(0, Math.ceil((Date.parse(claim.actionDeadlineAt) - now) / 1000));
   const buyers = Object.entries(state.players).filter(([id]) => id !== playerId);
   const properties = claim.sellableProperties ?? [];
@@ -118,9 +149,15 @@ export default function DebtPanel() {
 
   if (!isMyShortfall || !canMutate) {
     return (
-      <section className="debt-panel debt-panel--status" role="status">
-        <strong>{debtor?.name ?? 'Người chơi'} đang xử lý khoản thiếu {formatMoney(claim.remainingAmount)}.</strong>
-        <span>{seconds} giây còn lại</span>
+      <section className="debt-panel debt-panel--status">
+        {/* Only this copy is announced, and it changes with the claim. The countdown below ticks every second. */}
+        <div className="debt-panel__status-copy" role="status">
+          <strong>{`${debtor?.name ?? 'Người chơi'} đang thiếu ${formatMoney(claim.remainingAmount)}`}</strong>
+          <span>{`Trả cho ${creditor}`}</span>
+        </div>
+        <span role="timer">
+          <Chip tone="loss" icon={<ActionIcon name="clock" />}>{`${seconds} giây còn lại`}</Chip>
+        </span>
       </section>
     );
   }
@@ -128,12 +165,64 @@ export default function DebtPanel() {
   if (forcedSaleActive) return null;
 
   return (
-    <Modal open title="Cần thanh toán" role="alertdialog" className="debt-panel-modal">
-      <div className="debt-panel__summary">
-        <strong>{formatMoney(claim.remainingAmount)}</strong>
-        <span>Trả cho {creditor}</span>
-        <span>{seconds} giây còn lại</span>
-      </div>
+    <Modal
+      open
+      title="Cần thanh toán"
+      eyebrow={describeDebtSource(claim.source)}
+      role="alertdialog"
+      size="lg"
+      tone="danger"
+      className="debt-panel-modal"
+      describedBy={descriptionId}
+      footer={roomExit
+        ? (
+          <>
+            <span className="debt-panel__footer-note">Không xoay được tiền? Bạn có thể bỏ cuộc.</span>
+            {roomExit.error ? <p className="debt-panel__footer-error" role="alert">{roomExit.error}</p> : null}
+            <Button
+              variant="ghost"
+              className="debt-panel__forfeit"
+              icon={<ActionIcon name="forfeit" />}
+              busy={roomExit.leaving}
+              onClick={() => roomExit.requestLeave()}
+            >Bỏ cuộc</Button>
+          </>
+        )
+        : undefined}
+    >
+      {/* What the dialog announces on open: the amount, the creditor and the shortfall. The countdown is left out. */}
+      <p id={descriptionId} className="sr-only">
+        {`Cần trả ${formatMoney(claim.amount)} cho ${creditor}. Còn thiếu ${formatMoney(claim.remainingAmount)}. Tiền mặt hiện có ${formatMoney(debtor?.accountBalance ?? 0)}.`}
+      </p>
+      {/* Focus starts on the amount, not on the first sale: on a short screen that button may sit below the fold. */}
+      <section className="debt-panel__summary" aria-label="Khoản cần thanh toán" tabIndex={-1} data-modal-autofocus>
+        <div className="debt-panel__due">
+          <span className="debt-panel__label">Cần trả</span>
+          <strong className="debt-panel__due-amount">{formatMoney(claim.amount)}</strong>
+        </div>
+        <div className="debt-panel__creditor">
+          {creditorPlayer
+            ? <PlayerAvatar characterId={creditorPlayer.characterId ?? null} colorId={creditorPlayer.color} size={32} />
+            : <span className="debt-panel__bank" aria-hidden="true"><ActionIcon name="sellToBank" /></span>}
+          <span className="debt-panel__creditor-name">
+            <span className="debt-panel__label">Trả cho</span>
+            <strong>{creditor}</strong>
+          </span>
+        </div>
+        <Chip tone="loss" icon={<ActionIcon name="clock" />} className="debt-panel__countdown">
+          {`${seconds} giây còn lại`}
+        </Chip>
+        <dl className="debt-panel__facts">
+          <div className="debt-panel__fact debt-panel__fact--short">
+            <dt>Còn thiếu</dt>
+            <dd>{formatMoney(claim.remainingAmount)}</dd>
+          </div>
+          <div className="debt-panel__fact">
+            <dt>Tiền mặt hiện có</dt>
+            <dd>{formatMoney(debtor?.accountBalance ?? 0)}</dd>
+          </div>
+        </dl>
+      </section>
       {error ? <p className="debt-panel__error" role="alert">{error}</p> : null}
       {pendingAction
         ? (
@@ -142,46 +231,52 @@ export default function DebtPanel() {
           </p>
         )
         : null}
+      {properties.length > 0
+        ? <h3 className="debt-panel__heading">Bán tài sản để có tiền</h3>
+        : <p className="debt-panel__empty">Bạn không còn tài sản nào để bán.</p>}
       <div className="debt-panel__properties">
-        {properties.map((property, index) => {
+        {properties.map(property => {
           const propertyName = getTileName(property.tileID);
-          const development = property.houses === 5
-            ? '1 Khách sạn'
-            : property.houses > 0 ? `${property.houses} Nhà` : 'Chưa xây';
+          const deed = deeds.get(property.tileID);
           const choosingBuyer = selectedTileId === property.tileID;
+          const buyerStatusId = `debt-buyer-status-${property.tileID}`;
+          const saleId = `debt-sale-${property.tileID}`;
           return (
             <article key={property.tileID} className="debt-panel__property">
-              <div className="debt-panel__property-copy">
-                <strong>{propertyName}</strong>
-                <span>{development} · Nhận {formatMoney(property.grossPrice)}</span>
-              </div>
+              {deed ? <PropertyDeedCard model={deed} variant="compact" showOwner={false} className="debt-panel__deed" /> : <strong>{propertyName}</strong>}
               <div className="debt-panel__property-actions">
-                <button
-                  data-modal-autofocus={index === 0 ? true : undefined}
-                  className="debt-panel__icon-action"
-                  type="button"
+                {/* The accessible name keeps the tile; this is what the sale brings, read after it. */}
+                <span id={saleId} className="sr-only">{`Nhận ${formatMoney(property.grossPrice)}`}</span>
+                <Button
+                  variant="secondary"
+                  icon={<ActionIcon name="sellToBank" />}
                   aria-label={`Bán ${propertyName} cho Ngân hàng`}
-                  title={`Bán ${propertyName} cho Ngân hàng`}
+                  aria-describedby={saleId}
                   disabled={pendingAction !== null || forcedSaleActive}
-                  aria-busy={pendingAction?.key === `bank:${property.tileID}`}
+                  busy={pendingAction?.key === `bank:${property.tileID}`}
                   onClick={() => submit(`bank:${property.tileID}`, () => socketFunctions.sellPropertyToBank?.({
                     paymentOperationId: claim.paymentOperationId ?? '',
                     claimId: claim.claimId ?? '',
                     tileID: property.tileID,
                   }))}
-                ><Landmark className="action-icon action-icon--only" aria-hidden="true" /></button>
-                <button
-                  className="debt-panel__icon-action"
-                  type="button"
+                >
+                  <span className="debt-panel__sale-label">
+                    <span>Bán cho Ngân hàng</span>
+                    {' '}
+                    <strong>{`+${formatMoney(property.grossPrice)}`}</strong>
+                  </span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  icon={<ActionIcon name="propose" />}
                   aria-label={`Đề nghị người chơi mua ${propertyName}`}
-                  title={`Đề nghị người chơi mua ${propertyName}`}
                   aria-pressed={choosingBuyer}
                   disabled={pendingAction !== null || forcedSaleActive || buyers.length === 0}
                   onClick={() => {
                     setSelectedTileId(choosingBuyer ? null : property.tileID);
                     setSelectedBuyerId(null);
                   }}
-                ><Handshake className="action-icon action-icon--only" aria-hidden="true" /></button>
+                >Đề nghị người chơi mua</Button>
               </div>
               {choosingBuyer
                 ? (
@@ -199,16 +294,19 @@ export default function DebtPanel() {
                             disabled={!affordable || pendingAction !== null}
                             onChange={() => setSelectedBuyerId(buyerId)}
                           />
-                          <span>{buyer.name}</span>
+                          <span className="debt-panel__buyer-avatar" aria-hidden="true">
+                            <PlayerAvatar characterId={buyer.characterId ?? null} colorId={buyer.color} size={32} />
+                          </span>
+                          <span className="debt-panel__buyer-name">{buyer.name}</span>
                           <small>{affordable ? formatMoney(buyer.accountBalance) : 'Không đủ tiền'}</small>
                         </label>
                       );
                     })}
-                    <button
-                      className="debt-panel__send"
-                      type="button"
+                    <Button
+                      aria-describedby={buyerStatusId}
+                      icon={<ActionIcon name="send" />}
                       disabled={!selectedBuyer || !selectedProperty || selectedBuyer[1].accountBalance < selectedProperty.grossPrice || pendingAction !== null}
-                      aria-busy={pendingAction?.key === `forced:${property.tileID}:${selectedBuyerId ?? ''}`}
+                      busy={pendingAction?.key === `forced:${property.tileID}:${selectedBuyerId ?? ''}`}
                       onClick={() => {
                         if (!selectedBuyerId) return;
                         submit(`forced:${property.tileID}:${selectedBuyerId}`, () => socketFunctions.proposeForcedSale?.({
@@ -218,11 +316,16 @@ export default function DebtPanel() {
                           buyerPlayerId: selectedBuyerId,
                         }));
                       }}
-                    >Gửi đề nghị bán</button>
+                    >Gửi đề nghị bán</Button>
+                    <p id={buyerStatusId} className="debt-panel__buyer-hint">
+                      {buyers.every(([, buyer]) => buyer.accountBalance < property.grossPrice)
+                        ? `Không ai đủ tiền để mua với giá ${formatMoney(property.grossPrice)}.`
+                        : selectedBuyer ? `Giá cố định ${formatMoney(property.grossPrice)}.` : 'Chọn một người mua để gửi đề nghị.'}
+                    </p>
                   </fieldset>
                 )
                 : null}
-              </article>
+            </article>
           );
         })}
       </div>

@@ -6,3 +6,19 @@
   --radius-pill: 999px;
 }
 
+
+/* Visual Overhaul V2 radius scale (plan 01 §8.7); the legacy names alias it under the v2 theme. */
+:root {
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+}
+
+:root[data-visual-theme='v2'] {
+  --radius-small: var(--radius-sm);
+  --radius-medium: var(--radius-md);
+  --radius-large: var(--radius-lg);
+  --radius-extra-large: var(--radius-xl);
+}

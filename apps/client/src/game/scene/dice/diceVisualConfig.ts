@@ -1,3 +1,4 @@
+import { OTB_PALETTE } from '../../../design-system/tokens/palette';
 import { BASE_DICE_SIZE, DICE_SIZE } from './diceLayout';
 
 // The die remains a cube, but this radius is large enough to catch the board
@@ -30,5 +31,7 @@ export const DICE_RESULT_FONT_SIZE = 0.42;
 // standard materials remain lit by the existing ACESFilmic scene lights.
 export const DICE_BODY_COLOR = '#ffffff';
 export const DICE_FACE_COLOR = '#ffffff';
+/** Warm ink from the V2 palette instead of the old blue-green black. */
+export const DICE_PIP_COLOR = OTB_PALETTE['ink-900'];
 export const DICE_FACE_ROUGHNESS = 0.18;
 export const DICE_FACE_METALNESS = 0.05;

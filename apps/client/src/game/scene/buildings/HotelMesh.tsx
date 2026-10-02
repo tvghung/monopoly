@@ -9,6 +9,7 @@ import {
 import { boardVisualTokens } from '../board/boardVisualTokens';
 import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
 import ContactShadow from '../fx/ContactShadow';
+import { useRenderQuality } from '../render/RenderQualityContext';
 import { getPlayerDisplayColor } from '../../ui/playerVisualColors';
 import {
   FACADE_TEXTURE_TINT,
@@ -29,10 +30,13 @@ export default function HotelMesh({
   ownerColor,
 }: { position: readonly [number, number, number]; ownerColor?: string }) {
   const crownColor = getHotelCrownColor(ownerColor);
+  const { buildingContactShadows } = useRenderQuality();
   return (
     <group name="HotelVisual" position={position}>
       <RoundedBoxMesh
         name="HotelFacade"
+        castShadow
+        receiveShadow
         width={HOTEL_BODY_WIDTH}
         height={HOTEL_BODY_HEIGHT}
         depth={HOTEL_BODY_DEPTH}
@@ -43,6 +47,7 @@ export default function HotelMesh({
       />
       <RoundedBoxMesh
         name="HotelCrown"
+        castShadow
         width={HOTEL_CROWN_WIDTH}
         height={HOTEL_CROWN_HEIGHT}
         depth={HOTEL_CROWN_DEPTH}
@@ -51,7 +56,7 @@ export default function HotelMesh({
         materialProfile="houseRoof"
         position={[0, HOTEL_BODY_HEIGHT / 2 + HOTEL_CROWN_HEIGHT / 2, 0]}
       />
-      <ContactShadow scale={[1.1, 0.64]} opacity={0.2} />
+      {buildingContactShadows ? <ContactShadow scale={[1.1, 0.64]} opacity={0.2} /> : null}
     </group>
   );
 }

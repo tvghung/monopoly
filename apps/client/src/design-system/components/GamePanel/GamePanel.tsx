@@ -1,18 +1,3 @@
-import type { ReactNode } from 'react';
-import './GamePanel.css';
-
-interface GamePanelProps {
-  children: ReactNode;
-  className?: string;
-  title?: string;
-}
-
-export default function GamePanel({ children, className = '', title }: GamePanelProps) {
-  return (
-    <section className={`ds-game-panel${className ? ` ${className}` : ''}`}>
-      {title ? <h2 className="ds-game-panel__title">{title}</h2> : null}
-      {children}
-    </section>
-  );
-}
-
+// Renamed to Panel (visual-overhaul-v2 plan 01); kept as a re-export for existing imports.
+export { default } from '../Panel/Panel';
+export type { PanelProps as GamePanelProps } from '../Panel/Panel';

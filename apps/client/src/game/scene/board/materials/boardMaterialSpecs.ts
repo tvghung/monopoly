@@ -16,6 +16,7 @@ export type BoardMaterialProfile =
   | 'houseRoof'
   | 'hotel'
   | 'diceBody'
+  | 'lacquer'
   | 'metal'
   | 'foliage'
   | 'water'
@@ -25,6 +26,9 @@ export interface BoardMaterialSpec {
   roughness: number;
   metalness: number;
   emissiveIntensity?: number;
+  /** Only physical materials (the dice) read these. */
+  clearcoat?: number;
+  clearcoatRoughness?: number;
 }
 
 export const boardMaterialSpecs: Record<BoardMaterialProfile, BoardMaterialSpec> = {
@@ -42,9 +46,15 @@ export const boardMaterialSpecs: Record<BoardMaterialProfile, BoardMaterialSpec>
   parkGround: { roughness: 0.9, metalness: 0 },
   propertyTrim: { roughness: 0.3, metalness: 0.05 },
   houseWall: { roughness: 0.76, metalness: 0 },
-  houseRoof: { roughness: 0.48, metalness: 0 },
+  // Toy plastic (visual overhaul V2 plan 02 T02.14): roofs and hotel crowns catch the studio softbox.
+  houseRoof: { roughness: 0.35, metalness: 0 },
   hotel: { roughness: 0.68, metalness: 0 },
-  diceBody: { roughness: 0.16, metalness: 0.02 },
+  // Glossy toy plastic: physical clearcoat over a satin body (was 0.16 / 0.02 standard).
+  diceBody: {
+    roughness: 0.28, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.2,
+  },
+  // Lacquered rails and accent bands.
+  lacquer: { roughness: 0.35, metalness: 0.02 },
   metal: { roughness: 0.24, metalness: 0.7 },
   foliage: { roughness: 0.76, metalness: 0 },
   water: { roughness: 0.12, metalness: 0.08 },
@@ -54,6 +64,13 @@ export const boardMaterialSpecs: Record<BoardMaterialProfile, BoardMaterialSpec>
 export function getBoardMaterialProps(
   profile: BoardMaterialProfile,
   color: string,
-): { color: string; roughness: number; metalness: number; emissiveIntensity?: number } {
+): {
+  color: string;
+  roughness: number;
+  metalness: number;
+  emissiveIntensity?: number;
+  clearcoat?: number;
+  clearcoatRoughness?: number;
+} {
   return { color, ...boardMaterialSpecs[profile] };
 }

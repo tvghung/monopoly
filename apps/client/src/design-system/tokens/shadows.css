@@ -7,3 +7,21 @@
   --shadow-focus: 0 0 0 0.25rem rgb(36 89 204 / 28%);
 }
 
+
+/* Visual Overhaul V2 depth language (plan 01 §8.7): warm, layered, never teal. */
+:root {
+  --elevation-1: 0 1px 0 rgb(43 29 20 / 12%), 0 2px 6px rgb(43 29 20 / 10%);
+  --elevation-2: 0 2px 0 rgb(43 29 20 / 10%), 0 8px 24px rgb(43 29 20 / 16%);
+  --elevation-3: 0 4px 0 rgb(43 29 20 / 8%), 0 24px 64px rgb(43 29 20 / 28%);
+  --focus-ring: 0 0 0 2px var(--otb-paper-50), 0 0 0 5px var(--otb-blue-600);
+}
+
+/* Existing surfaces pick up the warm depth automatically through their legacy shadow tokens. */
+:root[data-visual-theme='v2'] {
+  --shadow-panel: var(--elevation-2);
+  --shadow-raised: var(--elevation-1);
+  --shadow-card: var(--elevation-2);
+  --shadow-modal: var(--elevation-3);
+  --shadow-floating: var(--elevation-2);
+  --shadow-focus: var(--focus-ring);
+}

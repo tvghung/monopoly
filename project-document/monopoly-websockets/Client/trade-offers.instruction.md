@@ -9,6 +9,14 @@
 - Tài sản có công trình tuân theo guard transfer hiện hành của server; client không
   tự suy diễn group rule hay giá trị tài sản.
 
+## UI
+
+- `TradeOfferModal` (`Modal` `xl`): hai cột "Bạn giao"/"Bạn nhận", mỗi cột có ô tiền (kèm số tiền đã định dạng bên cạnh), chip `PropertyDeedCard` chọn được cho từng tài sản và
+  thẻ Thoát Tù, và một dòng tóm tắt "Bạn giao … · Bạn nhận …". Cột xếp chồng trên điện thoại dọc; **ngoại lệ có chủ ý**: điện thoại ngang
+  (`max-height: 31rem`) giữ hai cột để thấy cả hai bên cùng lúc.
+- `IncomingOffers` (`Modal` `lg`, không có nút đóng): mỗi offer là một `region` đặt tên bằng "Đề nghị từ <tên>", hai bên là chip tài sản,
+  chip hết hạn; "Chấp nhận"/"Từ chối" được mô tả bằng tiêu đề offer để phân biệt khi có nhiều offer; offer đầu tiên nhận focus.
+
 ## Direct bilateral offer
 
 1. Player mở chi tiết tài sản của người khác và gửi canonical offered/requested bundle.

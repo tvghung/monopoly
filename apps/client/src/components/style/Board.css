@@ -11,7 +11,7 @@
      Lower this number for a squarer board, raise it to allow more stretch. */
   height: 100dvh;
   width: min(100vw, 180dvh);
-  background: var(--color-canvas-deep);
+  background: var(--color-scene-backdrop);
   border: 2px solid var(--color-border-strong);
 }
 

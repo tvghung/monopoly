@@ -7,20 +7,19 @@ import {
   useState,
 } from 'react';
 import stateContext from '../internal';
+// Keep Dashboard first: its stylesheet must precede Button.css in the bundle (the HUD imports Button).
+import Dashboard from './Dashboard';
 import displayPositionsContext from '../displayPositionsContext';
 import tradePromptContext from '../tradePromptContext';
 import { usePresentation } from '../game/presentation/PresentationProvider';
 import { buildBoardRenderModel } from '../game/scene/board/boardRenderModel';
 import SceneErrorBoundary from '../game/scene/fallback/SceneErrorBoundary';
 import { supportsWebGL } from '../game/scene/fallback/webglSupport';
+import PlayerPortfolioModal from '../game/ui/property/PlayerPortfolioModal';
 import PropertyInspectionModal from '../game/ui/property/PropertyInspectionModal';
-import OwnedPropertiesControl from '../game/ui/property/OwnedPropertiesControl';
-import PlayerStations from '../game/ui/stations/PlayerStations';
-import RollControl from '../game/ui/hud/RollControl';
+import GameHud from '../game/ui/hud/GameHud';
 import BoardAccessibilityControls from './BoardAccessibilityControls';
 import LegacyBoardView from './legacy-board/LegacyBoardView';
-import Log from './Log';
-import Dashboard from './Dashboard';
 import {
   resolveInitialRendererMode,
   type RendererMode,
@@ -38,6 +37,7 @@ export default function Board() {
     () => resolveInitialRendererMode(supportsWebGL()),
   );
   const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
+  const [portfolioPlayerId, setPortfolioPlayerId] = useState<string | null>(null);
   const [hoveredTileId, setHoveredTileId] = useState<number | null>(null);
   const [tradeTarget, setTradeTarget] = useState<number | null>(null);
   const displayPositions = presentationState.displayPositions;
@@ -48,6 +48,9 @@ export default function Board() {
 
   const selectTile = useCallback((tileId: number) => {
     setSelectedTileId(tileId);
+  }, []);
+  const closePortfolio = useCallback(() => {
+    setPortfolioPlayerId(null);
   }, []);
   const openTradeForProperty = useCallback((tileId: number) => {
     if (!canMutate) return;
@@ -121,13 +124,8 @@ export default function Board() {
                 </SceneErrorBoundary>
               )
               : legacyBoard}
-            <PlayerStations
-              activePlayerId={presentationState.displayActivePlayerId ?? state.boardState.currentPlayer.id}
-            />
             <Dashboard />
-            <RollControl />
-            <OwnedPropertiesControl onSelect={selectTile} />
-            <Log />
+            <GameHud onSelectTile={selectTile} onSelectPlayer={setPortfolioPlayerId} />
           </section>
 
           {rendererMode === 'webgl'
@@ -141,6 +139,7 @@ export default function Board() {
             : null}
 
           <PropertyInspectionModal tileId={selectedTileId} onClose={closeInspection} />
+          <PlayerPortfolioModal playerId={portfolioPlayerId} onClose={closePortfolio} onSelectTile={selectTile} />
         </section>
       </displayPositionsContext.Provider>
     </tradePromptContext.Provider>

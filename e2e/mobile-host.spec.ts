@@ -111,8 +111,10 @@ async function expectTouchTarget(
 ): Promise<void> {
   await expect(locator).toBeVisible();
   const box = await locator.boundingBox();
-  expect(box?.width ?? 0).toBeGreaterThanOrEqual(minimum);
-  expect(box?.height ?? 0).toBeGreaterThanOrEqual(minimum);
+  // A 44px control can measure 43.999999 after layout rounding; that is still a 44px target.
+  const tolerance = 0.05;
+  expect(box?.width ?? 0).toBeGreaterThanOrEqual(minimum - tolerance);
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(minimum - tolerance);
   expect(box?.x ?? -1).toBeGreaterThanOrEqual(0);
   expect(box ? box.x + box.width : viewport.width + 1).toBeLessThanOrEqual(viewport.width + 1);
   expect(box?.y ?? -1).toBeGreaterThanOrEqual(0);
@@ -169,6 +171,8 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
   };
   watchErrors(page);
   const roomCode = `OTB-${Date.now().toString(36).slice(-6).toUpperCase()}`;
+  // The HUD drawer remembers its state per viewer; start every run from the default (closed).
+  await page.addInitScript(() => window.localStorage.removeItem('own-the-block.hud.drawer.v1'));
   await page.addInitScript(() => {
     const original = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function getContext(
@@ -192,6 +196,7 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
       : { width: 390, height: 844 },
   });
   const guest = await guestContext.newPage();
+  await guest.addInitScript(() => window.localStorage.removeItem('own-the-block.hud.drawer.v1'));
   watchErrors(guest);
   try {
     await joinRoom(page, 'Host Mobile LongName', roomCode, 'tap');
@@ -203,14 +208,17 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
     await guest.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect(await guest.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await expect(page.getByText('Dog', { exact: true })).toHaveCount(0);
-    await chooseAndReady(page, 'Dog');
+    await expect(page.getByText('Chó', { exact: true })).toHaveCount(0);
+    await chooseAndReady(page, 'Chó');
     await chooseAndReady(guest, 'Capybara');
 
     await page.setViewportSize({ width: 667, height: 375 });
     await guest.setViewportSize({ width: 667, height: 375 });
     const start = page.getByRole('button', { name: 'Bắt đầu' });
     await expect(start).toBeEnabled();
+    // The lobby (header, four seats, mascot picker) is taller than 375px and keeps the scroll offset of the ready step; the
+    // host scrolls to the primary action, which then has to fit and be at least 44px.
+    await start.scrollIntoViewIfNeeded();
     await expectTouchTarget(start, { width: 667, height: 375 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await start.click();
@@ -219,9 +227,14 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
     await expect(page.locator('.legacy-board')).toBeVisible();
     await expect(page.getByText('Hãy xoay ngang thiết bị')).toBeHidden();
     expect(
-      await page.getByRole('button', { name: 'Chơi', exact: true }).count()
-      + await guest.getByRole('button', { name: 'Chơi', exact: true }).count(),
+      await page.getByRole('button', { name: 'Đổ xúc xắc', exact: true }).count()
+      + await guest.getByRole('button', { name: 'Đổ xúc xắc', exact: true }).count(),
     ).toBe(1);
+    const guestViewport = { width: 667, height: 375 };
+    await expectTouchTarget(guest.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }), guestViewport);
+    await expectTouchTarget(guest.getByRole('button', { name: /^Tài sản của tôi/u }), guestViewport);
+    const guestRoll = guest.getByRole('button', { name: 'Đổ xúc xắc', exact: true });
+    if (await guestRoll.count() > 0) await expectTouchTarget(guestRoll, guestViewport);
 
     for (const viewport of ACCEPTANCE_VIEWPORTS) {
       await page.setViewportSize(viewport);
@@ -240,6 +253,13 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
       const surrender = page.getByRole('button', { name: 'Bỏ cuộc' });
       await expectTouchTarget(settings, viewport);
       await expectTouchTarget(surrender, viewport);
+      if (!(viewport.width < viewport.height && viewport.width <= 768)) {
+        // The HUD controls of plan 03: the activity drawer tab, the assets dock button and the roll call to action.
+        await expectTouchTarget(page.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }), viewport);
+        await expectTouchTarget(page.getByRole('button', { name: /^Tài sản của tôi/u }), viewport);
+        const hostRoll = page.getByRole('button', { name: 'Đổ xúc xắc', exact: true });
+        if (await hostRoll.count() > 0) await expectTouchTarget(hostRoll, viewport);
+      }
       await settings.click();
       await expect(settings).toHaveAttribute('aria-expanded', 'true');
       if (viewport.width === 360) {
@@ -254,7 +274,8 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
       const modalMetrics = await dialog.evaluate(element => {
         const body = element.querySelector<HTMLElement>('.ds-modal__body');
         const rect = element.getBoundingClientRect();
-        if (body && window.innerHeight <= 430) body.scrollTop = body.scrollHeight;
+        // Scroll whenever the body overflows: the graphics section (plan 02) made the dialog taller than 430 px.
+        if (body && (window.innerHeight <= 430 || body.scrollHeight > body.clientHeight)) body.scrollTop = body.scrollHeight;
         return {
           top: rect.top,
           bottom: rect.bottom,
@@ -301,9 +322,12 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
     await page.getByRole('button', { name: 'Hủy' }).click();
 
     const longMessage = 'Tin nhắn kiểm tra dài vẫn hiển thị rõ trên màn hình ngang.';
+    // The activity drawer starts closed (plan 03): open it before typing or reading.
+    await page.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }).click();
     await page.getByLabel('Tin nhắn').fill(longMessage);
     await page.getByRole('button', { name: 'Gửi' }).click();
-    await expect(guest.getByText(new RegExp(longMessage, 'u'))).toBeVisible();
+    await guest.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }).click();
+    await expect(guest.getByRole('log', { name: 'Nhật ký ván chơi' }).getByText(new RegExp(longMessage, 'u'))).toBeVisible();
     await guest.getByRole('button', { name: 'Ẩn nhật ký và trò chuyện' }).click();
     await page.waitForTimeout(800);
     await page.getByLabel('Tin nhắn').fill('Tin chưa đọc một.');
@@ -370,7 +394,7 @@ test('single rendered WAV music asset and supported Web Audio lifecycle', async 
     expect((await page.evaluate(() => (
       (window as typeof window & { __musicObservation: MusicObservation }).__musicObservation
     ))).starts).toEqual([]);
-    await chooseAndReady(page, 'Dog');
+    await chooseAndReady(page, 'Chó');
     await chooseAndReady(guest, 'Capybara');
     await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeEnabled();
     await page.getByRole('button', { name: 'Bắt đầu' }).click();

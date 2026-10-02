@@ -24,3 +24,11 @@
   pending offer and expiry resolves exactly once.
 - [ ] `[SOCKET]` Leave cancels relevant pending offers; failed room/offer transaction
   produces no transfer/private result/public update/success ACK.
+
+## Trade and incoming offers UI (visual overhaul V2, plan 04)
+
+- [x] `[AUTO][CLIENT]` `TradeOfferModal.test.tsx`: selectable deed chips, money previews, the summary line, server-validated
+  submission unchanged.
+- [x] `[AUTO][CLIENT]` `IncomingOffers.test.tsx`: both sides of each offer as chips, answers are described by the sender so several
+  offers can be told apart, the first answer is focused, expired offers disable both answers, no close button.
+- [ ] `[MANUAL-E2E]` G4: trade and incoming offers at phone sizes (the two columns stay side by side on a phone held sideways).

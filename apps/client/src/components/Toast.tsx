@@ -26,11 +26,13 @@ interface ToastApi {
 
 // How long a toast stays on screen before it dismisses itself.
 const TOAST_TIMEOUT_MS = 5000;
+// At most this many toasts are visible; a newer one pushes the oldest out.
+export const MAX_VISIBLE_TOASTS = 3;
 
 const ToastContext = createContext<ToastApi>({ show: () => {} });
 
-// A minimal toast/notification system: a provider that renders a bottom-centre
-// stack, and a `useToast()` hook whose `show` queues a self-dismissing message.
+// A minimal toast/notification system: a provider that renders a top-centre
+// stack under the HUD status pill, and a `useToast()` hook whose `show` queues a self-dismissing message.
 // Replaces the unmaintained react-alert (React <=17 peers, function-component
 // defaultProps that React 19 ignores) with the framer-motion we already use.
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -41,7 +43,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const show = useCallback((message: string, options?: { variant?: ToastVariant }) => {
     const id = nextId.current;
     nextId.current += 1;
-    setToasts(prev => [...prev, { id, message, variant: options?.variant ?? 'info' }]);
+    setToasts(prev => [...prev, { id, message, variant: options?.variant ?? 'info' }].slice(-MAX_VISIBLE_TOASTS));
     const timer = window.setTimeout(() => {
       setToasts(prev => prev.filter(toast => toast.id !== id));
     }, TOAST_TIMEOUT_MS);

@@ -1,45 +1,29 @@
 import { useEffect, useState } from 'react';
-import { Copy, RefreshCw } from 'lucide-react';
 import QRCode from 'qrcode';
+import Button from '../design-system/components/Button/Button';
+import { ActionIcon } from '../design-system/icons/ActionIcon';
 import { getDesktopBridge } from '../runtime/desktopBridge';
 import { buildLanJoinUrl } from '../runtime/lanSharing';
 import type { HostRuntimeStatus } from '../runtime/types';
+import { useCopyFeedback } from './lobby/copyText';
 
 interface HostLanSharingProps {
   roomCode: string;
 }
 
-function fallbackCopy(value: string): boolean {
-  const input = document.createElement('textarea');
-  input.value = value;
-  input.readOnly = true;
-  input.style.position = 'fixed';
-  input.style.opacity = '0';
-  document.body.append(input);
-  input.select();
-  const copied = document.execCommand?.('copy') ?? false;
-  input.remove();
-  return copied;
-}
+const COPY_NOTICES = {
+  idle: '',
+  copied: 'Đã sao chép.',
+  failed: 'Không thể sao chép tự động; hãy chọn liên kết ở trên.',
+} as const;
 
-export async function copyLanJoinUrl(value: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(value);
-      return true;
-    }
-  } catch {
-    // The DOM copy fallback below still works when clipboard permission is denied.
-  }
-  return fallbackCopy(value);
-}
-
+/** The invitation card of a LAN host: the join link as text and as a QR code on a paper card, and the network it is shared on. */
 export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
   const bridge = getDesktopBridge();
   const [status, setStatus] = useState<HostRuntimeStatus>();
   const [qrDataUrl, setQrDataUrl] = useState('');
-  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const [refreshing, setRefreshing] = useState(false);
+  const linkCopy = useCopyFeedback();
 
   useEffect(() => {
     if (!bridge?.host) return undefined;
@@ -99,7 +83,6 @@ export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
     <aside className="lobby-share" aria-labelledby="lobby-share-title">
       <div className="lobby-share__details">
         <p className="lobby__eyebrow" id="lobby-share-title">Mời qua mạng LAN</p>
-        <strong className="lobby-share__room">{roomCode}</strong>
         {joinUrl ? <code className="lobby-share__url">{joinUrl}</code> : (
           <p className="lobby-share__warning" role="status">Chưa có địa chỉ IPv4 LAN dùng được.</p>
         )}
@@ -119,32 +102,32 @@ export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
           </label>
         ) : null}
         <div className="lobby-share__actions">
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            icon={<ActionIcon name="copy" />}
             disabled={!joinUrl}
             onClick={() => {
-              if (!joinUrl) return;
-              void copyLanJoinUrl(joinUrl).then(copied => setCopyState(copied ? 'copied' : 'failed'));
+              if (joinUrl) linkCopy.copy(joinUrl);
             }}
           >
-            <Copy className="action-icon" aria-hidden="true" />Sao chép liên kết
-          </button>
-          <button type="button" disabled={refreshing} onClick={() => void refresh()}>
-            <RefreshCw className="action-icon" aria-hidden="true" />
+            Sao chép liên kết
+          </Button>
+          <Button variant="ghost" icon={<ActionIcon name="refresh" />} disabled={refreshing} onClick={() => void refresh()}>
             {refreshing ? 'Đang làm mới…' : 'Làm mới mạng'}
-          </button>
+          </Button>
         </div>
-        <p className="lobby-share__copy-state" aria-live="polite">
-          {copyState === 'copied' ? 'Đã sao chép.' : copyState === 'failed' ? 'Không thể sao chép tự động; hãy chọn liên kết ở trên.' : ''}
-        </p>
+        <p className="lobby-share__copy-state" aria-live="polite">{COPY_NOTICES[linkCopy.state]}</p>
       </div>
       {joinUrl && qrDataUrl ? (
-        <img
-          className="lobby-share__qr"
-          src={qrDataUrl}
-          alt={`Mã QR tham gia phòng ${roomCode}`}
-          data-qr-payload={joinUrl}
-        />
+        <figure className="lobby-share__qr-card">
+          <img
+            className="lobby-share__qr"
+            src={qrDataUrl}
+            alt={`Mã QR tham gia phòng ${roomCode}`}
+            data-qr-payload={joinUrl}
+          />
+          <figcaption>Quét mã để vào phòng</figcaption>
+        </figure>
       ) : null}
     </aside>
   );

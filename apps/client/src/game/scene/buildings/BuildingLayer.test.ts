@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { presentationTiming } from '../../presentation/timings';
+import { getHotelSlot } from '../board/architecture/tileAnchors';
+import { getLandmarkLocalOrigin } from './LandmarkMesh';
 import {
+  getHotelAnchor,
   getHotelTransitionScales,
   getHousePopScale,
   getScaledConstructionBurstDuration,
@@ -56,5 +59,18 @@ describe('BuildingLayer sequential construction', () => {
     expect(getHotelTransitionScales(1).hotelScale).toBe(1);
     expect(getScaledConstructionBurstDuration(presentationTiming.hotelTransition, presentationTiming.hotelTransition))
       .toBe(presentationTiming.buildPop);
+  });
+});
+
+describe('hotel anchor', () => {
+  it('puts the dust puff where the hotel box stands for a tile that has no landmark', () => {
+    // Every street gets a landmark in plan 05; the railroad and an unknown tile still have none.
+    expect(getHotelAnchor(5)).toEqual(getHotelSlot());
+    expect(getHotelAnchor(999)).toEqual(getHotelSlot());
+  });
+
+  it('puts it on the plinth top for a street with a landmark', () => {
+    expect(getHotelAnchor(13)).toEqual(getLandmarkLocalOrigin(13));
+    expect(getHotelAnchor(13)).not.toEqual(getHotelSlot());
   });
 });

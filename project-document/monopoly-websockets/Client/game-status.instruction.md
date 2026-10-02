@@ -8,10 +8,27 @@
 - Host=`Chủ Phòng`, Ready=`Sẵn Sàng`, Spectator=`Khán Giả`, Online/Offline và
   bankruptcy/leave reasons đều có Vietnamese copy.
 
+## Player card (HUD)
+
+- Bốn góc màn hình, mỗi người chơi một card (`game/ui/hud/PlayerCard.tsx`); trạng thái luôn có chữ và icon, không chỉ màu:
+  lượt hiện tại ("Đang đi", vòng vàng), "Bạn", "Ở tù n/2" (vòng đối thủ đã qua), "Mất kết nối" kèm "Tự bỏ lượt sau
+  m:ss" khi `turnRecovery` trỏ tới người đó (chỉ hiển thị, deadline do server giữ), "Phá sản" (thay tiền bằng chip,
+  card xám), "Đã rời" (mờ 50%). Người chơi LEFT/BANKRUPT giữ nguyên góc. Cạnh tên tối đa hai tag (ưu tiên Mất kết nối >
+  Ở tù > Đang đi > Bạn); ở điện thoại ngang chỉ còn badge icon (Ở tù, Mất kết nối + đếm ngược).
+- Tiền, lượt và số nhà/khách sạn theo presentation state; số tài sản và ô sở hữu theo `ownedProps` authoritative.
+
 ## Lobby/start
 
-- Public roster hiển thị stable ID-backed name/color/host/ready/connected.
-- 2–4 active Player, tất cả connected/ready; chỉ host có start action.
+- Public roster hiển thị stable ID-backed name/color/host/ready/connected. `Lobby` vẽ luôn đủ `maxPlayers` thẻ chỗ ngồi
+  (`LobbySeat`: mascot, tên, tem sẵn sàng có chữ, huy hiệu Chủ Phòng, biểu tượng "Mất kết nối", và với chính mình nút "Sẵn sàng"/"Hủy sẵn sàng"; `EmptySeat` cho chỗ trống).
+  Mã phòng có nút "Sao chép mã phòng" với `role="status"` (`Đã sao chép.` / lỗi tự chọn mã); host đang chạy LAN thấy
+  `HostLanSharing` (thẻ chia sẻ địa chỉ).
+- `MascotPicker` đổi mascot/màu qua `set appearance`, chuyển động theo reduced motion hiệu lực (setting hoặc OS).
+  Mascot chỉ nhận diện bằng hình; `accessibleLabel` tiếng Việt chỉ nằm ở `alt`/`aria-label`.
+- 2–4 active Player, tất cả connected/ready; chỉ host có start action. Nút "Bắt đầu" bị disable luôn kèm **lý do viết ra**
+  (`startReadiness.getStartBlockReason`, lý do đầu tiên thắng): "Cần ít nhất N người chơi", "Tối đa N người chơi", "Chờ mọi
+  người sẵn sàng", "Có người chưa chọn mascot", "Có người đang mất kết nối", "Hai người đang trùng mascot và màu";
+  nút trỏ tới lý do bằng `aria-describedby`. Server vẫn là authority.
 - Start success update chứa persisted first-player result từ server dice tie-break;
   UI không tự random/reorder roster.
 - Temporary host disconnect không transfer; explicit leave transfer theo join order.
@@ -25,6 +42,14 @@
 - Winner set một lần, room `FINISHED`, and `WinnerBanner` shows only authoritative
   name/mascot/color/final cash/property/house/hotel facts. Reconnect hydrates this
   surface immediately without replaying stale presentation.
+- `WinnerBanner` là `Modal` `xl` tone `celebration`, `role="alertdialog"`, mô tả bằng người thắng + câu hướng dẫn tiếp theo:
+  hero (avatar 128 px, 64 px khi landscape thấp, vương miện), bốn ô số liệu, danh sách người chơi khác (không xếp hạng:
+  `finishedPlayers` không có thứ tự loại đáng tin; thứ tự theo ghế) với chip "Phá sản"/"Đã rời". **Mọi vai trò đều có "Rời phòng"**
+  (qua `useRoomExit()`, lỗi hiển thị ngay trong dialog); chỉ host có "Chơi lại" (nút chính, đứng trước trong DOM). Người không phải
+  host bắt đầu ở vùng "Kết quả ván chơi" (`tabIndex=0`, cũng là chỗ để cuộn bằng bàn phím), không bao giờ ở nút rời phòng.
+  `useVictoryVisibility`: winner đến từ live update chỉ hiện khi presentation `idle` (dự phòng 8 s); snapshot/reconnect hiện
+  ngay. `VictoryConfetti` là một đợt 48 mảnh ≤ 1200 ms, chỉ lúc xuất hiện live, không bao giờ khi reduced motion hiệu lực.
+- Player card trên HUD là nút thật "Xem tài sản của <tên>" mở `PlayerPortfolioModal` (chỉ đọc).
 - The existing winner surface exposes `play again` only to the authenticated host.
   The command resets the same room to `LOBBY`; the server reuses canonical fresh
   state, keeps eligible stable IDs/appearance/join order/sessions, revives finished

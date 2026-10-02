@@ -1,18 +1,12 @@
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { DiceValue } from '@monopoly/shared';
-import RoundedBoxMesh from '../board/geometry/RoundedBoxMesh';
-import { boardVisualTokens } from '../board/boardVisualTokens';
-import SdfSurfaceText from '../board/tiles/SdfSurfaceText';
+import { getBoardMaterialProps } from '../board/materials/boardMaterialSpecs';
 import type { DiceRenderModel } from '../board/boardRenderModel';
+import { getDicePosition } from './diceLayout';
 import {
-  DICE_SIZE,
-  getDicePosition,
-  getDiceResultPosition,
-} from './diceLayout';
-import {
-  getDiceFaceSpecs,
+  createDiceBodyGeometry,
   getDicePipCylinderQuaternion,
   getDicePipInstances,
 } from './diceGeometry';
@@ -25,13 +19,7 @@ import {
 } from './diceOrientation';
 import {
   DICE_BODY_COLOR,
-  DICE_CORNER_SEGMENTS,
-  DICE_EDGE_RADIUS,
-  DICE_EDGE_SEGMENTS,
-  DICE_FACE_COLOR,
-  DICE_FACE_METALNESS,
-  DICE_FACE_ROUGHNESS,
-  DICE_FACE_SIZE,
+  DICE_PIP_COLOR,
   DICE_PIP_DEPTH,
   DICE_PIP_DEPTH_TEST,
   DICE_PIP_POLYGON_OFFSET_ENABLED,
@@ -39,31 +27,20 @@ import {
   DICE_PIP_POLYGON_OFFSET_UNITS,
   DICE_PIP_SEGMENTS,
   DICE_PIP_RADIUS,
-  DICE_RESULT_FONT_SIZE,
 } from './diceVisualConfig';
 import DiceContactShadowBatch from './DiceContactShadowBatch';
 import { DiceAnimationClock, useDiceAnimationProgressRef } from './diceAnimationClock';
+import { useRenderQuality } from '../render/RenderQualityContext';
 
-function DieFaces() {
-  const faces = useMemo(() => getDiceFaceSpecs(), []);
+function DieBody() {
+  const geometry = useMemo(() => createDiceBodyGeometry(), []);
+  const { tier } = useRenderQuality();
+  useEffect(() => () => geometry.dispose(), [geometry]);
   return (
-    <>
-      {faces.map(face => (
-        <mesh
-          key={face.value}
-          name={`DieFace${face.value}`}
-          position={face.position}
-          rotation={face.rotation}
-        >
-          <planeGeometry args={[DICE_FACE_SIZE, DICE_FACE_SIZE]} />
-          <meshStandardMaterial
-            color={DICE_FACE_COLOR}
-            roughness={DICE_FACE_ROUGHNESS}
-            metalness={DICE_FACE_METALNESS}
-          />
-        </mesh>
-      ))}
-    </>
+    <mesh name="DieBody" castShadow={tier === 'high'}>
+      <primitive object={geometry} attach="geometry" />
+      <meshPhysicalMaterial {...getBoardMaterialProps('diceBody', DICE_BODY_COLOR)} />
+    </mesh>
   );
 }
 
@@ -94,9 +71,9 @@ function DiePips() {
     >
       <cylinderGeometry args={[DICE_PIP_RADIUS, DICE_PIP_RADIUS, DICE_PIP_DEPTH, DICE_PIP_SEGMENTS, 1, false]} />
       <meshStandardMaterial
-        color={boardVisualTokens.tileText}
-        roughness={0.46}
-        metalness={0.08}
+        color={DICE_PIP_COLOR}
+        roughness={0.5}
+        metalness={0}
         depthTest={DICE_PIP_DEPTH_TEST}
         polygonOffset={DICE_PIP_POLYGON_OFFSET_ENABLED}
         polygonOffsetFactor={DICE_PIP_POLYGON_OFFSET_FACTOR}
@@ -155,18 +132,7 @@ function Die({
       rotation={rotation}
       scale={isRolling && !hasPreviousDice ? 0.86 : 1}
     >
-      <RoundedBoxMesh
-        name="DieBody"
-        width={DICE_SIZE}
-        height={DICE_SIZE}
-        depth={DICE_SIZE}
-        radius={DICE_EDGE_RADIUS}
-        segments={DICE_EDGE_SEGMENTS}
-        cornerSegments={DICE_CORNER_SEGMENTS}
-        color={DICE_BODY_COLOR}
-        materialProfile="diceBody"
-      />
-      <DieFaces />
+      <DieBody />
       <DiePips />
     </group>
   );
@@ -174,7 +140,6 @@ function Die({
 
 export default function DiceLayer({ model }: { model: DiceRenderModel }) {
   const hasVisibleDice = model.phase !== 'HIDDEN' && isValidDiceValue(model.dice);
-  const resultPosition = getDiceResultPosition();
 
   return (
     <group
@@ -206,18 +171,6 @@ export default function DiceLayer({ model }: { model: DiceRenderModel }) {
               rollSequence={model.rollSequence}
               fromValue={model.fromDice?.dice2}
             />
-            {model.phase === 'SETTLED'
-              ? (
-                <SdfSurfaceText
-                  name="DiceResultTotal"
-                  value={String(model.dice.dice1 + model.dice.dice2)}
-                  position={resultPosition}
-                  fontSize={DICE_RESULT_FONT_SIZE}
-                  maxWidth={0.9}
-                  color={boardVisualTokens.tileText}
-                />
-              )
-              : null}
           </DiceAnimationClock>
         )
         : null}

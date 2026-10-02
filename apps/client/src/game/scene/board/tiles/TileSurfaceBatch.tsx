@@ -175,6 +175,7 @@ function SurfaceBatchMesh({
       ref={meshRef}
       args={[undefined, undefined, batch.entries.length]}
       name={`${layerName}:${batch.key}`}
+      receiveShadow
       userData={{
         materialKey: batch.key,
         panel: layerName,

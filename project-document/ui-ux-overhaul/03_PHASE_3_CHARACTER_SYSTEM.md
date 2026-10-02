@@ -205,6 +205,10 @@ grounded group while the sprite body moves independently. The sprite material is
 neutral white so the colorized SVG is not tinted a second time; hop sampling owns
 shadow scale/opacity and the grounded group receives tile-impact offset only.
 
+> **Visual node superseded by visual-overhaul-v2 plan 05:** the `<sprite>` under the body group is now a die-cut standee
+> (a vertical card on a round base, see `Client/game-board.instruction.md`). The movement system of this phase — hop,
+> lean, reactions, landing, jail transfer, snap, slot reflow and reconnect — is unchanged and still owned by the body group.
+
 ## 7. Movement, landing, reactions, and reconnect
 
 Retain the existing `MOVE_CHARACTER` path and server-authoritative current

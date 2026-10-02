@@ -13,6 +13,7 @@ export default function AirportRunwayLoop() {
   return (
     <mesh
       name="AirportRunwayLoop"
+      receiveShadow
       geometry={geometry}
       position={[0, AIRPORT_RUNWAY_SURFACE_Y, 0]}
       rotation={[-Math.PI / 2, 0, 0]}

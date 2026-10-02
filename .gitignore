@@ -113,3 +113,7 @@ apps/desktop/generated/
 
 # macOS metadata
 .DS_Store
+
+# Playwright output
+test-results/
+playwright-report/

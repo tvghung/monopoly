@@ -12,6 +12,8 @@ import {
   normalizeSettings,
 } from './defaults';
 import { getDesktopBridge } from '../runtime/desktopBridge';
+import { GraphicsQualityDocumentSync } from './GraphicsQualityDocumentSync';
+import { ReducedMotionDocumentSync } from './ReducedMotionDocumentSync';
 import { readGameSettings, writeGameSettings } from './storage';
 import type { GameSettings, GameSettingsPatch } from './types';
 
@@ -69,5 +71,11 @@ export function SettingsProvider({ children, initialSettings }: SettingsProvider
     updateSettings,
   ]);
 
-  return <settingsContext.Provider value={value}>{children}</settingsContext.Provider>;
+  return (
+    <settingsContext.Provider value={value}>
+      <ReducedMotionDocumentSync />
+      <GraphicsQualityDocumentSync />
+      {children}
+    </settingsContext.Provider>
+  );
 }

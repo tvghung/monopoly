@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
+  <rect width="160" height="160" rx="28" fill="#fce3c4"/>
+  <ellipse cx="80" cy="138" rx="62" ry="8" fill="#3e2a22" opacity=".14"/>
+  <ellipse cx="80" cy="126" rx="68" ry="22" fill="#6f8f8a"/>
+  <path d="M22 122L100 108L140 122L100 136L22 132Z" fill="#d8cfc2"/>
+  <path d="M22 132L100 136L140 122V127L100 141L22 137Z" fill="#c8352d"/>
+  <path d="M40 120L96 110L124 121L96 131L40 128Z" fill="#ede6da"/>
+  <path d="M88 118L92 48H104L108 118Z" fill="#ede6da"/>
+  <path d="M90 50L98 26L106 50Z" fill="#c8352d"/>
+  <rect x="50" y="42" width="3" height="78" fill="#8c8c92"/>
+  <rect x="53" y="42" width="28" height="18" fill="#c8352d"/>
+  <polygon points="67,45 68.65,49.74 73.66,49.84 69.66,52.87 71.11,57.66 67,54.8 62.89,57.66 64.34,52.87 60.34,49.84 65.35,49.74" fill="#f2c230"/>
+  <rect x="29" y="110" width="3" height="14" fill="#7b5a3c"/>
+  <circle cx="30" cy="104" r="11" fill="#3f7a44"/>
+  <circle cx="44" cy="110" r="8" fill="#4f8a4a"/>
+  <rect x="131" y="106" width="3" height="14" fill="#7b5a3c"/>
+  <circle cx="132" cy="101" r="10" fill="#4f8a4a"/>
+</svg>

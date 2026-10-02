@@ -176,7 +176,10 @@ describe('Vietnamese game board', () => {
     expect(container.querySelector('.game-board__right-rail')).toBeNull();
     expect(container.querySelector('.gameplay-action-layer')).toBeTruthy();
     expect(container.querySelector('.player-stations')).toBeNull();
-    expect(container.querySelector('.player-stations-accessibility.sr-only')).toBeTruthy();
+    // Plan 03 T03.4: the sr-only station roster was replaced by the player card list (a named section, an ordered
+    // list, one summary item per seated player).
+    expect(container.querySelector('.player-stations-accessibility')).toBeNull();
+    expect(container.querySelector('section.player-card-list[aria-label="Người chơi"] ol')).toBeTruthy();
     expect(container.querySelector('[data-testid="roll-control"]')).toBeTruthy();
     expect(container.querySelectorAll('.dice')).toHaveLength(0);
     expect(renderer?.querySelectorAll('.center__room')).toHaveLength(1);
@@ -383,13 +386,13 @@ describe('Vietnamese game board', () => {
       </stateContext.Provider>,
     );
 
-    const button = screen.getByRole<HTMLButtonElement>('button', { name: 'Chơi' });
+    const button = screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ xúc xắc' });
     fireEvent.click(button);
     fireEvent.click(button);
 
     expect(socketFunctions.rollDice).toHaveBeenCalledTimes(1);
     expect(button.disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Đang chờ…' })).toBe(button);
+    expect(screen.getByRole('button', { name: 'Đang đổ…' })).toBe(button);
 
     const progressed = {
       ...state,
@@ -412,7 +415,7 @@ describe('Vietnamese game board', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Chơi' }).disabled).toBe(false);
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ xúc xắc' }).disabled).toBe(false);
     });
   });
 
@@ -444,11 +447,11 @@ describe('Vietnamese game board', () => {
       </stateContext.Provider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Chơi' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đổ xúc xắc' }));
 
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toContain('Bạn không có quyền thực hiện hành động này.');
-      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Chơi' }).disabled).toBe(false);
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ xúc xắc' }).disabled).toBe(false);
     });
   });
 
@@ -471,7 +474,7 @@ describe('Vietnamese game board', () => {
       </stateContext.Provider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Chơi' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đổ xúc xắc' }));
     expect(socketFunctions.rollDice).toHaveBeenCalledTimes(1);
 
     view.rerender(
@@ -500,10 +503,10 @@ describe('Vietnamese game board', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Chơi' }).disabled).toBe(false);
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ xúc xắc' }).disabled).toBe(false);
     });
     expect(socketFunctions.rollDice).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Chơi' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đổ xúc xắc' }));
     expect(socketFunctions.rollDice).toHaveBeenCalledTimes(2);
   });
 
@@ -526,7 +529,7 @@ describe('Vietnamese game board', () => {
       </stateContext.Provider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Chơi' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đổ xúc xắc' }));
     const committed = {
       ...state,
       boardState: {
@@ -549,7 +552,7 @@ describe('Vietnamese game board', () => {
     );
 
     await waitFor(() => {
-      expect(screen.queryByRole<HTMLButtonElement>('button', { name: 'Chơi' })).toBeNull();
+      expect(screen.queryByRole<HTMLButtonElement>('button', { name: 'Đổ xúc xắc' })).toBeNull();
     });
     expect(socketFunctions.rollDice).toHaveBeenCalledTimes(1);
   });
@@ -579,7 +582,7 @@ describe('Vietnamese game board', () => {
       </stateContext.Provider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Chơi' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đổ xúc xắc' }));
     view.rerender(
       <stateContext.Provider value={makeContextValue(state, {
         playerId: 'me',
@@ -599,7 +602,7 @@ describe('Vietnamese game board', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Chơi' }).disabled).toBe(false);
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ xúc xắc' }).disabled).toBe(false);
     });
     expect(socketFunctions.rollDice).toHaveBeenCalledTimes(1);
   });
@@ -637,7 +640,7 @@ describe('Vietnamese game board', () => {
       </stateContext.Provider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Chơi' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đổ xúc xắc' }));
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeTruthy();
     });
@@ -698,7 +701,7 @@ describe('Vietnamese game board', () => {
     expect(screen.getByText('An đang chơi')).toBeTruthy();
     expect(document.querySelector('[data-player-id="a"]')?.getAttribute('data-current-turn')).toBe('true');
     expect(document.querySelector('[data-player-id="b"]')?.getAttribute('data-current-turn')).toBe('false');
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Chơi' }).disabled).toBe(false);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ xúc xắc' }).disabled).toBe(false);
 
     view.rerender(
       <stateContext.Provider value={makeContextValue(state, {

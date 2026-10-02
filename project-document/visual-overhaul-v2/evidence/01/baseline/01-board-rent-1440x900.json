@@ -1,0 +1,92 @@
+{
+  "id": "01-baseline-board-rent-1440x900",
+  "plan": "01",
+  "folder": "baseline",
+  "name": "01-board-rent",
+  "url": "/?phase4-uat=1&scenario=rent&uat-controls=hidden",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "kind": "harness",
+  "rendererMode": "webgl",
+  "browser": "chromium 154.0.8037.58",
+  "captureTool": "e2e/visual/capture.visual.ts",
+  "consoleErrors": [],
+  "diagnostics": {
+    "pixelRatio": 1.25,
+    "drawingBuffer": {
+      "width": 1767,
+      "height": 1092
+    },
+    "camera": "orthographic",
+    "cameraPosition": [
+      16.95401417043256,
+      21.1925177130407,
+      16.95401417043256
+    ],
+    "toneMapping": "ACESFilmicToneMapping",
+    "shadows": "contact",
+    "anisotropy": 8,
+    "textureMaxAnisotropy": 16,
+    "drawCalls": 167,
+    "triangles": 63198,
+    "combinedDrawCalls": 167,
+    "combinedTriangles": 63198,
+    "activeAnimatedObjects": 0,
+    "targetDrawCalls": 210,
+    "stressDrawCallLimit": 240,
+    "targetTriangles": 80000,
+    "hardTriangleLimit": 100000,
+    "physicalScene": {
+      "stationLayer": true,
+      "stationCount": 4,
+      "authoritativeStationCount": 4,
+      "stationLabelCount": 4,
+      "bankTreasury": true,
+      "sharedCoinInstanceCount": 93,
+      "sharedCoinFinishInstances": {
+        "COPPER": 61,
+        "SILVER": 22,
+        "GOLD": 10
+      },
+      "decks": {
+        "chance": {
+          "physicalCount": 13,
+          "authoritativeCount": 13
+        },
+        "chest": {
+          "physicalCount": 15,
+          "authoritativeCount": 15
+        }
+      },
+      "destinationPreviewTileId": null,
+      "destinationPreview": {},
+      "coinSystem": {
+        "geometryType": "LatheGeometry",
+        "sceneEnvironment": false,
+        "finishes": {
+          "COPPER": {
+            "metalness": 0.74,
+            "roughness": 0.17,
+            "envMap": true,
+            "envMapIntensity": 1.08
+          },
+          "SILVER": {
+            "metalness": 0.8,
+            "roughness": 0.13,
+            "envMap": true,
+            "envMapIntensity": 1.24
+          },
+          "GOLD": {
+            "metalness": 0.77,
+            "roughness": 0.15,
+            "envMap": true,
+            "envMapIntensity": 1.14
+          }
+        }
+      },
+      "activeTurnRingCount": 0
+    }
+  }
+}

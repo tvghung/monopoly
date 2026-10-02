@@ -112,11 +112,14 @@ describe('SDF surface text contract', () => {
     );
 
     expect(readSource('./TileTextLayer.tsx')).toContain('<SdfSurfaceText');
+    // Plan 03 T03.6: names, balances and money changes moved to the DOM player cards.
     const stations = readSource('../../stations/PlayerStationLayer.tsx');
-    expect(stations).toContain('<SdfBillboardText');
-    expect(stations).toContain('name={`PlayerStationName:');
-    expect(stations).toContain('name={`PlayerStationBalance:');
-    expect(readSource('../../dice/DiceLayer.tsx')).toContain('name="DiceResultTotal"');
+    expect(stations).not.toContain('SdfBillboardText');
+    expect(stations).not.toContain('PlayerStationName');
+    expect(stations).not.toContain('PlayerStationBalance');
+    expect(stations).not.toContain('PlayerStationAmount');
+    // Plan 03 T03.8 (OD-03-7): the dice total is a DOM callout now, not 3D text.
+    expect(readSource('../../dice/DiceLayer.tsx')).not.toContain('DiceResultTotal');
     const cards = readSource('../../cards/PhysicalCardDecks.tsx');
     expect(cards).toContain('function IdleDeckStack');
     expect(cards).not.toContain('ActivePhysicalCard');

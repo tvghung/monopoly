@@ -7,7 +7,8 @@ import {
   ORTHOGRAPHIC_READABILITY_ZOOM,
 } from './cameraMath';
 
-function configureOrthographicCamera(
+/** The fixed board camera for a canvas of this aspect; exported so layout tests can compare analytic projections with it. */
+export function configureOrthographicCamera(
   camera: THREE.OrthographicCamera,
   aspect: number,
 ): void {

@@ -1,0 +1,592 @@
+/*
+ * Game HUD (visual overhaul V2, plan 03). Everything here lives inside `.game-board__renderer`, over the WebGL
+ * scene or the legacy board, and consumes the semantic tokens of the design system. z-order comes from the
+ * `--z-hud-*` tokens in `design-system/tokens/zIndex.css`.
+ */
+.game-hud {
+  --hud-inset: 16px;
+  --hud-toolbar-offset: calc(44px + 8px);
+  --hud-speed: 1;
+  --player-card-width: 272px;
+  --player-card-height: 96px;
+  --player-card-local-width: 300px;
+  --player-card-local-height: 108px;
+  --player-avatar-size: 56px;
+  /* The board center projects to the canvas center. The stage sits a little to the right and down so it clears the bank
+     tray (lower left of center) and the settled dice (upper right of center). */
+  --hud-center-offset-x: 64px;
+  --hud-center-offset-y: 6px;
+  /* The dice callout keeps the place it was designed for next to the dice arena, whatever the stage does. */
+  --hud-callout-offset-y: -24px;
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-hud-cards);
+  pointer-events: none;
+}
+
+/* ---------- Player cards ---------- */
+
+.player-card-list {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.player-card-list__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.player-card {
+  position: absolute;
+  width: var(--player-card-width);
+  height: var(--player-card-height);
+  pointer-events: none;
+}
+
+.player-card--local {
+  width: var(--player-card-local-width);
+  height: var(--player-card-local-height);
+}
+
+/* The corner follows the seat: BOTTOM is lower-left, TOP upper-right, LEFT upper-left, RIGHT lower-right. */
+.player-card[data-slot='LEFT'] { top: var(--hud-inset); left: var(--hud-inset); }
+.player-card[data-slot='TOP'] { top: calc(var(--hud-inset) + var(--hud-toolbar-offset)); right: var(--hud-inset); }
+.player-card[data-slot='BOTTOM'] { bottom: var(--hud-inset); left: var(--hud-inset); }
+.player-card[data-slot='RIGHT'] { right: var(--hud-inset); bottom: var(--hud-inset); }
+/* A player outside the four seats has no corner and no face. */
+.player-card:not([data-slot]) { display: none; }
+
+.player-card__face {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  padding: 10px 10px 10px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  background-image: var(--paper-grain);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
+}
+
+.player-card .ds-avatar { --ds-avatar-size: var(--player-avatar-size) !important; }
+
+.player-card__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.player-card__name-row,
+.player-card__money-row,
+.player-card__footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.player-card__name {
+  /* Tags shrink before the name does: a busy seat (local, on the move, in jail) still reads "An", not "A.". */
+  flex: 0 1 auto;
+  min-width: 4ch;
+  overflow: hidden;
+  font: var(--type-label);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-card__tag { flex: none; }
+.player-card__tag-countdown { display: none; margin-left: 4px; font-variant-numeric: tabular-nums; }
+/* Tags share the name row with the name; compact chips keep "Ban", "Dang di" and "O tu" together on one line. */
+.player-card .ds-chip { padding: 0.1rem 0.3rem; font-size: 0.7rem; }
+.player-card__name-row { gap: 4px; }
+
+.player-card__money-row { flex-wrap: wrap; row-gap: 2px; }
+.player-card__money { font: var(--type-money-l); font-variant-numeric: tabular-nums; }
+.player-card__chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.player-card__recovery { display: flex; }
+/* The countdown row takes the footer's place, so the card keeps its three rows. */
+.player-card--recovering .player-card__footer { display: none; }
+/* The countdown row already says the player is away, so the "Mất kết nối" tag steps aside to leave room for the name. */
+.player-card--recovering .player-card__tag--offline { display: none; }
+
+.player-card__footer { gap: 6px; color: var(--color-text-secondary); font: var(--type-caption); }
+.player-card__counts { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.player-card .ds-group-pips { gap: 2px; }
+.player-card .ds-group-pips__pip { width: 10px; height: 10px; border-width: 1.5px; border-radius: 2px; }
+.player-card__count { display: inline-flex; align-items: center; gap: 2px; }
+
+/*
+ * The face is decorative, so the control is a transparent button laid over it (plan 03 OD-03-4, plan 04 portfolio).
+ * The list and the card stay pointer-transparent: only the card area takes input, and the board behind is never blocked.
+ */
+.player-card__open {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.player-card__open:focus-visible { outline: 2px solid transparent; outline-offset: 2px; box-shadow: var(--focus-ring); }
+.player-card__open + .player-card__face { transition: border-color var(--motion-duration-micro) var(--motion-ease-out), box-shadow var(--motion-duration-micro) var(--motion-ease-out); }
+.player-card__open:hover + .player-card__face { border-color: var(--player-card-color); box-shadow: 0 0 0 2px var(--player-card-color), var(--elevation-2); }
+/* The turn ring is the stronger signal: hovering an active card keeps it and only adds the player color. */
+.player-card--active .player-card__open:hover + .player-card__face {
+  box-shadow: 0 0 0 3px var(--color-turn-active), 0 0 0 7px rgb(242 182 50 / 35%), var(--elevation-2);
+}
+
+/* ---------- Turn, lifecycle states ---------- */
+
+.player-card--active .player-card__face {
+  box-shadow: 0 0 0 3px var(--color-turn-active), 0 0 0 7px rgb(242 182 50 / 35%), var(--elevation-2);
+}
+/* The pulse is a separate class: it is set only when the turn becomes active while the game is live, never on snap. */
+.player-card--pulse .player-card__face {
+  animation: player-card-pulse calc(var(--motion-duration-emphasis) / var(--hud-speed)) var(--motion-ease-out) both;
+}
+
+/* The DeltaChip pop follows the animation speed like every other HUD motion. */
+.player-card .ds-delta-chip--pop { animation-duration: calc(var(--motion-duration-emphasis) / var(--hud-speed)); }
+
+.player-card[data-state='offline'] .ds-avatar { opacity: 0.6; }
+.player-card[data-state='bankrupt'] .player-card__face { filter: grayscale(0.8); }
+.player-card[data-state='left'] .player-card__face { opacity: 0.5; }
+
+@keyframes player-card-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+/* Reduced motion: no pulse (the ring itself is the information). */
+:root[data-reduced-motion='true'] .player-card--pulse .player-card__face { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .player-card--pulse .player-card__face { animation: none; }
+}
+
+/* ---------- Breakpoints (plan 03 section 8.10) ---------- */
+
+/* Compact: 961-1279 wide or 600-719 tall, and tablet landscape. */
+@media (max-width: 1279px), (max-height: 719px) {
+  .game-hud {
+    --hud-inset: 12px;
+    --player-card-width: 220px;
+    --player-card-height: 72px;
+    --player-card-local-width: 220px;
+    --player-card-local-height: 72px;
+    --player-avatar-size: 44px;
+    --hud-center-offset-x: 40px;
+  }
+
+  .player-card__face { gap: 8px; padding: 8px 10px 8px 8px; }
+  .player-card__footer { display: none; }
+  .player-card__money { font: var(--type-title-s); }
+  /* No room for a third row: the countdown moves into the "Mất kết nối" tag. */
+  .player-card__recovery { display: none; }
+  .player-card__tag-countdown { display: inline; }
+  .player-card--recovering .player-card__tag--offline { display: inline-flex; }
+  /* ...and its words go too: the icon and the countdown say it, and the avatar carries the offline badge. */
+  .player-card--recovering .player-card__tag--offline .player-card__tag-text { display: none; }
+  /* One status tag fits: a tag with an icon (jail, offline) outranks the text-only ones (Bạn, Đang đi). */
+  .player-card__name-row:has(.player-card__tag:not(.player-card__tag--text)) .player-card__tag--text { display: none; }
+}
+
+/* Phone landscape: money first, the name is shortened and its full text stays in the accessible summary. */
+@media (max-height: 500px) {
+  .game-hud {
+    --hud-inset: max(8px, env(safe-area-inset-left, 0px));
+    --hud-toolbar-offset: calc(44px + 4px);
+    --player-card-width: 168px;
+    --player-card-height: 52px;
+    --player-card-local-width: 168px;
+    --player-card-local-height: 52px;
+    --player-avatar-size: 36px;
+    --hud-center-offset-x: 24px;
+  }
+
+  .player-card__face { gap: 6px; padding: 6px 8px 6px 6px; }
+  .player-card__name { max-width: 10ch; font: var(--type-caption); }
+  /* Status as icon badges: the jail and offline tags keep their icon (and the countdown), their words go. */
+  .player-card__tag--text,
+  .player-card__tag-text { display: none; }
+  .player-card__money { font: var(--type-label); font-weight: 800; }
+}
+
+/* ---------- Status pill (top center) ---------- */
+
+.status-pill {
+  position: absolute;
+  top: var(--hud-inset);
+  /* The board diamond reaches the top center, so the pill sits after the top-left card, over empty table. */
+  left: calc(var(--hud-inset) + var(--player-card-width) + 12px);
+  z-index: var(--z-hud-center);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(40vw, 22rem);
+  padding: 6px 14px 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface);
+  background-image: var(--paper-grain);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
+  pointer-events: none;
+}
+
+.status-pill__room { padding-left: 8px; color: var(--color-text-secondary); font: var(--type-caption); white-space: nowrap; }
+.status-pill__avatar { display: inline-flex; }
+.status-pill .game-board__turn-label {
+  margin: 0;
+  font: var(--type-label);
+  line-height: 1.2;
+  text-shadow: none;
+  color: var(--color-text-primary);
+}
+
+/* ---------- Center stage ---------- */
+
+.center-stage {
+  position: absolute;
+  top: calc(50% + var(--hud-center-offset-y, 0px));
+  left: calc(50% + var(--hud-center-offset-x, 0px));
+  z-index: var(--z-hud-center);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.center-stage .game-board__roll-button {
+  min-width: 220px;
+  font: var(--type-title-s);
+  animation: roll-cta-pop calc(var(--motion-duration-emphasis) / var(--hud-speed)) var(--motion-ease-out);
+}
+
+@keyframes roll-cta-pop {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes roll-cta-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+:root[data-reduced-motion='true'] .center-stage .game-board__roll-button { animation: roll-cta-fade calc(var(--motion-duration-ui) / var(--hud-speed)) linear; }
+@media (prefers-reduced-motion: reduce) {
+  .center-stage .game-board__roll-button { animation: roll-cta-fade calc(var(--motion-duration-ui) / var(--hud-speed)) linear; }
+}
+
+.center-stage__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 16px 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
+  font: var(--type-label);
+}
+
+@media (max-width: 1279px), (max-height: 719px) {
+  .status-pill__room { display: none; }
+}
+
+@media (max-height: 500px) {
+  .center-stage .game-board__roll-button { min-width: 180px; min-height: 52px; font: var(--type-label); }
+  .center-stage__pill { padding: 4px 12px 4px 6px; font: var(--type-caption); }
+}
+
+/* ---------- Dice result callout ---------- */
+
+.dice-callout {
+  position: absolute;
+  top: calc(50% - 104px + var(--hud-callout-offset-y, 0px));
+  left: calc(50% + 176px);
+  z-index: var(--z-hud-center);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
+  transform-origin: left center;
+  animation: dice-callout-in calc(var(--motion-duration-emphasis) / var(--hud-speed)) var(--motion-ease-out) both;
+  pointer-events: none;
+}
+
+.dice-callout__sum { display: inline-flex; align-items: center; gap: 6px; }
+.dice-callout__plus { font: var(--type-label); color: var(--color-text-secondary); }
+.dice-callout__die {
+  display: inline-grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  gap: 1px;
+  width: 30px;
+  height: 30px;
+  padding: 4px;
+  border: 2px solid var(--color-text-primary);
+  border-radius: 8px;
+  background: #fff;
+}
+.dice-callout__pip { border-radius: 50%; }
+.dice-callout__pip--on { background: var(--color-text-primary); }
+.dice-callout__total { font: var(--type-display); font-variant-numeric: tabular-nums; }
+
+@keyframes dice-callout-in {
+  from { opacity: 0; transform: translateX(-12px) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Turn banner ---------- */
+
+.turn-banner {
+  position: absolute;
+  top: calc(var(--hud-inset) + 52px);
+  left: calc(var(--hud-inset) + var(--player-card-width) + 12px);
+  z-index: var(--z-hud-banner);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 22px 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
+  animation: turn-banner calc(1460ms / var(--hud-speed)) var(--motion-ease-in-out) both;
+  pointer-events: none;
+}
+
+.turn-banner--mine { border: 2px solid var(--color-turn-active); box-shadow: 0 0 0 4px rgb(242 182 50 / 30%), var(--elevation-2); }
+.turn-banner__text { font: var(--type-title-s); white-space: nowrap; }
+
+/* Enter 280 ms, hold 900 ms, exit 280 ms of a 1460 ms cycle. */
+@keyframes turn-banner {
+  0% { opacity: 0; transform: translateY(-14px); }
+  19% { opacity: 1; transform: translateY(0); }
+  81% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-8px); }
+}
+
+/* Reduced motion: fades only, nothing slides or scales. */
+@keyframes turn-banner-fade {
+  0%, 100% { opacity: 0; }
+  19%, 81% { opacity: 1; }
+}
+@keyframes dice-callout-fade { from { opacity: 0; } to { opacity: 1; } }
+:root[data-reduced-motion='true'] .turn-banner { animation-name: turn-banner-fade; }
+:root[data-reduced-motion='true'] .dice-callout { animation: dice-callout-fade 120ms linear both; }
+@media (prefers-reduced-motion: reduce) {
+  .turn-banner { animation-name: turn-banner-fade; }
+  .dice-callout { animation: dice-callout-fade 120ms linear both; }
+}
+
+@media (max-width: 1279px), (max-height: 719px) {
+  .dice-callout { left: calc(50% + 150px); top: calc(50% - 90px + var(--hud-callout-offset-y, 0px)); }
+  .dice-callout__total { font: var(--type-title-l); }
+}
+
+@media (max-height: 500px) {
+  .turn-banner { top: calc(var(--hud-inset) + 44px); padding: 4px 16px 4px 6px; }
+  .turn-banner__text { font: var(--type-label); }
+  .dice-callout { left: calc(50% + 120px); top: calc(50% - 70px + var(--hud-callout-offset-y, 0px)); padding: 4px 10px; gap: 8px; }
+  .dice-callout__total { font: var(--type-title-m); }
+}
+
+/* ---------- Bottom column: context stack and action dock ---------- */
+
+.hud-bottom {
+  position: absolute;
+  left: calc(var(--hud-inset) + var(--player-card-local-width) + 12px);
+  bottom: max(var(--hud-inset), env(safe-area-inset-bottom));
+  z-index: var(--z-hud-dock);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 520px;
+  pointer-events: none;
+}
+
+.hud-context {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(520px, 100%);
+}
+.hud-context > * { pointer-events: auto; }
+.hud-context:empty { display: none; }
+
+.action-dock { display: flex; justify-content: flex-start; pointer-events: none; }
+.dock-label--short { display: none; }
+.action-dock .game-board__property-access { display: flex; }
+
+/* ---------- Activity ticker and chat bubbles ---------- */
+
+.activity-ticker {
+  max-width: min(560px, 100%);
+  padding: 6px 14px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface);
+  box-shadow: var(--elevation-1);
+  color: var(--color-text-primary);
+  font: var(--type-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  /* The line leaves after 4000 ms / speed (ACTIVITY_TICKER_LIFETIME_MS): it fades during the last 240 ms. */
+  animation:
+    activity-ticker-in calc(var(--motion-duration-ui) / var(--hud-speed)) var(--motion-ease-out) both,
+    activity-ticker-out calc(240ms / var(--hud-speed)) linear calc(3760ms / var(--hud-speed)) forwards;
+}
+
+@keyframes activity-ticker-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes activity-ticker-out { to { opacity: 0; } }
+/* Reduced motion: no slide, but the closing fade stays (it moves nothing). */
+:root[data-reduced-motion='true'] .activity-ticker { animation: activity-ticker-out calc(240ms / var(--hud-speed)) linear calc(3760ms / var(--hud-speed)) forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .activity-ticker { animation: activity-ticker-out calc(240ms / var(--hud-speed)) linear calc(3760ms / var(--hud-speed)) forwards; }
+}
+
+.player-card__bubble {
+  position: absolute;
+  z-index: 1;
+  max-width: 240px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 12px);
+  background-color: var(--color-surface);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
+  font: var(--type-small);
+  overflow-wrap: anywhere;
+  animation: activity-ticker-in calc(var(--motion-duration-ui) / var(--hud-speed)) var(--motion-ease-out) both;
+}
+
+/* The bubble opens toward the middle of the screen, away from the corner the card sits in. */
+.player-card[data-slot='LEFT'] .player-card__bubble,
+.player-card[data-slot='TOP'] .player-card__bubble { top: calc(100% + 6px); }
+.player-card[data-slot='BOTTOM'] .player-card__bubble,
+.player-card[data-slot='RIGHT'] .player-card__bubble { bottom: calc(100% + 6px); }
+.player-card[data-slot='LEFT'] .player-card__bubble,
+.player-card[data-slot='BOTTOM'] .player-card__bubble { left: 0; }
+.player-card[data-slot='TOP'] .player-card__bubble,
+.player-card[data-slot='RIGHT'] .player-card__bubble { right: 0; }
+:root[data-reduced-motion='true'] .player-card__bubble { animation: none; }
+@media (prefers-reduced-motion: reduce) { .player-card__bubble { animation: none; } }
+
+@media (max-height: 500px) {
+  .hud-bottom { max-width: 380px; }
+  .activity-ticker { display: none; }
+  .dock-label--long { display: none; }
+  .dock-label--short { display: inline; }
+  .status-pill__avatar { display: none; }
+  .status-pill { padding: 4px 12px; }
+
+  /*
+   * On a phone held sideways the jail panel shrinks to a title row and one row of buttons. The full panel used to
+   * sit on the middle of the board and hide the roll button, which is one of the ways out of jail.
+   */
+  .hud-context .jail-panel {
+    display: flex;
+    flex-flow: row wrap;
+    align-content: flex-start;
+    gap: 1px 8px;
+    margin: 0;
+    padding: 4px 8px;
+    border-radius: var(--radius-md);
+  }
+  .hud-context .jail-panel__head { flex: 1 1 100%; gap: 6px; }
+  .hud-context .jail-panel__icon { width: 1.25rem; height: 1.25rem; }
+  .hud-context .jail-panel__icon > svg { width: 0.75rem; height: 0.75rem; }
+  .hud-context .jail-panel__title { font: 700 0.875rem/1.25rem var(--font-family-body); }
+  .hud-context .jail-panel__rounds { padding: 1px 8px; }
+  .hud-context .jail-panel__hint { display: none; }
+  /*
+   * A pending or failed request takes the place of the title row, so the strip never grows toward the roll button. The balance
+   * warning is not drawn here at all: the bail button is already disabled, and it points to the warning with aria-describedby.
+   */
+  .hud-context .jail-panel > p[role='alert'],
+  .hud-context .jail-panel__pending { flex: 1 1 100%; font: var(--type-caption); line-height: 0.875rem; }
+  .hud-context .jail-panel:has(> p[role='alert'], > .jail-panel__pending) .jail-panel__head { display: none; }
+  .hud-context .jail-panel__balance-warning {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .hud-context .jail-panel__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .hud-context .jail-panel__actions .ds-button { padding: 2px 6px; font: var(--type-caption); line-height: 1.1; }
+}
+
+/* The strip between the two bottom cards is about 270 px wide: the lock icon goes so the title and the wait chip share a row. */
+@media (max-height: 500px) and (max-width: 720px) {
+  .hud-context .jail-panel__icon { display: none; }
+}
+
+/* ---------- Small phone landscape (up to 720 px wide): stack instead of sitting beside the corner cards ---------- */
+
+@media (max-width: 720px) {
+  /* The board leaves no free strip beside the top-left card, so the pill goes under it. */
+  .status-pill { top: calc(var(--hud-inset) + var(--player-card-height) + 6px); left: var(--hud-inset); }
+  .turn-banner { top: calc(var(--hud-inset) + var(--player-card-height) + 44px); left: var(--hud-inset); }
+  /* And the action column goes above the bottom-left card instead of beside it. */
+  .hud-bottom { left: var(--hud-inset); bottom: calc(max(var(--hud-inset), env(safe-area-inset-bottom)) + var(--player-card-local-height) + 6px); }
+  /*
+   * The context stack (jail panel, debt status) drops to the strip between the two bottom cards so it never reaches
+   * the roll button in the middle of the board.
+   */
+  .hud-bottom { right: var(--hud-inset); max-width: none; }
+  .hud-context {
+    position: absolute;
+    left: calc(var(--player-card-local-width) + 12px);
+    right: calc(var(--player-card-width) + 12px);
+    bottom: calc(-1 * (var(--player-card-local-height) + 6px));
+    width: auto;
+  }
+}
+
+/* ---------- Landmark banner (plan 05, OD-05-4): "Khánh thành <landmark>!" under the turn banner ---------- */
+
+/*
+ * It carries the `turn-banner` class too, so it shares that shell, its keyframes and its reduced-motion fade; only its place
+ * and its lifetime (2.2 s, scaled by the animation speed) differ. Under reduced motion it is the text alone (no picture).
+ */
+.landmark-banner {
+  top: calc(var(--hud-inset) + 52px + 62px);
+  animation-duration: calc(2200ms / var(--hud-speed));
+}
+.landmark-banner__art { display: block; flex: none; width: 44px; height: 44px; border-radius: var(--radius-md); }
+
+@media (max-height: 500px) {
+  .landmark-banner { top: calc(var(--hud-inset) + 44px + 50px); }
+  .landmark-banner__art { width: 32px; height: 32px; }
+}
+
+@media (max-width: 720px) {
+  .landmark-banner { top: calc(var(--hud-inset) + var(--player-card-height) + 44px + 50px); left: var(--hud-inset); }
+}

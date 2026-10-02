@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
+  <rect width="160" height="160" rx="28" fill="#3e4e7a"/>
+  <ellipse cx="80" cy="140" rx="62" ry="7" fill="#000000" opacity=".2"/>
+  <ellipse cx="80" cy="128" rx="70" ry="22" fill="#2f7f96"/>
+  <path d="M12 124C16 108 40 100 62 108C70 112 76 120 74 130C50 140 24 138 12 124Z" fill="#e9c58b"/>
+  <path d="M30 118Q33 96 27 74" stroke="#7b5a3c" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <g transform="translate(27 74)" fill="#4f8a4a">
+    <ellipse cx="-13" cy="0" rx="14" ry="4" transform="rotate(-25)"/>
+    <ellipse cx="13" cy="0" rx="14" ry="4" transform="rotate(25)"/>
+    <ellipse cx="-12" cy="-4" rx="13" ry="3.6" transform="rotate(-70)" fill="#3f7a44"/>
+    <ellipse cx="12" cy="-4" rx="13" ry="3.6" transform="rotate(70)" fill="#3f7a44"/>
+    <ellipse cx="0" cy="-12" rx="3.6" ry="13"/>
+  </g>
+  <path d="M52 114Q50 96 56 82" stroke="#7b5a3c" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <g transform="translate(56 82)" fill="#4f8a4a">
+    <ellipse cx="-11" cy="0" rx="12" ry="3.6" transform="rotate(-25)"/>
+    <ellipse cx="11" cy="0" rx="12" ry="3.6" transform="rotate(25)"/>
+    <ellipse cx="0" cy="-10" rx="3.4" ry="11" fill="#3f7a44"/>
+  </g>
+  <circle cx="104" cy="92" r="9" fill="#fff3b0" opacity=".28"/>
+  <circle cx="114" cy="92" r="9" fill="#fff3b0" opacity=".28"/>
+  <circle cx="124" cy="92" r="9" fill="#fff3b0" opacity=".28"/>
+  <circle cx="134" cy="92" r="9" fill="#fff3b0" opacity=".28"/>
+  <path d="M74 116H140L134 132H80Z" fill="#2f6fa8"/>
+  <rect x="80" y="106" width="16" height="10" fill="#f4f1ea"/>
+  <rect x="117" y="82" width="2.5" height="34" fill="#4a2f22"/>
+  <rect x="100" y="86" width="40" height="2.5" fill="#4a2f22"/>
+  <circle cx="104" cy="92" r="3.6" fill="#fff3b0"/>
+  <circle cx="114" cy="92" r="3.6" fill="#fff3b0"/>
+  <circle cx="124" cy="92" r="3.6" fill="#fff3b0"/>
+  <circle cx="134" cy="92" r="3.6" fill="#fff3b0"/>
+  <path d="M96 134H148L143 148H101Z" fill="#d9552b"/>
+  <rect x="122" y="116" width="2.5" height="18" fill="#4a2f22"/>
+  <rect x="110" y="118" width="26" height="2.5" fill="#4a2f22"/>
+  <circle cx="114" cy="124" r="2.8" fill="#fff3b0"/>
+  <circle cx="123" cy="124" r="2.8" fill="#fff3b0"/>
+  <circle cx="132" cy="124" r="2.8" fill="#fff3b0"/>
+  <circle cx="22" cy="28" r="1.6" fill="#fff3b0"/>
+  <circle cx="60" cy="20" r="1.2" fill="#fff3b0"/>
+  <circle cx="132" cy="30" r="1.6" fill="#fff3b0"/>
+</svg>

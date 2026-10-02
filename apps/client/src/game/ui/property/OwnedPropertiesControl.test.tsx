@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { PublicGameState } from '@monopoly/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import stateContext from '../../../internal';
@@ -67,10 +67,26 @@ function context(state: PublicGameState): StateContextValue {
   };
 }
 
-describe('OwnedPropertiesControl', () => {
-  afterEach(cleanup);
+function openControl(state: PublicGameState, onSelect = vi.fn()) {
+  render(
+    <stateContext.Provider value={context(state)}>
+      <OwnedPropertiesControl onSelect={onSelect} />
+    </stateContext.Provider>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: /^Tài sản của tôi \(\d+\)$/u }));
+  return { onSelect, dialog: screen.getByRole('dialog', { name: 'Tài sản của tôi' }) };
+}
 
-  it('shows authoritative balance, owned count, group identity, development, and inspect actions', () => {
+/** Real property tiles: a special tile (tax, chance, jail ...) can never be owned. */
+const PROPERTY_TILES = [1, 3, 6, 8, 9, 11, 13, 14, 16, 18, 19, 21, 23, 24, 26, 27, 29, 31, 32, 34, 37, 39, 5, 15, 25, 35, 12, 28];
+
+describe('OwnedPropertiesControl', () => {
+  afterEach(() => {
+    cleanup();
+    delete document.documentElement.dataset.visualTheme;
+  });
+
+  it('shows authoritative balance, owned count, group identity, development, and inspect actions', async () => {
     const onSelect = vi.fn();
     render(
       <stateContext.Provider value={context(makeState(1_250))}>
@@ -82,12 +98,18 @@ describe('OwnedPropertiesControl', () => {
     expect(screen.getByText('Số dư hiện tại')).toBeTruthy();
     expect(screen.getByText('1.250.000 ₫')).toBeTruthy();
     expect(screen.getByText('2 tài sản')).toBeTruthy();
-    expect(screen.getByText(/Nhóm Nâu.*2 Nhà/u)).toBeTruthy();
-    expect(screen.getByText('Ga tàu')).toBeTruthy();
+    expect(screen.getByText('2 nhà')).toBeTruthy();
+    expect(screen.getByText('0 khách sạn')).toBeTruthy();
+    // Each district is a named group holding compact deeds (the old "Nhóm Nâu · 2 Nhà" line is the deed's own rows now).
+    const brown = screen.getByRole('group', { name: 'Nhóm Nâu' });
+    expect(within(brown).getByRole('article', { name: 'Cà Mau' })).toBeTruthy();
+    expect(within(brown).getByText('Có 2 Nhà')).toBeTruthy();
+    expect(within(screen.getByRole('group', { name: 'Ga tàu' })).getByRole('article', { name: 'Ga Hà Nội' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Xem Cà Mau' }));
     expect(onSelect).toHaveBeenCalledWith(1);
-    expect(screen.queryByText('Số dư hiện tại')).toBeNull();
+    // The dialog animates out (200 ms) before it leaves the DOM.
+    await waitFor(() => expect(screen.queryByText('Số dư hiện tại')).toBeNull());
   });
 
   it('updates a zero/current balance while open and disappears after player removal', () => {
@@ -127,25 +149,78 @@ describe('OwnedPropertiesControl', () => {
     expect(screen.getByText('350.000 ₫')).toBeTruthy();
     expect(screen.getByText('0 tài sản')).toBeTruthy();
     expect(screen.getByText('Bạn chưa sở hữu tài sản nào.')).toBeTruthy();
+    expect(screen.queryByRole('group')).toBeNull();
+  });
+
+  it('keeps the trigger name "Tài sản của tôi (N)" with the short label for phones', () => {
+    render(
+      <stateContext.Provider value={context(makeState(1_250))}>
+        <OwnedPropertiesControl onSelect={vi.fn()} />
+      </stateContext.Provider>,
+    );
+    const trigger = screen.getByRole('button', { name: 'Tài sản của tôi (2)' });
+    expect(trigger.querySelector('.dock-label--long')?.textContent).toBe('Tài sản của tôi');
+    expect(trigger.querySelector('.dock-label--short')?.textContent).toBe('Tài sản');
+  });
+
+  it('groups the deeds by district in board order and counts tài sản, nhà and khách sạn', () => {
+    document.documentElement.dataset.visualTheme = 'v2';
+    const state = makeState(1_000);
+    state.boardState.ownedProps = {
+      28: { id: playerId, color: 'red', houses: 0 },
+      15: { id: playerId, color: 'red', houses: 0 },
+      8: { id: playerId, color: 'red', houses: 1 },
+      1: { id: playerId, color: 'red', houses: 4 },
+      3: { id: playerId, color: 'red', houses: 5 },
+      6: { id: playerId, color: 'red', houses: 0 },
+      5: { id: playerId, color: 'red', houses: 0 },
+      9: { id: 'player-b', color: 'blue', houses: 3 },
+    };
+    const { dialog } = openControl(state);
+
+    const groups = within(dialog).getAllByRole('group');
+    expect(groups).toHaveLength(4);
+    expect(groups.map(group => within(group).getAllByRole('article').length)).toEqual([2, 2, 2, 1]);
+    expect(groups.map(group => group.querySelector('.portfolio-group__label')?.textContent))
+      .toEqual(['Nhóm Nâu', 'Nhóm Xanh nhạt', 'Ga tàu', 'Tiện ích']);
+    // 7 of the viewer's own tiles: houses 4 + 1, one hotel; the other player's tile 9 is not counted or shown.
+    expect(within(dialog).getByText('7 tài sản')).toBeTruthy();
+    expect(within(dialog).getByText('5 nhà')).toBeTruthy();
+    expect(within(dialog).getByText('1 khách sạn')).toBeTruthy();
+    expect(within(dialog).queryByRole('article', { name: 'Hải Phòng' })).toBeNull();
+    // Two of two brown tiles: the whole district, said in words as well as by the group count.
+    expect(within(groups[0]).getByText('2/2 ô')).toBeTruthy();
+    expect(within(groups[0]).getByText('Đủ nhóm')).toBeTruthy();
+    expect(within(groups[1]).getByText('2/3 ô')).toBeTruthy();
+    expect(within(groups[1]).queryByText('Đủ nhóm')).toBeNull();
+  });
+
+  it('gives every deed a "Xem <tile>" button that keeps the inspect behavior and the list-item hook class', () => {
+    const { dialog, onSelect } = openControl(makeState(500));
+
+    const items = dialog.querySelectorAll('.owned-properties-list__item');
+    expect(items).toHaveLength(2);
+    items.forEach(item => {
+      expect(item.querySelector('button')?.getAttribute('aria-label')).toMatch(/^Xem /u);
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xem Ga Hà Nội' }));
+    expect(onSelect).toHaveBeenCalledWith(5);
   });
 
   it('keeps a large authoritative inventory reachable in one modal', () => {
     const state = makeState(900);
     state.boardState.ownedProps = Object.fromEntries(
-      Array.from({ length: 20 }, (_, index) => [index + 1, {
+      PROPERTY_TILES.slice(0, 20).map(tileId => [tileId, {
         id: playerId,
         color: 'red' as const,
         houses: 0,
       }]),
     );
-    render(
-      <stateContext.Provider value={context(state)}>
-        <OwnedPropertiesControl onSelect={vi.fn()} />
-      </stateContext.Provider>,
-    );
+    const { dialog } = openControl(state);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tài sản của tôi (20)' }));
-    expect(document.querySelectorAll('.owned-properties-list__item')).toHaveLength(20);
-    expect(document.querySelectorAll('.owned-properties-list__inspect')).toHaveLength(20);
+    expect(screen.getByRole('button', { name: 'Tài sản của tôi (20)' })).toBeTruthy();
+    expect(dialog.querySelectorAll('.owned-properties-list__item')).toHaveLength(20);
+    expect(within(dialog).getAllByRole('button', { name: /^Xem / })).toHaveLength(20);
+    expect(within(dialog).getByText('20 tài sản')).toBeTruthy();
   });
 });

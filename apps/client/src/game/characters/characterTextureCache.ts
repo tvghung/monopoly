@@ -25,7 +25,11 @@ interface CacheEntry {
 
 const textureCache = new Map<string, CacheEntry>();
 let nextEntryId = 0;
-const CHARACTER_TEXTURE_RASTER_SIZE = 256;
+/** The mascot art keeps its 256 px; the canvas is larger so the white die-cut border of the standee fits around it (plan 05 §8.4). */
+const CHARACTER_ART_SIZE = 256;
+const CHARACTER_TEXTURE_RASTER_SIZE = 320;
+const CHARACTER_BORDER_PX = 6;
+const BORDER_DIRECTIONS = 16;
 
 function configureTexture(texture: THREE.Texture): void {
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -34,20 +38,36 @@ function configureTexture(texture: THREE.Texture): void {
   texture.generateMipmaps = false;
 }
 
+/**
+ * Bakes the die-cut standee texture: the silhouette of the art grown by `CHARACTER_BORDER_PX` and filled white, with the art
+ * itself on top. The grown silhouette is the art drawn at offsets on a circle, then turned white with `source-in`.
+ */
 function createRasterizedCharacterTexture(image: HTMLImageElement): THREE.CanvasTexture {
+  const size = CHARACTER_TEXTURE_RASTER_SIZE;
+  const margin = (size - CHARACTER_ART_SIZE) / 2;
   const canvas = document.createElement('canvas');
-  canvas.width = CHARACTER_TEXTURE_RASTER_SIZE;
-  canvas.height = CHARACTER_TEXTURE_RASTER_SIZE;
+  canvas.width = size;
+  canvas.height = size;
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Character texture rasterization requires a 2D canvas context');
-  context.clearRect(0, 0, CHARACTER_TEXTURE_RASTER_SIZE, CHARACTER_TEXTURE_RASTER_SIZE);
-  context.drawImage(
-    image,
-    0,
-    0,
-    CHARACTER_TEXTURE_RASTER_SIZE,
-    CHARACTER_TEXTURE_RASTER_SIZE,
-  );
+  context.clearRect(0, 0, size, size);
+
+  for (let step = 0; step < BORDER_DIRECTIONS; step += 1) {
+    const angle = step / BORDER_DIRECTIONS * Math.PI * 2;
+    context.drawImage(
+      image,
+      margin + Math.cos(angle) * CHARACTER_BORDER_PX,
+      margin + Math.sin(angle) * CHARACTER_BORDER_PX,
+      CHARACTER_ART_SIZE,
+      CHARACTER_ART_SIZE,
+    );
+  }
+  context.globalCompositeOperation = 'source-in';
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, size, size);
+  context.globalCompositeOperation = 'source-over';
+
+  context.drawImage(image, margin, margin, CHARACTER_ART_SIZE, CHARACTER_ART_SIZE);
   const texture = new THREE.CanvasTexture(canvas);
   configureTexture(texture);
   return texture;

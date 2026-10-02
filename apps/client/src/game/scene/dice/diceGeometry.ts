@@ -1,6 +1,12 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { SelectiveRoundedBoxGeometry } from '../board/geometry/SelectiveRoundedBoxGeometry';
 import { DICE_SIZE } from './diceLayout';
 import {
+  DICE_CORNER_SEGMENTS,
+  DICE_EDGE_RADIUS,
+  DICE_EDGE_SEGMENTS,
+  DICE_FACE_SIZE,
   DICE_PIP_CENTER_OFFSET,
   DICE_PIP_OFFSET,
   DICE_SURFACE_EPSILON,
@@ -71,4 +77,34 @@ export function getDicePipInstances(): readonly DicePipInstance[] {
       return { faceValue: face.value, row, column, position, rotation: face.rotation };
     });
   });
+}
+
+/**
+ * One geometry for the die body and its six flat face plates (budget recovery BR-4). The plates sit an
+ * epsilon above the rounded body exactly as the separate meshes did; they share the body material
+ * (white, glossy), so baking them in removes six draw calls per die without a visible change.
+ */
+export function createDiceBodyGeometry(): THREE.BufferGeometry {
+  const body = new SelectiveRoundedBoxGeometry(
+    DICE_SIZE,
+    DICE_SIZE,
+    DICE_SIZE,
+    DICE_EDGE_SEGMENTS,
+    DICE_CORNER_SEGMENTS,
+    DICE_EDGE_RADIUS,
+  );
+  const plates = getDiceFaceSpecs().map(face => {
+    const plate = new THREE.PlaneGeometry(DICE_FACE_SIZE, DICE_FACE_SIZE).toNonIndexed();
+    plate.applyMatrix4(new THREE.Matrix4().compose(
+      new THREE.Vector3(...face.position),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(...face.rotation)),
+      new THREE.Vector3(1, 1, 1),
+    ));
+    return plate;
+  });
+  const merged = mergeGeometries([body.toNonIndexed(), ...plates], false);
+  body.dispose();
+  plates.forEach(plate => plate.dispose());
+  if (!merged) throw new Error('Dice body and face plates could not be merged');
+  return merged;
 }

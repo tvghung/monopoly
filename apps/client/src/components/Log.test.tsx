@@ -3,7 +3,10 @@ import type { ActivityEvent, PublicGameState } from '@monopoly/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import stateContext from '../internal';
 import type { SocketFunctions, StateContextValue } from '../types';
-import Log, { LOG_IDLE_TIMEOUT_MS } from './Log';
+import { emptyPresentationState, presentationContext } from '../game/presentation/PresentationProvider';
+import type { AnimationQueue } from '../game/presentation/queue/AnimationQueue';
+import { HUD_DRAWER_STORAGE_KEY } from '../game/ui/hud/hudDrawer';
+import Log, { mergeUngatedChat } from './Log';
 
 const makeSocketFunctions = (): SocketFunctions => ({
   rollDice: vi.fn(),
@@ -62,76 +65,92 @@ function renderLog(logs: string[] = [], activity: ActivityEvent[] = [], playerId
   );
 }
 
-describe('chat and activity log idle presentation', () => {
+describe('activity drawer', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
+    // Most tests read the log content, so they start with the drawer left open by the viewer.
+    window.localStorage.setItem(HUD_DRAWER_STORAGE_KEY, 'open');
   });
 
   afterEach(() => {
     cleanup();
+    window.localStorage.clear();
     vi.useRealTimers();
   });
 
-  it('starts active and fades after exactly three seconds', () => {
+  it('is closed by default, shows only its tab, and remembers the viewer’s choice', () => {
+    window.localStorage.removeItem(HUD_DRAWER_STORAGE_KEY);
+    renderLog(['Một dòng nhật ký']);
+    const toggle = screen.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle.getAttribute('aria-controls')).toBe('board-log-panel');
+    expect(document.getElementById('board-log-panel')).toBeNull();
+    expect(screen.queryByText('Một dòng nhật ký')).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button', { name: 'Ẩn nhật ký và trò chuyện' }).getAttribute('aria-expanded')).toBe('true');
+    expect(window.localStorage.getItem(HUD_DRAWER_STORAGE_KEY)).toBe('open');
+    fireEvent.click(screen.getByRole('button', { name: 'Ẩn nhật ký và trò chuyện' }));
+    expect(window.localStorage.getItem(HUD_DRAWER_STORAGE_KEY)).toBe('closed');
+  });
+
+  it('opens again when the viewer left it open, and survives blocked storage', () => {
+    renderLog(['Đã mở']);
+    expect(screen.getByText('Đã mở')).toBeTruthy();
+    cleanup();
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
+    renderLog(['Không lưu được']);
+    fireEvent.click(screen.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }));
+    expect(screen.getByText('Không lưu được')).toBeTruthy();
+    getItem.mockRestore();
+    setItem.mockRestore();
+  });
+
+  it('no longer fades: there is no idle state, attribute or timer', () => {
+    vi.useFakeTimers();
     renderLog(['Một dòng nhật ký']);
     const overlay = screen.getByTestId('board-log-overlay');
-
-    expect(overlay.getAttribute('data-idle')).toBe('false');
-    void act(() => vi.advanceTimersByTime(LOG_IDLE_TIMEOUT_MS - 1));
-    expect(overlay.getAttribute('data-idle')).toBe('false');
-    void act(() => vi.advanceTimersByTime(1));
-    expect(overlay.getAttribute('data-idle')).toBe('true');
+    expect(overlay.hasAttribute('data-idle')).toBe(false);
+    expect(overlay.className).not.toContain('idle');
+    expect(vi.getTimerCount()).toBe(0);
+    void act(() => vi.advanceTimersByTime(60_000));
+    expect(overlay.hasAttribute('data-idle')).toBe(false);
   });
 
-  it('wakes on a genuinely new final log value', () => {
-    const view = renderLog(['Cũ']);
-    const overlay = screen.getByTestId('board-log-overlay');
-    void act(() => vi.advanceTimersByTime(LOG_IDLE_TIMEOUT_MS));
-    expect(overlay.getAttribute('data-idle')).toBe('true');
+  it('moves focus into the drawer when it opens and back to the tab when Escape closes it', () => {
+    window.localStorage.removeItem(HUD_DRAWER_STORAGE_KEY);
+    renderLog();
+    const toggle = screen.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' });
+    fireEvent.click(toggle);
+    const panel = document.getElementById('board-log-panel')!;
+    expect(document.activeElement).toBe(panel);
 
-    view.rerender(
-      <stateContext.Provider value={makeContext(makeState(['Cũ', 'Mới']))}>
-        <Log />
-      </stateContext.Provider>,
-    );
-    expect(overlay.getAttribute('data-idle')).toBe('false');
-  });
-
-  it('does not restart activity for equivalent room-state log arrays', () => {
-    const view = renderLog(['Giữ nguyên']);
-    const overlay = screen.getByTestId('board-log-overlay');
-    void act(() => vi.advanceTimersByTime(LOG_IDLE_TIMEOUT_MS - 1));
-
-    view.rerender(
-      <stateContext.Provider value={makeContext(makeState(['Giữ nguyên']))}>
-        <Log />
-      </stateContext.Provider>,
-    );
-    void act(() => vi.advanceTimersByTime(1));
-    expect(overlay.getAttribute('data-idle')).toBe('true');
-  });
-
-  it('wakes while typing and while submitting a chat message', () => {
-    const view = renderLog();
-    const overlay = screen.getByTestId('board-log-overlay');
     const input = screen.getByRole('textbox', { name: 'Tin nhắn' });
-    void act(() => vi.advanceTimersByTime(LOG_IDLE_TIMEOUT_MS));
-    fireEvent.change(input, { target: { value: 'Xin chào' } });
-    expect(overlay.getAttribute('data-idle')).toBe('false');
-
-    void act(() => vi.advanceTimersByTime(LOG_IDLE_TIMEOUT_MS));
-    fireEvent.submit(input.closest('form')!);
-    expect(overlay.getAttribute('data-idle')).toBe('false');
-    view.unmount();
+    input.focus();
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(document.getElementById('board-log-panel')).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }));
   });
 
-  it('cleans up the idle timeout on unmount', () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const view = renderLog();
-    view.unmount();
-    void act(() => vi.advanceTimersByTime(LOG_IDLE_TIMEOUT_MS));
-    expect(errorSpy).not.toHaveBeenCalled();
-    errorSpy.mockRestore();
+  it('leaves Escape to an open dialog', () => {
+    renderLog();
+    document.body.insertAdjacentHTML('beforeend', '<div role="dialog" aria-label="Cài đặt"></div>');
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Tin nhắn' }), { key: 'Escape' });
+    expect(document.getElementById('board-log-panel')).not.toBeNull();
+    document.querySelector('[role="dialog"]')!.remove();
+  });
+
+  it('keeps the chat form working', () => {
+    const socketFunctions = makeSocketFunctions();
+    render(
+      <stateContext.Provider value={{ ...makeContext(makeState()), socketFunctions }}>
+        <Log />
+      </stateContext.Provider>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Tin nhắn' });
+    fireEvent.change(input, { target: { value: 'Xin chào' } });
+    fireEvent.submit(input.closest('form')!);
+    expect(socketFunctions.sendChat).toHaveBeenCalledWith('Xin chào');
   });
 
   it('does not duplicate legacy markup when a typed activity tail is available', () => {
@@ -213,7 +232,7 @@ describe('chat and activity log idle presentation', () => {
     for (const [, text] of cases) expect(screen.getByText(text)).toBeTruthy();
   });
 
-  it('opens by default and counts only new other-player chat by sequence while closed', () => {
+  it('counts only new other-player chat by sequence while closed', () => {
     const localPlayerId = '00000000-0000-4000-8000-000000000001';
     const otherPlayerId = '00000000-0000-4000-8000-000000000002';
     const view = renderLog([], [], localPlayerId);
@@ -315,5 +334,88 @@ describe('chat and activity log idle presentation', () => {
       </stateContext.Provider>,
     );
     expect(screen.getByLabelText('106 tin nhắn chưa đọc').textContent).toBe('99+');
+  });
+
+  const OTHER = '00000000-0000-4000-8000-000000000002';
+  const landedAt = (sequence: number, tileID: number): ActivityEvent => ({
+    eventId: `00000000-0000-4000-8000-${String(sequence + 200).padStart(12, '0')}`,
+    sequence,
+    occurredAt: '2026-08-25T12:00:00.000Z',
+    type: 'TILE_LANDED',
+    playerId: '00000000-0000-4000-8000-000000000001',
+    playerName: 'An',
+    tileID,
+  });
+  const chatAt = (sequence: number, message: string): ActivityEvent => ({
+    eventId: `00000000-0000-4000-8000-${String(sequence + 300).padStart(12, '0')}`,
+    sequence,
+    occurredAt: '2026-08-25T12:00:00.000Z',
+    type: 'CHAT',
+    senderRole: 'PLAYER',
+    senderPlayerId: OTHER,
+    senderName: 'Bình',
+    message,
+  });
+
+  it('merges chat from the authoritative feed into the gated gameplay entries, ordered by sequence', () => {
+    const gated = [landedAt(1, 1), chatAt(2, 'cũ trong hàng đợi')];
+    const authoritative = [landedAt(1, 1), chatAt(2, 'cũ trong hàng đợi'), landedAt(3, 2), chatAt(4, 'mới nhất')];
+    expect(mergeUngatedChat(gated, authoritative).map(event => event.sequence)).toEqual([1, 2, 4]);
+    expect(mergeUngatedChat(authoritative, authoritative)).toBe(authoritative);
+  });
+
+  it('shows chat and counts it unread at once while gameplay entries wait for the presentation', () => {
+    const gated = [landedAt(1, 1)];
+    const authoritative = [landedAt(1, 1), landedAt(2, 2), chatAt(3, 'nhanh lên!')];
+    const presentation = { ...emptyPresentationState, displayActivity: gated, displayLogs: [] };
+    const renderGated = (feed: ActivityEvent[]) => (
+      <presentationContext.Provider value={{ state: presentation, queue: {} as unknown as AnimationQueue }}>
+        <stateContext.Provider value={makeContext(makeState([], feed))}>
+          <Log />
+        </stateContext.Provider>
+      </presentationContext.Provider>
+    );
+    window.localStorage.setItem(HUD_DRAWER_STORAGE_KEY, 'closed');
+    const view = render(renderGated([landedAt(1, 1)]));
+    view.rerender(renderGated(authoritative));
+    expect(screen.getByLabelText('1 tin nhắn chưa đọc').textContent).toBe('1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }));
+    expect(screen.getByText('Bình: nhanh lên!')).toBeTruthy();
+    expect(screen.getByText('An đã tới Cà Mau.')).toBeTruthy();
+    // The second landing is still held back by the presentation queue.
+    expect(screen.queryByText('An đã tới Khí Vận.')).toBeNull();
+  });
+
+  it('exposes the unread count to assistive technology through the tab’s description', () => {
+    window.localStorage.setItem(HUD_DRAWER_STORAGE_KEY, 'closed');
+    const view = renderLog();
+    view.rerender(
+      <stateContext.Provider value={makeContext(makeState([], [chatAt(5, 'Xin chào'), chatAt(6, 'Còn đó không?')]))}>
+        <Log />
+      </stateContext.Provider>,
+    );
+    const toggle = screen.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' });
+    const badge = screen.getByLabelText('2 tin nhắn chưa đọc');
+    expect(toggle.getAttribute('aria-describedby')).toBe(badge.id);
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button', { name: 'Ẩn nhật ký và trò chuyện' }).hasAttribute('aria-describedby')).toBe(false);
+  });
+
+  it('forgets a half-typed message when the drawer closes so reopening never sends it unseen', () => {
+    const socketFunctions = makeSocketFunctions();
+    render(
+      <stateContext.Provider value={{ ...makeContext(makeState()), socketFunctions }}>
+        <Log />
+      </stateContext.Provider>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Tin nhắn' });
+    fireEvent.change(input, { target: { value: 'abc' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }));
+    const reopened = screen.getByRole('textbox', { name: 'Tin nhắn' });
+    expect((reopened as HTMLInputElement).value).toBe('');
+    fireEvent.submit(reopened.closest('form')!);
+    expect(socketFunctions.sendChat).not.toHaveBeenCalled();
   });
 });

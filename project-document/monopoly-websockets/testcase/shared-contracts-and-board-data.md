@@ -49,3 +49,15 @@
   cyclic Seat order; existing tokens resume the same Seats with no session cascade.
 - [ ] `[PG]` Reset rerun is idempotent and malformed/mid-failure transaction cannot
   leave mixed v2/v3 state.
+
+## Mascot labels (visual overhaul V2, plan 04)
+
+- [x] `[AUTO][CLIENT]` `characterRegistry.test.ts`, `PlayerAvatar.test.tsx`: mascots have a Vietnamese `accessibleLabel` for assistive
+  technology only; `displayName` no longer exists and no screen shows a mascot name (image only).
+
+## Landmark plan (visual overhaul V2, plan 05)
+
+- [x] `[AUTO][CLIENT]` `landmarks/landmarks.test.ts`: `LANDMARK_PLAN` names exactly the 22 street tiles of `colorGroups` once each, in tile order, on tiles with a price;
+  the registry builds all 22, in the same order, and every street reports a landmark.
+- [x] `[AUTO][CLIENT]` `landmarkVisuals.test.ts`: the 2D landmark registry covers exactly the 22 street tiles, takes its names from the plan and has an SVG file for each;
+  `pnpm test:landmark-art` checks the same set from the shared `colorGroups` source.

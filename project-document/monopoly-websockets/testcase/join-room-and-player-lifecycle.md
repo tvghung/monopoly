@@ -72,3 +72,20 @@ The executable PostgreSQL Socket suite must prove fresh pool/persistence/server
 recovery with both tokens and exact v8 game state, plus historical snapshot migration
 identity preservation, when `TEST_DATABASE_URL` is set. A real process-manager/container kill
 and browser reload remains a separate deployment E2E.
+
+## Pre-game screens (visual overhaul V2, plan 04)
+
+- [x] `[AUTO][CLIENT]` `JoinForm.test.tsx`: the "Loại phòng" toggle ("Có mã phòng" default, "Phòng chung" joins `LOBBY`), a
+  written reason while the name is empty, `initialRoomCode` prefill (`?room=` is covered in `App.test.tsx`).
+- [x] `[AUTO][CLIENT]` `DesktopMultiplayerLauncher.test.tsx`, `AppBootstrap.test.tsx`: launcher card names, unchanged form ids
+  and validation copy, focus returns to the card that opened a form, field border and hero motion CSS contracts.
+- [x] `[AUTO][CLIENT]` `Lobby.test.tsx`, `startReadiness.test.ts`, `MascotPicker.test.tsx`, `HostLanSharing.test.tsx`: four seat
+  cards, a disabled "Bắt đầu" always has a written reason (first applicable wins), copy room code feedback, the picker follows
+  the effective reduced-motion setting, no visible mascot names.
+- [x] `[AUTO][CLIENT]` `LoadingScreen.test.tsx`, `ErrorScreen.test.tsx`, `ConnectionOverlay.test.tsx`, `SpectatorBanner.test.tsx`:
+  one loading screen for bootstrap and restoring (real stage text only), failure screens alert with their text (main landmark
+  kept), the connection overlay is a status, the spectator pill has a working "Rời phòng".
+- [x] `[BROWSER]` `pnpm test:e2e:mobile` (`e2e/mobile-host.spec.ts`, Chromium + WebKit): join with an invitation, lobby at
+  360×800 and 667×375 (touch targets ≥ 44 px, the host scrolls to "Bắt đầu"), settings fit/scroll/44 px.
+- [ ] `[MANUAL-E2E]` G4: landing, launcher (web preview and packaged app), lobby with four players, loading and failure screens
+  at the standard viewports in Chromium and WebKit.

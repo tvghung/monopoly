@@ -1,0 +1,96 @@
+/*
+ * The landing hero: eight mascots standing on a mini board. The figures row and the board row share one grid
+ * (same columns, gap and side padding), so every mascot sits exactly above its own tile at any width.
+ */
+.join-hero {
+  --hero-gap: clamp(0.15rem, 0.8vw, 0.4rem);
+  --hero-pad: clamp(0.25rem, 1vw, 0.6rem);
+  --hero-lip: color-mix(in srgb, var(--color-scene-backdrop) 70%, var(--color-text-primary));
+  width: 100%;
+  max-width: 40rem;
+  margin-inline: auto;
+  user-select: none;
+  pointer-events: none;
+}
+
+.join-hero__figures,
+.join-hero__board {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: var(--hero-gap);
+  padding-inline: var(--hero-pad);
+}
+
+/* The mascots overlap the top edge of the board a little: their bottoms rest on the tiles. */
+.join-hero__figures {
+  position: relative;
+  z-index: 1;
+  align-items: end;
+  margin-bottom: -5%;
+}
+
+.join-hero__figure {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.join-hero__figure::after {
+  content: '';
+  position: absolute;
+  inset: auto 10% 6% 10%;
+  height: 16%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--color-shadow) 100%, transparent), transparent);
+}
+
+.join-hero__mascot {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: 134%;
+  max-width: none;
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+
+.join-hero__board {
+  padding-block: var(--hero-pad);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-soft);
+  box-shadow: 0 0.4rem 0 var(--hero-lip), var(--elevation-2);
+}
+
+.join-hero__tile {
+  position: relative;
+  aspect-ratio: 1 / 1.2;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface);
+}
+
+.join-hero__tile::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 26%;
+  background: var(--hero-tile);
+}
+
+/*
+ * A short greeting, not a loop: two hops per mascot, staggered along the row, over about three seconds. It is absent under both
+ * sources of reduced motion, and the landing is quiet afterwards (plan 01 principle P4).
+ */
+@keyframes join-hero-hop {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5%); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduced-motion='true']) .join-hero__mascot {
+    animation: join-hero-hop 1.2s var(--motion-ease-in-out) 2;
+    animation-delay: calc(var(--hero-index, 0) * 0.12s);
+  }
+}

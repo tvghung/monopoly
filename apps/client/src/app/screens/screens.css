@@ -1,9 +1,177 @@
-.app-screen { display: grid; place-items: center; align-content: center; gap: var(--space-3); min-height: 100dvh; padding: max(var(--space-6), env(safe-area-inset-top)) max(var(--space-6), env(safe-area-inset-right)) max(var(--space-6), env(safe-area-inset-bottom)) max(var(--space-6), env(safe-area-inset-left)); background: linear-gradient(160deg, var(--color-canvas-deep), var(--color-info-soft)); color: var(--color-text-primary); text-align: center; }
-.app-screen__brand-mark { margin: 0; color: var(--color-accent-primary-strong); font-size: clamp(1.6rem, 5vw, 3rem); font-weight: var(--font-weight-bold); letter-spacing: 0.12em; }
-.app-screen__product-name { margin: 0; font-size: var(--font-size-lg); }
-.app-screen__spinner { width: 2rem; height: 2rem; margin-top: var(--space-3); border: 3px solid var(--color-accent-secondary-soft); border-top-color: var(--color-accent-primary-strong); border-radius: 50%; animation: app-screen-spin 0.8s linear infinite; }
-.app-screen--error { background: linear-gradient(160deg, var(--color-danger-soft), #f0e8ff); }
-.app-screen--error h1, .app-screen--error p { max-width: 34rem; }
-@keyframes app-screen-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .app-screen__spinner { animation: none; } }
+/*
+ * Full-screen states that are not a game screen: loading, and failures. They render before the app providers exist (the
+ * bootstrap), so this is plain CSS on tokens. Motion stops under the operating-system setting and under the game setting,
+ * which the screen mirrors as `app-screen--still`.
+ */
+.app-screen {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 100dvh;
+  padding:
+    max(var(--space-6), env(safe-area-inset-top))
+    max(var(--space-6), env(safe-area-inset-right))
+    max(var(--space-6), env(safe-area-inset-bottom))
+    max(var(--space-6), env(safe-area-inset-left));
+  background:
+    radial-gradient(ellipse 120% 80% at 50% 0%, var(--color-canvas) 0%, transparent 70%),
+    linear-gradient(170deg, var(--color-canvas-deep) 0%, color-mix(in srgb, var(--color-scene-backdrop) 60%, var(--color-canvas-deep)) 100%);
+  color: var(--color-text-primary);
+  text-align: center;
+}
 
+.app-screen__brand {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+}
+
+.app-screen__brand-mark {
+  margin: 0;
+  color: var(--color-accent-primary-strong);
+  font: var(--type-caption);
+  letter-spacing: 0.18em;
+}
+
+.app-screen__product-name {
+  margin: 0;
+  color: var(--color-accent-primary-strong);
+  font: var(--type-title-l);
+  text-wrap: balance;
+}
+
+.app-screen__stage,
+.app-screen__message {
+  max-width: 34rem;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--type-body);
+  text-wrap: balance;
+}
+
+.app-screen__stage { font-weight: 700; }
+
+/* Eight mascots in a row, each a little smaller on narrow screens so the row never scrolls sideways. */
+.app-screen__mascots {
+  display: flex;
+  justify-content: center;
+  gap: clamp(0.1rem, 1vw, 0.5rem);
+  width: min(100%, 36rem);
+  margin-block: var(--space-3);
+  user-select: none;
+  pointer-events: none;
+}
+
+.app-screen__mascot {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 4.25rem;
+  aspect-ratio: 1;
+  object-fit: contain;
+  filter: drop-shadow(0 0.35rem 0.25rem rgb(43 29 20 / 18%));
+}
+
+.app-screen__dots {
+  display: inline-flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.app-screen__dots > span {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  background: var(--color-accent-primary-strong);
+}
+
+/* Still, the dots fade along the row so they do not read as a separator. */
+.app-screen__dots > span:nth-child(2) { opacity: 0.6; }
+.app-screen__dots > span:nth-child(3) { opacity: 0.3; }
+
+/* Failure screens: a puzzled mascot with a question mark, then the title, the message and the one action. */
+.app-screen__figure {
+  position: relative;
+  width: 7rem;
+  margin-block: var(--space-2);
+}
+
+.app-screen__puzzled {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  transform: rotate(-7deg);
+  filter: drop-shadow(0 0.5rem 0.4rem rgb(43 29 20 / 20%));
+  user-select: none;
+}
+
+.app-screen__question {
+  position: absolute;
+  top: -0.25rem;
+  right: -0.75rem;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 2px solid var(--color-gold-strong);
+  border-radius: 50%;
+  background: var(--color-gold-soft);
+  color: var(--color-gold-strong);
+  font: var(--type-title-s);
+  rotate: 8deg;
+}
+
+.app-screen__title {
+  max-width: 34rem;
+  margin: 0;
+  font: var(--type-title-l);
+  text-wrap: balance;
+}
+
+.app-screen__alert { display: grid; justify-items: center; gap: var(--space-3); }
+.app-screen--error .app-screen__message { max-width: 30rem; }
+
+.app-screen--error .ds-button { margin-top: var(--space-2); }
+
+/* A phone held sideways has room for neither the big mascot nor the padding. */
+@media (orientation: landscape) and (max-height: 34rem) {
+  .app-screen {
+    gap: var(--space-2);
+    padding-block: max(var(--space-3), env(safe-area-inset-top)) max(var(--space-3), env(safe-area-inset-bottom));
+  }
+
+  .app-screen__product-name,
+  .app-screen__title { font: var(--type-title-m); }
+  .app-screen__alert { gap: var(--space-2); }
+
+  .app-screen__mascots { margin-block: var(--space-1); }
+  .app-screen__mascot { max-width: 3.25rem; }
+  .app-screen__figure { width: 4.5rem; }
+}
+
+@keyframes app-screen-hop {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14%); }
+}
+
+@keyframes app-screen-pulse {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+/* The hop runs along the row and the dots pulse in turn; both are absent under either source of reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .app-screen--loading:not(.app-screen--still) .app-screen__mascot {
+    animation: app-screen-hop 1.6s var(--motion-ease-in-out) infinite;
+    animation-delay: calc(var(--mascot-index, 0) * -0.18s);
+  }
+
+  .app-screen--loading:not(.app-screen--still) .app-screen__dots > span {
+    animation: app-screen-pulse 1.2s ease-in-out infinite;
+  }
+
+  .app-screen--loading:not(.app-screen--still) .app-screen__dots > span:nth-child(2) { animation-delay: 0.2s; }
+  .app-screen--loading:not(.app-screen--still) .app-screen__dots > span:nth-child(3) { animation-delay: 0.4s; }
+}

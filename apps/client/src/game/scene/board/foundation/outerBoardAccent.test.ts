@@ -25,8 +25,9 @@ describe('continuous outer board accent loop', () => {
     geometry.dispose();
   });
 
-  it('uses the near-white neutral accent token instead of the old teal accent', () => {
-    expect(boardVisualTokens.boardOuterAccent).toMatch(/^#e[0-9a-f]{5}$/i);
+  it('uses a near-white paper-toned accent token instead of the old teal accent', () => {
+    // Plan 02 T02.16: the cool #e7ebea became warm paper (#f3e9da); still near white, still not the gold accent.
+    expect(boardVisualTokens.boardOuterAccent).toMatch(/^#f[0-9a-f]{5}$/i);
     expect(boardVisualTokens.boardOuterAccent).not.toBe(boardVisualTokens.boardAccent);
   });
 });

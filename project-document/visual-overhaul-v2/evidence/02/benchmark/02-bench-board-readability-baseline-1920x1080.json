@@ -1,0 +1,202 @@
+{
+  "id": "02-benchmark-bench-board-readability-baseline-1920x1080",
+  "plan": "02",
+  "folder": "benchmark",
+  "name": "02-bench-board-readability-baseline",
+  "url": "/?phase4-uat=1&scenario=board-readability&uat-controls=hidden&benchmark=10",
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "kind": "harness",
+  "rendererMode": "webgl",
+  "browser": "chromium 154.0.8037.58",
+  "captureTool": "e2e/visual/capture.visual.ts",
+  "consoleErrors": [],
+  "benchmark": {
+    "frames": 530,
+    "medianFrameMs": 16.69999999999891,
+    "p95FrameMs": 16.80000000000109,
+    "maxFrameMs": 699.5999999999999,
+    "medianFps": 59.880239520962,
+    "slowFrames": 16,
+    "scenario": "board-readability",
+    "seconds": 10,
+    "diagnostics": {
+      "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "pixelRatio": 1.25,
+      "drawingBuffer": {
+        "width": 2367,
+        "height": 1317
+      },
+      "camera": "orthographic",
+      "cameraPosition": [
+        16.95401417043256,
+        21.1925177130407,
+        16.95401417043256
+      ],
+      "toneMapping": "ACESFilmicToneMapping",
+      "toneMappingExposure": 1,
+      "shadows": {
+        "enabled": false,
+        "type": "none"
+      },
+      "environment": false,
+      "frameSequence": 32,
+      "mainDrawCalls": 227,
+      "shadowDrawCalls": 0,
+      "postDrawCalls": 0,
+      "postPasses": 0,
+      "renderedTriangles": 67016,
+      "anisotropy": 8,
+      "textureMaxAnisotropy": 16,
+      "drawCalls": 227,
+      "triangles": 66234,
+      "combinedDrawCalls": 227,
+      "combinedTriangles": 66234,
+      "activeAnimatedObjects": 0,
+      "targetDrawCalls": 210,
+      "stressDrawCallLimit": 240,
+      "targetTriangles": 80000,
+      "hardTriangleLimit": 100000,
+      "physicalScene": {
+        "stationLayer": true,
+        "stationCount": 4,
+        "authoritativeStationCount": 4,
+        "stationLabelCount": 4,
+        "bankTreasury": true,
+        "sharedCoinInstanceCount": 94,
+        "sharedCoinFinishInstances": {
+          "COPPER": 61,
+          "SILVER": 23,
+          "GOLD": 10
+        },
+        "decks": {
+          "chance": {
+            "physicalCount": 13,
+            "authoritativeCount": 13
+          },
+          "chest": {
+            "physicalCount": 15,
+            "authoritativeCount": 15
+          }
+        },
+        "destinationPreviewTileId": null,
+        "destinationPreview": {},
+        "coinSystem": {
+          "geometryType": "LatheGeometry",
+          "sceneEnvironment": false,
+          "finishes": {
+            "COPPER": {
+              "metalness": 0.74,
+              "roughness": 0.17,
+              "envMap": true,
+              "envMapIntensity": 1.08
+            },
+            "SILVER": {
+              "metalness": 0.8,
+              "roughness": 0.13,
+              "envMap": true,
+              "envMapIntensity": 1.24
+            },
+            "GOLD": {
+              "metalness": 0.77,
+              "roughness": 0.15,
+              "envMap": true,
+              "envMapIntensity": 1.14
+            }
+          }
+        },
+        "activeTurnRingCount": 0
+      }
+    }
+  },
+  "diagnostics": {
+    "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "pixelRatio": 1.25,
+    "drawingBuffer": {
+      "width": 2367,
+      "height": 1317
+    },
+    "camera": "orthographic",
+    "cameraPosition": [
+      16.95401417043256,
+      21.1925177130407,
+      16.95401417043256
+    ],
+    "toneMapping": "ACESFilmicToneMapping",
+    "toneMappingExposure": 1,
+    "shadows": {
+      "enabled": false,
+      "type": "none"
+    },
+    "environment": false,
+    "frameSequence": 32,
+    "mainDrawCalls": 227,
+    "shadowDrawCalls": 0,
+    "postDrawCalls": 0,
+    "postPasses": 0,
+    "renderedTriangles": 67016,
+    "anisotropy": 8,
+    "textureMaxAnisotropy": 16,
+    "drawCalls": 227,
+    "triangles": 66234,
+    "combinedDrawCalls": 227,
+    "combinedTriangles": 66234,
+    "activeAnimatedObjects": 0,
+    "targetDrawCalls": 210,
+    "stressDrawCallLimit": 240,
+    "targetTriangles": 80000,
+    "hardTriangleLimit": 100000,
+    "physicalScene": {
+      "stationLayer": true,
+      "stationCount": 4,
+      "authoritativeStationCount": 4,
+      "stationLabelCount": 4,
+      "bankTreasury": true,
+      "sharedCoinInstanceCount": 94,
+      "sharedCoinFinishInstances": {
+        "COPPER": 61,
+        "SILVER": 23,
+        "GOLD": 10
+      },
+      "decks": {
+        "chance": {
+          "physicalCount": 13,
+          "authoritativeCount": 13
+        },
+        "chest": {
+          "physicalCount": 15,
+          "authoritativeCount": 15
+        }
+      },
+      "destinationPreviewTileId": null,
+      "destinationPreview": {},
+      "coinSystem": {
+        "geometryType": "LatheGeometry",
+        "sceneEnvironment": false,
+        "finishes": {
+          "COPPER": {
+            "metalness": 0.74,
+            "roughness": 0.17,
+            "envMap": true,
+            "envMapIntensity": 1.08
+          },
+          "SILVER": {
+            "metalness": 0.8,
+            "roughness": 0.13,
+            "envMap": true,
+            "envMapIntensity": 1.24
+          },
+          "GOLD": {
+            "metalness": 0.77,
+            "roughness": 0.15,
+            "envMap": true,
+            "envMapIntensity": 1.14
+          }
+        }
+      },
+      "activeTurnRingCount": 0
+    }
+  }
+}

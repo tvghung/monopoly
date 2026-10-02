@@ -1,0 +1,32 @@
+/* Forced-sale proposal dialog (plan 04 §8.3): the deed on the left, the fixed price, the two parties and the role's actions on the right. */
+.forced-sale-proposal__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 16.25rem) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-4);
+}
+.forced-sale-proposal__deed { width: 100%; }
+.forced-sale-proposal__details { display: grid; gap: var(--space-3); min-width: 0; }
+
+.forced-sale-proposal__facts { display: grid; gap: var(--space-2); margin: 0; }
+.forced-sale-proposal__price { display: grid; }
+.forced-sale-proposal__price dt { color: var(--color-text-secondary); font: var(--type-caption); letter-spacing: 0.06em; text-transform: uppercase; }
+.forced-sale-proposal__price dd { margin: 0; font: var(--type-title-l); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.forced-sale-proposal__party { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.forced-sale-proposal__party dt { min-width: 4.5rem; color: var(--color-text-secondary); font: var(--type-small); }
+.forced-sale-proposal__party dd { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; margin: 0; font-weight: var(--font-weight-semibold); }
+
+.forced-sale-proposal__status { margin: 0; color: var(--color-text-secondary); font: var(--type-small); }
+.forced-sale-proposal__error { margin: 0; color: var(--color-danger-strong); font: var(--type-small); font-weight: var(--font-weight-semibold); }
+.forced-sale-proposal__actions { display: grid; gap: var(--space-2); }
+.forced-sale-proposal__actions .ds-button { box-sizing: border-box; width: 100%; }
+
+@media (max-width: 40rem) {
+  .forced-sale-proposal__layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+}
+
+/* A phone held sideways keeps the deed beside the decision. */
+@media (orientation: landscape) and (max-height: 31rem) {
+  .forced-sale-proposal__layout { grid-template-columns: minmax(0, 16.25rem) minmax(0, 1fr); gap: var(--space-3); }
+  .forced-sale-proposal__price dd { font: var(--type-title-m); }
+}

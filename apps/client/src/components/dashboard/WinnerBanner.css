@@ -1,0 +1,179 @@
+/*
+ * Victory dialog (plan 04 §8.6): a Modal (xl, celebration) whose body holds the winner hero and the other players, and
+ * whose footer holds the actions, so they stay reachable when the body scrolls on a short screen.
+ */
+.victory__content { display: grid; gap: var(--space-4); border-radius: var(--radius-lg); }
+.victory__content:focus-visible { outline: 2px solid transparent; outline-offset: 2px; box-shadow: var(--focus-ring); }
+
+.victory__hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--color-gold-soft), var(--color-surface-soft));
+}
+
+.victory__avatar { position: relative; margin-top: var(--space-2); }
+.victory__crown {
+  position: absolute;
+  top: -1.1rem;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 2px solid var(--color-surface);
+  border-radius: 50%;
+  background: var(--color-turn-active);
+  box-shadow: var(--shadow-raised);
+  color: var(--color-text-primary);
+  transform: translateX(-50%);
+}
+.victory__crown .action-icon { width: 1.25rem; height: 1.25rem; margin: 0; }
+
+.victory__identity { display: grid; gap: var(--space-1); min-width: 0; }
+.victory__eyebrow {
+  margin: 0;
+  color: var(--color-gold-strong);
+  font: var(--type-caption);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.victory__name {
+  margin: 0;
+  font: var(--type-title-l);
+  overflow-wrap: anywhere;
+  /* The player color is an underline, not the text color: pale colors such as yellow would not be readable as text. */
+  text-decoration: underline;
+  text-decoration-color: var(--victory-color);
+  text-decoration-thickness: 0.3rem;
+  text-decoration-skip-ink: none;
+  text-underline-offset: 0.14em;
+}
+.victory__color {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--type-label);
+}
+.victory__swatch {
+  flex: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid var(--color-surface);
+  border-radius: 50%;
+  background: var(--victory-color);
+  box-shadow: 0 0 0 1px var(--color-border-strong);
+}
+
+.victory__stats {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+.victory__tile {
+  display: grid;
+  align-content: space-between;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.victory__tile--cash { grid-column: 1 / -1; }
+.victory__tile dt {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  color: var(--color-text-secondary);
+  font: var(--type-caption);
+}
+.victory__tile dt svg { flex: none; width: 1rem; height: 1rem; margin: 0.0625rem 0 0; }
+.victory__tile dd {
+  margin: 0;
+  font: var(--type-money-l);
+  font-variant-numeric: tabular-nums;
+}
+
+.victory__section-title { margin: 0 0 var(--space-2); font: var(--type-title-s); }
+.victory__others-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.victory__other {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 3.25rem;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.victory__other-who { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); min-width: 0; }
+.victory__other-name { font: var(--type-label); overflow-wrap: anywhere; }
+.victory__other-cash {
+  display: grid;
+  flex: none;
+  justify-items: end;
+  color: var(--color-text-secondary);
+  font: var(--type-caption);
+}
+
+.victory__note { display: grid; flex: 1 1 14rem; gap: var(--space-1); min-width: 0; }
+.victory__hint { margin: 0; color: var(--color-text-secondary); font: var(--type-small); }
+.victory__error { margin: 0; color: var(--color-danger-strong); font: var(--type-small); font-weight: 700; }
+/* The primary action comes first in the DOM and the Tab order; row-reverse keeps it on the right of the row. */
+.victory__actions { display: flex; flex: 0 1 auto; flex-direction: row-reverse; flex-wrap: wrap; justify-content: flex-start; gap: var(--space-2); }
+
+/* The dialog is 880 px wide only on large screens; below that the cash tile keeps a row to itself. */
+@media (min-width: 58rem) {
+  .victory__stats { grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr)); }
+  .victory__tile--cash { grid-column: auto; }
+  .victory__name { font: var(--type-display); }
+}
+
+@media (max-width: 40rem) {
+  .victory__hero { grid-template-columns: minmax(0, 1fr); justify-items: center; padding: var(--space-4); text-align: center; }
+  .victory__identity { justify-items: center; }
+  .victory__color { justify-content: center; }
+  .victory .ds-modal__body { padding-inline: var(--space-3); }
+  .victory__tile { padding: var(--space-2); }
+  .victory__tile dt { justify-content: center; }
+  .victory__tile dt svg { display: none; }
+  .victory__tile dd, .victory__tile dd .ds-money--lg { font: var(--type-title-m); font-variant-numeric: tabular-nums; }
+  /* Stacked in DOM order, so the primary action is on top: side by side the labels would wrap. */
+  .victory__actions { flex: 1 1 100%; flex-direction: column; }
+  .victory__actions .ds-button { box-sizing: border-box; width: 100%; }
+}
+
+/* A phone held sideways: a compact hero (avatar and name on the left, the tiles on the right) so little scrolling is needed. */
+@media (orientation: landscape) and (max-height: 31rem) {
+  .victory__content { gap: var(--space-3); }
+  .victory__hero {
+    grid-template-columns: auto minmax(0, 0.9fr) minmax(0, 1.6fr);
+    justify-items: stretch;
+    padding: var(--space-3);
+    text-align: start;
+  }
+  .victory__avatar { margin-top: 0; }
+  .victory__crown { top: -0.75rem; width: 1.75rem; height: 1.75rem; }
+  .victory__crown .action-icon { width: 1rem; height: 1rem; }
+  .victory__identity { justify-items: start; }
+  .victory__color { justify-content: start; }
+  .victory__name { font: var(--type-title-m); }
+  .victory__stats { grid-column: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+  .victory__tile { padding: var(--space-2); }
+  .victory__tile--cash { grid-column: auto; }
+  .victory__tile dt { justify-content: flex-start; }
+  .victory__tile dt svg { display: block; }
+  .victory__tile dd, .victory__tile dd .ds-money--lg { font: var(--type-title-s); font-variant-numeric: tabular-nums; }
+  .victory__other { min-height: 3rem; }
+  .victory__actions { flex: 0 1 auto; flex-direction: row-reverse; }
+  .victory__actions .ds-button { width: auto; }
+}

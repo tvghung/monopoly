@@ -1,0 +1,18 @@
+.ds-delta-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--elevation-1);
+}
+.ds-delta-chip--default { background: var(--color-surface-soft); }
+.ds-delta-chip--gain { background: var(--color-success-soft); }
+.ds-delta-chip--loss { background: var(--color-danger-soft); }
+/* Text colors come from MoneyText; the strong variants keep every pair at 4.5:1 or better. */
+.ds-delta-chip--gain .ds-money { color: var(--color-success-strong); }
+.ds-delta-chip--loss .ds-money { color: var(--color-danger-strong); }
+.ds-delta-chip--pop { animation: ds-delta-chip-pop var(--motion-duration-emphasis) var(--motion-ease-out) both; }
+@keyframes ds-delta-chip-pop {
+  from { opacity: 0; transform: translateY(0.5rem) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}

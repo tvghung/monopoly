@@ -21,4 +21,10 @@ runtime schema or PostgreSQL failure behavior.
 - [ ] Per-socket 750 ms throttle rejects spam attempts with ACK failure.
 - [ ] Committed logs preserve ordering through reconnect/server restart and retain only
   the newest 500 entries.
+- [x] `[CLIENT][AUTOMATED]` Chat bubbles on the sender's card are plain text (markup never becomes elements),
+  truncated to 80 characters, only for other players, never replayed after a reset epoch or a sequence restart, hidden
+  while the drawer is open, and not held back by the presentation queue; the drawer and its unread count use the
+  authoritative chat while gameplay entries follow the presentation (`tickerAndBubbles.test.tsx`, `Log.test.tsx`).
+- [x] `[CLIENT][AUTOMATED]` Closing the activity drawer discards a half-typed message, so reopening it never sends
+  text the player cannot see (`Log.test.tsx`).
 - [ ] Client does not duplicate listeners, auto-retry timed-out chat or report failure as sent.

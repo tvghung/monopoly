@@ -3,6 +3,9 @@
 @import '@fontsource/be-vietnam-pro/600.css';
 @import '@fontsource/be-vietnam-pro/700.css';
 @import '@fontsource/be-vietnam-pro/800.css';
+/* The per-subset Baloo 2 files carry no unicode-range, so import the combined weight files: the browser then fetches only the subsets a page uses (latin + vietnamese). Only the two weights used by the type scale are loaded. */
+@import '@fontsource/baloo-2/700.css';
+@import '@fontsource/baloo-2/800.css';
 
 :root {
   --font-family-body: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif;
@@ -18,3 +21,23 @@
   --line-height-body: 1.5;
 }
 
+/*
+ * Visual Overhaul V2 type system (plan 01 §8.6). The display face (Baloo 2, Vietnamese subset
+ * included) is for titles, money, CTA labels and celebrations; everything else stays in the body
+ * face. Each --type-* token is a complete `font` shorthand: use `font: var(--type-title-m)`.
+ * Display line heights are at least 1.18 so stacked Vietnamese diacritics never clip. The `font`
+ * shorthand resets font-variant-numeric, so declare tabular numerals after it.
+ */
+:root {
+  --font-family-display: 'Baloo 2', 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif;
+  --type-caption: 600 0.75rem/1rem var(--font-family-body);
+  --type-small: 500 0.875rem/1.25rem var(--font-family-body);
+  --type-body: 500 1rem/1.5rem var(--font-family-body);
+  --type-label: 700 1rem/1.25rem var(--font-family-body);
+  --type-title-s: 700 1.25rem/1.625rem var(--font-family-display);
+  --type-title-m: 700 1.5rem/1.875rem var(--font-family-display);
+  --type-title-l: 800 2rem/2.5rem var(--font-family-display);
+  --type-display: 800 2.5rem/3rem var(--font-family-display);
+  --type-money-l: 800 1.75rem/2.125rem var(--font-family-display);
+  --type-hero: 800 3.5rem/4.125rem var(--font-family-display);
+}

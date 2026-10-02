@@ -21,20 +21,23 @@ import type {
   SetAppearanceRequest,
 } from '@monopoly/shared';
 import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
-import {
-  ArrowLeft, Flag, LogOut, RefreshCw, Settings, X as XIcon,
-} from 'lucide-react';
+import { Flag, X as XIcon } from 'lucide-react';
+import ErrorScreen from './app/screens/ErrorScreen';
+import LoadingScreen from './app/screens/LoadingScreen';
 import Board from './components/Board';
 import ConnectionOverlay from './components/ConnectionOverlay';
 import JoinForm from './components/JoinForm';
 import Lobby from './components/Lobby';
 import SpectatorBanner from './components/SpectatorBanner';
 import { useToast } from './components/Toast';
+import IconButton from './design-system/components/IconButton/IconButton';
+import { ActionIcon as RegistryIcon } from './design-system/icons/ActionIcon';
 import ConfirmationDialog from './design-system/components/ConfirmationDialog/ConfirmationDialog';
 import SettingsPanel from './settings/SettingsPanel';
 import FpsBadge from './game/ui/FpsBadge';
 import { getDesktopBridge } from './runtime/desktopBridge';
 import stateContext from './internal';
+import { roomExitContext, type RoomExitContextValue } from './roomExitContext';
 import { localizeAckError } from './presentation';
 import { createSocket } from './network/createSocket';
 import { PresentationController, type SnapshotSource } from './game/presentation/PresentationController';
@@ -108,17 +111,6 @@ const terminalSessionCodes = new Set<AckError['code']>([
 ]);
 const ACK_TIMEOUT_MS = 10_000;
 
-function LoadingScreen({ message }: { message: string }) {
-  return (
-    <section className="app-status" role="status" aria-live="polite">
-      <span className="connection-overlay__spinner" aria-hidden="true" />
-      <h1>Own the Block</h1>
-      <p>Cờ Tỷ Phú Việt Nam</p>
-      <p>{message}</p>
-    </section>
-  );
-}
-
 interface FailureScreenProps {
   title: string;
   failure: AppFailure;
@@ -126,29 +118,24 @@ interface FailureScreenProps {
 }
 
 function FailureScreen({ title, failure, onRetry }: FailureScreenProps) {
-  const ActionIcon = failure.reloadRequired
-    ? RefreshCw
-    : failure.returnToLauncher ? ArrowLeft : RefreshCw;
+  const returnsToLauncher = !failure.reloadRequired && failure.returnToLauncher;
   return (
-    <section className="app-status" role="alert">
-      <h1>{title}</h1>
-      <p>{failure.message}</p>
-      {onRetry
-        ? (
-          <button
-            type="button"
-            onClick={failure.reloadRequired ? () => window.location.reload() : onRetry}
-          >
-            <ActionIcon className="action-icon" aria-hidden="true" />
-            {failure.reloadRequired
-              ? 'Tải lại trò chơi'
-              : failure.returnToLauncher
-                ? 'Quay về trình khởi động LAN'
-                : failure.retryable ? 'Thử lại' : 'Quay về màn hình vào phòng'}
-          </button>
-        )
-        : null}
-    </section>
+    <ErrorScreen
+      as="section"
+      title={title}
+      message={failure.message}
+      action={onRetry
+        ? {
+          label: failure.reloadRequired
+            ? 'Tải lại trò chơi'
+            : failure.returnToLauncher
+              ? 'Quay về trình khởi động LAN'
+              : failure.retryable ? 'Thử lại' : 'Quay về màn hình vào phòng',
+          icon: <RegistryIcon name={returnsToLauncher ? 'back' : 'retry'} />,
+          onClick: failure.reloadRequired ? () => window.location.reload() : onRetry,
+        }
+        : undefined}
+    />
   );
 }
 
@@ -822,9 +809,17 @@ export default function App({
     privateOffers,
     roomPlayers: room?.players ?? [],
     roomStatus: room?.status,
+    roomCode: room?.roomCode,
     hostPlayerId: room?.hostPlayerId,
     canPlayAgain,
   }), [canMutate, canPlayAgain, connected, playerId, privateOffers, privatePlayerState, role, room, socketFunctions]);
+
+  const roomExit = useMemo<RoomExitContextValue>(() => ({
+    requestLeave: handleLeave,
+    leaving: operation === 'leave',
+    label: role === 'PLAYER' && room?.status === 'IN_PROGRESS' ? 'Bỏ cuộc' : 'Rời phòng',
+    error: operationError,
+  }), [handleLeave, operation, operationError, role, room?.status]);
 
   const roomContent = room && role
     ? role === 'PLAYER' && room.status === 'LOBBY' && playerId
@@ -860,28 +855,20 @@ export default function App({
           {role === 'SPECTATOR' ? <SpectatorBanner /> : null}
           <div className="room-toolbar" aria-label="Điều khiển ván chơi">
             {import.meta.env.DEV || __PHASE4_UAT__ ? <FpsBadge /> : null}
-            <button
-              type="button"
+            <IconButton
+              label="Cài đặt"
+              icon={<RegistryIcon name="settings" className="room-settings-button__icon" />}
               className={`room-settings-button${settingsOpen ? ' room-settings-button--open' : ''}`}
-              aria-label="Cài đặt"
-              title="Cài đặt"
               aria-expanded={settingsOpen}
               onClick={() => setSettingsOpen(true)}
-            >
-              <Settings className="action-icon action-icon--only room-settings-button__icon" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
+            />
+            <IconButton
+              label={role === 'PLAYER' && room.status === 'IN_PROGRESS' ? 'Bỏ cuộc' : 'Rời phòng'}
+              icon={role === 'PLAYER' && room.status === 'IN_PROGRESS' ? 'forfeit' : 'leave'}
               className="room-exit-button"
-              aria-label={role === 'PLAYER' && room.status === 'IN_PROGRESS' ? 'Bỏ cuộc' : 'Rời phòng'}
-              title={role === 'PLAYER' && room.status === 'IN_PROGRESS' ? 'Bỏ cuộc' : 'Rời phòng'}
               disabled={operation !== null}
               onClick={handleLeave}
-            >
-              {role === 'PLAYER' && room.status === 'IN_PROGRESS'
-                ? <Flag className="action-icon action-icon--only" aria-hidden="true" />
-                : <LogOut className="action-icon action-icon--only" aria-hidden="true" />}
-            </button>
+            />
           </div>
           {operationError ? <p className="room-exit-error" role="alert">{operationError}</p> : null}
           <Board />
@@ -892,8 +879,9 @@ export default function App({
   return (
     <PresentationProvider controller={presentationController}>
       <stateContext.Provider value={contextValue}>
+        <roomExitContext.Provider value={roomExit}>
         <main className="App">
-          {phase === 'RESTORING' ? <LoadingScreen message="Đang khôi phục ván chơi…" /> : null}
+          {phase === 'RESTORING' ? <LoadingScreen as="section" stage="restoring" /> : null}
           {phase === 'JOIN' || phase === 'JOINING'
             ? (
               <JoinForm
@@ -929,6 +917,7 @@ export default function App({
           />
         </main>
         <CardInteractionOverlay />
+        </roomExitContext.Provider>
       </stateContext.Provider>
     </PresentationProvider>
   );
