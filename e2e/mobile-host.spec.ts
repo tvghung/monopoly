@@ -3,6 +3,8 @@ import {
 } from '@playwright/test';
 
 const MUSIC_PATH = '/audio/music/own-the-block-main-theme-loop.wav';
+/** Hosted CI runners have no GPU and fewer cores (software WebGL): the same flows get twice the time there. */
+const TIME_FACTOR = process.env.CI ? 2 : 1;
 
 interface MusicObservation {
   available: boolean;
@@ -77,7 +79,7 @@ async function expectMusicRuntime(page: Page): Promise<void> {
     expect(initial.starts).toEqual([]);
     return;
   }
-  await expect.poll(async () => (await snapshot()).starts.length, { timeout: 30_000 }).toBeGreaterThanOrEqual(1);
+  await expect.poll(async () => (await snapshot()).starts.length, { timeout: 30_000 * TIME_FACTOR }).toBeGreaterThanOrEqual(1);
   const observation = await snapshot();
   expect(observation.decodeCount).toBeGreaterThanOrEqual(1);
   expect(new Set(observation.starts.map(start => start.context)).size).toBe(1);
@@ -161,7 +163,7 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
   browser,
   page,
 }, testInfo) => {
-  test.setTimeout(180_000);
+  test.setTimeout(180_000 * TIME_FACTOR);
   const browserErrors: string[] = [];
   const watchErrors = (target: Page) => {
     target.on('console', message => {
@@ -346,7 +348,7 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
 
     await page.context().setOffline(true);
     await expect(page.getByText('Đã mất kết nối. Đang kết nối lại vào ván chơi…'))
-      .toBeVisible({ timeout: 15_000 });
+      .toBeVisible({ timeout: 15_000 * TIME_FACTOR });
     await page.context().setOffline(false);
     await page.evaluate(() => {
       document.dispatchEvent(new Event('visibilitychange'));
@@ -354,7 +356,7 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
     });
     await expect(page.getByTestId('game-board')).toBeVisible();
     await expect(page.getByText('Đã mất kết nối. Đang kết nối lại vào ván chơi…'))
-      .toBeHidden({ timeout: 15_000 });
+      .toBeHidden({ timeout: 15_000 * TIME_FACTOR });
     expect(browserErrors).toEqual([]);
   } finally {
     await guestContext.close();
@@ -362,7 +364,7 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
 });
 
 test('single rendered WAV music asset and supported Web Audio lifecycle', async ({ browser, page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(120_000 * TIME_FACTOR);
   const browserErrors: string[] = [];
   page.on('pageerror', error => browserErrors.push(error.message));
   await observeMusic(page);
@@ -424,10 +426,10 @@ test('single rendered WAV music asset and supported Web Audio lifecycle', async 
 
     await page.context().setOffline(true);
     await expect(page.getByText('Đã mất kết nối. Đang kết nối lại vào ván chơi…'))
-      .toBeVisible({ timeout: 15_000 });
+      .toBeVisible({ timeout: 15_000 * TIME_FACTOR });
     await page.context().setOffline(false);
     await expect(page.getByText('Đã mất kết nối. Đang kết nối lại vào ván chơi…'))
-      .toBeHidden({ timeout: 15_000 });
+      .toBeHidden({ timeout: 15_000 * TIME_FACTOR });
     await expectMusicRuntime(page);
     expect(browserErrors).toEqual([]);
   } finally {
