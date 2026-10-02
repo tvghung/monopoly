@@ -107,7 +107,7 @@ was not run: there is none here.
 ## 7. Known limits (for the reviewer)
 
 - **Cultural sign-off is open.** The agent chose the subjects from the plan's table and drew them simply (no figures, no inscriptions, no logos; Chùa Trấn Quốc and Tháp Đôi are architecture only).
-- **No packaged run.** `pnpm desktop:package` and `pnpm --filter @monopoly/desktop proof:packaged:landmarks` were not run in this package; the validator checks the built copies (`pnpm build`).
+- **The packaged window was not looked at.** `pnpm desktop:package`, `proof:packaged:landmarks` (22 landmark SVGs), `proof:packaged:cards`, `proof:packaged:audio` and the runtime proof `proof:packaged` pass on Windows x64 (02/10/2026), but nothing in them draws the board; seeing the landmarks and standees under `app://` is a human check (`pnpm desktop:run:packaged`).
 - **Slim and wide landmarks** fill most of their plinth (footprint up to 1.29 of 1.30); with a standee in front of a tall tower (Đồng Khởi in `landmarks-all`) the standee hides part of it, as it hid the hotel box before.
 - **A landmark is a child of its tile**, so it is rotated with the tile and reads from a different side on each edge of the board; the sheets show the unrotated view.
 - **Props are hidden** on tablet and phone landscape and in the low tier; they never move under the HUD.
