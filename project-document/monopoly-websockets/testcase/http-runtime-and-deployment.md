@@ -83,11 +83,14 @@
 - [x] `[AUTO]` Staging keeps exactly the three installers plus `SHA256SUMS.txt` under the release names, checks each
   installer against the version, platform, architecture and checksum in its build job's `manifest.json`, and fails on a
   missing, doubled, altered or unlisted file: `apps/desktop/tests/stageReleaseAssets.test.ts`.
-- [ ] `[CI]` Pushing `v<version>` (equal to the root `package.json` version, with `.github/release-notes/<tag>.md`)
+- [x] `[CI]` Pushing `v<version>` (equal to the root `package.json` version, with `.github/release-notes/<tag>.md`)
   runs the Release Candidate quality job and its three targets and, only when all pass, publishes the GitHub Release with
-  the three installers and `SHA256SUMS.txt`. A mismatching tag or missing notes fail before any build, and a manual
-  dispatch publishes nothing. _(Only a real tag run exercises this; the `v1.0.0` result goes in the release record of the
-  [V1 release contract](../../ui-ux-overhaul/V1_RELEASE_CONTRACT.md).)_
+  the three installers and `SHA256SUMS.txt`. _(Exercised once: `v1.0.0`, Release Candidate run #3, `36981843076`,
+  2026-10-02, all jobs passed and the release was published; see the release record in the
+  [V1 release contract](../../ui-ux-overhaul/V1_RELEASE_CONTRACT.md#release-record).)_
+- [ ] `[CI]` A tag that differs from the root version, or has no release notes, fails in the first job before any build, and
+  a manual dispatch publishes nothing. _(Follows from the step and the `publish` job's `if:` condition; no run has
+  exercised these negative paths.)_
 
 ## Restart/recovery
 

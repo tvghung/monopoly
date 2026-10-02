@@ -166,3 +166,22 @@ open work, not closed evidence.
 - macOS install and run on a physical Mac, real OS firewall prompts, and install/upgrade/uninstall evidence.
 - Visual overhaul V2 open items: the benchmark on a reference device, the `balanced` tier decision on integrated GPUs (about
   30 FPS on an Intel UHD 630 stress fixture), the G3 five-second test and the look at the packaged window.
+
+### Release record
+
+| Item | Value |
+| --- | --- |
+| Tag | `v1.0.0` (annotated), on commit `de38f7a` of `main` |
+| Workflow run | Release Candidate #3 (`36981843076`), started by the tag push: success in 13m 43s. Quality gates 3m 3s; the Windows x64, macOS x64 and macOS arm64 jobs passed; `publish` 1m 11s |
+| Release | `https://github.com/tvghung/monopoly/releases/tag/v1.0.0`, "Own the Block v1.0.0", marked Latest, published 2026-10-02 08:16 UTC by the workflow token |
+| Distribution mode | `unsigned-validation` (signing BLOCKED, notarization BLOCKED/NOT RUN, as accepted above) |
+
+| Asset | Size | SHA-256 shown by GitHub |
+| --- | --- | --- |
+| `OwnTheBlock-1.0.0-win32-x64-Setup.exe` | 250 MB | `e36faef7c1d14ffdc507cb611e428cc64756f45828db668df43579486fc599e6` |
+| `OwnTheBlock-1.0.0-macos-x64.dmg` | 380 MB | `4fccf94a4f46881393bd156bddff608c77d9b3a495dae261739bf668ac7a0425` |
+| `OwnTheBlock-1.0.0-macos-arm64.dmg` | 378 MB | `e25f474ed7bdb5f7b63ff91eaacc1c5625f9b75535d7f07026368a30c210af67` |
+| `SHA256SUMS.txt` | 302 bytes | `49413d30a90592b438714d25f243b6b9b1762f57747d25304b804fbe3b9c2b8b` |
+
+The installers were built, passed the packaged proofs on CI and were published by the workflow. This record does not claim
+that anyone installed them from the release page on a machine; that and the open gates above stay separate evidence.
