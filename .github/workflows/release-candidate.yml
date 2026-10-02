@@ -79,6 +79,10 @@ jobs:
         run: pnpm validate:card-art
       - name: Test card artwork validator
         run: pnpm test:card-art
+      - name: Validate landmark artwork
+        run: pnpm validate:landmark-art
+      - name: Test landmark artwork validator
+        run: pnpm test:landmark-art
       - name: Apply database migrations
         run: pnpm db:migrate
       - name: Typecheck
@@ -162,6 +166,10 @@ jobs:
         run: pnpm validate:card-art
       - name: Test card artwork validator
         run: pnpm test:card-art
+      - name: Validate landmark artwork
+        run: pnpm validate:landmark-art
+      - name: Test landmark artwork validator
+        run: pnpm test:landmark-art
       - name: Prepare Windows signing certificate
         if: matrix.platform == 'win32' && inputs.distribution_mode == 'signed'
         shell: pwsh
@@ -249,6 +257,8 @@ jobs:
         run: pnpm --filter @monopoly/desktop proof:packaged:audio
       - name: Verify packaged card artwork
         run: pnpm --filter @monopoly/desktop proof:packaged:cards
+      - name: Verify packaged landmark artwork
+        run: pnpm --filter @monopoly/desktop proof:packaged:landmarks
       - name: Verify collected artifact metadata
         run: pnpm validate:release -- --release --artifacts
       - name: Verify Windows Authenticode signature

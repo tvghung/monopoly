@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
+  <rect width="160" height="160" rx="28" fill="#f8e6ce"/>
+  <ellipse cx="80" cy="138" rx="62" ry="8" fill="#3e2a22" opacity=".14"/>
+  <ellipse cx="80" cy="128" rx="70" ry="22" fill="#3f8fa6"/>
+  <ellipse cx="88" cy="136" rx="40" ry="10" fill="#4fa3b8"/>
+  <path d="M16 126L20 102Q24 90 30 102L36 126Z" fill="#7e877f"/>
+  <path d="M40 130L46 52Q54 26 62 52L70 130Z" fill="#9aa39c"/>
+  <path d="M44 58Q54 22 64 58Q54 50 44 58Z" fill="#4f8a4a"/>
+  <path d="M84 128L90 74Q96 54 104 74L112 128Z" fill="#7e877f"/>
+  <path d="M88 76Q96 50 106 76Q96 68 88 76Z" fill="#3f7a44"/>
+  <path d="M118 128L122 98Q127 84 134 98L142 128Z" fill="#9aa39c"/>
+  <path d="M121 100Q127 82 136 100Q128 94 121 100Z" fill="#4f8a4a"/>
+  <path d="M60 122H112L106 134H66Z" fill="#5a3320"/>
+  <rect x="75" y="90" width="2.5" height="34" fill="#4a2f22"/>
+  <rect x="95" y="97" width="2.5" height="27" fill="#4a2f22"/>
+  <path d="M78 92H94L91 118H78Z" fill="#c2452b"/>
+  <path d="M98 99H112L110 120H98Z" fill="#d9692f"/>
+  <path d="M78 101H93M78 110H92M98 107H111" stroke="#8f2e1b" stroke-width="1.4"/>
+</svg>

@@ -11,6 +11,14 @@ function build(tileId: number, ownedProps: Owned = {}) {
 }
 
 describe('buildDeedCardModel', () => {
+  it('carries the landmark of a street (name and picture) and none for stations, utilities or special tiles', () => {
+    const landmark = build(13)!.landmark;
+    expect(landmark?.name).toBe('Chùa Cầu');
+    expect(landmark?.artUrl).toMatch(/\/art\/landmarks\/13\.svg$/u);
+    expect(build(39)!.landmark?.name).toBe('Landmark 81');
+    for (const tileId of [0, 2, 4, 5, 12, 10]) expect(build(tileId)!.landmark, `tile ${tileId}`).toBeNull();
+  });
+
   it('returns null for a tile that does not exist', () => {
     const room = makeRoom();
     expect(buildDeedCardModel({ tileId: 99, state: room.gameState })).toBeNull();

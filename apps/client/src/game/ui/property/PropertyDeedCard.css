@@ -46,6 +46,10 @@
 }
 .deed--compact .deed__art { width: 2.75rem; height: 2.75rem; }
 .deed--compact .deed__art svg { width: 1.5rem; height: 1.5rem; }
+/* The landmark picture brings its own rounded backdrop, so the slot is just a frame for it. */
+.deed__art--landmark { overflow: hidden; background: transparent; }
+.deed__art-image { display: block; width: 100%; height: 100%; border-radius: inherit; object-fit: contain; }
+.deed__landmark { margin: 0; font: var(--type-caption); line-height: 1.25; opacity: 0.95; overflow-wrap: anywhere; }
 
 .deed__body { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); }
 .deed--compact .deed__body { gap: var(--space-1); padding: var(--space-2) var(--space-3); }

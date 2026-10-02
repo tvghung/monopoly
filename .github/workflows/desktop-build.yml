@@ -115,6 +115,12 @@ jobs:
       - name: Test card artwork validator
         run: pnpm test:card-art
 
+      - name: Validate landmark artwork
+        run: pnpm validate:landmark-art
+
+      - name: Test landmark artwork validator
+        run: pnpm test:landmark-art
+
       - name: Typecheck desktop
         run: pnpm --filter @monopoly/desktop typecheck
 
@@ -141,6 +147,9 @@ jobs:
 
       - name: Verify packaged card artwork
         run: pnpm --filter @monopoly/desktop proof:packaged:cards
+
+      - name: Verify packaged landmark artwork
+        run: pnpm --filter @monopoly/desktop proof:packaged:landmarks
 
       - name: Install mobile browser engines
         run: pnpm exec playwright install chromium webkit

@@ -12,6 +12,7 @@ import { formatMoney, getTileName } from '../formatters';
 import {
   getPropertyGroupVisualStyle, type PropertyMotif, type VisualTheme,
 } from '../propertyVisualColors';
+import { getLandmarkVisual } from './landmarkVisuals';
 import { getCurrentRentDetailIndex, getTileDetails } from './propertyDetails';
 
 export type DeedKind = 'street' | 'railroad' | 'utility' | 'special';
@@ -61,6 +62,8 @@ export interface DeedCardModel {
   headerTextColor: string;
   tint: string;
   motif: PropertyMotif | null;
+  /** Streets only: the landmark that stands as this street's hotel, with its flat picture (plan 05 §8.5). */
+  landmark: { name: string; artUrl: string } | null;
   price: number | null;
   priceText: string | null;
   /** Cost of one Nhà / Khách Sạn, streets only. */
@@ -143,6 +146,7 @@ export function buildDeedCardModel({
     };
   };
   const owner = ownedProp ? playerInfo(ownedProp.id) : null;
+  const landmark = kind === 'street' ? getLandmarkVisual(tileId) : undefined;
 
   const details = getTileDetails(tile);
   const hasLadder = kind !== 'special';
@@ -199,6 +203,7 @@ export function buildDeedCardModel({
     headerTextColor: visual.headerText,
     tint: visual.tint,
     motif: kind === 'special' ? null : visual.motif,
+    landmark: landmark ? { name: landmark.landmarkName, artUrl: landmark.artUrl } : null,
     price: typeof tile.price === 'number' ? tile.price : null,
     priceText: typeof tile.price === 'number' ? formatMoney(tile.price) : null,
     houseCostText: kind === 'street' && typeof tile.houseCost === 'number' ? formatMoney(tile.houseCost) : null,

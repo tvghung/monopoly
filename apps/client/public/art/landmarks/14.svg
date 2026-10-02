@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
+  <rect width="160" height="160" rx="28" fill="#f5e9c8"/>
+  <ellipse cx="80" cy="138" rx="62" ry="8" fill="#3e2a22" opacity=".14"/>
+  <rect x="10" y="124" width="140" height="8" fill="#9d8e7c"/>
+  <rect x="14" y="84" width="132" height="40" fill="#9a4a3a"/>
+  <path d="M34 124V106Q34 94 46 94Q58 94 58 106V124Z" fill="#3a2518"/>
+  <path d="M68 124V104Q68 90 80 90Q92 90 92 104V124Z" fill="#3a2518"/>
+  <path d="M102 124V106Q102 94 114 94Q126 94 126 106V124Z" fill="#3a2518"/>
+  <rect x="14" y="76" width="30" height="8" fill="#b8584a"/>
+  <rect x="116" y="76" width="30" height="8" fill="#b8584a"/>
+  <path d="M10 78L29 64L48 78Z" fill="#e0b43c"/>
+  <path d="M112 78L131 64L150 78Z" fill="#e0b43c"/>
+  <rect x="42" y="64" width="76" height="20" fill="#c9442e"/>
+  <path d="M54 64V84M66 64V84M78 64V84M90 64V84M102 64V84" stroke="#8e2e1e" stroke-width="2"/>
+  <path d="M28 66L80 40L132 66Z" fill="#e0b43c"/>
+  <rect x="28" y="64" width="104" height="4" fill="#c8a02c"/>
+  <rect x="64" y="30" width="32" height="14" fill="#c9442e"/>
+  <path d="M52 32L80 12L108 32Z" fill="#e0b43c"/>
+  <rect x="52" y="30" width="56" height="3" fill="#c8a02c"/>
+</svg>

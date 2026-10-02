@@ -1,4 +1,4 @@
-import { useId, type CSSProperties } from 'react';
+import { useId, useState, type CSSProperties } from 'react';
 import PlayerAvatar from '../../../design-system/components/PlayerAvatar/PlayerAvatar';
 import { DEFAULT_TILE_GLYPH, MOTIF_GLYPHS, SPECIAL_TILE_GLYPHS } from '../../../design-system/icons/tileGlyphs';
 import { getPlayerDisplayColor } from '../playerVisualColors';
@@ -27,8 +27,29 @@ function deedStyle(model: DeedCardModel): CSSProperties {
   } as CSSProperties;
 }
 
-/** The landmark art slot (64 px): the district motif until plan 05 supplies 2D art; a flat glyph for special tiles. */
+/**
+ * The art slot (64 px): the flat picture of the street's landmark (plan 05), the district motif if that picture cannot be
+ * loaded, and a flat glyph for special tiles. The slot is decorative: the landmark name is printed under the tile name.
+ */
 function DeedArt({ model }: { model: DeedCardModel }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const landmark = model.landmark && model.landmark.artUrl !== failedUrl ? model.landmark : null;
+  if (landmark) {
+    return (
+      <span className="deed__art deed__art--landmark" aria-hidden="true" data-deed-art="landmark">
+        <img
+          className="deed__art-image"
+          src={landmark.artUrl}
+          alt=""
+          width={64}
+          height={64}
+          decoding="async"
+          draggable={false}
+          onError={() => setFailedUrl(landmark.artUrl)}
+        />
+      </span>
+    );
+  }
   const Glyph = model.motif
     ? MOTIF_GLYPHS[model.motif]
     : SPECIAL_TILE_GLYPHS[model.tileType] ?? DEFAULT_TILE_GLYPH;
@@ -84,6 +105,7 @@ export default function PropertyDeedCard({
   model, variant = 'full', showOwner = true, showNext = false, className = '',
 }: PropertyDeedCardProps) {
   const nameId = useId();
+  const landmarkId = useId();
   const classes = `deed deed--${variant} deed--${model.kind}${className ? ` ${className}` : ''}`;
   const style = deedStyle(model);
 
@@ -100,11 +122,18 @@ export default function PropertyDeedCard({
   const current = model.rows.find(row => row.current);
 
   return (
-    <article className={classes} style={style} aria-labelledby={nameId} data-tile-id={model.tileId}>
+    <article
+      className={classes}
+      style={style}
+      aria-labelledby={nameId}
+      aria-describedby={model.landmark ? landmarkId : undefined}
+      data-tile-id={model.tileId}
+    >
       <header className="deed__header">
         <div className="deed__titles">
           {model.groupLabel ? <p className="deed__group">{model.groupLabel}</p> : null}
           <h3 id={nameId} className="deed__name">{model.name}</h3>
+          {model.landmark ? <p id={landmarkId} className="deed__landmark">{`Khách sạn · ${model.landmark.name}`}</p> : null}
         </div>
         <DeedArt model={model} />
       </header>

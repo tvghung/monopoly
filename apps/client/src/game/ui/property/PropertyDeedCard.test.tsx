@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { makeRoom } from '../../presentation/testFixtures';
 import { buildDeedCardModel } from './deedCardModel';
@@ -97,6 +97,50 @@ describe('PropertyDeedCard', () => {
     expect(within(table).getByText('Sở hữu cả 2 Công Ty')).toBeTruthy();
     expect(within(table).getAllByRole('row').filter(row => row.getAttribute('aria-current') === 'true')[0].textContent)
       .toContain('Sở hữu 1 Công Ty');
+  });
+
+  it('shows the landmark of a street: its picture in the art slot, its name under the tile name, the card described by it', () => {
+    const { container } = renderDeed(13);
+    const card = screen.getByRole('article', { name: 'Hội An' });
+    const line = screen.getByText('Khách sạn · Chùa Cầu');
+    expect(line.className).toBe('deed__landmark');
+    expect(card.getAttribute('aria-describedby')).toBe(line.id);
+    const art = container.querySelector('.deed__art');
+    expect(art?.getAttribute('aria-hidden')).toBe('true');
+    expect(art?.getAttribute('data-deed-art')).toBe('landmark');
+    const image = art?.querySelector('img');
+    expect(image?.getAttribute('src')).toContain('/art/landmarks/13.svg');
+    expect(image?.getAttribute('alt')).toBe('');
+  });
+
+  it('shows the landmark in the compact card too, and not in the one-line chip', () => {
+    const { container, unmount } = renderDeed(24, {}, 'compact');
+    expect(screen.getByText('Khách sạn · Cầu Vàng')).toBeTruthy();
+    expect(container.querySelector('.deed__art img')?.getAttribute('src')).toContain('/art/landmarks/24.svg');
+    unmount();
+    const chip = renderDeed(24, {}, 'chip');
+    expect(chip.container.querySelector('.deed__landmark')).toBeNull();
+    expect(chip.container.querySelector('img')).toBeNull();
+  });
+
+  it('falls back to the district motif when the landmark picture cannot be loaded', () => {
+    const { container } = renderDeed(13);
+    fireEvent.error(container.querySelector('.deed__art img') as HTMLImageElement);
+    expect(container.querySelector('.deed__art img')).toBeNull();
+    expect(container.querySelector('.deed__art')?.getAttribute('data-deed-art')).not.toBe('landmark');
+    expect(container.querySelector('.deed__art svg')).not.toBeNull();
+    // The landmark name stays printed, so the information is not lost with the picture.
+    expect(screen.getByText('Khách sạn · Chùa Cầu')).toBeTruthy();
+  });
+
+  it('gives stations, utilities and special tiles no landmark', () => {
+    for (const tileId of [4, 5, 12]) {
+      const { container, unmount } = renderDeed(tileId);
+      expect(container.querySelector('.deed__landmark'), `tile ${tileId}`).toBeNull();
+      expect(container.querySelector('.deed__art img'), `tile ${tileId}`).toBeNull();
+      expect(container.querySelector('article')?.hasAttribute('aria-describedby'), `tile ${tileId}`).toBe(false);
+      unmount();
+    }
   });
 
   it('renders a special tile as a rule card without price, ladder or owner', () => {

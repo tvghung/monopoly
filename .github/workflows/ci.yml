@@ -80,6 +80,12 @@ jobs:
       - name: Test card artwork validator
         run: pnpm test:card-art
 
+      - name: Validate landmark artwork
+        run: pnpm validate:landmark-art
+
+      - name: Test landmark artwork validator
+        run: pnpm test:landmark-art
+
       - name: Apply database migrations
         run: pnpm db:migrate
 
