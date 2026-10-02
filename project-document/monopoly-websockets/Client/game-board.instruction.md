@@ -233,13 +233,35 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
   chính + 3 draw shadow cho toàn board (88 instance tối đa). Pop/puff theo lịch Phase 4 cố định chạy trên instance
   matrix; `TilePressRoot` offset được áp theo từng frame. Nếu lớp instanced lỗi, `OptionalSceneLayer onFail` đặt
   `houseRenderMode = 'legacy'` và `BuildingLayer` vẽ lại Nhà hộp cũ từng ô (placeholder, plan 05 §7.7).
-- **Landmark = bậc Khách sạn (plan 05):** mỗi phố có một landmark (bảng 22 mục `LANDMARK_PLAN` trong
-  `buildings/landmarks/registry.ts`); đã dựng ba bản pilot — Chùa Cầu (ô 13), Cầu Vàng (ô 24), Landmark 81 (ô 39) —
-  và các phố còn lại vẫn hiển thị Khách sạn cũ `0.92 × 0.60 × 0.78` cho tới khi landmark của chúng được dựng.
-  Landmark là hình học low-poly (≤ 900 tam giác, ≤ 3 draw: opaque + glass + emissive, chân đế ≤ 1.30 × 1.30) trên
-  bệ sơn mài `1.36 × 1.36 × 0.08` có viền màu chủ (rim được tô lại khi đổi chủ, không thêm draw). `LandmarkShadowProxy`
-  gộp hình học mọi landmark đang hiển thị thành một mesh world-space chỉ để đổ bóng (1 draw shadow). Builder nằm ở
-  `buildings/kit/lowPolyKit.ts` (primitive faceted, vertex color, merge) với ba material dùng chung `kitMaterials.ts`.
+- **Landmark = bậc Khách sạn (plan 05):** cả 22 phố có landmark riêng (bảng `LANDMARK_PLAN` trong
+  `buildings/landmarks/plan.ts`, dữ liệu thuần không three.js; `registry.ts` dựng hình học). Một phố mà builder lỗi vẫn
+  hiển thị Khách sạn hộp cũ `0.92 × 0.60 × 0.78` (`hasLandmark`, fail-soft). Landmark là hình học low-poly (≤ 900 tam
+  giác — trung bình khoảng 380 gồm bệ —, ≤ 3 draw: opaque + glass + emissive, chân đế ≤ 1.30 × 1.30, nằm trọn trong bệ
+  và không chìm dưới mặt bệ) trên bệ sơn mài `1.36 × 1.36 × 0.08` có viền màu chủ (rim được tô lại khi đổi chủ, không
+  thêm draw). `LandmarkShadowProxy` gộp hình học mọi landmark đang hiển thị thành một mesh world-space chỉ để đổ bóng
+  (1 draw shadow). Builder nằm ở `buildings/landmarks/<tên>.ts`, dựng bằng `buildings/kit/lowPolyKit.ts` (primitive
+  faceted, vertex color, merge; có `arcadeWall`, `prism`, `blob`, `dome`) và các mảnh dùng chung `landmarks/parts.ts`,
+  với ba material dùng chung `kitMaterials.ts`.
+- **Tranh 2D của landmark và thẻ tài sản (plan 05 §8.5):** 22 SVG phẳng `public/art/landmarks/<tileId>.svg`
+  (`viewBox 0 0 160 160`, không text/script/image/href); registry `game/ui/property/landmarkVisuals.ts`
+  `{ tileId, landmarkName, artUrl }`. `PropertyDeedCard` hiển thị tranh trong slot art 64 px (rơi về motif của nhóm màu
+  nếu ảnh không tải được) và dòng "Khách sạn · <tên landmark>" dưới tên ô; dòng đó mô tả thẻ cho assistive technology,
+  và nhãn truy cập của ô cờ khi có Khách sạn là "Có Khách sạn · <landmark>". Validator
+  `scripts/validateLandmarkArtwork.mjs` (phủ đúng 22 ô phố, an toàn SVG, file thừa, SHA-256 bản build,
+  `--build-output`) chạy trong `pnpm build`; bản đóng gói kiểm bằng
+  `pnpm --filter @monopoly/desktop proof:packaged:landmarks`.
+- **Banner khánh thành (OD-05-4):** `LandmarkBanner` trong HUD, cạnh `TurnBanner`: khi một phố lên bậc Khách sạn lúc
+  trình bày trực tiếp thì hiện "Khánh thành <landmark>!" kèm tranh 2D (2,2 giây chia theo tốc độ animation, bản mới
+  thay bản cũ). Dùng chung shell, keyframes và fade reduced-motion của turn banner; không bao giờ hiện cho trạng thái có
+  sẵn khi mount HUD hay sau snap/reconnect/reset (đổi `presentationResetEpoch`); reduced motion chỉ còn chữ, không có
+  tranh; `aria-hidden` vì activity log đã thông báo.
+- **Vật phẩm trên bàn (plan 05 §8.6):** cà phê phin, nón lá, bát sen, tiền chơi dựng bằng kit
+  (`props/tablePropGeometry.ts`: mỗi vật một geometry gộp = 1 draw; tổng ≤ 4 draw và ≤ 3.000 tam giác, thực tế +4 draw
+  main, +4 draw shadow, +1.560 tam giác). Đặt cạnh góc trái/phải của board (`props/tablePropLayout.ts`) và chỉ hiện khi
+  mép bàn đủ rộng và không bị HUD che (≥ 30 px mỗi đơn vị, trong dải giữa các thẻ người chơi, cách mép ≥ 12 px, bên phải
+  nằm dưới tab nhật ký): hiện cả bốn từ 1280×720 trở lên, ẩn cả bốn ở tablet và phone landscape, và ẩn ở tier low;
+  không bao giờ dời xuống dưới HUD. Là trang trí, không có accessible name. Overlap checker của plan 03 kiểm cả vật
+  phẩm (`PropScreenRectsPublisher`, `findHudPropOverlaps`, `findPropTileOverlaps`; sidecar `hudOverlap.props`).
 - **Standee linh vật (plan 05):** quân cờ là thẻ die-cut đứng thẳng (texture 320² gồm viền trắng 6 px quanh art 256²)
   quay theo azimuth camera, cao `1.22 / cos(41.5°) ≈ 1.63` trong thế giới để cao bằng sprite cũ trên màn hình, trên đế
   tròn `r 0.30` (một `InstancedMesh`, matrix theo anchor trong body group, đọc ở `onBeforeRender`). Mặt thẻ là

@@ -1,0 +1,225 @@
+{
+  "id": "05-g5/benchmark-bench-stress-high-1920x1080",
+  "plan": "05",
+  "folder": "g5/benchmark",
+  "name": "05-bench-stress-high",
+  "url": "/?phase4-uat=1&scenario=stress&uat-controls=hidden&benchmark=10&quality=high",
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "kind": "harness",
+  "rendererMode": "webgl",
+  "browser": "chromium 154.0.8037.58",
+  "captureTool": "e2e/visual/capture.visual.ts",
+  "consoleErrors": [],
+  "benchmark": {
+    "frames": 76,
+    "medianFrameMs": 116.60000000000036,
+    "p95FrameMs": 266.5,
+    "maxFrameMs": 466.39999999999964,
+    "medianFps": 8.576329331046285,
+    "slowFrames": 67,
+    "scenario": "stress",
+    "seconds": 10,
+    "diagnostics": {
+      "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "qualityTier": "high",
+      "pixelRatio": 1.25,
+      "drawingBuffer": {
+        "width": 2367,
+        "height": 1317
+      },
+      "camera": "orthographic",
+      "cameraPosition": [
+        16.95401417043256,
+        21.1925177130407,
+        16.95401417043256
+      ],
+      "toneMapping": "NoToneMapping",
+      "toneMappingExposure": 1,
+      "shadows": {
+        "enabled": true,
+        "type": "PCFShadowMap"
+      },
+      "environment": true,
+      "frameSequence": 77,
+      "mainDrawCalls": 148,
+      "shadowDrawCalls": 21,
+      "postDrawCalls": 19,
+      "postPasses": 3,
+      "postRenders": 19,
+      "renderedTriangles": 69322,
+      "anisotropy": 8,
+      "textureMaxAnisotropy": 16,
+      "drawCalls": 148,
+      "triangles": 68904,
+      "combinedDrawCalls": 188,
+      "combinedTriangles": 68904,
+      "activeAnimatedObjects": 25,
+      "targetDrawCalls": 210,
+      "stressDrawCallLimit": 240,
+      "targetTriangles": 80000,
+      "hardTriangleLimit": 100000,
+      "physicalScene": {
+        "stationLayer": true,
+        "stationCount": 4,
+        "authoritativeStationCount": 4,
+        "stationLabelCount": 0,
+        "bankTreasury": false,
+        "sharedCoinInstanceCount": 94,
+        "sharedCoinFinishInstances": {
+          "COPPER": 61,
+          "SILVER": 23,
+          "GOLD": 10
+        },
+        "decks": {
+          "chance": {
+            "physicalCount": 13,
+            "authoritativeCount": 13
+          },
+          "chest": {
+            "physicalCount": 15,
+            "authoritativeCount": 15
+          }
+        },
+        "destinationPreviewTileId": 18,
+        "destinationPreview": {
+          "tileId": 18,
+          "pulsePeriodMs": 460,
+          "reducedMotion": false,
+          "elapsedMs": 622.5,
+          "surfaceOpacity": 0.34450634295355753,
+          "edgeOpacity": 0.833091671034546,
+          "surfaceColor": "#ffc400",
+          "edgeColor": "#c18f00"
+        },
+        "coinSystem": {
+          "geometryType": "LatheGeometry",
+          "sceneEnvironment": true,
+          "finishes": {
+            "COPPER": {
+              "metalness": 0.74,
+              "roughness": 0.17,
+              "envMap": true,
+              "envMapIntensity": 1.08
+            },
+            "SILVER": {
+              "metalness": 0.8,
+              "roughness": 0.13,
+              "envMap": true,
+              "envMapIntensity": 1.24
+            },
+            "GOLD": {
+              "metalness": 0.77,
+              "roughness": 0.15,
+              "envMap": true,
+              "envMapIntensity": 1.14
+            }
+          }
+        },
+        "activeTurnRingCount": 0
+      }
+    }
+  },
+  "diagnostics": {
+    "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "qualityTier": "high",
+    "pixelRatio": 1.25,
+    "drawingBuffer": {
+      "width": 2367,
+      "height": 1317
+    },
+    "camera": "orthographic",
+    "cameraPosition": [
+      16.95401417043256,
+      21.1925177130407,
+      16.95401417043256
+    ],
+    "toneMapping": "NoToneMapping",
+    "toneMappingExposure": 1,
+    "shadows": {
+      "enabled": true,
+      "type": "PCFShadowMap"
+    },
+    "environment": true,
+    "frameSequence": 79,
+    "mainDrawCalls": 148,
+    "shadowDrawCalls": 21,
+    "postDrawCalls": 19,
+    "postPasses": 3,
+    "postRenders": 19,
+    "renderedTriangles": 69322,
+    "anisotropy": 8,
+    "textureMaxAnisotropy": 16,
+    "drawCalls": 148,
+    "triangles": 68904,
+    "combinedDrawCalls": 188,
+    "combinedTriangles": 68904,
+    "activeAnimatedObjects": 25,
+    "targetDrawCalls": 210,
+    "stressDrawCallLimit": 240,
+    "targetTriangles": 80000,
+    "hardTriangleLimit": 100000,
+    "physicalScene": {
+      "stationLayer": true,
+      "stationCount": 4,
+      "authoritativeStationCount": 4,
+      "stationLabelCount": 0,
+      "bankTreasury": false,
+      "sharedCoinInstanceCount": 94,
+      "sharedCoinFinishInstances": {
+        "COPPER": 61,
+        "SILVER": 23,
+        "GOLD": 10
+      },
+      "decks": {
+        "chance": {
+          "physicalCount": 13,
+          "authoritativeCount": 13
+        },
+        "chest": {
+          "physicalCount": 15,
+          "authoritativeCount": 15
+        }
+      },
+      "destinationPreviewTileId": 18,
+      "destinationPreview": {
+        "tileId": 18,
+        "pulsePeriodMs": 460,
+        "reducedMotion": false,
+        "elapsedMs": 1124.2000000476837,
+        "surfaceOpacity": 0.369306381013496,
+        "edgeOpacity": 0.8787237410648326,
+        "surfaceColor": "#ffc400",
+        "edgeColor": "#c18f00"
+      },
+      "coinSystem": {
+        "geometryType": "LatheGeometry",
+        "sceneEnvironment": true,
+        "finishes": {
+          "COPPER": {
+            "metalness": 0.74,
+            "roughness": 0.17,
+            "envMap": true,
+            "envMapIntensity": 1.08
+          },
+          "SILVER": {
+            "metalness": 0.8,
+            "roughness": 0.13,
+            "envMap": true,
+            "envMapIntensity": 1.24
+          },
+          "GOLD": {
+            "metalness": 0.77,
+            "roughness": 0.15,
+            "envMap": true,
+            "envMapIntensity": 1.14
+          }
+        }
+      },
+      "activeTurnRingCount": 0
+    }
+  },
+  "hudOverlap": null
+}

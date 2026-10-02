@@ -657,8 +657,8 @@ The static building authoring remains presentation-only within the same path:
   four-pane panels. Its existing separate crown/roof keeps its footprint and
   height and uses the owner's canonical display color.
 > **Visuals superseded by visual-overhaul-v2 plan 05:** houses are instanced nhà ống tube houses (body/trim/roof, the roof in
-> the owner's color) in a row on the tile's art panel, and a street's hotel becomes its landmark on a plinth where one is
-> built. The mapping (level `1–4` → houses, level `5` → hotel), the construction durations, the pop curves and the reduced
+> the owner's color) in a row on the tile's art panel, and a street's hotel becomes its landmark on a plinth (all 22 streets
+> have one; a landmark that fails to build falls back to the hotel box). The mapping (level `1–4` → houses, level `5` → hotel), the construction durations, the pop curves and the reduced
 > motion rules below are unchanged and now drive instance matrices.
 
 - The body/roof split, slot centers, hotel slot, contact shadows, level `1–4`

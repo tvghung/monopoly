@@ -154,15 +154,30 @@ players, and observed result.
 
 ## 3D asset kit (visual overhaul V2, plan 05)
 
-- [x] `[AUTO][CLIENT]` `kit/lowPolyKit.test.ts`: every primitive is a faceted part with exactly position, normal and color, deterministic, standing on y = 0
-  and outward-wound; merging keeps the sum of triangles.
+- [x] `[AUTO][CLIENT]` `kit/lowPolyKit.test.ts`: every primitive (including `arcadeWall`, `prism`, `blob` and `dome`) is a faceted part with exactly position,
+  normal and color, deterministic, standing on y = 0 and outward-wound; a `dome` never goes below the ground; merging keeps the sum of triangles.
 - [x] `[AUTO][CLIENT]` `tubeHouseGeometry.test.ts`, `tubeHouseLayout.test.ts`, `tubeHouseMeshes.test.ts`: ≤ 180 triangles per house, rows of 1–4 houses stay inside
   the tile and its upper art panel on all 22 streets and all four board sides, three instanced meshes with room for 88 houses, facade pastel and owner color,
   the Phase 4 pop and hotel-transition curves (nothing plays with reduced motion, a downgrade, zero duration or a stale signal).
-- [x] `[AUTO][CLIENT]` `landmarks/landmarks.test.ts`, `LandmarkShadowProxy.test.ts`: the plan lists exactly the 22 streets; every built landmark stays under 900 triangles,
-  3 draws, 1.30 footprint and its `Max H`; plinth below the landmark with the rim first and recolored alone; one shadow proxy for all visible landmarks.
+- [x] `[AUTO][CLIENT]` `landmarks/landmarks.test.ts`, `LandmarkShadowProxy.test.ts`: the plan lists exactly the 22 streets and all 22 are built, in tile order; every
+  built landmark stays under 900 triangles, 3 draws, 1.30 footprint and its `Max H`, stands inside the plinth slab and never below the ground, is faceted and
+  deterministic; plinth below the landmark with the rim first and recolored alone; one shadow proxy for all visible landmarks.
+- [x] `[AUTO][CLIENT]` `landmarkVisuals.test.ts`, `deedCardModel.test.ts`, `PropertyDeedCard.test.tsx`, `tileAccessibility.test.ts`: 22 flat 160 x 160 landmark SVGs, one per street, named from
+  the plan; the deed card shows the landmark picture (district motif on a load error) and "Khách sạn · <landmark>" under the tile name and describes the card with it; stations,
+  utilities and special tiles have none; a hotel tile button is named "Có Khách sạn · <landmark>".
+- [x] `[AUDIT]` `pnpm test:landmark-art` (`validateLandmarkArtwork.check.mjs`) and `pnpm validate:landmark-art`, run by `pnpm build` (`--build-output`) and CI: exact coverage of the 22
+  street tiles, no script / text / foreignObject / raster / href / external URL, viewBox `0 0 160 160`, no orphan file, built copies identical to the source;
+  `pnpm test:card-art` keeps its behavior on the shared validation helper.
+- [ ] `[PACKAGED]` `pnpm --filter @monopoly/desktop proof:packaged:landmarks` checks the 22 landmark SVGs inside a packaged renderer (needs `pnpm desktop:package`; not run yet).
+- [x] `[AUTO][CLIENT]` `props/tablePropGeometry.test.ts`, `props/tablePropLayout.test.ts`, `hud-overlap/polygonOverlap.test.ts`: four props, at most 4 draws and 3,000 triangles
+  together, faceted and deterministic, standing on the table, inside their placement envelope; the analytic projection equals the fixed camera; every prop clear of the board,
+  the stations and each other; all four shown from 1280 x 720 up and hidden on tablet and phone landscape; never over a tile; HUD and tile overlap helpers.
+- [x] `[AUTO][CLIENT]` `LandmarkBanner.test.tsx`: "Khánh thành <landmark>!" only for a street reaching the hotel tier in live presentation; silent for houses, a hotel coming
+  down, a hotel already on the board when the HUD mounts and after a snap, reconnect or reset; lifetime scaled by the animation speed; text only under reduced motion.
 - [x] `[AUTO][CLIENT]` `characters/standee.test.ts`, `characterTextureCache.test.ts`: the standee faces the camera azimuth only and is as tall on screen as the old sprite;
   unlit alpha-tested face, mascot-shaped depth material, opacity fade, instanced bases follow their anchors, the 320 px die-cut bake.
   Movement semantics (`characterMotion.test.ts`, `characterPlacement.test.ts`, `characterReaction.test.ts`) are unchanged.
-- [ ] `[MANUAL-E2E]` Worst-case budgets (`landmarks-all`, `houses-max`, `standees`, `stress`) in every tier and the reference-device benchmark: `evidence/05/g5a/numbers`;
-  pilot style review (gate G5a) and the cultural review of all 22 landmarks (gate G5).
+- [ ] `[MANUAL-E2E]` Worst-case budgets (`landmarks-all`, `houses-max`, `standees`, `stress`) in every tier and the reference-device benchmark: `evidence/05/g5/numbers`
+  (the pilots' numbers are in `evidence/05/g5a/numbers`); pilot style review (gate G5a, approved) and the cultural review of all 22 landmarks (gate G5).
+- [ ] `[MANUAL-E2E]` The table props and the "Khánh thành" banner on the real board: `evidence/05/props` and `evidence/05/g5` (overlap checker JSON with no HUD or tile finding);
+  the packaged app shows landmarks, standees and props under `app://` (`pnpm desktop:package`).

@@ -58,4 +58,6 @@
 ## Landmark plan (visual overhaul V2, plan 05)
 
 - [x] `[AUTO][CLIENT]` `landmarks/landmarks.test.ts`: `LANDMARK_PLAN` names exactly the 22 street tiles of `colorGroups` once each, in tile order, on tiles with a price;
-  built landmarks (3 pilots so far) match their plan entry. Full coverage of the 22 is gate G5.
+  the registry builds all 22, in the same order, and every street reports a landmark.
+- [x] `[AUTO][CLIENT]` `landmarkVisuals.test.ts`: the 2D landmark registry covers exactly the 22 street tiles, takes its names from the plan and has an SVG file for each;
+  `pnpm test:landmark-art` checks the same set from the shared `colorGroups` source.

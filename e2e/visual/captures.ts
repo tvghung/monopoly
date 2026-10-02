@@ -441,6 +441,61 @@ export const CAPTURES: readonly CaptureEntry[] = [
     extraQuery: `&quality=${tier}`,
     overlapCheck: true,
   })),
+  // Plan 05 T05.10/T05.11: the gate G5 package, with all 22 landmarks, the table props and the standees.
+  // Numbers: every worst-case fixture in every tier at 1920x1080 (JSON only), for the budget table.
+  ...GRAPHICS_TIERS.flatMap(tier => harnessCaptures({
+    plan: '05',
+    folder: 'g5/numbers',
+    scenarios: ['board-readability', 'house-4', 'hotel', 'landmarks-all', 'houses-max', 'standees', 'stress'],
+    viewports: [VIEWPORTS.fullHd],
+    surface: 'assets',
+    variant: tier,
+    extraQuery: `&quality=${tier}`,
+    noScreenshot: true,
+  })),
+  // Pictures: the balanced board at the standard viewports (with the overlap check), then the other tiers at the minimum window.
+  ...harnessCaptures({
+    plan: '05',
+    folder: 'g5',
+    scenarios: ['board-readability', 'landmarks-all', 'houses-max', 'standees', 'hotel'],
+    viewports: STANDARD_VIEWPORTS,
+    surface: 'assets',
+    variant: 'balanced',
+    extraQuery: '&quality=balanced',
+    overlapCheck: true,
+  }),
+  ...(['high', 'low'] as const).flatMap(tier => harnessCaptures({
+    plan: '05',
+    folder: 'g5',
+    scenarios: ['board-readability', 'landmarks-all'],
+    viewports: [VIEWPORTS.minimum],
+    surface: 'assets',
+    variant: tier,
+    extraQuery: `&quality=${tier}`,
+    overlapCheck: true,
+  })),
+  // Frame-time benchmark of the two worst cases per tier (JSON only). Meaningful only with VISUAL_GPU=hardware.
+  ...GRAPHICS_TIERS.flatMap(tier => harnessCaptures({
+    plan: '05',
+    folder: 'g5/benchmark',
+    scenarios: ['landmarks-all', 'stress'],
+    viewports: [VIEWPORTS.fullHd],
+    surface: 'bench',
+    variant: tier,
+    extraQuery: `&quality=${tier}`,
+    noScreenshot: true,
+    benchmarkSeconds: 10,
+  })),
+  // The legacy board (no WebGL context) does not use the new meshes: the same fixtures with WebGL off.
+  ...harnessCaptures({
+    plan: '05',
+    folder: 'g5/legacy',
+    scenarios: ['landmarks-all', 'standees'],
+    viewports: [VIEWPORTS.laptop, VIEWPORTS.phoneLandscape],
+    surface: 'assets',
+    variant: 'legacy',
+    noWebglContext: true,
+  }),
   // Plan 05 T05.5: the pilot landmarks at a size the board never shows them (the style sheet of gate G5a).
   ...([
     ['landmarks', ''],
@@ -465,6 +520,18 @@ export const CAPTURES: readonly CaptureEntry[] = [
     webgl: false,
     extraWaitMs: 4000,
   })),
+  // Plan 05 T05.11 (gate G5): all 22 landmarks in one row, at the widest standard window.
+  {
+    id: '05-g5-sheet-landmarks-row-2560x1080',
+    plan: '05',
+    folder: 'g5',
+    name: '05-sheet-landmarks-row',
+    url: designLabUrl('landmarks', '&theme=v2'),
+    viewport: VIEWPORTS.ultrawide,
+    kind: 'design-lab',
+    webgl: false,
+    extraWaitMs: 4000,
+  },
   // Concept screens at the standard viewports (plan 01 T01.10).
   ...labCaptures({ plan: '01', folder: 'concepts', sections: LAB_CONCEPT_SCREENS, viewports: STANDARD_VIEWPORTS, surface: 'concept' }),
 ];

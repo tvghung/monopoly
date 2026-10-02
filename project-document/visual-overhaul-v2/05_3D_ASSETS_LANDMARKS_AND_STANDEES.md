@@ -1,6 +1,6 @@
 # 05 — 3D Assets: Landmarks, Tube Houses, Standees and Props
 
-**Status: IN PROGRESS — T05.0–T05.5 are done (fixtures, baseline, kit, tube houses, standees, the three pilot landmarks) and gate G5a was Approved by the product owner on 01/10/2026 (§17). T05.6 onward (the other 19 landmarks, the 2D art, the table props, the budget pass, gate G5 and the final docs) is in progress. Open decisions were answered on 2026-09-30.**
+**Status: IMPLEMENTED, WAITING FOR THE G5 VERDICT — T05.0–T05.12 are done (T05.9 skipped by decision OD-05-2): the kit, instanced tube houses, standees, all 22 landmarks, their 2D art on the deed cards, the four table props, the "Khánh thành" banner (OD-05-4), the budget pass and the docs. Gate G5a was Approved by the product owner on 01/10/2026 (§17). The G5 package is `evidence/05/g5/`; its human verdict and the Vietnamese reviewer's sign-off on the 22 landmarks are open, and so are the packaged run (`pnpm desktop:package`) and a benchmark on a reference device (§17). Open decisions were answered on 2026-09-30.**
 
 | Field | Value |
 | --- | --- |
@@ -460,12 +460,16 @@ cultural review sign-off for all 22; human verdict in §17.
 | --- | --- | --- |
 | Kit primitives (attributes, determinism, triangles) | AUTOMATED | `kit/lowPolyKit.test.ts` |
 | Tube house layout and budget | AUTOMATED | `tubeHouseGeometry.test.ts`, `buildingPlacement.test.ts` |
-| Landmark registry covers exactly the 22 streets | AUTOMATED | `landmarks/registry.test.ts` |
+| Landmark registry covers exactly the 22 streets | AUTOMATED | `landmarks/landmarks.test.ts` (the plan, the registry and the 2D registry `landmarkVisuals.test.ts`) |
 | Per-landmark budget/footprint/height | AUTOMATED | `landmarks/*.test.ts` (table-driven) |
 | Standee material/depth material/cache border | AUTOMATED | `characters/*.test.ts(x)` |
 | Motion semantics unchanged | AUTOMATED | existing character motion/placement tests |
-| Landmark art validator | AUTOMATED | validator self-test (`*.check.mjs`) + build + packaged checks |
-| glTF validator (if route B) | AUTOMATED | `validateModels.check.mjs` |
+| Landmark art validator | AUTOMATED | validator self-test (`validateLandmarkArtwork.check.mjs`) + build (`--build-output`) + packaged check (`proof:packaged:landmarks`, needs a package) |
+| Deed card landmark art and accessible names | AUTOMATED | `landmarkVisuals.test.ts`, `PropertyDeedCard.test.tsx`, `deedCardModel.test.ts`, `tileAccessibility.test.ts` |
+| Table props: geometry, placement, visibility, overlap helpers | AUTOMATED | `props/tablePropGeometry.test.ts`, `props/tablePropLayout.test.ts`, `hud-overlap/polygonOverlap.test.ts` |
+| Table props clear of the HUD and the tiles on the live board | MANUAL (measured) | `evidence/05/props`, `evidence/05/g5` (`hudOverlap.props` in each sidecar) |
+| "Khánh thành" banner (OD-05-4) | AUTOMATED | `game/ui/hud/LandmarkBanner.test.tsx` |
+| glTF validator (if route B) | AUTOMATED | `validateModels.check.mjs` (not built: route A) |
 | Budgets per fixture/tier, benchmark | MANUAL (measured) | §17 tables |
 | Visual quality, readability, cultural accuracy | MANUAL | G5a, G5 |
 
@@ -544,6 +548,15 @@ triangles each). It is out of scope for this program and needs a separate plan.
 | 2026-10-01 | T05.4 | `be405e5` | `characters/standee.test.ts` | Die-cut standees (320 px bake, white 6 px border) on instanced round bases; motion semantics unchanged. |
 | 2026-10-01 | review | `39d6c93` | five-lens review | Five read-only reviewers (instancing, standee, landmarks, budgets, tests) with two skeptics per finding; the fixes below. |
 | 2026-10-01 | T05.5 | G5a package commit | `evidence/05/g5a/` | Style sheet, board captures, budget JSON; `pnpm test:e2e:mobile` passes on Chromium and WebKit with the new meshes. **Stopped for the G5a verdict.** |
+| 2026-10-01 | G5a | `9610377` | §17 below | Approved by the product owner (written by the agent at their request). |
+| 2026-10-02 | T05.6 | `736be5b` | `landmarks/landmarks.test.ts`, `kit/lowPolyKit.test.ts`, `evidence/05/g5a/05-sheet-group-{a,b,c,d}-*` | The other 19 landmarks (22 of 22) in four groups, one style sheet per group; new kit primitives `arcadeWall`, `prism`, `blob`, `dome`; every landmark is tested for triangles (≤ 900), draws (≤ 3), footprint, height, faceting, plinth bounds. Average 379 triangles with the plinth. |
+| 2026-10-02 | T05.7 | `7cbca79` | `public/art/landmarks/`, `landmarkVisuals.test.ts`, `validateLandmarkArtwork.check.mjs` | 22 flat SVGs, the 2D registry, the deed card art slot and name line, the hotel tile label, the validator (build and CI) and the packaged check script (not run; needs a package). |
+| 2026-10-02 | T05.8 | `fa2f1c6` | `props/*.test.ts`, `evidence/05/props/` | Four table props with placement, visibility rule and the overlap checker extension; no HUD or tile finding at 1920 × 1080, 1440 × 900, 1280 × 720; +4 main and +4 shadow draws, +1,560 triangles where shown. |
+| 2026-10-02 | OD-05-4 | `452728f` | `hud/LandmarkBanner.test.tsx` | "Khánh thành <landmark>!" banner, live presentation only. |
+| 2026-10-01 | T05.9 | — | — | Skipped by decision OD-05-2: no glTF route, no processing script, validator, MIME entry or loader. |
+| 2026-10-02 | T05.10 | G5 package commit | `evidence/05/g5/numbers/`, `evidence/05/g5/benchmark/` | All fixtures × tiers re-measured with the 22 landmarks and the props: `landmarks-all` 187 main / 18 shadow draws and 76.8k triangles (balanced), `board-readability` 142, `houses-max` 159 / 74.8k; every §5.3 budget holds, nothing had to be cut. Frame times on this machine's Intel UHD GPU (not the reference device): `stress` balanced 30 FPS, as before plan 05. |
+| 2026-10-02 | T05.11 | G5 package commit | `evidence/05/g5/` | Package: 24 board pictures with overlap results (no finding), the legacy board with WebGL off, the 22-landmark row sheet, the numbers and the benchmark. **Waiting for the G5 verdict.** |
+| 2026-10-02 | T05.12 | G5 package commit | `Client/game-board.instruction.md`, `testcase/*` | Board doc (landmarks, 2D art, banner, props), testcase rows (22 of 22, landmark art validator, props, banner; manual ones stay manual), supersession note of plan 04 updated. |
 
 ### As built — differences from the specification
 
@@ -552,33 +565,63 @@ triangles each). It is out of scope for this program and needs a separate plan.
 - **Height class.** Three landmarks whose `Max H` is above 1.2 (Tháp Trầm Hương 1.4, Vịnh Hạ Long 1.3, UBND TP.HCM 1.3) take the `slim` class (limit 2.0); the table is otherwise implemented as written.
 - **Tube houses.** One row on the middle of the tile's upper art panel (the facade is on both long faces so it shows from any board side); the roof, not a separate awning, carries the owner color. Fail-soft: `OptionalSceneLayer onFail` switches `houseRenderMode` to `legacy` (today's per-tile boxes). A landmark builder that throws is logged once and the street keeps its hotel box (`hasLandmark`).
 - **Standees.** The cache key is unchanged (`characterId:color`, in memory per page, so no version suffix is needed); `CharacterSprite` and its material were deleted instead of kept as a fallback. The bases are one `InstancedMesh` written by each billboard at the end of its frame update (a write in `onBeforeRender` came after three.js uploads instance buffers and lagged a frame).
-- **OD-05-4** (the "Khánh thành …" banner) has no task in the execution guide and is not implemented yet; it comes with the full landmark set.
+- **Landmark kit and plan (T05.6).** The kit gained `arcadeWall` (several arches in one wall; `archWall` delegates to it), `prism` (a ground polygon raised to a height), `blob` (a faceted ball) and `dome` (the upper half of a ball, never below the ground), with tests; `landmarks/parts.ts` holds the water plates, trees, palms, boat hulls and arc strips the builders share. `LandmarkGeometry` carries its plinth-free `bounds`, and a table-driven test keeps every landmark inside the plinth slab and above the ground; that test moved Cầu Vàng 0.04 along X (its left hand reached past the slab) and the wind turbines 0.03, and no other pilot changed. `LANDMARK_PLAN` moved to `landmarks/plan.ts` (plain data, no three.js) so the 3D registry, the 2D registry and the accessible names read one source; the plan's "registry covers exactly the 22 streets" check lives in `landmarks/landmarks.test.ts` rather than a separate `registry.test.ts`. The 19 landmarks were built in four groups of four or five (one commit for all of them, with a style sheet per group in `evidence/05/g5a/05-sheet-group-*`); they average 379 triangles with their plinth (22 together: 8.3k; the largest is Cầu Ánh Sao with 636, the limit is 900).
+- **Landmark art and the deed card (T05.7).** The 22 SVGs are flat, 160 × 160, in the 3D colors, on their own pastel backing so they read on any district color; `game/ui/property/landmarkVisuals.ts` is the registry, and `PropertyDeedCard` shows the picture in its art slot (the district motif if it cannot load) and "Khách sạn · <landmark>" under the tile name, which also describes the card. A hotel tile button is named "Có Khách sạn · <landmark>" (`tileAccessibility.ts`, used by the 40 semantic buttons and the legacy tiles). The validator follows the card validator but shares its checks: `scripts/artworkValidation.mjs` holds the common SVG safety, orphan and build-copy checks (the card validator's behavior and messages are unchanged), `validateLandmarkArtwork.mjs` adds the exact coverage of the 22 street tiles read from the shared `colorGroups`, `pnpm build` runs it with `--build-output`, CI runs it and its self-test, and `apps/desktop/scripts/validatePackagedLandmarkArt.mjs` (shared `packagedRenderer.mjs`, `proof:packaged:landmarks`) checks a packaged renderer. The packaged check has not been run: it needs `pnpm desktop:package`.
+- **Table props (T05.8).** The four props are one merged geometry each (4 draws, about 1.4k triangles, limits tested); they stand beside the board's left and right corners (`props/tablePropLayout.ts`) and show only where the table margin is free of the HUD: at least 30 px per world unit, inside the band between the player cards, 12 px from the edge, and below the activity-log tab on the right. All four show from 1280 × 720 up and hide on tablet and phone landscape, and the `low` tier leaves them out; they are never moved under the HUD. Deviations from the table of §8.6: the play money stands in the lower right margin, not "near the bank or a tray" (no free margin is near either); props have no accessible name (decoration). The plan 03 overlap checker was extended for them: `PropScreenRectsPublisher` (dev/UAT) publishes their rectangles, `findHudPropOverlaps` and `findPropTileOverlaps` report HUD regions and tiles a shown prop covers, and each capture sidecar carries `hudOverlap.props`; every shown prop was clear of the HUD and the tiles at 1920 × 1080, 1440 × 900 and 1280 × 720.
+- **OD-05-4 (the "Khánh thành …" banner).** `LandmarkBanner` sits next to `TurnBanner` in the HUD and reuses its shell, keyframes, reduced-motion fade and the transient-list helper: "Khánh thành <landmark>!" with the landmark's 2D picture for 2.2 s (scaled by the animation speed) when a street goes up to the hotel tier in live presentation, replaced by a newer hotel. It never shows for a hotel already on the board when the HUD mounts, nor after a snap, reconnect or reset (the presentation reset epoch), and under reduced motion it is the text alone. It is `aria-hidden` like the turn banner because the activity log already says the Khách sạn was built. No task of the execution guide covers it; it was done with the full landmark set.
 
 ### Review fixes (commit `39d6c93`)
 
 Confirmed by two independent skeptics each: standee bases lagged a frame behind their cards (blocker); the bankruptcy fade never compiled (`needsUpdate`); the hotel dust puff used the landmark origin on every street; the landmark shadow appeared full size before the landmark popped in; Board3D rebuilt its signal maps on every hover. Confirmed once or assessed by hand after the session limit cut the verification short: the proxy drew invisibly in the main pass; a throwing landmark builder was not fail-soft; the plinth slab floated 0.02 below the landmark; the Cầu Vàng handrails floated above the deck. Not a defect: the unverified claim that a landmark's front can face away from the camera on some board sides (each landmark is a rotated tile child and reads from every side by design).
 
-**Budget table** (1920×1080, SwiftShader counts from the `diagnostics` of each capture; FPS needs a reference device and was not measured):
+**Budget table, final** (T05.10; 1920×1080, SwiftShader counts from the `diagnostics` of each capture in `evidence/05/g5/numbers/`, with all 22 landmarks and the table props; a tier column reads low / balanced / high):
 
-| Fixture | Tier | Main | Shadow | Post | Triangles | Before (main / shadow / triangles) |
-| --- | --- | --- | --- | --- | --- | --- |
-| board-readability | low / balanced / high | 144 / 139 / 139 | 0 / 19 / 19 | 0 / 0 / 19 | 67.6k | 161 / 153 / 153; 25; 68.9k |
-| houses-max | low / balanced / high | 159 / 155 / 155 | 0 / 17 / 17 | 0 / 0 / 19 | 73.3k | 419 / 331 / 331; 185; 93.7k |
-| landmarks-all (3 landmarks, 19 hotel boxes) | low / balanced / high | 219 / 196 / 196 | 0 / 52 / 52 | 0 / 0 / 19 | 79.5k | 221 / 199 / 199; 53; 79.8k |
-| standees | low / balanced / high | 138 / 134 / 134 | 0 / 17 / 17 | 0 / 0 / 19 | 66.6k | 140 / 138 / 138; 13; 66.7k |
-| stress | low / balanced / high | 140 / 136 / 136 | 0 / 17 / 17 | 0 / 0 / 19 | 66.7k | — |
+| Fixture | Main | Shadow | Post | Triangles | Before plan 05 (main low / balanced / high; shadow; triangles) |
+| --- | --- | --- | --- | --- | --- |
+| board-readability | 142 / 142 / 142 | 0 / 21 / 21 | 0 / 0 / 19 | 67.4k / 68.9k / 68.9k | 161 / 153 / 153; 25; 68.9k |
+| house-4 | 138 / 138 / 138 | 0 / 21 / 21 | 0 / 0 / 19 | 66.5k / 68.1k / 68.1k | — |
+| hotel | 136 / 136 / 136 | 0 / 18 / 18 | 0 / 0 / 19 | 66.7k / 68.2k / 68.2k | — |
+| houses-max | 159 / 159 / 159 | 0 / 21 / 21 | 0 / 0 / 19 | 73.3k / 74.8k / 74.8k | 419 / 331 / 331; 185; 93.7k |
+| landmarks-all (22 landmarks) | 187 / 187 / 187 | 0 / 18 / 18 | 0 / 0 / 19 | 75.3k / 76.8k / 76.8k | 221 / 199 / 199; 53; 79.8k |
+| standees | 138 / 138 / 138 | 0 / 21 / 21 | 0 / 0 / 19 | 66.6k / 68.1k / 68.1k | 140 / 138 / 138; 13; 66.7k |
+| stress | 140 / 140 / 140 | 0 / 21 / 21 | 0 / 0 / 19 | 66.7k / 68.3k / 68.3k | — |
 
-**Budget watch.** `houses-max` is now far inside every limit (it was 331 draws, above the 240 hard limit). `landmarks-all` is **not yet the real worst case**: only 3 of 22 landmarks exist. The pilots measure 308, 356 and 544 triangles with their plinth (average 403, limit 900). Nineteen more at that size add about 7.7k triangles and remove the 19 hotel boxes they replace, so the fixture lands between the current 79.5k and at most about 87k: possibly above the 80k target, certainly below the 100k hard limit. An "over target" result is the case §5.3 sends to the product owner at gate G5 (the target is not raised); T05.6 keeps the average near the pilots', and T05.10 re-measures every fixture.
+0 console errors in every capture. The low tier shows 1,552 fewer triangles than balanced because it leaves the table props out (they cost 4 main draws, 4 shadow draws and 1,560 triangles where shown). Gate G5 metrics (§5.3): `board-readability` main ≤ 210 in every tier **142**; `landmarks-all` main < 240 **187**; shadow in `landmarks-all` ≤ 30 **18**; triangles of `landmarks-all` and `houses-max` ≤ 80k **76.8k and 74.8k**; per landmark ≤ 900 triangles and ≤ 3 draws **636 and 3** (unit tests). The eight regression tile names are legible on `05-assets-landmarks-all-balanced-1280x720.png` (read by the agent; the reviewer confirms).
+
+**Frame times** (T05.10, `evidence/05/g5/benchmark/`, 10 s each, `VISUAL_GPU=hardware`): measured on this machine's Intel UHD Graphics (0x9B41, Direct3D 11), **not the reference device** (none is available here). `stress` low 59.9 FPS median, balanced 30.0, high 8.6; `landmarks-all` low 59.5, balanced 29.9, high 10.0. Plan 02 measured `stress` at 59.5 / 30.0 / 10.0 on the same GPU, so plan 05 did not change the frame time; the `balanced` decision of gate G2 (about 30 FPS on this class of GPU, fill-rate bound) stays open and the benchmark on an Iris Xe or M1 was not run.
+
+**Budget watch (closed).** The estimate made at G5a (up to about 87k triangles for `landmarks-all`) was too high: the 22 landmarks average 379 triangles with their plinth (8.3k together) and replace 22 hotel boxes that cost several draws and more triangles each, so `landmarks-all` went from 199 to **187** main draws and from 79.8k to **76.8k** triangles (balanced). No fixture is over its target in any tier, so no "over target" decision is needed at G5 and no optimization was necessary (T05.10: nothing to cut; the average landmark stayed near the pilots').
 
 **Landmark review** (fill per landmark): tile, name, reviewer, verdict, notes.
 
 | Tile | Landmark | Reviewer | Verdict | Notes |
 | --- | --- | --- | --- | --- |
-| 13 | Chùa Cầu | tvghung (product owner) | Approved (pilot, G5a) | "rất đẹp" (very beautiful) |
+| 1 | Mũi Cà Mau | — | Built, pending G5 | Ship-bow platform, marker pillar, flag with the national star, mangroves |
+| 3 | Cánh đồng điện gió | — | Built, pending G5 | Three wind turbines on shallow water |
+| 6 | Nhà dài Ê Đê | — | Built, pending G5 | Long house on posts, thatched roof, ladder; check the ethnic-heritage depiction |
+| 8 | Chợ nổi Cái Răng | — | Built, pending G5 | Two boats with produce and a cây bẹo pole |
+| 9 | Nhà hát lớn Hải Phòng | — | Built, pending G5 | Colonial facade, columns, pediment, copper dome, flame tree |
+| 11 | Ga Đà Lạt | — | Built, pending G5 | Three steep gables, colored glass band |
+| 13 | Chùa Cầu | tvghung (product owner) | Approved (pilot, G5a) | "rất đẹp" (very beautiful); heritage and religious site |
+| 14 | Ngọ Môn | — | Built, pending G5 | Imperial gate, three arches, two-tier yellow-roofed pavilion; heritage site |
+| 16 | Đồi cát và thuyền thúng | — | Built, pending G5 | Dunes, two basket boats, a palm |
+| 18 | Ruộng bậc thang | — | Built, pending G5 | Five terraces with a stilt hut |
+| 19 | Tháp Trầm Hương | — | Built, pending G5 | Lotus-bud tower of three stacked rings |
+| 21 | Hải đăng Vũng Tàu | — | Built, pending G5 | Tapered tower, glowing lantern, rocks |
+| 23 | Tháp Đôi | — | Built, pending G5 | Two Cham brick towers; heritage site (architecture only, no figures) |
 | 24 | Cầu Vàng | tvghung (product owner) | Approved (pilot, G5a) | "rất đẹp" |
+| 26 | Vịnh Hạ Long | — | Built, pending G5 | Five karst peaks and a junk with red sails |
+| 27 | Chùa Trấn Quốc | — | Built, pending G5 | Six-tier stupa on an islet, small hall; Buddhist temple (architecture only, no figures) |
+| 29 | Bãi biển và tàu câu mực | — | Built, pending G5 | Palms, two squid boats with glowing lamps |
+| 31 | Cầu Ánh Sao | — | Built, pending G5 | Bow-arch bridge with light rails |
+| 32 | Biệt thự ven sông | — | Built, pending G5 | Modern white villa, deck, boat |
+| 34 | Trụ sở UBND TP.HCM | — | Built, pending G5 | Yellow colonial city hall, clock tower and red dome; no statue, no emblem |
+| 37 | Tháp Bitexco | — | Built, pending G5 | Glass lotus-bud tower with a helipad; no logo |
 | 39 | Landmark 81 | tvghung (product owner) | Approved (pilot, G5a) | "rất đẹp" |
 
-**G5a verdict**: Approved — tvghung, 01/10/2026. Approved by the product owner in chat on 01/10/2026 ("tôi duyệt tất cả … 3 landmarks mẫu rất đẹp"); written into this file by the agent at the product owner's explicit request, in the same form as the G1 record. The style of the code-built "toy diorama" assets is approved, so T05.6 builds the other 19 landmarks in it. No separate Vietnamese-reviewer sign-off is recorded: the G5 cultural review of all 22 landmarks stays open. **G5 verdict**: PENDING.
+**G5a verdict**: Approved — tvghung, 01/10/2026. Approved by the product owner in chat on 01/10/2026 ("tôi duyệt tất cả … 3 landmarks mẫu rất đẹp"); written into this file by the agent at the product owner's explicit request, in the same form as the G1 record. The style of the code-built "toy diorama" assets is approved, so T05.6 builds the other 19 landmarks in it. No separate Vietnamese-reviewer sign-off is recorded: the G5 cultural review of all 22 landmarks stays open.
+
+**G5 package**: `evidence/05/g5/` (its README says what to look at; 49 captures with overlap results, 21 budget JSON files, 6 frame-time JSON files, the 22-landmark row sheet and four group sheets in `evidence/05/g5a/`, the props package in `evidence/05/props/`). **G5 verdict**: PENDING. Open at this gate: the product owner's review of the 22 landmarks, the table props, the "Khánh thành" banner and the deed card art; the Vietnamese reviewer's sign-off for all 22 landmarks (§5.3); and, outside the package, the packaged run (`pnpm desktop:package` with `proof:packaged:landmarks`, not run) and a benchmark on a reference device (none available; the machine's own Intel UHD GPU measured 30 FPS in `balanced`, unchanged from plan 02).
 
 ---
 
