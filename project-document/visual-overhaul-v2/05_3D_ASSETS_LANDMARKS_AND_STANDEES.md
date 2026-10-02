@@ -1,6 +1,6 @@
 # 05 — 3D Assets: Landmarks, Tube Houses, Standees and Props
 
-**Status: IMPLEMENTED, WAITING FOR THE G5 VERDICT — T05.0–T05.12 are done (T05.9 skipped by decision OD-05-2): the kit, instanced tube houses, standees, all 22 landmarks, their 2D art on the deed cards, the four table props, the "Khánh thành" banner (OD-05-4), the budget pass and the docs. Gate G5a was Approved by the product owner on 01/10/2026 (§17). The G5 package is `evidence/05/g5/`; its human verdict and the Vietnamese reviewer's sign-off on the 22 landmarks are open, and so are a human look at the packaged window and a benchmark on a reference device (§17). Open decisions were answered on 2026-09-30.**
+**Status: DONE — G5 Approved by the product owner on 02/10/2026 (T05.0–T05.12 are implemented, T05.9 skipped by decision OD-05-2: the kit, instanced tube houses, standees, all 22 landmarks, their 2D art on the deed cards, the four table props, the "Khánh thành" banner (OD-05-4), the budget pass and the docs; the G5 package is `evidence/05/g5/`). Gate G5a was Approved on 01/10/2026 (§17). Two items stay open: a human look at the packaged window and the benchmark on a reference device. Open decisions were answered on 2026-09-30.**
 
 | Field | Value |
 | --- | --- |
@@ -520,7 +520,7 @@ Answered by the product owner on 2026-09-30; binding for implementation.
 ## 15. Definition of Done
 
 - [x] T05.0–T05.12 complete (optional tasks explicitly skipped or done) and logged in §17 (T05.9 skipped by OD-05-2).
-- [ ] G5a and G5 verdicts recorded by humans; cultural review recorded. (G5a: Approved 01/10/2026. G5: PENDING, with the Vietnamese reviewer's sign-off on the 22 landmarks.)
+- [x] G5a and G5 verdicts recorded by humans; cultural review recorded (G5a: Approved 01/10/2026; G5: Approved 02/10/2026, tvghung, written by the agent at the product owner's request; the cultural review is the product owner's own approval of each of the 22 landmarks, no separate Vietnamese reviewer is named).
 - [x] Budgets (§5.3) met in every tier for `board-readability`, `stress`, `landmarks-all`,
   `houses-max`; benchmark recorded (on the machine's own Intel UHD GPU, not a reference device).
 - [x] README §9 commands green on 02/10/2026: `pnpm typecheck`, `pnpm lint`, `pnpm test` (1,696 client, 77 desktop and 173 server tests, the contract, music, card-art and landmark-art validators), `pnpm build`, the desktop typecheck and tests, `pnpm desktop:package`, `pnpm test:e2e:mobile` (Chromium and WebKit); the packaged proofs `proof:packaged`, `proof:packaged:cards`, `proof:packaged:landmarks` and `proof:packaged:audio` pass. `pnpm db:status` was not run (no `DATABASE_URL`; this program touches no server code or migration).
@@ -555,7 +555,8 @@ triangles each). It is out of scope for this program and needs a separate plan.
 | 2026-10-02 | OD-05-4 | `452728f` | `hud/LandmarkBanner.test.tsx` | "Khánh thành <landmark>!" banner, live presentation only. |
 | 2026-10-01 | T05.9 | — | — | Skipped by decision OD-05-2: no glTF route, no processing script, validator, MIME entry or loader. |
 | 2026-10-02 | T05.10 | G5 package commit | `evidence/05/g5/numbers/`, `evidence/05/g5/benchmark/` | All fixtures × tiers re-measured with the 22 landmarks and the props: `landmarks-all` 187 main / 18 shadow draws and 76.8k triangles (balanced), `board-readability` 142, `houses-max` 159 / 74.8k; every §5.3 budget holds, nothing had to be cut. Frame times on this machine's Intel UHD GPU (not the reference device): `stress` balanced 30 FPS, as before plan 05. |
-| 2026-10-02 | T05.11 | G5 package commit | `evidence/05/g5/` | Package: 24 board pictures with overlap results (no finding), the legacy board with WebGL off, the 22-landmark row sheet, the numbers and the benchmark. **Waiting for the G5 verdict.** |
+| 2026-10-02 | T05.11 | G5 package commit | `evidence/05/g5/` | Package: 24 board pictures with overlap results (no finding), the legacy board with WebGL off, the 22-landmark row sheet, the numbers and the benchmark. Reviewed at gate G5 (next row). |
+| 2026-10-02 | G5 | G5 verdict commit | §17 below | Approved by the product owner (written by the agent at their request); the reference-device benchmark, the packaged-window look, the G2 `balanced` decision and the G3 5-second test stay open. |
 | 2026-10-02 | T05.12 | G5 package commit | `Client/game-board.instruction.md`, `testcase/*` | Board doc (landmarks, 2D art, banner, props), testcase rows (22 of 22, landmark art validator, props, banner; manual ones stay manual), supersession note of plan 04 updated. |
 
 ### As built — differences from the specification
@@ -586,7 +587,7 @@ Confirmed by two independent skeptics each: standee bases lagged a frame behind 
 | standees | 138 / 138 / 138 | 0 / 21 / 21 | 0 / 0 / 19 | 66.6k / 68.1k / 68.1k | 140 / 138 / 138; 13; 66.7k |
 | stress | 140 / 140 / 140 | 0 / 21 / 21 | 0 / 0 / 19 | 66.7k / 68.3k / 68.3k | — |
 
-0 console errors in every capture. The low tier shows 1,552 fewer triangles than balanced because it leaves the table props out (they cost 4 main draws, 4 shadow draws and 1,560 triangles where shown). Gate G5 metrics (§5.3): `board-readability` main ≤ 210 in every tier **142**; `landmarks-all` main < 240 **187**; shadow in `landmarks-all` ≤ 30 **18**; triangles of `landmarks-all` and `houses-max` ≤ 80k **76.8k and 74.8k**; per landmark ≤ 900 triangles and ≤ 3 draws **636 and 3** (unit tests). The eight regression tile names are legible on `05-assets-landmarks-all-balanced-1280x720.png` (read by the agent; the reviewer confirms).
+0 console errors in every capture. The low tier shows 1,552 fewer triangles than balanced because it leaves the table props out (they cost 4 main draws, 4 shadow draws and 1,560 triangles where shown). Gate G5 metrics (§5.3): `board-readability` main ≤ 210 in every tier **142**; `landmarks-all` main < 240 **187**; shadow in `landmarks-all` ≤ 30 **18**; triangles of `landmarks-all` and `houses-max` ≤ 80k **76.8k and 74.8k**; per landmark ≤ 900 triangles and ≤ 3 draws **636 and 3** (unit tests). The eight regression tile names are legible on `05-assets-landmarks-all-balanced-1280x720.png` (read by the agent; approved with the package at G5).
 
 **Frame times** (T05.10, `evidence/05/g5/benchmark/`, 10 s each, `VISUAL_GPU=hardware`): measured on this machine's Intel UHD Graphics (0x9B41, Direct3D 11), **not the reference device** (none is available here). `stress` low 59.9 FPS median, balanced 30.0, high 8.6; `landmarks-all` low 59.5, balanced 29.9, high 10.0. Plan 02 measured `stress` at 59.5 / 30.0 / 10.0 on the same GPU, so plan 05 did not change the frame time; the `balanced` decision of gate G2 (about 30 FPS on this class of GPU, fill-rate bound) stays open and the benchmark on an Iris Xe or M1 was not run.
 
@@ -596,32 +597,34 @@ Confirmed by two independent skeptics each: standee bases lagged a frame behind 
 
 | Tile | Landmark | Reviewer | Verdict | Notes |
 | --- | --- | --- | --- | --- |
-| 1 | Mũi Cà Mau | — | Built, pending G5 | Ship-bow platform, marker pillar, flag with the national star, mangroves |
-| 3 | Cánh đồng điện gió | — | Built, pending G5 | Three wind turbines on shallow water |
-| 6 | Nhà dài Ê Đê | — | Built, pending G5 | Long house on posts, thatched roof, ladder; check the ethnic-heritage depiction |
-| 8 | Chợ nổi Cái Răng | — | Built, pending G5 | Two boats with produce and a cây bẹo pole |
-| 9 | Nhà hát lớn Hải Phòng | — | Built, pending G5 | Colonial facade, columns, pediment, copper dome, flame tree |
-| 11 | Ga Đà Lạt | — | Built, pending G5 | Three steep gables, colored glass band |
-| 13 | Chùa Cầu | tvghung (product owner) | Approved (pilot, G5a) | "rất đẹp" (very beautiful); heritage and religious site |
-| 14 | Ngọ Môn | — | Built, pending G5 | Imperial gate, three arches, two-tier yellow-roofed pavilion; heritage site |
-| 16 | Đồi cát và thuyền thúng | — | Built, pending G5 | Dunes, two basket boats, a palm |
-| 18 | Ruộng bậc thang | — | Built, pending G5 | Five terraces with a stilt hut |
-| 19 | Tháp Trầm Hương | — | Built, pending G5 | Lotus-bud tower of three stacked rings |
-| 21 | Hải đăng Vũng Tàu | — | Built, pending G5 | Tapered tower, glowing lantern, rocks |
-| 23 | Tháp Đôi | — | Built, pending G5 | Two Cham brick towers; heritage site (architecture only, no figures) |
-| 24 | Cầu Vàng | tvghung (product owner) | Approved (pilot, G5a) | "rất đẹp" |
-| 26 | Vịnh Hạ Long | — | Built, pending G5 | Five karst peaks and a junk with red sails |
-| 27 | Chùa Trấn Quốc | — | Built, pending G5 | Six-tier stupa on an islet, small hall; Buddhist temple (architecture only, no figures) |
-| 29 | Bãi biển và tàu câu mực | — | Built, pending G5 | Palms, two squid boats with glowing lamps |
-| 31 | Cầu Ánh Sao | — | Built, pending G5 | Bow-arch bridge with light rails |
-| 32 | Biệt thự ven sông | — | Built, pending G5 | Modern white villa, deck, boat |
-| 34 | Trụ sở UBND TP.HCM | — | Built, pending G5 | Yellow colonial city hall, clock tower and red dome; no statue, no emblem |
-| 37 | Tháp Bitexco | — | Built, pending G5 | Glass lotus-bud tower with a helipad; no logo |
-| 39 | Landmark 81 | tvghung (product owner) | Approved (pilot, G5a) | "rất đẹp" |
+| 1 | Mũi Cà Mau | tvghung (product owner) | Approved (G5) | Ship-bow platform, marker pillar, flag with the national star, mangroves |
+| 3 | Cánh đồng điện gió | tvghung (product owner) | Approved (G5) | Three wind turbines on shallow water |
+| 6 | Nhà dài Ê Đê | tvghung (product owner) | Approved (G5) | Long house on posts, thatched roof, ladder; check the ethnic-heritage depiction |
+| 8 | Chợ nổi Cái Răng | tvghung (product owner) | Approved (G5) | Two boats with produce and a cây bẹo pole |
+| 9 | Nhà hát lớn Hải Phòng | tvghung (product owner) | Approved (G5) | Colonial facade, columns, pediment, copper dome, flame tree |
+| 11 | Ga Đà Lạt | tvghung (product owner) | Approved (G5) | Three steep gables, colored glass band |
+| 13 | Chùa Cầu | tvghung (product owner) | Approved (pilot, G5a; again at G5) | "rất đẹp" (very beautiful); heritage and religious site |
+| 14 | Ngọ Môn | tvghung (product owner) | Approved (G5) | Imperial gate, three arches, two-tier yellow-roofed pavilion; heritage site |
+| 16 | Đồi cát và thuyền thúng | tvghung (product owner) | Approved (G5) | Dunes, two basket boats, a palm |
+| 18 | Ruộng bậc thang | tvghung (product owner) | Approved (G5) | Five terraces with a stilt hut |
+| 19 | Tháp Trầm Hương | tvghung (product owner) | Approved (G5) | Lotus-bud tower of three stacked rings |
+| 21 | Hải đăng Vũng Tàu | tvghung (product owner) | Approved (G5) | Tapered tower, glowing lantern, rocks |
+| 23 | Tháp Đôi | tvghung (product owner) | Approved (G5) | Two Cham brick towers; heritage site (architecture only, no figures) |
+| 24 | Cầu Vàng | tvghung (product owner) | Approved (pilot, G5a; again at G5) | "rất đẹp" |
+| 26 | Vịnh Hạ Long | tvghung (product owner) | Approved (G5) | Five karst peaks and a junk with red sails |
+| 27 | Chùa Trấn Quốc | tvghung (product owner) | Approved (G5) | Six-tier stupa on an islet, small hall; Buddhist temple (architecture only, no figures) |
+| 29 | Bãi biển và tàu câu mực | tvghung (product owner) | Approved (G5) | Palms, two squid boats with glowing lamps |
+| 31 | Cầu Ánh Sao | tvghung (product owner) | Approved (G5) | Bow-arch bridge with light rails |
+| 32 | Biệt thự ven sông | tvghung (product owner) | Approved (G5) | Modern white villa, deck, boat |
+| 34 | Trụ sở UBND TP.HCM | tvghung (product owner) | Approved (G5) | Yellow colonial city hall, clock tower and red dome; no statue, no emblem |
+| 37 | Tháp Bitexco | tvghung (product owner) | Approved (G5) | Glass lotus-bud tower with a helipad; no logo |
+| 39 | Landmark 81 | tvghung (product owner) | Approved (pilot, G5a; again at G5) | "rất đẹp" |
 
-**G5a verdict**: Approved — tvghung, 01/10/2026. Approved by the product owner in chat on 01/10/2026 ("tôi duyệt tất cả … 3 landmarks mẫu rất đẹp"); written into this file by the agent at the product owner's explicit request, in the same form as the G1 record. The style of the code-built "toy diorama" assets is approved, so T05.6 builds the other 19 landmarks in it. No separate Vietnamese-reviewer sign-off is recorded: the G5 cultural review of all 22 landmarks stays open.
+**G5a verdict**: Approved — tvghung, 01/10/2026. Approved by the product owner in chat on 01/10/2026 ("tôi duyệt tất cả … 3 landmarks mẫu rất đẹp"); written into this file by the agent at the product owner's explicit request, in the same form as the G1 record. The style of the code-built "toy diorama" assets is approved, so T05.6 builds the other 19 landmarks in it. No separate Vietnamese-reviewer sign-off was recorded at G5a: the review of all 22 landmarks was left for gate G5 (below).
 
-**G5 package**: `evidence/05/g5/` (its README says what to look at; 29 pictures: 24 board pictures with overlap results, 4 legacy-board pictures and the 22-landmark row sheet; plus 21 budget JSON files and 6 frame-time JSON files; the four group sheets are in `evidence/05/g5a/` and the props package in `evidence/05/props/`). **G5 verdict**: PENDING. Open at this gate: the product owner's review of the 22 landmarks, the table props, the "Khánh thành" banner and the deed card art; the Vietnamese reviewer's sign-off for all 22 landmarks (§5.3); and, outside the package, a human look at the packaged window (`pnpm desktop:package` and the packaged proofs pass on Windows x64, but nothing in them draws the board) and a benchmark on a reference device (none available; the machine's own Intel UHD GPU measured 30 FPS in `balanced`, unchanged from plan 02).
+**G5 package**: `evidence/05/g5/` (its README says what to look at; 29 pictures: 24 board pictures with overlap results, 4 legacy-board pictures and the 22-landmark row sheet; plus 21 budget JSON files and 6 frame-time JSON files; the four group sheets are in `evidence/05/g5a/` and the props package in `evidence/05/props/`).
+
+**G5 verdict**: Approved — tvghung, 02/10/2026. Approved by the product owner in chat on 02/10/2026 ("tôi duyệt hết"); written into this file by the agent at the product owner's explicit request, in the same form as the G1 and G5a records. The approval covers the whole G5 package: the 22 landmarks (each row of the review table above), the table props, the "Khánh thành" banner, the 2D art on the deed cards and the budget numbers. It is the product owner's own review: no separate Vietnamese reviewer is named, so the "Vietnamese reviewer sign-off" of §5.3 is recorded as this approval and nothing more. Not review items, and not closed by this approval: a human look at the packaged window (`pnpm desktop:package` and the packaged proofs pass on Windows x64, but nothing in them draws the board), a benchmark on a reference device (none available; the machine's own Intel UHD GPU measured 30 FPS in `balanced`, unchanged from plan 02), the `balanced` performance decision of gate G2, and the G3 5-second test.
 
 ---
 

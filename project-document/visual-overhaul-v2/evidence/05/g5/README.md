@@ -2,8 +2,9 @@
 
 Captured 2026-10-02 with `VISUAL_BROWSER_CHANNEL=chrome pnpm visual:capture --grep "05-g5[-/]"` (Chrome, SwiftShader, deterministic);
 the frame-time benchmark with `VISUAL_GPU=hardware` on the machine's own GPU. The verdict belongs to the product owner and a Vietnamese
-reviewer and is recorded in `../../../05_3D_ASSETS_LANDMARKS_AND_STANDEES.md` §17. **Verdict: PENDING.** The style was approved at gate G5a
-(three pilots, 01/10/2026); this package judges the whole set.
+reviewer and is recorded in `../../../05_3D_ASSETS_LANDMARKS_AND_STANDEES.md` §17. **Verdict: Approved by the product owner on 02/10/2026
+("tôi duyệt hết"), written by the agent at the product owner's explicit request** (no separate Vietnamese reviewer is named). The style was
+approved at gate G5a (three pilots, 01/10/2026); this package judged the whole set.
 
 ## 1. What this package asks for
 
@@ -14,7 +15,7 @@ reviewer and is recorded in `../../../05_3D_ASSETS_LANDMARKS_AND_STANDEES.md` §
 3. **The table props** (cà phê phin, nón lá, bát sen, tiền chơi), the **"Khánh thành …!" banner** and the **2D art on the deed cards**.
 4. The numbers against the budgets of plan 05 §5.3 (section 5 below).
 
-The §5.3 criterion "Vietnamese reviewer sign-off recorded for all 22 landmarks" cannot be met by the agent: it is the open item of this gate.
+The §5.3 criterion "Vietnamese reviewer sign-off recorded for all 22 landmarks" is recorded as the product owner's approval of each landmark in the review table (plan 05 §17); no separate reviewer is named.
 
 ## 2. What is where
 
@@ -106,7 +107,7 @@ was not run: there is none here.
 
 ## 7. Known limits (for the reviewer)
 
-- **Cultural sign-off is open.** The agent chose the subjects from the plan's table and drew them simply (no figures, no inscriptions, no logos; Chùa Trấn Quốc and Tháp Đôi are architecture only).
+- **Cultural review is the product owner's own.** The agent chose the subjects from the plan's table and drew them simply (no figures, no inscriptions, no logos; Chùa Trấn Quốc and Tháp Đôi are architecture only); the product owner approved all 22 on 02/10/2026, and no separate Vietnamese reviewer is named.
 - **The packaged window was not looked at.** `pnpm desktop:package`, `proof:packaged:landmarks` (22 landmark SVGs), `proof:packaged:cards`, `proof:packaged:audio` and the runtime proof `proof:packaged` pass on Windows x64 (02/10/2026), but nothing in them draws the board; seeing the landmarks and standees under `app://` is a human check (`pnpm desktop:run:packaged`).
 - **Slim and wide landmarks** fill most of their plinth (footprint up to 1.29 of 1.30); with a standee in front of a tall tower (Đồng Khởi in `landmarks-all`) the standee hides part of it, as it hid the hotel box before.
 - **A landmark is a child of its tile**, so it is rotated with the tile and reads from a different side on each edge of the board; the sheets show the unrotated view.

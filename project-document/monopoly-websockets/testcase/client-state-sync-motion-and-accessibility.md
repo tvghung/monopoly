@@ -178,7 +178,9 @@ players, and observed result.
 - [x] `[AUTO][CLIENT]` `characters/standee.test.ts`, `characterTextureCache.test.ts`: the standee faces the camera azimuth only and is as tall on screen as the old sprite;
   unlit alpha-tested face, mascot-shaped depth material, opacity fade, instanced bases follow their anchors, the 320 px die-cut bake.
   Movement semantics (`characterMotion.test.ts`, `characterPlacement.test.ts`, `characterReaction.test.ts`) are unchanged.
-- [ ] `[MANUAL-E2E]` Worst-case budgets (`landmarks-all`, `houses-max`, `standees`, `stress`) in every tier and the reference-device benchmark: `evidence/05/g5/numbers`
-  (the pilots' numbers are in `evidence/05/g5a/numbers`); pilot style review (gate G5a, approved) and the cultural review of all 22 landmarks (gate G5).
-- [ ] `[MANUAL-E2E]` The table props and the "Khánh thành" banner on the real board: `evidence/05/props` and `evidence/05/g5` (overlap checker JSON with no HUD or tile finding);
-  a human look at the packaged window (`pnpm desktop:run:packaged`) for landmarks, standees and props under `app://`.
+- [x] `[MANUAL-E2E]` Style review of the three pilots (gate G5a, approved by the product owner on 01/10/2026) and review of all 22 landmarks, the table props, the "Khánh thành" banner and the
+  deed card art (gate G5, approved by the product owner on 02/10/2026; no separate Vietnamese reviewer is named): `evidence/05/g5/`, `evidence/05/props/`. Overlap checker JSON: no HUD or tile finding.
+- [x] `[MANUAL-E2E]` Worst-case budgets (`landmarks-all`, `houses-max`, `standees`, `stress`) measured in every tier: `evidence/05/g5/numbers` (the pilots' numbers are in `evidence/05/g5a/numbers`),
+  all inside the plan 05 §5.3 budgets.
+- [ ] `[MANUAL-E2E]` The reference-device benchmark (`stress` balanced): only the machine's own Intel UHD GPU was measured (`evidence/05/g5/benchmark`, 30 FPS in `balanced`, as before plan 05);
+  and a human look at the packaged window (`pnpm desktop:run:packaged`) for landmarks, standees and props under `app://`.
