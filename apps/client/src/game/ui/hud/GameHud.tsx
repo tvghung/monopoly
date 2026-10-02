@@ -13,6 +13,7 @@ import Log from '../../../components/Log';
 import { HudDrawerProvider, useHudDrawer } from './hudDrawer';
 import { selectPlayerCardViewModels } from './playerCardSelectors';
 import StatusPill from './StatusPill';
+import LandmarkBanner from './LandmarkBanner';
 import TurnBanner from './TurnBanner';
 import { useChatBubbles } from './useChatBubbles';
 import './hud.css';
@@ -85,6 +86,7 @@ function GameHudShell({ onSelectTile, onSelectPlayer }: {
       <div className="game-hud" data-testid="game-hud" style={style}>
         <StatusPill />
         <TurnBanner />
+        <LandmarkBanner />
         <PlayerCards onSelectPlayer={onSelectPlayer} />
         <CenterStage />
         <DiceResultCallout />

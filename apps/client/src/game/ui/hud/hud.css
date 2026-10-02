@@ -569,3 +569,24 @@
     width: auto;
   }
 }
+
+/* ---------- Landmark banner (plan 05, OD-05-4): "Khánh thành <landmark>!" under the turn banner ---------- */
+
+/*
+ * It carries the `turn-banner` class too, so it shares that shell, its keyframes and its reduced-motion fade; only its place
+ * and its lifetime (2.2 s, scaled by the animation speed) differ. Under reduced motion it is the text alone (no picture).
+ */
+.landmark-banner {
+  top: calc(var(--hud-inset) + 52px + 62px);
+  animation-duration: calc(2200ms / var(--hud-speed));
+}
+.landmark-banner__art { display: block; flex: none; width: 44px; height: 44px; border-radius: var(--radius-md); }
+
+@media (max-height: 500px) {
+  .landmark-banner { top: calc(var(--hud-inset) + 44px + 50px); }
+  .landmark-banner__art { width: 32px; height: 32px; }
+}
+
+@media (max-width: 720px) {
+  .landmark-banner { top: calc(var(--hud-inset) + var(--player-card-height) + 44px + 50px); left: var(--hud-inset); }
+}
