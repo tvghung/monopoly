@@ -419,12 +419,35 @@ export const CAPTURES: readonly CaptureEntry[] = [
     extraQuery: `&quality=${tier}`,
     noScreenshot: true,
   })),
+  // Plan 05 T05.8: the table props beside the board at the review viewports (balanced), with the HUD/tile overlap check;
+  // the other tiers at the minimum window (high draws them with shadows, low leaves them out).
+  ...harnessCaptures({
+    plan: '05',
+    folder: 'props',
+    scenarios: ['board-readability'],
+    viewports: [VIEWPORTS.fullHd, VIEWPORTS.laptop, VIEWPORTS.minimum, VIEWPORTS.phoneLandscape, VIEWPORTS.tabletLandscape],
+    surface: 'props',
+    variant: 'balanced',
+    extraQuery: '&quality=balanced',
+    overlapCheck: true,
+  }),
+  ...(['high', 'low'] as const).flatMap(tier => harnessCaptures({
+    plan: '05',
+    folder: 'props',
+    scenarios: ['board-readability'],
+    viewports: [VIEWPORTS.minimum],
+    surface: 'props',
+    variant: tier,
+    extraQuery: `&quality=${tier}`,
+    overlapCheck: true,
+  })),
   // Plan 05 T05.5: the pilot landmarks at a size the board never shows them (the style sheet of gate G5a).
   ...([
     ['landmarks', ''],
     ['chua-cau', '&landmark=13'],
     ['cau-vang', '&landmark=24'],
     ['landmark-81', '&landmark=39'],
+    ['table-props', '&props=1'],
     ['group-a', '&landmark=1,3,6,8'],
     ['group-b', '&landmark=9,11,14,19,23'],
     ['group-c', '&landmark=16,18,21,26,27'],

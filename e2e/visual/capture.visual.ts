@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test, type Page } from '@playwright/test';
-import { findHudTileOverlaps } from '../../apps/client/src/dev/hud-overlap/polygonOverlap';
+import { findHudPropOverlaps, findHudTileOverlaps, findPropTileOverlaps } from '../../apps/client/src/dev/hud-overlap/polygonOverlap';
 import { CAPTURES, type CaptureEntry } from './captures';
 
 // VISUAL_EVIDENCE_DIR redirects the output, for example to compare against committed evidence.
@@ -79,13 +79,18 @@ async function measureHudOverlap(page: Page) {
         }
       }
     }
-    return { tiles: tiles ?? null, regions, regionOverlaps };
+    const props = (window as unknown as {
+      __OWN_THE_BLOCK_PROP_SCREEN_RECTS__?: { props: { id: string; visible: boolean; rect: { left: number; top: number; right: number; bottom: number } }[] };
+    }).__OWN_THE_BLOCK_PROP_SCREEN_RECTS__?.props;
+    return { tiles: tiles ?? null, regions, regionOverlaps, props: props ?? null };
   });
   if (!measured.tiles) return null;
   const tiles = measured.tiles.map(tile => ({ tileId: tile.tileId, corners: tile.corners as unknown as Corners }));
   // Persistent HUD must never cover a tile; transient decision panels, banners and bubbles may, briefly.
   const persistent = measured.regions.filter(region => !region.transient);
   const transient = measured.regions.filter(region => region.transient);
+  // Table props (plan 05 T05.8): the shown ones must stay clear of the persistent HUD and of every tile.
+  const shownProps = (measured.props ?? []).filter(prop => prop.visible);
   return {
     threshold: 0.04,
     regions: persistent.map(region => region.region),
@@ -96,6 +101,15 @@ async function measureHudOverlap(page: Page) {
       persistent: measured.regionOverlaps.filter(overlap => !overlap.transient),
       transient: measured.regionOverlaps.filter(overlap => overlap.transient),
     },
+    props: measured.props
+      ? {
+        shown: shownProps.map(prop => prop.id),
+        hidden: measured.props.filter(prop => !prop.visible).map(prop => prop.id),
+        hudFindings: findHudPropOverlaps(shownProps, persistent),
+        transientHudFindings: findHudPropOverlaps(shownProps, transient),
+        tileFindings: findPropTileOverlaps(shownProps, tiles),
+      }
+      : null,
   };
 }
 

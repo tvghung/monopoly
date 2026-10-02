@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  findHudTileOverlaps, polygonArea, quadRectOverlapArea, type TileScreenRect,
+  findHudPropOverlaps, findHudTileOverlaps, findPropTileOverlaps, polygonArea, quadRectOverlapArea, rectOverlapArea,
+  type TileScreenRect,
 } from './polygonOverlap';
 
 const square = (x: number, y: number, size: number) => [
@@ -62,5 +63,38 @@ describe('findHudTileOverlaps', () => {
     expect(strict).toHaveLength(1);
     const flat: TileScreenRect[] = [{ tileId: 9, corners: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 0 }, { x: 30, y: 0 }] }];
     expect(findHudTileOverlaps(flat, [{ region: 'all', left: -5, top: -5, right: 50, bottom: 5 }])).toEqual([]);
+  });
+});
+
+describe('table prop overlaps (plan 05 T05.8)', () => {
+  const props = [
+    { id: 'coffee-phin', rect: { left: 0, top: 0, right: 100, bottom: 100 } },
+    { id: 'non-la', rect: { left: 300, top: 0, right: 400, bottom: 100 } },
+  ];
+
+  it('measures the area two rectangles share', () => {
+    expect(rectOverlapArea({ left: 0, top: 0, right: 10, bottom: 10 }, { left: 5, top: 5, right: 20, bottom: 20 })).toBe(25);
+    expect(rectOverlapArea({ left: 0, top: 0, right: 10, bottom: 10 }, { left: 10, top: 0, right: 20, bottom: 10 })).toBe(0);
+    expect(rectOverlapArea({ left: 0, top: 0, right: 10, bottom: 10 }, { left: 50, top: 50, right: 60, bottom: 60 })).toBe(0);
+  });
+
+  it('reports HUD regions that cover more than two percent of a prop, worst first', () => {
+    const findings = findHudPropOverlaps(props, [
+      { region: 'player-card', left: 50, top: 0, right: 150, bottom: 100 },
+      { region: 'sliver', left: 99, top: 0, right: 150, bottom: 100 },
+      { region: 'far', left: 500, top: 0, right: 600, bottom: 100 },
+    ]);
+    expect(findings.map(finding => [finding.region, finding.propId])).toEqual([['player-card', 'coffee-phin']]);
+    expect(findings[0].coveredShare).toBeCloseTo(0.5);
+    expect(findHudPropOverlaps(props, [{ region: 'sliver', left: 99, top: 0, right: 150, bottom: 100 }], 0.005)).toHaveLength(1);
+  });
+
+  it('reports tiles a prop rectangle covers, and ignores a prop clear of every tile', () => {
+    const tiles: TileScreenRect[] = [{ tileId: 7, corners: square(50, 50, 100) }, { tileId: 8, corners: square(600, 0, 100) }];
+    const findings = findPropTileOverlaps(props, tiles);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ propId: 'coffee-phin', tileId: 7 });
+    expect(findings[0].coveredShare).toBeCloseTo(0.25);
+    expect(findPropTileOverlaps([props[1]], tiles)).toEqual([]);
   });
 });

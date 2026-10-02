@@ -102,3 +102,68 @@ export function findHudTileOverlaps(
   }
   return findings.sort((left, right) => right.coveredShare - left.coveredShare);
 }
+
+export interface PropScreenRect {
+  id: string;
+  rect: ScreenRect;
+}
+
+export interface PropOverlapFinding {
+  region: string;
+  propId: string;
+  /** Covered part of the prop's rectangle, from 0 to 1. */
+  coveredShare: number;
+  coveredArea: number;
+  propArea: number;
+}
+
+export interface PropTileOverlapFinding {
+  propId: string;
+  tileId: number;
+  /** Part of the tile's surface the prop's rectangle covers, from 0 to 1. */
+  coveredShare: number;
+}
+
+/** Area shared by two axis-aligned rectangles. */
+export function rectOverlapArea(first: ScreenRect, second: ScreenRect): number {
+  const width = Math.min(first.right, second.right) - Math.max(first.left, second.left);
+  const height = Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top);
+  return width > 0 && height > 0 ? width * height : 0;
+}
+
+/** HUD regions that cover more than `threshold` (default 2%) of a table prop's rectangle (plan 05 T05.8), worst first. */
+export function findHudPropOverlaps(
+  props: readonly PropScreenRect[],
+  regions: readonly HudRegionRect[],
+  threshold = 0.02,
+): PropOverlapFinding[] {
+  const findings: PropOverlapFinding[] = [];
+  for (const region of regions) {
+    for (const prop of props) {
+      const propArea = (prop.rect.right - prop.rect.left) * (prop.rect.bottom - prop.rect.top);
+      if (propArea <= 0) continue;
+      const coveredArea = rectOverlapArea(prop.rect, region);
+      const coveredShare = coveredArea / propArea;
+      if (coveredShare > threshold) findings.push({ region: region.region, propId: prop.id, coveredShare, coveredArea, propArea });
+    }
+  }
+  return findings.sort((left, right) => right.coveredShare - left.coveredShare);
+}
+
+/** Tiles whose surface a table prop's rectangle covers by more than `threshold` (default 0.5%), worst first. */
+export function findPropTileOverlaps(
+  props: readonly PropScreenRect[],
+  tiles: readonly TileScreenRect[],
+  threshold = 0.005,
+): PropTileOverlapFinding[] {
+  const findings: PropTileOverlapFinding[] = [];
+  for (const prop of props) {
+    for (const tile of tiles) {
+      const tileArea = polygonArea(tile.corners);
+      if (tileArea <= 0) continue;
+      const coveredShare = quadRectOverlapArea(tile.corners, prop.rect) / tileArea;
+      if (coveredShare > threshold) findings.push({ propId: prop.id, tileId: tile.tileId, coveredShare });
+    }
+  }
+  return findings.sort((left, right) => right.coveredShare - left.coveredShare);
+}

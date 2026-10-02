@@ -5,6 +5,7 @@ import Board3D from './board/Board3D';
 import type { BoardRenderModel } from './board/boardRenderModel';
 import { boardVisualTokens } from './board/boardVisualTokens';
 import { getOrthographicCameraPosition } from './camera/cameraMath';
+import PropScreenRectsPublisher from '../../dev/hud-overlap/PropScreenRectsPublisher';
 import TileScreenRectsPublisher from '../../dev/hud-overlap/TileScreenRectsPublisher';
 import FixedBoardCamera from './camera/FixedBoardCamera';
 import {
@@ -21,6 +22,7 @@ import { FrameCounter, shadowMapTypeName, toneMappingName } from './render/diagn
 import OptionalSceneLayer from './render/OptionalSceneLayer';
 import SceneLightRig from './render/lighting/SceneLightRig';
 import StudioEnvironment from './render/environment/StudioEnvironment';
+import TableProps from './props/TableProps';
 import BoardGroundShadow from './render/table/BoardGroundShadow';
 import Tabletop from './render/table/Tabletop';
 import { RenderQualityContext, useRenderQuality } from './render/RenderQualityContext';
@@ -286,6 +288,7 @@ function BoardSceneContents({
     <>
       <FixedBoardCamera />
       {import.meta.env.DEV || __PHASE4_UAT__ ? <TileScreenRectsPublisher /> : null}
+      {import.meta.env.DEV || __PHASE4_UAT__ ? <PropScreenRectsPublisher /> : null}
       <RendererDiagnostics
         activityKey={activityKey}
         activeAnimatedObjects={activeAnimatedObjects}
@@ -361,6 +364,9 @@ export default function GameScene({
           <OptionalSceneLayer name="tabletop">
             <Tabletop />
             <BoardGroundShadow />
+          </OptionalSceneLayer>
+          <OptionalSceneLayer name="table-props">
+            <TableProps />
           </OptionalSceneLayer>
           {quality.postProcessing
             ? (

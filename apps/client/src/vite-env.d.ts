@@ -12,6 +12,11 @@ interface Window {
     canvas: { left: number; top: number; width: number; height: number };
     tiles: { tileId: number; corners: readonly { x: number; y: number }[] }[];
   };
+  /** Set by PropScreenRectsPublisher (dev/UAT only): the four table props projected to page coordinates. */
+  __OWN_THE_BLOCK_PROP_SCREEN_RECTS__?: {
+    canvas: { left: number; top: number; width: number; height: number };
+    props: { id: string; visible: boolean; rect: { left: number; top: number; right: number; bottom: number } }[];
+  };
   /** Set by the UAT harness in benchmark mode once the run has finished. */
   __OWN_THE_BLOCK_RENDERER_BENCHMARK__?: object;
 }
