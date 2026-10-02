@@ -9,6 +9,8 @@
 - `[BROWSER]`: automated Playwright browser-engine flow; not a physical device.
 - `[PACKAGED]`: packaged Electron/helper/PostgreSQL process proof, scoped to the
   reported OS/architecture.
+- `[CI]`: GitHub Actions workflow behavior that only a real run can exercise (for
+  example the tag-triggered release publication); the recorded run is the evidence.
 - `[AUDIT]`: deterministic repository/content audit implemented as test/script.
 - `[MANUAL-E2E]`: browser/process validation; never called automated.
 

@@ -1,6 +1,6 @@
 # Own the Block V1 Final Manual Acceptance
 
-Status: **PENDING HUMAN ACCEPTANCE**
+Status: **V1 RELEASED ON THE PRODUCT OWNER'S DECISION (2026-10-02); THE ROWS BELOW WERE NOT ITEMISED AND STAY UNCHECKED**
 
 This is the current manual checklist for the code-bearing closeout. Every item
 must be exercised by a person on the target browser/device/package and checked
@@ -81,3 +81,14 @@ visual-review support, not a replacement for gameplay or package tests.
 
 No reviewer, reviewed timestamp, or approval is recorded in this repository by
 the code-bearing closeout.
+
+## Release decision (2026-10-02)
+
+The product owner decided in chat to release V1 ("thôi hãy publish v1 luôn đi, tôi chốt sổ r release v1 nhé"), after the
+agent ran the packaged Windows app (built from the merged `main`) and the development demo pages for them to try. The
+agent wrote this section on that instruction.
+
+The owner did not itemise the checklist above, so none of its rows is ticked: a tick here means a person observed the
+item, and nobody recorded that. The three sign-off rows stay open for the same reason. V1 was released with these rows
+accepted as open by the owner; the decision, the other open gates and the release record are in the
+[V1 release contract](V1_RELEASE_CONTRACT.md#v1-release-decision). Tick a row only after a person has observed it.

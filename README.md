@@ -5,6 +5,10 @@ See the [V1 release contract](project-document/ui-ux-overhaul/V1_RELEASE_CONTRAC
 for the LAN-first desktop architecture and pending production soundtrack gate.
 Validate identity with `pnpm validate:v1-contract`.
 
+**Tải về:** các bản cài đặt Windows và macOS nằm ở trang
+[Releases](https://github.com/tvghung/monopoly/releases/latest). Bản V1 chưa được ký số;
+ghi chú phát hành hướng dẫn cách cài.
+
 [![CI](https://github.com/terragady/monopoly-websockets/actions/workflows/ci.yml/badge.svg)](https://github.com/terragady/monopoly-websockets/actions/workflows/ci.yml)
 ![GitHub top language](https://img.shields.io/github/languages/top/terragady/monopoly-websockets)
 ![GitHub repo size](https://img.shields.io/github/repo-size/terragady/monopoly-websockets)
@@ -132,6 +136,24 @@ on the same LAN or run a second packaged desktop instance, choose **Tham gia ph�
 and enter the Host IPv4/port plus `OTB-XXXXXX` room code. The invite URL format is
 `http://<host-ip>:<actual-port>/?room=<room-code>`; opening it prefills but does not
 submit the room.
+
+### Publishing a release
+
+A release is published by pushing a version tag, not by hand. With the root
+`package.json` version at `X.Y.Z` and `.github/release-notes/vX.Y.Z.md` written, push an
+annotated tag on a commit that is on `main`:
+
+```bash
+git tag -a vX.Y.Z -m "Own the Block X.Y.Z"
+git push origin vX.Y.Z
+```
+
+The `Release Candidate` workflow then runs every quality gate and the packaged proofs on
+Windows x64, macOS x64 and macOS arm64, and only when all of them pass does it publish the
+GitHub Release (the three installers plus `SHA256SUMS.txt`). A tag with a suffix
+(`vX.Y.Z-rc.1`) is published as a pre-release. A manual dispatch of the same workflow
+validates without publishing. The release is unsigned; see the
+[V1 release contract](project-document/ui-ux-overhaul/V1_RELEASE_CONTRACT.md).
 
 ## Environment variables
 

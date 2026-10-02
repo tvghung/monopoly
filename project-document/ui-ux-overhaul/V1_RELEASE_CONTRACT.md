@@ -45,6 +45,26 @@ manifest derive their version from package metadata. These are configuration exp
 not claims that new artifacts were built. Release metadata rejects mismatched
 application package versions; signing/notarization semantics remain unchanged.
 
+## Release publication
+
+A release is published by pushing the annotated tag `v<semver>` (`v1.0.0` for `1.0.0`) on a commit that is on `main`;
+the README section "Publishing a release" has the commands. The `Release Candidate` workflow
+(`.github/workflows/release-candidate.yml`) reacts to the tag:
+
+1. It first checks that the tag equals the root `package.json` version and that `.github/release-notes/<tag>.md` exists.
+2. The quality job and the three target jobs (Windows x64, macOS x64, macOS arm64) run every gate and packaged proof
+   that a manual dispatch runs, in `unsigned-validation` mode and without an endpoint override (LAN-first).
+3. Only when all four jobs pass does the `publish` job run `apps/desktop/scripts/stageReleaseAssets.mjs`. It keeps exactly
+   `OwnTheBlock-<version>-win32-x64-Setup.exe`, `OwnTheBlock-<version>-macos-x64.dmg` and
+   `OwnTheBlock-<version>-macos-arm64.dmg`, each checked against the checksum in the `manifest.json` of the build job
+   that made it, and writes `SHA256SUMS.txt`. It then creates the GitHub Release as a draft, uploads those four files and
+   publishes it. A tag with a suffix (`v1.0.1-rc.1`) becomes a pre-release.
+
+A manual `workflow_dispatch` of the same workflow stays a validation run: it uploads workflow artifacts and publishes
+nothing. `signed` mode exists only for that dispatch; a tag run is always unsigned, so a signed release needs a workflow
+change once signing secrets exist. `apps/desktop/tests/stageReleaseAssets.test.ts` covers the staging step; the publish
+job itself is exercised only by a real tag run, and its result is recorded in the release record below.
+
 ## Audio release policy
 
 V1 gameplay music is exactly one rendered looping track:
@@ -128,3 +148,21 @@ references across tracked files, including the lockfile and release tooling.
 | Client/desktop runtime tests with old app versions; server protocol compatibility tests; presentation/UAT fixtures | TEST FIXTURE: isolated values retained. The desktop metadata test reads the real repository and therefore now expects V1. |
 | Dependency/devDependency fields and pnpm lockfile resolutions (including matching version substrings) | DEPENDENCY VERSION: unchanged; frozen install requires no lockfile regeneration. |
 | Snapshot/storage/settings/schema/migration versions, PostgreSQL binary version, XML headers, general branding and tool-version references | UNRELATED to product semver: retained. Snapshot version 8 is not Socket protocol 9. |
+
+## V1 release decision
+
+On 2026-10-02 the product owner decided to release V1 ("thôi hãy publish v1 luôn đi, tôi chốt sổ r release v1 nhé"), after
+the agent ran the packaged Windows app (built from the merged `main`) and the development demo pages for them to try.
+The agent wrote this section on that instruction. The owner did not itemise the manual checklist, so no row of
+[V1_FINAL_MANUAL_ACCEPTANCE.md](V1_FINAL_MANUAL_ACCEPTANCE.md) was ticked: a tick means a person observed the item.
+
+V1 is released **unsigned** and with the gates below still open. The owner accepted them as known limitations; they are
+open work, not closed evidence.
+
+- The V1 manual acceptance rows (audio, cards, multiplayer, desktop) and the human audio listening record
+  (`V1_AUDIO_HUMAN_ACCEPTANCE.json` stays `accepted: false`).
+- Windows Authenticode signing and Apple signing/notarization: no certificate or Apple credentials exist. Windows SmartScreen
+  and macOS Gatekeeper warnings are expected and explained in the release notes.
+- macOS install and run on a physical Mac, real OS firewall prompts, and install/upgrade/uninstall evidence.
+- Visual overhaul V2 open items: the benchmark on a reference device, the `balanced` tier decision on integrated GPUs (about
+  30 FPS on an Intel UHD 630 stress fixture), the G3 five-second test and the look at the packaged window.
