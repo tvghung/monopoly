@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
-import { bevelBox, box, cylinder, extrude, type Vec2 } from '../kit/lowPolyKit';
+import { bevelBox, box, cylinder, extrude, place } from '../kit/lowPolyKit';
 import { assembleLandmark } from './assemble';
+import { arcStrip } from './parts';
 import type { LandmarkGeometry } from './types';
 
 /**
@@ -11,20 +12,6 @@ const GOLD_LIGHT = '#F0C95A';
 const STONE = '#8C9482';
 const MOSS = '#5E8C4A';
 const HILL = '#6B9A55';
-
-/** The walkway as a thin arch strip: an upper curve and a lower curve of the same span. */
-function walkwayOutline(span: number, rise: number, thickness: number, steps: number): Vec2[] {
-  const upper: Vec2[] = [];
-  const lower: Vec2[] = [];
-  for (let index = 0; index <= steps; index += 1) {
-    const t = index / steps;
-    const x = (t - 0.5) * span;
-    const y = rise * (1 - (2 * t - 1) ** 2);
-    upper.push([x, y + thickness]);
-    lower.push([x, y]);
-  }
-  return [...lower, ...upper.reverse()];
-}
 
 /** One giant hand: a palm tilted outward and four fingers fanning up from it. */
 function hand(side: 1 | -1): THREE.BufferGeometry[] {
@@ -49,9 +36,10 @@ export function buildCauVang(): LandmarkGeometry {
     ...hand(1),
     ...hand(-1),
     // The golden walkway and its handrails.
-    extrude(walkwayOutline(1.2, 0.2, 0.045, 12), 0.15, GOLD, { position: [0, 0.34, 0] }),
-    extrude(walkwayOutline(1.2, 0.2, 0.025, 12), 0.02, GOLD_LIGHT, { position: [0, 0.385, 0.075] }),
-    extrude(walkwayOutline(1.2, 0.2, 0.025, 12), 0.02, GOLD_LIGHT, { position: [0, 0.385, -0.075] }),
+    extrude(arcStrip(1.2, 0.2, 0.045, 12), 0.15, GOLD, { position: [0, 0.34, 0] }),
+    extrude(arcStrip(1.2, 0.2, 0.025, 12), 0.02, GOLD_LIGHT, { position: [0, 0.385, 0.075] }),
+    extrude(arcStrip(1.2, 0.2, 0.025, 12), 0.02, GOLD_LIGHT, { position: [0, 0.385, -0.075] }),
   ];
-  return assembleLandmark({ opaque });
+  // The left hand reaches a little further than the right one: shift the whole landmark so it is centered on the plinth.
+  return assembleLandmark({ opaque: opaque.map(part => place(part, { position: [0.04, 0, 0] })) });
 }

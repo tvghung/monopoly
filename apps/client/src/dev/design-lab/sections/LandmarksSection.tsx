@@ -34,11 +34,13 @@ const SPACING = 1.9;
 const ROW_AXIS = [Math.SQRT1_2, 0, -Math.SQRT1_2] as const;
 const alongRow = (distance: number): [number, number, number] => [ROW_AXIS[0] * distance, 0, ROW_AXIS[2] * distance];
 
-/** `&landmark=<tileId>` shows one landmark large (with the houses beside it); without it the whole row is shown. */
-function readFocusedTile(): number | null {
+/** `&landmark=1,3,6` shows just those landmarks large (with the houses beside them); without it the whole row is shown. */
+function readFocusedTiles(): number[] | null {
   if (typeof window === 'undefined') return null;
-  const value = Number(new URLSearchParams(window.location.search).get('landmark'));
-  return Number.isInteger(value) && LANDMARKS.some(landmark => landmark.tileId === value) ? value : null;
+  const raw = new URLSearchParams(window.location.search).get('landmark');
+  if (!raw) return null;
+  const wanted = raw.split(',').map(Number).filter(value => LANDMARKS.some(landmark => landmark.tileId === value));
+  return wanted.length > 0 ? wanted : null;
 }
 
 function configureSheetCamera(camera: THREE.OrthographicCamera, width: number, height: number, columns: number, tallest: number): void {
@@ -117,8 +119,8 @@ function StandeePreview({ characterId, color, distance }: { characterId: Charact
  * scale. This is the picture the pilot review (gate G5a) is held on, at a size the board never shows them.
  */
 export default function LandmarksSection() {
-  const focused = readFocusedTile();
-  const shown = focused === null ? LANDMARKS : LANDMARKS.filter(landmark => landmark.tileId === focused);
+  const focused = readFocusedTiles();
+  const shown = focused === null ? LANDMARKS : LANDMARKS.filter(landmark => focused.includes(landmark.tileId));
   const columns = shown.length + 1 + (focused === null ? 2 : 0);
   const left = -((columns - 1) * SPACING) / 2;
   return (

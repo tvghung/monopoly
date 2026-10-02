@@ -15,6 +15,8 @@ export interface LandmarkGeometry {
   footprint: readonly [number, number];
   /** Measured height above the plinth top. */
   height: number;
+  /** The landmark's own bounding box, plinth excluded, as `[x, y, z]` corners. */
+  bounds: { readonly min: readonly [number, number, number]; readonly max: readonly [number, number, number] };
   /** All triangles, plinth included. */
   triangles: number;
 }

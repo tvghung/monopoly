@@ -220,12 +220,77 @@ export function curvedEaveRoof(
   return applyPlacement(roof, placement ?? {});
 }
 
+/** A vertical prism from a polygon drawn on the ground as `[x, z]` points, `height` tall, standing on y = 0 (a bow, a deck, a hull). */
+export function prism(outline: readonly Vec2[], height: number, color: KitColor, placement?: Placement): THREE.BufferGeometry {
+  // The polygon is drawn in XY with y = -z, extruded along +Z and turned upright: (x, y, z) -> (x, z, -y).
+  const shape = new THREE.Shape(outline.map(([x, z]) => new THREE.Vector2(x, -z)));
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, steps: 1, curveSegments: 4 });
+  geometry.rotateX(-Math.PI / 2);
+  return finish(geometry, color, placement);
+}
+
+/** A faceted ball (an icosahedron: 20 triangles at detail 0, 80 at detail 1) for foliage, fruit, dunes and rocks. Centered on its middle. */
+export function blob(radius: number, detail: number, color: KitColor, placement?: Placement): THREE.BufferGeometry {
+  return finish(new THREE.IcosahedronGeometry(radius, detail), color, placement);
+}
+
+/**
+ * The upper half of a faceted ball, standing on y = 0 (a dune, a hill, a boulder): the faces below the ground are dropped and the
+ * band that crosses it is flattened onto it, so nothing sinks below the plinth. 12 triangles at detail 0, about 50 at detail 1.
+ */
+export function dome(radius: number, detail: number, color: KitColor, placement?: Placement): THREE.BufferGeometry {
+  const ball = new THREE.IcosahedronGeometry(radius, detail);
+  const source = ball.index ? ball.toNonIndexed() : ball;
+  const position = source.getAttribute('position');
+  const kept: number[] = [];
+  for (let corner = 0; corner < position.count; corner += 3) {
+    const heights = [position.getY(corner), position.getY(corner + 1), position.getY(corner + 2)];
+    if (Math.max(...heights) <= 1e-6) continue;
+    for (let offset = 0; offset < 3; offset += 1) {
+      kept.push(position.getX(corner + offset), Math.max(0, heights[offset]), position.getZ(corner + offset));
+    }
+  }
+  ball.dispose();
+  if (source !== ball) source.dispose();
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(kept, 3));
+  return finish(geometry, color, placement);
+}
+
 /** Points of a half circle (a semicircular arch opening) from the left foot to the right foot, `steps` segments. */
 export function archPoints(centerX: number, baseY: number, radius: number, steps: number): Vec2[] {
   return Array.from({ length: steps + 1 }, (_, index): Vec2 => {
     const angle = Math.PI - (index / steps) * Math.PI;
     return [centerX + Math.cos(angle) * radius, baseY + Math.sin(angle) * radius];
   });
+}
+
+/**
+ * A wall `width` x `height` x `depth` with `openings` equal round-topped openings in a row (a gate, an arcade, a bridge), so
+ * it reads as arches. The openings are spaced evenly across the width.
+ */
+export function arcadeWall(
+  width: number,
+  height: number,
+  depth: number,
+  openings: number,
+  openingWidth: number,
+  openingHeight: number,
+  color: KitColor,
+  placement?: Placement,
+  steps = 6,
+): THREE.BufferGeometry {
+  const hw = width / 2;
+  const radius = openingWidth / 2;
+  const springY = Math.max(0, openingHeight - radius);
+  const outline: Vec2[] = [[-hw, 0]];
+  // Counter-clockwise: along the base, up each jamb, over its arch, down the other jamb, then round the wall.
+  for (let index = 0; index < openings; index += 1) {
+    const centerX = -hw + (index + 0.5) * (width / openings);
+    outline.push([centerX - radius, 0], ...archPoints(centerX, springY, radius, steps), [centerX + radius, 0]);
+  }
+  outline.push([hw, 0], [hw, height], [-hw, height]);
+  return extrude(outline, depth, color, placement);
 }
 
 /** A wall `width` x `height` x `depth` with one round-topped opening, so a bridge or gate reads as an arch. */
@@ -239,14 +304,7 @@ export function archWall(
   placement?: Placement,
   steps = 6,
 ): THREE.BufferGeometry {
-  const hw = width / 2;
-  const radius = openingWidth / 2;
-  const springY = Math.max(0, openingHeight - radius);
-  // Counter-clockwise: along the base to the opening, up the left jamb, over the arch, down the right jamb, then round the wall.
-  const outline: Vec2[] = [
-    [-hw, 0], [-radius, 0], ...archPoints(0, springY, radius, steps), [radius, 0], [hw, 0], [hw, height], [-hw, height],
-  ];
-  return extrude(outline, depth, color, placement);
+  return arcadeWall(width, height, depth, 1, openingWidth, openingHeight, color, placement, steps);
 }
 
 /** A round tube following the points (Catmull-Rom), for rails, cables and bridge decks. */

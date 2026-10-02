@@ -63,9 +63,10 @@ describe('BuildingLayer sequential construction', () => {
 });
 
 describe('hotel anchor', () => {
-  it('puts the dust puff where the hotel box stands for a street that has no landmark', () => {
-    expect(getHotelAnchor(1)).toEqual(getHotelSlot());
-    expect(getHotelAnchor(6)).toEqual(getHotelSlot());
+  it('puts the dust puff where the hotel box stands for a tile that has no landmark', () => {
+    // Every street gets a landmark in plan 05; the railroad and an unknown tile still have none.
+    expect(getHotelAnchor(5)).toEqual(getHotelSlot());
+    expect(getHotelAnchor(999)).toEqual(getHotelSlot());
   });
 
   it('puts it on the plinth top for a street with a landmark', () => {

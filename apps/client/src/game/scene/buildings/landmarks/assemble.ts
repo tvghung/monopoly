@@ -30,6 +30,7 @@ export function assembleLandmark(parts: LandmarkParts): LandmarkGeometry {
     rimVertexCount,
     footprint: [max[0] - min[0], max[2] - min[2]],
     height: max[1],
+    bounds: { min: [min[0], min[1], min[2]], max: [max[0], max[1], max[2]] },
     triangles: triangleCount(opaque) + (glass ? triangleCount(glass) : 0) + (emissive ? triangleCount(emissive) : 0),
   };
 }

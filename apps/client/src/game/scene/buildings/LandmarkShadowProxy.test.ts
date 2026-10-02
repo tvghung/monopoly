@@ -18,8 +18,8 @@ function tile(tileId: number, houses: number): BoardTileRenderModel {
 
 describe('landmark shadow proxy', () => {
   it('lists the tiles that show a landmark: hotel tier and a built landmark, in tile order', () => {
-    const tiles = [tile(39, 5), tile(13, 5), tile(24, 4), tile(1, 5), tile(6, 0)];
-    // 24 has only four houses; 1 is at the hotel tier but has no landmark yet.
+    const tiles = [tile(39, 5), tile(13, 5), tile(24, 4), tile(5, 5), tile(6, 0)];
+    // 24 has only four houses; 5 (a railroad) has no landmark; 6 has no buildings.
     expect(getVisibleLandmarkTiles(tiles)).toEqual([13, 39]);
     expect(getVisibleLandmarkTiles([])).toEqual([]);
   });
@@ -44,7 +44,7 @@ describe('landmark shadow proxy', () => {
 
   it('builds nothing when no landmark is visible', () => {
     expect(buildLandmarkShadowGeometry([])).toBeNull();
-    expect(buildLandmarkShadowGeometry([1, 999])).toBeNull();
+    expect(buildLandmarkShadowGeometry([5, 999])).toBeNull();
   });
 
   it('merges the opaque and glass shapes of every visible landmark in world space', () => {

@@ -3,16 +3,20 @@ import { describe, expect, it } from 'vitest';
 import {
   archPoints,
   archWall,
+  arcadeWall,
   bevelBox,
+  blob,
   box,
   cone,
   cylinder,
+  dome,
   extrude,
   gableRoof,
   lathe,
   measureGeometry,
   mergeKit,
   paintGeometry,
+  prism,
   triangleCount,
   tubeAlong,
 } from './lowPolyKit';
@@ -55,6 +59,10 @@ describe('low-poly kit primitives', () => {
     ['gableRoof', () => gableRoof(1, 1, 0.4, '#ff8800')],
     ['extrude', () => extrude([[0, 0], [1, 0], [1, 1], [0, 1]], 0.5, '#ff8800')],
     ['archWall', () => archWall(2, 1, 0.4, 0.8, 0.7, '#ff8800')],
+    ['arcadeWall', () => arcadeWall(3, 1, 0.4, 3, 0.6, 0.7, '#ff8800')],
+    ['prism', () => prism([[0, 0], [2, 0], [2, 1], [0, 1]], 0.5, '#ff8800')],
+    ['blob', () => blob(0.5, 1, '#ff8800')],
+    ['dome', () => dome(0.5, 1, '#ff8800')],
     ['tubeAlong', () => tubeAlong([[0, 0, 0], [1, 0.5, 0], [2, 0, 0]], 0.05, '#ff8800')],
   ];
 
@@ -143,6 +151,46 @@ describe('low-poly kit primitives', () => {
       const inside = Math.abs(x) < 0.4 - 1e-6 && y > 1e-6 && y < 0.3 - 1e-6;
       expect(inside).toBe(false);
     }
+  });
+
+  it('cuts several equal arches into one wall, spaced evenly, and keeps its outer size', () => {
+    const wall = arcadeWall(3, 1, 0.4, 3, 0.6, 0.7, '#fff');
+    const { size } = measureGeometry(wall);
+    expect(size[0]).toBeCloseTo(3);
+    expect(size[1]).toBeCloseTo(1);
+    expect(size[2]).toBeCloseTo(0.4);
+    // Three openings 1 apart, springing at 0.7 - 0.3 = 0.4: no vertex lies strictly inside any of the rectangular parts.
+    const position = wall.getAttribute('position');
+    for (const centerX of [-1, 0, 1]) {
+      for (let index = 0; index < position.count; index += 1) {
+        const inside = Math.abs(position.getX(index) - centerX) < 0.3 - 1e-6 && position.getY(index) > 1e-6 && position.getY(index) < 0.4 - 1e-6;
+        expect(inside).toBe(false);
+      }
+    }
+    expect(triangleCount(wall)).toBeGreaterThan(triangleCount(archWall(3, 1, 0.4, 0.6, 0.7, '#fff')));
+  });
+
+  it('raises a ground polygon into a prism: x and z are the polygon, y is the height from 0', () => {
+    const { min, max } = measureGeometry(prism([[0, 0], [2, 0], [2, 1], [0, 1]], 0.5, '#fff'));
+    expect(min[0]).toBeCloseTo(0);
+    expect(max[0]).toBeCloseTo(2);
+    expect(min[2]).toBeCloseTo(0);
+    expect(max[2]).toBeCloseTo(1);
+    expect(min[1]).toBeCloseTo(0);
+    expect(max[1]).toBeCloseTo(0.5);
+  });
+
+  it('makes a faceted ball around its center, and a dome that never goes below the ground', () => {
+    const ball = blob(0.5, 0, '#fff');
+    expect(triangleCount(ball)).toBe(20);
+    expect(measureGeometry(ball).min[1]).toBeLessThan(-0.4);
+
+    const hill = dome(0.5, 1, '#fff');
+    const { min, max } = measureGeometry(hill);
+    expect(min[1]).toBeGreaterThanOrEqual(0);
+    expect(max[1]).toBeGreaterThan(0.4);
+    expect(triangleCount(dome(0.5, 0, '#fff'))).toBe(12);
+    expect(triangleCount(hill)).toBeLessThan(triangleCount(blob(0.5, 1, '#fff')));
   });
 
   it('lists the points of an arch from the left foot to the right foot', () => {

@@ -1,6 +1,25 @@
+import { buildBietThuVenSong } from './bietThuVenSong';
+import { buildBitexco } from './bitexco';
+import { buildCauAnhSao } from './cauAnhSao';
 import { buildCauVang } from './cauVang';
+import { buildChoNoiCaiRang } from './choNoiCaiRang';
 import { buildChuaCau } from './chuaCau';
+import { buildChuaTranQuoc } from './chuaTranQuoc';
+import { buildDienGio } from './dienGio';
+import { buildDoiCatMuiNe } from './doiCatMuiNe';
+import { buildGaDaLat } from './gaDaLat';
+import { buildHaiDangVungTau } from './haiDangVungTau';
 import { buildLandmark81 } from './landmark81';
+import { buildMuiCaMau } from './muiCaMau';
+import { buildNgoMon } from './ngoMon';
+import { buildNhaDaiEDe } from './nhaDaiEDe';
+import { buildNhaHatLonHaiPhong } from './nhaHatLonHaiPhong';
+import { buildRuongBacThang } from './ruongBacThang';
+import { buildTauCauMuc } from './tauCauMuc';
+import { buildThapDoi } from './thapDoi';
+import { buildThapTramHuong } from './thapTramHuong';
+import { buildUbndTphcm } from './ubndTphcm';
+import { buildVinhHaLong } from './vinhHaLong';
 import type { LandmarkDefinition, LandmarkGeometry, LandmarkHeightClass } from './types';
 
 interface PlannedLandmark {
@@ -50,12 +69,31 @@ const planned = (tileId: number): PlannedLandmark => {
 };
 
 /**
- * The landmarks built so far. A street whose landmark is not here yet shows today's hotel: the three pilots of gate G5a come
- * first (the three hardest styles: a tall slim tower, a delicate roof, a curved structure), then the other nineteen.
+ * All 22 landmarks, in tile order: the three pilots of gate G5a (a tall slim tower, a delicate roof, a curved structure) and the
+ * nineteen built after them in four groups. A street whose builder fails still shows today's hotel box (`hasLandmark`).
  */
 export const LANDMARKS: readonly LandmarkDefinition[] = [
+  { ...planned(1), build: buildMuiCaMau },
+  { ...planned(3), build: buildDienGio },
+  { ...planned(6), build: buildNhaDaiEDe },
+  { ...planned(8), build: buildChoNoiCaiRang },
+  { ...planned(9), build: buildNhaHatLonHaiPhong },
+  { ...planned(11), build: buildGaDaLat },
   { ...planned(13), build: buildChuaCau },
+  { ...planned(14), build: buildNgoMon },
+  { ...planned(16), build: buildDoiCatMuiNe },
+  { ...planned(18), build: buildRuongBacThang },
+  { ...planned(19), build: buildThapTramHuong },
+  { ...planned(21), build: buildHaiDangVungTau },
+  { ...planned(23), build: buildThapDoi },
   { ...planned(24), build: buildCauVang },
+  { ...planned(26), build: buildVinhHaLong },
+  { ...planned(27), build: buildChuaTranQuoc },
+  { ...planned(29), build: buildTauCauMuc },
+  { ...planned(31), build: buildCauAnhSao },
+  { ...planned(32), build: buildBietThuVenSong },
+  { ...planned(34), build: buildUbndTphcm },
+  { ...planned(37), build: buildBitexco },
   { ...planned(39), build: buildLandmark81 },
 ];
 

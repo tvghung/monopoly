@@ -425,7 +425,13 @@ export const CAPTURES: readonly CaptureEntry[] = [
     ['chua-cau', '&landmark=13'],
     ['cau-vang', '&landmark=24'],
     ['landmark-81', '&landmark=39'],
-  ] as const).map(([slug, query]): CaptureEntry => ({
+    ['group-a', '&landmark=1,3,6,8'],
+    ['group-b', '&landmark=9,11,14,19,23'],
+    ['group-c', '&landmark=16,18,21,26,27'],
+    ['group-d', '&landmark=29,31,32,34,37'],
+    // An ad-hoc close-up while building (VISUAL_LANDMARK_FOCUS=11,14), written to a VISUAL_EVIDENCE_DIR scratch folder.
+    ...(process.env.VISUAL_LANDMARK_FOCUS ? [['focus', `&landmark=${process.env.VISUAL_LANDMARK_FOCUS}`] as const] : []),
+  ] as readonly (readonly [string, string])[]).map(([slug, query]): CaptureEntry => ({
     id: `05-g5a-sheet-${slug}-1440x900`,
     plan: '05',
     folder: 'g5a',

@@ -61,6 +61,24 @@ describe('built landmarks', () => {
     expect(geometry.height).toBeGreaterThan(0.3);
   });
 
+  it('builds every planned landmark, so the registry covers exactly the 22 streets in tile order', () => {
+    expect(LANDMARKS.map(landmark => landmark.tileId)).toEqual(LANDMARK_PLAN.map(entry => entry.tileId));
+    expect(LANDMARKS).toHaveLength(22);
+    for (const tileId of STREETS) expect(hasLandmark(tileId), `tile ${tileId}`).toBe(true);
+  });
+
+  it.each(LANDMARKS.map(landmark => [landmark.slug, landmark.tileId] as const))('%s stands on its plinth: inside the slab and never below the ground', (_slug, tileId) => {
+    const geometry = getLandmarkGeometry(tileId);
+    if (!geometry) throw new Error('missing landmark');
+    const half = PLINTH.size / 2 - 0.02;
+    expect(geometry.bounds.min[1]).toBeGreaterThanOrEqual(-1e-4);
+    for (const axis of [0, 2] as const) {
+      expect(geometry.bounds.min[axis]).toBeGreaterThanOrEqual(-half);
+      expect(geometry.bounds.max[axis]).toBeLessThanOrEqual(half);
+    }
+    expect(geometry.bounds.max[1]).toBeCloseTo(geometry.height);
+  });
+
   it.each(LANDMARKS.map(landmark => [landmark.slug, landmark.tileId] as const))('%s is a vertex-colored, faceted, deterministic part', (_slug, tileId) => {
     const definition = getLandmarkDefinition(tileId);
     if (!definition) throw new Error('missing landmark');
@@ -93,7 +111,7 @@ describe('built landmarks', () => {
     warn.mockRestore();
     // A different street is not affected.
     expect(hasLandmark(24)).toBe(true);
-    expect(hasLandmark(1)).toBe(false);
+    expect(hasLandmark(5)).toBe(false);
   });
 
   it('stands the landmark on the slab: the slab top is the landmark base and the rim is a raised border', () => {
@@ -124,7 +142,7 @@ describe('built landmarks', () => {
 
   it('is built once and cached', () => {
     expect(getLandmarkGeometry(13)).toBe(getLandmarkGeometry(13));
-    expect(getLandmarkGeometry(1)).toBeUndefined();
+    expect(getLandmarkGeometry(5)).toBeUndefined();
   });
 
   it('puts the plinth below the landmark, wider than it, with the rim first', () => {
