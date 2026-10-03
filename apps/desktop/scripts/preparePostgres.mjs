@@ -5,6 +5,7 @@ import {
   cp,
   mkdir,
   mkdtemp,
+  readdir,
   readFile,
   rename,
   rm,
@@ -17,6 +18,11 @@ import { spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  assertExcludesKeepRequiredBinaries,
+  REQUIRED_POSTGRES_BINARIES,
+  shouldShipPostgresFile,
+} from './postgresRuntimeFilter.mjs';
 
 const desktopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repositoryRoot = path.resolve(desktopRoot, '../..');
@@ -39,6 +45,18 @@ async function hashFile(filePath) {
   const hash = createHash('sha256');
   for await (const chunk of createReadStream(filePath)) hash.update(chunk);
   return hash.digest('hex');
+}
+
+async function sizeOf(entryPath) {
+  const entryStat = await stat(entryPath);
+  if (!entryStat.isDirectory()) return { files: 1, bytes: entryStat.size };
+  const totals = { files: 0, bytes: 0 };
+  for (const entry of await readdir(entryPath)) {
+    const child = await sizeOf(path.join(entryPath, entry));
+    totals.files += child.files;
+    totals.bytes += child.bytes;
+  }
+  return totals;
 }
 
 async function verifyArchive(archivePath) {
@@ -96,14 +114,38 @@ try {
   const sourceRoot = path.join(extractionRoot, target.archiveRoot);
   for (const layout of target.runtimeLayout) await access(path.join(sourceRoot, layout));
   const extension = process.platform === 'win32' ? '.exe' : '';
-  const requiredBinaries = ['initdb', 'postgres', 'pg_ctl', 'pg_isready', 'createdb', 'psql'];
-  for (const binary of requiredBinaries) await access(path.join(sourceRoot, 'bin', `${binary}${extension}`));
+  for (const binary of REQUIRED_POSTGRES_BINARIES) await access(path.join(sourceRoot, 'bin', `${binary}${extension}`));
   const licensePath = path.join(sourceRoot, 'server_license.txt');
   await access(licensePath);
+  const runtimeExclude = target.runtimeExclude ?? [];
+  assertExcludesKeepRequiredBinaries(runtimeExclude, extension);
 
-  const versionBinary = path.join(sourceRoot, 'bin', `postgres${extension}`);
+  const outputRoot = path.join(generatedRoot, targetKey);
+  await rm(outputRoot, { recursive: true, force: true });
+  await mkdir(generatedRoot, { recursive: true });
+  await mkdir(outputRoot, { recursive: true });
+  const excluded = { files: 0, bytes: 0 };
+  for (const layout of target.runtimeLayout) {
+    await cp(path.join(sourceRoot, layout), path.join(outputRoot, layout), {
+      recursive: true,
+      filter: async source => {
+        const relative = path.relative(sourceRoot, source);
+        if (shouldShipPostgresFile(relative, runtimeExclude)) return true;
+        const totals = await sizeOf(source);
+        excluded.files += totals.files;
+        excluded.bytes += totals.bytes;
+        return false;
+      },
+    });
+  }
+  await cp(licensePath, path.join(outputRoot, 'server_license.txt'));
+
+  // The pruned copy is what ships, so the required binaries and the version check run against it: a missing
+  // DLL that an exclude pattern dropped makes postgres --version fail here instead of on a player's machine.
+  for (const binary of REQUIRED_POSTGRES_BINARIES) await access(path.join(outputRoot, 'bin', `${binary}${extension}`));
+  const versionBinary = path.join(outputRoot, 'bin', `postgres${extension}`);
   const version = spawnSync(versionBinary, ['--version'], {
-    cwd: sourceRoot,
+    cwd: outputRoot,
     stdio: 'pipe',
     encoding: 'utf8',
     windowsHide: true,
@@ -114,21 +156,27 @@ try {
     fail(`native postgres --version did not report major ${manifest.postgresMajor}`);
   }
 
-  const outputRoot = path.join(generatedRoot, targetKey);
-  await rm(outputRoot, { recursive: true, force: true });
-  await mkdir(generatedRoot, { recursive: true });
-  await mkdir(outputRoot, { recursive: true });
-  for (const layout of target.runtimeLayout) {
-    await cp(path.join(sourceRoot, layout), path.join(outputRoot, layout), { recursive: true });
-  }
-  await cp(licensePath, path.join(outputRoot, 'server_license.txt'));
+  const shipped = await sizeOf(outputRoot);
   await writeFile(
     path.join(outputRoot, 'manifest.json'),
-    `${JSON.stringify({ ...target, targetKey, postgresMajor: manifest.postgresMajor }, null, 2)}\n`,
+    `${JSON.stringify({
+      ...target,
+      targetKey,
+      postgresMajor: manifest.postgresMajor,
+      shippedFiles: shipped.files,
+      shippedBytes: shipped.bytes,
+      excludedFiles: excluded.files,
+      excludedBytes: excluded.bytes,
+    }, null, 2)}\n`,
     'utf8',
   );
 
-  console.log(`Prepared managed PostgreSQL ${manifest.postgresVersion} for ${targetKey}`);
+  const mib = bytes => (bytes / 1048576).toFixed(1);
+  console.log(
+    `Prepared managed PostgreSQL ${manifest.postgresVersion} for ${targetKey}: `
+      + `${shipped.files} files, ${mib(shipped.bytes)} MiB shipped; `
+      + `${excluded.files} files, ${mib(excluded.bytes)} MiB excluded by runtimeExclude`,
+  );
 } finally {
   await rm(extractionRoot, { recursive: true, force: true });
 }

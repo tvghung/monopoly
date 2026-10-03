@@ -76,6 +76,16 @@ binds it to `127.0.0.1` only. Database files never live under `app.asar`, packag
 resources, temporary directories, or the installer tree. The renderer receives no
 database URL, password, PID, passfile, or helper environment.
 
+The packaged PostgreSQL binaries ship once, as the `resources/postgres/<platform-arch>`
+extraResource; `app.asar` holds only the compiled desktop main/preload code.
+`apps/desktop/scripts/preparePostgres.mjs` copies `bin`, `lib` and `share` from the
+pinned EDB archive minus the `runtimeExclude` patterns in
+`apps/desktop/postgres-resources.json` (link-time libraries, the PGXS build kit and,
+on Windows, the StackBuilder GUI and DLLs outside the import closure of `initdb`,
+`postgres`, `pg_ctl`, `pg_isready`, `createdb` and `psql`), then runs
+`postgres --version` against the pruned copy. `proof:packaged:budget` fails a build
+whose package regresses.
+
 The app-owned Host controller starts/reuses PostgreSQL before the authoritative
 helper, waits for helper readiness plus `/healthz` and `/readyz`, and remains alive
 across renderer reload. Shutdown and recovery stop the helper before PostgreSQL.

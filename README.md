@@ -123,6 +123,7 @@ pnpm desktop:make    # create configured platform makers (Windows Squirrel on Wi
 pnpm desktop:run:packaged # launch the latest local packaged app for Host/Join testing
 pnpm --filter @monopoly/desktop proof:packaged # run the packaged Phase 7.0B loopback proof
 pnpm desktop:proof:host # run the separate packaged Phase 7.2 Host/LAN proof
+pnpm --filter @monopoly/desktop proof:packaged:budget # check the packaged app and installer sizes (lean packaging gate)
 pnpm test:e2e:mobile # build/prepare and run mobile Chromium + WebKit flows
 pnpm validate:release # validate canonical release metadata and generated config
 pnpm desktop:release  # LAN-first release-candidate build; endpoint override is optional

@@ -1,4 +1,5 @@
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 
 const rootPackage = require(path.resolve(__dirname, '../../package.json'));
 const releaseVersion = rootPackage.version;
@@ -36,13 +37,30 @@ module.exports = {
     // development workspace out of the packaged app without invoking pnpm's
     // dependency-pruning walker over its symlink layout.
     prune: false,
-    ignore: [/^\/node_modules/],
+    // app.asar only needs dist/ and package.json. generated/ (managed PostgreSQL and the
+    // server helper) ships once through extraResource and is read from
+    // process.resourcesPath; packing it into app.asar as well duplicated about 139 MiB.
+    ignore: [/^\/node_modules/, /^\/(?:generated|src|tests|scripts)(?:\/|$)/],
     extraResource: [
       path.resolve(__dirname, '../client/dist'),
       releaseConfig,
       path.resolve(__dirname, 'generated/postgres'),
       path.resolve(__dirname, 'generated/server-helper'),
     ],
+  },
+  hooks: {
+    // Runs on the freshly extracted Electron build, before the app is copied in and before signing.
+    packageAfterExtract: async (_forgeConfig, buildPath, _electronVersion, platform) => {
+      const { pruneElectronLocales } = await import(
+        pathToFileURL(path.resolve(__dirname, 'scripts/pruneElectronLocales.mjs')).href
+      );
+      const result = await pruneElectronLocales(buildPath, platform);
+      if (platform === 'darwin') {
+        console.log(`Electron locale bundles kept on macOS (not pruned yet): ${result.listed.length}`);
+      } else {
+        console.log(`Electron locales kept: ${result.kept.join(', ')}; removed ${result.removed.length}`);
+      }
+    },
   },
   makers: [
     {

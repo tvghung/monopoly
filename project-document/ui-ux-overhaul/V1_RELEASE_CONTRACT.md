@@ -53,6 +53,28 @@ manifest derive their version from package metadata. These are configuration exp
 not claims that new artifacts were built. Release metadata rejects mismatched
 application package versions; signing/notarization semantics remain unchanged.
 
+## Package size
+
+The packaged app is kept lean on purpose, because players download the installer:
+
+- `app.asar` holds only the compiled desktop main/preload code and `package.json`. `forge.config.cjs` ignores
+  `generated/`, `src/`, `tests/` and `scripts/`; the managed PostgreSQL and the server helper ship once, as the
+  `resources/postgres` and `resources/server-helper` extraResource copies that the packaged app reads from
+  `process.resourcesPath`. Before this rule `generated/` was packed into `app.asar` as well, a 139 MiB duplicate.
+- The PostgreSQL runtime is the pinned EDB archive minus the `runtimeExclude` patterns of
+  `apps/desktop/postgres-resources.json`: link-time libraries, `lib/pgxs`, `lib/pkgconfig` and, on Windows, the StackBuilder GUI
+  and the DLLs that are not in the import closure of `initdb`, `postgres`, `pg_ctl`, `pg_isready`, `createdb` and `psql`.
+  `preparePostgres.mjs` runs `postgres --version` on the pruned copy. The client tools, `share/` and the server modules stay.
+- Electron's Windows build keeps `en-US.pak` and `vi.pak` only (the game is Vietnamese-only); macOS locale bundles are listed
+  in the build log, not removed.
+- `pnpm --filter @monopoly/desktop proof:packaged:budget` runs after the packaged proofs in Desktop Build and Release Candidate.
+  It fails when `app.asar` packs a development folder or exceeds 5 MiB, when an excluded PostgreSQL file or an extra locale
+  ships, when a required binary is missing, or when the Windows `Setup.exe` is over its budget.
+
+Measured on Windows x64 (V1.1.0 sources): `Setup.exe` 249.7 MiB before, 181.9 MiB after these rules; unpacked app
+655.6 MiB before, 425.5 MiB after; `resources/postgres` 134.5 MiB before, 89.2 MiB after. The packaged runtime proof, the
+Host proof and the audio, card and landmark proofs pass on the lean package.
+
 ## Release publication
 
 A release is published by pushing the annotated tag `v<semver>` (`v1.1.0` for `1.1.0`) on a commit that is on `main`;

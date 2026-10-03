@@ -10,7 +10,21 @@
       "sha256": "6eabdf00d2893713b75db4336a23c3fdf505f056e217ec6e2e95d901750cfea3",
       "archiveBytes": 340719294,
       "archiveRoot": "pgsql",
-      "runtimeLayout": ["bin", "lib", "share"]
+      "runtimeLayout": ["bin", "lib", "share"],
+      "runtimeExclude": [
+        "lib/**/*.a",
+        "lib/**/*.lib",
+        "lib/pgxs/**",
+        "lib/pkgconfig/**",
+        "bin/wx*.dll",
+        "bin/stackbuilder.exe",
+        "bin/libcurl.dll",
+        "bin/libecpg*.dll",
+        "bin/libpgtypes.dll",
+        "bin/testplug.dll",
+        "bin/icutu*.dll",
+        "bin/icuio*.dll"
+      ]
     },
     "darwin-x64": {
       "archiveName": "postgresql-17.11-1-osx-binaries.zip",
@@ -18,7 +32,12 @@
       "sha256": "a540ac46eea5a2c612a8e097fd9aa75e41ac3f3b49bf10ffd75ecf5b1efc2997",
       "archiveBytes": 436669780,
       "archiveRoot": "pgsql",
-      "runtimeLayout": ["bin", "lib", "share"]
+      "runtimeLayout": ["bin", "lib", "share"],
+      "runtimeExclude": [
+        "lib/**/*.a",
+        "lib/pgxs/**",
+        "lib/pkgconfig/**"
+      ]
     },
     "darwin-arm64": {
       "archiveName": "postgresql-17.11-1-osx-binaries.zip",
@@ -26,7 +45,12 @@
       "sha256": "a540ac46eea5a2c612a8e097fd9aa75e41ac3f3b49bf10ffd75ecf5b1efc2997",
       "archiveBytes": 436669780,
       "archiveRoot": "pgsql",
-      "runtimeLayout": ["bin", "lib", "share"]
+      "runtimeLayout": ["bin", "lib", "share"],
+      "runtimeExclude": [
+        "lib/**/*.a",
+        "lib/pgxs/**",
+        "lib/pkgconfig/**"
+      ]
     }
   }
 }

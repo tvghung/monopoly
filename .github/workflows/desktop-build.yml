@@ -147,6 +147,9 @@ jobs:
       - name: Verify packaged landmark artwork
         run: pnpm --filter @monopoly/desktop proof:packaged:landmarks
 
+      - name: Check packaged size budget
+        run: pnpm --filter @monopoly/desktop proof:packaged:budget
+
       - name: Install mobile browser engines
         run: pnpm exec playwright install chromium webkit
 

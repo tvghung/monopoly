@@ -127,6 +127,22 @@ choice. Design and wire contract: [Api/http-runtime.instruction.md](../Api/http-
   a manual dispatch publishes nothing. _(Follows from the step and the `publish` job's `if:` condition; no run has
   exercised these negative paths.)_
 
+## V1.1.1 lean desktop package
+
+- [x] `[AUTO]` The PostgreSQL runtime filter keeps the six binaries `managedPostgres.ts` runs, their whole Windows DLL
+  import closure, the server modules under `lib/*.dll`, `share/` and the client tools, and drops link-time libraries,
+  `lib/pgxs`, `lib/pkgconfig`, the StackBuilder GUI and the DLLs outside the closure; macOS drops only link-time files; an
+  exclude pattern that would drop a required binary is rejected: `apps/desktop/tests/postgresRuntimeFilter.test.ts`.
+- [x] `[AUTO]` Locale pruning keeps exactly `en-US.pak` and `vi.pak` on Windows, refuses to prune when either is missing,
+  and only lists the macOS locale bundles: `apps/desktop/tests/pruneElectronLocales.test.ts`.
+- [x] `[AUTO]` The size budget reads `app.asar` from its header and fails when it packs `generated/`, `src/`, `tests/` or
+  `scripts/`, when an excluded PostgreSQL file or an extra locale ships, when a required binary is missing, or when the
+  Windows Setup.exe exceeds its budget: `apps/desktop/tests/checkPackagedBudget.test.ts`.
+- [ ] `[CI]` Desktop Build and Release Candidate run `proof:packaged:budget` on the real packaged app after the packaged
+  proofs, and the Windows/macOS packaged runtime and Host proofs still pass with the pruned PostgreSQL.
+- [ ] `[PACKAGED]` A fresh install of the lean Windows Setup.exe hosts a LAN game, survives an app restart with the same
+  room, and uninstalls cleanly. Not automated.
+
 ## Restart/recovery
 
 - [ ] Same DB restores room/session/host/ready plus pending landing decision/

@@ -281,6 +281,8 @@ jobs:
         run: pnpm --filter @monopoly/desktop proof:packaged:cards
       - name: Verify packaged landmark artwork
         run: pnpm --filter @monopoly/desktop proof:packaged:landmarks
+      - name: Check packaged size budget
+        run: pnpm --filter @monopoly/desktop proof:packaged:budget
       - name: Verify collected artifact metadata
         run: pnpm validate:release -- --release --artifacts
       - name: Verify Windows Authenticode signature
