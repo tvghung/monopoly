@@ -83,22 +83,6 @@ jobs:
       - name: Test gameplay music transport
         run: pnpm test:music-transport
 
-      - name: Install audio validation tools (Windows)
-        if: runner.os == 'Windows'
-        run: choco install ffmpeg --yes --no-progress
-
-      - name: Install audio validation tools (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew update
-          brew install ffmpeg@7
-          brew reinstall ffmpeg@7
-          ffmpeg_bin="$(brew --prefix ffmpeg@7)/bin"
-          echo "$ffmpeg_bin" >> "$GITHUB_PATH"
-          export PATH="$ffmpeg_bin:$PATH"
-          ffmpeg -hide_banner -encoders | grep -q 'libvorbis'
-          ffprobe -version
-
       - name: Validate gameplay music assets
         run: pnpm validate:music-assets
 

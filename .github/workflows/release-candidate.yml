@@ -90,8 +90,6 @@ jobs:
         run: pnpm test:v1-contract
       - name: Test gameplay music transport
         run: pnpm test:music-transport
-      - name: Install audio validation tools
-        run: command -v ffmpeg && command -v ffprobe || (sudo apt-get update && sudo apt-get install -y ffmpeg)
       - name: Validate gameplay music assets
         run: pnpm validate:music-assets
       - name: Test gameplay music validator
@@ -174,12 +172,6 @@ jobs:
         run: pnpm test:v1-contract
       - name: Test gameplay music transport
         run: pnpm test:music-transport
-      - name: Install audio validation tools (Windows)
-        if: runner.os == 'Windows'
-        run: choco install ffmpeg --yes --no-progress
-      - name: Install audio validation tools (macOS)
-        if: runner.os == 'macOS'
-        run: command -v ffmpeg && command -v ffprobe || brew install ffmpeg
       - name: Validate gameplay music assets
         run: pnpm validate:music-assets
       - name: Test gameplay music validator

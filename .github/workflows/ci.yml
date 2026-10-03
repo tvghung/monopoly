@@ -65,9 +65,6 @@ jobs:
       - name: Test gameplay music transport
         run: pnpm test:music-transport
 
-      - name: Install audio validation tools
-        run: command -v ffmpeg && command -v ffprobe || (sudo apt-get update && sudo apt-get install -y ffmpeg)
-
       - name: Validate gameplay music assets
         run: pnpm validate:music-assets
 
