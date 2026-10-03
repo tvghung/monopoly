@@ -100,6 +100,8 @@ export interface OwnTheBlockDesktopBridge {
   quit: {
     onQuitRequested(listener: (requestId: string) => void): () => void;
     respond(requestId: string, allowQuit: boolean): void;
+    /** Quits the app now; the start screen's "Thoát" asks the player first. Absent on a bridge that predates it. */
+    exitApp?(): Promise<void>;
   };
   openExternal(url: string): Promise<void>;
   host?: {

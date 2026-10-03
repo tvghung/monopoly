@@ -81,6 +81,17 @@ cloud and development servers) never does.
   dependencies); `apps/desktop/tests/lanDiscoveryContract.test.ts` imports both sides
   and fails when they drift.
 
+## Desktop quit channel (V1.1)
+
+The launcher's "Thoát" button reaches the main process through one more typed channel, `ownTheBlock:quit:exit`
+(`IPC_CHANNELS.quitExit`; preload `quit.exitApp()`, no payload). The handler checks the sender is the app window, then calls
+`QuitRequestController.approveApplicationQuit()` and `app.quit()`. That is the road Cmd+Q and the end of a window close
+already take: `before-quit` → `AppQuitCoordinator` → `stopRuntime()` (stops a running Host: the helper, then PostgreSQL) →
+`armFinalWindowClose()` → quit. The renderer has already asked the player (central confirmation when a room is open), so the
+approval makes the coordinator's own question to the renderer answer yes at once instead of waiting for it; the approval is
+used once. The handler is removed when the window closes. No game command and no Node API reach the renderer; the preload
+bridge stays whitelist-only (`apps/desktop/tests/preloadBridge.test.ts`).
+
 ## Startup
 
 1. Parse environment via `apps/server/src/config.ts`.

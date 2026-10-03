@@ -16,10 +16,10 @@ principle for this round: players do not read or understand technical text, so s
 
 | # | Screen | What the owner asked (translated; the Vietnamese original is in §4) | Kind | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Board, a player with little cash rolls onto rent or tax | The "sell your property" debt modal must open only after the animations are done (mascot hopping across tiles, coins, the plus/minus figures between players), when the cash has run down to 0 and a debt remains | Change (client presentation) | **Implemented** (see §2.1) |
+| 1 | Board, a player with little cash rolls onto rent or tax | The "sell your property" debt modal must open only after the animations are done (mascot hopping across tiles, coins, the plus/minus figures between players), when the cash has run down to 0 and a debt remains | Change (client presentation) | **Implemented** (d0c2a42); manual rows open |
 | 2 | Victory summary | After a match, "Rời phòng" could fail with "ván đã kết thúc; không thể rời phòng lưu trữ" and trap the player on that screen; leaving must work, or another button must lead back to join/create | Server bug | **Fixed with item 7** (e412840) |
-| 3 | In-app join screen (name + room code, shared-room switch) | The player had already typed the room before, must type again, and is stuck when the room code is not valid or the room cannot be joined: add a way back to the "Chơi qua mạng LAN" start screen (create here or join) | Change | **In progress** (see §2.2) |
-| 4 | "Chơi qua mạng LAN" start screen | Strip the helper texts: just "Tạo phòng" and "Tham gia phòng"; add "Thoát" (quit the game) and "Cài đặt" (open settings); buttons toward the left of the window over a background image whose artwork sits mostly on the right, like a main screen | Change (UI) | **In progress** (see §2.2) |
+| 3 | In-app join screen (name + room code, shared-room switch) | The player had already typed the room before, must type again, and is stuck when the room code is not valid or the room cannot be joined: add a way back to the "Chơi qua mạng LAN" start screen (create here or join) | Change | **Implemented** (see §2 items 3 and 4); manual rows open |
+| 4 | "Chơi qua mạng LAN" start screen | Strip the helper texts: just "Tạo phòng" and "Tham gia phòng"; add "Thoát" (quit the game) and "Cài đặt" (open settings); buttons toward the left of the window over a background image whose artwork sits mostly on the right, like a main screen | Change (UI) | **Implemented** (see §2 items 3 and 4); manual rows open |
 | 5 | Join a LAN room | Only name and room code; the host address is found from the room code (the game is LAN-only); drop technical helper text | Feature | **Implemented** (4002631); manual rows open |
 | 6 | Host a room ("Tạo phòng trên máy này") | Remove the "network to share" dropdown (use the network the device is on); drop the technical helper texts | Change | **Implemented** (4002631); manual rows open |
 | 7 | Victory summary | Add a button back to the home screen ("Chơi qua mạng LAN") | Change + server bug | **Implemented** (e412840) |
@@ -27,7 +27,7 @@ principle for this round: players do not read or understand technical text, so s
 | 9 | Sell offer modal | The seller types the price the buyer must pay, like a buy offer | Feature | **Implemented** (14f4eb4) |
 | 10 | Debt (forced-sale) modal | Buy offers that arrive while the player is in debt must be visible and answerable in or beside the modal | Bug + rule change | **Implemented** (14f4eb4) |
 | 11 | Board, after "Bỏ cuộc" | A modal offers "keep watching" or "leave the room" instead of throwing the player out | Change | **Implemented** (e412840) |
-| 12 | Board, graphics quality | Switching quality levels must be smooth; today the board and the player stations can vanish | Bug | **Fixed** (28f6867); browser regression spec still to be run clean |
+| 12 | Board, graphics quality | Switching quality levels must be smooth; today the board and the player stations can vanish | Bug | **Fixed** (28f6867); browser regression spec passed (ffd1e86) |
 
 ## 2. Findings per item
 

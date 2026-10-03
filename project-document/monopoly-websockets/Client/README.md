@@ -8,7 +8,7 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
 
 | View/feature | Instruction | Code chính |
 | --- | --- | --- |
-| Join/restore/reconnect, landing, launcher, loading/failure screens | [join-room.instruction.md](./join-room.instruction.md) | `App.tsx`, `JoinForm.tsx`, `JoinHero.tsx`, `DesktopMultiplayerLauncher.tsx`, `app/screens/`, session storage, `ConnectionOverlay` |
+| Join/restore/reconnect, landing, launcher (main menu, "Cài đặt", "Thoát"), way back to the launcher, loading/failure screens | [join-room.instruction.md](./join-room.instruction.md) | `App.tsx`, `JoinForm.tsx`, `JoinHero.tsx`, `DesktopMultiplayerLauncher.tsx`, `LauncherScene.tsx`, `app/screens/`, session storage, `ConnectionOverlay` |
 | Lobby/roster/start/winner/spectator | [game-status.instruction.md](./game-status.instruction.md) | `Lobby.tsx`, `components/lobby/`, `HostLanSharing.tsx`, `WinnerBanner.tsx`, `useVictoryVisibility.ts`, `SpectatorBanner.tsx` |
 | Board/spectator/WebGL surface | [game-board.instruction.md](./game-board.instruction.md) | `Board.tsx`, `game/scene/GameScene.tsx`, `game/scene/board/`, fallback |
 | Turn/landing/payment/jail | [turn-actions.instruction.md](./turn-actions.instruction.md) | `RollControl`, `BuyPrompt`, `DevelopmentPrompt`, `JailPanel`, `DebtPanel`, `CardInteractionOverlay` |

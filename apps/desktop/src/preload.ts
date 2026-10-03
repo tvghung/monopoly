@@ -19,6 +19,8 @@ export interface OwnTheBlockDesktopBridge {
   quit: {
     onQuitRequested(listener: (requestId: string) => void): () => void;
     respond(requestId: string, allowQuit: boolean): void;
+    /** Quits the app now (the start screen's "Thoát", after the player confirmed); a running Host is stopped on the way. */
+    exitApp(): Promise<void>;
   };
   openExternal(url: string): Promise<void>;
   host: {
@@ -55,6 +57,7 @@ const bridge: OwnTheBlockDesktopBridge = {
     respond: (requestId, allowQuit) => {
       ipcRenderer.send(IPC_CHANNELS.quitResponse, requestId, allowQuit);
     },
+    exitApp: () => ipcRenderer.invoke(IPC_CHANNELS.quitExit),
   },
   openExternal: url => ipcRenderer.invoke(IPC_CHANNELS.openExternal, url),
   host: {

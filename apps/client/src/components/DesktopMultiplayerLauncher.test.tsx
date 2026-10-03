@@ -1,9 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act, cleanup, fireEvent, render, screen, waitFor, within,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import DesktopMultiplayerLauncher from './DesktopMultiplayerLauncher';
 import { HowToPlayProvider } from '../howToPlay/HowToPlayProvider';
+import { SETTINGS_STORAGE_KEY } from '../settings/defaults';
+import { SettingsProvider } from '../settings/SettingsProvider';
 import type {
   DesktopLaunchSelection,
   HostRuntimeErrorCode,
@@ -34,6 +38,8 @@ const status: HostRuntimeStatus = {
 afterEach(() => {
   cleanup();
   delete window.ownTheBlockDesktop;
+  window.localStorage.clear();
+  vi.useRealTimers();
 });
 
 describe('DesktopMultiplayerLauncher', () => {
@@ -53,7 +59,7 @@ describe('DesktopMultiplayerLauncher', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Máy chủ đã cấu hình/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Máy chủ riêng' }));
     expect(screen.getByText('http://192.168.1.15:8080')).toBeTruthy();
     expect(screen.getByLabelText('Mã phòng')).toBeTruthy();
     expect(screen.queryByLabelText('Địa chỉ máy chủ LAN')).toBeNull();
@@ -97,7 +103,7 @@ describe('DesktopMultiplayerLauncher', () => {
     } as unknown as OwnTheBlockDesktopBridge;
 
     render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: /Tạo phòng trên máy này/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo phòng' }));
     fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Ada' } });
     const submit = screen.getByRole('button', { name: 'Tạo và vào phòng' });
     await waitFor(() => expect(submit.getAttribute('disabled')).toBeNull());
@@ -124,7 +130,7 @@ const hostingStatus: HostRuntimeStatus = {
 
 type FindRoom = (roomCode: string) => Promise<LanFindRoomResult>;
 
-function installHostBridge(current: HostRuntimeStatus, findRoom?: FindRoom) {
+function installHostBridge(current: HostRuntimeStatus, findRoom?: FindRoom, exitApp?: () => Promise<void>) {
   const host = {
     getStatus: vi.fn(() => Promise.resolve(current)),
     start: vi.fn(),
@@ -133,8 +139,24 @@ function installHostBridge(current: HostRuntimeStatus, findRoom?: FindRoom) {
     onStatusChanged: vi.fn(() => () => undefined),
   };
   const lan = findRoom ? { findRoom: vi.fn(findRoom) } : undefined;
-  window.ownTheBlockDesktop = { host, ...(lan ? { lan } : {}) } as unknown as OwnTheBlockDesktopBridge;
-  return { host, lan };
+  // The settings provider reads the window group; the quit group is what "Thoát" calls.
+  const windowGroup = {
+    getState: vi.fn(),
+    setFullscreen: vi.fn(() => Promise.resolve()),
+    toggleFullscreen: vi.fn(() => Promise.resolve()),
+    onFullscreenChanged: vi.fn(() => () => undefined),
+  };
+  const quit = {
+    onQuitRequested: vi.fn(() => () => undefined),
+    respond: vi.fn(),
+    ...(exitApp ? { exitApp: vi.fn(exitApp) } : {}),
+  };
+  window.ownTheBlockDesktop = {
+    host, window: windowGroup, quit, ...(lan ? { lan } : {}),
+  } as unknown as OwnTheBlockDesktopBridge;
+  return {
+    host, lan, quit, windowGroup,
+  };
 }
 
 // A variable path keeps Vite from rewriting the URL into an asset reference.
@@ -152,30 +174,61 @@ const configuredRuntimeConfig = {
 const TECHNICAL_TEXT = /IPv4|IPv6|địa chỉ|cổng|Ethernet|cơ sở dữ liệu|máy chủ LAN|liên kết mời chỉ chứa|phiên kết nối/iu;
 
 describe('DesktopMultiplayerLauncher choices', () => {
-  it('names the ways to play in Vietnamese and keeps the English labels out', () => {
+  const menuLabels = (container: HTMLElement) => [...container.querySelectorAll('.desktop-launcher__menu button')]
+    .map(button => button.textContent ?? '');
+
+  it('is a menu of buttons: "Tạo phòng" and "Tham gia phòng", and not a sentence under either', () => {
     installHostBridge(status);
 
     const { container } = render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Chơi qua mạng LAN' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Tạo phòng trên máy này/u })).toBeTruthy();
-    expect(screen.getByText('Máy này làm chủ phòng, bạn bè vào bằng mã phòng')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Tham gia phòng LAN/u })).toBeTruthy();
-    expect(screen.getByText('Nhập mã phòng để vào chơi')).toBeTruthy();
-    expect(screen.queryByText(/Host Game|Join Game/u)).toBeNull();
-    // The glyphs are decoration: the card text names the choice.
-    const glyphs = container.querySelectorAll('.desktop-launcher__choice svg');
-    expect(glyphs).toHaveLength(2);
-    for (const glyph of glyphs) expect(glyph.getAttribute('aria-hidden')).toBe('true');
+    expect(menuLabels(container)).toEqual(['Tạo phòng', 'Tham gia phòng']);
+    expect(screen.queryByText(/trên máy này|Tham gia phòng LAN|Host Game|Join Game/u)).toBeNull();
+    // Nothing explains a button: the menu holds buttons only, and the screen has no subtitle or footer line.
+    expect(container.querySelectorAll('.desktop-launcher__menu :not(button, button *)')).toHaveLength(0);
+    expect(container.querySelector('.desktop-launcher__subtitle, .desktop-launcher__security, .desktop-launcher__choice-text')).toBeNull();
+    expect(container.querySelectorAll('p:not([aria-hidden])')).toHaveLength(0);
+    // The glyphs are decoration: the label names the button.
+    for (const icon of container.querySelectorAll('.desktop-launcher__menu .ds-button__icon')) {
+      expect(icon.getAttribute('aria-hidden')).toBe('true');
+    }
   });
 
-  it('puts the how-to-play key in the header and opens the guide from it', () => {
+  it('keeps every button a real, focusable button of at least 44 px and relies on the shared focus ring', () => {
+    installHostBridge(status, undefined, () => Promise.resolve());
+
+    const { container } = render(
+      <SettingsProvider>
+        <DesktopMultiplayerLauncher configuredRuntimeConfig={configuredRuntimeConfig} onReady={vi.fn()} />
+      </SettingsProvider>,
+    );
+
+    const buttons = [...container.querySelectorAll<HTMLButtonElement>('.desktop-launcher__menu button')];
+    expect(buttons.map(button => button.textContent)).toEqual(['Tạo phòng', 'Tham gia phòng', 'Máy chủ riêng', 'Cài đặt', 'Thoát']);
+    for (const button of buttons) {
+      expect(button.tabIndex).toBe(0);
+      expect(button.disabled).toBe(false);
+      expect(button.className).toMatch(/ds-button--(md|lg|xl)\b/u);
+    }
+    // 44 px is the floor of every size but `sm`, which the menu never uses; the ring is drawn by the shared button style.
+    const buttonCssPath = '../design-system/components/Button/Button.css';
+    const buttonCss = readFileSync(fileURLToPath(new URL(buttonCssPath, import.meta.url)), 'utf8');
+    expect(buttonCss).toContain('.ds-button:focus-visible');
+    expect(buttonCss).toMatch(/\.ds-button \{[^}]*min-height: 2\.75rem/u);
+  });
+
+  it('puts the how-to-play key beside the menu (in the column, not in the title) and opens the guide from it', () => {
     installHostBridge(status);
 
-    render(<HowToPlayProvider><DesktopMultiplayerLauncher onReady={vi.fn()} /></HowToPlayProvider>);
+    const { container } = render(<HowToPlayProvider><DesktopMultiplayerLauncher onReady={vi.fn()} /></HowToPlayProvider>);
 
     const key = screen.getByRole('button', { name: 'Hướng dẫn chơi' });
-    expect(key.closest('.desktop-launcher__header')).toBeTruthy();
+    expect(key.closest('.desktop-launcher__content')).toBeTruthy();
+    expect(key.closest('.desktop-launcher__header')).toBeNull();
+    // It comes after the menu in the tab order, so the first stop is a way to play.
+    const order = [...container.querySelectorAll('button')];
+    expect(order.indexOf(key as HTMLButtonElement)).toBe(order.length - 1);
     fireEvent.click(key);
     expect(screen.getByRole('dialog', { name: 'Hướng dẫn chơi' })).toBeTruthy();
   });
@@ -188,40 +241,80 @@ describe('DesktopMultiplayerLauncher choices', () => {
     expect(screen.queryByRole('button', { name: 'Hướng dẫn chơi' })).toBeNull();
   });
 
-  it('has no technical subtitle, footer or card text on the choice screen', async () => {
-    installHostBridge(hostingStatus);
+  it('draws the picture as decoration only: hidden, empty alt text, no title, no words', () => {
+    installHostBridge(status);
 
-    const { container } = render(<DesktopMultiplayerLauncher configuredRuntimeConfig={configuredRuntimeConfig} onReady={vi.fn()} />);
-    await screen.findByRole('button', { name: /Tiếp tục Host đang chạy/u });
+    const { container } = render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
+
+    const scene = container.querySelector('.launcher-scene');
+    expect(scene?.getAttribute('aria-hidden')).toBe('true');
+    const images = [...(scene?.querySelectorAll('img') ?? [])];
+    // Eight mascots on their board and five landmark postcards.
+    expect(images).toHaveLength(13);
+    for (const image of images) {
+      expect(image.getAttribute('alt')).toBe('');
+      expect(image.hasAttribute('title')).toBe(false);
+    }
+    expect(scene?.textContent).toBe('');
+    expect(scene?.querySelectorAll('[title], a, button, input')).toHaveLength(0);
+    expect(images.filter(image => /\/art\/landmarks\/\d+\.svg$/u.test(image.getAttribute('src') ?? ''))).toHaveLength(5);
+  });
+
+  it('puts the picture on the right and the menu on the left, and stops its entrance under reduced motion', () => {
+    const cssPath = './style/DesktopMultiplayerLauncher.css';
+    const css = readFileSync(fileURLToPath(new URL(cssPath, import.meta.url)), 'utf8');
+    const scenePath = './style/LauncherScene.css';
+    const sceneCss = readFileSync(fileURLToPath(new URL(scenePath, import.meta.url)), 'utf8');
+
+    // The column keeps to the start side (a gutter from the start edge, a fixed width) and the art is end-aligned.
+    expect(css).toMatch(/\.desktop-launcher__content \{[^}]*margin-inline-start: var\(--launcher-gutter\)/u);
+    expect(sceneCss).toMatch(/\.launcher-scene \{[^}]*justify-content: flex-end/u);
+    // Every animation sits behind the reduced-motion guard, for the operating system and for the game setting.
+    for (const source of [css, sceneCss]) {
+      const guardStart = source.indexOf('@media (prefers-reduced-motion: no-preference)');
+      expect(guardStart).toBeGreaterThan(0);
+      expect(source.slice(guardStart)).toContain(":root:not([data-reduced-motion='true'])");
+      expect(source.slice(0, guardStart)).not.toMatch(/animation:/u);
+      expect(source).not.toMatch(/\binfinite\b/u);
+    }
+  });
+
+  it('keeps the screen free of technical text', async () => {
+    installHostBridge(hostingStatus, undefined, () => Promise.resolve());
+
+    const { container } = render(
+      <SettingsProvider>
+        <DesktopMultiplayerLauncher configuredRuntimeConfig={configuredRuntimeConfig} onReady={vi.fn()} />
+      </SettingsProvider>,
+    );
+    await screen.findByRole('button', { name: 'Vào lại phòng đang mở' });
 
     expect(screen.queryByText(/Một máy Host giữ phòng/u)).toBeNull();
     expect(screen.queryByText(/Liên kết mời chỉ chứa/u)).toBeNull();
     expect(screen.queryByText(/phiên kết nối|cơ sở dữ liệu/u)).toBeNull();
-    // Only the configured-server card still talks about an address: it is the developer path.
-    const cardTexts = [...container.querySelectorAll('.desktop-launcher__choice-text')]
-      .map(element => element.textContent ?? '')
-      .filter(text => !/thử nghiệm/u.test(text));
-    expect(cardTexts).toHaveLength(3);
-    for (const text of cardTexts) expect(text).not.toMatch(TECHNICAL_TEXT);
+    expect(menuLabels(container)).toEqual([
+      'Vào lại phòng đang mở', 'Đóng phòng', 'Tạo phòng', 'Tham gia phòng', 'Máy chủ riêng', 'Cài đặt', 'Thoát',
+    ]);
+    for (const label of menuLabels(container)) expect(label).not.toMatch(TECHNICAL_TEXT);
     expect(container.querySelector('.desktop-launcher__subtitle, .desktop-launcher__security')).toBeNull();
   });
 
-  it('offers the configured server as a third choice only when one is configured', () => {
+  it('offers the configured server as another choice only when one is configured', () => {
     installHostBridge(status);
     const { unmount } = render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
-    expect(screen.queryByRole('button', { name: /Máy chủ đã cấu hình/u })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Máy chủ riêng' })).toBeNull();
     unmount();
 
     render(<DesktopMultiplayerLauncher configuredRuntimeConfig={configuredRuntimeConfig} onReady={vi.fn()} />);
-    expect(screen.getByRole('button', { name: /Máy chủ đã cấu hình/u })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Máy chủ riêng' })).toBeTruthy();
   });
 
-  it('continues or stops a host that is already running', async () => {
+  it('goes back into a room that is still open, or closes it', async () => {
     const onReady = vi.fn();
     const { host } = installHostBridge(hostingStatus);
     render(<DesktopMultiplayerLauncher onReady={onReady} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: /Tiếp tục Host đang chạy/u }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Vào lại phòng đang mở' }));
     expect(onReady).toHaveBeenCalledWith({
       runtimeConfig: {
         target: 'desktop', socketUrl: 'http://127.0.0.1:8080', platform: 'win32', appVersion: '3.0.0',
@@ -229,7 +322,7 @@ describe('DesktopMultiplayerLauncher choices', () => {
       hosting: true,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dừng Host' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng phòng' }));
     await waitFor(() => expect(host.stop).toHaveBeenCalledOnce());
   });
 
@@ -239,6 +332,164 @@ describe('DesktopMultiplayerLauncher choices', () => {
     render(<DesktopMultiplayerLauncher configurationError="Không thể đọc cấu hình." onReady={vi.fn()} />);
 
     expect(screen.getByRole('alert').textContent).toBe('Không thể đọc cấu hình.');
+  });
+});
+
+describe('DesktopMultiplayerLauncher "Cài đặt"', () => {
+  const stored = () => JSON.parse(window.localStorage.getItem(SETTINGS_STORAGE_KEY) ?? '{}') as Record<string, unknown>;
+
+  it('is absent where no settings can be kept (an isolated render with no provider)', () => {
+    installHostBridge(status);
+
+    render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
+
+    expect(screen.queryByRole('button', { name: 'Cài đặt' })).toBeNull();
+  });
+
+  it('opens the settings dialog from the menu and keeps a change exactly as the game does', async () => {
+    window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ version: 1, masterVolume: 0.4, graphicsQuality: 'low' }));
+    installHostBridge(status);
+    render(
+      <SettingsProvider>
+        <DesktopMultiplayerLauncher onReady={vi.fn()} />
+      </SettingsProvider>,
+    );
+
+    const open = screen.getByRole('button', { name: 'Cài đặt' });
+    expect(screen.queryByRole('dialog', { name: 'Cài đặt' })).toBeNull();
+    // A click does not move focus in jsdom; a player's does, and the dialog hands focus back to the button it came from.
+    open.focus();
+    fireEvent.click(open);
+    const dialog = screen.getByRole('dialog', { name: 'Cài đặt' });
+
+    // The dialog opens on what was saved, not on the defaults.
+    expect(within(dialog).getByLabelText('Âm lượng tổng')).toHaveProperty('value', '0.4');
+    fireEvent.click(within(dialog).getByRole('switch', { name: 'Giảm chuyển động' }));
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Cân bằng' }));
+
+    // Written to the storage that `bootstrap()` reads when the player goes on, so the game starts with it.
+    await waitFor(() => expect(stored()).toMatchObject({ reducedMotion: true, graphicsQuality: 'balanced', masterVolume: 0.4 }));
+    expect(document.documentElement.dataset.reducedMotion).toBe('true');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xong' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Cài đặt' })).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(open));
+  });
+
+  it('starts no audio: no audio provider is needed and no sound is requested', () => {
+    const audio = vi.fn();
+    vi.stubGlobal('Audio', audio);
+    installHostBridge(status);
+
+    render(
+      <SettingsProvider>
+        <DesktopMultiplayerLauncher onReady={vi.fn()} />
+      </SettingsProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Cài đặt' }));
+
+    expect(audio).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('DesktopMultiplayerLauncher "Thoát"', () => {
+  it('is absent when the bridge cannot quit (a plain browser, a stub, an older bridge)', () => {
+    installHostBridge(status);
+
+    render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
+
+    expect(screen.queryByRole('button', { name: 'Thoát' })).toBeNull();
+  });
+
+  it('quits at once when no room is open on this machine', async () => {
+    const { quit } = installHostBridge(status, undefined, () => Promise.resolve());
+    render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
+    await settleStatus();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thoát' }));
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(quit.exitApp).toHaveBeenCalledExactlyOnceWith();
+    const busy = await screen.findByRole<HTMLButtonElement>('button', { name: 'Đang thoát…' });
+    expect(busy.disabled).toBe(true);
+  });
+
+  it.each(['HOSTING', 'READY', 'STARTING_SERVER'] as const)(
+    'asks first when a room is open (%s), and quits only after the player agrees',
+    async state => {
+      const { quit } = installHostBridge({ ...hostingStatus, state }, undefined, () => Promise.resolve());
+      render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
+      await settleStatus();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Thoát' }));
+
+      const dialog = screen.getByRole('alertdialog', { name: 'Đóng phòng và thoát game?' });
+      expect(within(dialog).getByText(/Phòng của bạn sẽ đóng lại/u)).toBeTruthy();
+      expect(dialog.textContent ?? '').not.toMatch(TECHNICAL_TEXT);
+      expect(quit.exitApp).not.toHaveBeenCalled();
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng phòng và thoát' }));
+
+      await waitFor(() => expect(quit.exitApp).toHaveBeenCalledExactlyOnceWith());
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    },
+  );
+
+  it('stays when the player answers "Ở lại"', async () => {
+    const { quit } = installHostBridge(hostingStatus, undefined, () => Promise.resolve());
+    render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
+    await settleStatus();
+    const open = screen.getByRole('button', { name: 'Thoát' });
+    open.focus();
+    fireEvent.click(open);
+
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Ở lại' }));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(quit.exitApp).not.toHaveBeenCalled();
+    await waitFor(() => expect(document.activeElement).toBe(open));
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Thoát' }).disabled).toBe(false);
+  });
+
+  it('does not ask when the machine only knows an idle or failed room runtime', async () => {
+    for (const state of ['IDLE', 'FAILED'] as const) {
+      const { quit } = installHostBridge({ ...status, state }, undefined, () => Promise.resolve());
+      const { unmount } = render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
+      await settleStatus();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Thoát' }));
+
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(quit.exitApp).toHaveBeenCalledOnce();
+      unmount();
+    }
+  });
+
+  it('says so in plain words and lets the player try again when quitting fails', async () => {
+    installHostBridge(status, undefined, () => Promise.reject(new Error('ipc closed')));
+    render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
+    await settleStatus();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thoát' }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe('Chưa thoát được game. Hãy thử lại.');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Thoát' }).disabled).toBe(false);
+  });
+
+  it('gives the button back if the window is somehow still open a while after quitting was accepted', async () => {
+    vi.useFakeTimers();
+    installHostBridge(status, undefined, () => Promise.resolve());
+    render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
+    await act(async () => { await Promise.resolve(); });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thoát' }));
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đang thoát…' }).disabled).toBe(true);
+
+    act(() => { vi.advanceTimersByTime(10_000); });
+
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Thoát' }).disabled).toBe(false);
   });
 });
 
@@ -256,10 +507,10 @@ describe('DesktopMultiplayerLauncher host form', () => {
     const { host } = installHostBridge(twoNetworks);
     const { container } = render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Tạo phòng trên máy này/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo phòng' }));
     await waitFor(() => expect(host.refreshNetwork).toHaveBeenCalled());
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Tạo phòng trên máy này' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Tạo phòng' })).toBeTruthy();
     expect(screen.getByLabelText('Tên của bạn').id).toBe('desktop-player-name');
     expect(container.querySelectorAll('input')).toHaveLength(1);
     expect(container.querySelector('select')).toBeNull();
@@ -274,7 +525,7 @@ describe('DesktopMultiplayerLauncher host form', () => {
     const { host } = installHostBridge(status);
     render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Tạo phòng trên máy này/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo phòng' }));
     await waitFor(() => expect(host.refreshNetwork).toHaveBeenCalled());
 
     const submit = screen.getByRole<HTMLButtonElement>('button', { name: 'Tạo và vào phòng' });
@@ -293,7 +544,7 @@ describe('DesktopMultiplayerLauncher host form', () => {
     installHostBridge(offline);
     render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Tạo phòng trên máy này/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo phòng' }));
 
     expect((await screen.findByRole('alert')).textContent)
       .toBe('Máy này chưa kết nối mạng. Hãy bật Wi-Fi hoặc cắm dây mạng.');
@@ -308,7 +559,7 @@ describe('DesktopMultiplayerLauncher host form', () => {
     host.start.mockResolvedValueOnce({ ok: false as const, status: offline });
     const onReady = vi.fn();
     render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: /Tạo phòng trên máy này/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo phòng' }));
     fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Ada' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo và vào phòng' }));
@@ -327,7 +578,7 @@ describe('DesktopMultiplayerLauncher host form', () => {
     const { host } = installHostBridge(status);
     host.start.mockResolvedValueOnce({ ok: false as const, status: failed });
     render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: /Tạo phòng trên máy này/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo phòng' }));
     fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Ada' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo và vào phòng' }));
@@ -343,7 +594,7 @@ describe('DesktopMultiplayerLauncher host form', () => {
     const { host } = installHostBridge(status);
     host.start.mockResolvedValueOnce({ ok: false as const, status: failed });
     render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: /Tạo phòng trên máy này/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo phòng' }));
     fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Ada' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo và vào phòng' }));
@@ -369,13 +620,13 @@ describe('DesktopMultiplayerLauncher host form', () => {
     installHostBridge(status);
     render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
-    fireEvent.click(screen.getByRole('button', { name: 'Chọn lại chế độ' }));
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Tham gia phòng' }));
 
-    fireEvent.click(screen.getByRole('button', { name: /Tạo phòng trên máy này/u }));
-    fireEvent.click(screen.getByRole('button', { name: 'Chọn lại chế độ' }));
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: /Tạo phòng trên máy này/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo phòng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Tạo phòng' }));
   });
 });
 
@@ -399,9 +650,9 @@ describe('DesktopMultiplayerLauncher join form', () => {
     installHostBridge(status, () => Promise.resolve(FOUND));
     const { container } = render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Tham gia phòng LAN' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Tham gia phòng' })).toBeTruthy();
     expect(screen.getByLabelText('Tên của bạn').id).toBe('desktop-player-name');
     expect(screen.getByLabelText('Mã phòng').id).toBe('desktop-lan-room');
     expect(container.querySelectorAll('input')).toHaveLength(2);
@@ -428,7 +679,7 @@ describe('DesktopMultiplayerLauncher join form', () => {
     const onReady = vi.fn();
     render(<DesktopMultiplayerLauncher onReady={onReady} />);
     await settleStatus();
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fillJoinForm();
 
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
@@ -459,7 +710,7 @@ describe('DesktopMultiplayerLauncher join form', () => {
     const { lan } = installHostBridge(status, () => Promise.resolve(FOUND));
     const onReady = vi.fn();
     render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fillJoinForm('OTB ABC!');
 
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
@@ -498,7 +749,7 @@ describe('DesktopMultiplayerLauncher join form', () => {
     installHostBridge(status, () => Promise.resolve(result));
     const onReady = vi.fn();
     render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fillJoinForm();
 
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
@@ -515,7 +766,7 @@ describe('DesktopMultiplayerLauncher join form', () => {
     const onReady = vi.fn();
     render(<DesktopMultiplayerLauncher onReady={onReady} />);
     await settleStatus();
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fillJoinForm('otb-zzz999');
     expect(screen.queryByLabelText('Dán liên kết mời')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
@@ -542,7 +793,7 @@ describe('DesktopMultiplayerLauncher join form', () => {
   it('removes the failure line once the player changes the code or the link it was about', async () => {
     installHostBridge(status, () => Promise.resolve({ ok: false, code: 'NOT_FOUND' }));
     render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fillJoinForm();
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
     await screen.findByRole('alert');
@@ -563,7 +814,7 @@ describe('DesktopMultiplayerLauncher join form', () => {
     const { lan } = installHostBridge(status, () => Promise.resolve({ ok: false, code: 'UNAVAILABLE' }));
     const onReady = vi.fn();
     render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fillJoinForm();
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
     const invite = await screen.findByLabelText('Dán liên kết mời');
@@ -583,7 +834,7 @@ describe('DesktopMultiplayerLauncher join form', () => {
     const { lan } = installHostBridge(status, () => Promise.resolve(results.shift() ?? FOUND));
     const onReady = vi.fn();
     render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fillJoinForm();
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
     await screen.findByLabelText('Dán liên kết mời');
@@ -599,17 +850,17 @@ describe('DesktopMultiplayerLauncher join form', () => {
     installHostBridge(status, () => new Promise<LanFindRoomResult>(resolve => { finish = resolve; }));
     const onReady = vi.fn();
     render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fillJoinForm();
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
     await screen.findByRole('button', { name: 'Đang tìm phòng…' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Chọn lại chế độ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
     await act(async () => { finish(FOUND); await Promise.resolve(); });
 
     expect(onReady).not.toHaveBeenCalled();
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.getByRole('button', { name: /Tham gia phòng LAN/u })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tham gia phòng' })).toBeTruthy();
   });
 
   it('drops a failure that arrives after the launcher was closed', async () => {
@@ -617,7 +868,7 @@ describe('DesktopMultiplayerLauncher join form', () => {
     installHostBridge(status, () => new Promise<LanFindRoomResult>(resolve => { finish = resolve; }));
     const onReady = vi.fn();
     const { unmount } = render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fillJoinForm();
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
     await screen.findByRole('button', { name: 'Đang tìm phòng…' });
@@ -634,7 +885,7 @@ describe('DesktopMultiplayerLauncher join form', () => {
     // An older bridge without `lan`.
     installHostBridge(status);
     const withoutLookup = render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fillJoinForm();
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
     expect((await screen.findByRole('alert')).textContent).toBe(cannotLook);
@@ -644,7 +895,7 @@ describe('DesktopMultiplayerLauncher join form', () => {
     // The lookup itself fails.
     installHostBridge(status, () => Promise.reject(new Error('ipc closed')));
     const rejected = render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fillJoinForm();
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
     expect((await screen.findByRole('alert')).textContent).toBe(cannotLook);
@@ -654,7 +905,7 @@ describe('DesktopMultiplayerLauncher join form', () => {
     installHostBridge(status, () => Promise.resolve({ ok: true, endpoint: 'http://example.com:80' }));
     const onReady = vi.fn();
     render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fillJoinForm();
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
     expect((await screen.findByRole('alert')).textContent).toBe(cannotLook);
@@ -664,13 +915,13 @@ describe('DesktopMultiplayerLauncher join form', () => {
   it('starts a fresh join form each time it is opened', async () => {
     installHostBridge(status, () => Promise.resolve({ ok: false, code: 'NOT_FOUND' }));
     render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fillJoinForm();
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
     await screen.findByLabelText('Dán liên kết mời');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Chọn lại chế độ' }));
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
 
     expect(screen.queryByLabelText('Dán liên kết mời')).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
@@ -680,7 +931,7 @@ describe('DesktopMultiplayerLauncher join form', () => {
     const { lan } = installHostBridge(status, () => Promise.resolve(FOUND));
     const onReady = vi.fn();
     render(<DesktopMultiplayerLauncher configuredRuntimeConfig={configuredRuntimeConfig} onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: /Máy chủ đã cấu hình/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Máy chủ riêng' }));
     fillJoinForm('lan-42');
 
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
@@ -708,6 +959,6 @@ describe('DesktopMultiplayerLauncher join form', () => {
 
     render(<DesktopMultiplayerLauncher initialMode="join" onReady={vi.fn()} />);
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Tham gia phòng LAN' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Tham gia phòng' })).toBeTruthy();
   });
 });

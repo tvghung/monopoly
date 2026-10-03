@@ -104,11 +104,11 @@ lookup contract: [Api/http-runtime.instruction.md](../Api/http-runtime.instructi
   code only; a search shows "Đang tìm phòng…" with read-only fields; the gameplay socket is created only after the lookup
   returns; each of `NOT_FOUND`, `UNREACHABLE`, `NO_NETWORK`, `UNAVAILABLE` (and a bridge without the lookup, a failed IPC call,
   a malformed endpoint) shows its agreed plain-Vietnamese line; the invitation-link field appears only after a failure (not
-  after `NO_NETWORK`) and enters the room it names without searching; a result that arrives after "Chọn lại chế độ" or
+  after `NO_NETWORK`) and enters the room it names without searching; a result that arrives after "Quay lại" or
   after unmount is dropped; the configured-server mode is unchanged.
 - [x] `[AUTO][CLIENT]` `DesktopMultiplayerLauncher.test.tsx`: the host form has a name field only (no network select, no port or
   address hint, no subtitle or footer), calls `start()` without options, and says "Máy này chưa kết nối mạng. …" when no
-  network exists; no launcher card text contains an address, port or database wording.
+  network exists; no launcher text contains an address, port or database wording.
 - [x] `[AUTO][CLIENT]` `runtime/lanSharing.test.ts`: `parseLanJoinUrl` is the inverse of `buildLanJoinUrl` and refuses credentials,
   non-http, hosts that are not usable IPv4, missing port, missing or invalid room and other paths.
 - [x] `[AUTO][CLIENT]` `HostLanSharing.test.tsx`, `Lobby.test.tsx`: the invitation card shows the QR code and a copy button but
@@ -121,3 +121,43 @@ lookup contract: [Api/http-runtime.instruction.md](../Api/http-runtime.instructi
 - [ ] `[MANUAL-E2E]` G4 re-capture of `launcher`, `launcher-running`, `launcher-host`, `launcher-join`, `launcher-join-failed` and
   `lobby-lan` at the standard viewports (the form fits 375 px landscape with the extra field). _(Captures not run by the author.)_
 - [ ] `[MANUAL-E2E]` Packaged app on two PCs: see [V1 final manual acceptance](../../ui-ux-overhaul/V1_FINAL_MANUAL_ACCEPTANCE.md#lan-room-lookup-v11).
+
+## V1.1 Start screen as a main menu, and a way back from the join screen (owner feedback 4 and 3)
+
+The owner's rule again: players do not read technical text, so the start screen is buttons only. Design:
+[Client/join-room.instruction.md](../Client/join-room.instruction.md) ("Launcher desktop = màn hình chính" and "Đường quay lại
+launcher"); quit channel: [Api/http-runtime.instruction.md](../Api/http-runtime.instruction.md#desktop-quit-channel-v11).
+
+- [x] `[AUTO][CLIENT]` `DesktopMultiplayerLauncher.test.tsx`: the menu holds buttons only ("Tạo phòng", "Tham gia phòng", "Máy chủ
+  riêng" when configured, "Vào lại phòng đang mở" and "Đóng phòng" while a Host runs, "Cài đặt", "Thoát") with no sentence under
+  any of them and no technical wording; every button is a focusable design-system button of at least 44 px (the shared focus
+  ring is asserted in `Button.css`); the how-to-play key is last in the tab order and opens the guide; the picture is decoration
+  only (hidden, empty alt, no title, no text, eight mascots and five landmark postcards); the menu sits on the start side and the
+  art end-aligned, every animation is behind the reduced-motion guard and none loops.
+- [x] `[AUTO][CLIENT]` `DesktopMultiplayerLauncher.test.tsx`, `AppBootstrap.test.tsx`, `settings/selectors.test.tsx`: "Cài đặt" is absent
+  without a settings provider, opens the existing dialog on the saved values, writes a change to the storage the game reads
+  (`readGameSettings` returns it before `bootstrap()` runs), and starts no audio.
+- [x] `[AUTO][CLIENT]` `DesktopMultiplayerLauncher.test.tsx`: "Thoát" is absent when the bridge has no `quit.exitApp`, quits at once
+  when no room is open (idle or failed runtime), asks "Đóng phòng và thoát game?" first when a room is open (`HOSTING`, `READY`,
+  `STARTING_SERVER`) and calls `exitApp` once only on "Đóng phòng và thoát", stays on "Ở lại" with focus back on the button, shows
+  "Chưa thoát được game. Hãy thử lại." on an IPC failure and gives the button back after 10 seconds.
+- [x] `[AUTO][CLIENT]` `JoinForm.test.tsx`: "Quay lại" exists only with a way back (not in a plain browser), is the first control of the page (top left, before the
+  title, outside the card) as a ghost button, calls the exit once without submitting, stays usable while joining, and the form opens with the name and room
+  code already typed (`initialName`, `initialRoomCode`).
+- [x] `[AUTO][CLIENT]` `App.test.tsx`: a failed desktop join shows the form again with the typed name and code and a way back that
+  disconnects, emits no `leave room` and keeps a session saved for another room; "Quay lại" also works from "Phòng chung" and
+  while the join answer is pending (a late answer changes nothing); no button in a plain browser or without an exit; a failure
+  screen that is not already a way home gets "Về trang chủ" beside "Thử lại"; a replaced session is no longer a dead end on
+  desktop; `ErrorScreen.test.tsx` covers the second action.
+- [x] `[AUTO][CLIENT]` `design-lab/surfaces/entrySurfaces.test.tsx`, `surfaceCaptures.test.ts`: the launcher surfaces show every menu
+  button (the lab supplies the settings and how-to-play providers), `launcher-running` shows "Vào lại phòng đang mở" and
+  "Đóng phòng", and the new `landing-desktop-failed` (name and code kept, "Quay lại") renders and is in the capture manifest.
+- [x] `[AUTO]` The desktop side of "Thoát" (channel, sender check, shutdown through the coordinator, preload whitelist) is in
+  [http-runtime-and-deployment.md](./http-runtime-and-deployment.md#v11-lan-room-lookup-owner-feedback-5-and-6).
+- [ ] `[MANUAL-E2E]` Look at the start screen and its forms (`launcher`, `launcher-running`, `launcher-host`, `launcher-join`,
+  `launcher-join-failed`) and the join form with its "Quay lại" (`landing-desktop-failed`) at 1280×720, 1920×1080, 2560×1440 and
+  812×375 landscape: buttons on the left, art on the right, nothing overlaps or scrolls off, text readable over the background,
+  no motion under reduced motion. _(Captures not run by the author; the 812×375 form fit was measured in the Design Lab only.)_
+- [ ] `[MANUAL-E2E]` Packaged app: see [V1 final manual acceptance](../../ui-ux-overhaul/V1_FINAL_MANUAL_ACCEPTANCE.md#main-menu-and-way-back-v11)
+  for the real "Thoát", settings kept after a restart and the real way back from a failed join.
+

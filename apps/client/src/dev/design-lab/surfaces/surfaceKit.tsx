@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import SurfaceProviders, { makeSurfaceState, type SurfaceStateOptions } from './SurfaceProviders';
+import SurfaceProviders, { makeSurfaceState, SurfaceSettingsProvider, type SurfaceStateOptions } from './SurfaceProviders';
 
 /**
  * The real components of plan 04, each with the state it needs, selectable with `&surface=<id>` (plan 04 §9).
@@ -27,5 +27,5 @@ export const OWNED_PAIR = {
   3: { id: 'player-a', color: 'red' as const, houses: 0 },
 };
 
-export { SurfaceProviders, makeSurfaceState };
+export { SurfaceProviders, SurfaceSettingsProvider, makeSurfaceState };
 export type { SurfaceStateOptions };

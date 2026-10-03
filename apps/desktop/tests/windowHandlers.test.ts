@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { HostRuntimeStatus } from '../src/hostRuntime';
 
@@ -13,6 +13,7 @@ vi.mock('electron', () => ({
   app: {
     isPackaged: false,
     getVersion: vi.fn(() => '1.0.0'),
+    quit: vi.fn(),
   },
   ipcMain: {
     handle: vi.fn((channel: string, handler: IpcHandler) => {
@@ -30,8 +31,9 @@ vi.mock('../src/runtimeConfig', async importOriginal => ({
   getDesktopRuntimeConfig: harness.getDesktopRuntimeConfig,
 }));
 
-import { ipcMain } from 'electron';
+import { app, ipcMain } from 'electron';
 
+import { AppQuitCoordinator } from '../src/appQuitCoordinator';
 import { IPC_CHANNELS } from '../src/ipc/channels';
 import { QuitRequestController, registerWindowHandlers } from '../src/ipc/windowHandlers';
 import { DesktopRuntimeConfigError } from '../src/runtimeConfig';
@@ -273,5 +275,88 @@ describe('desktop IPC lifecycle', () => {
       expect(lanFinder.cancel).toHaveBeenCalledOnce();
       expect(vi.mocked(ipcMain.removeHandler)).toHaveBeenCalledWith(IPC_CHANNELS.lanFindRoom);
     });
+  });
+});
+
+describe('quit channel ("Thoát" on the start screen)', () => {
+  function registerQuit() {
+    const fixture = createWindow();
+    const controller = new QuitRequestController(fixture.window as never);
+    registerWindowHandlers(fixture.window as never, false, controller);
+    return { ...fixture, controller, handler: harness.handlers.get(IPC_CHANNELS.quitExit)! };
+  }
+
+  beforeEach(() => {
+    vi.mocked(app.quit).mockReset();
+  });
+
+  it('uses the namespaced channel name', () => {
+    expect(IPC_CHANNELS.quitExit).toBe('ownTheBlock:quit:exit');
+  });
+
+  it('refuses a sender that is not the window and quits nothing', () => {
+    const { handler, webContents } = registerQuit();
+
+    expect(() => handler({ sender: {} })).toThrow('Invalid IPC sender');
+    expect(app.quit).not.toHaveBeenCalled();
+    expect(webContents.send).not.toHaveBeenCalled();
+  });
+
+  it('quits the application once, without asking the renderer a second time', async () => {
+    const { handler, webContents, controller } = registerQuit();
+
+    handler({ sender: webContents });
+
+    expect(app.quit).toHaveBeenCalledOnce();
+    // The renderer's own question is the confirmation: the coordinator's question to the renderer is answered at once.
+    await expect(controller.requestApplicationQuit()).resolves.toBe(true);
+    expect(webContents.send).not.toHaveBeenCalled();
+  });
+
+  it('approves only the one quit it started', async () => {
+    vi.useFakeTimers();
+    const { handler, webContents, controller } = registerQuit();
+    handler({ sender: webContents });
+    await controller.requestApplicationQuit();
+
+    const next = controller.requestApplicationQuit();
+
+    expect(webContents.send).toHaveBeenCalledWith(IPC_CHANNELS.quitRequested, expect.any(String));
+    vi.advanceTimersByTime(2_000);
+    await expect(next).resolves.toBe(true);
+    controller.dispose();
+  });
+
+  it('ends in the same shutdown as closing the window: the Host is stopped, then the app quits', async () => {
+    const { handler, webContents, controller } = registerQuit();
+    const order: string[] = [];
+    const coordinator = new AppQuitCoordinator({
+      hasLiveWindow: () => true,
+      requestRendererDecision: () => controller.requestApplicationQuit(),
+      stopRuntime: async () => { order.push('stop host'); },
+      armFinalWindowClose: () => { controller.armNextClose(); order.push('arm final close'); },
+      quitApp: () => { order.push('quit'); },
+    });
+    const event = { preventDefault: vi.fn() };
+    vi.mocked(app.quit).mockImplementation(() => coordinator.handleBeforeQuit(event));
+
+    handler({ sender: webContents });
+    await coordinator.waitForSettled();
+
+    expect(event.preventDefault).toHaveBeenCalledOnce();
+    expect(order).toEqual(['stop host', 'arm final close', 'quit']);
+    expect(webContents.send).not.toHaveBeenCalled();
+    // The window's final close is let through (it is the one the coordinator armed), not turned into another question.
+    const closeEvent = { preventDefault: vi.fn() };
+    controller.handleClose(closeEvent);
+    expect(closeEvent.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('removes its handler when the window closes', () => {
+    const { fullscreenHandlers } = registerQuit();
+
+    fullscreenHandlers.get('closed')?.();
+
+    expect(vi.mocked(ipcMain.removeHandler)).toHaveBeenCalledWith(IPC_CHANNELS.quitExit);
   });
 });

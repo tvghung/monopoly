@@ -41,7 +41,15 @@ Development endpoint contract:
   [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md)); only
   after a failed lookup does the form offer a pasted invitation link
   (`parseLanJoinUrl`, the inverse of `buildLanJoinUrl`) that skips the lookup.
-  There is no mDNS and no periodic advertisement. Every launcher and invite-card
+  There is no mDNS and no periodic advertisement. The launcher is the app's main
+  menu (V1.1): buttons only ("Tạo phòng", "Tham gia phòng", "Cài đặt", "Thoát"), no
+  explanation under them, over a picture on the right. "Cài đặt" works because
+  `AppBootstrap` lifts only `SettingsProvider` over the launcher (it reads and writes
+  the same storage `bootstrap()` reads; no audio provider, so nothing plays);
+  "Thoát" calls `bridge.quit.exitApp()` after a central confirmation when a room is
+  open. Every desktop screen after the launcher has a way back to it through
+  `onExitToLauncher` (join form "Quay lại", failure screens "Về trang chủ"); going
+  back only disconnects and never revokes a session. Every launcher and invite-card
   text is plain Vietnamese: no address, port, protocol or database wording, and an
   error line always says what to do next. Web bootstrap retains
   the normal `loading-settings` → `loading-runtime-config` →
@@ -50,7 +58,8 @@ Development endpoint contract:
 - Web đọc `__SOCKET_URL__`; desktop lấy `socketUrl`, `platform` và `appVersion`
   qua preload bridge. Socket được tạo ngoài `App` và inject vào `App` để giữ một
   lifecycle/session state machine duy nhất.
-- Electron main chỉ quản lý window, runtime config, fullscreen, quit, external
+- Electron main chỉ quản lý window, runtime config, fullscreen, quit (cửa sổ, lệnh
+  thoát của app và nút "Thoát" của launcher qua `quit.exitApp`), external
   links và packaged renderer. Không expose Node/Electron API hoặc game command cho
   renderer; production renderer dùng `app://own-the-block` với path traversal guard.
 

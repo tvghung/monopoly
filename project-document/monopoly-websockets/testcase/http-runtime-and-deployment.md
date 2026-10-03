@@ -99,6 +99,15 @@ choice. Design and wire contract: [Api/http-runtime.instruction.md](../Api/http-
   `apps/desktop/tests/networkInterfaces.test.ts`, `hostRuntime.test.ts`.
 - [x] `[AUTO]` The IPC channel `ownTheBlock:lan:find-room` is sender-checked, strict, absent without a finder and removed
   with the window: `apps/desktop/tests/windowHandlers.test.ts`.
+- [x] `[AUTO]` The quit channel `ownTheBlock:quit:exit` (V1.1, the launcher's "Thoát") is sender-checked, takes no payload, quits
+  the application once without a second question to the renderer, approves only that one quit, ends in the same
+  `AppQuitCoordinator` shutdown as closing the window (Host stopped, then final close armed, then quit) and is removed with the
+  window: `apps/desktop/tests/windowHandlers.test.ts`.
+- [x] `[AUTO]` The preload bridge exposes one typed object and no raw `ipcRenderer`; its quit group is exactly
+  `onQuitRequested`, `respond` and `exitApp`; `exitApp()` invokes `ownTheBlock:quit:exit` with no payload; every channel the bridge
+  uses is a known `IPC_CHANNELS` value: `apps/desktop/tests/preloadBridge.test.ts` (with `preloadBundle.test.ts` for the bundle).
+- [ ] `[PACKAGED]` The real "Thoát" on a packaged build (a running Host's helper and PostgreSQL stop, the window closes). Not
+  automated: see [V1 final manual acceptance](../../ui-ux-overhaul/V1_FINAL_MANUAL_ACCEPTANCE.md#main-menu-and-way-back-v11).
 - [ ] `[PACKAGED]` The Phase 7.2 Host proof step `lan-room-discovery-loopback` passes on Windows x64, macOS x64 and macOS
   arm64. _(Added with this change; not run by its author.)_
 - [ ] `[MANUAL-E2E]` Two physical PCs: discovery by room code, firewall prompt, guest Wi-Fi fallback, macOS Local Network

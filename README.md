@@ -129,10 +129,10 @@ pnpm desktop:release  # LAN-first release-candidate build; endpoint override is 
 ```
 
 For a self-contained Host check, run `pnpm desktop:package`, then
-`pnpm desktop:run:packaged` and choose **Tạo phòng trên máy này**. The packaged app starts its
+`pnpm desktop:run:packaged` and choose **Tạo phòng**. The packaged app starts its
 own loopback-only PostgreSQL and authoritative server; no developer PostgreSQL or
 external Socket.IO URL is required. To test Join, run a second packaged desktop instance
-(on another PC on the same Wi-Fi), choose **Tham gia phòng LAN** and enter only a name and
+(on another PC on the same Wi-Fi), choose **Tham gia phòng** and enter only a name and
 the `OTB-XXXXXX` room code: the app finds the Host by itself (a small UDP broadcast on
 port `41234`, about 3 seconds; the Host's firewall may ask once to allow Own the Block).
 If the network blocks broadcast (guest Wi-Fi, client isolation) a field to paste the

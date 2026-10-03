@@ -139,6 +139,79 @@ describe('JoinForm submit rules', () => {
   });
 });
 
+describe('JoinForm "Quay lại"', () => {
+  const back = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Quay lại' });
+
+  it('has no back button where there is no screen before this one (a plain browser)', () => {
+    renderForm();
+
+    expect(screen.queryByRole('button', { name: 'Quay lại' })).toBeNull();
+  });
+
+  it('puts "Quay lại" first on the page, before the title and outside the card, as a secondary action', () => {
+    const { container } = renderForm({ onBack: vi.fn() });
+
+    expect(back().type).toBe('button');
+    expect(back().className).toContain('ds-button--ghost');
+    expect(joinButton().className).not.toContain('ds-button--ghost');
+    expect(back().closest('.join__hero')).not.toBeNull();
+    expect(back().closest('.join__panel')).toBeNull();
+    // First in the tab order too, like the back key of a browser; the card keeps its one action.
+    expect(container.querySelector('button')).toBe(back());
+    expect(container.querySelector('.join__panel .join__back')).toBeNull();
+  });
+
+  it('goes back once, and does not submit the form or join anything', () => {
+    const onBack = vi.fn();
+    const { onJoin } = renderForm({ onBack });
+    fireEvent.change(nameInput(), { target: { value: 'Ada' } });
+    fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'room-42' } });
+
+    fireEvent.click(back());
+
+    expect(onBack).toHaveBeenCalledOnce();
+    expect(onBack).toHaveBeenCalledWith();
+    expect(onJoin).not.toHaveBeenCalled();
+  });
+
+  it('still joins with Enter in a field when a back button is there', () => {
+    const { onJoin } = renderForm({ onBack: vi.fn() });
+    fireEvent.change(nameInput(), { target: { value: 'Ada' } });
+
+    fireEvent.submit(nameInput().closest('form') as HTMLFormElement);
+
+    expect(onJoin).toHaveBeenCalledExactlyOnceWith('Ada', 'LOBBY');
+  });
+
+  it('stays usable while joining, and while the connection or the name is missing', () => {
+    renderForm({ onBack: vi.fn(), busy: true, connected: false });
+
+    expect(back().disabled).toBe(false);
+    expect(joinButton().disabled).toBe(true);
+  });
+
+  it('opens with the name and the room code the player already typed, and joins with them without typing again', () => {
+    const { onJoin } = renderForm({ onBack: vi.fn(), initialName: 'Ada', initialRoomCode: 'LAN-42' });
+
+    expect(nameInput().value).toBe('Ada');
+    expect(screen.getByLabelText<HTMLInputElement>('Mã phòng').value).toBe('LAN-42');
+    expect(modeRadio('Có mã phòng').getAttribute('aria-checked')).toBe('true');
+    // A name is already there, so the button is usable and no reason is written under it.
+    expect(joinButton().disabled).toBe(false);
+    expect(screen.queryByText('Nhập tên của bạn để vào phòng.')).toBeNull();
+
+    fireEvent.click(joinButton());
+    expect(onJoin).toHaveBeenCalledExactlyOnceWith('Ada', 'LAN-42');
+  });
+
+  it('keeps starting empty when nothing was typed before (the web landing)', () => {
+    renderForm({ onBack: vi.fn() });
+
+    expect(nameInput().value).toBe('');
+    expect(screen.getByLabelText<HTMLInputElement>('Mã phòng').value).toBe('');
+  });
+});
+
 describe('JoinForm hero', () => {
   it('keeps the page heading and labels the landing region with it', () => {
     renderForm();

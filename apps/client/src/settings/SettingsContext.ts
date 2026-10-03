@@ -2,6 +2,11 @@ import { createContext } from 'react';
 import type { GameSettings, GameSettingsPatch } from './types';
 
 export interface SettingsContextValue {
+  /**
+   * True inside a `SettingsProvider`. Outside one (an isolated render in a test) a change goes nowhere, so a screen that offers
+   * the settings dialog leaves its "Cài đặt" button out instead of showing one that does nothing.
+   */
+  available?: boolean;
   settings: GameSettings;
   updateSettings: (patch: GameSettingsPatch) => void;
   resetSettings: () => void;

@@ -25,22 +25,42 @@ describe('entry surfaces', () => {
 
     const view = renderSurface('launcher');
     expect(window.ownTheBlockDesktop?.host).toBeDefined();
-    expect(screen.getByRole('button', { name: /Tạo phòng trên máy này/u })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Máy chủ đã cấu hình/u })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tạo phòng' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Máy chủ riêng' })).toBeTruthy();
+    // The lab supplies what the real screen has above it, so every button of the menu is in the capture.
+    expect(screen.getByRole('button', { name: 'Cài đặt' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Thoát' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Hướng dẫn chơi' })).toBeTruthy();
 
     view.unmount();
     expect(window.ownTheBlockDesktop).toBeUndefined();
   });
 
+  it('shows a running host with its way back in and its way to close it', async () => {
+    renderSurface('launcher-running');
+
+    expect(await screen.findByRole('button', { name: 'Vào lại phòng đang mở' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Đóng phòng' })).toBeTruthy();
+  });
+
+  it('shows the landing the desktop app falls back to, with what was typed and a way back', () => {
+    renderSurface('landing-desktop-failed');
+
+    expect(screen.getByRole('alert').textContent).toBe('Không tìm thấy phòng hoặc dữ liệu được yêu cầu.');
+    expect(screen.getByLabelText<HTMLInputElement>('Tên của bạn').value).toBe('Minh');
+    expect(screen.getByLabelText<HTMLInputElement>('Mã phòng').value).toBe('OTB-ABC234');
+    expect(screen.getByRole('button', { name: 'Quay lại' })).toBeTruthy();
+  });
+
   it('opens the launcher forms directly', () => {
     const { unmount } = renderSurface('launcher-host');
-    expect(screen.getByRole('heading', { level: 2, name: 'Tạo phòng trên máy này' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Tạo phòng' })).toBeTruthy();
     // The host form is a name and one button: no network choice, no hints.
     expect(screen.queryByLabelText('Mạng dùng để chia sẻ')).toBeNull();
     unmount();
 
     const { unmount: unmountJoin } = renderSurface('launcher-join');
-    expect(screen.getByRole('heading', { level: 2, name: 'Tham gia phòng LAN' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Tham gia phòng' })).toBeTruthy();
     expect(screen.queryByLabelText('Địa chỉ Host')).toBeNull();
     expect(screen.queryByLabelText('Dán liên kết mời')).toBeNull();
     unmountJoin();

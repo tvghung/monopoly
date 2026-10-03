@@ -97,6 +97,21 @@ function useRestoreStoredSettings() {
   }, [stored]);
 }
 
+/**
+ * Only the settings provider: what the desktop start screen has above it in production (`AppBootstrap` lifts it there so the
+ * "Cài đặt" dialog works), without the toast, presentation or game-state providers of a surface that sits inside the app.
+ */
+export function SurfaceSettingsProvider({
+  settings = DEFAULT_GAME_SETTINGS,
+  children,
+}: {
+  settings?: GameSettings;
+  children: ReactNode;
+}) {
+  useRestoreStoredSettings();
+  return <SettingsProvider initialSettings={settings}>{children}</SettingsProvider>;
+}
+
 /** Settings, toasts, the game state and a static (idle) presentation state around one surface. */
 export default function SurfaceProviders({
   value,

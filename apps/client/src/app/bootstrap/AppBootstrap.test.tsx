@@ -1,6 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup, fireEvent, render, screen, waitFor, within,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RuntimeConfigLoadError } from '../../runtime/runtimeConfig';
+import { SETTINGS_STORAGE_KEY } from '../../settings/defaults';
+import { readGameSettings } from '../../settings/storage';
 
 const bootstrapMock = vi.hoisted(() => ({
   bootstrap: vi.fn(),
@@ -14,6 +18,7 @@ import AppBootstrap from './AppBootstrap';
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
   delete window.ownTheBlockDesktop;
   vi.restoreAllMocks();
   bootstrapMock.bootstrap.mockReset();
@@ -136,10 +141,10 @@ describe('AppBootstrap failure handling', () => {
     });
 
     render(<AppBootstrap />);
-    expect(screen.getByRole('button', { name: /Tham gia phòng LAN/u })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tham gia phòng' })).toBeTruthy();
     expect(bootstrapMock.bootstrap).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Guest' } });
     expect(screen.queryByLabelText('Địa chỉ Host')).toBeNull();
     fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'LAN-1234' } });
@@ -162,6 +167,61 @@ describe('AppBootstrap failure handling', () => {
         hosting: false,
       },
     });
+  });
+
+  it('lets the start screen change the settings and quit, with the game seeing the same settings afterwards', async () => {
+    const idle = {
+      state: 'IDLE' as const,
+      platform: 'win32' as const,
+      appVersion: '3.0.0',
+      gamePort: null,
+      localEndpoint: null,
+      lanAvailable: false,
+      interfaces: [],
+      advertisedEndpoints: [],
+      selectedLanUrl: null,
+    };
+    const exitApp = vi.fn(() => Promise.resolve());
+    window.ownTheBlockDesktop = {
+      getRuntimeConfig: vi.fn(() => Promise.resolve({
+        ok: true as const,
+        config: { target: 'desktop' as const, platform: 'win32' as const, appVersion: '3.0.0' },
+      })),
+      window: {
+        getState: vi.fn(),
+        setFullscreen: vi.fn(() => Promise.resolve()),
+        toggleFullscreen: vi.fn(() => Promise.resolve()),
+        onFullscreenChanged: vi.fn(() => () => undefined),
+      },
+      quit: { onQuitRequested: vi.fn(() => () => undefined), respond: vi.fn(), exitApp },
+      openExternal: vi.fn(),
+      host: {
+        getStatus: vi.fn(() => Promise.resolve(idle)),
+        start: vi.fn(),
+        stop: vi.fn(),
+        refreshNetwork: vi.fn(() => Promise.resolve(idle)),
+        onStatusChanged: vi.fn(() => () => undefined),
+      },
+    };
+
+    render(<AppBootstrap />);
+
+    // The start screen has the button, and no gameplay socket exists yet (bootstrap has not run).
+    fireEvent.click(await screen.findByRole('button', { name: 'Cài đặt' }));
+    const dialog = screen.getByRole('dialog', { name: 'Cài đặt' });
+    fireEvent.click(within(dialog).getByRole('switch', { name: 'Giảm chuyển động' }));
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Thấp' }));
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem(SETTINGS_STORAGE_KEY) ?? '{}')).toMatchObject({
+      reducedMotion: true,
+      graphicsQuality: 'low',
+    }));
+    // This is what `bootstrap()` reads when the player goes on, so the game starts with the change.
+    expect(readGameSettings()).toMatchObject({ reducedMotion: true, graphicsQuality: 'low' });
+    expect(bootstrapMock.bootstrap).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xong' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thoát' }));
+    await waitFor(() => expect(exitApp).toHaveBeenCalledOnce());
   });
 
   it('passes the launcher exit callback through to the desktop app', async () => {
@@ -214,8 +274,8 @@ describe('AppBootstrap failure handling', () => {
     });
 
     render(<AppBootstrap />);
-    await waitFor(() => expect(screen.getByRole('button', { name: /Máy chủ đã cấu hình/u })).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: /Máy chủ đã cấu hình/u }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Máy chủ riêng' })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Máy chủ riêng' }));
     fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Ada' } });
     fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'LAN-1234' } });
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
@@ -223,6 +283,6 @@ describe('AppBootstrap failure handling', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'ready' })).toBeTruthy());
 
     fireEvent.click(screen.getByRole('button', { name: 'ready' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: /Máy chủ đã cấu hình/u })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Máy chủ riêng' })).toBeTruthy());
   });
 });

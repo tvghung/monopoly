@@ -1,5 +1,16 @@
-/* The launcher renders outside the settings, audio and toast providers: plain CSS on tokens and provider-free primitives only. */
+/*
+ * The start screen of the desktop app, laid out like a game's main menu: a column of buttons toward the left of the window,
+ * over one background whose artwork (LauncherScene) sits on the right. The launcher renders outside the audio and toast
+ * providers: plain CSS on tokens and provider-free primitives only.
+ */
 .desktop-launcher {
+  /* The menu column, and the width the artwork may take without touching it (see LauncherScene.css). */
+  --launcher-gutter: clamp(1.5rem, 6vw, 7rem);
+  --launcher-column: clamp(22rem, 30vw, 36rem);
+  --scene-gutter: clamp(1rem, 3vw, 4rem);
+  --scene-w: min(58vw, 92rem, 150vh, calc(100vw - var(--launcher-gutter) - var(--launcher-column) - var(--scene-gutter) - 2rem));
+  position: relative;
+  isolation: isolate;
   display: flex;
   min-height: 100dvh;
   padding:
@@ -7,23 +18,26 @@
     max(var(--space-4), env(safe-area-inset-right))
     max(var(--space-4), env(safe-area-inset-bottom))
     max(var(--space-4), env(safe-area-inset-left));
+  overflow-x: clip;
   background: var(--entry-backdrop);
   color: var(--color-text-primary);
 }
 
-/* Auto margins center the card when it is shorter than the window and keep its top reachable when it is taller. */
-.desktop-launcher .desktop-launcher__card {
+/* Auto margins center the column when it is shorter than the window and keep its top reachable when it is taller. */
+.desktop-launcher__content {
+  position: relative;
+  z-index: 1;
   display: grid;
+  align-content: center;
   gap: var(--space-4);
-  width: min(100%, 46rem);
-  margin: auto;
-  padding: var(--space-6);
+  width: min(100%, var(--launcher-column));
+  margin-block: auto;
+  margin-inline-start: var(--launcher-gutter);
 }
 
 .desktop-launcher__header {
   display: grid;
   gap: var(--space-1);
-  text-align: center;
 }
 
 .desktop-launcher__brand {
@@ -33,18 +47,25 @@
   letter-spacing: 0.18em;
 }
 
-.desktop-launcher__help { justify-self: center; margin-top: var(--space-1); }
-
 .desktop-launcher h1 {
   margin: 0;
   color: var(--color-accent-primary-strong);
-  font: var(--type-display);
+  font: var(--type-title-l);
   text-wrap: balance;
 }
 
 .desktop-launcher h2 {
   margin: 0;
   font: var(--type-title-m);
+}
+
+@media (min-height: 42rem) {
+  .desktop-launcher h1 { font: var(--type-display); }
+}
+
+@media (min-height: 50rem) and (min-width: 70rem) {
+  .desktop-launcher h1 { font: var(--type-hero); }
+  .desktop-launcher__brand { font-size: var(--font-size-sm); }
 }
 
 .desktop-launcher__error,
@@ -67,101 +88,54 @@
   color: var(--color-info-strong);
 }
 
-/* The choices: equal cards that fill the row, however many there are. */
-.desktop-launcher__choices {
+/* The menu: one column of buttons and nothing under them; the words are the labels. */
+.desktop-launcher__menu {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr));
   gap: var(--space-3);
 }
 
-.desktop-launcher__running {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: minmax(0, 1fr) auto;
+.desktop-launcher__menu .desktop-launcher__action {
+  width: 100%;
+  justify-content: flex-start;
   gap: var(--space-3);
-}
-
-.desktop-launcher__choice {
-  display: grid;
-  grid-template-areas:
-    'icon'
-    'title'
-    'text';
-  grid-template-rows: auto auto 1fr;
-  justify-items: start;
-  gap: var(--space-2);
-  min-width: 0;
-  min-height: 2.75rem;
-  padding: var(--space-4);
-  border: 2px solid var(--color-border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-raised);
-  color: var(--color-text-primary);
-  font: inherit;
+  padding-inline: var(--space-5);
   text-align: start;
-  cursor: pointer;
-  box-shadow: 0 4px 0 var(--color-action-neutral-lip), var(--elevation-1);
-  transition: transform var(--motion-duration-micro) var(--motion-ease-out), border-color var(--motion-duration-micro) var(--motion-ease-out), box-shadow var(--motion-duration-micro) var(--motion-ease-out);
 }
 
-.desktop-launcher__choice:hover {
-  border-color: var(--color-accent-secondary);
-  transform: translateY(-2px);
-}
-
-.desktop-launcher__choice:active {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 var(--color-action-neutral-lip), var(--elevation-1);
-}
-
-.desktop-launcher__choice:focus-visible {
-  outline: 2px solid transparent;
-  border-color: var(--color-focus);
-  box-shadow: var(--focus-ring), 0 4px 0 var(--color-action-neutral-lip);
-}
-
-.desktop-launcher__choice--running {
-  border-color: var(--color-accent-secondary);
-  background: var(--color-accent-secondary-soft);
-}
-
-.desktop-launcher__choice-icon {
-  grid-area: icon;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: var(--radius-md);
-  background: var(--color-accent-secondary-soft);
-  color: var(--color-accent-secondary-strong);
-}
-
-.desktop-launcher__choice--running .desktop-launcher__choice-icon {
-  background: var(--color-surface-raised);
-}
-
-.desktop-launcher__choice-icon .action-icon {
+.desktop-launcher__menu .ds-button__icon > svg {
   width: 1.4rem;
   height: 1.4rem;
 }
 
-.desktop-launcher__choice-title {
-  grid-area: title;
-  font: var(--type-title-s);
+/* A room of this machine is still open: back into it, or close it. Stacked, so neither label has to wrap. */
+.desktop-launcher__running {
+  display: grid;
+  gap: var(--space-2);
 }
 
-.desktop-launcher__choice-text {
-  grid-area: text;
-  color: var(--color-text-secondary);
-  font: var(--type-small);
+/* "Cài đặt" and "Thoát" share one row: they are the quiet buttons under the two ways to play. */
+.desktop-launcher__utility {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
 }
 
-/* Stopping is not a go-ahead: a neutral button with danger-colored text, not the jade face of the secondary variant. */
+.desktop-launcher__utility .desktop-launcher__action {
+  justify-content: center;
+  padding-inline: var(--space-3);
+}
+
+/* Closing the room is not a go-ahead: a neutral button with danger-colored text, not the face of the primary variant. */
 .desktop-launcher .desktop-launcher__stop {
   --ds-button-text: var(--color-danger-strong);
-  align-self: stretch;
   color: var(--color-danger-strong);
+}
+
+/* The forms open in the same column, on a paper card over the same background. */
+.desktop-launcher .desktop-launcher__card {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
 }
 
 .desktop-launcher__form {
@@ -188,63 +162,87 @@
 
 .desktop-launcher__reason { text-align: center; }
 
+/*
+ * A short entrance, once: the buttons rise into place one after another. It is absent under both sources of reduced motion
+ * (the operating system and the game setting, which the settings dialog on this screen can change), and nothing loops.
+ */
+@keyframes launcher-menu-rise {
+  from { opacity: 0; translate: 0 0.75rem; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduced-motion='true']) .desktop-launcher__menu > * {
+    animation: launcher-menu-rise var(--motion-duration-panel) var(--motion-ease-out) both;
+  }
+
+  :root:not([data-reduced-motion='true']) .desktop-launcher__menu > :nth-child(2) { animation-delay: 60ms; }
+  :root:not([data-reduced-motion='true']) .desktop-launcher__menu > :nth-child(3) { animation-delay: 120ms; }
+  :root:not([data-reduced-motion='true']) .desktop-launcher__menu > :nth-child(4) { animation-delay: 180ms; }
+  :root:not([data-reduced-motion='true']) .desktop-launcher__menu > :nth-child(5) { animation-delay: 240ms; }
+}
+
 /* The Electron window can be as small as 1280x720: a form with an error line still fits without scrolling. */
 @media (max-height: 48rem) {
-  .desktop-launcher .desktop-launcher__card {
-    gap: var(--space-3);
-    padding: var(--space-5);
-  }
-}
-
-@media (max-width: 38rem) {
+  .desktop-launcher__content { gap: var(--space-3); }
   .desktop-launcher .desktop-launcher__card { padding: var(--space-4); }
-  .desktop-launcher h1 { font: var(--type-title-l); }
-  .desktop-launcher__running { grid-template-columns: minmax(0, 1fr); }
+  .desktop-launcher__menu { gap: var(--space-2); }
 }
 
-/* Narrow or short windows: the choices become rows with the glyph beside the text. */
-@media (max-width: 38rem), (orientation: landscape) and (max-height: 31rem) {
-  .desktop-launcher__choices { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
-
-  .desktop-launcher__choice {
-    grid-template-areas:
-      'icon title'
-      'icon text';
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
-    column-gap: var(--space-3);
-    row-gap: 0;
-    padding: var(--space-2) var(--space-3);
-  }
-
-  .desktop-launcher__choice-icon { align-self: center; }
+/* A window too narrow for a column and a picture side by side (a phone preview): the column is the whole screen. */
+@media (max-width: 40rem) {
+  .desktop-launcher { --launcher-gutter: 0px; }
+  .desktop-launcher__content { margin-inline: auto; }
+  .desktop-launcher h1 { font: var(--type-title-l); }
+  .desktop-launcher .desktop-launcher__card { padding: var(--space-4); }
 }
 
 /*
- * A phone held sideways (the web preview of the launcher): the form uses two columns and the header shrinks, so the
- * choices and every field stay on screen together.
+ * A phone held sideways (the web preview of the launcher): the menu is compact, and a form uses two columns and the width the
+ * picture gave up, so every field stays on screen together with its button.
  */
 @media (orientation: landscape) and (max-height: 31rem) {
   .desktop-launcher {
     padding-block: max(var(--space-2), env(safe-area-inset-top)) max(var(--space-2), env(safe-area-inset-bottom));
   }
 
-  .desktop-launcher .desktop-launcher__card {
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-4);
+  .desktop-launcher[data-launcher-view='form'] {
+    --launcher-column: min(40rem, calc(100vw - var(--launcher-gutter) - 2rem));
+    padding-block: max(var(--space-1), env(safe-area-inset-top)) max(var(--space-1), env(safe-area-inset-bottom));
   }
 
-  /* A failed search adds a two-line alert and the invitation-link field: the alert and the card give up some padding to fit 375px. */
-  .desktop-launcher__card:has(.desktop-launcher__error) { padding-block: var(--space-1); }
-  .desktop-launcher__error,
-  .desktop-launcher__status { padding-block: var(--space-1); }
+  .desktop-launcher__content { gap: var(--space-2); }
+  .desktop-launcher[data-launcher-view='form'] .desktop-launcher__content { gap: var(--space-1); }
+  .desktop-launcher__header { gap: 0; }
 
+  /*
+   * A form here is as wide as the window allows, so the corner "Hướng dẫn chơi" would sit on top of its alert line: it joins
+   * the title row instead (same place in the tab order, last; only its position moves).
+   */
+  .desktop-launcher[data-launcher-view='form'] .desktop-launcher__content { grid-template-columns: minmax(0, 1fr) auto; }
+  .desktop-launcher[data-launcher-view='form'] .desktop-launcher__content > * { grid-column: 1 / -1; }
+  .desktop-launcher[data-launcher-view='form'] .desktop-launcher__content > .desktop-launcher__header { grid-column: 1; grid-row: 1; }
+  .desktop-launcher[data-launcher-view='form'] .desktop-launcher__content > .desktop-launcher__help {
+    position: static;
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
   .desktop-launcher h1 { font: var(--type-title-m); }
   .desktop-launcher h2 { font: var(--type-title-s); }
   .desktop-launcher__brand { display: none; }
-  .desktop-launcher__choices { gap: var(--space-1); }
 
-  .desktop-launcher__running { grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
+  .desktop-launcher__menu { gap: var(--space-2); }
+  .desktop-launcher__menu .desktop-launcher__action {
+    min-height: 2.75rem;
+    padding-block: var(--space-1);
+    font-size: 1.0625rem;
+  }
+
+  .desktop-launcher .desktop-launcher__card { padding: var(--space-1) var(--space-4) var(--space-2); }
+  /* A failed search adds a two-line alert and the invitation-link field: the alert gives up some padding to fit 375px. */
+  .desktop-launcher__error,
+  .desktop-launcher__status { padding-block: var(--space-1); }
 
   .desktop-launcher__form {
     grid-template-columns: repeat(2, minmax(0, 1fr));

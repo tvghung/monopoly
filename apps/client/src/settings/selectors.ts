@@ -5,6 +5,11 @@ export function useSettings() {
   return useContext(settingsContext);
 }
 
+/** Whether a `SettingsProvider` is above, that is, whether a change made in the settings dialog is kept. */
+export function useSettingsAvailable(): boolean {
+  return useContext(settingsContext).available === true;
+}
+
 function systemPrefersReducedMotion(): boolean {
   return typeof window !== 'undefined'
     && typeof window.matchMedia === 'function'

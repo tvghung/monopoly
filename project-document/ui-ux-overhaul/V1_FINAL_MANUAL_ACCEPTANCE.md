@@ -59,7 +59,7 @@ Added with the V1.1 owner feedback items 5 and 6 (join by room code, host withou
 any of these rows yet; the automated evidence is loopback and fake-socket only and never claims a real broadcast, a real
 firewall or a real second machine. Use two physical PCs (or a PC and a Mac) on the same Wi-Fi unless a row says otherwise.
 
-- [ ] Two-PC discovery: PC A chooses "Tạo phòng trên máy này"; PC B chooses "Tham gia phòng LAN" and types only a name and the
+- [ ] Two-PC discovery: PC A chooses "Tạo phòng"; PC B chooses "Tham gia phòng" and types only a name and the
   room code. The room is found within about 3 seconds and PC B reaches the lobby. No address or port is typed or shown on
   either PC.
 - [ ] Host form and invitation card: the host form has a name field and one button (no network dropdown, no helper text); the
@@ -77,6 +77,44 @@ firewall or a real second machine. Use two physical PCs (or a PC and a Mac) on t
 - [ ] Network choice: with Wi-Fi and Ethernet both connected on the Host, the invitation uses the network that carries the
   internet connection; Docker, VMware, Hyper-V, VPN or Tailscale adapters never become the shared network; with two networks
   of the same kind the lobby card offers "Mạng chia sẻ".
+
+## Main menu and way back (V1.1)
+
+Added with the V1.1 owner feedback items 4 and 3 (the start screen as a main menu, a way back from the join screen). Nobody has
+observed any of these rows yet. Use a packaged build (`pnpm desktop:package` then `pnpm desktop:run:packaged`) unless a row says
+otherwise.
+
+- [ ] Look of the menu: at 1280×720, 1920×1080 and 2560×1440 the start screen shows the buttons "Tạo phòng", "Tham gia phòng",
+  "Cài đặt" and "Thoát" in a column toward the left of the window over a picture whose artwork (landmarks and the eight
+  mascots) is on the right; there is no sentence under any button; nothing overlaps the buttons; the text is easy to read over
+  the background. The "Hướng dẫn chơi" button is visible in the top right corner.
+- [ ] Look at 812×375 landscape (a small window or the web preview): the menu, the "Tạo phòng" form and the "Tham gia phòng" form with
+  a failed search (the extra "Dán liên kết mời" field) all fit without scrolling and nothing overlaps; the picture gives way when
+  a form needs the room.
+- [ ] Keyboard and focus: Tab moves through the buttons from top to bottom with a clear focus ring on each, then reaches
+  "Hướng dẫn chơi"; Enter opens the focused button; "Quay lại" from a form puts the focus back on the button that opened it.
+- [ ] Reduced motion: with "Giảm chuyển động" turned on in "Cài đặt" (or in the operating system) the postcards, the buttons and the
+  mascots do not move when the start screen opens.
+- [ ] "Cài đặt" on the start screen: it opens the settings dialog; change the volume, "Chất lượng đồ họa" and "Toàn màn hình",
+  close the app completely and open it again: the start screen and, after joining a room, the game both show the same values.
+  No sound plays on the start screen.
+- [ ] "Thoát" with no room: the app closes at once (no question). "Thoát" while a Host runs ("Vào lại phòng đang mở" is shown): the
+  question "Đóng phòng và thoát game?" appears; "Ở lại" keeps the app open; "Đóng phòng và thoát" closes the app and no
+  Own the Block helper or PostgreSQL process is left running (check the task manager).
+- [ ] Way back from a failed join: on PC B choose "Tham gia phòng", cause a failed search so "Dán liên kết mời" appears, and paste
+  the Host's invitation link with the last character of its room code changed. The app reaches the Host, the Host does not
+  know that code, and the join form appears with the name and the room code already filled in and an error line. "Quay lại"
+  returns to the start screen with the choices. Repeat after switching to "Phòng chung" and while the button still says
+  "Đang vào phòng…". No name or room code had to be typed again on the join form.
+- [ ] Way back from a failure screen: close the Host's game while PC B is in its lobby; PC B shows the failure screen and
+  "Về trang chủ" returns to the start screen; the Host can be joined again afterwards with the same room code.
+
+## Debt window timing (V1.1)
+
+- [ ] A player with little cash rolls onto an opponent's property or a tax tile: the mascot hops tile by tile, the coins and the
+  plus/minus figures play out, the cash shows 0, and only then does "Cần thanh toán" open. The other players' status strip
+  appears at the same moment, and the countdown still shows about the full time.
+- [ ] After reconnecting while a debt is open, the debt window shows at once, without waiting for any animation.
 
 ## Visual review gallery
 
@@ -116,4 +154,4 @@ agent wrote this section on that instruction.
 The owner did not itemise the checklist above, so none of its rows is ticked: a tick here means a person observed the
 item, and nobody recorded that. The three sign-off rows stay open for the same reason. V1 was released with these rows
 accepted as open by the owner; the decision, the other open gates and the release record are in the
-[V1 release contract](V1_RELEASE_CONTRACT.md#v1-release-decision). Tick a row only after a person has observed it.
+[V1 release contract](V1_RELEASE_CONTRACT.md#v100-release-decision). Tick a row only after a person has observed it.

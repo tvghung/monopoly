@@ -43,6 +43,31 @@ describe('ErrorScreen', () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
+  it('offers a quieter second action beside the first, and never one on its own', () => {
+    const onClick = vi.fn();
+    const onSecond = vi.fn();
+    const icon = <span aria-hidden="true">i</span>;
+    const { unmount } = render(
+      <ErrorScreen
+        title="Lỗi"
+        message="Có lỗi."
+        action={{ label: 'Thử lại', icon, onClick }}
+        secondaryAction={{ label: 'Về trang chủ', icon, onClick: onSecond }}
+      />,
+    );
+    const buttons = screen.getAllByRole('button');
+    expect(buttons.map(button => button.textContent)).toEqual(['iThử lại', 'iVề trang chủ']);
+    expect(buttons[0].className).not.toContain('ds-button--ghost');
+    expect(buttons[1].className).toContain('ds-button--ghost');
+    fireEvent.click(buttons[1]);
+    expect(onSecond).toHaveBeenCalledOnce();
+    expect(onClick).not.toHaveBeenCalled();
+    unmount();
+
+    render(<ErrorScreen title="Lỗi" message="Có lỗi." secondaryAction={{ label: 'Về trang chủ', icon, onClick: onSecond }} />);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
   it('is a section inside the app shell, which has its own main landmark', () => {
     const { container } = render(<ErrorScreen as="section" title="Lỗi" message="Có lỗi." />);
     expect(container.querySelector('main')).toBeNull();

@@ -19,13 +19,15 @@ interface ErrorScreenProps {
   message: string;
   /** Omitted for a dead end such as a session that moved to another window; the message then says what to do. */
   action?: ErrorScreenAction;
+  /** A quieter second way out beside `action` (the desktop app's way back to its start screen); never given on its own. */
+  secondaryAction?: ErrorScreenAction;
   /** `main` when the screen is the whole page (bootstrap); `section` inside the app shell, which already has a `main`. */
   as?: 'main' | 'section';
 }
 
-/** The shared failure screen: a puzzled mascot, the title, the message and at most one action. */
+/** The shared failure screen: a puzzled mascot, the title, the message and at most two actions, the main one first. */
 export default function ErrorScreen({
-  title, message, action, as: Element = 'main',
+  title, message, action, secondaryAction, as: Element = 'main',
 }: ErrorScreenProps) {
   return (
     <Element className="app-screen app-screen--error">
@@ -40,6 +42,9 @@ export default function ErrorScreen({
         <p className="app-screen__message">{message}</p>
       </div>
       {action ? <Button size="lg" icon={action.icon} onClick={action.onClick}>{action.label}</Button> : null}
+      {action && secondaryAction
+        ? <Button variant="ghost" size="lg" icon={secondaryAction.icon} onClick={secondaryAction.onClick}>{secondaryAction.label}</Button>
+        : null}
       <HowToPlayButton placement="corner" />
     </Element>
   );

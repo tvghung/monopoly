@@ -65,7 +65,7 @@ export function SettingsProvider({ children, initialSettings }: SettingsProvider
     };
   }, [desktopBridge]);
 
-  const value = useMemo(() => ({ settings, updateSettings, resetSettings }), [
+  const value = useMemo(() => ({ available: true, settings, updateSettings, resetSettings }), [
     resetSettings,
     settings,
     updateSettings,

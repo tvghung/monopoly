@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { ipcMain, type BrowserWindow, type WebContents } from 'electron';
+import { app, ipcMain, type BrowserWindow, type WebContents } from 'electron';
 import {
   DesktopRuntimeConfigError,
   getDesktopRuntimeConfig,
@@ -32,6 +32,7 @@ interface PendingQuitRequest {
 export class QuitRequestController {
   private pendingRequest: PendingQuitRequest | null = null;
   private allowNextClose = false;
+  private applicationQuitApproved = false;
   private timeout: NodeJS.Timeout | null = null;
 
   public constructor(private readonly window: BrowserWindow) {}
@@ -50,7 +51,17 @@ export class QuitRequestController {
 
   public requestApplicationQuit(): Promise<boolean> {
     if (this.window.isDestroyed()) return Promise.resolve(true);
+    if (this.applicationQuitApproved) {
+      // The renderer already put the question to the player (the "Thoát" button): asking again would only wait for it.
+      this.applicationQuitApproved = false;
+      return Promise.resolve(true);
+    }
     return this.pendingRequest?.promise ?? this.request('application-quit');
+  }
+
+  /** The renderer asked the player and got a yes: the next application quit needs no second question. */
+  public approveApplicationQuit(): void {
+    this.applicationQuitApproved = true;
   }
 
   public respond(requestId: string, allowQuit: boolean): void {
@@ -208,6 +219,13 @@ export function registerWindowHandlers(
     if (!isSender(window, event) || !isQuitRequestId(requestId) || typeof allowQuit !== 'boolean') return;
     quitController.respond(requestId, allowQuit);
   });
+  // "Thoát" on the start screen. The player has already answered the renderer's own question, so this takes the same road
+  // as Cmd+Q and the end of a window close: `before-quit` -> AppQuitCoordinator -> stop a running Host -> quit. No payload.
+  ipcMain.handle(IPC_CHANNELS.quitExit, event => {
+    if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
+    quitController.approveApplicationQuit();
+    app.quit();
+  });
   ipcMain.handle(IPC_CHANNELS.openExternal, (event, rawUrl: unknown) => {
     if (!isSender(window, event) || typeof rawUrl !== 'string') throw new Error('Invalid IPC request.');
     return openExternalUrl(rawUrl, development);
@@ -275,6 +293,7 @@ export function registerWindowHandlers(
     ipcMain.removeHandler(IPC_CHANNELS.windowGetState);
     ipcMain.removeHandler(IPC_CHANNELS.windowSetFullscreen);
     ipcMain.removeHandler(IPC_CHANNELS.windowToggleFullscreen);
+    ipcMain.removeHandler(IPC_CHANNELS.quitExit);
     ipcMain.removeHandler(IPC_CHANNELS.openExternal);
     ipcMain.removeHandler(IPC_CHANNELS.hostGetStatus);
     ipcMain.removeHandler(IPC_CHANNELS.hostStart);

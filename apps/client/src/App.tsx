@@ -113,30 +113,41 @@ const terminalSessionCodes = new Set<AckError['code']>([
 ]);
 const ACK_TIMEOUT_MS = 10_000;
 
+const HOME_LABEL = 'Về trang chủ';
+
 interface FailureScreenProps {
   title: string;
   failure: AppFailure;
   onRetry?: () => void;
+  /** Desktop only: leaves for the start screen ("Chơi qua mạng LAN"). Given on every desktop failure, so none is a dead end. */
+  onBack?: () => void;
 }
 
-function FailureScreen({ title, failure, onRetry }: FailureScreenProps) {
+function FailureScreen({
+  title, failure, onRetry, onBack,
+}: FailureScreenProps) {
   const returnsToLauncher = !failure.reloadRequired && failure.returnToLauncher;
+  const mainAction = onRetry
+    ? {
+      label: failure.reloadRequired
+        ? 'Tải lại trò chơi'
+        : failure.returnToLauncher
+          ? HOME_LABEL
+          : failure.retryable ? 'Thử lại' : 'Quay về màn hình vào phòng',
+      icon: <RegistryIcon name={returnsToLauncher ? 'home' : 'retry'} />,
+      onClick: failure.reloadRequired ? () => window.location.reload() : onRetry,
+    }
+    : undefined;
+  const homeAction = onBack ? { label: HOME_LABEL, icon: <RegistryIcon name="home" />, onClick: onBack } : undefined;
   return (
     <ErrorScreen
       as="section"
       title={title}
       message={failure.message}
-      action={onRetry
-        ? {
-          label: failure.reloadRequired
-            ? 'Tải lại trò chơi'
-            : failure.returnToLauncher
-              ? 'Quay về trình khởi động LAN'
-              : failure.retryable ? 'Thử lại' : 'Quay về màn hình vào phòng',
-          icon: <RegistryIcon name={returnsToLauncher ? 'back' : 'retry'} />,
-          onClick: failure.reloadRequired ? () => window.location.reload() : onRetry,
-        }
-        : undefined}
+      // The way home is the main action when there is no other, and a second, quieter one beside a retry. When the main action
+      // already goes home, nothing is added.
+      action={mainAction ?? homeAction}
+      secondaryAction={mainAction && !returnsToLauncher ? homeAction : undefined}
     />
   );
 }
@@ -845,6 +856,20 @@ export default function App({
     setConfirmation(null);
   }, [confirmation, desktopBridge, forfeitAndWatch]);
 
+  /**
+   * "Quay lại" / "Về trang chủ" on the join form and the failure screens of the desktop app. Nothing was joined, so nothing is
+   * left: the socket is disconnected (which only changes presence) and the saved session, if there is one, stays, so the player can
+   * still come back to that room. Only an explicit leave revokes a session (`exitToStart`).
+   */
+  const backToLauncher = useCallback(() => {
+    // Late answers of this room must not touch the screen that is about to go away.
+    admissionAttemptRef.current += 1;
+    initialJoinRef.current = null;
+    socket.disconnect();
+    onExitToLauncher?.();
+  }, [onExitToLauncher, socket]);
+  const onBack = desktopBridge && onExitToLauncher ? backToLauncher : undefined;
+
   const retry = useCallback(() => {
     setFailure(null);
     const token = tokenRef.current;
@@ -956,20 +981,23 @@ export default function App({
             ? (
               <JoinForm
                 onJoin={handleJoin}
+                onBack={onBack}
                 busy={phase === 'JOINING'}
                 connected={connected}
                 error={failure?.message ?? null}
-                initialRoomCode={initialRoomCode}
+                // What the player typed on the start screen is already in the form: they never type it twice.
+                initialName={launch?.initialJoin?.name}
+                initialRoomCode={launch?.initialJoin?.roomCode ?? initialRoomCode}
               />
             )
             : null}
           {phase === 'LOBBY' || phase === 'GAME' || phase === 'RECONNECTING' ? roomContent : null}
           {phase === 'RECONNECTING' ? <ConnectionOverlay /> : null}
           {phase === 'REPLACED' && failure
-            ? <FailureScreen title="Phiên chơi đã được mở ở nơi khác" failure={failure} />
+            ? <FailureScreen title="Phiên chơi đã được mở ở nơi khác" failure={failure} onBack={onBack} />
             : null}
           {phase === 'ERROR' && failure
-            ? <FailureScreen title="Không thể khôi phục ván chơi" failure={failure} onRetry={recoverFromFailure} />
+            ? <FailureScreen title="Không thể khôi phục ván chơi" failure={failure} onRetry={recoverFromFailure} onBack={onBack} />
             : null}
           <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
           <ConfirmationDialog

@@ -81,12 +81,17 @@ export default function AppBootstrap() {
   }, [desktopBridge, launch, retryNumber]);
 
   if (desktopBridge && !launch) {
+    // Only the settings provider is lifted to the start screen, so its "Cài đặt" dialog works: it reads the saved settings
+    // synchronously and writes every change back to the same storage `bootstrap()` reads when the player goes on, so the game
+    // sees them. No audio provider is mounted here: nothing plays on the start screen.
     return (
-      <DesktopMultiplayerLauncher
-        configuredRuntimeConfig={configuredRuntimeConfig}
-        configurationError={configurationError}
-        onReady={setLaunch}
-      />
+      <SettingsProvider>
+        <DesktopMultiplayerLauncher
+          configuredRuntimeConfig={configuredRuntimeConfig}
+          configurationError={configurationError}
+          onReady={setLaunch}
+        />
+      </SettingsProvider>
     );
   }
 

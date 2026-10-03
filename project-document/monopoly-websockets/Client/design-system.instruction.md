@@ -89,7 +89,7 @@ Kết quả đo trong Design Lab: Baloo 2 có `tnum` thật (chênh lệch bề 
   là phần tử focus; `Modal` tính `summary` vào vòng Tab; summary đầu mang `data-modal-autofocus`), bảng cuộn ngang trong vùng
   `role="region"` có tên. Khi `ConnectionOverlay` (z 90) đang hiện, lớp phủ của hộp thoại này được nâng lên z 91 bằng một
   luật `:has()` trong `howToPlay.css` (không thêm `layer` mới cho `Modal`). Hộp thoại **không** có bề mặt Design Lab nên
-  danh sách `surfaces` vẫn 56 id và `PLAN04_SURFACES` không đổi; xem
+  danh sách `surfaces` không đổi (57 id, xem bên dưới) và `PLAN04_SURFACES` không đổi; xem
   [how-to-play.instruction.md](./how-to-play.instruction.md).
 
 ## Icon registry
@@ -118,7 +118,7 @@ registry khi plan sau chạm vào. `help` (Lucide `CircleQuestionMark`) là nút
 lên board thật của fixture `stations-4`), `surfaces` (plan 04: **component production thật** với provider/fixture, không
 cần server). Concept là tài liệu review, không phải component production; `surfaces` thì ngược lại.
 
-`surfaces` render từng bề mặt đứng một mình qua `&surface=<id>` (`&chrome=hidden` bỏ thanh Lab để chụp): registry `surfaceRegistry.tsx` gồm 56 id theo cụm — `buy*`/`development-*`, `deeds`, `inspection-*`, `assets*`, `player-portfolio`, `jail`, `debt-*`, `forced-sale-*`, `trade`, `incoming-offers`, `card-*`, `winner-*`, `settings*`, `landing*`, `launcher*`, `lobby-*`, `confirm-forfeit`, `toasts`, `loading*`, `bootstrap-error`, `failure-*`, `connection`, `spectator`. `SurfaceProviders` dựng state/settings giả và khôi phục `localStorage` cài đặt khi surface đóng; fixture desktop cài `window.ownTheBlockDesktop` giả rồi gỡ khi unmount. Thư viện `DeedGallery` hiển thị mọi ô (street, nhà ga, tiện ích, ô đặc biệt) bằng `PropertyDeedCard`. Sidecar `data-design-lab-ready="true"` báo đã sẵn sàng chụp.
+`surfaces` render từng bề mặt đứng một mình qua `&surface=<id>` (`&chrome=hidden` bỏ thanh Lab để chụp): registry `surfaceRegistry.tsx` gồm 57 id theo cụm — `buy*`/`development-*`, `deeds`, `inspection-*`, `assets*`, `player-portfolio`, `jail`, `debt-*`, `forced-sale-*`, `trade`, `incoming-offers`, `card-*`, `winner-*`, `settings*`, `landing*` (gồm `landing-desktop-failed`: form vào phòng của app desktop sau khi vào thất bại, có "Quay lại"), `launcher*` (menu chính, có `SettingsProvider` giống thật để thấy nút "Cài đặt"), `lobby-*`, `confirm-forfeit`, `toasts`, `loading*`, `bootstrap-error`, `failure-*`, `connection`, `spectator`. `SurfaceProviders` dựng state/settings giả và khôi phục `localStorage` cài đặt khi surface đóng; fixture desktop cài `window.ownTheBlockDesktop` giả rồi gỡ khi unmount. Thư viện `DeedGallery` hiển thị mọi ô (street, nhà ga, tiện ích, ô đặc biệt) bằng `PropertyDeedCard`. Sidecar `data-design-lab-ready="true"` báo đã sẵn sàng chụp.
 
 Tham số harness khác: `scenario=<key>`, `uat-controls=collapsed|hidden`, và
 `main.phase4-uat[data-uat-ready="true"]` (hàng đợi presentation idle + mọi bước đã chạy).
@@ -126,7 +126,7 @@ Tham số harness khác: `scenario=<key>`, `uat-controls=collapsed|hidden`, và
 ## Công cụ chụp evidence
 
 `pnpm visual:capture [--grep "<regex id>"]` (`playwright.visual.config.ts`, `e2e/visual/captures.ts`,
-`e2e/visual/capture.visual.ts`; nhóm `04/g4` = 56 surface của Design Lab + kịch bản harness thẻ bài, `surfaceCaptures.test.ts` giữ manifest bằng registry) chụp từng mục manifest thành PNG + JSON diagnostics vào
+`e2e/visual/capture.visual.ts`; nhóm `04/g4` = 57 surface của Design Lab + kịch bản harness thẻ bài, `surfaceCaptures.test.ts` giữ manifest bằng registry) chụp từng mục manifest thành PNG + JSON diagnostics vào
 `project-document/visual-overhaul-v2/evidence/<plan>/`. Không thuộc `pnpm test`.
 
 - `VISUAL_BROWSER_CHANNEL=chrome|msedge` dùng trình duyệt cài sẵn; `VISUAL_HEADED=1` nếu

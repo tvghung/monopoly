@@ -21,18 +21,25 @@ const ROOM_MODE_OPTIONS: readonly SegmentedOption<JoinRoomMode>[] = [
 
 interface JoinFormProps {
   onJoin: (name: string, roomId: string) => void;
+  /**
+   * Takes the player back to the screen before this one (the desktop app's "Chơi qua mạng LAN"). Given only where such a
+   * screen exists: in a plain browser this is the first screen, and there is no button.
+   */
+  onBack?: () => void;
   busy: boolean;
   connected: boolean;
   error: string | null;
+  /** What the player already typed on the screen before (the desktop launcher), so they never type it twice. */
+  initialName?: string;
   initialRoomCode?: string;
   /** Starting mode for design-lab captures; an `initialRoomCode` from an invitation link always selects `code`. */
   initialMode?: JoinRoomMode;
 }
 
 export default function JoinForm({
-  onJoin, busy, connected, error, initialRoomCode, initialMode = 'code',
+  onJoin, onBack, busy, connected, error, initialName, initialRoomCode, initialMode = 'code',
 }: JoinFormProps) {
-  const [name, setName] = useState('');
+  const [name, setName] = useState(initialName ?? '');
   const [roomId, setRoomId] = useState(initialRoomCode ?? '');
   const [mode, setMode] = useState<JoinRoomMode>(initialRoomCode ? 'code' : initialMode);
   const missingName = !name.trim();
@@ -50,6 +57,17 @@ export default function JoinForm({
     <section className="join" aria-labelledby="join-title">
       <div className="join__layout">
         <div className="join__hero">
+          {/* First on the page, like the back key of a browser: the card keeps every field and its button on screen at 812x375. */}
+          {onBack ? (
+            <Button
+              variant="ghost"
+              className="join__back"
+              icon={<ActionIcon name="back" className="action-icon--only" />}
+              onClick={() => onBack()}
+            >
+              Quay lại
+            </Button>
+          ) : null}
           <p className="join__brand" aria-hidden="true">OWN THE BLOCK</p>
           <h1 id="join-title" className="join__title">Cờ Tỷ Phú Việt Nam</h1>
           <p className="join__subtitle">Vào phòng và chia sẻ mã phòng để cùng bạn bè chơi trực tuyến.</p>

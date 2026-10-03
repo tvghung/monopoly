@@ -7,7 +7,9 @@ import type {
   OwnTheBlockDesktopBridge,
   RuntimeConfig,
 } from '../../../runtime/types';
-import { noop, SurfaceProviders, type SurfaceFixture } from './surfaceKit';
+import {
+  noop, SurfaceProviders, SurfaceSettingsProvider, type SurfaceFixture,
+} from './surfaceKit';
 
 /** The landing page and the desktop launcher (plan 04 T04.11 and T04.12). */
 
@@ -60,7 +62,8 @@ function makeLabBridge(status: HostRuntimeStatus): OwnTheBlockDesktopBridge {
       toggleFullscreen: () => Promise.resolve(),
       onFullscreenChanged: () => noop,
     },
-    quit: { onQuitRequested: () => noop, respond: noop },
+    // "Thoát" is drawn but the lab never closes anything: the call resolves and the page stays.
+    quit: { onQuitRequested: () => noop, respond: noop, exitApp: () => Promise.resolve() },
     openExternal: () => Promise.resolve(),
     host: {
       getStatus: () => Promise.resolve(status),
@@ -92,8 +95,9 @@ function DesktopBridgeStub({ status, children }: { status: HostRuntimeStatus; ch
 }
 
 /**
- * The launcher sits outside the settings, audio and toast providers in production, so no `SurfaceProviders` here. The
- * how-to-play provider wraps the whole app at the root, so it is the one provider the launcher does have.
+ * The launcher sits outside the audio and toast providers in production, so no `SurfaceProviders` here. It has two providers
+ * above it: how-to-play (it wraps the whole app at the root) and settings (`AppBootstrap` lifts it to the start screen so
+ * "Cài đặt" works). Both are supplied, so the capture shows every button the real screen has.
  */
 function launcher(
   props: Partial<Parameters<typeof DesktopMultiplayerLauncher>[0]> = {},
@@ -102,11 +106,13 @@ function launcher(
   return (
     <HowToPlayProvider>
       <DesktopBridgeStub status={status}>
-        <DesktopMultiplayerLauncher
-          configuredRuntimeConfig={LAB_CONFIGURED_CONFIG}
-          onReady={noop}
-          {...props}
-        />
+        <SurfaceSettingsProvider>
+          <DesktopMultiplayerLauncher
+            configuredRuntimeConfig={LAB_CONFIGURED_CONFIG}
+            onReady={noop}
+            {...props}
+          />
+        </SurfaceSettingsProvider>
       </DesktopBridgeStub>
     </HowToPlayProvider>
   );
@@ -130,6 +136,24 @@ export const ENTRY_SURFACES: readonly SurfaceFixture[] = [
     render: () => (
       <SurfaceProviders>
         <JoinForm onJoin={noop} busy={false} connected={false} error="Không thể vào phòng. Hãy thử lại." initialRoomCode="GAME-1234" />
+      </SurfaceProviders>
+    ),
+  },
+  {
+    id: 'landing-desktop-failed',
+    label: 'Landing in the desktop app, room not found (name and code kept, "Quay lại" to the start screen)',
+    group: 'Pre-game',
+    render: () => (
+      <SurfaceProviders>
+        <JoinForm
+          onJoin={noop}
+          onBack={noop}
+          busy={false}
+          connected
+          error="Không tìm thấy phòng hoặc dữ liệu được yêu cầu."
+          initialName="Minh"
+          initialRoomCode="OTB-ABC234"
+        />
       </SurfaceProviders>
     ),
   },

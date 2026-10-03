@@ -101,6 +101,12 @@
 
 .join__reason { text-align: center; }
 
+/* "Quay lại" is the first thing in the hero column (top left of the page, a secondary key), never inside the card. */
+.join__hero .join__back {
+  justify-self: start;
+  margin-bottom: var(--space-1);
+}
+
 /* The how-to-play key sits under the mascot row of the hero and follows its alignment (centered, or left on wide screens). */
 .join__hero .join__help { margin-top: var(--space-2); }
 
@@ -176,7 +182,10 @@
     margin-inline: 0;
   }
 
-  .join__panel.ds-panel { padding: var(--space-3); }
+  /* A two-line failure ("Không tìm thấy phòng …") sits on top of the fields: it and the card give up a little padding to fit 375px. */
+  .join__panel.ds-panel { padding: var(--space-2) var(--space-3); }
+  .join__error,
+  .join__connection { padding-block: var(--space-1); }
   .join__form { gap: var(--space-2); }
   .join__form .entry-label { margin-bottom: 0.15rem; }
   .join__room { min-height: 4rem; }

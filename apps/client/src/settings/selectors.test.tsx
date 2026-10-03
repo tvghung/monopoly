@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { useEffectiveReducedMotion } from './selectors';
+import { useEffectiveReducedMotion, useSettingsAvailable } from './selectors';
+import { SettingsProvider } from './SettingsProvider';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -16,6 +17,17 @@ function stubMatchMedia(matches: boolean) {
     removeListener: vi.fn(),
   })));
 }
+
+describe('useSettingsAvailable', () => {
+  it('is false with no provider above, so a screen can leave its settings button out', () => {
+    expect(renderHook(() => useSettingsAvailable()).result.current).toBe(false);
+  });
+
+  it('is true inside the settings provider', () => {
+    const view = renderHook(() => useSettingsAvailable(), { wrapper: SettingsProvider });
+    expect(view.result.current).toBe(true);
+  });
+});
 
 describe('useEffectiveReducedMotion', () => {
   it('knows an OS-level reduced-motion preference at the very first render', () => {

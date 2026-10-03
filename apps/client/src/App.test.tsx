@@ -430,7 +430,7 @@ describe('App session admission', () => {
 
     expect(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY)).toBeNull();
     expect(lastEmission('join room')).toBeUndefined();
-    fireEvent.click(screen.getByRole('button', { name: 'Quay về trình khởi động LAN' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Về trang chủ' }));
     expect(onExitToLauncher).toHaveBeenCalledOnce();
   });
 
@@ -474,7 +474,7 @@ describe('App session admission', () => {
     expect(screen.queryByText(/tường lửa|VPN|mạng khách|Host|địa chỉ/iu)).toBeNull();
     expect(socketHarness.socket.io.reconnection).toHaveBeenCalledWith(false);
     expect(socketHarness.socket.connected).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: 'Quay về trình khởi động LAN' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Về trang chủ' }));
     expect(onExitToLauncher).toHaveBeenCalledOnce();
   });
 
@@ -1305,6 +1305,186 @@ describe('App session admission', () => {
     });
     expect(screen.getByLabelText(/Thẻ Thoát Tù Miễn Phí \(Khí Vận\)/)).toBeTruthy();
     expect(screen.queryByLabelText(/Thẻ Thoát Tù Miễn Phí \(Cơ Hội\)/)).toBeNull();
+  });
+});
+
+describe('App way back to the start screen (desktop)', () => {
+  const socketUrl = 'http://192.168.1.15:8080';
+  const runtimeConfig = {
+    target: 'desktop' as const,
+    socketUrl,
+    platform: 'win32' as const,
+    appVersion: '3.0.0',
+  };
+  const launch = {
+    runtimeConfig,
+    initialJoin: { name: 'Ada', roomCode: 'LAN-42' },
+    targetRoomCode: 'LAN-42',
+    hosting: false,
+  };
+  const HOME = 'Về trang chủ';
+  const BACK = 'Quay lại';
+
+  beforeEach(() => {
+    socketHarness.reset();
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    delete window.ownTheBlockDesktop;
+    window.history.replaceState({}, '', '/');
+  });
+
+  function installBridge() {
+    window.ownTheBlockDesktop = {
+      quit: { onQuitRequested: () => () => undefined, respond: vi.fn() },
+    } as unknown as OwnTheBlockDesktopBridge;
+  }
+
+  /** `null` renders the app with no way back to a start screen. */
+  function renderDesktop(onExitToLauncher: (() => void) | null = vi.fn()) {
+    installBridge();
+    render(
+      <ToastProvider>
+        <App runtimeConfig={runtimeConfig} launch={launch} onExitToLauncher={onExitToLauncher ?? undefined} />
+      </ToastProvider>,
+    );
+    return onExitToLauncher;
+  }
+
+  function answerJoin(response: unknown) {
+    const ack = lastEmission('join room')?.args[1];
+    act(() => { if (isAckCallback(ack)) ack(response); });
+  }
+
+  const roomNotFound = {
+    ok: false,
+    protocolVersion: SOCKET_PROTOCOL_VERSION,
+    error: { code: 'NOT_FOUND', message: 'room not found', retryable: false },
+  };
+
+  it('joins with what the player typed on the start screen and, when that fails, shows it again with a way back', () => {
+    const onExit = renderDesktop();
+
+    expect(lastEmission('join room')?.args[0]).toEqual({ name: 'Ada', roomCode: 'LAN-42' });
+    answerJoin(roomNotFound);
+
+    // The form is back with an error, and nothing has to be typed again.
+    expect(screen.getByRole('alert').textContent).toBe('Không tìm thấy phòng hoặc dữ liệu được yêu cầu.');
+    expect(screen.getByLabelText<HTMLInputElement>('Tên của bạn').value).toBe('Ada');
+    expect(screen.getByLabelText<HTMLInputElement>('Mã phòng').value).toBe('LAN-42');
+    expect(screen.getByRole('radio', { name: 'Có mã phòng' }).getAttribute('aria-checked')).toBe('true');
+
+    fireEvent.click(screen.getByRole('button', { name: BACK }));
+
+    expect(onExit).toHaveBeenCalledOnce();
+    expect(socketHarness.socket.connected).toBe(false);
+    expect(lastEmission('leave room')).toBeUndefined();
+  });
+
+  it('can go back from "Phòng chung" with a code that does not exist, and from a join that is still waiting', () => {
+    const onExit = renderDesktop();
+    answerJoin(roomNotFound);
+    fireEvent.click(screen.getByRole('radio', { name: 'Phòng chung' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Vào phòng' }));
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đang vào phòng…' }).disabled).toBe(true);
+
+    // The answer has not come: the way back is still there and does not wait for it.
+    fireEvent.click(screen.getByRole('button', { name: BACK }));
+    expect(onExit).toHaveBeenCalledOnce();
+
+    // A late answer for a room the player already left must not change the screen.
+    answerJoin(roomNotFound);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(lastEmission('resume session')).toBeUndefined();
+  });
+
+  it('leaves a session saved for another room alone: going back is a disconnect, not a leave', () => {
+    const saved = { token: RECONNECT_TOKEN, roomCode: 'LAN-OLD' };
+    window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, JSON.stringify({ version: 3, sessions: { [socketUrl]: saved } }));
+    const onExit = renderDesktop();
+    answerJoin(roomNotFound);
+
+    fireEvent.click(screen.getByRole('button', { name: BACK }));
+
+    expect(onExit).toHaveBeenCalledOnce();
+    expect(JSON.parse(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY) ?? '{}')).toEqual({
+      version: 3,
+      sessions: { [socketUrl]: saved },
+    });
+    expect(lastEmission('leave room')).toBeUndefined();
+  });
+
+  it('has no way back where there is no start screen: a plain browser, or no exit given', () => {
+    // A plain browser: the join form is the first screen.
+    const web = render(<ToastProvider><App /></ToastProvider>);
+    expect(screen.queryByRole('button', { name: BACK })).toBeNull();
+    web.unmount();
+
+    // The desktop bridge without a way to go back (the app was not started by the launcher).
+    renderDesktop(null);
+    expect(screen.queryByRole('button', { name: BACK })).toBeNull();
+  });
+
+  it('puts "Về trang chủ" beside "Thử lại" when the saved game cannot be confirmed in time', () => {
+    vi.useFakeTimers();
+    window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, JSON.stringify({
+      version: 3,
+      sessions: { [socketUrl]: { token: RECONNECT_TOKEN, roomCode: 'LAN-42' } },
+    }));
+    const onExit = renderDesktop();
+    expect(lastEmission('resume session')).toBeDefined();
+
+    act(() => { vi.advanceTimersByTime(10_000); });
+
+    expect(screen.getByText('Máy chủ chưa xác nhận phiên chơi kịp thời.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Thử lại' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: HOME }));
+    expect(onExit).toHaveBeenCalledOnce();
+    // The room is not left: the saved session stays, so the player can come back to it from the start screen.
+    expect(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY)).not.toBeNull();
+    expect(lastEmission('leave room')).toBeUndefined();
+  });
+
+  it('shows one way home, not two, when the failure already offers it', () => {
+    const onExit = renderDesktop();
+
+    act(() => socketHarness.trigger('connect_error', new Error('timeout')));
+
+    expect(screen.getAllByRole('button', { name: HOME })).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: HOME }));
+    expect(onExit).toHaveBeenCalledOnce();
+  });
+
+  it('is not a dead end when the session was opened somewhere else', () => {
+    const onExit = renderDesktop();
+
+    act(() => {
+      socketHarness.trigger('session replaced', {
+        code: 'SESSION_REPLACED',
+        message: 'This session moved to a newer connection.',
+      });
+    });
+
+    expect(screen.getByRole('heading', { name: 'Phiên chơi đã được mở ở nơi khác' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: HOME }));
+    expect(onExit).toHaveBeenCalledOnce();
+  });
+
+  it('is still a dead end with no button in a plain browser (nothing to go back to)', () => {
+    render(<ToastProvider><App /></ToastProvider>);
+
+    act(() => {
+      socketHarness.trigger('session replaced', {
+        code: 'SESSION_REPLACED',
+        message: 'This session moved to a newer connection.',
+      });
+    });
+
+    expect(screen.queryByRole('button', { name: HOME })).toBeNull();
   });
 });
 
