@@ -193,3 +193,34 @@ open work, not closed evidence.
 
 The installers were built, passed the packaged proofs on CI and were published by the workflow. This record does not claim
 that anyone installed them from the release page on a machine; that and the open gates above stay separate evidence.
+
+## V1.1.0 release decision
+
+On 2026-10-03 the product owner answered the question "Gộp vào main và phát hành v1.1.0" in chat after the agent reported that
+all twelve post-release feedback items were implemented, with CI and Desktop Build green on commit `65d4855`. The program
+register is [../v1-1-feedback/README.md](../v1-1-feedback/README.md). `1.1.0` keeps Socket protocol 9 and room snapshot
+schema 8; the only wire change is an optional `price` on a forced-sale proposal. The agent wrote this section on that decision.
+
+`1.1.0` is released **unsigned**, with the gates of `1.0.0` still open and with new manual rows unobserved: the V1.1 rows of
+[V1_FINAL_MANUAL_ACCEPTANCE.md](V1_FINAL_MANUAL_ACCEPTANCE.md) (LAN room lookup on real networks and firewalls, the main menu and
+way back, the debt window timing) and the manual rows in `testcase/`. A tick means a person observed the item, so none was
+ticked. The UDP room lookup was exercised by automated tests and CI only, not on physical Wi-Fi networks.
+
+### Release record (1.1.0)
+
+| Item | Value |
+| --- | --- |
+| Tag | `v1.1.0` (annotated), on commit `65d4855` of `main` |
+| Workflow run | Release Candidate #4 (`37136762248`), started by the tag push: success in 9m 37s. The CI (#156) and Desktop Build (#133) runs of the same commit on `main` also passed |
+| Release | `https://github.com/tvghung/monopoly/releases/tag/v1.1.0`, "Own the Block v1.1.0", marked Latest, published 2026-10-03 16:34 UTC by the workflow token |
+| Distribution mode | `unsigned-validation` (signing BLOCKED, notarization BLOCKED/NOT RUN, as for 1.0.0) |
+
+| Asset | Size | SHA-256 shown by GitHub |
+| --- | --- | --- |
+| `OwnTheBlock-1.1.0-win32-x64-Setup.exe` | 250 MB | `fb36513d4fed08cbbed1d4299c84e3810c16d4b4dcb540309d4f7f18bad75910` |
+| `OwnTheBlock-1.1.0-macos-x64.dmg` | 380 MB | `84699f84b5b6a48de78b6627939615dfa5a9cbec41697b12147576027f79a2fa` |
+| `OwnTheBlock-1.1.0-macos-arm64.dmg` | 378 MB | `c711052017ccaa147db108f7dc02950da0038c3afc5313e112efc9c0915fcf11` |
+| `SHA256SUMS.txt` | 302 bytes | `103bb6d0ec76d202e8a1f5554d225dd184a02ac6bc75597911c08fe758c25a3e` |
+
+As for `1.0.0`: the installers were built, passed the packaged proofs on CI and were published by the workflow; nobody is
+recorded as having installed them from the release page.

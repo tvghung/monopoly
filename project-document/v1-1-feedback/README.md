@@ -1,6 +1,6 @@
 # V1.1 — Owner feedback after the V1 release
 
-**Status: IN PROGRESS** — opened 2026-10-03. Branch `overhaul/v1-1-feedback`; target release `v1.1.0`.
+**Status: RELEASED as `v1.1.0` on 2026-10-03** (tag on `65d4855`; record in [V1_RELEASE_CONTRACT.md](../ui-ux-overhaul/V1_RELEASE_CONTRACT.md#v110-release-decision)). Branch `overhaul/v1-1-feedback`, merged to `main`. Manual rows stay open.
 
 The product owner tested the released V1 (`v1.0.0`, 2026-10-02) and sent a numbered list of problems and wishes. The list
 arrived in two parts: items 5 (end) to 12 first, items 1 to 5 (start) a few hours later, once the first part was already
