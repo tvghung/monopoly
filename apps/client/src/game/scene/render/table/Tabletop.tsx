@@ -38,7 +38,9 @@ export default function Tabletop() {
       <planeGeometry args={[TABLETOP_SIZE, TABLETOP_SIZE]} />
       <meshStandardMaterial
         map={textures.albedo}
-        roughnessMap={textures.roughness ?? undefined}
+        // `null`, not `undefined`: R3F skips an undefined prop, so after a switch to a tier without the roughness variation the
+        // material would keep pointing at the texture that was just disposed.
+        roughnessMap={textures.roughness ?? null}
         roughness={TABLETOP_ROUGHNESS}
         metalness={0}
       />

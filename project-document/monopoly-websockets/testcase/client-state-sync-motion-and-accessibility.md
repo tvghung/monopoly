@@ -93,6 +93,15 @@
   on small touch devices, invalid values normalize to `auto`), the per-tier config table,
   Neutral tone mapping and the post-chain constants are guarded by `renderQuality`,
   `toneMapping`, `postSettings` and settings tests.
+- [x] `[CLIENT][AUTOMATED]` V1.1 graphics tier switch: the Canvas camera is `manual` and the frustum depends on the aspect only
+  (`FixedBoardCamera.test.ts`), the key light drops its shadow map when `mapSize`/`enabled` change (`SceneLightRig.test.ts`), and a
+  failed optional layer is retried when its reset key (the tier) changes (`OptionalSceneLayer.test.tsx`).
+- [ ] `[BROWSER]` V1.1 graphics tier switch keeps the board: `e2e/visual/graphicsTierSwitch.visual.ts` (SwiftShader; run with
+  `pnpm exec playwright test --config playwright.visual.config.ts graphicsTierSwitch`) switches low → balanced → low → high →
+  balanced and asserts the renderer drew the new tier, the pixel ratio of each tier, the camera frustum equal to the first load,
+  draw calls and triangles, and a canvas that still shows the board. Before the fix the first switch left a bare table.
+- [ ] `[MANUAL-E2E]` V1.1: switch Cài đặt → Đồ họa → Chất lượng đồ họa between Tự động / Cao / Cân bằng / Thấp several times in a real game on
+  the packaged app and on a phone: the board, pieces and coin trays stay on screen every time.
 - [x] `[CLIENT][AUTOMATED]` The tabletop covers every standard aspect ratio (1 → 2.4) and
   the frame counter splits main / shadow / post draw calls and composer passes
   (`tabletopCoverage`, `rendererInfo`, `composerPasses` tests).

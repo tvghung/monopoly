@@ -4,10 +4,9 @@ import * as THREE from 'three';
 import Board3D from './board/Board3D';
 import type { BoardRenderModel } from './board/boardRenderModel';
 import { boardVisualTokens } from './board/boardVisualTokens';
-import { getOrthographicCameraPosition } from './camera/cameraMath';
 import PropScreenRectsPublisher from '../../dev/hud-overlap/PropScreenRectsPublisher';
 import TileScreenRectsPublisher from '../../dev/hud-overlap/TileScreenRectsPublisher';
-import FixedBoardCamera from './camera/FixedBoardCamera';
+import FixedBoardCamera, { BOARD_CANVAS_CAMERA } from './camera/FixedBoardCamera';
 import {
   HARD_TRIANGLE_LIMIT,
   STRESS_DRAW_CALL_LIMIT,
@@ -158,6 +157,15 @@ function RendererDiagnostics({
         drawingBuffer: { width: drawingBufferSize.x, height: drawingBufferSize.y },
         camera: 'orthographic',
         cameraPosition: camera.position.toArray(),
+        cameraFrustum: camera instanceof THREE.OrthographicCamera
+          ? {
+            left: camera.left,
+            right: camera.right,
+            top: camera.top,
+            bottom: camera.bottom,
+            zoom: camera.zoom,
+          }
+          : null,
         toneMapping: toneMappingName(gl.toneMapping),
         toneMappingExposure: gl.toneMappingExposure,
         shadows: {
@@ -335,11 +343,7 @@ export default function GameScene({
   return (
     <div className="game-scene" data-testid="game-scene" data-graphics-tier={quality.tier}>
       <Canvas
-        camera={{
-          near: 0.1,
-          far: 100,
-          position: getOrthographicCameraPosition(),
-        }}
+        camera={BOARD_CANVAS_CAMERA}
         orthographic
         dpr={[quality.dpr[0], quality.dpr[1]]}
         frameloop="demand"
@@ -358,19 +362,19 @@ export default function GameScene({
           <RendererLifecycleGuard onFailure={onRendererFailure} />
           <color attach="background" args={[boardVisualTokens.sceneBackground]} />
           <SceneLightRig />
-          <OptionalSceneLayer name="studio-environment">
+          <OptionalSceneLayer name="studio-environment" resetKey={quality.tier}>
             <StudioEnvironment />
           </OptionalSceneLayer>
-          <OptionalSceneLayer name="tabletop">
+          <OptionalSceneLayer name="tabletop" resetKey={quality.tier}>
             <Tabletop />
             <BoardGroundShadow />
           </OptionalSceneLayer>
-          <OptionalSceneLayer name="table-props">
+          <OptionalSceneLayer name="table-props" resetKey={quality.tier}>
             <TableProps />
           </OptionalSceneLayer>
           {quality.postProcessing
             ? (
-              <OptionalSceneLayer name="post-processing">
+              <OptionalSceneLayer name="post-processing" resetKey={quality.tier}>
                 <ScenePostEffects />
               </OptionalSceneLayer>
             )

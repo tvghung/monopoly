@@ -139,6 +139,16 @@ và 40 semantic tile buttons không đổi.
   Đổi tier lúc chạy không cần reload (Canvas `dpr`/`shadows`/`gl.toneMapping` cập nhật,
   post chain mount hoặc unmount). Control nằm trong Settings, nhóm “Đồ họa”, tên
   “Chất lượng đồ họa”.
+  Invariants của việc đổi tier (V1.1, lỗi “board và trạm biến mất”):
+  - Camera của Canvas là `manual` (`BOARD_CANVAS_CAMERA` trong `camera/FixedBoardCamera.tsx`). R3F mặc định ghi đè frustum của
+    camera orthographic về ±size/2 pixel mỗi khi size **hoặc pixel ratio** đổi; tier đổi `dpr` nên board co lại còn vài chục pixel
+    (HUD DOM vẫn thấy, board và trạm tiền 3D thì mất) vì `FixedBoardCamera` chỉ áp lại frustum khi size đổi. `FixedBoardCamera` là nơi
+    duy nhất ghi frustum.
+  - `SceneLightRig` bỏ shadow map của key light khi `shadows.enabled`/`mapSize` đổi (three.js chỉ cấp phát map một lần), nếu không bóng
+    ở balanced ↔ high bị sai tỉ lệ; `Tabletop` truyền `roughnessMap={… ?? null}` (R3F bỏ qua `undefined`, material sẽ giữ texture vừa
+    dispose).
+  - `OptionalSceneLayer` nhận `resetKey={quality.tier}`: layer đã lỗi ở tier này được thử lại khi đổi tier.
+  - Diagnostics (`__OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__`) có thêm `cameraFrustum`.
 - **Post chain (chỉ high)**: `render/post/ScenePostEffects.tsx` là lazy chunk, tier khác
   không tải. Thứ tự: N8AO (half res, aoRadius 0.8, distanceFalloff 0.6, intensity 1.6,
   màu AO ấm) → Bloom (mipmapBlur, ngưỡng 1.5 trên HDR buffer, intensity 0.22) →

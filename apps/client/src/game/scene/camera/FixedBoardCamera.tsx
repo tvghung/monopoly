@@ -23,6 +23,19 @@ export function configureOrthographicCamera(
   camera.updateProjectionMatrix();
 }
 
+/**
+ * The `camera` prop of the board Canvas. `manual` keeps R3F away from the frustum: without it R3F rewrites an orthographic
+ * camera to +-size/2 pixels on every size AND pixel-ratio change. A graphics tier change moves the pixel ratio, while
+ * FixedBoardCamera only re-applies the board frustum when the size changes, so the board used to shrink to a few dozen pixels
+ * and vanish together with the player stations (V1.1 feedback item 12). FixedBoardCamera is the only writer of the frustum.
+ */
+export const BOARD_CANVAS_CAMERA = {
+  manual: true,
+  near: 0.1,
+  far: 100,
+  position: getOrthographicCameraPosition(),
+} as const;
+
 export default function FixedBoardCamera() {
   const camera = useThree(state => state.camera);
   const width = useThree(state => state.size.width);
