@@ -21,10 +21,15 @@ export function validateV1Contract(root = repositoryRoot) {
       throw new Error(`${file}: obsolete product version; derive release identity from package metadata.`);
     }
   };
+  // The release version is written once, in the contract ("Semantic version: x.y.z"); every package must carry it.
+  const contractVersion = /^Semantic version: (\d+\.\d+\.\d+)\s*$/m.exec(read(contractPath))?.[1];
+  if (!contractVersion) {
+    throw new Error(`${contractPath}: required contract field "Semantic version: x.y.z" is missing or incorrect.`);
+  }
   for (const file of packagePaths) {
     const metadata = JSON.parse(read(file));
-    if (metadata.version !== '1.0.0') {
-      throw new Error(`${file}: expected V1 version 1.0.0, found ${String(metadata.version)}.`);
+    if (metadata.version !== contractVersion) {
+      throw new Error(`${file}: expected V1 version ${contractVersion}, found ${String(metadata.version)}.`);
     }
     if (file === 'apps/desktop/package.json' && metadata.productName !== 'Own the Block') {
       throw new Error(`${file}: productName must be Own the Block.`);
@@ -35,7 +40,7 @@ export function validateV1Contract(root = repositoryRoot) {
   requireMatch('packages/shared/src/types.ts',
     /^export const SOCKET_PROTOCOL_VERSION = 9 as const;\r?$/m,
     'expected authoritative SOCKET_PROTOCOL_VERSION = 9 as const;');
-  for (const field of ['Product: Own the Block', 'Release: V1', 'Semantic version: 1.0.0', 'Socket protocol: 9']) {
+  for (const field of ['Product: Own the Block', 'Release: V1', `Semantic version: ${contractVersion}`, 'Socket protocol: 9']) {
     if (!read(contractPath).split(/\r?\n/).includes(field)) {
       throw new Error(`${contractPath}: required contract field "${field}" is missing or incorrect.`);
     }
@@ -65,6 +70,7 @@ export function validateV1Contract(root = repositoryRoot) {
   for (const file of ['apps/desktop/forge.config.cjs', 'README.md', contractPath]) {
     rejectOldVersion(file, read(file));
   }
+  return contractVersion;
 }
 
 export function isCliEntry(entryPath = process.argv[1]) {
@@ -79,8 +85,8 @@ export function isCliEntry(entryPath = process.argv[1]) {
 
 if (isCliEntry()) {
   try {
-    validateV1Contract();
-    process.stdout.write('V1 release contract PASS: Own the Block 1.0.0; Socket protocol 9.\n');
+    const version = validateV1Contract();
+    process.stdout.write(`V1 release contract PASS: Own the Block ${version}; Socket protocol 9.\n`);
   } catch (error) {
     process.stderr.write(`V1 release contract FAIL: ${error.message}\n`);
     process.exitCode = 1;

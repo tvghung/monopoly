@@ -8,7 +8,7 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.0.0
+Semantic version: 1.1.0
 Socket protocol: 9
 ```
 
@@ -26,6 +26,14 @@ Client authentication and server admission both import that shared constant.
 - Multiplayer: LAN-first. The desktop host owns the authoritative server runtime;
   browser/mobile devices join through its LAN URL. No public cloud server is
   required for V1. Existing explicit endpoint overrides remain available.
+  _V1.1 (owner feedback, branch `overhaul/v1-1-feedback`):_ a desktop guest finds
+  the Host from the room code alone through a request/response UDP lookup on port
+  `41234` (desktop Host profile only; no token, hash or player data on the wire;
+  the cloud server is untouched), with a pasted invitation link as the fallback
+  for networks that block broadcast. This reverses the Phase 7.2 decision to ship
+  no UDP discovery; the contract is in
+  [Api/http-runtime.instruction.md](../monopoly-websockets/Api/http-runtime.instruction.md#lan-room-lookup-desktop-host-profile-only).
+  The `1.0.0` release record at the end of this file is unchanged by it.
 - Persistence: managed local PostgreSQL for the desktop host, bound to loopback
   only. Database credentials remain inside the host runtime.
 - Client: React/Vite, used by the Electron renderer and LAN browser client.
@@ -38,8 +46,8 @@ Implementation references: `apps/desktop/src/hostRuntime.ts`, `managedPostgres.t
 ## Packaging identity
 
 Forge uses the root package version for app metadata and the Windows Squirrel
-name: `OwnTheBlock-1.0.0-win32-x64-Setup.exe`. The installed Forge DMG maker resolves
-`Own the Block-1.0.0-x64.dmg` and `Own the Block-1.0.0-arm64.dmg` from app name,
+name: `OwnTheBlock-1.1.0-win32-x64-Setup.exe`. The installed Forge DMG maker resolves
+`Own the Block-1.1.0-x64.dmg` and `Own the Block-1.1.0-arm64.dmg` from app name,
 desktop package version, and target architecture. The application and collected
 manifest derive their version from package metadata. These are configuration expectations,
 not claims that new artifacts were built. Release metadata rejects mismatched
@@ -47,7 +55,7 @@ application package versions; signing/notarization semantics remain unchanged.
 
 ## Release publication
 
-A release is published by pushing the annotated tag `v<semver>` (`v1.0.0` for `1.0.0`) on a commit that is on `main`;
+A release is published by pushing the annotated tag `v<semver>` (`v1.1.0` for `1.1.0`) on a commit that is on `main`;
 the README section "Publishing a release" has the commands. The `Release Candidate` workflow
 (`.github/workflows/release-candidate.yml`) reacts to the tag:
 
@@ -149,7 +157,7 @@ references across tracked files, including the lockfile and release tooling.
 | Dependency/devDependency fields and pnpm lockfile resolutions (including matching version substrings) | DEPENDENCY VERSION: unchanged; frozen install requires no lockfile regeneration. |
 | Snapshot/storage/settings/schema/migration versions, PostgreSQL binary version, XML headers, general branding and tool-version references | UNRELATED to product semver: retained. Snapshot version 8 is not Socket protocol 9. |
 
-## V1 release decision
+## V1.0.0 release decision
 
 On 2026-10-02 the product owner decided to release V1 ("thôi hãy publish v1 luôn đi, tôi chốt sổ r release v1 nhé"), after
 the agent ran the packaged Windows app (built from the merged `main`) and the development demo pages for them to try.

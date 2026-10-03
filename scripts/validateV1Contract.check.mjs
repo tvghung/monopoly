@@ -64,7 +64,7 @@ const cases = [
   ...packagePaths.map(file => [`${file} version drift`, file, packageJson('2.0.0'), /expected V1 version/]),
   ['protocol drift', protocolPath, 'export const SOCKET_PROTOCOL_VERSION = 10 as const;', /SOCKET_PROTOCOL_VERSION/],
   ['missing contract', contractPath, null, /V1_RELEASE_CONTRACT/],
-  ['incorrect contract version', contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 2.0.0\nSocket protocol: 9', /Semantic version/],
+  ['incorrect contract version', contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 2.0.0\nSocket protocol: 9', /expected V1 version 2\.0\.0/],
   ['incorrect contract protocol', contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 1.0.0\nSocket protocol: 8', /Socket protocol/],
   ['missing historical notice', historicalPath, '[Current](V1_RELEASE_CONTRACT.md)\nprotocol V8', /historical notice/],
   ['missing historical link', historicalPath, 'HISTORICAL ENGINEERING RECORD\nprotocol V8', /historical notice/],

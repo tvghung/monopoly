@@ -1,6 +1,6 @@
 # Cờ Tỷ Phú Việt Nam
 
-Current release identity: **Own the Block V1 / 1.0.0**, Socket protocol **9**.
+Current release identity: **Own the Block V1 / 1.1.0**, Socket protocol **9**.
 See the [V1 release contract](project-document/ui-ux-overhaul/V1_RELEASE_CONTRACT.md)
 for the LAN-first desktop architecture and pending production soundtrack gate.
 Validate identity with `pnpm validate:v1-contract`.
@@ -131,11 +131,14 @@ pnpm desktop:release  # LAN-first release-candidate build; endpoint override is 
 For a self-contained Host check, run `pnpm desktop:package`, then
 `pnpm desktop:run:packaged` and choose **Tạo phòng trên máy này**. The packaged app starts its
 own loopback-only PostgreSQL and authoritative server; no developer PostgreSQL or
-external Socket.IO URL is required. To test Join, open the Host URL in a browser
-on the same LAN or run a second packaged desktop instance, choose **Tham gia phòng LAN**,
-and enter the Host IPv4/port plus `OTB-XXXXXX` room code. The invite URL format is
-`http://<host-ip>:<actual-port>/?room=<room-code>`; opening it prefills but does not
-submit the room.
+external Socket.IO URL is required. To test Join, run a second packaged desktop instance
+(on another PC on the same Wi-Fi), choose **Tham gia phòng LAN** and enter only a name and
+the `OTB-XXXXXX` room code: the app finds the Host by itself (a small UDP broadcast on
+port `41234`, about 3 seconds; the Host's firewall may ask once to allow Own the Block).
+If the network blocks broadcast (guest Wi-Fi, client isolation) a field to paste the
+invitation link appears after the failed search. A phone or another browser can instead
+open the Host URL (the QR code in the lobby): `http://<host-ip>:<actual-port>/?room=<room-code>`;
+opening it prefills but does not submit the room.
 
 ### Publishing a release
 
