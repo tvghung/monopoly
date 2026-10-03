@@ -1,6 +1,6 @@
 # Cờ Tỷ Phú Việt Nam
 
-Current release identity: **Own the Block V1 / 1.1.0**, Socket protocol **9**.
+Current release identity: **Own the Block V1 / 1.1.1**, Socket protocol **9**.
 See the [V1 release contract](project-document/ui-ux-overhaul/V1_RELEASE_CONTRACT.md)
 for the LAN-first desktop architecture and pending production soundtrack gate.
 Validate identity with `pnpm validate:v1-contract`.
