@@ -1,0 +1,66 @@
+name: Archive Evidence
+
+# A pushed `evidence-*` tag publishes the visual evidence of the tagged commit
+# (project-document/visual-overhaul-v2/evidence: PNG screenshots, JSON measurements and gate READMEs) as a pre-release
+# zip, so the screenshots can leave `main` without being lost. It is not a game release: Release Candidate only reacts
+# to `v*` tags, and a pre-release never becomes the "latest" release that the README download link points at.
+on:
+  push:
+    tags:
+      - 'evidence-*'
+
+permissions:
+  contents: read
+
+jobs:
+  archive:
+    name: Archive the evidence folder
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package the evidence folder
+        run: |
+          set -euo pipefail
+          mkdir -p archive
+          # The zip root is `evidence/`, so a path cited in a plan (evidence/02/g2/...) is the same path in the zip.
+          git archive --format=zip --prefix=evidence/ \
+            --output=archive/visual-overhaul-v2-evidence.zip \
+            "${GITHUB_SHA}:project-document/visual-overhaul-v2/evidence"
+          (cd archive && sha256sum visual-overhaul-v2-evidence.zip > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          # One SHA-256 per file of the zip, computed from the extracted zip itself, so the archive can be checked against
+          # the committed blobs without downloading the whole zip.
+          rm -rf check && mkdir check
+          unzip -q archive/visual-overhaul-v2-evidence.zip -d check
+          (cd check/evidence && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum) \
+            | sed -E 's#^([0-9a-f]{64}) [ *]\./#\1  #' > archive/FILES.sha256
+          wc -l archive/FILES.sha256
+          files="$(unzip -Z1 archive/visual-overhaul-v2-evidence.zip | grep -vc '/$')"
+          pngs="$(unzip -Z1 archive/visual-overhaul-v2-evidence.zip | grep -ic '\.png$')"
+          bytes="$(stat -c %s archive/visual-overhaul-v2-evidence.zip)"
+          echo "files=$files pngs=$pngs bytes=$bytes"
+          test "$files" -gt 0
+          {
+            echo "Archive of \`project-document/visual-overhaul-v2/evidence\` at commit \`${GITHUB_SHA}\` (tag \`${GITHUB_REF_NAME}\`)."
+            echo
+            echo "- \`visual-overhaul-v2-evidence.zip\`: $files files ($pngs PNG screenshots), $bytes bytes. The zip root is \`evidence/\`."
+            echo "- \`SHA256SUMS.txt\`: checksum of the zip."
+            echo "- \`FILES.sha256\`: the SHA-256 of every file inside the zip (paths relative to \`evidence/\`)."
+            echo
+            echo "This is not a game release. The Own the Block installers are on the releases named \`v<version>\`."
+            echo "The screenshots left \`main\` in 1.1.1; see \`project-document/visual-overhaul-v2/evidence/README.md\`."
+          } > notes.md
+
+      - name: Publish the archive as a pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" archive/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --prerelease \
+            --title "Visual overhaul v2 evidence (archive)" \
+            --notes-file notes.md
