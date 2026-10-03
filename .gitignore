@@ -117,3 +117,8 @@ apps/desktop/generated/
 # Playwright output
 test-results/
 playwright-report/
+blob-report/
+
+# Visual evidence screenshots live in the evidence-visual-v2-2026-10-02 release archive, not on main; the JSON measurements and
+# the gate READMEs in the same folder stay tracked (see project-document/visual-overhaul-v2/evidence/README.md).
+project-document/visual-overhaul-v2/evidence/**/*.png

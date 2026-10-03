@@ -138,6 +138,9 @@ choice. Design and wire contract: [Api/http-runtime.instruction.md](../Api/http-
 - [x] `[AUTO]` The size budget reads `app.asar` from its header and fails when it packs `generated/`, `src/`, `tests/` or
   `scripts/`, when an excluded PostgreSQL file or an extra locale ships, when a required binary is missing, or when the
   Windows Setup.exe exceeds its budget: `apps/desktop/tests/checkPackagedBudget.test.ts`.
+- [x] `[CI]` The `Archive Evidence` workflow published the evidence of commit `9c79c29` as the pre-release
+  `evidence-visual-v2-2026-10-02` (run `37147251894`): the zip's `FILES.sha256` lists 1,130 files, every SHA-256 equals the
+  committed blob, and `releases/latest` still points at the game release `v1.1.0`. Checked before the PNGs left `main`.
 - [ ] `[CI]` Desktop Build and Release Candidate run `proof:packaged:budget` on the real packaged app after the packaged
   proofs, and the Windows/macOS packaged runtime and Host proofs still pass with the pruned PostgreSQL.
 - [ ] `[PACKAGED]` A fresh install of the lean Windows Setup.exe hosts a LAN game, survives an app restart with the same

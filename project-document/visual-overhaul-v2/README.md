@@ -339,6 +339,10 @@ VITE_PHASE4_UAT=1 pnpm --filter @monopoly/client exec vite --mode phase4-uat
 - Save evidence to `project-document/visual-overhaul-v2/evidence/<plan-number>/`,
   named `<NN>-<surface>-<state>-<width>x<height>.png` (for example
   `03-hud-opponent-turn-1440x900.png`).
+- Since 1.1.1 the PNG files of the closed gates G1 to G5 are not on `main` (519 files, 221 MiB, nothing reads them at
+  runtime). They are the zip of the pre-release `evidence-visual-v2-2026-10-02`, under the same relative paths that the plans
+  and test-case documents cite; `*.png` in that folder is ignored by Git, and the JSON measurements and gate READMEs stay
+  committed. See `evidence/README.md` for how to restore, publish or reproduce them.
 - Standard viewports: `1920×1080`, `1440×900`, `1280×720` (Electron minimum),
   `812×375` (phone landscape), `667×375` (small phone landscape), `1024×768`
   (tablet landscape). Portrait phones only need the rotate-device gate.

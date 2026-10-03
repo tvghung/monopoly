@@ -5,7 +5,8 @@ import { test, type Page } from '@playwright/test';
 import { findHudPropOverlaps, findHudTileOverlaps, findPropTileOverlaps } from '../../apps/client/src/dev/hud-overlap/polygonOverlap';
 import { CAPTURES, type CaptureEntry } from './captures';
 
-// VISUAL_EVIDENCE_DIR redirects the output, for example to compare against committed evidence.
+// VISUAL_EVIDENCE_DIR redirects the output, for example to compare against the archived evidence (the PNGs are not
+// committed; see project-document/visual-overhaul-v2/evidence/README.md).
 const EVIDENCE_ROOT = process.env.VISUAL_EVIDENCE_DIR
   ? path.resolve(process.env.VISUAL_EVIDENCE_DIR)
   : fileURLToPath(new URL('../../project-document/visual-overhaul-v2/evidence/', import.meta.url));
