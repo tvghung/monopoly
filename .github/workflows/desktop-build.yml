@@ -150,6 +150,14 @@ jobs:
       - name: Check packaged size budget
         run: pnpm --filter @monopoly/desktop proof:packaged:budget
 
+      - name: Verify macOS disk image
+        if: runner.os == 'macOS'
+        run: |
+          dmg_path="$(find apps/desktop/out/make -type f -name '*.dmg' -print -quit)"
+          test -n "$dmg_path" || { echo 'The macOS DMG was not found.'; exit 1; }
+          ls -l "$dmg_path"
+          hdiutil verify "$dmg_path"
+
       - name: Install mobile browser engines
         run: pnpm exec playwright install chromium webkit
 

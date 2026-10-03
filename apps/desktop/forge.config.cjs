@@ -77,7 +77,8 @@ module.exports = {
       name: '@electron-forge/maker-dmg',
       platforms: ['darwin'],
       config: {
-        format: 'ULFO',
+        // LZMA (macOS 10.15+; Electron 43 itself needs macOS 12+) packs the Chromium framework tighter than LZFSE.
+        format: 'ULMO',
         icon: nativeIcon,
       },
     },
