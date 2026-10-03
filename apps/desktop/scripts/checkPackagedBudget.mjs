@@ -7,7 +7,7 @@ import { KEPT_ELECTRON_LOCALES } from './pruneElectronLocales.mjs';
 import { REQUIRED_POSTGRES_BINARIES, shouldShipPostgresFile } from './postgresRuntimeFilter.mjs';
 
 // Size gate for the packaged desktop app: proves the packaging stays lean (no duplicate PostgreSQL inside
-// app.asar, pruned PostgreSQL and Electron locales) and that the Windows installer stays within its budget.
+// app.asar, pruned PostgreSQL and Electron locales) and that the installers a player downloads stay within budget.
 // It prints the size table either way, so every Desktop Build log records what a player downloads.
 
 const desktopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -17,11 +17,29 @@ const MIB = 1048576;
 export const ASAR_MAX_BYTES = 5 * MIB;
 export const ASAR_FORBIDDEN_ROOTS = ['generated', 'src', 'tests', 'scripts', 'node_modules', 'out'];
 /**
- * The Windows Setup.exe a player downloads. It was 249.7 MiB; it measures 181.9 MiB after the duplicate PostgreSQL
- * copy, the link-time libraries and the extra Electron locales were removed, and 160.6 MiB once the music shipped as
- * Ogg Vorbis instead of WAV. This budget leaves about 14 MiB of headroom.
+ * What a player downloads. Windows `Setup.exe`: 249.7 MiB originally, 181.9 MiB after the duplicate PostgreSQL copy, the
+ * link-time libraries and the extra Electron locales were removed, 160.6 MiB once the music shipped as Ogg Vorbis instead
+ * of WAV. macOS `.dmg` (Apple silicon): 378.1 MiB originally, 236.2 MiB with those changes, 173 MiB with LZMA (ULMO)
+ * compression instead of LZFSE. Each budget leaves headroom of 10 percent or more.
  */
-export const WINDOWS_SETUP_MAX_BYTES = 175 * MIB;
+export const INSTALLER_BUDGETS = [
+  { label: 'Windows Setup.exe', pattern: /Setup\.exe$/i, maxBytes: 175 * MIB },
+  { label: 'macOS DMG', pattern: /\.dmg$/i, maxBytes: 195 * MIB },
+];
+
+/** Budget violations of installer files given as `{ path, size }`. */
+export function installerBudgetErrors(installers) {
+  const errors = [];
+  for (const installer of installers) {
+    const budget = INSTALLER_BUDGETS.find(candidate => candidate.pattern.test(installer.path));
+    if (budget && installer.size > budget.maxBytes) {
+      errors.push(
+        `${path.posix.basename(installer.path)} is ${mib(installer.size)}, above the ${mib(budget.maxBytes)} ${budget.label} budget`,
+      );
+    }
+  }
+  return errors;
+}
 
 /** Lists the files of an asar archive with their sizes, from its header (no dependency on @electron/asar). */
 export async function readAsarEntries(asarPath) {
@@ -120,12 +138,8 @@ export async function checkPackagedBudget({
   const makeRoot = path.join(outRoot, 'make');
   if (existsSync(makeRoot)) {
     const installers = (await walkFiles(makeRoot)).filter(file => /(?:Setup\.exe|\.dmg)$/i.test(file.path));
-    for (const installer of installers) {
-      rows.push([`installer ${path.posix.basename(installer.path)}`, installer.size]);
-      if (/Setup\.exe$/i.test(installer.path) && installer.size > WINDOWS_SETUP_MAX_BYTES) {
-        errors.push(`${path.posix.basename(installer.path)} is ${mib(installer.size)}, above the ${mib(WINDOWS_SETUP_MAX_BYTES)} budget`);
-      }
-    }
+    for (const installer of installers) rows.push([`installer ${path.posix.basename(installer.path)}`, installer.size]);
+    errors.push(...installerBudgetErrors(installers));
   }
 
   return { rows, errors };

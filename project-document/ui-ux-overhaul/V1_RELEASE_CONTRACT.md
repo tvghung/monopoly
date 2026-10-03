@@ -67,15 +67,19 @@ The packaged app is kept lean on purpose, because players download the installer
   `preparePostgres.mjs` runs `postgres --version` on the pruned copy. The client tools, `share/` and the server modules stay.
 - Electron's Windows build keeps `en-US.pak` and `vi.pak` only (the game is Vietnamese-only); macOS locale bundles are listed
   in the build log, not removed.
+- The macOS disk image is LZMA-compressed (`format: 'ULMO'`, macOS 10.15 and later; Electron 43 needs macOS 12), and Desktop
+  Build and Release Candidate run `hdiutil verify` on it.
 - `pnpm --filter @monopoly/desktop proof:packaged:budget` runs after the packaged proofs in Desktop Build and Release Candidate.
   It fails when `app.asar` packs a development folder or exceeds 5 MiB, when an excluded PostgreSQL file or an extra locale
-  ships, when a required binary is missing, or when the Windows `Setup.exe` is over its budget.
+  ships, when a required binary is missing, or when an installer is over its budget (Windows `Setup.exe` 175 MiB, macOS `.dmg`
+  195 MiB).
+- The workflows upload only the installers and no longer install ffmpeg: nothing in the repository calls it.
 
 Measured on Windows x64 (V1.1.0 sources): `Setup.exe` 249.7 MiB before, 181.9 MiB after these rules and 160.6 MiB once the
 music is Ogg Vorbis (see the audio policy); unpacked app 655.6 MiB before, 425.5 MiB after the packaging rules and 402.4 MiB
 with the Ogg music; `resources/postgres` 134.5 MiB before, 89.2 MiB after. The packaged runtime proof, the Host proof and the
-audio, card and landmark proofs pass on the lean package. The Windows `Setup.exe` budget of `proof:packaged:budget` is
-175 MiB.
+audio, card and landmark proofs pass on the lean package. macOS (Apple silicon, Desktop Build artifact): the disk image was
+378.1 MiB, 236.2 MiB with the packaging rules and the Ogg music (LZFSE) and 173 MiB with LZMA.
 
 ## Release publication
 

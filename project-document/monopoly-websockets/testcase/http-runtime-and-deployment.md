@@ -141,8 +141,12 @@ choice. Design and wire contract: [Api/http-runtime.instruction.md](../Api/http-
 - [x] `[CI]` The `Archive Evidence` workflow published the evidence of commit `9c79c29` as the pre-release
   `evidence-visual-v2-2026-10-02` (run `37147251894`): the zip's `FILES.sha256` lists 1,130 files, every SHA-256 equals the
   committed blob, and `releases/latest` still points at the game release `v1.1.0`. Checked before the PNGs left `main`.
-- [ ] `[CI]` Desktop Build and Release Candidate run `proof:packaged:budget` on the real packaged app after the packaged
-  proofs, and the Windows/macOS packaged runtime and Host proofs still pass with the pruned PostgreSQL.
+- [x] `[AUTO]` The installer budgets (Windows `Setup.exe` 175 MiB, macOS `.dmg` 195 MiB) flag an installer over budget and
+  ignore other files, and stay below the sizes before the slimming work: `apps/desktop/tests/checkPackagedBudget.test.ts`.
+- [x] `[CI]` Desktop Build runs `proof:packaged:budget` on the real packaged app after the packaged proofs, and the Windows and
+  macOS runtime, Host, audio, card and landmark proofs pass with the pruned PostgreSQL and the Ogg music (runs `37145323205`,
+  `37147002597`, `37147677938`); macOS also runs `hdiutil verify` on the LZMA disk image. Release Candidate carries the same
+  steps and has not run since: its first tag run is the check.
 - [ ] `[PACKAGED]` A fresh install of the lean Windows Setup.exe hosts a LAN game, survives an app restart with the same
   room, and uninstalls cleanly. Not automated.
 

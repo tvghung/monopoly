@@ -2,7 +2,12 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { checkPackagedBudget, readAsarEntries } from '../scripts/checkPackagedBudget.mjs';
+import {
+  checkPackagedBudget,
+  INSTALLER_BUDGETS,
+  installerBudgetErrors,
+  readAsarEntries,
+} from '../scripts/checkPackagedBudget.mjs';
 
 const postgresResources = {
   targets: {
@@ -78,6 +83,32 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await rm(root, { recursive: true, force: true });
+});
+
+describe('installer size budget', () => {
+  const MIB = 1048576;
+
+  it('accepts the measured installers and flags ones over budget', () => {
+    expect(installerBudgetErrors([
+      { path: 'squirrel.windows/x64/OwnTheBlock-1.1.1-win32-x64-Setup.exe', size: 161 * MIB },
+      { path: 'make/Own the Block-1.1.1-arm64.dmg', size: 173 * MIB },
+    ])).toEqual([]);
+
+    const errors = installerBudgetErrors([
+      { path: 'squirrel.windows/x64/OwnTheBlock-1.1.1-win32-x64-Setup.exe', size: 250 * MIB },
+      { path: 'make/Own the Block-1.1.1-arm64.dmg', size: 236 * MIB },
+      { path: 'squirrel.windows/x64/own_the_block-1.1.1-full.nupkg', size: 900 * MIB },
+    ]);
+    expect(errors).toHaveLength(2);
+    expect(errors[0]).toMatch(/Setup\.exe is 250\.0 MiB.*175\.0 MiB Windows Setup\.exe budget/u);
+    expect(errors[1]).toMatch(/Own the Block-1\.1\.1-arm64\.dmg is 236\.0 MiB.*195\.0 MiB macOS DMG budget/u);
+  });
+
+  it('keeps every budget below the sizes the build had before the slimming work', () => {
+    const [windows, mac] = INSTALLER_BUDGETS;
+    expect(windows?.maxBytes).toBeLessThan(181.9 * MIB);
+    expect(mac?.maxBytes).toBeLessThan(236.2 * MIB);
+  });
 });
 
 describe('packaged size budget', () => {
