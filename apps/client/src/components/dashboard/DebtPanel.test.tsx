@@ -10,6 +10,9 @@ import stateContext from '../../internal';
 import { getTileName } from '../../presentation';
 import { roomExitContext, type RoomExitContextValue } from '../../roomExitContext';
 import type { SocketFunctions, StateContextValue } from '../../types';
+import { presentationStoreContext } from '../../game/presentation/PresentationProvider';
+import type { AnimationQueue } from '../../game/presentation/queue/AnimationQueue';
+import { PresentationStore } from '../../game/presentation/store/presentationStore';
 import { makeRoom } from '../../game/presentation/testFixtures';
 import DebtPanel from './DebtPanel';
 
@@ -611,6 +614,60 @@ describe('DebtPanel', () => {
 
       expect(screen.getByRole('status').textContent).toContain('An đang thiếu 200.000 ₫');
       expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
+  });
+
+  describe('waits for the animations that lead to the debt (V1.1 item 1)', () => {
+    /** The room as the board still shows it: An has all his cash and has not moved. */
+    function displayStore(status: 'idle' | 'playing'): PresentationStore {
+      const store = new PresentationStore();
+      store.resetFromSnapshot(makeRoom());
+      store.setStatus(status);
+      return store;
+    }
+
+    function renderWithStore(state: PublicGameState, store: PresentationStore) {
+      return render(
+        <presentationStoreContext.Provider value={{ store, queue: null as unknown as AnimationQueue }}>
+          <stateContext.Provider value={makeContext(state)}>
+            <DebtPanel />
+          </stateContext.Provider>
+        </presentationStoreContext.Provider>,
+      );
+    }
+
+    it('keeps the window away while the token hops and the coins fly, then opens it with the same debt', () => {
+      const store = displayStore('playing');
+      renderWithStore(debtState(), store);
+
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(screen.queryByRole('status')).toBeNull();
+
+      // The queue has played everything: the display shows An with 100.000 ₫ and the queue is idle.
+      act(() => {
+        store.resetFromSnapshot({ ...makeRoom(), gameState: debtState() });
+        store.setStatus('idle');
+      });
+      expect(screen.getByRole('alertdialog', { name: 'Cần thanh toán' })).toBeTruthy();
+      expect(screen.getByText('Còn thiếu').nextElementSibling?.textContent).toBe('200.000 ₫');
+    });
+
+    it('keeps the status line the other players see away for the same time', () => {
+      const store = displayStore('playing');
+      render(
+        <presentationStoreContext.Provider value={{ store, queue: null as unknown as AnimationQueue }}>
+          <stateContext.Provider value={{ ...makeContext(debtState()), playerId: 'player-b' }}>
+            <DebtPanel />
+          </stateContext.Provider>
+        </presentationStoreContext.Provider>,
+      );
+      expect(screen.queryByRole('status')).toBeNull();
+
+      act(() => {
+        store.resetFromSnapshot({ ...makeRoom(), gameState: debtState() });
+        store.setStatus('idle');
+      });
+      expect(screen.getByRole('status').textContent).toContain('An đang thiếu 200.000 ₫');
     });
   });
 });

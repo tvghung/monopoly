@@ -34,6 +34,13 @@ through private player state after reconnect or restart.
   asked price and keeps a valid snapshot; a price the buyer cannot pay or that is not a positive whole number is refused; a debt
   buy offer settles the debt, every other offer shape stays locked, an open proposal blocks the accept, and a debtor left without
   assets is eliminated with a valid room.
+- [x] `[AUTO][CLIENT]` `useDebtPresentationHold.test.tsx`, `DebtPanel.test.tsx` (V1.1 item 1): the debt dialog (and the strip the other players see)
+  waits while the queue is busy, the debtor token has not settled on its tile or the debtor/player creditor display lags the room
+  state, opens with the same debt when the display catches up, shows at once with nothing to play, stays open once released,
+  holds the next debt again, and opens after the safety timeout when the queue never goes idle.
+- [ ] `[MANUAL-E2E]` V1.1 item 1: a player with little cash rolls onto an opponent's property or a tax tile: the mascot hops tile by tile,
+  the coins and the plus/minus figures play out, the cash shows 0, and only then does "Cần thanh toán" open (the other players'
+  status strip appears at the same moment); the countdown is still about the full time.
 - [ ] `[MANUAL-E2E]` V1.1: with three players, a debtor receives a buy offer while the debt dialog is open, sees the toast and the
   offer inside the dialog, accepts it, and the debt is settled; and sells a property to another player at a price they typed.
 - [ ] `[MANUAL-E2E]` G4: debtor dialog on a phone held sideways (a sale is visible without scrolling), forfeit confirmation.

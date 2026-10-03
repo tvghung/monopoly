@@ -29,6 +29,13 @@
   sellable property, "Bán cho Ngân hàng" (described by what the sale brings) and "Đề nghị người chơi mua" (opens a buyer picker with the price the seller asks, V1.1), a section "Có người muốn mua tài sản của bạn" with an `OfferCard` ("Đề nghị mua <tài sản> của <người chơi>", what the offer does to the debt, Chấp nhận / Từ chối) for each buy offer addressed to the debtor (the offers dialog stays closed while the recipient is in debt; `App.tsx` also shows a toast on arrival), and a footer
   **"Bỏ cuộc"** that calls `useRoomExit().requestLeave` (existing leave flow + `ConfirmationDialog`; no new command). Other
   players see a status strip: only the debtor/creditor copy is a live region, the countdown is a `role="timer"`.
+  V1.1 item 1: neither the dialog nor the strip appears while the animations that lead to the debt are still playing
+  (`useDebtPresentationHold`): the debtor's token has not reached the tile, the rent/tax/card coins are still flying, or the
+  debtor or a player creditor does not yet show the cash the room state holds, or the presentation queue is not `idle`.
+  Authoritative values are compared with displayed ones, so nothing flashes in the render where the room state arrives. Once
+  released, a debt (keyed by `paymentOperationId`) stays visible until it is paid, so the coins of a sale do not hide the
+  dialog; a reconnect or snapshot has nothing to play and shows it at once; a debt whose queue never goes idle is shown after
+  `DEBT_HOLD_FALLBACK_MS` (12 s). The server deadline is absolute and keeps running; the hold never changes the state.
 - `CardInteractionOverlay` is a `Modal` `sm` on `layer="card"`: a printed card (deck frame, emblem, badge, artwork, message)
   with one **"Đóng"** for the acting player, no X, no Escape/backdrop close; observers see "Đang chờ người chơi đóng thẻ".
   The wrapper `data-testid="card-interaction-overlay"`/`data-card-stage` is the `.card-modal__stage` element **inside** the

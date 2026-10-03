@@ -2,8 +2,9 @@
 
 **Status: IN PROGRESS** — opened 2026-10-03. Branch `overhaul/v1-1-feedback`; target release `v1.1.0`.
 
-The product owner tested the released V1 (`v1.0.0`, 2026-10-02) and sent a numbered list of problems and wishes. Items 6–12
-and the end of item 5 reached the agent; items 1–4 and the start of item 5 did not (open question, §6). This folder is the
+The product owner tested the released V1 (`v1.0.0`, 2026-10-02) and sent a numbered list of problems and wishes. The list
+arrived in two parts: items 5 (end) to 12 first, items 1 to 5 (start) a few hours later, once the first part was already
+implemented (2026-10-03). This folder is the
 single place that tracks the list: what was asked, what the investigation found, what was decided, and what is done. Every
 item changes code, module docs and `testcase/` checklists in the same change (the project rule), and a manual check is never
 relabelled as automated.
@@ -15,16 +16,45 @@ principle for this round: players do not read or understand technical text, so s
 
 | # | Screen | What the owner asked (translated; the Vietnamese original is in §4) | Kind | Status |
 | --- | --- | --- | --- | --- |
-| 5 | Join a LAN room | Only name and room code; the host address is found from the room code (the game is LAN-only); drop technical helper text | Feature | Designed |
-| 6 | Host a room ("Tạo phòng trên máy này") | Remove the "network to share" dropdown (use the network the device is on); drop the technical helper texts | Change | Designed |
-| 7 | Victory summary | Add a button back to the home screen ("Chơi qua mạng LAN") | Change + server bug | Designed |
-| 8 | All screens | An info button that opens a how-to-play modal: basics, rent, building, buying, the Chance and Khí Vận lists (collapsed) | Feature | Designed |
-| 9 | Sell offer modal | The seller types the price the buyer must pay, like a buy offer | Feature | Designed |
-| 10 | Debt (forced-sale) modal | Buy offers that arrive while the player is in debt must be visible and answerable in or beside the modal | Bug + rule change | Designed |
-| 11 | Board, after "Bỏ cuộc" | A modal offers "keep watching" or "leave the room" instead of throwing the player out | Change | Designed |
-| 12 | Board, graphics quality | Switching quality levels must be smooth; today the board and the player stations can vanish | Bug | Reproduced, cause open |
+| 1 | Board, a player with little cash rolls onto rent or tax | The "sell your property" debt modal must open only after the animations are done (mascot hopping across tiles, coins, the plus/minus figures between players), when the cash has run down to 0 and a debt remains | Change (client presentation) | **Implemented** (see §2.1) |
+| 2 | Victory summary | After a match, "Rời phòng" could fail with "ván đã kết thúc; không thể rời phòng lưu trữ" and trap the player on that screen; leaving must work, or another button must lead back to join/create | Server bug | **Fixed with item 7** (e412840) |
+| 3 | In-app join screen (name + room code, shared-room switch) | The player had already typed the room before, must type again, and is stuck when the room code is not valid or the room cannot be joined: add a way back to the "Chơi qua mạng LAN" start screen (create here or join) | Change | **In progress** (see §2.2) |
+| 4 | "Chơi qua mạng LAN" start screen | Strip the helper texts: just "Tạo phòng" and "Tham gia phòng"; add "Thoát" (quit the game) and "Cài đặt" (open settings); buttons toward the left of the window over a background image whose artwork sits mostly on the right, like a main screen | Change (UI) | **In progress** (see §2.2) |
+| 5 | Join a LAN room | Only name and room code; the host address is found from the room code (the game is LAN-only); drop technical helper text | Feature | **Implemented** (4002631); manual rows open |
+| 6 | Host a room ("Tạo phòng trên máy này") | Remove the "network to share" dropdown (use the network the device is on); drop the technical helper texts | Change | **Implemented** (4002631); manual rows open |
+| 7 | Victory summary | Add a button back to the home screen ("Chơi qua mạng LAN") | Change + server bug | **Implemented** (e412840) |
+| 8 | All screens | An info button that opens a how-to-play modal: basics, rent, building, buying, the Chance and Khí Vận lists (collapsed) | Feature | **Implemented** (4002631); manual rows open |
+| 9 | Sell offer modal | The seller types the price the buyer must pay, like a buy offer | Feature | **Implemented** (14f4eb4) |
+| 10 | Debt (forced-sale) modal | Buy offers that arrive while the player is in debt must be visible and answerable in or beside the modal | Bug + rule change | **Implemented** (14f4eb4) |
+| 11 | Board, after "Bỏ cuộc" | A modal offers "keep watching" or "leave the room" instead of throwing the player out | Change | **Implemented** (e412840) |
+| 12 | Board, graphics quality | Switching quality levels must be smooth; today the board and the player stations can vanish | Bug | **Fixed** (28f6867); browser regression spec still to be run clean |
 
 ## 2. Findings per item
+
+### 1 — Debt window waits for the animations
+
+- Root cause: `DebtPanel` (in `BottomDock`) rendered as soon as the room state with `paymentShortfall` reached the client, while the
+  presentation queue was still playing the hop, the tile impact and the rent/tax coins, so the modal covered the board.
+- Design (client only, no protocol change): `useDebtPresentationHold` (`components/dashboard/`). The window, and the status strip the
+  other players see, stay hidden while the queue is not `idle`, the debtor token has not settled on its tile, or the debtor or a
+  player creditor does not yet display the cash the room state holds (authoritative values are compared with displayed ones, so
+  nothing flashes in the render where the state arrives). Once released, a debt (by `paymentOperationId`) stays visible until it is
+  paid, so the coins of a sale do not hide the dialog. A reconnect or snapshot has nothing to play and shows at once; a queue that
+  never goes idle is overruled after 12 s (`DEBT_HOLD_FALLBACK_MS`), the same safety net as the victory screen (8 s).
+- The server deadline is absolute and keeps running while the hold is active, so the debtor has about the full time left. This
+  is intentional: the deadline is an authoritative fact and the hold must never change it.
+
+### 3 and 4 — Start screen as a main menu, a way back from the join screen
+
+- Today (after items 5/6): the launcher choice screen is a centred card with two cards and a help key; the in-app join form has no
+  way back, so an unknown room code, a full room or a failed join leaves the player on the form.
+- Design: the launcher becomes a full-window main menu: the buttons "Tạo phòng", "Tham gia phòng", "Cài đặt", "Thoát" stacked toward
+  the left over one background whose artwork (the eight mascots on the mini board, landmarks) sits on the right; no description
+  under any button. "Thoát" is a typed, sender-checked, whitelisted IPC call that quits through the same path as closing the
+  window (a running LAN host stops as it does today; a confirmation shows only when a host is running). "Cài đặt" opens the
+  existing settings dialog at the launcher, so the launcher needs a settings scope outside the game providers. The join form (and
+  every desktop screen where a player can get stuck) gets "Quay lại" to the launcher choice screen through the existing
+  `onExitToLauncher` path; disconnect only changes presence, only an explicit leave revokes a session.
 
 ### 5 and 6 — Launcher, discovery, interface choice
 
@@ -105,8 +135,9 @@ principle for this round: players do not read or understand technical text, so s
 ### 12 — Graphics quality switch
 
 - Reproduced deterministically in the Phase 4 UAT harness (`stations-4`, SwiftShader): the first switch (balanced → low) leaves a
-  blank table, the renderer's diagnostics stop updating (`frameSequence` and `qualityTier` stay at the old values) and
-  switching back does not recover. See §5 for the diagnosis and the fix.
+  bare table and switching back does not recover. Cause: R3F rewrites an orthographic camera to ±size/2 pixels whenever the size or
+  the pixel ratio changes; a tier changes the pixel ratio and `FixedBoardCamera` only re-applied the board frustum on a size change,
+  so the board shrank to a few dozen pixels (the HUD, being DOM, stayed). Fix: the Canvas camera is `manual`. See §5.
 
 ## 3. Decisions
 
@@ -120,6 +151,20 @@ principle for this round: players do not read or understand technical text, so s
 
 ## 4. Owner's wording (Vietnamese, typos fixed)
 
+- 1: "khi player nhấn đổ xúc xắc và đang có ít tiền, khi vào trúng property của người khác hoặc thuế, game ngay lập tức hiển thị modal
+  bán tài sản ngay sau khi nhấn đổ xúc xắc; mong muốn: modal bán tài sản đang nợ chỉ hiển thị sau khi các animation đã chạy xong,
+  gồm animation mascot nhảy qua các tiles, animation của coins và tiền cộng trừ giữa các players; khi nào xuống còn 0 tiền và vẫn
+  còn nợ thì modal mới hiển thị lên."
+- 2: "khi xong trận đấu, có trường hợp nhấn rời phòng thì bị báo lỗi ván đã kết thúc, không thể rời phòng lưu trữ, khiến người chơi
+  bị mắc kẹt tại màn hình đó; mong muốn: có thể rời phòng dù đã bị lưu trữ, hoặc có thêm button thao tác khác để quay lại màn hình
+  join phòng / tạo phòng."
+- 3: "tại màn hình nhập id phòng và username để join phòng: đã phải nhập id phòng và địa chỉ LAN ở màn hình trước nhưng vẫn phải nhập
+  lại id phòng và username; và bị kẹt khi không có id phòng hợp lệ, không join được phòng (có switch phòng chung và mã phòng);
+  mong muốn: có nút quay lại màn hình Chơi qua mạng LAN, màn hình chọn tạo phòng trên máy này hoặc tham gia phòng LAN."
+- 4: "màn hình Chơi qua mạng LAN, màn hình bắt đầu trò chơi: đơn giản hóa, xóa bớt các text helper giải thích, chỉ cần ghi Tạo phòng,
+  Tham gia phòng vì các helper text này quá kỹ thuật, người chơi không đọc và hiểu; thêm button Thoát để người chơi chủ động tắt
+  game, và button Cài đặt để mở modal cài đặt; các nút đặt hơi hướng bên trái màn hình, trên một hình background với các artwork tập
+  trung về phía bên phải, tạo cảm giác giống màn hình chính hơn."
 - 5: "chỉ cần nhập tên và mã phòng là được; không cần địa chỉ host, địa chỉ host sẽ tự lấy thông qua mã phòng vì game của chúng ta
   mặc định chỉ chơi qua mạng LAN; và xóa bớt những helper text kỹ thuật vì người chơi không đọc và hiểu những cái này."
 - 6: "bỏ dropdown mạng dùng để chia sẻ vì mặc định sẽ dùng mạng đang kết nối với thiết bị; bỏ bớt các helper text như 'Một máy Host
@@ -149,11 +194,24 @@ Probe (temporary Playwright specs, not committed): harness `?phase4-uat=1&scenar
 from 1567×867 to 1254×694 (pixel ratio 1.25 → 1), the same WebGL context stays alive, no console or page error, but the renderer
 diagnostics (`window.__OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__`) keep `qualityTier: "balanced"`, `frameSequence: 20`, and no new
 `[own-the-block-renderer]` line appears: the renderer stopped drawing after the reconfiguration, so the resized (cleared)
-drawing buffer shows only the page background. Cause and fix: to be filled in.
+drawing buffer shows only the page background. 
+
+What the probes showed after the switch: the scene graph was intact (142 visible meshes, none hidden, the same WebGL context, no GL
+error, no console error), `renderer.info` counted 142 draw calls and 66,928 triangles every frame, and the only thing that had
+changed was the camera: R3F's `updateCamera` had overwritten the frustum with ±size/2 pixels on the pixel-ratio change. Going the
+other way (low → balanced) from a fresh load also changes the pixel ratio, so every tier change broke it on a screen where the tiers'
+ratios differ (device ratio 1: low 1, balanced and high 1.25; 1.25: all equal, so nothing happened there, which is why the owner saw
+it "sometimes").
+
+Fixed in commit 28f6867: `BOARD_CANVAS_CAMERA.manual = true`; verified by screenshots over low, balanced, high, low, balanced, low.
+Also fixed on the same path: the key light's shadow map was never reallocated when its size changed (balanced ↔ high left
+mis-scaled shadows, visible as dark wedges on the table), the tabletop kept a disposed roughness texture, and a failed optional
+layer stayed failed across tier changes. The permanent regression is `e2e/visual/graphicsTierSwitch.visual.ts`.
 
 ## 6. Open questions for the owner
 
-1. Items 1–4 and the first lines of item 5 did not arrive. Were there more items? (The text starts at "mong muốn: chỉ cần nhập tên và mã phòng…".)
+1. ~~Items 1–4 and the first lines of item 5 did not arrive.~~ Answered: they arrived on 2026-10-03 and are items 1–4 above (the head of
+   item 5, the current join screen, only describes today's behaviour).
 2. Item 9: may the seller ask any positive price, or at least the bank price?
 
 ## 7. Gates (before the 1.1.0 release)

@@ -12,6 +12,7 @@ import { ActionIcon } from '../../design-system/icons/ActionIcon';
 import { buildDeedCardModel, type DeedCardModel } from '../../game/ui/property/deedCardModel';
 import PropertyDeedCard from '../../game/ui/property/PropertyDeedCard';
 import OfferCard from './OfferCard';
+import useDebtPresentationHold from './useDebtPresentationHold';
 import { useIncomingOffers, type ActiveOffer } from './useIncomingOffers';
 import './DebtPanel.css';
 
@@ -86,6 +87,8 @@ export default function DebtPanel() {
   const priceId = useId();
   const [now, setNow] = useState(() => Date.now());
   const claim = state.boardState.paymentShortfall;
+  // The debt window waits for the hop, the coins and the figures that lead to it (V1.1 item 1).
+  const heldForPresentation = useDebtPresentationHold(claim ?? null, state);
   const isMyShortfall = claim?.debtorPlayerId === playerId;
   const claimProjectionKey = claim ? getDebtProjectionKey(claim) : null;
   const forcedSaleProposal = privatePlayerState?.forcedSaleProposal ?? null;
@@ -170,7 +173,7 @@ export default function DebtPanel() {
     })();
   };
 
-  if (!state.loaded || !claim) return null;
+  if (!state.loaded || !claim || heldForPresentation) return null;
   const debtor = state.players[claim.debtorPlayerId];
   const creditorPlayer = claim.creditor === 'BANK' ? undefined : state.players[claim.creditorPlayerId ?? ''];
   const creditor = claim.creditor === 'BANK'
