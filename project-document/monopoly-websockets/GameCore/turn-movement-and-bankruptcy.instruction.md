@@ -27,15 +27,19 @@
 
 - Rent/card payments tạo `PaymentQueue` gồm ordered claims, `activeClaimIndex`,
   continuation và absolute `actionDeadlineAt`.
-- Trong shortfall, ordinary offer/build actions bị khóa;
-  debtor chỉ được bán tài sản cho Bank hoặc gửi một forced-sale proposal cho một
+- Trong shortfall, ordinary offer/build actions bị khóa, trừ một ngoại lệ (V1.1): người chơi khác có thể gửi đề nghị MUA tài sản
+  của debtor bằng tiền (proposer chỉ đưa tiền, debtor chỉ đưa tài sản, không thẻ, không đòi tiền) và debtor có thể chấp nhận để có
+  tiền trả nợ; mọi hình dạng khác vẫn bị khóa. Debtor có thể bán tài sản cho Bank hoặc gửi một forced-sale proposal cho một
   active buyer. Proposal lưu trong private snapshot và gắn operation/claim,
-  property fingerprint, gross authoritative price và expiry không vượt claim
-  deadline.
+  property fingerprint, giá do người bán chọn (`price`, mặc định là giá Bank; số nguyên dương, buyer phải đủ tiền) và expiry
+  không vượt claim deadline.
 - Bank sale dùng `floor((price + investedBuildCost) * 70 / 100)` gross. Seller nhận
   gross trước khi `PaymentQueue` tiếp tục xử lý khoản nợ. Scheduler tự động bán theo
   tile index khi deadline hết, retry claims, rồi mới loại debtor khi hết tài sản.
-- Forced-sale buyer trả gross, seller nhận gross và claim tiếp tục trong cùng room CAS.
+- Forced-sale buyer trả đúng giá đã thỏa thuận (`proposal.grossPrice`), seller nhận đúng số đó và claim tiếp tục trong cùng room CAS.
+- Đề nghị mua trong shortfall (V1.1): chấp nhận cần debtor là recipient đang nợ, `now < actionDeadlineAt`, tài sản không nằm trong
+  forced-sale proposal đang mở; sau giao dịch server chạy `progressPaymentQueue`/`resumePaymentContinuation` như Bank sale, và nếu
+  debtor vẫn không đủ trả khi hết tài sản thì bị loại (offer còn lại của debtor bị hủy). Không có event, protocol hay snapshot mới.
 
 ## Forfeit/winner/recovery
 

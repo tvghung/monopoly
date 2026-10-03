@@ -26,7 +26,7 @@
 - `DebtPanel` renders only public shortfall summary and server-derived gross/net
   sellable values. The debtor sees an `alertdialog` "Cần thanh toán" (`Modal` `lg`, tone `danger`, eyebrow = what the debt is
   for, described by the amount/creditor/shortfall; focus starts on the amount, which is in the tab ring) with a compact deed per
-  sellable property, "Bán cho Ngân hàng" (described by what the sale brings) and "Đề nghị người chơi mua", and a footer
+  sellable property, "Bán cho Ngân hàng" (described by what the sale brings) and "Đề nghị người chơi mua" (opens a buyer picker with the price the seller asks, V1.1), a section "Có người muốn mua tài sản của bạn" with an `OfferCard` ("Đề nghị mua <tài sản> của <người chơi>", what the offer does to the debt, Chấp nhận / Từ chối) for each buy offer addressed to the debtor (the offers dialog stays closed while the recipient is in debt; `App.tsx` also shows a toast on arrival), and a footer
   **"Bỏ cuộc"** that calls `useRoomExit().requestLeave` (existing leave flow + `ConfirmationDialog`; no new command). Other
   players see a status strip: only the debtor/creditor copy is a live region, the countdown is a `role="timer"`.
 - `CardInteractionOverlay` is a `Modal` `sm` on `layer="card"`: a printed card (deck frame, emblem, badge, artwork, message)

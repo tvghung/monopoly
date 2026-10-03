@@ -20,7 +20,7 @@ Express runtime và Socket.IO command modules. PostgreSQL/session/recovery detai
 
 Protocol v7 schema → authenticated role/actor → serialized room draft → PostgreSQL
 CAS commit → public/private projection → ACK. Save failure phát không state/update/
-success. Actor/owner/dice/debt target và forced-sale price không lấy từ payload.
+success. Actor/owner/dice/debt target không lấy từ payload; giá forced sale mặc định là giá Bank, chỉ `price?` tùy chọn của seller (V1.1) mới đổi nó.
 
 Public `update` tới `room:<roomId>`; session/private trade/forced-sale results chỉ tới
 relevant `player:<playerId>`. Bounded semantic event families are projected publicly

@@ -99,6 +99,8 @@ export const forcedSaleProposalRequestSchema = z.strictObject({
   claimId: operationIdSchema,
   tileID: tileIdSchema,
   buyerPlayerId: playerIdSchema,
+  /** The price the seller asks (V1.1). Omitted: the Bank formula, as before. */
+  price: moneyAmountSchema.optional(),
 });
 export const forcedSaleProposalActionSchema = z.strictObject({ proposalId: operationIdSchema });
 

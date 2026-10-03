@@ -2,7 +2,7 @@ import {
   act, cleanup, fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
 import type {
-  Ack, ForcedSaleProposal, PublicGameState, PrivatePlayerState,
+  Ack, ForcedSaleProposal, PrivateOffer, PublicGameState, PrivatePlayerState,
 } from '@monopoly/shared';
 import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -356,7 +356,157 @@ describe('DebtPanel', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: /Bình/ }));
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Gửi đề nghị bán' }).disabled).toBe(false);
-    expect(screen.getByText('Giá cố định 112.000 ₫.')).toBeTruthy();
+    expect(screen.getByText('Người mua sẽ trả 112.000 ₫.')).toBeTruthy();
+  });
+
+  describe('the price the seller asks (V1.1)', () => {
+    const claimIds = {
+      paymentOperationId: '00000000-0000-4000-8000-000000000001',
+      claimId: '00000000-0000-4000-8000-000000000002',
+    };
+    const openPicker = () => fireEvent.click(screen.getByRole('button', { name: 'Đề nghị người chơi mua Cà Mau' }));
+    const priceInput = () => screen.getByLabelText<HTMLInputElement>('Giá bán (đơn vị nghìn đồng)');
+
+    it('starts at the Bank price and sends the price the seller typed', () => {
+      const proposeForcedSale = vi.fn(() => new Promise<Ack>(() => {}));
+      renderDebt(debtState(), { proposeForcedSale });
+
+      openPicker();
+      expect(priceInput().value).toBe('112');
+      fireEvent.change(priceInput(), { target: { value: '400' } });
+      expect(screen.getByText('400.000 ₫')).toBeTruthy();
+      fireEvent.click(screen.getByRole('radio', { name: /Bình/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Gửi đề nghị bán' }));
+
+      expect(proposeForcedSale).toHaveBeenCalledWith({
+        ...claimIds, tileID: 1, buyerPlayerId: 'player-b', price: 400,
+      });
+    });
+
+    it('sends the Bank price when the seller keeps it', () => {
+      const proposeForcedSale = vi.fn(() => new Promise<Ack>(() => {}));
+      renderDebt(debtState(), { proposeForcedSale });
+
+      openPicker();
+      fireEvent.click(screen.getByRole('radio', { name: /Bình/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Gửi đề nghị bán' }));
+
+      expect(proposeForcedSale).toHaveBeenCalledWith(expect.objectContaining({ price: 112 }));
+    });
+
+    it('judges every buyer by the typed price', () => {
+      renderDebt(debtState());
+
+      openPicker();
+      expect(screen.getByRole<HTMLInputElement>('radio', { name: /Bình/ }).disabled).toBe(false);
+      fireEvent.change(priceInput(), { target: { value: '600' } });
+
+      expect(screen.getByRole<HTMLInputElement>('radio', { name: /Bình/ }).disabled).toBe(true);
+      expect(screen.getByText('Không ai đủ tiền để mua với giá 600.000 ₫.')).toBeTruthy();
+    });
+
+    it.each([['an empty field', ''], ['zero', '0'], ['a negative number', '-5'], ['a fraction', '12.5'], ['text', 'abc']])(
+      'refuses %s as a price',
+      (_name, value) => {
+        const proposeForcedSale = vi.fn();
+        renderDebt(debtState(), { proposeForcedSale });
+
+        openPicker();
+        fireEvent.click(screen.getByRole('radio', { name: /Bình/ }));
+        fireEvent.change(priceInput(), { target: { value } });
+
+        expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Gửi đề nghị bán' }).disabled).toBe(true);
+        expect(screen.getByText('Nhập một giá bán lớn hơn 0.')).toBeTruthy();
+        expect(proposeForcedSale).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  describe('offers to buy a property of the debtor (V1.1)', () => {
+    function buyOffer(overrides: Partial<PrivateOffer> = {}): PrivateOffer {
+      return {
+        offerId: 'offer-debt-1',
+        roomId: 'room-1',
+        proposerPlayerId: 'player-b',
+        recipientPlayerId: 'player-a',
+        proposerName: 'Bình',
+        recipientName: 'An',
+        offered: { cash: 350, propertyIds: [], jailFreeCardIds: [] },
+        requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+        status: 'PENDING',
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 20_000).toISOString(),
+        resolvedAt: null,
+        ...overrides,
+      };
+    }
+    function renderWithOffers(offers: PrivateOffer[], socketFunctions: Partial<SocketFunctions> = {}) {
+      return render(
+        <stateContext.Provider value={{ ...makeContext(debtState(), socketFunctions), privateOffers: offers }}>
+          <DebtPanel />
+        </stateContext.Provider>,
+      );
+    }
+
+    it('shows the offer inside the debt dialog, with what it does to the debt, and answers it there', () => {
+      const acceptOffer = vi.fn();
+      const declineOffer = vi.fn();
+      renderWithOffers([buyOffer()], { acceptOffer, declineOffer });
+
+      const dialog = screen.getByRole('alertdialog', { name: 'Cần thanh toán' });
+      expect(within(dialog).getByRole('heading', { name: 'Có người muốn mua tài sản của bạn' })).toBeTruthy();
+      expect(within(dialog).getByRole('heading', { name: 'Đề nghị mua Cà Mau của Bình' })).toBeTruthy();
+      // The debt is 200 and the debtor has 100 in cash: 350 more settles it.
+      expect(within(dialog).getByText('Bạn nhận 350.000 ₫, đủ để trả khoản nợ này.')).toBeTruthy();
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Chấp nhận' }));
+      expect(acceptOffer).toHaveBeenCalledWith('offer-debt-1');
+      expect(declineOffer).not.toHaveBeenCalled();
+    });
+
+    it('lets the debtor decline the offer from the debt dialog', () => {
+      const declineOffer = vi.fn();
+      renderWithOffers([buyOffer()], { declineOffer });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Từ chối' }));
+
+      expect(declineOffer).toHaveBeenCalledWith('offer-debt-1');
+    });
+
+    it('says what is still missing when the offer does not cover the debt', () => {
+      renderWithOffers([buyOffer({ offered: { cash: 50, propertyIds: [], jailFreeCardIds: [] } })]);
+
+      expect(screen.getByText('Bạn nhận 50.000 ₫, vẫn còn thiếu 50.000 ₫ cho khoản nợ này.')).toBeTruthy();
+    });
+
+    it('waits for the answer to arrive, then lets the buttons come back if nothing changed', () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+      renderWithOffers([buyOffer()], { acceptOffer: vi.fn() });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Chấp nhận' }));
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Chấp nhận' }).disabled).toBe(true);
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Từ chối' }).disabled).toBe(true);
+
+      act(() => { vi.advanceTimersByTime(4100); });
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Chấp nhận' }).disabled).toBe(false);
+    });
+
+    it('does not show offers of any other shape, which the server refuses to accept during a debt', () => {
+      renderWithOffers([
+        buyOffer({ offerId: 'offer-a', offered: { cash: 100, propertyIds: [3], jailFreeCardIds: [] } }),
+        buyOffer({ offerId: 'offer-b', requested: { cash: 20, propertyIds: [1], jailFreeCardIds: [] } }),
+        buyOffer({ offerId: 'offer-c', requested: { cash: 0, propertyIds: [], jailFreeCardIds: [] } }),
+      ]);
+
+      expect(screen.queryByRole('heading', { name: 'Có người muốn mua tài sản của bạn' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Chấp nhận' })).toBeNull();
+    });
+
+    it('does not show a debt offer addressed to somebody else', () => {
+      renderWithOffers([buyOffer({ recipientPlayerId: 'player-b', proposerPlayerId: 'player-a' })]);
+
+      expect(screen.queryByRole('button', { name: 'Chấp nhận' })).toBeNull();
+    });
   });
 
   it('says so when nothing is left to sell', () => {

@@ -36,6 +36,8 @@ export interface SocketFunctions {
     claimId: string;
     tileID: number;
     buyerPlayerId: string;
+    /** What the seller asks the buyer to pay (V1.1); the Bank price when omitted. */
+    price?: number;
   }) => void | Promise<Ack>;
   acceptForcedSale?: (proposalId: string) => void | Promise<Ack>;
   rejectForcedSale?: (proposalId: string) => void | Promise<Ack>;

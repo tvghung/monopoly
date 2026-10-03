@@ -1,5 +1,6 @@
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { getTileName } from '../../../presentation';
 import { DECISION_SURFACES } from './decisionSurfaces';
 
 // jsdom has no layout, so it has no scrollIntoView either: stand one in for the length of each test.
@@ -25,7 +26,7 @@ describe('decision surfaces', () => {
   it('lists the buy and development sheets, jail, debt, forced sale, trade and incoming offers', () => {
     expect(DECISION_SURFACES.map(surface => surface.id)).toEqual([
       'buy', 'buy-short', 'development-houses', 'development-hotel', 'jail',
-      'debt-debtor', 'debt-debtor-sale-open', 'debt-observer',
+      'debt-debtor', 'debt-debtor-sale-open', 'debt-debtor-offer', 'debt-observer',
       'forced-sale-buyer', 'forced-sale-seller', 'trade', 'incoming-offers',
     ]);
     expect(DECISION_SURFACES.every(surface => surface.group === 'Decisions')).toBe(true);
@@ -47,6 +48,18 @@ describe('decision surfaces', () => {
     await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' }));
     expect(screen.getByRole('radio', { name: /Bình/u })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Gửi đề nghị bán' })).toBeTruthy();
+  });
+
+  it('debt-debtor-offer answers a buy offer inside the debt dialog', () => {
+    renderSurface('debt-debtor-offer');
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Cần thanh toán' });
+    expect(within(dialog).getByRole('heading', { name: 'Có người muốn mua tài sản của bạn' })).toBeTruthy();
+    expect(within(dialog).getByRole('heading', { name: `Đề nghị mua ${getTileName(5)} của Bình` })).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Chấp nhận' })).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Từ chối' })).toBeTruthy();
+    // The debt dialog is the only dialog: the offers dialog stays closed while the debt is open.
+    expect(screen.queryByRole('dialog', { name: 'Đề nghị giao dịch' })).toBeNull();
   });
 
   it('debt-observer is the inline status another player sees', () => {

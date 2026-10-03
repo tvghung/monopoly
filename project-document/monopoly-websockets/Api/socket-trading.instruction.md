@@ -13,6 +13,10 @@ buyer/seller/owner identity.
 - `accept offer({offerId})`/`decline offer({offerId})` use only the stable offer ID.
   Accept reloads terms, checks ownership/money/card holders/debt and applies all
   transfers once.
+- Trong payment shortfall `make offer`/`accept offer` bị khóa, trừ đề nghị mua của V1.1: recipient là debtor đang nợ, proposer
+  khác debtor và đủ tiền, `offered` chỉ có tiền > 0, `requested` chỉ có tài sản (không tiền, không thẻ); accept còn cần trước
+  `actionDeadlineAt` và tài sản không có forced-sale proposal mở, rồi settle claim ngay trong cùng transaction. `decline offer`
+  luôn được phép. Lỗi: `CONFLICT` "Giao dịch thông thường bị khóa…" / "…chỉ có thể đề nghị mua tài sản của người đó bằng tiền."
 - Private arrival/result/expiry/cancel only use relevant `player:<PlayerId>` rooms;
   resume restores pending relevant offers. Public update never contains offer terms.
 - Explicit leave cancels unresolved offers unless they are consumed inside the same
@@ -20,4 +24,6 @@ buyer/seller/owner identity.
 
 Room + offer + payment writes commit atomically before private/public emit and ACK.
 Tests cover bundle validation/transfers, jail cards, spoof/replay/expiry/restart,
-private routing and DB rollback.
+private routing and DB rollback. V1.1 shortfall offers: `socket.integration.test.ts` (debt offer settles the debt, decline, the
+locked shapes and the proposer balance, open forced-sale proposal, eliminated debtor with a valid snapshot) and
+`v3.simplifiedRules.test.ts` (`executeVoluntaryTrade` locks unless the caller opts in).

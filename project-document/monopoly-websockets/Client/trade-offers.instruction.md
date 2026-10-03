@@ -14,7 +14,9 @@
 - `TradeOfferModal` (`Modal` `xl`): hai cột "Bạn giao"/"Bạn nhận", mỗi cột có ô tiền (kèm số tiền đã định dạng bên cạnh), chip `PropertyDeedCard` chọn được cho từng tài sản và
   thẻ Thoát Tù, và một dòng tóm tắt "Bạn giao … · Bạn nhận …". Cột xếp chồng trên điện thoại dọc; **ngoại lệ có chủ ý**: điện thoại ngang
   (`max-height: 31rem`) giữ hai cột để thấy cả hai bên cùng lúc.
-- `IncomingOffers` (`Modal` `lg`, không có nút đóng): mỗi offer là một `region` đặt tên bằng "Đề nghị từ <tên>", hai bên là chip tài sản,
+- `OfferCard` là thẻ một offer nhận được (người gửi, hai bên là chip tài sản, đếm ngược, "Chấp nhận"/"Từ chối"), dùng chung bởi
+  `IncomingOffers` và `DebtPanel` (V1.1: người đang nợ trả lời đề nghị mua ngay trong dialog nợ).
+- `IncomingOffers` (`Modal` `lg`, không có nút đóng; đóng khi người nhận đang nợ vì `DebtPanel` đã hiển thị offer): mỗi offer là một `region` đặt tên bằng "Đề nghị từ <tên>", hai bên là chip tài sản,
   chip hết hạn; "Chấp nhận"/"Từ chối" được mô tả bằng tiêu đề offer để phân biệt khi có nhiều offer; offer đầu tiên nhận focus.
 
 ## Direct bilateral offer

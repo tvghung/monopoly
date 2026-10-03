@@ -33,7 +33,8 @@ stable `playerId` và derive mọi dòng của thẻ; `PropertyDeedCard` (`full`
 - Direct trade: modal chọn tiền, tài sản và thẻ của chính người gửi; server derive
   actor/owner và revalidate lúc tạo/chấp nhận offer.
 - Forced sale: debtor chỉ có thể bán cho Bank hoặc gửi proposal cho một buyer đang
-  hoạt động; buyer accept/reject theo proposal ID.
+  hoạt động với giá do mình nhập (ô "Giá bán (đơn vị nghìn đồng)" bắt đầu bằng giá Bank, kèm số tiền đã định dạng; buyer không đủ tiền
+  cho giá đã nhập thì bị vô hiệu); buyer accept/reject theo proposal ID.
 
 Client guard chỉ là UX. Domain revalidates landing level/ownership/debt inside the
 serialized durable command; failure giữ state và hiện ACK tiếng Việt.

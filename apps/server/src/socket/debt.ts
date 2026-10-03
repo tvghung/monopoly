@@ -96,8 +96,15 @@ export function registerDebtHandlers(io: AppServer, socket: AppSocket, runtime: 
           request.tileID,
           request.buyerPlayerId,
           now.getTime(),
+          request.price,
         );
-        if (!proposal) throw new CommandError('CONFLICT', 'Không thể tạo đề nghị bán bắt buộc.');
+        if (!proposal) {
+          const buyer = state.players[request.buyerPlayerId];
+          if (request.price !== undefined && buyer && buyer.accountBalance < request.price) {
+            throw new CommandError('CONFLICT', 'Người mua không đủ tiền để trả mức giá này.');
+          }
+          throw new CommandError('CONFLICT', 'Không thể tạo đề nghị bán bắt buộc.');
+        }
         return proposal;
       }, now, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');

@@ -11,6 +11,8 @@ import PlayerAvatar from '../../design-system/components/PlayerAvatar/PlayerAvat
 import { ActionIcon } from '../../design-system/icons/ActionIcon';
 import { buildDeedCardModel, type DeedCardModel } from '../../game/ui/property/deedCardModel';
 import PropertyDeedCard from '../../game/ui/property/PropertyDeedCard';
+import OfferCard from './OfferCard';
+import { useIncomingOffers, type ActiveOffer } from './useIncomingOffers';
 import './DebtPanel.css';
 
 type DebtClaimProjection = NonNullable<PublicGameState['boardState']['paymentShortfall']>;
@@ -53,12 +55,35 @@ function describeDebtSource(source: DebtClaimProjection['source']): string {
   return source.description;
 }
 
+/**
+ * The only offer the server accepts from a debtor (V1.1): another player offers cash and wants properties of the debtor, nothing
+ * else on either side. Older offers of other shapes cannot be answered with "Chấp nhận" while the debt is open.
+ */
+function isDebtBuyOffer(offer: ActiveOffer): boolean {
+  return offer.offered.cash > 0
+    && offer.offered.propertyIds.length === 0
+    && offer.offered.jailFreeCardIds.length === 0
+    && offer.requested.cash === 0
+    && offer.requested.propertyIds.length > 0
+    && offer.requested.jailFreeCardIds.length === 0;
+}
+
+/** The price a seller typed: a positive whole number of units, or null while the field is empty or not a number. */
+function parseAskedPrice(text: string): number | null {
+  const trimmed = text.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const value = Number.parseInt(trimmed, 10);
+  return Number.isSafeInteger(value) && value > 0 && value <= 2_147_483_647 ? value : null;
+}
+
 export default function DebtPanel() {
   const {
     state, playerId, canMutate, socketFunctions, connected, privatePlayerState, roomPlayers,
   } = useContext(stateContext);
   const roomExit = useRoomExit();
+  const { offers, acceptOffer, declineOffer } = useIncomingOffers();
   const descriptionId = useId();
+  const priceId = useId();
   const [now, setNow] = useState(() => Date.now());
   const claim = state.boardState.paymentShortfall;
   const isMyShortfall = claim?.debtorPlayerId === playerId;
@@ -68,6 +93,9 @@ export default function DebtPanel() {
   const [pendingAction, setPendingAction] = useState<PendingDebtAction | null>(null);
   const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
   const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null);
+  // What the seller asks for the selected property, as typed; it starts at the Bank price.
+  const [priceText, setPriceText] = useState('');
+  const [answeringOfferId, setAnsweringOfferId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const sellable = isMyShortfall ? claim?.sellableProperties : undefined;
   const deeds = useMemo(() => {
@@ -104,6 +132,13 @@ export default function DebtPanel() {
     if (!forcedSaleActive || !pendingAction?.awaitingProposal || !pendingAction.ackResolved) return;
     setPendingAction(null);
   }, [forcedSaleActive, pendingAction]);
+
+  // An answer waits for the offer to disappear; if nothing arrives (a refused command), the buttons come back.
+  useEffect(() => {
+    if (!answeringOfferId) return undefined;
+    const timer = window.setTimeout(() => setAnsweringOfferId(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [answeringOfferId]);
 
   const submit = (key: string, command?: () => void | Promise<Ack>) => {
     if (pendingAction || forcedSaleActive || !command) return;
@@ -146,6 +181,8 @@ export default function DebtPanel() {
   const properties = claim.sellableProperties ?? [];
   const selectedProperty = properties.find(property => property.tileID === selectedTileId);
   const selectedBuyer = buyers.find(([buyerId]) => buyerId === selectedBuyerId);
+  const debtOffers = isMyShortfall ? offers.filter(isDebtBuyOffer) : [];
+  const askedPrice = parseAskedPrice(priceText);
 
   if (!isMyShortfall || !canMutate) {
     return (
@@ -231,6 +268,33 @@ export default function DebtPanel() {
           </p>
         )
         : null}
+      {debtOffers.length > 0
+        ? (
+          <section className="debt-panel__offers" aria-label="Đề nghị mua tài sản của bạn">
+            <h3 className="debt-panel__heading">Có người muốn mua tài sản của bạn</h3>
+            {debtOffers.map(offer => {
+              const shortAfter = claim.remainingAmount - ((debtor?.accountBalance ?? 0) + offer.offered.cash);
+              return (
+                <OfferCard
+                  key={offer.offerId}
+                  offer={offer}
+                  title={`Đề nghị mua ${offer.requested.propertyIds.map(getTileName).join(', ')} của ${offer.proposerName}`}
+                  busy={answeringOfferId === offer.offerId}
+                  notes={(
+                    <p className="debt-panel__offer-effect">
+                      {shortAfter <= 0
+                        ? `Bạn nhận ${formatMoney(offer.offered.cash)}, đủ để trả khoản nợ này.`
+                        : `Bạn nhận ${formatMoney(offer.offered.cash)}, vẫn còn thiếu ${formatMoney(shortAfter)} cho khoản nợ này.`}
+                    </p>
+                  )}
+                  onAccept={current => { setAnsweringOfferId(current.offerId); acceptOffer(current); }}
+                  onDecline={current => { setAnsweringOfferId(current.offerId); declineOffer(current); }}
+                />
+              );
+            })}
+          </section>
+        )
+        : null}
       {properties.length > 0
         ? <h3 className="debt-panel__heading">Bán tài sản để có tiền</h3>
         : <p className="debt-panel__empty">Bạn không còn tài sản nào để bán.</p>}
@@ -275,6 +339,7 @@ export default function DebtPanel() {
                   onClick={() => {
                     setSelectedTileId(choosingBuyer ? null : property.tileID);
                     setSelectedBuyerId(null);
+                    setPriceText(choosingBuyer ? '' : String(property.grossPrice));
                   }}
                 >Đề nghị người chơi mua</Button>
               </div>
@@ -282,8 +347,26 @@ export default function DebtPanel() {
                 ? (
                   <fieldset className="debt-panel__buyer-picker">
                     <legend>Chọn người mua</legend>
+                    <div className="debt-panel__price">
+                      <label htmlFor={priceId}>Giá bán (đơn vị nghìn đồng)</label>
+                      <div className="debt-panel__price-field">
+                        <input
+                          id={priceId}
+                          className="debt-panel__price-input"
+                          type="number"
+                          inputMode="numeric"
+                          min="1"
+                          step="1"
+                          value={priceText}
+                          disabled={pendingAction !== null}
+                          aria-invalid={askedPrice === null}
+                          onChange={event => setPriceText(event.target.value)}
+                        />
+                        {askedPrice !== null ? <output className="debt-panel__price-preview" htmlFor={priceId}>{formatMoney(askedPrice)}</output> : null}
+                      </div>
+                    </div>
                     {buyers.map(([buyerId, buyer]) => {
-                      const affordable = buyer.accountBalance >= property.grossPrice;
+                      const affordable = buyer.accountBalance >= (askedPrice ?? property.grossPrice);
                       return (
                         <label key={buyerId} className="debt-panel__buyer">
                           <input
@@ -305,22 +388,25 @@ export default function DebtPanel() {
                     <Button
                       aria-describedby={buyerStatusId}
                       icon={<ActionIcon name="send" />}
-                      disabled={!selectedBuyer || !selectedProperty || selectedBuyer[1].accountBalance < selectedProperty.grossPrice || pendingAction !== null}
+                      disabled={!selectedBuyer || !selectedProperty || askedPrice === null || selectedBuyer[1].accountBalance < askedPrice || pendingAction !== null}
                       busy={pendingAction?.key === `forced:${property.tileID}:${selectedBuyerId ?? ''}`}
                       onClick={() => {
-                        if (!selectedBuyerId) return;
+                        if (!selectedBuyerId || askedPrice === null) return;
                         submit(`forced:${property.tileID}:${selectedBuyerId}`, () => socketFunctions.proposeForcedSale?.({
                           paymentOperationId: claim.paymentOperationId ?? '',
                           claimId: claim.claimId ?? '',
                           tileID: property.tileID,
                           buyerPlayerId: selectedBuyerId,
+                          price: askedPrice,
                         }));
                       }}
                     >Gửi đề nghị bán</Button>
                     <p id={buyerStatusId} className="debt-panel__buyer-hint">
-                      {buyers.every(([, buyer]) => buyer.accountBalance < property.grossPrice)
-                        ? `Không ai đủ tiền để mua với giá ${formatMoney(property.grossPrice)}.`
-                        : selectedBuyer ? `Giá cố định ${formatMoney(property.grossPrice)}.` : 'Chọn một người mua để gửi đề nghị.'}
+                      {askedPrice === null
+                        ? 'Nhập một giá bán lớn hơn 0.'
+                        : buyers.every(([, buyer]) => buyer.accountBalance < askedPrice)
+                          ? `Không ai đủ tiền để mua với giá ${formatMoney(askedPrice)}.`
+                          : selectedBuyer ? `Người mua sẽ trả ${formatMoney(askedPrice)}.` : 'Chọn một người mua để gửi đề nghị.'}
                     </p>
                   </fieldset>
                 )

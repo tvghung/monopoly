@@ -113,6 +113,31 @@
 .debt-panel__buyer:has(input:disabled) { color: var(--color-text-muted); }
 .debt-panel__buyer-hint { margin: 0; color: var(--color-text-secondary); font: var(--type-small); }
 
+/* What the seller asks for the property: the same number field as the cash of a trade offer. */
+.debt-panel__price { display: grid; gap: var(--space-1); margin-bottom: var(--space-1); }
+.debt-panel__price > label { color: var(--color-text-secondary); font: var(--type-small); }
+.debt-panel__price-field { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.debt-panel__price-input {
+  box-sizing: border-box;
+  width: min(100%, 12rem);
+  min-height: 2.75rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font: var(--type-label);
+  font-variant-numeric: tabular-nums;
+}
+.debt-panel__price-input:focus-visible { outline: 0; box-shadow: var(--focus-ring); }
+.debt-panel__price-input[aria-invalid='true'] { border-color: var(--color-danger); }
+.debt-panel__price-preview { font: var(--type-label); font-variant-numeric: tabular-nums; }
+
+/* Offers to buy the debtor's properties, answered without leaving the debt dialog (V1.1). */
+.debt-panel__offers { display: grid; gap: var(--space-2); margin-top: var(--space-2); }
+.debt-panel__offers > .debt-panel__heading { margin: var(--space-2) 0 0; }
+.debt-panel__offer-effect { margin: var(--space-2) 0 0; color: var(--color-text-secondary); font: var(--type-small); font-weight: var(--font-weight-semibold); }
+
 .debt-panel-modal .ds-modal__footer { justify-content: space-between; }
 .debt-panel__footer-note { min-width: 0; color: var(--color-text-secondary); font: var(--type-small); }
 .debt-panel__footer-error { flex: 1 1 100%; margin: 0; color: var(--color-danger-strong); font: var(--type-small); font-weight: var(--font-weight-semibold); }

@@ -198,6 +198,31 @@ export const DECISION_SURFACES: readonly SurfaceFixture[] = [
     ),
   },
   {
+    id: 'debt-debtor-offer',
+    label: 'Debt, a buy offer arrives',
+    group: 'Decisions',
+    render: () => withPrivate(
+      { mutate: indebt },
+      {
+        privateOffers: [{
+          offerId: 'offer-debt-1',
+          roomId: 'room-1',
+          proposerPlayerId: 'player-b',
+          recipientPlayerId: 'player-a',
+          proposerName: 'Bình',
+          recipientName: 'An',
+          offered: { cash: 150, propertyIds: [], jailFreeCardIds: [] },
+          requested: { cash: 0, propertyIds: [5], jailFreeCardIds: [] },
+          status: 'PENDING',
+          createdAt: new Date().toISOString(),
+          expiresAt: deadline('debt-offer', 18),
+          resolvedAt: null,
+        }],
+      },
+      <roomExitContext.Provider value={EXIT}><DebtPanel /></roomExitContext.Provider>,
+    ),
+  },
+  {
     id: 'debt-observer',
     label: 'Debt, status seen by another player',
     group: 'Decisions',

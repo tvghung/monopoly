@@ -98,6 +98,41 @@ function renderOffers(offers: PrivateOffer[], socketFunctions: Partial<SocketFun
 }
 
 describe('IncomingOffers', () => {
+  it('stays closed while the recipient is in debt: the debt dialog answers the offer', () => {
+    const inDebt: PublicGameState = {
+      ...state,
+      boardState: {
+        ...state.boardState,
+        paymentShortfall: {
+          debtorPlayerId: 'recipient',
+          creditor: 'BANK',
+          amount: 300,
+          remainingAmount: 300,
+          source: { kind: 'OTHER', description: 'test' },
+          actionDeadlineAt: new Date(Date.now() + 60_000).toISOString(),
+          remainingClaimCount: 1,
+        },
+      },
+    };
+    render(
+      <stateContext.Provider value={{
+        state: inDebt,
+        socketFunctions: { acceptOffer: vi.fn(), declineOffer: vi.fn() } as unknown as SocketFunctions,
+        playerId: 'recipient',
+        role: 'PLAYER',
+        connected: true,
+        canMutate: true,
+        privatePlayerState: null,
+        privateOffers: [makeOffer()],
+      }}
+      >
+        <IncomingOffers />
+      </stateContext.Provider>,
+    );
+
+    expect(screen.queryByRole('dialog', { name: 'Đề nghị giao dịch' })).toBeNull();
+  });
+
   it('shows each side of the offer as deed chips and cash, with the sender avatar', () => {
     renderOffers([makeOffer()]);
 

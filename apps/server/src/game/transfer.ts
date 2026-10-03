@@ -146,8 +146,10 @@ export const executeVoluntaryTrade = (
   offered: TradeBundle,
   requested: TradeBundle,
   operationId?: string,
+  /** A payment shortfall normally locks trading; the caller opts in for the one trade it allows (a buy offer to the debtor). */
+  options: { allowDuringShortfall?: boolean } = {},
 ): PropertyTransferResult => {
-  if (state.boardState.paymentQueue) {
+  if (state.boardState.paymentQueue && !options.allowDuringShortfall) {
     return { ok: false, reason: 'Không thể giao dịch trong lúc thanh toán thiếu hụt.' };
   }
   const lockedTile = state.turnInfo.pendingDevelopmentDecision?.tileID;

@@ -73,13 +73,13 @@ function renderPanel(
 }
 
 describe('ForcedSaleProposalPanel', () => {
-  it('shows the deed, the fixed price and both parties', () => {
+  it('shows the deed, the price and both parties', () => {
     renderPanel('player-b');
 
     const dialog = screen.getByRole('dialog', { name: 'Đề nghị bán bắt buộc' });
     expect(dialog.querySelector('.deed--compact')).not.toBeNull();
     expect(within(dialog).getByRole('heading', { name: 'Cà Mau' })).toBeTruthy();
-    expect(within(dialog).getByText('Giá cố định').nextElementSibling?.textContent).toBe('112.000 ₫');
+    expect(within(dialog).getByText('Giá bán').nextElementSibling?.textContent).toBe('112.000 ₫');
     expect(within(dialog).getByText('Người bán').nextElementSibling?.textContent).toBe('An');
     expect(within(dialog).getByText('Người mua').nextElementSibling?.textContent).toBe('Bình');
   });

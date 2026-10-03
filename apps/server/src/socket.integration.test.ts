@@ -270,6 +270,35 @@ async function dismissCard(socket: TestSocket, operationId: string): Promise<Ack
   });
 }
 
+type ProposeForcedSaleRequest = Parameters<ClientToServerEvents['propose forced sale']>[0];
+
+async function proposeForcedSale(
+  socket: TestSocket,
+  request: ProposeForcedSaleRequest,
+): Promise<Ack<{ proposalId: string; expiresAt: string }>> {
+  return waitForAck((acknowledge) => {
+    socket.emit('propose forced sale', request, acknowledge);
+  });
+}
+
+async function acceptForcedSale(socket: TestSocket, proposalId: string): Promise<Ack> {
+  return waitForAck((acknowledge) => {
+    socket.emit('accept forced sale', { proposalId }, acknowledge);
+  });
+}
+
+async function makeOffer(socket: TestSocket, request: TradeOfferRequest): Promise<Ack<{ offerId: string; expiresAt: string }>> {
+  return waitForAck((acknowledge) => {
+    socket.emit('make offer', request, acknowledge);
+  });
+}
+
+async function answerOffer(socket: TestSocket, event: 'accept offer' | 'decline offer', offerId: string): Promise<Ack> {
+  return waitForAck((acknowledge) => {
+    socket.emit(event, { offerId }, acknowledge);
+  });
+}
+
 async function leaveRoom(socket: TestSocket): Promise<Ack<LeaveRoomResult>> {
   return waitForAck((acknowledge) => {
     socket.emit('leave room', acknowledge);
@@ -1999,6 +2028,191 @@ describe('Socket.IO durable player lifecycle', () => {
         expect.objectContaining({ playerId: guest.playerId, ready: true }),
       ]),
     );
+  });
+
+  /** A running three-player game in which the debtor owes 300 to the current creditor and owns street 1; the buyer has 1500. */
+  async function startShortfallGame(code: string) {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const creditor = await joinPlayer(await connect(subject.url), 'Creditor', code);
+    const debtor = await joinPlayer(await connect(subject.url), 'Debtor', code);
+    const buyer = await joinPlayer(await connect(subject.url), 'Buyer', code);
+    await setReady(creditor.socket);
+    await setReady(debtor.socket);
+    await setReady(buyer.socket);
+    expect((await startGame(creditor.socket)).ok).toBe(true);
+    const paymentOperationId = randomUUID();
+    const claimId = randomUUID();
+    const turnNumber = 5;
+    await mutateRoom(persistence, creditor.room.roomId, (room) => {
+      const gameState = room.gameSnapshot.gameState;
+      gameState.boardState.players = [creditor.playerId, debtor.playerId, buyer.playerId];
+      gameState.boardState.currentPlayer = { id: creditor.playerId, hasMoved: true };
+      gameState.boardState.turnNumber = turnNumber;
+      gameState.boardState.finishedPlayers = {};
+      gameState.boardState.winner = null;
+      gameState.boardState.ownedProps = {
+        1: { id: debtor.playerId, color: gameState.players[debtor.playerId].color, houses: 0 },
+      };
+      gameState.players[creditor.playerId].accountBalance = 1500;
+      gameState.players[debtor.playerId].accountBalance = 0;
+      gameState.players[buyer.playerId].accountBalance = 1500;
+      gameState.turnInfo = {};
+      const actionDeadlineAt = new Date(Date.now() + 120_000).toISOString();
+      gameState.boardState.paymentQueue = {
+        operationId: paymentOperationId,
+        orderedClaims: [{
+          claimId,
+          debtorPlayerId: debtor.playerId,
+          creditor: 'PLAYER',
+          creditorPlayerId: creditor.playerId,
+          amount: 300,
+          remainingAmount: 300,
+          source: { kind: 'OTHER', description: 'shortfall test' },
+          status: 'PENDING',
+        }],
+        activeClaimIndex: 0,
+        continuation: { playerId: creditor.playerId, turnNumber },
+        actionDeadlineAt,
+      };
+      room.nextActionAt = new Date(actionDeadlineAt);
+    });
+    return { persistence, creditor, debtor, buyer, paymentOperationId, claimId };
+  }
+
+  it('lets the debtor ask a price of their own for a forced sale', async () => {
+    const { persistence, creditor, debtor, buyer, paymentOperationId, claimId } = await startShortfallGame('asked-price');
+    const received: number[] = [];
+    buyer.socket.on('forced sale proposal', proposal => { if (proposal) received.push(proposal.grossPrice); });
+
+    const proposed = successData(await proposeForcedSale(debtor.socket, {
+      paymentOperationId, claimId, tileID: 1, buyerPlayerId: buyer.playerId, price: 400,
+    }));
+    await waitUntil(() => received.length > 0, 'The buyer did not receive the proposal');
+    expect(received).toEqual([400]);
+
+    const stored = await persistence.rooms.findById(creditor.room.roomId);
+    if (!stored) throw new Error('Expected the room');
+    assertSupportedRoomSnapshot(stored);
+    expect(stored.gameSnapshot.gameState.privateState.forcedSaleProposal).toMatchObject({
+      proposalId: proposed.proposalId, grossPrice: 400, sellerPlayerId: debtor.playerId, buyerPlayerId: buyer.playerId,
+    });
+
+    expect((await acceptForcedSale(buyer.socket, proposed.proposalId)).ok).toBe(true);
+    const after = await persistence.rooms.findById(creditor.room.roomId);
+    expect(after?.gameSnapshot.gameState.players[buyer.playerId].accountBalance).toBe(1100);
+    // 400 received, 300 paid to the creditor.
+    expect(after?.gameSnapshot.gameState.players[debtor.playerId].accountBalance).toBe(100);
+    expect(after?.gameSnapshot.gameState.players[creditor.playerId].accountBalance).toBe(1800);
+    expect(after?.gameSnapshot.gameState.boardState.ownedProps[1]).toMatchObject({ id: buyer.playerId });
+  });
+
+  it('refuses an asked price the buyer cannot pay and one that is not a positive whole number', async () => {
+    const { debtor, buyer, paymentOperationId, claimId } = await startShortfallGame('asked-price-invalid');
+    const base = { paymentOperationId, claimId, tileID: 1, buyerPlayerId: buyer.playerId };
+
+    expect(await proposeForcedSale(debtor.socket, { ...base, price: 2_000 })).toMatchObject({
+      ok: false, error: { code: 'CONFLICT', message: 'Người mua không đủ tiền để trả mức giá này.' },
+    });
+    expect(await proposeForcedSale(debtor.socket, { ...base, price: 0 })).toMatchObject({
+      ok: false, error: { code: 'INVALID_REQUEST' },
+    });
+    expect(await proposeForcedSale(debtor.socket, { ...base, price: 12.5 })).toMatchObject({
+      ok: false, error: { code: 'INVALID_REQUEST' },
+    });
+    // Without a price the Bank formula still applies.
+    expect((await proposeForcedSale(debtor.socket, base)).ok).toBe(true);
+  });
+
+  const cashFor = (cash: number, ...propertyIds: number[]): TradeOfferRequest['offered'] => ({ cash, propertyIds, jailFreeCardIds: [] });
+  const wantProperty = (...propertyIds: number[]): TradeOfferRequest['requested'] => ({ cash: 0, propertyIds, jailFreeCardIds: [] });
+
+  it('lets another player buy a property of the debtor with cash during a shortfall, and the debtor settles the debt with it', async () => {
+    const { persistence, creditor, debtor, buyer } = await startShortfallGame('debt-offer');
+    const received: PrivateOffer[] = [];
+    debtor.socket.on('offer on prop', offer => received.push(offer));
+
+    const made = successData(await makeOffer(buyer.socket, {
+      recipientPlayerId: debtor.playerId, offered: cashFor(350), requested: wantProperty(1),
+    }));
+    await waitUntil(() => received.length > 0, 'The debtor did not receive the offer');
+    expect(received[0]).toMatchObject({ offerId: made.offerId, proposerPlayerId: buyer.playerId, offered: { cash: 350 } });
+
+    expect(await answerOffer(debtor.socket, 'accept offer', made.offerId)).toMatchObject({ ok: true });
+
+    const after = await persistence.rooms.findById(creditor.room.roomId);
+    if (!after) throw new Error('Expected the room');
+    assertSupportedRoomSnapshot(after);
+    const state = after.gameSnapshot.gameState;
+    expect(state.boardState.ownedProps[1]).toMatchObject({ id: buyer.playerId });
+    // 350 received, 300 paid to the creditor: the debt is settled and the shortfall is over.
+    expect(state.players[buyer.playerId].accountBalance).toBe(1150);
+    expect(state.players[debtor.playerId].accountBalance).toBe(50);
+    expect(state.players[creditor.playerId].accountBalance).toBe(1800);
+    expect(state.boardState.paymentQueue ?? null).toBeNull();
+  });
+
+  it('lets the debtor decline a buy offer during a shortfall', async () => {
+    const { debtor, buyer } = await startShortfallGame('debt-offer-decline');
+    const made = successData(await makeOffer(buyer.socket, {
+      recipientPlayerId: debtor.playerId, offered: cashFor(100), requested: wantProperty(1),
+    }));
+
+    expect((await answerOffer(debtor.socket, 'decline offer', made.offerId)).ok).toBe(true);
+  });
+
+  it('keeps every other kind of offer locked while a shortfall is open', async () => {
+    const { creditor, debtor, buyer } = await startShortfallGame('debt-offer-locked');
+    const locked = { ok: false, error: { code: 'CONFLICT', message: 'Giao dịch thông thường bị khóa trong lúc thanh toán thiếu hụt.' } };
+    const buyOnly = { ok: false, error: { code: 'CONFLICT', message: 'Trong lúc có người đang nợ, chỉ có thể đề nghị mua tài sản của người đó bằng tiền.' } };
+
+    // The debtor cannot start trades, and trades between two other players stay locked.
+    expect(await makeOffer(debtor.socket, { recipientPlayerId: buyer.playerId, offered: cashFor(0, 1), requested: wantProperty() }))
+      .toMatchObject(locked);
+    expect(await makeOffer(buyer.socket, { recipientPlayerId: creditor.playerId, offered: cashFor(10), requested: wantProperty() }))
+      .toMatchObject(locked);
+    // To the debtor only cash for properties: no property or card offered, no cash asked, at least one property wanted.
+    expect(await makeOffer(buyer.socket, { recipientPlayerId: debtor.playerId, offered: cashFor(0, 2), requested: wantProperty(1) }))
+      .toMatchObject(buyOnly);
+    expect(await makeOffer(buyer.socket, { recipientPlayerId: debtor.playerId, offered: cashFor(100), requested: { cash: 5, propertyIds: [1], jailFreeCardIds: [] } }))
+      .toMatchObject(buyOnly);
+    expect(await makeOffer(buyer.socket, { recipientPlayerId: debtor.playerId, offered: cashFor(100), requested: wantProperty() }))
+      .toMatchObject({ ok: false });
+    // A proposer cannot offer more cash than they have.
+    expect(await makeOffer(buyer.socket, { recipientPlayerId: debtor.playerId, offered: cashFor(9_999), requested: wantProperty(1) }))
+      .toMatchObject({ ok: false, error: { code: 'CONFLICT', message: 'Bạn không đủ tiền cho đề nghị này.' } });
+  });
+
+  it('refuses a debt offer for a property that has an open forced-sale proposal', async () => {
+    const { persistence, creditor, debtor, buyer, paymentOperationId, claimId } = await startShortfallGame('debt-offer-proposal');
+    const made = successData(await makeOffer(buyer.socket, {
+      recipientPlayerId: debtor.playerId, offered: cashFor(350), requested: wantProperty(1),
+    }));
+    expect((await proposeForcedSale(debtor.socket, {
+      paymentOperationId, claimId, tileID: 1, buyerPlayerId: buyer.playerId,
+    })).ok).toBe(true);
+
+    expect(await answerOffer(debtor.socket, 'accept offer', made.offerId)).toMatchObject({
+      ok: false, error: { code: 'CONFLICT', message: 'Tài sản này đang có đề nghị bán bắt buộc.' },
+    });
+    const after = await persistence.rooms.findById(creditor.room.roomId);
+    expect(after?.gameSnapshot.gameState.boardState.ownedProps[1]).toMatchObject({ id: debtor.playerId });
+  });
+
+  it('eliminates the debtor when the accepted sale still leaves the debt unpaid, with a valid room afterwards', async () => {
+    const { persistence, creditor, debtor, buyer } = await startShortfallGame('debt-offer-bankrupt');
+    const made = successData(await makeOffer(buyer.socket, {
+      recipientPlayerId: debtor.playerId, offered: cashFor(100), requested: wantProperty(1),
+    }));
+
+    expect(await answerOffer(debtor.socket, 'accept offer', made.offerId)).toMatchObject({ ok: true });
+
+    const after = await persistence.rooms.findById(creditor.room.roomId);
+    if (!after) throw new Error('Expected the room');
+    assertSupportedRoomSnapshot(after);
+    expect(after.gameSnapshot.gameState.boardState.finishedPlayers[debtor.playerId]).toMatchObject({ reason: 'BANKRUPT' });
+    expect(after.gameSnapshot.gameState.players[debtor.playerId]).toBeUndefined();
+    expect(after.gameSnapshot.gameState.boardState.ownedProps[1]).toMatchObject({ id: buyer.playerId });
   });
 
   it('lets an unrelated current creditor leave without rebasing or clearing another forced sale', async () => {

@@ -573,11 +573,6 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
       state.boardState.paymentQueue.activeClaimIndex
     ];
     const property = state.boardState.ownedProps[proposal.tileID];
-    const tile = tileState[proposal.tileID];
-    const invested = tile?.tileType === 'normal'
-      ? proposal.expectedHouses * (tile.houseCost ?? 0)
-      : 0;
-    const expectedGross = Math.floor(((tile?.price ?? 0) + invested) * 70 / 100);
     if (
       !claim || claim.claimId !== proposal.claimId
       || state.boardState.paymentQueue?.operationId !== proposal.paymentOperationId
@@ -586,7 +581,6 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
       || !state.players[proposal.buyerPlayerId]
       || !property || property.id !== proposal.sellerPlayerId
       || property.houses !== proposal.expectedHouses
-      || proposal.grossPrice !== expectedGross
       || Date.parse(proposal.expiresAt) > Date.parse(state.boardState.paymentQueue.actionDeadlineAt)
     ) throw new Error('Room snapshot forced-sale proposal is inconsistent');
   }

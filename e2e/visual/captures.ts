@@ -139,7 +139,7 @@ export const PLAN04_SURFACES = [
   'settings', 'settings-desktop', 'settings-reduced-motion',
   // Decisions
   'buy', 'buy-short', 'development-houses', 'development-hotel', 'jail',
-  'debt-debtor', 'debt-debtor-sale-open', 'debt-observer', 'forced-sale-buyer', 'forced-sale-seller', 'trade', 'incoming-offers',
+  'debt-debtor', 'debt-debtor-sale-open', 'debt-debtor-offer', 'debt-observer', 'forced-sale-buyer', 'forced-sale-seller', 'trade', 'incoming-offers',
   // Inspection and portfolios
   'deeds', 'inspection-street', 'inspection-own-street', 'inspection-railroad', 'inspection-unowned', 'inspection-special',
   'assets', 'assets-empty', 'player-portfolio',

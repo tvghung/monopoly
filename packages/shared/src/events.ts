@@ -118,7 +118,7 @@ export interface ClientToServerEvents {
     acknowledge: AckCallback,
   ) => void;
   'propose forced sale': (
-    request: { paymentOperationId: string; claimId: string; tileID: number; buyerPlayerId: PlayerId },
+    request: { paymentOperationId: string; claimId: string; tileID: number; buyerPlayerId: PlayerId; price?: number },
     acknowledge: AckCallback<{ proposalId: string; expiresAt: string }>,
   ) => void;
   'accept forced sale': (request: { proposalId: string }, acknowledge: AckCallback) => void;

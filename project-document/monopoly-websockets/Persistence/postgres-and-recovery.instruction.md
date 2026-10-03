@@ -15,7 +15,9 @@ pending landing/turn/card continuation correlation, property/building shape,
 private deck/card one-location invariants, semantic and typed activity stream tails,
 `completedCardOperations` uniqueness and forced-sale proposal binding:
 seller=active debtor, buyer=distinct ACTIVE player, property fingerprint unchanged,
-gross recomputed, and proposal expiry no later than the payment deadline.
+grossPrice a positive integer (the agreed price: the Bank formula or the seller's `price`, V1.1, no migration), and proposal expiry no
+later than the payment deadline. A finished game's LEFT winner may keep its live seat (V1.1); every other LEFT member has a
+finished-player record and no live seat.
 It also validates nullable `CharacterId` and shared `PlayerColorId` values on
 appearance identity records. Finished rooms contain no pending
 landing/payment/proposal/turn-recovery state.

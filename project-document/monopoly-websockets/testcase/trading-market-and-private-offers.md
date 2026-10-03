@@ -8,6 +8,9 @@
 - [ ] `[SOCKET]` Actor/participants/ownership derive server-side; spoofed/cross-room/
   unowned assets fail. Nhà/Khách Sạn never appear as bundle assets.
 - [ ] `[SOCKET]` Card holder/source and money balance revalidate at creation/accept.
+- [x] `[SOCKET]` V1.1: during a payment shortfall only a cash-for-properties offer to the debtor can be made and accepted (the proposer's
+  balance is also checked at creation); every other shape stays locked. Cases and files are in the
+  [payment shortfall checklist](./payment-shortfall-and-forced-sale.md).
 
 ## Accept/transfer
 

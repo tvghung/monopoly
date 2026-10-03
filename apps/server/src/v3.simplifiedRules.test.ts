@@ -9,6 +9,7 @@ import {
   bankruptActiveDebtor,
   createForcedSaleProposal,
   createPaymentQueue,
+  executeVoluntaryTrade,
   forcedSaleGrossPrice,
   handleJailRoll,
   nextTurn,
@@ -332,6 +333,107 @@ describe('simplified v4 rules', () => {
     expect(state.privateState.privateGameplayEventsByPlayer.p2.events[0]?.eventId)
       .toBe(state.privateState.privateGameplayEventsByPlayer.p1.events[0]?.eventId);
     expect(state.privateState.privateGameplayEventsByPlayer.p3).toBeUndefined();
+  });
+
+  describe('a forced sale at the price the seller asks (V1.1)', () => {
+    const setUp = () => {
+      const state = makeState();
+      addPlayer(state, 'p1', { accountBalance: 0 });
+      addPlayer(state, 'p2', { accountBalance: 1000, color: 'blue' });
+      own(state, 1, 'p1');
+      const queue = createPaymentQueue(
+        [{
+          debtorPlayerId: 'p1',
+          creditor: 'BANK',
+          amount: 500,
+          source: { kind: 'OTHER', description: 'asked price' },
+        }],
+        { playerId: 'p1', turnNumber: 1 },
+        { now: 0, paymentShortfallActionTimeoutMs: 120_000 },
+      );
+      state.boardState.paymentQueue = queue;
+      return { state, queue, claimId: queue.orderedClaims[0].claimId };
+    };
+
+    it('uses the asked price instead of the Bank formula, and moves exactly that amount', () => {
+      const { state, queue, claimId } = setUp();
+      const asked = forcedSaleGrossPrice(1, 0) + 123;
+
+      const proposal = createForcedSaleProposal(state, 'p1', queue.operationId, claimId, 1, 'p2', 0, asked);
+      expect(proposal).toMatchObject({ grossPrice: asked, tileID: 1 });
+
+      expect(acceptForcedSaleProposal(state, 'p2', proposal?.proposalId ?? '', {
+        now: 1,
+        paymentShortfallActionTimeoutMs: 120_000,
+      }).ok).toBe(true);
+      expect(state.boardState.ownedProps[1]).toMatchObject({ id: 'p2' });
+      expect(state.players.p2.accountBalance).toBe(1000 - asked);
+      expect(state.players.p1.accountBalance).toBe(asked);
+    });
+
+    it('may ask less than the Bank formula', () => {
+      const { state, queue, claimId } = setUp();
+
+      expect(createForcedSaleProposal(state, 'p1', queue.operationId, claimId, 1, 'p2', 0, 1))
+        .toMatchObject({ grossPrice: 1 });
+    });
+
+    it('keeps the Bank formula when no price is asked', () => {
+      const { state, queue, claimId } = setUp();
+
+      expect(createForcedSaleProposal(state, 'p1', queue.operationId, claimId, 1, 'p2', 0))
+        .toMatchObject({ grossPrice: forcedSaleGrossPrice(1, 0) });
+    });
+
+    it('refuses a price the buyer cannot pay, and a price that is not a positive whole number', () => {
+      const { state, queue, claimId } = setUp();
+
+      expect(createForcedSaleProposal(state, 'p1', queue.operationId, claimId, 1, 'p2', 0, 1001)).toBeNull();
+      expect(createForcedSaleProposal(state, 'p1', queue.operationId, claimId, 1, 'p2', 0, 0)).toBeNull();
+      expect(createForcedSaleProposal(state, 'p1', queue.operationId, claimId, 1, 'p2', 0, -5)).toBeNull();
+      expect(createForcedSaleProposal(state, 'p1', queue.operationId, claimId, 1, 'p2', 0, 12.5)).toBeNull();
+      expect(state.privateState.forcedSaleProposal).toBeNull();
+    });
+
+    it('refuses the accept when the buyer can no longer pay the asked price', () => {
+      const { state, queue, claimId } = setUp();
+      const proposal = createForcedSaleProposal(state, 'p1', queue.operationId, claimId, 1, 'p2', 0, 900);
+      state.players.p2.accountBalance = 899;
+
+      expect(acceptForcedSaleProposal(state, 'p2', proposal?.proposalId ?? '', {
+        now: 1,
+        paymentShortfallActionTimeoutMs: 120_000,
+      }).ok).toBe(false);
+      expect(state.boardState.ownedProps[1]).toMatchObject({ id: 'p1' });
+    });
+  });
+
+  it('locks voluntary trades during a payment shortfall unless the caller opts in to the one trade it allows', () => {
+    const state = makeState();
+    addPlayer(state, 'p1', { accountBalance: 100 });
+    addPlayer(state, 'p2', { accountBalance: 100, color: 'blue' });
+    own(state, 1, 'p2');
+    state.boardState.paymentQueue = createPaymentQueue(
+      [{
+        debtorPlayerId: 'p2',
+        creditor: 'BANK',
+        amount: 500,
+        source: { kind: 'OTHER', description: 'trade lock' },
+      }],
+      { playerId: 'p2', turnNumber: 1 },
+      { now: 0, paymentShortfallActionTimeoutMs: 120_000 },
+    );
+    const offered = { cash: 40, propertyIds: [], jailFreeCardIds: [] };
+    const requested = { cash: 0, propertyIds: [1], jailFreeCardIds: [] };
+
+    expect(executeVoluntaryTrade(state, 'p1', 'p2', offered, requested)).toMatchObject({ ok: false });
+    expect(state.boardState.ownedProps[1]).toMatchObject({ id: 'p2' });
+
+    expect(executeVoluntaryTrade(state, 'p1', 'p2', offered, requested, undefined, { allowDuringShortfall: true }))
+      .toEqual({ ok: true });
+    expect(state.boardState.ownedProps[1]).toMatchObject({ id: 'p1' });
+    expect(state.players.p1.accountBalance).toBe(60);
+    expect(state.players.p2.accountBalance).toBe(140);
   });
 
   it('rebases a remaining payment queue when its current debtor is eliminated', () => {

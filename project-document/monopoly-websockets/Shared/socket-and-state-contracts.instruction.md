@@ -101,7 +101,9 @@ hay board label hiện tại.
 - Turn/buy/jail/property/payment/trade command actor lấy từ
   `socket.data.playerId`.
 - Buy/development/forced-sale payloads chỉ mang operation/claim/proposal IDs; tile,
-  owner, seller, buyer and price đều được derive từ snapshot.
+  owner, seller, buyer và giá Bank đều được derive từ snapshot. Ngoại lệ có chủ ý (V1.1): `propose forced sale` có thêm
+  `price?` (`moneyAmountSchema`, số nguyên dương) là giá người bán đòi; vắng mặt thì dùng giá Bank. `ForcedSaleProposal.grossPrice`
+  là giá đã thỏa thuận (không còn bắt buộc bằng công thức Bank). Field optional nên protocol vẫn 9 và snapshot vẫn 8.
 - Public `update(PublicRoomState)` tách khỏi private offer/session delivery.
 - `play again` is a no-payload, host-only command accepted only in `FINISHED`; it
   resets the same room through the canonical fresh-state path and ACKs only after

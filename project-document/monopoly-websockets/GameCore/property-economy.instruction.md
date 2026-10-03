@@ -33,8 +33,8 @@ Mọi ownership change dùng một policy rõ ràng:
   đổi cash/property/card state.
 - `RETURN_TO_BANK`: clear owner and buildings.
 - `BANK_PURCHASE`: tạo ownership mới với `houses = 0` sau Buy.
-- `FORCED_SALE`: buyer trả gross `floor((price + invested development cost) * 70 / 100)`;
-  seller nhận gross trước khi `PaymentQueue` tiếp tục xử lý khoản nợ.
+- `FORCED_SALE`: buyer trả giá đã thỏa thuận của proposal (mặc định gross `floor((price + invested development cost) * 70 / 100)`,
+  hoặc `price` seller nhập, V1.1); seller nhận đúng số đó trước khi `PaymentQueue` tiếp tục xử lý khoản nợ.
 
 Nhà/Khách Sạn không được đưa trực tiếp vào `TradeBundle`; debtor phải bán về Bank
 trước. Mọi offer pending liên quan asset được hủy trong cùng transaction khi asset

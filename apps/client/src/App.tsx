@@ -39,7 +39,7 @@ import FpsBadge from './game/ui/FpsBadge';
 import { getDesktopBridge } from './runtime/desktopBridge';
 import stateContext from './internal';
 import { roomExitContext, type RoomExitContextValue } from './roomExitContext';
-import { localizeAckError } from './presentation';
+import { getTileName, localizeAckError } from './presentation';
 import { createSocket } from './network/createSocket';
 import { PresentationController, type SnapshotSource } from './game/presentation/PresentationController';
 import { PresentationProvider } from './game/presentation/PresentationProvider';
@@ -447,6 +447,11 @@ export default function App({
         ...current.filter(item => item.offerId !== offer.offerId),
         offer,
       ]);
+      // A player in debt answers offers inside the debt dialog, which covers the screen: say that one has arrived.
+      const shortfall = roomRef.current?.gameState.boardState.paymentShortfall;
+      if (shortfall?.debtorPlayerId === playerIdRef.current && offer.recipientPlayerId === playerIdRef.current) {
+        toast.show(`Đề nghị mua ${offer.requested.propertyIds.map(getTileName).join(', ')} của ${offer.proposerName}.`);
+      }
     };
 
     const onPrivatePlayerState = (incoming: PrivatePlayerState) => {

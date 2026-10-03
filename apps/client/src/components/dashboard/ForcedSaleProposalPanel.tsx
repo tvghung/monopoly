@@ -59,7 +59,7 @@ export default function ForcedSaleProposalPanel() {
         <div className="forced-sale-proposal__details">
           <dl className="forced-sale-proposal__facts">
             <div className="forced-sale-proposal__price">
-              <dt>Giá cố định</dt>
+              <dt>Giá bán</dt>
               <dd>{formatMoney(proposal.grossPrice)}</dd>
             </div>
             <div className="forced-sale-proposal__party">

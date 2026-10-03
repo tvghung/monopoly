@@ -265,6 +265,8 @@ export const createForcedSaleProposal = (
   tileID: number,
   buyerPlayerId: PlayerId,
   now = Date.now(),
+  /** What the seller asks the buyer to pay; the Bank formula when omitted. */
+  price?: number,
 ): ForcedSaleProposal | null => {
   const queue = state.boardState.paymentQueue;
   const claim = activeDebtClaim(state);
@@ -280,8 +282,8 @@ export const createForcedSaleProposal = (
   if (state.privateState.forcedSaleProposal) return null;
   const paymentDeadline = Date.parse(queue.actionDeadlineAt);
   if (!Number.isFinite(paymentDeadline) || paymentDeadline <= now) return null;
-  const gross = forcedSaleGrossPrice(tileID, property.houses);
-  if (gross <= 0 || buyer.accountBalance < gross) return null;
+  const gross = price ?? forcedSaleGrossPrice(tileID, property.houses);
+  if (!Number.isSafeInteger(gross) || gross <= 0 || buyer.accountBalance < gross) return null;
   const proposal: ForcedSaleProposal = {
     proposalId: randomUUID(),
     paymentOperationId,
