@@ -36,6 +36,11 @@
 - [ ] Active debtor forfeit auto-liquidates to Bank before creditor payment; other
   leavers return assets unowned while history reason remains `LEFT`.
 - [ ] Successful Player/spectator leave may start a fresh admission on the same socket.
+- [x] `[AUTO][CLIENT]` `App.test.tsx` (V1.1): a confirmed forfeit emits `leave room`, then `join room` on the same socket, and the
+  "Bạn đã bỏ cuộc" alertdialog offers "Xem tiếp" (stays a spectator, dialog closes) and "Rời phòng" (back to the launcher while the
+  host runtime keeps running); a failed re-join leaves for good with a toast.
+- [ ] `[MANUAL-E2E]` V1.1: forfeit in a real 3-player LAN game: the forfeiter keeps watching, the others are unaffected, a reload lands
+  on the start screen (the token is revoked).
 - [ ] Join after start without token is spectator; valid existing token reclaims Player.
 - [ ] Public/private Socket.IO rooms isolate room updates and private session/offer data.
 - [ ] All-offline room survives; explicit empty lobby/retention cleanup follows policy.

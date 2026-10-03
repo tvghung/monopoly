@@ -151,7 +151,8 @@ formatter dùng `1 game unit = 1.000 VNĐ` và player-facing UI/log/error là ti
    bắt đầu ở vùng nội dung chứ không ở nút rời phòng. Dialog che toolbar (nợ, thắng) rời phòng qua
    `useRoomExit()` (`roomExitContext`: `requestLeave`, `leaving`, `label`, `error`); không gửi command
    mới và không tự dựng confirmation thứ hai.
-   Active-game `Bỏ cuộc` dùng confirmation; desktop close khi đang chơi chỉ
+   Active-game `Bỏ cuộc` dùng confirmation, rồi người chơi xem tiếp như khán giả qua `ForfeitChoiceDialog` ("Xem tiếp" hoặc
+   "Rời phòng"); desktop close khi đang chơi chỉ
    disconnect để giữ reconnect token, không emit `leave room`.
 - Desktop shell development có hai đường chạy: `pnpm dev:desktop` tự khởi động
   server/client; hoặc `pnpm dev:web` ở Terminal A và `pnpm dev:desktop:shell` ở

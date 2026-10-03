@@ -57,6 +57,12 @@ Explicit leave:
   assets unowned with no proceeds. Payment/turn continuation is reconciled before
   winner check; finished reason remains `LEFT`.
 - Spectator: runtime room leave only.
+- Finished: any member may leave. The membership becomes `LEFT` and the session is revoked without a liquidation; the winner
+  keeps its live seat (cash, properties, turn slot), so the victory state is unchanged for everyone who stays. The host passes
+  to the lowest join order among the non-`LEFT` members, finished members included; the room is deleted when all members have
+  left. `play again` excludes `LEFT` members.
+- After a forfeit the client may re-join the same Socket as a spectator (a join after the start is a spectator); the forfeiter
+  is a `LEFT` member with no seat and no token, exactly like any other spectator.
 
 Finished history records reason (`BANKRUPT | LEFT`); it is not erased by disconnect.
 
@@ -73,6 +79,8 @@ Finished history records reason (`BANKRUPT | LEFT`); it is not erased by disconn
 ## Invariants
 
 - All player references are stable IDs and must resolve to valid Seat/history state.
+- A `LEFT` or finished member is not a live player and not in the turn order, except the winner of a finished game, who may be
+  `LEFT` while keeping the live seat it won with (`assertRoomSnapshot`).
 - Public connected flags derive from runtime registry after load/restart.
 - Raw token, SocketData, presence, command queue and scheduler timer handles never
   enter snapshot.

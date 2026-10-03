@@ -664,6 +664,126 @@ describe('Socket.IO durable player lifecycle', () => {
     expect((await playAgain(host.socket)).ok).toBe(false);
   });
 
+  /** A finished two-player game: the host won with a developed street, the guest went bankrupt and stays to watch. */
+  async function finishWithBankruptGuest(
+    persistence: InMemoryPersistenceStore<RoomSnapshot>,
+    host: PlayerConnection,
+    guest: PlayerConnection,
+  ): Promise<void> {
+    await mutateRoom(persistence, host.room.roomId, room => {
+      const state = room.gameSnapshot.gameState;
+      const winner = state.players[host.playerId];
+      const bankrupt = state.players[guest.playerId];
+      if (!winner || !bankrupt) throw new Error('Expected both players');
+      winner.accountBalance = 2_345;
+      state.boardState.winner = {
+        playerId: host.playerId,
+        name: winner.name,
+        color: winner.color,
+        characterId: winner.characterId,
+      };
+      state.boardState.players = [host.playerId];
+      state.boardState.currentPlayer = { id: host.playerId, hasMoved: false };
+      state.boardState.finishedPlayers[guest.playerId] = {
+        name: bankrupt.name,
+        color: bankrupt.color,
+        characterId: bankrupt.characterId,
+        reason: 'BANKRUPT',
+        accountBalance: 0,
+      };
+      delete state.players[guest.playerId];
+      room.gameSnapshot.members[guest.playerId].membershipStatus = 'FINISHED';
+      room.gameSnapshot.members[guest.playerId].ready = false;
+      state.boardState.ownedProps[1] = { id: host.playerId, color: winner.color, houses: 3 };
+      room.status = 'FINISHED';
+    });
+  }
+
+  it('lets the winner leave a finished room without liquidating and hands the host role to a remaining member', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const host = await joinPlayer(await connect(subject.url), 'Host', 'winner-leaves');
+    const guest = await joinPlayer(await connect(subject.url), 'Guest', 'winner-leaves');
+    await setReady(host.socket);
+    await setReady(guest.socket);
+    expect((await startGame(host.socket)).ok).toBe(true);
+    await finishWithBankruptGuest(persistence, host, guest);
+    const guestUpdates: PublicRoomState[] = [];
+    guest.socket.on('update', room => guestUpdates.push(room));
+
+    expect(successData(await leaveRoom(host.socket))).toEqual({ roomDeleted: false });
+
+    const stored = await persistence.rooms.findById(host.room.roomId);
+    if (!stored) throw new Error('Expected the finished room');
+    assertSupportedRoomSnapshot(stored);
+    expect(stored).toMatchObject({
+      status: 'FINISHED',
+      hostPlayerId: guest.playerId,
+      gameSnapshot: {
+        members: {
+          [host.playerId]: { membershipStatus: 'LEFT', ready: false },
+          [guest.playerId]: { membershipStatus: 'FINISHED' },
+        },
+        gameState: {
+          // What the victory screen shows survives: the winner keeps the cash, the turn slot and the developed street.
+          players: { [host.playerId]: { accountBalance: 2_345 } },
+          boardState: {
+            winner: { playerId: host.playerId },
+            players: [host.playerId],
+            finishedPlayers: { [guest.playerId]: { reason: 'BANKRUPT' } },
+            ownedProps: { 1: { id: host.playerId, houses: 3 } },
+          },
+        },
+      },
+    });
+    expect(Object.keys(stored.gameSnapshot.gameState.boardState.finishedPlayers)).toEqual([guest.playerId]);
+    await waitUntil(
+      () => guestUpdates.some(room => room.hostPlayerId === guest.playerId),
+      'The remaining member did not receive the new host',
+    );
+    expect(await leaveRoom(host.socket)).toMatchObject({ ok: false, error: { code: 'UNAUTHENTICATED' } });
+
+    // The new host starts the replay; the winner who left is not part of it.
+    expect((await playAgain(guest.socket)).ok).toBe(true);
+    const replayed = await persistence.rooms.findById(host.room.roomId);
+    expect(replayed).toMatchObject({
+      status: 'LOBBY',
+      hostPlayerId: guest.playerId,
+      gameSnapshot: { members: { [guest.playerId]: { membershipStatus: 'ACTIVE' } } },
+    });
+    expect(replayed?.gameSnapshot.members[host.playerId]).toBeUndefined();
+  });
+
+  it('lets a bankrupt member leave a finished room and deletes the room with the last leave', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const host = await joinPlayer(await connect(subject.url), 'Host', 'last-leaves');
+    const guest = await joinPlayer(await connect(subject.url), 'Guest', 'last-leaves');
+    await setReady(host.socket);
+    await setReady(guest.socket);
+    expect((await startGame(host.socket)).ok).toBe(true);
+    await finishWithBankruptGuest(persistence, host, guest);
+
+    expect(successData(await leaveRoom(guest.socket))).toEqual({ roomDeleted: false });
+    const afterGuest = await persistence.rooms.findById(host.room.roomId);
+    if (!afterGuest) throw new Error('Expected the finished room');
+    assertSupportedRoomSnapshot(afterGuest);
+    expect(afterGuest).toMatchObject({
+      status: 'FINISHED',
+      hostPlayerId: host.playerId,
+      gameSnapshot: {
+        members: {
+          [host.playerId]: { membershipStatus: 'ACTIVE' },
+          [guest.playerId]: { membershipStatus: 'LEFT' },
+        },
+        gameState: { boardState: { winner: { playerId: host.playerId } } },
+      },
+    });
+
+    expect(successData(await leaveRoom(host.socket))).toEqual({ roomDeleted: true });
+    expect(await persistence.rooms.findById(host.room.roomId)).toBeNull();
+  });
+
   it('allows a one-player host replay after a leave and admits a new player into match two', async () => {
     const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
     const subject = await startServer(persistence);

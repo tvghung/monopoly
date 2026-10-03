@@ -147,10 +147,10 @@ export default function WinnerBanner() {
             <Button
               variant="secondary"
               size={buttonSize}
-              icon={<ActionIcon name="leave" />}
+              icon={<ActionIcon name="home" />}
               busy={exit.leaving}
               onClick={exit.requestLeave}
-            >Rời phòng</Button>
+            >Về trang chủ</Button>
           )
           : null}
       </div>
@@ -171,7 +171,7 @@ export default function WinnerBanner() {
       >
         {/*
           The scrolling body has no control of its own, so this region is the keyboard stop that lets the arrow keys scroll it on a
-          short screen. Anyone without "Chơi lại" starts here instead of on "Rời phòng", which leaves the room at once.
+          short screen. Anyone without "Chơi lại" starts here instead of on "Về trang chủ", which leaves the room at once.
         */}
         <div
           className="victory__content"

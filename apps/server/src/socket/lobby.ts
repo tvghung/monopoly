@@ -26,7 +26,7 @@ import {
   freshState,
 } from '../rooms';
 import type { AppRuntime } from '../services/runtime';
-import type { TradeOfferRecord } from '../persistence';
+import type { RoomRecord, TradeOfferRecord } from '../persistence';
 import { projectPrivateOffer } from '../services/privateOffers';
 import { emitCancelledOffers } from '../services/offerInvalidation';
 import { recordActivityEvent } from '../game/activity';
@@ -40,6 +40,23 @@ import { CommandError, acknowledgeFailure, successAck } from './errors';
 import { commitRoomCommand } from './roomCommands';
 import type { AppServer, AppSocket } from './types';
 import { parsePayload } from './validation';
+
+/**
+ * Who hosts after the host leaves: the lowest join order among the members that stay. During a game only an active seat can
+ * host; once it is over every member that stayed can, bankrupt players included, so the replay always has a host.
+ */
+function successorHost(
+  room: Pick<RoomRecord<RoomSnapshot>, 'status' | 'gameSnapshot'>,
+  leavingPlayerId: string,
+): string | null {
+  const members = Object.entries(room.gameSnapshot.members)
+    .filter(([playerId, member]) => playerId !== leavingPlayerId && member.membershipStatus !== 'LEFT')
+    .sort(([, left], [, right]) => left.joinOrder - right.joinOrder);
+  const eligible = room.status === 'FINISHED'
+    ? members
+    : members.filter(([, member]) => member.membershipStatus === 'ACTIVE');
+  return eligible[0]?.[0] ?? null;
+}
 
 function hasAppearanceCombinationConflict(
   room: RoomSnapshot,
@@ -314,9 +331,6 @@ export function registerLobbyHandlers(
         if (!member || member.membershipStatus === 'LEFT') {
           throw new CommandError('CONFLICT', 'This player has already left the room.');
         }
-        if (room.status === 'FINISHED') {
-          throw new CommandError('CONFLICT', 'Ván đã kết thúc; không thể rời phòng lưu trữ.');
-        }
         await transaction.playerSessions.revokeByPlayer(roomId, playerId, now);
 
         if (room.status === 'LOBBY') {
@@ -362,7 +376,10 @@ export function registerLobbyHandlers(
           );
           cancelledOffers = cancelled.filter((offer) => offer !== null);
         } else {
-          if (member.membershipStatus === 'ACTIVE') {
+          // FINISHED: the game is over, so the winner's leave liquidates nothing. The winner stays in the game state exactly as
+          // the game ended (cash, properties, turn slot) and only the membership changes, which keeps the victory screen of
+          // everyone still in the room intact; the snapshot validator allows this one LEFT-but-live seat.
+          if (member.membershipStatus === 'ACTIVE' && state.boardState.winner?.playerId !== playerId) {
             removePlayerFromGame(state, playerId, 'LEFT');
           }
           const pendingOffers = await transaction.tradeOffers.listPendingForPlayer(roomId, playerId);
@@ -384,8 +401,7 @@ export function registerLobbyHandlers(
         }
 
         if (room.hostPlayerId === playerId) {
-          room.hostPlayerId = activePlayerIds(room.gameSnapshot)
-            .find((candidate) => candidate !== playerId) ?? null;
+          room.hostPlayerId = successorHost(room, playerId);
         }
         return cancelledOffers;
       }, now, actor);

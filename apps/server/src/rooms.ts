@@ -456,6 +456,11 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
   if (turnOrder.size !== state.boardState.players.length) {
     throw new Error('Room snapshot turn order contains duplicate players');
   }
+  // The winner of a finished game may leave the room. Leaving a finished game liquidates nothing, so that one member stays in
+  // the game state exactly as the game ended (live player, turn slot, properties) while its membership is LEFT; everyone
+  // else who left or finished keeps the finished-player record instead.
+  const winnerId = state.boardState.winner?.playerId;
+  const leftWinnerId = winnerId && snapshot.members[winnerId]?.membershipStatus === 'LEFT' ? winnerId : null;
   for (const [playerId, member] of Object.entries(snapshot.members)) {
     const hasLivePlayer = Boolean(state.players[playerId]);
     const hasFinishedPlayer = Boolean(state.boardState.finishedPlayers[playerId]);
@@ -463,12 +468,16 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
       if (!hasLivePlayer || hasFinishedPlayer || !turnOrder.has(playerId)) {
         throw new Error(`Active room member ${playerId} has inconsistent game state`);
       }
+    } else if (playerId === leftWinnerId) {
+      if (!hasLivePlayer || hasFinishedPlayer || !turnOrder.has(playerId)) {
+        throw new Error(`Winner ${playerId} who left has inconsistent game state`);
+      }
     } else if (hasLivePlayer || !hasFinishedPlayer || turnOrder.has(playerId)) {
       throw new Error(`Finished room member ${playerId} has inconsistent game state`);
     }
   }
   for (const playerId of Object.keys(state.players)) {
-    if (snapshot.members[playerId]?.membershipStatus !== 'ACTIVE') {
+    if (playerId !== leftWinnerId && snapshot.members[playerId]?.membershipStatus !== 'ACTIVE') {
       throw new Error(`Live player ${playerId} is not an active room member`);
     }
   }

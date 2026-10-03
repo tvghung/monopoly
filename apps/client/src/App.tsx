@@ -26,6 +26,7 @@ import ErrorScreen from './app/screens/ErrorScreen';
 import LoadingScreen from './app/screens/LoadingScreen';
 import Board from './components/Board';
 import ConnectionOverlay from './components/ConnectionOverlay';
+import ForfeitChoiceDialog from './components/ForfeitChoiceDialog';
 import JoinForm from './components/JoinForm';
 import Lobby from './components/Lobby';
 import SpectatorBanner from './components/SpectatorBanner';
@@ -185,6 +186,8 @@ export default function App({
   const [privateOffers, setPrivateOffers] = useState<PrivateOffer[]>([]);
   const [confirmation, setConfirmation] = useState<ConfirmationState | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** The "Xem tiếp / Rời phòng" choice a player gets right after giving up. */
+  const [forfeitChoiceOpen, setForfeitChoiceOpen] = useState(false);
   const desktopBridge = getDesktopBridge();
 
   useEffect(() => {
@@ -257,6 +260,7 @@ export default function App({
       setPrivatePlayerState(null);
       setPrivateOffers([]);
       setIdentity(null, null);
+      setForfeitChoiceOpen(false);
     }
 
     setFailure({
@@ -706,6 +710,28 @@ export default function App({
     });
   }, [socket]);
 
+  /** The end of every leave: forget the room and go back to where the app starts (the launcher on desktop, the join form on the web). */
+  const exitToStart = useCallback(() => {
+    tokenRef.current = null;
+    spectatorRequestRef.current = null;
+    clearPlayerSession(sessionAuthority);
+    roomRef.current = null;
+    setRoom(null);
+    setPrivatePlayerState(null);
+    setPrivateOffers([]);
+    setIdentity(null, null);
+    setForfeitChoiceOpen(false);
+
+    if (desktopBridge) {
+      socket.disconnect();
+      onExitToLauncher?.();
+      if (!onExitToLauncher) transition('JOIN');
+      return;
+    }
+
+    transition('JOIN');
+  }, [desktopBridge, onExitToLauncher, sessionAuthority, setIdentity, socket, transition]);
+
   const leaveRoom = useCallback(() => {
     setOperation('leave');
     setOperationError(null);
@@ -715,26 +741,65 @@ export default function App({
         setOperationError(localizeAckError(response.error));
         return;
       }
+      exitToStart();
+    });
+  }, [exitToStart, socket]);
 
-      tokenRef.current = null;
-      spectatorRequestRef.current = null;
-      clearPlayerSession(sessionAuthority);
-      roomRef.current = null;
-      setRoom(null);
-      setPrivatePlayerState(null);
-      setPrivateOffers([]);
-      setIdentity(null, null);
-
-      if (desktopBridge) {
-        socket.disconnect();
-        onExitToLauncher?.();
-        if (!onExitToLauncher) transition('JOIN');
+  /**
+   * "Bỏ cuộc": the server returns the player's assets to the Bank and revokes their session, then the same socket asks to
+   * watch the room as a spectator, and a dialog offers "Xem tiếp" or "Rời phòng". Nothing changes on the server: a socket
+   * that has left may join the room again, and a join after the start is a spectator.
+   */
+  const forfeitAndWatch = useCallback(() => {
+    const currentRoom = roomRef.current;
+    const self = currentRoom?.players.find(member => member.playerId === playerIdRef.current);
+    if (!currentRoom || !self) {
+      leaveRoom();
+      return;
+    }
+    const request: JoinRoomRequest = { name: self.name, roomCode: currentRoom.roomCode };
+    setOperation('leave');
+    setOperationError(null);
+    socket.emit('leave room', (left) => {
+      if (!left.ok) {
+        setOperation(null);
+        setOperationError(localizeAckError(left.error));
         return;
       }
+      // The seat and the session are gone. The board stays on screen; a dropped connection from here on re-joins as a
+      // spectator too, because the connect handler reads spectatorRequestRef.
+      tokenRef.current = null;
+      clearPlayerSession(sessionAuthority);
+      spectatorRequestRef.current = request;
+      setPrivatePlayerState(null);
+      setPrivateOffers([]);
+      setIdentity('SPECTATOR', null);
 
-      transition('JOIN');
+      let settled = false;
+      const giveUp = () => {
+        if (settled) return;
+        settled = true;
+        setOperation(null);
+        exitToStart();
+        toast.show('Bạn đã bỏ cuộc và rời phòng.');
+      };
+      const timeout = window.setTimeout(giveUp, ACK_TIMEOUT_MS);
+      socket.emit('join room', request, (joined) => {
+        window.clearTimeout(timeout);
+        if (settled) return;
+        settled = true;
+        setOperation(null);
+        if (joined.ok && joined.data.kind === 'SPECTATOR') {
+          applyRoom(joined.data.room, true, 'SPECTATOR_SYNC');
+          setForfeitChoiceOpen(true);
+          return;
+        }
+        // The room cannot be watched any more (it is gone, or the answer was unexpected): leave for good.
+        exitToStart();
+        toast.show('Bạn đã bỏ cuộc và rời phòng.');
+      });
     });
-  }, [desktopBridge, onExitToLauncher, sessionAuthority, setIdentity, socket, transition]);
+  }, [applyRoom, exitToStart, leaveRoom, sessionAuthority, setIdentity, socket, toast]);
 
   const handleLeave = useCallback(() => {
     const currentRoom = roomRef.current;
@@ -769,12 +834,12 @@ export default function App({
     if (!confirmation) return;
     if (confirmation === 'LEAVE') {
       setConfirmation(null);
-      leaveRoom();
+      forfeitAndWatch();
       return;
     }
     desktopBridge?.quit.respond(confirmation.requestId, true);
     setConfirmation(null);
-  }, [confirmation, desktopBridge, leaveRoom]);
+  }, [confirmation, desktopBridge, forfeitAndWatch]);
 
   const retry = useCallback(() => {
     setFailure(null);
@@ -906,7 +971,7 @@ export default function App({
             open={confirmation !== null}
             title={confirmation === 'LEAVE' ? 'Bỏ cuộc khỏi ván chơi?' : 'Đóng Own the Block?'}
             message={confirmation === 'LEAVE'
-              ? 'Rời phòng lúc này đồng nghĩa với bỏ cuộc và thu hồi phiên chơi.'
+              ? 'Tài sản của bạn sẽ trả về ngân hàng và bạn không chơi tiếp ván này được nữa. Sau đó bạn có thể ở lại xem hoặc rời phòng.'
               : launch?.hosting
                 ? 'Đóng Own the Block sẽ dừng máy chủ LAN cho mọi người. Dữ liệu phòng được giữ lại để khôi phục khi Host khởi động lại.'
                 : 'Đóng cửa sổ sẽ ngắt kết nối nhưng không bỏ cuộc; bạn có thể kết nối lại bằng phiên đã lưu.'}
@@ -914,6 +979,13 @@ export default function App({
             confirmIcon={confirmation === 'LEAVE' ? <Flag /> : <XIcon />}
             onCancel={cancelConfirmation}
             onConfirm={confirmConfirmation}
+          />
+          <ForfeitChoiceDialog
+            open={forfeitChoiceOpen && role === 'SPECTATOR' && room?.status === 'IN_PROGRESS'}
+            hosting={Boolean(launch?.hosting)}
+            leaving={operation === 'leave'}
+            onWatch={() => setForfeitChoiceOpen(false)}
+            onLeave={leaveRoom}
           />
         </main>
         <CardInteractionOverlay />

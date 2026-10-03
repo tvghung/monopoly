@@ -264,7 +264,7 @@ describe('WinnerBanner', () => {
 
     expect(screen.getByRole('button', { name: 'Chơi lại' })).toBeTruthy();
     expect(screen.getByText('Ván mới giữ nguyên phòng và danh sách người chơi đủ điều kiện.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Rời phòng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Về trang chủ' }));
     expect(exit.requestLeave).toHaveBeenCalledTimes(1);
   });
 
@@ -279,7 +279,7 @@ describe('WinnerBanner', () => {
 
     expect(screen.queryByRole('button', { name: 'Chơi lại' })).toBeNull();
     expect(screen.getByText('Đang chờ chủ phòng bắt đầu ván mới')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Rời phòng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Về trang chủ' }));
     expect(exit.requestLeave).toHaveBeenCalledTimes(1);
   });
 
@@ -289,19 +289,19 @@ describe('WinnerBanner', () => {
 
     expect(screen.queryByRole('button', { name: 'Chơi lại' })).toBeNull();
     expect(screen.getByText('Đang chờ chủ phòng bắt đầu ván mới')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Rời phòng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Về trang chủ' }));
     expect(exit.requestLeave).toHaveBeenCalledTimes(1);
   });
 
   it('has no leave button outside the app shell', () => {
     renderWinner({ canPlayAgain: true, exit: null });
-    expect(screen.queryByRole('button', { name: 'Rời phòng' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Về trang chủ' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Chơi lại' })).toBeTruthy();
   });
 
   it('disables the leave button while a leave request is in flight', () => {
     renderWinner({ exit: exitContext({ leaving: true }) });
-    const leave = screen.getByRole('button', { name: 'Rời phòng' });
+    const leave = screen.getByRole('button', { name: 'Về trang chủ' });
     expect(leave.hasAttribute('disabled')).toBe(true);
     expect(leave.getAttribute('aria-busy')).toBe('true');
   });
@@ -349,7 +349,7 @@ describe('WinnerBanner', () => {
     it('starts a player who is not the host on the results, never on the leave button', () => {
       renderWinner({ canPlayAgain: false, playerId: 'player-b', exit: exitContext() });
       expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Kết quả ván chơi' }));
-      expect(document.activeElement).not.toBe(screen.getByRole('button', { name: 'Rời phòng' }));
+      expect(document.activeElement).not.toBe(screen.getByRole('button', { name: 'Về trang chủ' }));
     });
 
     it('starts a spectator on the results too', () => {
@@ -368,7 +368,7 @@ describe('WinnerBanner', () => {
     it('keeps the DOM and Tab order the same as the drawn order: the primary action first', () => {
       renderWinner({ canPlayAgain: true, exit: exitContext() });
       const buttons = screen.getAllByRole('button');
-      expect(buttons.map(button => button.textContent)).toEqual(['Chơi lại', 'Rời phòng']);
+      expect(buttons.map(button => button.textContent)).toEqual(['Chơi lại', 'Về trang chủ']);
     });
 
     it('describes the dialog with the winner and the next step', () => {
@@ -397,7 +397,7 @@ describe('WinnerBanner', () => {
       expect(avatar.getAttribute('width')).toBe('128');
       expect(avatar.getAttribute('height')).toBe('128');
       expect(screen.getByRole('button', { name: 'Chơi lại' }).className).toContain('ds-button--lg');
-      expect(screen.getByRole('button', { name: 'Rời phòng' }).className).toContain('ds-button--lg');
+      expect(screen.getByRole('button', { name: 'Về trang chủ' }).className).toContain('ds-button--lg');
     });
 
     it('shrinks the hero to 64 px and uses medium buttons on a phone held sideways', () => {
@@ -412,7 +412,7 @@ describe('WinnerBanner', () => {
       expect(avatar.getAttribute('width')).toBe('64');
       expect(avatar.getAttribute('height')).toBe('64');
       expect(screen.getByRole('button', { name: 'Chơi lại' }).className).toContain('ds-button--md');
-      expect(screen.getByRole('button', { name: 'Rời phòng' }).className).toContain('ds-button--md');
+      expect(screen.getByRole('button', { name: 'Về trang chủ' }).className).toContain('ds-button--md');
     });
   });
 

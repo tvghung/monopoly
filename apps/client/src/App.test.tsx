@@ -811,10 +811,154 @@ describe('App session admission', () => {
       }
     });
 
+    // Giving up does not throw the player out: the same socket asks to watch, and the player picks what happens next.
+    expect(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY)).toBeNull();
+    expect(lastEmission('join room')?.args[0]).toEqual({ name: 'Ada', roomCode: gameRoom.roomCode });
+    const watchAck = lastEmission('join room')?.args[1];
+    act(() => {
+      if (isAckCallback(watchAck)) {
+        watchAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          revision: gameRoom.version + 1,
+          data: {
+            kind: 'SPECTATOR',
+            role: 'SPECTATOR',
+            playerId: null,
+            room: { ...gameRoom, version: gameRoom.version + 1 },
+          },
+        });
+      }
+    });
+    const choice = screen.getByRole('alertdialog', { name: 'Bạn đã bỏ cuộc' });
+    expect(within(choice).getByRole('button', { name: 'Xem tiếp' })).toBeTruthy();
+    expect(screen.getByRole('complementary', { name: 'Khán giả' })).toBeTruthy();
+    expect(socketHarness.socket.connected).toBe(true);
+    expect(onExitToLauncher).not.toHaveBeenCalled();
+
+    // "Rời phòng" leaves for good: back to the launcher while the independent desktop host keeps running.
+    fireEvent.click(within(choice).getByRole('button', { name: 'Rời phòng' }));
+    const spectatorLeaveAck = lastEmission('leave room')?.args[0];
+    await act(async () => {
+      if (isAckCallback(spectatorLeaveAck)) {
+        spectatorLeaveAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          data: { roomDeleted: false },
+        });
+        await Promise.resolve();
+      }
+    });
+
     expect(stopHost).not.toHaveBeenCalled();
     expect(socketHarness.socket.connected).toBe(false);
-    expect(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY)).toBeNull();
     expect(onExitToLauncher).toHaveBeenCalledOnce();
+  });
+
+  /** A player in a running game on the web who confirms "Bỏ cuộc"; returns once the server accepted the leave. */
+  async function forfeitWebPlayer() {
+    const gameRoom: PublicRoomState = {
+      ...room,
+      status: 'IN_PROGRESS',
+      version: 3,
+      gameState: {
+        ...room.gameState,
+        boardState: { ...room.gameState.boardState, gameStarted: true, players: ['stable-player-id'] },
+        players: {
+          'stable-player-id': {
+            name: 'Ada',
+            currentTile: 0,
+            color: 'red',
+            characterId: 'dog',
+            accountBalance: 1500,
+            isJail: false,
+            jailOpponentRoundsElapsed: 0,
+            getOutOfJailCardCount: 0,
+          },
+        },
+      },
+    };
+    window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, JSON.stringify({
+      version: 3,
+      sessions: { [window.location.origin]: { token: FORFEIT_TOKEN, roomCode: 'ROOM-42' } },
+    }));
+    render(<ToastProvider><App /></ToastProvider>);
+    const resumeAck = lastEmission('resume session')?.args[1];
+    act(() => {
+      if (isAckCallback(resumeAck)) {
+        resumeAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          revision: gameRoom.version,
+          data: {
+            role: 'PLAYER',
+            playerId: 'stable-player-id',
+            room: gameRoom,
+            privatePlayerState: {
+              playerId: 'stable-player-id',
+              heldJailFreeCardIds: [],
+              gameplayEvents: { sequence: 0, events: [] },
+            },
+            pendingOffers: [],
+          },
+        });
+      }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ cuộc' }));
+    const confirmationButtons = screen.getAllByRole('button', { name: 'Bỏ cuộc' });
+    fireEvent.click(confirmationButtons[confirmationButtons.length - 1]);
+    const leaveAck = lastEmission('leave room')?.args[0];
+    await act(async () => {
+      if (isAckCallback(leaveAck)) {
+        leaveAck({ ok: true, protocolVersion: SOCKET_PROTOCOL_VERSION, data: { roomDeleted: false } });
+        await Promise.resolve();
+      }
+    });
+    return gameRoom;
+  }
+
+  it('lets a player who gave up keep watching with "Xem tiếp"', async () => {
+    const gameRoom = await forfeitWebPlayer();
+    const watchAck = lastEmission('join room')?.args[1];
+    act(() => {
+      if (isAckCallback(watchAck)) {
+        watchAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          revision: gameRoom.version + 1,
+          data: {
+            kind: 'SPECTATOR',
+            role: 'SPECTATOR',
+            playerId: null,
+            room: { ...gameRoom, version: gameRoom.version + 1 },
+          },
+        });
+      }
+    });
+
+    fireEvent.click(within(screen.getByRole('alertdialog', { name: 'Bạn đã bỏ cuộc' })).getByRole('button', { name: 'Xem tiếp' }));
+
+    expect(screen.queryByRole('alertdialog', { name: 'Bạn đã bỏ cuộc' })).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Khán giả' })).toBeTruthy();
+    expect(socketHarness.socket.connected).toBe(true);
+  });
+
+  it('leaves for good when the room can no longer be watched after giving up', async () => {
+    await forfeitWebPlayer();
+    const watchAck = lastEmission('join room')?.args[1];
+    act(() => {
+      if (isAckCallback(watchAck)) {
+        watchAck({
+          ok: false,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          error: { code: 'ROOM_GONE', message: 'The room no longer exists.', retryable: false },
+        });
+      }
+    });
+
+    expect(screen.queryByRole('alertdialog', { name: 'Bạn đã bỏ cuộc' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Vào phòng' })).toBeTruthy();
+    expect(screen.getByText('Bạn đã bỏ cuộc và rời phòng.')).toBeTruthy();
   });
 
   it('returns a desktop spectator to the launcher after leaving', async () => {

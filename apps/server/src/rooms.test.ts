@@ -406,6 +406,59 @@ describe('durable room snapshot compatibility', () => {
     })).toThrow(/inconsistent game state/);
   });
 
+  describe('a winner who left a finished game', () => {
+    const finishedSnapshot = (): ReturnType<typeof createRoomSnapshot> => {
+      const gameSnapshot = createActiveSnapshot();
+      gameSnapshot.members[PLAYER_TWO].membershipStatus = 'FINISHED';
+      gameSnapshot.members[PLAYER_TWO].ready = false;
+      gameSnapshot.gameState.boardState.finishedPlayers[PLAYER_TWO] = {
+        name: 'Player Two',
+        color: 'blue',
+        characterId: 'panda',
+        reason: 'BANKRUPT',
+        accountBalance: 0,
+      };
+      delete gameSnapshot.gameState.players[PLAYER_TWO];
+      gameSnapshot.gameState.boardState.players = [PLAYER_ONE];
+      gameSnapshot.gameState.boardState.gameStarted = true;
+      gameSnapshot.gameState.boardState.winner = {
+        playerId: PLAYER_ONE,
+        name: 'Player One',
+        color: 'red',
+        characterId: 'dog',
+      };
+      return gameSnapshot;
+    };
+    const assertValid = (gameSnapshot: ReturnType<typeof createRoomSnapshot>): void => {
+      assertSupportedRoomSnapshot({ snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION, gameSnapshot });
+    };
+
+    it('may stay in the game state as it ended while its membership is LEFT', () => {
+      const gameSnapshot = finishedSnapshot();
+      gameSnapshot.gameState.boardState.ownedProps[1] = { id: PLAYER_ONE, color: 'red', houses: 3 };
+      gameSnapshot.members[PLAYER_ONE].membershipStatus = 'LEFT';
+      gameSnapshot.members[PLAYER_ONE].ready = false;
+
+      expect(() => assertValid(gameSnapshot)).not.toThrow();
+    });
+
+    it('is the only LEFT member allowed to keep a live seat', () => {
+      const gameSnapshot = finishedSnapshot();
+      gameSnapshot.gameState.boardState.winner = null;
+      gameSnapshot.members[PLAYER_ONE].membershipStatus = 'LEFT';
+
+      expect(() => assertValid(gameSnapshot)).toThrow(/inconsistent game state/);
+    });
+
+    it('must keep its live seat and its turn slot', () => {
+      const gameSnapshot = finishedSnapshot();
+      gameSnapshot.members[PLAYER_ONE].membershipStatus = 'LEFT';
+      gameSnapshot.gameState.boardState.players = [];
+
+      expect(() => assertValid(gameSnapshot)).toThrow(/Winner .* who left has inconsistent game state/);
+    });
+  });
+
   it('preserves the active multi-debtor claim when game state is stored and hydrated', () => {
     const debtorId = '00000000-0000-4000-8000-000000000001';
     const creditorId = '00000000-0000-4000-8000-000000000002';

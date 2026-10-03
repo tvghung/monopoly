@@ -103,6 +103,15 @@ app-owned host runtime. Web leave returns to JoinForm.
 In-game Player requires explicit forfeit confirmation. Browser close, refresh and
 network loss are not leave.
 
+Sau khi xác nhận "Bỏ cuộc" (V1.1) client không đuổi người chơi ra ngoài (`forfeitAndWatch` trong `App.tsx`): nó emit
+`leave room`, xóa token và session đã lưu, giữ bàn cờ trên màn hình, rồi cùng Socket đó emit `join room` (tên + mã phòng) để vào
+lại như khán giả (join sau khi ván bắt đầu là khán giả; server không đổi). `ForfeitChoiceDialog` ("Bạn đã bỏ cuộc", `alertdialog`)
+đưa hai lựa chọn: **Xem tiếp** (nút mặc định, cũng là Escape; ở lại xem) và **Rời phòng** (flow rời phòng của khán giả: launcher
+trên desktop, JoinForm trên web). Host desktop thấy thêm một dòng nói máy này vẫn giữ phòng. Nếu ván đã `FINISHED` (hai người cuối)
+thì không hiện dialog: `WinnerBanner` là lựa chọn. Nếu join lại thất bại hoặc quá `ACK_TIMEOUT_MS`, client rời hẳn và hiện toast
+"Bạn đã bỏ cuộc và rời phòng."; mất kết nối giữa chừng thì connect handler vào lại như khán giả (`spectatorRequestRef`). Tải lại trang
+sau khi bỏ cuộc về launcher/JoinForm vì token đã bị thu hồi và khán giả không bền.
+
 ## Security
 
 - Never put token in URL, public state, error text, log or DOM.

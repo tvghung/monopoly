@@ -61,7 +61,12 @@ First activated Seat is host. Temporary disconnect never transfers host or ready
   to the Bank to settle the creditor before removal. Remaining properties return to
   the Bank without proceeds or auction; payment/current turn/winner reconcile
   atomically.
-- Finished Player: mark left/revoke and preserve finished game history.
+- Finished room (any member): revoke the session, mark the member `LEFT`, cancel its pending offers; nothing is liquidated
+  (V1.1: before this the handler rejected the command with `CONFLICT`). A bankrupt member keeps its finished-player record.
+  The winner is the only live seat of a finished game: it stays in the game state exactly as the game ended (cash, properties,
+  turn slot) while its membership becomes `LEFT`, so everyone still in the room keeps a complete victory screen; the snapshot
+  validator allows this one LEFT-but-live seat. When the host leaves, the lowest join order among the members that stay
+  (finished members included) becomes host, so the replay always has a host; the room is deleted when every member has left.
 
 When leave intersects a forced-sale proposal, cancel the proposal before deterministic
 Bank liquidation. Ordinary pending offers are cancelled in the same unit of work and
@@ -78,6 +83,9 @@ leave clears runtime binding/admission lock so the same Socket can join another 
 - Successful start persists one ISO `gameStartedAt`; hydration/public projection and
   subsequent command storage do not reset it. Older snapshots without the field remain valid.
 - Spectator/lobby/in-progress/finished leave branches and token revocation.
+- Finished leave (`socket.integration.test.ts`): the winner leaves without liquidation and the host passes to a finished member,
+  the replay then excludes the winner; a bankrupt member leaves and the last leave deletes the room (`rooms.test.ts`: the
+  LEFT winner snapshot is valid, any other LEFT live seat or a LEFT winner without a live seat is rejected).
 - Same-socket Player/spectator leave then fresh join.
 - Current/non-current leave, property/listing/offer cleanup and winner.
 - Active-payer leave settles creditor and leaves no auction/proposal; non-payer leave

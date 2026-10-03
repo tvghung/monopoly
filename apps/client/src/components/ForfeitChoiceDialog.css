@@ -1,0 +1,7 @@
+.forfeit-choice__body { display: flex; align-items: flex-start; gap: var(--space-3); }
+.forfeit-choice__icon { display: inline-grid; flex: none; place-items: center; width: 3rem; height: 3rem; border-radius: 50%; background: var(--color-surface-sunken, var(--color-surface-muted)); color: var(--color-text-secondary); }
+.forfeit-choice__text { display: grid; gap: var(--space-2); align-self: center; }
+.forfeit-choice__message { margin: 0; color: var(--color-text-secondary); font: var(--type-body); }
+.forfeit-choice__hint { margin: 0; color: var(--color-text-muted, var(--color-text-secondary)); font: var(--type-caption, var(--type-body)); }
+.forfeit-choice__actions { display: flex; flex: 1 1 auto; justify-content: flex-end; gap: var(--space-2); }
+@media (max-width: 32rem) { .forfeit-choice__actions { flex-direction: column-reverse; } .forfeit-choice__actions .ds-button { width: 100%; } }

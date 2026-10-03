@@ -44,9 +44,11 @@
   surface immediately without replaying stale presentation.
 - `WinnerBanner` là `Modal` `xl` tone `celebration`, `role="alertdialog"`, mô tả bằng người thắng + câu hướng dẫn tiếp theo:
   hero (avatar 128 px, 64 px khi landscape thấp, vương miện), bốn ô số liệu, danh sách người chơi khác (không xếp hạng:
-  `finishedPlayers` không có thứ tự loại đáng tin; thứ tự theo ghế) với chip "Phá sản"/"Đã rời". **Mọi vai trò đều có "Rời phòng"**
-  (qua `useRoomExit()`, lỗi hiển thị ngay trong dialog); chỉ host có "Chơi lại" (nút chính, đứng trước trong DOM). Người không phải
-  host bắt đầu ở vùng "Kết quả ván chơi" (`tabIndex=0`, cũng là chỗ để cuộn bằng bàn phím), không bao giờ ở nút rời phòng.
+  `finishedPlayers` không có thứ tự loại đáng tin; thứ tự theo ghế) với chip "Phá sản"/"Đã rời". **Mọi vai trò đều có "Về trang chủ"** (V1.1; icon `home`)
+  (qua `useRoomExit()`, không cần xác nhận vì ván đã kết thúc: rời phòng rồi về trình khởi động LAN trên desktop hoặc form vào phòng
+  trên web; server cho phép rời phòng đã `FINISHED`, lỗi vẫn hiển thị ngay trong dialog); chỉ host có "Chơi lại" (nút chính, đứng
+  trước trong DOM). Người không phải host bắt đầu ở vùng "Kết quả ván chơi" (`tabIndex=0`, cũng là chỗ để cuộn bằng bàn phím),
+  không bao giờ ở nút về trang chủ.
   `useVictoryVisibility`: winner đến từ live update chỉ hiện khi presentation `idle` (dự phòng 8 s); snapshot/reconnect hiện
   ngay. `VictoryConfetti` là một đợt 48 mảnh ≤ 1200 ms, chỉ lúc xuất hiện live, không bao giờ khi reduced motion hiệu lực.
 - Player card trên HUD là nút thật "Xem tài sản của <tên>" mở `PlayerPortfolioModal` (chỉ đọc).
