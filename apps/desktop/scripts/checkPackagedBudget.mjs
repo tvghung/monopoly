@@ -17,10 +17,11 @@ const MIB = 1048576;
 export const ASAR_MAX_BYTES = 5 * MIB;
 export const ASAR_FORBIDDEN_ROOTS = ['generated', 'src', 'tests', 'scripts', 'node_modules', 'out'];
 /**
- * The Windows Setup.exe a player downloads. Measured at 181.9 MiB after the duplicate PostgreSQL copy, the link-time
- * libraries and the extra Electron locales were removed (it was 249.7 MiB before); this budget leaves headroom.
+ * The Windows Setup.exe a player downloads. It was 249.7 MiB; it measures 181.9 MiB after the duplicate PostgreSQL
+ * copy, the link-time libraries and the extra Electron locales were removed, and 160.6 MiB once the music shipped as
+ * Ogg Vorbis instead of WAV. This budget leaves about 14 MiB of headroom.
  */
-export const WINDOWS_SETUP_MAX_BYTES = 195 * MIB;
+export const WINDOWS_SETUP_MAX_BYTES = 175 * MIB;
 
 /** Lists the files of an asar archive with their sizes, from its header (no dependency on @electron/asar). */
 export async function readAsarEntries(asarPath) {

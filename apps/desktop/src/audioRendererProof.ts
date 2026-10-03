@@ -1,5 +1,5 @@
 import { app, BrowserWindow } from 'electron';
-import { parseWavMetadata, type WavMetadata } from './wavMetadata';
+import { parseOggVorbisMetadata, type OggVorbisMetadata } from './oggVorbisMetadata';
 
 export async function runAudioRendererProof(): Promise<unknown> {
   if (!app.isPackaged || !process.argv.includes('--audio-renderer-proof')) {
@@ -21,7 +21,7 @@ export async function runAudioRendererProof(): Promise<unknown> {
       (async () => {
         await window.loadURL('app://own-the-block/index.html');
         const result: unknown = await window.webContents.executeJavaScript(
-          `(${inspectGameplayAudioAssets.toString()})(${parseWavMetadata.toString()})`,
+          `(${inspectGameplayAudioAssets.toString()})(${parseOggVorbisMetadata.toString()})`,
         );
         return result;
       })(),
@@ -38,9 +38,12 @@ export async function runAudioRendererProof(): Promise<unknown> {
 // Runs inside the packaged renderer through its registered app:// handler.
 // It proves shipped MIME types and Web Audio decoding; it does not replace listening acceptance.
 async function inspectGameplayAudioAssets(
-  parseWavMetadata: (payload: ArrayBuffer, requirements?: { channels?: number; sampleRate?: number }) => WavMetadata,
+  parseOggVorbisMetadata: (
+    payload: ArrayBuffer,
+    requirements?: { channels?: number; sampleRate?: number },
+  ) => OggVorbisMetadata,
 ) {
-  const musicPath = '/audio/music/own-the-block-main-theme-loop.wav';
+  const musicPath = '/audio/music/own-the-block-main-theme-loop.ogg';
   const sfxPaths = [
     '/audio/sfx/dice/dice-shake-01.ogg',
     '/audio/sfx/dice/dice-shake-02.ogg',
@@ -73,7 +76,7 @@ async function inspectGameplayAudioAssets(
     const getAudio = async (
       path: string,
       contentType: string,
-      sourceValidator?: (payload: ArrayBuffer) => WavMetadata,
+      sourceValidator?: (payload: ArrayBuffer) => OggVorbisMetadata,
     ) => {
       const url = new URL(path, location.href).href;
       const response = await fetch(url);
@@ -91,11 +94,21 @@ async function inspectGameplayAudioAssets(
 
     const music = await getAudio(
       musicPath,
-      'audio/wav',
-      payload => parseWavMetadata(payload, { channels: 2, sampleRate: 48_000 }),
+      'audio/ogg',
+      payload => parseOggVorbisMetadata(payload, { channels: 2, sampleRate: 48_000 }),
     );
     if (!music.sourceMetadata || music.buffer.duration <= 0) {
-      throw new Error(`${musicPath}: expected valid source WAV and decoded audio`);
+      throw new Error(`${musicPath}: expected valid source Ogg Vorbis and decoded audio`);
+    }
+    // The track loops as one buffer, so the decoder must return exactly the frames the container declares (scaled
+    // to the context rate); extra or missing frames would open a gap or skip audio at every loop seam.
+    const expectedFrames = Math.round(
+      music.sourceMetadata.totalFrames * (context.sampleRate / music.sourceMetadata.sampleRate),
+    );
+    if (Math.abs(music.buffer.length - expectedFrames) > 2) {
+      throw new Error(
+        `${musicPath}: decoded ${String(music.buffer.length)} frames, the Ogg container declares ${String(expectedFrames)}`,
+      );
     }
     const source = context.createBufferSource();
     source.buffer = music.buffer;
@@ -113,19 +126,22 @@ async function inspectGameplayAudioAssets(
       pass: true,
       status: 'PASS AUDIO ASSETS PRESENT',
       checks: {
-        'source-wav-format': {
-          validRiffWave: true,
+        'source-ogg-vorbis-format': {
+          validOggVorbis: true,
           channels: music.sourceMetadata.channels,
           sampleRate: music.sourceMetadata.sampleRate,
-          dataBytes: music.sourceMetadata.dataSize,
+          nominalBitrate: music.sourceMetadata.nominalBitrate,
+          declaredFrames: music.sourceMetadata.totalFrames,
         },
         'web-audio-decoding': {
           httpStatus: 200,
-          contentType: 'audio/wav',
+          contentType: 'audio/ogg',
           nonEmptyPayload: true,
           decoded: true,
           channels: music.buffer.numberOfChannels,
           frames: music.buffer.length,
+          expectedFrames,
+          gaplessLoop: true,
         },
         'loop-source-creation': {
           created: true,

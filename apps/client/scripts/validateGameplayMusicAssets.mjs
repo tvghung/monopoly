@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const clientRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const assetRoot = path.join(clientRoot, 'public', 'audio');
-export const MUSIC_ASSET_PATH = 'music/own-the-block-main-theme-loop.wav';
+export const MUSIC_ASSET_PATH = 'music/own-the-block-main-theme-loop.ogg';
 export const SFX_ASSET_PATHS = [
   'sfx/dice/dice-shake-01.ogg',
   'sfx/dice/dice-shake-02.ogg',

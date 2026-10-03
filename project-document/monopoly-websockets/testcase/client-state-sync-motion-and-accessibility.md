@@ -73,6 +73,15 @@
 - [ ] `[CLIENT][MANUAL-E2E]` Headphone/speaker melody, timbre, treble, loop seam,
   SFX masking, multi-loop fatigue and real browser/Electron/device output remain
   listening gates; automated waveform checks do not prove perceived mix quality.
+- [x] `[DESKTOP][AUTOMATED]` V1.1.1 single-track music: the shipped `own-the-block-main-theme-loop.ogg` is one stereo 48 kHz
+  Ogg Vorbis stream of exactly 6,781,091 frames and under 5 MiB, and the container reader rejects non-Ogg data, a truncated
+  or unterminated stream, a missing stream start, a non-Vorbis first packet, a chained stream and a wrong rate or channel
+  count: `apps/desktop/tests/oggVorbisMetadata.test.ts`.
+- [ ] `[PACKAGED]` `proof:packaged:audio` serves the track through `app://` as `audio/ogg`, decodes it, and finds the decoded
+  frame count equal to the container's declared count (a gapless loop).
+- [ ] `[BROWSER]` The mobile Chromium flow starts exactly one decoded, looping stereo music source (`e2e/mobile-host.spec.ts`);
+  the WebKit run proves it only where the engine has Web Audio (macOS CI; the Windows WebKit build has none). Safari and iOS
+  before 18.4 cannot decode Ogg Vorbis, so a guest there plays without music. Not testable in CI.
 
 ## Phase 2.5B commercial WebGL board
 

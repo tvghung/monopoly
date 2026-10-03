@@ -1,17 +1,31 @@
 # Own the Block audio sources
 
-All audio files in this directory are local, runtime-served assets. The source
-files listed below were copied without trimming, normalization, resampling, or
-other processing.
+All audio files in this directory are local, runtime-served assets. The sampled
+sound effects were copied without trimming, normalization, resampling, or other
+processing; the music is encoded from its production source as described below.
 
 ## Music
 
 | Runtime file | Source | License / provenance |
 | --- | --- | --- |
-| `music/own-the-block-main-theme-loop.wav` | `C:\Users\TVGHu\Downloads\own-the-block-main-theme-loop.wav` | User-provided production source; copied unchanged |
+| `music/own-the-block-main-theme-loop.ogg` | `own-the-block-main-theme-loop.wav`, the user-provided production source | User-provided production source, encoded to Ogg Vorbis for 1.1.1 |
 
-The music source is PCM S16LE, stereo, 48 kHz, 141.272729 seconds. It is
-decoded once by `AudioEngine` and looped as one Web Audio buffer only while the
+The production source is PCM S16LE, stereo, 48 kHz, 141.272729 seconds
+(6,781,091 frames). It shipped unchanged as `music/own-the-block-main-theme-loop.wav`
+(25.9 MiB, SHA-256 `d576abfc6d5eb7a802f04bed1090413c0e833e541f3ad2acaf9cfe39aa3a03c5`)
+in 1.0.0 and 1.1.0 and stays in the `v1.1.0` tag. The runtime file is encoded from
+it with ffmpeg 9.0.2 (`libvorbis`):
+
+```text
+ffmpeg -i own-the-block-main-theme-loop.wav -map_metadata -1 -c:a libvorbis -b:a 160k -ar 48000 -ac 2 own-the-block-main-theme-loop.ogg
+```
+
+The result is stereo, 48 kHz, 2,897,250 bytes (2.76 MiB) and declares exactly
+6,781,091 frames, so the looped buffer keeps the source length. Its SHA-256 is
+`95f947b0b6d1ad52d53019e1a15f08b378a37668d89dcba01f3070f35b2305ac`; the Ogg stream
+serial is random, so re-running the command gives a different file of the same
+size and length, and the hash identifies the committed file. The file is decoded
+once by `AudioEngine` and looped as one Web Audio buffer only while the
 authoritative room status is `IN_PROGRESS`.
 
 ## Sampled sound effects

@@ -59,7 +59,7 @@ export function publicAudioAsset(path: string): string {
 }
 
 export const GAMEPLAY_MUSIC_URL = publicAudioAsset(
-  'audio/music/own-the-block-main-theme-loop.wav',
+  'audio/music/own-the-block-main-theme-loop.ogg',
 );
 
 const procedural = (layers: readonly ProceduralAudioLayer[]): ProceduralAudioSource => ({

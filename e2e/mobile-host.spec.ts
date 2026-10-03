@@ -2,7 +2,7 @@ import {
   expect, test, type BrowserContext, type Locator, type Page,
 } from '@playwright/test';
 
-const MUSIC_PATH = '/audio/music/own-the-block-main-theme-loop.wav';
+const MUSIC_PATH = '/audio/music/own-the-block-main-theme-loop.ogg';
 /** Hosted CI runners have no GPU and fewer cores (software WebGL): the same flows get twice the time there. */
 const TIME_FACTOR = process.env.CI ? 2 : 1;
 /** What Chromium logs for a request that fails while the browser context is offline. */
@@ -367,7 +367,7 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
   }
 });
 
-test('single rendered WAV music asset and supported Web Audio lifecycle', async ({ browser, page }) => {
+test('single rendered Ogg Vorbis music asset and supported Web Audio lifecycle', async ({ browser, page }) => {
   test.setTimeout(120_000 * TIME_FACTOR);
   const browserErrors: string[] = [];
   page.on('pageerror', error => browserErrors.push(error.message));
@@ -382,7 +382,7 @@ test('single rendered WAV music asset and supported Web Audio lifecycle', async 
     };
   }, MUSIC_PATH);
   expect(musicResponse.status).toBe(200);
-  expect(musicResponse.contentType).toBe('audio/wav');
+  expect(musicResponse.contentType).toBe('audio/ogg');
   expect(musicResponse.bytes).toBeGreaterThan(0);
   const roomCode = `OTB-${Date.now().toString(36).slice(-6).toUpperCase()}`;
   await joinRoom(page, 'Audio Review', roomCode, 'tap');

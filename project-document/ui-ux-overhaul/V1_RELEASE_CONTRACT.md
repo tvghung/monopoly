@@ -71,9 +71,11 @@ The packaged app is kept lean on purpose, because players download the installer
   It fails when `app.asar` packs a development folder or exceeds 5 MiB, when an excluded PostgreSQL file or an extra locale
   ships, when a required binary is missing, or when the Windows `Setup.exe` is over its budget.
 
-Measured on Windows x64 (V1.1.0 sources): `Setup.exe` 249.7 MiB before, 181.9 MiB after these rules; unpacked app
-655.6 MiB before, 425.5 MiB after; `resources/postgres` 134.5 MiB before, 89.2 MiB after. The packaged runtime proof, the
-Host proof and the audio, card and landmark proofs pass on the lean package.
+Measured on Windows x64 (V1.1.0 sources): `Setup.exe` 249.7 MiB before, 181.9 MiB after these rules and 160.6 MiB once the
+music is Ogg Vorbis (see the audio policy); unpacked app 655.6 MiB before, 425.5 MiB after the packaging rules and 402.4 MiB
+with the Ogg music; `resources/postgres` 134.5 MiB before, 89.2 MiB after. The packaged runtime proof, the Host proof and the
+audio, card and landmark proofs pass on the lean package. The Windows `Setup.exe` budget of `proof:packaged:budget` is
+175 MiB.
 
 ## Release publication
 
@@ -105,10 +107,25 @@ documentation-only changes; the `CI` workflow still validates the release contra
 ## Audio release policy
 
 V1 gameplay music is exactly one rendered looping track:
-`apps/client/public/audio/music/own-the-block-main-theme-loop.wav`. The client
+`apps/client/public/audio/music/own-the-block-main-theme-loop.ogg`. The client
 decodes one looping `AudioBuffer` and starts it only while authoritative room
 status is `IN_PROGRESS`; lobby, finished, and replay-lobby states are silent.
 There is no procedural BGM fallback and no adaptive multi-stem soundtrack.
+
+Since 1.1.1 the track ships as stereo 48 kHz Ogg Vorbis at about 160 kbit/s (2.76 MiB), encoded from the original
+production render with ffmpeg `libvorbis`; the PCM WAV (25.9 MiB) that 1.0.0 and 1.1.0 shipped remains in the `v1.1.0`
+tag. The loop is one buffer, so its length is part of the contract: the stream declares exactly 6,781,091 frames
+(141.272729 s), the same as the WAV, and Chromium decodes exactly that many (the packaged audio proof compares the
+decoded frame count with the container's, and `apps/desktop/tests/oggVorbisMetadata.test.ts` pins the shipped file).
+Measured against the WAV, the loop seam is the same size as in the original (a 1.7 k step against a 3 k 99th-percentile
+sample delta) and the codec error in the first and last 64 frames is at most 416 of 32768. The loop seam by ear stays a
+manual acceptance row.
+
+Browser limit: `decodeAudioData` reads Ogg Vorbis in Chromium and Firefox; Safari and iOS only gained Ogg Vorbis recently
+(18.4, per caniuse), so an older Safari or iOS browser that joins a Host by its URL cannot decode the track and plays the
+game without music (the sampled sound effects, which were already Ogg, fall back to their procedural versions there). The
+desktop app is Chromium and is not affected. A product owner who needs music on those browsers would have to ship a second
+format (AAC or MP3) and give up part of the size saving.
 
 The existing Audio/Music/SFX buses, settings, visibility handling, context
 reuse, and disposal remain in force. Curated local sample SFX and deliberately

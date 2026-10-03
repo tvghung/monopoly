@@ -52,7 +52,7 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
   preference. Audio provider owns one lazy Web Audio engine and typed SFX
   registry; existing Master/Music/SFX values update its buses live. The Music
   bus loads exactly one rendered loop from
-  `audio/music/own-the-block-main-theme-loop.wav`, decodes one looping buffer,
+  `audio/music/own-the-block-main-theme-loop.ogg` (Ogg Vorbis, stereo 48 kHz), decodes one looping buffer,
   and runs only while authoritative room status is `IN_PROGRESS`. Lobby,
   finished, and replay-lobby states are silent; no procedural BGM fallback or
   adaptive multi-stem arrangement exists. Run `pnpm validate:music-assets` before

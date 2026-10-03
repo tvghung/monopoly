@@ -1,7 +1,8 @@
 # V1 Audio Final Acceptance
 
 Current V1 audio contract: one rendered looping gameplay track at
-`apps/client/public/audio/music/own-the-block-main-theme-loop.wav`. It is
+`apps/client/public/audio/music/own-the-block-main-theme-loop.ogg` (Ogg Vorbis since 1.1.1; see the
+[V1 release contract](V1_RELEASE_CONTRACT.md#audio-release-policy)). It is
 decoded once and played only while authoritative room status is `IN_PROGRESS`;
 lobby, finished, and replay-lobby states remain silent. The adaptive four-stem
 design and its missing-master result below are historical, superseded evidence,
