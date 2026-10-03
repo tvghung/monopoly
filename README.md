@@ -5,9 +5,21 @@ See the [V1 release contract](project-document/ui-ux-overhaul/V1_RELEASE_CONTRAC
 for the LAN-first desktop architecture and pending production soundtrack gate.
 Validate identity with `pnpm validate:v1-contract`.
 
-**Tải về:** các bản cài đặt Windows và macOS nằm ở trang
-[Releases](https://github.com/tvghung/monopoly/releases/latest). Bản V1 chưa được ký số;
-ghi chú phát hành hướng dẫn cách cài.
+**Tải về:** vào trang [Releases](https://github.com/tvghung/monopoly/releases/latest) (bản mới nhất)
+và chỉ tải **một** tệp phù hợp với máy của bạn:
+
+| Máy của bạn | Tệp cần tải | Dung lượng |
+| --- | --- | ---: |
+| Windows 10 trở lên (64-bit) | `OwnTheBlock-<phiên bản>-win32-x64-Setup.exe` | khoảng 160 MiB |
+| macOS chip Apple (M1 trở lên) | `OwnTheBlock-<phiên bản>-macos-arm64.dmg` | khoảng 240 MiB |
+| macOS chip Intel | `OwnTheBlock-<phiên bản>-macos-x64.dmg` | khoảng 240 MiB |
+
+Các mục "Source code" cuối trang Release là mã nguồn, không phải game; `SHA256SUMS.txt` dùng để kiểm tra
+tệp sau khi tải. Bản V1 chưa được ký số; ghi chú phát hành hướng dẫn cách cài (cảnh báo SmartScreen trên
+Windows, mở bằng chuột phải trên macOS). Các bản phát hành tên `evidence-…` chỉ là kho lưu ảnh nghiệm thu
+giao diện, không phải game.
+
+![Bàn cờ Own the Block](docs/screenshot.jpg)
 
 [![CI](https://github.com/terragady/monopoly-websockets/actions/workflows/ci.yml/badge.svg)](https://github.com/terragady/monopoly-websockets/actions/workflows/ci.yml)
 ![GitHub top language](https://img.shields.io/github/languages/top/terragady/monopoly-websockets)
@@ -71,6 +83,10 @@ room-seat session, not an account or OAuth login.
 ## Getting started
 
 Requires **Node 24 (LTS)** and **pnpm** (via `corepack enable`).
+
+The working tree is about 11 MiB. A full `git clone` also downloads the history, about 236 MiB, because the
+early visual-review screenshots and the music master WAV were committed before 1.1.1. For development a
+shallow clone is enough: `git clone --depth 1 https://github.com/tvghung/monopoly.git`.
 
 ```bash
 pnpm install
@@ -154,7 +170,9 @@ git push origin vX.Y.Z
 
 The `Release Candidate` workflow then runs every quality gate and the packaged proofs on
 Windows x64, macOS x64 and macOS arm64, and only when all of them pass does it publish the
-GitHub Release (the three installers plus `SHA256SUMS.txt`). A tag with a suffix
+GitHub Release (the three installers plus `SHA256SUMS.txt`). The installers are kept small on purpose; the
+`proof:packaged:budget` step fails a build whose package regresses (see "Package size" in the release contract).
+A tag with a suffix
 (`vX.Y.Z-rc.1`) is published as a pre-release. A manual dispatch of the same workflow
 validates without publishing. The release is unsigned; see the
 [V1 release contract](project-document/ui-ux-overhaul/V1_RELEASE_CONTRACT.md).
