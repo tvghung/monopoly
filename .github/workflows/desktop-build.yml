@@ -11,8 +11,6 @@ on:
       - 'e2e/**'
       - 'playwright.config.ts'
       - 'playwright.global-setup.ts'
-      - 'project-document/**'
-      - 'README.md'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -32,8 +30,6 @@ on:
       - 'e2e/**'
       - 'playwright.config.ts'
       - 'playwright.global-setup.ts'
-      - 'project-document/**'
-      - 'README.md'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -157,13 +153,18 @@ jobs:
       - name: Run mobile Chromium and WebKit flows
         run: pnpm exec playwright test
 
-      - name: Upload Windows Squirrel artifact
+      # Only the installer a player runs is uploaded. The Squirrel Setup.exe already embeds the full .nupkg, so
+      # uploading the .nupkg and RELEASES as well doubled the artifact (about 500 MB) without anyone using them.
+      # The files are already compressed, so the artifact zip does not recompress them.
+      - name: Upload Windows installer artifact
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: own-the-block-windows-squirrel
-          path: apps/desktop/out/make/squirrel.windows/**
+          name: own-the-block-windows-setup
+          path: apps/desktop/out/make/squirrel.windows/x64/*Setup.exe
           if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
 
       - name: Upload macOS DMG artifact
         if: runner.os == 'macOS'
@@ -172,3 +173,5 @@ jobs:
           name: own-the-block-macos-dmg
           path: apps/desktop/out/make/**/*.dmg
           if-no-files-found: error
+          compression-level: 0
+          retention-days: 14

@@ -73,6 +73,13 @@ nothing. `signed` mode exists only for that dispatch; a tag run is always unsign
 change once signing secrets exist. `apps/desktop/tests/stageReleaseAssets.test.ts` covers the staging step; the publish
 job itself is exercised only by a real tag run, and its result is recorded in the release record below.
 
+Workflow artifacts carry only what a player installs. The Squirrel `Setup.exe` already embeds the full `.nupkg`, and no
+update feed is published (the app only runs the Squirrel install/uninstall shortcut hooks), so neither workflow uploads
+the `.nupkg` or `RELEASES`: the Release Candidate artifact holds the target installer plus `release-artifacts/`
+(`manifest.json`, `SHA256SUMS`), and the Desktop Build artifacts (`own-the-block-windows-setup`,
+`own-the-block-macos-dmg`) hold the installer alone and expire after 14 days. Desktop Build no longer runs for
+documentation-only changes; the `CI` workflow still validates the release contract on every push.
+
 ## Audio release policy
 
 V1 gameplay music is exactly one rendered looping track:

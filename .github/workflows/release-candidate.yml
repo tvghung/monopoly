@@ -302,14 +302,20 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$app_path"
           codesign --verify --verbose=2 "$dmg_path"
           xcrun stapler validate "$dmg_path"
+      # Only the installers and the collected metadata are uploaded: the publish job stages the installer listed in
+      # manifest.json, and the Squirrel .nupkg/RELEASES (already embedded in Setup.exe) would double the Windows
+      # artifact. The files are already compressed, so the artifact zip does not recompress them.
       - name: Upload release candidate artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
           path: |
-            apps/desktop/out/make/**
+            apps/desktop/out/make/**/*Setup.exe
+            apps/desktop/out/make/**/*.dmg
             apps/desktop/out/release-artifacts/**
           if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
       - name: Clean up macOS signing material
         if: matrix.platform == 'darwin' && inputs.distribution_mode == 'signed' && always()
         shell: bash
