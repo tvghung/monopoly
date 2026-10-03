@@ -6,6 +6,7 @@
 | Events, ACK, SocketData | `events.ts` | Cùng instruction |
 | Runtime network schemas | `socketSchemas.ts` | Cùng instruction |
 | Board/color groups/cards | `tileState.ts`, Chance/Chest files | [board-and-card-data.instruction.md](./board-and-card-data.instruction.md) |
+| Số luật (start cash, thưởng Xuất Phát, tiền thuê Ga/Công Ty, bán bắt buộc, vòng chờ tù, thời hạn) | `rules.ts` | Cùng instruction; `apps/server/src/rulesContract.test.ts` giữ khớp với server |
 
 `SOCKET_PROTOCOL_VERSION = 9` and `ROOM_SNAPSHOT_SCHEMA_VERSION = 8`. Compile-time
 types và Zod validation runtime là hai lớp khác nhau; schema parse không thay server

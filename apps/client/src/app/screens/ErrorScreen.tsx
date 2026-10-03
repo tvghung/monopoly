@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import Button from '../../design-system/components/Button/Button';
 import { CHARACTER_REGISTRY } from '../../game/characters/characterRegistry';
 import { characterSvgDataUri } from '../../game/characters/characterSvg';
+import HowToPlayButton from '../../howToPlay/HowToPlayButton';
 import './screens.css';
 
 /** A calm mascot for the error illustrations; it is tilted and given a question mark, never named. */
@@ -39,6 +40,7 @@ export default function ErrorScreen({
         <p className="app-screen__message">{message}</p>
       </div>
       {action ? <Button size="lg" icon={action.icon} onClick={action.onClick}>{action.label}</Button> : null}
+      <HowToPlayButton placement="corner" />
     </Element>
   );
 }

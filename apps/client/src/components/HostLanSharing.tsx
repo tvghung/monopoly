@@ -14,10 +14,16 @@ interface HostLanSharingProps {
 const COPY_NOTICES = {
   idle: '',
   copied: 'Đã sao chép.',
-  failed: 'Không thể sao chép tự động; hãy chọn liên kết ở trên.',
+  failed: 'Không sao chép được. Hãy cho bạn bè quét mã QR.',
 } as const;
 
-/** The invitation card of a LAN host: the join link as text and as a QR code on a paper card, and the network it is shared on. */
+const NO_NETWORK_COPY = 'Máy này chưa kết nối mạng. Hãy bật Wi-Fi hoặc cắm dây mạng.';
+
+/**
+ * The invitation card of a LAN host: the join link as a QR code on a paper card plus a copy button (the link itself is
+ * never shown). The network is chosen automatically; the choice is only offered when two or more networks rank equally
+ * well, because then the app cannot tell which one the other players are on.
+ */
 export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
   const bridge = getDesktopBridge();
   const [status, setStatus] = useState<HostRuntimeStatus>();
@@ -79,21 +85,27 @@ export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
   };
 
   if (!bridge?.host) return null;
+  const selectedAddress = status?.selectedLanUrl ? new URL(status.selectedLanUrl).hostname : '';
+  const interfaces = status?.interfaces ?? [];
+  const bestRank = Math.min(...interfaces.map(candidate => candidate.rank));
+  const equallyGood = interfaces.filter(candidate => candidate.rank === bestRank);
+  // Only a tie needs the player: the networks listed are the tied ones, plus the one in use if it ranks lower.
+  const networkChoices = equallyGood.length > 1
+    ? interfaces.filter(candidate => candidate.rank === bestRank || candidate.address === selectedAddress)
+    : [];
   return (
     <aside className="lobby-share" aria-labelledby="lobby-share-title">
       <div className="lobby-share__details">
         <p className="lobby__eyebrow" id="lobby-share-title">Mời qua mạng LAN</p>
-        {joinUrl ? <code className="lobby-share__url">{joinUrl}</code> : (
-          <p className="lobby-share__warning" role="status">Chưa có địa chỉ IPv4 LAN dùng được.</p>
-        )}
-        {status && status.interfaces.length > 1 ? (
+        {status && !joinUrl ? <p className="lobby-share__warning" role="status">{NO_NETWORK_COPY}</p> : null}
+        {networkChoices.length > 0 ? (
           <label className="lobby-share__network">
             <span>Mạng chia sẻ</span>
             <select
-              value={status.selectedLanUrl ? new URL(status.selectedLanUrl).hostname : ''}
+              value={selectedAddress}
               onChange={event => void refresh(event.target.value)}
             >
-              {status.interfaces.map(candidate => (
+              {networkChoices.map(candidate => (
                 <option key={candidate.address} value={candidate.address}>
                   {candidate.displayName} — {candidate.address}
                 </option>
@@ -112,9 +124,11 @@ export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
           >
             Sao chép liên kết
           </Button>
-          <Button variant="ghost" icon={<ActionIcon name="refresh" />} disabled={refreshing} onClick={() => void refresh()}>
-            {refreshing ? 'Đang làm mới…' : 'Làm mới mạng'}
-          </Button>
+          {networkChoices.length > 0 ? (
+            <Button variant="ghost" icon={<ActionIcon name="refresh" />} disabled={refreshing} onClick={() => void refresh()}>
+              {refreshing ? 'Đang làm mới…' : 'Làm mới mạng'}
+            </Button>
+          ) : null}
         </div>
         <p className="lobby-share__copy-state" aria-live="polite">{COPY_NOTICES[linkCopy.state]}</p>
       </div>

@@ -30,6 +30,8 @@ vi.mock('../src/runtimeConfig', async importOriginal => ({
   getDesktopRuntimeConfig: harness.getDesktopRuntimeConfig,
 }));
 
+import { ipcMain } from 'electron';
+
 import { IPC_CHANNELS } from '../src/ipc/channels';
 import { QuitRequestController, registerWindowHandlers } from '../src/ipc/windowHandlers';
 import { DesktopRuntimeConfigError } from '../src/runtimeConfig';
@@ -180,5 +182,96 @@ describe('desktop IPC lifecycle', () => {
     ))).rejects.toThrow('Invalid network refresh request');
     await expect(Promise.resolve().then(() => start({ sender: {} }, {})))
       .rejects.toThrow('Invalid IPC sender');
+  });
+
+  describe('LAN room lookup channel', () => {
+    const hostRuntime = {
+      status: {},
+      start: vi.fn(),
+      stop: vi.fn(),
+      refreshNetwork: vi.fn(),
+      onStatusChanged: vi.fn(() => () => undefined),
+    };
+
+    function registerWithFinder(findRoom: (roomCode: string) => Promise<unknown>) {
+      const fixture = createWindow();
+      const lanFinder = { findRoom: vi.fn(findRoom), cancel: vi.fn() };
+      registerWindowHandlers(
+        fixture.window as never,
+        false,
+        new QuitRequestController(fixture.window as never),
+        { hostRuntime: hostRuntime as never, lanFinder: lanFinder as never },
+      );
+      return { ...fixture, lanFinder, handler: harness.handlers.get(IPC_CHANNELS.lanFindRoom)! };
+    }
+
+    it('uses the namespaced channel name', () => {
+      expect(IPC_CHANNELS.lanFindRoom).toBe('ownTheBlock:lan:find-room');
+    });
+
+    it('is not registered when the desktop has no finder', () => {
+      const fixture = createWindow();
+      registerWindowHandlers(
+        fixture.window as never,
+        false,
+        new QuitRequestController(fixture.window as never),
+        { hostRuntime: hostRuntime as never },
+      );
+
+      expect(harness.handlers.has(IPC_CHANNELS.lanFindRoom)).toBe(false);
+    });
+
+    it('passes a canonical room code to the finder and returns exactly its answer', async () => {
+      const found = { ok: true as const, endpoint: 'http://192.168.1.20:53120' };
+      const { handler, webContents, lanFinder } = registerWithFinder(() => Promise.resolve(found));
+
+      await expect(handler({ sender: webContents }, { roomCode: 'otb-abc234' })).resolves.toEqual(found);
+      expect(lanFinder.findRoom).toHaveBeenCalledExactlyOnceWith('OTB-ABC234');
+
+      lanFinder.findRoom.mockResolvedValueOnce({ ok: false, code: 'NOT_FOUND' });
+      await expect(handler({ sender: webContents }, { roomCode: 'OTB-ZZZZZZ' }))
+        .resolves.toEqual({ ok: false, code: 'NOT_FOUND' });
+    });
+
+    it.each([
+      ['no payload', undefined],
+      ['a bare string', 'OTB-ABC234'],
+      ['an array', ['OTB-ABC234']],
+      ['an empty object', {}],
+      ['a numeric code', { roomCode: 5 }],
+      ['an empty code', { roomCode: '' }],
+      ['a code with a space', { roomCode: 'OTB ABC' }],
+      ['a code with a symbol', { roomCode: 'OTB_ABC' }],
+      ['a 21-character code', { roomCode: 'A'.repeat(21) }],
+      ['an extra field', { roomCode: 'OTB-ABC234', address: '192.168.1.20' }],
+    ])('rejects %s before it reaches the finder', async (_name, payload) => {
+      const { handler, webContents, lanFinder } = registerWithFinder(() => Promise.resolve({ ok: false, code: 'NOT_FOUND' }));
+
+      await expect(handler({ sender: webContents }, payload)).rejects.toThrow('Invalid LAN find request');
+      expect(lanFinder.findRoom).not.toHaveBeenCalled();
+    });
+
+    it('refuses a sender that is not the window', async () => {
+      const { handler, lanFinder } = registerWithFinder(() => Promise.resolve({ ok: false, code: 'NOT_FOUND' }));
+
+      await expect(handler({ sender: {} }, { roomCode: 'OTB-ABC234' })).rejects.toThrow('Invalid IPC sender');
+      expect(lanFinder.findRoom).not.toHaveBeenCalled();
+    });
+
+    it('reports UNAVAILABLE instead of an error when the finder itself fails', async () => {
+      const { handler, webContents } = registerWithFinder(() => Promise.reject(new Error('socket exploded')));
+
+      await expect(handler({ sender: webContents }, { roomCode: 'OTB-ABC234' }))
+        .resolves.toEqual({ ok: false, code: 'UNAVAILABLE' });
+    });
+
+    it('removes its handler and stops a running search when the window closes', () => {
+      const { fullscreenHandlers, lanFinder } = registerWithFinder(() => Promise.resolve({ ok: false, code: 'NOT_FOUND' }));
+
+      fullscreenHandlers.get('closed')?.();
+
+      expect(lanFinder.cancel).toHaveBeenCalledOnce();
+      expect(vi.mocked(ipcMain.removeHandler)).toHaveBeenCalledWith(IPC_CHANNELS.lanFindRoom);
+    });
   });
 });

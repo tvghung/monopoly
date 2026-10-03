@@ -9,11 +9,14 @@ import { resolveRendererPath } from './security';
 import { HostRuntimeController } from './hostRuntime';
 import { AppQuitCoordinator } from './appQuitCoordinator';
 import { audioRendererProofExitCode } from './audioRendererProofResult';
+import { LanFinder } from './lanFinder';
+import { probeDefaultRouteAddress } from './networkInterfaces';
 
 const DEV_RENDERER_URL = process.env.OWN_THE_BLOCK_DEV_RENDERER_URL?.trim()
   || 'http://127.0.0.1:5173';
 
 let hostRuntime: HostRuntimeController | undefined;
+let lanFinder: LanFinder | undefined;
 let quitController: QuitRequestController | undefined;
 
 function createHostServices(): void {
@@ -29,7 +32,9 @@ function createHostServices(): void {
     clientDist: rendererRoot(),
     userDataPath: app.getPath('userData'),
     appVersion: app.getVersion(),
+    routeProbe: probeDefaultRouteAddress,
   });
+  lanFinder = new LanFinder();
 }
 
 async function stopRuntime(): Promise<void> {
@@ -107,7 +112,7 @@ function createWindow(): BrowserWindow {
     window,
     development,
     windowQuitController,
-    hostRuntime ? { hostRuntime } : undefined,
+    hostRuntime ? { hostRuntime, ...(lanFinder ? { lanFinder } : {}) } : undefined,
   );
   installExternalNavigationGuards(window, development);
 

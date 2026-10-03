@@ -29,6 +29,9 @@ Room persistence/CAS/deadline recovery: [../Persistence/README.md](../Persistenc
 - Payment shortfall tự động bán tài sản theo tile index khi deadline hết; forced-sale
   proposal có một proposal duy nhất, gắn với `paymentOperationId`/`claimId` và
   chỉ seller/buyer được thấy.
+- Số luật mà người chơi đọc trong "Hướng dẫn chơi" (tiền khởi đầu, thưởng Xuất Phát, tiền thuê Ga, hệ số Công Ty, 70% khi bán
+  cho Ngân hàng, vòng chờ tù, hạn đề nghị) có bản đọc được ở `packages/shared/src/rules.ts`; đổi luật ở `game/`/`socket/`
+  mà không đổi `rules.ts` thì `apps/server/src/rulesContract.test.ts` đỏ.
 - Exact deck order là private durable state; public state không được lộ bài sắp rút.
 - Disconnect chỉ đổi presence; forfeit là command explicit và phải xử lý active
   debt/creditor trước khi cleanup.

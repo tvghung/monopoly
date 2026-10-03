@@ -132,7 +132,7 @@ export const PLAN04_BASELINE_SURFACES = [
 export const PLAN04_SURFACES = [
   // Landing and launcher
   'landing', 'landing-prefilled', 'landing-public', 'landing-busy',
-  'launcher', 'launcher-running', 'launcher-host', 'launcher-join',
+  'launcher', 'launcher-running', 'launcher-host', 'launcher-join', 'launcher-join-failed',
   // Lobby
   'lobby-host', 'lobby-guest', 'lobby-alone', 'lobby-full', 'lobby-start-blocked', 'lobby-lan',
   // Settings

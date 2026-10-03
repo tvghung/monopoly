@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { tileState } from '@monopoly/shared';
+import {
+  formatMoney,
+  GO_REWARD,
+  RAILROAD_RENT_BY_COUNT,
+  tileState,
+  UTILITY_RENT_MULTIPLIER_BOTH,
+  UTILITY_RENT_MULTIPLIER_SINGLE,
+} from '@monopoly/shared';
 import { getCurrentRentDetailIndex, getTileDetails } from './propertyDetails';
 
 describe('property inspection details', () => {
@@ -39,6 +46,21 @@ describe('current rent row', () => {
   it('has no row for tiles without a rent ladder', () => {
     expect(getCurrentRentDetailIndex(tileState[0], getTileDetails(tileState[0]), { houses: 0, sameTypeOwned: 1 })).toBeNull();
     expect(getCurrentRentDetailIndex(street, [], { houses: 0, sameTypeOwned: 1 })).toBeNull();
+  });
+});
+
+describe('rules read from the shared rules file', () => {
+  it('prints the Ga ladder, the Công Ty multipliers and the Xuất Phát reward from rules.ts, not from typed numbers', () => {
+    expect(getTileDetails(tileState[5]).map(detail => detail.value)).toEqual(
+      RAILROAD_RENT_BY_COUNT.map(rent => formatMoney(rent)),
+    );
+    expect(getTileDetails(tileState[12]).map(detail => detail.value)).toEqual([
+      `Tổng xúc xắc ×${UTILITY_RENT_MULTIPLIER_SINGLE}`,
+      `Tổng xúc xắc ×${UTILITY_RENT_MULTIPLIER_BOTH}`,
+    ]);
+    expect(getTileDetails(tileState[0])).toEqual([
+      { label: `Đi qua hoặc dừng tại đây nhận ${formatMoney(GO_REWARD)}.` },
+    ]);
   });
 });
 

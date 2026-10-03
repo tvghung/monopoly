@@ -22,7 +22,14 @@
 - Public roster hiển thị stable ID-backed name/color/host/ready/connected. `Lobby` vẽ luôn đủ `maxPlayers` thẻ chỗ ngồi
   (`LobbySeat`: mascot, tên, tem sẵn sàng có chữ, huy hiệu Chủ Phòng, biểu tượng "Mất kết nối", và với chính mình nút "Sẵn sàng"/"Hủy sẵn sàng"; `EmptySeat` cho chỗ trống).
   Mã phòng có nút "Sao chép mã phòng" với `role="status"` (`Đã sao chép.` / lỗi tự chọn mã); host đang chạy LAN thấy
-  `HostLanSharing` (thẻ chia sẻ địa chỉ).
+  `HostLanSharing` ("Mời qua mạng LAN"): mã QR trên thẻ giấy và nút "Sao chép liên kết", **không in địa chỉ** (người chơi
+  không đọc URL); lỗi sao chép nói "Không sao chép được. Hãy cho bạn bè quét mã QR."; chưa có mạng thì nói "Máy này chưa
+  kết nối mạng. Hãy bật Wi-Fi hoặc cắm dây mạng.". Ô "Mạng chia sẻ" và nút "Làm mới mạng" chỉ hiện khi từ hai mạng trở
+  lên cùng hạng tốt nhất (`rank` thấp nhất) — lúc đó app không tự biết bạn bè ở mạng nào; ô chọn liệt kê các mạng đồng hạng
+  và mạng đang dùng.
+- Header của Lobby có nút "Hướng dẫn chơi" (có chữ, là nút đầu của `.lobby__header-actions`, trước "Cài đặt"/"Rời
+  phòng"/"Bắt đầu") mở hộp thoại hướng dẫn dùng chung; khi hẹp, các nút xuống dòng. Trong ván, nút "?" là ô đầu của
+  toolbar; xem [how-to-play.instruction.md](./how-to-play.instruction.md).
 - `MascotPicker` đổi mascot/màu qua `set appearance`, chuyển động theo reduced motion hiệu lực (setting hoặc OS).
   Mascot chỉ nhận diện bằng hình; `accessibleLabel` tiếng Việt chỉ nằm ở `alt`/`aria-label`.
 - 2–4 active Player, tất cả connected/ready; chỉ host có start action. Nút "Bắt đầu" bị disable luôn kèm **lý do viết ra**

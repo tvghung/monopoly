@@ -17,9 +17,11 @@ Development endpoint contract:
 - Desktop Host uses the explicit LAN profile: the game HTTP/Socket.IO server
   binds `0.0.0.0:<actual-game-port>` while managed PostgreSQL remains loopback-only;
   the host renderer connects to `127.0.0.1:<game-port>`.
-- Desktop Join accepts an explicit validated HTTP IPv4/port plus room code. A
-  configured developer/release endpoint may remain HTTP(S); no UDP/mDNS discovery
-  path exists.
+- Desktop Join takes a room code only: the main process finds the Host through the
+  LAN room lookup below and the join then targets the verified `http://<ipv4>:<port>`.
+  A pasted invitation link (`http://<ipv4>:<port>/?room=<code>`) is the fallback for
+  networks that block broadcast. A configured developer/release endpoint may remain
+  HTTP(S). There is no mDNS and no periodic advertisement.
 - Desktop Socket.IO admits `app://own-the-block`, origin-less native clients, and
   browser origins whose exact host/port matches the HTTP `Host` header. An unrelated
   browser origin is rejected. No wildcard is used.
@@ -27,6 +29,57 @@ Development endpoint contract:
   default.
 
 No REST gameplay controller/auth route is added.
+
+## LAN room lookup (desktop Host profile only)
+
+A joining player types a room code, not an address. The lookup is request/response
+over UDP port `41234`; it carries no credential and exists only in the desktop Host
+profile: the desktop server helper starts it, while `apps/server/src/index.ts` (the
+cloud and development servers) never does.
+
+- **Responder** (`apps/server/src/lanDiscoveryResponder.ts`, started by
+  `desktopServerHelper.ts` after the authoritative server listens, closed first on
+  shutdown): a udp4 socket on `0.0.0.0:41234` with address reuse. A bind failure logs
+  one short line and turns the lookup off; hosting is unaffected.
+- **Request** (broadcast, JSON, at most 256 bytes, exactly these keys):
+  `{app:'own-the-block', type:'find-room', v:1, protocol:<SOCKET_PROTOCOL_VERSION>, roomCode, nonce}`.
+  `roomCode` follows the shared `roomCodeSchema`; `nonce` is `[A-Za-z0-9_-]{8,32}`.
+  `protocol` is informational: a mismatch is reported by the Socket.IO handshake
+  (`UPGRADE_REQUIRED`), not by silence.
+- **Reply** (unicast to the sender): `{app:'own-the-block', type:'room-here', v:1, nonce, port}`
+  with the game TCP port. The requester takes the Host address from the packet
+  source. A reply never contains a token, hash, name, player, status, room list or
+  database detail; the room code appears only in the request and is not a credential.
+- **Guards, in this order**: size limit; token buckets (per sending address: burst 8,
+  2 per second; all senders: burst 20, 10 per second) before any parsing or database
+  call; strict parse; at most 4 concurrent lookups; the only database read is
+  `persistence.rooms.findByCode(code)` existence. Everything else is dropped silently.
+- **Finder** (`apps/desktop/src/lanFinder.ts`, Electron main process): for each usable
+  interface (rank 0–2; virtual/VPN adapters only when nothing else exists; `/32`
+  addresses dropped; at most six) one udp4 socket bound to that interface address
+  sends the request to the directed broadcast and `255.255.255.255` at 0, 400 and
+  1000 ms. A reply is accepted only when the nonce matches, the source port is
+  `41234`, and the source is a usable LAN IPv4 inside the subnet of the receiving
+  interface; the candidate must then answer `GET /healthz` with `ok` (1 s, at most
+  two tries per endpoint). The first verified candidate wins; the search ends within
+  3 s, is single-flight (the same code shares the search, another code replaces it)
+  and always closes its sockets.
+- **Result**: `{ok:true, endpoint:'http://<ip>:<port>'}` or `{ok:false, code}` with
+  `NOT_FOUND` (nobody answered), `UNREACHABLE` (a Host answered but `/healthz` failed),
+  `NO_NETWORK` (no usable interface), `UNAVAILABLE` (nothing could be opened or sent,
+  for example the OS refuses broadcasts for the app).
+- **IPC**: channel `ownTheBlock:lan:find-room`, sender-checked, strict payload
+  `{roomCode}` (1–20 characters `[A-Za-z0-9-]`), handler removed when the window
+  closes; preload exposes `lan.findRoom(roomCode)` only.
+- **Interface choice**: `resolveNetworkInterfaces` drops `/32`, ranks virtual/VPN/
+  hypervisor/personal-area adapters and `100.64.0.0/10` last, prefers the interface
+  that carries the default route (`probeDefaultRouteAddress`: a UDP `connect` that
+  sends nothing; boost only for rank 0–2), then ranks, then RFC 1918 before other
+  ranges, then numeric address order. The Host runtime takes the first candidate; the
+  choice stays sticky while that address exists.
+- The wire constants are repeated in the finder (the main process has no runtime
+  dependencies); `apps/desktop/tests/lanDiscoveryContract.test.ts` imports both sides
+  and fails when they drift.
 
 ## Startup
 
@@ -102,6 +155,19 @@ player-disconnect grace, close Socket.IO/HTTP and PostgreSQL pool cleanly.
   deadline recovery.
 - `[AUTO][PASS]` `createServer.test.ts` covers desktop static root, asset, SPA,
   origin, no cloud proxy trust, plus unchanged cloud/development policies.
+- `[AUTO][PASS]` LAN room lookup: `apps/server/src/lanDiscoveryResponder.test.ts`
+  (strict parsing, reply content, rate limits before any database call, silent for
+  an unknown room or a database failure, bind failure keeps hosting, real loopback
+  socket), `apps/desktop/tests/lanFinder.test.ts` (timeline, nonce/port/subnet
+  checks, health check, failure codes, single flight, cleanup),
+  `lanDiscoveryContract.test.ts` (constants equal on both sides; the real finder
+  against the real responder over loopback UDP), `networkInterfaces.test.ts`,
+  `hostRuntime.test.ts`, `windowHandlers.test.ts` (channel validation). No test uses
+  a real broadcast.
+- `[PACKAGED][NOT RUN]` The Phase 7.2 Host proof gained a loopback step
+  (`lan-room-discovery-loopback`): the real finder must find the contract's room
+  through the packaged helper and get nothing for an unknown room. It needs
+  `pnpm desktop:package` and `pnpm desktop:proof:host` to run.
 - `[NOT RUN/BLOCKED]` Database integration requires `TEST_DATABASE_URL`; local
   `db:status` without the configured PostgreSQL service is not a substitute.
 - `[MANUAL DEFERRED / NOT RUN]` Physical Windows/macOS host/join, real phones,

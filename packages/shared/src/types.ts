@@ -88,7 +88,7 @@ export interface Tile {
   tileType: TileType;
   color?: string;
   price?: number;
-  // Base rent (no houses, not a monopoly).
+  // Base rent of a street with no houses. Owning the whole colour group never changes it.
   rent?: number;
   // Rent with [1, 2, 3, 4 houses, hotel]. Only on buildable street tiles.
   rentTiers?: number[];

@@ -35,9 +35,25 @@ describe('entry surfaces', () => {
   it('opens the launcher forms directly', () => {
     const { unmount } = renderSurface('launcher-host');
     expect(screen.getByRole('heading', { level: 2, name: 'Tạo phòng trên máy này' })).toBeTruthy();
+    // The host form is a name and one button: no network choice, no hints.
+    expect(screen.queryByLabelText('Mạng dùng để chia sẻ')).toBeNull();
     unmount();
 
-    renderSurface('launcher-join');
+    const { unmount: unmountJoin } = renderSurface('launcher-join');
     expect(screen.getByRole('heading', { level: 2, name: 'Tham gia phòng LAN' })).toBeTruthy();
+    expect(screen.queryByLabelText('Địa chỉ Host')).toBeNull();
+    expect(screen.queryByLabelText('Dán liên kết mời')).toBeNull();
+    unmountJoin();
+  });
+
+  it('shows the failed search with the invitation-link field, filled in as a player would have left it', () => {
+    renderSurface('launcher-join-failed');
+
+    expect(screen.getByRole('alert').textContent).toBe(
+      'Không tìm thấy phòng OTB-ABC234. Kiểm tra lại mã và chắc chắn máy tạo phòng đang mở game, cùng Wi-Fi với bạn.',
+    );
+    expect(screen.getByLabelText<HTMLInputElement>('Tên của bạn').value).toBe('Minh');
+    expect(screen.getByLabelText<HTMLInputElement>('Mã phòng').value).toBe('OTB-ABC234');
+    expect(screen.getByLabelText('Dán liên kết mời')).toBeTruthy();
   });
 });

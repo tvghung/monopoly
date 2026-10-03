@@ -12,7 +12,10 @@
 
 - `normal`: unowned → `TurnInfo.pendingPropertyDecision` mua/không mua; owner khác
   → enqueue rent claim; own tile → same-landing development decision when eligible.
-- `expense`: tax/fee tiles are no-op in the simplified rules.
+- `expense`: thuế **thu tiền**. Dừng ở ô thuế (index 4 Thuế Thu Nhập 200, index 38 Thuế Xa Xỉ 100; `expenseAmount` trong
+  `tileState.ts`) tạo một `DebtClaim` `source: { kind: 'TAX', tileID }` với creditor Bank qua cùng `PaymentQueue` như
+  tiền thuê và thẻ phạt: đủ tiền thì trừ ngay (`MONEY_TRANSFER` lý do `TAX`), thiếu thì vào luồng thiếu hụt (bán tài sản,
+  tự bán khi hết hạn, phá sản nếu hết tài sản). Không ai khác nhận tiền thuế và Bãi Đỗ Xe không gom tiền thuế.
 - `railroad`/`company`: áp rent trong property-economy instruction.
 - `gojail`: direct index 10, reset jail opponent-round progress, không thưởng Xuất Phát.
 - `jail`: landing bình thường là “Thăm Tù”.
@@ -70,4 +73,7 @@ Ba cách xử lý lượt tù:
 - Bail trực tiếp, jail-free card, doubles escape, failed-roll auto-handoff và
   compatibility wait; không có third-fail
   forced-bail hay stored-dice continuation.
-- Tax và Bãi Đỗ Xe no-op; save failure không publish partial resolution.
+- Ô thuế thu đúng `expenseAmount` về Bank (đủ tiền, thiếu tiền vào shortfall, hết tài sản thì phá sản); Bãi Đỗ Xe no-op;
+  save failure không publish partial resolution.
+- Số luật hiển thị cho người chơi (hệ số Công Ty, tiền thuê Ga, vòng chờ tù, thưởng Xuất Phát...) khớp `rules.ts`
+  (`apps/server/src/rulesContract.test.ts`).

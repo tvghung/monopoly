@@ -5,6 +5,7 @@ import type { SetAppearanceRequest } from '@monopoly/shared';
 import Button from '../design-system/components/Button/Button';
 import IconButton from '../design-system/components/IconButton/IconButton';
 import { ActionIcon } from '../design-system/icons/ActionIcon';
+import HowToPlayButton from '../howToPlay/HowToPlayButton';
 import { EmptySeat, LobbySeat } from './lobby/LobbySeat';
 import MascotPicker from './lobby/MascotPicker';
 import { useCopyFeedback } from './lobby/copyText';
@@ -80,6 +81,7 @@ export default function Lobby({
             </div>
           </div>
           <div className="lobby__header-actions">
+            <HowToPlayButton variant="labelled" />
             {onSettings ? <Button variant="ghost" icon={<ActionIcon name="settings" />} onClick={onSettings}>Cài đặt</Button> : null}
             <Button className="lobby__leave" variant="secondary" icon={<ActionIcon name="leave" />} disabled={busy} onClick={onLeave}>
               Rời phòng

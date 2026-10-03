@@ -207,8 +207,10 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
   ngang (cao ≤ 500 px) `JailPanel` thu thành dải hai hàng (tiêu đề + vòng chờ, rồi hai nút); từ 720 px chiều rộng
   trở xuống context stack nằm ở khoảng giữa hai card dưới, nên không bao giờ che nút "Đổ xúc xắc".
 - **Ngăn nhật ký** (`Log`): xem [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md).
-- **Toolbar** (`App.tsx`): `IconButton` v2 44 px cho "Cài đặt" và "Bỏ cuộc"/"Rời phòng", vẫn ngoài `.game-board`;
-  toast nằm giữa-trên dưới status pill, tối đa 3 cái.
+- **Toolbar** (`App.tsx`): `IconButton` v2 44 px cho "Hướng dẫn chơi" (ô đầu, sau FPS dev; xem
+  [how-to-play.instruction.md](./how-to-play.instruction.md)), "Cài đặt" và "Bỏ cuộc"/"Rời phòng", vẫn ngoài `.game-board`;
+  `data-hud-region="toolbar"` để bộ kiểm tra chồng lấn đo nó như một vùng HUD (rộng 148 px, góc phải trên; card người chơi
+  trên-phải đứng dưới nó). Toast nằm giữa-trên dưới status pill, tối đa 3 cái.
 - **Vị trí không được che ô cờ**: status pill đứng sau card trên-trái, cột dưới đứng sau card dưới-trái, tab ngăn
   nhật ký đứng dưới card trên-phải; từ 720 px chiều rộng trở xuống pill xếp dưới card trên-trái và cột dưới
   xếp trên card dưới-trái. `TileScreenRectsPublisher` (chỉ dev/UAT) xuất hình chiếu 40 ô ra

@@ -12,6 +12,7 @@ import {
   type HostRuntimeStatus,
   type HostStartOptions,
 } from '../hostRuntime';
+import type { LanFindRoomResult, LanRoomFinder } from '../lanFinder';
 
 const QUIT_RESPONSE_TIMEOUT_MS = 2_000;
 
@@ -131,6 +132,8 @@ function getRuntimeConfigResult(): DesktopRuntimeConfigResult {
 
 export interface DesktopIpcServices {
   hostRuntime: HostRuntimeController;
+  /** Finds a Host by room code on the local network; without it the find-room channel is not registered. */
+  lanFinder?: LanRoomFinder;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -159,6 +162,14 @@ function parseHostStartOptions(value: unknown): HostStartOptions {
     ...(port === undefined ? {} : { port }),
     ...(preferredAddress === undefined ? {} : { preferredAddress }),
   };
+}
+
+function parseFindRoomRequest(value: unknown): string {
+  if (!isRecord(value) || Object.keys(value).length !== 1
+    || typeof value.roomCode !== 'string' || !/^[A-Za-z0-9-]{1,20}$/u.test(value.roomCode)) {
+    throw new Error('Invalid LAN find request.');
+  }
+  return value.roomCode.toUpperCase();
 }
 
 function parseNetworkRefresh(value: unknown): string | undefined {
@@ -234,6 +245,19 @@ export function registerWindowHandlers(
     });
   }
 
+  const lanFinder = services?.lanFinder;
+  if (lanFinder) {
+    ipcMain.handle(IPC_CHANNELS.lanFindRoom, async (event, value: unknown): Promise<LanFindRoomResult> => {
+      if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
+      const roomCode = parseFindRoomRequest(value);
+      try {
+        return await lanFinder.findRoom(roomCode);
+      } catch {
+        return { ok: false, code: 'UNAVAILABLE' };
+      }
+    });
+  }
+
   const sendFullscreenState = () => {
     setTimeout(() => {
       if (!window.isDestroyed()) {
@@ -246,6 +270,7 @@ export function registerWindowHandlers(
   window.on('closed', () => {
     quitController.dispose();
     removeHostStatusListener?.();
+    lanFinder?.cancel();
     ipcMain.removeHandler(IPC_CHANNELS.runtimeConfig);
     ipcMain.removeHandler(IPC_CHANNELS.windowGetState);
     ipcMain.removeHandler(IPC_CHANNELS.windowSetFullscreen);
@@ -255,6 +280,7 @@ export function registerWindowHandlers(
     ipcMain.removeHandler(IPC_CHANNELS.hostStart);
     ipcMain.removeHandler(IPC_CHANNELS.hostStop);
     ipcMain.removeHandler(IPC_CHANNELS.hostRefreshNetwork);
+    ipcMain.removeHandler(IPC_CHANNELS.lanFindRoom);
     ipcMain.removeAllListeners(IPC_CHANNELS.quitResponse);
   });
 }

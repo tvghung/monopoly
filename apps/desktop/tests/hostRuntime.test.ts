@@ -8,6 +8,7 @@ import {
   type ServerHelperLike,
 } from '../src/hostRuntime';
 import type { ManagedPostgresInfo, ManagedPostgresState } from '../src/managedPostgres';
+import { resolveNetworkInterfaces } from '../src/networkInterfaces';
 import type { ServerHelperInfo, ServerHelperState } from '../src/serverHelper';
 
 class FakePostgres implements ManagedPostgresLike {
@@ -251,6 +252,63 @@ describe('host runtime controller', () => {
       errorCode: 'NO_LAN_INTERFACE',
     });
     expect(postgres.starts).toBe(0);
+  });
+
+  describe('automatic network choice', () => {
+    const adapters = {
+      'Wi-Fi': [{ address: '192.168.1.15', netmask: '255.255.255.0', family: 'IPv4', mac: '', internal: false }],
+      Ethernet: [{ address: '10.0.0.8', netmask: '255.255.255.0', family: 'IPv4', mac: '', internal: false }],
+    };
+    const provider = (defaultRouteAddress?: string) => resolveNetworkInterfaces(() => adapters, defaultRouteAddress);
+
+    it('hosts on the interface that carries the default route without being told which one', async () => {
+      const routeProbe = vi.fn(() => Promise.resolve<string | undefined>('10.0.0.8'));
+      const controller = new HostRuntimeController(options({
+        postgres: new FakePostgres(),
+        helperFactory: () => new FakeHelper(),
+        interfaceProvider: provider,
+        routeProbe,
+      }));
+
+      const status = await controller.start();
+
+      expect(routeProbe).toHaveBeenCalledOnce();
+      expect(status.selectedLanUrl).toBe('http://10.0.0.8:43123');
+      expect(status.interfaces.map(candidate => candidate.address)).toEqual(['10.0.0.8', '192.168.1.15']);
+      await controller.stop();
+    });
+
+    it('keeps the network it hosts on when the default route moves, but lists the new best one first', async () => {
+      let route: string | undefined = '10.0.0.8';
+      const controller = new HostRuntimeController(options({
+        postgres: new FakePostgres(),
+        helperFactory: () => new FakeHelper(),
+        interfaceProvider: provider,
+        routeProbe: () => Promise.resolve(route),
+      }));
+      await controller.start();
+
+      route = '192.168.1.15';
+      const status = await controller.verifyAndRecover();
+
+      expect(status.selectedLanUrl).toBe('http://10.0.0.8:43123');
+      expect(status.interfaces[0]?.address).toBe('192.168.1.15');
+      await controller.stop();
+    });
+
+    it('falls back to the rank order when the route probe fails or finds nothing', async () => {
+      for (const routeProbe of [() => Promise.reject(new Error('probe failed')), () => Promise.resolve(undefined)]) {
+        const controller = new HostRuntimeController(options({
+          postgres: new FakePostgres(),
+          helperFactory: () => new FakeHelper(),
+          interfaceProvider: provider,
+          routeProbe,
+        }));
+
+        await expect(controller.start()).resolves.toMatchObject({ selectedLanUrl: 'http://192.168.1.15:43123' });
+        await controller.stop();
+      }
+    });
   });
 
   it('can stop and restart without coupling authority to a renderer lifecycle', async () => {

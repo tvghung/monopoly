@@ -285,8 +285,9 @@ const tileState: Tile[] = [
   },
 ];
 
-// Tile indices that make up each buildable colour group. Owning every tile in a
-// group is a "monopoly": it doubles base rent and unlocks building houses.
+// Tile indices that make up each colour group (a district). A group only names
+// the streets that share a colour and a house cost: owning all of them does not
+// change any rent and is not required to build.
 export const colorGroups: Record<string, number[]> = {
   brown: [1, 3],
   lightblue: [6, 8, 9],

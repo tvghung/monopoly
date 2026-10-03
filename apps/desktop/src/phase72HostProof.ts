@@ -4,8 +4,9 @@ import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 
+import { LanFinder } from './lanFinder';
 import { ManagedPostgresController } from './managedPostgres';
-import { resolveNetworkInterfaces } from './networkInterfaces';
+import { resolveNetworkInterfaces, type NetworkInterfaceCandidate } from './networkInterfaces';
 import { ServerHelperController } from './serverHelper';
 
 interface RetainedSession {
@@ -120,6 +121,40 @@ async function checkCors(endpoint: string): Promise<void> {
   });
   if (unrelated.status !== 403) {
     throw new Error('Packaged Host accepted a cross-origin browser handshake');
+  }
+}
+
+/**
+ * Room-code discovery through the real stack, over loopback unicast so that it needs no broadcast: the packaged helper's
+ * responder listens on every address, so a datagram to 127.0.0.1 reaches it exactly as a broadcast would. The real
+ * requester must find the room the contract created (and verify the Host over HTTP) and must get no answer for a room
+ * that does not exist. The physical-LAN part (broadcast, firewall prompt) stays manual evidence.
+ */
+async function checkLanRoomDiscovery(gamePort: number, roomCode: string): Promise<void> {
+  const loopback: NetworkInterfaceCandidate = {
+    name: 'loopback',
+    displayName: 'loopback',
+    address: '127.0.0.1',
+    netmask: '255.0.0.0',
+    preference: 'preferred',
+    rank: 0,
+  };
+  const finder = new LanFinder({
+    interfaceProvider: () => [loopback],
+    targetsFor: () => ['127.0.0.1'],
+    acceptSource: address => address === '127.0.0.1',
+    timing: { sendOffsetsMs: [0, 200], listenWindowMs: 1_200, totalMs: 2_500, healthCheckTimeoutMs: 1_000 },
+  });
+  const found = await finder.findRoom(roomCode);
+  if (!found.ok || found.endpoint !== `http://127.0.0.1:${String(gamePort)}`) {
+    throw new Error(
+      `Packaged Host did not answer LAN room discovery (${found.ok ? found.endpoint : found.code}); `
+      + 'another Own the Block instance may be holding UDP port 41234.',
+    );
+  }
+  const missing = await finder.findRoom('OTB-ZZZZZZ');
+  if (missing.ok || missing.code !== 'NOT_FOUND') {
+    throw new Error('Packaged Host answered LAN room discovery for a room it does not hold');
   }
 }
 
@@ -241,6 +276,7 @@ export async function runPhase72HostProof(
       remoteServerUrl: reachableLanUrls[0],
       roomCode,
     });
+    await checkLanRoomDiscovery(helperInfo.port, roomCode);
     const publicInvite = `${reachableLanUrls[0]}/?room=${roomCode}`;
     if (/(token|postgres|password|credential)/iu.test(publicInvite)) {
       throw new Error('Phase 7.2 invite exposed a private credential');
@@ -318,6 +354,7 @@ export async function runPhase72HostProof(
         'bundled-browser-client': true,
         'explicit-origin-policy': true,
         'real-interface-http': true,
+        'lan-room-discovery-loopback': true,
         'credential-free-invite': true,
         ...contractResult.checks,
         ...helperRestartChecks,

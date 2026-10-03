@@ -101,6 +101,9 @@
 
 .join__reason { text-align: center; }
 
+/* The how-to-play key sits under the mascot row of the hero and follows its alignment (centered, or left on wide screens). */
+.join__hero .join__help { margin-top: var(--space-2); }
+
 /* Phones in portrait: a tighter card, and on the shortest screens the subtitle gives way so the button stays in view. */
 @media (max-width: 39.99rem) {
   .join__panel.ds-panel { padding: var(--space-4); }

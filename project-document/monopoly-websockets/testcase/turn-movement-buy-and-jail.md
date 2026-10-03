@@ -20,7 +20,12 @@
 ## Tile/cards/decks
 
 - [ ] `[AUTO]` Buy/Do Not Buy revalidate operation ID, property and balance; Do Not
-  Buy never starts an auction; Free Parking and tax/fee tiles are no-op.
+  Buy never starts an auction; Free Parking is a no-op (tax tiles charge, see the tax row).
+- [x] `[AUTO]` Landing on a tax tile charges its `expenseAmount` to the Bank through the payment pipeline (index 4 pays 200
+  = 200.000 ₫, index 38 pays 100 = 100.000 ₫, nobody else is paid); a short payer enters the TAX shortfall and is
+  bankrupt at once when nothing is left to sell (`game.test.ts` "charges tile $tileID tax through the bank payment
+  pipeline", "bankrupts a cash-short player without assets on tax tile", "pauses a TAX debt for liquidation and never
+  charges the landing twice"; `rulesContract.test.ts` "charges each tax tile the amount in the tile data, to the Bank").
 - [ ] `[AUTO]` Chance/Khí Vận draw top in persisted order, normal card rotates bottom,
   movement resolves destination/pass-GO and go-to-jail direct semantics.
 - [ ] `[AUTO][PG]` Jail-free card leaves source pile, holder identity persists,

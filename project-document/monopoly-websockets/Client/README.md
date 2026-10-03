@@ -16,6 +16,7 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
 | `TradeBundle`/private offers | [trade-offers.instruction.md](./trade-offers.instruction.md) | `TradeOfferModal`, `IncomingOffers`, `useIncomingOffers` |
 | Forced sale proposal | [../testcase/payment-shortfall-and-forced-sale.md](../testcase/payment-shortfall-and-forced-sale.md) | DebtPanel/ForcedSaleProposalPanel |
 | Log/chat | [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md) | Log (ngăn kéo), `game/ui/hud/` |
+| Hướng dẫn chơi (nút "?" ở mọi màn hình, hộp thoại 11 mục đóng sẵn, số luật đọc từ `rules.ts`) | [how-to-play.instruction.md](./how-to-play.instruction.md) | `howToPlay/`, `packages/shared/src/rules.ts`, `App.tsx` (toolbar), `Lobby.tsx`, `JoinForm.tsx`, `app/screens/`, `ConnectionOverlay.tsx` |
 | Game HUD (player card, center stage, status pill, banner, callout, dock, ticker, bong bóng, toolbar, toast) | [game-board.instruction.md](./game-board.instruction.md) mục "Game HUD" | `game/ui/hud/`, `components/Log.tsx`, `App.tsx` (toolbar), `components/Toast.tsx` |
 | Desktop shell/runtime | [../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md](../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md) | `apps/desktop/`, preload bridge, bootstrap/runtime config |
 | Presentation | [../ui-ux-overhaul/PHASE_1_IMPLEMENTATION_PLAN.md](../ui-ux-overhaul/PHASE_1_IMPLEMENTATION_PLAN.md) | `game/presentation/`, `game/ui/`, settings/audio |

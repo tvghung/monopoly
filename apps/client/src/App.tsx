@@ -36,6 +36,7 @@ import { ActionIcon as RegistryIcon } from './design-system/icons/ActionIcon';
 import ConfirmationDialog from './design-system/components/ConfirmationDialog/ConfirmationDialog';
 import SettingsPanel from './settings/SettingsPanel';
 import FpsBadge from './game/ui/FpsBadge';
+import HowToPlayButton from './howToPlay/HowToPlayButton';
 import { getDesktopBridge } from './runtime/desktopBridge';
 import stateContext from './internal';
 import { roomExitContext, type RoomExitContextValue } from './roomExitContext';
@@ -496,9 +497,7 @@ export default function App({
       setFailure({
         message: details?.code
           ? localizeAckError({ code: details.code, message: details.message ?? '' })
-          : /timeout/iu.test(error.message)
-            ? 'Kết nối đã hết thời gian chờ. Xác nhận Host đang chạy và hai thiết bị cùng mạng LAN.'
-            : 'Không thể tới Host. Kiểm tra địa chỉ, cùng Wi-Fi/LAN, tường lửa, mạng khách hoặc VPN.',
+          : 'Không vào được phòng. Hãy kiểm tra Wi-Fi rồi thử lại.',
         retryable: details?.retryable ?? true,
         reloadRequired: details?.code === 'UPGRADE_REQUIRED',
         returnToLauncher: Boolean(desktopBridge && launch),
@@ -923,8 +922,9 @@ export default function App({
       : (
         <>
           {role === 'SPECTATOR' ? <SpectatorBanner /> : null}
-          <div className="room-toolbar" aria-label="Điều khiển ván chơi">
+          <div className="room-toolbar" data-hud-region="toolbar" aria-label="Điều khiển ván chơi">
             {import.meta.env.DEV || __PHASE4_UAT__ ? <FpsBadge /> : null}
+            <HowToPlayButton />
             <IconButton
               label="Cài đặt"
               icon={<RegistryIcon name="settings" className="room-settings-button__icon" />}

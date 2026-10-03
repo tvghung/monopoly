@@ -193,3 +193,38 @@ players, and observed result.
   all inside the plan 05 §5.3 budgets.
 - [ ] `[MANUAL-E2E]` The reference-device benchmark (`stress` balanced): only the machine's own Intel UHD GPU was measured (`evidence/05/g5/benchmark`, 30 FPS in `balanced`, as before plan 05);
   and a human look at the packaged window (`pnpm desktop:run:packaged`) for landmarks, standees and props under `app://`.
+
+## How-to-play guide (V1.1 item 8)
+
+- [x] `[AUTO][CLIENT]` `howToPlay/model.test.ts`: the guide has the eleven topics in order (Mục tiêu và lượt chơi, Mua đất, Thu tiền
+  thuê, Xây nhà và công trình, Nhà Tù, Thuế và ô đặc biệt, Thẻ Cơ Hội, Thẻ Khí Vận, Giao dịch mua bán, Nợ và phá sản, Bỏ cuộc
+  và chiến thắng); it is pure; every money amount in the text exists in the shared board data, cards or `rules.ts`, and the
+  rules numbers (players, start cash, Xuất Phát reward, Ga ladder, Công Ty multipliers, bail, jail rounds, durations marked
+  "(mặc định)", the 70% bank price, offer lifetime) are read from them; the tax tiles are charged, not free; all 13 Cơ Hội and
+  15 Khí Vận cards are listed with the printed text and the artwork title and counted by kind; the three 1.1 rule statements
+  (offers to buy a debtor's property, the debtor's own price, keep watching or leave after giving up) are present; no
+  technical or English word; cross-references use real section titles.
+- [x] `[AUTO][CLIENT]` `howToPlay/HowToPlay.test.tsx`: the key is named "Hướng dẫn chơi", a 44 px icon key (or labelled, or
+  corner) that announces a dialog and renders nothing outside a provider; one provider owns one dialog that every key opens;
+  the dialog is titled, `lg`, modal, with an introduction and eleven collapsed `<details>` that open independently and
+  start collapsed again on the next visit; focus starts on the first topic; the 13 and 15 cards sit in their own topics;
+  tables are named focusable regions with real header cells and decorative swatches; Escape, the close key and an outside
+  click close it and focus returns to the key; works under StrictMode with no settings, audio or toast provider.
+- [x] `[AUTO][CLIENT]` `howToPlay/placement.test.tsx` and `App.test.tsx` ("App how-to-play key placement"): the key exists on every
+  loading stage, every failure screen (with and without an action, start-up failure, render failure with its own provider),
+  the reconnecting overlay (outside the announced status), the join screen (hero, never submits), the lobby header (first key,
+  host and guest) and the game and spectator toolbar (first key, `data-hud-region="toolbar"`, order [?] [Cài đặt]
+  [Bỏ cuộc/Rời phòng]); where no provider exists these screens keep exactly their old buttons.
+- [ ] `[MANUAL-E2E]` The key and the guide on every screen with the real app: web join screen, loading, restoring, replaced and error
+  screens, reconnecting overlay (the guide opens above it), lobby, game and spectator toolbar, and the desktop launcher once it
+  carries the key; at desktop width, a tablet, a phone in portrait and a phone at 812×375 and 667×375 (no overflow, targets
+  ≥ 44 px, the join card still fits 812×375 without scrolling).
+- [ ] `[MANUAL-E2E]` The guide by touch, mouse and keyboard: topics are collapsed on opening, Enter and Space open and close
+  them, Tab and Shift+Tab stay inside the dialog and wrap, tables scroll sideways only when needed, Escape and the close key
+  return focus to the key, and a screen reader announces each topic as collapsed or expanded.
+- [ ] `[MANUAL-E2E]` Overlap: `pnpm visual:capture` sidecars list the `toolbar` HUD region with no persistent overlap and no region
+  overlap (`hudOverlap.findings`, `hudOverlap.regionOverlaps`) at the standard viewports, and the spectator banner stays clear
+  of the three-key toolbar from 360 to 1920 px wide.
+- [ ] `[MANUAL-E2E]` Owner read-through of the Vietnamese text of the eleven topics for plainness and correctness, and a check of
+  the three 1.1 rule statements (buy offers during a debt, the seller-chosen forced-sale price, keep watching after
+  "Bỏ cuộc") against the running game.

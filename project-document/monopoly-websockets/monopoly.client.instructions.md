@@ -33,9 +33,17 @@ Development endpoint contract:
   `http://127.0.0.1:8080`; the server allows the exact renderer origin by default.
 
 - Desktop renders `DesktopMultiplayerLauncher` before any gameplay Socket.IO
-  client is created. Host mode starts the main-process runtime first; Join mode
-  resolves a validated explicit IPv4 endpoint first. No UDP/mDNS discovery path
-  exists. Web bootstrap retains
+  client is created. Host mode starts the main-process runtime first (the main
+  process picks the network the device is connected to; the form asks for a name
+  only). Join mode asks for a name and a room code only and resolves the Host
+  endpoint first through the main-process lookup
+  `window.ownTheBlockDesktop.lan.findRoom(roomCode)` (request/response UDP, see
+  [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md)); only
+  after a failed lookup does the form offer a pasted invitation link
+  (`parseLanJoinUrl`, the inverse of `buildLanJoinUrl`) that skips the lookup.
+  There is no mDNS and no periodic advertisement. Every launcher and invite-card
+  text is plain Vietnamese: no address, port, protocol or database wording, and an
+  error line always says what to do next. Web bootstrap retains
   the normal `loading-settings` → `loading-runtime-config` →
   `loading-assets` → `initializing-client` → `ready`/`error`; loading UI chỉ hiển
   thị stage thực, không dựng phần trăm giả.
@@ -154,6 +162,11 @@ formatter dùng `1 game unit = 1.000 VNĐ` và player-facing UI/log/error là ti
    Active-game `Bỏ cuộc` dùng confirmation, rồi người chơi xem tiếp như khán giả qua `ForfeitChoiceDialog` ("Xem tiếp" hoặc
    "Rời phòng"); desktop close khi đang chơi chỉ
    disconnect để giữ reconnect token, không emit `leave room`.
+8. Luật hiển thị cho người chơi ("Hướng dẫn chơi", text của deed) chỉ đọc từ `@monopoly/shared` (`tileState`, hai file thẻ,
+   `rules.ts`), không gõ lại số; đổi luật ở server thì đổi `rules.ts` (`apps/server/src/rulesContract.test.ts` giữ khớp) và
+   `howToPlay/`. Nút "Hướng dẫn chơi" là `HowToPlayButton` trong chrome của từng màn hình (ô đầu toolbar trong ván, header
+   Lobby, cột hero của form vào phòng, góc phải trên của màn hình loading/lỗi/mất kết nối); không bao giờ đặt nút cố
+   định lên bàn cờ. Xem [Client/how-to-play.instruction.md](./Client/how-to-play.instruction.md).
 - Desktop shell development có hai đường chạy: `pnpm dev:desktop` tự khởi động
   server/client; hoặc `pnpm dev:web` ở Terminal A và `pnpm dev:desktop:shell` ở
   Terminal B. Cả hai đều compile main/preload trước khi mở Electron.

@@ -87,7 +87,10 @@ export interface HostRuntimeOptions {
   appVersion: string;
   platform?: DesktopPlatform;
   defaultPort?: number;
-  interfaceProvider?: () => NetworkInterfaceCandidate[];
+  /** The usable interfaces, best first; `defaultRouteAddress` is the local address the OS uses for the default route. */
+  interfaceProvider?: (defaultRouteAddress?: string) => NetworkInterfaceCandidate[];
+  /** Finds the local address of the default route (see `probeDefaultRouteAddress`); without it no route is preferred. */
+  routeProbe?: () => Promise<string | undefined>;
   postgres?: ManagedPostgresLike;
   helperFactory?: (databaseUrl: string, port: number) => ServerHelperLike;
   healthCheckIntervalMs?: number;
@@ -170,8 +173,9 @@ export class HostRuntimeController {
   private recoveryAttemptsUsed = 0;
   private healthTimer: NodeJS.Timeout | undefined;
   private removeUnexpectedExitListener: (() => void) | undefined;
+  private defaultRouteAddress: string | undefined;
   private readonly listeners = new Set<HostRuntimeListener>();
-  private readonly interfaceProvider: () => NetworkInterfaceCandidate[];
+  private readonly interfaceProvider: (defaultRouteAddress?: string) => NetworkInterfaceCandidate[];
 
   public constructor(private readonly options: HostRuntimeOptions) {
     for (const [name, value] of [
@@ -185,7 +189,8 @@ export class HostRuntimeController {
     }
     this.currentStatus = initialStatus(options);
     this.postgres = options.postgres;
-    this.interfaceProvider = options.interfaceProvider ?? (() => resolveNetworkInterfaces());
+    this.interfaceProvider = options.interfaceProvider
+      ?? (defaultRouteAddress => resolveNetworkInterfaces(undefined, defaultRouteAddress));
   }
 
   public get status(): HostRuntimeStatus {
@@ -230,7 +235,7 @@ export class HostRuntimeController {
   }
 
   public refreshNetwork(preferredAddress?: string): HostRuntimeStatus {
-    const interfaces = this.interfaceProvider();
+    const interfaces = this.interfaceProvider(this.defaultRouteAddress);
     if (preferredAddress && !interfaces.some(candidate => candidate.address === preferredAddress)) {
       throw new Error('Selected LAN address is not available');
     }
@@ -256,6 +261,7 @@ export class HostRuntimeController {
   }
 
   public async verifyAndRecover(): Promise<HostRuntimeStatus> {
+    await this.refreshRoute();
     this.refreshNetwork();
     if (this.currentStatus.state !== 'HOSTING' || !this.helper?.checkHealth) return this.status;
     try {
@@ -266,9 +272,20 @@ export class HostRuntimeController {
     return this.status;
   }
 
+  /** The network the device is connected to is the one that carries the default route; a failed probe changes nothing. */
+  private async refreshRoute(): Promise<void> {
+    if (!this.options.routeProbe) return;
+    try {
+      this.defaultRouteAddress = await this.options.routeProbe();
+    } catch {
+      this.defaultRouteAddress = undefined;
+    }
+  }
+
   private async startInternal(options: HostStartOptions): Promise<HostRuntimeStatus> {
     const requestedPort = validatePort(options.port ?? this.options.defaultPort ?? AUTO_GAME_PORT);
-    const interfaces = this.interfaceProvider();
+    await this.refreshRoute();
+    const interfaces = this.interfaceProvider(this.defaultRouteAddress);
     const preferredAddress = options.preferredAddress ?? interfaces[0]?.address;
     if (!preferredAddress || !interfaces.some(candidate => candidate.address === preferredAddress)) {
       const error = new Error('No usable LAN IPv4 interface is available');

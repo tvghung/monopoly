@@ -1,3 +1,4 @@
+import HowToPlayButton from '../../howToPlay/HowToPlayButton';
 import { useEffectiveReducedMotion } from '../../settings/selectors';
 import type { BootStage } from '../bootstrap/types';
 import { BrandLockup, MascotRow } from './ScreenBrand';
@@ -36,6 +37,7 @@ export default function LoadingScreen({ stage, as: Element = 'main' }: LoadingSc
         <span />
         <span />
       </span>
+      <HowToPlayButton placement="corner" />
     </Element>
   );
 }

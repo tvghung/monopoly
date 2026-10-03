@@ -612,10 +612,15 @@ describe('Lobby LAN invitation', () => {
     } as unknown as OwnTheBlockDesktopBridge;
   }
 
-  it('shows the invitation card to the LAN host', async () => {
+  it('shows the invitation card to the LAN host as a QR code and a copy button, without printing the link', async () => {
     installBridge();
     renderLobby({ showLanSharing: true });
-    expect(await screen.findByText('http://192.168.1.15:53120/?room=ROOM-1')).toBeTruthy();
+
+    const image = await screen.findByAltText('Mã QR tham gia phòng ROOM-1');
+    expect(image.getAttribute('data-qr-payload')).toBe('http://192.168.1.15:53120/?room=ROOM-1');
+    expect(screen.getByRole('button', { name: 'Sao chép liên kết' })).toBeTruthy();
+    expect(screen.queryByText('http://192.168.1.15:53120/?room=ROOM-1')).toBeNull();
+    expect(screen.queryByLabelText('Mạng chia sẻ')).toBeNull();
   });
 
   it('keeps it away from guests and from lobbies that are not hosted on this machine', () => {

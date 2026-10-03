@@ -3,6 +3,7 @@ import Button from '../design-system/components/Button/Button';
 import Panel from '../design-system/components/Panel/Panel';
 import SegmentedControl, { type SegmentedOption } from '../design-system/components/SegmentedControl/SegmentedControl';
 import { ActionIcon } from '../design-system/icons/ActionIcon';
+import HowToPlayButton from '../howToPlay/HowToPlayButton';
 import JoinHero from './JoinHero';
 import './style/EntryShared.css';
 import './style/JoinForm.css';
@@ -53,6 +54,8 @@ export default function JoinForm({
           <h1 id="join-title" className="join__title">Cờ Tỷ Phú Việt Nam</h1>
           <p className="join__subtitle">Vào phòng và chia sẻ mã phòng để cùng bạn bè chơi trực tuyến.</p>
           <JoinHero />
+          {/* Beside the title, not in the card: the card keeps every field and the join button on screen at 812x375. */}
+          <HowToPlayButton variant="labelled" className="join__help" />
         </div>
 
         <Panel as="div" padding="lg" className="join__panel">

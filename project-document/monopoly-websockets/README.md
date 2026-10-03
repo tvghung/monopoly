@@ -11,7 +11,7 @@ phải được cập nhật trong cùng thay đổi.
 | Khối | Code | Trách nhiệm | Bắt đầu đọc |
 | --- | --- | --- | --- |
 | Client | `apps/client/` | React/Vite; admission, lobby, reconnect/spectator UX và game UI | [monopoly.client.instructions.md](./monopoly.client.instructions.md) |
-| Desktop | `apps/desktop/` | Electron shell, secure preload bridge, app-owned managed PostgreSQL/server-helper Host runtime, LAN interface state, packaging | [../ui-ux-overhaul/07C_PHASE_7_2_FINAL_ENGINEERING.md](../ui-ux-overhaul/07C_PHASE_7_2_FINAL_ENGINEERING.md) |
+| Desktop | `apps/desktop/` | Electron shell, secure preload bridge, app-owned managed PostgreSQL/server-helper Host runtime, LAN interface choice, room-code LAN lookup (`lanFinder.ts`), packaging | [../ui-ux-overhaul/07C_PHASE_7_2_FINAL_ENGINEERING.md](../ui-ux-overhaul/07C_PHASE_7_2_FINAL_ENGINEERING.md) |
 | API | `apps/server/src/createServer.ts`, `apps/server/src/socket/` | Express/Socket.IO, runtime validation, authenticated commands và ACK | [monopoly.api.instructions.md](./monopoly.api.instructions.md) |
 | GameCore | `apps/server/src/rooms.ts`, `apps/server/src/game/` | Room aggregate và luật game dùng stable player ID | [monopoly.game-core.instructions.md](./monopoly.game-core.instructions.md) |
 | Persistence | `apps/server/src/persistence/`, `apps/server/src/services/`, `apps/server/migrations/` | PostgreSQL, sessions, CAS command execution và recovery | [Persistence/README.md](./Persistence/README.md) |
@@ -22,8 +22,12 @@ Cloud deployment is one Node service serving the same-origin client. Packaged
 desktop Host mode instead supervises the same server plus managed PostgreSQL:
 PostgreSQL stays on `127.0.0.1`, while the game HTTP/Socket server binds
 `0.0.0.0` on an OS-selected port and serves the explicit bundled client root.
-Remote browsers use the selected IPv4 URL; the host renderer uses loopback. There
-is no UDP/mDNS discovery or runtime memory fallback. Player-facing
+Remote browsers use the selected IPv4 URL; the host renderer uses loopback. A
+desktop Join finds the Host from the room code alone through a request/response
+UDP lookup (desktop Host profile only, see
+[Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md)); the cloud
+and development servers never answer it. There is no mDNS, no periodic
+advertisement and no runtime memory fallback. Player-facing
 product là Vietnamese-only **Cờ Tỷ Phú Việt Nam — Standard Mode**; package/path kỹ
 thuật `monopoly-*` được giữ để tránh cosmetic refactor.
 
@@ -89,7 +93,9 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
 | Contracts/runtime schema | [Shared/socket-and-state-contracts.instruction.md](./Shared/socket-and-state-contracts.instruction.md) | `types.ts`, `events.ts`, `socketSchemas.ts` |
 | WebGL board/surface art/motion | [Client/game-board.instruction.md](./Client/game-board.instruction.md) | `Board.tsx`, `game/scene/GameScene.tsx`, `game/scene/board/` |
 | HTTP/readiness/deploy | [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md) | create/start server, migration startup, Docker/Render/CI |
+| Desktop Join by room code (LAN lookup) | [Client/join-room.instruction.md](./Client/join-room.instruction.md), [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md) | `DesktopMultiplayerLauncher.tsx`, `apps/desktop/src/lanFinder.ts`, `apps/server/src/lanDiscoveryResponder.ts` |
 | Board/card/deck data | [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md) | shared canonical board/cards và private deck state |
+| Hướng dẫn chơi / số luật hiển thị | [Client/how-to-play.instruction.md](./Client/how-to-play.instruction.md), [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md) | `apps/client/src/howToPlay/`, `packages/shared/src/rules.ts`, `apps/server/src/rulesContract.test.ts` |
 
 ## Quy ước tài liệu
 

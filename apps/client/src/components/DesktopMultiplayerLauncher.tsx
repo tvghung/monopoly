@@ -3,14 +3,17 @@ import Button from '../design-system/components/Button/Button';
 import Panel from '../design-system/components/Panel/Panel';
 import { ActionIcon } from '../design-system/icons/ActionIcon';
 import type { ActionIconName } from '../design-system/icons/actionIcons';
+import { HowToPlayButton } from '../howToPlay';
 import { getDesktopBridge } from '../runtime/desktopBridge';
 import { normalizeLanEndpoint } from '../runtime/lanEndpoint';
-import { generateHostRoomCode, normalizeRoomCode } from '../runtime/lanSharing';
+import { generateHostRoomCode, normalizeRoomCode, parseLanJoinUrl } from '../runtime/lanSharing';
 import type {
   DesktopLaunchSelection,
   DesktopPlatform,
   HostRuntimeErrorCode,
   HostRuntimeStatus,
+  LanFindRoomFailureCode,
+  LanFindRoomResult,
   RuntimeConfig,
 } from '../runtime/types';
 import './style/EntryShared.css';
@@ -24,6 +27,8 @@ interface DesktopMultiplayerLauncherProps {
   onReady: (selection: DesktopLaunchSelection) => void;
   /** Opens a form directly, for design-lab captures; the launcher itself always starts on the choices. */
   initialMode?: Exclude<LauncherMode, null>;
+  /** Fills the join form, optionally after a failed search, for design-lab captures. */
+  initialJoin?: { name: string; roomCode: string; failure?: LanFindRoomFailureCode };
 }
 
 const modeTitle: Record<Exclude<LauncherMode, null>, string> = {
@@ -62,17 +67,36 @@ function ChoiceCard({
   );
 }
 
+const NO_NETWORK_COPY = 'Máy này chưa kết nối mạng. Hãy bật Wi-Fi hoặc cắm dây mạng.';
+
+/** What a player reads when the room cannot be opened on this machine: no ports, servers or databases, and what to do. */
 const hostErrorCopy: Record<HostRuntimeErrorCode, string> = {
-  POSTGRES_RESOURCES_MISSING: 'Không tìm thấy tài nguyên máy chủ cục bộ. Hãy cài lại ứng dụng rồi thử lại.',
-  POSTGRES_INITIALIZATION_FAILED: 'Không thể khởi động cơ sở dữ liệu đã lưu. Dữ liệu không bị đặt lại.',
-  MIGRATION_FAILED: 'Không thể cập nhật dữ liệu trò chơi cục bộ.',
-  HELPER_FAILED: 'Máy chủ trò chơi cục bộ đã dừng. Hãy thử khởi động lại Host.',
-  READINESS_TIMEOUT: 'Máy chủ cục bộ không sẵn sàng kịp thời.',
-  PORT_OCCUPIED: 'Cổng trò chơi đang được dùng. Hãy thử lại để chọn cổng tự động khác.',
-  BIND_DENIED: 'Hệ điều hành từ chối mở cổng trò chơi. Hãy kiểm tra quyền và tường lửa.',
-  NO_LAN_INTERFACE: 'Không tìm thấy địa chỉ IPv4 LAN dùng được. Hãy kiểm tra Wi-Fi, Ethernet hoặc VPN.',
-  RUNTIME_FAILED: 'Không thể chuẩn bị máy chủ LAN.',
+  POSTGRES_RESOURCES_MISSING: 'Ứng dụng thiếu tệp cần thiết để mở phòng. Hãy cài lại ứng dụng rồi thử lại.',
+  POSTGRES_INITIALIZATION_FAILED: 'Không mở được dữ liệu các phòng đã lưu. Dữ liệu không bị đặt lại. Hãy thử lại.',
+  MIGRATION_FAILED: 'Không thể cập nhật dữ liệu trò chơi trên máy này. Hãy thử lại.',
+  HELPER_FAILED: 'Phòng trên máy này đã dừng. Hãy thử tạo lại phòng.',
+  READINESS_TIMEOUT: 'Phòng chưa sẵn sàng kịp thời. Hãy thử lại.',
+  PORT_OCCUPIED: 'Chưa mở được phòng. Hãy thử lại.',
+  BIND_DENIED: 'Máy này chưa cho mở phòng. Hãy bấm Cho phép khi tường lửa hỏi rồi thử lại.',
+  NO_LAN_INTERFACE: NO_NETWORK_COPY,
+  RUNTIME_FAILED: 'Không thể tạo phòng. Hãy thử lại.',
 };
+
+/** What a player reads when the room could not be found; every line says what to do next. */
+function findRoomFailureCopy(code: LanFindRoomFailureCode, roomCode: string): string {
+  switch (code) {
+    case 'NOT_FOUND':
+      return `Không tìm thấy phòng ${roomCode}. Kiểm tra lại mã và chắc chắn máy tạo phòng đang mở game, cùng Wi-Fi với bạn.`;
+    case 'UNREACHABLE':
+      return 'Tìm thấy phòng nhưng chưa kết nối được. Nhờ chủ phòng bấm Cho phép khi tường lửa hỏi.';
+    case 'NO_NETWORK':
+      return NO_NETWORK_COPY;
+    case 'UNAVAILABLE':
+      return 'Không thể tìm phòng tự động. Hãy dán liên kết mời.';
+  }
+}
+
+const INVALID_INVITE_COPY = 'Liên kết mời chưa đúng. Hãy dán lại liên kết do chủ phòng gửi.';
 
 function fallbackPlatform(): DesktopPlatform {
   return typeof navigator !== 'undefined' && /macintosh|mac os/iu.test(navigator.userAgent)
@@ -90,13 +114,14 @@ function runtimeConfig(endpoint: string, status?: HostRuntimeStatus): DesktopLau
 }
 
 function statusError(status?: HostRuntimeStatus): string {
-  return status?.errorCode ? hostErrorCopy[status.errorCode] : 'Không thể chuẩn bị máy chủ LAN.';
+  return status?.errorCode ? hostErrorCopy[status.errorCode] : hostErrorCopy.RUNTIME_FAILED;
 }
 
+/** The two start-up steps differ for the main process, not for the player: both are "getting the room ready". */
 function startingLabel(status?: HostRuntimeStatus): string {
-  if (status?.state === 'STARTING_POSTGRES') return 'Đang khởi động cơ sở dữ liệu…';
-  if (status?.state === 'STARTING_SERVER') return 'Đang khởi động máy chủ trò chơi…';
-  if (status?.state === 'STOPPING') return 'Đang dừng máy chủ…';
+  if (status?.state === 'STARTING_POSTGRES') return 'Đang chuẩn bị phòng…';
+  if (status?.state === 'STARTING_SERVER') return 'Đang mở phòng…';
+  if (status?.state === 'STOPPING') return 'Đang đóng phòng…';
   return 'Đang chuẩn bị…';
 }
 
@@ -105,27 +130,34 @@ export default function DesktopMultiplayerLauncher({
   configurationError,
   onReady,
   initialMode,
+  initialJoin,
 }: DesktopMultiplayerLauncherProps) {
   const bridge = getDesktopBridge();
   const [mode, setMode] = useState<LauncherMode>(initialMode ?? null);
   const rootRef = useRef<HTMLElement>(null);
   const returnFocusRef = useRef<Exclude<LauncherMode, null> | null>(null);
-  const [name, setName] = useState('');
-  const [roomCode, setRoomCode] = useState('');
-  const [address, setAddress] = useState('');
-  const [preferredAddress, setPreferredAddress] = useState('');
+  // Counts room searches: a result that arrives after the player went back or searched again is dropped.
+  const searchRef = useRef(0);
+  const [name, setName] = useState(initialJoin?.name ?? '');
+  const [roomCode, setRoomCode] = useState(initialJoin?.roomCode ?? '');
+  const [inviteLink, setInviteLink] = useState('');
+  // The invitation-link field is only offered once looking for the room by its code has failed.
+  const [inviteOffered, setInviteOffered] = useState(
+    initialJoin?.failure !== undefined && initialJoin.failure !== 'NO_NETWORK',
+  );
   const [hostStatus, setHostStatus] = useState<HostRuntimeStatus | undefined>();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(configurationError ?? null);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState<string | null>(
+    configurationError
+      ?? (initialJoin?.failure ? findRoomFailureCopy(initialJoin.failure, initialJoin.roomCode) : null),
+  );
 
   useEffect(() => {
     if (!bridge?.host) return undefined;
     let active = true;
     void bridge.host.getStatus().then(status => {
-      if (active) {
-        setHostStatus(status);
-        setPreferredAddress(status.interfaces[0]?.address ?? '');
-      }
+      if (active) setHostStatus(status);
     }).catch(() => undefined);
     const remove = bridge.host.onStatusChanged(status => {
       if (active) setHostStatus(status);
@@ -148,26 +180,39 @@ export default function DesktopMultiplayerLauncher({
     rootRef.current?.querySelector<HTMLElement>(`[data-launcher-choice="${choice}"]`)?.focus();
   }, [mode]);
 
+  // A search that is still running when the launcher goes away must not launch anything.
+  useEffect(() => () => { searchRef.current += 1; }, []);
+
+  // Opening the host form checks the network once, so a missing connection is said before the player types a name.
   useEffect(() => {
-    if (mode !== 'host' || !bridge?.host) return;
+    if (mode !== 'host' || !bridge?.host) return undefined;
+    let active = true;
     void bridge.host.refreshNetwork().then(status => {
+      if (!active) return;
       setHostStatus(status);
-      setPreferredAddress(current => (
-        status.interfaces.some(candidate => candidate.address === current)
-          ? current
-          : status.interfaces[0]?.address ?? ''
-      ));
-    }).catch(() => setError(hostErrorCopy.NO_LAN_INTERFACE));
+      if (status.interfaces.length === 0) setError(NO_NETWORK_COPY);
+    }).catch(() => {
+      if (active) setError(NO_NETWORK_COPY);
+    });
+    return () => {
+      active = false;
+    };
   }, [bridge, mode]);
+
+  const openMode = (next: Exclude<LauncherMode, null>): void => {
+    setMode(next);
+    setError(null);
+    setInviteLink('');
+    setInviteOffered(false);
+  };
 
   const startHost = async (): Promise<void> => {
     if (!bridge?.host || !name.trim()) return;
     setBusy(true);
     setError(null);
     try {
-      const result = await bridge.host.start({
-        ...(preferredAddress ? { preferredAddress } : {}),
-      });
+      // The main process picks the network the device is connected to.
+      const result = await bridge.host.start();
       setHostStatus(result.status);
       if (!result.ok || !result.status.localEndpoint) {
         setError(statusError(result.status));
@@ -193,22 +238,7 @@ export default function DesktopMultiplayerLauncher({
     }
   };
 
-  const joinHost = (): void => {
-    if (!name.trim()) return;
-    const normalizedRoomCode = normalizeRoomCode(roomCode);
-    if (!normalizedRoomCode) {
-      setError('Mã phòng phải có 1–20 ký tự chữ, số hoặc dấu gạch ngang.');
-      return;
-    }
-    const endpoint = mode === 'configured'
-      ? configuredRuntimeConfig?.socketUrl
-      : normalizeLanEndpoint(address);
-    if (!endpoint) {
-      setError(mode === 'configured'
-        ? 'Địa chỉ máy chủ đã cấu hình không khả dụng.'
-        : 'Nhập IPv4 và cổng, ví dụ 192.168.1.25:53120.');
-      return;
-    }
+  const enterRoom = (endpoint: string, code: string): void => {
     onReady({
       runtimeConfig: mode === 'configured'
         ? {
@@ -218,10 +248,71 @@ export default function DesktopMultiplayerLauncher({
           appVersion: configuredRuntimeConfig?.appVersion ?? 'unknown',
         }
         : runtimeConfig(endpoint, hostStatus),
-      initialJoin: { name: name.trim(), roomCode: normalizedRoomCode },
-      targetRoomCode: normalizedRoomCode,
+      initialJoin: { name: name.trim(), roomCode: code },
+      targetRoomCode: code,
       hosting: false,
     });
+  };
+
+  const joinRoom = async (): Promise<void> => {
+    if (!name.trim()) return;
+    const normalizedRoomCode = normalizeRoomCode(roomCode);
+    if (!normalizedRoomCode) {
+      setError('Mã phòng phải có 1–20 ký tự chữ, số hoặc dấu gạch ngang.');
+      return;
+    }
+    if (mode === 'configured') {
+      const endpoint = configuredRuntimeConfig?.socketUrl;
+      if (!endpoint) {
+        setError('Địa chỉ máy chủ đã cấu hình không khả dụng.');
+        return;
+      }
+      enterRoom(endpoint, normalizedRoomCode);
+      return;
+    }
+
+    setError(null);
+    // A pasted invitation link already names the Host: no search is needed.
+    if (inviteLink.trim()) {
+      const invitation = parseLanJoinUrl(inviteLink);
+      if (!invitation) {
+        setError(INVALID_INVITE_COPY);
+        return;
+      }
+      enterRoom(invitation.endpoint, invitation.roomCode);
+      return;
+    }
+
+    const failSearch = (code: LanFindRoomFailureCode): void => {
+      setError(findRoomFailureCopy(code, normalizedRoomCode));
+      if (code !== 'NO_NETWORK') setInviteOffered(true);
+    };
+    const lan = bridge?.lan;
+    if (!lan) {
+      failSearch('UNAVAILABLE');
+      return;
+    }
+    searchRef.current += 1;
+    const attempt = searchRef.current;
+    setSearching(true);
+    let result: LanFindRoomResult;
+    try {
+      result = await lan.findRoom(normalizedRoomCode);
+    } catch {
+      result = { ok: false, code: 'UNAVAILABLE' };
+    }
+    if (searchRef.current !== attempt) return;
+    setSearching(false);
+    if (!result.ok) {
+      failSearch(result.code);
+      return;
+    }
+    const endpoint = normalizeLanEndpoint(result.endpoint);
+    if (!endpoint) {
+      failSearch('UNAVAILABLE');
+      return;
+    }
+    enterRoom(endpoint, normalizedRoomCode);
   };
 
   const stopHost = async (): Promise<void> => {
@@ -238,11 +329,11 @@ export default function DesktopMultiplayerLauncher({
   const hostStarting = hostStatus?.state === 'STARTING_POSTGRES'
     || hostStatus?.state === 'STARTING_SERVER'
     || hostStatus?.state === 'STOPPING';
-  const working = busy || hostStarting;
-  // The written reason the submit button is disabled; starting and the missing-network case say so in their own lines.
+  const working = busy || hostStarting || searching;
+  // The written reason the submit button is disabled; starting says so in its own line.
   const submitReason = !name.trim()
     ? 'Nhập tên của bạn để tiếp tục.'
-    : mode !== 'host' && !roomCode.trim() ? 'Nhập mã phòng do Host chia sẻ.' : null;
+    : mode !== 'host' && !roomCode.trim() ? 'Nhập mã phòng do chủ phòng chia sẻ.' : null;
 
   return (
     <main ref={rootRef} className="desktop-launcher" aria-labelledby="desktop-launcher-title">
@@ -250,7 +341,7 @@ export default function DesktopMultiplayerLauncher({
         <header className="desktop-launcher__header">
           <p className="desktop-launcher__brand" aria-hidden="true">OWN THE BLOCK</p>
           <h1 id="desktop-launcher-title">Chơi qua mạng LAN</h1>
-          <p className="desktop-launcher__subtitle">Một máy Host giữ phòng; các thiết bị cùng Wi-Fi hoặc Ethernet tham gia bằng địa chỉ LAN.</p>
+          <HowToPlayButton variant="labelled" className="desktop-launcher__help" />
         </header>
 
         {error ? <p className="desktop-launcher__error" role="alert">{error}</p> : null}
@@ -263,7 +354,7 @@ export default function DesktopMultiplayerLauncher({
                 <ChoiceCard
                   icon="start"
                   title="Tiếp tục Host đang chạy"
-                  description="Máy chủ LAN vẫn giữ dữ liệu phòng trên máy này"
+                  description="Phòng của bạn vẫn được giữ trên máy này"
                   className="desktop-launcher__choice--running"
                   onClick={() => onReady({
                     runtimeConfig: runtimeConfig(hostStatus.localEndpoint as string, hostStatus),
@@ -283,15 +374,15 @@ export default function DesktopMultiplayerLauncher({
               icon="host"
               choice="host"
               title={modeTitle.host}
-              description="Máy này làm chủ phòng, người khác vào qua Wi-Fi"
-              onClick={() => { setMode('host'); setError(null); }}
+              description="Máy này làm chủ phòng, bạn bè vào bằng mã phòng"
+              onClick={() => openMode('host')}
             />
             <ChoiceCard
               icon="join"
               choice="join"
               title={modeTitle.join}
-              description="Nhập địa chỉ IPv4 và mã phòng do Host chia sẻ"
-              onClick={() => { setMode('join'); setError(null); }}
+              description="Nhập mã phòng để vào chơi"
+              onClick={() => openMode('join')}
             />
             {configuredRuntimeConfig?.socketUrl ? (
               <ChoiceCard
@@ -299,20 +390,25 @@ export default function DesktopMultiplayerLauncher({
                 choice="configured"
                 title={modeTitle.configured}
                 description="Dùng địa chỉ thử nghiệm hoặc máy chủ cũ đã cung cấp"
-                onClick={() => { setMode('configured'); setError(null); }}
+                onClick={() => openMode('configured')}
               />
             ) : null}
           </div>
         ) : (
           <form className="desktop-launcher__form" onSubmit={event => {
             event.preventDefault();
-            void (mode === 'host' ? startHost() : joinHost());
+            void (mode === 'host' ? startHost() : joinRoom());
           }}>
             <Button
               variant="ghost"
               className="desktop-launcher__back"
               icon={<ActionIcon name="back" className="action-icon--only" />}
-              onClick={() => { returnFocusRef.current = mode; setMode(null); }}
+              onClick={() => {
+                searchRef.current += 1;
+                setSearching(false);
+                returnFocusRef.current = mode;
+                setMode(null);
+              }}
             >Chọn lại chế độ</Button>
             <h2>{modeTitle[mode]}</h2>
 
@@ -324,56 +420,20 @@ export default function DesktopMultiplayerLauncher({
                 value={name}
                 maxLength={20}
                 placeholder="Ví dụ: Minh"
+                readOnly={searching}
                 onChange={event => setName(event.target.value)}
                 autoFocus
                 autoComplete="nickname"
               />
             </div>
 
-            {mode === 'host' ? (
-              <>
-                {hostStatus?.interfaces.length ? (
-                  <div className="desktop-launcher__field">
-                    <label className="entry-label" htmlFor="desktop-lan-interface">Mạng dùng để chia sẻ</label>
-                    <select
-                      id="desktop-lan-interface"
-                      className="entry-control"
-                      value={preferredAddress}
-                      onChange={event => setPreferredAddress(event.target.value)}
-                    >
-                      {hostStatus.interfaces.map(candidate => (
-                        <option key={candidate.address} value={candidate.address}>
-                          {candidate.displayName} — {candidate.address}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  <p className="desktop-launcher__hint">Chưa tìm thấy IPv4 LAN dùng được.</p>
-                )}
-                <p className="desktop-launcher__hint">Cổng được hệ điều hành chọn an toàn và sẽ hiện trong liên kết mời.</p>
-              </>
-            ) : (
+            {mode === 'host' ? null : (
               <>
                 {mode === 'configured' ? (
                   <p className="desktop-launcher__endpoint" role="note">
                     Địa chỉ đã cấu hình: <code>{configuredRuntimeConfig?.socketUrl}</code>
                   </p>
-                ) : (
-                  <div className="desktop-launcher__field">
-                    <label className="entry-label" htmlFor="desktop-lan-address">Địa chỉ Host</label>
-                    <input
-                      id="desktop-lan-address"
-                      className="entry-control"
-                      value={address}
-                      placeholder="192.168.1.25:53120"
-                      inputMode="url"
-                      autoCapitalize="none"
-                      spellCheck={false}
-                      onChange={event => { setAddress(event.target.value); setError(null); }}
-                    />
-                  </div>
-                )}
+                ) : null}
                 <div className="desktop-launcher__field">
                   <label className="entry-label" htmlFor="desktop-lan-room">Mã phòng</label>
                   <input
@@ -383,12 +443,38 @@ export default function DesktopMultiplayerLauncher({
                     maxLength={20}
                     placeholder="Ví dụ: OTB-ABC234"
                     autoCapitalize="characters"
-                    onChange={event => setRoomCode(event.target.value.toUpperCase())}
+                    readOnly={searching}
+                    onChange={event => {
+                      setRoomCode(event.target.value.toUpperCase());
+                      // The line above the form was about the code that was just changed.
+                      setError(null);
+                    }}
                   />
                 </div>
-                <p className="desktop-launcher__hint">
-                  Nếu không kết nối được, xác nhận hai thiết bị cùng LAN; tường lửa, mạng khách hoặc VPN có thể chặn kết nối.
-                </p>
+                {mode === 'join' && inviteOffered ? (
+                  <div className="desktop-launcher__field">
+                    <label className="entry-label" htmlFor="desktop-lan-invite">Dán liên kết mời</label>
+                    <input
+                      id="desktop-lan-invite"
+                      className="entry-control"
+                      value={inviteLink}
+                      placeholder="Liên kết do chủ phòng gửi"
+                      inputMode="url"
+                      autoCapitalize="none"
+                      autoComplete="off"
+                      spellCheck={false}
+                      readOnly={searching}
+                      onChange={event => {
+                        const value = event.target.value;
+                        setInviteLink(value);
+                        setError(null);
+                        // The link names its room, so the code field follows what was pasted.
+                        const invitation = parseLanJoinUrl(value);
+                        if (invitation) setRoomCode(invitation.roomCode);
+                      }}
+                    />
+                  </div>
+                ) : null}
               </>
             )}
 
@@ -398,19 +484,20 @@ export default function DesktopMultiplayerLauncher({
               className="desktop-launcher__submit"
               icon={working ? undefined : <ActionIcon name={mode === 'host' ? 'host' : 'join'} className="action-icon--only" />}
               busy={working}
-              disabled={!name.trim() || (mode === 'host' ? !preferredAddress : !roomCode.trim())}
+              disabled={!name.trim() || (mode !== 'host' && !roomCode.trim())}
               aria-describedby={submitReason && !working ? 'desktop-submit-reason' : undefined}
             >
-              {working
-                ? startingLabel(hostStatus)
-                : mode === 'host' ? 'Tạo và vào phòng' : 'Kết nối và vào phòng'}
+              {searching
+                ? 'Đang tìm phòng…'
+                : working
+                  ? startingLabel(hostStatus)
+                  : mode === 'host' ? 'Tạo và vào phòng' : 'Kết nối và vào phòng'}
             </Button>
             {submitReason && !working ? (
               <p id="desktop-submit-reason" className="desktop-launcher__hint desktop-launcher__reason">{submitReason}</p>
             ) : null}
           </form>
         )}
-        <p className="desktop-launcher__security">Liên kết mời chỉ chứa địa chỉ LAN và mã phòng; không chứa phiên kết nối hay thông tin cơ sở dữ liệu.</p>
       </Panel>
     </main>
   );

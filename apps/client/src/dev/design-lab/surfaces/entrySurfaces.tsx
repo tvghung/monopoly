@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import DesktopMultiplayerLauncher from '../../../components/DesktopMultiplayerLauncher';
 import JoinForm from '../../../components/JoinForm';
+import { HowToPlayProvider } from '../../../howToPlay/HowToPlayProvider';
 import type {
   HostRuntimeStatus,
   OwnTheBlockDesktopBridge,
@@ -68,6 +69,8 @@ function makeLabBridge(status: HostRuntimeStatus): OwnTheBlockDesktopBridge {
       refreshNetwork: () => Promise.resolve(status),
       onStatusChanged: () => noop,
     },
+    // The lab never searches a real network: a search ends at once with "not found".
+    lan: { findRoom: () => Promise.resolve({ ok: false as const, code: 'NOT_FOUND' as const }) },
   };
 }
 
@@ -88,19 +91,24 @@ function DesktopBridgeStub({ status, children }: { status: HostRuntimeStatus; ch
   return children;
 }
 
-/** The launcher sits outside the settings, audio and toast providers in production, so no `SurfaceProviders` here. */
+/**
+ * The launcher sits outside the settings, audio and toast providers in production, so no `SurfaceProviders` here. The
+ * how-to-play provider wraps the whole app at the root, so it is the one provider the launcher does have.
+ */
 function launcher(
   props: Partial<Parameters<typeof DesktopMultiplayerLauncher>[0]> = {},
   status: HostRuntimeStatus = LAB_HOST_STATUS,
 ) {
   return (
-    <DesktopBridgeStub status={status}>
-      <DesktopMultiplayerLauncher
-        configuredRuntimeConfig={LAB_CONFIGURED_CONFIG}
-        onReady={noop}
-        {...props}
-      />
-    </DesktopBridgeStub>
+    <HowToPlayProvider>
+      <DesktopBridgeStub status={status}>
+        <DesktopMultiplayerLauncher
+          configuredRuntimeConfig={LAB_CONFIGURED_CONFIG}
+          onReady={noop}
+          {...props}
+        />
+      </DesktopBridgeStub>
+    </HowToPlayProvider>
   );
 }
 
@@ -165,8 +173,17 @@ export const ENTRY_SURFACES: readonly SurfaceFixture[] = [
   },
   {
     id: 'launcher-join',
-    label: 'Desktop launcher, join form',
+    label: 'Desktop launcher, join form (name and room code)',
     group: 'Pre-game',
     render: () => launcher({ initialMode: 'join' }),
+  },
+  {
+    id: 'launcher-join-failed',
+    label: 'Desktop launcher, room not found (invitation link offered)',
+    group: 'Pre-game',
+    render: () => launcher({
+      initialMode: 'join',
+      initialJoin: { name: 'Minh', roomCode: 'OTB-ABC234', failure: 'NOT_FOUND' },
+    }),
   },
 ];

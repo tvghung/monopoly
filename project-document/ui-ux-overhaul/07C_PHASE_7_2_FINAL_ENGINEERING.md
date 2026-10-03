@@ -5,6 +5,10 @@
 > protocol references are historical, including V8 evidence; they do not define
 > the current V1 release. Current source of truth:
 > [V1 Release Contract](V1_RELEASE_CONTRACT.md).
+>
+> **Superseded in part by V1.1:** the decision below to ship no UDP discovery was
+> reversed for the desktop app on the owner's request (room-code lookup, see
+> [Api/http-runtime.instruction.md](../monopoly-websockets/Api/http-runtime.instruction.md#lan-room-lookup-desktop-host-profile-only)).
 
 ## Status
 

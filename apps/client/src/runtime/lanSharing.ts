@@ -23,6 +23,37 @@ export function buildLanJoinUrl(endpoint: string, roomCode: string): string {
   return url.toString();
 }
 
+export interface LanJoinLink {
+  /** `http://<ipv4>:<port>`, the Host as `normalizeLanEndpoint` accepts it. */
+  endpoint: string;
+  /** Canonical (upper-case) room code. */
+  roomCode: string;
+}
+
+const MAX_LAN_JOIN_LINK_LENGTH = 300;
+
+/**
+ * The inverse of `buildLanJoinUrl`: the Host endpoint and the room code of an invitation link
+ * (`http://<ipv4>:<port>/?room=<CODE>`), or undefined for anything else. The scheme may be left out. Only the address,
+ * the port and the `room` value are read: every other query value and the fragment are ignored, and a link that
+ * carries credentials is refused. Nothing in a link is a credential for the room.
+ */
+export function parseLanJoinUrl(value: string): LanJoinLink | undefined {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > MAX_LAN_JOIN_LINK_LENGTH) return undefined;
+  const candidate = /^[a-z][a-z\d+.-]*:\/\//iu.test(trimmed) ? trimmed : `http://${trimmed}`;
+  let url: URL;
+  try {
+    url = new URL(candidate);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== 'http:' || url.username || url.password || url.pathname !== '/') return undefined;
+  const endpoint = normalizeLanEndpoint(`http://${url.host}`);
+  const roomCode = normalizeRoomCode(url.searchParams.get('room'));
+  return endpoint && roomCode ? { endpoint, roomCode } : undefined;
+}
+
 export function roomCodeFromLocation(
   location: Pick<Location, 'search'> = window.location,
 ): string | undefined {

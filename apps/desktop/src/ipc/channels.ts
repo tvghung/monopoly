@@ -12,6 +12,7 @@ export const IPC_CHANNELS = {
   hostStop: 'ownTheBlock:host:stop',
   hostRefreshNetwork: 'ownTheBlock:host:refresh-network',
   hostStatusChanged: 'ownTheBlock:host:status-changed',
+  lanFindRoom: 'ownTheBlock:lan:find-room',
 } as const;
 
 export interface DesktopWindowState {

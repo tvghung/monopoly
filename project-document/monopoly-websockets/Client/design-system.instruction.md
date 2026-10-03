@@ -84,12 +84,19 @@ Kết quả đo trong Design Lab: Baloo 2 có `tnum` thật (chênh lệch bề 
 - Khi đóng, focus quay lại phần tử đã mở dialog (chụp một lần, không bị React StrictMode ghi đè), hoặc vào dialog bên dưới nếu phần tử đó nằm trong nó (ví dụ `ConfirmationDialog` mở từ nút trong dialog nợ).
 - `placement="sheet"` + `backdrop="clear"` là cách dựng bottom sheet cho quyết định mua/phát triển: bàn cờ vẫn nhìn thấy, nhưng nền chặn pointer. `layer="card"` (z 70) dành cho thẻ Cơ Hội/Khí Vận: nằm trên dialog thường, dưới toast và `ConnectionOverlay`.
 - `describedBy` bắt buộc cho `alertdialog` (nợ, thắng). `headerAccent` là màu dải trên header (màu district của deed).
+- **Hộp thoại "Hướng dẫn chơi"** (`howToPlay/`, V1.1) là một consumer của `Modal` `lg` (một provider gốc sở hữu đúng một
+  instance, mọi nút `HowToPlayButton` mở nó): thân là các `<details>`/`<summary>` gốc của trình duyệt đóng sẵn (summary 44 px
+  là phần tử focus; `Modal` tính `summary` vào vòng Tab; summary đầu mang `data-modal-autofocus`), bảng cuộn ngang trong vùng
+  `role="region"` có tên. Khi `ConnectionOverlay` (z 90) đang hiện, lớp phủ của hộp thoại này được nâng lên z 91 bằng một
+  luật `:has()` trong `howToPlay.css` (không thêm `layer` mới cho `Modal`). Hộp thoại **không** có bề mặt Design Lab nên
+  danh sách `surfaces` vẫn 56 id và `PLAN04_SURFACES` không đổi; xem
+  [how-to-play.instruction.md](./how-to-play.instruction.md).
 
 ## Icon registry
 
 `icons/actionIcons.ts` là nơi duy nhất ánh xạ tên hành động → icon Lucide (`ACTION_ICONS`,
 `ACTION_ICON_NAMES`); `ActionIcon` render `aria-hidden`. Component cũ chỉ chuyển sang
-registry khi plan sau chạm vào.
+registry khi plan sau chạm vào. `help` (Lucide `CircleQuestionMark`) là nút "Hướng dẫn chơi".
 
 ## Motion và reduced motion
 
@@ -111,7 +118,7 @@ registry khi plan sau chạm vào.
 lên board thật của fixture `stations-4`), `surfaces` (plan 04: **component production thật** với provider/fixture, không
 cần server). Concept là tài liệu review, không phải component production; `surfaces` thì ngược lại.
 
-`surfaces` render từng bề mặt đứng một mình qua `&surface=<id>` (`&chrome=hidden` bỏ thanh Lab để chụp): registry `surfaceRegistry.tsx` gồm 54 id theo cụm — `buy*`/`development-*`, `deeds`, `inspection-*`, `assets*`, `player-portfolio`, `jail`, `debt-*`, `forced-sale-*`, `trade`, `incoming-offers`, `card-*`, `winner-*`, `settings*`, `landing*`, `launcher*`, `lobby-*`, `confirm-forfeit`, `toasts`, `loading*`, `bootstrap-error`, `failure-*`, `connection`, `spectator`. `SurfaceProviders` dựng state/settings giả và khôi phục `localStorage` cài đặt khi surface đóng; fixture desktop cài `window.ownTheBlockDesktop` giả rồi gỡ khi unmount. Thư viện `DeedGallery` hiển thị mọi ô (street, nhà ga, tiện ích, ô đặc biệt) bằng `PropertyDeedCard`. Sidecar `data-design-lab-ready="true"` báo đã sẵn sàng chụp.
+`surfaces` render từng bề mặt đứng một mình qua `&surface=<id>` (`&chrome=hidden` bỏ thanh Lab để chụp): registry `surfaceRegistry.tsx` gồm 56 id theo cụm — `buy*`/`development-*`, `deeds`, `inspection-*`, `assets*`, `player-portfolio`, `jail`, `debt-*`, `forced-sale-*`, `trade`, `incoming-offers`, `card-*`, `winner-*`, `settings*`, `landing*`, `launcher*`, `lobby-*`, `confirm-forfeit`, `toasts`, `loading*`, `bootstrap-error`, `failure-*`, `connection`, `spectator`. `SurfaceProviders` dựng state/settings giả và khôi phục `localStorage` cài đặt khi surface đóng; fixture desktop cài `window.ownTheBlockDesktop` giả rồi gỡ khi unmount. Thư viện `DeedGallery` hiển thị mọi ô (street, nhà ga, tiện ích, ô đặc biệt) bằng `PropertyDeedCard`. Sidecar `data-design-lab-ready="true"` báo đã sẵn sàng chụp.
 
 Tham số harness khác: `scenario=<key>`, `uat-controls=collapsed|hidden`, và
 `main.phase4-uat[data-uat-ready="true"]` (hàng đợi presentation idle + mọi bước đã chạy).
@@ -119,7 +126,7 @@ Tham số harness khác: `scenario=<key>`, `uat-controls=collapsed|hidden`, và
 ## Công cụ chụp evidence
 
 `pnpm visual:capture [--grep "<regex id>"]` (`playwright.visual.config.ts`, `e2e/visual/captures.ts`,
-`e2e/visual/capture.visual.ts`; nhóm `04/g4` = 54 surface của Design Lab + kịch bản harness thẻ bài, `surfaceCaptures.test.ts` giữ manifest bằng registry) chụp từng mục manifest thành PNG + JSON diagnostics vào
+`e2e/visual/capture.visual.ts`; nhóm `04/g4` = 56 surface của Design Lab + kịch bản harness thẻ bài, `surfaceCaptures.test.ts` giữ manifest bằng registry) chụp từng mục manifest thành PNG + JSON diagnostics vào
 `project-document/visual-overhaul-v2/evidence/<plan>/`. Không thuộc `pnpm test`.
 
 - `VISUAL_BROWSER_CHANNEL=chrome|msedge` dùng trình duyệt cài sẵn; `VISUAL_HEADED=1` nếu

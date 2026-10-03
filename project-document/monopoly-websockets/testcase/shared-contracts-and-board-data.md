@@ -37,6 +37,20 @@
   names/economy.
 - [ ] `[AUTO]` Money formatter maps 60→`60.000 ₫`, 200→`200.000 ₫`,
   1500→`1.500.000 ₫`.
+- [x] `[AUTO]` The tax tiles keep their amounts: index 4 Thuế Thu Nhập `expenseAmount` 200 and index 38 Thuế Xa Xỉ 100, and
+  each is charged to the Bank on landing (`apps/server/src/rulesContract.test.ts` "keeps the tax tiles at the amounts the
+  guide reads", "charges each tax tile the amount in the tile data, to the Bank").
+- [x] `[AUTO]` `packages/shared/src/rules.ts` (start cash, Xuất Phát reward, 2–4 players, 4 Nhà then Khách Sạn, half refund,
+  Ga rent 25/50/100/200, Công Ty ×4/×10, 70% forced sale, jail round limit 2, offer and forced-sale proposal 20 s, default
+  60 s reconnect wait and 120 s debt deadline) computes the documented values **and agrees with the real server**:
+  `createFreshPlayer`, `MIN_PLAYERS`/`MAX_PLAYERS`, `START_REWARD` and `moveBy`, `railroadRent`, `utilityRent`,
+  `forcedSaleGrossPrice`, `sellHouse`, the landing development decision, `nextTurn` jail release, `loadServerConfig` and
+  `DEFAULT_*` timeouts, and the `expiresAt` of a real `make offer` over a socket (`apps/server/src/rulesContract.test.ts`).
+  Every street has a build cost and five rent tiers and a district shares one build cost.
+- [x] `[AUTO][CLIENT]` Every money amount the how-to-play guide prints exists in the shared board data, cards or
+  `rules.ts` (`apps/client/src/howToPlay/model.test.ts` "only mentions amounts that exist in the shared board data, cards or
+  rules"); the Ga ladder, Công Ty multipliers, bail, jail rounds, durations and the 28 cards come from the same sources.
+  The deed text (`propertyDetails.ts`) reads the Ga ladder, Công Ty multipliers and Xuất Phát reward from `rules.ts`.
 - [ ] `[AUTO]` Chance/Khí Vận Card IDs unique, Vietnamese content/effects/destinations
   valid; draw/rotate/jail-free source behavior deterministic with injected shuffle.
 

@@ -1,0 +1,227 @@
+/*
+ * How-to-play guide (V1.1 item 8): the "?" key that opens it and the one scrolling dialog of collapsed topics. Plain CSS on the
+ * design-system tokens; the only color that does not come from a token is the district swatch, which the guide model reads
+ * from the district styles and passes in as an inline style.
+ */
+
+/*
+ * A key pinned to the top right for screens that have no toolbar of their own (loading, failures, reconnecting). The offsets
+ * are the toolbar's, so the key sits where the player already looks. It never goes over the game board.
+ */
+.how-to-play-button--corner {
+  position: fixed;
+  z-index: var(--z-floating-control);
+  top: max(0.75rem, env(safe-area-inset-top));
+  right: max(0.75rem, env(safe-area-inset-right));
+}
+
+/*
+ * While the reconnecting overlay (z 90) is up, the guide opened from its key must sit above it; ordinary dialogs stay below
+ * the overlay as before.
+ */
+body:has(.connection-overlay) .ds-modal__overlay:has(> .how-to-play) {
+  z-index: calc(var(--z-connection-overlay) + 1);
+}
+
+.how-to-play__body {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.how-to-play__intro {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--type-body);
+  text-wrap: balance;
+}
+
+.how-to-play__sections {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.how-to-play__section {
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+
+.how-to-play__section[open] { box-shadow: var(--elevation-1); }
+
+/* The summary is the whole row: 44 px tall, a number, the topic and a chevron that turns when the topic is open. */
+.how-to-play__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font: var(--type-label);
+  cursor: pointer;
+  list-style: none;
+}
+
+.how-to-play__summary::-webkit-details-marker { display: none; }
+.how-to-play__summary::marker { content: ''; }
+.how-to-play__summary:hover { background: var(--color-surface-soft); }
+.how-to-play__summary:focus-visible { outline: 2px solid transparent; box-shadow: var(--focus-ring); }
+
+.how-to-play__summary::after {
+  content: '';
+  flex: none;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-inline: auto 0.25rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform var(--motion-duration-micro) var(--motion-ease-out);
+}
+
+.how-to-play__section[open] > .how-to-play__summary {
+  border-bottom: 1px solid var(--color-border);
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.how-to-play__section[open] > .how-to-play__summary::after { transform: translateY(2px) rotate(-135deg); }
+
+.how-to-play__number {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--color-gold-soft);
+  color: var(--color-gold-strong);
+  font: var(--type-label);
+  font-size: 0.875rem;
+}
+
+.how-to-play__summary-title {
+  min-width: 0;
+  text-wrap: balance;
+}
+
+.how-to-play__content {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  color: var(--color-text-primary);
+  font: var(--type-body);
+}
+
+.how-to-play__paragraph { margin: 0; text-wrap: pretty; }
+
+.how-to-play__heading {
+  margin: var(--space-2) 0 0;
+  color: var(--color-accent-primary-strong);
+  font: var(--type-label);
+}
+
+.how-to-play__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-inline-start: 1.25rem;
+}
+
+.how-to-play__list li { padding-inline-start: var(--space-1); text-wrap: pretty; }
+.how-to-play__list li::marker { color: var(--color-accent-primary-strong); font-weight: 800; }
+
+/* Tables scroll sideways inside their own box when the dialog is narrower than the table. */
+.how-to-play__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.how-to-play__table-wrap:focus-visible { outline: 2px solid transparent; box-shadow: var(--focus-ring); }
+
+.how-to-play__table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--type-small);
+}
+
+.how-to-play__table caption {
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-secondary);
+  font: var(--type-caption);
+  text-align: start;
+}
+
+.how-to-play__table th,
+.how-to-play__table td {
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--color-border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.how-to-play__table thead th {
+  background: var(--color-surface-soft);
+  color: var(--color-text-secondary);
+  font: var(--type-caption);
+}
+
+.how-to-play__table tbody th { font-weight: 700; }
+
+.how-to-play__swatch {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-inline-end: var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+  vertical-align: -0.05em;
+}
+
+.how-to-play__cards {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.how-to-play__card {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.how-to-play__card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.how-to-play__card-title { font: var(--type-label); }
+.how-to-play__card-message { margin: 0; }
+
+.how-to-play__card-note {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--type-small);
+}
+
+/* On a phone the cells give up some side padding, so the small tables fit the dialog without scrolling sideways. */
+@media (max-width: 40rem) {
+  .how-to-play__table th,
+  .how-to-play__table td { padding-inline: var(--space-2); }
+}
+
+/* A phone held sideways has little height: keep the topics, tighten the gaps. */
+@media (orientation: landscape) and (max-height: 31rem) {
+  .how-to-play__body { gap: var(--space-2); }
+  .how-to-play__content { gap: var(--space-2); padding: var(--space-2) var(--space-3) var(--space-3); }
+}

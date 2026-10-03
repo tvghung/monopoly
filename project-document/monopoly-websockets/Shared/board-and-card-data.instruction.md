@@ -5,6 +5,16 @@
 - `packages/shared/src/tileState.ts`: duy nhất 40 tile và `colorGroups`.
 - `packages/shared/src/chanceCards.ts`, `chestCards.ts`: canonical Vietnamese cards
   có stable `GameCardId`, source deck và typed effects.
+- `packages/shared/src/rules.ts`: các **số luật** mà chỉ server thi hành và client cần đọc (tiền khởi đầu 1500, thưởng
+  Xuất Phát 200, 2–4 người chơi, giới hạn 4 Nhà rồi Khách Sạn, hoàn một nửa khi bán một cấp công trình, tiền thuê Ga
+  25/50/100/200, hệ số Công Ty ×4/×10, 70% khi bán cho Ngân hàng lúc nợ, giới hạn vòng chờ tù 2, hạn đề nghị 20 giây, hạn
+  đề nghị bán bắt buộc 20 giây, mặc định chờ mất kết nối 60 giây và hạn trả nợ 120 giây). Dữ liệu bàn cờ (giá, tiền thuê,
+  giá xây, tiền thuế, chữ trên thẻ) vẫn chỉ nằm ở `tileState.ts` và hai file thẻ. Hộp thoại "Hướng dẫn chơi" và text của
+  deed đọc các số này; `apps/server/src/rulesContract.test.ts` chạy hàm/hằng thật của server (`createFreshPlayer`,
+  `START_REWARD`, `railroadRent`, `utilityRent`, `forcedSaleGrossPrice`, `sellHouse`, `nextTurn`, `resolveTile`,
+  `loadServerConfig`, và một offer thật qua socket) và so với `rules.ts`, nên đổi luật ở server mà quên `rules.ts` thì CI
+  đỏ. Số chỉ đọc từ môi trường (`RECONNECT_GRACE_MS`, `PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS`) là **mặc định** và được
+  ghi "(mặc định)" cho người chơi.
 - `packages/shared/src/index.ts`: export surface cho server/client.
 
 Client derive mặt trước, property detail, price/rent/build text từ shared
@@ -19,7 +29,7 @@ hai. Presentation-only icon/layout có thể ở Client nhưng không lặp econ
 | 1 | normal | Cà Mau | brown, giữ |
 | 2 | chest | Khí Vận | giữ |
 | 3 | normal | Bạc Liêu | brown, giữ |
-| 4 | expense | Thuế Thu Nhập | 200 |
+| 4 | expense | Thuế Thu Nhập | `expenseAmount` 200: người chơi nộp 200.000 ₫ cho Ngân hàng (không phải no-op) |
 | 5 | railroad | Ga Hà Nội | giữ |
 | 6 | normal | Buôn Ma Thuột | lightblue, giữ |
 | 7 | chance | Cơ Hội | giữ |
@@ -53,7 +63,7 @@ hai. Presentation-only icon/layout có thể ở Client nhưng không lặp econ
 | 35 | railroad | Ga Sài Gòn | giữ |
 | 36 | chance | Cơ Hội | giữ |
 | 37 | normal | Đồng Khởi | blue, giữ |
-| 38 | expense | Thuế Xa Xỉ | 75 |
+| 38 | expense | Thuế Xa Xỉ | `expenseAmount` 100: người chơi nộp 100.000 ₫ cho Ngân hàng |
 | 39 | normal | Landmark 81 | blue, giữ |
 
 Mọi price/base rent/rent tiers/house cost và 8 `colorGroups` giữ numeric value hiện
@@ -91,3 +101,5 @@ tại. `1 game unit = 1.000 VNĐ`; shared math không nhân 1000.
 - Canonical source derivation: không còn client metadata duplicate.
 - Vietnamese card text/effects/destinations; deterministic injected shuffle tests.
 - Draw rotation, jail-free remove/return/transfer và exact restart/no-public-leak.
+- `rules.ts` đúng giá trị/hàm và khớp code server thật (`rulesContract.test.ts`, kể cả mỗi ô thuế thu đúng
+  `expenseAmount` về Ngân hàng); mọi số tiền trong hộp thoại hướng dẫn có trong dữ liệu dùng chung (`howToPlay/model.test.ts`).

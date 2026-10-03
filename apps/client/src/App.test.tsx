@@ -71,6 +71,7 @@ vi.mock('socket.io-client', () => ({ io: () => socketHarness.socket }));
 
 import App from './App';
 import { ToastProvider } from './components/Toast';
+import { HowToPlayProvider } from './howToPlay/HowToPlayProvider';
 import { PLAYER_SESSION_STORAGE_KEY } from './playerSessionStorage';
 import type { OwnTheBlockDesktopBridge } from './runtime/types';
 
@@ -434,9 +435,9 @@ describe('App session admission', () => {
   });
 
   it.each([
-    ['timeout', 'Kết nối đã hết thời gian chờ'],
-    ['websocket error', 'Không thể tới Host'],
-  ])('surfaces a desktop %s failure and abandons the stale socket', (message, expected) => {
+    ['timeout', 'Không vào được phòng. Hãy kiểm tra Wi-Fi rồi thử lại.'],
+    ['websocket error', 'Không vào được phòng. Hãy kiểm tra Wi-Fi rồi thử lại.'],
+  ])('surfaces a desktop %s failure in plain words and abandons the stale socket', (message, expected) => {
     const runtimeConfig = {
       target: 'desktop' as const,
       socketUrl: 'http://192.168.1.15:8080',
@@ -468,7 +469,9 @@ describe('App session admission', () => {
 
     act(() => socketHarness.trigger('connect_error', new Error(message)));
 
-    expect(screen.getByText(new RegExp(expected, 'u'))).toBeTruthy();
+    expect(screen.getByText(expected)).toBeTruthy();
+    // The owner's rule: players do not read technical text.
+    expect(screen.queryByText(/tường lửa|VPN|mạng khách|Host|địa chỉ/iu)).toBeNull();
     expect(socketHarness.socket.io.reconnection).toHaveBeenCalledWith(false);
     expect(socketHarness.socket.connected).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Quay về trình khởi động LAN' }));
@@ -1302,5 +1305,192 @@ describe('App session admission', () => {
     });
     expect(screen.getByLabelText(/Thẻ Thoát Tù Miễn Phí \(Khí Vận\)/)).toBeTruthy();
     expect(screen.queryByLabelText(/Thẻ Thoát Tù Miễn Phí \(Cơ Hội\)/)).toBeNull();
+  });
+});
+
+describe('App how-to-play key placement', () => {
+  const GUIDE = 'Hướng dẫn chơi';
+  const gameRoom: PublicRoomState = {
+    ...room,
+    status: 'IN_PROGRESS',
+    version: 4,
+    gameState: {
+      ...room.gameState,
+      boardState: { ...room.gameState.boardState, gameStarted: true },
+    },
+  };
+
+  function renderApp() {
+    return render(
+      <HowToPlayProvider>
+        <ToastProvider>
+          <App />
+        </ToastProvider>
+      </HowToPlayProvider>,
+    );
+  }
+
+  function storeSession() {
+    window.localStorage.setItem('monopoly.player-session.v1', JSON.stringify({
+      version: 1,
+      token: RECONNECT_TOKEN,
+    }));
+  }
+
+  function resumeIntoGame() {
+    const resumeAck = lastEmission('resume session')?.args[1];
+    act(() => {
+      if (isAckCallback(resumeAck)) {
+        resumeAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          revision: gameRoom.version,
+          data: {
+            role: 'PLAYER',
+            playerId: 'stable-player-id',
+            room: gameRoom,
+            privatePlayerState: {
+              playerId: 'stable-player-id',
+              heldJailFreeCardIds: [],
+              gameplayEvents: { sequence: 0, events: [] },
+            },
+            pendingOffers: [],
+          },
+        });
+      }
+    });
+  }
+
+  beforeEach(() => {
+    socketHarness.reset();
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    cleanup();
+    delete window.ownTheBlockDesktop;
+    window.history.replaceState({}, '', '/');
+  });
+
+  it('shows the key on the join screen beside the title, without submitting anything', () => {
+    renderApp();
+
+    const key = screen.getByRole('button', { name: GUIDE });
+    expect(key.closest('.join__hero')).not.toBeNull();
+    expect(key.closest('form.join__form')).toBeNull();
+    fireEvent.click(key);
+    expect(screen.getByRole('dialog', { name: GUIDE })).toBeTruthy();
+    expect(lastEmission('join room')).toBeUndefined();
+  });
+
+  it('shows the key on the screen that restores a saved game', () => {
+    storeSession();
+    renderApp();
+
+    expect(screen.getByText('Đang khôi phục ván chơi…')).toBeTruthy();
+    const key = screen.getByRole('button', { name: GUIDE });
+    expect(key.closest('section.app-screen--loading')).not.toBeNull();
+    expect(key.className).toContain('how-to-play-button--corner');
+  });
+
+  it('shows the key in the lobby header', () => {
+    storeSession();
+    renderApp();
+    const resumeAck = lastEmission('resume session')?.args[1];
+    act(() => {
+      if (isAckCallback(resumeAck)) {
+        resumeAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          revision: room.version,
+          data: {
+            role: 'PLAYER',
+            playerId: 'stable-player-id',
+            room,
+            privatePlayerState: { playerId: 'stable-player-id', heldJailFreeCardIds: [], gameplayEvents: { sequence: 0, events: [] } },
+            pendingOffers: [],
+          },
+        });
+      }
+    });
+
+    const actions = document.querySelector('.lobby__header-actions') as HTMLElement;
+    expect(within(actions).getAllByRole('button')[0]).toBe(screen.getByRole('button', { name: GUIDE }));
+  });
+
+  it('puts the key first in the game toolbar, tags the toolbar for the overlap check and opens the guide', () => {
+    storeSession();
+    renderApp();
+    resumeIntoGame();
+
+    const toolbar = document.querySelector('.room-toolbar') as HTMLElement;
+    expect(toolbar.getAttribute('data-hud-region')).toBe('toolbar');
+    const buttons = within(toolbar).getAllByRole('button');
+    expect(buttons.map(button => button.getAttribute('aria-label'))).toEqual([GUIDE, 'Cài đặt', 'Bỏ cuộc']);
+    // Every key stays a 44 px design-system key and the toolbar keeps its landmark name.
+    expect(buttons.every(button => button.className.includes('ds-icon-button--md'))).toBe(true);
+    expect(toolbar.getAttribute('aria-label')).toBe('Điều khiển ván chơi');
+
+    fireEvent.click(buttons[0]);
+    expect(screen.getByRole('dialog', { name: GUIDE })).toBeTruthy();
+    expect(lastEmission('leave room')).toBeUndefined();
+  });
+
+  it('keeps the key on the toolbar of a spectator, next to the leave key', () => {
+    renderApp();
+    fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Viewer' } });
+    fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'room-42' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Vào phòng' }));
+    const joinAck = lastEmission('join room')?.args[1];
+    act(() => {
+      if (isAckCallback(joinAck)) {
+        joinAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          revision: gameRoom.version,
+          data: {
+            kind: 'SPECTATOR',
+            role: 'SPECTATOR',
+            playerId: null,
+            room: { ...gameRoom, hostPlayerId: 'another-player' },
+          },
+        });
+      }
+    });
+
+    const toolbar = document.querySelector('.room-toolbar') as HTMLElement;
+    expect(within(toolbar).getAllByRole('button').map(button => button.getAttribute('aria-label')))
+      .toEqual([GUIDE, 'Cài đặt', 'Rời phòng']);
+  });
+
+  it('keeps the key on the screen of a session that was opened elsewhere', () => {
+    renderApp();
+    act(() => {
+      socketHarness.trigger('session replaced', {
+        code: 'SESSION_REPLACED',
+        message: 'This session moved to a newer connection.',
+      });
+    });
+
+    expect(screen.getByRole('heading', { name: 'Phiên chơi đã được mở ở nơi khác' })).toBeTruthy();
+    const key = screen.getByRole('button', { name: GUIDE });
+    expect(key.closest('.app-screen--error')).not.toBeNull();
+  });
+
+  it('keeps the key on the reconnecting screen, outside the status the overlay announces', () => {
+    storeSession();
+    renderApp();
+    resumeIntoGame();
+    act(() => { socketHarness.trigger('disconnect', 'transport close'); });
+
+    const overlay = document.querySelector('.connection-overlay') as HTMLElement;
+    expect(overlay).not.toBeNull();
+    const status = within(overlay).getByRole('status');
+    expect(status.textContent).toBe('Đã mất kết nối. Đang kết nối lại vào ván chơi…');
+    const key = within(overlay).getByRole('button', { name: GUIDE });
+    expect(status.contains(key)).toBe(false);
+
+    fireEvent.click(key);
+    expect(screen.getByRole('dialog', { name: GUIDE })).toBeTruthy();
   });
 });

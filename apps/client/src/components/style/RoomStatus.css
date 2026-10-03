@@ -60,7 +60,8 @@
   justify-content: center;
   gap: var(--space-2) var(--space-3);
   width: max-content;
-  max-width: calc(100vw - 16rem);
+  /* Centered, so it keeps clear of the room toolbar (three 44 px keys: help, settings, exit) on both sides: 2 x (10rem + 1.25rem gap). */
+  max-width: calc(100vw - 22.5rem);
   padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
@@ -97,7 +98,8 @@
   .spectator-banner {
     left: max(0.75rem, env(safe-area-inset-left));
     translate: none;
-    max-width: calc(100vw - 8.5rem);
+    /* From the left inset (0.75rem) to 1rem short of the three-key toolbar (10rem from the right edge). */
+    max-width: calc(100vw - 11.75rem);
     justify-content: flex-start;
   }
 

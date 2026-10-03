@@ -37,8 +37,9 @@
   not authentication or server-side rejection of arbitrary WebSocket clients.
 - [ ] Desktop Host starts managed PostgreSQL on loopback and the authoritative
   game server on the selected LAN-capable port; PostgreSQL is not LAN reachable.
-- [ ] Desktop Join accepts a validated explicit IPv4/port plus room code before
-  creating the gameplay socket; configured developer/release endpoints remain a
+- [ ] Desktop Join takes a room code, finds the Host through the LAN room lookup (or,
+  after a failed lookup, a pasted invitation link) and verifies it with `/healthz`
+  before creating the gameplay socket; configured developer/release endpoints remain a
   separate HTTP(S) override.
 - [ ] Physical Windows/macOS host/join pairs, reconnect, 2/3/4-player lobby,
   manual fallback, and host loss are recorded separately as manual acceptance.
@@ -77,6 +78,31 @@
 - `[MANUAL DEFERRED / NOT RUN]` Physical Windows/macOS LAN pairs, real devices,
   firewall/network-isolation behavior, install, upgrade, and uninstall remain
   separate.
+
+## V1.1 LAN room lookup (owner feedback 5 and 6)
+
+The desktop Join finds the Host from the room code; the Host form drops the network
+choice. Design and wire contract: [Api/http-runtime.instruction.md](../Api/http-runtime.instruction.md).
+
+- [x] `[AUTO]` The responder parses only an exact `find-room` (at most 256 bytes, exact keys, shared room-code schema, nonce
+  pattern), replies with the nonce and the game port only, answers only for a room that exists, applies its token buckets
+  before any database call, caps concurrent lookups, stays silent on a database failure, and a bind failure leaves hosting
+  unaffected: `apps/server/src/lanDiscoveryResponder.test.ts` (including one real loopback socket).
+- [x] `[AUTO]` The finder sends from every usable real interface to the directed and the limited broadcast at 0, 400 and
+  1000 ms, accepts only a reply with the right nonce, port and subnet, verifies `/healthz`, reports `NOT_FOUND`,
+  `UNREACHABLE`, `NO_NETWORK` and `UNAVAILABLE`, is single-flight, ends within 3 s and closes every socket:
+  `apps/desktop/tests/lanFinder.test.ts` (fake sockets; no real broadcast).
+- [x] `[AUTO]` The repeated wire constants agree on both sides and with `SOCKET_PROTOCOL_VERSION`, and the real finder finds
+  a room through the real responder over loopback UDP: `apps/desktop/tests/lanDiscoveryContract.test.ts`.
+- [x] `[AUTO]` Interface choice without a dropdown: `/32` dropped, virtual/VPN/`100.64.0.0/10` last, the default-route boost
+  only for a real adapter, RFC 1918 then numeric tie-break, and a Host start without an address uses the result:
+  `apps/desktop/tests/networkInterfaces.test.ts`, `hostRuntime.test.ts`.
+- [x] `[AUTO]` The IPC channel `ownTheBlock:lan:find-room` is sender-checked, strict, absent without a finder and removed
+  with the window: `apps/desktop/tests/windowHandlers.test.ts`.
+- [ ] `[PACKAGED]` The Phase 7.2 Host proof step `lan-room-discovery-loopback` passes on Windows x64, macOS x64 and macOS
+  arm64. _(Added with this change; not run by its author.)_
+- [ ] `[MANUAL-E2E]` Two physical PCs: discovery by room code, firewall prompt, guest Wi-Fi fallback, macOS Local Network
+  permission. The rows are in [V1 final manual acceptance](../../ui-ux-overhaul/V1_FINAL_MANUAL_ACCEPTANCE.md#lan-room-lookup-v11).
 
 ## V1 release publication
 

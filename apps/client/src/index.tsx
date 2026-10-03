@@ -4,6 +4,7 @@ import './index.css';
 import { applyVisualTheme, DEFAULT_VISUAL_THEME } from './design-system/theme/visualTheme';
 import AppBootstrap from './app/bootstrap/AppBootstrap';
 import AppErrorBoundary from './app/screens/AppErrorBoundary';
+import { HowToPlayProvider } from './howToPlay/HowToPlayProvider';
 
 // index.html already carries the attribute; this covers hosts that load the bundle without it.
 applyVisualTheme(DEFAULT_VISUAL_THEME);
@@ -19,7 +20,7 @@ createRoot(container).render(
     <StrictMode>
       {phase4UatRequested
         ? <Suspense fallback={<p>Đang dựng bộ kiểm thử Phase 4…</p>}><Phase4UatHarness /></Suspense>
-        : <AppBootstrap />}
+        : <HowToPlayProvider><AppBootstrap /></HowToPlayProvider>}
     </StrictMode>
   </AppErrorBoundary>,
 );

@@ -5,7 +5,7 @@ Express runtime và Socket.IO command modules. PostgreSQL/session/recovery detai
 
 | Module | Events/routes | Instruction |
 | --- | --- | --- |
-| Runtime | `/healthz`, `/readyz`, static/SPA, startup/shutdown | [http-runtime](./http-runtime.instruction.md) |
+| Runtime | `/healthz`, `/readyz`, static/SPA, startup/shutdown, desktop-only LAN room lookup (UDP `41234`) | [http-runtime](./http-runtime.instruction.md) |
 | Session | `join room`, `resume session`, disconnect | [socket-session](./socket-session.instruction.md) |
 | Lobby | `set ready`, `start game`, `leave room` | [socket-lobby](./socket-lobby.instruction.md) |
 | Turn/landing decision | `roll dice`, `buy property`, `do not buy`, `resolve development`, `wait in jail` | [socket-turn](./socket-turn.instruction.md) |

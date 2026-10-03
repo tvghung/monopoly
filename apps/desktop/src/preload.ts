@@ -6,6 +6,7 @@ import type {
   HostRuntimeStatus,
   HostStartOptions,
 } from './hostRuntime';
+import type { LanFindRoomResult } from './lanFinder';
 
 export interface OwnTheBlockDesktopBridge {
   getRuntimeConfig(): Promise<DesktopRuntimeConfigResult>;
@@ -26,6 +27,10 @@ export interface OwnTheBlockDesktopBridge {
     stop(): Promise<HostRuntimeOperationResult>;
     refreshNetwork(options?: { preferredAddress?: string }): Promise<HostRuntimeStatus>;
     onStatusChanged(listener: (status: HostRuntimeStatus) => void): () => void;
+  };
+  lan: {
+    /** Finds the Host of a room code on this network; resolves with its endpoint or the reason it was not found. */
+    findRoom(roomCode: string): Promise<LanFindRoomResult>;
   };
 }
 
@@ -62,6 +67,9 @@ const bridge: OwnTheBlockDesktopBridge = {
       ipcRenderer.on(IPC_CHANNELS.hostStatusChanged, handler);
       return () => ipcRenderer.removeListener(IPC_CHANNELS.hostStatusChanged, handler);
     },
+  },
+  lan: {
+    findRoom: roomCode => ipcRenderer.invoke(IPC_CHANNELS.lanFindRoom, { roomCode }),
   },
 };
 

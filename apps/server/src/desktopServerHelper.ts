@@ -1,4 +1,9 @@
 import { startAuthoritativeServer } from './authoritativeServer.js';
+import {
+  shouldStartLanDiscovery,
+  startLanDiscoveryResponder,
+  type LanDiscoveryResponder,
+} from './lanDiscoveryResponder.js';
 
 const DIAGNOSTIC_LIMIT = 512;
 
@@ -60,6 +65,16 @@ async function main(): Promise<void> {
     host: process.env.SERVER_HOST,
     port: Number(process.env.PORT),
   });
+  // Joiners on the LAN find this room by its code; a bind failure only turns discovery off (the invite link still works).
+  let lanDiscovery: LanDiscoveryResponder | undefined;
+  if (shouldStartLanDiscovery(process.env)) {
+    lanDiscovery = await startLanDiscoveryResponder({
+      gamePort: authoritativeServer.port,
+      findRoom: async roomCode => (
+        await authoritativeServer.runtime.persistence.rooms.findByCode(roomCode)
+      ) !== null,
+    }).catch(() => undefined);
+  }
   post({
     type: 'ready',
     host: authoritativeServer.host,
@@ -69,7 +84,10 @@ async function main(): Promise<void> {
   let shutdownPromise: Promise<void> | undefined;
   const shutdown = async (): Promise<void> => {
     if (shutdownPromise) return shutdownPromise;
-    shutdownPromise = authoritativeServer.shutdown('parent shutdown');
+    shutdownPromise = (async () => {
+      await lanDiscovery?.close();
+      await authoritativeServer.shutdown('parent shutdown');
+    })();
     await shutdownPromise;
     post({ type: 'stopped' });
   };

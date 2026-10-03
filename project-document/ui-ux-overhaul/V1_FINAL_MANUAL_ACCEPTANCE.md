@@ -53,6 +53,31 @@ applies to that surface unchanged, and the gate G4 package also records them.
 - [ ] Packaged LAN host flow works.
 - [ ] Browser/mobile join flow works against the packaged host.
 
+## LAN room lookup (V1.1)
+
+Added with the V1.1 owner feedback items 5 and 6 (join by room code, host without a network choice). Nobody has observed
+any of these rows yet; the automated evidence is loopback and fake-socket only and never claims a real broadcast, a real
+firewall or a real second machine. Use two physical PCs (or a PC and a Mac) on the same Wi-Fi unless a row says otherwise.
+
+- [ ] Two-PC discovery: PC A chooses "Tạo phòng trên máy này"; PC B chooses "Tham gia phòng LAN" and types only a name and the
+  room code. The room is found within about 3 seconds and PC B reaches the lobby. No address or port is typed or shown on
+  either PC.
+- [ ] Host form and invitation card: the host form has a name field and one button (no network dropdown, no helper text); the
+  lobby card shows a QR code and a copy button and no address; a phone that scans the QR joins through its browser.
+- [ ] Wrong code: a code that no Host holds shows "Không tìm thấy phòng …" within about 3 seconds, offers "Dán liên kết mời" and
+  launches nothing.
+- [ ] Windows firewall prompt: Windows Defender Firewall asks about Own the Block at most once per PC (Host start; a guest's
+  first search may also ask); after Allow access the lookup works; after Cancel the guest sees the failure line and can
+  still join with the invitation link.
+- [ ] Guest Wi-Fi / client isolation: on a network that blocks broadcast between devices, the guest sees the failure line and
+  the "Dán liên kết mời" field, and pasting the Host's copied link enters the room.
+- [ ] macOS Local Network permission (macOS 15 or later): the first search asks for Local Network access; after "Allow" the
+  lookup works; after "Don't Allow" the guest sees "Không thể tìm phòng tự động. Hãy dán liên kết mời." and the pasted link
+  works; a Mac Host that allowed it can be found by a Windows guest.
+- [ ] Network choice: with Wi-Fi and Ethernet both connected on the Host, the invitation uses the network that carries the
+  internet connection; Docker, VMware, Hyper-V, VPN or Tailscale adapters never become the shared network; with two networks
+  of the same kind the lobby card offers "Mạng chia sẻ".
+
 ## Visual review gallery
 
 Start the client development server from the repository root:

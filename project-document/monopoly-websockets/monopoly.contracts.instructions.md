@@ -12,6 +12,7 @@
 | `events.ts` | Typed Socket.IO events, request-scoped ACK và SocketData |
 | `socketSchemas.ts` | Zod runtime schemas cho mọi inbound payload |
 | `tileState.ts`, card files | Static board/card data |
+| `rules.ts` | Số luật Standard Mode mà server thi hành và client hiển thị (start cash, thưởng Xuất Phát, thuê Ga/Công Ty, 70% bán bắt buộc, vòng chờ tù, thời hạn); `apps/server/src/rulesContract.test.ts` giữ khớp với server |
 
 ## Contract rules
 

@@ -83,6 +83,9 @@ describe('AppBootstrap failure handling', () => {
       advertisedEndpoints: [],
       selectedLanUrl: null,
     };
+    // The Host is found from the room code alone, and only then does the gameplay socket get created.
+    let finishLookup: (result: { ok: true; endpoint: string }) => void = () => undefined;
+    const findRoom = vi.fn(() => new Promise<{ ok: true; endpoint: string }>(resolve => { finishLookup = resolve; }));
     const bridge = {
       getRuntimeConfig: vi.fn(() => Promise.resolve({
         ok: true as const,
@@ -110,6 +113,7 @@ describe('AppBootstrap failure handling', () => {
         refreshNetwork: vi.fn(() => Promise.resolve(hostStatus)),
         onStatusChanged: vi.fn(() => () => undefined),
       },
+      lan: { findRoom },
     };
     window.ownTheBlockDesktop = bridge;
     bootstrapMock.bootstrap.mockResolvedValue({
@@ -137,9 +141,14 @@ describe('AppBootstrap failure handling', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Tham gia phòng LAN/u }));
     fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Guest' } });
-    fireEvent.change(screen.getByLabelText('Địa chỉ Host'), { target: { value: '192.168.1.15:8080' } });
+    expect(screen.queryByLabelText('Địa chỉ Host')).toBeNull();
     fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'LAN-1234' } });
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
+
+    await waitFor(() => expect(findRoom).toHaveBeenCalledExactlyOnceWith('LAN-1234'));
+    // Still searching: no gameplay socket yet.
+    expect(bootstrapMock.bootstrap).not.toHaveBeenCalled();
+    finishLookup({ ok: true, endpoint: 'http://192.168.1.15:8080' });
 
     await waitFor(() => expect(bootstrapMock.bootstrap).toHaveBeenCalledOnce());
     expect(bootstrapMock.bootstrap.mock.calls[0]?.[1]).toMatchObject({

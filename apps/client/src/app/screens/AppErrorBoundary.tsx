@@ -3,6 +3,7 @@ import {
   type ErrorInfo,
   type ReactNode,
 } from 'react';
+import { HowToPlayProvider } from '../../howToPlay/HowToPlayProvider';
 import BootstrapErrorScreen from './BootstrapErrorScreen';
 
 interface AppErrorBoundaryProps {
@@ -35,11 +36,14 @@ export default class AppErrorBoundary extends Component<
   public render(): ReactNode {
     if (this.state.hasError) {
       return (
-        <BootstrapErrorScreen
-          kind="render"
-          title="Không thể hiển thị trò chơi"
-          onRetry={this.recover}
-        />
+        // The app's own provider sits below this boundary and is gone with the failed tree, so the failure screen brings one.
+        <HowToPlayProvider>
+          <BootstrapErrorScreen
+            kind="render"
+            title="Không thể hiển thị trò chơi"
+            onRetry={this.recover}
+          />
+        </HowToPlayProvider>
       );
     }
     return this.props.children;

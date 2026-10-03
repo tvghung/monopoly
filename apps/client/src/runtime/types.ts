@@ -58,6 +58,13 @@ export type HostRuntimeOperationResult =
   | { ok: true; status: HostRuntimeStatus }
   | { ok: false; status: HostRuntimeStatus };
 
+/** Why the Host of a room code could not be found on this network (the main process mirrors this type). */
+export type LanFindRoomFailureCode = 'NOT_FOUND' | 'UNREACHABLE' | 'NO_NETWORK' | 'UNAVAILABLE';
+
+export type LanFindRoomResult =
+  | { ok: true; endpoint: string }
+  | { ok: false; code: LanFindRoomFailureCode };
+
 export interface DesktopLaunchSelection {
   runtimeConfig: DesktopRuntimeConfig;
   initialJoin?: { name: string; roomCode: string };
@@ -101,6 +108,10 @@ export interface OwnTheBlockDesktopBridge {
     stop(): Promise<HostRuntimeOperationResult>;
     refreshNetwork(options?: { preferredAddress?: string }): Promise<HostRuntimeStatus>;
     onStatusChanged(listener: (status: HostRuntimeStatus) => void): () => void;
+  };
+  lan?: {
+    /** Looks for the Host of a room code on this network (a few seconds at most). */
+    findRoom(roomCode: string): Promise<LanFindRoomResult>;
   };
 }
 
