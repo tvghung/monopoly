@@ -5,12 +5,13 @@ import path from 'node:path';
 import {
   routeSquirrelStartup,
   runSquirrelLifecycle,
+  squirrelUpdateExePath,
 } from './squirrelEvents';
 
 function handleSquirrelEvent(): boolean {
   if (process.platform !== 'win32') return false;
 
-  const updateExe = path.resolve(path.dirname(process.execPath), '..', 'Update.exe');
+  const updateExe = squirrelUpdateExePath(process.execPath);
   const executableName = path.basename(process.execPath);
   const runUpdater = (args: string[]): void => {
     if (!existsSync(updateExe)) return;

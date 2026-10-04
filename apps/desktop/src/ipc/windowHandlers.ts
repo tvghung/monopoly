@@ -13,6 +13,7 @@ import {
   type HostStartOptions,
 } from '../hostRuntime';
 import type { LanFindRoomResult, LanRoomFinder } from '../lanFinder';
+import type { AppUpdateController, AppUpdateState } from '../update/updateTypes';
 
 const QUIT_RESPONSE_TIMEOUT_MS = 2_000;
 
@@ -145,6 +146,8 @@ export interface DesktopIpcServices {
   hostRuntime: HostRuntimeController;
   /** Finds a Host by room code on the local network; without it the find-room channel is not registered. */
   lanFinder?: LanRoomFinder;
+  /** The in-app updater; without it the update channels are not registered. */
+  updateService?: AppUpdateController;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -276,6 +279,38 @@ export function registerWindowHandlers(
     });
   }
 
+  // None of the update channels takes a payload: the renderer chooses the next step, never a URL, a file or a version.
+  const updateService = services?.updateService;
+  let removeUpdateListener: (() => void) | undefined;
+  if (updateService) {
+    ipcMain.handle(IPC_CHANNELS.updateGetState, (event): AppUpdateState => {
+      if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
+      return updateService.getState();
+    });
+    ipcMain.handle(IPC_CHANNELS.updateCheck, (event): Promise<AppUpdateState> => {
+      if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
+      return updateService.checkForUpdates('manual');
+    });
+    // The download and the install run on; the answer is the state they started in, and every later state is pushed.
+    ipcMain.handle(IPC_CHANNELS.updateDownload, (event): AppUpdateState => {
+      if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
+      void updateService.downloadUpdate();
+      return updateService.getState();
+    });
+    ipcMain.handle(IPC_CHANNELS.updateCancel, (event): AppUpdateState => {
+      if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
+      return updateService.cancelDownload();
+    });
+    ipcMain.handle(IPC_CHANNELS.updateInstall, (event): AppUpdateState => {
+      if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
+      void updateService.installUpdate();
+      return updateService.getState();
+    });
+    removeUpdateListener = updateService.onStateChanged(state => {
+      if (!window.isDestroyed()) window.webContents.send(IPC_CHANNELS.updateStateChanged, state);
+    });
+  }
+
   const sendFullscreenState = () => {
     setTimeout(() => {
       if (!window.isDestroyed()) {
@@ -288,6 +323,7 @@ export function registerWindowHandlers(
   window.on('closed', () => {
     quitController.dispose();
     removeHostStatusListener?.();
+    removeUpdateListener?.();
     lanFinder?.cancel();
     ipcMain.removeHandler(IPC_CHANNELS.runtimeConfig);
     ipcMain.removeHandler(IPC_CHANNELS.windowGetState);
@@ -300,6 +336,11 @@ export function registerWindowHandlers(
     ipcMain.removeHandler(IPC_CHANNELS.hostStop);
     ipcMain.removeHandler(IPC_CHANNELS.hostRefreshNetwork);
     ipcMain.removeHandler(IPC_CHANNELS.lanFindRoom);
+    ipcMain.removeHandler(IPC_CHANNELS.updateGetState);
+    ipcMain.removeHandler(IPC_CHANNELS.updateCheck);
+    ipcMain.removeHandler(IPC_CHANNELS.updateDownload);
+    ipcMain.removeHandler(IPC_CHANNELS.updateCancel);
+    ipcMain.removeHandler(IPC_CHANNELS.updateInstall);
     ipcMain.removeAllListeners(IPC_CHANNELS.quitResponse);
   });
 }

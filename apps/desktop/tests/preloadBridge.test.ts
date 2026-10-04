@@ -31,6 +31,7 @@ interface Bridge {
   openExternal(url: string): Promise<unknown>;
   host: Record<string, (...args: unknown[]) => unknown>;
   lan: Record<string, (...args: unknown[]) => unknown>;
+  update: Record<string, (...args: unknown[]) => unknown>;
 }
 
 let bridge: Bridge;
@@ -50,7 +51,7 @@ beforeEach(() => {
 describe('preload bridge contract', () => {
   it('exposes one typed object and never the raw IPC renderer', () => {
     expect([...harness.exposed.keys()]).toEqual(['ownTheBlockDesktop']);
-    expect(Object.keys(bridge).sort()).toEqual(['getRuntimeConfig', 'host', 'lan', 'openExternal', 'quit', 'window']);
+    expect(Object.keys(bridge).sort()).toEqual(['getRuntimeConfig', 'host', 'lan', 'openExternal', 'quit', 'update', 'window']);
     const names = [
       ...Object.keys(bridge),
       ...Object.values(bridge)
@@ -72,6 +73,33 @@ describe('preload bridge contract', () => {
     expect(harness.send).not.toHaveBeenCalled();
   });
 
+  it('keeps the update group to five calls and one listener, none of which takes an argument', async () => {
+    expect(Object.keys(bridge.update).sort()).toEqual(['cancelDownload', 'check', 'download', 'getState', 'install', 'onStateChanged']);
+
+    // Even when a caller passes something along, the bridge sends the bare channel: no URL, path or version can be chosen.
+    for (const call of ['getState', 'check', 'download', 'cancelDownload', 'install'] as const) {
+      harness.invoke.mockClear();
+      await bridge.update[call]('https://evil.example/Setup.exe');
+      expect(harness.invoke).toHaveBeenCalledExactlyOnceWith(
+        { getState: IPC_CHANNELS.updateGetState, check: IPC_CHANNELS.updateCheck, download: IPC_CHANNELS.updateDownload,
+          cancelDownload: IPC_CHANNELS.updateCancel, install: IPC_CHANNELS.updateInstall }[call],
+      );
+    }
+  });
+
+  it('subscribes to pushed update states and unsubscribes exactly that listener', () => {
+    const listener = vi.fn();
+
+    const unsubscribe = bridge.update.onStateChanged(listener) as () => void;
+    const [channel, handler] = harness.on.mock.calls.at(-1) as unknown as [string, (event: unknown, state: unknown) => void];
+    expect(channel).toBe(IPC_CHANNELS.updateStateChanged);
+    handler({}, { phase: 'ready' });
+    expect(listener).toHaveBeenCalledExactlyOnceWith({ phase: 'ready' });
+
+    unsubscribe();
+    expect(harness.removeListener).toHaveBeenCalledExactlyOnceWith(IPC_CHANNELS.updateStateChanged, handler);
+  });
+
   it('speaks only on channels the main process knows', async () => {
     const known = new Set<string>(Object.values(IPC_CHANNELS));
 
@@ -90,6 +118,12 @@ describe('preload bridge contract', () => {
     await bridge.host.refreshNetwork?.();
     (bridge.host.onStatusChanged?.(() => undefined) as () => void)();
     await bridge.lan.findRoom?.('OTB-ABC234');
+    await bridge.update.getState?.();
+    await bridge.update.check?.();
+    await bridge.update.download?.();
+    await bridge.update.cancelDownload?.();
+    await bridge.update.install?.();
+    (bridge.update.onStateChanged?.(() => undefined) as () => void)();
 
     const used = [
       ...harness.invoke.mock.calls.map(call => (call as unknown[])[0]),

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, powerMonitor, protocol } from 'electron';
+import { app, BrowserWindow, net, powerMonitor, protocol, shell } from 'electron';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { installExternalNavigationGuards } from './ipc/externalLinks';
@@ -11,6 +11,9 @@ import { AppQuitCoordinator } from './appQuitCoordinator';
 import { audioRendererProofExitCode } from './audioRendererProofResult';
 import { LanFinder } from './lanFinder';
 import { probeDefaultRouteAddress } from './networkInterfaces';
+import { selectInstaller } from './update/installers';
+import { resolveUpdateEndpoints } from './update/updateConfig';
+import { UpdateService } from './update/updateService';
 
 const DEV_RENDERER_URL = process.env.OWN_THE_BLOCK_DEV_RENDERER_URL?.trim()
   || 'http://127.0.0.1:5173';
@@ -18,6 +21,7 @@ const DEV_RENDERER_URL = process.env.OWN_THE_BLOCK_DEV_RENDERER_URL?.trim()
 let hostRuntime: HostRuntimeController | undefined;
 let lanFinder: LanFinder | undefined;
 let quitController: QuitRequestController | undefined;
+let updateService: UpdateService | undefined;
 
 function createHostServices(): void {
   const generatedRoot = path.join(__dirname, '../generated');
@@ -35,6 +39,41 @@ function createHostServices(): void {
     routeProbe: probeDefaultRouteAddress,
   });
   lanFinder = new LanFinder();
+}
+
+/** A LAN room of this machine is open (or opening): restarting for an update would close it for everyone in it. */
+function hostIsBusy(): boolean {
+  const state = hostRuntime?.status.state;
+  return state !== undefined && state !== 'IDLE' && state !== 'FAILED';
+}
+
+function createUpdateService(): UpdateService {
+  const endpoints = resolveUpdateEndpoints({ packaged: app.isPackaged, env: process.env });
+  const service = new UpdateService({
+    currentVersion: app.getVersion(),
+    platform: process.platform,
+    architecture: process.arch,
+    endpoints,
+    installer: endpoints
+      ? selectInstaller({
+        platform: process.platform,
+        execPath: process.execPath,
+        openPath: filePath => shell.openPath(filePath),
+      })
+      : undefined,
+    // The temp folder, not userData: userData is the roaming profile on Windows and this is a 160 MiB installer.
+    updatesDirectory: path.join(app.getPath('temp'), 'OwnTheBlock-updates'),
+    // Chromium's network stack, so the system proxy and certificates apply as they do in a browser.
+    fetch: (input, init) => net.fetch(input instanceof URL ? input.href : input, init),
+    isHostBusy: hostIsBusy,
+    requestQuit: () => {
+      // The player already chose to restart: the quit coordinator must not ask a second question.
+      quitController?.approveApplicationQuit();
+      app.quit();
+    },
+  });
+  hostRuntime?.onStatusChanged(() => service.refreshSafety());
+  return service;
 }
 
 async function stopRuntime(): Promise<void> {
@@ -112,7 +151,9 @@ function createWindow(): BrowserWindow {
     window,
     development,
     windowQuitController,
-    hostRuntime ? { hostRuntime, ...(lanFinder ? { lanFinder } : {}) } : undefined,
+    hostRuntime
+      ? { hostRuntime, ...(lanFinder ? { lanFinder } : {}), ...(updateService ? { updateService } : {}) }
+      : undefined,
   );
   installExternalNavigationGuards(window, development);
 
@@ -177,6 +218,7 @@ export function startDesktopRuntime(): void {
       return;
     }
     createHostServices();
+    updateService = createUpdateService();
     powerMonitor.on('resume', () => {
       void hostRuntime?.verifyAndRecover().catch(error => {
         console.error('Desktop host recovery after resume failed.', error);
@@ -184,6 +226,7 @@ export function startDesktopRuntime(): void {
     });
     if (app.isPackaged) registerProductionRenderer();
     createWindow();
+    updateService.start();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
@@ -193,6 +236,7 @@ export function startDesktopRuntime(): void {
   });
 
   installRuntimeShutdown();
+  app.on('will-quit', () => updateService?.dispose());
 
   app.on('window-all-closed', () => {
     if (process.argv.includes('--audio-renderer-proof')) return;

@@ -76,6 +76,27 @@ describe('Squirrel lifecycle events', () => {
       .toBe('quit');
   });
 
+  it('starts the app normally for --squirrel-firstrun, which Squirrel passes after an install', () => {
+    expect(resolveSquirrelEvent(['OwnTheBlock.exe', '--squirrel-firstrun'], 'win32')).toBeUndefined();
+
+    let updaterCalls = 0;
+    let quitCalls = 0;
+    expect(runSquirrelLifecycle({
+      argv: ['OwnTheBlock.exe', '--squirrel-firstrun'],
+      platform: 'win32',
+      executableName: 'OwnTheBlock.exe',
+      runUpdater: () => { updaterCalls += 1; },
+      quit: () => { quitCalls += 1; },
+      scheduleQuit: callback => callback(),
+    })).toBe(false);
+    expect(updaterCalls).toBe(0);
+    expect(quitCalls).toBe(0);
+
+    let normalStartupCalls = 0;
+    expect(routeSquirrelStartup(() => false, () => { normalStartupCalls += 1; })).toBe('normal');
+    expect(normalStartupCalls).toBe(1);
+  });
+
   it('does not intercept development or non-Windows launches', () => {
     expect(resolveSquirrelEvent(['OwnTheBlock.exe'], 'win32')).toBeUndefined();
     expect(resolveSquirrelEvent(['OwnTheBlock.exe', '--squirrel-install'], 'darwin'))

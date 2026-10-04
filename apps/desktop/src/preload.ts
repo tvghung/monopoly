@@ -7,6 +7,7 @@ import type {
   HostStartOptions,
 } from './hostRuntime';
 import type { LanFindRoomResult } from './lanFinder';
+import type { AppUpdateState } from './update/updateTypes';
 
 export interface OwnTheBlockDesktopBridge {
   getRuntimeConfig(): Promise<DesktopRuntimeConfigResult>;
@@ -33,6 +34,17 @@ export interface OwnTheBlockDesktopBridge {
   lan: {
     /** Finds the Host of a room code on this network; resolves with its endpoint or the reason it was not found. */
     findRoom(roomCode: string): Promise<LanFindRoomResult>;
+  };
+  update: {
+    getState(): Promise<AppUpdateState>;
+    /** Looks for a newer release now; resolves with the state once the look is over. */
+    check(): Promise<AppUpdateState>;
+    /** Starts downloading the update that was found; progress arrives through `onStateChanged`. */
+    download(): Promise<AppUpdateState>;
+    cancelDownload(): Promise<AppUpdateState>;
+    /** Applies a downloaded update: restarts into the new version, or opens its installer (see `installMode`). */
+    install(): Promise<AppUpdateState>;
+    onStateChanged(listener: (state: AppUpdateState) => void): () => void;
   };
 }
 
@@ -73,6 +85,18 @@ const bridge: OwnTheBlockDesktopBridge = {
   },
   lan: {
     findRoom: roomCode => ipcRenderer.invoke(IPC_CHANNELS.lanFindRoom, { roomCode }),
+  },
+  update: {
+    getState: () => ipcRenderer.invoke(IPC_CHANNELS.updateGetState),
+    check: () => ipcRenderer.invoke(IPC_CHANNELS.updateCheck),
+    download: () => ipcRenderer.invoke(IPC_CHANNELS.updateDownload),
+    cancelDownload: () => ipcRenderer.invoke(IPC_CHANNELS.updateCancel),
+    install: () => ipcRenderer.invoke(IPC_CHANNELS.updateInstall),
+    onStateChanged: listener => {
+      const handler = (_event: Electron.IpcRendererEvent, state: AppUpdateState) => listener(state);
+      ipcRenderer.on(IPC_CHANNELS.updateStateChanged, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.updateStateChanged, handler);
+    },
   },
 };
 

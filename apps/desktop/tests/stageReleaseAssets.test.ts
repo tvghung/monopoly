@@ -8,8 +8,11 @@ import {
   releaseTargets,
   stageReleaseAssets,
 } from '../scripts/stageReleaseAssets.mjs';
+import { MIN_ASSET_BYTES, UPDATE_MANIFEST_FILE_NAME } from '../scripts/updateManifest.mjs';
+import { parseUpdateManifest, selectAsset } from '../src/update/manifest';
 
 const VERSION = '1.0.0';
+const POLICY = { minimumSupportedVersion: '1.0.0' };
 
 interface FakeTarget {
   artifact: string;
@@ -49,7 +52,8 @@ const FAKE_TARGETS: FakeTarget[] = [
 ];
 
 const sha256 = (content: string) => createHash('sha256').update(content).digest('hex');
-const contentOf = (target: FakeTarget, fileName: string) => `${target.artifact}:${fileName}`;
+// An installer below the size the updater accepts would be refused by it, so the fake files are as large as the smallest real one.
+const contentOf = (target: FakeTarget, fileName: string) => `${target.artifact}:${fileName}:${'x'.repeat(MIN_ASSET_BYTES)}`;
 
 let workspace: string;
 let artifactsDirectory: string;
@@ -86,7 +90,7 @@ async function writeTarget(target: FakeTarget) {
   await writeManifest(target);
 }
 
-const stage = (version = VERSION) => stageReleaseAssets({ artifactsDirectory, outputDirectory, version });
+const stage = (version = VERSION, policy = POLICY) => stageReleaseAssets({ artifactsDirectory, outputDirectory, version, policy });
 
 beforeEach(async () => {
   workspace = await mkdtemp(path.join(os.tmpdir(), 'own-the-block-stage-'));
@@ -108,7 +112,7 @@ describe('release asset staging', () => {
     ]);
   });
 
-  it('stages only the installers plus one checksum file, with the bytes untouched', async () => {
+  it('stages only the installers plus the checksum file and the update manifest, with the bytes untouched', async () => {
     const staged = await stage();
 
     expect((await readdir(outputDirectory)).sort()).toEqual([
@@ -116,6 +120,7 @@ describe('release asset staging', () => {
       'OwnTheBlock-1.0.0-macos-x64.dmg',
       'OwnTheBlock-1.0.0-win32-x64-Setup.exe',
       CHECKSUM_FILE_NAME,
+      UPDATE_MANIFEST_FILE_NAME,
     ]);
     for (const [index, target] of FAKE_TARGETS.entries()) {
       const asset = staged[index];
@@ -131,6 +136,64 @@ describe('release asset staging', () => {
     const checksums = await readFile(path.join(outputDirectory, CHECKSUM_FILE_NAME), 'utf8');
     expect(checksums).toBe(`${staged.map(asset => `${asset.sha256}  ${asset.name}`).join('\n')}\n`);
     expect(checksums.split('\n').filter(Boolean)).toHaveLength(3);
+  });
+
+  describe('update manifest', () => {
+    it('lists every staged installer with the size and checksum of the staged bytes, and nothing else', async () => {
+      const staged = await stage();
+
+      const manifest = JSON.parse(await readFile(path.join(outputDirectory, UPDATE_MANIFEST_FILE_NAME), 'utf8')) as unknown;
+      expect(manifest).toEqual({
+        schemaVersion: 1,
+        app: 'own-the-block',
+        version: VERSION,
+        minimumSupportedVersion: '1.0.0',
+        assets: {
+          'win32-x64': { name: staged[0].name, size: staged[0].bytes, sha256: staged[0].sha256 },
+          'darwin-x64': { name: staged[1].name, size: staged[1].bytes, sha256: staged[1].sha256 },
+          'darwin-arm64': { name: staged[2].name, size: staged[2].bytes, sha256: staged[2].sha256 },
+        },
+      });
+    });
+
+    it('is read by the app as the installer of each of its three targets', async () => {
+      const staged = await stage();
+
+      const manifest = parseUpdateManifest(JSON.parse(await readFile(path.join(outputDirectory, UPDATE_MANIFEST_FILE_NAME), 'utf8')));
+      expect(selectAsset(manifest, 'win32', 'x64')?.name).toBe(staged[0].name);
+      expect(selectAsset(manifest, 'darwin', 'x64')?.name).toBe(staged[1].name);
+      expect(selectAsset(manifest, 'darwin', 'arm64')?.name).toBe(staged[2].name);
+    });
+
+    it('carries the minimum supported version of the release policy', async () => {
+      await stage(VERSION, { minimumSupportedVersion: '0.9.0' });
+
+      const manifest = JSON.parse(await readFile(path.join(outputDirectory, UPDATE_MANIFEST_FILE_NAME), 'utf8')) as { minimumSupportedVersion: string };
+      expect(manifest.minimumSupportedVersion).toBe('0.9.0');
+    });
+
+    it('refuses a policy whose minimum supported version is newer than the release', async () => {
+      await expect(stage(VERSION, { minimumSupportedVersion: '1.0.1' })).rejects.toThrow(/newer than the release 1\.0\.0/);
+    });
+
+    it('refuses a policy that is not a semantic version', async () => {
+      await expect(stage(VERSION, { minimumSupportedVersion: 'old' })).rejects.toThrow(/semantic version/);
+    });
+
+    it('refuses an installer so small that the app would refuse the manifest', async () => {
+      const [windows] = FAKE_TARGETS;
+      const tiny = 'tiny installer';
+      await writeFile(path.join(artifactsDirectory, windows.artifact, windows.installerDirectory, windows.installerName), tiny, 'utf8');
+      await writeManifest(windows, {
+        artifacts: [{
+          path: `apps/desktop/out/${path.posix.join(...windows.installerDirectory.split(path.sep), windows.installerName)}`,
+          bytes: tiny.length,
+          sha256: sha256(tiny),
+        }],
+      });
+
+      await expect(stage()).rejects.toThrow(/implausible size/);
+    });
   });
 
   it('reports the signing state its build jobs recorded', async () => {

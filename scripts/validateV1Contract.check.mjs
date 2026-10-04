@@ -6,7 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { test } from 'node:test';
 import { fileURLToPath, URL } from 'node:url';
-import { contractPath, historicalPath, isCliEntry, packagePaths, validateV1Contract } from './validateV1Contract.mjs';
+import { contractPath, historicalPath, isCliEntry, packagePaths, updatePolicyPath, validateV1Contract } from './validateV1Contract.mjs';
 import { assertCanonicalReleaseMetadata, readCanonicalReleaseMetadata } from '../apps/desktop/scripts/releaseMetadata.mjs';
 
 const repositoryRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -16,12 +16,14 @@ const write = (root, file, value) => {
   writeFileSync(path.join(root, file), value);
 };
 const packageJson = version => JSON.stringify({ version, productName: 'Own the Block' });
+const policy = (minimumSupportedVersion, reviewedForSocketProtocol) => JSON.stringify({ minimumSupportedVersion, reviewedForSocketProtocol });
 
 function fixture(t) {
   const root = mkdtempSync(path.join(tmpdir(), 'otb-v1-contract-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const file of packagePaths) write(root, file, packageJson('1.0.0'));
   write(root, protocolPath, 'export const SOCKET_PROTOCOL_VERSION = 9 as const;\n');
+  write(root, updatePolicyPath, policy('1.0.0', 9));
   write(root, contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 1.0.0\nSocket protocol: 9\n');
   write(root, historicalPath, '# Phase 7.2\nHISTORICAL ENGINEERING RECORD\n[Current](V1_RELEASE_CONTRACT.md)\nprotocol V8; version 3.0.0\n');
   write(root, 'README.md', 'Own the Block');
@@ -75,6 +77,16 @@ const cases = [
   ['dependency version is independent', 'package.json', JSON.stringify({ version: '1.0.0', dependencies: { example: '3.0.0', other: '13.0.0' } }), null],
   ['isolated old-version test fixture', 'apps/desktop/scripts/example.check.mjs', "const version = '3.0.0';", null],
   ['product name drift', 'apps/desktop/package.json', JSON.stringify({ version: '1.0.0', productName: 'Other' }), /productName/],
+  ['missing update policy', updatePolicyPath, null, /update policy is missing/],
+  ['update policy that is not JSON', updatePolicyPath, 'minimumSupportedVersion: 1.0.0', /update policy is missing or is not JSON/],
+  ['update policy below the release', updatePolicyPath, policy('0.9.0', 9), null],
+  ['update policy equal to the release', updatePolicyPath, policy('1.0.0', 9), null],
+  ['update policy newer than the release', updatePolicyPath, policy('1.0.1', 9), /newer than the release 1\.0\.0/],
+  ['update policy with a major version above the release', updatePolicyPath, policy('2.0.0', 9), /newer than the release/],
+  ['update policy that is not a plain version', updatePolicyPath, policy('1.0.0-rc.1', 9), /plain x\.y\.z/],
+  ['update policy without a version', updatePolicyPath, JSON.stringify({ reviewedForSocketProtocol: 9 }), /plain x\.y\.z/],
+  ['update policy reviewed for another protocol', updatePolicyPath, policy('1.0.0', 8), /reviewedForSocketProtocol 8 differs from SOCKET_PROTOCOL_VERSION 9/],
+  ['update policy that was never reviewed for a protocol', updatePolicyPath, JSON.stringify({ minimumSupportedVersion: '1.0.0' }), /reviewedForSocketProtocol undefined/],
 ];
 
 for (const [name, file, content, failure] of cases) {

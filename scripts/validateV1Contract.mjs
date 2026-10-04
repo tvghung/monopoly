@@ -6,6 +6,7 @@ import { fileURLToPath, URL } from 'node:url';
 const repositoryRoot = fileURLToPath(new URL('../', import.meta.url));
 export const contractPath = 'project-document/ui-ux-overhaul/V1_RELEASE_CONTRACT.md';
 export const historicalPath = 'project-document/ui-ux-overhaul/07C_PHASE_7_2_FINAL_ENGINEERING.md';
+export const updatePolicyPath = 'apps/desktop/update-policy.json';
 export const packagePaths = [
   'package.json', 'apps/client/package.json', 'apps/server/package.json',
   'apps/desktop/package.json', 'packages/shared/package.json',
@@ -40,6 +41,7 @@ export function validateV1Contract(root = repositoryRoot) {
   requireMatch('packages/shared/src/types.ts',
     /^export const SOCKET_PROTOCOL_VERSION = 9 as const;\r?$/m,
     'expected authoritative SOCKET_PROTOCOL_VERSION = 9 as const;');
+  validateUpdatePolicy(read, contractVersion);
   for (const field of ['Product: Own the Block', 'Release: V1', `Semantic version: ${contractVersion}`, 'Socket protocol: 9']) {
     if (!read(contractPath).split(/\r?\n/).includes(field)) {
       throw new Error(`${contractPath}: required contract field "${field}" is missing or incorrect.`);
@@ -71,6 +73,38 @@ export function validateV1Contract(root = repositoryRoot) {
     rejectOldVersion(file, read(file));
   }
   return contractVersion;
+}
+
+/**
+ * The in-app updater reads `minimumSupportedVersion` from this policy (through `update-manifest.json`): a version below it
+ * must update before it plays multiplayer. A socket protocol change is the moment that decision matters, so the policy
+ * records which protocol it was last reviewed for, and a protocol bump fails here until someone has looked at it.
+ * (Self-contained on purpose: the fixtures of `validateV1Contract.check.mjs` copy only this file.)
+ */
+function validateUpdatePolicy(read, contractVersion) {
+  let policy;
+  try {
+    policy = JSON.parse(read(updatePolicyPath));
+  } catch (error) {
+    throw new Error(`${updatePolicyPath}: the update policy is missing or is not JSON.`, { cause: error });
+  }
+  const floor = policy?.minimumSupportedVersion;
+  if (typeof floor !== 'string' || !/^\d+\.\d+\.\d+$/.test(floor)) {
+    throw new Error(`${updatePolicyPath}: minimumSupportedVersion must be a plain x.y.z version.`);
+  }
+  const floorParts = floor.split('.').map(Number);
+  const releaseParts = contractVersion.split('.').map(Number);
+  const difference = floorParts.findIndex((part, index) => part !== releaseParts[index]);
+  if (difference !== -1 && floorParts[difference] > releaseParts[difference]) {
+    throw new Error(`${updatePolicyPath}: minimumSupportedVersion ${floor} is newer than the release ${contractVersion}.`);
+  }
+  const protocol = Number(/^export const SOCKET_PROTOCOL_VERSION = (\d+) as const;/m.exec(read('packages/shared/src/types.ts'))?.[1]);
+  if (policy.reviewedForSocketProtocol !== protocol) {
+    throw new Error(
+      `${updatePolicyPath}: reviewedForSocketProtocol ${String(policy.reviewedForSocketProtocol)} differs from SOCKET_PROTOCOL_VERSION ${protocol}. `
+      + 'A protocol change decides whether older versions must update: set minimumSupportedVersion for it, then update this field.',
+    );
+  }
 }
 
 export function isCliEntry(entryPath = process.argv[1]) {

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { HostRuntimeStatus } from '../src/hostRuntime';
+import type { AppUpdateState } from '../src/update/updateTypes';
 
 type IpcHandler = (event: { sender: object }, ...args: unknown[]) => unknown;
 
@@ -275,6 +276,152 @@ describe('desktop IPC lifecycle', () => {
       expect(lanFinder.cancel).toHaveBeenCalledOnce();
       expect(vi.mocked(ipcMain.removeHandler)).toHaveBeenCalledWith(IPC_CHANNELS.lanFindRoom);
     });
+  });
+});
+
+describe('update channels', () => {
+  const hostRuntime = {
+    status: {},
+    start: vi.fn(),
+    stop: vi.fn(),
+    refreshNetwork: vi.fn(),
+    onStatusChanged: vi.fn(() => () => undefined),
+  };
+  const state: AppUpdateState = { phase: 'available', currentVersion: '1.1.1', installMode: 'restart' };
+
+  function registerWithUpdates(overrides: Record<string, unknown> = {}) {
+    const fixture = createWindow();
+    let pushed: ((next: AppUpdateState) => void) | undefined;
+    const unsubscribe = vi.fn();
+    const updateService = {
+      getState: vi.fn(() => state),
+      onStateChanged: vi.fn((listener: (next: AppUpdateState) => void) => {
+        pushed = listener;
+        return unsubscribe;
+      }),
+      checkForUpdates: vi.fn(() => Promise.resolve({ ...state, phase: 'up-to-date' as const })),
+      downloadUpdate: vi.fn(() => Promise.resolve(state)),
+      cancelDownload: vi.fn(() => state),
+      installUpdate: vi.fn(() => Promise.resolve(state)),
+      ...overrides,
+    };
+    registerWindowHandlers(
+      fixture.window as never,
+      false,
+      new QuitRequestController(fixture.window as never),
+      { hostRuntime: hostRuntime as never, updateService: updateService as never },
+    );
+    const handler = (channel: string) => harness.handlers.get(channel)!;
+    return { ...fixture, updateService, unsubscribe, handler, push: (next: AppUpdateState) => pushed?.(next) };
+  }
+
+  it('uses namespaced channel names', () => {
+    expect([
+      IPC_CHANNELS.updateGetState,
+      IPC_CHANNELS.updateCheck,
+      IPC_CHANNELS.updateDownload,
+      IPC_CHANNELS.updateCancel,
+      IPC_CHANNELS.updateInstall,
+      IPC_CHANNELS.updateStateChanged,
+    ]).toEqual([
+      'ownTheBlock:update:get-state',
+      'ownTheBlock:update:check',
+      'ownTheBlock:update:download',
+      'ownTheBlock:update:cancel',
+      'ownTheBlock:update:install',
+      'ownTheBlock:update:state-changed',
+    ]);
+  });
+
+  it('registers nothing when the desktop has no updater', () => {
+    const fixture = createWindow();
+    registerWindowHandlers(
+      fixture.window as never,
+      false,
+      new QuitRequestController(fixture.window as never),
+      { hostRuntime: hostRuntime as never },
+    );
+
+    for (const channel of [IPC_CHANNELS.updateGetState, IPC_CHANNELS.updateCheck, IPC_CHANNELS.updateDownload,
+      IPC_CHANNELS.updateCancel, IPC_CHANNELS.updateInstall]) {
+      expect(harness.handlers.has(channel)).toBe(false);
+    }
+  });
+
+  it('refuses a sender that is not the window on every channel and calls nothing', async () => {
+    const { handler, updateService } = registerWithUpdates();
+
+    for (const channel of [IPC_CHANNELS.updateGetState, IPC_CHANNELS.updateCheck, IPC_CHANNELS.updateDownload,
+      IPC_CHANNELS.updateCancel, IPC_CHANNELS.updateInstall]) {
+      await expect(Promise.resolve().then(() => handler(channel)({ sender: {} }))).rejects.toThrow('Invalid IPC sender');
+    }
+    for (const method of Object.values(updateService).filter(vi.isMockFunction)) {
+      if (method !== updateService.onStateChanged) expect(method).not.toHaveBeenCalled();
+    }
+  });
+
+  it('answers the state, and a check as a manual one that resolves once the look is over', async () => {
+    const { handler, webContents, updateService } = registerWithUpdates();
+
+    expect(handler(IPC_CHANNELS.updateGetState)({ sender: webContents })).toEqual(state);
+    await expect(handler(IPC_CHANNELS.updateCheck)({ sender: webContents })).resolves.toMatchObject({ phase: 'up-to-date' });
+    expect(updateService.checkForUpdates).toHaveBeenCalledExactlyOnceWith('manual');
+  });
+
+  it('starts a download or an install and answers at once; the rest arrives as pushed states', () => {
+    const forever = () => new Promise<AppUpdateState>(() => undefined);
+    const { handler, webContents, updateService } = registerWithUpdates({
+      downloadUpdate: vi.fn(forever),
+      installUpdate: vi.fn(forever),
+    });
+
+    expect(handler(IPC_CHANNELS.updateDownload)({ sender: webContents })).toEqual(state);
+    expect(handler(IPC_CHANNELS.updateInstall)({ sender: webContents })).toEqual(state);
+    expect(updateService.downloadUpdate).toHaveBeenCalledOnce();
+    expect(updateService.installUpdate).toHaveBeenCalledOnce();
+  });
+
+  it('cancels a download', () => {
+    const { handler, webContents, updateService } = registerWithUpdates();
+
+    expect(handler(IPC_CHANNELS.updateCancel)({ sender: webContents })).toEqual(state);
+    expect(updateService.cancelDownload).toHaveBeenCalledOnce();
+  });
+
+  it('takes no payload: whatever a renderer sends along never reaches the updater', async () => {
+    const { handler, webContents, updateService } = registerWithUpdates();
+    const hostile = { url: 'https://evil.example/Setup.exe', path: 'C:\\Windows\\System32\\cmd.exe', version: '9.9.9' };
+
+    await handler(IPC_CHANNELS.updateCheck)({ sender: webContents }, hostile);
+    handler(IPC_CHANNELS.updateDownload)({ sender: webContents }, hostile);
+    handler(IPC_CHANNELS.updateCancel)({ sender: webContents }, hostile);
+    handler(IPC_CHANNELS.updateInstall)({ sender: webContents }, hostile);
+
+    expect(updateService.checkForUpdates).toHaveBeenCalledExactlyOnceWith('manual');
+    expect(updateService.downloadUpdate).toHaveBeenCalledExactlyOnceWith();
+    expect(updateService.cancelDownload).toHaveBeenCalledExactlyOnceWith();
+    expect(updateService.installUpdate).toHaveBeenCalledExactlyOnceWith();
+  });
+
+  it('pushes every state change to the window', () => {
+    const { push, webContents } = registerWithUpdates();
+    const downloading: AppUpdateState = { ...state, phase: 'downloading', progress: { receivedBytes: 5, totalBytes: 10 } };
+
+    push(downloading);
+
+    expect(webContents.send).toHaveBeenCalledExactlyOnceWith(IPC_CHANNELS.updateStateChanged, downloading);
+  });
+
+  it('stops listening and removes its handlers when the window closes', () => {
+    const { fullscreenHandlers, unsubscribe } = registerWithUpdates();
+
+    fullscreenHandlers.get('closed')?.();
+
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    for (const channel of [IPC_CHANNELS.updateGetState, IPC_CHANNELS.updateCheck, IPC_CHANNELS.updateDownload,
+      IPC_CHANNELS.updateCancel, IPC_CHANNELS.updateInstall]) {
+      expect(vi.mocked(ipcMain.removeHandler)).toHaveBeenCalledWith(channel);
+    }
   });
 });
 

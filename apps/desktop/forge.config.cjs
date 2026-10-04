@@ -40,7 +40,8 @@ module.exports = {
     // app.asar only needs dist/ and package.json. generated/ (managed PostgreSQL and the
     // server helper) ships once through extraResource and is read from
     // process.resourcesPath; packing it into app.asar as well duplicated about 139 MiB.
-    ignore: [/^\/node_modules/, /^\/(?:generated|src|tests|scripts)(?:\/|$)/],
+    // update-policy.json is release tooling input (it becomes update-manifest.json at publish time), not app data.
+    ignore: [/^\/node_modules/, /^\/(?:generated|src|tests|scripts)(?:\/|$)/, /^\/update-policy\.json$/],
     extraResource: [
       path.resolve(__dirname, '../client/dist'),
       releaseConfig,

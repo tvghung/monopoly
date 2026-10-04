@@ -3,11 +3,18 @@ import { createReadStream } from 'node:fs';
 import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import {
+  assetKeyOf,
+  buildUpdateManifest,
+  readUpdatePolicy,
+  UPDATE_MANIFEST_FILE_NAME,
+} from './updateManifest.mjs';
 
 // Stages the files of a GitHub Release from the artifacts that the Release Candidate workflow
 // uploaded (one directory per target). Only the installers a player needs are staged, under
-// names that carry the version and the target, next to one SHA256SUMS.txt. Every installer is
+// names that carry the version and the target, next to one SHA256SUMS.txt and the
+// update-manifest.json that the in-app updater reads (see updateManifest.mjs). Every installer is
 // checked against the manifest that `collectArtifacts.mjs` wrote in the same build job, so a
 // missing, doubled, stale or altered file fails here instead of reaching the release page.
 
@@ -66,7 +73,15 @@ function sha256Of(filePath) {
   });
 }
 
-export async function stageReleaseAssets({ artifactsDirectory, outputDirectory, version }) {
+const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+
+export async function stageReleaseAssets({
+  artifactsDirectory,
+  outputDirectory,
+  version,
+  // The release author's one update decision, read from the repository unless a caller supplies it.
+  policy = readUpdatePolicy(repositoryRoot),
+}) {
   if (typeof version !== 'string' || !VERSION_PATTERN.test(version)) {
     throw new Error(`Release version must be a semantic version without the leading "v", received ${String(version)}.`);
   }
@@ -119,6 +134,7 @@ export async function stageReleaseAssets({ artifactsDirectory, outputDirectory, 
     await copyFile(source, destination);
     staged.push({
       label: target.label,
+      key: assetKeyOf(target.platform, target.architecture),
       name: target.assetName,
       bytes: (await stat(destination)).size,
       sha256,
@@ -131,6 +147,14 @@ export async function stageReleaseAssets({ artifactsDirectory, outputDirectory, 
     `${staged.map(asset => `${asset.sha256}  ${asset.name}`).join('\n')}\n`,
     'utf8',
   );
+
+  // Built last, from the very values just written to SHA256SUMS.txt, so the two can never disagree.
+  const manifest = buildUpdateManifest({
+    version,
+    policy,
+    assets: Object.fromEntries(staged.map(asset => [asset.key, { name: asset.name, size: asset.bytes, sha256: asset.sha256 }])),
+  });
+  await writeFile(path.join(outputDirectory, UPDATE_MANIFEST_FILE_NAME), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   return staged;
 }
 
@@ -151,7 +175,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     for (const asset of staged) {
       console.log(`${asset.name}  ${(asset.bytes / 1024 / 1024).toFixed(1)} MiB  signing ${asset.signing}  sha256 ${asset.sha256}`);
     }
-    console.log(`Staged ${staged.length} installer(s) and ${CHECKSUM_FILE_NAME}.`);
+    console.log(`Staged ${staged.length} installer(s), ${CHECKSUM_FILE_NAME} and ${UPDATE_MANIFEST_FILE_NAME}.`);
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     process.exit(1);

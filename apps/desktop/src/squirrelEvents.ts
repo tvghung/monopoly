@@ -1,4 +1,11 @@
+import path from 'node:path';
+
 export type SquirrelEventAction = 'create-shortcut' | 'remove-shortcut' | 'quit';
+
+/** Squirrel puts `Update.exe` one folder above the versioned `app-<version>` folder that holds the running executable. */
+export function squirrelUpdateExePath(execPath: string): string {
+  return path.resolve(path.dirname(execPath), '..', 'Update.exe');
+}
 
 export interface SquirrelLifecycleOptions {
   argv?: readonly string[];
@@ -20,6 +27,10 @@ export function resolveSquirrelEvent(
 
   const event = argv.find(value => value.startsWith('--squirrel-'));
   if (!event) return undefined;
+  // Squirrel starts the app with this right after a (non-silent) install, and asks for a normal run: the Squirrel docs
+  // list it as the one event that is not a hook to answer and quit. Treating it as a hook made the game vanish right after
+  // the installer finished, including when an update was installed by running the new Setup.exe.
+  if (event === '--squirrel-firstrun') return undefined;
   if (event === '--squirrel-install' || event === '--squirrel-updated') {
     return 'create-shortcut';
   }
