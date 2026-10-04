@@ -146,7 +146,7 @@ choice. Design and wire contract: [Api/http-runtime.instruction.md](../Api/http-
 - [x] `[CI]` Desktop Build runs `proof:packaged:budget` on the real packaged app after the packaged proofs, and the Windows and
   macOS runtime, Host, audio, card and landmark proofs pass with the pruned PostgreSQL and the Ogg music (runs `37145323205`,
   `37147002597`, `37147677938`); macOS also runs `hdiutil verify` on the LZMA disk image. Release Candidate carries the same
-  steps and has not run since: its first tag run is the check.
+  steps and passed them on the `v1.1.1` tag run (`37167178261`) for Windows x64, macOS x64 and macOS arm64.
 - [ ] `[PACKAGED]` A fresh install of the lean Windows Setup.exe hosts a LAN game, survives an app restart with the same
   room, and uninstalls cleanly. Not automated.
 

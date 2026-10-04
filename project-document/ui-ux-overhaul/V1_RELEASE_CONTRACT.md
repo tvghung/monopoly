@@ -274,3 +274,40 @@ ticked. The UDP room lookup was exercised by automated tests and CI only, not on
 
 As for `1.0.0`: the installers were built, passed the packaged proofs on CI and were published by the workflow; nobody is
 recorded as having installed them from the release page.
+
+## V1.1.1 release decision
+
+On 2026-10-04 the product owner answered "Phát hành v1.1.1" in chat after the agent reported CI and Desktop Build green on commit
+`a440528` and named the one regression it accepts: Safari and iOS before 18.4 cannot decode the Ogg Vorbis music, so a guest that
+joins a Host by URL there plays without music. `1.1.1` is the size-reduction release (see "Package size" and the audio policy
+above): it changes no gameplay, keeps Socket protocol 9 and room snapshot schema 8, and ships the visual evidence screenshots out of
+`main` into the pre-release `evidence-visual-v2-2026-10-02` (Archive Evidence run `37147251894`, whose per-file checksums were
+compared with the committed blobs before the PNGs were removed). The agent wrote this section on that decision.
+
+`1.1.1` is released **unsigned**, with the gates of `1.0.0` and `1.1.0` still open and with new manual rows unobserved: the loop seam
+of the re-encoded Ogg by ear, installing the smaller `Setup.exe` and disk images on real machines (host a LAN game, restart, uninstall),
+and Safari/iOS behaviour. A tick means a person observed the item, so none was ticked.
+
+### Release record (1.1.1)
+
+| Item | Value |
+| --- | --- |
+| Tag | `v1.1.1` (annotated), on commit `a440528` of `main` |
+| Workflow run | Release Candidate #5 (`37167178261`), started by the tag push: success in about 9 minutes, including the new `Check packaged size budget` step on all three targets and `Verify macOS disk image` on both macOS targets. The CI (#167) and Desktop Build (#143) runs of the same commit on `main` also passed |
+| Release | `https://github.com/tvghung/monopoly/releases/tag/v1.1.1`, "Own the Block v1.1.1", marked Latest, published 2026-10-04 01:19 UTC by the workflow token |
+| Distribution mode | `unsigned-validation` (signing BLOCKED, notarization BLOCKED/NOT RUN, as for 1.0.0 and 1.1.0) |
+
+| Asset | Size | SHA-256 shown by GitHub |
+| --- | --- | --- |
+| `OwnTheBlock-1.1.1-win32-x64-Setup.exe` | 168,398,848 bytes (160.6 MiB) | `650a08d80a4248f1a3c74d2d54f4e5650b808ca27c3adb568d8d3c3b7fd0ba9f` |
+| `OwnTheBlock-1.1.1-macos-x64.dmg` | 188,888,426 bytes (180.1 MiB) | `593ea8552b8ff1d61c2441ff303bb22bfad1a1e9cafd6d8dcdf9fbd87ae77dfc` |
+| `OwnTheBlock-1.1.1-macos-arm64.dmg` | 181,756,558 bytes (173.3 MiB) | `a8b03c9d2f2006f5ecb7cc17f6b9c00c04ed523bac45c5ba39986182177ffc16` |
+| `SHA256SUMS.txt` | 302 bytes | `52e1934b764f1e81fd2f452b3d9a113532218450909bbb59df5244a82c7389d6` |
+
+Against `1.1.0` (250 / 380 / 378 MB): Windows 249.7 to 160.6 MiB (-36%), macOS Intel 379.8 to 180.1 MiB (-53%), macOS Apple silicon
+378.1 to 173.3 MiB (-54%); the release assets total 514 MiB instead of 1,008 MiB. The Windows workflow artifact of a Desktop Build
+went from 498.6 MiB to 160.6 MiB. Source repository: tracked files at `HEAD` 255.8 to 10.7 MiB and the source ZIP 248.5 to 6.6 MiB;
+the full clone keeps its history (about 236 MiB) because history was deliberately not rewritten.
+
+As for `1.0.0` and `1.1.0`: the installers were built, passed the packaged proofs on CI and were published by the workflow; nobody is
+recorded as having installed them from the release page.

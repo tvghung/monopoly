@@ -12,7 +12,7 @@ và chỉ tải **một** tệp phù hợp với máy của bạn:
 | --- | --- | ---: |
 | Windows 10 trở lên (64-bit) | `OwnTheBlock-<phiên bản>-win32-x64-Setup.exe` | khoảng 160 MiB |
 | macOS chip Apple (M1 trở lên) | `OwnTheBlock-<phiên bản>-macos-arm64.dmg` | khoảng 175 MiB |
-| macOS chip Intel | `OwnTheBlock-<phiên bản>-macos-x64.dmg` | khoảng 175 MiB |
+| macOS chip Intel | `OwnTheBlock-<phiên bản>-macos-x64.dmg` | khoảng 180 MiB |
 
 Các mục "Source code" cuối trang Release là mã nguồn, không phải game; `SHA256SUMS.txt` dùng để kiểm tra
 tệp sau khi tải. Bản V1 chưa được ký số; ghi chú phát hành hướng dẫn cách cài (cảnh báo SmartScreen trên
