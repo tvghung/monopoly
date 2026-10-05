@@ -1,0 +1,121 @@
+/*
+ * The update screens: the start screen's dialogs and status line, and the settings section. Plain CSS on tokens and the
+ * design-system primitives (Modal, Button); the start screen renders outside the audio and toast providers.
+ */
+.update-prompt .update-prompt__text {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-secondary);
+  font: var(--type-body);
+  text-wrap: pretty;
+}
+
+.update-prompt .update-prompt__text:last-child { margin-bottom: 0; }
+
+.update-prompt__error {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 0.25rem solid currentColor;
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-soft);
+  color: var(--color-danger-strong);
+  font: var(--type-small);
+  font-weight: 700;
+}
+
+.update-prompt__busy {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.update-prompt__spinner {
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 3px solid var(--color-accent-primary);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: update-spin 0.9s linear infinite;
+}
+
+@keyframes update-spin { to { transform: rotate(360deg); } }
+
+/* The download: one sentence over a bar. */
+.update-progress { display: grid; flex: 1 1 auto; gap: var(--space-2); min-width: 0; }
+
+.update-progress__label {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--type-small);
+  font-weight: 700;
+}
+
+.update-progress__bar {
+  height: 0.625rem;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.update-progress__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent-primary);
+  transition: width var(--motion-duration-micro) linear;
+}
+
+/* No size yet: a bar that only says "working", never a made-up percentage. */
+.update-progress__bar[data-indeterminate='true'] .update-progress__fill {
+  width: 35%;
+  animation: update-indeterminate 1.4s ease-in-out infinite;
+}
+
+@keyframes update-indeterminate {
+  0% { margin-left: -35%; }
+  100% { margin-left: 100%; }
+}
+
+/* The quiet line over the menu. */
+.update-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-left: 0.25rem solid currentColor;
+  border-radius: var(--radius-sm);
+  font: var(--type-small);
+}
+
+.update-line--info { background: var(--color-info-soft); color: var(--color-info-strong); }
+.update-line--error { background: var(--color-danger-soft); color: var(--color-danger-strong); }
+.update-line--info .update-progress__label { color: inherit; }
+.update-line__text { flex: 1 1 auto; margin: 0; font-weight: 700; }
+.update-line__actions { display: flex; flex: none; gap: var(--space-2); }
+
+@media (max-width: 40rem) {
+  .update-line--error { flex-direction: column; align-items: stretch; }
+  .update-line__actions { justify-content: flex-end; }
+}
+
+/* The settings section. */
+.update-settings__version { margin: 0; font: var(--type-body); }
+.update-settings__version strong { font-weight: 700; }
+.update-settings__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.update-settings__actions:empty { display: none; }
+
+@media (max-width: 30rem) {
+  .update-settings__actions .ds-button { flex: 1 1 100%; }
+}
+
+/* Nothing here loops under either source of reduced motion (the operating system, and the game setting in the dialog). */
+@media (prefers-reduced-motion: reduce) {
+  .update-prompt__spinner,
+  .update-progress__bar[data-indeterminate='true'] .update-progress__fill { animation: none; }
+  .update-progress__fill { transition: none; }
+}
+
+:root[data-reduced-motion='true'] .update-prompt__spinner,
+:root[data-reduced-motion='true'] .update-progress__bar[data-indeterminate='true'] .update-progress__fill { animation: none; }
+:root[data-reduced-motion='true'] .update-progress__fill { transition: none; }

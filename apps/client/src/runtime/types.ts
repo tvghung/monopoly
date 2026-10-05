@@ -65,6 +65,60 @@ export type LanFindRoomResult =
   | { ok: true; endpoint: string }
   | { ok: false; code: LanFindRoomFailureCode };
 
+/**
+ * The in-app update state, as the desktop main process publishes it (`apps/desktop/src/update/updateTypes.ts` is the
+ * source; the renderer has no shared runtime package with it, the same split as `HostRuntimeStatus`). `phase` is the whole
+ * story; `update` exists from `available` on, `progress` while downloading, `error` in the error phase.
+ */
+export type AppUpdatePhase =
+  | 'unsupported'
+  | 'idle'
+  | 'checking'
+  | 'up-to-date'
+  | 'available'
+  | 'downloading'
+  | 'ready'
+  | 'installing'
+  | 'error';
+
+export type AppUpdateStage = 'check' | 'download' | 'install';
+
+export type AppUpdateErrorCode =
+  | 'OFFLINE'
+  | 'SERVER_ERROR'
+  | 'TIMEOUT'
+  | 'FEED_INVALID'
+  | 'INTEGRITY'
+  | 'DISK_SPACE'
+  | 'DISK_WRITE'
+  | 'INSTALL_FAILED'
+  | 'INSTALL_START_FAILED'
+  | 'UNKNOWN';
+
+/** `restart`: installing relaunches the new version. `open-installer`: the installer is opened for the player to finish. */
+export type AppUpdateInstallMode = 'restart' | 'open-installer';
+
+export interface AppUpdateInfo {
+  /** The release a check found, without a leading "v". */
+  version: string;
+  /** The running version is below the release's minimum supported version: multiplayer is blocked until it updates. */
+  mandatory: boolean;
+  sizeBytes: number;
+}
+
+export interface AppUpdateState {
+  phase: AppUpdatePhase;
+  currentVersion: string;
+  update?: AppUpdateInfo;
+  progress?: { receivedBytes: number; totalBytes: number };
+  error?: { stage: AppUpdateStage; code: AppUpdateErrorCode };
+  installMode: AppUpdateInstallMode;
+  followUp?: 'installer-opened' | 'restart-manually';
+  /** A fact only the main process knows that keeps an install from running now: a LAN room is open on this machine. */
+  installBlocked?: 'HOST_OPEN';
+  checkedAt?: number;
+}
+
 export interface DesktopLaunchSelection {
   runtimeConfig: DesktopRuntimeConfig;
   initialJoin?: { name: string; roomCode: string };
@@ -114,6 +168,18 @@ export interface OwnTheBlockDesktopBridge {
   lan?: {
     /** Looks for the Host of a room code on this network (a few seconds at most). */
     findRoom(roomCode: string): Promise<LanFindRoomResult>;
+  };
+  /** The in-app updater; absent on a bridge that predates it. */
+  update?: {
+    getState(): Promise<AppUpdateState>;
+    /** Looks for a newer release now; resolves with the state once the look is over. */
+    check(): Promise<AppUpdateState>;
+    /** Starts downloading the update that was found; progress arrives through `onStateChanged`. */
+    download(): Promise<AppUpdateState>;
+    cancelDownload(): Promise<AppUpdateState>;
+    /** Applies a downloaded update: restarts into the new version, or opens its installer (see `installMode`). */
+    install(): Promise<AppUpdateState>;
+    onStateChanged(listener: (state: AppUpdateState) => void): () => void;
   };
 }
 

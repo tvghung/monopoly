@@ -6,6 +6,8 @@ import SegmentedControl, { type SegmentedControlProps } from '../design-system/c
 import Slider from '../design-system/components/Slider/Slider';
 import Switch from '../design-system/components/Switch/Switch';
 import { ActionIcon } from '../design-system/icons/ActionIcon';
+import UpdateSettingsContent from '../components/update/UpdateSettingsContent';
+import { useAppUpdate } from '../runtime/appUpdate';
 import { getDesktopBridge, isDesktopRuntime } from '../runtime/desktopBridge';
 import { ANIMATION_SPEED_OPTIONS } from './defaults';
 import type { GraphicsQualitySetting } from './types';
@@ -63,6 +65,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const effectiveReducedMotion = useEffectiveReducedMotion();
   const desktop = isDesktopRuntime();
   const bridge = getDesktopBridge();
+  const updates = useAppUpdate();
 
   const setFullscreen = (value: boolean) => {
     updateSettings({ fullscreen: value });
@@ -147,6 +150,15 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
             <section className="settings-panel__section" aria-labelledby="settings-window-title">
               <SectionHeading id="settings-window-title" icon={<ActionIcon name="fullscreen" />}>Cửa sổ</SectionHeading>
               <Switch label="Toàn màn hình" checked={settings.fullscreen} onChange={setFullscreen} />
+            </section>
+          )
+          : null}
+
+        {desktop && updates.available
+          ? (
+            <section className="settings-panel__section" aria-labelledby="settings-update-title">
+              <SectionHeading id="settings-update-title" icon={<ActionIcon name="download" />}>Cập nhật</SectionHeading>
+              <UpdateSettingsContent />
             </section>
           )
           : null}

@@ -4,6 +4,7 @@ import ConfirmationDialog from '../design-system/components/ConfirmationDialog/C
 import Panel from '../design-system/components/Panel/Panel';
 import { ActionIcon } from '../design-system/icons/ActionIcon';
 import { HowToPlayButton } from '../howToPlay';
+import { useAppUpdate } from '../runtime/appUpdate';
 import { getDesktopBridge } from '../runtime/desktopBridge';
 import { normalizeLanEndpoint } from '../runtime/lanEndpoint';
 import { generateHostRoomCode, normalizeRoomCode, parseLanJoinUrl } from '../runtime/lanSharing';
@@ -19,6 +20,8 @@ import type {
 import { useSettingsAvailable } from '../settings/selectors';
 import SettingsPanel from '../settings/SettingsPanel';
 import LauncherScene from './LauncherScene';
+import UpdatePrompt from './update/UpdatePrompt';
+import UpdateStatusLine from './update/UpdateStatusLine';
 import './style/EntryShared.css';
 import './style/DesktopMultiplayerLauncher.css';
 
@@ -127,6 +130,8 @@ export default function DesktopMultiplayerLauncher({
 }: DesktopMultiplayerLauncherProps) {
   const bridge = getDesktopBridge();
   const settingsAvailable = useSettingsAvailable();
+  // A mandatory update blocks starting and joining a multiplayer room; the update dialog says why and offers the update.
+  const { locked: updateRequired } = useAppUpdate();
   const [mode, setMode] = useState<LauncherMode>(initialMode ?? null);
   const rootRef = useRef<HTMLElement>(null);
   const returnFocusRef = useRef<Exclude<LauncherMode, null> | null>(null);
@@ -204,6 +209,7 @@ export default function DesktopMultiplayerLauncher({
   }, [bridge, mode]);
 
   const openMode = (next: Exclude<LauncherMode, null>): void => {
+    if (updateRequired) return;
     setMode(next);
     setError(null);
     setInviteLink('');
@@ -373,6 +379,7 @@ export default function DesktopMultiplayerLauncher({
 
         {error ? <p className="desktop-launcher__error" role="alert">{error}</p> : null}
         {hostStarting ? <p className="desktop-launcher__status" role="status">{startingLabel(hostStatus)}</p> : null}
+        <UpdateStatusLine menuVisible={mode === null} />
 
         {mode === null ? (
           <div className="desktop-launcher__menu">
@@ -402,6 +409,7 @@ export default function DesktopMultiplayerLauncher({
               className="desktop-launcher__action"
               data-launcher-choice="host"
               icon={<ActionIcon name="host" className="action-icon--only" />}
+              disabled={updateRequired}
               onClick={() => openMode('host')}
             >{modeTitle.host}</Button>
             <Button
@@ -410,6 +418,7 @@ export default function DesktopMultiplayerLauncher({
               className="desktop-launcher__action"
               data-launcher-choice="join"
               icon={<ActionIcon name="join" className="action-icon--only" />}
+              disabled={updateRequired}
               onClick={() => openMode('join')}
             >{modeTitle.join}</Button>
             {configuredRuntimeConfig?.socketUrl ? (
@@ -419,6 +428,7 @@ export default function DesktopMultiplayerLauncher({
                 className="desktop-launcher__action"
                 data-launcher-choice="configured"
                 icon={<ActionIcon name="configuredServer" className="action-icon--only" />}
+                disabled={updateRequired}
                 onClick={() => openMode('configured')}
               >{modeTitle.configured}</Button>
             ) : null}
@@ -560,6 +570,10 @@ export default function DesktopMultiplayerLauncher({
       </div>
 
       {settingsAvailable ? <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} /> : null}
+      <UpdatePrompt
+        menuVisible={mode === null}
+        {...(canQuit ? { onQuit: () => { if (hostIsOpen(hostStatus)) setQuitConfirmOpen(true); else void quitApp(); } } : {})}
+      />
       <ConfirmationDialog
         open={quitConfirmOpen}
         title="Đóng phòng và thoát game?"

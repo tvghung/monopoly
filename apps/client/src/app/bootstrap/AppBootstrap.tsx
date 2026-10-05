@@ -3,6 +3,8 @@ import App from '../../App';
 import { AudioProvider } from '../../audio/AudioProvider';
 import DesktopMultiplayerLauncher from '../../components/DesktopMultiplayerLauncher';
 import { ToastProvider } from '../../components/Toast';
+import UpdateSessionNotice from '../../components/update/UpdateSessionNotice';
+import { AppUpdateProvider } from '../../runtime/appUpdate';
 import { getDesktopBridge } from '../../runtime/desktopBridge';
 import { isRuntimeConfigLoadError, loadRuntimeConfig } from '../../runtime/runtimeConfig';
 import type { DesktopLaunchSelection, RuntimeConfig } from '../../runtime/types';
@@ -32,9 +34,26 @@ function getBootstrapErrorKind(error: unknown): BootstrapErrorKind {
     : 'bootstrap';
 }
 
+/**
+ * The updater's state lives above everything the player moves between (the start screen, the lobby, the game): a "Để sau"
+ * pressed on the start screen is still remembered when the player comes back to it, and the game knows it is in a session.
+ */
 export default function AppBootstrap() {
-  const [retryNumber, setRetryNumber] = useState(0);
   const [launch, setLaunch] = useState<DesktopLaunchSelection | null>(null);
+  return (
+    <AppUpdateProvider inSession={launch !== null}>
+      <AppBootstrapScreens launch={launch} onLaunchChange={setLaunch} />
+    </AppUpdateProvider>
+  );
+}
+
+interface AppBootstrapScreensProps {
+  launch: DesktopLaunchSelection | null;
+  onLaunchChange: (launch: DesktopLaunchSelection | null) => void;
+}
+
+function AppBootstrapScreens({ launch, onLaunchChange }: AppBootstrapScreensProps) {
+  const [retryNumber, setRetryNumber] = useState(0);
   const [configuredRuntimeConfig, setConfiguredRuntimeConfig] = useState<RuntimeConfig | undefined>();
   const [configurationError, setConfigurationError] = useState<string | null>(null);
   const [state, setState] = useState<BootstrapState>(initialState);
@@ -89,7 +108,7 @@ export default function AppBootstrap() {
         <DesktopMultiplayerLauncher
           configuredRuntimeConfig={configuredRuntimeConfig}
           configurationError={configurationError}
-          onReady={setLaunch}
+          onReady={onLaunchChange}
         />
       </SettingsProvider>
     );
@@ -120,8 +139,9 @@ export default function AppBootstrap() {
               socket={state.result.socket}
               runtimeConfig={state.result.runtimeConfig}
               launch={state.result.launch}
-              onExitToLauncher={() => setLaunch(null)}
+              onExitToLauncher={() => onLaunchChange(null)}
             />
+            <UpdateSessionNotice />
           </ToastProvider>
         </AudioProvider>
       </SettingsProvider>
