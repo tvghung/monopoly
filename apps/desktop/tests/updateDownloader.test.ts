@@ -309,6 +309,21 @@ describe('update http helpers', () => {
     opened.dispose();
   });
 
+  it('judges a response that does not say where it ended up (Electron net.fetch answers an empty URL) by the URL it requested', async () => {
+    const withoutUrl = (() => Promise.resolve(new Response('{"ok":true}', { status: 200 }))) as typeof globalThis.fetch;
+
+    const opened = await openResponse({
+      url: 'https://github.com/tvghung/monopoly/x',
+      fetch: withoutUrl,
+      isUrlAllowed: candidate => candidate.hostname === 'github.com',
+      timeoutMs: 2_000,
+    });
+
+    expect(opened.response.url).toBe('');
+    expect(await readTextLimited(opened, 100)).toBe('{"ok":true}');
+    opened.dispose();
+  });
+
   it('maps a status other than 200 to an HTTP error that carries the status', async () => {
     const { url } = await serve((_request, response) => {
       response.writeHead(503);

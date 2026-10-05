@@ -31,7 +31,7 @@ export interface UpdateEndpoints {
   manifestUrl: string;
   /** Where the installer `name` of the release `version` is downloaded from. */
   assetUrl: (version: string, name: string) => string;
-  /** Whether a response (after redirects) may be read: the host must be one the endpoints trust. */
+  /** Whether a URL may be fetched (and, where the fetch reports it, whether a response may be read from where it ended up). */
   isUrlAllowed: (url: URL) => boolean;
 }
 
@@ -41,7 +41,8 @@ export function releaseAssetUrl(version: string, name: string): string {
 
 /**
  * GitHub answers a release download with a redirect to its object storage. Both ends are GitHub's own hosts and only
- * HTTPS is accepted; anything else (a redirect to another site, a downgrade to HTTP) is refused.
+ * HTTPS is accepted; anything else (another site, plain HTTP) is refused wherever the URL is known (see `http.ts` for
+ * where that is, and for what protects the download when it is not).
  */
 export function isGithubUrl(url: URL): boolean {
   if (url.protocol !== 'https:' || url.username || url.password) return false;

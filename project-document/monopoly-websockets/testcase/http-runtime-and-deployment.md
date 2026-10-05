@@ -169,7 +169,8 @@ protocol, the snapshot or PostgreSQL.
   `scripts/validateV1Contract.check.mjs` (`pnpm test:v1-contract`).
 - [x] `[AUTO]` The verified download, against a real HTTP server on loopback: exact bytes and monotonic progress, replacing a
   stale partial file, refusing a different checksum, a short or oversized body and a different announced size, an HTTP
-  status, a redirect to an untrusted host (and following one between trusted hosts), cancel, stall, header timeout, an
+  status, a redirect to an untrusted host (and following one between trusted hosts; Node's fetch reports where a response
+  ended, Electron's `net.fetch` does not, so this check has no effect in the app), cancel, stall, header timeout, an
   unreachable server and an unwritable destination, each leaving no file: `apps/desktop/tests/updateDownloader.test.ts`.
 - [x] `[AUTO]` `UpdateService` with fakes and a real temp directory: every check result (up to date, available, mandatory,
   offline, 404/503, bad JSON, other application, bad checksum, no installer for this platform, timeout, untrusted redirect),
@@ -200,6 +201,10 @@ protocol, the snapshot or PostgreSQL.
   offer, download with a moving percentage, SHA-256-verified staged file, "Để sau", the settings section, a mandatory update
   (clean start, and with the installer already on disk), a failing feed, a corrupted download and its retry all behaved as
   described. The driver was a scratch script and is not committed; not a CI gate.
+- [ ] `[PACKAGED]` The packaged Windows app (run from `out/`, not installed) ignores the development override, asks the real GitHub
+  feed and, while the latest release has no `update-manifest.json` (a 404), stays fully usable: no dialog, every menu button
+  enabled, Cài đặt says the check was not possible and that the game stays playable. Observed by the agent on 2026-10-05
+  (scratch Playwright run, not committed, not a CI gate), so the row is not ticked.
 - [ ] `[PACKAGED]` An installed Windows build updates itself: silent `Setup.exe` over the running version, the new version
   starts after the restart, shortcuts and the uninstall entry point at it, the same release is not offered again. Not run.
 - [ ] `[PACKAGED]` macOS (x64 and arm64): the disk image downloads, verifies and opens. Not run (no Mac was available).

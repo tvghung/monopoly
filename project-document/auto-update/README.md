@@ -75,8 +75,14 @@ choice and moves no game state).
 
 **D6 — Files and trust.** The installer waits in the operating system's temp folder (`userData` is the roaming profile on
 Windows) and is reused after "Để sau" and a restart; a staged installer of the running version or older is removed at start.
-Only `github.com` and `*.githubusercontent.com` over HTTPS are trusted, including after redirects. The renderer has five
-payload-free calls and cannot name a URL, a path or a version.
+Only `github.com` and `*.githubusercontent.com` over HTTPS are fetched. The URL that is requested is always checked; the URL a
+response ended at is checked only where the network stack reports it. Node's fetch does, but Electron's `net.fetch` answers
+`url: ""` and `redirected: false` even after GitHub's redirect to its object storage and rejects `redirect: "manual"` (measured
+on 2026-10-05 on Electron 43, HEAD against a real release asset), so in the app the redirect target is not inspected. That
+costs little: the installer must match the size and SHA-256 of a manifest that is itself read only from the GitHub URL, and a
+redirect that GitHub did not issue would need a broken TLS connection, which also defeats a host check. A per-hop check would
+need `net.request` or a session `webRequest` filter instead of `net.fetch`; not built. The renderer has five payload-free
+calls and cannot name a URL, a path or a version.
 
 **D7 — A latent bug was fixed on the way.** `--squirrel-firstrun`, which Squirrel passes after a non-silent install and which its
 documentation asks the app to treat as a normal run, was handled like a hook and quit the app at once. It is now a normal run.
@@ -121,6 +127,15 @@ Run once by hand on 2026-10-05, Windows 10, the **development** Electron shell d
 sau", the settings section, the mandatory dialog (clean start, and with the installer already on disk; Escape does not close it,
 "Thoát game" quits through the real quit path), a failing feed (no dialog, manual check reports it), and a corrupted download with
 its retry. The development shell uses the open-installer mode; its final "open" was not pressed.
+
+Run once by hand on 2026-10-05 on the **packaged** Windows app (`pnpm desktop:package`, run from `out/`, not installed), against the
+real GitHub feed: `app.isPackaged` is true, the development override (a URL that would have failed as "offline") is ignored, the
+check reaches `releases/latest/download/update-manifest.json`, which does not exist yet because `v1.1.1` is the latest release (a
+404 after GitHub's redirect), and the app stays fully usable: state `error` at stage `check`, no dialog, every menu button
+enabled, and Cài đặt says "Không thể kiểm tra bản cập nhật lúc này. Bạn vẫn có thể tiếp tục chơi." The mode is `open-installer`
+because that copy was not installed by Squirrel. The same run measured Electron's `net.fetch` against a real release asset (HEAD,
+no download): it follows GitHub's redirect and answers 200, with `url: ""` (see D6). The size budget gate passes on that package
+(`app.asar` 0.5 MiB).
 
 Not run: the silent `Setup.exe` over a running installed build and the restart into the new version (Windows), the macOS flow
 (no Mac), a tag run that publishes `update-manifest.json`, and an update over a real GitHub release.

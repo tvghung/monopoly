@@ -58,7 +58,10 @@ Mỗi GitHub Release có thêm asset `update-manifest.json` do `stageReleaseAsse
   pre-release, nên `v1.2.0-rc.1` không bao giờ được đẩy tới người chơi.
 - Manifest **không chứa URL**. App tự dựng `https://github.com/tvghung/monopoly/releases/download/v<phiên bản>/<tên tệp>` từ
   phiên bản và tên tệp (tên chỉ gồm chữ, số, `.`, `_`, `-`, bắt đầu bằng chữ hoặc số). Chỉ `github.com` và
-  `*.githubusercontent.com` qua HTTPS được tin (kiểm tra cả URL sau redirect). Manifest tối đa 64 KiB; kích thước bộ cài
+  `*.githubusercontent.com` qua HTTPS được tin: URL được yêu cầu luôn bị kiểm tra, URL sau redirect chỉ kiểm tra được khi
+  stack mạng báo ra (`fetch` của Node có; `net.fetch` của Electron trả `url: ""` và `redirected: false` ngay cả sau redirect,
+  nên trong app thật phần này không có tác dụng). Thứ bảo vệ bộ cài là kích thước và SHA-256 trong manifest, và manifest chỉ
+  được tin khi đọc từ URL GitHub. Manifest tối đa 64 KiB; kích thước bộ cài
   1 MiB đến 1 GiB; SHA-256 là 64 chữ số hex thường. Trường lạ bị bỏ qua; `schemaVersion` khác 1 là lỗi cố ý.
 - `minimumSupportedVersion` lấy từ `apps/desktop/update-policy.json` lúc publish. Phiên bản đang chạy **thấp hơn** giá trị này
   thì bản cập nhật là **bắt buộc** (`AppUpdateInfo.mandatory`). Chỉ nâng nó khi bản cũ thật sự không chơi chung được với bản

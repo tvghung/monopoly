@@ -1,9 +1,14 @@
 /**
  * The two network steps the updater takes (read the manifest, download an installer) share the same rules: a deadline
- * for the response headers, cancellation that also stops a body that is still being read, and a check that the final URL
- * (after GitHub's redirect to its object storage) is on a host the endpoints trust. The fetch itself is injected: the app
- * passes Electron's `net.fetch` (the system proxy and certificates apply, as for a browser), the tests pass fakes or the
- * global `fetch` against a local server.
+ * for the response headers, cancellation that also stops a body that is still being read, and a check that the URL is on
+ * a host the endpoints trust. The fetch itself is injected: the app passes Electron's `net.fetch` (the system proxy and
+ * certificates apply, as for a browser), the tests pass fakes or the global `fetch` against a local server.
+ *
+ * The URL that is requested is always checked. The URL a response ended up at (after GitHub's redirect to its object
+ * storage) is checked too when the fetch reports it: Node's fetch does, but Electron's `net.fetch` answers `url: ""` and
+ * `redirected: false` even after a redirect, and `redirect: "manual"` is rejected (measured on Electron 43 against a real
+ * GitHub release asset). So in the app the check covers the requested URL only; what protects the installer is the size and
+ * SHA-256 the manifest records (`downloader.ts`), and the manifest is trusted only as read from the GitHub URL.
  */
 export type UpdateHttpErrorCode = 'NETWORK' | 'HTTP_STATUS' | 'TIMEOUT' | 'CANCELLED' | 'UNTRUSTED_URL' | 'TOO_LARGE';
 
@@ -86,6 +91,7 @@ export async function openResponse(request: OpenRequest): Promise<OpenedResponse
   // The deadline covers the headers only: a download that is under way is watched by its own stall timer.
   clearTimeout(timer);
 
+  // An empty `response.url` (Electron's net.fetch) means the fetch does not say where it ended up: the requested URL stands.
   const final = response.url ? parseUrl(response.url) : requested;
   if (!final || !request.isUrlAllowed(final)) {
     controller.abort();
