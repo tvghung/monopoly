@@ -364,3 +364,47 @@ the full clone keeps its history (about 236 MiB) because history was deliberatel
 
 As for `1.0.0` and `1.1.0`: the installers were built, passed the packaged proofs on CI and were published by the workflow; nobody is
 recorded as having installed them from the release page.
+
+## V1.2.0 release decision
+
+On 2026-10-05 the product owner answered "Đồng ý, cứ thử Squirrel thật rồi gỡ sạch. sau đó phát hành luôn nhé" in chat to the
+agent's question whether it should run a real Squirrel install and update on the owner's Windows machine (a separately named test
+copy of the app, uninstalled afterwards) and release after that. The agent ran it (see "In-app updates" and
+[../auto-update/README.md](../auto-update/README.md), section 4), cleaned the machine up, and released on green CI and Desktop Build
+on commit `45174b4`. `1.2.0` is the in-app updater release: it changes no gameplay, keeps Socket protocol 9 and room snapshot
+schema 8, publishes the Squirrel update feed next to the Windows installer, and leaves `minimumSupportedVersion` at `1.0.0`
+(nobody is forced). The agent wrote this section on that decision.
+
+`1.2.0` is released **unsigned**, with the gates of `1.0.0`, `1.1.0` and `1.1.1` still open and with new manual rows unobserved: the
+in-app update rows of [V1_FINAL_MANUAL_ACCEPTANCE.md](V1_FINAL_MANUAL_ACCEPTANCE.md#in-app-update) (macOS, a mandatory update, no
+Internet at start, the network cut in the middle of a download, rooms and matches on real machines). A tick means a person observed
+the item, so none was ticked. The first update through a real GitHub release can only happen from `1.2.0` to the next release.
+
+### Release record (1.2.0)
+
+| Item | Value |
+| --- | --- |
+| Tag | `v1.2.0` (annotated), on commit `45174b4` of `main` |
+| Workflow run | Release v1.2.0 #6 (`37275876308`), started by the tag push: success in 9m 1s (quality gates 3m, Windows x64 4m 18s, macOS x64 5m 21s, macOS arm64 3m 6s, publish 34 s including `Stage the release files`, `Show the update manifest` and `Check that the update feed serves this release`). The CI (#179) and Desktop Build (#153) runs of the same commit on `main` also passed, as did CI #178 and Desktop Build #152 on the branch |
+| Release | `https://github.com/tvghung/monopoly/releases/tag/v1.2.0`, "Own the Block v1.2.0", marked Latest, published 2026-10-05 07:15 UTC by the workflow token |
+| Distribution mode | `unsigned-validation` (signing BLOCKED, notarization BLOCKED/NOT RUN, as for 1.0.0, 1.1.0 and 1.1.1) |
+
+| Asset | Size | SHA-256 shown by GitHub |
+| --- | --- | --- |
+| `OwnTheBlock-1.2.0-win32-x64-Setup.exe` | 168,432,128 bytes (160.6 MiB) | `c756df87212ed3e7d850de4f9f8edb6e4403f19246eddf236bcf39febf738cc2` |
+| `OwnTheBlock-1.2.0-macos-x64.dmg` | 188,944,150 bytes (180.2 MiB) | `8451b61b94e00d6177118f0b9e833117902afa99f528fe8d8648042528225efa` |
+| `OwnTheBlock-1.2.0-macos-arm64.dmg` | 181,869,046 bytes (173.4 MiB) | `f78c78df1519724bf44c4577f9a191c6267965da8fe99d704974728170d34a1b` |
+| `own_the_block-1.2.0-full.nupkg` | 168,281,752 bytes (160.5 MiB) | `604f5cc97d81ae44d5dd09cba694c73a1a0aca69df3266a40320f4d99307e7f6` |
+| `RELEASES` | 84 bytes | `bf53c1e1c498b7b040d9a54f814f98bc65c217980e48aa9bb3e6cdf2ef18db13` |
+| `SHA256SUMS.txt` | 474 bytes | `76042bc7cd4100c19bcacd86b23ba8eba55de137c750c97ddabd8d9c3b192d0c` |
+| `update-manifest.json` | 1,090 bytes | `e7a7d1024b3a8b06d5b3b66d3d1e086b358eb90e8109ca6299a3c311c76d97dd` |
+
+The release page holds 674.8 MiB in seven files (`1.1.1`: 514 MiB in four): the Squirrel feed adds the 160.5 MiB package and the
+84-byte `RELEASES`, and the installers are the size they were (Windows 160.6 MiB, macOS 180.2 and 173.4 MiB). Checked after the
+publish: `releases/latest/download/update-manifest.json` serves version `1.2.0` with the `squirrel` block, `minimumSupportedVersion`
+`1.0.0`, and every size and SHA-256 in it equals the size and digest GitHub shows for the asset; `RELEASES` is the single line
+`<SHA-1> own_the_block-1.2.0-full.nupkg 168281752`, which staging had already compared with the package.
+
+As for the earlier releases: the installers were built, passed the packaged proofs on CI and were published by the workflow;
+nobody is recorded as having installed them from the release page, and **no installed app has updated itself through this
+release** (there is no newer release for it to find).

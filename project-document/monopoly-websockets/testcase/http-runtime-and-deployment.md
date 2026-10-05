@@ -233,9 +233,12 @@ protocol, the snapshot or PostgreSQL.
 - [ ] `[PACKAGED]` Not covered above: a second consecutive Squirrel update, an update killed by the system, antivirus
   interference.
 - [ ] `[PACKAGED]` macOS (x64 and arm64): the disk image downloads, verifies and opens. Not run (no Mac was available).
-- [ ] `[CI]` A tag run publishes `update-manifest.json` (with the Windows `squirrel` block), `RELEASES` and the `.nupkg` next to
-  the installers, and `releases/latest/download/update-manifest.json` serves it. Not run until the tag run of the release that
-  carries this change.
+- [x] `[CI]` A tag run publishes `update-manifest.json` (with the Windows `squirrel` block), `RELEASES` and the `.nupkg` next to
+  the installers, and `releases/latest/download/update-manifest.json` serves it. Run by the `v1.2.0` tag (Release v1.2.0 #6,
+  2026-10-05): the publish job staged and uploaded the seven files, its step "Check that the update feed serves this release"
+  passed, and the agent compared every size and SHA-256 in the live manifest with the digest GitHub shows for the asset (record
+  in [V1_RELEASE_CONTRACT.md](../../ui-ux-overhaul/V1_RELEASE_CONTRACT.md#release-record-120)). No installed app has updated
+  through it yet.
 - [ ] `[MANUAL-E2E]` The rows of [V1 final manual acceptance](../../ui-ux-overhaul/V1_FINAL_MANUAL_ACCEPTANCE.md#in-app-update).
 
 ## Restart/recovery

@@ -1,8 +1,8 @@
 # In-app auto update — design record
 
-**Status: implemented on branch `overhaul/auto-update`; the Windows path was run end to end on a real Squirrel install (section
-4), the macOS path was not.** Release state is recorded in
-[V1_RELEASE_CONTRACT.md](../ui-ux-overhaul/V1_RELEASE_CONTRACT.md#in-app-updates).
+**Status: released in `v1.2.0` (2026-10-05).** The Windows path was run end to end on a real Squirrel install (section 4), the macOS
+path was not, and no installed app has yet updated itself through a real GitHub release: that needs a release after `1.2.0`. The
+release record is in [V1_RELEASE_CONTRACT.md](../ui-ux-overhaul/V1_RELEASE_CONTRACT.md#release-record-120).
 
 The product owner asked for an update path inside the desktop app: Own the Block checks for a newer release when it opens,
 offers it ("Cập nhật" / "Để sau"), downloads it with visible progress, restarts into the new version, never interrupts a room
