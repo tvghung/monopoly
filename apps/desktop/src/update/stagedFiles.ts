@@ -1,15 +1,18 @@
 import { mkdir, readdir, rm, stat, statfs } from 'node:fs/promises';
 import path from 'node:path';
 import { hashFile } from './downloader';
+import type { UpdateFile, UpdatePayloadKind } from './manifest';
 import { isValidVersion } from './version';
 
 /**
- * A downloaded installer waits in `<updates>/<version>/<file name>` until the player applies it, also across restarts
- * ("Để sau"): the next check finds the verified file and goes straight to "ready" instead of downloading it again. The
- * folder is named after the release version, so cleaning up is a question of which versions are still wanted.
+ * A downloaded update waits in `<updates>/<version>/<payload kind>/<file names>` until the player applies it, also across
+ * restarts ("Để sau"): the next check finds the verified files and goes straight to "ready" instead of downloading them
+ * again. The folder is named after the release version, so cleaning up is a question of which versions are still wanted;
+ * the payload kind is a folder of its own because Squirrel applies a whole folder (RELEASES plus the package) and must find
+ * nothing else in it.
  */
-export function stagedFilePath(updatesDirectory: string, version: string, assetName: string): string {
-  return path.join(updatesDirectory, version, assetName);
+export function stagedDirectory(updatesDirectory: string, version: string, kind: UpdatePayloadKind): string {
+  return path.join(updatesDirectory, version, kind);
 }
 
 /** The file exists with exactly the recorded size and checksum. Anything else (missing, partial, altered) is "not staged". */
@@ -21,6 +24,15 @@ export async function verifyStagedFile(filePath: string, expected: { size: numbe
   } catch {
     return false;
   }
+}
+
+/** The files of `files` that are not staged in `directory` exactly as recorded (a retry downloads only these). */
+export async function unverifiedFiles(directory: string, files: readonly UpdateFile[]): Promise<UpdateFile[]> {
+  const missing: UpdateFile[] = [];
+  for (const file of files) {
+    if (!(await verifyStagedFile(path.join(directory, file.name), file))) missing.push(file);
+  }
+  return missing;
 }
 
 /**

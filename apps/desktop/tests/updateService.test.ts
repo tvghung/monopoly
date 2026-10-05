@@ -5,25 +5,56 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { InstallOutcome, UpdateInstaller } from '../src/update/installers';
 import { MIN_ASSET_BYTES } from '../src/update/manifest';
-import { productionEndpoints, releaseAssetUrl } from '../src/update/updateConfig';
+import {
+  DOWNLOAD_HEADROOM_BYTES,
+  productionEndpoints,
+  releaseAssetUrl,
+  SQUIRREL_UNPACK_HEADROOM_BYTES,
+} from '../src/update/updateConfig';
 import { UpdateService, type UpdateServiceOptions } from '../src/update/updateService';
 import type { AppUpdateState } from '../src/update/updateTypes';
 
-// These tests write and hash a real installer-sized file and wait on real timers. A slow or busy machine (a CI runner, or this
+// These tests write and hash installer-sized files and wait on real timers. A slow or busy machine (a CI runner, or this
 // one under load) must not turn "late" into "failed": a test that is quick when the machine is quick costs nothing extra.
 vi.setConfig({ testTimeout: 30_000 });
 const waitFor = <T>(check: () => T | Promise<T>) => vi.waitFor(check, { timeout: 15_000, interval: 25 });
 
 const endpoints = productionEndpoints();
+const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
+
+// The release as the manifest describes it: the Setup.exe (what a player opens by hand, and what an installation that
+// cannot update itself in place downloads), and the Squirrel feed that an installed Windows app applies in place.
 const INSTALLER = randomBytes(MIN_ASSET_BYTES + 4_096);
-const INSTALLER_SHA = createHash('sha256').update(INSTALLER).digest('hex');
-const ASSET_NAME = 'OwnTheBlock-1.2.0-win32-x64-Setup.exe';
+const RELEASES = Buffer.from(`\u{feff}${'A'.repeat(40)} own_the_block-1.2.0-full.nupkg 1052672`);
+const PACKAGE = randomBytes(MIN_ASSET_BYTES + 8_192);
+const FEED_BYTES = RELEASES.length + PACKAGE.length;
+const SETUP_NAME = 'OwnTheBlock-1.2.0-win32-x64-Setup.exe';
+const RELEASES_NAME = 'RELEASES';
+const PACKAGE_NAME = 'own_the_block-1.2.0-full.nupkg';
 
 interface ManifestOptions {
   version?: string;
   minimumSupportedVersion?: string;
   assets?: Record<string, unknown>;
   app?: string;
+  /** Whether the Windows entry lists the Squirrel files (default: yes, as every Windows release does). */
+  squirrel?: boolean;
+}
+
+function windowsAsset(version: string, withSquirrel: boolean): Record<string, unknown> {
+  return {
+    name: `OwnTheBlock-${version}-win32-x64-Setup.exe`,
+    size: INSTALLER.length,
+    sha256: sha256(INSTALLER),
+    ...(withSquirrel
+      ? {
+          squirrel: {
+            releases: { name: RELEASES_NAME, size: RELEASES.length, sha256: sha256(RELEASES) },
+            package: { name: `own_the_block-${version}-full.nupkg`, size: PACKAGE.length, sha256: sha256(PACKAGE) },
+          },
+        }
+      : {}),
+  };
 }
 
 function manifestJson(options: ManifestOptions = {}): string {
@@ -33,9 +64,7 @@ function manifestJson(options: ManifestOptions = {}): string {
     app: options.app ?? 'own-the-block',
     version,
     minimumSupportedVersion: options.minimumSupportedVersion ?? '1.0.0',
-    assets: options.assets ?? {
-      'win32-x64': { name: `OwnTheBlock-${version}-win32-x64-Setup.exe`, size: INSTALLER.length, sha256: INSTALLER_SHA },
-    },
+    assets: options.assets ?? { 'win32-x64': windowsAsset(version, options.squirrel ?? true) },
   });
 }
 
@@ -65,18 +94,27 @@ function slicedBody(bytes: Buffer, signal: AbortSignal | null | undefined, optio
 
 type Route = (init: RequestInit | undefined) => Response | Promise<Response>;
 
+const served = (bytes: Buffer, options?: { hangAfter?: number }): Route => init => new Response(
+  slicedBody(bytes, init?.signal, options),
+  { status: 200, headers: { 'content-length': String(bytes.length) } },
+);
+
 interface Harness {
   service: UpdateService;
   states: AppUpdateState[];
   fetchUrls: string[];
   routes: Map<string, Route>;
-  installer: { mode: UpdateInstaller['mode']; install: ReturnType<typeof vi.fn> };
+  installer: { mode: UpdateInstaller['mode']; payload: UpdateInstaller['payload']; install: ReturnType<typeof vi.fn> };
   requestQuit: ReturnType<typeof vi.fn>;
   host: { busy: boolean };
   updatesDirectory: string;
-  stagedPath(version?: string, name?: string): string;
+  /** The folder the files of release `version` are staged in: named after what this installation downloads. */
+  stagedDirectory(version?: string): string;
+  /** A staged file; by default the one the installer works on (the Squirrel package, or the Setup.exe). */
+  stagedPath(name?: string, version?: string): string;
   serveManifest(text: string): void;
-  serveInstaller(version?: string, bytes?: Buffer): void;
+  /** Serves what this installation downloads: the Squirrel feed (restart mode) or the Setup.exe (open-installer mode). */
+  serveUpdate(version?: string, bytes?: { releases?: Buffer; package?: Buffer; installer?: Buffer }): void;
 }
 
 let workspace: string;
@@ -96,6 +134,8 @@ function harness(overrides: Partial<UpdateServiceOptions> & {
   installerMode?: UpdateInstaller['mode'];
 } = {}): Harness {
   const { installOutcome, installerMode = 'restart', ...serviceOverrides } = overrides;
+  // The two real installers: a restart applies the Squirrel feed in place, opening an installer needs the installer itself.
+  const payload: UpdateInstaller['payload'] = installerMode === 'restart' ? 'squirrel' : 'installer';
   const updatesDirectory = path.join(workspace, 'updates');
   const routes = new Map<string, Route>();
   const fetchUrls: string[] = [];
@@ -104,6 +144,7 @@ function harness(overrides: Partial<UpdateServiceOptions> & {
   const requestQuit = vi.fn();
   const installer = {
     mode: installerMode,
+    payload,
     install: vi.fn(() => Promise.resolve(installOutcome ?? { ok: true as const, quit: installerMode === 'restart' })),
   };
   const fakeFetch = ((input: RequestInfo | URL, init?: RequestInit) => {
@@ -132,6 +173,7 @@ function harness(overrides: Partial<UpdateServiceOptions> & {
   services.push(service);
   service.onStateChanged(state => states.push(state));
 
+  const stagedDirectory = (version = '1.2.0') => path.join(updatesDirectory, version, payload);
   const result: Harness = {
     service,
     states,
@@ -141,21 +183,25 @@ function harness(overrides: Partial<UpdateServiceOptions> & {
     requestQuit,
     host,
     updatesDirectory,
-    stagedPath: (version = '1.2.0', name = ASSET_NAME) => path.join(updatesDirectory, version, name),
+    stagedDirectory,
+    stagedPath: (name = payload === 'squirrel' ? PACKAGE_NAME : SETUP_NAME, version) => path.join(stagedDirectory(version), name),
     serveManifest: text => {
       routes.set(endpoints.manifestUrl, () => new Response(text, { status: 200 }));
     },
-    serveInstaller: (version = '1.2.0', bytes = INSTALLER) => {
-      routes.set(releaseAssetUrl(version, `OwnTheBlock-${version}-win32-x64-Setup.exe`), init => new Response(
-        slicedBody(bytes, init?.signal),
-        { status: 200, headers: { 'content-length': String(bytes.length) } },
-      ));
+    serveUpdate: (version = '1.2.0', bytes = {}) => {
+      if (payload === 'installer') {
+        routes.set(releaseAssetUrl(version, `OwnTheBlock-${version}-win32-x64-Setup.exe`), served(bytes.installer ?? INSTALLER));
+        return;
+      }
+      routes.set(releaseAssetUrl(version, RELEASES_NAME), served(bytes.releases ?? RELEASES));
+      routes.set(releaseAssetUrl(version, `own_the_block-${version}-full.nupkg`), served(bytes.package ?? PACKAGE));
     },
   };
   return result;
 }
 
 const phases = (states: AppUpdateState[]) => states.map(state => state.phase);
+const urlOf = (name: string, version = '1.2.0') => releaseAssetUrl(version, name);
 
 describe('without an update channel', () => {
   it('is unsupported and never touches the network', async () => {
@@ -195,15 +241,26 @@ describe('checking for updates', () => {
     expect((await h.service.checkForUpdates('manual')).phase).toBe('up-to-date');
   });
 
-  it('offers a newer release with its version and size, and does not start downloading it', async () => {
+  it('offers a newer release with its version and the size of what the app would download, and does not start downloading it', async () => {
     const h = harness();
     h.serveManifest(manifestJson());
 
     const state = await h.service.checkForUpdates('startup');
 
     expect(state.phase).toBe('available');
-    expect(state.update).toEqual({ version: '1.2.0', mandatory: false, sizeBytes: INSTALLER.length });
+    expect(state.update).toEqual({ version: '1.2.0', mandatory: false, sizeBytes: FEED_BYTES });
     expect(h.fetchUrls).toEqual([endpoints.manifestUrl]);
+  });
+
+  it('offers the installer, and its size, to an installation that opens the installer instead of updating in place', async () => {
+    const h = harness({ installerMode: 'open-installer' });
+    // A macOS release has no Squirrel files at all.
+    h.serveManifest(manifestJson({ squirrel: false }));
+
+    const state = await h.service.checkForUpdates('startup');
+
+    expect(state.phase).toBe('available');
+    expect(state.update).toEqual({ version: '1.2.0', mandatory: false, sizeBytes: INSTALLER.length });
   });
 
   it('marks the update mandatory only when the running version is below the minimum supported version', async () => {
@@ -246,7 +303,22 @@ describe('checking for updates', () => {
       assets: { 'win32-x64': { name: 'a.exe', size: INSTALLER.length, sha256: 'nope' } },
     }), { status: 200 }), 'FEED_INVALID'],
     ['a newer release without an installer for this machine', () => new Response(manifestJson({
-      assets: { 'darwin-arm64': { name: 'a.dmg', size: INSTALLER.length, sha256: INSTALLER_SHA } },
+      assets: { 'darwin-arm64': { name: 'a.dmg', size: INSTALLER.length, sha256: sha256(INSTALLER) } },
+    }), { status: 200 }), 'FEED_INVALID'],
+    ['a newer Windows release without the Squirrel files this installation updates from', () => new Response(
+      manifestJson({ squirrel: false }),
+      { status: 200 },
+    ), 'FEED_INVALID'],
+    ['a Squirrel payload with a bad checksum', () => new Response(manifestJson({
+      assets: {
+        'win32-x64': {
+          ...windowsAsset('1.2.0', true),
+          squirrel: {
+            releases: { name: RELEASES_NAME, size: RELEASES.length, sha256: 'nope' },
+            package: { name: PACKAGE_NAME, size: PACKAGE.length, sha256: sha256(PACKAGE) },
+          },
+        },
+      },
     }), { status: 200 }), 'FEED_INVALID'],
   ])('reports %s as a failed check and leaves the app as it was', async (_label, respond, code) => {
     const h = harness();
@@ -303,11 +375,12 @@ describe('checking for updates', () => {
     expect(state.error).toBeUndefined();
   });
 
-  it('goes straight to ready when the verified installer is already on disk from an earlier run', async () => {
+  it('goes straight to ready when every verified file is already on disk from an earlier run', async () => {
     const h = harness();
     h.serveManifest(manifestJson());
-    await mkdir(path.dirname(h.stagedPath()), { recursive: true });
-    await writeFile(h.stagedPath(), INSTALLER);
+    await mkdir(h.stagedDirectory(), { recursive: true });
+    await writeFile(h.stagedPath(RELEASES_NAME), RELEASES);
+    await writeFile(h.stagedPath(), PACKAGE);
 
     const state = await h.service.checkForUpdates('startup');
 
@@ -316,11 +389,21 @@ describe('checking for updates', () => {
     expect(h.fetchUrls).toEqual([endpoints.manifestUrl]);
   });
 
+  it('offers the update again when only some of its files are staged', async () => {
+    const h = harness();
+    h.serveManifest(manifestJson());
+    await mkdir(h.stagedDirectory(), { recursive: true });
+    await writeFile(h.stagedPath(PACKAGE_NAME), PACKAGE);
+
+    expect((await h.service.checkForUpdates('startup')).phase).toBe('available');
+  });
+
   it('does not trust a staged file that differs from the manifest', async () => {
     const h = harness();
     h.serveManifest(manifestJson());
-    await mkdir(path.dirname(h.stagedPath()), { recursive: true });
-    const altered = Buffer.from(INSTALLER);
+    await mkdir(h.stagedDirectory(), { recursive: true });
+    await writeFile(h.stagedPath(RELEASES_NAME), RELEASES);
+    const altered = Buffer.from(PACKAGE);
     altered[100] ^= 0xff;
     await writeFile(h.stagedPath(), altered);
 
@@ -331,31 +414,46 @@ describe('checking for updates', () => {
 describe('downloading an update', () => {
   async function available(h: Harness): Promise<void> {
     h.serveManifest(manifestJson());
-    h.serveInstaller();
+    h.serveUpdate();
     await h.service.checkForUpdates('manual');
     h.states.length = 0;
   }
 
-  it('downloads the installer of the release, reports progress and ends ready', async () => {
+  it('downloads the Squirrel feed of the release (and not the Setup.exe), reports progress over both files and ends ready', async () => {
     const h = harness();
     await available(h);
 
     const state = await h.service.downloadUpdate();
 
     expect(state.phase).toBe('ready');
-    expect(state.update).toEqual({ version: '1.2.0', mandatory: false, sizeBytes: INSTALLER.length });
-    expect((await readFile(h.stagedPath())).equals(INSTALLER)).toBe(true);
-    expect(await readdir(path.dirname(h.stagedPath()))).toEqual([ASSET_NAME]);
-    expect(h.fetchUrls.at(-1)).toBe(releaseAssetUrl('1.2.0', ASSET_NAME));
+    expect(state.update).toEqual({ version: '1.2.0', mandatory: false, sizeBytes: FEED_BYTES });
+    expect((await readFile(h.stagedPath(RELEASES_NAME))).equals(RELEASES)).toBe(true);
+    expect((await readFile(h.stagedPath())).equals(PACKAGE)).toBe(true);
+    // Squirrel applies the whole folder: nothing but the two files may be in it (no partial download left behind).
+    expect((await readdir(h.stagedDirectory())).sort()).toEqual([PACKAGE_NAME, RELEASES_NAME].sort());
+    expect(h.fetchUrls.slice(1)).toEqual([urlOf(RELEASES_NAME), urlOf(PACKAGE_NAME)]);
 
     const downloading = h.states.filter(item => item.phase === 'downloading');
     expect(downloading.length).toBeGreaterThan(2);
     const received = downloading.map(item => item.progress?.receivedBytes ?? -1);
     expect(received[0]).toBe(0);
-    expect(received.at(-1)).toBe(INSTALLER.length);
+    expect(received.at(-1)).toBe(FEED_BYTES);
+    // One bar for the whole update: it does not start over at the second file.
     expect([...received].sort((a, b) => a - b)).toEqual(received);
-    expect(downloading.every(item => item.progress?.totalBytes === INSTALLER.length)).toBe(true);
+    expect(downloading.every(item => item.progress?.totalBytes === FEED_BYTES)).toBe(true);
     expect(h.states.at(-1)?.phase).toBe('ready');
+  });
+
+  it('downloads the installer itself when this installation only opens the installer', async () => {
+    const h = harness({ installerMode: 'open-installer' });
+    await available(h);
+
+    const state = await h.service.downloadUpdate();
+
+    expect(state.phase).toBe('ready');
+    expect((await readFile(h.stagedPath())).equals(INSTALLER)).toBe(true);
+    expect(await readdir(h.stagedDirectory())).toEqual([SETUP_NAME]);
+    expect(h.fetchUrls.slice(1)).toEqual([urlOf(SETUP_NAME)]);
   });
 
   it('throttles progress events but always reports the last byte', async () => {
@@ -365,7 +463,7 @@ describe('downloading an update', () => {
     await h.service.downloadUpdate();
 
     const received = h.states.filter(item => item.phase === 'downloading').map(item => item.progress?.receivedBytes);
-    expect(received).toEqual([0, INSTALLER.length]);
+    expect(received).toEqual([0, FEED_BYTES]);
   });
 
   it('is a single download however many times it is asked for', async () => {
@@ -375,7 +473,7 @@ describe('downloading an update', () => {
     const [first, second] = await Promise.all([h.service.downloadUpdate(), h.service.downloadUpdate()]);
 
     expect(first).toEqual(second);
-    expect(h.fetchUrls.filter(url => url.endsWith('.exe'))).toHaveLength(1);
+    expect(h.fetchUrls.filter(url => url.endsWith('.nupkg'))).toHaveLength(1);
   });
 
   it('does nothing when no update was found', async () => {
@@ -385,32 +483,31 @@ describe('downloading an update', () => {
     expect(h.fetchUrls).toEqual([]);
   });
 
-  it('can be cancelled, goes back to offering the update and leaves nothing on disk', async () => {
+  it('can be cancelled, goes back to offering the update and leaves no partial file on disk', async () => {
     const h = harness();
     h.serveManifest(manifestJson());
-    h.routes.set(releaseAssetUrl('1.2.0', ASSET_NAME), init => new Response(
-      slicedBody(INSTALLER, init?.signal, { hangAfter: 300_000 }),
-      { status: 200, headers: { 'content-length': String(INSTALLER.length) } },
-    ));
+    h.serveUpdate();
+    h.routes.set(urlOf(PACKAGE_NAME), served(PACKAGE, { hangAfter: 300_000 }));
     await h.service.checkForUpdates('manual');
 
     const download = h.service.downloadUpdate();
-    await waitFor(() => expect(h.service.getState().progress?.receivedBytes ?? 0).toBeGreaterThan(0));
+    await waitFor(() => expect(h.service.getState().progress?.receivedBytes ?? 0).toBeGreaterThan(RELEASES.length));
     h.service.cancelDownload();
     const state = await download;
 
     expect(state.phase).toBe('available');
     expect(state.update?.version).toBe('1.2.0');
     expect(state.error).toBeUndefined();
-    expect(await readdir(path.dirname(h.stagedPath()))).toEqual([]);
+    // The small file that was already complete and verified stays (the next try skips it); the half package is gone.
+    expect(await readdir(h.stagedDirectory())).toEqual([RELEASES_NAME]);
   });
 
-  it('reports a corrupted download, keeps the update for a retry and succeeds on the retry', async () => {
+  it('reports a corrupted download, keeps the update for a retry and then downloads only what is still missing', async () => {
     const h = harness();
     h.serveManifest(manifestJson());
-    const corrupted = Buffer.from(INSTALLER);
+    const corrupted = Buffer.from(PACKAGE);
     corrupted[2_000] ^= 0xff;
-    h.serveInstaller('1.2.0', corrupted);
+    h.serveUpdate('1.2.0', { package: corrupted });
     await h.service.checkForUpdates('manual');
 
     const failed = await h.service.downloadUpdate();
@@ -418,10 +515,31 @@ describe('downloading an update', () => {
     expect(failed.phase).toBe('error');
     expect(failed.error).toEqual({ stage: 'download', code: 'INTEGRITY' });
     expect(failed.update?.version).toBe('1.2.0');
-    expect(await readdir(path.dirname(h.stagedPath())).catch(() => [])).toEqual([]);
+    expect(await readdir(h.stagedDirectory())).toEqual([RELEASES_NAME]);
 
-    h.serveInstaller('1.2.0', INSTALLER);
+    h.serveUpdate('1.2.0', { package: PACKAGE });
     expect((await h.service.downloadUpdate()).phase).toBe('ready');
+    expect((await readFile(h.stagedPath())).equals(PACKAGE)).toBe(true);
+    // The verified RELEASES file was not requested a second time.
+    expect(h.fetchUrls.filter(url => url === urlOf(RELEASES_NAME))).toHaveLength(1);
+    expect(h.fetchUrls.filter(url => url === urlOf(PACKAGE_NAME))).toHaveLength(2);
+  });
+
+  it('counts the files that are already staged as downloaded, so the bar starts where the earlier try ended', async () => {
+    const h = harness();
+    h.serveManifest(manifestJson());
+    h.serveUpdate();
+    await mkdir(h.stagedDirectory(), { recursive: true });
+    await writeFile(h.stagedPath(RELEASES_NAME), RELEASES);
+    await h.service.checkForUpdates('manual');
+    h.states.length = 0;
+
+    expect((await h.service.downloadUpdate()).phase).toBe('ready');
+
+    const received = h.states.filter(item => item.phase === 'downloading').map(item => item.progress?.receivedBytes ?? -1);
+    expect(received[0]).toBe(0);
+    expect(received.at(-1)).toBe(FEED_BYTES);
+    expect(h.fetchUrls.filter(url => url === urlOf(RELEASES_NAME))).toEqual([]);
   });
 
   it.each([
@@ -430,7 +548,8 @@ describe('downloading an update', () => {
   ])('reports a failed download when %s', async (_label, respond, code) => {
     const h = harness();
     h.serveManifest(manifestJson());
-    h.routes.set(releaseAssetUrl('1.2.0', ASSET_NAME), respond as Route);
+    h.serveUpdate();
+    h.routes.set(urlOf(PACKAGE_NAME), respond as Route);
     await h.service.checkForUpdates('manual');
 
     const state = await h.service.downloadUpdate();
@@ -439,23 +558,45 @@ describe('downloading an update', () => {
     expect(state.update?.mandatory).toBe(false);
   });
 
-  it('refuses to start when the disk does not have room for the installer, without requesting it', async () => {
-    const h = harness({ freeDiskBytes: () => Promise.resolve(INSTALLER.length) });
+  it('refuses to start when the disk does not have room for the download and for Squirrel to unpack it, without requesting anything', async () => {
+    // Enough for the download itself, not for the 385 MiB Squirrel unpacks from it.
+    const h = harness({ freeDiskBytes: () => Promise.resolve(FEED_BYTES + DOWNLOAD_HEADROOM_BYTES) });
     await available(h);
 
     const state = await h.service.downloadUpdate();
 
     expect(state.error).toEqual({ stage: 'download', code: 'DISK_SPACE' });
-    expect(h.fetchUrls.filter(url => url.endsWith('.exe'))).toEqual([]);
+    // Only the check's manifest request: not one byte of the update was asked for.
+    expect(h.fetchUrls).toEqual([endpoints.manifestUrl]);
+  });
+
+  it('asks for less room when the installer is only opened', async () => {
+    const tight = harness({ installerMode: 'open-installer', freeDiskBytes: () => Promise.resolve(INSTALLER.length + DOWNLOAD_HEADROOM_BYTES - 1) });
+    await available(tight);
+    expect((await tight.service.downloadUpdate()).error).toEqual({ stage: 'download', code: 'DISK_SPACE' });
+
+    const enough = harness({ installerMode: 'open-installer', freeDiskBytes: () => Promise.resolve(INSTALLER.length + DOWNLOAD_HEADROOM_BYTES) });
+    await available(enough);
+    expect((await enough.service.downloadUpdate()).phase).toBe('ready');
+  });
+
+  it('counts only the bytes that are still missing when it checks the room', async () => {
+    // Room for the package and the unpacking, but not for the RELEASES file as well: it is already staged, so it is not counted.
+    const h = harness({ freeDiskBytes: () => Promise.resolve(PACKAGE.length + SQUIRREL_UNPACK_HEADROOM_BYTES) });
+    h.serveManifest(manifestJson());
+    h.serveUpdate();
+    await mkdir(h.stagedDirectory(), { recursive: true });
+    await writeFile(h.stagedPath(RELEASES_NAME), RELEASES);
+    await h.service.checkForUpdates('manual');
+
+    expect((await h.service.downloadUpdate()).phase).toBe('ready');
   });
 
   it('stops a download that stalls', async () => {
     const h = harness({ timing: { stallTimeoutMs: 100 } });
     h.serveManifest(manifestJson());
-    h.routes.set(releaseAssetUrl('1.2.0', ASSET_NAME), init => new Response(
-      slicedBody(INSTALLER, init?.signal, { hangAfter: 256 * 1024 }),
-      { status: 200, headers: { 'content-length': String(INSTALLER.length) } },
-    ));
+    h.serveUpdate();
+    h.routes.set(urlOf(PACKAGE_NAME), served(PACKAGE, { hangAfter: 256 * 1024 }));
     await h.service.checkForUpdates('manual');
 
     expect((await h.service.downloadUpdate()).error).toEqual({ stage: 'download', code: 'TIMEOUT' });
@@ -465,19 +606,19 @@ describe('downloading an update', () => {
 describe('applying an update (restart mode)', () => {
   async function ready(h: Harness): Promise<void> {
     h.serveManifest(manifestJson());
-    h.serveInstaller();
+    h.serveUpdate();
     await h.service.checkForUpdates('manual');
     await h.service.downloadUpdate();
     h.states.length = 0;
   }
 
-  it('runs the verified installer and then quits the app, leaving the state at "installing" for the new version to replace', async () => {
+  it('hands the verified Squirrel feed to the installer and then quits the app, leaving the state at "installing" for the new version to replace', async () => {
     const h = harness();
     await ready(h);
 
     const state = await h.service.installUpdate();
 
-    expect(h.installer.install).toHaveBeenCalledExactlyOnceWith(h.stagedPath());
+    expect(h.installer.install).toHaveBeenCalledExactlyOnceWith({ directory: h.stagedDirectory(), mainFile: h.stagedPath() });
     expect(h.requestQuit).toHaveBeenCalledOnce();
     expect(state.phase).toBe('installing');
     expect(phases(h.states)).toEqual(['installing']);
@@ -563,16 +704,21 @@ describe('applying an update (restart mode)', () => {
     expect(h.requestQuit).not.toHaveBeenCalled();
   });
 
-  it('does not run a file that changed after it was verified, and offers the download again', async () => {
+  it.each([
+    ['the package', PACKAGE_NAME],
+    ['the RELEASES file', RELEASES_NAME],
+  ])('does not run when %s changed after it was verified, and offers to download just that file again', async (_label, name) => {
     const h = harness();
     await ready(h);
-    await writeFile(h.stagedPath(), 'something else');
+    await writeFile(h.stagedPath(name), 'something else');
+    h.fetchUrls.length = 0;
 
     const state = await h.service.installUpdate();
 
     expect(state.error).toEqual({ stage: 'download', code: 'INTEGRITY' });
     expect(h.installer.install).not.toHaveBeenCalled();
     expect((await h.service.downloadUpdate()).phase).toBe('ready');
+    expect(h.fetchUrls).toEqual([urlOf(name)]);
   });
 
   it('does not report a working install as failed when only asking the app to quit throws', async () => {
@@ -602,14 +748,14 @@ describe('applying an update (open-installer mode)', () => {
   it('opens the installer, stays ready with the follow-up, never quits and is not blocked by an open room', async () => {
     const h = harness({ installerMode: 'open-installer' });
     h.serveManifest(manifestJson());
-    h.serveInstaller();
+    h.serveUpdate();
     await h.service.checkForUpdates('manual');
     await h.service.downloadUpdate();
     h.host.busy = true;
 
     const state = await h.service.installUpdate();
 
-    expect(h.installer.install).toHaveBeenCalledExactlyOnceWith(h.stagedPath());
+    expect(h.installer.install).toHaveBeenCalledExactlyOnceWith({ directory: h.stagedDirectory(), mainFile: h.stagedPath() });
     expect(h.requestQuit).not.toHaveBeenCalled();
     expect(state).toMatchObject({ phase: 'ready', followUp: 'installer-opened', installMode: 'open-installer' });
     expect(state.installBlocked).toBeUndefined();
@@ -637,11 +783,11 @@ describe('scheduling and clean-up', () => {
     expect(h.fetchUrls.length).toBe(after);
   });
 
-  it('removes installers of the running version and older at start, and keeps newer ones and foreign folders', async () => {
+  it('removes staged updates of the running version and older at start, and keeps newer ones and foreign folders', async () => {
     const h = harness({ timing: { startupDelayMs: 60_000, periodicIntervalMs: 60_000 } });
     for (const name of ['1.0.0', '1.1.1', '1.2.0', 'notes']) {
-      await mkdir(path.join(h.updatesDirectory, name), { recursive: true });
-      await writeFile(path.join(h.updatesDirectory, name, 'file.bin'), 'x');
+      await mkdir(path.join(h.updatesDirectory, name, 'squirrel'), { recursive: true });
+      await writeFile(path.join(h.updatesDirectory, name, 'squirrel', 'file.bin'), 'x');
     }
     await writeFile(path.join(h.updatesDirectory, 'stray.txt'), 'x');
 
@@ -652,12 +798,12 @@ describe('scheduling and clean-up', () => {
     });
   });
 
-  it('removes staged installers of releases that are no longer the newest after a check', async () => {
+  it('removes staged updates of releases that are no longer the newest after a check', async () => {
     const h = harness();
     h.serveManifest(manifestJson({ version: '1.3.0' }));
     for (const name of ['1.2.0', '1.3.0']) {
-      await mkdir(path.join(h.updatesDirectory, name), { recursive: true });
-      await writeFile(path.join(h.updatesDirectory, name, 'file.bin'), 'x');
+      await mkdir(path.join(h.updatesDirectory, name, 'squirrel'), { recursive: true });
+      await writeFile(path.join(h.updatesDirectory, name, 'squirrel', 'file.bin'), 'x');
     }
 
     await h.service.checkForUpdates('manual');
@@ -670,13 +816,11 @@ describe('scheduling and clean-up', () => {
   it('stops a running download at dispose and publishes nothing afterwards', async () => {
     const h = harness();
     h.serveManifest(manifestJson());
-    h.routes.set(releaseAssetUrl('1.2.0', ASSET_NAME), init => new Response(
-      slicedBody(INSTALLER, init?.signal, { hangAfter: 256 * 1024 }),
-      { status: 200, headers: { 'content-length': String(INSTALLER.length) } },
-    ));
+    h.serveUpdate();
+    h.routes.set(urlOf(PACKAGE_NAME), served(PACKAGE, { hangAfter: 256 * 1024 }));
     await h.service.checkForUpdates('manual');
     const download = h.service.downloadUpdate();
-    await waitFor(() => expect(h.service.getState().progress?.receivedBytes ?? 0).toBeGreaterThan(0));
+    await waitFor(() => expect(h.service.getState().progress?.receivedBytes ?? 0).toBeGreaterThan(RELEASES.length));
     const emitted = h.states.length;
 
     h.service.dispose();

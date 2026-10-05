@@ -304,15 +304,18 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$app_path"
           codesign --verify --verbose=2 "$dmg_path"
           xcrun stapler validate "$dmg_path"
-      # Only the installers and the collected metadata are uploaded: the publish job stages the installer listed in
-      # manifest.json, and the Squirrel .nupkg/RELEASES (already embedded in Setup.exe) would double the Windows
-      # artifact. The files are already compressed, so the artifact zip does not recompress them.
+      # Only what the publish job stages is uploaded: the installers, the collected metadata and, for Windows, the Squirrel
+      # feed (RELEASES and the full .nupkg) that an installed app updates itself from (`Update.exe --update`). The .nupkg is
+      # the same bytes the Setup.exe embeds, so the Windows artifact grows by one package. The files are already compressed,
+      # so the artifact zip does not recompress them.
       - name: Upload release candidate artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
           path: |
             apps/desktop/out/make/**/*Setup.exe
+            apps/desktop/out/make/**/*-full.nupkg
+            apps/desktop/out/make/**/RELEASES
             apps/desktop/out/make/**/*.dmg
             apps/desktop/out/release-artifacts/**
           if-no-files-found: error

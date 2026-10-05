@@ -4,8 +4,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { squirrelUpdateExePath } from '../src/squirrelEvents';
 import {
   createOpenInstaller,
-  createSquirrelSilentInstaller,
+  createSquirrelUpdateInstaller,
   selectInstaller,
+  type StagedUpdate,
 } from '../src/update/installers';
 
 type SpawnCall = { command: string; args: readonly string[]; options: Record<string, unknown> };
@@ -38,25 +39,34 @@ function fakeSpawn(script: (call: SpawnCall, index: number) => 'exit0' | 'exit1'
   return { spawnProcess, calls, children };
 }
 
-const SETUP = path.join('C:', 'temp', 'updates', '1.2.0', 'OwnTheBlock-1.2.0-win32-x64-Setup.exe');
+// A folder with spaces and an accent in it: a player's user name is not always plain ASCII.
+const FEED = path.join('C:', 'Users', 'Nguyễn Văn A', 'AppData', 'Local', 'Temp', 'OwnTheBlock-updates', '1.2.0', 'squirrel');
+const STAGED: StagedUpdate = { directory: FEED, mainFile: path.join(FEED, 'own_the_block-1.2.0-full.nupkg') };
 const UPDATE_EXE = path.join('C:', 'Users', 'me', 'AppData', 'Local', 'own_the_block', 'Update.exe');
 
-describe('Squirrel silent installer (Windows)', () => {
-  it('runs the downloaded Setup.exe silently, then asks Update.exe to start the new version once this app has exited', async () => {
+function squirrelInstaller(spawned: ReturnType<typeof fakeSpawn>, timeoutMs?: number) {
+  return createSquirrelUpdateInstaller({
+    updateExePath: UPDATE_EXE,
+    executableName: 'OwnTheBlock.exe',
+    spawnProcess: spawned.spawnProcess,
+    ...(timeoutMs === undefined ? {} : { timeoutMs }),
+  });
+}
+
+describe('Squirrel in-place installer (Windows)', () => {
+  it('applies the staged feed with Update.exe, then asks Update.exe to start the new version once this app has exited', async () => {
     const spawned = fakeSpawn(() => 'exit0');
-    const installer = createSquirrelSilentInstaller({
-      updateExePath: UPDATE_EXE,
-      executableName: 'OwnTheBlock.exe',
-      spawnProcess: spawned.spawnProcess,
-    });
+    const installer = squirrelInstaller(spawned);
 
     expect(installer.mode).toBe('restart');
-    expect(await installer.install(SETUP)).toEqual({ ok: true, quit: true });
+    expect(installer.payload).toBe('squirrel');
+    expect(await installer.install(STAGED)).toEqual({ ok: true, quit: true });
 
     expect(spawned.calls).toHaveLength(2);
-    // The installer runs while the game is open, with no window and attached (the app waits for its exit code).
-    expect(spawned.calls[0].command).toBe(SETUP);
-    expect(spawned.calls[0].args).toEqual(['--silent']);
+    // The update runs while the game is open, with no window and attached (the app waits for its exit code). It is
+    // Squirrel's own Update.exe over the staged folder, never the downloaded Setup.exe: that one deletes the running version.
+    expect(spawned.calls[0].command).toBe(UPDATE_EXE);
+    expect(spawned.calls[0].args).toEqual([`--update=${FEED}`]);
     expect(spawned.calls[0].options).toMatchObject({ stdio: 'ignore', windowsHide: true });
     expect(spawned.calls[0].options.detached).toBeUndefined();
     // The restart outlives this process and waits for it: Update.exe --processStartAndWait.
@@ -66,65 +76,56 @@ describe('Squirrel silent installer (Windows)', () => {
     expect(spawned.children[1].unref).toHaveBeenCalledOnce();
   });
 
-  it('reports a failed install and does not start the restart helper', async () => {
+  it('reports a failed update and does not start the restart helper', async () => {
     const spawned = fakeSpawn(() => 'exit1');
-    const installer = createSquirrelSilentInstaller({
-      updateExePath: UPDATE_EXE, executableName: 'OwnTheBlock.exe', spawnProcess: spawned.spawnProcess,
-    });
 
-    expect(await installer.install(SETUP)).toEqual({ ok: false, code: 'INSTALL_FAILED' });
+    expect(await squirrelInstaller(spawned).install(STAGED)).toEqual({ ok: false, code: 'INSTALL_FAILED' });
     expect(spawned.calls).toHaveLength(1);
   });
 
-  it('reports an installer that could not be started (antivirus, permissions)', async () => {
+  it('reports an updater that could not be started (antivirus, permissions)', async () => {
     for (const behaviour of ['error', 'throw'] as const) {
       const spawned = fakeSpawn(() => behaviour);
-      const installer = createSquirrelSilentInstaller({
-        updateExePath: UPDATE_EXE, executableName: 'OwnTheBlock.exe', spawnProcess: spawned.spawnProcess,
-      });
 
-      expect(await installer.install(SETUP)).toEqual({ ok: false, code: 'INSTALL_START_FAILED' });
+      expect(await squirrelInstaller(spawned).install(STAGED)).toEqual({ ok: false, code: 'INSTALL_START_FAILED' });
       expect(spawned.calls).toHaveLength(1);
     }
   });
 
-  it('stops waiting for an installer that does not finish, without killing it', async () => {
+  it('stops waiting for an updater that does not finish, without killing it', async () => {
     const spawned = fakeSpawn(() => 'hang');
-    const installer = createSquirrelSilentInstaller({
-      updateExePath: UPDATE_EXE, executableName: 'OwnTheBlock.exe', spawnProcess: spawned.spawnProcess, timeoutMs: 30,
-    });
 
-    expect(await installer.install(SETUP)).toEqual({ ok: false, code: 'INSTALL_FAILED' });
+    expect(await squirrelInstaller(spawned, 30).install(STAGED)).toEqual({ ok: false, code: 'INSTALL_FAILED' });
     expect(spawned.calls).toHaveLength(1);
     expect((spawned.children[0] as unknown as { kill?: unknown }).kill).toBeUndefined();
   });
 
   it('still reports success when only the restart helper cannot be started: the new version is installed', async () => {
     const spawned = fakeSpawn((_call, index) => (index === 0 ? 'exit0' : 'throw'));
-    const installer = createSquirrelSilentInstaller({
-      updateExePath: UPDATE_EXE, executableName: 'OwnTheBlock.exe', spawnProcess: spawned.spawnProcess,
-    });
 
-    expect(await installer.install(SETUP)).toEqual({ ok: true, quit: true });
+    expect(await squirrelInstaller(spawned).install(STAGED)).toEqual({ ok: true, quit: true });
   });
 });
 
 describe('open installer (macOS, and a Windows copy the installer did not install)', () => {
-  it('opens the installer and does not quit', async () => {
+  const dmg: StagedUpdate = { directory: '/tmp/updates/1.2.0/installer', mainFile: '/tmp/updates/1.2.0/installer/Own the Block.dmg' };
+
+  it('opens the installer file and does not quit', async () => {
     const openPath = vi.fn(() => Promise.resolve(''));
     const installer = createOpenInstaller({ openPath });
 
     expect(installer.mode).toBe('open-installer');
-    expect(await installer.install('/tmp/Own the Block.dmg')).toEqual({ ok: true, quit: false });
-    expect(openPath).toHaveBeenCalledExactlyOnceWith('/tmp/Own the Block.dmg');
+    expect(installer.payload).toBe('installer');
+    expect(await installer.install(dmg)).toEqual({ ok: true, quit: false });
+    expect(openPath).toHaveBeenCalledExactlyOnceWith(dmg.mainFile);
   });
 
   it('reports the failure Electron returns as a message, and a throw', async () => {
     const failing = createOpenInstaller({ openPath: () => Promise.resolve('No application knows how to open this file') });
     const throwing = createOpenInstaller({ openPath: () => Promise.reject(new Error('boom')) });
 
-    expect(await failing.install('x.dmg')).toEqual({ ok: false, code: 'INSTALL_START_FAILED' });
-    expect(await throwing.install('x.dmg')).toEqual({ ok: false, code: 'INSTALL_START_FAILED' });
+    expect(await failing.install(dmg)).toEqual({ ok: false, code: 'INSTALL_START_FAILED' });
+    expect(await throwing.install(dmg)).toEqual({ ok: false, code: 'INSTALL_START_FAILED' });
   });
 });
 
@@ -136,21 +137,27 @@ describe('installer selection', () => {
     expect(squirrelUpdateExePath(execPath)).toBe(path.resolve(execPath, '..', '..', 'Update.exe'));
   });
 
-  it('restarts through Squirrel on a Windows copy that has Update.exe', () => {
+  it('updates in place through Squirrel on a Windows copy that has Update.exe', () => {
     const exists = vi.fn(() => true);
     const installer = selectInstaller({ platform: 'win32', execPath, openPath, exists });
 
     expect(installer?.mode).toBe('restart');
+    expect(installer?.payload).toBe('squirrel');
     expect(exists).toHaveBeenCalledExactlyOnceWith(squirrelUpdateExePath(execPath));
   });
 
   it('opens the installer for a Windows copy without Update.exe (not installed by the installer)', () => {
-    expect(selectInstaller({ platform: 'win32', execPath, openPath, exists: () => false })?.mode).toBe('open-installer');
+    const installer = selectInstaller({ platform: 'win32', execPath, openPath, exists: () => false });
+
+    expect(installer?.mode).toBe('open-installer');
+    expect(installer?.payload).toBe('installer');
   });
 
   it('opens the disk image on macOS and offers nothing on other platforms', () => {
-    expect(selectInstaller({ platform: 'darwin', execPath: '/Applications/Own the Block.app/Contents/MacOS/Own the Block', openPath })?.mode)
-      .toBe('open-installer');
+    const mac = selectInstaller({ platform: 'darwin', execPath: '/Applications/Own the Block.app/Contents/MacOS/Own the Block', openPath });
+
+    expect(mac?.mode).toBe('open-installer');
+    expect(mac?.payload).toBe('installer');
     expect(selectInstaller({ platform: 'linux', execPath: '/opt/own-the-block', openPath })).toBeUndefined();
   });
 });

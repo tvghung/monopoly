@@ -3,9 +3,11 @@ import {
   assetKey,
   isMandatoryUpdate,
   MAX_ASSET_BYTES,
+  MAX_RELEASES_BYTES,
   MIN_ASSET_BYTES,
   parseUpdateManifest,
   selectAsset,
+  selectPayload,
   UpdateManifestError,
 } from '../src/update/manifest';
 
@@ -149,5 +151,77 @@ describe('update manifest', () => {
     expect(isMandatoryUpdate('1.2.0', parsed)).toBe(false);
     expect(isMandatoryUpdate('1.2.5', parsed)).toBe(false);
     expect(isMandatoryUpdate('1.3.0', parsed)).toBe(false);
+  });
+});
+
+describe('Squirrel payload of a Windows asset', () => {
+  const SETUP = { name: 'OwnTheBlock-1.2.0-win32-x64-Setup.exe', size: 168_398_848, sha256: SHA };
+  const RELEASES = { name: 'RELEASES', size: 96, sha256: 'c'.repeat(64) };
+  const PACKAGE = { name: 'own_the_block-1.2.0-full.nupkg', size: 168_250_791, sha256: 'd'.repeat(64) };
+  const withSquirrel = (squirrel: unknown) => manifest({ assets: { 'win32-x64': { ...SETUP, squirrel } } });
+  const asset = () => selectAsset(parseUpdateManifest(withSquirrel({ releases: RELEASES, package: PACKAGE })), 'win32', 'x64')!;
+
+  it('reads the RELEASES file and the full package next to the installer', () => {
+    const parsed = parseUpdateManifest(withSquirrel({ releases: RELEASES, package: PACKAGE, deltas: 'ignored' }));
+
+    expect(parsed.assets['win32-x64']).toEqual({ ...SETUP, squirrel: { releases: RELEASES, package: PACKAGE } });
+  });
+
+  it('keeps an asset without the payload as a plain installer (macOS, or a release that predates it)', () => {
+    expect(parseUpdateManifest(manifest()).assets['win32-x64']).not.toHaveProperty('squirrel');
+  });
+
+  it.each([
+    ['that is not an object', 'RELEASES', /malformed Squirrel payload/],
+    ['that is an array', [], /malformed Squirrel payload/],
+    ['without a RELEASES file', { package: PACKAGE }, /RELEASES file must be an object/],
+    ['without a package', { releases: RELEASES }, /Squirrel package must be an object/],
+  ])('refuses a payload %s', (_label, squirrel, pattern) => {
+    expectInvalid(withSquirrel(squirrel), pattern);
+  });
+
+  it.each([
+    ['a RELEASES file under another name', { ...RELEASES, name: 'RELEASES.txt' }, /RELEASES file has an unsafe file name/],
+    ['a RELEASES file with a path', { ...RELEASES, name: '../RELEASES' }, /RELEASES file has an unsafe file name/],
+    ['an empty RELEASES file', { ...RELEASES, size: 0 }, /RELEASES file has an implausible size/],
+    ['a RELEASES file that is too large to be a list of packages', { ...RELEASES, size: MAX_RELEASES_BYTES + 1 }, /RELEASES file has an implausible size/],
+    ['a RELEASES file without a checksum', { ...RELEASES, sha256: 'C'.repeat(64) }, /RELEASES file has no valid SHA-256/],
+  ])('refuses %s', (_label, releases, pattern) => {
+    expectInvalid(withSquirrel({ releases, package: PACKAGE }), pattern);
+  });
+
+  it.each([
+    ['a package that is not a .nupkg', { ...PACKAGE, name: 'package.zip' }, /Squirrel package has an unsafe file name/],
+    ['a package with a path', { ...PACKAGE, name: 'a/b.nupkg' }, /Squirrel package has an unsafe file name/],
+    ['a package with a space', { ...PACKAGE, name: 'own the block.nupkg' }, /Squirrel package has an unsafe file name/],
+    ['a package too small to be an application', { ...PACKAGE, size: MIN_ASSET_BYTES - 1 }, /Squirrel package has an implausible size/],
+    ['a package of an implausible size', { ...PACKAGE, size: MAX_ASSET_BYTES + 1 }, /Squirrel package has an implausible size/],
+    ['a package without a checksum', { ...PACKAGE, sha256: 'nope' }, /Squirrel package has no valid SHA-256/],
+  ])('refuses %s', (_label, pkg, pattern) => {
+    expectInvalid(withSquirrel({ releases: RELEASES, package: pkg }), pattern);
+  });
+
+  describe('which files an installation downloads', () => {
+    it('is the installer itself when the installer is what gets opened', () => {
+      const payload = selectPayload(asset(), 'installer')!;
+
+      expect(payload).toEqual({ kind: 'installer', files: [asset()], main: asset(), totalBytes: SETUP.size });
+    });
+
+    it('is the RELEASES file and then the package when Squirrel applies the update, never the Setup.exe', () => {
+      const payload = selectPayload(asset(), 'squirrel')!;
+
+      expect(payload.kind).toBe('squirrel');
+      expect(payload.files.map(file => file.name)).toEqual(['RELEASES', 'own_the_block-1.2.0-full.nupkg']);
+      expect(payload.main.name).toBe('own_the_block-1.2.0-full.nupkg');
+      expect(payload.totalBytes).toBe(RELEASES.size + PACKAGE.size);
+    });
+
+    it('is nothing when the release has no Squirrel files for an installation that needs them', () => {
+      const plain = selectAsset(parseUpdateManifest(manifest()), 'win32', 'x64')!;
+
+      expect(selectPayload(plain, 'squirrel')).toBeUndefined();
+      expect(selectPayload(plain, 'installer')?.main.name).toBe(SETUP.name);
+    });
   });
 });

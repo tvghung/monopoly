@@ -22,10 +22,16 @@ export const MANIFEST_TIMEOUT_MS = 15_000;
 export const DOWNLOAD_STALL_TIMEOUT_MS = 30_000;
 /** The headers of a download must arrive within this long. */
 export const DOWNLOAD_CONNECT_TIMEOUT_MS = 30_000;
-/** A silent Setup.exe takes tens of seconds; this is the point where the app stops waiting for it. */
+/** Squirrel's in-place update takes about ten seconds; this is the point where the app stops waiting for it. */
 export const INSTALL_TIMEOUT_MS = 10 * 60 * 1_000;
-/** Free disk space that must remain after the download (the installer is unpacked by the installer, not here). */
+/** Free disk space that must remain after the download (an installer that is only opened unpacks itself later, not here). */
 export const DOWNLOAD_HEADROOM_BYTES = 64 * 1024 * 1024;
+/**
+ * Free disk space that must remain after the download when Squirrel applies the update in place: it unpacks the package into
+ * a new version folder (385 MiB for the 160 MiB package, measured on a real install) and keeps a copy of the package, so the
+ * update needs about 545 MiB beyond the download itself.
+ */
+export const SQUIRREL_UNPACK_HEADROOM_BYTES = 768 * 1024 * 1024;
 
 export interface UpdateEndpoints {
   manifestUrl: string;

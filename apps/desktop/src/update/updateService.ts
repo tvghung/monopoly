@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { DownloadError, downloadVerifiedFile } from './downloader';
 import { openResponse, readTextLimited, UpdateHttpError } from './http';
 import type { UpdateInstaller } from './installers';
@@ -6,16 +7,18 @@ import {
   MAX_MANIFEST_BYTES,
   parseUpdateManifest,
   selectAsset,
+  selectPayload,
   UpdateManifestError,
-  type UpdateAsset,
   type UpdateManifest,
+  type UpdatePayload,
 } from './manifest';
-import { freeDiskBytes, pruneStagedUpdates, stagedFilePath, verifyStagedFile } from './stagedFiles';
+import { freeDiskBytes, pruneStagedUpdates, stagedDirectory, unverifiedFiles } from './stagedFiles';
 import {
   DOWNLOAD_HEADROOM_BYTES,
   MANIFEST_TIMEOUT_MS,
   PERIODIC_CHECK_INTERVAL_MS,
   STARTUP_CHECK_DELAY_MS,
+  SQUIRREL_UNPACK_HEADROOM_BYTES,
   type UpdateEndpoints,
 } from './updateConfig';
 import type {
@@ -71,8 +74,10 @@ export interface UpdateServiceOptions {
 
 interface UpdateTarget {
   manifest: UpdateManifest;
-  asset: UpdateAsset;
-  filePath: string;
+  /** The files this machine downloads and applies (see `selectPayload`). */
+  payload: UpdatePayload;
+  /** Where the payload is staged until it is applied. */
+  directory: string;
   info: AppUpdateInfo;
 }
 
@@ -346,17 +351,21 @@ export class UpdateService implements AppUpdateController {
       const asset = selectAsset(manifest, this.options.platform, this.options.architecture);
       // A newer release that has no installer for this machine cannot be offered.
       if (!asset) throw new UpdateFailure('FEED_INVALID', 'The newest release has no installer for this platform.');
+      const { installer } = this.options;
+      const payload = installer ? selectPayload(asset, installer.payload) : undefined;
+      // The installer of this machine needs files the release does not list (the Squirrel feed of a Windows release).
+      if (!payload) throw new UpdateFailure('FEED_INVALID', 'The newest release has no update files for this installation.');
 
       const info: AppUpdateInfo = {
         version: manifest.version,
         mandatory: isMandatoryUpdate(this.current, manifest),
-        sizeBytes: asset.size,
+        sizeBytes: payload.totalBytes,
       };
-      const filePath = stagedFilePath(this.options.updatesDirectory, manifest.version, asset.name);
-      this.target = { manifest, asset, filePath, info };
-      // "Để sau" on an earlier run left the verified installer behind: no second download.
-      const staged = await verifyStagedFile(filePath, asset);
-      this.publish({ phase: staged ? 'ready' : 'available', update: info });
+      const directory = stagedDirectory(this.options.updatesDirectory, manifest.version, payload.kind);
+      this.target = { manifest, payload, directory, info };
+      // "Để sau" on an earlier run left the verified files behind: no second download.
+      const missing = await unverifiedFiles(directory, payload.files);
+      this.publish({ phase: missing.length === 0 ? 'ready' : 'available', update: info });
     } catch (error) {
       this.target = undefined;
       const code = toErrorCode(error);
@@ -376,28 +385,39 @@ export class UpdateService implements AppUpdateController {
   }
 
   private async runDownload(target: UpdateTarget, signal: AbortSignal): Promise<AppUpdateState> {
-    const { asset, info } = target;
+    const { payload, directory, info } = target;
     const { endpoints } = this.options;
+    const total = payload.totalBytes;
     this.lastProgressAt = this.now();
-    this.publish({ phase: 'downloading', update: info, progress: { receivedBytes: 0, totalBytes: asset.size } });
+    this.publish({ phase: 'downloading', update: info, progress: { receivedBytes: 0, totalBytes: total } });
     try {
       if (!endpoints) throw new UpdateFailure('UNKNOWN', 'No update endpoints.');
+      // A retry (or a restart after "Để sau" with half the files staged) downloads only what is not verified on disk yet.
+      const missing = await unverifiedFiles(directory, payload.files);
+      const missingBytes = missing.reduce((sum, file) => sum + file.size, 0);
+      const headroom = payload.kind === 'squirrel' ? SQUIRREL_UNPACK_HEADROOM_BYTES : DOWNLOAD_HEADROOM_BYTES;
       const free = await (this.options.freeDiskBytes ?? freeDiskBytes)(this.options.updatesDirectory);
-      if (free !== undefined && free < asset.size + DOWNLOAD_HEADROOM_BYTES) {
+      if (free !== undefined && free < missingBytes + headroom) {
         throw new UpdateFailure('DISK_SPACE', 'There is not enough free disk space for the update.');
       }
-      await downloadVerifiedFile({
-        url: endpoints.assetUrl(target.manifest.version, asset.name),
-        destination: target.filePath,
-        size: asset.size,
-        sha256: asset.sha256,
-        fetch: this.options.fetch,
-        isUrlAllowed: endpoints.isUrlAllowed,
-        signal,
-        onProgress: received => this.reportProgress(received, asset.size, info),
-        ...(this.timing.connectTimeoutMs === undefined ? {} : { connectTimeoutMs: this.timing.connectTimeoutMs }),
-        ...(this.timing.stallTimeoutMs === undefined ? {} : { stallTimeoutMs: this.timing.stallTimeoutMs }),
-      });
+      // Progress counts the whole payload, so the bar does not start over at the second file.
+      let finishedBytes = total - missingBytes;
+      for (const file of missing) {
+        const before = finishedBytes;
+        await downloadVerifiedFile({
+          url: endpoints.assetUrl(target.manifest.version, file.name),
+          destination: path.join(directory, file.name),
+          size: file.size,
+          sha256: file.sha256,
+          fetch: this.options.fetch,
+          isUrlAllowed: endpoints.isUrlAllowed,
+          signal,
+          onProgress: received => this.reportProgress(before + received, total, info),
+          ...(this.timing.connectTimeoutMs === undefined ? {} : { connectTimeoutMs: this.timing.connectTimeoutMs }),
+          ...(this.timing.stallTimeoutMs === undefined ? {} : { stallTimeoutMs: this.timing.stallTimeoutMs }),
+        });
+        finishedBytes += file.size;
+      }
       this.publish({ phase: 'ready', update: info });
     } catch (error) {
       if (error instanceof DownloadError && error.code === 'CANCELLED') {
@@ -416,17 +436,17 @@ export class UpdateService implements AppUpdateController {
   }
 
   private async runInstall(target: UpdateTarget): Promise<AppUpdateState> {
-    const { asset, info, filePath } = target;
+    const { payload, directory, info } = target;
     const { installer } = this.options;
     this.publish({ phase: 'installing', update: info });
     try {
-      // The file sat on disk since it was verified: make sure it is still exactly that file before it is run.
-      if (!(await verifyStagedFile(filePath, asset))) {
+      // The files sat on disk since they were verified: make sure they are still exactly those files before they are run.
+      if ((await unverifiedFiles(directory, payload.files)).length > 0) {
         this.fail(info, 'download', 'INTEGRITY');
         return this.snapshot();
       }
       if (!installer) throw new UpdateFailure('INSTALL_START_FAILED', 'No installer for this platform.');
-      const outcome = await installer.install(filePath);
+      const outcome = await installer.install({ directory, mainFile: path.join(directory, payload.main.name) });
       if (!outcome.ok) {
         this.log(`The update installer failed (${outcome.code}).`);
         this.fail(info, 'install', outcome.code);

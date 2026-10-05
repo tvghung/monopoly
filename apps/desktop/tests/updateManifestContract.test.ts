@@ -6,9 +6,12 @@ import * as release from '../scripts/updateManifest.mjs';
 import {
   assetKey,
   MAX_ASSET_BYTES,
+  MAX_RELEASES_BYTES,
   MIN_ASSET_BYTES,
   parseUpdateManifest,
   selectAsset,
+  selectPayload,
+  SQUIRREL_RELEASES_NAME,
   UPDATE_MANIFEST_APP,
   UPDATE_MANIFEST_SCHEMA_VERSION,
 } from '../src/update/manifest';
@@ -29,6 +32,8 @@ describe('update manifest: release tooling and app agree', () => {
     expect(release.UPDATE_REPOSITORY).toBe(UPDATE_REPOSITORY);
     expect(release.MIN_ASSET_BYTES).toBe(MIN_ASSET_BYTES);
     expect(release.MAX_ASSET_BYTES).toBe(MAX_ASSET_BYTES);
+    expect(release.MAX_RELEASES_BYTES).toBe(MAX_RELEASES_BYTES);
+    expect(release.SQUIRREL_RELEASES_NAME).toBe(SQUIRREL_RELEASES_NAME);
   });
 
   it('compare versions the same way, including pre-releases and build metadata', () => {
@@ -53,7 +58,19 @@ describe('update manifest: release tooling and app agree', () => {
     const targets = releaseTargets('1.2.0');
     const assets = Object.fromEntries(targets.map((target, index) => [
       release.assetKeyOf(target.platform, target.architecture),
-      { name: target.assetName, size: MIN_ASSET_BYTES + index, sha256: `${index}`.repeat(64).slice(0, 64).replaceAll(/[^0-9a-f]/gu, 'a') },
+      {
+        name: target.assetName,
+        size: MIN_ASSET_BYTES + index,
+        sha256: `${index}`.repeat(64).slice(0, 64).replaceAll(/[^0-9a-f]/gu, 'a'),
+        ...(target.squirrel
+          ? {
+              squirrel: {
+                releases: { name: target.squirrel.releasesName, size: 96, sha256: 'c'.repeat(64) },
+                package: { name: target.squirrel.packageName, size: MIN_ASSET_BYTES + 7, sha256: 'd'.repeat(64) },
+              },
+            }
+          : {}),
+      },
     ]));
     const manifest = release.buildUpdateManifest({ version: '1.2.0', policy: { minimumSupportedVersion: '1.1.0' }, assets });
 
@@ -65,6 +82,43 @@ describe('update manifest: release tooling and app agree', () => {
       expect(release.assetKeyOf(target.platform, target.architecture)).toBe(assetKey(target.platform, target.architecture));
       expect(selectAsset(parsed, target.platform, target.architecture)?.name).toBe(target.assetName);
     }
+  });
+
+  it('write the Squirrel payload of the Windows installer the way the app asks for it, and none for macOS', () => {
+    const targets = releaseTargets('1.2.0');
+    const [windows] = targets;
+    expect(windows.platform).toBe('win32');
+    expect(windows.squirrel).toEqual({ releasesName: 'RELEASES', packageName: 'own_the_block-1.2.0-full.nupkg' });
+    expect(targets.filter(target => target.platform === 'darwin').every(target => target.squirrel === undefined)).toBe(true);
+
+    const manifest = release.buildUpdateManifest({
+      version: '1.2.0',
+      policy: { minimumSupportedVersion: '1.0.0' },
+      assets: {
+        'win32-x64': {
+          name: windows.assetName,
+          size: MIN_ASSET_BYTES,
+          sha256: 'a'.repeat(64),
+          squirrel: {
+            releases: { name: windows.squirrel!.releasesName, size: 96, sha256: 'c'.repeat(64) },
+            package: { name: windows.squirrel!.packageName, size: MIN_ASSET_BYTES + 7, sha256: 'd'.repeat(64) },
+          },
+        },
+      },
+    });
+    const asset = selectAsset(parseUpdateManifest(JSON.parse(JSON.stringify(manifest))), 'win32', 'x64')!;
+    const payload = selectPayload(asset, 'squirrel');
+
+    expect(payload?.files.map(file => file.name)).toEqual(['RELEASES', 'own_the_block-1.2.0-full.nupkg']);
+    expect(payload?.main.name).toBe('own_the_block-1.2.0-full.nupkg');
+  });
+
+  it('name the Squirrel package the way the maker in forge.config.cjs names it', () => {
+    const forgeConfig = readFileSync(path.join(process.cwd(), 'forge.config.cjs'), 'utf8');
+    const squirrelName = /name: '@electron-forge\/maker-squirrel'[\s\S]*?name: '([a-z_]+)'/u.exec(forgeConfig)?.[1];
+
+    expect(squirrelName).toBeDefined();
+    expect(releaseTargets('1.2.0')[0].squirrel?.packageName).toBe(`${squirrelName!}-1.2.0-full.nupkg`);
   });
 
   it('name the installer files the way the download URL and a file on disk need', () => {
@@ -97,6 +151,26 @@ describe('update manifest: release tooling and app agree', () => {
       .toThrow(/at least one installer/);
     expect(() => release.buildUpdateManifest({ version: 'v1.2.0', policy: { minimumSupportedVersion: '1.0.0' }, assets: { 'win32-x64': good } }))
       .toThrow(/not a semantic version/);
+  });
+
+  it('refuse a Squirrel payload the app would refuse, instead of publishing it', () => {
+    const releases = { name: 'RELEASES', size: 96, sha256: 'c'.repeat(64) };
+    const pkg = { name: 'own_the_block-1.2.0-full.nupkg', size: MIN_ASSET_BYTES, sha256: 'd'.repeat(64) };
+    const setup = { name: 'OwnTheBlock-1.2.0-win32-x64-Setup.exe', size: MIN_ASSET_BYTES, sha256: 'a'.repeat(64) };
+    const build = (squirrel: unknown) => release.buildUpdateManifest({
+      version: '1.2.0', policy: { minimumSupportedVersion: '1.0.0' }, assets: { 'win32-x64': { ...setup, squirrel } },
+    });
+
+    expect(() => build({ releases, package: pkg })).not.toThrow();
+    expect(() => build('RELEASES')).toThrow(/malformed Squirrel payload/);
+    expect(() => build({ package: pkg })).toThrow(/RELEASES file of .* must be an object/);
+    expect(() => build({ releases })).toThrow(/Squirrel package of .* must be an object/);
+    expect(() => build({ releases: { ...releases, name: 'RELEASES.txt' }, package: pkg })).toThrow(/unsafe file name/);
+    expect(() => build({ releases: { ...releases, size: 0 }, package: pkg })).toThrow(/implausible size/);
+    expect(() => build({ releases: { ...releases, size: MAX_RELEASES_BYTES + 1 }, package: pkg })).toThrow(/implausible size/);
+    expect(() => build({ releases, package: { ...pkg, name: 'package.zip' } })).toThrow(/unsafe file name/);
+    expect(() => build({ releases, package: { ...pkg, size: MIN_ASSET_BYTES - 1 } })).toThrow(/implausible size/);
+    expect(() => build({ releases, package: { ...pkg, sha256: 'nope' } })).toThrow(/SHA-256/);
   });
 });
 
