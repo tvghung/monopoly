@@ -92,21 +92,26 @@ the README section "Publishing a release" has the commands. The `Release Candida
    that a manual dispatch runs, in `unsigned-validation` mode and without an endpoint override (LAN-first).
 3. Only when all four jobs pass does the `publish` job run `apps/desktop/scripts/stageReleaseAssets.mjs`. It keeps exactly
    `OwnTheBlock-<version>-win32-x64-Setup.exe`, `OwnTheBlock-<version>-macos-x64.dmg` and
-   `OwnTheBlock-<version>-macos-arm64.dmg`, each checked against the checksum in the `manifest.json` of the build job
-   that made it, and writes `SHA256SUMS.txt` and `update-manifest.json` (see "In-app updates"). It then creates the GitHub
-   Release as a draft, uploads those five files and publishes it. A tag with a suffix (`v1.0.1-rc.1`) becomes a pre-release.
+   `OwnTheBlock-<version>-macos-arm64.dmg` plus the Windows Squirrel update feed (`RELEASES` and
+   `own_the_block-<version>-full.nupkg`), each checked against the checksum in the `manifest.json` of the build job that
+   made it (and `RELEASES` must be the single line that describes exactly that package: name, size and SHA-1), and writes
+   `SHA256SUMS.txt` and `update-manifest.json` (see "In-app updates"). It then creates the GitHub Release as a draft,
+   uploads those seven files and publishes it. A tag with a suffix (`v1.0.1-rc.1`) becomes a pre-release.
 
 A manual `workflow_dispatch` of the same workflow stays a validation run: it uploads workflow artifacts and publishes
 nothing. `signed` mode exists only for that dispatch; a tag run is always unsigned, so a signed release needs a workflow
 change once signing secrets exist. `apps/desktop/tests/stageReleaseAssets.test.ts` covers the staging step; the publish
 job itself is exercised only by a real tag run, and its result is recorded in the release record below.
 
-Workflow artifacts carry only what a player installs. The Squirrel `Setup.exe` already embeds the full `.nupkg`, and no
-Squirrel update feed is published (the in-app updater reuses the `Setup.exe` and reads `update-manifest.json`, see
-"In-app updates"), so neither workflow uploads the `.nupkg` or `RELEASES`: the Release Candidate artifact holds the target installer plus `release-artifacts/`
-(`manifest.json`, `SHA256SUMS`), and the Desktop Build artifacts (`own-the-block-windows-setup`,
-`own-the-block-macos-dmg`) hold the installer alone and expire after 14 days. Desktop Build no longer runs for
-documentation-only changes; the `CI` workflow still validates the release contract on every push.
+Workflow artifacts carry what a player installs and what the in-app updater applies. The Windows release carries the
+Squirrel update feed next to the `Setup.exe`: `RELEASES` and the full `own_the_block-<version>-full.nupkg` (160.5 MiB, the
+same bytes the `Setup.exe` embeds), because an installed app updates in place with Squirrel's `Update.exe --update` from
+exactly those two files (running the `Setup.exe` over a running install deletes the running version; see "In-app updates").
+So the Release Candidate artifact of Windows holds the `Setup.exe`, the `.nupkg`, `RELEASES` and `release-artifacts/`
+(`manifest.json`, `SHA256SUMS`), and the macOS ones their disk image and `release-artifacts/`. The Desktop Build artifacts
+(`own-the-block-windows-setup`, `own-the-block-macos-dmg`) hold the installer alone and expire after 14 days: they are for
+inspection and are not a release path. Desktop Build no longer runs for documentation-only changes; the `CI` workflow
+still validates the release contract on every push.
 
 ## In-app updates
 
@@ -114,22 +119,30 @@ The desktop app finds, downloads and applies a newer release by itself. Module g
 [Client/app-update.instruction.md](../monopoly-websockets/Client/app-update.instruction.md); design record and the options
 that were rejected: [auto-update/README.md](../auto-update/README.md).
 
-- **Feed.** Every release carries `update-manifest.json`, written by `stageReleaseAssets.mjs` from the installers it just
-  staged (version, `minimumSupportedVersion`, and per target the installer's name, size and SHA-256). The app reads
+- **Feed.** Every release carries `update-manifest.json`, written by `stageReleaseAssets.mjs` from the files it just
+  staged (version, `minimumSupportedVersion`, and per target the installer's name, size and SHA-256; the Windows entry also
+  lists the Squirrel `RELEASES` file and the full `.nupkg` the same way). The app reads
   `https://github.com/tvghung/monopoly/releases/latest/download/update-manifest.json`. "Latest" is the newest release that
   is neither a draft nor a pre-release, so an `-rc` tag never reaches players. The manifest holds no URL: the app builds the
-  download URL from the version and the file name and trusts only GitHub hosts over HTTPS. No Squirrel feed (`RELEASES`,
-  `.nupkg`) is published, so a release does not grow by an installer-sized file.
+  download URL from the version and the file name and trusts only GitHub hosts over HTTPS. The Squirrel feed makes a release
+  one installer-sized file (the `.nupkg`) larger: the product owner accepted that on 2026-10-05 in exchange for updating a
+  running install in place. A Windows release whose manifest lacks the `squirrel` block cannot update an installed app
+  (a failed check; nothing locks).
 - **Policy.** `apps/desktop/update-policy.json` holds `minimumSupportedVersion`: a running version below it must update before it
   starts or joins multiplayer ("mandatory"). Raise it only when an older version cannot play with the new one (a socket
   protocol change), never for a bug fix. The file also holds `reviewedForSocketProtocol`; `pnpm validate:v1-contract` fails when it
   differs from `SOCKET_PROTOCOL_VERSION`, when the minimum is above the release version, or when the file is missing, so a
   protocol change cannot ship before someone has decided what it means for older versions.
-- **Windows (installed by `Setup.exe`).** The verified `Setup.exe` runs silently while the game is open (Squirrel installs
-  next to the running version and leaves it alone), then Squirrel's `Update.exe --processStartAndWait` starts the new version
-  once the app has exited. A failed install leaves the running game as it was. **macOS** builds are not signed, so the app
-  cannot replace itself (Squirrel.Mac requires a signature): the disk image is downloaded and verified in the app and then
-  opened for the player to drag from. Full automation on macOS needs an Apple Developer ID.
+- **Windows (installed by `Setup.exe`).** The app downloads `RELEASES` and the `.nupkg` (SHA-256 verified), then runs
+  Squirrel's own `Update.exe --update=<folder>` while the game is open: the new version is unpacked next to the running one
+  (about 12 s for the 160 MiB package, measured), the running version is left alone, and Squirrel's
+  `Update.exe --processStartAndWait` starts the new version once the app has exited. The downloaded `Setup.exe` is never run
+  over a running install: it deletes the install folder first, the running version included (measured). Squirrel's update is
+  not transactional, so the app runs it inside a guard that puts the install folder back exactly as it was when the update
+  fails (a failed update otherwise leaves an empty `app-<new>` folder that stops the shortcut from opening the game), and it
+  requires the new version's executable to exist before it quits. **macOS** builds are not signed, so the app cannot replace
+  itself (Squirrel.Mac requires a signature): the disk image is downloaded and verified in the app and then opened for the
+  player to drag from. Full automation on macOS needs an Apple Developer ID.
 - **Never in the middle of a game.** A restart is offered only on the start screen with no LAN room of this machine open;
   in a lobby or a game an update may download, and a toast says it waits.
 - **Fails open.** A check that cannot read the feed changes nothing (no dialog, no lock). A mandatory update is known only
@@ -137,9 +150,15 @@ that were rejected: [auto-update/README.md](../auto-update/README.md).
   already refuses an incompatible protocol with `UPGRADE_REQUIRED`.
 - **Bridge release.** A version without the updater (1.1.1 and earlier) cannot learn about updates: players install the
   first release that has it by hand once.
-- **Evidence.** The state machine, the verified download, the manifest contract and the screens are automated (see
-  `testcase/http-runtime-and-deployment.md`). The silent `Setup.exe` over a running install, the macOS flow and the first
-  tag run that publishes the manifest are not run; the rows are open there and in
+- **Evidence.** The state machine, the verified download, the manifest contract, the Squirrel guard and the screens are
+  automated (see `testcase/http-runtime-and-deployment.md`). On 2026-10-05 the real Windows path ran once on a differently
+  named test package (`own_the_block_updatetest`, installed by its own `Setup.exe`, update feed on loopback, the app's temp
+  folder named with a space and an accent; uninstalled afterwards, the real 1.1.1 install was not touched): an update that
+  Squirrel refuses leaves the install folder byte-identical and the shortcut still opens the old version; the real update
+  downloads `RELEASES` and the package (never the `Setup.exe`), the old game keeps answering while Squirrel unpacks, quits
+  by itself and the new version is running 19.7 s after the click, with the shortcuts and the uninstall entry on the new
+  version, and it does not offer itself again. The macOS flow, an update killed half way by the system and the first tag run
+  that publishes the feed are not covered; the rows are open there and in
   [V1_FINAL_MANUAL_ACCEPTANCE.md](V1_FINAL_MANUAL_ACCEPTANCE.md#in-app-update).
 
 ## Audio release policy

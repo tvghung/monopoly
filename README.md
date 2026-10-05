@@ -176,7 +176,7 @@ git push origin vX.Y.Z
 
 The `Release Candidate` workflow then runs every quality gate and the packaged proofs on
 Windows x64, macOS x64 and macOS arm64, and only when all of them pass does it publish the
-GitHub Release (the three installers plus `SHA256SUMS.txt` and `update-manifest.json`, which the in-app updater reads). The installers are kept small on purpose; the
+GitHub Release (the three installers, the Windows Squirrel feed `RELEASES` and `own_the_block-<version>-full.nupkg` that an installed app updates itself from, plus `SHA256SUMS.txt` and `update-manifest.json`, which the in-app updater reads). The installers are kept small on purpose; the
 `proof:packaged:budget` step fails a build whose package regresses (see "Package size" in the release contract).
 A tag with a suffix
 (`vX.Y.Z-rc.1`) is published as a pre-release. A manual dispatch of the same workflow

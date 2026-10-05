@@ -137,9 +137,11 @@ visual-review support, not a replacement for gameplay or package tests.
 
 ## In-app update
 
-Added with the in-app updater. Nobody has observed any of these rows: the automated evidence is unit and client tests plus one
-run of the real Electron shell against a local fake feed, and it never claims an installed build, a real release or a Mac. Use a
-build that contains the updater, installed by `Setup.exe` (Windows) or from the disk image (macOS), and a newer test release.
+Added with the in-app updater. No person has observed these rows. The automated evidence is unit and client tests, one run of
+the real Electron shell against a local fake feed, and (agent-run, scratch scripts, not a CI gate) one real in-place update and
+one refused update of a differently named test copy of the app installed by its own `Setup.exe` on Windows 10; it never claims
+a real release or a Mac. Use a build that contains the updater, installed by `Setup.exe` (Windows) or from the disk image
+(macOS), and a newer test release.
 
 - [ ] Windows: on the start screen an update is offered ("Có bản cập nhật mới", with "Cập nhật" and "Để sau"); the download shows
   a moving percentage; it ends with "Bản cập nhật đã sẵn sàng"; "Khởi động lại và cập nhật" closes the game and the new
@@ -156,8 +158,9 @@ build that contains the updater, installed by `Setup.exe` (Windows) or from the 
   check is not possible and that the game stays playable.
 - [ ] Windows: after the update the Start menu and desktop shortcuts open the new version, the old version is not left running,
   and the uninstall entry removes it.
-- [ ] Windows: the silent `Setup.exe` is not stopped by antivirus or SmartScreen on a clean machine (it is started by the app,
-  not opened from a browser download).
+- [ ] Windows: `Update.exe --update` (started by the app, not opened from a browser download) is not stopped by antivirus or
+  SmartScreen on a clean machine; if it is, the screen says the update could not be installed, "Thử lại" is offered, the game
+  stays usable and the shortcut still opens the old version.
 - [ ] macOS (both Apple silicon and Intel): the disk image downloads in the app and opens; dragging the app into
   Applications replaces the old version; the new version runs and does not offer itself again.
 

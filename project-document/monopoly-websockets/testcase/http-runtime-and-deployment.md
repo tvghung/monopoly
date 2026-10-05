@@ -157,32 +157,49 @@ protocol, the snapshot or PostgreSQL.
 
 - [x] `[AUTO]` Semantic version precedence, including pre-releases and build metadata, and refusal of non-versions:
   `apps/desktop/tests/updateVersion.test.ts`.
-- [x] `[AUTO]` The manifest parser accepts exactly the documented shape (schema, app, versions, asset key/name/size/SHA-256),
-  refuses unsafe file names, implausible sizes and a minimum above the release, selects one platform's installer and computes
-  "mandatory" from the running version: `apps/desktop/tests/updateManifest.test.ts`.
+- [x] `[AUTO]` The manifest parser accepts exactly the documented shape (schema, app, versions, asset key/name/size/SHA-256,
+  and the Windows `squirrel` block with its `RELEASES` and package), refuses unsafe file names, a `RELEASES` that is not named
+  `RELEASES`, a package that is not a `.nupkg`, implausible sizes and a minimum above the release, selects one platform's
+  installer, picks the files an installation downloads (the Squirrel feed or the installer) and computes "mandatory" from the
+  running version: `apps/desktop/tests/updateManifest.test.ts`.
 - [x] `[AUTO]` The release tooling (`scripts/updateManifest.mjs`) and the app (`src/update/`) agree: identity constants, version
-  comparison over a precedence table, the generated manifest read by the app's parser for every release target, and the
-  download URL pattern: `apps/desktop/tests/updateManifestContract.test.ts`.
-- [x] `[AUTO]` Staging writes `update-manifest.json` from the very values of `SHA256SUMS.txt` and the policy, and refuses a policy
-  above the release or an installer the app would refuse: `apps/desktop/tests/stageReleaseAssets.test.ts`. The contract gate
-  requires the policy, a plain `x.y.z` minimum not above the release and `reviewedForSocketProtocol` equal to the protocol:
-  `scripts/validateV1Contract.check.mjs` (`pnpm test:v1-contract`).
+  comparison over a precedence table, the generated manifest (with the Squirrel payload) read by the app's parser for every
+  release target, the Squirrel package named as `forge.config.cjs` names it, and the download URL pattern:
+  `apps/desktop/tests/updateManifestContract.test.ts`.
+- [x] `[AUTO]` Staging copies the three installers and the Windows Squirrel feed, writes `update-manifest.json` from the very
+  values of `SHA256SUMS.txt` and the policy, refuses a policy above the release or an installer the app would refuse, a missing,
+  doubled, stale or altered feed file, and a `RELEASES` that does not describe exactly the staged package (name, size, SHA-1,
+  one line; the byte order mark is read): `apps/desktop/tests/stageReleaseAssets.test.ts`. The reader was also run against the
+  real `RELEASES` and package of a Forge build. The contract gate requires the policy, a plain `x.y.z` minimum not above the
+  release and `reviewedForSocketProtocol` equal to the protocol: `scripts/validateV1Contract.check.mjs` (`pnpm test:v1-contract`).
 - [x] `[AUTO]` The verified download, against a real HTTP server on loopback: exact bytes and monotonic progress, replacing a
   stale partial file, refusing a different checksum, a short or oversized body and a different announced size, an HTTP
   status, a redirect to an untrusted host (and following one between trusted hosts; Node's fetch reports where a response
   ended, Electron's `net.fetch` does not, so this check has no effect in the app), cancel, stall, header timeout, an
   unreachable server and an unwritable destination, each leaving no file: `apps/desktop/tests/updateDownloader.test.ts`.
 - [x] `[AUTO]` `UpdateService` with fakes and a real temp directory: every check result (up to date, available, mandatory,
-  offline, 404/503, bad JSON, other application, bad checksum, no installer for this platform, timeout, untrusted redirect),
-  one shared request for overlapping checks, no re-check while an update is known, download progress and its throttle,
-  cancel back to "available", corruption/connection/server/disk-space/stall failures with retry, reuse of a staged file and
-  refusal of an altered one, the installer running **before** the quit request and only once, install blocked while a room is
-  open (and announced only when that changes), retry after a failed or throwing installer, a file altered after verification,
-  the manual-restart watchdog, the open-installer mode, scheduled checks and clean-up of old installers, dispose, and a
-  failing listener: `apps/desktop/tests/updateService.test.ts`.
-- [x] `[AUTO]` The Squirrel silent installer (arguments, exit codes, start failure, timeout without killing, restart helper that
-  outlives the app), the open-installer mode and installer selection: `apps/desktop/tests/updateInstallers.test.ts`;
-  `--squirrel-firstrun` is a normal run: `apps/desktop/tests/squirrelEvents.test.ts`.
+  offline, 404/503, bad JSON, other application, bad checksum, no installer for this platform, a Windows release without the
+  Squirrel files, timeout, untrusted redirect), one shared request for overlapping checks, no re-check while an update is
+  known, download of the Squirrel feed (never the `Setup.exe`) with one progress bar over two files and its throttle, the
+  installer download of the open-installer mode, cancel back to "available", corruption/connection/server/disk-space/stall
+  failures with a retry that downloads only the file still missing, the room asked for by Squirrel (and counting only the
+  bytes still missing), reuse of staged files and refusal of an altered or half-staged feed, the installer running **before**
+  the quit request and only once, install blocked while a room is open (and announced only when that changes), retry after a
+  failed or throwing installer, either feed file altered after verification, the manual-restart watchdog, the open-installer
+  mode, scheduled checks and clean-up of old staged updates, dispose, and a failing listener:
+  `apps/desktop/tests/updateService.test.ts`.
+- [x] `[AUTO]` The Squirrel in-place installer (`Update.exe --update=<folder>` with spaces and an accent in the path, exit codes,
+  start failure, timeout without killing and without undoing under a running updater, an exit code of 0 whose new executable
+  is missing, an unreadable install folder, the restart helper that outlives the app) over a temp install folder laid out like
+  the real one, with every failure leaving the folder as it was; the open-installer mode and installer selection:
+  `apps/desktop/tests/updateInstallers.test.ts`; `--squirrel-firstrun` is a normal run:
+  `apps/desktop/tests/squirrelEvents.test.ts`.
+- [x] `[AUTO]` The Squirrel guard: rollback of the empty new version folder, of the package Squirrel added, of a rewritten
+  `RELEASES` (byte for byte, byte order mark included) and of a deleted package, the running version, the stub and `Update.exe`
+  never touched, older version folders kept, a harmless no-op rollback, hard-link backups (and the copy when the file system
+  has none), commit drops the backups, a leftover guard folder is never reused, a partial rollback is reported, and an install
+  folder with no version folder is refused: `apps/desktop/tests/updateSquirrelGuard.test.ts`,
+  `updateSquirrelGuardCopy.test.ts`.
 - [x] `[AUTO]` The five update channels are sender-checked, take no payload (a hostile URL/path/version never reaches the
   updater), answer at once for download/install and push every state; the preload bridge exposes only those calls:
   `apps/desktop/tests/windowHandlers.test.ts`, `preloadBridge.test.ts`.
@@ -205,11 +222,20 @@ protocol, the snapshot or PostgreSQL.
   feed and, while the latest release has no `update-manifest.json` (a 404), stays fully usable: no dialog, every menu button
   enabled, Cài đặt says the check was not possible and that the game stays playable. Observed by the agent on 2026-10-05
   (scratch Playwright run, not committed, not a CI gate), so the row is not ticked.
-- [ ] `[PACKAGED]` An installed Windows build updates itself: silent `Setup.exe` over the running version, the new version
-  starts after the restart, shortcuts and the uninstall entry point at it, the same release is not offered again. Not run.
+- [ ] `[PACKAGED]` An installed Windows build updates itself in place. Observed by the agent on 2026-10-05 on a differently named
+  test package installed by its own `Setup.exe` (scratch Playwright and PowerShell scripts, a local feed, not committed, not a
+  CI gate; the real install was not touched and the test install was removed): the Squirrel feed is downloaded and never the
+  `Setup.exe`, `Update.exe --update` runs while the old game keeps answering, the old game quits by itself and the new version
+  is running 19.7 s after the click, shortcuts and the uninstall entry point at it, the same release is not offered again; a
+  refused update leaves the install folder byte-identical and the shortcut still opens the old version; the path handed to
+  `Update.exe` had spaces and an accent. Not ticked: nobody has seen it on a real release; the first real update is between two
+  updater releases.
+- [ ] `[PACKAGED]` Not covered above: a second consecutive Squirrel update, an update killed by the system, antivirus
+  interference.
 - [ ] `[PACKAGED]` macOS (x64 and arm64): the disk image downloads, verifies and opens. Not run (no Mac was available).
-- [ ] `[CI]` A tag run publishes `update-manifest.json` next to the installers and
-  `releases/latest/download/update-manifest.json` serves it. Not run: no release has been cut with this change.
+- [ ] `[CI]` A tag run publishes `update-manifest.json` (with the Windows `squirrel` block), `RELEASES` and the `.nupkg` next to
+  the installers, and `releases/latest/download/update-manifest.json` serves it. Not run until the tag run of the release that
+  carries this change.
 - [ ] `[MANUAL-E2E]` The rows of [V1 final manual acceptance](../../ui-ux-overhaul/V1_FINAL_MANUAL_ACCEPTANCE.md#in-app-update).
 
 ## Restart/recovery
