@@ -60,7 +60,8 @@ Development endpoint contract:
   lifecycle/session state machine duy nhất.
 - Electron main chỉ quản lý window, runtime config, fullscreen, quit (cửa sổ, lệnh
   thoát của app và nút "Thoát" của launcher qua `quit.exitApp`), external
-  links và packaged renderer. Không expose Node/Electron API hoặc game command cho
+  links, bộ cập nhật tự động (nhóm `update`, xem [Client/app-update.instruction.md](./Client/app-update.instruction.md))
+  và packaged renderer. Không expose Node/Electron API hoặc game command cho
   renderer; production renderer dùng `app://own-the-block` với path traversal guard.
 
 ## Session storage và reconnect

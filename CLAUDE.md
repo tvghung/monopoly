@@ -92,6 +92,12 @@ thay đổi chưa hoàn tất.
   `sandbox: true`, preload bridge typed/whitelist-only và packaged `app://` path
   traversal guard. Main process chỉ là shell/runtime/window boundary, không chứa
   GameCore hoặc bypass server authority.
+- Auto update (desktop): `UpdateService` trong main process giữ trạng thái; renderer chỉ đọc qua nhóm bridge `update` (năm lời
+  gọi không tham số + `onStateChanged`) và không bao giờ chọn URL, tệp hay phiên bản. `update-manifest.json` không chứa URL;
+  bộ cài phải khớp kích thước và SHA-256 trước khi chạy; chỉ host GitHub qua HTTPS. Không khởi động lại khi người chơi ở
+  lobby/ván hoặc phòng LAN của máy đang mở; kiểm tra thất bại không khóa gì và cờ "bắt buộc" không được lưu qua lần chạy sau.
+  Đổi `SOCKET_PROTOCOL_VERSION` phải quyết định `minimumSupportedVersion` trong `apps/desktop/update-policy.json`. Xem
+  `Client/app-update.instruction.md`.
 - Active-game desktop close là disconnect để reconnect; không emit `leave room`.
   Chỉ nút `Bỏ cuộc`/explicit leave mới revoke session. Prompt/confirmation dùng
   central Modal/ConfirmationDialog; không thêm `window.confirm`.
@@ -108,6 +114,8 @@ thay đổi chưa hoàn tất.
   Client lifecycle và restart/reconnect testcase.
 - Đổi tile/card data: rà shared data, presentation duplicates, hard-coded index,
   docs và testcase. Không dọn code/tài liệu không liên quan.
+- Đổi bộ cập nhật/manifest/policy: sửa `apps/desktop/src/update/` và `scripts/updateManifest.mjs` cùng lúc (test hợp đồng giữ hai bên
+  bằng nhau), IPC + preload + `runtime/types.ts` của client, `Client/app-update.instruction.md` và testcase.
 - Đổi payment/bankruptcy/transfer/forced sale: rà mọi producer của `DebtClaim`,
   policy transfer, proposal continuation, snapshot validation và test
   restart/reconnect trước khi hoàn tất.

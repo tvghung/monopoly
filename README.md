@@ -14,6 +14,12 @@ và chỉ tải **một** tệp phù hợp với máy của bạn:
 | macOS chip Apple (M1 trở lên) | `OwnTheBlock-<phiên bản>-macos-arm64.dmg` | khoảng 175 MiB |
 | macOS chip Intel | `OwnTheBlock-<phiên bản>-macos-x64.dmg` | khoảng 180 MiB |
 
+**Cập nhật:** từ bản có bộ cập nhật tự động trở đi, game tự kiểm tra khi mở và báo ngay trong game, không cần
+vào GitHub. Windows tải, cài và mở lại bản mới (không bao giờ giữa ván: chỉ ở màn hình bắt đầu khi không có phòng nào đang
+mở); macOS tải sẵn bộ cài trong game rồi mở để kéo vào Ứng dụng (bản chưa ký không tự thay chính nó được). Bản 1.1.1 trở về
+trước chưa có tính năng này nên cần tải bản mới một lần. Chi tiết:
+[Client/app-update.instruction.md](project-document/monopoly-websockets/Client/app-update.instruction.md).
+
 Các mục "Source code" cuối trang Release là mã nguồn, không phải game; `SHA256SUMS.txt` dùng để kiểm tra
 tệp sau khi tải. Bản V1 chưa được ký số; ghi chú phát hành hướng dẫn cách cài (cảnh báo SmartScreen trên
 Windows, mở bằng chuột phải trên macOS). Các bản phát hành tên `evidence-…` chỉ là kho lưu ảnh nghiệm thu
@@ -170,12 +176,19 @@ git push origin vX.Y.Z
 
 The `Release Candidate` workflow then runs every quality gate and the packaged proofs on
 Windows x64, macOS x64 and macOS arm64, and only when all of them pass does it publish the
-GitHub Release (the three installers plus `SHA256SUMS.txt`). The installers are kept small on purpose; the
+GitHub Release (the three installers plus `SHA256SUMS.txt` and `update-manifest.json`, which the in-app updater reads). The installers are kept small on purpose; the
 `proof:packaged:budget` step fails a build whose package regresses (see "Package size" in the release contract).
 A tag with a suffix
 (`vX.Y.Z-rc.1`) is published as a pre-release. A manual dispatch of the same workflow
 validates without publishing. The release is unsigned; see the
 [V1 release contract](project-document/ui-ux-overhaul/V1_RELEASE_CONTRACT.md).
+
+Updating players is automatic, so a release needs one decision: whether versions below it must update before they play
+multiplayer. `apps/desktop/update-policy.json` holds `minimumSupportedVersion` (default: every version since `1.0.0` keeps
+working). Raise it only when an older version cannot play with the new one, for example after a socket protocol change
+(`pnpm validate:v1-contract` fails after such a change until `reviewedForSocketProtocol` is updated), never for a bug fix.
+To try the update screens without publishing, point a development run at a local feed with
+`OWN_THE_BLOCK_UPDATE_MANIFEST_URL=http://127.0.0.1:<port>/update-manifest.json` (a packaged app ignores it).
 
 ## Environment variables
 
@@ -193,6 +206,7 @@ validates without publishing. The release is unsigned; see the
 | `CORS_ORIGIN` | `http://127.0.0.1:5173` in development | Optional override. Packaged Host explicitly admits `app://own-the-block` and browser requests whose origin matches the requested Host IPv4/port; no wildcard is used. |
 | `OWN_THE_BLOCK_MIGRATIONS_DIR` | unset | Internal packaged-helper seam for the external migration directory. |
 | `OWN_THE_BLOCK_SOCKET_URL` | unset | Packaged desktop override; CLI `--socket-url=` has higher precedence. |
+| `OWN_THE_BLOCK_UPDATE_MANIFEST_URL` | unset | Development only (ignored by a packaged app): loopback HTTP(S) URL of a local `update-manifest.json` to try the in-app update screens; the installers are read from the same directory. |
 | `OWN_THE_BLOCK_RELEASE_SOCKET_URL` | unset | Optional HTTP(S) endpoint override for a release; written to generated packaged release configuration when supplied. LAN Host/Join is the default path. |
 | `CLIENT_DIST` | `apps/client/dist` | Static client directory override. |
 | `RECONNECT_GRACE_MS` | `60000` | Grace before an offline current player's turn is resolved. |

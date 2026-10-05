@@ -59,6 +59,11 @@ bằng application session state, không bằng `socket.id` hay optimistic `join
     game?" ("Đóng phòng và thoát" / "Ở lại") rồi mới gọi `exitApp()`. Nút thành "Đang thoát…" và tự dùng lại được sau 10 giây nếu
     cửa sổ vẫn còn; lỗi IPC hiện "Chưa thoát được game. Hãy thử lại.". Main process dừng Host đang chạy đúng như khi đóng cửa sổ
     (xem [Api/http-runtime.instruction.md](../Api/http-runtime.instruction.md#desktop-quit-channel-v11)). Không dùng `window.confirm`.
+  - **Cập nhật** (khi bridge có nhóm `update` và bộ cập nhật được hỗ trợ): hộp thoại `Modal` ("Có bản cập nhật mới", "Cần cập
+    nhật Own the Block", "Bản cập nhật đã sẵn sàng", "Đang cài đặt bản cập nhật") chỉ mở khi launcher đang ở menu, không bao
+    giờ trên một form; một dòng yên lặng trên menu cho tiến trình/lỗi/lý do chờ. Một bản cập nhật **bắt buộc** vô hiệu
+    `Tạo phòng`, `Tham gia phòng` và `Máy chủ riêng` (không vô hiệu `Vào lại phòng đang mở` và `Đóng phòng`). Menu vẫn chỉ
+    có nút. Chi tiết: [app-update.instruction.md](./app-update.instruction.md).
   - **Form host**: chỉ có tên (`desktop-player-name`) và nút "Tạo và vào phòng". Không có ô chọn mạng và không có dòng
     giải thích về cổng hay địa chỉ: main process tự chọn mạng đang kết nối (`bridge.host.start()` không tham số; xem
     `networkInterfaces.ts`). Khi mở form mà máy chưa có mạng dùng được, một `role="alert"` nói bằng lời thường "Máy này

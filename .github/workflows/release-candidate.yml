@@ -348,6 +348,13 @@ jobs:
       - name: Stage the release files
         run: node apps/desktop/scripts/stageReleaseAssets.mjs --artifacts release-assets --out release-upload --version "${GITHUB_REF_NAME#v}"
 
+      # The installed apps read this file to learn about the release; show exactly what is about to be published.
+      - name: Show the update manifest
+        run: |
+          set -euo pipefail
+          test -f release-upload/update-manifest.json
+          cat release-upload/update-manifest.json
+
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -365,3 +372,22 @@ jobs:
             --notes-file ".github/release-notes/$GITHUB_REF_NAME.md" \
             "${flags[@]}"
           gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false
+
+      # The URL the installed apps use. A pre-release is never "latest", so only a plain version is checked; "latest" can take a
+      # few seconds to move, hence the retries. The release is already public here: a failure is a warning that the feed is broken.
+      - name: Check that the update feed serves this release
+        if: ${{ !contains(github.ref_name, '-') }}
+        run: |
+          set -euo pipefail
+          expected="${GITHUB_REF_NAME#v}"
+          served=""
+          for attempt in 1 2 3 4 5 6; do
+            served="$(curl -fsSL "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/update-manifest.json" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version" || true)"
+            if [ "$served" = "$expected" ]; then
+              echo "The update feed serves $served."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::releases/latest/download/update-manifest.json serves '$served', expected $expected."
+          exit 1

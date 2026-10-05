@@ -11,7 +11,7 @@ phải được cập nhật trong cùng thay đổi.
 | Khối | Code | Trách nhiệm | Bắt đầu đọc |
 | --- | --- | --- | --- |
 | Client | `apps/client/` | React/Vite; admission, lobby, reconnect/spectator UX và game UI | [monopoly.client.instructions.md](./monopoly.client.instructions.md) |
-| Desktop | `apps/desktop/` | Electron shell, secure preload bridge, app-owned managed PostgreSQL/server-helper Host runtime, LAN interface choice, room-code LAN lookup (`lanFinder.ts`), packaging | [../ui-ux-overhaul/07C_PHASE_7_2_FINAL_ENGINEERING.md](../ui-ux-overhaul/07C_PHASE_7_2_FINAL_ENGINEERING.md) |
+| Desktop | `apps/desktop/` | Electron shell, secure preload bridge, app-owned managed PostgreSQL/server-helper Host runtime, LAN interface choice, room-code LAN lookup (`lanFinder.ts`), in-app updater (`update/`), packaging | [../ui-ux-overhaul/07C_PHASE_7_2_FINAL_ENGINEERING.md](../ui-ux-overhaul/07C_PHASE_7_2_FINAL_ENGINEERING.md) |
 | API | `apps/server/src/createServer.ts`, `apps/server/src/socket/` | Express/Socket.IO, runtime validation, authenticated commands và ACK | [monopoly.api.instructions.md](./monopoly.api.instructions.md) |
 | GameCore | `apps/server/src/rooms.ts`, `apps/server/src/game/` | Room aggregate và luật game dùng stable player ID | [monopoly.game-core.instructions.md](./monopoly.game-core.instructions.md) |
 | Persistence | `apps/server/src/persistence/`, `apps/server/src/services/`, `apps/server/migrations/` | PostgreSQL, sessions, CAS command execution và recovery | [Persistence/README.md](./Persistence/README.md) |
@@ -95,6 +95,7 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
 | HTTP/readiness/deploy | [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md) | create/start server, migration startup, Docker/Render/CI |
 | Desktop Join by room code (LAN lookup) | [Client/join-room.instruction.md](./Client/join-room.instruction.md), [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md) | `DesktopMultiplayerLauncher.tsx`, `apps/desktop/src/lanFinder.ts`, `apps/server/src/lanDiscoveryResponder.ts` |
 | Board/card/deck data | [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md) | shared canonical board/cards và private deck state |
+| Cập nhật tự động (kiểm tra, tải, áp dụng, bản bắt buộc) | [Client/app-update.instruction.md](./Client/app-update.instruction.md) | `apps/desktop/src/update/`, `apps/client/src/runtime/appUpdate.tsx`, `apps/client/src/components/update/`, `apps/desktop/scripts/updateManifest.mjs`, `apps/desktop/update-policy.json` |
 | Hướng dẫn chơi / số luật hiển thị | [Client/how-to-play.instruction.md](./Client/how-to-play.instruction.md), [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md) | `apps/client/src/howToPlay/`, `packages/shared/src/rules.ts`, `apps/server/src/rulesContract.test.ts` |
 
 ## Quy ước tài liệu

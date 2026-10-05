@@ -135,6 +135,32 @@ The gallery is development-only, renders the same card face (artwork, title, mes
 assets used by the game, and is not part of normal production navigation. It is
 visual-review support, not a replacement for gameplay or package tests.
 
+## In-app update
+
+Added with the in-app updater. Nobody has observed any of these rows: the automated evidence is unit and client tests plus one
+run of the real Electron shell against a local fake feed, and it never claims an installed build, a real release or a Mac. Use a
+build that contains the updater, installed by `Setup.exe` (Windows) or from the disk image (macOS), and a newer test release.
+
+- [ ] Windows: on the start screen an update is offered ("Có bản cập nhật mới", with "Cập nhật" and "Để sau"); the download shows
+  a moving percentage; it ends with "Bản cập nhật đã sẵn sàng"; "Khởi động lại và cập nhật" closes the game and the new
+  version opens by itself; Cài đặt shows the new version, and the same release is not offered again.
+- [ ] Windows: while a LAN room of this machine is open the restart is not offered and the screen says to close the room
+  first ("Đóng phòng" stays reachable); once it is closed the restart is offered.
+- [ ] Windows: in a lobby and in a match no dialog interrupts; a toast says the update waits; Cài đặt shows the restart
+  disabled with the reason; nothing restarts the game or loses the room.
+- [ ] Windows: cut the network in the middle of a download: the screen says it failed and the game stays playable; "Thử lại"
+  finishes the download.
+- [ ] Windows: a mandatory update (the policy raised on a test release): "Cần cập nhật Own the Block" appears, "Tạo phòng",
+  "Tham gia phòng" and "Máy chủ riêng" stay disabled until the update is installed, and "Thoát game" quits.
+- [ ] Windows: with no Internet at start there is no dialog and nothing is locked; Cài đặt → "Kiểm tra cập nhật" says the
+  check is not possible and that the game stays playable.
+- [ ] Windows: after the update the Start menu and desktop shortcuts open the new version, the old version is not left running,
+  and the uninstall entry removes it.
+- [ ] Windows: the silent `Setup.exe` is not stopped by antivirus or SmartScreen on a clean machine (it is started by the app,
+  not opened from a browser download).
+- [ ] macOS (both Apple silicon and Intel): the disk image downloads in the app and opens; dragging the app into
+  Applications replaces the old version; the new version runs and does not offer itself again.
+
 ## Sign-off
 
 - [ ] Human reviewer records the date and target device/package separately.
