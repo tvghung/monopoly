@@ -8,7 +8,7 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.1.1
+Semantic version: 1.2.0
 Socket protocol: 9
 ```
 
@@ -46,8 +46,8 @@ Implementation references: `apps/desktop/src/hostRuntime.ts`, `managedPostgres.t
 ## Packaging identity
 
 Forge uses the root package version for app metadata and the Windows Squirrel
-name: `OwnTheBlock-1.1.1-win32-x64-Setup.exe`. The installed Forge DMG maker resolves
-`Own the Block-1.1.1-x64.dmg` and `Own the Block-1.1.1-arm64.dmg` from app name,
+name: `OwnTheBlock-1.2.0-win32-x64-Setup.exe`. The installed Forge DMG maker resolves
+`Own the Block-1.2.0-x64.dmg` and `Own the Block-1.2.0-arm64.dmg` from app name,
 desktop package version, and target architecture. The application and collected
 manifest derive their version from package metadata. These are configuration expectations,
 not claims that new artifacts were built. Release metadata rejects mismatched
@@ -83,7 +83,7 @@ audio, card and landmark proofs pass on the lean package. macOS (Apple silicon, 
 
 ## Release publication
 
-A release is published by pushing the annotated tag `v<semver>` (`v1.1.1` for `1.1.1`) on a commit that is on `main`;
+A release is published by pushing the annotated tag `v<semver>` (`v1.2.0` for `1.2.0`) on a commit that is on `main`;
 the README section "Publishing a release" has the commands. The `Release Candidate` workflow
 (`.github/workflows/release-candidate.yml`) reacts to the tag:
 
