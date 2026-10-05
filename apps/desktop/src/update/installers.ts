@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { squirrelUpdateExePath } from '../squirrelEvents';
 import type { UpdatePayloadKind } from './manifest';
+import { beginSquirrelGuard } from './squirrelGuard';
 import { INSTALL_TIMEOUT_MS } from './updateConfig';
 import type { AppUpdateInstallMode } from './updateTypes';
 
@@ -15,6 +16,8 @@ export type InstallOutcome =
 
 /** What the service downloaded and verified for one update. */
 export interface StagedUpdate {
+  /** The release version these files install. */
+  version: string;
   /** The folder that holds every file of the payload (and nothing else). */
   directory: string;
   /** The file the installer works on: the installer itself, or the Squirrel package. */
@@ -70,35 +73,58 @@ export interface SquirrelInstallerOptions {
   executableName: string;
   spawnProcess?: SpawnProcess;
   timeoutMs?: number;
+  log?: (message: string, error?: unknown) => void;
 }
 
 /**
  * Windows, installed by the Squirrel `Setup.exe`: Squirrel's own update. `Update.exe --update=<folder>` reads `RELEASES` and
  * the full package from the folder and installs the new version into its own `app-<version>` folder next to the running one;
- * the running folder is left alone (and the registry entry and shortcuts are moved to the new version), so a failure leaves
- * the working game untouched and reportable. On a real install this took about 12 s for a 160 MiB package.
+ * the running folder is left alone (and the registry entry and shortcuts are moved to the new version), so the game keeps
+ * running while it updates. On a real install this took about 12 s for a 160 MiB package.
  *
  * It is deliberately NOT the downloaded `Setup.exe`: running that over an installed app deletes the whole install folder
  * first ("burning it to the ground" in Squirrel's log), including the version that is running, so the game dies in the
  * middle of its own update and nothing restarts it. That was measured on a real install, see the design record.
+ *
+ * Squirrel's update is not transactional, so it runs inside a guard (`squirrelGuard.ts`): a failed update leaves the install
+ * folder exactly as it was, because the debris of a failure (an empty `app-<new version>`) would stop every shortcut from
+ * opening the game. An exit code of 0 is not taken on trust either: the new version's executable must be there.
  *
  * The update does not start the app, and `app.relaunch` would start the old executable, so the restart is Squirrel's own
  * `Update.exe --processStartAndWait`: it waits for this process to exit and then starts the newest installed version.
  */
 export function createSquirrelUpdateInstaller(options: SquirrelInstallerOptions): UpdateInstaller {
   const spawnProcess = options.spawnProcess ?? spawn;
+  const log = options.log ?? (() => undefined);
+  const rootDirectory = path.dirname(options.updateExePath);
   return {
     mode: 'restart',
     payload: 'squirrel',
     async install(staged) {
+      let guard;
+      try {
+        guard = await beginSquirrelGuard({ rootDirectory, log });
+      } catch (error) {
+        // An update that cannot be undone is not started.
+        log('The install folder could not be prepared for the update.', error);
+        return { ok: false, code: 'INSTALL_START_FAILED' };
+      }
       const result = await runUntilExit(
         spawnProcess,
         options.updateExePath,
         [`--update=${staged.directory}`],
         options.timeoutMs ?? INSTALL_TIMEOUT_MS,
       );
-      if (result.kind === 'error') return { ok: false, code: 'INSTALL_START_FAILED' };
-      if (result.kind === 'timeout' || result.code !== 0) return { ok: false, code: 'INSTALL_FAILED' };
+      // An updater that is still running may yet finish: nothing is undone under its feet.
+      if (result.kind === 'timeout') return { ok: false, code: 'INSTALL_FAILED' };
+      const installed = result.kind === 'exit' && result.code === 0
+        && existsSync(path.join(rootDirectory, `app-${staged.version}`, options.executableName));
+      if (!installed) {
+        const clean = await guard.rollback();
+        log(`The Squirrel update did not install ${staged.version}${clean ? '' : ' and could not be fully undone'}.`);
+        return { ok: false, code: result.kind === 'error' ? 'INSTALL_START_FAILED' : 'INSTALL_FAILED' };
+      }
+      await guard.commit();
       try {
         const relauncher = spawnProcess(
           options.updateExePath,
@@ -146,6 +172,7 @@ export interface SelectInstallerOptions {
   openPath: (filePath: string) => Promise<string>;
   exists?: (filePath: string) => boolean;
   spawnProcess?: SpawnProcess;
+  log?: (message: string, error?: unknown) => void;
 }
 
 /** The way this machine applies an update, or undefined when it has none (an unsupported platform). */
@@ -157,6 +184,7 @@ export function selectInstaller(options: SelectInstallerOptions): UpdateInstalle
         updateExePath,
         executableName: path.basename(options.execPath),
         ...(options.spawnProcess ? { spawnProcess: options.spawnProcess } : {}),
+        ...(options.log ? { log: options.log } : {}),
       });
     }
     return createOpenInstaller({ openPath: options.openPath });

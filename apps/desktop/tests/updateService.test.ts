@@ -618,7 +618,7 @@ describe('applying an update (restart mode)', () => {
 
     const state = await h.service.installUpdate();
 
-    expect(h.installer.install).toHaveBeenCalledExactlyOnceWith({ directory: h.stagedDirectory(), mainFile: h.stagedPath() });
+    expect(h.installer.install).toHaveBeenCalledExactlyOnceWith({ version: '1.2.0', directory: h.stagedDirectory(), mainFile: h.stagedPath() });
     expect(h.requestQuit).toHaveBeenCalledOnce();
     expect(state.phase).toBe('installing');
     expect(phases(h.states)).toEqual(['installing']);
@@ -755,7 +755,7 @@ describe('applying an update (open-installer mode)', () => {
 
     const state = await h.service.installUpdate();
 
-    expect(h.installer.install).toHaveBeenCalledExactlyOnceWith({ directory: h.stagedDirectory(), mainFile: h.stagedPath() });
+    expect(h.installer.install).toHaveBeenCalledExactlyOnceWith({ version: '1.2.0', directory: h.stagedDirectory(), mainFile: h.stagedPath() });
     expect(h.requestQuit).not.toHaveBeenCalled();
     expect(state).toMatchObject({ phase: 'ready', followUp: 'installer-opened', installMode: 'open-installer' });
     expect(state.installBlocked).toBeUndefined();

@@ -446,7 +446,11 @@ export class UpdateService implements AppUpdateController {
         return this.snapshot();
       }
       if (!installer) throw new UpdateFailure('INSTALL_START_FAILED', 'No installer for this platform.');
-      const outcome = await installer.install({ directory, mainFile: path.join(directory, payload.main.name) });
+      const outcome = await installer.install({
+        version: target.manifest.version,
+        directory,
+        mainFile: path.join(directory, payload.main.name),
+      });
       if (!outcome.ok) {
         this.log(`The update installer failed (${outcome.code}).`);
         this.fail(info, 'install', outcome.code);

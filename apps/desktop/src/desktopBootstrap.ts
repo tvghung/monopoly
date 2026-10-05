@@ -59,6 +59,7 @@ function createUpdateService(): UpdateService {
         platform: process.platform,
         execPath: process.execPath,
         openPath: filePath => shell.openPath(filePath),
+        log: (message, error) => console.warn(message, error ?? ''),
       })
       : undefined,
     // The temp folder, not userData: userData is the roaming profile on Windows and this is a 160 MiB installer.
