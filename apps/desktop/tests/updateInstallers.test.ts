@@ -106,8 +106,11 @@ function squirrelInstaller(spawned: ReturnType<typeof fakeSpawn>, options: { tim
   });
 }
 
+// Some file systems hand names back decomposed (macOS HFS+): compare them composed.
+const entriesOf = async (directory: string) => (await readdir(directory)).map(name => name.normalize('NFC')).sort();
+
 async function installIsAsItWas(): Promise<void> {
-  expect((await readdir(installRoot)).sort()).toEqual(['Nguyễn Văn A', 'Update.exe', 'app-1.0.0', 'packages']);
+  expect(await entriesOf(installRoot)).toEqual(['Nguyễn Văn A', 'Update.exe', 'app-1.0.0', 'packages']);
   expect((await readdir(path.join(installRoot, 'packages'))).sort()).toEqual(['RELEASES', 'own_the_block-1.0.0-full.nupkg']);
   expect(await readFile(path.join(installRoot, 'packages', 'own_the_block-1.0.0-full.nupkg'), 'utf8')).toBe('old package');
   expect(await readFile(path.join(installRoot, 'packages', 'RELEASES'), 'utf8')).toBe(OLD_RELEASES);
@@ -141,7 +144,7 @@ describe('Squirrel in-place installer (Windows)', () => {
 
     await squirrelInstaller(spawned).install(staged);
 
-    expect((await readdir(installRoot)).sort()).toEqual(['Nguyễn Văn A', 'Update.exe', 'app-1.0.0', 'app-1.2.0', 'packages']);
+    expect(await entriesOf(installRoot)).toEqual(['Nguyễn Văn A', 'Update.exe', 'app-1.0.0', 'app-1.2.0', 'packages']);
     expect(await readFile(path.join(installRoot, 'app-1.2.0', 'OwnTheBlock.exe'), 'utf8')).toBe('new app');
     expect(await readFile(path.join(installRoot, 'app-1.0.0', 'OwnTheBlock.exe'), 'utf8')).toBe('running app');
   });
