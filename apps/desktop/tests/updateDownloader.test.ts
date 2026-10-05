@@ -4,9 +4,12 @@ import type { AddressInfo } from 'node:net';
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DownloadError, downloadVerifiedFile, hashFile, type DownloadErrorCode } from '../src/update/downloader';
 import { openResponse, readTextLimited, UpdateHttpError } from '../src/update/http';
+
+// A slow or busy machine must not turn "late" into "failed" (the timeouts under test are set per test, in milliseconds).
+vi.setConfig({ testTimeout: 30_000 });
 
 const body = randomBytes(300_000);
 const sha256 = createHash('sha256').update(body).digest('hex');

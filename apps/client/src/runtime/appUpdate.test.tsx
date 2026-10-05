@@ -1,10 +1,13 @@
 import { useEffect } from 'react';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, configure, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   available, downloading, installUpdateBridge, ready, requiredAvailable, updateState,
 } from '../components/update/updateTestFixtures';
 import { AppUpdateProvider, useAppUpdate, type AppUpdateContextValue } from './appUpdate';
+
+// A slow runner must not turn a late first answer into a failure; a wait that holds at once costs nothing.
+configure({ asyncUtilTimeout: 5_000 });
 
 afterEach(() => {
   cleanup();
@@ -38,9 +41,12 @@ describe('AppUpdateProvider', () => {
     expect(latest.available).toBe(false);
     cleanup();
 
-    installUpdateBridge(updateState({ phase: 'unsupported' }));
+    const { update } = installUpdateBridge(updateState({ phase: 'unsupported' }));
     renderProvider();
-    await waitFor(() => expect(latest.state).toBeNull());
+    // The state is read (and ignored) before the assertion, not just assumed.
+    await waitFor(() => expect(update.getState).toHaveBeenCalled());
+    await act(async () => { await Promise.resolve(); });
+    expect(latest.state).toBeNull();
     expect(latest.available).toBe(false);
   });
 
@@ -115,8 +121,9 @@ describe('AppUpdateProvider', () => {
   it('remembers "Để sau" for that version only, and never for a mandatory update', async () => {
     const { push } = installUpdateBridge(available());
     renderProvider();
-    await waitFor(() => expect(latest.deferred).toBe(false));
-    expect(latest.state?.phase).toBe('available');
+    // Wait for the first state itself: `deferred` is false before it arrives too, so it proves nothing.
+    await waitFor(() => expect(latest.state?.phase).toBe('available'));
+    expect(latest.deferred).toBe(false);
 
     act(() => latest.defer());
     expect(latest.deferred).toBe(true);

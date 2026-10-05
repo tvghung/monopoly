@@ -437,7 +437,14 @@ export class UpdateService implements AppUpdateController {
           this.publish({ phase: 'ready', update: info, followUp: 'restart-manually' });
         }, this.timing.quitWatchdogMs);
         this.watchdogTimer.unref();
-        this.options.requestQuit();
+        try {
+          this.options.requestQuit();
+        } catch (error) {
+          // The new version is installed; only asking this app to quit failed. Do not report an install that worked as failed.
+          this.log('Asking the app to quit after the update failed.', error);
+          clearTimeout(this.watchdogTimer);
+          this.publish({ phase: 'ready', update: info, followUp: 'restart-manually' });
+        }
       } else {
         this.publish({ phase: 'ready', update: info, followUp: 'installer-opened' });
       }

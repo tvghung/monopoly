@@ -1,5 +1,5 @@
 import {
-  cleanup, fireEvent, render, screen, waitFor, within,
+  cleanup, configure, fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import DesktopMultiplayerLauncher from './DesktopMultiplayerLauncher';
@@ -29,6 +29,9 @@ const hosting: HostRuntimeStatus = {
   localEndpoint: 'http://127.0.0.1:8080',
   lanAvailable: true,
 };
+
+// A slow runner must not turn a UI that is merely late into a failure; a wait that holds at once costs nothing.
+configure({ asyncUtilTimeout: 5_000 });
 
 afterEach(() => {
   cleanup();

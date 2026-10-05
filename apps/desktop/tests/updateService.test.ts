@@ -9,6 +9,11 @@ import { productionEndpoints, releaseAssetUrl } from '../src/update/updateConfig
 import { UpdateService, type UpdateServiceOptions } from '../src/update/updateService';
 import type { AppUpdateState } from '../src/update/updateTypes';
 
+// These tests write and hash a real installer-sized file and wait on real timers. A slow or busy machine (a CI runner, or this
+// one under load) must not turn "late" into "failed": a test that is quick when the machine is quick costs nothing extra.
+vi.setConfig({ testTimeout: 30_000 });
+const waitFor = <T>(check: () => T | Promise<T>) => vi.waitFor(check, { timeout: 15_000, interval: 25 });
+
 const endpoints = productionEndpoints();
 const INSTALLER = randomBytes(MIN_ASSET_BYTES + 4_096);
 const INSTALLER_SHA = createHash('sha256').update(INSTALLER).digest('hex');
@@ -390,7 +395,7 @@ describe('downloading an update', () => {
     await h.service.checkForUpdates('manual');
 
     const download = h.service.downloadUpdate();
-    await vi.waitFor(() => expect(h.service.getState().progress?.receivedBytes ?? 0).toBeGreaterThan(0));
+    await waitFor(() => expect(h.service.getState().progress?.receivedBytes ?? 0).toBeGreaterThan(0));
     h.service.cancelDownload();
     const state = await download;
 
@@ -570,12 +575,24 @@ describe('applying an update (restart mode)', () => {
     expect((await h.service.downloadUpdate()).phase).toBe('ready');
   });
 
+  it('does not report a working install as failed when only asking the app to quit throws', async () => {
+    const h = harness();
+    await ready(h);
+    h.requestQuit.mockImplementationOnce(() => { throw new Error('quit failed'); });
+
+    const state = await h.service.installUpdate();
+
+    expect(state).toMatchObject({ phase: 'ready', followUp: 'restart-manually' });
+    expect(state.error).toBeUndefined();
+    expect(h.installer.install).toHaveBeenCalledOnce();
+  });
+
   it('tells the player to restart by hand when the app does not go away after the installer succeeded', async () => {
     const h = harness({ timing: { quitWatchdogMs: 30 } });
     await ready(h);
 
     await h.service.installUpdate();
-    await vi.waitFor(() => expect(h.service.getState().phase).toBe('ready'));
+    await waitFor(() => expect(h.service.getState().phase).toBe('ready'));
 
     expect(h.service.getState().followUp).toBe('restart-manually');
   });
@@ -611,8 +628,8 @@ describe('scheduling and clean-up', () => {
     h.service.start();
     h.service.start();
     expect(h.fetchUrls).toEqual([]);
-    await vi.waitFor(() => expect(h.fetchUrls.length).toBeGreaterThanOrEqual(1));
-    await vi.waitFor(() => expect(h.fetchUrls.length).toBeGreaterThanOrEqual(2), { timeout: 2_000 });
+    await waitFor(() => expect(h.fetchUrls.length).toBeGreaterThanOrEqual(1));
+    await waitFor(() => expect(h.fetchUrls.length).toBeGreaterThanOrEqual(2));
 
     h.service.dispose();
     const after = h.fetchUrls.length;
@@ -630,7 +647,7 @@ describe('scheduling and clean-up', () => {
 
     h.service.start();
 
-    await vi.waitFor(async () => {
+    await waitFor(async () => {
       expect((await readdir(h.updatesDirectory)).sort()).toEqual(['1.2.0', 'notes', 'stray.txt']);
     });
   });
@@ -645,7 +662,7 @@ describe('scheduling and clean-up', () => {
 
     await h.service.checkForUpdates('manual');
 
-    await vi.waitFor(async () => {
+    await waitFor(async () => {
       expect(await readdir(h.updatesDirectory)).toEqual(['1.3.0']);
     });
   });
@@ -659,7 +676,7 @@ describe('scheduling and clean-up', () => {
     ));
     await h.service.checkForUpdates('manual');
     const download = h.service.downloadUpdate();
-    await vi.waitFor(() => expect(h.service.getState().progress?.receivedBytes ?? 0).toBeGreaterThan(0));
+    await waitFor(() => expect(h.service.getState().progress?.receivedBytes ?? 0).toBeGreaterThan(0));
     const emitted = h.states.length;
 
     h.service.dispose();

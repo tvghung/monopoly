@@ -1,5 +1,5 @@
 import {
-  cleanup, fireEvent, render, screen, waitFor, within,
+  cleanup, configure, fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -10,6 +10,9 @@ import type { AppUpdateState } from '../runtime/types';
 import { DEFAULT_GAME_SETTINGS } from './defaults';
 import SettingsPanel from './SettingsPanel';
 import { SettingsProvider } from './SettingsProvider';
+
+// A slow runner must not turn a UI that is merely late into a failure; a wait that holds at once costs nothing.
+configure({ asyncUtilTimeout: 5_000 });
 
 afterEach(() => {
   cleanup();

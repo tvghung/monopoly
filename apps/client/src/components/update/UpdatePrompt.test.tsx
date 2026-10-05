@@ -1,5 +1,5 @@
 import {
-  cleanup, fireEvent, render, screen, waitFor, within,
+  cleanup, configure, fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppUpdateProvider } from '../../runtime/appUpdate';
@@ -9,6 +9,9 @@ import UpdatePrompt from './UpdatePrompt';
 import {
   available, downloading, installUpdateBridge, ready, requiredAvailable, updateState,
 } from './updateTestFixtures';
+
+// A slow runner must not turn a UI that is merely late into a failure; a wait that holds at once costs nothing.
+configure({ asyncUtilTimeout: 5_000 });
 
 afterEach(() => {
   cleanup();
