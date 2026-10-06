@@ -10,6 +10,7 @@ import {
   createFreshPlayer,
   createRoomSnapshot,
   upgradeRoomSnapshotV8ToV9,
+  upgradeRoomSnapshotV9ToV10,
   type RoomSnapshot,
 } from './rooms.js';
 import {
@@ -17,9 +18,13 @@ import {
   appearance,
   connect,
   join,
+  leave,
+  moveToSeat,
   mutateRoom,
   okOf,
   ready,
+  requestSeatSwap,
+  respondSeatSwap,
   resume,
   setMode,
   start,
@@ -54,10 +59,10 @@ async function withSchema(
 }
 
 describe.runIf(Boolean(testDatabaseUrl))('2v2 persistence on PostgreSQL', () => {
-  it('upgrades a V8 room in place with SQL migration 010, identically to the pure upgrade helper', async () => {
+  it('upgrades a V8 room in place with SQL migrations 010 and 011, identically to the pure upgrade helpers', async () => {
     await withSchema(async ({ pool }) => {
-      // Re-open the version gap: forget migration 010 and put a genuine V8 row in place of whatever exists.
-      await pool.query(`DELETE FROM schema_migrations WHERE version = '010_teamplay_v9.sql'`);
+      // Re-open the version gap: forget migrations 010 and 011 and put a genuine V8 row in place of whatever exists.
+      await pool.query(`DELETE FROM schema_migrations WHERE version IN ('010_teamplay_v9.sql', '011_lobby_seats_v10.sql')`);
 
       const P1 = randomUUID();
       const P2 = randomUUID();
@@ -105,9 +110,9 @@ describe.runIf(Boolean(testDatabaseUrl))('2v2 persistence on PostgreSQL', () => 
           };
         };
       };
-      Object.values(v8.gameState.players).forEach((player) => { delete player.teamId; });
+      Object.values(v8.gameState.players).forEach((player) => { delete player.teamId; delete player.teamSlot; });
       Object.values(v8.gameState.boardState.finishedPlayers).forEach((player) => { delete player.teamId; });
-      for (const key of ['gameMode', 'teams', 'teamPlay', 'winningTeamId']) delete v8.gameState.boardState[key];
+      for (const key of ['gameMode', 'teams', 'teamPlay', 'winningTeamId', 'seatSwapRequests']) delete v8.gameState.boardState[key];
       delete v8.gameState.boardState.paymentQueue.rescue;
 
       const roomId = randomUUID();
@@ -119,22 +124,22 @@ describe.runIf(Boolean(testDatabaseUrl))('2v2 persistence on PostgreSQL', () => 
         [roomId, 'V8-TO-V9', P1, v8],
       );
 
-      expect(await migrateDatabase(pool)).toEqual(['010_teamplay_v9.sql']);
+      expect(await migrateDatabase(pool)).toEqual(['010_teamplay_v9.sql', '011_lobby_seats_v10.sql']);
 
       const persistence = new PostgresPersistenceStore<RoomSnapshot>(pool);
       const migrated = await persistence.rooms.findById(roomId);
       if (!migrated) throw new Error('migrated room is missing');
-      expect(migrated.snapshotSchemaVersion).toBe(9);
-      expect(migrated.aggregateVersion).toBe(4);
+      expect(migrated.snapshotSchemaVersion).toBe(10);
+      expect(migrated.aggregateVersion).toBe(5);
       expect(() => assertSupportedRoomSnapshot(migrated)).not.toThrow();
 
-      // The SQL upgrade and the pure TypeScript helper are the same transformation.
-      const expected = upgradeRoomSnapshotV8ToV9({
+      // The SQL upgrades and the pure TypeScript helpers are the same transformation.
+      const expected = upgradeRoomSnapshotV9ToV10(upgradeRoomSnapshotV8ToV9({
         snapshotSchemaVersion: 8,
         gameSnapshot: v8,
         hostPlayerId: P1,
         status: 'IN_PROGRESS',
-      });
+      }));
       expect(migrated.gameSnapshot).toEqual(JSON.parse(JSON.stringify(expected.gameSnapshot)));
       expect(migrated.gameSnapshot.gameState.boardState.gameMode).toBe('SOLO');
       expect(migrated.gameSnapshot.gameState.players[P1].teamId).toBe('TEAM_1');
@@ -145,6 +150,118 @@ describe.runIf(Boolean(testDatabaseUrl))('2v2 persistence on PostgreSQL', () => 
       // Applying the chain again changes nothing.
       expect(await migrateDatabase(pool)).toEqual([]);
       expect(await persistence.rooms.findById(roomId)).toEqual(migrated);
+    });
+  });
+
+  it('upgrades V9 rooms in place with SQL migration 011, identically to the pure upgrade helper', async () => {
+    await withSchema(async ({ pool }) => {
+      await pool.query(`DELETE FROM schema_migrations WHERE version = '011_lobby_seats_v10.sql'`);
+
+      // A 2v2 lobby whose join order is scrambled against the id order, so the seat assignment must follow the join order.
+      const ids = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+      const [P1, P2, P3, P4] = ids;
+      const snapshot = createRoomSnapshot();
+      snapshot.gameState.boardState.gameMode = 'TEAM_2V2';
+      snapshot.members = {
+        [P4]: { joinOrder: 4, ready: true, membershipStatus: 'ACTIVE' },
+        [P3]: { joinOrder: 3, ready: false, membershipStatus: 'ACTIVE' },
+        [P2]: { joinOrder: 2, ready: true, membershipStatus: 'ACTIVE' },
+        [P1]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
+      };
+      snapshot.nextJoinOrder = 5;
+      const teams = { [P1]: 'TEAM_1', [P2]: 'TEAM_2', [P3]: 'TEAM_1', [P4]: 'TEAM_2' } as const;
+      const colors = { TEAM_1: 'red', TEAM_2: 'blue' } as const;
+      for (const id of [P4, P3, P2, P1]) {
+        snapshot.gameState.players[id] = createFreshPlayer(`P${id.slice(0, 2)}`, colors[teams[id]], null, teams[id]);
+      }
+      snapshot.gameState.boardState.players = [P1, P2, P3, P4];
+      const v9 = JSON.parse(JSON.stringify(snapshot)) as {
+        gameState: { players: Record<string, Record<string, unknown>>; boardState: Record<string, unknown> };
+      };
+      Object.values(v9.gameState.players).forEach((player) => { delete player.teamSlot; });
+      delete v9.gameState.boardState.seatSwapRequests;
+
+      const roomId = randomUUID();
+      await pool.query(
+        `INSERT INTO rooms (
+           id, code, status, host_player_id, aggregate_version, snapshot_schema_version, game_snapshot
+         ) VALUES ($1, $2, 'LOBBY', $3, 7, 9, $4)`,
+        [roomId, 'V9-TO-V10', P1, v9],
+      );
+
+      expect(await migrateDatabase(pool)).toEqual(['011_lobby_seats_v10.sql']);
+
+      const persistence = new PostgresPersistenceStore<RoomSnapshot>(pool);
+      const migrated = await persistence.rooms.findById(roomId);
+      if (!migrated) throw new Error('migrated room is missing');
+      expect(migrated.snapshotSchemaVersion).toBe(10);
+      expect(migrated.aggregateVersion).toBe(8);
+      expect(() => assertSupportedRoomSnapshot(migrated)).not.toThrow();
+
+      const expected = upgradeRoomSnapshotV9ToV10({
+        snapshotSchemaVersion: 9,
+        gameSnapshot: v9,
+        hostPlayerId: P1,
+        status: 'LOBBY',
+      });
+      expect(migrated.gameSnapshot).toEqual(JSON.parse(JSON.stringify(expected.gameSnapshot)));
+      const seats = Object.fromEntries(
+        Object.entries(migrated.gameSnapshot.gameState.players).map(([id, player]) => [id, [player.teamId, player.teamSlot]]),
+      );
+      expect(seats).toEqual({
+        [P1]: ['TEAM_1', 0], [P3]: ['TEAM_1', 1], [P2]: ['TEAM_2', 0], [P4]: ['TEAM_2', 1],
+      });
+      expect(migrated.gameSnapshot.gameState.boardState.seatSwapRequests).toEqual([]);
+
+      // Applying the chain again changes nothing.
+      expect(await migrateDatabase(pool)).toEqual([]);
+      expect(await persistence.rooms.findById(roomId)).toEqual(migrated);
+    });
+  });
+
+  it('keeps a lobby seat arrangement and an open seat-swap request across a server restart on the same database', async () => {
+    await withSchema(async ({ pool, schemaName }) => {
+      const first = new PostgresPersistenceStore<RoomSnapshot>(pool);
+      const firstServer = await startServer(first);
+      const players = [];
+      for (const name of ['Harvey', 'Nora', 'Alex', 'Zed']) {
+        players.push(await join(await connect(firstServer.url), name, 'PG-SEATS'));
+      }
+      const [harvey, nora, alex, zed] = players;
+      okOf(await setMode(harvey.socket, 'TEAM_2V2'));
+      okOf(await leave(zed.socket)); // Team 2 seat 1 is empty
+      okOf(await moveToSeat(alex.socket, 'TEAM_2', 1)); // Alex takes it at once
+      okOf(await requestSeatSwap(nora.socket, harvey.playerId)); // and Nora waits for Harvey's answer
+      const roomId = harvey.room.roomId;
+      const before = await stored(first, roomId);
+      expect(before.gameSnapshot.gameState.boardState.seatSwapRequests).toEqual([
+        { requesterPlayerId: nora.playerId, targetPlayerId: harvey.playerId },
+      ]);
+      await firstServer.close();
+      await first.close();
+
+      // A brand-new pool and server over the same schema: the arrangement and the question survive, and Harvey can answer.
+      const restartedPool = new Pool({ connectionString: testDatabaseUrl, options: `-c search_path=${schemaName}` });
+      try {
+        await migrateDatabase(restartedPool);
+        const second = new PostgresPersistenceStore<RoomSnapshot>(restartedPool);
+        const secondServer = await startServer(second);
+        const harveySocket = await connect(secondServer.url);
+        const resumed = await resume(harveySocket, harvey.token);
+        expect(resumed.room.gameState.boardState.seatSwapRequests).toEqual(before.gameSnapshot.gameState.boardState.seatSwapRequests);
+        expect(resumed.room.players.map((player) => [player.playerId, player.teamId, player.teamSlot])).toEqual([
+          [harvey.playerId, 'TEAM_1', 0], [nora.playerId, 'TEAM_2', 0], [alex.playerId, 'TEAM_2', 1],
+        ]);
+
+        okOf(await respondSeatSwap(harveySocket, nora.playerId, true));
+        const settled = (await stored(second, roomId)).gameSnapshot.gameState;
+        expect([settled.players[harvey.playerId], settled.players[nora.playerId]].map((player) => [player.teamId, player.teamSlot]))
+          .toEqual([['TEAM_2', 0], ['TEAM_1', 0]]);
+        expect(settled.boardState.seatSwapRequests).toEqual([]);
+        await second.close();
+      } finally {
+        await restartedPool.end().catch(() => undefined);
+      }
     });
   });
 

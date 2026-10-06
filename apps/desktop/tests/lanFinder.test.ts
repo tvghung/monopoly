@@ -186,7 +186,7 @@ describe('LAN room finder requests', () => {
 
     const request = sockets[0].lastRequest;
     expect(request).toEqual({
-      app: 'own-the-block', type: 'find-room', v: 1, protocol: 10, roomCode: 'OTB-ABC234', nonce: NONCE,
+      app: 'own-the-block', type: 'find-room', v: 1, protocol: 11, roomCode: 'OTB-ABC234', nonce: NONCE,
     });
     expect(sockets[0].sent[0].payload.byteLength).toBeLessThanOrEqual(LAN_DISCOVERY_MAX_REQUEST_BYTES);
     finder.cancel();

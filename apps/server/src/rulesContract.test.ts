@@ -311,7 +311,7 @@ describe('rules.ts agrees with the server', () => {
 
   it('keeps the 2v2 numbers the how-to-play guide prints, and the server charges the Solo set bonus they name', () => {
     expect([SOLO_COLOR_SET_RENT_PERCENT, TEAM_COLOR_SET_RENT_PERCENT]).toEqual([150, 200]);
-    expect([REVIVE_COST, REVIVE_STARTING_CASH, REVIVE_WINDOW_SURVIVOR_TURNS]).toEqual([750, 300, 3]);
+    expect([REVIVE_COST, REVIVE_STARTING_CASH, REVIVE_WINDOW_SURVIVOR_TURNS]).toEqual([750, 300, 5]);
     expect([TEAM_SIZE, TEAM_2V2_PLAYER_COUNT, TEAM_NAME_MAX_LENGTH]).toEqual([2, 4, 20]);
     expect(DEFAULT_EMERGENCY_RESCUE_SECONDS).toBe(30);
 

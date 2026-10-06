@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boardStateSchema, type PlayerId, type TeamId } from '@monopoly/shared';
+import { REVIVE_WINDOW_SURVIVOR_TURNS, boardStateSchema, type PlayerId, type TeamId } from '@monopoly/shared';
 import {
   ROOM_SNAPSHOT_SCHEMA_VERSION,
   assertRoomSnapshot,
@@ -7,10 +7,13 @@ import {
   chooseJoinTeam,
   createFreshPlayer,
   createRoomSnapshot,
+  chooseJoinSeat,
   hydrateGameState,
+  lobbySeatHolders,
   storeGameState,
   syncMembershipWithGameState,
   upgradeRoomSnapshotV8ToV9,
+  upgradeRoomSnapshotV9ToV10,
   type RoomSnapshot,
 } from './rooms.js';
 import { startTeamMatch } from './game/index.js';
@@ -37,6 +40,7 @@ function snapshot2v2(started: boolean): RoomSnapshot {
       boardState.teams[TEAM[playerId]].color,
       MASCOT[playerId as keyof typeof MASCOT],
       TEAM[playerId],
+      index >= 2 ? 1 : 0, // P1 and P2 take seat 0 of their teams, P3 and P4 seat 1
     );
   });
   snapshot.nextJoinOrder = 5;
@@ -91,9 +95,9 @@ function bankrupt(snapshot: RoomSnapshot, playerId: PlayerId): void {
   syncMembershipWithGameState(snapshot);
 }
 
-describe('snapshot schema v9', () => {
+describe('snapshot schema v10', () => {
   it('is the current durable version and a fresh room is a Solo room with default teams', () => {
-    expect(ROOM_SNAPSHOT_SCHEMA_VERSION).toBe(9);
+    expect(ROOM_SNAPSHOT_SCHEMA_VERSION).toBe(10);
     const { boardState } = createRoomSnapshot().gameState;
     expect(boardState.gameMode).toBe('SOLO');
     expect(boardState.teams).toEqual({
@@ -102,6 +106,7 @@ describe('snapshot schema v9', () => {
     });
     expect(boardState.teamPlay).toEqual({ slotOrder: [], revivedPlayerIds: [], reviveWindows: [] });
     expect(boardState.winningTeamId).toBeNull();
+    expect(boardState.seatSwapRequests).toEqual([]);
     expect(() => assertRoomSnapshot(createRoomSnapshot())).not.toThrow();
   });
 
@@ -123,11 +128,11 @@ describe('snapshot schema v9', () => {
 
   it('accepts the supported-snapshot gate with the room lifecycle for a started 2v2 game', () => {
     expect(() => assertSupportedRoomSnapshot({
-      snapshotSchemaVersion: 9, gameSnapshot: snapshot2v2(true), hostPlayerId: P1, status: 'IN_PROGRESS',
+      snapshotSchemaVersion: 10, gameSnapshot: snapshot2v2(true), hostPlayerId: P1, status: 'IN_PROGRESS',
     })).not.toThrow();
     expect(() => assertSupportedRoomSnapshot({
-      snapshotSchemaVersion: 8, gameSnapshot: snapshot2v2(true), hostPlayerId: P1, status: 'IN_PROGRESS',
-    })).toThrow(/Unsupported room snapshot schema version 8/);
+      snapshotSchemaVersion: 9, gameSnapshot: snapshot2v2(true), hostPlayerId: P1, status: 'IN_PROGRESS',
+    })).toThrow(/Unsupported room snapshot schema version 9/);
   });
 
   it('puts a revived member back into the active room membership', () => {
@@ -213,11 +218,11 @@ describe('corrupt team state is rejected', () => {
       ];
       assertRoomSnapshot(snapshot);
     }).toThrow();
-    // More than three turns.
+    // More than the five turns of a window.
     expect(() => {
       const snapshot = snapshot2v2(true);
       bankrupt(snapshot, P3);
-      snapshot.gameState.boardState.teamPlay.reviveWindows[0].turnsRemaining = 4;
+      snapshot.gameState.boardState.teamPlay.reviveWindows[0].turnsRemaining = REVIVE_WINDOW_SURVIVOR_TURNS + 1;
       assertRoomSnapshot(snapshot);
     }).toThrow();
   });
@@ -402,7 +407,8 @@ describe('V8 to V9 upgrade', () => {
     };
     Object.values(json.gameState.players).forEach((player) => { delete player.teamId; });
     Object.values(json.gameState.boardState.finishedPlayers).forEach((player) => { delete player.teamId; });
-    for (const key of ['gameMode', 'teams', 'teamPlay', 'winningTeamId']) delete json.gameState.boardState[key];
+    Object.values(json.gameState.players).forEach((player) => { delete player.teamSlot; });
+    for (const key of ['gameMode', 'teams', 'teamPlay', 'winningTeamId', 'seatSwapRequests']) delete json.gameState.boardState[key];
     delete json.gameState.boardState.paymentQueue.rescue;
     return { snapshotSchemaVersion: 8, gameSnapshot: json, hostPlayerId: V8_P1, status: 'IN_PROGRESS' as const };
   };
@@ -428,7 +434,9 @@ describe('V8 to V9 upgrade', () => {
     expect(boardState.finishedPlayers[V8_P2].teamId).toBe('TEAM_2');
     expect(players[V8_P3].teamId).toBe('TEAM_1');
     expect(players[V8_P1]).toMatchObject({ name: 'One', color: 'red', accountBalance: 1500 });
-    expect(() => assertSupportedRoomSnapshot(upgraded)).not.toThrow();
+    // V9 is no longer the current version; the full chain passes every invariant.
+    expect(() => assertSupportedRoomSnapshot(upgraded)).toThrow(/Unsupported room snapshot schema version 9/);
+    expect(() => assertSupportedRoomSnapshot(upgradeRoomSnapshotV9ToV10(upgraded))).not.toThrow();
   });
 
   it('upgrades a decided game too: the winner receives a team and no team winner is invented', () => {
@@ -446,6 +454,137 @@ describe('V8 to V9 upgrade', () => {
   it('refuses anything but a V8 snapshot', () => {
     expect(() => upgradeRoomSnapshotV8ToV9({ ...v8Envelope(), snapshotSchemaVersion: 7 })).toThrow(/Only V8/);
     expect(() => upgradeRoomSnapshotV8ToV9({ ...v8Envelope(), snapshotSchemaVersion: 9 })).toThrow(/Only V8/);
+  });
+});
+
+describe('V9 to V10 upgrade', () => {
+  const A = '00000000-0000-4000-8000-0000000000b1';
+  const B = '00000000-0000-4000-8000-0000000000b2';
+  const C = '00000000-0000-4000-8000-0000000000b3';
+  const D = '00000000-0000-4000-8000-0000000000b4';
+
+  const v9Lobby = () => {
+    const snapshot = createRoomSnapshot();
+    // Join order scrambled against the map order, so the slot assignment must follow the join order.
+    snapshot.members = {
+      [D]: { joinOrder: 8, ready: false, membershipStatus: 'ACTIVE' },
+      [C]: { joinOrder: 6, ready: true, membershipStatus: 'ACTIVE' },
+      [B]: { joinOrder: 4, ready: false, membershipStatus: 'ACTIVE' },
+      [A]: { joinOrder: 2, ready: true, membershipStatus: 'ACTIVE' },
+    };
+    snapshot.nextJoinOrder = 9;
+    const team: Record<string, TeamId> = { [A]: 'TEAM_1', [B]: 'TEAM_2', [C]: 'TEAM_1', [D]: 'TEAM_2' };
+    for (const id of [D, C, B, A]) {
+      snapshot.gameState.players[id] = createFreshPlayer(`P ${id.slice(-1)}`, 'red', null, team[id]);
+    }
+    snapshot.gameState.boardState.players = [A, B, C, D];
+    const json = JSON.parse(JSON.stringify(snapshot)) as {
+      gameState: { players: Record<string, Record<string, unknown>>; boardState: Record<string, unknown> };
+    };
+    Object.values(json.gameState.players).forEach((player) => { delete player.teamSlot; });
+    delete json.gameState.boardState.seatSwapRequests;
+    return { snapshotSchemaVersion: 9, gameSnapshot: json, hostPlayerId: A, status: 'LOBBY' as const };
+  };
+
+  it('gives every live player the next free seat of their team in join order and starts with no request', () => {
+    const legacy = v9Lobby();
+    const before = JSON.stringify(legacy);
+    const upgraded = upgradeRoomSnapshotV9ToV10(legacy);
+
+    expect(JSON.stringify(legacy)).toBe(before);
+    expect(upgraded.snapshotSchemaVersion).toBe(10);
+    const { players, boardState } = upgraded.gameSnapshot.gameState;
+    expect(boardState.seatSwapRequests).toEqual([]);
+    expect([A, C].map((id) => players[id].teamSlot)).toEqual([0, 1]); // Team 1 in join order 2, 6
+    expect([B, D].map((id) => players[id].teamSlot)).toEqual([0, 1]); // Team 2 in join order 4, 8
+    expect(() => assertSupportedRoomSnapshot(upgraded)).not.toThrow();
+  });
+
+  it('never assigns a seat above 1, even for a legacy team with more than two players', () => {
+    const legacy = v9Lobby();
+    const players = (legacy.gameSnapshot as unknown as { gameState: { players: Record<string, Record<string, unknown>> } })
+      .gameState.players;
+    players[B].teamId = 'TEAM_1';
+    players[D].teamId = 'TEAM_1';
+    const upgraded = upgradeRoomSnapshotV9ToV10(legacy);
+    expect(Object.values(upgraded.gameSnapshot.gameState.players).every((player) => player.teamSlot <= 1)).toBe(true);
+  });
+
+  it('refuses anything but a V9 snapshot', () => {
+    expect(() => upgradeRoomSnapshotV9ToV10({ ...v9Lobby(), snapshotSchemaVersion: 8 })).toThrow(/Only V9/);
+    expect(() => upgradeRoomSnapshotV9ToV10({ ...v9Lobby(), snapshotSchemaVersion: 10 })).toThrow(/Only V9/);
+  });
+});
+
+describe('lobby seats', () => {
+  const mutate = (change: (snapshot: RoomSnapshot) => void): (() => void) => () => {
+    const snapshot = snapshot2v2(false);
+    change(snapshot);
+    assertRoomSnapshot(snapshot);
+  };
+
+  it('accepts a 2v2 lobby with open requests between its members', () => {
+    const snapshot = snapshot2v2(false);
+    snapshot.gameState.boardState.seatSwapRequests = [
+      { requesterPlayerId: P1, targetPlayerId: P2 },
+      { requesterPlayerId: P3, targetPlayerId: P4 },
+    ];
+    expect(() => assertRoomSnapshot(snapshot)).not.toThrow();
+    expect(() => assertRoomSnapshot(JSON.parse(JSON.stringify(snapshot)) as RoomSnapshot)).not.toThrow();
+  });
+
+  it('rejects two lobby members on one seat, in either mode', () => {
+    expect(mutate((s) => { s.gameState.players[P3].teamSlot = 0; })).toThrow(/seats/);
+    expect(mutate((s) => { s.gameState.boardState.gameMode = 'SOLO'; s.gameState.players[P3].teamSlot = 0; })).toThrow(/seats/);
+  });
+
+  it('rejects requests that are not between two different lobby members, or repeat a requester', () => {
+    expect(mutate((s) => { s.gameState.boardState.seatSwapRequests = [{ requesterPlayerId: P1, targetPlayerId: P1 }]; })).toThrow();
+    expect(mutate((s) => { s.gameState.boardState.seatSwapRequests = [{ requesterPlayerId: P1, targetPlayerId: 'ffffffff-ffff-4fff-8fff-ffffffffffff' }]; }))
+      .toThrow(/unknown player/);
+    expect(mutate((s) => {
+      s.gameState.boardState.seatSwapRequests = [
+        { requesterPlayerId: P1, targetPlayerId: P2 },
+        { requesterPlayerId: P1, targetPlayerId: P4 },
+      ];
+    })).toThrow(/seat-swap/);
+  });
+
+  it('rejects any request outside a 2v2 lobby', () => {
+    expect(mutate((s) => { s.gameState.boardState.gameMode = 'SOLO'; s.gameState.boardState.seatSwapRequests = [{ requesterPlayerId: P1, targetPlayerId: P2 }]; }))
+      .toThrow(/outside a 2v2 lobby/);
+    const started = snapshot2v2(true);
+    started.gameState.boardState.seatSwapRequests = [{ requesterPlayerId: P1, targetPlayerId: P2 }];
+    expect(() => assertRoomSnapshot(started)).toThrow(/outside a 2v2 lobby/);
+  });
+
+  it('lets a started game reuse seat numbers: seats only matter in the lobby', () => {
+    const started = snapshot2v2(true);
+    started.gameState.players[P3].teamSlot = 0;
+    expect(() => assertRoomSnapshot(started)).not.toThrow();
+  });
+
+  it('seats a joiner in the smaller team on its lowest empty seat and refuses a full lobby', () => {
+    const snapshot = createRoomSnapshot();
+    const seats: Array<[TeamId, number]> = [];
+    for (let index = 1; index <= 4; index += 1) {
+      const id = `00000000-0000-4000-8000-00000000020${index}`;
+      const seat = chooseJoinSeat(snapshot);
+      if (!seat) throw new Error('expected a seat');
+      seats.push([seat.teamId, seat.teamSlot]);
+      snapshot.members[id] = { joinOrder: index, ready: false, membershipStatus: 'ACTIVE' };
+      snapshot.gameState.players[id] = createFreshPlayer(`P${index}`, 'red', null, seat.teamId, seat.teamSlot);
+    }
+    expect(seats).toEqual([['TEAM_1', 0], ['TEAM_2', 0], ['TEAM_1', 1], ['TEAM_2', 1]]);
+    expect(chooseJoinSeat(snapshot)).toBeNull();
+
+    // The first player leaves: the next joiner takes exactly the seat that became free.
+    delete snapshot.members['00000000-0000-4000-8000-000000000201'];
+    delete snapshot.gameState.players['00000000-0000-4000-8000-000000000201'];
+    expect(chooseJoinSeat(snapshot)).toEqual({ teamId: 'TEAM_1', teamSlot: 0 });
+    expect(lobbySeatHolders(snapshot).map((holder) => [holder.teamId, holder.teamSlot])).toEqual([
+      ['TEAM_2', 0], ['TEAM_1', 1], ['TEAM_2', 1],
+    ]);
   });
 });
 
@@ -476,7 +615,7 @@ describe('public projection of team state', () => {
     const projected = projectPublicRoomState(room(snapshot, 'IN_PROGRESS'), new ConnectionRegistry());
     const board = projected.gameState.boardState;
 
-    expect(projected.protocolVersion).toBe(10);
+    expect(projected.protocolVersion).toBe(11);
     expect(board.gameMode).toBe('TEAM_2V2');
     expect(board.winningTeamId).toBeNull();
     expect(board.teams).toEqual([
@@ -490,6 +629,9 @@ describe('public projection of team state', () => {
     expect(projected.players.map((player) => [player.playerId, player.teamId])).toEqual([
       [P1, 'TEAM_1'], [P2, 'TEAM_2'], [P3, 'TEAM_1'], [P4, 'TEAM_2'],
     ]);
+    // The bankrupt player (P3) is no longer in the game, so they report seat 0.
+    expect(projected.players.map((player) => player.teamSlot)).toEqual([0, 0, 0, 1]);
+    expect(board.seatSwapRequests).toEqual([]);
     expect(projected.gameState.players[P1].teamId).toBe('TEAM_1');
     expect(board.finishedPlayers[P3]).toMatchObject({ teamId: 'TEAM_1', reason: 'BANKRUPT' });
     // Nothing match-private leaks: the slot order is not part of the public contract.

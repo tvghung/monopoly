@@ -1,7 +1,7 @@
 import { SOLO_COLOR_SET_RENT_PERCENT, TEAM_COLOR_SET_RENT_PERCENT, TEAM_SIZE } from './rules';
 import { colorGroups, RAILROAD_TILE_INDICES, UTILITY_TILE_INDICES } from './tileState';
-import { TEAM_IDS } from './types';
-import type { DebtClaim, GameMode, PlayerId, TeamId } from './types';
+import { TEAM_IDS, TEAM_SLOTS } from './types';
+import type { DebtClaim, GameMode, PlayerId, TeamId, TeamSlot } from './types';
 
 /**
  * Team rules that both the authoritative server and the client display need, written once over the smallest state view that
@@ -60,6 +60,25 @@ export const getTeammateIds = (state: TeamAwareState, playerId: PlayerId): Playe
   const teamId = getPlayerTeamId(state, playerId);
   return teamId === null ? [] : getTeamMemberIds(state, teamId).filter(memberId => memberId !== playerId);
 };
+
+/** Where a lobby player sits: their team and the seat inside it. Shared by the server rules and the lobby display. */
+export interface SeatHolder {
+  playerId: PlayerId;
+  teamId: TeamId;
+  teamSlot: TeamSlot;
+}
+
+/** The holder of one seat of a team, or `undefined` when it is empty. */
+export const seatHolderAt = <Holder extends SeatHolder>(
+  holders: readonly Holder[],
+  teamId: TeamId,
+  teamSlot: TeamSlot,
+): Holder | undefined => holders.find(holder => holder.teamId === teamId && holder.teamSlot === teamSlot);
+
+/** The lowest empty seat of a team, or `null` when the team is full. */
+export const firstFreeTeamSlot = (holders: readonly SeatHolder[], teamId: TeamId): TeamSlot | null => (
+  TEAM_SLOTS.find(teamSlot => seatHolderAt(holders, teamId, teamSlot) === undefined) ?? null
+);
 
 /** The colour group (district) a street belongs to, or `null` for any tile that is not a street. */
 export const colorGroupOfTile = (tileID: number): string | null => (

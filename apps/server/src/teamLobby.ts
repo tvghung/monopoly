@@ -2,9 +2,11 @@ import {
   TEAM_2V2_PLAYER_COUNT,
   TEAM_IDS,
   TEAM_SIZE,
+  TEAM_SLOTS,
   type GameState,
   type PlayerId,
   type TeamId,
+  type TeamSlot,
 } from '@monopoly/shared';
 import { activePlayerIds, type RoomSnapshot } from './rooms';
 
@@ -13,10 +15,24 @@ import { activePlayerIds, type RoomSnapshot } from './rooms';
  * to a typed error; everything here only reads or edits the draft the caller owns.
  */
 
-/** The active players of a team, in join order. */
+/** The active players of a team in seat order (join order breaks a tie, which only a legacy lobby can have). */
 export const activeTeamMembers = (room: RoomSnapshot, state: GameState, teamId: TeamId): PlayerId[] => (
-  activePlayerIds(room).filter((playerId) => state.players[playerId]?.teamId === teamId)
+  activePlayerIds(room)
+    .filter((playerId) => state.players[playerId]?.teamId === teamId)
+    .sort((left, right) => state.players[left].teamSlot - state.players[right].teamSlot)
 );
+
+/**
+ * Gives every team's active members the seats 0, 1 in their current seat order (join order breaks a tie). A replayed room
+ * starts every member on seat 0, so this is what lays the lobby out again; in a healthy lobby it changes nothing.
+ */
+export const normalizeTeamSlots = (room: RoomSnapshot, state: GameState): void => {
+  for (const teamId of TEAM_IDS) {
+    activeTeamMembers(room, state, teamId).forEach((playerId, index) => {
+      state.players[playerId].teamSlot = TEAM_SLOTS[Math.min(index, TEAM_SLOTS.length - 1)];
+    });
+  }
+};
 
 export const activeTeamSizes = (room: RoomSnapshot, state: GameState): Record<TeamId, number> => ({
   TEAM_1: activeTeamMembers(room, state, 'TEAM_1').length,
@@ -104,4 +120,55 @@ export const getTeamStartBlockReason = (room: RoomSnapshot, state: GameState): s
     }
   }
   return null;
+};
+
+/** Forgets every open seat-swap request that involves one of `playerIds` (they moved, left or were removed). */
+export const dropSeatSwapRequestsOf = (state: GameState, playerIds: readonly PlayerId[]): void => {
+  state.boardState.seatSwapRequests = state.boardState.seatSwapRequests.filter((request) => (
+    !playerIds.includes(request.requesterPlayerId) && !playerIds.includes(request.targetPlayerId)
+  ));
+};
+
+/**
+ * What a change of team means for the players who made it: everyone wears their team's colour again, a mascot that now clashes
+ * with the new teammate is cleared (the player who stayed keeps theirs) and the movers must ready up again. A change of seat
+ * inside the same team touches none of this.
+ */
+const settleTeamChange = (room: RoomSnapshot, state: GameState, movedPlayerIds: readonly PlayerId[]): void => {
+  applyTeamColors(room, state);
+  const stayers = activePlayerIds(room).filter((playerId) => !movedPlayerIds.includes(playerId));
+  dedupeTeamMascots(room, state, [...stayers, ...movedPlayerIds]);
+  resetReady(room, movedPlayerIds);
+};
+
+/** The player takes an empty seat. Their open requests (made or received) are void: nobody sits where they used to. */
+export const movePlayerToSeat = (
+  room: RoomSnapshot,
+  state: GameState,
+  playerId: PlayerId,
+  teamId: TeamId,
+  teamSlot: TeamSlot,
+): void => {
+  const player = state.players[playerId];
+  const teamChanged = player.teamId !== teamId;
+  player.teamId = teamId;
+  player.teamSlot = teamSlot;
+  dropSeatSwapRequestsOf(state, [playerId]);
+  if (teamChanged) settleTeamChange(room, state, [playerId]);
+};
+
+/** The two players exchange seats (and so teams, when they are on different ones). Every open request of either is void. */
+export const swapPlayerSeats = (
+  room: RoomSnapshot,
+  state: GameState,
+  firstPlayerId: PlayerId,
+  secondPlayerId: PlayerId,
+): void => {
+  const first = state.players[firstPlayerId];
+  const second = state.players[secondPlayerId];
+  const teamChanged = first.teamId !== second.teamId;
+  [first.teamId, second.teamId] = [second.teamId, first.teamId];
+  [first.teamSlot, second.teamSlot] = [second.teamSlot, first.teamSlot];
+  dropSeatSwapRequestsOf(state, [firstPlayerId, secondPlayerId]);
+  if (teamChanged) settleTeamChange(room, state, [firstPlayerId, secondPlayerId]);
 };

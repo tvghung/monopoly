@@ -3,8 +3,9 @@
 ## Scope
 
 `apps/server/src/socket/lobby.ts` handles `set ready`, `start game`, `play again` and
-`leave room`; `apps/server/src/socket/team.ts` handles the 2v2 lobby commands `set game mode`, `set team name`,
-`set team color`, `swap team` and the in-game `revive teammate` (rules: [../GameCore/team-play.instruction.md](../GameCore/team-play.instruction.md)).
+`leave room`; `kick player` (lobby) also lives in `lobby.ts`; `apps/server/src/socket/team.ts` handles the 2v2 lobby commands `set game mode`,
+`set team name`, `set team color`, `move to seat`, `request seat swap`, `cancel seat swap`, `respond seat swap` and the in-game
+`revive teammate` (rules: [../GameCore/team-play.instruction.md](../GameCore/team-play.instruction.md)).
 All Player commands use authenticated stable actor, runtime schema where applicable,
 per-room executor and typed ACK.
 
@@ -36,7 +37,8 @@ per-room executor and typed ACK.
   preserve it. The board may keep this compatibility field without rendering a visible
   timer. Client supplies no dice/order.
 - 2v2 start additionally needs exactly four active Players, exactly two per team, and a valid mascot with no duplicate inside a
-  team; it then seats `slotOrder` (A1, B1, A2, B2) through `startTeamMatch`. A 3v1 split can be configured but is refused.
+  team; it then seats `slotOrder` (A1, B1, A2, B2) through `startTeamMatch`, taking each team in seat order (the opposing
+  team's seat 0 plays right after the starter, its seat 1 last). Every open seat-swap request is cleared by the start.
 - Repeat/non-host/spectator/offline/unready start returns explicit failure.
 
 ## Same-room Play Again
@@ -54,20 +56,39 @@ per-room executor and typed ACK.
   identities are not carried into the next match. Commit emits the new `LOBBY`
   snapshot before the ACK; a repeated/in-flight command cannot reset twice.
 - In 2v2 the reset keeps `gameMode`, `teams` (names and colours), each Player's `teamId` and the team colour, and clears
-  `teamPlay`, `winningTeamId` and every revive window. The host may still switch mode before the next start.
+  `teamPlay`, `winningTeamId` and every revive window, and lays each team out again on seats 0 and 1 in join order
+  (`normalizeTeamSlots`). The host may still switch mode before the next start.
 
 ## 2v2 lobby commands (`socket/team.ts`)
 
 | Event | Payload | Actor | Rule |
 | --- | --- | --- | --- |
 | `set game mode` | `{mode}` | host | `LOBBY` only; a real change resets every Ready |
-| `set team name` | `{teamId, name}` | host | 2v2 `LOBBY`; `sanitizeName`, at most 20 chars; Ready untouched |
+| `set team name` | `{name}` | active member | 2v2 `LOBBY`; renames the actor's **own** team only (the payload has no team: nobody, the host included, can name the other team); `sanitizeName`, at most 20 chars; Ready untouched |
 | `set team color` | `{color}` | active member | own team only, not the other team's colour; resets that team's Ready |
-| `swap team` | `{playerId, withPlayerId}` | host | 2v2 `LOBBY`; two active Players of different teams; resets both Ready; mascot kept unless it clashes |
+| `move to seat` | `{teamId, teamSlot}` | active member | 2v2 `LOBBY`; the seat must be empty (`CONFLICT` when it is held, or is the actor's own); the move is immediate. Across teams: colour becomes the new team's, a mascot that clashes with the new teammate is cleared (the stayer keeps theirs) and only the mover's Ready resets; inside the team only the seat changes |
+| `request seat swap` | `{targetPlayerId}` | active member | 2v2 `LOBBY`; asks another active member to exchange seats and moves nothing. One open request per requester (a new one replaces the old); stored in `boardState.seatSwapRequests` |
+| `cancel seat swap` | no payload | requester | withdraws the actor's open request; nothing to cancel is a success |
+| `respond seat swap` | `{requesterPlayerId, accept}` | target | only the target of an open request `requester → actor` (else `CONFLICT`); accept exchanges the two seats as they are now (across teams: colours, mascot clash and both Ready as for a move; inside a team nothing but the seats), decline closes the request |
+| `kick player` | `{playerId}` | host | `LOBBY` only (Solo and 2v2); never the host themself; see below |
 | `revive teammate` | no payload | survivor | `IN_PROGRESS`, own turn, window open, ≥ `REVIVE_COST`; see team-play |
+
+The host has no command that moves another player: seats change only by their own holder's `move to seat` or by an accepted swap.
+A request is void (removed in the same commit) when either side moves, swaps, leaves or is removed, when the mode changes and when
+the game starts; `assertRoomSnapshot` rejects a request outside a 2v2 lobby, a repeated requester and a request that names a player
+who is not an active lobby member.
 
 All of them use the authenticated actor, run in the room executor and ACK only after commit. Failures use Vietnamese messages
 (`localizeAckError` shows them as written).
+
+### `kick player`
+
+Host only, `LOBBY` only, never the host, only an active member. In one transaction it revokes the target's session
+(`revokeByPlayer`), deletes the member and player, rebuilds `boardState.players`, drops the target's seat-swap requests and adds a log
+line. After commit the target's current connection (if any) receives `removed from room` `{code: 'REMOVED_BY_HOST', message}`, leaves
+the `room:`/`player:` channels, is deactivated in the connection registry and has its `SocketData` cleared, so its next command fails
+`UNAUTHENTICATED` and its old token fails `SESSION_REVOKED`; a disconnected target is simply removed. The removed player may join again
+from the room code like anyone else. Everyone else receives the normal room update.
 
 First activated Seat is host. Temporary disconnect never transfers host or ready.
 
@@ -107,9 +128,15 @@ leave clears runtime binding/admission lock so the same Socket can join another 
   the replay then excludes the winner; a bankrupt member leaves and the last leave deletes the room (`rooms.test.ts`: the
   LEFT winner snapshot is valid, any other LEFT live seat or a LEFT winner without a live seat is rejected).
 - Same-socket Player/spectator leave then fresh join.
-- 2v2 lobby (`socket.teamplay.integration.test.ts`): mode change resets Ready and is host/lobby only, team name keeps Ready, team
-  colour is own-team only and resets that team, swap resets exactly the two players, appearance rejects colour and teammate
-  mascots, start refuses 3v1 and non-four, Play Again keeps mode/teams/names/colours.
+- 2v2 lobby (`socket.teamplay.integration.test.ts`): mode change resets Ready and is host/lobby only, any member renames only their own
+  team and Ready is kept, team colour is own-team only and resets that team, appearance rejects colour and teammate mascots,
+  start needs four players and two per team, Play Again keeps mode/teams/names/colours.
+- Seats and removal (`socket.lobbySeats.integration.test.ts`, `teamLobby.test.ts`): move to an empty seat across teams and inside a
+  team, refusals (held seat, own seat, Solo, started game), two concurrent moves to one seat, request/accept/decline/cancel, one request per
+  requester, only the target can answer, request voiding (move, leave, kick, mode change, start), a request visible after reconnect,
+  seat order driving the match order, Play Again re-seating, kick (host-only, lobby-only, self, stranger, offline target, session revoked,
+  `removed from room` event, seat freed, rejoin). PostgreSQL (`socket.teamplay.postgres.integration.test.ts`): migrations 010 and
+  011 against the pure helpers, and a seat arrangement with an open request surviving a restart.
 - Current/non-current leave, property/listing/offer cleanup and winner.
 - Active-payer leave settles creditor and leaves no auction/proposal; non-payer leave
   returns assets without proceeds.

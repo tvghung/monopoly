@@ -5,19 +5,23 @@ import {
   PLAYER_COLOR_IDS,
   TEAM_IDS,
   TEAM_NAME_MAX_LENGTH,
+  TEAM_SLOTS,
 } from './types';
 import type {
   JoinRoomRequest,
+  KickPlayerRequest,
+  MoveToSeatRequest,
   OfferAction,
   OfferInfo,
+  RequestSeatSwapRequest,
   RescueDecisionRequest,
+  RespondSeatSwapRequest,
   ResumeSessionRequest,
   SetAppearanceRequest,
   SetGameModeRequest,
   SetReadyRequest,
   SetTeamColorRequest,
   SetTeamNameRequest,
-  SwapTeamRequest,
   TradeBundle,
 } from './types';
 import type { ClientToServerEvents } from './events';
@@ -36,6 +40,7 @@ export const playerNameSchema = z.string().trim().min(1).max(20);
 export const gameModeSchema = z.enum(GAME_MODES);
 export const teamIdSchema = z.enum(TEAM_IDS);
 export const playerColorSchema = z.enum(PLAYER_COLOR_IDS);
+export const teamSlotSchema = z.union([z.literal(TEAM_SLOTS[0]), z.literal(TEAM_SLOTS[1])]);
 export const teamNameSchema = z.string().trim().min(1).max(TEAM_NAME_MAX_LENGTH);
 export const roomCodeSchema = z
   .string()
@@ -96,7 +101,6 @@ export const setGameModeRequestSchema = z.strictObject({
 }) satisfies z.ZodType<SetGameModeRequest>;
 
 export const setTeamNameRequestSchema = z.strictObject({
-  teamId: teamIdSchema,
   name: teamNameSchema,
 }) satisfies z.ZodType<SetTeamNameRequest>;
 
@@ -104,13 +108,23 @@ export const setTeamColorRequestSchema = z.strictObject({
   color: playerColorSchema,
 }) satisfies z.ZodType<SetTeamColorRequest>;
 
-export const swapTeamRequestSchema = z.strictObject({
+export const kickPlayerRequestSchema = z.strictObject({
   playerId: playerIdSchema,
-  withPlayerId: playerIdSchema,
-}).refine(
-  request => request.playerId !== request.withPlayerId,
-  'Cần chọn hai người chơi khác nhau để đổi đội',
-) satisfies z.ZodType<SwapTeamRequest>;
+}) satisfies z.ZodType<KickPlayerRequest>;
+
+export const moveToSeatRequestSchema = z.strictObject({
+  teamId: teamIdSchema,
+  teamSlot: teamSlotSchema,
+}) satisfies z.ZodType<MoveToSeatRequest>;
+
+export const requestSeatSwapRequestSchema = z.strictObject({
+  targetPlayerId: playerIdSchema,
+}) satisfies z.ZodType<RequestSeatSwapRequest>;
+
+export const respondSeatSwapRequestSchema = z.strictObject({
+  requesterPlayerId: playerIdSchema,
+  accept: z.boolean(),
+}) satisfies z.ZodType<RespondSeatSwapRequest>;
 
 export const operationIdSchema = z.uuid();
 export const rescueDecisionRequestSchema = z.strictObject({
@@ -202,9 +216,13 @@ export const clientEventPayloadSchemas = {
   'set ready': setReadyRequestSchema,
   'set appearance': setAppearanceRequestSchema,
   'set game mode': setGameModeRequestSchema,
+  'kick player': kickPlayerRequestSchema,
   'set team name': setTeamNameRequestSchema,
   'set team color': setTeamColorRequestSchema,
-  'swap team': swapTeamRequestSchema,
+  'move to seat': moveToSeatRequestSchema,
+  'request seat swap': requestSeatSwapRequestSchema,
+  'cancel seat swap': noPayloadSchema,
+  'respond seat swap': respondSeatSwapRequestSchema,
   'leave room': noPayloadSchema,
   'start game': noPayloadSchema,
   'play again': noPayloadSchema,

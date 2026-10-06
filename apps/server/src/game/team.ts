@@ -190,6 +190,8 @@ export const reviveTeammate = (state: GameState, actorId: PlayerId): ReviveResul
   const actor = state.players[actorId];
   const finished = state.boardState.finishedPlayers[teammateId];
   const { teamPlay } = state.boardState;
+  // Seats only matter in the lobby; the revived player simply takes the seat their survivor does not hold.
+  const teamSlot = actor.teamSlot === 0 ? 1 : 0;
 
   actor.accountBalance -= REVIVE_COST;
   recordPublicGameplayEvent(state, {
@@ -206,6 +208,7 @@ export const reviveTeammate = (state: GameState, actorId: PlayerId): ReviveResul
     color: finished.color,
     characterId: finished.characterId,
     teamId: finished.teamId,
+    teamSlot,
     accountBalance: REVIVE_STARTING_CASH,
     isJail: false,
     jailOpponentRoundsElapsed: 0,

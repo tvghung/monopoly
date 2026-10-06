@@ -74,8 +74,11 @@ export const TEAM_2V2_PLAYER_COUNT = TEAM_SIZE * 2;
 export const REVIVE_COST = 750;
 /** What a revived player returns with (300K); they own nothing and stand on Xuất Phát. */
 export const REVIVE_STARTING_CASH = 300;
-/** How many of the surviving teammate's own turns a bankruptcy leaves open for a revive. */
-export const REVIVE_WINDOW_SURVIVOR_TURNS = 3;
+/**
+ * How many of the surviving teammate's own turns a bankruptcy leaves open for a revive: they may revive before each of their
+ * next 5 rolls, and the elimination becomes permanent when their 6th roll comes (the 5th turn ends with the window closed).
+ */
+export const REVIVE_WINDOW_SURVIVOR_TURNS = 5;
 /** Default time the active teammate has to answer an Emergency Rescue offer (the server reads `EMERGENCY_RESCUE_TIMEOUT_MS`). */
 export const DEFAULT_EMERGENCY_RESCUE_SECONDS = 30;
 

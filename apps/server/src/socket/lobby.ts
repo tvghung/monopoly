@@ -1,5 +1,6 @@
 import {
   getAppearanceCombinationKey,
+  kickPlayerRequestSchema,
   setAppearanceRequestSchema,
   setReadyRequestSchema,
   type CharacterId,
@@ -7,6 +8,7 @@ import {
   type LeaveRoomResult,
   type OfferResult,
   type PlayerColorId,
+  type RemovedFromRoomInfo,
 } from '@monopoly/shared';
 import {
   chooseStartingPlayer,
@@ -27,7 +29,13 @@ import {
   type RoomSnapshot,
   freshState,
 } from '../rooms';
-import { activeTeamMembers, getTeamStartBlockReason, hasTeamMascotConflict } from '../teamLobby';
+import {
+  activeTeamMembers,
+  dropSeatSwapRequestsOf,
+  getTeamStartBlockReason,
+  hasTeamMascotConflict,
+  normalizeTeamSlots,
+} from '../teamLobby';
 import { paymentTimingOptions, type AppRuntime } from '../services/runtime';
 import type { RoomRecord, TradeOfferRecord } from '../persistence';
 import { projectPrivateOffer } from '../services/privateOffers';
@@ -222,6 +230,7 @@ export function registerLobbyHandlers(
 
         room.status = 'IN_PROGRESS';
         state.boardState.gameStarted = true;
+        state.boardState.seatSwapRequests = [];
         state.boardState.gameStartedAt = state.boardState.gameStartedAt ?? now.toISOString();
         const startingRoll = chooseStartingPlayer(players);
         if (teamMode) {
@@ -330,6 +339,8 @@ export function registerLobbyHandlers(
           );
           state.boardState.players.push(candidate.playerId);
         }
+        // The replayed lobby lays each team out again by join order (every member starts on seat 0 until then).
+        normalizeTeamSlots(room.gameSnapshot, state);
         room.status = 'LOBBY';
         room.hostPlayerId = room.gameSnapshot.members[actor.playerId]
           ? actor.playerId
@@ -341,6 +352,63 @@ export function registerLobbyHandlers(
       }, now, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
       emitCancelledOffers(io, committed.room, committed.result, now);
+      broadcastRoom(io, runtime, committed.room);
+      acknowledge(successAck(committed.room.aggregateVersion));
+    } catch (error) {
+      acknowledgeFailure(acknowledge, error);
+    }
+  });
+
+  // Host only, lobby only: sends another player out of the room. Their session is revoked in the same transaction, so the old
+  // token can never bring them back as that player; they may join again from the room code like anyone else.
+  socket.on('kick player', async (rawRequest, acknowledge) => {
+    try {
+      const request = parsePayload(kickPlayerRequestSchema, rawRequest);
+      const actor = requirePlayer(socket, runtime);
+      const now = new Date();
+      const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }) => {
+        if (room.status !== 'LOBBY') {
+          throw new CommandError('CONFLICT', 'Chỉ có thể mời người chơi ra khỏi phòng trong phòng chờ.');
+        }
+        if (room.hostPlayerId !== actor.playerId) {
+          throw new CommandError('FORBIDDEN', 'Chỉ chủ phòng mới có thể mời người chơi ra khỏi phòng.');
+        }
+        if (request.playerId === actor.playerId) {
+          throw new CommandError('CONFLICT', 'Chủ phòng không thể tự mời mình ra khỏi phòng. Hãy chọn Rời phòng.');
+        }
+        const member = room.gameSnapshot.members[request.playerId];
+        const player = state.players[request.playerId];
+        if (!member || member.membershipStatus !== 'ACTIVE' || !player) {
+          throw new CommandError('CONFLICT', 'Người chơi này không còn trong phòng.');
+        }
+
+        await transaction.playerSessions.revokeByPlayer(actor.roomId, request.playerId, now);
+        delete room.gameSnapshot.members[request.playerId];
+        delete state.players[request.playerId];
+        state.boardState.players = activePlayerIds(room.gameSnapshot);
+        dropSeatSwapRequestsOf(state, [request.playerId]);
+        sendToLog(state, `${player.name} đã được chủ phòng mời ra khỏi phòng.`);
+      }, now, actor);
+      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
+
+      // The removed player's connection (if any) learns why, leaves the room channels and is no longer theirs.
+      const kicked = runtime.connections.get(request.playerId);
+      if (kicked) {
+        runtime.connections.deactivate(request.playerId, kicked.socketId, kicked.generation);
+        const kickedSocket = io.sockets.sockets.get(kicked.socketId);
+        if (kickedSocket) {
+          const info: RemovedFromRoomInfo = {
+            code: 'REMOVED_BY_HOST',
+            message: 'Chủ phòng đã mời bạn ra khỏi phòng.',
+          };
+          kickedSocket.emit('removed from room', info);
+          await Promise.all([
+            kickedSocket.leave(privatePlayerRoomName(request.playerId)),
+            kickedSocket.leave(publicRoomName(actor.roomId)),
+          ]);
+          kickedSocket.data = {};
+        }
+      }
       broadcastRoom(io, runtime, committed.room);
       acknowledge(successAck(committed.room.aggregateVersion));
     } catch (error) {
@@ -373,6 +441,7 @@ export function registerLobbyHandlers(
           delete room.gameSnapshot.members[playerId];
           delete state.players[playerId];
           state.boardState.players = activePlayerIds(room.gameSnapshot);
+          dropSeatSwapRequestsOf(state, [playerId]);
           if (room.hostPlayerId === playerId) {
             room.hostPlayerId = state.boardState.players[0] ?? null;
           }

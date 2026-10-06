@@ -1,17 +1,22 @@
 import {
+  moveToSeatRequestSchema,
+  requestSeatSwapRequestSchema,
+  respondSeatSwapRequestSchema,
+  seatHolderAt,
   setGameModeRequestSchema,
   setTeamColorRequestSchema,
   setTeamNameRequestSchema,
-  swapTeamRequestSchema,
 } from '@monopoly/shared';
 import { reviveTeammate, sanitizeName } from '../game';
-import { activePlayerIds } from '../rooms';
+import { activePlayerIds, lobbySeatHolders } from '../rooms';
 import type { AppRuntime } from '../services/runtime';
 import {
   activeTeamMembers,
   applyTeamColors,
   dedupeTeamMascots,
+  movePlayerToSeat,
   resetReady,
+  swapPlayerSeats,
 } from '../teamLobby';
 import { requirePlayer } from './authority';
 import { broadcastRoom } from './broadcast';
@@ -22,14 +27,21 @@ import { parsePayload } from './validation';
 
 const LOBBY_ONLY = 'Chỉ có thể chỉnh đội trong phòng chờ.';
 const TEAM_MODE_ONLY = 'Chỉ có thể chỉnh đội khi chọn chế độ 2v2.';
-const HOST_ONLY = 'Chỉ chủ phòng mới có thể thực hiện thao tác này.';
 
-/** The checks every team-lobby command shares: the lobby, the 2v2 mode and (for host commands) the host. */
-function requireTeamLobby(context: DomainCommandContext, playerId: string, hostOnly: boolean): void {
+/** The checks every team-lobby command shares: the lobby and the 2v2 mode. */
+function requireTeamLobby(context: DomainCommandContext): void {
   const { room, state } = context;
   if (room.status !== 'LOBBY') throw new CommandError('CONFLICT', LOBBY_ONLY);
-  if (hostOnly && room.hostPlayerId !== playerId) throw new CommandError('FORBIDDEN', HOST_ONLY);
   if (state.boardState.gameMode !== 'TEAM_2V2') throw new CommandError('CONFLICT', TEAM_MODE_ONLY);
+}
+
+/** The actor as an active member of the lobby, with their player record; a command by anyone else is refused. */
+function requireLobbyMember(context: DomainCommandContext, playerId: string, refusal: string) {
+  const { room, state } = context;
+  const member = room.gameSnapshot.members[playerId];
+  const player = state.players[playerId];
+  if (!member || member.membershipStatus !== 'ACTIVE' || !player) throw new CommandError('FORBIDDEN', refusal);
+  return player;
 }
 
 export function registerTeamHandlers(io: AppServer, socket: AppSocket, runtime: AppRuntime): void {
@@ -46,6 +58,8 @@ export function registerTeamHandlers(io: AppServer, socket: AppSocket, runtime: 
         if (state.boardState.gameMode === request.mode) return;
 
         state.boardState.gameMode = request.mode;
+        // Seat-swap requests only exist in a 2v2 lobby.
+        state.boardState.seatSwapRequests = [];
         const players = activePlayerIds(room.gameSnapshot);
         resetReady(room.gameSnapshot, players);
         if (request.mode === 'TEAM_2V2') {
@@ -62,16 +76,18 @@ export function registerTeamHandlers(io: AppServer, socket: AppSocket, runtime: 
     }
   });
 
-  // Host: rename a team. Names never reset Ready.
+  // Any active member: rename their own team (never the other one; the host has no say over the opposing team). Names never
+  // reset Ready.
   socket.on('set team name', async (rawRequest, acknowledge) => {
     try {
       const request = parsePayload(setTeamNameRequestSchema, rawRequest);
       const actor = requirePlayer(socket, runtime);
       const committed = await commitRoomCommand(runtime, actor.roomId, (context) => {
-        requireTeamLobby(context, actor.playerId, true);
+        requireTeamLobby(context);
+        const player = requireLobbyMember(context, actor.playerId, 'Chỉ thành viên của đội mới có thể đổi tên đội.');
         const name = sanitizeName(request.name);
         if (!name) throw new CommandError('INVALID_REQUEST', 'Tên đội không hợp lệ.');
-        context.state.boardState.teams[request.teamId].name = name;
+        context.state.boardState.teams[player.teamId].name = name;
       }, undefined, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
       broadcastRoom(io, runtime, committed.room);
@@ -87,13 +103,9 @@ export function registerTeamHandlers(io: AppServer, socket: AppSocket, runtime: 
       const request = parsePayload(setTeamColorRequestSchema, rawRequest);
       const actor = requirePlayer(socket, runtime);
       const committed = await commitRoomCommand(runtime, actor.roomId, (context) => {
-        requireTeamLobby(context, actor.playerId, false);
+        requireTeamLobby(context);
         const { room, state } = context;
-        const member = room.gameSnapshot.members[actor.playerId];
-        const player = state.players[actor.playerId];
-        if (!member || member.membershipStatus !== 'ACTIVE' || !player) {
-          throw new CommandError('FORBIDDEN', 'Chỉ thành viên của đội mới có thể đổi màu đội.');
-        }
+        const player = requireLobbyMember(context, actor.playerId, 'Chỉ thành viên của đội mới có thể đổi màu đội.');
         const own = state.boardState.teams[player.teamId];
         const otherTeamId = player.teamId === 'TEAM_1' ? 'TEAM_2' : 'TEAM_1';
         if (request.color === state.boardState.teams[otherTeamId].color) {
@@ -113,32 +125,100 @@ export function registerTeamHandlers(io: AppServer, socket: AppSocket, runtime: 
     }
   });
 
-  // Host: exchange two players between the teams. Their colour becomes their new team's; a mascot that now clashes with the
-  // new teammate is cleared (the player who stayed keeps theirs); both swapped players must ready up again.
-  socket.on('swap team', async (rawRequest, acknowledge) => {
+  // The actor takes a seat nobody holds (the other team's, or the other seat of their own). Moving to the other team changes
+  // their colour, may clear a mascot that clashes with the new teammate and resets their Ready; the seat is theirs at once.
+  socket.on('move to seat', async (rawRequest, acknowledge) => {
     try {
-      const request = parsePayload(swapTeamRequestSchema, rawRequest);
+      const request = parsePayload(moveToSeatRequestSchema, rawRequest);
       const actor = requirePlayer(socket, runtime);
       const committed = await commitRoomCommand(runtime, actor.roomId, (context) => {
-        requireTeamLobby(context, actor.playerId, true);
+        requireTeamLobby(context);
         const { room, state } = context;
-        const first = state.players[request.playerId];
-        const second = state.players[request.withPlayerId];
-        const firstActive = room.gameSnapshot.members[request.playerId]?.membershipStatus === 'ACTIVE';
-        const secondActive = room.gameSnapshot.members[request.withPlayerId]?.membershipStatus === 'ACTIVE';
-        if (!first || !second || !firstActive || !secondActive) {
-          throw new CommandError('CONFLICT', 'Cả hai người chơi phải còn trong phòng chờ.');
+        const player = requireLobbyMember(context, actor.playerId, 'Chỉ người chơi trong phòng chờ mới có thể đổi chỗ.');
+        if (player.teamId === request.teamId && player.teamSlot === request.teamSlot) {
+          throw new CommandError('CONFLICT', 'Bạn đang ngồi ở chỗ này.');
         }
-        if (first.teamId === second.teamId) {
-          throw new CommandError('CONFLICT', 'Hai người chơi đang cùng một đội.');
+        if (seatHolderAt(lobbySeatHolders(room.gameSnapshot), request.teamId, request.teamSlot)) {
+          throw new CommandError('CONFLICT', 'Chỗ này vừa có người ngồi. Hãy chọn lại.');
         }
+        movePlayerToSeat(room.gameSnapshot, state, actor.playerId, request.teamId, request.teamSlot);
+      }, undefined, actor);
+      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
+      broadcastRoom(io, runtime, committed.room);
+      acknowledge(successAck(committed.room.aggregateVersion));
+    } catch (error) {
+      acknowledgeFailure(acknowledge, error);
+    }
+  });
 
-        [first.teamId, second.teamId] = [second.teamId, first.teamId];
-        applyTeamColors(room.gameSnapshot, state);
-        const moved = [request.playerId, request.withPlayerId];
-        const stayers = activePlayerIds(room.gameSnapshot).filter((playerId) => !moved.includes(playerId));
-        dedupeTeamMascots(room.gameSnapshot, state, [...stayers, ...moved]);
-        resetReady(room.gameSnapshot, moved);
+  // The actor asks another player to exchange seats. Nothing moves until that player accepts; a player has one open request
+  // at a time, so asking someone else replaces the earlier question.
+  socket.on('request seat swap', async (rawRequest, acknowledge) => {
+    try {
+      const request = parsePayload(requestSeatSwapRequestSchema, rawRequest);
+      const actor = requirePlayer(socket, runtime);
+      const committed = await commitRoomCommand(runtime, actor.roomId, (context) => {
+        requireTeamLobby(context);
+        const { room, state } = context;
+        requireLobbyMember(context, actor.playerId, 'Chỉ người chơi trong phòng chờ mới có thể đổi chỗ.');
+        if (request.targetPlayerId === actor.playerId) {
+          throw new CommandError('CONFLICT', 'Không thể đổi chỗ với chính mình.');
+        }
+        const target = room.gameSnapshot.members[request.targetPlayerId];
+        if (!target || target.membershipStatus !== 'ACTIVE' || !state.players[request.targetPlayerId]) {
+          throw new CommandError('CONFLICT', 'Người chơi này không còn trong phòng chờ.');
+        }
+        state.boardState.seatSwapRequests = [
+          ...state.boardState.seatSwapRequests.filter((open) => open.requesterPlayerId !== actor.playerId),
+          { requesterPlayerId: actor.playerId, targetPlayerId: request.targetPlayerId },
+        ];
+      }, undefined, actor);
+      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
+      broadcastRoom(io, runtime, committed.room);
+      acknowledge(successAck(committed.room.aggregateVersion));
+    } catch (error) {
+      acknowledgeFailure(acknowledge, error);
+    }
+  });
+
+  // The requester withdraws their open request. Nothing to withdraw is not an error: the target may have answered already.
+  socket.on('cancel seat swap', async (acknowledge) => {
+    try {
+      const actor = requirePlayer(socket, runtime);
+      const committed = await commitRoomCommand(runtime, actor.roomId, (context) => {
+        requireTeamLobby(context);
+        const { state } = context;
+        state.boardState.seatSwapRequests = state.boardState.seatSwapRequests.filter(
+          (open) => open.requesterPlayerId !== actor.playerId,
+        );
+      }, undefined, actor);
+      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
+      broadcastRoom(io, runtime, committed.room);
+      acknowledge(successAck(committed.room.aggregateVersion));
+    } catch (error) {
+      acknowledgeFailure(acknowledge, error);
+    }
+  });
+
+  // The target answers the request addressed to them. Accepting exchanges the two seats as they are right now; declining only
+  // closes the request. The requester is named in the payload, but only a request that really is addressed to the actor counts.
+  socket.on('respond seat swap', async (rawRequest, acknowledge) => {
+    try {
+      const request = parsePayload(respondSeatSwapRequestSchema, rawRequest);
+      const actor = requirePlayer(socket, runtime);
+      const committed = await commitRoomCommand(runtime, actor.roomId, (context) => {
+        requireTeamLobby(context);
+        const { room, state } = context;
+        requireLobbyMember(context, actor.playerId, 'Chỉ người chơi trong phòng chờ mới có thể trả lời đổi chỗ.');
+        const open = state.boardState.seatSwapRequests.find((candidate) => (
+          candidate.requesterPlayerId === request.requesterPlayerId && candidate.targetPlayerId === actor.playerId
+        ));
+        if (!open) throw new CommandError('CONFLICT', 'Yêu cầu đổi chỗ này không còn.');
+        if (request.accept) {
+          swapPlayerSeats(room.gameSnapshot, state, open.requesterPlayerId, actor.playerId);
+        } else {
+          state.boardState.seatSwapRequests = state.boardState.seatSwapRequests.filter((candidate) => candidate !== open);
+        }
       }, undefined, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
       broadcastRoom(io, runtime, committed.room);

@@ -73,7 +73,8 @@ Actor không bao giờ lấy từ client payload. Handler không tự viết SQL
 | --- | --- |
 | Session/presence | `join room`, `resume session`, disconnect |
 | Lobby/lifecycle | `set ready`, `start game`, `play again`, `leave room` |
-| Team (2v2) | `set game mode`, `set team name`, `set team color`, `swap team`, `revive teammate`, `accept rescue`, `decline rescue` |
+| Team (2v2) | `set game mode`, `set team name`, `set team color`, `move to seat`, `request seat swap`, `cancel seat swap`, `respond seat swap`, `revive teammate`, `accept rescue`, `decline rescue` |
+| Lobby removal | `kick player` (host, lobby); the removed player's connection receives `removed from room` |
 | Turn | `roll dice`, `buy property`, `do not buy`, `resolve development`, `wait in jail` |
 | Chat | `send chat` |
 | Trading | durable bilateral offer events |

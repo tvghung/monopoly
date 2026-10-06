@@ -1,4 +1,4 @@
-# PostgreSQL, snapshot v9, CAS và recovery
+# PostgreSQL, snapshot v10, CAS và recovery
 
 ## Relational model
 
@@ -10,7 +10,7 @@ proposals live inside the active room snapshot and do not require a new table.
 
 ## Strict snapshot validation
 
-The v9 loader/save gate validates player/member references, 2v2 team state (`assertTeamState`), ordered payment claims,
+The v10 loader/save gate validates player/member references, 2v2 team state (`assertTeamState`, including lobby seats and seat-swap requests), ordered payment claims,
 pending landing/turn/card continuation correlation, property/building shape,
 private deck/card one-location invariants, semantic and typed activity stream tails,
 `completedCardOperations` uniqueness and forced-sale proposal binding:
@@ -28,7 +28,7 @@ landing/payment/proposal/turn-recovery state.
 protocol/schema gate
 → authenticated actor
 → per-room FIFO + row lock
-→ clone/validate v9 snapshot
+→ clone/validate v10 snapshot
 → mutate GameCore and related ordinary-offer rows
 → revalidate + expected-version CAS
 → public/private projection + ACK
@@ -70,6 +70,8 @@ activity tail; it deliberately does not reconstruct historical events or deck or
 The server appends semantic/activity events only inside committed room commands.
 Migration `010_teamplay_v9.sql` upgrades V8 snapshots to V9 (Solo mode, balanced teams, empty `teamPlay`, `rescue: null`); the PostgreSQL
 test compares it with the TypeScript helper and restarts a 2v2 room with an open rescue and an open revive window on the same database.
+Migration `011_lobby_seats_v10.sql` upgrades V9 snapshots to V10 (`Player.teamSlot` by join order inside each team, `seatSwapRequests: []`) with the same
+helper-versus-SQL comparison and a restart of a lobby with an open seat-swap request.
 Tests must cover idempotence, identity/session/token preservation, offer cancellation,
 fresh-runtime pending Buy/development/Jail/payment/proposal recovery, CAS/save failure
 and public/private no-leak behavior.

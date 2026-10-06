@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import {
   REVIVE_COST,
   REVIVE_STARTING_CASH,
+  REVIVE_WINDOW_SURVIVOR_TURNS,
   tileState,
   type AckCallback,
   type MakeOfferResult,
@@ -23,6 +24,7 @@ import {
   failureOf,
   leave,
   lobbyOfFour,
+  moveToSeat,
   mutateRoom,
   join,
   okOf,
@@ -38,7 +40,8 @@ import {
   startedTeamGame,
   startServer,
   stored,
-  swapTeam,
+  requestSeatSwap,
+  swapSeats,
   useHarnessCleanup,
 } from './testing/teamHarness.js';
 import { InMemoryPersistenceStore } from './persistence/inMemory.js';
@@ -109,8 +112,8 @@ describe('2v2 lobby', () => {
   it('keeps the team controls for 2v2 only', async () => {
     const { players } = await lobbyOfFour();
     expect(failureOf(await setTeamColor(players[0].socket, 'green')).code).toBe('CONFLICT');
-    expect(failureOf(await setTeamName(players[0].socket, 'TEAM_1', 'Rồng')).code).toBe('CONFLICT');
-    expect(failureOf(await swapTeam(players[0].socket, players[0].playerId, players[1].playerId)).code).toBe('CONFLICT');
+    expect(failureOf(await setTeamName(players[0].socket, 'Rồng')).code).toBe('CONFLICT');
+    expect(failureOf(await requestSeatSwap(players[0].socket, players[1].playerId)).code).toBe('CONFLICT');
   });
 
   it('lets any member recolour only their own team, rejects the other team\'s colour, and resets only that team\'s Ready', async () => {
@@ -157,57 +160,32 @@ describe('2v2 lobby', () => {
     expect([teams.TEAM_1.color, teams.TEAM_2.color]).toContain('purple');
   });
 
-  it('lets only the host rename a team, sanitizes the name and never resets Ready', async () => {
+  it('lets every member rename only their own team, sanitizes the name and never resets Ready', async () => {
     const { players, persistence, roomId } = await lobbyOfFour();
     okOf(await setMode(players[0].socket, 'TEAM_2V2'));
     await readyEveryone(players);
 
-    expect(failureOf(await setTeamName(players[1].socket, 'TEAM_2', 'Hổ')).code).toBe('FORBIDDEN');
-    okOf(await setTeamName(players[0].socket, 'TEAM_2', '  <b>Hổ</b> "Vàng"  '));
-    const room = await stored(persistence, roomId);
+    // Nora (Team 2, not the host) renames Team 2; the host's own team is untouched.
+    okOf(await setTeamName(players[1].socket, '  <b>Hổ</b> "Vàng"  '));
+    let room = await stored(persistence, roomId);
     expect(room.gameSnapshot.gameState.boardState.teams.TEAM_2.name).toBe('bHổ/b Vàng');
+    expect(room.gameSnapshot.gameState.boardState.teams.TEAM_1.name).toBe('Team 1');
     expect(Object.values(room.gameSnapshot.members).every((member) => member.ready)).toBe(true);
 
-    expect(failureOf(await setTeamName(players[0].socket, 'TEAM_1', 'x'.repeat(21))).code).toBe('INVALID_REQUEST');
-    expect(failureOf(await setTeamName(players[0].socket, 'TEAM_1', '   ')).code).toBe('INVALID_REQUEST');
-    expect(failureOf(await setTeamName(players[0].socket, 'TEAM_1', '<>')).code).toBe('INVALID_REQUEST');
-    okOf(await setTeamName(players[0].socket, 'TEAM_1', 'x'.repeat(20)));
-  });
+    // The host renames only the team they belong to (Team 1): there is no payload that could name the opposing team.
+    okOf(await setTeamName(players[0].socket, 'Rồng'));
+    room = await stored(persistence, roomId);
+    expect(room.gameSnapshot.gameState.boardState.teams.TEAM_1.name).toBe('Rồng');
+    expect(room.gameSnapshot.gameState.boardState.teams.TEAM_2.name).toBe('bHổ/b Vàng');
 
-  it('lets only the host swap two players, applies the new team colour, and resets just those two Ready', async () => {
-    const { players, persistence, roomId } = await lobbyOfFour();
-    okOf(await setMode(players[0].socket, 'TEAM_2V2'));
-    await readyEveryone(players);
+    // A teammate of the host renames the same team.
+    okOf(await setTeamName(players[2].socket, 'Sư tử'));
+    expect((await stored(persistence, roomId)).gameSnapshot.gameState.boardState.teams.TEAM_1.name).toBe('Sư tử');
 
-    expect(failureOf(await swapTeam(players[1].socket, players[0].playerId, players[1].playerId)).code).toBe('FORBIDDEN');
-    expect(failureOf(await swapTeam(players[0].socket, players[0].playerId, players[2].playerId)).code).toBe('CONFLICT'); // same team
-    expect(failureOf(await swapTeam(players[0].socket, players[0].playerId, randomUUID())).code).toBe('CONFLICT');
-
-    // Harvey (Team 1) and Nora (Team 2) trade places.
-    okOf(await swapTeam(players[0].socket, players[0].playerId, players[1].playerId));
-    const room = await stored(persistence, roomId);
-    const state = room.gameSnapshot.gameState;
-    expect(state.players[players[0].playerId]).toMatchObject({ teamId: 'TEAM_2', color: 'blue', characterId: 'dog' });
-    expect(state.players[players[1].playerId]).toMatchObject({ teamId: 'TEAM_1', color: 'red', characterId: 'dog' });
-    expect(room.gameSnapshot.members[players[0].playerId].ready).toBe(false);
-    expect(room.gameSnapshot.members[players[1].playerId].ready).toBe(false);
-    expect(room.gameSnapshot.members[players[2].playerId].ready).toBe(true);
-    expect(room.gameSnapshot.members[players[3].playerId].ready).toBe(true);
-  });
-
-  it('keeps a swapped player\'s mascot when it is still valid and clears it when it clashes with the new teammate', async () => {
-    const { players, persistence, roomId } = await lobbyOfFour();
-    okOf(await setMode(players[0].socket, 'TEAM_2V2'));
-    // Team 1: Harvey dog + Alex cat; Team 2: Nora cat + Zed panda. Swapping Harvey with Nora puts Nora (cat) next to Alex (cat).
-    okOf(await appearance(players[0].socket, { characterId: 'dog' }));
-    okOf(await appearance(players[2].socket, { characterId: 'cat' }));
-    okOf(await appearance(players[1].socket, { characterId: 'cat' }));
-    okOf(await appearance(players[3].socket, { characterId: 'panda' }));
-    okOf(await swapTeam(players[0].socket, players[0].playerId, players[1].playerId));
-    const state = (await stored(persistence, roomId)).gameSnapshot.gameState;
-    expect(state.players[players[0].playerId].characterId).toBe('dog'); // joined Zed (panda): still valid
-    expect(state.players[players[1].playerId].characterId).toBeNull(); // clashed with Alex, who stayed
-    expect(state.players[players[2].playerId].characterId).toBe('cat');
+    expect(failureOf(await setTeamName(players[0].socket, 'x'.repeat(21))).code).toBe('INVALID_REQUEST');
+    expect(failureOf(await setTeamName(players[0].socket, '   ')).code).toBe('INVALID_REQUEST');
+    expect(failureOf(await setTeamName(players[0].socket, '<>')).code).toBe('INVALID_REQUEST');
+    okOf(await setTeamName(players[0].socket, 'x'.repeat(20)));
   });
 
   it('refuses a colour choice and a teammate\'s mascot in 2v2, but allows the same mascot on the other team', async () => {
@@ -228,27 +206,11 @@ describe('2v2 lobby', () => {
     expect(failureOf(await appearance(players[1].socket, { characterId: 'dog', color: 'green' })).code).toBe('CONFLICT');
   });
 
-  it('starts only with exactly four players, exactly two per team, ready and with mascots', async () => {
+  it('starts with exactly four players, two per team, ready and with mascots', async () => {
     const { players, persistence, roomId } = await lobbyOfFour();
     okOf(await setMode(players[0].socket, 'TEAM_2V2'));
     await readyEveryone(players);
 
-    // A distribution that is not 2v2 (3 vs 1) can be configured but not started.
-    await mutateRoom(persistence, roomId, (room) => {
-      const { players: seated, boardState } = room.gameSnapshot.gameState;
-      seated[players[1].playerId].teamId = 'TEAM_1';
-      seated[players[1].playerId].color = boardState.teams.TEAM_1.color;
-    });
-    const uneven = failureOf(await start(players[0].socket));
-    expect(uneven.code).toBe('CONFLICT');
-    expect(uneven.message).toContain('2');
-
-    // Fixing the split makes it startable.
-    await mutateRoom(persistence, roomId, (room) => {
-      const { players: seated, boardState } = room.gameSnapshot.gameState;
-      seated[players[1].playerId].teamId = 'TEAM_2';
-      seated[players[1].playerId].color = boardState.teams.TEAM_2.color;
-    });
     okOf(await start(players[0].socket));
     const room = await stored(persistence, roomId);
     expect(room.status).toBe('IN_PROGRESS');
@@ -274,18 +236,12 @@ describe('2v2 lobby', () => {
     expect(failureOf(await start(host.socket)).code).toBe('CONFLICT');
   });
 
-  it('refuses to start when a team is missing a player even with four seated (one team of one)', async () => {
-    const { players, persistence, roomId } = await lobbyOfFour();
+  it('never lets a third player sit in a team: two seats per team are the whole lobby', async () => {
+    const { players } = await lobbyOfFour();
     okOf(await setMode(players[0].socket, 'TEAM_2V2'));
-    await readyEveryone(players);
-    await mutateRoom(persistence, roomId, (room) => {
-      const state = room.gameSnapshot.gameState;
-      for (const index of [1, 3]) {
-        state.players[players[index].playerId].teamId = 'TEAM_1';
-        state.players[players[index].playerId].color = state.boardState.teams.TEAM_1.color;
-      }
-    });
-    expect(failureOf(await start(players[0].socket)).code).toBe('CONFLICT');
+    // Every seat is taken: nobody can join a team that is full, and a move to a held seat is refused.
+    expect(failureOf(await moveToSeat(players[1].socket, 'TEAM_1', 0)).code).toBe('CONFLICT');
+    expect(failureOf(await moveToSeat(players[1].socket, 'TEAM_1', 1)).code).toBe('CONFLICT');
   });
 });
 
@@ -556,7 +512,9 @@ describe('2v2 match', () => {
     expect(state.boardState.finishedPlayers[nora.playerId].reason).toBe('BANKRUPT');
     expect(state.players[zed.playerId].accountBalance).toBe(300);
     expect(room.gameSnapshot.members[nora.playerId].membershipStatus).toBe('FINISHED');
-    expect(state.boardState.teamPlay.reviveWindows[0]).toMatchObject({ playerId: nora.playerId, turnsRemaining: 3 });
+    expect(state.boardState.teamPlay.reviveWindows[0]).toMatchObject({
+      playerId: nora.playerId, turnsRemaining: REVIVE_WINDOW_SURVIVOR_TURNS,
+    });
   });
 
   it('Emergency Rescue: an unanswered offer expires into the same bankruptcy without any client action', async () => {
@@ -665,12 +623,12 @@ describe('2v2 match', () => {
     const { players, persistence, roomId } = await lobbyOfFour();
     const [harvey, nora, alex, zed] = players;
     okOf(await setMode(harvey.socket, 'TEAM_2V2'));
-    okOf(await setTeamName(harvey.socket, 'TEAM_1', 'Rồng'));
-    okOf(await setTeamName(harvey.socket, 'TEAM_2', 'Hổ'));
+    okOf(await setTeamName(harvey.socket, 'Rồng'));
+    okOf(await setTeamName(nora.socket, 'Hổ'));
     okOf(await setTeamColor(alex.socket, 'green'));
     await readyEveryone(players); // mascots: Harvey dog, Nora dog (other team), Alex cat, Zed panda
     // Alex and Nora trade places: Nora (dog) now sits next to Harvey (dog), so her mascot is cleared; Alex keeps cat.
-    okOf(await swapTeam(harvey.socket, alex.playerId, nora.playerId));
+    await swapSeats(alex, nora);
     okOf(await appearance(nora.socket, { characterId: 'cat' }));
     okOf(await ready(nora.socket));
     okOf(await ready(alex.socket));

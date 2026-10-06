@@ -7,6 +7,7 @@ import {
   PLAYER_COLOR_IDS,
   TEAM_IDS,
   TEAM_NAME_MAX_LENGTH,
+  TEAM_SLOTS,
 } from './types';
 import type {
   ActivityEvent,
@@ -31,6 +32,7 @@ import type {
   PersistedGameState,
   Player,
   ReviveWindow,
+  SeatSwapRequest,
   TeamPlayState,
   TeamSettingsById,
   TurnInfo,
@@ -64,6 +66,17 @@ export const teamSettingsByIdSchema = z.strictObject({
     context.addIssue({ code: 'custom', path: ['TEAM_2', 'color'], message: 'Hai đội không được dùng cùng một màu' });
   }
 }) satisfies z.ZodType<TeamSettingsById>;
+
+const teamSlotSchema = z.union([z.literal(TEAM_SLOTS[0]), z.literal(TEAM_SLOTS[1])]);
+
+export const seatSwapRequestSchema = z.strictObject({
+  requesterPlayerId: playerIdSchema,
+  targetPlayerId: playerIdSchema,
+}).superRefine((request, context) => {
+  if (request.requesterPlayerId === request.targetPlayerId) {
+    context.addIssue({ code: 'custom', path: ['targetPlayerId'], message: 'Không thể đổi chỗ với chính mình' });
+  }
+}) satisfies z.ZodType<SeatSwapRequest>;
 
 export const reviveWindowSchema = z.strictObject({
   playerId: playerIdSchema,
@@ -607,6 +620,7 @@ export const playerSchema = z.strictObject({
   color: z.enum(PLAYER_COLOR_IDS),
   characterId: z.enum(CHARACTER_IDS).nullable(),
   teamId: teamIdSchema,
+  teamSlot: teamSlotSchema,
   accountBalance: z.number().int().min(0).max(2_147_483_647),
   isJail: z.boolean(),
   jailOpponentRoundsElapsed: z.number().int().min(0).max(2),
@@ -636,6 +650,7 @@ export const boardStateSchema = z.strictObject({
   teams: teamSettingsByIdSchema,
   teamPlay: teamPlayStateSchema,
   winningTeamId: teamIdSchema.nullable(),
+  seatSwapRequests: z.array(seatSwapRequestSchema).max(4),
   players: z.array(playerIdSchema).max(7),
   finishedPlayers: z.record(playerIdSchema, finishedPlayerSchema),
   currentPlayer: currentPlayerSchema,

@@ -1,7 +1,7 @@
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
-export const SOCKET_PROTOCOL_VERSION = 10 as const;
+export const SOCKET_PROTOCOL_VERSION = 11 as const;
 
 export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
 export type PlayerId = string;
@@ -62,6 +62,10 @@ export type GameMode = typeof GAME_MODES[number];
 /** The two stable team identities of a 2v2 game. They are never renamed; only `TeamSettings` change. */
 export const TEAM_IDS = ['TEAM_1', 'TEAM_2'] as const;
 export type TeamId = typeof TEAM_IDS[number];
+
+/** A seat inside a team: a 2v2 lobby shows two seats per team, and the seat order inside a team is the turn-order tie-break. */
+export const TEAM_SLOTS = [0, 1] as const;
+export type TeamSlot = typeof TEAM_SLOTS[number];
 
 /** The longest visible team name, the same limit as a player name. */
 export const TEAM_NAME_MAX_LENGTH = 20 as const;
@@ -441,6 +445,10 @@ export interface Player {
   // Assigned when the player joins the room (balanced between the two teams) and kept for the whole room. It only has
   // meaning while `boardState.gameMode` is `TEAM_2V2`; Solo logic never reads it.
   teamId: TeamId;
+  // The player's seat inside their team. Chosen by the server when they join and changed only by the lobby seat commands;
+  // two active members of one team never share a seat in a lobby. It only has meaning in the lobby (2v2 start orders the
+  // match by it) and is meaningless once a game has started.
+  teamSlot: TeamSlot;
   accountBalance: number;
   isJail: boolean;
   jailOpponentRoundsElapsed: number;
@@ -448,7 +456,7 @@ export interface Player {
   heldJailFreeCardIds: GameCardId[];
 }
 
-export interface PublicPlayer extends Omit<Player, 'heldJailFreeCardIds'> {
+export interface PublicPlayer extends Omit<Player, 'heldJailFreeCardIds' | 'teamSlot'> {
   getOutOfJailCardCount: number;
 }
 
@@ -604,6 +612,15 @@ export interface ReviveWindow {
   openedAtTurnNumber: number;
 }
 
+/**
+ * An open lobby request to exchange seats: `requesterPlayerId` asked `targetPlayerId` to swap places and the target has
+ * not answered. Lobby state only (a 2v2 lobby); a requester has at most one open request.
+ */
+export interface SeatSwapRequest {
+  requesterPlayerId: PlayerId;
+  targetPlayerId: PlayerId;
+}
+
 /** Match-level 2v2 state. All three fields are empty in a Solo game and in a lobby. */
 export interface TeamPlayState {
   // The stable alternating turn slots chosen at the start (A1, B1, A2, B2). Eliminated players keep their slot here so a
@@ -624,6 +641,9 @@ export interface BoardState {
   teamPlay: TeamPlayState;
   // Set together with `winner` when a 2v2 team wins; `winner` then names one representative member of that team.
   winningTeamId: TeamId | null;
+  // Open 2v2 seat-swap requests of the lobby (public: the target sees the question, everyone sees who is waiting). Always
+  // empty outside a 2v2 lobby.
+  seatSwapRequests: SeatSwapRequest[];
   players: PlayerId[];
   finishedPlayers: Record<PlayerId, FinishedPlayer>;
   currentPlayer: CurrentPlayer;
@@ -690,7 +710,7 @@ export interface PublicReviveWindow {
   teamId: TeamId;
   // The active teammate who may revive `playerId` during their own turn.
   survivorPlayerId: PlayerId;
-  // Survivor turns still available, including the current one when it is the survivor's turn: 3, 2 or 1 ("last chance").
+  // Survivor turns still available, including the current one when it is the survivor's turn: 5 down to 1 ("last chance").
   turnsRemaining: number;
   // The turn counter when the bankruptcy happened. Only survivor turns that begin after it count and may revive: a client
   // compares it with `boardState.turnNumber` to know whether the current turn is one of them.
@@ -746,6 +766,8 @@ export interface RoomPlayerMeta {
   color: PlayerColorId;
   characterId: CharacterId | null;
   teamId: TeamId;
+  // The seat inside the team (see `Player.teamSlot`). Only meaningful in the lobby; 0 for a player who is no longer in the game.
+  teamSlot: TeamSlot;
   joinOrder: number;
   membershipStatus: RoomMembershipStatus;
   ready: boolean;
@@ -797,8 +819,8 @@ export interface SetGameModeRequest {
   mode: GameMode;
 }
 
+// The team is always the actor's own team, resolved on the server; a member can never rename another team.
 export interface SetTeamNameRequest {
-  teamId: TeamId;
   name: string;
 }
 
@@ -807,10 +829,26 @@ export interface SetTeamColorRequest {
   color: PlayerColorId;
 }
 
-// Host only. Exchanges the team membership of two players who are on different teams.
-export interface SwapTeamRequest {
+// Host only, lobby only. Removes another player from the room; the removed player's session is revoked.
+export interface KickPlayerRequest {
   playerId: PlayerId;
-  withPlayerId: PlayerId;
+}
+
+// 2v2 lobby: the actor moves to a seat nobody holds. The server refuses an occupied seat.
+export interface MoveToSeatRequest {
+  teamId: TeamId;
+  teamSlot: TeamSlot;
+}
+
+// 2v2 lobby: the actor asks the player who holds a seat to exchange places. The target must accept before anything moves.
+export interface RequestSeatSwapRequest {
+  targetPlayerId: PlayerId;
+}
+
+// 2v2 lobby: the target of an open seat-swap request answers it. Only the target can; the seats are read from the server.
+export interface RespondSeatSwapRequest {
+  requesterPlayerId: PlayerId;
+  accept: boolean;
 }
 
 // The only client-controlled field of a rescue answer; the amount, debtor and creditors are read from the server's queue.
@@ -849,6 +887,12 @@ export interface LeaveRoomResult {
 
 export interface SessionReplacedInfo {
   code: 'SESSION_REPLACED';
+  message: string;
+}
+
+// Sent to the connection of a player the host removed from the lobby; their session is already revoked.
+export interface RemovedFromRoomInfo {
+  code: 'REMOVED_BY_HOST';
   message: string;
 }
 

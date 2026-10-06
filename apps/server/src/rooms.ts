@@ -7,13 +7,16 @@ import type {
   Player,
   RoomMembershipStatus,
   RoomStatus,
+  SeatHolder,
   TeamAwareState,
   TeamId,
+  TeamSlot,
 } from '@monopoly/shared';
 import {
   allGameCards,
   areTeammates,
   createCanonicalDecks,
+  firstFreeTeamSlot,
   getOpposingTeamId,
   LEGACY_CHARACTER_ID_MAP,
   persistedGameStateSchema,
@@ -29,7 +32,7 @@ import { createEmptyActivityFeed } from './game/activity';
 import { createEmptyGameplayEventStream } from './game/semanticEvents';
 import { createDefaultTeamSettings, createEmptyTeamPlayState } from './game/teamState';
 
-export const ROOM_SNAPSHOT_SCHEMA_VERSION = 9;
+export const ROOM_SNAPSHOT_SCHEMA_VERSION = 10;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 4;
 
@@ -330,6 +333,52 @@ export const upgradeRoomSnapshotV8ToV9 = (
   };
 };
 
+/**
+ * V10 adds the lobby seats: every live player gets a seat inside their team (the next free one, in join order) and the
+ * room starts with no open seat-swap request. Nothing about a game that is already running changes.
+ */
+export const upgradeRoomSnapshotV9ToV10 = (
+  input: unknown,
+): PersistedRoomSnapshotEnvelope => {
+  const envelope = structuredClone(input) as {
+    snapshotSchemaVersion: number;
+    gameSnapshot: {
+      members: Record<PlayerId, { joinOrder: number }>;
+      gameState: {
+        players: Record<PlayerId, Record<string, unknown>>;
+        boardState: Record<string, unknown>;
+        [key: string]: unknown;
+      };
+      [key: string]: unknown;
+    };
+    hostPlayerId?: PlayerId | null;
+    status?: RoomStatus;
+  };
+  if (envelope.snapshotSchemaVersion !== 9) {
+    throw new Error('Only V9 room snapshots can be upgraded to V10');
+  }
+
+  const { members, gameState } = envelope.gameSnapshot;
+  const nextSlotByTeam = new Map<string, number>();
+  Object.entries(gameState.players)
+    .sort(([leftId], [rightId]) => (
+      (members[leftId]?.joinOrder ?? 0) - (members[rightId]?.joinOrder ?? 0) || leftId.localeCompare(rightId)
+    ))
+    .forEach(([, player]) => {
+      const teamId = String(player.teamId);
+      const slot = nextSlotByTeam.get(teamId) ?? 0;
+      nextSlotByTeam.set(teamId, slot + 1);
+      player.teamSlot = Math.min(slot, 1);
+    });
+  gameState.boardState.seatSwapRequests = [];
+
+  return {
+    ...envelope,
+    snapshotSchemaVersion: 10,
+    gameSnapshot: envelope.gameSnapshot as unknown as RoomSnapshot,
+  };
+};
+
 export class UnsupportedRoomSnapshotVersionError extends Error {
   constructor(readonly snapshotSchemaVersion: number) {
     super(
@@ -356,6 +405,7 @@ export const freshState = (): GameState => ({
     teams: createDefaultTeamSettings(),
     teamPlay: createEmptyTeamPlayState(),
     winningTeamId: null,
+    seatSwapRequests: [],
     players: [],
     finishedPlayers: {},
     currentPlayer: { id: '', hasMoved: false },
@@ -386,12 +436,14 @@ export const createFreshPlayer = (
   color: PlayerColorId,
   characterId: CharacterId | null = null,
   teamId: TeamId = TEAM_IDS[0],
+  teamSlot: TeamSlot = 0,
 ): Player => ({
   name,
   currentTile: 0,
   color,
   characterId,
   teamId,
+  teamSlot,
   accountBalance: 1500,
   isJail: false,
   jailOpponentRoundsElapsed: 0,
@@ -458,6 +510,21 @@ export const chooseJoinTeam = (snapshot: RoomSnapshot): TeamId => {
   return counts.TEAM_2 < counts.TEAM_1 ? 'TEAM_2' : 'TEAM_1';
 };
 
+/** The active members of a lobby with the seat each one holds (join order). */
+export const lobbySeatHolders = (snapshot: RoomSnapshot): SeatHolder[] => (
+  activePlayerIds(snapshot).flatMap((playerId) => {
+    const player = snapshot.gameState.players[playerId];
+    return player ? [{ playerId, teamId: player.teamId, teamSlot: player.teamSlot }] : [];
+  })
+);
+
+/** Where a joining player sits: the team with fewer members (see `chooseJoinTeam`) and its lowest empty seat. */
+export const chooseJoinSeat = (snapshot: RoomSnapshot): { teamId: TeamId; teamSlot: TeamSlot } | null => {
+  const teamId = chooseJoinTeam(snapshot);
+  const teamSlot = firstFreeTeamSlot(lobbySeatHolders(snapshot), teamId);
+  return teamSlot === null ? null : { teamId, teamSlot };
+};
+
 export const nextAvailableColor = (snapshot: RoomSnapshot): PlayerColorId | null => {
   const used = new Set(
     activePlayerIds(snapshot)
@@ -507,6 +574,43 @@ export const calculateNextActionAt = (snapshot: RoomSnapshot): Date | null => {
 };
 
 /**
+ * Lobby seat consistency: no two active lobby members share a seat of a team, and every open seat-swap request is between two
+ * different active members of a 2v2 lobby (at most one per requester). A started game and a Solo lobby carry no request.
+ */
+const assertSeatState = (snapshot: RoomSnapshot): void => {
+  const board = snapshot.gameState.boardState;
+  const requests = board.seatSwapRequests;
+  if (board.gameStarted || board.gameMode !== 'TEAM_2V2') {
+    if (requests.length > 0) throw new Error('Room snapshot has seat-swap requests outside a 2v2 lobby');
+  }
+  if (board.gameStarted) return;
+
+  // A lobby above the player cap (only an old room can be) has more members than seats, so nothing can be said of its seats;
+  // it can never start.
+  const holders = lobbySeatHolders(snapshot);
+  if (
+    holders.length <= MAX_PLAYERS
+    && new Set(holders.map((holder) => `${holder.teamId}:${holder.teamSlot}`)).size !== holders.length
+  ) {
+    throw new Error('Room snapshot lobby seats are not unique');
+  }
+  const requesters = new Set<PlayerId>();
+  for (const request of requests) {
+    const isLobbyPlayer = (playerId: PlayerId): boolean => (
+      snapshot.members[playerId]?.membershipStatus === 'ACTIVE' && Boolean(snapshot.gameState.players[playerId])
+    );
+    if (
+      !isLobbyPlayer(request.requesterPlayerId)
+      || !isLobbyPlayer(request.targetPlayerId)
+      || requesters.has(request.requesterPlayerId)
+    ) {
+      throw new Error('Room snapshot seat-swap request is inconsistent');
+    }
+    requesters.add(request.requesterPlayerId);
+  }
+};
+
+/**
  * 2v2 consistency of a room snapshot: team colours and membership, the alternating slot order, revive windows, the team winner
  * and an open rescue offer. A Solo snapshot must carry no match-level team state at all.
  */
@@ -516,6 +620,7 @@ const assertTeamState = (snapshot: RoomSnapshot): void => {
   const { teamPlay } = board;
   const view = state as TeamAwareState;
 
+  assertSeatState(snapshot);
   if (board.gameMode === 'SOLO') {
     if (
       teamPlay.slotOrder.length > 0
@@ -677,6 +782,7 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
     ...state.boardState.teamPlay.slotOrder,
     ...state.boardState.teamPlay.revivedPlayerIds,
     ...state.boardState.teamPlay.reviveWindows.map((window) => window.playerId),
+    ...state.boardState.seatSwapRequests.flatMap((request) => [request.requesterPlayerId, request.targetPlayerId]),
   ];
 
   for (const reference of references) {
@@ -888,7 +994,7 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
   assertTeamState(snapshot);
 };
 
-/** Older rows are upgraded transactionally; current V9 rows normalize legacy mascot ids at the boundary. */
+/** Older rows are upgraded transactionally; current V10 rows normalize legacy mascot ids at the boundary. */
 export const assertSupportedRoomSnapshot = (
   room: PersistedRoomSnapshotEnvelope,
 ): void => {

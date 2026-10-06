@@ -94,6 +94,9 @@ recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
 - Protocol V10 adds 2v2 Teamplay and snapshot V9 (`010_teamplay_v9.sql`): `GameMode`, `TeamId`, team settings, `TeamPlayState`,
   revive windows, `EmergencyRescueOffer`, `teamId` on all player records and the team commands. Team rules shared by both sides live
   in `teams.ts`/`rules.ts`; see [GameCore/team-play.instruction.md](./GameCore/team-play.instruction.md).
+- Protocol V11 adds the 2v2 lobby seats and the host kick, and snapshot V10 (`011_lobby_seats_v10.sql`): `Player.teamSlot`, `RoomPlayerMeta.teamSlot`,
+  `BoardState.seatSwapRequests`, the commands `kick player`, `move to seat`, `request seat swap`, `cancel seat swap`, `respond seat swap` and the
+  event `removed from room`. `swap team` is removed and `set team name` takes only `{name}` (the actor's own team). The revive window is 5 survivor turns.
 
 Khi đổi static data/contract, đọc
 [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md).

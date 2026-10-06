@@ -55,7 +55,7 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
   landing decision dùng operation ID, còn payment/forced-sale wait nhúng durable
   `PendingTurnContinuation` thay vì advance sớm.
 - Hidden `GamePrivateState.decks`, `PaymentQueue`, `PendingCardInteraction` và
-  forced-sale proposal nằm trong snapshot v9 (v8 + team state 2v2, migration `010_teamplay_v9.sql`, protocol 10) nhưng public projector không được lộ
+  forced-sale proposal nằm trong snapshot v10 (v9 + ghế sảnh 2v2, migration `011_lobby_seats_v10.sql`, protocol 11; v9 = v8 + team state 2v2, migration `010_teamplay_v9.sql`) nhưng public projector không được lộ
   exact deck order hoặc proposal terms cho người chơi khác. V8 bổ sung bounded
   public `gameplayEvents` và typed `activityFeed`, cùng per-player private
   semantic lanes và `completedCardOperations`; card landing reveals immediately,
@@ -95,7 +95,7 @@ thuật `monopoly-*` được giữ để tránh cosmetic refactor.
 | WebGL board/surface art/motion | [Client/game-board.instruction.md](./Client/game-board.instruction.md) | `Board.tsx`, `game/scene/GameScene.tsx`, `game/scene/board/` |
 | HTTP/readiness/deploy | [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md) | create/start server, migration startup, Docker/Render/CI |
 | Desktop Join by room code (LAN lookup) | [Client/join-room.instruction.md](./Client/join-room.instruction.md), [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md) | `DesktopMultiplayerLauncher.tsx`, `apps/desktop/src/lanFinder.ts`, `apps/server/src/lanDiscoveryResponder.ts` |
-| 2v2 Teamplay (đội, hồi sinh, cứu trợ, thuê theo đội) | [GameCore/team-play.instruction.md](./GameCore/team-play.instruction.md), [testcase/team-play.md](./testcase/team-play.md) | `game/team*.ts`, `game/rescue*.ts`, `socket/team.ts`, `teamLobby.ts`, `packages/shared/src/teams.ts`, `Lobby.tsx`, `game/team/` |
+| 2v2 Teamplay (đội, ghế sảnh/đổi chỗ, kick, hồi sinh, cứu trợ, thuê theo đội) | [GameCore/team-play.instruction.md](./GameCore/team-play.instruction.md), [testcase/team-play.md](./testcase/team-play.md) | `game/team*.ts`, `game/rescue*.ts`, `socket/team.ts`, `teamLobby.ts`, `packages/shared/src/teams.ts`, `Lobby.tsx`, `game/team/` |
 | Board/card/deck data | [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md) | shared canonical board/cards và private deck state |
 | Cập nhật tự động (kiểm tra, tải, áp dụng, bản bắt buộc) | [Client/app-update.instruction.md](./Client/app-update.instruction.md) | `apps/desktop/src/update/`, `apps/client/src/runtime/appUpdate.tsx`, `apps/client/src/components/update/`, `apps/desktop/scripts/updateManifest.mjs`, `apps/desktop/update-policy.json` |
 | Hướng dẫn chơi / số luật hiển thị | [Client/how-to-play.instruction.md](./Client/how-to-play.instruction.md), [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md) | `apps/client/src/howToPlay/`, `packages/shared/src/rules.ts`, `apps/server/src/rulesContract.test.ts` |

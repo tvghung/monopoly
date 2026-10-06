@@ -48,6 +48,7 @@ export function projectPublicRoomState(
         color: identity.color,
         characterId: identity.characterId,
         teamId: identity.teamId,
+        teamSlot: gameState.players[playerId]?.teamSlot ?? 0,
         joinOrder: member.joinOrder,
         membershipStatus: member.membershipStatus,
         ready: member.ready,
@@ -82,6 +83,7 @@ export function projectPublicRoomState(
       gameStartedAt: boardState.gameStartedAt ?? null,
       gameMode: boardState.gameMode,
       winningTeamId: boardState.winningTeamId,
+      seatSwapRequests: boardState.seatSwapRequests.map((request) => ({ ...request })),
       teams,
       teamPlay: {
         revivedPlayerIds: [...boardState.teamPlay.revivedPlayerIds],

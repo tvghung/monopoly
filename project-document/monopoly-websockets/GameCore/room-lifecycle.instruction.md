@@ -36,7 +36,8 @@ presence (`CONNECTED | DISCONNECTED`).
 - Start cannot repeat. `play again` is the only reverse lifecycle command: an
   authenticated host may transition `FINISHED → LOBBY` in the same room, even when
   only that eligible host remains; a later start still requires 2–4 active ready
-  Players (exactly four in 2v2). The reset keeps the mode, teams, team names/colours and each Player's `teamId`.
+  Players (exactly four in 2v2). The reset keeps the mode, teams, team names/colours and each Player's `teamId` and lays each team out again on seats 0 and 1 by join order.
+  In the lobby the host may remove another active Player with `kick player` (session revoked, seat freed; see [../Api/socket-lobby.instruction.md](../Api/socket-lobby.instruction.md)).
 - Temporary host disconnect preserves host. Explicit leave transfers host to lowest
   remaining active join order.
 
@@ -85,7 +86,7 @@ Finished history records reason (`BANKRUPT | LEFT`); it is not erased by disconn
 - Public connected flags derive from runtime registry after load/restart.
 - Raw token, SocketData, presence, command queue and scheduler timer handles never
   enter snapshot.
-- Snapshot v9 persists the 2v2 team state (`gameMode`, `teams`, `teamPlay`, `winningTeamId`, `PaymentQueue.rescue`) plus pending landing/card decisions, ordered payments, private deck
+- Snapshot v10 persists the 2v2 team state (`gameMode`, `teams`, `teamPlay`, `winningTeamId`, `PaymentQueue.rescue`), the lobby seats (`Player.teamSlot`, `seatSwapRequests`) plus pending landing/card decisions, ordered payments, private deck
   state, bounded semantic/activity lanes, completed card operations, turn recovery,
   forced-sale proposals and appearance identity; auction/contention/Bank queue state
   is not part of the schema. Exact deck order remains private.

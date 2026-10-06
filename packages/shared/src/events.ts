@@ -4,8 +4,10 @@
 import type {
   JoinRoomRequest,
   JoinRoomResult,
+  KickPlayerRequest,
   LeaveRoomResult,
   MakeOfferResult,
+  MoveToSeatRequest,
   OfferAction,
   OfferInfo,
   OfferResult,
@@ -13,7 +15,10 @@ import type {
   PrivatePlayerState,
   PrivateOffer,
   PublicRoomState,
+  RemovedFromRoomInfo,
+  RequestSeatSwapRequest,
   RescueDecisionRequest,
+  RespondSeatSwapRequest,
   ResumeSessionRequest,
   ResumeSessionResult,
   RoomId,
@@ -26,7 +31,6 @@ import type {
   SetTeamColorRequest,
   SetTeamNameRequest,
   SocketProtocolVersion,
-  SwapTeamRequest,
   ForcedSaleProposal,
 } from './types';
 
@@ -78,6 +82,8 @@ export interface ServerToClientEvents {
   'private player state': (state: PrivatePlayerState) => void;
   'forced sale proposal': (proposal: ForcedSaleProposal | null) => void;
   'session replaced': (info: SessionReplacedInfo) => void;
+  // The host removed this player from the lobby (their session is revoked and their connection leaves the room).
+  'removed from room': (info: RemovedFromRoomInfo) => void;
 }
 
 export interface ClientToServerEvents {
@@ -91,12 +97,17 @@ export interface ClientToServerEvents {
   ) => void;
   'set ready': (request: SetReadyRequest, acknowledge: AckCallback) => void;
   'set appearance': (request: SetAppearanceRequest, acknowledge: AckCallback) => void;
-  // Lobby only. The host picks Solo or 2v2 (every Ready is reset), anyone on a team may recolour their own team, the host
-  // renames teams and exchanges two players between teams. The server owns every one of these rules.
+  // Lobby only. The host picks Solo or 2v2 (every Ready is reset) and can remove a player; anyone on a team may rename and
+  // recolour their own team (never the other one) and, in 2v2, move to an empty seat or ask another player to swap seats (the
+  // target must accept). The host cannot move other players. The server owns every one of these rules.
   'set game mode': (request: SetGameModeRequest, acknowledge: AckCallback) => void;
+  'kick player': (request: KickPlayerRequest, acknowledge: AckCallback) => void;
   'set team name': (request: SetTeamNameRequest, acknowledge: AckCallback) => void;
   'set team color': (request: SetTeamColorRequest, acknowledge: AckCallback) => void;
-  'swap team': (request: SwapTeamRequest, acknowledge: AckCallback) => void;
+  'move to seat': (request: MoveToSeatRequest, acknowledge: AckCallback) => void;
+  'request seat swap': (request: RequestSeatSwapRequest, acknowledge: AckCallback) => void;
+  'cancel seat swap': (acknowledge: AckCallback) => void;
+  'respond seat swap': (request: RespondSeatSwapRequest, acknowledge: AckCallback) => void;
   'leave room': (acknowledge: AckCallback<LeaveRoomResult>) => void;
   'start game': (acknowledge: AckCallback) => void;
   'play again': (acknowledge: AckCallback) => void;

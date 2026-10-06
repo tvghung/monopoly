@@ -7,7 +7,7 @@ xây Nhà không bao giờ bị khóa bởi bộ màu.
 
 Code: `packages/shared/src/teams.ts`, `rules.ts`, `apps/server/src/game/team*.ts`,
 `game/rescue*.ts`, `game/tiles.ts`, `game/property.ts`, `socket/team.ts`, `teamLobby.ts`,
-`migrations/010_teamplay_v9.sql`. Test: [testcase/team-play.md](../testcase/team-play.md).
+`migrations/010_teamplay_v9.sql`, `migrations/011_lobby_seats_v10.sql`. Test: [testcase/team-play.md](../testcase/team-play.md).
 
 ## Mô hình team
 
@@ -16,6 +16,11 @@ Code: `packages/shared/src/teams.ts`, `rules.ts`, `apps/server/src/game/team*.ts
   mang `teamId` ổn định (Solo vẫn gán nhưng không dùng; join mới chia xen kẽ theo đội ít người hơn).
 - `boardState.teams: TeamSettingsById` = `{ name, color }` mỗi đội. Tên mặc định `Team 1`/`Team 2`
   (tối đa `TEAM_NAME_MAX_LENGTH = 20`, qua `sanitizeName`), màu mặc định `red`/`blue`, **hai màu luôn khác nhau**.
+- Mỗi `Player` có thêm `teamSlot` (0 hoặc 1): ghế của họ **trong đội** (`TeamSlot`, `TEAM_SLOTS`). Một sảnh 2v2 có 4 ghế
+  (2 đội × 2 ghế); hai thành viên active của một đội trong `LOBBY` không bao giờ cùng ghế (`assertSeatState`; một sảnh vượt
+  `MAX_PLAYERS` — chỉ phòng cũ — không được kiểm vì không thể bắt đầu). Người mới vào ngồi đội ít người hơn, ghế trống thấp nhất
+  (`chooseJoinSeat`). Ghế chỉ có nghĩa ở sảnh: `startTeamMatch` xếp mỗi đội theo ghế, nên ghế 0 của đội đối thủ đi ngay sau
+  người đi trước và ghế 1 đi cuối. `boardState.seatSwapRequests` là các yêu cầu đổi chỗ đang mở (công khai).
 - `boardState.teamPlay: TeamPlayState` = `{ slotOrder, revivedPlayerIds, reviveWindows }`. `slotOrder`
   là thứ tự lượt ổn định `A1, B1, A2, B2` (người đi trước, đối thủ đầu, đồng đội, đối thủ thứ hai) và chỉ có
   trong ván 2v2 đang chạy; ở lobby/Solo là rỗng.
@@ -33,15 +38,21 @@ Code: `packages/shared/src/teams.ts`, `rules.ts`, `apps/server/src/game/team*.ts
 | Command | Ai | Hiệu ứng |
 | --- | --- | --- |
 | `set game mode` `{mode}` | host | Đổi mode; **mọi người** mất Ready. Sang 2v2: áp màu đội cho mọi người và bỏ mascot trùng giữa đồng đội. |
-| `set team name` `{teamId,name}` | host | Đổi tên đội, không reset Ready. |
+| `set team name` `{name}` | thành viên active của **đội mình** | Đổi tên đội của chính mình (payload không có `teamId`: không ai, kể cả host, đổi được tên đội kia); không reset Ready. |
 | `set team color` `{color}` | thành viên active của **đội mình** | Đổi màu đội (không được trùng màu đội kia); reset Ready cả đội đó. |
-| `swap team` `{playerId,withPlayerId}` | host | Đổi chỗ hai người khác đội; cả hai mất Ready, giữ mascot nếu còn hợp lệ (mascot trùng đồng đội mới thì xóa, người ở lại giữ mascot). Không drag&drop. |
+| `move to seat` `{teamId,teamSlot}` | thành viên active | Nhảy ngay vào một ghế **trống** (đội kia hoặc ghế còn lại của đội mình). Sang đội khác: đổi sang màu đội mới, mascot trùng đồng đội mới bị xóa (người ở lại giữ mascot), chỉ người di chuyển mất Ready; trong cùng đội chỉ đổi ghế. |
+| `request seat swap` `{targetPlayerId}` | thành viên active | Xin đổi chỗ với một người khác; chưa có gì thay đổi. Mỗi người chỉ có một yêu cầu mở (yêu cầu mới thay yêu cầu cũ). |
+| `cancel seat swap` | người xin | Rút yêu cầu của mình (không có gì để rút vẫn là thành công). |
+| `respond seat swap` `{requesterPlayerId,accept}` | người được xin | Chỉ yêu cầu `requester → actor` đang mở mới tính. Đồng ý: hai người đổi ghế (sang đội khác thì như `move to seat` cho cả hai: màu, mascot, cả hai mất Ready; cùng đội chỉ đổi ghế). Từ chối: đóng yêu cầu. |
+
+Host **không** có lệnh nào di chuyển người khác; `kick player` (host, chỉ `LOBBY`, cả Solo) là lệnh duy nhất của host lên người khác
+([Api/socket-lobby.instruction.md](../Api/socket-lobby.instruction.md)). Yêu cầu đổi chỗ vô hiệu (bị xóa trong cùng commit) khi một bên di chuyển/đổi chỗ/rời/bị mời ra, khi đổi
+mode và khi bắt đầu ván.
 | `set appearance` | từng người | 2v2: chỉ `characterId`; từ chối `color` và mascot trùng đồng đội. |
 
-Mọi command chỉ chạy trong `LOBBY`; command team chỉ chạy khi mode là 2v2. Cấu hình 3v1 cho phép nhưng
-`start game` từ chối. Start 2v2 cần đúng 4 active player, mỗi đội đúng 2, tất cả connected + ready, mascot
+Mọi command chỉ chạy trong `LOBBY`; command team chỉ chạy khi mode là 2v2. Mỗi đội chỉ có 2 ghế nên không có 3v1 trong sảnh. Start 2v2 cần đúng 4 active player, mỗi đội đúng 2, tất cả connected + ready, mascot
 hợp lệ. `play again` giữ `gameMode`, `teams`, `teamId` từng người và màu đội; reset toàn bộ match state
-(`teamPlay`, `winningTeamId`, windows); host vẫn đổi mode được trước khi start ván mới.
+(`teamPlay`, `winningTeamId`, windows) và xếp lại mỗi đội vào ghế 0, 1 theo thứ tự vào phòng; host vẫn đổi mode được trước khi start ván mới.
 
 ## Lượt chơi
 
@@ -71,9 +82,11 @@ Investment nếu không đủ tiền cho một cấp (không tạo decision vô 
 - Phá sản theo từng người (`surrenderPlayerToBank`, `completeTurnResolution`). Đội thua ngay khi 0 active
   member (`checkTeamWinner` đóng mọi window và đặt `winningTeamId`).
 - **Revive window**: người phá sản (`reason = 'BANKRUPT'`, không phải `LEFT`), chưa từng hồi sinh, đồng đội còn
-  trong ván → window `{turnsRemaining: 3, openedAtTurnNumber}` + activity `TEAM_REVIVE WINDOW_OPENED`.
+  trong ván → window `{turnsRemaining: REVIVE_WINDOW_SURVIVOR_TURNS = 5, openedAtTurnNumber}` + activity `TEAM_REVIVE WINDOW_OPENED`.
   Mỗi lần **kết thúc lượt của người sống sót** (kể cả bị tù, bị bỏ qua vì disconnect — mọi handoff qua `nextTurn` →
   `consumeReviveTurn`) trừ 1; về 0 → `EXPIRED`, loại vĩnh viễn. Window mở trong lượt X chỉ tính từ lượt kế tiếp.
+  Nghĩa là người sống sót được hồi sinh trước mỗi lần đổ xúc xắc của **5** lượt kế tiếp của chính họ; đến lượt thứ 6 của họ,
+  người đã bị loại là loại vĩnh viễn (`REVIVE_WINDOW_SURVIVOR_TURNS = 5`).
 - `revive teammate` (không payload; actor = socket player): chỉ trong lượt của chính người sống sót, trước khi
   roll hoặc trong lúc chờ quyết định mua/phát triển, không có payment/card/rescue đang chờ, đủ `REVIVE_COST = 750`.
   Trả cho Bank; người được hồi sinh về ô `Xuất Phát` với `REVIVE_STARTING_CASH = 300`, không tài sản, không thẻ,
@@ -90,12 +103,13 @@ Investment nếu không đủ tiền cho một cấp (không tạo decision vô 
 
 ## Snapshot, protocol, persistence
 
-- `SOCKET_PROTOCOL_VERSION = 10`, `ROOM_SNAPSHOT_SCHEMA_VERSION = 9`. Migration `010_teamplay_v9.sql` nâng snapshot
+- `SOCKET_PROTOCOL_VERSION = 11`, `ROOM_SNAPSHOT_SCHEMA_VERSION = 10`. Migration `011_lobby_seats_v10.sql` thêm `Player.teamSlot` và
+  `boardState.seatSwapRequests: []` (xem [Persistence](../Persistence/README.md)); migration `010_teamplay_v9.sql` nâng snapshot
   v8 (xem [Persistence](../Persistence/README.md)); helper TS `upgradeRoomSnapshotV8ToV9` tương đương SQL và được test so
   sánh trên PostgreSQL thật.
 - `assertTeamState` (trong `assertRoomSnapshot`) validate: Solo không có team match state; 2v2 màu = màu đội, lobby
   không có match state, `slotOrder` 4 người xen kẽ, `boardState.players` = `slotOrder` lọc người còn sống, windows hợp lệ
-  (người bị loại thật, đồng đội còn sống, chưa hồi sinh, `turnsRemaining` 1–3), winner/`winningTeamId` nhất quán,
+  (người bị loại thật, đồng đội còn sống, chưa hồi sinh, `turnsRemaining` 1–5), winner/`winningTeamId` nhất quán,
   rescue khớp `planEmergencyRescue`.
 - Persist: `teams`, `teamPlay`, `winningTeamId`, `PaymentQueue.rescue`. Deadline rescue là absolute; restart khôi phục
   qua `recoverRoomIfDue`. Không persist presence/timer.

@@ -454,7 +454,8 @@ describe('revive', () => {
     expect(state.boardState.currentPlayer.id).toBe(playerId);
   };
 
-  it('a bankruptcy opens a window of exactly three survivor turns, public to everyone', () => {
+  it('a bankruptcy opens a window of exactly five survivor turns, public to everyone', () => {
+    expect(REVIVE_WINDOW_SURVIVOR_TURNS).toBe(5);
     const state = bankruptA2();
     expect(state.boardState.teamPlay.reviveWindows).toEqual([{
       playerId: 'a2', teamId: 'TEAM_1', turnsRemaining: REVIVE_WINDOW_SURVIVOR_TURNS, openedAtTurnNumber: 1,
@@ -491,6 +492,7 @@ describe('revive', () => {
       color: state.boardState.teams.TEAM_1.color,
       characterId: 'cat',
       teamId: 'TEAM_1',
+      teamSlot: 1, // the seat the survivor (seat 0) does not hold
       accountBalance: REVIVE_STARTING_CASH,
       isJail: false,
       jailOpponentRoundsElapsed: 0,
@@ -580,7 +582,7 @@ describe('revive', () => {
   it('uses up one opportunity per survivor turn and nothing for anyone else\'s turns', () => {
     const state = bankruptA2();
     const survivorTurns: number[] = [];
-    for (let step = 0; step < 14 && state.boardState.teamPlay.reviveWindows.length > 0; step += 1) {
+    for (let step = 0; step < 40 && state.boardState.teamPlay.reviveWindows.length > 0; step += 1) {
       if (state.boardState.currentPlayer.id === 'a1') survivorTurns.push(state.boardState.turnNumber);
       nextTurn(state);
       if (state.boardState.teamPlay.reviveWindows.length > 0) {
@@ -590,7 +592,7 @@ describe('revive', () => {
         );
       }
     }
-    expect(survivorTurns).toHaveLength(3);
+    expect(survivorTurns).toHaveLength(REVIVE_WINDOW_SURVIVOR_TURNS);
     expect(state.boardState.teamPlay.reviveWindows).toEqual([]);
     expect(state.boardState.finishedPlayers.a2).toBeDefined(); // permanently out
     expect(state.boardState.activityFeed.events.some(
@@ -627,22 +629,25 @@ describe('revive', () => {
     expect(state.boardState.teamPlay.reviveWindows[0].turnsRemaining).toBe(REVIVE_WINDOW_SURVIVOR_TURNS - 1);
   });
 
-  it('can be used on the third and last opportunity, and not after', () => {
+  it('can be used on the fifth and last opportunity, and not on the sixth turn of the survivor', () => {
     const state = bankruptA2();
-    for (let survivorTurn = 1; survivorTurn <= 2; survivorTurn += 1) {
+    for (let survivorTurn = 1; survivorTurn < REVIVE_WINDOW_SURVIVOR_TURNS; survivorTurn += 1) {
       advanceTo(state, 'a1');
+      expect(getReviveEligibility(state, 'a1')).toMatchObject({ ok: true }); // every one of the first four turns
       nextTurn(state);
     }
-    advanceTo(state, 'a1');
+    advanceTo(state, 'a1'); // the fifth turn of the survivor
     expect(state.boardState.teamPlay.reviveWindows[0].turnsRemaining).toBe(1);
     expect(reviveTeammate(state, 'a1')).toMatchObject({ ok: true });
 
     const late = bankruptA2();
-    for (let survivorTurn = 1; survivorTurn <= 3; survivorTurn += 1) {
+    for (let survivorTurn = 1; survivorTurn <= REVIVE_WINDOW_SURVIVOR_TURNS; survivorTurn += 1) {
       advanceTo(late, 'a1');
-      nextTurn(late);
+      nextTurn(late); // the survivor lets all five turns pass without reviving
     }
-    advanceTo(late, 'a1');
+    advanceTo(late, 'a1'); // the sixth turn: the elimination is permanent
+    expect(late.boardState.teamPlay.reviveWindows).toEqual([]);
+    expect(late.boardState.finishedPlayers.a2).toBeDefined();
     expect(getReviveEligibility(late, 'a1')).toMatchObject({ ok: false });
   });
 

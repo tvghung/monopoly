@@ -21,6 +21,7 @@ describe('database migrations', () => {
       '008_semantic_card_v7.sql',
       '009_activity_feed_v8.sql',
       '010_teamplay_v9.sql',
+      '011_lobby_seats_v10.sql',
     ]);
     expect(migrations[0]?.checksum).toMatch(/^[a-f0-9]{64}$/u);
     expect(migrations[0]?.sql).toContain('CREATE TABLE rooms');
@@ -56,6 +57,11 @@ describe('database migrations', () => {
     expect(migrations[9]?.sql).toContain('snapshot_schema_version = 9');
     expect(migrations[9]?.sql).toContain('snapshot_schema_version = 8');
     expect(migrations[9]?.sql).toContain('aggregate_version = aggregate_version + 1');
+    expect(migrations[10]?.sql).toContain("'seatSwapRequests'");
+    expect(migrations[10]?.sql).toContain("'teamSlot'");
+    expect(migrations[10]?.sql).toContain('snapshot_schema_version = 10');
+    expect(migrations[10]?.sql).toContain('snapshot_schema_version = 9');
+    expect(migrations[10]?.sql).toContain('aggregate_version = aggregate_version + 1');
   });
 
   it('canonicalizes checkout line endings before hashing or executing SQL', () => {

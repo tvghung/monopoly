@@ -14,6 +14,7 @@ import {
   type ResumeSessionResult,
   type ServerToClientEvents,
   type TeamId,
+  type TeamSlot,
 } from '@monopoly/shared';
 import { io as createClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach } from 'vitest';
@@ -113,8 +114,10 @@ export async function connect(url: string): Promise<TestSocket> {
 }
 
 export function ack<T = void>(emit: (acknowledge: AckCallback<T>) => void): Promise<Ack<T>> {
+  // The error is created here so that a timeout names the call site of the command that never answered.
+  const timeout = new Error('Socket acknowledgement timed out');
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Socket acknowledgement timed out')), 2_000);
+    const timer = setTimeout(() => reject(timeout), 2_000);
     emit((acknowledgement) => { clearTimeout(timer); resolve(acknowledgement); });
   });
 }
@@ -151,9 +154,18 @@ export async function resume(socket: TestSocket, token: string): Promise<ResumeS
 }
 
 export const setMode = (socket: TestSocket, mode: GameMode) => ack((cb) => socket.emit('set game mode', { mode }, cb));
-export const setTeamName = (socket: TestSocket, teamId: TeamId, name: string) => ack((cb) => socket.emit('set team name', { teamId, name }, cb));
+export const setTeamName = (socket: TestSocket, name: string) => ack((cb) => socket.emit('set team name', { name }, cb));
 export const setTeamColor = (socket: TestSocket, color: PlayerColorId) => ack((cb) => socket.emit('set team color', { color }, cb));
-export const swapTeam = (socket: TestSocket, playerId: string, withPlayerId: string) => ack((cb) => socket.emit('swap team', { playerId, withPlayerId }, cb));
+export const kick = (socket: TestSocket, playerId: string) => ack((cb) => socket.emit('kick player', { playerId }, cb));
+export const moveToSeat = (socket: TestSocket, teamId: TeamId, teamSlot: TeamSlot) => ack((cb) => socket.emit('move to seat', { teamId, teamSlot }, cb));
+export const requestSeatSwap = (socket: TestSocket, targetPlayerId: string) => ack((cb) => socket.emit('request seat swap', { targetPlayerId }, cb));
+export const cancelSeatSwap = (socket: TestSocket) => ack((cb) => socket.emit('cancel seat swap', cb));
+export const respondSeatSwap = (socket: TestSocket, requesterPlayerId: string, accept: boolean) => ack((cb) => socket.emit('respond seat swap', { requesterPlayerId, accept }, cb));
+/** The requester asks and the target accepts: the two exchange seats. */
+export async function swapSeats(requester: Player, target: Player): Promise<void> {
+  okOf(await requestSeatSwap(requester.socket, target.playerId));
+  okOf(await respondSeatSwap(target.socket, requester.playerId, true));
+}
 export const appearance = (socket: TestSocket, request: { characterId?: CharacterId; color?: PlayerColorId }) => ack((cb) => socket.emit('set appearance', request, cb));
 export const ready = (socket: TestSocket, value = true) => ack((cb) => socket.emit('set ready', { ready: value }, cb));
 export const start = (socket: TestSocket) => ack((cb) => socket.emit('start game', cb));

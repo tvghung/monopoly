@@ -1,4 +1,4 @@
-# Persistence — snapshot v9 và restart recovery
+# Persistence — snapshot v10 và restart recovery
 
 ## Phạm vi
 
@@ -15,9 +15,9 @@
 - Raw token không persist; chỉ SHA-256. Presence/socket/generation/timer handle và
   countdown tick không nằm database.
 - SQL migration version và JSON snapshot schema version độc lập; current runtime
-  uses protocol v10 and accepts snapshot schema v9.
+  uses protocol v11 and accepts snapshot schema v10.
 
-## Snapshot v9 (v8 + 2v2)
+## Snapshot v10 (v9 + lobby seats; v9 = v8 + 2v2)
 
 Room JSONB giữ stable-ID state, pending purchase/development landing decisions,
 ordered `PaymentQueue`/`DebtClaim`, durable `PendingCardInteraction`, private
@@ -74,7 +74,18 @@ baseline, preserves all other room/game JSON, increments the aggregate version,
 and is forward-only. This is historical V5 → V6 migration history, not the current
 runtime version.
 
-## Current V8 → V9 migration
+## Current V9 → V10 migration
+
+Migration `011_lobby_seats_v10.sql` (PL/pgSQL, forward-only) upgrades only rooms with snapshot schema 9: every live `Player` gets
+`teamSlot` — the next free seat of their team in join order (`ORDER BY joinOrder, id`), never above 1 — and `boardState.seatSwapRequests`
+starts as `[]`. It sets snapshot schema version 10 and increments the aggregate version. Finished players, the winner and every other
+field are untouched. The TypeScript helper `upgradeRoomSnapshotV9ToV10` (`rooms.ts`) mirrors it; the PostgreSQL test runs both over the
+same V9 lobby (scrambled join order) and compares the result, and a second test restarts a lobby with an open seat-swap request on the
+same database. The loader additionally validates lobby seats (`assertSeatState`): active lobby members never share a seat of a team
+(skipped above `MAX_PLAYERS`), and every request is between two different active lobby members, one per requester, and only in a 2v2
+lobby. A V9 snapshot that is still in the table at runtime is rejected with `UnsupportedRoomSnapshotVersionError`.
+
+## Earlier V8 → V9 migration
 
 Migration `010_teamplay_v9.sql` (PL/pgSQL, forward-only) upgrades only rooms with snapshot schema 8: it sets `gameMode` `SOLO`,
 assigns teams alternating by join order across all members (so a Solo room can later switch to 2v2 balanced), defaults the team

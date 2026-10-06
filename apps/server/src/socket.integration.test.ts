@@ -1415,6 +1415,7 @@ describe('Socket.IO durable player lifecycle', () => {
         currentTile: 0,
         color: 'orange',
         teamId: 'TEAM_1',
+        teamSlot: 0,
         characterId: null,
         accountBalance: 1500,
         isJail: false,
@@ -2493,11 +2494,12 @@ describe.runIf(Boolean(testDatabaseUrl))(
               '007_roll_sequence_v6.sql',
               '008_semantic_card_v7.sql',
               '009_activity_feed_v8.sql',
-              '010_teamplay_v9.sql'
+              '010_teamplay_v9.sql',
+              '011_lobby_seats_v10.sql'
            )
            RETURNING checksum`,
         );
-        expect(migrationRows.rows).toHaveLength(8);
+        expect(migrationRows.rows).toHaveLength(9);
 
         const roomId = randomUUID();
         const hostPlayerId = randomUUID();
@@ -2681,7 +2683,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
               '007_roll_sequence_v6.sql',
               '008_semantic_card_v7.sql',
               '009_activity_feed_v8.sql',
-              '010_teamplay_v9.sql'
+              '010_teamplay_v9.sql',
+              '011_lobby_seats_v10.sql'
            )`,
         );
 
@@ -2873,7 +2876,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
               '007_roll_sequence_v6.sql',
               '008_semantic_card_v7.sql',
               '009_activity_feed_v8.sql',
-              '010_teamplay_v9.sql'
+              '010_teamplay_v9.sql',
+              '011_lobby_seats_v10.sql'
            )`,
         );
 

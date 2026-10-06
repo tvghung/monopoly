@@ -51,11 +51,17 @@ Public/persisted types dùng stable IDs và phân biệt hidden state:
   existing Log surface. Server producers append join/chat/dice/property/money/
   development/card/jail/bankruptcy/start/finish facts with monotonic sequence and
   UUID identity; clients never infer categories from legacy HTML logs.
-- 2v2 (protocol 10): `BoardState.gameMode`, `teams`, `teamPlay` (`slotOrder`, `revivedPlayerIds`, `reviveWindows`) and `winningTeamId`;
+- 2v2 (protocol 10, seats in 11): `BoardState.gameMode`, `teams`, `teamPlay` (`slotOrder`, `revivedPlayerIds`, `reviveWindows`) and `winningTeamId`;
   `Player`/`FinishedPlayer`/`Winner`/`RoomPlayerMeta` carry `teamId`; `PaymentQueue.rescue` is the open `EmergencyRescueOffer`.
   `PublicBoardState` replaces `teams`/`teamPlay` with `PublicTeam[]` (with member IDs) and `PublicTeamPlayState`
-  (`reviveWindows` name the survivor; `slotOrder` stays private). Requests: `SetGameModeRequest`, `SetTeamNameRequest`,
-  `SetTeamColorRequest`, `SwapTeamRequest`, `RescueDecisionRequest {rescueId}`; `revive teammate` has no payload. Money reasons gain
+  (`reviveWindows` name the survivor; `slotOrder` stays private). Requests: `SetGameModeRequest`, `SetTeamNameRequest {name}`,
+  `SetTeamColorRequest`, `RescueDecisionRequest {rescueId}`; `revive teammate` has no payload.
+- Lobby seats (protocol 11): `Player.teamSlot` (`TeamSlot` 0|1) and `RoomPlayerMeta.teamSlot` (`PublicPlayer` omits it); `BoardState.seatSwapRequests`
+  (`SeatSwapRequest {requesterPlayerId, targetPlayerId}`, public, empty outside a 2v2 lobby). Requests: `MoveToSeatRequest {teamId, teamSlot}`,
+  `RequestSeatSwapRequest {targetPlayerId}`, `RespondSeatSwapRequest {requesterPlayerId, accept}`, `KickPlayerRequest {playerId}`;
+  `cancel seat swap` has no payload. Server → client `removed from room` carries `RemovedFromRoomInfo {code: 'REMOVED_BY_HOST', message}`.
+  `swap team` and `SwapTeamRequest` no longer exist. `REVIVE_WINDOW_SURVIVOR_TURNS` is 5 (a persisted window therefore has
+  `turnsRemaining` 1–5; older windows of at most 3 stay valid). Money reasons gain
   `REVIVE` and `RESCUE`; activity gains `TEAM_REVIVE` and `EMERGENCY_RESCUE`, `PROPERTY_DEVELOPMENT` an optional
   `ownerPlayerId/ownerName` and `GAME_FINISHED` optional `winningTeamId/winningTeamName`. Rules: [../GameCore/team-play.instruction.md](../GameCore/team-play.instruction.md).
 - Jail wait progress (`jailOpponentRoundsElapsed`) là state authoritative, được giữ
