@@ -1,8 +1,8 @@
-# Checklist — 2v2 Teamplay (protocol 10, snapshot 9)
+# Checklist — 2v2 Teamplay (protocol 11, snapshot 10)
 
 Luật và trạng thái: [../GameCore/team-play.instruction.md](../GameCore/team-play.instruction.md). Mỗi dòng dưới đây trỏ tới file test
 thật; dòng `[PG]` cần `TEST_DATABASE_URL` và bị skip nếu thiếu. Hàng `[MANUAL-E2E]` chưa tick vì chưa có người quan sát.
-Manual UAT: SKIPPED BY RELEASE DECISION for 1.3.0. Mobile E2E and visual capture are also non-blocking for this release.
+Manual UAT: SKIPPED BY RELEASE DECISION for 1.3.0, and not performed for 1.4.0. Mobile E2E and visual capture are also non-blocking for these releases.
 
 ## Lobby, đội và appearance
 
@@ -10,12 +10,21 @@ Manual UAT: SKIPPED BY RELEASE DECISION for 1.3.0. Mobile E2E and visual capture
   host đổi mode, chỉ ở lobby, mode đổi thật reset Ready của mọi người; sang 2v2 áp màu đội; mascot trùng đồng đội bị xóa; lệnh team chỉ
   chạy khi mode là 2v2.
 - [x] `[SOCKET]` cùng file: đổi màu đội chỉ thành viên đội mình, từ chối màu đội kia, chỉ reset Ready đội đó; hai lựa chọn màu đồng thời
-  được room executor xếp thứ tự (đúng một đội thắng màu); tên đội chỉ host, qua `sanitizeName`, không reset Ready.
-- [x] `[SOCKET]` cùng file: swap chỉ host, màu mới theo đội mới, chỉ hai người bị reset Ready, mascot giữ nếu còn hợp lệ và bị xóa nếu trùng
-  đồng đội mới; appearance 2v2 từ chối `color` và mascot trùng đồng đội nhưng cho đội kia trùng; Solo giữ nguyên.
-- [x] `[SOCKET]` cùng file: start 2v2 chỉ khi đúng 4 người, mỗi đội 2, ready và có mascot; từ chối < 4 và 3v1.
+  được room executor xếp thứ tự (đúng một đội thắng màu); tên đội: mọi thành viên chỉ đổi được tên đội mình (host cũng vậy, payload không có `teamId`), qua
+  `sanitizeName`, không reset Ready.
+- [x] `[SOCKET]` cùng file: appearance 2v2 từ chối `color` và mascot trùng đồng đội nhưng cho đội kia trùng; Solo giữ nguyên; không có ghế thứ ba trong một đội.
+- [x] `[SOCKET]` cùng file: start 2v2 chỉ khi đúng 4 người, mỗi đội 2, ready và có mascot; từ chối < 4 (không còn 3v1 vì mỗi đội chỉ có 2 ghế).
+- [x] `[SOCKET]` `socket.lobbySeats.integration.test.ts` › "2v2 lobby seats": ghế của bốn người vào phòng và public projection; `move to seat` sang ghế trống của đội
+  kia (màu mới, mascot trùng bị xóa, chỉ người di chuyển mất Ready) và của đội mình (không đổi gì ngoài ghế); từ chối ghế đã có người/ghế của mình/Solo/ván đã bắt
+  đầu; hai lệnh đồng thời vào một ghế chỉ một lệnh thắng; `request seat swap` chưa di chuyển ai, chỉ người được xin mới trả lời được, đồng ý đổi cả hai ghế (màu, Ready
+  cả hai, mascot trùng), đổi chỗ đồng đội không reset Ready; mỗi người một yêu cầu mở, từ chối/hủy; yêu cầu vô hiệu khi một bên di chuyển, rời, bị mời ra, đổi mode, bắt
+  đầu ván; người kết nối lại vẫn thấy yêu cầu; ghế quyết định thứ tự lượt; Play Again xếp lại hai ghế mỗi đội. `teamLobby.test.ts`: các hàm thuần (thứ tự ghế,
+  chuẩn hóa ghế, di chuyển/đổi chỗ, dọn yêu cầu).
+- [x] `[SOCKET]` cùng file › "removing a player from the lobby": `kick player` chỉ host, chỉ ở sảnh (Solo và 2v2), không tự mời mình, không mời người lạ; ghế được giải phóng,
+  session bị thu hồi (token cũ `SESSION_REVOKED`), kết nối của người bị mời nhận `removed from room` và không còn quyền gửi lệnh, người offline vẫn mời được, và họ vào lại
+  được bằng mã phòng vào đúng ghế vừa trống.
 - [x] `[CLIENT]` `components/Lobby.teamplay.test.tsx`: control Solo/2v2 chỉ host, hai vùng đội, tên đội (Enter/Escape/trống/20 ký tự), màu đội và
-  màu bị khóa, luồng đổi chỗ (chọn, chọn đối tác, Escape/Hủy/bấm lại, không draggable), mascot đồng đội bị khóa, lý do start.
+  màu bị khóa, mascot đồng đội bị khóa, lý do start. (Luồng đổi chỗ/mời ra/đổi tên của bản 1.4.0 xem hàng `[CLIENT]` ngay dưới.)
   `components/lobby/startReadiness.test.ts` (lý do 2v2), `App.test.tsx` › "lobby team commands" (payload gửi đi và lỗi ACK hiển thị).
 
 ## Lượt chơi, tiền thuê, Team Investment
@@ -35,7 +44,7 @@ Manual UAT: SKIPPED BY RELEASE DECISION for 1.3.0. Mobile E2E and visual capture
 
 - [x] `[AUTO]` › "individual bankruptcy and team elimination" và "explicit leave": phá sản từng người (tài sản về Bank), đội kia thắng ngay khi đội này hết
   active, thắng đội gồm cả người đã bị loại/đang có window, leave tường minh không mở window và 1v2 vẫn chơi tiếp.
-- [x] `[AUTO]` › "revive": đúng ba cơ hội của người sống sót (kể cả lượt tù và lượt bị bỏ qua), không tính lượt của người khác hoặc lượt đang chạy khi
+- [x] `[AUTO]` › "revive": đúng năm cơ hội của người sống sót (lượt thứ 6 của họ là hết hạn) (kể cả lượt tù và lượt bị bỏ qua), không tính lượt của người khác hoặc lượt đang chạy khi
   window mở, 750K/300K/Xuất Phát/không tài sản/không thẻ, về đúng slot cũ và không có lượt thưởng, từ chối khi thiếu tiền/payment mở/ngoài lượt,
   cho phép khi còn quyết định mua/phát triển, mỗi người một lần, chỉ người sống sót của đội. `[SOCKET]` hồi sinh/từ chối/người bị loại chỉ xem + chat/
   leave tường minh không bao giờ hồi sinh.
@@ -48,13 +57,15 @@ Manual UAT: SKIPPED BY RELEASE DECISION for 1.3.0. Mobile E2E and visual capture
 
 ## Snapshot, migration, persistence
 
-- [x] `[AUTO]` `rooms.teamplay.test.ts`: schema v9 là phiên bản hiện tại, round-trip JSON, `assertTeamState` từ chối state hỏng (màu, slot, window, winner,
-  rescue), `upgradeRoomSnapshotV8ToV9` không mutate input và cho snapshot hợp lệ, chia đội khi join, public projection của team/revive/rescue.
-  `persistence/migrations.test.ts` (checksum/thứ tự 010).
-- [x] `[PG]` `socket.teamplay.postgres.integration.test.ts`: migration SQL 010 giống hệt helper TS trên PostgreSQL thật; ván 2v2 + revive window +
-  rescue offer sống qua restart server trên cùng database. `socket.integration.test.ts` chạy chuỗi migration đến 010 và aggregate version.
+- [x] `[AUTO]` `rooms.teamplay.test.ts`: schema v10 là phiên bản hiện tại, round-trip JSON, `assertTeamState` từ chối state hỏng (màu, slot, window, winner,
+  rescue, hai người một ghế, yêu cầu đổi chỗ ngoài sảnh 2v2/trùng người xin/người không còn trong sảnh), `upgradeRoomSnapshotV8ToV9` và
+  `upgradeRoomSnapshotV9ToV10` không mutate input và cho snapshot hợp lệ (ghế theo thứ tự vào phòng, không quá ghế 1), chia đội và chọn ghế khi join, public projection của
+  team/ghế/revive/rescue. `persistence/migrations.test.ts` (checksum/thứ tự 010 và 011).
+- [x] `[PG]` `socket.teamplay.postgres.integration.test.ts`: migration SQL 010 và 011 giống hệt helper TS trên PostgreSQL thật (V8 → V10 và V9 → V10 với thứ tự vào phòng
+  xáo trộn); ván 2v2 + revive window + rescue offer, và một sảnh có ghế đã sắp xếp cùng một yêu cầu đổi chỗ đang mở, sống qua restart server trên cùng database.
+  `socket.integration.test.ts` chạy chuỗi migration đến 011 và aggregate version.
 - [x] `[AUTO]` `services/deadlineScheduler.test.ts`: rescue hết hạn được recover như decline; `config.test.ts` (`EMERGENCY_RESCUE_TIMEOUT_MS`);
-  `rulesContract.test.ts`: các số 2v2 trong `rules.ts` (150/200, 750/300/3, 4 người, 20 chữ, 30 giây) và mặc định `emergencyRescueTimeoutMs` khớp server, bonus
+  `rulesContract.test.ts`: các số 2v2 trong `rules.ts` (150/200, 750/300/5, 4 người, 20 chữ, 30 giây) và mặc định `emergencyRescueTimeoutMs` khớp server, bonus
   Solo do `streetRent` thật tính.
 
 ## Client hiển thị

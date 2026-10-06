@@ -2595,8 +2595,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V1-IDENTITY',
           status: 'IN_PROGRESS',
           hostPlayerId,
-          aggregateVersion: 15,
-          snapshotSchemaVersion: 9,
+          aggregateVersion: 16,
+          snapshotSchemaVersion: 10,
           gameSnapshot: {
             members: {
               [hostPlayerId]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
@@ -2798,8 +2798,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V2-TO-V4',
           status: 'IN_PROGRESS',
           hostPlayerId,
-          aggregateVersion: 19,
-          snapshotSchemaVersion: 9,
+          aggregateVersion: 20,
+          snapshotSchemaVersion: 10,
           gameSnapshot: {
             gameState: {
               boardState: {
@@ -3015,8 +3015,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V3-CLEANUP',
           status: 'IN_PROGRESS',
           hostPlayerId: sellerPlayerId,
-          aggregateVersion: 26,
-          snapshotSchemaVersion: 9,
+          aggregateVersion: 27,
+          snapshotSchemaVersion: 10,
         });
         const migratedState = migrated.gameSnapshot.gameState;
         expect(migratedState.boardState.rollSequence).toBe(0);
