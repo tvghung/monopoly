@@ -78,6 +78,9 @@ Development endpoint contract:
   `ROOM_GONE`, `GAME_ALREADY_STARTED`, `ROOM_FULL`) mới clear storage.
   `DATABASE_UNAVAILABLE`/transport errors giữ token để retry.
 - `session replaced` đưa tab cũ vào `REPLACED` nhưng không xóa shared localStorage.
+- `removed from room` (host dùng `kick player` ở lobby; session đã bị thu hồi trên server) là kết thúc terminal: client xóa session/room/private state bằng
+  `forgetSession`, dừng resume và hiện màn hình lỗi `ERROR` "Bạn đã được mời ra khỏi phòng" (`retryable: false`; desktop về launcher). Xem
+  [Client/join-room.instruction.md](./Client/join-room.instruction.md).
 
 ## State và Socket
 
@@ -96,8 +99,10 @@ Development endpoint contract:
 
 - Player lobby thấy roster, host badge, ready controls và start state.
 - Chỉ host có start action; button chỉ enabled khi 2–4 active players (2v2: đúng 4, mỗi đội 2) đều connected
-  và ready. Host chọn chế độ Solo/2v2 và đổi chỗ đội; thành viên đổi màu đội của mình; chỉ host sửa tên đội
-  ([GameCore/team-play.instruction.md](./GameCore/team-play.instruction.md)). Người bị loại còn revivable chỉ xem và chat.
+  và ready. Host chọn chế độ Solo/2v2 và có nút X mời người khác ra khỏi phòng (sau xác nhận trung tâm; không đổi chỗ thay ai);
+  mỗi người tự đổi chỗ của mình (chỗ trống: chuyển ngay; chỗ có người: gửi yêu cầu, người kia đồng ý mới đổi) và thành viên đổi tên/màu của
+  **đội mình**, không ai đổi được đội kia ([GameCore/team-play.instruction.md](./GameCore/team-play.instruction.md),
+  [Client/game-status.instruction.md](./Client/game-status.instruction.md)). Người bị loại còn revivable chỉ xem và chat.
 - Spectator có banner rõ ràng, board/gameplay read-only và không thấy gameplay/trading
   mutation actions; `send chat` vẫn là ngoại lệ được server cho phép trong room đã bind.
 - UI guards chỉ là UX. Server authenticated handler vẫn là authority.

@@ -109,6 +109,7 @@ khác vẫn còn để vào lại từ launcher. Chỉ `leave room` tường min
 | `ERROR` có `returnToLauncher` (session terminal, lỗi kết nối) | hành động chính "Về trang chủ" (trước là "Quay về trình khởi động LAN") |
 | `ERROR` khác (hết giờ xác nhận phiên, không lưu được phiên, `DATABASE_UNAVAILABLE`…) | "Thử lại" hoặc "Quay về màn hình vào phòng" cộng hành động phụ "Về trang chủ" (`ErrorScreen.secondaryAction`) |
 | `REPLACED` | hành động duy nhất "Về trang chủ" |
+| `ERROR` sau `removed from room` (host mời ra) | như `ERROR` có `returnToLauncher`: hành động chính "Về trang chủ"; session đã bị xóa nên không còn gì để vào lại |
 | `LOBBY` (host và khách), ván đang chơi, khán giả, `WinnerBanner` | không đổi: "Rời phòng" / "Bỏ cuộc" / "Về trang chủ" qua `leaveRoom` → `exitToStart` |
 | `RECONNECTING`, `RESTORING` (loading) | tạm thời và có giới hạn: lần kết nối lại thất bại đầu tiên (`connect_error`) hoặc `ACK_TIMEOUT_MS` chuyển sang `ERROR` ở trên |
 
@@ -146,6 +147,12 @@ ACK is resumable because token was stored first.
   terminal for that admission token and clear it.
 - `session replaced` moves old tab to terminal `REPLACED`, stops reconnect and does
   not clear shared localStorage.
+- **Bị mời ra khỏi phòng**: khi host gửi `kick player`, server thu hồi session của người đó và gửi riêng cho connection của họ event
+  `removed from room` `{code: 'REMOVED_BY_HOST', message}` (rồi đưa connection ra khỏi các channel của phòng). Client xử lý như một kết thúc session
+  terminal: `forgetSession()` (xóa token, `clearPlayerSession`, room, private state, offers, identity — cùng helper với `failSession` cho các mã terminal và
+  `exitToStart`), tăng `admissionAttemptRef` (ACK muộn bị bỏ), rồi `phase = 'ERROR'` với `AppFailure` `{title: "Bạn đã được mời ra khỏi phòng",
+  message: <message của event>, retryable: false, returnToLauncher: Boolean(desktopBridge && tokenRef)}`. Không resume lại token đã thu hồi.
+  Hành động chính là "Quay về màn hình vào phòng" (web, vào lại bằng mã phòng) hoặc "Về trang chủ" (desktop → `onExitToLauncher`). Không có lệnh `leave room`.
 
 ## Duplicate/role rules
 

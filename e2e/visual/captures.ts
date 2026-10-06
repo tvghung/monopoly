@@ -135,7 +135,8 @@ export const PLAN04_SURFACES = [
   'launcher', 'launcher-running', 'launcher-host', 'launcher-join', 'launcher-join-failed',
   // Lobby
   'lobby-host', 'lobby-guest', 'lobby-alone', 'lobby-full', 'lobby-start-blocked', 'lobby-lan',
-  'lobby-2v2-host', 'lobby-2v2-guest', 'lobby-2v2-incomplete',
+  'lobby-2v2-host', 'lobby-2v2-guest', 'lobby-2v2-incomplete', 'lobby-2v2-second-seat', 'lobby-2v2-swap-pending',
+  'lobby-2v2-swap-request', 'lobby-kick-confirm',
   // Settings
   'settings', 'settings-desktop', 'settings-reduced-motion',
   // Decisions

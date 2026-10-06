@@ -55,6 +55,11 @@
   insertion order before the maximum eight-entry retention limit is applied.
 - `[AUTO][PASS]` Desktop terminal resume failure clears the scoped session and
   returns to the LAN launcher; it does not silently fall back to a fresh join.
+- `[AUTO][PASS]` `removed from room` (host `kick player`) ends the session like a revoked one (`App.test.tsx`, "App 2v2 lobby commands" →
+  "being removed by the host"): failure screen "Bạn đã được mời ra khỏi phòng" with the event's message, the stored session cleared, a later
+  reconnect does not resume the revoked token, "Quay về màn hình vào phòng" leads to the join form, desktop returns to the launcher ("Về trang chủ"),
+  and the listener is removed on unmount. The server side (revocation, channel removal, event delivery) is in
+  [team-play.md](./team-play.md) / `socket.lobbySeats.integration.test.ts`.
 - `[AUTO][PASS]` Desktop leave clears the scoped client session, disconnects, and
   returns to the launcher without stopping the app-owned Host runtime.
 - `[SOCKET][PASS]` Desktop loopback remains the only unused-code creator; remote

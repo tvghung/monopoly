@@ -2,6 +2,7 @@ import {
   useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore,
 } from 'react';
 import {
+  REVIVE_WINDOW_SURVIVOR_TURNS,
   SOCKET_PROTOCOL_VERSION,
   colorGroups,
   type Ack,
@@ -194,6 +195,7 @@ function createRoom(playerCount: PlayerCount, run: number): PublicRoomState {
       color: PLAYER_COLORS[index],
       characterId: PLAYER_CHARACTERS[index],
       teamId: index % 2 === 0 ? 'TEAM_1' : 'TEAM_2',
+      teamSlot: index < 2 ? 0 : 1,
       joinOrder: index,
       membershipStatus: 'ACTIVE',
       ready: true,
@@ -223,6 +225,7 @@ function createRoom(playerCount: PlayerCount, run: number): PublicRoomState {
           { teamId: 'TEAM_2', name: 'Team 2', color: 'blue', memberPlayerIds: ids.filter((_, index) => index % 2 === 1) },
         ],
         teamPlay: { revivedPlayerIds: [], reviveWindows: [] },
+        seatSwapRequests: [],
       },
       players: Object.fromEntries(ids.map((playerId, index) => [playerId, {
         name: PLAYER_NAMES[index],
@@ -484,7 +487,7 @@ function applyTeamBaseline(room: PublicRoomState, eliminated: boolean): void {
   };
   boardState.turnNumber = 4;
   boardState.teamPlay.reviveWindows = [{
-    playerId: 'player-d', teamId: 'TEAM_2', survivorPlayerId: 'player-b', turnsRemaining: 2, openedAtTurnNumber: 2,
+    playerId: 'player-d', teamId: 'TEAM_2', survivorPlayerId: 'player-b', turnsRemaining: REVIVE_WINDOW_SURVIVOR_TURNS - 1, openedAtTurnNumber: 2,
   }];
   const meta = room.players.find(player => player.playerId === 'player-d');
   if (meta) meta.membershipStatus = 'FINISHED';

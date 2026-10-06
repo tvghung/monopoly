@@ -24,8 +24,23 @@ Manual UAT: SKIPPED BY RELEASE DECISION for 1.3.0, and not performed for 1.4.0. 
   session bị thu hồi (token cũ `SESSION_REVOKED`), kết nối của người bị mời nhận `removed from room` và không còn quyền gửi lệnh, người offline vẫn mời được, và họ vào lại
   được bằng mã phòng vào đúng ghế vừa trống.
 - [x] `[CLIENT]` `components/Lobby.teamplay.test.tsx`: control Solo/2v2 chỉ host, hai vùng đội, tên đội (Enter/Escape/trống/20 ký tự), màu đội và
-  màu bị khóa, mascot đồng đội bị khóa, lý do start. (Luồng đổi chỗ/mời ra/đổi tên của bản 1.4.0 xem hàng `[CLIENT]` ngay dưới.)
-  `components/lobby/startReadiness.test.ts` (lý do 2v2), `App.test.tsx` › "lobby team commands" (payload gửi đi và lỗi ACK hiển thị).
+  màu bị khóa, mascot đồng đội bị khóa, lý do start. `components/lobby/startReadiness.test.ts` (lý do 2v2).
+- [x] `[CLIENT]` `components/Lobby.teamplay.test.tsx` › "Lobby seat cells": đúng hai ô mỗi đội theo thứ tự ghế, ghế trống nằm đúng ô của nó (một thành viên ở ghế 1 đứng sau ô
+  trống), ghế trùng lấy ô trống đầu và không ai bị ẩn. "Lobby seat swap controls": nút đổi chỗ ở mọi ghế trừ ghế của chính mình; "Chuyển sang chỗ trống N của đội <tên>" gọi
+  `onMoveToSeat(teamId, teamSlot)` (kể cả ghế còn lại của đội mình); "Đổi chỗ với <tên>" gọi `onRequestSeatSwap(targetPlayerId)`; host có đúng nút như khách; không có nút ở
+  Solo hoặc khi người xem không có ghế; tất cả bị khóa khi `busy`.
+- [x] `[CLIENT]` cùng file › "pending seat swap": "Đang chờ <tên> trả lời" kèm Hủy chỉ cho người xin; "Yêu cầu đổi chỗ đã kết thúc." khi yêu cầu biến mất mà ghế không đổi (không báo khi
+  đổi thật, tự hủy hay bị thay). "seat swap request for the viewer": `alertdialog` trung tâm "<tên> muốn đổi chỗ với bạn", chữ hệ quả cho cùng đội và khác đội, Đồng ý/Từ chối/Escape gọi
+  `onRespondSeatSwap(requesterPlayerId, accept)`, tự đóng khi phòng bỏ yêu cầu, yêu cầu cũ nhất trước, không hiện cho người khác hay cho người xin đã rời, nút khóa khi `busy`.
+- [x] `[CLIENT]` cùng file › "Lobby kick" (và `Lobby.test.tsx` › "Lobby kick (Solo)"): dấu ✕ chỉ host và không bao giờ ở ghế của host, nhãn "Mời <tên> ra khỏi phòng", hộp xác nhận trước,
+  `onKickPlayer(playerId)` chỉ sau "Mời ra", Hủy và Escape không gửi gì, câu hỏi tự đóng khi người đó rời, khóa khi `busy`, không dùng `window.confirm`. "Lobby team name and colour":
+  chỉ đội của người xem có ô sửa tên (host không sửa tên đội kia, khách sửa đội mình); `onSetTeamName(name)` chỉ mang tên.
+- [x] `[CLIENT]` `App.test.tsx` › "App 2v2 lobby commands": payload `set game mode {mode}`, `set team name {name}`, `set team color {color}`, `move to seat {teamId, teamSlot}`,
+  `request seat swap {targetPlayerId}`, `cancel seat swap` (chỉ ACK), `respond seat swap {requesterPlayerId, accept}`, `kick player {playerId}`; trạng thái chờ chỉ hiện khi phòng liệt kê yêu cầu;
+  lỗi ACK hiện ở `.lobby__error`; khối "being removed by the host": màn hình lỗi riêng, session bị xóa, không resume lại, về form vào phòng, về launcher trên desktop, gỡ listener khi unmount.
+- [x] `[CLIENT]` `design-system/components/ConfirmationDialog/ConfirmationDialog.test.tsx`: tone nguy hiểm/trung tính, `aria-describedby`, handler, `busy` khóa cả hai nút, Escape và nút đóng.
+- [x] `[CLIENT]` cửa sổ hồi sinh 5 lượt: `RevivePanel.test.tsx`, `game/team/teamView.test.ts`, `game/ui/hud/activityText.test.ts`, `game/ui/property/PlayerPortfolioModal.test.tsx` và `howToPlay/model.test.ts`
+  theo `REVIVE_WINDOW_SURVIVOR_TURNS` ("Còn 5 lượt" xuống "Cơ hội cuối").
 
 ## Lượt chơi, tiền thuê, Team Investment
 
@@ -74,7 +89,7 @@ Manual UAT: SKIPPED BY RELEASE DECISION for 1.3.0, and not performed for 1.4.0. 
   quan hệ, pip theo chủ, hover card chỉ 2v2, nhãn truy cập.
 - [x] `[CLIENT]` `DecisionSheets.test.tsx` (Team Investment copy, gợi ý nhóm theo đội), `activityText.test.ts`, `TeamChip.test.tsx`, `PlayerPortfolioModal.test.tsx`.
 - [x] `[CLIENT]` `howToPlay/model.test.ts`, `HowToPlay.test.tsx`: chương "Chơi đội 2v2" đọc số từ `rules.ts`; bonus đủ khu thay cho câu cũ.
-- [x] `[CLIENT]` Design Lab (`design-lab/surfaces`): `lobby-2v2-host`, `lobby-2v2-guest`, `lobby-2v2-incomplete`, `development-team-investment`, `revive-offer`,
+- [x] `[CLIENT]` Design Lab (`design-lab/surfaces`): `lobby-2v2-host`, `lobby-2v2-guest`, `lobby-2v2-incomplete`, `lobby-2v2-second-seat`, `lobby-2v2-swap-pending`, `lobby-2v2-swap-request`, `lobby-kick-confirm`, `development-team-investment`, `revive-offer`,
   `rescue-offer`, `rescue-waiting`, `winner-team` (đã liệt kê trong `e2e/visual/captures.ts`, `surfaceCaptures.test.ts` giữ hai danh sách khớp) và kịch bản UAT
   `teams-2v2`/`teams-revive` (HUD bốn card theo đội, người phá sản có thể hồi sinh) trên bàn cờ thật. Đã xem bằng Browser pane ở desktop và 812×375: lobby không tràn ngang,
   hai ghế mỗi đội xếp chồng trong landscape thấp.

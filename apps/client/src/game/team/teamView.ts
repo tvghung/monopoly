@@ -59,7 +59,7 @@ export function relationLabel(relation: PlayerRelation | null): string | null {
   return null;
 }
 
-/** "Còn 3 lượt", "Còn 2 lượt" and, with a single survivor turn left, "Cơ hội cuối". */
+/** "Còn 5 lượt" down to "Còn 2 lượt" (the window opens with `REVIVE_WINDOW_SURVIVOR_TURNS`) and, with a single survivor turn left, "Cơ hội cuối". */
 export function reviveTurnsLabel(turnsRemaining: number): string {
   return turnsRemaining <= 1 ? 'Cơ hội cuối' : `Còn ${turnsRemaining} lượt`;
 }

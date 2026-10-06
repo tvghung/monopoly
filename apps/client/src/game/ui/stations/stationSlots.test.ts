@@ -8,6 +8,7 @@ const player = (
   membershipStatus: RoomPlayerMeta['membershipStatus'] = 'ACTIVE',
 ): RoomPlayerMeta => ({
   teamId: 'TEAM_1',
+  teamSlot: 0,
   playerId,
   joinOrder,
   membershipStatus,

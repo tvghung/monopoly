@@ -1,16 +1,19 @@
 import './style/Lobby.css';
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { getAppearanceCombinationKey, TEAM_IDS } from '@monopoly/shared';
 import type {
   CharacterId,
   GameMode,
   PlayerColorId,
   PublicTeam,
+  SeatSwapRequest,
   SetAppearanceRequest,
   TeamId,
+  TeamSlot,
 } from '@monopoly/shared';
 import Button from '../design-system/components/Button/Button';
 import Chip from '../design-system/components/Chip/Chip';
+import ConfirmationDialog from '../design-system/components/ConfirmationDialog/ConfirmationDialog';
 import IconButton from '../design-system/components/IconButton/IconButton';
 import SegmentedControl from '../design-system/components/SegmentedControl/SegmentedControl';
 import { ActionIcon } from '../design-system/icons/ActionIcon';
@@ -21,6 +24,7 @@ import TeamZone from './lobby/TeamZone';
 import { useCopyFeedback } from './lobby/copyText';
 import { getStartBlockReason } from './lobby/startReadiness';
 import type { LobbyPlayerView } from './lobby/lobbyTypes';
+import { useToast } from './Toast';
 import HostLanSharing from './HostLanSharing';
 
 export type { LobbyPlayerView } from './lobby/lobbyTypes';
@@ -36,14 +40,26 @@ interface LobbyProps {
   gameMode?: GameMode;
   /** Both teams with their names and colours; only read in 2v2. */
   teams?: readonly PublicTeam[];
+  /** The open seat-swap requests of the room (2v2). The Lobby derives every swap state and dialog from these and keeps none itself. */
+  seatSwapRequests?: readonly SeatSwapRequest[];
   busy: boolean;
   error: string | null;
   onSetReady: (ready: boolean) => void;
   onSetAppearance: (request: SetAppearanceRequest) => void;
   onSetGameMode?: (mode: GameMode) => void;
-  onSetTeamName?: (teamId: TeamId, name: string) => void;
+  /** Renames the viewer's own team: the server resolves which team that is, so no team is passed. */
+  onSetTeamName?: (name: string) => void;
   onSetTeamColor?: (color: PlayerColorId) => void;
-  onSwapTeams?: (playerId: string, withPlayerId: string) => void;
+  /** Host only: removes another player from the room (asked after a confirmation). */
+  onKickPlayer?: (playerId: string) => void;
+  /** 2v2: the viewer takes an empty seat at once. */
+  onMoveToSeat?: (teamId: TeamId, teamSlot: TeamSlot) => void;
+  /** 2v2: the viewer asks the player in an occupied seat to swap places. */
+  onRequestSeatSwap?: (targetPlayerId: string) => void;
+  /** 2v2: the viewer takes back their open request. */
+  onCancelSeatSwap?: () => void;
+  /** 2v2: the viewer answers the request another player made to them. */
+  onRespondSeatSwap?: (requesterPlayerId: string, accept: boolean) => void;
   onStart: () => void;
   onLeave: () => void;
   onSettings?: () => void;
@@ -61,6 +77,8 @@ const MODE_OPTIONS = [
   { value: 'TEAM_2V2', label: '2v2' },
 ] as const;
 
+export const SEAT_SWAP_ENDED_NOTICE = 'Yêu cầu đổi chỗ đã kết thúc.';
+
 export default function Lobby({
   roomCode,
   players,
@@ -70,6 +88,7 @@ export default function Lobby({
   maxPlayers,
   gameMode = 'SOLO',
   teams = [],
+  seatSwapRequests = [],
   busy,
   error,
   onSetReady,
@@ -77,16 +96,21 @@ export default function Lobby({
   onSetGameMode,
   onSetTeamName,
   onSetTeamColor,
-  onSwapTeams,
+  onKickPlayer,
+  onMoveToSeat,
+  onRequestSeatSwap,
+  onCancelSeatSwap,
+  onRespondSeatSwap,
   onStart,
   onLeave,
   onSettings,
   showLanSharing = false,
 }: LobbyProps) {
   const startReasonId = useId();
-  const swapHintId = useId();
   const codeCopy = useCopyFeedback();
-  const [swapSourceId, setSwapSourceId] = useState<string | null>(null);
+  const toast = useToast();
+  // Only which seat the host is about to remove while the confirmation is open; a UI question, not room state.
+  const [kickTargetId, setKickTargetId] = useState<string | null>(null);
   const me = players.find(player => player.id === playerId);
   const isHost = hostPlayerId === playerId;
   const teamMode = gameMode === 'TEAM_2V2' && teams.length === TEAM_IDS.length;
@@ -111,33 +135,47 @@ export default function Lobby({
       : [],
   ), [me, players, teamMode]);
 
-  const source = players.find(player => player.id === swapSourceId);
-  // A swap only makes sense in a 2v2 lobby for the host, and only while the chosen player is still seated.
+  // ---- Host: remove a player (the X on every other seat, asked first) ----
+  const canKick = isHost && Boolean(onKickPlayer);
+  const kickTarget = canKick ? players.find(player => player.id === kickTargetId && player.id !== playerId) : undefined;
   useEffect(() => {
-    if (swapSourceId !== null && (!teamMode || !isHost || !source)) setSwapSourceId(null);
-  }, [isHost, source, swapSourceId, teamMode]);
-  useEffect(() => {
-    if (swapSourceId === null) return undefined;
-    const cancelOnEscape = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') setSwapSourceId(null);
-    };
-    window.addEventListener('keydown', cancelOnEscape);
-    return () => window.removeEventListener('keydown', cancelOnEscape);
-  }, [swapSourceId]);
+    // The player left (or was removed) while the question was open: there is nothing to ask about any more.
+    if (kickTargetId !== null && !kickTarget) setKickTargetId(null);
+  }, [kickTarget, kickTargetId]);
 
-  const handleSwapPress = useCallback((pressedId: string) => {
-    if (!onSwapTeams) return;
-    if (swapSourceId === null) {
-      setSwapSourceId(pressedId);
+  // ---- 2v2 seat swap: everything below is read from the room's open requests ----
+  const canSwap = teamMode && Boolean(me) && Boolean(onMoveToSeat && onRequestSeatSwap && onCancelSeatSwap);
+  const outgoingRequest = seatSwapRequests.find(request => request.requesterPlayerId === playerId);
+  // The oldest request first: the order of the room's list is the order they were made.
+  const incomingRequest = canSwap && onRespondSeatSwap
+    ? seatSwapRequests.find(request => request.targetPlayerId === playerId
+      && players.some(player => player.id === request.requesterPlayerId))
+    : undefined;
+  const requester = incomingRequest ? players.find(player => player.id === incomingRequest.requesterPlayerId) : undefined;
+
+  // A request of the viewer's that disappears while their seat stays where it was ended without a swap (declined, or void because
+  // the other player moved or left): say so once. Taking it back oneself, a swap that happened and a change of mode say nothing.
+  const outgoingTargetId = outgoingRequest?.targetPlayerId ?? null;
+  const seatKey = canSwap && me ? `${me.teamId}:${me.teamSlot}` : null;
+  const previousRequest = useRef<{ targetId: string | null; seatKey: string | null }>({ targetId: null, seatKey: null });
+  const cancelledByViewer = useRef(false);
+  useEffect(() => {
+    const previous = previousRequest.current;
+    previousRequest.current = { targetId: outgoingTargetId, seatKey };
+    if (outgoingTargetId !== null) {
+      // A request (a new one, or one that replaced another) is open again: a later cancel is a fresh decision.
+      if (previous.targetId !== outgoingTargetId) cancelledByViewer.current = false;
       return;
     }
-    if (pressedId === swapSourceId) {
-      setSwapSourceId(null);
-      return;
-    }
-    onSwapTeams(swapSourceId, pressedId);
-    setSwapSourceId(null);
-  }, [onSwapTeams, swapSourceId]);
+    const ended = previous.targetId !== null && seatKey !== null && previous.seatKey === seatKey;
+    if (ended && !cancelledByViewer.current) toast.show(SEAT_SWAP_ENDED_NOTICE);
+    cancelledByViewer.current = false;
+  }, [outgoingTargetId, seatKey, toast]);
+
+  const cancelSeatSwap = (): void => {
+    cancelledByViewer.current = true;
+    onCancelSeatSwap?.();
+  };
 
   const modeControl = onSetGameMode && isHost
     ? (
@@ -149,6 +187,13 @@ export default function Lobby({
       />
     )
     : <Chip tone="info">{gameMode === 'TEAM_2V2' ? '2v2' : 'Solo'}</Chip>;
+
+  const requesterTeam = requester ? teamById.get(requester.teamId) : undefined;
+  const swapMessage = requester && myTeam && requesterTeam
+    ? requester.teamId === me?.teamId
+      ? `Hai bạn đổi chỗ cho nhau trong đội ${myTeam.name}.`
+      : `Bạn sang đội ${requesterTeam.name}, ${requester.name} sang đội ${myTeam.name}. Cả hai đổi sang màu đội mới và phải bấm lại Sẵn sàng.`
+    : '';
 
   return (
     <section className="lobby" aria-labelledby="lobby-title">
@@ -206,46 +251,37 @@ export default function Lobby({
 
         {teamMode
           ? (
-            <>
-              {isHost && source
-                ? (
-                  <div className="lobby__swap-banner" role="status" id={swapHintId}>
-                    <span>
-                      {'Chọn người chơi ở đội kia để đổi chỗ với '}
-                      <strong>{source.name}</strong>
-                      .
-                    </span>
-                    <Button variant="ghost" size="sm" onClick={() => setSwapSourceId(null)}>Hủy</Button>
-                  </div>
-                )
-                : null}
-              <div className="lobby__teams" aria-label="Hai đội">
-                {TEAM_IDS.map(teamId => {
-                  const team = teamById.get(teamId);
-                  const other = teamById.get(teamId === 'TEAM_1' ? 'TEAM_2' : 'TEAM_1');
-                  if (!team || !other) return null;
-                  return (
-                    <TeamZone
-                      key={teamId}
-                      team={team}
-                      otherTeamColor={other.color}
-                      members={players.filter(player => player.teamId === teamId)}
-                      playerId={playerId}
-                      hostPlayerId={hostPlayerId}
-                      isHost={isHost && Boolean(onSwapTeams)}
-                      isOwnTeam={me?.teamId === teamId}
-                      busy={busy}
-                      swapSourceId={swapSourceId}
-                      swapSourceName={source?.name}
-                      onSwapPress={handleSwapPress}
-                      onSetReady={onSetReady}
-                      onSetTeamName={name => onSetTeamName?.(teamId, name)}
-                      onSetTeamColor={color => onSetTeamColor?.(color)}
-                    />
-                  );
-                })}
-              </div>
-            </>
+            <div className="lobby__teams" aria-label="Hai đội">
+              {TEAM_IDS.map(teamId => {
+                const team = teamById.get(teamId);
+                const other = teamById.get(teamId === 'TEAM_1' ? 'TEAM_2' : 'TEAM_1');
+                if (!team || !other) return null;
+                const ownTeam = me?.teamId === teamId;
+                return (
+                  <TeamZone
+                    key={teamId}
+                    team={team}
+                    otherTeamColor={other.color}
+                    members={players.filter(player => player.teamId === teamId)}
+                    playerId={playerId}
+                    hostPlayerId={hostPlayerId}
+                    isHost={canKick}
+                    isOwnTeam={ownTeam}
+                    canRename={ownTeam && Boolean(onSetTeamName)}
+                    busy={busy}
+                    swapTargetId={outgoingTargetId}
+                    canSwap={canSwap}
+                    onKick={setKickTargetId}
+                    onMoveToSeat={teamSlot => onMoveToSeat?.(teamId, teamSlot)}
+                    onRequestSeatSwap={targetPlayerId => onRequestSeatSwap?.(targetPlayerId)}
+                    onCancelSeatSwap={cancelSeatSwap}
+                    onSetReady={onSetReady}
+                    onSetTeamName={name => onSetTeamName?.(name)}
+                    onSetTeamColor={color => onSetTeamColor?.(color)}
+                  />
+                );
+              })}
+            </div>
           )
           : (
             <ul className="lobby__players" aria-label="Danh sách người chơi">
@@ -258,6 +294,7 @@ export default function Lobby({
                     isHost={player.id === hostPlayerId}
                     busy={busy}
                     onSetReady={onSetReady}
+                    onKick={canKick && player.id !== playerId ? () => setKickTargetId(player.id) : undefined}
                   />
                 )
                 : <EmptySeat key={`empty-${index}`} number={index + 1} />)}
@@ -281,6 +318,35 @@ export default function Lobby({
 
         {error ? <p className="lobby__error" role="alert">{error}</p> : null}
       </article>
+
+      <ConfirmationDialog
+        open={kickTarget !== undefined}
+        title={`Mời ${kickTarget?.name ?? ''} ra khỏi phòng?`}
+        message={`${kickTarget?.name ?? 'Người này'} sẽ rời khỏi phòng này. Họ vẫn có thể vào lại bằng mã phòng nếu còn chỗ.`}
+        confirmLabel="Mời ra"
+        confirmIcon={<ActionIcon name="close" />}
+        busy={busy}
+        onCancel={() => setKickTargetId(null)}
+        onConfirm={() => {
+          if (kickTarget) onKickPlayer?.(kickTarget.id);
+          setKickTargetId(null);
+        }}
+      />
+
+      <ConfirmationDialog
+        open={requester !== undefined && myTeam !== undefined}
+        tone="neutral"
+        icon="swap"
+        title={`${requester?.name ?? ''} muốn đổi chỗ với bạn`}
+        message={swapMessage}
+        confirmLabel="Đồng ý"
+        confirmIcon={<ActionIcon name="accept" />}
+        cancelLabel="Từ chối"
+        busy={busy}
+        // Escape and "Từ chối" are the same answer; the dialog itself closes when the room no longer holds the request.
+        onCancel={() => { if (requester) onRespondSeatSwap?.(requester.id, false); }}
+        onConfirm={() => { if (requester) onRespondSeatSwap?.(requester.id, true); }}
+      />
     </section>
   );
 }

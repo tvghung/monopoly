@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { REVIVE_WINDOW_SURVIVOR_TURNS } from '@monopoly/shared';
 import stateContext from '../../../internal';
 import type { SocketFunctions } from '../../../types';
 import { makeRoom, makeTeamRoom } from '../../presentation/testFixtures';
@@ -229,12 +230,12 @@ describe('PlayerPortfolioModal in a 2v2 game', () => {
     const revivable = open(teamRoom(room => {
       eliminate(room);
       room.gameState.boardState.teamPlay.reviveWindows = [{
-        playerId: 'player-c', teamId: 'TEAM_1', survivorPlayerId: 'player-a', turnsRemaining: 3, openedAtTurnNumber: 1,
+        playerId: 'player-c', teamId: 'TEAM_1', survivorPlayerId: 'player-a', turnsRemaining: REVIVE_WINDOW_SURVIVOR_TURNS, openedAtTurnNumber: 1,
       }];
     }), 'player-c');
     const dialog = screen.getByRole('dialog', { name: 'Tài sản của Chi' });
     expect(within(dialog).getByText('Phá sản')).toBeTruthy();
-    expect(within(dialog).getByText('Có thể hồi sinh · Còn 3 lượt')).toBeTruthy();
+    expect(within(dialog).getByText(`Có thể hồi sinh · Còn ${REVIVE_WINDOW_SURVIVOR_TURNS} lượt`)).toBeTruthy();
     revivable.unmount();
 
     open(teamRoom(eliminate), 'player-c');

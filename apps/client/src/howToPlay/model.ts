@@ -475,10 +475,13 @@ function teamPlaySection(): HowToPlaySection {
       list([
         `Chủ phòng chọn ${label('Solo')} hoặc ${label('2v2')} ở sảnh phòng, và chỉ chọn được trước khi ván bắt đầu. `
         + `Mỗi lần đổi chế độ, mọi người phải bấm lại ${label('Sẵn sàng')}.`,
-        `Người mới vào phòng được xếp vào đội đang ít người hơn. Chủ phòng bấm ${label('Đổi đội')} rồi chọn một người ở đội kia `
-        + `để hai người đổi chỗ cho nhau. Hai người đó phải bấm lại ${label('Sẵn sàng')}.`,
-        `Mỗi đội có một tên (chủ phòng đặt, tối đa ${TEAM_NAME_MAX_LENGTH} chữ) và một màu. `
-        + 'Thành viên của đội được đổi màu đội, nhưng hai đội không được dùng cùng một màu.',
+        'Người mới vào phòng được xếp vào đội đang ít người hơn. Mỗi đội có hai chỗ ngồi. '
+        + `Muốn sang chỗ trống, bạn bấm ${label('Chuyển sang')} và vào chỗ đó ngay. Muốn đổi chỗ với một người đang ngồi, `
+        + `bạn bấm ${label('Đổi chỗ')} để gửi lời mời, và chỉ khi người đó đồng ý thì hai người mới đổi chỗ. `
+        + `Nếu hai người ở hai đội khác nhau, cả hai phải bấm lại ${label('Sẵn sàng')}. Chủ phòng không đổi chỗ thay người khác được.`,
+        `Mỗi đội có một tên (tối đa ${TEAM_NAME_MAX_LENGTH} chữ) và một màu. `
+        + 'Thành viên của đội nào thì tự đổi tên và màu của đội đó, không ai đổi được tên hay màu của đội kia. '
+        + 'Hai đội không được dùng cùng một màu.',
         'Quân của bạn luôn mang màu đội, nên hai đồng đội phải chọn mascot khác nhau. Hai đội được chọn trùng mascot.',
         `Chủ phòng chỉ bắt đầu được khi có đúng ${TEAM_2V2_PLAYER_COUNT} người, mỗi đội 2 người, và ai cũng đã sẵn sàng.`,
       ]),

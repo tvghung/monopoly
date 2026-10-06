@@ -1,5 +1,5 @@
 import {
-  act, cleanup, fireEvent, render, screen, within,
+  act, cleanup, fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
 import { StrictMode } from 'react';
 import type { PrivateOffer, PublicRoomState } from '@monopoly/shared';
@@ -90,6 +90,7 @@ const room: PublicRoomState = {
   maxPlayers: 4,
   players: [{
     teamId: 'TEAM_1',
+    teamSlot: 0,
     playerId: 'stable-player-id',
     name: 'Ada',
     color: 'red',
@@ -1215,6 +1216,7 @@ describe('App session admission', () => {
         ...room.players,
         {
           teamId: 'TEAM_2',
+          teamSlot: 0,
           playerId: 'other-player-id',
           name: 'Bình',
           color: 'blue',
@@ -1609,88 +1611,6 @@ describe('App how-to-play key placement', () => {
     expect(within(actions).getAllByRole('button')[0]).toBe(screen.getByRole('button', { name: GUIDE }));
   });
 
-  it('sends the lobby team commands with only the fields the host chose and shows a refusal in the lobby', () => {
-    storeSession();
-    renderApp();
-    const seats = [
-      { playerId: 'stable-player-id', name: 'Ada', color: 'red' as const, characterId: 'dog' as const, teamId: 'TEAM_1' as const },
-      { playerId: 'player-b', name: 'Bình', color: 'blue' as const, characterId: 'panda' as const, teamId: 'TEAM_2' as const },
-      { playerId: 'player-c', name: 'Chi', color: 'red' as const, characterId: 'cat' as const, teamId: 'TEAM_1' as const },
-      { playerId: 'player-d', name: 'Dũng', color: 'blue' as const, characterId: 'duck' as const, teamId: 'TEAM_2' as const },
-    ];
-    const teamLobby: PublicRoomState = {
-      ...room,
-      players: seats.map((seat, index) => ({
-        ...seat, joinOrder: index, membershipStatus: 'ACTIVE' as const, ready: false, connected: true,
-      })),
-      gameState: {
-        ...room.gameState,
-        boardState: {
-          ...room.gameState.boardState,
-          gameMode: 'TEAM_2V2',
-          teams: [
-            { teamId: 'TEAM_1', name: 'Team 1', color: 'red', memberPlayerIds: ['stable-player-id', 'player-c'] },
-            { teamId: 'TEAM_2', name: 'Team 2', color: 'blue', memberPlayerIds: ['player-b', 'player-d'] },
-          ],
-        },
-      },
-    };
-    const resumeAck = lastEmission('resume session')?.args[1];
-    act(() => {
-      if (isAckCallback(resumeAck)) {
-        resumeAck({
-          ok: true,
-          protocolVersion: SOCKET_PROTOCOL_VERSION,
-          revision: teamLobby.version,
-          data: {
-            role: 'PLAYER',
-            playerId: 'stable-player-id',
-            room: teamLobby,
-            privatePlayerState: { playerId: 'stable-player-id', heldJailFreeCardIds: [], gameplayEvents: { sequence: 0, events: [] } },
-            pendingOffers: [],
-          },
-        });
-      }
-    });
-
-    // The host switches mode: only the chosen mode is sent, and the lobby keeps working while the ACK is awaited.
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Chế độ chơi' })).getByRole('radio', { name: 'Solo' }));
-    expect(lastEmission('set game mode')?.args[0]).toEqual({ mode: 'SOLO' });
-    const modeAck = lastEmission('set game mode')?.args[1];
-    act(() => {
-      if (isAckCallback(modeAck)) {
-        modeAck({
-          ok: false,
-          protocolVersion: SOCKET_PROTOCOL_VERSION,
-          error: { code: 'CONFLICT', message: 'Chỉ chủ phòng mới đổi được chế độ.', retryable: false },
-        });
-      }
-    });
-    expect(screen.getByRole('alert').textContent).toBe('Chỉ chủ phòng mới đổi được chế độ.');
-
-    // Every command waits for its own ACK before the next one can be sent.
-    const acknowledge = (event: string) => {
-      const ack = lastEmission(event)?.args[lastEmission(event)!.args.length - 1];
-      act(() => {
-        if (isAckCallback(ack)) ack({ ok: true, protocolVersion: SOCKET_PROTOCOL_VERSION });
-      });
-    };
-
-    const [nameField] = screen.getAllByLabelText('Tên đội');
-    fireEvent.change(nameField, { target: { value: 'Rồng' } });
-    fireEvent.keyDown(nameField, { key: 'Enter' });
-    expect(lastEmission('set team name')?.args[0]).toEqual({ teamId: 'TEAM_1', name: 'Rồng' });
-    acknowledge('set team name');
-
-    fireEvent.click(within(screen.getByRole('group', { name: 'Màu của đội Team 1' })).getByRole('button', { name: 'Xanh lá' }));
-    expect(lastEmission('set team color')?.args[0]).toEqual({ color: 'green' });
-    acknowledge('set team color');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Đổi đội của Chi' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Đổi chỗ Bình với Chi' }));
-    expect(lastEmission('swap team')?.args[0]).toEqual({ playerId: 'player-c', withPlayerId: 'player-b' });
-  });
-
   it('puts the key first in the game toolbar, tags the toolbar for the overlap check and opens the guide', () => {
     storeSession();
     renderApp();
@@ -1765,5 +1685,310 @@ describe('App how-to-play key placement', () => {
 
     fireEvent.click(key);
     expect(screen.getByRole('dialog', { name: GUIDE })).toBeTruthy();
+  });
+});
+
+describe('App 2v2 lobby commands', () => {
+  const HOST_ID = 'stable-player-id';
+
+  /** Ada (the viewer, host, Team 1 seat 0), Bình (Team 2 seat 0) and Chi (Team 1 seat 1): the second seat of Team 2 is empty. */
+  function teamLobbyRoom(version: number, overrides: {
+    requests?: PublicRoomState['gameState']['boardState']['seatSwapRequests'];
+    hostPlayerId?: string;
+  } = {}): PublicRoomState {
+    const seats = [
+      { playerId: HOST_ID, name: 'Ada', color: 'red' as const, characterId: 'dog' as const, teamId: 'TEAM_1' as const, teamSlot: 0 as const },
+      { playerId: 'player-b', name: 'Bình', color: 'blue' as const, characterId: 'panda' as const, teamId: 'TEAM_2' as const, teamSlot: 0 as const },
+      { playerId: 'player-c', name: 'Chi', color: 'red' as const, characterId: 'cat' as const, teamId: 'TEAM_1' as const, teamSlot: 1 as const },
+    ];
+    return {
+      ...room,
+      version,
+      hostPlayerId: overrides.hostPlayerId ?? HOST_ID,
+      players: seats.map((seat, index) => ({
+        ...seat, joinOrder: index, membershipStatus: 'ACTIVE' as const, ready: false, connected: true,
+      })),
+      gameState: {
+        ...room.gameState,
+        boardState: {
+          ...room.gameState.boardState,
+          gameMode: 'TEAM_2V2',
+          teams: [
+            { teamId: 'TEAM_1', name: 'Team 1', color: 'red', memberPlayerIds: [HOST_ID, 'player-c'] },
+            { teamId: 'TEAM_2', name: 'Team 2', color: 'blue', memberPlayerIds: ['player-b'] },
+          ],
+          seatSwapRequests: overrides.requests ?? [],
+        },
+      },
+    };
+  }
+
+  function renderApp() {
+    return render(
+      <ToastProvider>
+        <App />
+      </ToastProvider>,
+    );
+  }
+
+  /** Resumes a stored session into the given lobby room as `playerId`. */
+  function enterLobby(lobbyRoom: PublicRoomState, playerId = HOST_ID) {
+    window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, JSON.stringify({
+      version: 3,
+      sessions: { 'http://localhost:3000': { token: RECONNECT_TOKEN, roomCode: lobbyRoom.roomCode } },
+    }));
+    const view = renderApp();
+    const resumeAck = lastEmission('resume session')?.args[1];
+    act(() => {
+      if (isAckCallback(resumeAck)) {
+        resumeAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          revision: lobbyRoom.version,
+          data: {
+            role: 'PLAYER',
+            playerId,
+            room: lobbyRoom,
+            privatePlayerState: { playerId, heldJailFreeCardIds: [], gameplayEvents: { sequence: 0, events: [] } },
+            pendingOffers: [],
+          },
+        });
+      }
+    });
+    return view;
+  }
+
+  /** Answers the last emission of `event` with success, the way the server does after it committed. */
+  function acknowledge(event: string, response: unknown = { ok: true, protocolVersion: SOCKET_PROTOCOL_VERSION }) {
+    const emission = lastEmission(event);
+    const ack = emission?.args[emission.args.length - 1];
+    act(() => {
+      if (isAckCallback(ack)) ack(response);
+    });
+  }
+
+  beforeEach(() => {
+    socketHarness.reset();
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    cleanup();
+    delete window.ownTheBlockDesktop;
+    window.history.replaceState({}, '', '/');
+  });
+
+  it('sends the mode, the own team name and the colour with only the fields the player chose, and shows a refusal in the lobby', () => {
+    enterLobby(teamLobbyRoom(1));
+
+    // The host switches mode: only the chosen mode is sent, and the lobby keeps working while the ACK is awaited.
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Chế độ chơi' })).getByRole('radio', { name: 'Solo' }));
+    expect(lastEmission('set game mode')?.args[0]).toEqual({ mode: 'SOLO' });
+    acknowledge('set game mode', {
+      ok: false,
+      protocolVersion: SOCKET_PROTOCOL_VERSION,
+      error: { code: 'CONFLICT', message: 'Chỉ chủ phòng mới đổi được chế độ.', retryable: false },
+    });
+    expect(screen.getByRole('alert').textContent).toBe('Chỉ chủ phòng mới đổi được chế độ.');
+
+    // Only the name travels: the server renames the sender's own team, the client never names a team.
+    const nameField = screen.getByLabelText('Tên đội');
+    fireEvent.change(nameField, { target: { value: 'Rồng' } });
+    fireEvent.keyDown(nameField, { key: 'Enter' });
+    expect(lastEmission('set team name')?.args[0]).toEqual({ name: 'Rồng' });
+    acknowledge('set team name');
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'Màu của đội Team 1' })).getByRole('button', { name: 'Xanh lá' }));
+    expect(lastEmission('set team color')?.args[0]).toEqual({ color: 'green' });
+  });
+
+  it('lets only the own team be renamed: the host edits their team and reads the other one', () => {
+    enterLobby(teamLobbyRoom(1));
+
+    expect(screen.getAllByLabelText('Tên đội')).toHaveLength(1);
+    expect(within(screen.getByRole('region', { name: 'Team 2' })).queryByLabelText('Tên đội')).toBeNull();
+  });
+
+  it('moves to an empty seat with the team and the seat number', () => {
+    enterLobby(teamLobbyRoom(1));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chuyển sang chỗ trống 2 của đội Team 2' }));
+
+    expect(lastEmission('move to seat')?.args[0]).toEqual({ teamId: 'TEAM_2', teamSlot: 1 });
+    // The lobby only changes with the committed update: the seat is still empty until the room says otherwise.
+    expect(screen.getByText('Chỗ trống 2')).toBeTruthy();
+  });
+
+  it('asks another player to swap and shows the wait that the room state holds, then takes the request back', () => {
+    enterLobby(teamLobbyRoom(1));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đổi chỗ với Bình' }));
+    expect(lastEmission('request seat swap')?.args[0]).toEqual({ targetPlayerId: 'player-b' });
+    acknowledge('request seat swap');
+    // Nothing is shown from the click: the pending state exists only once the room lists the request.
+    expect(screen.queryByText('Đang chờ Bình trả lời')).toBeNull();
+
+    act(() => { socketHarness.trigger('update', teamLobbyRoom(2, { requests: [{ requesterPlayerId: HOST_ID, targetPlayerId: 'player-b' }] })); });
+    expect(screen.getByText('Đang chờ Bình trả lời')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy yêu cầu đổi chỗ với Bình' }));
+    const cancel = lastEmission('cancel seat swap');
+    // Cancelling carries no payload: the acknowledgement is the only argument.
+    expect(cancel?.args).toHaveLength(1);
+    expect(isAckCallback(cancel?.args[0])).toBe(true);
+  });
+
+  it('answers a request addressed to the viewer from the central dialog, naming the requester', async () => {
+    enterLobby(teamLobbyRoom(1, { requests: [{ requesterPlayerId: 'player-b', targetPlayerId: HOST_ID }] }));
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Bình muốn đổi chỗ với bạn' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đồng ý' }));
+    expect(lastEmission('respond seat swap')?.args[0]).toEqual({ requesterPlayerId: 'player-b', accept: true });
+    acknowledge('respond seat swap');
+
+    // The room commits the swap: the request is gone and the dialog goes with it, with no local state to clear.
+    act(() => { socketHarness.trigger('update', teamLobbyRoom(2)); });
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+  });
+
+  it('declines a request with "Từ chối"', () => {
+    enterLobby(teamLobbyRoom(1, { requests: [{ requesterPlayerId: 'player-b', targetPlayerId: HOST_ID }] }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Từ chối' }));
+
+    expect(lastEmission('respond seat swap')?.args[0]).toEqual({ requesterPlayerId: 'player-b', accept: false });
+  });
+
+  it('tells the viewer when their request ended without a swap', async () => {
+    enterLobby(teamLobbyRoom(1, { requests: [{ requesterPlayerId: HOST_ID, targetPlayerId: 'player-b' }] }));
+
+    act(() => { socketHarness.trigger('update', teamLobbyRoom(2)); });
+
+    expect(await screen.findByText('Yêu cầu đổi chỗ đã kết thúc.')).toBeTruthy();
+  });
+
+  it('shows the refusal of a seat command in the lobby', () => {
+    enterLobby(teamLobbyRoom(1));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chuyển sang chỗ trống 2 của đội Team 2' }));
+    acknowledge('move to seat', {
+      ok: false,
+      protocolVersion: SOCKET_PROTOCOL_VERSION,
+      error: { code: 'CONFLICT', message: 'Chỗ này vừa có người ngồi. Hãy chọn lại.', retryable: false },
+    });
+
+    expect(screen.getByRole('alert').textContent).toBe('Chỗ này vừa có người ngồi. Hãy chọn lại.');
+  });
+
+  it('kicks a player only after the host confirms, sending the stable player id', () => {
+    enterLobby(teamLobbyRoom(1));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mời Bình ra khỏi phòng' }));
+    expect(screen.getByRole('alertdialog', { name: 'Mời Bình ra khỏi phòng?' })).toBeTruthy();
+    expect(lastEmission('kick player')).toBeUndefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mời ra' }));
+    expect(lastEmission('kick player')?.args[0]).toEqual({ playerId: 'player-b' });
+  });
+
+  it('gives a guest no kick key', () => {
+    enterLobby(teamLobbyRoom(1, { hostPlayerId: 'player-b' }));
+
+    expect(screen.queryByRole('button', { name: /ra khỏi phòng/u })).toBeNull();
+  });
+
+  describe('being removed by the host', () => {
+    function removedFromRoom() {
+      act(() => {
+        socketHarness.trigger('removed from room', { code: 'REMOVED_BY_HOST', message: 'Chủ phòng đã mời bạn ra khỏi phòng.' });
+      });
+    }
+
+    it('ends the session like a revoked one: the failure screen, the stored session cleared and no more resuming', () => {
+      enterLobby(teamLobbyRoom(1), 'player-c');
+      expect(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY)).not.toBeNull();
+      const resumes = socketHarness.emissions.filter(emission => emission.event === 'resume session').length;
+
+      removedFromRoom();
+
+      expect(screen.getByRole('heading', { name: 'Bạn đã được mời ra khỏi phòng' })).toBeTruthy();
+      expect(screen.getByText('Chủ phòng đã mời bạn ra khỏi phòng.')).toBeTruthy();
+      expect(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY)).toBeNull();
+      expect(screen.queryByRole('heading', { name: 'ROOM-42' })).toBeNull();
+      // A later connection must not try the revoked token again.
+      act(() => { socketHarness.socket.disconnect(); });
+      act(() => { socketHarness.socket.connect(); });
+      expect(socketHarness.emissions.filter(emission => emission.event === 'resume session')).toHaveLength(resumes);
+    });
+
+    it('offers "Quay về màn hình vào phòng" and it leads back to the join form', () => {
+      enterLobby(teamLobbyRoom(1), 'player-c');
+      removedFromRoom();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Quay về màn hình vào phòng' }));
+
+      expect(screen.getByLabelText('Mã phòng')).toBeTruthy();
+      expect(screen.queryByText('Chủ phòng đã mời bạn ra khỏi phòng.')).toBeNull();
+    });
+
+    it('returns to the launcher on desktop, like a terminal session error', () => {
+      const socketUrl = 'http://192.168.1.15:8080';
+      const runtimeConfig = {
+        target: 'desktop' as const,
+        socketUrl,
+        platform: 'win32' as const,
+        appVersion: '3.0.0',
+      };
+      const onExitToLauncher = vi.fn();
+      window.ownTheBlockDesktop = {
+        quit: { onQuitRequested: () => () => undefined, respond: vi.fn() },
+      } as unknown as OwnTheBlockDesktopBridge;
+      window.localStorage.setItem(PLAYER_SESSION_STORAGE_KEY, JSON.stringify({
+        version: 3,
+        sessions: { [socketUrl]: { token: RECONNECT_TOKEN, roomCode: 'ROOM-42' } },
+      }));
+      render(
+        <ToastProvider>
+          <App
+            runtimeConfig={runtimeConfig}
+            launch={{ runtimeConfig, initialJoin: { name: 'Chi', roomCode: 'ROOM-42' }, targetRoomCode: 'ROOM-42', hosting: false }}
+            onExitToLauncher={onExitToLauncher}
+          />
+        </ToastProvider>,
+      );
+      const resumeAck = lastEmission('resume session')?.args[1];
+      const lobbyRoom = teamLobbyRoom(1);
+      act(() => {
+        if (isAckCallback(resumeAck)) {
+          resumeAck({
+            ok: true,
+            protocolVersion: SOCKET_PROTOCOL_VERSION,
+            revision: 1,
+            data: {
+              role: 'PLAYER',
+              playerId: 'player-c',
+              room: lobbyRoom,
+              privatePlayerState: { playerId: 'player-c', heldJailFreeCardIds: [], gameplayEvents: { sequence: 0, events: [] } },
+              pendingOffers: [],
+            },
+          });
+        }
+      });
+
+      removedFromRoom();
+
+      expect(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY)).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Về trang chủ' }));
+      expect(onExitToLauncher).toHaveBeenCalledOnce();
+    });
+
+    it('stops listening to the event when the app unmounts', () => {
+      const view = renderApp();
+      expect(socketHarness.listenerCount('removed from room')).toBe(1);
+
+      view.unmount();
+
+      expect(socketHarness.listenerCount('removed from room')).toBe(0);
+    });
   });
 });

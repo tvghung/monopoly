@@ -20,8 +20,10 @@ import type {
   ForcedSaleProposal,
   GameMode,
   PlayerColorId,
+  RemovedFromRoomInfo,
   SetAppearanceRequest,
   TeamId,
+  TeamSlot,
 } from '@monopoly/shared';
 import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
 import { Flag, X as XIcon } from 'lucide-react';
@@ -71,6 +73,7 @@ const initialState: PublicGameState = {
     winningTeamId: null,
     teams: [],
     teamPlay: { revivedPlayerIds: [], reviveWindows: [] },
+    seatSwapRequests: [],
     players: [],
     finishedPlayers: {},
     currentPlayer: { id: '', hasMoved: false },
@@ -102,6 +105,8 @@ type AppPhase =
   | 'ERROR';
 
 interface AppFailure {
+  /** Replaces the failure screen's default heading; a failure that is not about restoring the game says what happened. */
+  title?: string;
   message: string;
   retryable: boolean;
   reloadRequired?: boolean;
@@ -119,6 +124,8 @@ const terminalSessionCodes = new Set<AckError['code']>([
   'ROOM_FULL',
 ]);
 const ACK_TIMEOUT_MS = 10_000;
+const REMOVED_FROM_ROOM_TITLE = 'Bạn đã được mời ra khỏi phòng';
+const REMOVED_FROM_ROOM_MESSAGE = 'Chủ phòng đã mời bạn ra khỏi phòng.';
 
 const HOME_LABEL = 'Về trang chủ';
 
@@ -256,6 +263,19 @@ export default function App({
     transition(roleRef.current === 'PLAYER' && incoming.status === 'LOBBY' ? 'LOBBY' : 'GAME');
   }, [presentationController, transition]);
 
+  /** The session is over for good (revoked, expired, left, removed): forget the token, the room and the player so nothing resumes it. */
+  const forgetSession = useCallback(() => {
+    tokenRef.current = null;
+    spectatorRequestRef.current = null;
+    clearPlayerSession(sessionAuthority);
+    roomRef.current = null;
+    setRoom(null);
+    setPrivatePlayerState(null);
+    setPrivateOffers([]);
+    setIdentity(null, null);
+    setForfeitChoiceOpen(false);
+  }, [sessionAuthority, setIdentity]);
+
   const failSession = useCallback((error: AckError) => {
     setOperation(null);
     setOperationError(null);
@@ -270,17 +290,7 @@ export default function App({
 
     const returnToLauncher = terminalSessionCodes.has(error.code)
       && Boolean(desktopBridge && tokenRef.current);
-    if (terminalSessionCodes.has(error.code)) {
-      tokenRef.current = null;
-      spectatorRequestRef.current = null;
-      clearPlayerSession(sessionAuthority);
-      roomRef.current = null;
-      setRoom(null);
-      setPrivatePlayerState(null);
-      setPrivateOffers([]);
-      setIdentity(null, null);
-      setForfeitChoiceOpen(false);
-    }
+    if (terminalSessionCodes.has(error.code)) forgetSession();
 
     setFailure({
       message: localizeAckError(error),
@@ -288,7 +298,7 @@ export default function App({
       returnToLauncher,
     });
     transition('ERROR');
-  }, [desktopBridge, sessionAuthority, setIdentity, socket, transition]);
+  }, [desktopBridge, forgetSession, socket, transition]);
 
   const resumeSession = useCallback((token: string) => {
     if (!socket.connected) {
@@ -509,6 +519,24 @@ export default function App({
       socket.disconnect();
     };
 
+    // The host removed this player from the lobby: their session is revoked on the server, so this is a terminal end like an
+    // invalid token. Stop resuming, forget the room and show the failure screen; the way back is the join form (or the launcher).
+    const onRemovedFromRoom = (info: RemovedFromRoomInfo) => {
+      if (phaseRef.current === 'REPLACED') return;
+      admissionAttemptRef.current += 1;
+      const returnToLauncher = Boolean(desktopBridge && tokenRef.current);
+      setOperation(null);
+      setOperationError(null);
+      forgetSession();
+      setFailure({
+        title: REMOVED_FROM_ROOM_TITLE,
+        message: info.message || REMOVED_FROM_ROOM_MESSAGE,
+        retryable: false,
+        returnToLauncher,
+      });
+      transition('ERROR');
+    };
+
     const onConnectError = (error: Error) => {
       const details = (error as Error & { data?: Partial<AckError> }).data;
       setConnected(false);
@@ -539,6 +567,7 @@ export default function App({
     socket.on('offer expired', handleOfferResult);
     socket.on('offer cancelled', handleOfferResult);
     socket.on('session replaced', onSessionReplaced);
+    socket.on('removed from room', onRemovedFromRoom);
     socket.connect();
 
     return () => {
@@ -555,9 +584,10 @@ export default function App({
       socket.off('offer expired', handleOfferResult);
       socket.off('offer cancelled', handleOfferResult);
       socket.off('session replaced', onSessionReplaced);
+      socket.off('removed from room', onRemovedFromRoom);
       socket.disconnect();
     };
-  }, [applyRoom, desktopBridge, joinRoom, launch, presentationController, resumeSession, socket, toast, transition]);
+  }, [applyRoom, desktopBridge, forgetSession, joinRoom, launch, presentationController, resumeSession, socket, toast, transition]);
 
   useEffect(() => {
     const reconnect = () => {
@@ -735,7 +765,7 @@ export default function App({
     });
   }, [socket]);
 
-  /** The lobby's team commands share one busy state and one error line, like ready and appearance. */
+  /** The lobby's room commands (mode, team, seats, removing a player) share one busy state and one error line, like ready and appearance. */
   const runTeamCommand = useCallback((send: (done: (response: Ack) => void) => void) => {
     setOperation('team');
     setOperationError(null);
@@ -749,16 +779,33 @@ export default function App({
     runTeamCommand(done => socket.emit('set game mode', { mode }, done));
   }, [runTeamCommand, socket]);
 
-  const handleSetTeamName = useCallback((teamId: TeamId, name: string) => {
-    runTeamCommand(done => socket.emit('set team name', { teamId, name }, done));
+  // The team is never sent: the server renames the sender's own team, so nobody can rename the other one.
+  const handleSetTeamName = useCallback((name: string) => {
+    runTeamCommand(done => socket.emit('set team name', { name }, done));
   }, [runTeamCommand, socket]);
 
   const handleSetTeamColor = useCallback((color: PlayerColorId) => {
     runTeamCommand(done => socket.emit('set team color', { color }, done));
   }, [runTeamCommand, socket]);
 
-  const handleSwapTeams = useCallback((playerId: string, withPlayerId: string) => {
-    runTeamCommand(done => socket.emit('swap team', { playerId, withPlayerId }, done));
+  const handleKickPlayer = useCallback((targetPlayerId: string) => {
+    runTeamCommand(done => socket.emit('kick player', { playerId: targetPlayerId }, done));
+  }, [runTeamCommand, socket]);
+
+  const handleMoveToSeat = useCallback((teamId: TeamId, teamSlot: TeamSlot) => {
+    runTeamCommand(done => socket.emit('move to seat', { teamId, teamSlot }, done));
+  }, [runTeamCommand, socket]);
+
+  const handleRequestSeatSwap = useCallback((targetPlayerId: string) => {
+    runTeamCommand(done => socket.emit('request seat swap', { targetPlayerId }, done));
+  }, [runTeamCommand, socket]);
+
+  const handleCancelSeatSwap = useCallback(() => {
+    runTeamCommand(done => socket.emit('cancel seat swap', done));
+  }, [runTeamCommand, socket]);
+
+  const handleRespondSeatSwap = useCallback((requesterPlayerId: string, accept: boolean) => {
+    runTeamCommand(done => socket.emit('respond seat swap', { requesterPlayerId, accept }, done));
   }, [runTeamCommand, socket]);
 
   const handleStart = useCallback(() => {
@@ -772,15 +819,7 @@ export default function App({
 
   /** The end of every leave: forget the room and go back to where the app starts (the launcher on desktop, the join form on the web). */
   const exitToStart = useCallback(() => {
-    tokenRef.current = null;
-    spectatorRequestRef.current = null;
-    clearPlayerSession(sessionAuthority);
-    roomRef.current = null;
-    setRoom(null);
-    setPrivatePlayerState(null);
-    setPrivateOffers([]);
-    setIdentity(null, null);
-    setForfeitChoiceOpen(false);
+    forgetSession();
 
     if (desktopBridge) {
       socket.disconnect();
@@ -790,7 +829,7 @@ export default function App({
     }
 
     transition('JOIN');
-  }, [desktopBridge, onExitToLauncher, sessionAuthority, setIdentity, socket, transition]);
+  }, [desktopBridge, forgetSession, onExitToLauncher, socket, transition]);
 
   const leaveRoom = useCallback(() => {
     setOperation('leave');
@@ -973,6 +1012,7 @@ export default function App({
               color: member.color,
               characterId: member.characterId,
               teamId: member.teamId,
+              teamSlot: member.teamSlot,
               ready: member.ready,
               connected: member.connected,
             }))}
@@ -982,6 +1022,7 @@ export default function App({
           maxPlayers={room.maxPlayers}
           gameMode={room.gameState.boardState.gameMode}
           teams={room.gameState.boardState.teams}
+          seatSwapRequests={room.gameState.boardState.seatSwapRequests}
           busy={operation !== null}
           error={operationError}
           onSetReady={handleReady}
@@ -989,7 +1030,11 @@ export default function App({
           onSetGameMode={handleSetGameMode}
           onSetTeamName={handleSetTeamName}
           onSetTeamColor={handleSetTeamColor}
-          onSwapTeams={handleSwapTeams}
+          onKickPlayer={handleKickPlayer}
+          onMoveToSeat={handleMoveToSeat}
+          onRequestSeatSwap={handleRequestSeatSwap}
+          onCancelSeatSwap={handleCancelSeatSwap}
+          onRespondSeatSwap={handleRespondSeatSwap}
           onStart={handleStart}
           onLeave={handleLeave}
           onSettings={() => setSettingsOpen(true)}
@@ -1049,7 +1094,7 @@ export default function App({
             ? <FailureScreen title="Phiên chơi đã được mở ở nơi khác" failure={failure} onBack={onBack} />
             : null}
           {phase === 'ERROR' && failure
-            ? <FailureScreen title="Không thể khôi phục ván chơi" failure={failure} onRetry={recoverFromFailure} onBack={onBack} />
+            ? <FailureScreen title={failure.title ?? 'Không thể khôi phục ván chơi'} failure={failure} onRetry={recoverFromFailure} onBack={onBack} />
             : null}
           <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
           <ConfirmationDialog

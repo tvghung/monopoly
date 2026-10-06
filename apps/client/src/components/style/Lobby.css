@@ -236,11 +236,11 @@
 
 .lobby-player__identity .ds-badge { white-space: nowrap; }
 
-/* The offline mark sits in the top corner, clear of the mascot. */
+/* The offline mark sits in the top-left corner, clear of the mascot and of the host's kick key in the other corner. */
 .lobby-player__disconnect {
   position: absolute;
   top: var(--space-2);
-  right: var(--space-2);
+  left: var(--space-2);
   display: grid;
   place-items: center;
   width: 1.75rem;
@@ -303,9 +303,11 @@
   text-wrap: balance;
 }
 
-/* Narrow seats drop the button glyph so "Hủy sẵn sàng" stays on one line. */
+/* Narrow seats drop the button glyph so "Hủy sẵn sàng" and "Chuyển sang" stay on one line. */
 @container (max-width: 11rem) {
-  .lobby-player__ready-action .ds-button__icon { display: none; }
+  .lobby-player__ready-action .ds-button__icon,
+  .lobby-player__swap-action .ds-button__icon,
+  .lobby-player__swap-cancel .ds-button__icon { display: none; }
 }
 
 /* The mascot stage: a warm spotlight disc behind the mascot, which stands on a podium in the chosen color. */
@@ -734,7 +736,9 @@
 
   .lobby-player__identity { justify-content: flex-start; }
 
-  .lobby-player__disconnect { right: auto; left: var(--space-1); top: var(--space-1); }
+  .lobby-player__disconnect { left: var(--space-1); top: var(--space-1); }
+
+  .lobby-player--kickable .lobby-player__identity { padding-inline-end: 2.25rem; }
 
   .lobby-player__ready-action { width: auto; }
 
@@ -788,7 +792,8 @@
 
 /*
  * Two team zones side by side (stacked on phones). Each zone keeps the ordinary seat cards and the mascot picker style; it adds
- * the team name (host), the team colour (members) and, for the host, an explicit swap control on every seat.
+ * the team name and colour (its own members), exactly two seat cells in seat order and a swap control on every seat but the
+ * viewer's own.
  */
 .lobby__mode {
   display: flex;
@@ -805,20 +810,6 @@
   margin: 0;
   color: var(--color-text-secondary);
   font: var(--type-small);
-}
-
-.lobby__swap-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin: var(--space-3) 0 0;
-  padding: var(--space-2) var(--space-3);
-  border: 2px solid var(--color-turn-active);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-turn-active) 16%, var(--color-surface));
-  font: var(--type-small);
-  font-weight: 700;
 }
 
 .lobby__teams {
@@ -966,32 +957,58 @@
   list-style: none;
 }
 
-/* The host's swap control sits in the seat's corner; the two seats of a swap are outlined, the partner ones pulse. */
-.lobby-player__swap {
+/* The host's kick key: a small round key in the seat's top-right corner, clear of the mascot and of the offline mark. */
+.lobby-player__kick {
   position: absolute;
   top: var(--space-1);
   right: var(--space-1);
-  z-index: 1;
+  z-index: 2;
+  width: 2.25rem;
+  height: 2.25rem;
 }
 
-.lobby-player--swap-source {
-  outline: 3px solid var(--color-turn-active);
-  outline-offset: 2px;
+.lobby-player__kick .ds-icon-button__glyph > svg { width: 1.05rem; height: 1.05rem; }
+.lobby-player__kick:hover:not(:disabled) { color: var(--color-danger-strong); }
+
+/* The swap action of a seat (to an occupied seat: ask; to an empty one: move in) spans the card like the ready key. */
+.lobby-player__swap-action {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: var(--space-1);
+  padding-inline: var(--space-2);
+  white-space: nowrap;
 }
 
-.lobby-player--swap-target {
-  outline: 3px dashed var(--color-turn-active);
-  outline-offset: 2px;
-  animation: lobby-swap-pulse 1.1s ease-in-out infinite;
+/* A request the viewer made and nobody answered yet: the seat of the player who must answer is outlined and says who is awaited. */
+.lobby-player--swap-pending {
+  border-style: dashed;
+  border-color: var(--color-turn-active);
 }
 
-@keyframes lobby-swap-pulse {
-  50% { outline-offset: 5px; }
+.lobby-player__swap-pending {
+  box-sizing: border-box;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  min-width: 0;
+  margin-top: var(--space-1);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-turn-active) 16%, var(--color-surface));
 }
 
-:root[data-reduced-motion='true'] .lobby-player--swap-target { animation: none; }
-@media (prefers-reduced-motion: reduce) {
-  .lobby-player--swap-target { animation: none; }
+.lobby-player__swap-status {
+  margin: 0;
+  font: var(--type-small);
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+.lobby-player__swap-cancel {
+  max-width: 100%;
+  padding-inline: var(--space-2);
+  white-space: nowrap;
 }
 
 .mascot-picker__team-note {

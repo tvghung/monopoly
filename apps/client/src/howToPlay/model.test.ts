@@ -435,8 +435,12 @@ describe('how-to-play 2v2 chapter', () => {
     expect(team()).toContain(`tối đa ${TEAM_NAME_MAX_LENGTH} chữ`);
     expect(team()).toContain('mọi người phải bấm lại “Sẵn sàng”');
     expect(team()).toContain('hai đồng đội phải chọn mascot khác nhau');
-    expect(team()).toContain('hai đội không được dùng cùng một màu');
-    expect(team()).toContain('Đổi đội');
+    expect(team()).toContain('Hai đội không được dùng cùng một màu');
+    expect(team()).toContain('Chuyển sang');
+    expect(team()).toContain('chỉ khi người đó đồng ý thì hai người mới đổi chỗ');
+    expect(team()).toContain('Chủ phòng không đổi chỗ thay người khác được');
+    expect(team()).toContain('không ai đổi được tên hay màu của đội kia');
+    expect(team()).not.toContain('Đổi đội');
   });
 
   it('states the rent rules: teammate exemption, the set bonuses and the shared Ga and Công Ty count', () => {

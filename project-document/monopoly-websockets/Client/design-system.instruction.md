@@ -71,7 +71,7 @@ Kết quả đo trong Design Lab: Baloo 2 có `tnum` thật (chênh lệch bề 
 | `PlayerAvatar` | `characterId`, `colorId`, `size`, `active`, `status` | `alt` = "Mascot <accessibleLabel>" (tiếng Việt), không có `title`, không có tên hiển thị. |
 | `GroupPips` | `groups` | Rỗng / một phần / đủ bộ; `aria-label` tóm tắt. |
 | `Modal` | `open`, `title`, `eyebrow`, `size` (`sm/md/lg/xl` = 400/520/680/880 px), `placement` (`center/sheet`), `backdrop` (`dim/clear`), `footer`, `tone` (`default/danger/celebration`), `layer` (`modal` z 60 / `card` z 70), `headerAccent`, `describedBy`, `role`, `onClose`, `closeOnEscape`, `closeOnOutsideClick` | Xem mục "Modal v2". Vẫn là primitive prompt duy nhất. |
-| `ConfirmationDialog`, `ToastView` | như trước (nội dung/ nút dùng `Button` v2) | `ConfirmationDialog` luôn nằm trên mọi dialog khác; thời lượng lấy từ `motionTokens`. |
+| `ConfirmationDialog`, `ToastView` | `ConfirmationDialog`: `title`, `message` (nối `aria-describedby`), `confirmLabel`/`confirmIcon`, `cancelLabel`/`cancelIcon`, `tone` (`danger` mặc định / `neutral`), `icon` (tên trong registry, mặc định `warning`), `busy`; nút dùng `Button` v2 | `ConfirmationDialog` luôn nằm trên mọi dialog khác; thời lượng lấy từ `motionTokens`. `tone="neutral"` (lời mời đổi chỗ ở lobby) dùng `Modal` tone `default`, nút xác nhận `primary` và biểu tượng nền info; `busy` disable cả hai nút, bỏ Escape và nút đóng ở header (không có lần trả lời thứ hai) và bỏ `data-modal-autofocus` để Modal tự giữ focus. Mời người ra khỏi phòng dùng `danger`. |
 
 `game/characters/characterRegistry.ts` có `accessibleLabel` (Vietnamese, chỉ cho công nghệ hỗ trợ: `alt`/`aria-label`); `displayName` đã bị xóa (plan 04, OD-04-1): mascot chỉ nhận diện bằng hình, không hiện tên nào ở màn hình.
 

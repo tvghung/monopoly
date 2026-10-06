@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ActivityEvent, ActivityEventInput } from '@monopoly/shared';
+import { REVIVE_WINDOW_SURVIVOR_TURNS, type ActivityEvent, type ActivityEventInput } from '@monopoly/shared';
 import { activityText } from './activityText';
 
 /** Adds the envelope every committed activity event carries. */
@@ -76,7 +76,8 @@ describe('activityText for 2v2 events', () => {
       survivorName: 'Bình',
       turnsRemaining,
     });
-    expect(activityText(revive('WINDOW_OPENED', 3))).toBe('Bình có 3 lượt để hồi sinh Dũng.');
+    expect(activityText(revive('WINDOW_OPENED', REVIVE_WINDOW_SURVIVOR_TURNS)))
+      .toBe(`Bình có ${REVIVE_WINDOW_SURVIVOR_TURNS} lượt để hồi sinh Dũng.`);
     expect(activityText(revive('REVIVED', 2))).toBe('Bình đã hồi sinh Dũng.');
     expect(activityText(revive('EXPIRED', 0))).toBe('Dũng đã bị loại vĩnh viễn.');
   });

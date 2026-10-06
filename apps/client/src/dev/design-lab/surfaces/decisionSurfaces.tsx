@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { REVIVE_WINDOW_SURVIVOR_TURNS } from '@monopoly/shared';
 import type { ForcedSaleProposal, PrivateOffer, PrivatePlayerState, PublicRoomState } from '@monopoly/shared';
 import BuyPrompt from '../../../components/dashboard/BuyPrompt';
 import DebtPanel from '../../../components/dashboard/DebtPanel';
@@ -125,7 +126,7 @@ function inTeamRoom(adjust: (room: PublicRoomState) => void = noop) {
   };
 }
 
-/** Dũng is bankrupt with two revive turns left; Bình, his teammate, is on turn and can pay for the revive. */
+/** Dũng is bankrupt with a full revive window left; Bình, his teammate, is on turn and can pay for the revive. */
 function reviveWindow(room: PublicRoomState) {
   const { gameState } = room;
   delete gameState.players['player-d'];
@@ -134,7 +135,7 @@ function reviveWindow(room: PublicRoomState) {
     teamId: 'TEAM_2', name: 'Dũng', color: 'blue', characterId: 'duck', reason: 'BANKRUPT', accountBalance: 0,
   };
   gameState.boardState.teamPlay.reviveWindows = [{
-    playerId: 'player-d', teamId: 'TEAM_2', survivorPlayerId: 'player-b', turnsRemaining: 2, openedAtTurnNumber: 1,
+    playerId: 'player-d', teamId: 'TEAM_2', survivorPlayerId: 'player-b', turnsRemaining: REVIVE_WINDOW_SURVIVOR_TURNS, openedAtTurnNumber: 1,
   }];
   gameState.boardState.turnNumber = 4;
   gameState.boardState.currentPlayer = { id: 'player-b', hasMoved: false };

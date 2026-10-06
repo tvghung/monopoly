@@ -4,10 +4,12 @@ import { getStartBlockReason } from './startReadiness';
 
 const ada: LobbyPlayerView = {
   teamId: 'TEAM_2',
+  teamSlot: 0,
   id: 'player-a', name: 'Ada', color: 'red', characterId: 'dog', ready: true, connected: true,
 };
 const grace: LobbyPlayerView = {
   teamId: 'TEAM_2',
+  teamSlot: 1,
   id: 'player-b', name: 'Grace', color: 'blue', characterId: 'panda', ready: true, connected: true,
 };
 
@@ -67,14 +69,19 @@ describe('getStartBlockReason', () => {
 });
 
 describe('getStartBlockReason in 2v2', () => {
-  const seat = (id: string, teamId: 'TEAM_1' | 'TEAM_2', characterId: LobbyPlayerView['characterId']): LobbyPlayerView => ({
-    id, name: id, teamId, color: teamId === 'TEAM_1' ? 'red' : 'blue', characterId, ready: true, connected: true,
+  const seat = (
+    id: string,
+    teamId: 'TEAM_1' | 'TEAM_2',
+    characterId: LobbyPlayerView['characterId'],
+    teamSlot: LobbyPlayerView['teamSlot'] = 0,
+  ): LobbyPlayerView => ({
+    id, name: id, teamId, teamSlot, color: teamId === 'TEAM_1' ? 'red' : 'blue', characterId, ready: true, connected: true,
   });
   const balanced = [
     seat('a', 'TEAM_1', 'dog'),
     seat('b', 'TEAM_2', 'panda'),
-    seat('c', 'TEAM_1', 'cat'),
-    seat('d', 'TEAM_2', 'duck'),
+    seat('c', 'TEAM_1', 'cat', 1),
+    seat('d', 'TEAM_2', 'duck', 1),
   ];
 
   it('starts with exactly four ready, connected players, two on each team', () => {

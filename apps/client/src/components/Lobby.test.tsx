@@ -19,8 +19,8 @@ afterEach(() => {
 });
 
 const readyPlayers = [
-  { id: 'player-a', name: 'Ada', color: 'red' as const, characterId: 'dog' as const, teamId: 'TEAM_1' as const, ready: true, connected: true },
-  { id: 'player-b', name: 'Grace', color: 'blue' as const, characterId: 'panda' as const, teamId: 'TEAM_2' as const, ready: true, connected: true },
+  { id: 'player-a', name: 'Ada', color: 'red' as const, characterId: 'dog' as const, teamId: 'TEAM_1' as const, teamSlot: 0 as const, ready: true, connected: true },
+  { id: 'player-b', name: 'Grace', color: 'blue' as const, characterId: 'panda' as const, teamId: 'TEAM_2' as const, teamSlot: 0 as const, ready: true, connected: true },
 ];
 
 describe('Lobby', () => {
@@ -201,8 +201,8 @@ describe('Lobby', () => {
         players={[
           readyPlayers[0],
           { ...readyPlayers[1], ready: false },
-          { teamId: 'TEAM_2', id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: true, connected: false },
-          { teamId: 'TEAM_2', id: 'player-d', name: 'Sam', color: 'yellow', characterId: 'duck', ready: false, connected: false },
+          { teamId: 'TEAM_2', teamSlot: 1, id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: true, connected: false },
+          { teamId: 'TEAM_1', teamSlot: 1, id: 'player-d', name: 'Sam', color: 'yellow', characterId: 'duck', ready: false, connected: false },
         ]}
         playerId="player-a"
         hostPlayerId="player-a"
@@ -332,8 +332,8 @@ describe('Lobby', () => {
       <Lobby
         roomCode="ROOM-9"
         players={[
-          { teamId: 'TEAM_2', id: 'player-a', name: 'Ada', color: 'blue', characterId: 'panda', ready: true, connected: true },
-          { teamId: 'TEAM_2', id: 'player-b', name: 'Grace', color: 'blue', characterId: 'dog', ready: true, connected: true },
+          { teamId: 'TEAM_2', teamSlot: 0, id: 'player-a', name: 'Ada', color: 'blue', characterId: 'panda', ready: true, connected: true },
+          { teamId: 'TEAM_2', teamSlot: 1, id: 'player-b', name: 'Grace', color: 'blue', characterId: 'dog', ready: true, connected: true },
         ]}
         playerId="player-a"
         hostPlayerId="player-a"
@@ -484,7 +484,7 @@ describe('Lobby start reason', () => {
   });
 
   it('keeps "Bắt đầu" and "sẵn sàng" out of every other button name (the e2e matches by substring)', () => {
-    renderLobby({ players: [...readyPlayers, { teamId: 'TEAM_1', id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: false, connected: true }] });
+    renderLobby({ players: [...readyPlayers, { teamId: 'TEAM_1', teamSlot: 1, id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: false, connected: true }] });
     expect(screen.queryAllByRole('button', { name: /Bắt đầu/iu })).toHaveLength(1);
     expect(screen.queryAllByRole('button', { name: /sẵn sàng/iu })).toHaveLength(1);
   });
@@ -504,8 +504,8 @@ describe('Lobby seats', () => {
     renderLobby({
       players: [
         ...readyPlayers,
-        { teamId: 'TEAM_2', id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: false, connected: true },
-        { teamId: 'TEAM_2', id: 'player-d', name: 'Sam', color: 'yellow', characterId: 'duck', ready: false, connected: true },
+        { teamId: 'TEAM_2', teamSlot: 1, id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: false, connected: true },
+        { teamId: 'TEAM_1', teamSlot: 1, id: 'player-d', name: 'Sam', color: 'yellow', characterId: 'duck', ready: false, connected: true },
       ],
     });
     expect(screen.queryByText('Chia sẻ mã phòng để mời bạn')).toBeNull();
@@ -550,7 +550,7 @@ describe('Lobby seats', () => {
 
   it('gives only the viewer\'s own seat a ready button, and that button toggles readiness', () => {
     const props = renderLobby();
-    expect(within(seatOf('Grace')).queryByRole('button')).toBeNull();
+    expect(within(seatOf('Grace')).queryByRole('button', { name: /sẵn sàng/iu })).toBeNull();
     fireEvent.click(within(seatOf('Ada')).getByRole('button', { name: 'Hủy sẵn sàng' }));
     expect(props.onSetReady).toHaveBeenCalledWith(false);
   });
@@ -586,6 +586,53 @@ describe('Lobby seats', () => {
   it('has no mascot picker for a viewer without a seat', () => {
     renderLobby({ playerId: 'nobody' });
     expect(screen.queryByLabelText('Chọn nhân vật của bạn')).toBeNull();
+  });
+});
+
+describe('Lobby kick (Solo)', () => {
+  it('gives the host an X on every other seat, named after the player, and none on their own', () => {
+    renderLobby({ onKickPlayer: vi.fn() });
+
+    expect(within(seatOf('Grace')).getByRole('button', { name: 'Mời Grace ra khỏi phòng' })).toBeTruthy();
+    expect(within(seatOf('Ada')).queryByRole('button', { name: /ra khỏi phòng/u })).toBeNull();
+    expect(screen.getAllByRole('button', { name: /ra khỏi phòng/u })).toHaveLength(1);
+  });
+
+  it('shows the X to the host only, and only when the lobby can act on it', () => {
+    renderLobby({ onKickPlayer: vi.fn(), playerId: 'player-b' });
+    expect(screen.queryByRole('button', { name: /ra khỏi phòng/u })).toBeNull();
+
+    cleanup();
+    renderLobby();
+    expect(screen.queryByRole('button', { name: /ra khỏi phòng/u })).toBeNull();
+  });
+
+  it('asks in the central dialog and removes the player only once confirmed', () => {
+    const onKickPlayer = vi.fn();
+    renderLobby({ onKickPlayer });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mời Grace ra khỏi phòng' }));
+    expect(screen.getByRole('alertdialog', { name: 'Mời Grace ra khỏi phòng?' })).toBeTruthy();
+    expect(onKickPlayer).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mời ra' }));
+    expect(onKickPlayer).toHaveBeenCalledTimes(1);
+    expect(onKickPlayer).toHaveBeenCalledWith('player-b');
+  });
+
+  it('disables the X while a request is in flight', () => {
+    renderLobby({ onKickPlayer: vi.fn(), busy: true });
+
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Mời Grace ra khỏi phòng' }).disabled).toBe(true);
+  });
+
+  it('keeps the offline mark and the X in different corners of a seat', () => {
+    renderLobby({ onKickPlayer: vi.fn(), players: [readyPlayers[0], { ...readyPlayers[1], connected: false }] });
+
+    const seat = seatOf('Grace');
+    expect(seat.classList.contains('lobby-player--kickable')).toBe(true);
+    expect(within(seat).getByLabelText('Mất kết nối')).toBeTruthy();
+    expect(within(seat).getByRole('button', { name: 'Mời Grace ra khỏi phòng' })).toBeTruthy();
   });
 });
 

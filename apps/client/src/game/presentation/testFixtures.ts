@@ -2,10 +2,13 @@ import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
 import type { PublicGameState, PublicRoomState, TeamId } from '@monopoly/shared';
 
 /**
- * The four protocol-10 board fields of a Solo game: no winning team, an empty revive state, and the two team slots every room
- * carries (their members are whoever the test seats there). Spread it into a hand-built `boardState`.
+ * The team board fields of a Solo game: no winning team, an empty revive state, no open seat-swap request, and the two teams
+ * every room carries (their members are whoever the test seats there). Spread it into a hand-built `boardState`.
  */
-export function soloTeamBoardFields(): Pick<PublicGameState['boardState'], 'gameMode' | 'winningTeamId' | 'teams' | 'teamPlay'> {
+export function soloTeamBoardFields(): Pick<
+  PublicGameState['boardState'],
+  'gameMode' | 'winningTeamId' | 'teams' | 'teamPlay' | 'seatSwapRequests'
+> {
   return {
     gameMode: 'SOLO',
     winningTeamId: null,
@@ -14,6 +17,7 @@ export function soloTeamBoardFields(): Pick<PublicGameState['boardState'], 'game
       { teamId: 'TEAM_2', name: 'Team 2', color: 'blue', memberPlayerIds: [] },
     ],
     teamPlay: { revivedPlayerIds: [], reviveWindows: [] },
+    seatSwapRequests: [],
   };
 }
 
@@ -34,6 +38,7 @@ export function makeRoom(version = 1): PublicRoomState {
         color: 'red',
         characterId: 'dog',
         teamId: 'TEAM_1',
+        teamSlot: 0,
         joinOrder: 0,
         membershipStatus: 'ACTIVE',
         ready: true,
@@ -45,6 +50,7 @@ export function makeRoom(version = 1): PublicRoomState {
         color: 'blue',
         characterId: 'panda',
         teamId: 'TEAM_2',
+        teamSlot: 0,
         joinOrder: 1,
         membershipStatus: 'ACTIVE',
         ready: true,
@@ -73,6 +79,7 @@ export function makeRoom(version = 1): PublicRoomState {
           { teamId: 'TEAM_2', name: 'Team 2', color: 'blue', memberPlayerIds: ['player-b'] },
         ],
         teamPlay: { revivedPlayerIds: [], reviveWindows: [] },
+        seatSwapRequests: [],
       },
       players: {
         'player-a': {
@@ -106,10 +113,10 @@ export function makeRoom(version = 1): PublicRoomState {
 }
 
 const TEAM_SEATS = [
-  { playerId: 'player-a', name: 'An', characterId: 'dog', teamId: 'TEAM_1' },
-  { playerId: 'player-b', name: 'Bình', characterId: 'panda', teamId: 'TEAM_2' },
-  { playerId: 'player-c', name: 'Chi', characterId: 'cat', teamId: 'TEAM_1' },
-  { playerId: 'player-d', name: 'Dũng', characterId: 'duck', teamId: 'TEAM_2' },
+  { playerId: 'player-a', name: 'An', characterId: 'dog', teamId: 'TEAM_1', teamSlot: 0 },
+  { playerId: 'player-b', name: 'Bình', characterId: 'panda', teamId: 'TEAM_2', teamSlot: 0 },
+  { playerId: 'player-c', name: 'Chi', characterId: 'cat', teamId: 'TEAM_1', teamSlot: 1 },
+  { playerId: 'player-d', name: 'Dũng', characterId: 'duck', teamId: 'TEAM_2', teamSlot: 1 },
 ] as const;
 
 /**
@@ -126,6 +133,7 @@ export function makeTeamRoom(version = 1): PublicRoomState {
     color: teamColor[seat.teamId],
     characterId: seat.characterId,
     teamId: seat.teamId,
+    teamSlot: seat.teamSlot,
     joinOrder,
     membershipStatus: 'ACTIVE',
     ready: true,

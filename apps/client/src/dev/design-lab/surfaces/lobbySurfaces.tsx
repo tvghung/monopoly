@@ -1,28 +1,28 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import type { PublicTeam } from '@monopoly/shared';
+import type { PublicTeam, SeatSwapRequest } from '@monopoly/shared';
 import Lobby, { type LobbyPlayerView } from '../../../components/Lobby';
 import type { HostRuntimeStatus, OwnTheBlockDesktopBridge } from '../../../runtime/types';
 import { noop, SurfaceProviders, type SurfaceFixture } from './surfaceKit';
 
 /** The room lobby (plan 04 T04.13). */
 const LOBBY_PLAYERS: readonly LobbyPlayerView[] = [
-  { id: 'player-a', name: 'An', color: 'red', characterId: 'dog', teamId: 'TEAM_1', ready: true, connected: true },
-  { id: 'player-b', name: 'Bình', color: 'blue', characterId: 'panda', teamId: 'TEAM_2', ready: true, connected: true },
-  { id: 'player-c', name: 'Chi', color: 'green', characterId: 'cat', teamId: 'TEAM_1', ready: false, connected: true },
+  { id: 'player-a', name: 'An', color: 'red', characterId: 'dog', teamId: 'TEAM_1', teamSlot: 0, ready: true, connected: true },
+  { id: 'player-b', name: 'Bình', color: 'blue', characterId: 'panda', teamId: 'TEAM_2', teamSlot: 0, ready: true, connected: true },
+  { id: 'player-c', name: 'Chi', color: 'green', characterId: 'cat', teamId: 'TEAM_1', teamSlot: 1, ready: false, connected: true },
 ];
 
 /** All four seats: a ready host, a ready guest, one still choosing and one whose connection dropped. */
 const FULL_PLAYERS: readonly LobbyPlayerView[] = [
   ...LOBBY_PLAYERS,
-  { id: 'player-d', name: 'Dũng', color: 'yellow', characterId: 'duck', teamId: 'TEAM_2', ready: true, connected: false },
+  { id: 'player-d', name: 'Dũng', color: 'yellow', characterId: 'duck', teamId: 'TEAM_2', teamSlot: 1, ready: true, connected: false },
 ];
 
 /** 2v2: An and Chi are "Rồng" (red), Bình and Dũng are "Phượng" (blue); everybody wears the team colour. */
 const TEAM_PLAYERS: readonly LobbyPlayerView[] = [
-  { id: 'player-a', name: 'An', color: 'red', characterId: 'dog', teamId: 'TEAM_1', ready: true, connected: true },
-  { id: 'player-b', name: 'Bình', color: 'blue', characterId: 'panda', teamId: 'TEAM_2', ready: true, connected: true },
-  { id: 'player-c', name: 'Chi', color: 'red', characterId: 'cat', teamId: 'TEAM_1', ready: false, connected: true },
-  { id: 'player-d', name: 'Dũng', color: 'blue', characterId: 'duck', teamId: 'TEAM_2', ready: true, connected: true },
+  { id: 'player-a', name: 'An', color: 'red', characterId: 'dog', teamId: 'TEAM_1', teamSlot: 0, ready: true, connected: true },
+  { id: 'player-b', name: 'Bình', color: 'blue', characterId: 'panda', teamId: 'TEAM_2', teamSlot: 0, ready: true, connected: true },
+  { id: 'player-c', name: 'Chi', color: 'red', characterId: 'cat', teamId: 'TEAM_1', teamSlot: 1, ready: false, connected: true },
+  { id: 'player-d', name: 'Dũng', color: 'blue', characterId: 'duck', teamId: 'TEAM_2', teamSlot: 1, ready: true, connected: true },
 ];
 
 const LAB_TEAMS: readonly PublicTeam[] = [
@@ -30,16 +30,42 @@ const LAB_TEAMS: readonly PublicTeam[] = [
   { teamId: 'TEAM_2', name: 'Phượng', color: 'blue', memberPlayerIds: ['player-b', 'player-d'] },
 ];
 
-/** The 2v2 lobby with every team command wired to a no-op, so the host controls are visible. */
-function teamLobby(playerId: string, players: readonly LobbyPlayerView[] = TEAM_PLAYERS) {
+/** The 2v2 lobby with every team and seat command wired to a no-op, so the kick keys, the swap buttons and the dialogs are live. */
+function teamLobby(
+  playerId: string,
+  players: readonly LobbyPlayerView[] = TEAM_PLAYERS,
+  seatSwapRequests: readonly SeatSwapRequest[] = [],
+) {
   return lobby(playerId, players, {
     gameMode: 'TEAM_2V2',
     teams: [...LAB_TEAMS],
+    seatSwapRequests,
     onSetGameMode: noop,
     onSetTeamName: noop,
     onSetTeamColor: noop,
-    onSwapTeams: noop,
+    onMoveToSeat: noop,
+    onRequestSeatSwap: noop,
+    onCancelSeatSwap: noop,
+    onRespondSeatSwap: noop,
   });
+}
+
+/** An and Chi share "Rồng"; Bình sits alone in the second seat of "Phượng", so the first cell of that team is the empty one. */
+const SECOND_SEAT_PLAYERS: readonly LobbyPlayerView[] = [
+  TEAM_PLAYERS[0],
+  { ...TEAM_PLAYERS[1], teamSlot: 1 },
+  TEAM_PLAYERS[2],
+];
+
+/**
+ * The kick confirmation opens from a press on a seat's X, so a surface that shows it presses that key once the lobby has
+ * rendered (the Lab has no pointer): the question, its copy and its focus are the production ones.
+ */
+function PressOnMount({ label, children }: { label: string; children: ReactNode }) {
+  useEffect(() => {
+    document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)?.click();
+  }, [label]);
+  return children;
 }
 
 function lobby(
@@ -63,6 +89,7 @@ function lobby(
         onStart={noop}
         onLeave={noop}
         onSettings={noop}
+        onKickPlayer={noop}
         {...props}
       />
     </SurfaceProviders>
@@ -156,7 +183,7 @@ export const LOBBY_SURFACES: readonly SurfaceFixture[] = [
   },
   {
     id: 'lobby-2v2-host',
-    label: 'Lobby, 2v2 host (teams, mode, swap)',
+    label: 'Lobby, 2v2 host (teams, mode, kick, swap)',
     group: 'Pre-game',
     render: () => teamLobby('player-a'),
   },
@@ -168,9 +195,37 @@ export const LOBBY_SURFACES: readonly SurfaceFixture[] = [
   },
   {
     id: 'lobby-2v2-incomplete',
-    label: 'Lobby, 2v2 with three players (start blocked)',
+    label: 'Lobby, 2v2 with three players (empty seat to move into, start blocked)',
     group: 'Pre-game',
     render: () => teamLobby('player-a', TEAM_PLAYERS.slice(0, 3)),
+  },
+  {
+    id: 'lobby-2v2-second-seat',
+    label: 'Lobby, 2v2 with a lone player in the second seat (empty seat in its own cell)',
+    group: 'Pre-game',
+    render: () => teamLobby('player-c', SECOND_SEAT_PLAYERS),
+  },
+  {
+    id: 'lobby-2v2-swap-pending',
+    label: 'Lobby, 2v2 swap asked and waiting for the answer',
+    group: 'Pre-game',
+    render: () => teamLobby('player-a', TEAM_PLAYERS, [{ requesterPlayerId: 'player-a', targetPlayerId: 'player-b' }]),
+  },
+  {
+    id: 'lobby-2v2-swap-request',
+    label: 'Lobby, 2v2 swap request asked of the viewer (dialog)',
+    group: 'Pre-game',
+    render: () => teamLobby('player-b', TEAM_PLAYERS, [{ requesterPlayerId: 'player-a', targetPlayerId: 'player-b' }]),
+  },
+  {
+    id: 'lobby-kick-confirm',
+    label: 'Lobby, 2v2 host asked to confirm removing a player (dialog)',
+    group: 'Pre-game',
+    render: () => (
+      <PressOnMount label="Mời Bình ra khỏi phòng">
+        {teamLobby('player-a')}
+      </PressOnMount>
+    ),
   },
   {
     id: 'lobby-lan',

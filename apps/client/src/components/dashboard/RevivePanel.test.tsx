@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { Ack, PublicGameState } from '@monopoly/shared';
-import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
+import { REVIVE_WINDOW_SURVIVOR_TURNS, SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import stateContext from '../../internal';
 import { makeRoom, makeTeamRoom } from '../../game/presentation/testFixtures';
@@ -12,7 +12,7 @@ afterEach(cleanup);
 const success: Ack = { ok: true, protocolVersion: SOCKET_PROTOCOL_VERSION };
 
 /** Dũng (Team 2) is bankrupt and Bình, his teammate and the survivor, is on turn with the window open since an earlier turn. */
-function reviveState(turnsRemaining = 3): PublicGameState {
+function reviveState(turnsRemaining: number = REVIVE_WINDOW_SURVIVOR_TURNS): PublicGameState {
   const state = makeTeamRoom().gameState;
   delete state.players['player-d'];
   state.boardState.players = ['player-a', 'player-b', 'player-c'];
@@ -64,10 +64,10 @@ function renderAs(
 
 describe('RevivePanel', () => {
   it('offers the survivor the revive with the price, what the teammate returns with and the turns left', () => {
-    renderAs('player-b', reviveState(3));
+    renderAs('player-b', reviveState(REVIVE_WINDOW_SURVIVOR_TURNS));
 
     const panel = screen.getByRole('region', { name: 'Có thể hồi sinh: Dũng' });
-    expect(panel.textContent).toContain('Còn 3 lượt');
+    expect(panel.textContent).toContain(`Còn ${REVIVE_WINDOW_SURVIVOR_TURNS} lượt`);
     expect(panel.textContent).toContain('Trả 750.000 ₫ cho Ngân hàng');
     expect(panel.textContent).toContain('Dũng trở lại Xuất Phát với 300.000 ₫');
     expect(panel.textContent).toContain('mỗi người chỉ hồi sinh một lần');
@@ -75,10 +75,11 @@ describe('RevivePanel', () => {
     expect(button.hasAttribute('disabled')).toBe(false);
   });
 
-  it.each([
-    [2, 'Còn 2 lượt'],
-    [1, 'Cơ hội cuối'],
-  ])('shows "%i turns left" as "%s"', (turns, label) => {
+  // Every count a window can have, from the full window the constant gives down to the last chance.
+  it.each(
+    Array.from({ length: REVIVE_WINDOW_SURVIVOR_TURNS }, (_, index) => REVIVE_WINDOW_SURVIVOR_TURNS - index)
+      .map(turns => [turns, turns <= 1 ? 'Cơ hội cuối' : `Còn ${turns} lượt`] as const),
+  )('shows "%i turns left" as "%s"', (turns, label) => {
     renderAs('player-b', reviveState(turns));
     expect(screen.getByRole('region').textContent).toContain(label);
   });

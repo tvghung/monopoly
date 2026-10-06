@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PublicGameState } from '@monopoly/shared';
-import { REVIVE_COST, REVIVE_STARTING_CASH } from '@monopoly/shared';
+import { REVIVE_COST, REVIVE_STARTING_CASH, REVIVE_WINDOW_SURVIVOR_TURNS } from '@monopoly/shared';
 import { makeRoom, makeTeamRoom } from '../presentation/testFixtures';
 import {
   getReviveStatus,
@@ -17,7 +17,7 @@ import {
 } from './teamView';
 
 /** Dũng (player-d, Team 2) is bankrupt; Bình (player-b) is the survivor of the window unless a test changes it. */
-function teamStateWithBankruptDung(turnsRemaining = 3, openedAtTurnNumber = 2): PublicGameState {
+function teamStateWithBankruptDung(turnsRemaining: number = REVIVE_WINDOW_SURVIVOR_TURNS, openedAtTurnNumber = 2): PublicGameState {
   const state = makeTeamRoom().gameState;
   delete state.players['player-d'];
   state.boardState.players = ['player-a', 'player-b', 'player-c'];
@@ -69,10 +69,10 @@ describe('relations in a 2v2 game', () => {
 });
 
 describe('revive labels', () => {
-  it('uses the public Vietnamese wording for the three remaining counts', () => {
+  it('uses the public Vietnamese wording for every remaining count of a window', () => {
     expect(REVIVABLE_LABEL).toBe('Có thể hồi sinh');
     expect(PERMANENT_ELIMINATION_LABEL).toBe('Đã bị loại vĩnh viễn');
-    expect(reviveTurnsLabel(3)).toBe('Còn 3 lượt');
+    expect(reviveTurnsLabel(REVIVE_WINDOW_SURVIVOR_TURNS)).toBe(`Còn ${REVIVE_WINDOW_SURVIVOR_TURNS} lượt`);
     expect(reviveTurnsLabel(2)).toBe('Còn 2 lượt');
     expect(reviveTurnsLabel(1)).toBe('Cơ hội cuối');
   });
@@ -90,7 +90,7 @@ describe('revive labels', () => {
 
 describe('selectRevivePrompt', () => {
   it('offers the revive to the survivor on their own turn with the price and what the teammate returns with', () => {
-    const state = teamStateWithBankruptDung(3);
+    const state = teamStateWithBankruptDung();
     state.players['player-b'].accountBalance = 900;
     expect(selectRevivePrompt(state, 'player-b')).toMatchObject({
       revivedPlayerId: 'player-d',
@@ -98,7 +98,7 @@ describe('selectRevivePrompt', () => {
       cost: REVIVE_COST,
       startingCash: REVIVE_STARTING_CASH,
       balance: 900,
-      turnsLabel: 'Còn 3 lượt',
+      turnsLabel: `Còn ${REVIVE_WINDOW_SURVIVOR_TURNS} lượt`,
       startsThisTurn: true,
       canAfford: true,
     });

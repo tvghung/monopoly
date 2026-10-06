@@ -9,7 +9,7 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
 | View/feature | Instruction | Code chính |
 | --- | --- | --- |
 | Join/restore/reconnect, landing, launcher (main menu, "Cài đặt", "Thoát"), way back to the launcher, loading/failure screens | [join-room.instruction.md](./join-room.instruction.md) | `App.tsx`, `JoinForm.tsx`, `JoinHero.tsx`, `DesktopMultiplayerLauncher.tsx`, `LauncherScene.tsx`, `app/screens/`, session storage, `ConnectionOverlay` |
-| Lobby/roster/start/winner/spectator (Solo và 2v2: chế độ, đội, đổi chỗ, hồi sinh, thắng đội) | [game-status.instruction.md](./game-status.instruction.md), [../GameCore/team-play.instruction.md](../GameCore/team-play.instruction.md) | `Lobby.tsx`, `components/lobby/` (`TeamZone`, `TeamColorPicker`, `TeamNameField`), `game/team/` (`teamView.ts`, `TeamChip`), `HostLanSharing.tsx`, `WinnerBanner.tsx`, `useVictoryVisibility.ts`, `SpectatorBanner.tsx` |
+| Lobby/roster/start/winner/spectator (Solo và 2v2: chế độ, đội, chỗ ngồi và yêu cầu đổi chỗ, host mời người ra khỏi phòng, hồi sinh, thắng đội) | [game-status.instruction.md](./game-status.instruction.md), [../GameCore/team-play.instruction.md](../GameCore/team-play.instruction.md) | `Lobby.tsx`, `components/lobby/` (`LobbySeat`, `TeamZone`, `TeamColorPicker`, `TeamNameField`), `design-system/components/ConfirmationDialog/`, `game/team/` (`teamView.ts`, `TeamChip`), `HostLanSharing.tsx`, `WinnerBanner.tsx`, `useVictoryVisibility.ts`, `SpectatorBanner.tsx` |
 | Board/spectator/WebGL surface | [game-board.instruction.md](./game-board.instruction.md) | `Board.tsx`, `game/scene/GameScene.tsx`, `game/scene/board/`, fallback |
 | Turn/landing/payment/jail (và 2v2 Emergency Rescue, hồi sinh) | [turn-actions.instruction.md](./turn-actions.instruction.md) | `RollControl`, `BuyPrompt`, `DevelopmentPrompt`, `JailPanel`, `DebtPanel`, `RescuePanel`, `RevivePanel`, `CardInteractionOverlay` |
 | Property deed/inspection/portfolio/build/forced sale | [property-management.instruction.md](./property-management.instruction.md) | `game/ui/property/` (`PropertyDeedCard`, `PropertyInspectionModal`, `OwnedPropertiesControl`, `PlayerPortfolioModal`), `DebtPanel` |
@@ -32,7 +32,7 @@ Player/Spectator nhìn thấy là tiếng Việt; technical event/package names 
 - Authoritative room/game state cập nhật ngay; display position/turn/dice chỉ là
   presentation state và không được dùng làm nguồn thẩm quyền.
 - Spectator read-only; server authority không phụ thuộc action visibility.
-- 2v2 (protocol 10): mọi dữ liệu team lấy từ public state đã được server gửi (`boardState.teams`, `teamPlay`, `winningTeamId`,
+- 2v2 (protocol 10; chỗ ngồi `teamSlot` và `seatSwapRequests` từ protocol 11): mọi dữ liệu team lấy từ public state đã được server gửi (`boardState.teams`, `teamPlay`, `winningTeamId`,
   `teamId` từng người, `PaymentQueue.rescue`) qua `game/team/teamView.ts`; client không tự tính luật team ngoài số shared
   (`colorSetRentPercent`, `getTeammateIds`). Trong Solo mọi helper trả "không có team" nên UI Solo không đổi. Chi tiết:
   [../GameCore/team-play.instruction.md](../GameCore/team-play.instruction.md).

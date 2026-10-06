@@ -98,6 +98,7 @@ const makeContextValue = (
     color: player.color,
     characterId: player.characterId,
     teamId: player.teamId,
+    teamSlot: 0,
     joinOrder: index + 1,
     membershipStatus: 'ACTIVE',
     ready: true,

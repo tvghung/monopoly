@@ -34,11 +34,11 @@ function finishFourSeats(room: PublicRoomState) {
   finishWithWinner(room);
   room.players.push(
     {
-      playerId: 'player-c', name: 'Chi', color: 'green', characterId: 'cat', teamId: 'TEAM_1', joinOrder: 2,
+      playerId: 'player-c', name: 'Chi', color: 'green', characterId: 'cat', teamId: 'TEAM_1', teamSlot: 1, joinOrder: 2,
       membershipStatus: 'ACTIVE', ready: true, connected: true,
     },
     {
-      playerId: 'player-d', name: 'Nguyễn Thị Bích Phượng', color: 'yellow', characterId: 'penguin', teamId: 'TEAM_2', joinOrder: 3,
+      playerId: 'player-d', name: 'Nguyễn Thị Bích Phượng', color: 'yellow', characterId: 'penguin', teamId: 'TEAM_2', teamSlot: 1, joinOrder: 3,
       membershipStatus: 'ACTIVE', ready: true, connected: true,
     },
   );

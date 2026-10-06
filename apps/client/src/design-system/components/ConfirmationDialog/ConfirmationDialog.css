@@ -1,5 +1,6 @@
 .ds-confirmation__body { display: flex; align-items: flex-start; gap: var(--space-3); }
 .ds-confirmation__icon { display: inline-grid; flex: none; place-items: center; width: 3rem; height: 3rem; border-radius: 50%; background: var(--color-danger-soft); color: var(--color-danger-strong); }
+.ds-confirmation__icon--neutral { background: var(--color-info-soft); color: var(--color-info-strong); }
 .ds-confirmation__message { margin: 0; align-self: center; color: var(--color-text-secondary); font: var(--type-body); }
 .ds-confirmation__actions { display: flex; flex: 1 1 auto; justify-content: flex-end; gap: var(--space-2); }
 @media (max-width: 32rem) { .ds-confirmation__actions { flex-direction: column-reverse; } .ds-confirmation__actions .ds-button { width: 100%; } }

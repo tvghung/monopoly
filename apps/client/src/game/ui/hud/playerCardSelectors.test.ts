@@ -12,8 +12,8 @@ const noPresentation = {
 function roomWith(playerCount: 2 | 3 | 4) {
   const room = makeRoom();
   const extra: RoomPlayerMeta[] = [
-    { teamId: 'TEAM_2', playerId: 'player-c', name: 'Chi', color: 'green', characterId: 'cat', joinOrder: 2, membershipStatus: 'ACTIVE', ready: true, connected: true },
-    { teamId: 'TEAM_2', playerId: 'player-d', name: 'Dũng', color: 'yellow', characterId: 'penguin', joinOrder: 3, membershipStatus: 'ACTIVE', ready: true, connected: true },
+    { teamId: 'TEAM_2', teamSlot: 0, playerId: 'player-c', name: 'Chi', color: 'green', characterId: 'cat', joinOrder: 2, membershipStatus: 'ACTIVE', ready: true, connected: true },
+    { teamId: 'TEAM_2', teamSlot: 1, playerId: 'player-d', name: 'Dũng', color: 'yellow', characterId: 'penguin', joinOrder: 3, membershipStatus: 'ACTIVE', ready: true, connected: true },
   ];
   room.players.push(...extra.slice(0, playerCount - 2));
   extra.slice(0, playerCount - 2).forEach(player => {

@@ -13,17 +13,14 @@ import {
 import type { LobbyPlayerView } from './lobbyTypes';
 
 /**
- * The host's team-swap flow as one seat sees it. `IDLE`: the host may start a swap from this seat. `SOURCE`: this is the player the
- * host chose (pressing again cancels). `TARGET`: a valid partner, highlighted. `UNAVAILABLE`: a swap is in progress and this seat
- * cannot be its partner (same team as the chosen player).
+ * The viewer's way to swap with the player of one seat (2v2 lobby). `IDLE`: the viewer may ask this player to exchange places.
+ * `PENDING`: the viewer already asked this player and is waiting for the answer; the seat then offers to take the question back.
+ * Both come straight from the open requests of the room state: the seat keeps nothing of its own.
  */
-export type SeatSwapMode = 'IDLE' | 'SOURCE' | 'TARGET' | 'UNAVAILABLE';
-
 export interface SeatSwap {
-  mode: SeatSwapMode;
-  /** The name of the chosen player, for the label of a TARGET seat. */
-  sourceName?: string;
-  onPress: () => void;
+  state: 'IDLE' | 'PENDING';
+  onRequest: () => void;
+  onCancel: () => void;
 }
 
 interface LobbySeatProps {
@@ -33,7 +30,9 @@ interface LobbySeatProps {
   isHost: boolean;
   busy: boolean;
   onSetReady: (ready: boolean) => void;
-  /** 2v2, host only: the explicit swap control of this seat. */
+  /** Host only, and never on the host's own seat: the X that asks to remove this player from the room. */
+  onKick?: () => void;
+  /** 2v2 only, and never on the viewer's own seat: the swap control of this seat. */
   swap?: SeatSwap | null;
 }
 
@@ -41,7 +40,7 @@ const NO_MASCOT_HINT = 'Chọn mascot trước để sẵn sàng';
 
 /** One seated player: the mascot on a pedestal in the player color, name, ready stamp and presence. No mascot name is shown. */
 export function LobbySeat({
-  player, isSelf, isHost, busy, onSetReady, swap = null,
+  player, isSelf, isHost, busy, onSetReady, onKick, swap = null,
 }: LobbySeatProps) {
   const hintId = useId();
   const needsMascot = player.characterId === null;
@@ -55,38 +54,21 @@ export function LobbySeat({
     'lobby-player--occupied',
     player.connected ? '' : 'lobby-player--disconnected',
     isSelf ? 'lobby-player--self' : '',
-    swap?.mode === 'SOURCE' ? 'lobby-player--swap-source' : '',
-    swap?.mode === 'TARGET' ? 'lobby-player--swap-target' : '',
+    onKick ? 'lobby-player--kickable' : '',
+    swap?.state === 'PENDING' ? 'lobby-player--swap-pending' : '',
   ].filter(Boolean).join(' ');
 
   return (
     <li className={className} style={seatStyle} data-team={player.teamId} data-player-id={player.id}>
-      {swap && swap.mode !== 'UNAVAILABLE'
+      {onKick
         ? (
-          <div className="lobby-player__swap">
-            {swap.mode === 'TARGET'
-              ? (
-                <Button
-                  size="sm"
-                  className="lobby-player__swap-target"
-                  icon={<ActionIcon name="swap" />}
-                  disabled={busy}
-                  aria-label={`Đổi chỗ ${player.name} với ${swap.sourceName ?? 'người đã chọn'}`}
-                  onClick={swap.onPress}
-                >
-                  Đổi chỗ
-                </Button>
-              )
-              : (
-                <IconButton
-                  label={swap.mode === 'SOURCE' ? `Hủy đổi đội của ${player.name}` : `Đổi đội của ${player.name}`}
-                  icon="swap"
-                  pressed={swap.mode === 'SOURCE'}
-                  disabled={busy}
-                  onClick={swap.onPress}
-                />
-              )}
-          </div>
+          <IconButton
+            className="lobby-player__kick"
+            label={`Mời ${player.name} ra khỏi phòng`}
+            icon="close"
+            disabled={busy}
+            onClick={onKick}
+          />
         )
         : null}
       <div className="lobby-player__stage">
@@ -143,12 +125,55 @@ export function LobbySeat({
           </>
         )
         : null}
+      {swap?.state === 'IDLE'
+        ? (
+          <Button
+            variant="ghost"
+            className="lobby-player__swap-action"
+            icon={<ActionIcon name="swap" />}
+            disabled={busy}
+            aria-label={`Đổi chỗ với ${player.name}`}
+            onClick={swap.onRequest}
+          >
+            <span>Đổi chỗ</span>
+          </Button>
+        )
+        : null}
+      {swap?.state === 'PENDING'
+        ? (
+          <div className="lobby-player__swap-pending">
+            <p className="lobby-player__swap-status" role="status">{`Đang chờ ${player.name} trả lời`}</p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="lobby-player__swap-cancel"
+              icon={<ActionIcon name="close" />}
+              disabled={busy}
+              aria-label={`Hủy yêu cầu đổi chỗ với ${player.name}`}
+              onClick={swap.onCancel}
+            >
+              <span>Hủy yêu cầu</span>
+            </Button>
+          </div>
+        )
+        : null}
     </li>
   );
 }
 
-/** A seat nobody has taken yet; it tells the host how to fill it. */
-export function EmptySeat({ number }: { number: number }) {
+interface EmptySeatProps {
+  number: number;
+  /** 2v2 lobby: the name of the team the seat belongs to, for the label of its move control. */
+  teamName?: string;
+  busy?: boolean;
+  /** 2v2 only: the viewer jumps into this seat at once. Absent in a Solo lobby, where positions mean nothing. */
+  onMove?: () => void;
+}
+
+/** A seat nobody has taken yet; it tells the host how to fill it and, in a 2v2 lobby, lets the viewer move into it. */
+export function EmptySeat({
+  number, teamName, busy = false, onMove,
+}: EmptySeatProps) {
   return (
     <li className="lobby-player lobby-player--empty">
       <div className="lobby-player__stage">
@@ -156,6 +181,20 @@ export function EmptySeat({ number }: { number: number }) {
       </div>
       <span className="lobby-player__name">{`Chỗ trống ${number}`}</span>
       <span className="lobby-player__hint">Chia sẻ mã phòng để mời bạn</span>
+      {onMove
+        ? (
+          <Button
+            variant="ghost"
+            className="lobby-player__swap-action"
+            icon={<ActionIcon name="swap" />}
+            disabled={busy}
+            aria-label={`Chuyển sang chỗ trống ${number} của đội ${teamName ?? ''}`.trimEnd()}
+            onClick={onMove}
+          >
+            <span>Chuyển sang</span>
+          </Button>
+        )
+        : null}
     </li>
   );
 }
