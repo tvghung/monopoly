@@ -1,7 +1,7 @@
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
-export const SOCKET_PROTOCOL_VERSION = 9 as const;
+export const SOCKET_PROTOCOL_VERSION = 10 as const;
 
 export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
 export type PlayerId = string;
@@ -51,6 +51,27 @@ export const PLAYER_COLOR_IDS = [
 ] as const;
 
 export type PlayerColorId = typeof PLAYER_COLOR_IDS[number];
+
+/**
+ * Lobby game mode. `SOLO` is the free-for-all game; `TEAM_2V2` seats exactly two teams of two. The mode is authoritative room
+ * state chosen by the host in the lobby: nothing about teams is ever derived on the client.
+ */
+export const GAME_MODES = ['SOLO', 'TEAM_2V2'] as const;
+export type GameMode = typeof GAME_MODES[number];
+
+/** The two stable team identities of a 2v2 game. They are never renamed; only `TeamSettings` change. */
+export const TEAM_IDS = ['TEAM_1', 'TEAM_2'] as const;
+export type TeamId = typeof TEAM_IDS[number];
+
+/** The longest visible team name, the same limit as a player name. */
+export const TEAM_NAME_MAX_LENGTH = 20 as const;
+
+export interface TeamSettings {
+  name: string;
+  color: PlayerColorId;
+}
+
+export type TeamSettingsById = Record<TeamId, TeamSettings>;
 
 export function getAppearanceCombinationKey(
   characterId: CharacterId | null,
@@ -146,19 +167,26 @@ export type MoneyEndpoint =
   | { kind: 'BANK' }
   | { kind: 'PLAYER'; playerId: PlayerId };
 
-export type MoneyTransferReason =
-  | 'PROPERTY_PURCHASE'
-  | 'PROPERTY_SALE'
-  | 'RENT'
-  | 'TAX'
-  | 'PASS_GO'
-  | 'CARD'
-  | 'DEVELOPMENT'
-  | 'BAIL'
-  | 'TRADE'
-  | 'FORCED_SALE'
-  | 'FORFEIT'
-  | 'OTHER';
+export const MONEY_TRANSFER_REASONS = [
+  'PROPERTY_PURCHASE',
+  'PROPERTY_SALE',
+  'RENT',
+  'TAX',
+  'PASS_GO',
+  'CARD',
+  'DEVELOPMENT',
+  'BAIL',
+  'TRADE',
+  'FORCED_SALE',
+  'FORFEIT',
+  // 2v2: the survivor pays the Bank to revive a teammate, and the revived player receives the starting cash from the Bank.
+  'REVIVE',
+  // 2v2: a teammate pays a debtor's unavoidable shortfall straight to the creditor (never to the debtor).
+  'RESCUE',
+  'OTHER',
+] as const;
+
+export type MoneyTransferReason = typeof MONEY_TRANSFER_REASONS[number];
 
 export type PropertyTransferCause =
   | 'BANK_PURCHASE'
@@ -307,6 +335,7 @@ export type ActivityEvent = ActivityEventBase & (
   }
   | {
     type: 'PROPERTY_DEVELOPMENT';
+    // The player whose cash paid for (or received the refund of) the development.
     playerId: PlayerId;
     playerName: string;
     tileID: number;
@@ -314,6 +343,10 @@ export type ActivityEvent = ActivityEventBase & (
     toHouses: number;
     action: 'BUILD' | 'UPGRADE_HOTEL' | 'SELL';
     cost?: number;
+    // Present only when the property owner is not `playerId`: a 2v2 Team Investment, where the lander funds a teammate's
+    // property. The owner never changes and never pays.
+    ownerPlayerId?: PlayerId;
+    ownerName?: string;
   }
   | {
     type: 'CARD_REVEALED';
@@ -343,6 +376,30 @@ export type ActivityEvent = ActivityEventBase & (
     winnerColor: PlayerColorId;
     winnerCharacterId: CharacterId | null;
     finalCash: number;
+    // Present only for a 2v2 game, where the winner is the whole team and `winnerPlayerId` names one representative member.
+    winningTeamId?: TeamId;
+    winningTeamName?: string;
+  }
+  | {
+    type: 'TEAM_REVIVE';
+    // WINDOW_OPENED: a bankrupt player became revivable. REVIVED: the survivor paid and the player is back. EXPIRED: the window
+    // ran out and the elimination is permanent.
+    action: 'WINDOW_OPENED' | 'REVIVED' | 'EXPIRED';
+    playerId: PlayerId;
+    playerName: string;
+    survivorPlayerId: PlayerId;
+    survivorName: string;
+    // Survivor turns still available for the revive (3 when the window opens, 0 when it expires).
+    turnsRemaining: number;
+  }
+  | {
+    type: 'EMERGENCY_RESCUE';
+    action: 'OFFERED' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED';
+    debtorPlayerId: PlayerId;
+    debtorName: string;
+    rescuerPlayerId: PlayerId;
+    rescuerName: string;
+    amount: number;
   }
 );
 
@@ -378,8 +435,12 @@ export interface GamePrivateState {
 export interface Player {
   name: string;
   currentTile: number;
+  // In a 2v2 game this is always the player's team colour (the mascot is drawn in it and it is the ownership accent).
   color: PlayerColorId;
   characterId: CharacterId | null;
+  // Assigned when the player joins the room (balanced between the two teams) and kept for the whole room. It only has
+  // meaning while `boardState.gameMode` is `TEAM_2V2`; Solo logic never reads it.
+  teamId: TeamId;
   accountBalance: number;
   isJail: boolean;
   jailOpponentRoundsElapsed: number;
@@ -402,6 +463,7 @@ export interface FinishedPlayer {
   name: string;
   color: PlayerColorId;
   characterId: CharacterId | null;
+  teamId: TeamId;
   reason?: FinishedPlayerReason;
   accountBalance?: number;
 }
@@ -494,12 +556,27 @@ export interface DebtClaim {
   status?: DebtClaimStatus;
 }
 
+/**
+ * A 2v2 Emergency Rescue offer to the debtor's active teammate. It exists only while the debtor owns nothing left to sell and
+ * still owes money, and it covers the debtor's whole remaining shortfall or nothing. `amount` is exactly what leaves the
+ * rescuer's own balance (claims owed to the rescuer cost nothing); it is paid straight to each creditor, never to the debtor.
+ * While an offer is open `PaymentQueue.actionDeadlineAt` equals `expiresAt`, so the one durable deadline drives recovery.
+ */
+export interface EmergencyRescueOffer {
+  rescueId: string;
+  debtorPlayerId: PlayerId;
+  rescuerPlayerId: PlayerId;
+  amount: number;
+  expiresAt: string;
+}
+
 export interface PaymentQueue {
   operationId: string;
   orderedClaims: DebtClaim[];
   activeClaimIndex: number;
   continuation: PendingTurnContinuation;
   actionDeadlineAt: string;
+  rescue: EmergencyRescueOffer | null;
 }
 
 export interface ForcedSaleProposal {
@@ -514,10 +591,39 @@ export interface ForcedSaleProposal {
   expiresAt: string;
 }
 
+/**
+ * A bankrupt 2v2 player who can still be revived. The window is counted in turns of the surviving teammate (not global
+ * turns): it opens with `REVIVE_WINDOW_SURVIVOR_TURNS` and loses one each time a survivor turn that began after
+ * `openedAtTurnNumber` ends, however it ends (completed, jail wait, or skipped for a disconnect). At zero it is removed and
+ * the elimination is permanent.
+ */
+export interface ReviveWindow {
+  playerId: PlayerId;
+  teamId: TeamId;
+  turnsRemaining: number;
+  openedAtTurnNumber: number;
+}
+
+/** Match-level 2v2 state. All three fields are empty in a Solo game and in a lobby. */
+export interface TeamPlayState {
+  // The stable alternating turn slots chosen at the start (A1, B1, A2, B2). Eliminated players keep their slot here so a
+  // revived player returns to it; `BoardState.players` is this order restricted to the players still in the game.
+  slotOrder: PlayerId[];
+  // Players who have already been revived once. A later elimination of such a player is permanent.
+  revivedPlayerIds: PlayerId[];
+  reviveWindows: ReviveWindow[];
+}
+
 export interface BoardState {
   gameStarted: boolean;
   // Set by the authoritative start command; optional for older persisted snapshots.
   gameStartedAt?: string | null;
+  // Lobby configuration that survives "play again" (together with each player's `teamId`).
+  gameMode: GameMode;
+  teams: TeamSettingsById;
+  teamPlay: TeamPlayState;
+  // Set together with `winner` when a 2v2 team wins; `winner` then names one representative member of that team.
+  winningTeamId: TeamId | null;
   players: PlayerId[];
   finishedPlayers: Record<PlayerId, FinishedPlayer>;
   currentPlayer: CurrentPlayer;
@@ -560,6 +666,8 @@ export interface PublicDebtState {
   remainingClaimCount: number;
   paymentOperationId?: string;
   claimId?: PaymentClaimId;
+  // The open 2v2 Emergency Rescue offer for this debtor, or null. Team membership and cash are public, so the offer is too.
+  rescue: EmergencyRescueOffer | null;
   sellableProperties?: Array<{
     tileID: number;
     grossPrice: number;
@@ -569,13 +677,43 @@ export interface PublicDebtState {
 
 export type PublicPaymentShortfall = PublicDebtState;
 
+export interface PublicTeam {
+  teamId: TeamId;
+  name: string;
+  color: PlayerColorId;
+  // Every room member of the team in join order, including players who are eliminated or have left.
+  memberPlayerIds: PlayerId[];
+}
+
+export interface PublicReviveWindow {
+  playerId: PlayerId;
+  teamId: TeamId;
+  // The active teammate who may revive `playerId` during their own turn.
+  survivorPlayerId: PlayerId;
+  // Survivor turns still available, including the current one when it is the survivor's turn: 3, 2 or 1 ("last chance").
+  turnsRemaining: number;
+  // The turn counter when the bankruptcy happened. Only survivor turns that begin after it count and may revive: a client
+  // compares it with `boardState.turnNumber` to know whether the current turn is one of them.
+  openedAtTurnNumber: number;
+}
+
+export interface PublicTeamPlayState {
+  revivedPlayerIds: PlayerId[];
+  reviveWindows: PublicReviveWindow[];
+}
+
 export type PublicBoardState = Omit<
   BoardState,
   | 'turnRecovery'
   | 'paymentQueue'
+  | 'teams'
+  | 'teamPlay'
 > & {
   turnRecovery: { playerId: PlayerId; deadlineAt: string } | null;
   paymentShortfall?: PublicPaymentShortfall | null;
+  // Always both teams in team order; only meaningful while `gameMode` is `TEAM_2V2`.
+  teams: PublicTeam[];
+  teamPlay: PublicTeamPlayState;
 };
 
 export interface PublicTurnInfo {
@@ -607,6 +745,7 @@ export interface RoomPlayerMeta {
   name: string;
   color: PlayerColorId;
   characterId: CharacterId | null;
+  teamId: TeamId;
   joinOrder: number;
   membershipStatus: RoomMembershipStatus;
   ready: boolean;
@@ -650,7 +789,33 @@ export interface SetReadyRequest {
 
 export interface SetAppearanceRequest {
   characterId?: CharacterId;
+  // Rejected in a 2v2 lobby: the colour belongs to the team there.
   color?: PlayerColorId;
+}
+
+export interface SetGameModeRequest {
+  mode: GameMode;
+}
+
+export interface SetTeamNameRequest {
+  teamId: TeamId;
+  name: string;
+}
+
+// The team is always the actor's own team, resolved on the server; a member can never name another team.
+export interface SetTeamColorRequest {
+  color: PlayerColorId;
+}
+
+// Host only. Exchanges the team membership of two players who are on different teams.
+export interface SwapTeamRequest {
+  playerId: PlayerId;
+  withPlayerId: PlayerId;
+}
+
+// The only client-controlled field of a rescue answer; the amount, debtor and creditors are read from the server's queue.
+export interface RescueDecisionRequest {
+  rescueId: string;
 }
 
 export interface PendingPlayerAdmission {

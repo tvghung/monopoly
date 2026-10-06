@@ -1,4 +1,4 @@
-# Persistence — snapshot v8 và restart recovery
+# Persistence — snapshot v9 và restart recovery
 
 ## Phạm vi
 
@@ -15,9 +15,9 @@
 - Raw token không persist; chỉ SHA-256. Presence/socket/generation/timer handle và
   countdown tick không nằm database.
 - SQL migration version và JSON snapshot schema version độc lập; current runtime
-  uses protocol v9 and accepts snapshot schema v8.
+  uses protocol v10 and accepts snapshot schema v9.
 
-## Snapshot v8
+## Snapshot v9 (v8 + 2v2)
 
 Room JSONB giữ stable-ID state, pending purchase/development landing decisions,
 ordered `PaymentQueue`/`DebtClaim`, durable `PendingCardInteraction`, private
@@ -35,6 +35,13 @@ Fresh rooms start at zero. Migration `007_roll_sequence_v6.sql` upgrades V5
 rooms in place to V6 with `rollSequence: 0`, increments the aggregate version
 using the established rewrite convention, and does not reconstruct historical
 roll count.
+
+V9 adds the 2v2 aggregate state: `boardState.gameMode`, `teams` (name and colour per team), `teamPlay` (`slotOrder`,
+`revivedPlayerIds`, `reviveWindows`), `winningTeamId`, `teamId` on live/finished/winner records and `PaymentQueue.rescue` (the open
+Emergency Rescue offer with its absolute `expiresAt`). The loader/save gate runs `assertTeamState`: Solo carries no match state, 2v2
+requires team colours, an alternating four-seat `slotOrder`, a turn order equal to `slotOrder` filtered by who is still in, valid
+revive windows (a bankrupt player, a surviving teammate, not yet revived, 1–3 turns) and a rescue offer equal to
+`planEmergencyRescue`. Presence, socket mapping, timer handles and countdown ticks are still never persisted.
 
 Property invariants remain houses `0..5` and non-street houses `0`. No colour-group/
 even-building or 32/12 Bank-stock gate is persisted.
@@ -67,7 +74,16 @@ baseline, preserves all other room/game JSON, increments the aggregate version,
 and is forward-only. This is historical V5 → V6 migration history, not the current
 runtime version.
 
-## Current V7 → V8 migration
+## Current V8 → V9 migration
+
+Migration `010_teamplay_v9.sql` (PL/pgSQL, forward-only) upgrades only rooms with snapshot schema 8: it sets `gameMode` `SOLO`,
+assigns teams alternating by join order across all members (so a Solo room can later switch to 2v2 balanced), defaults the team
+settings to `Team 1` red / `Team 2` blue, empties `teamPlay`, adds `winningTeamId: null` and a `teamId` to
+every player, finished-player and winner record, sets `PaymentQueue.rescue` to `null`, sets snapshot schema version 9 and increments the aggregate version. The
+TypeScript helper `upgradeRoomSnapshotV8ToV9` (`rooms.ts`) mirrors it; the PostgreSQL test runs both over the same V8 fixture and
+compares the result. A V8 snapshot that is still in the table at runtime is rejected with `UnsupportedRoomSnapshotVersionError`.
+
+## Earlier V7 → V8 migration
 
 Migration `009_activity_feed_v8.sql` upgrades only rooms with snapshot schema 7.
 It initializes an empty bounded public typed `activityFeed`, sets snapshot schema
@@ -79,7 +95,7 @@ privacy boundaries.
 ## Deadline/restart recovery
 
 `next_action_at` is the minimum room expiry, turn-recovery, payment-shortfall action
-deadline or forced-sale proposal expiry. Ordinary trade-offer/session deadlines
+deadline, Emergency Rescue expiry or forced-sale proposal expiry. Ordinary trade-offer/session deadlines
 remain relational. Scheduler captures exact operation/claim/player/deadline markers,
 rechecks under room lock/CAS, and treats stale/replayed callbacks as no-ops.
 

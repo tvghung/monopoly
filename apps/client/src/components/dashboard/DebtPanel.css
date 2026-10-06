@@ -69,6 +69,11 @@
 .debt-panel__error { color: var(--color-danger-strong); }
 .debt-panel__pending { color: var(--color-text-secondary); }
 
+/* 2v2 Emergency Rescue: why the teammate is asked, and what declining costs the debtor. */
+.debt-panel__rescue-note { margin: var(--space-3) 0 0; color: var(--color-text-secondary); font: var(--type-small); }
+.debt-panel__rescue-warning { margin: var(--space-2) 0 0; color: var(--color-danger-strong); font: var(--type-small); font-weight: var(--font-weight-semibold); }
+.debt-panel-modal--rescue .ds-modal__footer { justify-content: flex-end; }
+
 .debt-panel__heading { margin: var(--space-4) 0 var(--space-2); font: var(--type-label); }
 .debt-panel__empty { margin: var(--space-4) 0 0; color: var(--color-text-secondary); font: var(--type-small); }
 

@@ -4,6 +4,7 @@ import type {
   PublicGameState,
   RoomPlayerMeta,
   RoomRole,
+  TeamId,
 } from '@monopoly/shared';
 import {
   colorGroups,
@@ -11,6 +12,13 @@ import {
   UTILITY_TILE_INDICES,
 } from '@monopoly/shared';
 import type { PresentationState } from '../../presentation/store/types';
+import {
+  getReviveStatus,
+  relationBetween,
+  teamOfPlayer,
+  type PlayerRelation,
+  type ReviveStatus,
+} from '../../team/teamView';
 import { resolvePlayerStationSlots, type PlayerStationSlot } from '../stations/stationSlots';
 import { selectPlayerHudViewModels } from './playerHudSelectors';
 
@@ -33,6 +41,14 @@ export interface PlayerCardViewModel {
   name: string;
   color: PlayerColorId;
   characterId: CharacterId | null;
+  /** The 2v2 team of this player; `null` in a Solo game. */
+  teamId: TeamId | null;
+  teamName: string | null;
+  teamColor: PlayerColorId | null;
+  /** Teammate or opponent of the local player (or the local player themself); `null` in Solo and for spectators. */
+  relation: PlayerRelation | null;
+  /** 2v2: revivable (with the survivor turns left) or permanently out after a bankruptcy, else `null`. */
+  revive: ReviveStatus | null;
   /** Presentation balance when there is one, otherwise the authoritative balance. */
   displayMoney: number;
   /** Follows `displayActivePlayerId`, never the authoritative current player. */
@@ -72,7 +88,7 @@ export function selectPlayerCardViewModels(
   role: RoomRole | null,
 ): PlayerCardViewModel[] {
   const activePlayerId = presentation.displayActivePlayerId ?? state.boardState.currentPlayer.id;
-  const slots = resolvePlayerStationSlots(roomPlayers, localPlayerId, role);
+  const slots = resolvePlayerStationSlots(roomPlayers, localPlayerId, role, state.boardState.gameMode === 'TEAM_2V2');
   const recovery = state.boardState.turnRecovery;
   const ownedTilesByPlayer = new Map<string, number[]>();
   Object.entries(state.boardState.ownedProps).forEach(([tileId, property]) => {
@@ -91,12 +107,18 @@ export function selectPlayerCardViewModels(
       if (level >= 5) hotels += 1;
       else houses += Math.max(0, level);
     });
+    const team = teamOfPlayer(state, hud.playerId);
     return {
       playerId: hud.playerId,
       slot: slots.get(hud.playerId) ?? null,
       name: hud.name,
       color: hud.color,
       characterId: hud.characterId,
+      teamId: team?.teamId ?? null,
+      teamName: team?.name ?? null,
+      teamColor: team?.color ?? null,
+      relation: role === 'PLAYER' ? relationBetween(state, localPlayerId, hud.playerId) : null,
+      revive: getReviveStatus(state, hud.playerId),
       displayMoney: presentation.displayBalances[hud.playerId] ?? hud.money,
       isActive: hud.isCurrentTurn,
       isLocal: role === 'PLAYER' && localPlayerId === hud.playerId,

@@ -133,7 +133,7 @@ describe('HowToPlayModal', () => {
     const model = buildHowToPlayModel();
     expect(within(guide).getByText(model.intro)).toBeTruthy();
 
-    expect(sections()).toHaveLength(11);
+    expect(sections()).toHaveLength(12);
     expect(sections().map((section) => section.querySelector('summary')?.textContent)).toEqual(
       model.sections.map((section, index) => `${index + 1}${section.title}`),
     );
@@ -262,7 +262,7 @@ describe('HowToPlayModal', () => {
     await waitFor(() => expect(document.querySelector('.how-to-play')).toBeNull());
 
     openGuide();
-    expect(sections()).toHaveLength(11);
+    expect(sections()).toHaveLength(12);
     for (const section of sections()) expect(section.open).toBe(false);
   });
 

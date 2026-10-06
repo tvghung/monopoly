@@ -15,6 +15,7 @@ export { default as chanceCards } from './chanceCards';
 export * from './cardData';
 export * from './money';
 export * from './rules';
+export * from './teams';
 export * from './types';
 export * from './events';
 export * from './socketSchemas';

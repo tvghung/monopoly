@@ -13,7 +13,7 @@ import { SettingsProvider } from '../../settings/SettingsProvider';
 import { presentationStoreContext } from '../../game/presentation/PresentationProvider';
 import type { AnimationQueue } from '../../game/presentation/queue/AnimationQueue';
 import { PresentationStore } from '../../game/presentation/store/presentationStore';
-import { makeRoom } from '../../game/presentation/testFixtures';
+import { makeRoom, makeTeamRoom } from '../../game/presentation/testFixtures';
 import type { SocketFunctions, StateContextValue } from '../../types';
 import { getOtherPlayers, getWinnerSummary } from './WinnerBanner';
 import WinnerBanner from './WinnerBanner';
@@ -34,6 +34,7 @@ function winnerState(mutate?: (state: PublicGameState) => void): PublicGameState
     accountBalance: 1_200,
   };
   room.gameState.boardState.winner = {
+    teamId: 'TEAM_1',
     playerId: 'player-a',
     name: 'Ada',
     color: 'red',
@@ -52,7 +53,7 @@ function winnerState(mutate?: (state: PublicGameState) => void): PublicGameState
 function withBankruptBinh(state: PublicGameState) {
   delete state.players['player-b'];
   state.boardState.finishedPlayers = {
-    'player-b': { name: 'Bình', color: 'blue', characterId: 'panda', reason: 'BANKRUPT', accountBalance: 0 },
+    'player-b': { teamId: 'TEAM_2', name: 'Bình', color: 'blue', characterId: 'panda', reason: 'BANKRUPT', accountBalance: 0 },
   };
 }
 
@@ -175,9 +176,9 @@ describe('getOtherPlayers', () => {
   it('lists the finished and the still seated players except the winner, in seat order and without ranks', () => {
     const state = winnerState(draft => {
       draft.boardState.finishedPlayers = {
-        'player-c': { name: 'Chi', color: 'green', characterId: 'cat', reason: 'LEFT', accountBalance: 850 },
-        'player-a': { name: 'Ada', color: 'red', characterId: 'dog' },
-        'player-d': { name: 'Dũng', color: 'yellow', characterId: null },
+        'player-c': { teamId: 'TEAM_2', name: 'Chi', color: 'green', characterId: 'cat', reason: 'LEFT', accountBalance: 850 },
+        'player-a': { teamId: 'TEAM_2', name: 'Ada', color: 'red', characterId: 'dog' },
+        'player-d': { teamId: 'TEAM_1', name: 'Dũng', color: 'yellow', characterId: null },
       };
     });
     const seats = (ids: Array<[string, number]>) => ids.map(([playerId, joinOrder]) => (
@@ -195,7 +196,7 @@ describe('getOtherPlayers', () => {
   it('keeps the record order for players without a seat entry and does not list a player twice', () => {
     const state = winnerState(draft => {
       draft.boardState.finishedPlayers = {
-        'player-b': { name: 'Bình', color: 'blue', characterId: 'panda', reason: 'BANKRUPT', accountBalance: 0 },
+        'player-b': { teamId: 'TEAM_2', name: 'Bình', color: 'blue', characterId: 'panda', reason: 'BANKRUPT', accountBalance: 0 },
       };
     });
 
@@ -237,6 +238,7 @@ describe('WinnerBanner', () => {
     const state = winnerState(draft => {
       withBankruptBinh(draft);
       draft.boardState.finishedPlayers['player-c'] = {
+        teamId: 'TEAM_1',
         name: 'Chi', color: 'green', characterId: 'cat', reason: 'LEFT', accountBalance: 850,
       };
     });
@@ -470,5 +472,110 @@ describe('WinnerBanner', () => {
       expect(screen.getByRole('alertdialog')).toBeTruthy();
       expect(confettiPieces()).toHaveLength(0);
     });
+  });
+});
+
+describe('WinnerBanner team victory', () => {
+  /** An and Chi (Team 1, "Rồng") win; Bình and Dũng (Team 2, "Phượng") are the opponents. */
+  function teamWin(mutate?: (state: PublicGameState) => void) {
+    const room = makeTeamRoom();
+    room.status = 'FINISHED';
+    room.gameState.boardState.teams[0].name = 'Rồng';
+    room.gameState.boardState.teams[1].name = 'Phượng';
+    room.gameState.players['player-a'].accountBalance = 800;
+    room.gameState.players['player-c'].accountBalance = 450;
+    room.gameState.boardState.winningTeamId = 'TEAM_1';
+    room.gameState.boardState.winner = {
+      playerId: 'player-a', name: 'An', color: 'red', characterId: 'dog', teamId: 'TEAM_1', accountBalance: 800,
+    };
+    room.gameState.boardState.ownedProps = {
+      1: { id: 'player-a', color: 'red', houses: 2 },
+      3: { id: 'player-c', color: 'red', houses: 5 },
+    };
+    mutate?.(room.gameState);
+    return room;
+  }
+
+  it('announces the team, both members with their mascots and the team totals', () => {
+    const room = teamWin();
+    renderWinner({ state: room.gameState, roomPlayers: room.players });
+
+    expect(screen.getByRole('heading', { name: /CHIẾN THẮNG!/u })).toBeTruthy();
+    expect(screen.getByText('Đội chiến thắng')).toBeTruthy();
+    expect(document.querySelector('.victory__team-name')?.textContent).toContain('Rồng');
+    const members = within(screen.getByRole('list', { name: 'Thành viên đội Rồng' }));
+    expect(members.getByText('An')).toBeTruthy();
+    expect(members.getByText('Chi')).toBeTruthy();
+    expect(members.getByAltText('Mascot Chó')).toBeTruthy();
+    expect(members.getByAltText('Mascot Mèo')).toBeTruthy();
+    const tile = (label: string) => within(screen.getByText(label).closest('div') as HTMLElement);
+    expect(tile('Tổng tiền mặt của đội').getByText('1.250.000 ₫')).toBeTruthy();
+    expect(tile('Tài sản của đội').getByText('2')).toBeTruthy();
+    expect(tile('Nhà').getByText('2')).toBeTruthy();
+    expect(tile('Khách sạn').getByText('1')).toBeTruthy();
+    expect(tile('Khu màu đủ bộ').getByText('1')).toBeTruthy();
+    // The Solo "winner" wording is not used for a team.
+    expect(screen.queryByText('Người chiến thắng')).toBeNull();
+  });
+
+  it('describes the dialog by the team so a screen reader hears it first', () => {
+    const room = teamWin();
+    renderWinner({ state: room.gameState, roomPlayers: room.players, canPlayAgain: true });
+    const dialog = screen.getByRole('alertdialog', { name: 'Ván chơi kết thúc' });
+    const description = (dialog.getAttribute('aria-describedby') ?? '')
+      .split(' ')
+      .map(id => document.getElementById(id)?.textContent ?? '')
+      .join(' ');
+    expect(description).toContain('CHIẾN THẮNG!');
+    expect(description).toContain('Rồng');
+    expect(description).toContain('An');
+    expect(description).toContain('Chi');
+  });
+
+  it('lists a teammate who was out before the end as part of the winning team', () => {
+    const room = teamWin((state) => {
+      delete state.players['player-c'];
+      state.boardState.finishedPlayers['player-c'] = {
+        teamId: 'TEAM_1', name: 'Chi', color: 'red', characterId: 'cat', reason: 'BANKRUPT', accountBalance: 0,
+      };
+      state.boardState.ownedProps = { 1: { id: 'player-a', color: 'red', houses: 2 } };
+    });
+    renderWinner({ state: room.gameState, roomPlayers: room.players });
+
+    const members = within(screen.getByRole('list', { name: 'Thành viên đội Rồng' }));
+    expect(members.getByText('Chi')).toBeTruthy();
+    expect(members.getByText('Đã phá sản trước đó')).toBeTruthy();
+  });
+
+  it('keeps only the opposing team in the "other players" list', () => {
+    const room = teamWin((state) => {
+      delete state.players['player-d'];
+      state.boardState.finishedPlayers['player-d'] = {
+        teamId: 'TEAM_2', name: 'Dũng', color: 'blue', characterId: 'duck', reason: 'BANKRUPT', accountBalance: 0,
+      };
+    });
+    renderWinner({ state: room.gameState, roomPlayers: room.players });
+
+    const others = within(screen.getByRole('heading', { name: 'Đội đối thủ' }).closest('section') as HTMLElement);
+    expect(others.getByText('Bình')).toBeTruthy();
+    expect(others.getByText('Dũng')).toBeTruthy();
+    expect(others.getByText('Phá sản')).toBeTruthy();
+    expect(others.queryByText('An')).toBeNull();
+    expect(others.queryByText('Chi')).toBeNull();
+  });
+
+  it('still lets the host play again from a team victory', async () => {
+    const playAgain = acceptedAgain();
+    const room = teamWin();
+    renderWinner({ state: room.gameState, roomPlayers: room.players, canPlayAgain: true, playAgain });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chơi lại' }));
+    await waitFor(() => expect(playAgain).toHaveBeenCalledTimes(1));
+  });
+
+  it('has no team podium in a Solo game', () => {
+    renderWinner();
+    expect(screen.queryByText('Đội chiến thắng')).toBeNull();
+    expect(screen.queryByText(/CHIẾN THẮNG!/u)).toBeNull();
   });
 });

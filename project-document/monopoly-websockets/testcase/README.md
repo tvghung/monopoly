@@ -25,6 +25,7 @@ checklist item phải map tới assertion executable hoặc giữ nhãn missing/
 | Turn/cards/jail/payment | [turn](./turn-movement-buy-and-jail.md) | GameCore + Socket + PG |
 | Bankruptcy/forfeit/winner | [bankruptcy](./game-status-bankruptcy-and-winner.md) | GameCore + Socket + PG |
 | Rent/build/transfer | [property](./property-economy.md) | GameCore + Socket |
+| 2v2 Teamplay (đội, thuê, hồi sinh, Emergency Rescue, thắng đội) | [team play](./team-play.md) | GameCore + Socket + PG + client |
 | `TradeBundle`/private offer | [trading](./trading-market-and-private-offers.md) | schema + Socket + PG |
 | Property/building/forced sale | [payment-shortfall](./payment-shortfall-and-forced-sale.md) | GameCore + Socket + scheduler + PG |
 | Protocol/snapshot/board/decks | [shared](./shared-contracts-and-board-data.md) | schema + room + data audit |

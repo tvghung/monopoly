@@ -5,6 +5,13 @@ import Modal from '../../../design-system/components/Modal/Modal';
 import PlayerAvatar from '../../../design-system/components/PlayerAvatar/PlayerAvatar';
 import { ActionIcon } from '../../../design-system/icons/ActionIcon';
 import stateContext from '../../../internal';
+import TeamChip from '../../team/TeamChip';
+import {
+  getReviveStatus,
+  PERMANENT_ELIMINATION_LABEL,
+  REVIVABLE_LABEL,
+  type ReviveStatus,
+} from '../../team/teamView';
 import PortfolioView, { PortfolioBalance } from './PortfolioView';
 import { useRetainedValue } from './useRetainedValue';
 
@@ -15,6 +22,8 @@ interface PortfolioPlayer {
   status: 'playing' | 'bankrupt' | 'left';
   /** The authoritative balance of a player still in the game; finished players show a status instead. */
   balance: number | null;
+  /** 2v2: a bankrupt player's revive state, else `null`. */
+  revive: ReviveStatus | null;
 }
 
 /** Who a portfolio belongs to: a seated player, or one who went bankrupt or left (their deeds are gone, their name stays). */
@@ -37,12 +46,23 @@ function resolvePortfolioPlayer(
     characterId: source.characterId ?? null,
     status,
     balance: live?.accountBalance ?? null,
+    revive: getReviveStatus(state, playerId),
   };
 }
 
 /** The balance of a player in the game; a finished player shows why they are out instead. */
 function PortfolioStanding({ player }: { player: PortfolioPlayer }) {
-  if (player.status === 'bankrupt') return <Chip tone="loss" icon={<ActionIcon name="bankrupt" />}>Phá sản</Chip>;
+  if (player.status === 'bankrupt') {
+    return (
+      <>
+        <Chip tone="loss" icon={<ActionIcon name="bankrupt" />}>Phá sản</Chip>
+        {player.revive?.kind === 'REVIVABLE'
+          ? <Chip tone="info" icon={<ActionIcon name="revive" />}>{`${REVIVABLE_LABEL} · ${player.revive.turnsLabel}`}</Chip>
+          : null}
+        {player.revive?.kind === 'PERMANENT' ? <Chip tone="neutral">{PERMANENT_ELIMINATION_LABEL}</Chip> : null}
+      </>
+    );
+  }
   if (player.status === 'left') return <Chip tone="neutral" icon={<ActionIcon name="leave" />}>Đã rời</Chip>;
   return player.balance === null ? null : <PortfolioBalance amount={player.balance} />;
 }
@@ -79,6 +99,7 @@ export default function PlayerPortfolioModal({ playerId, onClose, onSelectTile }
         lead={(
           <>
             <PlayerAvatar characterId={player.characterId} colorId={player.color} size={48} />
+            {shownId ? <TeamChip playerId={shownId} /> : null}
             <PortfolioStanding player={player} />
           </>
         )}

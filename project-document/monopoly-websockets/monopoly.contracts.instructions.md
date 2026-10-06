@@ -55,7 +55,7 @@ recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
 
 ## Standard Mode contracts và game data
 
-- `SOCKET_PROTOCOL_VERSION = 9`; client/server cũ bị từ chối bằng
+- `SOCKET_PROTOCOL_VERSION = 10`; client/server cũ bị từ chối bằng
   `UPGRADE_REQUIRED`.
 - Appearance contract dùng stable `CharacterId`/`PlayerColorId`; `set appearance`
   is strict, lobby-only, allows duplicate characters and enforces unique active
@@ -89,8 +89,11 @@ recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
   migration initializes an empty activity tail rather than inventing historical
   events from legacy HTML logs.
 - Protocol V9 adds `TAX` to money/debt unions and `TILE_LANDED` to activity.
-  Snapshot schema stays V8 because older valid JSON remains accepted; no empty SQL
-  migration is created.
+  Snapshot schema stayed V8 for that change because older valid JSON remained accepted; no empty SQL
+  migration was created.
+- Protocol V10 adds 2v2 Teamplay and snapshot V9 (`010_teamplay_v9.sql`): `GameMode`, `TeamId`, team settings, `TeamPlayState`,
+  revive windows, `EmergencyRescueOffer`, `teamId` on all player records and the team commands. Team rules shared by both sides live
+  in `teams.ts`/`rules.ts`; see [GameCore/team-play.instruction.md](./GameCore/team-play.instruction.md).
 
 Khi đổi static data/contract, đọc
 [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md).

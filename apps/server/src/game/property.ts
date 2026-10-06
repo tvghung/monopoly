@@ -1,4 +1,6 @@
 import {
+  colorSetRentPercent,
+  scaleRentPercent,
   tileState,
   type GameState,
   type PlayerId,
@@ -11,15 +13,15 @@ export const isPropertyLockedByLandingDecision = (state: GameState, tileID: numb
   state.turnInfo.pendingDevelopmentDecision?.tileID === tileID
 );
 
-// Rent owed for landing on an owned street. Ownership of a colour group never
-// changes the canonical base/tier rent.
+// Rent owed for landing on an owned street: the base rent or the tier of its development level, scaled once the owner (Solo)
+// or the owner's team (2v2) holds the whole colour group. The scaling never decides whether building is allowed.
 export const streetRent = (state: GameState, tileIndex: number): number => {
   const owned = state.boardState.ownedProps[tileIndex];
   const tile = tileState[tileIndex];
   if (!owned) return 0;
   const base = tile.rent ?? 0;
-  if (owned.houses > 0 && tile.rentTiers) return tile.rentTiers[owned.houses - 1];
-  return base;
+  const normal = owned.houses > 0 && tile.rentTiers ? tile.rentTiers[owned.houses - 1] : base;
+  return scaleRentPercent(normal, colorSetRentPercent(state, owned.id, tileIndex));
 };
 
 // Sell one development level back to the Bank for half its build cost.

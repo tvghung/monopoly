@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import stateContext from '../../../internal';
 import type { SocketFunctions, StateContextValue } from '../../../types';
 import OwnedPropertiesControl from './OwnedPropertiesControl';
+import { soloTeamBoardFields } from '../../presentation/testFixtures';
 
 const playerId = 'player-a';
 
@@ -16,6 +17,7 @@ const socketFunctions = {
 function makeState(balance: number, includePlayer = true): PublicGameState {
   return {
     boardState: {
+      ...soloTeamBoardFields(),
       gameStarted: true,
       players: includePlayer ? [playerId, 'player-b', 'player-c', 'player-d'] : ['player-b'],
       finishedPlayers: {},
@@ -39,10 +41,12 @@ function makeState(balance: number, includePlayer = true): PublicGameState {
     players: includePlayer
       ? {
         [playerId]: {
+          teamId: 'TEAM_1',
           name: 'An', currentTile: 0, color: 'red', characterId: 'dog', accountBalance: balance,
           isJail: false, jailOpponentRoundsElapsed: 0, getOutOfJailCardCount: 0,
         },
         'player-b': {
+          teamId: 'TEAM_2',
           name: 'Bình', currentTile: 0, color: 'blue', characterId: 'panda', accountBalance: 900,
           isJail: false, jailOpponentRoundsElapsed: 0, getOutOfJailCardCount: 0,
         },

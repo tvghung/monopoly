@@ -8,6 +8,8 @@ import {
   acceptForcedSaleProposal,
   bankruptActiveDebtor,
   createForcedSaleProposal,
+  createDefaultTeamSettings,
+  createEmptyTeamPlayState,
   createPaymentQueue,
   executeVoluntaryTrade,
   forcedSaleGrossPrice,
@@ -27,6 +29,7 @@ const makePlayer = (over: Partial<Player> = {}): Player => ({
   name: 'Player',
   currentTile: 0,
   color: 'red',
+  teamId: 'TEAM_1',
   accountBalance: 1500,
   isJail: false,
   jailOpponentRoundsElapsed: 0,
@@ -38,6 +41,10 @@ const makePlayer = (over: Partial<Player> = {}): Player => ({
 const makeState = (): GameState => ({
   boardState: {
     gameStarted: true,
+    gameMode: 'SOLO',
+    teams: createDefaultTeamSettings(),
+    teamPlay: createEmptyTeamPlayState(),
+    winningTeamId: null,
     players: [],
     finishedPlayers: {},
     currentPlayer: { id: '', hasMoved: false },
@@ -84,13 +91,14 @@ const own = (
 };
 
 describe('simplified v4 rules', () => {
-  it('uses base street rent even when the owner has the full colour group', () => {
+  it('scales street rent to 1.5x once one player owns the full colour group, and not before', () => {
     const state = makeState();
     addPlayer(state, 'p1');
     own(state, 1, 'p1');
-    own(state, 3, 'p1');
-
     expect(streetRent(state, 1)).toBe(tileState[1].rent);
+
+    own(state, 3, 'p1');
+    expect(streetRent(state, 1)).toBe(Math.floor((tileState[1].rent ?? 0) * 3 / 2));
   });
 
   it('derives the authoritative forced-sale gross value', () => {

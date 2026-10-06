@@ -44,6 +44,7 @@ function debtRoom({
       paymentOperationId: operationId,
       claimId: '00000000-0000-4000-8000-000000000002',
       sellableProperties: [],
+      rescue: null,
     }
     : null;
   return room;

@@ -2,6 +2,7 @@ import type { PublicGameState } from '@monopoly/shared';
 import { describe, expect, it } from 'vitest';
 import type { PresentationState } from '../../presentation/store/types';
 import { canRollForState, shouldShowRollButton } from './rollControlLogic';
+import { soloTeamBoardFields } from '../../presentation/testFixtures';
 
 const presentation = (overrides: Partial<PresentationState> = {}): PresentationState => ({
   displayLogs: [],
@@ -34,6 +35,7 @@ const presentation = (overrides: Partial<PresentationState> = {}): PresentationS
 
 const state = (overrides: Partial<PublicGameState> = {}): PublicGameState => ({
   boardState: {
+    ...soloTeamBoardFields(),
     gameStarted: true,
     players: ['me'],
     finishedPlayers: {},
@@ -51,6 +53,7 @@ const state = (overrides: Partial<PublicGameState> = {}): PublicGameState => ({
   },
   players: {
     me: {
+      teamId: 'TEAM_1',
       name: 'An',
       currentTile: 0,
       color: 'red',
@@ -90,7 +93,7 @@ describe('roll control gating', () => {
 
   it('mirrors public blocking state and local pending lock', () => {
     expect(canRollForState(state({ turnInfo: { pendingLandingDecision: { kind: 'PURCHASE', operationId: 'op', playerId: 'me', tileID: 1 } } }), presentation(), input)).toBe(false);
-    expect(canRollForState(state({ boardState: { ...state().boardState, paymentShortfall: { debtorPlayerId: 'me', creditor: 'BANK', creditorPlayerId: undefined, amount: 1, remainingAmount: 1, actionDeadlineAt: new Date().toISOString(), source: { kind: 'OTHER', description: 'test' }, remainingClaimCount: 1, sellableProperties: [] } } }), presentation(), input)).toBe(false);
+    expect(canRollForState(state({ boardState: { ...state().boardState, paymentShortfall: { rescue: null, debtorPlayerId: 'me', creditor: 'BANK', creditorPlayerId: undefined, amount: 1, remainingAmount: 1, actionDeadlineAt: new Date().toISOString(), source: { kind: 'OTHER', description: 'test' }, remainingClaimCount: 1, sellableProperties: [] } } }), presentation(), input)).toBe(false);
     expect(canRollForState(state(), presentation(), { ...input, pendingRequest: true })).toBe(false);
   });
 });

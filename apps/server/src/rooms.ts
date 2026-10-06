@@ -7,20 +7,29 @@ import type {
   Player,
   RoomMembershipStatus,
   RoomStatus,
+  TeamAwareState,
+  TeamId,
 } from '@monopoly/shared';
 import {
   allGameCards,
+  areTeammates,
   createCanonicalDecks,
+  getOpposingTeamId,
   LEGACY_CHARACTER_ID_MAP,
   persistedGameStateSchema,
+  planEmergencyRescue,
   PLAYER_COLOR_IDS,
+  teamActivePlayerIds,
+  TEAM_2V2_PLAYER_COUNT,
+  TEAM_IDS,
   tileState,
 } from '@monopoly/shared';
 import { z } from 'zod';
 import { createEmptyActivityFeed } from './game/activity';
 import { createEmptyGameplayEventStream } from './game/semanticEvents';
+import { createDefaultTeamSettings, createEmptyTeamPlayState } from './game/teamState';
 
-export const ROOM_SNAPSHOT_SCHEMA_VERSION = 8;
+export const ROOM_SNAPSHOT_SCHEMA_VERSION = 9;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 4;
 
@@ -256,6 +265,71 @@ export const upgradeRoomSnapshotV7ToV8 = (
   };
 };
 
+/**
+ * V9 adds the 2v2 team state. Every existing room becomes a Solo game with default team settings: players and finished players
+ * receive a team by alternating through the room's members in join order (so a lobby that is upgraded is balanced and a
+ * later switch to 2v2 starts from a sensible split), no match-level team state, and payment queues gain their (empty) rescue
+ * slot. Nothing about an existing Solo game changes.
+ */
+export const upgradeRoomSnapshotV8ToV9 = (
+  input: unknown,
+): PersistedRoomSnapshotEnvelope => {
+  const envelope = structuredClone(input) as {
+    snapshotSchemaVersion: number;
+    gameSnapshot: {
+      members: Record<PlayerId, { joinOrder: number }>;
+      gameState: {
+        players: Record<PlayerId, Record<string, unknown>>;
+        boardState: {
+          finishedPlayers: Record<PlayerId, Record<string, unknown>>;
+          winner: Record<string, unknown> | null;
+          paymentQueue: Record<string, unknown> | null;
+          [key: string]: unknown;
+        };
+        [key: string]: unknown;
+      };
+      [key: string]: unknown;
+    };
+    hostPlayerId?: PlayerId | null;
+    status?: RoomStatus;
+  };
+  if (envelope.snapshotSchemaVersion !== 8) {
+    throw new Error('Only V8 room snapshots can be upgraded to V9');
+  }
+
+  const { members, gameState } = envelope.gameSnapshot;
+  const teamByPlayer = new Map<PlayerId, TeamId>();
+  Object.entries(members)
+    .sort(([leftId, left], [rightId, right]) => left.joinOrder - right.joinOrder || leftId.localeCompare(rightId))
+    .forEach(([playerId], index) => teamByPlayer.set(playerId, TEAM_IDS[index % TEAM_IDS.length]));
+  const teamOf = (playerId: PlayerId): TeamId => teamByPlayer.get(playerId) ?? TEAM_IDS[0];
+
+  Object.entries(gameState.players).forEach(([playerId, player]) => {
+    player.teamId = teamOf(playerId);
+  });
+  Object.entries(gameState.boardState.finishedPlayers).forEach(([playerId, player]) => {
+    player.teamId = teamOf(playerId);
+  });
+  if (gameState.boardState.winner) {
+    gameState.boardState.winner.teamId = teamOf(String(gameState.boardState.winner.playerId));
+  }
+  if (gameState.boardState.paymentQueue) {
+    gameState.boardState.paymentQueue.rescue = null;
+  }
+  Object.assign(gameState.boardState, {
+    gameMode: 'SOLO',
+    teams: createDefaultTeamSettings(),
+    teamPlay: createEmptyTeamPlayState(),
+    winningTeamId: null,
+  });
+
+  return {
+    ...envelope,
+    snapshotSchemaVersion: 9,
+    gameSnapshot: envelope.gameSnapshot as unknown as RoomSnapshot,
+  };
+};
+
 export class UnsupportedRoomSnapshotVersionError extends Error {
   constructor(readonly snapshotSchemaVersion: number) {
     super(
@@ -278,6 +352,10 @@ export const freshState = (): GameState => ({
   boardState: {
     gameStarted: false,
     gameStartedAt: null,
+    gameMode: 'SOLO',
+    teams: createDefaultTeamSettings(),
+    teamPlay: createEmptyTeamPlayState(),
+    winningTeamId: null,
     players: [],
     finishedPlayers: {},
     currentPlayer: { id: '', hasMoved: false },
@@ -307,11 +385,13 @@ export const createFreshPlayer = (
   name: string,
   color: PlayerColorId,
   characterId: CharacterId | null = null,
+  teamId: TeamId = TEAM_IDS[0],
 ): Player => ({
   name,
   currentTile: 0,
   color,
   characterId,
+  teamId,
   accountBalance: 1500,
   isJail: false,
   jailOpponentRoundsElapsed: 0,
@@ -365,6 +445,19 @@ export const activePlayerIds = (snapshot: RoomSnapshot): PlayerId[] => (
     .map(([playerId]) => playerId)
 );
 
+/**
+ * The team a joining player is placed on: the one with fewer active members, Team 1 on a tie. Four joins therefore give
+ * Team 1, Team 2, Team 1, Team 2 whatever the game mode, so a later switch to 2v2 needs no re-balancing.
+ */
+export const chooseJoinTeam = (snapshot: RoomSnapshot): TeamId => {
+  const counts: Record<TeamId, number> = { TEAM_1: 0, TEAM_2: 0 };
+  for (const playerId of activePlayerIds(snapshot)) {
+    const teamId = snapshot.gameState.players[playerId]?.teamId;
+    if (teamId) counts[teamId] += 1;
+  }
+  return counts.TEAM_2 < counts.TEAM_1 ? 'TEAM_2' : 'TEAM_1';
+};
+
 export const nextAvailableColor = (snapshot: RoomSnapshot): PlayerColorId | null => {
   const used = new Set(
     activePlayerIds(snapshot)
@@ -385,6 +478,13 @@ export const syncMembershipWithGameState = (snapshot: RoomSnapshot): void => {
         ? 'LEFT'
         : 'FINISHED';
       member.ready = false;
+    } else if (
+      // A 2v2 revive puts a bankrupt member back into the game; nothing else returns a finished member.
+      member.membershipStatus === 'FINISHED'
+      && snapshot.gameState.players[playerId]
+      && !snapshot.gameState.boardState.finishedPlayers[playerId]
+    ) {
+      member.membershipStatus = 'ACTIVE';
     }
   }
 };
@@ -404,6 +504,142 @@ export const calculateNextActionAt = (snapshot: RoomSnapshot): Date | null => {
 
   if (deadlines.length === 0) return null;
   return new Date(Math.min(...deadlines.map((deadline) => deadline.getTime())));
+};
+
+/**
+ * 2v2 consistency of a room snapshot: team colours and membership, the alternating slot order, revive windows, the team winner
+ * and an open rescue offer. A Solo snapshot must carry no match-level team state at all.
+ */
+const assertTeamState = (snapshot: RoomSnapshot): void => {
+  const state = snapshot.gameState;
+  const board = state.boardState;
+  const { teamPlay } = board;
+  const view = state as TeamAwareState;
+
+  if (board.gameMode === 'SOLO') {
+    if (
+      teamPlay.slotOrder.length > 0
+      || teamPlay.revivedPlayerIds.length > 0
+      || teamPlay.reviveWindows.length > 0
+      || board.winningTeamId !== null
+      || board.paymentQueue?.rescue
+    ) {
+      throw new Error('Room snapshot contains 2v2 team state in a Solo game');
+    }
+    return;
+  }
+
+  for (const [playerId, player] of Object.entries(state.players)) {
+    if (player.color !== board.teams[player.teamId].color) {
+      throw new Error(`Room snapshot player ${playerId} does not use their team colour`);
+    }
+  }
+  for (const [playerId, player] of Object.entries(board.finishedPlayers)) {
+    if (player.color !== board.teams[player.teamId].color) {
+      throw new Error(`Room snapshot finished player ${playerId} does not use their team colour`);
+    }
+  }
+
+  if (!board.gameStarted) {
+    if (
+      teamPlay.slotOrder.length > 0
+      || teamPlay.revivedPlayerIds.length > 0
+      || teamPlay.reviveWindows.length > 0
+      || board.winningTeamId !== null
+    ) {
+      throw new Error('Room snapshot contains match-level team state in a 2v2 lobby');
+    }
+    return;
+  }
+
+  const known = new Set([...Object.keys(state.players), ...Object.keys(board.finishedPlayers)]);
+  const slots = teamPlay.slotOrder;
+  const teamOf = (playerId: PlayerId): TeamId => (
+    state.players[playerId]?.teamId ?? board.finishedPlayers[playerId]?.teamId ?? TEAM_IDS[0]
+  );
+  if (
+    slots.length !== TEAM_2V2_PLAYER_COUNT
+    || known.size !== TEAM_2V2_PLAYER_COUNT
+    || slots.some(playerId => !known.has(playerId))
+  ) {
+    throw new Error('Room snapshot 2v2 turn slots do not match the players of the game');
+  }
+  const slotTeams = slots.map(teamOf);
+  if (
+    slotTeams[0] === slotTeams[1]
+    || slotTeams[0] !== slotTeams[2]
+    || slotTeams[1] !== slotTeams[3]
+  ) {
+    throw new Error('Room snapshot 2v2 turn slots do not alternate between the teams');
+  }
+
+  // The live turn order is the slot order restricted to the players still in the game (same cyclic order).
+  const alive = slots.filter(playerId => state.players[playerId]);
+  const order = board.players;
+  const startIndex = order.length > 0 ? alive.indexOf(order[0]) : 0;
+  if (
+    order.length !== alive.length
+    || (order.length > 0 && (
+      startIndex < 0
+      || alive.some((_, index) => alive[(startIndex + index) % alive.length] !== order[index])
+    ))
+  ) {
+    throw new Error('Room snapshot turn order does not follow the 2v2 slot order');
+  }
+
+  if (teamPlay.revivedPlayerIds.some(playerId => !slots.includes(playerId))) {
+    throw new Error('Room snapshot revived player is not part of the game');
+  }
+  for (const window of teamPlay.reviveWindows) {
+    const finished = board.finishedPlayers[window.playerId];
+    const survivors = teamActivePlayerIds(view, window.teamId);
+    if (
+      board.winner
+      || !finished
+      || finished.reason !== 'BANKRUPT'
+      || finished.teamId !== window.teamId
+      || snapshot.members[window.playerId]?.membershipStatus !== 'FINISHED'
+      || survivors.length === 0
+      || window.openedAtTurnNumber > board.turnNumber
+    ) {
+      throw new Error('Room snapshot revive window is inconsistent');
+    }
+  }
+
+  if ((board.winningTeamId !== null) !== (board.winner !== null)) {
+    throw new Error('Room snapshot team winner and winner disagree');
+  }
+  if (board.winner && board.winningTeamId !== null) {
+    if (
+      teamOf(board.winner.playerId) !== board.winningTeamId
+      || teamActivePlayerIds(view, getOpposingTeamId(board.winningTeamId)).length > 0
+      || teamActivePlayerIds(view, board.winningTeamId).length === 0
+    ) {
+      throw new Error('Room snapshot team winner is inconsistent');
+    }
+  }
+
+  const rescue = board.paymentQueue?.rescue;
+  if (rescue && board.paymentQueue) {
+    const debtor = state.players[rescue.debtorPlayerId];
+    const rescuer = state.players[rescue.rescuerPlayerId];
+    const plan = planEmergencyRescue(
+      board.paymentQueue.orderedClaims,
+      board.paymentQueue.activeClaimIndex,
+      rescue.debtorPlayerId,
+      rescue.rescuerPlayerId,
+    );
+    if (
+      !debtor || !rescuer
+      || !areTeammates(view, rescue.debtorPlayerId, rescue.rescuerPlayerId)
+      || Object.values(board.ownedProps).some(property => property.id === rescue.debtorPlayerId)
+      || plan.payable <= 0
+      || plan.payable !== rescue.amount
+      || rescuer.accountBalance < plan.payable
+    ) {
+      throw new Error('Room snapshot emergency rescue offer is inconsistent');
+    }
+  }
 };
 
 export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
@@ -436,6 +672,11 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
       claim.creditorPlayerId,
     ]) ?? []),
     state.boardState.paymentQueue?.continuation.playerId,
+    state.boardState.paymentQueue?.rescue?.debtorPlayerId,
+    state.boardState.paymentQueue?.rescue?.rescuerPlayerId,
+    ...state.boardState.teamPlay.slotOrder,
+    ...state.boardState.teamPlay.revivedPlayerIds,
+    ...state.boardState.teamPlay.reviveWindows.map((window) => window.playerId),
   ];
 
   for (const reference of references) {
@@ -538,8 +779,12 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
   if (development) {
     const property = state.boardState.ownedProps[development.tileID];
     const tile = tileState[development.tileID];
+    // The owner develops their own street; in 2v2 the lander may also fund a teammate's street (Team Investment).
+    const mayDevelop = property !== undefined
+      && (property.id === development.playerId
+        || areTeammates(state, development.playerId, property.id));
     if (
-      !property || property.id !== development.playerId || tile?.tileType !== 'normal'
+      !property || !mayDevelop || tile?.tileType !== 'normal'
       || property.houses !== development.levelAtLanding
       || (development.kind === 'HOUSES' && development.levelAtLanding >= 4)
       || (development.kind === 'HOTEL' && development.levelAtLanding !== 4)
@@ -639,9 +884,11 @@ export const assertRoomSnapshot = (snapshot: RoomSnapshot): void => {
   ) {
     throw new Error('Room snapshot card ownership/deck state is inconsistent');
   }
+
+  assertTeamState(snapshot);
 };
 
-/** Older rows are upgraded transactionally; current V8 rows normalize legacy mascot ids at the boundary. */
+/** Older rows are upgraded transactionally; current V9 rows normalize legacy mascot ids at the boundary. */
 export const assertSupportedRoomSnapshot = (
   room: PersistedRoomSnapshotEnvelope,
 ): void => {

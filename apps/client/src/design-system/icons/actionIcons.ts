@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  ArrowLeftRight,
   ArrowRightLeft,
   Ban,
   Banknote,
@@ -21,10 +22,12 @@ import {
   Flag,
   Gauge,
   Handshake,
+  HeartPulse,
   House,
   HousePlus,
   Info,
   Landmark,
+  LifeBuoy,
   Link,
   LogIn,
   Lock,
@@ -77,6 +80,8 @@ export const ACTION_ICON_NAMES = [
   'fullscreen', 'volume', 'music', 'speed',
   // App updates.
   'download', 'restart',
+  // 2v2 teams: swap two players between teams, revive a bankrupt teammate, rescue a teammate in debt.
+  'swap', 'revive', 'rescue',
 ] as const;
 
 export type ActionIconName = typeof ACTION_ICON_NAMES[number];
@@ -143,6 +148,9 @@ export const ACTION_ICONS = {
   speed: Gauge,
   download: Download,
   restart: RotateCw,
+  swap: ArrowLeftRight,
+  revive: HeartPulse,
+  rescue: LifeBuoy,
 } satisfies Record<ActionIconName, LucideIcon>;
 
 export function isActionIconName(value: string): value is ActionIconName {

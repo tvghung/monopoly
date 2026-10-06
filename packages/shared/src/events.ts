@@ -13,6 +13,7 @@ import type {
   PrivatePlayerState,
   PrivateOffer,
   PublicRoomState,
+  RescueDecisionRequest,
   ResumeSessionRequest,
   ResumeSessionResult,
   RoomId,
@@ -20,8 +21,12 @@ import type {
   SessionId,
   SessionReplacedInfo,
   SetAppearanceRequest,
+  SetGameModeRequest,
   SetReadyRequest,
+  SetTeamColorRequest,
+  SetTeamNameRequest,
   SocketProtocolVersion,
+  SwapTeamRequest,
   ForcedSaleProposal,
 } from './types';
 
@@ -86,6 +91,12 @@ export interface ClientToServerEvents {
   ) => void;
   'set ready': (request: SetReadyRequest, acknowledge: AckCallback) => void;
   'set appearance': (request: SetAppearanceRequest, acknowledge: AckCallback) => void;
+  // Lobby only. The host picks Solo or 2v2 (every Ready is reset), anyone on a team may recolour their own team, the host
+  // renames teams and exchanges two players between teams. The server owns every one of these rules.
+  'set game mode': (request: SetGameModeRequest, acknowledge: AckCallback) => void;
+  'set team name': (request: SetTeamNameRequest, acknowledge: AckCallback) => void;
+  'set team color': (request: SetTeamColorRequest, acknowledge: AckCallback) => void;
+  'swap team': (request: SwapTeamRequest, acknowledge: AckCallback) => void;
   'leave room': (acknowledge: AckCallback<LeaveRoomResult>) => void;
   'start game': (acknowledge: AckCallback) => void;
   'play again': (acknowledge: AckCallback) => void;
@@ -123,6 +134,11 @@ export interface ClientToServerEvents {
   ) => void;
   'accept forced sale': (request: { proposalId: string }, acknowledge: AckCallback) => void;
   'reject forced sale': (request: { proposalId: string }, acknowledge: AckCallback) => void;
+  // 2v2 only. The surviving teammate revives the one revivable teammate during their own turn; nothing but the actor is sent.
+  'revive teammate': (acknowledge: AckCallback) => void;
+  // 2v2 only. The active teammate answers an open Emergency Rescue offer; the amount is read from the server's payment queue.
+  'accept rescue': (request: RescueDecisionRequest, acknowledge: AckCallback) => void;
+  'decline rescue': (request: RescueDecisionRequest, acknowledge: AckCallback) => void;
 }
 
 export type InterServerEvents = Record<string, never>;

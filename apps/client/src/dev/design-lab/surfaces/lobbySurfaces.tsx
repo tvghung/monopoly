@@ -1,20 +1,46 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import type { PublicTeam } from '@monopoly/shared';
 import Lobby, { type LobbyPlayerView } from '../../../components/Lobby';
 import type { HostRuntimeStatus, OwnTheBlockDesktopBridge } from '../../../runtime/types';
 import { noop, SurfaceProviders, type SurfaceFixture } from './surfaceKit';
 
 /** The room lobby (plan 04 T04.13). */
 const LOBBY_PLAYERS: readonly LobbyPlayerView[] = [
-  { id: 'player-a', name: 'An', color: 'red', characterId: 'dog', ready: true, connected: true },
-  { id: 'player-b', name: 'Bình', color: 'blue', characterId: 'panda', ready: true, connected: true },
-  { id: 'player-c', name: 'Chi', color: 'green', characterId: 'cat', ready: false, connected: true },
+  { id: 'player-a', name: 'An', color: 'red', characterId: 'dog', teamId: 'TEAM_1', ready: true, connected: true },
+  { id: 'player-b', name: 'Bình', color: 'blue', characterId: 'panda', teamId: 'TEAM_2', ready: true, connected: true },
+  { id: 'player-c', name: 'Chi', color: 'green', characterId: 'cat', teamId: 'TEAM_1', ready: false, connected: true },
 ];
 
 /** All four seats: a ready host, a ready guest, one still choosing and one whose connection dropped. */
 const FULL_PLAYERS: readonly LobbyPlayerView[] = [
   ...LOBBY_PLAYERS,
-  { id: 'player-d', name: 'Dũng', color: 'yellow', characterId: 'duck', ready: true, connected: false },
+  { id: 'player-d', name: 'Dũng', color: 'yellow', characterId: 'duck', teamId: 'TEAM_2', ready: true, connected: false },
 ];
+
+/** 2v2: An and Chi are "Rồng" (red), Bình and Dũng are "Phượng" (blue); everybody wears the team colour. */
+const TEAM_PLAYERS: readonly LobbyPlayerView[] = [
+  { id: 'player-a', name: 'An', color: 'red', characterId: 'dog', teamId: 'TEAM_1', ready: true, connected: true },
+  { id: 'player-b', name: 'Bình', color: 'blue', characterId: 'panda', teamId: 'TEAM_2', ready: true, connected: true },
+  { id: 'player-c', name: 'Chi', color: 'red', characterId: 'cat', teamId: 'TEAM_1', ready: false, connected: true },
+  { id: 'player-d', name: 'Dũng', color: 'blue', characterId: 'duck', teamId: 'TEAM_2', ready: true, connected: true },
+];
+
+const LAB_TEAMS: readonly PublicTeam[] = [
+  { teamId: 'TEAM_1', name: 'Rồng', color: 'red', memberPlayerIds: ['player-a', 'player-c'] },
+  { teamId: 'TEAM_2', name: 'Phượng', color: 'blue', memberPlayerIds: ['player-b', 'player-d'] },
+];
+
+/** The 2v2 lobby with every team command wired to a no-op, so the host controls are visible. */
+function teamLobby(playerId: string, players: readonly LobbyPlayerView[] = TEAM_PLAYERS) {
+  return lobby(playerId, players, {
+    gameMode: 'TEAM_2V2',
+    teams: [...LAB_TEAMS],
+    onSetGameMode: noop,
+    onSetTeamName: noop,
+    onSetTeamColor: noop,
+    onSwapTeams: noop,
+  });
+}
 
 function lobby(
   playerId: string,
@@ -127,6 +153,24 @@ export const LOBBY_SURFACES: readonly SurfaceFixture[] = [
       LOBBY_PLAYERS[0],
       { ...LOBBY_PLAYERS[1], color: 'red', characterId: 'dog' },
     ]),
+  },
+  {
+    id: 'lobby-2v2-host',
+    label: 'Lobby, 2v2 host (teams, mode, swap)',
+    group: 'Pre-game',
+    render: () => teamLobby('player-a'),
+  },
+  {
+    id: 'lobby-2v2-guest',
+    label: 'Lobby, 2v2 guest (own team colour, locked teammate mascot)',
+    group: 'Pre-game',
+    render: () => teamLobby('player-c'),
+  },
+  {
+    id: 'lobby-2v2-incomplete',
+    label: 'Lobby, 2v2 with three players (start blocked)',
+    group: 'Pre-game',
+    render: () => teamLobby('player-a', TEAM_PLAYERS.slice(0, 3)),
   },
   {
     id: 'lobby-lan',

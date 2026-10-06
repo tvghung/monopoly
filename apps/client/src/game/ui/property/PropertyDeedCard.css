@@ -151,3 +151,33 @@
   .deed__art { width: 3rem; height: 3rem; }
   .deed__body { padding: var(--space-2) var(--space-3); }
 }
+
+/* ---------- Teams (2v2) ---------- */
+
+/* The owner's team beside their name: two teammates share one ownership colour, so the name and the team chip tell them apart. */
+.deed__owner-team {
+  display: inline-block;
+  margin-inline-start: 0.4rem;
+  padding: 0 0.45rem;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--deed-team-color) 22%, var(--color-surface));
+  box-shadow: inset 0 0 0 1.5px var(--deed-team-color);
+  color: var(--color-text-primary);
+  font: var(--type-caption);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* A completed colour set: the bonus and the rent it makes right now. */
+.deed__bonus {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-turn-active) 18%, var(--color-surface));
+  font: var(--type-small);
+  font-weight: 700;
+}

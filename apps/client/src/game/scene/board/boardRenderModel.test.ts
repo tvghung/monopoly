@@ -2,7 +2,7 @@ import { PLAYER_COLOR_IDS, type PublicGameState } from '@monopoly/shared';
 import { describe, expect, it } from 'vitest';
 import { buildBoardRenderModel } from './boardRenderModel';
 import type { PresentationState } from '../../presentation/store/types';
-import { makeRoom } from '../../presentation/testFixtures';
+import { makeRoom, soloTeamBoardFields } from '../../presentation/testFixtures';
 import { PLAYER_STATION_WORLD_ANCHORS } from '../stations/stationWorld';
 import { PLAYER_COLOR_VISUALS } from '../../ui/playerVisualColors';
 
@@ -37,10 +37,11 @@ const presentation = (overrides: Partial<PresentationState> = {}): PresentationS
 
 const state = (overrides: Partial<PublicGameState> = {}): PublicGameState => ({
   boardState: {
+    ...soloTeamBoardFields(),
     gameStarted: true,
     players: ['active', 'finished', 'fallback'],
     finishedPlayers: {
-      finished: { name: 'Đã rời', color: 'purple', characterId: 'panda', reason: 'BANKRUPT' },
+      finished: { teamId: 'TEAM_2', name: 'Đã rời', color: 'purple', characterId: 'panda', reason: 'BANKRUPT' },
     },
     currentPlayer: { id: 'active', hasMoved: false },
     turnNumber: 2,
@@ -60,14 +61,17 @@ const state = (overrides: Partial<PublicGameState> = {}): PublicGameState => ({
   },
   players: {
     active: {
+      teamId: 'TEAM_1',
       name: 'An', currentTile: 4, color: 'red', characterId: 'dog', accountBalance: 900,
       isJail: false, jailOpponentRoundsElapsed: 0, getOutOfJailCardCount: 0,
     },
     finished: {
+      teamId: 'TEAM_2',
       name: 'Bình', currentTile: 8, color: 'blue', characterId: 'panda', accountBalance: 0,
       isJail: false, jailOpponentRoundsElapsed: 0, getOutOfJailCardCount: 0,
     },
     fallback: {
+      teamId: 'TEAM_1',
       name: 'Chi', currentTile: 9, color: 'green', characterId: 'cat', accountBalance: 600,
       isJail: false, jailOpponentRoundsElapsed: 0, getOutOfJailCardCount: 0,
     },

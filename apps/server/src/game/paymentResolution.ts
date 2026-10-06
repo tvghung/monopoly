@@ -11,9 +11,10 @@ import {
   settleAffordableClaims,
   type QueuePaymentOptions,
 } from './payment';
+import { openEmergencyRescue } from './rescue';
 import { checkWinner, removePlayerFromGame } from './turn';
 
-export type PaymentProgressStatus = 'COMPLETED' | 'WAITING_FOR_LIQUIDATION';
+export type PaymentProgressStatus = 'COMPLETED' | 'WAITING_FOR_LIQUIDATION' | 'WAITING_FOR_RESCUE';
 
 export interface PaymentProgressResult {
   status: PaymentProgressStatus;
@@ -89,11 +90,13 @@ const completed = (
 /**
  * The one authoritative payment progression loop. It applies available cash,
  * waits only when the active debtor still owns a sellable property, and
- * eliminates a debtor immediately once no sellable property remains.
+ * eliminates a debtor immediately once no sellable property remains - unless, in
+ * 2v2, the debtor's active teammate can be offered an Emergency Rescue for the
+ * whole remaining shortfall, in which case the queue waits for that decision.
  */
 export const progressPaymentQueue = (
   state: GameState,
-  options: Pick<QueuePaymentOptions, 'now' | 'paymentShortfallActionTimeoutMs'> = {},
+  options: Pick<QueuePaymentOptions, 'now' | 'paymentShortfallActionTimeoutMs' | 'emergencyRescueTimeoutMs'> = {},
 ): PaymentProgressResult => {
   let changed = false;
   while (state.boardState.paymentQueue) {
@@ -145,6 +148,19 @@ export const progressPaymentQueue = (
       );
       return {
         status: 'WAITING_FOR_LIQUIDATION',
+        continuation: null,
+        changed: true,
+        debtorPlayerId: active.debtorPlayerId,
+      };
+    }
+
+    // Nothing left to sell. A rescue that is already open for this debtor keeps the queue waiting; otherwise offer one if the
+    // active teammate can cover everything that is still owed.
+    const waitingForRescue = queue.rescue?.debtorPlayerId === active.debtorPlayerId
+      || openEmergencyRescue(state, active.debtorPlayerId, options);
+    if (waitingForRescue) {
+      return {
+        status: 'WAITING_FOR_RESCUE',
         continuation: null,
         changed: true,
         debtorPlayerId: active.debtorPlayerId,

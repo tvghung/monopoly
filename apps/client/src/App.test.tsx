@@ -74,6 +74,7 @@ import { ToastProvider } from './components/Toast';
 import { HowToPlayProvider } from './howToPlay/HowToPlayProvider';
 import { PLAYER_SESSION_STORAGE_KEY } from './playerSessionStorage';
 import type { OwnTheBlockDesktopBridge } from './runtime/types';
+import { soloTeamBoardFields } from './game/presentation/testFixtures';
 
 const RECONNECT_TOKEN = 'A'.repeat(43);
 const FORFEIT_TOKEN = 'B'.repeat(43);
@@ -88,6 +89,7 @@ const room: PublicRoomState = {
   minPlayers: 2,
   maxPlayers: 4,
   players: [{
+    teamId: 'TEAM_1',
     playerId: 'stable-player-id',
     name: 'Ada',
     color: 'red',
@@ -99,6 +101,7 @@ const room: PublicRoomState = {
   }],
   gameState: {
     boardState: {
+      ...soloTeamBoardFields(),
       gameStarted: false,
       players: ['stable-player-id'],
       finishedPlayers: {},
@@ -491,6 +494,7 @@ describe('App session admission', () => {
           gameStarted: true,
           players: ['stable-player-id'],
           winner: {
+            teamId: 'TEAM_1',
             playerId: 'stable-player-id',
             name: 'Ada',
             color: 'red',
@@ -499,6 +503,7 @@ describe('App session admission', () => {
         },
         players: {
           'stable-player-id': {
+            teamId: 'TEAM_1',
             name: 'Ada',
             currentTile: 7,
             color: 'red',
@@ -640,6 +645,7 @@ describe('App session admission', () => {
         },
         players: {
           'stable-player-id': {
+            teamId: 'TEAM_1',
             name: 'Ada',
             currentTile: 0,
             color: 'red',
@@ -733,6 +739,7 @@ describe('App session admission', () => {
         },
         players: {
           'stable-player-id': {
+            teamId: 'TEAM_1',
             name: 'Ada',
             currentTile: 0,
             color: 'red',
@@ -869,6 +876,7 @@ describe('App session admission', () => {
         boardState: { ...room.gameState.boardState, gameStarted: true, players: ['stable-player-id'] },
         players: {
           'stable-player-id': {
+            teamId: 'TEAM_1',
             name: 'Ada',
             currentTile: 0,
             color: 'red',
@@ -1206,6 +1214,7 @@ describe('App session admission', () => {
       players: [
         ...room.players,
         {
+          teamId: 'TEAM_2',
           playerId: 'other-player-id',
           name: 'Bình',
           color: 'blue',
@@ -1228,6 +1237,7 @@ describe('App session admission', () => {
         },
         players: {
           'stable-player-id': {
+            teamId: 'TEAM_1',
             name: 'Ada',
             currentTile: 0,
             color: 'red',
@@ -1238,6 +1248,7 @@ describe('App session admission', () => {
             getOutOfJailCardCount: 1,
           },
           'other-player-id': {
+            teamId: 'TEAM_2',
             name: 'Bình',
             currentTile: 4,
             color: 'blue',
@@ -1596,6 +1607,88 @@ describe('App how-to-play key placement', () => {
 
     const actions = document.querySelector('.lobby__header-actions') as HTMLElement;
     expect(within(actions).getAllByRole('button')[0]).toBe(screen.getByRole('button', { name: GUIDE }));
+  });
+
+  it('sends the lobby team commands with only the fields the host chose and shows a refusal in the lobby', () => {
+    storeSession();
+    renderApp();
+    const seats = [
+      { playerId: 'stable-player-id', name: 'Ada', color: 'red' as const, characterId: 'dog' as const, teamId: 'TEAM_1' as const },
+      { playerId: 'player-b', name: 'Bình', color: 'blue' as const, characterId: 'panda' as const, teamId: 'TEAM_2' as const },
+      { playerId: 'player-c', name: 'Chi', color: 'red' as const, characterId: 'cat' as const, teamId: 'TEAM_1' as const },
+      { playerId: 'player-d', name: 'Dũng', color: 'blue' as const, characterId: 'duck' as const, teamId: 'TEAM_2' as const },
+    ];
+    const teamLobby: PublicRoomState = {
+      ...room,
+      players: seats.map((seat, index) => ({
+        ...seat, joinOrder: index, membershipStatus: 'ACTIVE' as const, ready: false, connected: true,
+      })),
+      gameState: {
+        ...room.gameState,
+        boardState: {
+          ...room.gameState.boardState,
+          gameMode: 'TEAM_2V2',
+          teams: [
+            { teamId: 'TEAM_1', name: 'Team 1', color: 'red', memberPlayerIds: ['stable-player-id', 'player-c'] },
+            { teamId: 'TEAM_2', name: 'Team 2', color: 'blue', memberPlayerIds: ['player-b', 'player-d'] },
+          ],
+        },
+      },
+    };
+    const resumeAck = lastEmission('resume session')?.args[1];
+    act(() => {
+      if (isAckCallback(resumeAck)) {
+        resumeAck({
+          ok: true,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          revision: teamLobby.version,
+          data: {
+            role: 'PLAYER',
+            playerId: 'stable-player-id',
+            room: teamLobby,
+            privatePlayerState: { playerId: 'stable-player-id', heldJailFreeCardIds: [], gameplayEvents: { sequence: 0, events: [] } },
+            pendingOffers: [],
+          },
+        });
+      }
+    });
+
+    // The host switches mode: only the chosen mode is sent, and the lobby keeps working while the ACK is awaited.
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Chế độ chơi' })).getByRole('radio', { name: 'Solo' }));
+    expect(lastEmission('set game mode')?.args[0]).toEqual({ mode: 'SOLO' });
+    const modeAck = lastEmission('set game mode')?.args[1];
+    act(() => {
+      if (isAckCallback(modeAck)) {
+        modeAck({
+          ok: false,
+          protocolVersion: SOCKET_PROTOCOL_VERSION,
+          error: { code: 'CONFLICT', message: 'Chỉ chủ phòng mới đổi được chế độ.', retryable: false },
+        });
+      }
+    });
+    expect(screen.getByRole('alert').textContent).toBe('Chỉ chủ phòng mới đổi được chế độ.');
+
+    // Every command waits for its own ACK before the next one can be sent.
+    const acknowledge = (event: string) => {
+      const ack = lastEmission(event)?.args[lastEmission(event)!.args.length - 1];
+      act(() => {
+        if (isAckCallback(ack)) ack({ ok: true, protocolVersion: SOCKET_PROTOCOL_VERSION });
+      });
+    };
+
+    const [nameField] = screen.getAllByLabelText('Tên đội');
+    fireEvent.change(nameField, { target: { value: 'Rồng' } });
+    fireEvent.keyDown(nameField, { key: 'Enter' });
+    expect(lastEmission('set team name')?.args[0]).toEqual({ teamId: 'TEAM_1', name: 'Rồng' });
+    acknowledge('set team name');
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'Màu của đội Team 1' })).getByRole('button', { name: 'Xanh lá' }));
+    expect(lastEmission('set team color')?.args[0]).toEqual({ color: 'green' });
+    acknowledge('set team color');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đổi đội của Chi' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đổi chỗ Bình với Chi' }));
+    expect(lastEmission('swap team')?.args[0]).toEqual({ playerId: 'player-c', withPlayerId: 'player-b' });
   });
 
   it('puts the key first in the game toolbar, tags the toolbar for the overlap check and opens the guide', () => {

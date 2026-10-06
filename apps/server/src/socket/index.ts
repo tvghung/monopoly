@@ -8,6 +8,7 @@ import { registerDebtHandlers } from './debt';
 import { registerJailHandlers } from './jail';
 import { registerLobbyHandlers } from './lobby';
 import { registerSessionHandlers } from './session';
+import { registerTeamHandlers } from './team';
 import { registerTradingHandlers } from './trading';
 import { registerTurnHandlers } from './turn';
 import { installInboundValidation } from './validation';
@@ -49,6 +50,7 @@ export function registerSocketHandlers(
       canCreateRoomForPeer(runtimeProfile, socket.handshake.address),
     );
     registerLobbyHandlers(io, socket, runtime);
+    registerTeamHandlers(io, socket, runtime);
     registerTurnHandlers(io, socket, runtime);
     registerChatHandlers(io, socket, runtime);
     registerDebtHandlers(io, socket, runtime);

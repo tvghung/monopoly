@@ -1,5 +1,5 @@
 import { dismissPendingCard, drawPendingCard } from '../game';
-import type { AppRuntime } from '../services/runtime';
+import { paymentTimingOptions, type AppRuntime } from '../services/runtime';
 import { requirePlayer } from './authority';
 import { broadcastRoom } from './broadcast';
 import { CommandError, acknowledgeFailure, successAck } from './errors';
@@ -8,7 +8,7 @@ import type { AppServer, AppSocket } from './types';
 
 const cardOptions = (runtime: AppRuntime, now: Date) => ({
   now: now.getTime(),
-  paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+  ...paymentTimingOptions(runtime),
   cardAwaitingDrawTimeoutMs: runtime.timing.cardAwaitingDrawTimeoutMs,
   cardRevealedTimeoutMs: runtime.timing.cardRevealedTimeoutMs,
 });

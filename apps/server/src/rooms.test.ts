@@ -47,6 +47,7 @@ const createActiveSnapshot = (): ReturnType<typeof createRoomSnapshot> => {
     name: 'Player One',
     currentTile: 0,
     color: 'red',
+    teamId: 'TEAM_1',
     characterId: 'dog',
     accountBalance: 1500,
     isJail: false,
@@ -57,6 +58,7 @@ const createActiveSnapshot = (): ReturnType<typeof createRoomSnapshot> => {
     name: 'Player Two',
     currentTile: 0,
     color: 'blue',
+    teamId: 'TEAM_1',
     characterId: 'panda',
     accountBalance: 1500,
     isJail: false,
@@ -375,6 +377,7 @@ describe('durable room snapshot compatibility', () => {
       name: 'Legacy',
       currentTile: 0,
       color: 'red',
+      teamId: 'TEAM_1',
       characterId: 'dog',
       accountBalance: 1500,
       isJail: false,
@@ -414,6 +417,7 @@ describe('durable room snapshot compatibility', () => {
       gameSnapshot.gameState.boardState.finishedPlayers[PLAYER_TWO] = {
         name: 'Player Two',
         color: 'blue',
+        teamId: 'TEAM_1',
         characterId: 'panda',
         reason: 'BANKRUPT',
         accountBalance: 0,
@@ -425,6 +429,7 @@ describe('durable room snapshot compatibility', () => {
         playerId: PLAYER_ONE,
         name: 'Player One',
         color: 'red',
+        teamId: 'TEAM_1',
         characterId: 'dog',
       };
       return gameSnapshot;
@@ -480,6 +485,7 @@ describe('durable room snapshot compatibility', () => {
       name: 'Debtor',
       currentTile: 0,
       color: 'red',
+      teamId: 'TEAM_1',
       characterId: 'dog',
       accountBalance: 5,
       isJail: false,
@@ -490,6 +496,7 @@ describe('durable room snapshot compatibility', () => {
       name: 'Creditor',
       currentTile: 0,
       color: 'blue',
+      teamId: 'TEAM_1',
       characterId: 'panda',
       accountBalance: 100,
       isJail: false,
@@ -530,6 +537,7 @@ describe('durable room snapshot compatibility', () => {
 
       },
       actionDeadlineAt: '2030-01-01T00:02:00.000Z',
+      rescue: null,
     };
 
     storeGameState(gameSnapshot, state, 'IN_PROGRESS');
@@ -566,6 +574,7 @@ describe('durable room snapshot compatibility', () => {
       activeClaimIndex: 0,
       continuation: { playerId: PLAYER_ONE, turnNumber: 7 },
       actionDeadlineAt: '2030-01-01T00:02:00.000Z',
+      rescue: null,
     };
 
     expect(() => assertSupportedRoomSnapshot({
@@ -708,6 +717,7 @@ describe('public room projection', () => {
 
       },
       actionDeadlineAt: '2030-01-01T00:02:00.000Z',
+      rescue: null,
     };
     const projected = projectPublicRoomState(
       roomFromSnapshot(gameSnapshot),
@@ -727,6 +737,7 @@ describe('public room projection', () => {
       remainingClaimCount: 1,
       paymentOperationId: '00000000-0000-4000-8000-000000000101',
       claimId: '00000000-0000-4000-8000-000000000102',
+      rescue: null,
       sellableProperties: [],
     });
   });

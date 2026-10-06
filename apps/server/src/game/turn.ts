@@ -1,13 +1,19 @@
-import type {
-  FinishedPlayerReason,
-  GameState,
-  PendingTurnContinuation,
-  PlayerId,
+import {
+  getOpposingTeamId,
+  isTeamMode,
+  teamActivePlayerIds,
+  TEAM_IDS,
+  type FinishedPlayerReason,
+  type GameState,
+  type PendingTurnContinuation,
+  type PlayerId,
+  type TeamId,
 } from '@monopoly/shared';
 import { sendToLog } from './text';
 import { transferProperty } from './transfer';
 import { recordPublicGameplayEvent } from './semanticEvents';
 import { recordActivityEvent } from './activity';
+import { closeAllReviveWindows, consumeReviveTurn, openReviveWindowIfEligible } from './team';
 
 const returnPendingCardToDeck = (state: GameState): void => {
   const interaction = state.turnInfo.pendingCardInteraction;
@@ -43,6 +49,13 @@ const clearPlayerReferences = (state: GameState, playerId: PlayerId): void => {
   // otherwise the queue would retain a PLAYER claim whose recipient vanished.
   const paymentQueue = state.boardState.paymentQueue;
   if (paymentQueue) {
+    // An open rescue offer concerns exactly two players; it cannot outlive either of them.
+    if (
+      paymentQueue.rescue
+      && (paymentQueue.rescue.debtorPlayerId === playerId || paymentQueue.rescue.rescuerPlayerId === playerId)
+    ) {
+      paymentQueue.rescue = null;
+    }
     for (const claim of paymentQueue.orderedClaims) {
       if (claim.debtorPlayerId === playerId && claim.status === 'PENDING') {
         claim.status = 'BANKRUPT';
@@ -91,6 +104,7 @@ const removePlayerRecord = (
     name: player.name,
     color: player.color,
     characterId: player.characterId,
+    teamId: player.teamId,
     reason,
     accountBalance: player.accountBalance,
   };
@@ -107,6 +121,8 @@ const removePlayerRecord = (
   );
   delete state.players[playerId];
   clearPlayerReferences(state, playerId);
+  // 2v2: a bankruptcy (never a voluntary leave) leaves the player revivable by their surviving teammate for a few turns.
+  openReviveWindowIfEligible(state, playerId);
   return true;
 };
 
@@ -155,9 +171,50 @@ const rebasePaymentContinuationAfterPlayerRemoval = (
 // Declare a winner once only one player is left standing and at least one other
 // player has already been eliminated. The guard makes both the state and win log
 // idempotent when recovery or a repeated command checks the result again.
+// 2v2: a team loses the moment it has no active player (there is no state where a fully eliminated team waits for a revive),
+// and the other team wins. Every member of the winning team is a winner, including one who was eliminated earlier; `winner`
+// names one representative active member so the room lifecycle and every existing winner consumer keep working.
+const checkTeamWinner = (state: GameState): void => {
+  const eliminated = TEAM_IDS.filter((teamId) => teamActivePlayerIds(state, teamId).length === 0);
+  if (eliminated.length !== 1) return;
+  const winningTeamId: TeamId = getOpposingTeamId(eliminated[0]);
+  const activeIds = teamActivePlayerIds(state, winningTeamId);
+  const representativeId = state.boardState.teamPlay.slotOrder.find((playerId) => activeIds.includes(playerId))
+    ?? activeIds[0];
+  const representative = state.players[representativeId];
+  if (!representative) return;
+  const teamName = state.boardState.teams[winningTeamId].name;
+  const teamCash = activeIds.reduce((total, playerId) => total + state.players[playerId].accountBalance, 0);
+
+  state.boardState.winner = {
+    playerId: representativeId,
+    name: representative.name,
+    color: representative.color,
+    characterId: representative.characterId,
+    teamId: winningTeamId,
+  };
+  state.boardState.winningTeamId = winningTeamId;
+  closeAllReviveWindows(state);
+  recordActivityEvent(state, {
+    type: 'GAME_FINISHED',
+    winnerPlayerId: representativeId,
+    winnerName: representative.name,
+    winnerColor: representative.color,
+    winnerCharacterId: representative.characterId,
+    finalCash: teamCash,
+    winningTeamId,
+    winningTeamName: teamName,
+  });
+  sendToLog(state, `<span class="bankrupt-message">Đội ${teamName} đã chiến thắng!</span>`);
+};
+
 export const checkWinner = (state: GameState): void => {
   if (state.boardState.winner) return;
   if (!state.boardState.gameStarted) return;
+  if (isTeamMode(state)) {
+    checkTeamWinner(state);
+    return;
+  }
   const remaining = Object.keys(state.players);
   const someoneEliminated = Object.keys(state.boardState.finishedPlayers).length > 0;
   if (remaining.length === 1 && someoneEliminated) {
@@ -168,6 +225,7 @@ export const checkWinner = (state: GameState): void => {
       name: winner.name,
       color: winner.color,
       characterId: winner.characterId,
+      teamId: winner.teamId,
     };
     recordActivityEvent(state, {
       type: 'GAME_FINISHED',
@@ -291,6 +349,10 @@ export const nextTurn = (state: GameState): void => {
   if (previousCurrent && !state.players[previousCurrent]) {
     return;
   }
+
+  // 2v2: the turn that just ended may have been the surviving teammate's, which uses up one revive opportunity. This runs
+  // before the turn counter moves on and covers every way a turn ends (completed, jail wait, disconnect skip).
+  if (previousCurrent) consumeReviveTurn(state, previousCurrent);
 
   const playerIds = orderedPlayerIds(state);
   state.boardState.players = playerIds;

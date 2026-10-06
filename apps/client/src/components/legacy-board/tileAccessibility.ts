@@ -2,6 +2,7 @@ import type { PublicGameState } from '@monopoly/shared';
 import { tileState } from '@monopoly/shared';
 import { formatMoney, getTileName } from '../../presentation';
 import { getLandmarkHotelLabel } from '../../game/ui/property/landmarkVisuals';
+import { teamOfPlayer } from '../../game/team/teamView';
 
 /**
  * The accessible name of a tile button (the 40 semantic buttons of the WebGL board and the legacy tiles). A hotel is named by
@@ -15,6 +16,8 @@ export function getTileAccessibilityLabel(tileId: number, state: PublicGameState
       ?? state.boardState.finishedPlayers[owned.id]?.name
       ?? 'người chơi khác'
     : null;
+  // 2v2: two teammates share the ownership colour, so the label names the team as well as the individual owner.
+  const ownerTeam = owned ? teamOfPlayer(state, owned.id) : null;
   const playersHere = Object.values(state.players)
     .filter(player => player.currentTile === tileId)
     .map(player => player.name);
@@ -24,7 +27,7 @@ export function getTileAccessibilityLabel(tileId: number, state: PublicGameState
   return [
     `Ô ${tileId}: ${getTileName(tileId)}`,
     typeof tile.price === 'number' ? `Giá ${formatMoney(tile.price)}` : null,
-    ownerName ? `Chủ sở hữu: ${ownerName}` : null,
+    ownerName ? `Chủ sở hữu: ${ownerName}${ownerTeam ? ` (đội ${ownerTeam.name})` : ''}` : null,
     buildingLabel ? `Có ${buildingLabel}` : null,
     playersHere.length > 0 ? `Người chơi đang đứng: ${playersHere.join(', ')}` : null,
     'Mở chi tiết ô cờ',

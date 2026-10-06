@@ -16,6 +16,10 @@
   card xám), "Đã rời" (mờ 50%). Người chơi LEFT/BANKRUPT giữ nguyên góc. Cạnh tên tối đa hai tag (ưu tiên Mất kết nối >
   Ở tù > Đang đi > Bạn); ở điện thoại ngang chỉ còn badge icon (Ở tù, Mất kết nối + đếm ngược).
 - Tiền, lượt và số nhà/khách sạn theo presentation state; số tài sản và ô sở hữu theo `ownedProps` authoritative.
+- 2v2: bốn card vẫn là bốn góc nhưng **nhóm theo đội** (`resolvePlayerStationSlots(..., teamMode)`: đội của người xem ở cột trái
+  `BOTTOM`/`LEFT`, đối thủ cột phải `TOP`/`RIGHT`; khán giả thấy Team 1 bên trái). Mỗi card có dải đội (tên đội + màu, chữ chứ không
+  chỉ màu) và `data-team`/`data-relation`; summary đọc "<tên>, Đồng đội/Đối thủ, đội <tên đội>". Người phá sản hiện chip
+  **"Có thể hồi sinh"** + "Còn 3 lượt"/"Còn 2 lượt"/"Cơ hội cuối", hoặc **"Đã bị loại vĩnh viễn"** (`getReviveStatus`).
 
 ## Lobby/start
 
@@ -32,9 +36,16 @@
   toolbar; xem [how-to-play.instruction.md](./how-to-play.instruction.md).
 - `MascotPicker` đổi mascot/màu qua `set appearance`, chuyển động theo reduced motion hiệu lực (setting hoặc OS).
   Mascot chỉ nhận diện bằng hình; `accessibleLabel` tiếng Việt chỉ nằm ở `alt`/`aria-label`.
-- 2–4 active Player, tất cả connected/ready; chỉ host có start action. Nút "Bắt đầu" bị disable luôn kèm **lý do viết ra**
+- **Chế độ chơi**: host thấy `SegmentedControl` "Chế độ chơi" (Solo | 2v2; `set game mode`), người khác chỉ thấy nhãn. Đổi chế độ reset Ready
+  của mọi người. Ở 2v2 `Lobby` thay danh sách ghế bằng hai `TeamZone` (mỗi vùng là `section` có tên đội, danh sách người chơi, số "n/2",
+  nhãn "Đội của bạn"): tên đội (host sửa trực tiếp, Enter/blur lưu, Escape hoàn tác, tối đa 20 ký tự, không reset Ready), màu đội
+  (`TeamColorPicker`: chỉ thành viên đội đổi được, màu của đội kia bị khóa; đổi màu reset Ready cả đội), và nút **"Đổi đội của <tên>"**
+  của host: chọn một người rồi chọn người ở đội kia ("Đổi chỗ <A> với <B>"; Escape/"Hủy"/bấm lại để hủy; không kéo-thả). `MascotPicker`
+  ẩn bảng màu (ghi chú "Mascot luôn mang màu đội…") và khóa mascot đồng đội đang dùng ("(đồng đội đã chọn)").
+- 2–4 active Player (2v2: đúng 4, mỗi đội 2), tất cả connected/ready; chỉ host có start action. Nút "Bắt đầu" bị disable luôn kèm **lý do viết ra**
   (`startReadiness.getStartBlockReason`, lý do đầu tiên thắng): "Cần ít nhất N người chơi", "Tối đa N người chơi", "Chờ mọi
-  người sẵn sàng", "Có người chưa chọn mascot", "Có người đang mất kết nối", "Hai người đang trùng mascot và màu";
+  người sẵn sàng", "Có người chưa chọn mascot", "Có người đang mất kết nối", "Hai người đang trùng mascot và màu"; 2v2 thêm
+  "Chế độ 2v2 cần đúng 4 người chơi", "Mỗi đội cần đúng 2 người chơi", "Hai đồng đội đang trùng mascot";
   nút trỏ tới lý do bằng `aria-describedby`. Server vẫn là authority.
 - Start success update chứa persisted first-player result từ server dice tie-break;
   UI không tự random/reorder roster.
@@ -58,14 +69,21 @@
   không bao giờ ở nút về trang chủ.
   `useVictoryVisibility`: winner đến từ live update chỉ hiện khi presentation `idle` (dự phòng 8 s); snapshot/reconnect hiện
   ngay. `VictoryConfetti` là một đợt 48 mảnh ≤ 1200 ms, chỉ lúc xuất hiện live, không bao giờ khi reduced motion hiệu lực.
-- Player card trên HUD là nút thật "Xem tài sản của <tên>" mở `PlayerPortfolioModal` (chỉ đọc).
+- **Thắng đội (2v2)**: `WinnerBanner` đọc `getTeamVictorySummary` — tiêu đề **"CHIẾN THẮNG!"**, tên đội, hai thành viên (avatar mascot theo màu
+  đội + tên; thành viên đã bị loại/rời hiện ghi chú "Đã phá sản trước đó"/"Đã rời phòng" nhưng vẫn là người thắng), bốn ô số liệu của cả đội
+  (tổng tiền mặt, tài sản, Nhà, Khách sạn) và "Khu màu đủ bộ"; danh sách còn lại là "Đội đối thủ". Mô tả dialog đọc đội trước. Solo giữ
+  nguyên "Người chiến thắng".
+- Player card trên HUD là nút thật "Xem tài sản của <tên>" mở `PlayerPortfolioModal` (chỉ đọc; 2v2 thêm `TeamChip` và chip hồi sinh).
 - The existing winner surface exposes `play again` only to the authenticated host.
   The command resets the same room to `LOBBY`; the server reuses canonical fresh
   state, keeps eligible stable IDs/appearance/join order/sessions, revives finished
-  players, never revives `LEFT` members, and clears old offers and match state.
+  players, never revives `LEFT` members, and clears old offers and match state. In 2v2 the lobby that comes back keeps the mode, the
+  teams (names, colours) and each player's team.
 
 ## Tests
 
 - Vietnamese branding/copy/metadata and no player-facing English.
 - Host/ready/2–4/first-player result/disconnect-transfer behavior.
 - Bankruptcy versus forfeit reason, stable winner and reconnect/restart.
+- 2v2: `Lobby.teamplay.test.tsx`, `startReadiness.test.ts`, `stationSlots.test.ts`, `playerCardSelectors.test.ts`, `PlayerCardList.test.tsx`,
+  `WinnerBanner.test.tsx`, `teamView.test.ts` (xem [testcase/team-play.md](../testcase/team-play.md)).

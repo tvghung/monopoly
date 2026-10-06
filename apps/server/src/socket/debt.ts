@@ -1,13 +1,16 @@
 import {
+  acceptEmergencyRescue,
   acceptForcedSaleProposal,
   activeDebtClaim,
   createForcedSaleProposal,
+  declineEmergencyRescue,
   rejectForcedSaleProposal,
   progressPaymentQueue,
   resumePaymentContinuation,
   sellPropertyToBankForPayment,
+  type RescueResolution,
 } from '../game';
-import type { AppRuntime } from '../services/runtime';
+import { paymentTimingOptions, type AppRuntime } from '../services/runtime';
 import { requirePlayer } from './authority';
 import { broadcastRoom, privatePlayerRoomName } from './broadcast';
 import { CommandError, acknowledgeFailure, successAck } from './errors';
@@ -26,6 +29,44 @@ const emitForcedSaleCleared = (io: AppServer, playerIds: string[]): void => {
 };
 
 export function registerDebtHandlers(io: AppServer, socket: AppSocket, runtime: AppRuntime): void {
+  // A 2v2 Emergency Rescue answer. Accepting pays the debtor's whole remaining shortfall from the rescuer's own balance straight
+  // to the creditors; declining eliminates the debtor as usual. Either may end the payment queue, so the turn continues.
+  const answerRescue = (
+    event: 'accept rescue' | 'decline rescue',
+    resolve: typeof acceptEmergencyRescue,
+  ): void => {
+    socket.on(event, async (request, acknowledge) => {
+      try {
+        const actor = requirePlayer(socket, runtime);
+        const now = new Date();
+        const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }) => {
+          if (room.status !== 'IN_PROGRESS') throw new CommandError('CONFLICT', 'Phòng không còn hoạt động.');
+          const playersBefore = Object.keys(state.players);
+          const options = { now: now.getTime(), ...paymentTimingOptions(runtime) };
+          const resolution: RescueResolution = resolve(state, actor.playerId, request.rescueId, options);
+          if (!resolution.ok) throw new CommandError('CONFLICT', resolution.reason);
+          if (resolution.progress.status === 'COMPLETED' && resolution.progress.continuation) {
+            resumePaymentContinuation(state, resolution.progress.continuation, options);
+          }
+          // Whoever the queue eliminated no longer trades: cancel their pending offers in the same transaction.
+          const cancelled = [];
+          for (const playerId of playersBefore) {
+            if (!state.players[playerId]) {
+              cancelled.push(...await cancelPendingOffersForPlayer(transaction.tradeOffers, actor.roomId, playerId, now));
+            }
+          }
+          return cancelled;
+        }, now, actor);
+        if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
+        emitCancelledOffers(io, committed.room, committed.result, now);
+        broadcastRoom(io, runtime, committed.room);
+        acknowledge(successAck(committed.room.aggregateVersion));
+      } catch (error) { acknowledgeFailure(acknowledge, error); }
+    });
+  };
+  answerRescue('accept rescue', acceptEmergencyRescue);
+  answerRescue('decline rescue', declineEmergencyRescue);
+
   socket.on('sell property to bank', async (request, acknowledge) => {
     try {
       const actor = requirePlayer(socket, runtime);
@@ -44,17 +85,17 @@ export function registerDebtHandlers(io: AppServer, socket: AppSocket, runtime: 
           request.paymentOperationId,
           request.claimId,
           request.tileID,
-          { now: now.getTime(), paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs },
+          { now: now.getTime(), ...paymentTimingOptions(runtime) },
         );
         if (!sale.ok) throw new CommandError('CONFLICT', sale.reason);
         const progress = progressPaymentQueue(state, {
           now: now.getTime(),
-          paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+          ...paymentTimingOptions(runtime),
         });
         if (progress.status === 'COMPLETED' && progress.continuation) {
           resumePaymentContinuation(state, progress.continuation, {
             now: now.getTime(),
-            paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+            ...paymentTimingOptions(runtime),
           });
         }
         const cancelled = await cancelPendingOffersForAssets(
@@ -131,18 +172,18 @@ export function registerDebtHandlers(io: AppServer, socket: AppSocket, runtime: 
           : [];
         const sellerId = proposal?.sellerPlayerId;
         const sale = acceptForcedSaleProposal(state, actor.playerId, request.proposalId, {
-          now: now.getTime(), paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+          now: now.getTime(), ...paymentTimingOptions(runtime),
         });
         if (!sale.ok) throw new CommandError('CONFLICT', sale.reason);
         if (room.status !== 'IN_PROGRESS') throw new CommandError('CONFLICT', 'Phòng không còn hoạt động.');
         const progress = progressPaymentQueue(state, {
           now: now.getTime(),
-          paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+          ...paymentTimingOptions(runtime),
         });
         if (progress.status === 'COMPLETED' && progress.continuation) {
           resumePaymentContinuation(state, progress.continuation, {
             now: now.getTime(),
-            paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+            ...paymentTimingOptions(runtime),
           });
         }
         const cancelled = await cancelPendingOffersForAssets(

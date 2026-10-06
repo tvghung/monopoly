@@ -24,13 +24,14 @@
 | Room/Seat/host/ready/leave | `rooms.ts`, lifecycle services | [GameCore/room-lifecycle.instruction.md](./GameCore/room-lifecycle.instruction.md) |
 | Turn/payment shortfall/bankruptcy/winner/recovery | `game/turn.ts`, `game/dice.ts`, `game/payment.ts` | [GameCore/turn-movement-and-bankruptcy.instruction.md](./GameCore/turn-movement-and-bankruptcy.instruction.md) |
 | Tile/card/jail | `game/tiles.ts` | [GameCore/tile-cards-and-jail-resolution.instruction.md](./GameCore/tile-cards-and-jail-resolution.instruction.md) |
+| 2v2 Teamplay (đội, thuê theo đội, hồi sinh, Emergency Rescue) | `game/team*.ts`, `game/rescue*.ts`, `socket/team.ts`, `teamLobby.ts`, `packages/shared/src/teams.ts` | [GameCore/team-play.instruction.md](./GameCore/team-play.instruction.md) |
 | Property economy | `game/property.ts` | [GameCore/property-economy.instruction.md](./GameCore/property-economy.instruction.md) |
 | Forced sale | `game/payment.ts`, `game/bankruptcy.ts`, `socket/debt.ts` | [testcase/payment-shortfall-and-forced-sale.md](./testcase/payment-shortfall-and-forced-sale.md) |
 
 ## Lifecycle rules
 
 - First activated Seat is host; new Seat is unready.
-- Lobby capacity is 2–4 for start; all active Seats must be connected and ready.
+- Lobby capacity is 2–4 for start (exactly four, two per team, in 2v2); all active Seats must be connected and ready.
 - Only host transitions room once from lobby to in-progress.
 - Disconnect preserves Seat/host/ready/assets. Explicit leave is a distinct durable
   domain command; lobby leave removes Seat, in-game leave is confirmed forfeit.

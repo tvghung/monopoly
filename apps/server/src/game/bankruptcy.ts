@@ -10,6 +10,7 @@ import {
   progressPaymentQueue,
   sellablePropertyIds,
 } from './paymentResolution';
+import { resolveRescueWithoutPayment } from './rescueResolution';
 import { checkWinner, removePlayerFromGame } from './turn';
 
 const returnHeldCardsToDeck = (state: GameState, playerId: PlayerId): void => {
@@ -43,12 +44,14 @@ const noChange = (): BankruptcyResult => ({ changed: false, continuation: null }
 export const surrenderPlayerToBank = (
   state: GameState,
   playerId: PlayerId,
-  options: Pick<QueuePaymentOptions, 'now' | 'paymentShortfallActionTimeoutMs'> = {},
+  options: Pick<QueuePaymentOptions, 'now' | 'paymentShortfallActionTimeoutMs' | 'emergencyRescueTimeoutMs'> = {},
 ): BankruptcyResult => {
   const player = state.players[playerId];
   if (!player) return noChange();
   const active = activeDebtClaim(state);
   let continuation: PendingTurnContinuation | null = null;
+  // Taken before the player is removed: removing either side of an open rescue offer clears it.
+  const rescueBefore = state.boardState.paymentQueue?.rescue ?? null;
 
   if (active?.debtorPlayerId === playerId && state.boardState.paymentQueue) {
     if (state.privateState.forcedSaleProposal?.sellerPlayerId === playerId) {
@@ -85,5 +88,11 @@ export const surrenderPlayerToBank = (
   }
 
   finishElimination(state, playerId, 'LEFT');
+  // 2v2: the player asked to rescue their teammate left, so that rescue can never be answered: it ends as a decline and the
+  // debtor, who has nothing left to sell, is eliminated as usual.
+  if (rescueBefore?.rescuerPlayerId === playerId && !state.boardState.winner) {
+    const resolved = resolveRescueWithoutPayment(state, rescueBefore, 'DECLINED', options);
+    if (resolved.ok) return { changed: true, continuation: resolved.progress.continuation };
+  }
   return { changed: true, continuation: null };
 };

@@ -4,11 +4,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import stateContext from '../internal';
 import type { SocketFunctions, StateContextValue } from '../types';
 import BoardAccessibilityControls from './BoardAccessibilityControls';
+import { soloTeamBoardFields } from '../game/presentation/testFixtures';
 
 afterEach(cleanup);
 
 const state: PublicGameState = {
   boardState: {
+    ...soloTeamBoardFields(),
     gameStarted: true,
     players: [],
     finishedPlayers: {},

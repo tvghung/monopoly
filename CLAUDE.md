@@ -52,10 +52,10 @@ thay đổi chưa hoàn tất.
 - Lifecycle room là `LOBBY → IN_PROGRESS → FINISHED`; chỉ command `play again` của
   host đã xác thực mới mở lại cùng room theo `FINISHED → LOBBY`.
 - Host là stable player; disconnect không transfer host. Lobby cần 2–4 active,
-  connected và ready players để host start.
+  connected và ready players để host start (2v2: đúng 4, mỗi đội 2).
 - Standard Mode dùng board Việt Nam cố định 40 ô, đơn vị số nguyên game-unit
-  (`1 unit = 1.000 VNĐ`), socket protocol v9 và snapshot schema v8
-  (`SOCKET_PROTOCOL_VERSION = 9`, `ROOM_SNAPSHOT_SCHEMA_VERSION = 8`). `BoardState.rollSequence`
+  (`1 unit = 1.000 VNĐ`), socket protocol v10 và snapshot schema v9
+  (`SOCKET_PROTOCOL_VERSION = 10`, `ROOM_SNAPSHOT_SCHEMA_VERSION = 9`). `BoardState.rollSequence`
   là public durable identity, bắt đầu từ `0`, tăng đúng một lần cho mỗi gameplay
   roll đã commit, không tăng cho starting-player tie-break hoặc command rollback.
   Không đổi index hoặc
@@ -75,7 +75,20 @@ thay đổi chưa hoàn tất.
   vẫn nằm ngoài public projection. Migration `009_activity_feed_v8.sql` nâng V7
   snapshot lên V8 bằng activity baseline rỗng, không dựng lại lịch sử log.
   Protocol V9 bổ sung `TAX` money/debt semantics và `TILE_LANDED`; snapshot V8 cũ
-  vẫn hợp lệ nên không cần migration dữ liệu.
+  vẫn hợp lệ nên không cần migration dữ liệu. Protocol V10 bổ sung 2v2 Teamplay và
+  snapshot V9 (`010_teamplay_v9.sql`: `gameMode`, `teams`, `teamPlay`, `winningTeamId`,
+  `PaymentQueue.rescue`, `teamId` trên mọi player record).
+- 2v2 Teamplay (`GameCore/team-play.instruction.md`): `GameMode` do host chọn chỉ ở
+  `LOBBY` (đổi mode reset Ready mọi người); tiền và `ownedProps` luôn theo `PlayerId`, không có
+  ví chung. Team rule chạy ở server qua `isTeamMode`/`packages/shared/src/teams.ts`: thuê tài
+  sản của đồng đội được miễn (thẻ vẫn tính), đủ khu màu nhân thuê (Solo ×1,5, đội ×2, làm tròn
+  xuống, không bao giờ khóa xây), Ga/Công Ty tính theo đội, Team Investment trả bằng tiền người
+  dừng chân và hoàn tiền bán cho chủ ô, lượt xen kẽ `A1,B1,A2,B2` (`slotOrder` giữ cho hồi
+  sinh), phá sản từng người nhưng đội thua khi hết active, hồi sinh (`REVIVE_COST`/
+  `REVIVE_STARTING_CASH`, ba lượt của người sống sót, mỗi người một lần, không áp dụng cho
+  `LEFT`) và Emergency Rescue (`PaymentQueue.rescue`, chỉ khi người nợ đã hết tài sản thanh lý,
+  đồng đội phải trả đủ phần còn thiếu, tiền đi thẳng tới creditor, từ chối/hết hạn → phá sản
+  thường, deadline absolute persist). Client chỉ hiển thị public state qua `game/team/teamView.ts`.
 - Client display state không thay authoritative room state. `SESSION_SYNC`,
   `SPECTATOR_SYNC` và `REPLAY_SYNC` reset presentation queue/snap; chỉ
   `LIVE_UPDATE` mới animate state diff. Activity tail trong live update phải chờ
@@ -116,6 +129,9 @@ thay đổi chưa hoàn tất.
   docs và testcase. Không dọn code/tài liệu không liên quan.
 - Đổi bộ cập nhật/manifest/policy: sửa `apps/desktop/src/update/` và `scripts/updateManifest.mjs` cùng lúc (test hợp đồng giữ hai bên
   bằng nhau), IPC + preload + `runtime/types.ts` của client, `Client/app-update.instruction.md` và testcase.
+- Đổi luật team/hồi sinh/Emergency Rescue/thuê theo đội: sửa `packages/shared/src/teams.ts` + `rules.ts`, `game/team*.ts`/`rescue*.ts`,
+  `rooms.ts` (`assertTeamState`, migration), projector, Lobby/HUD/WinnerBanner client, `GameCore/team-play.instruction.md`,
+  how-to-play và `testcase/team-play.md`; Solo phải giữ nguyên (trừ bonus đủ khu ×1,5).
 - Đổi payment/bankruptcy/transfer/forced sale: rà mọi producer của `DebtClaim`,
   policy transfer, proposal continuation, snapshot validation và test
   restart/reconnect trước khi hoàn tất.

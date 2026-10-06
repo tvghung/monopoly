@@ -10,12 +10,18 @@ stable `playerId` và derive mọi dòng của thẻ; `PropertyDeedCard` (`full`
 
 - `PropertyDeedCard`: street (dải màu district + bảng tiền thuê 0–5 Nhà với dòng hiện tại `aria-current`), nhà ga, tiện ích,
   và ô đặc biệt (header giấy trung tính, quy tắc ô). Header dùng màu district chỉ để định danh tài sản, chassis giữ trung tính.
-  Tiền thuê nhóm đầy đủ chỉ là ghi chú quy tắc (client không tính nhân đôi — giới hạn đã ghi nhận).
+  Đủ khu màu: thẻ in dòng "Đủ khu: tiền thuê ×1,5" (2v2 "Cả đội đủ khu: tiền thuê ×2") kèm tiền thuê đang có hiệu lực; số tính bằng
+  `colorSetRentPercent`/`scaleRentPercent` của `@monopoly/shared`, cùng hàm server dùng. Ghi chú quy tắc luôn nói thêm "Xây Nhà không cần đủ khu".
+  2v2: hàng chủ ô thêm chip "Đội <tên> · đồng đội của bạn/của bạn" (`DeedOwner.team/relation`), tiến độ nhóm đếm cả đội ("Đội X sở hữu 2/3"),
+  mỗi chấm có `title` "<ô> · <chủ>" vì hai đồng đội dùng chung màu.
 - `PropertyInspectionModal` (`Modal` `md`, `headerAccent` = màu district): thẻ đầy đủ + footer hành động (`Bán Nhà` với lý do khi bị
   khóa, `Đề nghị mua`); không đánh dấu "Sau khi xây". Escape/outside click/focus return như trước.
 - `OwnedPropertiesControl` → "Tài sản của tôi" (`Modal` `lg`): tóm tắt (số dư authoritative, số tài sản/nhà/khách sạn) + deed compact
   nhóm theo district. `PlayerPortfolioModal` mở từ player card HUD, chỉ đọc.
 - `DebtPanel` bán tài sản qua deed compact; xem [turn-actions.instruction.md](./turn-actions.instruction.md).
+- 2v2: `PropertyInspectionModal` nói rõ tài sản của đồng đội (không trả thuê, có thể đầu tư); `TileOwnerHoverCard` (hover trên bàn cờ, chỉ 2v2,
+  `aria-hidden`, `data-hud-transient`) nêu ô, chủ, đội và quan hệ; nhãn truy cập của ô thêm "(đội <tên>)" sau chủ sở hữu
+  (`getTileAccessibilityLabel`). Cờ 3D của ô chưa vẽ mascot chủ (giới hạn đã ghi nhận).
 
 ## Presentation
 

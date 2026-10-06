@@ -7,6 +7,7 @@ const player = (
   joinOrder: number,
   membershipStatus: RoomPlayerMeta['membershipStatus'] = 'ACTIVE',
 ): RoomPlayerMeta => ({
+  teamId: 'TEAM_1',
   playerId,
   joinOrder,
   membershipStatus,
@@ -53,5 +54,43 @@ describe('player station seat resolver', () => {
     ], 'a', 'PLAYER'));
     expect(after).toEqual(before);
     expect(after.b).toBe('TOP');
+  });
+});
+
+describe('player station seat resolver in a 2v2 game', () => {
+  const seat = (playerId: string, joinOrder: number, teamId: 'TEAM_1' | 'TEAM_2'): RoomPlayerMeta => ({
+    ...player(playerId, joinOrder), teamId,
+  });
+  // Join order alternates the teams, as the server deals the turn order: a, b, c, d = Team 1, Team 2, Team 1, Team 2.
+  const four = [seat('a', 1, 'TEAM_1'), seat('b', 2, 'TEAM_2'), seat('c', 3, 'TEAM_1'), seat('d', 4, 'TEAM_2')];
+
+  it('puts the viewer and their teammate on the left half and the opponents on the right half', () => {
+    expect(entries(resolvePlayerStationSlots(four, 'a', 'PLAYER', true))).toEqual({
+      a: 'BOTTOM', c: 'LEFT', b: 'TOP', d: 'RIGHT',
+    });
+    expect(entries(resolvePlayerStationSlots(four, 'd', 'PLAYER', true))).toEqual({
+      d: 'BOTTOM', b: 'LEFT', a: 'TOP', c: 'RIGHT',
+    });
+  });
+
+  it('shows a spectator Team 1 on the left and Team 2 on the right', () => {
+    expect(entries(resolvePlayerStationSlots(four, null, 'SPECTATOR', true))).toEqual({
+      a: 'BOTTOM', c: 'LEFT', b: 'TOP', d: 'RIGHT',
+    });
+  });
+
+  it('keeps an eliminated member in the same station so the card does not jump', () => {
+    const before = entries(resolvePlayerStationSlots(four, 'a', 'PLAYER', true));
+    const after = entries(resolvePlayerStationSlots(
+      [four[0], { ...four[1], membershipStatus: 'FINISHED' }, four[2], four[3]],
+      'a',
+      'PLAYER',
+      true,
+    ));
+    expect(after).toEqual(before);
+  });
+
+  it('leaves Solo seating untouched when team mode is off', () => {
+    expect(entries(resolvePlayerStationSlots(four, 'a', 'PLAYER'))).toEqual({ a: 'BOTTOM', b: 'TOP', c: 'LEFT', d: 'RIGHT' });
   });
 });

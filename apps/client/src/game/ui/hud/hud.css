@@ -175,6 +175,47 @@
   .player-card--pulse .player-card__face { animation: none; }
 }
 
+/* ---------- Teams (2v2) ---------- */
+
+/*
+ * The four cards stay four separate cards; a 2v2 game groups them by team instead. The stations put the viewer's team in the left
+ * column and the opposing team in the right column (see stationSlots), a team-colour edge runs down the card face, and a small
+ * ribbon on the top edge names the team. Solo cards have none of this markup.
+ */
+.player-card[data-team] .player-card__face {
+  border-left: 5px solid var(--player-card-team-color);
+}
+
+.player-card__team {
+  position: absolute;
+  top: -10px;
+  left: 14px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 28px);
+  padding: 1px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--player-card-team-color);
+  color: var(--player-card-team-foreground, #fff);
+  box-shadow: var(--elevation-1);
+  font: var(--type-caption);
+  font-weight: 700;
+  line-height: 1.35;
+  pointer-events: none;
+}
+.player-card__team-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player-card__team-relation { flex: none; font-weight: 600; opacity: 0.85; }
+.player-card[data-relation='opponent'] .player-card__team { outline: 1px dashed var(--player-card-team-foreground, #fff); outline-offset: -3px; }
+
+/* An eliminated player who can still be revived is dimmed less than one who is permanently out. */
+.player-card[data-state='revivable'] .player-card__face { filter: grayscale(0.45); }
+.player-card[data-state='revivable'] .player-card__money-row { row-gap: 3px; }
+.player-card__tag--revive,
+.player-card__tag--revive-turns,
+.player-card__tag--permanent { white-space: nowrap; }
+
 /* ---------- Breakpoints (plan 03 section 8.10) ---------- */
 
 /* Compact: 961-1279 wide or 600-719 tall, and tablet landscape. */
@@ -221,6 +262,9 @@
   .player-card__tag--text,
   .player-card__tag-text { display: none; }
   .player-card__money { font: var(--type-label); font-weight: 800; }
+  /* The ribbon keeps the team name; the relation word stays in the accessible summary. */
+  .player-card__team { top: -9px; left: 10px; padding: 0 7px; }
+  .player-card__team-relation { display: none; }
 }
 
 /* ---------- Status pill (top center) ---------- */
@@ -541,6 +585,23 @@
   }
   .hud-context .jail-panel__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
   .hud-context .jail-panel__actions .ds-button { padding: 2px 6px; font: var(--type-caption); line-height: 1.1; }
+
+  /* The 2v2 revive offer follows the jail panel: a title row, the button, and the price in the button's description. */
+  .hud-context .revive-panel {
+    display: flex;
+    flex-flow: row wrap;
+    align-items: center;
+    gap: 2px 8px;
+    padding: 4px 8px;
+    border-radius: var(--radius-md);
+  }
+  .hud-context .revive-panel__head { flex: 1 1 100%; gap: 6px; }
+  .hud-context .revive-panel__title { font: 700 0.875rem/1.25rem var(--font-family-body); }
+  .hud-context .revive-panel__hint { display: none; }
+  .hud-context .revive-panel__blocked,
+  .hud-context .revive-panel__error,
+  .hud-context .revive-panel__pending { flex: 1 1 100%; font: var(--type-caption); line-height: 0.875rem; }
+  .hud-context .revive-panel .ds-button { padding: 2px 6px; font: var(--type-caption); line-height: 1.1; }
 }
 
 /* The strip between the two bottom cards is about 270 px wide: the lock icon goes so the title and the wait chip share a row. */

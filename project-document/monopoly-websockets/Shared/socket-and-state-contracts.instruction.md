@@ -13,7 +13,7 @@
   operation IDs cần cho durable continuation.
 - `RoomStatus`: `LOBBY | IN_PROGRESS | FINISHED`; `RoomRole`:
   `PLAYER | SPECTATOR`.
-- `SOCKET_PROTOCOL_VERSION = 9`; older clients nhận `UPGRADE_REQUIRED`, không chạy legacy
+- `SOCKET_PROTOCOL_VERSION = 10`; older clients nhận `UPGRADE_REQUIRED`, không chạy legacy
   state/payload.
 - `CharacterId` và `PlayerColorId` là stable shared appearance IDs. `set appearance`
   nhận strict character-only, color-only hoặc combined payload; empty/unknown keys
@@ -51,10 +51,17 @@ Public/persisted types dùng stable IDs và phân biệt hidden state:
   existing Log surface. Server producers append join/chat/dice/property/money/
   development/card/jail/bankruptcy/start/finish facts with monotonic sequence and
   UUID identity; clients never infer categories from legacy HTML logs.
+- 2v2 (protocol 10): `BoardState.gameMode`, `teams`, `teamPlay` (`slotOrder`, `revivedPlayerIds`, `reviveWindows`) and `winningTeamId`;
+  `Player`/`FinishedPlayer`/`Winner`/`RoomPlayerMeta` carry `teamId`; `PaymentQueue.rescue` is the open `EmergencyRescueOffer`.
+  `PublicBoardState` replaces `teams`/`teamPlay` with `PublicTeam[]` (with member IDs) and `PublicTeamPlayState`
+  (`reviveWindows` name the survivor; `slotOrder` stays private). Requests: `SetGameModeRequest`, `SetTeamNameRequest`,
+  `SetTeamColorRequest`, `SwapTeamRequest`, `RescueDecisionRequest {rescueId}`; `revive teammate` has no payload. Money reasons gain
+  `REVIVE` and `RESCUE`; activity gains `TEAM_REVIVE` and `EMERGENCY_RESCUE`, `PROPERTY_DEVELOPMENT` an optional
+  `ownerPlayerId/ownerName` and `GAME_FINISHED` optional `winningTeamId/winningTeamName`. Rules: [../GameCore/team-play.instruction.md](../GameCore/team-play.instruction.md).
 - Jail wait progress (`jailOpponentRoundsElapsed`) là state authoritative, được giữ
   nguyên qua payment/restart; không có third-failed-roll hoặc stored-dice state.
 
-`PersistedGameState`/room snapshot V8 chứa durable fields trên và bỏ `loaded`, presence,
+`PersistedGameState`/room snapshot V9 chứa durable fields trên và bỏ `loaded`, presence,
 credential, socket ID, countdown tick/timer handle. `BoardState.gameStartedAt?: string | null`
 là ISO timestamp authoritative được set tại transition `LOBBY -> IN_PROGRESS`; `freshState()`
 dùng `null`, schema chấp nhận missing/null để hydrate snapshot cũ, và public projection

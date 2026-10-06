@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { makeRoom } from '../../presentation/testFixtures';
+import { makeRoom, makeTeamRoom } from '../../presentation/testFixtures';
 import type { BalanceDeltaSignal } from '../../presentation/store/types';
 import PlayerCardList from './PlayerCardList';
 import { selectPlayerCardViewModels } from './playerCardSelectors';
@@ -79,6 +79,7 @@ describe('PlayerCardList', () => {
   it('replaces the money with a Phá sản chip and drops the footer for a bankrupt player', () => {
     const { container } = renderRoster(room => {
       room.gameState.boardState.finishedPlayers['player-b'] = {
+        teamId: 'TEAM_2',
         name: 'Bình', color: 'blue', characterId: 'panda', reason: 'BANKRUPT', accountBalance: 0,
       };
       delete room.gameState.players['player-b'];
@@ -94,6 +95,7 @@ describe('PlayerCardList', () => {
   it('shows a Đã rời chip for a player who left', () => {
     const { container } = renderRoster(room => {
       room.gameState.boardState.finishedPlayers['player-b'] = {
+        teamId: 'TEAM_2',
         name: 'Bình', color: 'blue', characterId: 'panda', reason: 'LEFT', accountBalance: 700,
       };
       delete room.gameState.players['player-b'];
@@ -275,6 +277,7 @@ describe('PlayerCard portfolio button (plan 03 OD-03-4)', () => {
   it('gives a player who left or went bankrupt a button too, so their (empty) portfolio can still be read', () => {
     const room = makeRoom();
     room.gameState.boardState.finishedPlayers['player-b'] = {
+      teamId: 'TEAM_2',
       name: 'Bình', color: 'blue', characterId: 'panda', reason: 'BANKRUPT', accountBalance: 0,
     };
     delete room.gameState.players['player-b'];
@@ -286,5 +289,65 @@ describe('PlayerCard portfolio button (plan 03 OD-03-4)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Xem tài sản của Bình' }));
     expect(onSelectPlayer).toHaveBeenCalledWith('player-b');
+  });
+});
+
+describe('PlayerCardList in a 2v2 game', () => {
+  const renderTeamRoster = (mutate: (room: ReturnType<typeof makeTeamRoom>) => void = () => undefined, localPlayerId = 'player-a') => {
+    const room = makeTeamRoom();
+    mutate(room);
+    const cards = selectPlayerCardViewModels(room.gameState, noPresentation, room.players, localPlayerId, 'PLAYER');
+    return render(<PlayerCardList cards={cards} deltas={[]} reducedMotion={false} speed={1} resetEpoch={0} />);
+  };
+
+  it('keeps four cards, each tagged with its team and relation, and reads them once in the summary', () => {
+    const { container } = renderTeamRoster();
+    expect(container.querySelectorAll('[data-player-id]')).toHaveLength(4);
+    const chi = container.querySelector('[data-player-id="player-c"]') as HTMLElement;
+    expect(chi.getAttribute('data-team')).toBe('TEAM_1');
+    expect(chi.getAttribute('data-relation')).toBe('teammate');
+    expect(chi.textContent).toContain('Chi, Đồng đội, đội Team 1');
+    const dung = container.querySelector('[data-player-id="player-d"]') as HTMLElement;
+    expect(dung.getAttribute('data-relation')).toBe('opponent');
+    expect(dung.textContent).toContain('Dũng, Đối thủ, đội Team 2');
+    expect(container.querySelector('[data-player-id="player-a"]')!.textContent).toContain('An (bạn), đội Team 1');
+  });
+
+  it('shows the team name on the card as text, not only as a colour', () => {
+    const { container } = renderTeamRoster();
+    const ribbon = container.querySelector('[data-player-id="player-b"] .player-card__team') as HTMLElement;
+    expect(ribbon.textContent).toContain('Team 2');
+  });
+
+  it('labels a bankrupt player "Có thể hồi sinh" with the turns left, and later "Đã bị loại vĩnh viễn"', () => {
+    const eliminate = (room: ReturnType<typeof makeTeamRoom>) => {
+      delete room.gameState.players['player-d'];
+      room.gameState.boardState.players = ['player-a', 'player-b', 'player-c'];
+      room.gameState.boardState.finishedPlayers['player-d'] = {
+        teamId: 'TEAM_2', name: 'Dũng', color: 'blue', characterId: 'duck', reason: 'BANKRUPT', accountBalance: 0,
+      };
+    };
+    const revivable = renderTeamRoster(room => {
+      eliminate(room);
+      room.gameState.boardState.teamPlay.reviveWindows = [{
+        playerId: 'player-d', teamId: 'TEAM_2', survivorPlayerId: 'player-b', turnsRemaining: 2, openedAtTurnNumber: 1,
+      }];
+    });
+    const card = revivable.container.querySelector('[data-player-id="player-d"]') as HTMLElement;
+    expect(card.getAttribute('data-state')).toBe('revivable');
+    expect(card.textContent).toContain('Có thể hồi sinh');
+    expect(card.textContent).toContain('Còn 2 lượt');
+    revivable.unmount();
+
+    const permanent = renderTeamRoster(eliminate);
+    const gone = permanent.container.querySelector('[data-player-id="player-d"]') as HTMLElement;
+    expect(gone.textContent).toContain('Đã bị loại vĩnh viễn');
+    expect(gone.textContent).not.toContain('Có thể hồi sinh');
+  });
+
+  it('shows no team text at all in Solo', () => {
+    const { container } = renderRoster();
+    expect(container.querySelector('.player-card__team')).toBeNull();
+    expect(container.querySelector('[data-team]')).toBeNull();
   });
 });

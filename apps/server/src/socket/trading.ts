@@ -15,7 +15,7 @@ import {
 } from '../game';
 import { projectPrivateOffer } from '../services/privateOffers';
 import { cancelPendingOffersForAssets, cancelPendingOffersForPlayer } from '../services/offerInvalidation';
-import type { AppRuntime } from '../services/runtime';
+import { paymentTimingOptions, type AppRuntime } from '../services/runtime';
 import { requirePlayer } from './authority';
 import { broadcastRoom, privatePlayerRoomName } from './broadcast';
 import { CommandError, acknowledgeFailure, successAck } from './errors';
@@ -195,12 +195,12 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
           // The debtor was paid: settle what the new balance covers, exactly like a sale to the Bank or a forced sale.
           const progress = progressPaymentQueue(state, {
             now: now.getTime(),
-            paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+            ...paymentTimingOptions(runtime),
           });
           if (progress.status === 'COMPLETED' && progress.continuation) {
             resumePaymentContinuation(state, progress.continuation, {
               now: now.getTime(),
-              paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+              ...paymentTimingOptions(runtime),
             });
           }
         }

@@ -1,4 +1,5 @@
 import {
+  areTeammates,
   tileState,
   type AckCallback,
   type GameState,
@@ -16,7 +17,7 @@ import {
   sendToLog,
   transferProperty,
 } from '../game';
-import type { AppRuntime } from '../services/runtime';
+import { paymentTimingOptions, type AppRuntime } from '../services/runtime';
 import { cancelPendingOffersForAssets, emitCancelledOffers } from '../services/offerInvalidation';
 import { requirePlayer } from './authority';
 import { broadcastRoom } from './broadcast';
@@ -78,7 +79,7 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
         if (player.isJail) {
           handleJailRoll(state, actor.playerId, dice, continuation, {
             now: now.getTime(),
-            paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+            ...paymentTimingOptions(runtime),
             cardAwaitingDrawTimeoutMs: runtime.timing.cardAwaitingDrawTimeoutMs,
             cardRevealedTimeoutMs: runtime.timing.cardRevealedTimeoutMs,
           });
@@ -93,7 +94,7 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
         });
         resolveTile(state, actor.playerId, total, continuation, {
           now: now.getTime(),
-          paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+          ...paymentTimingOptions(runtime),
           cardAwaitingDrawTimeoutMs: runtime.timing.cardAwaitingDrawTimeoutMs,
           cardRevealedTimeoutMs: runtime.timing.cardRevealedTimeoutMs,
         });
@@ -190,12 +191,20 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
         }
         const property = state.boardState.ownedProps[decision.tileID];
         const tile = tileState[decision.tileID];
+        // The owner develops their own street. In 2v2 the lander may fund a teammate's street (Team Investment): the actor
+        // alone pays, the owner never changes and contributes nothing.
+        const investsInTeammate = property !== undefined
+          && property.id !== actor.playerId
+          && areTeammates(state, actor.playerId, property.id);
         if (
-          !property || property.id !== actor.playerId || !tile?.houseCost
+          !property || (property.id !== actor.playerId && !investsInTeammate) || !tile?.houseCost
           || property.houses !== decision.levelAtLanding
         ) {
           throw new CommandError('CONFLICT', 'Tài sản không còn đủ điều kiện phát triển.');
         }
+        const investment = investsInTeammate
+          ? { ownerPlayerId: property.id, ownerName: activityPlayerName(state, property.id) }
+          : {};
         if (request.action === 'BUILD_HOUSES') {
           if (decision.kind !== 'HOUSES' || request.quantity > 4 - decision.levelAtLanding) {
             throw new CommandError('CONFLICT', 'Số lượng Nhà vượt quá giới hạn của lần đổ này.');
@@ -221,6 +230,7 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
             toHouses: property.houses,
             action: 'BUILD',
             cost,
+            ...investment,
           });
         } else if (request.action === 'UPGRADE_HOTEL') {
           if (decision.kind !== 'HOTEL' || decision.levelAtLanding !== 4 || property.houses !== 4) {
@@ -246,6 +256,7 @@ export function registerTurnHandlers(io: AppServer, socket: AppSocket, runtime: 
             toHouses: 5,
             action: 'UPGRADE_HOTEL',
             cost: tile.houseCost,
+            ...investment,
           });
         }
         if (request.action !== 'SKIP') {

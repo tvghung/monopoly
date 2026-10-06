@@ -19,8 +19,8 @@ afterEach(() => {
 });
 
 const readyPlayers = [
-  { id: 'player-a', name: 'Ada', color: 'red' as const, characterId: 'dog' as const, ready: true, connected: true },
-  { id: 'player-b', name: 'Grace', color: 'blue' as const, characterId: 'panda' as const, ready: true, connected: true },
+  { id: 'player-a', name: 'Ada', color: 'red' as const, characterId: 'dog' as const, teamId: 'TEAM_1' as const, ready: true, connected: true },
+  { id: 'player-b', name: 'Grace', color: 'blue' as const, characterId: 'panda' as const, teamId: 'TEAM_2' as const, ready: true, connected: true },
 ];
 
 describe('Lobby', () => {
@@ -201,8 +201,8 @@ describe('Lobby', () => {
         players={[
           readyPlayers[0],
           { ...readyPlayers[1], ready: false },
-          { id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: true, connected: false },
-          { id: 'player-d', name: 'Sam', color: 'yellow', characterId: 'duck', ready: false, connected: false },
+          { teamId: 'TEAM_2', id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: true, connected: false },
+          { teamId: 'TEAM_2', id: 'player-d', name: 'Sam', color: 'yellow', characterId: 'duck', ready: false, connected: false },
         ]}
         playerId="player-a"
         hostPlayerId="player-a"
@@ -332,8 +332,8 @@ describe('Lobby', () => {
       <Lobby
         roomCode="ROOM-9"
         players={[
-          { id: 'player-a', name: 'Ada', color: 'blue', characterId: 'panda', ready: true, connected: true },
-          { id: 'player-b', name: 'Grace', color: 'blue', characterId: 'dog', ready: true, connected: true },
+          { teamId: 'TEAM_2', id: 'player-a', name: 'Ada', color: 'blue', characterId: 'panda', ready: true, connected: true },
+          { teamId: 'TEAM_2', id: 'player-b', name: 'Grace', color: 'blue', characterId: 'dog', ready: true, connected: true },
         ]}
         playerId="player-a"
         hostPlayerId="player-a"
@@ -484,7 +484,7 @@ describe('Lobby start reason', () => {
   });
 
   it('keeps "Bắt đầu" and "sẵn sàng" out of every other button name (the e2e matches by substring)', () => {
-    renderLobby({ players: [...readyPlayers, { id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: false, connected: true }] });
+    renderLobby({ players: [...readyPlayers, { teamId: 'TEAM_1', id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: false, connected: true }] });
     expect(screen.queryAllByRole('button', { name: /Bắt đầu/iu })).toHaveLength(1);
     expect(screen.queryAllByRole('button', { name: /sẵn sàng/iu })).toHaveLength(1);
   });
@@ -504,8 +504,8 @@ describe('Lobby seats', () => {
     renderLobby({
       players: [
         ...readyPlayers,
-        { id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: false, connected: true },
-        { id: 'player-d', name: 'Sam', color: 'yellow', characterId: 'duck', ready: false, connected: true },
+        { teamId: 'TEAM_2', id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: false, connected: true },
+        { teamId: 'TEAM_2', id: 'player-d', name: 'Sam', color: 'yellow', characterId: 'duck', ready: false, connected: true },
       ],
     });
     expect(screen.queryByText('Chia sẻ mã phòng để mời bạn')).toBeNull();

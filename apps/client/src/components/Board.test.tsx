@@ -12,6 +12,7 @@ import type { PresentationState } from '../game/presentation/store/types';
 import type { AnimationQueue } from '../game/presentation/queue/AnimationQueue';
 import CardInteractionOverlay from '../game/ui/events/CardInteractionOverlay';
 import Board from './Board';
+import { soloTeamBoardFields } from '../game/presentation/testFixtures';
 
 vi.mock('../game/scene/GameScene', () => ({
   default: () => <div data-testid="game-scene" />,
@@ -32,6 +33,7 @@ const makeSocketFunctions = (): SocketFunctions => ({
 });
 
 const makePlayer = (name: string, color: PlayerColorId): PublicGameState['players'][string] => ({
+  teamId: 'TEAM_1',
   name,
   currentTile: 0,
   color,
@@ -50,6 +52,7 @@ const makeGameState = (options: {
   const players = options.players ?? {};
   return {
     boardState: {
+      ...soloTeamBoardFields(),
       gameStarted: true,
       players: Object.keys(players),
       finishedPlayers: {},
@@ -94,6 +97,7 @@ const makeContextValue = (
     name: player.name,
     color: player.color,
     characterId: player.characterId,
+    teamId: player.teamId,
     joinOrder: index + 1,
     membershipStatus: 'ACTIVE',
     ready: true,

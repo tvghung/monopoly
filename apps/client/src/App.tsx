@@ -18,7 +18,10 @@ import type {
   RoomRole,
   SessionReplacedInfo,
   ForcedSaleProposal,
+  GameMode,
+  PlayerColorId,
   SetAppearanceRequest,
+  TeamId,
 } from '@monopoly/shared';
 import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
 import { Flag, X as XIcon } from 'lucide-react';
@@ -64,6 +67,10 @@ const initialState: PublicGameState = {
   boardState: {
     gameStarted: false,
     gameStartedAt: null,
+    gameMode: 'SOLO',
+    winningTeamId: null,
+    teams: [],
+    teamPlay: { revivedPlayerIds: [], reviveWindows: [] },
     players: [],
     finishedPlayers: {},
     currentPlayer: { id: '', hasMoved: false },
@@ -192,7 +199,7 @@ export default function App({
   const [role, setRole] = useState<RoomRole | null>(null);
   const [connected, setConnected] = useState(socket.connected);
   const [failure, setFailure] = useState<AppFailure | null>(null);
-  const [operation, setOperation] = useState<'ready' | 'appearance' | 'start' | 'leave' | null>(null);
+  const [operation, setOperation] = useState<'ready' | 'appearance' | 'team' | 'start' | 'leave' | null>(null);
   const [operationError, setOperationError] = useState<string | null>(null);
   const [privatePlayerState, setPrivatePlayerState] = useState<PrivatePlayerState | null>(null);
   const [privateOffers, setPrivateOffers] = useState<PrivateOffer[]>([]);
@@ -691,6 +698,18 @@ export default function App({
         if (!canPlayAgain) return Promise.resolve(unavailableAck());
         return sendAck(callback => socket.emit('play again', callback));
       },
+      reviveTeammate: () => {
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('revive teammate', callback));
+      },
+      acceptRescue: (rescueId) => {
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('accept rescue', { rescueId }, callback));
+      },
+      declineRescue: (rescueId) => {
+        if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
+        return sendAck(callback => socket.emit('decline rescue', { rescueId }, callback));
+      },
     };
   }, [canMutate, canPlayAgain, connected, showCommandFailure, socket, toast]);
 
@@ -715,6 +734,32 @@ export default function App({
       if (!response.ok) setOperationError(localizeAckError(response.error));
     });
   }, [socket]);
+
+  /** The lobby's team commands share one busy state and one error line, like ready and appearance. */
+  const runTeamCommand = useCallback((send: (done: (response: Ack) => void) => void) => {
+    setOperation('team');
+    setOperationError(null);
+    send((response) => {
+      setOperation(null);
+      if (!response.ok) setOperationError(localizeAckError(response.error));
+    });
+  }, []);
+
+  const handleSetGameMode = useCallback((mode: GameMode) => {
+    runTeamCommand(done => socket.emit('set game mode', { mode }, done));
+  }, [runTeamCommand, socket]);
+
+  const handleSetTeamName = useCallback((teamId: TeamId, name: string) => {
+    runTeamCommand(done => socket.emit('set team name', { teamId, name }, done));
+  }, [runTeamCommand, socket]);
+
+  const handleSetTeamColor = useCallback((color: PlayerColorId) => {
+    runTeamCommand(done => socket.emit('set team color', { color }, done));
+  }, [runTeamCommand, socket]);
+
+  const handleSwapTeams = useCallback((playerId: string, withPlayerId: string) => {
+    runTeamCommand(done => socket.emit('swap team', { playerId, withPlayerId }, done));
+  }, [runTeamCommand, socket]);
 
   const handleStart = useCallback(() => {
     setOperation('start');
@@ -927,6 +972,7 @@ export default function App({
               name: member.name,
               color: member.color,
               characterId: member.characterId,
+              teamId: member.teamId,
               ready: member.ready,
               connected: member.connected,
             }))}
@@ -934,10 +980,16 @@ export default function App({
           hostPlayerId={room.hostPlayerId}
           minPlayers={room.minPlayers}
           maxPlayers={room.maxPlayers}
+          gameMode={room.gameState.boardState.gameMode}
+          teams={room.gameState.boardState.teams}
           busy={operation !== null}
           error={operationError}
           onSetReady={handleReady}
           onSetAppearance={handleAppearance}
+          onSetGameMode={handleSetGameMode}
+          onSetTeamName={handleSetTeamName}
+          onSetTeamColor={handleSetTeamColor}
+          onSwapTeams={handleSwapTeams}
           onStart={handleStart}
           onLeave={handleLeave}
           onSettings={() => setSettingsOpen(true)}

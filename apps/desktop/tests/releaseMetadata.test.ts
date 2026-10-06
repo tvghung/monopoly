@@ -17,7 +17,7 @@ describe('desktop release metadata', () => {
     const metadata = readCanonicalReleaseMetadata(repositoryRoot);
 
     expect(metadata).toMatchObject({
-      version: '1.2.0',
+      version: '1.3.0',
       productName: 'Own the Block',
       executableName: 'OwnTheBlock',
     });

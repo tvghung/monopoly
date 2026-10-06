@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import DebtPanel from '../../../components/dashboard/DebtPanel';
 import JailPanel from '../../../components/dashboard/JailPanel';
+import RevivePanel from '../../../components/dashboard/RevivePanel';
 import OwnedPropertiesControl from '../property/OwnedPropertiesControl';
 
 /**
@@ -15,6 +16,7 @@ export default function BottomDock({ onSelectTile, ticker }: { onSelectTile: (ti
       <div className="hud-context" data-hud-region="context-stack" data-hud-transient="true">
         <DebtPanel />
         <JailPanel />
+        <RevivePanel />
       </div>
       <nav className="action-dock" data-hud-region="action-dock" aria-label="Thao tác nhanh">
         <OwnedPropertiesControl onSelect={onSelectTile} />

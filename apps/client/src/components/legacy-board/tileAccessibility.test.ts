@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makeRoom } from '../../game/presentation/testFixtures';
+import { makeRoom, makeTeamRoom } from '../../game/presentation/testFixtures';
 import { getTileAccessibilityLabel } from './tileAccessibility';
 
 function labelFor(tileId: number, houses?: number): string {
@@ -28,5 +28,23 @@ describe('getTileAccessibilityLabel', () => {
     expect(label.startsWith('Ô 13: Hội An')).toBe(true);
     expect(label.endsWith('Mở chi tiết ô cờ')).toBe(true);
     expect(label).toContain('Chủ sở hữu: An');
+  });
+});
+
+describe('getTileAccessibilityLabel in a 2v2 game', () => {
+  it('names the owner\'s team after the owner, so teammates sharing a colour can be told apart', () => {
+    const room = makeTeamRoom();
+    room.gameState.boardState.ownedProps = { 13: { id: 'player-c', color: 'red', houses: 0 } };
+    const label = getTileAccessibilityLabel(13, room.gameState);
+    expect(label).toContain('Chủ sở hữu: Chi (đội Team 1)');
+    expect(label.startsWith('Ô 13: Hội An')).toBe(true);
+    expect(label.endsWith('Mở chi tiết ô cờ')).toBe(true);
+  });
+
+  it('leaves the Solo label exactly as it was', () => {
+    const room = makeRoom();
+    room.gameState.boardState.ownedProps = { 13: { id: 'player-a', color: 'red', houses: 0 } };
+    expect(getTileAccessibilityLabel(13, room.gameState)).toContain('Chủ sở hữu: An. ');
+    expect(getTileAccessibilityLabel(13, room.gameState)).not.toContain('đội');
   });
 });

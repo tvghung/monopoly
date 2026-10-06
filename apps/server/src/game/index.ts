@@ -61,6 +61,31 @@ export type { CompulsoryPayment, ForcedSaleExecutionResult, QueuePaymentOptions 
 export { bankruptActiveDebtor, progressPaymentQueue, sellablePropertyIds } from './paymentResolution';
 export type { PaymentProgressResult, PaymentProgressStatus } from './paymentResolution';
 export {
+  DEFAULT_EMERGENCY_RESCUE_TIMEOUT_MS,
+  findEmergencyRescuer,
+  openEmergencyRescue,
+} from './rescue';
+export {
+  acceptEmergencyRescue,
+  declineEmergencyRescue,
+  resolveRescueWithoutPayment,
+} from './rescueResolution';
+export type { RescueResolution } from './rescueResolution';
+export {
+  closeAllReviveWindows,
+  closeReviveWindow,
+  consumeReviveTurn,
+  getReviveEligibility,
+  openReviveWindowIfEligible,
+  restoreTurnOrder,
+  reviveTeammate,
+  reviveWindowOf,
+  startTeamMatch,
+  survivorOfTeam,
+} from './team';
+export type { ReviveEligibility, ReviveResult } from './team';
+export { createDefaultTeamSettings, createEmptyTeamPlayState } from './teamState';
+export {
   executeVoluntaryTrade,
   transferProperty,
 } from './transfer';

@@ -16,7 +16,8 @@ export type HowToPlaySectionId =
   | 'chest-cards'
   | 'trading'
   | 'debt'
-  | 'ending';
+  | 'ending'
+  | 'team-play';
 
 /** The one place a section is named, so a sentence that points at another section never drifts from its title. */
 export const SECTION_TITLES: Readonly<Record<HowToPlaySectionId, string>> = {
@@ -31,6 +32,7 @@ export const SECTION_TITLES: Readonly<Record<HowToPlaySectionId, string>> = {
   trading: 'Giao dịch mua bán',
   debt: 'Nợ và phá sản',
   ending: 'Bỏ cuộc và chiến thắng',
+  'team-play': 'Chơi đội 2v2',
 };
 
 /** What a card mostly does to the player who draws it. */

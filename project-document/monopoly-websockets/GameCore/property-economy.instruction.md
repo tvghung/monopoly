@@ -8,10 +8,12 @@
 
 ## Rent
 
-- Street: always base rent; 1–4 Nhà/Khách Sạn dùng `rentTiers`. A full colour
-  group does not multiply rent.
-- Ga Tàu: rent `25/50/100/200` theo tổng số Ga owner sở hữu.
-- Công Ty: owner sở hữu một utility = dice x4, sở hữu cả index 12/28 = dice x10.
+- Street: base rent hoặc `rentTiers` (1–4 Nhà/Khách Sạn). Sở hữu đủ một khu màu nhân tiền thuê (đã gồm tier xây) của **mọi ô street
+  trong khu**: Solo ×1,5 (`SOLO_COLOR_SET_RENT_PERCENT = 150`), 2v2 khi cả khu thuộc đội ×2 (`TEAM_COLOR_SET_RENT_PERCENT = 200`,
+  tổng hợp hai đồng đội); `Math.floor`. Bộ màu chỉ nhân thuê, không bao giờ khóa việc xây Nhà.
+- 2v2: chủ ô là đồng đội thì không trả tiền thuê tài sản (thẻ vẫn tính).
+- Ga Tàu: rent `25/50/100/200` theo tổng số Ga owner sở hữu (2v2: cộng cả Ga của đồng đội).
+- Công Ty: owner sở hữu một utility = dice x4, sở hữu cả index 12/28 = dice x10 (2v2: tính theo cả đội).
 - Rent tạo `DebtClaim` có PLAYER creditor thay vì transfer âm trực tiếp.
 
 ## Build/sell và landing decision
@@ -24,6 +26,8 @@
   luật build-even.
 - Bán Nhà tự nguyện hoàn tiền `floor(houseCost/2)` cho đúng tile; hành động chỉ
   bị chặn bởi payment shortfall đang mở.
+- Team Investment (2v2): dừng ở street đồng đội, người dừng chân trả bằng tiền của mình để xây/nâng cấp; `ownedProps` không đổi chủ,
+  và bán công trình hoàn tiền cho **chủ ô**.
 
 ## Transfer policies
 

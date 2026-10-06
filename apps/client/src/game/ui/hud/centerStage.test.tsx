@@ -84,6 +84,7 @@ describe('StatusPill', () => {
       mutate: room => {
         delete room.gameState.players['player-b'];
         room.gameState.boardState.finishedPlayers['player-b'] = {
+          teamId: 'TEAM_2',
           name: 'Bình', color: 'blue', characterId: 'panda', reason: 'BANKRUPT', accountBalance: 0,
         };
         room.gameState.boardState.currentPlayer = { id: 'player-a', hasMoved: false };
@@ -126,6 +127,7 @@ describe('CenterStage', () => {
       mutate: room => {
         delete room.gameState.players['player-b'];
         room.gameState.boardState.finishedPlayers['player-b'] = {
+          teamId: 'TEAM_2',
           name: 'Bình', color: 'blue', characterId: 'panda', reason: 'LEFT', accountBalance: 100,
         };
       },

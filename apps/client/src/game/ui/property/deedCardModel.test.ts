@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { makeRoom } from '../../presentation/testFixtures';
-import { buildDeedCardModel, COMPLETE_GROUP_RULE_NOTE } from './deedCardModel';
+import { makeRoom, makeTeamRoom } from '../../presentation/testFixtures';
+import { buildDeedCardModel, COMPLETE_GROUP_RULE_NOTE, TEAM_GROUP_RULE_NOTE } from './deedCardModel';
 
 type Owned = Record<number, { id: string; color: 'red'; houses: number }>;
 
@@ -96,10 +96,65 @@ describe('buildDeedCardModel', () => {
     room.gameState.boardState.ownedProps = { 1: { id: 'player-b', color: 'red', houses: 0 } };
     delete room.gameState.players['player-b'];
     room.gameState.boardState.finishedPlayers['player-b'] = {
+      teamId: 'TEAM_2',
       name: 'Bình', color: 'blue', characterId: 'panda', reason: 'LEFT', accountBalance: 10,
     };
     const model = buildDeedCardModel({ tileId: 1, state: room.gameState })!;
     expect(model.owner?.name).toBe('Bình');
+  });
+
+  it('Solo: a completed set carries the ×1,5 bonus and the rent it makes now (floor-rounded); a split set carries none', () => {
+    const complete = build(1, {
+      1: { id: 'player-a', color: 'red', houses: 2 },
+      3: { id: 'player-a', color: 'red', houses: 0 },
+    })!;
+    expect(complete.rentBonus).toEqual({ percent: 150, text: 'Đủ khu: tiền thuê ×1,5', effectiveRentText: '45.000 ₫' });
+    expect(complete.groupRuleNote).toBe(COMPLETE_GROUP_RULE_NOTE);
+    expect(complete.owner).toMatchObject({ team: null, relation: null });
+    const split = build(1, {
+      1: { id: 'player-a', color: 'red', houses: 2 },
+      3: { id: 'player-b', color: 'red', houses: 0 },
+    })!;
+    expect(split.rentBonus).toBeNull();
+    expect(build(5, { 5: { id: 'player-a', color: 'red', houses: 0 } })!.rentBonus).toBeNull();
+  });
+
+  describe('2v2', () => {
+    function team(ownedProps: Owned, viewerPlayerId: string | null = 'player-a', tileId = 1) {
+      const room = makeTeamRoom();
+      room.gameState.boardState.ownedProps = ownedProps;
+      return buildDeedCardModel({
+        tileId, state: room.gameState, roomPlayers: room.players, theme: 'v2', viewerPlayerId,
+      })!;
+    }
+
+    it('aggregates the set across both teammates and doubles the rent', () => {
+      const model = team({
+        1: { id: 'player-a', color: 'red', houses: 2 },
+        3: { id: 'player-c', color: 'red', houses: 0 },
+      });
+      expect(model.rentBonus).toEqual({ percent: 200, text: 'Cả đội đủ khu: tiền thuê ×2', effectiveRentText: '60.000 ₫' });
+      expect(model.group).toMatchObject({ total: 2, ownedByOwner: 2, text: 'Đội Team 1 sở hữu 2/2' });
+      expect(model.group?.pips.map(pip => pip.ownerName)).toEqual(['An', 'Chi']);
+      expect(model.groupRuleNote).toBe(TEAM_GROUP_RULE_NOTE);
+    });
+
+    it('does not give the bonus to a set split between the two teams', () => {
+      const model = team({
+        1: { id: 'player-a', color: 'red', houses: 0 },
+        3: { id: 'player-b', color: 'red', houses: 0 },
+      });
+      expect(model.rentBonus).toBeNull();
+      expect(model.group).toMatchObject({ ownedByOwner: 1, text: 'Đội Team 1 sở hữu 1/2' });
+    });
+
+    it('names the owner\'s team and marks self, teammate and opponent for the viewer', () => {
+      const owned: Owned = { 1: { id: 'player-a', color: 'red', houses: 0 } };
+      expect(team(owned, 'player-a').owner).toMatchObject({ relation: 'SELF', team: { teamId: 'TEAM_1', name: 'Team 1', color: 'red' } });
+      expect(team(owned, 'player-c').owner?.relation).toBe('TEAMMATE');
+      expect(team(owned, 'player-b').owner?.relation).toBe('OPPONENT');
+      expect(team(owned, null).owner?.relation).toBeNull();
+    });
   });
 
   it.each([

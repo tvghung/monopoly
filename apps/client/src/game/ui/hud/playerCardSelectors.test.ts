@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RoomPlayerMeta } from '@monopoly/shared';
-import { makeRoom } from '../../presentation/testFixtures';
+import { makeRoom, makeTeamRoom } from '../../presentation/testFixtures';
 import { selectPlayerCardViewModels } from './playerCardSelectors';
 
 const noPresentation = {
@@ -12,12 +12,13 @@ const noPresentation = {
 function roomWith(playerCount: 2 | 3 | 4) {
   const room = makeRoom();
   const extra: RoomPlayerMeta[] = [
-    { playerId: 'player-c', name: 'Chi', color: 'green', characterId: 'cat', joinOrder: 2, membershipStatus: 'ACTIVE', ready: true, connected: true },
-    { playerId: 'player-d', name: 'Dũng', color: 'yellow', characterId: 'penguin', joinOrder: 3, membershipStatus: 'ACTIVE', ready: true, connected: true },
+    { teamId: 'TEAM_2', playerId: 'player-c', name: 'Chi', color: 'green', characterId: 'cat', joinOrder: 2, membershipStatus: 'ACTIVE', ready: true, connected: true },
+    { teamId: 'TEAM_2', playerId: 'player-d', name: 'Dũng', color: 'yellow', characterId: 'penguin', joinOrder: 3, membershipStatus: 'ACTIVE', ready: true, connected: true },
   ];
   room.players.push(...extra.slice(0, playerCount - 2));
   extra.slice(0, playerCount - 2).forEach(player => {
     room.gameState.players[player.playerId] = {
+      teamId: 'TEAM_1',
       name: player.name,
       currentTile: 0,
       color: player.color,
@@ -135,9 +136,11 @@ describe('selectPlayerCardViewModels', () => {
   it('keeps left and bankrupt players in their seat with their lifecycle flags', () => {
     const room = roomWith(4);
     room.gameState.boardState.finishedPlayers['player-c'] = {
+      teamId: 'TEAM_2',
       name: 'Chi', color: 'green', characterId: 'cat', reason: 'BANKRUPT', accountBalance: 0,
     };
     room.gameState.boardState.finishedPlayers['player-d'] = {
+      teamId: 'TEAM_2',
       name: 'Dũng', color: 'yellow', characterId: 'penguin', reason: 'LEFT', accountBalance: 300,
     };
     delete room.gameState.players['player-c'];
@@ -148,5 +151,55 @@ describe('selectPlayerCardViewModels', () => {
     expect(bankrupt).toMatchObject({ isBankrupt: true, hasLeft: false, slot: 'LEFT' });
     expect(left).toMatchObject({ hasLeft: true, isBankrupt: false, slot: 'RIGHT', isConnected: false });
     expect(left.displayMoney).toBe(300);
+  });
+});
+
+describe('selectPlayerCardViewModels in a 2v2 game', () => {
+  const teamRoom = () => makeTeamRoom();
+  const selectTeam = (room: ReturnType<typeof makeTeamRoom>, localPlayerId: string | null, role: 'PLAYER' | 'SPECTATOR' = 'PLAYER') => (
+    selectPlayerCardViewModels(room.gameState, noPresentation, room.players, localPlayerId, role)
+  );
+
+  it('carries each player\'s team and how they relate to the local player', () => {
+    const cards = selectTeam(teamRoom(), 'player-a');
+    const byId = Object.fromEntries(cards.map(card => [card.playerId, card]));
+    expect(byId['player-a']).toMatchObject({ teamId: 'TEAM_1', teamName: 'Team 1', teamColor: 'red', relation: 'SELF' });
+    expect(byId['player-c']).toMatchObject({ teamId: 'TEAM_1', relation: 'TEAMMATE' });
+    expect(byId['player-b']).toMatchObject({ teamId: 'TEAM_2', teamColor: 'blue', relation: 'OPPONENT' });
+    expect(byId['player-d'].relation).toBe('OPPONENT');
+  });
+
+  it('seats the local team in the left column and the opponents in the right one', () => {
+    const slots = Object.fromEntries(selectTeam(teamRoom(), 'player-a').map(card => [card.playerId, card.slot]));
+    expect(slots).toEqual({ 'player-a': 'BOTTOM', 'player-c': 'LEFT', 'player-b': 'TOP', 'player-d': 'RIGHT' });
+  });
+
+  it('gives a spectator no relation and no local card', () => {
+    const cards = selectTeam(teamRoom(), null, 'SPECTATOR');
+    expect(cards.every(card => card.relation === null && !card.isLocal)).toBe(true);
+    expect(cards.map(card => card.teamId)).toEqual(['TEAM_1', 'TEAM_2', 'TEAM_1', 'TEAM_2']);
+  });
+
+  it('marks a bankrupt player revivable with the survivor turns left, then permanently out', () => {
+    const room = teamRoom();
+    delete room.gameState.players['player-d'];
+    room.gameState.boardState.players = ['player-a', 'player-b', 'player-c'];
+    room.gameState.boardState.finishedPlayers['player-d'] = {
+      teamId: 'TEAM_2', name: 'Dũng', color: 'blue', characterId: 'duck', reason: 'BANKRUPT', accountBalance: 0,
+    };
+    room.gameState.boardState.teamPlay.reviveWindows = [{
+      playerId: 'player-d', teamId: 'TEAM_2', survivorPlayerId: 'player-b', turnsRemaining: 1, openedAtTurnNumber: 1,
+    }];
+    const revivable = selectTeam(room, 'player-b').find(card => card.playerId === 'player-d')!;
+    expect(revivable).toMatchObject({ isBankrupt: true, relation: 'TEAMMATE' });
+    expect(revivable.revive).toMatchObject({ kind: 'REVIVABLE', turnsLabel: 'Cơ hội cuối' });
+
+    room.gameState.boardState.teamPlay.reviveWindows = [];
+    expect(selectTeam(room, 'player-b').find(card => card.playerId === 'player-d')!.revive).toEqual({ kind: 'PERMANENT' });
+  });
+
+  it('has no team data at all in Solo', () => {
+    const solo = select(roomWith(2), 'player-a');
+    expect(solo.every(card => card.teamId === null && card.teamName === null && card.relation === null && card.revive === null)).toBe(true);
   });
 });

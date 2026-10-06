@@ -9,11 +9,13 @@ import stateContext from '../../internal';
 import tradePromptContext from '../../tradePromptContext';
 import type { SocketFunctions, StateContextValue } from '../../types';
 import TradeOfferModal, { describeTradeSide } from './TradeOfferModal';
+import { soloTeamBoardFields } from '../../game/presentation/testFixtures';
 
 afterEach(cleanup);
 
 const state: PublicGameState = {
   boardState: {
+    ...soloTeamBoardFields(),
     gameStarted: true,
     players: ['me', 'them'],
     finishedPlayers: {},
@@ -35,6 +37,7 @@ const state: PublicGameState = {
   },
   players: {
     me: {
+      teamId: 'TEAM_1',
       name: 'An',
       currentTile: 0,
       color: 'red',
@@ -45,6 +48,7 @@ const state: PublicGameState = {
       getOutOfJailCardCount: 1,
     },
     them: {
+      teamId: 'TEAM_2',
       name: 'Bình',
       currentTile: 10,
       color: 'blue',

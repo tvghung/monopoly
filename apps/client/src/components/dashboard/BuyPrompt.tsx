@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { colorGroups, tileState } from '@monopoly/shared';
+import { colorGroups, getTeammateIds, tileState } from '@monopoly/shared';
 import { ShoppingCart, X } from 'lucide-react';
 import stateContext from '../../internal';
 import { formatMoney, getTileName, localizeAckError } from '../../presentation';
@@ -12,20 +12,26 @@ import PropertyDeedCard from '../../game/ui/property/PropertyDeedCard';
 import { getPropertyGroupVisualStyle } from '../../game/ui/propertyVisualColors';
 import './DecisionSheet.css';
 
-/** "Sở hữu 2/3 nhóm Xanh nhạt sau khi mua", or null when the purchase does not bring the group closer in a way worth saying. */
+/**
+ * "Sở hữu 2/3 nhóm Xanh nhạt sau khi mua", or null when the purchase does not bring the group closer in a way worth saying. In 2v2
+ * the buyer's teammates are passed too: the colour set belongs to the team, so their streets count and the hint speaks of "cả đội".
+ */
 export function groupProgressHint(
   tileId: number,
   ownerId: string | undefined,
   ownedProps: Record<number, { id: string }>,
+  teammateIds: readonly string[] = [],
 ): string | null {
   const tile = tileState[tileId];
   if (!tile || !ownerId) return null;
   const tiles = tile.tileType === 'normal' && tile.color ? colorGroups[tile.color] : undefined;
   if (!tiles || tiles.length < 2) return null;
-  const after = tiles.filter(groupTileId => groupTileId === tileId || ownedProps[groupTileId]?.id === ownerId).length;
-  const label = getPropertyGroupVisualStyle(tile.color).label;
-  if (after === tiles.length) return `Hoàn thành ${label.toLowerCase()} sau khi mua`;
-  return after >= 2 ? `Sở hữu ${after}/${tiles.length} ${label.toLowerCase()} sau khi mua` : null;
+  const holds = (holderId: string | undefined) => holderId !== undefined && (holderId === ownerId || teammateIds.includes(holderId));
+  const after = tiles.filter(groupTileId => groupTileId === tileId || holds(ownedProps[groupTileId]?.id)).length;
+  const label = getPropertyGroupVisualStyle(tile.color).label.toLowerCase();
+  const subject = teammateIds.length > 0 ? 'Cả đội' : null;
+  if (after === tiles.length) return subject ? `${subject} hoàn thành ${label} sau khi mua` : `Hoàn thành ${label} sau khi mua`;
+  return after >= 2 ? `${subject ?? 'Sở hữu'}${subject ? ' sở hữu' : ''} ${after}/${tiles.length} ${label} sau khi mua` : null;
 }
 
 export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
@@ -91,7 +97,7 @@ export default function BuyPrompt({ tokenArrived }: { tokenArrived: boolean }) {
   const price = typeof tile?.price === 'number' ? tile.price : null;
   const balance = player?.accountBalance ?? 0;
   const shortBy = price !== null && balance < price ? price - balance : 0;
-  const hint = typeof tileId === 'number' ? groupProgressHint(tileId, playerId ?? undefined, state.boardState.ownedProps) : null;
+  const hint = typeof tileId === 'number' ? groupProgressHint(tileId, playerId ?? undefined, state.boardState.ownedProps, playerId ? getTeammateIds(state, playerId) : []) : null;
   const name = typeof tileId === 'number' ? getTileName(tileId) : null;
 
   return (

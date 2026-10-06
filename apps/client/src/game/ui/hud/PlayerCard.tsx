@@ -6,7 +6,8 @@ import MoneyText from '../../../design-system/components/MoneyText/MoneyText';
 import PlayerAvatar, { type PlayerAvatarStatus } from '../../../design-system/components/PlayerAvatar/PlayerAvatar';
 import { ActionIcon } from '../../../design-system/icons/ActionIcon';
 import type { BalanceDeltaSignal } from '../../presentation/store/types';
-import { getPlayerDisplayColor } from '../playerVisualColors';
+import { PERMANENT_ELIMINATION_LABEL, REVIVABLE_LABEL, relationLabel } from '../../team/teamView';
+import { getPlayerDisplayColor, getPlayerDisplayForeground } from '../playerVisualColors';
 import type { PlayerCardViewModel } from './playerCardSelectors';
 import { describePlayerCard, JAIL_ROUND_LIMIT } from './playerCardText';
 import { useAnimatedNumber } from './useAnimatedNumber';
@@ -37,7 +38,7 @@ function avatarStatus(card: PlayerCardViewModel): PlayerAvatarStatus {
 
 function cardState(card: PlayerCardViewModel): string {
   if (card.hasLeft) return 'left';
-  if (card.isBankrupt) return 'bankrupt';
+  if (card.isBankrupt) return card.revive?.kind === 'REVIVABLE' ? 'revivable' : 'bankrupt';
   if (!card.isConnected) return 'offline';
   if (card.isInJail) return 'jail';
   return 'playing';
@@ -72,7 +73,16 @@ export default function PlayerCard({
   const showTurn = card.isActive && !out;
   const pulse = useTurnPulse(showTurn, resetEpoch);
   const recoverySeconds = useCountdownSeconds(showOffline ? card.recoveryDeadlineAt : null);
-  const style = { '--player-card-color': getPlayerDisplayColor(card.color) } as CSSProperties;
+  const style = {
+    '--player-card-color': getPlayerDisplayColor(card.color),
+    ...(card.teamColor
+      ? {
+        '--player-card-team-color': getPlayerDisplayColor(card.teamColor),
+        '--player-card-team-foreground': getPlayerDisplayForeground(card.teamColor),
+      }
+      : {}),
+  } as CSSProperties;
+  const relation = relationLabel(card.relation);
   const tags = [
     { id: 'offline', show: showOffline },
     { id: 'jail', show: showJail },
@@ -87,6 +97,8 @@ export default function PlayerCard({
       data-current-turn={card.isActive}
       data-slot={card.slot ?? undefined}
       data-state={cardState(card)}
+      data-team={card.teamId ?? undefined}
+      data-relation={card.relation?.toLowerCase() ?? undefined}
       data-hud-region={card.slot ? `player-card-${card.slot.toLowerCase()}` : undefined}
       style={style}
     >
@@ -99,6 +111,12 @@ export default function PlayerCard({
           aria-label={`Xem tài sản của ${card.name}`}
           onClick={() => onSelect(card.playerId)}
         />
+      ) : null}
+      {card.teamName ? (
+        <span className="player-card__team" aria-hidden="true" title={relation ? `${card.teamName} · ${relation}` : card.teamName}>
+          <span className="player-card__team-name">{card.teamName}</span>
+          {relation && card.relation !== 'SELF' ? <span className="player-card__team-relation">{relation}</span> : null}
+        </span>
       ) : null}
       <div className="player-card__face" aria-hidden="true">
         <PlayerAvatar
@@ -133,6 +151,17 @@ export default function PlayerCard({
             {card.isBankrupt
               ? <Chip tone="loss" className="player-card__tag" icon={<ActionIcon name="bankrupt" size={14} />}>Phá sản</Chip>
               : <MoneyText amount={money} size="lg" className="player-card__money" />}
+            {card.isBankrupt && card.revive?.kind === 'REVIVABLE'
+              ? (
+                <>
+                  <Chip tone="gold" className="player-card__tag player-card__tag--revive">{REVIVABLE_LABEL}</Chip>
+                  <Chip tone={card.revive.window.turnsRemaining <= 1 ? 'loss' : 'info'} className="player-card__tag player-card__tag--revive-turns">{card.revive.turnsLabel}</Chip>
+                </>
+              )
+              : null}
+            {card.isBankrupt && card.revive?.kind === 'PERMANENT'
+              ? <Chip tone="neutral" className="player-card__tag player-card__tag--permanent">{PERMANENT_ELIMINATION_LABEL}</Chip>
+              : null}
             <span className="player-card__chips">
               {chips.map(entry => (
                 <DeltaChip key={entry.key} delta={entry.value.delta} reducedMotion={reducedMotion} />

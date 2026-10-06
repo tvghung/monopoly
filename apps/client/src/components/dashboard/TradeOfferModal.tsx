@@ -17,6 +17,7 @@ import PlayerAvatar from '../../design-system/components/PlayerAvatar/PlayerAvat
 import { ActionIcon } from '../../design-system/icons/ActionIcon';
 import { buildDeedCardModel, type DeedCardModel } from '../../game/ui/property/deedCardModel';
 import PropertyDeedCard from '../../game/ui/property/PropertyDeedCard';
+import TeamChip from '../../game/team/TeamChip';
 import './TradeOffer.css';
 
 function cardLabel(cardId: GameCardId): string {
@@ -277,6 +278,7 @@ export default function TradeOfferModal() {
                     <div className="trade-bundle__owner">
                       {recipient ? <PlayerAvatar characterId={recipient.characterId ?? null} colorId={recipient.color} size={32} /> : null}
                       <span>{recipient?.name ?? 'Người sở hữu tài sản'}</span>
+                      {recipientPlayerId ? <TeamChip playerId={recipientPlayerId} /> : null}
                     </div>
                     <label htmlFor="private-request-cash">Tiền (đơn vị nghìn đồng)</label>
                     <div className="trade-bundle__cash">

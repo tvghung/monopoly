@@ -8,8 +8,8 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.2.0
-Socket protocol: 9
+Semantic version: 1.3.0
+Socket protocol: 10
 ```
 
 Application semantic version and network protocol version are independent.
@@ -254,11 +254,11 @@ references across tracked files, including the lockfile and release tooling.
 | --- | --- |
 | Root/client/server/desktop/shared package identity | CURRENT RELEASE CONTRACT: root and desktop normalized; other packages already aligned. |
 | Forge, desktop release/config/collection scripts, workflows, README | CURRENT RELEASE CONTRACT: metadata-derived artifact naming retained; contract gate added. |
-| Shared protocol declaration, client authentication/acks, server admission/public state/acks, current Shared/API/Client instructions | CURRENT RELEASE CONTRACT: shared protocol 9 retained without runtime changes. |
+| Shared protocol declaration, client authentication/acks, server admission/public state/acks, current Shared/API/Client instructions | CURRENT RELEASE CONTRACT: shared protocol 10 for 1.3.0 Teamplay; 1.2.0 shipped protocol 9. |
 | Phase 1–7 reports, masterplan checkpoint entries, old installer names/hashes, Phase 7.2 V8 tables, V1 audio acceptance evidence | HISTORICAL EVIDENCE: facts retained; Phase 7.2 linked to this contract. |
 | Client/desktop runtime tests with old app versions; server protocol compatibility tests; presentation/UAT fixtures | TEST FIXTURE: isolated values retained. The desktop metadata test reads the real repository and therefore now expects V1. |
 | Dependency/devDependency fields and pnpm lockfile resolutions (including matching version substrings) | DEPENDENCY VERSION: unchanged; frozen install requires no lockfile regeneration. |
-| Snapshot/storage/settings/schema/migration versions, PostgreSQL binary version, XML headers, general branding and tool-version references | UNRELATED to product semver: retained. Snapshot version 8 is not Socket protocol 9. |
+| Snapshot/storage/settings/schema/migration versions, PostgreSQL binary version, XML headers, general branding and tool-version references | UNRELATED to product semver: retained. Snapshot version 9 is not Socket protocol 10. |
 
 ## V1.0.0 release decision
 
@@ -408,3 +408,15 @@ publish: `releases/latest/download/update-manifest.json` serves version `1.2.0` 
 As for the earlier releases: the installers were built, passed the packaged proofs on CI and were published by the workflow;
 nobody is recorded as having installed them from the release page, and **no installed app has updated itself through this
 release** (there is no newer release for it to find).
+
+## V1.3.0 Teamplay release decision (Socket protocol 10, snapshot schema 9)
+
+The release after `1.2.0` adds authoritative 2v2 Teamplay (see
+[../monopoly-websockets/GameCore/team-play.instruction.md](../monopoly-websockets/GameCore/team-play.instruction.md)). It moves the
+shared Socket protocol from 9 to 10 and the room snapshot schema from 8 to 9 (migration `010_teamplay_v9.sql`), so the contract
+above names protocol 10 and a `1.2.0` client and a protocol-10 server refuse each other with `UPGRADE_REQUIRED`.
+LAN discovery answers protocol 10 (`apps/desktop/src/lanFinder.ts`) and `apps/desktop/update-policy.json` records
+`reviewedForSocketProtocol: 10`. `minimumSupportedVersion` is `1.3.0`: the 1.2.0 updater marks this update mandatory
+before starting or joining multiplayer after it reads the release manifest. The server still rejects mismatched clients
+when an old installation has no access to the update feed. The owner explicitly chose to ship without manual device UAT;
+mobile E2E and visual capture are also skipped for this release. Manual checklist rows remain unticked.

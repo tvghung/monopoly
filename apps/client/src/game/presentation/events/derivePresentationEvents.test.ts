@@ -47,9 +47,11 @@ describe('derivePresentationEvents', () => {
     next.gameState.boardState.ownedProps[1].houses = 5;
     next.gameState.players['player-a'].isJail = true;
     next.gameState.boardState.finishedPlayers['player-b'] = {
+      teamId: 'TEAM_2',
       name: 'Bình', color: 'blue', characterId: 'panda', reason: 'BANKRUPT',
     };
     next.gameState.boardState.winner = {
+      teamId: 'TEAM_1',
       playerId: 'player-a', name: 'An', color: 'red', characterId: 'dog', reason: 'BANKRUPT',
     };
 

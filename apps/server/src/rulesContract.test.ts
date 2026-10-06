@@ -1,6 +1,7 @@
 import type { AddressInfo } from 'node:net';
 import {
   colorGroups,
+  DEFAULT_EMERGENCY_RESCUE_SECONDS,
   DEFAULT_PAYMENT_SHORTFALL_SECONDS,
   DEFAULT_RECONNECT_GRACE_SECONDS,
   FORCED_SALE_PERCENT,
@@ -18,8 +19,16 @@ import {
   RAILROAD_RENT_BY_COUNT,
   RAILROAD_TILE_INDICES,
   railroadRentForCount,
+  REVIVE_COST,
+  REVIVE_STARTING_CASH,
+  REVIVE_WINDOW_SURVIVOR_TURNS,
   SOCKET_PROTOCOL_VERSION,
+  SOLO_COLOR_SET_RENT_PERCENT,
   STARTING_CASH,
+  TEAM_2V2_PLAYER_COUNT,
+  TEAM_COLOR_SET_RENT_PERCENT,
+  TEAM_NAME_MAX_LENGTH,
+  TEAM_SIZE,
   tileState,
   UTILITY_RENT_MULTIPLIER_BOTH,
   UTILITY_RENT_MULTIPLIER_SINGLE,
@@ -50,6 +59,7 @@ import {
   railroadRent,
   resolveTile,
   sellHouse,
+  streetRent,
   utilityRent,
 } from './game';
 import { START_REWARD } from './game/dice';
@@ -296,6 +306,23 @@ describe('rules.ts agrees with the server', () => {
     expect(persistenceTiming.paymentShortfallActionTimeoutMs).toBe(DEFAULT_PAYMENT_SHORTFALL_SECONDS * 1000);
     expect(DEFAULT_PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS).toBe(DEFAULT_PAYMENT_SHORTFALL_SECONDS * 1000);
     expect(DEFAULT_FORCED_SALE_PROPOSAL_TIMEOUT_MS).toBe(FORCED_SALE_PROPOSAL_SECONDS * 1000);
+    expect(persistenceTiming.emergencyRescueTimeoutMs).toBe(DEFAULT_EMERGENCY_RESCUE_SECONDS * 1000);
+  });
+
+  it('keeps the 2v2 numbers the how-to-play guide prints, and the server charges the Solo set bonus they name', () => {
+    expect([SOLO_COLOR_SET_RENT_PERCENT, TEAM_COLOR_SET_RENT_PERCENT]).toEqual([150, 200]);
+    expect([REVIVE_COST, REVIVE_STARTING_CASH, REVIVE_WINDOW_SURVIVOR_TURNS]).toEqual([750, 300, 3]);
+    expect([TEAM_SIZE, TEAM_2V2_PLAYER_COUNT, TEAM_NAME_MAX_LENGTH]).toEqual([2, 4, 20]);
+    expect(DEFAULT_EMERGENCY_RESCUE_SECONDS).toBe(30);
+
+    // The real rent function: a lone street pays its base rent, a completed set pays the Solo percentage of it, rounded down.
+    const state = makeState();
+    const [first, second] = colorGroups.brown;
+    state.boardState.ownedProps[first] = { id: 'p1', color: 'red', houses: 0 };
+    const lone = streetRent(state, first);
+    expect(lone).toBe(tileState[first].rent);
+    state.boardState.ownedProps[second] = { id: 'p1', color: 'red', houses: 0 };
+    expect(streetRent(state, first)).toBe(Math.floor((lone * SOLO_COLOR_SET_RENT_PERCENT) / 100));
   });
 });
 

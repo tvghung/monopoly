@@ -17,6 +17,7 @@ import SceneErrorBoundary from '../game/scene/fallback/SceneErrorBoundary';
 import { supportsWebGL } from '../game/scene/fallback/webglSupport';
 import PlayerPortfolioModal from '../game/ui/property/PlayerPortfolioModal';
 import PropertyInspectionModal from '../game/ui/property/PropertyInspectionModal';
+import TileOwnerHoverCard from '../game/ui/property/TileOwnerHoverCard';
 import GameHud from '../game/ui/hud/GameHud';
 import BoardAccessibilityControls from './BoardAccessibilityControls';
 import LegacyBoardView from './legacy-board/LegacyBoardView';
@@ -126,6 +127,7 @@ export default function Board() {
               : legacyBoard}
             <Dashboard />
             <GameHud onSelectTile={selectTile} onSelectPlayer={setPortfolioPlayerId} />
+            <TileOwnerHoverCard tileId={hoveredTileId} />
           </section>
 
           {rendererMode === 'webgl'

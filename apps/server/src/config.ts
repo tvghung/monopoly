@@ -12,6 +12,7 @@ export interface PersistenceTimingConfig {
   paymentShortfallActionTimeoutMs: number;
   cardAwaitingDrawTimeoutMs: number;
   cardRevealedTimeoutMs: number;
+  emergencyRescueTimeoutMs: number;
   pendingSessionTtlMs: number;
   terminalSessionRetentionMs: number;
   lobbyRetentionMs: number;
@@ -160,6 +161,11 @@ export function loadServerConfig(
       cardRevealedTimeoutMs: readPositiveInteger(
         environment,
         'CARD_REVEALED_TIMEOUT_MS',
+        30_000,
+      ),
+      emergencyRescueTimeoutMs: readPositiveInteger(
+        environment,
+        'EMERGENCY_RESCUE_TIMEOUT_MS',
         30_000,
       ),
       pendingSessionTtlMs: readPositiveInteger(

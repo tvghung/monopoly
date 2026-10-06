@@ -1,0 +1,31 @@
+/*
+ * 2v2 revive offer. Like the jail panel it lives in the HUD context stack, so it shares the sheet look and `hud.css` can compact
+ * it to a strip on a phone held sideways (`.hud-context .revive-panel*`).
+ */
+.revive-panel {
+  display: grid;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  width: min(100%, 28rem);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-turn-active);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  background-image: var(--paper-grain);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
+}
+
+.revive-panel__head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.revive-panel__title { min-width: 0; margin: 0; font: var(--type-title-s); line-height: var(--line-height-tight); overflow-wrap: anywhere; }
+.revive-panel__turns { flex: none; margin-left: auto; }
+
+.revive-panel__hint { margin: 0; color: var(--color-text-secondary); font: var(--type-small); }
+.revive-panel__blocked,
+.revive-panel__error,
+.revive-panel__pending { margin: 0; font: var(--type-small); font-weight: var(--font-weight-semibold); }
+.revive-panel__blocked,
+.revive-panel__error { color: var(--color-danger-strong); }
+
+.revive-panel .ds-button { box-sizing: border-box; width: 100%; text-align: center; }

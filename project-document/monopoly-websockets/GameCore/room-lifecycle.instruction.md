@@ -20,7 +20,8 @@ presence (`CONNECTED | DISCONNECTED`).
 - Two-step pending admission creates a Seat only on `resume session` activation.
 - Stable UUID Player identity is assigned once and reused across connections/restart.
 - First activated active Seat is host; new Seat has `ready=false`.
-- Lobby maximum is four active Seats. Start requires 2–4.
+- Lobby maximum is four active Seats. Start requires 2–4 in Solo and exactly four (two per team) in 2v2; the host picks the
+  mode and teams in the lobby ([team-play.instruction.md](./team-play.instruction.md)).
 - Seat/color/join order and game references are persisted in aggregate.
 - Join without valid Player token after start is spectator and creates no Seat.
 
@@ -35,7 +36,7 @@ presence (`CONNECTED | DISCONNECTED`).
 - Start cannot repeat. `play again` is the only reverse lifecycle command: an
   authenticated host may transition `FINISHED → LOBBY` in the same room, even when
   only that eligible host remains; a later start still requires 2–4 active ready
-  Players.
+  Players (exactly four in 2v2). The reset keeps the mode, teams, team names/colours and each Player's `teamId`.
 - Temporary host disconnect preserves host. Explicit leave transfers host to lowest
   remaining active join order.
 
@@ -84,7 +85,7 @@ Finished history records reason (`BANKRUPT | LEFT`); it is not erased by disconn
 - Public connected flags derive from runtime registry after load/restart.
 - Raw token, SocketData, presence, command queue and scheduler timer handles never
   enter snapshot.
-- Snapshot v8 persists pending landing/card decisions, ordered payments, private deck
+- Snapshot v9 persists the 2v2 team state (`gameMode`, `teams`, `teamPlay`, `winningTeamId`, `PaymentQueue.rescue`) plus pending landing/card decisions, ordered payments, private deck
   state, bounded semantic/activity lanes, completed card operations, turn recovery,
   forced-sale proposals and appearance identity; auction/contention/Bank queue state
   is not part of the schema. Exact deck order remains private.

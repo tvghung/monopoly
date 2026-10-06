@@ -10,11 +10,13 @@ import {
 } from '@monopoly/shared';
 import {
   chooseStartingPlayer,
+  closeReviveWindow,
   createShuffledDecks,
   removePlayerFromGame,
   resumePaymentContinuation,
   rotateSeatOrder,
   sendToLog,
+  startTeamMatch,
   surrenderPlayerToBank,
 } from '../game';
 import {
@@ -25,7 +27,8 @@ import {
   type RoomSnapshot,
   freshState,
 } from '../rooms';
-import type { AppRuntime } from '../services/runtime';
+import { activeTeamMembers, getTeamStartBlockReason, hasTeamMascotConflict } from '../teamLobby';
+import { paymentTimingOptions, type AppRuntime } from '../services/runtime';
 import type { RoomRecord, TradeOfferRecord } from '../persistence';
 import { projectPrivateOffer } from '../services/privateOffers';
 import { emitCancelledOffers } from '../services/offerInvalidation';
@@ -95,8 +98,16 @@ export function registerLobbyHandlers(
           throw new CommandError('FORBIDDEN', 'Only an active player can change appearance.');
         }
 
+        const teamMode = state.boardState.gameMode === 'TEAM_2V2';
+        if (teamMode && request.color !== undefined) {
+          // In 2v2 the mascot is always drawn in the team colour, which the team (not the player) chooses.
+          throw new CommandError('CONFLICT', 'Trong chế độ 2v2, màu mascot là màu của đội.');
+        }
         const nextCharacterId = request.characterId ?? player.characterId;
         const nextColor = request.color ?? player.color;
+        if (teamMode && hasTeamMascotConflict(room.gameSnapshot, state, playerId, nextCharacterId)) {
+          throw new CommandError('CONFLICT', 'Đồng đội của bạn đã chọn mascot này.');
+        }
         if (hasAppearanceCombinationConflict(room.gameSnapshot, state, playerId, nextCharacterId, nextColor)) {
           throw new CommandError('CONFLICT', 'Tổ hợp mascot và màu này đã được người chơi khác chọn.');
         }
@@ -134,6 +145,13 @@ export function registerLobbyHandlers(
         }
         if (
           request.ready
+          && state.boardState.gameMode === 'TEAM_2V2'
+          && hasTeamMascotConflict(room.gameSnapshot, state, playerId, player?.characterId ?? null)
+        ) {
+          throw new CommandError('CONFLICT', 'Đồng đội của bạn đã chọn mascot này.');
+        }
+        if (
+          request.ready
           && player
           && hasAppearanceCombinationConflict(
             room.gameSnapshot,
@@ -167,7 +185,12 @@ export function registerLobbyHandlers(
           throw new CommandError('FORBIDDEN', 'Only the host can start the game.');
         }
         const players = activePlayerIds(room.gameSnapshot);
-        if (players.length < MIN_PLAYERS || players.length > MAX_PLAYERS) {
+        const teamMode = state.boardState.gameMode === 'TEAM_2V2';
+        if (teamMode) {
+          // 2v2 starts only with exactly two teams of two (the Ready, mascot and connection checks below still apply).
+          const teamReason = getTeamStartBlockReason(room.gameSnapshot, state);
+          if (teamReason) throw new CommandError('CONFLICT', teamReason);
+        } else if (players.length < MIN_PLAYERS || players.length > MAX_PLAYERS) {
           throw new CommandError(
             'CONFLICT',
             `A game requires between ${MIN_PLAYERS} and ${MAX_PLAYERS} players.`,
@@ -201,7 +224,15 @@ export function registerLobbyHandlers(
         state.boardState.gameStarted = true;
         state.boardState.gameStartedAt = state.boardState.gameStartedAt ?? now.toISOString();
         const startingRoll = chooseStartingPlayer(players);
-        state.boardState.players = rotateSeatOrder(players, startingRoll.winner);
+        if (teamMode) {
+          // Dice still pick who starts, but the teams alternate (A1, B1, A2, B2): teammates are never adjacent.
+          startTeamMatch(state, startingRoll.winner, {
+            TEAM_1: activeTeamMembers(room.gameSnapshot, state, 'TEAM_1'),
+            TEAM_2: activeTeamMembers(room.gameSnapshot, state, 'TEAM_2'),
+          });
+        } else {
+          state.boardState.players = rotateSeatOrder(players, startingRoll.winner);
+        }
         state.boardState.currentPlayer = {
           id: startingRoll.winner,
           hasMoved: false,
@@ -271,8 +302,12 @@ export function registerLobbyHandlers(
         )).filter((offer): offer is TradeOfferRecord => offer !== null);
 
         const nextJoinOrder = room.gameSnapshot.nextJoinOrder;
+        // The lobby configuration survives the replay: game mode, team names and colours here, each player's team below.
+        const { gameMode, teams } = state.boardState;
         const reset = freshState();
         state.boardState = reset.boardState;
+        state.boardState.gameMode = gameMode;
+        state.boardState.teams = teams;
         state.players = reset.players;
         state.turnInfo = reset.turnInfo;
         state.privateState = reset.privateState;
@@ -289,8 +324,9 @@ export function registerLobbyHandlers(
           };
           state.players[candidate.playerId] = createFreshPlayer(
             identity.name,
-            identity.color,
+            gameMode === 'TEAM_2V2' ? teams[identity.teamId].color : identity.color,
             identity.characterId,
+            identity.teamId,
           );
           state.boardState.players.push(candidate.playerId);
         }
@@ -351,17 +387,19 @@ export function registerLobbyHandlers(
             && (proposal.sellerPlayerId === playerId || proposal.buyerPlayerId === playerId)
             ? [proposal.sellerPlayerId, proposal.buyerPlayerId]
             : [];
+          // A bankrupt player who leaves can never be revived: their window (if any) closes with them.
+          if (member.membershipStatus === 'FINISHED') closeReviveWindow(state, playerId);
           const result = member.membershipStatus === 'FINISHED'
             ? { changed: true, continuation: null }
             : surrenderPlayerToBank(state, playerId, {
               now: now.getTime(),
-              paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+              ...paymentTimingOptions(runtime),
             });
           if (!result.changed) throw new CommandError('CONFLICT', 'Không thể rời ván lúc này.');
           if (result.continuation) {
             resumePaymentContinuation(state, result.continuation, {
               now: now.getTime(),
-              paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+              ...paymentTimingOptions(runtime),
             });
           }
           member.membershipStatus = 'LEFT';

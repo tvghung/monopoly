@@ -4,6 +4,8 @@ import BuyPrompt from '../../../components/dashboard/BuyPrompt';
 import DebtPanel from '../../../components/dashboard/DebtPanel';
 import DevelopmentPrompt from '../../../components/dashboard/DevelopmentPrompt';
 import ForcedSaleProposalPanel from '../../../components/dashboard/ForcedSaleProposalPanel';
+import RevivePanel from '../../../components/dashboard/RevivePanel';
+import { makeTeamRoom } from '../../../game/presentation/testFixtures';
 import IncomingOffers from '../../../components/dashboard/IncomingOffers';
 import JailPanel from '../../../components/dashboard/JailPanel';
 import TradeOfferModal from '../../../components/dashboard/TradeOfferModal';
@@ -58,6 +60,7 @@ function indebt(room: PublicRoomState) {
       { tileID: 5, grossPrice: 100, houses: 0 },
       { tileID: 12, grossPrice: 75, houses: 0 },
     ],
+    rescue: null,
   };
 }
 
@@ -109,6 +112,57 @@ function forcedSaleProposal(): ForcedSaleProposal {
     grossPrice: 38,
     expectedHouses: 1,
     expiresAt: deadline('forced-sale', 60),
+  };
+}
+
+/** Swaps the fixture room for the 2v2 one (An and Chi against Bình and Dũng), then lets the surface adjust it. */
+function inTeamRoom(adjust: (room: PublicRoomState) => void = noop) {
+  return (room: PublicRoomState) => {
+    const team = makeTeamRoom();
+    room.players = team.players;
+    room.gameState = team.gameState;
+    adjust(room);
+  };
+}
+
+/** Dũng is bankrupt with two revive turns left; Bình, his teammate, is on turn and can pay for the revive. */
+function reviveWindow(room: PublicRoomState) {
+  const { gameState } = room;
+  delete gameState.players['player-d'];
+  gameState.boardState.players = ['player-a', 'player-b', 'player-c'];
+  gameState.boardState.finishedPlayers['player-d'] = {
+    teamId: 'TEAM_2', name: 'Dũng', color: 'blue', characterId: 'duck', reason: 'BANKRUPT', accountBalance: 0,
+  };
+  gameState.boardState.teamPlay.reviveWindows = [{
+    playerId: 'player-d', teamId: 'TEAM_2', survivorPlayerId: 'player-b', turnsRemaining: 2, openedAtTurnNumber: 1,
+  }];
+  gameState.boardState.turnNumber = 4;
+  gameState.boardState.currentPlayer = { id: 'player-b', hasMoved: false };
+  gameState.players['player-b'].accountBalance = 1_200;
+}
+
+/** An owes Bình, owns nothing to sell, and Chi (his teammate) is asked to cover the whole shortfall. */
+function rescueOffer(room: PublicRoomState) {
+  const { gameState } = room;
+  gameState.players['player-a'].accountBalance = 0;
+  gameState.players['player-c'].accountBalance = 900;
+  gameState.boardState.currentPlayer = { id: 'player-a', hasMoved: true };
+  const expiresAt = deadline('rescue', 28);
+  gameState.boardState.paymentShortfall = {
+    debtorPlayerId: 'player-a',
+    creditor: 'PLAYER',
+    creditorPlayerId: 'player-b',
+    amount: 360,
+    remainingAmount: 360,
+    source: { kind: 'RENT', tileID: 9 },
+    actionDeadlineAt: expiresAt,
+    remainingClaimCount: 1,
+    paymentOperationId: DEBT_OPERATION_ID,
+    claimId: DEBT_CLAIM_ID,
+    sellableProperties: [],
+    rescue: {
+      rescueId: 'rescue-lab', debtorPlayerId: 'player-a', rescuerPlayerId: 'player-c', amount: 360, expiresAt,
+    },
   };
 }
 
@@ -164,6 +218,49 @@ export const DECISION_SURFACES: readonly SurfaceFixture[] = [
         };
       },
     }, <DevelopmentPrompt tokenArrived />),
+  },
+  {
+    id: 'development-team-investment',
+    label: 'Development, Team Investment (a teammate\'s street)',
+    group: 'Decisions',
+    render: () => withState({
+      mutate: inTeamRoom(room => {
+        room.gameState.boardState.ownedProps = {
+          1: { id: 'player-c', color: 'red', houses: 1 },
+          3: { id: 'player-c', color: 'red', houses: 0 },
+        };
+        room.gameState.turnInfo.pendingLandingDecision = {
+          kind: 'DEVELOP_HOUSES', operationId: 'develop-3', playerId: 'player-a', tileID: 1, unitCost: 50, maxQuantity: 3,
+        };
+      }),
+    }, <DevelopmentPrompt tokenArrived />),
+  },
+  {
+    id: 'revive-offer',
+    label: 'Revive offer (the survivor, own turn)',
+    group: 'Decisions',
+    render: () => withState(
+      { playerId: 'player-b', mutate: inTeamRoom(reviveWindow) },
+      <div style={{ width: 'min(28rem, 92vw)', margin: '2rem auto' }}><RevivePanel /></div>,
+    ),
+  },
+  {
+    id: 'rescue-offer',
+    label: 'Emergency Rescue, the teammate asked to pay',
+    group: 'Decisions',
+    render: () => withState(
+      { playerId: 'player-c', mutate: inTeamRoom(rescueOffer) },
+      <roomExitContext.Provider value={EXIT}><DebtPanel /></roomExitContext.Provider>,
+    ),
+  },
+  {
+    id: 'rescue-waiting',
+    label: 'Emergency Rescue, the debtor waits',
+    group: 'Decisions',
+    render: () => withState(
+      { playerId: 'player-a', mutate: inTeamRoom(rescueOffer) },
+      <div style={{ width: 'min(32rem, 92vw)', margin: '2rem auto' }}><DebtPanel /></div>,
+    ),
   },
   {
     id: 'jail',

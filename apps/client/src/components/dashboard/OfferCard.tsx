@@ -9,6 +9,7 @@ import PlayerAvatar from '../../design-system/components/PlayerAvatar/PlayerAvat
 import { ActionIcon } from '../../design-system/icons/ActionIcon';
 import { buildDeedCardModel } from '../../game/ui/property/deedCardModel';
 import PropertyDeedCard from '../../game/ui/property/PropertyDeedCard';
+import TeamChip from '../../game/team/TeamChip';
 import './TradeOffer.css';
 
 /** One side of an offer as a list of chips: each deed, the cash, and the Get Out Of Jail Free cards. */
@@ -70,6 +71,7 @@ export default function OfferCard({
         <h3 id={titleId} className="trade-offers-modal__offer__title">
           {title ?? `Đề nghị từ ${offer.proposerName}`}
         </h3>
+        <TeamChip playerId={offer.proposerPlayerId} />
         <Chip tone={offer.remainingSeconds <= 10 ? 'loss' : 'neutral'} icon={<ActionIcon name="clock" />}>
           {`Hết hạn sau: ${offer.remainingSeconds} giây`}
         </Chip>

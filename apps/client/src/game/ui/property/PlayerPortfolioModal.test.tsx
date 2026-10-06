@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import stateContext from '../../../internal';
 import type { SocketFunctions } from '../../../types';
-import { makeRoom } from '../../presentation/testFixtures';
+import { makeRoom, makeTeamRoom } from '../../presentation/testFixtures';
 import PlayerPortfolioModal from './PlayerPortfolioModal';
 
 afterEach(() => {
@@ -118,6 +118,7 @@ describe('PlayerPortfolioModal', () => {
   it('works for a player who went bankrupt: their name, a Phá sản chip and no deeds', () => {
     renderPortfolio(buildRoom(room => {
       room.gameState.boardState.finishedPlayers['player-b'] = {
+        teamId: 'TEAM_2',
         name: 'Bình', color: 'blue', characterId: 'panda', reason: 'BANKRUPT', accountBalance: 0,
       };
       delete room.gameState.players['player-b'];
@@ -134,6 +135,7 @@ describe('PlayerPortfolioModal', () => {
   it('works for a player who left the game: Đã rời instead of a balance', () => {
     renderPortfolio(buildRoom(room => {
       room.gameState.boardState.finishedPlayers['player-b'] = {
+        teamId: 'TEAM_2',
         name: 'Bình', color: 'blue', characterId: 'panda', reason: 'LEFT', accountBalance: 700,
       };
       delete room.gameState.players['player-b'];
@@ -181,5 +183,66 @@ describe('PlayerPortfolioModal', () => {
   it('renders nothing for a player the room does not know', () => {
     renderPortfolio(buildRoom(), { playerId: 'player-x' });
     expect(document.querySelector('.ds-modal__card')).toBeNull();
+  });
+});
+
+describe('PlayerPortfolioModal in a 2v2 game', () => {
+  function teamRoom(mutate: (room: ReturnType<typeof makeTeamRoom>) => void = () => undefined) {
+    const room = makeTeamRoom();
+    room.gameState.boardState.ownedProps = { 1: { id: 'player-c', color: 'red', houses: 0 } };
+    mutate(room);
+    return room;
+  }
+  const open = (room: ReturnType<typeof makeTeamRoom>, playerId: string) => render(
+    <stateContext.Provider value={{
+      state: room.gameState,
+      socketFunctions,
+      playerId: 'player-a',
+      role: 'PLAYER',
+      connected: true,
+      canMutate: true,
+      privatePlayerState: null,
+      privateOffers: [],
+      roomPlayers: room.players,
+    }}>
+      <PlayerPortfolioModal playerId={playerId} onClose={vi.fn()} />
+    </stateContext.Provider>,
+  );
+
+  it('tags a teammate and an opponent with their team and relation', () => {
+    const { unmount } = open(teamRoom(), 'player-c');
+    expect(within(screen.getByRole('dialog', { name: 'Tài sản của Chi' })).getByText('Đội Team 1 · Đồng đội')).toBeTruthy();
+    unmount();
+    open(teamRoom(), 'player-b');
+    expect(within(screen.getByRole('dialog', { name: 'Tài sản của Bình' })).getByText('Đội Team 2 · Đối thủ')).toBeTruthy();
+  });
+
+  it('shows a bankrupt teammate as revivable with the turns left, then as permanently out', () => {
+    const eliminate = (room: ReturnType<typeof makeTeamRoom>) => {
+      delete room.gameState.players['player-c'];
+      room.gameState.boardState.players = ['player-a', 'player-b', 'player-d'];
+      room.gameState.boardState.finishedPlayers['player-c'] = {
+        teamId: 'TEAM_1', name: 'Chi', color: 'red', characterId: 'cat', reason: 'BANKRUPT', accountBalance: 0,
+      };
+      room.gameState.boardState.ownedProps = {};
+    };
+    const revivable = open(teamRoom(room => {
+      eliminate(room);
+      room.gameState.boardState.teamPlay.reviveWindows = [{
+        playerId: 'player-c', teamId: 'TEAM_1', survivorPlayerId: 'player-a', turnsRemaining: 3, openedAtTurnNumber: 1,
+      }];
+    }), 'player-c');
+    const dialog = screen.getByRole('dialog', { name: 'Tài sản của Chi' });
+    expect(within(dialog).getByText('Phá sản')).toBeTruthy();
+    expect(within(dialog).getByText('Có thể hồi sinh · Còn 3 lượt')).toBeTruthy();
+    revivable.unmount();
+
+    open(teamRoom(eliminate), 'player-c');
+    expect(within(screen.getByRole('dialog', { name: 'Tài sản của Chi' })).getByText('Đã bị loại vĩnh viễn')).toBeTruthy();
+  });
+
+  it('shows no team tag in a Solo game', () => {
+    renderPortfolio(buildRoom(), { playerId: 'player-b' });
+    expect(document.querySelector('.team-chip')).toBeNull();
   });
 });

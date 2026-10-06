@@ -54,6 +54,31 @@ export const utilityRentMultiplier = (ownedCount: number): number => {
     : UTILITY_RENT_MULTIPLIER_SINGLE;
 };
 
+// Colour sets.
+/** Solo: while one player owns every street of a colour group, rent on each street of that group is scaled to this percent. */
+export const SOLO_COLOR_SET_RENT_PERCENT = 150;
+/** 2v2: while one team (both members together) owns every street of a colour group, rent on each of them is scaled to this percent. */
+export const TEAM_COLOR_SET_RENT_PERCENT = 200;
+/**
+ * Scales a rent that is a whole number of game units by a percent. The result is always a whole number of units, rounded down
+ * (the same convention as the building refund and the forced-sale price), so the payer never owes a fraction of a unit.
+ */
+export const scaleRentPercent = (rent: number, percent: number): number => Math.floor(rent * percent / 100);
+
+// Teams (2v2).
+/** Players per team in a 2v2 game. */
+export const TEAM_SIZE = 2;
+/** A 2v2 game seats exactly this many players. */
+export const TEAM_2V2_PLAYER_COUNT = TEAM_SIZE * 2;
+/** What the survivor pays the Bank to revive a bankrupt teammate (750K). */
+export const REVIVE_COST = 750;
+/** What a revived player returns with (300K); they own nothing and stand on Xuất Phát. */
+export const REVIVE_STARTING_CASH = 300;
+/** How many of the surviving teammate's own turns a bankruptcy leaves open for a revive. */
+export const REVIVE_WINDOW_SURVIVOR_TURNS = 3;
+/** Default time the active teammate has to answer an Emergency Rescue offer (the server reads `EMERGENCY_RESCUE_TIMEOUT_MS`). */
+export const DEFAULT_EMERGENCY_RESCUE_SECONDS = 30;
+
 // Debt.
 /** Share of a property's worth (land price plus what was built on it) that the Bank pays a debtor who sells to it. */
 export const FORCED_SALE_PERCENT = 70;

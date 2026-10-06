@@ -40,6 +40,10 @@
   explicit-left exclusion, spectator continuity, reconnect around replay, activity
   readability, reduced motion, WebGL fallback and one full second match.
 
+## 2v2
+
+Phá sản theo từng người, hồi sinh, Emergency Rescue, thắng đội và Play Again 2v2 có checklist riêng: [team-play.md](./team-play.md).
+
 ## Victory dialog (visual overhaul V2, plan 04)
 
 - [x] `[AUTO][CLIENT]` `WinnerBanner.test.tsx`: every role has "Về trang chủ" through the room exit context (spectators and

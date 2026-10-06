@@ -1,6 +1,7 @@
 import { useId, type CSSProperties } from 'react';
 import Badge from '../../design-system/components/Badge/Badge';
 import Button from '../../design-system/components/Button/Button';
+import IconButton from '../../design-system/components/IconButton/IconButton';
 import { ActionIcon } from '../../design-system/icons/ActionIcon';
 import { CHARACTER_REGISTRY } from '../../game/characters/characterRegistry';
 import { characterSvgDataUri } from '../../game/characters/characterSvg';
@@ -11,6 +12,20 @@ import {
 } from '../../game/ui/playerVisualColors';
 import type { LobbyPlayerView } from './lobbyTypes';
 
+/**
+ * The host's team-swap flow as one seat sees it. `IDLE`: the host may start a swap from this seat. `SOURCE`: this is the player the
+ * host chose (pressing again cancels). `TARGET`: a valid partner, highlighted. `UNAVAILABLE`: a swap is in progress and this seat
+ * cannot be its partner (same team as the chosen player).
+ */
+export type SeatSwapMode = 'IDLE' | 'SOURCE' | 'TARGET' | 'UNAVAILABLE';
+
+export interface SeatSwap {
+  mode: SeatSwapMode;
+  /** The name of the chosen player, for the label of a TARGET seat. */
+  sourceName?: string;
+  onPress: () => void;
+}
+
 interface LobbySeatProps {
   player: LobbyPlayerView;
   /** The viewer's own seat: the only one with a ready button. */
@@ -18,13 +33,15 @@ interface LobbySeatProps {
   isHost: boolean;
   busy: boolean;
   onSetReady: (ready: boolean) => void;
+  /** 2v2, host only: the explicit swap control of this seat. */
+  swap?: SeatSwap | null;
 }
 
 const NO_MASCOT_HINT = 'Chọn mascot trước để sẵn sàng';
 
 /** One seated player: the mascot on a pedestal in the player color, name, ready stamp and presence. No mascot name is shown. */
 export function LobbySeat({
-  player, isSelf, isHost, busy, onSetReady,
+  player, isSelf, isHost, busy, onSetReady, swap = null,
 }: LobbySeatProps) {
   const hintId = useId();
   const needsMascot = player.characterId === null;
@@ -38,10 +55,40 @@ export function LobbySeat({
     'lobby-player--occupied',
     player.connected ? '' : 'lobby-player--disconnected',
     isSelf ? 'lobby-player--self' : '',
+    swap?.mode === 'SOURCE' ? 'lobby-player--swap-source' : '',
+    swap?.mode === 'TARGET' ? 'lobby-player--swap-target' : '',
   ].filter(Boolean).join(' ');
 
   return (
-    <li className={className} style={seatStyle}>
+    <li className={className} style={seatStyle} data-team={player.teamId} data-player-id={player.id}>
+      {swap && swap.mode !== 'UNAVAILABLE'
+        ? (
+          <div className="lobby-player__swap">
+            {swap.mode === 'TARGET'
+              ? (
+                <Button
+                  size="sm"
+                  className="lobby-player__swap-target"
+                  icon={<ActionIcon name="swap" />}
+                  disabled={busy}
+                  aria-label={`Đổi chỗ ${player.name} với ${swap.sourceName ?? 'người đã chọn'}`}
+                  onClick={swap.onPress}
+                >
+                  Đổi chỗ
+                </Button>
+              )
+              : (
+                <IconButton
+                  label={swap.mode === 'SOURCE' ? `Hủy đổi đội của ${player.name}` : `Đổi đội của ${player.name}`}
+                  icon="swap"
+                  pressed={swap.mode === 'SOURCE'}
+                  disabled={busy}
+                  onClick={swap.onPress}
+                />
+              )}
+          </div>
+        )
+        : null}
       <div className="lobby-player__stage">
         <span className="lobby-player__disc" role="img" aria-label={`Màu ${getPlayerColorLabel(player.color)}`} />
         {player.characterId

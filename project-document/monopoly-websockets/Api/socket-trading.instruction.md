@@ -17,6 +17,8 @@ buyer/seller/owner identity.
   khác debtor và đủ tiền, `offered` chỉ có tiền > 0, `requested` chỉ có tài sản (không tiền, không thẻ); accept còn cần trước
   `actionDeadlineAt` và tài sản không có forced-sale proposal mở, rồi settle claim ngay trong cùng transaction. `decline offer`
   luôn được phép. Lỗi: `CONFLICT` "Giao dịch thông thường bị khóa…" / "…chỉ có thể đề nghị mua tài sản của người đó bằng tiền."
+- 2v2 changes nothing here: a trade between teammates is an ordinary bilateral trade with real cash, and a bundle never
+  moves money between a team's players for free. Team membership is only displayed (team chips on the offer and the form).
 - Private arrival/result/expiry/cancel only use relevant `player:<PlayerId>` rooms;
   resume restores pending relevant offers. Public update never contains offer terms.
 - Explicit leave cancels unresolved offers unless they are consumed inside the same

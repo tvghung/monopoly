@@ -99,6 +99,14 @@ export class PresentationController {
       return true;
     }
 
+    // 2v2 revive: an eliminated player is seated again at Xuất Phát. There is no earlier display state for them to animate
+    // from, so the roster snaps to the authoritative one instead of fabricating movement or cash deltas for a returning seat.
+    const playerAppeared = Object.keys(room.gameState.players).some(playerId => !previous.gameState.players[playerId]);
+    if (playerAppeared) {
+      this.queue.reset(room);
+      return true;
+    }
+
     this.store.syncPlayers(room);
     const rollSequenceDelta = room.gameState.boardState.rollSequence
       - previous.gameState.boardState.rollSequence;

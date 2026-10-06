@@ -206,9 +206,9 @@ players, and observed result.
 
 ## How-to-play guide (V1.1 item 8)
 
-- [x] `[AUTO][CLIENT]` `howToPlay/model.test.ts`: the guide has the eleven topics in order (Mục tiêu và lượt chơi, Mua đất, Thu tiền
+- [x] `[AUTO][CLIENT]` `howToPlay/model.test.ts`: the guide has the twelve topics in order (Mục tiêu và lượt chơi, Mua đất, Thu tiền
   thuê, Xây nhà và công trình, Nhà Tù, Thuế và ô đặc biệt, Thẻ Cơ Hội, Thẻ Khí Vận, Giao dịch mua bán, Nợ và phá sản, Bỏ cuộc
-  và chiến thắng); it is pure; every money amount in the text exists in the shared board data, cards or `rules.ts`, and the
+  và chiến thắng, Chơi đội 2v2); it is pure; every money amount in the text exists in the shared board data, cards or `rules.ts`, and the
   rules numbers (players, start cash, Xuất Phát reward, Ga ladder, Công Ty multipliers, bail, jail rounds, durations marked
   "(mặc định)", the 70% bank price, offer lifetime) are read from them; the tax tiles are charged, not free; all 13 Cơ Hội and
   15 Khí Vận cards are listed with the printed text and the artwork title and counted by kind; the three 1.1 rule statements
@@ -216,7 +216,7 @@ players, and observed result.
   technical or English word; cross-references use real section titles.
 - [x] `[AUTO][CLIENT]` `howToPlay/HowToPlay.test.tsx`: the key is named "Hướng dẫn chơi", a 44 px icon key (or labelled, or
   corner) that announces a dialog and renders nothing outside a provider; one provider owns one dialog that every key opens;
-  the dialog is titled, `lg`, modal, with an introduction and eleven collapsed `<details>` that open independently and
+  the dialog is titled, `lg`, modal, with an introduction and twelve collapsed `<details>` that open independently and
   start collapsed again on the next visit; focus starts on the first topic; the 13 and 15 cards sit in their own topics;
   tables are named focusable regions with real header cells and decorative swatches; Escape, the close key and an outside
   click close it and focus returns to the key; works under StrictMode with no settings, audio or toast provider.
@@ -235,6 +235,6 @@ players, and observed result.
 - [ ] `[MANUAL-E2E]` Overlap: `pnpm visual:capture` sidecars list the `toolbar` HUD region with no persistent overlap and no region
   overlap (`hudOverlap.findings`, `hudOverlap.regionOverlaps`) at the standard viewports, and the spectator banner stays clear
   of the three-key toolbar from 360 to 1920 px wide.
-- [ ] `[MANUAL-E2E]` Owner read-through of the Vietnamese text of the eleven topics for plainness and correctness, and a check of
+- [ ] `[MANUAL-E2E]` Owner read-through of the Vietnamese text of the twelve topics for plainness and correctness, and a check of
   the three 1.1 rule statements (buy offers during a debt, the seller-chosen forced-sale price, keep watching after
   "Bỏ cuộc") against the running game.

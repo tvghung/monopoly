@@ -49,6 +49,7 @@ describe('PresentationStore reset and impact generations', () => {
     const store = new PresentationStore();
     const room = makeRoom();
     room.gameState.boardState.finishedPlayers['player-c'] = {
+      teamId: 'TEAM_1',
       name: 'Chi', color: 'green', characterId: 'cat', reason: 'LEFT', accountBalance: 320,
     };
     store.resetFromSnapshot(room);

@@ -7,6 +7,7 @@ import { emptyPresentationState, presentationContext } from '../game/presentatio
 import type { AnimationQueue } from '../game/presentation/queue/AnimationQueue';
 import { HUD_DRAWER_STORAGE_KEY } from '../game/ui/hud/hudDrawer';
 import Log, { mergeUngatedChat } from './Log';
+import { soloTeamBoardFields } from '../game/presentation/testFixtures';
 
 const makeSocketFunctions = (): SocketFunctions => ({
   rollDice: vi.fn(),
@@ -23,6 +24,7 @@ const makeSocketFunctions = (): SocketFunctions => ({
 function makeState(logs: string[] = [], activity: ActivityEvent[] = []): PublicGameState {
   return {
     boardState: {
+      ...soloTeamBoardFields(),
       gameStarted: true,
       players: [],
       finishedPlayers: {},

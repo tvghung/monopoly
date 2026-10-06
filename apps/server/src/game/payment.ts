@@ -31,6 +31,8 @@ export interface QueuePaymentOptions {
   operationId?: string;
   now?: number;
   paymentShortfallActionTimeoutMs?: number;
+  /** 2v2: how long the active teammate has to answer an Emergency Rescue offer. */
+  emergencyRescueTimeoutMs?: number;
   /** Only the deadline scheduler/leave transaction may use this internal flag. */
   allowExpired?: boolean;
 }
@@ -72,6 +74,7 @@ export const createPaymentQueue = (
       (options.now ?? Date.now())
       + (options.paymentShortfallActionTimeoutMs ?? DEFAULT_PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS),
     ).toISOString(),
+    rescue: null,
   };
 };
 

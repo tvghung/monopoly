@@ -1,5 +1,13 @@
 import { z } from 'zod';
-import { ACTIVITY_FEED_MAX_EVENTS, CHARACTER_IDS, PLAYER_COLOR_IDS } from './types';
+import {
+  ACTIVITY_FEED_MAX_EVENTS,
+  CHARACTER_IDS,
+  GAME_MODES,
+  MONEY_TRANSFER_REASONS,
+  PLAYER_COLOR_IDS,
+  TEAM_IDS,
+  TEAM_NAME_MAX_LENGTH,
+} from './types';
 import type {
   ActivityEvent,
   ActivityFeed,
@@ -8,6 +16,7 @@ import type {
   DebtClaim,
   DebtSource,
   DeckState,
+  EmergencyRescueOffer,
   GameDecks,
   GamePrivateState,
   GameplayEventStream,
@@ -21,8 +30,12 @@ import type {
   PrivatePlayerState,
   PersistedGameState,
   Player,
+  ReviveWindow,
+  TeamPlayState,
+  TeamSettingsById,
   TurnInfo,
 } from './types';
+import { REVIVE_WINDOW_SURVIVOR_TURNS } from './rules';
 import {
   gameCardIdSchema,
   isoTimestampSchema,
@@ -34,6 +47,66 @@ import {
 
 const operationIdSchema = z.uuid();
 const turnNumberSchema = z.number().int().min(0);
+const teamIdSchema = z.enum(TEAM_IDS);
+const playerColorSchema = z.enum(PLAYER_COLOR_IDS);
+
+export const teamSettingsSchema = z.strictObject({
+  // A stored name was already trimmed and sanitised on write; the limit matches the player-name limit.
+  name: z.string().min(1).max(TEAM_NAME_MAX_LENGTH),
+  color: playerColorSchema,
+});
+
+export const teamSettingsByIdSchema = z.strictObject({
+  TEAM_1: teamSettingsSchema,
+  TEAM_2: teamSettingsSchema,
+}).superRefine((teams, context) => {
+  if (teams.TEAM_1.color === teams.TEAM_2.color) {
+    context.addIssue({ code: 'custom', path: ['TEAM_2', 'color'], message: 'Hai đội không được dùng cùng một màu' });
+  }
+}) satisfies z.ZodType<TeamSettingsById>;
+
+export const reviveWindowSchema = z.strictObject({
+  playerId: playerIdSchema,
+  teamId: teamIdSchema,
+  turnsRemaining: z.number().int().min(1).max(REVIVE_WINDOW_SURVIVOR_TURNS),
+  openedAtTurnNumber: turnNumberSchema,
+}) satisfies z.ZodType<ReviveWindow>;
+
+export const teamPlayStateSchema = z.strictObject({
+  slotOrder: z.array(playerIdSchema).max(4),
+  revivedPlayerIds: z.array(playerIdSchema).max(4),
+  reviveWindows: z.array(reviveWindowSchema).max(2),
+}).superRefine((teamPlay, context) => {
+  if (new Set(teamPlay.slotOrder).size !== teamPlay.slotOrder.length) {
+    context.addIssue({ code: 'custom', path: ['slotOrder'], message: 'Thứ tự lượt 2v2 không được lặp người chơi' });
+  }
+  if (teamPlay.slotOrder.length !== 0 && teamPlay.slotOrder.length !== 4) {
+    context.addIssue({ code: 'custom', path: ['slotOrder'], message: 'Thứ tự lượt 2v2 phải đủ 4 người chơi' });
+  }
+  if (new Set(teamPlay.revivedPlayerIds).size !== teamPlay.revivedPlayerIds.length) {
+    context.addIssue({ code: 'custom', path: ['revivedPlayerIds'], message: 'Một người chỉ được hồi sinh một lần' });
+  }
+  const windowPlayers = teamPlay.reviveWindows.map(window => window.playerId);
+  const windowTeams = teamPlay.reviveWindows.map(window => window.teamId);
+  if (new Set(windowPlayers).size !== windowPlayers.length || new Set(windowTeams).size !== windowTeams.length) {
+    context.addIssue({ code: 'custom', path: ['reviveWindows'], message: 'Mỗi đội chỉ có tối đa một cửa sổ hồi sinh' });
+  }
+  if (windowPlayers.some(playerId => teamPlay.revivedPlayerIds.includes(playerId))) {
+    context.addIssue({ code: 'custom', path: ['reviveWindows'], message: 'Người đã hồi sinh không thể có thêm cửa sổ hồi sinh' });
+  }
+}) satisfies z.ZodType<TeamPlayState>;
+
+export const emergencyRescueOfferSchema = z.strictObject({
+  rescueId: operationIdSchema,
+  debtorPlayerId: playerIdSchema,
+  rescuerPlayerId: playerIdSchema,
+  amount: moneyAmountSchema,
+  expiresAt: isoTimestampSchema,
+}).superRefine((offer, context) => {
+  if (offer.debtorPlayerId === offer.rescuerPlayerId) {
+    context.addIssue({ code: 'custom', path: ['rescuerPlayerId'], message: 'Người nợ không thể tự hỗ trợ chính mình' });
+  }
+}) satisfies z.ZodType<EmergencyRescueOffer>;
 
 export const pendingTurnContinuationSchema = z.strictObject({
   playerId: playerIdSchema,
@@ -111,10 +184,7 @@ export const gameplaySemanticEventSchema: z.ZodType<GameplaySemanticEvent> = z.d
     source: moneyEndpointSchema,
     destination: moneyEndpointSchema,
     amount: moneyAmountSchema,
-    reason: z.enum([
-      'PROPERTY_PURCHASE', 'PROPERTY_SALE', 'RENT', 'TAX', 'PASS_GO', 'CARD',
-      'DEVELOPMENT', 'BAIL', 'TRADE', 'FORCED_SALE', 'FORFEIT', 'OTHER',
-    ]),
+    reason: z.enum(MONEY_TRANSFER_REASONS),
   }),
   z.strictObject({
     ...semanticEventBase,
@@ -265,10 +335,7 @@ export const activityEventSchema: z.ZodType<ActivityEvent> = z.discriminatedUnio
     source: activityMoneyEndpointSchema,
     destination: activityMoneyEndpointSchema,
     amount: moneyAmountSchema,
-    reason: z.enum([
-      'PROPERTY_PURCHASE', 'PROPERTY_SALE', 'RENT', 'TAX', 'PASS_GO', 'CARD',
-      'DEVELOPMENT', 'BAIL', 'TRADE', 'FORCED_SALE', 'FORFEIT', 'OTHER',
-    ]),
+    reason: z.enum(MONEY_TRANSFER_REASONS),
   }),
   z.strictObject({
     ...activityEventBase,
@@ -280,6 +347,8 @@ export const activityEventSchema: z.ZodType<ActivityEvent> = z.discriminatedUnio
     toHouses: z.number().int().min(0).max(5),
     action: z.enum(['BUILD', 'UPGRADE_HOTEL', 'SELL']),
     cost: nonNegativeMoneyAmountSchema.optional(),
+    ownerPlayerId: playerIdSchema.optional(),
+    ownerName: z.string().min(1).max(20).optional(),
   }),
   z.strictObject({
     ...activityEventBase,
@@ -315,6 +384,28 @@ export const activityEventSchema: z.ZodType<ActivityEvent> = z.discriminatedUnio
     winnerColor: z.enum(PLAYER_COLOR_IDS),
     winnerCharacterId: z.enum(CHARACTER_IDS).nullable(),
     finalCash: nonNegativeMoneyAmountSchema,
+    winningTeamId: teamIdSchema.optional(),
+    winningTeamName: z.string().min(1).max(TEAM_NAME_MAX_LENGTH).optional(),
+  }),
+  z.strictObject({
+    ...activityEventBase,
+    type: z.literal('TEAM_REVIVE'),
+    action: z.enum(['WINDOW_OPENED', 'REVIVED', 'EXPIRED']),
+    playerId: playerIdSchema,
+    playerName: z.string().min(1).max(20),
+    survivorPlayerId: playerIdSchema,
+    survivorName: z.string().min(1).max(20),
+    turnsRemaining: z.number().int().min(0).max(REVIVE_WINDOW_SURVIVOR_TURNS),
+  }),
+  z.strictObject({
+    ...activityEventBase,
+    type: z.literal('EMERGENCY_RESCUE'),
+    action: z.enum(['OFFERED', 'ACCEPTED', 'DECLINED', 'EXPIRED']),
+    debtorPlayerId: playerIdSchema,
+    debtorName: z.string().min(1).max(20),
+    rescuerPlayerId: playerIdSchema,
+    rescuerName: z.string().min(1).max(20),
+    amount: moneyAmountSchema,
   }),
 ]);
 
@@ -447,6 +538,7 @@ export const paymentQueueSchema = z.strictObject({
   activeClaimIndex: z.number().int().min(0),
   continuation: pendingTurnContinuationSchema,
   actionDeadlineAt: isoTimestampSchema,
+  rescue: emergencyRescueOfferSchema.nullable(),
 }).superRefine((queue, context) => {
   if (queue.activeClaimIndex >= queue.orderedClaims.length) {
     context.addIssue({
@@ -454,6 +546,23 @@ export const paymentQueueSchema = z.strictObject({
       path: ['activeClaimIndex'],
       message: 'Active debt claim index must be in range',
     });
+  }
+  if (queue.rescue) {
+    const active = queue.orderedClaims[queue.activeClaimIndex];
+    if (active?.debtorPlayerId !== queue.rescue.debtorPlayerId) {
+      context.addIssue({
+        code: 'custom',
+        path: ['rescue', 'debtorPlayerId'],
+        message: 'A rescue offer must be for the debtor of the active claim',
+      });
+    }
+    if (queue.rescue.expiresAt !== queue.actionDeadlineAt) {
+      context.addIssue({
+        code: 'custom',
+        path: ['rescue', 'expiresAt'],
+        message: 'A rescue offer must share the payment deadline',
+      });
+    }
   }
   const ids = queue.orderedClaims.map((claim) => claim.claimId);
   if (new Set(ids).size !== ids.length) {
@@ -497,6 +606,7 @@ export const playerSchema = z.strictObject({
   currentTile: tileIdSchema,
   color: z.enum(PLAYER_COLOR_IDS),
   characterId: z.enum(CHARACTER_IDS).nullable(),
+  teamId: teamIdSchema,
   accountBalance: z.number().int().min(0).max(2_147_483_647),
   isJail: z.boolean(),
   jailOpponentRoundsElapsed: z.number().int().min(0).max(2),
@@ -513,6 +623,7 @@ const finishedPlayerSchema = z.strictObject({
   name: z.string().min(1).max(20),
   color: z.enum(PLAYER_COLOR_IDS),
   characterId: z.enum(CHARACTER_IDS).nullable(),
+  teamId: teamIdSchema,
   reason: z.enum(['BANKRUPT', 'LEFT']).optional(),
   accountBalance: nonNegativeMoneyAmountSchema.optional(),
 });
@@ -521,6 +632,10 @@ export const boardStateSchema = z.strictObject({
   gameStarted: z.boolean(),
   // Older durable snapshots predate the authoritative match-start timestamp.
   gameStartedAt: isoTimestampSchema.nullable().optional(),
+  gameMode: z.enum(GAME_MODES),
+  teams: teamSettingsByIdSchema,
+  teamPlay: teamPlayStateSchema,
+  winningTeamId: teamIdSchema.nullable(),
   players: z.array(playerIdSchema).max(7),
   finishedPlayers: z.record(playerIdSchema, finishedPlayerSchema),
   currentPlayer: currentPlayerSchema,

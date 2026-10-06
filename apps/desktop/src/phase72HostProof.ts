@@ -205,7 +205,7 @@ export async function runPhase72HostProof(
     requireAbsolute('Packaged Phase 7.2 resource', target);
     if (containsAsar(target)) throw new Error('Phase 7.2 resources must be external to asar');
   }
-  if ((await readdir(migrationDirectory)).length < 9) {
+  if ((await readdir(migrationDirectory)).length < 10) {
     throw new Error('Packaged Phase 7.2 migration resource is incomplete');
   }
 

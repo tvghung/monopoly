@@ -78,6 +78,7 @@ const TEST_TIMING: PersistenceTimingConfig = {
   paymentShortfallActionTimeoutMs: 120_000,
   cardAwaitingDrawTimeoutMs: 20_000,
   cardRevealedTimeoutMs: 30_000,
+  emergencyRescueTimeoutMs: 30_000,
   pendingSessionTtlMs: 5 * 60_000,
   terminalSessionRetentionMs: 7 * 24 * 60 * 60_000,
   lobbyRetentionMs: 24 * 60 * 60_000,
@@ -598,6 +599,7 @@ describe('Socket.IO durable player lifecycle', () => {
         playerId: host.playerId,
         name: hostPlayer.name,
         color: hostPlayer.color,
+        teamId: 'TEAM_1',
         characterId: hostPlayer.characterId,
       };
       state.boardState.players = [host.playerId];
@@ -605,6 +607,7 @@ describe('Socket.IO durable player lifecycle', () => {
       state.boardState.finishedPlayers[guest.playerId] = {
         name: 'Guest',
         color: 'blue',
+        teamId: 'TEAM_1',
         characterId: 'dog',
         reason: 'BANKRUPT',
         accountBalance: 0,
@@ -612,6 +615,7 @@ describe('Socket.IO durable player lifecycle', () => {
       state.boardState.finishedPlayers[left.playerId] = {
         name: 'Left',
         color: 'green',
+        teamId: 'TEAM_1',
         characterId: 'dog',
         reason: 'LEFT',
         accountBalance: 0,
@@ -709,6 +713,7 @@ describe('Socket.IO durable player lifecycle', () => {
         playerId: host.playerId,
         name: winner.name,
         color: winner.color,
+        teamId: 'TEAM_1',
         characterId: winner.characterId,
       };
       state.boardState.players = [host.playerId];
@@ -716,6 +721,7 @@ describe('Socket.IO durable player lifecycle', () => {
       state.boardState.finishedPlayers[guest.playerId] = {
         name: bankrupt.name,
         color: bankrupt.color,
+        teamId: 'TEAM_1',
         characterId: bankrupt.characterId,
         reason: 'BANKRUPT',
         accountBalance: 0,
@@ -1408,6 +1414,7 @@ describe('Socket.IO durable player lifecycle', () => {
         name: 'Legacy Player',
         currentTile: 0,
         color: 'orange',
+        teamId: 'TEAM_1',
         characterId: null,
         accountBalance: 1500,
         isJail: false,
@@ -2074,6 +2081,7 @@ describe('Socket.IO durable player lifecycle', () => {
         activeClaimIndex: 0,
         continuation: { playerId: creditor.playerId, turnNumber },
         actionDeadlineAt,
+        rescue: null,
       };
       room.nextActionAt = new Date(actionDeadlineAt);
     });
@@ -2268,6 +2276,7 @@ describe('Socket.IO durable player lifecycle', () => {
         activeClaimIndex: 0,
         continuation: { playerId: creditor.playerId, turnNumber },
         actionDeadlineAt,
+        rescue: null,
       };
       gameState.privateState.forcedSaleProposal = {
         proposalId,
@@ -2390,6 +2399,7 @@ describe.runIf(Boolean(testDatabaseUrl))(
           state.boardState.finishedPlayers[left.playerId] = {
             name: leftPlayer.name,
             color: leftPlayer.color,
+            teamId: 'TEAM_1',
             characterId: leftPlayer.characterId,
             reason: 'LEFT',
             accountBalance: 0,
@@ -2401,6 +2411,7 @@ describe.runIf(Boolean(testDatabaseUrl))(
             playerId: host.playerId,
             name: hostPlayer.name,
             color: hostPlayer.color,
+            teamId: 'TEAM_1',
             characterId: hostPlayer.characterId,
             accountBalance: hostPlayer.accountBalance,
           };
@@ -2481,11 +2492,12 @@ describe.runIf(Boolean(testDatabaseUrl))(
               '006_appearance_system_v5.sql',
               '007_roll_sequence_v6.sql',
               '008_semantic_card_v7.sql',
-              '009_activity_feed_v8.sql'
+              '009_activity_feed_v8.sql',
+              '010_teamplay_v9.sql'
            )
            RETURNING checksum`,
         );
-        expect(migrationRows.rows).toHaveLength(7);
+        expect(migrationRows.rows).toHaveLength(8);
 
         const roomId = randomUUID();
         const hostPlayerId = randomUUID();
@@ -2581,8 +2593,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V1-IDENTITY',
           status: 'IN_PROGRESS',
           hostPlayerId,
-          aggregateVersion: 14,
-          snapshotSchemaVersion: 8,
+          aggregateVersion: 15,
+          snapshotSchemaVersion: 9,
           gameSnapshot: {
             members: {
               [hostPlayerId]: { joinOrder: 1, ready: true, membershipStatus: 'ACTIVE' },
@@ -2668,7 +2680,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
               '006_appearance_system_v5.sql',
               '007_roll_sequence_v6.sql',
               '008_semantic_card_v7.sql',
-              '009_activity_feed_v8.sql'
+              '009_activity_feed_v8.sql',
+              '010_teamplay_v9.sql'
            )`,
         );
 
@@ -2782,8 +2795,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V2-TO-V4',
           status: 'IN_PROGRESS',
           hostPlayerId,
-          aggregateVersion: 18,
-          snapshotSchemaVersion: 8,
+          aggregateVersion: 19,
+          snapshotSchemaVersion: 9,
           gameSnapshot: {
             gameState: {
               boardState: {
@@ -2859,7 +2872,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
               '006_appearance_system_v5.sql',
               '007_roll_sequence_v6.sql',
               '008_semantic_card_v7.sql',
-              '009_activity_feed_v8.sql'
+              '009_activity_feed_v8.sql',
+              '010_teamplay_v9.sql'
            )`,
         );
 
@@ -2997,8 +3011,8 @@ describe.runIf(Boolean(testDatabaseUrl))(
           code: 'V3-CLEANUP',
           status: 'IN_PROGRESS',
           hostPlayerId: sellerPlayerId,
-          aggregateVersion: 25,
-          snapshotSchemaVersion: 8,
+          aggregateVersion: 26,
+          snapshotSchemaVersion: 9,
         });
         const migratedState = migrated.gameSnapshot.gameState;
         expect(migratedState.boardState.rollSequence).toBe(0);
@@ -3109,6 +3123,7 @@ describe.runIf(Boolean(testDatabaseUrl))(
               turnNumber: room.gameSnapshot.gameState.boardState.turnNumber,
             },
             actionDeadlineAt: new Date(Date.now() + 60_000).toISOString(),
+            rescue: null,
           };
           room.nextActionAt = new Date(room.gameSnapshot.gameState.boardState.paymentQueue.actionDeadlineAt);
         });

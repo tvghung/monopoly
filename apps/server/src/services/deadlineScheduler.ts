@@ -5,6 +5,7 @@ import {
   drawPendingCard,
   nextTurn,
   progressPaymentQueue,
+  resolveRescueWithoutPayment,
   resumePaymentContinuation,
   sellablePropertyIds,
   sellPropertyToBankForPayment,
@@ -16,7 +17,7 @@ import { broadcastRoom, privatePlayerRoomName } from '../socket/broadcast';
 import { commitRoomCommand } from '../socket/roomCommands';
 import type { AppServer } from '../socket/types';
 import type { TradeOfferRecord } from '../persistence/types';
-import type { AppRuntime } from './runtime';
+import { paymentTimingOptions, type AppRuntime } from './runtime';
 
 const POLL_INTERVAL_MS = 1_000;
 const BATCH_SIZE = 100;
@@ -79,7 +80,7 @@ const recoverPaymentShortfall = async (
 
   const options = {
     now: now.getTime(),
-    paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+    ...paymentTimingOptions(runtime),
   };
   const debtorId = claim.debtorPlayerId;
   const debtor = state.players[debtorId];
@@ -96,6 +97,18 @@ const recoverPaymentShortfall = async (
       now,
     ));
   };
+  // 2v2: the active teammate never answered the Emergency Rescue offer in time. The debtor has nothing left to sell, so the
+  // normal bankruptcy resolution runs (and the queue carries on): a silent or disconnected teammate cannot stall the game.
+  if (queue.rescue) {
+    const resolution = resolveRescueWithoutPayment(state, queue.rescue, 'EXPIRED', options);
+    if (!resolution.ok) return { changed: false, cancelledOffers, forcedSalePlayers: [] };
+    if (resolution.progress.status === 'COMPLETED' && resolution.progress.continuation) {
+      resumePaymentContinuation(state, resolution.progress.continuation, options);
+    }
+    await cancelDebtorOffers();
+    return { changed: true, cancelledOffers, forcedSalePlayers: [] };
+  }
+
   let progress = progressPaymentQueue(state, options);
   changed ||= progress.changed;
   if (progress.status === 'COMPLETED') {
@@ -242,7 +255,7 @@ export async function recoverRoomIfDue(
       ) {
         const options = {
           now: now.getTime(),
-          paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+          ...paymentTimingOptions(runtime),
           cardAwaitingDrawTimeoutMs: runtime.timing.cardAwaitingDrawTimeoutMs,
           cardRevealedTimeoutMs: runtime.timing.cardRevealedTimeoutMs,
         };

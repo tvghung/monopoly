@@ -13,6 +13,8 @@ const moneyReasonLabel: Record<MoneyTransferReason, string> = {
   TRADE: 'giao dịch',
   FORCED_SALE: 'bán bắt buộc',
   FORFEIT: 'bỏ cuộc',
+  REVIVE: 'hồi sinh đồng đội',
+  RESCUE: 'hỗ trợ đồng đội',
   OTHER: 'giao dịch tiền',
 };
 
@@ -49,12 +51,23 @@ export function activityText(event: ActivityEvent): string {
       return `${endpointName(event.from)} chuyển ${tileState[event.tileID]?.streetName ?? `ô ${event.tileID}`} cho ${endpointName(event.to)}.`;
     case 'MONEY_TRANSFER':
       return `${endpointName(event.source)} trả ${formatMoney(event.amount)} cho ${endpointName(event.destination)} (${moneyReasonLabel[event.reason]}).`;
-    case 'PROPERTY_DEVELOPMENT':
-      return event.action === 'SELL'
-        ? `${event.playerName} bán một cấp công trình tại ${tileState[event.tileID]?.streetName ?? `ô ${event.tileID}`} và nhận ${formatMoney(event.cost ?? 0)}.`
-        : event.action === 'UPGRADE_HOTEL'
-          ? `${event.playerName} nâng cấp Khách sạn tại ${tileState[event.tileID]?.streetName ?? `ô ${event.tileID}`}.`
-          : `${event.playerName} xây ${event.toHouses - event.fromHouses} Nhà tại ${tileState[event.tileID]?.streetName ?? `ô ${event.tileID}`}.`;
+    case 'PROPERTY_DEVELOPMENT': {
+      const street = tileState[event.tileID]?.streetName ?? `ô ${event.tileID}`;
+      // Team Investment: the lander paid, the property still belongs to the teammate named here.
+      const owner = event.ownerName ? ` của đồng đội ${event.ownerName}` : '';
+      const cost = event.cost !== undefined ? ` (${formatMoney(event.cost)})` : '';
+      if (event.action === 'SELL') {
+        return `${event.playerName} bán một cấp công trình tại ${street} và nhận ${formatMoney(event.cost ?? 0)}.`;
+      }
+      if (event.action === 'UPGRADE_HOTEL') {
+        return event.ownerName
+          ? `${event.playerName} đầu tư nâng cấp Khách sạn tại ${street}${owner}${cost}.`
+          : `${event.playerName} nâng cấp Khách sạn tại ${street}.`;
+      }
+      return event.ownerName
+        ? `${event.playerName} đầu tư xây ${event.toHouses - event.fromHouses} Nhà tại ${street}${owner}${cost}.`
+        : `${event.playerName} xây ${event.toHouses - event.fromHouses} Nhà tại ${street}.`;
+    }
     case 'CARD_REVEALED':
       return `${event.playerName} rút thẻ ${event.deck === 'chance' ? 'Cơ hội' : 'Khí vận'}: ${gameCardsById[event.cardId]?.message ?? event.cardId}`;
     case 'JAIL':
@@ -64,7 +77,26 @@ export function activityText(event: ActivityEvent): string {
         ? `${event.playerName} đã phá sản và rời khỏi ván chơi.`
         : `${event.playerName} đã rời ván chơi.`;
     case 'GAME_FINISHED':
-      return `${event.winnerName} chiến thắng với ${formatMoney(event.finalCash)}.`;
+      return event.winningTeamName
+        ? `Đội ${event.winningTeamName} chiến thắng với ${formatMoney(event.finalCash)} tiền mặt còn lại.`
+        : `${event.winnerName} chiến thắng với ${formatMoney(event.finalCash)}.`;
+    case 'TEAM_REVIVE':
+      if (event.action === 'WINDOW_OPENED') {
+        return `${event.survivorName} có ${event.turnsRemaining} lượt để hồi sinh ${event.playerName}.`;
+      }
+      return event.action === 'REVIVED'
+        ? `${event.survivorName} đã hồi sinh ${event.playerName}.`
+        : `${event.playerName} đã bị loại vĩnh viễn.`;
+    case 'EMERGENCY_RESCUE':
+      if (event.action === 'OFFERED') {
+        return `${event.rescuerName} có thể hỗ trợ ${formatMoney(event.amount)} để cứu ${event.debtorName}.`;
+      }
+      if (event.action === 'ACCEPTED') {
+        return `${event.rescuerName} đã hỗ trợ ${formatMoney(event.amount)} để cứu ${event.debtorName}.`;
+      }
+      return event.action === 'DECLINED'
+        ? `${event.rescuerName} không hỗ trợ ${event.debtorName}.`
+        : `Hết thời gian: ${event.rescuerName} chưa hỗ trợ ${event.debtorName}.`;
     default: {
       const exhaustive: never = event;
       return exhaustive;

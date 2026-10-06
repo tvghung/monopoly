@@ -1,4 +1,4 @@
-# PostgreSQL, snapshot v8, CAS và recovery
+# PostgreSQL, snapshot v9, CAS và recovery
 
 ## Relational model
 
@@ -10,7 +10,7 @@ proposals live inside the active room snapshot and do not require a new table.
 
 ## Strict snapshot validation
 
-The v8 loader/save gate validates player/member references, ordered payment claims,
+The v9 loader/save gate validates player/member references, 2v2 team state (`assertTeamState`), ordered payment claims,
 pending landing/turn/card continuation correlation, property/building shape,
 private deck/card one-location invariants, semantic and typed activity stream tails,
 `completedCardOperations` uniqueness and forced-sale proposal binding:
@@ -28,7 +28,7 @@ landing/payment/proposal/turn-recovery state.
 protocol/schema gate
 → authenticated actor
 → per-room FIFO + row lock
-→ clone/validate v8 snapshot
+→ clone/validate v9 snapshot
 → mutate GameCore and related ordinary-offer rows
 → revalidate + expected-version CAS
 → public/private projection + ACK
@@ -44,6 +44,9 @@ success state. Startup processes due room/offer/session work before accepting tr
 - Payment-shortfall expiry first applies available cash, then sells owned properties
   in ascending tile order through the Bank. It only marks bankruptcy after no
   property remains; claims continue in stable order.
+- Emergency Rescue expiry (`PaymentQueue.rescue.expiresAt`, equal to the payment `actionDeadlineAt`) resolves as a decline: the
+  rescue closes and the debt continues into the ordinary liquidation/bankruptcy path (`resolveRescueWithoutPayment`). The
+  scheduler rechecks the exact `rescueId`/deadline under the room lock, so a stale callback is a no-op.
 - Forced-sale proposal expiry clears the one snapshot proposal. Accept/reject and
   scheduler callbacks are exact-ID/deadline checked and idempotent.
 - Ordinary offer expiry remains relational and private to its two participants.
@@ -61,10 +64,12 @@ Migration 006 upgrades V4 snapshots to V5 without inventing a mascot or resettin
 gameplay; it normalizes legacy player/property colors and adds nullable character IDs.
 Migration 007 upgrades V5 snapshots to V6 with `rollSequence: 0` without
 reconstructing historical roll count. This is historical migration history; the
-current loader is V8 and requires the roll, semantic and activity fields.
+current loader is V9 and requires the roll, semantic, activity and team fields.
 Migration `009_activity_feed_v8.sql` upgrades V7 snapshots to V8 with an empty typed
 activity tail; it deliberately does not reconstruct historical events or deck order.
 The server appends semantic/activity events only inside committed room commands.
+Migration `010_teamplay_v9.sql` upgrades V8 snapshots to V9 (Solo mode, balanced teams, empty `teamPlay`, `rescue: null`); the PostgreSQL
+test compares it with the TypeScript helper and restarts a 2v2 room with an open rescue and an open revive window on the same database.
 Tests must cover idempotence, identity/session/token preservation, offer cancellation,
 fresh-runtime pending Buy/development/Jail/payment/proposal recovery, CAS/save failure
 and public/private no-leak behavior.

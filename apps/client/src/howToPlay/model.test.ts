@@ -4,6 +4,7 @@ import {
   chanceCards,
   chestCards,
   colorGroups,
+  DEFAULT_EMERGENCY_RESCUE_SECONDS,
   DEFAULT_PAYMENT_SHORTFALL_SECONDS,
   DEFAULT_RECONNECT_GRACE_SECONDS,
   FORCED_SALE_PERCENT,
@@ -18,7 +19,14 @@ import {
   MIN_PLAYERS_PER_GAME,
   OFFER_LIFETIME_SECONDS,
   RAILROAD_RENT_BY_COUNT,
+  REVIVE_COST,
+  REVIVE_STARTING_CASH,
+  REVIVE_WINDOW_SURVIVOR_TURNS,
+  SOLO_COLOR_SET_RENT_PERCENT,
   STARTING_CASH,
+  TEAM_2V2_PLAYER_COUNT,
+  TEAM_COLOR_SET_RENT_PERCENT,
+  TEAM_NAME_MAX_LENGTH,
   tileState,
   UTILITY_RENT_MULTIPLIER_BOTH,
   UTILITY_RENT_MULTIPLIER_SINGLE,
@@ -27,7 +35,7 @@ import {
 import { cardVisualFor } from '../game/ui/events/cardVisuals';
 import { JAIL_ROUND_LIMIT as HUD_JAIL_ROUND_LIMIT } from '../game/ui/hud/playerCardText';
 import { buildCardList, classifyCard, describeCardNote, summarizeDeck } from './cards';
-import { buildHowToPlayModel, formatDuration } from './model';
+import { buildHowToPlayModel, formatDuration, rentMultiplierText } from './model';
 import {
   HOW_TO_PLAY_TITLE,
   SECTION_TITLES,
@@ -74,7 +82,7 @@ const modelStrings = (candidate: HowToPlayModel): string[] => [
 const allText = modelStrings(model).join('\n');
 
 describe('how-to-play model structure', () => {
-  it('names the guide and has the eleven topics of the owner request, in reading order', () => {
+  it('names the guide and has the eleven topics of the owner request plus the 2v2 chapter, in reading order', () => {
     expect(model.title).toBe('Hướng dẫn chơi');
     expect(model.title).toBe(HOW_TO_PLAY_TITLE);
     expect(model.sections.map((entry) => entry.title)).toEqual([
@@ -89,9 +97,10 @@ describe('how-to-play model structure', () => {
       'Giao dịch mua bán',
       'Nợ và phá sản',
       'Bỏ cuộc và chiến thắng',
+      'Chơi đội 2v2',
     ]);
     expect(model.sections.map((entry) => entry.id)).toEqual([
-      'goal', 'buying', 'rent', 'building', 'jail', 'tiles', 'chance-cards', 'chest-cards', 'trading', 'debt', 'ending',
+      'goal', 'buying', 'rent', 'building', 'jail', 'tiles', 'chance-cards', 'chest-cards', 'trading', 'debt', 'ending', 'team-play',
     ]);
     for (const entry of model.sections) expect(entry.title).toBe(SECTION_TITLES[entry.id]);
   });
@@ -211,7 +220,9 @@ describe('every number in the text comes from the shared data', () => {
     expect(text).toContain(`nhân ${UTILITY_RENT_MULTIPLIER_SINGLE}`);
     expect(text).toContain(`nhân ${UTILITY_RENT_MULTIPLIER_BOTH}`);
     expect(text).toContain(`bạn trả ${formatMoney(7 * UTILITY_RENT_MULTIPLIER_SINGLE)} hoặc ${formatMoney(7 * UTILITY_RENT_MULTIPLIER_BOTH)}`);
-    expect(text).toContain('Sở hữu cả khu màu không làm tiền thuê tăng thêm');
+    // Solo: a completed colour set multiplies every rent of the district; it no longer says the set changes nothing.
+    expect(text).toContain(`Sở hữu cả khu màu: tiền thuê của mọi ô trong khu nhân ${rentMultiplierText(SOLO_COLOR_SET_RENT_PERCENT)}`);
+    expect(text).not.toContain('không làm tiền thuê tăng thêm');
     expect(text).toContain('Chủ ô vẫn nhận tiền thuê dù đang ở tù');
 
     const example = section('rent').blocks.find((block) => block.kind === 'table' && block.columns.length === 3);
@@ -408,5 +419,59 @@ describe('card classification and notes', () => {
     expect(describeCardNote(card({ collectFromEachPlayer: 10 }))).toContain('Mỗi người chơi khác trả');
     expect(describeCardNote(card({ reward: 10 }))).toBeUndefined();
     expect(describeCardNote(card({ penalty: 10 }))).toBeUndefined();
+  });
+});
+
+describe('how-to-play 2v2 chapter', () => {
+  const team = () => sectionText('team-play');
+
+  it('writes a rent percentage as the Vietnamese multiplier', () => {
+    expect(rentMultiplierText(150)).toBe('1,5');
+    expect(rentMultiplierText(200)).toBe('2');
+  });
+
+  it('explains the lobby setup with the exact limits the server enforces', () => {
+    expect(team()).toContain(`đúng ${TEAM_2V2_PLAYER_COUNT} người chơi`);
+    expect(team()).toContain(`tối đa ${TEAM_NAME_MAX_LENGTH} chữ`);
+    expect(team()).toContain('mọi người phải bấm lại “Sẵn sàng”');
+    expect(team()).toContain('hai đồng đội phải chọn mascot khác nhau');
+    expect(team()).toContain('hai đội không được dùng cùng một màu');
+    expect(team()).toContain('Đổi đội');
+  });
+
+  it('states the rent rules: teammate exemption, the set bonuses and the shared Ga and Công Ty count', () => {
+    expect(team()).toContain('không phải trả tiền thuê');
+    expect(team()).toContain('Thẻ Cơ Hội và Khí Vận vẫn có thể bắt bạn trả tiền cho đồng đội');
+    expect(team()).toContain(`nhân ${rentMultiplierText(SOLO_COLOR_SET_RENT_PERCENT)} khi một người giữ đủ khu`);
+    expect(team()).toContain(`tiền thuê nhân ${rentMultiplierText(TEAM_COLOR_SET_RENT_PERCENT)}`);
+    expect(team()).toContain('Số Ga và Công Ty của cả đội được cộng chung');
+  });
+
+  it('explains Team Investment: own cash, the owner unchanged and the refund going to the owner', () => {
+    expect(team()).toContain('dùng tiền của mình để xây thêm Nhà');
+    expect(team()).toContain('Ô đất vẫn thuộc về đồng đội');
+    expect(team()).toContain('tiền hoàn lại về cho chủ ô');
+  });
+
+  it('explains revive and Emergency Rescue with the real amounts and time limits', () => {
+    expect(team()).toContain(`${REVIVE_WINDOW_SURVIVOR_TURNS} lượt của mình`);
+    expect(team()).toContain(`trả ${formatMoney(REVIVE_COST)} cho Ngân hàng`);
+    expect(team()).toContain(`với ${formatMoney(REVIVE_STARTING_CASH)}, không có tài sản và không có thẻ`);
+    expect(team()).toContain('Mỗi người chỉ được hồi sinh một lần');
+    expect(team()).toContain('Người chọn bỏ cuộc thì không hồi sinh được');
+    expect(team()).toContain(`trong ${formatDuration(DEFAULT_EMERGENCY_RESCUE_SECONDS)}`);
+    expect(team()).toContain('không vào ví của bạn');
+    expect(team()).toContain('thì bạn phá sản như bình thường');
+  });
+
+  it('says the whole winning team wins, eliminated member included, and what Play Again keeps', () => {
+    expect(team()).toContain('kể cả người đã bị loại trước đó');
+    expect(team()).toContain('giữ nguyên chế độ, các đội, tên đội và màu đội');
+  });
+
+  it('is pointed to from the goal, trading and debt chapters by its real title', () => {
+    expect(sectionText('goal')).toContain('Xem mục “Chơi đội 2v2”');
+    expect(sectionText('debt')).toContain('xem mục “Chơi đội 2v2”');
+    expect(sectionText('trading')).toContain('giao dịch với đồng đội như với bất kỳ người nào khác');
   });
 });

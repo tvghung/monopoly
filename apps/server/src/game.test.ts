@@ -8,6 +8,8 @@ import {
   type PlayerId,
 } from '@monopoly/shared';
 import {
+  createDefaultTeamSettings,
+  createEmptyTeamPlayState,
   sanitizeName,
   escapeHtml,
   movePlayer,
@@ -45,6 +47,7 @@ const makePlayer = (over: Partial<Player> = {}): Player => ({
   name: 'Player',
   currentTile: 0,
   color: 'red',
+  teamId: 'TEAM_1',
   accountBalance: 1500,
   isJail: false,
   jailOpponentRoundsElapsed: 0,
@@ -56,6 +59,10 @@ const makePlayer = (over: Partial<Player> = {}): Player => ({
 const makeState = (): GameState => ({
   boardState: {
     gameStarted: true,
+    gameMode: 'SOLO',
+    teams: createDefaultTeamSettings(),
+    teamPlay: createEmptyTeamPlayState(),
+    winningTeamId: null,
     players: [],
     finishedPlayers: {},
     currentPlayer: { id: '', hasMoved: false },
@@ -989,6 +996,7 @@ describe('checkBalance / winner', () => {
     state.boardState.finishedPlayers.loser = {
       name: 'Grace',
       color: 'green',
+      teamId: 'TEAM_1',
       characterId: 'panda',
       reason: 'BANKRUPT',
     };
@@ -1002,6 +1010,7 @@ describe('checkBalance / winner', () => {
       name: 'Ada',
       color: 'purple',
       characterId: 'dog',
+      teamId: 'TEAM_1',
     });
     expect(state.boardState.logs).toHaveLength(logsBefore + 1);
   });

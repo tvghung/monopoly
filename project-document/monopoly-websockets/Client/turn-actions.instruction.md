@@ -16,7 +16,13 @@
   `SHORT_VIEWPORT_QUERY`), and "Mua tài sản" says why it is disabled ("Bạn còn thiếu … để mua ô đất này.").
 - `DevelopmentPrompt` renders the authoritative landing level and sends only
   operation ID plus `SKIP`, `BUILD_HOUSES` quantity, or `UPGRADE_HOTEL`. Same sheet shell; the deed marks the next rent tier
-  "Sau khi xây" (only here: `PropertyDeedCard showNext`).
+  "Sau khi xây" (only here: `PropertyDeedCard showNext`). 2v2 Team Investment (the street belongs to a teammate): title "Đầu tư <ô>",
+  eyebrow "Đầu tư cho đồng đội", the owner row is shown and a note says the lander pays, the street stays the teammate's and the owner is
+  refunded on a sale. `BuyPrompt.groupProgressHint` counts a teammate's streets ("Cả đội hoàn thành …").
+- `RevivePanel` (HUD context stack, after `JailPanel`) is shown only to the surviving teammate in their own turn while a window is open
+  (`selectRevivePrompt`): "Có thể hồi sinh: <tên>" + "Còn N lượt"/"Cơ hội cuối", the price (`REVIVE_COST`), what the teammate returns with
+  (`REVIVE_STARTING_CASH`, no property or cards, once per player) and one button "Hồi sinh <tên> — 750.000 ₫" that sends `revive teammate`
+  (no payload). It says why the button is off ("Bạn cần 750.000 ₫ …", "Cơ hội hồi sinh bắt đầu từ lượt kế tiếp của bạn.").
 - `JailPanel` (now in the HUD context stack above the action dock) shows opponent-round progress and direct
   cash/card/wait actions ("hoặc bấm Đổ xúc xắc để thử đổ đôi"). It is a named `region` (no live region around the
   buttons); the "Đã xác nhận…" line is its one `role="status"`, an error is one `role="alert"`, and the balance warning
@@ -36,6 +42,12 @@
   released, a debt (keyed by `paymentOperationId`) stays visible until it is paid, so the coins of a sale do not hide the
   dialog; a reconnect or snapshot has nothing to play and shows it at once; a debt whose queue never goes idle is shown after
   `DEBT_HOLD_FALLBACK_MS` (12 s). The server deadline is absolute and keeps running; the hold never changes the state.
+- `RescuePanel` (2v2 Emergency Rescue; `DebtPanel` renders it instead of the sale dialog whenever `paymentShortfall.rescue` is set): the
+  addressed teammate gets an `alertdialog` "Hỗ trợ đồng đội" (eyebrow "Cứu trợ khẩn cấp"; amount, who is paid, their cash before/after, a
+  `role="timer"` countdown to `rescue.expiresAt`, "không chuyển vào ví của <người nợ>" and "Nếu bạn không hỗ trợ, đồng đội sẽ phá sản.") with
+  "Hỗ trợ đồng đội — N" (disabled when their cash no longer covers it) and "Không hỗ trợ"; only `rescueId` is sent (`accept rescue` /
+  `decline rescue`). The debtor and everyone else see a status strip ("Bạn hết tài sản để bán. Đang chờ <tên> quyết định hỗ trợ" / "<tên> hết
+  tài sản để bán, đang chờ …") with the countdown.
 - `CardInteractionOverlay` is a `Modal` `sm` on `layer="card"`: a printed card (deck frame, emblem, badge, artwork, message)
   with one **"Đóng"** for the acting player, no X, no Escape/backdrop close; observers see "Đang chờ người chơi đóng thẻ".
   The wrapper `data-testid="card-interaction-overlay"`/`data-card-stage` is the `.card-modal__stage` element **inside** the

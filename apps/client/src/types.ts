@@ -42,6 +42,11 @@ export interface SocketFunctions {
   acceptForcedSale?: (proposalId: string) => void | Promise<Ack>;
   rejectForcedSale?: (proposalId: string) => void | Promise<Ack>;
   playAgain?: () => Promise<Ack>;
+  /** 2v2: the surviving teammate revives their bankrupt teammate during their own turn; the request carries nothing. */
+  reviveTeammate?: () => void | Promise<Ack>;
+  /** 2v2: the active teammate answers an Emergency Rescue offer; only the offer id is sent. */
+  acceptRescue?: (rescueId: string) => void | Promise<Ack>;
+  declineRescue?: (rescueId: string) => void | Promise<Ack>;
 }
 
 export interface StateContextValue {

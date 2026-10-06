@@ -71,6 +71,15 @@ function OwnerRow({ model }: { model: DeedCardModel }) {
             <span className="deed__owner-label">Chủ</span>
             {' '}
             <strong>{owner.name}</strong>
+            {owner.team ? (
+              <span
+                className="deed__owner-team"
+                style={{ '--deed-team-color': getPlayerDisplayColor(owner.team.color) } as CSSProperties}
+              >
+                {`Đội ${owner.team.name}`}
+                {owner.relation === 'TEAMMATE' ? ' · đồng đội của bạn' : owner.relation === 'SELF' ? ' · của bạn' : ''}
+              </span>
+            ) : null}
           </span>
         </>
       ) : (
@@ -83,6 +92,7 @@ function OwnerRow({ model }: { model: DeedCardModel }) {
               <span
                 key={pip.tileId}
                 className={`deed__pip${pip.ownerColor ? ' deed__pip--owned' : ''}${pip.self ? ' deed__pip--self' : ''}`}
+                title={pip.ownerName ? `${pip.tileName} · ${pip.ownerName}` : pip.tileName}
                 style={pip.ownerColor ? { background: getPlayerDisplayColor(pip.ownerColor) } : undefined}
               />
             ))}
@@ -154,6 +164,12 @@ export default function PropertyDeedCard({
             <p className="deed__development">
               <span>Phát triển</span>
               <strong>{model.developmentText}</strong>
+            </p>
+          ) : null}
+          {model.rentBonus ? (
+            <p className="deed__bonus" data-rent-bonus={model.rentBonus.percent}>
+              <span>{model.rentBonus.text}</span>
+              <strong>{`Hiện thu ${model.rentBonus.effectiveRentText}`}</strong>
             </p>
           ) : null}
 

@@ -3,6 +3,7 @@ import {
   CHANCE_TILE_INDICES,
   CHEST_TILE_INDICES,
   colorGroups,
+  DEFAULT_EMERGENCY_RESCUE_SECONDS,
   DEFAULT_PAYMENT_SHORTFALL_SECONDS,
   DEFAULT_RECONNECT_GRACE_SECONDS,
   FORCED_SALE_PERCENT,
@@ -20,8 +21,15 @@ import {
   OFFER_LIFETIME_SECONDS,
   RAILROAD_RENT_BY_COUNT,
   RAILROAD_TILE_INDICES,
+  REVIVE_COST,
+  REVIVE_STARTING_CASH,
+  REVIVE_WINDOW_SURVIVOR_TURNS,
+  SOLO_COLOR_SET_RENT_PERCENT,
   START_TILE_INDEX,
   STARTING_CASH,
+  TEAM_2V2_PLAYER_COUNT,
+  TEAM_COLOR_SET_RENT_PERCENT,
+  TEAM_NAME_MAX_LENGTH,
   tileState,
   UTILITY_RENT_MULTIPLIER_BOTH,
   UTILITY_RENT_MULTIPLIER_SINGLE,
@@ -80,6 +88,9 @@ export function formatDuration(seconds: number): string {
   return seconds >= 60 && seconds % 60 === 0 ? `${seconds / 60} phút` : `${seconds} giây`;
 }
 
+/** 150 → "1,5", 200 → "2": the multiplier a rent percentage stands for, written as a Vietnamese number. */
+export const rentMultiplierText = (percent: number): string => String(percent / 100).replace('.', ',');
+
 const tileName = (index: number): string => tileState[index].streetName;
 
 const tilesOfType = (type: TileType): Tile[] => tileState.filter((tile) => tile.tileType === type);
@@ -132,6 +143,7 @@ function goalSection(): HowToPlaySection {
         'Không có đồng hồ đếm giờ cho mỗi lượt. '
         + `Nếu người đến lượt bị mất kết nối, trò chơi chờ họ khoảng ${formatDuration(DEFAULT_RECONNECT_GRACE_SECONDS)} `
         + '(mặc định) rồi bỏ qua lượt đó.',
+        `Muốn chơi theo đội? Chủ phòng chọn chế độ ${label('2v2')} ở sảnh phòng. Xem mục ${see('team-play')}.`,
       ]),
     ],
   };
@@ -196,7 +208,8 @@ function rentSection(): HowToPlaySection {
         'Chưa có Nhà: bạn trả tiền thuê gốc của ô.',
         `Có từ 1 đến ${HOUSES_BEFORE_HOTEL} Nhà: bạn trả theo bảng giá của số Nhà đó.`,
         'Có Khách Sạn: bạn trả mức thuê cao nhất của ô.',
-        'Sở hữu cả khu màu không làm tiền thuê tăng thêm.',
+        `Sở hữu cả khu màu: tiền thuê của mọi ô trong khu nhân ${rentMultiplierText(SOLO_COLOR_SET_RENT_PERCENT)} (làm tròn xuống). `
+        + 'Bạn vẫn xây được Nhà khi chưa đủ khu.',
       ]),
       table(
         'Ví dụ tiền thuê của hai ô đất',
@@ -380,6 +393,7 @@ function tradingSection(): HowToPlaySection {
         'Bạn chỉ đưa được Thẻ Thoát Tù của chính mình vào đề nghị.',
         'Trong lúc có người đang thiếu tiền trả nợ, các giao dịch thông thường tạm dừng. '
         + `Lúc đó chỉ có thể gửi đề nghị mua tài sản của chính người đang nợ (xem mục ${see('debt')}).`,
+        'Chơi 2v2 thì bạn giao dịch với đồng đội như với bất kỳ người nào khác: mua bán giữa hai đồng đội vẫn tính tiền thật.',
       ]),
     ],
   };
@@ -420,6 +434,7 @@ function debtSection(): HowToPlaySection {
         'Bán hết tài sản mà vẫn còn nợ: bạn phá sản và ra khỏi ván. '
         + 'Người bạn nợ chỉ nhận được số tiền bạn đã trả được. '
         + 'Nếu bạn không có tài sản nào để bán, bạn phá sản ngay.',
+        `Chơi 2v2: đồng đội có thể cứu bạn, và người phá sản có thể được hồi sinh (xem mục ${see('team-play')}).`,
       ]),
     ],
   };
@@ -445,6 +460,66 @@ function endingSection(): HowToPlaySection {
   };
 }
 
+// 12. Chơi đội 2v2.
+function teamPlaySection(): HowToPlaySection {
+  const start = tileName(START_TILE_INDEX);
+  return {
+    id: 'team-play',
+    title: SECTION_TITLES['team-play'],
+    blocks: [
+      paragraph(
+        `Chế độ 2v2 có đúng ${TEAM_2V2_PLAYER_COUNT} người chơi chia thành 2 đội, mỗi đội 2 người. `
+        + 'Mỗi người vẫn có tiền và tài sản riêng, nhưng hai đồng đội thắng hoặc thua cùng nhau.',
+      ),
+      heading('Lập đội'),
+      list([
+        `Chủ phòng chọn ${label('Solo')} hoặc ${label('2v2')} ở sảnh phòng, và chỉ chọn được trước khi ván bắt đầu. `
+        + `Mỗi lần đổi chế độ, mọi người phải bấm lại ${label('Sẵn sàng')}.`,
+        `Người mới vào phòng được xếp vào đội đang ít người hơn. Chủ phòng bấm ${label('Đổi đội')} rồi chọn một người ở đội kia `
+        + `để hai người đổi chỗ cho nhau. Hai người đó phải bấm lại ${label('Sẵn sàng')}.`,
+        `Mỗi đội có một tên (chủ phòng đặt, tối đa ${TEAM_NAME_MAX_LENGTH} chữ) và một màu. `
+        + 'Thành viên của đội được đổi màu đội, nhưng hai đội không được dùng cùng một màu.',
+        'Quân của bạn luôn mang màu đội, nên hai đồng đội phải chọn mascot khác nhau. Hai đội được chọn trùng mascot.',
+        `Chủ phòng chỉ bắt đầu được khi có đúng ${TEAM_2V2_PLAYER_COUNT} người, mỗi đội 2 người, và ai cũng đã sẵn sàng.`,
+      ]),
+      heading('Lượt chơi và tiền thuê'),
+      list([
+        'Lượt chơi xen kẽ giữa hai đội: người đầu đội A, người đầu đội B, người thứ hai đội A, người thứ hai đội B.',
+        'Dừng ở ô đất, Ga hoặc Công Ty của đồng đội thì bạn không phải trả tiền thuê. '
+        + 'Thẻ Cơ Hội và Khí Vận vẫn có thể bắt bạn trả tiền cho đồng đội như cho người khác.',
+        `Sở hữu cả khu màu: tiền thuê của mọi ô trong khu nhân ${rentMultiplierText(SOLO_COLOR_SET_RENT_PERCENT)} khi một người giữ đủ khu. `
+        + `Nếu hai đồng đội cùng giữ đủ khu (mỗi người một phần), tiền thuê nhân ${rentMultiplierText(TEAM_COLOR_SET_RENT_PERCENT)}.`,
+        'Số Ga và Công Ty của cả đội được cộng chung khi tính tiền thuê.',
+      ]),
+      heading('Đầu tư cho đồng đội'),
+      list([
+        'Dừng ở ô đất của đồng đội, bạn có thể dùng tiền của mình để xây thêm Nhà hoặc nâng cấp Khách Sạn cho ô đó.',
+        'Ô đất vẫn thuộc về đồng đội. Nếu sau này công trình được bán, tiền hoàn lại về cho chủ ô.',
+        'Tiền luôn là của từng người: không ai trả hộ ai, trừ khi đồng đội cứu trợ khẩn cấp (bên dưới).',
+      ]),
+      heading('Phá sản, hồi sinh và cứu trợ'),
+      list([
+        'Phá sản là chuyện của từng người. Cả đội thua ngay khi cả hai người đều ra khỏi ván.',
+        `Khi một người phá sản, đồng đội còn lại có ${REVIVE_WINDOW_SURVIVOR_TURNS} lượt của mình để hồi sinh người đó. `
+        + `Trong lượt của bạn, bấm ${label('Hồi sinh')} và trả ${money(REVIVE_COST)} cho Ngân hàng. `
+        + `Đồng đội quay lại ô ${start} với ${money(REVIVE_STARTING_CASH)}, không có tài sản và không có thẻ.`,
+        'Mỗi người chỉ được hồi sinh một lần. Người chọn bỏ cuộc thì không hồi sinh được. '
+        + 'Trong lúc chờ, người phá sản chỉ xem ván và trò chuyện.',
+        `Cứu trợ khẩn cấp: khi bạn đã bán hết tài sản mà vẫn còn nợ, đồng đội đủ tiền được hỏi có muốn trả toàn bộ khoản còn thiếu thay bạn không, `
+        + `trong ${formatDuration(DEFAULT_EMERGENCY_RESCUE_SECONDS)}. Tiền đi thẳng đến người bạn nợ, không vào ví của bạn. `
+        + 'Đồng đội từ chối hoặc hết giờ thì bạn phá sản như bình thường.',
+      ]),
+      heading('Chiến thắng'),
+      list([
+        'Khi cả hai người của một đội đã ra khỏi ván, đội còn lại thắng. '
+        + 'Cả hai thành viên của đội thắng đều là người chiến thắng, kể cả người đã bị loại trước đó.',
+        `Sau ván, chủ phòng bấm ${label('Chơi lại')}: phòng giữ nguyên chế độ, các đội, tên đội và màu đội. `
+        + 'Chủ phòng cũng có thể đổi sang Solo trước khi bắt đầu ván mới.',
+      ]),
+    ],
+  };
+}
+
 /** The whole guide, in reading order. Pure: the same shared data always gives the same model. */
 export function buildHowToPlayModel(): HowToPlayModel {
   return {
@@ -463,6 +538,7 @@ export function buildHowToPlayModel(): HowToPlayModel {
       tradingSection(),
       debtSection(),
       endingSection(),
+      teamPlaySection(),
     ],
   };
 }

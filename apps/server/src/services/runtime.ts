@@ -18,6 +18,17 @@ export interface AppRuntime {
   flags: RuntimeFlags;
 }
 
+/** The deadline lengths every payment-queue mutation needs (liquidation, and the 2v2 rescue decision), from one place. */
+export function paymentTimingOptions(runtime: AppRuntime): {
+  paymentShortfallActionTimeoutMs: number;
+  emergencyRescueTimeoutMs: number;
+} {
+  return {
+    paymentShortfallActionTimeoutMs: runtime.timing.paymentShortfallActionTimeoutMs,
+    emergencyRescueTimeoutMs: runtime.timing.emergencyRescueTimeoutMs,
+  };
+}
+
 export function createAppRuntime(
   persistence: PersistenceStore<RoomSnapshot>,
   timing: PersistenceTimingConfig,

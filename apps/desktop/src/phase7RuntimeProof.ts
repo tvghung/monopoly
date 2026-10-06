@@ -107,7 +107,7 @@ export async function runPhase7RuntimeProof(
     requireAbsolute('Packaged Phase 7 resource', target);
     if (containsAsar(target)) throw new Error('Phase 7 proof resources must be external to asar');
   }
-  if ((await readdir(migrationDirectory)).length < 9) {
+  if ((await readdir(migrationDirectory)).length < 10) {
     throw new Error('Packaged Phase 7 migration resource is incomplete');
   }
   const contract = loadContract(contractPath);

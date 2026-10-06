@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import {
+  areTeammates,
   CHANCE_TILE_INDICES,
   CHEST_TILE_INDICES,
+  effectiveRailroadOwnershipCount,
+  effectiveUtilityOwnershipCount,
   formatMoney,
-  RAILROAD_TILE_INDICES,
-  UTILITY_TILE_INDICES,
   gameCardsById,
   tileState,
   type CardDeck,
@@ -29,6 +30,7 @@ import { activityPlayerName, recordActivityEvent } from './activity';
 export interface TileResolutionOptions {
   now?: number;
   paymentShortfallActionTimeoutMs?: number;
+  emergencyRescueTimeoutMs?: number;
   cardAwaitingDrawTimeoutMs?: number;
   cardRevealedTimeoutMs?: number;
   resolutionCause?: RentResolutionCause;
@@ -135,10 +137,17 @@ const resolveOwnedProperty = (
     };
     return false;
   }
-  if (property.id === playerId || amount <= 0) {
+  // 2v2: a teammate's property costs no rent (only property rent is exempt; card payments between teammates still happen).
+  const teammateOwned = areTeammates(state, playerId, property.id);
+  if (property.id === playerId || teammateOwned || amount <= 0) {
     const tile = tileState[tileID];
+    const lander = state.players[playerId];
+    // Team Investment: landing on a teammate's street offers the normal development choice, paid entirely from the lander's own
+    // cash. It is only offered when the lander can afford at least one level; nobody pools money and ownership never changes.
+    const mayDevelop = property.id === playerId
+      || (teammateOwned && Boolean(lander) && (tile?.houseCost ?? Number.POSITIVE_INFINITY) <= lander.accountBalance);
     if (
-      property.id === playerId
+      mayDevelop
       && tile?.tileType === 'normal'
       && property.houses < 5
     ) {
@@ -153,6 +162,13 @@ const resolveOwnedProperty = (
       };
       return false;
     }
+    if (teammateOwned && lander) {
+      const owner = state.players[property.id];
+      sendToLog(
+        state,
+        `${lander.name} dừng ở ${tile?.streetName ?? `ô ${tileID}`} của đồng đội ${owner?.name ?? 'của mình'}: không phải trả tiền thuê.`,
+      );
+    }
     return true;
   }
   logRentLiability(state, playerId, tileID, amount, diceResult, cause);
@@ -164,21 +180,19 @@ const resolveOwnedProperty = (
   );
 };
 
+// The owner's Ga count for rent includes their teammate's in 2v2 (Solo counts only the owner's own).
 export const railroadRent = (state: GameState, tileID: number): number => {
   const landed = state.boardState.ownedProps[tileID];
   if (!landed) return 0;
-  const count = RAILROAD_TILE_INDICES.filter(
-    (id) => state.boardState.ownedProps[id]?.id === landed.id,
-  ).length;
+  const count = effectiveRailroadOwnershipCount(state, landed.id);
   return count > 0 ? 25 * 2 ** (count - 1) : 0;
 };
 
+// Likewise the Công Ty of the owner's team in 2v2: one from each teammate counts as holding both.
 export const utilityRent = (state: GameState, tileID: number, diceTotal: number): number => {
   const landed = state.boardState.ownedProps[tileID];
   if (!landed) return 0;
-  const count = UTILITY_TILE_INDICES.filter(
-    (id) => state.boardState.ownedProps[id]?.id === landed.id,
-  ).length;
+  const count = effectiveUtilityOwnershipCount(state, landed.id);
   return diceTotal * (count === 2 ? 10 : 4);
 };
 

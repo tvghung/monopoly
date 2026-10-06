@@ -8,11 +8,13 @@ import {
 import stateContext from '../../internal';
 import type { SocketFunctions, StateContextValue } from '../../types';
 import IncomingOffers from './IncomingOffers';
+import { soloTeamBoardFields } from '../../game/presentation/testFixtures';
 
 afterEach(cleanup);
 
 const state: PublicGameState = {
   boardState: {
+    ...soloTeamBoardFields(),
     gameStarted: true,
     players: ['proposer', 'recipient'],
     finishedPlayers: {},
@@ -32,6 +34,7 @@ const state: PublicGameState = {
   },
   players: {
     proposer: {
+      teamId: 'TEAM_1',
       name: 'An',
       currentTile: 0,
       color: 'red',
@@ -42,6 +45,7 @@ const state: PublicGameState = {
       getOutOfJailCardCount: 0,
     },
     recipient: {
+      teamId: 'TEAM_2',
       name: 'Bình',
       currentTile: 0,
       color: 'blue',
@@ -104,6 +108,7 @@ describe('IncomingOffers', () => {
       boardState: {
         ...state.boardState,
         paymentShortfall: {
+          rescue: null,
           debtorPlayerId: 'recipient',
           creditor: 'BANK',
           amount: 300,

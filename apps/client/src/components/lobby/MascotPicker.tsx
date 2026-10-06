@@ -29,6 +29,12 @@ interface MascotPickerProps {
   takenAppearanceKeys: ReadonlySet<string>;
   busy: boolean;
   onSetAppearance: (request: SetAppearanceRequest) => void;
+  /** Solo shows the personal colour picker. In 2v2 the colour belongs to the team, so the picker is replaced by a note. */
+  showColors?: boolean;
+  /** 2v2: the team's name, shown with the locked colour. */
+  teamLabel?: string;
+  /** 2v2: mascots a teammate already uses; they cannot be chosen because teammates share one colour. */
+  lockedCharacterIds?: ReadonlySet<CharacterId>;
 }
 
 function wrapCharacterIndex(index: number): number {
@@ -41,6 +47,9 @@ export default function MascotPicker({
   takenAppearanceKeys,
   busy,
   onSetAppearance,
+  showColors = true,
+  teamLabel,
+  lockedCharacterIds,
 }: MascotPickerProps) {
   const reducedMotion = useEffectiveReducedMotion();
   const firstCharacter = CHARACTER_IDS[0];
@@ -72,7 +81,11 @@ export default function MascotPicker({
   const selectCharacter = (characterId: CharacterId): void => {
     if (busy) return;
     setFocusedCharacterId(characterId);
-    if (selectedCharacterId !== characterId && !isCombinationTaken(characterId, playerColor)) {
+    if (
+      selectedCharacterId !== characterId
+      && !lockedCharacterIds?.has(characterId)
+      && !isCombinationTaken(characterId, playerColor)
+    ) {
       onSetAppearance({ characterId });
     }
   };
@@ -178,14 +191,15 @@ export default function MascotPicker({
           const character = CHARACTER_REGISTRY[characterId];
           const selected = selectedCharacterId === characterId;
           const focused = focusedCharacterId === characterId;
+          const lockedByTeammate = !selected && Boolean(lockedCharacterIds?.has(characterId));
           return (
             <button
               key={characterId}
-              className={`mascot-picker__thumbnail${selected ? ' mascot-picker__thumbnail--selected' : ''}${focused ? ' mascot-picker__thumbnail--focused' : ''}`}
+              className={`mascot-picker__thumbnail${selected ? ' mascot-picker__thumbnail--selected' : ''}${focused ? ' mascot-picker__thumbnail--focused' : ''}${lockedByTeammate ? ' mascot-picker__thumbnail--locked' : ''}`}
               type="button"
-              aria-label={character.accessibleLabel}
+              aria-label={lockedByTeammate ? `${character.accessibleLabel} (đồng đội đã chọn)` : character.accessibleLabel}
               aria-pressed={selected}
-              disabled={busy}
+              disabled={busy || lockedByTeammate}
               onClick={() => selectCharacter(characterId)}
             >
               <img src={characterSvgDataUri(character.svgSource, playerColor)} alt="" />
@@ -194,6 +208,7 @@ export default function MascotPicker({
         })}
       </div>
 
+      {showColors ? (
       <div className="mascot-picker__colors" role="group" aria-label="Chọn màu người chơi">
         <div className="mascot-picker__color-grid">
           {PLAYER_COLOR_IDS.map(color => {
@@ -224,6 +239,14 @@ export default function MascotPicker({
           })}
         </div>
       </div>
+      ) : (
+        <p className="mascot-picker__team-note" role="note">
+          <span className="mascot-picker__team-swatch" aria-hidden="true" />
+          {teamLabel
+            ? `Mascot luôn mang màu đội ${teamLabel}. Đồng đội không được chọn trùng mascot.`
+            : 'Mascot luôn mang màu của đội.'}
+        </p>
+      )}
     </section>
   );
 }

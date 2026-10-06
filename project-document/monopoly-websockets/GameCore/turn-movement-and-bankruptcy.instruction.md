@@ -41,6 +41,14 @@
   forced-sale proposal đang mở; sau giao dịch server chạy `progressPaymentQueue`/`resumePaymentContinuation` như Bank sale, và nếu
   debtor vẫn không đủ trả khi hết tài sản thì bị loại (offer còn lại của debtor bị hủy). Không có event, protocol hay snapshot mới.
 
+## 2v2: phá sản, hồi sinh, Emergency Rescue, thắng đội
+
+- Phá sản theo từng người; đội thua ngay khi không còn active member (`checkTeamWinner`). Người phá sản (không phải bỏ cuộc) được
+  mở revive window 3 lượt của đồng đội còn lại; `revive teammate` và `consumeReviveTurn` nằm trong `game/team.ts`.
+- Khi người nợ hết tài sản thanh lý, `paymentResolution` mở `PaymentQueue.rescue` cho đồng đội đủ tiền (`WAITING_FOR_RESCUE`)
+  trước khi tuyên bố phá sản; accept trả thẳng cho creditor, decline/hết hạn/rescuer rời → bỏ rescue và phá sản bình thường.
+- Nhận xét chi tiết, thông báo lỗi và test: [team-play.instruction.md](./team-play.instruction.md).
+
 ## Forfeit/winner/recovery
 
 - Explicit leave của active payer hủy proposal/ordinary offers, auto-liquidates

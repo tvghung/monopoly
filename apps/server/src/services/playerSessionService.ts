@@ -8,6 +8,7 @@ import {
   activePlayerIds,
   assertSupportedRoomSnapshot,
   calculateNextActionAt,
+  chooseJoinTeam,
   createFreshPlayer,
   createRoomSnapshot,
   nextAvailableColor,
@@ -260,7 +261,10 @@ export class PlayerSessionService {
   }
 
   private addSeat(snapshot: RoomSnapshot, playerId: string, name: string): void {
-    const color = nextAvailableColor(snapshot);
+    // A joiner goes to the team with fewer members whatever the mode, and in a 2v2 lobby wears that team's colour.
+    const teamId = chooseJoinTeam(snapshot);
+    const { gameMode, teams } = snapshot.gameState.boardState;
+    const color = gameMode === 'TEAM_2V2' ? teams[teamId].color : nextAvailableColor(snapshot);
     if (!color) throw new CommandError('ROOM_FULL', 'No player color is available.');
     snapshot.members[playerId] = {
       joinOrder: snapshot.nextJoinOrder,
@@ -268,7 +272,7 @@ export class PlayerSessionService {
       membershipStatus: 'ACTIVE',
     };
     snapshot.nextJoinOrder += 1;
-    snapshot.gameState.players[playerId] = createFreshPlayer(name, color);
+    snapshot.gameState.players[playerId] = createFreshPlayer(name, color, null, teamId);
     snapshot.gameState.boardState.players = activePlayerIds(snapshot);
     recordActivityEvent(snapshot.gameState, {
       type: 'PLAYER_JOINED',

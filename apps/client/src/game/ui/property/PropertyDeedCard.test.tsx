@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { makeRoom } from '../../presentation/testFixtures';
+import { makeRoom, makeTeamRoom } from '../../presentation/testFixtures';
+import { getTileName } from '../formatters';
 import { buildDeedCardModel } from './deedCardModel';
 import PropertyDeedCard, { type DeedVariant } from './PropertyDeedCard';
 
@@ -40,7 +41,7 @@ describe('PropertyDeedCard', () => {
     expect(container.querySelector('.property-inspection__detail--current')).toBe(current[0]);
     expect(screen.getByText('Sau khi xây').closest('tr')?.textContent).toContain('Có 3 Nhà');
     expect(screen.getByText('Giá mỗi Nhà / Khách Sạn').nextElementSibling?.textContent).toBe('50.000 ₫');
-    expect(screen.getByText(/Sở hữu cả nhóm/u)).toBeTruthy();
+    expect(screen.getByText(/Sở hữu cả khu/u).textContent).toContain('Xây Nhà không cần đủ khu');
     expect(screen.getByText('Phát triển').nextElementSibling?.textContent).toBe('2 Nhà');
   });
 
@@ -63,6 +64,41 @@ describe('PropertyDeedCard', () => {
     const progress = screen.getByRole('img', { name: 'An sở hữu 1/2' });
     expect(progress.querySelectorAll('.deed__pip')).toHaveLength(2);
     expect(progress.querySelectorAll('.deed__pip--owned')).toHaveLength(2);
+  });
+
+  it('shows the completed-set bonus line with the rent it makes now, only while the owner holds the whole group', () => {
+    const { container, unmount } = renderDeed(1, {
+      1: { id: 'player-a', color: 'red', houses: 2 },
+      3: { id: 'player-a', color: 'red', houses: 0 },
+    });
+    const bonus = container.querySelector('.deed__bonus') as HTMLElement;
+    expect(bonus.getAttribute('data-rent-bonus')).toBe('150');
+    expect(bonus.textContent).toContain('Đủ khu: tiền thuê ×1,5');
+    expect(bonus.textContent).toContain('Hiện thu 45.000 ₫');
+    unmount();
+    const partial = renderDeed(1, {
+      1: { id: 'player-a', color: 'red', houses: 2 },
+      3: { id: 'player-b', color: 'red', houses: 0 },
+    });
+    expect(partial.container.querySelector('.deed__bonus')).toBeNull();
+  });
+
+  it('2v2: names the owner\'s team, how they relate to the viewer and counts the whole team toward the set', () => {
+    const room = makeTeamRoom();
+    room.gameState.boardState.ownedProps = {
+      1: { id: 'player-a', color: 'red', houses: 1 },
+      3: { id: 'player-c', color: 'red', houses: 0 },
+    };
+    const model = buildDeedCardModel({
+      tileId: 1, state: room.gameState, roomPlayers: room.players, theme: 'v2', viewerPlayerId: 'player-c',
+    })!;
+    const { container } = render(<PropertyDeedCard model={model} />);
+    expect(container.querySelector('.deed__owner-team')?.textContent).toBe('Đội Team 1 · đồng đội của bạn');
+    expect(container.querySelector('.deed__bonus')?.textContent).toContain('Cả đội đủ khu: tiền thuê ×2');
+    expect(screen.getByRole('img', { name: 'Đội Team 1 sở hữu 2/2' })).toBeTruthy();
+    // Both teammates share the ownership colour, so the pips carry the holder's name for a pointer user.
+    const titles = [...container.querySelectorAll('.deed__pip')].map(pip => pip.getAttribute('title'));
+    expect(titles).toEqual([getTileName(1) + ' · An', getTileName(3) + ' · Chi']);
   });
 
   it('says so when a tile has no owner, and can leave the owner row out', () => {

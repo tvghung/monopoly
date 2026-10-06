@@ -25,11 +25,29 @@ function renderSurface(id: string) {
 describe('decision surfaces', () => {
   it('lists the buy and development sheets, jail, debt, forced sale, trade and incoming offers', () => {
     expect(DECISION_SURFACES.map(surface => surface.id)).toEqual([
-      'buy', 'buy-short', 'development-houses', 'development-hotel', 'jail',
+      'buy', 'buy-short', 'development-houses', 'development-hotel',
+      'development-team-investment', 'revive-offer', 'rescue-offer', 'rescue-waiting', 'jail',
       'debt-debtor', 'debt-debtor-sale-open', 'debt-debtor-offer', 'debt-observer',
       'forced-sale-buyer', 'forced-sale-seller', 'trade', 'incoming-offers',
     ]);
     expect(DECISION_SURFACES.every(surface => surface.group === 'Decisions')).toBe(true);
+  });
+
+  it('the 2v2 surfaces show the teammate investment, the revive offer and both sides of an Emergency Rescue', () => {
+    const { unmount } = renderSurface('development-team-investment');
+    expect(screen.getByRole('dialog', { name: 'Đầu tư Cà Mau' })).toBeTruthy();
+    unmount();
+
+    const revive = renderSurface('revive-offer');
+    expect(screen.getByRole('button', { name: 'Hồi sinh Dũng — 750.000 ₫' })).toBeTruthy();
+    revive.unmount();
+
+    const rescuer = renderSurface('rescue-offer');
+    expect(screen.getByRole('alertdialog', { name: 'Hỗ trợ đồng đội' })).toBeTruthy();
+    rescuer.unmount();
+
+    renderSurface('rescue-waiting');
+    expect(screen.getByRole('status').textContent).toContain('Đang chờ Chi quyết định hỗ trợ');
   });
 
   it('debt-debtor is the alert dialog with four sales and the way out of the game', () => {

@@ -1,6 +1,6 @@
 # Cờ Tỷ Phú Việt Nam
 
-Current release identity: **Own the Block V1 / 1.2.0**, Socket protocol **9**.
+Current release identity: **Own the Block V1 / 1.3.0**, Socket protocol **10**.
 See the [V1 release contract](project-document/ui-ux-overhaul/V1_RELEASE_CONTRACT.md)
 for the LAN-first desktop architecture and pending production soundtrack gate.
 Validate identity with `pnpm validate:v1-contract`.
@@ -184,9 +184,11 @@ validates without publishing. The release is unsigned; see the
 [V1 release contract](project-document/ui-ux-overhaul/V1_RELEASE_CONTRACT.md).
 
 Updating players is automatic, so a release needs one decision: whether versions below it must update before they play
-multiplayer. `apps/desktop/update-policy.json` holds `minimumSupportedVersion` (default: every version since `1.0.0` keeps
-working). Raise it only when an older version cannot play with the new one, for example after a socket protocol change
-(`pnpm validate:v1-contract` fails after such a change until `reviewedForSocketProtocol` is updated), never for a bug fix.
+multiplayer. `apps/desktop/update-policy.json` holds `minimumSupportedVersion`. The 1.3.0 Teamplay release raises it to
+`1.3.0` because Socket protocol 10 is incompatible with older desktop clients. The 1.2.0 updater reads the published
+manifest and requires the update before starting or joining multiplayer. Without Internet, an older client may still
+start locally, but the protocol mismatch rejects its attempt to join a 1.3.0 host with `UPGRADE_REQUIRED`.
+Raise the minimum only when an older version cannot play with the new one, never for a bug fix.
 To try the update screens without publishing, point a development run at a local feed with
 `OWN_THE_BLOCK_UPDATE_MANIFEST_URL=http://127.0.0.1:<port>/update-manifest.json` (a packaged app ignores it).
 

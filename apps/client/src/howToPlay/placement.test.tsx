@@ -27,8 +27,8 @@ const LOADING_STAGES: LoadingStage[] = [
 ];
 
 const players = [
-  { id: 'player-a', name: 'Ada', color: 'red' as const, characterId: 'dog' as const, ready: true, connected: true },
-  { id: 'player-b', name: 'Grace', color: 'blue' as const, characterId: 'panda' as const, ready: false, connected: true },
+  { id: 'player-a', name: 'Ada', color: 'red' as const, characterId: 'dog' as const, teamId: 'TEAM_1' as const, ready: true, connected: true },
+  { id: 'player-b', name: 'Grace', color: 'blue' as const, characterId: 'panda' as const, teamId: 'TEAM_2' as const, ready: false, connected: true },
 ];
 
 function lobby(overrides: { hostPlayerId?: string; onSettings?: () => void } = {}) {

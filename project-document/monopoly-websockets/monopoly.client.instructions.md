@@ -95,8 +95,9 @@ Development endpoint contract:
 ## Role và visibility
 
 - Player lobby thấy roster, host badge, ready controls và start state.
-- Chỉ host có start action; button chỉ enabled khi 2–4 active players đều connected
-  và ready.
+- Chỉ host có start action; button chỉ enabled khi 2–4 active players (2v2: đúng 4, mỗi đội 2) đều connected
+  và ready. Host chọn chế độ Solo/2v2 và đổi chỗ đội; thành viên đổi màu đội của mình; chỉ host sửa tên đội
+  ([GameCore/team-play.instruction.md](./GameCore/team-play.instruction.md)). Người bị loại còn revivable chỉ xem và chat.
 - Spectator có banner rõ ràng, board/gameplay read-only và không thấy gameplay/trading
   mutation actions; `send chat` vẫn là ngoại lệ được server cho phép trong room đã bind.
 - UI guards chỉ là UX. Server authenticated handler vẫn là authority.

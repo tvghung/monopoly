@@ -10,6 +10,7 @@ describe('selectPlayerHudViewModels', () => {
       3: { id: 'player-a', color: 'red', houses: 5 },
     };
     room.gameState.boardState.finishedPlayers['player-b'] = {
+      teamId: 'TEAM_2',
       name: 'Bình', color: 'blue', characterId: 'panda', reason: 'LEFT',
     };
     const views = selectPlayerHudViewModels(room.gameState, 'player-a', room.players);

@@ -93,6 +93,8 @@ const scenarios = [
   ['houses-max', '29 · Mọi phố có 4 nhà'],
   ['standees', '29 · Bốn quân trên một ô'],
   ['stress', 'Hiệu năng · trạng thái đồng thời'],
+  ['teams-2v2', '30 · Đội 2v2: bốn trạm theo đội'],
+  ['teams-revive', '30 · Đội 2v2: người phá sản có thể hồi sinh'],
 ] as const;
 
 type ScenarioKey = typeof scenarios[number][0];
@@ -101,6 +103,7 @@ const DEFAULT_SCENARIO: ScenarioKey = 'stations-4';
 const STATIC_SCENARIOS: readonly ScenarioKey[] = [
   'stations-2', 'stations-3', 'stations-4', 'offline', 'turn-recovery', 'coin-materials', 'bankrupt',
   'spectator-awaiting', 'spectator-revealed', 'board-readability', 'landmarks-all', 'houses-max', 'standees',
+  'teams-2v2', 'teams-revive',
 ];
 
 export function isScenarioKey(value: string | null): value is ScenarioKey {
@@ -190,6 +193,7 @@ function createRoom(playerCount: PlayerCount, run: number): PublicRoomState {
       name: PLAYER_NAMES[index],
       color: PLAYER_COLORS[index],
       characterId: PLAYER_CHARACTERS[index],
+      teamId: index % 2 === 0 ? 'TEAM_1' : 'TEAM_2',
       joinOrder: index,
       membershipStatus: 'ACTIVE',
       ready: true,
@@ -212,12 +216,20 @@ function createRoom(playerCount: PlayerCount, run: number): PublicRoomState {
         ownedProps: {},
         winner: null,
         paymentShortfall: null,
+        gameMode: 'SOLO',
+        winningTeamId: null,
+        teams: [
+          { teamId: 'TEAM_1', name: 'Team 1', color: 'red', memberPlayerIds: ids.filter((_, index) => index % 2 === 0) },
+          { teamId: 'TEAM_2', name: 'Team 2', color: 'blue', memberPlayerIds: ids.filter((_, index) => index % 2 === 1) },
+        ],
+        teamPlay: { revivedPlayerIds: [], reviveWindows: [] },
       },
       players: Object.fromEntries(ids.map((playerId, index) => [playerId, {
         name: PLAYER_NAMES[index],
         currentTile: [1, 12, 22, 32][index] ?? 0,
         color: PLAYER_COLORS[index],
         characterId: PLAYER_CHARACTERS[index],
+        teamId: index % 2 === 0 ? 'TEAM_1' : 'TEAM_2',
         accountBalance: [1_500, 1_350, 1_800, 950][index] ?? 1_500,
         isJail: false,
         jailOpponentRoundsElapsed: 0,
@@ -348,6 +360,7 @@ function configureBaseline(
     for (const playerId of PLAYER_IDS) room.gameState.players[playerId].currentTile = 8;
     room.gameState.boardState.ownedProps[8] = { id: 'player-a', color: 'red', houses: 2 };
   }
+  if (scenario === 'teams-2v2' || scenario === 'teams-revive') applyTeamBaseline(room, scenario === 'teams-revive');
   if (scenario === 'stations-3') {
     room.gameState.boardState.ownedProps[1] = { id: 'player-a', color: 'red', houses: 2 };
     room.gameState.boardState.ownedProps[3] = { id: 'player-b', color: 'blue', houses: 5 };
@@ -414,6 +427,7 @@ function configureBaseline(
       name: bankrupt.name,
       color: bankrupt.color,
       characterId: bankrupt.characterId,
+      teamId: bankrupt.teamId,
       reason: 'BANKRUPT',
       accountBalance: 0,
     };
@@ -421,6 +435,59 @@ function configureBaseline(
     if (meta) meta.membershipStatus = 'FINISHED';
   }
   return { playerId: 'player-a', role: 'PLAYER' };
+}
+
+/**
+ * A 2v2 fixture: An and Chi are `TEAM_1` (red), Bình and Dũng are `TEAM_2` (blue), everybody wears the team colour, and the
+ * teammates hold a split colour set. With `eliminated` set, Dũng is bankrupt with a revive window open and Bình the survivor.
+ */
+function applyTeamBaseline(room: PublicRoomState, eliminated: boolean): void {
+  const { boardState } = room.gameState;
+  const teamOf = (playerId: string) => (playerId === 'player-a' || playerId === 'player-c' ? 'TEAM_1' : 'TEAM_2');
+  const colorOf = (playerId: string) => (teamOf(playerId) === 'TEAM_1' ? 'red' : 'blue');
+  boardState.gameMode = 'TEAM_2V2';
+  boardState.players = ['player-a', 'player-b', 'player-c', 'player-d'];
+  boardState.teams = [
+    { teamId: 'TEAM_1', name: 'Rồng', color: 'red', memberPlayerIds: ['player-a', 'player-c'] },
+    { teamId: 'TEAM_2', name: 'Phượng', color: 'blue', memberPlayerIds: ['player-b', 'player-d'] },
+  ];
+  for (const meta of room.players) {
+    meta.teamId = teamOf(meta.playerId);
+    meta.color = colorOf(meta.playerId);
+  }
+  for (const [playerId, player] of Object.entries(room.gameState.players)) {
+    player.teamId = teamOf(playerId);
+    player.color = colorOf(playerId);
+  }
+  boardState.ownedProps = {
+    1: { id: 'player-a', color: 'red', houses: 2 },
+    3: { id: 'player-c', color: 'red', houses: 0 },
+    6: { id: 'player-b', color: 'blue', houses: 1 },
+    8: { id: 'player-d', color: 'blue', houses: 0 },
+  };
+  if (!eliminated) return;
+  const bankrupt = room.gameState.players['player-d'];
+  delete room.gameState.players['player-d'];
+  boardState.players = ['player-a', 'player-b', 'player-c'];
+  boardState.finishedPlayers['player-d'] = {
+    name: bankrupt.name,
+    color: bankrupt.color,
+    characterId: bankrupt.characterId,
+    teamId: bankrupt.teamId,
+    reason: 'BANKRUPT',
+    accountBalance: 0,
+  };
+  boardState.ownedProps = {
+    1: { id: 'player-a', color: 'red', houses: 2 },
+    3: { id: 'player-c', color: 'red', houses: 0 },
+    6: { id: 'player-b', color: 'blue', houses: 1 },
+  };
+  boardState.turnNumber = 4;
+  boardState.teamPlay.reviveWindows = [{
+    playerId: 'player-d', teamId: 'TEAM_2', survivorPlayerId: 'player-b', turnsRemaining: 2, openedAtTurnNumber: 2,
+  }];
+  const meta = room.players.find(player => player.playerId === 'player-d');
+  if (meta) meta.membershipStatus = 'FINISHED';
 }
 
 /** Applies the Design Lab theme and draws the HUD concept over the real board. */
@@ -681,7 +748,7 @@ function Phase4UatSurface() {
           debtorPlayerId: 'player-a', creditor: 'PLAYER', creditorPlayerId: 'player-b',
           amount: 80, remainingAmount: 70, source: { kind: 'RENT', tileID: 3 },
           actionDeadlineAt: '2030-01-01T00:02:00.000Z', remainingClaimCount: 1,
-          paymentOperationId: 'uat-rent', claimId: 'uat-rent-claim', sellableProperties: [],
+          paymentOperationId: 'uat-rent', claimId: 'uat-rent-claim', sellableProperties: [], rescue: null,
         };
       });
       return;
@@ -794,7 +861,7 @@ function Phase4UatSurface() {
         delete next.gameState.players['player-a'];
         next.gameState.boardState.players = next.gameState.boardState.players.filter(id => id !== 'player-a');
         next.gameState.boardState.finishedPlayers['player-a'] = {
-          name: left.name, color: left.color, characterId: left.characterId,
+          name: left.name, color: left.color, characterId: left.characterId, teamId: left.teamId,
           reason: 'LEFT', accountBalance: left.accountBalance,
         };
         const meta = next.players.find(player => player.playerId === 'player-a');

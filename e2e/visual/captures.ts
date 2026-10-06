@@ -135,10 +135,12 @@ export const PLAN04_SURFACES = [
   'launcher', 'launcher-running', 'launcher-host', 'launcher-join', 'launcher-join-failed',
   // Lobby
   'lobby-host', 'lobby-guest', 'lobby-alone', 'lobby-full', 'lobby-start-blocked', 'lobby-lan',
+  'lobby-2v2-host', 'lobby-2v2-guest', 'lobby-2v2-incomplete',
   // Settings
   'settings', 'settings-desktop', 'settings-reduced-motion',
   // Decisions
   'buy', 'buy-short', 'development-houses', 'development-hotel', 'jail',
+  'development-team-investment', 'revive-offer', 'rescue-offer', 'rescue-waiting',
   'debt-debtor', 'debt-debtor-sale-open', 'debt-debtor-offer', 'debt-observer', 'forced-sale-buyer', 'forced-sale-seller', 'trade', 'incoming-offers',
   // Inspection and portfolios
   'deeds', 'inspection-street', 'inspection-own-street', 'inspection-railroad', 'inspection-unowned', 'inspection-special',
@@ -146,7 +148,7 @@ export const PLAN04_SURFACES = [
   // Card reveal
   'card-chance', 'card-chest', 'card-waiting',
   // Victory
-  'winner-host', 'winner-guest', 'winner-spectator', 'winner-many-players',
+  'winner-host', 'winner-guest', 'winner-spectator', 'winner-many-players', 'winner-team',
   // Screens
   'confirm-forfeit', 'toasts', 'loading', 'loading-restoring', 'bootstrap-error', 'failure-replaced', 'failure-error',
   'connection', 'spectator',

@@ -3,7 +3,7 @@ import type { PublicGameState } from '@monopoly/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import stateContext from '../../internal';
 import type { SocketFunctions, StateContextValue } from '../../types';
-import { makeRoom } from '../../game/presentation/testFixtures';
+import { makeRoom, makeTeamRoom } from '../../game/presentation/testFixtures';
 import BuyPrompt, { groupProgressHint } from './BuyPrompt';
 import DevelopmentPrompt from './DevelopmentPrompt';
 
@@ -177,5 +177,59 @@ describe('development sheet', () => {
     );
     expect(screen.getByRole('note').textContent).toBe('Bạn còn thiếu 40.000 ₫ để nâng cấp Khách sạn.');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Nâng cấp Khách sạn (50.000 ₫)' }).disabled).toBe(true);
+  });
+});
+
+describe('2v2 decision sheets', () => {
+  it('counts a teammate\'s streets toward the group and speaks of the whole team', () => {
+    expect(groupProgressHint(3, 'player-a', { 1: { id: 'player-c' } }, ['player-c'])).toBe('Cả đội hoàn thành nhóm nâu sau khi mua');
+    expect(groupProgressHint(6, 'player-a', { 8: { id: 'player-c' } }, ['player-c'])).toBe('Cả đội sở hữu 2/3 nhóm xanh nhạt sau khi mua');
+    // A street an opponent holds does not count for the team.
+    expect(groupProgressHint(3, 'player-a', { 1: { id: 'player-b' } }, ['player-c'])).toBeNull();
+    // Solo wording is unchanged.
+    expect(groupProgressHint(3, 'player-a', { 1: { id: 'player-a' } })).toBe('Hoàn thành nhóm nâu sau khi mua');
+  });
+
+  it('Team Investment: says the lander pays, whose street it stays and that the owner is refunded on a sale', () => {
+    const room = makeTeamRoom();
+    room.gameState.players['player-a'].accountBalance = 1000;
+    room.gameState.boardState.ownedProps = {
+      1: { id: 'player-c', color: 'red', houses: 1 },
+      3: { id: 'player-c', color: 'red', houses: 0 },
+    };
+    room.gameState.turnInfo.pendingLandingDecision = {
+      kind: 'DEVELOP_HOUSES', operationId: 'develop-1', playerId: 'player-a', tileID: 1, unitCost: 50, maxQuantity: 3,
+    };
+    render(
+      <stateContext.Provider value={context(room.gameState, room)}>
+        <DevelopmentPrompt tokenArrived />
+      </stateContext.Provider>,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: 'Đầu tư Cà Mau' });
+    expect(within(dialog).getByText('Đầu tư cho đồng đội')).toBeTruthy();
+    expect(dialog.textContent).toContain('Bạn trả bằng tiền của mình. Cà Mau vẫn thuộc về Chi, và Chi nhận lại tiền nếu sau này bán công trình.');
+    expect(dialog.textContent).toContain('Đội Team 1 · đồng đội của bạn');
+    expect(within(dialog).getByRole('button', { name: 'Xây 1 Nhà (50.000 ₫)' })).toBeTruthy();
+  });
+
+  it('keeps the ordinary copy for a street the lander owns, even in 2v2', () => {
+    const room = makeTeamRoom();
+    room.gameState.players['player-a'].accountBalance = 1000;
+    room.gameState.boardState.ownedProps = {
+      1: { id: 'player-a', color: 'red', houses: 1 },
+      3: { id: 'player-a', color: 'red', houses: 0 },
+    };
+    room.gameState.turnInfo.pendingLandingDecision = {
+      kind: 'DEVELOP_HOUSES', operationId: 'develop-1', playerId: 'player-a', tileID: 1, unitCost: 50, maxQuantity: 3,
+    };
+    render(
+      <stateContext.Provider value={context(room.gameState, room)}>
+        <DevelopmentPrompt tokenArrived />
+      </stateContext.Provider>,
+    );
+
+    expect(screen.getByRole('dialog', { name: 'Phát triển Cà Mau' })).toBeTruthy();
+    expect(screen.queryByText('Đầu tư cho đồng đội')).toBeNull();
   });
 });

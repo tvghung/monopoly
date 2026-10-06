@@ -44,9 +44,11 @@ chữ là tiếng Việt thường, ngắn, không thuật ngữ kỹ thuật (n
 
 ## Nội dung (model)
 
-`buildHowToPlayModel()` trả `{ title, intro, sections[11] }` theo thứ tự: 1 Mục tiêu và lượt chơi, 2 Mua đất, 3 Thu tiền
+`buildHowToPlayModel()` trả `{ title, intro, sections[12] }` theo thứ tự: 1 Mục tiêu và lượt chơi, 2 Mua đất, 3 Thu tiền
 thuê, 4 Xây nhà và công trình, 5 Nhà Tù, 6 Thuế và ô đặc biệt, 7 Thẻ Cơ Hội, 8 Thẻ Khí Vận, 9 Giao dịch mua bán,
-10 Nợ và phá sản, 11 Bỏ cuộc và chiến thắng. Khối: đoạn, tiêu đề phụ, danh sách, bước, bảng, danh sách thẻ.
+10 Nợ và phá sản, 11 Bỏ cuộc và chiến thắng, 12 Chơi đội 2v2 (lập đội, lượt và tiền thuê, đầu tư cho đồng đội, phá sản/hồi sinh/cứu trợ,
+chiến thắng; số lấy từ `REVIVE_COST`, `REVIVE_STARTING_CASH`, `REVIVE_WINDOW_SURVIVOR_TURNS`, `DEFAULT_EMERGENCY_RESCUE_SECONDS`,
+`SOLO_COLOR_SET_RENT_PERCENT`, `TEAM_COLOR_SET_RENT_PERCENT`, `TEAM_NAME_MAX_LENGTH`, `TEAM_2V2_PLAYER_COUNT`). Khối: đoạn, tiêu đề phụ, danh sách, bước, bảng, danh sách thẻ.
 
 - **Mọi số đọc từ dữ liệu dùng chung, không gõ tay**: giá, tiền thuê, giá xây, thuế từ `tileState`/`colorGroups`
   (qua `getTileDetails`), chữ in trên thẻ từ `chanceCards`/`chestCards` (tiêu đề từ `cardVisualFor`), tiền bảo lãnh từ
@@ -54,7 +56,7 @@ thuê, 4 Xây nhà và công trình, 5 Nhà Tù, 6 Thuế và ô đặc biệt, 
   (tổng xúc xắc 7, "2 Nhà"). `model.test.ts` quét mọi số tiền trong chữ và chỉ chấp nhận số có trong dữ liệu.
 - Thời gian server có thể đổi bằng biến môi trường (chờ mất kết nối 60 giây, hạn trả nợ 120 giây) luôn ghi "(mặc định)".
 - Luật khớp code, không khớp tài liệu cũ: ô thuế **thu tiền** (200.000 ₫ và 100.000 ₫, nộp Ngân hàng); đổ đôi không được đi
-  thêm lượt và chỉ giúp ra tù; sở hữu cả khu màu **không** nhân tiền thuê và **không** cần để xây; chỉ xây khi quân dừng
+  thêm lượt và chỉ giúp ra tù; sở hữu cả khu màu nhân tiền thuê mọi ô trong khu ×1,5 (Solo; 2v2 đủ khu theo đội ×2) và **không** cần để xây; chỉ xây khi quân dừng
   ở ô đất của mình (1 đến 4 Nhà hoặc nâng Khách Sạn ở cấp 4); bán lại một cấp công trình nhận một nửa giá xây; không có
   đấu giá, không có thế chấp; ra tù bằng đổ đôi, bảo lãnh, thẻ, hoặc tự động khi vòng chờ đạt 2/2; thẻ lật ngay khi dừng và
   hiệu lực chỉ áp dụng khi người chơi bấm "Đóng"; ván chỉ có thắng khi còn một người.

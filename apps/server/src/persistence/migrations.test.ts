@@ -20,6 +20,7 @@ describe('database migrations', () => {
       '007_roll_sequence_v6.sql',
       '008_semantic_card_v7.sql',
       '009_activity_feed_v8.sql',
+      '010_teamplay_v9.sql',
     ]);
     expect(migrations[0]?.checksum).toMatch(/^[a-f0-9]{64}$/u);
     expect(migrations[0]?.sql).toContain('CREATE TABLE rooms');
@@ -49,6 +50,12 @@ describe('database migrations', () => {
     expect(migrations[8]?.sql).toContain('snapshot_schema_version = 8');
     expect(migrations[8]?.sql).toContain("- 'activityFeed'::TEXT");
     expect(migrations[8]?.sql).toContain('aggregate_version = aggregate_version + 1');
+    expect(migrations[9]?.sql).toContain("'gameMode', 'SOLO'");
+    expect(migrations[9]?.sql).toContain("'winningTeamId', NULL");
+    expect(migrations[9]?.sql).toContain("'rescue', NULL");
+    expect(migrations[9]?.sql).toContain('snapshot_schema_version = 9');
+    expect(migrations[9]?.sql).toContain('snapshot_schema_version = 8');
+    expect(migrations[9]?.sql).toContain('aggregate_version = aggregate_version + 1');
   });
 
   it('canonicalizes checkout line endings before hashing or executing SQL', () => {

@@ -20,6 +20,7 @@ function roomState(winner: boolean, loaded = true): PublicGameState {
   room.gameState.loaded = loaded;
   if (winner) {
     room.gameState.boardState.winner = {
+      teamId: 'TEAM_1',
       playerId: 'player-a', name: 'An', color: 'red', characterId: 'dog', accountBalance: 1_500,
     };
   }

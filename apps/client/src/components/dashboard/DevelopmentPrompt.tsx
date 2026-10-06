@@ -25,8 +25,8 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
   const [error, setError] = useState<string | null>(null);
   const requestGeneration = useRef(0);
   const deed = useMemo(
-    () => (tileId !== null ? buildDeedCardModel({ tileId, state, roomPlayers }) : null),
-    [roomPlayers, state, tileId],
+    () => (tileId !== null ? buildDeedCardModel({ tileId, state, roomPlayers, viewerPlayerId: playerId }) : null),
+    [playerId, roomPlayers, state, tileId],
   );
 
   useEffect(() => {
@@ -45,6 +45,8 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
   const tileName = getTileName(decision.tileID);
   const affordableHouses = unitCost > 0 ? Math.min(max, Math.floor(balance / unitCost)) : max;
   const isHouses = decision.kind === 'DEVELOP_HOUSES';
+  // 2v2 Team Investment: the lander pays from their own cash for a street a teammate owns; the owner never changes.
+  const investmentOwner = deed?.owner && deed.owner.playerId !== playerId ? deed.owner : null;
   // Why an option is disabled, in words: the shortfall for the cheapest step, or how many the balance covers.
   const reason = isHouses
     ? affordableHouses === 0
@@ -82,8 +84,8 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
   return (
     <Modal
       open
-      title={`Phát triển ${tileName}`}
-      eyebrow={isHouses ? 'Xây Nhà' : 'Nâng cấp'}
+      title={`${investmentOwner ? 'Đầu tư' : 'Phát triển'} ${tileName}`}
+      eyebrow={investmentOwner ? 'Đầu tư cho đồng đội' : isHouses ? 'Xây Nhà' : 'Nâng cấp'}
       size="lg"
       placement="sheet"
       backdrop="clear"
@@ -94,7 +96,7 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
           <PropertyDeedCard
             model={deed}
             variant={short ? 'compact' : 'full'}
-            showOwner={false}
+            showOwner={investmentOwner !== null}
             showNext
             className="decision-sheet__deed"
           />
@@ -107,6 +109,13 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
           <dl className="decision-sheet__math">
             <div><dt>Số dư hiện tại</dt><dd>{formatMoney(balance)}</dd></div>
           </dl>
+          {investmentOwner
+            ? (
+              <p className="decision-sheet__note decision-sheet__note--team">
+                {`Bạn trả bằng tiền của mình. ${tileName} vẫn thuộc về ${investmentOwner.name}, và ${investmentOwner.name} nhận lại tiền nếu sau này bán công trình.`}
+              </p>
+            )
+            : null}
           {isHouses ? <p className="decision-sheet__note">Chọn số Nhà (tối đa {max}) — {formatMoney(unitCost)} mỗi Nhà.</p> : null}
           {reason ? <p className="decision-sheet__reason" role="note">{reason}</p> : null}
           {error ? <p className="decision-sheet__error" role="alert">{error}</p> : null}

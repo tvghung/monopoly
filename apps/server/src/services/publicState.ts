@@ -1,9 +1,13 @@
 import {
   SOCKET_PROTOCOL_VERSION,
+  teamActivePlayerIds,
+  TEAM_IDS,
   type PlayerId,
   type PrivatePlayerState,
   type PublicGameState,
+  type PublicReviveWindow,
   type PublicRoomState,
+  type PublicTeam,
   type RoomPlayerMeta,
 } from '@monopoly/shared';
 import { tileState } from '@monopoly/shared';
@@ -43,6 +47,7 @@ export function projectPublicRoomState(
         name: identity.name,
         color: identity.color,
         characterId: identity.characterId,
+        teamId: identity.teamId,
         joinOrder: member.joinOrder,
         membershipStatus: member.membershipStatus,
         ready: member.ready,
@@ -51,10 +56,37 @@ export function projectPublicRoomState(
       };
     });
 
+  // Both teams, always in team order; the members include players who are eliminated or have left.
+  const teams: PublicTeam[] = TEAM_IDS.map((teamId) => ({
+    teamId,
+    name: boardState.teams[teamId].name,
+    color: boardState.teams[teamId].color,
+    memberPlayerIds: players.filter((player) => player.teamId === teamId).map((player) => player.playerId),
+  }));
+  const reviveWindows: PublicReviveWindow[] = boardState.teamPlay.reviveWindows.flatMap((reviveWindow) => {
+    const survivorPlayerId = teamActivePlayerIds(gameState, reviveWindow.teamId)[0];
+    return survivorPlayerId
+      ? [{
+        playerId: reviveWindow.playerId,
+        teamId: reviveWindow.teamId,
+        survivorPlayerId,
+        turnsRemaining: reviveWindow.turnsRemaining,
+        openedAtTurnNumber: reviveWindow.openedAtTurnNumber,
+      }]
+      : [];
+  });
+
   const publicGameState: PublicGameState = {
     boardState: {
       gameStarted: boardState.gameStarted,
       gameStartedAt: boardState.gameStartedAt ?? null,
+      gameMode: boardState.gameMode,
+      winningTeamId: boardState.winningTeamId,
+      teams,
+      teamPlay: {
+        revivedPlayerIds: [...boardState.teamPlay.revivedPlayerIds],
+        reviveWindows,
+      },
       players: boardState.players,
       finishedPlayers: boardState.finishedPlayers,
       currentPlayer: {
@@ -88,6 +120,7 @@ export function projectPublicRoomState(
           .filter(claim => claim.status !== 'SETTLED' && claim.status !== 'BANKRUPT').length,
         paymentOperationId: queue.operationId,
         claimId: activeClaim.claimId,
+        rescue: queue.rescue ? { ...queue.rescue } : null,
         sellableProperties: Object.entries(boardState.ownedProps)
           .filter(([, property]) => property.id === activeClaim.debtorPlayerId)
           .sort(([left], [right]) => Number(left) - Number(right))
@@ -105,6 +138,7 @@ export function projectPublicRoomState(
         currentTile: player.currentTile,
         color: player.color,
         characterId: player.characterId,
+        teamId: player.teamId,
         accountBalance: player.accountBalance,
         isJail: player.isJail,
         jailOpponentRoundsElapsed: player.jailOpponentRoundsElapsed,

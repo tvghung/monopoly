@@ -50,7 +50,7 @@ chỉ dùng trong test qua dependency injection.
 | Runtime-only | `socket.id`, generation registry, presence, queues và scheduler timer handle |
 | Durable aggregate | Stable-ID GameState, room metadata, absolute deadlines |
 
-Snapshot v8 chứa pending landing decision/continuation, `PaymentQueue`, durable
+Snapshot v9 (v8 + 2v2 team state: `teams`, `teamPlay`, `winningTeamId`, `PaymentQueue.rescue`, `teamId`) chứa pending landing decision/continuation, `PaymentQueue`, durable
 `PendingCardInteraction`, private `GamePrivateState.decks`, bounded public
 `gameplayEvents`, bounded typed `activityFeed`, per-player private semantic lanes,
 `completedCardOperations`, forced-sale proposal và nullable `CharacterId` cùng

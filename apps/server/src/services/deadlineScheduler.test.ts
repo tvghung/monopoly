@@ -35,6 +35,7 @@ function createRuntime(
     paymentShortfallActionTimeoutMs: 120_000,
     cardAwaitingDrawTimeoutMs: 20_000,
     cardRevealedTimeoutMs: 30_000,
+    emergencyRescueTimeoutMs: 30_000,
     pendingSessionTtlMs: 300_000,
     terminalSessionRetentionMs: 604_800_000,
     lobbyRetentionMs: 86_400_000,
@@ -59,6 +60,7 @@ function activeSnapshot(): RoomSnapshot {
       currentTile: 1,
       color: 'red',
       characterId: 'dog',
+      teamId: 'TEAM_1',
       accountBalance: 1500,
       isJail: false,
       jailOpponentRoundsElapsed: 0,
@@ -69,6 +71,7 @@ function activeSnapshot(): RoomSnapshot {
       currentTile: 0,
       color: 'blue',
       characterId: 'panda',
+      teamId: 'TEAM_2',
       accountBalance: 1500,
       isJail: false,
       jailOpponentRoundsElapsed: 0,
@@ -106,6 +109,7 @@ function addDueBankDebt(snapshot: RoomSnapshot, now: Date): void {
 
     },
     actionDeadlineAt: new Date(now.getTime() - 1).toISOString(),
+    rescue: null,
   };
 }
 

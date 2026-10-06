@@ -13,6 +13,7 @@ import PlayerAvatar from '../../design-system/components/PlayerAvatar/PlayerAvat
 import { ActionIcon } from '../../design-system/icons/ActionIcon';
 import { SHORT_VIEWPORT_QUERY, useMediaQuery } from '../../design-system/useMediaQuery';
 import { getPlayerColorLabel, getPlayerDisplayColor } from '../../game/ui/playerVisualColors';
+import { getTeamVictorySummary, type TeamVictoryMember, type TeamVictorySummary } from '../../game/team/teamView';
 import useVictoryVisibility from './useVictoryVisibility';
 import VictoryConfetti from './VictoryConfetti';
 import './WinnerBanner.css';
@@ -55,8 +56,12 @@ export interface OtherPlayer {
 export function getOtherPlayers(state: PublicGameState, roomPlayers: readonly RoomPlayerMeta[] = []): OtherPlayer[] {
   const winnerId = state.boardState.winner?.playerId;
   const { finishedPlayers } = state.boardState;
+  // In 2v2 the whole winning team is on the podium, so the list is the opposing team only.
+  const winningTeam = getTeamVictorySummary(state);
+  const winners = new Set<string>(winningTeam ? winningTeam.members.map(member => member.playerId) : []);
+  if (winnerId) winners.add(winnerId);
   const out = Object.entries(finishedPlayers)
-    .filter(([playerId]) => playerId !== winnerId)
+    .filter(([playerId]) => !winners.has(playerId))
     .map(([playerId, player]): OtherPlayer => ({
       playerId,
       name: player.name,
@@ -66,7 +71,7 @@ export function getOtherPlayers(state: PublicGameState, roomPlayers: readonly Ro
       finalCash: player.accountBalance ?? null,
     }));
   const seated = Object.entries(state.players)
-    .filter(([playerId]) => playerId !== winnerId && !(playerId in finishedPlayers))
+    .filter(([playerId]) => !winners.has(playerId) && !(playerId in finishedPlayers))
     .map(([playerId, player]): OtherPlayer => ({
       playerId,
       name: player.name,
@@ -78,6 +83,42 @@ export function getOtherPlayers(state: PublicGameState, roomPlayers: readonly Ro
   const seat = new Map(roomPlayers.map(player => [player.playerId, player.joinOrder]));
   const order = (player: OtherPlayer) => seat.get(player.playerId) ?? Number.MAX_SAFE_INTEGER;
   return [...seated, ...out].sort((a, b) => order(a) - order(b));
+}
+
+/** A teammate who was out of the game before the team won: the victory is shared, so this is a note, not a mark against them. */
+const MEMBER_NOTE: Record<NonNullable<TeamVictoryMember['status']>, string> = {
+  BANKRUPT: 'Đã phá sản trước đó',
+  LEFT: 'Đã rời phòng',
+};
+
+/** The team podium: "CHIẾN THẮNG!", the team and both members with their mascots, whether or not they were still in play. */
+function TeamVictoryHero({ team, short }: { team: TeamVictorySummary; short: boolean }) {
+  const headingId = useId();
+  return (
+    <div className="victory__identity victory__identity--team">
+      <p className="victory__eyebrow">Đội chiến thắng</p>
+      <h3 id={headingId} className="victory__name victory__name--team">
+        <span className="victory__team-crown" aria-hidden="true"><ActionIcon name="crown" /></span>
+        CHIẾN THẮNG!
+      </h3>
+      <p className="victory__team-name">
+        <span className="victory__swatch" aria-hidden="true" />
+        {team.team.name}
+        <span className="victory__team-color">{` · ${getPlayerColorLabel(team.team.color)}`}</span>
+      </p>
+      <ul className="victory__members" aria-label={`Thành viên đội ${team.team.name}`}>
+        {team.members.map(member => (
+          <li key={member.playerId} className="victory__member" data-member-status={member.status ?? 'ACTIVE'}>
+            <PlayerAvatar characterId={member.characterId} colorId={team.team.color} size={short ? 40 : 72} active={member.status === null} />
+            <span className="victory__member-who">
+              <strong className="victory__member-name">{member.name}</strong>
+              {member.status ? <span className="victory__member-note">{MEMBER_NOTE[member.status]}</span> : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function StatusChip({ status }: { status: FinishedPlayerReason | null }) {
@@ -103,6 +144,7 @@ export default function WinnerBanner() {
   const winner = state.boardState.winner;
   if (!winner) return null;
 
+  const teamVictory = getTeamVictorySummary(state);
   const summary = getWinnerSummary(state);
   const others = getOtherPlayers(state, roomPlayers);
   const buttonSize = short ? 'md' : 'lg';
@@ -181,44 +223,63 @@ export default function WinnerBanner() {
           data-modal-autofocus={canPlayAgain ? undefined : true}
         >
           <section
-            className="victory__hero"
-            style={{ '--victory-color': getPlayerDisplayColor(winner.color) } as CSSProperties}
+            className={`victory__hero${teamVictory ? ' victory__hero--team' : ''}`}
+            data-victory-kind={teamVictory ? 'TEAM' : 'SOLO'}
+            style={{ '--victory-color': getPlayerDisplayColor(teamVictory ? teamVictory.team.color : winner.color) } as CSSProperties}
           >
-            <div className="victory__avatar">
-              <PlayerAvatar characterId={winner.characterId} colorId={winner.color} size={short ? 64 : 128} active />
-              <span className="victory__crown"><ActionIcon name="crown" /></span>
-            </div>
-            <div id={identityId} className="victory__identity">
-              <p className="victory__eyebrow">Người chiến thắng</p>
-              <h3 className="victory__name">{winner.name}</h3>
-              <p className="victory__color">
-                <span className="victory__swatch" aria-hidden="true" />
-                {getPlayerColorLabel(winner.color)}
-              </p>
-            </div>
+            {teamVictory
+              ? (
+                <div id={identityId} className="victory__team-heading">
+                  <TeamVictoryHero team={teamVictory} short={short} />
+                </div>
+              )
+              : (
+                <>
+                  <div className="victory__avatar">
+                    <PlayerAvatar characterId={winner.characterId} colorId={winner.color} size={short ? 64 : 128} active />
+                    <span className="victory__crown"><ActionIcon name="crown" /></span>
+                  </div>
+                  <div id={identityId} className="victory__identity">
+                    <p className="victory__eyebrow">Người chiến thắng</p>
+                    <h3 className="victory__name">{winner.name}</h3>
+                    <p className="victory__color">
+                      <span className="victory__swatch" aria-hidden="true" />
+                      {getPlayerColorLabel(winner.color)}
+                    </p>
+                  </div>
+                </>
+              )}
             <dl className="victory__stats">
               <div className="victory__tile victory__tile--cash">
-                <dt><ActionIcon name="cash" />Tiền mặt cuối ván</dt>
-                <dd><MoneyText amount={summary.finalCash} size="lg" /></dd>
+                <dt><ActionIcon name="cash" />{teamVictory ? 'Tổng tiền mặt của đội' : 'Tiền mặt cuối ván'}</dt>
+                <dd><MoneyText amount={teamVictory ? teamVictory.totalCash : summary.finalCash} size="lg" /></dd>
               </div>
               <div className="victory__tile">
-                <dt><MapPin aria-hidden="true" focusable="false" />Tài sản sở hữu</dt>
-                <dd>{summary.propertyCount}</dd>
+                <dt><MapPin aria-hidden="true" focusable="false" />{teamVictory ? 'Tài sản của đội' : 'Tài sản sở hữu'}</dt>
+                <dd>{teamVictory ? teamVictory.propertyCount : summary.propertyCount}</dd>
               </div>
               <div className="victory__tile">
                 <dt><ActionIcon name="house" />Nhà</dt>
-                <dd>{summary.houseCount}</dd>
+                <dd>{teamVictory ? teamVictory.houseCount : summary.houseCount}</dd>
               </div>
               <div className="victory__tile">
                 <dt><ActionIcon name="hotel" />Khách sạn</dt>
-                <dd>{summary.hotelCount}</dd>
+                <dd>{teamVictory ? teamVictory.hotelCount : summary.hotelCount}</dd>
               </div>
+              {teamVictory
+                ? (
+                  <div className="victory__tile victory__tile--sets">
+                    <dt><ActionIcon name="crown" />Khu màu đủ bộ</dt>
+                    <dd>{teamVictory.completedColorSets.length}</dd>
+                  </div>
+                )
+                : null}
             </dl>
           </section>
           {others.length > 0
             ? (
               <section className="victory__others" aria-labelledby={othersId}>
-                <h3 id={othersId} className="victory__section-title">Những người chơi khác</h3>
+                <h3 id={othersId} className="victory__section-title">{teamVictory ? 'Đội đối thủ' : 'Những người chơi khác'}</h3>
                 <ul className="victory__others-list">
                   {others.map(player => (
                     <li key={player.playerId} className="victory__other">

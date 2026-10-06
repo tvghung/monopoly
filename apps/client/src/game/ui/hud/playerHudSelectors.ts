@@ -3,6 +3,7 @@ import type {
   PlayerColorId,
   PublicGameState,
   RoomPlayerMeta,
+  TeamId,
 } from '@monopoly/shared';
 
 export interface PlayerHudViewModel {
@@ -10,6 +11,8 @@ export interface PlayerHudViewModel {
   name: string;
   color: PlayerColorId;
   characterId: CharacterId | null;
+  /** Dormant outside a 2v2 game: read it through `getPlayerTeamId`, which answers `null` in Solo. */
+  teamId: TeamId;
   money: number;
   propertyCount: number;
   houseCount: number;
@@ -57,6 +60,7 @@ export function selectPlayerHudViewModels(
         name: player?.name ?? finished?.name ?? meta?.name ?? 'Người chơi',
         color: player?.color ?? finished?.color ?? meta?.color ?? 'cyan',
         characterId: player?.characterId ?? finished?.characterId ?? meta?.characterId ?? null,
+        teamId: player?.teamId ?? finished?.teamId ?? meta?.teamId ?? 'TEAM_1',
         money: player?.accountBalance ?? finished?.accountBalance ?? 0,
         ...development,
         isCurrentTurn: activePlayerId === playerId,

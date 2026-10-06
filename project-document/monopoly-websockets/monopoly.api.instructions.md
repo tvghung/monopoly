@@ -48,7 +48,7 @@ Mọi state-changing request có request-scoped `Ack<T>`:
 - Success chỉ sau PostgreSQL commit.
 - Failure có stable code/message/retryable.
 - Không broadcast state từ failed draft.
-- Current transport uses protocol V9. The card commands below carry only the
+- Current transport uses protocol V10 (2v2 Teamplay). The card commands below carry only the
   operation ID; the authenticated actor, pending state, card order and consequence
   remain server-authoritative.
 
@@ -72,7 +72,8 @@ Actor không bao giờ lấy từ client payload. Handler không tự viết SQL
 | Module | Events |
 | --- | --- |
 | Session/presence | `join room`, `resume session`, disconnect |
-| Lobby/lifecycle | `set ready`, `start game`, `leave room` |
+| Lobby/lifecycle | `set ready`, `start game`, `play again`, `leave room` |
+| Team (2v2) | `set game mode`, `set team name`, `set team color`, `swap team`, `revive teammate`, `accept rescue`, `decline rescue` |
 | Turn | `roll dice`, `buy property`, `do not buy`, `resolve development`, `wait in jail` |
 | Chat | `send chat` |
 | Trading | durable bilateral offer events |

@@ -1,4 +1,5 @@
 import { formatMoney } from '@monopoly/shared';
+import { PERMANENT_ELIMINATION_LABEL, REVIVABLE_LABEL, relationLabel } from '../../team/teamView';
 import type { PlayerCardViewModel } from './playerCardSelectors';
 
 /** Opponent rounds a jailed player waits before the release roll (the same limit the jail panel shows). */
@@ -11,8 +12,15 @@ export const JAIL_ROUND_LIMIT = 2;
  */
 export function describePlayerCard(card: PlayerCardViewModel): string {
   const parts = [card.isLocal ? `${card.name} (bạn)` : card.name];
-  if (card.isBankrupt) parts.push('đã phá sản');
-  else if (card.hasLeft) parts.push('đã rời ván chơi');
+  if (card.teamName) {
+    const relation = relationLabel(card.relation);
+    parts.push(relation && card.relation !== 'SELF' ? `${relation}, đội ${card.teamName}` : `đội ${card.teamName}`);
+  }
+  if (card.isBankrupt) {
+    parts.push('đã phá sản');
+    if (card.revive?.kind === 'REVIVABLE') parts.push(`${REVIVABLE_LABEL.toLowerCase()}, ${card.revive.turnsLabel.toLowerCase()}`);
+    if (card.revive?.kind === 'PERMANENT') parts.push(PERMANENT_ELIMINATION_LABEL.toLowerCase());
+  } else if (card.hasLeft) parts.push('đã rời ván chơi');
   else parts.push(formatMoney(card.displayMoney));
   if (!card.hasLeft) {
     parts.push(`${card.propertyCount} tài sản`);

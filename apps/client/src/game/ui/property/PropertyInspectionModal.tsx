@@ -26,8 +26,8 @@ export default function PropertyInspectionModal({ tileId, onClose }: PropertyIns
   // Keep showing the same tile while the dialog animates out.
   const shownTileId = useRetainedValue(tileId);
   const deed = useMemo(
-    () => (shownTileId === null ? null : buildDeedCardModel({ tileId: shownTileId, state, roomPlayers })),
-    [roomPlayers, shownTileId, state],
+    () => (shownTileId === null ? null : buildDeedCardModel({ tileId: shownTileId, state, roomPlayers, viewerPlayerId: playerId })),
+    [playerId, roomPlayers, shownTileId, state],
   );
   if (shownTileId === null || !deed) return null;
 
@@ -40,9 +40,18 @@ export default function PropertyInspectionModal({ tileId, onClose }: PropertyIns
   let footer: ReactNode = null;
   if (canAct && owned.id !== playerId) {
     footer = (
-      <Button icon={<ActionIcon name="propose" />} onClick={() => openTradeForProperty(shownTileId)}>
-        Đề nghị mua
-      </Button>
+      <>
+        {deed.owner?.relation === 'TEAMMATE'
+          ? (
+            <p className="property-inspection__hint" role="note">
+              Tài sản của đồng đội: bạn không trả tiền thuê khi dừng ở đây và có thể đầu tư xây thêm bằng tiền của mình.
+            </p>
+          )
+          : null}
+        <Button icon={<ActionIcon name="propose" />} onClick={() => openTradeForProperty(shownTileId)}>
+          Đề nghị mua
+        </Button>
+      </>
     );
   } else if (canAct && isStreet) {
     footer = (

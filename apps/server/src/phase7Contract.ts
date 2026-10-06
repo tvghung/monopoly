@@ -278,8 +278,8 @@ export async function runNativePostgresContract(
     );
     const appliedByVersion = new Map(applied.rows.map(row => [row.version, row.checksum]));
     check(
-      'migrations-001-009',
-      migrations.length === 9
+      'migrations-001-010',
+      migrations.length === 10
         && migrations.every(migration => appliedByVersion.get(migration.version) === migration.checksum),
       'migration versions or checksums do not match the packaged SQL',
     );
@@ -327,7 +327,7 @@ export async function runNativePostgresContract(
         id: roomId,
         code: `P7-${randomUUID().slice(0, 12)}`,
         status: 'LOBBY',
-        snapshotSchemaVersion: 8,
+        snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
         gameSnapshot: { marker, nested: { typed: true } },
       });
       roomVersion = created.aggregateVersion;
@@ -341,7 +341,7 @@ export async function runNativePostgresContract(
       id: casRoomId,
       code: `CAS-${randomUUID().slice(0, 12)}`,
       status: 'LOBBY',
-      snapshotSchemaVersion: 8,
+      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
       gameSnapshot: { marker: 'cas' },
     });
     await persistence.rooms.save({
@@ -349,7 +349,7 @@ export async function runNativePostgresContract(
       expectedVersion: casRoom.aggregateVersion,
       status: 'IN_PROGRESS',
       hostPlayerId: null,
-      snapshotSchemaVersion: 8,
+      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
       gameSnapshot: { marker: 'cas-updated' },
       nextActionAt: null,
       lastActivityAt: new Date(),
@@ -362,7 +362,7 @@ export async function runNativePostgresContract(
         expectedVersion: casRoom.aggregateVersion,
         status: 'IN_PROGRESS',
         hostPlayerId: null,
-        snapshotSchemaVersion: 8,
+        snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
         gameSnapshot: { marker: 'cas-stale' },
         nextActionAt: null,
         lastActivityAt: new Date(),
@@ -379,7 +379,7 @@ export async function runNativePostgresContract(
       id: concurrentRoomId,
       code: 'CONCURRENT-' + randomUUID().slice(0, 12),
       status: 'LOBBY',
-      snapshotSchemaVersion: 8,
+      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
       gameSnapshot: { marker: 'cas-concurrent-initial' },
     });
     const concurrentStores = [
@@ -414,7 +414,7 @@ export async function runNativePostgresContract(
             expectedVersion: concurrentRoom.aggregateVersion,
             status: 'IN_PROGRESS',
             hostPlayerId: null,
-            snapshotSchemaVersion: 8,
+            snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
             gameSnapshot: { marker },
             nextActionAt: null,
             lastActivityAt: new Date(),

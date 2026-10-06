@@ -3,7 +3,8 @@
 ## Scope
 
 `apps/server/src/socket/lobby.ts` handles `set ready`, `start game`, `play again` and
-`leave room`.
+`leave room`; `apps/server/src/socket/team.ts` handles the 2v2 lobby commands `set game mode`, `set team name`,
+`set team color`, `swap team` and the in-game `revive teammate` (rules: [../GameCore/team-play.instruction.md](../GameCore/team-play.instruction.md)).
 All Player commands use authenticated stable actor, runtime schema where applicable,
 per-room executor and typed ACK.
 
@@ -18,6 +19,8 @@ per-room executor and typed ACK.
   rejected by the server, and a no-op selection is allowed.
 - A changed appearance clears only that Player's ready flag. Appearance is committed
   before the public room update and is locked once the room starts.
+- 2v2 (`gameMode = TEAM_2V2`): the colour is the team colour, so `color` is rejected; `characterId` must not equal a
+  teammate's mascot (the other team may use it).
 
 ## Ready/start
 
@@ -32,6 +35,8 @@ per-room executor and typed ACK.
   `boardState.gameStartedAt` and exposed in the public projection; later commands
   preserve it. The board may keep this compatibility field without rendering a visible
   timer. Client supplies no dice/order.
+- 2v2 start additionally needs exactly four active Players, exactly two per team, and a valid mascot with no duplicate inside a
+  team; it then seats `slotOrder` (A1, B1, A2, B2) through `startTeamMatch`. A 3v1 split can be configured but is refused.
 - Repeat/non-host/spectator/offline/unready start returns explicit failure.
 
 ## Same-room Play Again
@@ -48,6 +53,21 @@ per-room executor and typed ACK.
   positions/balances/ownership/debt/card/presentation/log/activity state and roll
   identities are not carried into the next match. Commit emits the new `LOBBY`
   snapshot before the ACK; a repeated/in-flight command cannot reset twice.
+- In 2v2 the reset keeps `gameMode`, `teams` (names and colours), each Player's `teamId` and the team colour, and clears
+  `teamPlay`, `winningTeamId` and every revive window. The host may still switch mode before the next start.
+
+## 2v2 lobby commands (`socket/team.ts`)
+
+| Event | Payload | Actor | Rule |
+| --- | --- | --- | --- |
+| `set game mode` | `{mode}` | host | `LOBBY` only; a real change resets every Ready |
+| `set team name` | `{teamId, name}` | host | 2v2 `LOBBY`; `sanitizeName`, at most 20 chars; Ready untouched |
+| `set team color` | `{color}` | active member | own team only, not the other team's colour; resets that team's Ready |
+| `swap team` | `{playerId, withPlayerId}` | host | 2v2 `LOBBY`; two active Players of different teams; resets both Ready; mascot kept unless it clashes |
+| `revive teammate` | no payload | survivor | `IN_PROGRESS`, own turn, window open, ≥ `REVIVE_COST`; see team-play |
+
+All of them use the authenticated actor, run in the room executor and ACK only after commit. Failures use Vietnamese messages
+(`localizeAckError` shows them as written).
 
 First activated Seat is host. Temporary disconnect never transfers host or ready.
 
@@ -87,6 +107,9 @@ leave clears runtime binding/admission lock so the same Socket can join another 
   the replay then excludes the winner; a bankrupt member leaves and the last leave deletes the room (`rooms.test.ts`: the
   LEFT winner snapshot is valid, any other LEFT live seat or a LEFT winner without a live seat is rejected).
 - Same-socket Player/spectator leave then fresh join.
+- 2v2 lobby (`socket.teamplay.integration.test.ts`): mode change resets Ready and is host/lobby only, team name keeps Ready, team
+  colour is own-team only and resets that team, swap resets exactly the two players, appearance rejects colour and teammate
+  mascots, start refuses 3v1 and non-four, Play Again keeps mode/teams/names/colours.
 - Current/non-current leave, property/listing/offer cleanup and winner.
 - Active-payer leave settles creditor and leaves no auction/proposal; non-payer leave
   returns assets without proceeds.

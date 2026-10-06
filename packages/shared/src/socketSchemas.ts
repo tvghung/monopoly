@@ -1,12 +1,23 @@
 import { z } from 'zod';
-import { CHARACTER_IDS, PLAYER_COLOR_IDS } from './types';
+import {
+  CHARACTER_IDS,
+  GAME_MODES,
+  PLAYER_COLOR_IDS,
+  TEAM_IDS,
+  TEAM_NAME_MAX_LENGTH,
+} from './types';
 import type {
   JoinRoomRequest,
   OfferAction,
   OfferInfo,
+  RescueDecisionRequest,
   ResumeSessionRequest,
   SetAppearanceRequest,
+  SetGameModeRequest,
   SetReadyRequest,
+  SetTeamColorRequest,
+  SetTeamNameRequest,
+  SwapTeamRequest,
   TradeBundle,
 } from './types';
 import type { ClientToServerEvents } from './events';
@@ -22,6 +33,10 @@ export const gameCardIdSchema = z
 export const isoTimestampSchema = z.iso.datetime({ offset: true });
 
 export const playerNameSchema = z.string().trim().min(1).max(20);
+export const gameModeSchema = z.enum(GAME_MODES);
+export const teamIdSchema = z.enum(TEAM_IDS);
+export const playerColorSchema = z.enum(PLAYER_COLOR_IDS);
+export const teamNameSchema = z.string().trim().min(1).max(TEAM_NAME_MAX_LENGTH);
 export const roomCodeSchema = z
   .string()
   .trim()
@@ -76,7 +91,31 @@ export const setAppearanceRequestSchema = z.strictObject({
     'At least one appearance field is required',
   ) satisfies z.ZodType<SetAppearanceRequest>;
 
+export const setGameModeRequestSchema = z.strictObject({
+  mode: gameModeSchema,
+}) satisfies z.ZodType<SetGameModeRequest>;
+
+export const setTeamNameRequestSchema = z.strictObject({
+  teamId: teamIdSchema,
+  name: teamNameSchema,
+}) satisfies z.ZodType<SetTeamNameRequest>;
+
+export const setTeamColorRequestSchema = z.strictObject({
+  color: playerColorSchema,
+}) satisfies z.ZodType<SetTeamColorRequest>;
+
+export const swapTeamRequestSchema = z.strictObject({
+  playerId: playerIdSchema,
+  withPlayerId: playerIdSchema,
+}).refine(
+  request => request.playerId !== request.withPlayerId,
+  'Cần chọn hai người chơi khác nhau để đổi đội',
+) satisfies z.ZodType<SwapTeamRequest>;
+
 export const operationIdSchema = z.uuid();
+export const rescueDecisionRequestSchema = z.strictObject({
+  rescueId: operationIdSchema,
+}) satisfies z.ZodType<RescueDecisionRequest>;
 export const purchaseDecisionRequestSchema = z.strictObject({
   operationId: operationIdSchema,
 });
@@ -162,6 +201,10 @@ export const clientEventPayloadSchemas = {
   'resume session': resumeSessionRequestSchema,
   'set ready': setReadyRequestSchema,
   'set appearance': setAppearanceRequestSchema,
+  'set game mode': setGameModeRequestSchema,
+  'set team name': setTeamNameRequestSchema,
+  'set team color': setTeamColorRequestSchema,
+  'swap team': swapTeamRequestSchema,
   'leave room': noPayloadSchema,
   'start game': noPayloadSchema,
   'play again': noPayloadSchema,
@@ -183,6 +226,9 @@ export const clientEventPayloadSchemas = {
   'propose forced sale': forcedSaleProposalRequestSchema,
   'accept forced sale': forcedSaleProposalActionSchema,
   'reject forced sale': forcedSaleProposalActionSchema,
+  'revive teammate': noPayloadSchema,
+  'accept rescue': rescueDecisionRequestSchema,
+  'decline rescue': rescueDecisionRequestSchema,
 } as const satisfies ClientEventPayloadSchemas;
 
 export type ClientEventName = keyof typeof clientEventPayloadSchemas;

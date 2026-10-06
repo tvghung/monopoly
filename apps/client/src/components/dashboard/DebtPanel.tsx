@@ -12,6 +12,7 @@ import { ActionIcon } from '../../design-system/icons/ActionIcon';
 import { buildDeedCardModel, type DeedCardModel } from '../../game/ui/property/deedCardModel';
 import PropertyDeedCard from '../../game/ui/property/PropertyDeedCard';
 import OfferCard from './OfferCard';
+import RescuePanel from './RescuePanel';
 import useDebtPresentationHold from './useDebtPresentationHold';
 import { useIncomingOffers, type ActiveOffer } from './useIncomingOffers';
 import './DebtPanel.css';
@@ -174,6 +175,8 @@ export default function DebtPanel() {
   };
 
   if (!state.loaded || !claim || heldForPresentation) return null;
+  // 2v2 Emergency Rescue: the debtor has nothing left to sell, so the open window is the teammate's decision, not a sale screen.
+  if (claim.rescue) return <RescuePanel claim={claim} offer={claim.rescue} />;
   const debtor = state.players[claim.debtorPlayerId];
   const creditorPlayer = claim.creditor === 'BANK' ? undefined : state.players[claim.creditorPlayerId ?? ''];
   const creditor = claim.creditor === 'BANK'

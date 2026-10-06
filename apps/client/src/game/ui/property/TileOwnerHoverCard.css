@@ -1,0 +1,41 @@
+/* A small card under the status pill naming the owner of the hovered tile (2v2). It never takes pointer input. */
+.tile-owner-hover {
+  position: absolute;
+  top: calc(var(--hud-inset, 16px) + 52px);
+  left: 50%;
+  z-index: var(--z-hud-center);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(60vw, 22rem);
+  padding: 6px 12px 6px 8px;
+  border: 1px solid var(--color-border);
+  border-left: 5px solid var(--hover-team-color, var(--color-border));
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--elevation-2);
+  color: var(--color-text-primary);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.tile-owner-hover__text {
+  display: grid;
+  min-width: 0;
+  font: var(--type-caption);
+}
+
+.tile-owner-hover__tile { font: var(--type-label); }
+.tile-owner-hover__team { color: var(--color-text-secondary); }
+.tile-owner-hover__tile,
+.tile-owner-hover__owner,
+.tile-owner-hover__team {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-height: 500px) {
+  .tile-owner-hover { top: calc(var(--hud-inset, 8px) + 40px); padding: 4px 8px; }
+  .tile-owner-hover__team { display: none; }
+}

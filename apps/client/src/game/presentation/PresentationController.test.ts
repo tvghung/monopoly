@@ -174,6 +174,7 @@ describe('PresentationController', () => {
     delete left.gameState.players['player-a'];
     left.gameState.boardState.players = ['player-b'];
     left.gameState.boardState.finishedPlayers['player-a'] = {
+      teamId: 'TEAM_1',
       name: 'An', color: 'red', characterId: 'dog', reason: 'LEFT', accountBalance: 1_500,
     };
     controller.acceptRoomSnapshot(left, 'LIVE_UPDATE');
@@ -181,6 +182,36 @@ describe('PresentationController', () => {
 
     expect(controller.getState().displayPositions['player-a']).toBeUndefined();
     expect(controller.getState().displayPositions['player-b']).toBe(5);
+    expect(controller.getState().characterMovements).toEqual([]);
+    controller.dispose();
+  });
+
+  it('snaps the roster when a revived player is seated again, without animating cash or movement for them', () => {
+    const controller = new PresentationController();
+    const eliminated = makeRoom();
+    delete eliminated.gameState.players['player-b'];
+    eliminated.gameState.boardState.players = ['player-a'];
+    eliminated.gameState.boardState.finishedPlayers['player-b'] = {
+      teamId: 'TEAM_2',
+      name: 'Bình', color: 'blue', characterId: 'panda', reason: 'BANKRUPT', accountBalance: 0,
+    };
+    controller.acceptRoomSnapshot(eliminated, 'SESSION_SYNC');
+    expect(controller.getState().displayPositions['player-b']).toBeUndefined();
+
+    const revived = cloneRoom(eliminated);
+    revived.gameState.players['player-b'] = {
+      teamId: 'TEAM_2',
+      name: 'Bình', currentTile: 0, color: 'blue', characterId: 'panda', accountBalance: 300,
+      isJail: false, jailOpponentRoundsElapsed: 0, getOutOfJailCardCount: 0,
+    };
+    delete revived.gameState.boardState.finishedPlayers['player-b'];
+    revived.gameState.boardState.players = ['player-a', 'player-b'];
+    controller.acceptRoomSnapshot(revived, 'LIVE_UPDATE');
+
+    expect(controller.queue.getStatus()).toBe('idle');
+    expect(controller.getState().displayPositions['player-b']).toBe(0);
+    expect(controller.getState().settledPositions['player-b']).toBe(0);
+    expect(controller.getState().displayBalances['player-b']).toBe(300);
     expect(controller.getState().characterMovements).toEqual([]);
     controller.dispose();
   });
@@ -411,6 +442,7 @@ describe('PresentationController', () => {
       }],
     };
     finished.gameState.boardState.winner = {
+      teamId: 'TEAM_2',
       playerId: 'player-b',
       name: 'Bình',
       color: 'blue',

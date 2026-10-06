@@ -1,0 +1,16 @@
+/* The team tag beside a player's name (trade, portfolio). The ownership colour is an accent edge; the text says the team. */
+.team-chip {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0 0.5rem;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--team-chip-color) 20%, var(--color-surface));
+  box-shadow: inset 0 0 0 1.5px var(--team-chip-color);
+  color: var(--color-text-primary);
+  font: var(--type-caption);
+  font-weight: 700;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -38,6 +38,7 @@ function debtState(overrides: {
   room.gameState.players['player-a'].accountBalance = 100;
   room.gameState.players['player-b'].accountBalance = 500;
   room.gameState.boardState.paymentShortfall = {
+    rescue: null,
     debtorPlayerId: 'player-a',
     creditor: 'BANK',
     amount: 300,

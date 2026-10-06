@@ -145,7 +145,12 @@ export function buildBoardRenderModel(
   const activeDice = presentationState.diceRoll;
   const dice = activeDice?.dice ?? presentationState.displayDice;
   const diceRollSequence = activeDice?.rollSequence ?? presentationState.displayRollSequence;
-  const stationSlots = resolvePlayerStationSlots(roomPlayers, viewerPlayerId, viewerRole);
+  const stationSlots = resolvePlayerStationSlots(
+    roomPlayers,
+    viewerPlayerId,
+    viewerRole,
+    state.boardState.gameMode === 'TEAM_2V2',
+  );
   const stationViews = selectPlayerHudViewModels(state, activePlayerId, roomPlayers);
   const stations = stationViews.flatMap((station): PlayerStationRenderModel[] => {
     const slot = stationSlots.get(station.playerId);
