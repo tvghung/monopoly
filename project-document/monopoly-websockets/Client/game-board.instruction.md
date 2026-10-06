@@ -80,7 +80,12 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
   `SVGLoader → ShapeGeometry` để tái dựng mặt icon. Icon backing/face dùng elevation
   contract chung trên tile surface, depth test và alpha test để tránh chìm hoặc
   z-fight; icon footprint giữ divider của upper 70% clear. Tax dùng paper stack nhỏ hơn
-  với rear sheet xám đậm hơn và five red placeholder marks nằm trong front sheet; START dùng
+  với rear sheet xám đậm hơn và five red placeholder marks nằm trong front sheet; stack là
+  bản in phẳng (hai sheet dày `0.008`/`0.010`, mark dày `0.006`, tổng cao `0.022` kể từ mặt
+  clearance của ô, đỉnh cách mặt ô `0.030` — thấp hơn badge SVG `TILE_ICON_FACE_Y_OFFSET`
+  `0.032`) vì quân đứng ở tâm ô mà stack phủ tâm đó: art cao hơn đỉnh đế standee (`0.058`
+  trên mặt ô) sẽ che đế tròn màu người chơi trên ô Thuế. Art đặt ở tâm ô giữ đỉnh thấp hơn
+  đế ít nhất `0.02` (`special/taxStandeeClearance.test.ts`); START dùng
   planted left-pointing `Start` sign rộng 92% usable corner surface; Parking dùng
   asphalt runway-gray với lane marks và deterministic parked cars; Go To Jail dùng
   handcuffs còn Jail dùng cell bars. District art không tràn sang special tile.
@@ -276,7 +281,8 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
   phẩm (`PropScreenRectsPublisher`, `findHudPropOverlaps`, `findPropTileOverlaps`; sidecar `hudOverlap.props`).
 - **Standee linh vật (plan 05):** quân cờ là thẻ die-cut đứng thẳng (texture 320² gồm viền trắng 6 px quanh art 256²)
   quay theo azimuth camera, cao `1.22 / cos(41.5°) ≈ 1.63` trong thế giới để cao bằng sprite cũ trên màn hình, trên đế
-  tròn `r 0.30` (một `InstancedMesh`, matrix theo anchor trong body group, đọc ở `onBeforeRender`). Mặt thẻ là
+  tròn `r 0.30` cao `0.05` (một `InstancedMesh`, matrix theo anchor trong body group, đọc ở `onBeforeRender`; đế
+  nằm trên mặt ô `+0.008`, đỉnh `+0.058`, nên art phẳng ở tâm ô như Tax stack phải thấp hơn mức này). Mặt thẻ là
   `MeshBasicMaterial` unlit alpha-test `toneMapped: false`; bóng có hình dáng mascot nhờ `customDepthMaterial`;
   contact shadow chỉ còn ở tier low. Hop, lean, reaction, slot reflow, jail transfer và snap vẫn do body group
   (`CharacterBillboard`) điều khiển, không đổi; body group dùng `rotation.order = 'YXZ'` với heading cố định nên
