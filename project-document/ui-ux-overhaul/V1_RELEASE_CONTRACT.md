@@ -8,8 +8,8 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.3.0
-Socket protocol: 10
+Semantic version: 1.4.0
+Socket protocol: 11
 ```
 
 Application semantic version and network protocol version are independent.
@@ -254,11 +254,11 @@ references across tracked files, including the lockfile and release tooling.
 | --- | --- |
 | Root/client/server/desktop/shared package identity | CURRENT RELEASE CONTRACT: root and desktop normalized; other packages already aligned. |
 | Forge, desktop release/config/collection scripts, workflows, README | CURRENT RELEASE CONTRACT: metadata-derived artifact naming retained; contract gate added. |
-| Shared protocol declaration, client authentication/acks, server admission/public state/acks, current Shared/API/Client instructions | CURRENT RELEASE CONTRACT: shared protocol 10 for 1.3.0 Teamplay; 1.2.0 shipped protocol 9. |
+| Shared protocol declaration, client authentication/acks, server admission/public state/acks, current Shared/API/Client instructions | CURRENT RELEASE CONTRACT: shared protocol 11 for 1.4.0 (lobby seats and kick); 1.3.0 shipped protocol 10 (Teamplay) and 1.2.0 protocol 9. |
 | Phase 1–7 reports, masterplan checkpoint entries, old installer names/hashes, Phase 7.2 V8 tables, V1 audio acceptance evidence | HISTORICAL EVIDENCE: facts retained; Phase 7.2 linked to this contract. |
 | Client/desktop runtime tests with old app versions; server protocol compatibility tests; presentation/UAT fixtures | TEST FIXTURE: isolated values retained. The desktop metadata test reads the real repository and therefore now expects V1. |
 | Dependency/devDependency fields and pnpm lockfile resolutions (including matching version substrings) | DEPENDENCY VERSION: unchanged; frozen install requires no lockfile regeneration. |
-| Snapshot/storage/settings/schema/migration versions, PostgreSQL binary version, XML headers, general branding and tool-version references | UNRELATED to product semver: retained. Snapshot version 9 is not Socket protocol 10. |
+| Snapshot/storage/settings/schema/migration versions, PostgreSQL binary version, XML headers, general branding and tool-version references | UNRELATED to product semver: retained. Snapshot version 10 is not Socket protocol 11. |
 
 ## V1.0.0 release decision
 
@@ -420,3 +420,24 @@ LAN discovery answers protocol 10 (`apps/desktop/src/lanFinder.ts`) and `apps/de
 before starting or joining multiplayer after it reads the release manifest. The server still rejects mismatched clients
 when an old installation has no access to the update feed. The owner explicitly chose to ship without manual device UAT;
 mobile E2E and visual capture are also skipped for this release. Manual checklist rows remain unticked.
+
+## V1.4.0 lobby seats release decision (Socket protocol 11, snapshot schema 10)
+
+The release after `1.3.0` finishes the 2v2 lobby and fixes two defects the owner reported (see
+[../monopoly-websockets/GameCore/team-play.instruction.md](../monopoly-websockets/GameCore/team-play.instruction.md) and
+[../monopoly-websockets/Api/socket-lobby.instruction.md](../monopoly-websockets/Api/socket-lobby.instruction.md)):
+
+- the host can remove a player from the lobby (`kick player`, Solo and 2v2) and the removed player is told (`removed from room`);
+- every member of a team renames their own team, nobody renames the other one (`set team name` carries only `{name}`);
+- the host-driven `swap team` is gone; every seat of a 2v2 lobby can be taken (`move to seat`) or asked for (`request seat swap`,
+  `respond seat swap`, `cancel seat swap`) and the player in the seat must accept; the seat order inside a team now orders the match;
+- the revive window is 5 turns of the surviving teammate (it was 3);
+- the coloured standee base is visible again on the tax tiles.
+
+It moves the shared Socket protocol from 10 to 11 (a command was removed and a payload changed, so a `1.3.0` client and a protocol-11
+server refuse each other with `UPGRADE_REQUIRED`) and the room snapshot schema from 9 to 10 (migration `011_lobby_seats_v10.sql`:
+`Player.teamSlot`, `boardState.seatSwapRequests`). LAN discovery answers protocol 11 (`apps/desktop/src/lanFinder.ts`) and
+`apps/desktop/update-policy.json` records `reviewedForSocketProtocol: 11`. `minimumSupportedVersion` is `1.4.0`, as it was raised to
+`1.3.0` for the previous protocol change: a `1.2.0` or `1.3.0` updater marks this update mandatory before starting or joining multiplayer
+once it reads the release manifest, and the server still rejects a mismatched client that cannot reach the update feed.
+
