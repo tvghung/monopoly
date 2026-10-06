@@ -278,8 +278,8 @@ export async function runNativePostgresContract(
     );
     const appliedByVersion = new Map(applied.rows.map(row => [row.version, row.checksum]));
     check(
-      'migrations-001-010',
-      migrations.length === 10
+      'migrations-001-011',
+      migrations.length === 11
         && migrations.every(migration => appliedByVersion.get(migration.version) === migration.checksum),
       'migration versions or checksums do not match the packaged SQL',
     );
