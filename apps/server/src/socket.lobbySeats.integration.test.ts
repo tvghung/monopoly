@@ -320,7 +320,7 @@ describe('removing a player from the lobby', () => {
     expect(failureOf(await ready(nora.socket)).code).toBe('UNAUTHENTICATED');
 
     // The seat they held is the first one a new joiner takes, and the removed player may join again from the code.
-    const rejoined = await join(await connect(subject.url), 'Nora again', room.code);
+    const rejoined = await join(nora.socket, 'Nora again', room.code); // the same connection the client keeps after the removal
     const after = await stored(persistence, roomId);
     expect(seatOf(after, rejoined.playerId)).toEqual(['TEAM_2', 0]);
     expect(Object.keys(after.gameSnapshot.members)).toContain(alex.playerId);
