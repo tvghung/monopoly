@@ -133,7 +133,7 @@ async function joinRoom(
 ): Promise<void> {
   await page.goto(`/?room=${roomCode.toLowerCase()}`);
   await expect(page.getByLabel('Mã phòng')).toHaveValue(roomCode);
-  await expect(page.getByRole('heading', { name: 'Cờ Tỷ Phú Việt Nam' })).toBeVisible();
+  await expect(page.locator('#join-title')).toBeVisible();
   await page.getByLabel('Tên của bạn').fill(name);
   const join = page.getByRole('button', { name: 'Vào phòng' });
   await expect(join).toBeEnabled();
@@ -372,7 +372,8 @@ test('single rendered Ogg Vorbis music asset and supported Web Audio lifecycle',
   const browserErrors: string[] = [];
   page.on('pageerror', error => browserErrors.push(error.message));
   await observeMusic(page);
-  await page.goto('/');
+  const roomCode = `OTB-${Date.now().toString(36).slice(-6).toUpperCase()}`;
+  await joinRoom(page, 'Audio Review', roomCode, 'tap');
   const musicResponse = await page.evaluate(async path => {
     const response = await fetch(path);
     return {
@@ -384,8 +385,6 @@ test('single rendered Ogg Vorbis music asset and supported Web Audio lifecycle',
   expect(musicResponse.status).toBe(200);
   expect(musicResponse.contentType).toBe('audio/ogg');
   expect(musicResponse.bytes).toBeGreaterThan(0);
-  const roomCode = `OTB-${Date.now().toString(36).slice(-6).toUpperCase()}`;
-  await joinRoom(page, 'Audio Review', roomCode, 'tap');
   await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeVisible();
   expect((await page.evaluate(() => (
     (window as typeof window & { __musicObservation: MusicObservation }).__musicObservation
