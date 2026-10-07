@@ -51,7 +51,7 @@ describe('settings "Cập nhật" section', () => {
     await screen.findByRole('region', { name: 'Cập nhật' });
 
     const headings = screen.getAllByRole('heading', { level: 3 }).map(heading => heading.textContent);
-    expect(headings).toEqual(['Âm thanh', 'Hiển thị', 'Đồ họa', 'Cửa sổ', 'Cập nhật']);
+    expect(headings).toEqual(['Ngôn ngữ', 'Âm thanh', 'Hiển thị', 'Đồ họa', 'Cửa sổ', 'Cập nhật']);
   });
 
   it('is not there without an updater: a bridge that predates it, or an unsupported run', async () => {

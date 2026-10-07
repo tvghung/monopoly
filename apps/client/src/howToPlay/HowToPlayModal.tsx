@@ -1,15 +1,15 @@
-import { useMemo } from 'react';
 import Chip, { type ChipTone } from '../design-system/components/Chip/Chip';
 import Modal from '../design-system/components/Modal/Modal';
 import { buildHowToPlayModel } from './model';
 import {
-  HOW_TO_PLAY_TITLE,
   type CardEffectKind,
   type HowToPlayBlock,
   type HowToPlayCard,
   type HowToPlaySection,
 } from './modelTypes';
 import './howToPlay.css';
+import { useMemo } from 'react';
+import { useTranslation } from '../i18n/I18n';
 
 /** Keeps "60.000 ₫" on one line: the shared formatter writes the symbol after an ordinary space, which may wrap. */
 const keepMoneyTogether = (text: string): string => text.replace(/ ₫/gu, '\u00A0₫');
@@ -116,8 +116,7 @@ function Section({ section, number }: { section: HowToPlaySection; number: numbe
 }
 
 /** The content is built only while the dialog is mounted, so a closed guide costs nothing. */
-function HowToPlayContent() {
-  const model = useMemo(() => buildHowToPlayModel(), []);
+function HowToPlayContent({ model }: { model: ReturnType<typeof buildHowToPlayModel> }) {
   return (
     <div className="how-to-play__body">
       <p className="how-to-play__intro">{model.intro}</p>
@@ -138,17 +137,19 @@ export interface HowToPlayModalProps {
  * ordinary design-system `Modal`, so Escape, the focus trap and focus return to the button come from there.
  */
 export default function HowToPlayModal({ open, onClose }: HowToPlayModalProps) {
+  const { language, t } = useTranslation();
+  const model = useMemo(() => buildHowToPlayModel(language), [language]);
   return (
     <Modal
       open={open}
-      title={HOW_TO_PLAY_TITLE}
-      eyebrow="Cờ Tỷ Phú Việt Nam"
+      title={model.title}
+      eyebrow={t('brand.name')}
       size="lg"
       className="how-to-play"
       closeOnOutsideClick
       onClose={onClose}
     >
-      <HowToPlayContent />
+      <HowToPlayContent model={model} />
     </Modal>
   );
 }

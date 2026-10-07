@@ -82,6 +82,20 @@ const modelStrings = (candidate: HowToPlayModel): string[] => [
 const allText = modelStrings(model).join('\n');
 
 describe('how-to-play model structure', () => {
+  it('builds the English guide from localized copy and card data', () => {
+    const english = buildHowToPlayModel('en');
+    const text = modelStrings(english).join('\n');
+    const englishChance = buildCardList('chance', 'en');
+
+    expect(english.title).toBe('How to Play');
+    expect(text).toContain('Buying property');
+    expect(text).toContain('Emergency Rescue');
+    expect(englishChance).toHaveLength(13);
+    expect(englishChance[0]?.title).toBe('Advance to GO');
+    expect(englishChance[0]?.message).toBe('Advance to GO.');
+    expect(text).not.toContain('Mục tiêu và lượt chơi');
+  });
+
   it('names the guide and has the eleven topics of the owner request plus the 2v2 chapter, in reading order', () => {
     expect(model.title).toBe('Hướng dẫn chơi');
     expect(model.title).toBe(HOW_TO_PLAY_TITLE);
@@ -108,7 +122,7 @@ describe('how-to-play model structure', () => {
   it('opens with a short friendly introduction', () => {
     expect(model.intro.length).toBeGreaterThan(20);
     expect(model.intro.length).toBeLessThan(200);
-    expect(model.intro).toContain('Cờ Tỷ Phú Việt Nam');
+    expect(model.intro).toContain('OWN THE BLOCK');
   });
 
   it('is pure: building it twice gives the same guide', () => {

@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useIsPresent } from 'framer-motion';
 import { useEffectiveReducedMotion } from '../../../settings/selectors';
 import IconButton from '../IconButton/IconButton';
+import { useTranslation } from '../../../i18n/I18n';
 import { motionDuration, motionEase } from '../../motion/motionTokens';
 import './Modal.css';
 
@@ -108,6 +109,7 @@ function ModalSurface({
   headerAccent,
   describedBy,
 }: Omit<ModalProps, 'open'>) {
+  const { t } = useTranslation();
   const reduced = useEffectiveReducedMotion();
   const isPresent = useIsPresent();
   const titleId = useId();
@@ -230,7 +232,7 @@ function ModalSurface({
             {eyebrow ? <p className="ds-modal__eyebrow">{eyebrow}</p> : null}
             <h2 id={titleId} className="ds-modal__title">{title}</h2>
           </div>
-          {onClose ? <IconButton className="ds-modal__close" label="Đóng" icon="close" onClick={onClose} /> : null}
+          {onClose ? <IconButton className="ds-modal__close" label={t('ui.close')} icon="close" onClick={onClose} /> : null}
         </header>
         <div className="ds-modal__body">{children}</div>
         {footer ? <footer className="ds-modal__footer">{footer}</footer> : null}

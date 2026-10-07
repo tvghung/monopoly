@@ -4,6 +4,7 @@ import { DEFAULT_TILE_GLYPH, MOTIF_GLYPHS, SPECIAL_TILE_GLYPHS } from '../../../
 import { getPlayerDisplayColor } from '../playerVisualColors';
 import type { DeedCardModel } from './deedCardModel';
 import './PropertyDeedCard.css';
+import { useTranslation } from '../../../i18n/I18n';
 
 export type DeedVariant = 'full' | 'compact' | 'chip';
 
@@ -61,6 +62,7 @@ function DeedArt({ model }: { model: DeedCardModel }) {
 }
 
 function OwnerRow({ model }: { model: DeedCardModel }) {
+  const { t } = useTranslation();
   const { owner, group } = model;
   return (
     <div className="deed__owner">
@@ -68,7 +70,7 @@ function OwnerRow({ model }: { model: DeedCardModel }) {
         <>
           <PlayerAvatar characterId={owner.characterId} colorId={owner.color} size={32} />
           <span className="deed__owner-name">
-            <span className="deed__owner-label">Chủ</span>
+            <span className="deed__owner-label">{t('property.ownerLabel')}</span>
             {' '}
             <strong>{owner.name}</strong>
             {owner.team ? (
@@ -76,14 +78,14 @@ function OwnerRow({ model }: { model: DeedCardModel }) {
                 className="deed__owner-team"
                 style={{ '--deed-team-color': getPlayerDisplayColor(owner.team.color) } as CSSProperties}
               >
-                {`Đội ${owner.team.name}`}
-                {owner.relation === 'TEAMMATE' ? ' · đồng đội của bạn' : owner.relation === 'SELF' ? ' · của bạn' : ''}
+                {t('property.teamName', { name: owner.team.name })}
+                {owner.relation === 'TEAMMATE' ? t('property.teammateSuffix') : owner.relation === 'SELF' ? t('property.selfSuffix') : ''}
               </span>
             ) : null}
           </span>
         </>
       ) : (
-        <span className="deed__owner-name deed__owner-name--none">Chưa có chủ</span>
+        <span className="deed__owner-name deed__owner-name--none">{t('property.noOwner')}</span>
       )}
       {group ? (
         <span className="deed__progress" role="img" aria-label={group.text}>
@@ -98,7 +100,7 @@ function OwnerRow({ model }: { model: DeedCardModel }) {
             ))}
           </span>
           <span className="deed__progress-text" aria-hidden="true">
-            {owner ? `${group.ownedByOwner}/${group.total}` : `${group.total} ô`}
+            {owner ? `${group.ownedByOwner}/${group.total}` : t('property.groupCount', { count: group.total })}
           </span>
         </span>
       ) : null}
@@ -114,6 +116,7 @@ function OwnerRow({ model }: { model: DeedCardModel }) {
 export default function PropertyDeedCard({
   model, variant = 'full', showOwner = true, showNext = false, className = '',
 }: PropertyDeedCardProps) {
+  const { t } = useTranslation();
   const nameId = useId();
   const landmarkId = useId();
   const classes = `deed deed--${variant} deed--${model.kind}${className ? ` ${className}` : ''}`;
@@ -143,7 +146,7 @@ export default function PropertyDeedCard({
         <div className="deed__titles">
           {model.groupLabel ? <p className="deed__group">{model.groupLabel}</p> : null}
           <h3 id={nameId} className="deed__name">{model.name}</h3>
-          {model.landmark ? <p id={landmarkId} className="deed__landmark">{`Khách sạn · ${model.landmark.name}`}</p> : null}
+          {model.landmark ? <p id={landmarkId} className="deed__landmark">{t('property.landmarkHotel', { name: model.landmark.name })}</p> : null}
         </div>
         <DeedArt model={model} />
       </header>
@@ -156,26 +159,26 @@ export default function PropertyDeedCard({
         <div className="deed__body">
           {model.priceText ? (
             <p className="deed__price">
-              <span>Giá mua</span>
+              <span>{t('property.purchasePrice')}</span>
               <strong>{model.priceText}</strong>
             </p>
           ) : null}
           {model.developmentText && variant === 'full' ? (
             <p className="deed__development">
-              <span>Phát triển</span>
+              <span>{t('property.development')}</span>
               <strong>{model.developmentText}</strong>
             </p>
           ) : null}
           {model.rentBonus ? (
             <p className="deed__bonus" data-rent-bonus={model.rentBonus.percent}>
               <span>{model.rentBonus.text}</span>
-              <strong>{`Hiện thu ${model.rentBonus.effectiveRentText}`}</strong>
+              <strong>{t('property.currentRent', { amount: model.rentBonus.effectiveRentText })}</strong>
             </p>
           ) : null}
 
           {variant === 'full' ? (
             <table className="deed__ladder">
-              <caption className="deed__caption">Bảng giá thuê</caption>
+              <caption className="deed__caption">{t('property.rentTable')}</caption>
               <tbody>
                 {model.rows.map(row => (
                   <tr
@@ -185,8 +188,8 @@ export default function PropertyDeedCard({
                   >
                     <th scope="row">
                       {row.label}
-                      {row.current ? <span className="deed__tag deed__tag--current">Hiện tại</span> : null}
-                      {row.next && showNext ? <span className="deed__tag deed__tag--next">Sau khi xây</span> : null}
+                      {row.current ? <span className="deed__tag deed__tag--current">{t('property.current')}</span> : null}
+                      {row.next && showNext ? <span className="deed__tag deed__tag--next">{t('property.afterBuild')}</span> : null}
                     </th>
                     <td>{row.value}</td>
                   </tr>
@@ -202,7 +205,7 @@ export default function PropertyDeedCard({
 
           {variant === 'full' && model.houseCostText ? (
             <p className="deed__house-cost">
-              <span>Giá mỗi Nhà / Khách Sạn</span>
+              <span>{t('property.houseCost')}</span>
               <strong>{model.houseCostText}</strong>
             </p>
           ) : null}

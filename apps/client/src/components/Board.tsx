@@ -26,10 +26,12 @@ import {
   type RendererMode,
 } from './rendererMode';
 import './style/BoardShell.css';
+import { useTranslation } from '../i18n/I18n';
 
 const GameScene = lazy(() => import('../game/scene/GameScene'));
 
 export default function Board() {
+  const { t, language } = useTranslation();
   const {
     state, connected, canMutate, roomPlayers, playerId, role,
   } = useContext(stateContext);
@@ -43,8 +45,8 @@ export default function Board() {
   const [tradeTarget, setTradeTarget] = useState<number | null>(null);
   const displayPositions = presentationState.displayPositions;
   const renderModel = useMemo(
-    () => buildBoardRenderModel(state, presentationState, roomPlayers, playerId, role),
-    [playerId, presentationState, role, roomPlayers, state],
+    () => buildBoardRenderModel(state, presentationState, roomPlayers, playerId, role, language),
+    [language, playerId, presentationState, role, roomPlayers, state],
   );
 
   const selectTile = useCallback((tileId: number) => {
@@ -94,25 +96,25 @@ export default function Board() {
       <displayPositionsContext.Provider value={displayPositions}>
         <section
           className="game-board"
-          aria-label="Bàn cờ Own the Block — Cờ Tỷ Phú Việt Nam"
+          aria-label={t('board.boardLabel')}
           aria-busy={!connected}
           data-testid="game-board"
           inert={!connected}
         >
           <aside className="game-board__orientation-notice" role="status">
-            <strong>Hãy xoay ngang thiết bị</strong>
-            <span>Bàn cờ hiển thị tốt nhất ở chế độ ngang.</span>
+            <strong>{t('board.orientationTitle')}</strong>
+            <span>{t('board.orientationBody')}</span>
           </aside>
 
           <section
             className={`game-board__renderer${rendererMode === 'legacy' ? ' game-board__renderer--legacy' : ''}`}
             data-renderer-mode={rendererMode}
-            aria-label="Khu vực bàn cờ trực quan"
+            aria-label={t('board.boardArea')}
           >
             {rendererMode === 'webgl'
               ? (
                 <SceneErrorBoundary fallback={legacyBoard} onError={switchToLegacy}>
-                  <Suspense fallback={<div className="game-board__scene-loading" role="status">Đang dựng bàn cờ…</div>}>
+                  <Suspense fallback={<div className="game-board__scene-loading" role="status">{t('board.sceneLoading')}</div>}>
                     <GameScene
                       model={renderModel}
                       hoveredTileId={hoveredTileId}

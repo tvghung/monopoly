@@ -1,5 +1,6 @@
 import {
   DEFAULT_GAME_SETTINGS,
+  LEGACY_SETTINGS_STORAGE_KEY,
   normalizeSettings,
   SETTINGS_STORAGE_KEY,
 } from './defaults';
@@ -16,8 +17,13 @@ export function readGameSettings(
 ): GameSettings {
   if (!storage) return { ...DEFAULT_GAME_SETTINGS };
   try {
-    const raw = storage.getItem(SETTINGS_STORAGE_KEY);
-    return raw ? normalizeSettings(JSON.parse(raw)) : { ...DEFAULT_GAME_SETTINGS };
+    const current = storage.getItem(SETTINGS_STORAGE_KEY);
+    if (current !== null) return normalizeSettings(JSON.parse(current));
+    const legacy = storage.getItem(LEGACY_SETTINGS_STORAGE_KEY);
+    if (legacy === null) return { ...DEFAULT_GAME_SETTINGS };
+    const migrated = normalizeSettings(JSON.parse(legacy));
+    storage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(migrated));
+    return migrated;
   } catch {
     return { ...DEFAULT_GAME_SETTINGS };
   }

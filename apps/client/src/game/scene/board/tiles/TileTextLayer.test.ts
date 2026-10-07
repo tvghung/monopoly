@@ -2,6 +2,7 @@ import { tileState } from '@monopoly/shared';
 import { describe, expect, it } from 'vitest';
 import { getBoardTileLayout } from '../boardLayout';
 import { getTileTextPresentation, shouldRenderTileText } from './TileTextLayer';
+import { getTileBoardName } from '../../../ui/formatters';
 import {
   estimateBoardTextWidth,
   getBoardTextHeight,
@@ -116,7 +117,7 @@ describe('commercial tile typography', () => {
     const panel = getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(5)!.size, 'BOTTOM');
     const presentation = getTileTextPresentation(
       tile,
-      tile.streetName,
+      getTileBoardName(5, 'vi'),
       panel,
     );
 
@@ -139,7 +140,7 @@ describe('commercial tile typography', () => {
 
     cases.forEach(([tileId, expected]) => {
       const panel = getOrientedTilePanelLayoutForTileSize(getBoardTileLayout(tileId)!.size, 'BOTTOM');
-      const presentation = getTileTextPresentation(tileState[tileId], tileState[tileId].streetName, panel);
+      const presentation = getTileTextPresentation(tileState[tileId], getTileBoardName(tileId, 'vi'), panel);
       if (tileId !== 12) expect(presentation.value).toBe(expected);
       if (tileId === 12) expect(presentation.value.split('\n')).toHaveLength(2);
       expect(presentation.footer).toBe(true);

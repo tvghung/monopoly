@@ -6,18 +6,11 @@ import { getDesktopBridge } from '../runtime/desktopBridge';
 import { buildLanJoinUrl } from '../runtime/lanSharing';
 import type { HostRuntimeStatus } from '../runtime/types';
 import { useCopyFeedback } from './lobby/copyText';
+import { useTranslation } from '../i18n/I18n';
 
 interface HostLanSharingProps {
   roomCode: string;
 }
-
-const COPY_NOTICES = {
-  idle: '',
-  copied: 'Đã sao chép.',
-  failed: 'Không sao chép được. Hãy cho bạn bè quét mã QR.',
-} as const;
-
-const NO_NETWORK_COPY = 'Máy này chưa kết nối mạng. Hãy bật Wi-Fi hoặc cắm dây mạng.';
 
 /**
  * The invitation card of a LAN host: the join link as a QR code on a paper card plus a copy button (the link itself is
@@ -25,6 +18,7 @@ const NO_NETWORK_COPY = 'Máy này chưa kết nối mạng. Hãy bật Wi-Fi ho
  * well, because then the app cannot tell which one the other players are on.
  */
 export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
+  const { t } = useTranslation();
   const bridge = getDesktopBridge();
   const [status, setStatus] = useState<HostRuntimeStatus>();
   const [qrDataUrl, setQrDataUrl] = useState('');
@@ -96,11 +90,11 @@ export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
   return (
     <aside className="lobby-share" aria-labelledby="lobby-share-title">
       <div className="lobby-share__details">
-        <p className="lobby__eyebrow" id="lobby-share-title">Mời qua mạng LAN</p>
-        {status && !joinUrl ? <p className="lobby-share__warning" role="status">{NO_NETWORK_COPY}</p> : null}
+        <p className="lobby__eyebrow" id="lobby-share-title">{t('lan.heading')}</p>
+        {status && !joinUrl ? <p className="lobby-share__warning" role="status">{t('lan.noNetwork')}</p> : null}
         {networkChoices.length > 0 ? (
           <label className="lobby-share__network">
-            <span>Mạng chia sẻ</span>
+            <span>{t('lan.network')}</span>
             <select
               value={selectedAddress}
               onChange={event => void refresh(event.target.value)}
@@ -122,25 +116,25 @@ export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
               if (joinUrl) linkCopy.copy(joinUrl);
             }}
           >
-            Sao chép liên kết
+            {t('lan.copyLink')}
           </Button>
           {networkChoices.length > 0 ? (
             <Button variant="ghost" icon={<ActionIcon name="refresh" />} disabled={refreshing} onClick={() => void refresh()}>
-              {refreshing ? 'Đang làm mới…' : 'Làm mới mạng'}
+              {refreshing ? t('lan.refreshing') : t('lan.refresh')}
             </Button>
           ) : null}
         </div>
-        <p className="lobby-share__copy-state" aria-live="polite">{COPY_NOTICES[linkCopy.state]}</p>
+        <p className="lobby-share__copy-state" aria-live="polite">{linkCopy.state === 'copied' ? t('lan.copy') : linkCopy.state === 'failed' ? t('lan.copyFailed') : ''}</p>
       </div>
       {joinUrl && qrDataUrl ? (
         <figure className="lobby-share__qr-card">
           <img
             className="lobby-share__qr"
             src={qrDataUrl}
-            alt={`Mã QR tham gia phòng ${roomCode}`}
+            alt={t('lan.qrAlt', { roomCode })}
             data-qr-payload={joinUrl}
           />
-          <figcaption>Quét mã để vào phòng</figcaption>
+          <figcaption>{t('lan.scan')}</figcaption>
         </figure>
       ) : null}
     </aside>

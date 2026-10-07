@@ -44,7 +44,7 @@ describe('TileOwnerHoverCard', () => {
 
     const card = screen.getByTestId('tile-owner-hover');
     expect(card.textContent).toContain('Cà Mau');
-    expect(card.textContent).toContain('Chủ: Chi');
+    expect(card.textContent).toContain('Chủ sở hữu: Chi');
     expect(card.textContent).toContain('Đội Team 1 · Đồng đội');
     expect(card.getAttribute('aria-hidden')).toBe('true');
     expect(card.getAttribute('data-hud-transient')).toBe('true');

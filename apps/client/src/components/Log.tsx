@@ -10,6 +10,7 @@ import { usePresentationSelector } from '../game/presentation/usePresentationSel
 import type { PresentationState } from '../game/presentation/store/types';
 import { activityText } from '../game/ui/hud/activityText';
 import { useHudDrawer } from '../game/ui/hud/hudDrawer';
+import { useTranslation } from '../i18n/I18n';
 
 const NO_LOGS: readonly string[] = [];
 
@@ -61,6 +62,7 @@ export function mergeUngatedChat(
  * chat bubbles show what is new without the viewer having to open it.
  */
 export default function Log() {
+  const { language, t } = useTranslation();
   const {
     state, socketFunctions, connected, playerId,
   } = useContext(stateContext);
@@ -105,11 +107,11 @@ export default function Log() {
           key={event.eventId}
           className={`activity-entry activity-entry--${event.type.toLowerCase()}`}
         >
-          {activityText(event)}
+          {activityText(event, language)}
         </p>
       )),
     ],
-    [narrativeActivity, visibleLogs],
+    [language, narrativeActivity, visibleLogs],
   );
 
   useEffect(() => {
@@ -179,7 +181,7 @@ export default function Log() {
     <section
       className={`center__room${panelOpen ? ' center__room--open' : ' center__room--collapsed'}`}
       data-testid="board-log-overlay"
-      aria-label="Nhật ký và trò chuyện"
+      aria-label={t('log.title')}
       onKeyDown={closeOnEscape}
     >
       <button
@@ -190,18 +192,18 @@ export default function Log() {
         aria-expanded={panelOpen}
         aria-controls="board-log-panel"
         aria-describedby={unreadCount > 0 ? 'board-log-unread' : undefined}
-        aria-label={panelOpen ? 'Ẩn nhật ký và trò chuyện' : 'Hiện nhật ký và trò chuyện'}
-        title={panelOpen ? 'Ẩn nhật ký và trò chuyện' : 'Hiện nhật ký và trò chuyện'}
+        aria-label={t(panelOpen ? 'log.hide' : 'log.show')}
+        title={t(panelOpen ? 'log.hide' : 'log.show')}
         onClick={() => setPanelOpen(open => !open)}
       >
         <MessageCircle aria-hidden="true" size={19} strokeWidth={2.25} />
-        <span className="center__room-toggle-label" aria-hidden="true">Nhật ký</span>
+        <span className="center__room-toggle-label" aria-hidden="true">{t('log.shortTitle')}</span>
         {unreadCount > 0
           ? (
             <span
               id="board-log-unread"
               className="center__room-unread"
-              aria-label={`${unreadCount} tin nhắn chưa đọc`}
+              aria-label={t('log.unread', { count: unreadCount })}
             >
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
@@ -218,27 +220,27 @@ export default function Log() {
             data-hud-transient="true"
             tabIndex={-1}
           >
-            <section ref={scrollRef} className="center__log" role="log" aria-live="polite" aria-label="Nhật ký ván chơi">
+            <section ref={scrollRef} className="center__log" role="log" aria-live="polite" aria-label={t('log.gameLog')}>
               {state.loaded
                 ? entries
-                : <p>Đang tải…</p>}
+                : <p>{t('board.loading')}</p>}
             </section>
             <section className="center__chat">
               <form className="center__chat--form" onSubmit={sendChat}>
                 <input
                   className="center__chat--input"
-                  aria-label="Tin nhắn"
+                  aria-label={t('log.message')}
                   disabled={!connected}
                   onChange={e => setChat(e.target.value)}
                   type="text"
                   name="chat"
                   id="chat"
                   autoComplete="off"
-                  placeholder="Nhập tin nhắn…"
+                  placeholder={t('log.messagePlaceholder')}
                 />
                 <button className="center__chat--button" type="submit" disabled={!connected}>
                   <Send aria-hidden="true" size={16} strokeWidth={2.25} />
-                  <span>Gửi</span>
+                  <span>{t('log.send')}</span>
                 </button>
               </form>
             </section>

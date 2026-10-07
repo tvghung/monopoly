@@ -212,7 +212,7 @@ describe('WinnerBanner', () => {
 
     expect(screen.getByRole('alertdialog', { name: 'Ván chơi kết thúc' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Ada' })).toBeTruthy();
-    expect(screen.getByAltText('Mascot Chó')).toBeTruthy();
+    expect(screen.getByAltText('Linh vật Chó')).toBeTruthy();
     expect(screen.queryByText('Chó')).toBeNull();
     expect(screen.getByText('1.200.000 ₫')).toBeTruthy();
     expect(screen.getByText('Chơi lại')).toBeTruthy();
@@ -254,8 +254,8 @@ describe('WinnerBanner', () => {
     expect(within(list).getByText('850.000 ₫')).toBeTruthy();
     expect(within(list).queryByText('Ada')).toBeNull();
     // The mascot name is only an accessible label.
-    expect(within(list).getByAltText('Mascot Gấu trúc')).toBeTruthy();
-    expect(within(list).getByAltText('Mascot Mèo')).toBeTruthy();
+    expect(within(list).getByAltText('Linh vật Gấu trúc')).toBeTruthy();
+    expect(within(list).getByAltText('Linh vật Mèo')).toBeTruthy();
     expect(screen.queryByText('Gấu trúc')).toBeNull();
     expect(document.querySelector('ol')).toBeNull();
   });
@@ -341,9 +341,9 @@ describe('WinnerBanner', () => {
     renderWinner({ canPlayAgain: true, playAgain });
     fireEvent.click(screen.getByRole('button', { name: 'Chơi lại' }));
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain(
-      'Không thể thực hiện hành động ở trạng thái hiện tại.',
+      'Giao dịch chưa thể thực hiện.',
     ));
-    expect(screen.getAllByText('Không thể thực hiện hành động ở trạng thái hiện tại.')).toHaveLength(1);
+    expect(screen.getAllByText('Giao dịch chưa thể thực hiện.')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Chơi lại' }).hasAttribute('disabled')).toBe(false);
   });
 
@@ -395,7 +395,7 @@ describe('WinnerBanner', () => {
   describe('sizes', () => {
     it('uses the 128 px hero and large buttons on a normal screen', () => {
       renderWinner({ canPlayAgain: true, exit: exitContext() });
-      const avatar = screen.getByAltText('Mascot Chó');
+      const avatar = screen.getByAltText('Linh vật Chó');
       expect(avatar.getAttribute('width')).toBe('128');
       expect(avatar.getAttribute('height')).toBe('128');
       expect(screen.getByRole('button', { name: 'Chơi lại' }).className).toContain('ds-button--lg');
@@ -410,7 +410,7 @@ describe('WinnerBanner', () => {
         removeEventListener: vi.fn(),
       }));
       renderWinner({ canPlayAgain: true, exit: exitContext() });
-      const avatar = screen.getByAltText('Mascot Chó');
+      const avatar = screen.getByAltText('Linh vật Chó');
       expect(avatar.getAttribute('width')).toBe('64');
       expect(avatar.getAttribute('height')).toBe('64');
       expect(screen.getByRole('button', { name: 'Chơi lại' }).className).toContain('ds-button--md');
@@ -500,14 +500,14 @@ describe('WinnerBanner team victory', () => {
     const room = teamWin();
     renderWinner({ state: room.gameState, roomPlayers: room.players });
 
-    expect(screen.getByRole('heading', { name: /CHIẾN THẮNG!/u })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Chiến thắng!' })).toBeTruthy();
     expect(screen.getByText('Đội chiến thắng')).toBeTruthy();
     expect(document.querySelector('.victory__team-name')?.textContent).toContain('Rồng');
     const members = within(screen.getByRole('list', { name: 'Thành viên đội Rồng' }));
     expect(members.getByText('An')).toBeTruthy();
     expect(members.getByText('Chi')).toBeTruthy();
-    expect(members.getByAltText('Mascot Chó')).toBeTruthy();
-    expect(members.getByAltText('Mascot Mèo')).toBeTruthy();
+    expect(members.getByAltText('Linh vật Chó')).toBeTruthy();
+    expect(members.getByAltText('Linh vật Mèo')).toBeTruthy();
     const tile = (label: string) => within(screen.getByText(label).closest('div') as HTMLElement);
     expect(tile('Tổng tiền mặt của đội').getByText('1.250.000 ₫')).toBeTruthy();
     expect(tile('Tài sản của đội').getByText('2')).toBeTruthy();
@@ -526,7 +526,7 @@ describe('WinnerBanner team victory', () => {
       .split(' ')
       .map(id => document.getElementById(id)?.textContent ?? '')
       .join(' ');
-    expect(description).toContain('CHIẾN THẮNG!');
+    expect(description).toContain('Chiến thắng!');
     expect(description).toContain('Rồng');
     expect(description).toContain('An');
     expect(description).toContain('Chi');

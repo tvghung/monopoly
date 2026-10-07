@@ -4,6 +4,7 @@ import Button from '../Button/Button';
 import Modal from '../Modal/Modal';
 import { ActionIcon } from '../../icons/ActionIcon';
 import type { ActionIconName } from '../../icons/actionIcons';
+import { useTranslation } from '../../../i18n/I18n';
 import './ConfirmationDialog.css';
 
 interface ConfirmationDialogProps {
@@ -36,7 +37,7 @@ export default function ConfirmationDialog({
   message,
   confirmLabel,
   confirmIcon,
-  cancelLabel = 'Hủy',
+  cancelLabel,
   cancelIcon = <X />,
   tone = 'danger',
   icon = 'warning',
@@ -44,6 +45,7 @@ export default function ConfirmationDialog({
   onConfirm,
   onCancel,
 }: ConfirmationDialogProps) {
+  const { t } = useTranslation();
   const messageId = useId();
   const danger = tone === 'danger';
   return (
@@ -67,7 +69,7 @@ export default function ConfirmationDialog({
             disabled={busy}
             onClick={onCancel}
           >
-            {cancelLabel}
+            {cancelLabel ?? t('ui.cancel')}
           </Button>
           <Button variant={danger ? 'danger' : 'primary'} icon={confirmIcon} disabled={busy} onClick={onConfirm}>{confirmLabel}</Button>
         </div>

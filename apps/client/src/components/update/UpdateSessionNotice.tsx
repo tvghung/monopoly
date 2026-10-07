@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useAppUpdate } from '../../runtime/appUpdate';
+import { useTranslation } from '../../i18n/I18n';
 import { useToast } from '../Toast';
-import { UPDATE_COPY } from './updateCopy';
+import { getUpdateCopy } from './updateCopy';
 
 /**
  * In a lobby or a game nothing about an update interrupts the play. The one thing worth saying is that an update is waiting,
@@ -10,6 +11,8 @@ import { UPDATE_COPY } from './updateCopy';
  */
 export default function UpdateSessionNotice() {
   const { state, inSession, deferred } = useAppUpdate();
+  const { language } = useTranslation();
+  const copy = getUpdateCopy(language);
   const toast = useToast();
   // What was already said in this session, by update version.
   const said = useRef(new Set<string>());
@@ -24,14 +27,14 @@ export default function UpdateSessionNotice() {
       const key = `ready:${version}`;
       if (said.current.has(key)) return;
       said.current.add(key);
-      toast.show(UPDATE_COPY.readyAfterGame);
+      toast.show(copy.readyAfterGame);
     } else if (phase === 'available' && mandatory) {
       const key = `required:${version}`;
       if (said.current.has(key)) return;
       said.current.add(key);
-      toast.show(UPDATE_COPY.requiredAfterGame, { variant: 'warning' });
+      toast.show(copy.requiredAfterGame, { variant: 'warning' });
     }
-  }, [deferred, inSession, mandatory, phase, toast, version]);
+  }, [copy, deferred, inSession, mandatory, phase, toast, version]);
 
   return null;
 }

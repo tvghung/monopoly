@@ -3,6 +3,7 @@ import {
   colorSetRentPercent,
   RAILROAD_TILE_INDICES,
   scaleRentPercent,
+  SOLO_COLOR_SET_RENT_PERCENT,
   UTILITY_TILE_INDICES,
   tileState,
   type CharacterId,
@@ -18,6 +19,8 @@ import {
 } from '../propertyVisualColors';
 import { getLandmarkVisual } from './landmarkVisuals';
 import { getCurrentRentDetailIndex, getTileDetails } from './propertyDetails';
+import type { Language } from '../../../i18n/I18n';
+import { translate } from '../../../i18n/I18n';
 
 export type DeedKind = 'street' | 'railroad' | 'utility' | 'special';
 
@@ -75,7 +78,7 @@ export interface DeedCardModel {
   tileId: number;
   kind: DeedKind;
   name: string;
-  /** "Nhóm Xanh nhạt", "Ga tàu", "Tiện ích"; null for special tiles. */
+  /** Localized district, railroad, or utility label; null for special tiles. */
   groupLabel: string | null;
   headerColor: string;
   headerTextColor: string;
@@ -103,13 +106,29 @@ export interface DeedCardModel {
   tileType: string;
 }
 
-const HOUSE_COST_LABEL = 'Giá mỗi Nhà / Khách Sạn';
-
 /** The colour-set rule as it is enforced: it scales rent only, and building never needs the whole group. */
-export const COMPLETE_GROUP_RULE_NOTE = 'Sở hữu cả khu: tiền thuê của mọi ô trong khu nhân 1,5 lần. Xây Nhà không cần đủ khu.';
-export const TEAM_GROUP_RULE_NOTE = 'Hai đồng đội cùng sở hữu cả khu: tiền thuê của mọi ô trong khu nhân đôi. Xây Nhà không cần đủ khu.';
+export const COMPLETE_GROUP_RULE_NOTE = translate('property.rentBonusSolo', 'vi', {
+  multiplier: String(SOLO_COLOR_SET_RENT_PERCENT / 100).replace('.', ','),
+});
+export const TEAM_GROUP_RULE_NOTE = translate('property.rentBonusTeam', 'vi');
 
-const percentText = (percent: number): string => (percent === 150 ? '×1,5' : `×${percent / 100}`);
+const percentText = (percent: number, language: Language): string => (
+  language === 'en' ? `${percent / 100}×` : percent === 150 ? '×1,5' : `×${percent / 100}`
+);
+const factorNumberText = (percent: number, language: Language): string => (
+  language === 'en' ? String(percent / 100) : String(percent / 100).replace('.', ',')
+);
+
+const districtLabels: Record<string, Parameters<typeof translate>[0]> = {
+  brown: 'property.colorGroup.brown',
+  lightblue: 'property.colorGroup.lightblue',
+  pink: 'property.colorGroup.pink',
+  orange: 'property.colorGroup.orange',
+  red: 'property.colorGroup.red',
+  yellow: 'property.colorGroup.yellow',
+  green: 'property.colorGroup.green',
+  blue: 'property.colorGroup.blue',
+};
 
 function kindOf(tileType: string): DeedKind {
   if (tileType === 'normal') return 'street';
@@ -125,10 +144,10 @@ function groupTiles(tileType: string, color: string | undefined): readonly numbe
   return null;
 }
 
-function developmentTextFor(houses: number, owned: boolean): string {
-  if (!owned) return 'Chưa có chủ sở hữu';
-  if (houses === 5) return '1 Khách sạn';
-  return houses > 0 ? `${houses} Nhà` : 'Chưa xây';
+function developmentTextFor(houses: number, owned: boolean, language: Language): string {
+  if (!owned) return translate('property.notOwned', language);
+  if (houses === 5) return translate('property.oneHotel', language);
+  return houses > 0 ? translate('board.houseCount', language, { count: houses }) : translate('property.noBuildings', language);
 }
 
 export interface DeedCardModelInput {
@@ -138,6 +157,7 @@ export interface DeedCardModelInput {
   theme?: VisualTheme;
   /** The local player, so an owner can be marked as a teammate or an opponent in 2v2. */
   viewerPlayerId?: string | null;
+  language?: Language;
 }
 
 /**
@@ -145,7 +165,7 @@ export interface DeedCardModelInput {
  * style from `propertyVisualColors`, the group from shared `colorGroups`; nothing here decides a rule.
  */
 export function buildDeedCardModel({
-  tileId, state, roomPlayers = [], theme, viewerPlayerId = null,
+  tileId, state, roomPlayers = [], theme, viewerPlayerId = null, language = 'vi',
 }: DeedCardModelInput): DeedCardModel | null {
   const tile = tileState[tileId];
   if (!tile) return null;
@@ -178,7 +198,7 @@ export function buildDeedCardModel({
   const owner = ownedProp ? playerInfo(ownedProp.id) : null;
   const landmark = kind === 'street' ? getLandmarkVisual(tileId) : undefined;
 
-  const details = getTileDetails(tile);
+  const details = getTileDetails(tile, language);
   const hasLadder = kind !== 'special';
   const sameTypeOwned = ownedProp
     ? Object.entries(state.boardState.ownedProps).filter(([otherId, property]) => (
@@ -191,7 +211,7 @@ export function buildDeedCardModel({
     : null;
   // The house cost is its own line under the ladder, not a ladder step.
   const rows: DeedRentRow[] = hasLadder
-    ? details.filter(detail => detail.label !== HOUSE_COST_LABEL).map((detail, index) => ({
+    ? details.filter(detail => detail.label !== translate('property.houseCost', language)).map((detail, index) => ({
       label: detail.label,
       value: detail.value,
       current: index === currentIndex,
@@ -207,7 +227,7 @@ export function buildDeedCardModel({
         const groupOwner = groupOwnerId ? playerInfo(groupOwnerId) : null;
         return {
           tileId: groupTileId,
-          tileName: getTileName(groupTileId),
+          tileName: getTileName(groupTileId, language),
           ownerColor: groupOwner?.color ?? null,
           ownerName: groupOwner?.name ?? null,
           self: groupTileId === tileId,
@@ -223,12 +243,16 @@ export function buildDeedCardModel({
             || (ownerTeamId !== null && teamOfPlayer(state, holderId)?.teamId === ownerTeamId);
         }).length
         : 0;
-      const holder = owner?.team ? `Đội ${owner.team.name}` : owner?.name;
+      const holder = owner?.team
+        ? (language === 'en' ? `Team ${owner.team.name}` : `Đội ${owner.team.name}`)
+        : owner?.name;
       return {
         pips,
         total: tiles.length,
         ownedByOwner,
-        text: owner ? `${holder} sở hữu ${ownedByOwner}/${tiles.length}` : `Nhóm có ${tiles.length} ô`,
+        text: owner
+          ? translate('property.groupOwnedBy', language, { holder: holder ?? '', owned: ownedByOwner, total: tiles.length })
+          : translate('property.groupHasSpaces', language, { total: tiles.length }),
       };
     })()
     : null;
@@ -236,8 +260,11 @@ export function buildDeedCardModel({
   return {
     tileId,
     kind,
-    name: getTileName(tileId),
-    groupLabel: kind === 'special' ? null : visual.label,
+    name: getTileName(tileId, language),
+    groupLabel: kind === 'special' ? null : kind === 'railroad'
+      ? translate('property.group.railroad', language)
+      : kind === 'utility' ? translate('property.group.utility', language)
+        : translate(districtLabels[tile.color ?? 'brown'], language),
     headerColor: visual.color,
     headerTextColor: visual.headerText,
     tint: visual.tint,
@@ -249,13 +276,15 @@ export function buildDeedCardModel({
     rows,
     ruleLines: kind === 'special' ? details.map(detail => detail.label) : [],
     houses,
-    developmentText: kind === 'street' ? developmentTextFor(houses, owned) : null,
+    developmentText: kind === 'street' ? developmentTextFor(houses, owned, language) : null,
     owner,
     group,
     groupRuleNote: kind === 'street'
-      ? (state.boardState.gameMode === 'TEAM_2V2' ? TEAM_GROUP_RULE_NOTE : COMPLETE_GROUP_RULE_NOTE)
+      ? (state.boardState.gameMode === 'TEAM_2V2'
+        ? translate('property.rentBonusTeam', language)
+        : translate('property.rentBonusSolo', language, { multiplier: factorNumberText(SOLO_COLOR_SET_RENT_PERCENT, language) }))
       : null,
-    rentBonus: kind === 'street' && ownedProp ? buildRentBonus(state, tileId, ownedProp.id, ownedProp.houses) : null,
+    rentBonus: kind === 'street' && ownedProp ? buildRentBonus(state, tileId, ownedProp.id, ownedProp.houses, language) : null,
     tileType: tile.tileType,
   };
 }
@@ -266,6 +295,7 @@ function buildRentBonus(
   tileId: number,
   ownerId: string,
   houses: number,
+  language: Language,
 ): DeedRentBonus | null {
   const percent = colorSetRentPercent(state, ownerId, tileId);
   if (percent <= 100) return null;
@@ -273,9 +303,7 @@ function buildRentBonus(
   const normal = houses > 0 && tile.rentTiers ? tile.rentTiers[houses - 1] : tile.rent ?? 0;
   return {
     percent,
-    text: state.boardState.gameMode === 'TEAM_2V2'
-      ? `Cả đội đủ khu: tiền thuê ${percentText(percent)}`
-      : `Đủ khu: tiền thuê ${percentText(percent)}`,
+    text: translate(state.boardState.gameMode === 'TEAM_2V2' ? 'property.completeGroupTeam' : 'property.completeGroupSolo', language, { multiplier: percentText(percent, language) }),
     effectiveRentText: formatMoney(scaleRentPercent(normal, percent)),
   };
 }

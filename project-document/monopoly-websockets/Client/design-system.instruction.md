@@ -68,12 +68,12 @@ Kết quả đo trong Design Lab: Baloo 2 có `tnum` thật (chênh lệch bề 
 | `Slider` | `label`, `value`, `min`, `max`, `step`, `formatValue` | `input[type=range]` native + `<output aria-hidden>` (giá trị được đọc qua `aria-valuetext`, không đọc hai lần). |
 | `MoneyText` | `amount`, `size`, `tone`, `signed` | Luôn qua `formatMoney`; gain/loss có dấu + icon. |
 | `DeltaChip` | `delta`, `reducedMotion` | Thuần trình bày; vòng đời do HUD điều khiển. |
-| `PlayerAvatar` | `characterId`, `colorId`, `size`, `active`, `status` | `alt` = "Mascot <accessibleLabel>" (tiếng Việt), không có `title`, không có tên hiển thị. |
+| `PlayerAvatar` | `characterId`, `colorId`, `size`, `active`, `status` | localized `alt` label from VI/EN catalog, no `title` and no visible mascot name. |
 | `GroupPips` | `groups` | Rỗng / một phần / đủ bộ; `aria-label` tóm tắt. |
 | `Modal` | `open`, `title`, `eyebrow`, `size` (`sm/md/lg/xl` = 400/520/680/880 px), `placement` (`center/sheet`), `backdrop` (`dim/clear`), `footer`, `tone` (`default/danger/celebration`), `layer` (`modal` z 60 / `card` z 70), `headerAccent`, `describedBy`, `role`, `onClose`, `closeOnEscape`, `closeOnOutsideClick` | Xem mục "Modal v2". Vẫn là primitive prompt duy nhất. |
 | `ConfirmationDialog`, `ToastView` | `ConfirmationDialog`: `title`, `message` (nối `aria-describedby`), `confirmLabel`/`confirmIcon`, `cancelLabel`/`cancelIcon`, `tone` (`danger` mặc định / `neutral`), `icon` (tên trong registry, mặc định `warning`), `busy`; nút dùng `Button` v2 | `ConfirmationDialog` luôn nằm trên mọi dialog khác; thời lượng lấy từ `motionTokens`. `tone="neutral"` (lời mời đổi chỗ ở lobby) dùng `Modal` tone `default`, nút xác nhận `primary` và biểu tượng nền info; `busy` disable cả hai nút, bỏ Escape và nút đóng ở header (không có lần trả lời thứ hai) và bỏ `data-modal-autofocus` để Modal tự giữ focus. Mời người ra khỏi phòng dùng `danger`. |
 
-`game/characters/characterRegistry.ts` có `accessibleLabel` (Vietnamese, chỉ cho công nghệ hỗ trợ: `alt`/`aria-label`); `displayName` đã bị xóa (plan 04, OD-04-1): mascot chỉ nhận diện bằng hình, không hiện tên nào ở màn hình.
+`PlayerAvatar` reads localized accessible labels from the client catalog; the character registry only supplies the illustration. `displayName` remains absent (plan 04, OD-04-1): mascots are identified by image, with no visible character name.
 
 `design-system/useMediaQuery.ts` cung cấp `useMediaQuery(query)` (`useSyncExternalStore`, false khi không có `matchMedia`) và `SHORT_VIEWPORT_QUERY` (`(orientation: landscape) and (max-height: 31rem)`): chỉ dùng để chọn biến thể component (deed `compact`, nút `md`, ảnh 64 px), còn style nằm trong CSS.
 

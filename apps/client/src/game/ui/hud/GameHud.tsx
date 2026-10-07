@@ -17,6 +17,7 @@ import LandmarkBanner from './LandmarkBanner';
 import TurnBanner from './TurnBanner';
 import { useChatBubbles } from './useChatBubbles';
 import './hud.css';
+import { useTranslation } from '../../../i18n/I18n';
 
 const selectCardSlice = (state: PresentationState) => ({
   displayActivePlayerId: state.displayActivePlayerId,
@@ -44,6 +45,7 @@ function PlayerCards({ onSelectPlayer }: { onSelectPlayer?: (playerId: string) =
   const resetEpoch = usePresentationSelector(selectResetEpoch);
   const speed = usePresentationSelector(selectSpeed);
   const reducedMotion = useEffectiveReducedMotion();
+  const { language } = useTranslation();
   const drawer = useHudDrawer();
   // Chat is never held back by the presentation queue (plan 03 section 7.1): a message bubbles as soon as the server
   // commits it, so the bubbles read the authoritative feed while the ticker and the log follow the presentation.
@@ -52,8 +54,8 @@ function PlayerCards({ onSelectPlayer }: { onSelectPlayer?: (playerId: string) =
   });
 
   const cards = useMemo(
-    () => (state.loaded ? selectPlayerCardViewModels(state, slice, roomPlayers, playerId ?? null, role ?? null) : []),
-    [playerId, role, roomPlayers, slice, state],
+    () => (state.loaded ? selectPlayerCardViewModels(state, slice, roomPlayers, playerId ?? null, role ?? null, language) : []),
+    [language, playerId, role, roomPlayers, slice, state],
   );
 
   return (

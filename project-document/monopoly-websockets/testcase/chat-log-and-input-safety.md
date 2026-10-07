@@ -12,9 +12,9 @@ runtime schema or PostgreSQL failure behavior.
 - [ ] Blank/whitespace/over-500/non-string payload fails through ACK.
 - [ ] `<`, `>`, `&`, quotes and script-like payload render as text, never execute.
 - [ ] Authoritative game-log markup remains correctly rendered after escaping changes.
-- [ ] Player-facing role/action/card/payment/forced-sale/bankruptcy log copy is Vietnamese
-  and every amount uses VNĐ formatting; audit finds no `$`/`$M` or obsolete English
-  game message.
+- [ ] Structured player-facing role/action/card/payment/forced-sale/bankruptcy activity
+  renders in selected VI/EN locale; user names and chat remain unchanged, and every
+  amount uses VNĐ formatting. Legacy freeform logs remain as stored for compatibility.
 - [ ] Multi-claim `PaymentQueue` and forced-sale continuation append logs in
   deterministic committed order without restart/recovery duplicates.
 - [ ] Chat append commits before update/success ACK; DB failure creates no phantom line.

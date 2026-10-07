@@ -66,7 +66,7 @@ describe('RevivePanel', () => {
   it('offers the survivor the revive with the price, what the teammate returns with and the turns left', () => {
     renderAs('player-b', reviveState(REVIVE_WINDOW_SURVIVOR_TURNS));
 
-    const panel = screen.getByRole('region', { name: 'Có thể hồi sinh: Dũng' });
+    const panel = screen.getByRole('region', { name: 'Hồi sinh đồng đội: Dũng' });
     expect(panel.textContent).toContain(`Còn ${REVIVE_WINDOW_SURVIVOR_TURNS} lượt`);
     expect(panel.textContent).toContain('Trả 750.000 ₫ cho Ngân hàng');
     expect(panel.textContent).toContain('Dũng trở lại Xuất Phát với 300.000 ₫');
@@ -123,7 +123,7 @@ describe('RevivePanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Hồi sinh Dũng — 750.000 ₫' }));
 
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Không thể hồi sinh đồng đội vào lúc này.'));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Giao dịch chưa thể thực hiện.'));
     expect(screen.getByRole('button', { name: 'Hồi sinh Dũng — 750.000 ₫' }).hasAttribute('disabled')).toBe(false);
   });
 

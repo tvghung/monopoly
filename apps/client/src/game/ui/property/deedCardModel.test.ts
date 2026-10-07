@@ -29,7 +29,7 @@ describe('buildDeedCardModel', () => {
     expect(model).toMatchObject({
       kind: 'street',
       name: 'Cà Mau',
-      groupLabel: 'Nhóm Nâu',
+      groupLabel: 'Nâu',
       priceText: '60.000 ₫',
       houseCostText: '50.000 ₫',
       houses: 0,

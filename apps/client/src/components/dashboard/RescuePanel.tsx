@@ -1,7 +1,7 @@
 import { useContext, useEffect, useId, useState } from 'react';
 import type { Ack, EmergencyRescueOffer, PublicGameState } from '@monopoly/shared';
 import stateContext from '../../internal';
-import { formatMoney, localizeAckError } from '../../presentation';
+import { formatMoney } from '../../presentation';
 import Button from '../../design-system/components/Button/Button';
 import Chip from '../../design-system/components/Chip/Chip';
 import Modal from '../../design-system/components/Modal/Modal';
@@ -10,11 +10,10 @@ import { ActionIcon } from '../../design-system/icons/ActionIcon';
 import { formatCountdown, useCountdownSeconds } from '../../game/ui/hud/useCountdown';
 import { selectRescueOffer } from '../../game/team/teamView';
 import './DebtPanel.css';
+import { useTranslation } from '../../i18n/I18n';
+import { useLocalizedError } from '../../i18n/useLocalizedError';
 
 type DebtClaim = NonNullable<PublicGameState['boardState']['paymentShortfall']>;
-
-/** Copy shared with the tests: what the rescuer is told will happen when they decline or the offer runs out. */
-export const RESCUE_DECLINE_CONSEQUENCE = 'Nếu bạn không hỗ trợ, đồng đội sẽ phá sản.';
 
 type RescueAnswer = 'ACCEPT' | 'DECLINE';
 
@@ -25,44 +24,45 @@ type RescueAnswer = 'ACCEPT' | 'DECLINE';
  * the offer id back.
  */
 export default function RescuePanel({ claim, offer }: { claim: DebtClaim; offer: EmergencyRescueOffer }) {
+  const { t } = useTranslation();
   const {
     state, playerId, canMutate, connected, socketFunctions,
   } = useContext(stateContext);
   const descriptionId = useId();
   const [pending, setPending] = useState<RescueAnswer | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { error, clearError, setErrorKey, setAckError } = useLocalizedError();
   const seconds = useCountdownSeconds(offer.expiresAt);
   const debtor = state.players[offer.debtorPlayerId];
   const rescuer = state.players[offer.rescuerPlayerId];
   const creditorPlayer = claim.creditor === 'BANK' ? undefined : state.players[claim.creditorPlayerId ?? ''];
-  const creditorName = claim.creditor === 'BANK' ? 'Ngân hàng' : creditorPlayer?.name ?? 'người chơi khác';
-  const debtorName = debtor?.name ?? 'Đồng đội';
-  const rescuerName = rescuer?.name ?? 'đồng đội';
+  const creditorName = claim.creditor === 'BANK' ? t('ui.bank') : creditorPlayer?.name ?? t('ui.player');
+  const debtorName = debtor?.name ?? t('team.teammate');
+  const rescuerName = rescuer?.name ?? t('team.teammate');
   const countdown = seconds === null ? '' : formatCountdown(seconds);
   const isRescuer = selectRescueOffer(state, playerId)?.rescueId === offer.rescueId;
 
   // A new offer (or losing the connection) starts the dialog over; the buttons never stay stuck on a stale answer.
   useEffect(() => {
     setPending(null);
-    setError(null);
-  }, [offer.rescueId, canMutate, connected]);
+    clearError();
+  }, [offer.rescueId, canMutate, clearError, connected]);
 
   const answer = (choice: RescueAnswer) => {
     if (pending) return;
     const command = choice === 'ACCEPT' ? socketFunctions.acceptRescue : socketFunctions.declineRescue;
     if (!command) return;
     setPending(choice);
-    setError(null);
+    clearError();
     void (async () => {
       try {
         const response: void | Ack = await command(offer.rescueId);
         if (response && !response.ok) {
           setPending(null);
-          setError(localizeAckError(response.error));
+          setAckError(response.error);
         }
       } catch {
         setPending(null);
-        setError('Không thể gửi thao tác. Vui lòng thử lại.');
+        setErrorKey('forcedSale.failed');
       }
     })();
   };
@@ -74,13 +74,13 @@ export default function RescuePanel({ claim, offer }: { claim: DebtClaim; offer:
         <div className="debt-panel__status-copy" role="status">
           <strong>
             {waitingOnMe
-              ? `Bạn hết tài sản để bán. Đang chờ ${rescuerName} quyết định hỗ trợ`
-              : `${debtorName} hết tài sản để bán, đang chờ ${rescuerName} quyết định hỗ trợ`}
+              ? t('dashboard.rescueWaitDebtor', { rescuer: rescuerName })
+              : t('dashboard.rescueWaitOther', { debtor: debtorName, rescuer: rescuerName })}
           </strong>
-          <span>{`Khoản hỗ trợ ${formatMoney(offer.amount)} sẽ trả thẳng cho ${creditorName}`}</span>
+          <span>{t('dashboard.rescueDirectAmount', { amount: formatMoney(offer.amount), creditor: creditorName })}</span>
         </div>
         <span role="timer">
-          <Chip tone="loss" icon={<ActionIcon name="clock" />}>{`${countdown || '0:00'} còn lại`}</Chip>
+          <Chip tone="loss" icon={<ActionIcon name="clock" />}>{t('dashboard.timeLeft', { time: countdown || '0:00' })}</Chip>
         </span>
       </section>
     );
@@ -91,8 +91,8 @@ export default function RescuePanel({ claim, offer }: { claim: DebtClaim; offer:
   return (
     <Modal
       open
-      title="Hỗ trợ đồng đội"
-      eyebrow="Cứu trợ khẩn cấp"
+      title={t('dashboard.rescueTitle')}
+      eyebrow={t('dashboard.rescueEyebrow')}
       role="alertdialog"
       size="md"
       className="debt-panel-modal debt-panel-modal--rescue"
@@ -105,22 +105,22 @@ export default function RescuePanel({ claim, offer }: { claim: DebtClaim; offer:
             busy={pending === 'DECLINE'}
             disabled={pending !== null}
             onClick={() => answer('DECLINE')}
-          >Không hỗ trợ</Button>
+          >{t('dashboard.rescueDeclined')}</Button>
           <Button
             icon={<ActionIcon name="rescue" />}
             busy={pending === 'ACCEPT'}
             disabled={pending !== null || cannotAfford}
             onClick={() => answer('ACCEPT')}
-          >{`Hỗ trợ đồng đội — ${formatMoney(offer.amount)}`}</Button>
+          >{t('dashboard.rescuePayButton', { amount: formatMoney(offer.amount) })}</Button>
         </>
       )}
     >
       <p id={descriptionId} className="sr-only">
-        {`${debtorName} hết tài sản để bán và còn thiếu ${formatMoney(claim.remainingAmount)}. Bạn có thể trả ${formatMoney(offer.amount)} cho ${creditorName} thay đồng đội. ${RESCUE_DECLINE_CONSEQUENCE}`}
+        {t('dashboard.rescueConsequences', { debtor: debtorName, amount: formatMoney(claim.remainingAmount), offer: formatMoney(offer.amount), creditor: creditorName })}
       </p>
-      <section className="debt-panel__summary" aria-label="Khoản hỗ trợ" tabIndex={-1} data-modal-autofocus>
+      <section className="debt-panel__summary" aria-label={t('dashboard.rescueSummary')} tabIndex={-1} data-modal-autofocus>
         <div className="debt-panel__due">
-          <span className="debt-panel__label">Số tiền hỗ trợ</span>
+          <span className="debt-panel__label">{t('dashboard.rescueAmount')}</span>
           <strong className="debt-panel__due-amount">{formatMoney(offer.amount)}</strong>
         </div>
         <div className="debt-panel__creditor">
@@ -128,38 +128,38 @@ export default function RescuePanel({ claim, offer }: { claim: DebtClaim; offer:
             ? <PlayerAvatar characterId={debtor.characterId ?? null} colorId={debtor.color} size={32} />
             : null}
           <span className="debt-panel__creditor-name">
-            <span className="debt-panel__label">Đồng đội đang nợ</span>
+            <span className="debt-panel__label">{t('dashboard.teammateInDebt')}</span>
             <strong>{debtorName}</strong>
           </span>
         </div>
         <Chip tone="loss" icon={<ActionIcon name="clock" />} className="debt-panel__countdown">
-          <span role="timer">{`${countdown || '0:00'} còn lại`}</span>
+          <span role="timer">{t('dashboard.timeLeft', { time: countdown || '0:00' })}</span>
         </Chip>
         <dl className="debt-panel__facts">
           <div className="debt-panel__fact">
-            <dt>Trả cho</dt>
+            <dt>{t('dashboard.payTo')}</dt>
             <dd>{creditorName}</dd>
           </div>
           <div className="debt-panel__fact">
-            <dt>Tiền mặt của bạn</dt>
+            <dt>{t('dashboard.cash')}</dt>
             <dd>{formatMoney(balance)}</dd>
           </div>
           <div className="debt-panel__fact debt-panel__fact--short">
-            <dt>Sau khi hỗ trợ</dt>
+            <dt>{t('dashboard.afterRescue')}</dt>
             <dd>{formatMoney(Math.max(0, balance - offer.amount))}</dd>
           </div>
         </dl>
       </section>
       <p className="debt-panel__rescue-note">
-        {`${debtorName} đã bán hết tài sản nhưng vẫn thiếu ${formatMoney(claim.remainingAmount)}. Tiền hỗ trợ được trả thẳng cho ${creditorName}, không chuyển vào ví của ${debtorName}.`}
+        {t('dashboard.rescueContext', { debtor: debtorName, amount: formatMoney(claim.remainingAmount), creditor: creditorName })}
       </p>
-      <p className="debt-panel__rescue-warning">{RESCUE_DECLINE_CONSEQUENCE}</p>
+      <p className="debt-panel__rescue-warning">{t('dashboard.rescueDeclineConsequence')}</p>
       {cannotAfford
-        ? <p className="debt-panel__error" role="alert">{`Bạn cần ${formatMoney(offer.amount)} để hỗ trợ.`}</p>
+        ? <p className="debt-panel__error" role="alert">{t('dashboard.rescueRequiredCash', { amount: formatMoney(offer.amount) })}</p>
         : null}
       {error ? <p className="debt-panel__error" role="alert">{error}</p> : null}
       {pending
-        ? <p className="debt-panel__pending" role="status">Đang gửi quyết định…</p>
+        ? <p className="debt-panel__pending" role="status">{t('dashboard.rescuePending')}</p>
         : null}
     </Modal>
   );

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_GAME_SETTINGS,
   GRAPHICS_QUALITY_OPTIONS,
+  LEGACY_SETTINGS_STORAGE_KEY,
   SETTINGS_STORAGE_KEY,
   normalizeGraphicsQuality,
   normalizeSettings,
@@ -60,5 +61,37 @@ describe('game settings', () => {
     };
 
     expect(readGameSettings(storage)).toMatchObject({ graphicsQuality: 'auto', reducedMotion: true, animationSpeed: 1.5 });
+  });
+
+  it('migrates the V1 storage key to V2, defaults language to Vietnamese, and preserves existing preferences', () => {
+    const values = new Map<string, string>([[LEGACY_SETTINGS_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      masterVolume: 0.35,
+      musicVolume: 0.45,
+      sfxVolume: 0.55,
+      animationSpeed: 1.5,
+      reducedMotion: true,
+      fullscreen: true,
+    })]]);
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+    };
+
+    expect(readGameSettings(storage)).toEqual({
+      ...DEFAULT_GAME_SETTINGS,
+      masterVolume: 0.35,
+      musicVolume: 0.45,
+      sfxVolume: 0.55,
+      animationSpeed: 1.5,
+      reducedMotion: true,
+      fullscreen: true,
+    });
+    expect(JSON.parse(values.get(SETTINGS_STORAGE_KEY) ?? '{}')).toMatchObject({ version: 2, language: 'vi' });
+  });
+
+  it('preserves English when reading V2 preferences and normalizes an invalid language to Vietnamese', () => {
+    expect(normalizeSettings({ ...DEFAULT_GAME_SETTINGS, language: 'en' }).language).toBe('en');
+    expect(normalizeSettings({ ...DEFAULT_GAME_SETTINGS, language: 'fr' }).language).toBe('vi');
   });
 });

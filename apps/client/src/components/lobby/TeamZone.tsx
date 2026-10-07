@@ -10,6 +10,7 @@ import { EmptySeat, LobbySeat, type SeatSwap } from './LobbySeat';
 import TeamColorPicker from './TeamColorPicker';
 import TeamNameField from './TeamNameField';
 import type { LobbyPlayerView } from './lobbyTypes';
+import { useTranslation } from '../../i18n/I18n';
 
 interface TeamZoneProps {
   team: Pick<PublicTeam, 'teamId' | 'name' | 'color'>;
@@ -66,6 +67,7 @@ export default function TeamZone({
   team, otherTeamColor, members, playerId, hostPlayerId, isHost, isOwnTeam, canRename, busy, swapTargetId, canSwap,
   onKick, onMoveToSeat, onRequestSeatSwap, onCancelSeatSwap, onSetReady, onSetTeamName, onSetTeamColor,
 }: TeamZoneProps) {
+  const { t } = useTranslation();
   const headingId = useId();
   const style = {
     '--team-color': getPlayerDisplayColor(team.color),
@@ -97,7 +99,7 @@ export default function TeamZone({
   );
 
   return (
-    <section className="lobby-team" data-team={team.teamId} style={style} aria-labelledby={headingId}>
+      <section className="lobby-team" data-team={team.teamId} style={style} aria-labelledby={headingId}>
       <header className="lobby-team__header">
         <span className="lobby-team__swatch" aria-hidden="true" />
         {canRename
@@ -108,10 +110,10 @@ export default function TeamZone({
             </>
           )
           : <h2 id={headingId} className="lobby-team__name">{team.name}</h2>}
-        <span className="lobby-team__count" aria-label={`${members.length} trên ${TEAM_SIZE} người`}>
+        <span className="lobby-team__count" aria-label={t('lobby.teamCount', { count: members.length, total: TEAM_SIZE })}>
           {`${members.length}/${TEAM_SIZE}`}
         </span>
-        {isOwnTeam ? <Badge variant="info">Đội của bạn</Badge> : null}
+        {isOwnTeam ? <Badge variant="info">{t('lobby.yourTeam')}</Badge> : null}
       </header>
 
       <TeamColorPicker
@@ -123,7 +125,7 @@ export default function TeamZone({
         onSelect={onSetTeamColor}
       />
 
-      <ul className="lobby-team__players" aria-label={`Người chơi của đội ${team.name}`}>
+      <ul className="lobby-team__players" aria-label={t('lobby.teamPlayers', { name: team.name })}>
         {cells.map((member, index) => (member
           ? seatOf(member, swapFor(member))
           : (

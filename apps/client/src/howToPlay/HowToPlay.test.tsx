@@ -248,7 +248,7 @@ describe('HowToPlayModal', () => {
     expect(guide.className).toContain('ds-modal--lg');
     expect(guide.className).toContain('how-to-play');
     expect(guide.querySelector('.ds-modal__body')).not.toBeNull();
-    expect(guide.querySelector('.ds-modal__eyebrow')?.textContent).toBe('Cờ Tỷ Phú Việt Nam');
+    expect(guide.querySelector('.ds-modal__eyebrow')?.textContent).toBe('OWN THE BLOCK');
   });
 
   it('starts every visit collapsed again after it was closed', async () => {

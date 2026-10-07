@@ -26,7 +26,7 @@ stable `playerId` và derive mọi dòng của thẻ; `PropertyDeedCard` (`full`
 ## Presentation
 
 - Tên/type/color/price/base rent/rent tiers/build cost derive từ shared data; labels,
-  tooltips/actions tiếng Việt và mọi amount dùng formatter VNĐ.
+  tooltips/actions follow the selected VI/EN locale and all amounts use formatter VNĐ.
 - Hiển thị 1–4 Nhà hoặc Khách Sạn; payment-shortfall chỉ hiển thị gross forced-sale
   value do server chiếu.
 - Owner thấy hành động Bán Nhà khi phù hợp; non-owner thấy hành động mở TradeBundle
@@ -43,7 +43,7 @@ stable `playerId` và derive mọi dòng của thẻ; `PropertyDeedCard` (`full`
   cho giá đã nhập thì bị vô hiệu); buyer accept/reject theo proposal ID.
 
 Client guard chỉ là UX. Domain revalidates landing level/ownership/debt inside the
-serialized durable command; failure giữ state và hiện ACK tiếng Việt.
+serialized durable command; failure keeps state and renders the localized ACK.
 
 ## Tests
 

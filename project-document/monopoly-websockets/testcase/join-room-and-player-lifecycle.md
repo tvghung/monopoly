@@ -108,7 +108,7 @@ lookup contract: [Api/http-runtime.instruction.md](../Api/http-runtime.instructi
 - [x] `[AUTO][CLIENT]` `DesktopMultiplayerLauncher.test.tsx`, `AppBootstrap.test.tsx`: the join form asks for a name and a room
   code only; a search shows "Đang tìm phòng…" with read-only fields; the gameplay socket is created only after the lookup
   returns; each of `NOT_FOUND`, `UNREACHABLE`, `NO_NETWORK`, `UNAVAILABLE` (and a bridge without the lookup, a failed IPC call,
-  a malformed endpoint) shows its agreed plain-Vietnamese line; the invitation-link field appears only after a failure (not
+  a malformed endpoint) shows its agreed plain-language localized line; the invitation-link field appears only after a failure (not
   after `NO_NETWORK`) and enters the room it names without searching; a result that arrives after "Quay lại" or
   after unmount is dropped; the configured-server mode is unchanged.
 - [x] `[AUTO][CLIENT]` `DesktopMultiplayerLauncher.test.tsx`: the host form has a name field only (no network select, no port or

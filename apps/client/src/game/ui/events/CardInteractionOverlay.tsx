@@ -1,15 +1,15 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { allGameCards, gameCardsById, type CardDeck, type GameCard } from '@monopoly/shared';
 import stateContext from '../../../internal';
-import { localizeAckError } from '../../../presentation';
 import Button from '../../../design-system/components/Button/Button';
 import Modal from '../../../design-system/components/Modal/Modal';
 import { useEffectiveReducedMotion } from '../../../settings/selectors';
 import { usePresentation } from '../../presentation/PresentationProvider';
 import { cardVisualFor, type CardVisualDefinition } from './cardVisuals';
 import './CardInteractionOverlay.css';
-
-const DECK_LABEL: Record<CardDeck, string> = { chance: 'CƠ HỘI', chest: 'KHÍ VẬN' };
+import { translate, useTranslation } from '../../../i18n/I18n';
+import { getCardPresentation } from '../../../i18n/cardCopy';
+import { useLocalizedError } from '../../../i18n/useLocalizedError';
 
 /** The gold medallion of a deck: a question mark for Cơ Hội, a treasure chest for Khí Vận. Drawn here, no art file. */
 function DeckEmblem({ deck }: { deck: CardDeck }) {
@@ -34,23 +34,24 @@ function DeckEmblem({ deck }: { deck: CardDeck }) {
   );
 }
 
-function DeckBadge({ deck }: { deck: CardDeck }) {
+function DeckBadge({ deck, language = 'vi' }: { deck: CardDeck; language?: 'vi' | 'en' }) {
+  const key = deck === 'chance' ? 'card.deckChance' : 'card.deckChest';
   return (
     <span className="card-face__badge">
       <DeckEmblem deck={deck} />
-      {DECK_LABEL[deck]}
+      {translate(key, language)}
     </span>
   );
 }
 
-function CardArtwork({ visual }: { visual: CardVisualDefinition }) {
+function CardArtwork({ visual, language = 'vi' }: { visual: CardVisualDefinition; language?: 'vi' | 'en' }) {
   return (
     <img
       className="card-face__art"
       src={visual.artworkUrl}
       width={640}
       height={400}
-      alt={`${visual.title} — minh họa`}
+      alt={translate('card.artAlt', language, { title: visual.title })}
     />
   );
 }
@@ -94,6 +95,7 @@ const safeDomId = (operationId: string): string => operationId.replace(/[^a-zA-Z
  * control, Escape or backdrop dismissal: only the acting player's "Đóng" ends it, and it waits for that indefinitely.
  */
 export default function CardInteractionOverlay() {
+  const { language, t } = useTranslation();
   const { state, playerId, role, canMutate, connected, socketFunctions } = useContext(stateContext);
   const { state: presentation } = usePresentation();
   const reducedMotion = useEffectiveReducedMotion();
@@ -105,7 +107,8 @@ export default function CardInteractionOverlay() {
   const cardId = pendingCard?.revealedCardId;
   const pendingOperationId = pendingCard?.operationId;
   const card = cardId ? gameCardsById[cardId] : undefined;
-  const visual = cardId ? cardVisualFor(cardId) : undefined;
+  const localizedCard = cardId ? getCardPresentation(cardId, language) : undefined;
+  const visual = cardId ? cardVisualFor(cardId, language) : undefined;
   const revealed = Boolean(
     pendingCard?.stage === 'REVEALED'
     && cardId
@@ -122,7 +125,7 @@ export default function CardInteractionOverlay() {
     && connected,
   );
   const [dismissPending, setDismissPending] = useState(false);
-  const [dismissError, setDismissError] = useState('');
+  const { error: dismissError, clearError, setErrorKey, setAckError } = useLocalizedError();
   const dismissPendingRef = useRef(false);
   const restoreFocusRef = useRef(false);
   const observedOperationRef = useRef<string | null>(null);
@@ -135,16 +138,16 @@ export default function CardInteractionOverlay() {
       observedOperationRef.current = null;
       dismissPendingRef.current = false;
       setDismissPending(false);
-      setDismissError('');
+      clearError();
       return;
     }
     if (observedOperationRef.current !== operationId) {
       observedOperationRef.current = operationId;
       dismissPendingRef.current = false;
       setDismissPending(false);
-      setDismissError('');
+      clearError();
     }
-  }, [pendingCard?.operationId, pendingCard?.stage]);
+  }, [clearError, pendingCard?.operationId, pendingCard?.stage]);
 
   // A button that turns disabled while its request is in flight drops keyboard focus to the page. After a failed request it is
   // enabled again: put the focus back on it, or Enter and Space would do nothing and Tab would leave the dialog.
@@ -167,26 +170,26 @@ export default function CardInteractionOverlay() {
     if (!revealed || !actor || !pendingCard || dismissPendingRef.current) return;
     const dismissCard = socketFunctions.dismissCard;
     if (!dismissCard) {
-      setDismissError('Chưa thể đóng thẻ trong phiên này.');
+      setErrorKey('card.dismissUnavailable');
       return;
     }
     dismissPendingRef.current = true;
     setDismissPending(true);
-    setDismissError('');
+    clearError();
     try {
       const response = await dismissCard(pendingCard.operationId);
       if (!response || response.ok) return;
       dismissPendingRef.current = false;
       restoreFocusRef.current = true;
       setDismissPending(false);
-      setDismissError(localizeAckError(response.error));
+      setAckError(response.error);
     } catch {
       dismissPendingRef.current = false;
       restoreFocusRef.current = true;
       setDismissPending(false);
-      setDismissError('Không thể gửi lệnh đóng thẻ.');
+      setErrorKey('card.dismissFailed');
     }
-  }, [actor, pendingCard, revealed, socketFunctions.dismissCard]);
+  }, [actor, clearError, pendingCard, revealed, setAckError, setErrorKey, socketFunctions.dismissCard]);
 
   const shown = revealed && card && visual ? { card, visual } : null;
   const deck = shown?.visual.deck ?? 'chance';
@@ -195,7 +198,7 @@ export default function CardInteractionOverlay() {
     <Modal
       open={shown !== null}
       title={shown?.visual.title ?? ''}
-      eyebrow={shown ? <DeckBadge deck={deck} /> : null}
+      eyebrow={shown ? <DeckBadge deck={deck} language={language} /> : null}
       size="sm"
       layer="card"
       describedBy={shown ? descriptionId : undefined}
@@ -211,11 +214,11 @@ export default function CardInteractionOverlay() {
             data-testid="card-interaction-overlay"
             data-card-stage="REVEALED"
           >
-            <CardArtwork visual={shown.visual} />
-            <p id={descriptionId} className="card-face__message">{shown.card.message}</p>
+            <CardArtwork visual={shown.visual} language={language} />
+            <p id={descriptionId} className="card-face__message">{localizedCard?.message}</p>
             <div className="card-modal__actions">
               {dismissError ? <p className="card-modal__error" role="alert">{dismissError}</p> : null}
-              {!actor ? <p className="card-modal__helper">Đang chờ người chơi đóng thẻ</p> : null}
+              {!actor ? <p className="card-modal__helper">{t('card.waitingForPlayer')}</p> : null}
               <Button
                 data-modal-autofocus={actor ? true : undefined}
                 size="lg"
@@ -223,7 +226,7 @@ export default function CardInteractionOverlay() {
                 disabled={!actor}
                 onClick={() => void dismiss()}
               >
-                Đóng
+                {t('card.close')}
               </Button>
             </div>
           </div>

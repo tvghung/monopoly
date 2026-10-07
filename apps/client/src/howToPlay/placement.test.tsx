@@ -112,7 +112,7 @@ describe('the how-to-play key on every screen', () => {
       }
       render(<AppErrorBoundary reload={vi.fn()}><Broken /></AppErrorBoundary>);
 
-      expect(screen.getByRole('heading', { name: 'Không thể hiển thị trò chơi' })).toBeTruthy();
+      expect(screen.getByRole('heading', { name: 'Không thể khởi động trò chơi' })).toBeTruthy();
       expect(screen.getByRole('button', { name: 'Tải lại trò chơi' })).toBeTruthy();
       fireEvent.click(key());
       expect(screen.getAllByRole('dialog')).toHaveLength(1);

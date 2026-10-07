@@ -10,7 +10,7 @@ export interface RoomExitContextValue {
   /** A leave request is in flight. */
   leaving: boolean;
   /** "Bỏ cuộc" for a player in a running game, "Rời phòng" otherwise. */
-  label: 'Bỏ cuộc' | 'Rời phòng';
+  label: string;
   /**
    * Why the last leave request failed. The toolbar message sits under the modal layer, so a dialog that offers the exit
    * shows this itself.

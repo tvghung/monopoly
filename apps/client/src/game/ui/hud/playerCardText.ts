@@ -1,42 +1,47 @@
 import { formatMoney } from '@monopoly/shared';
-import { PERMANENT_ELIMINATION_LABEL, REVIVABLE_LABEL, relationLabel } from '../../team/teamView';
+import { relationLabel, reviveTurnsLabel } from '../../team/teamView';
+import type { Language } from '../../../i18n/I18n';
+import type { MessageKey } from '../../../i18n/catalog';
+import { translate } from '../../../i18n/I18n';
 import type { PlayerCardViewModel } from './playerCardSelectors';
 
 /** Opponent rounds a jailed player waits before the release roll (the same limit the jail panel shows). */
 export const JAIL_ROUND_LIMIT = 2;
 
 /**
- * The plain-language summary of one card, read by screen readers instead of the decorative card face, for example
- * "Lan, 1.494.000 ₫, 4 tài sản, 3 nhà, 1 khách sạn, 2 ga tàu, đang đi". It always uses the committed display balance, never
- * the intermediate value of the counting animation, so it does not chatter.
+ * A plain-language summary of one card for screen readers. It uses the same locale as the visible player card and
+ * reads the committed display balance, never the intermediate value of the counting animation.
  */
-export function describePlayerCard(card: PlayerCardViewModel): string {
-  const parts = [card.isLocal ? `${card.name} (bạn)` : card.name];
+export function describePlayerCard(card: PlayerCardViewModel, language: Language = 'vi'): string {
+  const t = (key: MessageKey, values?: Readonly<Record<string, string | number>>) => translate(key, language, values);
+  const parts = [card.isLocal ? t('playerCard.localPlayer', { name: card.name }) : card.name];
   if (card.teamName) {
-    const relation = relationLabel(card.relation);
-    parts.push(relation && card.relation !== 'SELF' ? `${relation}, đội ${card.teamName}` : `đội ${card.teamName}`);
+    const relation = relationLabel(card.relation, language);
+    const team = t('team.name', { name: card.teamName });
+    parts.push(relation && card.relation !== 'SELF' ? relation + ', ' + team : team);
   }
   if (card.isBankrupt) {
-    parts.push('đã phá sản');
-    if (card.revive?.kind === 'REVIVABLE') parts.push(`${REVIVABLE_LABEL.toLowerCase()}, ${card.revive.turnsLabel.toLowerCase()}`);
-    if (card.revive?.kind === 'PERMANENT') parts.push(PERMANENT_ELIMINATION_LABEL.toLowerCase());
-  } else if (card.hasLeft) parts.push('đã rời ván chơi');
+    parts.push(t('playerCard.bankrupt'));
+    if (card.revive?.kind === 'REVIVABLE') {
+      parts.push(t('team.revivable') + ', ' + reviveTurnsLabel(card.revive.window.turnsRemaining, language));
+    }
+    if (card.revive?.kind === 'PERMANENT') parts.push(t('team.permanent'));
+  } else if (card.hasLeft) parts.push(t('playerCard.left'));
   else parts.push(formatMoney(card.displayMoney));
   if (!card.hasLeft) {
-    parts.push(`${card.propertyCount} tài sản`);
-    if (card.houses > 0) parts.push(`${card.houses} nhà`);
-    if (card.hotels > 0) parts.push(`${card.hotels} khách sạn`);
-    if (card.railroadCount > 0) parts.push(`${card.railroadCount} ga tàu`);
-    if (card.utilityCount > 0) parts.push(`${card.utilityCount} công ty điện nước`);
+    parts.push(t('playerCard.assetCount', { count: card.propertyCount }));
+    if (card.houses > 0) parts.push(t('playerCard.houseCount', { count: card.houses }));
+    if (card.hotels > 0) parts.push(t('playerCard.hotelCount', { count: card.hotels }));
+    if (card.railroadCount > 0) parts.push(t('playerCard.stationCount', { count: card.railroadCount }));
+    if (card.utilityCount > 0) parts.push(t('playerCard.utilityCount', { count: card.utilityCount }));
   }
   if (card.isInJail && !card.hasLeft && !card.isBankrupt) {
-    parts.push(`đang ở tù, vòng chờ ${card.jailRoundsElapsed}/${JAIL_ROUND_LIMIT}`);
+    parts.push(t('playerCard.jailRounds', { elapsed: card.jailRoundsElapsed, limit: JAIL_ROUND_LIMIT }));
   }
   if (!card.isConnected && !card.hasLeft && !card.isBankrupt) {
-    parts.push('mất kết nối');
-    // The visual countdown ticks every second; the summary only says that one is running.
-    if (card.recoveryDeadlineAt) parts.push('sẽ bị bỏ lượt nếu không quay lại kịp');
+    parts.push(t('playerCard.disconnected'));
+    if (card.recoveryDeadlineAt) parts.push(t('playerCard.skipCountdown'));
   }
-  if (card.isActive && !card.hasLeft && !card.isBankrupt) parts.push('đang đi');
+  if (card.isActive && !card.hasLeft && !card.isBankrupt) parts.push(t('playerCard.turn'));
   return parts.join(', ');
 }

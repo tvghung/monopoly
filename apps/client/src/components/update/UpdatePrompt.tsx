@@ -3,6 +3,7 @@ import Button from '../../design-system/components/Button/Button';
 import Modal from '../../design-system/components/Modal/Modal';
 import { ActionIcon } from '../../design-system/icons/ActionIcon';
 import { useAppUpdate } from '../../runtime/appUpdate';
+import { useTranslation } from '../../i18n/I18n';
 import type { AppUpdateState } from '../../runtime/types';
 import UpdateProgress from './UpdateProgress';
 import {
@@ -10,7 +11,7 @@ import {
   failureMessage,
   offerBody,
   readyBody,
-  UPDATE_COPY,
+  getUpdateCopy,
 } from './updateCopy';
 import { promptKind, type UpdatePromptKind } from './updateView';
 import './update.css';
@@ -30,11 +31,12 @@ interface Content {
   dismissible: boolean;
 }
 
-function RequiredBody({ state }: { state: AppUpdateState }) {
+function RequiredBody({ state, language }: { state: AppUpdateState; language: 'vi' | 'en' }) {
+  const copy = getUpdateCopy(language);
   return (
     <>
-      <p className="update-prompt__text">{UPDATE_COPY.requiredBody}</p>
-      {state.phase === 'error' ? <p className="update-prompt__error" role="alert">{failureMessage(state, false)}</p> : null}
+      <p className="update-prompt__text">{copy.requiredBody}</p>
+      {state.phase === 'error' ? <p className="update-prompt__error" role="alert">{failureMessage(state, false, language)}</p> : null}
     </>
   );
 }
@@ -47,23 +49,25 @@ function RequiredBody({ state }: { state: AppUpdateState }) {
  */
 export default function UpdatePrompt({ menuVisible, onQuit }: UpdatePromptProps) {
   const update = useAppUpdate();
+  const { language } = useTranslation();
+  const copy = getUpdateCopy(language);
   const { state } = update;
   const kind = promptKind({ state, inSession: update.inSession, deferred: update.deferred, menuVisible });
 
   const quit = onQuit
-    ? <Button variant="ghost" icon={<ActionIcon name="leave" />} onClick={onQuit}>{UPDATE_COPY.quit}</Button>
+    ? <Button variant="ghost" icon={<ActionIcon name="leave" />} onClick={onQuit}>{copy.quit}</Button>
     : null;
 
   const content = (current: UpdatePromptKind, snapshot: AppUpdateState): Content => {
     switch (current) {
       case 'offer':
         return {
-          title: UPDATE_COPY.offerTitle,
-          body: <p className="update-prompt__text">{offerBody(snapshot)}</p>,
+          title: copy.offerTitle,
+          body: <p className="update-prompt__text">{offerBody(snapshot, language)}</p>,
           footer: (
             <>
-              <Button data-modal-autofocus variant="ghost" onClick={update.defer}>{UPDATE_COPY.later}</Button>
-              <Button icon={<ActionIcon name="download" />} onClick={() => void update.download()}>{UPDATE_COPY.update}</Button>
+              <Button data-modal-autofocus variant="ghost" onClick={update.defer}>{copy.later}</Button>
+              <Button icon={<ActionIcon name="download" />} onClick={() => void update.download()}>{copy.update}</Button>
             </>
           ),
           dismissible: true,
@@ -72,8 +76,8 @@ export default function UpdatePrompt({ menuVisible, onQuit }: UpdatePromptProps)
         // After a failed step the one button repeats that step: the download, or the install of what was downloaded.
         const failedInstall = snapshot.phase === 'error' && snapshot.error?.stage === 'install';
         return {
-          title: UPDATE_COPY.requiredTitle,
-          body: <RequiredBody state={snapshot} />,
+          title: copy.requiredTitle,
+          body: <RequiredBody state={snapshot} language={language} />,
           footer: (
             <>
               {quit}
@@ -82,7 +86,7 @@ export default function UpdatePrompt({ menuVisible, onQuit }: UpdatePromptProps)
                 icon={<ActionIcon name={snapshot.phase === 'error' ? 'retry' : 'download'} />}
                 onClick={() => void (failedInstall ? update.install() : update.download())}
               >
-                {snapshot.phase === 'error' ? UPDATE_COPY.retry : UPDATE_COPY.update}
+                {snapshot.phase === 'error' ? copy.retry : copy.update}
               </Button>
             </>
           ),
@@ -91,35 +95,35 @@ export default function UpdatePrompt({ menuVisible, onQuit }: UpdatePromptProps)
       }
       case 'required-downloading':
         return {
-          title: UPDATE_COPY.requiredTitle,
+          title: copy.requiredTitle,
           body: (
             <>
-              <p className="update-prompt__text">{UPDATE_COPY.requiredBody}</p>
+              <p className="update-prompt__text">{copy.requiredBody}</p>
               <UpdateProgress state={snapshot} />
             </>
           ),
-          footer: <Button data-modal-autofocus variant="ghost" onClick={() => void update.cancelDownload()}>{UPDATE_COPY.cancel}</Button>,
+          footer: <Button data-modal-autofocus variant="ghost" onClick={() => void update.cancelDownload()}>{copy.cancel}</Button>,
           dismissible: false,
         };
       case 'ready': {
         const mandatory = snapshot.update?.mandatory === true;
         return {
-          title: UPDATE_COPY.readyTitle,
+          title: copy.readyTitle,
           body: (
             <>
-              {mandatory ? <p className="update-prompt__text">{UPDATE_COPY.requiredBody}</p> : null}
-              <p className="update-prompt__text">{readyBody(snapshot)}</p>
+              {mandatory ? <p className="update-prompt__text">{copy.requiredBody}</p> : null}
+              <p className="update-prompt__text">{readyBody(snapshot, language)}</p>
             </>
           ),
           footer: (
             <>
-              {mandatory ? quit : <Button data-modal-autofocus variant="ghost" onClick={update.defer}>{UPDATE_COPY.later}</Button>}
+              {mandatory ? quit : <Button data-modal-autofocus variant="ghost" onClick={update.defer}>{copy.later}</Button>}
               <Button
                 data-modal-autofocus={mandatory ? true : undefined}
                 icon={<ActionIcon name={snapshot.installMode === 'restart' ? 'restart' : 'download'} />}
                 onClick={() => void update.install()}
               >
-                {applyLabel(snapshot)}
+                {applyLabel(snapshot, language)}
               </Button>
             </>
           ),
@@ -128,11 +132,11 @@ export default function UpdatePrompt({ menuVisible, onQuit }: UpdatePromptProps)
       }
       case 'installing':
         return {
-          title: UPDATE_COPY.installingTitle,
+          title: copy.installingTitle,
           body: (
             <div className="update-prompt__busy" role="status">
               <span className="update-prompt__spinner" aria-hidden="true" />
-              <p className="update-prompt__text">{UPDATE_COPY.installingBody}</p>
+              <p className="update-prompt__text">{copy.installingBody}</p>
             </div>
           ),
           footer: null,

@@ -16,6 +16,8 @@ import LandmarkShadowProxy from '../buildings/LandmarkShadowProxy';
 import TubeHouseInstances from '../buildings/TubeHouseInstances';
 import { houseRenderModeContext, type HouseRenderMode } from '../buildings/houseRenderMode';
 import OptionalSceneLayer from '../render/OptionalSceneLayer';
+import { useTranslation } from '../../../i18n/I18n';
+import { getTileBoardName } from '../../../game/ui/formatters';
 
 interface Board3DProps {
   model?: BoardRenderModel;
@@ -32,13 +34,18 @@ export default function Board3D({
   onTileHover,
   onTileSelect,
 }: Board3DProps) {
-  const tiles: readonly BoardTileRenderModel[] = model?.tiles ?? tileState.map((tile, tileId) => ({
+  const { language } = useTranslation();
+  const sourceTiles: readonly BoardTileRenderModel[] = model?.tiles ?? tileState.map((tile, tileId) => ({
     tileId,
-    name: tile.streetName,
+    name: getTileBoardName(tileId, language),
     tileType: tile.tileType,
     price: tile.price,
     propertyColor: tile.color,
     houses: 0,
+  }));
+  const tiles: readonly BoardTileRenderModel[] = sourceTiles.map(tile => ({
+    ...tile,
+    name: getTileBoardName(tile.tileId, language),
   }));
   // Keyed on the signal lists, not rebuilt on every hover: the instanced houses re-plan only when a signal actually changes.
   const ownershipChanges = model?.ownershipChanges;

@@ -14,6 +14,8 @@ import {
   type PublicTeam,
   type TeamId,
 } from '@monopoly/shared';
+import type { Language } from '../../i18n/I18n';
+import { translate } from '../../i18n/I18n';
 
 /**
  * Display-only team derivations. The server decides every team rule; these helpers only read the public state it sent, so a
@@ -53,15 +55,17 @@ export function relationBetween(
   return viewerTeam === otherTeam ? 'TEAMMATE' : 'OPPONENT';
 }
 
-export function relationLabel(relation: PlayerRelation | null): string | null {
-  if (relation === 'TEAMMATE') return 'Đồng đội';
-  if (relation === 'OPPONENT') return 'Đối thủ';
+export function relationLabel(relation: PlayerRelation | null, language: Language = 'vi'): string | null {
+  if (relation === 'TEAMMATE') return translate('team.teammate', language);
+  if (relation === 'OPPONENT') return translate('team.opponent', language);
   return null;
 }
 
 /** "Còn 5 lượt" down to "Còn 2 lượt" (the window opens with `REVIVE_WINDOW_SURVIVOR_TURNS`) and, with a single survivor turn left, "Cơ hội cuối". */
-export function reviveTurnsLabel(turnsRemaining: number): string {
-  return turnsRemaining <= 1 ? 'Cơ hội cuối' : `Còn ${turnsRemaining} lượt`;
+export function reviveTurnsLabel(turnsRemaining: number, language: Language = 'vi'): string {
+  return turnsRemaining <= 1
+    ? translate('team.lastChance', language)
+    : translate('team.turnsRemaining', language, { count: turnsRemaining });
 }
 
 export type ReviveStatus =
@@ -72,13 +76,13 @@ export type ReviveStatus =
  * The public elimination state of a player who is out of a 2v2 game by bankruptcy: still revivable (with how many survivor turns
  * are left) or permanently out. `null` for a player still in the game, one who left, and every Solo player.
  */
-export function getReviveStatus(state: PublicGameState, playerId: PlayerId): ReviveStatus | null {
+export function getReviveStatus(state: PublicGameState, playerId: PlayerId, language: Language = 'vi'): ReviveStatus | null {
   if (!isTeamMode(state)) return null;
   const finished = state.boardState.finishedPlayers[playerId];
   if (!finished || finished.reason !== 'BANKRUPT') return null;
   const window = state.boardState.teamPlay.reviveWindows.find(candidate => candidate.playerId === playerId);
   return window
-    ? { kind: 'REVIVABLE', window, turnsLabel: reviveTurnsLabel(window.turnsRemaining) }
+    ? { kind: 'REVIVABLE', window, turnsLabel: reviveTurnsLabel(window.turnsRemaining, language) }
     : { kind: 'PERMANENT' };
 }
 

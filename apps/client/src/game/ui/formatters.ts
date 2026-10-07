@@ -1,47 +1,71 @@
 import { formatMoney as formatSharedMoney, tileState } from '@monopoly/shared';
 import type { AckError, TileType } from '@monopoly/shared';
+import type { Language } from '../../i18n/I18n';
+import { translate } from '../../i18n/I18n';
 
 export const formatMoney = formatSharedMoney;
 
-const specialTileNames: Partial<Record<TileType, string>> = {
-  start: 'Xuất Phát',
-  chest: 'Khí Vận',
-  chance: 'Cơ Hội',
-  jail: 'Nhà Tù / Thăm Tù',
-  gojail: 'Vào Tù',
-  parking: 'Bãi Đỗ Xe',
+const specialTileKeys: Partial<Record<TileType, Parameters<typeof translate>[0]>> = {
+  start: 'board.go',
+  chest: 'board.communityChest',
+  chance: 'board.chance',
+  jail: 'board.jail',
+  gojail: 'board.goToJail',
+  parking: 'board.freeParking',
 };
 
-export function getTileName(tileId: number): string {
+export function getTileName(tileId: number, language: Language = 'vi'): string {
   const tile = tileState[tileId];
-  if (!tile) return `Ô số ${tileId}`;
-  const specialName = specialTileNames[tile.tileType];
-  if (specialName) return specialName;
-  if (tileId === 4) return 'Thuế Thu Nhập';
-  if (tileId === 38) return 'Thuế Xa Xỉ';
-  return tile.streetName.trim() || `Ô số ${tileId}`;
+  if (!tile) return translate('board.tileNumber', language, { tileId });
+  const specialKey = specialTileKeys[tile.tileType];
+  if (specialKey) return translate(specialKey, language);
+  if (tileId === 4) return translate('board.incomeTax', language);
+  if (tileId === 38) return translate('board.luxuryTax', language);
+  if (tileId === 12) return translate('board.electricCompany', language);
+  if (tileId === 28) return translate('board.waterWorks', language);
+  if (tile.tileType === 'railroad') {
+    const place = tile.streetName.replace(/^Ga\s+/u, '');
+    return language === 'en' ? translate('board.station', language, { place }) : tile.streetName;
+  }
+  return tile.streetName.trim() || translate('board.tileNumber', language, { tileId });
 }
 
-const ackErrorMessages: Record<AckError['code'], string> = {
-  INVALID_REQUEST: 'Yêu cầu không hợp lệ. Vui lòng kiểm tra thông tin và thử lại.',
-  UNAUTHENTICATED: 'Bạn chưa được xác thực. Vui lòng vào lại phòng.',
-  FORBIDDEN: 'Bạn không có quyền thực hiện hành động này.',
-  NOT_FOUND: 'Không tìm thấy phòng hoặc dữ liệu được yêu cầu.',
-  CONFLICT: 'Không thể thực hiện hành động ở trạng thái hiện tại.',
-  ROOM_FULL: 'Phòng đã đủ người chơi.',
-  ROOM_GONE: 'Phòng này không còn tồn tại.',
-  GAME_ALREADY_STARTED: 'Ván chơi đã bắt đầu; bạn có thể vào với vai trò khán giả.',
-  SESSION_INVALID: 'Phiên kết nối lại không hợp lệ.',
-  SESSION_REVOKED: 'Phiên chơi đã bị thu hồi.',
-  SESSION_EXPIRED: 'Phiên vào phòng đã hết hạn.',
-  SESSION_REPLACED: 'Phiên chơi này đã được mở trên một kết nối mới hơn.',
-  UPGRADE_REQUIRED: 'Phiên bản trò chơi đã thay đổi. Vui lòng tải lại trang.',
-  DATABASE_UNAVAILABLE: 'Máy chủ dữ liệu tạm thời không khả dụng. Vui lòng thử lại.',
-  INTERNAL_ERROR: 'Đã xảy ra lỗi hệ thống. Vui lòng thử lại.',
+/** Compact display label for the 3D board; full localized names remain available to accessibility and detail views. */
+export function getTileBoardName(tileId: number, language: Language = 'vi'): string {
+  const tile = tileState[tileId];
+  if (!tile || tile.tileType === 'normal' || tile.tileType === 'company') return getTileName(tileId, language);
+  const shortKeyByType: Partial<Record<TileType, Parameters<typeof translate>[0]>> = {
+    start: 'board.short.start',
+    jail: 'board.short.jail',
+    gojail: 'board.short.goToJail',
+    chance: 'board.short.chance',
+    chest: 'board.short.chest',
+    railroad: 'board.short.station',
+    expense: 'board.short.expense',
+    parking: 'board.short.parking',
+  };
+  const key = shortKeyByType[tile.tileType];
+  return key ? translate(key, language) : getTileName(tileId, language);
+}
+
+const ackErrorKeys: Record<AckError['code'], Parameters<typeof translate>[0]> = {
+  INVALID_REQUEST: 'ack.INVALID_REQUEST',
+  UNAUTHENTICATED: 'ack.UNAUTHENTICATED',
+  FORBIDDEN: 'ack.FORBIDDEN',
+  NOT_FOUND: 'ack.NOT_FOUND',
+  CONFLICT: 'ack.CONFLICT',
+  ROOM_FULL: 'ack.ROOM_FULL',
+  ROOM_GONE: 'ack.ROOM_GONE',
+  GAME_ALREADY_STARTED: 'ack.GAME_ALREADY_STARTED',
+  SESSION_INVALID: 'ack.SESSION_INVALID',
+  SESSION_REVOKED: 'ack.SESSION_REVOKED',
+  SESSION_EXPIRED: 'ack.SESSION_EXPIRED',
+  SESSION_REPLACED: 'ack.SESSION_REPLACED',
+  UPGRADE_REQUIRED: 'ack.UPGRADE_REQUIRED',
+  DATABASE_UNAVAILABLE: 'ack.DATABASE_UNAVAILABLE',
+  INTERNAL_ERROR: 'ack.INTERNAL_ERROR',
 };
 
-const vietnameseCharacters = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
-
-export function localizeAckError(error: Pick<AckError, 'code' | 'message'>): string {
-  return vietnameseCharacters.test(error.message) ? error.message : ackErrorMessages[error.code];
+export function localizeAckError(error: Pick<AckError, 'code' | 'message'>, language: Language = 'vi'): string {
+  return translate(ackErrorKeys[error.code], language);
 }

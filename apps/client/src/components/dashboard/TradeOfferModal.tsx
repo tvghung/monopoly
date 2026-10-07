@@ -19,11 +19,15 @@ import { buildDeedCardModel, type DeedCardModel } from '../../game/ui/property/d
 import PropertyDeedCard from '../../game/ui/property/PropertyDeedCard';
 import TeamChip from '../../game/team/TeamChip';
 import './TradeOffer.css';
+import { useTranslation, type Language } from '../../i18n/I18n';
+import { translate } from '../../i18n/I18n';
 
-function cardLabel(cardId: GameCardId): string {
+function cardLabel(cardId: GameCardId, language: Language = 'vi'): string {
   const deck = gameCardsById[cardId]?.sourceDeck;
-  const source = deck === 'chance' ? 'Cơ Hội' : deck === 'chest' ? 'Khí Vận' : null;
-  return `Thẻ Thoát Tù Miễn Phí${source ? ` (${source})` : ''}`;
+  const source = deck === 'chance' ? translate('board.chance', language) : deck === 'chest' ? translate('board.communityChest', language) : null;
+  return source
+    ? translate('trade.jailFreeCardDeck', language, { deck: source })
+    : translate('trade.jailCard', language);
 }
 
 function toggleNumber(values: number[], value: number, checked: boolean): number[] {
@@ -35,13 +39,14 @@ function toggleCard(values: GameCardId[], value: GameCardId, checked: boolean): 
 }
 
 /** "2 tài sản + 1 thẻ Thoát Tù + 50.000 ₫", or "chưa có gì". */
-export function describeTradeSide(propertyCount: number, cardCount: number, cash: number): string {
+export function describeTradeSide(propertyCount: number, cardCount: number, cash: number, language: Language = 'vi'): string {
+  const t = (key: Parameters<typeof translate>[0], values?: Readonly<Record<string, string | number>>) => translate(key, language, values);
   const parts = [
-    propertyCount > 0 ? `${propertyCount} tài sản` : null,
-    cardCount > 0 ? `${cardCount} thẻ Thoát Tù` : null,
+    propertyCount > 0 ? t('trade.assetCount', { count: propertyCount }) : null,
+    cardCount > 0 ? t('trade.cardCount', { count: cardCount }) : null,
     cash > 0 ? formatMoney(cash) : null,
   ].filter((part): part is string => part !== null);
-  return parts.length > 0 ? parts.join(' + ') : 'chưa có gì';
+  return parts.length > 0 ? parts.join(' + ') : t('trade.bundleEmpty');
 }
 
 /** One selectable deed or card: a real checkbox (keyboard and screen reader operable) drawn as the chip. */
@@ -69,6 +74,7 @@ function AssetChoice({
 }
 
 export default function TradeOfferModal() {
+  const { language, t } = useTranslation();
   const {
     state, socketFunctions, playerId, privatePlayerState, roomPlayers,
   } = useContext(stateContext);
@@ -104,17 +110,17 @@ export default function TradeOfferModal() {
     || offeredJailFreeCardIds.length > 0;
   const canSend = Boolean(recipientPlayerId) && recipientPlayerId !== playerId && hasBundleValue;
   const blockedReason = !recipientPlayerId || recipientPlayerId === playerId
-    ? 'Không tìm thấy người nhận hợp lệ.'
-    : hasBundleValue ? null : 'Chọn tiền, tài sản hoặc thẻ để gửi đề nghị.';
+    ? t('trade.noRecipient')
+    : hasBundleValue ? null : t('trade.chooseMore');
   const deeds = useMemo(() => {
     const models = new Map<number, DeedCardModel>();
     for (const [tileKey, property] of Object.entries(state.boardState.ownedProps)) {
       if (property.id !== playerId && property.id !== recipientPlayerId) continue;
-      const model = buildDeedCardModel({ tileId: Number(tileKey), state, roomPlayers });
+      const model = buildDeedCardModel({ tileId: Number(tileKey), state, roomPlayers, language });
       if (model) models.set(Number(tileKey), model);
     }
     return models;
-  }, [playerId, recipientPlayerId, roomPlayers, state]);
+  }, [language, playerId, recipientPlayerId, roomPlayers, state]);
 
   useEffect(() => {
     if (!tradeTarget) return;
@@ -148,14 +154,14 @@ export default function TradeOfferModal() {
     const model = deeds.get(tileId);
     return model
       ? <PropertyDeedCard model={model} variant="chip" />
-      : <span className="trade-asset__fallback">{getTileName(tileId)}</span>;
+      : <span className="trade-asset__fallback">{getTileName(tileId, language)}</span>;
   };
 
   return (
     <Modal
       open={Boolean(state.loaded && tradeTarget)}
-      title={`Giao dịch với ${recipient?.name ?? 'người sở hữu tài sản'}`}
-      eyebrow="Đề nghị giao dịch"
+      title={t('trade.with', { name: recipient?.name ?? t('trade.recipientFallback') })}
+      eyebrow={t('trade.title')}
       size="xl"
       onClose={closeTrade}
       className="trade-offer-modal"
@@ -164,7 +170,10 @@ export default function TradeOfferModal() {
           <>
             <div className="trade-offer-summary">
               <p id={`${formId}-summary`} className="trade-offer-summary__line">
-                {`Bạn giao ${describeTradeSide(offeredPropertyIds.length, offeredJailFreeCardIds.length, offeredCash)} · Bạn nhận ${describeTradeSide(requestedPropertyIds.length, 0, requestedCash)}`}
+                {t('trade.sideSummary', {
+                  offered: describeTradeSide(offeredPropertyIds.length, offeredJailFreeCardIds.length, offeredCash, language),
+                  requested: describeTradeSide(requestedPropertyIds.length, 0, requestedCash, language),
+                })}
               </p>
               {blockedReason ? <p className="trade-offer-summary__reason">{blockedReason}</p> : null}
             </div>
@@ -175,7 +184,7 @@ export default function TradeOfferModal() {
               icon={<ActionIcon name="send" />}
               aria-describedby={`${formId}-summary`}
               disabled={!canSend}
-            >Gửi đề nghị</Button>
+            >{t('trade.offer')}</Button>
           </>
         )
         : undefined}
@@ -184,7 +193,7 @@ export default function TradeOfferModal() {
         ? (
           <>
             <p className="trade-modal__lead">
-              Gói đề nghị ban đầu yêu cầu {getTileName(tradeTarget.tileID)}. Bạn có thể chọn thêm tiền và nhiều tài sản ở cả hai phía.
+              {t('trade.targetContext', { name: getTileName(tradeTarget.tileID, language) })}
             </p>
             <form
               id={formId}
@@ -212,13 +221,13 @@ export default function TradeOfferModal() {
             >
               <div className="trade-form__bundles">
                 <fieldset className="trade-bundle trade-bundle--give">
-                  <legend>Bạn giao</legend>
+                  <legend>{t('trade.send')}</legend>
                   <div className="trade-bundle__body">
                     <div className="trade-bundle__owner">
                       {me ? <PlayerAvatar characterId={me.characterId ?? null} colorId={me.color} size={32} /> : null}
-                      <span>{me ? `${me.name} (bạn)` : 'Bạn'}</span>
+                      <span>{me ? t('trade.you', { name: me.name }) : t('ui.you')}</span>
                     </div>
-                    <label htmlFor="private-offer-cash">Tiền (đơn vị nghìn đồng)</label>
+                    <label htmlFor="private-offer-cash">{t('trade.cashLabel')}</label>
                     <div className="trade-bundle__cash">
                       <input
                         id="private-offer-cash"
@@ -232,55 +241,55 @@ export default function TradeOfferModal() {
                       />
                       {offeredCash > 0 ? <output className="trade-bundle__preview" htmlFor="private-offer-cash">{formatMoney(offeredCash)}</output> : null}
                     </div>
-                    <span className="trade-bundle__label">Tài sản</span>
+                    <span className="trade-bundle__label">{t('trade.assets')}</span>
                     {offeredPropertyOptions.length > 0
                       ? (
                         <div className="trade-bundle__assets">
                           {offeredPropertyOptions.map(tileId => (
                             <AssetChoice
                               key={tileId}
-                              name={getTileName(tileId)}
+                              name={getTileName(tileId, language)}
                               checked={offeredPropertyIds.includes(tileId)}
                               onChange={checked => setOfferedPropertyIds(current => toggleNumber(current, tileId, checked))}
                             >{renderDeed(tileId)}</AssetChoice>
                           ))}
                         </div>
                       )
-                      : <span className="trade-bundle__empty">Bạn chưa có tài sản để giao.</span>}
-                    <span className="trade-bundle__label">Thẻ Thoát Tù Miễn Phí</span>
+                      : <span className="trade-bundle__empty">{t('trade.noAssets')}</span>}
+                    <span className="trade-bundle__label">{t('trade.jailCard')}</span>
                     {privatePlayerState === null
-                      ? <span className="trade-bundle__empty">Đang đồng bộ danh sách thẻ riêng của bạn…</span>
+                      ? <span className="trade-bundle__empty">{t('trade.privateCardsLoading')}</span>
                       : heldJailFreeCardIds.length > 0
                         ? (
                           <div className="trade-bundle__assets">
                             {heldJailFreeCardIds.map(cardId => (
                               <AssetChoice
                                 key={cardId}
-                                name={cardLabel(cardId)}
+                                name={cardLabel(cardId, language)}
                                 checked={offeredJailFreeCardIds.includes(cardId)}
                                 onChange={checked => setOfferedJailFreeCardIds(current => toggleCard(current, cardId, checked))}
                               >
                                 <span className="trade-asset__card">
                                   <span className="trade-asset__card-icon" aria-hidden="true"><ActionIcon name="jailCard" /></span>
-                                  {cardLabel(cardId)}
+                                  {cardLabel(cardId, language)}
                                 </span>
                               </AssetChoice>
                             ))}
                           </div>
                         )
-                        : <span className="trade-bundle__empty">Bạn không giữ thẻ nào.</span>}
+                        : <span className="trade-bundle__empty">{t('trade.noCards')}</span>}
                   </div>
                 </fieldset>
 
                 <fieldset className="trade-bundle trade-bundle--receive">
-                  <legend>Bạn nhận</legend>
+                  <legend>{t('trade.receive')}</legend>
                   <div className="trade-bundle__body">
                     <div className="trade-bundle__owner">
                       {recipient ? <PlayerAvatar characterId={recipient.characterId ?? null} colorId={recipient.color} size={32} /> : null}
-                      <span>{recipient?.name ?? 'Người sở hữu tài sản'}</span>
+                      <span>{recipient?.name ?? t('trade.recipientFallback')}</span>
                       {recipientPlayerId ? <TeamChip playerId={recipientPlayerId} /> : null}
                     </div>
-                    <label htmlFor="private-request-cash">Tiền (đơn vị nghìn đồng)</label>
+                    <label htmlFor="private-request-cash">{t('trade.cashLabel')}</label>
                     <div className="trade-bundle__cash">
                       <input
                         id="private-request-cash"
@@ -293,26 +302,26 @@ export default function TradeOfferModal() {
                       />
                       {requestedCash > 0 ? <output className="trade-bundle__preview" htmlFor="private-request-cash">{formatMoney(requestedCash)}</output> : null}
                     </div>
-                    <span className="trade-bundle__label">Tài sản</span>
+                    <span className="trade-bundle__label">{t('trade.assets')}</span>
                     {requestedPropertyOptions.length > 0
                       ? (
                         <div className="trade-bundle__assets">
                           {requestedPropertyOptions.map(tileId => (
                             <AssetChoice
                               key={tileId}
-                              name={getTileName(tileId)}
+                              name={getTileName(tileId, language)}
                               checked={requestedPropertyIds.includes(tileId)}
                               onChange={checked => setRequestedPropertyIds(current => toggleNumber(current, tileId, checked))}
                             >{renderDeed(tileId)}</AssetChoice>
                           ))}
                         </div>
                       )
-                      : <span className="trade-bundle__empty">Người chơi này chưa có tài sản có thể giao.</span>}
-                    <span className="trade-bundle__label">Thẻ Thoát Tù Miễn Phí</span>
+                      : <span className="trade-bundle__empty">{t('trade.noRecipientAssets')}</span>}
+                    <span className="trade-bundle__label">{t('trade.jailCard')}</span>
                     <span id="requested-card-privacy" className="trade-bundle__empty">
                       {recipient?.getOutOfJailCardCount
-                        ? `${recipient.name} đang giữ ${recipient.getOutOfJailCardCount} thẻ, nhưng danh tính thẻ là dữ liệu riêng. Bạn không thể yêu cầu một ID thẻ cụ thể; hãy nhờ họ chủ động gửi đề nghị có thẻ.`
-                        : 'Không có thẻ công khai để yêu cầu. Danh tính thẻ của người khác luôn được giữ riêng.'}
+                        ? t('trade.requestedCardPrivateCount', { name: recipient.name, count: recipient.getOutOfJailCardCount })
+                        : t('trade.noPublicCards')}
                     </span>
                   </div>
                 </fieldset>

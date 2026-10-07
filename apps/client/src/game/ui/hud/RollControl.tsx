@@ -3,13 +3,14 @@ import type { Ack } from '@monopoly/shared';
 import stateContext from '../../../internal';
 import Button from '../../../design-system/components/Button/Button';
 import { ActionIcon } from '../../../design-system/icons/ActionIcon';
-import { localizeAckError } from '../../../presentation';
 import { usePresentationSelector } from '../../presentation/usePresentationSelector';
 import type { PresentationState } from '../../presentation/store/types';
 import { resolveDisplayedPlayer } from './displayedPlayer';
 import { areAllTokensSettled, canRollForState, shouldShowRollButton } from './rollControlLogic';
 import { useRollShortcut } from './useRollShortcut';
 import { useTurnAnnouncement } from './useTurnAnnouncement';
+import { useTranslation } from '../../../i18n/I18n';
+import { useLocalizedError } from '../../../i18n/useLocalizedError';
 
 function hasDiceResult(dice: { dice1: number; dice2: number }): boolean {
   return dice.dice1 >= 1 && dice.dice1 <= 6 && dice.dice2 >= 1 && dice.dice2 <= 6;
@@ -43,12 +44,13 @@ const sameRollSlice = (previous: RollSlice, next: RollSlice) => previous.status 
  * (it lives in the center stage). The turn text is shown in the status pill and spoken here.
  */
 export default function RollControl() {
+  const { language, t } = useTranslation();
   const {
     state, socketFunctions, playerId, canMutate, connected,
   } = useContext(stateContext);
   const rollSlice = usePresentationSelector(selectRollSlice, sameRollSlice);
   const [pendingRoll, setPendingRoll] = useState<PendingRoll | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { error, clearError, setErrorKey, setAckError } = useLocalizedError();
 
   const isMyTurn = state.boardState.currentPlayer.id === playerId;
   const tokensSettled = areAllTokensSettled(state, rollSlice);
@@ -69,7 +71,7 @@ export default function RollControl() {
     if (!pendingRoll) return;
     if (rollSlice.presentationResetEpoch !== pendingRoll.resetEpoch) {
       setPendingRoll(null);
-      setError(null);
+      clearError();
       return;
     }
     const currentTurn = state.boardState.currentPlayer;
@@ -77,11 +79,11 @@ export default function RollControl() {
     const turnMovedForward = currentTurn.id !== playerId
       || (currentTurn.id === playerId && currentTurn.hasMoved);
     if (authoritativeRollArrived || turnMovedForward) setPendingRoll(null);
-  }, [pendingRoll, playerId, rollSlice.presentationResetEpoch, state.boardState.currentPlayer, state.boardState.rollSequence]);
+  }, [clearError, pendingRoll, playerId, rollSlice.presentationResetEpoch, state.boardState.currentPlayer, state.boardState.rollSequence]);
 
   useEffect(() => {
-    setError(null);
-  }, [rollSlice.presentationResetEpoch]);
+    clearError();
+  }, [clearError, rollSlice.presentationResetEpoch]);
 
   useEffect(() => {
     if (!connected && pendingRoll) setPendingRoll(null);
@@ -94,19 +96,19 @@ export default function RollControl() {
       sequence: startingSequence,
       resetEpoch: rollSlice.presentationResetEpoch,
     });
-    setError(null);
+    clearError();
     void Promise.resolve(socketFunctions.rollDice())
       .then((response: Ack | undefined) => {
         if (response && !response.ok) {
           setPendingRoll(null);
-          setError(localizeAckError(response.error));
+          setAckError(response.error);
         }
       })
       .catch(() => {
         setPendingRoll(null);
-        setError('Không thể gửi lệnh đổ xúc xắc.');
+        setErrorKey('hud.rollFailed');
       });
-  }, [canRoll, rollSlice.presentationResetEpoch, socketFunctions, state.boardState.rollSequence]);
+  }, [canRoll, clearError, rollSlice.presentationResetEpoch, setAckError, setErrorKey, socketFunctions, state.boardState.rollSequence]);
 
   useRollShortcut(showRollButton && canRoll, handleRoll);
 
@@ -115,17 +117,18 @@ export default function RollControl() {
     rollSlice.displayActivePlayerId ? resolveDisplayedPlayer(state, rollSlice.displayActivePlayerId)?.name : undefined,
     playerId ?? null,
     rollSlice.presentationResetEpoch,
+    language,
   );
 
   const diceAnnouncement = useMemo(() => {
-    if (rollSlice.diceRoll) return 'Đang trình bày kết quả đổ xúc xắc.';
+    if (rollSlice.diceRoll) return t('hud.rollPresenting');
     return hasDiceResult(rollSlice.displayDice)
-      ? `Kết quả đổ xúc xắc: ${rollSlice.displayDice.dice1} + ${rollSlice.displayDice.dice2} = ${rollSlice.displayDice.dice1 + rollSlice.displayDice.dice2}.`
-      : 'Chưa có kết quả đổ xúc xắc.';
-  }, [rollSlice.diceRoll, rollSlice.displayDice]);
+      ? t('hud.rollResult', { first: rollSlice.displayDice.dice1, second: rollSlice.displayDice.dice2, total: rollSlice.displayDice.dice1 + rollSlice.displayDice.dice2 })
+      : t('hud.noRollResult');
+  }, [rollSlice.diceRoll, rollSlice.displayDice, t]);
 
   return (
-    <section className="game-board__roll-controls" data-testid="roll-control" aria-label="Điều khiển lượt chơi">
+    <section className="game-board__roll-controls" data-testid="roll-control" aria-label={t('hud.rollControl')}>
       {showRollButton
         ? (
           <Button
@@ -138,7 +141,7 @@ export default function RollControl() {
             icon={<ActionIcon name="roll" />}
             onClick={handleRoll}
           >
-            {pendingRoll !== null ? 'Đang đổ…' : 'Đổ xúc xắc'}
+            {pendingRoll !== null ? t('hud.rolling') : t('hud.roll')}
           </Button>
         )
         : null}
@@ -146,7 +149,7 @@ export default function RollControl() {
         {turnAnnouncement ? `${turnAnnouncement} ${diceAnnouncement}` : diceAnnouncement}
       </p>
       {error ? <p className="game-board__roll-error" role="alert">{error}</p> : null}
-      {!tokensSettled && isMyTurn ? <p className="sr-only">Đang chờ quân cờ về đúng vị trí.</p> : null}
+        {!tokensSettled && isMyTurn ? <p className="sr-only">{t('hud.tokensSettling')}</p> : null}
     </section>
   );
 }

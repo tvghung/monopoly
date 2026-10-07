@@ -10,14 +10,16 @@ batches/materials/motion và local SDF text. Không có detail route hay permiss
 
 ## Canonical data
 
-- Map đúng 40 tile index từ `packages/shared/src/tileState.ts`; mapping tiếng Việt
-  nằm tại [Shared board data](../Shared/board-and-card-data.instruction.md).
+- Map đúng 40 tile index từ `packages/shared/src/tileState.ts`; canonical names stay
+  Vietnamese in [Shared board data](../Shared/board-and-card-data.instruction.md),
+  while client display names and compact special-tile labels follow VI/EN preference.
 - Board face và property detail derive name/type/color/price/rent tiers/house cost
   từ shared tile. `BoardInitState.ts`/`backOfCards.ts` không còn là
   metadata source.
-- Presentation-only icon/orientation được map theo `tileType`/index; không hard-code
-  English label. Index 17 là Khí Vận, 20 Bãi Đỗ Xe, 28 Công Ty Nước.
-- Center branding, alt/title/tooltip và status là “Cờ Tỷ Phú Việt Nam”/tiếng Việt.
+- Presentation-only icon/orientation is mapped by `tileType`/index; translated labels
+  do not change tile identity or index. Index 17 is Community Chest, 20 Free Parking,
+  and 28 Water Works in English.
+- Center branding preserves “Own the Block”; title, alt/title/tooltip and status follow VI/EN preference.
 
 ## WebGL board surface
 
@@ -302,7 +304,7 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
 
 ## Tests
 
-- Exact 40 Vietnamese tiles, canonical derivation và không English board labels.
+- Exact 40 canonical tiles, localized display labels and accessible full names in both locales.
 - Quaternion surface normal/footprint tại tile 1, 11, 21, 31; canonical 40-tile
   assignment vào đúng tám district batches cộng một special batch.
 - Tám registry/material descriptors distinct; 512² albedo/bump color-space,

@@ -12,6 +12,7 @@ import {
   UTILITY_TILE_INDICES,
 } from '@monopoly/shared';
 import type { PresentationState } from '../../presentation/store/types';
+import type { Language } from '../../../i18n/I18n';
 import {
   getReviveStatus,
   relationBetween,
@@ -86,6 +87,7 @@ export function selectPlayerCardViewModels(
   roomPlayers: readonly RoomPlayerMeta[],
   localPlayerId: string | null,
   role: RoomRole | null,
+  language: Language = 'vi',
 ): PlayerCardViewModel[] {
   const activePlayerId = presentation.displayActivePlayerId ?? state.boardState.currentPlayer.id;
   const slots = resolvePlayerStationSlots(roomPlayers, localPlayerId, role, state.boardState.gameMode === 'TEAM_2V2');
@@ -97,7 +99,7 @@ export function selectPlayerCardViewModels(
     ownedTilesByPlayer.set(property.id, tiles);
   });
 
-  return selectPlayerHudViewModels(state, activePlayerId, roomPlayers).map(hud => {
+  return selectPlayerHudViewModels(state, activePlayerId, roomPlayers, language).map(hud => {
     const ownedTiles = ownedTilesByPlayer.get(hud.playerId) ?? [];
     const owned = new Set(ownedTiles);
     let houses = 0;

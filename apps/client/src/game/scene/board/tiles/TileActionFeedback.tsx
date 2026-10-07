@@ -13,6 +13,8 @@ import type {
 } from '../../../presentation/store/types';
 import SdfSurfaceText from './SdfSurfaceText';
 import type { TilePanelLayout } from './tilePanelLayout';
+import type { Language } from '../../../../i18n/I18n';
+import { translate, useTranslation } from '../../../../i18n/I18n';
 
 interface TileActionFeedback {
   id: string;
@@ -30,7 +32,9 @@ export function getTileActionFeedback(
   developmentChange: DevelopmentChangeSignal | undefined,
   goCrossing: GoCrossingSignal | undefined,
   ownerColor: string | undefined,
+  language: Language = 'vi',
 ): TileActionFeedback | null {
+  const t = (key: Parameters<typeof translate>[0], values?: Readonly<Record<string, string | number>>) => translate(key, language, values);
   const candidates: TileActionFeedback[] = [];
   if (ownershipChange) {
     candidates.push({
@@ -39,8 +43,8 @@ export function getTileActionFeedback(
       kind: 'OWNERSHIP',
       pulseDirection: 'UP',
       value: ownershipChange.toPlayerId === null
-        ? 'Trả chủ'
-        : ownershipChange.fromPlayerId === null ? 'Nhận chủ' : 'Đổi chủ',
+        ? t('tileFeedback.released')
+        : ownershipChange.fromPlayerId === null ? t('tileFeedback.acquired') : t('tileFeedback.transferred'),
       color: ownerColor ? getPlayerDisplayColor(ownerColor) : boardVisualTokens.boardAccent,
     });
   }
@@ -51,12 +55,16 @@ export function getTileActionFeedback(
       kind: 'DEVELOPMENT',
       pulseDirection: developmentChange.direction,
       value: developmentChange.toHouses === 5 && developmentChange.fromHouses < 5
-        ? 'Khách sạn'
+        ? t('tileFeedback.hotel')
         : developmentChange.fromHouses === 5 && developmentChange.toHouses < 5
-          ? 'Hạ khách sạn'
+          ? t('tileFeedback.hotelDowngraded')
           : developmentChange.delta > 0
-            ? `+${developmentChange.delta} Nhà`
-            : `-${Math.abs(developmentChange.delta)} Nhà`,
+            ? developmentChange.delta === 1
+              ? t('tileFeedback.houseBuilt')
+              : t('tileFeedback.housesBuilt', { count: developmentChange.delta })
+            : Math.abs(developmentChange.delta) === 1
+              ? t('tileFeedback.houseSold')
+              : t('tileFeedback.housesSold', { count: Math.abs(developmentChange.delta) }),
       color: developmentChange.toHouses === 5 || developmentChange.fromHouses === 5
         ? boardVisualTokens.hotel
         : boardVisualTokens.house,
@@ -68,7 +76,7 @@ export function getTileActionFeedback(
       consequenceOrder: goCrossing.consequenceOrder,
       kind: 'GO',
       pulseDirection: 'UP',
-      value: 'Qua Xuất Phát',
+      value: t('tileFeedback.passedGo'),
       color: boardVisualTokens.startSignText,
     });
   }
@@ -146,11 +154,12 @@ export default function TileActionFeedback({
   goCrossing,
 }: TileActionFeedbackProps) {
   const invalidate = useThree(state => state.invalidate);
+  const { language } = useTranslation();
   const reducedMotion = useEffectiveReducedMotion();
   const feedbackGroupRef = useRef<Group>(null);
   const feedback = useMemo(
-    () => getTileActionFeedback(ownershipChange, developmentChange, goCrossing, ownerColor),
-    [developmentChange, goCrossing, ownershipChange, ownerColor],
+    () => getTileActionFeedback(ownershipChange, developmentChange, goCrossing, ownerColor, language),
+    [developmentChange, goCrossing, language, ownershipChange, ownerColor],
   );
   const [visibleFeedback, setVisibleFeedback] = useState<TileActionFeedback | null>(null);
   const [pulseFeedbackId, setPulseFeedbackId] = useState<string | null>(null);

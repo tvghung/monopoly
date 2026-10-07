@@ -1,6 +1,8 @@
 import { PLAYER_COLOR_IDS, type PlayerColorId } from '@monopoly/shared';
 import { ActionIcon } from '../../design-system/icons/ActionIcon';
 import { PLAYER_COLOR_VISUALS } from '../../game/ui/playerVisualColors';
+import { useTranslation } from '../../i18n/I18n';
+import { getPlayerColorLabel } from '../../game/ui/playerVisualColors';
 
 interface TeamColorPickerProps {
   teamName: string;
@@ -20,18 +22,19 @@ interface TeamColorPickerProps {
 export default function TeamColorPicker({
   teamName, selected, otherTeamColor, editable, busy, onSelect,
 }: TeamColorPickerProps) {
+  const { language, t } = useTranslation();
   if (!editable) {
     const visual = PLAYER_COLOR_VISUALS[selected];
     return (
       <p className="lobby-team__color-static">
         <span className="lobby-team__swatch" style={{ backgroundColor: visual.display }} aria-hidden="true" />
-        <span>{`Màu đội: ${visual.label}`}</span>
+        <span>{t('lobby.teamColorStatic', { color: getPlayerColorLabel(selected, language) })}</span>
       </p>
     );
   }
   return (
-    <div className="lobby-team__colors" role="group" aria-label={`Màu của đội ${teamName}`}>
-      <span className="lobby-team__colors-label">Màu đội</span>
+    <div className="lobby-team__colors" role="group" aria-label={t('lobby.teamColorGroup', { teamName })}>
+      <span className="lobby-team__colors-label">{t('lobby.teamColor')}</span>
       <div className="lobby-team__color-grid">
         {PLAYER_COLOR_IDS.map(color => {
           const visual = PLAYER_COLOR_VISUALS[color];
@@ -42,9 +45,9 @@ export default function TeamColorPicker({
               key={color}
               type="button"
               className={`lobby-team__color${isSelected ? ' lobby-team__color--selected' : ''}`}
-              aria-label={`${visual.label}${takenByOther ? ' (đội kia đang dùng)' : ''}`}
+              aria-label={takenByOther ? t('lobby.teamColorTaken', { color: getPlayerColorLabel(color, language) }) : getPlayerColorLabel(color, language)}
               aria-pressed={isSelected}
-              title={visual.label}
+              title={getPlayerColorLabel(color, language)}
               disabled={busy || takenByOther}
               onClick={() => { if (!isSelected) onSelect(color); }}
             >

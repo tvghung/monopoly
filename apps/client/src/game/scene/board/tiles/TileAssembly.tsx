@@ -14,6 +14,8 @@ import TilePressRoot from './TilePressRoot';
 import TileSpecialLayer from './TileSpecialLayer';
 import TileTextLayer from './TileTextLayer';
 import { getOrientedTilePanelLayoutForTileSize } from './tilePanelLayout';
+import { getTileBoardName } from '../../../ui/formatters';
+import { useTranslation } from '../../../../i18n/I18n';
 
 export interface TileAssemblyProps {
   tileId: number;
@@ -32,7 +34,7 @@ export interface TileAssemblyProps {
 export default function TileAssembly({
   tileId,
   tile,
-  name = tile.streetName,
+  name,
   selected = false,
   ownerColor,
   houses = 0,
@@ -42,9 +44,11 @@ export default function TileAssembly({
   destinationPreview,
   reducedMotion = false,
 }: TileAssemblyProps) {
+  const { language } = useTranslation();
   const layout = getBoardTileLayout(tileId);
   if (!layout) return null;
   const panel = getOrientedTilePanelLayoutForTileSize(layout.size, layout.side);
+  const displayName = name ?? getTileBoardName(tileId, language);
   return (
     <group
       name={`TileAnchor:${tileId}`}
@@ -58,7 +62,7 @@ export default function TileAssembly({
       }}
     >
       <TilePressRoot tileId={tileId}>
-        <TileTextLayer tile={tile} name={name} panel={panel} />
+        <TileTextLayer tile={tile} name={displayName} panel={panel} />
         <TileOwnershipLayer
           ownerColor={ownerColor}
           size={layout.size}

@@ -113,7 +113,7 @@ describe('authoritative decision prompts', () => {
     fireEvent.click(button);
     await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
 
-    expect(screen.getByRole('alert').textContent).toContain('Không thể thực hiện hành động ở trạng thái hiện tại.');
+    expect(screen.getByRole('alert').textContent).toContain('Giao dịch chưa thể thực hiện.');
   });
 
   it('re-enables development after an ACK failure without changing authoritative state', async () => {
@@ -135,7 +135,7 @@ describe('authoritative decision prompts', () => {
       operationId: 'development-1', action: 'BUILD_HOUSES', quantity: 1,
     });
     expect(state.turnInfo.pendingLandingDecision?.kind).toBe('DEVELOP_HOUSES');
-    expect(screen.getByRole('alert').textContent).toContain('Không thể thực hiện hành động ở trạng thái hiện tại.');
+    expect(screen.getByRole('alert').textContent).toContain('Giao dịch chưa thể thực hiện.');
   });
 
   it('clears a pending development click when the authoritative operation changes', () => {
@@ -221,6 +221,6 @@ describe('authoritative decision prompts', () => {
     fireEvent.click(button);
     await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
     expect(state.players['player-a'].isJail).toBe(true);
-    expect(screen.getByRole('alert').textContent).toContain('Không thể thực hiện hành động ở trạng thái hiện tại.');
+    expect(screen.getByRole('alert').textContent).toContain('Giao dịch chưa thể thực hiện.');
   });
 });

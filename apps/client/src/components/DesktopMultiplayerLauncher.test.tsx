@@ -205,7 +205,7 @@ describe('DesktopMultiplayerLauncher choices', () => {
     );
 
     const buttons = [...container.querySelectorAll<HTMLButtonElement>('.desktop-launcher__menu button')];
-    expect(buttons.map(button => button.textContent)).toEqual(['Tạo phòng', 'Tham gia phòng', 'Máy chủ riêng', 'Cài đặt', 'Thoát']);
+    expect(buttons.map(button => button.textContent)).toEqual(['Tạo phòng', 'Tham gia phòng', 'Máy chủ riêng', 'Cài đặt', 'English', 'Thoát']);
     for (const button of buttons) {
       expect(button.tabIndex).toBe(0);
       expect(button.disabled).toBe(false);
@@ -293,7 +293,7 @@ describe('DesktopMultiplayerLauncher choices', () => {
     expect(screen.queryByText(/Liên kết mời chỉ chứa/u)).toBeNull();
     expect(screen.queryByText(/phiên kết nối|cơ sở dữ liệu/u)).toBeNull();
     expect(menuLabels(container)).toEqual([
-      'Vào lại phòng đang mở', 'Đóng phòng', 'Tạo phòng', 'Tham gia phòng', 'Máy chủ riêng', 'Cài đặt', 'Thoát',
+      'Vào lại phòng đang mở', 'Đóng phòng', 'Tạo phòng', 'Tham gia phòng', 'Máy chủ riêng', 'Cài đặt', 'English', 'Thoát',
     ]);
     for (const label of menuLabels(container)) expect(label).not.toMatch(TECHNICAL_TEXT);
     expect(container.querySelector('.desktop-launcher__subtitle, .desktop-launcher__security')).toBeNull();
@@ -329,9 +329,9 @@ describe('DesktopMultiplayerLauncher choices', () => {
   it('shows a configuration error from the bootstrap as an alert', () => {
     installHostBridge(status);
 
-    render(<DesktopMultiplayerLauncher configurationError="Không thể đọc cấu hình." onReady={vi.fn()} />);
+    render(<DesktopMultiplayerLauncher configurationError="Không thể đọc cấu hình máy chủ." onReady={vi.fn()} />);
 
-    expect(screen.getByRole('alert').textContent).toBe('Không thể đọc cấu hình.');
+    expect(screen.getByRole('alert').textContent).toBe('Không thể đọc cấu hình máy chủ.');
   });
 });
 

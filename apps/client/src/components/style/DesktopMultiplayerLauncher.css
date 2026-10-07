@@ -113,16 +113,27 @@
   gap: var(--space-2);
 }
 
-/* "Cài đặt" and "Thoát" share one row: they are the quiet buttons under the two ways to play. */
+/* Settings, language, and quit stay together below the two ways to play. */
 .desktop-launcher__utility {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-3);
 }
 
 .desktop-launcher__utility .desktop-launcher__action {
   justify-content: center;
   padding-inline: var(--space-3);
+  white-space: nowrap;
+}
+
+.desktop-launcher__language .ds-button__icon > svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+@media (max-width: 40rem) {
+  .desktop-launcher__utility { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .desktop-launcher__language { grid-column: 1 / -1; justify-self: center; min-width: 9rem; }
 }
 
 /* Closing the room is not a go-ahead: a neutral button with danger-colored text, not the face of the primary variant. */

@@ -20,7 +20,6 @@ import type {
   ForcedSaleProposal,
   GameMode,
   PlayerColorId,
-  RemovedFromRoomInfo,
   SetAppearanceRequest,
   TeamId,
   TeamSlot,
@@ -63,6 +62,9 @@ import { getDefaultWebRuntimeConfig } from './runtime/runtimeConfig';
 import type { DesktopLaunchSelection, RuntimeConfig } from './runtime/types';
 import { roomCodeFromLocation } from './runtime/lanSharing';
 import { useAudio } from './audio/useAudio';
+import { useTranslation } from './i18n/I18n';
+import { translate, type MessageValues } from './i18n/I18n';
+import type { MessageKey } from './i18n/catalog';
 import './App.css';
 
 const initialState: PublicGameState = {
@@ -107,7 +109,10 @@ type AppPhase =
 interface AppFailure {
   /** Replaces the failure screen's default heading; a failure that is not about restoring the game says what happened. */
   title?: string;
-  message: string;
+  message?: string;
+  messageKey?: MessageKey;
+  messageValues?: MessageValues;
+  error?: Pick<AckError, 'code' | 'message'>;
   retryable: boolean;
   reloadRequired?: boolean;
   returnToLauncher?: boolean;
@@ -124,11 +129,6 @@ const terminalSessionCodes = new Set<AckError['code']>([
   'ROOM_FULL',
 ]);
 const ACK_TIMEOUT_MS = 10_000;
-const REMOVED_FROM_ROOM_TITLE = 'Bạn đã được mời ra khỏi phòng';
-const REMOVED_FROM_ROOM_MESSAGE = 'Chủ phòng đã mời bạn ra khỏi phòng.';
-
-const HOME_LABEL = 'Về trang chủ';
-
 interface FailureScreenProps {
   title: string;
   failure: AppFailure;
@@ -140,24 +140,30 @@ interface FailureScreenProps {
 function FailureScreen({
   title, failure, onRetry, onBack,
 }: FailureScreenProps) {
+  const { language, t } = useTranslation();
+  const message = failure.error
+    ? localizeAckError(failure.error, language)
+    : failure.messageKey
+      ? t(failure.messageKey, failure.messageValues)
+      : failure.message ?? '';
   const returnsToLauncher = !failure.reloadRequired && failure.returnToLauncher;
   const mainAction = onRetry
     ? {
       label: failure.reloadRequired
-        ? 'Tải lại trò chơi'
+        ? t('app.reload')
         : failure.returnToLauncher
-          ? HOME_LABEL
-          : failure.retryable ? 'Thử lại' : 'Quay về màn hình vào phòng',
+          ? t('app.home')
+          : failure.retryable ? t('app.retry') : t('app.returnJoin'),
       icon: <RegistryIcon name={returnsToLauncher ? 'home' : 'retry'} />,
       onClick: failure.reloadRequired ? () => window.location.reload() : onRetry,
     }
     : undefined;
-  const homeAction = onBack ? { label: HOME_LABEL, icon: <RegistryIcon name="home" />, onClick: onBack } : undefined;
+  const homeAction = onBack ? { label: t('app.home'), icon: <RegistryIcon name="home" />, onClick: onBack } : undefined;
   return (
     <ErrorScreen
       as="section"
       title={title}
-      message={failure.message}
+      message={message}
       // The way home is the main action when there is no other, and a second, quieter one beside a retry. When the main action
       // already goes home, nothing is added.
       action={mainAction ?? homeAction}
@@ -179,6 +185,10 @@ export default function App({
   launch,
   onExitToLauncher,
 }: AppProps = {}) {
+  const { language, t } = useTranslation();
+  const languageRef = useRef(language);
+  languageRef.current = language;
+  const tx = useCallback((key: MessageKey, values?: MessageValues) => translate(key, languageRef.current, values), []);
   const toast = useToast();
   const audio = useAudio();
   const socket = useMemo(
@@ -207,7 +217,7 @@ export default function App({
   const [connected, setConnected] = useState(socket.connected);
   const [failure, setFailure] = useState<AppFailure | null>(null);
   const [operation, setOperation] = useState<'ready' | 'appearance' | 'team' | 'start' | 'leave' | null>(null);
-  const [operationError, setOperationError] = useState<string | null>(null);
+  const [operationError, setOperationError] = useState<AckError | null>(null);
   const [privatePlayerState, setPrivatePlayerState] = useState<PrivatePlayerState | null>(null);
   const [privateOffers, setPrivateOffers] = useState<PrivateOffer[]>([]);
   const [confirmation, setConfirmation] = useState<ConfirmationState | null>(null);
@@ -282,7 +292,7 @@ export default function App({
 
     if (error.code === 'SESSION_REPLACED') {
       setPrivatePlayerState(null);
-      setFailure({ message: localizeAckError(error), retryable: false });
+      setFailure({ error, retryable: false });
       transition('REPLACED');
       socket.disconnect();
       return;
@@ -293,7 +303,7 @@ export default function App({
     if (terminalSessionCodes.has(error.code)) forgetSession();
 
     setFailure({
-      message: localizeAckError(error),
+      error,
       retryable: error.retryable,
       returnToLauncher,
     });
@@ -312,7 +322,7 @@ export default function App({
     const timeout = window.setTimeout(() => {
       if (admissionAttemptRef.current !== attempt || tokenRef.current !== token) return;
       admissionAttemptRef.current += 1;
-      setFailure({ message: 'Máy chủ chưa xác nhận phiên chơi kịp thời.', retryable: true });
+      setFailure({ messageKey: 'app.resumeTimeout', retryable: true });
       transition('ERROR');
     }, ACK_TIMEOUT_MS);
 
@@ -347,7 +357,7 @@ export default function App({
 
   const joinRoom = useCallback((request: JoinRoomRequest, reconnecting = false) => {
     if (!socket.connected) {
-      setFailure({ message: 'Không thể kết nối đến máy chủ trò chơi.', retryable: true });
+      setFailure({ messageKey: 'app.connectionFailed', retryable: true });
       transition(reconnecting ? 'RECONNECTING' : 'ERROR');
       socket.connect();
       return;
@@ -360,7 +370,7 @@ export default function App({
     const timeout = window.setTimeout(() => {
       if (admissionAttemptRef.current !== attempt) return;
       admissionAttemptRef.current += 1;
-      setFailure({ message: 'Máy chủ chưa xác nhận việc vào phòng kịp thời.', retryable: true });
+      setFailure({ messageKey: 'app.joinTimeout', retryable: true });
       transition(reconnecting ? 'ERROR' : 'JOIN');
       // Phase-one admission may already exist on the server even though its
       // token ACK was lost. Reset the transport so a retry is not trapped by
@@ -374,7 +384,7 @@ export default function App({
       if (admissionAttemptRef.current !== attempt || phaseRef.current === 'REPLACED') return;
       if (!response.ok) {
         setFailure({
-          message: localizeAckError(response.error),
+          error: response.error,
           retryable: response.error.retryable,
         });
         transition(reconnecting ? 'ERROR' : 'JOIN');
@@ -396,7 +406,7 @@ export default function App({
         // browser credential exists to activate it safely. Closing this transport
         // abandons that pending admission and lets a later retry start cleanly.
         setFailure({
-          message: 'Trình duyệt không thể lưu phiên kết nối lại. Hãy kiểm tra quyền lưu trữ của trang rồi thử lại.',
+          messageKey: 'app.sessionStorageFailed',
           retryable: false,
         });
         transition('ERROR');
@@ -479,7 +489,10 @@ export default function App({
       // A player in debt answers offers inside the debt dialog, which covers the screen: say that one has arrived.
       const shortfall = roomRef.current?.gameState.boardState.paymentShortfall;
       if (shortfall?.debtorPlayerId === playerIdRef.current && offer.recipientPlayerId === playerIdRef.current) {
-        toast.show(`Đề nghị mua ${offer.requested.propertyIds.map(getTileName).join(', ')} của ${offer.proposerName}.`);
+        toast.show(tx('app.offerReceived', {
+          properties: offer.requested.propertyIds.map(id => getTileName(id, languageRef.current)).join(', '),
+          playerName: offer.proposerName,
+        }));
       }
     };
 
@@ -499,20 +512,16 @@ export default function App({
 
     const handleOfferResult = (result: OfferResult) => {
       setPrivateOffers(current => current.filter(offer => offer.offerId !== result.offerId));
-      const verb = result.status === 'ACCEPTED'
-        ? 'đã được chấp nhận'
-        : result.status === 'DECLINED'
-          ? 'đã bị từ chối'
-          : result.status === 'EXPIRED'
-            ? 'đã hết hạn'
-            : 'đã bị hủy';
-      toast.show(`Đề nghị giao dịch giữa ${result.proposerName} và ${result.recipientName} ${verb}.`);
+      const resultKey = result.status === 'ACCEPTED' ? 'app.offer.ACCEPTED'
+        : result.status === 'DECLINED' ? 'app.offer.DECLINED'
+          : result.status === 'EXPIRED' ? 'app.offer.EXPIRED' : 'app.offer.CANCELLED';
+      toast.show(tx(resultKey, { proposerName: result.proposerName, recipientName: result.recipientName }));
     };
 
     const onSessionReplaced = (info: SessionReplacedInfo) => {
       setPrivatePlayerState(null);
       setFailure({
-        message: localizeAckError({ code: info.code, message: info.message }),
+        error: { code: info.code, message: info.message },
         retryable: false,
       });
       transition('REPLACED');
@@ -521,7 +530,7 @@ export default function App({
 
     // The host removed this player from the lobby: their session is revoked on the server, so this is a terminal end like an
     // invalid token. Stop resuming, forget the room and show the failure screen; the way back is the join form (or the launcher).
-    const onRemovedFromRoom = (info: RemovedFromRoomInfo) => {
+    const onRemovedFromRoom = () => {
       if (phaseRef.current === 'REPLACED') return;
       admissionAttemptRef.current += 1;
       const returnToLauncher = Boolean(desktopBridge && tokenRef.current);
@@ -529,8 +538,8 @@ export default function App({
       setOperationError(null);
       forgetSession();
       setFailure({
-        title: REMOVED_FROM_ROOM_TITLE,
-        message: info.message || REMOVED_FROM_ROOM_MESSAGE,
+        title: tx('app.removedTitle'),
+        messageKey: 'app.removedMessage',
         retryable: false,
         returnToLauncher,
       });
@@ -541,9 +550,9 @@ export default function App({
       const details = (error as Error & { data?: Partial<AckError> }).data;
       setConnected(false);
       setFailure({
-        message: details?.code
-          ? localizeAckError({ code: details.code, message: details.message ?? '' })
-          : 'Không vào được phòng. Hãy kiểm tra Wi-Fi rồi thử lại.',
+        ...(details?.code
+          ? { error: { code: details.code, message: details.message ?? '' } }
+          : { messageKey: 'app.offlineJoinFailed' as const }),
         retryable: details?.retryable ?? true,
         reloadRequired: details?.code === 'UPGRADE_REQUIRED',
         returnToLauncher: Boolean(desktopBridge && launch),
@@ -587,7 +596,7 @@ export default function App({
       socket.off('removed from room', onRemovedFromRoom);
       socket.disconnect();
     };
-  }, [applyRoom, desktopBridge, forgetSession, joinRoom, launch, presentationController, resumeSession, socket, toast, transition]);
+  }, [applyRoom, desktopBridge, forgetSession, joinRoom, launch, presentationController, resumeSession, socket, toast, transition, tx]);
 
   useEffect(() => {
     const reconnect = () => {
@@ -607,7 +616,7 @@ export default function App({
   }, [socket]);
 
   const showCommandFailure = useCallback((response: { ok: true } | { ok: false; error: AckError }) => {
-    if (!response.ok) toast.show(localizeAckError(response.error));
+    if (!response.ok) toast.show(localizeAckError(response.error, languageRef.current));
   }, [toast]);
 
   const canMutate = connected
@@ -627,7 +636,7 @@ export default function App({
     const gameCommandAllowed = (showFailure = true) => {
       if (canMutate) return true;
       if (showFailure) {
-        toast.show('Không thể thao tác khi đang kết nối lại hoặc xem với vai trò khán giả.');
+        toast.show(tx('app.cannotAct'));
       }
       return false;
     };
@@ -741,7 +750,7 @@ export default function App({
         return sendAck(callback => socket.emit('decline rescue', { rescueId }, callback));
       },
     };
-  }, [canMutate, canPlayAgain, connected, showCommandFailure, socket, toast]);
+  }, [canMutate, canPlayAgain, connected, showCommandFailure, socket, toast, tx]);
 
   const handleJoin = useCallback((name: string, roomCode: string) => {
     joinRoom({ name, roomCode });
@@ -752,7 +761,7 @@ export default function App({
     setOperationError(null);
     socket.emit('set ready', { ready }, (response) => {
       setOperation(null);
-      if (!response.ok) setOperationError(localizeAckError(response.error));
+      if (!response.ok) setOperationError(response.error);
     });
   }, [socket]);
 
@@ -761,7 +770,7 @@ export default function App({
     setOperationError(null);
     socket.emit('set appearance', request, (response) => {
       setOperation(null);
-      if (!response.ok) setOperationError(localizeAckError(response.error));
+      if (!response.ok) setOperationError(response.error);
     });
   }, [socket]);
 
@@ -771,7 +780,7 @@ export default function App({
     setOperationError(null);
     send((response) => {
       setOperation(null);
-      if (!response.ok) setOperationError(localizeAckError(response.error));
+      if (!response.ok) setOperationError(response.error);
     });
   }, []);
 
@@ -813,7 +822,7 @@ export default function App({
     setOperationError(null);
     socket.emit('start game', (response) => {
       setOperation(null);
-      if (!response.ok) setOperationError(localizeAckError(response.error));
+      if (!response.ok) setOperationError(response.error);
     });
   }, [socket]);
 
@@ -837,7 +846,7 @@ export default function App({
     socket.emit('leave room', (response) => {
       setOperation(null);
       if (!response.ok) {
-        setOperationError(localizeAckError(response.error));
+        setOperationError(response.error);
         return;
       }
       exitToStart();
@@ -862,7 +871,7 @@ export default function App({
     socket.emit('leave room', (left) => {
       if (!left.ok) {
         setOperation(null);
-        setOperationError(localizeAckError(left.error));
+        setOperationError(left.error);
         return;
       }
       // The seat and the session are gone. The board stays on screen; a dropped connection from here on re-joins as a
@@ -880,7 +889,7 @@ export default function App({
         settled = true;
         setOperation(null);
         exitToStart();
-        toast.show('Bạn đã bỏ cuộc và rời phòng.');
+        toast.show(tx('app.forfeitLeft'));
       };
       const timeout = window.setTimeout(giveUp, ACK_TIMEOUT_MS);
       socket.emit('join room', request, (joined) => {
@@ -895,10 +904,10 @@ export default function App({
         }
         // The room cannot be watched any more (it is gone, or the answer was unexpected): leave for good.
         exitToStart();
-        toast.show('Bạn đã bỏ cuộc và rời phòng.');
+        toast.show(tx('app.forfeitLeft'));
       });
     });
-  }, [applyRoom, exitToStart, leaveRoom, sessionAuthority, setIdentity, socket, toast]);
+  }, [applyRoom, exitToStart, leaveRoom, sessionAuthority, setIdentity, socket, toast, tx]);
 
   const handleLeave = useCallback(() => {
     const currentRoom = roomRef.current;
@@ -992,12 +1001,20 @@ export default function App({
     canPlayAgain,
   }), [canMutate, canPlayAgain, connected, playerId, privateOffers, privatePlayerState, role, room, socketFunctions]);
 
+  const operationErrorText = operationError ? localizeAckError(operationError, language) : null;
+  const joinErrorText = failure
+    ? failure.error
+      ? localizeAckError(failure.error, language)
+      : failure.messageKey
+        ? t(failure.messageKey, failure.messageValues)
+        : failure.message ?? null
+    : null;
   const roomExit = useMemo<RoomExitContextValue>(() => ({
     requestLeave: handleLeave,
     leaving: operation === 'leave',
-    label: role === 'PLAYER' && room?.status === 'IN_PROGRESS' ? 'Bỏ cuộc' : 'Rời phòng',
-    error: operationError,
-  }), [handleLeave, operation, operationError, role, room?.status]);
+    label: role === 'PLAYER' && room?.status === 'IN_PROGRESS' ? t('app.leaveGame') : t('app.leaveRoom'),
+    error: operationErrorText,
+  }), [handleLeave, operation, operationErrorText, role, room?.status, t]);
 
   const roomContent = room && role
     ? role === 'PLAYER' && room.status === 'LOBBY' && playerId
@@ -1024,7 +1041,7 @@ export default function App({
           teams={room.gameState.boardState.teams}
           seatSwapRequests={room.gameState.boardState.seatSwapRequests}
           busy={operation !== null}
-          error={operationError}
+          error={operationErrorText}
           onSetReady={handleReady}
           onSetAppearance={handleAppearance}
           onSetGameMode={handleSetGameMode}
@@ -1044,25 +1061,25 @@ export default function App({
       : (
         <>
           {role === 'SPECTATOR' ? <SpectatorBanner /> : null}
-          <div className="room-toolbar" data-hud-region="toolbar" aria-label="Điều khiển ván chơi">
+          <div className="room-toolbar" data-hud-region="toolbar" aria-label={t('app.toolbar')}>
             {import.meta.env.DEV || __PHASE4_UAT__ ? <FpsBadge /> : null}
             <HowToPlayButton />
             <IconButton
-              label="Cài đặt"
+              label={t('launcher.settings')}
               icon={<RegistryIcon name="settings" className="room-settings-button__icon" />}
               className={`room-settings-button${settingsOpen ? ' room-settings-button--open' : ''}`}
               aria-expanded={settingsOpen}
               onClick={() => setSettingsOpen(true)}
             />
             <IconButton
-              label={role === 'PLAYER' && room.status === 'IN_PROGRESS' ? 'Bỏ cuộc' : 'Rời phòng'}
+              label={role === 'PLAYER' && room.status === 'IN_PROGRESS' ? t('app.leaveGame') : t('app.leaveRoom')}
               icon={role === 'PLAYER' && room.status === 'IN_PROGRESS' ? 'forfeit' : 'leave'}
               className="room-exit-button"
               disabled={operation !== null}
               onClick={handleLeave}
             />
           </div>
-          {operationError ? <p className="room-exit-error" role="alert">{operationError}</p> : null}
+          {operationErrorText ? <p className="room-exit-error" role="alert">{operationErrorText}</p> : null}
           <Board />
         </>
       )
@@ -1081,7 +1098,7 @@ export default function App({
                 onBack={onBack}
                 busy={phase === 'JOINING'}
                 connected={connected}
-                error={failure?.message ?? null}
+                error={joinErrorText}
                 // What the player typed on the start screen is already in the form: they never type it twice.
                 initialName={launch?.initialJoin?.name}
                 initialRoomCode={launch?.initialJoin?.roomCode ?? initialRoomCode}
@@ -1091,21 +1108,21 @@ export default function App({
           {phase === 'LOBBY' || phase === 'GAME' || phase === 'RECONNECTING' ? roomContent : null}
           {phase === 'RECONNECTING' ? <ConnectionOverlay /> : null}
           {phase === 'REPLACED' && failure
-            ? <FailureScreen title="Phiên chơi đã được mở ở nơi khác" failure={failure} onBack={onBack} />
+            ? <FailureScreen title={t('app.sessionOtherWindow')} failure={failure} onBack={onBack} />
             : null}
           {phase === 'ERROR' && failure
-            ? <FailureScreen title={failure.title ?? 'Không thể khôi phục ván chơi'} failure={failure} onRetry={recoverFromFailure} onBack={onBack} />
+            ? <FailureScreen title={failure.title ?? t('app.restoreFailed')} failure={failure} onRetry={recoverFromFailure} onBack={onBack} />
             : null}
           <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
           <ConfirmationDialog
             open={confirmation !== null}
-            title={confirmation === 'LEAVE' ? 'Bỏ cuộc khỏi ván chơi?' : 'Đóng Own the Block?'}
+            title={confirmation === 'LEAVE' ? t('app.leaveTitle') : t('app.quitTitle')}
             message={confirmation === 'LEAVE'
-              ? 'Tài sản của bạn sẽ trả về ngân hàng và bạn không chơi tiếp ván này được nữa. Sau đó bạn có thể ở lại xem hoặc rời phòng.'
+              ? t('app.leaveMessage')
               : launch?.hosting
-                ? 'Đóng Own the Block sẽ dừng máy chủ LAN cho mọi người. Dữ liệu phòng được giữ lại để khôi phục khi Host khởi động lại.'
-                : 'Đóng cửa sổ sẽ ngắt kết nối nhưng không bỏ cuộc; bạn có thể kết nối lại bằng phiên đã lưu.'}
-            confirmLabel={confirmation === 'LEAVE' ? 'Bỏ cuộc' : 'Đóng cửa sổ'}
+                ? t('app.closeHostMessage')
+                : t('app.closeWindowMessage')}
+            confirmLabel={confirmation === 'LEAVE' ? t('app.leaveGame') : t('app.closeWindow')}
             confirmIcon={confirmation === 'LEAVE' ? <Flag /> : <XIcon />}
             onCancel={cancelConfirmation}
             onConfirm={confirmConfirmation}

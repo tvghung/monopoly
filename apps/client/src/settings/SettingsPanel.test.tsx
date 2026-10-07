@@ -10,6 +10,7 @@ import { useSettings } from './selectors';
 import SettingsPanel from './SettingsPanel';
 import { SettingsProvider } from './SettingsProvider';
 import type { GameSettings } from './types';
+import { I18nProvider } from '../i18n/I18n';
 
 afterEach(() => {
   cleanup();
@@ -32,8 +33,10 @@ function currentSettings(): GameSettings {
 function renderPanel({ settings = {}, onClose = () => {} }: { settings?: Partial<GameSettings>; onClose?: () => void } = {}) {
   return render(
     <SettingsProvider initialSettings={{ ...DEFAULT_GAME_SETTINGS, ...settings }}>
-      <SettingsPanel open onClose={onClose} />
-      <CurrentSettings />
+      <I18nProvider>
+        <SettingsPanel open onClose={onClose} />
+        <CurrentSettings />
+      </I18nProvider>
     </SettingsProvider>,
   );
 }
@@ -61,7 +64,7 @@ describe('SettingsPanel layout', () => {
     const dialog = screen.getByRole('dialog', { name: 'Cài đặt' });
     expect(within(dialog).getByRole('button', { name: 'Đóng' })).toBeTruthy();
     expect(within(dialog).getAllByRole('heading', { level: 3 }).map(heading => heading.textContent)).toEqual([
-      'Âm thanh', 'Hiển thị', 'Đồ họa',
+      'Ngôn ngữ', 'Âm thanh', 'Hiển thị', 'Đồ họa',
     ]);
   });
 
@@ -134,6 +137,21 @@ describe('SettingsPanel audio', () => {
     expect(screen.getByText('50%')).toBeTruthy();
     expect(screen.getByText('35%')).toBeTruthy();
     expect(screen.getByText('0%')).toBeTruthy();
+  });
+});
+
+describe('SettingsPanel language', () => {
+  it('changes the persisted language and updates the open settings dialog immediately', () => {
+    renderPanel();
+    expect(screen.getByRole('dialog', { name: 'Cài đặt' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'English' }));
+
+    expect(currentSettings().language).toBe('en');
+    expect(screen.getByRole('dialog', { name: 'Settings' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Language' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Done' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'English' }).getAttribute('aria-checked')).toBe('true');
   });
 });
 

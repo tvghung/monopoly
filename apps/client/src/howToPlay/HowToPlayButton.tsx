@@ -2,7 +2,7 @@ import Button from '../design-system/components/Button/Button';
 import IconButton from '../design-system/components/IconButton/IconButton';
 import { ActionIcon } from '../design-system/icons/ActionIcon';
 import { useHowToPlay } from './howToPlayContext';
-import { HOW_TO_PLAY_TITLE } from './modelTypes';
+import { useTranslation } from '../i18n/I18n';
 import './howToPlay.css';
 
 export interface HowToPlayButtonProps {
@@ -25,6 +25,7 @@ export default function HowToPlayButton({
   placement = 'inline',
   className = '',
 }: HowToPlayButtonProps) {
+  const { t } = useTranslation();
   const { available, open } = useHowToPlay();
   if (!available) return null;
 
@@ -43,13 +44,13 @@ export default function HowToPlayButton({
         aria-haspopup="dialog"
         onClick={open}
       >
-        {HOW_TO_PLAY_TITLE}
+        {t('guide.title')}
       </Button>
     );
   }
   return (
     <IconButton
-      label={HOW_TO_PLAY_TITLE}
+      label={t('guide.title')}
       icon="help"
       className={classes}
       aria-haspopup="dialog"

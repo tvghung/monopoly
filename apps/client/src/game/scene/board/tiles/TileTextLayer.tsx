@@ -1,6 +1,5 @@
 import type { Tile } from '@monopoly/shared';
 import { PROPERTY_NAME_Y } from '../architecture/boardArtSpec';
-import { getSpecialTileLabel } from '../architecture/tileVisualRegistry';
 import SdfSurfaceText, { limitSurfaceTextLines } from './SdfSurfaceText';
 import {
   fitTileText,
@@ -94,7 +93,7 @@ export function getTileTextPresentation(
     };
   }
 
-  const label = tile.tileType === 'company' ? name.trim() : getSpecialTileLabel(tile.tileType);
+  const label = name.trim();
   const lineCount = label.length > 14 ? 2 : 1;
   const cornerScale = isCorner ? 1.12 : 1;
   const fit = fitTileText({

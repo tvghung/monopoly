@@ -8,8 +8,10 @@ import IncomingOffers from './dashboard/IncomingOffers';
 import WinnerBanner from './dashboard/WinnerBanner';
 import ForcedSaleProposalPanel from './dashboard/ForcedSaleProposalPanel';
 import { usePresentation } from '../game/presentation/PresentationProvider';
+import { useTranslation } from '../i18n/I18n';
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const { state, playerId } = useContext(stateContext);
   const { state: presentationState } = usePresentation();
   const settledPositions = presentationState.settledPositions;
@@ -22,7 +24,7 @@ export default function Dashboard() {
     || (settledPositions[playerId as string] ?? myPlayer.currentTile) === myPlayer.currentTile;
 
   return (
-    <section className="gameplay-action-layer" aria-label="Quyết định trong lượt chơi">
+    <section className="gameplay-action-layer" aria-label={t('dashboard.actionLayer')}>
       <BuyPrompt tokenArrived={tokenArrived} />
       <DevelopmentPrompt tokenArrived={tokenArrived} />
       <ForcedSaleProposalPanel />

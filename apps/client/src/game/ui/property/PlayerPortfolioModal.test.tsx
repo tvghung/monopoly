@@ -66,10 +66,10 @@ describe('PlayerPortfolioModal', () => {
     expect(within(dialog).getByText('3 tài sản')).toBeTruthy();
     expect(within(dialog).getByText('3 nhà')).toBeTruthy();
     expect(within(dialog).getByText('1 khách sạn')).toBeTruthy();
-    const blue = within(dialog).getByRole('group', { name: 'Nhóm Xanh dương' });
+    const blue = within(dialog).getByRole('group', { name: 'Xanh dương' });
     expect(within(blue).getAllByRole('article')).toHaveLength(2);
     expect(within(blue).getByText('Đủ nhóm')).toBeTruthy();
-    expect(within(dialog).getByRole('img', { name: /^Mascot / })).toBeTruthy();
+    expect(within(dialog).getByRole('img', { name: /^Linh vật / })).toBeTruthy();
     // The viewer's own tile is not in this portfolio.
     expect(within(dialog).queryByRole('article', { name: 'Cà Mau' })).toBeNull();
   });

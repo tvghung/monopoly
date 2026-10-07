@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import type { Language } from '../../../i18n/I18n';
+import { translate } from '../../../i18n/I18n';
 
-export function turnAnnouncementText(isMine: boolean, name: string | undefined): string {
-  if (isMine) return 'Đến lượt bạn.';
-  return name ? `Lượt của ${name}.` : '';
+export function turnAnnouncementText(isMine: boolean, name: string | undefined, language: Language = 'vi'): string {
+  if (isMine) return translate('hud.announcementMine', language);
+  return name ? translate('hud.announcementOther', language, { name }) : '';
 }
 
 /**
@@ -16,15 +18,24 @@ export function useTurnAnnouncement(
   activeName: string | undefined,
   localPlayerId: string | null,
   resetEpoch: number,
+  language: Language = 'vi',
 ): string {
-  const [seen, setSeen] = useState({ activePlayerId, resetEpoch, text: '' });
+  const [seen, setSeen] = useState<{
+    activePlayerId: string | null;
+    resetEpoch: number;
+    announcement: { isMine: boolean; name?: string } | null;
+  }>({ activePlayerId, resetEpoch, announcement: null });
   if (seen.activePlayerId !== activePlayerId || seen.resetEpoch !== resetEpoch) {
     const live = seen.resetEpoch === resetEpoch && seen.activePlayerId !== null && activePlayerId !== null;
     setSeen({
       activePlayerId,
       resetEpoch,
-      text: live ? turnAnnouncementText(activePlayerId === localPlayerId, activeName) : '',
+      announcement: live
+        ? { isMine: activePlayerId === localPlayerId, ...(activePlayerId !== localPlayerId && activeName ? { name: activeName } : {}) }
+        : null,
     });
   }
-  return seen.text;
+  return seen.announcement
+    ? turnAnnouncementText(seen.announcement.isMine, seen.announcement.name, language)
+    : '';
 }

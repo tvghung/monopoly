@@ -2,7 +2,7 @@ import { useContext, useEffect, useId, useMemo, useState } from 'react';
 import { gameCardsById } from '@monopoly/shared';
 import type { Ack, PublicGameState } from '@monopoly/shared';
 import stateContext from '../../internal';
-import { formatMoney, getTileName, localizeAckError } from '../../presentation';
+import { formatMoney, getTileName } from '../../presentation';
 import { useRoomExit } from '../../roomExitContext';
 import Modal from '../../design-system/components/Modal/Modal';
 import Button from '../../design-system/components/Button/Button';
@@ -16,6 +16,9 @@ import RescuePanel from './RescuePanel';
 import useDebtPresentationHold from './useDebtPresentationHold';
 import { useIncomingOffers, type ActiveOffer } from './useIncomingOffers';
 import './DebtPanel.css';
+import { useTranslation, type Language } from '../../i18n/I18n';
+import { translate } from '../../i18n/I18n';
+import { useLocalizedError } from '../../i18n/useLocalizedError';
 
 type DebtClaimProjection = NonNullable<PublicGameState['boardState']['paymentShortfall']>;
 
@@ -47,14 +50,16 @@ function getDebtProjectionKey(claim: DebtClaimProjection): string {
 }
 
 /** What the debt is for, as one short line above the title ("Tiền thuê Cà Mau"). */
-function describeDebtSource(source: DebtClaimProjection['source']): string {
-  if (source.kind === 'RENT') return `Tiền thuê ${getTileName(source.tileID)}`;
-  if (source.kind === 'TAX') return getTileName(source.tileID);
+function describeDebtSource(source: DebtClaimProjection['source'], language: Language): string {
+  if (source.kind === 'RENT') return translate('debt.sourceRent', language, { name: getTileName(source.tileID, language) });
+  if (source.kind === 'TAX') return getTileName(source.tileID, language);
   if (source.kind === 'CARD') {
     const deck = gameCardsById[source.cardId]?.sourceDeck;
-    return deck === 'chance' ? 'Thẻ Cơ Hội' : deck === 'chest' ? 'Thẻ Khí Vận' : 'Thẻ sự kiện';
+    return deck === 'chance'
+      ? translate('debt.sourceCard', language, { deck: translate('board.chance', language) })
+      : deck === 'chest' ? translate('debt.sourceCard', language, { deck: translate('board.communityChest', language) }) : translate('debt.sourceOther', language);
   }
-  return source.description;
+  return translate('debt.sourceOther', language);
 }
 
 /**
@@ -79,6 +84,7 @@ function parseAskedPrice(text: string): number | null {
 }
 
 export default function DebtPanel() {
+  const { language, t } = useTranslation();
   const {
     state, playerId, canMutate, socketFunctions, connected, privatePlayerState, roomPlayers,
   } = useContext(stateContext);
@@ -100,16 +106,16 @@ export default function DebtPanel() {
   // What the seller asks for the selected property, as typed; it starts at the Bank price.
   const [priceText, setPriceText] = useState('');
   const [answeringOfferId, setAnsweringOfferId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { error, clearError, setErrorKey, setAckError } = useLocalizedError();
   const sellable = isMyShortfall ? claim?.sellableProperties : undefined;
   const deeds = useMemo(() => {
     const models = new Map<number, DeedCardModel>();
     for (const property of sellable ?? []) {
-      const model = buildDeedCardModel({ tileId: property.tileID, state, roomPlayers });
+      const model = buildDeedCardModel({ tileId: property.tileID, state, roomPlayers, language });
       if (model) models.set(property.tileID, model);
     }
     return models;
-  }, [roomPlayers, sellable, state]);
+  }, [language, roomPlayers, sellable, state]);
 
   useEffect(() => {
     if (!claim) return undefined;
@@ -120,8 +126,8 @@ export default function DebtPanel() {
   useEffect(() => {
     if (canMutate && connected && isMyShortfall) return;
     setPendingAction(null);
-    setError(null);
-  }, [canMutate, connected, isMyShortfall]);
+    clearError();
+  }, [canMutate, clearError, connected, isMyShortfall]);
 
   useEffect(() => {
     setPendingAction(current => {
@@ -153,7 +159,7 @@ export default function DebtPanel() {
       projectionAdvanced: false,
       awaitingProposal: key.startsWith('forced:'),
     });
-    setError(null);
+    clearError();
     void (async () => {
       try {
         const response = await command();
@@ -166,10 +172,10 @@ export default function DebtPanel() {
           return;
         }
         setPendingAction(null);
-        setError(localizeAckError(response.error));
+        setAckError(response.error);
       } catch {
         setPendingAction(null);
-        setError('Không thể gửi thao tác. Vui lòng thử lại.');
+        setErrorKey('forcedSale.failed');
       }
     })();
   };
@@ -180,8 +186,8 @@ export default function DebtPanel() {
   const debtor = state.players[claim.debtorPlayerId];
   const creditorPlayer = claim.creditor === 'BANK' ? undefined : state.players[claim.creditorPlayerId ?? ''];
   const creditor = claim.creditor === 'BANK'
-    ? 'Ngân hàng'
-    : creditorPlayer?.name ?? 'người chơi khác';
+    ? t('ui.bank')
+    : creditorPlayer?.name ?? t('ui.player');
   const seconds = Math.max(0, Math.ceil((Date.parse(claim.actionDeadlineAt) - now) / 1000));
   const buyers = Object.entries(state.players).filter(([id]) => id !== playerId);
   const properties = claim.sellableProperties ?? [];
@@ -195,11 +201,11 @@ export default function DebtPanel() {
       <section className="debt-panel debt-panel--status">
         {/* Only this copy is announced, and it changes with the claim. The countdown below ticks every second. */}
         <div className="debt-panel__status-copy" role="status">
-          <strong>{`${debtor?.name ?? 'Người chơi'} đang thiếu ${formatMoney(claim.remainingAmount)}`}</strong>
-          <span>{`Trả cho ${creditor}`}</span>
+          <strong>{t('debt.summary', { name: debtor?.name ?? t('ui.player'), amount: formatMoney(claim.remainingAmount) })}</strong>
+          <span>{t('debt.payTo', { name: creditor })}</span>
         </div>
         <span role="timer">
-          <Chip tone="loss" icon={<ActionIcon name="clock" />}>{`${seconds} giây còn lại`}</Chip>
+          <Chip tone="loss" icon={<ActionIcon name="clock" />}>{t('debt.secondsLeft', { seconds })}</Chip>
         </span>
       </section>
     );
@@ -210,8 +216,8 @@ export default function DebtPanel() {
   return (
     <Modal
       open
-      title="Cần thanh toán"
-      eyebrow={describeDebtSource(claim.source)}
+      title={t('debt.title')}
+      eyebrow={describeDebtSource(claim.source, language)}
       role="alertdialog"
       size="lg"
       tone="danger"
@@ -220,7 +226,7 @@ export default function DebtPanel() {
       footer={roomExit
         ? (
           <>
-            <span className="debt-panel__footer-note">Không xoay được tiền? Bạn có thể bỏ cuộc.</span>
+            <span className="debt-panel__footer-note">{t('debt.footerNote')}</span>
             {roomExit.error ? <p className="debt-panel__footer-error" role="alert">{roomExit.error}</p> : null}
             <Button
               variant="ghost"
@@ -228,19 +234,19 @@ export default function DebtPanel() {
               icon={<ActionIcon name="forfeit" />}
               busy={roomExit.leaving}
               onClick={() => roomExit.requestLeave()}
-            >Bỏ cuộc</Button>
+            >{t('debt.forfeit')}</Button>
           </>
         )
         : undefined}
     >
       {/* What the dialog announces on open: the amount, the creditor and the shortfall. The countdown is left out. */}
       <p id={descriptionId} className="sr-only">
-        {`Cần trả ${formatMoney(claim.amount)} cho ${creditor}. Còn thiếu ${formatMoney(claim.remainingAmount)}. Tiền mặt hiện có ${formatMoney(debtor?.accountBalance ?? 0)}.`}
+        {t('debt.context', { amount: formatMoney(claim.amount), creditor, remaining: formatMoney(claim.remainingAmount), cash: formatMoney(debtor?.accountBalance ?? 0) })}
       </p>
       {/* Focus starts on the amount, not on the first sale: on a short screen that button may sit below the fold. */}
-      <section className="debt-panel__summary" aria-label="Khoản cần thanh toán" tabIndex={-1} data-modal-autofocus>
+      <section className="debt-panel__summary" aria-label={t('debt.summaryLabel')} tabIndex={-1} data-modal-autofocus>
         <div className="debt-panel__due">
-          <span className="debt-panel__label">Cần trả</span>
+          <span className="debt-panel__label">{t('debt.amountDue')}</span>
           <strong className="debt-panel__due-amount">{formatMoney(claim.amount)}</strong>
         </div>
         <div className="debt-panel__creditor">
@@ -248,20 +254,20 @@ export default function DebtPanel() {
             ? <PlayerAvatar characterId={creditorPlayer.characterId ?? null} colorId={creditorPlayer.color} size={32} />
             : <span className="debt-panel__bank" aria-hidden="true"><ActionIcon name="sellToBank" /></span>}
           <span className="debt-panel__creditor-name">
-            <span className="debt-panel__label">Trả cho</span>
+            <span className="debt-panel__label">{t('dashboard.payTo')}</span>
             <strong>{creditor}</strong>
           </span>
         </div>
         <Chip tone="loss" icon={<ActionIcon name="clock" />} className="debt-panel__countdown">
-          {`${seconds} giây còn lại`}
+          {t('debt.secondsLeft', { seconds })}
         </Chip>
         <dl className="debt-panel__facts">
           <div className="debt-panel__fact debt-panel__fact--short">
-            <dt>Còn thiếu</dt>
+            <dt>{t('debt.remaining')}</dt>
             <dd>{formatMoney(claim.remainingAmount)}</dd>
           </div>
           <div className="debt-panel__fact">
-            <dt>Tiền mặt hiện có</dt>
+            <dt>{t('debt.cash')}</dt>
             <dd>{formatMoney(debtor?.accountBalance ?? 0)}</dd>
           </div>
         </dl>
@@ -270,27 +276,27 @@ export default function DebtPanel() {
       {pendingAction
         ? (
           <p className="debt-panel__pending" role="status">
-            {pendingAction.ackResolved ? 'Đã xác nhận. Đang cập nhật khoản nợ…' : 'Đang gửi yêu cầu…'}
+            {pendingAction.ackResolved ? t('debt.pendingResolved') : t('debt.pending')}
           </p>
         )
         : null}
       {debtOffers.length > 0
         ? (
-          <section className="debt-panel__offers" aria-label="Đề nghị mua tài sản của bạn">
-            <h3 className="debt-panel__heading">Có người muốn mua tài sản của bạn</h3>
+          <section className="debt-panel__offers" aria-label={t('debt.offersLabel')}>
+            <h3 className="debt-panel__heading">{t('debt.offerHeading')}</h3>
             {debtOffers.map(offer => {
               const shortAfter = claim.remainingAmount - ((debtor?.accountBalance ?? 0) + offer.offered.cash);
               return (
                 <OfferCard
                   key={offer.offerId}
                   offer={offer}
-                  title={`Đề nghị mua ${offer.requested.propertyIds.map(getTileName).join(', ')} của ${offer.proposerName}`}
+                  title={t('debt.offerTitle', { properties: offer.requested.propertyIds.map(tileId => getTileName(tileId, language)).join(', '), name: offer.proposerName })}
                   busy={answeringOfferId === offer.offerId}
                   notes={(
                     <p className="debt-panel__offer-effect">
                       {shortAfter <= 0
-                        ? `Bạn nhận ${formatMoney(offer.offered.cash)}, đủ để trả khoản nợ này.`
-                        : `Bạn nhận ${formatMoney(offer.offered.cash)}, vẫn còn thiếu ${formatMoney(shortAfter)} cho khoản nợ này.`}
+                        ? t('debt.offerEnough', { amount: formatMoney(offer.offered.cash) })
+                        : t('debt.offerShort', { amount: formatMoney(offer.offered.cash), remaining: formatMoney(shortAfter) })}
                     </p>
                   )}
                   onAccept={current => { setAnsweringOfferId(current.offerId); acceptOffer(current); }}
@@ -302,11 +308,11 @@ export default function DebtPanel() {
         )
         : null}
       {properties.length > 0
-        ? <h3 className="debt-panel__heading">Bán tài sản để có tiền</h3>
-        : <p className="debt-panel__empty">Bạn không còn tài sản nào để bán.</p>}
+        ? <h3 className="debt-panel__heading">{t('debt.sellHeading')}</h3>
+        : <p className="debt-panel__empty">{t('debt.noAssets')}</p>}
       <div className="debt-panel__properties">
         {properties.map(property => {
-          const propertyName = getTileName(property.tileID);
+          const propertyName = getTileName(property.tileID, language);
           const deed = deeds.get(property.tileID);
           const choosingBuyer = selectedTileId === property.tileID;
           const buyerStatusId = `debt-buyer-status-${property.tileID}`;
@@ -316,11 +322,11 @@ export default function DebtPanel() {
               {deed ? <PropertyDeedCard model={deed} variant="compact" showOwner={false} className="debt-panel__deed" /> : <strong>{propertyName}</strong>}
               <div className="debt-panel__property-actions">
                 {/* The accessible name keeps the tile; this is what the sale brings, read after it. */}
-                <span id={saleId} className="sr-only">{`Nhận ${formatMoney(property.grossPrice)}`}</span>
+                <span id={saleId} className="sr-only">{t('debt.receive', { amount: formatMoney(property.grossPrice) })}</span>
                 <Button
                   variant="secondary"
                   icon={<ActionIcon name="sellToBank" />}
-                  aria-label={`Bán ${propertyName} cho Ngân hàng`}
+                  aria-label={t('debt.sellToBank', { name: propertyName })}
                   aria-describedby={saleId}
                   disabled={pendingAction !== null || forcedSaleActive}
                   busy={pendingAction?.key === `bank:${property.tileID}`}
@@ -331,7 +337,7 @@ export default function DebtPanel() {
                   }))}
                 >
                   <span className="debt-panel__sale-label">
-                    <span>Bán cho Ngân hàng</span>
+                    <span>{t('debt.sellBank')}</span>
                     {' '}
                     <strong>{`+${formatMoney(property.grossPrice)}`}</strong>
                   </span>
@@ -339,7 +345,7 @@ export default function DebtPanel() {
                 <Button
                   variant="ghost"
                   icon={<ActionIcon name="propose" />}
-                  aria-label={`Đề nghị người chơi mua ${propertyName}`}
+                  aria-label={t('debt.offerPlayer', { name: propertyName })}
                   aria-pressed={choosingBuyer}
                   disabled={pendingAction !== null || forcedSaleActive || buyers.length === 0}
                   onClick={() => {
@@ -347,14 +353,14 @@ export default function DebtPanel() {
                     setSelectedBuyerId(null);
                     setPriceText(choosingBuyer ? '' : String(property.grossPrice));
                   }}
-                >Đề nghị người chơi mua</Button>
+                >{t('debt.offerPlayerShort')}</Button>
               </div>
               {choosingBuyer
                 ? (
                   <fieldset className="debt-panel__buyer-picker">
-                    <legend>Chọn người mua</legend>
+                    <legend>{t('debt.chooseBuyer')}</legend>
                     <div className="debt-panel__price">
-                      <label htmlFor={priceId}>Giá bán (đơn vị nghìn đồng)</label>
+                      <label htmlFor={priceId}>{t('debt.priceLabel')}</label>
                       <div className="debt-panel__price-field">
                         <input
                           id={priceId}
@@ -387,7 +393,7 @@ export default function DebtPanel() {
                             <PlayerAvatar characterId={buyer.characterId ?? null} colorId={buyer.color} size={32} />
                           </span>
                           <span className="debt-panel__buyer-name">{buyer.name}</span>
-                          <small>{affordable ? formatMoney(buyer.accountBalance) : 'Không đủ tiền'}</small>
+                          <small>{affordable ? formatMoney(buyer.accountBalance) : t('debt.notEnough')}</small>
                         </label>
                       );
                     })}
@@ -406,13 +412,13 @@ export default function DebtPanel() {
                           price: askedPrice,
                         }));
                       }}
-                    >Gửi đề nghị bán</Button>
+                    >{t('debt.sendSaleOffer')}</Button>
                     <p id={buyerStatusId} className="debt-panel__buyer-hint">
                       {askedPrice === null
-                        ? 'Nhập một giá bán lớn hơn 0.'
+                        ? t('debt.pricePositive')
                         : buyers.every(([, buyer]) => buyer.accountBalance < askedPrice)
-                          ? `Không ai đủ tiền để mua với giá ${formatMoney(askedPrice)}.`
-                          : selectedBuyer ? `Người mua sẽ trả ${formatMoney(askedPrice)}.` : 'Chọn một người mua để gửi đề nghị.'}
+                          ? t('debt.noBuyerCanAfford', { amount: formatMoney(askedPrice) })
+                          : selectedBuyer ? t('debt.buyerWillPay', { amount: formatMoney(askedPrice) }) : t('debt.chooseBuyerHint')}
                     </p>
                   </fieldset>
                 )

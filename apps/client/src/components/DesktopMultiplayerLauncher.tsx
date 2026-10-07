@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Languages } from 'lucide-react';
 import Button from '../design-system/components/Button/Button';
 import ConfirmationDialog from '../design-system/components/ConfirmationDialog/ConfirmationDialog';
 import Panel from '../design-system/components/Panel/Panel';
@@ -17,7 +18,9 @@ import type {
   LanFindRoomResult,
   RuntimeConfig,
 } from '../runtime/types';
-import { useSettingsAvailable } from '../settings/selectors';
+import { useSettings, useSettingsAvailable } from '../settings/selectors';
+import { useTranslation } from '../i18n/I18n';
+import type { MessageKey } from '../i18n/catalog';
 import SettingsPanel from '../settings/SettingsPanel';
 import LauncherScene from './LauncherScene';
 import UpdatePrompt from './update/UpdatePrompt';
@@ -37,45 +40,46 @@ interface DesktopMultiplayerLauncherProps {
   initialJoin?: { name: string; roomCode: string; failure?: LanFindRoomFailureCode };
 }
 
-const modeTitle: Record<Exclude<LauncherMode, null>, string> = {
-  host: 'Tạo phòng',
-  join: 'Tham gia phòng',
-  configured: 'Máy chủ riêng',
+const modeTitle: Record<Exclude<LauncherMode, null>, MessageKey> = {
+  host: 'launcher.host',
+  join: 'launcher.join',
+  configured: 'launcher.configured',
 };
 
-const NO_NETWORK_COPY = 'Máy này chưa kết nối mạng. Hãy bật Wi-Fi hoặc cắm dây mạng.';
-const QUIT_FAILED_COPY = 'Chưa thoát được game. Hãy thử lại.';
 /** If the window is still open this long after "Thoát" was accepted, the button is usable again. */
 const QUIT_PATIENCE_MS = 10_000;
 
-/** What a player reads when the room cannot be opened on this machine: no ports, servers or databases, and what to do. */
-const hostErrorCopy: Record<HostRuntimeErrorCode, string> = {
-  POSTGRES_RESOURCES_MISSING: 'Ứng dụng thiếu tệp cần thiết để mở phòng. Hãy cài lại ứng dụng rồi thử lại.',
-  POSTGRES_INITIALIZATION_FAILED: 'Không mở được dữ liệu các phòng đã lưu. Dữ liệu không bị đặt lại. Hãy thử lại.',
-  MIGRATION_FAILED: 'Không thể cập nhật dữ liệu trò chơi trên máy này. Hãy thử lại.',
-  HELPER_FAILED: 'Phòng trên máy này đã dừng. Hãy thử tạo lại phòng.',
-  READINESS_TIMEOUT: 'Phòng chưa sẵn sàng kịp thời. Hãy thử lại.',
-  PORT_OCCUPIED: 'Chưa mở được phòng. Hãy thử lại.',
-  BIND_DENIED: 'Máy này chưa cho mở phòng. Hãy bấm Cho phép khi tường lửa hỏi rồi thử lại.',
-  NO_LAN_INTERFACE: NO_NETWORK_COPY,
-  RUNTIME_FAILED: 'Không thể tạo phòng. Hãy thử lại.',
+const hostErrorCopy: Record<HostRuntimeErrorCode, MessageKey> = {
+  POSTGRES_RESOURCES_MISSING: 'launcher.hostMissingFiles',
+  POSTGRES_INITIALIZATION_FAILED: 'launcher.hostDataFailed',
+  MIGRATION_FAILED: 'launcher.hostMigrationFailed',
+  HELPER_FAILED: 'launcher.hostStopped',
+  READINESS_TIMEOUT: 'launcher.hostNotReady',
+  PORT_OCCUPIED: 'launcher.hostUnavailable',
+  BIND_DENIED: 'launcher.hostFirewall',
+  NO_LAN_INTERFACE: 'launcher.noNetwork',
+  RUNTIME_FAILED: 'launcher.hostFailed',
 };
 
-/** What a player reads when the room could not be found; every line says what to do next. */
-function findRoomFailureCopy(code: LanFindRoomFailureCode, roomCode: string): string {
-  switch (code) {
+type LauncherError =
+  | { kind: 'message'; key: MessageKey; values?: Readonly<Record<string, string | number>> }
+  | { kind: 'host'; code: HostRuntimeErrorCode }
+  | { kind: 'find-room'; code: LanFindRoomFailureCode; roomCode: string };
+
+function errorMessage(error: LauncherError, t: (key: MessageKey, values?: Readonly<Record<string, string | number>>) => string): string {
+  if (error.kind === 'message') return t(error.key, error.values);
+  if (error.kind === 'host') return t(hostErrorCopy[error.code]);
+  switch (error.code) {
     case 'NOT_FOUND':
-      return `Không tìm thấy phòng ${roomCode}. Kiểm tra lại mã và chắc chắn máy tạo phòng đang mở game, cùng Wi-Fi với bạn.`;
+      return t('launcher.roomNotFound', { roomCode: error.roomCode });
     case 'UNREACHABLE':
-      return 'Tìm thấy phòng nhưng chưa kết nối được. Nhờ chủ phòng bấm Cho phép khi tường lửa hỏi.';
+      return t('launcher.roomUnreachable');
     case 'NO_NETWORK':
-      return NO_NETWORK_COPY;
+      return t('launcher.noNetwork');
     case 'UNAVAILABLE':
-      return 'Không thể tìm phòng tự động. Hãy dán liên kết mời.';
+      return t('launcher.roomSearchUnavailable');
   }
 }
-
-const INVALID_INVITE_COPY = 'Liên kết mời chưa đúng. Hãy dán lại liên kết do chủ phòng gửi.';
 
 function fallbackPlatform(): DesktopPlatform {
   return typeof navigator !== 'undefined' && /macintosh|mac os/iu.test(navigator.userAgent)
@@ -92,18 +96,6 @@ function runtimeConfig(endpoint: string, status?: HostRuntimeStatus): DesktopLau
   };
 }
 
-function statusError(status?: HostRuntimeStatus): string {
-  return status?.errorCode ? hostErrorCopy[status.errorCode] : hostErrorCopy.RUNTIME_FAILED;
-}
-
-/** The two start-up steps differ for the main process, not for the player: both are "getting the room ready". */
-function startingLabel(status?: HostRuntimeStatus): string {
-  if (status?.state === 'STARTING_POSTGRES') return 'Đang chuẩn bị phòng…';
-  if (status?.state === 'STARTING_SERVER') return 'Đang mở phòng…';
-  if (status?.state === 'STOPPING') return 'Đang đóng phòng…';
-  return 'Đang chuẩn bị…';
-}
-
 /** A room of this machine is open (or opening): quitting would close it for everyone in it. */
 function hostIsOpen(status?: HostRuntimeStatus): boolean {
   return status?.state === 'HOSTING'
@@ -117,8 +109,8 @@ function hostIsOpen(status?: HostRuntimeStatus): boolean {
  * picture whose artwork sits on the right. It holds no explanation under any button; the words are the button labels. The
  * forms ("Tạo phòng", "Tham gia phòng") open in the same left column.
  *
- * It renders in the app's root, outside the audio and toast providers. `AppBootstrap` wraps it in a `SettingsProvider` so the
- * "Cài đặt" dialog works; with none above (an isolated render) that button is simply absent, like "Hướng dẫn chơi" without its
+ * It renders in the app's root, outside the audio and toast providers. The renderer-root `SettingsProvider` keeps its
+ * language and preferences available here; with none above (an isolated render) settings are unavailable, like "Hướng dẫn chơi" without its
  * provider and "Thoát" without a bridge that can quit.
  */
 export default function DesktopMultiplayerLauncher({
@@ -128,6 +120,8 @@ export default function DesktopMultiplayerLauncher({
   initialMode,
   initialJoin,
 }: DesktopMultiplayerLauncherProps) {
+  const { t, language } = useTranslation();
+  const { updateSettings } = useSettings();
   const bridge = getDesktopBridge();
   const settingsAvailable = useSettingsAvailable();
   // A mandatory update blocks starting and joining a multiplayer room; the update dialog says why and offers the update.
@@ -150,10 +144,9 @@ export default function DesktopMultiplayerLauncher({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [quitConfirmOpen, setQuitConfirmOpen] = useState(false);
   const [quitting, setQuitting] = useState(false);
-  const [error, setError] = useState<string | null>(
-    configurationError
-      ?? (initialJoin?.failure ? findRoomFailureCopy(initialJoin.failure, initialJoin.roomCode) : null),
-  );
+  const [error, setError] = useState<LauncherError | null>(() => configurationError
+    ? { kind: 'message', key: 'launcher.configurationError' }
+    : initialJoin?.failure ? { kind: 'find-room', code: initialJoin.failure, roomCode: initialJoin.roomCode } : null);
 
   useEffect(() => {
     if (!bridge?.host) return undefined;
@@ -171,7 +164,7 @@ export default function DesktopMultiplayerLauncher({
   }, [bridge]);
 
   useEffect(() => {
-    if (configurationError) setError(configurationError);
+    if (configurationError) setError({ kind: 'message', key: 'launcher.configurationError' });
   }, [configurationError]);
 
   // Leaving a form with "Quay lại" removes the focused button: put the focus on the button that opened the form.
@@ -199,9 +192,9 @@ export default function DesktopMultiplayerLauncher({
     void bridge.host.refreshNetwork().then(status => {
       if (!active) return;
       setHostStatus(status);
-      if (status.interfaces.length === 0) setError(NO_NETWORK_COPY);
+      if (status.interfaces.length === 0) setError({ kind: 'message', key: 'launcher.noNetwork' });
     }).catch(() => {
-      if (active) setError(NO_NETWORK_COPY);
+      if (active) setError({ kind: 'message', key: 'launcher.noNetwork' });
     });
     return () => {
       active = false;
@@ -225,11 +218,11 @@ export default function DesktopMultiplayerLauncher({
       const result = await bridge.host.start();
       setHostStatus(result.status);
       if (!result.ok || !result.status.localEndpoint) {
-        setError(statusError(result.status));
+        setError({ kind: 'host', code: result.status.errorCode ?? 'RUNTIME_FAILED' });
         return;
       }
       if (!result.status.lanAvailable) {
-        setError(hostErrorCopy.NO_LAN_INTERFACE);
+        setError({ kind: 'host', code: 'NO_LAN_INTERFACE' });
         return;
       }
       const nextRoomCode = generateHostRoomCode();
@@ -242,7 +235,7 @@ export default function DesktopMultiplayerLauncher({
     } catch {
       const latest = await bridge.host.getStatus().catch(() => hostStatus);
       setHostStatus(latest);
-      setError(statusError(latest));
+      setError({ kind: 'host', code: latest?.errorCode ?? 'RUNTIME_FAILED' });
     } finally {
       setBusy(false);
     }
@@ -268,13 +261,13 @@ export default function DesktopMultiplayerLauncher({
     if (!name.trim()) return;
     const normalizedRoomCode = normalizeRoomCode(roomCode);
     if (!normalizedRoomCode) {
-      setError('Mã phòng phải có 1–20 ký tự chữ, số hoặc dấu gạch ngang.');
+      setError({ kind: 'message', key: 'launcher.invalidRoomCode' });
       return;
     }
     if (mode === 'configured') {
       const endpoint = configuredRuntimeConfig?.socketUrl;
       if (!endpoint) {
-        setError('Địa chỉ máy chủ đã cấu hình không khả dụng.');
+        setError({ kind: 'message', key: 'launcher.configuredUnavailable' });
         return;
       }
       enterRoom(endpoint, normalizedRoomCode);
@@ -286,7 +279,7 @@ export default function DesktopMultiplayerLauncher({
     if (inviteLink.trim()) {
       const invitation = parseLanJoinUrl(inviteLink);
       if (!invitation) {
-        setError(INVALID_INVITE_COPY);
+        setError({ kind: 'message', key: 'launcher.invalidInvite' });
         return;
       }
       enterRoom(invitation.endpoint, invitation.roomCode);
@@ -294,7 +287,7 @@ export default function DesktopMultiplayerLauncher({
     }
 
     const failSearch = (code: LanFindRoomFailureCode): void => {
-      setError(findRoomFailureCopy(code, normalizedRoomCode));
+      setError({ kind: 'find-room', code, roomCode: normalizedRoomCode });
       if (code !== 'NO_NETWORK') setInviteOffered(true);
     };
     const lan = bridge?.lan;
@@ -331,7 +324,7 @@ export default function DesktopMultiplayerLauncher({
     setError(null);
     const result = await bridge.host.stop();
     setHostStatus(result.status);
-    if (!result.ok) setError(statusError(result.status));
+    if (!result.ok) setError({ kind: 'host', code: result.status.errorCode ?? 'RUNTIME_FAILED' });
     setBusy(false);
   };
 
@@ -346,7 +339,7 @@ export default function DesktopMultiplayerLauncher({
       await quit.exitApp();
     } catch {
       setQuitting(false);
-      setError(QUIT_FAILED_COPY);
+      setError({ kind: 'message', key: 'launcher.quitFailed' });
     }
   };
 
@@ -358,8 +351,8 @@ export default function DesktopMultiplayerLauncher({
   const canQuit = typeof bridge.quit?.exitApp === 'function';
   // The written reason the submit button is disabled; starting says so in its own line.
   const submitReason = !name.trim()
-    ? 'Nhập tên của bạn để tiếp tục.'
-    : mode !== 'host' && !roomCode.trim() ? 'Nhập mã phòng do chủ phòng chia sẻ.' : null;
+    ? t('launcher.enterNameHint')
+    : mode !== 'host' && !roomCode.trim() ? t('launcher.enterCodeHint') : null;
   const hostRunning = hostStatus?.state === 'HOSTING' && Boolean(hostStatus.localEndpoint);
 
   return (
@@ -373,12 +366,12 @@ export default function DesktopMultiplayerLauncher({
 
       <div className="desktop-launcher__content">
         <header className="desktop-launcher__header">
-          <p className="desktop-launcher__brand" aria-hidden="true">OWN THE BLOCK</p>
-          <h1 id="desktop-launcher-title">Chơi qua mạng LAN</h1>
+          <p className="desktop-launcher__brand" aria-hidden="true">{t('brand.name')}</p>
+          <h1 id="desktop-launcher-title">{t('launcher.playOverLan')}</h1>
         </header>
 
-        {error ? <p className="desktop-launcher__error" role="alert">{error}</p> : null}
-        {hostStarting ? <p className="desktop-launcher__status" role="status">{startingLabel(hostStatus)}</p> : null}
+        {error ? <p className="desktop-launcher__error" role="alert">{errorMessage(error, t)}</p> : null}
+        {hostStarting ? <p className="desktop-launcher__status" role="status">{t(hostStatus?.state === 'STARTING_POSTGRES' ? 'launcher.startingRoom' : hostStatus?.state === 'STARTING_SERVER' ? 'launcher.openingRoom' : 'launcher.closingRoom')}</p> : null}
         <UpdateStatusLine menuVisible={mode === null} />
 
         {mode === null ? (
@@ -393,14 +386,14 @@ export default function DesktopMultiplayerLauncher({
                     runtimeConfig: runtimeConfig(hostStatus?.localEndpoint as string, hostStatus),
                     hosting: true,
                   })}
-                >Vào lại phòng đang mở</Button>
+                >{t('launcher.roomOpen')}</Button>
                 <Button
                   variant="ghost"
                   className="desktop-launcher__action desktop-launcher__stop"
                   icon={<ActionIcon name="stopHost" className="action-icon--only" />}
                   disabled={busy}
                   onClick={() => void stopHost()}
-                >Đóng phòng</Button>
+                >{t('launcher.closeRoom')}</Button>
               </div>
             ) : null}
             <Button
@@ -411,7 +404,7 @@ export default function DesktopMultiplayerLauncher({
               icon={<ActionIcon name="host" className="action-icon--only" />}
               disabled={updateRequired}
               onClick={() => openMode('host')}
-            >{modeTitle.host}</Button>
+            >{t(modeTitle.host)}</Button>
             <Button
               size="xl"
               variant="secondary"
@@ -420,7 +413,7 @@ export default function DesktopMultiplayerLauncher({
               icon={<ActionIcon name="join" className="action-icon--only" />}
               disabled={updateRequired}
               onClick={() => openMode('join')}
-            >{modeTitle.join}</Button>
+            >{t(modeTitle.join)}</Button>
             {configuredRuntimeConfig?.socketUrl ? (
               <Button
                 size="lg"
@@ -430,7 +423,7 @@ export default function DesktopMultiplayerLauncher({
                 icon={<ActionIcon name="configuredServer" className="action-icon--only" />}
                 disabled={updateRequired}
                 onClick={() => openMode('configured')}
-              >{modeTitle.configured}</Button>
+              >{t(modeTitle.configured)}</Button>
             ) : null}
             {settingsAvailable || canQuit ? (
               <div className="desktop-launcher__utility">
@@ -441,8 +434,15 @@ export default function DesktopMultiplayerLauncher({
                     icon={<ActionIcon name="settings" className="action-icon--only" />}
                     aria-haspopup="dialog"
                     onClick={() => setSettingsOpen(true)}
-                  >Cài đặt</Button>
+                  >{t('launcher.settings')}</Button>
                 ) : null}
+                <Button
+                  variant="ghost"
+                  className="desktop-launcher__action desktop-launcher__language"
+                  icon={<Languages className="action-icon--only" aria-hidden="true" />}
+                  aria-label={t(language === 'vi' ? 'launcher.switchToEnglish' : 'launcher.switchToVietnamese')}
+                  onClick={() => updateSettings({ language: language === 'vi' ? 'en' : 'vi' })}
+                >{t(language === 'vi' ? 'language.english' : 'language.vietnamese')}</Button>
                 {canQuit ? (
                   <Button
                     variant="ghost"
@@ -453,7 +453,7 @@ export default function DesktopMultiplayerLauncher({
                       if (hostIsOpen(hostStatus)) setQuitConfirmOpen(true);
                       else void quitApp();
                     }}
-                  >{quitting ? 'Đang thoát…' : 'Thoát'}</Button>
+                  >{t(quitting ? 'launcher.quitting' : 'launcher.quit')}</Button>
                 ) : null}
               </div>
             ) : null}
@@ -474,17 +474,17 @@ export default function DesktopMultiplayerLauncher({
                   returnFocusRef.current = mode;
                   setMode(null);
                 }}
-              >Quay lại</Button>
-              <h2>{modeTitle[mode]}</h2>
+              >{t('launcher.back')}</Button>
+              <h2>{t(modeTitle[mode])}</h2>
 
               <div className="desktop-launcher__field">
-                <label className="entry-label" htmlFor="desktop-player-name">Tên của bạn</label>
+                <label className="entry-label" htmlFor="desktop-player-name">{t('launcher.playerName')}</label>
                 <input
                   id="desktop-player-name"
                   className="entry-control"
                   value={name}
                   maxLength={20}
-                  placeholder="Ví dụ: Minh"
+                  placeholder={t('launcher.playerNamePlaceholder')}
                   readOnly={searching}
                   onChange={event => setName(event.target.value)}
                   autoFocus
@@ -496,17 +496,17 @@ export default function DesktopMultiplayerLauncher({
                 <>
                   {mode === 'configured' ? (
                     <p className="desktop-launcher__endpoint" role="note">
-                      Địa chỉ đã cấu hình: <code>{configuredRuntimeConfig?.socketUrl}</code>
+                      {t('launcher.configuredAddress')} <code>{configuredRuntimeConfig?.socketUrl}</code>
                     </p>
                   ) : null}
                   <div className="desktop-launcher__field">
-                    <label className="entry-label" htmlFor="desktop-lan-room">Mã phòng</label>
+                    <label className="entry-label" htmlFor="desktop-lan-room">{t('launcher.roomCode')}</label>
                     <input
                       id="desktop-lan-room"
                       className="entry-control"
                       value={roomCode}
                       maxLength={20}
-                      placeholder="Ví dụ: OTB-ABC234"
+                      placeholder={t('launcher.roomCodePlaceholder')}
                       autoCapitalize="characters"
                       readOnly={searching}
                       onChange={event => {
@@ -518,12 +518,12 @@ export default function DesktopMultiplayerLauncher({
                   </div>
                   {mode === 'join' && inviteOffered ? (
                     <div className="desktop-launcher__field">
-                      <label className="entry-label" htmlFor="desktop-lan-invite">Dán liên kết mời</label>
+                      <label className="entry-label" htmlFor="desktop-lan-invite">{t('launcher.inviteLink')}</label>
                       <input
                         id="desktop-lan-invite"
                         className="entry-control"
                         value={inviteLink}
-                        placeholder="Liên kết do chủ phòng gửi"
+                        placeholder={t('launcher.inviteLinkPlaceholder')}
                         inputMode="url"
                         autoCapitalize="none"
                         autoComplete="off"
@@ -553,10 +553,10 @@ export default function DesktopMultiplayerLauncher({
                 aria-describedby={submitReason && !working ? 'desktop-submit-reason' : undefined}
               >
                 {searching
-                  ? 'Đang tìm phòng…'
+                  ? t('launcher.findingRoom')
                   : working
-                    ? startingLabel(hostStatus)
-                    : mode === 'host' ? 'Tạo và vào phòng' : 'Kết nối và vào phòng'}
+                    ? t(hostStatus?.state === 'STARTING_POSTGRES' ? 'launcher.startingRoom' : hostStatus?.state === 'STARTING_SERVER' ? 'launcher.openingRoom' : 'launcher.preparing')
+                    : t(mode === 'host' ? 'launcher.createAndJoin' : 'launcher.connectAndJoin')}
               </Button>
               {submitReason && !working ? (
                 <p id="desktop-submit-reason" className="desktop-launcher__hint desktop-launcher__reason">{submitReason}</p>
@@ -576,11 +576,11 @@ export default function DesktopMultiplayerLauncher({
       />
       <ConfirmationDialog
         open={quitConfirmOpen}
-        title="Đóng phòng và thoát game?"
-        message="Phòng của bạn sẽ đóng lại và mọi người đang trong phòng sẽ bị ngắt kết nối."
-        confirmLabel="Đóng phòng và thoát"
+        title={t('launcher.confirmQuitTitle')}
+        message={t('launcher.confirmQuitMessage')}
+        confirmLabel={t('launcher.confirmQuit')}
         confirmIcon={<ActionIcon name="leave" />}
-        cancelLabel="Ở lại"
+        cancelLabel={t('launcher.stay')}
         onCancel={() => setQuitConfirmOpen(false)}
         onConfirm={() => void quitApp()}
       />

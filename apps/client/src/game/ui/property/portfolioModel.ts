@@ -5,6 +5,8 @@ import {
   type PublicGameState,
 } from '@monopoly/shared';
 import { getPropertyGroupVisualStyle, type VisualTheme } from '../propertyVisualColors';
+import type { Language } from '../../../i18n/I18n';
+import { translate } from '../../../i18n/I18n';
 
 export interface PortfolioGroup {
   /** The district key (`brown` ... `blue`), `railroad` or `utility`. */
@@ -49,6 +51,7 @@ export function buildPortfolioModel(
   state: PublicGameState,
   ownerId: string,
   theme?: VisualTheme,
+  language: Language = 'vi',
 ): PortfolioModel {
   const { ownedProps } = state.boardState;
   const groups: PortfolioGroup[] = [];
@@ -64,9 +67,14 @@ export function buildPortfolioModel(
       else houses += Math.max(0, level);
     });
     const visual = getPropertyGroupVisualStyle(key, theme);
+    const groupLabels: Record<string, Parameters<typeof translate>[0]> = {
+      brown: 'property.colorGroup.brown', lightblue: 'property.colorGroup.lightblue', pink: 'property.colorGroup.pink',
+      orange: 'property.colorGroup.orange', red: 'property.colorGroup.red', yellow: 'property.colorGroup.yellow',
+      green: 'property.colorGroup.green', blue: 'property.colorGroup.blue', railroad: 'property.group.railroad', utility: 'property.group.utility',
+    };
     groups.push({
       key,
-      label: visual.label,
+      label: key in groupLabels ? translate(groupLabels[key], language) : visual.label,
       color: visual.color,
       tileIds,
       total: tiles.length,

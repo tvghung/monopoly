@@ -151,8 +151,8 @@ tải hoặc cài lỗi), `progress` khi đang tải. `installMode` là `restart
 ## Màn hình
 
 Chọn bề mặt nào để hiện là hàm thuần `components/update/updateView.ts` (`promptKind`, `lineKind`); lời lẽ ở `updateCopy.ts`
-(tiếng Việt thường, không địa chỉ/checksum/mã lỗi; mọi dòng lỗi nói việc cần làm và, với bản không bắt buộc, "Bạn vẫn có thể
-tiếp tục chơi").
+(VI/EN theo preference, tiếng Việt mặc định; không địa chỉ/checksum/mã lỗi; mọi dòng lỗi nói việc cần làm và, với bản không bắt buộc, "Bạn vẫn có thể
+tiếp tục chơi" / "You can keep playing").
 
 - Hộp thoại `Modal` trung tâm (chỉ khi launcher đang ở menu, không phải form; không bao giờ trong lobby/ván):
   - **Có bản cập nhật mới** — "Own the Block v1.2.0 đã sẵn sàng. Bạn đang sử dụng v1.1.1." với "Cập nhật" và "Để sau"

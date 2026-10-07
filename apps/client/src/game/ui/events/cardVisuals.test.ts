@@ -12,4 +12,10 @@ describe('card visual manifest', () => {
       expect(definition?.artworkUrl).toContain(`/art/cards/${card.sourceDeck}/${card.id}.svg`);
     }
   });
+
+  it('uses English localized text while keeping the authoritative card manifest intact', () => {
+    const definition = cardVisualFor('chance-go-to-jail', 'en');
+    expect(definition?.title).toBe('Go to Jail');
+    expect(definition?.artworkUrl).toContain('/art/cards/chance/chance-go-to-jail.svg');
+  });
 });

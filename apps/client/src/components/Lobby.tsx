@@ -26,6 +26,7 @@ import { getStartBlockReason } from './lobby/startReadiness';
 import type { LobbyPlayerView } from './lobby/lobbyTypes';
 import { useToast } from './Toast';
 import HostLanSharing from './HostLanSharing';
+import { useTranslation } from '../i18n/I18n';
 
 export type { LobbyPlayerView } from './lobby/lobbyTypes';
 
@@ -66,12 +67,6 @@ interface LobbyProps {
   showLanSharing?: boolean;
 }
 
-const COPY_NOTICES = {
-  idle: '',
-  copied: 'Đã sao chép.',
-  failed: 'Không thể sao chép tự động; hãy chọn mã phòng ở trên.',
-} as const;
-
 const MODE_OPTIONS = [
   { value: 'SOLO', label: 'Solo' },
   { value: 'TEAM_2V2', label: '2v2' },
@@ -106,6 +101,7 @@ export default function Lobby({
   onSettings,
   showLanSharing = false,
 }: LobbyProps) {
+  const { language, t } = useTranslation();
   const startReasonId = useId();
   const codeCopy = useCopyFeedback();
   const toast = useToast();
@@ -120,7 +116,7 @@ export default function Lobby({
       .map(player => getAppearanceCombinationKey(player.characterId, player.color))
       .filter((key): key is string => key !== null),
   );
-  const startBlockReason = isHost ? getStartBlockReason(players, minPlayers, maxPlayers, gameMode) : null;
+  const startBlockReason = isHost ? getStartBlockReason(players, minPlayers, maxPlayers, gameMode, language) : null;
   const canStart = isHost && startBlockReason === null;
   const slots = Array.from({ length: maxPlayers }, (_, index) => players[index] ?? null);
 
@@ -168,9 +164,9 @@ export default function Lobby({
       return;
     }
     const ended = previous.targetId !== null && seatKey !== null && previous.seatKey === seatKey;
-    if (ended && !cancelledByViewer.current) toast.show(SEAT_SWAP_ENDED_NOTICE);
+    if (ended && !cancelledByViewer.current) toast.show(t('lobby.swapEnded'));
     cancelledByViewer.current = false;
-  }, [outgoingTargetId, seatKey, toast]);
+  }, [outgoingTargetId, seatKey, t, toast]);
 
   const cancelSeatSwap = (): void => {
     cancelledByViewer.current = true;
@@ -180,7 +176,7 @@ export default function Lobby({
   const modeControl = onSetGameMode && isHost
     ? (
       <SegmentedControl
-        label="Chế độ chơi"
+        label={t('lobby.mode')}
         options={MODE_OPTIONS.map(option => ({ ...option, disabled: busy }))}
         value={gameMode}
         onChange={onSetGameMode}
@@ -190,9 +186,9 @@ export default function Lobby({
 
   const requesterTeam = requester ? teamById.get(requester.teamId) : undefined;
   const swapMessage = requester && myTeam && requesterTeam
-    ? requester.teamId === me?.teamId
-      ? `Hai bạn đổi chỗ cho nhau trong đội ${myTeam.name}.`
-      : `Bạn sang đội ${requesterTeam.name}, ${requester.name} sang đội ${myTeam.name}. Cả hai đổi sang màu đội mới và phải bấm lại Sẵn sàng.`
+      ? requester.teamId === me?.teamId
+      ? t('lobby.swapSameTeam', { teamName: myTeam.name })
+      : t('lobby.swapTeams', { requesterTeam: requesterTeam.name, requesterName: requester.name, myTeam: myTeam.name })
     : '';
 
   return (
@@ -200,18 +196,18 @@ export default function Lobby({
       <article className="lobby__card">
         <header className="lobby__header">
           <div className="lobby__code">
-            <p className="lobby__eyebrow">Mã phòng</p>
+            <p className="lobby__eyebrow">{t('lobby.roomCode')}</p>
             <div className="lobby__code-row">
               <h1 id="lobby-title" className="lobby__title">{roomCode}</h1>
-              <IconButton label="Sao chép mã phòng" icon="copy" onClick={() => codeCopy.copy(roomCode)} />
-              <span className="lobby__copy-state" role="status">{COPY_NOTICES[codeCopy.state]}</span>
+              <IconButton label={t('lobby.copyRoomCode')} icon="copy" onClick={() => codeCopy.copy(roomCode)} />
+              <span className="lobby__copy-state" role="status">{codeCopy.state === 'copied' ? t('lobby.copied') : codeCopy.state === 'failed' ? t('lobby.copyFailed') : ''}</span>
             </div>
           </div>
           <div className="lobby__header-actions">
             <HowToPlayButton variant="labelled" />
-            {onSettings ? <Button variant="ghost" icon={<ActionIcon name="settings" />} onClick={onSettings}>Cài đặt</Button> : null}
+            {onSettings ? <Button variant="ghost" icon={<ActionIcon name="settings" />} onClick={onSettings}>{t('lobby.settings')}</Button> : null}
             <Button className="lobby__leave" variant="secondary" icon={<ActionIcon name="leave" />} disabled={busy} onClick={onLeave}>
-              Rời phòng
+              {t('lobby.leave')}
             </Button>
             {isHost
               ? (
@@ -224,7 +220,7 @@ export default function Lobby({
                     aria-describedby={startBlockReason ? startReasonId : undefined}
                     onClick={onStart}
                   >
-                    <span>Bắt đầu</span>
+                    <span>{t('lobby.start')}</span>
                   </Button>
                   {startBlockReason ? <p className="lobby__start-reason" id={startReasonId}>{startBlockReason}</p> : null}
                 </div>
@@ -236,12 +232,12 @@ export default function Lobby({
         {onSetGameMode || gameMode === 'TEAM_2V2'
           ? (
             <div className="lobby__mode">
-              <p className="lobby__eyebrow">Chế độ chơi</p>
+              <p className="lobby__eyebrow">{t('lobby.mode')}</p>
               {modeControl}
               <p className="lobby__mode-hint">
                 {gameMode === 'TEAM_2V2'
-                  ? 'Hai đội, mỗi đội 2 người: chung màu, mascot khác nhau và cùng nhau thắng.'
-                  : 'Mỗi người tự chơi cho mình; người cuối cùng còn lại thắng.'}
+                  ? t('lobby.modeHint.team')
+                  : t('lobby.modeHint.solo')}
               </p>
             </div>
           )
@@ -251,7 +247,7 @@ export default function Lobby({
 
         {teamMode
           ? (
-            <div className="lobby__teams" aria-label="Hai đội">
+            <div className="lobby__teams" aria-label={t('lobby.teamsTitle')}>
               {TEAM_IDS.map(teamId => {
                 const team = teamById.get(teamId);
                 const other = teamById.get(teamId === 'TEAM_1' ? 'TEAM_2' : 'TEAM_1');
@@ -284,7 +280,7 @@ export default function Lobby({
             </div>
           )
           : (
-            <ul className="lobby__players" aria-label="Danh sách người chơi">
+            <ul className="lobby__players" aria-label={t('lobby.playerList')}>
               {slots.map((player, index) => player
                 ? (
                   <LobbySeat
@@ -321,9 +317,9 @@ export default function Lobby({
 
       <ConfirmationDialog
         open={kickTarget !== undefined}
-        title={`Mời ${kickTarget?.name ?? ''} ra khỏi phòng?`}
-        message={`${kickTarget?.name ?? 'Người này'} sẽ rời khỏi phòng này. Họ vẫn có thể vào lại bằng mã phòng nếu còn chỗ.`}
-        confirmLabel="Mời ra"
+        title={t('lobby.kickTitle', { name: kickTarget?.name ?? '' })}
+        message={t('lobby.kickDetails', { name: kickTarget?.name ?? '' })}
+        confirmLabel={t('lobby.kickConfirmLabel')}
         confirmIcon={<ActionIcon name="close" />}
         busy={busy}
         onCancel={() => setKickTargetId(null)}
@@ -337,11 +333,11 @@ export default function Lobby({
         open={requester !== undefined && myTeam !== undefined}
         tone="neutral"
         icon="swap"
-        title={`${requester?.name ?? ''} muốn đổi chỗ với bạn`}
+        title={t('lobby.swapRequestTitle', { name: requester?.name ?? '' })}
         message={swapMessage}
-        confirmLabel="Đồng ý"
+        confirmLabel={t('lobby.acceptSwap')}
         confirmIcon={<ActionIcon name="accept" />}
-        cancelLabel="Từ chối"
+        cancelLabel={t('lobby.declineSwap')}
         busy={busy}
         // Escape and "Từ chối" are the same answer; the dialog itself closes when the room no longer holds the request.
         onCancel={() => { if (requester) onRespondSeatSwap?.(requester.id, false); }}

@@ -117,7 +117,8 @@ hoặc replay mutation.
 
 Board/property presentation derive trực tiếp từ canonical shared `tileState`; không
 duy trì bản sao `BoardInitState.ts` hoặc `backOfCards.ts`. Tất cả tiền hiển thị qua
-formatter dùng `1 game unit = 1.000 VNĐ` và player-facing UI/log/error là tiếng Việt.
+formatter dùng `1 game unit = 1.000 VNĐ`; UI/log/error theo ngôn ngữ VI/EN đang
+chọn, mặc định là tiếng Việt. Preference chỉ tồn tại ở client.
 
 ## Presentation queue
 

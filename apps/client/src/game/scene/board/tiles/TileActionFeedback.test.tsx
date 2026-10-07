@@ -74,6 +74,15 @@ describe('TileActionFeedback', () => {
       .toBe('Hạ khách sạn');
   });
 
+  it('localizes the floating feedback text', () => {
+    expect(getTileActionFeedback(undefined, development(), undefined, undefined, 'en')?.value).toBe('+1 house');
+    expect(getTileActionFeedback(undefined, development({ fromHouses: 2, toHouses: 0, delta: -2, direction: 'DOWN' }), undefined, undefined, 'en')?.value)
+      .toBe('−2 houses');
+    expect(getTileActionFeedback(undefined, development({ fromHouses: 4, toHouses: 5, delta: 1 }), undefined, undefined, 'en')?.value)
+      .toBe('Hotel');
+    expect(getTileActionFeedback(undefined, undefined, go(), undefined, 'en')?.value).toBe('Passed GO');
+  });
+
   it('chooses the newest cross-family consequence instead of unrelated family sequence', () => {
     expect(getTileActionFeedback(
       ownership({ sequence: 99, consequenceOrder: 1 }),

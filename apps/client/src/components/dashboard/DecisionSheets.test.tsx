@@ -107,7 +107,7 @@ describe('buy sheet', () => {
   it('says how far the purchase brings a group, only when that is worth saying', () => {
     expect(groupProgressHint(3, 'player-a', { 1: { id: 'player-a' } })).toBe('Hoàn thành nhóm nâu sau khi mua');
     expect(groupProgressHint(3, 'player-a', {})).toBeNull();
-    expect(groupProgressHint(6, 'player-a', { 8: { id: 'player-a' } })).toBe('Sở hữu 2/3 nhóm xanh nhạt sau khi mua');
+    expect(groupProgressHint(6, 'player-a', { 8: { id: 'player-a' } })).toBe('Sở hữu 2/3 ô trong nhóm xanh nhạt sau khi mua');
     expect(groupProgressHint(6, 'player-a', { 8: { id: 'player-b' } })).toBeNull();
     expect(groupProgressHint(5, 'player-a', {})).toBeNull();
     expect(groupProgressHint(3, undefined, { 1: { id: 'player-a' } })).toBeNull();
@@ -183,7 +183,7 @@ describe('development sheet', () => {
 describe('2v2 decision sheets', () => {
   it('counts a teammate\'s streets toward the group and speaks of the whole team', () => {
     expect(groupProgressHint(3, 'player-a', { 1: { id: 'player-c' } }, ['player-c'])).toBe('Cả đội hoàn thành nhóm nâu sau khi mua');
-    expect(groupProgressHint(6, 'player-a', { 8: { id: 'player-c' } }, ['player-c'])).toBe('Cả đội sở hữu 2/3 nhóm xanh nhạt sau khi mua');
+    expect(groupProgressHint(6, 'player-a', { 8: { id: 'player-c' } }, ['player-c'])).toBe('Cả đội sở hữu 2/3 ô trong nhóm xanh nhạt sau khi mua');
     // A street an opponent holds does not count for the team.
     expect(groupProgressHint(3, 'player-a', { 1: { id: 'player-b' } }, ['player-c'])).toBeNull();
     // Solo wording is unchanged.

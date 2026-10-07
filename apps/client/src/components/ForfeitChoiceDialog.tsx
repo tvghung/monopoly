@@ -3,6 +3,7 @@ import Button from '../design-system/components/Button/Button';
 import Modal from '../design-system/components/Modal/Modal';
 import { ActionIcon } from '../design-system/icons/ActionIcon';
 import './ForfeitChoiceDialog.css';
+import { useTranslation } from '../i18n/I18n';
 
 interface ForfeitChoiceDialogProps {
   open: boolean;
@@ -22,11 +23,12 @@ interface ForfeitChoiceDialogProps {
 export default function ForfeitChoiceDialog({
   open, hosting = false, leaving = false, onWatch, onLeave,
 }: ForfeitChoiceDialogProps) {
+  const { t } = useTranslation();
   const messageId = useId();
   return (
     <Modal
       open={open}
-      title="Bạn đã bỏ cuộc"
+      title={t('forfeit.title')}
       onClose={onWatch}
       role="alertdialog"
       size="sm"
@@ -38,8 +40,8 @@ export default function ForfeitChoiceDialog({
             icon={<ActionIcon name="leave" />}
             busy={leaving}
             onClick={onLeave}
-          >Rời phòng</Button>
-          <Button data-modal-autofocus icon={<ActionIcon name="view" />} onClick={onWatch}>Xem tiếp</Button>
+          >{t('forfeit.leave')}</Button>
+          <Button data-modal-autofocus icon={<ActionIcon name="view" />} onClick={onWatch}>{t('forfeit.watch')}</Button>
         </div>
       )}
     >
@@ -47,10 +49,10 @@ export default function ForfeitChoiceDialog({
         <span className="forfeit-choice__icon" aria-hidden="true"><ActionIcon name="forfeit" size={28} /></span>
         <div className="forfeit-choice__text">
           <p id={messageId} className="forfeit-choice__message">
-            Tài sản của bạn đã trả về ngân hàng. Bạn có thể ở lại xem các bạn chơi tiếp hoặc rời phòng.
+            {t('forfeit.message')}
           </p>
           {hosting
-            ? <p className="forfeit-choice__hint">Máy này vẫn đang giữ phòng cho mọi người.</p>
+            ? <p className="forfeit-choice__hint">{t('forfeit.hostNote')}</p>
             : null}
         </div>
       </div>

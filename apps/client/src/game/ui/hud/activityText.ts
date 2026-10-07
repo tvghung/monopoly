@@ -1,102 +1,119 @@
 import type { ActivityEvent, MoneyTransferReason } from '@monopoly/shared';
-import { formatMoney, gameCardsById, tileState } from '@monopoly/shared';
+import { formatMoney, tileState } from '@monopoly/shared';
+import type { Language } from '../../../i18n/I18n';
+import { translate } from '../../../i18n/I18n';
+import { getCardPresentation } from '../../../i18n/cardCopy';
+import { getTileName } from '../formatters';
 
-const moneyReasonLabel: Record<MoneyTransferReason, string> = {
-  PROPERTY_PURCHASE: 'mua tài sản',
-  PROPERTY_SALE: 'bán tài sản',
-  RENT: 'tiền thuê',
-  TAX: 'thuế',
-  PASS_GO: 'đi qua GO',
-  CARD: 'hiệu ứng thẻ',
-  DEVELOPMENT: 'phát triển tài sản',
-  BAIL: 'tiền bảo lãnh',
-  TRADE: 'giao dịch',
-  FORCED_SALE: 'bán bắt buộc',
-  FORFEIT: 'bỏ cuộc',
-  REVIVE: 'hồi sinh đồng đội',
-  RESCUE: 'hỗ trợ đồng đội',
-  OTHER: 'giao dịch tiền',
+const moneyReasonKey: Record<MoneyTransferReason, Parameters<typeof translate>[0]> = {
+  PROPERTY_PURCHASE: 'activity.reason.PROP',
+  PROPERTY_SALE: 'activity.reason.SALE',
+  RENT: 'activity.reason.RENT',
+  TAX: 'activity.reason.TAX',
+  PASS_GO: 'activity.reason.GO',
+  CARD: 'activity.reason.CARD',
+  DEVELOPMENT: 'activity.reason.DEVELOPMENT',
+  BAIL: 'activity.reason.BAIL',
+  TRADE: 'activity.reason.TRADE',
+  FORCED_SALE: 'activity.reason.FORCED_SALE',
+  FORFEIT: 'activity.reason.FORFEIT',
+  REVIVE: 'activity.reason.REVIVE',
+  RESCUE: 'activity.reason.RESCUE',
+  OTHER: 'activity.reason.OTHER',
 };
 
-const jailActionLabel: Record<Extract<ActivityEvent, { type: 'JAIL' }>['action'], string> = {
-  ENTRY: 'vào tù',
-  RELEASE: 'ra tù',
-  FAILED_ROLL: 'chưa đổ được đôi trong tù',
+const jailActionKey: Record<Extract<ActivityEvent, { type: 'JAIL' }>['action'], Parameters<typeof translate>[0]> = {
+  ENTRY: 'activity.jail.ENTRY',
+  RELEASE: 'activity.jail.RELEASE',
+  FAILED_ROLL: 'activity.jail.FAILED_ROLL',
 };
 
-const endpointName = (endpoint: Extract<ActivityEvent, { type: 'MONEY_TRANSFER' }>['source']): string => (
-  endpoint.kind === 'BANK' ? 'Ngân hàng' : endpoint.name
+const endpointName = (endpoint: Extract<ActivityEvent, { type: 'MONEY_TRANSFER' }>['source'], language: Language): string => (
+  endpoint.kind === 'BANK' ? translate('activity.bank', language) : endpoint.name
 );
 
-/** The Vietnamese sentence for one activity event, shared by the log drawer and the activity ticker. */
-export function activityText(event: ActivityEvent): string {
+/** Render committed activity semantics in the selected UI language; chat remains exactly as typed. */
+export function activityText(event: ActivityEvent, language: Language = 'vi'): string {
+  const t = (key: Parameters<typeof translate>[0], values?: Readonly<Record<string, string | number>>) => translate(key, language, values);
   switch (event.type) {
     case 'PLAYER_JOINED':
-      return `${event.playerName} đã tham gia phòng.`;
+      return t('activity.playerJoined', { playerName: event.playerName });
     case 'GAME_STARTED':
-      return `Ván chơi bắt đầu. ${event.startingPlayerName} đi trước.`;
+      return t('activity.gameStarted', { playerName: event.startingPlayerName });
     case 'CHAT':
-      return `${event.senderName}: ${event.message}`;
+      return t('activity.chat', { senderName: event.senderName, message: event.message });
     case 'DICE_ROLL':
-      return `${event.playerName} đổ ${event.dice1} + ${event.dice2} = ${event.total}${event.context === 'JAIL' ? ' trong tù' : ''}.`;
+      return t('activity.diceRoll', {
+        playerName: event.playerName,
+        dice1: event.dice1,
+        dice2: event.dice2,
+        total: event.total,
+        context: event.context === 'JAIL' ? t('activity.diceJail') : '',
+      });
     case 'TILE_LANDED': {
       const tile = tileState[event.tileID];
-      if (tile?.tileType === 'jail') return `${event.playerName} đang Thăm Tù.`;
-      if (tile?.tileType === 'gojail') return `${event.playerName} đã tới ô Vào Tù.`;
-      return `${event.playerName} đã tới ${tile?.streetName ?? `ô ${event.tileID}`}.`;
+      if (tile?.tileType === 'jail') return t('activity.visitingJail', { playerName: event.playerName });
+      if (tile?.tileType === 'gojail') return t('activity.sentToJail', { playerName: event.playerName });
+      return t('activity.landed', { playerName: event.playerName, tileName: getTileName(event.tileID, language) });
     }
     case 'PROPERTY_PURCHASE':
-      return `${event.playerName} đã mua ${tileState[event.tileID]?.streetName ?? `ô ${event.tileID}`} với giá ${formatMoney(event.price)}.`;
+      return t('activity.purchased', { playerName: event.playerName, tileName: getTileName(event.tileID, language), price: formatMoney(event.price) });
     case 'PROPERTY_TRANSFER':
-      return `${endpointName(event.from)} chuyển ${tileState[event.tileID]?.streetName ?? `ô ${event.tileID}`} cho ${endpointName(event.to)}.`;
+      return t('activity.propertyTransfer', { from: endpointName(event.from, language), tileName: getTileName(event.tileID, language), to: endpointName(event.to, language) });
     case 'MONEY_TRANSFER':
-      return `${endpointName(event.source)} trả ${formatMoney(event.amount)} cho ${endpointName(event.destination)} (${moneyReasonLabel[event.reason]}).`;
+      return t('activity.moneyTransfer', {
+        source: endpointName(event.source, language),
+        amount: formatMoney(event.amount),
+        destination: endpointName(event.destination, language),
+        reason: t(moneyReasonKey[event.reason]),
+      });
     case 'PROPERTY_DEVELOPMENT': {
-      const street = tileState[event.tileID]?.streetName ?? `ô ${event.tileID}`;
-      // Team Investment: the lander paid, the property still belongs to the teammate named here.
-      const owner = event.ownerName ? ` của đồng đội ${event.ownerName}` : '';
+      const street = getTileName(event.tileID, language);
       const cost = event.cost !== undefined ? ` (${formatMoney(event.cost)})` : '';
       if (event.action === 'SELL') {
-        return `${event.playerName} bán một cấp công trình tại ${street} và nhận ${formatMoney(event.cost ?? 0)}.`;
+        return t('activity.developmentSell', { playerName: event.playerName, tileName: street, amount: formatMoney(event.cost ?? 0) });
       }
       if (event.action === 'UPGRADE_HOTEL') {
         return event.ownerName
-          ? `${event.playerName} đầu tư nâng cấp Khách sạn tại ${street}${owner}${cost}.`
-          : `${event.playerName} nâng cấp Khách sạn tại ${street}.`;
+          ? t('activity.developmentHotelTeammate', { playerName: event.playerName, tileName: street, ownerName: event.ownerName, cost })
+          : t('activity.developmentHotel', { playerName: event.playerName, tileName: street });
       }
       return event.ownerName
-        ? `${event.playerName} đầu tư xây ${event.toHouses - event.fromHouses} Nhà tại ${street}${owner}${cost}.`
-        : `${event.playerName} xây ${event.toHouses - event.fromHouses} Nhà tại ${street}.`;
+        ? t('activity.developmentBuildTeammate', { playerName: event.playerName, tileName: street, ownerName: event.ownerName, count: event.toHouses - event.fromHouses, cost })
+        : t('activity.developmentBuild', { playerName: event.playerName, tileName: street, count: event.toHouses - event.fromHouses });
     }
-    case 'CARD_REVEALED':
-      return `${event.playerName} rút thẻ ${event.deck === 'chance' ? 'Cơ hội' : 'Khí vận'}: ${gameCardsById[event.cardId]?.message ?? event.cardId}`;
+    case 'CARD_REVEALED': {
+      const card = getCardPresentation(event.cardId, language);
+      const deck = t(event.deck === 'chance' ? 'board.chance' : 'board.communityChest');
+      return t('activity.cardRevealed', { playerName: event.playerName, deck, message: card.message });
+    }
     case 'JAIL':
-      return `${event.playerName} ${jailActionLabel[event.action]}.`;
+      return t(jailActionKey[event.action], { playerName: event.playerName });
     case 'PLAYER_FINISHED':
       return event.reason === 'BANKRUPT'
-        ? `${event.playerName} đã phá sản và rời khỏi ván chơi.`
-        : `${event.playerName} đã rời ván chơi.`;
+        ? t('activity.playerBankrupt', { playerName: event.playerName })
+        : t('activity.playerLeft', { playerName: event.playerName });
     case 'GAME_FINISHED':
       return event.winningTeamName
-        ? `Đội ${event.winningTeamName} chiến thắng với ${formatMoney(event.finalCash)} tiền mặt còn lại.`
-        : `${event.winnerName} chiến thắng với ${formatMoney(event.finalCash)}.`;
+        ? t('activity.teamWinner', { teamName: event.winningTeamName, cash: formatMoney(event.finalCash) })
+        : t('activity.playerWinner', { playerName: event.winnerName, cash: formatMoney(event.finalCash) });
     case 'TEAM_REVIVE':
       if (event.action === 'WINDOW_OPENED') {
-        return `${event.survivorName} có ${event.turnsRemaining} lượt để hồi sinh ${event.playerName}.`;
+        return t('activity.reviveWindow', { survivorName: event.survivorName, turns: event.turnsRemaining, playerName: event.playerName });
       }
       return event.action === 'REVIVED'
-        ? `${event.survivorName} đã hồi sinh ${event.playerName}.`
-        : `${event.playerName} đã bị loại vĩnh viễn.`;
+        ? t('activity.revived', { survivorName: event.survivorName, playerName: event.playerName })
+        : t('activity.permanentlyEliminated', { playerName: event.playerName });
     case 'EMERGENCY_RESCUE':
       if (event.action === 'OFFERED') {
-        return `${event.rescuerName} có thể hỗ trợ ${formatMoney(event.amount)} để cứu ${event.debtorName}.`;
+        return t('activity.rescueOffered', { rescuerName: event.rescuerName, amount: formatMoney(event.amount), debtorName: event.debtorName });
       }
       if (event.action === 'ACCEPTED') {
-        return `${event.rescuerName} đã hỗ trợ ${formatMoney(event.amount)} để cứu ${event.debtorName}.`;
+        return t('activity.rescueAccepted', { rescuerName: event.rescuerName, amount: formatMoney(event.amount), debtorName: event.debtorName });
       }
       return event.action === 'DECLINED'
-        ? `${event.rescuerName} không hỗ trợ ${event.debtorName}.`
-        : `Hết thời gian: ${event.rescuerName} chưa hỗ trợ ${event.debtorName}.`;
+        ? t('activity.rescueDeclined', { rescuerName: event.rescuerName, debtorName: event.debtorName })
+        : t('activity.rescueExpired', { rescuerName: event.rescuerName, debtorName: event.debtorName });
     default: {
       const exhaustive: never = event;
       return exhaustive;

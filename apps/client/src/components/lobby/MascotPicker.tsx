@@ -22,6 +22,9 @@ import {
   PLAYER_COLOR_VISUALS,
 } from '../../game/ui/playerVisualColors';
 import { useEffectiveReducedMotion } from '../../settings/selectors';
+import { useTranslation } from '../../i18n/I18n';
+import { getCharacterName } from '../../i18n/characters';
+import { getPlayerColorLabel } from '../../game/ui/playerVisualColors';
 
 interface MascotPickerProps {
   selectedCharacterId: CharacterId | null;
@@ -51,6 +54,7 @@ export default function MascotPicker({
   teamLabel,
   lockedCharacterIds,
 }: MascotPickerProps) {
+  const { language, t } = useTranslation();
   const reducedMotion = useEffectiveReducedMotion();
   const firstCharacter = CHARACTER_IDS[0];
   const [focusedCharacterId, setFocusedCharacterId] = useState<CharacterId>(
@@ -110,17 +114,17 @@ export default function MascotPicker({
   };
 
   return (
-    <section className="mascot-picker" style={accentStyle} aria-label="Chọn nhân vật của bạn">
+    <section className="mascot-picker" style={accentStyle} aria-label={t('lobby.mascotPickerLabel')}>
       <div
         className="mascot-picker__stage"
         tabIndex={0}
         role="group"
-        aria-label={`Mascot đang xem: ${focusedCharacter.accessibleLabel}. Dùng phím mũi tên trái phải để đổi.`}
+        aria-label={t('lobby.mascotCurrent', { name: getCharacterName(focusedCharacterId, language) })}
         onKeyDown={handleKeyboardNavigation}
       >
         <IconButton
           className="mascot-picker__arrow"
-          label="Mascot trước"
+          label={t('lobby.mascotPrevious')}
           icon="previous"
           disabled={busy}
           onClick={() => selectCharacter(previousCharacterId)}
@@ -128,7 +132,7 @@ export default function MascotPicker({
         <button
           className="mascot-picker__side mascot-picker__side--previous"
           type="button"
-          aria-label={`Chọn mascot ${CHARACTER_REGISTRY[previousCharacterId].accessibleLabel}`}
+          aria-label={t('lobby.selectMascot', { name: getCharacterName(previousCharacterId, language) })}
           disabled={busy}
           onClick={() => selectCharacter(previousCharacterId)}
         >
@@ -154,7 +158,7 @@ export default function MascotPicker({
                 key={focusedCharacterId}
                 className="mascot-picker__hero-image"
                 src={characterSvgDataUri(focusedCharacter.svgSource, playerColor)}
-                alt={focusedCharacter.accessibleLabel}
+                alt={getCharacterName(focusedCharacterId, language)}
                 initial={reducedMotion ? false : { opacity: 0, scale: 0.86, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={reducedMotion
@@ -168,7 +172,7 @@ export default function MascotPicker({
         <button
           className="mascot-picker__side mascot-picker__side--next"
           type="button"
-          aria-label={`Chọn mascot ${CHARACTER_REGISTRY[nextCharacterId].accessibleLabel}`}
+          aria-label={t('lobby.selectMascot', { name: getCharacterName(nextCharacterId, language) })}
           disabled={busy}
           onClick={() => selectCharacter(nextCharacterId)}
         >
@@ -179,14 +183,14 @@ export default function MascotPicker({
         </button>
         <IconButton
           className="mascot-picker__arrow"
-          label="Mascot tiếp theo"
+          label={t('lobby.mascotNext')}
           icon="next"
           disabled={busy}
           onClick={() => selectCharacter(nextCharacterId)}
         />
       </div>
 
-      <div className="mascot-picker__thumbnail-rail" role="group" aria-label="Chọn mascot">
+      <div className="mascot-picker__thumbnail-rail" role="group" aria-label={t('lobby.selectMascotGroup')}>
         {CHARACTER_IDS.map(characterId => {
           const character = CHARACTER_REGISTRY[characterId];
           const selected = selectedCharacterId === characterId;
@@ -197,7 +201,7 @@ export default function MascotPicker({
               key={characterId}
               className={`mascot-picker__thumbnail${selected ? ' mascot-picker__thumbnail--selected' : ''}${focused ? ' mascot-picker__thumbnail--focused' : ''}${lockedByTeammate ? ' mascot-picker__thumbnail--locked' : ''}`}
               type="button"
-              aria-label={lockedByTeammate ? `${character.accessibleLabel} (đồng đội đã chọn)` : character.accessibleLabel}
+              aria-label={lockedByTeammate ? getCharacterName(characterId, language) + ' ' + t('lobby.mascotLocked') : getCharacterName(characterId, language)}
               aria-pressed={selected}
               disabled={busy || lockedByTeammate}
               onClick={() => selectCharacter(characterId)}
@@ -209,7 +213,7 @@ export default function MascotPicker({
       </div>
 
       {showColors ? (
-      <div className="mascot-picker__colors" role="group" aria-label="Chọn màu người chơi">
+      <div className="mascot-picker__colors" role="group" aria-label={t('lobby.playerColor')}>
         <div className="mascot-picker__color-grid">
           {PLAYER_COLOR_IDS.map(color => {
             const visual = PLAYER_COLOR_VISUALS[color];
@@ -221,7 +225,7 @@ export default function MascotPicker({
                 key={color}
                 className={`mascot-picker__color${selected ? ' mascot-picker__color--selected' : ''}`}
                 type="button"
-                aria-label={`${visual.label}${takenCharacterId ? ` (đã dùng với ${CHARACTER_REGISTRY[takenCharacterId].accessibleLabel})` : ''}`}
+                aria-label={takenCharacterId ? getPlayerColorLabel(color, language) + ' ' + t('lobby.colorUsedWith', { name: getCharacterName(takenCharacterId, language) }) : getPlayerColorLabel(color, language)}
                 aria-pressed={selected}
                 disabled={busy || unavailable}
                 onClick={() => selectColor(color)}
@@ -233,18 +237,16 @@ export default function MascotPicker({
                 >
                   {selected ? <ActionIcon name="ready" /> : null}
                 </span>
-                <span>{visual.label}</span>
+                <span>{getPlayerColorLabel(color, language)}</span>
               </button>
             );
           })}
         </div>
       </div>
       ) : (
-        <p className="mascot-picker__team-note" role="note">
+      <p className="mascot-picker__team-note" role="note">
           <span className="mascot-picker__team-swatch" aria-hidden="true" />
-          {teamLabel
-            ? `Mascot luôn mang màu đội ${teamLabel}. Đồng đội không được chọn trùng mascot.`
-            : 'Mascot luôn mang màu của đội.'}
+          {teamLabel ? t('lobby.teamColorNote', { teamName: teamLabel }) : t('lobby.teamColorGeneralNote')}
         </p>
       )}
     </section>

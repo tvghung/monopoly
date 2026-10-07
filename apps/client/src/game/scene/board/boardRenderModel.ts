@@ -16,6 +16,7 @@ import { selectPlayerHudViewModels } from '../../ui/hud/playerHudSelectors';
 import { resolvePlayerStationSlots, type PlayerStationSlot } from '../../ui/stations/stationSlots';
 import { PLAYER_STATION_WORLD_ANCHORS, type WorldAnchor } from '../stations/stationWorld';
 import { getPlayerAccentDarkColor, getPlayerDisplayColor } from '../../ui/playerVisualColors';
+import type { Language } from '../../../i18n/I18n';
 
 export interface BoardTileRenderModel {
   tileId: number;
@@ -104,12 +105,13 @@ export function buildBoardRenderModel(
   roomPlayers: readonly RoomPlayerMeta[] = [],
   viewerPlayerId: string | null = null,
   viewerRole: RoomRole | null = null,
+  language: Language = 'vi',
 ): BoardRenderModel {
   const tiles = tileState.map((tile, tileId): BoardTileRenderModel => {
     const owned = state.boardState.ownedProps[tileId];
     return {
       tileId,
-      name: getTileName(tileId),
+      name: getTileName(tileId, language),
       tileType: tile.tileType,
       ...(typeof tile.price === 'number' ? { price: tile.price } : {}),
       ...(tile.color ? { propertyColor: tile.color } : {}),
@@ -151,7 +153,7 @@ export function buildBoardRenderModel(
     viewerRole,
     state.boardState.gameMode === 'TEAM_2V2',
   );
-  const stationViews = selectPlayerHudViewModels(state, activePlayerId, roomPlayers);
+  const stationViews = selectPlayerHudViewModels(state, activePlayerId, roomPlayers, language);
   const stations = stationViews.flatMap((station): PlayerStationRenderModel[] => {
     const slot = stationSlots.get(station.playerId);
     if (!slot) return [];

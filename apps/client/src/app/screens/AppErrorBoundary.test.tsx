@@ -19,7 +19,7 @@ describe('AppErrorBoundary', () => {
       </AppErrorBoundary>,
     );
 
-    expect(screen.getByRole('heading', { name: 'Không thể hiển thị trò chơi' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Không thể khởi động trò chơi' })).toBeTruthy();
     expect(screen.getByText('Không thể hiển thị trò chơi. Hãy tải lại để thử lại.')).toBeTruthy();
     expect(screen.queryByText('secret technical exception')).toBeNull();
     expect(screen.queryByText(/stack|exception/i)).toBeNull();

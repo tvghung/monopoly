@@ -11,6 +11,7 @@ import {
   getPlayerDisplayColor,
 } from '../../game/ui/playerVisualColors';
 import type { LobbyPlayerView } from './lobbyTypes';
+import { useTranslation } from '../../i18n/I18n';
 
 /**
  * The viewer's way to swap with the player of one seat (2v2 lobby). `IDLE`: the viewer may ask this player to exchange places.
@@ -36,19 +37,18 @@ interface LobbySeatProps {
   swap?: SeatSwap | null;
 }
 
-const NO_MASCOT_HINT = 'Chọn mascot trước để sẵn sàng';
-
 /** One seated player: the mascot on a pedestal in the player color, name, ready stamp and presence. No mascot name is shown. */
 export function LobbySeat({
   player, isSelf, isHost, busy, onSetReady, onKick, swap = null,
 }: LobbySeatProps) {
+  const { language, t } = useTranslation();
   const hintId = useId();
   const needsMascot = player.characterId === null;
   const seatStyle = {
     '--seat-color': getPlayerDisplayColor(player.color),
     '--seat-color-dark': getPlayerAccentDarkColor(player.color),
   } as CSSProperties;
-  const readyLabel = player.ready ? 'Đã sẵn sàng' : 'Chưa sẵn sàng';
+  const readyLabel = player.ready ? t('lobby.readyStatus') : t('lobby.notReadyStatus');
   const className = [
     'lobby-player',
     'lobby-player--occupied',
@@ -64,7 +64,7 @@ export function LobbySeat({
         ? (
           <IconButton
             className="lobby-player__kick"
-            label={`Mời ${player.name} ra khỏi phòng`}
+            label={t('lobby.kick', { name: player.name })}
             icon="close"
             disabled={busy}
             onClick={onKick}
@@ -72,7 +72,7 @@ export function LobbySeat({
         )
         : null}
       <div className="lobby-player__stage">
-        <span className="lobby-player__disc" role="img" aria-label={`Màu ${getPlayerColorLabel(player.color)}`} />
+        <span className="lobby-player__disc" role="img" aria-label={t('lobby.color', { name: getPlayerColorLabel(player.color, language) })} />
         {player.characterId
           ? (
             <img
@@ -87,9 +87,9 @@ export function LobbySeat({
       <div className="lobby-player__identity">
         <span className="lobby-player__name">
           {player.name}
-          {isSelf ? ' (bạn)' : ''}
+          {isSelf ? t('lobby.selfSuffix') : ''}
         </span>
-        {isHost ? <Badge variant="warning">Chủ phòng</Badge> : null}
+        {isHost ? <Badge variant="warning">{t('lobby.hostBadge')}</Badge> : null}
       </div>
       <span
         className={`lobby-player__ready-dot ${player.ready
@@ -102,7 +102,7 @@ export function LobbySeat({
       </span>
       {!player.connected
         ? (
-          <span className="lobby-player__disconnect" role="img" aria-label="Mất kết nối" title="Mất kết nối">
+          <span className="lobby-player__disconnect" role="img" aria-label={t('status.disconnected')} title={t('status.disconnected')}>
             <ActionIcon name="offline" />
           </span>
         )
@@ -115,13 +115,13 @@ export function LobbySeat({
               className="lobby-player__ready-action"
               icon={<ActionIcon name={player.ready ? 'unready' : 'ready'} />}
               disabled={busy || !player.connected || needsMascot}
-              title={needsMascot ? NO_MASCOT_HINT : undefined}
+              title={needsMascot ? t('lobby.noMascotHint') : undefined}
               aria-describedby={needsMascot ? hintId : undefined}
               onClick={() => onSetReady(!player.ready)}
             >
-              <span>{player.ready ? 'Hủy sẵn sàng' : 'Sẵn sàng'}</span>
+              <span>{player.ready ? t('lobby.cancelReady') : t('lobby.readyAction')}</span>
             </Button>
-            {needsMascot ? <span className="lobby-player__hint" id={hintId}>{NO_MASCOT_HINT}</span> : null}
+            {needsMascot ? <span className="lobby-player__hint" id={hintId}>{t('lobby.noMascotHint')}</span> : null}
           </>
         )
         : null}
@@ -132,27 +132,27 @@ export function LobbySeat({
             className="lobby-player__swap-action"
             icon={<ActionIcon name="swap" />}
             disabled={busy}
-            aria-label={`Đổi chỗ với ${player.name}`}
+            aria-label={t('lobby.requestSwap', { name: player.name })}
             onClick={swap.onRequest}
           >
-            <span>Đổi chỗ</span>
+            <span>{t('lobby.requestSwapShort')}</span>
           </Button>
         )
         : null}
       {swap?.state === 'PENDING'
         ? (
           <div className="lobby-player__swap-pending">
-            <p className="lobby-player__swap-status" role="status">{`Đang chờ ${player.name} trả lời`}</p>
+            <p className="lobby-player__swap-status" role="status">{t('lobby.waitingSwap', { name: player.name })}</p>
             <Button
               variant="ghost"
               size="sm"
               className="lobby-player__swap-cancel"
               icon={<ActionIcon name="close" />}
               disabled={busy}
-              aria-label={`Hủy yêu cầu đổi chỗ với ${player.name}`}
+              aria-label={t('lobby.cancelSwapWith', { name: player.name })}
               onClick={swap.onCancel}
             >
-              <span>Hủy yêu cầu</span>
+              <span>{t('lobby.cancelSwapShort')}</span>
             </Button>
           </div>
         )
@@ -174,13 +174,14 @@ interface EmptySeatProps {
 export function EmptySeat({
   number, teamName, busy = false, onMove,
 }: EmptySeatProps) {
+  const { t } = useTranslation();
   return (
     <li className="lobby-player lobby-player--empty">
       <div className="lobby-player__stage">
         <span className="lobby-player__disc" aria-hidden="true" />
       </div>
-      <span className="lobby-player__name">{`Chỗ trống ${number}`}</span>
-      <span className="lobby-player__hint">Chia sẻ mã phòng để mời bạn</span>
+      <span className="lobby-player__name">{t('lobby.emptySeatNumber', { number })}</span>
+      <span className="lobby-player__hint">{t('lobby.shareCode')}</span>
       {onMove
         ? (
           <Button
@@ -188,10 +189,10 @@ export function EmptySeat({
             className="lobby-player__swap-action"
             icon={<ActionIcon name="swap" />}
             disabled={busy}
-            aria-label={`Chuyển sang chỗ trống ${number} của đội ${teamName ?? ''}`.trimEnd()}
+            aria-label={t('lobby.moveToSeat', { number, teamName: teamName ?? '' })}
             onClick={onMove}
           >
-            <span>Chuyển sang</span>
+            <span>{t('lobby.moveToSeatShort')}</span>
           </Button>
         )
         : null}

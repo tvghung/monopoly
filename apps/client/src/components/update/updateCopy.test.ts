@@ -1,13 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import type { AppUpdateErrorCode } from '../../runtime/types';
 import {
-  applyLabel, downloadLabel, downloadPercent, failureMessage, offerBody, readyBody, settingsStatus, UPDATE_COPY,
+  applyLabel, downloadLabel, downloadPercent, failureMessage, getUpdateCopy, offerBody, readyBody, settingsStatus, UPDATE_COPY,
 } from './updateCopy';
 import {
   available, downloading, ready, requiredAvailable, updateState,
 } from './updateTestFixtures';
 
 describe('update copy', () => {
+  it('renders update decisions and progress in English on demand', () => {
+    expect(getUpdateCopy('en').offerTitle).toBe('An update is available');
+    expect(offerBody(available(), 'en')).toBe('Own the Block v1.2.0 is ready. You are using v1.1.1.');
+    expect(downloadLabel(downloading(168_398_848 / 2), 'en')).toBe('Downloading update — 50%');
+    expect(readyBody(ready({ installMode: 'open-installer' }), 'en')).toContain('Applications');
+    expect(settingsStatus(available(), false, 'en')).toBe('Version 1.2.0 is available.');
+  });
+
   it('says what the owner wrote for an optional update', () => {
     expect(UPDATE_COPY.offerTitle).toBe('Có bản cập nhật mới');
     expect(offerBody(available())).toBe('Own the Block v1.2.0 đã sẵn sàng. Bạn đang sử dụng v1.1.1.');

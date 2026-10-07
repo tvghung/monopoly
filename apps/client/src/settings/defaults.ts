@@ -1,11 +1,13 @@
 import type { GameSettings, GraphicsQualitySetting } from './types';
 
-export const SETTINGS_STORAGE_KEY = 'own-the-block.settings.v1';
+export const SETTINGS_STORAGE_KEY = 'own-the-block.settings.v2';
+export const LEGACY_SETTINGS_STORAGE_KEY = 'own-the-block.settings.v1';
 export const ANIMATION_SPEED_OPTIONS = [0.75, 1, 1.5, 2] as const;
 export const GRAPHICS_QUALITY_OPTIONS = ['auto', 'high', 'balanced', 'low'] as const satisfies readonly GraphicsQualitySetting[];
 
 export const DEFAULT_GAME_SETTINGS: GameSettings = {
-  version: 1,
+  version: 2,
+  language: 'vi',
   masterVolume: 1,
   musicVolume: 0.7,
   sfxVolume: 0.8,
@@ -39,7 +41,10 @@ export function normalizeSettings(value: unknown): GameSettings {
   if (!value || typeof value !== 'object') return { ...DEFAULT_GAME_SETTINGS };
   const candidate = value as Partial<GameSettings>;
   return {
-    version: 1,
+    version: 2,
+    language: candidate.language === 'en' || candidate.language === 'vi'
+      ? candidate.language
+      : DEFAULT_GAME_SETTINGS.language,
     masterVolume: clampVolume(candidate.masterVolume, DEFAULT_GAME_SETTINGS.masterVolume),
     musicVolume: clampVolume(candidate.musicVolume, DEFAULT_GAME_SETTINGS.musicVolume),
     sfxVolume: clampVolume(candidate.sfxVolume, DEFAULT_GAME_SETTINGS.sfxVolume),

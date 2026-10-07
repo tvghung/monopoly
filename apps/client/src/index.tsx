@@ -5,6 +5,8 @@ import { applyVisualTheme, DEFAULT_VISUAL_THEME } from './design-system/theme/vi
 import AppBootstrap from './app/bootstrap/AppBootstrap';
 import AppErrorBoundary from './app/screens/AppErrorBoundary';
 import { HowToPlayProvider } from './howToPlay/HowToPlayProvider';
+import { SettingsProvider } from './settings/SettingsProvider';
+import { I18nProvider } from './i18n/I18n';
 
 // index.html already carries the attribute; this covers hosts that load the bundle without it.
 applyVisualTheme(DEFAULT_VISUAL_THEME);
@@ -16,11 +18,15 @@ const phase4UatRequested = __PHASE4_UAT__
 const Phase4UatHarness = lazy(() => import('virtual:phase4-uat'));
 
 createRoot(container).render(
-  <AppErrorBoundary>
-    <StrictMode>
-      {phase4UatRequested
-        ? <Suspense fallback={<p>Đang dựng bộ kiểm thử Phase 4…</p>}><Phase4UatHarness /></Suspense>
-        : <HowToPlayProvider><AppBootstrap /></HowToPlayProvider>}
-    </StrictMode>
-  </AppErrorBoundary>,
+  <SettingsProvider>
+    <I18nProvider>
+      <AppErrorBoundary>
+        <StrictMode>
+          {phase4UatRequested
+            ? <Suspense fallback={<p>Đang dựng bộ kiểm thử Phase 4…</p>}><Phase4UatHarness /></Suspense>
+            : <HowToPlayProvider><AppBootstrap /></HowToPlayProvider>}
+        </StrictMode>
+      </AppErrorBoundary>
+    </I18nProvider>
+  </SettingsProvider>,
 );

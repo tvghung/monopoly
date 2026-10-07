@@ -1789,7 +1789,7 @@ describe('App 2v2 lobby commands', () => {
       protocolVersion: SOCKET_PROTOCOL_VERSION,
       error: { code: 'CONFLICT', message: 'Chỉ chủ phòng mới đổi được chế độ.', retryable: false },
     });
-    expect(screen.getByRole('alert').textContent).toBe('Chỉ chủ phòng mới đổi được chế độ.');
+    expect(screen.getByRole('alert').textContent).toBe('Giao dịch chưa thể thực hiện.');
 
     // Only the name travels: the server renames the sender's own team, the client never names a team.
     const nameField = screen.getByLabelText('Tên đội');
@@ -1877,7 +1877,7 @@ describe('App 2v2 lobby commands', () => {
       error: { code: 'CONFLICT', message: 'Chỗ này vừa có người ngồi. Hãy chọn lại.', retryable: false },
     });
 
-    expect(screen.getByRole('alert').textContent).toBe('Chỗ này vừa có người ngồi. Hãy chọn lại.');
+    expect(screen.getByRole('alert').textContent).toBe('Giao dịch chưa thể thực hiện.');
   });
 
   it('kicks a player only after the host confirms, sending the stable player id', () => {

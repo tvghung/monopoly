@@ -7,17 +7,13 @@ import HowToPlayButton from '../howToPlay/HowToPlayButton';
 import JoinHero from './JoinHero';
 import './style/EntryShared.css';
 import './style/JoinForm.css';
+import { useTranslation } from '../i18n/I18n';
 
 /** `code` joins the room whose code is typed; `public` joins the shared public room. */
 export type JoinRoomMode = 'code' | 'public';
 
 /** The room both "Phòng chung" and an empty code join. */
 const PUBLIC_ROOM_CODE = 'LOBBY';
-
-const ROOM_MODE_OPTIONS: readonly SegmentedOption<JoinRoomMode>[] = [
-  { value: 'code', label: 'Có mã phòng' },
-  { value: 'public', label: 'Phòng chung' },
-];
 
 interface JoinFormProps {
   onJoin: (name: string, roomId: string) => void;
@@ -39,10 +35,15 @@ interface JoinFormProps {
 export default function JoinForm({
   onJoin, onBack, busy, connected, error, initialName, initialRoomCode, initialMode = 'code',
 }: JoinFormProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initialName ?? '');
   const [roomId, setRoomId] = useState(initialRoomCode ?? '');
   const [mode, setMode] = useState<JoinRoomMode>(initialRoomCode ? 'code' : initialMode);
   const missingName = !name.trim();
+  const roomModeOptions: readonly SegmentedOption<JoinRoomMode>[] = [
+    { value: 'code', label: t('join.modeCode') },
+    { value: 'public', label: t('join.modePublic') },
+  ];
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -65,12 +66,12 @@ export default function JoinForm({
               icon={<ActionIcon name="back" className="action-icon--only" />}
               onClick={() => onBack()}
             >
-              Quay lại
+              {t('join.back')}
             </Button>
           ) : null}
           <p className="join__brand" aria-hidden="true">OWN THE BLOCK</p>
-          <h1 id="join-title" className="join__title">Cờ Tỷ Phú Việt Nam</h1>
-          <p className="join__subtitle">Vào phòng và chia sẻ mã phòng để cùng bạn bè chơi trực tuyến.</p>
+          <h1 id="join-title" className="join__title">{t('brand.subtitle')}</h1>
+          <p className="join__subtitle">{t('join.subtitle')}</p>
           <JoinHero />
           {/* Beside the title, not in the card: the card keeps every field and the join button on screen at 812x375. */}
           <HowToPlayButton variant="labelled" className="join__help" />
@@ -79,17 +80,17 @@ export default function JoinForm({
         <Panel as="div" padding="lg" className="join__panel">
           <form className="join__form" onSubmit={handleSubmit}>
             {error ? <p className="join__error" role="alert">{error}</p> : null}
-            {!connected ? <p className="join__connection" role="status">Đang kết nối đến máy chủ trò chơi…</p> : null}
+            {!connected ? <p className="join__connection" role="status">{t('join.connecting')}</p> : null}
 
             <div className="join__field">
-              <label className="entry-label" htmlFor="join-name">Tên của bạn</label>
+              <label className="entry-label" htmlFor="join-name">{t('join.name')}</label>
               <input
                 id="join-name"
                 className="entry-control"
                 type="text"
                 value={name}
                 maxLength={20}
-                placeholder="Ví dụ: Minh"
+                placeholder={t('join.namePlaceholder')}
                 onChange={e => setName(e.target.value)}
                 autoComplete="nickname"
                 enterKeyHint={mode === 'code' ? 'next' : 'go'}
@@ -98,10 +99,10 @@ export default function JoinForm({
             </div>
 
             <div className="join__field">
-              <span className="entry-label" aria-hidden="true">Loại phòng</span>
+              <span className="entry-label" aria-hidden="true">{t('join.roomType')}</span>
               <SegmentedControl
-                label="Loại phòng"
-                options={ROOM_MODE_OPTIONS}
+                label={t('join.roomType')}
+                options={roomModeOptions}
                 value={mode}
                 onChange={setMode}
                 className="join__modes"
@@ -110,21 +111,21 @@ export default function JoinForm({
 
             {mode === 'code' ? (
               <div className="join__field join__room">
-                <label className="entry-label" htmlFor="join-room">Mã phòng</label>
+                <label className="entry-label" htmlFor="join-room">{t('join.roomCode')}</label>
                 <input
                   id="join-room"
                   className="entry-control"
                   type="text"
                   value={roomId}
                   maxLength={20}
-                  placeholder="Ví dụ: GAME-1234"
+                  placeholder={t('join.roomCodePlaceholder')}
                   onChange={e => setRoomId(e.target.value)}
                   autoCapitalize="characters"
                   enterKeyHint="go"
                 />
               </div>
             ) : (
-              <p className="join__hint join__room">Mọi người chọn Phòng chung đều vào cùng một phòng.</p>
+              <p className="join__hint join__room">{t('join.publicHint')}</p>
             )}
 
             <Button
@@ -136,10 +137,10 @@ export default function JoinForm({
               disabled={missingName || !connected}
               aria-describedby={missingName && !busy ? 'join-submit-reason' : undefined}
             >
-              {busy ? 'Đang vào phòng…' : 'Vào phòng'}
+              {busy ? t('join.entering') : t('join.enter')}
             </Button>
             {missingName && !busy ? (
-              <p id="join-submit-reason" className="join__hint join__reason">Nhập tên của bạn để vào phòng.</p>
+              <p id="join-submit-reason" className="join__hint join__reason">{t('join.nameHint')}</p>
             ) : null}
           </form>
         </Panel>

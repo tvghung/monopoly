@@ -6,10 +6,11 @@
 already bound to a room. Runtime schema requires nonblank string up to 500 characters.
 It has typed ACK.
 
-Player/spectator labels and all generated player-facing copy are tiếng Việt; game
-amounts use VNĐ formatting and no `$`/`$M`. Each socket may submit at most one chat
-attempt per 750 ms. The durable compatibility string log keeps the newest 500
-entries and V8 keeps a separate bounded typed public activity tail.
+Server compatibility string logs retain their canonical Vietnamese copy; the client
+localizes typed activity for VI/EN display. Game amounts use VNĐ formatting and no
+`$`/`$M`. Each socket may submit at most one chat attempt per 750 ms. The durable
+compatibility string log keeps the newest 500 entries and V8 keeps a separate bounded
+typed public activity tail.
 
 ## Safety/authority
 

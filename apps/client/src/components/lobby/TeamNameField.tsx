@@ -1,5 +1,6 @@
 import { useEffect, useId, useState, type KeyboardEvent } from 'react';
 import { TEAM_NAME_MAX_LENGTH } from '@monopoly/shared';
+import { useTranslation } from '../../i18n/I18n';
 
 interface TeamNameFieldProps {
   name: string;
@@ -12,6 +13,7 @@ interface TeamNameFieldProps {
  * Escape or when left empty. The name is limited to the same length as a player name; the server trims and sanitises it again.
  */
 export default function TeamNameField({ name, busy, onCommit }: TeamNameFieldProps) {
+  const { t } = useTranslation();
   const inputId = useId();
   const [draft, setDraft] = useState(name);
   const [focused, setFocused] = useState(false);
@@ -44,7 +46,7 @@ export default function TeamNameField({ name, busy, onCommit }: TeamNameFieldPro
 
   return (
     <div className="lobby-team__name-field">
-      <label htmlFor={inputId} className="sr-only">Tên đội</label>
+      <label htmlFor={inputId} className="sr-only">{t('lobby.teamName')}</label>
       <input
         id={inputId}
         className="lobby-team__name-input"

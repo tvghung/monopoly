@@ -2,8 +2,9 @@
 
 V1.1 mục 8 của chủ sản phẩm: mọi màn hình có một nút thông tin; bấm vào mở một hộp thoại
 "Hướng dẫn chơi" gồm luật cơ bản, thu tiền thuê, xây nhà, mua đất, nhà tù, thuế, danh sách thẻ
-Cơ Hội/Khí Vận, giao dịch, nợ, bỏ cuộc. Mỗi mục là một khối đóng, người chơi bấm mới mở. Toàn bộ
-chữ là tiếng Việt thường, ngắn, không thuật ngữ kỹ thuật (người chơi không đọc chữ kỹ thuật).
+Cơ Hội/Khí Vận, giao dịch, nợ, bỏ cuộc và chơi đội. Mỗi mục là một khối đóng, người chơi bấm mới mở.
+Nội dung có tiếng Việt và tiếng Anh; model chọn theo preference của client, mặc định là tiếng Việt.
+Hai ngôn ngữ giữ câu ngắn, không đưa thuật ngữ kỹ thuật vào nội dung người chơi đọc.
 
 ## Code nguồn
 
@@ -12,7 +13,7 @@ chữ là tiếng Việt thường, ngắn, không thuật ngữ kỹ thuật (n
 | Provider và hook | `apps/client/src/howToPlay/HowToPlayProvider.tsx`, `howToPlayContext.ts` (`useHowToPlay()`: `available`, `isOpen`, `open`, `close`) |
 | Nút | `HowToPlayButton.tsx` (`variant` `icon` mặc định / `labelled`, `placement` `inline` mặc định / `corner`) |
 | Hộp thoại | `HowToPlayModal.tsx`, `howToPlay.css` |
-| Model nội dung (thuần, không React) | `modelTypes.ts` (kiểu + `SECTION_TITLES`), `model.ts` (`buildHowToPlayModel()`), `cards.ts` (danh sách thẻ) |
+| Model nội dung (thuần, không React) | `modelTypes.ts` (kiểu), `model.ts` / `model.en.ts` (`buildHowToPlayModel(language)`), `cards.ts` (danh sách thẻ) |
 | Số luật chỉ có ở server | `packages/shared/src/rules.ts` (export qua `@monopoly/shared`) |
 | Giữ server và `rules.ts` khớp nhau | `apps/server/src/rulesContract.test.ts` |
 | Icon | `help` trong `design-system/icons/actionIcons.ts` (Lucide `CircleQuestionMark`) |

@@ -2,6 +2,7 @@ import { useContext } from 'react';
 import { tileState } from '@monopoly/shared';
 import stateContext from '../internal';
 import { getTileAccessibilityLabel } from './legacy-board/tileAccessibility';
+import { useTranslation } from '../i18n/I18n';
 
 interface BoardAccessibilityControlsProps {
   selectedTileId: number | null;
@@ -15,21 +16,22 @@ export default function BoardAccessibilityControls({
   onSelect,
 }: BoardAccessibilityControlsProps) {
   const { state } = useContext(stateContext);
+  const { language, t } = useTranslation();
   return (
-    <nav className="game-board__accessibility-layer" aria-label="Các ô trên bàn cờ">
+    <nav className="game-board__accessibility-layer" aria-label={t('board.tilesNav')}>
       <ol className="sr-only">
         {tileState.map((_tile, tileId) => (
           <li key={tileId}>
             <button
               type="button"
               data-tile-index={tileId}
-              aria-label={getTileAccessibilityLabel(tileId, state)}
+              aria-label={getTileAccessibilityLabel(tileId, state, language)}
               aria-expanded={selectedTileId === tileId}
               onFocus={() => onHover(tileId)}
               onBlur={() => onHover(null)}
               onClick={() => onSelect(tileId)}
             >
-              {getTileAccessibilityLabel(tileId, state)}
+              {getTileAccessibilityLabel(tileId, state, language)}
             </button>
           </li>
         ))}

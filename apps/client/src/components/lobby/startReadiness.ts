@@ -6,6 +6,8 @@ import {
   type GameMode,
 } from '@monopoly/shared';
 import type { LobbyPlayerView } from './lobbyTypes';
+import type { Language } from '../../i18n/I18n';
+import { translate } from '../../i18n/I18n';
 
 function hasUniqueAppearances(players: readonly LobbyPlayerView[]): boolean {
   const keys = players
@@ -34,20 +36,22 @@ export function getStartBlockReason(
   minPlayers: number,
   maxPlayers: number,
   mode: GameMode = 'SOLO',
+  language: Language = 'vi',
 ): string | null {
+  const t = (key: Parameters<typeof translate>[0], values?: Readonly<Record<string, string | number>>) => translate(key, language, values);
   if (mode === 'TEAM_2V2') {
-    if (players.length !== TEAM_2V2_PLAYER_COUNT) return `Chế độ 2v2 cần đúng ${TEAM_2V2_PLAYER_COUNT} người chơi`;
+    if (players.length !== TEAM_2V2_PLAYER_COUNT) return t('lobby.reason.teamPlayers', { count: TEAM_2V2_PLAYER_COUNT });
     if (TEAM_IDS.some(teamId => players.filter(player => player.teamId === teamId).length !== TEAM_SIZE)) {
-      return `Mỗi đội cần đúng ${TEAM_SIZE} người chơi`;
+      return t('lobby.reason.teamSize', { count: TEAM_SIZE });
     }
   } else {
-    if (players.length < minPlayers) return `Cần ít nhất ${minPlayers} người chơi`;
-    if (players.length > maxPlayers) return `Tối đa ${maxPlayers} người chơi`;
+    if (players.length < minPlayers) return t('lobby.reason.minimum', { count: minPlayers });
+    if (players.length > maxPlayers) return t('lobby.reason.maximum', { count: maxPlayers });
   }
-  if (players.some(player => !player.ready)) return 'Chờ mọi người sẵn sàng';
-  if (players.some(player => player.characterId === null)) return 'Có người chưa chọn mascot';
-  if (players.some(player => !player.connected)) return 'Có người đang mất kết nối';
-  if (mode === 'TEAM_2V2' && teammatesShareMascot(players)) return 'Hai đồng đội đang trùng mascot';
-  if (!hasUniqueAppearances(players)) return 'Hai người đang trùng mascot và màu';
+  if (players.some(player => !player.ready)) return t('lobby.reason.ready');
+  if (players.some(player => player.characterId === null)) return t('lobby.reason.mascot');
+  if (players.some(player => !player.connected)) return t('lobby.reason.disconnected');
+  if (mode === 'TEAM_2V2' && teammatesShareMascot(players)) return t('lobby.reason.duplicateTeammate');
+  if (!hasUniqueAppearances(players)) return t('lobby.reason.duplicateAppearance');
   return null;
 }

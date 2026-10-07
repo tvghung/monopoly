@@ -105,7 +105,7 @@ describe('OwnedPropertiesControl', () => {
     expect(screen.getByText('2 nhà')).toBeTruthy();
     expect(screen.getByText('0 khách sạn')).toBeTruthy();
     // Each district is a named group holding compact deeds (the old "Nhóm Nâu · 2 Nhà" line is the deed's own rows now).
-    const brown = screen.getByRole('group', { name: 'Nhóm Nâu' });
+    const brown = screen.getByRole('group', { name: 'Nâu' });
     expect(within(brown).getByRole('article', { name: 'Cà Mau' })).toBeTruthy();
     expect(within(brown).getByText('Có 2 Nhà')).toBeTruthy();
     expect(within(screen.getByRole('group', { name: 'Ga tàu' })).getByRole('article', { name: 'Ga Hà Nội' })).toBeTruthy();
@@ -186,7 +186,7 @@ describe('OwnedPropertiesControl', () => {
     expect(groups).toHaveLength(4);
     expect(groups.map(group => within(group).getAllByRole('article').length)).toEqual([2, 2, 2, 1]);
     expect(groups.map(group => group.querySelector('.portfolio-group__label')?.textContent))
-      .toEqual(['Nhóm Nâu', 'Nhóm Xanh nhạt', 'Ga tàu', 'Tiện ích']);
+      .toEqual(['Nâu', 'Xanh nhạt', 'Ga tàu', 'Tiện ích']);
     // 7 of the viewer's own tiles: houses 4 + 1, one hotel; the other player's tile 9 is not counted or shown.
     expect(within(dialog).getByText('7 tài sản')).toBeTruthy();
     expect(within(dialog).getByText('5 nhà')).toBeTruthy();

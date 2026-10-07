@@ -5,6 +5,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RuntimeConfigLoadError } from '../../runtime/runtimeConfig';
 import { SETTINGS_STORAGE_KEY } from '../../settings/defaults';
 import { readGameSettings } from '../../settings/storage';
+import { SettingsProvider } from '../../settings/SettingsProvider';
+import { I18nProvider } from '../../i18n/I18n';
+import { HowToPlayProvider } from '../../howToPlay/HowToPlayProvider';
 
 const bootstrapMock = vi.hoisted(() => ({
   bootstrap: vi.fn(),
@@ -15,6 +18,16 @@ vi.mock('./bootstrap', () => bootstrapMock);
 vi.mock('../../App', () => ({ default: appMock }));
 
 import AppBootstrap from './AppBootstrap';
+
+function renderAppBootstrap() {
+  return render(
+    <SettingsProvider>
+      <I18nProvider>
+        <HowToPlayProvider><AppBootstrap /></HowToPlayProvider>
+      </I18nProvider>
+    </SettingsProvider>,
+  );
+}
 
 afterEach(() => {
   cleanup();
@@ -30,7 +43,7 @@ describe('AppBootstrap failure handling', () => {
     bootstrapMock.bootstrap.mockRejectedValue(new Error('secret bridge failure'));
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    render(<AppBootstrap />);
+    renderAppBootstrap();
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'Không thể khởi động trò chơi' })).toBeTruthy();
@@ -66,7 +79,7 @@ describe('AppBootstrap failure handling', () => {
     );
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    render(<AppBootstrap />);
+    renderAppBootstrap();
 
     await waitFor(() => {
       expect(screen.getByText('Không thể chuẩn bị kết nối trò chơi. Hãy thử lại.')).toBeTruthy();
@@ -140,7 +153,7 @@ describe('AppBootstrap failure handling', () => {
       },
     });
 
-    render(<AppBootstrap />);
+    renderAppBootstrap();
     expect(screen.getByRole('button', { name: 'Tham gia phòng' })).toBeTruthy();
     expect(bootstrapMock.bootstrap).not.toHaveBeenCalled();
 
@@ -204,7 +217,7 @@ describe('AppBootstrap failure handling', () => {
       },
     };
 
-    render(<AppBootstrap />);
+    renderAppBootstrap();
 
     // The start screen has the button, and no gameplay socket exists yet (bootstrap has not run).
     fireEvent.click(await screen.findByRole('button', { name: 'Cài đặt' }));
@@ -273,7 +286,7 @@ describe('AppBootstrap failure handling', () => {
       },
     });
 
-    render(<AppBootstrap />);
+    renderAppBootstrap();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Máy chủ riêng' })).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: 'Máy chủ riêng' }));
     fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Ada' } });

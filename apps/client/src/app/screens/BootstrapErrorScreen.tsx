@@ -1,12 +1,13 @@
 import { ActionIcon } from '../../design-system/icons/ActionIcon';
 import ErrorScreen from './ErrorScreen';
+import { useTranslation } from '../../i18n/I18n';
 
 export type BootstrapErrorKind = 'bootstrap' | 'runtime-config' | 'render';
 
-const errorCopy: Record<BootstrapErrorKind, string> = {
-  bootstrap: 'Không thể khởi động trò chơi. Hãy thử lại.',
-  'runtime-config': 'Không thể chuẩn bị kết nối trò chơi. Hãy thử lại.',
-  render: 'Không thể hiển thị trò chơi. Hãy tải lại để thử lại.',
+const errorCopy: Record<BootstrapErrorKind, 'bootstrap.errorMessage' | 'bootstrap.runtimeError' | 'bootstrap.renderError'> = {
+  bootstrap: 'bootstrap.errorMessage',
+  'runtime-config': 'bootstrap.runtimeError',
+  render: 'bootstrap.renderError',
 };
 
 interface BootstrapErrorScreenProps {
@@ -19,14 +20,15 @@ interface BootstrapErrorScreenProps {
 export default function BootstrapErrorScreen({
   kind = 'bootstrap',
   onRetry,
-  title = 'Không thể khởi động trò chơi',
-  actionLabel = kind === 'render' ? 'Tải lại trò chơi' : 'Thử lại',
+  title,
+  actionLabel,
 }: BootstrapErrorScreenProps) {
+  const { t } = useTranslation();
   return (
     <ErrorScreen
-      title={title}
-      message={errorCopy[kind]}
-      action={{ label: actionLabel, icon: <ActionIcon name="retry" />, onClick: onRetry }}
+      title={title ?? t('bootstrap.errorTitle')}
+      message={t(errorCopy[kind])}
+      action={{ label: actionLabel ?? t(kind === 'render' ? 'bootstrap.reload' : 'bootstrap.retry'), icon: <ActionIcon name="retry" />, onClick: onRetry }}
     />
   );
 }

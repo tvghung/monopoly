@@ -1,4 +1,4 @@
-# Checklist — Vietnamese client, state sync, motion và accessibility
+# Checklist — bilingual client, state sync, motion và accessibility
 
 ## Session/sync
 
@@ -18,13 +18,13 @@
   reduced motion, executor failure recovery, skip-all/reconnect snap and stale
   executor cancellation.
 
-## Vietnamese/content/money
+## VI/EN content and money
 
-- [ ] `[AUDIT][CLIENT]` HTML title/metadata/manifest, join/lobby/host/ready/spectator,
+- [ ] `[AUDIT][CLIENT]` HTML title/description/manifest, join/lobby/host/ready/spectator,
   reconnect, dice/buy/payment/forced-sale/trade/property/jail/forfeit/winner/error/empty/
-  tooltip/alt/log copy is Vietnamese.
-- [ ] `[AUDIT]` No player-facing “Monopoly”, English game term, `$`, `$M` or USD
-  formatter remains; internal event/package/env names are exempt.
+  tooltip/alt/log copy is localized for both VI and EN. Internal event/package/env names are exempt.
+- [ ] `[AUDIT]` No player-facing “Monopoly”, uncatalogued interface copy, `$`, `$M` or USD
+  formatter remains; user-authored names and chat are preserved.
 - [x] `[CLIENT][AUTOMATED]` All displayed amounts use shared VNĐ formatter, including card
   detail, tooltip, prompt, log, offer, bid, balance and bail.
 - [x] `[CLIENT][AUTOMATED]` Board renders exact canonical shared 40 tiles without duplicate
@@ -45,8 +45,22 @@
 ## Accessibility/layout
 
 - [ ] `[CLIENT][MANUAL-E2E]` Keyboard/focus/labels/live errors/reduced-motion usable;
-  Vietnamese text and short board labels fit desktop/mobile without hiding critical
+  VI and EN text and short board labels fit desktop/mobile without hiding critical
   action.
+
+## Language preference
+
+- [x] `[AUTO][CLIENT]` `settings.test.ts`: V1 settings migrate to V2, default language is
+  Vietnamese, existing preferences survive, and invalid locale values normalize safely.
+- [x] `[AUTO][CLIENT]` `SettingsPanel.test.tsx`, `DesktopMultiplayerLauncher.update.test.tsx`:
+  settings and the one-click menu switch update the shared language immediately.
+- [x] `[AUTO][CLIENT]` `LanguageDocumentSync.test.tsx`: `<html lang>`, title and description
+  follow the selected language.
+- [x] `[AUTO][CLIENT]` `formatters.test.ts`, `activityText.test.ts`, `cardVisuals.test.ts`,
+  `model.test.ts`: special tile labels, structured activity, card copy and How To Play have
+  VI/EN assertions; names/chat preserve user-authored text.
+- [ ] `[MANUAL-E2E]` Confirm English menu, settings, lobby and active-game HUD at 1280×720
+  and a narrow viewport; verify no clipped labels or blocked actions.
 
 ## Design system V2 (visual-overhaul-v2 plan 01)
 

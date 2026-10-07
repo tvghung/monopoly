@@ -9,6 +9,7 @@ import {
 import { AppUpdateProvider } from '../runtime/appUpdate';
 import type { AppUpdateState, HostRuntimeState, HostRuntimeStatus } from '../runtime/types';
 import { SettingsProvider } from '../settings/SettingsProvider';
+import { I18nProvider } from '../i18n/I18n';
 
 const idle: HostRuntimeStatus = {
   state: 'IDLE',
@@ -52,12 +53,14 @@ function renderLauncher(initial: AppUpdateState, host: HostRuntimeStatus = idle)
   const onReady = vi.fn();
   render(
     <SettingsProvider>
-      <AppUpdateProvider inSession={false}>
-        <DesktopMultiplayerLauncher onReady={onReady} configuredRuntimeConfig={{
-          target: 'desktop', socketUrl: 'http://192.168.1.15:8080', platform: 'win32', appVersion: '1.1.1',
-        }}
-        />
-      </AppUpdateProvider>
+      <I18nProvider>
+        <AppUpdateProvider inSession={false}>
+          <DesktopMultiplayerLauncher onReady={onReady} configuredRuntimeConfig={{
+            target: 'desktop', socketUrl: 'http://192.168.1.15:8080', platform: 'win32', appVersion: '1.1.1',
+          }}
+          />
+        </AppUpdateProvider>
+      </I18nProvider>
     </SettingsProvider>,
   );
   return { ...bridge, onReady };
@@ -68,6 +71,18 @@ const gone = () => waitFor(() => expect(document.querySelector('.ds-modal__card'
 const runningHost = (state: HostRuntimeState = 'HOSTING') => ({ ...hosting, state });
 
 describe('start screen with an optional update', () => {
+  it('switches the main menu language with one click and switches back without reloading', () => {
+    renderLauncher(updateState());
+
+    fireEvent.click(menuButton('Chuyển sang English'));
+    expect(menuButton('Host Room')).toBeTruthy();
+    expect(menuButton('Settings')).toBeTruthy();
+
+    fireEvent.click(menuButton('Switch to Vietnamese'));
+    expect(menuButton('Tạo phòng')).toBeTruthy();
+    expect(menuButton('Cài đặt')).toBeTruthy();
+  });
+
   it('offers the update over the menu and keeps every way to play enabled', async () => {
     renderLauncher(available());
 

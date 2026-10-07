@@ -9,7 +9,7 @@ describe('PlayerAvatar', () => {
   it('describes the mascot in Vietnamese and never adds visible text or a tooltip', () => {
     const { container } = render(<PlayerAvatar characterId="dog" colorId="red" />);
 
-    const image = screen.getByRole('img', { name: 'Mascot Chó' });
+    const image = screen.getByRole('img', { name: 'Linh vật Chó' });
     expect(image.getAttribute('title')).toBeNull();
     expect(container.textContent).toBe('');
     expect(container.querySelector('[title]')).toBeNull();
@@ -18,7 +18,7 @@ describe('PlayerAvatar', () => {
   it('colorizes the mascot art with the player color', () => {
     render(<PlayerAvatar characterId="cat" colorId="blue" />);
 
-    const source = decodeURIComponent(screen.getByRole('img', { name: 'Mascot Mèo' }).getAttribute('src') ?? '');
+    const source = decodeURIComponent(screen.getByRole('img', { name: 'Linh vật Mèo' }).getAttribute('src') ?? '');
     expect(source).toContain('#3567f2');
     expect(source).not.toContain('#FF00FF');
   });
@@ -26,11 +26,11 @@ describe('PlayerAvatar', () => {
   it('gives every mascot a Vietnamese label, including the legacy one', () => {
     for (const characterId of CHARACTER_IDS) {
       const view = render(<PlayerAvatar characterId={characterId} colorId="green" />);
-      expect(view.container.querySelector('img')?.getAttribute('alt')).toMatch(/^Mascot /u);
+      expect(view.container.querySelector('img')?.getAttribute('alt')).toMatch(/^Linh vật /u);
       view.unmount();
     }
     render(<PlayerAvatar characterId={null} colorId="green" />);
-    expect(screen.getByRole('img', { name: 'Mascot cũ' })).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'Linh vật cũ' })).toBeTruthy();
   });
 
   it('scales the ring with the size and exposes size through CSS variables', () => {
@@ -51,7 +51,7 @@ describe('PlayerAvatar', () => {
   it.each([
     ['offline', 'Mất kết nối', false],
     ['bankrupt', 'Phá sản', true],
-    ['left', 'Đã rời phòng', true],
+    ['left', 'Đã rời', true],
   ] as const)('labels the %s status and %s greys it out: %s', (status, label, inactive) => {
     const { container } = render(<PlayerAvatar characterId="panda" colorId="green" status={status} />);
 

@@ -6,66 +6,69 @@ import {
   type Tile,
 } from '@monopoly/shared';
 import { formatMoney } from '../formatters';
+import type { Language } from '../../../i18n/I18n';
+import { translate } from '../../../i18n/I18n';
 
 export interface TileDetail {
   label: string;
   value?: string;
 }
 
-export function getTileDetails(tile: Tile): TileDetail[] {
+export function getTileDetails(tile: Tile, language: Language = 'vi'): TileDetail[] {
+  const t = (key: Parameters<typeof translate>[0], values?: Readonly<Record<string, string | number>>) => translate(key, language, values);
   if (tile.tileType === 'normal') {
     const rentDetails = (tile.rentTiers ?? []).map((rent, index) => ({
-      label: index === 4 ? 'Có Khách Sạn' : `Có ${index + 1} Nhà`,
+      label: index === 4 ? t('property.hotelTier') : t('property.houseTier', { count: index + 1 }),
       value: formatMoney(rent),
     }));
     return [
       ...(typeof tile.rent === 'number'
-        ? [{ label: 'Tiền thuê cơ bản', value: formatMoney(tile.rent) }]
+        ? [{ label: t('property.baseRent'), value: formatMoney(tile.rent) }]
         : []),
       ...rentDetails,
       ...(typeof tile.houseCost === 'number'
-        ? [{ label: 'Giá mỗi Nhà / Khách Sạn', value: formatMoney(tile.houseCost) }]
+        ? [{ label: t('property.houseCost'), value: formatMoney(tile.houseCost) }]
         : []),
     ];
   }
 
   if (tile.tileType === 'railroad') {
     return RAILROAD_RENT_BY_COUNT.map((rent, index) => ({
-      label: `Sở hữu ${index + 1} Ga Tàu`,
+      label: t('property.stationsOwned', { count: index + 1 }),
       value: formatMoney(rent),
     }));
   }
 
   if (tile.tileType === 'company') {
     return [
-      { label: 'Sở hữu 1 Công Ty', value: `Tổng xúc xắc ×${UTILITY_RENT_MULTIPLIER_SINGLE}` },
-      { label: 'Sở hữu cả 2 Công Ty', value: `Tổng xúc xắc ×${UTILITY_RENT_MULTIPLIER_BOTH}` },
+      { label: t('property.oneUtility'), value: t('property.diceTotal', { multiplier: UTILITY_RENT_MULTIPLIER_SINGLE }) },
+      { label: t('property.bothUtilities'), value: t('property.diceTotal', { multiplier: UTILITY_RENT_MULTIPLIER_BOTH }) },
     ];
   }
 
   if (tile.tileType === 'expense') {
     // Display text for the existing shared value; the amount is charged by the server, not computed here.
     return typeof tile.expenseAmount === 'number'
-      ? [{ label: `Nộp ${formatMoney(tile.expenseAmount)} cho Ngân hàng khi dừng tại đây.` }]
+      ? [{ label: t('property.taxLanding', { amount: formatMoney(tile.expenseAmount) }) }]
       : [];
   }
   if (tile.tileType === 'chance') {
-    return [{ label: 'Rút thẻ Cơ Hội trên cùng và thực hiện nội dung trên thẻ.' }];
+    return [{ label: t('property.drawChance') }];
   }
   if (tile.tileType === 'chest') {
-    return [{ label: 'Rút thẻ Khí Vận trên cùng và thực hiện nội dung trên thẻ.' }];
+    return [{ label: t('property.drawChest') }];
   }
   if (tile.tileType === 'start') {
-    return [{ label: `Đi qua hoặc dừng tại đây nhận ${formatMoney(GO_REWARD)}.` }];
+    return [{ label: t('property.startReward', { amount: formatMoney(GO_REWARD) }) }];
   }
   if (tile.tileType === 'jail') {
-    return [{ label: 'Người đang thăm tù vẫn tiếp tục lượt bình thường.' }];
+    return [{ label: t('property.jailVisit') }];
   }
   if (tile.tileType === 'gojail') {
-    return [{ label: 'Đi thẳng vào Nhà Tù và không nhận tiền khi qua Xuất Phát.' }];
+    return [{ label: t('property.goToJail') }];
   }
   if (tile.tileType === 'parking') {
-    return [{ label: 'Không nhận thưởng; lượt chơi tiếp tục theo luật thông thường.' }];
+    return [{ label: t('property.parking') }];
   }
   return [];
 }

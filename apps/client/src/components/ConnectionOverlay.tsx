@@ -1,6 +1,7 @@
 import Panel from '../design-system/components/Panel/Panel';
 import HowToPlayButton from '../howToPlay/HowToPlayButton';
 import './style/RoomStatus.css';
+import { useTranslation } from '../i18n/I18n';
 
 interface ConnectionOverlayProps {
   message?: string;
@@ -11,14 +12,15 @@ interface ConnectionOverlayProps {
  * is the card alone, so the how-to-play key beside it (reading the rules is a good way to wait) is not announced with it.
  */
 export default function ConnectionOverlay({
-  message = 'Đã mất kết nối. Đang kết nối lại vào ván chơi…',
+  message,
 }: ConnectionOverlayProps) {
+  const { t } = useTranslation();
   return (
     <div className="connection-overlay">
       <div className="connection-overlay__status" role="status" aria-live="polite">
         <Panel as="div" padding="lg" className="connection-overlay__card">
           <span className="connection-overlay__spinner" aria-hidden="true" />
-          <p>{message}</p>
+          <p>{message ?? t('connection.reconnecting')}</p>
         </Panel>
       </div>
       <HowToPlayButton placement="corner" />

@@ -3,6 +3,7 @@ import DebtPanel from '../../../components/dashboard/DebtPanel';
 import JailPanel from '../../../components/dashboard/JailPanel';
 import RevivePanel from '../../../components/dashboard/RevivePanel';
 import OwnedPropertiesControl from '../property/OwnedPropertiesControl';
+import { useTranslation } from '../../../i18n/I18n';
 
 /**
  * The bottom-center column of the HUD, top to bottom: the context stack (the jail panel and the debt status, whose
@@ -10,6 +11,7 @@ import OwnedPropertiesControl from '../property/OwnedPropertiesControl';
  * inert game board like every other gameplay control. The activity ticker sits above the context stack.
  */
 export default function BottomDock({ onSelectTile, ticker }: { onSelectTile: (tileId: number) => void; ticker?: ReactNode }) {
+  const { t } = useTranslation();
   return (
     <div className="hud-bottom">
       {ticker}
@@ -18,7 +20,7 @@ export default function BottomDock({ onSelectTile, ticker }: { onSelectTile: (ti
         <JailPanel />
         <RevivePanel />
       </div>
-      <nav className="action-dock" data-hud-region="action-dock" aria-label="Thao tác nhanh">
+      <nav className="action-dock" data-hud-region="action-dock" aria-label={t('hud.actions')}>
         <OwnedPropertiesControl onSelect={onSelectTile} />
       </nav>
     </div>

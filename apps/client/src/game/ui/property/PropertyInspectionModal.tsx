@@ -8,6 +8,7 @@ import { buildDeedCardModel } from './deedCardModel';
 import PropertyDeedCard from './PropertyDeedCard';
 import { useRetainedValue } from './useRetainedValue';
 import './PropertyInspectionModal.css';
+import { useTranslation } from '../../../i18n/I18n';
 
 interface PropertyInspectionModalProps {
   tileId: number | null;
@@ -19,6 +20,7 @@ interface PropertyInspectionModalProps {
  * The owner of a street can sell a house back to the bank; everyone else can propose to buy an owned property.
  */
 export default function PropertyInspectionModal({ tileId, onClose }: PropertyInspectionModalProps) {
+  const { language, t } = useTranslation();
   const {
     state, playerId, socketFunctions, canMutate, roomPlayers,
   } = useContext(stateContext);
@@ -26,8 +28,8 @@ export default function PropertyInspectionModal({ tileId, onClose }: PropertyIns
   // Keep showing the same tile while the dialog animates out.
   const shownTileId = useRetainedValue(tileId);
   const deed = useMemo(
-    () => (shownTileId === null ? null : buildDeedCardModel({ tileId: shownTileId, state, roomPlayers, viewerPlayerId: playerId })),
-    [playerId, roomPlayers, shownTileId, state],
+    () => (shownTileId === null ? null : buildDeedCardModel({ tileId: shownTileId, state, roomPlayers, viewerPlayerId: playerId, language })),
+    [language, playerId, roomPlayers, shownTileId, state],
   );
   if (shownTileId === null || !deed) return null;
 
@@ -35,7 +37,7 @@ export default function PropertyInspectionModal({ tileId, onClose }: PropertyIns
   const isStreet = deed.kind === 'street' && deed.houseCostText !== null;
   const canSellHouse = isStreet && deed.houses > 0;
   const canAct = Boolean(owned) && canMutate;
-  const sellHint = canSellHouse ? 'Bán một Nhà về Ngân hàng' : 'Tài sản không có Nhà để bán';
+  const sellHint = t(canSellHouse ? 'property.sellHouseHint' : 'property.noHouseHint');
 
   let footer: ReactNode = null;
   if (canAct && owned.id !== playerId) {
@@ -44,12 +46,12 @@ export default function PropertyInspectionModal({ tileId, onClose }: PropertyIns
         {deed.owner?.relation === 'TEAMMATE'
           ? (
             <p className="property-inspection__hint" role="note">
-              Tài sản của đồng đội: bạn không trả tiền thuê khi dừng ở đây và có thể đầu tư xây thêm bằng tiền của mình.
+              {t('property.teammateOwnerHint')}
             </p>
           )
           : null}
         <Button icon={<ActionIcon name="propose" />} onClick={() => openTradeForProperty(shownTileId)}>
-          Đề nghị mua
+          {t('property.makeOffer')}
         </Button>
       </>
     );
@@ -69,7 +71,7 @@ export default function PropertyInspectionModal({ tileId, onClose }: PropertyIns
           icon={<ActionIcon name="sellHouse" />}
           onClick={() => socketFunctions.sellHouse(shownTileId)}
         >
-          Bán Nhà
+          {t('property.sellHouse')}
         </Button>
       </>
     );
@@ -79,7 +81,7 @@ export default function PropertyInspectionModal({ tileId, onClose }: PropertyIns
     <Modal
       open={tileId !== null}
       title={deed.name}
-      eyebrow="Thông tin ô"
+      eyebrow={t('property.infoEyebrow')}
       headerAccent={deed.kind === 'special' ? undefined : deed.headerColor}
       onClose={onClose}
       closeOnOutsideClick

@@ -4,6 +4,8 @@ import PlayerAvatar from '../../../design-system/components/PlayerAvatar/PlayerA
 import { usePresentationSelector } from '../../presentation/usePresentationSelector';
 import type { PresentationState } from '../../presentation/store/types';
 import { resolveDisplayedPlayer } from './displayedPlayer';
+import { useTranslation, type Language } from '../../../i18n/I18n';
+import { translate } from '../../../i18n/I18n';
 
 const selectActivePlayerId = (state: PresentationState) => state.displayActivePlayerId;
 
@@ -12,9 +14,12 @@ export function turnText(
   activePlayerId: string,
   localPlayerId: string | null,
   activeName: string | undefined,
+  language: Language = 'vi',
 ): string {
-  if (activePlayerId === localPlayerId) return 'Lượt của bạn';
-  return activeName ? `${activeName} đang chơi` : 'Đang chờ lượt chơi';
+  if (activePlayerId === localPlayerId) return translate('hud.turnLabel.mine', language);
+  return activeName
+    ? translate('hud.turnLabel.other', language, { name: activeName })
+    : translate('hud.turnLabel.waiting', language);
 }
 
 /**
@@ -22,6 +27,7 @@ export function turnText(
  * when the presentation reaches the turn change, not when the server commits it.
  */
 export default function StatusPill() {
+  const { language, t } = useTranslation();
   const { state, playerId, roomCode } = useContext(stateContext);
   const displayActive = usePresentationSelector(selectActivePlayerId);
   const activePlayerId = displayActive ?? state.boardState.currentPlayer.id;
@@ -29,14 +35,14 @@ export default function StatusPill() {
   const isMine = activePlayerId === playerId;
 
   return (
-    <section className="status-pill" data-hud-region="status-pill" aria-label="Trạng thái lượt chơi">
-      {roomCode ? <span className="status-pill__room">{`Phòng ${roomCode}`}</span> : null}
+    <section className="status-pill" data-hud-region="status-pill" aria-label={t('hud.turnStatus')}>
+      {roomCode ? <span className="status-pill__room">{t('hud.room', { roomCode })}</span> : null}
       {active ? (
         <span className="status-pill__avatar" aria-hidden="true">
           <PlayerAvatar characterId={active.characterId} colorId={active.color} size={28} active={isMine} />
         </span>
       ) : null}
-      <p className="game-board__turn-label status-pill__turn">{turnText(activePlayerId, playerId, active?.name)}</p>
+      <p className="game-board__turn-label status-pill__turn">{turnText(activePlayerId, playerId, active?.name, language)}</p>
     </section>
   );
 }

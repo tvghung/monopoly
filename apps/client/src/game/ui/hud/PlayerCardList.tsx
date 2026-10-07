@@ -1,6 +1,7 @@
 import type { BalanceDeltaSignal } from '../../presentation/store/types';
 import PlayerCard from './PlayerCard';
 import type { PlayerCardViewModel } from './playerCardSelectors';
+import { useTranslation } from '../../../i18n/I18n';
 
 export interface PlayerCardListProps {
   cards: readonly PlayerCardViewModel[];
@@ -21,8 +22,9 @@ export interface PlayerCardListProps {
 export default function PlayerCardList({
   cards, deltas, reducedMotion, speed, resetEpoch, bubbles, onSelectPlayer,
 }: PlayerCardListProps) {
+  const { t } = useTranslation();
   return (
-    <section className="player-card-list" aria-label="Người chơi">
+    <section className="player-card-list" aria-label={t('hud.players')}>
       {/* role="list" keeps the list semantics in WebKit, which drops them when list-style is none. */}
       <ol className="player-card-list__items" role="list">
         {cards.map(card => (

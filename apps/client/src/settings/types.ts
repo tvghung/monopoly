@@ -2,7 +2,8 @@
 export type GraphicsQualitySetting = 'auto' | 'high' | 'balanced' | 'low';
 
 export interface GameSettings {
-  version: 1;
+  version: 2;
+  language: 'vi' | 'en';
   masterVolume: number;
   musicVolume: number;
   sfxVolume: number;

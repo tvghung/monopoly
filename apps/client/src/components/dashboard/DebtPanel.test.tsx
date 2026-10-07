@@ -213,7 +213,7 @@ describe('DebtPanel', () => {
     fireEvent.click(button);
 
     await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
-    expect(screen.getAllByText('Không thể thực hiện hành động ở trạng thái hiện tại.')).toHaveLength(1);
+    expect(screen.getAllByText('Giao dịch chưa thể thực hiện.')).toHaveLength(1);
   });
 
   it('keeps large inventories at two primary actions per property', () => {
@@ -249,7 +249,7 @@ describe('DebtPanel', () => {
     expect(within(dialog).getByText('Ngân hàng')).toBeTruthy();
     expect(within(dialog).getByText('Còn thiếu').nextElementSibling?.textContent).toBe('200.000 ₫');
     expect(within(dialog).getByText('Tiền mặt hiện có').nextElementSibling?.textContent).toBe('100.000 ₫');
-    expect(within(dialog).getByText(/giây còn lại$/)).toBeTruthy();
+    expect(within(dialog).getByText(/Còn \d+ giây$/)).toBeTruthy();
   });
 
   it('shows the creditor player with an avatar instead of the Bank', () => {
@@ -310,18 +310,18 @@ describe('DebtPanel', () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
     renderDebt(debtState({ actionDeadlineAt: new Date(Date.now() + 60_000).toISOString() }));
     const chip = () => document.querySelector('.debt-panel__countdown')?.textContent;
-    expect(chip()).toBe('60 giây còn lại');
+    expect(chip()).toBe('Còn 60 giây');
 
     act(() => { vi.advanceTimersByTime(2000); });
-    expect(chip()).toBe('58 giây còn lại');
+    expect(chip()).toBe('Còn 58 giây');
   });
 
   it.each([
     ['TAX', { kind: 'TAX', tileID: 4 }, getTileName(4)],
     ['CARD from the Cơ Hội deck', { kind: 'CARD', cardId: 'chance-advance-start' }, 'Thẻ Cơ Hội'],
     ['CARD from the Khí Vận deck', { kind: 'CARD', cardId: 'chest-advance-start' }, 'Thẻ Khí Vận'],
-    ['CARD with an unknown id', { kind: 'CARD', cardId: 'no-such-card' }, 'Thẻ sự kiện'],
-    ['OTHER', { kind: 'OTHER', description: 'Phí đặc biệt' }, 'Phí đặc biệt'],
+    ['CARD with an unknown id', { kind: 'CARD', cardId: 'no-such-card' }, 'Khoản thanh toán khác'],
+    ['OTHER', { kind: 'OTHER', description: 'Phí đặc biệt' }, 'Khoản thanh toán khác'],
   ] as const)('names the source of a %s debt above the title', (_name, source, eyebrow) => {
     const state = debtState();
     state.boardState.paymentShortfall = {
@@ -602,7 +602,7 @@ describe('DebtPanel', () => {
       expect(status.textContent).toContain('Trả cho Ngân hàng');
       // The countdown ticks every second, so it must not sit inside the live region that would read it out each time.
       expect(status.textContent).not.toMatch(/giây/);
-      expect(screen.getByRole('timer').textContent).toMatch(/\d+ giây còn lại/);
+      expect(screen.getByRole('timer').textContent).toMatch(/Còn \d+ giây/);
       expect(screen.queryByRole('alertdialog')).toBeNull();
     });
 

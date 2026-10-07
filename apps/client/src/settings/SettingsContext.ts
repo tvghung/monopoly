@@ -14,7 +14,8 @@ export interface SettingsContextValue {
 
 const settingsContext = createContext<SettingsContextValue>({
   settings: {
-    version: 1,
+    version: 2,
+    language: 'vi',
     masterVolume: 1,
     musicVolume: 0.7,
     sfxVolume: 0.8,

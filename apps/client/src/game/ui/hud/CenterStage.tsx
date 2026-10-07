@@ -5,6 +5,7 @@ import { usePresentationSelector } from '../../presentation/usePresentationSelec
 import type { PresentationState } from '../../presentation/store/types';
 import { resolveDisplayedPlayer } from './displayedPlayer';
 import RollControl from './RollControl';
+import { useTranslation } from '../../../i18n/I18n';
 
 const selectStageSlice = (state: PresentationState) => ({
   displayActivePlayerId: state.displayActivePlayerId,
@@ -20,6 +21,7 @@ const sameStageSlice = (previous: StageSlice, next: StageSlice) => previous.disp
  */
 export default function CenterStage() {
   const { state, playerId } = useContext(stateContext);
+  const { t } = useTranslation();
   const { displayActivePlayerId, hideStage } = usePresentationSelector(selectStageSlice, sameStageSlice);
   const activePlayerId = displayActivePlayerId ?? state.boardState.currentPlayer.id;
   const opponent = activePlayerId !== playerId ? resolveDisplayedPlayer(state, activePlayerId) : undefined;
@@ -33,7 +35,7 @@ export default function CenterStage() {
           <span aria-hidden="true">
             <PlayerAvatar characterId={opponent.characterId} colorId={opponent.color} size={32} />
           </span>
-          {`${opponent.name} đang đi…`}
+          {t('hud.opponentTurn', { name: opponent.name })}
         </p>
       ) : null}
     </div>

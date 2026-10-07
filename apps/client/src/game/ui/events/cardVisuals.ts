@@ -1,4 +1,6 @@
 import type { CardDeck, GameCardId } from '@monopoly/shared';
+import type { Language } from '../../../i18n/I18n';
+import { getCardPresentation } from '../../../i18n/cardCopy';
 
 export interface CardVisualDefinition {
   title: string;
@@ -54,6 +56,7 @@ export const cardVisuals = {
   'chest-jail-free': visual('chest', 'chest-jail-free', 'Thoát Tù Miễn Phí'),
 } satisfies Readonly<Record<GameCardId, CardVisualDefinition>>;
 
-export function cardVisualFor(cardId: GameCardId): CardVisualDefinition | undefined {
-  return cardVisuals[cardId as keyof typeof cardVisuals];
+export function cardVisualFor(cardId: GameCardId, language: Language = 'vi'): CardVisualDefinition | undefined {
+  const visual = cardVisuals[cardId as keyof typeof cardVisuals];
+  return visual ? { ...visual, title: getCardPresentation(cardId, language).title } : undefined;
 }

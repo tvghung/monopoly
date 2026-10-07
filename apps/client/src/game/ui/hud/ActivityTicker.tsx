@@ -5,6 +5,7 @@ import type { PresentationState } from '../../presentation/store/types';
 import { activityText } from './activityText';
 import { useHudDrawer } from './hudDrawer';
 import { useTransientList } from './useTransientList';
+import { useTranslation } from '../../../i18n/I18n';
 
 /** The line stays this long at speed 1 (divided by the animation speed). */
 export const ACTIVITY_TICKER_LIFETIME_MS = 4000;
@@ -29,9 +30,10 @@ const isTickerEvent = (event: ActivityEvent): boolean => event.type !== 'CHAT' &
  * technology because the drawer's log region is the accessible history.
  */
 export default function ActivityTicker() {
+  const { language } = useTranslation();
   const slice = usePresentationSelector(selectTickerSlice, sameTickerSlice);
   const drawer = useHudDrawer();
-  const list = useTransientList<string>(1);
+  const list = useTransientList<ActivityEvent>(1);
   const cursorRef = useRef<number | null>(null);
   const epochRef = useRef(slice.resetEpoch);
   const { push, clear } = list;
@@ -49,7 +51,7 @@ export default function ActivityTicker() {
     cursorRef.current = Math.max(cursor, newest);
     const latestGameplay = slice.activity.filter(event => event.sequence > cursor && isTickerEvent(event)).at(-1);
     if (latestGameplay) {
-      push(latestGameplay.eventId, activityText(latestGameplay), ACTIVITY_TICKER_LIFETIME_MS / Math.max(0.1, slice.speed));
+      push(latestGameplay.eventId, latestGameplay, ACTIVITY_TICKER_LIFETIME_MS / Math.max(0.1, slice.speed));
     }
   }, [clear, push, slice]);
 
@@ -64,7 +66,7 @@ export default function ActivityTicker() {
       aria-hidden="true"
       onClick={() => drawer.setOpen(true)}
     >
-      {entry.value}
+      {activityText(entry.value, language)}
     </div>
   );
 }

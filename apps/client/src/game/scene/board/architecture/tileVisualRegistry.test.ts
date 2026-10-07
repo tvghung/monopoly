@@ -79,7 +79,8 @@ describe('tile visual registry', () => {
     specialTypes.forEach(tileType => {
       const tile = tileState.find(candidate => candidate.tileType === tileType)!;
       expect(getDistrictSurfaceDescriptor(tile)).toBeUndefined();
-      expect(getSpecialTileLabel(tileType)).not.toBe('Ô CỜ');
+      expect(getSpecialTileLabel(tileType, 'vi')).not.toBe('Ô cờ');
     });
+    expect(getSpecialTileLabel('chance', 'en')).toBe('Chance');
   });
 });

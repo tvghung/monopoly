@@ -8,6 +8,13 @@ const event = (input: ActivityEventInput): ActivityEvent => (
 );
 
 describe('activityText for 2v2 events', () => {
+  it('translates semantic activity while preserving player names and chat text', () => {
+    const landed = event({ type: 'TILE_LANDED', playerId: 'player-a', playerName: 'An', tileID: 4 });
+    expect(activityText(landed, 'en')).toBe('An landed on Income Tax.');
+    const chat = event({ type: 'CHAT', senderRole: 'PLAYER', senderPlayerId: 'player-a', senderName: 'An', message: 'Chúc may mắn!' });
+    expect(activityText(chat, 'en')).toBe('An: Chúc may mắn!');
+  });
+
   it('names the reasons of the two new money transfers', () => {
     const revive = event({
       type: 'MONEY_TRANSFER',

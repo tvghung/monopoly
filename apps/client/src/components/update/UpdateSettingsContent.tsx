@@ -1,8 +1,9 @@
 import Button from '../../design-system/components/Button/Button';
 import { ActionIcon } from '../../design-system/icons/ActionIcon';
 import { useAppUpdate } from '../../runtime/appUpdate';
+import { useTranslation } from '../../i18n/I18n';
 import UpdateProgress from './UpdateProgress';
-import { applyLabel, settingsStatus, UPDATE_COPY } from './updateCopy';
+import { applyLabel, getUpdateCopy, settingsStatus } from './updateCopy';
 import './update.css';
 
 /**
@@ -12,6 +13,8 @@ import './update.css';
  */
 export default function UpdateSettingsContent() {
   const update = useAppUpdate();
+  const { language } = useTranslation();
+  const copy = getUpdateCopy(language);
   const { state } = update;
   if (!state) return null;
 
@@ -22,11 +25,11 @@ export default function UpdateSettingsContent() {
   return (
     <>
       <p className="update-settings__version">
-        Phiên bản hiện tại: <strong>{state.currentVersion}</strong>
+        {language === 'vi' ? 'Phiên bản hiện tại: ' : 'Current version: '}<strong>{state.currentVersion}</strong>
       </p>
       {phase === 'downloading'
         ? <UpdateProgress state={state} />
-        : <p className="settings-panel__hint" role="status" aria-live="polite">{settingsStatus(state, update.inSession)}</p>}
+        : <p className="settings-panel__hint" role="status" aria-live="polite">{settingsStatus(state, update.inSession, language)}</p>}
       <div className="update-settings__actions">
         {checkable || phase === 'checking' ? (
           <Button
@@ -35,14 +38,14 @@ export default function UpdateSettingsContent() {
             busy={phase === 'checking'}
             onClick={() => void update.check()}
           >
-            {phase === 'checking' ? UPDATE_COPY.checking : UPDATE_COPY.check}
+            {phase === 'checking' ? copy.checking : copy.check}
           </Button>
         ) : null}
         {phase === 'available' ? (
-          <Button icon={<ActionIcon name="download" />} onClick={() => void update.download()}>{UPDATE_COPY.update}</Button>
+          <Button icon={<ActionIcon name="download" />} onClick={() => void update.download()}>{copy.update}</Button>
         ) : null}
         {phase === 'downloading' ? (
-          <Button variant="ghost" onClick={() => void update.cancelDownload()}>{UPDATE_COPY.cancel}</Button>
+          <Button variant="ghost" onClick={() => void update.cancelDownload()}>{copy.cancel}</Button>
         ) : null}
         {phase === 'ready' ? (
           <Button
@@ -50,7 +53,7 @@ export default function UpdateSettingsContent() {
             disabled={!update.canApply}
             onClick={() => void update.install()}
           >
-            {applyLabel(state)}
+            {applyLabel(state, language)}
           </Button>
         ) : null}
         {phase === 'error' && !checkable ? (
@@ -59,7 +62,7 @@ export default function UpdateSettingsContent() {
             disabled={failedInstall && !update.canApply}
             onClick={() => void (failedInstall ? update.install() : update.download())}
           >
-            {UPDATE_COPY.retry}
+            {copy.retry}
           </Button>
         ) : null}
       </div>

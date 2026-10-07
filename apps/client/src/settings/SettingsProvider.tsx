@@ -14,6 +14,7 @@ import {
 import { getDesktopBridge } from '../runtime/desktopBridge';
 import { GraphicsQualityDocumentSync } from './GraphicsQualityDocumentSync';
 import { ReducedMotionDocumentSync } from './ReducedMotionDocumentSync';
+import { LanguageDocumentSync } from '../i18n/LanguageDocumentSync';
 import { readGameSettings, writeGameSettings } from './storage';
 import type { GameSettings, GameSettingsPatch } from './types';
 
@@ -75,6 +76,7 @@ export function SettingsProvider({ children, initialSettings }: SettingsProvider
     <settingsContext.Provider value={value}>
       <ReducedMotionDocumentSync />
       <GraphicsQualityDocumentSync />
+      <LanguageDocumentSync />
       {children}
     </settingsContext.Provider>
   );

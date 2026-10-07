@@ -13,20 +13,22 @@ import { ANIMATION_SPEED_OPTIONS } from './defaults';
 import type { GraphicsQualitySetting } from './types';
 import { useEffectiveReducedMotion, useSettings } from './selectors';
 import './SettingsPanel.css';
+import { useTranslation } from '../i18n/I18n';
+import type { Language } from '../i18n/I18n';
 
-const VOLUME_CONTROLS: readonly { key: 'masterVolume' | 'musicVolume' | 'sfxVolume'; label: string }[] = [
-  { key: 'masterVolume', label: 'Âm lượng tổng' },
-  { key: 'musicVolume', label: 'Nhạc nền' },
-  { key: 'sfxVolume', label: 'Hiệu ứng' },
+const VOLUME_CONTROLS: readonly { key: 'masterVolume' | 'musicVolume' | 'sfxVolume'; labelKey: 'settings.masterVolume' | 'settings.music' | 'settings.effects' }[] = [
+  { key: 'masterVolume', labelKey: 'settings.masterVolume' },
+  { key: 'musicVolume', labelKey: 'settings.music' },
+  { key: 'sfxVolume', labelKey: 'settings.effects' },
 ];
 
 const SPEED_CHOICES = ANIMATION_SPEED_OPTIONS.map(option => ({ value: option, label: `${option}x` }));
 
-const GRAPHICS_QUALITY_CHOICES: readonly { value: GraphicsQualitySetting; label: string }[] = [
-  { value: 'auto', label: 'Tự động' },
-  { value: 'high', label: 'Cao' },
-  { value: 'balanced', label: 'Cân bằng' },
-  { value: 'low', label: 'Thấp' },
+const GRAPHICS_QUALITY_CHOICES: readonly { value: GraphicsQualitySetting; labelKey: 'settings.qualityAuto' | 'settings.qualityHigh' | 'settings.qualityBalanced' | 'settings.qualityLow' }[] = [
+  { value: 'auto', labelKey: 'settings.qualityAuto' },
+  { value: 'high', labelKey: 'settings.qualityHigh' },
+  { value: 'balanced', labelKey: 'settings.qualityBalanced' },
+  { value: 'low', labelKey: 'settings.qualityLow' },
 ];
 
 const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
@@ -62,6 +64,7 @@ function SegmentedField<T extends string | number>({
 
 export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const { settings, updateSettings, resetSettings } = useSettings();
+  const { t } = useTranslation();
   const effectiveReducedMotion = useEffectiveReducedMotion();
   const desktop = isDesktopRuntime();
   const bridge = getDesktopBridge();
@@ -75,7 +78,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   return (
     <Modal
       open={open}
-      title="Cài đặt"
+      title={t('settings.title')}
       size="md"
       onClose={onClose}
       className="settings-panel-modal"
@@ -87,19 +90,31 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
             icon={<ActionIcon name="reset" />}
             onClick={resetSettings}
           >
-            Khôi phục mặc định
+            {t('settings.reset')}
           </Button>
-          <Button icon={<ActionIcon name="confirm" />} onClick={onClose}>Xong</Button>
+          <Button icon={<ActionIcon name="confirm" />} onClick={onClose}>{t('settings.done')}</Button>
         </>
       )}
     >
       <div className="settings-panel">
+        <section className="settings-panel__section" aria-labelledby="settings-language-title">
+          <SectionHeading id="settings-language-title" icon={<ActionIcon name="settings" />}>{t('language.label')}</SectionHeading>
+          <SegmentedField<Language>
+            label={t('language.label')}
+            options={[
+              { value: 'vi', label: t('language.vietnamese') },
+              { value: 'en', label: t('language.english') },
+            ]}
+            value={settings.language}
+            onChange={language => updateSettings({ language })}
+          />
+        </section>
         <section className="settings-panel__section" aria-labelledby="settings-audio-title">
-          <SectionHeading id="settings-audio-title" icon={<ActionIcon name="volume" />}>Âm thanh</SectionHeading>
-          {VOLUME_CONTROLS.map(({ key, label }) => (
+          <SectionHeading id="settings-audio-title" icon={<ActionIcon name="volume" />}>{t('settings.audio')}</SectionHeading>
+          {VOLUME_CONTROLS.map(({ key, labelKey }) => (
             <Slider
               key={key}
-              label={label}
+              label={t(labelKey)}
               value={settings[key]}
               min={0}
               max={1}
@@ -112,44 +127,44 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
         </section>
 
         <section className="settings-panel__section" aria-labelledby="settings-motion-title">
-          <SectionHeading id="settings-motion-title" icon={<ActionIcon name="speed" />}>Hiển thị</SectionHeading>
+          <SectionHeading id="settings-motion-title" icon={<ActionIcon name="speed" />}>{t('settings.display')}</SectionHeading>
           <SegmentedField
-            label="Tốc độ chuyển động"
+            label={t('settings.animationSpeed')}
             options={SPEED_CHOICES}
             value={settings.animationSpeed}
             onChange={value => updateSettings({ animationSpeed: value })}
           />
           <div className="settings-panel__field">
             <Switch
-              label="Giảm chuyển động"
+              label={t('settings.reducedMotion')}
               checked={settings.reducedMotion}
               describedBy="settings-motion-hint"
               onChange={checked => updateSettings({ reducedMotion: checked })}
             />
             <p id="settings-motion-hint" className="settings-panel__hint" aria-live="polite">
               {effectiveReducedMotion
-                ? 'Chuyển động hiện đang được giảm theo cài đặt hoặc hệ điều hành.'
-                : 'Chuyển động đang dùng thiết lập bình thường.'}
+                ? t('settings.reducedMotionEffective')
+                : t('settings.reducedMotionNormal')}
             </p>
           </div>
         </section>
 
         <section className="settings-panel__section" aria-labelledby="settings-graphics-title">
-          <SectionHeading id="settings-graphics-title" icon={<Monitor />}>Đồ họa</SectionHeading>
+          <SectionHeading id="settings-graphics-title" icon={<Monitor />}>{t('settings.graphics')}</SectionHeading>
           <SegmentedField
-            label="Chất lượng đồ họa"
-            options={GRAPHICS_QUALITY_CHOICES}
+            label={t('settings.graphicsQuality')}
+            options={GRAPHICS_QUALITY_CHOICES.map(({ value, labelKey }) => ({ value, label: t(labelKey) }))}
             value={settings.graphicsQuality}
             onChange={value => updateSettings({ graphicsQuality: value })}
-            hint="Chất lượng Cao cần card đồ họa mạnh."
+            hint={t('settings.graphicsHint')}
           />
         </section>
 
         {desktop
           ? (
             <section className="settings-panel__section" aria-labelledby="settings-window-title">
-              <SectionHeading id="settings-window-title" icon={<ActionIcon name="fullscreen" />}>Cửa sổ</SectionHeading>
-              <Switch label="Toàn màn hình" checked={settings.fullscreen} onChange={setFullscreen} />
+              <SectionHeading id="settings-window-title" icon={<ActionIcon name="fullscreen" />}>{t('settings.window')}</SectionHeading>
+              <Switch label={t('settings.fullscreen')} checked={settings.fullscreen} onChange={setFullscreen} />
             </section>
           )
           : null}
@@ -157,7 +172,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
         {desktop && updates.available
           ? (
             <section className="settings-panel__section" aria-labelledby="settings-update-title">
-              <SectionHeading id="settings-update-title" icon={<ActionIcon name="download" />}>Cập nhật</SectionHeading>
+              <SectionHeading id="settings-update-title" icon={<ActionIcon name="download" />}>{t('settings.update')}</SectionHeading>
               <UpdateSettingsContent />
             </section>
           )

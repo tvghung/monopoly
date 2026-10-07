@@ -8,12 +8,14 @@ import { buildDeedCardModel, type DeedCardModel } from './deedCardModel';
 import { buildPortfolioModel, type PortfolioGroup } from './portfolioModel';
 import PropertyDeedCard from './PropertyDeedCard';
 import './PortfolioView.css';
+import { useTranslation } from '../../../i18n/I18n';
 
 /** The authoritative balance of the player whose portfolio is shown. */
 export function PortfolioBalance({ amount }: { amount: number }) {
+  const { t } = useTranslation();
   return (
     <p className="portfolio-summary__balance">
-      <span className="portfolio-summary__label">Số dư hiện tại</span>
+      <span className="portfolio-summary__label">{t('portfolio.balance')}</span>
       <MoneyText amount={amount} size="lg" />
     </p>
   );
@@ -26,6 +28,7 @@ function GroupSection({
   deeds: ReadonlyMap<number, DeedCardModel>;
   onInspect?: (tileId: number) => void;
 }) {
+  const { t } = useTranslation();
   const labelId = useId();
   return (
     <div
@@ -37,8 +40,8 @@ function GroupSection({
       <div className="portfolio-group__header">
         <span className="portfolio-group__swatch" aria-hidden="true" />
         <p id={labelId} className="portfolio-group__label">{group.label}</p>
-        <span className="portfolio-group__count">{`${group.tileIds.length}/${group.total} ô`}</span>
-        {group.complete ? <Chip tone="gold" icon={<ActionIcon name="crown" />}>Đủ nhóm</Chip> : null}
+        <span className="portfolio-group__count">{t('portfolio.groupCount', { owned: group.tileIds.length, total: group.total })}</span>
+        {group.complete ? <Chip tone="gold" icon={<ActionIcon name="crown" />}>{t('portfolio.completeGroup')}</Chip> : null}
       </div>
       {/* role="list" keeps the list semantics in WebKit, which drops them when list-style is none. */}
       <ul className="portfolio-group__cards" role="list">
@@ -53,10 +56,10 @@ function GroupSection({
                   variant="ghost"
                   icon={<ActionIcon name="view" />}
                   className="portfolio-card__inspect"
-                  aria-label={`Xem ${deed.name}`}
+                  aria-label={t('portfolio.inspect', { name: deed.name })}
                   onClick={() => onInspect(tileId)}
                 >
-                  Xem
+                  {t('ui.view')}
                 </Button>
               ) : null}
             </li>
@@ -83,25 +86,26 @@ export interface PortfolioViewProps {
 export default function PortfolioView({
   ownerId, lead, emptyText, onInspect,
 }: PortfolioViewProps) {
+  const { language, t } = useTranslation();
   const { state, roomPlayers } = useContext(stateContext);
-  const portfolio = useMemo(() => buildPortfolioModel(state, ownerId), [ownerId, state]);
+  const portfolio = useMemo(() => buildPortfolioModel(state, ownerId, undefined, language), [language, ownerId, state]);
   const deeds = useMemo(() => {
     const models = new Map<number, DeedCardModel>();
     portfolio.groups.forEach(group => group.tileIds.forEach(tileId => {
-      const model = buildDeedCardModel({ tileId, state, roomPlayers });
+      const model = buildDeedCardModel({ tileId, state, roomPlayers, language });
       if (model) models.set(tileId, model);
     }));
     return models;
-  }, [portfolio, roomPlayers, state]);
+  }, [language, portfolio, roomPlayers, state]);
 
   return (
     <div className="portfolio">
       <div className="portfolio-summary">
         <div className="portfolio-summary__lead">{lead}</div>
-        <ul className="portfolio-summary__counts" role="list" aria-label="Tổng quan tài sản">
-          <li><Chip icon={<ActionIcon name="buildHotel" />}>{`${portfolio.properties} tài sản`}</Chip></li>
-          <li><Chip icon={<ActionIcon name="house" />}>{`${portfolio.houses} nhà`}</Chip></li>
-          <li><Chip icon={<ActionIcon name="hotel" />}>{`${portfolio.hotels} khách sạn`}</Chip></li>
+        <ul className="portfolio-summary__counts" role="list" aria-label={t('portfolio.overview')}>
+          <li><Chip icon={<ActionIcon name="buildHotel" />}>{t('portfolio.properties', { count: portfolio.properties })}</Chip></li>
+          <li><Chip icon={<ActionIcon name="house" />}>{t('portfolio.houses', { count: portfolio.houses })}</Chip></li>
+          <li><Chip icon={<ActionIcon name="hotel" />}>{t('portfolio.hotels', { count: portfolio.hotels })}</Chip></li>
         </ul>
       </div>
       {portfolio.groups.length > 0

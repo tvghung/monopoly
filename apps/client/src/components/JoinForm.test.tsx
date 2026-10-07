@@ -216,9 +216,9 @@ describe('JoinForm hero', () => {
   it('keeps the page heading and labels the landing region with it', () => {
     renderForm();
 
-    const heading = screen.getByRole('heading', { level: 1, name: 'Cờ Tỷ Phú Việt Nam' });
+    const heading = screen.getByRole('heading', { level: 1, name: 'Phiên bản Việt Nam' });
     expect(heading.id).toBe('join-title');
-    expect(screen.getByRole('region', { name: 'Cờ Tỷ Phú Việt Nam' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Phiên bản Việt Nam' })).toBeTruthy();
     expect(screen.getByText('OWN THE BLOCK').getAttribute('aria-hidden')).toBe('true');
   });
 

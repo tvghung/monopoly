@@ -1,6 +1,6 @@
 /**
  * The shape of the how-to-play guide. The guide is a plain data model built from the shared game data (`model.ts`) and drawn
- * by `HowToPlayModal`; nothing here knows about React, and every string is already player-facing Vietnamese.
+ * by `HowToPlayModal`; nothing here knows about React, and every string is already localized for the selected language.
  */
 
 export const HOW_TO_PLAY_TITLE = 'Hướng dẫn chơi';

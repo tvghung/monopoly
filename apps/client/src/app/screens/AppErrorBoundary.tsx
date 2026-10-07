@@ -36,11 +36,10 @@ export default class AppErrorBoundary extends Component<
   public render(): ReactNode {
     if (this.state.hasError) {
       return (
-        // The app's own provider sits below this boundary and is gone with the failed tree, so the failure screen brings one.
+        // The screen is rebuilt after a render failure, while settings and the active language stay above this boundary.
         <HowToPlayProvider>
           <BootstrapErrorScreen
             kind="render"
-            title="Không thể hiển thị trò chơi"
             onRetry={this.recover}
           />
         </HowToPlayProvider>

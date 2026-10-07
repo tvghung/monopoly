@@ -1,7 +1,8 @@
 import Button from '../../design-system/components/Button/Button';
 import { useAppUpdate } from '../../runtime/appUpdate';
+import { useTranslation } from '../../i18n/I18n';
 import UpdateProgress from './UpdateProgress';
-import { failureMessage, UPDATE_COPY } from './updateCopy';
+import { failureMessage, getUpdateCopy } from './updateCopy';
 import { lineKind } from './updateView';
 import './update.css';
 
@@ -12,6 +13,8 @@ import './update.css';
  */
 export default function UpdateStatusLine({ menuVisible }: { menuVisible: boolean }) {
   const update = useAppUpdate();
+  const { language } = useTranslation();
+  const copy = getUpdateCopy(language);
   const { state } = update;
   const kind = menuVisible && state
     ? lineKind({ state, inSession: update.inSession, deferred: update.deferred, menuVisible })
@@ -22,7 +25,7 @@ export default function UpdateStatusLine({ menuVisible }: { menuVisible: boolean
     return (
       <div className="update-line update-line--info">
         <UpdateProgress state={state} />
-        <Button size="sm" variant="ghost" onClick={() => void update.cancelDownload()}>{UPDATE_COPY.cancel}</Button>
+        <Button size="sm" variant="ghost" onClick={() => void update.cancelDownload()}>{copy.cancel}</Button>
       </div>
     );
   }
@@ -31,12 +34,12 @@ export default function UpdateStatusLine({ menuVisible }: { menuVisible: boolean
     const failedInstall = state.error?.stage === 'install';
     return (
       <div className="update-line update-line--error">
-        <p className="update-line__text" role="alert">{failureMessage(state, true)}</p>
+        <p className="update-line__text" role="alert">{failureMessage(state, true, language)}</p>
         <div className="update-line__actions">
           <Button size="sm" variant="secondary" onClick={() => void (failedInstall ? update.install() : update.download())}>
-            {UPDATE_COPY.retry}
+            {copy.retry}
           </Button>
-          <Button size="sm" variant="ghost" onClick={update.defer}>{UPDATE_COPY.dismiss}</Button>
+          <Button size="sm" variant="ghost" onClick={update.defer}>{copy.dismiss}</Button>
         </div>
       </div>
     );
@@ -45,7 +48,7 @@ export default function UpdateStatusLine({ menuVisible }: { menuVisible: boolean
   return (
     <div className="update-line update-line--info">
       <p className="update-line__text" role="status">
-        {state.update?.mandatory ? UPDATE_COPY.requiredBlockedByRoom : UPDATE_COPY.readyBlockedByRoom}
+        {state.update?.mandatory ? copy.requiredBlockedByRoom : copy.readyBlockedByRoom}
       </p>
     </div>
   );

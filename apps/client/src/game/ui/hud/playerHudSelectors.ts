@@ -5,6 +5,8 @@ import type {
   RoomPlayerMeta,
   TeamId,
 } from '@monopoly/shared';
+import type { Language } from '../../../i18n/I18n';
+import { translate } from '../../../i18n/I18n';
 
 export interface PlayerHudViewModel {
   playerId: string;
@@ -39,6 +41,7 @@ export function selectPlayerHudViewModels(
   state: PublicGameState,
   activePlayerId: string,
   roomPlayers: readonly RoomPlayerMeta[] = [],
+  language: Language = 'vi',
 ): PlayerHudViewModel[] {
   const roomOrder = new Map(roomPlayers.map(player => [player.playerId, player]));
   const playerIds = new Set([
@@ -57,7 +60,7 @@ export function selectPlayerHudViewModels(
       const isBankrupt = finished?.reason === 'BANKRUPT';
       return {
         playerId,
-        name: player?.name ?? finished?.name ?? meta?.name ?? 'Người chơi',
+        name: player?.name ?? finished?.name ?? meta?.name ?? translate('player.genericName', language),
         color: player?.color ?? finished?.color ?? meta?.color ?? 'cyan',
         characterId: player?.characterId ?? finished?.characterId ?? meta?.characterId ?? null,
         teamId: player?.teamId ?? finished?.teamId ?? meta?.teamId ?? 'TEAM_1',

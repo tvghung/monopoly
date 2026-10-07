@@ -23,7 +23,7 @@ describe('PropertyDeedCard', () => {
     expect(card.className).toContain('deed--full');
     expect(card.style.getPropertyValue('--deed-color')).toBe('#8D5B3E');
     expect(card.style.getPropertyValue('--deed-text')).toBe('#ffffff');
-    expect(container.querySelector('.deed__group')?.textContent).toBe('Nhóm Nâu');
+    expect(container.querySelector('.deed__group')?.textContent).toBe('Nâu');
     expect(container.querySelector('.deed__art')?.getAttribute('aria-hidden')).toBe('true');
   });
 

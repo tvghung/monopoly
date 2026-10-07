@@ -306,11 +306,11 @@ describe('PlayerCardList in a 2v2 game', () => {
     const chi = container.querySelector('[data-player-id="player-c"]') as HTMLElement;
     expect(chi.getAttribute('data-team')).toBe('TEAM_1');
     expect(chi.getAttribute('data-relation')).toBe('teammate');
-    expect(chi.textContent).toContain('Chi, Đồng đội, đội Team 1');
+    expect(chi.textContent).toContain('Chi, Đồng đội, Đội Team 1');
     const dung = container.querySelector('[data-player-id="player-d"]') as HTMLElement;
     expect(dung.getAttribute('data-relation')).toBe('opponent');
-    expect(dung.textContent).toContain('Dũng, Đối thủ, đội Team 2');
-    expect(container.querySelector('[data-player-id="player-a"]')!.textContent).toContain('An (bạn), đội Team 1');
+    expect(dung.textContent).toContain('Dũng, Đối thủ, Đội Team 2');
+    expect(container.querySelector('[data-player-id="player-a"]')!.textContent).toContain('An (bạn), Đội Team 1');
   });
 
   it('shows the team name on the card as text, not only as a colour', () => {

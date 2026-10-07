@@ -8,13 +8,13 @@ import { AppUpdateProvider } from '../../runtime/appUpdate';
 import { getDesktopBridge } from '../../runtime/desktopBridge';
 import { isRuntimeConfigLoadError, loadRuntimeConfig } from '../../runtime/runtimeConfig';
 import type { DesktopLaunchSelection, RuntimeConfig } from '../../runtime/types';
-import { SettingsProvider } from '../../settings/SettingsProvider';
 import BootstrapErrorScreen, {
   type BootstrapErrorKind,
 } from '../screens/BootstrapErrorScreen';
 import LoadingScreen from '../screens/LoadingScreen';
 import { bootstrap } from './bootstrap';
 import type { BootStage, BootstrapResult } from './types';
+import { useTranslation } from '../../i18n/I18n';
 
 interface BootstrapState {
   stage: BootStage;
@@ -55,9 +55,10 @@ interface AppBootstrapScreensProps {
 function AppBootstrapScreens({ launch, onLaunchChange }: AppBootstrapScreensProps) {
   const [retryNumber, setRetryNumber] = useState(0);
   const [configuredRuntimeConfig, setConfiguredRuntimeConfig] = useState<RuntimeConfig | undefined>();
-  const [configurationError, setConfigurationError] = useState<string | null>(null);
+  const [configurationError, setConfigurationError] = useState(false);
   const [state, setState] = useState<BootstrapState>(initialState);
   const desktopBridge = getDesktopBridge();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!desktopBridge) return undefined;
@@ -66,7 +67,7 @@ function AppBootstrapScreens({ launch, onLaunchChange }: AppBootstrapScreensProp
       if (active && config.socketUrl) setConfiguredRuntimeConfig(config);
     }).catch(() => {
       if (!active) return;
-      if (active) setConfigurationError('Endpoint máy chủ đã cấu hình không khả dụng.');
+      setConfigurationError(true);
     });
     return () => {
       active = false;
@@ -100,17 +101,13 @@ function AppBootstrapScreens({ launch, onLaunchChange }: AppBootstrapScreensProp
   }, [desktopBridge, launch, retryNumber]);
 
   if (desktopBridge && !launch) {
-    // Only the settings provider is lifted to the start screen, so its "Cài đặt" dialog works: it reads the saved settings
-    // synchronously and writes every change back to the same storage `bootstrap()` reads when the player goes on, so the game
-    // sees them. No audio provider is mounted here: nothing plays on the start screen.
+    // Settings and language state are owned at renderer root. No audio provider is mounted here: nothing plays on the start screen.
     return (
-      <SettingsProvider>
-        <DesktopMultiplayerLauncher
-          configuredRuntimeConfig={configuredRuntimeConfig}
-          configurationError={configurationError}
-          onReady={onLaunchChange}
-        />
-      </SettingsProvider>
+      <DesktopMultiplayerLauncher
+        configuredRuntimeConfig={configuredRuntimeConfig}
+        configurationError={configurationError ? t('launcher.configurationError') : null}
+        onReady={onLaunchChange}
+      />
     );
   }
 
@@ -132,19 +129,17 @@ function AppBootstrapScreens({ launch, onLaunchChange }: AppBootstrapScreensProp
       );
     }
     return (
-      <SettingsProvider initialSettings={state.result.settings}>
-        <AudioProvider>
-          <ToastProvider>
-            <App
-              socket={state.result.socket}
-              runtimeConfig={state.result.runtimeConfig}
-              launch={state.result.launch}
-              onExitToLauncher={() => onLaunchChange(null)}
-            />
-            <UpdateSessionNotice />
-          </ToastProvider>
-        </AudioProvider>
-      </SettingsProvider>
+      <AudioProvider>
+        <ToastProvider>
+          <App
+            socket={state.result.socket}
+            runtimeConfig={state.result.runtimeConfig}
+            launch={state.result.launch}
+            onExitToLauncher={() => onLaunchChange(null)}
+          />
+          <UpdateSessionNotice />
+        </ToastProvider>
+      </AudioProvider>
     );
   }
 

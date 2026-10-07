@@ -25,7 +25,7 @@ describe('GroupPips', () => {
     render(<GroupPips groups={GROUPS} />);
 
     expect(screen.getByRole('img').getAttribute('aria-label')).toBe(
-      'Nhóm tài sản: Nhóm Nâu 2/2, Nhóm Xanh nhạt 1/3',
+      'Nhóm tài sản: Nâu 2/2, Xanh nhạt 1/3',
     );
   });
 

@@ -4,6 +4,7 @@ import Chip from '../../../design-system/components/Chip/Chip';
 import { usePresentationSelector } from '../../presentation/usePresentationSelector';
 import type { PresentationState } from '../../presentation/store/types';
 import { useTransientList } from './useTransientList';
+import { useTranslation } from '../../../i18n/I18n';
 
 /** The callout stays this long at speed 1 (divided by the animation speed). */
 export const DICE_CALLOUT_LIFETIME_MS = 1200;
@@ -60,6 +61,7 @@ function DieGlyph({ value }: { value: number }) {
  * hand over a finished roll. It is decorative: the roll control's live region already announces the result.
  */
 export default function DiceResultCallout() {
+  const { t } = useTranslation();
   const slice = usePresentationSelector(selectDiceSlice, sameDiceSlice);
   const list = useTransientList<CalloutValue>(1);
   const seenSequence = useRef<number | null>(null);
@@ -99,7 +101,7 @@ export default function DiceResultCallout() {
         <DieGlyph value={dice.dice2} />
       </span>
       <span className="dice-callout__total">{total}</span>
-      {doubles ? <Chip tone="gold" className="dice-callout__doubles">Đổ đôi</Chip> : null}
+      {doubles ? <Chip tone="gold" className="dice-callout__doubles">{t('hud.doubles')}</Chip> : null}
     </div>
   );
 }

@@ -15,7 +15,7 @@ const STAGE_TEXT: Record<LoadingStage, string> = {
   'loading-settings': 'Đang tải cài đặt…',
   'loading-runtime-config': 'Đang chuẩn bị kết nối…',
   'loading-assets': 'Đang tải tài nguyên…',
-  'initializing-client': 'Đang khởi tạo ván chơi…',
+  'initializing-client': 'Đang khởi động trò chơi…',
   restoring: 'Đang khôi phục ván chơi…',
 };
 
@@ -38,7 +38,7 @@ describe('LoadingScreen', () => {
 
   it('shows the brand lockup with the product name as real text and the tagline as decoration', () => {
     render(<LoadingScreen stage="loading-assets" />);
-    expect(screen.getByText('Cờ Tỷ Phú Việt Nam')).toBeTruthy();
+    expect(screen.getByText('Phiên bản Việt Nam')).toBeTruthy();
     expect(screen.getByText('OWN THE BLOCK').getAttribute('aria-hidden')).toBe('true');
   });
 

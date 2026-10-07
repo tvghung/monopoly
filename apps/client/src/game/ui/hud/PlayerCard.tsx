@@ -6,13 +6,14 @@ import MoneyText from '../../../design-system/components/MoneyText/MoneyText';
 import PlayerAvatar, { type PlayerAvatarStatus } from '../../../design-system/components/PlayerAvatar/PlayerAvatar';
 import { ActionIcon } from '../../../design-system/icons/ActionIcon';
 import type { BalanceDeltaSignal } from '../../presentation/store/types';
-import { PERMANENT_ELIMINATION_LABEL, REVIVABLE_LABEL, relationLabel } from '../../team/teamView';
+import { relationLabel, reviveTurnsLabel } from '../../team/teamView';
 import { getPlayerDisplayColor, getPlayerDisplayForeground } from '../playerVisualColors';
 import type { PlayerCardViewModel } from './playerCardSelectors';
 import { describePlayerCard, JAIL_ROUND_LIMIT } from './playerCardText';
 import { useAnimatedNumber } from './useAnimatedNumber';
 import { useBalanceDeltaFeed } from './useBalanceDeltaFeed';
 import { formatCountdown, useCountdownSeconds } from './useCountdown';
+import { useTranslation } from '../../../i18n/I18n';
 
 export interface PlayerCardProps {
   card: PlayerCardViewModel;
@@ -65,6 +66,7 @@ function useTurnPulse(active: boolean, resetEpoch: number): boolean {
 export default function PlayerCard({
   card, deltas, reducedMotion, speed, resetEpoch, bubble, onSelect,
 }: PlayerCardProps) {
+  const { language, t } = useTranslation();
   const money = useAnimatedNumber(card.displayMoney, { reducedMotion, speed, resetEpoch });
   const chips = useBalanceDeltaFeed(card.playerId, deltas, { resetEpoch, speed });
   const out = card.hasLeft || card.isBankrupt;
@@ -82,7 +84,7 @@ export default function PlayerCard({
       }
       : {}),
   } as CSSProperties;
-  const relation = relationLabel(card.relation);
+  const relation = relationLabel(card.relation, language);
   const tags = [
     { id: 'offline', show: showOffline },
     { id: 'jail', show: showJail },
@@ -102,19 +104,19 @@ export default function PlayerCard({
       data-hud-region={card.slot ? `player-card-${card.slot.toLowerCase()}` : undefined}
       style={style}
     >
-      <span className="sr-only">{describePlayerCard(card)}</span>
+      <span className="sr-only">{describePlayerCard(card, language)}</span>
       {bubble ? <div className="player-card__bubble" data-hud-region="chat-bubble" data-hud-transient="true" aria-hidden="true">{bubble}</div> : null}
       {onSelect && card.slot ? (
         <button
           type="button"
           className="player-card__open"
-          aria-label={`Xem tài sản của ${card.name}`}
+          aria-label={t('playerCard.viewAssets', { name: card.name })}
           onClick={() => onSelect(card.playerId)}
         />
       ) : null}
       {card.teamName ? (
-        <span className="player-card__team" aria-hidden="true" title={relation ? `${card.teamName} · ${relation}` : card.teamName}>
-          <span className="player-card__team-name">{card.teamName}</span>
+        <span className="player-card__team" aria-hidden="true" title={relation ? t('team.name', { name: card.teamName }) + ' · ' + relation : t('team.name', { name: card.teamName })}>
+          <span className="player-card__team-name">{t('team.name', { name: card.teamName })}</span>
           {relation && card.relation !== 'SELF' ? <span className="player-card__team-relation">{relation}</span> : null}
         </span>
       ) : null}
@@ -130,37 +132,37 @@ export default function PlayerCard({
         <div className="player-card__body">
           <div className="player-card__name-row">
             <span className="player-card__name" title={card.name}>{card.name}</span>
-            {tags.includes('local') ? <Chip tone="info" className="player-card__tag player-card__tag--text">Bạn</Chip> : null}
-            {tags.includes('turn') ? <Chip tone="gold" className="player-card__tag player-card__tag--text">Đang đi</Chip> : null}
+            {tags.includes('local') ? <Chip tone="info" className="player-card__tag player-card__tag--text">{t('status.you')}</Chip> : null}
+            {tags.includes('turn') ? <Chip tone="gold" className="player-card__tag player-card__tag--text">{t('status.turn')}</Chip> : null}
             {tags.includes('jail') ? (
               <Chip tone="loss" className="player-card__tag" icon={<ActionIcon name="jail" size={14} />}>
-                <span className="player-card__tag-text">{`Ở tù ${card.jailRoundsElapsed}/${JAIL_ROUND_LIMIT}`}</span>
+                <span className="player-card__tag-text">{t('status.jailRounds', { elapsed: card.jailRoundsElapsed, limit: JAIL_ROUND_LIMIT })}</span>
               </Chip>
             ) : null}
             {tags.includes('offline') ? (
               <Chip tone="neutral" className="player-card__tag player-card__tag--offline" icon={<ActionIcon name="offline" size={14} />}>
-                <span className="player-card__tag-text">Mất kết nối</span>
+                <span className="player-card__tag-text">{t('status.disconnected')}</span>
                 {recoverySeconds !== null
                   ? <span className="player-card__tag-countdown">{formatCountdown(recoverySeconds)}</span>
                   : null}
               </Chip>
             ) : null}
-            {card.hasLeft ? <Chip tone="neutral" className="player-card__tag player-card__tag--text">Đã rời</Chip> : null}
+          {card.hasLeft ? <Chip tone="neutral" className="player-card__tag player-card__tag--text">{t('status.left')}</Chip> : null}
           </div>
           <div className="player-card__money-row">
             {card.isBankrupt
-              ? <Chip tone="loss" className="player-card__tag" icon={<ActionIcon name="bankrupt" size={14} />}>Phá sản</Chip>
+              ? <Chip tone="loss" className="player-card__tag" icon={<ActionIcon name="bankrupt" size={14} />}>{t('status.bankrupt')}</Chip>
               : <MoneyText amount={money} size="lg" className="player-card__money" />}
             {card.isBankrupt && card.revive?.kind === 'REVIVABLE'
               ? (
                 <>
-                  <Chip tone="gold" className="player-card__tag player-card__tag--revive">{REVIVABLE_LABEL}</Chip>
-                  <Chip tone={card.revive.window.turnsRemaining <= 1 ? 'loss' : 'info'} className="player-card__tag player-card__tag--revive-turns">{card.revive.turnsLabel}</Chip>
+                  <Chip tone="gold" className="player-card__tag player-card__tag--revive">{t('team.revivable')}</Chip>
+                  <Chip tone={card.revive.window.turnsRemaining <= 1 ? 'loss' : 'info'} className="player-card__tag player-card__tag--revive-turns">{reviveTurnsLabel(card.revive.window.turnsRemaining, language)}</Chip>
                 </>
               )
               : null}
             {card.isBankrupt && card.revive?.kind === 'PERMANENT'
-              ? <Chip tone="neutral" className="player-card__tag player-card__tag--permanent">{PERMANENT_ELIMINATION_LABEL}</Chip>
+              ? <Chip tone="neutral" className="player-card__tag player-card__tag--permanent">{t('team.permanent')}</Chip>
               : null}
             <span className="player-card__chips">
               {chips.map(entry => (
@@ -171,7 +173,7 @@ export default function PlayerCard({
           {recoverySeconds !== null ? (
             <div className="player-card__recovery">
               <Chip tone="loss" icon={<ActionIcon name="offline" size={14} />}>
-                {`Tự bỏ lượt sau ${formatCountdown(recoverySeconds)}`}
+                {t('playerCard.recovery', { time: formatCountdown(recoverySeconds) })}
               </Chip>
             </div>
           ) : null}
@@ -181,7 +183,7 @@ export default function PlayerCard({
               <span className="player-card__counts">
                 {card.houses > 0 ? <span className="player-card__count"><ActionIcon name="house" size={14} />{card.houses}</span> : null}
                 {card.hotels > 0 ? <span className="player-card__count"><ActionIcon name="hotel" size={14} />{card.hotels}</span> : null}
-                <span className="player-card__count player-card__count--lots">{card.propertyCount} đất</span>
+                <span className="player-card__count player-card__count--lots">{t('playerCard.assetCount', { count: card.propertyCount })}</span>
               </span>
             </div>
           ) : null}

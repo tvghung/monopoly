@@ -27,9 +27,12 @@ desktop Join finds the Host from the room code alone through a request/response
 UDP lookup (desktop Host profile only, see
 [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md)); the cloud
 and development servers never answer it. There is no mDNS, no periodic
-advertisement and no runtime memory fallback. Player-facing
-product là Vietnamese-only **Cờ Tỷ Phú Việt Nam — Standard Mode**; package/path kỹ
-thuật `monopoly-*` được giữ để tránh cosmetic refactor.
+advertisement and no runtime memory fallback. Player-facing UI supports
+Vietnamese and English, defaults to Vietnamese, and keeps the product identity
+**Own the Block — Cờ Tỷ Phú Việt Nam Standard Mode**. Shared board/card data and
+server state remain canonical Vietnamese; language is a local renderer setting
+and never changes protocol or gameplay. Technical `monopoly-*` package/path names
+remain unchanged.
 
 ## Invariants nguồn thẩm quyền
 

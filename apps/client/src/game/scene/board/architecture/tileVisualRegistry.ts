@@ -1,5 +1,6 @@
 import type { Tile, TileType } from '@monopoly/shared';
 import type { BoardMaterialProfile } from '../materials/boardMaterialSpecs';
+import { translate, type Language } from '../../../../i18n/I18n';
 
 export type DistrictSurfaceKey =
   | 'oldTownStone'
@@ -114,16 +115,16 @@ const PROPERTY_DESCRIPTORS: Record<string, DistrictSurfaceDescriptor> = {
   },
 };
 
-const SPECIAL_TILE_LABELS: Partial<Record<TileType, string>> = {
-  start: 'Xuất phát',
-  jail: 'Nhà tù / Thăm tù',
-  gojail: 'Vào tù',
-  chance: 'Cơ hội',
-  chest: 'Khí vận',
-  railroad: 'Ga tàu',
-  company: 'Công ty',
-  expense: 'Thuế',
-  parking: 'Bãi đỗ xe',
+const SPECIAL_TILE_LABELS: Partial<Record<TileType, Parameters<typeof translate>[0]>> = {
+  start: 'board.go',
+  jail: 'board.jail',
+  gojail: 'board.goToJail',
+  chance: 'board.chance',
+  chest: 'board.communityChest',
+  railroad: 'property.group.railroad',
+  company: 'property.group.utility',
+  expense: 'board.tax',
+  parking: 'board.freeParking',
 };
 
 const FALLBACK_DESCRIPTOR = PROPERTY_DESCRIPTORS.brown;
@@ -160,6 +161,6 @@ export function getDistrictSurfaceDescriptorByKey(
   return DESCRIPTORS_BY_SURFACE_KEY.get(surfaceKey) ?? FALLBACK_DESCRIPTOR;
 }
 
-export function getSpecialTileLabel(tileType: TileType): string {
-  return SPECIAL_TILE_LABELS[tileType] ?? 'Ô CỜ';
+export function getSpecialTileLabel(tileType: TileType, language: Language): string {
+  return translate(SPECIAL_TILE_LABELS[tileType] ?? 'board.tileGeneric', language);
 }

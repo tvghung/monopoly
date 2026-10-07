@@ -8,12 +8,11 @@ import stateContext from '../../../internal';
 import TeamChip from '../../team/TeamChip';
 import {
   getReviveStatus,
-  PERMANENT_ELIMINATION_LABEL,
-  REVIVABLE_LABEL,
   type ReviveStatus,
 } from '../../team/teamView';
 import PortfolioView, { PortfolioBalance } from './PortfolioView';
 import { useRetainedValue } from './useRetainedValue';
+import { useTranslation } from '../../../i18n/I18n';
 
 interface PortfolioPlayer {
   name: string;
@@ -52,18 +51,19 @@ function resolvePortfolioPlayer(
 
 /** The balance of a player in the game; a finished player shows why they are out instead. */
 function PortfolioStanding({ player }: { player: PortfolioPlayer }) {
+  const { t } = useTranslation();
   if (player.status === 'bankrupt') {
     return (
       <>
-        <Chip tone="loss" icon={<ActionIcon name="bankrupt" />}>Phá sản</Chip>
+        <Chip tone="loss" icon={<ActionIcon name="bankrupt" />}>{t('portfolio.ownerBankrupt')}</Chip>
         {player.revive?.kind === 'REVIVABLE'
-          ? <Chip tone="info" icon={<ActionIcon name="revive" />}>{`${REVIVABLE_LABEL} · ${player.revive.turnsLabel}`}</Chip>
+          ? <Chip tone="info" icon={<ActionIcon name="revive" />}>{`${t('team.revivable')} · ${player.revive.turnsLabel}`}</Chip>
           : null}
-        {player.revive?.kind === 'PERMANENT' ? <Chip tone="neutral">{PERMANENT_ELIMINATION_LABEL}</Chip> : null}
+        {player.revive?.kind === 'PERMANENT' ? <Chip tone="neutral">{t('team.permanent')}</Chip> : null}
       </>
     );
   }
-  if (player.status === 'left') return <Chip tone="neutral" icon={<ActionIcon name="leave" />}>Đã rời</Chip>;
+  if (player.status === 'left') return <Chip tone="neutral" icon={<ActionIcon name="leave" />}>{t('portfolio.ownerLeft')}</Chip>;
   return player.balance === null ? null : <PortfolioBalance amount={player.balance} />;
 }
 
@@ -80,6 +80,7 @@ interface PlayerPortfolioModalProps {
  * action of its own; "Xem" only hands a property to the ordinary inspection dialog.
  */
 export default function PlayerPortfolioModal({ playerId, onClose, onSelectTile }: PlayerPortfolioModalProps) {
+  const { t } = useTranslation();
   const { state, roomPlayers = [] } = useContext(stateContext);
   // Keep showing the same player while the dialog animates out.
   const shownId = useRetainedValue(playerId);
@@ -89,7 +90,7 @@ export default function PlayerPortfolioModal({ playerId, onClose, onSelectTile }
   return (
     <Modal
       open={playerId !== null}
-      title={`Tài sản của ${player.name}`}
+      title={t('portfolio.title', { name: player.name })}
       size="lg"
       onClose={onClose}
       closeOnOutsideClick
@@ -103,7 +104,7 @@ export default function PlayerPortfolioModal({ playerId, onClose, onSelectTile }
             <PortfolioStanding player={player} />
           </>
         )}
-        emptyText={player.status === 'playing' ? `${player.name} chưa sở hữu tài sản nào.` : `${player.name} không còn tài sản nào.`}
+        emptyText={player.status === 'playing' ? t('portfolio.noneOwned', { name: player.name }) : t('portfolio.noneLeft', { name: player.name })}
         onInspect={onSelectTile ? tileId => {
           onClose();
           onSelectTile(tileId);

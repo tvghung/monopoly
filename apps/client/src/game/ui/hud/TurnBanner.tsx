@@ -5,6 +5,7 @@ import { usePresentationSelector } from '../../presentation/usePresentationSelec
 import type { PresentationState } from '../../presentation/store/types';
 import { resolveDisplayedPlayer } from './displayedPlayer';
 import { useTransientList } from './useTransientList';
+import { useTranslation } from '../../../i18n/I18n';
 
 /** Enter, hold and exit at speed 1 (divided by the animation speed): 280 + 900 + 280 ms. */
 export const TURN_BANNER_LIFETIME_MS = 280 + 900 + 280;
@@ -31,6 +32,7 @@ interface BannerValue {
  * turn change once (see `useTurnAnnouncement`) and the status pill shows it.
  */
 export default function TurnBanner() {
+  const { t } = useTranslation();
   const { state, playerId } = useContext(stateContext);
   const slice = usePresentationSelector(selectTurnSlice, sameTurnSlice);
   const list = useTransientList<BannerValue>(1);
@@ -67,7 +69,7 @@ export default function TurnBanner() {
       key={entry.key}
     >
       <PlayerAvatar characterId={player.characterId} colorId={player.color} size={48} active={mine} />
-      <span className="turn-banner__text">{mine ? 'Đến lượt bạn!' : `Lượt của ${player.name}`}</span>
+      <span className="turn-banner__text">{mine ? t('hud.myTurn') : t('hud.playerTurn', { name: player.name })}</span>
     </div>
   );
 }

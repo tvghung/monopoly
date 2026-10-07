@@ -129,7 +129,7 @@ describe('ForcedSaleProposalPanel', () => {
     fireEvent.click(accept);
 
     await waitFor(() => expect(accept.hasAttribute('disabled')).toBe(false));
-    expect(screen.getByRole('alert').textContent).toBe('Không thể thực hiện hành động ở trạng thái hiện tại.');
+    expect(screen.getByRole('alert').textContent).toBe('Giao dịch chưa thể thực hiện.');
   });
 
   it('is hidden for other players, without a proposal, and while commands cannot be sent', () => {

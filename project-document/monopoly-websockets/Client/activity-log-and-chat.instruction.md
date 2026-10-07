@@ -65,8 +65,9 @@
 
 - Danh sách activity/game log của room trong cùng `Log` surface.
 - Dòng chat typed nằm chung với gameplay entries nhưng có visual treatment riêng.
-- Input/nút/chat role/loading/empty state đều dùng tiếng Việt.
-- Game amounts dùng formatter VNĐ; không còn `$`, `$M` hoặc copy tiếng Anh.
+- Input/nút/chat role/loading/empty state and structured activity use the selected VI/EN locale (Vietnamese default).
+- Player names, team names, and chat remain exactly as entered; legacy freeform log strings remain compatibility-only.
+- Game amounts use the VNĐ formatter in both locales; no `$` or `$M` conversion.
 - Gameplay display entries follow the existing PresentationQueue gate; reconnect and
   replay hydrate the current tail without replaying it. Reduced motion keeps the
   existing snap behavior.

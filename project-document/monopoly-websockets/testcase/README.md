@@ -29,7 +29,7 @@ checklist item phải map tới assertion executable hoặc giữ nhãn missing/
 | `TradeBundle`/private offer | [trading](./trading-market-and-private-offers.md) | schema + Socket + PG |
 | Property/building/forced sale | [payment-shortfall](./payment-shortfall-and-forced-sale.md) | GameCore + Socket + scheduler + PG |
 | Protocol/snapshot/board/decks | [shared](./shared-contracts-and-board-data.md) | schema + room + data audit |
-| Vietnamese client/motion | [client](./client-state-sync-motion-and-accessibility.md) | client + audit |
+| Bilingual client/motion | [client](./client-state-sync-motion-and-accessibility.md) | client + audit |
 | Chat/log safety | [chat](./chat-log-and-input-safety.md) | Socket + client |
 | Activity/victory/replay | [game status](./game-status-bankruptcy-and-winner.md), [client sync](./client-state-sync-motion-and-accessibility.md) | Activity schema + Socket + client |
 | DB/runtime/deploy | [runtime](./http-runtime-and-deployment.md) | migration + HTTP + PG |

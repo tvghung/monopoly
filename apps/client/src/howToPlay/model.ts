@@ -40,7 +40,11 @@ import {
 } from '@monopoly/shared';
 import { getTileDetails } from '../game/ui/property/propertyDetails';
 import { getPropertyGroupVisualStyle } from '../game/ui/propertyVisualColors';
-import { buildCardList, DECK_NAMES, summarizeDeck } from './cards';
+import { getTileName } from '../game/ui/formatters';
+import type { Language } from '../i18n/I18n';
+import { translate } from '../i18n/I18n';
+import { buildCardList, getDeckName, summarizeDeck } from './cards';
+import { buildEnglishHowToPlayModel } from './model.en';
 import {
   HOW_TO_PLAY_TITLE,
   SECTION_TITLES,
@@ -91,7 +95,7 @@ export function formatDuration(seconds: number): string {
 /** 150 → "1,5", 200 → "2": the multiplier a rent percentage stands for, written as a Vietnamese number. */
 export const rentMultiplierText = (percent: number): string => String(percent / 100).replace('.', ',');
 
-const tileName = (index: number): string => tileState[index].streetName;
+const tileName = (index: number): string => getTileName(index, 'vi');
 
 const tilesOfType = (type: TileType): Tile[] => tileState.filter((tile) => tile.tileType === type);
 
@@ -279,7 +283,7 @@ function buildingSection(): HowToPlaySection {
       list([
         `Bạn có thể bán lại từng cấp công trình cho Ngân hàng, mỗi lần một cấp, bằng nút ${label('Bán Nhà')} `
         + 'khi xem ô đất của mình. Bạn nhận lại một nửa giá xây. '
-        + `Ví dụ ở ${example.streetName}, bán một Nhà nhận lại ${money(houseSaleRefund(example.houseCost ?? 0))}.`,
+        + `Ví dụ ở ${tileName(tileState.indexOf(example))}, bán một Nhà nhận lại ${money(houseSaleRefund(example.houseCost ?? 0))}.`,
         'Khi đang có khoản nợ chờ trả, bạn không bán lẻ công trình được. '
         + `Lúc đó bạn bán cả ô đất (xem mục ${see('debt')}).`,
         'Trò chơi không có thế chấp.',
@@ -319,9 +323,9 @@ function jailSection(): HowToPlaySection {
 // 6. Thuế và ô đặc biệt.
 function tilesSection(): HowToPlaySection {
   const taxRows: HowToPlayTableRow[] = tilesOfType('expense').map((tile) => ({
-    cells: [tile.streetName, `Nộp ${money(tile.expenseAmount ?? 0)} cho Ngân hàng.`],
+    cells: [tileName(tileState.indexOf(tile)), `Nộp ${money(tile.expenseAmount ?? 0)} cho Ngân hàng.`],
   }));
-  const first = (type: TileType): string => tilesOfType(type)[0].streetName;
+  const first = (type: TileType): string => tileName(tileState.indexOf(tilesOfType(type)[0]));
   return {
     id: 'tiles',
     title: SECTION_TITLES.tiles,
@@ -351,8 +355,8 @@ function tilesSection(): HowToPlaySection {
 function deckSection(deck: CardDeck): HowToPlaySection {
   const id: HowToPlaySectionId = deck === 'chance' ? 'chance-cards' : 'chest-cards';
   const tileCount = (deck === 'chance' ? CHANCE_TILE_INDICES : CHEST_TILE_INDICES).length;
-  const name = DECK_NAMES[deck];
-  const cards = buildCardList(deck);
+  const name = getDeckName(deck, 'vi');
+  const cards = buildCardList(deck, 'vi');
   return {
     id,
     title: SECTION_TITLES[id],
@@ -365,7 +369,7 @@ function deckSection(deck: CardDeck): HowToPlaySection {
         'Thứ tự rút thẻ là ngẫu nhiên. Thẻ dùng xong được xếp xuống cuối bộ bài. '
         + 'Riêng Thẻ Thoát Tù Miễn Phí được bạn giữ lại cho đến khi bạn dùng.',
       ),
-      paragraph(summarizeDeck(deck, cards)),
+      paragraph(summarizeDeck(deck, cards, 'vi')),
       { kind: 'cards', label: `Danh sách thẻ ${name}`, cards },
     ],
   };
@@ -418,7 +422,7 @@ function debtSection(): HowToPlaySection {
       ),
       list([
         `${label('Bán cho Ngân hàng')}: bạn nhận ${FORCED_SALE_PERCENT}% của (giá đất + tiền đã xây Nhà). `
-        + `Ví dụ ${example.streetName} chưa có Nhà bán được ${money(forcedSaleGrossValue(price, 0))}, `
+        + `Ví dụ ${tileName(tileState.indexOf(example))} chưa có Nhà bán được ${money(forcedSaleGrossValue(price, 0))}, `
         + `có ${EXAMPLE_HOUSES} Nhà bán được ${money(forcedSaleGrossValue(price, EXAMPLE_HOUSES * houseCost))}.`,
         `${label('Đề nghị người chơi mua')}: bạn chọn người mua và tự đặt giá. `
         + 'Giá gợi ý ban đầu bằng giá Ngân hàng. '
@@ -524,11 +528,11 @@ function teamPlaySection(): HowToPlaySection {
 }
 
 /** The whole guide, in reading order. Pure: the same shared data always gives the same model. */
-export function buildHowToPlayModel(): HowToPlayModel {
+export function buildHowToPlayModel(language: Language = 'vi'): HowToPlayModel {
+  if (language === 'en') return buildEnglishHowToPlayModel();
   return {
     title: HOW_TO_PLAY_TITLE,
-    intro: 'Cờ Tỷ Phú Việt Nam là trò chơi mua đất, thu tiền thuê và xây nhà cùng bạn bè. '
-      + 'Bấm vào từng mục bên dưới để mở ra đọc.',
+    intro: translate('guide.intro', language),
     sections: [
       goalSection(),
       buyingSection(),

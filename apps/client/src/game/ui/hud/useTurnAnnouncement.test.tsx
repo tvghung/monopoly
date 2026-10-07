@@ -6,11 +6,12 @@ interface Props {
   active: string | null;
   name?: string;
   epoch?: number;
+  language?: 'vi' | 'en';
 }
 
 function render(initial: Props) {
   return renderHook(
-    ({ active, name, epoch = 0 }: Props) => useTurnAnnouncement(active, name, 'player-a', epoch),
+    ({ active, name, epoch = 0, language = 'vi' }: Props) => useTurnAnnouncement(active, name, 'player-a', epoch, language),
     { initialProps: initial },
   );
 }
@@ -20,6 +21,16 @@ describe('turn announcement', () => {
     expect(turnAnnouncementText(true, 'An')).toBe('Đến lượt bạn.');
     expect(turnAnnouncementText(false, 'Bình')).toBe('Lượt của Bình.');
     expect(turnAnnouncementText(false, undefined)).toBe('');
+  });
+
+  it('announces the current turn in English', () => {
+    expect(turnAnnouncementText(true, 'An', 'en')).toBe('It is your turn.');
+    expect(turnAnnouncementText(false, 'An', 'en')).toBe('An’s turn.');
+    const { result, rerender } = render({ active: 'player-a', name: 'An', language: 'en' });
+    rerender({ active: 'player-b', name: 'Bình', language: 'en' });
+    expect(result.current).toBe('Bình’s turn.');
+    rerender({ active: 'player-b', name: 'Bình', language: 'vi' });
+    expect(result.current).toBe('Lượt của Bình.');
   });
 
   it('says nothing on the first render', () => {

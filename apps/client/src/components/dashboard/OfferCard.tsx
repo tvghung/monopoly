@@ -11,9 +11,11 @@ import { buildDeedCardModel } from '../../game/ui/property/deedCardModel';
 import PropertyDeedCard from '../../game/ui/property/PropertyDeedCard';
 import TeamChip from '../../game/team/TeamChip';
 import './TradeOffer.css';
+import { useTranslation } from '../../i18n/I18n';
 
 /** One side of an offer as a list of chips: each deed, the cash, and the Get Out Of Jail Free cards. */
 function BundleSummary({ title, bundle }: { title: string; bundle: TradeBundle }) {
+  const { language, t } = useTranslation();
   const { state, roomPlayers } = useContext(stateContext);
   const empty = bundle.cash <= 0 && bundle.propertyIds.length === 0 && bundle.jailFreeCardIds.length === 0;
   return (
@@ -21,10 +23,10 @@ function BundleSummary({ title, bundle }: { title: string; bundle: TradeBundle }
       <p className="trade-offers-modal__side-title" aria-hidden="true">{title}</p>
       <ul className="trade-offers-modal__items">
         {bundle.propertyIds.map(tileId => {
-          const model = buildDeedCardModel({ tileId, state, roomPlayers });
+          const model = buildDeedCardModel({ tileId, state, roomPlayers, language });
           return (
             <li key={tileId}>
-              {model ? <PropertyDeedCard model={model} variant="chip" /> : <span>{getTileName(tileId)}</span>}
+              {model ? <PropertyDeedCard model={model} variant="chip" /> : <span>{getTileName(tileId, language)}</span>}
             </li>
           );
         })}
@@ -32,9 +34,9 @@ function BundleSummary({ title, bundle }: { title: string; bundle: TradeBundle }
           ? <li><Chip tone="gold" icon={<ActionIcon name="cash" />}>{formatMoney(bundle.cash)}</Chip></li>
           : null}
         {bundle.jailFreeCardIds.length > 0
-          ? <li><Chip tone="info" icon={<ActionIcon name="jailCard" />}>{`${bundle.jailFreeCardIds.length} thẻ Thoát Tù Miễn Phí`}</Chip></li>
+          ? <li><Chip tone="info" icon={<ActionIcon name="jailCard" />}>{t('offers.jailCardCount', { count: bundle.jailFreeCardIds.length })}</Chip></li>
           : null}
-        {empty ? <li className="trade-offers-modal__none">Không có tài sản</li> : null}
+        {empty ? <li className="trade-offers-modal__none">{t('offers.noAssets')}</li> : null}
       </ul>
     </div>
   );
@@ -58,6 +60,7 @@ interface OfferCardProps {
 export default function OfferCard({
   offer, autoFocus = false, title, notes, busy = false, onAccept, onDecline,
 }: OfferCardProps) {
+  const { t } = useTranslation();
   const { state } = useContext(stateContext);
   const proposer = state.players[offer.proposerPlayerId];
   const expired = offer.remainingSeconds <= 0;
@@ -69,20 +72,20 @@ export default function OfferCard({
           ? <PlayerAvatar characterId={proposer.characterId ?? null} colorId={proposer.color} size={44} />
           : null}
         <h3 id={titleId} className="trade-offers-modal__offer__title">
-          {title ?? `Đề nghị từ ${offer.proposerName}`}
+          {title ?? t('offers.from', { name: offer.proposerName })}
         </h3>
         <TeamChip playerId={offer.proposerPlayerId} />
         <Chip tone={offer.remainingSeconds <= 10 ? 'loss' : 'neutral'} icon={<ActionIcon name="clock" />}>
-          {`Hết hạn sau: ${offer.remainingSeconds} giây`}
+          {t('offers.expires', { seconds: offer.remainingSeconds })}
         </Chip>
       </header>
       <div className="trade-offers-modal__terms">
-        <BundleSummary title={`${offer.proposerName} giao`} bundle={offer.offered} />
+        <BundleSummary title={t('offers.playerGives', { name: offer.proposerName })} bundle={offer.offered} />
         <span className="trade-offers-modal__swap" aria-hidden="true"><ActionIcon name="trade" /></span>
-        <BundleSummary title="Bạn giao" bundle={offer.requested} />
+        <BundleSummary title={t('offers.youGive')} bundle={offer.requested} />
       </div>
       {notes}
-      {expired ? <p className="trade-offers-modal__expired">Đề nghị đã hết hạn.</p> : null}
+      {expired ? <p className="trade-offers-modal__expired">{t('offers.expired')}</p> : null}
       <div className="trade-offers-modal__offer__buttons">
         <Button
           data-modal-autofocus={autoFocus ? true : undefined}
@@ -92,7 +95,7 @@ export default function OfferCard({
           onClick={() => onAccept(offer)}
           disabled={expired || busy}
         >
-          Chấp nhận
+          {t('offers.accept')}
         </Button>
         <Button
           variant="secondary"
@@ -102,7 +105,7 @@ export default function OfferCard({
           onClick={() => onDecline(offer)}
           disabled={expired || busy}
         >
-          Từ chối
+          {t('offers.decline')}
         </Button>
       </div>
     </section>

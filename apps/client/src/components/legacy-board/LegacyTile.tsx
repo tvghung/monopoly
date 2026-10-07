@@ -7,6 +7,7 @@ import { formatMoney, getTileName } from '../../presentation';
 import { getPlayerDisplayColor, getPlayerDisplayForeground } from '../../game/ui/playerVisualColors';
 import { getPropertyGroupDisplayColor } from '../../game/ui/propertyVisualColors';
 import { getTileAccessibilityLabel } from './tileAccessibility';
+import { useTranslation } from '../../i18n/I18n';
 
 interface LegacyTileProps {
   tile: TileData;
@@ -50,6 +51,7 @@ export default function LegacyTile({
   tile, id, position, selected, onSelect,
 }: LegacyTileProps) {
   const { state } = useContext(stateContext);
+  const { language, t } = useTranslation();
   const owned = state.boardState.ownedProps[id];
   const ownerColor = owned
     ? state.players[owned.id]?.color
@@ -57,9 +59,9 @@ export default function LegacyTile({
       ?? owned.color
     : undefined;
   const displayOwnerColor = ownerColor ? getPlayerDisplayColor(ownerColor) : undefined;
-  const name = getTileName(id);
+  const name = getTileName(id, language);
   const buildingLabel = owned && owned.houses > 0
-    ? owned.houses === 5 ? '1 Khách Sạn' : `${owned.houses} Nhà`
+    ? owned.houses === 5 ? t('board.hotelCount') : t('board.houseCount', { count: owned.houses })
     : null;
 
   return (
@@ -69,11 +71,11 @@ export default function LegacyTile({
       className={`Tile tile${id} ${position}`}
       id={String(id)}
       data-tile-index={id}
-      aria-label={getTileAccessibilityLabel(id, state)}
+      aria-label={getTileAccessibilityLabel(id, state, language)}
       aria-expanded={selected}
     >
       {owned
-        ? <span className="tile__owner-frame" title={`Tài sản của ${ownerColor ?? 'người chơi khác'}`} style={{ '--owner-color': displayOwnerColor } as CSSProperties} />
+        ? <span className="tile__owner-frame" title={t('board.ownerTitle', { owner: ownerColor ?? t('board.otherPlayer') })} style={{ '--owner-color': displayOwnerColor } as CSSProperties} />
         : null}
       {buildingLabel
         ? (

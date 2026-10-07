@@ -27,7 +27,7 @@ describe('buildPortfolioModel', () => {
     });
     expect(model.groups.map(group => group.key)).toEqual(['brown', 'lightblue', 'railroad', 'utility']);
     expect(model.groups.map(group => group.tileIds)).toEqual([[1], [6, 8], [5, 15], [28]]);
-    expect(model.groups.map(group => group.label)).toEqual(['Nhóm Nâu', 'Nhóm Xanh nhạt', 'Ga tàu', 'Tiện ích']);
+    expect(model.groups.map(group => group.label)).toEqual(['Nâu', 'Xanh nhạt', 'Ga tàu', 'Tiện ích']);
     expect(model.properties).toBe(6);
   });
 

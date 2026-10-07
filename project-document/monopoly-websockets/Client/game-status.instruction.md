@@ -2,9 +2,10 @@
 
 ## Branding/language
 
-- HTML title/metadata/manifest, loading/error/reconnect/replaced screens, join/lobby,
-  center board, roster, winner và confirmations dùng “Cờ Tỷ Phú Việt Nam” và tiếng
-  Việt. Technical repository/package/event names không cần rename.
+- HTML title/description, loading/error/reconnect/replaced screens, join/lobby,
+  center board, roster, winner and confirmations follow VI/EN preference; Vietnamese
+  is the default. “Own the Block” branding remains unchanged. Technical
+  repository/package/event names do not need renaming.
 - Host=`Chủ Phòng`, Ready=`Sẵn Sàng`, Spectator=`Khán Giả`, Online/Offline và
   bankruptcy/leave reasons đều có Vietnamese copy.
 
@@ -40,7 +41,7 @@
   phòng"/"Bắt đầu") mở hộp thoại hướng dẫn dùng chung; khi hẹp, các nút xuống dòng. Trong ván, nút "?" là ô đầu của
   toolbar; xem [how-to-play.instruction.md](./how-to-play.instruction.md).
 - `MascotPicker` đổi mascot/màu qua `set appearance`, chuyển động theo reduced motion hiệu lực (setting hoặc OS).
-  Mascot chỉ nhận diện bằng hình; `accessibleLabel` tiếng Việt chỉ nằm ở `alt`/`aria-label`.
+  Mascot chỉ nhận diện bằng hình; localized `alt`/`aria-label` chỉ dùng cho công nghệ hỗ trợ.
 - **Chế độ chơi**: host thấy `SegmentedControl` "Chế độ chơi" (Solo | 2v2; `set game mode`), người khác chỉ thấy nhãn. Đổi chế độ reset Ready
   của mọi người. Ở 2v2 `Lobby` thay danh sách ghế bằng hai `TeamZone` (mỗi vùng là `section` có tên đội, danh sách người chơi, số "n/2",
   nhãn "Đội của bạn"): tên đội (`TeamNameField` chỉ hiện cho **đội của chính người xem**, kể cả host; tên đội kia chỉ đọc với mọi người,
@@ -105,7 +106,7 @@
 
 ## Tests
 
-- Vietnamese branding/copy/metadata and no player-facing English.
+- Both localized copy sets, brand metadata and no uncatalogued player-facing text.
 - Host/ready/2–4/first-player result/disconnect-transfer behavior.
 - Bankruptcy versus forfeit reason, stable winner and reconnect/restart.
 - Lobby: `Lobby.test.tsx` (Solo kick), `App.test.tsx` ("App 2v2 lobby commands": payload của từng lệnh, `removed from room`).

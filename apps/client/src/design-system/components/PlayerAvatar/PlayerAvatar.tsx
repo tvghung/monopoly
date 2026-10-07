@@ -4,6 +4,8 @@ import type { CharacterId, PlayerColorId } from '@monopoly/shared';
 import { getCharacterDefinition } from '../../../game/characters/characterRegistry';
 import { characterSvgDataUri } from '../../../game/characters/characterSvg';
 import { getPlayerDisplayColor } from '../../../game/ui/playerVisualColors';
+import { useTranslation } from '../../../i18n/I18n';
+import { getCharacterName } from '../../../i18n/characters';
 import './PlayerAvatar.css';
 
 export type PlayerAvatarStatus = 'online' | 'offline' | 'bankrupt' | 'left';
@@ -19,19 +21,9 @@ export interface PlayerAvatarProps {
   className?: string;
 }
 
-const STATUS_MARKERS = {
-  offline: { label: 'Mất kết nối', Icon: WifiOff },
-  bankrupt: { label: 'Phá sản', Icon: Ban },
-  left: { label: 'Đã rời phòng', Icon: LogOut },
-} as const;
-
 function ringWidth(size: number): number {
   if (size <= 36) return 2;
   return size <= 64 ? 3 : 4;
-}
-
-function imageLabel(accessibleLabel: string): string {
-  return accessibleLabel.startsWith('Mascot') ? accessibleLabel : `Mascot ${accessibleLabel}`;
 }
 
 /**
@@ -46,12 +38,18 @@ export default function PlayerAvatar({
   status = 'online',
   className = '',
 }: PlayerAvatarProps) {
+  const { language, t } = useTranslation();
   const definition = getCharacterDefinition(characterId);
+  const mascotName = getCharacterName(characterId, language);
   const source = useMemo(
     () => characterSvgDataUri(definition.svgSource, colorId),
     [colorId, definition.svgSource],
   );
-  const marker = status === 'online' ? null : STATUS_MARKERS[status];
+  const marker = status === 'online' ? null : {
+    offline: { label: t('status.disconnected'), Icon: WifiOff },
+    bankrupt: { label: t('status.bankrupt'), Icon: Ban },
+    left: { label: t('status.left'), Icon: LogOut },
+  }[status];
   const style = {
     '--ds-avatar-size': `${size}px`,
     '--ds-avatar-ring': `${ringWidth(size)}px`,
@@ -68,7 +66,7 @@ export default function PlayerAvatar({
       <img
         className="ds-avatar__image"
         src={source}
-        alt={imageLabel(definition.accessibleLabel)}
+        alt={t('avatar.mascot', { name: mascotName })}
         width={size}
         height={size}
         draggable={false}

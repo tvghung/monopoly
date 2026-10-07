@@ -2,6 +2,8 @@ import {
   PLAYER_COLOR_IDS,
   type PlayerColorId,
 } from '@monopoly/shared';
+import type { Language } from '../../i18n/I18n';
+import { translate } from '../../i18n/I18n';
 
 export interface PlayerColorVisual {
   label: string;
@@ -49,6 +51,13 @@ export function getPlayerAccentDarkColor(rawColor: string | null | undefined): s
   return resolvePlayerColor(rawColor)?.accentDark ?? PLAYER_COLOR_VISUALS.cyan.accentDark;
 }
 
-export function getPlayerColorLabel(rawColor: string | null | undefined): string {
-  return resolvePlayerColor(rawColor)?.label ?? 'Màu người chơi';
+export function getPlayerColorLabel(rawColor: string | null | undefined, language: Language = 'vi'): string {
+  const normalized = rawColor?.toLowerCase();
+  const keyByColor: Partial<Record<PlayerColorId, Parameters<typeof translate>[0]>> = {
+    red: 'color.red', blue: 'color.blue', green: 'color.green', yellow: 'color.yellow', orange: 'color.orange',
+    purple: 'color.purple', pink: 'color.pink', cyan: 'color.cyan', lime: 'color.lime', charcoal: 'color.charcoal',
+  };
+  return normalized && normalized in keyByColor
+    ? translate(keyByColor[normalized as PlayerColorId]!, language)
+    : translate('color.fallback', language);
 }

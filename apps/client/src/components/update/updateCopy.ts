@@ -1,64 +1,81 @@
 import type { AppUpdateErrorCode, AppUpdateState } from '../../runtime/types';
+import { translate, type Language } from '../../i18n/I18n';
 
-/**
- * Everything the update screens say, in plain Vietnamese: no address, file name, checksum or error code. Every failure
- * line says what the player can do next, and for an update that is not mandatory it says the game stays playable.
- */
-export const UPDATE_COPY = {
-  offerTitle: 'Có bản cập nhật mới',
-  requiredTitle: 'Cần cập nhật Own the Block',
-  requiredBody: 'Phiên bản hiện tại của bạn không còn tương thích với phiên bản mới nhất. Vui lòng cập nhật để tiếp tục chơi.',
-  readyTitle: 'Bản cập nhật đã sẵn sàng',
-  installingTitle: 'Đang cài đặt bản cập nhật',
-  installingBody: 'Game sẽ tự mở lại khi cài xong. Vui lòng chưa tắt máy.',
-  update: 'Cập nhật',
-  later: 'Để sau',
-  retry: 'Thử lại',
-  cancel: 'Hủy',
-  dismiss: 'Đóng',
-  quit: 'Thoát game',
-  check: 'Kiểm tra cập nhật',
-  checking: 'Đang kiểm tra…',
-  restart: 'Khởi động lại và cập nhật',
-  openInstaller: 'Mở bộ cài đặt',
-  reopenInstaller: 'Mở lại bộ cài đặt',
-  progressLabel: 'Tiến trình tải bản cập nhật',
-  requiredBlockedByRoom: 'Cần cập nhật Own the Block. Hãy đóng phòng đang mở trên máy này rồi cập nhật.',
-  readyBlockedByRoom: 'Bản cập nhật đã sẵn sàng. Hãy đóng phòng đang mở trên máy này rồi cập nhật.',
-  readyAfterGame: 'Bản cập nhật đã sẵn sàng. Bạn có thể cập nhật sau khi kết thúc ván chơi.',
-  requiredAfterGame: 'Cần cập nhật Own the Block. Bạn có thể cập nhật sau khi rời phòng.',
-  upToDate: 'Bạn đang sử dụng phiên bản mới nhất.',
-  unsupportedHint: 'Cập nhật tự động không có trong bản này.',
-  checkFailed: 'Không thể kiểm tra bản cập nhật lúc này. Bạn vẫn có thể tiếp tục chơi.',
+const COPY_KEYS = {
+  offerTitle: 'update.offerTitle',
+  requiredTitle: 'update.requiredTitle',
+  requiredBody: 'update.requiredBody',
+  readyTitle: 'update.readyTitle',
+  installingTitle: 'update.installingTitle',
+  installingBody: 'update.installingBody',
+  update: 'update.update',
+  later: 'update.later',
+  retry: 'update.retry',
+  cancel: 'update.cancel',
+  dismiss: 'update.dismiss',
+  quit: 'update.quit',
+  check: 'update.check',
+  checking: 'update.checking',
+  restart: 'update.restart',
+  openInstaller: 'update.openInstaller',
+  reopenInstaller: 'update.reopenInstaller',
+  progressLabel: 'update.progressLabel',
+  requiredBlockedByRoom: 'update.requiredBlockedByRoom',
+  readyBlockedByRoom: 'update.readyBlockedByRoom',
+  readyAfterGame: 'update.readyAfterGame',
+  requiredAfterGame: 'update.requiredAfterGame',
+  upToDate: 'update.upToDate',
+  unsupportedHint: 'update.unsupportedHint',
+  checkFailed: 'update.checkFailed',
 } as const;
+
+export type UpdateCopy = { [K in keyof typeof COPY_KEYS]: string };
+
+const UPDATE_COPY_VI = Object.fromEntries(Object.entries(COPY_KEYS).map(([key, messageKey]) => [key, translate(messageKey, 'vi')])) as UpdateCopy;
+const UPDATE_COPY_EN = Object.fromEntries(Object.entries(COPY_KEYS).map(([key, messageKey]) => [key, translate(messageKey, 'en')])) as UpdateCopy;
+
+export function getUpdateCopy(language: Language): UpdateCopy {
+  return language === 'en' ? UPDATE_COPY_EN : UPDATE_COPY_VI;
+}
+
+/** Vietnamese remains the default for non-React consumers and existing copy assertions. */
+export const UPDATE_COPY = UPDATE_COPY_VI;
 
 export function versionLabel(version: string): string {
   return `v${version}`;
 }
 
-export function offerBody(state: AppUpdateState): string {
-  const next = state.update ? versionLabel(state.update.version) : 'Bản mới';
-  return `Own the Block ${next} đã sẵn sàng. Bạn đang sử dụng ${versionLabel(state.currentVersion)}.`;
+export function offerBody(state: AppUpdateState, language: Language = 'vi'): string {
+  const next = state.update ? versionLabel(state.update.version) : translate('update.optionalVersion', language);
+  return translate('update.optionalReady', language, {
+    next,
+    current: versionLabel(state.currentVersion),
+  });
 }
 
-export function readyBody(state: AppUpdateState): string {
-  const next = state.update ? versionLabel(state.update.version) : 'Bản mới';
+export function readyBody(state: AppUpdateState, language: Language = 'vi'): string {
+  const next = state.update ? versionLabel(state.update.version) : translate('update.optionalVersion', language);
   if (state.installMode === 'open-installer') {
     if (state.followUp === 'installer-opened') {
-      return `Đã mở bộ cài đặt ${next}. Kéo Own the Block vào thư mục Ứng dụng (Applications) hoặc làm theo bộ cài đặt, rồi mở lại game.`;
+      return translate('update.installerOpened', language, { next });
     }
-    return `Own the Block ${next} đã được tải xong. Bấm "${UPDATE_COPY.openInstaller}", rồi kéo Own the Block vào thư mục Ứng dụng (Applications) hoặc làm theo bộ cài đặt.`;
+    return translate('update.installerReady', language, {
+      next,
+      openInstaller: translate('update.openInstaller', language),
+    });
   }
   if (state.followUp === 'restart-manually') {
-    return `Đã cài đặt ${next}. Hãy đóng game và mở lại để dùng phiên bản mới.`;
+    return translate('update.restartManually', language, { next });
   }
-  return `Own the Block ${next} đã được tải xong. Game sẽ đóng và mở lại để hoàn tất cập nhật.`;
+  return translate('update.restartReady', language, { next });
 }
 
 /** The label of the button that applies a downloaded update. */
-export function applyLabel(state: AppUpdateState): string {
-  if (state.installMode === 'restart') return UPDATE_COPY.restart;
-  return state.followUp === 'installer-opened' ? UPDATE_COPY.reopenInstaller : UPDATE_COPY.openInstaller;
+export function applyLabel(state: AppUpdateState, language: Language = 'vi'): string {
+  if (state.installMode === 'restart') return translate('update.restart', language);
+  return state.followUp === 'installer-opened'
+    ? translate('update.reopenInstaller', language)
+    : translate('update.openInstaller', language);
 }
 
 /** Whole percent, or null while the size is not known. */
@@ -68,61 +85,63 @@ export function downloadPercent(state: AppUpdateState): number | null {
   return Math.max(0, Math.min(100, Math.floor((progress.receivedBytes / progress.totalBytes) * 100)));
 }
 
-export function downloadLabel(state: AppUpdateState): string {
+export function downloadLabel(state: AppUpdateState, language: Language = 'vi'): string {
   const percent = downloadPercent(state);
-  return percent === null ? 'Đang tải bản cập nhật…' : `Đang tải bản cập nhật — ${percent}%`;
+  return percent === null
+    ? translate('update.downloading', language)
+    : translate('update.downloadingPercent', language, { percent });
 }
 
-const DOWNLOAD_FAILURE: Partial<Record<AppUpdateErrorCode, string>> = {
-  INTEGRITY: 'Bản cập nhật tải về bị lỗi. Hãy thử tải lại.',
-  DISK_SPACE: 'Máy không còn đủ chỗ trống để tải bản cập nhật. Hãy giải phóng ổ đĩa rồi thử lại.',
-  DISK_WRITE: 'Không lưu được bản cập nhật vào máy. Hãy thử lại.',
+const DOWNLOAD_FAILURE: Partial<Record<AppUpdateErrorCode, Parameters<typeof translate>[0]>> = {
+  INTEGRITY: 'update.failureIntegrity',
+  DISK_SPACE: 'update.failureDiskSpace',
+  DISK_WRITE: 'update.failureDiskWrite',
 };
 
-const INSTALL_FAILURE: Partial<Record<AppUpdateErrorCode, string>> = {
-  INSTALL_START_FAILED: 'Không mở được bộ cài đặt. Hãy thử lại.',
+const INSTALL_FAILURE: Partial<Record<AppUpdateErrorCode, Parameters<typeof translate>[0]>> = {
+  INSTALL_START_FAILED: 'update.failureInstallStart',
 };
 
-/**
- * The line for a failed step. `playable` is true for an update that is not mandatory: those lines add that the game still
- * works; a mandatory update only says to try again.
- */
-export function failureMessage(state: AppUpdateState, playable: boolean): string {
+/** The line for a failed step. Optional updates also explain that the game remains playable. */
+export function failureMessage(state: AppUpdateState, playable: boolean, language: Language = 'vi'): string {
   const failure = state.error;
   if (!failure) return '';
-  const tail = playable ? ' Bạn vẫn có thể tiếp tục chơi.' : '';
-  if (failure.stage === 'check') return playable ? UPDATE_COPY.checkFailed : 'Không thể kiểm tra bản cập nhật lúc này. Hãy thử lại sau.';
-  if (failure.stage === 'install') {
-    return `${INSTALL_FAILURE[failure.code] ?? 'Không cài đặt được bản cập nhật. Hãy thử lại.'}${tail}`;
+  const tail = playable ? translate('update.playableTail', language) : '';
+  if (failure.stage === 'check') {
+    return playable
+      ? translate('update.checkFailed', language)
+      : translate('update.failureCheckRetry', language);
   }
-  const specific = DOWNLOAD_FAILURE[failure.code];
-  return `${specific ?? 'Không thể tải bản cập nhật. Hãy kiểm tra kết nối Internet rồi thử lại.'}${tail}`;
+  if (failure.stage === 'install') {
+    return `${translate(INSTALL_FAILURE[failure.code] ?? 'update.failureInstall', language)}${tail}`;
+  }
+  return `${translate(DOWNLOAD_FAILURE[failure.code] ?? 'update.failureDownload', language)}${tail}`;
 }
 
 /** The status line of the settings dialog: one sentence for the phase the updater is in. */
-export function settingsStatus(state: AppUpdateState, inSession: boolean): string {
+export function settingsStatus(state: AppUpdateState, inSession: boolean, language: Language = 'vi'): string {
   const next = state.update ? versionLabel(state.update.version) : '';
   switch (state.phase) {
     case 'checking':
-      return 'Đang kiểm tra bản cập nhật…';
+      return translate('update.checkingStatus', language);
     case 'up-to-date':
-      return UPDATE_COPY.upToDate;
+      return translate('update.upToDate', language);
     case 'available':
       return state.update?.mandatory
-        ? `Có phiên bản ${state.update.version}. Cần cập nhật để tiếp tục chơi.`
-        : `Có phiên bản ${state.update?.version ?? ''}.`;
+        ? translate('update.requiredVersion', language, { version: state.update.version })
+        : translate('update.optionalVersion', language, { version: state.update?.version ?? '' });
     case 'downloading':
-      return downloadLabel(state);
+      return downloadLabel(state, language);
     case 'ready':
-      if (state.installBlocked) return UPDATE_COPY.readyBlockedByRoom;
-      if (inSession) return UPDATE_COPY.readyAfterGame;
+      if (state.installBlocked) return translate('update.readyBlockedByRoom', language);
+      if (inSession) return translate('update.readyAfterGame', language);
       return state.installMode === 'open-installer' && state.followUp === 'installer-opened'
-        ? readyBody(state)
-        : `Bản cập nhật ${next} đã sẵn sàng.`;
+        ? readyBody(state, language)
+        : translate('update.readyVersion', language, { version: next });
     case 'installing':
-      return 'Đang cài đặt bản cập nhật…';
+      return translate('update.installingStatus', language);
     case 'error':
-      return failureMessage(state, state.update?.mandatory !== true);
+      return failureMessage(state, state.update?.mandatory !== true, language);
     default:
       return '';
   }

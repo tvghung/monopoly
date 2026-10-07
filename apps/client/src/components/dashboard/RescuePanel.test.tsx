@@ -8,7 +8,6 @@ import stateContext from '../../internal';
 import { makeTeamRoom } from '../../game/presentation/testFixtures';
 import type { SocketFunctions, StateContextValue } from '../../types';
 import DebtPanel from './DebtPanel';
-import { RESCUE_DECLINE_CONSEQUENCE } from './RescuePanel';
 
 afterEach(() => {
   cleanup();
@@ -83,7 +82,7 @@ describe('Emergency Rescue', () => {
     expect(within(dialog).getByText('Tiền mặt của bạn').nextElementSibling?.textContent).toBe('600.000 ₫');
     expect(within(dialog).getByText('Sau khi hỗ trợ').nextElementSibling?.textContent).toBe('300.000 ₫');
     expect(dialog.textContent).toContain('không chuyển vào ví của An');
-    expect(dialog.textContent).toContain(RESCUE_DECLINE_CONSEQUENCE);
+    expect(dialog.textContent).toContain('Nếu bạn không hỗ trợ, đồng đội sẽ phá sản.');
     expect(within(dialog).getByRole('button', { name: 'Hỗ trợ đồng đội — 300.000 ₫' })).toBeTruthy();
     expect(within(dialog).getByRole('button', { name: 'Không hỗ trợ' })).toBeTruthy();
     // The debtor's own sale screen is never shown to the rescuer.
@@ -124,7 +123,7 @@ describe('Emergency Rescue', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Hỗ trợ đồng đội — 300.000 ₫' }));
 
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Lời đề nghị hỗ trợ không còn hiệu lực.'));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Giao dịch chưa thể thực hiện.'));
     expect(screen.getByRole('button', { name: 'Hỗ trợ đồng đội — 300.000 ₫' }).hasAttribute('disabled')).toBe(false);
   });
 
