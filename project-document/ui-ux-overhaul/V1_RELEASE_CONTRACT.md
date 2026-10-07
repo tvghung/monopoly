@@ -441,3 +441,17 @@ server refuse each other with `UPGRADE_REQUIRED`) and the room snapshot schema f
 `1.3.0` for the previous protocol change: a `1.2.0` or `1.3.0` updater marks this update mandatory before starting or joining multiplayer
 once it reads the release manifest, and the server still rejects a mismatched client that cannot reach the update feed.
 
+### V1.4.0 release run
+
+Tag `v1.4.0` points at `00c8faf` on `main` (Release Candidate #10, run 37558198145). The release page holds seven files: Setup.exe
+(168,463,872 bytes, 160.7 MiB), `own_the_block-1.4.0-full.nupkg` (168,313,317 bytes, 160.5 MiB), the single-line `RELEASES`, the two DMGs
+(macOS x64 188,841,822 bytes, 180.1 MiB; arm64 181,937,982 bytes, 173.5 MiB), `SHA256SUMS.txt` and `update-manifest.json`. The published manifest
+serves version `1.4.0` with `minimumSupportedVersion` `1.4.0` and the `squirrel` block.
+
+Before it: the Desktop Build of the first release-prep commits failed in "Run packaged Phase 7 runtime proof" because the proof pinned the number
+of packaged migrations to 10 (`migrations-001-010`); it now names 11. The tag was then pushed three times, because no release is published
+unless every target passes: runs #8 and #9 (on `02eba53`) failed only in the macOS x64 job at "Build and collect release candidate" while Windows and
+macOS arm64 passed; the same steps replayed in order on `macos-15-intel` from a throwaway branch passed twice, so the cause was not found and
+the failure is recorded as not reproduced. Run #10 (on `00c8faf`, which only adds a macOS-only annotation of the build log tail to the workflow, since logs are
+unreadable without signing in) passed on all three targets. If macOS x64 fails again, read that annotation first. The manual UAT rows stay unticked.
+
