@@ -455,3 +455,38 @@ macOS arm64 passed; the same steps replayed in order on `macos-15-intel` from a 
 the failure is recorded as not reproduced. Run #10 (on `00c8faf`, which only adds a macOS-only annotation of the build log tail to the workflow, since logs are
 unreadable without signing in) passed on all three targets. If macOS x64 fails again, read that annotation first. The manual UAT rows stay unticked.
 
+## V1.4.1 Vietnamese / English release (Socket protocol 11, snapshot schema 10)
+
+The release after `1.4.0` adds English alongside Vietnamese throughout the player-facing renderer. Language selection remains a local,
+persisted preference; gameplay rules, multiplayer protocol and room snapshot schema do not change. A `1.4.0` client remains multiplayer-compatible
+with `1.4.1`. `minimumSupportedVersion` remains `1.4.0`, so this release is not mandatory for players already on `1.4.0`; older versions remain
+subject to the existing compatibility policy.
+
+### V1.4.1 validation and release record
+
+| Item | Value |
+| --- | --- |
+| Release preparation | Commit `2260cc5d92545eb7381584292e6b37992c9cb21d` (`chore(release): prepare 1.4.1`) on `main`. |
+| Normal main gates | CI run `37599120477` and Desktop Build run `37599120659`: success, including Windows and macOS. |
+| Manual validation | Release Candidate #11, run `37600353428`: `workflow_dispatch`, `unsigned-validation`, no socket URL override; release quality, Windows x64, macOS x64 and macOS arm64 passed. Publish was skipped. |
+| Production workflow | Release Candidate #12, run `37601879600`, triggered by the tag push: success on quality gates, all three targets, asset staging, publication and latest-feed check. |
+| Tag | `v1.4.1` (annotated tag object `47744aca5df4cd49647b512c52358b7d2e478d4a`) points to release commit `2260cc5d92545eb7381584292e6b37992c9cb21d` on `main`. |
+| Release | ID `405611084`, [Own the Block v1.4.1](https://github.com/tvghung/monopoly/releases/tag/v1.4.1), public, not draft, not prerelease and returned by the latest-release endpoint; published 2026-10-07 09:47 UTC. |
+| Distribution | `unsigned-validation`; signing and notarization were not used. |
+
+| Asset | Size | SHA-256 shown by GitHub |
+| --- | ---: | --- |
+| `OwnTheBlock-1.4.1-win32-x64-Setup.exe` | 168,488,960 bytes | `ce110d7c8e47e3e97e29a9ce8c09a372b3e17e227829bfac2867338d02330095` |
+| `OwnTheBlock-1.4.1-macos-x64.dmg` | 188,996,378 bytes | `89a278b48f52ccea41596102dda3c95d4dff9b91afbf883fda784b5ae42eec0b` |
+| `OwnTheBlock-1.4.1-macos-arm64.dmg` | 182,003,698 bytes | `fcbf7b149dbcf30b1e368d6d9c7cec60acdff38f6766d5fd4cd453456183f56a` |
+| `own_the_block-1.4.1-full.nupkg` | 168,340,638 bytes | `8ca9cea1114b7ce57fa39ec798ca5b3bfc88b5574436cb711d2708da7e08968b` |
+| `RELEASES` | 84 bytes | `0a4b2ed8aed2a801846736ef4fc275b34df3c776bc026020e9d1c3ef48d67385` |
+| `SHA256SUMS.txt` | 474 bytes | `f0609d3f1a4cfa89b844e1ad0207205233ce70f36877ef68c3a38f18aab1cf88` |
+| `update-manifest.json` | 1,090 bytes | `848cb66bc0dd23c54199ce86b54e4ac33df7abfd45b78eeb59e202a08dea803d` |
+
+The published release contains exactly these seven assets, with no duplicate or unexpected installer. Fetching
+`releases/latest/download/update-manifest.json` returned version `1.4.1` and `minimumSupportedVersion` `1.4.0`; its Windows, macOS x64,
+and macOS arm64 entries match the published filenames, sizes and SHA-256 values above. The Windows Squirrel block references the published
+`RELEASES` and `own_the_block-1.4.1-full.nupkg`. GitHub's latest-release endpoint resolves to `v1.4.1`. Socket protocol remains 11,
+room snapshot schema remains 10, and the updater minimum remains 1.4.0.
+
