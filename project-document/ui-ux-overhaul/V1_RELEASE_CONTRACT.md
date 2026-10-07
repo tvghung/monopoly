@@ -8,7 +8,7 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.4.0
+Semantic version: 1.4.1
 Socket protocol: 11
 ```
 
@@ -46,8 +46,8 @@ Implementation references: `apps/desktop/src/hostRuntime.ts`, `managedPostgres.t
 ## Packaging identity
 
 Forge uses the root package version for app metadata and the Windows Squirrel
-name: `OwnTheBlock-1.2.0-win32-x64-Setup.exe`. The installed Forge DMG maker resolves
-`Own the Block-1.2.0-x64.dmg` and `Own the Block-1.2.0-arm64.dmg` from app name,
+name: `OwnTheBlock-1.4.1-win32-x64-Setup.exe`. The installed Forge DMG maker resolves
+`Own the Block-1.4.1-x64.dmg` and `Own the Block-1.4.1-arm64.dmg` from app name,
 desktop package version, and target architecture. The application and collected
 manifest derive their version from package metadata. These are configuration expectations,
 not claims that new artifacts were built. Release metadata rejects mismatched
@@ -65,7 +65,7 @@ The packaged app is kept lean on purpose, because players download the installer
   `apps/desktop/postgres-resources.json`: link-time libraries, `lib/pgxs`, `lib/pkgconfig` and, on Windows, the StackBuilder GUI
   and the DLLs that are not in the import closure of `initdb`, `postgres`, `pg_ctl`, `pg_isready`, `createdb` and `psql`.
   `preparePostgres.mjs` runs `postgres --version` on the pruned copy. The client tools, `share/` and the server modules stay.
-- Electron's Windows build keeps `en-US.pak` and `vi.pak` only (the game is Vietnamese-only); macOS locale bundles are listed
+- Electron's Windows build keeps `en-US.pak` and `vi.pak` only (the renderer supports Vietnamese and English); macOS locale bundles are listed
   in the build log, not removed.
 - The macOS disk image is LZMA-compressed (`format: 'ULMO'`, macOS 10.15 and later; Electron 43 needs macOS 12), and Desktop
   Build and Release Candidate run `hdiutil verify` on it.
