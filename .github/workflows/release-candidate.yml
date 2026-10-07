@@ -262,7 +262,22 @@ jobs:
       - name: Test desktop
         run: pnpm --filter @monopoly/desktop test
       - name: Build and collect release candidate
+        if: matrix.platform != 'darwin'
         run: pnpm desktop:release
+      # On macOS the log of a failed build is not readable without signing in, so its last lines are also written as an
+      # annotation (an annotation is public and names the failing command).
+      - name: Build and collect release candidate (macOS)
+        if: matrix.platform == 'darwin'
+        shell: bash
+        run: |
+          set +e
+          pnpm desktop:release 2>&1 | tee release-build.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            msg=$(tail -n 45 release-build.log | perl -pe 's/\e\[[0-9;]*[A-Za-z]//g; s/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=desktop:release failed (exit ${code})::${msg}"
+          fi
+          exit "$code"
       - name: Run packaged Phase 7 runtime proof
         run: pnpm --filter @monopoly/desktop proof:packaged
       - name: Run packaged Phase 7.2 Host proof
