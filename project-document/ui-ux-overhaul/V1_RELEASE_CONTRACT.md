@@ -8,7 +8,7 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.4.1
+Semantic version: 1.5.0
 Socket protocol: 11
 ```
 
@@ -23,9 +23,11 @@ Client authentication and server admission both import that shared constant.
 
 - Desktop: Electron host/client; Windows x64, macOS x64 and macOS arm64 are the
   configured release-candidate targets. This is a target contract, not certification.
-- Multiplayer: LAN-first. The desktop host owns the authoritative server runtime;
-  browser/mobile devices join through its LAN URL. No public cloud server is
-  required for V1. Existing explicit endpoint overrides remain available.
+- Multiplayer: the Windows/macOS desktop Host owns an authoritative local server;
+  browsers and other desktop clients can join through LAN or a temporary Cloudflare
+  Quick Tunnel HTTPS invitation link (Online mode). No always-on cloud gameplay server,
+  port forwarding, or VPN is required. Browser/mobile clients cannot host.
+  Existing explicit endpoint overrides remain available.
   _V1.1 (owner feedback, branch `overhaul/v1-1-feedback`):_ a desktop guest finds
   the Host from the room code alone through a request/response UDP lookup on port
   `41234` (desktop Host profile only; no token, hash or player data on the wire;
@@ -34,26 +36,35 @@ Client authentication and server admission both import that shared constant.
   no UDP discovery; the contract is in
   [Api/http-runtime.instruction.md](../monopoly-websockets/Api/http-runtime.instruction.md#lan-room-lookup-desktop-host-profile-only).
   The `1.0.0` release record at the end of this file is unchanged by it.
-- Persistence: managed local PostgreSQL for the desktop host, bound to loopback
-  only. Database credentials remain inside the host runtime.
+- Persistence (since v1.5.0): authoritative room state, reconnect session hashes,
+  trade offers, and timeouts live only in the Host helper process RAM. A helper
+  shutdown/crash irrevocably ends its matches. PostgreSQL is no longer active or
+  packaged. In-memory transactions and optimistic version checks remain authoritative.
 - Client: React/Vite, used by the Electron renderer and LAN browser client.
 - Gameplay authority: server-side; Pass A changes no gameplay or network behavior.
 
-Implementation references: `apps/desktop/src/hostRuntime.ts`, `managedPostgres.ts`,
+Implementation references: `apps/desktop/src/hostRuntime.ts`,
+`apps/server/src/authoritativeServer.ts`, `apps/server/src/persistence/inMemory.ts`,
 `apps/client/src/network/createSocket.ts`, `apps/server/src/socket/index.ts`, and
 `.github/workflows/release-candidate.yml`.
 
 ## Packaging identity
 
 Forge uses the root package version for app metadata and the Windows Squirrel
-name: `OwnTheBlock-1.4.1-win32-x64-Setup.exe`. The installed Forge DMG maker resolves
-`Own the Block-1.4.1-x64.dmg` and `Own the Block-1.4.1-arm64.dmg` from app name,
+name: `OwnTheBlock-1.5.0-win32-x64-Setup.exe`. The installed Forge DMG maker resolves
+`Own the Block-1.5.0-x64.dmg` and `Own the Block-1.5.0-arm64.dmg` from app name,
 desktop package version, and target architecture. The application and collected
 manifest derive their version from package metadata. These are configuration expectations,
 not claims that new artifacts were built. Release metadata rejects mismatched
 application package versions; signing/notarization semantics remain unchanged.
 
 ## Package size
+
+As of v1.5.0, the package bundles a verified `cloudflared` binary and a RAM-only
+server helper, not PostgreSQL. The PostgreSQL-specific layout and measurements
+below are historical V1.1 engineering evidence, not current packaging rules.
+Current release artifacts must pass `proof:packaged:budget` and the versioned
+Release Candidate checks for Windows x64, macOS x64 and macOS arm64.
 
 The packaged app is kept lean on purpose, because players download the installer:
 

@@ -1,5 +1,7 @@
 # Own the Block — Cờ Tỷ Phú Việt Nam
 
+**Version 1.5.0 — RAM-only LAN & Cloudflare Online Multiplayer.** Download the latest Windows/macOS packages from [GitHub Releases](https://github.com/tvghung/monopoly/releases/latest) after the `v1.5.0` release workflow completes. The installers are unsigned; Cloudflare Quick Tunnel links are temporary and provided for personal-use/testing.
+
 Own the Block is a host-authoritative multiplayer Monopoly game. A Windows or macOS desktop player hosts a match; other players join from desktop or mobile browsers over the LAN or a temporary HTTPS Cloudflare Quick Tunnel invitation. The host's server process holds every room, reconnect session and offer in RAM. Stopping or crashing that process permanently ends its matches.
 
 ## Play

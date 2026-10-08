@@ -1,5 +1,12 @@
 # RAM hosting verification report — 2026-10-08
 
+## v1.5.0 integration and evidence update (2026-10-08)
+
+- Hardening commit `1f680ae76316610f4dafb2c16d29a9ac51a2d138` passed [CI #37743907131](https://github.com/tvghung/monopoly/actions/runs/37743907131) and [Desktop Build #37743907130](https://github.com/tvghung/monopoly/actions/runs/37743907130), including Windows x64 and macOS arm64 packaged proofs, DMG verification, and mobile browser emulation. The macOS x64 Release Candidate target has not yet run for this change.
+- The project owner reports completing manual testing and authorizes v1.5.0 release preparation. Device/network test matrix, screenshots, and independent-network proof details were not supplied here and therefore are not asserted as independently verified.
+- v1.5.0 retains Socket protocol 11, snapshot schema 10, and update-policy minimum version 1.4.0; release-candidate publication requires a `v1.5.0` tag on the version-aligned commit. This entry is a preparation record, not evidence that the tagged release succeeded. The release remains unsigned unless release infrastructure is explicitly changed.
+- Accepted residual risks: Cloudflare Quick Tunnel has no uptime guarantee; previously reported Host recovery edge case and endpoint-string validation are not claimed fixed by the release-only version bump. Keep these documented for subsequent maintenance.
+
 ## Post-migration CI review
 
 - Target `bffc0da5efba5d0b7bf2992e914dcf706228b4b1`: [CI run 37731895953](https://github.com/tvghung/monopoly/actions/runs/37731895953) succeeded. [Desktop Build run 37731896026](https://github.com/tvghung/monopoly/actions/runs/37731896026) passed Windows and failed macOS at `prepareCloudflared.mjs` with `Official cloudflared asset checksum mismatch`; all later macOS steps were skipped. The pinned macOS values were extracted executable hashes rather than downloaded `.tgz` hashes. The release-candidate workflow was not triggered by this ordinary branch push.
