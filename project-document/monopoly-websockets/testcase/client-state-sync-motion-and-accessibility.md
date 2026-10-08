@@ -316,5 +316,12 @@ Labels as in the batch-5 section above (`[AUTO]` committed test, `[PROBE]` throw
 - [x] `[PROBE]` HUD chips at 667×375 (stations-4): non-turn, non-local seats are chips and the board is visibly clearer; seats with a status keep the full card (the offline seat in the fixture).
 - [x] `[PROBE]` Jail group with the camera keys at 568×320, 667×375, 740×360 (VI and EN): no overlap between roll, jail panel, zoom keys, properties button and cards.
 - [x] `[PROBE]` Short-landscape dialogs (see design-system "Modal trên màn hình ngang thấp") before and after: purchase buttons on one line, debt summary without overlap.
-- [x] `[PROBE]` Portrait 375×667: the rotate notice covers the game. [NOT RUN] 820×1180 touch tablet portrait with `pointer: coarse` (desktop Chrome here has a fine pointer), orientation change mid-game on a device,
-  real pinch on a phone, a real match with automatic follow, unread badge behavior of the Journal tab (unchanged code), 2v2 chips, long-string overflow beyond the VI/EN strings checked.
+- [x] `[PROBE]` Portrait: the rotate notice shows and the board is inert at 375×667, 768×1024 and 820×1180 with a touch pointer (`isMobile`, `pointer: coarse`); a 900×1200 window with a mouse is not
+  blocked; 1180×820 touch landscape is not blocked. Rotating 667×375 → 375×667 → 667×375 on one page keeps the page (no navigation), the four seats and the zoomed camera.
+- [x] `[AUTO][E2E]` `e2e/mobile-host.spec.ts` (mobile-chromium and mobile-webkit, local): the room toolbar stays tappable over the rotate notice in portrait and every acceptance viewport passes.
+- [x] `[PROBE]` Automatic follow on the live board (`pass-go`, 844×390): zoomed by the keys, a move within 6 s does not move the camera; a move once left alone pans it to the token.
+- [x] `[PROBE]` HUD overlap matrix (persistent `data-hud-region` boxes plus roll button, jail panel, camera keys, properties button; no pair overlapping, nothing off-screen, no horizontal scroll, no page error):
+  scenarios `stations-4`, `opponent-turn`, `offline`, `jail-failed`, `teams-2v2` × 568×320, 667×375, 740×360, 812×375, 844×390, 896×414, 1024×768, 1180×820, 1280×720, 1440×900, 1920×1080 (VI): 55/55;
+  four of them again in EN at device pixel ratio 3 (20/20); `teams-revive` VI and EN at 568×320–844×390 after the revivable-card fix.
+- [x] `[AUTO][CLIENT]` `components/Log.test.tsx`: a gameplay line while the Journal is closed marks the tab (not the chat count) and opening it clears the mark.
+- [ ] `[NOT RUN]` Real phones and tablets (pinch on glass, notch safe areas, browser chrome showing/hiding), browser text zoom, a full match against a server on a device.

@@ -242,7 +242,11 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
     Khi một dialog bị ẩn bằng "Xem bàn cờ" camera vẫn được phép theo token. Người chơi luôn thắng: mọi thao tác tay hủy hoạt ảnh đang chạy.
   - **Chip người chơi** (`hud.css`, cao ≤ 500 px): ghế đang `playing`, không phải lượt và không phải người của mình thu thành chip 118×38 (avatar 28 px, tên ≤ 8 ký tự, số dư); người đang đi và
     người của mình giữ card đầy đủ, và mọi ghế có trạng thái cần đọc (tù, mất kết nối, phá sản, hồi sinh, đã rời) giữ card đầy đủ. Mở chi tiết = bấm chip (cùng nút "Tài sản của <tên>" như trước).
-    Card đổi cỡ bằng ease ngắn (không có khi reduced motion).
+    Card đổi cỡ bằng ease ngắn (không có khi reduced motion). 2v2: chip bỏ dải tên đội (khung màu đội vẫn còn, tên đội nằm trong tóm tắt truy cập và danh mục tài sản);
+    ≤ 720 px nút "Tài sản" lùi lên 8 px khi card của mình có dải đội để không chạm nhau. Card "có thể hồi sinh" trên màn hình thấp cao lên theo nội dung (không tràn khỏi mép) và bỏ
+    chip chữ "Có thể hồi sinh" (chip "Còn N lượt" đã nói điều đó).
+  - **Nhật ký trên điện thoại**: tab "Nhật ký" giữ nguyên chỗ, nhãn và số tin nhắn chưa đọc; thêm một chấm vàng "Có diễn biến mới trong nhật ký" khi có dòng gameplay mới lúc ngăn đang đóng
+    (chỉ vẽ ở `COMPACT_HUD_QUERY`, ở desktop chỉ là mô tả cho trình đọc màn hình), mở ngăn là xóa. Đây là nơi các sự kiện thường lệ không còn bật lên trên bàn cờ.
   - **Phân cấp thông báo** (cao ≤ 500 px hoặc rộng ≤ 720 px, `COMPACT_HUD_QUERY`): *cần hành động* — hộp thoại quyết định, nợ, đề nghị, mất kết nối, banner "Đến lượt bạn!" — không bị thu nhỏ hay tự đóng;
     *quan trọng nhưng không chặn* — banner khánh thành, xúc xắc, chip tiền của **mình**, trạng thái trên card; *thường lệ* — banner "Lượt của <tên>" của người khác (status pill đã nói), pill
     "<tên> đang đi…" giữa bàn, chip +/- tiền của người khác, ticker — không còn hiện nổi, vẫn nằm trong Nhật ký (không thay đổi nguồn `activityFeed`). Desktop giữ nguyên các thông báo cũ. Toast trong ván (`App.tsx`: có đề nghị giao dịch tới mình, kết quả đề nghị của mình, lỗi ACK, "không thể thao tác", rời ván) đều thuộc nhóm cần hành động/ảnh hưởng tới chính người chơi nên giữ nguyên ở mọi cỡ.

@@ -185,3 +185,31 @@
   .center__room-panel { top: 0; bottom: 0; right: 0; border-radius: var(--radius-lg, 20px) 0 0 var(--radius-lg, 20px); }
   .center__room--open .center__room-toggle { right: min(92vw, 360px); }
 }
+
+/*
+ * "New events" mark of the Journal tab: a small gold dot (the text is for assistive technology only). It is drawn only on a
+ * phone-sized window, where routine events stopped popping up on the board; wider windows keep the ticker and need no mark.
+ */
+.center__room-new {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (max-width: 720px), (max-height: 500px) {
+  .center__room-new {
+    top: -4px;
+    right: -4px;
+    width: 0.75rem;
+    height: 0.75rem;
+    overflow: hidden;
+    clip-path: none;
+    border: 2px solid var(--color-surface);
+    border-radius: 50%;
+    background: var(--color-turn-active, #f2b632);
+    color: transparent;
+    font-size: 0;
+  }
+}

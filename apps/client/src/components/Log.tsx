@@ -71,6 +71,9 @@ export default function Log() {
   const { open: panelOpen, setOpen: setPanelOpen } = useHudDrawer();
   const [chat, setChat] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
+  // A gameplay line arrived while the drawer was closed. On a phone-sized window most of those lines no longer pop up on the board
+  // (see COMPACT_HUD_QUERY), so the tab marks that the Journal has something new; the chat count above stays a number.
+  const [newActivity, setNewActivity] = useState(false);
   const scrollRef = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -134,6 +137,7 @@ export default function Log() {
       lastSeenChatSequenceRef.current = latestChatSequence;
       resetEpochRef.current = presentation.resetEpoch;
       setUnreadCount(0);
+      setNewActivity(false);
       return;
     }
 
@@ -146,6 +150,7 @@ export default function Log() {
           && (playerId === null || event.senderPlayerId !== playerId)
         )).length;
         if (newUnread > 0) setUnreadCount(count => count + newUnread);
+        if (visibleActivity.some(event => event.type !== 'CHAT' && event.sequence > lastProcessed)) setNewActivity(true);
       }
       lastProcessedSequenceRef.current = latestActivitySequence;
     }
@@ -153,6 +158,7 @@ export default function Log() {
     if (panelOpen) {
       lastSeenChatSequenceRef.current = latestChatSequence;
       setUnreadCount(0);
+      setNewActivity(false);
     }
   }, [latestActivitySequence, latestChatSequence, panelOpen, playerId, presentation.resetEpoch, visibleActivity]);
 
@@ -191,7 +197,7 @@ export default function Log() {
         type="button"
         aria-expanded={panelOpen}
         aria-controls="board-log-panel"
-        aria-describedby={unreadCount > 0 ? 'board-log-unread' : undefined}
+        aria-describedby={[unreadCount > 0 ? 'board-log-unread' : '', newActivity ? 'board-log-new' : ''].filter(Boolean).join(' ') || undefined}
         aria-label={t(panelOpen ? 'log.hide' : 'log.show')}
         title={t(panelOpen ? 'log.hide' : 'log.show')}
         onClick={() => setPanelOpen(open => !open)}
@@ -208,6 +214,9 @@ export default function Log() {
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )
+          : null}
+        {newActivity
+          ? <span id="board-log-new" className="center__room-new" data-testid="log-new-activity">{t('log.newActivity')}</span>
           : null}
       </button>
       {panelOpen

@@ -41,6 +41,8 @@
 
 /* A sheet sits just above the bottom edge on large screens. */
 .ds-modal--sheet { margin-bottom: clamp(var(--space-2), 3vh, var(--space-6)); }
+/* ...and gives that margin back from its height, so a tall sheet (a team investment with its notes) never starts above the window. */
+.ds-modal--sheet { max-height: min(calc(100% - clamp(var(--space-2), 3vh, var(--space-6))), 48rem); }
 
 .ds-modal__accent {
   position: absolute;

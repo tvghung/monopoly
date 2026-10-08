@@ -726,3 +726,26 @@
     left: calc(var(--hud-inset) + var(--player-card-local-width) + 12px);
   }
 }
+
+/*
+ * 2v2 on a phone held sideways: a chip has no room for the team ribbon above its name, so the chip keeps only the team-coloured
+ * frame (the ribbon text stays in the seat's accessible summary and in the portfolio). Up to 720 px wide the properties button
+ * sits right above the local card, so it moves up by the ribbon's height when that card carries one.
+ */
+@media (max-height: 500px) {
+  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .player-card__team { display: none; }
+}
+@media (max-width: 720px) {
+  .game-hud:has(.player-card--local .player-card__team) .hud-bottom {
+    bottom: calc(max(var(--hud-inset), env(safe-area-inset-bottom)) + var(--player-card-local-height) + 14px);
+  }
+}
+/* A bankrupt teammate who can still be revived carries two extra chips; on a short window the card grows away from its corner instead of spilling past the edge. */
+@media (max-height: 500px) {
+  .player-card[data-state='revivable'] { height: auto; min-height: var(--player-card-height); }
+  .player-card[data-state='revivable'] .player-card__face { height: auto; }
+}
+/* ...and the "Có thể hồi sinh" word chip goes (the turns-left chip already says it; the seat summary keeps the words). */
+@media (max-height: 500px) {
+  .player-card[data-state='revivable'] .player-card__tag--revive { display: none; }
+}

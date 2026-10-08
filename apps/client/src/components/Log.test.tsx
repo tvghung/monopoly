@@ -280,6 +280,31 @@ describe('activity drawer', () => {
     expect(document.getElementById('board-log-panel')).not.toBeNull();
   });
 
+  it('marks the tab when a gameplay line arrives while closed, and clears the mark when the Journal opens', () => {
+    const view = renderLog([], []);
+    const toggle = screen.getByRole('button', { name: 'Ẩn nhật ký và trò chuyện' });
+    fireEvent.click(toggle);
+    expect(screen.queryByTestId('log-new-activity')).toBeNull();
+
+    const roll: ActivityEvent = {
+      eventId: '00000000-0000-4000-8000-000000000041', sequence: 41, occurredAt: '2026-08-25T12:00:41.000Z',
+      type: 'DICE_ROLL', playerId: '00000000-0000-4000-8000-000000000002', playerName: 'Bình',
+      dice1: 2, dice2: 3, total: 5, context: 'TURN',
+    };
+    view.rerender(
+      <stateContext.Provider value={makeContext(makeState([], [roll]))}>
+        <Log />
+      </stateContext.Provider>,
+    );
+    expect(screen.getByTestId('log-new-activity').textContent).toBe('Có diễn biến mới trong nhật ký');
+    expect(toggle.getAttribute('aria-describedby')).toContain('board-log-new');
+    // Not a chat message: the numeric chat badge stays away.
+    expect(screen.queryByLabelText(/tin nhắn chưa đọc/u)).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(screen.queryByTestId('log-new-activity')).toBeNull();
+  });
+
   it('does not mark historical chat unread and resets safely when activity sequence rolls back', () => {
     const historical: ActivityEvent[] = [{
       eventId: '00000000-0000-4000-8000-000000000090', sequence: 90,
