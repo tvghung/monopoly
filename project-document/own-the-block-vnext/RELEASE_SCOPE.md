@@ -18,6 +18,7 @@ R0–R5 are new release waves. The historical Phase 7.0/7.1/7.2 names keep their
 | Starting checkout | `overhaul/mobile-tablet-redesign` @ `77953b6`, untracked `mobile-overhaul-before-after.png` (preserved, never added) |
 | Feature branch | `feat/own-the-block-multiplayer-bots-vnext`, created from `origin/main` @ `77953b6` before any edit |
 | Proposed version | **v1.7.0** (protocol 11 → 12, snapshot 10 → 11). A tag is created only after explicit owner approval |
+| Release candidate | code SHA `648d4ca7c33e6f41197da403bb4881dad148a426`; verdict **RC READY FOR USER MANUAL QA — NOT RELEASE READY** ([RELEASE_CANDIDATE.md](./RELEASE_CANDIDATE.md)) |
 
 `main` (local and remote) is read-only for this program: no edit, commit, merge, rebase, tag or push on `main`.
 
@@ -92,4 +93,5 @@ coverage, but its real-world acceptance stays BLOCKED/NOT RUN until the owner su
 - [UI_UX_REGRESSION_MATRIX.md](./UI_UX_REGRESSION_MATRIX.md)
 - [ACCEPTANCE_MATRIX.md](./ACCEPTANCE_MATRIX.md)
 - [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)
-- `USER_MANUAL_BOT_TEST_PLAN.md` (written in R2)
+- [USER_MANUAL_BOT_TEST_PLAN.md](./USER_MANUAL_BOT_TEST_PLAN.md)
+- [RELEASE_CANDIDATE.md](./RELEASE_CANDIDATE.md) (evidence index, gates, rollback, verdict)

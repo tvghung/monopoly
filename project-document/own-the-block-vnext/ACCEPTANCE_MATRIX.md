@@ -1,6 +1,6 @@
 # Acceptance matrix
 
-Status at **R0** (2026-10-09); section A updated at the R1 gate, sections B and C at the R2 gate, section D at the R3 gate, section E at the R4 gate (2026-10-09). Every row is updated as waves complete; nothing is PASS because code exists.
+Status at **R0** (2026-10-09); section A updated at the R1 gate, sections B and C at the R2 gate, section D at the R3 gate, section E at the R4 gate, section F at the R5 gate on candidate `648d4ca` (2026-10-09). Verdict: RC READY FOR USER MANUAL QA — NOT RELEASE READY ([RELEASE_CANDIDATE.md](./RELEASE_CANDIDATE.md)). Every row is updated as waves complete; nothing is PASS because code exists.
 Status words: `PASS`, `FAIL`, `BLOCKED`, `NOT RUN`, `NOT RUN (USER MANUAL)`, `N/A — verified absent`, `PLANNED`.
 BOT-L0n = AC-L0n, BOT-A0n = AC-B0n, BOT-E0n = AC-E0n, NET-0n = AC-N0n.
 
@@ -80,14 +80,14 @@ BOT-L0n = AC-L0n, BOT-A0n = AC-B0n, BOT-E0n = AC-E0n, NET-0n = AC-N0n.
 
 | ID | Criterion | Status |
 | --- | --- | --- |
-| AC-R01 | Requirement trace (this file) | PLANNED |
-| AC-R02 | Deterministic automated tests, no playthroughs | PLANNED |
-| AC-R03 | User-owned manual gameplay matrix | NOT RUN (USER MANUAL) — plan written in R2 |
-| AC-R04 | Real device/network matrix | BLOCKED (hardware/networks owner-side) |
-| AC-R05 | Packaged binaries | PLANNED (CI Desktop Build) · install/upgrade on owner machines NOT RUN |
-| AC-R06 | Security and robustness | PLANNED |
-| AC-R07 | Performance measurement 20–50 remote users | BLOCKED (infrastructure) |
-| AC-R08 | CI/provenance for the RC SHA | PLANNED |
-| AC-R09 | Upgrade/rollback | PLANNED |
-| AC-R10 | Release gate | NO-GO until all mandatory rows PASS |
-| AC-R11 | Branch isolation | PASS at R0: branch `feat/own-the-block-multiplayer-bots-vnext` created from `origin/main` `77953b6` before any edit; `main` untouched (local `bffc0da`, remote `77953b6`) |
+| AC-R01 | Requirement trace (this file) | PASS: every row has an implementation path, a test or manual proof and an outcome; manual rows stay NOT RUN/BLOCKED |
+| AC-R02 | Deterministic automated tests, no playthroughs | PASS: `pnpm test` on `648d4ca` (desktop 479, server 506, client 2271 + node suites); seeded single-decision fixtures only; no complete match simulated |
+| AC-R03 | User-owned manual gameplay matrix | NOT RUN (USER MANUAL) — plan in USER_MANUAL_BOT_TEST_PLAN.md |
+| AC-R04 | Real device/network matrix | BLOCKED/NOT RUN: physical Windows/macOS hosts, phones/tablets, independent networks need the owner; same-machine live tunnel proof PASS |
+| AC-R05 | Packaged binaries | PASS for automated scope: local `desktop:make` + packaged host proof + packaged UI bot check (Windows x64); CI packaged proofs Windows x64 and macOS arm64, RC builds incl. macOS x64; clean install/upgrade on owner machines NOT RUN; unsigned (signing BLOCKED) |
+| AC-R06 | Security and robustness | PASS (review in RELEASE_CANDIDATE.md; relink token leak and CODE_TAKEN swallow found and fixed with tests) |
+| AC-R07 | Performance measurement 20–50 remote users | BLOCKED (no remote infrastructure); no capacity claimed |
+| AC-R08 | CI/provenance for the RC SHA | PASS: `648d4ca` CI 37857669544, Desktop Build 37857673483, Release Candidate 37857677473 all success; local installer SHA-256 recorded |
+| AC-R09 | Upgrade/rollback | PASS (documented): RAM-only, protocol refusal of 1.6.x, minimum 1.7.0, reinstall v1.6.1 to roll back; LAN independent of registry |
+| AC-R10 | Release gate | NO-GO for release / **RC READY FOR USER MANUAL QA — NOT RELEASE READY** |
+| AC-R11 | Branch isolation | PASS: all work on `feat/own-the-block-multiplayer-bots-vnext`; `origin/main` still `77953b6`, local `main` still `bffc0da`; no commit, push, merge or tag on `main` |
