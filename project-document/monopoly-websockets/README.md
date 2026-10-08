@@ -1,6 +1,6 @@
 # Own the Block — implementation guide
 
-This directory is the source of truth for current behavior. The host desktop application's server helper is the only gameplay authority. It stores room snapshots, session hashes, offers and deadlines in process RAM. A helper exit permanently destroys those matches. Protocol v11 and snapshot schema v10 still describe the in-memory room shape; they do not imply durable storage.
+This directory is the source of truth for current behavior. The host desktop application's server helper is the only gameplay authority. It stores room snapshots, session hashes, offers and deadlines in process RAM. A helper exit permanently destroys those matches. Protocol v12 and snapshot schema v11 still describe the in-memory room shape; they do not imply durable storage.
 
 The migration findings and implementation choices are recorded in [RAM hosting discovery](./RAM-HOSTING-DISCOVERY.md).
 Executed gates and remaining device checks are recorded in the [verification report](./RAM-HOSTING-VERIFICATION.md).

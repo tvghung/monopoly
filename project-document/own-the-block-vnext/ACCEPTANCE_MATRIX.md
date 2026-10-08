@@ -1,6 +1,6 @@
 # Acceptance matrix
 
-Status at **R0** (2026-10-09); section A updated at the R1 gate (2026-10-09). Every row is updated as waves complete; nothing is PASS because code exists.
+Status at **R0** (2026-10-09); section A updated at the R1 gate, sections B and C at the R2 gate (2026-10-09). Every row is updated as waves complete; nothing is PASS because code exists.
 Status words: `PASS`, `FAIL`, `BLOCKED`, `NOT RUN`, `NOT RUN (USER MANUAL)`, `N/A — verified absent`, `PLANNED`.
 BOT-L0n = AC-L0n, BOT-A0n = AC-B0n, BOT-E0n = AC-E0n, NET-0n = AC-N0n.
 
@@ -22,29 +22,29 @@ BOT-L0n = AC-L0n, BOT-A0n = AC-B0n, BOT-E0n = AC-E0n, NET-0n = AC-N0n.
 
 | ID | Criterion | Implementation path | Automated test | Manual proof | Status |
 | --- | --- | --- | --- | --- | --- |
-| BOT-A01 | One policy, offline | `server/src/bots/policy.ts` | no network imports; single exported policy | — | PLANNED |
-| BOT-A02 | Strategic purchasing | `policy.ts` purchase | contrasting fixtures (buy / decline / set completion / reserve) | full game | PLANNED · full game NOT RUN (USER MANUAL) |
-| BOT-A03 | Legal building with reserve | `policy.ts` development + server validation | build n, hotel, insufficient funds, illegal (server rejects) | — | PLANNED |
-| BOT-A04 | Trading responses only | `policy.ts` trade response; driver never calls `make offer` | accept good / decline bad / stale offer / shortfall offer | human→bot trade | PLANNED |
-| BOT-A05 | Jail choices | `policy.ts` jail | card, bail, roll, wait, insufficient funds, stale card | — | PLANNED |
-| BOT-A06 | Every prompt answered, no deadlock | `bots/tasks.ts` + driver | one test per decision point (§4 of the bot spec) | full game | PLANNED · full game NOT RUN (USER MANUAL) |
-| BOT-A07 | Fairness | `bots/view.ts` from projections only | view equals human projection; illegal bot command rejected like a human's; client cannot claim bot | — | PLANNED |
-| BOT-A08 | Controlled variability, reproducible | seeded `mulberry32` | same seed same choice; near-threshold seeds differ; reserve still enforced | — | PLANNED |
-| BOT-A09 | Presentation timing, no blocking | driver delays, `BOT_ACTION_DELAY_SCALE` | scale 0 acts once; logic independent of clients | watch a bot turn | PLANNED |
-| BOT-A10 | Liveness / exactly-once | driver key, retries, fallback | duplicate fire, stale key, failing first choice → fallback, cancel on rematch/delete | — | PLANNED |
+| BOT-A01 | One policy, offline | `apps/server/src/bots/policy.ts` (only `@monopoly/shared`, `./rng`, `./view` imports) | `bots/policy.test.ts` "one offline policy" (imports, no fetch/Math.random/URLs, one `decide` export, no difficulty) | — | PASS |
+| BOT-A02 | Strategic purchasing | `policy.ts` purchase (reserve, set completion/blocking, seeded near-threshold tie-break) | `policy.test.ts` "Balanced purchases" (cheap buy, reserve decline, cannot afford, set stretch vs ordinary, danger reserve); `socket.botDriver.integration.test.ts` buys Bạc Liêu | browser smoke: Bot 1 bought Bạc Liêu, Bot 2 bought Mũi Né | PASS (decisions) · full game NOT RUN (USER MANUAL B1–B3) |
+| BOT-A03 | Legal building with reserve | `policy.ts` development; server `resolveDevelopmentCommand` validates | `policy.test.ts` "Balanced development" (4 / 2 houses, skip when short, hotel, skip fallback); illegal requests refused by the shared command (`commands/gameplay.ts`, existing development tests) | — | PASS |
+| BOT-A04 | Trading responses only | `policy.ts` `acceptsOffer`; driver has no `make offer` / `propose forced sale` mapping | `policy.test.ts` trade cases (gain, loss, hands a set, debtor vs Bank 70 %), forced-sale buy/reject; `socket.botDriver.integration.test.ts` accepts 400-for-Cà Mau, declines 5-for-Landmark 81 | human→bot trade in a real game | PASS (decisions + integration) · NOT RUN (USER MANUAL B7–B8) |
+| BOT-A05 | Jail choices | `policy.ts` TURN in jail | `policy.test.ts` "Balanced jail choices" (card, bail, roll, wait on dangerous board, roll fallback); integration "pays bail in a safe board, then rolls and buys" | — | PASS |
+| BOT-A06 | Every prompt answered, no deadlock | `bots/policy.ts` `botTaskOf` (turn, purchase, development, card, legacy draw, debt, rescue, forced sale, offer, revive) + `bots/driver.ts` | `policy.test.ts` task derivation; integration: roll/buy, bail, card dismiss, liquidation to bankruptcy, offers; `driver.test.ts` fallback + park | — | PASS (each decision point) · full game NOT RUN (USER MANUAL B1–B6) |
+| BOT-A07 | Fairness | `bots/view.ts` builds views from `projectPublicRoomState` + `projectPrivatePlayerState(bot)` + offers to the bot; dice/decks unchanged | `driver.test.ts` "sees the public projection every client gets…" (no `drawPile`, no hidden card ids); integration "is refused an illegal command exactly like a human would be"; bots have no socket so no client can act as one | — | PASS |
+| BOT-A08 | Controlled variability, reproducible | `bots/rng.ts` seeded from room/match/turn/roll/bot/kind | `policy.test.ts` "is reproducible for one seed, varies only near its threshold, and never breaks liquidity for any seed" (40 seeds); decision journal per room (`driver.journal`), `OTB_BOT_LOG=1` | — | PASS |
+| BOT-A09 | Presentation timing, no blocking | `policy.ts` `botActionDelayMs` (1.1–5.8 s), `BOT_ACTION_DELAY_SCALE`; center pill "Bot N đang đi…", Bot chip | integration tests run at scale 0 with no client; `PlayerCardList.test.tsx` Bot chip | browser smoke: "Bot 1 đang đi…" visible, moves animated | PASS (automated + smoke) · feel NEEDS MANUAL ACCEPTANCE |
+| BOT-A10 | Liveness / exactly-once | driver: one timer per room, in-queue guard re-deriving the task, retry once with fallback, park, pause without humans, cancel on rematch/stop | integration "never repeats an effect for duplicate notifications or a second driver", "drops a pending bot action when the match ends…", "waits while every human is disconnected…"; `driver.test.ts` retry/park | — | PASS |
 
 ## C. Match lifecycle and recovery
 
 | ID | Criterion | Implementation path | Automated test | Manual proof | Status |
 | --- | --- | --- | --- | --- | --- |
-| BOT-E01 | Human disconnect keeps seat, no takeover | existing session/presence | disconnect during bot match; seat/money unchanged; reconnect same id | real device | PLANNED |
-| BOT-E02 | Grace + lawful fallback | `deadlineScheduler.ts` (+ revealed card) | revealed-card expiry dismisses once; reconnect before expiry clears | — | PLANNED |
+| BOT-E01 | Human disconnect keeps seat, no takeover | existing session/presence; driver never acts for humans | integration "waits while every human is disconnected and plays on when one comes back" (seat resumed by token); revealed-card test keeps membership ACTIVE | real device | PASS (automated) · NOT RUN (USER MANUAL C1–C2) |
+| BOT-E02 | Grace + lawful fallback | 60 s `RECONNECT_GRACE_MS`; `deadlineScheduler.ts` now also arms and resolves a REVEALED card (dismiss = apply its mandatory effect) | integration "applies the card once the reconnect grace expires instead of blocking the game"; existing grace tests (decline, skip) unchanged | — | PASS |
 | BOT-E03 | Host temporary network loss | helper keeps state; client overlay | client reconnect to live helper; unavailable message after 20 s | real network | PLANNED · real NOT RUN |
 | BOT-E04 | Host exit/crash | existing terminal helper rule, lease revoke/TTL | existing packaged proof; new driver stop on shutdown | real quit/kill | PLANNED |
-| BOT-E05 | Bankrupt bot | existing removal + driver ignores finished bots | bot bankruptcy fixture: out of order, shown Bankrupt, never replaced | full game | PLANNED |
-| BOT-E06 | No hot join | existing spectator admission | join after start → spectator, no seat; foreign token rejected | — | PLANNED |
-| BOT-E07 | Rematch | `play again` + `matchId` | bots retained & Ready, humans un-Ready, new matchId, old timer stale | full rematch | PLANNED |
-| BOT-E08 | Persistence / restore | snapshot v11 `kind`, stateless driver | snapshot round-trip with bots; new driver over same store acts once (bot turn, before/after payment, finished, rematch) | — | PLANNED |
+| BOT-E05 | Bankrupt bot | existing removal; `playingBotIds` excludes finished bots | integration "liquidates, goes bankrupt and is left out of the game without being replaced" (FINISHED member, winner, no new seat) | full game | PASS (automated) · NOT RUN (USER MANUAL B2, B6) |
+| BOT-E06 | No hot join | existing spectator admission; `add bot` refused after start | `socket.bots.integration.test.ts` "starts every allowed mix and locks the seats afterwards"; existing foreign-token tests | — | PASS |
+| BOT-E07 | Rematch | `play again` keeps `kind`, bots Ready via normalisation, `matchId` cleared then new at start | `socket.bots.integration.test.ts` play-again test (bots Ready, humans not, cash reset, new matchId); driver test "drops a pending bot action when the match ends…" | full rematch | PASS (automated) · NOT RUN (USER MANUAL C6) |
+| BOT-E08 | Persistence / restore | snapshot v11 (`RoomMember.kind`, `matchId`), invariants (host human, ≤ 3 bots, lobby bots Ready); driver stateless | `socket.bots.integration.test.ts` "bot seats in the room snapshot" (JSON round trip lobby + running, no timers stored, invalid host/unready rejected); second-driver test acts once; RAM-only: no cross-process restore by design | — | PASS |
 
 ## D. Online multiplayer
 

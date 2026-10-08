@@ -64,11 +64,17 @@ thay đổi chưa hoàn tất.
   để xử lý reconnect khi cùng process vẫn sống.
 - Lifecycle room là `LOBBY → IN_PROGRESS → FINISHED`; chỉ command `play again` của
   host đã xác thực mới mở lại cùng room theo `FINISHED → LOBBY`.
-- Host là stable player; disconnect không transfer host. Lobby cần 2–4 active,
-  connected và ready players để host start (2v2: đúng 4, mỗi đội 2).
+- Host là stable player; disconnect không transfer host. Lobby cần 2–4 active seat, ít nhất một người thật,
+  mọi người thật connected và ready để host start (2v2: đúng 4, mỗi đội 2).
+- Bot (`GameCore/bot-players.instruction.md`): `RoomMember.kind = 'BOT'`, `PlayerId` UUID, không session/token/socket.
+  Chỉ host thêm/xóa bot ở `LOBBY` (`add bot` idempotent theo `requestId`, `remove bot`), tối đa 3 bot, chung 4 ghế với người;
+  bot luôn Ready, tự có mascot không trùng, host luôn là người thật, người thật cuối cùng rời thì phòng đóng. Bot chỉ đọc
+  public projection + private projection của chính nó, gửi đúng các lệnh trong `apps/server/src/commands/gameplay.ts` mà
+  socket handler dùng; `bots/driver.ts` không lưu timer, re-check task trong room queue, retry một lần bằng fallback hợp lệ,
+  dừng khi không còn người thật kết nối, không bao giờ đề nghị giao dịch hay thay người mất kết nối.
 - Standard Mode dùng board Việt Nam cố định 40 ô, đơn vị số nguyên game-unit
-  (`1 unit = 1.000 VNĐ`), socket protocol v11 và snapshot schema v10
-  (`SOCKET_PROTOCOL_VERSION = 11`, `ROOM_SNAPSHOT_SCHEMA_VERSION = 10`). `BoardState.rollSequence`
+  (`1 unit = 1.000 VNĐ`), socket protocol v12 và snapshot schema v11
+  (`SOCKET_PROTOCOL_VERSION = 12`, `ROOM_SNAPSHOT_SCHEMA_VERSION = 11`). `BoardState.rollSequence`
   là public identity ổn định trong đời host, bắt đầu từ `0`, tăng đúng một lần cho mỗi gameplay
   roll đã commit, không tăng cho starting-player tie-break hoặc command rollback.
   Không đổi index hoặc
@@ -91,7 +97,9 @@ thay đổi chưa hoàn tất.
   vẫn hợp lệ nên không cần migration dữ liệu. Protocol V10 bổ sung 2v2 Teamplay và
   snapshot V9 (`010_teamplay_v9.sql`: `gameMode`, `teams`, `teamPlay`, `winningTeamId`,
   `PaymentQueue.rescue`, `teamId` trên mọi player record). Protocol V11 bổ sung ghế sảnh 2v2 và kick của host
-  (snapshot V10, `011_lobby_seats_v10.sql`: `Player.teamSlot`, `boardState.seatSwapRequests`).
+  (snapshot V10, `011_lobby_seats_v10.sql`: `Player.teamSlot`, `boardState.seatSwapRequests`). Protocol V12 bổ sung ghế
+  bot (snapshot V11: `RoomMember.kind`, `boardState.matchId`, `RoomPlayerMeta.kind`, lệnh `add bot`/`remove bot`); V10
+  snapshot hợp lệ như V11 (thiếu `kind` = HUMAN) nên chỉ đổi số version, không có file SQL mới (runtime RAM không đọc SQL).
 - 2v2 Teamplay (`GameCore/team-play.instruction.md`): `GameMode` do host chọn chỉ ở
   `LOBBY` (đổi mode reset Ready mọi người); mọi thành viên đổi tên/màu **đội mình** (không đội kia), tự nhảy vào ghế trống hoặc xin
   đổi chỗ (người kia phải đồng ý; host không di chuyển được người khác), host chỉ có `kick player` ở sảnh; tiền và `ownedProps` luôn theo `PlayerId`, không có

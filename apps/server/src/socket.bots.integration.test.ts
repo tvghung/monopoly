@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { removePlayerFromGame } from './game/index.js';
 import { InMemoryPersistenceStore } from './persistence/inMemory.js';
 import {
+  assertSupportedRoomSnapshot,
   hydrateGameState,
   storeGameState,
   syncMembershipWithGameState,
@@ -272,6 +273,37 @@ describe('starting with bots', () => {
     const inGame = room.gameSnapshot.gameState.boardState.players;
     expect(inGame).toHaveLength(added.ok ? 3 : 2);
     expect(inGame).toEqual(expect.arrayContaining(botIdsOf(room.gameSnapshot)));
+  });
+});
+
+describe('bot seats in the room snapshot', () => {
+  it('survive a JSON round trip in the lobby and in a running game with their kind, id and Ready state', async () => {
+    const { host, persistence, roomId } = await hostLobby();
+    okOf(await ready(host.socket));
+    const bot = dataOf(await addBot(host.socket));
+    const lobby = await stored(persistence, roomId);
+    const lobbyCopy = JSON.parse(JSON.stringify(lobby)) as typeof lobby;
+    expect(() => assertSupportedRoomSnapshot(lobbyCopy)).not.toThrow();
+    expect(lobbyCopy.gameSnapshot.members[bot.playerId]).toEqual(lobby.gameSnapshot.members[bot.playerId]);
+
+    okOf(await start(host.socket));
+    const running = await stored(persistence, roomId);
+    const runningCopy = JSON.parse(JSON.stringify(running)) as typeof running;
+    expect(() => assertSupportedRoomSnapshot(runningCopy)).not.toThrow();
+    expect(runningCopy.gameSnapshot.members[bot.playerId]?.kind).toBe('BOT');
+    expect(runningCopy.gameSnapshot.gameState.boardState.matchId).toBe(running.gameSnapshot.gameState.boardState.matchId);
+    // Nothing timer-like is stored: the bot's next move is derived from this state alone.
+    expect(JSON.stringify(runningCopy)).not.toMatch(/timer|timeout/i);
+  });
+
+  it('rejects a snapshot whose host is a bot or whose lobby bot is not Ready', async () => {
+    const { host, persistence, roomId } = await hostLobby();
+    const bot = dataOf(await addBot(host.socket));
+    const room = await stored(persistence, roomId);
+    expect(() => assertSupportedRoomSnapshot({ ...room, hostPlayerId: bot.playerId })).toThrow(/host is a bot/);
+    const unready = structuredClone(room);
+    unready.gameSnapshot.members[bot.playerId].ready = false;
+    expect(() => assertSupportedRoomSnapshot(unready)).toThrow(/bot that is not Ready/);
   });
 });
 

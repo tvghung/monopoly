@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import type {
   PrivateOffer,
   PublicBoardState,
@@ -118,6 +121,18 @@ const purchaseOf = (tileID: number, price: number): PublicGameState['turnInfo'] 
 });
 
 const owned = (id: string, houses = 0) => ({ id, color: id === BOT ? 'blue' as const : 'red' as const, houses });
+
+describe('one offline policy', () => {
+  it('has no network, AI-service or randomness source other than its seed', () => {
+    const source = readFileSync(fileURLToPath(new URL('./policy.ts', import.meta.url)), 'utf8');
+    const imports = [...source.matchAll(/from '([^']+)'/g)].map((match) => match[1]);
+    expect(imports.sort()).toEqual(['./rng', './view', '@monopoly/shared']);
+    expect(source).not.toMatch(/\bfetch\(|Math\.random|https?:\/\//);
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    expect(code).not.toMatch(/difficulty|EASY|HARD/i);
+    expect([...code.matchAll(/export function (decide\w*)/g)].map((match) => match[1])).toEqual(['decideBotAction']);
+  });
+});
 
 describe('what a bot must answer', () => {
   it('finds its own turn, landing decision and card, and nothing on another player\'s turn or outside a game', () => {
