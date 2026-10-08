@@ -1,6 +1,6 @@
 # Acceptance matrix
 
-Status at **R0** (2026-10-09). Every row is updated as waves complete; nothing is PASS because code exists.
+Status at **R0** (2026-10-09); section A updated at the R1 gate (2026-10-09). Every row is updated as waves complete; nothing is PASS because code exists.
 Status words: `PASS`, `FAIL`, `BLOCKED`, `NOT RUN`, `NOT RUN (USER MANUAL)`, `N/A — verified absent`, `PLANNED`.
 BOT-L0n = AC-L0n, BOT-A0n = AC-B0n, BOT-E0n = AC-E0n, NET-0n = AC-N0n.
 
@@ -8,15 +8,15 @@ BOT-L0n = AC-L0n, BOT-A0n = AC-B0n, BOT-E0n = AC-E0n, NET-0n = AC-N0n.
 
 | ID | Criterion | Implementation path | Automated test | Manual proof | Status |
 | --- | --- | --- | --- | --- | --- |
-| BOT-L01 | 4-slot hard cap under concurrency | `socket/bots.ts` (`add bot`), `playerSessionService` admission, room executor | `socket.bots.integration.test.ts` concurrent add/join race | LAN smoke | PLANNED |
-| BOT-L02 | Start matrix | `socket/lobby.ts` start, `rooms.ts` `startBlockReason` | unit matrix (all 1H..4H × 0..3B), guest/unready/stale denials | — | PLANNED |
-| BOT-L03 | Add exactly one per click, ≤ 3, host/lobby only, idempotent `requestId` | `socket/bots.ts`, `services/botRequestLedger.ts` | duplicate requestId, full room, in-progress denial | — | PLANNED |
-| BOT-L04 | Remove host-only, frees one slot | `socket/bots.ts` | guest/stale/started denials, then human joins freed seat | — | PLANNED |
-| BOT-L05 | Room full, no eviction | existing `ROOM_FULL` + bots counted | host+3 bots → join `ROOM_FULL`; remove → join succeeds | — | PLANNED |
-| BOT-L06 | Mid-match lockdown, races vs start | executor serialization | start vs add/remove/join race; post-start denials; reconnect allowed | — | PLANNED |
-| BOT-L07 | Stable unique bot identities, names, appearance | `rooms.ts` bot allocation + normalisation | unit allocation, re-add numbering, human selection untouched | — | PLANNED |
-| BOT-L08 | Bots auto-Ready, no human toggles | normalisation in `commitRoomCommand` | mode switch/play again keep bots Ready; `set ready` acts on actor only | — | PLANNED |
-| BOT-L09 | Lobby UX | `components/Lobby.tsx`, `lobby/LobbySeat.tsx` | `Lobby.test.tsx` bot cases, start-enabled tracking | desktop + touch layouts | PLANNED |
+| BOT-L01 | 4-slot hard cap under concurrency | `socket/bots.ts`, `bots/botSeats.ts`, admission `ROOM_FULL`, room executor | `socket.bots.integration.test.ts` "gives the last seat to exactly one of a racing human join and bot additions", "answers Room full…" | dev-server browser smoke 2026-10-09 | PASS (automated); physical LAN NOT RUN |
+| BOT-L02 | Start matrix | `socket/lobby.ts` start (≥ 1 human, humans connected, bots present) | `socket.bots.integration.test.ts` "refuses a host alone, an unready human and a guest…", "starts every allowed mix…", play-again restart; existing human-only start tests | browser smoke 1H+1B | PASS (1H+0B refused, unready human refused, guest FORBIDDEN, 1H+1B, 1H+3B, 2H+1B; human-only by existing suites) |
+| BOT-L03 | Add exactly one per click, ≤ 3, host/lobby only, idempotent `requestId` | `socket/bots.ts`, `services/botRequestLedger.ts` | `socket.bots.integration.test.ts` "answers a repeated request id…" (sequential and racing copies), 4th add `ROOM_FULL`, add after start refused | browser smoke | PASS |
+| BOT-L04 | Remove host-only, frees one slot | `socket/bots.ts` `remove bot` | `socket.bots.integration.test.ts` "never lets a guest add or remove a bot…", "removes only an existing bot…", "…admits them after a bot is removed" | browser smoke | PASS |
+| BOT-L05 | Room full, no eviction | existing `ROOM_FULL`; bots are active seats | `socket.bots.integration.test.ts` "answers Room full to a human when host and bots fill the four seats…" | — | PASS |
+| BOT-L06 | Mid-match lockdown, races vs start | executor serialization; `GAME_ALREADY_STARTED` | `socket.bots.integration.test.ts` "starts every allowed mix and locks the seats afterwards" (newcomer = spectator), "resolves a start racing a bot addition…" | — | PASS |
+| BOT-L07 | Stable unique bot identities, names, appearance | `rooms.ts` `nextBotNumber`, `chooseBotCharacter`, `normalizeLobbyBots`; humans keep mascot priority in `teamLobby.ts` | `socket.bots.integration.test.ts` "adds one Ready bot per request, named Bot 1..3…", "keeps the bot numbers predictable…", 2v2 switch, clicked-seat test | browser smoke | PASS |
+| BOT-L08 | Bots auto-Ready, no human toggles | normalisation in `commitRoomCommand`; invariant "lobby bot Ready" | 2v2 switch and play again keep bots Ready (`socket.bots.integration.test.ts`); `set ready` acts on the authenticated actor only (unchanged code) | — | PASS |
+| BOT-L09 | Lobby UX | `components/Lobby.tsx`, `lobby/LobbySeat.tsx`, `lobby/TeamZone.tsx` | `Lobby.test.tsx` "Lobby bot seats" (badge, host-only Add bot, full room, remove without question, start with a bot) | browser smoke at desktop width; touch layouts NOT RUN | PASS (automated + desktop smoke); touch NEEDS MANUAL ACCEPTANCE |
 
 ## B. Balanced bot behaviour
 
