@@ -17,7 +17,7 @@ const socketHarness = vi.hoisted(() => {
 
   const socket = {
     id: 'transport-only-id',
-    connected: false,
+    connected: false, kind: 'HUMAN' as const,
     auth: {},
     io: { reconnection: vi.fn() },
     on(event: string, handler: SocketHandler) {
@@ -98,7 +98,7 @@ const room: PublicRoomState = {
     joinOrder: 1,
     membershipStatus: 'ACTIVE',
     ready: false,
-    connected: true,
+    connected: true, kind: 'HUMAN' as const,
   }],
   gameState: {
     boardState: {
@@ -1225,7 +1225,7 @@ describe('App session admission', () => {
           joinOrder: 2,
           membershipStatus: 'ACTIVE',
           ready: true,
-          connected: true,
+          connected: true, kind: 'HUMAN' as const,
         },
       ],
       gameState: {
@@ -1707,7 +1707,7 @@ describe('App 2v2 lobby commands', () => {
       version,
       hostPlayerId: overrides.hostPlayerId ?? HOST_ID,
       players: seats.map((seat, index) => ({
-        ...seat, joinOrder: index, membershipStatus: 'ACTIVE' as const, ready: false, connected: true,
+        ...seat, joinOrder: index, membershipStatus: 'ACTIVE' as const, ready: false, connected: true, kind: 'HUMAN' as const,
       })),
       gameState: {
         ...room.gameState,

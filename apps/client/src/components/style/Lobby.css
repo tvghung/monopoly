@@ -224,6 +224,9 @@
 
 .lobby-player--empty .lobby-player__name { color: var(--color-text-secondary); }
 
+.lobby-player__bot-badge { display: inline-flex; align-items: center; gap: 0.25rem; }
+.lobby-player__bot-badge .action-icon { width: 0.95rem; height: 0.95rem; }
+
 /* The name and the host badge share a row and wrap together, so a long name never runs under the badge. */
 .lobby-player__identity {
   display: flex;
@@ -956,7 +959,9 @@
 .lobby-player__kick .ds-icon-button__glyph > svg { width: 1.05rem; height: 1.05rem; }
 .lobby-player__kick:hover:not(:disabled) { color: var(--color-danger-strong); }
 
-/* The swap action of a seat (to an occupied seat: ask; to an empty one: move in) spans the card like the ready key. */
+/* The host's add-bot key on an empty seat and the swap action of a seat (to an occupied seat: ask; to an empty one: move in)
+   span the card like the ready key. */
+.lobby-player__add-bot,
 .lobby-player__swap-action {
   box-sizing: border-box;
   width: 100%;

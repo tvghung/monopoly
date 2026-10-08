@@ -4,6 +4,8 @@ import {
   ArrowRightLeft,
   Ban,
   Banknote,
+  Bot,
+  BotOff,
   Building2,
   Check,
   ChevronLeft,
@@ -82,6 +84,8 @@ export const ACTION_ICON_NAMES = [
   'download', 'restart',
   // 2v2 teams: swap two players between teams, revive a bankrupt teammate, rescue a teammate in debt.
   'swap', 'revive', 'rescue',
+  // Bot seats: the badge of a bot, the host's add key on an empty seat and remove key on a bot seat.
+  'bot', 'addBot', 'removeBot',
 ] as const;
 
 export type ActionIconName = typeof ACTION_ICON_NAMES[number];
@@ -151,6 +155,9 @@ export const ACTION_ICONS = {
   swap: ArrowLeftRight,
   revive: HeartPulse,
   rescue: LifeBuoy,
+  bot: Bot,
+  addBot: Bot,
+  removeBot: BotOff,
 } satisfies Record<ActionIconName, LucideIcon>;
 
 export function isActionIconName(value: string): value is ActionIconName {

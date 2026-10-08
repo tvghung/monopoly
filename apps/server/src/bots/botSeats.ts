@@ -1,5 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { MAX_BOTS_PER_ROOM, type GameState, type PlayerId } from '@monopoly/shared';
+import {
+  MAX_BOTS_PER_ROOM,
+  seatHolderAt,
+  type GameState,
+  type PlayerId,
+  type TeamId,
+  type TeamSlot,
+} from '@monopoly/shared';
 import { recordActivityEvent, sendToLog } from '../game';
 import {
   activeBotIds,
@@ -7,6 +14,7 @@ import {
   chooseBotCharacter,
   chooseJoinSeat,
   createFreshPlayer,
+  lobbySeatHolders,
   MAX_PLAYERS,
   nextAvailableColor,
   nextBotNumber,
@@ -30,14 +38,19 @@ const workingView = (snapshot: RoomSnapshot, state: GameState): RoomSnapshot => 
 export function addBotSeat(
   snapshot: RoomSnapshot,
   state: GameState,
+  preferredSeat?: { teamId: TeamId; teamSlot: TeamSlot },
   botId: PlayerId = randomUUID(),
 ): { ok: true; playerId: PlayerId } | { ok: false; reason: AddBotRefusal } {
   const view = workingView(snapshot, state);
   if (activePlayerIds(view).length >= MAX_PLAYERS) return { ok: false, reason: 'ROOM_FULL' };
   if (activeBotIds(view).length >= MAX_BOTS_PER_ROOM) return { ok: false, reason: 'BOT_LIMIT' };
   const number = nextBotNumber(view);
-  const seat = chooseJoinSeat(view);
   const { gameMode, teams } = state.boardState;
+  // In 2v2 the host may point at an empty seat; otherwise (and for a seat that is no longer empty) the bot sits where a joiner would.
+  const seat = gameMode === 'TEAM_2V2' && preferredSeat
+    && !seatHolderAt(lobbySeatHolders(view), preferredSeat.teamId, preferredSeat.teamSlot)
+    ? preferredSeat
+    : chooseJoinSeat(view);
   const color = seat
     ? gameMode === 'TEAM_2V2' ? teams[seat.teamId].color : nextAvailableColor(view)
     : null;

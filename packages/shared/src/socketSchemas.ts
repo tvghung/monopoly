@@ -117,6 +117,7 @@ export const kickPlayerRequestSchema = z.strictObject({
 
 export const addBotRequestSchema = z.strictObject({
   requestId: z.uuid(),
+  seat: z.strictObject({ teamId: teamIdSchema, teamSlot: teamSlotSchema }).optional(),
 }) satisfies z.ZodType<AddBotRequest>;
 
 export const removeBotRequestSchema = z.strictObject({

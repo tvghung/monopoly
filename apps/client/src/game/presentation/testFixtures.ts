@@ -42,7 +42,7 @@ export function makeRoom(version = 1): PublicRoomState {
         joinOrder: 0,
         membershipStatus: 'ACTIVE',
         ready: true,
-        connected: true,
+        connected: true, kind: 'HUMAN' as const,
       },
       {
         playerId: 'player-b',
@@ -54,7 +54,7 @@ export function makeRoom(version = 1): PublicRoomState {
         joinOrder: 1,
         membershipStatus: 'ACTIVE',
         ready: true,
-        connected: true,
+        connected: true, kind: 'HUMAN' as const,
       },
     ],
     gameState: {
@@ -137,7 +137,7 @@ export function makeTeamRoom(version = 1): PublicRoomState {
     joinOrder,
     membershipStatus: 'ACTIVE',
     ready: true,
-    connected: true,
+    connected: true, kind: 'HUMAN' as const,
   }));
   const { boardState } = room.gameState;
   boardState.players = TEAM_SEATS.map(seat => seat.playerId);

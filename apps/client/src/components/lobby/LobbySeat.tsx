@@ -31,7 +31,7 @@ interface LobbySeatProps {
   isHost: boolean;
   busy: boolean;
   onSetReady: (ready: boolean) => void;
-  /** Host only, and never on the host's own seat: the X that asks to remove this player from the room. */
+  /** Host only, and never on the host's own seat: the X that removes this player (a bot at once, a human after a question). */
   onKick?: () => void;
   /** 2v2 only, and never on the viewer's own seat: the swap control of this seat. */
   swap?: SeatSwap | null;
@@ -48,24 +48,26 @@ export function LobbySeat({
     '--seat-color': getPlayerDisplayColor(player.color),
     '--seat-color-dark': getPlayerAccentDarkColor(player.color),
   } as CSSProperties;
+  const isBot = player.kind === 'BOT';
   const readyLabel = player.ready ? t('lobby.readyStatus') : t('lobby.notReadyStatus');
   const className = [
     'lobby-player',
     'lobby-player--occupied',
     player.connected ? '' : 'lobby-player--disconnected',
     isSelf ? 'lobby-player--self' : '',
+    isBot ? 'lobby-player--bot' : '',
     onKick ? 'lobby-player--kickable' : '',
     swap?.state === 'PENDING' ? 'lobby-player--swap-pending' : '',
   ].filter(Boolean).join(' ');
 
   return (
-    <li className={className} style={seatStyle} data-team={player.teamId} data-player-id={player.id}>
+    <li className={className} style={seatStyle} data-team={player.teamId} data-player-id={player.id} data-kind={player.kind}>
       {onKick
         ? (
           <IconButton
             className="lobby-player__kick"
-            label={t('lobby.kick', { name: player.name })}
-            icon="close"
+            label={isBot ? t('lobby.removeBot', { name: player.name }) : t('lobby.kick', { name: player.name })}
+            icon={isBot ? 'removeBot' : 'close'}
             disabled={busy}
             onClick={onKick}
           />
@@ -90,6 +92,14 @@ export function LobbySeat({
           {isSelf ? t('lobby.selfSuffix') : ''}
         </span>
         {isHost ? <Badge variant="warning">{t('lobby.hostBadge')}</Badge> : null}
+        {isBot
+          ? (
+            <Badge variant="info" className="lobby-player__bot-badge">
+              <ActionIcon name="bot" />
+              {t('lobby.botBadge')}
+            </Badge>
+          )
+          : null}
       </div>
       <span
         className={`lobby-player__ready-dot ${player.ready
@@ -163,6 +173,8 @@ export function LobbySeat({
 
 interface EmptySeatProps {
   number: number;
+  /** Host only: adds one bot (one click, one seat). Absent for everyone else and when no bot can be added. */
+  onAddBot?: () => void;
   /** 2v2 lobby: the name of the team the seat belongs to, for the label of its move control. */
   teamName?: string;
   busy?: boolean;
@@ -172,7 +184,7 @@ interface EmptySeatProps {
 
 /** A seat nobody has taken yet; it tells the host how to fill it and, in a 2v2 lobby, lets the viewer move into it. */
 export function EmptySeat({
-  number, teamName, busy = false, onMove,
+  number, teamName, busy = false, onMove, onAddBot,
 }: EmptySeatProps) {
   const { t } = useTranslation();
   return (
@@ -181,6 +193,20 @@ export function EmptySeat({
         <span className="lobby-player__disc" aria-hidden="true" />
       </div>
       <span className="lobby-player__name">{t('lobby.emptySeatNumber', { number })}</span>
+      {onAddBot
+        ? (
+          <Button
+            variant="secondary"
+            className="lobby-player__add-bot"
+            icon={<ActionIcon name="addBot" />}
+            disabled={busy}
+            aria-label={t('lobby.addBotToSeat', { number })}
+            onClick={onAddBot}
+          >
+            <span>{t('lobby.addBot')}</span>
+          </Button>
+        )
+        : null}
       {onMove
         ? (
           <Button

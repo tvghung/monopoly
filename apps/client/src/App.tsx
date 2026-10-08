@@ -9,6 +9,7 @@ import type {
   AckError,
   Ack,
   AckCallback,
+  AddBotResult,
   JoinRoomRequest,
   OfferResult,
   PrivatePlayerState,
@@ -787,7 +788,7 @@ export default function App({
   }, [socket]);
 
   /** The lobby's room commands (mode, team, seats, removing a player) share one busy state and one error line, like ready and appearance. */
-  const runTeamCommand = useCallback((send: (done: (response: Ack) => void) => void) => {
+  const runTeamCommand = useCallback(<T = void,>(send: (done: (response: Ack<T>) => void) => void) => {
     setOperation('team');
     setOperationError(null);
     send((response) => {
@@ -811,6 +812,16 @@ export default function App({
 
   const handleKickPlayer = useCallback((targetPlayerId: string) => {
     runTeamCommand(done => socket.emit('kick player', { playerId: targetPlayerId }, done));
+  }, [runTeamCommand, socket]);
+
+  // A fresh request id per click: a retry of the same emit (replayed after a reconnect) cannot add a second bot.
+  const handleAddBot = useCallback((seat?: { teamId: TeamId; teamSlot: TeamSlot }) => {
+    const requestId = crypto.randomUUID();
+    runTeamCommand<AddBotResult>(done => socket.emit('add bot', seat ? { requestId, seat } : { requestId }, done));
+  }, [runTeamCommand, socket]);
+
+  const handleRemoveBot = useCallback((targetPlayerId: string) => {
+    runTeamCommand(done => socket.emit('remove bot', { playerId: targetPlayerId }, done));
   }, [runTeamCommand, socket]);
 
   const handleMoveToSeat = useCallback((teamId: TeamId, teamSlot: TeamSlot) => {
@@ -1044,6 +1055,7 @@ export default function App({
               teamSlot: member.teamSlot,
               ready: member.ready,
               connected: member.connected,
+              kind: member.kind,
             }))}
           playerId={playerId}
           hostPlayerId={room.hostPlayerId}
@@ -1060,6 +1072,8 @@ export default function App({
           onSetTeamName={handleSetTeamName}
           onSetTeamColor={handleSetTeamColor}
           onKickPlayer={handleKickPlayer}
+          onAddBot={handleAddBot}
+          onRemoveBot={handleRemoveBot}
           onMoveToSeat={handleMoveToSeat}
           onRequestSeatSwap={handleRequestSeatSwap}
           onCancelSeatSwap={handleCancelSeatSwap}

@@ -848,6 +848,8 @@ export interface KickPlayerRequest {
 // Host only, lobby only: adds one bot to a free seat. `requestId` makes a retried click idempotent.
 export interface AddBotRequest {
   requestId: string;
+  // 2v2 lobby: the empty seat the host clicked. Ignored in Solo; an occupied seat falls back to the seat a joiner would get.
+  seat?: { teamId: TeamId; teamSlot: TeamSlot };
 }
 
 export interface AddBotResult {

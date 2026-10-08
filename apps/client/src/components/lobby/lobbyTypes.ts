@@ -1,4 +1,4 @@
-import type { CharacterId, PlayerColorId, TeamId, TeamSlot } from '@monopoly/shared';
+import type { CharacterId, PlayerColorId, PlayerKind, TeamId, TeamSlot } from '@monopoly/shared';
 
 export interface LobbyPlayerView {
   id: string;
@@ -11,4 +11,6 @@ export interface LobbyPlayerView {
   teamSlot: TeamSlot;
   ready: boolean;
   connected: boolean;
+  /** A BOT seat is played by the host; it is always Ready and present. */
+  kind: PlayerKind;
 }

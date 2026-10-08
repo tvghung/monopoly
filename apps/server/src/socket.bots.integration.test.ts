@@ -202,6 +202,26 @@ describe('bot seats in the lobby', () => {
   });
 });
 
+describe('bot seats in a 2v2 lobby', () => {
+  it('puts the bot in the empty seat the host clicked, or where a joiner would sit when that seat is taken', async () => {
+    const { host, persistence, roomId } = await hostLobby();
+    okOf(await setMode(host.socket, 'TEAM_2V2'));
+    const clicked = dataOf(await ack<import('@monopoly/shared').AddBotResult>((callback) => {
+      host.socket.emit('add bot', { requestId: randomUUID(), seat: { teamId: 'TEAM_2', teamSlot: 1 } }, callback);
+    }));
+    let room = await stored(persistence, roomId);
+    expect(room.gameSnapshot.gameState.players[clicked.playerId]).toMatchObject({ teamId: 'TEAM_2', teamSlot: 1, color: 'blue' });
+
+    const fallback = dataOf(await ack<import('@monopoly/shared').AddBotResult>((callback) => {
+      host.socket.emit('add bot', { requestId: randomUUID(), seat: { teamId: 'TEAM_2', teamSlot: 1 } }, callback);
+    }));
+    room = await stored(persistence, roomId);
+    const seats = Object.values(room.gameSnapshot.gameState.players).map((player) => `${player.teamId}:${String(player.teamSlot)}`);
+    expect(new Set(seats).size).toBe(3);
+    expect(room.gameSnapshot.gameState.players[fallback.playerId].teamSlot).not.toBeUndefined();
+  });
+});
+
 describe('starting with bots', () => {
   it('refuses a host alone, an unready human and a guest, and starts host + one bot', async () => {
     const { host, joinHuman, persistence, roomId } = await hostLobby();

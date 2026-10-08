@@ -30,6 +30,8 @@ interface TeamZoneProps {
   /** The viewer has a seat and can move or ask for a swap; false takes every swap control away. */
   canSwap: boolean;
   onKick: (playerId: string) => void;
+  /** Host only, absent when no bot can be added: puts one bot in this team's empty seat. */
+  onAddBot?: (teamSlot: TeamSlot) => void;
   onMoveToSeat: (teamSlot: TeamSlot) => void;
   onRequestSeatSwap: (targetPlayerId: string) => void;
   onCancelSeatSwap: () => void;
@@ -65,7 +67,7 @@ export function layoutTeamSeats(members: readonly LobbyPlayerView[]): {
  */
 export default function TeamZone({
   team, otherTeamColor, members, playerId, hostPlayerId, isHost, isOwnTeam, canRename, busy, swapTargetId, canSwap,
-  onKick, onMoveToSeat, onRequestSeatSwap, onCancelSeatSwap, onSetReady, onSetTeamName, onSetTeamColor,
+  onKick, onAddBot, onMoveToSeat, onRequestSeatSwap, onCancelSeatSwap, onSetReady, onSetTeamName, onSetTeamColor,
 }: TeamZoneProps) {
   const { t } = useTranslation();
   const headingId = useId();
@@ -135,6 +137,7 @@ export default function TeamZone({
               teamName={team.name}
               busy={busy}
               onMove={canSwap ? () => onMoveToSeat(TEAM_SLOTS[index]) : undefined}
+              onAddBot={onAddBot ? () => onAddBot(TEAM_SLOTS[index]) : undefined}
             />
           )))}
         {overflow.map(member => seatOf(member, null))}

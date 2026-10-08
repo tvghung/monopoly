@@ -6,23 +6,23 @@ import { noop, SurfaceProviders, type SurfaceFixture } from './surfaceKit';
 
 /** The room lobby (plan 04 T04.13). */
 const LOBBY_PLAYERS: readonly LobbyPlayerView[] = [
-  { id: 'player-a', name: 'An', color: 'red', characterId: 'dog', teamId: 'TEAM_1', teamSlot: 0, ready: true, connected: true },
-  { id: 'player-b', name: 'Bình', color: 'blue', characterId: 'panda', teamId: 'TEAM_2', teamSlot: 0, ready: true, connected: true },
-  { id: 'player-c', name: 'Chi', color: 'green', characterId: 'cat', teamId: 'TEAM_1', teamSlot: 1, ready: false, connected: true },
+  { id: 'player-a', name: 'An', color: 'red', characterId: 'dog', teamId: 'TEAM_1', teamSlot: 0, ready: true, connected: true, kind: 'HUMAN' as const },
+  { id: 'player-b', name: 'Bình', color: 'blue', characterId: 'panda', teamId: 'TEAM_2', teamSlot: 0, ready: true, connected: true, kind: 'HUMAN' as const },
+  { id: 'player-c', name: 'Chi', color: 'green', characterId: 'cat', teamId: 'TEAM_1', teamSlot: 1, ready: false, connected: true, kind: 'HUMAN' as const },
 ];
 
 /** All four seats: a ready host, a ready guest, one still choosing and one whose connection dropped. */
 const FULL_PLAYERS: readonly LobbyPlayerView[] = [
   ...LOBBY_PLAYERS,
-  { id: 'player-d', name: 'Dũng', color: 'yellow', characterId: 'duck', teamId: 'TEAM_2', teamSlot: 1, ready: true, connected: false },
+  { id: 'player-d', name: 'Dũng', color: 'yellow', characterId: 'duck', teamId: 'TEAM_2', teamSlot: 1, ready: true, connected: false, kind: 'HUMAN' as const },
 ];
 
 /** 2v2: An and Chi are "Rồng" (red), Bình and Dũng are "Phượng" (blue); everybody wears the team colour. */
 const TEAM_PLAYERS: readonly LobbyPlayerView[] = [
-  { id: 'player-a', name: 'An', color: 'red', characterId: 'dog', teamId: 'TEAM_1', teamSlot: 0, ready: true, connected: true },
-  { id: 'player-b', name: 'Bình', color: 'blue', characterId: 'panda', teamId: 'TEAM_2', teamSlot: 0, ready: true, connected: true },
-  { id: 'player-c', name: 'Chi', color: 'red', characterId: 'cat', teamId: 'TEAM_1', teamSlot: 1, ready: false, connected: true },
-  { id: 'player-d', name: 'Dũng', color: 'blue', characterId: 'duck', teamId: 'TEAM_2', teamSlot: 1, ready: true, connected: true },
+  { id: 'player-a', name: 'An', color: 'red', characterId: 'dog', teamId: 'TEAM_1', teamSlot: 0, ready: true, connected: true, kind: 'HUMAN' as const },
+  { id: 'player-b', name: 'Bình', color: 'blue', characterId: 'panda', teamId: 'TEAM_2', teamSlot: 0, ready: true, connected: true, kind: 'HUMAN' as const },
+  { id: 'player-c', name: 'Chi', color: 'red', characterId: 'cat', teamId: 'TEAM_1', teamSlot: 1, ready: false, connected: true, kind: 'HUMAN' as const },
+  { id: 'player-d', name: 'Dũng', color: 'blue', characterId: 'duck', teamId: 'TEAM_2', teamSlot: 1, ready: true, connected: true, kind: 'HUMAN' as const },
 ];
 
 const LAB_TEAMS: readonly PublicTeam[] = [

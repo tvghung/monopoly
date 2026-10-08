@@ -36,7 +36,7 @@ export function registerBotHandlers(io: AppServer, socket: AppSocket, runtime: A
           if (isBotMember(context.room.gameSnapshot, earlier)) return { playerId: earlier, replayed: true };
           throw new CommandError('CONFLICT', 'Yêu cầu thêm Bot này đã được xử lý.');
         }
-        const added = addBotSeat(context.room.gameSnapshot, context.state);
+        const added = addBotSeat(context.room.gameSnapshot, context.state, request.seat);
         if (!added.ok) {
           throw added.reason === 'ROOM_FULL'
             ? new CommandError('ROOM_FULL', 'Phòng đã đủ 4 người chơi.')

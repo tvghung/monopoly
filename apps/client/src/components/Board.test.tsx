@@ -102,7 +102,7 @@ const makeContextValue = (
     joinOrder: index + 1,
     membershipStatus: 'ACTIVE',
     ready: true,
-    connected: true,
+    connected: true, kind: 'HUMAN' as const,
   })),
 });
 

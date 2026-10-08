@@ -19,8 +19,8 @@ afterEach(() => {
 });
 
 const readyPlayers = [
-  { id: 'player-a', name: 'Ada', color: 'red' as const, characterId: 'dog' as const, teamId: 'TEAM_1' as const, teamSlot: 0 as const, ready: true, connected: true },
-  { id: 'player-b', name: 'Grace', color: 'blue' as const, characterId: 'panda' as const, teamId: 'TEAM_2' as const, teamSlot: 0 as const, ready: true, connected: true },
+  { id: 'player-a', name: 'Ada', color: 'red' as const, characterId: 'dog' as const, teamId: 'TEAM_1' as const, teamSlot: 0 as const, ready: true, connected: true, kind: 'HUMAN' as const },
+  { id: 'player-b', name: 'Grace', color: 'blue' as const, characterId: 'panda' as const, teamId: 'TEAM_2' as const, teamSlot: 0 as const, ready: true, connected: true, kind: 'HUMAN' as const },
 ];
 
 describe('Lobby', () => {
@@ -65,7 +65,7 @@ describe('Lobby', () => {
     render(
       <Lobby
         roomCode="ROOM-2"
-        players={[readyPlayers[0], { ...readyPlayers[1], connected: false, ready: false }]}
+        players={[readyPlayers[0], { ...readyPlayers[1], connected: false, kind: 'HUMAN' as const, ready: false }]}
         playerId="player-a"
         hostPlayerId="player-a"
         minPlayers={2}
@@ -201,8 +201,8 @@ describe('Lobby', () => {
         players={[
           readyPlayers[0],
           { ...readyPlayers[1], ready: false },
-          { teamId: 'TEAM_2', teamSlot: 1, id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: true, connected: false },
-          { teamId: 'TEAM_1', teamSlot: 1, id: 'player-d', name: 'Sam', color: 'yellow', characterId: 'duck', ready: false, connected: false },
+          { teamId: 'TEAM_2', teamSlot: 1, id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: true, connected: false, kind: 'HUMAN' as const },
+          { teamId: 'TEAM_1', teamSlot: 1, id: 'player-d', name: 'Sam', color: 'yellow', characterId: 'duck', ready: false, connected: false, kind: 'HUMAN' as const },
         ]}
         playerId="player-a"
         hostPlayerId="player-a"
@@ -332,8 +332,8 @@ describe('Lobby', () => {
       <Lobby
         roomCode="ROOM-9"
         players={[
-          { teamId: 'TEAM_2', teamSlot: 0, id: 'player-a', name: 'Ada', color: 'blue', characterId: 'panda', ready: true, connected: true },
-          { teamId: 'TEAM_2', teamSlot: 1, id: 'player-b', name: 'Grace', color: 'blue', characterId: 'dog', ready: true, connected: true },
+          { teamId: 'TEAM_2', teamSlot: 0, id: 'player-a', name: 'Ada', color: 'blue', characterId: 'panda', ready: true, connected: true, kind: 'HUMAN' as const },
+          { teamId: 'TEAM_2', teamSlot: 1, id: 'player-b', name: 'Grace', color: 'blue', characterId: 'dog', ready: true, connected: true, kind: 'HUMAN' as const },
         ]}
         playerId="player-a"
         hostPlayerId="player-a"
@@ -438,7 +438,7 @@ describe('Lobby start reason', () => {
     ['too few players', [readyPlayers[0]], 'Cần ít nhất 2 người chơi'],
     ['someone is not ready', [readyPlayers[0], { ...grace, ready: false }], 'Chờ mọi người sẵn sàng'],
     ['someone has no mascot', [readyPlayers[0], { ...grace, characterId: null }], 'Có người chưa chọn mascot'],
-    ['someone is offline', [readyPlayers[0], { ...grace, connected: false }], 'Có người đang mất kết nối'],
+    ['someone is offline', [readyPlayers[0], { ...grace, connected: false, kind: 'HUMAN' as const }], 'Có người đang mất kết nối'],
     [
       'two players wear the same mascot and color',
       [readyPlayers[0], { ...grace, color: 'red', characterId: 'dog' }],
@@ -457,7 +457,7 @@ describe('Lobby start reason', () => {
   });
 
   it('shows the first applicable reason when several apply', () => {
-    renderLobby({ players: [readyPlayers[0], { ...grace, ready: false, connected: false, characterId: null }] });
+    renderLobby({ players: [readyPlayers[0], { ...grace, ready: false, connected: false, kind: 'HUMAN' as const, characterId: null }] });
     expect(screen.getByText('Chờ mọi người sẵn sàng')).toBeTruthy();
     expect(screen.queryByText('Có người chưa chọn mascot')).toBeNull();
     expect(screen.queryByText('Có người đang mất kết nối')).toBeNull();
@@ -484,7 +484,7 @@ describe('Lobby start reason', () => {
   });
 
   it('keeps "Bắt đầu" and "sẵn sàng" out of every other button name (the e2e matches by substring)', () => {
-    renderLobby({ players: [...readyPlayers, { teamId: 'TEAM_1', teamSlot: 1, id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: false, connected: true }] });
+    renderLobby({ players: [...readyPlayers, { teamId: 'TEAM_1', teamSlot: 1, id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: false, connected: true, kind: 'HUMAN' as const }] });
     expect(screen.queryAllByRole('button', { name: /Bắt đầu/iu })).toHaveLength(1);
     expect(screen.queryAllByRole('button', { name: /sẵn sàng/iu })).toHaveLength(1);
   });
@@ -504,8 +504,8 @@ describe('Lobby seats', () => {
     renderLobby({
       players: [
         ...readyPlayers,
-        { teamId: 'TEAM_2', teamSlot: 1, id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: false, connected: true },
-        { teamId: 'TEAM_1', teamSlot: 1, id: 'player-d', name: 'Sam', color: 'yellow', characterId: 'duck', ready: false, connected: true },
+        { teamId: 'TEAM_2', teamSlot: 1, id: 'player-c', name: 'Lin', color: 'green', characterId: 'cat', ready: false, connected: true, kind: 'HUMAN' as const },
+        { teamId: 'TEAM_1', teamSlot: 1, id: 'player-d', name: 'Sam', color: 'yellow', characterId: 'duck', ready: false, connected: true, kind: 'HUMAN' as const },
       ],
     });
     expect(screen.queryByText('Chia sẻ mã phòng để mời bạn')).toBeNull();
@@ -535,7 +535,7 @@ describe('Lobby seats', () => {
   });
 
   it('marks an offline seat with a labelled icon and a dashed, dimmed card', () => {
-    renderLobby({ players: [readyPlayers[0], { ...readyPlayers[1], connected: false }] });
+    renderLobby({ players: [readyPlayers[0], { ...readyPlayers[1], connected: false, kind: 'HUMAN' as const }] });
     const offline = seatOf('Grace');
     expect(offline.classList.contains('lobby-player--disconnected')).toBe(true);
     expect(within(offline).getByLabelText('Mất kết nối')).toBeTruthy();
@@ -556,7 +556,7 @@ describe('Lobby seats', () => {
   });
 
   it('disables the own ready button while offline or while a request is in flight', () => {
-    renderLobby({ players: [{ ...readyPlayers[0], ready: false, connected: false }, readyPlayers[1]] });
+    renderLobby({ players: [{ ...readyPlayers[0], ready: false, connected: false, kind: 'HUMAN' as const }, readyPlayers[1]] });
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Sẵn sàng' }).disabled).toBe(true);
 
     cleanup();
@@ -627,12 +627,72 @@ describe('Lobby kick (Solo)', () => {
   });
 
   it('keeps the offline mark and the X in different corners of a seat', () => {
-    renderLobby({ onKickPlayer: vi.fn(), players: [readyPlayers[0], { ...readyPlayers[1], connected: false }] });
+    renderLobby({ onKickPlayer: vi.fn(), players: [readyPlayers[0], { ...readyPlayers[1], connected: false, kind: 'HUMAN' as const }] });
 
     const seat = seatOf('Grace');
     expect(seat.classList.contains('lobby-player--kickable')).toBe(true);
     expect(within(seat).getByLabelText('Mất kết nối')).toBeTruthy();
     expect(within(seat).getByRole('button', { name: 'Mời Grace ra khỏi phòng' })).toBeTruthy();
+  });
+});
+
+describe('Lobby bot seats', () => {
+  const bot = {
+    id: 'bot-1', name: 'Bot 1', color: 'green' as const, characterId: 'cat' as const, teamId: 'TEAM_1' as const,
+    teamSlot: 1 as const, ready: true, connected: true, kind: 'BOT' as const,
+  };
+
+  it('marks a bot seat with a Bot badge, as Ready and present, and no ready button', () => {
+    renderLobby({ players: [...readyPlayers, bot] });
+    const seat = seatOf('Bot 1');
+    expect(seat.getAttribute('data-kind')).toBe('BOT');
+    expect(within(seat).getByText('Bot')).toBeTruthy();
+    expect(within(seat).getByLabelText('Đã sẵn sàng')).toBeTruthy();
+    expect(within(seat).queryByLabelText('Mất kết nối')).toBeNull();
+    expect(within(seat).queryByRole('button', { name: /sẵn sàng/u })).toBeNull();
+    expect(seatOf('Ada').getAttribute('data-kind')).toBe('HUMAN');
+  });
+
+  it('gives only the host an Add bot key on each empty seat, one call per click', () => {
+    const onAddBot = vi.fn();
+    renderLobby({ onAddBot });
+    const keys = screen.getAllByRole('button', { name: /Thêm Bot vào chỗ trống/u });
+    expect(keys).toHaveLength(2);
+    fireEvent.click(keys[0]);
+    expect(onAddBot).toHaveBeenCalledTimes(1);
+    expect(onAddBot).toHaveBeenCalledWith();
+
+    cleanup();
+    renderLobby({ onAddBot, playerId: 'player-b' });
+    expect(screen.queryByRole('button', { name: /Thêm Bot/u })).toBeNull();
+  });
+
+  it('hides Add bot when the room is full and disables it while a request is in flight', () => {
+    renderLobby({ onAddBot: vi.fn(), busy: true });
+    expect(screen.getAllByRole<HTMLButtonElement>('button', { name: /Thêm Bot vào chỗ trống/u }).every(key => key.disabled)).toBe(true);
+
+    cleanup();
+    renderLobby({ onAddBot: vi.fn(), players: [...readyPlayers, bot, { ...bot, id: 'bot-2', name: 'Bot 2', characterId: 'duck' as const }] });
+    expect(screen.queryByRole('button', { name: /Thêm Bot/u })).toBeNull();
+  });
+
+  it('removes a bot from its X at once, without the kick question', () => {
+    const onRemoveBot = vi.fn();
+    const onKickPlayer = vi.fn();
+    renderLobby({ players: [...readyPlayers, bot], onRemoveBot, onKickPlayer });
+    fireEvent.click(within(seatOf('Bot 1')).getByRole('button', { name: 'Xóa Bot 1' }));
+    expect(onRemoveBot).toHaveBeenCalledWith('bot-1');
+    expect(onKickPlayer).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it('lets a host with one bot start: the bot never blocks the start', () => {
+    const onStart = vi.fn();
+    renderLobby({ players: [readyPlayers[0], bot], onStart });
+    const startButton = screen.getByRole<HTMLButtonElement>('button', { name: 'Bắt đầu' });
+    expect(startButton.disabled).toBe(false);
+    fireEvent.click(startButton);
+    expect(onStart).toHaveBeenCalledOnce();
   });
 });
 
