@@ -61,9 +61,15 @@
   [team-play.md](./team-play.md) / `socket.lobbySeats.integration.test.ts`.
 - `[AUTO][PASS]` Desktop leave clears the scoped client session, disconnects, and
   returns to the launcher without stopping the app-owned Host runtime.
-- `[SOCKET][PASS]` Desktop loopback remains the only unused-code creator; remote
-  LAN admission policy rejects an unknown room with `NOT_FOUND` and creates no
-  replacement room or pending session.
+- `[SOCKET][PASS]` Desktop new-room creation requires the process capability for
+  its selected code. Guest-first admission, forged Origin/forwarding headers and
+  unrelated codes return `NOT_FOUND`; visitors behind one tunnel connector are
+  limited per visitor address, so one flooding visitor cannot consume the Host's or
+  another visitor's allowance. A pending Guest gets `ROOM_GONE` after its room
+  is deleted, replaced or expired, even if the code is reused; a Guest that names
+  a missing room gets `NOT_FOUND` and no pending row
+  (`hostAdmission.integration.test.ts`). The packaged Host proof checks a
+  Guest arriving before Host creation.
 - `[SOCKET][PACKAGED][PASS-WINDOWS]` Four real clients enter one room under a
   stable first host; a fifth is rejected; reconnect retains PlayerId/room; the
   newest authenticated connection replaces the old one; helper restart rejects the old session and room.

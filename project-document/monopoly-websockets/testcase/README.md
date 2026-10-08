@@ -4,9 +4,9 @@
 
 | Area | Current evidence |
 | --- | --- |
-| GameCore and network protocol | `apps/server/src/socket.integration.test.ts`, room/game tests and shared schema tests |
-| RAM transaction, CAS, expiry | `apps/server/src/persistence/inMemory.test.ts`, `roomCommandExecutor.test.ts`, deadline scheduler and Socket.IO tests |
-| Host lifecycle and tunnel controller | `apps/desktop/tests/hostRuntime.test.ts`, `apps/desktop/src/online/*.test.ts` |
+| GameCore and network protocol | `apps/server/src/socket.integration.test.ts`, room/game tests and shared schema tests; Host capability, Guest-first and stale pending admission, visitor limits and closed-runtime errors in `apps/server/src/hostAdmission.integration.test.ts` |
+| RAM transaction, CAS, expiry, closed store | `apps/server/src/persistence/inMemory.test.ts`, `roomCommandExecutor.test.ts`, `socket/errors.test.ts`, deadline scheduler and Socket.IO tests |
+| Host lifecycle and tunnel controller | `apps/desktop/tests/hostRuntime.test.ts`, `apps/desktop/src/online/*.test.ts` (Quick Tunnel isolation and lifecycle), `apps/desktop/tests/prepareCloudflared.test.ts` and `checkPackagedBudget.test.ts` (pinned cloudflared preparation and package integrity), `windowHandlers.test.ts` (capability IPC) |
 | Packaged Windows LAN authority | `pnpm desktop:proof:host`: real bundled helper, four clients, LAN reachability/discovery, reconnect and old room/token rejection after restart |
 | Public Quick Tunnel from this machine | `scripts/proveQuickTunnel.mjs`: HTTPS client page, four Socket.IO clients, wrong-room/full-room behavior and reconnect |
 | Physical LAN and cross-network play | `[MANUAL-E2E]` Windows/macOS hosts, Android/iOS/tablet browsers, independent Wi-Fi/cellular networks |

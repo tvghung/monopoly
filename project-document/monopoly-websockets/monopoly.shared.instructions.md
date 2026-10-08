@@ -23,5 +23,6 @@ Absolute deadlines remain in the live room/offer state so a connected host can r
 - Complete invitation URLs contain the endpoint and validated room code, so the optional registry is not needed to join by link. The host displays an online link only after the public route and room probe succeed.
 - A helper crash is terminal for the match. Tunnel loss leaves the same live RAM match intact; a replacement tunnel hostname requires a replacement invitation link.
 - The desktop shell retains `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, a typed preload whitelist and the `app://` path guard.
+- Electron main gives the Host renderer a process-scoped capability for its selected room code. The server checks it before any new-room pending admission; existing-room Guests bind to that room ID and cannot recreate it after deletion. Admission quotas use connection and process counters, not tunnel peer IP or forwarded headers.
 
 See [Persistence](./Persistence/README.md), [API hosting](./Api/http-runtime.instruction.md), and [test evidence](./testcase/README.md). Existing GameCore, UI and shared-contract rules continue to apply unless they specifically describe the retired durable database or cross-restart recovery.

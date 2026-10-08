@@ -11,9 +11,20 @@
 
 - Stable aliases: `PlayerId`, `RoomId`, `SessionId`, `OfferId`, `GameCardId` và
   operation IDs cần cho durable continuation.
+- `JoinRoomRequest.hostCapability?` is a strict 64-character lowercase hex value
+  used only by the desktop Host's initial room creation. It is never part of a
+  public room DTO, invitation or reconnect credential. The server verifies it
+  against the process and selected room code before granting creation.
+- `DATABASE_UNAVAILABLE` stays in the v11 `AckErrorCode` union, marked `@deprecated`, only so
+  a current client can still render the code if an older v11 Host sends it (the client keeps
+  its localized text, now "game service temporarily unavailable"). The RAM server never emits
+  it and no code path maps an error to it. A closed runtime and an unexpected exception both
+  map to sanitized `INTERNAL_ERROR` (non-retryable and retryable respectively), while CAS
+  conflict (`CONFLICT`, retryable) and missing room (`ROOM_GONE`) keep their codes. Removing
+  the union member needs a protocol bump and is deliberately not part of this change.
 - `RoomStatus`: `LOBBY | IN_PROGRESS | FINISHED`; `RoomRole`:
   `PLAYER | SPECTATOR`.
-- `SOCKET_PROTOCOL_VERSION = 10`; older clients nhận `UPGRADE_REQUIRED`, không chạy legacy
+- `SOCKET_PROTOCOL_VERSION = 11`; older clients nhận `UPGRADE_REQUIRED`, không chạy legacy
   state/payload.
 - `CharacterId` và `PlayerColorId` là stable shared appearance IDs. `set appearance`
   nhận strict character-only, color-only hoặc combined payload; empty/unknown keys

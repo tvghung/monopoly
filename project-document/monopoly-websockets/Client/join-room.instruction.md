@@ -4,6 +4,12 @@ Player-facing product name là **Cờ Tỷ Phú Việt Nam**. Join, restore, rec
 replacement, leave/forfeit confirmations và mọi ACK error được render bằng tiếng
 Việt. Internal phase/event/error codes vẫn giữ English.
 
+Desktop Host launch carries a process-scoped creation capability from the validated
+Electron IPC response into its first `join room` request. It stays out of the
+room link, QR code, public state and reconnect token storage. Guest requests omit
+the capability. The server binds pending Guests to the existing room ID, so a
+deleted room cannot be recreated by a delayed `resume session`.
+
 ## Định danh màn hình
 
 SPA entry `/`; không có Router/menu/permission key. Join/restore/lobby/board được chọn
@@ -163,8 +169,8 @@ ACK is resumable because token was stored first.
   ownership credential vào renderer. Bấm link đi trực tiếp, không cần registry.
   Host admission still uses the ordinary `join room` → `resume session` flow;
   the host runtime never creates a room or player directly. In desktop server
-  profile, only this loopback Host path may activate an unused room code; remote
-  LAN peers receive the existing localized `NOT_FOUND` error for a wrong code.
+  profile, only a matching process-scoped Host capability may activate an unused
+  room code; LAN and Cloudflare Guests receive `NOT_FOUND` for a wrong code.
 - Configured-server Join uses the supplied valid HTTP/HTTPS endpoint as
   informational, keeps the room code editable, and does not apply private-LAN
   address normalization.

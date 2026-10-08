@@ -27,6 +27,9 @@ socket.data = {
 - Raw reconnect token không được gắn vào SocketData.
 - `pendingAdmission` chỉ là per-socket runtime lock chống hai `join room` đồng thời;
   nó không phải credential/domain state và bị xóa khi bind hoặc terminal admission fail.
+- Desktop new-room admission requires the Electron main process capability scoped
+  to one selected room code. A pending Guest stores its admitted room ID; resume
+  cannot turn room disappearance into creation permission.
 - Newest valid connection wins; old connection nhận `session replaced` và disconnect.
 - Stale disconnect chỉ tác động presence nếu generation vẫn active.
 
@@ -48,7 +51,7 @@ Mọi state-changing request có request-scoped `Ack<T>`:
 - Success chỉ sau in-memory transaction commit.
 - Failure có stable code/message/retryable.
 - Không broadcast state từ failed draft.
-- Current transport uses protocol V10 (2v2 Teamplay). The card commands below carry only the
+- Current transport uses protocol V11 (2v2 Teamplay and lobby seats). The card commands below carry only the
   operation ID; the authenticated actor, pending state, card order and consequence
   remain server-authoritative.
 
@@ -106,6 +109,15 @@ continuation hoàn tất.
 
 - Mỗi server process tạo một RAM store mới; không database/migration startup.
 - Room command failure bỏ draft và trả failure ACK, không emit success.
+- ACK error mapping (`socket/errors.ts`, no error is classified by a `code` property):
+  room-version conflict is retryable `CONFLICT`; missing room is `ROOM_GONE`; an
+  incompatible snapshot is a non-retryable `INTERNAL_ERROR`; any other exception means the
+  RAM draft was rolled back and nothing was committed, so it is a retryable
+  `INTERNAL_ERROR` with the fixed text `The server could not complete the command.` (no
+  message, code or stack of the cause leaves the server); a closed store
+  (`RuntimeUnavailableError`, thrown once `persistence.close()` ran during shutdown) is a
+  non-retryable `INTERNAL_ERROR` (`The game service is shutting down.`) because the
+  match ends with the process.
 - Offer/turn/payment/forced-sale deadlines và stable operation ID được giữ trong
   RAM khi process còn sống. Process chết thì room/token mất vĩnh viễn.
 - Graceful shutdown ngừng nhận command, đóng scheduler/socket/http; shutdown không

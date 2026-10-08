@@ -1,5 +1,27 @@
 # RAM hosting verification report — 2026-10-08
 
+## Post-migration CI review
+
+- Target `bffc0da5efba5d0b7bf2992e914dcf706228b4b1`: [CI run 37731895953](https://github.com/tvghung/monopoly/actions/runs/37731895953) succeeded. [Desktop Build run 37731896026](https://github.com/tvghung/monopoly/actions/runs/37731896026) passed Windows and failed macOS at `prepareCloudflared.mjs` with `Official cloudflared asset checksum mismatch`; all later macOS steps were skipped. The pinned macOS values were extracted executable hashes rather than downloaded `.tgz` hashes. The release-candidate workflow was not triggered by this ordinary branch push.
+- The archive digests in `cloudflared-integrity.json` match the official GitHub release asset API and independently downloaded archives for `2026.9.3`. The extracted executable digests remain pinned separately. New CI results for the remediation commit are recorded after the push; a Windows run alone cannot close the macOS gate.
+
+## Remediation verification — 2026-10-08 (Windows x64, this machine)
+
+| Check | Result |
+| --- | --- |
+| `pnpm typecheck`, `pnpm lint` | PASS |
+| `pnpm test` | PASS: desktop 471, server 455, client 2204 Vitest tests plus the V1-contract, music, card-art and landmark-art Node suites |
+| `pnpm build`, `pnpm test:e2e:mobile` | PASS (Chromium and WebKit, 4 tests; development server profile, see the testcase page) |
+| `pnpm desktop:make`, `proof:packaged`, `proof:packaged:host`, audio/card/landmark proofs, package budget (Setup.exe 145.2 MiB) | PASS |
+| `pnpm validate:release` | PASS in unsigned mode; signing and notarization NOT RUN |
+| Real packaged Electron app driven by Playwright (3 launches, 40 checks) | PASS: capability returned only through the validated IPC, Guest-first via loopback and the real LAN address, forged headers, wrong/foreign capability and a stale one rejected, UI-created room, Online Host through the bundled cloudflared and Cloudflare with a hostile `~/.cloudflared/config.yml` and `TUNNEL_NAME`, tunnel killed and recreated with a new hostname, old link 530, guest resumed the same seat, quitting left no `cloudflared`/app process and removed the private config, tampered cloudflared with a matching sidecar refused with `CLOUDFLARED_CORRUPT` |
+| `scripts/proveQuickTunnel.mjs` live probe | PASS (same machine and network; Cloudflare refused a visitor-supplied `CF-Connecting-IP` with 403) |
+| macOS (arm64/x64) build, proofs, DMG, execution of the bundled binary | NOT RUN here; the Desktop Build macOS job on the remediation push is the gate. The darwin archive and executable digests were verified by download and extraction |
+| Release Candidate and Archive Evidence workflows | not triggered by a branch push (tag / manual dispatch only) |
+| Independent networks, physical LAN devices, signing/notarization | NOT RUN: separate release gates |
+
+Known limits recorded by review: roughly 20 distinct visitor addresses can use up the process-wide 600 per minute admission backstop (a single client is bounded at 30 per minute); a signed macOS build re-signs the bundled executable, so pinning the unsigned digest will need a signed-digest decision when macOS signing is introduced; the executable is hashed immediately before launch, not held open.
+
 ## Result by phase
 
 | Phase | Status | Evidence boundary |

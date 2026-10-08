@@ -22,6 +22,9 @@
 - `PublicRoomState` có room revision, lifecycle, host, 2–4 limits, roster
   ready/connected và public `GameState`.
 - `SocketData` chứa internal room/player/role/session/generation; không chứa raw token.
+- Desktop `join room` may carry a Host creation capability scoped to the helper
+  process and selected room code. It is never written to SocketData or a public
+  DTO. An existing-room Guest admission records the internal room ID in RAM.
 - `Ack<T>` là discriminated success/failure contract. State-changing request chỉ
   được ACK success sau durable commit.
 - `update` phát `PublicRoomState`, không phát raw persistence record.
@@ -55,7 +58,7 @@ recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
 
 ## Standard Mode contracts và game data
 
-- `SOCKET_PROTOCOL_VERSION = 10`; client/server cũ bị từ chối bằng
+- `SOCKET_PROTOCOL_VERSION = 11`; client/server cũ bị từ chối bằng
   `UPGRADE_REQUIRED`.
 - Appearance contract dùng stable `CharacterId`/`PlayerColorId`; `set appearance`
   is strict, lobby-only, allows duplicate characters and enforces unique active

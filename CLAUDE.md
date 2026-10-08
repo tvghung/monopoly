@@ -39,6 +39,18 @@ thay đổi chưa hoàn tất.
   disconnect phải bị chặn bằng connection generation.
 - Actor của command luôn lấy từ authenticated `socket.data.playerId`; không tin
   `playerId`, owner, seller hoặc buyer do client gửi.
+- Desktop Host room creation cần capability bí mật theo server process và mã phòng
+  do Electron main cấp. Guest admission phải gắn room ID đã tồn tại; pending Guest
+  không được tạo lại room đã xóa dù mã phòng được dùng lại.
+- Giới hạn admission/HTTP theo khóa client lấy từ TCP peer (`socket/clientIdentity.ts`);
+  `CF-Connecting-IP` chỉ được đọc từ peer loopback của Online Host (`OTB_ONLINE_ROOM_CODE`,
+  edge Cloudflare tự gán và trả 403 nếu khách gửi sẵn), không bao giờ `X-Forwarded-For` /
+  `True-Client-IP`. Trạng thái limiter phải bị chặn bộ nhớ.
+- Binary `cloudflared` chỉ tin digest ghim trong `apps/desktop/cloudflared-integrity.json`
+  (archive, executable, license), không tin checksum nằm cạnh file hay `PATH`. Quick Tunnel
+  chạy với `--config` rỗng riêng và không có biến `TUNNEL_*`; không đọc/sửa cấu hình của user.
+- ACK lỗi runtime RAM không phân loại theo thuộc tính `code`; `DATABASE_UNAVAILABLE` chỉ còn là
+  mã tương thích (deprecated), server không phát. Store đã `close()` từ chối transaction mới.
 - Public room dùng `room:<roomId>`; private delivery dùng `player:<playerId>`.
 - Mọi payload mạng được parse bằng runtime schema. Mọi state-changing command có
   typed ACK và chỉ ACK/broadcast sau khi RAM transaction commit.

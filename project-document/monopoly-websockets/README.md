@@ -19,6 +19,7 @@ flowchart LR
 ```
 
 The Electron shell starts and stops the helper and tunnel. Every client action is validated by the helper; a helper exit destroys the RAM aggregate and its reconnect credentials.
+Only Electron main supplies the process-scoped creation capability for its selected room code. A Guest pending admission records the existing room ID and cannot recreate it after deletion. Neither the capability nor forwarding headers grant a browser Host identity.
 
 ## Read order
 
