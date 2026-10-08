@@ -2,6 +2,7 @@ import type { OfferResult, PlayerId } from '@monopoly/shared';
 import {
   activeDebtClaim,
   completeTurnResolution,
+  dismissPendingCard,
   drawPendingCard,
   nextTurn,
   progressPaymentQueue,
@@ -293,6 +294,16 @@ export async function recoverRoomIfDue(
             const continuation = state.turnInfo.pendingDevelopmentDecision.continuation;
             state.turnInfo = {};
             completeTurnResolution(state, continuation);
+          } else if (state.turnInfo.pendingCardInteraction?.stage === 'REVEALED' && player) {
+            // The absent player's revealed card is mandatory and has no choice in it: apply it exactly as "Đóng" would, so the
+            // game goes on instead of waiting forever. Whatever it leads to (a purchase, a payment) follows the normal rules.
+            const card = state.turnInfo.pendingCardInteraction;
+            dismissPendingCard(state, card.playerId, card.operationId, {
+              now: now.getTime(),
+              ...paymentTimingOptions(runtime),
+              cardAwaitingDrawTimeoutMs: runtime.timing.cardAwaitingDrawTimeoutMs,
+              cardRevealedTimeoutMs: runtime.timing.cardRevealedTimeoutMs,
+            });
           } else if (!state.turnInfo.pendingCardInteraction) {
             nextTurn(state);
           }
@@ -332,7 +343,7 @@ export async function reconcileTurnPresence(
   if (
     !currentPlayerId
     || board.paymentQueue
-    || current.gameSnapshot.gameState.turnInfo.pendingCardInteraction
+    || current.gameSnapshot.gameState.turnInfo.pendingCardInteraction?.stage === 'AWAITING_DRAW'
     || current.gameSnapshot.gameState.privateState.forcedSaleProposal
     || board.winner
   ) return;
@@ -362,7 +373,7 @@ export async function reconcileTurnPresence(
       shouldArm
       && !latestBoard.turnRecovery
       && !latestBoard.paymentQueue
-      && !state.turnInfo.pendingCardInteraction
+      && state.turnInfo.pendingCardInteraction?.stage !== 'AWAITING_DRAW'
       && latestBoard.currentPlayer.id
       && !isSeatPresent(runtime.connections, latestRoom.gameSnapshot, latestBoard.currentPlayer.id)
     ) {
@@ -372,6 +383,7 @@ export async function reconcileTurnPresence(
         deadlineAt: new Date(now.getTime() + runtime.timing.reconnectGraceMs).toISOString(),
         pendingOperationId: state.turnInfo.pendingPropertyDecision?.operationId
           ?? state.turnInfo.pendingDevelopmentDecision?.operationId
+          ?? state.turnInfo.pendingCardInteraction?.operationId
           ?? null,
       };
     }
@@ -395,7 +407,7 @@ export async function armDisconnectedCurrentPlayer(
     || room.status !== 'IN_PROGRESS'
     || board?.currentPlayer.id !== disconnectedPlayerId
     || board.paymentQueue
-    || room.gameSnapshot.gameState.turnInfo.pendingCardInteraction
+    || room.gameSnapshot.gameState.turnInfo.pendingCardInteraction?.stage === 'AWAITING_DRAW'
     || room.gameSnapshot.gameState.privateState.forcedSaleProposal
     || board.turnRecovery
     || board.winner
@@ -406,7 +418,7 @@ export async function armDisconnectedCurrentPlayer(
       runtime.connections.isConnected(disconnectedPlayerId)
       || state.boardState.currentPlayer.id !== disconnectedPlayerId
       || state.boardState.paymentQueue
-      || state.turnInfo.pendingCardInteraction
+      || state.turnInfo.pendingCardInteraction?.stage === 'AWAITING_DRAW'
       || state.boardState.turnRecovery
       || state.boardState.winner
     ) return;
@@ -416,6 +428,7 @@ export async function armDisconnectedCurrentPlayer(
       deadlineAt: new Date(now.getTime() + runtime.timing.reconnectGraceMs).toISOString(),
       pendingOperationId: state.turnInfo.pendingPropertyDecision?.operationId
         ?? state.turnInfo.pendingDevelopmentDecision?.operationId
+        ?? state.turnInfo.pendingCardInteraction?.operationId
         ?? null,
     };
   }, now);

@@ -19,6 +19,8 @@ export interface ServerConfig {
   listenHost: string;
   port: number;
   persistenceTiming: PersistenceTimingConfig;
+  /** Multiplies the bots' presentation delays (`BOT_ACTION_DELAY_SCALE`, 0-3, default 1). */
+  botActionDelayScale: number;
 }
 
 function readPositiveInteger(
@@ -32,6 +34,16 @@ function readPositiveInteger(
   const value = Number(rawValue);
   if (!Number.isSafeInteger(value) || value <= 0) {
     throw new Error(`${name} must be a positive integer`);
+  }
+  return value;
+}
+
+function readDelayScale(environment: NodeJS.ProcessEnv): number {
+  const rawValue = environment.BOT_ACTION_DELAY_SCALE;
+  if (rawValue === undefined || rawValue === '') return 1;
+  const value = Number(rawValue);
+  if (!Number.isFinite(value) || value < 0 || value > 3) {
+    throw new Error('BOT_ACTION_DELAY_SCALE must be a number between 0 and 3');
   }
   return value;
 }
@@ -92,6 +104,7 @@ export function loadServerConfig(
     runtimeProfile,
     listenHost: readListenHost(environment),
     port: readPort(environment, runtimeProfile),
+    botActionDelayScale: readDelayScale(environment),
     persistenceTiming: {
       reconnectGraceMs: readPositiveInteger(
         environment,

@@ -19,6 +19,8 @@ export interface AppRuntime {
   botRequests: BotRequestLedger;
   timing: PersistenceTimingConfig;
   flags: RuntimeFlags;
+  /** Told about every room change so bot seats can answer what the room waits for (set once the bot driver exists). */
+  bots?: { notify(roomId: string): void };
 }
 
 /** The deadline lengths every payment-queue mutation needs (liquidation, and the 2v2 rescue decision), from one place. */

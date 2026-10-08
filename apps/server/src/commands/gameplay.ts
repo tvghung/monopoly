@@ -77,7 +77,7 @@ export interface RunGameCommandOptions {
   authority?: AuthenticatedActor;
   now?: Date;
   /** Checked inside the room queue before the command runs (the bot driver's stale-task check). */
-  guard?: (context: DomainCommandContext) => void;
+  guard?: (context: DomainCommandContext) => void | Promise<void>;
 }
 
 export async function runGameCommand<TPayload, TResult>(
@@ -91,8 +91,8 @@ export async function runGameCommand<TPayload, TResult>(
 ): Promise<{ room: RoomRecord<RoomSnapshot>; result: TResult }> {
   const now = options.now ?? new Date();
   const input: GameCommandInput<TPayload> = { runtime, roomId, actorPlayerId, payload, now };
-  const committed = await commitRoomCommand(runtime, roomId, (context) => {
-    options.guard?.(context);
+  const committed = await commitRoomCommand(runtime, roomId, async (context) => {
+    await options.guard?.(context);
     return command.apply(context, input);
   }, now, options.authority);
   if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');

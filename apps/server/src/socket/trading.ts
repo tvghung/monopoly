@@ -85,6 +85,8 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
       if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
       const offer = projectPrivateOffer(committed.result, committed.room);
       io.to(privatePlayerRoomName(offer.recipientPlayerId)).emit('offer on prop', offer);
+      // Offers are not part of the room broadcast: a bot recipient learns about one here.
+      runtime.bots?.notify(actor.roomId);
       const result: MakeOfferResult = { offerId: offer.offerId, expiresAt: offer.expiresAt };
       acknowledge(successAck(result, committed.room.aggregateVersion));
     } catch (error) { acknowledgeFailure(acknowledge, error); }

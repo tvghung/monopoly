@@ -88,13 +88,15 @@ export async function commitRoomCommand<TResult>(
       && !runtime.flags.shuttingDown
       && !state.boardState.winner
       && !state.boardState.paymentQueue
-      && !state.turnInfo.pendingCardInteraction
+      // A revealed card waits on its (absent) actor like a landing decision; a legacy undrawn card has its own deadline.
+      && state.turnInfo.pendingCardInteraction?.stage !== 'AWAITING_DRAW'
       && state.boardState.currentPlayer.id
       && !state.boardState.turnRecovery
       && !isSeatPresent(runtime.connections, context.room.gameSnapshot, state.boardState.currentPlayer.id)
     ) {
       const pendingOperationId = state.turnInfo.pendingPropertyDecision?.operationId
         ?? state.turnInfo.pendingDevelopmentDecision?.operationId
+        ?? state.turnInfo.pendingCardInteraction?.operationId
         ?? null;
       state.boardState.turnRecovery = {
         playerId: state.boardState.currentPlayer.id,
