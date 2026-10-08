@@ -59,6 +59,19 @@ describe('PlayerCardList', () => {
     expect(other.textContent).not.toContain('Bạn');
   });
 
+  it('names a bot seat with a Bot chip and in its screen-reader summary', () => {
+    const { container } = renderRoster(room => {
+      room.players[1].kind = 'BOT';
+      room.players[1].name = 'Bot 1';
+      room.gameState.players['player-b'].name = 'Bot 1';
+    });
+    const bot = container.querySelector('[data-player-id="player-b"]') as HTMLElement;
+    expect(bot.querySelector('.player-card__tag--bot')?.textContent).toBe('Bot');
+    expect(bot.textContent).toContain('Bot 1, Bot do chủ phòng điều khiển');
+    const human = container.querySelector('[data-player-id="player-a"]') as HTMLElement;
+    expect(human.querySelector('.player-card__tag--bot')).toBeNull();
+  });
+
   it('shows jail with its round count, offline with the recovery countdown, and never color alone', () => {
     const { container } = renderRoster(room => {
       room.gameState.players['player-b'].isJail = true;

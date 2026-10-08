@@ -90,6 +90,7 @@ export default function PlayerCard({
     { id: 'jail', show: showJail },
     { id: 'turn', show: showTurn },
     { id: 'local', show: card.isLocal },
+    { id: 'bot', show: card.isBot },
   ].filter(tag => tag.show).slice(0, MAX_STATUS_TAGS).map(tag => tag.id);
 
   return (
@@ -133,6 +134,11 @@ export default function PlayerCard({
           <div className="player-card__name-row">
             <span className="player-card__name" title={card.name}>{card.name}</span>
             {tags.includes('local') ? <Chip tone="info" className="player-card__tag player-card__tag--text">{t('status.you')}</Chip> : null}
+            {tags.includes('bot') ? (
+              <Chip tone="info" className="player-card__tag player-card__tag--bot" icon={<ActionIcon name="bot" size={14} />}>
+                <span className="player-card__tag-text">{t('status.bot')}</span>
+              </Chip>
+            ) : null}
             {tags.includes('turn') ? <Chip tone="gold" className="player-card__tag player-card__tag--text">{t('status.turn')}</Chip> : null}
             {tags.includes('jail') ? (
               <Chip tone="loss" className="player-card__tag" icon={<ActionIcon name="jail" size={14} />}>

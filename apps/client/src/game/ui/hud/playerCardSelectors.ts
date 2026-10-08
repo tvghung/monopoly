@@ -55,6 +55,8 @@ export interface PlayerCardViewModel {
   /** Follows `displayActivePlayerId`, never the authoritative current player. */
   isActive: boolean;
   isLocal: boolean;
+  /** A seat the host plays (always present; it never takes a disconnected human's seat). */
+  isBot: boolean;
   isConnected: boolean;
   isBankrupt: boolean;
   hasLeft: boolean;
@@ -124,6 +126,7 @@ export function selectPlayerCardViewModels(
       displayMoney: presentation.displayBalances[hud.playerId] ?? hud.money,
       isActive: hud.isCurrentTurn,
       isLocal: role === 'PLAYER' && localPlayerId === hud.playerId,
+      isBot: roomPlayers.some(member => member.playerId === hud.playerId && member.kind === 'BOT'),
       isConnected: hud.isConnected,
       isBankrupt: hud.isBankrupt,
       hasLeft: hud.hasLeft,
