@@ -245,8 +245,8 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
     Card đổi cỡ bằng ease ngắn (không có khi reduced motion).
   - **Phân cấp thông báo** (cao ≤ 500 px hoặc rộng ≤ 720 px, `COMPACT_HUD_QUERY`): *cần hành động* — hộp thoại quyết định, nợ, đề nghị, mất kết nối, banner "Đến lượt bạn!" — không bị thu nhỏ hay tự đóng;
     *quan trọng nhưng không chặn* — banner khánh thành, xúc xắc, chip tiền của **mình**, trạng thái trên card; *thường lệ* — banner "Lượt của <tên>" của người khác (status pill đã nói), pill
-    "<tên> đang đi…" giữa bàn, chip +/- tiền của người khác, ticker — không còn hiện nổi, vẫn nằm trong Nhật ký (không thay đổi nguồn `activityFeed`). Desktop giữ nguyên các thông báo cũ.
-  - **Dọc (portrait)**: điện thoại và máy tính bảng (`pointer: coarse` tới 1100 px, hoặc cửa sổ hẹp ≤ 48rem) hiện thông báo "Hãy xoay ngang thiết bị" phủ kín (z 85, trên dialog) với biểu tượng điện thoại
+    "<tên> đang đi…" giữa bàn, chip +/- tiền của người khác, ticker — không còn hiện nổi, vẫn nằm trong Nhật ký (không thay đổi nguồn `activityFeed`). Desktop giữ nguyên các thông báo cũ. Toast trong ván (`App.tsx`: có đề nghị giao dịch tới mình, kết quả đề nghị của mình, lỗi ACK, "không thể thao tác", rời ván) đều thuộc nhóm cần hành động/ảnh hưởng tới chính người chơi nên giữ nguyên ở mọi cỡ.
+  - **Dọc (portrait)**: điện thoại và máy tính bảng (`pointer: coarse` tới 1100 px, hoặc cửa sổ hẹp ≤ 48rem) hiện thông báo "Hãy xoay ngang thiết bị" phủ bàn cờ (z `--z-orientation-notice`: toolbar phòng — Cài đặt, Bỏ cuộc, Hướng dẫn — vẫn bấm được như e2e mobile yêu cầu, dialog vẫn nằm trên) với biểu tượng điện thoại
     nghiêng; phần bàn bên dưới là `inert` (không chạm, không bàn phím) nhưng vẫn mounted nên xoay lại không mất ván. Cửa sổ desktop với chuột không bị khóa theo hình dạng.
 - **Ngăn nhật ký** (`Log`): xem [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md).
 - **Toolbar** (`App.tsx`): `IconButton` v2 44 px cho "Hướng dẫn chơi" (ô đầu, sau FPS dev; xem
