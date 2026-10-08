@@ -187,6 +187,42 @@ describe('desktop IPC lifecycle', () => {
       .rejects.toThrow('Invalid IPC sender');
   });
 
+  it('validates online activation and lookup, and removes both handlers on close', async () => {
+    const fixture = createWindow();
+    const status = { state: 'HOSTING', onlineState: 'READY' } as HostRuntimeStatus;
+    const hostRuntime = {
+      status,
+      activateOnlineRoom: vi.fn(async () => status),
+      resolveOnlineRoom: vi.fn(async () => 'https://room.trycloudflare.com'),
+      onStatusChanged: vi.fn(() => () => undefined),
+    };
+    registerWindowHandlers(
+      fixture.window as never,
+      false,
+      new QuitRequestController(fixture.window as never),
+      { hostRuntime: hostRuntime as never },
+    );
+    const activate = harness.handlers.get(IPC_CHANNELS.hostActivateOnline)!;
+    const lookup = harness.handlers.get(IPC_CHANNELS.onlineFindRoom)!;
+
+    await expect(activate({ sender: fixture.webContents }, { roomCode: 'otb-abc234' }))
+      .resolves.toEqual({ ok: true, status });
+    expect(hostRuntime.activateOnlineRoom).toHaveBeenCalledWith('OTB-ABC234');
+    await expect(lookup({ sender: fixture.webContents }, { roomCode: 'otb-abc234' }))
+      .resolves.toEqual({ ok: true, endpoint: 'https://room.trycloudflare.com' });
+    expect(hostRuntime.resolveOnlineRoom).toHaveBeenCalledWith('OTB-ABC234');
+
+    await expect(activate({ sender: fixture.webContents }, { roomCode: 'bad code' }))
+      .rejects.toThrow();
+    await expect(lookup({ sender: {} }, { roomCode: 'OTB-ABC234' }))
+      .rejects.toThrow('Invalid IPC sender');
+    expect(hostRuntime.resolveOnlineRoom).toHaveBeenCalledTimes(1);
+
+    fixture.fullscreenHandlers.get('closed')?.();
+    expect(vi.mocked(ipcMain.removeHandler)).toHaveBeenCalledWith(IPC_CHANNELS.hostActivateOnline);
+    expect(vi.mocked(ipcMain.removeHandler)).toHaveBeenCalledWith(IPC_CHANNELS.onlineFindRoom);
+  });
+
   describe('LAN room lookup channel', () => {
     const hostRuntime = {
       status: {},

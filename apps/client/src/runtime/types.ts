@@ -21,6 +21,10 @@ export type HostRuntimeState =
   | 'FAILED';
 
 export type HostRuntimeErrorCode =
+  | 'CLOUDFLARED_MISSING'
+  | 'REGISTRY_UNAVAILABLE'
+  | 'CODE_TAKEN'
+  | 'ONLINE_FAILED'
   | 'POSTGRES_RESOURCES_MISSING'
   | 'POSTGRES_INITIALIZATION_FAILED'
   | 'MIGRATION_FAILED'
@@ -50,6 +54,9 @@ export interface HostRuntimeStatus {
   interfaces: NetworkInterfaceCandidate[];
   advertisedEndpoints: string[];
   selectedLanUrl: string | null;
+  connectionMode?: 'LAN' | 'ONLINE';
+  onlineEndpoint?: string | null;
+  onlineState?: 'CONNECTING' | 'AWAITING_ROOM' | 'READY' | 'DISCOVERY_UNAVAILABLE' | 'UNAVAILABLE';
   errorCode?: HostRuntimeErrorCode;
   diagnostic?: string;
 }
@@ -124,6 +131,7 @@ export interface DesktopLaunchSelection {
   initialJoin?: { name: string; roomCode: string };
   targetRoomCode?: string;
   hosting: boolean;
+  connectionMode?: 'LAN' | 'ONLINE';
 }
 
 export interface DesktopRuntimeConfig extends RuntimeConfig {
@@ -160,14 +168,18 @@ export interface OwnTheBlockDesktopBridge {
   openExternal(url: string): Promise<void>;
   host?: {
     getStatus(): Promise<HostRuntimeStatus>;
-    start(options?: { port?: number; preferredAddress?: string }): Promise<HostRuntimeOperationResult>;
+    start(options?: { port?: number; preferredAddress?: string; mode?: 'LAN' | 'ONLINE'; roomCode?: string }): Promise<HostRuntimeOperationResult>;
     stop(): Promise<HostRuntimeOperationResult>;
+    activateOnline?(roomCode: string): Promise<HostRuntimeOperationResult>;
     refreshNetwork(options?: { preferredAddress?: string }): Promise<HostRuntimeStatus>;
     onStatusChanged(listener: (status: HostRuntimeStatus) => void): () => void;
   };
   lan?: {
     /** Looks for the Host of a room code on this network (a few seconds at most). */
     findRoom(roomCode: string): Promise<LanFindRoomResult>;
+  };
+  online?: {
+    findRoom(roomCode: string): Promise<{ ok: true; endpoint: string } | { ok: false; code: 'NOT_FOUND' | 'UNAVAILABLE' }>;
   };
   /** The in-app updater; absent on a bridge that predates it. */
   update?: {

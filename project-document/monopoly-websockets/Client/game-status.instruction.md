@@ -31,9 +31,11 @@
   (nút "Hủy" lấy focus, "Mời ra" là nút nguy hiểm; không dùng `window.confirm`); chỉ sau khi xác nhận mới gửi `kick player` `{playerId}`.
   Câu hỏi tự đóng khi người đó đã rời phòng. Người bị mời nhận event `removed from room` — xem "Bị mời ra khỏi phòng" trong
   [join-room.instruction.md](./join-room.instruction.md).
-  Mã phòng có nút "Sao chép mã phòng" với `role="status"` (`Đã sao chép.` / lỗi tự chọn mã); host đang chạy LAN thấy
-  `HostLanSharing` ("Mời qua mạng LAN"): mã QR trên thẻ giấy và nút "Sao chép liên kết", **không in địa chỉ** (người chơi
-  không đọc URL); lỗi sao chép nói "Không sao chép được. Hãy cho bạn bè quét mã QR."; chưa có mạng thì nói "Máy này chưa
+  Mã phòng có nút "Sao chép mã phòng" với `role="status"` (`Đã sao chép.` / lỗi tự chọn mã); host thấy
+  `HostLanSharing` ("Mời bạn bè · Online/LAN"): mã QR trên thẻ giấy và nút "Sao chép liên kết", **không in địa chỉ** (người chơi
+  không đọc URL). Online chỉ chia sẻ HTTPS link sau khi room đã tồn tại và registry activation hoàn thành; nếu registry lỗi
+  nhưng tunnel còn sống, link trực tiếp vẫn dùng được cùng cảnh báo mã chưa tìm tự động. LAN giữ URL IPv4 cũ.
+  Lỗi sao chép nói "Không sao chép được. Hãy cho bạn bè quét mã QR."; LAN chưa có mạng thì nói "Máy này chưa
   kết nối mạng. Hãy bật Wi-Fi hoặc cắm dây mạng.". Ô "Mạng chia sẻ" và nút "Làm mới mạng" chỉ hiện khi từ hai mạng trở
   lên cùng hạng tốt nhất (`rank` thấp nhất) — lúc đó app không tự biết bạn bè ở mạng nào; ô chọn liệt kê các mạng đồng hạng
   và mạng đang dùng.

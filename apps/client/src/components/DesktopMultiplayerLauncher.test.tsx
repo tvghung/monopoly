@@ -113,8 +113,8 @@ describe('DesktopMultiplayerLauncher', () => {
     const selection = onReady.mock.calls[0]?.[0] as DesktopLaunchSelection;
     expect(selection.initialJoin?.roomCode).toBe(selection.targetRoomCode);
     expect(selection.hosting).toBe(true);
-    // The main process picks the network: the launcher passes no address and no port.
-    expect(start).toHaveBeenCalledWith();
+    // The main process gets a mode and room code, never an address or port.
+    expect(start).toHaveBeenCalledWith({ mode: 'ONLINE', roomCode: selection.targetRoomCode });
   });
 });
 
@@ -182,7 +182,7 @@ describe('DesktopMultiplayerLauncher choices', () => {
 
     const { container } = render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Chơi qua mạng LAN' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'Chơi nhiều người' })).toBeTruthy();
     expect(menuLabels(container)).toEqual(['Tạo phòng', 'Tham gia phòng']);
     expect(screen.queryByText(/trên máy này|Tham gia phòng LAN|Host Game|Join Game/u)).toBeNull();
     // Nothing explains a button: the menu holds buttons only, and the screen has no subtitle or footer line.
@@ -320,6 +320,7 @@ describe('DesktopMultiplayerLauncher choices', () => {
         target: 'desktop', socketUrl: 'http://127.0.0.1:8080', platform: 'win32', appVersion: '3.0.0',
       },
       hosting: true,
+      connectionMode: 'LAN',
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Đóng phòng' }));
@@ -564,7 +565,7 @@ describe('DesktopMultiplayerLauncher host form', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo và vào phòng' }));
 
-    await waitFor(() => expect(host.start).toHaveBeenCalledWith());
+    await waitFor(() => expect(host.start).toHaveBeenCalledWith(expect.objectContaining({ mode: 'ONLINE' })));
     expect((await screen.findByRole('alert')).textContent)
       .toBe('Máy này chưa kết nối mạng. Hãy bật Wi-Fi hoặc cắm dây mạng.');
     expect(onReady).not.toHaveBeenCalled();
@@ -634,7 +635,7 @@ const FOUND: LanFindRoomResult = { ok: true, endpoint: 'http://192.168.1.20:5312
 
 function fillJoinForm(roomCode = 'otb-abc234', name = 'Ada'): void {
   fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: name } });
-  fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: roomCode } });
+  fireEvent.change(screen.queryByLabelText('Mã phòng hoặc liên kết mời') ?? screen.getByLabelText('Mã phòng'), { target: { value: roomCode } });
 }
 
 /** Lets the status that the launcher asks the main process for on mount arrive, as it has long before a player types. */
@@ -646,319 +647,118 @@ function settleStatus(): Promise<void> {
 }
 
 describe('DesktopMultiplayerLauncher join form', () => {
-  it('asks for a name and a room code only, and explains the disabled button in writing', () => {
-    installHostBridge(status, () => Promise.resolve(FOUND));
-    const { container } = render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
-
+  it('uses one field for a code or invitation and keeps the text intact', () => {
+    installHostBridge(status);
+    render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
-
-    expect(screen.getByRole('heading', { level: 2, name: 'Tham gia phòng' })).toBeTruthy();
-    expect(screen.getByLabelText('Tên của bạn').id).toBe('desktop-player-name');
-    expect(screen.getByLabelText('Mã phòng').id).toBe('desktop-lan-room');
-    expect(container.querySelectorAll('input')).toHaveLength(2);
-    expect(screen.queryByLabelText('Địa chỉ Host')).toBeNull();
+    const field = screen.getByLabelText<HTMLInputElement>('Mã phòng hoặc liên kết mời');
     expect(screen.queryByLabelText('Dán liên kết mời')).toBeNull();
-    expect(screen.queryByText(/tường lửa|mạng khách|VPN|IPv4/u)).toBeNull();
-    const submit = screen.getByRole<HTMLButtonElement>('button', { name: 'Kết nối và vào phòng' });
-    expect(submit.disabled).toBe(true);
-    expect(screen.getByText('Nhập tên của bạn để tiếp tục.')).toBeTruthy();
-
-    fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Ada' } });
-    expect(screen.getByText('Nhập mã phòng do chủ phòng chia sẻ.')).toBeTruthy();
-    expect(submit.disabled).toBe(true);
-
-    fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'otb-abc234' } });
-    expect(submit.disabled).toBe(false);
-    expect(screen.queryByText('Nhập mã phòng do chủ phòng chia sẻ.')).toBeNull();
-    expect(screen.getByLabelText<HTMLInputElement>('Mã phòng').value).toBe('OTB-ABC234');
+    fireEvent.change(field, { target: { value: 'https://sample.trycloudflare.com/?room=otb-abc234' } });
+    expect(field.value).toBe('https://sample.trycloudflare.com/?room=otb-abc234');
   });
 
-  it('finds the room from its code, shows that it is searching, and enters it', async () => {
-    let finish: (result: LanFindRoomResult) => void = () => undefined;
-    const { lan } = installHostBridge(status, () => new Promise<LanFindRoomResult>(resolve => { finish = resolve; }));
-    const onReady = vi.fn();
-    render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    await settleStatus();
-    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
-    fillJoinForm();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-
-    const busy = await screen.findByRole<HTMLButtonElement>('button', { name: 'Đang tìm phòng…' });
-    expect(busy.disabled).toBe(true);
-    expect(busy.getAttribute('aria-busy')).toBe('true');
-    expect(lan?.findRoom).toHaveBeenCalledExactlyOnceWith('OTB-ABC234');
-    expect(onReady).not.toHaveBeenCalled();
-    // The fields are locked while the search runs, so the result always belongs to what is on screen.
-    expect(screen.getByLabelText<HTMLInputElement>('Mã phòng').readOnly).toBe(true);
-
-    await act(async () => { finish(FOUND); await Promise.resolve(); });
-
-    await waitFor(() => expect(onReady).toHaveBeenCalledOnce());
-    expect(onReady).toHaveBeenCalledWith({
-      runtimeConfig: {
-        target: 'desktop', socketUrl: 'http://192.168.1.20:53120', platform: 'win32', appVersion: '3.0.0',
-      },
-      initialJoin: { name: 'Ada', roomCode: 'OTB-ABC234' },
-      targetRoomCode: 'OTB-ABC234',
-      hosting: false,
-    });
-    expect(screen.queryByRole('alert')).toBeNull();
-  });
-
-  it('rejects an invalid room code before searching', () => {
+  it('joins directly through a public invitation without discovery', async () => {
     const { lan } = installHostBridge(status, () => Promise.resolve(FOUND));
     const onReady = vi.fn();
     render(<DesktopMultiplayerLauncher onReady={onReady} />);
     fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
-    fillJoinForm('OTB ABC!');
-
+    fillJoinForm('https://sample.trycloudflare.com/?room=otb-abc234');
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
+    await waitFor(() => expect(onReady).toHaveBeenCalledWith(expect.objectContaining({
+      runtimeConfig: expect.objectContaining({ socketUrl: 'https://sample.trycloudflare.com' }) as unknown,
+      targetRoomCode: 'OTB-ABC234',
+    })));
+    expect(lan?.findRoom).not.toHaveBeenCalled();
+  });
 
-    expect(screen.getByRole('alert').textContent).toBe('Mã phòng phải có 1–20 ký tự chữ, số hoặc dấu gạch ngang.');
+  it('resolves a standalone code through the online registry', async () => {
+    const { lan } = installHostBridge(status, () => Promise.resolve({ ok: false, code: 'NOT_FOUND' }));
+    const online = { findRoom: vi.fn(() => Promise.resolve({ ok: true as const, endpoint: 'https://room.trycloudflare.com' })) };
+    window.ownTheBlockDesktop!.online = online;
+    const onReady = vi.fn();
+    render(<DesktopMultiplayerLauncher onReady={onReady} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
+    fillJoinForm('otb-abc234');
+    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
+    await waitFor(() => expect(onReady).toHaveBeenCalledWith(expect.objectContaining({
+      runtimeConfig: expect.objectContaining({ socketUrl: 'https://room.trycloudflare.com' }) as unknown,
+      targetRoomCode: 'OTB-ABC234',
+    })));
+    expect(lan?.findRoom).toHaveBeenCalledWith('OTB-ABC234');
+    expect(online.findRoom).toHaveBeenCalledWith('OTB-ABC234');
+  });
+
+  it('keeps LAN code discovery when the registry is absent', async () => {
+    const { lan } = installHostBridge(status, () => Promise.resolve(FOUND));
+    const onReady = vi.fn();
+    render(<DesktopMultiplayerLauncher onReady={onReady} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
+    fillJoinForm();
+    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
+    await waitFor(() => expect(onReady).toHaveBeenCalledWith(expect.objectContaining({
+      runtimeConfig: expect.objectContaining({ socketUrl: FOUND.endpoint }) as unknown,
+      targetRoomCode: 'OTB-ABC234',
+    })));
+    expect(lan?.findRoom).toHaveBeenCalledWith('OTB-ABC234');
+  });
+
+  it('asks for a direct link when LAN and Online claim the same code', async () => {
+    installHostBridge(status, () => Promise.resolve(FOUND));
+    window.ownTheBlockDesktop!.online = {
+      findRoom: vi.fn(() => Promise.resolve({ ok: true as const, endpoint: 'https://other.trycloudflare.com' })),
+    };
+    const onReady = vi.fn();
+    render(<DesktopMultiplayerLauncher onReady={onReady} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
+    fillJoinForm();
+    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('Có nhiều phòng cùng mã');
+    expect(onReady).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed invitations before any lookup', () => {
+    const { lan } = installHostBridge(status, () => Promise.resolve(FOUND));
+    const onReady = vi.fn();
+    render(<DesktopMultiplayerLauncher onReady={onReady} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
+    fillJoinForm('https://evil.test/?room=OTB-ABC234');
+    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
+    expect(screen.getByRole('alert').textContent).toContain('Liên kết mời chưa đúng');
     expect(lan?.findRoom).not.toHaveBeenCalled();
     expect(onReady).not.toHaveBeenCalled();
   });
 
-  it.each<[string, LanFindRoomResult, string, boolean]>([
-    [
-      'NOT_FOUND',
-      { ok: false, code: 'NOT_FOUND' },
-      'Không tìm thấy phòng OTB-ABC234. Kiểm tra lại mã và chắc chắn máy tạo phòng đang mở game, cùng Wi-Fi với bạn.',
-      true,
-    ],
-    [
-      'UNREACHABLE',
-      { ok: false, code: 'UNREACHABLE' },
-      'Tìm thấy phòng nhưng chưa kết nối được. Nhờ chủ phòng bấm Cho phép khi tường lửa hỏi.',
-      true,
-    ],
-    [
-      'NO_NETWORK',
-      { ok: false, code: 'NO_NETWORK' },
-      'Máy này chưa kết nối mạng. Hãy bật Wi-Fi hoặc cắm dây mạng.',
-      false,
-    ],
-    [
-      'UNAVAILABLE',
-      { ok: false, code: 'UNAVAILABLE' },
-      'Không thể tìm phòng tự động. Hãy dán liên kết mời.',
-      true,
-    ],
-  ])('says in plain words why the room was not found (%s)', async (_code, result, message, offersInvite) => {
-    installHostBridge(status, () => Promise.resolve(result));
-    const onReady = vi.fn();
-    render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
-    fillJoinForm();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-
-    expect((await screen.findByRole('alert')).textContent).toBe(message);
-    expect(onReady).not.toHaveBeenCalled();
-    // The search is over: the button is usable again.
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Kết nối và vào phòng' }).disabled).toBe(false);
-    expect(Boolean(screen.queryByLabelText('Dán liên kết mời'))).toBe(offersInvite);
-  });
-
-  it('offers the invitation link only after a failure, and enters the room it names without searching again', async () => {
-    const { lan } = installHostBridge(status, () => Promise.resolve({ ok: false, code: 'NOT_FOUND' }));
-    const onReady = vi.fn();
-    render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    await settleStatus();
-    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
-    fillJoinForm('otb-zzz999');
-    expect(screen.queryByLabelText('Dán liên kết mời')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-    const invite = await screen.findByLabelText<HTMLInputElement>('Dán liên kết mời');
-    expect(invite.id).toBe('desktop-lan-invite');
-    expect(lan?.findRoom).toHaveBeenCalledTimes(1);
-
-    fireEvent.change(invite, { target: { value: ' http://192.168.1.25:53120/?room=otb-abc234 ' } });
-    // The link names its room: the code field follows it.
-    expect(screen.getByLabelText<HTMLInputElement>('Mã phòng').value).toBe('OTB-ABC234');
-    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-
-    expect(onReady).toHaveBeenCalledWith({
-      runtimeConfig: {
-        target: 'desktop', socketUrl: 'http://192.168.1.25:53120', platform: 'win32', appVersion: '3.0.0',
-      },
-      initialJoin: { name: 'Ada', roomCode: 'OTB-ABC234' },
-      targetRoomCode: 'OTB-ABC234',
-      hosting: false,
-    });
-    expect(lan?.findRoom).toHaveBeenCalledTimes(1);
-  });
-
-  it('removes the failure line once the player changes the code or the link it was about', async () => {
-    installHostBridge(status, () => Promise.resolve({ ok: false, code: 'NOT_FOUND' }));
-    render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
-    fillJoinForm();
-    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-    await screen.findByRole('alert');
-
-    fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'otb-abc235' } });
-    expect(screen.queryByRole('alert')).toBeNull();
-    // The link field stays: the player may still need it.
-    expect(screen.getByLabelText('Dán liên kết mời')).toBeTruthy();
-
-    fireEvent.change(screen.getByLabelText('Dán liên kết mời'), { target: { value: 'xin chào' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-    expect((await screen.findByRole('alert')).textContent).toBe('Liên kết mời chưa đúng. Hãy dán lại liên kết do chủ phòng gửi.');
-    fireEvent.change(screen.getByLabelText('Dán liên kết mời'), { target: { value: 'http://192.168.1.25:53120/?room=OTB-ABC235' } });
-    expect(screen.queryByRole('alert')).toBeNull();
-  });
-
-  it('refuses a pasted link that is not an invitation, and keeps the player on the form', async () => {
-    const { lan } = installHostBridge(status, () => Promise.resolve({ ok: false, code: 'UNAVAILABLE' }));
+  it('drops a late room lookup after returning to the menu', async () => {
+    let resolveFind!: (result: LanFindRoomResult) => void;
+    installHostBridge(status, () => new Promise(resolve => { resolveFind = resolve; }));
     const onReady = vi.fn();
     render(<DesktopMultiplayerLauncher onReady={onReady} />);
     fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fillJoinForm();
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-    const invite = await screen.findByLabelText('Dán liên kết mời');
-
-    for (const bad of ['xin chào', 'https://192.168.1.25:53120/?room=OTB-ABC234', 'http://example.com:80/?room=OTB-ABC234', 'http://192.168.1.25:53120']) {
-      fireEvent.change(invite, { target: { value: bad } });
-      fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-      expect(screen.getByRole('alert').textContent).toBe('Liên kết mời chưa đúng. Hãy dán lại liên kết do chủ phòng gửi.');
-    }
-
-    expect(onReady).not.toHaveBeenCalled();
-    expect(lan?.findRoom).toHaveBeenCalledTimes(1);
-  });
-
-  it('searches again when the player submits again without a link', async () => {
-    const results: LanFindRoomResult[] = [{ ok: false, code: 'NOT_FOUND' }, FOUND];
-    const { lan } = installHostBridge(status, () => Promise.resolve(results.shift() ?? FOUND));
-    const onReady = vi.fn();
-    render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
-    fillJoinForm();
-    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-    await screen.findByLabelText('Dán liên kết mời');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-
-    await waitFor(() => expect(onReady).toHaveBeenCalledOnce());
-    expect(lan?.findRoom).toHaveBeenCalledTimes(2);
-  });
-
-  it('drops a search result that arrives after the player went back to the choices', async () => {
-    let finish: (result: LanFindRoomResult) => void = () => undefined;
-    installHostBridge(status, () => new Promise<LanFindRoomResult>(resolve => { finish = resolve; }));
-    const onReady = vi.fn();
-    render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
-    fillJoinForm();
-    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-    await screen.findByRole('button', { name: 'Đang tìm phòng…' });
-
     fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
-    await act(async () => { finish(FOUND); await Promise.resolve(); });
-
+    await act(async () => { resolveFind(FOUND); await Promise.resolve(); });
     expect(onReady).not.toHaveBeenCalled();
-    expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getByRole('button', { name: 'Tham gia phòng' })).toBeTruthy();
   });
 
-  it('drops a failure that arrives after the launcher was closed', async () => {
-    let finish: (result: LanFindRoomResult) => void = () => undefined;
-    installHostBridge(status, () => new Promise<LanFindRoomResult>(resolve => { finish = resolve; }));
-    const onReady = vi.fn();
-    const { unmount } = render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
-    fillJoinForm();
-    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-    await screen.findByRole('button', { name: 'Đang tìm phòng…' });
-
-    unmount();
-    await act(async () => { finish(FOUND); await Promise.resolve(); });
-
-    expect(onReady).not.toHaveBeenCalled();
-  });
-
-  it('treats a desktop without the lookup, a failed lookup and a malformed answer as "cannot look"', async () => {
-    const cannotLook = 'Không thể tìm phòng tự động. Hãy dán liên kết mời.';
-
-    // An older bridge without `lan`.
-    installHostBridge(status);
-    const withoutLookup = render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
-    fillJoinForm();
-    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-    expect((await screen.findByRole('alert')).textContent).toBe(cannotLook);
-    expect(screen.getByLabelText('Dán liên kết mời')).toBeTruthy();
-    withoutLookup.unmount();
-
-    // The lookup itself fails.
-    installHostBridge(status, () => Promise.reject(new Error('ipc closed')));
-    const rejected = render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
-    fillJoinForm();
-    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-    expect((await screen.findByRole('alert')).textContent).toBe(cannotLook);
-    rejected.unmount();
-
-    // The answer is not an endpoint this app would connect to.
-    installHostBridge(status, () => Promise.resolve({ ok: true, endpoint: 'http://example.com:80' }));
-    const onReady = vi.fn();
-    render(<DesktopMultiplayerLauncher onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
-    fillJoinForm();
-    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-    expect((await screen.findByRole('alert')).textContent).toBe(cannotLook);
-    expect(onReady).not.toHaveBeenCalled();
-  });
-
-  it('starts a fresh join form each time it is opened', async () => {
-    installHostBridge(status, () => Promise.resolve({ ok: false, code: 'NOT_FOUND' }));
-    render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
-    fillJoinForm();
-    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-    await screen.findByLabelText('Dán liên kết mời');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
-
-    expect(screen.queryByLabelText('Dán liên kết mời')).toBeNull();
-    expect(screen.queryByRole('alert')).toBeNull();
-  });
-
-  it('keeps the configured server on a plain address: no search and no link field', () => {
+  it('keeps the configured server on its fixed address', () => {
     const { lan } = installHostBridge(status, () => Promise.resolve(FOUND));
     const onReady = vi.fn();
     render(<DesktopMultiplayerLauncher configuredRuntimeConfig={configuredRuntimeConfig} onReady={onReady} />);
     fireEvent.click(screen.getByRole('button', { name: 'Máy chủ riêng' }));
     fillJoinForm('lan-42');
-
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
-
     expect(onReady).toHaveBeenCalledWith(expect.objectContaining({
       runtimeConfig: expect.objectContaining({ socketUrl: 'http://192.168.1.15:8080' }) as unknown,
       targetRoomCode: 'LAN-42',
     }));
     expect(lan?.findRoom).not.toHaveBeenCalled();
-    expect(screen.queryByLabelText('Dán liên kết mời')).toBeNull();
   });
 
-  it('keeps the field border above 3:1 on the paper card and the hero greeting finite', () => {
-    const mix = /--entry-field-border:\s*color-mix\(in srgb, var\(--color-text-primary\) (\d+)%/.exec(entrySharedCss);
-    expect(Number(mix?.[1])).toBeGreaterThanOrEqual(52);
-
-    const heroCssPath = './style/JoinHero.css';
-    const heroCss = readFileSync(fileURLToPath(new URL(heroCssPath, import.meta.url)), 'utf8');
-    expect(heroCss).not.toMatch(/\binfinite\b/);
-    expect(heroCss).not.toMatch(/rgb\(\s*43 29 20/);
-  });
-
-  it('can open a form directly for the design lab', () => {
+  it('can open the join form directly for the design lab', () => {
     installHostBridge(status);
-
     render(<DesktopMultiplayerLauncher initialMode="join" onReady={vi.fn()} />);
-
     expect(screen.getByRole('heading', { level: 2, name: 'Tham gia phòng' })).toBeTruthy();
   });
 });

@@ -1,5 +1,5 @@
 import {
-  cleanup, fireEvent, render, screen, waitFor,
+  act, cleanup, fireEvent, render, screen, waitFor,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -121,8 +121,53 @@ describe('HostLanSharing', () => {
     render(<HostLanSharing roomCode="OTB-ABC234" />);
     const image = await screen.findByAltText(QR_ALT);
     expect(image.closest('figure')?.textContent).toContain('Quét mã để vào phòng');
-    expect(screen.getByText('Mời qua mạng LAN')).toBeTruthy();
-    expect(screen.getByRole('complementary', { name: 'Mời qua mạng LAN' })).toBeTruthy();
+    expect(screen.getByText('Mời bạn bè · LAN')).toBeTruthy();
+    expect(screen.getByRole('complementary', { name: 'Mời bạn bè · LAN' })).toBeTruthy();
+  });
+
+  it('activates an existing Online room before sharing its public link', async () => {
+    const pending = { ...hostStatus(), connectionMode: 'ONLINE' as const,
+      onlineEndpoint: 'https://room.trycloudflare.com', onlineState: 'AWAITING_ROOM' as const };
+    const ready = { ...pending, onlineState: 'READY' as const };
+    installBridge(pending);
+    const activateOnline = vi.fn(() => Promise.resolve({ ok: true as const, status: ready }));
+    window.ownTheBlockDesktop!.host!.activateOnline = activateOnline;
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    render(<HostLanSharing roomCode="OTB-ABC234" />);
+    await waitFor(() => expect(activateOnline).toHaveBeenCalledWith('OTB-ABC234'));
+    const image = await screen.findByAltText(QR_ALT);
+    const link = 'https://room.trycloudflare.com/?room=OTB-ABC234';
+    await waitFor(() => expect(image.getAttribute('data-qr-payload')).toBe(link));
+    fireEvent.click(screen.getByRole('button', { name: 'Sao chép liên kết' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(link));
+  });
+
+  it('registers a replacement tunnel endpoint and updates the invitation', async () => {
+    const first = { ...hostStatus(), connectionMode: 'ONLINE' as const,
+      onlineEndpoint: 'https://first.trycloudflare.com', onlineState: 'AWAITING_ROOM' as const };
+    const second = { ...first, onlineEndpoint: 'https://second.trycloudflare.com' };
+    installBridge(first);
+    let notify: ((status: HostRuntimeStatus) => void) | undefined;
+    window.ownTheBlockDesktop!.host!.onStatusChanged = listener => {
+      notify = listener;
+      return () => undefined;
+    };
+    let activations = 0;
+    const activateOnline = vi.fn(() => {
+      activations += 1;
+      return Promise.resolve({
+        ok: true as const,
+        status: { ...(activations > 1 ? second : first), onlineState: 'READY' as const },
+      });
+    });
+    window.ownTheBlockDesktop!.host!.activateOnline = activateOnline;
+    render(<HostLanSharing roomCode="OTB-ABC234" />);
+    await waitFor(() => expect(activateOnline).toHaveBeenCalledTimes(1));
+    act(() => notify?.(second));
+    await waitFor(() => expect(activateOnline).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByAltText(QR_ALT).getAttribute('data-qr-payload'))
+      .toBe('https://second.trycloudflare.com/?room=OTB-ABC234'));
   });
 
   it('says in plain words that there is no network, with no QR code and no copy action', async () => {

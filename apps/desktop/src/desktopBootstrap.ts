@@ -37,6 +37,8 @@ function createHostServices(): void {
     userDataPath: app.getPath('userData'),
     appVersion: app.getVersion(),
     routeProbe: probeDefaultRouteAddress,
+    registryUrl: process.env.OWN_THE_BLOCK_REGISTRY_URL,
+    cloudflaredPath: process.env.OWN_THE_BLOCK_CLOUDFLARED_PATH,
   });
   lanFinder = new LanFinder();
 }

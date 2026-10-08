@@ -14,21 +14,107 @@ Development endpoint contract:
 - Game server and Socket.IO server: `http://127.0.0.1:8080`.
 - Vite renderer origin: `http://127.0.0.1:5173`.
 - Socket.IO development CORS default: exactly `http://127.0.0.1:5173`.
-- Desktop Host uses the explicit LAN profile: the game HTTP/Socket.IO server
+- Desktop Host uses the same local authority in LAN and Online modes: the game HTTP/Socket.IO server
   binds `0.0.0.0:<actual-game-port>` while managed PostgreSQL remains loopback-only;
   the host renderer connects to `127.0.0.1:<game-port>`.
-- Desktop Join takes a room code only: the main process finds the Host through the
-  LAN room lookup below and the join then targets the verified `http://<ipv4>:<port>`.
-  A pasted invitation link (`http://<ipv4>:<port>/?room=<code>`) is the fallback for
-  networks that block broadcast. A configured developer/release endpoint may remain
-  HTTP(S). There is no mDNS and no periodic advertisement.
+- Desktop Join takes one room-code/invitation input. A code searches LAN UDP and
+  the configured HTTPS registry concurrently; an invitation connects directly to
+  its validated LAN IPv4 or `*.trycloudflare.com` endpoint. A configured developer/
+  release endpoint may remain HTTP(S). There is no mDNS or periodic LAN advertisement.
 - Desktop Socket.IO admits `app://own-the-block`, origin-less native clients, and
-  browser origins whose exact host/port matches the HTTP `Host` header. An unrelated
-  browser origin is rejected. No wildcard is used.
+  HTTP IPv4 browser origins whose exact host/port matches HTTP `Host`. HTTPS Quick
+  Tunnel browser origins match the public `Host`, or the local `127.0.0.1` service
+  `Host` when the TCP peer itself is loopback (cloudflared's default rewrite).
+  An unrelated browser origin is rejected. No wildcard is used.
 - `CORS_ORIGIN` explicitly overrides the applicable development or production
   default.
 
 No REST gameplay controller/auth route is added.
+
+## Desktop Online host (Quick Tunnel + registry)
+
+`apps/desktop/src/hostRuntime.ts` owns the lifetime of the existing local
+PostgreSQL and authoritative server. `online/connectivity.ts` defines
+`ConnectivityProvider`; `CloudflareQuickTunnel` is the current implementation.
+`online/discovery.ts` defines `RoomDiscoveryProvider`; `HttpRoomDiscovery` is the
+current registry client. Neither interface is imported by GameCore or Socket
+command handlers. Native P2P would need a separate Socket.IO transport bridge.
+
+Online creation reserves a random room code and opaque owner credential in the
+registry, starts the local PostgreSQL/server, starts `cloudflared` without a
+shell, checks the public `/readyz`, then joins through the existing loopback
+Socket.IO admission. Only after the authoritative lobby exists does
+`HostLanSharing` request registry activation. The registry verifies a random
+reservation proof exposed by that host's server at `/_otb/registry-proof` via
+the tunnel. The proof is not a room/session credential. A 30-second heartbeat
+renews the 90-second active lease; an unactivated reservation lasts 180 seconds.
+Host stop/quit revokes the lease, stops the tunnel, then stops the helper and
+PostgreSQL. Unexpected tunnel exit hides the old link, suspends lookup and tries
+two bounded restarts. A changed public URL updates the registry/link/QR if
+activation succeeds; guests already connected to the old hostname must join
+again. Registry failure does not stop the game or tunnel: direct invitations
+remain available while the tunnel is healthy.
+
+The deployable registry is `services/room-registry/` (Worker + SQLite-backed
+Durable Objects). Per-code transactions make reservation/activation/collision
+atomic. Owner credentials are generated in Electron main and sent only as
+Bearer headers; the Worker stores their SHA-256 digest. The registry stores
+only code, public endpoint, proof, digest and expiry. It validates endpoint
+hostnames, verifies control through the tunneled proof route, limits request
+body and per-IP request rate, and never proxies gameplay or stores game state.
+`GET /healthz`, `POST /v1/rooms/:code/reserve`, `POST .../activate`, `POST
+.../renew`, `POST .../suspend`, `DELETE /v1/rooms/:code`, and `GET
+/v1/rooms/:code` form the HTTP API. Only lookup and health are unauthenticated.
+
+### External setup (development/private testing)
+
+1. Install `cloudflared` on a Windows or macOS **host** from the official
+   [Cloudflare downloads](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/).
+   Set `OWN_THE_BLOCK_CLOUDFLARED_PATH` to its absolute `cloudflared.exe`
+   (Windows) or `cloudflared` (macOS) path, or put that binary on `PATH`.
+   No binary is downloaded by the app. Quick Tunnels need no Cloudflare
+   account/domain, but the registry does.
+2. Create a Cloudflare account with Workers/Durable Objects access. From this
+   repository root, authenticate with `npx wrangler login`, then run
+   `npx wrangler deploy --config services/room-registry/wrangler.jsonc`.
+   `wrangler.jsonc` declares SQLite-backed `RoomLease` and `RequestBudget`
+   namespaces. Record the actual HTTPS Worker URL printed by Wrangler; do not
+   invent one. Cloudflare's Free plan permits SQLite-backed Durable Objects.
+3. Set `OWN_THE_BLOCK_REGISTRY_URL` to that exact HTTPS origin in the desktop
+   process environment on **both** hosts and guests. The packaged app does
+   not load `.env.example` automatically. For example, in PowerShell:
+
+   ```powershell
+   $env:OWN_THE_BLOCK_CLOUDFLARED_PATH = 'C:\path\to\cloudflared.exe'
+   $env:OWN_THE_BLOCK_REGISTRY_URL = 'https://your-actual-worker.workers.dev'
+   & 'C:\path\to\Own the Block.exe'
+   ```
+
+   On macOS, launch the app executable from the same Terminal environment:
+
+   ```bash
+   export OWN_THE_BLOCK_CLOUDFLARED_PATH=/path/to/cloudflared
+   export OWN_THE_BLOCK_REGISTRY_URL=https://your-actual-worker.workers.dev
+   "/Applications/Own the Block.app/Contents/MacOS/Own the Block"
+   ```
+
+The registry is required for **code-only Online join** and Online host setup;
+an existing public invitation URL joins without a registry request. LAN mode
+continues to work without these variables. PostgreSQL remains local and is
+never the tunnel origin. The public tunnel serves the same bundled browser
+client and Socket.IO endpoint; browser pages on LAN/Quick Tunnel host origins
+select same-origin Socket.IO even if a separate web endpoint was embedded at
+build time. CORS still checks approved origins and
+desktop `allowRequest` still rejects unrelated browser origins. Socket
+admission, command validation, reconnect-token hashing and per-peer admission
+rate limits are unchanged. The desktop profile does not trust arbitrary
+forwarded headers from LAN peers.
+
+Quick Tunnel URLs are temporary and Cloudflare makes no uptime guarantee;
+currently one tunnel/room per desktop Host is supported. This is a development
+and private-testing path, not a production SLA. See
+[Cloudflare Quick Tunnel limitations](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)
+and [WebSocket support](https://developers.cloudflare.com/network/websockets/).
 
 ## LAN room lookup (desktop Host profile only)
 

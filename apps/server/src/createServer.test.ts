@@ -75,6 +75,23 @@ describe('HTTP health endpoints', () => {
       'shutting down',
     ]);
   });
+
+  it('exposes a registry proof only after the reserved room has an actual host', async () => {
+    const runtime = createTestRuntime();
+    const findRoom = vi.spyOn(runtime.persistence.rooms, 'findByCode');
+    const { server } = createServer(runtime, { environment: {
+      SERVER_RUNTIME_PROFILE: 'desktop', OTB_REGISTRY_ROOM_CODE: 'OTB-ABC234',
+      OTB_REGISTRY_PROOF: 'reserved-proof',
+    }, clientDist: path.resolve('src') });
+    servers.push(server);
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    expect((await fetch(`${base}/_otb/registry-proof`)).status).toBe(404);
+    findRoom.mockResolvedValueOnce({ code: 'OTB-ABC234', hostPlayerId: 'host' } as never);
+    const response = await fetch(`${base}/_otb/registry-proof`);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ roomCode: 'OTB-ABC234', proof: 'reserved-proof' });
+  });
 });
 
 describe('resolveCorsOrigin', () => {
@@ -116,6 +133,17 @@ describe('resolveCorsOrigin', () => {
       'http://192.168.1.21:53120',
       '192.168.1.20:53120',
     )).toBe(false);
+  });
+
+  it('accepts only a matching Quick Tunnel HTTPS origin for a desktop socket', () => {
+    expect(isDesktopRequestOriginAllowed('https://room.trycloudflare.com', 'room.trycloudflare.com')).toBe(true);
+    expect(isDesktopRequestOriginAllowed('https://room.trycloudflare.com', '127.0.0.1:53120', '127.0.0.1')).toBe(true);
+    expect(isDesktopRequestOriginAllowed('https://room.trycloudflare.com', '127.0.0.1:53120', '::ffff:127.0.0.1')).toBe(true);
+    expect(isDesktopRequestOriginAllowed('https://room.trycloudflare.com', '127.0.0.1:53120', '192.168.1.20')).toBe(false);
+    expect(isDesktopRequestOriginAllowed('http://192.168.1.20:53120', '127.0.0.1:53120', '127.0.0.1')).toBe(false);
+    expect(isDesktopRequestOriginAllowed('https://room.trycloudflare.com', 'other.trycloudflare.com')).toBe(false);
+    expect(isDesktopRequestOriginAllowed('https://room.trycloudflare.com.evil.test', 'room.trycloudflare.com.evil.test')).toBe(false);
+    expect(isDesktopRequestOriginAllowed('http://room.trycloudflare.com', 'room.trycloudflare.com')).toBe(false);
   });
 });
 

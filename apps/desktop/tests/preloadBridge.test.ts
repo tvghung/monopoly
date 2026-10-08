@@ -31,6 +31,7 @@ interface Bridge {
   openExternal(url: string): Promise<unknown>;
   host: Record<string, (...args: unknown[]) => unknown>;
   lan: Record<string, (...args: unknown[]) => unknown>;
+  online: Record<string, (...args: unknown[]) => unknown>;
   update: Record<string, (...args: unknown[]) => unknown>;
 }
 
@@ -51,7 +52,7 @@ beforeEach(() => {
 describe('preload bridge contract', () => {
   it('exposes one typed object and never the raw IPC renderer', () => {
     expect([...harness.exposed.keys()]).toEqual(['ownTheBlockDesktop']);
-    expect(Object.keys(bridge).sort()).toEqual(['getRuntimeConfig', 'host', 'lan', 'openExternal', 'quit', 'update', 'window']);
+    expect(Object.keys(bridge).sort()).toEqual(['getRuntimeConfig', 'host', 'lan', 'online', 'openExternal', 'quit', 'update', 'window']);
     const names = [
       ...Object.keys(bridge),
       ...Object.values(bridge)

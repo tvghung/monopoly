@@ -34,14 +34,28 @@ export function isDesktopBrowserOrigin(origin: string): boolean {
   }
 }
 
+function isTunnelOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    return url.protocol === 'https:' && url.origin === origin
+      && /^[a-z0-9-]+\.trycloudflare\.com$/.test(url.hostname);
+  } catch { return false; }
+}
+
 export function isDesktopRequestOriginAllowed(
   origin: string | undefined,
   requestHost: string | undefined,
+  remoteAddress?: string,
 ): boolean {
   if (origin === undefined || origin === PACKAGED_RENDERER_ORIGIN) return true;
-  return requestHost !== undefined
-    && isDesktopBrowserOrigin(origin)
-    && new URL(origin).host === requestHost;
+  if (!requestHost || !(isDesktopBrowserOrigin(origin) || isTunnelOrigin(origin))) return false;
+  if (new URL(origin).host === requestHost) return true;
+  // cloudflared normally sends the local service URL as Host. Accept that
+  // rewrite only when the connection itself came from the loopback peer.
+  return isTunnelOrigin(origin)
+    && /^127\.0\.0\.1:\d{1,5}$/.test(requestHost)
+    && (remoteAddress === '127.0.0.1' || remoteAddress === '::1'
+      || remoteAddress === '::ffff:127.0.0.1');
 }
 
 export function resolveCorsOrigin(
@@ -54,7 +68,8 @@ export function resolveCorsOrigin(
   return (origin, callback) => {
     callback(null, origin === undefined
       || origin === PACKAGED_RENDERER_ORIGIN
-      || isDesktopBrowserOrigin(origin));
+      || isDesktopBrowserOrigin(origin)
+      || isTunnelOrigin(origin));
   };
 }
 
@@ -109,13 +124,26 @@ export function createServer(
       ? {
           allowRequest: (request, callback) => callback(
             null,
-            isDesktopRequestOriginAllowed(request.headers.origin, request.headers.host),
+            isDesktopRequestOriginAllowed(request.headers.origin, request.headers.host, request.socket.remoteAddress),
           ),
         }
       : {}),
   });
 
   app.get('/healthz', (_req, res) => res.status(200).send('ok'));
+  if (runtimeProfile === 'desktop' && environment.OTB_REGISTRY_ROOM_CODE
+    && environment.OTB_REGISTRY_PROOF) {
+    app.get('/_otb/registry-proof', async (_req, res) => {
+      res.set('cache-control', 'no-store');
+      try {
+        const room = await runtime.persistence.rooms.findByCode(environment.OTB_REGISTRY_ROOM_CODE as string);
+        if (!room || !room.hostPlayerId) { res.status(404).end(); return; }
+        res.json({ roomCode: room.code, proof: environment.OTB_REGISTRY_PROOF });
+      } catch {
+        res.status(503).end();
+      }
+    });
+  }
   app.get('/readyz', async (_req, res) => {
     if (runtime.flags.shuttingDown) {
       res.status(503).send('shutting down');

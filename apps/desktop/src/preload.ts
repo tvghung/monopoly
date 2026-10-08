@@ -30,10 +30,14 @@ export interface OwnTheBlockDesktopBridge {
     stop(): Promise<HostRuntimeOperationResult>;
     refreshNetwork(options?: { preferredAddress?: string }): Promise<HostRuntimeStatus>;
     onStatusChanged(listener: (status: HostRuntimeStatus) => void): () => void;
+    activateOnline(roomCode: string): Promise<HostRuntimeOperationResult>;
   };
   lan: {
     /** Finds the Host of a room code on this network; resolves with its endpoint or the reason it was not found. */
     findRoom(roomCode: string): Promise<LanFindRoomResult>;
+  };
+  online: {
+    findRoom(roomCode: string): Promise<{ ok: true; endpoint: string } | { ok: false; code: 'NOT_FOUND' | 'UNAVAILABLE' }>;
   };
   update: {
     getState(): Promise<AppUpdateState>;
@@ -82,9 +86,13 @@ const bridge: OwnTheBlockDesktopBridge = {
       ipcRenderer.on(IPC_CHANNELS.hostStatusChanged, handler);
       return () => ipcRenderer.removeListener(IPC_CHANNELS.hostStatusChanged, handler);
     },
+    activateOnline: roomCode => ipcRenderer.invoke(IPC_CHANNELS.hostActivateOnline, { roomCode }),
   },
   lan: {
     findRoom: roomCode => ipcRenderer.invoke(IPC_CHANNELS.lanFindRoom, { roomCode }),
+  },
+  online: {
+    findRoom: roomCode => ipcRenderer.invoke(IPC_CHANNELS.onlineFindRoom, { roomCode }),
   },
   update: {
     getState: () => ipcRenderer.invoke(IPC_CHANNELS.updateGetState),

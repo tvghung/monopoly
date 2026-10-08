@@ -37,7 +37,7 @@ bằng application session state, không bằng `socket.id` hay optimistic `join
   vừa 812×375 không cuộn; `type="button"`, không bao giờ submit, vẫn dùng được khi đang "Đang vào phòng…") chỉ khi `App` có
   `desktopBridge` và `onExitToLauncher`; trình duyệt thường không có nút vì đây là màn hình đầu tiên. Xem "Đường quay lại launcher" bên dưới.
 - **Launcher desktop = màn hình chính** (`DesktopMultiplayerLauncher` + `LauncherScene`; V1.1 mục 4): toàn cửa sổ, một cột nút
-  lệch về bên trái trên nền giấy ấm có tranh ở bên phải. Tiêu đề (h1) "Chơi qua mạng LAN", không phụ đề, không ghi chú chân thẻ.
+  lệch về bên trái trên nền giấy ấm có tranh ở bên phải. Tiêu đề (h1) "Chơi nhiều người", không phụ đề, không ghi chú chân thẻ.
   Màn chọn **chỉ có nút, không có câu giải thích dưới nút nào**: `Tạo phòng` (primary) và `Tham gia phòng` (secondary) cỡ `xl`;
   `Máy chủ riêng` (chỉ khi có `configuredRuntimeConfig`, nhãn ngắn, không mô tả); khi Host đang chạy có thêm `Vào lại phòng đang
   mở` và `Đóng phòng` (cùng hành vi cũ: tiếp tục / dừng Host) xếp trên cùng; hàng cuối là `Cài đặt` và `Thoát`. Mọi nút là
@@ -64,24 +64,17 @@ bằng application session state, không bằng `socket.id` hay optimistic `join
     giờ trên một form; một dòng yên lặng trên menu cho tiến trình/lỗi/lý do chờ. Một bản cập nhật **bắt buộc** vô hiệu
     `Tạo phòng`, `Tham gia phòng` và `Máy chủ riêng` (không vô hiệu `Vào lại phòng đang mở` và `Đóng phòng`). Menu vẫn chỉ
     có nút. Chi tiết: [app-update.instruction.md](./app-update.instruction.md).
-  - **Form host**: chỉ có tên (`desktop-player-name`) và nút "Tạo và vào phòng". Không có ô chọn mạng và không có dòng
-    giải thích về cổng hay địa chỉ: main process tự chọn mạng đang kết nối (`bridge.host.start()` không tham số; xem
+  - **Form host**: chọn `Online — Qua Internet` (mặc định) hoặc `LAN — Cùng mạng nội bộ`, nhập tên (`desktop-player-name`)
+    rồi "Tạo và vào phòng". Không có ô chọn địa chỉ/cổng: main process tự chọn mạng đang kết nối (xem
     `networkInterfaces.ts`). Khi mở form mà máy chưa có mạng dùng được, một `role="alert"` nói bằng lời thường "Máy này
     chưa kết nối mạng. Hãy bật Wi-Fi hoặc cắm dây mạng."; nút vẫn bấm được để thử lại (main process đọc lại mạng lúc start).
     Dòng tiến trình ("Đang chuẩn bị phòng…", "Đang mở phòng…", "Đang đóng phòng…") và mọi lỗi host (`HostRuntimeErrorCode`)
     cũng viết bằng lời thường: không nhắc cổng, máy chủ hay cơ sở dữ liệu, và lỗi luôn có việc cần làm.
-  - **Form join**: chỉ có tên và mã phòng (`desktop-lan-room`). "Kết nối và vào phòng" gọi
-    `window.ownTheBlockDesktop.lan.findRoom(mã)`; nút hiện "Đang tìm phòng…" (tối đa khoảng 3 giây) và hai ô nhập chỉ-đọc
-    cho tới khi có kết quả; chỉ khi có endpoint đã kiểm chứng mới `onReady` (socket được tạo sau đó). Kết quả tìm bị bỏ
-    nếu người chơi bấm "Quay lại" hoặc launcher bị đóng. Thất bại hiện thông điệp có việc cần làm:
-    `NOT_FOUND` "Không tìm thấy phòng {mã}. Kiểm tra lại mã và chắc chắn máy tạo phòng đang mở game, cùng Wi-Fi với bạn.",
-    `UNREACHABLE` "Tìm thấy phòng nhưng chưa kết nối được. Nhờ chủ phòng bấm Cho phép khi tường lửa hỏi.", `NO_NETWORK`
-    "Máy này chưa kết nối mạng. Hãy bật Wi-Fi hoặc cắm dây mạng.", `UNAVAILABLE` (kể cả bridge cũ không có `lan` hoặc IPC lỗi)
-    "Không thể tìm phòng tự động. Hãy dán liên kết mời."
-  - **Liên kết mời (dự phòng ẩn)**: chỉ sau một thất bại (trừ `NO_NETWORK`) form hiện thêm ô "Dán liên kết mời"
-    (`desktop-lan-invite`). Liên kết hợp lệ `http://<ip>:<cổng>/?room=<MÃ>` (`parseLanJoinUrl` trong `runtime/lanSharing.ts`)
-    bỏ qua bước tìm; ô "Mã phòng" đi theo mã trong liên kết; liên kết sai báo "Liên kết mời chưa đúng. …". Mạng chặn
-    broadcast (Wi-Fi khách, client isolation) vẫn vào được bằng đường này.
+  - **Form join**: tên và một ô `Mã phòng hoặc liên kết mời` (`desktop-lan-room`). `parseJoinInput` nhận mã theo schema chung,
+    URL LAN `http://<ip>:<cổng>/?room=<MÃ>` và HTTPS `*.trycloudflare.com/?room=<MÃ>`; từ chối credentials, host/path/query
+    không hợp lệ. URL đi thẳng tới endpoint đã kiểm tra, không cần registry/LAN lookup. Mã đơn lẻ tìm LAN và registry đồng thời;
+    hai kết quả khác endpoint báo nhập link để tránh chọn sai phòng. Kết quả trễ sau "Quay lại" bị bỏ. Socket chỉ được tạo sau
+    khi chọn endpoint, và admission ACK của server mới cho vào lobby. `Máy chủ riêng` tiếp tục dùng endpoint cấu hình cố định.
   - Chế độ `Máy chủ riêng` (trước là "Máy chủ đã cấu hình") giữ nguyên: địa chỉ cố định, không tìm, không ô liên kết.
 - **Loading**: một `LoadingScreen` (`as="main"` lúc bootstrap, `as="section"` lúc `RESTORING` trong app):
   brand, hàng mascot, đúng stage thật (không phần trăm giả), ba chấm; đứng yên khi reduced motion hiệu lực.
@@ -164,10 +157,10 @@ ACK is resumable because token was stored first.
 - Spectator has no durable identity/token; a temporary transport reconnect reissues
   the remembered room request and receives a fresh spectator admission.
 - Refresh never derives identity from a new `socket.id`.
-- Desktop Host/Join resolves the endpoint before creating the gameplay socket
-  (Join: from the room code through the main-process lookup, or from a pasted
-  invitation link after a failed lookup; the endpoint returned by IPC is
-  re-validated with `normalizeLanEndpoint`).
+- Desktop Host/Join resolves the endpoint before creating the gameplay socket.
+  URL LAN được kiểm tra bằng `normalizeLanEndpoint`; URL Online chỉ cho phép HTTPS
+  `*.trycloudflare.com`. Lookup Online trong main process, không đưa registry URL hay
+  ownership credential vào renderer. Bấm link đi trực tiếp, không cần registry.
   Host admission still uses the ordinary `join room` → `resume session` flow;
   the host runtime never creates a room or player directly. In desktop server
   profile, only this loopback Host path may activate an unused room code; remote
@@ -221,12 +214,10 @@ sau khi bỏ cuộc về launcher/JoinForm vì token đã bị thu hồi và kh�
 - `JoinForm` shows "Quay lại" only with a way back, opens with the name and room code the player already typed, and never submits
   on it; every desktop failure screen has a way back and going back disconnects without leaving or clearing a saved session
   (`JoinForm.test.tsx`, `ErrorScreen.test.tsx`, `App.test.tsx`).
-- Join asks for a name and a room code only, searches by code (busy label, read-only
-  fields, stale result dropped), shows each failure code in plain words, offers the
-  invitation-link field only after a failure and enters the room it names without
-  searching; host form has no network choice or technical hint and calls `start()`
-  without options; no launcher text contains an address, port or database wording
-  (`DesktopMultiplayerLauncher.test.tsx`, `AppBootstrap.test.tsx`).
+- Join có một ô mã/link, tìm LAN + Online song song khi nhập mã, đi thẳng khi nhập
+  link, chặn kết quả trễ và trùng mã khác host. Host chọn Online/LAN; Online cần
+  registry + cloudflared, LAN giữ đường cũ (`DesktopMultiplayerLauncher.test.tsx`,
+  `runtime/joinTargetResolver.test.ts`).
 - `parseLanJoinUrl` is the inverse of `buildLanJoinUrl` and refuses credentials,
   non-http, non-IPv4, loopback/link-local, missing port or room (`lanSharing.test.ts`).
 - The desktop connect-failure screen says "Không vào được phòng. Hãy kiểm tra Wi-Fi

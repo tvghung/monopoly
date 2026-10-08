@@ -1,4 +1,6 @@
 import { getDesktopBridge } from './desktopBridge';
+import { normalizeLanEndpoint } from './lanEndpoint';
+import { publicHttpsEndpoint } from './joinTargetResolver';
 import type { DesktopRuntimeConfigErrorCode, RuntimeConfig } from './types';
 
 export class RuntimeConfigLoadError extends Error {
@@ -13,10 +15,18 @@ export function isRuntimeConfigLoadError(error: unknown): error is RuntimeConfig
 
 function webRuntimeConfig(): RuntimeConfig {
   const socketUrl = typeof __SOCKET_URL__ !== 'undefined' ? __SOCKET_URL__ : '';
+  const pageOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   return {
     target: 'web',
-    socketUrl: socketUrl || undefined,
+    socketUrl: webSocketUrlForPage(socketUrl, pageOrigin),
   };
+}
+
+export function webSocketUrlForPage(configured: string, pageOrigin: string): string | undefined {
+  // A browser that loaded the desktop Host's bundled client must use that
+  // same Host, even if this bundle was built with a separate web endpoint.
+  if (normalizeLanEndpoint(pageOrigin) || publicHttpsEndpoint(pageOrigin)) return undefined;
+  return configured || undefined;
 }
 
 export async function loadRuntimeConfig(): Promise<RuntimeConfig> {

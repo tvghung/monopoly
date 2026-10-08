@@ -241,6 +241,39 @@ protocol, the snapshot or PostgreSQL.
   through it yet.
 - [ ] `[MANUAL-E2E]` The rows of [V1 final manual acceptance](../../ui-ux-overhaul/V1_FINAL_MANUAL_ACCEPTANCE.md#in-app-update).
 
+## Online host manual checks (not run in this iteration)
+
+Use two physical computers on different Internet networks. Install the current
+desktop app on both, configure the registry URL on both and `cloudflared` on
+the host as in [HTTP runtime setup](../Api/http-runtime.instruction.md#external-setup-developmentprivate-testing).
+Do not mark these rows automated without an executable assertion.
+
+- [ ] **A — Direct invitation:** On A choose Online and create a lobby; copy its
+  HTTPS link. On B paste the full link into the single join input. Check both
+  players appear in one lobby, ready/start, and a dice/action update reaches B.
+- [ ] **B — Code:** Create a new Online room on A; copy only its code. On B enter
+  that code. Check lookup reaches A's room, not another host. Test an unknown code.
+- [ ] **C — Browser:** Open A's HTTPS invitation in a browser on B. Check the
+  room code is prefilled without auto-submission, join, reload and resume.
+- [ ] **D — LAN regression:** Create LAN on A, join from B on the same LAN by
+  code and then by LAN invitation; check lobby and gameplay. Repeat with the
+  registry unconfigured.
+- [ ] **E — Guest interruption:** During an Online game disable B's network,
+  restore it, and check reconnect returns the same PlayerId, seat and assets.
+- [ ] **F — Tunnel failure:** Kill A's `cloudflared`; check Online status/link
+  stops claiming readiness, local game persists, and bounded restart creates a
+  fresh link/registry mapping. Existing guests may need to rejoin via new link.
+- [ ] **G — Registry failure:** Make the Worker unreachable on B, try code and
+  check the discovery error. Paste A's direct HTTPS link and check it still joins
+  while the tunnel is up. Interrupt renewal on A and check it shows the direct
+  link with a code-discovery warning.
+- [ ] **H — Host shutdown:** Close A's room/app, check `cloudflared` stops and
+  lookup is revoked or expires; B must not join a nonexistent room.
+
+Also check a missing `cloudflared` path shows an actionable error and LAN remains
+selectable. Packaged Windows/macOS, cross-network, capacity and 50-player load
+results are deferred, not claimed by the unit tests.
+
 ## Restart/recovery
 
 - [ ] Same DB restores room/session/host/ready plus pending landing decision/

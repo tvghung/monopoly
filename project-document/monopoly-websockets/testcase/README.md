@@ -34,6 +34,7 @@ checklist item phải map tới assertion executable hoặc giữ nhãn missing/
 | Activity/victory/replay | [game status](./game-status-bankruptcy-and-winner.md), [client sync](./client-state-sync-motion-and-accessibility.md) | Activity schema + Socket + client |
 | DB/runtime/deploy | [runtime](./http-runtime-and-deployment.md) | migration + HTTP + PG |
 | Desktop Host/LAN/mobile | [runtime](./http-runtime-and-deployment.md), [join lifecycle](./join-room-and-player-lifecycle.md) | packaged Phase 7.0/7.2 + Chromium/WebKit |
+| Online host/discovery/join | [runtime](./http-runtime-and-deployment.md#online-host-manual-checks-not-run-in-this-iteration) | focused Worker/desktop/client tests; physical cross-network manual deferred |
 
 ## Full gates
 

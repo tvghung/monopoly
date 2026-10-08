@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import Button from '../design-system/components/Button/Button';
 import { ActionIcon } from '../design-system/icons/ActionIcon';
@@ -23,7 +23,19 @@ export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
   const [status, setStatus] = useState<HostRuntimeStatus>();
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [activationFailed, setActivationFailed] = useState(false);
+  const activationAttempted = useRef<string | null>(null);
   const linkCopy = useCopyFeedback();
+
+  const activate = useCallback((endpoint?: string): void => {
+    if (!bridge?.host?.activateOnline) return;
+    activationAttempted.current = `${roomCode}:${endpoint ?? ''}`;
+    setActivationFailed(false);
+    void bridge.host.activateOnline(roomCode).then(result => {
+      setStatus(result.status);
+      setActivationFailed(!result.ok);
+    }).catch(() => setActivationFailed(true));
+  }, [bridge, roomCode]);
 
   useEffect(() => {
     if (!bridge?.host) return undefined;
@@ -40,10 +52,25 @@ export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
     };
   }, [bridge]);
 
+  useEffect(() => {
+    if (status?.connectionMode !== 'ONLINE' || status.onlineState !== 'AWAITING_ROOM'
+      || !bridge?.host?.activateOnline || !status.onlineEndpoint
+      || activationAttempted.current === `${roomCode}:${status.onlineEndpoint}`) return;
+    activate(status.onlineEndpoint);
+  }, [activate, bridge, roomCode, status?.connectionMode, status?.onlineEndpoint, status?.onlineState]);
+
   const joinUrl = (() => {
-    if (!status?.selectedLanUrl) return undefined;
+    const endpoint = status?.connectionMode === 'ONLINE'
+      ? status.onlineState === 'READY' || status.onlineState === 'DISCOVERY_UNAVAILABLE' ? status.onlineEndpoint : undefined
+      : status?.selectedLanUrl;
+    if (!endpoint) return undefined;
     try {
-      return buildLanJoinUrl(status.selectedLanUrl, roomCode);
+      if (status?.connectionMode === 'ONLINE') {
+        const url = new URL(endpoint);
+        url.searchParams.set('room', roomCode);
+        return url.toString();
+      }
+      return buildLanJoinUrl(endpoint, roomCode);
     } catch {
       return undefined;
     }
@@ -84,14 +111,17 @@ export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
   const bestRank = Math.min(...interfaces.map(candidate => candidate.rank));
   const equallyGood = interfaces.filter(candidate => candidate.rank === bestRank);
   // Only a tie needs the player: the networks listed are the tied ones, plus the one in use if it ranks lower.
-  const networkChoices = equallyGood.length > 1
+  const networkChoices = status?.connectionMode !== 'ONLINE' && equallyGood.length > 1
     ? interfaces.filter(candidate => candidate.rank === bestRank || candidate.address === selectedAddress)
     : [];
   return (
     <aside className="lobby-share" aria-labelledby="lobby-share-title">
       <div className="lobby-share__details">
-        <p className="lobby__eyebrow" id="lobby-share-title">{t('lan.heading')}</p>
-        {status && !joinUrl ? <p className="lobby-share__warning" role="status">{t('lan.noNetwork')}</p> : null}
+        <p className="lobby__eyebrow" id="lobby-share-title">{t('sharing.heading')} · {t(status?.connectionMode === 'ONLINE' ? 'sharing.online' : 'sharing.lan')}</p>
+        {status && !joinUrl ? <p className="lobby-share__warning" role="status">{t(status.connectionMode === 'ONLINE' ? activationFailed || status.onlineState === 'UNAVAILABLE' ? 'sharing.unavailable' : 'sharing.connecting' : 'lan.noNetwork')}</p> : null}
+        {status?.onlineState === 'DISCOVERY_UNAVAILABLE' ? <p className="lobby-share__warning" role="status">{t('sharing.discoveryUnavailable')}</p> : null}
+        {activationFailed || status?.onlineState === 'DISCOVERY_UNAVAILABLE'
+          ? <Button variant="ghost" onClick={() => activate(status?.onlineEndpoint ?? undefined)}>{t('sharing.retry')}</Button> : null}
         {networkChoices.length > 0 ? (
           <label className="lobby-share__network">
             <span>{t('lan.network')}</span>

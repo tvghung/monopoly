@@ -3,19 +3,20 @@ import { Languages } from 'lucide-react';
 import Button from '../design-system/components/Button/Button';
 import ConfirmationDialog from '../design-system/components/ConfirmationDialog/ConfirmationDialog';
 import Panel from '../design-system/components/Panel/Panel';
+import SegmentedControl from '../design-system/components/SegmentedControl/SegmentedControl';
 import { ActionIcon } from '../design-system/icons/ActionIcon';
 import { HowToPlayButton } from '../howToPlay';
 import { useAppUpdate } from '../runtime/appUpdate';
 import { getDesktopBridge } from '../runtime/desktopBridge';
 import { normalizeLanEndpoint } from '../runtime/lanEndpoint';
-import { generateHostRoomCode, normalizeRoomCode, parseLanJoinUrl } from '../runtime/lanSharing';
+import { generateHostRoomCode } from '../runtime/lanSharing';
+import { parseJoinInput, publicHttpsEndpoint } from '../runtime/joinTargetResolver';
 import type {
   DesktopLaunchSelection,
   DesktopPlatform,
   HostRuntimeErrorCode,
   HostRuntimeStatus,
   LanFindRoomFailureCode,
-  LanFindRoomResult,
   RuntimeConfig,
 } from '../runtime/types';
 import { useSettings, useSettingsAvailable } from '../settings/selectors';
@@ -59,16 +60,22 @@ const hostErrorCopy: Record<HostRuntimeErrorCode, MessageKey> = {
   BIND_DENIED: 'launcher.hostFirewall',
   NO_LAN_INTERFACE: 'launcher.noNetwork',
   RUNTIME_FAILED: 'launcher.hostFailed',
+  CLOUDFLARED_MISSING: 'launcher.onlineToolMissing',
+  REGISTRY_UNAVAILABLE: 'launcher.registryUnavailable',
+  CODE_TAKEN: 'launcher.codeTaken',
+  ONLINE_FAILED: 'launcher.onlineFailed',
 };
 
 type LauncherError =
   | { kind: 'message'; key: MessageKey; values?: Readonly<Record<string, string | number>> }
   | { kind: 'host'; code: HostRuntimeErrorCode }
+  | { kind: 'ambiguous' }
   | { kind: 'find-room'; code: LanFindRoomFailureCode; roomCode: string };
 
 function errorMessage(error: LauncherError, t: (key: MessageKey, values?: Readonly<Record<string, string | number>>) => string): string {
   if (error.kind === 'message') return t(error.key, error.values);
   if (error.kind === 'host') return t(hostErrorCopy[error.code]);
+  if (error.kind === 'ambiguous') return t('launcher.ambiguousRoom');
   switch (error.code) {
     case 'NOT_FOUND':
       return t('launcher.roomNotFound', { roomCode: error.roomCode });
@@ -133,11 +140,7 @@ export default function DesktopMultiplayerLauncher({
   const searchRef = useRef(0);
   const [name, setName] = useState(initialJoin?.name ?? '');
   const [roomCode, setRoomCode] = useState(initialJoin?.roomCode ?? '');
-  const [inviteLink, setInviteLink] = useState('');
-  // The invitation-link field is only offered once looking for the room by its code has failed.
-  const [inviteOffered, setInviteOffered] = useState(
-    initialJoin?.failure !== undefined && initialJoin.failure !== 'NO_NETWORK',
-  );
+  const [hostMode, setHostMode] = useState<'ONLINE' | 'LAN'>('ONLINE');
   const [hostStatus, setHostStatus] = useState<HostRuntimeStatus | undefined>();
   const [busy, setBusy] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -205,17 +208,22 @@ export default function DesktopMultiplayerLauncher({
     if (updateRequired) return;
     setMode(next);
     setError(null);
-    setInviteLink('');
-    setInviteOffered(false);
   };
 
   const startHost = async (): Promise<void> => {
-    if (!bridge?.host || !name.trim()) return;
+    if (!bridge?.host || !name.trim() || busy) return;
     setBusy(true);
     setError(null);
     try {
       // The main process picks the network the device is connected to.
-      const result = await bridge.host.start();
+      let result: Awaited<ReturnType<NonNullable<typeof bridge.host>['start']>> | undefined;
+      let nextRoomCode = generateHostRoomCode();
+      for (let attempt = 0; attempt < (hostMode === 'ONLINE' ? 4 : 1); attempt += 1) {
+        result = await bridge.host.start({ mode: hostMode, ...(hostMode === 'ONLINE' ? { roomCode: nextRoomCode } : {}) });
+        if (result.ok || result.status.errorCode !== 'CODE_TAKEN') break;
+        nextRoomCode = generateHostRoomCode();
+      }
+      if (!result) return;
       setHostStatus(result.status);
       if (!result.ok || !result.status.localEndpoint) {
         setError({ kind: 'host', code: result.status.errorCode ?? 'RUNTIME_FAILED' });
@@ -225,12 +233,12 @@ export default function DesktopMultiplayerLauncher({
         setError({ kind: 'host', code: 'NO_LAN_INTERFACE' });
         return;
       }
-      const nextRoomCode = generateHostRoomCode();
       onReady({
         runtimeConfig: runtimeConfig(result.status.localEndpoint, result.status),
         initialJoin: { name: name.trim(), roomCode: nextRoomCode },
         targetRoomCode: nextRoomCode,
         hosting: true,
+        connectionMode: hostMode,
       });
     } catch {
       const latest = await bridge.host.getStatus().catch(() => hostStatus);
@@ -258,10 +266,10 @@ export default function DesktopMultiplayerLauncher({
   };
 
   const joinRoom = async (): Promise<void> => {
-    if (!name.trim()) return;
-    const normalizedRoomCode = normalizeRoomCode(roomCode);
-    if (!normalizedRoomCode) {
-      setError({ kind: 'message', key: 'launcher.invalidRoomCode' });
+    if (!name.trim() || searching || busy) return;
+    const input = parseJoinInput(roomCode);
+    if (input.kind === 'invalid') {
+      setError({ kind: 'message', key: input.reason === 'CODE' ? 'launcher.invalidRoomCode' : 'launcher.invalidInvite' });
       return;
     }
     if (mode === 'configured') {
@@ -270,52 +278,33 @@ export default function DesktopMultiplayerLauncher({
         setError({ kind: 'message', key: 'launcher.configuredUnavailable' });
         return;
       }
-      enterRoom(endpoint, normalizedRoomCode);
+      enterRoom(endpoint, input.roomCode);
       return;
     }
 
     setError(null);
-    // A pasted invitation link already names the Host: no search is needed.
-    if (inviteLink.trim()) {
-      const invitation = parseLanJoinUrl(inviteLink);
-      if (!invitation) {
-        setError({ kind: 'message', key: 'launcher.invalidInvite' });
-        return;
-      }
-      enterRoom(invitation.endpoint, invitation.roomCode);
-      return;
-    }
-
-    const failSearch = (code: LanFindRoomFailureCode): void => {
-      setError({ kind: 'find-room', code, roomCode: normalizedRoomCode });
-      if (code !== 'NO_NETWORK') setInviteOffered(true);
-    };
-    const lan = bridge?.lan;
-    if (!lan) {
-      failSearch('UNAVAILABLE');
+    if (input.kind === 'invitation') {
+      enterRoom(input.endpoint, input.roomCode);
       return;
     }
     searchRef.current += 1;
     const attempt = searchRef.current;
     setSearching(true);
-    let result: LanFindRoomResult;
-    try {
-      result = await lan.findRoom(normalizedRoomCode);
-    } catch {
-      result = { ok: false, code: 'UNAVAILABLE' };
-    }
+    const [lanResult, onlineResult] = await Promise.all([
+      bridge?.lan?.findRoom(input.roomCode).catch(() => ({ ok: false, code: 'UNAVAILABLE' } as const)),
+      bridge?.online?.findRoom(input.roomCode).catch(() => ({ ok: false, code: 'UNAVAILABLE' } as const)),
+    ]);
     if (searchRef.current !== attempt) return;
     setSearching(false);
-    if (!result.ok) {
-      failSearch(result.code);
+    const lanEndpoint = lanResult?.ok ? normalizeLanEndpoint(lanResult.endpoint) : undefined;
+    const onlineEndpoint = onlineResult?.ok ? publicHttpsEndpoint(onlineResult.endpoint) : undefined;
+    if (lanEndpoint && onlineEndpoint) {
+      setError({ kind: 'ambiguous' });
       return;
     }
-    const endpoint = normalizeLanEndpoint(result.endpoint);
-    if (!endpoint) {
-      failSearch('UNAVAILABLE');
-      return;
-    }
-    enterRoom(endpoint, normalizedRoomCode);
+    if (onlineEndpoint || lanEndpoint) enterRoom((onlineEndpoint || lanEndpoint) as string, input.roomCode);
+    else if (onlineResult && !onlineResult.ok && onlineResult.code === 'UNAVAILABLE') setError({ kind: 'message', key: 'launcher.registryUnavailable' });
+    else setError({ kind: 'find-room', code: lanResult?.ok ? 'UNAVAILABLE' : lanResult?.code ?? 'NOT_FOUND', roomCode: input.roomCode });
   };
 
   const stopHost = async (): Promise<void> => {
@@ -367,7 +356,7 @@ export default function DesktopMultiplayerLauncher({
       <div className="desktop-launcher__content">
         <header className="desktop-launcher__header">
           <p className="desktop-launcher__brand" aria-hidden="true">{t('brand.name')}</p>
-          <h1 id="desktop-launcher-title">{t('launcher.playOverLan')}</h1>
+          <h1 id="desktop-launcher-title">{t('launcher.multiplayer')}</h1>
         </header>
 
         {error ? <p className="desktop-launcher__error" role="alert">{errorMessage(error, t)}</p> : null}
@@ -385,6 +374,7 @@ export default function DesktopMultiplayerLauncher({
                   onClick={() => onReady({
                     runtimeConfig: runtimeConfig(hostStatus?.localEndpoint as string, hostStatus),
                     hosting: true,
+                    connectionMode: hostStatus?.connectionMode ?? 'LAN',
                   })}
                 >{t('launcher.roomOpen')}</Button>
                 <Button
@@ -402,7 +392,7 @@ export default function DesktopMultiplayerLauncher({
               className="desktop-launcher__action"
               data-launcher-choice="host"
               icon={<ActionIcon name="host" className="action-icon--only" />}
-              disabled={updateRequired}
+              disabled={updateRequired || hostRunning}
               onClick={() => openMode('host')}
             >{t(modeTitle.host)}</Button>
             <Button
@@ -477,6 +467,21 @@ export default function DesktopMultiplayerLauncher({
               >{t('launcher.back')}</Button>
               <h2>{t(modeTitle[mode])}</h2>
 
+              {mode === 'host' ? (
+                <div className="desktop-launcher__field">
+                  <SegmentedControl
+                    label={t('launcher.connectionMode')}
+                    options={[
+                      { value: 'ONLINE', label: t('launcher.onlineMode') },
+                      { value: 'LAN', label: t('launcher.lanMode') },
+                    ]}
+                    value={hostMode}
+                    onChange={value => { setHostMode(value); setError(null); }}
+                  />
+                  <p className="desktop-launcher__hint">{t(hostMode === 'ONLINE' ? 'launcher.onlineDescription' : 'launcher.lanDescription')}</p>
+                </div>
+              ) : null}
+
               <div className="desktop-launcher__field">
                 <label className="entry-label" htmlFor="desktop-player-name">{t('launcher.playerName')}</label>
                 <input
@@ -500,46 +505,22 @@ export default function DesktopMultiplayerLauncher({
                     </p>
                   ) : null}
                   <div className="desktop-launcher__field">
-                    <label className="entry-label" htmlFor="desktop-lan-room">{t('launcher.roomCode')}</label>
+                    <label className="entry-label" htmlFor="desktop-lan-room">{t(mode === 'join' ? 'launcher.roomOrLink' : 'launcher.roomCode')}</label>
                     <input
                       id="desktop-lan-room"
                       className="entry-control"
                       value={roomCode}
-                      maxLength={20}
-                      placeholder={t('launcher.roomCodePlaceholder')}
-                      autoCapitalize="characters"
+                      maxLength={500}
+                      placeholder={t(mode === 'join' ? 'launcher.roomOrLinkPlaceholder' : 'launcher.roomCodePlaceholder')}
+                      autoCapitalize="none"
                       readOnly={searching}
                       onChange={event => {
-                        setRoomCode(event.target.value.toUpperCase());
+                        setRoomCode(event.target.value);
                         // The line above the form was about the code that was just changed.
                         setError(null);
                       }}
                     />
                   </div>
-                  {mode === 'join' && inviteOffered ? (
-                    <div className="desktop-launcher__field">
-                      <label className="entry-label" htmlFor="desktop-lan-invite">{t('launcher.inviteLink')}</label>
-                      <input
-                        id="desktop-lan-invite"
-                        className="entry-control"
-                        value={inviteLink}
-                        placeholder={t('launcher.inviteLinkPlaceholder')}
-                        inputMode="url"
-                        autoCapitalize="none"
-                        autoComplete="off"
-                        spellCheck={false}
-                        readOnly={searching}
-                        onChange={event => {
-                          const value = event.target.value;
-                          setInviteLink(value);
-                          setError(null);
-                          // The link names its room, so the code field follows what was pasted.
-                          const invitation = parseLanJoinUrl(value);
-                          if (invitation) setRoomCode(invitation.roomCode);
-                        }}
-                      />
-                    </div>
-                  ) : null}
                 </>
               )}
 

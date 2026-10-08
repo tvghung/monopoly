@@ -3,6 +3,7 @@ import type { OwnTheBlockDesktopBridge } from './types';
 import {
   isRuntimeConfigLoadError,
   loadRuntimeConfig,
+  webSocketUrlForPage,
 } from './runtimeConfig';
 
 afterEach(() => {
@@ -55,5 +56,14 @@ describe('renderer desktop runtime-config bridge', () => {
     window.ownTheBlockDesktop = bridgeWithResult({ ok: true, config });
 
     await expect(loadRuntimeConfig()).resolves.toEqual(config);
+  });
+});
+
+describe('browser host socket target', () => {
+  it('uses the host origin for LAN and Quick Tunnel pages', () => {
+    expect(webSocketUrlForPage('https://cloud.example.test', 'http://192.168.1.20:53120')).toBeUndefined();
+    expect(webSocketUrlForPage('https://cloud.example.test', 'https://room.trycloudflare.com')).toBeUndefined();
+    expect(webSocketUrlForPage('https://cloud.example.test', 'https://unrelated.example.test'))
+      .toBe('https://cloud.example.test');
   });
 });

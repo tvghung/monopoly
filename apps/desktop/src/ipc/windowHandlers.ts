@@ -157,7 +157,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function parseHostStartOptions(value: unknown): HostStartOptions {
   if (value === undefined) return {};
   if (!isRecord(value) || Object.keys(value).some(
-    key => key !== 'port' && key !== 'preferredAddress',
+    key => key !== 'port' && key !== 'preferredAddress' && key !== 'mode' && key !== 'roomCode',
   )) {
     throw new Error('Invalid host start request.');
   }
@@ -167,6 +167,12 @@ function parseHostStartOptions(value: unknown): HostStartOptions {
     throw new Error('Invalid host game port.');
   }
   const preferredAddress = value.preferredAddress;
+  if (value.mode !== undefined && value.mode !== 'LAN' && value.mode !== 'ONLINE') {
+    throw new Error('Invalid connection mode.');
+  }
+  if (value.mode === 'ONLINE' && (typeof value.roomCode !== 'string' || !/^[A-Z0-9-]{1,20}$/.test(value.roomCode))) {
+    throw new Error('Invalid online room code.');
+  }
   if (preferredAddress !== undefined
     && (typeof preferredAddress !== 'string'
       || !/^\d{1,3}(?:\.\d{1,3}){3}$/u.test(preferredAddress))) {
@@ -175,6 +181,8 @@ function parseHostStartOptions(value: unknown): HostStartOptions {
   return {
     ...(port === undefined ? {} : { port }),
     ...(preferredAddress === undefined ? {} : { preferredAddress }),
+    ...(value.mode === undefined ? {} : { mode: value.mode }),
+    ...(typeof value.roomCode === 'string' ? { roomCode: value.roomCode } : {}),
   };
 }
 
@@ -261,6 +269,25 @@ export function registerWindowHandlers(
       if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
       return services.hostRuntime.refreshNetwork(parseNetworkRefresh(value));
     });
+    ipcMain.handle(IPC_CHANNELS.hostActivateOnline, async (event, value: unknown) => {
+      if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
+      const roomCode = parseFindRoomRequest(value);
+      try {
+        return { ok: true, status: await services.hostRuntime.activateOnlineRoom(roomCode) };
+      } catch {
+        return { ok: false, status: services.hostRuntime.status };
+      }
+    });
+    ipcMain.handle(IPC_CHANNELS.onlineFindRoom, async (event, value: unknown) => {
+      if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
+      const roomCode = parseFindRoomRequest(value);
+      try {
+        const endpoint = await services.hostRuntime.resolveOnlineRoom(roomCode);
+        return endpoint ? { ok: true, endpoint } : { ok: false, code: 'NOT_FOUND' };
+      } catch {
+        return { ok: false, code: 'UNAVAILABLE' };
+      }
+    });
     removeHostStatusListener = services.hostRuntime.onStatusChanged((status: HostRuntimeStatus) => {
       if (!window.isDestroyed()) window.webContents.send(IPC_CHANNELS.hostStatusChanged, status);
     });
@@ -335,7 +362,9 @@ export function registerWindowHandlers(
     ipcMain.removeHandler(IPC_CHANNELS.hostStart);
     ipcMain.removeHandler(IPC_CHANNELS.hostStop);
     ipcMain.removeHandler(IPC_CHANNELS.hostRefreshNetwork);
+    ipcMain.removeHandler(IPC_CHANNELS.hostActivateOnline);
     ipcMain.removeHandler(IPC_CHANNELS.lanFindRoom);
+    ipcMain.removeHandler(IPC_CHANNELS.onlineFindRoom);
     ipcMain.removeHandler(IPC_CHANNELS.updateGetState);
     ipcMain.removeHandler(IPC_CHANNELS.updateCheck);
     ipcMain.removeHandler(IPC_CHANNELS.updateDownload);

@@ -13,6 +13,8 @@ export const IPC_CHANNELS = {
   hostStop: 'ownTheBlock:host:stop',
   hostRefreshNetwork: 'ownTheBlock:host:refresh-network',
   hostStatusChanged: 'ownTheBlock:host:status-changed',
+  hostActivateOnline: 'ownTheBlock:host:activate-online',
+  onlineFindRoom: 'ownTheBlock:online:find-room',
   lanFindRoom: 'ownTheBlock:lan:find-room',
   updateGetState: 'ownTheBlock:update:get-state',
   updateCheck: 'ownTheBlock:update:check',

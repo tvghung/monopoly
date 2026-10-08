@@ -22,9 +22,9 @@ Cloud deployment is one Node service serving the same-origin client. Packaged
 desktop Host mode instead supervises the same server plus managed PostgreSQL:
 PostgreSQL stays on `127.0.0.1`, while the game HTTP/Socket server binds
 `0.0.0.0` on an OS-selected port and serves the explicit bundled client root.
-Remote browsers use the selected IPv4 URL; the host renderer uses loopback. A
-desktop Join finds the Host from the room code alone through a request/response
-UDP lookup (desktop Host profile only, see
+Remote browsers use a LAN IPv4 URL or the Online Quick Tunnel HTTPS URL; the host
+renderer uses loopback. A desktop Join finds a LAN Host from the room code through
+request/response UDP, or an Online Host through the optional registry (see
 [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md)); the cloud
 and development servers never answer it. There is no mDNS, no periodic
 advertisement and no runtime memory fallback. Player-facing UI supports
@@ -97,7 +97,7 @@ remain unchanged.
 | Contracts/runtime schema | [Shared/socket-and-state-contracts.instruction.md](./Shared/socket-and-state-contracts.instruction.md) | `types.ts`, `events.ts`, `socketSchemas.ts` |
 | WebGL board/surface art/motion | [Client/game-board.instruction.md](./Client/game-board.instruction.md) | `Board.tsx`, `game/scene/GameScene.tsx`, `game/scene/board/` |
 | HTTP/readiness/deploy | [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md) | create/start server, migration startup, Docker/Render/CI |
-| Desktop Join by room code (LAN lookup) | [Client/join-room.instruction.md](./Client/join-room.instruction.md), [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md) | `DesktopMultiplayerLauncher.tsx`, `apps/desktop/src/lanFinder.ts`, `apps/server/src/lanDiscoveryResponder.ts` |
+| Desktop Join by code/link (LAN + Online) | [Client/join-room.instruction.md](./Client/join-room.instruction.md), [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md) | `DesktopMultiplayerLauncher.tsx`, `joinTargetResolver.ts`, `apps/desktop/src/lanFinder.ts`, `apps/desktop/src/online/`, `services/room-registry/` |
 | 2v2 Teamplay (đội, ghế sảnh/đổi chỗ, kick, hồi sinh, cứu trợ, thuê theo đội) | [GameCore/team-play.instruction.md](./GameCore/team-play.instruction.md), [testcase/team-play.md](./testcase/team-play.md) | `game/team*.ts`, `game/rescue*.ts`, `socket/team.ts`, `teamLobby.ts`, `packages/shared/src/teams.ts`, `Lobby.tsx`, `game/team/` |
 | Board/card/deck data | [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md) | shared canonical board/cards và private deck state |
 | Cập nhật tự động (kiểm tra, tải, áp dụng, bản bắt buộc) | [Client/app-update.instruction.md](./Client/app-update.instruction.md) | `apps/desktop/src/update/`, `apps/client/src/runtime/appUpdate.tsx`, `apps/client/src/components/update/`, `apps/desktop/scripts/updateManifest.mjs`, `apps/desktop/update-policy.json` |

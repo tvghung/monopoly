@@ -33,14 +33,11 @@ Development endpoint contract:
   `http://127.0.0.1:8080`; the server allows the exact renderer origin by default.
 
 - Desktop renders `DesktopMultiplayerLauncher` before any gameplay Socket.IO
-  client is created. Host mode starts the main-process runtime first (the main
-  process picks the network the device is connected to; the form asks for a name
-  only). Join mode asks for a name and a room code only and resolves the Host
-  endpoint first through the main-process lookup
-  `window.ownTheBlockDesktop.lan.findRoom(roomCode)` (request/response UDP, see
-  [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md)); only
-  after a failed lookup does the form offer a pasted invitation link
-  (`parseLanJoinUrl`, the inverse of `buildLanJoinUrl`) that skips the lookup.
+  client is created. Host chooses Online or LAN; both use the same local
+  authoritative server. Join has one code/link input. Code resolution tries LAN
+  UDP and configured Online registry in parallel; a validated LAN or public HTTPS
+  invitation connects directly without discovery. See
+  [Api/http-runtime.instruction.md](./Api/http-runtime.instruction.md).
   There is no mDNS and no periodic advertisement. The launcher is the app's main
   menu (V1.1): buttons only ("Tạo phòng", "Tham gia phòng", "Cài đặt", "Thoát"), no
   explanation under them, over a picture on the right. "Cài đặt" works because

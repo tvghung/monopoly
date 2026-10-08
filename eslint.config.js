@@ -54,6 +54,18 @@ export default tseslint.config(
     },
   },
   {
+    files: ['services/room-registry/src/**/*.js'],
+    languageOptions: {
+      globals: { ...globals.browser },
+    },
+  },
+  {
+    files: ['services/room-registry/src/**/*.mjs'],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
+  {
     files: ['apps/desktop/**/*.cjs', 'apps/desktop/scripts/**/*.mjs'],
     languageOptions: {
       globals: { ...globals.node },
