@@ -254,3 +254,51 @@ players, and observed result.
 - [ ] `[MANUAL-E2E]` Owner read-through of the Vietnamese text of the twelve topics for plainness and correctness, and a check of
   the three 1.1 rule statements (buy offers during a debt, the seller-chosen forced-sale price, keep watching after
   "Bỏ cuộc") against the running game.
+
+## UI/UX polish batch 5 (2026-10-08): landmark names, language selector, modal peek, jail layout
+
+Evidence labels for this section: `[AUTO]` is a committed test; `[PROBE]` is a throwaway Playwright script (not committed) driving the dev-only UAT
+harness (`?phase4-uat=1`) in system Chrome, results written down here; `[NOT RUN]` was not exercised.
+
+### Landmark names (VI/EN)
+
+- [x] `[AUTO][CLIENT]` `game/ui/property/landmarkVisuals.test.ts`: the 22 street landmarks have their exact Vietnamese name (unchanged) and exact English name
+  (22 pairs, English names all different, proper nouns with their diacritics), `getLandmarkHotelLabel` is "Khách sạn · …" / "Hotel · …".
+- [x] `[AUTO][CLIENT]` `PropertyDeedCard.test.tsx` (model built per language, street name untranslated), `components/legacy-board/tileAccessibility.test.ts` (English tile label
+  "Hotel · Chùa Cầu Temple").
+- [ ] `[NOT RUN]` A full match: build a hotel, switch language in Settings and read the deed card, the opening banner and the tile label again; the 3D board itself
+  prints no landmark text.
+
+### Language selector and main-menu heading
+
+- [x] `[AUTO][CLIENT]` `components/LanguageSelector.test.tsx` (10 tests), `DesktopMultiplayerLauncher.update.test.tsx`, `DesktopMultiplayerLauncher.test.tsx`: see
+  [join-room-and-player-lifecycle.md](./join-room-and-player-lifecycle.md); `settings/settings.test.ts` still normalizes an unknown stored language to the default.
+- [x] `[PROBE]` The open list on the Design Lab `launcher` surface at 1280×720: Settings, the selector (globe, "Tiếng Việt", chevron) and Quit share one row and the list opens
+  upward over the menu. The lab nests its own settings provider, so a language change cannot be watched there; that path is the AUTO row above.
+- [ ] `[NOT RUN]` The selector by touch, and in the packaged desktop app (English labels, 40rem and landscape-short layouts).
+
+### Modal peek ("Xem bàn cờ" / "Hiện quyết định")
+
+- [x] `[AUTO][CLIENT]` `design-system/components/Modal/Modal.peek.test.tsx` (12 tests): the eye key exists only with `peek`; hiding sets `hidden` on the overlay, removes the dialog from
+  the accessibility tree and sends/closes nothing; showing returns the same elements with the typed value; focus goes to the restore key and back to the eye; Escape does
+  nothing while hidden; the restore key and the "decision hidden" flag disappear when the dialog goes away; `view` dialogs do not raise the flag; only the dialog hidden last
+  owns the key; the dialog below takes Escape; a new `peekKey` shows the dialog; `peekSummary` updates while hidden; a language change relabels both keys.
+- [x] `[AUTO][CLIENT]` `components/dashboard/DecisionPeek.test.tsx` (8 tests): hiding and showing the purchase and development dialogs sends no command; a purchase request in flight is
+  not repeated after hide/show; a settled decision leaves no key; a new purchase operation shows itself; the debt countdown keeps ticking beside the restore key and
+  after restoring; with a decision hidden the property card has no "Bán Nhà" and shows the view-only note, with it back after showing.
+- [x] `[AUTO][CLIENT]` Existing dialog tests updated only for the added eye key (`WinnerBanner.test.tsx`, `OwnedPropertiesControl.test.tsx`, `PlayerPortfolioModal.test.tsx`).
+- [x] `[PROBE]` Live WebGL board (UAT scenario `chance`, card dialog) at 667×375, 896×414 and 1280×720: hiding leaves the board visible, `elementFromPoint` at the center hits the canvas (no
+  invisible layer), the key sits top center inside the safe area; opening tile 13 while hidden shows its card, which covers the key, and Escape closes only the card and
+  leaves the key reachable; showing returns focus to the eye key. Design Lab `buy` and `debt-debtor` surfaces show the key and the "N seconds left" chip.
+- [ ] `[NOT RUN]` With a real match against a server: purchase, upgrade and a debt with a forced sale each hidden and shown mid-decision and then completed; a reconnect while hidden; the
+  game ending while hidden; forced-sale proposals and incoming offers hidden. The Rescue and Forced-Sale dialogs are covered only by the shared Modal tests.
+
+### Jail layout on narrow phones
+
+- [x] `[AUTO][CLIENT]` `game/ui/hud/centerStage.test.tsx` ("CenterStage jail group", 3 tests): in a narrow window the roll button and the jail panel are in the one stage column with the roll first and
+  exactly one roll button, in a wider window the stage has no jail panel, and the stage is marked busy during the dice roll while the panel stays mounted.
+  `components/dashboard/JailPanel.test.tsx` is unchanged (bail/card/pending/error behavior).
+- [x] `[PROBE]` UAT scenario `jail-failed` (jailed player with one card, own turn), VI and EN, at 568×320, 667×375, 740×360, 812×375, 844×390, 896×414, 1280×720 and 1920×1080: the roll button is the top
+  element at its center (clickable), both jail buttons are ≥ 44 px tall and hit-testable, the panel overlaps neither the roll button, nor the four player cards, nor the properties dock, no horizontal
+  scroll. Before the change 568×320 failed (panel over the roll button, `rollClickable: false`).
+- [ ] `[NOT RUN]` 2v2 revive panel next to a jailed player, a disconnected jailed player, an insufficient-bail balance and a pending request on a device; Safari/WebKit and real notch devices.

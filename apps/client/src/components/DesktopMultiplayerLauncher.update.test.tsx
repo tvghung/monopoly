@@ -71,14 +71,21 @@ const gone = () => waitFor(() => expect(document.querySelector('.ds-modal__card'
 const runningHost = (state: HostRuntimeState = 'HOSTING') => ({ ...hosting, state });
 
 describe('start screen with an optional update', () => {
-  it('switches the main menu language with one click and switches back without reloading', () => {
+  it('changes the main menu language only once an option of the selector is chosen, and back again without reloading', () => {
     renderLauncher(updateState());
 
-    fireEvent.click(menuButton('Chuyển sang English'));
+    // Opening the selector changes nothing.
+    fireEvent.click(menuButton('Ngôn ngữ: Tiếng Việt'));
+    expect(menuButton('Tạo phòng')).toBeTruthy();
+    expect(screen.getByRole('listbox', { name: 'Chọn ngôn ngữ' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('option', { name: 'English' }));
     expect(menuButton('Host Room')).toBeTruthy();
     expect(menuButton('Settings')).toBeTruthy();
+    expect(screen.queryByRole('listbox')).toBeNull();
 
-    fireEvent.click(menuButton('Switch to Vietnamese'));
+    fireEvent.click(menuButton('Language: English'));
+    fireEvent.click(screen.getByRole('option', { name: 'Tiếng Việt' }));
     expect(menuButton('Tạo phòng')).toBeTruthy();
     expect(menuButton('Cài đặt')).toBeTruthy();
   });

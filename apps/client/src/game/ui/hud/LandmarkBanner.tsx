@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useEffectiveReducedMotion } from '../../../settings/selectors';
 import { usePresentationSelector } from '../../presentation/usePresentationSelector';
 import type { DevelopmentChangeSignal, PresentationState } from '../../presentation/store/types';
-import { getLandmarkVisual } from '../property/landmarkVisuals';
+import { getLandmarkName, getLandmarkVisual } from '../property/landmarkVisuals';
 import { useTransientList } from './useTransientList';
 import { useTranslation } from '../../../i18n/I18n';
 
@@ -33,7 +33,7 @@ export function isLandmarkOpening(change: DevelopmentChangeSignal): boolean {
  * hidden from assistive technology: the activity log already says that the Khách sạn was built.
  */
 export default function LandmarkBanner() {
-  const { t } = useTranslation();
+  const { language, t } = useTranslation();
   const slice = usePresentationSelector(selectSlice, sameSlice);
   const reducedMotion = useEffectiveReducedMotion();
   const list = useTransientList<{ tileId: number }>(1);
@@ -71,7 +71,7 @@ export default function LandmarkBanner() {
       key={entry.key}
     >
       {reducedMotion ? null : <img className="landmark-banner__art" src={visual.artUrl} alt="" width={44} height={44} draggable={false} />}
-      <span className="turn-banner__text">{t('hud.landmarkBuilt', { name: visual.landmarkName })}</span>
+      <span className="turn-banner__text">{t('hud.landmarkBuilt', { name: getLandmarkName(visual, language) })}</span>
     </div>
   );
 }

@@ -23,7 +23,8 @@
   (`selectRevivePrompt`): "Có thể hồi sinh: <tên>" + "Còn N lượt"/"Cơ hội cuối", the price (`REVIVE_COST`), what the teammate returns with
   (`REVIVE_STARTING_CASH`, no property or cards, once per player) and one button "Hồi sinh <tên> — 750.000 ₫" that sends `revive teammate`
   (no payload). It says why the button is off ("Bạn cần 750.000 ₫ …", "Cơ hội hồi sinh bắt đầu từ lượt kế tiếp của bạn.").
-- `JailPanel` (now in the HUD context stack above the action dock) shows opponent-round progress and direct
+- `JailPanel` (in the HUD context stack above the action dock; in a window up to 720 px wide `CenterStage` renders it instead, directly under the roll
+  button, see [game-board.instruction.md](./game-board.instruction.md) "Nhóm thoát tù trên điện thoại hẹp") shows opponent-round progress and direct
   cash/card/wait actions ("hoặc bấm Đổ xúc xắc để thử đổ đôi"). It is a named `region` (no live region around the
   buttons); the "Đã xác nhận…" line is its one `role="status"`, an error is one `role="alert"`, and the balance warning
   describes the disabled bail button. On a phone held sideways it is a two-row strip and never covers the roll button:
@@ -53,6 +54,13 @@
   The wrapper `data-testid="card-interaction-overlay"`/`data-card-stage` is the `.card-modal__stage` element **inside** the
   dialog. Focus returns to "Đóng" after a failed dismissal. There is no Draw step; a legacy `AWAITING_DRAW` card renders nothing. `ForcedSaleProposalPanel` renders terms only for its seller or
   buyer via the private player state channel.
+
+- **"Xem bàn cờ" / "Hiện quyết định"**: the dialogs above carry the Modal's peek key (an eye in the header). `BuyPrompt`, `DevelopmentPrompt`, `DebtPanel`,
+  `RescuePanel`, `ForcedSaleProposalPanel` and `CardInteractionOverlay` (acting player) are `peek="decision"`; `IncomingOffers`, `TradeOfferModal`, the property
+  and portfolio dialogs, the winner dialog and the in-game leave confirmation are `peek="view"`. Hiding is presentation only: nothing is
+  sent, the pending request / typed values / error line stay in the mounted dialog, the debt countdown keeps running (shown beside the
+  restore key), and a new decision (`peekKey`: operation, claim, rescue, proposal or offer ids) shows itself. Details and edge cases:
+  [design-system.instruction.md](./design-system.instruction.md) "Xem bàn cờ (peek)".
 
 During reconnect, spectator mode and non-committed ACK state, all mutation controls
 are disabled. Revision ordering and token arrival animations are presentation-only;

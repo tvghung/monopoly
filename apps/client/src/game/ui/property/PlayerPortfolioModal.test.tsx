@@ -95,7 +95,7 @@ describe('PlayerPortfolioModal', () => {
     renderPortfolio(buildRoom(), { playerId: 'player-b' });
 
     expect(screen.getByRole('article', { name: 'Đồng Khởi' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /^Xem / })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Xem (?!bàn cờ)/ })).toBeNull();
   });
 
   it('follows the authoritative balance while open', () => {

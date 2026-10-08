@@ -15,6 +15,7 @@ import { useEffectiveReducedMotion, useSettings } from './selectors';
 import './SettingsPanel.css';
 import { useTranslation } from '../i18n/I18n';
 import type { Language } from '../i18n/I18n';
+import { SUPPORTED_LANGUAGES } from '../i18n/languages';
 
 const VOLUME_CONTROLS: readonly { key: 'masterVolume' | 'musicVolume' | 'sfxVolume'; labelKey: 'settings.masterVolume' | 'settings.music' | 'settings.effects' }[] = [
   { key: 'masterVolume', labelKey: 'settings.masterVolume' },
@@ -101,10 +102,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
           <SectionHeading id="settings-language-title" icon={<ActionIcon name="settings" />}>{t('language.label')}</SectionHeading>
           <SegmentedField<Language>
             label={t('language.label')}
-            options={[
-              { value: 'vi', label: t('language.vietnamese') },
-              { value: 'en', label: t('language.english') },
-            ]}
+            options={SUPPORTED_LANGUAGES.map(({ code, labelKey }) => ({ value: code, label: t(labelKey) }))}
             value={settings.language}
             onChange={language => updateSettings({ language })}
           />

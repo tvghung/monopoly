@@ -93,6 +93,7 @@ export default function PlayerPortfolioModal({ playerId, onClose, onSelectTile }
       title={t('portfolio.title', { name: player.name })}
       size="lg"
       onClose={onClose}
+      peek="view"
       closeOnOutsideClick
     >
       <PortfolioView

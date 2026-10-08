@@ -15,7 +15,7 @@ export default function IncomingOffers() {
   const inDebt = state.boardState.paymentShortfall?.debtorPlayerId === playerId;
 
   return (
-    <Modal open={state.loaded && !inDebt && offers.length !== 0} title={t('offers.title')} eyebrow={t('offers.eyebrow')} size="lg" className="trade-offers-modal">
+    <Modal open={state.loaded && !inDebt && offers.length !== 0} title={t('offers.title')} eyebrow={t('offers.eyebrow')} size="lg" peek="view" peekKey={offers.map(offer => offer.offerId).join('|')} className="trade-offers-modal">
       {offers.map((current, index) => (
         <OfferCard
           key={current.offerId}

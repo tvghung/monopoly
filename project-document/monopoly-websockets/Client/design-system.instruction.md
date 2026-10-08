@@ -70,12 +70,12 @@ Kết quả đo trong Design Lab: Baloo 2 có `tnum` thật (chênh lệch bề 
 | `DeltaChip` | `delta`, `reducedMotion` | Thuần trình bày; vòng đời do HUD điều khiển. |
 | `PlayerAvatar` | `characterId`, `colorId`, `size`, `active`, `status` | localized `alt` label from VI/EN catalog, no `title` and no visible mascot name. |
 | `GroupPips` | `groups` | Rỗng / một phần / đủ bộ; `aria-label` tóm tắt. |
-| `Modal` | `open`, `title`, `eyebrow`, `size` (`sm/md/lg/xl` = 400/520/680/880 px), `placement` (`center/sheet`), `backdrop` (`dim/clear`), `footer`, `tone` (`default/danger/celebration`), `layer` (`modal` z 60 / `card` z 70), `headerAccent`, `describedBy`, `role`, `onClose`, `closeOnEscape`, `closeOnOutsideClick` | Xem mục "Modal v2". Vẫn là primitive prompt duy nhất. |
-| `ConfirmationDialog`, `ToastView` | `ConfirmationDialog`: `title`, `message` (nối `aria-describedby`), `confirmLabel`/`confirmIcon`, `cancelLabel`/`cancelIcon`, `tone` (`danger` mặc định / `neutral`), `icon` (tên trong registry, mặc định `warning`), `busy`; nút dùng `Button` v2 | `ConfirmationDialog` luôn nằm trên mọi dialog khác; thời lượng lấy từ `motionTokens`. `tone="neutral"` (lời mời đổi chỗ ở lobby) dùng `Modal` tone `default`, nút xác nhận `primary` và biểu tượng nền info; `busy` disable cả hai nút, bỏ Escape và nút đóng ở header (không có lần trả lời thứ hai) và bỏ `data-modal-autofocus` để Modal tự giữ focus. Mời người ra khỏi phòng dùng `danger`. |
+| `Modal` | `open`, `title`, `eyebrow`, `size` (`sm/md/lg/xl` = 400/520/680/880 px), `placement` (`center/sheet`), `backdrop` (`dim/clear`), `footer`, `tone` (`default/danger/celebration`), `layer` (`modal` z 60 / `card` z 70), `headerAccent`, `describedBy`, `role`, `onClose`, `closeOnEscape`, `closeOnOutsideClick`, `peek` (`decision`/`view`), `peekKey`, `peekSummary` | Xem mục "Modal v2" và "Xem bàn cờ (peek)". Vẫn là primitive prompt duy nhất. |
+| `ConfirmationDialog`, `ToastView` | `ConfirmationDialog`: `title`, `message` (nối `aria-describedby`), `confirmLabel`/`confirmIcon`, `cancelLabel`/`cancelIcon`, `tone` (`danger` mặc định / `neutral`), `icon` (tên trong registry, mặc định `warning`), `busy`; nút dùng `Button` v2 | `ConfirmationDialog` luôn nằm trên mọi dialog khác; thời lượng lấy từ `motionTokens`. `tone="neutral"` (lời mời đổi chỗ ở lobby) dùng `Modal` tone `default`, nút xác nhận `primary` và biểu tượng nền info; `peek` (cùng giá trị với `Modal`) cho phép đặt câu hỏi sang một bên để xem bàn cờ (App dùng `peek="view"` cho xác nhận rời phòng khi đang chơi); `busy` disable cả hai nút, bỏ Escape và nút đóng ở header (không có lần trả lời thứ hai) và bỏ `data-modal-autofocus` để Modal tự giữ focus. Mời người ra khỏi phòng dùng `danger`. |
 
 `PlayerAvatar` reads localized accessible labels from the client catalog; the character registry only supplies the illustration. `displayName` remains absent (plan 04, OD-04-1): mascots are identified by image, with no visible character name.
 
-`design-system/useMediaQuery.ts` cung cấp `useMediaQuery(query)` (`useSyncExternalStore`, false khi không có `matchMedia`) và `SHORT_VIEWPORT_QUERY` (`(orientation: landscape) and (max-height: 31rem)`): chỉ dùng để chọn biến thể component (deed `compact`, nút `md`, ảnh 64 px), còn style nằm trong CSS.
+`design-system/useMediaQuery.ts` cung cấp `useMediaQuery(query)` (`useSyncExternalStore`, false khi không có `matchMedia`) và `SHORT_VIEWPORT_QUERY` (`(orientation: landscape) and (max-height: 31rem)`): chỉ dùng để chọn biến thể component (deed `compact`, nút `md`, ảnh 64 px), còn style nằm trong CSS. `NARROW_HUD_QUERY` (`(max-width: 720px)`, cùng ngưỡng với `hud.css`) quyết định `CenterStage` hay `BottomDock` vẽ `JailPanel`.
 
 ## Modal v2
 
@@ -91,6 +91,35 @@ Kết quả đo trong Design Lab: Baloo 2 có `tnum` thật (chênh lệch bề 
   luật `:has()` trong `howToPlay.css` (không thêm `layer` mới cho `Modal`). Hộp thoại **không** có bề mặt Design Lab nên
   danh sách `surfaces` không đổi (57 id, xem bên dưới) và `PLAN04_SURFACES` không đổi; xem
   [how-to-play.instruction.md](./how-to-play.instruction.md).
+
+### Xem bàn cờ (peek)
+
+Mục đích: một quyết định (mua, nợ, thẻ…) hay một hộp thoại thông tin che bàn cờ; người chơi muốn nhìn tài sản, chủ sở hữu, tiền thuê rồi quay lại **đúng** quyết định đó.
+
+- **Opt-in**: `<Modal peek="decision" | "view">`. `decision` là quyết định đang chờ của game (xem [turn-actions.instruction.md](./turn-actions.instruction.md)); `view` là hộp thoại
+  thông tin/công cụ. Dialog không truyền `peek` không đổi gì (DOM header cũ giữ nguyên). Header có thêm `IconButton` hình mắt "Xem bàn cờ" / "View Board" (`data-modal-peek`)
+  đứng trước nút đóng.
+- **Chủ sở hữu trạng thái**: `peeking` là `useState` cục bộ của `ModalSurface` — không nằm trong state game, context hay socket. Ẩn = đặt `hidden` trên lớp phủ
+  (`.ds-modal__overlay[hidden] { display: none }`): nền, thẻ và mọi pointer input biến mất cùng lúc, nên không còn lớp vô hình nào chặn click; **nội dung không bị unmount**, vì vậy
+  lựa chọn, chữ đã gõ, request đang chờ, dòng lỗi và deed đã dựng còn nguyên (test dùng cùng phần tử `input` trước và sau). Không có lệnh socket, không gọi `onClose`.
+- **Registry** `Modal/modalPeek.ts` (module-level, chỉ trình bày) biết dialog nào đang ẩn: (1) chỉ dialog **ẩn sau cùng** vẽ nút khôi phục (`useOwnsRestoreKey`); khôi phục nó thì nút của dialog ẩn
+  trước đó hiện ra; (2) `useDecisionHidden()` là true khi có dialog `decision` đang ẩn.
+- **Nút khôi phục** (`ModalPeekRestore`, portal vào `body`): "Hiện quyết định" / "Show Decision", `position: fixed` giữa-trên cửa sổ dưới vùng an toàn (`env(safe-area-inset-top)`),
+  z `--z-floating-control` (40) < dialog (60/70) < toast < `ConnectionOverlay`: một dialog mở lên trên bàn cờ (thẻ ô đất) che nó đến khi đóng. Chỉ hộp của nút bắt pointer, hàng bao quanh cho click
+  xuyên; hiệu ứng vào bị tắt khi reduced motion. `peekSummary` vẽ một trạng thái gọn cạnh nút.
+- **Focus & bàn phím**: bấm mắt → focus vào nút khôi phục; bấm khôi phục → focus về nút mắt. Dialog đang ẩn bị bỏ qua khi tìm "dialog trên cùng" (`activeEntry()`): Escape/Tab và trả focus
+  thuộc về dialog hiển thị bên dưới; Escape không đóng một quyết định đang ẩn.
+- **Nhiều dialog xếp chồng**: ẩn dialog trên cùng để thấy dialog dưới là hợp lệ; nút khôi phục chỉ của dialog ẩn sau cùng. Mở thẻ ô đất khi đang ẩn quyết định: thẻ nằm trên, đóng bằng Escape/nút Đóng,
+  rồi nút khôi phục dùng lại được.
+- **Quyết định đổi / hết hạn**: dialog tự biến mất cùng quyết định (`open` false hoặc component không render Modal, ví dụ máy chủ đã giải quyết, mất kết nối → `canMutate` false); registry bỏ mục ngay khi dialog
+  bắt đầu thoát nên không để lại nút khôi phục hay cờ "đang ẩn". Mở lại là dialog hiển thị bình thường. Nếu quyết định **khác** thay thế khi đang ẩn (`peekKey` đổi: `operationId` mua/phát triển, `claimId`
+  nợ, `rescueId`, `proposalId`, thẻ `operationId`, tập `offerId` của đề nghị đến), dialog tự hiện và focus vào bên trong. Sau reconnect, dialog đọc lại state có thẩm quyền (nội dung luôn render từ state hiện tại).
+- **Nợ và hạn chót**: ẩn không dừng và không kéo dài gì; hạn chót là tuyệt đối của server. `DebtPanel` truyền `peekSummary` = chip "Còn N giây" từ cùng nhịp 1 giây, `RescuePanel` chip đếm ngược tới `expiresAt`.
+- **Bàn cờ chỉ đọc khi quyết định đang ẩn**: với `useDecisionHidden()` true, `PropertyInspectionModal` giấu "Bán Nhà" / "Đề nghị mua" và hiện ghi chú "Bạn đang xem bàn cờ. Hãy hiện lại quyết định đang chờ…";
+  còn lại (thẻ ô đất, tài sản, người chơi) chỉ để xem. Lăn xúc xắc, bảo lãnh… vẫn bị chặn như thường vì cổng của chúng đọc state có thẩm quyền (`canRollForState` sai khi có `pendingLandingDecision` hoặc
+  `paymentShortfall`), không phụ thuộc dialog đang hiện hay ẩn; server vẫn là nơi quyết định cuối.
+- Giới hạn đã biết: chưa có phím tắt cho nút mắt; nút khôi phục cố định giữa-trên nên có thể che một phần góc trên của bàn cờ (không có control HUD nào ở đó); dialog ngoài game
+  (Cài đặt, Hướng dẫn chơi, cập nhật, launcher, Lobby) và `ForfeitChoiceDialog` không có nút mắt.
 
 ## Icon registry
 

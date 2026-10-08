@@ -15,7 +15,9 @@ stable `playerId` và derive mọi dòng của thẻ; `PropertyDeedCard` (`full`
   2v2: hàng chủ ô thêm chip "Đội <tên> · đồng đội của bạn/của bạn" (`DeedOwner.team/relation`), tiến độ nhóm đếm cả đội ("Đội X sở hữu 2/3"),
   mỗi chấm có `title` "<ô> · <chủ>" vì hai đồng đội dùng chung màu.
 - `PropertyInspectionModal` (`Modal` `md`, `headerAccent` = màu district): thẻ đầy đủ + footer hành động (`Bán Nhà` với lý do khi bị
-  khóa, `Đề nghị mua`); không đánh dấu "Sau khi xây". Escape/outside click/focus return như trước.
+  khóa, `Đề nghị mua`); không đánh dấu "Sau khi xây". Escape/outside click/focus return như trước. Có nút mắt "Xem bàn cờ" (`peek="view"`). Khi một quyết định đang chờ
+  (mua, nợ, thẻ…) bị ẩn bằng nút mắt của nó, thẻ chỉ để xem: hai hành động trên được thay bằng ghi chú "Bạn đang xem bàn cờ…" cho đến khi quyết định được hiện lại
+  ([design-system.instruction.md](./design-system.instruction.md) "Xem bàn cờ (peek)"). Tên landmark trên thẻ theo ngôn ngữ đang chọn ([language-system.instruction.md](./language-system.instruction.md)).
 - `OwnedPropertiesControl` → "Tài sản của tôi" (`Modal` `lg`): tóm tắt (số dư authoritative, số tài sản/nhà/khách sạn) + deed compact
   nhóm theo district. `PlayerPortfolioModal` mở từ player card HUD, chỉ đọc.
 - `DebtPanel` bán tài sản qua deed compact; xem [turn-actions.instruction.md](./turn-actions.instruction.md).

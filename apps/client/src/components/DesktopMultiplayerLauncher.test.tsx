@@ -184,7 +184,11 @@ describe('DesktopMultiplayerLauncher choices', () => {
 
     const { container } = render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Chơi nhiều người' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'OWN THE BLOCK' })).toBeTruthy();
+    // The game's name is the one heading: no second title, no "Chơi nhiều người" / LAN line and no separate brand line.
+    expect(screen.queryByText(/Chơi nhiều người|Chơi qua mạng LAN|Play over LAN/u)).toBeNull();
+    expect(container.querySelectorAll('h1')).toHaveLength(1);
+    expect(container.querySelector('.desktop-launcher__brand')).toBeNull();
     expect(menuLabels(container)).toEqual(['Tạo phòng', 'Tham gia phòng']);
     expect(screen.queryByText(/trên máy này|Tham gia phòng LAN|Host Game|Join Game/u)).toBeNull();
     // Nothing explains a button: the menu holds buttons only, and the screen has no subtitle or footer line.
@@ -207,7 +211,7 @@ describe('DesktopMultiplayerLauncher choices', () => {
     );
 
     const buttons = [...container.querySelectorAll<HTMLButtonElement>('.desktop-launcher__menu button')];
-    expect(buttons.map(button => button.textContent)).toEqual(['Tạo phòng', 'Tham gia phòng', 'Máy chủ riêng', 'Cài đặt', 'English', 'Thoát']);
+    expect(buttons.map(button => button.textContent)).toEqual(['Tạo phòng', 'Tham gia phòng', 'Máy chủ riêng', 'Cài đặt', 'Tiếng Việt', 'Thoát']);
     for (const button of buttons) {
       expect(button.tabIndex).toBe(0);
       expect(button.disabled).toBe(false);
@@ -295,7 +299,7 @@ describe('DesktopMultiplayerLauncher choices', () => {
     expect(screen.queryByText(/Liên kết mời chỉ chứa/u)).toBeNull();
     expect(screen.queryByText(/phiên kết nối|cơ sở dữ liệu/u)).toBeNull();
     expect(menuLabels(container)).toEqual([
-      'Vào lại phòng đang mở', 'Đóng phòng', 'Tạo phòng', 'Tham gia phòng', 'Máy chủ riêng', 'Cài đặt', 'English', 'Thoát',
+      'Vào lại phòng đang mở', 'Đóng phòng', 'Tạo phòng', 'Tham gia phòng', 'Máy chủ riêng', 'Cài đặt', 'Tiếng Việt', 'Thoát',
     ]);
     for (const label of menuLabels(container)) expect(label).not.toMatch(TECHNICAL_TEXT);
     expect(container.querySelector('.desktop-launcher__subtitle, .desktop-launcher__security')).toBeNull();

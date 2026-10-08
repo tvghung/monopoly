@@ -141,6 +141,12 @@ launcher"); quit channel: [Api/http-runtime.instruction.md](../Api/http-runtime.
   ring is asserted in `Button.css`); the how-to-play key is last in the tab order and opens the guide; the picture is decoration
   only (hidden, empty alt, no title, no text, eight mascots and five landmark postcards); the menu sits on the start side and the
   art end-aligned, every animation is behind the reduced-motion guard and none loops.
+- [x] `[AUTO][CLIENT]` `DesktopMultiplayerLauncher.test.tsx`: the one heading of the launcher is the h1 "OWN THE BLOCK" (no h1 "Chơi nhiều người", no "Chơi qua
+  mạng LAN" / "Play over LAN" text, no separate brand line); the menu buttons (Host, Join, Settings, language selector, Quit) are still there and enabled.
+- [x] `[AUTO][CLIENT]` `LanguageSelector.test.tsx`, `DesktopMultiplayerLauncher.update.test.tsx`: the menu's language selector names the current language, opening it
+  changes nothing, choosing an option changes the language at once and closes the list with focus back on the button, Escape / an outside press / Tab close it
+  without a change, arrow keys and Enter work, and the choice is written to the stored settings that the Settings dialog reads. See
+  [client-state-sync-motion-and-accessibility.md](./client-state-sync-motion-and-accessibility.md) "UI/UX polish batch 5".
 - [x] `[AUTO][CLIENT]` `DesktopMultiplayerLauncher.test.tsx`, `AppBootstrap.test.tsx`, `settings/selectors.test.tsx`: "Cài đặt" is absent
   without a settings provider, opens the existing dialog on the saved values, writes a change to the storage the game reads
   (`readGameSettings` returns it before `bootstrap()` runs), and starts no audio.

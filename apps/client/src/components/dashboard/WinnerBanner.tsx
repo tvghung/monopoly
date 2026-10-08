@@ -206,6 +206,7 @@ export default function WinnerBanner() {
         role="alertdialog"
         size="xl"
         tone="celebration"
+        peek="view"
         className="victory"
         describedBy={`${identityId} ${hintId}`}
         footer={footer}

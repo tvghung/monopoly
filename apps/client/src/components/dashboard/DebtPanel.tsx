@@ -221,6 +221,10 @@ export default function DebtPanel() {
       role="alertdialog"
       size="lg"
       tone="danger"
+      // Hiding the dialog does not stop the clock: the same seconds stay in sight beside the "show decision" key.
+      peek="decision"
+      peekKey={claim.claimId}
+      peekSummary={<Chip tone="loss" icon={<ActionIcon name="clock" />}>{t('debt.secondsLeft', { seconds })}</Chip>}
       className="debt-panel-modal"
       describedBy={descriptionId}
       footer={roomExit

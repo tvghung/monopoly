@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { LANDMARK_PLAN } from '../../scene/buildings/landmarks/plan';
-import { getLandmarkHotelLabel, getLandmarkVisual, LANDMARK_VISUALS } from './landmarkVisuals';
+import { getLandmarkHotelLabel, getLandmarkName, getLandmarkVisual, LANDMARK_VISUALS } from './landmarkVisuals';
 
 /** The artwork file in `public/`. The URL is built from a variable so Vite leaves it alone instead of turning it into an asset reference. */
 const artworkFile = (tileId: number): string => {
@@ -42,6 +42,44 @@ describe('landmark visual registry', () => {
     expect(getLandmarkVisual(0)).toBeUndefined();
     expect(getLandmarkVisual(13)?.landmarkName).toBe('Chùa Cầu');
     expect(getLandmarkHotelLabel(13)).toBe('Khách sạn · Chùa Cầu');
+    expect(getLandmarkHotelLabel(13, 'vi')).toBe('Khách sạn · Chùa Cầu');
+    expect(getLandmarkHotelLabel(13, 'en')).toBe('Hotel · Chùa Cầu Temple');
     expect(getLandmarkHotelLabel(5)).toBeNull();
+    expect(getLandmarkHotelLabel(5, 'en')).toBeNull();
+  });
+
+  it('names all 22 landmarks in both languages: the Vietnamese name never changes, the English one keeps its proper nouns', () => {
+    const names: ReadonlyArray<readonly [number, string, string]> = [
+      [1, 'Mũi Cà Mau', 'Cà Mau Cape'],
+      [3, 'Cánh đồng điện gió', 'Wind Farm'],
+      [6, 'Nhà dài Ê Đê', 'Ê Đê Longhouse'],
+      [8, 'Chợ nổi Cái Răng', 'Cái Răng Floating Market'],
+      [9, 'Nhà hát lớn Hải Phòng', 'Hải Phòng Opera House'],
+      [11, 'Ga Đà Lạt', 'Đà Lạt Railway Station'],
+      [13, 'Chùa Cầu', 'Chùa Cầu Temple'],
+      [14, 'Ngọ Môn', 'Ngọ Môn Gate'],
+      [16, 'Đồi cát và thuyền thúng', 'Sand Dunes and Basket Boats'],
+      [18, 'Ruộng bậc thang', 'Terraced Rice Fields'],
+      [19, 'Tháp Trầm Hương', 'Trầm Hương Tower'],
+      [21, 'Hải đăng Vũng Tàu', 'Vũng Tàu Lighthouse'],
+      [23, 'Tháp Đôi', 'Twin Towers'],
+      [24, 'Cầu Vàng', 'Golden Bridge'],
+      [26, 'Vịnh Hạ Long', 'Hạ Long Bay'],
+      [27, 'Chùa Trấn Quốc', 'Trấn Quốc Temple'],
+      [29, 'Bãi biển và tàu câu mực', 'Beach and Squid Fishing Boats'],
+      [31, 'Cầu Ánh Sao', 'Ánh Sao Bridge'],
+      [32, 'Biệt thự ven sông', 'Riverside Villa'],
+      [34, 'Trụ sở UBND TP.HCM', "HCMC People's Committee Building"],
+      [37, 'Tháp Bitexco', 'Bitexco Tower'],
+      [39, 'Landmark 81', 'Landmark 81'],
+    ];
+    expect(names.map(([tileId]) => tileId)).toEqual(STREETS);
+    for (const [tileId, vi, en] of names) {
+      const visual = getLandmarkVisual(tileId);
+      expect(visual, `tile ${tileId}`).toBeDefined();
+      expect(getLandmarkName(visual!, 'vi'), `tile ${tileId} vi`).toBe(vi);
+      expect(getLandmarkName(visual!, 'en'), `tile ${tileId} en`).toBe(en);
+    }
+    expect(new Set(LANDMARK_VISUALS.map(visual => visual.landmarkNameEn)).size).toBe(22);
   });
 });

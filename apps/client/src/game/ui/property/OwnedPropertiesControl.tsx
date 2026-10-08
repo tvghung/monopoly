@@ -28,6 +28,7 @@ export function OwnedPropertiesModal({
       title={t('portfolio.mine')}
       size="lg"
       onClose={onClose}
+      peek="view"
       closeOnOutsideClick
     >
       <PortfolioView

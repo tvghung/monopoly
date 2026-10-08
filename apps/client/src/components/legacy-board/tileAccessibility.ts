@@ -2,13 +2,18 @@ import type { PublicGameState } from '@monopoly/shared';
 import { tileState } from '@monopoly/shared';
 import { formatMoney, getTileName } from '../../presentation';
 import { teamOfPlayer } from '../../game/team/teamView';
-import { getLandmarkVisual } from '../../game/ui/property/landmarkVisuals';
+import { getLandmarkName, getLandmarkVisual } from '../../game/ui/property/landmarkVisuals';
 import type { Language } from '../../i18n/I18n';
 import { translate } from '../../i18n/I18n';
 
+function landmarkOf(tileId: number, language: Language): string | undefined {
+  const visual = getLandmarkVisual(tileId);
+  return visual ? getLandmarkName(visual, language) : undefined;
+}
+
 /**
  * The accessible name of a tile button (the 40 semantic buttons of the WebGL board and the legacy tiles). A hotel is named by
- * the landmark that stands for it: "Có Khách sạn · Chùa Cầu".
+ * the landmark that stands for it, in the player's language: "Có Khách sạn · Chùa Cầu" / "Hotel · Chùa Cầu Temple".
  */
 export function getTileAccessibilityLabel(tileId: number, state: PublicGameState, language: Language = 'vi'): string {
   const tile = tileState[tileId];
@@ -25,7 +30,7 @@ export function getTileAccessibilityLabel(tileId: number, state: PublicGameState
     .map(player => player.name);
   const buildingLabel = owned && owned.houses > 0
     ? owned.houses === 5
-      ? translate('board.hotelLandmark', language, { landmark: getLandmarkVisual(tileId)?.landmarkName ?? translate('board.hotelCount', language) })
+      ? translate('board.hotelLandmark', language, { landmark: landmarkOf(tileId, language) ?? translate('board.hotelCount', language) })
       : translate('board.houseCount', language, { count: owned.houses })
     : null;
   return [

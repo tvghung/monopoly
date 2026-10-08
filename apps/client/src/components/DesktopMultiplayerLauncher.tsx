@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { Languages } from 'lucide-react';
 import Button from '../design-system/components/Button/Button';
 import ConfirmationDialog from '../design-system/components/ConfirmationDialog/ConfirmationDialog';
 import Panel from '../design-system/components/Panel/Panel';
@@ -23,6 +22,7 @@ import { useSettings, useSettingsAvailable } from '../settings/selectors';
 import { useTranslation } from '../i18n/I18n';
 import type { MessageKey } from '../i18n/catalog';
 import SettingsPanel from '../settings/SettingsPanel';
+import LanguageSelector from './LanguageSelector';
 import LauncherScene from './LauncherScene';
 import UpdatePrompt from './update/UpdatePrompt';
 import UpdateStatusLine from './update/UpdateStatusLine';
@@ -351,8 +351,7 @@ export default function DesktopMultiplayerLauncher({
 
       <div className="desktop-launcher__content">
         <header className="desktop-launcher__header">
-          <p className="desktop-launcher__brand" aria-hidden="true">{t('brand.name')}</p>
-          <h1 id="desktop-launcher-title">{t('launcher.multiplayer')}</h1>
+          <h1 id="desktop-launcher-title">{t('brand.name')}</h1>
         </header>
 
         {error ? <p className="desktop-launcher__error" role="alert">{errorMessage(error, t)}</p> : null}
@@ -422,13 +421,11 @@ export default function DesktopMultiplayerLauncher({
                     onClick={() => setSettingsOpen(true)}
                   >{t('launcher.settings')}</Button>
                 ) : null}
-                <Button
-                  variant="ghost"
-                  className="desktop-launcher__action desktop-launcher__language"
-                  icon={<Languages className="action-icon--only" aria-hidden="true" />}
-                  aria-label={t(language === 'vi' ? 'launcher.switchToEnglish' : 'launcher.switchToVietnamese')}
-                  onClick={() => updateSettings({ language: language === 'vi' ? 'en' : 'vi' })}
-                >{t(language === 'vi' ? 'language.english' : 'language.vietnamese')}</Button>
+                <LanguageSelector
+                  className="desktop-launcher__language"
+                  value={language}
+                  onChange={next => updateSettings({ language: next })}
+                />
                 {canQuit ? (
                   <Button
                     variant="ghost"

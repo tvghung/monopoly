@@ -209,10 +209,23 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
   chip "Đổ đôi" chỉ để thông tin; 3D `DiceResultTotal` đã bỏ. Thông báo đọc màn hình duy nhất vẫn là vùng
   `role="status"` trong roll control; vùng này cũng đọc "Đến lượt bạn." / "Lượt của <tên>." một lần khi lượt hiển thị
   đổi trong live presentation (`useTurnAnnouncement`, không đọc khi first render hay sau reset/snap).
+- **Nhóm thoát tù trên điện thoại hẹp** (`CenterStage` + `RollControl` + `JailPanel`; `NARROW_HUD_QUERY` = `(max-width: 720px)` trong
+  `design-system/useMediaQuery.ts`, cùng ngưỡng với `hud.css`). Lỗi cũ: nút "Đổ xúc xắc" ở `CenterStage` và `JailPanel` ở `BottomDock` được định
+  vị độc lập; ở ≤ 720 px `.hud-context` rơi xuống khoảng giữa hai card dưới, chỉ rộng ~174 px ở 568×320 (≈ 270 px ở 667×375), nên panel gói thành hộp cao
+  ~96 px phủ lên nút roll (đo bằng probe trên harness UAT, cảnh `jail-failed`). Bây giờ ở ≤ 720 px chiều rộng `CenterStage` tự vẽ `JailPanel` ngay dưới
+  `RollControl` và `BottomDock` không vẽ nó nữa: lúc nào cũng chỉ có **một** `RollControl` (một handler gửi `roll dice`) và **một** `JailPanel` (một
+  handler cho `pay bail` / `use jail card`), nên không có nút roll thứ hai hay lần gửi thứ hai. Nhóm là một cột: [Đổ xúc xắc] rồi panel gọn (hàng tiêu đề
+  + chip vòng chờ, rồi hai nút Trả bảo lãnh / Dùng thẻ cao ≥ 44 px; bỏ glyph ổ khóa và glyph nút để tiêu đề một dòng và mỗi nút tối đa hai dòng, cả VI lẫn EN;
+  dòng gợi ý và cảnh báo thiếu tiền vẫn như dải gọn cũ). Khi nhóm có mặt, stage dịch xuống 22 px (`--hud-center-offset-y`) và sang phải 2rem
+  (`margin-inline-start`), `width: max-content`, panel tối đa 17rem, để nằm trong dải trống giữa card trên-phải và hai card dưới và không đè nút "Tài sản"
+  (nhãn EN rộng hơn). Trong lúc xúc xắc lăn hoặc thẻ đang hiện (`data-stage-busy`) panel chỉ `visibility: hidden` (không unmount) để request đang chờ và dòng lỗi
+  không mất, và không che xúc xắc. Từ 721 px chiều rộng panel vẫn ở context stack của `BottomDock` (trên điện thoại ngang cao ≤ 500 px nó là dải hai hàng
+  như trước). Không đổi: `canRollForState`, điều kiện hiện `JailPanel`, các lệnh socket, số tiền bảo lãnh, luật tù.
 - **Cột dưới** (`BottomDock`): ticker (dòng hoạt động mới nhất), context stack (`JailPanel`, `DebtPanel`) và
   action dock (nút "Tài sản của tôi (N)", tên truy cập giữ nguyên; điện thoại chỉ hiện "Tài sản (N)"). Ở điện thoại
-  ngang (cao ≤ 500 px) `JailPanel` thu thành dải hai hàng (tiêu đề + vòng chờ, rồi hai nút); từ 720 px chiều rộng
-  trở xuống context stack nằm ở khoảng giữa hai card dưới, nên không bao giờ che nút "Đổ xúc xắc".
+  ngang (cao ≤ 500 px) `JailPanel` thu thành dải hai hàng (tiêu đề + vòng chờ, rồi hai nút). Từ 720 px chiều rộng
+  trở xuống context stack (trạng thái nợ, `RevivePanel`) nằm ở khoảng giữa hai card dưới còn `JailPanel` do `CenterStage` vẽ dưới nút
+  "Đổ xúc xắc" (xem "Nhóm thoát tù trên điện thoại hẹp").
 - **Ngăn nhật ký** (`Log`): xem [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md).
 - **Toolbar** (`App.tsx`): `IconButton` v2 44 px cho "Hướng dẫn chơi" (ô đầu, sau FPS dev; xem
   [how-to-play.instruction.md](./how-to-play.instruction.md)), "Cài đặt" và "Bỏ cuộc"/"Rời phòng", vẫn ngoài `.game-board`;
@@ -263,14 +276,17 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
   với ba material dùng chung `kitMaterials.ts`.
 - **Tranh 2D của landmark và thẻ tài sản (plan 05 §8.5):** 22 SVG phẳng `public/art/landmarks/<tileId>.svg`
   (`viewBox 0 0 160 160`, không text/script/image/href); registry `game/ui/property/landmarkVisuals.ts`
-  `{ tileId, landmarkName, artUrl }`. `PropertyDeedCard` hiển thị tranh trong slot art 64 px (rơi về motif của nhóm màu
-  nếu ảnh không tải được) và dòng "Khách sạn · <tên landmark>" dưới tên ô; dòng đó mô tả thẻ cho assistive technology,
-  và nhãn truy cập của ô cờ khi có Khách sạn là "Có Khách sạn · <landmark>". Validator
+  `{ tileId, landmarkName, landmarkNameEn, artUrl }` (`landmarkName` là tên tiếng Việt gốc, `landmarkNameEn` lấy từ `nameEn` của
+  `LANDMARK_PLAN`; `getLandmarkName(visual, language)` là nơi duy nhất chọn tên theo ngôn ngữ, bảng 22 cặp ở
+  [language-system.instruction.md](./language-system.instruction.md)). `PropertyDeedCard` hiển thị tranh trong slot art 64 px (rơi về motif của nhóm màu
+  nếu ảnh không tải được) và dòng "Khách sạn · <tên landmark>" / "Hotel · <landmark name>" dưới tên ô (theo ngôn ngữ đang chọn, đổi ngay khi đổi ngôn ngữ); dòng đó mô tả
+  thẻ cho assistive technology, và nhãn truy cập của ô cờ khi có Khách sạn là "Có Khách sạn · <landmark>" / "Hotel · <landmark name>".
+  Tên ô phố ("Hội An"…) không phải landmark và không dịch. Validator
   `scripts/validateLandmarkArtwork.mjs` (phủ đúng 22 ô phố, an toàn SVG, file thừa, SHA-256 bản build,
   `--build-output`) chạy trong `pnpm build`; bản đóng gói kiểm bằng
   `pnpm --filter @monopoly/desktop proof:packaged:landmarks`.
 - **Banner khánh thành (OD-05-4):** `LandmarkBanner` trong HUD, cạnh `TurnBanner`: khi một phố lên bậc Khách sạn lúc
-  trình bày trực tiếp thì hiện "Khánh thành <landmark>!" kèm tranh 2D (2,2 giây chia theo tốc độ animation, bản mới
+  trình bày trực tiếp thì hiện "Khánh thành <landmark>!" / "Hotel opened: <landmark name>!" kèm tranh 2D (2,2 giây chia theo tốc độ animation, bản mới
   thay bản cũ). Dùng chung shell, keyframes và fade reduced-motion của turn banner; không bao giờ hiện cho trạng thái có
   sẵn khi mount HUD hay sau snap/reconnect/reset (đổi `presentationResetEpoch`); reduced motion chỉ còn chữ, không có
   tranh; `aria-hidden` vì activity log đã thông báo.

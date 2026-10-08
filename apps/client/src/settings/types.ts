@@ -1,9 +1,11 @@
+import type { Language } from '../i18n/languages';
+
 /** Player-facing graphics preset; `auto` resolves per device (never to `high`). */
 export type GraphicsQualitySetting = 'auto' | 'high' | 'balanced' | 'low';
 
 export interface GameSettings {
   version: 2;
-  language: 'vi' | 'en';
+  language: Language;
   masterVolume: number;
   musicVolume: number;
   sfxVolume: number;

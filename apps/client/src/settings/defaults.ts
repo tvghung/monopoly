@@ -1,3 +1,4 @@
+import { DEFAULT_LANGUAGE, isSupportedLanguage } from '../i18n/languages';
 import type { GameSettings, GraphicsQualitySetting } from './types';
 
 export const SETTINGS_STORAGE_KEY = 'own-the-block.settings.v2';
@@ -7,7 +8,7 @@ export const GRAPHICS_QUALITY_OPTIONS = ['auto', 'high', 'balanced', 'low'] as c
 
 export const DEFAULT_GAME_SETTINGS: GameSettings = {
   version: 2,
-  language: 'vi',
+  language: DEFAULT_LANGUAGE,
   masterVolume: 1,
   musicVolume: 0.7,
   sfxVolume: 0.8,
@@ -42,9 +43,7 @@ export function normalizeSettings(value: unknown): GameSettings {
   const candidate = value as Partial<GameSettings>;
   return {
     version: 2,
-    language: candidate.language === 'en' || candidate.language === 'vi'
-      ? candidate.language
-      : DEFAULT_GAME_SETTINGS.language,
+    language: isSupportedLanguage(candidate.language) ? candidate.language : DEFAULT_GAME_SETTINGS.language,
     masterVolume: clampVolume(candidate.masterVolume, DEFAULT_GAME_SETTINGS.masterVolume),
     musicVolume: clampVolume(candidate.musicVolume, DEFAULT_GAME_SETTINGS.musicVolume),
     sfxVolume: clampVolume(candidate.sfxVolume, DEFAULT_GAME_SETTINGS.sfxVolume),

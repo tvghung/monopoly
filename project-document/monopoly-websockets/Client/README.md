@@ -20,10 +20,10 @@ Technical event/package names and canonical shared game data stay unchanged.
 | Hướng dẫn chơi (nút "?" ở mọi màn hình, hộp thoại 12 mục đóng sẵn, số luật đọc từ `rules.ts`) | [how-to-play.instruction.md](./how-to-play.instruction.md) | `howToPlay/`, `packages/shared/src/rules.ts`, `App.tsx` (toolbar), `Lobby.tsx`, `JoinForm.tsx`, `app/screens/`, `ConnectionOverlay.tsx` |
 | Game HUD (player card, center stage, status pill, banner, callout, dock, ticker, bong bóng, toolbar, toast) | [game-board.instruction.md](./game-board.instruction.md) mục "Game HUD" | `game/ui/hud/`, `components/Log.tsx`, `App.tsx` (toolbar), `components/Toast.tsx` |
 | Desktop shell/runtime | [../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md](../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md) | `apps/desktop/`, preload bridge, bootstrap/runtime config |
-| Ngôn ngữ VI/EN, preference và migration settings | [language-system.instruction.md](./language-system.instruction.md) | `i18n/`, `settings/`, `index.tsx`, localized client surfaces |
+| Ngôn ngữ VI/EN (danh sách `SUPPORTED_LANGUAGES`, bộ chọn ngôn ngữ ở menu chính, tên landmark hai ngôn ngữ), preference và migration settings | [language-system.instruction.md](./language-system.instruction.md) | `i18n/` (`languages.ts`, `I18n.tsx`, `catalog.ts`), `components/LanguageSelector.tsx`, `settings/`, `index.tsx`, `game/ui/property/landmarkVisuals.ts`, localized client surfaces |
 | Cập nhật tự động (desktop: kiểm tra, tải có xác minh, áp dụng ở thời điểm an toàn, bản bắt buộc, mục "Cập nhật" trong Cài đặt) | [app-update.instruction.md](./app-update.instruction.md) | `apps/desktop/src/update/`, `ipc/`, `preload.ts`, `runtime/appUpdate.tsx`, `components/update/`, `settings/SettingsPanel.tsx`, `apps/desktop/scripts/updateManifest.mjs` |
 | Presentation | [../ui-ux-overhaul/PHASE_1_IMPLEMENTATION_PLAN.md](../ui-ux-overhaul/PHASE_1_IMPLEMENTATION_PLAN.md) | `game/presentation/`, `game/ui/`, settings/audio |
-| Design system V2 (tokens, primitive, Modal v2, icon registry, motion, Design Lab + `surfaces`, capture) | [design-system.instruction.md](./design-system.instruction.md) | `design-system/`, `settings/ReducedMotionDocumentSync.tsx`, `dev/design-lab/`, `e2e/visual/` |
+| Design system V2 (tokens, primitive, Modal v2 và "Xem bàn cờ" (peek), icon registry, motion, Design Lab + `surfaces`, capture) | [design-system.instruction.md](./design-system.instruction.md) | `design-system/` (`components/Modal/` gồm `modalPeek.ts`, `ModalPeekRestore.tsx`), `settings/ReducedMotionDocumentSync.tsx`, `dev/design-lab/`, `e2e/visual/` |
 
 ## Client invariants
 
@@ -34,6 +34,8 @@ Technical event/package names and canonical shared game data stay unchanged.
 - Authoritative room/game state cập nhật ngay; display position/turn/dice chỉ là
   presentation state và không được dùng làm nguồn thẩm quyền.
 - Spectator read-only; server authority không phụ thuộc action visibility.
+- "Xem bàn cờ" (peek) của `Modal` chỉ là trình bày: ẩn/hiện không gửi lệnh, không đóng dialog, không đổi state có thẩm quyền; khi quyết định đang ẩn, thẻ ô đất trên bàn cờ chỉ đọc
+  ([design-system.instruction.md](./design-system.instruction.md) "Xem bàn cờ (peek)").
 - 2v2 (protocol 10; chỗ ngồi `teamSlot` và `seatSwapRequests` từ protocol 11): mọi dữ liệu team lấy từ public state đã được server gửi (`boardState.teams`, `teamPlay`, `winningTeamId`,
   `teamId` từng người, `PaymentQueue.rescue`) qua `game/team/teamView.ts`; client không tự tính luật team ngoài số shared
   (`colorSetRentPercent`, `getTeammateIds`). Trong Solo mọi helper trả "không có team" nên UI Solo không đổi. Chi tiết:

@@ -224,7 +224,7 @@ describe('OwnedPropertiesControl', () => {
 
     expect(screen.getByRole('button', { name: 'Tài sản của tôi (20)' })).toBeTruthy();
     expect(dialog.querySelectorAll('.owned-properties-list__item')).toHaveLength(20);
-    expect(within(dialog).getAllByRole('button', { name: /^Xem / })).toHaveLength(20);
+    expect(within(dialog).getAllByRole('button', { name: /^Xem (?!bàn cờ)/ })).toHaveLength(20);
     expect(within(dialog).getByText('20 tài sản')).toBeTruthy();
   });
 });

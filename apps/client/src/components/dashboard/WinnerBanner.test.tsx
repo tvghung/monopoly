@@ -369,8 +369,10 @@ describe('WinnerBanner', () => {
 
     it('keeps the DOM and Tab order the same as the drawn order: the primary action first', () => {
       renderWinner({ canPlayAgain: true, exit: exitContext() });
+      // The header's "Xem bàn cờ" eye key comes first and has no text; the actions of the footer keep their order.
       const buttons = screen.getAllByRole('button');
-      expect(buttons.map(button => button.textContent)).toEqual(['Chơi lại', 'Về trang chủ']);
+      expect(buttons[0].getAttribute('aria-label')).toBe('Xem bàn cờ');
+      expect(buttons.slice(1).map(button => button.textContent)).toEqual(['Chơi lại', 'Về trang chủ']);
     });
 
     it('describes the dialog with the winner and the next step', () => {

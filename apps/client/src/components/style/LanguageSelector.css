@@ -1,0 +1,100 @@
+/*
+ * The main menu's language picker (components/LanguageSelector.tsx): a ghost button naming the current language, and a small
+ * list that opens above or below it. The list sits over the menu column (z-index of --z-dropdown inside the launcher's own
+ * stacking context) and every row is at least 44 px tall.
+ */
+.language-selector {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.language-selector__trigger {
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+.language-selector__icon,
+.language-selector__chevron {
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  stroke-width: 2.25;
+}
+
+.language-selector__chevron { transition: transform var(--motion-duration-micro, 120ms) ease; }
+.language-selector__trigger[aria-expanded='true'] .language-selector__chevron { transform: rotate(180deg); }
+:root[data-reduced-motion='true'] .language-selector__chevron { transition: none; }
+
+.language-selector__current { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+.language-selector__popover {
+  position: absolute;
+  z-index: var(--z-dropdown, 50);
+  inset-inline-start: 50%;
+  box-sizing: border-box;
+  display: grid;
+  gap: var(--space-1);
+  min-width: 12rem;
+  max-width: min(18rem, calc(100vw - 2rem));
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-strong, var(--color-border));
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  background-image: var(--paper-grain);
+  box-shadow: var(--elevation-3, var(--elevation-2));
+  color: var(--color-text-primary);
+  transform: translateX(-50%);
+}
+
+.language-selector[data-placement='up'] .language-selector__popover { bottom: calc(100% + var(--space-2)); }
+.language-selector[data-placement='down'] .language-selector__popover { top: calc(100% + var(--space-2)); }
+
+.language-selector__title {
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text-secondary);
+  font: var(--type-caption);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.language-selector__list { display: grid; gap: var(--space-1); }
+
+.language-selector__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font: var(--type-label);
+  text-align: start;
+  cursor: pointer;
+}
+
+.language-selector__option:hover { background: var(--color-surface-soft); }
+.language-selector__option[aria-selected='true'] {
+  background: var(--color-accent-primary-soft, var(--color-surface-soft));
+  color: var(--color-accent-primary-strong);
+  font-weight: var(--font-weight-bold, 700);
+}
+.language-selector__option:focus-visible { outline: 2px solid transparent; box-shadow: var(--focus-ring); }
+
+.language-selector__check {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 1.1rem;
+  height: 1.1rem;
+}
+.language-selector__check > svg { width: 1.1rem; height: 1.1rem; stroke-width: 3; }

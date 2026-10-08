@@ -1136,6 +1136,7 @@ export default function App({
                 : t('app.closeWindowMessage')}
             confirmLabel={confirmation === 'LEAVE' ? t('app.leaveGame') : t('app.closeWindow')}
             confirmIcon={confirmation === 'LEAVE' ? <Flag /> : <XIcon />}
+            peek={phase === 'GAME' ? 'view' : undefined}
             onCancel={cancelConfirmation}
             onConfirm={confirmConfirmation}
           />

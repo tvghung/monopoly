@@ -1,7 +1,7 @@
 import { useId, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import Button from '../Button/Button';
-import Modal from '../Modal/Modal';
+import Modal, { type ModalPeek } from '../Modal/Modal';
 import { ActionIcon } from '../../icons/ActionIcon';
 import type { ActionIconName } from '../../icons/actionIcons';
 import { useTranslation } from '../../../i18n/I18n';
@@ -22,6 +22,8 @@ interface ConfirmationDialogProps {
   icon?: ActionIconName;
   /** An answer is already on its way: both buttons are off so it cannot be given twice. */
   busy?: boolean;
+  /** Lets the player set the question aside to look at the board (the Modal's peek key). */
+  peek?: ModalPeek;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -42,6 +44,7 @@ export default function ConfirmationDialog({
   tone = 'danger',
   icon = 'warning',
   busy = false,
+  peek,
   onConfirm,
   onCancel,
 }: ConfirmationDialogProps) {
@@ -58,6 +61,7 @@ export default function ConfirmationDialog({
       size="sm"
       tone={danger ? 'danger' : 'default'}
       layer="card"
+      peek={peek}
       describedBy={messageId}
       footer={(
         <div className="ds-confirmation__actions">

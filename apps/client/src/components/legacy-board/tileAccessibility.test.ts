@@ -16,6 +16,14 @@ describe('getTileAccessibilityLabel', () => {
     expect(labelFor(39, 5)).toContain('Có Khách sạn · Landmark 81');
   });
 
+  it('names the hotel in English with the English landmark name when the language is English', () => {
+    const room = makeRoom();
+    room.gameState.boardState.ownedProps = { 13: { id: 'player-a', color: 'red', houses: 5 } };
+    const label = getTileAccessibilityLabel(13, room.gameState, 'en');
+    expect(label).toContain('Hotel · Chùa Cầu Temple');
+    expect(label).not.toContain('Khách sạn');
+  });
+
   it('keeps houses as plain counts and says nothing about a landmark before the hotel', () => {
     expect(labelFor(13, 3)).toContain('Có 3 Nhà');
     expect(labelFor(13, 3)).not.toContain('Chùa Cầu');

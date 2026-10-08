@@ -35,5 +35,11 @@ export function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(subscribe, getSnapshot, () => false);
 }
 
+/**
+ * A window up to 720 px wide: the width at which `hud.css` stops placing the HUD's context stack beside the corner cards. It is the
+ * same breakpoint as the CSS, because `CenterStage` and `BottomDock` pick where the jail panel lives from it.
+ */
+export const NARROW_HUD_QUERY = '(max-width: 720px)';
+
 /** A phone held sideways, or any window too short for the full deed card beside the decision. */
 export const SHORT_VIEWPORT_QUERY = '(orientation: landscape) and (max-height: 31rem)';

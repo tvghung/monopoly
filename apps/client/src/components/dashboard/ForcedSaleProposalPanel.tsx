@@ -56,7 +56,7 @@ export default function ForcedSaleProposalPanel() {
   const buyerName = buyer?.name ?? t('forcedSale.buyer');
   const sellerName = seller?.name ?? t('forcedSale.seller');
   return (
-    <Modal open title={t('forcedSale.title')} eyebrow={t('forcedSale.eyebrow')} size="md" className="forced-sale-proposal">
+    <Modal open title={t('forcedSale.title')} eyebrow={t('forcedSale.eyebrow')} size="md" peek="decision" peekKey={proposal.proposalId} className="forced-sale-proposal">
       <div className="forced-sale-proposal__layout">
         {deed ? <PropertyDeedCard model={deed} variant="compact" showOwner={false} className="forced-sale-proposal__deed" /> : null}
         <div className="forced-sale-proposal__details">

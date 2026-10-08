@@ -17,7 +17,7 @@ import { formatMoney, getTileName } from '../formatters';
 import {
   getPropertyGroupVisualStyle, type PropertyMotif, type VisualTheme,
 } from '../propertyVisualColors';
-import { getLandmarkVisual } from './landmarkVisuals';
+import { getLandmarkName, getLandmarkVisual } from './landmarkVisuals';
 import { getCurrentRentDetailIndex, getTileDetails } from './propertyDetails';
 import type { Language } from '../../../i18n/I18n';
 import { translate } from '../../../i18n/I18n';
@@ -269,7 +269,7 @@ export function buildDeedCardModel({
     headerTextColor: visual.headerText,
     tint: visual.tint,
     motif: kind === 'special' ? null : visual.motif,
-    landmark: landmark ? { name: landmark.landmarkName, artUrl: landmark.artUrl } : null,
+    landmark: landmark ? { name: getLandmarkName(landmark, language), artUrl: landmark.artUrl } : null,
     price: typeof tile.price === 'number' ? tile.price : null,
     priceText: typeof tile.price === 'number' ? formatMoney(tile.price) : null,
     houseCostText: kind === 'street' && typeof tile.houseCost === 'number' ? formatMoney(tile.houseCost) : null,

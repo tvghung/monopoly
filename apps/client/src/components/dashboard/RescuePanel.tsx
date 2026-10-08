@@ -95,6 +95,9 @@ export default function RescuePanel({ claim, offer }: { claim: DebtClaim; offer:
       eyebrow={t('dashboard.rescueEyebrow')}
       role="alertdialog"
       size="md"
+      peek="decision"
+      peekKey={offer.rescueId}
+      peekSummary={<Chip tone="loss" icon={<ActionIcon name="clock" />}>{t('dashboard.timeLeft', { time: countdown || '0:00' })}</Chip>}
       className="debt-panel-modal debt-panel-modal--rescue"
       describedBy={descriptionId}
       footer={(

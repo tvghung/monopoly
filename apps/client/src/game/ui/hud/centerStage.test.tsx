@@ -9,6 +9,7 @@ import type { PresentationState } from '../../presentation/store/types';
 import { makeRoom } from '../../presentation/testFixtures';
 import CenterStage from './CenterStage';
 import StatusPill, { turnText } from './StatusPill';
+import { NARROW_HUD_QUERY } from '../../../design-system/useMediaQuery';
 
 afterEach(cleanup);
 
@@ -162,5 +163,60 @@ describe('CenterStage', () => {
       mutate: room => { room.gameState.boardState.currentPlayer = { id: 'player-b', hasMoved: false }; },
     });
     expect(container.querySelector('[data-testid="roll-control"] [role="status"]')).toBeTruthy();
+  });
+});
+
+describe('CenterStage jail group', () => {
+  const jail = (room: ReturnType<typeof makeRoom>) => {
+    room.gameState.players['player-a'].isJail = true;
+    room.gameState.players['player-a'].getOutOfJailCardCount = 1;
+  };
+  const stubViewport = (narrow: boolean) => vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: narrow && query === NARROW_HUD_QUERY,
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('puts the roll call to action and the ways out of jail in the one stage column in a narrow window', () => {
+    stubViewport(true);
+    const { container } = renderHud(<CenterStage />, { mutate: jail });
+
+    const stage = container.querySelector('.center-stage');
+    const roll = screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ xúc xắc' });
+    const panel = screen.getByRole('region', { name: 'Bạn đang ở Nhà Tù' });
+    expect(stage?.contains(roll)).toBe(true);
+    expect(stage?.contains(panel)).toBe(true);
+    // The roll comes first in the column and in the tab order; the bail and the card follow it.
+    expect(roll.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: /Đổ xúc xắc/u })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /Trả/u })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Dùng thẻ/u })).toBeTruthy();
+  });
+
+  it('leaves the jail panel to the bottom dock in a wider window, and shows it for a jailed player only', () => {
+    stubViewport(false);
+    const { unmount } = renderHud(<CenterStage />, { mutate: jail });
+    expect(screen.queryByRole('region', { name: 'Bạn đang ở Nhà Tù' })).toBeNull();
+    unmount();
+
+    stubViewport(true);
+    renderHud(<CenterStage />);
+    expect(screen.queryByRole('region', { name: 'Bạn đang ở Nhà Tù' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Đổ xúc xắc' })).toBeTruthy();
+  });
+
+  it('marks the stage busy while the dice roll, and keeps the panel mounted so a pending request is not lost', () => {
+    stubViewport(true);
+    const { container } = renderHud(<CenterStage />, {
+      mutate: jail,
+      presentation: { diceRoll: { lifecycle: 'rolling', dice: { dice1: 2, dice2: 3 }, rollSequence: 1, durationMs: 900 } },
+    });
+
+    expect(container.querySelector('.center-stage')?.getAttribute('data-stage-busy')).toBe('true');
+    expect(container.querySelector('.jail-panel')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Đổ xúc xắc' })).toBeNull();
   });
 });

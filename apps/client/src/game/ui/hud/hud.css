@@ -356,6 +356,36 @@
   .center-stage__pill { padding: 4px 12px 4px 6px; font: var(--type-caption); }
 }
 
+/* ---------- Jail group (narrow window) ---------- */
+
+/*
+ * Up to 720 px wide the strip between the two bottom cards is too narrow for the jail panel, which used to wrap into a tall box
+ * on top of the roll button. `CenterStage` therefore renders the panel itself, under the roll button, so both sit in one column.
+ * The stage moves down a little while the group is there so it stays clear of the upper right card; the compact form of the panel
+ * comes from the shared jail rules further down. While the dice roll or a card is shown (`data-stage-busy`) the panel is only
+ * hidden, not unmounted, so its pending request and error line survive.
+ */
+@media (max-width: 720px) {
+  .center-stage .jail-panel {
+    width: max-content;
+    max-width: min(17rem, calc(100vw - 2 * var(--hud-inset)));
+    pointer-events: auto;
+  }
+  .center-stage:has(.jail-panel) {
+    --hud-center-offset-y: 22px;
+    /* Not the width left of the stage's own offset, which is what an absolutely positioned box would shrink to. */
+    width: max-content;
+    /* A little to the right as well: the wider English "Properties" button of the bottom left corner reaches under the panel. */
+    margin-inline-start: 2rem;
+    gap: 6px;
+  }
+  .center-stage:has(.jail-panel) .game-board__roll-button { min-height: 44px; }
+  /* Without the lock and the button glyphs (decoration; the words say it) the title keeps one line and each button two. */
+  .center-stage .jail-panel__icon,
+  .center-stage .jail-panel__actions .ds-button__icon { display: none; }
+  .center-stage[data-stage-busy='true'] .jail-panel { visibility: hidden; }
+}
+
 /* ---------- Dice result callout ---------- */
 
 .dice-callout {
@@ -548,44 +578,6 @@
   .status-pill__avatar { display: none; }
   .status-pill { padding: 4px 12px; }
 
-  /*
-   * On a phone held sideways the jail panel shrinks to a title row and one row of buttons. The full panel used to
-   * sit on the middle of the board and hide the roll button, which is one of the ways out of jail.
-   */
-  .hud-context .jail-panel {
-    display: flex;
-    flex-flow: row wrap;
-    align-content: flex-start;
-    gap: 1px 8px;
-    margin: 0;
-    padding: 4px 8px;
-    border-radius: var(--radius-md);
-  }
-  .hud-context .jail-panel__head { flex: 1 1 100%; gap: 6px; }
-  .hud-context .jail-panel__icon { width: 1.25rem; height: 1.25rem; }
-  .hud-context .jail-panel__icon > svg { width: 0.75rem; height: 0.75rem; }
-  .hud-context .jail-panel__title { font: 700 0.875rem/1.25rem var(--font-family-body); }
-  .hud-context .jail-panel__rounds { padding: 1px 8px; }
-  .hud-context .jail-panel__hint { display: none; }
-  /*
-   * A pending or failed request takes the place of the title row, so the strip never grows toward the roll button. The balance
-   * warning is not drawn here at all: the bail button is already disabled, and it points to the warning with aria-describedby.
-   */
-  .hud-context .jail-panel > p[role='alert'],
-  .hud-context .jail-panel__pending { flex: 1 1 100%; font: var(--type-caption); line-height: 0.875rem; }
-  .hud-context .jail-panel:has(> p[role='alert'], > .jail-panel__pending) .jail-panel__head { display: none; }
-  .hud-context .jail-panel__balance-warning {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-  .hud-context .jail-panel__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-  .hud-context .jail-panel__actions .ds-button { padding: 2px 6px; font: var(--type-caption); line-height: 1.1; }
-
   /* The 2v2 revive offer follows the jail panel: a title row, the button, and the price in the button's description. */
   .hud-context .revive-panel {
     display: flex;
@@ -602,6 +594,50 @@
   .hud-context .revive-panel__error,
   .hud-context .revive-panel__pending { flex: 1 1 100%; font: var(--type-caption); line-height: 0.875rem; }
   .hud-context .revive-panel .ds-button { padding: 2px 6px; font: var(--type-caption); line-height: 1.1; }
+}
+
+/*
+ * The jail panel's compact form (a title row and one row of buttons). It applies to a short window, where the panel stays in the
+ * context stack, and to a narrow one, where `CenterStage` renders it under the roll button (see "Jail group" below).
+ */
+@media (max-height: 500px), (max-width: 720px) {
+  /*
+   * On a phone the jail panel shrinks to a title row and one row of buttons: held sideways (a short window) in the context
+   * stack, and in a narrow window (up to 720 px wide) inside the center stage, under the roll button.
+   */
+  :is(.hud-context, .center-stage) .jail-panel {
+    display: flex;
+    flex-flow: row wrap;
+    align-content: flex-start;
+    gap: 1px 8px;
+    margin: 0;
+    padding: 4px 8px;
+    border-radius: var(--radius-md);
+  }
+  :is(.hud-context, .center-stage) .jail-panel__head { flex: 1 1 100%; gap: 6px; }
+  :is(.hud-context, .center-stage) .jail-panel__icon { width: 1.25rem; height: 1.25rem; }
+  :is(.hud-context, .center-stage) .jail-panel__icon > svg { width: 0.75rem; height: 0.75rem; }
+  :is(.hud-context, .center-stage) .jail-panel__title { font: 700 0.875rem/1.25rem var(--font-family-body); }
+  :is(.hud-context, .center-stage) .jail-panel__rounds { padding: 1px 8px; }
+  :is(.hud-context, .center-stage) .jail-panel__hint { display: none; }
+  /*
+   * A pending or failed request takes the place of the title row, so the strip never grows toward the roll button. The balance
+   * warning is not drawn here at all: the bail button is already disabled, and it points to the warning with aria-describedby.
+   */
+  :is(.hud-context, .center-stage) .jail-panel > p[role='alert'],
+  :is(.hud-context, .center-stage) .jail-panel__pending { flex: 1 1 100%; font: var(--type-caption); line-height: 0.875rem; }
+  :is(.hud-context, .center-stage) .jail-panel:has(> p[role='alert'], > .jail-panel__pending) .jail-panel__head { display: none; }
+  :is(.hud-context, .center-stage) .jail-panel__balance-warning {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  :is(.hud-context, .center-stage) .jail-panel__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  :is(.hud-context, .center-stage) .jail-panel__actions .ds-button { padding: 2px 6px; font: var(--type-caption); line-height: 1.1; }
 }
 
 /* The strip between the two bottom cards is about 270 px wide: the lock icon goes so the title and the wait chip share a row. */

@@ -43,10 +43,16 @@ bằng application session state, không bằng `socket.id` hay optimistic `join
   vừa 812×375 không cuộn; `type="button"`, không bao giờ submit, vẫn dùng được khi đang "Đang vào phòng…") chỉ khi `App` có
   `desktopBridge` và `onExitToLauncher`; trình duyệt thường không có nút vì đây là màn hình đầu tiên. Xem "Đường quay lại launcher" bên dưới.
 - **Launcher desktop = màn hình chính** (`DesktopMultiplayerLauncher` + `LauncherScene`; V1.1 mục 4): toàn cửa sổ, một cột nút
-  lệch về bên trái trên nền giấy ấm có tranh ở bên phải. Tiêu đề (h1) "Chơi nhiều người", không phụ đề, không ghi chú chân thẻ.
+  lệch về bên trái trên nền giấy ấm có tranh ở bên phải. Tiêu đề (h1) duy nhất là tên game **"OWN THE BLOCK"** (`brand.name`): không còn dòng thương hiệu nhỏ riêng phía trên,
+  không còn tiêu đề "Chơi nhiều người" / "Chơi qua mạng LAN", không phụ đề, không ghi chú chân thẻ; khi một form mở ra nó có thêm h2 là tên form
+  ("Tạo phòng" / "Tham gia phòng"). `aria-labelledby` của `<main>` trỏ vào h1.
   Màn chọn **chỉ có nút, không có câu giải thích dưới nút nào**: `Tạo phòng` (primary) và `Tham gia phòng` (secondary) cỡ `xl`;
   `Máy chủ riêng` (chỉ khi có `configuredRuntimeConfig`, nhãn ngắn, không mô tả); khi Host đang chạy có thêm `Vào lại phòng đang
-  mở` và `Đóng phòng` (cùng hành vi cũ: tiếp tục / dừng Host) xếp trên cùng; hàng cuối là `Cài đặt` và `Thoát`. Mọi nút là
+  mở` và `Đóng phòng` (cùng hành vi cũ: tiếp tục / dừng Host) xếp trên cùng; hàng cuối là `Cài đặt`, **bộ chọn ngôn ngữ** và `Thoát`. Bộ chọn (`LanguageSelector`) là một nút ghost "biểu tượng ngôn ngữ · tên ngôn ngữ hiện tại · mũi tên"; bấm
+  chỉ mở danh sách "Chọn ngôn ngữ" (mọi ngôn ngữ trong `SUPPORTED_LANGUAGES`, mục hiện tại có dấu tích), chỉ khi chọn một mục thì ngôn ngữ mới đổi và danh sách
+  đóng; Escape, bấm ra ngoài và Tab cũng đóng nó. Nút cũ đổi ngay `vi` ↔ `en` chỉ bằng một lần bấm đã bỏ. Chi tiết:
+  [language-system.instruction.md](./language-system.instruction.md). Hàng này là flex wrap (`Cài đặt` · chọn ngôn ngữ · `Thoát`, ô ngôn ngữ rộng hơn); dưới
+  40rem ô ngôn ngữ nằm riêng một hàng. Mọi nút là
   `Button` của design system (≥ 44 px, focus ring dùng chung, tab theo thứ tự trên xuống). `Quay lại` (trước là "Chọn lại chế
   độ") trả focus về nút đã mở form. Nút "Hướng dẫn chơi" (có chữ) ghim góc trên phải (`placement="corner"`) và đứng sau menu trong
   thứ tự Tab; ở cửa sổ thấp (landscape, cao ≤ 31rem) khi một form đang mở nó nhập vào hàng tiêu đề để khỏi đè lên dòng lỗi. Nó chỉ

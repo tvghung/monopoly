@@ -40,13 +40,6 @@
   gap: var(--space-1);
 }
 
-.desktop-launcher__brand {
-  margin: 0;
-  color: var(--color-accent-primary-strong);
-  font: var(--type-caption);
-  letter-spacing: 0.18em;
-}
-
 .desktop-launcher h1 {
   margin: 0;
   color: var(--color-accent-primary-strong);
@@ -65,7 +58,6 @@
 
 @media (min-height: 50rem) and (min-width: 70rem) {
   .desktop-launcher h1 { font: var(--type-hero); }
-  .desktop-launcher__brand { font-size: var(--font-size-sm); }
 }
 
 .desktop-launcher__error,
@@ -115,25 +107,28 @@
 
 /* Settings, language, and quit stay together below the two ways to play. */
 .desktop-launcher__utility {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
+/* The language selector (icon, name, chevron) is the widest of the three; a column too narrow for all of them wraps the last. */
+.desktop-launcher__utility > * { flex: 1 1 auto; }
+.desktop-launcher__utility > .desktop-launcher__language { flex: 1.4 1 9.5rem; }
+
 .desktop-launcher__utility .desktop-launcher__action {
+  width: auto;
   justify-content: center;
-  padding-inline: var(--space-3);
+  padding-inline: var(--space-2);
   white-space: nowrap;
 }
 
-.desktop-launcher__language .ds-button__icon > svg {
-  width: 1.1rem;
-  height: 1.1rem;
-}
+.desktop-launcher__utility .language-selector__trigger { padding-inline: var(--space-2); }
 
 @media (max-width: 40rem) {
-  .desktop-launcher__utility { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .desktop-launcher__language { grid-column: 1 / -1; justify-self: center; min-width: 9rem; }
+  .desktop-launcher__utility { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Settings and Quit share the first row; the wider language selector takes the second. */
+  .desktop-launcher__language { grid-column: 1 / -1; order: 1; justify-self: center; min-width: 11rem; }
 }
 
 /* Closing the room is not a go-ahead: a neutral button with danger-colored text, not the face of the primary variant. */
@@ -241,7 +236,6 @@
   }
   .desktop-launcher h1 { font: var(--type-title-m); }
   .desktop-launcher h2 { font: var(--type-title-s); }
-  .desktop-launcher__brand { display: none; }
 
   .desktop-launcher__menu { gap: var(--space-2); }
   .desktop-launcher__menu .desktop-launcher__action {

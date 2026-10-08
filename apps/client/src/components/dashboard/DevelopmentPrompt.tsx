@@ -92,6 +92,8 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
       size="lg"
       placement="sheet"
       backdrop="clear"
+      peek="decision"
+      peekKey={operationId ?? undefined}
       className="decision-sheet development-prompt-modal"
     >
       <div className={`decision-sheet__layout${short ? ' decision-sheet__layout--compact' : ''}`}>

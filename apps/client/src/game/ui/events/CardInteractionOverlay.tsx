@@ -201,6 +201,8 @@ export default function CardInteractionOverlay() {
       eyebrow={shown ? <DeckBadge deck={deck} language={language} /> : null}
       size="sm"
       layer="card"
+      peek={actor ? 'decision' : 'view'}
+      peekKey={pendingOperationId ?? undefined}
       describedBy={shown ? descriptionId : undefined}
       closeOnEscape={false}
       closeOnOutsideClick={false}

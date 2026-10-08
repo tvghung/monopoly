@@ -127,3 +127,41 @@
   .ds-modal__body { padding: 0.6rem 0.75rem 0.75rem; }
   .ds-modal__footer { padding: 0.5rem 0.75rem; }
 }
+
+/*
+ * Peek ("view board", `peek` prop). The eye key sits beside the close key; pressing it hides the whole overlay (`hidden`, so no
+ * invisible layer is left to swallow clicks) and the floating restore key below takes its place. Only the key and its status
+ * take pointer input; the row around them lets everything through.
+ */
+.ds-modal__overlay[hidden] { display: none; }
+.ds-modal__tools { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-2); }
+
+.ds-modal-peek {
+  position: fixed;
+  z-index: var(--z-floating-control, 40);
+  top: max(var(--space-3), env(safe-area-inset-top));
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: calc(100vw - 2 * max(var(--space-3), env(safe-area-inset-left), env(safe-area-inset-right)));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.ds-modal-peek > * { pointer-events: auto; }
+.ds-modal-peek__button { flex: 0 1 auto; min-width: 0; white-space: nowrap; }
+.ds-modal-peek__summary {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--elevation-2);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-reduced-motion='true']) .ds-modal-peek { animation: ds-modal-peek-in var(--motion-duration-ui, 200ms) var(--motion-ease-out, ease-out) both; }
+}
+@keyframes ds-modal-peek-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-0.5rem); }
+  to { opacity: 1; transform: translateX(-50%); }
+}

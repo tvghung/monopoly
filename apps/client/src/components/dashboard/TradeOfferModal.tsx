@@ -164,6 +164,7 @@ export default function TradeOfferModal() {
       eyebrow={t('trade.title')}
       size="xl"
       onClose={closeTrade}
+      peek="view"
       className="trade-offer-modal"
       footer={state.loaded && tradeTarget
         ? (

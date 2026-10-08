@@ -149,6 +149,14 @@ describe('PropertyDeedCard', () => {
     expect(image?.getAttribute('alt')).toBe('');
   });
 
+  it('builds the landmark name in the language of the model, and the street name is not translated', () => {
+    const room = makeRoom();
+    const model = (language: 'vi' | 'en') => buildDeedCardModel({ tileId: 13, state: room.gameState, roomPlayers: room.players, theme: 'v2', language })!;
+    expect(model('vi').landmark?.name).toBe('Chùa Cầu');
+    expect(model('en').landmark?.name).toBe('Chùa Cầu Temple');
+    expect(model('en').name).toBe(model('vi').name);
+  });
+
   it('shows the landmark in the compact card too, and not in the one-line chip', () => {
     const { container, unmount } = renderDeed(24, {}, 'compact');
     expect(screen.getByText('Khách sạn · Cầu Vàng')).toBeTruthy();
