@@ -39,7 +39,7 @@ const ROOM_CODE_PATTERN = /^[A-Za-z0-9-]{1,20}$/u;
 export type LanFindRoomFailureCode = 'NOT_FOUND' | 'UNREACHABLE' | 'NO_NETWORK' | 'UNAVAILABLE';
 
 export type LanFindRoomResult =
-  | { ok: true; endpoint: string }
+  | { ok: true; endpoint: string; instanceId?: string }
   | { ok: false; code: LanFindRoomFailureCode };
 
 export interface LanFinderTiming {

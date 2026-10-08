@@ -37,7 +37,7 @@ export interface OwnTheBlockDesktopBridge {
     findRoom(roomCode: string): Promise<LanFindRoomResult>;
   };
   online: {
-    findRoom(roomCode: string): Promise<{ ok: true; endpoint: string } | { ok: false; code: 'NOT_FOUND' | 'UNAVAILABLE' }>;
+    findRoom(roomCode: string): Promise<{ ok: true; endpoint: string; instanceId?: string } | { ok: false; code: 'NOT_FOUND' | 'UNAVAILABLE' }>;
   };
   update: {
     getState(): Promise<AppUpdateState>;

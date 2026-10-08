@@ -188,6 +188,28 @@ export function resolveReleaseSocketUrl({
   return normalizeReleaseSocketUrl(rawValue);
 }
 
+export const RELEASE_REGISTRY_URL_ENV = 'OWN_THE_BLOCK_REGISTRY_URL';
+
+/**
+ * The optional room registry (Online code lookup) baked into a build: an https origin with no path, query or credentials, or
+ * undefined when the variable is unset or empty (the build then shares Online rooms by link and QR only).
+ */
+export function resolveReleaseRegistryUrl(environment = process.env) {
+  const rawValue = environment[RELEASE_REGISTRY_URL_ENV];
+  if (rawValue === undefined || rawValue.trim() === '') return undefined;
+  let parsed;
+  try {
+    parsed = new URL(rawValue.trim());
+  } catch (error) {
+    throw new Error(`${RELEASE_REGISTRY_URL_ENV} must be an https origin.`, { cause: error });
+  }
+  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.port
+    || parsed.pathname !== '/' || parsed.search || parsed.hash || !parsed.hostname.includes('.')) {
+    throw new Error(`${RELEASE_REGISTRY_URL_ENV} must be an https origin.`);
+  }
+  return parsed.origin;
+}
+
 export function readGeneratedReleaseConfig(root = repositoryRoot) {
   const configPath = releaseConfigPath(root);
   if (!existsSync(configPath)) {

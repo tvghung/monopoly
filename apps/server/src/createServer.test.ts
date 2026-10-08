@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -14,7 +15,7 @@ import {
   resolveCorsOrigin,
 } from './createServer.js';
 import { InMemoryPersistenceStore } from './persistence/inMemory.js';
-import type { RoomSnapshot } from './rooms.js';
+import { createRoomSnapshot, ROOM_SNAPSHOT_SCHEMA_VERSION, type RoomSnapshot } from './rooms.js';
 import { createAppRuntime } from './services/runtime.js';
 
 const servers: Array<ReturnType<typeof createServer>['server']> = [];
@@ -244,6 +245,39 @@ describe('HTTP client identity behind the tunnel of an Online Host', () => {
     expect(new Set(await probe(origin, { 'CF-Connecting-IP': '198.51.100.1' }, 60))).toEqual(new Set([404]));
     expect(await probe(origin, { 'CF-Connecting-IP': '198.51.100.2' }, 1)).toEqual([429]);
     expect(await probe(origin, { 'X-Forwarded-For': '198.51.100.3', 'True-Client-IP': '198.51.100.4' }, 1)).toEqual([429]);
+  });
+
+  it('names the Host process of a room with a random instance id, the same for every probe of one process', async () => {
+    const instance = async (): Promise<string[]> => {
+      const runtime = createTestRuntime();
+      await runtime.persistence.rooms.create({
+        id: randomUUID(), code: 'ROOM-1', status: 'LOBBY', hostPlayerId: null, snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION,
+        gameSnapshot: createRoomSnapshot(), nextActionAt: null, lastActivityAt: new Date(), expiresAt: null,
+      });
+      const clientDist = await mkdtemp(path.join(os.tmpdir(), 'own-the-block-instance-'));
+      temporaryDirectories.push(clientDist);
+      await writeFile(path.join(clientDist, 'index.html'), '<main>client</main>');
+      const { server } = createServer(runtime, {
+        environment: { NODE_ENV: 'production', SERVER_RUNTIME_PROFILE: 'desktop' },
+        clientDist,
+      });
+      servers.push(server);
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const origin = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+      const ids: string[] = [];
+      for (let probeIndex = 0; probeIndex < 2; probeIndex += 1) {
+        const response = await fetch(`${origin}/_otb/room?code=ROOM-1`);
+        expect(response.status).toBe(200);
+        ids.push(((await response.json()) as { instanceId: string }).instanceId);
+      }
+      expect((await fetch(`${origin}/_otb/room?code=ROOM-2`)).status).toBe(404);
+      return ids;
+    };
+    const first = await instance();
+    const second = await instance();
+    expect(first[0]).toMatch(/^[0-9a-f-]{36}$/u);
+    expect(first[1]).toBe(first[0]);
+    expect(second[0]).not.toBe(first[0]);
   });
 
   it('keeps Express from trusting forwarding headers on its own', async () => {

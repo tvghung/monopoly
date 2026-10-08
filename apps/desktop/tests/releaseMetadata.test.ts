@@ -6,6 +6,7 @@ import {
   nativeIconPaths,
   normalizeReleaseSocketUrl,
   readCanonicalReleaseMetadata,
+  resolveReleaseRegistryUrl,
   resolveReleaseTarget,
   resolveReleaseSocketUrl,
   signingStatus,
@@ -81,5 +82,17 @@ describe('desktop release metadata', () => {
       actualPlatform: 'darwin',
       actualArchitecture: 'arm64',
     })).toThrow('does not match the current host architecture');
+  });
+});
+
+describe('release registry configuration', () => {
+  it('bakes only an https origin, and nothing when the variable is unset or empty', () => {
+    expect(resolveReleaseRegistryUrl({})).toBeUndefined();
+    expect(resolveReleaseRegistryUrl({ OWN_THE_BLOCK_REGISTRY_URL: '' })).toBeUndefined();
+    expect(resolveReleaseRegistryUrl({ OWN_THE_BLOCK_REGISTRY_URL: 'https://registry.example.workers.dev/' }))
+      .toBe('https://registry.example.workers.dev');
+    for (const value of ['http://registry.example.test', 'https://registry.example.test/path', 'https://user:pw@registry.example.test', 'not a url', 'https://localhost']) {
+      expect(() => resolveReleaseRegistryUrl({ OWN_THE_BLOCK_REGISTRY_URL: value })).toThrow(/https origin/);
+    }
   });
 });

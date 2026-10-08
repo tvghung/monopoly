@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DesktopRuntimeConfigError,
   readPackagedReleaseConfig,
+  resolveRegistryUrl,
   resolveSocketUrl,
   type DesktopSocketUrlOptions,
 } from '../src/runtimeConfig';
@@ -109,5 +110,15 @@ describe('desktop socket endpoint configuration', () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe('room registry configuration', () => {
+  it('prefers the runtime variable, then the packaged value, and has none by default', () => {
+    expect(resolveRegistryUrl({ OWN_THE_BLOCK_REGISTRY_URL: 'https://dev.example.test' }, { registryUrl: 'https://built.example.test' }))
+      .toBe('https://dev.example.test');
+    expect(resolveRegistryUrl({}, { registryUrl: 'https://built.example.test' })).toBe('https://built.example.test');
+    expect(resolveRegistryUrl({}, {})).toBeUndefined();
+    expect(resolveRegistryUrl({ OWN_THE_BLOCK_REGISTRY_URL: '  ' }, { registryUrl: 7 })).toBeUndefined();
   });
 });

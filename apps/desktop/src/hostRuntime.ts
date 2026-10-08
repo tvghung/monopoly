@@ -57,6 +57,8 @@ export interface HostRuntimeStatus {
   connectionMode?: 'LAN' | 'ONLINE';
   onlineEndpoint?: string | null;
   onlineState?: 'CONNECTING' | 'AWAITING_ROOM' | 'READY' | 'DISCOVERY_UNAVAILABLE' | 'UNAVAILABLE';
+  /** Whether this build can make an Online room findable by its code from another network (a registry is configured). */
+  discoveryConfigured?: boolean;
   errorCode?: HostRuntimeErrorCode;
   diagnostic?: string;
 }
@@ -169,6 +171,9 @@ export class HostRuntimeController {
   private readonly interfaceProvider: (defaultRouteAddress?: string) => NetworkInterfaceCandidate[];
   private connectivity: ConnectivityProvider | undefined;
   private discovery: RoomDiscoveryProvider | undefined;
+
+  /** The registry could not reserve this Online room's code: links work, code lookup across networks does not. */
+  private discoveryUnavailable = false;
   private onlineLease: { roomCode: string; credential: string; proof: string } | undefined;
   private onlineRoomCode: string | undefined;
   private renewalTimer: NodeJS.Timeout | undefined;
@@ -256,20 +261,32 @@ export class HostRuntimeController {
         redirect: 'error', signal: AbortSignal.timeout(8_000),
       });
       if (!response.ok) throw new Error('ONLINE_ROOM_NOT_READY');
-      if (this.onlineLease && this.discovery) {
-        await this.discovery.activate(roomCode, this.onlineLease.credential, endpoint);
-      }
     } catch (error) {
       this.update({ onlineState: 'UNAVAILABLE' });
       throw error;
     }
-    this.update({ onlineState: 'READY' });
+    // The public link works now. Registry trouble only means the bare code cannot be looked up from another network: it is
+    // reported next to the link, never by hiding it.
+    let discoveryOk = !this.discoveryUnavailable;
+    if (this.onlineLease && this.discovery) {
+      try {
+        await this.discovery.activate(roomCode, this.onlineLease.credential, endpoint);
+        discoveryOk = true;
+      } catch {
+        discoveryOk = false;
+      }
+    }
+    this.update({ onlineState: discoveryOk ? 'READY' : 'DISCOVERY_UNAVAILABLE' });
     if (this.renewalTimer) clearInterval(this.renewalTimer);
     if (this.onlineLease && this.discovery) {
       const lease = this.onlineLease;
       this.renewalTimer = setInterval(() => {
-        void this.discovery?.renew(roomCode, lease.credential).catch(() => {
-          this.update({ onlineState: 'DISCOVERY_UNAVAILABLE' });
+        void this.discovery?.renew(roomCode, lease.credential).then(() => {
+          if (this.currentStatus.onlineState === 'DISCOVERY_UNAVAILABLE' && this.currentStatus.onlineEndpoint) {
+            this.update({ onlineState: 'READY' });
+          }
+        }, () => {
+          if (this.currentStatus.onlineEndpoint) this.update({ onlineState: 'DISCOVERY_UNAVAILABLE' });
         });
       }, 30_000);
       this.renewalTimer.unref();
@@ -404,12 +421,20 @@ export class HostRuntimeController {
       this.onlineRoomCode = options.roomCode;
       this.discovery ??= this.options.registryUrl ? new HttpRoomDiscovery(this.options.registryUrl) : undefined;
       this.connectivity ??= new CloudflareQuickTunnel(this.options.cloudflaredPath);
+      this.discoveryUnavailable = false;
       if (this.discovery) {
-        // Registry discovery is optional; a complete HTTPS invitation carries
-        // its endpoint and code even when the registry is unavailable.
-        const reservation = await this.discovery.reserve(options.roomCode).catch(() => undefined);
-        if (reservation) this.onlineLease = { roomCode: options.roomCode, ...reservation };
+        // Registry discovery is optional; a complete HTTPS invitation carries its endpoint and code even when the registry is
+        // unavailable. A code another live room already holds is different: the launcher must draw a new one, otherwise the
+        // code would lead other players to that room.
+        try {
+          const reservation = await this.discovery.reserve(options.roomCode);
+          this.onlineLease = { roomCode: options.roomCode, ...reservation };
+        } catch (error) {
+          if (errorText(error) === 'CODE_TAKEN') throw error;
+          this.discoveryUnavailable = true;
+        }
       }
+      this.update({ discoveryConfigured: Boolean(this.discovery) });
     }
     await this.refreshRoute();
     const interfaces = this.interfaceProvider(this.defaultRouteAddress);
