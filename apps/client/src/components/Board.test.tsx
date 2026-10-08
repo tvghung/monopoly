@@ -392,6 +392,10 @@ describe('Vietnamese game board', () => {
     );
 
     const button = screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ xúc xắc' });
+    // The roll key carries the dice glyph next to its words; the glyph is decorative.
+    const glyph = button.querySelector('svg.action-icon');
+    expect(glyph?.getAttribute('class')).toContain('lucide-dices');
+    expect(glyph?.getAttribute('aria-hidden')).toBe('true');
     fireEvent.click(button);
     fireEvent.click(button);
 

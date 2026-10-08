@@ -7,6 +7,8 @@ export interface GameSettings {
   version: 2;
   language: Language;
   masterVolume: number;
+  /** Silences everything at once and keeps the volume levels for when sound comes back. */
+  muted: boolean;
   musicVolume: number;
   sfxVolume: number;
   animationSpeed: number;

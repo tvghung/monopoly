@@ -46,15 +46,18 @@ export function createMovementExecutor(
   return {
     async run(event, context) {
       const previewId = `${event.id}:destination-preview`;
-      if (event.presentation === 'WALK') {
-        store.showDestinationPreview({
-          id: previewId,
-          playerId: event.playerId,
-          tileId: event.to,
-          strongDurationMs: context.getDuration(presentationTiming.destinationPreviewStrong),
-        });
-      }
+      // Every move shows where the token is going: a dice walk, and a card relocation that snaps it there (the preview
+      // appears just before the snap). LAND_TILE clears it, an aborted move clears it in `finish`.
+      store.showDestinationPreview({
+        id: previewId,
+        playerId: event.playerId,
+        tileId: event.to,
+        strongDurationMs: context.getDuration(presentationTiming.destinationPreviewStrong),
+      });
       if (event.presentation === 'SNAP' || context.reducedMotion) {
+        if (event.presentation === 'SNAP' && !context.reducedMotion) {
+          await context.wait(presentationTiming.destinationPreviewLead);
+        }
         if (!isExecutionCurrent(context)) return;
         store.snapDisplayPosition(event.playerId, event.to);
         if (event.presentation === 'WALK' && event.passGo) {

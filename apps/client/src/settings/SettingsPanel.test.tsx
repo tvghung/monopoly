@@ -126,6 +126,16 @@ describe('SettingsPanel layout', () => {
 });
 
 describe('SettingsPanel audio', () => {
+  it('mutes everything with one switch and keeps the volume levels for later', () => {
+    renderPanel({ settings: { masterVolume: 0.6 } });
+    const mute = screen.getByRole('switch', { name: 'Tắt tiếng' });
+    expect(mute).toHaveProperty('checked', false);
+    fireEvent.click(mute);
+    expect(currentSettings()).toMatchObject({ muted: true, masterVolume: 0.6 });
+    fireEvent.click(mute);
+    expect(currentSettings()).toMatchObject({ muted: false, masterVolume: 0.6 });
+  });
+
   it('stores a slider change and updates its percentage readout', () => {
     renderPanel();
 

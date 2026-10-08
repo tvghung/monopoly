@@ -174,7 +174,28 @@ export class AudioEngine implements AudioPort {
       return;
     }
     this.musicAttempted = false;
+    // A context the system suspended while the page was away (iOS interruptions, background tabs) is resumed when it
+    // comes back, if the browser allows it without a new gesture; otherwise the next gesture resumes it as usual.
+    this.resumeIfAllowed();
     this.syncMusicLifecycle();
+  }
+
+  private resumeIfAllowed(): void {
+    const context = this.context;
+    if (!context || context.state === 'running' || context.state === 'closed' || this.resumePromise) return;
+    let resumePromise: Promise<void>;
+    try {
+      resumePromise = context.resume();
+    } catch {
+      return;
+    }
+    this.resumePromise = resumePromise;
+    void resumePromise.then(() => {
+      if (this.disposed || context !== this.context || context.state !== 'running') return;
+      this.completeInteraction(context);
+    }).catch(() => {}).finally(() => {
+      if (this.resumePromise === resumePromise) this.resumePromise = null;
+    });
   }
 
   public stopPresentationVoices(): void {
@@ -292,6 +313,11 @@ export class AudioEngine implements AudioPort {
       this.musicGainNode = musicGainNode;
       this.sampleAbortController = new AbortController();
       this.applyMix();
+      // The browser may resume a suspended context by itself (an interruption ended): music then picks up where the rules
+      // allow, and never twice (the music lifecycle refuses a second source).
+      context.addEventListener?.('statechange', () => {
+        if (!this.disposed && context === this.context && context.state === 'running') this.syncMusicLifecycle();
+      });
       return context;
     } catch {
       if (context.state !== 'closed') void context.close().catch(() => {});

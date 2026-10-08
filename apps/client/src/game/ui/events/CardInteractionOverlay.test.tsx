@@ -305,6 +305,10 @@ describe('CardInteractionOverlay', () => {
     const button = closeButton();
     expect(button.disabled).toBe(true);
     expect(screen.getByText('Đang chờ người chơi đóng thẻ')).toBeTruthy();
+    // A watcher sees the very card that was drawn, never a blank face.
+    expect(screen.getByRole('dialog', { name: 'Cổ tức' })).toBeTruthy();
+    expect(screen.getByText('Nhận cổ tức 50.000 ₫.')).toBeTruthy();
+    expect(screen.getByRole('img').getAttribute('src')).toContain('/art/cards/chance/');
 
     fireEvent.keyDown(window, { key: 'Escape' });
     fireEvent.keyDown(document, { key: 'Escape' });
@@ -327,6 +331,8 @@ describe('CardInteractionOverlay', () => {
     expect(button.disabled).toBe(true);
     expect(button.hasAttribute('data-modal-autofocus')).toBe(false);
     expect(screen.getByText('Đang chờ người chơi đóng thẻ')).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Cổ tức' })).toBeTruthy();
+    expect(screen.getByText('Nhận cổ tức 50.000 ₫.')).toBeTruthy();
     fireEvent.click(button);
     expect(dismissCard).not.toHaveBeenCalled();
     controller.dispose();

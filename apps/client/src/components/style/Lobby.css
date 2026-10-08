@@ -609,6 +609,7 @@
 }
 
 .lobby-share__copy-state,
+.lobby-share__note,
 .lobby-share__warning {
   min-height: 1.25rem;
   margin: 0;

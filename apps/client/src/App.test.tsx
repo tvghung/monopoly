@@ -1624,6 +1624,9 @@ describe('App how-to-play key placement', () => {
     // Every key stays a 44 px design-system key and the toolbar keeps its landmark name.
     expect(buttons.every(button => button.className.includes('ds-icon-button--md'))).toBe(true);
     expect(toolbar.getAttribute('aria-label')).toBe('Điều khiển ván chơi');
+    // Settings and Surrender are recognizable glyphs (gear, flag) whose names live on the buttons.
+    expect(buttons[1].querySelector('svg')?.getAttribute('class')).toContain('lucide-settings');
+    expect(buttons[2].querySelector('svg')?.getAttribute('class')).toContain('lucide-flag');
 
     fireEvent.click(buttons[0]);
     expect(screen.getByRole('dialog', { name: GUIDE })).toBeTruthy();

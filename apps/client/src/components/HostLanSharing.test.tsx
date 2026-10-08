@@ -143,6 +143,19 @@ describe('HostLanSharing', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(link));
   });
 
+  it('says that only the link and QR reach the room when this build has no room registry', async () => {
+    const ready = { ...hostStatus(), connectionMode: 'ONLINE' as const, onlineEndpoint: 'https://room.trycloudflare.com',
+      onlineState: 'READY' as const, discoveryConfigured: false };
+    installBridge(ready);
+    render(<HostLanSharing roomCode="OTB-ABC234" />);
+    expect(await screen.findByText('Người ở mạng khác vào phòng bằng link hoặc QR này.')).toBeTruthy();
+    cleanup();
+    installBridge({ ...ready, discoveryConfigured: true });
+    render(<HostLanSharing roomCode="OTB-ABC234" />);
+    await screen.findByAltText(QR_ALT);
+    expect(screen.queryByText('Người ở mạng khác vào phòng bằng link hoặc QR này.')).toBeNull();
+  });
+
   it('registers a replacement tunnel endpoint and updates the invitation', async () => {
     const first = { ...hostStatus(), connectionMode: 'ONLINE' as const,
       onlineEndpoint: 'https://first.trycloudflare.com', onlineState: 'AWAITING_ROOM' as const };
