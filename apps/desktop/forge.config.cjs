@@ -39,6 +39,8 @@ module.exports = {
     prune: false,
     // Runtime binaries ship once as external resources.
     // update-policy.json is release tooling input (it becomes update-manifest.json at publish time), not app data.
+    // cloudflared-integrity.json must stay packaged (it is not ignored): the compiled main process requires it to verify
+    // the bundled tunnel executable before every launch, and checkPackagedBudget fails when app.asar lacks it.
     ignore: [/^\/node_modules/, /^\/(?:generated|src|tests|scripts)(?:\/|$)/, /^\/update-policy\.json$/],
     extraResource: [
       path.resolve(__dirname, '../client/dist'),

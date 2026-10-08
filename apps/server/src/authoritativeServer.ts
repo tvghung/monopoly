@@ -1,3 +1,4 @@
+import type { Express } from 'express';
 import { createServer } from './createServer.js';
 import {
   loadServerConfig,
@@ -7,6 +8,7 @@ import { InMemoryPersistenceStore } from './persistence/inMemory.js';
 import type { RoomSnapshot } from './rooms.js';
 import { DeadlineScheduler } from './services/deadlineScheduler.js';
 import { createAppRuntime } from './services/runtime.js';
+import { tunnelHeaderTrusted } from './socket/clientIdentity.js';
 import { registerSocketHandlers } from './socket/index.js';
 
 export interface StartAuthoritativeServerOptions {
@@ -15,6 +17,8 @@ export interface StartAuthoritativeServerOptions {
   host?: string;
   port?: number;
   clientDist?: string;
+  /** Lets a test harness add routes (for example a built client) before the server listens; never set by the product. */
+  configureApp?: (app: Express) => void;
 }
 
 export interface AuthoritativeServer {
@@ -33,11 +37,22 @@ export async function startAuthoritativeServer(
   const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
 
   const runtime = createAppRuntime(persistence, config.persistenceTiming);
-  const { server, io } = createServer(runtime, {
+  const { app, server, io } = createServer(runtime, {
     environment,
     clientDist: options.clientDist,
   });
-  registerSocketHandlers(io, runtime, config.runtimeProfile, environment.OTB_ONLINE_ROOM_CODE);
+  options.configureApp?.(app);
+  registerSocketHandlers(io, runtime, config.runtimeProfile, {
+    ...(environment.OTB_HOST_ROOM_CODE && environment.OTB_HOST_CREATE_SECRET
+      ? {
+          hostAuthorization: {
+            roomCode: environment.OTB_HOST_ROOM_CODE,
+            secret: environment.OTB_HOST_CREATE_SECRET,
+          },
+        }
+      : {}),
+    trustTunnelHeader: tunnelHeaderTrusted(config.runtimeProfile, environment),
+  });
   const scheduler = new DeadlineScheduler(io, runtime);
   let shutdownPromise: Promise<void> | undefined;
 

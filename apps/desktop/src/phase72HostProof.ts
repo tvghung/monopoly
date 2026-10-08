@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { access } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -9,7 +9,7 @@ import { ServerHelperController } from './serverHelper';
 
 interface RetainedSession { token: string; playerId: string; roomId: string; roomCode: string }
 interface HostContract {
-  runPhase72HostContract(options: { serverUrl: string; remoteServerUrl: string; roomCode: string }): Promise<{
+  runPhase72HostContract(options: { serverUrl: string; remoteServerUrl: string; roomCode: string; hostCapability: string }): Promise<{
     roomId: string;
     retainedSession: RetainedSession;
     checks: Record<string, true>;
@@ -47,7 +47,10 @@ export async function runPhase72HostProof(
   const interfaces = resolveNetworkInterfaces();
   if (!interfaces.length) throw new Error('No usable LAN IPv4 interface for packaged proof');
 
-  const helper = new ServerHelperController({ modulePath: helperPath, clientDist, host: '0.0.0.0', port: 0 });
+  const roomCode = `OTB-${randomUUID().slice(0, 6).toUpperCase()}`;
+  const hostCapability = randomBytes(32).toString('hex');
+  const helper = new ServerHelperController({ modulePath: helperPath, clientDist, host: '0.0.0.0', port: 0,
+    environment: { OTB_HOST_ROOM_CODE: roomCode, OTB_HOST_CREATE_SECRET: hostCapability } });
   let replacement: ServerHelperController | undefined;
   try {
     const first = await helper.start();
@@ -60,8 +63,7 @@ export async function runPhase72HostProof(
     }
     const lanOrigin = `http://${interfaces[0].address}:${first.port}`;
     await expectRoute(lanOrigin, '/healthz', 'ok');
-    const roomCode = `OTB-${randomUUID().slice(0, 6).toUpperCase()}`;
-    const match = await contract.runPhase72HostContract({ serverUrl: origin, remoteServerUrl: lanOrigin, roomCode });
+    const match = await contract.runPhase72HostContract({ serverUrl: origin, remoteServerUrl: lanOrigin, roomCode, hostCapability });
     const finder = new LanFinder();
     const discovery = await finder.findRoom(roomCode);
     if (!discovery.ok) throw new Error('LAN room discovery failed');

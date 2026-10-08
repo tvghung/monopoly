@@ -59,6 +59,8 @@ export interface PlayerSessionRecord {
   status: PlayerSessionStatus;
   requestedRoomCode: string | null;
   requestedName: string | null;
+  admittedRoomId: string | null;
+  createRoomAuthorized: boolean;
   roomId: string | null;
   playerId: string | null;
   createdAt: Date;
@@ -73,6 +75,8 @@ export interface CreatePendingSessionInput {
   tokenHash: Uint8Array;
   requestedRoomCode: string;
   requestedName: string;
+  admittedRoomId: string | null;
+  createRoomAuthorized: boolean;
   expiresAt: Date;
 }
 
@@ -193,6 +197,18 @@ export class RoomNotFoundError extends Error {
   constructor(readonly roomId: string) {
     super(`Room ${roomId} does not exist`);
     this.name = 'RoomNotFoundError';
+  }
+}
+
+/**
+ * The volatile store was closed because its server process is shutting down.
+ * It is the only "unavailable" state a RAM-only runtime has: rooms, sessions and
+ * offers die with the process, so nothing can be retried against a closed store.
+ */
+export class RuntimeUnavailableError extends Error {
+  constructor() {
+    super('The in-memory game runtime is closed.');
+    this.name = 'RuntimeUnavailableError';
   }
 }
 

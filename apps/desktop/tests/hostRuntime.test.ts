@@ -1,6 +1,7 @@
 import path from 'node:path';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HostRuntimeController, type ServerHelperLike } from '../src/hostRuntime';
+import type { ConnectivityProvider } from '../src/online/connectivity';
 import type { ServerHelperInfo, ServerHelperState } from '../src/serverHelper';
 
 class FakeHelper implements ServerHelperLike {
@@ -40,6 +41,20 @@ const options = (overrides: Partial<ConstructorParameters<typeof HostRuntimeCont
 });
 
 describe('RAM host runtime', () => {
+  it('scopes the private creation capability to one room and helper lifetime', async () => {
+    const controller = new HostRuntimeController(options({ helperFactory: () => new FakeHelper() }));
+    await controller.start({ mode: 'LAN', roomCode: 'HOST-ROOM' });
+    const capability = controller.creationCapability('HOST-ROOM');
+    expect(capability).toMatch(/^[a-f0-9]{64}$/u);
+    expect(controller.creationCapability('OTHER-ROOM')).toBeUndefined();
+    expect(JSON.stringify(controller.status)).not.toContain(capability);
+    await controller.stop();
+    expect(controller.creationCapability('HOST-ROOM')).toBeUndefined();
+    await controller.start({ mode: 'LAN', roomCode: 'HOST-ROOM' });
+    expect(controller.creationCapability('HOST-ROOM')).not.toBe(capability);
+    await controller.stop();
+  });
+
   it('starts one helper and advertises a usable LAN endpoint', async () => {
     const helper = new FakeHelper();
     const controller = new HostRuntimeController(options({ helperFactory: () => helper }));
@@ -89,5 +104,158 @@ describe('RAM host runtime', () => {
     const lan = new HostRuntimeController(options({ interfaceProvider: () => [], helperFactory: () => new FakeHelper() }));
     await expect(lan.start()).rejects.toThrow('No usable LAN IPv4');
     expect(lan.status.errorCode).toBe('NO_LAN_INTERFACE');
+  });
+});
+
+class FakeTunnel implements ConnectivityProvider {
+  starts = 0;
+  stops = 0;
+  startOrigins: string[] = [];
+  failFrom = Number.POSITIVE_INFINITY;
+  lost: (() => void) | undefined;
+  constructor(private readonly hostnames: string[] = ['first', 'second', 'third']) {}
+  start(localEndpoint: string, onLost: () => void): Promise<string> {
+    this.starts += 1;
+    this.startOrigins.push(localEndpoint);
+    if (this.starts >= this.failFrom) return Promise.reject(new Error('TUNNEL_START_FAILED'));
+    this.lost = onLost;
+    return Promise.resolve(`https://${this.hostnames[this.starts - 1] ?? `extra${String(this.starts)}`}.trycloudflare.com`);
+  }
+  stop(): Promise<void> { this.stops += 1; this.lost = undefined; return Promise.resolve(); }
+  /** What the Quick Tunnel process does when cloudflared exits on its own. */
+  exit(): void { this.lost?.(); }
+}
+
+describe('Online Host (Cloudflare Quick Tunnel)', () => {
+  const requested: string[] = [];
+  /** The public route answers once the tunnel hostname has been announced, as the real edge does after a moment. */
+  function publicRoute(roomExists = true): void {
+    requested.length = 0;
+    vi.stubGlobal('fetch', vi.fn((input: unknown) => {
+      const url = String(input);
+      requested.push(url);
+      if (url.includes('/_otb/room')) return Promise.resolve(new Response(null, { status: roomExists ? 200 : 404 }));
+      return Promise.resolve(new Response(url.endsWith('/readyz') ? 'ready' : '<html lang="vi"></html>', { status: 200 }));
+    }));
+  }
+  const online = (tunnel: FakeTunnel, helper = new FakeHelper()) => ({
+    helper,
+    tunnel,
+    controller: new HostRuntimeController(options({ connectivity: tunnel, helperFactory: () => helper })),
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('opens the tunnel to the local endpoint and presents only the verified public endpoint', async () => {
+    publicRoute();
+    const { controller, tunnel } = online(new FakeTunnel());
+    const status = await controller.start({ mode: 'ONLINE', roomCode: 'ONLINE-1' });
+    expect(tunnel.startOrigins).toEqual(['http://127.0.0.1:43123']);
+    expect(status).toMatchObject({
+      state: 'HOSTING', connectionMode: 'ONLINE',
+      onlineEndpoint: 'https://first.trycloudflare.com', onlineState: 'AWAITING_ROOM',
+    });
+    // The endpoint is only announced after the public route served the readiness probe and the client page.
+    expect(requested).toEqual(['https://first.trycloudflare.com/readyz', 'https://first.trycloudflare.com/']);
+    await expect(controller.activateOnlineRoom('ONLINE-1')).resolves.toMatchObject({ onlineState: 'READY' });
+    await controller.stop();
+  });
+
+  it('fails the start, ends the server and revokes the Host capability when the tunnel cannot start', async () => {
+    publicRoute();
+    const tunnel = new FakeTunnel();
+    tunnel.failFrom = 1;
+    const { controller, helper } = online(tunnel);
+    await expect(controller.start({ mode: 'ONLINE', roomCode: 'ONLINE-1' })).rejects.toThrow('TUNNEL_START_FAILED');
+    expect(controller.status).toMatchObject({ state: 'FAILED', errorCode: 'ONLINE_FAILED', onlineEndpoint: null });
+    expect(helper.stops).toBeGreaterThanOrEqual(1);
+    expect(tunnel.stops).toBeGreaterThanOrEqual(1);
+    expect(controller.creationCapability('ONLINE-1')).toBeUndefined();
+  });
+
+  it('does not present an endpoint whose public route never becomes reachable', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('getaddrinfo ENOTFOUND'))));
+    const { controller, helper, tunnel } = online(new FakeTunnel());
+    const starting = controller.start({ mode: 'ONLINE', roomCode: 'ONLINE-1' });
+    const outcome = starting.then(() => 'started', (error: Error) => error.message);
+    await vi.advanceTimersByTimeAsync(45_000);
+    await expect(outcome).resolves.toBe('ONLINE_FAILED');
+    expect(controller.status).toMatchObject({ state: 'FAILED', errorCode: 'ONLINE_FAILED', onlineEndpoint: null });
+    expect(tunnel.stops).toBeGreaterThanOrEqual(1);
+    expect(helper.stops).toBeGreaterThanOrEqual(1);
+  });
+
+  it('recreates a lost tunnel with a new hostname and never presents the old link as current again', async () => {
+    publicRoute();
+    const { controller, tunnel, helper } = online(new FakeTunnel());
+    const seen: Array<{ endpoint: string | null | undefined; state: string | undefined }> = [];
+    controller.onStatusChanged(status => seen.push({ endpoint: status.onlineEndpoint, state: status.onlineState }));
+    await controller.start({ mode: 'ONLINE', roomCode: 'ONLINE-1' });
+    await controller.activateOnlineRoom('ONLINE-1');
+    expect(controller.status.onlineEndpoint).toBe('https://first.trycloudflare.com');
+    seen.length = 0;
+
+    tunnel.exit();
+    await vi.waitFor(() => expect(controller.status).toMatchObject({
+      onlineEndpoint: 'https://second.trycloudflare.com', onlineState: 'READY',
+    }));
+    expect(tunnel.starts).toBe(2);
+    // The first update after the loss withdraws the old link; it never reappears.
+    expect(seen[0]).toEqual({ endpoint: null, state: 'UNAVAILABLE' });
+    expect(seen.map(entry => entry.endpoint)).not.toContain('https://first.trycloudflare.com');
+    expect(seen.map(entry => entry.endpoint)).toContain('https://second.trycloudflare.com');
+    // The authoritative server and its Host capability survived the tunnel loss.
+    expect(controller.status.state).toBe('HOSTING');
+    expect(helper.stops).toBe(0);
+    expect(controller.creationCapability('ONLINE-1')).toMatch(/^[a-f0-9]{64}$/u);
+    await controller.stop();
+  });
+
+  it('keeps a healthy server running, with no invitation, when the tunnel cannot be recreated', async () => {
+    vi.useFakeTimers();
+    publicRoute();
+    const tunnel = new FakeTunnel();
+    const { controller, helper } = online(tunnel);
+    await controller.start({ mode: 'ONLINE', roomCode: 'ONLINE-1' });
+    await controller.activateOnlineRoom('ONLINE-1');
+    tunnel.failFrom = 2;
+    tunnel.exit();
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(tunnel.starts).toBe(3);
+    expect(controller.status).toMatchObject({ state: 'HOSTING', onlineEndpoint: null, onlineState: 'UNAVAILABLE' });
+    expect(helper.stops).toBe(0);
+    expect(helper.state).toBe('READY');
+    await controller.stop();
+  });
+
+  it('terminates the managed tunnel and withdraws the invitation when the application shuts the Host down', async () => {
+    publicRoute();
+    const { controller, tunnel, helper } = online(new FakeTunnel());
+    await controller.start({ mode: 'ONLINE', roomCode: 'ONLINE-1' });
+    await controller.activateOnlineRoom('ONLINE-1');
+    await controller.stop();
+    expect(tunnel.stops).toBeGreaterThanOrEqual(1);
+    expect(helper.stops).toBe(1);
+    expect(controller.status).toMatchObject({ state: 'IDLE', onlineEndpoint: null });
+    expect(controller.creationCapability('ONLINE-1')).toBeUndefined();
+    // A tunnel that exits after the shutdown must not bring anything back.
+    tunnel.exit();
+    expect(tunnel.starts).toBe(1);
+  });
+
+  it('ends the match for good, tunnel included, when the authoritative server dies', async () => {
+    publicRoute();
+    const { controller, tunnel, helper } = online(new FakeTunnel());
+    await controller.start({ mode: 'ONLINE', roomCode: 'ONLINE-1' });
+    helper.crash();
+    await vi.waitFor(() => expect(controller.status.state).toBe('FAILED'));
+    expect(tunnel.stops).toBeGreaterThanOrEqual(1);
+    expect(helper.starts).toBe(1);
+    expect(controller.status.onlineEndpoint).toBeNull();
+    expect(controller.creationCapability('ONLINE-1')).toBeUndefined();
   });
 });

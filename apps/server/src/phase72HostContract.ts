@@ -98,9 +98,10 @@ async function joinPlayer(
   name: string,
   roomCode: string,
   timeoutMs: number,
+  hostCapability?: string,
 ): Promise<{ token: string; result: ResumeSessionResult }> {
   const admission = successfulData(
-    await waitForAck<JoinRoomResult>(socket, 'join room', { name, roomCode }, timeoutMs),
+    await waitForAck<JoinRoomResult>(socket, 'join room', { name, roomCode, ...(hostCapability ? { hostCapability } : {}) }, timeoutMs),
     'Phase 7.2 admission',
   );
   if (admission.kind !== 'PENDING') throw new Error('Phase 7.2 expected player admission');
@@ -183,20 +184,29 @@ export async function runPhase72HostContract(options: {
   serverUrl: string;
   remoteServerUrl: string;
   roomCode: string;
+  hostCapability: string;
   timeoutMs?: number;
 }): Promise<Phase72HostContractResult> {
   const timeoutMs = options.timeoutMs ?? CONTRACT_TIMEOUT_MS;
   const sockets: TestSocket[] = [];
   try {
+    const prematureGuest = await connectSocket(options.remoteServerUrl, timeoutMs);
+    sockets.push(prematureGuest);
+    const premature = await waitForAck<JoinRoomResult>(prematureGuest, 'join room',
+      { name: 'Guest first', roomCode: options.roomCode }, timeoutMs);
+    if (premature.ok || premature.error.code !== 'NOT_FOUND') {
+      throw new Error('A Guest created or reserved the Host room before Host authorization');
+    }
     const players: Array<{ token: string; result: ResumeSessionResult }> = [];
     for (let index = 0; index < 4; index += 1) {
-      const socket = await connectSocket(options.serverUrl, timeoutMs);
+      const socket = await connectSocket(index === 0 ? options.serverUrl : options.remoteServerUrl, timeoutMs);
       sockets.push(socket);
       players.push(await joinPlayer(
         socket,
         index === 0 ? 'Host' : `Guest ${String(index)}`,
         options.roomCode,
         timeoutMs,
+        index === 0 ? options.hostCapability : undefined,
       ));
     }
 
@@ -279,6 +289,7 @@ export async function runPhase72HostContract(options: {
       },
       checks: {
         [`protocol-v${SOCKET_PROTOCOL_VERSION}`]: true,
+        'guest-first-cannot-create': true,
         'four-client-connect': true,
         'same-room': true,
         'stable-host': true,

@@ -16,8 +16,13 @@ import { projectPrivateOffer } from './privateOffers';
 import { broadcastRoom, privatePlayerRoomName } from '../socket/broadcast';
 import { commitRoomCommand } from '../socket/roomCommands';
 import type { AppServer } from '../socket/types';
-import type { TradeOfferRecord } from '../persistence/types';
+import { RuntimeUnavailableError, type TradeOfferRecord } from '../persistence/types';
 import { paymentTimingOptions, type AppRuntime } from './runtime';
+
+/** A sweep that was in flight when the server shut down finds the store closed: expected, not worth an error log. */
+function logUnlessShutdown(message: string, reason: unknown): void {
+  if (!(reason instanceof RuntimeUnavailableError)) console.error(message, reason);
+}
 
 const POLL_INTERVAL_MS = 1_000;
 const BATCH_SIZE = 100;
@@ -456,7 +461,7 @@ export class DeadlineScheduler {
     );
     roomResults.forEach((result, index) => {
       if (result.status === 'rejected') {
-        console.error(`Room deadline recovery failed for ${rooms[index]?.id}`, result.reason);
+        logUnlessShutdown(`Room deadline recovery failed for ${rooms[index]?.id}`, result.reason);
       }
     });
 
@@ -482,7 +487,7 @@ export class DeadlineScheduler {
     }));
     offerResults.forEach((result, index) => {
       if (result.status === 'rejected') {
-        console.error(`Offer deadline recovery failed for ${offers[index]?.id}`, result.reason);
+        logUnlessShutdown(`Offer deadline recovery failed for ${offers[index]?.id}`, result.reason);
       }
     });
   }
@@ -491,7 +496,7 @@ export class DeadlineScheduler {
     if (!this.running) return;
     this.timer = setTimeout(() => {
       void this.runOnce()
-        .catch((error: unknown) => console.error('Deadline scheduler failed', error))
+        .catch((error: unknown) => logUnlessShutdown('Deadline scheduler failed', error))
         .finally(() => this.scheduleNext());
     }, POLL_INTERVAL_MS);
   }

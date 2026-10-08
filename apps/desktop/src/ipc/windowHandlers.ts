@@ -170,8 +170,8 @@ function parseHostStartOptions(value: unknown): HostStartOptions {
   if (value.mode !== undefined && value.mode !== 'LAN' && value.mode !== 'ONLINE') {
     throw new Error('Invalid connection mode.');
   }
-  if (value.mode === 'ONLINE' && (typeof value.roomCode !== 'string' || !/^[A-Z0-9-]{1,20}$/.test(value.roomCode))) {
-    throw new Error('Invalid online room code.');
+  if (value.roomCode !== undefined && (typeof value.roomCode !== 'string' || !/^[A-Z0-9-]{1,20}$/.test(value.roomCode))) {
+    throw new Error('Invalid host room code.');
   }
   if (preferredAddress !== undefined
     && (typeof preferredAddress !== 'string'
@@ -252,7 +252,9 @@ export function registerWindowHandlers(
       if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
       const options = parseHostStartOptions(value);
       try {
-        return { ok: true, status: await services.hostRuntime.start(options) };
+        const status = await services.hostRuntime.start(options);
+        return { ok: true, status,
+          ...(options.roomCode ? { hostCapability: services.hostRuntime.creationCapability(options.roomCode) } : {}) };
       } catch {
         return { ok: false, status: services.hostRuntime.status };
       }

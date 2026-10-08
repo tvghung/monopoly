@@ -64,6 +64,56 @@ describe('server helper controller', () => {
     expect(controller.state).toBe('STOPPED');
   });
 
+  it('hands the helper only the Host controls its controller chose, never ones inherited from the user environment', async () => {
+    const inherited = {
+      OTB_HOST_ROOM_CODE: 'FROM-USER-ENV',
+      OTB_HOST_CREATE_SECRET: 'e'.repeat(64),
+      OTB_ONLINE_ROOM_CODE: 'FROM-USER-ENV',
+      OTB_REGISTRY_ROOM_CODE: 'FROM-USER-ENV',
+      OTB_REGISTRY_PROOF: 'proof-from-user-env',
+      UNRELATED_SETTING: 'kept',
+    };
+    const saved = Object.fromEntries(Object.keys(inherited).map(name => [name, process.env[name]]));
+    Object.assign(process.env, inherited);
+    try {
+      const forked: Array<Record<string, string>> = [];
+      const startWith = async (environment?: Record<string, string>): Promise<void> => {
+        const child = new FakeUtilityProcess();
+        const fork = vi.fn<ServerHelperFork>((_modulePath, _args, options) => {
+          forked.push(options.env);
+          queueMicrotask(() => child.emit('message', { type: 'ready', host: '127.0.0.1', port: 43123 }));
+          return child as unknown as UtilityProcess;
+        });
+        const controller = new ServerHelperController({
+          modulePath: path.resolve('proof', 'server-helper.cjs'),
+          clientDist: path.resolve('proof', 'client'),
+          host: '127.0.0.1',
+          port: 43123,
+          ...(environment ? { environment } : {}),
+          fork,
+          fetch: vi.fn(async (url: string) => new Response(url.endsWith('/readyz') ? 'ready' : 'ok', { status: 200 })),
+        });
+        await controller.start();
+        await controller.stop();
+      };
+
+      await startWith();
+      await startWith({ OTB_HOST_ROOM_CODE: 'HOST-ROOM', OTB_HOST_CREATE_SECRET: 'a'.repeat(64) });
+
+      for (const name of ['OTB_HOST_ROOM_CODE', 'OTB_HOST_CREATE_SECRET', 'OTB_ONLINE_ROOM_CODE', 'OTB_REGISTRY_ROOM_CODE', 'OTB_REGISTRY_PROOF']) {
+        expect(forked[0]?.[name]).toBeUndefined();
+      }
+      expect(forked[0]?.UNRELATED_SETTING).toBe('kept');
+      expect(forked[1]).toMatchObject({ OTB_HOST_ROOM_CODE: 'HOST-ROOM', OTB_HOST_CREATE_SECRET: 'a'.repeat(64) });
+      expect(forked[1]?.OTB_ONLINE_ROOM_CODE).toBeUndefined();
+    } finally {
+      for (const [name, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
+  });
+
   it('fails when the helper exits before readiness', async () => {
     const child = new FakeUtilityProcess();
     const fork = vi.fn<ServerHelperFork>(() => {

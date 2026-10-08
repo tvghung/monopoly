@@ -6,6 +6,11 @@ import { pathToFileURL } from 'node:url';
 import { findPackagedApplication } from './packagedRenderer.mjs';
 import { KEPT_ELECTRON_LOCALES } from './pruneElectronLocales.mjs';
 
+/** The pinned cloudflared digests: the only trusted reference for the tunnel executable that ships in the package. */
+export async function loadCloudflaredIntegrity() {
+  return JSON.parse(await readFile(new URL('../cloudflared-integrity.json', import.meta.url), 'utf8'));
+}
+
 // Size gate for the packaged desktop app and bundled tunnel helper.
 // It prints the size table either way, so every Desktop Build log records what a player downloads.
 
@@ -87,7 +92,9 @@ export async function checkPackagedBudget({
   outRoot,
   platform = process.platform,
   architecture = process.arch,
+  integrity,
 }) {
+  const cloudflaredIntegrity = integrity ?? await loadCloudflaredIntegrity();
   const errors = [];
   const rows = [];
 
@@ -98,12 +105,19 @@ export async function checkPackagedBudget({
   const asarBytes = (await stat(asarPath)).size;
   rows.push(['resources/app.asar', asarBytes]);
   if (asarBytes > ASAR_MAX_BYTES) errors.push(`app.asar is ${mib(asarBytes)}, above ${mib(ASAR_MAX_BYTES)}`);
-  const asarRoots = new Set((await readAsarEntries(asarPath)).map(entry => entry.path.split('/')[0]));
+  const asarEntries = await readAsarEntries(asarPath);
+  const asarRoots = new Set(asarEntries.map(entry => entry.path.split('/')[0]));
+  // The compiled main process requires the pinned digests at start-up; the packager ignore list must keep this file.
+  if (!asarEntries.some(entry => entry.path === 'cloudflared-integrity.json')) {
+    errors.push('app.asar is missing cloudflared-integrity.json, which the main process requires to verify the tunnel');
+  }
   for (const forbidden of ASAR_FORBIDDEN_ROOTS) {
     if (asarRoots.has(forbidden)) errors.push(`app.asar contains ${forbidden}/, which must not be packed into the app`);
   }
 
   const targetKey = `${platform}-${architecture}`;
+  const pinnedTunnelHash = cloudflaredIntegrity.assets[targetKey]?.executableSha256;
+  if (!pinnedTunnelHash) errors.push(`Unsupported cloudflared target ${targetKey}`);
   if (existsSync(path.join(resourcesRoot, 'postgres'))) errors.push('Obsolete PostgreSQL runtime is bundled');
   const tunnelRoot = path.join(resourcesRoot, 'cloudflared', targetKey);
   const tunnelBinary = path.join(tunnelRoot, platform === 'win32' ? 'cloudflared.exe' : 'cloudflared');
@@ -114,13 +128,14 @@ export async function checkPackagedBudget({
     else {
       const expected = (await readFile(digestFile, 'utf8')).trim();
       const actual = createHash('sha256').update(await readFile(tunnelBinary)).digest('hex');
-      if (actual !== expected) errors.push(`Bundled cloudflared verification digest failed for ${targetKey}`);
+      if (actual !== expected || actual !== pinnedTunnelHash) errors.push(`Bundled cloudflared verification digest failed for ${targetKey}`);
     }
     rows.push([`resources/cloudflared/${targetKey}`, total(await walkFiles(tunnelRoot))]);
   }
   const tunnelLicense = path.join(resourcesRoot, 'cloudflared', 'LICENSE.cloudflared');
-  if (!existsSync(tunnelLicense) || !(await readFile(tunnelLicense, 'utf8')).includes('Apache License')) {
-    errors.push('Bundled cloudflared license is missing');
+  if (!existsSync(tunnelLicense)
+    || createHash('sha256').update(await readFile(tunnelLicense)).digest('hex') !== cloudflaredIntegrity.licenseSha256) {
+    errors.push('Bundled cloudflared license is missing or does not match its pinned digest');
   }
 
   for (const folder of ['dist', 'server-helper']) {

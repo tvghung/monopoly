@@ -368,16 +368,17 @@ describe('App session admission', () => {
           runtimeConfig={runtimeConfig}
           launch={{
             runtimeConfig,
-            initialJoin: { name: 'Ada', roomCode: 'LAN-NEW' },
+            initialJoin: { name: 'Ada', roomCode: 'LAN-NEW', hostCapability: 'a'.repeat(64) },
             targetRoomCode: 'LAN-NEW',
-            hosting: false,
+            hosting: true,
           }}
         />
       </ToastProvider>,
     );
 
     expect(lastEmission('resume session')).toBeUndefined();
-    expect(lastEmission('join room')?.args[0]).toEqual({ name: 'Ada', roomCode: 'LAN-NEW' });
+    expect(lastEmission('join room')?.args[0]).toEqual({ name: 'Ada', roomCode: 'LAN-NEW',
+      hostCapability: 'a'.repeat(64) });
   });
 
   it('clears a terminal desktop session and returns to the launcher without fallback join', () => {

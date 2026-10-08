@@ -48,6 +48,7 @@ export type AckErrorCode =
   | 'SESSION_EXPIRED'
   | 'SESSION_REPLACED'
   | 'UPGRADE_REQUIRED'
+  /** @deprecated No server emits this since the RAM-only runtime; kept so a v11 client still understands an older Host. */
   | 'DATABASE_UNAVAILABLE'
   | 'INTERNAL_ERROR';
 

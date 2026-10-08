@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { chromium } from '@playwright/test';
 import { startAuthoritativeServer } from '../apps/server/src/authoritativeServer.ts';
@@ -7,8 +7,10 @@ import { runPhase72HostContract } from '../apps/server/src/phase72HostContract.t
 
 const root = path.resolve(import.meta.dirname, '..');
 const roomCode = `OTB-${randomUUID().slice(0, 6).toUpperCase()}`;
+const hostCapability = randomBytes(32).toString('hex');
 const environment = { ...process.env, SERVER_RUNTIME_PROFILE: 'desktop', NODE_ENV: 'production',
-  PORT: '0', OTB_ONLINE_ROOM_CODE: roomCode };
+  PORT: '0', OTB_ONLINE_ROOM_CODE: roomCode,
+  OTB_HOST_ROOM_CODE: roomCode, OTB_HOST_CREATE_SECRET: hostCapability };
 const server = await startAuthoritativeServer({
   environment,
   host: '0.0.0.0',
@@ -41,6 +43,19 @@ try {
   if (!polling.ok || polling.headers.get('access-control-allow-origin') !== endpoint) {
     throw new Error('Public Socket.IO browser origin was rejected');
   }
+  // The server keys admission limits by the visitor address Cloudflare's edge writes into CF-Connecting-IP (see
+  // apps/server/src/socket/clientIdentity.ts). That is only sound while the edge refuses a visitor-supplied value
+  // and an invented X-Forwarded-For stays harmless, so the live proof observes both.
+  const forgedVisitor = await fetch(`${endpoint}/healthz`, {
+    headers: { 'CF-Connecting-IP': '203.0.113.9' }, signal: AbortSignal.timeout(8_000),
+  });
+  if (forgedVisitor.status !== 403) {
+    throw new Error(`Cloudflare no longer refuses a visitor-supplied CF-Connecting-IP (HTTP ${String(forgedVisitor.status)})`);
+  }
+  const forwardedVisitor = await fetch(`${endpoint}/healthz`, {
+    headers: { 'X-Forwarded-For': '203.0.113.9', 'True-Client-IP': '203.0.113.9' }, signal: AbortSignal.timeout(8_000),
+  });
+  if (!forwardedVisitor.ok) throw new Error('A request carrying forwarding headers was not served');
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
@@ -51,14 +66,20 @@ try {
     }
   } finally { await browser.close(); }
   const contract = await runPhase72HostContract({
-    serverUrl: endpoint,
+    serverUrl: `http://127.0.0.1:${server.port}`,
     remoteServerUrl: endpoint,
     roomCode,
+    hostCapability,
     timeoutMs: 15_000,
   });
   const room = await fetch(`${endpoint}/_otb/room?code=${roomCode}`);
   if (!room.ok) throw new Error('Public route could not find the created room');
-  console.log(JSON.stringify({ pass: true, endpoint, roomCode, checks: contract.checks }, null, 2));
+  console.log(JSON.stringify({
+    pass: true,
+    endpoint,
+    roomCode,
+    checks: { ...contract.checks, 'edge-refuses-visitor-cf-connecting-ip': true, 'forwarding-headers-are-harmless': true },
+  }, null, 2));
 } finally {
   await tunnel.stop();
   await server.shutdown('Quick Tunnel proof finished');

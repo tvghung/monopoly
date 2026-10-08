@@ -4,7 +4,11 @@ import {
   type AckCallback,
   type AckErrorCode,
 } from '@monopoly/shared';
-import { RoomNotFoundError, RoomVersionConflictError } from '../persistence/types';
+import {
+  RoomNotFoundError,
+  RoomVersionConflictError,
+  RuntimeUnavailableError,
+} from '../persistence/types';
 import { UnsupportedRoomSnapshotVersionError } from '../rooms';
 
 export class CommandError extends Error {
@@ -55,15 +59,6 @@ export function acknowledgeFailure<T>(
   if (typeof acknowledge === 'function') acknowledge(failureAck<T>(error));
 }
 
-function isDatabaseError(error: unknown): boolean {
-  return Boolean(
-    error
-    && typeof error === 'object'
-    && 'code' in error
-    && typeof error.code === 'string',
-  );
-}
-
 export function mapCommandError(error: unknown): CommandError {
   if (error instanceof CommandError) return error;
   if (error instanceof RoomNotFoundError) {
@@ -73,19 +68,19 @@ export function mapCommandError(error: unknown): CommandError {
     return new CommandError('CONFLICT', 'Room state changed; resync and try again.', true);
   }
   if (error instanceof UnsupportedRoomSnapshotVersionError) {
-    console.error('Rejected incompatible persisted room snapshot', error);
+    console.error('Rejected incompatible room snapshot', error);
     return new CommandError(
       'INTERNAL_ERROR',
-      'This room was stored by an incompatible server version.',
+      'This room was created by an incompatible server version.',
       false,
     );
   }
-  if (isDatabaseError(error)) {
-    return new CommandError(
-      'DATABASE_UNAVAILABLE',
-      'Durable storage is temporarily unavailable.',
-      true,
-    );
+  if (error instanceof RuntimeUnavailableError) {
+    // The authoritative process is going away; the match ends with it, so retrying cannot help.
+    return new CommandError('INTERNAL_ERROR', 'The game service is shutting down.', false);
   }
+  console.error('Unexpected command failure', error);
+  // Any other exception rolled its draft transaction back, so the command did not happen and may be retried.
+  // Only the generic text leaves the server: no message, code or stack of the original error.
   return new CommandError('INTERNAL_ERROR', 'The server could not complete the command.', true);
 }

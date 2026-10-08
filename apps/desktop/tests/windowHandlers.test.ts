@@ -187,6 +187,66 @@ describe('desktop IPC lifecycle', () => {
       .rejects.toThrow('Invalid IPC sender');
   });
 
+  it('gives the room-creation capability only to the validated window and only for the room it started', async () => {
+    const fixture = createWindow();
+    const capability = 'c'.repeat(64);
+    const status: HostRuntimeStatus = {
+      state: 'HOSTING',
+      platform: 'win32',
+      appVersion: '3.0.0',
+      gamePort: 43_123,
+      localEndpoint: 'http://127.0.0.1:43123',
+      lanAvailable: true,
+      interfaces: [],
+      advertisedEndpoints: [],
+      selectedLanUrl: null,
+    };
+    const hostRuntime = {
+      status,
+      start: vi.fn(async () => status),
+      stop: vi.fn(async () => status),
+      creationCapability: vi.fn((roomCode: string) => (roomCode === 'HOST-ROOM' ? capability : undefined)),
+      refreshNetwork: vi.fn(() => status),
+      onStatusChanged: vi.fn(() => () => undefined),
+    };
+    registerWindowHandlers(
+      fixture.window as never,
+      false,
+      new QuitRequestController(fixture.window as never),
+      { hostRuntime: hostRuntime as never },
+    );
+    const start = harness.handlers.get(IPC_CHANNELS.hostStart)!;
+    const reply = (options: unknown, sender: object = fixture.webContents) => (
+      Promise.resolve().then(() => start({ sender }, options))
+    );
+
+    await expect(reply({ mode: 'LAN', roomCode: 'HOST-ROOM' }))
+      .resolves.toEqual({ ok: true, status, hostCapability: capability });
+    // A request without a room code, or for a room this Host is not running, receives none.
+    await expect(reply({ mode: 'LAN' })).resolves.toEqual({ ok: true, status });
+    await expect(reply({ mode: 'LAN', roomCode: 'OTHER-ROOM' })).resolves.toEqual({ ok: true, status });
+    // The status broadcast and the status request never carry it.
+    expect(JSON.stringify(status)).not.toContain(capability);
+    expect(JSON.stringify(await Promise.resolve(harness.handlers.get(IPC_CHANNELS.hostGetStatus)!({ sender: fixture.webContents })))).not.toContain(capability);
+
+    // Another sender gets nothing, and nothing is started or looked up on its behalf.
+    hostRuntime.start.mockClear();
+    hostRuntime.creationCapability.mockClear();
+    await expect(reply({ mode: 'LAN', roomCode: 'HOST-ROOM' }, {})).rejects.toThrow('Invalid IPC sender');
+    expect(hostRuntime.start).not.toHaveBeenCalled();
+    expect(hostRuntime.creationCapability).not.toHaveBeenCalled();
+
+    // Only a canonical room code is accepted.
+    for (const roomCode of ['host-room', 'HOST ROOM', 'A'.repeat(21), '', 7]) {
+      await expect(reply({ mode: 'LAN', roomCode })).rejects.toThrow('Invalid host room code');
+    }
+    expect(hostRuntime.start).not.toHaveBeenCalled();
+
+    // A failed start returns the status with no capability.
+    hostRuntime.start.mockRejectedValueOnce(new Error('HELPER_FAILED'));
+    await expect(reply({ mode: 'LAN', roomCode: 'HOST-ROOM' })).resolves.toEqual({ ok: false, status });
+  });
+
   it('validates online activation and lookup, and removes both handlers on close', async () => {
     const fixture = createWindow();
     const status = { state: 'HOSTING', onlineState: 'READY' } as HostRuntimeStatus;

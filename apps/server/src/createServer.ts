@@ -5,6 +5,7 @@ import { Server } from 'socket.io';
 import rateLimit from 'express-rate-limit';
 import { resolveRuntimeProfile } from './config.js';
 import type { AppRuntime } from './services/runtime';
+import { clientKey, tunnelHeaderTrusted } from './socket/clientIdentity';
 import type { AppServer } from './socket/types';
 
 export const DEVELOPMENT_RENDERER_ORIGIN = 'http://127.0.0.1:5173';
@@ -97,13 +98,20 @@ export function createServer(
   const app = express();
   const server = createHttpServer(app);
 
-  if (runtimeProfile === 'desktop') {
-    // Only the locally spawned tunnel may supply client forwarding headers.
-    app.set('trust proxy', (address: string) => address === '::1'
-      || address === '127.0.0.1' || address === '::ffff:127.0.0.1');
-  }
-
   const corsOrigin = resolveCorsOrigin(environment);
+
+  // Behind the Online Host's tunnel every visitor arrives from the local connector, so the default per-address
+  // identity would put them all in one bucket. See clientIdentity.ts for what is and is not trusted.
+  const trustTunnelHeader = tunnelHeaderTrusted(runtimeProfile, environment);
+  const perClientRateLimit = {
+    keyGenerator: (request: express.Request): string => clientKey(
+      request.socket.remoteAddress,
+      request.headers,
+      trustTunnelHeader,
+    ),
+    // The key never reads `request.ip`, so Express's trust-proxy advice does not apply.
+    validate: { xForwardedForHeader: false },
+  } as const;
 
   const io: AppServer = new Server(server, {
     cors: { origin: corsOrigin },
@@ -123,7 +131,13 @@ export function createServer(
   // The desktop host checks this through the public tunnel before presenting
   // an invitation. A known code reveals only whether the room exists.
   if (runtimeProfile === 'desktop') {
-    const roomProbeLimiter = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false });
+    const roomProbeLimiter = rateLimit({
+      windowMs: 60_000,
+      limit: 60,
+      standardHeaders: 'draft-8',
+      legacyHeaders: false,
+      ...perClientRateLimit,
+    });
     app.get('/_otb/room', roomProbeLimiter, async (req, res) => {
       const code = req.query.code;
       if (typeof code !== 'string' || !/^[A-Z0-9-]{1,20}$/.test(code)) {
@@ -172,6 +186,7 @@ export function createServer(
       limit: 1000,
       standardHeaders: 'draft-8',
       legacyHeaders: false,
+      ...perClientRateLimit,
     });
     app.use(staticLimiter, express.static(clientDist, { dotfiles: 'deny' }));
     // SPA fallback: serve index.html for any other GET. Express 5 (path-to-regexp

@@ -167,7 +167,7 @@ describe('runtime profile HTTP policy', () => {
     const { port } = server.address() as AddressInfo;
     const origin = `http://127.0.0.1:${String(port)}`;
 
-    expect(app.get('trust proxy')).toEqual(expect.any(Function));
+    expect(app.get('trust proxy')).toBe(false);
     await expect((await fetch(`${origin}/healthz`)).text()).resolves.toBe('ok');
     await expect((await fetch(`${origin}/readyz`)).text()).resolves.toBe('ready');
     await expect((await fetch(`${origin}/assets/app.js`)).text()).resolves.toContain('desktopClient');
@@ -203,5 +203,58 @@ describe('runtime profile HTTP policy', () => {
     await new Promise<void>(resolve => development.server.listen(0, '127.0.0.1', resolve));
     const { port } = development.server.address() as AddressInfo;
     expect((await fetch(`http://127.0.0.1:${String(port)}/index.html`)).status).toBe(404);
+  });
+});
+
+describe('HTTP client identity behind the tunnel of an Online Host', () => {
+  async function startDesktopServer(environment: NodeJS.ProcessEnv): Promise<string> {
+    const clientDist = await mkdtemp(path.join(os.tmpdir(), 'own-the-block-identity-'));
+    temporaryDirectories.push(clientDist);
+    await writeFile(path.join(clientDist, 'index.html'), '<main>client</main>');
+    const { server } = createServer(createTestRuntime(), {
+      environment: { NODE_ENV: 'production', SERVER_RUNTIME_PROFILE: 'desktop', ...environment },
+      clientDist,
+    });
+    servers.push(server);
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    return `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  }
+
+  const probe = async (origin: string, headers: Record<string, string>, count: number): Promise<number[]> => {
+    const statuses: number[] = [];
+    for (let attempt = 0; attempt < count; attempt += 1) {
+      statuses.push((await fetch(`${origin}/_otb/room?code=ROOM-1`, { headers })).status);
+    }
+    return statuses;
+  };
+
+  it('gives every tunnel visitor their own room-probe allowance', async () => {
+    const origin = await startDesktopServer({ OTB_ONLINE_ROOM_CODE: 'ROOM-1' });
+    const visitorA = { 'CF-Connecting-IP': '198.51.100.1' };
+    expect(new Set(await probe(origin, visitorA, 60))).toEqual(new Set([404]));
+    expect(await probe(origin, visitorA, 1)).toEqual([429]);
+    // A different visitor behind the same local connector is not affected by visitor A.
+    expect(await probe(origin, { 'CF-Connecting-IP': '198.51.100.2' }, 1)).toEqual([404]);
+    // The Host's own header-less probes use the shared local allowance.
+    expect(await probe(origin, {}, 1)).toEqual([404]);
+  });
+
+  it('does not let a forged visitor header buy more allowance when no tunnel feeds the server', async () => {
+    const origin = await startDesktopServer({});
+    expect(new Set(await probe(origin, { 'CF-Connecting-IP': '198.51.100.1' }, 60))).toEqual(new Set([404]));
+    expect(await probe(origin, { 'CF-Connecting-IP': '198.51.100.2' }, 1)).toEqual([429]);
+    expect(await probe(origin, { 'X-Forwarded-For': '198.51.100.3', 'True-Client-IP': '198.51.100.4' }, 1)).toEqual([429]);
+  });
+
+  it('keeps Express from trusting forwarding headers on its own', async () => {
+    const clientDist = await mkdtemp(path.join(os.tmpdir(), 'own-the-block-proxy-'));
+    temporaryDirectories.push(clientDist);
+    await writeFile(path.join(clientDist, 'index.html'), '<main>client</main>');
+    const { app, server } = createServer(createTestRuntime(), {
+      environment: { NODE_ENV: 'production', SERVER_RUNTIME_PROFILE: 'desktop', OTB_ONLINE_ROOM_CODE: 'ROOM-1' },
+      clientDist,
+    });
+    servers.push(server);
+    expect(app.get('trust proxy')).toBe(false);
   });
 });

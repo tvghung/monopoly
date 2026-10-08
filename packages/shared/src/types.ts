@@ -799,6 +799,8 @@ export interface PlayerSessionSummary {
 export interface JoinRoomRequest {
   name: string;
   roomCode: RoomCode;
+  /** Desktop Host only; never put this process capability in an invitation. */
+  hostCapability?: string;
 }
 
 export interface ResumeSessionRequest {

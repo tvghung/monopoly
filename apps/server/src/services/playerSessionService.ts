@@ -59,11 +59,17 @@ export class PlayerSessionService {
     private readonly timing: PersistenceTimingConfig,
   ) {}
 
+  /**
+   * First admission step. A pending row records what this admission is allowed to
+   * become: a seat in the room that existed now (`admittedRoomId`), or - only for
+   * an explicitly authorized Host - the creation of a room that does not exist yet.
+   * `allowRoomCreation` has no default so no caller can grant it by omission.
+   */
   async beginAdmission(
     rawName: string,
     rawRoomCode: string,
-    now = new Date(),
-    allowRoomCreation = true,
+    now: Date,
+    allowRoomCreation: boolean,
   ): Promise<BeginAdmissionResult> {
     const roomCode = normalizeRoomId(rawRoomCode);
     const name = sanitizeName(rawName) || 'Người chơi';
@@ -90,6 +96,8 @@ export class PlayerSessionService {
         tokenHash: tokenHash(token),
         requestedRoomCode: roomCode,
         requestedName: name,
+        admittedRoomId: room?.id ?? null,
+        createRoomAuthorized: !room && allowRoomCreation,
         expiresAt,
       });
       return { kind: 'PENDING', token, expiresAt };
@@ -166,9 +174,15 @@ export class PlayerSessionService {
       }
 
       const playerId = randomUUID();
-      const existing = await transaction.rooms.findByCode(session.requestedRoomCode, {
-        forUpdate: true,
-      });
+      const existing = session.admittedRoomId
+        ? await transaction.rooms.findById(session.admittedRoomId, { forUpdate: true })
+        : await transaction.rooms.findByCode(session.requestedRoomCode, { forUpdate: true });
+      if (session.admittedRoomId && (!existing || existing.code !== session.requestedRoomCode)) {
+        throw new CommandError('ROOM_GONE', 'The admitted room no longer exists.');
+      }
+      if (!existing && !session.createRoomAuthorized) {
+        throw new CommandError('ROOM_GONE', 'The admitted room no longer exists.');
+      }
       const room = existing
         ? await this.addPlayerToExistingRoom(transaction, existing, playerId, session.requestedName, now)
         : await this.createRoomWithFirstPlayer(

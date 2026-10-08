@@ -59,7 +59,7 @@ export interface HostRuntimeStatus {
 }
 
 export type HostRuntimeOperationResult =
-  | { ok: true; status: HostRuntimeStatus }
+  | { ok: true; status: HostRuntimeStatus; hostCapability?: string }
   | { ok: false; status: HostRuntimeStatus };
 
 /** Why the Host of a room code could not be found on this network (the main process mirrors this type). */
@@ -125,7 +125,7 @@ export interface AppUpdateState {
 
 export interface DesktopLaunchSelection {
   runtimeConfig: DesktopRuntimeConfig;
-  initialJoin?: { name: string; roomCode: string };
+  initialJoin?: { name: string; roomCode: string; hostCapability?: string };
   targetRoomCode?: string;
   hosting: boolean;
   connectionMode?: 'LAN' | 'ONLINE';

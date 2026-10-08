@@ -149,6 +149,8 @@ describe('RoomCommandExecutor', () => {
           tokenHash,
           requestedRoomCode: 'room-1',
           requestedName: 'Ada',
+          admittedRoomId: null,
+          createRoomAuthorized: false,
           expiresAt: new Date(Date.now() + 60_000),
         });
         throw new Error('do not commit');

@@ -7,12 +7,21 @@ import {
   checkPackagedBudget,
   INSTALLER_BUDGETS,
   installerBudgetErrors,
+  loadCloudflaredIntegrity,
   readAsarEntries,
 } from '../scripts/checkPackagedBudget.mjs';
 
 let root: string;
 let packageRoot: string;
 let resourcesRoot: string;
+
+const sha256 = (value: string): string => createHash('sha256').update(value).digest('hex');
+const LICENSE_TEXT = 'Apache License, Version 2.0 (fixture)';
+/** The digests a fixture package is built against; the shipped manifest is exercised separately. */
+const FIXTURE_INTEGRITY = {
+  licenseSha256: sha256(LICENSE_TEXT),
+  assets: { 'win32-x64': { executableSha256: sha256('x') } },
+};
 
 /** Writes an asar archive whose header lists `files` (path → size); file contents are not needed here. */
 async function writeAsar(asarPath: string, files: Record<string, number>): Promise<void> {
@@ -48,24 +57,26 @@ async function writeFiles(base: string, files: string[]): Promise<void> {
 
 async function buildLeanPackage(): Promise<void> {
   await mkdir(resourcesRoot, { recursive: true });
-  await writeAsar(path.join(resourcesRoot, 'app.asar'), { 'package.json': 10, 'dist/main.js': 100 });
+  await writeAsar(path.join(resourcesRoot, 'app.asar'), {
+    'package.json': 10, 'cloudflared-integrity.json': 10, 'dist/main.js': 100,
+  });
   await writeFiles(resourcesRoot, [
     'cloudflared/win32-x64/cloudflared.exe',
     'dist/index.html', 'server-helper/server-helper.cjs',
   ]);
-  await writeFile(path.join(resourcesRoot, 'cloudflared', 'win32-x64', 'cloudflared.sha256'),
-    createHash('sha256').update('x').digest('hex'));
-  await writeFile(path.join(resourcesRoot, 'cloudflared', 'LICENSE.cloudflared'), 'Apache License');
+  await writeFile(path.join(resourcesRoot, 'cloudflared', 'win32-x64', 'cloudflared.sha256'), sha256('x'));
+  await writeFile(path.join(resourcesRoot, 'cloudflared', 'LICENSE.cloudflared'), LICENSE_TEXT);
   await writeFiles(packageRoot, ['locales/en-US.pak', 'locales/vi.pak', 'OwnTheBlock.exe']);
 }
 
-function check() {
+function check(integrity: unknown = FIXTURE_INTEGRITY) {
   return checkPackagedBudget({
     packageRoot,
     resourcesRoot,
     outRoot: path.join(root, 'out'),
     platform: 'win32',
     architecture: 'x64',
+    integrity,
   });
 }
 
@@ -117,11 +128,45 @@ describe('packaged size budget', () => {
     ]);
   });
 
-  it('passes a lean package and reports its sizes', async () => {
+  it('passes a lean package whose tunnel matches the pinned digests, and reports its sizes', async () => {
     await buildLeanPackage();
     const { rows, errors } = await check();
     expect(errors).toEqual([]);
     expect(rows.map(([label]) => label)).toContain('resources/app.asar');
+  });
+
+  it('rejects a binary that is not the shipped pinned build even when its adjacent digest matches', async () => {
+    await buildLeanPackage();
+    const { errors } = await check(await loadCloudflaredIntegrity());
+    expect(errors).toContain('Bundled cloudflared verification digest failed for win32-x64');
+    expect(errors.join('\n')).toMatch(/license is missing or does not match its pinned digest/u);
+  });
+
+  it('rejects a modified binary whose adjacent digest was rewritten to match', async () => {
+    await buildLeanPackage();
+    const tunnel = path.join(resourcesRoot, 'cloudflared', 'win32-x64');
+    await writeFile(path.join(tunnel, 'cloudflared.exe'), 'attacker controlled');
+    await writeFile(path.join(tunnel, 'cloudflared.sha256'), sha256('attacker controlled'));
+    expect((await check()).errors).toContain('Bundled cloudflared verification digest failed for win32-x64');
+  });
+
+  it('rejects a target that has no pinned digest', async () => {
+    await buildLeanPackage();
+    const { errors } = await check({ ...FIXTURE_INTEGRITY, assets: {} });
+    expect(errors).toContain('Unsupported cloudflared target win32-x64');
+    expect(errors).toContain('Bundled cloudflared verification digest failed for win32-x64');
+  });
+
+  it('rejects a bundled license that does not match its pinned digest', async () => {
+    await buildLeanPackage();
+    await writeFile(path.join(resourcesRoot, 'cloudflared', 'LICENSE.cloudflared'), 'Apache License, tampered');
+    expect((await check()).errors.join('\n')).toMatch(/license is missing or does not match its pinned digest/u);
+  });
+
+  it('fails when app.asar lacks the pinned digests the main process reads at start-up', async () => {
+    await buildLeanPackage();
+    await writeAsar(path.join(resourcesRoot, 'app.asar'), { 'package.json': 10, 'dist/main.js': 100 });
+    expect((await check()).errors.join('\n')).toMatch(/app.asar is missing cloudflared-integrity.json/u);
   });
 
   it('fails when app.asar packs generated resources again', async () => {

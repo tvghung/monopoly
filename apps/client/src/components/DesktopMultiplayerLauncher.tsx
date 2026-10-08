@@ -216,7 +216,7 @@ export default function DesktopMultiplayerLauncher({
       let result: Awaited<ReturnType<NonNullable<typeof bridge.host>['start']>> | undefined;
       let nextRoomCode = generateHostRoomCode();
       for (let attempt = 0; attempt < (hostMode === 'ONLINE' ? 4 : 1); attempt += 1) {
-        result = await bridge.host.start({ mode: hostMode, ...(hostMode === 'ONLINE' ? { roomCode: nextRoomCode } : {}) });
+        result = await bridge.host.start({ mode: hostMode, roomCode: nextRoomCode });
         if (result.ok || result.status.errorCode !== 'CODE_TAKEN') break;
         nextRoomCode = generateHostRoomCode();
       }
@@ -232,7 +232,7 @@ export default function DesktopMultiplayerLauncher({
       }
       onReady({
         runtimeConfig: runtimeConfig(result.status.localEndpoint, result.status),
-        initialJoin: { name: name.trim(), roomCode: nextRoomCode },
+        initialJoin: { name: name.trim(), roomCode: nextRoomCode, hostCapability: result.hostCapability },
         targetRoomCode: nextRoomCode,
         hosting: true,
         connectionMode: hostMode,

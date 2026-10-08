@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { CloudflareQuickTunnel, type ConnectivityProvider } from './online/connectivity';
 import { HttpRoomDiscovery, type RoomDiscoveryProvider } from './online/discovery';
 
@@ -173,6 +174,8 @@ export class HostRuntimeController {
   private renewalTimer: NodeJS.Timeout | undefined;
   private onlineRecoveryPromise: Promise<void> | undefined;
   private onlineEpoch = 0;
+  private hostRoomCode: string | undefined;
+  private hostCreationSecret: string | undefined;
 
   public constructor(private readonly options: HostRuntimeOptions) {
     for (const [name, value] of [
@@ -196,6 +199,12 @@ export class HostRuntimeController {
     return this.currentStatus.gamePort;
   }
 
+  /** Only the validated desktop IPC sender may request this process-scoped capability. */
+  public creationCapability(roomCode: string): string | undefined {
+    return this.currentStatus.state === 'HOSTING' && roomCode === this.hostRoomCode
+      ? this.hostCreationSecret : undefined;
+  }
+
   public onStatusChanged(listener: HostRuntimeListener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -204,6 +213,7 @@ export class HostRuntimeController {
   public async start(options: HostStartOptions = {}): Promise<HostRuntimeStatus> {
     if (this.currentStatus.state === 'READY' || this.currentStatus.state === 'HOSTING') {
       if (options.mode && options.mode !== this.currentStatus.connectionMode) throw new Error('HOST_MODE_CONFLICT');
+      if (options.roomCode && options.roomCode !== this.hostRoomCode) throw new Error('HOST_ROOM_CONFLICT');
       return this.status;
     }
     if (this.startPromise) return this.startPromise;
@@ -386,6 +396,9 @@ export class HostRuntimeController {
   private async startInternal(options: HostStartOptions): Promise<HostRuntimeStatus> {
     const requestedPort = validatePort(options.port ?? this.options.defaultPort ?? AUTO_GAME_PORT);
     const online = options.mode === 'ONLINE';
+    if (options.roomCode && !/^[A-Z0-9-]{1,20}$/.test(options.roomCode)) throw new Error('INVALID_CODE');
+    this.hostRoomCode = options.roomCode;
+    this.hostCreationSecret = randomBytes(32).toString('hex');
     if (online) {
       if (!options.roomCode || !/^[A-Z0-9-]{1,20}$/.test(options.roomCode)) throw new Error('INVALID_CODE');
       this.onlineRoomCode = options.roomCode;
@@ -452,6 +465,8 @@ export class HostRuntimeController {
       this.detachHelperListener();
       await this.helper?.stop().catch(() => undefined);
       this.helper = undefined;
+      this.hostCreationSecret = undefined;
+      this.hostRoomCode = undefined;
       this.update({
         state: 'FAILED',
         errorCode: classifyHostRuntimeError(error),
@@ -472,7 +487,13 @@ export class HostRuntimeController {
           OTB_REGISTRY_ROOM_CODE: this.onlineLease.roomCode,
           OTB_REGISTRY_PROOF: this.onlineLease.proof,
           OTB_ONLINE_ROOM_CODE: this.onlineLease.roomCode,
-        } : this.onlineRoomCode ? { OTB_ONLINE_ROOM_CODE: this.onlineRoomCode } : undefined,
+          OTB_HOST_ROOM_CODE: this.hostRoomCode,
+          OTB_HOST_CREATE_SECRET: this.hostCreationSecret,
+        } : {
+          ...(this.onlineRoomCode ? { OTB_ONLINE_ROOM_CODE: this.onlineRoomCode } : {}),
+          ...(this.hostRoomCode ? { OTB_HOST_ROOM_CODE: this.hostRoomCode } : {}),
+          OTB_HOST_CREATE_SECRET: this.hostCreationSecret,
+        },
       });
   }
 
@@ -546,6 +567,8 @@ export class HostRuntimeController {
     this.detachHelperListener();
     await this.helper?.stop().catch(() => undefined);
     this.helper = undefined;
+    this.hostCreationSecret = undefined;
+    this.hostRoomCode = undefined;
     this.failRecovery(error);
   }
 
@@ -570,6 +593,8 @@ export class HostRuntimeController {
       firstError = error;
     }
     this.helper = undefined;
+    this.hostCreationSecret = undefined;
+    this.hostRoomCode = undefined;
     if (firstError) {
       this.update({
         state: 'FAILED',

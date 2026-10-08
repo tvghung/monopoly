@@ -13,43 +13,39 @@ import { projectPrivateOffer } from '../services/privateOffers';
 import { projectPrivatePlayerState, projectPublicRoomState } from '../services/publicState';
 import type { AppRuntime } from '../services/runtime';
 import { assertSupportedRoomSnapshot } from '../rooms';
+import type { AdmissionLimiter } from './admissionLimiter';
 import {
   broadcastRoomById,
   privatePlayerRoomName,
   publicRoomName,
 } from './broadcast';
+import { clientKey } from './clientIdentity';
 import { CommandError, acknowledgeFailure, successAck } from './errors';
 import type { AppServer, AppSocket } from './types';
 import { parsePayload } from './validation';
 
-const ADMISSION_RATE_WINDOW_MS = 60_000;
-// Leave room for a full four-player lobby behind one NAT while still capping
-// unauthenticated pending-row creation from a single peer.
-const MAX_ADMISSIONS_PER_WINDOW = 30;
+// Behind a Cloudflare tunnel every visitor reaches the game port from the local
+// connector, so the TCP peer cannot tell them apart. Admissions are limited per
+// connection, per trusted client key (see clientIdentity.ts) and process-wide.
+const CONNECTION_ADMISSION_WINDOW_MS = 60_000;
+const MAX_ADMISSIONS_PER_CONNECTION = 8;
 
-// Admission attempts are limited per runtime and peer address, not merely per
-// Socket.IO object. This prevents opening a fresh socket for every pending row
-// while keeping the limiter process-local like the rest of the connection
-// registry (the deployment contract is one live process).
-const admissionAttemptsByRuntime = new WeakMap<AppRuntime, Map<string, number[]>>();
-
-function peerAdmissionAttempts(runtime: AppRuntime, socket: AppSocket): number[] {
-  const byAddress = admissionAttemptsByRuntime.get(runtime) ?? new Map<string, number[]>();
-  admissionAttemptsByRuntime.set(runtime, byAddress);
-  const address = socket.handshake.address || 'unknown-peer';
-  const attempts = byAddress.get(address) ?? [];
-  byAddress.set(address, attempts);
-  return attempts;
+export interface SessionHandlerOptions {
+  /** Whether this join request may create its room (Host authorization, never the peer address). */
+  canCreateRoom: (roomCode: string, capability?: string) => boolean;
+  admissions: AdmissionLimiter;
+  /** See `tunnelHeaderTrusted`: only an Online Host trusts its local connector's visitor header. */
+  trustTunnelHeader: boolean;
 }
 
 export function registerSessionHandlers(
   io: AppServer,
   socket: AppSocket,
   runtime: AppRuntime,
-  allowRoomCreation: boolean,
-  onlineRoomCode?: string,
+  options: SessionHandlerOptions,
 ): void {
-  const admissionAttempts = peerAdmissionAttempts(runtime, socket);
+  const connectionAttempts: number[] = [];
+  const client = clientKey(socket.handshake.address, socket.handshake.headers, options.trustTunnelHeader);
 
   socket.on('join room', async (rawRequest, acknowledge) => {
     let ownsAdmissionLock = false;
@@ -66,19 +62,22 @@ export function registerSessionHandlers(
       }
       const now = Date.now();
       while (
-        admissionAttempts[0] !== undefined
-        && admissionAttempts[0] <= now - ADMISSION_RATE_WINDOW_MS
+        connectionAttempts[0] !== undefined
+        && connectionAttempts[0] <= now - CONNECTION_ADMISSION_WINDOW_MS
       ) {
-        admissionAttempts.shift();
+        connectionAttempts.shift();
       }
-      if (admissionAttempts.length >= MAX_ADMISSIONS_PER_WINDOW) {
+      if (
+        connectionAttempts.length >= MAX_ADMISSIONS_PER_CONNECTION
+        || options.admissions.attempt(client) !== 'ADMIT'
+      ) {
         throw new CommandError(
           'CONFLICT',
           'Too many room admission attempts. Please wait and try again.',
           true,
         );
       }
-      admissionAttempts.push(now);
+      connectionAttempts.push(now);
       socket.data.pendingAdmission = true;
       ownsAdmissionLock = true;
       const request = parsePayload(joinRoomRequestSchema, rawRequest);
@@ -86,7 +85,7 @@ export function registerSessionHandlers(
         request.name,
         request.roomCode,
         new Date(),
-        allowRoomCreation && (!onlineRoomCode || request.roomCode === onlineRoomCode),
+        options.canCreateRoom(request.roomCode, request.hostCapability),
       );
       if (admission.kind === 'PENDING') {
         ownsAdmissionLock = false;

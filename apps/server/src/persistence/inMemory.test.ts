@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { InMemoryPersistenceStore } from './inMemory.js';
+import { RuntimeUnavailableError } from './types.js';
 
 describe('in-memory session retention adapter', () => {
   it('rolls back a failed draft and serializes a concurrent direct write', async () => {
@@ -39,6 +40,8 @@ describe('in-memory session retention adapter', () => {
       tokenHash: new Uint8Array(32).fill(1),
       requestedRoomCode: 'ROOM-1',
       requestedName: 'Ada',
+      admittedRoomId: null,
+      createRoomAuthorized: false,
       expiresAt: expiredAt,
     });
     expect(await store.playerSessions.expireDue(now, 10)).toBe(1);
@@ -51,5 +54,46 @@ describe('in-memory session retention adapter', () => {
       10,
     )).toBe(1);
     expect(await store.playerSessions.findById('session-1')).toBeNull();
+  });
+
+  describe('when the server process closes the store', () => {
+    const room = (id: string) => ({
+      id, code: id, status: 'LOBBY' as const, snapshotSchemaVersion: 10, gameSnapshot: { marker: id },
+    });
+
+    it('refuses new transactions and direct writes without reviving any state', async () => {
+      const store = new InMemoryPersistenceStore<{ marker: string }>();
+      await store.rooms.create(room('LIVE'));
+      await expect(store.healthcheck()).resolves.toBeUndefined();
+      await store.close();
+
+      await expect(store.healthcheck()).rejects.toBeInstanceOf(RuntimeUnavailableError);
+      await expect(store.transaction(() => Promise.resolve('never'))).rejects.toBeInstanceOf(RuntimeUnavailableError);
+      await expect(store.rooms.create(room('LATE'))).rejects.toBeInstanceOf(RuntimeUnavailableError);
+      expect(await store.rooms.findByCode('LATE')).toBeNull();
+      expect(await store.rooms.findByCode('LIVE')).not.toBeNull();
+    });
+
+    it('does not commit a transaction that was still queued behind the one running at shutdown', async () => {
+      const store = new InMemoryPersistenceStore<{ marker: string }>();
+      let release!: () => void;
+      let started!: () => void;
+      const gate = new Promise<void>((resolve) => { release = resolve; });
+      const entered = new Promise<void>((resolve) => { started = resolve; });
+      const running = store.transaction(async (transaction) => {
+        await transaction.rooms.create(room('RUNNING'));
+        started();
+        await gate;
+      });
+      await entered;
+      const queued = store.rooms.create(room('QUEUED'));
+      await store.close();
+      release();
+
+      await expect(running).resolves.toBeUndefined();
+      await expect(queued).rejects.toBeInstanceOf(RuntimeUnavailableError);
+      expect(await store.rooms.findByCode('RUNNING')).not.toBeNull();
+      expect(await store.rooms.findByCode('QUEUED')).toBeNull();
+    });
   });
 });

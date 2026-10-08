@@ -77,6 +77,7 @@ export const noPayloadSchema = z.undefined();
 export const joinRoomRequestSchema = z.strictObject({
   name: playerNameSchema,
   roomCode: roomCodeSchema,
+  hostCapability: z.string().regex(/^[a-f0-9]{64}$/).optional(),
 }) satisfies z.ZodType<JoinRoomRequest>;
 
 export const resumeSessionRequestSchema = z.strictObject({

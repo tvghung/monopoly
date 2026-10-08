@@ -90,7 +90,7 @@ export interface RoomMember {
   membershipStatus: RoomMembershipStatus;
 }
 
-/** Durable JSONB payload. Room lifecycle/version/host stay relational. */
+/** The versioned room aggregate kept in RAM; lifecycle status, revision and host live on the room record beside it. */
 export interface RoomSnapshot {
   members: Record<PlayerId, RoomMember>;
   nextJoinOrder: number;

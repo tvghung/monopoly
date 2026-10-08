@@ -2,6 +2,14 @@ import { utilityProcess, type UtilityProcess } from 'electron';
 import path from 'node:path';
 
 const DIAGNOSTIC_LIMIT = 2_048;
+/** Set by the Host controller (hostRuntime.ts) and read by the helper to authorize room creation and tunnel trust. */
+export const HOST_CONTROL_VARIABLES = [
+  'OTB_HOST_ROOM_CODE',
+  'OTB_HOST_CREATE_SECRET',
+  'OTB_ONLINE_ROOM_CODE',
+  'OTB_REGISTRY_ROOM_CODE',
+  'OTB_REGISTRY_PROOF',
+] as const;
 
 export type ServerHelperState = 'STOPPED' | 'STARTING' | 'READY' | 'STOPPING' | 'FAILED';
 
@@ -158,8 +166,12 @@ export class ServerHelperController {
   private async startInternal(): Promise<ServerHelperInfo> {
     this.currentState = 'STARTING';
     this.diagnostics = '';
+    // The variables that decide who may create a room and whose address the server believes come only from
+    // the Host controller; whatever the player's own environment holds under those names never reaches the helper.
+    const inherited = { ...process.env };
+    for (const name of HOST_CONTROL_VARIABLES) delete inherited[name];
     const environment = asStringEnvironment({
-      ...process.env,
+      ...inherited,
       ...this.options.environment,
       OWN_THE_BLOCK_CLIENT_DIST: this.options.clientDist,
       SERVER_HOST: this.options.host,

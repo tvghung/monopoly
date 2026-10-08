@@ -203,6 +203,13 @@ export default function App({
   const [initialRoomCode] = useState(() => roomCodeFromLocation());
   const tokenRef = useRef<string | null>(initialToken);
   const initialJoinRef = useRef(launch?.initialJoin ?? null);
+  // The Host's room-creation capability outlives a failed first admission (timeout, throttling): without it a retry
+  // would be a Guest request for a room that does not exist yet. It is dropped once the admission is accepted.
+  const hostCapabilityRef = useRef<{ roomCode: string; capability: string } | null>(
+    launch?.initialJoin?.hostCapability
+      ? { roomCode: launch.initialJoin.roomCode, capability: launch.initialJoin.hostCapability }
+      : null,
+  );
   const spectatorRequestRef = useRef<JoinRoomRequest | null>(null);
   const phaseRef = useRef<AppPhase>(initialToken ? 'RESTORING' : 'JOIN');
   const roleRef = useRef<RoomRole | null>(null);
@@ -379,7 +386,11 @@ export default function App({
       socket.connect();
     }, ACK_TIMEOUT_MS);
 
-    socket.emit('join room', request, (response) => {
+    const pendingCapability = hostCapabilityRef.current;
+    const outgoing: JoinRoomRequest = pendingCapability && pendingCapability.roomCode === request.roomCode && !request.hostCapability
+      ? { ...request, hostCapability: pendingCapability.capability }
+      : request;
+    socket.emit('join room', outgoing, (response) => {
       window.clearTimeout(timeout);
       if (admissionAttemptRef.current !== attempt || phaseRef.current === 'REPLACED') return;
       if (!response.ok) {
@@ -391,6 +402,7 @@ export default function App({
         return;
       }
 
+      hostCapabilityRef.current = null;
       if (response.data.kind === 'SPECTATOR') {
         tokenRef.current = null;
         spectatorRequestRef.current = request;

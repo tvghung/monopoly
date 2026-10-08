@@ -91,7 +91,8 @@ describe('DesktopMultiplayerLauncher', () => {
       advertisedEndpoints: ['http://192.168.1.15:8080'],
       selectedLanUrl: 'http://192.168.1.15:8080',
     };
-    const start = vi.fn(() => Promise.resolve({ ok: true as const, status: hostStatus }));
+    const start = vi.fn(() => Promise.resolve({ ok: true as const, status: hostStatus,
+      hostCapability: 'a'.repeat(64) }));
     window.ownTheBlockDesktop = {
       host: {
         getStatus: vi.fn(() => Promise.resolve(status)),
@@ -112,6 +113,7 @@ describe('DesktopMultiplayerLauncher', () => {
     await waitFor(() => expect(onReady).toHaveBeenCalledOnce());
     const selection = onReady.mock.calls[0]?.[0] as DesktopLaunchSelection;
     expect(selection.initialJoin?.roomCode).toBe(selection.targetRoomCode);
+    expect(selection.initialJoin?.hostCapability).toBe('a'.repeat(64));
     expect(selection.hosting).toBe(true);
     // The main process gets a mode and room code, never an address or port.
     expect(start).toHaveBeenCalledWith({ mode: 'ONLINE', roomCode: selection.targetRoomCode });

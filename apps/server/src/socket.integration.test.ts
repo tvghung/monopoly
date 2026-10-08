@@ -39,7 +39,7 @@ import {
   type RoomSnapshot,
 } from './rooms.js';
 import { createAppRuntime, type AppRuntime } from './services/runtime.js';
-import { canCreateRoomForPeer, registerSocketHandlers } from './socket/index.js';
+import { canCreateRoom, registerSocketHandlers } from './socket/index.js';
 
 type TestSocket = ClientSocket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -66,7 +66,7 @@ class FailAfterCommandPersistenceStore extends InMemoryPersistenceStore<RoomSnap
     this.failNextTransactionAfterOperation = false;
     return super.transaction<TResult>(async (transaction) => {
       await operation(transaction);
-      throw Object.assign(new Error('Simulated database outage'), { code: 'ECONNRESET' });
+      throw Object.assign(new Error('Simulated RAM transaction rollback'), { code: 'ECONNRESET' });
     });
   }
 }
@@ -100,9 +100,12 @@ async function startServer(
   const runtime = createAppRuntime(persistence, TEST_TIMING);
   const profile = onlineRoomCode ? 'desktop' : 'development';
   const { server, io } = createServer(runtime, onlineRoomCode ? {
-    environment: { SERVER_RUNTIME_PROFILE: 'desktop' }, clientDist: path.resolve('src'),
+    environment: { SERVER_RUNTIME_PROFILE: 'desktop', OTB_ONLINE_ROOM_CODE: onlineRoomCode },
+    clientDist: path.resolve('src'),
   } : undefined);
-  registerSocketHandlers(io, runtime, profile, onlineRoomCode);
+  registerSocketHandlers(io, runtime, profile, onlineRoomCode
+    ? { hostAuthorization: { roomCode: onlineRoomCode, secret: 'a'.repeat(64) }, trustTunnelHeader: true }
+    : {});
 
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
@@ -127,12 +130,13 @@ async function startServer(
   return subject;
 }
 
-async function connect(url: string): Promise<TestSocket> {
+async function connect(url: string, extraHeaders?: Record<string, string>): Promise<TestSocket> {
   const socket: TestSocket = createClient(url, {
     auth: { protocolVersion: SOCKET_PROTOCOL_VERSION },
     forceNew: true,
     reconnection: false,
     transports: ['websocket'],
+    ...(extraHeaders ? { extraHeaders } : {}),
   });
   openSockets.push(socket);
 
@@ -340,7 +344,7 @@ async function mutateRoom(
   });
 }
 
-describe('Socket.IO durable player lifecycle', () => {
+describe('Socket.IO player lifecycle over the RAM store', () => {
   it.each([SOCKET_PROTOCOL_VERSION - 1, SOCKET_PROTOCOL_VERSION + 1])(
     'rejects incompatible protocol v%i before registering application handlers',
     async (incompatibleVersion) => {
@@ -417,11 +421,13 @@ describe('Socket.IO durable player lifecycle', () => {
     expect(JSON.stringify(resumed.room)).not.toContain(join.token);
   });
 
-  it('lets only the desktop loopback host create an unused room code', async () => {
-    expect(canCreateRoomForPeer('desktop', '127.0.0.1')).toBe(true);
-    expect(canCreateRoomForPeer('desktop', '::ffff:127.0.0.1')).toBe(true);
-    expect(canCreateRoomForPeer('desktop', '192.168.1.20')).toBe(false);
-    expect(canCreateRoomForPeer('development', '192.168.1.20')).toBe(true);
+  it('requires a process capability for desktop room creation', async () => {
+    const authorization = { roomCode: 'HOST-ROOM', secret: 'a'.repeat(64) };
+    expect(canCreateRoom('desktop', authorization, 'HOST-ROOM', authorization.secret)).toBe(true);
+    expect(canCreateRoom('desktop', authorization, 'HOST-ROOM', 'b'.repeat(64))).toBe(false);
+    expect(canCreateRoom('desktop', authorization, 'OTHER-ROOM', authorization.secret)).toBe(false);
+    expect(canCreateRoom('desktop', authorization, 'HOST-ROOM', undefined)).toBe(false);
+    expect(canCreateRoom('development', undefined, 'ROOM', undefined)).toBe(true);
 
     const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
     const runtime = createAppRuntime(persistence, TEST_TIMING);
@@ -432,21 +438,6 @@ describe('Socket.IO durable player lifecycle', () => {
       false,
     )).rejects.toMatchObject({ code: 'NOT_FOUND', retryable: false });
     expect(await persistence.rooms.findByCode('MISSING-ROOM')).toBeNull();
-  });
-
-  it('rejects unrelated room creation through an online host loopback connection', async () => {
-    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
-    const subject = await startServer(persistence, 'ONLINE-ROOM');
-    const socket = await connect(subject.url);
-    const wrong = await waitForAck<JoinRoomResult>(acknowledge => socket.emit(
-      'join room', { name: 'Guest', roomCode: 'OTHER-ROOM' }, acknowledge,
-    ));
-    expect(wrong).toMatchObject({ ok: false, error: { code: 'NOT_FOUND' } });
-    expect(await persistence.rooms.findByCode('OTHER-ROOM')).toBeNull();
-    const accepted = await waitForAck<JoinRoomResult>(acknowledge => socket.emit(
-      'join room', { name: 'Host', roomCode: 'ONLINE-ROOM' }, acknowledge,
-    ));
-    expect(accepted).toMatchObject({ ok: true, data: { kind: 'PENDING' } });
   });
 
   it('rejects an unknown reconnect credential without creating or binding a seat', async () => {
@@ -499,7 +490,7 @@ describe('Socket.IO durable player lifecycle', () => {
     expect(resumed.room.gameState.players[player.playerId]?.accountBalance).toBe(1500);
   });
 
-  it('does not revise or broadcast a draft when durable commit fails', async () => {
+  it('does not revise or broadcast a draft when the RAM transaction fails', async () => {
     const persistence = new FailAfterCommandPersistenceStore();
     const subject = await startServer(persistence);
     const host = await joinPlayer(await connect(subject.url), 'Host', 'failed-commit');
@@ -522,7 +513,7 @@ describe('Socket.IO durable player lifecycle', () => {
 
     expect(acknowledgement).toMatchObject({
       ok: false,
-      error: { code: 'DATABASE_UNAVAILABLE', retryable: true },
+      error: { code: 'INTERNAL_ERROR', retryable: true },
     });
     expect(updates).toHaveLength(0);
     expect(await persistence.rooms.findById(host.room.roomId)).toEqual(before);
@@ -948,7 +939,7 @@ describe('Socket.IO durable player lifecycle', () => {
     expect(successData(await leaveRoom(spectatorSocket))).toEqual({ roomDeleted: false });
   });
 
-  it('increments the durable gameplay roll sequence once for consecutive identical rolls', async () => {
+  it('increments the gameplay roll sequence once for consecutive identical rolls', async () => {
     const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
     const subject = await startServer(persistence);
     const host = await joinPlayer(await connect(subject.url), 'Host', 'roll-sequence');
@@ -1063,7 +1054,7 @@ describe('Socket.IO durable player lifecycle', () => {
     )).toHaveLength(1);
   });
 
-  it('does not persist a roll sequence when the durable roll transaction fails', async () => {
+  it('does not keep a roll sequence when the roll transaction fails', async () => {
     const persistence = new FailAfterCommandPersistenceStore();
     const subject = await startServer(persistence);
     const host = await joinPlayer(await connect(subject.url), 'Host', 'roll-rollback');
@@ -1082,7 +1073,7 @@ describe('Socket.IO durable player lifecycle', () => {
     try {
       await expect(rollDice(actor.socket)).resolves.toMatchObject({
         ok: false,
-        error: { code: 'DATABASE_UNAVAILABLE', retryable: true },
+        error: { code: 'INTERNAL_ERROR', retryable: true },
       });
       expect(await persistence.rooms.findById(host.room.roomId)).toEqual(before);
     } finally {

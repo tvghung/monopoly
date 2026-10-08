@@ -2,6 +2,7 @@ import {
   assertTokenHash,
   normalizeRoomCode,
   RoomVersionConflictError,
+  RuntimeUnavailableError,
   type ActivateSessionInput,
   type CreatePendingSessionInput,
   type CreateRoomInput,
@@ -198,6 +199,8 @@ class InMemoryPlayerSessionRepository<TSnapshot extends object>
       status: 'PENDING',
       requestedRoomCode: normalizeRoomCode(input.requestedRoomCode),
       requestedName: input.requestedName,
+      admittedRoomId: input.admittedRoomId,
+      createRoomAuthorized: input.createRoomAuthorized,
       roomId: null,
       playerId: null,
       createdAt: new Date(),
@@ -239,6 +242,8 @@ class InMemoryPlayerSessionRepository<TSnapshot extends object>
       status: 'ACTIVE',
       requestedRoomCode: null,
       requestedName: null,
+      admittedRoomId: null,
+      createRoomAuthorized: false,
       roomId: input.roomId,
       playerId: input.playerId,
       lastUsedAt: input.activatedAt,
@@ -479,6 +484,7 @@ export class InMemoryPersistenceStore<TSnapshot extends object>
 
   private state = createEmptyState<TSnapshot>();
   private transactionTail: Promise<void> = Promise.resolve();
+  private closed = false;
 
   constructor() {
     const repositories = createUnitOfWork(() => this.state);
@@ -516,6 +522,7 @@ export class InMemoryPersistenceStore<TSnapshot extends object>
       transaction: PersistenceUnitOfWork<TSnapshot>,
     ) => Promise<TResult>,
   ): Promise<TResult> {
+    if (this.closed) throw new RuntimeUnavailableError();
     let releaseTransaction!: () => void;
     const previousTransaction = this.transactionTail;
     this.transactionTail = new Promise<void>((resolve) => {
@@ -523,8 +530,10 @@ export class InMemoryPersistenceStore<TSnapshot extends object>
     });
 
     await previousTransaction;
-    const draft = clone(this.state);
     try {
+      // A transaction queued before shutdown must not commit after it.
+      if (this.closed) throw new RuntimeUnavailableError();
+      const draft = clone(this.state);
       const result = await operation(createUnitOfWork(() => draft));
       this.state = draft;
       return result;
@@ -534,10 +543,12 @@ export class InMemoryPersistenceStore<TSnapshot extends object>
   }
 
   healthcheck(): Promise<void> {
-    return Promise.resolve();
+    return this.closed ? Promise.reject(new RuntimeUnavailableError()) : Promise.resolve();
   }
 
+  /** Ends the store's life with its process: later transactions fail instead of reviving state. */
   close(): Promise<void> {
+    this.closed = true;
     return Promise.resolve();
   }
 }
