@@ -54,7 +54,10 @@ describe('semantic presentation executors: jail destination', () => {
     const context: AnimationExecutionContext = {
       ...immediateContext,
       getDuration: () => 1,
-      waitForDuration: async () => { seen.push(store.getSnapshot().destinationPreview?.tileId ?? null); },
+      waitForDuration: () => {
+        seen.push(store.getSnapshot().destinationPreview?.tileId ?? null);
+        return Promise.resolve();
+      },
     };
     await executor.run(jailEvent(), context);
     expect(seen[0]).toBe(10);
