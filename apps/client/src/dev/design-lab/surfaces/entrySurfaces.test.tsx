@@ -62,18 +62,22 @@ describe('entry surfaces', () => {
     const { unmount: unmountJoin } = renderSurface('launcher-join');
     expect(screen.getByRole('heading', { level: 2, name: 'Tham gia phòng' })).toBeTruthy();
     expect(screen.queryByLabelText('Địa chỉ Host')).toBeNull();
+    expect(screen.getAllByLabelText('Mã phòng hoặc liên kết mời')).toHaveLength(1);
+    expect(screen.getAllByRole('textbox')).toHaveLength(2);
+    expect(screen.queryByLabelText('Mã phòng')).toBeNull();
     expect(screen.queryByLabelText('Dán liên kết mời')).toBeNull();
     unmountJoin();
   });
 
-  it('shows the failed search with the invitation-link field, filled in as a player would have left it', () => {
+  it('shows the failed search with the combined room and invitation input preserved', () => {
     renderSurface('launcher-join-failed');
 
     expect(screen.getByRole('alert').textContent).toBe(
       'Không tìm thấy phòng OTB-ABC234. Kiểm tra lại mã và chắc chắn máy tạo phòng đang mở game, cùng Wi-Fi với bạn.',
     );
     expect(screen.getByLabelText<HTMLInputElement>('Tên của bạn').value).toBe('Minh');
-    expect(screen.getByLabelText<HTMLInputElement>('Mã phòng').value).toBe('OTB-ABC234');
-    expect(screen.getByLabelText('Dán liên kết mời')).toBeTruthy();
+    expect(screen.getByLabelText<HTMLInputElement>('Mã phòng hoặc liên kết mời').value).toBe('OTB-ABC234');
+    expect(screen.getAllByLabelText('Mã phòng hoặc liên kết mời')).toHaveLength(1);
+    expect(screen.queryByLabelText('Dán liên kết mời')).toBeNull();
   });
 });

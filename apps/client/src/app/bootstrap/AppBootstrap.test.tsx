@@ -160,7 +160,7 @@ describe('AppBootstrap failure handling', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
     fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Guest' } });
     expect(screen.queryByLabelText('Địa chỉ Host')).toBeNull();
-    fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: 'LAN-1234' } });
+    fireEvent.change(screen.getByLabelText('Mã phòng hoặc liên kết mời'), { target: { value: 'LAN-1234' } });
     fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
 
     await waitFor(() => expect(findRoom).toHaveBeenCalledExactlyOnceWith('LAN-1234'));
