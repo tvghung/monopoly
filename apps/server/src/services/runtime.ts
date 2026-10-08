@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { PersistenceTimingConfig } from '../config';
 import type { PersistenceStore } from '../persistence';
 import type { RoomSnapshot } from '../rooms';
@@ -19,6 +20,8 @@ export interface AppRuntime {
   botRequests: BotRequestLedger;
   timing: PersistenceTimingConfig;
   flags: RuntimeFlags;
+  /** A random id of this server process: shown by `/_otb/room` and in the resume ACK, never a credential. */
+  instanceId: string;
   /** Told about every room change so bot seats can answer what the room waits for (set once the bot driver exists). */
   bots?: { notify(roomId: string): void };
 }
@@ -44,6 +47,7 @@ export function createAppRuntime(
     connections: new ConnectionRegistry(),
     sessions: new PlayerSessionService(persistence, timing),
     botRequests: new BotRequestLedger(),
+    instanceId: randomUUID(),
     timing,
     flags: { shuttingDown: false },
   };

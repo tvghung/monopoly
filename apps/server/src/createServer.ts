@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { isPublicEndpointOrigin } from '@monopoly/shared';
 import express from 'express';
 import { createServer as createHttpServer, type Server as HttpServer } from 'http';
@@ -94,8 +93,6 @@ export function createServer(
   const runtimeProfile = resolveRuntimeProfile(environment);
   const app = express();
   const server = createHttpServer(app);
-  // A random id of this server process; `/_otb/room` shows it so a joiner can tell two addresses of one Host from two Hosts.
-  const instanceId = randomUUID();
 
   const corsOrigin = resolveCorsOrigin(environment);
 
@@ -146,7 +143,14 @@ export function createServer(
       if (runtime.flags.shuttingDown) { res.status(503).end(); return; }
       const room = await runtime.persistence.rooms.findByCode(code);
       res.set('cache-control', 'no-store');
-      if (room) res.status(200).json({ instanceId });
+      // A client of this Host whose tunnel address changed checks the new address from its old page: the answer (which
+      // process serves the room) is public, so the origins that may play here may read it.
+      const origin = req.get('origin');
+      if (origin && (origin === PACKAGED_RENDERER_ORIGIN || isDesktopBrowserOrigin(origin) || isTunnelOrigin(origin))) {
+        res.set('access-control-allow-origin', origin);
+        res.set('vary', 'Origin');
+      }
+      if (room) res.status(200).json({ instanceId: runtime.instanceId });
       else res.status(404).end();
     });
   }

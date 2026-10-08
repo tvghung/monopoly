@@ -7,6 +7,9 @@ import { parseJoinInput } from '../runtime/joinTargetResolver';
 import './style/RoomStatus.css';
 import { useTranslation } from '../i18n/I18n';
 
+/** What happened to a pasted new link: used, not the same Host process, or not answering. */
+export type RelinkOutcome = 'OK' | 'NOT_SAME_HOST' | 'UNREACHABLE';
+
 interface ConnectionOverlayProps {
   message?: string;
   /**
@@ -15,7 +18,7 @@ interface ConnectionOverlayProps {
    */
   stalled?: boolean;
   roomCode?: string;
-  onUseNewLink?: (endpoint: string, roomCode: string) => void;
+  onUseNewLink?: (endpoint: string, roomCode: string) => Promise<RelinkOutcome>;
 }
 
 /**
@@ -32,6 +35,7 @@ export default function ConnectionOverlay({
   const fieldId = useId();
   const [link, setLink] = useState('');
   const [linkError, setLinkError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
   const offerLink = stalled && Boolean(roomCode && onUseNewLink);
 
   const submit = (event: FormEvent<HTMLFormElement>): void => {
@@ -46,7 +50,16 @@ export default function ConnectionOverlay({
       return;
     }
     setLinkError(null);
-    onUseNewLink?.(input.endpoint, input.roomCode);
+    if (!onUseNewLink) return;
+    setChecking(true);
+    void onUseNewLink(input.endpoint, input.roomCode).then(outcome => {
+      setChecking(false);
+      if (outcome === 'NOT_SAME_HOST') setLinkError(t('connection.notSameHost'));
+      if (outcome === 'UNREACHABLE') setLinkError(t('connection.unreachable'));
+    }, () => {
+      setChecking(false);
+      setLinkError(t('connection.unreachable'));
+    });
   };
 
   return (
@@ -76,7 +89,7 @@ export default function ConnectionOverlay({
               }}
             />
             {linkError ? <p className="connection-overlay__error" role="alert">{linkError}</p> : null}
-            <Button type="submit" icon={<ActionIcon name="link" />} disabled={!link.trim()}>
+            <Button type="submit" icon={<ActionIcon name="link" />} busy={checking} disabled={!link.trim() || checking}>
               {t('connection.useLink')}
             </Button>
           </form>

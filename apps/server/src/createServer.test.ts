@@ -271,6 +271,12 @@ describe('HTTP client identity behind the tunnel of an Online Host', () => {
         ids.push(((await response.json()) as { instanceId: string }).instanceId);
       }
       expect((await fetch(`${origin}/_otb/room?code=ROOM-2`)).status).toBe(404);
+      expect(ids[0]).toBe(runtime.instanceId);
+      // A page of this Host on another tunnel address may read the answer; a foreign page may not.
+      const fromTunnel = await fetch(`${origin}/_otb/room?code=ROOM-1`, { headers: { origin: 'https://old-host.trycloudflare.com' } });
+      expect(fromTunnel.headers.get('access-control-allow-origin')).toBe('https://old-host.trycloudflare.com');
+      const fromElsewhere = await fetch(`${origin}/_otb/room?code=ROOM-1`, { headers: { origin: 'https://evil.test' } });
+      expect(fromElsewhere.headers.get('access-control-allow-origin')).toBeNull();
       return ids;
     };
     const first = await instance();

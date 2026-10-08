@@ -906,6 +906,11 @@ export interface ResumeSessionResult {
   privatePlayerState: PrivatePlayerState;
   pendingOffers: PrivateOffer[];
   forcedSaleProposal?: ForcedSaleProposal | null;
+  /**
+   * A random id of the Host's server process (not a credential; `/_otb/room` shows the same id). It survives a new tunnel
+   * address, so a client only hands its token to a new address that proves to be this very process.
+   */
+  hostInstanceId?: string;
 }
 
 export interface LeaveRoomResult {

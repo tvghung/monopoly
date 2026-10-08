@@ -77,6 +77,7 @@ import type { OwnTheBlockDesktopBridge } from './runtime/types';
 import { soloTeamBoardFields } from './game/presentation/testFixtures';
 
 const RECONNECT_TOKEN = 'A'.repeat(43);
+const HOST_INSTANCE = '00000000-0000-4000-8000-0000000000aa';
 const FORFEIT_TOKEN = 'B'.repeat(43);
 
 const room: PublicRoomState = {
@@ -1549,6 +1550,7 @@ describe('App how-to-play key placement', () => {
               gameplayEvents: { sequence: 0, events: [] },
             },
             pendingOffers: [],
+            hostInstanceId: HOST_INSTANCE,
           },
         });
       }
@@ -1691,34 +1693,61 @@ describe('App how-to-play key placement', () => {
     expect(screen.getByRole('dialog', { name: GUIDE })).toBeTruthy();
   });
 
-  it('after a long outage follows a pasted new link of the same room, moving only the stored token', () => {
+  /** Renders the game, drops the connection and waits until the overlay offers a new link. */
+  function stallWith(answer: string | null) {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    try {
-      storeSession();
-      const onSwitchEndpoint = vi.fn();
-      render(
-        <HowToPlayProvider>
-          <ToastProvider>
-            <App onSwitchEndpoint={onSwitchEndpoint} />
-          </ToastProvider>
-        </HowToPlayProvider>,
-      );
-      resumeIntoGame();
-      act(() => { socketHarness.trigger('disconnect', 'transport close'); });
-      expect(screen.queryByLabelText('Link mời mới của phòng')).toBeNull();
-      act(() => { vi.advanceTimersByTime(RECONNECT_STALL_MS); });
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(answer === null
+      ? new Response(null, { status: 404 })
+      : Response.json({ instanceId: answer }))));
+    storeSession();
+    const onSwitchEndpoint = vi.fn();
+    render(
+      <HowToPlayProvider>
+        <ToastProvider>
+          <App onSwitchEndpoint={onSwitchEndpoint} />
+        </ToastProvider>
+      </HowToPlayProvider>,
+    );
+    resumeIntoGame();
+    act(() => { socketHarness.trigger('disconnect', 'transport close'); });
+    expect(screen.queryByLabelText('Link mời mới của phòng')).toBeNull();
+    act(() => { vi.advanceTimersByTime(RECONNECT_STALL_MS); });
+    vi.useRealTimers();
+    fireEvent.change(screen.getByLabelText('Link mời mới của phòng'), {
+      target: { value: `https://new-host.trycloudflare.com/?room=${gameRoom.roomCode}` },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Kết nối bằng link này' }));
+    return onSwitchEndpoint;
+  }
 
-      fireEvent.change(screen.getByLabelText('Link mời mới của phòng'), {
-        target: { value: `https://new-host.trycloudflare.com/?room=${gameRoom.roomCode}` },
-      });
-      fireEvent.click(screen.getByRole('button', { name: 'Kết nối bằng link này' }));
-      expect(onSwitchEndpoint).toHaveBeenCalledWith('https://new-host.trycloudflare.com', gameRoom.roomCode);
-      const stored = JSON.parse(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY) ?? '{}') as {
-        sessions?: Record<string, { token: string; roomCode: string | null }>;
-      };
-      expect(stored.sessions?.['https://new-host.trycloudflare.com']).toEqual({ token: RECONNECT_TOKEN, roomCode: gameRoom.roomCode });
+  const storedFor = (authority: string) => (JSON.parse(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY) ?? '{}') as {
+    sessions?: Record<string, { token: string; roomCode: string | null }>;
+  }).sessions?.[authority];
+
+  it('after a long outage follows a pasted new link once it proves to be the same Host process', async () => {
+    try {
+      const onSwitchEndpoint = stallWith(HOST_INSTANCE);
+      await waitFor(() => expect(onSwitchEndpoint).toHaveBeenCalledWith('https://new-host.trycloudflare.com', gameRoom.roomCode));
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        `https://new-host.trycloudflare.com/_otb/room?code=${gameRoom.roomCode}`,
+        expect.objectContaining({ credentials: 'omit' }),
+      );
+      expect(storedFor('https://new-host.trycloudflare.com')).toEqual({ token: RECONNECT_TOKEN, roomCode: gameRoom.roomCode });
     } finally {
       vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('never hands the token to another Host that uses the same room code', async () => {
+    try {
+      const onSwitchEndpoint = stallWith('00000000-0000-4000-8000-0000000000ff');
+      expect((await screen.findByRole('alert')).textContent).toBe('Link này không dẫn tới máy chủ của ván bạn đang chơi.');
+      expect(onSwitchEndpoint).not.toHaveBeenCalled();
+      expect(storedFor('https://new-host.trycloudflare.com')).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
     }
   });
 });

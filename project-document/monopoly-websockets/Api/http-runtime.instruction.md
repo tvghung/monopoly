@@ -6,7 +6,7 @@ The desktop app starts one Electron utility-process helper. The helper binds the
 
 - `/healthz` returns `ok` while live and 503 during shutdown.
 - `/readyz` returns `ready` while the live store/server is ready and 503 during shutdown.
-- `/_otb/room?code=<ROOM_CODE>` is a rate-limited desktop probe for a known room code. It returns 404, or 200 with `{instanceId}`: a random id of this helper process (protocol 12), never game state or a credential. The host checks it through the public route before publishing an online link, and the desktop Join compares the ids of a LAN and an Online answer for the same code: equal ids are one Host (joined over the LAN), different ids stay an explicit ambiguity.
+- `/_otb/room?code=<ROOM_CODE>` is a rate-limited desktop probe for a known room code. It returns 404, or 200 with `{instanceId}`: a random id of this helper process (`runtime.instanceId`, protocol 12, also in the resume ACK as `hostInstanceId`), never game state or a credential; the packaged renderer, LAN pages and tunnel pages may read it cross-origin (CORS reflects only those origins). The host checks it through the public route before publishing an online link, and the desktop Join compares the ids of a LAN and an Online answer for the same code: equal ids are one Host (joined over the LAN), different ids stay an explicit ambiguity.
 - Static assets and the SPA fallback share the game server origin. Socket.IO uses its default path and is not throttled by the static asset limiter.
 
 ## LAN

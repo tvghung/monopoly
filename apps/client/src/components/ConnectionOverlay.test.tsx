@@ -32,12 +32,12 @@ describe('ConnectionOverlay', () => {
   });
 
   it('offers no link field until the reconnection has stalled', () => {
-    render(<ConnectionOverlay roomCode="OTB-ABC234" onUseNewLink={vi.fn()} />);
+    render(<ConnectionOverlay roomCode="OTB-ABC234" onUseNewLink={vi.fn(() => Promise.resolve('OK' as const))} />);
     expect(screen.queryByLabelText('Link mời mới của phòng')).toBeNull();
   });
 
   it('after a stall, takes the new invitation of the same room from the Host and nothing else', () => {
-    const onUseNewLink = vi.fn();
+    const onUseNewLink = vi.fn(() => Promise.resolve('OK' as const));
     render(<ConnectionOverlay stalled roomCode="OTB-ABC234" onUseNewLink={onUseNewLink} />);
     const field = screen.getByLabelText('Link mời mới của phòng');
     const submit = screen.getByRole('button', { name: 'Kết nối bằng link này' });

@@ -30,7 +30,8 @@ import { Flag, X as XIcon } from 'lucide-react';
 import ErrorScreen from './app/screens/ErrorScreen';
 import LoadingScreen from './app/screens/LoadingScreen';
 import Board from './components/Board';
-import ConnectionOverlay from './components/ConnectionOverlay';
+import ConnectionOverlay, { type RelinkOutcome } from './components/ConnectionOverlay';
+import { fetchHostInstanceId } from './runtime/hostInstance';
 import ForfeitChoiceDialog from './components/ForfeitChoiceDialog';
 import JoinForm from './components/JoinForm';
 import Lobby from './components/Lobby';
@@ -212,6 +213,8 @@ export default function App({
     : readPlayerSession(sessionAuthority));
   const [initialRoomCode] = useState(() => roomCodeFromLocation());
   const tokenRef = useRef<string | null>(initialToken);
+  // The Host process this seat was resumed on (from the resume ACK); a new address must prove to be the same process.
+  const hostInstanceRef = useRef<string | null>(null);
   const initialJoinRef = useRef(launch?.initialJoin ?? null);
   // The Host's room-creation capability outlives a failed first admission (timeout, throttling): without it a retry
   // would be a Guest request for a room that does not exist yet. It is dropped once the admission is accepted.
@@ -254,14 +257,26 @@ export default function App({
     return () => clearTimeout(timer);
   }, [phase]);
 
-  /** Moves this player's token to the Host's new address (in this device's storage only) and reconnects there. */
-  const switchEndpoint = useCallback((endpoint: string, roomCode: string): boolean => {
+  /**
+   * Moves this player's token to the Host's new address (in this device's storage only) and reconnects there, but only once
+   * that address proves to be the same Host process: a link of another Host using the same room code never receives the
+   * token. `provenInstanceId` is the id the desktop main process already read from that address.
+   */
+  const switchEndpoint = useCallback(async (
+    endpoint: string,
+    roomCode: string,
+    provenInstanceId?: string,
+  ): Promise<RelinkOutcome> => {
     const token = tokenRef.current;
+    const expected = hostInstanceRef.current;
     const target = getSessionAuthority(endpoint);
-    if (!token || !onSwitchEndpoint || !target || target === sessionAuthority) return false;
-    if (!writePlayerSessionForRoom(token, target, roomCode)) return false;
+    if (!token || !onSwitchEndpoint || !target || target === sessionAuthority || !expected) return 'NOT_SAME_HOST';
+    const instanceId = provenInstanceId ?? await fetchHostInstanceId(endpoint, roomCode);
+    if (instanceId === undefined) return 'UNREACHABLE';
+    if (instanceId !== expected) return 'NOT_SAME_HOST';
+    if (!writePlayerSessionForRoom(token, target, roomCode)) return 'NOT_SAME_HOST';
     onSwitchEndpoint(endpoint, roomCode);
-    return true;
+    return 'OK';
   }, [onSwitchEndpoint, sessionAuthority]);
 
   // The desktop app can ask the room registry where the Host is now; a browser relies on the pasted link.
@@ -270,7 +285,7 @@ export default function App({
     if (!reconnectStalled || !roomCode || !desktopBridge?.online) return undefined;
     let active = true;
     void desktopBridge.online.findRoom(roomCode).then(result => {
-      if (active && result.ok) switchEndpoint(result.endpoint, roomCode);
+      if (active && result.ok && result.instanceId) void switchEndpoint(result.endpoint, roomCode, result.instanceId);
     }).catch(() => undefined);
     return () => {
       active = false;
@@ -389,6 +404,7 @@ export default function App({
 
       setFailure(null);
       setOperationError(null);
+      hostInstanceRef.current = response.data.hostInstanceId ?? null;
       setIdentity(response.data.role, response.data.playerId);
       setPrivatePlayerState(
         response.data.privatePlayerState.playerId === response.data.playerId
@@ -1184,7 +1200,7 @@ export default function App({
               <ConnectionOverlay
                 stalled={reconnectStalled}
                 roomCode={room?.roomCode}
-                onUseNewLink={onSwitchEndpoint ? (endpoint, roomCode) => { switchEndpoint(endpoint, roomCode); } : undefined}
+                onUseNewLink={onSwitchEndpoint ? (endpoint, roomCode) => switchEndpoint(endpoint, roomCode) : undefined}
               />
             )
             : null}

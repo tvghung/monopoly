@@ -25,6 +25,7 @@ import {
   okOf,
   playAgain,
   ready,
+  resume,
   removeBot,
   requestSeatSwap,
   setMode,
@@ -86,6 +87,13 @@ describe('bot seats in the lobby', () => {
     const bot = projected.players.find((player) => player.playerId === first.playerId);
     expect(bot).toMatchObject({ kind: 'BOT', connected: true, ready: true, name: 'Bot 1' });
     expect(projected.players.find((player) => player.playerId === host.playerId)?.kind).toBe('HUMAN');
+  });
+
+  it('names the Host process in the resume answer, the id a new tunnel address must prove before a token goes there', async () => {
+    const { subject, host } = await hostLobby();
+    const again = await resume(await connect(subject.url), host.token);
+    expect(again.hostInstanceId).toBe(subject.runtime.instanceId);
+    expect(again.hostInstanceId).toMatch(/^[0-9a-f-]{36}$/u);
   });
 
   it('answers a repeated request id with the same bot instead of adding another', async () => {

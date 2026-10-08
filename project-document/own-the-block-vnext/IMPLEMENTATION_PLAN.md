@@ -23,7 +23,7 @@
 | D17 | Registry: existing Worker; add public CORS on `GET /v1/rooms/:code`, a static `/join` page, wire its tests into `pnpm test`, build-time URL config. Deploying it is the owner's action (BLOCKED). | Lightweight discovery, no gameplay. |
 | D18 | One shared endpoint policy module names allowed public origins; the client parser, server CORS and desktop adapter read it. | Provider abstraction (NET-04). |
 | D19 | Same-host LAN+Online answers disambiguated by a non-secret per-process `instanceId` in `/_otb/room`. | Removes the false "ambiguous" error. |
-| D20 | Endpoint refresh after tunnel rotation: registry lookup or a pasted new link for the same room code reconnects the same token; tokens never go into URLs. | AC-N08 without leaking secrets. |
+| D20 | Endpoint refresh after tunnel rotation: registry lookup or a pasted new link for the same room code reconnects the same token; tokens never go into URLs. **Revised in R5:** the token moves only to an address that answers with the Host process id of the resume ACK. | AC-N08 without leaking secrets; the R5 security review found that a pasted link of another Host with the same code would otherwise receive the token. |
 | D21 | Destination highlight added for card relocation and go-to-jail; audio gains a Mute toggle and interruption recovery. Everything else in the UI audit is preserved. | Verified gaps only. |
 
 ## File-level change map

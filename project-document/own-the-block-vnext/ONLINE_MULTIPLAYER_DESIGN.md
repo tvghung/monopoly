@@ -91,6 +91,10 @@ static `/join` page (type a code → resolve → open the host's link). Owner-on
   reconnect overlay says the host link may have changed; it (a) resolves the room code through the registry when
   available and reconnects the socket to the new endpoint with the same in-memory/storage token, or (b) accepts a
   pasted new invitation link for the **same room code** and does the same. The token never travels in a URL.
+  **The token is sent only to a proven same Host** (R5 security review): the resume ACK names the Host process
+  (`hostInstanceId`, a random per-process id that survives a tunnel change); the new address must answer `/_otb/room` with
+  that id (CORS readable by the game's own origins) before the token is stored for it, so another Host running a room with
+  the same code cannot collect a player's token through a pasted link.
 - Messages: `Reconnecting…` (transport loss), `Host link changed — paste the new link` (endpoint unreachable),
   `This room has closed` (`SESSION_INVALID` / `ROOM_GONE` after the helper exited), `Room full`, `Game already
   started`, `Code not found / expired`, `Invalid link`, `Online service unavailable`.
