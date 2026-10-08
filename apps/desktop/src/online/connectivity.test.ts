@@ -1,5 +1,8 @@
 import type { spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { CloudflareQuickTunnel, quickTunnelEndpoint } from './connectivity';
 
@@ -13,6 +16,16 @@ describe('Quick Tunnel endpoint validation', () => {
 });
 
 describe('Cloudflare Quick Tunnel process', () => {
+  it('rejects a configured binary without its verification digest', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'otb-cloudflared-'));
+    try {
+      const executable = path.join(directory, process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared');
+      await writeFile(executable, 'unverified binary');
+      const tunnel = new CloudflareQuickTunnel(executable);
+      await expect(tunnel.start('http://127.0.0.1:53120', vi.fn())).rejects.toThrow('CLOUDFLARED_CORRUPT');
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
   function fixture() {
     const child = Object.assign(new EventEmitter(), {
       stdout: new EventEmitter(), stderr: new EventEmitter(),

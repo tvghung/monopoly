@@ -26,19 +26,16 @@ let updateService: UpdateService | undefined;
 function createHostServices(): void {
   const generatedRoot = path.join(__dirname, '../generated');
   const resourcesRoot = app.isPackaged ? process.resourcesPath : generatedRoot;
-  const targetKey = `${process.platform}-${process.arch}`;
-  const postgresRoot = path.join(resourcesRoot, 'postgres', targetKey);
   const helperRoot = path.join(resourcesRoot, 'server-helper');
   hostRuntime = new HostRuntimeController({
-    resourceRoot: postgresRoot,
     helperPath: path.join(helperRoot, 'server-helper.cjs'),
-    migrationDirectory: path.join(helperRoot, 'migrations'),
     clientDist: rendererRoot(),
-    userDataPath: app.getPath('userData'),
     appVersion: app.getVersion(),
     routeProbe: probeDefaultRouteAddress,
     registryUrl: process.env.OWN_THE_BLOCK_REGISTRY_URL,
-    cloudflaredPath: process.env.OWN_THE_BLOCK_CLOUDFLARED_PATH,
+    cloudflaredPath: process.env.OWN_THE_BLOCK_CLOUDFLARED_PATH
+      ?? path.join(resourcesRoot, 'cloudflared', `${process.platform}-${process.arch}`,
+        process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared'),
   });
   lanFinder = new LanFinder();
 }

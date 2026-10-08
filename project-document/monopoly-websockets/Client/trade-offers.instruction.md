@@ -29,7 +29,7 @@
 4. Server reload canonical persisted terms, revalidate participants/assets/funds/debt,
    apply `VOLUNTARY` transfer once rồi resolve offer.
 
-Offer row/PostgreSQL và 20-second absolute expiry là authority. Resume trả pending
+Offer record trong RAM và 20-second absolute expiry là authority khi host process sống. Resume trả pending
 offers liên quan; offer cùng tài sản vẫn được định danh bằng ID. Expiry/leave hủy
 đúng một lần và private events không xuất hiện trong public state.
 

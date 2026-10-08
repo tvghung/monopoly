@@ -301,7 +301,7 @@ describe('rules.ts agrees with the server', () => {
   });
 
   it('uses the default waits the rules file names (an environment variable may change them)', () => {
-    const { persistenceTiming } = loadServerConfig({}, { requireDatabase: false });
+    const { persistenceTiming } = loadServerConfig({});
     expect(persistenceTiming.reconnectGraceMs).toBe(DEFAULT_RECONNECT_GRACE_SECONDS * 1000);
     expect(persistenceTiming.paymentShortfallActionTimeoutMs).toBe(DEFAULT_PAYMENT_SHORTFALL_SECONDS * 1000);
     expect(DEFAULT_PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS).toBe(DEFAULT_PAYMENT_SHORTFALL_SECONDS * 1000);
@@ -339,7 +339,7 @@ afterEach(async () => {
 });
 
 async function startServer(): Promise<string> {
-  const timing = loadServerConfig({}, { requireDatabase: false }).persistenceTiming;
+  const timing = loadServerConfig({}).persistenceTiming;
   const runtime = createAppRuntime(new InMemoryPersistenceStore<RoomSnapshot>(), timing);
   const { server, io } = createServer(runtime);
   registerSocketHandlers(io, runtime, 'development');

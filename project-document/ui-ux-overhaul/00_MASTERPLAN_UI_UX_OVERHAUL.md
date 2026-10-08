@@ -1,5 +1,7 @@
 # Monopoly UI/UX Super Overhaul — Masterplan
 
+> Historical UI/UX plan. PostgreSQL, managed database and cross-restart game recovery references in this folder were superseded by the [RAM hosting architecture](../monopoly-websockets/README.md). Preserve the historical design and acceptance record; use the current guide for runtime and release instructions.
+
 ## 1. Mục tiêu
 
 Đợt overhaul này nhằm biến game từ một web Monopoly có UI chức năng thành một **desktop board game có game feel rõ ràng, dễ theo dõi, bắt mắt và đủ “đã” khi chơi nhiều người**.

@@ -7,8 +7,8 @@ Repo không có REST business controller; gameplay vẫn đi qua Socket.IO.
 
 ## HTTP surface
 
-- `GET /healthz`: public liveness, không phụ thuộc DB.
-- `GET /readyz`: readiness; chỉ 200 khi PostgreSQL/schema sẵn sàng.
+- `GET /healthz`: public liveness; 503 khi shutting down.
+- `GET /readyz`: RAM authority readiness; 503 khi shutting down.
 - Production static client và SPA fallback cùng origin.
 - Socket.IO root namespace/path mặc định.
 
@@ -45,7 +45,7 @@ payload từ chối dummy/actor payload trước khi vào handler.
 
 Mọi state-changing request có request-scoped `Ack<T>`:
 
-- Success chỉ sau PostgreSQL commit.
+- Success chỉ sau in-memory transaction commit.
 - Failure có stable code/message/retryable.
 - Không broadcast state từ failed draft.
 - Current transport uses protocol V10 (2v2 Teamplay). The card commands below carry only the
@@ -104,12 +104,11 @@ continuation hoàn tất.
 
 ## Persistence/recovery
 
-- `DATABASE_URL` bắt buộc cho mọi real server start; schema mismatch/startup migration
-  error làm process fail trước listen. In-memory store chỉ được dependency-inject trong test.
-- Room command failure do DB trả retryable ACK, không memory fallback.
-- Offer/turn/payment/forced-sale recovery dùng persisted absolute deadlines và stable
-  operation ID.
-- Graceful shutdown ngừng nhận command, đóng scheduler/socket/http/pool; shutdown không
+- Mỗi server process tạo một RAM store mới; không database/migration startup.
+- Room command failure bỏ draft và trả failure ACK, không emit success.
+- Offer/turn/payment/forced-sale deadlines và stable operation ID được giữ trong
+  RAM khi process còn sống. Process chết thì room/token mất vĩnh viễn.
+- Graceful shutdown ngừng nhận command, đóng scheduler/socket/http; shutdown không
   được tạo artificial player-disconnect grace.
 
 ## Kiểm tra
@@ -120,5 +119,5 @@ pnpm --filter @monopoly/server test
 pnpm lint
 ```
 
-Event/lifecycle change cần Socket.IO integration; persistence/deadline change cần
-PostgreSQL và restart integration.
+Event/lifecycle change cần Socket.IO integration; store/deadline change cần
+transaction, reconnect và process-loss integration.

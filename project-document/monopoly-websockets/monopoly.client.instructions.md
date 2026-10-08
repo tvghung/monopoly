@@ -73,7 +73,8 @@ Development endpoint contract:
 - Mỗi Socket.IO `connect` có stored token phải resume trước khi bật gameplay action.
 - Terminal session errors (`SESSION_INVALID`, `SESSION_REVOKED`, `SESSION_EXPIRED`,
   `ROOM_GONE`, `GAME_ALREADY_STARTED`, `ROOM_FULL`) mới clear storage.
-  `DATABASE_UNAVAILABLE`/transport errors giữ token để retry.
+  Transport errors giữ token để retry khi cùng host process còn sống; terminal
+  `SESSION_INVALID`/`ROOM_GONE` sau host restart xóa token cũ.
 - `session replaced` đưa tab cũ vào `REPLACED` nhưng không xóa shared localStorage.
 - `removed from room` (host dùng `kick player` ở lobby; session đã bị thu hồi trên server) là kết thúc terminal: client xóa session/room/private state bằng
   `forgetSession`, dừng resume và hiện màn hình lỗi `ERROR` "Bạn đã được mời ra khỏi phòng" (`retryable: false`; desktop về launcher). Xem

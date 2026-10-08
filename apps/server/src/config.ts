@@ -1,11 +1,4 @@
-export interface DatabaseConfig {
-  connectionString: string;
-  ssl: boolean;
-  rejectUnauthorized: boolean;
-  maxConnections: number;
-}
-
-export type ServerRuntimeProfile = 'development' | 'cloud' | 'desktop';
+export type ServerRuntimeProfile = 'development' | 'desktop';
 
 export interface PersistenceTimingConfig {
   reconnectGraceMs: number;
@@ -25,13 +18,7 @@ export interface ServerConfig {
   runtimeProfile: ServerRuntimeProfile;
   listenHost: string;
   port: number;
-  database: DatabaseConfig | null;
   persistenceTiming: PersistenceTimingConfig;
-}
-
-export interface LoadServerConfigOptions {
-  /** Tests may opt out; production always requires a durable database. */
-  requireDatabase?: boolean;
 }
 
 function readPositiveInteger(
@@ -67,32 +54,19 @@ function readPort(
   return value;
 }
 
-function readBoolean(
-  environment: NodeJS.ProcessEnv,
-  name: string,
-  defaultValue: boolean,
-): boolean {
-  const rawValue = environment[name];
-  if (rawValue === undefined || rawValue === '') return defaultValue;
-  if (rawValue === 'true') return true;
-  if (rawValue === 'false') return false;
-  throw new Error(`${name} must be either true or false`);
-}
-
 export function resolveRuntimeProfile(
   environment: NodeJS.ProcessEnv,
 ): ServerRuntimeProfile {
   const configured = environment.SERVER_RUNTIME_PROFILE?.trim();
   if (configured === undefined || configured === '') {
-    return environment.NODE_ENV === 'production' ? 'cloud' : 'development';
+    return 'development';
   }
   if (
     configured !== 'development'
-    && configured !== 'cloud'
     && configured !== 'desktop'
   ) {
     throw new Error(
-      'SERVER_RUNTIME_PROFILE must be development, cloud, or desktop',
+      'SERVER_RUNTIME_PROFILE must be development or desktop',
     );
   }
   return configured;
@@ -100,48 +74,24 @@ export function resolveRuntimeProfile(
 
 function readListenHost(
   environment: NodeJS.ProcessEnv,
-  runtimeProfile: ServerRuntimeProfile,
 ): string {
   const configured = environment.SERVER_HOST?.trim();
   if (configured === '') throw new Error('SERVER_HOST must not be empty');
   return configured
-    || (runtimeProfile === 'cloud' ? '0.0.0.0' : '127.0.0.1');
+    || '127.0.0.1';
 }
 
 export function loadServerConfig(
   environment: NodeJS.ProcessEnv = process.env,
-  options: LoadServerConfigOptions = {},
 ): ServerConfig {
   const nodeEnv = environment.NODE_ENV ?? 'development';
   const runtimeProfile = resolveRuntimeProfile(environment);
-  const databaseUrl = environment.DATABASE_URL?.trim();
-  const requireDatabase = options.requireDatabase ?? nodeEnv === 'production';
-
-  if (requireDatabase && !databaseUrl) {
-    throw new Error('DATABASE_URL is required for durable server operation');
-  }
 
   return {
     nodeEnv,
     runtimeProfile,
-    listenHost: readListenHost(environment, runtimeProfile),
+    listenHost: readListenHost(environment),
     port: readPort(environment, runtimeProfile),
-    database: databaseUrl
-      ? {
-          connectionString: databaseUrl,
-          ssl: readBoolean(environment, 'DATABASE_SSL', false),
-          rejectUnauthorized: readBoolean(
-            environment,
-            'DATABASE_SSL_REJECT_UNAUTHORIZED',
-            true,
-          ),
-          maxConnections: readPositiveInteger(
-            environment,
-            'DATABASE_MAX_CONNECTIONS',
-            10,
-          ),
-        }
-      : null,
     persistenceTiming: {
       reconnectGraceMs: readPositiveInteger(
         environment,

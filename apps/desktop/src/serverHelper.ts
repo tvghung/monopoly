@@ -13,9 +13,7 @@ export interface ServerHelperInfo {
 
 export interface ServerHelperOptions {
   modulePath: string;
-  migrationDirectory: string;
   clientDist: string;
-  databaseUrl: string;
   host: string;
   port: number;
   startupTimeoutMs?: number;
@@ -39,11 +37,9 @@ export type ServerHelperFork = (
   options: ServerHelperForkOptions,
 ) => UtilityProcess;
 
-function sanitizeDiagnostic(value: unknown, secret: string): string {
+function sanitizeDiagnostic(value: unknown): string {
   const message = value instanceof Error ? value.message : String(value);
   return message
-    .replaceAll(secret, '[redacted]')
-    .replace(/postgres(?:ql)?(?:\+[^:]+)?:\/\/[^\s"'`]+/giu, 'postgresql://[redacted]')
     .slice(-DIAGNOSTIC_LIMIT);
 }
 
@@ -100,9 +96,7 @@ export class ServerHelperController {
 
   public constructor(private readonly options: ServerHelperOptions) {
     assertAbsolute('Server helper module path', options.modulePath);
-    assertAbsolute('Server helper migration directory', options.migrationDirectory);
     assertAbsolute('Server helper client distribution', options.clientDist);
-    if (!options.databaseUrl.trim()) throw new Error('Server helper database URL is required');
     if (!Number.isSafeInteger(options.port) || options.port < 0 || options.port > 65_535) {
       throw new Error('Server helper port must be between 0 and 65535');
     }
@@ -167,14 +161,14 @@ export class ServerHelperController {
     const environment = asStringEnvironment({
       ...process.env,
       ...this.options.environment,
-      DATABASE_URL: this.options.databaseUrl,
-      OWN_THE_BLOCK_MIGRATIONS_DIR: this.options.migrationDirectory,
       OWN_THE_BLOCK_CLIENT_DIST: this.options.clientDist,
       SERVER_HOST: this.options.host,
       SERVER_RUNTIME_PROFILE: 'desktop',
       NODE_ENV: 'production',
       PORT: String(this.options.port),
     });
+    delete environment.DATABASE_URL;
+    delete environment.OWN_THE_BLOCK_MIGRATIONS_DIR;
     const fork = this.options.fork ?? ((modulePath, args, forkOptions) => (
       utilityProcess.fork(modulePath, args, forkOptions)
     ));
@@ -191,13 +185,13 @@ export class ServerHelperController {
     child.stdout?.on('data', chunk => {
       this.diagnostics = boundedAppend(
         this.diagnostics,
-        sanitizeDiagnostic(chunk, this.options.databaseUrl),
+        sanitizeDiagnostic(chunk),
       );
     });
     child.stderr?.on('data', chunk => {
       this.diagnostics = boundedAppend(
         this.diagnostics,
-        sanitizeDiagnostic(chunk, this.options.databaseUrl),
+        sanitizeDiagnostic(chunk),
       );
     });
     child.on('exit', code => {
@@ -217,7 +211,6 @@ export class ServerHelperController {
       const wasReady = this.currentState === 'READY';
       this.diagnostics = sanitizeDiagnostic(
         `${String(type)} ${String(location)} ${String(report)}`,
-        this.options.databaseUrl,
       );
       if (this.currentState !== 'STOPPING') this.currentState = 'FAILED';
       if (wasReady) {
@@ -301,7 +294,7 @@ export class ServerHelperController {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     throw new Error(
-      `Server helper HTTP readiness timed out${lastError ? `: ${sanitizeDiagnostic(lastError, this.options.databaseUrl)}` : ''}`,
+      `Server helper HTTP readiness timed out${lastError ? `: ${sanitizeDiagnostic(lastError)}` : ''}`,
     );
   }
 
@@ -344,9 +337,9 @@ export class ServerHelperController {
   }
 
   private failureError(error: unknown, cleanupError?: unknown): Error {
-    const primary = sanitizeDiagnostic(error, this.options.databaseUrl);
+    const primary = sanitizeDiagnostic(error);
     const cleanup = cleanupError
-      ? sanitizeDiagnostic(cleanupError, this.options.databaseUrl)
+      ? sanitizeDiagnostic(cleanupError)
       : '';
     return new Error(
       cleanup ? primary + '; helper cleanup failed: ' + cleanup : primary,

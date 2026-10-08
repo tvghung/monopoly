@@ -9,8 +9,6 @@
     "node": ">=24"
   },
   "scripts": {
-    "db:migrate": "pnpm --filter @monopoly/server db:migrate",
-    "db:status": "pnpm --filter @monopoly/server db:status",
     "dev": "pnpm dev:web",
     "dev:web": "pnpm --parallel --filter @monopoly/server --filter @monopoly/client dev",
     "dev:desktop": "pnpm --filter @monopoly/desktop dev",
@@ -36,7 +34,7 @@
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm test:v1-contract && pnpm test:music-validator && pnpm test:card-art && pnpm test:landmark-art && pnpm -r test",
-    "test:e2e:mobile": "pnpm --filter @monopoly/client build && pnpm --filter @monopoly/desktop prepare:postgres && playwright test",
+    "test:e2e:mobile": "pnpm --filter @monopoly/client build && playwright test",
     "visual:capture": "playwright test -c playwright.visual.config.ts"
   },
   "devDependencies": {

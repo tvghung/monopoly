@@ -162,6 +162,23 @@ export async function resumePhase72RetainedSession(options: {
   }
 }
 
+export async function rejectRetainedSessionAfterRestart(options: {
+  serverUrl: string;
+  session: RetainedPhase72Session;
+}): Promise<void> {
+  const socket = await connectSocket(options.serverUrl, CONTRACT_TIMEOUT_MS);
+  try {
+    const response = await waitForAck<ResumeSessionResult>(socket, 'resume session', {
+      token: options.session.token,
+    }, CONTRACT_TIMEOUT_MS);
+    if (response.ok || response.error.code !== 'SESSION_INVALID') {
+      throw new Error('A stopped RAM session authenticated after server restart');
+    }
+  } finally {
+    socket.disconnect();
+  }
+}
+
 export async function runPhase72HostContract(options: {
   serverUrl: string;
   remoteServerUrl: string;

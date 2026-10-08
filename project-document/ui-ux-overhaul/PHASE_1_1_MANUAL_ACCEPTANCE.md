@@ -1,5 +1,7 @@
 # Phase 1.1 — Manual acceptance procedure
 
+> Historical procedure. Steps below that require Docker/PostgreSQL or database migrations are superseded by the [current RAM hosting guide](../monopoly-websockets/README.md). This file remains a record of the earlier visual acceptance process.
+
 This checklist is for Phase 1 desktop/presentation acceptance only. It does not
 start Phase 2 board work or any character/audio/particle implementation.
 

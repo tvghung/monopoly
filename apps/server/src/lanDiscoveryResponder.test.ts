@@ -211,7 +211,7 @@ describe('LAN discovery responder', () => {
   it('only runs for the desktop Host profile', () => {
     expect(shouldStartLanDiscovery({ SERVER_RUNTIME_PROFILE: 'desktop' })).toBe(true);
     expect(shouldStartLanDiscovery({ SERVER_RUNTIME_PROFILE: ' desktop ' })).toBe(true);
-    expect(shouldStartLanDiscovery({ SERVER_RUNTIME_PROFILE: 'cloud' })).toBe(false);
+    expect(shouldStartLanDiscovery({ SERVER_RUNTIME_PROFILE: 'development' })).toBe(false);
     expect(shouldStartLanDiscovery({ SERVER_RUNTIME_PROFILE: 'development' })).toBe(false);
     expect(shouldStartLanDiscovery({})).toBe(false);
   });

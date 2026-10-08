@@ -13,7 +13,6 @@ export type DesktopRuntimeConfigErrorCode =
 
 export type HostRuntimeState =
   | 'IDLE'
-  | 'STARTING_POSTGRES'
   | 'STARTING_SERVER'
   | 'READY'
   | 'HOSTING'
@@ -22,12 +21,10 @@ export type HostRuntimeState =
 
 export type HostRuntimeErrorCode =
   | 'CLOUDFLARED_MISSING'
+  | 'CLOUDFLARED_CORRUPT'
   | 'REGISTRY_UNAVAILABLE'
   | 'CODE_TAKEN'
   | 'ONLINE_FAILED'
-  | 'POSTGRES_RESOURCES_MISSING'
-  | 'POSTGRES_INITIALIZATION_FAILED'
-  | 'MIGRATION_FAILED'
   | 'HELPER_FAILED'
   | 'READINESS_TIMEOUT'
   | 'PORT_OCCUPIED'

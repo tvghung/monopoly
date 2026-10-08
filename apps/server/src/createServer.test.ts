@@ -46,7 +46,7 @@ afterEach(async () => {
 });
 
 describe('HTTP health endpoints', () => {
-  it('separates liveness from database-backed readiness and shutdown state', async () => {
+  it('separates liveness from store readiness and shutdown state', async () => {
     const runtime = createTestRuntime();
     const { server } = createServer(runtime);
     servers.push(server);
@@ -60,12 +60,12 @@ describe('HTTP health endpoints', () => {
     expect([ready.status, await ready.text()]).toEqual([200, 'ready']);
 
     vi.spyOn(runtime.persistence, 'healthcheck').mockRejectedValueOnce(
-      new Error('database offline'),
+      new Error('store unavailable'),
     );
-    const databaseOffline = await fetch(`${baseUrl}/readyz`);
-    expect([databaseOffline.status, await databaseOffline.text()]).toEqual([
+    const storeUnavailable = await fetch(`${baseUrl}/readyz`);
+    expect([storeUnavailable.status, await storeUnavailable.text()]).toEqual([
       503,
-      'database unavailable',
+      'server unavailable',
     ]);
 
     runtime.flags.shuttingDown = true;
@@ -113,8 +113,8 @@ describe('resolveCorsOrigin', () => {
     ).toBe(explicitOrigin);
   });
 
-  it('allows the explicit packaged Electron origin in production by default', () => {
-    expect(resolveCorsOrigin({ NODE_ENV: 'production' })).toBe(PACKAGED_RENDERER_ORIGIN);
+  it('uses the development origin for standalone startup', () => {
+    expect(resolveCorsOrigin({ NODE_ENV: 'production' })).toBe(DEVELOPMENT_RENDERER_ORIGIN);
   });
 
   it('accepts only exact HTTP IPv4 browser origins for a desktop host', () => {
@@ -167,7 +167,7 @@ describe('runtime profile HTTP policy', () => {
     const { port } = server.address() as AddressInfo;
     const origin = `http://127.0.0.1:${String(port)}`;
 
-    expect(app.get('trust proxy')).toBe(false);
+    expect(app.get('trust proxy')).toEqual(expect.any(Function));
     await expect((await fetch(`${origin}/healthz`)).text()).resolves.toBe('ok');
     await expect((await fetch(`${origin}/readyz`)).text()).resolves.toBe('ready');
     await expect((await fetch(`${origin}/assets/app.js`)).text()).resolves.toContain('desktopClient');
@@ -189,18 +189,10 @@ describe('runtime profile HTTP policy', () => {
     expect(differentIpv4Origin.status).toBe(403);
   });
 
-  it('keeps cloud proxy/static behavior and development no-static behavior separate', async () => {
+  it('does not serve static files or trust proxy headers in standalone development mode', async () => {
     const clientDist = await mkdtemp(path.join(os.tmpdir(), 'own-the-block-profiles-'));
     temporaryDirectories.push(clientDist);
     await writeFile(path.join(clientDist, 'index.html'), 'profile client');
-    const cloudRuntime = createTestRuntime();
-    const cloud = createServer(cloudRuntime, {
-      environment: { NODE_ENV: 'production', SERVER_RUNTIME_PROFILE: 'cloud' },
-      clientDist,
-    });
-    servers.push(cloud.server);
-    expect(cloud.app.get('trust proxy')).toBe(1);
-
     const developmentRuntime = createTestRuntime();
     const development = createServer(developmentRuntime, {
       environment: { NODE_ENV: 'development', SERVER_RUNTIME_PROFILE: 'development' },
@@ -211,63 +203,5 @@ describe('runtime profile HTTP policy', () => {
     await new Promise<void>(resolve => development.server.listen(0, '127.0.0.1', resolve));
     const { port } = development.server.address() as AddressInfo;
     expect((await fetch(`http://127.0.0.1:${String(port)}/index.html`)).status).toBe(404);
-  });
-});
-
-describe('Socket.IO CORS handshake', () => {
-  it('authorizes the packaged browser origin without claiming WebSocket-client rejection', async () => {
-    const previousNodeEnv = process.env.NODE_ENV;
-    const previousCorsOrigin = process.env.CORS_ORIGIN;
-    process.env.NODE_ENV = 'production';
-    delete process.env.CORS_ORIGIN;
-
-    try {
-      const runtime = createAppRuntime(
-        new InMemoryPersistenceStore<RoomSnapshot>(),
-        {
-          reconnectGraceMs: 60_000,
-          paymentShortfallActionTimeoutMs: 120_000,
-          cardAwaitingDrawTimeoutMs: 20_000,
-          cardRevealedTimeoutMs: 30_000,
-          emergencyRescueTimeoutMs: 30_000,
-          pendingSessionTtlMs: 300_000,
-          terminalSessionRetentionMs: 604_800_000,
-          lobbyRetentionMs: 86_400_000,
-          inProgressRetentionMs: 2_592_000_000,
-          finishedRetentionMs: 604_800_000,
-        },
-      );
-      const { server } = createServer(runtime);
-      servers.push(server);
-      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-      const { port } = server.address() as AddressInfo;
-      const handshakeUrl = `http://127.0.0.1:${port}/socket.io/?EIO=4&transport=polling`;
-
-      const sameOrigin = await fetch(handshakeUrl);
-      expect(sameOrigin.status).toBe(200);
-
-      const packaged = await fetch(handshakeUrl, {
-        headers: { Origin: PACKAGED_RENDERER_ORIGIN },
-      });
-      expect(packaged.status).toBe(200);
-      expect(packaged.headers.get('access-control-allow-origin')).toBe(
-        PACKAGED_RENDERER_ORIGIN,
-      );
-
-      const disallowed = await fetch(handshakeUrl, {
-        headers: { Origin: 'https://not-allowed.example' },
-      });
-      // The HTTP endpoint can still be reached by a non-browser client. Browser
-      // CORS authorization is not server-side WebSocket authentication.
-      expect(disallowed.status).toBe(200);
-      expect(disallowed.headers.get('access-control-allow-origin')).not.toBe(
-        'https://not-allowed.example',
-      );
-    } finally {
-      if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
-      else process.env.NODE_ENV = previousNodeEnv;
-      if (previousCorsOrigin === undefined) delete process.env.CORS_ORIGIN;
-      else process.env.CORS_ORIGIN = previousCorsOrigin;
-    }
   });
 });

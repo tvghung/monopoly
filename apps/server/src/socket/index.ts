@@ -27,6 +27,7 @@ export function registerSocketHandlers(
   io: AppServer,
   runtime: AppRuntime,
   runtimeProfile: ServerRuntimeProfile,
+  onlineRoomCode?: string,
 ): void {
   io.use((socket, next) => {
     if (socket.handshake.auth.protocolVersion !== SOCKET_PROTOCOL_VERSION) {
@@ -48,6 +49,7 @@ export function registerSocketHandlers(
       socket,
       runtime,
       canCreateRoomForPeer(runtimeProfile, socket.handshake.address),
+      onlineRoomCode,
     );
     registerLobbyHandlers(io, socket, runtime);
     registerTeamHandlers(io, socket, runtime);

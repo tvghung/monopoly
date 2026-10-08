@@ -106,13 +106,13 @@ Investment nếu không đủ tiền cho một cấp (không tạo decision vô 
 - `SOCKET_PROTOCOL_VERSION = 11`, `ROOM_SNAPSHOT_SCHEMA_VERSION = 10`. Migration `011_lobby_seats_v10.sql` thêm `Player.teamSlot` và
   `boardState.seatSwapRequests: []` (xem [Persistence](../Persistence/README.md)); migration `010_teamplay_v9.sql` nâng snapshot
   v8 (xem [Persistence](../Persistence/README.md)); helper TS `upgradeRoomSnapshotV8ToV9` tương đương SQL và được test so
-  sánh trên PostgreSQL thật.
+  sánh với mẫu snapshot lịch sử. Các file SQL là tài liệu lịch sử, không chạy trong runtime hiện tại.
 - `assertTeamState` (trong `assertRoomSnapshot`) validate: Solo không có team match state; 2v2 màu = màu đội, lobby
   không có match state, `slotOrder` 4 người xen kẽ, `boardState.players` = `slotOrder` lọc người còn sống, windows hợp lệ
   (người bị loại thật, đồng đội còn sống, chưa hồi sinh, `turnsRemaining` 1–5), winner/`winningTeamId` nhất quán,
   rescue khớp `planEmergencyRescue`.
-- Persist: `teams`, `teamPlay`, `winningTeamId`, `PaymentQueue.rescue`. Deadline rescue là absolute; restart khôi phục
-  qua `recoverRoomIfDue`. Không persist presence/timer.
+- Trong một đời host, RAM giữ `teams`, `teamPlay`, `winningTeamId`, `PaymentQueue.rescue` và deadline absolute;
+  `recoverRoomIfDue` xử lý deadline quá hạn khi command tiếp theo chạy. Khi host process dừng, toàn bộ phòng và token hết hiệu lực.
 
 ## Giới hạn đã biết
 

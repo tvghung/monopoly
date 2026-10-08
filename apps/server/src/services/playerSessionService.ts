@@ -146,17 +146,6 @@ export class PlayerSessionService {
   }
 
   private async activatePending(token: string, now: Date): Promise<ResumePlayerResult> {
-    try {
-      return await this.activatePendingOnce(token, now);
-    } catch (error) {
-      // Two activations can both observe a missing room code. PostgreSQL's
-      // unique room-code constraint picks the creator; retry then joins it.
-      if (this.isUniqueViolation(error)) return this.activatePendingOnce(token, now);
-      throw error;
-    }
-  }
-
-  private async activatePendingOnce(token: string, now: Date): Promise<ResumePlayerResult> {
     return this.persistence.transaction(async (transaction) => {
       const session = await transaction.playerSessions.findByTokenHash(tokenHash(token));
       if (!session) throw new CommandError('SESSION_INVALID', 'Reconnect token is invalid.');
@@ -295,7 +284,4 @@ export class PlayerSessionService {
     return addMilliseconds(now, retention);
   }
 
-  private isUniqueViolation(error: unknown): boolean {
-    return Boolean(error && typeof error === 'object' && 'code' in error && error.code === '23505');
-  }
 }

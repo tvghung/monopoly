@@ -135,8 +135,8 @@ leave clears runtime binding/admission lock so the same Socket can join another 
   team, refusals (held seat, own seat, Solo, started game), two concurrent moves to one seat, request/accept/decline/cancel, one request per
   requester, only the target can answer, request voiding (move, leave, kick, mode change, start), a request visible after reconnect,
   seat order driving the match order, Play Again re-seating, kick (host-only, lobby-only, self, stranger, offline target, session revoked,
-  `removed from room` event, seat freed, rejoin). PostgreSQL (`socket.teamplay.postgres.integration.test.ts`): migrations 010 and
-  011 against the pure helpers, and a seat arrangement with an open request surviving a restart.
+  `removed from room` event, seat freed, rejoin). Historical SQL migrations 010 and 011 are not part of the current RAM host.
+  Seat arrangements and open requests last only for the lifetime of that host process.
 - Current/non-current leave, property/listing/offer cleanup and winner.
 - Active-payer leave settles creditor and leaves no auction/proposal; non-payer leave
   returns assets without proceeds.

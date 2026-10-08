@@ -572,7 +572,7 @@ describe('DesktopMultiplayerLauncher host form', () => {
   });
 
   it.each<HostRuntimeErrorCode>([
-    'POSTGRES_RESOURCES_MISSING', 'POSTGRES_INITIALIZATION_FAILED', 'MIGRATION_FAILED', 'HELPER_FAILED', 'READINESS_TIMEOUT',
+    'CLOUDFLARED_MISSING', 'CLOUDFLARED_CORRUPT', 'ONLINE_FAILED', 'HELPER_FAILED', 'READINESS_TIMEOUT',
     'PORT_OCCUPIED', 'BIND_DENIED', 'NO_LAN_INTERFACE', 'RUNTIME_FAILED',
   ])('says the %s failure without ports, servers or databases, and tells what to do', async code => {
     const failed: HostRuntimeStatus = { ...status, state: 'FAILED', errorCode: code };
@@ -604,7 +604,6 @@ describe('DesktopMultiplayerLauncher host form', () => {
   });
 
   it.each([
-    ['STARTING_POSTGRES', 'Đang chuẩn bị phòng…'],
     ['STARTING_SERVER', 'Đang mở phòng…'],
     ['STOPPING', 'Đang đóng phòng…'],
   ] as const)('says the %s step as "%s", not as a database or a server', async (state, expected) => {

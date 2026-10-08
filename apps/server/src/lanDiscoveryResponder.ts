@@ -4,11 +4,11 @@ import { roomCodeSchema } from '@monopoly/shared';
 import { z } from 'zod';
 
 /**
- * LAN room discovery, responder side (desktop Host only; the cloud and development servers never start it).
+ * LAN room discovery, responder side (desktop Host only; development servers never start it).
  *
  * A joining desktop app broadcasts one small JSON datagram that carries a room code and a random nonce. The Host that
  * holds that room answers the sender with its game TCP port and the same nonce; the sender takes the Host address from
- * the packet source. A reply never carries a token, a hash, a name, a player, a status, a room list or database detail,
+ * the packet source. A reply never carries a token, a hash, a name, a player, a status or a room list,
  * and the room code is not a credential (it only appears in the request). Everything else is dropped silently.
  *
  * `apps/desktop/src/lanFinder.ts` runs in the Electron main process, which has no runtime dependencies, so it repeats
@@ -28,7 +28,7 @@ export interface DiscoveryRateLimits {
 }
 
 /**
- * Burst size and sustained rate per sending address and for all senders together, applied before any database call.
+ * Burst size and sustained rate per sending address and for all senders together, applied before any room lookup.
  * One search sends at most six datagrams per interface within about a second, so a retry a few seconds later still fits.
  */
 export const LAN_DISCOVERY_RATE_LIMITS: DiscoveryRateLimits = {
@@ -132,7 +132,7 @@ export class DiscoveryRateLimiter {
 export interface LanDiscoveryResponderOptions {
   /** The game's TCP port: the only value a reply reveals. */
   gamePort: number;
-  /** Whether a room with this canonical code exists; the only thing the responder asks the database. */
+  /** Whether a room with this canonical code exists in the live host. */
   findRoom: (roomCode: string) => Promise<boolean>;
   discoveryPort?: number;
   host?: string;
@@ -218,7 +218,7 @@ export async function startLanDiscoveryResponder(
   socket.on('message', (message, remote) => {
     if (closed) return;
     if (message.byteLength > LAN_DISCOVERY_MAX_REQUEST_BYTES) return;
-    // The limits come first so that neither parsing nor the database can be flooded.
+    // The limits come first so that neither parsing nor the room lookup can be flooded.
     if (!limiter.allow(remote.address, now())) return;
     const request = parseFindRoomRequest(message);
     if (!request) return;

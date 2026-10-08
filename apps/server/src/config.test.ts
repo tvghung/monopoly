@@ -3,27 +3,18 @@ import { describe, expect, it } from 'vitest';
 import { loadServerConfig } from './config.js';
 
 describe('loadServerConfig', () => {
-  it('requires PostgreSQL in production', () => {
-    expect(() => loadServerConfig({ NODE_ENV: 'production' })).toThrow(
-      'DATABASE_URL is required',
-    );
+  it('starts production configuration without a database', () => {
+    expect(loadServerConfig({ NODE_ENV: 'production' }).runtimeProfile).toBe('development');
   });
 
   it('loads the documented persistence defaults', () => {
     const config = loadServerConfig({
       NODE_ENV: 'test',
-      DATABASE_URL: 'postgresql://example.invalid/monopoly',
     });
 
     expect(config.runtimeProfile).toBe('development');
     expect(config.listenHost).toBe('127.0.0.1');
 
-    expect(config.database).toMatchObject({
-      connectionString: 'postgresql://example.invalid/monopoly',
-      ssl: false,
-      rejectUnauthorized: true,
-      maxConnections: 10,
-    });
     expect(config.persistenceTiming).toEqual({
       reconnectGraceMs: 60_000,
       paymentShortfallActionTimeoutMs: 120_000,
@@ -38,27 +29,19 @@ describe('loadServerConfig', () => {
     });
   });
 
-  it('rejects invalid numeric and boolean configuration', () => {
+  it('rejects invalid numeric configuration', () => {
     expect(() => loadServerConfig({ PORT: '0' })).toThrow(
       'PORT must be an integer between 1 and 65535',
     );
-    expect(() =>
-      loadServerConfig({
-        DATABASE_URL: 'postgresql://example.invalid/monopoly',
-        DATABASE_SSL: 'yes',
-      }),
-    ).toThrow('DATABASE_SSL must be either true or false');
   });
 
-  it('uses an explicit loopback desktop profile and a cloud bind by default', () => {
+  it('uses loopback by default and requires an explicit desktop profile', () => {
     expect(loadServerConfig({
       NODE_ENV: 'production',
-      DATABASE_URL: 'postgresql://example.invalid/monopoly',
-    }).listenHost).toBe('0.0.0.0');
+    }).listenHost).toBe('127.0.0.1');
     expect(loadServerConfig({
       NODE_ENV: 'production',
       SERVER_RUNTIME_PROFILE: 'desktop',
-      DATABASE_URL: 'postgresql://example.invalid/monopoly',
     })).toMatchObject({
       runtimeProfile: 'desktop',
       listenHost: '127.0.0.1',
@@ -66,14 +49,13 @@ describe('loadServerConfig', () => {
     expect(loadServerConfig({
       NODE_ENV: 'production',
       SERVER_RUNTIME_PROFILE: 'desktop',
-      DATABASE_URL: 'postgresql://example.invalid/monopoly',
       PORT: '0',
     }).port).toBe(0);
   });
 
   it('rejects invalid runtime profile and empty host configuration', () => {
     expect(() => loadServerConfig({ SERVER_RUNTIME_PROFILE: 'lan' })).toThrow(
-      'SERVER_RUNTIME_PROFILE must be development, cloud, or desktop',
+      'SERVER_RUNTIME_PROFILE must be development or desktop',
     );
     expect(() => loadServerConfig({ SERVER_HOST: ' ' })).toThrow(
       'SERVER_HOST must not be empty',

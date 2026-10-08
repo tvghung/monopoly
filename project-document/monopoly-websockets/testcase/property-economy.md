@@ -21,7 +21,7 @@
   hidden transfer fee.
 - [ ] `[AUTO]` `FORCED_SALE` computes gross from authoritative tile data and transfers
   the property; `RETURN_TO_BANK` clears owner and buildings.
-- [ ] `[SOCKET][PG]` Stable owner/transfer/payment state survives reconnect/restart;
+- [ ] `[SOCKET][RAM]` Stable owner/transfer/payment state survives reconnect to the live host;
   invalid actor/tile/spectator and failed commit make no change.
 
 ## Deed card, inspection and portfolios (visual overhaul V2, plan 04)

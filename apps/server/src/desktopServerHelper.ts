@@ -49,18 +49,11 @@ function parentMessageData(message: unknown): unknown {
 async function main(): Promise<void> {
   if (!parentPort) throw new Error('Server helper requires Electron utilityProcess');
 
-  const databaseUrl = process.env.DATABASE_URL?.trim();
-  const migrationDirectory = process.env.OWN_THE_BLOCK_MIGRATIONS_DIR?.trim();
   const clientDist = process.env.OWN_THE_BLOCK_CLIENT_DIST?.trim();
-  if (!databaseUrl) throw new Error('DATABASE_URL is required');
-  if (!migrationDirectory) {
-    throw new Error('OWN_THE_BLOCK_MIGRATIONS_DIR is required');
-  }
   if (!clientDist) throw new Error('OWN_THE_BLOCK_CLIENT_DIST is required');
 
   const authoritativeServer = await startAuthoritativeServer({
     environment: process.env,
-    migrationDirectory,
     clientDist,
     host: process.env.SERVER_HOST,
     port: Number(process.env.PORT),

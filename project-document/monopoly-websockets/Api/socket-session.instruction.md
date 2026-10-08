@@ -65,5 +65,5 @@ session/token/offer/exact private deck state remain private.
 - Desktop loopback-only room creation and remote unknown-room rejection.
 - Phase 7.2 packaged Host contract uses four real Socket.IO clients, rejects a
   fifth with `ROOM_FULL`, preserves PlayerId/room on reconnect, proves newest-wins,
-  and resumes the retained session after helper/PostgreSQL restart. Physical LAN
+  and rejects the old session after helper restart. Physical LAN
   devices remain manual evidence.

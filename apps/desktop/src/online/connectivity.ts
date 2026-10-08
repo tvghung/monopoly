@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 
 export interface ConnectivityProvider {
@@ -26,8 +27,19 @@ function cloudflaredPath(configured?: string): string {
     if (!path.isAbsolute(candidate) || path.basename(candidate).toLowerCase() !== basename) continue;
     try {
       const resolved = realpathSync(candidate);
-      if (existsSync(resolved)) return resolved;
-    } catch { /* Try the next PATH entry. */ }
+      if (existsSync(resolved)) {
+        const digestPath = path.join(path.dirname(resolved), 'cloudflared.sha256');
+        if (configured && !existsSync(digestPath)) throw new Error('CLOUDFLARED_CORRUPT');
+        if (existsSync(digestPath)) {
+          const expected = readFileSync(digestPath, 'utf8').trim();
+          const actual = createHash('sha256').update(readFileSync(resolved)).digest('hex');
+          if (actual !== expected) throw new Error('CLOUDFLARED_CORRUPT');
+        }
+        return resolved;
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message === 'CLOUDFLARED_CORRUPT') throw error;
+    }
   }
   throw new Error('CLOUDFLARED_MISSING');
 }

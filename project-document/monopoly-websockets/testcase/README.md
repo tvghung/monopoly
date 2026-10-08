@@ -1,61 +1,25 @@
-# Testcase — Cờ Tỷ Phú Việt Nam Standard Mode
+# Test evidence index
 
-## Evidence labels
+`[AUTO]` means an executable assertion in a named test. `[SOCKET]` uses a real Socket.IO server and client. `[PACKAGED]` runs an actual packaged Electron/helper build on the reported OS/architecture. `[LIVE-TUNNEL]` opens an actual public Cloudflare Quick Tunnel from the test machine. `[MANUAL-E2E]` requires real devices or independent networks and is never inferred from a local probe.
 
-- `[AUTO]`: executable unit/schema gate with exact test file.
-- `[SOCKET]`: real Socket.IO client/server integration.
-- `[PG]`: requires disposable PostgreSQL via `DATABASE_URL` and `TEST_DATABASE_URL`.
-- `[CLIENT]`: Vitest + React Testing Library.
-- `[BROWSER]`: automated Playwright browser-engine flow; not a physical device.
-- `[PACKAGED]`: packaged Electron/helper/PostgreSQL process proof, scoped to the
-  reported OS/architecture.
-- `[CI]`: GitHub Actions workflow behavior that only a real run can exercise (for
-  example the tag-triggered release publication); the recorded run is the evidence.
-- `[AUDIT]`: deterministic repository/content audit implemented as test/script.
-- `[MANUAL-E2E]`: browser/process validation; never called automated.
+| Area | Current evidence |
+| --- | --- |
+| GameCore and network protocol | `apps/server/src/socket.integration.test.ts`, room/game tests and shared schema tests |
+| RAM transaction, CAS, expiry | `apps/server/src/persistence/inMemory.test.ts`, `roomCommandExecutor.test.ts`, deadline scheduler and Socket.IO tests |
+| Host lifecycle and tunnel controller | `apps/desktop/tests/hostRuntime.test.ts`, `apps/desktop/src/online/*.test.ts` |
+| Packaged Windows LAN authority | `pnpm desktop:proof:host`: real bundled helper, four clients, LAN reachability/discovery, reconnect and old room/token rejection after restart |
+| Public Quick Tunnel from this machine | `scripts/proveQuickTunnel.mjs`: HTTPS client page, four Socket.IO clients, wrong-room/full-room behavior and reconnect |
+| Physical LAN and cross-network play | `[MANUAL-E2E]` Windows/macOS hosts, Android/iOS/tablet browsers, independent Wi-Fi/cellular networks |
 
-Không đánh dấu requirement đạt chỉ vì typecheck/build pass. Sau implementation, mỗi
-checklist item phải map tới assertion executable hoặc giữ nhãn missing/manual rõ.
-
-## Coverage map
-
-| Area | Checklist | Primary executable layer |
-| --- | --- | --- |
-| Identity/lobby/reconnect/reset | [join lifecycle](./join-room-and-player-lifecycle.md) | Socket + PG restart |
-| Turn/cards/jail/payment | [turn](./turn-movement-buy-and-jail.md) | GameCore + Socket + PG |
-| Bankruptcy/forfeit/winner | [bankruptcy](./game-status-bankruptcy-and-winner.md) | GameCore + Socket + PG |
-| Rent/build/transfer | [property](./property-economy.md) | GameCore + Socket |
-| 2v2 Teamplay (đội, thuê, hồi sinh, Emergency Rescue, thắng đội) | [team play](./team-play.md) | GameCore + Socket + PG + client |
-| `TradeBundle`/private offer | [trading](./trading-market-and-private-offers.md) | schema + Socket + PG |
-| Property/building/forced sale | [payment-shortfall](./payment-shortfall-and-forced-sale.md) | GameCore + Socket + scheduler + PG |
-| Protocol/snapshot/board/decks | [shared](./shared-contracts-and-board-data.md) | schema + room + data audit |
-| Bilingual client/motion | [client](./client-state-sync-motion-and-accessibility.md) | client + audit |
-| Chat/log safety | [chat](./chat-log-and-input-safety.md) | Socket + client |
-| Activity/victory/replay | [game status](./game-status-bankruptcy-and-winner.md), [client sync](./client-state-sync-motion-and-accessibility.md) | Activity schema + Socket + client |
-| DB/runtime/deploy | [runtime](./http-runtime-and-deployment.md) | migration + HTTP + PG |
-| Desktop Host/LAN/mobile | [runtime](./http-runtime-and-deployment.md), [join lifecycle](./join-room-and-player-lifecycle.md) | packaged Phase 7.0/7.2 + Chromium/WebKit |
-| Online host/discovery/join | [runtime](./http-runtime-and-deployment.md#online-host-manual-checks-not-run-in-this-iteration) | focused Worker/desktop/client tests; physical cross-network manual deferred |
-
-## Full gates
+## Required checks
 
 ```bash
-pnpm db:status
 pnpm typecheck
 pnpm lint
 pnpm test
 pnpm build
+pnpm desktop:package
+pnpm desktop:proof:host
 ```
 
-Persistence release additionally runs PostgreSQL migration/integration and fresh
-pool/server restart against the same disposable DB. Conditional/skipped suites do
-not satisfy V5 appearance/reset/recovery requirements. CI parity means both
-database variables are set before `pnpm db:migrate` and `pnpm test`; an unset
-`TEST_DATABASE_URL` is an explicitly skipped/conditional run.
-
-Phase 5.2 additionally distinguishes structured Activity Feed assertions from
-legacy string-log compatibility, and marks browser/Electron replay, reduced-motion,
-WebGL fallback and long-session audio checks as `[MANUAL-E2E]` unless executed live.
-
-Phase 7.2 runs `pnpm desktop:proof:host` separately from the retained Phase 7.0
-proof and `pnpm test:e2e:mobile` on mobile Chromium/WebKit profiles. Browser-engine
-PASS does not convert real iPhone/iPad/Android or physical LAN rows to PASS.
+The former `[PG]` label and PostgreSQL restart cases are retired. Old checklist pages may retain historical SQL wording; [RAM storage](../Persistence/README.md) and [HTTP hosting](../Api/http-runtime.instruction.md) supersede those parts. Do not convert old SQL migration or same-database restart entries into a current PASS.

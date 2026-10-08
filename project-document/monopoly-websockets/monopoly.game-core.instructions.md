@@ -77,8 +77,8 @@ functions must not broadcast, ACK or assume persistence has already succeeded.
 - Houses/hotels have no finite Bank inventory or colour-group/even-building gate;
   property invariant remains 0..5, non-street properties have zero buildings.
 - Deck order/jail-free ownership là authoritative private state và phải giữ nguyên
-  qua reconnect/restart. V7 semantic event lanes and `completedCardOperations` are
-  also persisted; public viewers receive only bounded safe events.
+  qua reconnect khi cùng host process còn sống. V7 semantic event lanes and
+  `completedCardOperations` remain in the RAM aggregate; public viewers receive only bounded safe events.
 
 ## Kiểm tra
 
@@ -88,4 +88,4 @@ pnpm typecheck
 pnpm lint
 ```
 
-Room/deadline changes also require Socket and restart integration tests.
+Room/deadline changes also require Socket, reconnect and process-loss integration tests.

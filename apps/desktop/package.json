@@ -11,7 +11,7 @@
     "dev": "node scripts/dev.mjs",
     "dev:shell": "node scripts/shell.mjs",
     "prepare:renderer": "node scripts/prepareRenderer.mjs",
-    "prepare:postgres": "node scripts/preparePostgres.mjs",
+    "prepare:cloudflared": "node scripts/prepareCloudflared.mjs",
     "compile": "node scripts/compile.mjs",
     "start:packaged": "node scripts/runPackagedProof.mjs --launch",
     "proof:packaged": "node scripts/runPackagedProof.mjs --phase7-runtime-proof",
@@ -21,9 +21,9 @@
     "proof:packaged:landmarks": "node scripts/validatePackagedLandmarkArt.mjs",
     "proof:packaged:budget": "node scripts/checkPackagedBudget.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --pool=threads --maxWorkers=1 --no-file-parallelism",
-    "package": "pnpm run prepare:renderer && pnpm run prepare:postgres && pnpm run compile && electron-forge package",
-    "make": "pnpm run prepare:renderer && pnpm run prepare:postgres && pnpm run compile && electron-forge make"
+    "test": "vitest run src tests --pool=threads --maxWorkers=1 --no-file-parallelism",
+    "package": "pnpm run prepare:renderer && pnpm run prepare:cloudflared && pnpm run compile && electron-forge package",
+    "make": "pnpm run prepare:renderer && pnpm run prepare:cloudflared && pnpm run compile && electron-forge make"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.11.2",

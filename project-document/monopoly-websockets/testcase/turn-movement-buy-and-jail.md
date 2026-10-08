@@ -14,7 +14,7 @@
   seat; doubles never grant an extra roll.
 - [ ] `[AUTO]` Buy wait and same-landing development wait delay
   `completeTurnResolution` and handoff exactly once.
-- [ ] `[SOCKET][PG]` Disconnect/restart restores the same pending operation ID and
+- [ ] `[SOCKET][RAM]` Disconnect and reconnect while the host is alive restores the same pending operation ID and
   continuation and cannot roll/advance twice.
 
 ## Tile/cards/decks
@@ -28,8 +28,8 @@
   charges the landing twice"; `rulesContract.test.ts` "charges each tax tile the amount in the tile data, to the Bank").
 - [ ] `[AUTO]` Chance/Khí Vận draw top in persisted order, normal card rotates bottom,
   movement resolves destination/pass-GO and go-to-jail direct semantics.
-- [ ] `[AUTO][PG]` Jail-free card leaves source pile, holder identity persists,
-  use/transfer/elimination returns card to correct deck; restart keeps exact piles.
+- [ ] `[AUTO][RAM]` Jail-free card leaves source pile, holder identity persists,
+  use/transfer/elimination returns card to correct deck while the host runs.
 
 ## Jail
 
@@ -48,7 +48,7 @@
 - [ ] `[CLIENT][MANUAL-E2E]` While jailed, the jail panel (compact strip at phone landscape, between the two bottom
   cards at 720 px and below) never hides the roll button: `hudOverlap.regionOverlaps` is empty in
   `evidence/03/g3/*jail*.json` at 1440×900, 1280×720, 1024×768, 812×375 and 667×375.
-- [ ] `[PG]` Restart preserves jail progress and card identities exactly.
+- [ ] `[RAM]` Host restart discards jail progress, card identities and the old room.
 
 ## Multi-debtor PaymentQueue
 
@@ -58,7 +58,7 @@
   `activeClaimIndex`; multiple debtors settle in deterministic Player order.
 - [ ] `[AUTO][SOCKET]` Only the active debtor can sell to Bank or propose a forced
   sale; ordinary listing/trade and roll remain blocked during shortfall.
-- [ ] `[PG]` Reconnect/restart preserves claim order/index/remaining source and
+- [ ] `[RAM]` Reconnect to the same live host preserves claim order/index/remaining source and
   resumes exactly once.
 - [ ] `[SOCKET]` Save failure causes no partial balance, claim removal, revision,
   ACK success or broadcast.

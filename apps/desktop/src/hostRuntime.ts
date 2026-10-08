@@ -3,11 +3,6 @@ import { CloudflareQuickTunnel, type ConnectivityProvider } from './online/conne
 import { HttpRoomDiscovery, type RoomDiscoveryProvider } from './online/discovery';
 
 import {
-  ManagedPostgresController,
-  type ManagedPostgresInfo,
-  type ManagedPostgresState,
-} from './managedPostgres';
-import {
   ServerHelperController,
   type ServerHelperInfo,
   type ServerHelperState,
@@ -20,7 +15,6 @@ import {
 
 export type HostRuntimeState =
   | 'IDLE'
-  | 'STARTING_POSTGRES'
   | 'STARTING_SERVER'
   | 'READY'
   | 'HOSTING'
@@ -29,12 +23,10 @@ export type HostRuntimeState =
 
 export type HostRuntimeErrorCode =
   | 'CLOUDFLARED_MISSING'
+  | 'CLOUDFLARED_CORRUPT'
   | 'REGISTRY_UNAVAILABLE'
   | 'CODE_TAKEN'
   | 'ONLINE_FAILED'
-  | 'POSTGRES_RESOURCES_MISSING'
-  | 'POSTGRES_INITIALIZATION_FAILED'
-  | 'MIGRATION_FAILED'
   | 'HELPER_FAILED'
   | 'READINESS_TIMEOUT'
   | 'PORT_OCCUPIED'
@@ -74,12 +66,6 @@ export type HostRuntimeOperationResult =
 
 export type HostRuntimeListener = (status: HostRuntimeStatus) => void;
 
-export interface ManagedPostgresLike {
-  readonly state: ManagedPostgresState;
-  start(): Promise<ManagedPostgresInfo>;
-  stop(): Promise<void>;
-}
-
 export interface ServerHelperLike {
   readonly state: ServerHelperState;
   readonly diagnostic: string;
@@ -90,11 +76,8 @@ export interface ServerHelperLike {
 }
 
 export interface HostRuntimeOptions {
-  resourceRoot: string;
   helperPath: string;
-  migrationDirectory: string;
   clientDist: string;
-  userDataPath: string;
   appVersion: string;
   platform?: DesktopPlatform;
   defaultPort?: number;
@@ -102,8 +85,7 @@ export interface HostRuntimeOptions {
   interfaceProvider?: (defaultRouteAddress?: string) => NetworkInterfaceCandidate[];
   /** Finds the local address of the default route (see `probeDefaultRouteAddress`); without it no route is preferred. */
   routeProbe?: () => Promise<string | undefined>;
-  postgres?: ManagedPostgresLike;
-  helperFactory?: (databaseUrl: string, port: number) => ServerHelperLike;
+  helperFactory?: (port: number) => ServerHelperLike;
   healthCheckIntervalMs?: number;
   connectivity?: ConnectivityProvider;
   discovery?: RoomDiscoveryProvider;
@@ -115,8 +97,6 @@ const LOOPBACK_HOST = '127.0.0.1';
 const LAN_BIND_HOST = '0.0.0.0';
 const AUTO_GAME_PORT = 0;
 const AUTO_PORT_ATTEMPTS = 3;
-const RECOVERY_ATTEMPTS = 2;
-const RECOVERY_BACKOFF_MS = 250;
 const DIAGNOSTIC_LIMIT = 512;
 
 function platformName(value: NodeJS.Platform = process.platform): DesktopPlatform {
@@ -129,8 +109,6 @@ function errorText(error: unknown): string {
 
 function safeDiagnostic(error: unknown): string {
   return errorText(error)
-    .replace(/postgres(?:ql)?(?:\+[^:]+)?:\/\/[^\s"'\x60]+/giu, 'postgresql://[redacted]')
-    .replace(/(DATABASE_URL|PGPASSWORD)\s*[=:]\s*[^\s]+/giu, '$1=[redacted]')
     .slice(-DIAGNOSTIC_LIMIT);
 }
 
@@ -144,6 +122,7 @@ function validatePort(port: number): number {
 export function classifyHostRuntimeError(error: unknown): HostRuntimeErrorCode {
   const message = errorText(error).toLowerCase();
   if (message.includes('cloudflared_missing')) return 'CLOUDFLARED_MISSING';
+  if (message.includes('cloudflared_corrupt')) return 'CLOUDFLARED_CORRUPT';
   if (message.includes('code_taken')) return 'CODE_TAKEN';
   if (message.includes('registry')) return 'REGISTRY_UNAVAILABLE';
   if (message.includes('tunnel') || message.includes('online')) return 'ONLINE_FAILED';
@@ -153,17 +132,10 @@ export function classifyHostRuntimeError(error: unknown): HostRuntimeErrorCode {
   if (message.includes('eacces') || message.includes('permission denied') || message.includes('bind')) {
     return 'BIND_DENIED';
   }
-  if (message.includes('migration')) return 'MIGRATION_FAILED';
   if (message.includes('timed out') || message.includes('readiness') || message.includes('became ready')) {
     return 'READINESS_TIMEOUT';
   }
   if (message.includes('helper') || message.includes('server')) return 'HELPER_FAILED';
-  if (message.includes('resource') || message.includes('enoent') || message.includes('initdb')) {
-    return 'POSTGRES_RESOURCES_MISSING';
-  }
-  if (message.includes('postgres') || message.includes('pg_ctl') || message.includes('database')) {
-    return 'POSTGRES_INITIALIZATION_FAILED';
-  }
   return 'RUNTIME_FAILED';
 }
 
@@ -185,13 +157,10 @@ function initialStatus(options: HostRuntimeOptions): HostRuntimeStatus {
 
 export class HostRuntimeController {
   private currentStatus: HostRuntimeStatus;
-  private postgres: ManagedPostgresLike | undefined;
   private helper: ServerHelperLike | undefined;
-  private databaseUrl: string | undefined;
   private startPromise: Promise<HostRuntimeStatus> | undefined;
   private stopPromise: Promise<HostRuntimeStatus> | undefined;
   private recoveryPromise: Promise<void> | undefined;
-  private recoveryAttemptsUsed = 0;
   private healthTimer: NodeJS.Timeout | undefined;
   private removeUnexpectedExitListener: (() => void) | undefined;
   private defaultRouteAddress: string | undefined;
@@ -200,22 +169,19 @@ export class HostRuntimeController {
   private connectivity: ConnectivityProvider | undefined;
   private discovery: RoomDiscoveryProvider | undefined;
   private onlineLease: { roomCode: string; credential: string; proof: string } | undefined;
+  private onlineRoomCode: string | undefined;
   private renewalTimer: NodeJS.Timeout | undefined;
   private onlineRecoveryPromise: Promise<void> | undefined;
   private onlineEpoch = 0;
 
   public constructor(private readonly options: HostRuntimeOptions) {
     for (const [name, value] of [
-      ['Host PostgreSQL resource root', options.resourceRoot],
       ['Host helper path', options.helperPath],
-      ['Host migration directory', options.migrationDirectory],
       ['Host client distribution', options.clientDist],
-      ['Host user data path', options.userDataPath],
     ] as const) {
       if (!path.isAbsolute(value)) throw new Error(`${name} must be absolute`);
     }
     this.currentStatus = initialStatus(options);
-    this.postgres = options.postgres;
     this.interfaceProvider = options.interfaceProvider
       ?? (defaultRouteAddress => resolveNetworkInterfaces(undefined, defaultRouteAddress));
     this.connectivity = options.connectivity;
@@ -242,7 +208,6 @@ export class HostRuntimeController {
     }
     if (this.startPromise) return this.startPromise;
     if (this.stopPromise) await this.stopPromise;
-    this.recoveryAttemptsUsed = 0;
     this.startPromise = this.startInternal(options).catch(error => {
       if (this.currentStatus.state !== 'FAILED') {
         this.update({ state: 'FAILED', errorCode: classifyHostRuntimeError(error) });
@@ -273,26 +238,32 @@ export class HostRuntimeController {
   }
 
   public async activateOnlineRoom(roomCode: string): Promise<HostRuntimeStatus> {
-    const lease = this.onlineLease;
     const endpoint = this.currentStatus.onlineEndpoint;
-    if (!lease || lease.roomCode !== roomCode || !endpoint || !this.discovery
+    if (this.onlineRoomCode !== roomCode || !endpoint
       || this.currentStatus.state !== 'HOSTING') throw new Error('ONLINE_ROOM_NOT_READY');
     try {
-      await this.discovery.activate(roomCode, lease.credential, endpoint);
+      const response = await fetch(`${endpoint}/_otb/room?code=${encodeURIComponent(roomCode)}`, {
+        redirect: 'error', signal: AbortSignal.timeout(8_000),
+      });
+      if (!response.ok) throw new Error('ONLINE_ROOM_NOT_READY');
+      if (this.onlineLease && this.discovery) {
+        await this.discovery.activate(roomCode, this.onlineLease.credential, endpoint);
+      }
     } catch (error) {
-      this.update({ onlineState: 'DISCOVERY_UNAVAILABLE' });
+      this.update({ onlineState: 'UNAVAILABLE' });
       throw error;
     }
     this.update({ onlineState: 'READY' });
     if (this.renewalTimer) clearInterval(this.renewalTimer);
-    this.renewalTimer = setInterval(() => {
-      void this.discovery?.renew(roomCode, lease.credential).then(() => {
-        if (this.currentStatus.onlineEndpoint) this.update({ onlineState: 'READY' });
-      }).catch(() => {
-        this.update({ onlineState: 'DISCOVERY_UNAVAILABLE' });
-      });
-    }, 30_000);
-    this.renewalTimer.unref();
+    if (this.onlineLease && this.discovery) {
+      const lease = this.onlineLease;
+      this.renewalTimer = setInterval(() => {
+        void this.discovery?.renew(roomCode, lease.credential).catch(() => {
+          this.update({ onlineState: 'DISCOVERY_UNAVAILABLE' });
+        });
+      }, 30_000);
+      this.renewalTimer.unref();
+    }
     return this.status;
   }
 
@@ -308,6 +279,7 @@ export class HostRuntimeController {
     this.renewalTimer = undefined;
     const lease = this.onlineLease;
     this.onlineLease = undefined;
+    this.onlineRoomCode = undefined;
     if (lease && this.discovery) await this.discovery.revoke(lease.roomCode, lease.credential).catch(() => undefined);
     await this.connectivity?.stop().catch(() => undefined);
     this.update({ onlineEndpoint: null, onlineState: undefined });
@@ -318,24 +290,33 @@ export class HostRuntimeController {
     const publicEndpoint = await this.connectivity.start(this.currentStatus.localEndpoint, () => {
       if (this.currentStatus.state === 'HOSTING') void this.recoverOnlineTunnel();
     });
-    const response = await fetch(`${publicEndpoint}/readyz`, {
-      redirect: 'error', signal: AbortSignal.timeout(8_000),
-    });
-    if (!response.ok) throw new Error('ONLINE_FAILED');
-    return publicEndpoint;
+    const deadline = Date.now() + 40_000;
+    do {
+      try {
+        const response = await fetch(`${publicEndpoint}/readyz`, {
+          redirect: 'error', signal: AbortSignal.timeout(5_000),
+        });
+        const page = await fetch(`${publicEndpoint}/`, {
+          redirect: 'error', signal: AbortSignal.timeout(5_000),
+        });
+        if (response.ok && page.ok && (await page.text()).includes('<html')) return publicEndpoint;
+      } catch { /* DNS and the public route can lag the tunnel URL announcement. */ }
+      await new Promise(resolve => setTimeout(resolve, 1_000));
+    } while (Date.now() < deadline);
+    throw new Error('ONLINE_FAILED');
   }
 
   private async recoverOnlineTunnel(): Promise<void> {
     if (this.onlineRecoveryPromise) return this.onlineRecoveryPromise;
-    const lease = this.onlineLease;
-    if (!lease || !this.discovery) return;
+    const roomCode = this.onlineRoomCode;
+    if (!roomCode) return;
     const wasReady = this.currentStatus.onlineState === 'READY';
     const epoch = ++this.onlineEpoch;
     this.update({ onlineState: 'UNAVAILABLE', onlineEndpoint: null });
     if (this.renewalTimer) clearInterval(this.renewalTimer);
     this.renewalTimer = undefined;
     this.onlineRecoveryPromise = (async () => {
-      await this.discovery?.suspend(lease.roomCode, lease.credential).catch(() => undefined);
+      if (this.onlineLease) await this.discovery?.suspend(roomCode, this.onlineLease.credential).catch(() => undefined);
       for (let attempt = 0; attempt < 2; attempt += 1) {
         if (epoch !== this.onlineEpoch || this.currentStatus.state !== 'HOSTING') return;
         if (attempt > 0) await new Promise(resolve => setTimeout(resolve, 1_000));
@@ -343,7 +324,7 @@ export class HostRuntimeController {
           const endpoint = await this.openOnlineTunnel();
           if (epoch !== this.onlineEpoch) { await this.connectivity?.stop(); return; }
           this.update({ onlineEndpoint: endpoint, onlineState: 'AWAITING_ROOM' });
-          if (wasReady) await this.activateOnlineRoom(lease.roomCode).catch(() => undefined);
+          if (wasReady) await this.activateOnlineRoom(roomCode).catch(() => undefined);
           return;
         } catch {
           await this.connectivity?.stop().catch(() => undefined);
@@ -373,7 +354,7 @@ export class HostRuntimeController {
       selectedLanUrl: selectedAddress && port
         ? `http://${selectedAddress}:${String(port)}`
         : null,
-      ...(interfaces.length > 0
+      ...(interfaces.length > 0 || this.currentStatus.connectionMode === 'ONLINE'
         ? { errorCode: this.currentStatus.errorCode === 'NO_LAN_INTERFACE' ? undefined : this.currentStatus.errorCode }
         : { errorCode: 'NO_LAN_INTERFACE' as const }),
     });
@@ -387,7 +368,7 @@ export class HostRuntimeController {
     try {
       await this.helper.checkHealth();
     } catch (error) {
-      await this.beginRecovery('database', error);
+      await this.beginRecovery(error);
     }
     return this.status;
   }
@@ -407,18 +388,21 @@ export class HostRuntimeController {
     const online = options.mode === 'ONLINE';
     if (online) {
       if (!options.roomCode || !/^[A-Z0-9-]{1,20}$/.test(options.roomCode)) throw new Error('INVALID_CODE');
+      this.onlineRoomCode = options.roomCode;
       this.discovery ??= this.options.registryUrl ? new HttpRoomDiscovery(this.options.registryUrl) : undefined;
-      if (!this.discovery) throw new Error('REGISTRY_UNAVAILABLE');
       this.connectivity ??= new CloudflareQuickTunnel(this.options.cloudflaredPath);
-      const reservation = await this.discovery.reserve(options.roomCode);
-      this.onlineLease = { roomCode: options.roomCode, ...reservation };
+      if (this.discovery) {
+        // Registry discovery is optional; a complete HTTPS invitation carries
+        // its endpoint and code even when the registry is unavailable.
+        const reservation = await this.discovery.reserve(options.roomCode).catch(() => undefined);
+        if (reservation) this.onlineLease = { roomCode: options.roomCode, ...reservation };
+      }
     }
     await this.refreshRoute();
     const interfaces = this.interfaceProvider(this.defaultRouteAddress);
     const preferredAddress = options.preferredAddress ?? interfaces[0]?.address;
-    if (!preferredAddress || !interfaces.some(candidate => candidate.address === preferredAddress)) {
+    if (!online && (!preferredAddress || !interfaces.some(candidate => candidate.address === preferredAddress))) {
       const error = new Error('No usable LAN IPv4 interface is available');
-      if (online) await this.stopOnline();
       this.update({
         state: 'FAILED',
         interfaces,
@@ -430,46 +414,37 @@ export class HostRuntimeController {
     }
 
     this.update({
-      state: 'STARTING_POSTGRES',
+      state: 'STARTING_SERVER',
       connectionMode: online ? 'ONLINE' : 'LAN',
       onlineState: online ? 'CONNECTING' : undefined,
       onlineEndpoint: null,
       gamePort: requestedPort || null,
       localEndpoint: requestedPort ? `http://${LOOPBACK_HOST}:${String(requestedPort)}` : null,
       interfaces,
-      lanAvailable: true,
+      lanAvailable: interfaces.length > 0,
       advertisedEndpoints: requestedPort ? advertisedEndpoints(interfaces, requestedPort) : [],
-      selectedLanUrl: requestedPort ? `http://${preferredAddress}:${String(requestedPort)}` : null,
+      selectedLanUrl: preferredAddress && requestedPort ? `http://${preferredAddress}:${String(requestedPort)}` : null,
       errorCode: undefined,
       diagnostic: undefined,
     });
-    let postgresStarted = false;
     try {
-      this.postgres ??= new ManagedPostgresController({
-        resourceRoot: this.options.resourceRoot,
-        userDataPath: this.options.userDataPath,
-      });
-      const postgresInfo = await this.postgres.start();
-      this.databaseUrl = postgresInfo.databaseUrl;
-      postgresStarted = true;
-      this.update({ state: 'STARTING_SERVER' });
-      const helperInfo = await this.startHelperWithRetry(postgresInfo.databaseUrl, requestedPort);
+      const helperInfo = await this.startHelperWithRetry(requestedPort);
       const port = helperInfo.port;
       this.update({
-        state: 'HOSTING',
+        state: online ? 'STARTING_SERVER' : 'HOSTING',
         gamePort: port,
         localEndpoint: `http://${LOOPBACK_HOST}:${String(port)}`,
         interfaces,
         advertisedEndpoints: advertisedEndpoints(interfaces, port),
-        selectedLanUrl: `http://${preferredAddress}:${String(port)}`,
-        lanAvailable: true,
+        selectedLanUrl: preferredAddress ? `http://${preferredAddress}:${String(port)}` : null,
+        lanAvailable: interfaces.length > 0,
         errorCode: undefined,
         diagnostic: undefined,
       });
       this.startHealthMonitor();
       if (online && this.connectivity) {
         const publicEndpoint = await this.openOnlineTunnel();
-        this.update({ onlineEndpoint: publicEndpoint, onlineState: 'AWAITING_ROOM' });
+        this.update({ state: 'HOSTING', onlineEndpoint: publicEndpoint, onlineState: 'AWAITING_ROOM' });
       }
       return this.status;
     } catch (error) {
@@ -477,8 +452,6 @@ export class HostRuntimeController {
       this.detachHelperListener();
       await this.helper?.stop().catch(() => undefined);
       this.helper = undefined;
-      if (postgresStarted) await this.postgres?.stop().catch(() => undefined);
-      this.databaseUrl = undefined;
       this.update({
         state: 'FAILED',
         errorCode: classifyHostRuntimeError(error),
@@ -488,27 +461,26 @@ export class HostRuntimeController {
     }
   }
 
-  private createHelper(databaseUrl: string, port: number): ServerHelperLike {
-    return this.options.helperFactory?.(databaseUrl, port)
+  private createHelper(port: number): ServerHelperLike {
+    return this.options.helperFactory?.(port)
       ?? new ServerHelperController({
         modulePath: this.options.helperPath,
-        migrationDirectory: this.options.migrationDirectory,
         clientDist: this.options.clientDist,
-        databaseUrl,
         host: LAN_BIND_HOST,
         port,
         environment: this.onlineLease ? {
           OTB_REGISTRY_ROOM_CODE: this.onlineLease.roomCode,
           OTB_REGISTRY_PROOF: this.onlineLease.proof,
-        } : undefined,
+          OTB_ONLINE_ROOM_CODE: this.onlineLease.roomCode,
+        } : this.onlineRoomCode ? { OTB_ONLINE_ROOM_CODE: this.onlineRoomCode } : undefined,
       });
   }
 
-  private async startHelperWithRetry(databaseUrl: string, requestedPort: number): Promise<ServerHelperInfo> {
+  private async startHelperWithRetry(requestedPort: number): Promise<ServerHelperInfo> {
     const attempts = requestedPort === AUTO_GAME_PORT ? AUTO_PORT_ATTEMPTS : 1;
     let lastError: unknown;
     for (let attempt = 0; attempt < attempts; attempt += 1) {
-      const helper = this.createHelper(databaseUrl, requestedPort);
+      const helper = this.createHelper(requestedPort);
       this.helper = helper;
       try {
         const info = await helper.start();
@@ -531,7 +503,7 @@ export class HostRuntimeController {
     this.detachHelperListener();
     this.removeUnexpectedExitListener = helper.onUnexpectedExit?.(diagnostic => {
       if (this.helper !== helper || this.currentStatus.state !== 'HOSTING') return;
-      void this.beginRecovery('helper', new Error(diagnostic || 'Server helper exited unexpectedly'));
+      void this.beginRecovery(new Error(diagnostic || 'Server helper exited unexpectedly'));
     });
   }
 
@@ -555,54 +527,26 @@ export class HostRuntimeController {
     this.healthTimer = undefined;
   }
 
-  private beginRecovery(kind: 'helper' | 'database', error: unknown): Promise<void> {
+  private beginRecovery(error: unknown): Promise<void> {
     if (this.recoveryPromise) return this.recoveryPromise;
     if (this.currentStatus.state === 'IDLE' || this.currentStatus.state === 'STOPPING') {
       return Promise.resolve();
     }
-    this.recoveryPromise = this.recover(kind, error).finally(() => {
+    this.recoveryPromise = this.recover(error).finally(() => {
       this.recoveryPromise = undefined;
     });
     return this.recoveryPromise;
   }
 
-  private async recover(kind: 'helper' | 'database', initialError: unknown): Promise<void> {
+  private async recover(error: unknown): Promise<void> {
     this.stopHealthMonitor();
-    const port = this.currentStatus.gamePort;
-    if (!port || !this.postgres || !this.databaseUrl) {
-      this.failRecovery(initialError);
-      return;
-    }
-    let lastError = initialError;
-    while (this.recoveryAttemptsUsed < RECOVERY_ATTEMPTS) {
-      this.recoveryAttemptsUsed += 1;
-      if (this.recoveryAttemptsUsed > 1) {
-        await new Promise(resolve => setTimeout(resolve, RECOVERY_BACKOFF_MS));
-      }
-      try {
-        this.detachHelperListener();
-        if (kind === 'database') {
-          this.update({ state: 'STARTING_POSTGRES', errorCode: undefined, diagnostic: undefined });
-          await this.helper?.stop().catch(() => undefined);
-          this.helper = undefined;
-          await this.postgres.stop().catch(() => undefined);
-          const postgresInfo = await this.postgres.start();
-          this.databaseUrl = postgresInfo.databaseUrl;
-        } else {
-          this.helper = undefined;
-        }
-        this.update({ state: 'STARTING_SERVER', errorCode: undefined, diagnostic: undefined });
-        const helperInfo = await this.startHelperWithRetry(this.databaseUrl, port);
-        if (helperInfo.port !== port) throw new Error('Recovered helper changed the game port');
-        this.update({ state: 'HOSTING', errorCode: undefined, diagnostic: undefined });
-        this.refreshNetwork();
-        this.startHealthMonitor();
-        return;
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    this.failRecovery(lastError);
+    // A helper exit destroys the only authoritative copy of the match.
+    // Never restart it behind an existing room or reconnect token.
+    await this.stopOnline();
+    this.detachHelperListener();
+    await this.helper?.stop().catch(() => undefined);
+    this.helper = undefined;
+    this.failRecovery(error);
   }
 
   private failRecovery(error: unknown): void {
@@ -626,12 +570,6 @@ export class HostRuntimeController {
       firstError = error;
     }
     this.helper = undefined;
-    try {
-      if (this.postgres && this.postgres.state !== 'STOPPED') await this.postgres.stop();
-    } catch (error) {
-      firstError ??= error;
-    }
-    this.databaseUrl = undefined;
     if (firstError) {
       this.update({
         state: 'FAILED',
@@ -640,7 +578,6 @@ export class HostRuntimeController {
       });
       throw firstError instanceof Error ? firstError : new Error(errorText(firstError));
     }
-    this.recoveryAttemptsUsed = 0;
     this.update({
       state: 'IDLE',
       gamePort: null,

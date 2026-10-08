@@ -3,7 +3,7 @@
 ## Coverage
 
 GameCore sanitization assertions do not by themselves prove Socket role/room routing,
-runtime schema or PostgreSQL failure behavior.
+runtime schema or RAM transaction failure behavior.
 
 ## Checklist
 

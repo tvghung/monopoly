@@ -70,7 +70,7 @@ Finished history records reason (`BANKRUPT | LEFT`); it is not erased by disconn
 
 ## Persistence/cleanup
 
-- PostgreSQL JSONB aggregate is authority; commands load a fresh row into a draft
+- In-memory room aggregate is authority; commands load a fresh record into a draft
   and publish only the committed result.
 - All-offline alone does not immediately delete a room; configured inactivity
   retention still applies.
@@ -101,4 +101,4 @@ Finished history records reason (`BANKRUPT | LEFT`); it is not erased by disconn
 - Spectator versus reconnect after start.
 - Finished reconnect, host-only same-room replay, finished-player return and explicit
   LEFT exclusion; spectator role/session continuity and fresh second match.
-- Retention cleanup and room restart from PostgreSQL.
+- Retention cleanup while the server lives; a process restart starts an empty match universe.

@@ -13,8 +13,8 @@
 
 - [ ] `[AUTO]` Forced Bank sale clears ownership and buildings;
   it stops once the active claim is affordable.
-- [ ] `[AUTO][PG]` Payment deadline recovery repeats deterministic sales after a
-  fresh runtime, then continues later claims or eliminates only after assets end.
+- [ ] `[AUTO][RAM]` Payment deadline handling repeats deterministic sales within the
+  live host, then continues later claims or eliminates only after assets end.
 
 ## Multi-claim/winner/reference safety
 
@@ -24,8 +24,8 @@
   and deck holders with no dangling stable-ID reference.
 - [ ] `[AUTO][SOCKET]` Last active Player becomes stable winner once; room FINISHED,
   all live operation/deadline state clear; bankruptcy and leave reasons differ.
-- [ ] `[PG]` Finished/winner history restores and obeys retention; reconnect identity
-  and credential privacy remain intact.
+- [ ] `[RAM]` Finished/winner history remains available for reconnect while the host
+  runs; credential privacy remains intact. Host restart clears the history.
 - [ ] `[AUTO][CLIENT]` WinnerBanner shows only authoritative winner name, mascot,
   color, final cash, owned-property count, houses and hotel count; level `5` counts
   as one hotel.

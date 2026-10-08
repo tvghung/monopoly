@@ -11,7 +11,7 @@ export interface ActivateConnectionResult extends ActiveConnection {
 
 /**
  * Process-local connection ownership. Stable player identity lives in the
- * database; this registry only answers which transport currently owns it.
+ * room/session store in the same process; this registry only answers which transport currently owns it.
  */
 export class ConnectionRegistry {
   private readonly activeByPlayer = new Map<PlayerId, ActiveConnection>();

@@ -51,9 +51,6 @@ const modeTitle: Record<Exclude<LauncherMode, null>, MessageKey> = {
 const QUIT_PATIENCE_MS = 10_000;
 
 const hostErrorCopy: Record<HostRuntimeErrorCode, MessageKey> = {
-  POSTGRES_RESOURCES_MISSING: 'launcher.hostMissingFiles',
-  POSTGRES_INITIALIZATION_FAILED: 'launcher.hostDataFailed',
-  MIGRATION_FAILED: 'launcher.hostMigrationFailed',
   HELPER_FAILED: 'launcher.hostStopped',
   READINESS_TIMEOUT: 'launcher.hostNotReady',
   PORT_OCCUPIED: 'launcher.hostUnavailable',
@@ -61,6 +58,7 @@ const hostErrorCopy: Record<HostRuntimeErrorCode, MessageKey> = {
   NO_LAN_INTERFACE: 'launcher.noNetwork',
   RUNTIME_FAILED: 'launcher.hostFailed',
   CLOUDFLARED_MISSING: 'launcher.onlineToolMissing',
+  CLOUDFLARED_CORRUPT: 'launcher.onlineToolMissing',
   REGISTRY_UNAVAILABLE: 'launcher.registryUnavailable',
   CODE_TAKEN: 'launcher.codeTaken',
   ONLINE_FAILED: 'launcher.onlineFailed',
@@ -107,7 +105,6 @@ function runtimeConfig(endpoint: string, status?: HostRuntimeStatus): DesktopLau
 function hostIsOpen(status?: HostRuntimeStatus): boolean {
   return status?.state === 'HOSTING'
     || status?.state === 'READY'
-    || status?.state === 'STARTING_POSTGRES'
     || status?.state === 'STARTING_SERVER';
 }
 
@@ -333,8 +330,7 @@ export default function DesktopMultiplayerLauncher({
   };
 
   if (!bridge) return null;
-  const hostStarting = hostStatus?.state === 'STARTING_POSTGRES'
-    || hostStatus?.state === 'STARTING_SERVER'
+  const hostStarting = hostStatus?.state === 'STARTING_SERVER'
     || hostStatus?.state === 'STOPPING';
   const working = busy || hostStarting || searching;
   const canQuit = typeof bridge.quit?.exitApp === 'function';
@@ -360,7 +356,7 @@ export default function DesktopMultiplayerLauncher({
         </header>
 
         {error ? <p className="desktop-launcher__error" role="alert">{errorMessage(error, t)}</p> : null}
-        {hostStarting ? <p className="desktop-launcher__status" role="status">{t(hostStatus?.state === 'STARTING_POSTGRES' ? 'launcher.startingRoom' : hostStatus?.state === 'STARTING_SERVER' ? 'launcher.openingRoom' : 'launcher.closingRoom')}</p> : null}
+        {hostStarting ? <p className="desktop-launcher__status" role="status">{t(hostStatus?.state === 'STARTING_SERVER' ? 'launcher.openingRoom' : 'launcher.closingRoom')}</p> : null}
         <UpdateStatusLine menuVisible={mode === null} />
 
         {mode === null ? (
@@ -536,7 +532,7 @@ export default function DesktopMultiplayerLauncher({
                 {searching
                   ? t('launcher.findingRoom')
                   : working
-                    ? t(hostStatus?.state === 'STARTING_POSTGRES' ? 'launcher.startingRoom' : hostStatus?.state === 'STARTING_SERVER' ? 'launcher.openingRoom' : 'launcher.preparing')
+                    ? t(hostStatus?.state === 'STARTING_SERVER' ? 'launcher.openingRoom' : 'launcher.preparing')
                     : t(mode === 'host' ? 'launcher.createAndJoin' : 'launcher.connectAndJoin')}
               </Button>
               {submitReason && !working ? (

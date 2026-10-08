@@ -47,6 +47,7 @@ export function registerSessionHandlers(
   socket: AppSocket,
   runtime: AppRuntime,
   allowRoomCreation: boolean,
+  onlineRoomCode?: string,
 ): void {
   const admissionAttempts = peerAdmissionAttempts(runtime, socket);
 
@@ -85,7 +86,7 @@ export function registerSessionHandlers(
         request.name,
         request.roomCode,
         new Date(),
-        allowRoomCreation,
+        allowRoomCreation && (!onlineRoomCode || request.roomCode === onlineRoomCode),
       );
       if (admission.kind === 'PENDING') {
         ownsAdmissionLock = false;

@@ -1,5 +1,7 @@
 # Own the Block V1 Final Manual Acceptance
 
+> Historical V1 checklist. Current hosting and verification instructions are in the [RAM hosting guide](../monopoly-websockets/README.md). Earlier database and restart expectations are no longer current.
+
 Status: **V1 RELEASED ON THE PRODUCT OWNER'S DECISION (2026-10-02); THE ROWS BELOW WERE NOT ITEMISED AND STAY UNCHECKED**
 
 This is the current manual checklist for the code-bearing closeout. Every item

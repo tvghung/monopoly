@@ -37,16 +37,14 @@ module.exports = {
     // development workspace out of the packaged app without invoking pnpm's
     // dependency-pruning walker over its symlink layout.
     prune: false,
-    // app.asar only needs dist/ and package.json. generated/ (managed PostgreSQL and the
-    // server helper) ships once through extraResource and is read from
-    // process.resourcesPath; packing it into app.asar as well duplicated about 139 MiB.
+    // Runtime binaries ship once as external resources.
     // update-policy.json is release tooling input (it becomes update-manifest.json at publish time), not app data.
     ignore: [/^\/node_modules/, /^\/(?:generated|src|tests|scripts)(?:\/|$)/, /^\/update-policy\.json$/],
     extraResource: [
       path.resolve(__dirname, '../client/dist'),
       releaseConfig,
-      path.resolve(__dirname, 'generated/postgres'),
       path.resolve(__dirname, 'generated/server-helper'),
+      path.resolve(__dirname, 'generated/cloudflared'),
     ],
   },
   hooks: {

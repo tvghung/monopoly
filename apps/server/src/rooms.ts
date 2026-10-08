@@ -128,9 +128,8 @@ interface LegacyRoomSnapshotShape {
 }
 
 /**
- * Pure JSON boundary used by migration tests and operational tooling. The SQL
- * migration is the production upgrader; this helper makes the exact V4 -> V5
- * transformation executable without inventing an appearance.
+ * Historical snapshot upgrade helper. Current RAM rooms are created at schema V10;
+ * this preserves the exact V4 -> V5 transformation without inventing an appearance.
  */
 export const upgradeRoomSnapshotV4ToV5 = (
   input: unknown,
@@ -171,9 +170,8 @@ export const upgradeRoomSnapshotV4ToV5 = (
 };
 
 /**
- * Pure JSON boundary used by migration tests and operational tooling. The SQL
- * migration is the production upgrader; this helper applies the same V5 -> V6
- * baseline without inventing historical roll count.
+ * Historical snapshot upgrade helper. Current RAM rooms are created at schema V10;
+ * this applies the V5 -> V6 baseline without inventing historical roll count.
  */
 export const upgradeRoomSnapshotV5ToV6 = (
   input: unknown,

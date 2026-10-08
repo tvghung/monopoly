@@ -56,12 +56,12 @@
 
 ## v2 → v3 reset
 
-- [ ] `[PG]` v2 IN_PROGRESS room resets transactionally to a fresh v3
+- [ ] `[HISTORICAL]` v2 IN_PROGRESS room resets transactionally to a fresh v3
   `IN_PROGRESS` turn while preserving room/code, stable IDs, join order/name/color/
   ready, host and active session hashes; old gameplay/offers/deadlines clear.
-- [ ] `[SOCKET][PG]` Starting roll chooses only the first Player and rotates existing
+- [ ] `[SOCKET][RAM]` Starting roll chooses only the first Player and rotates existing
   cyclic Seat order; existing tokens resume the same Seats with no session cascade.
-- [ ] `[PG]` Reset rerun is idempotent and malformed/mid-failure transaction cannot
+- [ ] `[HISTORICAL]` Reset rerun is idempotent and malformed/mid-failure transaction cannot
   leave mixed v2/v3 state.
 
 ## Mascot labels (visual overhaul V2, plan 04)

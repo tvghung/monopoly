@@ -1,16 +1,14 @@
 import { existsSync } from 'node:fs';
-import { open, readdir, readFile, stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { open, readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import { findPackagedApplication } from './packagedRenderer.mjs';
 import { KEPT_ELECTRON_LOCALES } from './pruneElectronLocales.mjs';
-import { REQUIRED_POSTGRES_BINARIES, shouldShipPostgresFile } from './postgresRuntimeFilter.mjs';
 
-// Size gate for the packaged desktop app: proves the packaging stays lean (no duplicate PostgreSQL inside
-// app.asar, pruned PostgreSQL and Electron locales) and that the installers a player downloads stay within budget.
+// Size gate for the packaged desktop app and bundled tunnel helper.
 // It prints the size table either way, so every Desktop Build log records what a player downloads.
 
-const desktopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MIB = 1048576;
 
 /** app.asar holds only the compiled main/preload code and package.json. */
@@ -89,7 +87,6 @@ export async function checkPackagedBudget({
   outRoot,
   platform = process.platform,
   architecture = process.arch,
-  postgresResources,
 }) {
   const errors = [];
   const rows = [];
@@ -107,19 +104,23 @@ export async function checkPackagedBudget({
   }
 
   const targetKey = `${platform}-${architecture}`;
-  const target = postgresResources.targets[targetKey];
-  const postgresRoot = path.join(resourcesRoot, 'postgres', targetKey);
-  const postgresFiles = await walkFiles(postgresRoot);
-  rows.push([`resources/postgres/${targetKey}`, total(postgresFiles)]);
-  const leaked = postgresFiles.filter(file => !shouldShipPostgresFile(file.path, target?.runtimeExclude ?? []));
-  if (leaked.length) {
-    errors.push(`resources/postgres ships ${leaked.length} excluded file(s), for example ${leaked[0].path}`);
-  }
-  const extension = platform === 'win32' ? '.exe' : '';
-  for (const binary of REQUIRED_POSTGRES_BINARIES) {
-    if (!existsSync(path.join(postgresRoot, 'bin', `${binary}${extension}`))) {
-      errors.push(`resources/postgres is missing the required bin/${binary}${extension}`);
+  if (existsSync(path.join(resourcesRoot, 'postgres'))) errors.push('Obsolete PostgreSQL runtime is bundled');
+  const tunnelRoot = path.join(resourcesRoot, 'cloudflared', targetKey);
+  const tunnelBinary = path.join(tunnelRoot, platform === 'win32' ? 'cloudflared.exe' : 'cloudflared');
+  if (!existsSync(tunnelBinary)) errors.push(`Bundled cloudflared binary is missing for ${targetKey}`);
+  else {
+    const digestFile = path.join(tunnelRoot, 'cloudflared.sha256');
+    if (!existsSync(digestFile)) errors.push(`Bundled cloudflared verification digest is missing for ${targetKey}`);
+    else {
+      const expected = (await readFile(digestFile, 'utf8')).trim();
+      const actual = createHash('sha256').update(await readFile(tunnelBinary)).digest('hex');
+      if (actual !== expected) errors.push(`Bundled cloudflared verification digest failed for ${targetKey}`);
     }
+    rows.push([`resources/cloudflared/${targetKey}`, total(await walkFiles(tunnelRoot))]);
+  }
+  const tunnelLicense = path.join(resourcesRoot, 'cloudflared', 'LICENSE.cloudflared');
+  if (!existsSync(tunnelLicense) || !(await readFile(tunnelLicense, 'utf8')).includes('Apache License')) {
+    errors.push('Bundled cloudflared license is missing');
   }
 
   for (const folder of ['dist', 'server-helper']) {
@@ -147,8 +148,7 @@ export async function checkPackagedBudget({
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   const application = await findPackagedApplication();
-  const postgresResources = JSON.parse(await readFile(path.join(desktopRoot, 'postgres-resources.json'), 'utf8'));
-  const { rows, errors } = await checkPackagedBudget({ ...application, postgresResources });
+  const { rows, errors } = await checkPackagedBudget(application);
   for (const [label, bytes] of rows) console.log(`${mib(bytes).padStart(12)}  ${label}`);
   if (errors.length) {
     for (const error of errors) console.error(`[FAIL] ${error}`);

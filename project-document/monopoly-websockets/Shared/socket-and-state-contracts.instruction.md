@@ -129,7 +129,7 @@ hay board label hiện tại.
   exact argument count; domain vẫn authorize role/turn/owner/debt/state sau parse.
 - Public projector whitelist room/roster/game fields và scrub exact `DeckState`,
   credentials, private offer rows và internal continuation details không cần cho UI.
-- Client bỏ stale revision; server commit PostgreSQL trước ACK/broadcast.
+- Client bỏ stale revision; server commit RAM transaction trước ACK/broadcast.
 
 ## Tests
 

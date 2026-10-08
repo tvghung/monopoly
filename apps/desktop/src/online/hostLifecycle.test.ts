@@ -1,64 +1,86 @@
-import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HostRuntimeController } from '../hostRuntime';
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe('Online host lifecycle', () => {
-  it('starts the local authority, waits for a real room before advertising, and revokes on close', async () => {
-    const fixtureRoot = path.join(os.tmpdir(), 'otb-host-lifecycle');
-    let postgresState: 'STOPPED' | 'READY' = 'STOPPED';
-    const postgres = {
-      get state() { return postgresState; },
-      start: vi.fn(() => {
-        postgresState = 'READY';
-        return Promise.resolve({ databaseUrl: 'postgres://local/otb', dataDirectory: path.join(fixtureRoot, 'data'),
-          resourceRoot: path.join(fixtureRoot, 'postgres'), port: 5432, pid: 2 });
-      }),
-      stop: vi.fn(() => { postgresState = 'STOPPED'; return Promise.resolve(); }),
-    };
-    const helper = {
-      state: 'STOPPED' as const,
-      diagnostic: '',
+describe('direct-link online host', () => {
+  it('publishes a link only after the tunneled room can be reached without a registry', async () => {
+    const helper = { state: 'READY' as const, diagnostic: '',
       start: vi.fn(() => Promise.resolve({ host: '0.0.0.0', port: 53120, pid: 1 })),
-      stop: vi.fn(() => Promise.resolve()),
-    };
-    const connectivity = {
-      start: vi.fn(() => Promise.resolve('https://room.trycloudflare.com')),
-      stop: vi.fn(() => Promise.resolve()),
-    };
-    const discovery = {
-      reserve: vi.fn(() => Promise.resolve({ credential: 'a'.repeat(43), proof: '12345678-1234-1234-1234-123456789012' })),
-      activate: vi.fn(() => Promise.resolve()),
-      renew: vi.fn(() => Promise.resolve()),
-      suspend: vi.fn(() => Promise.resolve()),
-      revoke: vi.fn(() => Promise.resolve()),
-      resolve: vi.fn(() => Promise.resolve(null)),
-    };
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('ready'))));
+      stop: vi.fn(() => Promise.resolve()) };
+    const connectivity = { start: vi.fn(() => Promise.resolve('https://room.trycloudflare.com')),
+      stop: vi.fn(() => Promise.resolve()) };
+    vi.stubGlobal('fetch', vi.fn((input: string) => Promise.resolve(new Response(
+      input.endsWith('/readyz') ? 'ready' : '<html>Own the Block</html>', { status: 200 },
+    ))));
     const host = new HostRuntimeController({
-      resourceRoot: path.join(fixtureRoot, 'postgres'), helperPath: path.join(fixtureRoot, 'helper.cjs'),
-      migrationDirectory: path.join(fixtureRoot, 'migrations'), clientDist: path.join(fixtureRoot, 'dist'),
-      userDataPath: path.join(fixtureRoot, 'data'), appVersion: '1.4.1',
-      interfaceProvider: () => [{ name: 'Wi-Fi', displayName: 'Wi-Fi', address: '192.168.1.15',
-        netmask: '255.255.255.0', preference: 'preferred', rank: 0 }],
-      postgres, helperFactory: () => helper, connectivity, discovery,
+      helperPath: path.resolve('helper.cjs'), clientDist: path.resolve('dist'), appVersion: '1.4.1',
+      interfaceProvider: () => [], helperFactory: () => helper, connectivity,
     });
     try {
-      const status = await host.start({ mode: 'ONLINE', roomCode: 'OTB-ABC234' });
-      expect(status.localEndpoint).toBe('http://127.0.0.1:53120');
-      expect(status.onlineEndpoint).toBe('https://room.trycloudflare.com');
-      expect(status.onlineState).toBe('AWAITING_ROOM');
-      expect(discovery.activate).not.toHaveBeenCalled();
+      const started = await host.start({ mode: 'ONLINE', roomCode: 'OTB-ABC234' });
+      expect(started.onlineState).toBe('AWAITING_ROOM');
       expect((await host.activateOnlineRoom('OTB-ABC234')).onlineState).toBe('READY');
-      expect(discovery.activate).toHaveBeenCalledWith('OTB-ABC234', 'a'.repeat(43), 'https://room.trycloudflare.com');
     } finally {
       await host.stop();
     }
-    expect(discovery.revoke).toHaveBeenCalledOnce();
     expect(connectivity.stop).toHaveBeenCalledOnce();
     expect(helper.stop).toHaveBeenCalledOnce();
-    expect(postgres.stop).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the live match and replaces the invitation after tunnel loss', async () => {
+    const helper = { state: 'READY' as const, diagnostic: '',
+      start: vi.fn(() => Promise.resolve({ host: '0.0.0.0', port: 53120, pid: 1 })),
+      stop: vi.fn(() => Promise.resolve()) };
+    let onLost: (() => void) | undefined;
+    const connectivity = {
+      start: vi.fn((_local: string, lost: () => void) => {
+        onLost = lost;
+        return Promise.resolve(connectivity.start.mock.calls.length === 1
+          ? 'https://first.trycloudflare.com' : 'https://second.trycloudflare.com');
+      }),
+      stop: vi.fn(() => Promise.resolve()),
+    };
+    vi.stubGlobal('fetch', vi.fn((input: string) => Promise.resolve(new Response(
+      input.endsWith('/readyz') ? 'ready' : '<html>Own the Block</html>', { status: 200 },
+    ))));
+    const host = new HostRuntimeController({
+      helperPath: path.resolve('helper.cjs'), clientDist: path.resolve('dist'), appVersion: '1.4.1',
+      interfaceProvider: () => [], helperFactory: () => helper, connectivity,
+    });
+    try {
+      await host.start({ mode: 'ONLINE', roomCode: 'OTB-ABC234' });
+      await host.activateOnlineRoom('OTB-ABC234');
+      onLost?.();
+      await vi.waitFor(() => expect(host.status.onlineEndpoint).toBe('https://second.trycloudflare.com'));
+      await vi.waitFor(() => expect(host.status.onlineState).toBe('READY'));
+      expect(host.status.state).toBe('HOSTING');
+      expect(helper.stop).not.toHaveBeenCalled();
+    } finally { await host.stop(); }
+  });
+
+  it('treats a helper crash as terminal and stops the tunnel', async () => {
+    let exited: ((diagnostic: string) => void) | undefined;
+    const helper = { state: 'READY' as const, diagnostic: '',
+      start: vi.fn(() => Promise.resolve({ host: '0.0.0.0', port: 53120, pid: 1 })),
+      stop: vi.fn(() => Promise.resolve()),
+      onUnexpectedExit: vi.fn((listener: (diagnostic: string) => void) => { exited = listener; return () => undefined; }),
+    };
+    const connectivity = { start: vi.fn(() => Promise.resolve('https://room.trycloudflare.com')),
+      stop: vi.fn(() => Promise.resolve()) };
+    vi.stubGlobal('fetch', vi.fn((input: string) => Promise.resolve(new Response(
+      input.endsWith('/readyz') ? 'ready' : '<html>Own the Block</html>', { status: 200 },
+    ))));
+    const host = new HostRuntimeController({
+      helperPath: path.resolve('helper.cjs'), clientDist: path.resolve('dist'), appVersion: '1.4.1',
+      interfaceProvider: () => [], helperFactory: () => helper, connectivity,
+    });
+    await host.start({ mode: 'ONLINE', roomCode: 'OTB-ABC234' });
+    exited?.('server helper exited unexpectedly');
+    await vi.waitFor(() => expect(host.status.state).toBe('FAILED'));
+    expect(host.status.onlineEndpoint).toBeNull();
+    expect(connectivity.stop).toHaveBeenCalled();
+    expect(helper.start).toHaveBeenCalledOnce();
   });
 });

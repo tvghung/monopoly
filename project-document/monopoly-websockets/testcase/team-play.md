@@ -1,7 +1,7 @@
 # Checklist — 2v2 Teamplay (protocol 11, snapshot 10)
 
 Luật và trạng thái: [../GameCore/team-play.instruction.md](../GameCore/team-play.instruction.md). Mỗi dòng dưới đây trỏ tới file test
-thật; dòng `[PG]` cần `TEST_DATABASE_URL` và bị skip nếu thiếu. Hàng `[MANUAL-E2E]` chưa tick vì chưa có người quan sát.
+thật. Các dòng `[PG]` lịch sử đã ngừng áp dụng sau khi chuyển sang RAM; hàng `[MANUAL-E2E]` chưa tick vì chưa có người quan sát.
 Manual UAT: SKIPPED BY RELEASE DECISION for 1.3.0, and not performed for 1.4.0. Mobile E2E and visual capture are also non-blocking for these releases.
 
 ## Lobby, đội và appearance
@@ -75,10 +75,8 @@ Manual UAT: SKIPPED BY RELEASE DECISION for 1.3.0, and not performed for 1.4.0. 
 - [x] `[AUTO]` `rooms.teamplay.test.ts`: schema v10 là phiên bản hiện tại, round-trip JSON, `assertTeamState` từ chối state hỏng (màu, slot, window, winner,
   rescue, hai người một ghế, yêu cầu đổi chỗ ngoài sảnh 2v2/trùng người xin/người không còn trong sảnh), `upgradeRoomSnapshotV8ToV9` và
   `upgradeRoomSnapshotV9ToV10` không mutate input và cho snapshot hợp lệ (ghế theo thứ tự vào phòng, không quá ghế 1), chia đội và chọn ghế khi join, public projection của
-  team/ghế/revive/rescue. `persistence/migrations.test.ts` (checksum/thứ tự 010 và 011).
-- [x] `[PG]` `socket.teamplay.postgres.integration.test.ts`: migration SQL 010 và 011 giống hệt helper TS trên PostgreSQL thật (V8 → V10 và V9 → V10 với thứ tự vào phòng
-  xáo trộn); ván 2v2 + revive window + rescue offer, và một sảnh có ghế đã sắp xếp cùng một yêu cầu đổi chỗ đang mở, sống qua restart server trên cùng database.
-  `socket.integration.test.ts` chạy chuỗi migration đến 011 và aggregate version.
+  team/ghế/revive/rescue. SQL migrations 010 và 011 chỉ còn là tài liệu lịch sử.
+- [x] `[RAM]` Host giữ state 2v2 trong cùng process; restart host xóa phòng, ghế, rescue và token. Bằng chứng restart nằm trong packaged host proof.
 - [x] `[AUTO]` `services/deadlineScheduler.test.ts`: rescue hết hạn được recover như decline; `config.test.ts` (`EMERGENCY_RESCUE_TIMEOUT_MS`);
   `rulesContract.test.ts`: các số 2v2 trong `rules.ts` (150/200, 750/300/5, 4 người, 20 chữ, 30 giây) và mặc định `emergencyRescueTimeoutMs` khớp server, bonus
   Solo do `streetRent` thật tính.

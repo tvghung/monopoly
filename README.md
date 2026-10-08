@@ -1,315 +1,51 @@
-# Cờ Tỷ Phú Việt Nam
+# Own the Block — Cờ Tỷ Phú Việt Nam
 
-Current release identity: **Own the Block V1 / 1.4.0**, Socket protocol **11**.
-See the [V1 release contract](project-document/ui-ux-overhaul/V1_RELEASE_CONTRACT.md)
-for the LAN-first desktop architecture and pending production soundtrack gate.
-Validate identity with `pnpm validate:v1-contract`.
+Own the Block is a host-authoritative multiplayer Monopoly game. A Windows or macOS desktop player hosts a match; other players join from desktop or mobile browsers over the LAN or a temporary HTTPS Cloudflare Quick Tunnel invitation. The host's server process holds every room, reconnect session and offer in RAM. Stopping or crashing that process permanently ends its matches.
 
-**Tải về:** vào trang [Releases](https://github.com/tvghung/monopoly/releases/latest) (bản mới nhất)
-và chỉ tải **một** tệp phù hợp với máy của bạn:
+## Play
 
-| Máy của bạn | Tệp cần tải | Dung lượng |
-| --- | --- | ---: |
-| Windows 10 trở lên (64-bit) | `OwnTheBlock-<phiên bản>-win32-x64-Setup.exe` | khoảng 160 MiB |
-| macOS chip Apple (M1 trở lên) | `OwnTheBlock-<phiên bản>-macos-arm64.dmg` | khoảng 175 MiB |
-| macOS chip Intel | `OwnTheBlock-<phiên bản>-macos-x64.dmg` | khoảng 180 MiB |
+1. Open the desktop application and choose **LAN** or **Online** hosting.
+2. Create a room. Online mode starts the bundled Cloudflare Tunnel automatically.
+3. Copy the invitation link from the lobby and share it. The link includes the room code and points to the host's client and Socket.IO server.
+4. Joiners open the link in a browser or paste it into the desktop Join form. LAN room-code discovery remains available on the same network.
 
-**Cập nhật:** từ bản có bộ cập nhật tự động trở đi, game tự kiểm tra khi mở và báo ngay trong game, không cần
-vào GitHub. Windows tải, cài và mở lại bản mới (không bao giờ giữa ván: chỉ ở màn hình bắt đầu khi không có phòng nào đang
-mở); macOS tải sẵn bộ cài trong game rồi mở để kéo vào Ứng dụng (bản chưa ký không tự thay chính nó được). Bản 1.1.1 trở về
-trước chưa có tính năng này nên cần tải bản mới một lần. Chi tiết:
-[Client/app-update.instruction.md](project-document/monopoly-websockets/Client/app-update.instruction.md).
+No database, Node.js, developer tools, port forwarding or VPN is required on players' machines. Browser clients cannot host. The host must keep the desktop application and its Internet connection running for online play. A short client or tunnel interruption can reconnect while the original authoritative server remains alive; a new server process cannot restore the match.
 
-Các mục "Source code" cuối trang Release là mã nguồn, không phải game; `SHA256SUMS.txt` dùng để kiểm tra
-tệp sau khi tải. Bản V1 chưa được ký số; ghi chú phát hành hướng dẫn cách cài (cảnh báo SmartScreen trên
-Windows, mở bằng chuột phải trên macOS). Các bản phát hành tên `evidence-…` chỉ là kho lưu ảnh nghiệm thu
-giao diện, không phải game.
+## Development
 
-![Bàn cờ Own the Block](docs/screenshot.jpg)
-
-[![CI](https://github.com/terragady/monopoly-websockets/actions/workflows/ci.yml/badge.svg)](https://github.com/terragady/monopoly-websockets/actions/workflows/ci.yml)
-![GitHub top language](https://img.shields.io/github/languages/top/terragady/monopoly-websockets)
-![GitHub repo size](https://img.shields.io/github/repo-size/terragady/monopoly-websockets)
-![GitHub last commit](https://img.shields.io/github/last-commit/terragady/monopoly-websockets)
-![License](https://img.shields.io/github/license/terragady/monopoly-websockets)
-
-![TypeScript](https://img.shields.io/github/package-json/dependency-version/terragady/monopoly-websockets/dev/typescript?logo=typescript&logoColor=white&label=TypeScript)
-![React](https://img.shields.io/github/package-json/dependency-version/terragady/monopoly-websockets/react?filename=apps%2Fclient%2Fpackage.json&logo=react&logoColor=61DAFB&label=React)
-![Vite](https://img.shields.io/github/package-json/dependency-version/terragady/monopoly-websockets/dev/vite?filename=apps%2Fclient%2Fpackage.json&logo=vite&logoColor=white&label=Vite)
-![Socket.IO](https://img.shields.io/github/package-json/dependency-version/terragady/monopoly-websockets/socket.io?filename=apps%2Fserver%2Fpackage.json&logo=socketdotio&logoColor=white&label=Socket.IO)
-![Express](https://img.shields.io/github/package-json/dependency-version/terragady/monopoly-websockets/express?filename=apps%2Fserver%2Fpackage.json&logo=express&logoColor=white&label=Express)
-![pnpm](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fterragady%2Fmonopoly-websockets%2Fmain%2Fpackage.json&query=%24.packageManager&logo=pnpm&logoColor=white&label=pnpm&color=F69220)
-![Node](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fterragady%2Fmonopoly-websockets%2Fmain%2Fpackage.json&query=%24.engines.node&logo=nodedotjs&logoColor=white&label=Node&color=5FA04E)
-
-Trò chơi Cờ Tỷ Phú Việt Nam nhiều người chơi theo thời gian thực trên trình duyệt.
-Tạo mã phòng, mời bạn bè và chơi cùng nhau.
-
-Giao diện và nội dung người chơi đã được Việt hóa; các tên package kỹ thuật
-`@monopoly/*` được giữ nguyên để tránh breaking change không cần thiết.
-
-This started life as a small 2020 hobby project and has since been **rewritten from
-the ground up**: the original single-file Express + Create React App codebase (one
-global game, all logic on the client, easily cheated) is now a typed pnpm monorepo
-with an **authoritative game server**, **isolated game rooms**, sanitised chat, and
-an animated, polished UI. See [What changed in the rewrite](#what-changed-in-the-rewrite).
-
-Everything that happens is written to the in-game log / chat — keep an eye on it!
-
-## What changed in the rewrite
-
-| Then (2020) | Now |
-| --- | --- |
-| Create React App + single `server.js` | pnpm monorepo — `apps/server`, `apps/client`, `packages/shared` |
-| Plain JavaScript | End-to-end **TypeScript**, incl. typed Socket.IO event contracts |
-| One global game for everyone | **Durable isolated rooms** — share a code to play together |
-| Client decided dice, money & moves (cheatable) | **Server-authoritative** dice, movement, rent and turn order |
-| A dropped socket deleted the player | **Stable player sessions** reclaim the same seat after refresh/reconnect |
-| Process memory was the game store | **PostgreSQL-backed** rooms, sessions, offers and restart recovery |
-| Chat rendered raw HTML (XSS) | Chat + names sanitised |
-| Cơ Hội và Khí Vận dùng chung nguồn thẻ | Hai bộ thẻ có thứ tự, xáo trộn và phục hồi durable riêng |
-| Static board, instant token jumps | **Animated** 3D dice, tile-by-tile token movement, card flips, modal prompts |
-| Committed build output, mixed yarn/npm lockfiles | Clean workspace, single pnpm lockfile, Docker + Render deploy configs |
-
-## Tech stack
-
-- **Monorepo:** pnpm workspaces — `apps/server`, `apps/client`, `packages/shared`.
-- **Server:** Express + Socket.IO (TypeScript, run directly with `tsx`). Commands
-  are validated, serialized per room and committed before acknowledgement.
-- **Client:** React 19 + Vite (TypeScript).
-- **Persistence:** PostgreSQL relational metadata plus a versioned JSONB game
-  snapshot. There is no production in-memory fallback.
-- **Shared:** board data, card decks, runtime schemas and typed Socket.IO contracts
-  imported by both sides via `@monopoly/shared`.
-
-Front-end ⇄ back-end communication is over WebSockets. A player is identified by a
-stable UUID, not by `socket.id`. A reconnect token stored in that browser reclaims
-the same seat after a refresh, dropped connection or server restart. This is a
-room-seat session, not an account or OAuth login.
-
-## Getting started
-
-Requires **Node 24 (LTS)** and **pnpm** (via `corepack enable`).
-
-The working tree is about 11 MiB. A full `git clone` also downloads the history, about 236 MiB, because the
-early visual-review screenshots and the music master WAV were committed before 1.1.1. For development a
-shallow clone is enough: `git clone --depth 1 https://github.com/tvghung/monopoly.git`.
+Requires Node.js 24 and pnpm. From the repository root:
 
 ```bash
 pnpm install
-docker compose up -d postgres
-cp .env.example .env
-pnpm db:migrate
-pnpm dev
+pnpm dev:web
+pnpm dev:desktop
 ```
 
-Server and database scripts load the root `.env` when it exists; shell environment
-variables still take precedence.
-
-`pnpm dev` / `pnpm dev:web` runs the web server and Vite client in parallel:
-
-- game server on `http://127.0.0.1:8080`
-- Vite renderer on `http://127.0.0.1:5173` (Vite proxies `/socket.io` to the server)
-- Socket.IO development CORS origin is exactly `http://127.0.0.1:5173`
-
-Open `http://127.0.0.1:5173`, enter a name and a **room code**, and share the code
-with friends. A lobby supports 2–4 players. Every player must be connected and ready;
-only the persisted host can start the game.
-
-`pnpm dev:desktop` starts the same server/client pair and opens the hardened Electron
-shell against `http://127.0.0.1:5173`. The desktop renderer receives only the typed
-preload bridge; game state and commands remain in the existing client/server flow.
-For a split-terminal workflow, run `pnpm dev:web` in Terminal A and
-`pnpm dev:desktop:shell` in Terminal B; the shell command compiles main/preload and
-does not own or stop the web processes.
-
-The bundled PostgreSQL service maps host port `5433` to container port `5432`.
-Keep the local `.env` `DATABASE_URL` host port aligned with that mapping before
-running migrations or manual multiplayer checks.
-
-### Useful scripts
+Checks:
 
 ```bash
-pnpm dev         # run server + client together
-pnpm dev:web     # run server + client together
-pnpm dev:desktop # run web dependencies and the Electron shell
-pnpm dev:desktop:shell # open only Electron; keep pnpm dev:web in another terminal
-pnpm db:migrate  # apply pending PostgreSQL migrations
-pnpm db:status   # inspect migration status
-pnpm build       # build the client bundle
-pnpm start       # start the server (serves the built client in production)
-pnpm typecheck   # tsc --noEmit across all packages
-pnpm lint        # eslint across the repo
-pnpm test        # unit/client/socket tests; PostgreSQL suite is conditional
-pnpm desktop:package # package the Windows/macOS Electron application
-pnpm desktop:make    # create configured platform makers (Windows Squirrel on Windows)
-pnpm desktop:run:packaged # launch the latest local packaged app for Host/Join testing
-pnpm --filter @monopoly/desktop proof:packaged # run the packaged Phase 7.0B loopback proof
-pnpm desktop:proof:host # run the separate packaged Phase 7.2 Host/LAN proof
-pnpm --filter @monopoly/desktop proof:packaged:budget # check the packaged app and installer sizes (lean packaging gate)
-pnpm test:e2e:mobile # build/prepare and run mobile Chromium + WebKit flows
-pnpm validate:release # validate canonical release metadata and generated config
-pnpm desktop:release  # LAN-first release-candidate build; endpoint override is optional
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm build
+pnpm desktop:package
+pnpm desktop:proof:host
 ```
 
-For a self-contained Host check, run `pnpm desktop:package`, then
-`pnpm desktop:run:packaged` and choose **Tạo phòng**. The packaged app starts its
-own loopback-only PostgreSQL and authoritative server; no developer PostgreSQL or
-external Socket.IO URL is required. To test Join, run a second packaged desktop instance
-(on another PC on the same Wi-Fi), choose **Tham gia phòng** and enter only a name and
-the `OTB-XXXXXX` room code: the app finds the Host by itself (a small UDP broadcast on
-port `41234`, about 3 seconds; the Host's firewall may ask once to allow Own the Block).
-If the network blocks broadcast (guest Wi-Fi, client isolation) a field to paste the
-invitation link appears after the failed search. A phone or another browser can instead
-open the Host URL (the QR code in the lobby): `http://<host-ip>:<actual-port>/?room=<room-code>`;
-opening it prefills but does not submit the room.
+The desktop package step downloads the pinned official `cloudflared` asset for the build platform and verifies its published SHA-256 before bundling it. Supported package targets are Windows x64, macOS x64 and macOS arm64. The installed application does not download or update executable code. Build provenance and hashes are in [prepareCloudflared.mjs](apps/desktop/scripts/prepareCloudflared.mjs).
 
-### Publishing a release
+`pnpm --filter @monopoly/server exec node --import tsx ../../scripts/proveQuickTunnel.mjs` performs an optional live Quick Tunnel probe after `pnpm build` and `pnpm --filter @monopoly/desktop prepare:cloudflared`. It opens the public page in Chromium, checks invitation prefill and browser Socket.IO origin, then runs four WebSocket clients through the public URL. It checks room admission and reconnect before shutting down the tunnel and server. A successful probe from the build machine does not establish that a separate cellular or Wi-Fi network can join.
 
-A release is published by pushing a version tag, not by hand. With the root
-`package.json` version at `X.Y.Z` and `.github/release-notes/vX.Y.Z.md` written, push an
-annotated tag on a commit that is on `main`:
+## Architecture
 
-```bash
-git tag -a vX.Y.Z -m "Own the Block X.Y.Z"
-git push origin vX.Y.Z
-```
+- `apps/desktop/`: Electron shell, host helper and tunnel lifecycle, LAN discovery, secure preload bridge and packaged resources.
+- `apps/server/`: Express, Socket.IO, room authority, in-memory transaction store and deadline scheduler.
+- `apps/client/`: React client shared by packaged desktop and host-served browsers.
+- `packages/shared/`: protocol schemas, types, board and rules.
+- [Project documentation](project-document/monopoly-websockets/README.md): current invariants, module guides and test evidence.
 
-The `Release Candidate` workflow then runs every quality gate and the packaged proofs on
-Windows x64, macOS x64 and macOS arm64, and only when all of them pass does it publish the
-GitHub Release (the three installers, the Windows Squirrel feed `RELEASES` and `own_the_block-<version>-full.nupkg` that an installed app updates itself from, plus `SHA256SUMS.txt` and `update-manifest.json`, which the in-app updater reads). The installers are kept small on purpose; the
-`proof:packaged:budget` step fails a build whose package regresses (see "Package size" in the release contract).
-A tag with a suffix
-(`vX.Y.Z-rc.1`) is published as a pre-release. A manual dispatch of the same workflow
-validates without publishing. The release is unsigned; see the
-[V1 release contract](project-document/ui-ux-overhaul/V1_RELEASE_CONTRACT.md).
+The in-memory store serializes transactions and direct writes. Room commands use draft snapshots and expected-version checks; success ACKs and broadcasts follow commit. The server stores only SHA-256 reconnect-token hashes. A new server process starts with an empty store, so old room codes and tokens are invalid.
 
-Updating players is automatic, so a release needs one decision: whether versions below it must update before they play
-multiplayer. `apps/desktop/update-policy.json` holds `minimumSupportedVersion`. The 1.3.0 Teamplay release raised it to
-`1.3.0` and the 1.4.0 lobby-seats release raises it to `1.4.0`, each because the new Socket protocol (10, then 11) is incompatible
-with older desktop clients. The 1.2.0 and later updaters read the published
-manifest and require the update before starting or joining multiplayer. Without Internet, an older client may still
-start locally, but the protocol mismatch rejects its attempt to join a 1.4.0 host with `UPGRADE_REQUIRED`.
-Raise the minimum only when an older version cannot play with the new one, never for a bug fix.
-To try the update screens without publishing, point a development run at a local feed with
-`OWN_THE_BLOCK_UPDATE_MANIFEST_URL=http://127.0.0.1:<port>/update-manifest.json` (a packaged app ignores it).
+Cloudflare Quick Tunnels are a personal-use/testing path with no uptime guarantee. [Cloudflare documents](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) that production deployments require a managed tunnel. A stable public release, macOS signing/notarization, and physical cross-network device checks need separate release evidence. The optional registry supports bare online room-code lookup; complete invitation links work without it.
 
-## Environment variables
-
-| Variable | Default | Notes |
-| --- | --- | --- |
-| `DATABASE_URL` | local value in `.env.example` | Required by every real server start; tests may inject the in-memory adapter. |
-| `DATABASE_SSL` | `false` | Enable TLS for PostgreSQL. |
-| `DATABASE_SSL_REJECT_UNAUTHORIZED` | `true` | Certificate verification policy. |
-| `DATABASE_MAX_CONNECTIONS` | `10` | PostgreSQL pool size. |
-| `TEST_DATABASE_URL` | unset | Enables the PostgreSQL integration suite; CI sets it alongside `DATABASE_URL`. A run without it is not CI-equivalent, and the test output must make conditional/skipped coverage explicit. |
-| `PORT` | `8080` | HTTP/Socket server port; desktop Host accepts `0` for OS-selected actual port. |
-| `NODE_ENV` | `development` | `production` also serves the built client. |
-| `SERVER_RUNTIME_PROFILE` | `development` locally; `cloud` in production | Server profile; the packaged proof uses `desktop`. |
-| `SERVER_HOST` | `127.0.0.1` development; `0.0.0.0` cloud/packaged Host | Explicit server bind address; managed PostgreSQL remains `127.0.0.1` only. |
-| `CORS_ORIGIN` | `http://127.0.0.1:5173` in development | Optional override. Packaged Host explicitly admits `app://own-the-block` and browser requests whose origin matches the requested Host IPv4/port; no wildcard is used. |
-| `OWN_THE_BLOCK_MIGRATIONS_DIR` | unset | Internal packaged-helper seam for the external migration directory. |
-| `OWN_THE_BLOCK_SOCKET_URL` | unset | Packaged desktop override; CLI `--socket-url=` has higher precedence. |
-| `OWN_THE_BLOCK_UPDATE_MANIFEST_URL` | unset | Development only (ignored by a packaged app): loopback HTTP(S) URL of a local `update-manifest.json` to try the in-app update screens; the installers are read from the same directory. |
-| `OWN_THE_BLOCK_RELEASE_SOCKET_URL` | unset | Optional HTTP(S) endpoint override for a release; written to generated packaged release configuration when supplied. LAN Host/Join is the default path. |
-| `CLIENT_DIST` | `apps/client/dist` | Static client directory override. |
-| `RECONNECT_GRACE_MS` | `60000` | Grace before an offline current player's turn is resolved. |
-| `PAYMENT_SHORTFALL_ACTION_TIMEOUT_MS` | `120000` | Thời hạn xử lý thanh toán thiếu hụt trước auto-liquidation xác định. |
-| `CARD_AWAITING_DRAW_TIMEOUT_MS` | `20000` | Thời hạn để người chơi chủ động rút thẻ trước khi server tự rút. |
-| `CARD_REVEALED_TIMEOUT_MS` | `30000` | Thời hạn đọc thẻ trước khi server tự đóng và áp dụng hiệu lực. |
-| `PENDING_SESSION_TTL_MS` | `300000` | Unactivated first-join token TTL. |
-| `TERMINAL_SESSION_RETENTION_MS` | `604800000` | Retain revoked/expired session rows for seven days before purge. |
-| `LOBBY_RETENTION_MS` | `86400000` | Inactive lobby retention. |
-| `IN_PROGRESS_RETENTION_MS` | `2592000000` | Inactive running-game retention. |
-| `FINISHED_RETENTION_MS` | `604800000` | Finished-room retention. |
-
-## Deployment
-
-The Node server serves the built client from the same origin, so application code
-ships as one service. PostgreSQL remains a required durable dependency. Run
-migrations before accepting traffic; a schema/database failure makes readiness fail
-instead of silently creating an in-memory game.
-
-### Render (Blueprint)
-
-A [`render.yaml`](./render.yaml) blueprint provisions a paid `starter` Node web
-service and paid `basic-256mb` PostgreSQL database. The paid database is intentional:
-durable games must not rely on an expiring/no-backup free database. The service also
-has a 1 GB deployment-guard disk. No game data is written to that disk; its purpose
-is to make Render stop the old process before starting its replacement, preserving
-the runtime's single-live-process session and presence invariant during deploys.
-Expect a brief reconnect while the browser resumes through its stable token.
-
-In the Render dashboard: **New → Blueprint**, point it at this repo, review the paid
-resources, and deploy. It runs:
-
-```bash
-# build
-corepack enable && pnpm install --frozen-lockfile && pnpm build
-# start (server applies guarded migrations before listen)
-pnpm start
-```
-
-`/healthz` is liveness. `/readyz` checks the database/schema and is the deployment
-health-check target.
-
-### Docker / stop-first container platforms
-
-A multi-stage [`Dockerfile`](./Dockerfile) builds the client and runs the server.
-
-```bash
-docker build -t monopoly-websockets .
-docker run -p 8080:8080 -e NODE_ENV=production \
-  -e DATABASE_URL=postgresql://... monopoly-websockets
-# → http://127.0.0.1:8080 (development only; production is normally same-origin)
-```
-
-The current runtime supports one live Node process, including across a deployment.
-Use a stop-before-start deployment strategy. A rolling platform that overlaps old
-and new revisions is unsupported even when its steady-state maximum is one instance;
-add distributed connection ownership, presence, room locking and a Socket.IO adapter
-before enabling overlapping revisions or horizontal scaling.
-
-## Gameplay FAQ
-
-**How do I chat with other players?** There's a chat in the log panel — use it.
-
-**Can spectators join?** Yes. Anyone who joins a room after its game has started
-joins as an explicit spectator (and can still chat). A browser with a valid existing
-player token reclaims that seat instead of becoming a spectator.
-
-**What happens if I refresh or lose my network?** The browser reconnects with a
-private token and resumes the same stable player. A newer connection using the same
-token replaces the older one. Disconnecting does not sell, delete or transfer assets.
-
-**How do I trade?**
-- Click another player's property and submit a bilateral offer. The owner has
-  20 seconds to accept or decline. Offers and expiry are server-authoritative and
-  survive reconnect/restart.
-
-**What happens when I cannot pay?** The payment shortfall remains a durable ordered
-claim. You can sell an owned property to the Bank at the server-derived gross/net
-value, or propose that another active player buys it. On deadline, the server sells
-properties deterministically by tile index and only eliminates the debtor after no
-owned property remains.
-
-**How do I win?** Be the last active player after the others go bankrupt or forfeit.
-
-## Roadmap
-
-- [x] pnpm monorepo + Vite + full TypeScript conversion
-- [x] Server-authoritative state pushed to all clients
-- [x] Server-side validation (reject out-of-turn / unaffordable / not-owner actions)
-- [x] Isolated game rooms (share a room code to play together)
-- [x] Chat input sanitisation (no HTML injection)
-- [x] Separate, expanded Cơ Hội / Khí Vận decks with durable draw order
-- [x] Animated 3D dice, tile-by-tile token movement, card flips and modal prompts
-- [x] Building houses / hotels and the rent tiers they unlock
-- [x] Base rent without monopoly multiplier; authoritative landing development prompt
-- [x] Do Not Buy resolves the landing without an auction
-- [x] Thẻ Thoát Tù Miễn Phí và trả 50 game-unit để ra tù
-- [x] Property trading (private bilateral offers)
-- [x] A dedicated win screen
-- [x] Stable player identity, reconnect and newest-connection-wins sessions
-- [x] Host/ready lobby with 2–4 players and explicit spectator admission
-- [x] PostgreSQL persistence and restart recovery
-- [x] Durable private offers, payment shortfall deadlines and private forced-sale proposals
+Historical SQL migrations and the former cloud deployment design are superseded. There is no active database migration, PostgreSQL process, Docker deployment or cloud-hosted authoritative gameplay service in the supported workflow.

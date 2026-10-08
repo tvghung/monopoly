@@ -4,7 +4,7 @@
 
 Ứng dụng desktop tự biết khi có bản mới, tải bản cập nhật ngay trong game, kiểm tra tính toàn vẹn và áp dụng ở thời điểm an
 toàn. Trình duyệt thường (guest vào bằng URL của Host) không có chức năng này. Không có thay đổi nào ở Socket protocol,
-snapshot, HTTP/Express hay PostgreSQL: đây là tính năng của Electron shell và renderer.
+snapshot hay HTTP/Express: đây là tính năng của Electron shell và renderer.
 
 Quyết định thiết kế, phương án đã loại và rủi ro nằm ở [../../auto-update/README.md](../../auto-update/README.md);
 file này chỉ mô tả hành vi hiện tại (AS-IS).
@@ -32,7 +32,7 @@ file này chỉ mô tả hành vi hiện tại (AS-IS).
   `cancelDownload`, `install`) và một listener (`onStateChanged`). Mỗi channel `ownTheBlock:update:*` kiểm tra sender là cửa sổ
   chính, bỏ qua mọi payload (`windowHandlers.test.ts`, `preloadBridge.test.ts`). `download` và `install` trả về trạng thái lúc
   bắt đầu; các trạng thái sau đó được đẩy qua `ownTheBlock:update:state-changed`.
-- Không có gì được lưu vào PostgreSQL hay `localStorage`. Trạng thái "Để sau" chỉ sống trong phiên chạy (renderer). Các tệp đã
+- Không có gameplay state được lưu vào file hay `localStorage`. Trạng thái "Để sau" chỉ sống trong phiên chạy (renderer). Các tệp đã
   tải nằm ở `<thư mục tạm của hệ điều hành>/OwnTheBlock-updates/<phiên bản>/<loại>/<tên tệp>` (không dùng `userData`: trên
   Windows đó là roaming profile). `<loại>` là `squirrel` (Windows cài bằng `Setup.exe`: tệp `RELEASES` và gói `.nupkg`, thư mục
   này chính là thư mục đưa cho `Update.exe`, nên không chứa gì khác) hoặc `installer` (macOS, hoặc Windows không cài bằng

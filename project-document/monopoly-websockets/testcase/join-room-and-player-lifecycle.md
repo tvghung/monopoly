@@ -9,22 +9,21 @@
   two-step stable admission, unknown-token rejection without Seat binding, reconnect,
   newest-wins, host/ready start, disconnect preservation, queued stale generation,
   deterministic host leave, forced-liquidation forfeit, Player/spectator same-socket
-  leave-and-rejoin, spectator/reclaim and server recreation over the same test store.
-- `[PG-INTEGRATION][SOCKET-INTEGRATION]` Its conditional PostgreSQL case recreates
-  pools/persistence/server, then resumes both stable Players and persisted game state.
+  leave-and-rejoin and spectator/reclaim within one running host.
+- `[PACKAGED][RAM]` `apps/desktop/src/phase72HostProof.ts` restarts the packaged helper
+  and verifies that the former room and reconnect token are rejected.
 
 ## Checklist
 
 - [ ] First `join room` returns pending token but creates no Seat/host/color.
-- [ ] Token hash is 32 bytes in DB; raw token is absent from DB/log/public state.
+- [ ] Token hash is 32 bytes in RAM; raw token is absent from logs/public state.
 - [ ] `resume session` activates exactly one stable UUID Seat; lost ACK is resumable.
 - [ ] Newest valid socket wins; old receives `session replaced`; stale disconnect no-ops.
 - [ ] Refresh/network reconnect/new socket keeps Player ID, Seat, ready, money and assets.
 - [ ] Protocol/snapshot V9 (2v2 teams included) identity-preserving reset keeps room/code, stable Player
   IDs, join order/name/color/ready, host, `IN_PROGRESS` status and active reconnect
   token hashes while preserving the current appearance fields and gameplay state.
-- [ ] Existing tokens reclaim the same Seats after reset; pending old-game offers are
-  cancelled and no room delete cascades session rows.
+- [ ] Existing tokens reclaim the same Seats after in-process Play Again; pending old-game offers are cancelled.
 - [ ] Invalid/revoked/expired token is rejected, not spectator/new Player.
 - [ ] First activated Seat is host; concurrent first joins produce one host/join order.
 - [ ] Lobby capacity and start boundaries are 2–4; all connected/ready; host only.
@@ -43,7 +42,7 @@
   on the start screen (the token is revoked).
 - [ ] Join after start without token is spectator; valid existing token reclaims Player.
 - [ ] Public/private Socket.IO rooms isolate room updates and private session/offer data.
-- [ ] All-offline room survives; explicit empty lobby/retention cleanup follows policy.
+- [ ] An all-offline room survives while the host process runs; explicit empty lobby cleanup follows policy.
 
 ## Phase 7.2 evidence
 
@@ -67,8 +66,7 @@
   replacement room or pending session.
 - `[SOCKET][PACKAGED][PASS-WINDOWS]` Four real clients enter one room under a
   stable first host; a fifth is rejected; reconnect retains PlayerId/room; the
-  newest authenticated connection replaces the old one; helper and PostgreSQL
-  restart retain the session.
+  newest authenticated connection replaces the old one; helper restart rejects the old session and room.
 - `[BROWSER][PASS]` Mobile Chromium/WebKit cover invitation prefill without
   auto-submit, two-client admission, lobby/start, reload resume, background/network
   recovery, and mobile layout boundaries.
@@ -78,10 +76,8 @@
 
 ## Restart evidence boundary
 
-The executable PostgreSQL Socket suite must prove fresh pool/persistence/server
-recovery with both tokens and exact v8 game state, plus historical snapshot migration
-identity preservation, when `TEST_DATABASE_URL` is set. A real process-manager/container kill
-and browser reload remains a separate deployment E2E.
+The packaged host proof restarts the helper and checks that its former room and token are gone.
+A full Electron exit/relaunch and a remote browser reload on a separate device remain manual E2E checks.
 
 ## Pre-game screens (visual overhaul V2, plan 04)
 

@@ -100,7 +100,7 @@ khác vẫn còn để vào lại từ launcher. Chỉ `leave room` tường min
 | --- | --- |
 | `JoinForm` (JOIN/JOINING): mã phòng sai hoặc không tồn tại, "Phòng chung" kèm mã, vào phòng thất bại, đang chờ ACK | nút "Quay lại" (ghost, góc trên trái của trang); chỉ có khi có `desktopBridge` và `onExitToLauncher` |
 | `ERROR` có `returnToLauncher` (session terminal, lỗi kết nối) | hành động chính "Về trang chủ" (trước là "Quay về trình khởi động LAN") |
-| `ERROR` khác (hết giờ xác nhận phiên, không lưu được phiên, `DATABASE_UNAVAILABLE`…) | "Thử lại" hoặc "Quay về màn hình vào phòng" cộng hành động phụ "Về trang chủ" (`ErrorScreen.secondaryAction`) |
+| `ERROR` khác (hết giờ xác nhận phiên, lỗi kết nối…) | "Thử lại" hoặc "Quay về màn hình vào phòng" cộng hành động phụ "Về trang chủ" (`ErrorScreen.secondaryAction`) |
 | `REPLACED` | hành động duy nhất "Về trang chủ" |
 | `ERROR` sau `removed from room` (host mời ra) | như `ERROR` có `returnToLauncher`: hành động chính "Về trang chủ"; session đã bị xóa nên không còn gì để vào lại |
 | `LOBBY` (host và khách), ván đang chơi, khán giả, `WinnerBanner` | không đổi: "Rời phòng" / "Bỏ cuộc" / "Về trang chủ" qua `leaveRoom` → `exitToStart` |
@@ -132,7 +132,7 @@ ACK is resumable because token was stored first.
 - Every new Socket.IO connection resumes token before enabling mutation.
 - During transport loss, last snapshot remains visible under `RECONNECTING` overlay;
   actions are disabled.
-- `DATABASE_UNAVAILABLE` and network errors retain token for retry.
+- Transient network errors retain the token for retry while the same host process is running.
 - Invalid/revoked/expired/room-gone terminal errors clear the invalid local record
   and show safe recovery without silently issuing a fresh `join room`. In desktop
   mode the deliberate recovery action returns to the LAN launcher;
@@ -215,8 +215,8 @@ sau khi bỏ cuộc về launcher/JoinForm vì token đã bị thu hồi và kh�
   on it; every desktop failure screen has a way back and going back disconnects without leaving or clearing a saved session
   (`JoinForm.test.tsx`, `ErrorScreen.test.tsx`, `App.test.tsx`).
 - Join có một ô mã/link, tìm LAN + Online song song khi nhập mã, đi thẳng khi nhập
-  link, chặn kết quả trễ và trùng mã khác host. Host chọn Online/LAN; Online cần
-  registry + cloudflared, LAN giữ đường cũ (`DesktopMultiplayerLauncher.test.tsx`,
+  link, chặn kết quả trễ và trùng mã khác host. Host chọn Online/LAN; Online dùng
+  cloudflared đã đóng gói, registry chỉ tùy chọn cho mã trần. LAN giữ đường cũ (`DesktopMultiplayerLauncher.test.tsx`,
   `runtime/joinTargetResolver.test.ts`).
 - `parseLanJoinUrl` is the inverse of `buildLanJoinUrl` and refuses credentials,
   non-http, non-IPv4, loopback/link-local, missing port or room (`lanSharing.test.ts`).

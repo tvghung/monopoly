@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -8,13 +9,6 @@ import {
   installerBudgetErrors,
   readAsarEntries,
 } from '../scripts/checkPackagedBudget.mjs';
-
-const postgresResources = {
-  targets: {
-    'win32-x64': { runtimeExclude: ['lib/**/*.lib', 'bin/wx*.dll'] },
-  },
-};
-const REQUIRED = ['initdb', 'postgres', 'pg_ctl', 'pg_isready', 'createdb', 'psql'];
 
 let root: string;
 let packageRoot: string;
@@ -55,12 +49,13 @@ async function writeFiles(base: string, files: string[]): Promise<void> {
 async function buildLeanPackage(): Promise<void> {
   await mkdir(resourcesRoot, { recursive: true });
   await writeAsar(path.join(resourcesRoot, 'app.asar'), { 'package.json': 10, 'dist/main.js': 100 });
-  await writeFiles(path.join(resourcesRoot, 'postgres', 'win32-x64'), [
-    ...REQUIRED.map(binary => `bin/${binary}.exe`),
-    'bin/icuuc67.dll',
-    'lib/plpgsql.dll',
+  await writeFiles(resourcesRoot, [
+    'cloudflared/win32-x64/cloudflared.exe',
+    'dist/index.html', 'server-helper/server-helper.cjs',
   ]);
-  await writeFiles(resourcesRoot, ['dist/index.html', 'server-helper/server-helper.cjs']);
+  await writeFile(path.join(resourcesRoot, 'cloudflared', 'win32-x64', 'cloudflared.sha256'),
+    createHash('sha256').update('x').digest('hex'));
+  await writeFile(path.join(resourcesRoot, 'cloudflared', 'LICENSE.cloudflared'), 'Apache License');
   await writeFiles(packageRoot, ['locales/en-US.pak', 'locales/vi.pak', 'OwnTheBlock.exe']);
 }
 
@@ -71,7 +66,6 @@ function check() {
     outRoot: path.join(root, 'out'),
     platform: 'win32',
     architecture: 'x64',
-    postgresResources,
   });
 }
 
@@ -130,11 +124,11 @@ describe('packaged size budget', () => {
     expect(rows.map(([label]) => label)).toContain('resources/app.asar');
   });
 
-  it('fails when app.asar packs the generated PostgreSQL copy again', async () => {
+  it('fails when app.asar packs generated resources again', async () => {
     await buildLeanPackage();
     await writeAsar(path.join(resourcesRoot, 'app.asar'), {
       'package.json': 10,
-      'generated/postgres/win32-x64/bin/postgres.exe': 10,
+      'generated/cloudflared/win32-x64/cloudflared.exe': 10,
       'src/main.ts': 10,
     });
     const { errors } = await check();
@@ -142,14 +136,20 @@ describe('packaged size budget', () => {
     expect(errors.join('\n')).toMatch(/src\//u);
   });
 
-  it('fails when an excluded PostgreSQL file or an extra locale ships, or a binary is missing', async () => {
+  it('fails when obsolete PostgreSQL resources or an extra locale ship, or the tunnel is missing', async () => {
     await buildLeanPackage();
-    await writeFiles(path.join(resourcesRoot, 'postgres', 'win32-x64'), ['bin/wxbase32u.dll', 'lib/libpq.lib']);
+    await writeFiles(path.join(resourcesRoot, 'postgres'), ['postgres.exe']);
     await writeFiles(packageRoot, ['locales/de.pak']);
-    await rm(path.join(resourcesRoot, 'postgres', 'win32-x64', 'bin', 'initdb.exe'));
+    await rm(path.join(resourcesRoot, 'cloudflared', 'win32-x64', 'cloudflared.exe'));
     const message = (await check()).errors.join('\n');
-    expect(message).toMatch(/excluded file/u);
+    expect(message).toMatch(/Obsolete PostgreSQL/u);
     expect(message).toMatch(/de\.pak/u);
-    expect(message).toMatch(/initdb\.exe/u);
+    expect(message).toMatch(/cloudflared/u);
+  });
+
+  it('rejects a bundled tunnel whose verification digest no longer matches', async () => {
+    await buildLeanPackage();
+    await writeFile(path.join(resourcesRoot, 'cloudflared', 'win32-x64', 'cloudflared.exe'), 'modified');
+    expect((await check()).errors.join('\n')).toMatch(/verification digest failed/u);
   });
 });

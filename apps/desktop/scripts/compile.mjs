@@ -1,6 +1,5 @@
-import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { access, cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
@@ -21,41 +20,21 @@ const typeScript = spawnSync(pnpm, ['exec', 'tsc', '-p', 'tsconfig.build.json'],
 if (typeScript.status !== 0) process.exit(typeScript.status ?? 1);
 
 await rm(helperOutputRoot, { recursive: true, force: true });
-await mkdir(path.join(helperOutputRoot, 'migrations'), { recursive: true });
+await mkdir(helperOutputRoot, { recursive: true });
 
-for (const entryPoint of ['desktopServerHelper.ts', 'phase7Contract.ts', 'phase72HostContract.ts']) {
+for (const entryPoint of ['desktopServerHelper.ts', 'phase72HostContract.ts']) {
   await build({
     entryPoints: [path.join(serverRoot, 'src', entryPoint)],
     bundle: true,
     platform: 'node',
     format: 'cjs',
     target: 'node24',
-    outfile: path.join(
-      helperOutputRoot,
-      entryPoint === 'desktopServerHelper.ts'
-        ? 'server-helper.cjs'
-        : entryPoint === 'phase7Contract.ts'
-          ? 'phase7-contract.cjs'
-          : 'phase72-host-contract.cjs',
-    ),
+    outfile: path.join(helperOutputRoot, entryPoint === 'desktopServerHelper.ts'
+      ? 'server-helper.cjs' : 'phase72-host-contract.cjs'),
     sourcemap: false,
     legalComments: 'none',
   });
 }
-
-const migrationSource = path.join(serverRoot, 'migrations');
-const migrationManifest = [];
-for (const fileName of (await readdir(migrationSource)).sort()) {
-  if (!/^\d+_[a-z0-9_]+\.sql$/u.test(fileName)) continue;
-  const sql = (await readFile(path.join(migrationSource, fileName), 'utf8')).replace(/\r\n?/gu, '\n');
-  migrationManifest.push({ version: fileName, checksum: createHash('sha256').update(sql).digest('hex') });
-  await cp(path.join(migrationSource, fileName), path.join(helperOutputRoot, 'migrations', fileName));
-}
-await writeFile(
-  path.join(helperOutputRoot, 'migrations', 'manifest.json'),
-  `${JSON.stringify({ postgresMajor: '17', migrations: migrationManifest }, null, 2)}\n`,
-  'utf8',
-);
 
 await build({
   entryPoints: [path.join(sourceRoot, 'preload.ts')],

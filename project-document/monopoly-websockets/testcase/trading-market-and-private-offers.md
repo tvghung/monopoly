@@ -23,8 +23,8 @@
 
 - [ ] `[SOCKET]` Arrival/result only to the two participant private rooms; public state
   has no offer terms.
-- [ ] `[PG]` DB round-trips canonical bundle; fresh pool/server resume restores
-  pending offer and expiry resolves exactly once.
+- [ ] `[RAM]` The live host retains the canonical pending offer across reconnect;
+  expiry resolves exactly once. Host restart discards the offer and room.
 - [ ] `[SOCKET]` Leave cancels relevant pending offers; failed room/offer transaction
   produces no transfer/private result/public update/success ACK.
 

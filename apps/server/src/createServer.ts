@@ -1,16 +1,12 @@
 import express from 'express';
 import { createServer as createHttpServer, type Server as HttpServer } from 'http';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import rateLimit from 'express-rate-limit';
 import { resolveRuntimeProfile } from './config.js';
 import type { AppRuntime } from './services/runtime';
 import type { AppServer } from './socket/types';
 
-const currentDir = typeof import.meta.url === 'string'
-  ? path.dirname(fileURLToPath(import.meta.url))
-  : process.cwd();
 export const DEVELOPMENT_RENDERER_ORIGIN = 'http://127.0.0.1:5173';
 export const PACKAGED_RENDERER_ORIGIN = 'app://own-the-block';
 
@@ -64,7 +60,6 @@ export function resolveCorsOrigin(
   if (environment.CORS_ORIGIN) return environment.CORS_ORIGIN;
   const runtimeProfile = resolveRuntimeProfile(environment);
   if (runtimeProfile === 'development') return DEVELOPMENT_RENDERER_ORIGIN;
-  if (runtimeProfile === 'cloud') return PACKAGED_RENDERER_ORIGIN;
   return (origin, callback) => {
     callback(null, origin === undefined
       || origin === PACKAGED_RENDERER_ORIGIN
@@ -84,11 +79,7 @@ function staticClientRoot(
   environment: NodeJS.ProcessEnv,
 ): string | undefined {
   if (runtimeProfile === 'development') return undefined;
-  const configured = options.clientDist
-    || environment.CLIENT_DIST
-    || (runtimeProfile === 'cloud'
-      ? path.join(currentDir, '..', '..', 'client', 'dist')
-      : undefined);
+  const configured = options.clientDist || environment.CLIENT_DIST;
   if (!configured) throw new Error('Desktop runtime requires an explicit clientDist');
   if (runtimeProfile === 'desktop' && !path.isAbsolute(configured)) {
     throw new Error('Desktop clientDist must be absolute');
@@ -96,8 +87,7 @@ function staticClientRoot(
   return path.resolve(configured);
 }
 
-// Build the Express app, HTTP server, and typed Socket.IO server. Cloud and
-// desktop both serve the client same-origin, but retain separate runtime policy.
+// Build the Express app, HTTP server, and typed Socket.IO server.
 export function createServer(
   runtime: AppRuntime,
   options: CreateServerOptions = {},
@@ -107,13 +97,10 @@ export function createServer(
   const app = express();
   const server = createHttpServer(app);
 
-  // In production the app runs behind a single reverse proxy (e.g. Render),
-  // which sets the 'X-Forwarded-For' header. Trust exactly one hop so
-  // express-rate-limit can identify clients by their real IP. Trusting a
-  // specific number of hops (rather than `true`) prevents clients from
-  // spoofing the header to bypass the limiter.
-  if (runtimeProfile === 'cloud') {
-    app.set('trust proxy', 1);
+  if (runtimeProfile === 'desktop') {
+    // Only the locally spawned tunnel may supply client forwarding headers.
+    app.set('trust proxy', (address: string) => address === '::1'
+      || address === '127.0.0.1' || address === '::ffff:127.0.0.1');
   }
 
   const corsOrigin = resolveCorsOrigin(environment);
@@ -130,7 +117,25 @@ export function createServer(
       : {}),
   });
 
-  app.get('/healthz', (_req, res) => res.status(200).send('ok'));
+  app.get('/healthz', (_req, res) => res.status(runtime.flags.shuttingDown ? 503 : 200).send(
+    runtime.flags.shuttingDown ? 'shutting down' : 'ok',
+  ));
+  // The desktop host checks this through the public tunnel before presenting
+  // an invitation. A known code reveals only whether the room exists.
+  if (runtimeProfile === 'desktop') {
+    const roomProbeLimiter = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false });
+    app.get('/_otb/room', roomProbeLimiter, async (req, res) => {
+      const code = req.query.code;
+      if (typeof code !== 'string' || !/^[A-Z0-9-]{1,20}$/.test(code)) {
+        res.status(400).end();
+        return;
+      }
+      if (runtime.flags.shuttingDown) { res.status(503).end(); return; }
+      const room = await runtime.persistence.rooms.findByCode(code);
+      res.set('cache-control', 'no-store');
+      res.status(room ? 200 : 404).end();
+    });
+  }
   if (runtimeProfile === 'desktop' && environment.OTB_REGISTRY_ROOM_CODE
     && environment.OTB_REGISTRY_PROOF) {
     app.get('/_otb/registry-proof', async (_req, res) => {
@@ -153,7 +158,7 @@ export function createServer(
       await runtime.persistence.healthcheck();
       res.status(200).send('ready');
     } catch {
-      res.status(503).send('database unavailable');
+      res.status(503).send('server unavailable');
     }
   });
 

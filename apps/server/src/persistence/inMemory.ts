@@ -469,7 +469,7 @@ function createUnitOfWork<TSnapshot extends object>(
   };
 }
 
-/** Test adapter. Production must use PostgresPersistenceStore. */
+/** Authoritative volatile store. Each instance belongs to one server process. */
 export class InMemoryPersistenceStore<TSnapshot extends object>
   implements PersistenceStore<TSnapshot>
 {
@@ -482,9 +482,33 @@ export class InMemoryPersistenceStore<TSnapshot extends object>
 
   constructor() {
     const repositories = createUnitOfWork(() => this.state);
-    this.rooms = repositories.rooms;
-    this.playerSessions = repositories.playerSessions;
-    this.tradeOffers = repositories.tradeOffers;
+    // Direct writes (expiry and administrative cleanup) must wait behind the
+    // same transaction queue as room commands. Otherwise one can mutate the
+    // live state while an async transaction is still working on its draft.
+    const serializeWrites = <TRepository extends object>(
+      repository: TRepository,
+      lane: keyof PersistenceUnitOfWork<TSnapshot>,
+      methods: readonly string[],
+    ): TRepository => new Proxy(repository, {
+      get: (target, property) => {
+        const method: unknown = Reflect.get(target, property);
+        if (typeof method !== 'function') return method;
+        if (!methods.includes(String(property))) {
+          return (...args: unknown[]) => (method as (...inputs: unknown[]) => unknown).apply(target, args);
+        }
+        return (...args: unknown[]) => this.transaction((transaction) => {
+          const draftRepository: object = transaction[lane];
+          const draftMethod: unknown = Reflect.get(draftRepository, property);
+          if (typeof draftMethod !== 'function') throw new Error('Missing repository method');
+          return (draftMethod as (...inputs: unknown[]) => Promise<unknown>).apply(draftRepository, args);
+        });
+      },
+    });
+    this.rooms = serializeWrites(repositories.rooms, 'rooms', ['create', 'save', 'delete']);
+    this.playerSessions = serializeWrites(repositories.playerSessions, 'playerSessions', [
+      'createPending', 'activate', 'touch', 'revoke', 'revokeByPlayer', 'expireDue', 'purgeTerminal',
+    ]);
+    this.tradeOffers = serializeWrites(repositories.tradeOffers, 'tradeOffers', ['create', 'resolve']);
   }
 
   async transaction<TResult>(
