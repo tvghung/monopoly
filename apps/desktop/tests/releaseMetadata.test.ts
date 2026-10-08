@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -15,9 +16,11 @@ const repositoryRoot = path.resolve(process.cwd(), '../..');
 describe('desktop release metadata', () => {
   it('derives the desktop release metadata from the canonical root version', () => {
     const metadata = readCanonicalReleaseMetadata(repositoryRoot);
+    const rootPackage = JSON.parse(readFileSync(path.join(repositoryRoot, 'package.json'), 'utf8')) as { version: string };
 
+    expect(rootPackage.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(metadata).toMatchObject({
-      version: '1.4.1',
+      version: rootPackage.version,
       productName: 'Own the Block',
       executableName: 'OwnTheBlock',
     });
