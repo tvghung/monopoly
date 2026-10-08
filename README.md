@@ -1,6 +1,6 @@
 # Own the Block — Cờ Tỷ Phú Việt Nam
 
-**Version 1.6.0 — responsive gameplay UX.** Landmark names in Vietnamese and English, a main-menu language selector, hide/show ("view board") for decision dialogs, a pinch/drag board camera, compact phone HUD and a rotate-device notice. Download the latest Windows/macOS packages from [GitHub Releases](https://github.com/tvghung/monopoly/releases/latest) after the `v1.6.0` release workflow completes. The installers are unsigned. (Version 1.5.0 introduced RAM-only LAN & Cloudflare Online Multiplayer.)
+**Version 1.6.1 — phone and tablet layout.** A redesigned phone HUD (smaller cards and keys with 44 px touch targets), the jail actions always under the roll button, one turn label, compact debt and build dialogs, tablets playable upright, and fewer helper lines in the menus and lobby. Download the latest Windows/macOS packages from [GitHub Releases](https://github.com/tvghung/monopoly/releases/latest) after the `v1.6.1` release workflow completes. The installers are unsigned. (Version 1.6.0 brought the responsive gameplay UX; 1.5.0 introduced RAM-only LAN & Cloudflare Online Multiplayer.)
 
 Own the Block is a host-authoritative multiplayer Monopoly game. A Windows or macOS desktop player hosts a match; other players join from desktop or mobile browsers over the LAN or a temporary HTTPS Cloudflare Quick Tunnel invitation. The host's server process holds every room, reconnect session and offer in RAM. Stopping or crashing that process permanently ends its matches.
 

@@ -8,7 +8,7 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.6.0
+Semantic version: 1.6.1
 Socket protocol: 11
 ```
 
@@ -51,8 +51,8 @@ Implementation references: `apps/desktop/src/hostRuntime.ts`,
 ## Packaging identity
 
 Forge uses the root package version for app metadata and the Windows Squirrel
-name: `OwnTheBlock-1.6.0-win32-x64-Setup.exe`. The installed Forge DMG maker resolves
-`Own the Block-1.6.0-x64.dmg` and `Own the Block-1.6.0-arm64.dmg` from app name,
+name: `OwnTheBlock-1.6.1-win32-x64-Setup.exe`. The installed Forge DMG maker resolves
+`Own the Block-1.6.1-x64.dmg` and `Own the Block-1.6.1-arm64.dmg` from app name,
 desktop package version, and target architecture. The application and collected
 manifest derive their version from package metadata. These are configuration expectations,
 not claims that new artifacts were built. Release metadata rejects mismatched
