@@ -228,6 +228,26 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
   ngang (cao ≤ 500 px) `JailPanel` thu thành dải hai hàng (tiêu đề + vòng chờ, rồi hai nút). Từ 720 px chiều rộng
   trở xuống context stack (trạng thái nợ, `RevivePanel`) nằm ở khoảng giữa hai card dưới còn `JailPanel` do `CenterStage` vẽ dưới nút
   "Đổ xúc xắc" (xem "Nhóm thoát tù trên điện thoại hẹp").
+- **Responsive gameplay (landscape-first)** — kết quả kiểm toán: ở 568×320–896×414 bàn cờ đã chiếm khoảng 52–63% cửa sổ (camera framing gồm cả bốn bệ người chơi, nên
+  bị giới hạn bởi chiều cao), HUD 15–33%; muốn đọc ô cờ thì phải phóng to, không phải co HUD thêm. Quyết định thiết kế:
+  - **Camera người chơi** (`game/scene/camera/boardView.ts`, `useBoardGestures.ts`, `CameraAutoFocus.tsx`, `FixedBoardCamera.applyBoardView`; chỉ trình bày, không chạm state game hay socket):
+    `boardViewStore` giữ `{ zoom, panX, panY }` ngoài React nên pinch/kéo không render component nào. Zoom 1 = tổng quan cũ (cả bàn + bệ), giới hạn 1–3,5×;
+    pan tính theo trục phải/lên của camera (hướng camera không đổi) và bị kẹp để cửa sổ nhìn không vượt khỏi vùng tổng quan, nên không thể làm mất bàn cờ; ở zoom 1 không có pan.
+    Cử chỉ (gắn vào `.game-scene`, `touch-action: none` trên canvas): một ngón kéo khi đã zoom, hai ngón pinch (zoom quanh điểm giữa + kéo theo), con lăn chuột zoom quanh con trỏ.
+    Một lần chạm/kéo vượt 8 px kết thúc bằng `click` bị chặn ở pha capture (350 ms) nên kéo không mở thẻ ô đất; ở zoom 1 một cú chạm luôn là chạm.
+    Nút 44 px trong `action-dock` (`CameraControls`: phóng to, thu nhỏ, "Về góc nhìn toàn bàn" chỉ hiện khi khác tổng quan; chỉ vẽ khi có bàn 3D) là đường dùng bàn phím/chuột; ≤ 720 px
+    chúng nằm ở mép dưới giữa hai card dưới (`position: fixed`, cùng thứ tự Tab). Reset là chuyển động 280 ms (tức thời khi reduced motion).
+  - **Tự động theo token** (`CameraAutoFocus`): chỉ khi đang zoom > 1,15, cách lần chạm/zoom/reset của người chơi ≥ 6 s (`MANUAL_PRECEDENCE_MS`) và không có dialog mở
+    (`.ds-modal__overlay` không `hidden`); khi đó một lần ease 450 ms tới ô mới của token vừa di chuyển (vị trí hiển thị đã có sẵn từ presentation). Ở tổng quan camera không tự di chuyển.
+    Khi một dialog bị ẩn bằng "Xem bàn cờ" camera vẫn được phép theo token. Người chơi luôn thắng: mọi thao tác tay hủy hoạt ảnh đang chạy.
+  - **Chip người chơi** (`hud.css`, cao ≤ 500 px): ghế đang `playing`, không phải lượt và không phải người của mình thu thành chip 118×38 (avatar 28 px, tên ≤ 8 ký tự, số dư); người đang đi và
+    người của mình giữ card đầy đủ, và mọi ghế có trạng thái cần đọc (tù, mất kết nối, phá sản, hồi sinh, đã rời) giữ card đầy đủ. Mở chi tiết = bấm chip (cùng nút "Tài sản của <tên>" như trước).
+    Card đổi cỡ bằng ease ngắn (không có khi reduced motion).
+  - **Phân cấp thông báo** (cao ≤ 500 px hoặc rộng ≤ 720 px, `COMPACT_HUD_QUERY`): *cần hành động* — hộp thoại quyết định, nợ, đề nghị, mất kết nối, banner "Đến lượt bạn!" — không bị thu nhỏ hay tự đóng;
+    *quan trọng nhưng không chặn* — banner khánh thành, xúc xắc, chip tiền của **mình**, trạng thái trên card; *thường lệ* — banner "Lượt của <tên>" của người khác (status pill đã nói), pill
+    "<tên> đang đi…" giữa bàn, chip +/- tiền của người khác, ticker — không còn hiện nổi, vẫn nằm trong Nhật ký (không thay đổi nguồn `activityFeed`). Desktop giữ nguyên các thông báo cũ.
+  - **Dọc (portrait)**: điện thoại và máy tính bảng (`pointer: coarse` tới 1100 px, hoặc cửa sổ hẹp ≤ 48rem) hiện thông báo "Hãy xoay ngang thiết bị" phủ kín (z 85, trên dialog) với biểu tượng điện thoại
+    nghiêng; phần bàn bên dưới là `inert` (không chạm, không bàn phím) nhưng vẫn mounted nên xoay lại không mất ván. Cửa sổ desktop với chuột không bị khóa theo hình dạng.
 - **Ngăn nhật ký** (`Log`): xem [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md).
 - **Toolbar** (`App.tsx`): `IconButton` v2 44 px cho "Hướng dẫn chơi" (ô đầu, sau FPS dev; xem
   [how-to-play.instruction.md](./how-to-play.instruction.md)), "Cài đặt" và "Bỏ cuộc"/"Rời phòng", vẫn ngoài `.game-board`;

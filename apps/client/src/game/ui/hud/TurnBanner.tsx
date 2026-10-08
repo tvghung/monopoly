@@ -5,6 +5,7 @@ import { usePresentationSelector } from '../../presentation/usePresentationSelec
 import type { PresentationState } from '../../presentation/store/types';
 import { resolveDisplayedPlayer } from './displayedPlayer';
 import { useTransientList } from './useTransientList';
+import { COMPACT_HUD_QUERY, useMediaQuery } from '../../../design-system/useMediaQuery';
 import { useTranslation } from '../../../i18n/I18n';
 
 /** Enter, hold and exit at speed 1 (divided by the animation speed): 280 + 900 + 280 ms. */
@@ -28,6 +29,8 @@ interface BannerValue {
  * Announces a turn change on screen: "Đến lượt bạn!" for the local player, "Lượt của <tên>" otherwise. It shows only
  * when the displayed active player changes during live presentation, never on the first render, after a snap or
  * a reset (a changed presentation reset epoch), and a newer change replaces the banner instead of queueing behind it.
+ * On a phone-sized window (`COMPACT_HUD_QUERY`) only the local player's own turn gets a banner; another player's turn is already
+ * on the status pill, the highlighted card and the Journal, and a second "Lượt của …" banner would only cover the board.
  * It never takes pointer input and is hidden from assistive technology: the roll control's live region announces the
  * turn change once (see `useTurnAnnouncement`) and the status pill shows it.
  */
@@ -35,6 +38,7 @@ export default function TurnBanner() {
   const { t } = useTranslation();
   const { state, playerId } = useContext(stateContext);
   const slice = usePresentationSelector(selectTurnSlice, sameTurnSlice);
+  const compact = useMediaQuery(COMPACT_HUD_QUERY);
   const list = useTransientList<BannerValue>(1);
   const lastActive = useRef<string | null | undefined>(undefined);
   const lastEpoch = useRef(slice.resetEpoch);
@@ -51,9 +55,10 @@ export default function TurnBanner() {
       return;
     }
     if (previous === undefined || previous === slice.activePlayerId || slice.activePlayerId === null) return;
+    if (compact && slice.activePlayerId !== playerId) return;
     counter.current += 1;
     push(`turn-${counter.current}`, { playerId: slice.activePlayerId }, TURN_BANNER_LIFETIME_MS / Math.max(0.1, slice.speed));
-  }, [clear, push, slice]);
+  }, [clear, compact, playerId, push, slice]);
 
   const entry = list.entries.at(-1);
   if (!entry) return null;

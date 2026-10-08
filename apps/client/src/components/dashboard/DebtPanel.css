@@ -202,6 +202,16 @@
   .debt-panel__footer-note { display: none; }
 }
 
+/* ...and in a window that is also narrow the facts take a row of their own, so the creditor never sits on top of them. */
+@media (orientation: landscape) and (max-height: 31rem) and (max-width: 44rem) {
+  .debt-panel__summary {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'due creditor countdown'
+      'facts facts facts';
+  }
+}
+
 @media (max-height: 500px) {
   .debt-panel--status { padding: 4px 8px; border-radius: var(--radius-md); }
   .debt-panel__status-copy strong { font: 700 0.875rem/1.25rem var(--font-family-body); }

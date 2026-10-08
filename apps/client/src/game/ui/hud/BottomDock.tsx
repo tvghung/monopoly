@@ -3,6 +3,7 @@ import DebtPanel from '../../../components/dashboard/DebtPanel';
 import JailPanel from '../../../components/dashboard/JailPanel';
 import RevivePanel from '../../../components/dashboard/RevivePanel';
 import OwnedPropertiesControl from '../property/OwnedPropertiesControl';
+import CameraControls from './CameraControls';
 import { NARROW_HUD_QUERY, useMediaQuery } from '../../../design-system/useMediaQuery';
 import { useTranslation } from '../../../i18n/I18n';
 
@@ -25,6 +26,7 @@ export default function BottomDock({ onSelectTile, ticker }: { onSelectTile: (ti
       </div>
       <nav className="action-dock" data-hud-region="action-dock" aria-label={t('hud.actions')}>
         <OwnedPropertiesControl onSelect={onSelectTile} />
+        <CameraControls />
       </nav>
     </div>
   );

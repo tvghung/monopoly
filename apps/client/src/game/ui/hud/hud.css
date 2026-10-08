@@ -267,6 +267,30 @@
   .player-card__team-relation { display: none; }
 }
 
+/*
+ * Compact player chips (phone held sideways). A seat that is just playing, is not on the move and is not the local player shrinks to
+ * an avatar, a short name and the balance; the player on the move and the local player keep the full card, and so does any seat
+ * with a status that must stay readable (jail, offline, bankrupt, revivable, left). The corner and the portfolio button are
+ * unchanged, so tapping a chip opens the same assets dialog. The move between sizes is a short width/height ease (none under reduced motion).
+ */
+@media (max-height: 500px) {
+  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) {
+    width: 118px;
+    height: 38px;
+    transition: width var(--motion-duration-ui) var(--motion-ease-out), height var(--motion-duration-ui) var(--motion-ease-out);
+  }
+  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .player-card__face { gap: 4px; padding: 3px 6px 3px 4px; border-radius: var(--radius-md); }
+  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .ds-avatar { --ds-avatar-size: 28px !important; }
+  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .player-card__name { max-width: 8ch; font-size: 0.6875rem; line-height: 1; }
+  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .player-card__money { font-size: 0.8125rem; line-height: 1.1; }
+  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .player-card__body { gap: 0; }
+  /* Another player's "+60.000" / "-25.000" flashes are routine; the balance still counts and the Journal has the line. */
+  .player-card:not(.player-card--local) .player-card__chips { display: none; }
+  /* The status pill already names who is on the move; the same name in the middle of the board is a second notice. */
+  .center-stage__pill { display: none; }
+}
+:root[data-reduced-motion='true'] .player-card { transition: none !important; }
+
 /* ---------- Status pill (top center) ---------- */
 
 .status-pill {
@@ -509,7 +533,8 @@
 .hud-context > * { pointer-events: auto; }
 .hud-context:empty { display: none; }
 
-.action-dock { display: flex; justify-content: flex-start; pointer-events: none; }
+.action-dock { display: flex; align-items: center; justify-content: flex-start; gap: 8px; pointer-events: none; }
+.camera-controls { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
 .dock-label--short { display: none; }
 .action-dock .game-board__property-access { display: flex; }
 
@@ -686,4 +711,18 @@
 
 @media (max-width: 720px) {
   .landmark-banner { top: calc(var(--hud-inset) + var(--player-card-height) + 44px + 50px); left: var(--hud-inset); }
+}
+
+/*
+ * Up to 720 px wide the properties button sits above the local card and the context strip and the jail group use the middle of the
+ * board, so the zoom keys leave the dock for the free bottom edge between the two bottom cards (the same place the dock has in
+ * wider windows). They stay in the DOM next to the properties button, so tab order does not change.
+ */
+@media (max-width: 720px) {
+  .camera-controls {
+    position: fixed;
+    z-index: var(--z-hud-dock);
+    bottom: max(var(--hud-inset), env(safe-area-inset-bottom));
+    left: calc(var(--hud-inset) + var(--player-card-local-width) + 12px);
+  }
 }

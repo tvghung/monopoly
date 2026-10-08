@@ -302,3 +302,19 @@ harness (`?phase4-uat=1`) in system Chrome, results written down here; `[NOT RUN
   element at its center (clickable), both jail buttons are ≥ 44 px tall and hit-testable, the panel overlaps neither the roll button, nor the four player cards, nor the properties dock, no horizontal
   scroll. Before the change 568×320 failed (panel over the roll button, `rollClickable: false`).
 - [ ] `[NOT RUN]` 2v2 revive panel next to a jailed player, a disconnected jailed player, an insufficient-bail balance and a pending request on a device; Safari/WebKit and real notch devices.
+
+## Responsive gameplay overhaul (2026-10-08, same branch): camera, chips, notifications, portrait, short-landscape dialogs
+
+Labels as in the batch-5 section above (`[AUTO]` committed test, `[PROBE]` throwaway Playwright script on the UAT harness in system Chrome, `[NOT RUN]`).
+
+- [x] `[AUTO][CLIENT]` `game/scene/camera/boardView.test.ts` (9 tests): zoom range, pan clamped so the window never leaves the overview, finger direction, zoom about an anchor keeps the point under it,
+  no automatic focus at the overview / within 6 s of a manual change, one eased follow once left alone, reset, detach.
+- [x] `[AUTO][CLIENT]` `game/ui/hud/CameraControls.test.tsx`: no keys without a 3D board; zoom in/out steps, ends disabled, reset only away from the overview; keys are the shared 44 px icon buttons.
+- [x] `[AUTO][CLIENT]` `game/ui/hud/turnAndDiceOverlays.test.tsx`: on a phone-sized window an opponent's turn gets no banner and the local turn still does.
+- [x] `[PROBE]` Camera on the live board (667×375, touch): zoom keys, wheel, mouse drag and CDP two-finger pinch change the zoom (reset key appears, zoom-out enables); a drag over the board opens no dialog;
+  a plain tap on a tile still opens its card; no page errors. Overview board share 52–63% at 568×320–896×414 and 64–86% at 1024×768–1280×720; zoom-in screenshots inspected.
+- [x] `[PROBE]` HUD chips at 667×375 (stations-4): non-turn, non-local seats are chips and the board is visibly clearer; seats with a status keep the full card (the offline seat in the fixture).
+- [x] `[PROBE]` Jail group with the camera keys at 568×320, 667×375, 740×360 (VI and EN): no overlap between roll, jail panel, zoom keys, properties button and cards.
+- [x] `[PROBE]` Short-landscape dialogs (see design-system "Modal trên màn hình ngang thấp") before and after: purchase buttons on one line, debt summary without overlap.
+- [x] `[PROBE]` Portrait 375×667: the rotate notice covers the game. [NOT RUN] 820×1180 touch tablet portrait with `pointer: coarse` (desktop Chrome here has a fine pointer), orientation change mid-game on a device,
+  real pinch on a phone, a real match with automatic follow, unread badge behavior of the Journal tab (unchanged code), 2v2 chips, long-string overflow beyond the VI/EN strings checked.

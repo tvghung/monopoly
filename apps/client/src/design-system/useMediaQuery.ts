@@ -41,5 +41,18 @@ export function useMediaQuery(query: string): boolean {
  */
 export const NARROW_HUD_QUERY = '(max-width: 720px)';
 
+/**
+ * A window the game does not play in: portrait on a narrow window (up to 48rem) or portrait on a touch device up to 1100 px wide
+ * (phones and tablets; gameplay there is landscape only). The same text is the media query of the rotate-device notice in
+ * `BoardShell.css`; a desktop window with a mouse is never blocked by its shape above 48rem.
+ */
+export const PORTRAIT_BLOCKED_QUERY = '(orientation: portrait) and (max-width: 48rem), (orientation: portrait) and (pointer: coarse) and (max-width: 1100px)';
+
+/**
+ * A phone-sized window (up to 720 px wide or up to 500 px tall): the HUD keeps to what a player has to act on there. Routine events
+ * (another player's turn banner, their balance changes) are left to the status pill, the cards and the Journal. Same breakpoints as `hud.css`.
+ */
+export const COMPACT_HUD_QUERY = '(max-width: 720px), (max-height: 500px)';
+
 /** A phone held sideways, or any window too short for the full deed card beside the decision. */
 export const SHORT_VIEWPORT_QUERY = '(orientation: landscape) and (max-height: 31rem)';

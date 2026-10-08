@@ -92,6 +92,14 @@ Kết quả đo trong Design Lab: Baloo 2 có `tnum` thật (chênh lệch bề 
   danh sách `surfaces` không đổi (57 id, xem bên dưới) và `PLAN04_SURFACES` không đổi; xem
   [how-to-play.instruction.md](./how-to-play.instruction.md).
 
+### Modal trên màn hình ngang thấp
+
+`@media (orientation: landscape) and (max-height: 31rem)` (`Modal.css`): thẻ cao tối đa bằng cửa sổ, header chỉ còn 44 px của nút + vài px đệm, thân cuộn riêng (`overscroll-behavior: contain`) và footer dính, nên
+nút hành động luôn với tới. Bản này thêm: nút của quyết định mua/phát triển (`DecisionSheet.css`) bỏ glyph và không xuống dòng ("Mua tài sản" / "Buy property" một dòng trong nút 130 px),
+tóm tắt nợ (`DebtPanel.css`) dành riêng một hàng cho hai ô số liệu khi cửa sổ cũng hẹp (≤ 44rem) để avatar chủ nợ không đè lên chúng.
+Đã đo bằng probe (không commit) ở 568×320 và 667×375: 24 bề mặt Design Lab (mua, phát triển, nợ, bán ép, giao dịch, đề nghị đến, thẻ ô đất, danh mục, thẻ Cơ Hội/Khí Vận, xác nhận, thắng, cài đặt, cứu trợ)
+nằm trọn trong cửa sổ và không có nút nào nằm ngoài vùng cuộn được.
+
 ### Xem bàn cờ (peek)
 
 Mục đích: một quyết định (mua, nợ, thẻ…) hay một hộp thoại thông tin che bàn cờ; người chơi muốn nhìn tài sản, chủ sở hữu, tiền thuê rồi quay lại **đúng** quyết định đó.

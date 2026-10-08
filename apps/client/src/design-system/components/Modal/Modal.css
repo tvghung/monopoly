@@ -122,7 +122,8 @@
   }
   .ds-modal--sheet { margin-bottom: 0; border-radius: var(--radius-medium) var(--radius-medium) 0 0; }
 
-  .ds-modal__header { padding: 0.5rem 0.75rem; }
+  /* The 44 px keys set the header height; the rest of it is padding, so it is kept to a few pixels. */
+  .ds-modal__header { padding: 0.25rem 0.5rem 0.25rem 0.75rem; }
   .ds-modal__title { font: var(--type-label); }
   .ds-modal__body { padding: 0.6rem 0.75rem 0.75rem; }
   .ds-modal__footer { padding: 0.5rem 0.75rem; }

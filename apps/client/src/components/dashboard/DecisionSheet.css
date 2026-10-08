@@ -68,5 +68,7 @@
   .decision-sheet__math { padding: var(--space-2); }
   /* The buttons already say how many Nhà and what each costs. */
   .decision-sheet__note { display: none; }
-  .decision-sheet__actions .ds-button { min-height: 3rem; padding-block: var(--space-1); }
+  .decision-sheet__actions .ds-button { min-height: 3rem; padding: var(--space-1) var(--space-2); white-space: nowrap; font: var(--type-label); }
+  /* The glyph is decoration; without it "Mua tài sản" / "Buy property" stays on one line in a 130 px button. */
+  .decision-sheet__actions .ds-button__icon { display: none; }
 }

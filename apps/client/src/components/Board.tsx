@@ -6,7 +6,9 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { Smartphone } from 'lucide-react';
 import stateContext from '../internal';
+import { PORTRAIT_BLOCKED_QUERY, useMediaQuery } from '../design-system/useMediaQuery';
 // Keep Dashboard first: its stylesheet must precede Button.css in the bundle (the HUD imports Button).
 import Dashboard from './Dashboard';
 import displayPositionsContext from '../displayPositionsContext';
@@ -43,6 +45,8 @@ export default function Board() {
   const [portfolioPlayerId, setPortfolioPlayerId] = useState<string | null>(null);
   const [hoveredTileId, setHoveredTileId] = useState<number | null>(null);
   const [tradeTarget, setTradeTarget] = useState<number | null>(null);
+  // Portrait on a phone or tablet: the rotate notice covers the game, and the game under it is inert (no touch, no keyboard) but not unmounted.
+  const portraitBlocked = useMediaQuery(PORTRAIT_BLOCKED_QUERY);
   const displayPositions = presentationState.displayPositions;
   const renderModel = useMemo(
     () => buildBoardRenderModel(state, presentationState, roomPlayers, playerId, role, language),
@@ -102,6 +106,7 @@ export default function Board() {
           inert={!connected}
         >
           <aside className="game-board__orientation-notice" role="status">
+            <span className="game-board__orientation-icon" aria-hidden="true"><Smartphone /></span>
             <strong>{t('board.orientationTitle')}</strong>
             <span>{t('board.orientationBody')}</span>
           </aside>
@@ -110,6 +115,7 @@ export default function Board() {
             className={`game-board__renderer${rendererMode === 'legacy' ? ' game-board__renderer--legacy' : ''}`}
             data-renderer-mode={rendererMode}
             aria-label={t('board.boardArea')}
+            inert={portraitBlocked}
           >
             {rendererMode === 'webgl'
               ? (

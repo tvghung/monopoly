@@ -10,6 +10,7 @@ import type { AnimationQueue } from '../../presentation/queue/AnimationQueue';
 import { PresentationStore } from '../../presentation/store/presentationStore';
 import { cloneRoom, makeRoom } from '../../presentation/testFixtures';
 import DiceResultCallout, { DICE_CALLOUT_LIFETIME_MS } from './DiceResultCallout';
+import { COMPACT_HUD_QUERY } from '../../../design-system/useMediaQuery';
 import TurnBanner, { TURN_BANNER_LIFETIME_MS } from './TurnBanner';
 
 beforeEach(() => vi.useFakeTimers());
@@ -120,6 +121,21 @@ describe('TurnBanner', () => {
     act(() => { store.setDisplayActivePlayerId('player-a'); });
     expect(screen.getByText('Đến lượt bạn!')).toBeTruthy();
     expect(container.querySelector('.turn-banner--mine')).not.toBeNull();
+  });
+
+  it('on a phone-sized window leaves an opponent turn to the status pill and still announces your own', () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === COMPACT_HUD_QUERY, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(),
+    }));
+    const store = new PresentationStore();
+    const { container } = mount(<TurnBanner />, store);
+    act(() => { store.setDisplayActivePlayerId('player-a'); });
+    act(() => { store.setDisplayActivePlayerId('player-b'); });
+    expect(container.querySelector('.turn-banner')).toBeNull();
+
+    act(() => { store.setDisplayActivePlayerId('player-a'); });
+    expect(screen.getByText('Đến lượt bạn!')).toBeTruthy();
+    vi.unstubAllGlobals();
   });
 
   it('replaces the banner on a rapid second change instead of queueing behind it', () => {

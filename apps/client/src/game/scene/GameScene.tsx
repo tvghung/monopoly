@@ -6,7 +6,9 @@ import type { BoardRenderModel } from './board/boardRenderModel';
 import { boardVisualTokens } from './board/boardVisualTokens';
 import PropScreenRectsPublisher from '../../dev/hud-overlap/PropScreenRectsPublisher';
 import TileScreenRectsPublisher from '../../dev/hud-overlap/TileScreenRectsPublisher';
+import CameraAutoFocus from './camera/CameraAutoFocus';
 import FixedBoardCamera, { BOARD_CANVAS_CAMERA } from './camera/FixedBoardCamera';
+import { useBoardGestures } from './camera/useBoardGestures';
 import {
   HARD_TRIANGLE_LIMIT,
   STRESS_DRAW_CALL_LIMIT,
@@ -295,6 +297,7 @@ function BoardSceneContents({
   return (
     <>
       <FixedBoardCamera />
+      <CameraAutoFocus players={model?.players ?? NO_PLAYER_PLACES} />
       {import.meta.env.DEV || __PHASE4_UAT__ ? <TileScreenRectsPublisher /> : null}
       {import.meta.env.DEV || __PHASE4_UAT__ ? <PropScreenRectsPublisher /> : null}
       <RendererDiagnostics
@@ -322,6 +325,8 @@ function BoardSceneContents({
   );
 }
 
+const NO_PLAYER_PLACES: readonly { playerId: string; tileId: number }[] = [];
+
 export default function GameScene({
   model,
   hoveredTileId,
@@ -340,8 +345,10 @@ export default function GameScene({
     () => (isLocalDiagnosticsEnabled() ? parseToneMappingOverride(window.location.search) : SCENE_TONE_MAPPING),
     [],
   );
+  const sceneRef = useRef<HTMLDivElement>(null);
+  useBoardGestures(sceneRef);
   return (
-    <div className="game-scene" data-testid="game-scene" data-graphics-tier={quality.tier}>
+    <div ref={sceneRef} className="game-scene" data-testid="game-scene" data-graphics-tier={quality.tier}>
       <Canvas
         camera={BOARD_CANVAS_CAMERA}
         orthographic

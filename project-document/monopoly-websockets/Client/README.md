@@ -34,6 +34,8 @@ Technical event/package names and canonical shared game data stay unchanged.
 - Authoritative room/game state cập nhật ngay; display position/turn/dice chỉ là
   presentation state và không được dùng làm nguồn thẩm quyền.
 - Spectator read-only; server authority không phụ thuộc action visibility.
+- Camera người chơi (pinch/kéo/con lăn/nút phóng to–thu nhỏ–về toàn bàn, tự theo token khi đang zoom) chỉ là trình bày trong `boardViewStore`: không chạm state game hay socket, người chơi luôn được ưu tiên
+  hơn chuyển động tự động; gameplay trên điện thoại/máy tính bảng chỉ hỗ trợ màn hình ngang ([game-board.instruction.md](./game-board.instruction.md) "Responsive gameplay").
 - "Xem bàn cờ" (peek) của `Modal` chỉ là trình bày: ẩn/hiện không gửi lệnh, không đóng dialog, không đổi state có thẩm quyền; khi quyết định đang ẩn, thẻ ô đất trên bàn cờ chỉ đọc
   ([design-system.instruction.md](./design-system.instruction.md) "Xem bàn cờ (peek)").
 - 2v2 (protocol 10; chỗ ngồi `teamSlot` và `seatSwapRequests` từ protocol 11): mọi dữ liệu team lấy từ public state đã được server gửi (`boardState.teams`, `teamPlay`, `winningTeamId`,
