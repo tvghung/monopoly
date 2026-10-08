@@ -178,13 +178,22 @@ interface AppProps {
   runtimeConfig?: RuntimeConfig;
   launch?: DesktopLaunchSelection;
   onExitToLauncher?: () => void;
+  /**
+   * The Host of this room answers at a new address (its tunnel was replaced). The token has already been stored for that
+   * address; the shell reconnects there and the player resumes their own seat.
+   */
+  onSwitchEndpoint?: (endpoint: string, roomCode: string) => void;
 }
+
+/** How long a reconnection may fail before the overlay offers to use the Host's new link. */
+export const RECONNECT_STALL_MS = 20_000;
 
 export default function App({
   socket: injectedSocket,
   runtimeConfig,
   launch,
   onExitToLauncher,
+  onSwitchEndpoint,
 }: AppProps = {}) {
   const { language, t } = useTranslation();
   const languageRef = useRef(language);
@@ -233,6 +242,40 @@ export default function App({
   /** The "Xem tiếp / Rời phòng" choice a player gets right after giving up. */
   const [forfeitChoiceOpen, setForfeitChoiceOpen] = useState(false);
   const desktopBridge = getDesktopBridge();
+  // A reconnection that keeps failing may mean the Host's link changed: after a while the overlay offers to use a new link.
+  const [reconnectStalled, setReconnectStalled] = useState(false);
+
+  useEffect(() => {
+    if (phase !== 'RECONNECTING') {
+      setReconnectStalled(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setReconnectStalled(true), RECONNECT_STALL_MS);
+    return () => clearTimeout(timer);
+  }, [phase]);
+
+  /** Moves this player's token to the Host's new address (in this device's storage only) and reconnects there. */
+  const switchEndpoint = useCallback((endpoint: string, roomCode: string): boolean => {
+    const token = tokenRef.current;
+    const target = getSessionAuthority(endpoint);
+    if (!token || !onSwitchEndpoint || !target || target === sessionAuthority) return false;
+    if (!writePlayerSessionForRoom(token, target, roomCode)) return false;
+    onSwitchEndpoint(endpoint, roomCode);
+    return true;
+  }, [onSwitchEndpoint, sessionAuthority]);
+
+  // The desktop app can ask the room registry where the Host is now; a browser relies on the pasted link.
+  useEffect(() => {
+    const roomCode = roomRef.current?.roomCode;
+    if (!reconnectStalled || !roomCode || !desktopBridge?.online) return undefined;
+    let active = true;
+    void desktopBridge.online.findRoom(roomCode).then(result => {
+      if (active && result.ok) switchEndpoint(result.endpoint, roomCode);
+    }).catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [desktopBridge, reconnectStalled, switchEndpoint]);
 
   useEffect(() => {
     audio.setGameActive?.(room?.status === 'IN_PROGRESS');
@@ -1128,11 +1171,23 @@ export default function App({
                 // What the player typed on the start screen is already in the form: they never type it twice.
                 initialName={launch?.initialJoin?.name}
                 initialRoomCode={launch?.initialJoin?.roomCode ?? initialRoomCode}
+                // A browser opens another Host's own invitation page; the desktop app joins other Hosts from its start screen.
+                onOpenInvitation={desktopBridge ? undefined : (endpoint, roomCode) => {
+                  window.location.assign(`${endpoint}/?room=${encodeURIComponent(roomCode)}`);
+                }}
               />
             )
             : null}
           {phase === 'LOBBY' || phase === 'GAME' || phase === 'RECONNECTING' ? roomContent : null}
-          {phase === 'RECONNECTING' ? <ConnectionOverlay /> : null}
+          {phase === 'RECONNECTING'
+            ? (
+              <ConnectionOverlay
+                stalled={reconnectStalled}
+                roomCode={room?.roomCode}
+                onUseNewLink={onSwitchEndpoint ? (endpoint, roomCode) => { switchEndpoint(endpoint, roomCode); } : undefined}
+              />
+            )
+            : null}
           {phase === 'REPLACED' && failure
             ? <FailureScreen title={t('app.sessionOtherWindow')} failure={failure} onBack={onBack} />
             : null}

@@ -1,5 +1,5 @@
-import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import ConnectionOverlay from './ConnectionOverlay';
 
 afterEach(cleanup);
@@ -29,5 +29,32 @@ describe('ConnectionOverlay', () => {
     const { container } = render(<ConnectionOverlay />);
     const layer = container.querySelector('.connection-overlay');
     expect(layer?.querySelector('.connection-overlay__card.ds-panel')).not.toBeNull();
+  });
+
+  it('offers no link field until the reconnection has stalled', () => {
+    render(<ConnectionOverlay roomCode="OTB-ABC234" onUseNewLink={vi.fn()} />);
+    expect(screen.queryByLabelText('Link mời mới của phòng')).toBeNull();
+  });
+
+  it('after a stall, takes the new invitation of the same room from the Host and nothing else', () => {
+    const onUseNewLink = vi.fn();
+    render(<ConnectionOverlay stalled roomCode="OTB-ABC234" onUseNewLink={onUseNewLink} />);
+    const field = screen.getByLabelText('Link mời mới của phòng');
+    const submit = screen.getByRole('button', { name: 'Kết nối bằng link này' });
+
+    fireEvent.change(field, { target: { value: 'https://evil.test/?room=OTB-ABC234' } });
+    fireEvent.click(submit);
+    expect(screen.getByRole('alert').textContent).toBe('Link mời không hợp lệ.');
+
+    fireEvent.change(field, { target: { value: 'https://new-host.trycloudflare.com/?room=OTB-OTHER2' } });
+    fireEvent.click(submit);
+    expect(screen.getByRole('alert').textContent).toBe('Link này là của phòng khác.');
+    expect(onUseNewLink).not.toHaveBeenCalled();
+
+    fireEvent.change(field, { target: { value: 'https://new-host.trycloudflare.com/?room=otb-abc234' } });
+    fireEvent.click(submit);
+    expect(onUseNewLink).toHaveBeenCalledWith('https://new-host.trycloudflare.com', 'OTB-ABC234');
+    // The token is never part of what the overlay sends on: only the public origin and the room code.
+    expect(JSON.stringify(onUseNewLink.mock.calls)).not.toMatch(/token/i);
   });
 });

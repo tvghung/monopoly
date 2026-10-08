@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { isPublicEndpointOrigin } from '@monopoly/shared';
 import express from 'express';
 import { createServer as createHttpServer, type Server as HttpServer } from 'http';
 import path from 'path';
@@ -32,13 +33,8 @@ export function isDesktopBrowserOrigin(origin: string): boolean {
   }
 }
 
-function isTunnelOrigin(origin: string): boolean {
-  try {
-    const url = new URL(origin);
-    return url.protocol === 'https:' && url.origin === origin
-      && /^[a-z0-9-]+\.trycloudflare\.com$/.test(url.hostname);
-  } catch { return false; }
-}
+// The public origins of an Online Host come from the shared endpoint policy, never from a hostname written here.
+const isTunnelOrigin = (origin: string): boolean => isPublicEndpointOrigin(origin);
 
 export function isDesktopRequestOriginAllowed(
   origin: string | undefined,

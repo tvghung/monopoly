@@ -57,6 +57,8 @@ function AppBootstrapScreens({ launch, onLaunchChange }: AppBootstrapScreensProp
   const [configuredRuntimeConfig, setConfiguredRuntimeConfig] = useState<RuntimeConfig | undefined>();
   const [configurationError, setConfigurationError] = useState(false);
   const [state, setState] = useState<BootstrapState>(initialState);
+  // A browser that follows its Host to a new address keeps this page and only points its socket there.
+  const [webEndpoint, setWebEndpoint] = useState<string | null>(null);
   const desktopBridge = getDesktopBridge();
   const { t } = useTranslation();
 
@@ -83,7 +85,9 @@ function AppBootstrapScreens({ launch, onLaunchChange }: AppBootstrapScreensProp
     setState(initialState);
     void bootstrap(stage => {
       if (active) setState(current => ({ ...current, stage }));
-    }, launch ? { runtimeConfig: launch.runtimeConfig, launch } : undefined).then(result => {
+    }, launch
+      ? { runtimeConfig: launch.runtimeConfig, launch }
+      : webEndpoint ? { runtimeConfig: { target: 'web', socketUrl: webEndpoint } } : undefined).then(result => {
       if (active) setState({ stage: 'ready', result, errorKind: null });
       else result.socket.disconnect();
     }).catch(error => {
@@ -98,7 +102,7 @@ function AppBootstrapScreens({ launch, onLaunchChange }: AppBootstrapScreensProp
     return () => {
       active = false;
     };
-  }, [desktopBridge, launch, retryNumber]);
+  }, [desktopBridge, launch, retryNumber, webEndpoint]);
 
   if (desktopBridge && !launch) {
     // Settings and language state are owned at renderer root. No audio provider is mounted here: nothing plays on the start screen.
@@ -136,6 +140,18 @@ function AppBootstrapScreens({ launch, onLaunchChange }: AppBootstrapScreensProp
             runtimeConfig={state.result.runtimeConfig}
             launch={state.result.launch}
             onExitToLauncher={() => onLaunchChange(null)}
+            onSwitchEndpoint={(endpoint, roomCode) => {
+              if (launch) {
+                onLaunchChange({
+                  ...launch,
+                  runtimeConfig: { ...launch.runtimeConfig, socketUrl: endpoint },
+                  targetRoomCode: roomCode,
+                  initialJoin: undefined,
+                });
+              } else {
+                setWebEndpoint(endpoint);
+              }
+            }}
           />
           <UpdateSessionNotice />
         </ToastProvider>

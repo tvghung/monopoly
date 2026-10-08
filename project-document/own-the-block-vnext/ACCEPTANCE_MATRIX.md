@@ -1,6 +1,6 @@
 # Acceptance matrix
 
-Status at **R0** (2026-10-09); section A updated at the R1 gate, sections B and C at the R2 gate (2026-10-09). Every row is updated as waves complete; nothing is PASS because code exists.
+Status at **R0** (2026-10-09); section A updated at the R1 gate, sections B and C at the R2 gate, section D at the R3 gate (2026-10-09). Every row is updated as waves complete; nothing is PASS because code exists.
 Status words: `PASS`, `FAIL`, `BLOCKED`, `NOT RUN`, `NOT RUN (USER MANUAL)`, `N/A — verified absent`, `PLANNED`.
 BOT-L0n = AC-L0n, BOT-A0n = AC-B0n, BOT-E0n = AC-E0n, NET-0n = AC-N0n.
 
@@ -50,16 +50,16 @@ BOT-L0n = AC-L0n, BOT-A0n = AC-B0n, BOT-E0n = AC-E0n, NET-0n = AC-N0n.
 
 | ID | Criterion | Implementation path | Automated test | Manual proof | Status |
 | --- | --- | --- | --- | --- | --- |
-| NET-01 | Desktop hosts real game, no paid server | existing helper | packaged proofs (Windows CI + macOS CI) | macOS/Windows host | PLANNED · real NOT RUN |
-| NET-02 | LAN without Internet/registry | existing LAN path | LAN host start with registry unreachable; LAN join | offline LAN | PLANNED · real NOT RUN |
-| NET-03 | True different-network join | tunnel + link/code | — (mocks insufficient) | independent Wi-Fi/cellular | BLOCKED (devices/networks) |
-| NET-04 | Provider abstraction | `ConnectivityProvider`, `endpointPolicy.ts` | no provider hostnames outside the policy (grep test) | — | PLANNED |
-| NET-05 | Unified Join parser | `runtime/joinTargetResolver.ts` | table of valid/invalid inputs, both join surfaces | — | PLANNED |
-| NET-06 | Sharing: code, link, QR without secrets | `HostLanSharing.tsx`, `Lobby.tsx` | QR/link payload contains only origin + room | phone scan | PLANNED · scan NOT RUN |
-| NET-07 | Discovery correctness | registry Worker + `discovery.ts` | registry node tests in `pnpm test`; unknown/expired/closed/reused code | deployed registry | PLANNED · deploy BLOCKED (owner account) |
-| NET-08 | Lifecycle: rotation, shutdown, loss, stale | `hostRuntime.ts`, overlay endpoint refresh | rotation re-lease, activation failure keeps link, stale lease, endpoint refresh | real rotation | PLANNED |
-| NET-09 | Reconnect/session safety | existing sessions + endpoint refresh | replay, cross-room token, simultaneous reconnect, link ≠ seat | — | PLANNED |
-| NET-10 | Cost/capacity honesty + 20–50 users target | docs + measurement | — | multi-host remote load | BLOCKED (infrastructure) |
+| NET-01 | Desktop hosts real game, no paid server | existing helper + Quick Tunnel; no gameplay server anywhere | Desktop Build run 37827396086 (Windows x64 + macOS arm64 packaged proofs) on `7e22c5f`; RC run pending | macOS/Windows host by a person | PASS (CI packaged proofs) · real host sessions NOT RUN (USER MANUAL) |
+| NET-02 | LAN without Internet/registry | LAN path unchanged; registry only reserved in ONLINE mode | `apps/desktop/tests/hostRuntime.test.ts` LAN cases, `lanFinder` / `lanDiscoveryContract` tests, packaged `proof:packaged:host` (LAN discovery, four clients) in Desktop Build | offline LAN with two machines | PASS (automated/packaged on CI) · physical offline LAN NOT RUN |
+| NET-03 | True different-network join | tunnel link / registry code / `/join` page | — (mocks are not proof) | independent Wi-Fi/cellular devices | BLOCKED (needs owner devices on independent networks) |
+| NET-04 | Provider abstraction | `packages/shared/src/endpointPolicy.ts` (single provider list, Quick Tunnel `experimental`); server CORS and client parser use it; desktop adapter mirrors it | `apps/server/src/endpointPolicy.test.ts` (accept/refuse table, provider label, scan: provider hostnames only in policy/adapter/registry); `apps/desktop/tests/lanDiscoveryContract.test.ts` policy parity | — | PASS |
+| NET-05 | Unified Join parser | `runtime/joinTargetResolver.ts` used by the desktop launcher **and** the browser `JoinForm` | `JoinForm.test.tsx` "room code or invitation link" (lower case/spaces, same page, other Host, malicious/foreign/duplicate-room links, desktop refusal); existing `joinTargetResolver.test.ts`, launcher tests | — | PASS |
+| NET-06 | Sharing: code, link, QR without secrets | `Lobby.tsx` copy code, `HostLanSharing.tsx` link + QR (unchanged) | existing `HostLanSharing.test.tsx` / `Lobby.test.tsx` QR payload = origin + room only; registry `/join` page contains no secret (`index.test.mjs`) | phone scan and clipboard on devices | PASS (automated) · scan NOT RUN (USER MANUAL) |
+| NET-07 | Discovery correctness | registry Worker (lease, proof, TTL, CORS lookup, `/join`), `hostRuntime.ts` (CODE_TAKEN fails start, honest states), `discovery.ts` | `services/room-registry/src/index.test.mjs` (5, now in `pnpm test`), `hostLifecycle.test.ts` discovery cases (CODE_TAKEN, reservation failure, activation failure, renewal recovery, no registry), `discovery.test.ts` | deployed registry | PASS (automated) · deployment BLOCKED (owner Cloudflare account) |
+| NET-08 | Lifecycle: rotation, shutdown, loss, stale | `hostRuntime.ts` rotation/suspend/revoke (existing) + discovery states; overlay relink + desktop registry refresh (`App.tsx`, `ConnectionOverlay.tsx`) | `hostRuntime.test.ts` rotation tests (existing), `hostLifecycle.test.ts`, `ConnectionOverlay.test.tsx`, `App.test.tsx` "after a long outage follows a pasted new link…" | real tunnel rotation with a phone | PASS (automated) · real rotation NOT RUN |
+| NET-09 | Reconnect/session safety | sessions unchanged; relink moves the token in the device's own storage only, same room code required | existing session tests (replay, revoked, replaced, cross-room), `ConnectionOverlay.test.tsx` (wrong room refused, no token in payload), `App.test.tsx` relink | simultaneous real reconnects | PASS (automated) |
+| NET-10 | Cost/capacity honesty + 20–50 users target | `ONLINE_MULTIPLAYER_DESIGN.md` §2/§7, `services/room-registry/README.md` (free-plan limits, ~30 rooms/day write budget, 200 in-flight per tunnel) | — | multi-host remote load | BLOCKED (no remote load infrastructure); docs PASS |
 
 ## E. UI/UX, accessibility, audio
 

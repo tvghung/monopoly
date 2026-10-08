@@ -3,10 +3,12 @@ import type { AddressInfo } from 'node:net';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { publicEndpointOrigin } from '../../../packages/shared/src/endpointPolicy';
 import { SOCKET_PROTOCOL_VERSION } from '../../../packages/shared/src/types';
 import * as responder from '../../server/src/lanDiscoveryResponder';
 import * as finder from '../src/lanFinder';
 import type { NetworkInterfaceCandidate } from '../src/networkInterfaces';
+import { quickTunnelEndpoint } from '../src/online/connectivity';
 
 /**
  * The Electron main process has no runtime dependencies, so `lanFinder.ts` repeats the wire constants of the Host
@@ -146,5 +148,19 @@ describe('LAN room finder against the real responder over loopback UDP', () => {
     });
 
     await expect(strict.findRoom('OTB-ABC234')).resolves.toEqual({ ok: false, code: 'NOT_FOUND' });
+  });
+});
+
+describe('public endpoint contract with packages/shared', () => {
+  it('accepts exactly the public origins the shared endpoint policy accepts', () => {
+    const samples = [
+      'https://room-1.trycloudflare.com', 'https://room.trycloudflare.com/', 'https://api.trycloudflare.com',
+      'http://room.trycloudflare.com', 'https://room.trycloudflare.com:8443', 'https://user@room.trycloudflare.com',
+      'https://room.trycloudflare.com/path', 'https://room.trycloudflare.com/?room=OTB-ABC234',
+      'https://room.trycloudflare.com.evil.test', 'https://evil.test', 'not a url',
+    ];
+    for (const sample of samples) {
+      expect(quickTunnelEndpoint(sample), sample).toBe(publicEndpointOrigin(sample));
+    }
   });
 });

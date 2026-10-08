@@ -69,7 +69,7 @@ const socketHarness = vi.hoisted(() => {
 
 vi.mock('socket.io-client', () => ({ io: () => socketHarness.socket }));
 
-import App from './App';
+import App, { RECONNECT_STALL_MS } from './App';
 import { ToastProvider } from './components/Toast';
 import { HowToPlayProvider } from './howToPlay/HowToPlayProvider';
 import { PLAYER_SESSION_STORAGE_KEY } from './playerSessionStorage';
@@ -1686,6 +1686,37 @@ describe('App how-to-play key placement', () => {
 
     fireEvent.click(key);
     expect(screen.getByRole('dialog', { name: GUIDE })).toBeTruthy();
+  });
+
+  it('after a long outage follows a pasted new link of the same room, moving only the stored token', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      storeSession();
+      const onSwitchEndpoint = vi.fn();
+      render(
+        <HowToPlayProvider>
+          <ToastProvider>
+            <App onSwitchEndpoint={onSwitchEndpoint} />
+          </ToastProvider>
+        </HowToPlayProvider>,
+      );
+      resumeIntoGame();
+      act(() => { socketHarness.trigger('disconnect', 'transport close'); });
+      expect(screen.queryByLabelText('Link mời mới của phòng')).toBeNull();
+      act(() => { vi.advanceTimersByTime(RECONNECT_STALL_MS); });
+
+      fireEvent.change(screen.getByLabelText('Link mời mới của phòng'), {
+        target: { value: `https://new-host.trycloudflare.com/?room=${gameRoom.roomCode}` },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Kết nối bằng link này' }));
+      expect(onSwitchEndpoint).toHaveBeenCalledWith('https://new-host.trycloudflare.com', gameRoom.roomCode);
+      const stored = JSON.parse(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY) ?? '{}') as {
+        sessions?: Record<string, { token: string; roomCode: string | null }>;
+      };
+      expect(stored.sessions?.['https://new-host.trycloudflare.com']).toEqual({ token: RECONNECT_TOKEN, roomCode: gameRoom.roomCode });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

@@ -17,6 +17,50 @@ const nameInput = () => screen.getByLabelText<HTMLInputElement>('Tên của bạ
 const joinButton = () => screen.getByRole<HTMLButtonElement>('button', { name: /Vào phòng|Đang vào phòng/u });
 const modeRadio = (name: string) => screen.getByRole('radio', { name });
 
+describe('JoinForm room code or invitation link', () => {
+  const fill = (room: string) => {
+    fireEvent.change(nameInput(), { target: { value: 'Ada' } });
+    fireEvent.change(screen.getByLabelText('Mã phòng'), { target: { value: room } });
+    fireEvent.click(joinButton());
+  };
+
+  it('joins this Host for a lower-case code with spaces and for an invitation to this very page', () => {
+    const { onJoin } = renderForm({ pageOrigin: 'https://room.trycloudflare.com' });
+    fill('  otb-abc234 ');
+    expect(onJoin).toHaveBeenLastCalledWith('Ada', 'OTB-ABC234');
+    fill('https://room.trycloudflare.com/?room=OTB-XYZ789');
+    expect(onJoin).toHaveBeenLastCalledWith('Ada', 'OTB-XYZ789');
+  });
+
+  it('opens another Host for its invitation in a browser, never joining here with it', () => {
+    const onOpenInvitation = vi.fn();
+    const { onJoin } = renderForm({ pageOrigin: 'https://room.trycloudflare.com', onOpenInvitation });
+    fill('https://other-host.trycloudflare.com/?room=OTB-ABC234');
+    expect(onOpenInvitation).toHaveBeenCalledWith('https://other-host.trycloudflare.com', 'OTB-ABC234');
+    fill('http://192.168.1.20:43123/?room=OTB-ABC234');
+    expect(onOpenInvitation).toHaveBeenLastCalledWith('http://192.168.1.20:43123', 'OTB-ABC234');
+    expect(onJoin).not.toHaveBeenCalled();
+  });
+
+  it('refuses malformed, foreign and unsafe links with a clear message', () => {
+    const onOpenInvitation = vi.fn();
+    const { onJoin } = renderForm({ pageOrigin: 'https://room.trycloudflare.com', onOpenInvitation });
+    for (const value of ['https://evil.test/?room=OTB-ABC234', 'javascript:alert(1)', 'https://room.trycloudflare.com/?room=A&room=B', 'OTB ABC!']) {
+      fill(value);
+      expect(screen.getByRole('alert').textContent).toMatch(/không hợp lệ/u);
+    }
+    expect(onJoin).not.toHaveBeenCalled();
+    expect(onOpenInvitation).not.toHaveBeenCalled();
+  });
+
+  it('asks the desktop app to use its own Join screen for another Host', () => {
+    const { onJoin } = renderForm({ pageOrigin: 'app://own-the-block' });
+    fill('https://other-host.trycloudflare.com/?room=OTB-ABC234');
+    expect(screen.getByRole('alert').textContent).toContain('máy chủ khác');
+    expect(onJoin).not.toHaveBeenCalled();
+  });
+});
+
 describe('JoinForm room mode', () => {
   it('starts on "Có mã phòng" with the code field, its placeholder and focus on the name', () => {
     renderForm();
@@ -26,8 +70,8 @@ describe('JoinForm room mode', () => {
     expect(modeRadio('Phòng chung').getAttribute('aria-checked')).toBe('false');
     const room = screen.getByLabelText<HTMLInputElement>('Mã phòng');
     expect(room.id).toBe('join-room');
-    expect(room.placeholder).toBe('Ví dụ: GAME-1234');
-    expect(room.maxLength).toBe(20);
+    expect(room.placeholder).toBe('OTB-XXXXXX hoặc link mời');
+    expect(room.maxLength).toBe(500);
     expect(nameInput().id).toBe('join-name');
     expect(nameInput().maxLength).toBe(20);
     expect(nameInput().getAttribute('enterkeyhint')).toBe('next');

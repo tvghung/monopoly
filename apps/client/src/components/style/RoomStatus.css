@@ -27,6 +27,29 @@
   text-wrap: balance;
 }
 
+/* After a long wait: paste the Host's new invitation link to return to the same seat (same room code only). */
+.connection-overlay__relink {
+  box-sizing: border-box;
+  width: min(100%, 28rem);
+}
+
+.connection-overlay__form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.connection-overlay__hint {
+  margin: 0;
+  font: var(--type-small);
+  color: var(--color-text-secondary);
+}
+
+.connection-overlay__error {
+  margin: 0;
+  font: var(--type-small);
+  color: var(--color-danger-strong);
+}
+
 .connection-overlay__spinner {
   width: 1.5rem;
   height: 1.5rem;
