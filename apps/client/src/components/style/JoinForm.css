@@ -44,14 +44,6 @@
   text-wrap: balance;
 }
 
-.join__subtitle {
-  max-width: 30rem;
-  margin: 0;
-  color: var(--color-text-secondary);
-  font: var(--type-small);
-  text-wrap: balance;
-}
-
 .join__hero .join-hero { margin-top: var(--space-2); }
 
 .join__form {
@@ -89,17 +81,8 @@
   min-width: 0;
 }
 
-/* Both modes reserve the height of the code field, so the submit button does not jump when the mode changes. */
+/* The code field keeps its height. */
 .join__room { min-height: 4.25rem; }
-
-.join__hint {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font: var(--type-small);
-  text-wrap: balance;
-}
-
-.join__reason { text-align: center; }
 
 /* "Quay lại" is the first thing in the hero column (top left of the page, a secondary key), never inside the card. */
 .join__hero .join__back {
@@ -110,20 +93,15 @@
 /* The how-to-play key sits under the mascot row of the hero and follows its alignment (centered, or left on wide screens). */
 .join__hero .join__help { margin-top: var(--space-2); }
 
-/* Phones in portrait: a tighter card, and on the shortest screens the subtitle gives way so the button stays in view. */
+/* Phones in portrait: a tighter card. */
 @media (max-width: 39.99rem) {
   .join__panel.ds-panel { padding: var(--space-4); }
-}
-
-@media (max-width: 39.99rem) and (max-height: 41rem) {
-  .join__subtitle { display: none; }
 }
 
 /* Tablet and wide phones in portrait: still one column, with a larger title. */
 @media (min-width: 40rem) {
   .join__layout { gap: var(--space-5); }
   .join__title { font: var(--type-display); }
-  .join__subtitle { font: var(--type-body); }
 }
 
 /* Desktop: the hero on the left, the join card on the right. The title is on one line from 1200px. */
@@ -176,7 +154,6 @@
   }
 
   .join__title { font: var(--type-title-l); }
-  .join__subtitle { font: var(--type-small); }
   .join__hero .join-hero {
     margin-top: var(--space-2);
     margin-inline: 0;
@@ -190,5 +167,4 @@
   .join__form .entry-label { margin-bottom: 0.15rem; }
   .join__room { min-height: 4rem; }
   .join__form .join__submit { min-height: 2.75rem; }
-  .join__reason { line-height: 1.1; }
 }

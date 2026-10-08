@@ -47,3 +47,13 @@ describe('localized runtime error text', () => {
     expect(ackKeys(en)).toEqual(ackKeys(vi));
   });
 });
+
+describe('singular house labels (mobile overhaul)', () => {
+  it('never says "1 houses" in English', () => {
+    expect(en['development.buildOne']).toBe('Build 1 house ({amount})');
+    expect(en['development.buildShortOne']).toBe('Build 1 house');
+    expect(en['property.houseTierOne']).toBe('With 1 house');
+    const offenders = Object.entries(en).filter(([, text]) => /\b1 houses\b/u.test(text)).map(([key]) => key);
+    expect(offenders).toEqual([]);
+  });
+});

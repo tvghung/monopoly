@@ -71,7 +71,6 @@ export default function JoinForm({
           ) : null}
           <p className="join__brand" aria-hidden="true">OWN THE BLOCK</p>
           <h1 id="join-title" className="join__title">{t('brand.subtitle')}</h1>
-          <p className="join__subtitle">{t('join.subtitle')}</p>
           <JoinHero />
           {/* Beside the title, not in the card: the card keeps every field and the join button on screen at 812x375. */}
           <HowToPlayButton variant="labelled" className="join__help" />
@@ -124,9 +123,7 @@ export default function JoinForm({
                   enterKeyHint="go"
                 />
               </div>
-            ) : (
-              <p className="join__hint join__room">{t('join.publicHint')}</p>
-            )}
+            ) : null}
 
             <Button
               type="submit"

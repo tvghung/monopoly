@@ -151,7 +151,6 @@
 
 .desktop-launcher__back { justify-self: start; }
 
-.desktop-launcher__hint,
 .desktop-launcher__endpoint {
   margin: 0;
   color: var(--color-text-secondary);
@@ -165,8 +164,6 @@
   font: inherit;
   font-weight: 700;
 }
-
-.desktop-launcher__reason { text-align: center; }
 
 /*
  * A short entrance, once: the buttons rise into place one after another. It is absent under both sources of reduced motion
@@ -256,8 +253,6 @@
   }
 
   .desktop-launcher__form .entry-label { margin-bottom: 0.15rem; }
-  .desktop-launcher__submit,
-  .desktop-launcher__reason { grid-column: 1 / -1; }
+  .desktop-launcher__submit { grid-column: 1 / -1; }
   .desktop-launcher__form .desktop-launcher__submit { min-height: 2.75rem; }
-  .desktop-launcher__hint { align-self: center; }
 }

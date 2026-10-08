@@ -15,6 +15,7 @@ import type { AnimationQueue } from '../../game/presentation/queue/AnimationQueu
 import { PresentationStore } from '../../game/presentation/store/presentationStore';
 import { makeRoom } from '../../game/presentation/testFixtures';
 import DebtPanel from './DebtPanel';
+import { SHORT_VIEWPORT_QUERY } from '../../design-system/useMediaQuery';
 
 afterEach(() => {
   cleanup();
@@ -108,6 +109,30 @@ function renderDebt(
 }
 
 describe('DebtPanel', () => {
+  it('lists each sellable property on one line on a phone held sideways, with the same sale and offer keys', () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === SHORT_VIEWPORT_QUERY, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(),
+    }));
+    try {
+      renderDebt(debtState());
+      // The dialog is portalled into document.body.
+      const rows = document.querySelectorAll('.debt-panel__property--row');
+      expect(rows.length).toBeGreaterThan(0);
+      // The deed is its one-line chip, not the compact card.
+      expect(rows[0].querySelector('.deed--chip')).not.toBeNull();
+      expect(rows[0].querySelector('.deed--compact')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Bán Cà Mau cho Ngân hàng' })).toBeTruthy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('keeps the compact deed card on a larger screen', () => {
+    renderDebt(debtState());
+    expect(document.querySelector('.debt-panel__property--row')).toBeNull();
+    expect(document.querySelector('.debt-panel__property .deed--compact')).not.toBeNull();
+  });
+
   it('shows authoritative forced-sale values and sells to the Bank', () => {
     const sellPropertyToBank = vi.fn(() => Promise.resolve(success));
     renderDebt(debtState(), { sellPropertyToBank });

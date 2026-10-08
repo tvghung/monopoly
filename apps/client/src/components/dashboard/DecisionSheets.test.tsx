@@ -141,7 +141,9 @@ describe('development sheet', () => {
     expect(within(table).getAllByRole('row').find(row => row.getAttribute('aria-current') === 'true')?.textContent)
       .toContain('Có 1 Nhà');
     expect(within(table).getByText('Sau khi xây').closest('tr')?.textContent).toContain('Có 2 Nhà');
-    expect(within(dialog).getByRole('button', { name: 'Xây 1 Nhà (50.000 ₫)' })).toBeTruthy();
+    const one = within(dialog).getByRole('button', { name: 'Xây 1 Nhà (50.000 ₫)' });
+    // Drawn as two short lines (what, then the cost) so the label fits a narrow phone button.
+    expect(one.querySelector('.decision-sheet__option')?.textContent).toBe('Xây 1 Nhà50.000 ₫');
     expect(within(dialog).getByRole('button', { name: 'Xây 3 Nhà (150.000 ₫)' })).toBeTruthy();
     expect(within(dialog).getByRole('button', { name: 'Bỏ qua' })).toBeTruthy();
     expect(within(dialog).queryByRole('note')).toBeNull();

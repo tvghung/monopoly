@@ -765,3 +765,31 @@
 @media (max-height: 500px), (max-width: 720px) {
   .landmark-banner__art { width: 26px; height: 26px; border-radius: var(--radius-sm); }
 }
+
+/*
+ * Narrow phones held sideways (up to 640 px wide, e.g. 568 x 320): the bottom row has no room for the camera keys beside the
+ * properties key without reaching the GO corner, so they stand in a column at the left edge, above the local card, clear of the
+ * board's left corner. Same keys, same DOM order and tab order.
+ */
+@media (max-width: 640px) and (orientation: landscape) {
+  .camera-controls {
+    position: fixed;
+    z-index: var(--z-hud-dock);
+    left: calc(max(8px, env(safe-area-inset-left)) + var(--hud-inset));
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + var(--hud-inset) + var(--player-card-local-height) + 12px);
+    flex-direction: column;
+  }
+}
+
+/*
+ * A tablet held upright: the two bottom cards fill most of the bottom edge, so the action column (properties, camera keys, context
+ * stack) goes above the local card, in the free table under the board.
+ */
+@media (orientation: portrait) and (min-width: 600px) {
+  .hud-bottom {
+    left: var(--hud-inset);
+    right: var(--hud-inset);
+    bottom: calc(var(--hud-inset) + var(--player-card-local-height) + 12px);
+    max-width: none;
+  }
+}

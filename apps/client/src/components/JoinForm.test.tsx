@@ -64,7 +64,7 @@ describe('JoinForm room mode', () => {
 
     expect(modeRadio('Phòng chung').getAttribute('aria-checked')).toBe('true');
     expect(screen.queryByLabelText('Mã phòng')).toBeNull();
-    expect(screen.getByText('Mọi người chọn Phòng chung đều vào cùng một phòng.')).toBeTruthy();
+    expect(screen.queryByText('Mọi người chọn Phòng chung đều vào cùng một phòng.')).toBeNull();
     expect(nameInput().getAttribute('enterkeyhint')).toBe('go');
     fireEvent.click(joinButton());
     expect(onJoin).toHaveBeenCalledOnce();
