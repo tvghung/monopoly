@@ -1,6 +1,6 @@
 # Acceptance matrix
 
-Status at **R0** (2026-10-09); section A updated at the R1 gate, sections B and C at the R2 gate, section D at the R3 gate (2026-10-09). Every row is updated as waves complete; nothing is PASS because code exists.
+Status at **R0** (2026-10-09); section A updated at the R1 gate, sections B and C at the R2 gate, section D at the R3 gate, section E at the R4 gate (2026-10-09). Every row is updated as waves complete; nothing is PASS because code exists.
 Status words: `PASS`, `FAIL`, `BLOCKED`, `NOT RUN`, `NOT RUN (USER MANUAL)`, `N/A — verified absent`, `PLANNED`.
 BOT-L0n = AC-L0n, BOT-A0n = AC-B0n, BOT-E0n = AC-E0n, NET-0n = AC-N0n.
 
@@ -65,16 +65,16 @@ BOT-L0n = AC-L0n, BOT-A0n = AC-B0n, BOT-E0n = AC-E0n, NET-0n = AC-N0n.
 
 | ID | Criterion | Implementation path | Automated test | Manual proof | Status |
 | --- | --- | --- | --- | --- | --- |
-| AC-U01 | Legible board/player UI, card for observers | existing (U1) + card-text assertion | `CardInteractionOverlay.test.tsx` spectator text | packaged Windows/macOS render | PLANNED |
-| AC-U02 | Destination highlight incl. card/jail relocation | `movementExecutor.ts`, `semanticExecutors.ts` | relocation and jail highlight + clear | — | PLANNED (NEEDS FIX) |
-| AC-U03 | Chat toggle/unread | existing | existing `Log.test.tsx`, e2e | — | PLANNED (regression) |
-| AC-U04 | Activity log | existing | existing tests + bot names | — | PLANNED (regression) |
-| AC-U05 | Icons + My Assets cash | existing + tests | toolbar/roll icon tests | — | PLANNED |
-| AC-U06 | Title, names, language selector, eye toggle | existing | existing tests | — | PLANNED (regression) |
-| AC-U07 | Responsive gameplay incl. lobby + jail | existing + lobby bot controls | e2e viewport sweep incl. lobby | physical phones/tablets | PLANNED · devices NOT RUN |
-| AC-U08 | Audio | `AudioEngine.ts` mute + interruption | unit tests | iPhone/Android/desktop | PLANNED (NEEDS FIX) · devices NOT RUN |
-| AC-U09 | Rule non-regression | rules unchanged | `rulesContract`, `v3.simplifiedRules`, game tests | full game | PLANNED · full game NOT RUN (USER MANUAL) |
-| AC-U10 | Accessibility/error affordances | catalog + LobbySeat/PlayerCard statuses | status text tests per state, new ack codes localized | practical review | PLANNED |
+| AC-U01 | Legible board/player UI, card for observers | existing SDF labels, HUD, dice callout; card overlay from public `revealedCardId` | `CardInteractionOverlay.test.tsx` spectator + non-actor now assert title, message and artwork; existing SDF/HUD tests | packaged Windows/macOS render on real machines | PASS (automated) · packaged visual NEEDS MANUAL ACCEPTANCE |
+| AC-U02 | Destination highlight incl. card/jail relocation | `movementExecutor.ts` (SNAP shows the destination just before the snap), `semanticExecutors.ts` (jail marked during transfer, cleared on landing/abort) | `movementExecutor.test.ts` (WALK and SNAP cleared by LAND), `semanticExecutors.test.ts` "jail destination" (shown while travelling, cleared after, cleared on abort) | watch a card move | PASS (automated) · feel NEEDS MANUAL ACCEPTANCE |
+| AC-U03 | Chat toggle/unread | unchanged | existing `Log.test.tsx` unread/99+/clear, e2e chat counts | — | PASS (regression suites green: client 2264+) |
+| AC-U04 | Activity log | unchanged; bot names flow through the same activity events | `Log.test.tsx`, `activityText.test.ts`; bot decisions appear as normal events (integration) | — | PASS |
+| AC-U05 | Icons + My Assets cash | unchanged UI; tests added | `App.test.tsx` toolbar glyphs (settings, flag), `Board.test.tsx` roll glyph (dices), `OwnedPropertiesControl.test.tsx` cash | — | PASS |
+| AC-U06 | Title, names, language selector, eye toggle | unchanged | existing launcher/brand, `formatters.test.ts`, `LanguageSelector.test.tsx`, `Modal.peek.test.tsx` | — | PASS (regression) |
+| AC-U07 | Responsive gameplay incl. lobby + jail | lobby seats 2x2 on phones, one row on tablets; seat X now has a 44 px touch area | browser check 2026-10-09: 375x812 and 768x1024 no horizontal scroll, Add bot 146x44, seat X 36 px drawn / 44 px hit area (elementFromPoint); e2e viewport sweep runs at R5 | physical phones/tablets | PASS (emulated) · devices NOT RUN (USER MANUAL) |
+| AC-U08 | Audio | `settings` `muted`, Settings "Tắt tiếng" switch, `AudioEngine` resume on page return + `statechange` resync | `SettingsPanel.test.tsx` mute keeps levels; `AudioEngine.test.ts` interrupted context resumed with one music source, browser self-resume never duplicates; existing unlock/visibility tests | iPhone/Android/desktop listening | PASS (automated) · devices NOT RUN (USER MANUAL) |
+| AC-U09 | Rule non-regression | no rule changed (taxes 200/100 units verified in `tileState.ts`) | `rulesContract.test.ts`, `v3.simplifiedRules.test.ts`, `game.test.ts`, full server suite 505 green | full game | PASS (automated) · full game NOT RUN (USER MANUAL) |
+| AC-U10 | Accessibility/error affordances | Bot badge + `data-kind`, Bot chip on HUD with screen-reader text, add/remove keys with names, join/relink/sharing messages | `Lobby.test.tsx` bot seats, `PlayerCardList.test.tsx` bot summary, `JoinForm.test.tsx` errors, `ConnectionOverlay.test.tsx`, `HostLanSharing.test.tsx` | practical review on devices | PASS (automated) · NEEDS MANUAL ACCEPTANCE |
 
 ## F. Tests, devices, operations, release
 
