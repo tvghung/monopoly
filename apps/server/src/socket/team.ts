@@ -8,7 +8,7 @@ import {
   setTeamNameRequestSchema,
 } from '@monopoly/shared';
 import { reviveTeammate, sanitizeName } from '../game';
-import { activePlayerIds, lobbySeatHolders } from '../rooms';
+import { activePlayerIds, isBotMember, lobbySeatHolders } from '../rooms';
 import type { AppRuntime } from '../services/runtime';
 import {
   activeTeamMembers,
@@ -167,6 +167,11 @@ export function registerTeamHandlers(io: AppServer, socket: AppSocket, runtime: 
         const target = room.gameSnapshot.members[request.targetPlayerId];
         if (!target || target.membershipStatus !== 'ACTIVE' || !state.players[request.targetPlayerId]) {
           throw new CommandError('CONFLICT', 'Người chơi này không còn trong phòng chờ.');
+        }
+        // A bot cannot answer a question and never minds where it sits: it agrees at once.
+        if (isBotMember(room.gameSnapshot, request.targetPlayerId)) {
+          swapPlayerSeats(room.gameSnapshot, state, actor.playerId, request.targetPlayerId);
+          return;
         }
         state.boardState.seatSwapRequests = [
           ...state.boardState.seatSwapRequests.filter((open) => open.requesterPlayerId !== actor.playerId),

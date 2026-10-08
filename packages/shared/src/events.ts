@@ -2,6 +2,8 @@
 // request-scoped acknowledgement so clients only act on committed state.
 
 import type {
+  AddBotRequest,
+  AddBotResult,
   JoinRoomRequest,
   JoinRoomResult,
   KickPlayerRequest,
@@ -15,6 +17,7 @@ import type {
   PrivatePlayerState,
   PrivateOffer,
   PublicRoomState,
+  RemoveBotRequest,
   RemovedFromRoomInfo,
   RequestSeatSwapRequest,
   RescueDecisionRequest,
@@ -103,6 +106,9 @@ export interface ClientToServerEvents {
   // target must accept). The host cannot move other players. The server owns every one of these rules.
   'set game mode': (request: SetGameModeRequest, acknowledge: AckCallback) => void;
   'kick player': (request: KickPlayerRequest, acknowledge: AckCallback) => void;
+  // Host only, lobby only (protocol 12): one bot per accepted request, into a free seat; and removing a bot seat.
+  'add bot': (request: AddBotRequest, acknowledge: AckCallback<AddBotResult>) => void;
+  'remove bot': (request: RemoveBotRequest, acknowledge: AckCallback) => void;
   'set team name': (request: SetTeamNameRequest, acknowledge: AckCallback) => void;
   'set team color': (request: SetTeamColorRequest, acknowledge: AckCallback) => void;
   'move to seat': (request: MoveToSeatRequest, acknowledge: AckCallback) => void;

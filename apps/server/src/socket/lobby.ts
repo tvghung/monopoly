@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   getAppearanceCombinationKey,
   kickPlayerRequestSchema,
@@ -22,13 +23,18 @@ import {
   surrenderPlayerToBank,
 } from '../game';
 import {
+  activeHumanIds,
   activePlayerIds,
   createFreshPlayer,
+  isBotMember,
   MAX_PLAYERS,
+  memberKind,
   MIN_PLAYERS,
+  remainingHumanIds,
   type RoomSnapshot,
   freshState,
 } from '../rooms';
+import { isSeatPresent } from '../services/presence';
 import {
   activeTeamMembers,
   dropSeatSwapRequestsOf,
@@ -61,7 +67,9 @@ function successorHost(
   leavingPlayerId: string,
 ): string | null {
   const members = Object.entries(room.gameSnapshot.members)
-    .filter(([playerId, member]) => playerId !== leavingPlayerId && member.membershipStatus !== 'LEFT')
+    .filter(([playerId, member]) => (
+      playerId !== leavingPlayerId && member.membershipStatus !== 'LEFT' && memberKind(member) === 'HUMAN'
+    ))
     .sort(([, left], [, right]) => left.joinOrder - right.joinOrder);
   const eligible = room.status === 'FINISHED'
     ? members
@@ -204,6 +212,9 @@ export function registerLobbyHandlers(
             `A game requires between ${MIN_PLAYERS} and ${MAX_PLAYERS} players.`,
           );
         }
+        if (activeHumanIds(room.gameSnapshot).length === 0) {
+          throw new CommandError('CONFLICT', 'A game needs at least one human player.');
+        }
         if (players.some((id) => !room.gameSnapshot.members[id]?.ready)) {
           throw new CommandError('CONFLICT', 'Every active player must be ready.');
         }
@@ -224,7 +235,7 @@ export function registerLobbyHandlers(
             'Mỗi người chơi phải có một tổ hợp mascot và màu riêng trước khi bắt đầu.',
           );
         }
-        if (players.some((id) => !runtime.connections.isConnected(id))) {
+        if (players.some((id) => !isSeatPresent(runtime.connections, room.gameSnapshot, id))) {
           throw new CommandError('CONFLICT', 'Every active player must be connected.');
         }
 
@@ -232,6 +243,7 @@ export function registerLobbyHandlers(
         state.boardState.gameStarted = true;
         state.boardState.seatSwapRequests = [];
         state.boardState.gameStartedAt = state.boardState.gameStartedAt ?? now.toISOString();
+        state.boardState.matchId = randomUUID();
         const startingRoll = chooseStartingPlayer(players);
         if (teamMode) {
           // Dice still pick who starts, but the teams alternate (A1, B1, A2, B2): teammates are never adjacent.
@@ -328,8 +340,10 @@ export function registerLobbyHandlers(
           if (!identity) continue;
           room.gameSnapshot.members[candidate.playerId] = {
             joinOrder: candidate.member.joinOrder,
+            // A bot is Ready again at once (lobby normalisation); every human readies up again.
             ready: false,
             membershipStatus: 'ACTIVE',
+            ...(candidate.member.kind === 'BOT' ? { kind: 'BOT' as const } : {}),
           };
           state.players[candidate.playerId] = createFreshPlayer(
             identity.name,
@@ -380,6 +394,9 @@ export function registerLobbyHandlers(
         const player = state.players[request.playerId];
         if (!member || member.membershipStatus !== 'ACTIVE' || !player) {
           throw new CommandError('CONFLICT', 'Người chơi này không còn trong phòng.');
+        }
+        if (isBotMember(room.gameSnapshot, request.playerId)) {
+          throw new CommandError('CONFLICT', 'Đây là ghế Bot: hãy dùng nút Xóa Bot.');
         }
 
         await transaction.playerSessions.revokeByPlayer(actor.roomId, request.playerId, now);
@@ -443,9 +460,10 @@ export function registerLobbyHandlers(
           state.boardState.players = activePlayerIds(room.gameSnapshot);
           dropSeatSwapRequestsOf(state, [playerId]);
           if (room.hostPlayerId === playerId) {
-            room.hostPlayerId = state.boardState.players[0] ?? null;
+            room.hostPlayerId = activeHumanIds(room.gameSnapshot)[0] ?? null;
           }
-          if (state.boardState.players.length === 0) context.deleteRoom();
+          // Bots never keep a room: the last human to leave closes it.
+          if (activeHumanIds(room.gameSnapshot).length === 0) context.deleteRoom();
           return [];
         }
 
@@ -500,12 +518,10 @@ export function registerLobbyHandlers(
           cancelledOffers = cancelled.filter((offer) => offer !== null);
           member.membershipStatus = 'LEFT';
           member.ready = false;
-          if (Object.values(room.gameSnapshot.members).every(
-            (candidate) => candidate.membershipStatus === 'LEFT',
-          )) {
-            context.deleteRoom();
-          }
+          if (remainingHumanIds(room.gameSnapshot).length === 0) context.deleteRoom();
         }
+        // A running game whose last human left would be bots playing for nobody: the room closes.
+        if (room.status === 'IN_PROGRESS' && remainingHumanIds(room.gameSnapshot).length === 0) context.deleteRoom();
 
         if (room.hostPlayerId === playerId) {
           room.hostPlayerId = successorHost(room, playerId);

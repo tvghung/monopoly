@@ -1,8 +1,11 @@
 import type { AddressInfo } from 'node:net';
 
+import { randomUUID } from 'node:crypto';
+
 import {
   SOCKET_PROTOCOL_VERSION,
   type Ack,
+  type AddBotResult,
   type AckCallback,
   type CharacterId,
   type ClientToServerEvents,
@@ -157,6 +160,8 @@ export const setMode = (socket: TestSocket, mode: GameMode) => ack((cb) => socke
 export const setTeamName = (socket: TestSocket, name: string) => ack((cb) => socket.emit('set team name', { name }, cb));
 export const setTeamColor = (socket: TestSocket, color: PlayerColorId) => ack((cb) => socket.emit('set team color', { color }, cb));
 export const kick = (socket: TestSocket, playerId: string) => ack((cb) => socket.emit('kick player', { playerId }, cb));
+export const addBot = (socket: TestSocket, requestId: string = randomUUID()) => ack<AddBotResult>((cb) => socket.emit('add bot', { requestId }, cb));
+export const removeBot = (socket: TestSocket, playerId: string) => ack((cb) => socket.emit('remove bot', { playerId }, cb));
 export const moveToSeat = (socket: TestSocket, teamId: TeamId, teamSlot: TeamSlot) => ack((cb) => socket.emit('move to seat', { teamId, teamSlot }, cb));
 export const requestSeatSwap = (socket: TestSocket, targetPlayerId: string) => ack((cb) => socket.emit('request seat swap', { targetPlayerId }, cb));
 export const cancelSeatSwap = (socket: TestSocket) => ack((cb) => socket.emit('cancel seat swap', cb));

@@ -1,6 +1,7 @@
 import type { PersistenceTimingConfig } from '../config';
 import type { PersistenceStore } from '../persistence';
 import type { RoomSnapshot } from '../rooms';
+import { BotRequestLedger } from './botRequestLedger';
 import { RoomCommandExecutor } from './roomCommandExecutor';
 import { ConnectionRegistry } from './connectionRegistry';
 import { PlayerSessionService } from './playerSessionService';
@@ -14,6 +15,8 @@ export interface AppRuntime {
   commands: RoomCommandExecutor<RoomSnapshot>;
   connections: ConnectionRegistry;
   sessions: PlayerSessionService;
+  /** `add bot` request ids already applied per room (idempotent retries). */
+  botRequests: BotRequestLedger;
   timing: PersistenceTimingConfig;
   flags: RuntimeFlags;
 }
@@ -38,6 +41,7 @@ export function createAppRuntime(
     commands: new RoomCommandExecutor(persistence),
     connections: new ConnectionRegistry(),
     sessions: new PlayerSessionService(persistence, timing),
+    botRequests: new BotRequestLedger(),
     timing,
     flags: { shuttingDown: false },
   };
