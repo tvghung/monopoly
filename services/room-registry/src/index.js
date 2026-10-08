@@ -5,10 +5,81 @@ const TOKEN = /^[A-Za-z0-9_-]{32,128}$/;
 const LEASE_MS = 90_000;
 const RESERVATION_MS = 180_000;
 const MAX_BODY = 1024;
-const json = (body, status = 200) => new Response(JSON.stringify(body), {
+const json = (body, status = 200, extraHeaders = {}) => new Response(JSON.stringify(body), {
   status,
-  headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+  headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...extraHeaders },
 });
+
+// A room lookup answers only "code -> public endpoint", which every invitation link already shows, so any page may read it
+// (the browser join form of another host, the /join page). Owner routes never get CORS headers.
+const PUBLIC_READ_HEADERS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET',
+  'access-control-max-age': '600',
+};
+
+const JOIN_PAGE_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; "
+  + "form-action 'none'; frame-ancestors 'none'; base-uri 'none'";
+
+// A minimal entry point for a phone with no link: type the room code, the page looks it up here and opens the host's own
+// invitation page. It carries no secret and holds no game state; `?room=OTB-XXXXXX` resolves at once (a stable QR target
+// that survives a new tunnel hostname, because the lease follows the host).
+const JOIN_PAGE = `<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OWN THE BLOCK — Vào phòng</title>
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f6efe4; color: #2b1d14; }
+  @media (prefers-color-scheme: dark) { body { background: #1d1813; color: #f6efe4; } input { background: #2b241d; color: inherit; } }
+  main { width: min(100% - 32px, 380px); display: grid; gap: 12px; }
+  h1 { margin: 0; font-size: 1.6rem; letter-spacing: 0.04em; }
+  label { font-weight: 600; }
+  input, button { font: inherit; min-height: 44px; border-radius: 10px; padding: 0 12px; border: 1px solid #b9a58f; }
+  button { background: #1f6f4a; color: #fff; border: 0; font-weight: 700; }
+  p[role="status"] { min-height: 1.4em; margin: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>OWN THE BLOCK</h1>
+  <label for="code">Mã phòng / Room code</label>
+  <input id="code" autocomplete="off" autocapitalize="characters" maxlength="20" placeholder="OTB-XXXXXX">
+  <button id="go" type="button">Vào phòng / Join</button>
+  <p id="status" role="status" aria-live="polite"></p>
+</main>
+<script>
+(() => {
+  const input = document.getElementById('code');
+  const status = document.getElementById('status');
+  const say = text => { status.textContent = text; };
+  const host = /^(?!api\\.)[a-z0-9-]+\\.trycloudflare\\.com$/;
+  const go = async () => {
+    const code = input.value.trim().toUpperCase();
+    if (!/^[A-Z0-9-]{1,20}$/.test(code)) { say('Mã phòng không hợp lệ. / Invalid room code.'); return; }
+    say('Đang tìm phòng… / Looking up…');
+    try {
+      const response = await fetch('/v1/rooms/' + encodeURIComponent(code), { headers: { accept: 'application/json' } });
+      if (response.status === 404) { say('Không tìm thấy phòng hoặc phòng đã đóng. / Room not found or closed.'); return; }
+      if (response.status === 429) { say('Thử lại sau ít phút. / Try again in a minute.'); return; }
+      const body = await response.json();
+      const endpoint = new URL(body.target.endpoint);
+      if (body.roomCode !== code || endpoint.protocol !== 'https:' || !host.test(endpoint.hostname) || endpoint.port) {
+        say('Phòng trả về địa chỉ không hợp lệ. / The room returned an invalid address.'); return;
+      }
+      location.assign(endpoint.origin + '/?room=' + encodeURIComponent(code));
+    } catch { say('Không kết nối được dịch vụ tìm phòng. / Lookup service unavailable.'); }
+  };
+  document.getElementById('go').addEventListener('click', go);
+  input.addEventListener('keydown', event => { if (event.key === 'Enter') go(); });
+  const preset = new URLSearchParams(location.search).get('room');
+  if (preset) { input.value = preset; go(); }
+})();
+</script>
+</body>
+</html>`;
 
 function endpoint(value) {
   if (typeof value !== 'string' || value.length > 200) return null;
@@ -16,7 +87,7 @@ function endpoint(value) {
     const url = new URL(value);
     if (url.protocol !== 'https:' || url.username || url.password || url.port ||
       url.pathname !== '/' || url.search || url.hash ||
-      !/^[a-z0-9-]+\.trycloudflare\.com$/.test(url.hostname)) return null;
+      !/^(?!api\.)[a-z0-9-]+\.trycloudflare\.com$/.test(url.hostname)) return null;
     return url.origin;
   } catch { return null; }
 }
@@ -70,8 +141,12 @@ export class RoomLease {
     const now = Date.now();
     if (request.method === 'GET') {
       const lease = this.current();
-      if (!lease || lease.expires_at <= now || !lease.endpoint) return json({ error: 'NOT_FOUND' }, 404);
-      return json({ roomCode: code, target: { kind: 'socket-io-https', endpoint: lease.endpoint }, expiresAt: lease.expires_at });
+      if (!lease || lease.expires_at <= now || !lease.endpoint) return json({ error: 'NOT_FOUND' }, 404, PUBLIC_READ_HEADERS);
+      return json(
+        { roomCode: code, target: { kind: 'socket-io-https', endpoint: lease.endpoint }, expiresAt: lease.expires_at },
+        200,
+        PUBLIC_READ_HEADERS,
+      );
     }
     const owner = bearer(request);
     if (!owner || !TOKEN.test(owner)) return json({ error: 'UNAUTHORIZED' }, 401);
@@ -151,18 +226,30 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/healthz' && request.method === 'GET') return json({ ok: true });
+    if (url.pathname === '/join' && request.method === 'GET') {
+      return new Response(JOIN_PAGE, {
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'no-store',
+          'content-security-policy': JOIN_PAGE_CSP,
+          'referrer-policy': 'no-referrer',
+          'x-content-type-options': 'nosniff',
+        },
+      });
+    }
     const match = /^\/v1\/rooms\/([A-Za-z0-9-]{1,20})(?:\/(reserve|activate|renew|suspend))?$/.exec(url.pathname);
     if (!match) return json({ error: 'NOT_FOUND' }, 404);
     const code = match[1].toUpperCase();
     if (!CODE.test(code)) return json({ error: 'INVALID_CODE' }, 400);
     const action = match[2];
+    if (request.method === 'OPTIONS' && !action) return new Response(null, { status: 204, headers: PUBLIC_READ_HEADERS });
     if (!(request.method === 'GET' && !action || request.method === 'DELETE' && !action ||
       request.method === 'POST' && action)) return json({ error: 'METHOD_NOT_ALLOWED' }, 405);
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const ipHash = await digest(ip);
     const budget = env.BUDGET.get(env.BUDGET.idFromName(ipHash));
     const allowance = await budget.fetch(new Request(`https://budget.internal/?write=${request.method === 'GET' ? '0' : '1'}`));
-    if (allowance.status === 429) return json({ error: 'RATE_LIMITED' }, 429);
+    if (allowance.status === 429) return json({ error: 'RATE_LIMITED' }, 429, request.method === 'GET' ? PUBLIC_READ_HEADERS : {});
     // One object per code gives atomic reservation and collision handling.
     const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
     return stub.fetch(new Request(`https://room.internal/${action || ''}?code=${code}`, request));

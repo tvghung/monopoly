@@ -132,3 +132,47 @@ test('expired reservations release a code and expired active rooms stop resolvin
     globalThis.fetch = realFetch;
   }
 });
+
+test('a room lookup is readable from any page, owner routes are not, and the join page carries no secret', async () => {
+  const env = environment();
+  const code = 'OTB-CORS23';
+  const credential = randomBytes(32).toString('base64url');
+  const url = `https://registry.test/v1/rooms/${code}`;
+  const missing = await worker.fetch(new Request(url), env);
+  assert.equal(missing.status, 404);
+  assert.equal(missing.headers.get('access-control-allow-origin'), '*');
+
+  const preflight = await worker.fetch(new Request(url, { method: 'OPTIONS' }), env);
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get('access-control-allow-methods'), 'GET');
+
+  const reserved = await worker.fetch(new Request(`${url}/reserve`, {
+    method: 'POST', headers: { authorization: `Bearer ${credential}` },
+  }), env);
+  assert.equal(reserved.status, 201);
+  assert.equal(reserved.headers.get('access-control-allow-origin'), null);
+
+  const page = await worker.fetch(new Request('https://registry.test/join?room=OTB-CORS23'), env);
+  assert.equal(page.status, 200);
+  assert.match(page.headers.get('content-type'), /text\/html/);
+  assert.match(page.headers.get('content-security-policy'), /connect-src 'self'/);
+  const html = await page.text();
+  assert.match(html, /OWN THE BLOCK/);
+  assert.doesNotMatch(html, /Bearer|proof|token/i);
+});
+
+test('an endpoint that is not a tunnel origin, or the tunnel service host itself, is never stored', async () => {
+  const env = environment();
+  const code = 'OTB-HOST23';
+  const credential = randomBytes(32).toString('base64url');
+  const url = `https://registry.test/v1/rooms/${code}`;
+  await worker.fetch(new Request(`${url}/reserve`, { method: 'POST', headers: { authorization: `Bearer ${credential}` } }), env);
+  for (const endpoint of ['https://api.trycloudflare.com', 'http://host.trycloudflare.com', 'https://host.trycloudflare.com:8443', 'https://evil.test']) {
+    const response = await worker.fetch(new Request(`${url}/activate`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${credential}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ endpoint }),
+    }), env);
+    assert.equal(response.status, 400, endpoint);
+  }
+});

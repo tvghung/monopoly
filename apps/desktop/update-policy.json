@@ -1,4 +1,4 @@
 {
-  "minimumSupportedVersion": "1.4.0",
-  "reviewedForSocketProtocol": 11
+  "minimumSupportedVersion": "1.7.0",
+  "reviewedForSocketProtocol": 12
 }

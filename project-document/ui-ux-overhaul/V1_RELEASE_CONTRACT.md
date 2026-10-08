@@ -8,8 +8,8 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.6.1
-Socket protocol: 11
+Semantic version: 1.7.0
+Socket protocol: 12
 ```
 
 Application semantic version and network protocol version are independent.
@@ -51,8 +51,8 @@ Implementation references: `apps/desktop/src/hostRuntime.ts`,
 ## Packaging identity
 
 Forge uses the root package version for app metadata and the Windows Squirrel
-name: `OwnTheBlock-1.6.1-win32-x64-Setup.exe`. The installed Forge DMG maker resolves
-`Own the Block-1.6.1-x64.dmg` and `Own the Block-1.6.1-arm64.dmg` from app name,
+name: `OwnTheBlock-1.7.0-win32-x64-Setup.exe`. The installed Forge DMG maker resolves
+`Own the Block-1.7.0-x64.dmg` and `Own the Block-1.7.0-arm64.dmg` from app name,
 desktop package version, and target architecture. The application and collected
 manifest derive their version from package metadata. These are configuration expectations,
 not claims that new artifacts were built. Release metadata rejects mismatched
@@ -501,3 +501,11 @@ and macOS arm64 entries match the published filenames, sizes and SHA-256 values 
 `RELEASES` and `own_the_block-1.4.1-full.nupkg`. GitHub's latest-release endpoint resolves to `v1.4.1`. Socket protocol remains 11,
 room snapshot schema remains 10, and the updater minimum remains 1.4.0.
 
+## V1.7.0 bots and online join — release candidate preparation (Socket protocol 12, snapshot schema 11)
+
+Prepared on branch `feat/own-the-block-multiplayer-bots-vnext` (base `77953b6` = `v1.6.1`). **Not released**: no tag exists and no
+publication is authorized until the owner has run the manual matrix in
+[USER_MANUAL_BOT_TEST_PLAN](../own-the-block-vnext/USER_MANUAL_BOT_TEST_PLAN.md) and approved the release.
+Protocol 11 → 12 (bot seats: `RoomPlayerMeta.kind`, `boardState.matchId`, `add bot` / `remove bot`), snapshot 10 → 11. A v1.6.x
+client cannot join a 1.7.0 host (`UPGRADE_REQUIRED`), so `update-policy.json` sets `minimumSupportedVersion` 1.7.0 and
+`reviewedForSocketProtocol` 12. Scope, evidence and the release gate: [own-the-block-vnext](../own-the-block-vnext/RELEASE_SCOPE.md).
