@@ -76,8 +76,10 @@ bằng application session state, không bằng `socket.id` hay optimistic `join
     giờ trên một form; một dòng yên lặng trên menu cho tiến trình/lỗi/lý do chờ. Một bản cập nhật **bắt buộc** vô hiệu
     `Tạo phòng`, `Tham gia phòng` và `Máy chủ riêng` (không vô hiệu `Vào lại phòng đang mở` và `Đóng phòng`). Menu vẫn chỉ
     có nút. Chi tiết: [app-update.instruction.md](./app-update.instruction.md).
-  - **Form host**: chọn `Online — Qua Internet` (mặc định) hoặc `LAN — Cùng mạng nội bộ`, nhập tên (`desktop-player-name`)
-    rồi "Tạo và vào phòng". Không có ô chọn địa chỉ/cổng: main process tự chọn mạng đang kết nối (xem
+  - **Form host**: chọn `Online` (mặc định) hoặc `LAN`, nhập tên (`desktop-player-name`)
+    rồi "Tạo và vào phòng". Không có dòng giải thích dưới hai chế độ hay dưới nút (overhaul mobile/tablet 2026-10-08): lý do nút đang tắt
+    ("Nhập tên của bạn để tiếp tục.", "Nhập mã phòng do chủ phòng chia sẻ.") chỉ còn là mô tả `sr-only` của nút cho trình đọc màn hình.
+    Form vào phòng trên web cũng bỏ dòng phụ dưới tiêu đề, dòng "Phòng chung" và lý do nút tắt hiển thị (giữ bản `sr-only`). Không có ô chọn địa chỉ/cổng: main process tự chọn mạng đang kết nối (xem
     `networkInterfaces.ts`). Khi mở form mà máy chưa có mạng dùng được, một `role="alert"` nói bằng lời thường "Máy này
     chưa kết nối mạng. Hãy bật Wi-Fi hoặc cắm dây mạng."; nút vẫn bấm được để thử lại (main process đọc lại mạng lúc start).
     Dòng tiến trình ("Đang chuẩn bị phòng…", "Đang mở phòng…", "Đang đóng phòng…") và mọi lỗi host (`HostRuntimeErrorCode`)

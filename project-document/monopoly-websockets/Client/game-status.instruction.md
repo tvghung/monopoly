@@ -49,7 +49,10 @@
   nhãn "Đội của bạn"): tên đội (`TeamNameField` chỉ hiện cho **đội của chính người xem**, kể cả host; tên đội kia chỉ đọc với mọi người,
   host không có quyền đặc biệt; Enter/blur lưu, Escape hoàn tác, tối đa 20 ký tự, không reset Ready; lệnh `set team name` chỉ gửi `{name}`, server
   tự xác định đội của người gửi), màu đội (`TeamColorPicker`: chỉ thành viên đội đổi được, màu của đội kia bị khóa; đổi màu reset Ready cả đội).
-  `MascotPicker` ẩn bảng màu (ghi chú "Mascot luôn mang màu đội…") và khóa mascot đồng đội đang dùng ("(đồng đội đã chọn)").
+  `MascotPicker` ẩn bảng màu (không có ghi chú thay thế) và khóa mascot đồng đội đang dùng ("(đồng đội đã chọn)").
+- **Không có dòng giải thích thừa** (overhaul mobile/tablet 2026-10-08): sảnh không còn câu mô tả chế độ Solo/2v2, dòng "Chia sẻ mã phòng để mời bạn"
+  trong ô trống, ghi chú màu mascot, nhãn "Màu đội" trên bảng màu (nhóm vẫn có `aria-label` "Màu của đội <tên>") hay tiền tố "Màu đội:" ở màu chỉ đọc
+  của đội kia (chỉ còn ô màu + tên màu). Lý do chặn hành động ("Chọn mascot trước để sẵn sàng", lý do nút "Bắt đầu" tắt) vẫn hiển thị.
 - **Chỗ ngồi 2v2 và đổi chỗ**: mỗi `TeamZone` luôn vẽ đúng hai ô chỗ theo `teamSlot` (0 rồi 1) từ `room.players[].teamSlot`
   (`layoutTeamSeats`): chỗ trống nằm đúng vị trí của nó (người ở chỗ 1 của đội trống hiện ở ô thứ hai); thành viên trùng chỗ (lobby cũ chưa chuẩn hóa)
   lấy ô trống đầu, không ai bị ẩn. Mọi chỗ **trừ chỗ của chính người xem** có nút đổi chỗ, disable khi `busy`; Solo không có nút đổi chỗ.

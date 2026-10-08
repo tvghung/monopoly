@@ -18,7 +18,7 @@ Technical event/package names and canonical shared game data stay unchanged.
 | Forced sale proposal | [../testcase/payment-shortfall-and-forced-sale.md](../testcase/payment-shortfall-and-forced-sale.md) | DebtPanel/ForcedSaleProposalPanel |
 | Log/chat | [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md) | Log (ngăn kéo), `game/ui/hud/` |
 | Hướng dẫn chơi (nút "?" ở mọi màn hình, hộp thoại 12 mục đóng sẵn, số luật đọc từ `rules.ts`) | [how-to-play.instruction.md](./how-to-play.instruction.md) | `howToPlay/`, `packages/shared/src/rules.ts`, `App.tsx` (toolbar), `Lobby.tsx`, `JoinForm.tsx`, `app/screens/`, `ConnectionOverlay.tsx` |
-| Game HUD (player card, center stage, status pill, banner, callout, dock, ticker, bong bóng, toolbar, toast) | [game-board.instruction.md](./game-board.instruction.md) mục "Game HUD" | `game/ui/hud/`, `components/Log.tsx`, `App.tsx` (toolbar), `components/Toast.tsx` |
+| Game HUD (tầng phone/tablet/desktop, player card, center stage + nhóm thoát tù, status pill mã phòng, banner khánh thành, callout, dock, ticker, bong bóng, toolbar, toast) | [game-board.instruction.md](./game-board.instruction.md) mục "Game HUD" | `game/ui/hud/`, `components/Log.tsx`, `App.tsx` (toolbar), `components/Toast.tsx` |
 | Desktop shell/runtime | [../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md](../ui-ux-overhaul/01_PHASE_1_DESKTOP_VISUAL_FOUNDATION.md) | `apps/desktop/`, preload bridge, bootstrap/runtime config |
 | Ngôn ngữ VI/EN (danh sách `SUPPORTED_LANGUAGES`, bộ chọn ngôn ngữ ở menu chính, tên landmark hai ngôn ngữ), preference và migration settings | [language-system.instruction.md](./language-system.instruction.md) | `i18n/` (`languages.ts`, `I18n.tsx`, `catalog.ts`), `components/LanguageSelector.tsx`, `settings/`, `index.tsx`, `game/ui/property/landmarkVisuals.ts`, localized client surfaces |
 | Cập nhật tự động (desktop: kiểm tra, tải có xác minh, áp dụng ở thời điểm an toàn, bản bắt buộc, mục "Cập nhật" trong Cài đặt) | [app-update.instruction.md](./app-update.instruction.md) | `apps/desktop/src/update/`, `ipc/`, `preload.ts`, `runtime/appUpdate.tsx`, `components/update/`, `settings/SettingsPanel.tsx`, `apps/desktop/scripts/updateManifest.mjs` |
@@ -35,7 +35,7 @@ Technical event/package names and canonical shared game data stay unchanged.
   presentation state và không được dùng làm nguồn thẩm quyền.
 - Spectator read-only; server authority không phụ thuộc action visibility.
 - Camera người chơi (pinch/kéo/con lăn/nút phóng to–thu nhỏ–về toàn bàn, tự theo token khi đang zoom) chỉ là trình bày trong `boardViewStore`: không chạm state game hay socket, người chơi luôn được ưu tiên
-  hơn chuyển động tự động; gameplay trên điện thoại/máy tính bảng chỉ hỗ trợ màn hình ngang ([game-board.instruction.md](./game-board.instruction.md) "Responsive gameplay").
+  hơn chuyển động tự động; điện thoại chỉ chơi ngang, máy tính bảng (từ 600 px) chơi cả ngang lẫn dọc ([game-board.instruction.md](./game-board.instruction.md) "Responsive gameplay").
 - "Xem bàn cờ" (peek) của `Modal` chỉ là trình bày: ẩn/hiện không gửi lệnh, không đóng dialog, không đổi state có thẩm quyền; khi quyết định đang ẩn, thẻ ô đất trên bàn cờ chỉ đọc
   ([design-system.instruction.md](./design-system.instruction.md) "Xem bàn cờ (peek)").
 - 2v2 (protocol 10; chỗ ngồi `teamSlot` và `seatSwapRequests` từ protocol 11): mọi dữ liệu team lấy từ public state đã được server gửi (`boardState.teams`, `teamPlay`, `winningTeamId`,

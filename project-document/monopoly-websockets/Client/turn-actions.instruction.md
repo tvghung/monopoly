@@ -7,7 +7,8 @@
   focus, focus is inside the activity drawer, a dialog is open, or the press is a repeat or carries a modifier.
   The roll control's one live region also speaks the turn change ("Đến lượt bạn." / "Lượt của <tên>.") after a live
   presentation change, never on first render or after a snapshot sync. Permission still comes from
-  `canRollForState`; the turn text moved to the status pill. After the dice settle a DOM dice callout shows
+  `canRollForState`; there is no other visible turn label (no status-pill text, no turn banner): the roll button, the opponent pill and
+  the card's turn ring say it. After the dice settle a DOM dice callout shows
   "4 + 3" and the total (the 3D total text was removed); doubles add an informational chip because a double
   never grants another roll.
 - `BuyPrompt` renders the pending purchase operation and offers **Mua tài sản** or
@@ -16,24 +17,25 @@
   `SHORT_VIEWPORT_QUERY`), and "Mua tài sản" says why it is disabled ("Bạn còn thiếu … để mua ô đất này.").
 - `DevelopmentPrompt` renders the authoritative landing level and sends only
   operation ID plus `SKIP`, `BUILD_HOUSES` quantity, or `UPGRADE_HOTEL`. Same sheet shell; the deed marks the next rent tier
-  "Sau khi xây" (only here: `PropertyDeedCard showNext`). 2v2 Team Investment (the street belongs to a teammate): title "Đầu tư <ô>",
+  "Sau khi xây" (only here: `PropertyDeedCard showNext`). Each build option is a two-line button ("Xây 2 Nhà" over the amount; the hotel option
+  "Nâng Khách sạn" over the amount) whose accessible name stays the full label ("Xây 2 Nhà (100.000 ₫)"); English says "Build 1 house" for one. 2v2 Team Investment (the street belongs to a teammate): title "Đầu tư <ô>",
   eyebrow "Đầu tư cho đồng đội", the owner row is shown and a note says the lander pays, the street stays the teammate's and the owner is
   refunded on a sale. `BuyPrompt.groupProgressHint` counts a teammate's streets ("Cả đội hoàn thành …").
 - `RevivePanel` (HUD context stack, after `JailPanel`) is shown only to the surviving teammate in their own turn while a window is open
   (`selectRevivePrompt`): "Có thể hồi sinh: <tên>" + "Còn N lượt"/"Cơ hội cuối", the price (`REVIVE_COST`), what the teammate returns with
   (`REVIVE_STARTING_CASH`, no property or cards, once per player) and one button "Hồi sinh <tên> — 750.000 ₫" that sends `revive teammate`
   (no payload). It says why the button is off ("Bạn cần 750.000 ₫ …", "Cơ hội hồi sinh bắt đầu từ lượt kế tiếp của bạn.").
-- `JailPanel` (in the HUD context stack above the action dock; in a window up to 720 px wide `CenterStage` renders it instead, directly under the roll
-  button, see [game-board.instruction.md](./game-board.instruction.md) "Nhóm thoát tù trên điện thoại hẹp") shows opponent-round progress and direct
+- `JailPanel` (rendered by `CenterStage` directly under the roll button at every window size, see
+  [game-board.instruction.md](./game-board.instruction.md) "Nhóm thoát tù") shows opponent-round progress and direct
   cash/card/wait actions ("hoặc bấm Đổ xúc xắc để thử đổ đôi"). It is a named `region` (no live region around the
   buttons); the "Đã xác nhận…" line is its one `role="status"`, an error is one `role="alert"`, and the balance warning
-  describes the disabled bail button. On a phone held sideways it is a two-row strip and never covers the roll button:
+  describes the disabled bail button. On a phone it is a two-row strip under the roll button and never covers it (the card button draws "Dùng thẻ (N)" and keeps the full name):
   a pending or failed line takes the place of the title row, and the balance warning is only read, not drawn. A failed jail roll ends the turn; a double never
   grants another roll.
 - `DebtPanel` renders only public shortfall summary and server-derived gross/net
   sellable values. The debtor sees an `alertdialog` "Cần thanh toán" (`Modal` `lg`, tone `danger`, eyebrow = what the debt is
   for, described by the amount/creditor/shortfall; focus starts on the amount, which is in the tab ring) with a compact deed per
-  sellable property, "Bán cho Ngân hàng" (described by what the sale brings) and "Đề nghị người chơi mua" (opens a buyer picker with the price the seller asks, V1.1), a section "Có người muốn mua tài sản của bạn" with an `OfferCard` ("Đề nghị mua <tài sản> của <người chơi>", what the offer does to the debt, Chấp nhận / Từ chối) for each buy offer addressed to the debtor (the offers dialog stays closed while the recipient is in debt; `App.tsx` also shows a toast on arrival), and a footer
+  sellable property (on a phone held sideways one line per property: the deed chip, the sale and the offer key), "Bán cho Ngân hàng" (described by what the sale brings) and "Đề nghị người chơi mua" (opens a buyer picker with the price the seller asks, V1.1), a section "Có người muốn mua tài sản của bạn" with an `OfferCard` ("Đề nghị mua <tài sản> của <người chơi>", what the offer does to the debt, Chấp nhận / Từ chối) for each buy offer addressed to the debtor (the offers dialog stays closed while the recipient is in debt; `App.tsx` also shows a toast on arrival), and a footer
   **"Bỏ cuộc"** that calls `useRoomExit().requestLeave` (existing leave flow + `ConfirmationDialog`; no new command). Other
   players see a status strip: only the debtor/creditor copy is a live region, the countdown is a `role="timer"`.
   V1.1 item 1: neither the dialog nor the strip appears while the animations that lead to the debt are still playing

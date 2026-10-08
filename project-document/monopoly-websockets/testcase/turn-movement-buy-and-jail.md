@@ -45,8 +45,9 @@
   is not in an input, button, dialog or the activity drawer, and the turn change is spoken once from the roll
   control's live region (`rollControl.test.ts`, `Board.test.tsx`, `centerStage.test.tsx`, `useRollShortcut.test.tsx`,
   `useTurnAnnouncement.test.tsx`).
-- [ ] `[CLIENT][MANUAL-E2E]` While jailed, the jail panel (compact strip at phone landscape, between the two bottom
-  cards at 720 px and below) never hides the roll button: `hudOverlap.regionOverlaps` is empty in
+- [x] `[CLIENT]` The jail panel is rendered by the center stage under the roll button at every window size, one `RollControl` and
+  one `JailPanel` (`centerStage.test.tsx` "CenterStage jail group").
+- [ ] `[CLIENT][MANUAL-E2E]` While jailed, the jail group (roll button, then the panel; a compact strip on a phone) never hides the roll button: `hudOverlap.regionOverlaps` is empty in
   `evidence/03/g3/*jail*.json` at 1440×900, 1280×720, 1024×768, 812×375 and 667×375.
 - [ ] `[RAM]` Host restart discards jail progress, card identities and the old room.
 

@@ -1,6 +1,6 @@
 /*
- * Jail status sheet (plan 04 §8.3). It lives in the HUD context stack; `hud.css` compacts it to a two-row strip on a phone
- * held sideways (`.hud-context .jail-panel*`), so the class names below are shared with that file.
+ * Jail status sheet (plan 04 §8.3). `CenterStage` renders it under the roll button; `hud.css` compacts it to a two-row strip on a phone
+ * (`.center-stage .jail-panel*`), so the class names below are shared with that file.
  */
 .jail-panel {
   display: grid;

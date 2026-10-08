@@ -75,7 +75,9 @@ Kết quả đo trong Design Lab: Baloo 2 có `tnum` thật (chênh lệch bề 
 
 `PlayerAvatar` reads localized accessible labels from the client catalog; the character registry only supplies the illustration. `displayName` remains absent (plan 04, OD-04-1): mascots are identified by image, with no visible character name.
 
-`design-system/useMediaQuery.ts` cung cấp `useMediaQuery(query)` (`useSyncExternalStore`, false khi không có `matchMedia`) và `SHORT_VIEWPORT_QUERY` (`(orientation: landscape) and (max-height: 31rem)`): chỉ dùng để chọn biến thể component (deed `compact`, nút `md`, ảnh 64 px), còn style nằm trong CSS. `NARROW_HUD_QUERY` (`(max-width: 720px)`, cùng ngưỡng với `hud.css`) quyết định `CenterStage` hay `BottomDock` vẽ `JailPanel`.
+`design-system/useMediaQuery.ts` cung cấp `useMediaQuery(query)` (`useSyncExternalStore`, false khi không có `matchMedia`) và `SHORT_VIEWPORT_QUERY` (`(orientation: landscape) and (max-height: 31rem)`): chỉ dùng để chọn biến thể component (deed `compact`, nút `md`, ảnh 64 px), còn style nằm trong CSS. `COMPACT_HUD_QUERY` (`(max-width: 720px), (max-height: 500px)`) là tầng phone của màn hình ván và `PORTRAIT_BLOCKED_QUERY` (`(orientation: portrait) and (max-width: 599px)`) là điện thoại cầm dọc; ba tầng phone/tablet/desktop được mô tả ở [game-board.instruction.md](./game-board.instruction.md) "Tầng bố cục". `NARROW_HUD_QUERY` đã bỏ: `JailPanel` luôn nằm trong `CenterStage`.
+
+**Vùng chạm**: nút nhỏ hơn 44 px chỉ được phép khi vùng chạm vẫn 44 px — một pseudo-element `::after` (`position: absolute; inset: -5px; content: ''`) của chính nút, nút cách nhau ≥ 10 px để viền chạm không chồng nhau, và không đặt viền chạm ra ngoài phần tử cha có `overflow: hidden` (tab "Nhật ký" chỉ mở viền sang trái). e2e mobile đo vùng chạm bằng `elementFromPoint`.
 
 ## Modal v2
 
@@ -94,8 +96,11 @@ Kết quả đo trong Design Lab: Baloo 2 có `tnum` thật (chênh lệch bề 
 
 ### Modal trên màn hình ngang thấp
 
-`@media (orientation: landscape) and (max-height: 31rem)` (`Modal.css`): thẻ cao tối đa bằng cửa sổ, header chỉ còn 44 px của nút + vài px đệm, thân cuộn riêng (`overscroll-behavior: contain`) và footer dính, nên
-nút hành động luôn với tới. Bản này thêm: nút của quyết định mua/phát triển (`DecisionSheet.css`) bỏ glyph và không xuống dòng ("Mua tài sản" / "Buy property" một dòng trong nút 130 px),
+`@media (orientation: landscape) and (max-height: 31rem)` (`Modal.css`): thẻ cao tối đa bằng cửa sổ, thân cuộn riêng (`overscroll-behavior: contain`) và footer dính, nên
+nút hành động luôn với tới. Overhaul mobile/tablet (2026-10-08, cửa sổ Safari iPhone ngang chỉ ~280 px): header một dòng (eyebrow 10 px chạy trước tiêu đề 15 px),
+phím header 32 px + viền chạm 5 px cách nhau 10 px, thân 14 px, footer mỏng, mọi `.ds-button` trong dialog cao 36 px chữ 13 px. Deed (`PropertyDeedCard.css`) nhỏ một bậc
+ở mọi dòng; quyết định mua/phát triển đặt giá và số dư cùng một hàng, nút xây là hai dòng ngắn ("Xây 2 Nhà" / số tiền; tên truy cập vẫn là "Xây 2 Nhà (100.000 ₫)");
+dialog nợ liệt kê mỗi tài sản bán được một dòng (deed `chip` + "Bán cho Ngân hàng +N" + "Đề nghị…") thay cho deed compact, tóm tắt nợ chữ nhỏ hơn. Đo lại ở 760×280 và 667×375. Bản này thêm: nút của quyết định mua/phát triển (`DecisionSheet.css`) bỏ glyph và không xuống dòng ("Mua tài sản" / "Buy property" một dòng trong nút 130 px),
 tóm tắt nợ (`DebtPanel.css`) dành riêng một hàng cho hai ô số liệu khi cửa sổ cũng hẹp (≤ 44rem) để avatar chủ nợ không đè lên chúng.
 Sheet (`placement="sheet"`) trừ khoảng cách đáy khỏi chiều cao tối đa, nên sheet cao (đầu tư cho đồng đội) không bắt đầu phía trên cửa sổ ở 1024×768.
 Đã đo bằng probe (không commit) ở 568×320, 667×375, 740×360 và 1024×768 (VI và EN): 24 bề mặt Design Lab (mua, phát triển, nợ, bán ép, giao dịch, đề nghị đến, thẻ ô đất, danh mục, thẻ Cơ Hội/Khí Vận, xác nhận, thắng, cài đặt, cứu trợ)

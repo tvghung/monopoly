@@ -310,13 +310,14 @@ Labels as in the batch-5 section above (`[AUTO]` committed test, `[PROBE]` throw
 - [x] `[AUTO][CLIENT]` `game/scene/camera/boardView.test.ts` (9 tests): zoom range, pan clamped so the window never leaves the overview, finger direction, zoom about an anchor keeps the point under it,
   no automatic focus at the overview / within 6 s of a manual change, one eased follow once left alone, reset, detach.
 - [x] `[AUTO][CLIENT]` `game/ui/hud/CameraControls.test.tsx`: no keys without a 3D board; zoom in/out steps, ends disabled, reset only away from the overview; keys are the shared 44 px icon buttons.
-- [x] `[AUTO][CLIENT]` `game/ui/hud/turnAndDiceOverlays.test.tsx`: on a phone-sized window an opponent's turn gets no banner and the local turn still does.
+- [x] ~~`[AUTO][CLIENT]` `game/ui/hud/turnAndDiceOverlays.test.tsx`: on a phone-sized window an opponent's turn gets no banner and the local turn still does.~~ Superseded by the
+  mobile/tablet overhaul below: the turn banner no longer exists (its tests were removed with it).
 - [x] `[PROBE]` Camera on the live board (667×375, touch): zoom keys, wheel, mouse drag and CDP two-finger pinch change the zoom (reset key appears, zoom-out enables); a drag over the board opens no dialog;
   a plain tap on a tile still opens its card; no page errors. Overview board share 52–63% at 568×320–896×414 and 64–86% at 1024×768–1280×720; zoom-in screenshots inspected.
 - [x] `[PROBE]` HUD chips at 667×375 (stations-4): non-turn, non-local seats are chips and the board is visibly clearer; seats with a status keep the full card (the offline seat in the fixture).
 - [x] `[PROBE]` Jail group with the camera keys at 568×320, 667×375, 740×360 (VI and EN): no overlap between roll, jail panel, zoom keys, properties button and cards.
 - [x] `[PROBE]` Short-landscape dialogs (see design-system "Modal trên màn hình ngang thấp") before and after: purchase buttons on one line, debt summary without overlap.
-- [x] `[PROBE]` Portrait: the rotate notice shows and the board is inert at 375×667, 768×1024 and 820×1180 with a touch pointer (`isMobile`, `pointer: coarse`); a 900×1200 window with a mouse is not
+- [x] `[PROBE]` Portrait (superseded below for tablets, which now play upright): the rotate notice shows and the board is inert at 375×667, 768×1024 and 820×1180 with a touch pointer (`isMobile`, `pointer: coarse`); a 900×1200 window with a mouse is not
   blocked; 1180×820 touch landscape is not blocked. Rotating 667×375 → 375×667 → 667×375 on one page keeps the page (no navigation), the four seats and the zoomed camera.
 - [x] `[AUTO][E2E]` `e2e/mobile-host.spec.ts` (mobile-chromium and mobile-webkit, local): the room toolbar stays tappable over the rotate notice in portrait and every acceptance viewport passes.
 - [x] `[PROBE]` Automatic follow on the live board (`pass-go`, 844×390): zoomed by the keys, a move within 6 s does not move the camera; a move once left alone pans it to the token.
@@ -325,3 +326,27 @@ Labels as in the batch-5 section above (`[AUTO]` committed test, `[PROBE]` throw
   four of them again in EN at device pixel ratio 3 (20/20); `teams-revive` VI and EN at 568×320–844×390 after the revivable-card fix.
 - [x] `[AUTO][CLIENT]` `components/Log.test.tsx`: a gameplay line while the Journal is closed marks the tab (not the chat count) and opening it clears the mark.
 - [ ] `[NOT RUN]` Real phones and tablets (pinch on glass, notch safe areas, browser chrome showing/hiding), browser text zoom, a full match against a server on a device.
+
+## Mobile and tablet overhaul (2026-10-08, branch `overhaul/mobile-tablet-redesign`)
+
+From the owner's iPhone screenshots (Safari landscape with the tab bar, a ~760×280 game window): the jail panel covered "Đổ xúc xắc",
+"<tên> đang chơi" / "Lượt của bạn" were said twice, the cards, the properties button and the zoom keys were too large, the debt and build
+dialogs were hard to read ("Build 1 houses (100.000…" spilling out of its button), and the launcher, join form and lobby carried helper lines.
+Rules: [game-board "Tầng bố cục"](../Client/game-board.instruction.md), [design-system "Vùng chạm"](../Client/design-system.instruction.md).
+
+- [x] `[AUTO][CLIENT]` `game/ui/hud/centerStage.test.tsx`: the status pill shows only the room code (no turn label, nothing without a code); the jail panel sits in the center
+  stage under the roll button at every size, one roll button, the card key keeps its full accessible name.
+- [x] `[AUTO][CLIENT]` `components/Board.test.tsx`: the center pill names the displayed player on the move; no "Lượt của bạn" / "Đến lượt bạn!" anywhere.
+- [x] `[AUTO][CLIENT]` `components/dashboard/DebtPanel.test.tsx`: one-line property rows (deed chip) under `SHORT_VIEWPORT_QUERY`, compact deeds otherwise.
+- [x] `[AUTO][CLIENT]` `components/dashboard/DecisionSheets.test.tsx`: a build option is drawn as two lines and keeps "Xây 1 Nhà (50.000 ₫)" as its name;
+  `i18n/catalog.test.ts`: no English string says "1 houses".
+- [x] `[AUTO][CLIENT]` Lobby/JoinForm tests: no "Chia sẻ mã phòng để mời bạn", mascot colour note, "Màu đội" label or "Phòng chung" helper line.
+- [x] `[AUTO][E2E]` `e2e/mobile-host.spec.ts` (mobile-chromium and mobile-webkit, local, 4/4): touch targets are measured where a finger lands (`elementFromPoint` runs
+  through the centre, 44 px, the dialog close key 40 px) for the toolbar keys, the Journal tab, the properties key and the roll button at every acceptance viewport;
+  768×1024 added and plays (no rotate notice); 360×800 and 390×844 still show it.
+- [x] `[PROBE]` HUD vs tiles and HUD vs HUD (persistent `data-hud-region` boxes, roll, camera keys, properties key, Journal tab; > 4% of a tile is a finding):
+  `stations-4`, `opponent-turn`, `teams-2v2`, `jail-failed` × 568×320, 640×360, 667×375, 760×280, 812×375, 844×390, 932×430, 1024×768, 768×1024, 820×1180, 1024×1366,
+  1280×720, 1440×900: no finding after the narrow-phone camera column and the portrait dock (before: camera keys over GO at 568×320, dock over the bottom-right card at 768×1024).
+- [x] `[PROBE]` Screenshots at 760×280 and 667×375 (VI and EN): jail group, opponent pill, 2v2 revive, buy / build / hotel / debt dialogs fit with every button reachable;
+  real-app join form and 2v2 lobby at 760×280 show none of the removed helper lines.
+- [ ] `[NOT RUN]` Real iPhone/iPad/Android devices (Safari tab bar, notch insets, pinch on glass), the desktop launcher in Electron at a small window.
