@@ -7,7 +7,8 @@ import {
   setTeamColorRequestSchema,
   setTeamNameRequestSchema,
 } from '@monopoly/shared';
-import { reviveTeammate, sanitizeName } from '../game';
+import { sanitizeName } from '../game';
+import { reviveTeammateCommand, runGameCommand } from '../commands/gameplay';
 import { activePlayerIds, isBotMember, lobbySeatHolders } from '../rooms';
 import type { AppRuntime } from '../services/runtime';
 import {
@@ -238,19 +239,10 @@ export function registerTeamHandlers(io: AppServer, socket: AppSocket, runtime: 
   socket.on('revive teammate', async (acknowledge) => {
     try {
       const actor = requirePlayer(socket, runtime);
-      const committed = await commitRoomCommand(runtime, actor.roomId, ({ room, state }) => {
-        if (room.status !== 'IN_PROGRESS') {
-          throw new CommandError('CONFLICT', 'Ván chơi hiện không nhận thao tác này.');
-        }
-        if (!state.players[actor.playerId]) {
-          throw new CommandError('FORBIDDEN', 'Chỉ người chơi còn trong ván mới có thể hồi sinh đồng đội.');
-        }
-        const result = reviveTeammate(state, actor.playerId);
-        if (!result.ok) throw new CommandError('CONFLICT', result.reason);
-      }, undefined, actor);
-      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
-      broadcastRoom(io, runtime, committed.room);
-      acknowledge(successAck(committed.room.aggregateVersion));
+      const { room } = await runGameCommand(io, runtime, reviveTeammateCommand, actor.roomId, actor.playerId, undefined, {
+        authority: actor,
+      });
+      acknowledge(successAck(room.aggregateVersion));
     } catch (error) {
       acknowledgeFailure(acknowledge, error);
     }

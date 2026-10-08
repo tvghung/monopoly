@@ -1,125 +1,69 @@
+import { createForcedSaleProposal } from '../game';
 import {
-  acceptEmergencyRescue,
-  acceptForcedSaleProposal,
-  activeDebtClaim,
-  createForcedSaleProposal,
-  declineEmergencyRescue,
-  rejectForcedSaleProposal,
-  progressPaymentQueue,
-  resumePaymentContinuation,
-  sellPropertyToBankForPayment,
-  type RescueResolution,
-} from '../game';
-import { paymentTimingOptions, type AppRuntime } from '../services/runtime';
+  acceptForcedSaleCommand,
+  acceptRescueCommand,
+  declineRescueCommand,
+  rejectForcedSaleCommand,
+  runGameCommand,
+  sellPropertyToBankCommand,
+} from '../commands/gameplay';
+import type { AppRuntime } from '../services/runtime';
 import { requirePlayer } from './authority';
 import { broadcastRoom, privatePlayerRoomName } from './broadcast';
 import { CommandError, acknowledgeFailure, successAck } from './errors';
-import {
-  cancelPendingOffersForAssets,
-  cancelPendingOffersForPlayer,
-  emitCancelledOffers,
-} from '../services/offerInvalidation';
 import { commitRoomCommand } from './roomCommands';
 import type { AppServer, AppSocket } from './types';
 
-const emitForcedSaleCleared = (io: AppServer, playerIds: string[]): void => {
-  for (const playerId of new Set(playerIds)) {
-    io.to(privatePlayerRoomName(playerId)).emit('forced sale proposal', null);
-  }
-};
-
+// The debt rules a bot also needs (bank sales, forced-sale and rescue answers) live in `commands/gameplay.ts`; proposing a
+// forced sale is a human-only negotiation and stays here.
 export function registerDebtHandlers(io: AppServer, socket: AppSocket, runtime: AppRuntime): void {
-  // A 2v2 Emergency Rescue answer. Accepting pays the debtor's whole remaining shortfall from the rescuer's own balance straight
-  // to the creditors; declining eliminates the debtor as usual. Either may end the payment queue, so the turn continues.
-  const answerRescue = (
-    event: 'accept rescue' | 'decline rescue',
-    resolve: typeof acceptEmergencyRescue,
-  ): void => {
-    socket.on(event, async (request, acknowledge) => {
-      try {
-        const actor = requirePlayer(socket, runtime);
-        const now = new Date();
-        const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }) => {
-          if (room.status !== 'IN_PROGRESS') throw new CommandError('CONFLICT', 'Phòng không còn hoạt động.');
-          const playersBefore = Object.keys(state.players);
-          const options = { now: now.getTime(), ...paymentTimingOptions(runtime) };
-          const resolution: RescueResolution = resolve(state, actor.playerId, request.rescueId, options);
-          if (!resolution.ok) throw new CommandError('CONFLICT', resolution.reason);
-          if (resolution.progress.status === 'COMPLETED' && resolution.progress.continuation) {
-            resumePaymentContinuation(state, resolution.progress.continuation, options);
-          }
-          // Whoever the queue eliminated no longer trades: cancel their pending offers in the same transaction.
-          const cancelled = [];
-          for (const playerId of playersBefore) {
-            if (!state.players[playerId]) {
-              cancelled.push(...await cancelPendingOffersForPlayer(transaction.tradeOffers, actor.roomId, playerId, now));
-            }
-          }
-          return cancelled;
-        }, now, actor);
-        if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
-        emitCancelledOffers(io, committed.room, committed.result, now);
-        broadcastRoom(io, runtime, committed.room);
-        acknowledge(successAck(committed.room.aggregateVersion));
-      } catch (error) { acknowledgeFailure(acknowledge, error); }
-    });
-  };
-  answerRescue('accept rescue', acceptEmergencyRescue);
-  answerRescue('decline rescue', declineEmergencyRescue);
+  socket.on('accept rescue', async (request, acknowledge) => {
+    try {
+      const actor = requirePlayer(socket, runtime);
+      const { room } = await runGameCommand(io, runtime, acceptRescueCommand, actor.roomId, actor.playerId, request, {
+        authority: actor,
+      });
+      acknowledge(successAck(room.aggregateVersion));
+    } catch (error) { acknowledgeFailure(acknowledge, error); }
+  });
+
+  socket.on('decline rescue', async (request, acknowledge) => {
+    try {
+      const actor = requirePlayer(socket, runtime);
+      const { room } = await runGameCommand(io, runtime, declineRescueCommand, actor.roomId, actor.playerId, request, {
+        authority: actor,
+      });
+      acknowledge(successAck(room.aggregateVersion));
+    } catch (error) { acknowledgeFailure(acknowledge, error); }
+  });
 
   socket.on('sell property to bank', async (request, acknowledge) => {
     try {
       const actor = requirePlayer(socket, runtime);
-      const now = new Date();
-      const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }) => {
-        const claim = activeDebtClaim(state);
-        if (room.status !== 'IN_PROGRESS' || !claim || claim.debtorPlayerId !== actor.playerId) {
-          throw new CommandError('FORBIDDEN', 'Bạn không có khoản thanh toán cần bán tài sản.');
-        }
-        if (Date.parse(state.boardState.paymentQueue?.actionDeadlineAt ?? '') <= now.getTime()) {
-          throw new CommandError('CONFLICT', 'Thời hạn thanh toán đã hết; máy chủ đang tự xử lý.');
-        }
-        const sale = sellPropertyToBankForPayment(
-          state,
-          actor.playerId,
-          request.paymentOperationId,
-          request.claimId,
-          request.tileID,
-          { now: now.getTime(), ...paymentTimingOptions(runtime) },
-        );
-        if (!sale.ok) throw new CommandError('CONFLICT', sale.reason);
-        const progress = progressPaymentQueue(state, {
-          now: now.getTime(),
-          ...paymentTimingOptions(runtime),
-        });
-        if (progress.status === 'COMPLETED' && progress.continuation) {
-          resumePaymentContinuation(state, progress.continuation, {
-            now: now.getTime(),
-            ...paymentTimingOptions(runtime),
-          });
-        }
-        const cancelled = await cancelPendingOffersForAssets(
-          transaction.tradeOffers,
-          actor.roomId,
-          null,
-          [request.tileID],
-          [],
-          now,
-        );
-        if (!state.players[actor.playerId]) {
-          cancelled.push(...await cancelPendingOffersForPlayer(
-            transaction.tradeOffers,
-            actor.roomId,
-            actor.playerId,
-            now,
-          ));
-        }
-        return cancelled;
-      }, now, actor);
-      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
-      emitCancelledOffers(io, committed.room, committed.result, now);
-      broadcastRoom(io, runtime, committed.room);
-      acknowledge(successAck(committed.room.aggregateVersion));
+      const { room } = await runGameCommand(io, runtime, sellPropertyToBankCommand, actor.roomId, actor.playerId, request, {
+        authority: actor,
+      });
+      acknowledge(successAck(room.aggregateVersion));
+    } catch (error) { acknowledgeFailure(acknowledge, error); }
+  });
+
+  socket.on('accept forced sale', async (request, acknowledge) => {
+    try {
+      const actor = requirePlayer(socket, runtime);
+      const { room } = await runGameCommand(io, runtime, acceptForcedSaleCommand, actor.roomId, actor.playerId, request, {
+        authority: actor,
+      });
+      acknowledge(successAck(room.aggregateVersion));
+    } catch (error) { acknowledgeFailure(acknowledge, error); }
+  });
+
+  socket.on('reject forced sale', async (request, acknowledge) => {
+    try {
+      const actor = requirePlayer(socket, runtime);
+      const { room } = await runGameCommand(io, runtime, rejectForcedSaleCommand, actor.roomId, actor.playerId, request, {
+        authority: actor,
+      });
+      acknowledge(successAck(room.aggregateVersion));
     } catch (error) { acknowledgeFailure(acknowledge, error); }
   });
 
@@ -157,82 +101,6 @@ export function registerDebtHandlers(io: AppServer, socket: AppSocket, runtime: 
         { proposalId: proposal.proposalId, expiresAt: proposal.expiresAt },
         committed.room.aggregateVersion,
       ));
-    } catch (error) { acknowledgeFailure(acknowledge, error); }
-  });
-
-  socket.on('accept forced sale', async (request, acknowledge) => {
-    try {
-      const actor = requirePlayer(socket, runtime);
-      const now = new Date();
-      let proposalPlayers: string[] = [];
-      const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }) => {
-        const proposal = state.privateState.forcedSaleProposal;
-        proposalPlayers = proposal
-          ? [proposal.sellerPlayerId, proposal.buyerPlayerId]
-          : [];
-        const sellerId = proposal?.sellerPlayerId;
-        const sale = acceptForcedSaleProposal(state, actor.playerId, request.proposalId, {
-          now: now.getTime(), ...paymentTimingOptions(runtime),
-        });
-        if (!sale.ok) throw new CommandError('CONFLICT', sale.reason);
-        if (room.status !== 'IN_PROGRESS') throw new CommandError('CONFLICT', 'Phòng không còn hoạt động.');
-        const progress = progressPaymentQueue(state, {
-          now: now.getTime(),
-          ...paymentTimingOptions(runtime),
-        });
-        if (progress.status === 'COMPLETED' && progress.continuation) {
-          resumePaymentContinuation(state, progress.continuation, {
-            now: now.getTime(),
-            ...paymentTimingOptions(runtime),
-          });
-        }
-        const cancelled = await cancelPendingOffersForAssets(
-          transaction.tradeOffers,
-          actor.roomId,
-          null,
-          [sale.tileID],
-          [],
-          now,
-        );
-        if (sellerId && !state.players[sellerId]) {
-          cancelled.push(...await cancelPendingOffersForPlayer(
-            transaction.tradeOffers,
-            actor.roomId,
-            sellerId,
-            now,
-          ));
-        }
-        return cancelled;
-      }, now, actor);
-      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
-      emitCancelledOffers(io, committed.room, committed.result, now);
-      emitForcedSaleCleared(io, proposalPlayers);
-      broadcastRoom(io, runtime, committed.room);
-      acknowledge(successAck(committed.room.aggregateVersion));
-    } catch (error) { acknowledgeFailure(acknowledge, error); }
-  });
-
-  socket.on('reject forced sale', async (request, acknowledge) => {
-    try {
-      const actor = requirePlayer(socket, runtime);
-      const now = new Date();
-      let proposalPlayers: string[] = [];
-      const committed = await commitRoomCommand(runtime, actor.roomId, ({ room, state }) => {
-        const proposal = state.privateState.forcedSaleProposal;
-        proposalPlayers = proposal
-          ? [proposal.sellerPlayerId, proposal.buyerPlayerId]
-          : [];
-        if (
-          room.status !== 'IN_PROGRESS'
-          || !rejectForcedSaleProposal(state, actor.playerId, request.proposalId, now.getTime())
-        ) {
-          throw new CommandError('CONFLICT', 'Đề nghị bán bắt buộc không còn hợp lệ.');
-        }
-      }, now, actor);
-      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
-      emitForcedSaleCleared(io, proposalPlayers);
-      broadcastRoom(io, runtime, committed.room);
-      acknowledge(successAck(committed.room.aggregateVersion));
     } catch (error) { acknowledgeFailure(acknowledge, error); }
   });
 }
