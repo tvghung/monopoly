@@ -197,6 +197,8 @@
   }
   .center__room-toggle svg { width: 14px; height: 14px; }
   .center__room-toggle-label { font: 700 0.6875rem/1 var(--font-family-body); }
+  /* The window edge on the right and 14 px of invisible margin on the left keep the touch target 44 px wide. */
+  .center__room-toggle::before { position: absolute; inset: 0 0 0 -14px; content: ''; }
 }
 
 /*

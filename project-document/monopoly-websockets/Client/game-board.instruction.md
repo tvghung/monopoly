@@ -178,6 +178,18 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
 - **Trạm 3D chỉ còn khay + đống xu**: `StationInformation`/`StationMoneyAmounts` (tên, số dư, ± tiền) đã bị bỏ.
   Trạm vẫn là anchor bay xu và điểm fit camera. Tên/tiền nằm ở player card (DOM); main pass giảm 16 draw
   (169 → 153 ở `board-readability`, balanced).
+- **Tầng bố cục (responsive layout tiers, overhaul mobile/tablet 2026-10-08)**: màn hình ván có ba tầng, cùng media text ở CSS và
+  `design-system/useMediaQuery.ts`:
+  - *phone* — cao ≤ 500 px **hoặc** rộng ≤ 720 px (`COMPACT_HUD_QUERY`): điện thoại cầm ngang, kể cả Safari iPhone còn thanh tab (cửa sổ
+    chỉ ~280 px cao, đo từ ảnh người dùng). Mọi ghế là chip nhỏ, phím 34 px, một hàng dưới duy nhất; xem các mục bên dưới.
+  - *tablet* — rộng ≤ 1279 px hoặc cao ≤ 719 px, ngang **hoặc dọc**: card 220×72, phím 44 px.
+  - *desktop* — lớn hơn: card 272×96 (của mình 300×108), status pill có mã phòng.
+  - Dọc được chơi từ 600 px chiều rộng (máy tính bảng, cửa sổ desktop); dưới 600 px (điện thoại cầm dọc) mới hiện "Hãy xoay ngang thiết bị"
+    (`PORTRAIT_BLOCKED_QUERY` = `(orientation: portrait) and (max-width: 599px)`, cùng text với `BoardShell.css`). Ở tablet dọc camera fit theo
+    chiều ngang nên bàn cờ rộng gần hết màn hình; card nằm ở bốn góc trên/dưới bàn, không che ô.
+  - **Vùng chạm 44 px ở tầng phone**: phím nhìn thấy 34 px (toolbar phòng, phím camera, nút "Tài sản", phím header dialog 32 px) có viền chạm vô hình
+    5 px (pseudo-element `::after` của chính nút) và cách nhau 10 px nên viền chạm không chạm nhau; tab "Nhật ký" rộng 30 px có viền chạm 14 px sang trái
+    (bên phải là mép cửa sổ). e2e mobile (`expectTouchTarget`) đo vùng chạm thật bằng `elementFromPoint` dọc mỗi trục qua tâm, không chỉ khung vẽ.
 - **Player card** (`PlayerCard`, `PlayerCardList`, `playerCardSelectors.ts`): bốn góc theo
   `resolvePlayerStationSlots` (BOTTOM dưới-trái, TOP trên-phải, LEFT trên-trái, RIGHT dưới-phải).
   Tiền lấy `displayBalances[id] ?? money` và đếm số bằng `useAnimatedNumber` (480 ms / speed; reduced motion
@@ -187,84 +199,87 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
   `displayDevelopmentLevels`; pips theo tám nhóm. Trạng thái luôn có chữ + icon: "Bạn", "Ở tù n/2",
   "Mất kết nối" (+ "Tự bỏ lượt sau m:ss" từ `turnRecovery.deadlineAt`), "Phá sản", "Đã rời". Cạnh tên chỉ hiện
   tối đa hai tag theo ưu tiên Mất kết nối > Ở tù > Đang đi > Bạn (tên không bao giờ bị ép còn một chữ); phần còn
-  lại nằm trong tóm tắt sr-only. Hàng đếm ngược hồi phục thay cho footer; card compact/điện thoại không đủ chỗ nên
-  đếm ngược nằm trong tag "Mất kết nối". Điện thoại ngang (cao ≤ 500 px) chỉ hiện badge icon cho Ở tù/Mất kết nối;
-  lượt hiện tại vẫn đọc được bằng chữ ở status pill. Vòng pulse (`player-card--pulse`) chỉ chạy khi lượt đổi
+  lại nằm trong tóm tắt sr-only. Hàng đếm ngược hồi phục thay cho footer; card tablet/phone không đủ chỗ nên
+  đếm ngược nằm trong tag "Mất kết nối". Ở tầng phone chỉ có badge icon cho Ở tù/Mất kết nối; lượt hiện tại đọc được ở
+  vòng vàng của card và ở center stage. Vòng pulse (`player-card--pulse`) chỉ chạy khi lượt đổi
   trong live presentation, không chạy khi mount hay sau reset/snap.
   Mặt card `aria-hidden`; mỗi `li[data-player-id][data-current-turn]` có một câu tóm tắt sr-only
   (`describePlayerCard`: tiền, tài sản, nhà, khách sạn, ga tàu, công ty điện nước, ở tù, mất kết nối, đang đi).
   `section.player-card-list[aria-label="Người chơi"] > ol[role=list]` thay roster sr-only cũ.
-- **Status pill** (`StatusPill`): mã phòng + avatar + `p.game-board__turn-label` ("Lượt của bạn" /
-  "<tên> đang chơi" / "Đang chờ lượt chơi"), theo `displayActivePlayerId`; người vừa phá sản/rời vẫn được gọi
-  tên qua `finishedPlayers` (`resolveDisplayedPlayer`). **Turn banner**: "Đến lượt bạn!" hoặc
-  "Lượt của <tên>" khi lượt hiển thị đổi trong live presentation (280 + 900 + 280 ms / speed, thay thế thay vì
-  xếp hàng, không chạy khi first render/snap/reset, `aria-hidden`).
+- **Chỉ một nơi nói "lượt của ai"** (yêu cầu của chủ dự án 2026-10-08: nhãn lượt từng lặp lại hai lần). Status pill trên cùng không còn nhãn
+  lượt và không còn avatar; **Turn banner** ("Đến lượt bạn!" / "Lượt của <tên>") đã bị xóa (`TurnBanner.tsx` không còn). Lượt của mình = nút
+  "Đổ xúc xắc" ở center stage + vòng vàng trên card; lượt người khác = pill "<tên> đang đi…" ở center stage (ở mọi tầng, kể cả phone) + vòng
+  vàng. Trình đọc màn hình vẫn nghe "Đến lượt bạn." / "Lượt của <tên>." một lần từ vùng `role="status"` của roll control.
+  **Status pill** (`StatusPill`, chỉ desktop; ẩn ≤ 1279 × 719): `p.status-pill` chỉ có "Phòng <mã>"; không có mã phòng thì không vẽ gì.
 - **Center stage** (`CenterStage`, `RollControl`): nút "Đổ xúc xắc" (đang gửi: "Đang đổ…") ở tâm bàn; lượt
   đối thủ hiện pill "<tên> đang đi…"; cả hai ẩn khi xúc xắc đang lăn, khi có thẻ trên màn hình và sau khi có
-  người thắng. Nút có một lần pop khi xuất hiện (reduced motion: fade) và lệch phải 40 px / lên 6 px so với tâm
-  (`--hud-center-offset-x/-y`) để không đè xúc xắc đã dừng (phía trên-phải tâm) và khay ngân hàng (dưới-trái tâm).
+  người thắng. Nút có một lần pop khi xuất hiện (reduced motion: fade) và lệch phải 64 px (tablet 40 px, phone 20 px) / xuống vài px so với tâm
+  (`--hud-center-offset-x/-y`) để không đè xúc xắc đã dừng (phía trên-phải tâm) và khay ngân hàng (dưới-trái tâm). Ở phone nút cao 40 px
+  (viền chạm 3 px) và pill dùng avatar 22 px, chữ 12 px.
   Quyền lăn vẫn từ `canRollForState` (authoritative). `Space` kích hoạt nút khi đang bật và focus không nằm trong
   input/textarea/select/button/link/contenteditable hay ngăn nhật ký, không có dialog, không có modifier hay repeat.
   **Dice callout**: "4 + 3" và tổng lớn khi `displayRollSequence` tăng và xúc xắc đã dừng (1200 ms / speed),
-  chip "Đổ đôi" chỉ để thông tin; 3D `DiceResultTotal` đã bỏ. Thông báo đọc màn hình duy nhất vẫn là vùng
+  chip "Đổ đôi" chỉ để thông tin; 3D `DiceResultTotal` đã bỏ. Ở phone callout nhỏ (xúc xắc 20 px, tổng 20 px) và luôn nằm dưới card trên-phải
+  (`top: max(inset + toolbar + card + 8 px, 50% − 64 px)`), không còn chui dưới nút "Hướng dẫn chơi". Thông báo đọc màn hình duy nhất vẫn là vùng
   `role="status"` trong roll control; vùng này cũng đọc "Đến lượt bạn." / "Lượt của <tên>." một lần khi lượt hiển thị
   đổi trong live presentation (`useTurnAnnouncement`, không đọc khi first render hay sau reset/snap).
-- **Nhóm thoát tù trên điện thoại hẹp** (`CenterStage` + `RollControl` + `JailPanel`; `NARROW_HUD_QUERY` = `(max-width: 720px)` trong
-  `design-system/useMediaQuery.ts`, cùng ngưỡng với `hud.css`). Lỗi cũ: nút "Đổ xúc xắc" ở `CenterStage` và `JailPanel` ở `BottomDock` được định
-  vị độc lập; ở ≤ 720 px `.hud-context` rơi xuống khoảng giữa hai card dưới, chỉ rộng ~174 px ở 568×320 (≈ 270 px ở 667×375), nên panel gói thành hộp cao
-  ~96 px phủ lên nút roll (đo bằng probe trên harness UAT, cảnh `jail-failed`). Bây giờ ở ≤ 720 px chiều rộng `CenterStage` tự vẽ `JailPanel` ngay dưới
-  `RollControl` và `BottomDock` không vẽ nó nữa: lúc nào cũng chỉ có **một** `RollControl` (một handler gửi `roll dice`) và **một** `JailPanel` (một
-  handler cho `pay bail` / `use jail card`), nên không có nút roll thứ hai hay lần gửi thứ hai. Nhóm là một cột: [Đổ xúc xắc] rồi panel gọn (hàng tiêu đề
-  + chip vòng chờ, rồi hai nút Trả bảo lãnh / Dùng thẻ cao ≥ 44 px; bỏ glyph ổ khóa và glyph nút để tiêu đề một dòng và mỗi nút tối đa hai dòng, cả VI lẫn EN;
-  dòng gợi ý và cảnh báo thiếu tiền vẫn như dải gọn cũ). Khi nhóm có mặt, stage dịch xuống 22 px (`--hud-center-offset-y`) và sang phải 2rem
-  (`margin-inline-start`), `width: max-content`, panel tối đa 17rem, để nằm trong dải trống giữa card trên-phải và hai card dưới và không đè nút "Tài sản"
-  (nhãn EN rộng hơn). Trong lúc xúc xắc lăn hoặc thẻ đang hiện (`data-stage-busy`) panel chỉ `visibility: hidden` (không unmount) để request đang chờ và dòng lỗi
-  không mất, và không che xúc xắc. Từ 721 px chiều rộng panel vẫn ở context stack của `BottomDock` (trên điện thoại ngang cao ≤ 500 px nó là dải hai hàng
-  như trước). Không đổi: `canRollForState`, điều kiện hiện `JailPanel`, các lệnh socket, số tiền bảo lãnh, luật tù.
-  Giới hạn đã biết: khi cửa sổ đổi qua mốc 720 px lúc một yêu cầu bảo lãnh/dùng thẻ đang chờ ACK (xoay máy, đổi cỡ cửa sổ), `JailPanel` được mount lại ở nơi mới nên vòng
-  quay "đang gửi" của nó bắt đầu lại; lệnh đã gửi không bị ảnh hưởng và state có thẩm quyền vẫn là nguồn sự thật. Chưa có test tự động cho trường hợp này.
-- **Cột dưới** (`BottomDock`): ticker (dòng hoạt động mới nhất), context stack (`JailPanel`, `DebtPanel`) và
-  action dock (nút "Tài sản của tôi (N)", tên truy cập giữ nguyên; điện thoại chỉ hiện "Tài sản (N)"). Ở điện thoại
-  ngang (cao ≤ 500 px) `JailPanel` thu thành dải hai hàng (tiêu đề + vòng chờ, rồi hai nút). Từ 720 px chiều rộng
-  trở xuống context stack (trạng thái nợ, `RevivePanel`) nằm ở khoảng giữa hai card dưới còn `JailPanel` do `CenterStage` vẽ dưới nút
-  "Đổ xúc xắc" (xem "Nhóm thoát tù trên điện thoại hẹp").
-- **Responsive gameplay (landscape-first)** — kết quả kiểm toán: ở 568×320–896×414 bàn cờ đã chiếm khoảng 52–63% cửa sổ (camera framing gồm cả bốn bệ người chơi, nên
-  bị giới hạn bởi chiều cao), HUD 15–33%; muốn đọc ô cờ thì phải phóng to, không phải co HUD thêm. Quyết định thiết kế:
+- **Nhóm thoát tù** (`CenterStage` + `RollControl` + `JailPanel`, **mọi tầng**). Lỗi cũ (ảnh người dùng, iPhone ngang ~760×280): trên cửa sổ thấp mà rộng hơn
+  720 px `JailPanel` nằm ở context stack của `BottomDock`, được định vị độc lập với nút roll ở tâm và phủ lên nó. Bây giờ `CenterStage` luôn vẽ
+  `JailPanel` ngay dưới `RollControl` và `BottomDock` không vẽ nó nữa: lúc nào cũng chỉ có **một** `RollControl` (một handler gửi `roll dice`) và
+  **một** `JailPanel` (một handler cho `pay bail` / `use jail card`), mount ở một chỗ cố định nên đổi cỡ cửa sổ hay xoay máy không còn mount lại
+  panel (giới hạn "vòng quay đang gửi bắt đầu lại ở mốc 720 px" của bản trước đã hết). Nhóm là một cột `width: max-content`: [Đổ xúc xắc] rồi panel
+  (tối đa 26rem; ở cửa sổ ngang trừ đi bề rộng hai card để không chạm card; ở cửa sổ dọc dùng gần hết bề rộng). Desktop/tablet giữ panel đầy đủ (icon,
+  dòng gợi ý, hai nút có glyph). Phone: panel 17,5rem gồm hàng tiêu đề (ổ khóa nhỏ, "Bạn đang ở Nhà Tù", chip vòng chờ) và một hàng nút cao 32 px chữ 12 px
+  không glyph; nút thẻ hiện nhãn ngắn "Dùng thẻ (N)" / "Use card (N)" nhưng tên truy cập vẫn là nhãn đầy đủ (`aria-label`); dòng gợi ý ẩn, dòng chờ/lỗi
+  thay chỗ hàng tiêu đề, cảnh báo thiếu tiền chỉ còn cho trình đọc màn hình (nút bảo lãnh trỏ tới nó bằng `aria-describedby`). Trong lúc xúc xắc lăn
+  hoặc thẻ đang hiện (`data-stage-busy`) panel chỉ `visibility: hidden` (không unmount) để request đang chờ và dòng lỗi không mất, và không che xúc xắc.
+  Không đổi: `canRollForState`, điều kiện hiện `JailPanel`, các lệnh socket, số tiền bảo lãnh, luật tù.
+- **Cột dưới** (`BottomDock`): ticker (dòng hoạt động mới nhất; ẩn ở phone), context stack (`DebtPanel` trạng thái nợ cho người xem, `RevivePanel`) và
+  action dock (nút "Tài sản của tôi (N)" + phím camera; tên truy cập giữ nguyên). Ở phone cả tầng dùng **một hàng dưới**: card của mình ở góc
+  dưới-trái, ngay bên phải là phím "Tài sản" (icon + số, cao 34 px, dấu ngoặc của số do CSS vẽ ở tầng khác) và ba phím camera 34 px; context stack nổi
+  ngay trên hàng đó, giới hạn giữa hai card dưới (`right` = card dưới-phải). Không còn cách xếp riêng cho ≤ 720 px (pill dưới card, cột trên card, phím
+  camera `position: fixed`).
+- **Responsive gameplay (landscape-first, tablet dọc được chơi)** — kết quả kiểm toán: ở 568×320–896×414 bàn cờ đã chiếm khoảng 52–63% cửa sổ (camera framing gồm cả bốn bệ người chơi, nên
+  bị giới hạn bởi chiều cao), HUD 15–33%; muốn đọc ô cờ thì phải phóng to. Đợt overhaul mobile/tablet thu nhỏ HUD phone thêm (ảnh người dùng cho thấy HUD
+  vẫn chiếm quá nhiều ở cửa sổ ~280 px). Quyết định thiết kế:
   - **Camera người chơi** (`game/scene/camera/boardView.ts`, `useBoardGestures.ts`, `CameraAutoFocus.tsx`, `FixedBoardCamera.applyBoardView`; chỉ trình bày, không chạm state game hay socket):
     `boardViewStore` giữ `{ zoom, panX, panY }` ngoài React nên pinch/kéo không render component nào. Zoom 1 = tổng quan cũ (cả bàn + bệ), giới hạn 1–3,5×;
     pan tính theo trục phải/lên của camera (hướng camera không đổi) và bị kẹp để cửa sổ nhìn không vượt khỏi vùng tổng quan, nên không thể làm mất bàn cờ; ở zoom 1 không có pan.
     Cử chỉ (gắn vào `.game-scene`, `touch-action: none` trên canvas): một ngón kéo khi đã zoom, hai ngón pinch (zoom quanh điểm giữa + kéo theo), con lăn chuột zoom quanh con trỏ.
     Một lần chạm/kéo vượt 8 px kết thúc bằng `click` bị chặn ở pha capture (350 ms) nên kéo không mở thẻ ô đất; ở zoom 1 một cú chạm luôn là chạm.
-    Nút 44 px trong `action-dock` (`CameraControls`: phóng to, thu nhỏ, "Về góc nhìn toàn bàn" chỉ hiện khi khác tổng quan; chỉ vẽ khi có bàn 3D) là đường dùng bàn phím/chuột; ≤ 720 px
-    chúng nằm ở mép dưới giữa hai card dưới (`position: fixed`, cùng thứ tự Tab). Reset là chuyển động 280 ms (tức thời khi reduced motion).
+    Phím trong `action-dock` (`CameraControls`: phóng to, thu nhỏ, "Về góc nhìn toàn bàn" chỉ hiện khi khác tổng quan; chỉ vẽ khi có bàn 3D; 44 px, phone 34 px + viền chạm) là đường
+    dùng bàn phím/chuột. Reset là chuyển động 280 ms (tức thời khi reduced motion). Camera không đổi trong đợt overhaul (chủ dự án: "tạm ổn").
   - **Tự động theo token** (`CameraAutoFocus`): chỉ khi đang zoom > 1,15, cách lần chạm/zoom/reset của người chơi ≥ 6 s (`MANUAL_PRECEDENCE_MS`) và không có dialog mở
     (`.ds-modal__overlay` không `hidden`); khi đó một lần ease 450 ms tới ô mới của token vừa di chuyển (vị trí hiển thị đã có sẵn từ presentation). Ở tổng quan camera không tự di chuyển.
     Khi một dialog bị ẩn bằng "Xem bàn cờ" camera vẫn được phép theo token. Người chơi luôn thắng: mọi thao tác tay hủy hoạt ảnh đang chạy.
-  - **Chip người chơi** (`hud.css`, cao ≤ 500 px): ghế đang `playing`, không phải lượt và không phải người của mình thu thành chip 118×38 (avatar 28 px, tên ≤ 8 ký tự, số dư); người đang đi và
-    người của mình giữ card đầy đủ, và mọi ghế có trạng thái cần đọc (tù, mất kết nối, phá sản, hồi sinh, đã rời) giữ card đầy đủ. Mở chi tiết = bấm chip (cùng nút "Tài sản của <tên>" như trước).
-    Card đổi cỡ bằng ease ngắn (không có khi reduced motion). 2v2: chip bỏ dải tên đội (khung màu đội vẫn còn, tên đội nằm trong tóm tắt truy cập và danh mục tài sản);
-    ≤ 720 px nút "Tài sản" lùi lên 8 px khi card của mình có dải đội để không chạm nhau. Card "có thể hồi sinh" trên màn hình thấp cao lên theo nội dung (không tràn khỏi mép) và bỏ
-    chip chữ "Có thể hồi sinh" (chip "Còn N lượt" đã nói điều đó).
-  - **Nhật ký trên điện thoại**: tab "Nhật ký" giữ nguyên chỗ, nhãn và số tin nhắn chưa đọc; thêm một chấm vàng "Có diễn biến mới trong nhật ký" khi có dòng gameplay mới lúc ngăn đang đóng
-    (chỉ vẽ ở `COMPACT_HUD_QUERY`, ở desktop chỉ là mô tả cho trình đọc màn hình), mở ngăn là xóa. Đây là nơi các sự kiện thường lệ không còn bật lên trên bàn cờ.
-  - **Phân cấp thông báo** (cao ≤ 500 px hoặc rộng ≤ 720 px, `COMPACT_HUD_QUERY`): *cần hành động* — hộp thoại quyết định, nợ, đề nghị, mất kết nối, banner "Đến lượt bạn!" — không bị thu nhỏ hay tự đóng;
-    *quan trọng nhưng không chặn* — banner khánh thành, xúc xắc, chip tiền của **mình**, trạng thái trên card; *thường lệ* — banner "Lượt của <tên>" của người khác (status pill đã nói), pill
-    "<tên> đang đi…" giữa bàn, chip +/- tiền của người khác, ticker — không còn hiện nổi, vẫn nằm trong Nhật ký (không thay đổi nguồn `activityFeed`). Desktop giữ nguyên các thông báo cũ. Toast trong ván (`App.tsx`: có đề nghị giao dịch tới mình, kết quả đề nghị của mình, lỗi ACK, "không thể thao tác", rời ván) đều thuộc nhóm cần hành động/ảnh hưởng tới chính người chơi nên giữ nguyên ở mọi cỡ.
-  - **Dọc (portrait)**: điện thoại và máy tính bảng (`pointer: coarse` tới 1100 px, hoặc cửa sổ hẹp ≤ 48rem) hiện thông báo "Hãy xoay ngang thiết bị" phủ bàn cờ (z `--z-orientation-notice`: toolbar phòng — Cài đặt, Bỏ cuộc, Hướng dẫn — vẫn bấm được như e2e mobile yêu cầu, dialog vẫn nằm trên) với biểu tượng điện thoại
-    nghiêng; phần bàn bên dưới là `inert` (không chạm, không bàn phím) nhưng vẫn mounted nên xoay lại không mất ván. Cửa sổ desktop với chuột không bị khóa theo hình dạng.
+  - **Chip người chơi** (`hud.css`, tầng phone): mọi ghế là chip 132×40 (avatar 28 px viền 2 px, tên 11 px ≤ 9 ký tự, số dư 13 px đậm); ghế đang `playing`, không phải lượt và
+    không phải người của mình nhỏ thêm còn 112×34 (avatar 24 px). Vòng lượt vàng thu còn 2 + 3 px. Trạng thái là badge icon (chữ nằm trong tóm tắt). Chip tiền của **mình**
+    nổi ngay ngoài card về phía giữa màn hình (trên card dưới, dưới card trên) thay vì xuống dòng thứ hai trong card (lỗi cũ: chip "−14.000 ₫" treo dưới mép cửa sổ); chip tiền
+    của người khác không hiện (Nhật ký có dòng đó). Mở chi tiết = bấm chip (cùng nút "Tài sản của <tên>"). Card đổi cỡ bằng ease ngắn (không có khi reduced motion). 2v2: chip nhỏ
+    bỏ dải tên đội (khung màu đội vẫn còn, viền trái 4 px), card của mình/người đang đi giữ dải 10 px; card "có thể hồi sinh" cao lên theo nội dung và bỏ chip chữ "Có thể hồi sinh".
+  - **Nhật ký trên điện thoại**: tab "Nhật ký" giữ nguyên chỗ, nhãn và số tin nhắn chưa đọc, ở phone rộng 30 px cao 72 px (chữ 11 px) và nằm dưới card trên-phải; thêm một
+    chấm vàng "Có diễn biến mới trong nhật ký" khi có dòng gameplay mới lúc ngăn đang đóng (chỉ vẽ ở `COMPACT_HUD_QUERY`, ở desktop chỉ là mô tả cho trình đọc màn hình),
+    mở ngăn là xóa. Đây là nơi các sự kiện thường lệ không còn bật lên trên bàn cờ.
+  - **Phân cấp thông báo** (tầng phone, `COMPACT_HUD_QUERY`): *cần hành động* — hộp thoại quyết định, nợ, đề nghị, mất kết nối, nút "Đổ xúc xắc" — không bị thu nhỏ quá mức hay tự đóng;
+    *quan trọng nhưng không chặn* — pill "<tên> đang đi…" giữa bàn (nơi duy nhất nói lượt của người khác), banner khánh thành, xúc xắc, chip tiền của **mình**, trạng thái trên
+    card; *thường lệ* — chip +/- tiền của người khác, ticker — không còn hiện nổi, vẫn nằm trong Nhật ký (không thay đổi nguồn `activityFeed`). Toast trong ván (`App.tsx`: có
+    đề nghị giao dịch tới mình, kết quả đề nghị của mình, lỗi ACK, "không thể thao tác", rời ván) đều thuộc nhóm cần hành động/ảnh hưởng tới chính người chơi nên giữ nguyên ở mọi cỡ.
+  - **Dọc (portrait)**: chỉ điện thoại (dưới 600 px chiều rộng) hiện thông báo "Hãy xoay ngang thiết bị" phủ bàn cờ (z `--z-orientation-notice`: toolbar phòng — Cài đặt, Bỏ cuộc,
+    Hướng dẫn — vẫn bấm được như e2e mobile yêu cầu, dialog vẫn nằm trên) với biểu tượng điện thoại nghiêng; phần bàn bên dưới là `inert` (không chạm, không bàn phím) nhưng
+    vẫn mounted nên xoay lại không mất ván. Máy tính bảng và cửa sổ desktop từ 600 px chơi được ở cả hai hướng (e2e có 768×1024).
 - **Ngăn nhật ký** (`Log`): xem [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md).
 - **Toolbar** (`App.tsx`): `IconButton` v2 44 px cho "Hướng dẫn chơi" (ô đầu, sau FPS dev; xem
   [how-to-play.instruction.md](./how-to-play.instruction.md)), "Cài đặt" và "Bỏ cuộc"/"Rời phòng", vẫn ngoài `.game-board`;
   `data-hud-region="toolbar"` để bộ kiểm tra chồng lấn đo nó như một vùng HUD (rộng 148 px, góc phải trên; card người chơi
-  trên-phải đứng dưới nó). Toast nằm giữa-trên dưới status pill, tối đa 3 cái.
-- **Vị trí không được che ô cờ**: status pill đứng sau card trên-trái, cột dưới đứng sau card dưới-trái, tab ngăn
-  nhật ký đứng dưới card trên-phải; từ 720 px chiều rộng trở xuống pill xếp dưới card trên-trái và cột dưới
-  xếp trên card dưới-trái. `TileScreenRectsPublisher` (chỉ dev/UAT) xuất hình chiếu 40 ô ra
+  trên-phải đứng dưới nó). Ở tầng phone toolbar cách góc 6 px, phím 34 px cách nhau 10 px (viền chạm 5 px), rộng 122 px. Toast nằm giữa-trên, tối đa 3 cái.
+- **Vị trí không được che ô cờ**: status pill (desktop) đứng sau card trên-trái, cột dưới đứng sau card dưới-trái, tab ngăn
+  nhật ký đứng dưới card trên-phải; ở phone nhóm thoát tù ở tâm bàn và context stack nổi giữa hai card dưới.
+  `TileScreenRectsPublisher` (chỉ dev/UAT) xuất hình chiếu 40 ô ra
   `window.__OWN_THE_BLOCK_TILE_SCREEN_RECTS__` và `pnpm visual:capture` (`overlapCheck`) báo mọi vùng
   `data-hud-region` che quá 4% một ô, tách vùng cố định khỏi vùng tạm (`data-hud-transient`: panel quyết định,
   banner, callout, ticker, bong bóng, panel ngăn nhật ký). Vùng cố định phải bằng 0 ở 1440×900, 1280×720,
-  1024×768, 812×375 và 667×375; panel Nhà tù trong context stack có thể che một số ô gần Xuất Phát khi đang mở
-  (plan 04 thu gọn nội dung). Cùng công cụ báo `regionOverlaps`: hai vùng HUD chồng lên nhau (ví dụ panel quyết định
+  1024×768, 812×375 và 667×375. Nhóm thoát tù ở tâm bàn che một phần ô trong lúc đang mở (đó là quyết định đang chờ người chơi).
+  Cùng công cụ báo `regionOverlaps`: hai vùng HUD chồng lên nhau (ví dụ panel quyết định
   che nút lăn) — phải rỗng ở mọi ảnh G3.
 - Camera fit không đổi: HUD không thêm inset vào `cameraMath.ts`.
 
@@ -311,7 +326,7 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
   `scripts/validateLandmarkArtwork.mjs` (phủ đúng 22 ô phố, an toàn SVG, file thừa, SHA-256 bản build,
   `--build-output`) chạy trong `pnpm build`; bản đóng gói kiểm bằng
   `pnpm --filter @monopoly/desktop proof:packaged:landmarks`.
-- **Banner khánh thành (OD-05-4):** `LandmarkBanner` trong HUD, cạnh `TurnBanner`: khi một phố lên bậc Khách sạn lúc
+- **Banner khánh thành (OD-05-4):** `LandmarkBanner` trong HUD (dùng chung khung `.turn-banner`; banner lượt không còn): khi một phố lên bậc Khách sạn lúc
   trình bày trực tiếp thì hiện "Khánh thành <landmark>!" / "Hotel opened: <landmark name>!" kèm tranh 2D (2,2 giây chia theo tốc độ animation, bản mới
   thay bản cũ). Dùng chung shell, keyframes và fade reduced-motion của turn banner; không bao giờ hiện cho trạng thái có
   sẵn khi mount HUD hay sau snap/reconnect/reset (đổi `presentationResetEpoch`); reduced motion chỉ còn chữ, không có

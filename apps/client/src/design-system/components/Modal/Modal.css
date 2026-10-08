@@ -133,7 +133,8 @@
   .ds-modal__heading { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 0.5rem; row-gap: 0; }
   .ds-modal__eyebrow { font: 700 0.625rem/1rem var(--font-family-body); letter-spacing: 0.05em; }
   .ds-modal__title { font: 700 0.9375rem/1.25rem var(--font-family-body); }
-  .ds-modal__tools { gap: var(--space-1); }
+  /* 10 px apart, so each key's 5 px touch margin never reaches its neighbour's. */
+  .ds-modal__tools { gap: 0.625rem; }
   .ds-modal__header .ds-icon-button { width: 2rem; height: 2rem; }
   .ds-modal__header .ds-icon-button__glyph > svg { width: 1rem; height: 1rem; }
   .ds-modal__header .ds-icon-button::after { position: absolute; inset: -5px; content: ''; }

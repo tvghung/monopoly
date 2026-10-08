@@ -30,17 +30,18 @@
 
 /*
  * Phone tier (same query as the HUD, `COMPACT_HUD_QUERY`): 34 px keys closer to the corner, so the top-right card fits under them
- * in a window about 280 px tall. An invisible 5 px margin keeps each key's touch target near 44 px.
+ * in a window about 280 px tall. An invisible 5 px margin makes each key's touch target 44 px.
  */
 @media (max-height: 500px), (max-width: 720px) {
   .room-toolbar {
     top: max(6px, env(safe-area-inset-top));
     right: max(6px, env(safe-area-inset-right));
-    gap: 6px;
+    /* 10 px apart, so each key's 5 px touch margin never reaches its neighbour's. */
+    gap: 10px;
   }
   .room-toolbar .ds-icon-button { width: 34px; height: 34px; }
   .room-toolbar .ds-icon-button__glyph > svg { width: 1rem; height: 1rem; }
-  .room-toolbar .ds-icon-button::after { position: absolute; inset: -5px -3px; content: ''; }
+  .room-toolbar .ds-icon-button::after { position: absolute; inset: -5px; content: ''; }
   .room-exit-error { top: calc(max(6px, env(safe-area-inset-top)) + 40px); right: max(6px, env(safe-area-inset-right)); font-size: 0.75rem; }
 }
 

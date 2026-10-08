@@ -103,11 +103,24 @@ const ACCEPTANCE_VIEWPORTS = [
   { width: 844, height: 390 },
   { width: 932, height: 430 },
   { width: 1024, height: 768 },
+  // A tablet held upright plays (the rotate notice is for phones only, under 600 px wide).
+  { width: 768, height: 1024 },
   { width: 1180, height: 820 },
   { width: 1280, height: 720 },
   { width: 1440, height: 900 },
 ] as const;
 
+/** Portrait under 600 px wide: a phone held upright, where the rotate notice covers the game. Tablets play upright. */
+function isPortraitBlocked(viewport: { width: number; height: number }): boolean {
+  return viewport.width < viewport.height && viewport.width < 600;
+}
+
+/**
+ * The control is on screen and its touch target is at least `minimum` px in both directions. On the phone tier a key may be
+ * drawn smaller (34 px) with an invisible margin (a pseudo-element of the same element) around it, so the target is measured
+ * where a finger lands: the run of points through its centre, along each axis, that hit the control itself. A run that reaches
+ * the window edge counts the edge (a key that touches it cannot be missed on that side). That also proves nothing covers it.
+ */
 async function expectTouchTarget(
   locator: Locator,
   viewport: { width: number; height: number },
@@ -115,10 +128,35 @@ async function expectTouchTarget(
 ): Promise<void> {
   await expect(locator).toBeVisible();
   const box = await locator.boundingBox();
-  // A 44px control can measure 43.999999 after layout rounding; that is still a 44px target.
-  const tolerance = 0.05;
-  expect(box?.width ?? 0).toBeGreaterThanOrEqual(minimum - tolerance);
-  expect(box?.height ?? 0).toBeGreaterThanOrEqual(minimum - tolerance);
+  // Never drawn smaller than 30 px, whatever its touch margin.
+  expect(box?.width ?? 0).toBeGreaterThanOrEqual(30);
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(30);
+  const reach = await locator.evaluate((element, size) => {
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const hits = (x: number, y: number) => {
+      const target = document.elementFromPoint(
+        Math.min(Math.max(x, 0), window.innerWidth - 1),
+        Math.min(Math.max(y, 0), window.innerHeight - 1),
+      );
+      return target !== null && (target === element || element.contains(target));
+    };
+    const run = (dx: number, dy: number) => {
+      let length = 0;
+      for (let step = 1; step <= size; step += 1) {
+        if (!hits(centerX + dx * step, centerY + dy * step)) break;
+        length = step;
+      }
+      return length;
+    };
+    // One pixel of slack: a 44 px target can measure 43.999999 after layout rounding.
+    return {
+      horizontal: run(-1, 0) + run(1, 0) + 1 >= size - 1,
+      vertical: run(0, -1) + run(0, 1) + 1 >= size - 1,
+    };
+  }, minimum);
+  expect(reach).toEqual({ horizontal: true, vertical: true });
   expect(box?.x ?? -1).toBeGreaterThanOrEqual(0);
   expect(box ? box.x + box.width : viewport.width + 1).toBeLessThanOrEqual(viewport.width + 1);
   expect(box?.y ?? -1).toBeGreaterThanOrEqual(0);
@@ -245,7 +283,7 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
     for (const viewport of ACCEPTANCE_VIEWPORTS) {
       await page.setViewportSize(viewport);
       await expect(page.getByTestId('game-board')).toBeVisible();
-      if (viewport.width < viewport.height && viewport.width <= 768) {
+      if (isPortraitBlocked(viewport)) {
         await expect(page.getByText('Hãy xoay ngang thiết bị')).toBeVisible();
       } else {
         await expect(page.getByText('Hãy xoay ngang thiết bị')).toBeHidden();
@@ -259,7 +297,7 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
       const surrender = page.getByRole('button', { name: 'Bỏ cuộc' });
       await expectTouchTarget(settings, viewport);
       await expectTouchTarget(surrender, viewport);
-      if (!(viewport.width < viewport.height && viewport.width <= 768)) {
+      if (!isPortraitBlocked(viewport)) {
         // The HUD controls of plan 03: the activity drawer tab, the assets dock button and the roll call to action.
         await expectTouchTarget(page.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }), viewport);
         await expectTouchTarget(page.getByRole('button', { name: /^Tài sản của tôi/u }), viewport);
@@ -294,6 +332,8 @@ test('mobile invitation, multiplayer, fallback, resume, and settings flow', asyn
       if (modalMetrics.scrollable) expect(modalMetrics.scrolled).toBeGreaterThan(0);
       await close.click();
       await expect(settings).toHaveAttribute('aria-expanded', 'false');
+      // The touch-target probe hit-tests the page, so the dialog must have finished its exit before the next viewport.
+      await expect(page.locator('.ds-modal__overlay')).toHaveCount(0);
       if (viewport.width === 360) {
         await expect.poll(() => settings.locator('svg').evaluate(element => getComputedStyle(element).transform))
           .toBe('none');

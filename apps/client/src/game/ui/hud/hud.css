@@ -404,6 +404,8 @@
     --ds-button-lip-size: 3px;
   }
   .center-stage .game-board__roll-button .ds-button__icon > svg { width: 1rem; height: 1rem; }
+  .center-stage .game-board__roll-button { position: relative; }
+  .center-stage .game-board__roll-button::after { position: absolute; inset: -3px; content: ''; }
   .center-stage__pill { gap: 6px; padding: 3px 12px 3px 3px; font: 600 0.75rem/1rem var(--font-family-body); }
   .center-stage__pill .ds-avatar { --ds-avatar-size: 22px !important; --ds-avatar-ring: 2px; }
   .center-stage__pill-text { max-width: 12rem; }
@@ -639,7 +641,7 @@
  * One bottom row: the local card in the lower-left corner, then the properties key (icon + count) and the camera keys right beside
  * it, all 34 px tall, with the context stack (debt status, revive offer) floating above that row between the two bottom cards. The
  * row never moves to a second place at another width, so nothing has to be stacked above the local card any more. A 5 px invisible
- * margin around each round key keeps the touch target near 44 px.
+ * margin around each 34 px key makes its touch target 44 px.
  */
 @media (max-height: 500px), (max-width: 720px) {
   .hud-bottom {
@@ -650,14 +652,15 @@
   }
   .hud-context { width: min(22rem, 100%); gap: 6px; }
   .activity-ticker { display: none; }
-  .action-dock { gap: 6px; }
-  .camera-controls { gap: 4px; }
+  /* 10 px apart, so each key's 5 px touch margin never reaches its neighbour's. */
+  .action-dock { gap: 10px; }
+  .camera-controls { gap: 10px; }
   .camera-controls .ds-icon-button {
     width: var(--hud-key-size);
     height: var(--hud-key-size);
   }
   .camera-controls .ds-icon-button__glyph > svg { width: 1rem; height: 1rem; }
-  .camera-controls .ds-icon-button::after { position: absolute; inset: -5px -2px; content: ''; }
+  .camera-controls .ds-icon-button::after { position: absolute; inset: -5px; content: ''; }
 
   /* The properties key: the icon and the count; its accessible name is unchanged ("Tài sản của tôi (N)"). */
   .action-dock .game-board__property-button {
@@ -669,6 +672,8 @@
     --ds-button-lip-size: 3px;
   }
   .action-dock .game-board__property-button .ds-button__icon > svg { width: 1rem; height: 1rem; }
+  .action-dock .game-board__property-button { position: relative; }
+  .action-dock .game-board__property-button::after { position: absolute; inset: -5px; content: ''; }
   .action-dock .dock-label { display: none; }
   .action-dock .dock-count::before,
   .action-dock .dock-count::after { content: none; }
