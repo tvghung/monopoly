@@ -221,6 +221,8 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
   (nhãn EN rộng hơn). Trong lúc xúc xắc lăn hoặc thẻ đang hiện (`data-stage-busy`) panel chỉ `visibility: hidden` (không unmount) để request đang chờ và dòng lỗi
   không mất, và không che xúc xắc. Từ 721 px chiều rộng panel vẫn ở context stack của `BottomDock` (trên điện thoại ngang cao ≤ 500 px nó là dải hai hàng
   như trước). Không đổi: `canRollForState`, điều kiện hiện `JailPanel`, các lệnh socket, số tiền bảo lãnh, luật tù.
+  Giới hạn đã biết: khi cửa sổ đổi qua mốc 720 px lúc một yêu cầu bảo lãnh/dùng thẻ đang chờ ACK (xoay máy, đổi cỡ cửa sổ), `JailPanel` được mount lại ở nơi mới nên vòng
+  quay "đang gửi" của nó bắt đầu lại; lệnh đã gửi không bị ảnh hưởng và state có thẩm quyền vẫn là nguồn sự thật. Chưa có test tự động cho trường hợp này.
 - **Cột dưới** (`BottomDock`): ticker (dòng hoạt động mới nhất), context stack (`JailPanel`, `DebtPanel`) và
   action dock (nút "Tài sản của tôi (N)", tên truy cập giữ nguyên; điện thoại chỉ hiện "Tài sản (N)"). Ở điện thoại
   ngang (cao ≤ 500 px) `JailPanel` thu thành dải hai hàng (tiêu đề + vòng chờ, rồi hai nút). Từ 720 px chiều rộng
