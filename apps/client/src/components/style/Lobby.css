@@ -958,6 +958,8 @@
 }
 
 .lobby-player__kick .ds-icon-button__glyph > svg { width: 1.05rem; height: 1.05rem; }
+/* The key is drawn at 36 px; its touch area reaches 44 px (the same hit-slop as the other small keys of the app). */
+.lobby-player__kick::after { position: absolute; inset: -4px; content: ''; }
 .lobby-player__kick:hover:not(:disabled) { color: var(--color-danger-strong); }
 
 /* The host's add-bot key on an empty seat and the swap action of a seat (to an occupied seat: ask; to an empty one: move in)
