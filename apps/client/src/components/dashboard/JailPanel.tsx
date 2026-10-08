@@ -93,11 +93,18 @@ export default function JailPanel() {
               icon={<ActionIcon name="jailCard" />}
               busy={pendingAction === 'USE_CARD'}
               disabled={pendingAction !== null}
+              aria-label={pendingAction === 'USE_CARD' ? undefined : t('jail.useCard', { count: myPlayer.getOutOfJailCardCount })}
               onClick={() => submit('USE_CARD', () => socketFunctions.useJailCard())}
             >
               {pendingAction === 'USE_CARD'
                 ? acknowledged ? t('jail.updating') : t('jail.sending')
-                : t('jail.useCard', { count: myPlayer.getOutOfJailCardCount })}
+                : (
+                  // The phone tier draws the short words; the button's name stays the full one (aria-label below).
+                  <>
+                    <span className="jail-panel__label-long">{t('jail.useCard', { count: myPlayer.getOutOfJailCardCount })}</span>
+                    <span className="jail-panel__label-short">{t('jail.useCardShort', { count: myPlayer.getOutOfJailCardCount })}</span>
+                  </>
+                )}
             </Button>
           )
           : null}

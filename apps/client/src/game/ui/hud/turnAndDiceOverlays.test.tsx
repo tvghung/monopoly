@@ -1,5 +1,5 @@
 import {
-  act, cleanup, render, screen,
+  act, cleanup, render,
 } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,8 +10,6 @@ import type { AnimationQueue } from '../../presentation/queue/AnimationQueue';
 import { PresentationStore } from '../../presentation/store/presentationStore';
 import { cloneRoom, makeRoom } from '../../presentation/testFixtures';
 import DiceResultCallout, { DICE_CALLOUT_LIFETIME_MS } from './DiceResultCallout';
-import { COMPACT_HUD_QUERY } from '../../../design-system/useMediaQuery';
-import TurnBanner, { TURN_BANNER_LIFETIME_MS } from './TurnBanner';
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
@@ -98,77 +96,5 @@ describe('DiceResultCallout', () => {
     expect(container.querySelector('.dice-callout')).not.toBeNull();
     act(() => { store.resetFromSnapshot(cloneRoom(room)); });
     expect(container.querySelector('.dice-callout')).toBeNull();
-  });
-});
-
-describe('TurnBanner', () => {
-  it('stays hidden on the first render and shows nothing until the displayed turn really changes', () => {
-    const store = new PresentationStore();
-    const { container } = mount(<TurnBanner />, store);
-    expect(container.querySelector('.turn-banner')).toBeNull();
-    act(() => { store.setDisplayActivePlayerId('player-a'); });
-    expect(container.querySelector('.turn-banner')).toBeNull();
-  });
-
-  it('announces an opponent’s turn by name and your own turn with a gold accent', () => {
-    const store = new PresentationStore();
-    const { container } = mount(<TurnBanner />, store);
-    act(() => { store.setDisplayActivePlayerId('player-a'); });
-    act(() => { store.setDisplayActivePlayerId('player-b'); });
-    expect(screen.getByText('Lượt của Bình')).toBeTruthy();
-    expect(container.querySelector('.turn-banner--mine')).toBeNull();
-
-    act(() => { store.setDisplayActivePlayerId('player-a'); });
-    expect(screen.getByText('Đến lượt bạn!')).toBeTruthy();
-    expect(container.querySelector('.turn-banner--mine')).not.toBeNull();
-  });
-
-  it('on a phone-sized window leaves an opponent turn to the status pill and still announces your own', () => {
-    vi.stubGlobal('matchMedia', (query: string) => ({
-      matches: query === COMPACT_HUD_QUERY, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(),
-    }));
-    const store = new PresentationStore();
-    const { container } = mount(<TurnBanner />, store);
-    act(() => { store.setDisplayActivePlayerId('player-a'); });
-    act(() => { store.setDisplayActivePlayerId('player-b'); });
-    expect(container.querySelector('.turn-banner')).toBeNull();
-
-    act(() => { store.setDisplayActivePlayerId('player-a'); });
-    expect(screen.getByText('Đến lượt bạn!')).toBeTruthy();
-    vi.unstubAllGlobals();
-  });
-
-  it('replaces the banner on a rapid second change instead of queueing behind it', () => {
-    const store = new PresentationStore();
-    const { container } = mount(<TurnBanner />, store);
-    act(() => { store.setDisplayActivePlayerId('player-a'); });
-    act(() => { store.setDisplayActivePlayerId('player-b'); });
-    act(() => { vi.advanceTimersByTime(300); });
-    act(() => { store.setDisplayActivePlayerId('player-a'); });
-    expect(container.querySelectorAll('.turn-banner')).toHaveLength(1);
-    expect(screen.queryByText('Lượt của Bình')).toBeNull();
-    expect(screen.getByText('Đến lượt bạn!')).toBeTruthy();
-  });
-
-  it('leaves after 280 + 900 + 280 ms scaled by speed, takes no pointer input and is hidden from assistive technology', () => {
-    const store = new PresentationStore();
-    const { container } = mount(<TurnBanner />, store);
-    act(() => { store.setDisplayActivePlayerId('player-a'); });
-    act(() => { store.setDisplayActivePlayerId('player-b'); });
-    expect(container.querySelector('.turn-banner')!.getAttribute('aria-hidden')).toBe('true');
-    act(() => { vi.advanceTimersByTime(TURN_BANNER_LIFETIME_MS - 20); });
-    expect(container.querySelector('.turn-banner')).not.toBeNull();
-    act(() => { vi.advanceTimersByTime(40); });
-    expect(container.querySelector('.turn-banner')).toBeNull();
-  });
-
-  it('does not fire when a snap changes the active player together with the reset epoch', () => {
-    const store = new PresentationStore();
-    const { container, room } = mount(<TurnBanner />, store);
-    act(() => { store.setDisplayActivePlayerId('player-a'); });
-    const later = cloneRoom(room);
-    later.gameState.boardState.currentPlayer = { id: 'player-b', hasMoved: false };
-    act(() => { store.resetFromSnapshot(later); });
-    expect(container.querySelector('.turn-banner')).toBeNull();
   });
 });

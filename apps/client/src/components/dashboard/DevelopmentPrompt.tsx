@@ -137,9 +137,16 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
                     type="button"
                     busy={pendingAction === `BUILD_HOUSES:${quantity}`}
                     disabled={pendingAction !== null || balance < unitCost * quantity}
+                    aria-label={quantity === 1
+                      ? t('development.buildOne', { amount: formatMoney(unitCost) })
+                      : t('development.buildQuantity', { count: quantity, amount: formatMoney(unitCost * quantity) })}
                     onClick={() => submit('BUILD_HOUSES', quantity)}
                   >
-                    {t('development.buildQuantity', { count: quantity, amount: formatMoney(unitCost * quantity) })}
+                    {/* Two short lines (what, then the cost), so the label fits a narrow button in any language. */}
+                    <span className="decision-sheet__option" aria-hidden="true">
+                      <span>{quantity === 1 ? t('development.buildShortOne') : t('development.buildShort', { count: quantity })}</span>
+                      <strong>{formatMoney(unitCost * quantity)}</strong>
+                    </span>
                   </Button>
                 );
               })
@@ -150,9 +157,13 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
                   icon={<Building2 />}
                   busy={pendingAction === 'UPGRADE_HOTEL'}
                   disabled={pendingAction !== null || balance < total}
+                  aria-label={t('development.upgradeHotelButton', { amount: formatMoney(unitCost) })}
                   onClick={() => submit('UPGRADE_HOTEL')}
                 >
-                  {t('development.upgradeHotelButton', { amount: formatMoney(unitCost) })}
+                  <span className="decision-sheet__option" aria-hidden="true">
+                    <span>{t('development.upgradeHotelShort')}</span>
+                    <strong>{formatMoney(unitCost)}</strong>
+                  </span>
                 </Button>
               )}
             <Button

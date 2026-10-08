@@ -14,7 +14,6 @@ import { HudDrawerProvider, useHudDrawer } from './hudDrawer';
 import { selectPlayerCardViewModels } from './playerCardSelectors';
 import StatusPill from './StatusPill';
 import LandmarkBanner from './LandmarkBanner';
-import TurnBanner from './TurnBanner';
 import { useChatBubbles } from './useChatBubbles';
 import './hud.css';
 import { useTranslation } from '../../../i18n/I18n';
@@ -87,7 +86,6 @@ function GameHudShell({ onSelectTile, onSelectPlayer }: {
     <HudDrawerProvider>
       <div className="game-hud" data-testid="game-hud" style={style}>
         <StatusPill />
-        <TurnBanner />
         <LandmarkBanner />
         <PlayerCards onSelectPlayer={onSelectPlayer} />
         <CenterStage />

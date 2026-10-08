@@ -18,7 +18,7 @@ export function getTileDetails(tile: Tile, language: Language = 'vi'): TileDetai
   const t = (key: Parameters<typeof translate>[0], values?: Readonly<Record<string, string | number>>) => translate(key, language, values);
   if (tile.tileType === 'normal') {
     const rentDetails = (tile.rentTiers ?? []).map((rent, index) => ({
-      label: index === 4 ? t('property.hotelTier') : t('property.houseTier', { count: index + 1 }),
+      label: index === 4 ? t('property.hotelTier') : index === 0 ? t('property.houseTierOne') : t('property.houseTier', { count: index + 1 }),
       value: formatMoney(rent),
     }));
     return [

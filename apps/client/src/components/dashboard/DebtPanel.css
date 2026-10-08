@@ -195,11 +195,46 @@
   .debt-panel__properties { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
   .debt-panel__property { grid-template-columns: minmax(0, 1fr) minmax(0, 15rem); align-items: center; gap: var(--space-1) var(--space-3); }
   .debt-panel__property > .debt-panel__buyer-picker { grid-column: 1 / -1; }
-  .debt-panel__due-amount { font: var(--type-title-m); }
+  .debt-panel__due-amount { font: 800 1.25rem/1.5rem var(--font-family-display); }
+  .debt-panel__label { font-size: 0.625rem; line-height: 0.875rem; }
+  .debt-panel__creditor-name strong { font: 700 0.875rem/1.125rem var(--font-family-body); }
+  .debt-panel__creditor .ds-avatar { --ds-avatar-size: 26px !important; --ds-avatar-ring: 2px; }
+  .debt-panel__bank { width: 1.625rem; height: 1.625rem; }
   .debt-panel__facts { gap: var(--space-1); }
-  .debt-panel__fact { padding: var(--space-1) var(--space-2); }
-  .debt-panel__heading { margin-top: var(--space-3); }
+  .debt-panel__fact { padding: 0.125rem var(--space-2); }
+  .debt-panel__fact dt { font-size: 0.625rem; line-height: 0.875rem; }
+  .debt-panel__fact dd { font: 800 0.875rem/1.125rem var(--font-family-body); }
+  .debt-panel__countdown { padding: 0.125rem 0.5rem; font-size: 0.6875rem; }
+  .debt-panel__heading { margin: var(--space-2) 0 var(--space-1); font: 700 0.8125rem/1.125rem var(--font-family-body); }
   .debt-panel__footer-note { display: none; }
+
+  /*
+   * One line per sellable property (`debt-panel__property--row`, the deed's `chip` variant): the colour swatch and the name, then
+   * "Bán cho Ngân hàng +N" and "Đề nghị" side by side. The chip's purchase price is left out: the sale button says what the sale brings.
+   */
+  .debt-panel__properties { gap: 0; }
+  .debt-panel__property--row {
+    grid-template-columns: minmax(6rem, 1fr) auto;
+    gap: var(--space-1) var(--space-2);
+    padding: 0.3rem 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .debt-panel__property--row:last-child { border-bottom: 0; }
+  .debt-panel__property--row .deed--chip {
+    min-height: 2rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    font: 700 0.875rem/1.125rem var(--font-family-body);
+  }
+  .debt-panel__property--row .deed-chip__swatch { width: 0.875rem; height: 0.875rem; }
+  .debt-panel__property--row .deed-chip__price { display: none; }
+  .debt-panel__property--row .debt-panel__property-actions { grid-auto-flow: column; grid-auto-columns: auto; justify-content: end; gap: var(--space-1); }
+  .debt-panel__property--row .debt-panel__property-actions .ds-button { width: auto; min-height: 2rem; padding: 0.125rem 0.625rem; }
+  .debt-panel__property--row .debt-panel__sale-label { display: inline-flex; gap: 0.3em; align-items: baseline; }
+  .debt-panel__property--row .debt-panel__sale-label > strong { font: 800 0.8125rem/1 var(--font-family-body); }
+  .debt-panel-modal .ds-modal__footer { padding-block: 0.2rem; }
 }
 
 /* ...and in a window that is also narrow the facts take a row of their own, so the creditor never sits on top of them. */

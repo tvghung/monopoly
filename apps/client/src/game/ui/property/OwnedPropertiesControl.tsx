@@ -63,9 +63,9 @@ export default function OwnedPropertiesControl({ onSelect }: { onSelect: (tileId
         icon={<ActionIcon name="buildHotel" />}
         onClick={() => setOpen(true)}
       >
-        <span className="dock-label dock-label--long" aria-hidden="true">{t('portfolio.mine')}</span>
-        <span className="dock-label dock-label--short" aria-hidden="true">{t('trade.assets')}</span>
-        <span aria-hidden="true">{`(${ownedCount})`}</span>
+        <span className="dock-label" aria-hidden="true">{t('portfolio.mine')}</span>
+        {/* The brackets are drawn by CSS, so the phone key can show the bare number beside the icon. */}
+        <span className="dock-count" aria-hidden="true">{ownedCount}</span>
       </Button>
       <OwnedPropertiesModal
         playerId={playerId}

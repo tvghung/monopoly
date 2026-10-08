@@ -8,8 +8,7 @@ import type { AnimationQueue } from '../../presentation/queue/AnimationQueue';
 import type { PresentationState } from '../../presentation/store/types';
 import { makeRoom } from '../../presentation/testFixtures';
 import CenterStage from './CenterStage';
-import StatusPill, { turnText } from './StatusPill';
-import { NARROW_HUD_QUERY } from '../../../design-system/useMediaQuery';
+import StatusPill from './StatusPill';
 
 afterEach(cleanup);
 
@@ -51,52 +50,19 @@ function renderHud(
   );
 }
 
-describe('turnText', () => {
-  it('keeps the strings the roll control used before the status pill', () => {
-    expect(turnText('player-a', 'player-a', 'An')).toBe('Lượt của bạn');
-    expect(turnText('player-b', 'player-a', 'Bình')).toBe('Bình đang chơi');
-    expect(turnText('player-b', 'player-a', undefined)).toBe('Đang chờ lượt chơi');
-    expect(turnText('player-a', null, 'An')).toBe('An đang chơi');
-  });
-});
-
 describe('StatusPill', () => {
-  it('shows the room code and the turn text in the unchanged turn label element', () => {
+  it('shows only the room code: whose turn it is lives in the center stage', () => {
     const { container } = renderHud(<StatusPill />, { roomCode: 'UIUX-1' });
     expect(screen.getByText('Phòng UIUX-1')).toBeTruthy();
-    const label = container.querySelector('p.game-board__turn-label');
-    expect(label?.textContent).toBe('Lượt của bạn');
-  });
-
-  it('follows the displayed active player, not the authoritative one', () => {
-    renderHud(<StatusPill />, { presentation: { displayActivePlayerId: 'player-b' } });
-    expect(screen.getByText('Bình đang chơi')).toBeTruthy();
+    expect(container.querySelector('.game-board__turn-label')).toBeNull();
     expect(screen.queryByText('Lượt của bạn')).toBeNull();
+    expect(container.querySelector('.status-pill__avatar')).toBeNull();
   });
 
-  it('reads the turn as somebody else’s for a spectator', () => {
-    renderHud(<StatusPill />, { localPlayerId: null });
-    expect(screen.getByText('An đang chơi')).toBeTruthy();
-  });
-
-  it('keeps naming a player who went bankrupt while the presentation still shows their turn', () => {
-    renderHud(<StatusPill />, {
-      presentation: { displayActivePlayerId: 'player-b' },
-      mutate: room => {
-        delete room.gameState.players['player-b'];
-        room.gameState.boardState.finishedPlayers['player-b'] = {
-          teamId: 'TEAM_2',
-          name: 'Bình', color: 'blue', characterId: 'panda', reason: 'BANKRUPT', accountBalance: 0,
-        };
-        room.gameState.boardState.currentPlayer = { id: 'player-a', hasMoved: false };
-      },
-    });
-    expect(screen.getByText('Bình đang chơi')).toBeTruthy();
-  });
-
-  it('hides the mascot from assistive technology; the text carries the turn', () => {
-    const { container } = renderHud(<StatusPill />);
-    expect(container.querySelector('.status-pill__avatar')?.getAttribute('aria-hidden')).toBe('true');
+  it('renders nothing without a room code', () => {
+    const { container } = renderHud(<StatusPill />, { presentation: { displayActivePlayerId: 'player-b' } });
+    expect(container.querySelector('.status-pill')).toBeNull();
+    expect(screen.queryByText(/đang chơi/u)).toBeNull();
   });
 });
 
@@ -171,17 +137,8 @@ describe('CenterStage jail group', () => {
     room.gameState.players['player-a'].isJail = true;
     room.gameState.players['player-a'].getOutOfJailCardCount = 1;
   };
-  const stubViewport = (narrow: boolean) => vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: narrow && query === NARROW_HUD_QUERY,
-    media: query,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  }));
 
-  afterEach(() => vi.unstubAllGlobals());
-
-  it('puts the roll call to action and the ways out of jail in the one stage column in a narrow window', () => {
-    stubViewport(true);
+  it('puts the roll call to action and the ways out of jail in the one stage column at every window size', () => {
     const { container } = renderHud(<CenterStage />, { mutate: jail });
 
     const stage = container.querySelector('.center-stage');
@@ -193,23 +150,17 @@ describe('CenterStage jail group', () => {
     expect(roll.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getAllByRole('button', { name: /Đổ xúc xắc/u })).toHaveLength(1);
     expect(screen.getByRole('button', { name: /Trả/u })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Dùng thẻ/u })).toBeTruthy();
+    // The phone tier draws "Dùng thẻ (1)"; the button's name stays the full one.
+    expect(screen.getByRole('button', { name: 'Dùng thẻ Thoát Tù Miễn Phí (1)' })).toBeTruthy();
   });
 
-  it('leaves the jail panel to the bottom dock in a wider window, and shows it for a jailed player only', () => {
-    stubViewport(false);
-    const { unmount } = renderHud(<CenterStage />, { mutate: jail });
-    expect(screen.queryByRole('region', { name: 'Bạn đang ở Nhà Tù' })).toBeNull();
-    unmount();
-
-    stubViewport(true);
+  it('shows the jail panel for a jailed player only', () => {
     renderHud(<CenterStage />);
     expect(screen.queryByRole('region', { name: 'Bạn đang ở Nhà Tù' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Đổ xúc xắc' })).toBeTruthy();
   });
 
   it('marks the stage busy while the dice roll, and keeps the panel mounted so a pending request is not lost', () => {
-    stubViewport(true);
     const { container } = renderHud(<CenterStage />, {
       mutate: jail,
       presentation: { diceRoll: { lifecycle: 'rolling', dice: { dice1: 2, dice2: 3 }, rollSequence: 1, durationMs: 900 } },

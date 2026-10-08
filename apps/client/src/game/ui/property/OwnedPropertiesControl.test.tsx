@@ -156,15 +156,15 @@ describe('OwnedPropertiesControl', () => {
     expect(screen.queryByRole('group')).toBeNull();
   });
 
-  it('keeps the trigger name "Tài sản của tôi (N)" with the short label for phones', () => {
+  it('keeps the trigger name "Tài sản của tôi (N)" and draws the bare count for the phone key', () => {
     render(
       <stateContext.Provider value={context(makeState(1_250))}>
         <OwnedPropertiesControl onSelect={vi.fn()} />
       </stateContext.Provider>,
     );
     const trigger = screen.getByRole('button', { name: 'Tài sản của tôi (2)' });
-    expect(trigger.querySelector('.dock-label--long')?.textContent).toBe('Tài sản của tôi');
-    expect(trigger.querySelector('.dock-label--short')?.textContent).toBe('Tài sản');
+    expect(trigger.querySelector('.dock-label')?.textContent).toBe('Tài sản của tôi');
+    expect(trigger.querySelector('.dock-count')?.textContent).toBe('2');
   });
 
   it('groups the deeds by district in board order and counts tài sản, nhà and khách sạn', () => {

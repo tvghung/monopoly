@@ -124,11 +124,23 @@
   }
   .ds-modal--sheet { margin-bottom: 0; border-radius: var(--radius-medium) var(--radius-medium) 0 0; }
 
-  /* The 44 px keys set the header height; the rest of it is padding, so it is kept to a few pixels. */
-  .ds-modal__header { padding: 0.25rem 0.5rem 0.25rem 0.75rem; }
-  .ds-modal__title { font: var(--type-label); }
-  .ds-modal__body { padding: 0.6rem 0.75rem 0.75rem; }
-  .ds-modal__footer { padding: 0.5rem 0.75rem; }
+  /*
+   * A phone held sideways (Safari with its tab bar leaves about 280 px): one slim header line (the eyebrow runs in front of the
+   * title), 32 px header keys, a slim footer, and every button and line of text a step smaller, so a decision and its buttons fit
+   * without scrolling. The invisible 5 px margin around the header keys keeps their touch target near 44 px.
+   */
+  .ds-modal__header { gap: var(--space-2); min-height: 2.5rem; padding: 0.2rem 0.4rem 0.2rem 0.75rem; }
+  .ds-modal__heading { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 0.5rem; row-gap: 0; }
+  .ds-modal__eyebrow { font: 700 0.625rem/1rem var(--font-family-body); letter-spacing: 0.05em; }
+  .ds-modal__title { font: 700 0.9375rem/1.25rem var(--font-family-body); }
+  .ds-modal__tools { gap: var(--space-1); }
+  .ds-modal__header .ds-icon-button { width: 2rem; height: 2rem; }
+  .ds-modal__header .ds-icon-button__glyph > svg { width: 1rem; height: 1rem; }
+  .ds-modal__header .ds-icon-button::after { position: absolute; inset: -5px; content: ''; }
+  .ds-modal__body { padding: 0.5rem 0.75rem 0.625rem; font: 500 0.875rem/1.25rem var(--font-family-body); }
+  .ds-modal__footer { gap: var(--space-2); padding: 0.3rem 0.75rem; }
+  .ds-modal__card .ds-button { min-height: 2.25rem; padding: 0.25rem 0.75rem; font: 700 0.8125rem/1.15 var(--font-family-body); --ds-button-lip-size: 3px; }
+  .ds-modal__card .ds-button__icon > svg { width: 0.9375rem; height: 0.9375rem; }
 }
 
 /*

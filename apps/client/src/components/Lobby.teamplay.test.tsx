@@ -120,11 +120,12 @@ describe('Lobby team zones', () => {
     expect(within(rong).getByLabelText('2 trên 2 người')).toBeTruthy();
   });
 
-  it('replaces the colour picker with a note: the mascot wears the team colour', () => {
+  it('drops the personal colour picker (the team zone holds the colour) and adds no helper note', () => {
     setup();
 
     expect(screen.queryByRole('group', { name: 'Chọn màu người chơi' })).toBeNull();
-    expect(screen.getByRole('note').textContent).toContain('Mascot luôn mang màu đội Rồng');
+    expect(screen.queryByRole('note')).toBeNull();
+    expect(screen.queryByText(/Mascot luôn mang/u)).toBeNull();
   });
 
   it('locks the mascot a teammate already wears but not one the other team wears', () => {
@@ -571,7 +572,8 @@ describe('Lobby team name and colour', () => {
     setup({ playerId: 'player-c' });
 
     expect(screen.queryByRole('group', { name: 'Màu của đội Phượng' })).toBeNull();
-    expect(within(zone('Phượng')).getByText(/Màu đội:/u)).toBeTruthy();
+    expect(zone('Phượng').querySelector('.lobby-team__color-static')).not.toBeNull();
+    expect(screen.queryByText(/Màu đội/u)).toBeNull();
   });
 });
 

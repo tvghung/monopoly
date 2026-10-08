@@ -28,6 +28,22 @@
 }
 .room-toolbar .room-exit-button:hover:not(:disabled) { background: var(--color-danger-strong); }
 
+/*
+ * Phone tier (same query as the HUD, `COMPACT_HUD_QUERY`): 34 px keys closer to the corner, so the top-right card fits under them
+ * in a window about 280 px tall. An invisible 5 px margin keeps each key's touch target near 44 px.
+ */
+@media (max-height: 500px), (max-width: 720px) {
+  .room-toolbar {
+    top: max(6px, env(safe-area-inset-top));
+    right: max(6px, env(safe-area-inset-right));
+    gap: 6px;
+  }
+  .room-toolbar .ds-icon-button { width: 34px; height: 34px; }
+  .room-toolbar .ds-icon-button__glyph > svg { width: 1rem; height: 1rem; }
+  .room-toolbar .ds-icon-button::after { position: absolute; inset: -5px -3px; content: ''; }
+  .room-exit-error { top: calc(max(6px, env(safe-area-inset-top)) + 40px); right: max(6px, env(safe-area-inset-right)); font-size: 0.75rem; }
+}
+
 .room-settings-button__icon {
   transition: transform 200ms ease;
 }

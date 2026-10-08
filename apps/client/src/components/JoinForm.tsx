@@ -140,7 +140,8 @@ export default function JoinForm({
               {busy ? t('join.entering') : t('join.enter')}
             </Button>
             {missingName && !busy ? (
-              <p id="join-submit-reason" className="join__hint join__reason">{t('join.nameHint')}</p>
+              // Not drawn (the empty name field says it); it still tells assistive technology why the button is off.
+              <p id="join-submit-reason" className="sr-only">{t('join.nameHint')}</p>
             ) : null}
           </form>
         </Panel>

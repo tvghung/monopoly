@@ -181,7 +181,6 @@ export function EmptySeat({
         <span className="lobby-player__disc" aria-hidden="true" />
       </div>
       <span className="lobby-player__name">{t('lobby.emptySeatNumber', { number })}</span>
-      <span className="lobby-player__hint">{t('lobby.shareCode')}</span>
       {onMove
         ? (
           <Button

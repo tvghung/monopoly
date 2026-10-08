@@ -98,7 +98,8 @@
 /* The assets button lives in the HUD action dock (game/ui/hud/hud.css). */
 .game-board__property-access { position: static; pointer-events: auto; }
 
-@media (orientation: portrait) and (max-width: 48rem), (orientation: portrait) and (pointer: coarse) and (max-width: 1100px) {
+/* Same text as PORTRAIT_BLOCKED_QUERY (design-system/useMediaQuery.ts): a phone held upright. Tablets play in portrait. */
+@media (orientation: portrait) and (max-width: 599px) {
   .game-board__orientation-notice {
     position: fixed;
     /* Under the room toolbar (Settings, Bỏ cuộc stay usable in portrait, as the mobile e2e requires) and under dialogs. */

@@ -47,3 +47,9 @@
   width: 100%;
 }
 .jail-panel__actions .ds-button { box-sizing: border-box; width: 100%; text-align: center; }
+/* The short card label is the phone tier's (game/ui/hud/hud.css); everywhere else the full name is drawn. */
+.jail-panel__label-short { display: none; }
+@media (max-height: 500px), (max-width: 720px) {
+  .jail-panel__label-long { display: none; }
+  .jail-panel__label-short { display: inline; }
+}

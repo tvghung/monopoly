@@ -186,6 +186,19 @@
   .center__room--open .center__room-toggle { right: min(92vw, 360px); }
 }
 
+/* Phone tier: a slimmer tab (30 px), under the top-right card. */
+@media (max-height: 500px), (max-width: 720px) {
+  .center__room-toggle {
+    top: calc(var(--hud-inset, 6px) + var(--hud-toolbar-offset, 40px) + var(--player-card-height, 40px) + 10px);
+    gap: 3px;
+    width: 30px;
+    min-height: 72px;
+    padding: 6px 0;
+  }
+  .center__room-toggle svg { width: 14px; height: 14px; }
+  .center__room-toggle-label { font: 700 0.6875rem/1 var(--font-family-body); }
+}
+
 /*
  * "New events" mark of the Journal tab: a small gold dot (the text is for assistive technology only). It is drawn only on a
  * phone-sized window, where routine events stopped popping up on the board; wider windows keep the ticker and need no mark.

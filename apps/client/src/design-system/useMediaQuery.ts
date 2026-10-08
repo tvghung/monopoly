@@ -35,22 +35,24 @@ export function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(subscribe, getSnapshot, () => false);
 }
 
-/**
- * A window up to 720 px wide: the width at which `hud.css` stops placing the HUD's context stack beside the corner cards. It is the
- * same breakpoint as the CSS, because `CenterStage` and `BottomDock` pick where the jail panel lives from it.
+/*
+ * Layout tiers of the game screen (game-board.instruction.md "Responsive layout tiers"). The CSS uses the same media texts:
+ * - phone: up to 500 px tall or up to 720 px wide (`COMPACT_HUD_QUERY`), a phone held sideways, including Safari with its tab bar
+ *   (about 280 px tall);
+ * - tablet: up to 1279 px wide or up to 719 px tall, landscape or portrait;
+ * - desktop: everything larger.
+ * Portrait is played from 600 px wide (tablets); a phone held upright sees the rotate notice (`PORTRAIT_BLOCKED_QUERY`).
  */
-export const NARROW_HUD_QUERY = '(max-width: 720px)';
 
 /**
- * A window the game does not play in: portrait on a narrow window (up to 48rem) or portrait on a touch device up to 1100 px wide
- * (phones and tablets; gameplay there is landscape only). The same text is the media query of the rotate-device notice in
- * `BoardShell.css`; a desktop window with a mouse is never blocked by its shape above 48rem.
+ * A window the game does not play in: portrait under 600 px wide (a phone held upright). The same text is the media query of the
+ * rotate-device notice in `BoardShell.css`. Tablets and desktop windows play in either orientation.
  */
-export const PORTRAIT_BLOCKED_QUERY = '(orientation: portrait) and (max-width: 48rem), (orientation: portrait) and (pointer: coarse) and (max-width: 1100px)';
+export const PORTRAIT_BLOCKED_QUERY = '(orientation: portrait) and (max-width: 599px)';
 
 /**
- * A phone-sized window (up to 720 px wide or up to 500 px tall): the HUD keeps to what a player has to act on there. Routine events
- * (another player's turn banner, their balance changes) are left to the status pill, the cards and the Journal. Same breakpoints as `hud.css`.
+ * The phone tier (up to 720 px wide or up to 500 px tall): the HUD keeps to what a player has to act on there. Routine events (another
+ * player's balance changes, the ticker) are left to the cards and the Journal. Same breakpoints as `hud.css`.
  */
 export const COMPACT_HUD_QUERY = '(max-width: 720px), (max-height: 500px)';
 

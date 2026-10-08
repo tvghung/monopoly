@@ -32,10 +32,8 @@ interface MascotPickerProps {
   takenAppearanceKeys: ReadonlySet<string>;
   busy: boolean;
   onSetAppearance: (request: SetAppearanceRequest) => void;
-  /** Solo shows the personal colour picker. In 2v2 the colour belongs to the team, so the picker is replaced by a note. */
+  /** Solo shows the personal colour picker. In 2v2 the colour belongs to the team (chosen in the team zone), so there is none. */
   showColors?: boolean;
-  /** 2v2: the team's name, shown with the locked colour. */
-  teamLabel?: string;
   /** 2v2: mascots a teammate already uses; they cannot be chosen because teammates share one colour. */
   lockedCharacterIds?: ReadonlySet<CharacterId>;
 }
@@ -51,7 +49,6 @@ export default function MascotPicker({
   busy,
   onSetAppearance,
   showColors = true,
-  teamLabel,
   lockedCharacterIds,
 }: MascotPickerProps) {
   const { language, t } = useTranslation();
@@ -243,12 +240,7 @@ export default function MascotPicker({
           })}
         </div>
       </div>
-      ) : (
-      <p className="mascot-picker__team-note" role="note">
-          <span className="mascot-picker__team-swatch" aria-hidden="true" />
-          {teamLabel ? t('lobby.teamColorNote', { teamName: teamLabel }) : t('lobby.teamColorGeneralNote')}
-        </p>
-      )}
+      ) : null}
     </section>
   );
 }

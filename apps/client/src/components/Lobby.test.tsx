@@ -491,13 +491,13 @@ describe('Lobby start reason', () => {
 });
 
 describe('Lobby seats', () => {
-  it('fills the empty seats with their number and how to invite someone', () => {
+  it('fills the empty seats with their number only (no invite helper line)', () => {
     renderLobby();
     const empty = screen.getAllByRole('listitem').filter(item => item.classList.contains('lobby-player--empty'));
     expect(empty).toHaveLength(2);
     expect(within(empty[0]).getByText('Chỗ trống 3')).toBeTruthy();
     expect(within(empty[1]).getByText('Chỗ trống 4')).toBeTruthy();
-    expect(screen.getAllByText('Chia sẻ mã phòng để mời bạn')).toHaveLength(2);
+    expect(screen.queryByText('Chia sẻ mã phòng để mời bạn')).toBeNull();
   });
 
   it('has no empty-seat hint when all four seats are taken', () => {

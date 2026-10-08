@@ -53,22 +53,35 @@
 
 .decision-sheet__actions { display: grid; gap: var(--space-2); }
 .decision-sheet__actions .ds-button { box-sizing: border-box; width: 100%; }
+/* A build option reads as two lines: what it builds, then what it costs. */
+.decision-sheet__option { display: inline-grid; justify-items: center; gap: 0.1rem; line-height: 1.15; }
+.decision-sheet__option > span { white-space: nowrap; }
+.decision-sheet__option > strong { font-size: 0.85em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 @media (max-width: 40rem) {
   .decision-sheet__layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
   .decision-sheet__deed { width: 100%; }
 }
 
-/* A phone held sideways: the compact deed stays on the left, the decision and its buttons on the right. */
+/*
+ * A phone held sideways (down to Safari's ~280 px): the compact deed stays on the left; on the right the price and the balance share
+ * one row, then the buttons in a grid of small two-line options. Nothing in the decision needs scrolling.
+ */
 @media (orientation: landscape) and (max-height: 31rem) {
-  .decision-sheet__layout { grid-template-columns: minmax(0, 16.25rem) minmax(0, 1fr); gap: var(--space-3); }
-  .decision-sheet__price strong { font: var(--type-title-m); }
-  .decision-sheet__decision { gap: var(--space-2); }
-  .decision-sheet__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .decision-sheet__math { padding: var(--space-2); }
+  .decision-sheet__layout { grid-template-columns: minmax(0, 14rem) minmax(0, 1fr); gap: var(--space-3); }
+  .decision-sheet__decision { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--space-2) var(--space-3); }
+  .decision-sheet__decision > :not(.decision-sheet__price, .decision-sheet__math) { grid-column: 1 / -1; }
+  .decision-sheet__price { font-size: 0.625rem; line-height: 0.875rem; }
+  .decision-sheet__price strong { font: 800 1.25rem/1.5rem var(--font-family-display); }
+  .decision-sheet__math { gap: 0; padding: 0.25rem var(--space-2); font: 500 0.8125rem/1.125rem var(--font-family-body); }
+  .decision-sheet__hint,
+  .decision-sheet__reason,
+  .decision-sheet__error { font-size: 0.75rem; line-height: 1rem; }
+  .decision-sheet__reason { padding: 0.25rem var(--space-2); }
+  .decision-sheet__actions { grid-template-columns: repeat(auto-fit, minmax(6.25rem, 1fr)); gap: var(--space-2); }
   /* The buttons already say how many Nhà and what each costs. */
   .decision-sheet__note { display: none; }
-  .decision-sheet__actions .ds-button { min-height: 3rem; padding: var(--space-1) var(--space-2); white-space: nowrap; font: var(--type-label); }
-  /* The glyph is decoration; without it "Mua tài sản" / "Buy property" stays on one line in a 130 px button. */
+  .decision-sheet__actions .ds-button { min-height: 2.5rem; padding: 0.2rem var(--space-2); white-space: nowrap; }
+  /* The glyph is decoration; without it "Mua tài sản" / "Buy property" stays on one line in a narrow button. */
   .decision-sheet__actions .ds-button__icon { display: none; }
 }

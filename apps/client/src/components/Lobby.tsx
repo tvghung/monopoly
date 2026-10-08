@@ -234,11 +234,6 @@ export default function Lobby({
             <div className="lobby__mode">
               <p className="lobby__eyebrow">{t('lobby.mode')}</p>
               {modeControl}
-              <p className="lobby__mode-hint">
-                {gameMode === 'TEAM_2V2'
-                  ? t('lobby.modeHint.team')
-                  : t('lobby.modeHint.solo')}
-              </p>
             </div>
           )
           : null}
@@ -306,7 +301,6 @@ export default function Lobby({
               busy={busy}
               onSetAppearance={onSetAppearance}
               showColors={!teamMode}
-              teamLabel={myTeam?.name}
               lockedCharacterIds={teamMode ? lockedCharacterIds : undefined}
             />
           )

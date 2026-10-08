@@ -9,6 +9,7 @@ import Button from '../../design-system/components/Button/Button';
 import Chip from '../../design-system/components/Chip/Chip';
 import PlayerAvatar from '../../design-system/components/PlayerAvatar/PlayerAvatar';
 import { ActionIcon } from '../../design-system/icons/ActionIcon';
+import { SHORT_VIEWPORT_QUERY, useMediaQuery } from '../../design-system/useMediaQuery';
 import { buildDeedCardModel, type DeedCardModel } from '../../game/ui/property/deedCardModel';
 import PropertyDeedCard from '../../game/ui/property/PropertyDeedCard';
 import OfferCard from './OfferCard';
@@ -89,6 +90,8 @@ export default function DebtPanel() {
     state, playerId, canMutate, socketFunctions, connected, privatePlayerState, roomPlayers,
   } = useContext(stateContext);
   const roomExit = useRoomExit();
+  // A phone held sideways lists each sellable property on one line (name, sale, offer) instead of a deed card.
+  const short = useMediaQuery(SHORT_VIEWPORT_QUERY);
   const { offers, acceptOffer, declineOffer } = useIncomingOffers();
   const descriptionId = useId();
   const priceId = useId();
@@ -322,8 +325,8 @@ export default function DebtPanel() {
           const buyerStatusId = `debt-buyer-status-${property.tileID}`;
           const saleId = `debt-sale-${property.tileID}`;
           return (
-            <article key={property.tileID} className="debt-panel__property">
-              {deed ? <PropertyDeedCard model={deed} variant="compact" showOwner={false} className="debt-panel__deed" /> : <strong>{propertyName}</strong>}
+            <article key={property.tileID} className={`debt-panel__property${short ? ' debt-panel__property--row' : ''}`}>
+              {deed ? <PropertyDeedCard model={deed} variant={short ? 'chip' : 'compact'} showOwner={false} className="debt-panel__deed" /> : <strong>{propertyName}</strong>}
               <div className="debt-panel__property-actions">
                 {/* The accessible name keeps the tile; this is what the sale brings, read after it. */}
                 <span id={saleId} className="sr-only">{t('debt.receive', { amount: formatMoney(property.grossPrice) })}</span>

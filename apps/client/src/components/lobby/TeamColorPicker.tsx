@@ -28,13 +28,12 @@ export default function TeamColorPicker({
     return (
       <p className="lobby-team__color-static">
         <span className="lobby-team__swatch" style={{ backgroundColor: visual.display }} aria-hidden="true" />
-        <span>{t('lobby.teamColorStatic', { color: getPlayerColorLabel(selected, language) })}</span>
+        <span>{getPlayerColorLabel(selected, language)}</span>
       </p>
     );
   }
   return (
     <div className="lobby-team__colors" role="group" aria-label={t('lobby.teamColorGroup', { teamName })}>
-      <span className="lobby-team__colors-label">{t('lobby.teamColor')}</span>
       <div className="lobby-team__color-grid">
         {PLAYER_COLOR_IDS.map(color => {
           const visual = PLAYER_COLOR_VISUALS[color];

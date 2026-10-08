@@ -128,6 +128,7 @@
 /* One line, 40 px tall: a deed picked in a list (trade offer, incoming offer, portfolio summary). */
 .deed--chip {
   display: inline-flex;
+  flex-direction: row;
   align-items: center;
   gap: var(--space-2);
   min-height: 2.5rem;
@@ -145,11 +146,27 @@
 .deed--special { --deed-color: var(--color-surface-sunken); --deed-text: var(--color-text-primary); }
 .deed--special .deed__art { background: var(--color-surface); }
 
+/* A phone held sideways: the same card, a step smaller in every line, so it sits beside a decision in about 240 px of height. */
 @media (orientation: landscape) and (max-height: 31rem) {
   .deed--full { min-height: 0; }
-  .deed__header { padding: var(--space-2) var(--space-3); }
+  .deed__header { gap: var(--space-2); padding: var(--space-2) var(--space-3); }
   .deed__art { width: 3rem; height: 3rem; }
+  .deed--compact .deed__art { width: 2.25rem; height: 2.25rem; }
+  .deed__group { font-size: 0.625rem; line-height: 0.875rem; }
+  .deed__name,
+  .deed--compact .deed__name { font: 700 1rem/1.25rem var(--font-family-display); }
+  .deed__landmark { font-size: 0.6875rem; }
   .deed__body { padding: var(--space-2) var(--space-3); }
+  .deed__price { font: 700 0.8125rem/1.125rem var(--font-family-body); }
+  .deed__price strong { font: 800 1rem/1.25rem var(--font-family-display); }
+  .deed__current,
+  .deed__development,
+  .deed__house-cost,
+  .deed__ladder,
+  .deed__owner { font-size: 0.75rem; line-height: 1rem; }
+  .deed__bonus { gap: 0.35rem; padding: 0.15rem 0.4rem; font-size: 0.6875rem; line-height: 0.9375rem; }
+  .deed__ladder th,
+  .deed__ladder td { padding: 0.15rem 0.4rem; }
 }
 
 /* ---------- Teams (2v2) ---------- */

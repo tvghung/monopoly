@@ -471,7 +471,6 @@ export default function DesktopMultiplayerLauncher({
                     value={hostMode}
                     onChange={value => { setHostMode(value); setError(null); }}
                   />
-                  <p className="desktop-launcher__hint">{t(hostMode === 'ONLINE' ? 'launcher.onlineDescription' : 'launcher.lanDescription')}</p>
                 </div>
               ) : null}
 
@@ -533,7 +532,8 @@ export default function DesktopMultiplayerLauncher({
                     : t(mode === 'host' ? 'launcher.createAndJoin' : 'launcher.connectAndJoin')}
               </Button>
               {submitReason && !working ? (
-                <p id="desktop-submit-reason" className="desktop-launcher__hint desktop-launcher__reason">{submitReason}</p>
+                // Not drawn (the empty field says it); it still tells assistive technology why the button is off.
+                <p id="desktop-submit-reason" className="sr-only">{submitReason}</p>
               ) : null}
             </form>
           </Panel>

@@ -45,7 +45,8 @@ export default function Board() {
   const [portfolioPlayerId, setPortfolioPlayerId] = useState<string | null>(null);
   const [hoveredTileId, setHoveredTileId] = useState<number | null>(null);
   const [tradeTarget, setTradeTarget] = useState<number | null>(null);
-  // Portrait on a phone or tablet: the rotate notice covers the game, and the game under it is inert (no touch, no keyboard) but not unmounted.
+  // Portrait on a phone: the rotate notice covers the game, and the game under it is inert (no touch, no keyboard) but not unmounted.
+  // A tablet (600 px wide and up) plays in portrait as well.
   const portraitBlocked = useMediaQuery(PORTRAIT_BLOCKED_QUERY);
   const displayPositions = presentationState.displayPositions;
   const renderModel = useMemo(

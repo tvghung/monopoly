@@ -673,7 +673,7 @@ describe('Vietnamese game board', () => {
     });
   });
 
-  it('keeps the turn label and player strip on the presentation player while Roll permission stays authoritative', () => {
+  it('keeps the center pill and player strip on the presentation player while Roll permission stays authoritative', () => {
     const state = makeGameState({
       players: {
         a: makePlayer('An', 'red'),
@@ -703,7 +703,9 @@ describe('Vietnamese game board', () => {
       </stateContext.Provider>,
     );
 
-    expect(screen.getByText('An đang chơi')).toBeTruthy();
+    // The center stage is the one place that names the player on the move.
+    expect(screen.getByText('An đang đi…')).toBeTruthy();
+    expect(screen.queryByText('An đang chơi')).toBeNull();
     expect(document.querySelector('[data-player-id="a"]')?.getAttribute('data-current-turn')).toBe('true');
     expect(document.querySelector('[data-player-id="b"]')?.getAttribute('data-current-turn')).toBe('false');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ xúc xắc' }).disabled).toBe(false);
@@ -729,8 +731,10 @@ describe('Vietnamese game board', () => {
       </stateContext.Provider>,
     );
 
-    expect(screen.queryByText('An đang chơi')).toBeNull();
-    expect(screen.getByText('Lượt của bạn')).toBeTruthy();
+    expect(screen.queryByText('An đang đi…')).toBeNull();
+    // No 'your turn' label anywhere: the roll call to action and the turn ring on the card say it.
+    expect(screen.queryByText('Lượt của bạn')).toBeNull();
+    expect(screen.queryByText('Đến lượt bạn!')).toBeNull();
     expect(document.querySelector('[data-player-id="b"]')?.getAttribute('data-current-turn')).toBe('true');
   });
 });

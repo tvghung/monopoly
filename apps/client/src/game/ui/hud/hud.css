@@ -243,55 +243,79 @@
   .player-card__name-row:has(.player-card__tag:not(.player-card__tag--text)) .player-card__tag--text { display: none; }
 }
 
-/* Phone landscape: money first, the name is shortened and its full text stays in the accessible summary. */
-@media (max-height: 500px) {
+/*
+ * Phone tier (`COMPACT_HUD_QUERY`: up to 500 px tall or up to 720 px wide). The game has to fit a phone held sideways, down to
+ * Safari with its tab bar (about 280 px tall), so every seat is a small chip: avatar, a shortened name (the full text stays in the
+ * accessible summary) and the balance. The local seat and the seat on the move are a little larger and carry the turn ring.
+ * Statuses are icon badges; their words stay in the summary. Tapping a chip opens the same assets dialog.
+ */
+@media (max-height: 500px), (max-width: 720px) {
   .game-hud {
-    --hud-inset: max(8px, env(safe-area-inset-left, 0px));
-    --hud-toolbar-offset: calc(44px + 4px);
-    --player-card-width: 168px;
-    --player-card-height: 52px;
-    --player-card-local-width: 168px;
-    --player-card-local-height: 52px;
-    --player-avatar-size: 36px;
-    --hud-center-offset-x: 24px;
+    --hud-inset: max(6px, env(safe-area-inset-left, 0px));
+    --hud-toolbar-offset: calc(34px + 6px);
+    --hud-key-size: 34px;
+    --player-card-width: 132px;
+    --player-card-height: 40px;
+    --player-card-local-width: 132px;
+    --player-card-local-height: 40px;
+    --player-avatar-size: 28px;
+    --hud-center-offset-x: 20px;
+    --hud-center-offset-y: 4px;
   }
 
-  .player-card__face { gap: 6px; padding: 6px 8px 6px 6px; }
-  .player-card__name { max-width: 10ch; font: var(--type-caption); }
+  .player-card__face { gap: 5px; padding: 3px 7px 3px 4px; border-radius: var(--radius-md); }
+  .player-card__body { gap: 0; }
+  .player-card__name { max-width: 9ch; font: 700 0.6875rem/0.875rem var(--font-family-body); }
+  .player-card__name-row { gap: 3px; }
   /* Status as icon badges: the jail and offline tags keep their icon (and the countdown), their words go. */
   .player-card__tag--text,
   .player-card__tag-text { display: none; }
-  .player-card__money { font: var(--type-label); font-weight: 800; }
+  .player-card .ds-chip { padding: 0 0.2rem; font-size: 0.625rem; line-height: 0.875rem; }
+  .player-card .ds-chip__icon > svg { width: 0.625rem; height: 0.625rem; }
+  .player-card__money { font: 800 0.8125rem/1rem var(--font-family-body); }
+  .player-card__money-row { flex-wrap: nowrap; }
+  /* The turn ring keeps its meaning at a smaller size. */
+  .player-card--active .player-card__face,
+  .player-card--active .player-card__open:hover + .player-card__face {
+    box-shadow: 0 0 0 2px var(--color-turn-active), 0 0 0 5px rgb(242 182 50 / 35%), var(--elevation-2);
+  }
   /* The ribbon keeps the team name; the relation word stays in the accessible summary. */
-  .player-card__team { top: -9px; left: 10px; padding: 0 7px; }
+  .player-card__team { top: -8px; left: 8px; padding: 0 6px; font-size: 0.625rem; line-height: 0.875rem; }
   .player-card__team-relation { display: none; }
-}
+  .player-card[data-team] .player-card__face { border-left-width: 4px; }
 
-/*
- * Compact player chips (phone held sideways). A seat that is just playing, is not on the move and is not the local player shrinks to
- * an avatar, a short name and the balance; the player on the move and the local player keep the full card, and so does any seat
- * with a status that must stay readable (jail, offline, bankrupt, revivable, left). The corner and the portfolio button are
- * unchanged, so tapping a chip opens the same assets dialog. The move between sizes is a short width/height ease (none under reduced motion).
- */
-@media (max-height: 500px) {
+  /*
+   * A seat that is just playing, is not on the move and is not the local player shrinks once more (the corner and the button do
+   * not change). The move between sizes is a short width/height ease (none under reduced motion).
+   */
   .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) {
-    width: 118px;
-    height: 38px;
+    width: 112px;
+    height: 34px;
     transition: width var(--motion-duration-ui) var(--motion-ease-out), height var(--motion-duration-ui) var(--motion-ease-out);
   }
-  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .player-card__face { gap: 4px; padding: 3px 6px 3px 4px; border-radius: var(--radius-md); }
-  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .ds-avatar { --ds-avatar-size: 28px !important; }
-  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .player-card__name { max-width: 8ch; font-size: 0.6875rem; line-height: 1; }
-  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .player-card__money { font-size: 0.8125rem; line-height: 1.1; }
-  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .player-card__body { gap: 0; }
+  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .player-card__face { gap: 4px; padding: 2px 6px 2px 3px; }
+  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .ds-avatar { --ds-avatar-size: 24px !important; --ds-avatar-ring: 2px; }
+  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .player-card__name { max-width: 8ch; font-size: 0.625rem; line-height: 0.75rem; }
+  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .player-card__money { font-size: 0.75rem; line-height: 0.9375rem; }
+  .player-card .ds-avatar { --ds-avatar-ring: 2px; }
+
   /* Another player's "+60.000" / "-25.000" flashes are routine; the balance still counts and the Journal has the line. */
   .player-card:not(.player-card--local) .player-card__chips { display: none; }
-  /* The status pill already names who is on the move; the same name in the middle of the board is a second notice. */
-  .center-stage__pill { display: none; }
+  /*
+   * Your own change floats just outside the card, toward the middle of the screen, so it never wraps the money row onto a second
+   * line that the 40 px card has no room for (it used to hang below the bottom edge of the window).
+   */
+  .player-card__chips { position: absolute; left: 6px; z-index: 2; flex-wrap: nowrap; pointer-events: none; }
+  .player-card[data-slot='BOTTOM'] .player-card__chips,
+  .player-card[data-slot='RIGHT'] .player-card__chips { bottom: calc(100% + 4px); }
+  .player-card[data-slot='LEFT'] .player-card__chips,
+  .player-card[data-slot='TOP'] .player-card__chips { top: calc(100% + 4px); }
+  .player-card .ds-delta-chip { padding: 0.05rem 0.45rem; }
+  .player-card .ds-delta-chip .ds-money { font: 800 0.75rem/1rem var(--font-family-body); }
 }
 :root[data-reduced-motion='true'] .player-card { transition: none !important; }
 
-/* ---------- Status pill (top center) ---------- */
+/* ---------- Status pill (top, desktop only): the room code. Whose turn it is lives in the center stage alone. ---------- */
 
 .status-pill {
   position: absolute;
@@ -301,9 +325,9 @@
   z-index: var(--z-hud-center);
   display: inline-flex;
   align-items: center;
-  gap: 8px;
   max-width: min(40vw, 22rem);
-  padding: 6px 14px 6px 8px;
+  margin: 0;
+  padding: 6px 14px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   background-color: var(--color-surface);
@@ -313,15 +337,7 @@
   pointer-events: none;
 }
 
-.status-pill__room { padding-left: 8px; color: var(--color-text-secondary); font: var(--type-caption); white-space: nowrap; }
-.status-pill__avatar { display: inline-flex; }
-.status-pill .game-board__turn-label {
-  margin: 0;
-  font: var(--type-label);
-  line-height: 1.2;
-  text-shadow: none;
-  color: var(--color-text-primary);
-}
+.status-pill__room { color: var(--color-text-secondary); font: var(--type-caption); white-space: nowrap; }
 
 /* ---------- Center stage ---------- */
 
@@ -369,45 +385,51 @@
   box-shadow: var(--elevation-2);
   color: var(--color-text-primary);
   font: var(--type-label);
+  white-space: nowrap;
 }
+.center-stage__pill-avatar { display: inline-flex; }
+.center-stage__pill-text { min-width: 0; max-width: 16rem; overflow: hidden; text-overflow: ellipsis; }
 
 @media (max-width: 1279px), (max-height: 719px) {
-  .status-pill__room { display: none; }
+  .status-pill { display: none; }
 }
 
-@media (max-height: 500px) {
-  .center-stage .game-board__roll-button { min-width: 180px; min-height: 52px; font: var(--type-label); }
-  .center-stage__pill { padding: 4px 12px 4px 6px; font: var(--type-caption); }
+@media (max-height: 500px), (max-width: 720px) {
+  .center-stage { gap: 6px; }
+  .center-stage .game-board__roll-button {
+    min-width: 0;
+    min-height: 40px;
+    padding: 0 18px;
+    font: 700 0.9375rem/1.2 var(--font-family-display);
+    --ds-button-lip-size: 3px;
+  }
+  .center-stage .game-board__roll-button .ds-button__icon > svg { width: 1rem; height: 1rem; }
+  .center-stage__pill { gap: 6px; padding: 3px 12px 3px 3px; font: 600 0.75rem/1rem var(--font-family-body); }
+  .center-stage__pill .ds-avatar { --ds-avatar-size: 22px !important; --ds-avatar-ring: 2px; }
+  .center-stage__pill-text { max-width: 12rem; }
 }
 
-/* ---------- Jail group (narrow window) ---------- */
+/* ---------- Jail group (every window size) ---------- */
 
 /*
- * Up to 720 px wide the strip between the two bottom cards is too narrow for the jail panel, which used to wrap into a tall box
- * on top of the roll button. `CenterStage` therefore renders the panel itself, under the roll button, so both sit in one column.
- * The stage moves down a little while the group is there so it stays clear of the upper right card; the compact form of the panel
- * comes from the shared jail rules further down. While the dice roll or a card is shown (`data-stage-busy`) the panel is only
- * hidden, not unmounted, so its pending request and error line survive.
+ * A jailed player's ways out are one column in the middle of the board: the roll button ("try for doubles"), then the jail panel
+ * right under it. It used to live in the bottom dock on wider windows, where on a phone held sideways (more than 720 px wide but
+ * short) it was positioned independently of the roll button and covered it. While the dice roll or a card is shown
+ * (`data-stage-busy`) the panel is only hidden, not unmounted, so its pending request and error line survive.
  */
-@media (max-width: 720px) {
-  .center-stage .jail-panel {
-    width: max-content;
-    max-width: min(17rem, calc(100vw - 2 * var(--hud-inset)));
-    pointer-events: auto;
-  }
-  .center-stage:has(.jail-panel) {
-    --hud-center-offset-y: 22px;
-    /* Not the width left of the stage's own offset, which is what an absolutely positioned box would shrink to. */
-    width: max-content;
-    /* A little to the right as well: the wider English "Properties" button of the bottom left corner reaches under the panel. */
-    margin-inline-start: 2rem;
-    gap: 6px;
-  }
-  .center-stage:has(.jail-panel) .game-board__roll-button { min-height: 44px; }
-  /* Without the lock and the button glyphs (decoration; the words say it) the title keeps one line and each button two. */
-  .center-stage .jail-panel__icon,
-  .center-stage .jail-panel__actions .ds-button__icon { display: none; }
-  .center-stage[data-stage-busy='true'] .jail-panel { visibility: hidden; }
+.center-stage .jail-panel {
+  width: max-content;
+  max-width: min(26rem, calc(100vw - 2 * var(--hud-inset) - 2 * var(--player-card-width)));
+  pointer-events: auto;
+}
+.center-stage:has(.jail-panel) {
+  /* Not the width left of the stage's own offset, which is what an absolutely positioned box would shrink to. */
+  width: max-content;
+}
+.center-stage[data-stage-busy='true'] .jail-panel { visibility: hidden; }
+/* Held upright (a tablet), the cards are above and below the board, not beside its middle, so the group may use the full width. */
+@media (orientation: portrait) {
+  .center-stage .jail-panel { max-width: min(26rem, calc(100vw - 2 * var(--hud-inset) - 2rem)); }
 }
 
 /* ---------- Dice result callout ---------- */
@@ -453,11 +475,15 @@
   to { opacity: 1; transform: none; }
 }
 
-/* ---------- Turn banner ---------- */
+/*
+ * ---------- Banner shell ----------
+ * The landmark banner ("Khánh thành <landmark>!") uses this shell. There is no turn banner any more: "Đến lượt bạn!" repeated the
+ * roll button, and "Lượt của <tên>" repeated the center pill.
+ */
 
 .turn-banner {
   position: absolute;
-  top: calc(var(--hud-inset) + 52px);
+  top: var(--hud-inset);
   left: calc(var(--hud-inset) + var(--player-card-width) + 12px);
   z-index: var(--z-hud-banner);
   display: flex;
@@ -502,11 +528,21 @@
   .dice-callout__total { font: var(--type-title-l); }
 }
 
-@media (max-height: 500px) {
-  .turn-banner { top: calc(var(--hud-inset) + 44px); padding: 4px 16px 4px 6px; }
-  .turn-banner__text { font: var(--type-label); }
-  .dice-callout { left: calc(50% + 120px); top: calc(50% - 70px + var(--hud-callout-offset-y, 0px)); padding: 4px 10px; gap: 8px; }
-  .dice-callout__total { font: var(--type-title-m); }
+@media (max-height: 500px), (max-width: 720px) {
+  .turn-banner { gap: 8px; padding: 3px 14px 3px 4px; }
+  .turn-banner__text { font: 700 0.8125rem/1.1 var(--font-family-body); }
+  /* Clear of the top-right card and the toolbar even in a 280 px tall window. */
+  .dice-callout {
+    left: calc(50% + 84px);
+    top: max(calc(var(--hud-inset) + var(--hud-toolbar-offset) + var(--player-card-height) + 8px), calc(50% - 64px));
+    gap: 6px;
+    padding: 3px 9px;
+    border-radius: var(--radius-md);
+  }
+  .dice-callout__sum { gap: 4px; }
+  .dice-callout__die { width: 20px; height: 20px; padding: 3px; border-width: 1.5px; border-radius: 5px; }
+  .dice-callout__plus { font: 700 0.75rem/1 var(--font-family-body); }
+  .dice-callout__total { font: 800 1.25rem/1.2 var(--font-family-display); }
 }
 
 /* ---------- Bottom column: context stack and action dock ---------- */
@@ -535,7 +571,8 @@
 
 .action-dock { display: flex; align-items: center; justify-content: flex-start; gap: 8px; pointer-events: none; }
 .camera-controls { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
-.dock-label--short { display: none; }
+.dock-count::before { content: '('; }
+.dock-count::after { content: ')'; }
 .action-dock .game-board__property-access { display: flex; }
 
 /* ---------- Activity ticker and chat bubbles ---------- */
@@ -595,15 +632,48 @@
 :root[data-reduced-motion='true'] .player-card__bubble { animation: none; }
 @media (prefers-reduced-motion: reduce) { .player-card__bubble { animation: none; } }
 
-@media (max-height: 500px) {
-  .hud-bottom { max-width: 380px; }
-  .activity-ticker { display: none; }
-  .dock-label--long { display: none; }
-  .dock-label--short { display: inline; }
-  .status-pill__avatar { display: none; }
-  .status-pill { padding: 4px 12px; }
 
-  /* The 2v2 revive offer follows the jail panel: a title row, the button, and the price in the button's description. */
+/* ---------- Phone tier: bottom row, keys, context stack and the jail group ---------- */
+
+/*
+ * One bottom row: the local card in the lower-left corner, then the properties key (icon + count) and the camera keys right beside
+ * it, all 34 px tall, with the context stack (debt status, revive offer) floating above that row between the two bottom cards. The
+ * row never moves to a second place at another width, so nothing has to be stacked above the local card any more. A 5 px invisible
+ * margin around each round key keeps the touch target near 44 px.
+ */
+@media (max-height: 500px), (max-width: 720px) {
+  .hud-bottom {
+    left: calc(var(--hud-inset) + var(--player-card-local-width) + 8px);
+    right: calc(var(--hud-inset) + var(--player-card-width) + 8px);
+    gap: 6px;
+    max-width: none;
+  }
+  .hud-context { width: min(22rem, 100%); gap: 6px; }
+  .activity-ticker { display: none; }
+  .action-dock { gap: 6px; }
+  .camera-controls { gap: 4px; }
+  .camera-controls .ds-icon-button {
+    width: var(--hud-key-size);
+    height: var(--hud-key-size);
+  }
+  .camera-controls .ds-icon-button__glyph > svg { width: 1rem; height: 1rem; }
+  .camera-controls .ds-icon-button::after { position: absolute; inset: -5px -2px; content: ''; }
+
+  /* The properties key: the icon and the count; its accessible name is unchanged ("Tài sản của tôi (N)"). */
+  .action-dock .game-board__property-button {
+    gap: 6px;
+    min-height: var(--hud-key-size);
+    padding: 0 12px 0 10px;
+    border-radius: var(--radius-pill);
+    font: 800 0.8125rem/1 var(--font-family-body);
+    --ds-button-lip-size: 3px;
+  }
+  .action-dock .game-board__property-button .ds-button__icon > svg { width: 1rem; height: 1rem; }
+  .action-dock .dock-label { display: none; }
+  .action-dock .dock-count::before,
+  .action-dock .dock-count::after { content: none; }
+
+  /* The 2v2 revive offer: a title row, the button, and the price in the button's description. */
   .hud-context .revive-panel {
     display: flex;
     flex-flow: row wrap;
@@ -613,46 +683,36 @@
     border-radius: var(--radius-md);
   }
   .hud-context .revive-panel__head { flex: 1 1 100%; gap: 6px; }
-  .hud-context .revive-panel__title { font: 700 0.875rem/1.25rem var(--font-family-body); }
+  .hud-context .revive-panel__title { font: 700 0.8125rem/1.125rem var(--font-family-body); }
   .hud-context .revive-panel__hint { display: none; }
   .hud-context .revive-panel__blocked,
   .hud-context .revive-panel__error,
   .hud-context .revive-panel__pending { flex: 1 1 100%; font: var(--type-caption); line-height: 0.875rem; }
-  .hud-context .revive-panel .ds-button { padding: 2px 6px; font: var(--type-caption); line-height: 1.1; }
-}
+  .hud-context .revive-panel .ds-button { min-height: 32px; padding: 2px 8px; font: 700 0.75rem/1.1 var(--font-family-body); }
 
-/*
- * The jail panel's compact form (a title row and one row of buttons). It applies to a short window, where the panel stays in the
- * context stack, and to a narrow one, where `CenterStage` renders it under the roll button (see "Jail group" below).
- */
-@media (max-height: 500px), (max-width: 720px) {
   /*
-   * On a phone the jail panel shrinks to a title row and one row of buttons: held sideways (a short window) in the context
-   * stack, and in a narrow window (up to 720 px wide) inside the center stage, under the roll button.
+   * The jail panel under the roll button: a title row (the lock, "Bạn đang ở Nhà Tù" and the wait chip) and one row of small
+   * buttons. A pending or failed request takes the place of the title row, so the group never grows toward the cards. The balance
+   * warning is not drawn here at all: the bail button is already disabled and points to the warning with aria-describedby.
    */
-  :is(.hud-context, .center-stage) .jail-panel {
-    display: flex;
-    flex-flow: row wrap;
-    align-content: flex-start;
-    gap: 1px 8px;
+  .center-stage .jail-panel {
+    display: grid;
+    gap: 5px;
+    max-width: min(17.5rem, calc(100vw - 2 * var(--hud-inset) - 2 * var(--player-card-width)));
     margin: 0;
-    padding: 4px 8px;
+    padding: 6px 8px 8px;
     border-radius: var(--radius-md);
   }
-  :is(.hud-context, .center-stage) .jail-panel__head { flex: 1 1 100%; gap: 6px; }
-  :is(.hud-context, .center-stage) .jail-panel__icon { width: 1.25rem; height: 1.25rem; }
-  :is(.hud-context, .center-stage) .jail-panel__icon > svg { width: 0.75rem; height: 0.75rem; }
-  :is(.hud-context, .center-stage) .jail-panel__title { font: 700 0.875rem/1.25rem var(--font-family-body); }
-  :is(.hud-context, .center-stage) .jail-panel__rounds { padding: 1px 8px; }
-  :is(.hud-context, .center-stage) .jail-panel__hint { display: none; }
-  /*
-   * A pending or failed request takes the place of the title row, so the strip never grows toward the roll button. The balance
-   * warning is not drawn here at all: the bail button is already disabled, and it points to the warning with aria-describedby.
-   */
-  :is(.hud-context, .center-stage) .jail-panel > p[role='alert'],
-  :is(.hud-context, .center-stage) .jail-panel__pending { flex: 1 1 100%; font: var(--type-caption); line-height: 0.875rem; }
-  :is(.hud-context, .center-stage) .jail-panel:has(> p[role='alert'], > .jail-panel__pending) .jail-panel__head { display: none; }
-  :is(.hud-context, .center-stage) .jail-panel__balance-warning {
+  .center-stage .jail-panel__head { gap: 6px; }
+  .center-stage .jail-panel__icon { width: 1.125rem; height: 1.125rem; }
+  .center-stage .jail-panel__icon > svg { width: 0.6875rem; height: 0.6875rem; }
+  .center-stage .jail-panel__title { font: 700 0.8125rem/1.125rem var(--font-family-body); white-space: nowrap; }
+  .center-stage .jail-panel__rounds { padding: 0 6px; font-size: 0.6875rem; line-height: 1.125rem; }
+  .center-stage .jail-panel__hint { display: none; }
+  .center-stage .jail-panel > p[role='alert'],
+  .center-stage .jail-panel__pending { font: var(--type-caption); line-height: 0.875rem; }
+  .center-stage .jail-panel:has(> p[role='alert'], > .jail-panel__pending) .jail-panel__head { display: none; }
+  .center-stage .jail-panel__balance-warning {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -661,91 +721,42 @@
     clip-path: inset(50%);
     white-space: nowrap;
   }
-  :is(.hud-context, .center-stage) .jail-panel__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-  :is(.hud-context, .center-stage) .jail-panel__actions .ds-button { padding: 2px 6px; font: var(--type-caption); line-height: 1.1; }
-}
-
-/* The strip between the two bottom cards is about 270 px wide: the lock icon goes so the title and the wait chip share a row. */
-@media (max-height: 500px) and (max-width: 720px) {
-  .hud-context .jail-panel__icon { display: none; }
-}
-
-/* ---------- Small phone landscape (up to 720 px wide): stack instead of sitting beside the corner cards ---------- */
-
-@media (max-width: 720px) {
-  /* The board leaves no free strip beside the top-left card, so the pill goes under it. */
-  .status-pill { top: calc(var(--hud-inset) + var(--player-card-height) + 6px); left: var(--hud-inset); }
-  .turn-banner { top: calc(var(--hud-inset) + var(--player-card-height) + 44px); left: var(--hud-inset); }
-  /* And the action column goes above the bottom-left card instead of beside it. */
-  .hud-bottom { left: var(--hud-inset); bottom: calc(max(var(--hud-inset), env(safe-area-inset-bottom)) + var(--player-card-local-height) + 6px); }
-  /*
-   * The context stack (jail panel, debt status) drops to the strip between the two bottom cards so it never reaches
-   * the roll button in the middle of the board.
-   */
-  .hud-bottom { right: var(--hud-inset); max-width: none; }
-  .hud-context {
-    position: absolute;
-    left: calc(var(--player-card-local-width) + 12px);
-    right: calc(var(--player-card-width) + 12px);
-    bottom: calc(-1 * (var(--player-card-local-height) + 6px));
-    width: auto;
+  .center-stage .jail-panel__actions { grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); gap: 6px; }
+  .center-stage .jail-panel__actions .ds-button {
+    min-height: 32px;
+    padding: 2px 8px;
+    font: 700 0.75rem/1.15 var(--font-family-body);
+    --ds-button-lip-size: 3px;
   }
+  /* The glyphs are decoration (the words say it); without them each label keeps to one or two short lines. */
+  .center-stage .jail-panel__actions .ds-button__icon { display: none; }
+
+  /* 2v2: a small chip has no room for the team ribbon above its name; the team-coloured frame stays and the summary has the text. */
+  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .player-card__team { display: none; }
+  /* A bankrupt teammate who can still be revived carries extra chips: the card grows away from its corner instead of spilling past the edge... */
+  .player-card[data-state='revivable'] { height: auto; min-height: var(--player-card-height); }
+  .player-card[data-state='revivable'] .player-card__face { height: auto; }
+  .player-card[data-state='revivable'] .player-card__money-row { flex-wrap: wrap; }
+  /* ...and the "Có thể hồi sinh" word chip goes (the turns-left chip already says it; the seat summary keeps the words). */
+  .player-card[data-state='revivable'] .player-card__tag--revive { display: none; }
 }
 
-/* ---------- Landmark banner (plan 05, OD-05-4): "Khánh thành <landmark>!" under the turn banner ---------- */
+/* ---------- Landmark banner (plan 05, OD-05-4): "Khánh thành <landmark>!" ---------- */
 
 /*
- * It carries the `turn-banner` class too, so it shares that shell, its keyframes and its reduced-motion fade; only its place
- * and its lifetime (2.2 s, scaled by the animation speed) differ. Under reduced motion it is the text alone (no picture).
+ * It carries the `turn-banner` class too, so it shares that shell, its keyframes and its reduced-motion fade; only its lifetime
+ * (2.2 s, scaled by the animation speed) differs. It sits beside the top-left card (under the room code on desktop). Under reduced
+ * motion it is the text alone (no picture).
  */
 .landmark-banner {
-  top: calc(var(--hud-inset) + 52px + 62px);
+  top: calc(var(--hud-inset) + 52px);
   animation-duration: calc(2200ms / var(--hud-speed));
 }
 .landmark-banner__art { display: block; flex: none; width: 44px; height: 44px; border-radius: var(--radius-md); }
 
-@media (max-height: 500px) {
-  .landmark-banner { top: calc(var(--hud-inset) + 44px + 50px); }
-  .landmark-banner__art { width: 32px; height: 32px; }
+@media (max-width: 1279px), (max-height: 719px) {
+  .landmark-banner { top: var(--hud-inset); }
 }
-
-@media (max-width: 720px) {
-  .landmark-banner { top: calc(var(--hud-inset) + var(--player-card-height) + 44px + 50px); left: var(--hud-inset); }
-}
-
-/*
- * Up to 720 px wide the properties button sits above the local card and the context strip and the jail group use the middle of the
- * board, so the zoom keys leave the dock for the free bottom edge between the two bottom cards (the same place the dock has in
- * wider windows). They stay in the DOM next to the properties button, so tab order does not change.
- */
-@media (max-width: 720px) {
-  .camera-controls {
-    position: fixed;
-    z-index: var(--z-hud-dock);
-    bottom: max(var(--hud-inset), env(safe-area-inset-bottom));
-    left: calc(var(--hud-inset) + var(--player-card-local-width) + 12px);
-  }
-}
-
-/*
- * 2v2 on a phone held sideways: a chip has no room for the team ribbon above its name, so the chip keeps only the team-coloured
- * frame (the ribbon text stays in the seat's accessible summary and in the portfolio). Up to 720 px wide the properties button
- * sits right above the local card, so it moves up by the ribbon's height when that card carries one.
- */
-@media (max-height: 500px) {
-  .player-card[data-state='playing']:not(.player-card--active):not(.player-card--local) .player-card__team { display: none; }
-}
-@media (max-width: 720px) {
-  .game-hud:has(.player-card--local .player-card__team) .hud-bottom {
-    bottom: calc(max(var(--hud-inset), env(safe-area-inset-bottom)) + var(--player-card-local-height) + 14px);
-  }
-}
-/* A bankrupt teammate who can still be revived carries two extra chips; on a short window the card grows away from its corner instead of spilling past the edge. */
-@media (max-height: 500px) {
-  .player-card[data-state='revivable'] { height: auto; min-height: var(--player-card-height); }
-  .player-card[data-state='revivable'] .player-card__face { height: auto; }
-}
-/* ...and the "Có thể hồi sinh" word chip goes (the turns-left chip already says it; the seat summary keeps the words). */
-@media (max-height: 500px) {
-  .player-card[data-state='revivable'] .player-card__tag--revive { display: none; }
+@media (max-height: 500px), (max-width: 720px) {
+  .landmark-banner__art { width: 26px; height: 26px; border-radius: var(--radius-sm); }
 }
