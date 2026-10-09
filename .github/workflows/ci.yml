@@ -4,10 +4,23 @@ on:
   push:
     branches:
       - main
-      - 'overhaul/**'
-      - 'codex/**'
+    paths:
+      - '**'
+      - '!project-document/**/*.md'
+      # These Markdown files are inputs to validate:v1-contract.
+      - 'project-document/ui-ux-overhaul/V1_RELEASE_CONTRACT.md'
+      - 'project-document/ui-ux-overhaul/07C_PHASE_7_2_FINAL_ENGINEERING.md'
   pull_request:
+    paths:
+      - '**'
+      - '!project-document/**/*.md'
+      - 'project-document/ui-ux-overhaul/V1_RELEASE_CONTRACT.md'
+      - 'project-document/ui-ux-overhaul/07C_PHASE_7_2_FINAL_ENGINEERING.md'
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Least-privilege token: the build only needs to read the repo contents.
 permissions:

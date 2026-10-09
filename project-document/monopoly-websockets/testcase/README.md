@@ -5,6 +5,7 @@
 | Area | Current evidence |
 | --- | --- |
 | GameCore and network protocol | `apps/server/src/socket.integration.test.ts`, room/game tests and shared schema tests; Host capability, Guest-first and stale pending admission, visitor limits and closed-runtime errors in `apps/server/src/hostAdmission.integration.test.ts` |
+| Bot seats and Balanced bot | `apps/server/src/socket.bots.integration.test.ts`, `socket.botDriver.integration.test.ts`, `bots/policy.test.ts`, `bots/driver.test.ts`; checklist [bot-players.md](./bot-players.md); complete games are `[MANUAL-E2E]` |
 | RAM transaction, CAS, expiry, closed store | `apps/server/src/persistence/inMemory.test.ts`, `roomCommandExecutor.test.ts`, `socket/errors.test.ts`, deadline scheduler and Socket.IO tests |
 | Host lifecycle and tunnel controller | `apps/desktop/tests/hostRuntime.test.ts`, `apps/desktop/src/online/*.test.ts` (Quick Tunnel isolation and lifecycle), `apps/desktop/tests/prepareCloudflared.test.ts` and `checkPackagedBudget.test.ts` (pinned cloudflared preparation and package integrity), `windowHandlers.test.ts` (capability IPC) |
 | Packaged Windows LAN authority | `pnpm desktop:proof:host`: real bundled helper, four clients, LAN reachability/discovery, reconnect and old room/token rejection after restart |

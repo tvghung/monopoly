@@ -17,6 +17,7 @@ const settingsContext = createContext<SettingsContextValue>({
     version: 2,
     language: 'vi',
     masterVolume: 1,
+    muted: false,
     musicVolume: 0.7,
     sfxVolume: 0.8,
     animationSpeed: 1,

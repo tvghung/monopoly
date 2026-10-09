@@ -1,3 +1,4 @@
+import { publicEndpointOrigin } from '@monopoly/shared';
 import { normalizeRoomCode, parseLanJoinUrl } from './lanSharing';
 
 export type JoinInput =
@@ -5,13 +6,9 @@ export type JoinInput =
   | { kind: 'invitation'; roomCode: string; endpoint: string }
   | { kind: 'invalid'; reason: 'CODE' | 'INVITATION' };
 
+/** The origin of a public Online Host endpoint (see the shared endpoint policy), or undefined. */
 export function publicHttpsEndpoint(value: string): string | undefined {
-  try {
-    const url = new URL(value);
-    return url.protocol === 'https:' && /^[a-z0-9-]+\.trycloudflare\.com$/.test(url.hostname)
-      && !url.port && !url.username && !url.password && url.pathname === '/'
-      && !url.search && !url.hash ? url.origin : undefined;
-  } catch { return undefined; }
+  return publicEndpointOrigin(value);
 }
 
 export function parseJoinInput(value: string): JoinInput {

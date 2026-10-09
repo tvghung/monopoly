@@ -5,6 +5,7 @@ import SegmentedControl, { type SegmentedOption } from '../design-system/compone
 import { ActionIcon } from '../design-system/icons/ActionIcon';
 import HowToPlayButton from '../howToPlay/HowToPlayButton';
 import JoinHero from './JoinHero';
+import { parseJoinInput } from '../runtime/joinTargetResolver';
 import './style/EntryShared.css';
 import './style/JoinForm.css';
 import { useTranslation } from '../i18n/I18n';
@@ -30,15 +31,24 @@ interface JoinFormProps {
   initialRoomCode?: string;
   /** Starting mode for design-lab captures; an `initialRoomCode` from an invitation link always selects `code`. */
   initialMode?: JoinRoomMode;
+  /**
+   * A pasted invitation of another Host: the page opens that Host's own invitation page (browsers only). Without it, such a
+   * link is refused with a hint, because the desktop app joins other Hosts from its own start screen.
+   */
+  onOpenInvitation?: (endpoint: string, roomCode: string) => void;
+  /** The origin of this page; an invitation to it is simply its room code. */
+  pageOrigin?: string;
 }
 
 export default function JoinForm({
-  onJoin, onBack, busy, connected, error, initialName, initialRoomCode, initialMode = 'code',
+  onJoin, onBack, busy, connected, error, initialName, initialRoomCode, initialMode = 'code', onOpenInvitation,
+  pageOrigin = typeof window !== 'undefined' ? window.location.origin : '',
 }: JoinFormProps) {
   const { t } = useTranslation();
   const [name, setName] = useState(initialName ?? '');
   const [roomId, setRoomId] = useState(initialRoomCode ?? '');
   const [mode, setMode] = useState<JoinRoomMode>(initialRoomCode ? 'code' : initialMode);
+  const [inputError, setInputError] = useState<string | null>(null);
   const missingName = !name.trim();
   const roomModeOptions: readonly SegmentedOption<JoinRoomMode>[] = [
     { value: 'code', label: t('join.modeCode') },
@@ -49,9 +59,23 @@ export default function JoinForm({
     e.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName) return;
-    const typedCode = roomId.trim().toUpperCase();
-    const room = mode === 'public' ? PUBLIC_ROOM_CODE : typedCode || PUBLIC_ROOM_CODE;
-    onJoin(trimmedName, room);
+    setInputError(null);
+    if (mode === 'public' || !roomId.trim()) {
+      onJoin(trimmedName, PUBLIC_ROOM_CODE);
+      return;
+    }
+    // One field takes a room code (OTB-XXXXXX) or a whole invitation link, checked by the same parser as the desktop app.
+    const input = parseJoinInput(roomId);
+    if (input.kind === 'invalid') {
+      setInputError(t(input.reason === 'CODE' ? 'join.invalidCode' : 'join.invalidInvite'));
+      return;
+    }
+    if (input.kind === 'invitation' && input.endpoint !== pageOrigin) {
+      if (onOpenInvitation) onOpenInvitation(input.endpoint, input.roomCode);
+      else setInputError(t('join.otherHost'));
+      return;
+    }
+    onJoin(trimmedName, input.roomCode);
   };
 
   return (
@@ -78,7 +102,7 @@ export default function JoinForm({
 
         <Panel as="div" padding="lg" className="join__panel">
           <form className="join__form" onSubmit={handleSubmit}>
-            {error ? <p className="join__error" role="alert">{error}</p> : null}
+            {inputError ?? error ? <p className="join__error" role="alert">{inputError ?? error}</p> : null}
             {!connected ? <p className="join__connection" role="status">{t('join.connecting')}</p> : null}
 
             <div className="join__field">
@@ -116,9 +140,12 @@ export default function JoinForm({
                   className="entry-control"
                   type="text"
                   value={roomId}
-                  maxLength={20}
+                  maxLength={500}
                   placeholder={t('join.roomCodePlaceholder')}
-                  onChange={e => setRoomId(e.target.value)}
+                  onChange={e => {
+                    setRoomId(e.target.value);
+                    setInputError(null);
+                  }}
                   autoCapitalize="characters"
                   enterKeyHint="go"
                 />

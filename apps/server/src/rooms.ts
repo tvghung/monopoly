@@ -5,6 +5,7 @@ import type {
   PlayerColorId,
   PlayerId,
   Player,
+  PlayerKind,
   RoomMembershipStatus,
   RoomStatus,
   SeatHolder,
@@ -14,6 +15,10 @@ import type {
 } from '@monopoly/shared';
 import {
   allGameCards,
+  CHARACTER_IDS,
+  getAppearanceCombinationKey,
+  MAX_BOTS_PER_ROOM,
+  PLAYER_KINDS,
   areTeammates,
   createCanonicalDecks,
   firstFreeTeamSlot,
@@ -32,7 +37,7 @@ import { createEmptyActivityFeed } from './game/activity';
 import { createEmptyGameplayEventStream } from './game/semanticEvents';
 import { createDefaultTeamSettings, createEmptyTeamPlayState } from './game/teamState';
 
-export const ROOM_SNAPSHOT_SCHEMA_VERSION = 10;
+export const ROOM_SNAPSHOT_SCHEMA_VERSION = 11;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 4;
 
@@ -79,6 +84,7 @@ const roomSnapshotSchema = z.strictObject({
     joinOrder: finiteIntegerSchema.positive(),
     ready: z.boolean(),
     membershipStatus: z.enum(['ACTIVE', 'FINISHED', 'LEFT']),
+    kind: z.enum(PLAYER_KINDS).optional(),
   })),
   nextJoinOrder: finiteIntegerSchema.positive(),
   gameState: persistedGameStateSchema,
@@ -88,6 +94,8 @@ export interface RoomMember {
   joinOrder: number;
   ready: boolean;
   membershipStatus: RoomMembershipStatus;
+  // Absent means HUMAN (every member of a snapshot older than schema 11 is human). A BOT member has no session or connection.
+  kind?: PlayerKind;
 }
 
 /** The versioned room aggregate kept in RAM; lifecycle status, revision and host live on the room record beside it. */
@@ -377,6 +385,20 @@ export const upgradeRoomSnapshotV9ToV10 = (
   };
 };
 
+/**
+ * V11 adds bot seats (`RoomMember.kind`, absent = HUMAN) and the per-match `boardState.matchId`. A V10 room has only human
+ * members and no match id, which is exactly what an absent field means, so the upgrade only stamps the version.
+ */
+export const upgradeRoomSnapshotV10ToV11 = (
+  input: unknown,
+): PersistedRoomSnapshotEnvelope => {
+  const envelope = structuredClone(input) as PersistedRoomSnapshotEnvelope;
+  if (envelope.snapshotSchemaVersion !== 10) {
+    throw new Error('Only V10 room snapshots can be upgraded to V11');
+  }
+  return { ...envelope, snapshotSchemaVersion: 11 };
+};
+
 export class UnsupportedRoomSnapshotVersionError extends Error {
   constructor(readonly snapshotSchemaVersion: number) {
     super(
@@ -399,6 +421,7 @@ export const freshState = (): GameState => ({
   boardState: {
     gameStarted: false,
     gameStartedAt: null,
+    matchId: null,
     gameMode: 'SOLO',
     teams: createDefaultTeamSettings(),
     teamPlay: createEmptyTeamPlayState(),
@@ -494,6 +517,93 @@ export const activePlayerIds = (snapshot: RoomSnapshot): PlayerId[] => (
     .sort(([, left], [, right]) => left.joinOrder - right.joinOrder)
     .map(([playerId]) => playerId)
 );
+
+export const memberKind = (member: RoomMember | undefined): PlayerKind => member?.kind ?? 'HUMAN';
+
+export const isBotMember = (snapshot: RoomSnapshot, playerId: PlayerId): boolean => (
+  memberKind(snapshot.members[playerId]) === 'BOT'
+);
+
+/** Active bot seats in join order. */
+export const activeBotIds = (snapshot: RoomSnapshot): PlayerId[] => (
+  activePlayerIds(snapshot).filter(playerId => isBotMember(snapshot, playerId))
+);
+
+/** Active human seats in join order. */
+export const activeHumanIds = (snapshot: RoomSnapshot): PlayerId[] => (
+  activePlayerIds(snapshot).filter(playerId => !isBotMember(snapshot, playerId))
+);
+
+/** Humans who still belong to the room (active or finished, not LEFT). A room without any is abandoned. */
+export const remainingHumanIds = (snapshot: RoomSnapshot): PlayerId[] => (
+  Object.entries(snapshot.members)
+    .filter(([, member]) => member.membershipStatus !== 'LEFT' && memberKind(member) === 'HUMAN')
+    .map(([playerId]) => playerId)
+);
+
+const BOT_NAME = /^Bot ([1-9])$/;
+
+/** The lowest bot number (1, 2, 3) no other bot of the room uses, or null when every number is taken. */
+export const nextBotNumber = (snapshot: RoomSnapshot): number | null => {
+  const used = new Set(
+    Object.entries(snapshot.members)
+      .filter(([, member]) => memberKind(member) === 'BOT' && member.membershipStatus !== 'LEFT')
+      .map(([playerId]) => {
+        const identity = snapshot.gameState.players[playerId] ?? snapshot.gameState.boardState.finishedPlayers[playerId];
+        const match = identity ? BOT_NAME.exec(identity.name) : null;
+        return match ? Number(match[1]) : 0;
+      }),
+  );
+  for (let number = 1; number <= MAX_BOTS_PER_ROOM; number += 1) {
+    if (!used.has(number)) return number;
+  }
+  return null;
+};
+
+/**
+ * A mascot for a bot wearing `color`: one whose mascot+colour combination no other active member holds, preferring a mascot
+ * nobody wears at all. Null when every combination with that colour is taken.
+ */
+export const chooseBotCharacter = (
+  snapshot: RoomSnapshot,
+  botId: PlayerId,
+  color: PlayerColorId,
+): CharacterId | null => {
+  const others = activePlayerIds(snapshot)
+    .filter(playerId => playerId !== botId)
+    .map(playerId => snapshot.gameState.players[playerId])
+    .filter((player): player is Player => player !== undefined);
+  const takenKeys = new Set(others.map(player => getAppearanceCombinationKey(player.characterId, player.color)));
+  const worn = new Set(others.map(player => player.characterId));
+  const free = CHARACTER_IDS.filter(characterId => !takenKeys.has(getAppearanceCombinationKey(characterId, color)));
+  return free.find(characterId => !worn.has(characterId)) ?? free[0] ?? null;
+};
+
+/**
+ * Lobby bots are always Ready and always wear a valid, unique mascot+colour combination. Run after every lobby command, so a
+ * rule that resets Ready (mode switch, play again) or clears/clashes a mascot (team moves, recolours) never leaves a bot
+ * un-Ready or blocking the start. Only bots are changed: a human selection always wins over a bot.
+ */
+export const normalizeLobbyBots = (snapshot: RoomSnapshot, status: RoomStatus): void => {
+  if (status !== 'LOBBY') return;
+  const players = snapshot.gameState.players;
+  const board = snapshot.gameState.boardState;
+  for (const botId of activeBotIds(snapshot)) {
+    const bot = players[botId];
+    const member = snapshot.members[botId];
+    if (!bot || !member) continue;
+    if (board.gameMode === 'TEAM_2V2') bot.color = board.teams[bot.teamId].color;
+    const key = getAppearanceCombinationKey(bot.characterId, bot.color);
+    const clashes = key === null || activePlayerIds(snapshot).some(otherId => (
+      otherId !== botId
+      && getAppearanceCombinationKey(players[otherId]?.characterId ?? null, players[otherId]?.color ?? bot.color) === key
+      // Between two bots the earlier one keeps its mascot.
+      && (!isBotMember(snapshot, otherId) || (snapshot.members[otherId]?.joinOrder ?? 0) < member.joinOrder)
+    ));
+    if (clashes) bot.characterId = chooseBotCharacter(snapshot, botId, bot.color);
+    member.ready = true;
+  }
+};
 
 /**
  * The team a joining player is placed on: the one with fewer active members, Team 1 on a tie. Four joins therefore give
@@ -1019,6 +1129,16 @@ export const assertSupportedRoomSnapshot = (
       !== Boolean(room.gameSnapshot.gameState.boardState.winner)
   ) {
     throw new Error('Persisted room winner and lifecycle disagree');
+  }
+  if (room.hostPlayerId && isBotMember(room.gameSnapshot, room.hostPlayerId)) {
+    throw new Error('Persisted room host is a bot');
+  }
+  const bots = Object.values(room.gameSnapshot.members).filter(member => memberKind(member) === 'BOT');
+  if (bots.length > MAX_BOTS_PER_ROOM || bots.some(member => member.membershipStatus === 'LEFT')) {
+    throw new Error('Persisted room bot seats are inconsistent');
+  }
+  if (room.status === 'LOBBY' && bots.some(member => member.membershipStatus === 'ACTIVE' && !member.ready)) {
+    throw new Error('Persisted lobby has a bot that is not Ready');
   }
   if (
     room.status === 'LOBBY'

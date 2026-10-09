@@ -7,8 +7,9 @@ import {
   setTeamColorRequestSchema,
   setTeamNameRequestSchema,
 } from '@monopoly/shared';
-import { reviveTeammate, sanitizeName } from '../game';
-import { activePlayerIds, lobbySeatHolders } from '../rooms';
+import { sanitizeName } from '../game';
+import { reviveTeammateCommand, runGameCommand } from '../commands/gameplay';
+import { activePlayerIds, isBotMember, lobbySeatHolders } from '../rooms';
 import type { AppRuntime } from '../services/runtime';
 import {
   activeTeamMembers,
@@ -168,6 +169,11 @@ export function registerTeamHandlers(io: AppServer, socket: AppSocket, runtime: 
         if (!target || target.membershipStatus !== 'ACTIVE' || !state.players[request.targetPlayerId]) {
           throw new CommandError('CONFLICT', 'Người chơi này không còn trong phòng chờ.');
         }
+        // A bot cannot answer a question and never minds where it sits: it agrees at once.
+        if (isBotMember(room.gameSnapshot, request.targetPlayerId)) {
+          swapPlayerSeats(room.gameSnapshot, state, actor.playerId, request.targetPlayerId);
+          return;
+        }
         state.boardState.seatSwapRequests = [
           ...state.boardState.seatSwapRequests.filter((open) => open.requesterPlayerId !== actor.playerId),
           { requesterPlayerId: actor.playerId, targetPlayerId: request.targetPlayerId },
@@ -233,19 +239,10 @@ export function registerTeamHandlers(io: AppServer, socket: AppSocket, runtime: 
   socket.on('revive teammate', async (acknowledge) => {
     try {
       const actor = requirePlayer(socket, runtime);
-      const committed = await commitRoomCommand(runtime, actor.roomId, ({ room, state }) => {
-        if (room.status !== 'IN_PROGRESS') {
-          throw new CommandError('CONFLICT', 'Ván chơi hiện không nhận thao tác này.');
-        }
-        if (!state.players[actor.playerId]) {
-          throw new CommandError('FORBIDDEN', 'Chỉ người chơi còn trong ván mới có thể hồi sinh đồng đội.');
-        }
-        const result = reviveTeammate(state, actor.playerId);
-        if (!result.ok) throw new CommandError('CONFLICT', result.reason);
-      }, undefined, actor);
-      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
-      broadcastRoom(io, runtime, committed.room);
-      acknowledge(successAck(committed.room.aggregateVersion));
+      const { room } = await runGameCommand(io, runtime, reviveTeammateCommand, actor.roomId, actor.playerId, undefined, {
+        authority: actor,
+      });
+      acknowledge(successAck(room.aggregateVersion));
     } catch (error) {
       acknowledgeFailure(acknowledge, error);
     }

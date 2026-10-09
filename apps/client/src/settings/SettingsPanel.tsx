@@ -109,6 +109,13 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
         </section>
         <section className="settings-panel__section" aria-labelledby="settings-audio-title">
           <SectionHeading id="settings-audio-title" icon={<ActionIcon name="volume" />}>{t('settings.audio')}</SectionHeading>
+          <div className="settings-panel__field">
+            <Switch
+              label={t('settings.mute')}
+              checked={settings.muted}
+              onChange={checked => updateSettings({ muted: checked })}
+            />
+          </div>
           {VOLUME_CONTROLS.map(({ key, labelKey }) => (
             <Slider
               key={key}

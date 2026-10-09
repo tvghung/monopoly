@@ -1,7 +1,7 @@
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
-export const SOCKET_PROTOCOL_VERSION = 11 as const;
+export const SOCKET_PROTOCOL_VERSION = 12 as const;
 
 export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
 export type PlayerId = string;
@@ -87,6 +87,10 @@ export function getAppearanceCombinationKey(
 export type RoomStatus = 'LOBBY' | 'IN_PROGRESS' | 'FINISHED';
 export type RoomRole = 'PLAYER' | 'SPECTATOR';
 export type RoomMembershipStatus = 'ACTIVE' | 'FINISHED' | 'LEFT';
+// Who plays a seat. A BOT seat is played by the host process through the same commands as a human; it has no session,
+// token or connection. Added in protocol 12.
+export const PLAYER_KINDS = ['HUMAN', 'BOT'] as const;
+export type PlayerKind = typeof PLAYER_KINDS[number];
 export type PlayerSessionStatus = 'PENDING' | 'ACTIVE' | 'REVOKED' | 'EXPIRED';
 export type FinishedPlayerReason = 'BANKRUPT' | 'LEFT';
 export type PrivateOfferStatus =
@@ -635,6 +639,9 @@ export interface BoardState {
   gameStarted: boolean;
   // Set by the authoritative start command; optional for older persisted snapshots.
   gameStartedAt?: string | null;
+  // A fresh UUID per started match (set by `start game`, cleared by `play again`), so work scheduled for one match can never
+  // apply to the rematch. Absent in snapshots older than schema 11.
+  matchId?: string | null;
   // Lobby configuration that survives "play again" (together with each player's `teamId`).
   gameMode: GameMode;
   teams: TeamSettingsById;
@@ -771,7 +778,9 @@ export interface RoomPlayerMeta {
   joinOrder: number;
   membershipStatus: RoomMembershipStatus;
   ready: boolean;
+  // Always true for an active bot, which the host process plays and which never disconnects.
   connected: boolean;
+  kind: PlayerKind;
 }
 
 export interface PublicRoomState {
@@ -836,6 +845,22 @@ export interface KickPlayerRequest {
   playerId: PlayerId;
 }
 
+// Host only, lobby only: adds one bot to a free seat. `requestId` makes a retried click idempotent.
+export interface AddBotRequest {
+  requestId: string;
+  // 2v2 lobby: the empty seat the host clicked. Ignored in Solo; an occupied seat falls back to the seat a joiner would get.
+  seat?: { teamId: TeamId; teamSlot: TeamSlot };
+}
+
+export interface AddBotResult {
+  playerId: PlayerId;
+}
+
+// Host only, lobby only: removes a bot seat.
+export interface RemoveBotRequest {
+  playerId: PlayerId;
+}
+
 // 2v2 lobby: the actor moves to a seat nobody holds. The server refuses an occupied seat.
 export interface MoveToSeatRequest {
   teamId: TeamId;
@@ -881,6 +906,11 @@ export interface ResumeSessionResult {
   privatePlayerState: PrivatePlayerState;
   pendingOffers: PrivateOffer[];
   forcedSaleProposal?: ForcedSaleProposal | null;
+  /**
+   * The public continuity key of the Host's server process (base64url SPKI, P-256). After a link change the client hands its
+   * token only to an address that signs a fresh challenge with this key (see `hostContinuity.ts`). Public, never a credential.
+   */
+  hostContinuityKey?: string;
 }
 
 export interface LeaveRoomResult {

@@ -1,6 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import type { PersistenceTimingConfig } from '../config';
 import type { PersistenceStore } from '../persistence';
 import type { RoomSnapshot } from '../rooms';
+import { BotRequestLedger } from './botRequestLedger';
+import { HostContinuity } from './hostContinuity';
 import { RoomCommandExecutor } from './roomCommandExecutor';
 import { ConnectionRegistry } from './connectionRegistry';
 import { PlayerSessionService } from './playerSessionService';
@@ -14,8 +17,16 @@ export interface AppRuntime {
   commands: RoomCommandExecutor<RoomSnapshot>;
   connections: ConnectionRegistry;
   sessions: PlayerSessionService;
+  /** `add bot` request ids already applied per room (idempotent retries). */
+  botRequests: BotRequestLedger;
   timing: PersistenceTimingConfig;
   flags: RuntimeFlags;
+  /** A random id of this server process: shown by `/_otb/room` for the desktop Join's LAN/Online match, never a credential. */
+  instanceId: string;
+  /** This process's continuity key and own addresses (relink after a tunnel change). */
+  continuity: HostContinuity;
+  /** Told about every room change so bot seats can answer what the room waits for (set once the bot driver exists). */
+  bots?: { notify(roomId: string): void };
 }
 
 /** The deadline lengths every payment-queue mutation needs (liquidation, and the 2v2 rescue decision), from one place. */
@@ -38,6 +49,9 @@ export function createAppRuntime(
     commands: new RoomCommandExecutor(persistence),
     connections: new ConnectionRegistry(),
     sessions: new PlayerSessionService(persistence, timing),
+    botRequests: new BotRequestLedger(),
+    instanceId: randomUUID(),
+    continuity: new HostContinuity(),
     timing,
     flags: { shuttingDown: false },
   };

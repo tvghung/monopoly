@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import type { ServerRuntimeProfile } from '../config';
 import type { AppRuntime } from '../services/runtime';
 import { AdmissionLimiter } from './admissionLimiter';
+import { registerBotHandlers } from './bots';
 import { registerBuildingHandlers } from './building';
 import { registerCardHandlers } from './card';
 import { registerChatHandlers } from './chat';
@@ -75,6 +76,7 @@ export function registerSocketHandlers(
       trustTunnelHeader,
     });
     registerLobbyHandlers(io, socket, runtime);
+    registerBotHandlers(io, socket, runtime);
     registerTeamHandlers(io, socket, runtime);
     registerTurnHandlers(io, socket, runtime);
     registerChatHandlers(io, socket, runtime);

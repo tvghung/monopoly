@@ -66,7 +66,10 @@ export function createSemanticExecutors(
       audio.play(propertyCue(event), { signal: context.signal, scope: 'presentation' });
       await context.waitForDuration(pulseDuration);
     },
-    finish() {},
+    // A skipped or failed transfer still releases its held owner, so the board never stays on a stale flag.
+    finish(event) {
+      event.transfers.forEach(transfer => store.releaseOwnership(transfer.eventId, transfer.tileId, transfer.toPlayerId));
+    },
   };
 
   const passGo: PresentationExecutor<PassGoPresentationEvent> = {
@@ -94,6 +97,14 @@ export function createSemanticExecutors(
       if (!current(context)) return;
       const physicalDuration = context.getDuration(presentationTiming.jailTransfer);
       const { playerId, fromTile, destinationTile } = event.event;
+      const previewId = `${event.id}:destination-preview`;
+      // The jail is the destination of this move: it is marked while the token travels and cleared once it has landed.
+      store.showDestinationPreview({
+        id: previewId,
+        playerId,
+        tileId: destinationTile,
+        strongDurationMs: context.getDuration(presentationTiming.destinationPreviewStrong),
+      });
       if (physicalDuration > 0) {
         store.startJailTransfer(playerId, fromTile, destinationTile, physicalDuration);
         store.emitCharacterReaction(playerId, 'jail', physicalDuration);
@@ -113,10 +124,12 @@ export function createSemanticExecutors(
         context.getDuration(presentationTiming.tileImpact.landDepress)
         + context.getDuration(presentationTiming.tileImpact.landRebound),
       );
+      store.clearDestinationPreview(previewId);
     },
     finish(event, context) {
       if (context.signal.aborted && (context.isCurrent?.() ?? true)) {
         store.snapDisplayPosition(event.event.playerId, event.event.destinationTile);
+        store.clearDestinationPreview(`${event.id}:destination-preview`);
       }
     },
   };

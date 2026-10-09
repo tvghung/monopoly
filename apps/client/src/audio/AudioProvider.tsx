@@ -49,11 +49,11 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     audio.setMix({
-      masterGain: settings.masterVolume,
+      masterGain: settings.muted ? 0 : settings.masterVolume,
       musicGain: settings.musicVolume,
       sfxGain: settings.sfxVolume,
     });
-  }, [audio, settings.masterVolume, settings.musicVolume, settings.sfxVolume]);
+  }, [audio, settings.masterVolume, settings.muted, settings.musicVolume, settings.sfxVolume]);
 
   useEffect(() => {
     audio.retain();

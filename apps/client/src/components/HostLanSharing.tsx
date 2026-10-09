@@ -120,6 +120,10 @@ export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
         <p className="lobby__eyebrow" id="lobby-share-title">{t('sharing.heading')} · {t(status?.connectionMode === 'ONLINE' ? 'sharing.online' : 'sharing.lan')}</p>
         {status && !joinUrl ? <p className="lobby-share__warning" role="status">{t(status.connectionMode === 'ONLINE' ? activationFailed || status.onlineState === 'UNAVAILABLE' ? 'sharing.unavailable' : 'sharing.connecting' : 'lan.noNetwork')}</p> : null}
         {status?.onlineState === 'DISCOVERY_UNAVAILABLE' ? <p className="lobby-share__warning" role="status">{t('sharing.discoveryUnavailable')}</p> : null}
+        {/* Without a room registry a code cannot be looked up from another network: only the link and the QR reach this room. */}
+        {status?.connectionMode === 'ONLINE' && status.onlineState === 'READY' && status.discoveryConfigured === false
+          ? <p className="lobby-share__note">{t('sharing.linkOnly')}</p>
+          : null}
         {activationFailed || status?.onlineState === 'DISCOVERY_UNAVAILABLE'
           ? <Button variant="ghost" onClick={() => activate(status?.onlineEndpoint ?? undefined)}>{t('sharing.retry')}</Button> : null}
         {networkChoices.length > 0 ? (

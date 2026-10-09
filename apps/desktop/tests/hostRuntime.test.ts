@@ -11,6 +11,7 @@ class FakeHelper implements ServerHelperLike {
   stops = 0;
   startError?: Error;
   healthError?: Error;
+  published: string[][] = [];
   private listener?: (diagnostic: string) => void;
   constructor(private readonly port = 43123) {}
   async start(): Promise<ServerHelperInfo> {
@@ -21,6 +22,7 @@ class FakeHelper implements ServerHelperLike {
   }
   async stop(): Promise<void> { this.stops += 1; this.state = 'STOPPED'; }
   async checkHealth(): Promise<void> { if (this.healthError) throw this.healthError; }
+  setPublicEndpoints(endpoints: readonly string[]): void { this.published.push([...endpoints]); }
   onUnexpectedExit(listener: (diagnostic: string) => void): () => void {
     this.listener = listener;
     return () => { this.listener = undefined; };
@@ -212,6 +214,8 @@ describe('Online Host (Cloudflare Quick Tunnel)', () => {
     expect(controller.status.state).toBe('HOSTING');
     expect(helper.stops).toBe(0);
     expect(controller.creationCapability('ONLINE-1')).toMatch(/^[a-f0-9]{64}$/u);
+    // The server process signs continuity only for its current tunnel: the old address is withdrawn, the new one published.
+    expect(helper.published).toEqual([['https://first.trycloudflare.com'], [], ['https://second.trycloudflare.com']]);
     await controller.stop();
   });
 

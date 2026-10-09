@@ -18,6 +18,7 @@ import {
   MIN_PLAYERS,
   assertSupportedRoomSnapshot,
   hydrateGameState,
+  memberKind,
   type RoomSnapshot,
 } from '../rooms';
 import type { ConnectionRegistry } from './connectionRegistry';
@@ -53,7 +54,8 @@ export function projectPublicRoomState(
         membershipStatus: member.membershipStatus,
         ready: member.ready,
         connected: member.membershipStatus === 'ACTIVE'
-          && connections.isConnected(playerId),
+          && (memberKind(member) === 'BOT' || connections.isConnected(playerId)),
+        kind: memberKind(member),
       };
     });
 
@@ -81,6 +83,7 @@ export function projectPublicRoomState(
     boardState: {
       gameStarted: boardState.gameStarted,
       gameStartedAt: boardState.gameStartedAt ?? null,
+      matchId: boardState.matchId ?? null,
       gameMode: boardState.gameMode,
       winningTeamId: boardState.winningTeamId,
       seatSwapRequests: boardState.seatSwapRequests.map((request) => ({ ...request })),

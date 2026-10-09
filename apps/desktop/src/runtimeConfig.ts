@@ -30,6 +30,8 @@ export interface DesktopSocketUrlOptions {
 export interface DesktopReleaseConfig {
   socketUrl?: unknown;
   version?: unknown;
+  /** Optional https origin of the room registry (Online code lookup), written at build time. */
+  registryUrl?: unknown;
 }
 
 export interface DesktopRuntimeConfig {
@@ -92,6 +94,25 @@ export function readPackagedReleaseConfig(configPath: string): DesktopReleaseCon
   }
   if (!isRecord(parsed)) throw invalidSocketUrl();
   return parsed;
+}
+
+/**
+ * The registry the Host uses for Online room codes: the runtime variable wins (development, a self-hosted registry), then the
+ * value the packaged build carries. Undefined means link/QR sharing only.
+ */
+export function resolveRegistryUrl(
+  env: NodeJS.ProcessEnv = process.env,
+  packagedConfig?: DesktopReleaseConfig,
+): string | undefined {
+  const runtime = env.OWN_THE_BLOCK_REGISTRY_URL?.trim();
+  if (runtime) return runtime;
+  return typeof packagedConfig?.registryUrl === 'string' && packagedConfig.registryUrl.trim()
+    ? packagedConfig.registryUrl.trim()
+    : undefined;
+}
+
+export function packagedReleaseConfig(): DesktopReleaseConfig | undefined {
+  return readPackagedReleaseConfig(packagedReleaseConfigPath());
 }
 
 function explicitEnvironmentValue(env: NodeJS.ProcessEnv): string | undefined {

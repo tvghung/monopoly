@@ -54,6 +54,8 @@ export interface HostRuntimeStatus {
   connectionMode?: 'LAN' | 'ONLINE';
   onlineEndpoint?: string | null;
   onlineState?: 'CONNECTING' | 'AWAITING_ROOM' | 'READY' | 'DISCOVERY_UNAVAILABLE' | 'UNAVAILABLE';
+  /** This build can make an Online room findable by its code from another network. */
+  discoveryConfigured?: boolean;
   errorCode?: HostRuntimeErrorCode;
   diagnostic?: string;
 }
@@ -66,7 +68,7 @@ export type HostRuntimeOperationResult =
 export type LanFindRoomFailureCode = 'NOT_FOUND' | 'UNREACHABLE' | 'NO_NETWORK' | 'UNAVAILABLE';
 
 export type LanFindRoomResult =
-  | { ok: true; endpoint: string }
+  | { ok: true; endpoint: string; instanceId?: string }
   | { ok: false; code: LanFindRoomFailureCode };
 
 /**
@@ -176,7 +178,7 @@ export interface OwnTheBlockDesktopBridge {
     findRoom(roomCode: string): Promise<LanFindRoomResult>;
   };
   online?: {
-    findRoom(roomCode: string): Promise<{ ok: true; endpoint: string } | { ok: false; code: 'NOT_FOUND' | 'UNAVAILABLE' }>;
+    findRoom(roomCode: string): Promise<{ ok: true; endpoint: string; instanceId?: string } | { ok: false; code: 'NOT_FOUND' | 'UNAVAILABLE' }>;
   };
   /** The in-app updater; absent on a bridge that predates it. */
   update?: {

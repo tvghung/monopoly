@@ -145,7 +145,16 @@ ACK is resumable because token was stored first.
   unscoped V1/V2 token, performs the selected fresh join instead.
 - Every new Socket.IO connection resumes token before enabling mutation.
 - During transport loss, last snapshot remains visible under `RECONNECTING` overlay;
-  actions are disabled.
+  actions are disabled. After `RECONNECT_STALL_MS` (20 s) the overlay offers "Link mời mới của phòng": only an invitation
+  of the same room code is accepted, and only after the new address signs a fresh challenge for that room and address with
+  the `hostContinuityKey` pinned from the resume ACK (`runtime/hostContinuity.ts`; otherwise "Link này không dẫn tới máy
+  chủ…", or "Trang này không kiểm tra được máy chủ mới…" where WebCrypto is missing, and the token goes nowhere); the
+  registry answer of a desktop guest is only a hint that goes through the same check; then the token is
+  written for the new authority (`writePlayerSessionForRoom`) and the shell
+  remounts App on that endpoint (`onSwitchEndpoint`: desktop launch selection, or the web socket URL). A desktop guest also
+  asks the registry (`bridge.online.findRoom`) and switches by itself when the Host has a new address.
+- The browser join field takes a code or a whole invitation link (`parseJoinInput`, the desktop launcher's parser): a link to
+  this page joins by its code, a link to another Host opens that Host's invitation page, anything else is refused with a message.
 - Transient network errors retain the token for retry while the same host process is running.
 - Invalid/revoked/expired/room-gone terminal errors clear the invalid local record
   and show safe recovery without silently issuing a fresh `join room`. In desktop

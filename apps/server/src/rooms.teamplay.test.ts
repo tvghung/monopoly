@@ -14,6 +14,7 @@ import {
   syncMembershipWithGameState,
   upgradeRoomSnapshotV8ToV9,
   upgradeRoomSnapshotV9ToV10,
+  upgradeRoomSnapshotV10ToV11,
   type RoomSnapshot,
 } from './rooms.js';
 import { startTeamMatch } from './game/index.js';
@@ -95,9 +96,9 @@ function bankrupt(snapshot: RoomSnapshot, playerId: PlayerId): void {
   syncMembershipWithGameState(snapshot);
 }
 
-describe('snapshot schema v10', () => {
+describe('snapshot schema v11', () => {
   it('is the current durable version and a fresh room is a Solo room with default teams', () => {
-    expect(ROOM_SNAPSHOT_SCHEMA_VERSION).toBe(10);
+    expect(ROOM_SNAPSHOT_SCHEMA_VERSION).toBe(11);
     const { boardState } = createRoomSnapshot().gameState;
     expect(boardState.gameMode).toBe('SOLO');
     expect(boardState.teams).toEqual({
@@ -128,7 +129,7 @@ describe('snapshot schema v10', () => {
 
   it('accepts the supported-snapshot gate with the room lifecycle for a started 2v2 game', () => {
     expect(() => assertSupportedRoomSnapshot({
-      snapshotSchemaVersion: 10, gameSnapshot: snapshot2v2(true), hostPlayerId: P1, status: 'IN_PROGRESS',
+      snapshotSchemaVersion: ROOM_SNAPSHOT_SCHEMA_VERSION, gameSnapshot: snapshot2v2(true), hostPlayerId: P1, status: 'IN_PROGRESS',
     })).not.toThrow();
     expect(() => assertSupportedRoomSnapshot({
       snapshotSchemaVersion: 9, gameSnapshot: snapshot2v2(true), hostPlayerId: P1, status: 'IN_PROGRESS',
@@ -436,7 +437,7 @@ describe('V8 to V9 upgrade', () => {
     expect(players[V8_P1]).toMatchObject({ name: 'One', color: 'red', accountBalance: 1500 });
     // V9 is no longer the current version; the full chain passes every invariant.
     expect(() => assertSupportedRoomSnapshot(upgraded)).toThrow(/Unsupported room snapshot schema version 9/);
-    expect(() => assertSupportedRoomSnapshot(upgradeRoomSnapshotV9ToV10(upgraded))).not.toThrow();
+    expect(() => assertSupportedRoomSnapshot(upgradeRoomSnapshotV10ToV11(upgradeRoomSnapshotV9ToV10(upgraded)))).not.toThrow();
   });
 
   it('upgrades a decided game too: the winner receives a team and no team winner is invented', () => {
@@ -497,7 +498,7 @@ describe('V9 to V10 upgrade', () => {
     expect(boardState.seatSwapRequests).toEqual([]);
     expect([A, C].map((id) => players[id].teamSlot)).toEqual([0, 1]); // Team 1 in join order 2, 6
     expect([B, D].map((id) => players[id].teamSlot)).toEqual([0, 1]); // Team 2 in join order 4, 8
-    expect(() => assertSupportedRoomSnapshot(upgraded)).not.toThrow();
+    expect(() => assertSupportedRoomSnapshot(upgradeRoomSnapshotV10ToV11(upgraded))).not.toThrow();
   });
 
   it('never assigns a seat above 1, even for a legacy team with more than two players', () => {
@@ -615,7 +616,7 @@ describe('public projection of team state', () => {
     const projected = projectPublicRoomState(room(snapshot, 'IN_PROGRESS'), new ConnectionRegistry());
     const board = projected.gameState.boardState;
 
-    expect(projected.protocolVersion).toBe(11);
+    expect(projected.protocolVersion).toBe(12);
     expect(board.gameMode).toBe('TEAM_2V2');
     expect(board.winningTeamId).toBeNull();
     expect(board.teams).toEqual([

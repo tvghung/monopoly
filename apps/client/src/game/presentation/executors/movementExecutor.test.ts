@@ -405,12 +405,24 @@ describe('movement tile-hop presentation', () => {
     }, immediateContext);
     expect(store.getSnapshot().destinationPreview).toBeNull();
 
+    // A card relocation (SNAP) shows its destination too, until its landing clears it.
     const snapStore = new PresentationStore();
     snapStore.resetFromSnapshot(makeRoom());
     await createMovementExecutor(snapStore).run(
       walkEvent({ to: 3, steps: 3, presentation: 'SNAP' }),
       immediateContext,
     );
+    expect(snapStore.getSnapshot().destinationPreview).toMatchObject({ playerId: 'player-a', tileId: 3 });
+    expect(snapStore.getSnapshot().displayPositions['player-a']).toBe(3);
+    await (createBasicExecutors(snapStore).LAND_TILE as unknown as PresentationExecutor<LandTilePresentationEvent>).run({
+      id: 'land-snap',
+      roomId: 'room-1',
+      roomVersion: 2,
+      type: 'LAND_TILE',
+      entityId: 'player-a',
+      playerId: 'player-a',
+      tileId: 3,
+    }, immediateContext);
     expect(snapStore.getSnapshot().destinationPreview).toBeNull();
   });
 

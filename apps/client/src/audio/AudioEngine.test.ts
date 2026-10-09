@@ -96,6 +96,16 @@ class FakeAudioContext {
   public closeCount = 0;
   public decodeImplementation?: () => Promise<AudioBuffer>;
   public resumeImplementation?: () => Promise<void>;
+  public readonly listeners: Array<() => void> = [];
+
+  public addEventListener(type: string, listener: () => void): void {
+    if (type === 'statechange') this.listeners.push(listener);
+  }
+
+  public changeState(state: FakeAudioContext['state']): void {
+    this.state = state;
+    this.listeners.forEach(listener => listener());
+  }
 
   public constructor(state: FakeAudioContext['state'] = 'suspended') {
     this.state = state;
@@ -320,6 +330,39 @@ describe('AudioEngine', () => {
     await flushPromises();
 
     expect(musicSources(context)).toHaveLength(2);
+  });
+
+  it('resumes a context the system interrupted when the page is shown again, with one music source', async () => {
+    vi.useFakeTimers();
+    const context = new FakeAudioContext('running');
+    const engine = makeEngine(context);
+    engine.setGameActive(true);
+    engine.handleUserInteraction();
+    await flushPromises();
+    expect(musicSources(context)).toHaveLength(1);
+
+    engine.setDocumentHidden(true);
+    context.state = 'interrupted';
+    engine.setDocumentHidden(false);
+    await flushPromises();
+    vi.advanceTimersByTime(300);
+    await flushPromises();
+    expect(context.resumeCount).toBe(1);
+    expect(context.state).toBe('running');
+    expect(musicSources(context)).toHaveLength(2);
+    expect(musicSources(context)[0]?.stops).toHaveLength(1);
+  });
+
+  it('never starts a second music source when the browser resumes a suspended context by itself', async () => {
+    const context = new FakeAudioContext('running');
+    const engine = makeEngine(context);
+    engine.setGameActive(true);
+    engine.handleUserInteraction();
+    await flushPromises();
+    context.changeState('suspended');
+    context.changeState('running');
+    await flushPromises();
+    expect(musicSources(context)).toHaveLength(1);
   });
 
   it('keeps procedural cues available while sample cues load', async () => {

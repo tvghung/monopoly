@@ -16,10 +16,10 @@ afterEach(() => {
 
 // Ada (host) and Chi are "Rồng" in red (seats 0 and 1), Grace and Dũng are "Phượng" in blue (seats 0 and 1).
 const players: LobbyPlayerView[] = [
-  { id: 'player-a', name: 'Ada', teamId: 'TEAM_1', teamSlot: 0, color: 'red', characterId: 'dog', ready: true, connected: true },
-  { id: 'player-b', name: 'Grace', teamId: 'TEAM_2', teamSlot: 0, color: 'blue', characterId: 'panda', ready: true, connected: true },
-  { id: 'player-c', name: 'Chi', teamId: 'TEAM_1', teamSlot: 1, color: 'red', characterId: 'cat', ready: true, connected: true },
-  { id: 'player-d', name: 'Dũng', teamId: 'TEAM_2', teamSlot: 1, color: 'blue', characterId: 'duck', ready: true, connected: true },
+  { id: 'player-a', name: 'Ada', teamId: 'TEAM_1', teamSlot: 0, color: 'red', characterId: 'dog', ready: true, connected: true, kind: 'HUMAN' as const },
+  { id: 'player-b', name: 'Grace', teamId: 'TEAM_2', teamSlot: 0, color: 'blue', characterId: 'panda', ready: true, connected: true, kind: 'HUMAN' as const },
+  { id: 'player-c', name: 'Chi', teamId: 'TEAM_1', teamSlot: 1, color: 'red', characterId: 'cat', ready: true, connected: true, kind: 'HUMAN' as const },
+  { id: 'player-d', name: 'Dũng', teamId: 'TEAM_2', teamSlot: 1, color: 'blue', characterId: 'duck', ready: true, connected: true, kind: 'HUMAN' as const },
 ];
 
 const teams: PublicTeam[] = [

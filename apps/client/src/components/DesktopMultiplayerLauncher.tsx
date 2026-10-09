@@ -296,6 +296,13 @@ export default function DesktopMultiplayerLauncher({
     const lanEndpoint = lanResult?.ok ? normalizeLanEndpoint(lanResult.endpoint) : undefined;
     const onlineEndpoint = onlineResult?.ok ? publicHttpsEndpoint(onlineResult.endpoint) : undefined;
     if (lanEndpoint && onlineEndpoint) {
+      // An Online Host answers on its LAN too: the same process (same instance id) is one room, joined over the LAN.
+      const sameHost = lanResult?.ok && onlineResult?.ok && lanResult.instanceId !== undefined
+        && lanResult.instanceId === onlineResult.instanceId;
+      if (sameHost) {
+        enterRoom(lanEndpoint, input.roomCode);
+        return;
+      }
       setError({ kind: 'ambiguous' });
       return;
     }

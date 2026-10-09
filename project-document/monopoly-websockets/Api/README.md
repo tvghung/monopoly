@@ -18,7 +18,7 @@ Express runtime và Socket.IO command modules. RAM session/lifecycle detail:
 
 ## Authority/commit
 
-Protocol v11 schema → authenticated role/actor → serialized room draft → RAM
+Protocol v12 schema → authenticated role/actor → serialized room draft → RAM
 CAS commit → public/private projection → ACK. Save failure phát không state/update/
 success. Actor/owner/dice/debt target không lấy từ payload; giá forced sale mặc định là giá Bank, chỉ `price?` tùy chọn của seller (V1.1) mới đổi nó.
 

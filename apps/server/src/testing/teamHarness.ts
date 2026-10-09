@@ -1,8 +1,11 @@
 import type { AddressInfo } from 'node:net';
 
+import { randomUUID } from 'node:crypto';
+
 import {
   SOCKET_PROTOCOL_VERSION,
   type Ack,
+  type AddBotResult,
   type AckCallback,
   type CharacterId,
   type ClientToServerEvents,
@@ -19,6 +22,7 @@ import {
 import { io as createClient, type Socket as ClientSocket } from 'socket.io-client';
 import { afterEach } from 'vitest';
 
+import { BotDriver, type BotDriverOptions } from '../bots/driver.js';
 import type { PersistenceTimingConfig } from '../config.js';
 import { createServer } from '../createServer.js';
 import { InMemoryPersistenceStore } from '../persistence/inMemory.js';
@@ -33,6 +37,8 @@ type TestSocket = ClientSocket<ServerToClientEvents, ClientToServerEvents>;
 export interface RunningServer {
   runtime: AppRuntime;
   io: AppServer;
+  /** Present when the server was started with bot options. */
+  bots?: BotDriver;
   url: string;
   close: () => Promise<void>;
 }
@@ -70,10 +76,16 @@ export function useHarnessCleanup(): void {
 
 export async function startServer(
   persistence: PersistenceStore<RoomSnapshot> = new InMemoryPersistenceStore<RoomSnapshot>(),
+  options: { bots?: BotDriverOptions; timing?: Partial<PersistenceTimingConfig> } = {},
 ): Promise<RunningServer> {
-  const runtime = createAppRuntime(persistence, TIMING);
+  const runtime = createAppRuntime(persistence, { ...TIMING, ...options.timing });
   const { server, io } = createServer(runtime);
   registerSocketHandlers(io, runtime, 'development');
+  const bots = options.bots ? new BotDriver(io, runtime, options.bots) : undefined;
+  if (bots) {
+    runtime.bots = bots;
+    bots.start();
+  }
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
     server.listen(0, '127.0.0.1', () => {
@@ -85,11 +97,13 @@ export async function startServer(
   const running: RunningServer = {
     runtime,
     io,
+    bots,
     url: `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`,
     close: async () => {
       if (closed) return;
       closed = true;
       runtime.flags.shuttingDown = true;
+      bots?.stop();
       await io.close();
     },
   };
@@ -157,6 +171,8 @@ export const setMode = (socket: TestSocket, mode: GameMode) => ack((cb) => socke
 export const setTeamName = (socket: TestSocket, name: string) => ack((cb) => socket.emit('set team name', { name }, cb));
 export const setTeamColor = (socket: TestSocket, color: PlayerColorId) => ack((cb) => socket.emit('set team color', { color }, cb));
 export const kick = (socket: TestSocket, playerId: string) => ack((cb) => socket.emit('kick player', { playerId }, cb));
+export const addBot = (socket: TestSocket, requestId: string = randomUUID()) => ack<AddBotResult>((cb) => socket.emit('add bot', { requestId }, cb));
+export const removeBot = (socket: TestSocket, playerId: string) => ack((cb) => socket.emit('remove bot', { playerId }, cb));
 export const moveToSeat = (socket: TestSocket, teamId: TeamId, teamSlot: TeamSlot) => ack((cb) => socket.emit('move to seat', { teamId, teamSlot }, cb));
 export const requestSeatSwap = (socket: TestSocket, targetPlayerId: string) => ack((cb) => socket.emit('request seat swap', { targetPlayerId }, cb));
 export const cancelSeatSwap = (socket: TestSocket) => ack((cb) => socket.emit('cancel seat swap', cb));

@@ -15,6 +15,7 @@ export const JAIL_ROUND_LIMIT = 2;
 export function describePlayerCard(card: PlayerCardViewModel, language: Language = 'vi'): string {
   const t = (key: MessageKey, values?: Readonly<Record<string, string | number>>) => translate(key, language, values);
   const parts = [card.isLocal ? t('playerCard.localPlayer', { name: card.name }) : card.name];
+  if (card.isBot) parts.push(t('playerCard.bot'));
   if (card.teamName) {
     const relation = relationLabel(card.relation, language);
     const team = t('team.name', { name: card.teamName });

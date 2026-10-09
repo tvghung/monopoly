@@ -9,6 +9,7 @@ import type {
   AckError,
   Ack,
   AckCallback,
+  AddBotResult,
   JoinRoomRequest,
   OfferResult,
   PrivatePlayerState,
@@ -29,7 +30,8 @@ import { Flag, X as XIcon } from 'lucide-react';
 import ErrorScreen from './app/screens/ErrorScreen';
 import LoadingScreen from './app/screens/LoadingScreen';
 import Board from './components/Board';
-import ConnectionOverlay from './components/ConnectionOverlay';
+import ConnectionOverlay, { type RelinkOutcome } from './components/ConnectionOverlay';
+import { verifyHostContinuity } from './runtime/hostContinuity';
 import ForfeitChoiceDialog from './components/ForfeitChoiceDialog';
 import JoinForm from './components/JoinForm';
 import Lobby from './components/Lobby';
@@ -177,13 +179,22 @@ interface AppProps {
   runtimeConfig?: RuntimeConfig;
   launch?: DesktopLaunchSelection;
   onExitToLauncher?: () => void;
+  /**
+   * The Host of this room answers at a new address (its tunnel was replaced). The token has already been stored for that
+   * address; the shell reconnects there and the player resumes their own seat.
+   */
+  onSwitchEndpoint?: (endpoint: string, roomCode: string) => void;
 }
+
+/** How long a reconnection may fail before the overlay offers to use the Host's new link. */
+export const RECONNECT_STALL_MS = 20_000;
 
 export default function App({
   socket: injectedSocket,
   runtimeConfig,
   launch,
   onExitToLauncher,
+  onSwitchEndpoint,
 }: AppProps = {}) {
   const { language, t } = useTranslation();
   const languageRef = useRef(language);
@@ -202,6 +213,8 @@ export default function App({
     : readPlayerSession(sessionAuthority));
   const [initialRoomCode] = useState(() => roomCodeFromLocation());
   const tokenRef = useRef<string | null>(initialToken);
+  // The continuity key of the Host process this seat was resumed on (resume ACK); a new address must sign with it.
+  const hostContinuityKeyRef = useRef<string | null>(null);
   const initialJoinRef = useRef(launch?.initialJoin ?? null);
   // The Host's room-creation capability outlives a failed first admission (timeout, throttling): without it a retry
   // would be a Guest request for a room that does not exist yet. It is dropped once the admission is accepted.
@@ -232,6 +245,50 @@ export default function App({
   /** The "Xem tiếp / Rời phòng" choice a player gets right after giving up. */
   const [forfeitChoiceOpen, setForfeitChoiceOpen] = useState(false);
   const desktopBridge = getDesktopBridge();
+  // A reconnection that keeps failing may mean the Host's link changed: after a while the overlay offers to use a new link.
+  const [reconnectStalled, setReconnectStalled] = useState(false);
+
+  useEffect(() => {
+    if (phase !== 'RECONNECTING') {
+      setReconnectStalled(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setReconnectStalled(true), RECONNECT_STALL_MS);
+    return () => clearTimeout(timer);
+  }, [phase]);
+
+  /**
+   * Moves this player's token to the Host's new address (in this device's storage only) and reconnects there, but only once
+   * that address signs a fresh challenge with the pinned continuity key of the Host process (`runtime/hostContinuity.ts`):
+   * another Host using the same room code, a replayed or relayed answer, or a restarted Host never receives the token.
+   */
+  const switchEndpoint = useCallback(async (endpoint: string, roomCode: string): Promise<RelinkOutcome> => {
+    const token = tokenRef.current;
+    const pinnedKey = hostContinuityKeyRef.current;
+    const target = getSessionAuthority(endpoint);
+    if (!token || !onSwitchEndpoint || !target || target === sessionAuthority || !pinnedKey) return 'NOT_SAME_HOST';
+    const outcome = await verifyHostContinuity(endpoint, roomCode, pinnedKey);
+    if (outcome !== 'SAME_HOST') return outcome;
+    // The seat may have changed while the check ran (a new resume, leave): only the token checked for is moved.
+    if (tokenRef.current !== token || hostContinuityKeyRef.current !== pinnedKey) return 'NOT_SAME_HOST';
+    if (!writePlayerSessionForRoom(token, target, roomCode)) return 'NOT_SAME_HOST';
+    onSwitchEndpoint(endpoint, roomCode);
+    return 'OK';
+  }, [onSwitchEndpoint, sessionAuthority]);
+
+  // The desktop app can ask the room registry where the Host is now; a browser relies on the pasted link.
+  useEffect(() => {
+    const roomCode = roomRef.current?.roomCode;
+    if (!reconnectStalled || !roomCode || !desktopBridge?.online) return undefined;
+    let active = true;
+    void desktopBridge.online.findRoom(roomCode).then(result => {
+      // The registry is only a hint: the address it names still has to prove continuity before the token moves.
+      if (active && result.ok) void switchEndpoint(result.endpoint, roomCode);
+    }).catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [desktopBridge, reconnectStalled, switchEndpoint]);
 
   useEffect(() => {
     audio.setGameActive?.(room?.status === 'IN_PROGRESS');
@@ -345,6 +402,7 @@ export default function App({
 
       setFailure(null);
       setOperationError(null);
+      hostContinuityKeyRef.current = response.data.hostContinuityKey ?? null;
       setIdentity(response.data.role, response.data.playerId);
       setPrivatePlayerState(
         response.data.privatePlayerState.playerId === response.data.playerId
@@ -787,7 +845,7 @@ export default function App({
   }, [socket]);
 
   /** The lobby's room commands (mode, team, seats, removing a player) share one busy state and one error line, like ready and appearance. */
-  const runTeamCommand = useCallback((send: (done: (response: Ack) => void) => void) => {
+  const runTeamCommand = useCallback(<T = void,>(send: (done: (response: Ack<T>) => void) => void) => {
     setOperation('team');
     setOperationError(null);
     send((response) => {
@@ -811,6 +869,16 @@ export default function App({
 
   const handleKickPlayer = useCallback((targetPlayerId: string) => {
     runTeamCommand(done => socket.emit('kick player', { playerId: targetPlayerId }, done));
+  }, [runTeamCommand, socket]);
+
+  // A fresh request id per click: a retry of the same emit (replayed after a reconnect) cannot add a second bot.
+  const handleAddBot = useCallback((seat?: { teamId: TeamId; teamSlot: TeamSlot }) => {
+    const requestId = crypto.randomUUID();
+    runTeamCommand<AddBotResult>(done => socket.emit('add bot', seat ? { requestId, seat } : { requestId }, done));
+  }, [runTeamCommand, socket]);
+
+  const handleRemoveBot = useCallback((targetPlayerId: string) => {
+    runTeamCommand(done => socket.emit('remove bot', { playerId: targetPlayerId }, done));
   }, [runTeamCommand, socket]);
 
   const handleMoveToSeat = useCallback((teamId: TeamId, teamSlot: TeamSlot) => {
@@ -1044,6 +1112,7 @@ export default function App({
               teamSlot: member.teamSlot,
               ready: member.ready,
               connected: member.connected,
+              kind: member.kind,
             }))}
           playerId={playerId}
           hostPlayerId={room.hostPlayerId}
@@ -1060,6 +1129,8 @@ export default function App({
           onSetTeamName={handleSetTeamName}
           onSetTeamColor={handleSetTeamColor}
           onKickPlayer={handleKickPlayer}
+          onAddBot={handleAddBot}
+          onRemoveBot={handleRemoveBot}
           onMoveToSeat={handleMoveToSeat}
           onRequestSeatSwap={handleRequestSeatSwap}
           onCancelSeatSwap={handleCancelSeatSwap}
@@ -1114,11 +1185,23 @@ export default function App({
                 // What the player typed on the start screen is already in the form: they never type it twice.
                 initialName={launch?.initialJoin?.name}
                 initialRoomCode={launch?.initialJoin?.roomCode ?? initialRoomCode}
+                // A browser opens another Host's own invitation page; the desktop app joins other Hosts from its start screen.
+                onOpenInvitation={desktopBridge ? undefined : (endpoint, roomCode) => {
+                  window.location.assign(`${endpoint}/?room=${encodeURIComponent(roomCode)}`);
+                }}
               />
             )
             : null}
           {phase === 'LOBBY' || phase === 'GAME' || phase === 'RECONNECTING' ? roomContent : null}
-          {phase === 'RECONNECTING' ? <ConnectionOverlay /> : null}
+          {phase === 'RECONNECTING'
+            ? (
+              <ConnectionOverlay
+                stalled={reconnectStalled}
+                roomCode={room?.roomCode}
+                onUseNewLink={onSwitchEndpoint ? (endpoint, roomCode) => switchEndpoint(endpoint, roomCode) : undefined}
+              />
+            )
+            : null}
           {phase === 'REPLACED' && failure
             ? <FailureScreen title={t('app.sessionOtherWindow')} failure={failure} onBack={onBack} />
             : null}

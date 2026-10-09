@@ -108,7 +108,12 @@ export function buildBoardRenderModel(
   language: Language = 'vi',
 ): BoardRenderModel {
   const tiles = tileState.map((tile, tileId): BoardTileRenderModel => {
-    const owned = state.boardState.ownedProps[tileId];
+    const authoritative = state.boardState.ownedProps[tileId];
+    // An ownership change still waiting in the presentation queue keeps its previous owner on the board until it plays.
+    const heldOwner = presentationState.displayOwnership[tileId];
+    const owned = heldOwner === undefined
+      ? authoritative
+      : heldOwner === null ? undefined : { id: heldOwner, color: authoritative?.color ?? '', houses: authoritative?.id === heldOwner ? authoritative.houses : 0 };
     return {
       tileId,
       name: getTileName(tileId, language),

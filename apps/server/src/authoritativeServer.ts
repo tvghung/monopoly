@@ -6,6 +6,7 @@ import {
 } from './config.js';
 import { InMemoryPersistenceStore } from './persistence/inMemory.js';
 import type { RoomSnapshot } from './rooms.js';
+import { BotDriver } from './bots/driver.js';
 import { DeadlineScheduler } from './services/deadlineScheduler.js';
 import { createAppRuntime } from './services/runtime.js';
 import { tunnelHeaderTrusted } from './socket/clientIdentity.js';
@@ -54,6 +55,11 @@ export async function startAuthoritativeServer(
     trustTunnelHeader: tunnelHeaderTrusted(config.runtimeProfile, environment),
   });
   const scheduler = new DeadlineScheduler(io, runtime);
+  const bots = new BotDriver(io, runtime, {
+    delayScale: config.botActionDelayScale,
+    ...(environment.OTB_BOT_LOG === '1' ? { log: (line: string) => console.log(line) } : {}),
+  });
+  runtime.bots = bots;
   let shutdownPromise: Promise<void> | undefined;
 
   const shutdown = (reason = 'shutdown'): Promise<void> => {
@@ -64,6 +70,7 @@ export async function startAuthoritativeServer(
       }
       runtime.flags.shuttingDown = true;
       scheduler.stop();
+      bots.stop();
       await new Promise<void>((resolve) => {
         void io.close(() => resolve());
       });
@@ -81,6 +88,7 @@ export async function startAuthoritativeServer(
   try {
     await scheduler.runOnce();
     scheduler.start();
+    bots.start();
     const host = options.host ?? config.listenHost;
     const requestedPort = options.port ?? config.port;
     await new Promise<void>((resolve, reject) => {

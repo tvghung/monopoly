@@ -646,6 +646,7 @@ export const boardStateSchema = z.strictObject({
   gameStarted: z.boolean(),
   // Older durable snapshots predate the authoritative match-start timestamp.
   gameStartedAt: isoTimestampSchema.nullable().optional(),
+  matchId: z.uuid().nullable().optional(),
   gameMode: z.enum(GAME_MODES),
   teams: teamSettingsByIdSchema,
   teamPlay: teamPlayStateSchema,

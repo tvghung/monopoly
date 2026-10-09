@@ -7,10 +7,12 @@ import {
   assertSupportedRoomSnapshot,
   calculateNextActionAt,
   hydrateGameState,
+  normalizeLobbyBots,
   storeGameState,
   syncMembershipWithGameState,
   type RoomSnapshot,
 } from '../rooms';
+import { isSeatPresent } from '../services/presence';
 
 export interface DomainCommandContext extends RoomCommandContext<RoomSnapshot> {
   state: GameState;
@@ -43,6 +45,10 @@ export async function commitRoomCommand<TResult>(
   command: (context: DomainCommandContext) => TResult | Promise<TResult>,
   now = new Date(),
   authority?: AuthenticatedActor,
+  options: {
+    /** Runs after the commit and before the room admits its next command (see `RoomCommandExecutionOptions`). */
+    afterCommit?: (committed: RoomCommandCommit<RoomSnapshot, TResult>) => void;
+  } = {},
 ): Promise<RoomCommandCommit<RoomSnapshot, TResult>> {
   return runtime.commands.execute(roomId, async (context) => {
     if (
@@ -57,7 +63,18 @@ export async function commitRoomCommand<TResult>(
     }
     assertSupportedRoomSnapshot(context.room);
     const state = hydrateGameState(context.room.gameSnapshot, context.room.status);
-    const result = await command({ ...context, state, now });
+    let deleted = false;
+    const result = await command({
+      ...context,
+      state,
+      now,
+      deleteRoom: () => {
+        deleted = true;
+        context.deleteRoom();
+      },
+    });
+    // A deleted room is not saved, so there is no aggregate left to finish or validate.
+    if (deleted) return result;
 
     if (state.boardState.winner) {
       context.room.status = 'FINISHED';
@@ -71,13 +88,15 @@ export async function commitRoomCommand<TResult>(
       && !runtime.flags.shuttingDown
       && !state.boardState.winner
       && !state.boardState.paymentQueue
-      && !state.turnInfo.pendingCardInteraction
+      // A revealed card waits on its (absent) actor like a landing decision; a legacy undrawn card has its own deadline.
+      && state.turnInfo.pendingCardInteraction?.stage !== 'AWAITING_DRAW'
       && state.boardState.currentPlayer.id
       && !state.boardState.turnRecovery
-      && !runtime.connections.isConnected(state.boardState.currentPlayer.id)
+      && !isSeatPresent(runtime.connections, context.room.gameSnapshot, state.boardState.currentPlayer.id)
     ) {
       const pendingOperationId = state.turnInfo.pendingPropertyDecision?.operationId
         ?? state.turnInfo.pendingDevelopmentDecision?.operationId
+        ?? state.turnInfo.pendingCardInteraction?.operationId
         ?? null;
       state.boardState.turnRecovery = {
         playerId: state.boardState.currentPlayer.id,
@@ -88,6 +107,7 @@ export async function commitRoomCommand<TResult>(
     }
     storeGameState(context.room.gameSnapshot, state, context.room.status);
     syncMembershipWithGameState(context.room.gameSnapshot);
+    normalizeLobbyBots(context.room.gameSnapshot, context.room.status);
     assertSupportedRoomSnapshot(context.room);
     context.touchActivity(now);
     context.room.expiresAt = roomExpiry(runtime, context.room.status, now);
@@ -96,5 +116,5 @@ export async function commitRoomCommand<TResult>(
       context.room.expiresAt,
     );
     return result;
-  });
+  }, { afterCommit: options.afterCommit });
 }

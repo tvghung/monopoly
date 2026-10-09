@@ -16,7 +16,7 @@ const player = (
   color: 'red',
   characterId: 'dog',
   ready: true,
-  connected: membershipStatus === 'ACTIVE',
+  connected: membershipStatus === 'ACTIVE', kind: 'HUMAN' as const,
 });
 
 const entries = (slots: Map<string, string>) => Object.fromEntries(slots);

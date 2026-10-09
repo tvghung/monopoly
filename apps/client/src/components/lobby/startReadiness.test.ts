@@ -5,12 +5,12 @@ import { getStartBlockReason } from './startReadiness';
 const ada: LobbyPlayerView = {
   teamId: 'TEAM_2',
   teamSlot: 0,
-  id: 'player-a', name: 'Ada', color: 'red', characterId: 'dog', ready: true, connected: true,
+  id: 'player-a', name: 'Ada', color: 'red', characterId: 'dog', ready: true, connected: true, kind: 'HUMAN' as const,
 };
 const grace: LobbyPlayerView = {
   teamId: 'TEAM_2',
   teamSlot: 1,
-  id: 'player-b', name: 'Grace', color: 'blue', characterId: 'panda', ready: true, connected: true,
+  id: 'player-b', name: 'Grace', color: 'blue', characterId: 'panda', ready: true, connected: true, kind: 'HUMAN' as const,
 };
 
 describe('getStartBlockReason', () => {
@@ -45,7 +45,7 @@ describe('getStartBlockReason', () => {
   });
 
   it('flags a player who is offline', () => {
-    expect(getStartBlockReason([ada, { ...grace, connected: false }], 2, 4)).toBe('Có người đang mất kết nối');
+    expect(getStartBlockReason([ada, { ...grace, connected: false, kind: 'HUMAN' as const }], 2, 4)).toBe('Có người đang mất kết nối');
   });
 
   it('flags two players with the same mascot and color, but not the same mascot in another color', () => {
@@ -56,7 +56,7 @@ describe('getStartBlockReason', () => {
   });
 
   it('reports the first applicable reason in the order a host can act on them', () => {
-    const waiting = { ...grace, ready: false, characterId: null, connected: false };
+    const waiting = { ...grace, ready: false, characterId: null, connected: false, kind: 'HUMAN' as const };
     expect(getStartBlockReason([ada, waiting], 2, 4)).toBe('Chờ mọi người sẵn sàng');
     expect(getStartBlockReason([ada, { ...waiting, ready: true }], 2, 4)).toBe('Có người chưa chọn mascot');
     expect(getStartBlockReason([ada, { ...waiting, ready: true, characterId: 'panda' }], 2, 4))
@@ -75,7 +75,7 @@ describe('getStartBlockReason in 2v2', () => {
     characterId: LobbyPlayerView['characterId'],
     teamSlot: LobbyPlayerView['teamSlot'] = 0,
   ): LobbyPlayerView => ({
-    id, name: id, teamId, teamSlot, color: teamId === 'TEAM_1' ? 'red' : 'blue', characterId, ready: true, connected: true,
+    id, name: id, teamId, teamSlot, color: teamId === 'TEAM_1' ? 'red' : 'blue', characterId, ready: true, connected: true, kind: 'HUMAN' as const,
   });
   const balanced = [
     seat('a', 'TEAM_1', 'dog'),
@@ -102,7 +102,7 @@ describe('getStartBlockReason in 2v2', () => {
   it('waits for ready, mascots and connections before looking at duplicates', () => {
     expect(getStartBlockReason([{ ...balanced[0], ready: false }, ...balanced.slice(1)], 2, 4, 'TEAM_2V2')).toBe('Chờ mọi người sẵn sàng');
     expect(getStartBlockReason([{ ...balanced[0], characterId: null }, ...balanced.slice(1)], 2, 4, 'TEAM_2V2')).toBe('Có người chưa chọn mascot');
-    expect(getStartBlockReason([{ ...balanced[0], connected: false }, ...balanced.slice(1)], 2, 4, 'TEAM_2V2')).toBe('Có người đang mất kết nối');
+    expect(getStartBlockReason([{ ...balanced[0], connected: false, kind: 'HUMAN' as const }, ...balanced.slice(1)], 2, 4, 'TEAM_2V2')).toBe('Có người đang mất kết nối');
   });
 
   it('flags two teammates with one mascot, but lets the other team use it', () => {

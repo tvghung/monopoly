@@ -8,7 +8,7 @@ import {
   type TeamId,
   type TeamSlot,
 } from '@monopoly/shared';
-import { activePlayerIds, type RoomSnapshot } from './rooms';
+import { activePlayerIds, isBotMember, type RoomSnapshot } from './rooms';
 
 /**
  * Pure lobby rules for 2v2 teams (no sockets, no persistence). The socket handlers decide who may do what and map a refusal
@@ -137,7 +137,12 @@ export const dropSeatSwapRequestsOf = (state: GameState, playerIds: readonly Pla
 const settleTeamChange = (room: RoomSnapshot, state: GameState, movedPlayerIds: readonly PlayerId[]): void => {
   applyTeamColors(room, state);
   const stayers = activePlayerIds(room).filter((playerId) => !movedPlayerIds.includes(playerId));
-  dedupeTeamMascots(room, state, [...stayers, ...movedPlayerIds]);
+  // Humans keep their mascot over a bot whatever moved; a bot that loses its mascot gets a new one from the lobby normalisation.
+  const priority = [...stayers, ...movedPlayerIds];
+  dedupeTeamMascots(room, state, [
+    ...priority.filter((playerId) => !isBotMember(room, playerId)),
+    ...priority.filter((playerId) => isBotMember(room, playerId)),
+  ]);
   resetReady(room, movedPlayerIds);
 };
 

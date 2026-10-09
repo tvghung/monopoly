@@ -119,6 +119,8 @@ jobs:
             artifact: own-the-block-macos-arm64
     env:
       OWN_THE_BLOCK_RELEASE_SOCKET_URL: ${{ inputs.socket_url }}
+      # Optional Online room-code lookup (services/room-registry, deployed by the owner). Empty: link and QR sharing only.
+      OWN_THE_BLOCK_REGISTRY_URL: ${{ vars.OWN_THE_BLOCK_REGISTRY_URL }}
       OWN_THE_BLOCK_RELEASE_BUILD: '1'
       OWN_THE_BLOCK_RELEASE_PLATFORM: ${{ matrix.platform }}
       OWN_THE_BLOCK_RELEASE_ARCH: ${{ matrix.arch }}

@@ -23,6 +23,7 @@ const emptyState: PresentationState = {
   settledPositions: {},
   displayBalances: {},
   displayDevelopmentLevels: {},
+  displayOwnership: {},
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
   displayRollSequence: 0,
@@ -65,6 +66,8 @@ export class PresentationStore implements PresentationStoreLike {
   private readonly pendingBalanceChanges = new Map<string, Set<string>>();
   private readonly balanceDeltaIds = new Set<string>();
   private readonly ownershipChangeIds = new Set<string>();
+  /** Per tile, the ownership changes still waiting in the queue (their ids); see `holdOwnership`. */
+  private readonly pendingOwnership = new Map<number, Set<string>>();
   private readonly developmentChangeIds = new Set<string>();
   private readonly goCrossingIds = new Set<string>();
   private readonly moneyTransferIds = new Set<string>();
@@ -109,6 +112,7 @@ export class PresentationStore implements PresentationStoreLike {
       settledPositions: positions,
       displayBalances: balances,
       displayDevelopmentLevels: developmentLevels,
+      displayOwnership: {},
       displayActivePlayerId: room.gameState.boardState.currentPlayer.id || null,
       displayDice: { ...room.gameState.boardState.diceValue },
       displayRollSequence: room.gameState.boardState.rollSequence,
@@ -152,6 +156,7 @@ export class PresentationStore implements PresentationStoreLike {
     this.balanceDeltaIds.clear();
     this.pendingBalanceChanges.clear();
     this.ownershipChangeIds.clear();
+    this.pendingOwnership.clear();
     this.developmentChangeIds.clear();
     this.goCrossingIds.clear();
     this.moneyTransferIds.clear();
@@ -249,6 +254,43 @@ export class PresentationStore implements PresentationStoreLike {
       && currentEntries.every(([tileId, level]) => nextLevels[Number(tileId)] === level);
     if (unchanged) return;
     this.state = { ...this.state, displayDevelopmentLevels: nextLevels };
+    this.notify();
+  }
+
+  /**
+   * Keeps showing the previous owner of tiles whose ownership changed in a live update until the queue reaches that change
+   * (the dice, the walk and the landing come first). The authoritative owner is already known; only the display waits.
+   */
+  public holdOwnership(changes: readonly { id: string; tileId: number; fromPlayerId: string | null }[]): void {
+    let changed = false;
+    const displayOwnership = { ...this.state.displayOwnership };
+    changes.forEach(change => {
+      if (this.ownershipChangeIds.has(change.id)) return;
+      const pending = this.pendingOwnership.get(change.tileId) ?? new Set<string>();
+      pending.add(change.id);
+      this.pendingOwnership.set(change.tileId, pending);
+      if (!(change.tileId in displayOwnership)) {
+        displayOwnership[change.tileId] = change.fromPlayerId;
+        changed = true;
+      }
+    });
+    if (!changed) return;
+    this.state = { ...this.state, displayOwnership };
+    this.notify();
+  }
+
+  /** The queue reached (or skipped) an ownership change: show its new owner, or the authoritative one when none is left. */
+  public releaseOwnership(id: string, tileId: number, toPlayerId: string | null): void {
+    const pending = this.pendingOwnership.get(tileId);
+    if (!pending?.delete(id)) return;
+    const displayOwnership = { ...this.state.displayOwnership };
+    if (pending.size === 0) {
+      this.pendingOwnership.delete(tileId);
+      delete displayOwnership[tileId];
+    } else {
+      displayOwnership[tileId] = toPlayerId;
+    }
+    this.state = { ...this.state, displayOwnership };
     this.notify();
   }
 
@@ -529,6 +571,7 @@ export class PresentationStore implements PresentationStoreLike {
     toPlayerId: string | null,
     durationMs: number,
   ): void {
+    this.releaseOwnership(id, tileId, toPlayerId);
     if (this.ownershipChangeIds.has(id)) return;
     this.nextConsequenceOrder += 1;
     this.nextOwnershipChangeSequence += 1;

@@ -721,6 +721,24 @@ describe('DesktopMultiplayerLauncher join form', () => {
     expect(onReady).not.toHaveBeenCalled();
   });
 
+  it('joins over the LAN when LAN and Online answers come from the same Host process', async () => {
+    installHostBridge(status, () => Promise.resolve({ ...FOUND, instanceId: '00000000-0000-4000-8000-000000000042' }));
+    window.ownTheBlockDesktop!.online = {
+      findRoom: vi.fn(() => Promise.resolve({
+        ok: true as const, endpoint: 'https://room.trycloudflare.com', instanceId: '00000000-0000-4000-8000-000000000042',
+      })),
+    };
+    const onReady = vi.fn();
+    render(<DesktopMultiplayerLauncher onReady={onReady} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tham gia phòng' }));
+    fillJoinForm();
+    fireEvent.click(screen.getByRole('button', { name: 'Kết nối và vào phòng' }));
+    await waitFor(() => expect(onReady).toHaveBeenCalledWith(expect.objectContaining({
+      runtimeConfig: expect.objectContaining({ socketUrl: FOUND.endpoint }) as unknown,
+    })));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('rejects malformed invitations before any lookup', () => {
     const { lan } = installHostBridge(status, () => Promise.resolve(FOUND));
     const onReady = vi.fn();

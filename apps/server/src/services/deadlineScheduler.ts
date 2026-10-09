@@ -2,6 +2,7 @@ import type { OfferResult, PlayerId } from '@monopoly/shared';
 import {
   activeDebtClaim,
   completeTurnResolution,
+  dismissPendingCard,
   drawPendingCard,
   nextTurn,
   progressPaymentQueue,
@@ -18,6 +19,7 @@ import { commitRoomCommand } from '../socket/roomCommands';
 import type { AppServer } from '../socket/types';
 import { RuntimeUnavailableError, type TradeOfferRecord } from '../persistence/types';
 import { paymentTimingOptions, type AppRuntime } from './runtime';
+import { hasConnectedHuman, isSeatPresent } from './presence';
 
 /** A sweep that was in flight when the server shut down finds the store closed: expected, not worth an error log. */
 function logUnlessShutdown(message: string, reason: unknown): void {
@@ -220,10 +222,8 @@ export async function recoverRoomIfDue(
         && room.expiresAt?.getTime() === expectedRoomExpiry
         && room.expiresAt <= now
       ) {
-        const hasConnectedPlayer = Object.entries(room.gameSnapshot.members).some(([playerId, member]) => (
-          member.membershipStatus !== 'LEFT' && runtime.connections.isConnected(playerId)
-        ));
-        if (!hasConnectedPlayer) {
+        // Bots never keep an expired room alive: only a connected human does.
+        if (!hasConnectedHuman(runtime.connections, room.gameSnapshot)) {
           context.deleteRoom();
           return { changed: true, cancelledOffers, forcedSalePlayers };
         }
@@ -294,6 +294,16 @@ export async function recoverRoomIfDue(
             const continuation = state.turnInfo.pendingDevelopmentDecision.continuation;
             state.turnInfo = {};
             completeTurnResolution(state, continuation);
+          } else if (state.turnInfo.pendingCardInteraction?.stage === 'REVEALED' && player) {
+            // The absent player's revealed card is mandatory and has no choice in it: apply it exactly as "Đóng" would, so the
+            // game goes on instead of waiting forever. Whatever it leads to (a purchase, a payment) follows the normal rules.
+            const card = state.turnInfo.pendingCardInteraction;
+            dismissPendingCard(state, card.playerId, card.operationId, {
+              now: now.getTime(),
+              ...paymentTimingOptions(runtime),
+              cardAwaitingDrawTimeoutMs: runtime.timing.cardAwaitingDrawTimeoutMs,
+              cardRevealedTimeoutMs: runtime.timing.cardRevealedTimeoutMs,
+            });
           } else if (!state.turnInfo.pendingCardInteraction) {
             nextTurn(state);
           }
@@ -333,7 +343,7 @@ export async function reconcileTurnPresence(
   if (
     !currentPlayerId
     || board.paymentQueue
-    || current.gameSnapshot.gameState.turnInfo.pendingCardInteraction
+    || current.gameSnapshot.gameState.turnInfo.pendingCardInteraction?.stage === 'AWAITING_DRAW'
     || current.gameSnapshot.gameState.privateState.forcedSaleProposal
     || board.winner
   ) return;
@@ -343,11 +353,11 @@ export async function reconcileTurnPresence(
     && board.turnRecovery.turnNumber === board.turnNumber
     && Date.parse(board.turnRecovery.deadlineAt) > now.getTime();
   const shouldArm = !board.turnRecovery
-    && !runtime.connections.isConnected(currentPlayerId)
+    && !isSeatPresent(runtime.connections, current.gameSnapshot, currentPlayerId)
     && reconnectingPlayerId !== currentPlayerId;
   if (!shouldClear && !shouldArm) return;
 
-  const committed = await commitRoomCommand(runtime, roomId, ({ state }) => {
+  const committed = await commitRoomCommand(runtime, roomId, ({ state, room: latestRoom }) => {
     const latestBoard = state.boardState;
     if (
       shouldClear
@@ -363,9 +373,9 @@ export async function reconcileTurnPresence(
       shouldArm
       && !latestBoard.turnRecovery
       && !latestBoard.paymentQueue
-      && !state.turnInfo.pendingCardInteraction
+      && state.turnInfo.pendingCardInteraction?.stage !== 'AWAITING_DRAW'
       && latestBoard.currentPlayer.id
-      && !runtime.connections.isConnected(latestBoard.currentPlayer.id)
+      && !isSeatPresent(runtime.connections, latestRoom.gameSnapshot, latestBoard.currentPlayer.id)
     ) {
       latestBoard.turnRecovery = {
         playerId: latestBoard.currentPlayer.id,
@@ -373,6 +383,7 @@ export async function reconcileTurnPresence(
         deadlineAt: new Date(now.getTime() + runtime.timing.reconnectGraceMs).toISOString(),
         pendingOperationId: state.turnInfo.pendingPropertyDecision?.operationId
           ?? state.turnInfo.pendingDevelopmentDecision?.operationId
+          ?? state.turnInfo.pendingCardInteraction?.operationId
           ?? null,
       };
     }
@@ -396,7 +407,7 @@ export async function armDisconnectedCurrentPlayer(
     || room.status !== 'IN_PROGRESS'
     || board?.currentPlayer.id !== disconnectedPlayerId
     || board.paymentQueue
-    || room.gameSnapshot.gameState.turnInfo.pendingCardInteraction
+    || room.gameSnapshot.gameState.turnInfo.pendingCardInteraction?.stage === 'AWAITING_DRAW'
     || room.gameSnapshot.gameState.privateState.forcedSaleProposal
     || board.turnRecovery
     || board.winner
@@ -407,7 +418,7 @@ export async function armDisconnectedCurrentPlayer(
       runtime.connections.isConnected(disconnectedPlayerId)
       || state.boardState.currentPlayer.id !== disconnectedPlayerId
       || state.boardState.paymentQueue
-      || state.turnInfo.pendingCardInteraction
+      || state.turnInfo.pendingCardInteraction?.stage === 'AWAITING_DRAW'
       || state.boardState.turnRecovery
       || state.boardState.winner
     ) return;
@@ -417,6 +428,7 @@ export async function armDisconnectedCurrentPlayer(
       deadlineAt: new Date(now.getTime() + runtime.timing.reconnectGraceMs).toISOString(),
       pendingOperationId: state.turnInfo.pendingPropertyDecision?.operationId
         ?? state.turnInfo.pendingDevelopmentDecision?.operationId
+        ?? state.turnInfo.pendingCardInteraction?.operationId
         ?? null,
     };
   }, now);

@@ -8,11 +8,13 @@ import {
   TEAM_SLOTS,
 } from './types';
 import type {
+  AddBotRequest,
   JoinRoomRequest,
   KickPlayerRequest,
   MoveToSeatRequest,
   OfferAction,
   OfferInfo,
+  RemoveBotRequest,
   RequestSeatSwapRequest,
   RescueDecisionRequest,
   RespondSeatSwapRequest,
@@ -112,6 +114,15 @@ export const setTeamColorRequestSchema = z.strictObject({
 export const kickPlayerRequestSchema = z.strictObject({
   playerId: playerIdSchema,
 }) satisfies z.ZodType<KickPlayerRequest>;
+
+export const addBotRequestSchema = z.strictObject({
+  requestId: z.uuid(),
+  seat: z.strictObject({ teamId: teamIdSchema, teamSlot: teamSlotSchema }).optional(),
+}) satisfies z.ZodType<AddBotRequest>;
+
+export const removeBotRequestSchema = z.strictObject({
+  playerId: playerIdSchema,
+}) satisfies z.ZodType<RemoveBotRequest>;
 
 export const moveToSeatRequestSchema = z.strictObject({
   teamId: teamIdSchema,
@@ -218,6 +229,8 @@ export const clientEventPayloadSchemas = {
   'set appearance': setAppearanceRequestSchema,
   'set game mode': setGameModeRequestSchema,
   'kick player': kickPlayerRequestSchema,
+  'add bot': addBotRequestSchema,
+  'remove bot': removeBotRequestSchema,
   'set team name': setTeamNameRequestSchema,
   'set team color': setTeamColorRequestSchema,
   'move to seat': moveToSeatRequestSchema,

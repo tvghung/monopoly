@@ -1,9 +1,10 @@
 import {
   act, cleanup, fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
+import { generateKeyPairSync, sign, webcrypto, type KeyObject } from 'node:crypto';
 import { StrictMode } from 'react';
 import type { PrivateOffer, PublicRoomState } from '@monopoly/shared';
-import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
+import { continuityMessage, HOST_CONTINUITY_VERSION, SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
 import {
   afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest';
@@ -17,7 +18,7 @@ const socketHarness = vi.hoisted(() => {
 
   const socket = {
     id: 'transport-only-id',
-    connected: false,
+    connected: false, kind: 'HUMAN' as const,
     auth: {},
     io: { reconnection: vi.fn() },
     on(event: string, handler: SocketHandler) {
@@ -69,7 +70,7 @@ const socketHarness = vi.hoisted(() => {
 
 vi.mock('socket.io-client', () => ({ io: () => socketHarness.socket }));
 
-import App from './App';
+import App, { RECONNECT_STALL_MS } from './App';
 import { ToastProvider } from './components/Toast';
 import { HowToPlayProvider } from './howToPlay/HowToPlayProvider';
 import { PLAYER_SESSION_STORAGE_KEY } from './playerSessionStorage';
@@ -77,6 +78,9 @@ import type { OwnTheBlockDesktopBridge } from './runtime/types';
 import { soloTeamBoardFields } from './game/presentation/testFixtures';
 
 const RECONNECT_TOKEN = 'A'.repeat(43);
+/** The Host process of the game: its continuity key pair (the public half is in the resume ACK). */
+const HOST_KEYS = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+const HOST_CONTINUITY_KEY = HOST_KEYS.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url');
 const FORFEIT_TOKEN = 'B'.repeat(43);
 
 const room: PublicRoomState = {
@@ -98,7 +102,7 @@ const room: PublicRoomState = {
     joinOrder: 1,
     membershipStatus: 'ACTIVE',
     ready: false,
-    connected: true,
+    connected: true, kind: 'HUMAN' as const,
   }],
   gameState: {
     boardState: {
@@ -1225,7 +1229,7 @@ describe('App session admission', () => {
           joinOrder: 2,
           membershipStatus: 'ACTIVE',
           ready: true,
-          connected: true,
+          connected: true, kind: 'HUMAN' as const,
         },
       ],
       gameState: {
@@ -1549,6 +1553,7 @@ describe('App how-to-play key placement', () => {
               gameplayEvents: { sequence: 0, events: [] },
             },
             pendingOffers: [],
+            hostContinuityKey: HOST_CONTINUITY_KEY,
           },
         });
       }
@@ -1624,6 +1629,9 @@ describe('App how-to-play key placement', () => {
     // Every key stays a 44 px design-system key and the toolbar keeps its landmark name.
     expect(buttons.every(button => button.className.includes('ds-icon-button--md'))).toBe(true);
     expect(toolbar.getAttribute('aria-label')).toBe('Điều khiển ván chơi');
+    // Settings and Surrender are recognizable glyphs (gear, flag) whose names live on the buttons.
+    expect(buttons[1].querySelector('svg')?.getAttribute('class')).toContain('lucide-settings');
+    expect(buttons[2].querySelector('svg')?.getAttribute('class')).toContain('lucide-flag');
 
     fireEvent.click(buttons[0]);
     expect(screen.getByRole('dialog', { name: GUIDE })).toBeTruthy();
@@ -1687,6 +1695,103 @@ describe('App how-to-play key placement', () => {
     fireEvent.click(key);
     expect(screen.getByRole('dialog', { name: GUIDE })).toBeTruthy();
   });
+
+  /** The answer of an address to `/_otb/continuity`, signed with `key` (null: the address has no such room). */
+  function continuityAnswer(key: KeyObject | null) {
+    return (input: unknown) => {
+      if (key === null) return Promise.resolve(new Response(null, { status: 404 }));
+      const query = new URL(String(input)).searchParams;
+      const [roomCode, endpoint, challenge] = [query.get('code') ?? '', query.get('endpoint') ?? '', query.get('challenge') ?? ''];
+      const signature = sign('sha256', Buffer.from(continuityMessage(roomCode, endpoint, challenge)), { key, dsaEncoding: 'ieee-p1363' });
+      return Promise.resolve(Response.json({
+        version: HOST_CONTINUITY_VERSION, roomCode, endpoint, challenge, signature: signature.toString('base64url'),
+      }));
+    };
+  }
+
+  /** Renders the game, drops the connection and waits until the overlay offers a new link. */
+  function stallWith(key: KeyObject | null, pageCrypto: unknown = webcrypto) {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    vi.stubGlobal('crypto', pageCrypto);
+    vi.stubGlobal('fetch', vi.fn(continuityAnswer(key)));
+    storeSession();
+    const onSwitchEndpoint = vi.fn();
+    render(
+      <HowToPlayProvider>
+        <ToastProvider>
+          <App onSwitchEndpoint={onSwitchEndpoint} />
+        </ToastProvider>
+      </HowToPlayProvider>,
+    );
+    resumeIntoGame();
+    act(() => { socketHarness.trigger('disconnect', 'transport close'); });
+    expect(screen.queryByLabelText('Link mời mới của phòng')).toBeNull();
+    act(() => { vi.advanceTimersByTime(RECONNECT_STALL_MS); });
+    vi.useRealTimers();
+    fireEvent.change(screen.getByLabelText('Link mời mới của phòng'), {
+      target: { value: `https://new-host.trycloudflare.com/?room=${gameRoom.roomCode}` },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Kết nối bằng link này' }));
+    return onSwitchEndpoint;
+  }
+
+  const storedFor = (authority: string) => (JSON.parse(window.localStorage.getItem(PLAYER_SESSION_STORAGE_KEY) ?? '{}') as {
+    sessions?: Record<string, { token: string; roomCode: string | null }>;
+  }).sessions?.[authority];
+
+  it('after a long outage follows a pasted new link once it proves to be the same Host process', async () => {
+    try {
+      const onSwitchEndpoint = stallWith(HOST_KEYS.privateKey);
+      await waitFor(() => expect(onSwitchEndpoint).toHaveBeenCalledWith('https://new-host.trycloudflare.com', gameRoom.roomCode));
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        expect.stringMatching(new RegExp(String.raw`^https://new-host\.trycloudflare\.com/_otb/continuity\?code=${gameRoom.roomCode}&challenge=[A-Za-z0-9_-]{43}&endpoint=`, 'u')),
+        expect.objectContaining({ credentials: 'omit' }),
+      );
+      // The check never carries the token.
+      expect(JSON.stringify(vi.mocked(fetch).mock.calls)).not.toContain(RECONNECT_TOKEN);
+      expect(storedFor('https://new-host.trycloudflare.com')).toEqual({ token: RECONNECT_TOKEN, roomCode: gameRoom.roomCode });
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('never hands the token to another Host that uses the same room code (it cannot sign with the pinned key)', async () => {
+    try {
+      const onSwitchEndpoint = stallWith(generateKeyPairSync('ec', { namedCurve: 'prime256v1' }).privateKey);
+      expect((await screen.findByRole('alert')).textContent).toBe('Link này không dẫn tới máy chủ của ván bạn đang chơi.');
+      expect(onSwitchEndpoint).not.toHaveBeenCalled();
+      expect(storedFor('https://new-host.trycloudflare.com')).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('treats a restarted Host (no such room at that address) as another Host', async () => {
+    try {
+      const onSwitchEndpoint = stallWith(null);
+      expect((await screen.findByRole('alert')).textContent).toBe('Link này không dẫn tới máy chủ của ván bạn đang chơi.');
+      expect(onSwitchEndpoint).not.toHaveBeenCalled();
+      expect(storedFor('https://new-host.trycloudflare.com')).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('keeps the token where the page cannot check the signature (no WebCrypto on an http page)', async () => {
+    try {
+      const onSwitchEndpoint = stallWith(HOST_KEYS.privateKey, { getRandomValues: webcrypto.getRandomValues.bind(webcrypto) });
+      expect((await screen.findByRole('alert')).textContent).toBe('Trang này không kiểm tra được máy chủ mới. Hãy mở link mới và vào lại phòng.');
+      expect(onSwitchEndpoint).not.toHaveBeenCalled();
+      expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+      expect(storedFor('https://new-host.trycloudflare.com')).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 describe('App 2v2 lobby commands', () => {
@@ -1707,7 +1812,7 @@ describe('App 2v2 lobby commands', () => {
       version,
       hostPlayerId: overrides.hostPlayerId ?? HOST_ID,
       players: seats.map((seat, index) => ({
-        ...seat, joinOrder: index, membershipStatus: 'ACTIVE' as const, ready: false, connected: true,
+        ...seat, joinOrder: index, membershipStatus: 'ACTIVE' as const, ready: false, connected: true, kind: 'HUMAN' as const,
       })),
       gameState: {
         ...room.gameState,

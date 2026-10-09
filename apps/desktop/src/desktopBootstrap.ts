@@ -7,6 +7,7 @@ import { shouldBlockProductionInput } from './productionPolicy';
 import { contentType, PRODUCTION_RENDERER_CSP } from './rendererContentType';
 import { resolveRendererPath } from './security';
 import { HostRuntimeController } from './hostRuntime';
+import { packagedReleaseConfig, resolveRegistryUrl } from './runtimeConfig';
 import { AppQuitCoordinator } from './appQuitCoordinator';
 import { audioRendererProofExitCode } from './audioRendererProofResult';
 import { LanFinder } from './lanFinder';
@@ -32,7 +33,7 @@ function createHostServices(): void {
     clientDist: rendererRoot(),
     appVersion: app.getVersion(),
     routeProbe: probeDefaultRouteAddress,
-    registryUrl: process.env.OWN_THE_BLOCK_REGISTRY_URL,
+    registryUrl: resolveRegistryUrl(process.env, app.isPackaged ? packagedReleaseConfig() : undefined),
     cloudflaredPath: process.env.OWN_THE_BLOCK_CLOUDFLARED_PATH
       ?? path.join(resourcesRoot, 'cloudflared', `${process.platform}-${process.arch}`,
         process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared'),

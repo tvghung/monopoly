@@ -118,9 +118,12 @@ Mục đích: một quyết định (mua, nợ, thẻ…) hay một hộp thoạ
   lựa chọn, chữ đã gõ, request đang chờ, dòng lỗi và deed đã dựng còn nguyên (test dùng cùng phần tử `input` trước và sau). Không có lệnh socket, không gọi `onClose`.
 - **Registry** `Modal/modalPeek.ts` (module-level, chỉ trình bày) biết dialog nào đang ẩn: (1) chỉ dialog **ẩn sau cùng** vẽ nút khôi phục (`useOwnsRestoreKey`); khôi phục nó thì nút của dialog ẩn
   trước đó hiện ra; (2) `useDecisionHidden()` là true khi có dialog `decision` đang ẩn.
-- **Nút khôi phục** (`ModalPeekRestore`, portal vào `body`): "Hiện quyết định" / "Show Decision", `position: fixed` giữa-trên cửa sổ dưới vùng an toàn (`env(safe-area-inset-top)`),
-  z `--z-floating-control` (40) < dialog (60/70) < toast < `ConnectionOverlay`: một dialog mở lên trên bàn cờ (thẻ ô đất) che nó đến khi đóng. Chỉ hộp của nút bắt pointer, hàng bao quanh cho click
-  xuyên; hiệu ứng vào bị tắt khi reduced motion. `peekSummary` vẽ một trạng thái gọn cạnh nút.
+- **Một nút bật/tắt, cùng chỗ**: nút ẩn trong header dùng icon `hideDialog` (EyeOff). Bấm nó, `Modal` đo vị trí nút
+  (`getBoundingClientRect`) và **nút khôi phục** (`ModalPeekRestore`, portal riêng vào `body`, không chịu opacity/transform của
+  dialog đang ẩn) vẽ đúng chỗ đó: chỉ icon `showDialog` (Eye), không có chữ hiển thị (tên "Hiện quyết định" / "Show Decision" chỉ ở
+  `aria-label`/tooltip), cùng tâm, tối thiểu 44 px, giữ trong cửa sổ khi resize; không đo được (jsdom) thì về giữa-trên. z
+  `--z-floating-control` (40) < dialog (60/70) < toast < `ConnectionOverlay`. Chỉ nút (và `peekSummary` đặt bên trái nút) bắt pointer.
+  Test: `Modal.peek.test.tsx` "Modal peek toggle (MP)".
 - **Focus & bàn phím**: bấm mắt → focus vào nút khôi phục; bấm khôi phục → focus về nút mắt. Dialog đang ẩn bị bỏ qua khi tìm "dialog trên cùng" (`activeEntry()`): Escape/Tab và trả focus
   thuộc về dialog hiển thị bên dưới; Escape không đóng một quyết định đang ẩn.
 - **Nhiều dialog xếp chồng**: ẩn dialog trên cùng để thấy dialog dưới là hợp lệ; nút khôi phục chỉ của dialog ẩn sau cùng. Mở thẻ ô đất khi đang ẩn quyết định: thẻ nằm trên, đóng bằng Escape/nút Đóng,

@@ -199,7 +199,7 @@ function createRoom(playerCount: PlayerCount, run: number): PublicRoomState {
       joinOrder: index,
       membershipStatus: 'ACTIVE',
       ready: true,
-      connected: true,
+      connected: true, kind: 'HUMAN' as const,
     })),
     gameState: {
       boardState: {
@@ -1004,7 +1004,7 @@ function Phase4UatSurface() {
     socketFunctions,
     playerId: viewer.playerId,
     role: viewer.role,
-    connected: true,
+    connected: true, kind: 'HUMAN' as const,
     canMutate: viewer.role === 'PLAYER',
     privatePlayerState: null,
     privateOffers: [],

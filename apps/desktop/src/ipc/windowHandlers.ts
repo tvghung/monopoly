@@ -13,6 +13,7 @@ import {
   type HostStartOptions,
 } from '../hostRuntime';
 import type { LanFindRoomResult, LanRoomFinder } from '../lanFinder';
+import { hostInstanceId } from '../online/hostInstance';
 import type { AppUpdateController, AppUpdateState } from '../update/updateTypes';
 
 const QUIT_RESPONSE_TIMEOUT_MS = 2_000;
@@ -285,7 +286,9 @@ export function registerWindowHandlers(
       const roomCode = parseFindRoomRequest(value);
       try {
         const endpoint = await services.hostRuntime.resolveOnlineRoom(roomCode);
-        return endpoint ? { ok: true, endpoint } : { ok: false, code: 'NOT_FOUND' };
+        if (!endpoint) return { ok: false, code: 'NOT_FOUND' };
+        const instanceId = await hostInstanceId(endpoint, roomCode);
+        return { ok: true, endpoint, ...(instanceId ? { instanceId } : {}) };
       } catch {
         return { ok: false, code: 'UNAVAILABLE' };
       }
@@ -301,7 +304,10 @@ export function registerWindowHandlers(
       if (!isSender(window, event)) throw new Error('Invalid IPC sender.');
       const roomCode = parseFindRoomRequest(value);
       try {
-        return await lanFinder.findRoom(roomCode);
+        const found = await lanFinder.findRoom(roomCode);
+        if (!found.ok) return found;
+        const instanceId = await hostInstanceId(found.endpoint, roomCode);
+        return instanceId ? { ...found, instanceId } : found;
       } catch {
         return { ok: false, code: 'UNAVAILABLE' };
       }

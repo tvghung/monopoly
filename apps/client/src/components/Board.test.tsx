@@ -102,7 +102,7 @@ const makeContextValue = (
     joinOrder: index + 1,
     membershipStatus: 'ACTIVE',
     ready: true,
-    connected: true,
+    connected: true, kind: 'HUMAN' as const,
   })),
 });
 
@@ -113,6 +113,7 @@ const makePresentationState = (overrides: Partial<PresentationState> = {}): Pres
   settledPositions: {},
   displayBalances: {},
   displayDevelopmentLevels: {},
+  displayOwnership: {},
   displayActivePlayerId: null,
   displayDice: { dice1: 0, dice2: 0 },
   displayRollSequence: 0,
@@ -392,6 +393,10 @@ describe('Vietnamese game board', () => {
     );
 
     const button = screen.getByRole<HTMLButtonElement>('button', { name: 'Đổ xúc xắc' });
+    // The roll key carries the dice glyph next to its words; the glyph is decorative.
+    const glyph = button.querySelector('svg.action-icon');
+    expect(glyph?.getAttribute('class')).toContain('lucide-dices');
+    expect(glyph?.getAttribute('aria-hidden')).toBe('true');
     fireEvent.click(button);
     fireEvent.click(button);
 

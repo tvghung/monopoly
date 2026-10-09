@@ -1,6 +1,6 @@
 import './style/Lobby.css';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { getAppearanceCombinationKey, TEAM_IDS } from '@monopoly/shared';
+import { getAppearanceCombinationKey, MAX_BOTS_PER_ROOM, TEAM_IDS } from '@monopoly/shared';
 import type {
   CharacterId,
   GameMode,
@@ -53,6 +53,10 @@ interface LobbyProps {
   onSetTeamColor?: (color: PlayerColorId) => void;
   /** Host only: removes another player from the room (asked after a confirmation). */
   onKickPlayer?: (playerId: string) => void;
+  /** Host only: adds one bot; in 2v2 the clicked empty seat is passed. */
+  onAddBot?: (seat?: { teamId: TeamId; teamSlot: TeamSlot }) => void;
+  /** Host only: removes a bot seat (no question: a bot can be added back at once). */
+  onRemoveBot?: (playerId: string) => void;
   /** 2v2: the viewer takes an empty seat at once. */
   onMoveToSeat?: (teamId: TeamId, teamSlot: TeamSlot) => void;
   /** 2v2: the viewer asks the player in an occupied seat to swap places. */
@@ -92,6 +96,8 @@ export default function Lobby({
   onSetTeamName,
   onSetTeamColor,
   onKickPlayer,
+  onAddBot,
+  onRemoveBot,
   onMoveToSeat,
   onRequestSeatSwap,
   onCancelSeatSwap,
@@ -131,9 +137,19 @@ export default function Lobby({
       : [],
   ), [me, players, teamMode]);
 
+  // ---- Host: bot seats. One click on an empty seat adds one bot; the X on a bot seat removes it at once. ----
+  const botCount = players.filter(player => player.kind === 'BOT').length;
+  const canAddBot = isHost && Boolean(onAddBot) && players.length < maxPlayers && botCount < MAX_BOTS_PER_ROOM;
+  const requestRemoval = (targetId: string): void => {
+    if (players.find(player => player.id === targetId)?.kind === 'BOT') onRemoveBot?.(targetId);
+    else setKickTargetId(targetId);
+  };
+
   // ---- Host: remove a player (the X on every other seat, asked first) ----
   const canKick = isHost && Boolean(onKickPlayer);
-  const kickTarget = canKick ? players.find(player => player.id === kickTargetId && player.id !== playerId) : undefined;
+  const kickTarget = canKick
+    ? players.find(player => player.id === kickTargetId && player.id !== playerId && player.kind !== 'BOT')
+    : undefined;
   useEffect(() => {
     // The player left (or was removed) while the question was open: there is nothing to ask about any more.
     if (kickTargetId !== null && !kickTarget) setKickTargetId(null);
@@ -262,7 +278,8 @@ export default function Lobby({
                     busy={busy}
                     swapTargetId={outgoingTargetId}
                     canSwap={canSwap}
-                    onKick={setKickTargetId}
+                    onKick={requestRemoval}
+                    onAddBot={canAddBot ? teamSlot => onAddBot?.({ teamId, teamSlot }) : undefined}
                     onMoveToSeat={teamSlot => onMoveToSeat?.(teamId, teamSlot)}
                     onRequestSeatSwap={targetPlayerId => onRequestSeatSwap?.(targetPlayerId)}
                     onCancelSeatSwap={cancelSeatSwap}
@@ -285,10 +302,17 @@ export default function Lobby({
                     isHost={player.id === hostPlayerId}
                     busy={busy}
                     onSetReady={onSetReady}
-                    onKick={canKick && player.id !== playerId ? () => setKickTargetId(player.id) : undefined}
+                    onKick={canKick && player.id !== playerId ? () => requestRemoval(player.id) : undefined}
                   />
                 )
-                : <EmptySeat key={`empty-${index}`} number={index + 1} />)}
+                : (
+                  <EmptySeat
+                    key={`empty-${index}`}
+                    number={index + 1}
+                    busy={busy}
+                    onAddBot={canAddBot ? () => onAddBot?.() : undefined}
+                  />
+                ))}
             </ul>
           )}
 

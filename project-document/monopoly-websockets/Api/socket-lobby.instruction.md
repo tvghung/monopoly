@@ -90,7 +90,20 @@ the `room:`/`player:` channels, is deactivated in the connection registry and ha
 `UNAUTHENTICATED` and its old token fails `SESSION_REVOKED`; a disconnected target is simply removed. The removed player may join again
 from the room code like anyone else. Everyone else receives the normal room update.
 
-First activated Seat is host. Temporary disconnect never transfers host or ready.
+`kick player` refuses a bot seat (`CONFLICT`): bots are removed with `remove bot`.
+
+### `add bot` / `remove bot` (protocol 12, `socket/bots.ts`)
+
+| Command | Payload | Actor | Rules |
+| --- | --- | --- | --- |
+| `add bot` | `{requestId: uuid, seat?: {teamId, teamSlot}}` → ACK `{playerId}` | host | `LOBBY` only (`GAME_ALREADY_STARTED` otherwise); `ROOM_FULL` at four seats; at most three bots; a repeated `requestId` answers with the bot it already created; `seat` is used in 2v2 when still empty |
+| `remove bot` | `{playerId}` | host | `LOBBY` only; the target must be a bot seat (`CONFLICT` for a human, `NOT_FOUND` when already gone) |
+
+Both commit through `commitRoomCommand` and broadcast the room; guests get `FORBIDDEN` and nothing changes. Rules:
+[GameCore/bot-players.instruction.md](../GameCore/bot-players.instruction.md).
+
+First activated Seat is host. Temporary disconnect never transfers host or ready. Host succession and the "last member leaves"
+rule count humans only: the last human to leave closes the room even when bots remain.
 
 ## Explicit leave
 

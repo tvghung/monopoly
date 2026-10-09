@@ -24,6 +24,7 @@ export function broadcastRoom(
       projectPrivatePlayerState(room, playerId),
     );
   }
+  runtime.bots?.notify(room.id);
 }
 
 export async function broadcastRoomById(

@@ -74,7 +74,7 @@ function request(overrides: Record<string, unknown> = {}): Record<string, unknow
     app: 'own-the-block',
     type: 'find-room',
     v: 1,
-    protocol: 11,
+    protocol: 12,
     roomCode: 'OTB-ABC234',
     nonce: 'AbCdEfGhIjKlMnOp',
     ...overrides,

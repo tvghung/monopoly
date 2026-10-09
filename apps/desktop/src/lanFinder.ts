@@ -29,7 +29,7 @@ export const LAN_DISCOVERY_REQUEST_TYPE = 'find-room';
 export const LAN_DISCOVERY_REPLY_TYPE = 'room-here';
 export const LAN_DISCOVERY_MAX_REQUEST_BYTES = 256;
 /** Mirrors `SOCKET_PROTOCOL_VERSION` of `packages/shared`. */
-export const LAN_DISCOVERY_SOCKET_PROTOCOL = 11;
+export const LAN_DISCOVERY_SOCKET_PROTOCOL = 12;
 
 const LIMITED_BROADCAST_ADDRESS = '255.255.255.255';
 const MAX_INTERFACES = 6;
@@ -39,7 +39,7 @@ const ROOM_CODE_PATTERN = /^[A-Za-z0-9-]{1,20}$/u;
 export type LanFindRoomFailureCode = 'NOT_FOUND' | 'UNREACHABLE' | 'NO_NETWORK' | 'UNAVAILABLE';
 
 export type LanFindRoomResult =
-  | { ok: true; endpoint: string }
+  | { ok: true; endpoint: string; instanceId?: string }
   | { ok: false; code: LanFindRoomFailureCode };
 
 export interface LanFinderTiming {

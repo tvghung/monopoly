@@ -18,6 +18,8 @@ import { RAILROAD_TILE_INDICES, UTILITY_TILE_INDICES } from './tileState';
 export const MIN_PLAYERS_PER_GAME = 2;
 /** A room seats at most this many players. */
 export const MAX_PLAYERS_PER_GAME = 4;
+/** A room holds at most this many bots: the host is always a human seat. */
+export const MAX_BOTS_PER_ROOM = MAX_PLAYERS_PER_GAME - 1;
 /** Cash every player starts with. */
 export const STARTING_CASH = 1500;
 /** Paid by the Bank when a player passes or lands on Xuất Phát by moving forward (never when sent to jail or moving back). */
