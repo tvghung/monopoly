@@ -1,6 +1,8 @@
 # v1.7.0 release candidate — evidence index and verdict
 
-**Verdict: RC READY FOR USER MANUAL QA — NOT RELEASE READY.** Every engineering gate that can run on this machine and
+> **Update 2026-10-09:** the owner reports **OWNER-REPORTED MANUAL QA: PASS** (all manual QA completed, including bots, multiplayer, the corrected ownership animation and the modal toggle) and authorized the official v1.7.0 release. No per-case log, machine list or timestamps were supplied, so none are recorded here; the owner's statement is product acceptance, not independent evidence. The release proceeds through the existing tag workflow; the verdict below is the pre-QA state.
+
+**Verdict (pre-QA): RC READY FOR USER MANUAL QA — NOT RELEASE READY.** Every engineering gate that can run on this machine and
 on CI passed on the candidate. The release stays blocked until the owner records the manual matrix in
 [USER_MANUAL_BOT_TEST_PLAN.md](./USER_MANUAL_BOT_TEST_PLAN.md) and the real-device and cross-network rows of
 [ACCEPTANCE_MATRIX.md](./ACCEPTANCE_MATRIX.md), then explicitly approves the merge and the tag. No tag, release or merge to
@@ -22,7 +24,7 @@ on CI passed on the candidate. The release stays blocked until the owner records
 | --- | --- | --- |
 | R0 audit and design | PASS | six documents in this folder; decision log D1–D21 in [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) |
 | R1 bot lobby | PASS (automated + desktop browser smoke) | matrix section A |
-| R2 Balanced bot | PASS (engineering) · full games NOT RUN (USER MANUAL) | matrix sections B, C; no complete match was simulated or played |
+| R2 Balanced bot | PASS (engineering) · full games OWNER-REPORTED MANUAL QA: PASS | matrix sections B, C; no complete match was simulated by automation |
 | R3 Online | PASS (automated, live Quick Tunnel from this machine) · cross-network BLOCKED | matrix section D |
 | R4 UI/UX | PASS (automated + emulated phone/tablet) · devices NOT RUN | matrix section E, [UI_UX_REGRESSION_MATRIX.md](./UI_UX_REGRESSION_MATRIX.md) |
 | R5 candidate | engineering PASS · release NOT READY | below |
@@ -39,9 +41,7 @@ on CI passed on the candidate. The release stays blocked until the owner records
 
 Local validation on `548c551`: typecheck, lint, `pnpm test` (desktop 479, server 522, client 2294 + node suites), build,
 `pnpm test:e2e:mobile` 4 passed (first run: one WebKit music-lifecycle failure, passed on re-run; no audio code changed).
-Not re-run on `548c551`: `desktop:make`, packaged host proof, live Quick Tunnel proof. **CI: not run** — GitHub Actions is
-disabled for the repository (workflow dispatch answered HTTP 422); the owner must re-enable Actions and dispatch CI,
-Desktop Build and Release Candidate on this SHA before any release. Matrix section G lists every SEC/TRADE/BR/BA/MP row.
+Not re-run on `548c551`: `desktop:make`, packaged host proof, live Quick Tunnel proof. CI was blocked at that time because GitHub Actions was disabled for the repository (HTTP 422); the owner re-enabled it and the release SHA is validated separately. Matrix section G lists every SEC/TRADE/BR/BA/MP row.
 
 ## Validation on `648d4ca` (previous candidate) (this Windows x64 machine, 2026-10-09)
 
@@ -89,7 +89,7 @@ Candidate 37856575792. They are not evidence for the candidate SHA.
 
 ## Still open (owner actions)
 
-0. Re-enable GitHub Actions and run CI, Desktop Build and Release Candidate on the final SHA.
+0. ~~Re-enable GitHub Actions~~ Done by the owner (Actions run again); CI, Desktop Build and Release Candidate are re-run on the release SHA before tagging.
 
 1. Play the complete-game matrix with bots and without (USER_MANUAL_BOT_TEST_PLAN, sections B and C) and record results.
 2. Test on real phones and tablets: iPhone/iPad Safari, Android Chrome, the lobby with bots, audio, touch targets.

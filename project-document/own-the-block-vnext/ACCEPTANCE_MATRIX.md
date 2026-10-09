@@ -119,7 +119,7 @@ for the repository (dispatch answered HTTP 422).
 | BA-10 | Special movement (GO, card move, chained transfers) | per-tile pending set | GO pacing test, "changes hands twice" | PASS |
 | BA-11 | No gameplay regression | presentation only | full suites | PASS |
 | BA-12 | Reconnect / reset / skip safe | hold cleared on reset, released in `finish` | "never leaves a stale flag" | PASS |
-| BA-13 | Visual check in the real app | — | — | NOT RUN (USER MANUAL) — plan D1–D4 |
+| BA-13 | Visual check in the real app | — | — | OWNER-REPORTED MANUAL QA: PASS (plan D1–D4; no per-case log) |
 | MP-01..03 | Toggle stays in place; Eye-Off visible state, Eye hidden state; no visible text | anchored `ModalPeekRestore`, icons `hideDialog`/`showDialog` | "Modal peek toggle (MP)" | PASS |
 | MP-04..05 | Hidden content/backdrop do not obstruct or intercept; independent layer | overlay `display:none`; restore portal on body | existing peek tests + layer assertion | PASS |
 | MP-06 | State preserved | content stays mounted | typed value test | PASS |
@@ -127,7 +127,7 @@ for the repository (dispatch answered HTTP 422).
 | MP-09 | Keyboard a11y | focus moves hide ↔ restore, accessible name kept | focus test | PASS |
 | MP-10..12 | Multi-layer, lifecycle cleanup, decision replaced | registry unchanged | existing peek tests, close-while-hidden test | PASS |
 | MP-13..14 | Compatibility (all dialogs using `peek`), tests | shared Modal | 249 design-system + DecisionPeek tests | PASS |
-| MP-15 | Visual check on devices | — | — | NOT RUN (USER MANUAL) — plan D5–D8 |
+| MP-15 | Visual check on devices | — | — | OWNER-REPORTED MANUAL QA: PASS (plan D5–D8; devices not itemised by the owner) |
 
 ## F. Tests, devices, operations, release
 
@@ -135,12 +135,12 @@ for the repository (dispatch answered HTTP 422).
 | --- | --- | --- |
 | AC-R01 | Requirement trace (this file) | PASS: every row has an implementation path, a test or manual proof and an outcome; manual rows stay NOT RUN/BLOCKED |
 | AC-R02 | Deterministic automated tests, no playthroughs | PASS: `pnpm test` on `548c551` (desktop 479, server 522, client 2294 + node suites); seeded single-decision fixtures only; no complete match simulated |
-| AC-R03 | User-owned manual gameplay matrix | NOT RUN (USER MANUAL) — plan in USER_MANUAL_BOT_TEST_PLAN.md |
+| AC-R03 | User-owned manual gameplay matrix | OWNER-REPORTED MANUAL QA: PASS (2026-10-09, owner statement; no per-case log supplied) — plan in USER_MANUAL_BOT_TEST_PLAN.md |
 | AC-R04 | Real device/network matrix | BLOCKED/NOT RUN: physical Windows/macOS hosts, phones/tablets, independent networks need the owner; same-machine live tunnel proof PASS |
 | AC-R05 | Packaged binaries | PASS for automated scope: local `desktop:make` + packaged host proof + packaged UI bot check (Windows x64); CI packaged proofs Windows x64 and macOS arm64, RC builds incl. macOS x64; clean install/upgrade on owner machines NOT RUN; unsigned (signing BLOCKED) |
 | AC-R06 | Security and robustness | PASS (review in RELEASE_CANDIDATE.md; relink token leak and CODE_TAKEN swallow found and fixed with tests) |
 | AC-R07 | Performance measurement 20–50 remote users | BLOCKED (no remote infrastructure); no capacity claimed |
-| AC-R08 | CI/provenance for the RC SHA | BLOCKED for `548c551`: GitHub Actions is disabled for the repository (dispatch HTTP 422). Previous candidate `648d4ca`: CI 37857669544, Desktop Build 37857673483, Release Candidate 37857677473 all success |
+| AC-R08 | CI/provenance for the RC SHA | Superseded: `548c551` could not be run while Actions was disabled (HTTP 422); Actions was re-enabled and the release SHA is validated in the release report. Previous candidate `648d4ca`: CI 37857669544, Desktop Build 37857673483, Release Candidate 37857677473 all success |
 | AC-R09 | Upgrade/rollback | PASS (documented): RAM-only, protocol refusal of 1.6.x, minimum 1.7.0, reinstall v1.6.1 to roll back; LAN independent of registry |
 | AC-R10 | Release gate | NO-GO for release / **RC READY FOR USER MANUAL QA — NOT RELEASE READY** |
 | AC-R11 | Branch isolation | PASS: all work on `feat/own-the-block-multiplayer-bots-vnext`; `origin/main` still `77953b6`, local `main` still `bffc0da`; no commit, push, merge or tag on `main` |

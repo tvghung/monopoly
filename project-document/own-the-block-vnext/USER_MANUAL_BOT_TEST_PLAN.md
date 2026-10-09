@@ -65,6 +65,9 @@ hoặc ghi chú). Một lỗi tìm thấy: ghi bước tái hiện, mã phòng, 
 
 ## Ghi kết quả
 
+**2026-10-09 — OWNER-REPORTED MANUAL QA: PASS.** Chủ dự án xác nhận đã hoàn tất toàn bộ test tay (bot, nhiều người chơi, hoạt ảnh bot, nút "Xem bàn cờ") và đạt. Không có nhật ký từng ca, máy hay giờ được cung cấp nên bảng dưới được để trống thay vì bịa số liệu.
+
+
 | Ngày | Ca | Máy / trình duyệt / mạng | Phiên bản (commit) | Kết quả | Ghi chú / ảnh |
 | --- | --- | --- | --- | --- | --- |
 | | | | | | |
