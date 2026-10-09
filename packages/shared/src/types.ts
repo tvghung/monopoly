@@ -90,6 +90,11 @@ export type RoomMembershipStatus = 'ACTIVE' | 'FINISHED' | 'LEFT';
 // Who plays a seat. A BOT seat is played by the host process through the same commands as a human; it has no session,
 // token or connection. Added in protocol 12.
 export const PLAYER_KINDS = ['HUMAN', 'BOT'] as const;
+
+// The five bot strengths, weakest first. MEDIUM is the original Balanced policy and the default.
+export const BOT_DIFFICULTIES = ['VERY_EASY', 'EASY', 'MEDIUM', 'HARD', 'VERY_HARD'] as const;
+export type BotDifficulty = typeof BOT_DIFFICULTIES[number];
+export const DEFAULT_BOT_DIFFICULTY: BotDifficulty = 'MEDIUM';
 export type PlayerKind = typeof PLAYER_KINDS[number];
 export type PlayerSessionStatus = 'PENDING' | 'ACTIVE' | 'REVOKED' | 'EXPIRED';
 export type FinishedPlayerReason = 'BANKRUPT' | 'LEFT';
@@ -642,6 +647,8 @@ export interface BoardState {
   // A fresh UUID per started match (set by `start game`, cleared by `play again`), so work scheduled for one match can never
   // apply to the rematch. Absent in snapshots older than schema 11.
   matchId?: string | null;
+  // How well every bot of the room plays (protocol 12). Host-chosen in the lobby; absent in older snapshots means MEDIUM.
+  botDifficulty?: BotDifficulty;
   // Lobby configuration that survives "play again" (together with each player's `teamId`).
   gameMode: GameMode;
   teams: TeamSettingsById;
@@ -854,6 +861,11 @@ export interface AddBotRequest {
 
 export interface AddBotResult {
   playerId: PlayerId;
+}
+
+// Host only, lobby only (protocol 12): one difficulty for every bot of the room.
+export interface SetBotDifficultyRequest {
+  difficulty: BotDifficulty;
 }
 
 // Host only, lobby only: removes a bot seat.

@@ -1,7 +1,10 @@
 import './style/Lobby.css';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { getAppearanceCombinationKey, MAX_BOTS_PER_ROOM, TEAM_IDS } from '@monopoly/shared';
+import {
+  BOT_DIFFICULTIES, DEFAULT_BOT_DIFFICULTY, getAppearanceCombinationKey, MAX_BOTS_PER_ROOM, TEAM_IDS,
+} from '@monopoly/shared';
 import type {
+  BotDifficulty,
   CharacterId,
   GameMode,
   PlayerColorId,
@@ -57,6 +60,9 @@ interface LobbyProps {
   onAddBot?: (seat?: { teamId: TeamId; teamSlot: TeamSlot }) => void;
   /** Host only: removes a bot seat (no question: a bot can be added back at once). */
   onRemoveBot?: (playerId: string) => void;
+  /** One difficulty for every bot of the room (absent = MEDIUM); only the host changes it. */
+  botDifficulty?: BotDifficulty;
+  onSetBotDifficulty?: (difficulty: BotDifficulty) => void;
   /** 2v2: the viewer takes an empty seat at once. */
   onMoveToSeat?: (teamId: TeamId, teamSlot: TeamSlot) => void;
   /** 2v2: the viewer asks the player in an occupied seat to swap places. */
@@ -98,6 +104,8 @@ export default function Lobby({
   onKickPlayer,
   onAddBot,
   onRemoveBot,
+  botDifficulty = DEFAULT_BOT_DIFFICULTY,
+  onSetBotDifficulty,
   onMoveToSeat,
   onRequestSeatSwap,
   onCancelSeatSwap,
@@ -315,6 +323,23 @@ export default function Lobby({
                 ))}
             </ul>
           )}
+
+        {botCount > 0
+          ? (
+            <label className="lobby__bot-difficulty">
+              <span>{t('lobby.botDifficulty')}</span>
+              <select
+                value={botDifficulty}
+                disabled={busy || !isHost || !onSetBotDifficulty}
+                onChange={event => onSetBotDifficulty?.(event.target.value as BotDifficulty)}
+              >
+                {BOT_DIFFICULTIES.map(level => (
+                  <option key={level} value={level}>{t(`lobby.botDifficulty.${level}`)}</option>
+                ))}
+              </select>
+            </label>
+          )
+          : null}
 
         {me
           ? (

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   ACTIVITY_FEED_MAX_EVENTS,
+  BOT_DIFFICULTIES,
   CHARACTER_IDS,
   GAME_MODES,
   MONEY_TRANSFER_REASONS,
@@ -647,6 +648,7 @@ export const boardStateSchema = z.strictObject({
   // Older durable snapshots predate the authoritative match-start timestamp.
   gameStartedAt: isoTimestampSchema.nullable().optional(),
   matchId: z.uuid().nullable().optional(),
+  botDifficulty: z.enum(BOT_DIFFICULTIES).optional(),
   gameMode: z.enum(GAME_MODES),
   teams: teamSettingsByIdSchema,
   teamPlay: teamPlayStateSchema,

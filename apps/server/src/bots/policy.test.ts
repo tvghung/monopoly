@@ -13,6 +13,7 @@ import {
   botTaskOf,
   cashReserve,
   decideBotAction,
+  DIFFICULTY_PROFILES,
   findBotTask,
   type BotDecision,
   type BotTask,
@@ -128,8 +129,8 @@ describe('one offline policy', () => {
     const imports = [...source.matchAll(/from '([^']+)'/g)].map((match) => match[1]);
     expect(imports.sort()).toEqual(['./rng', './view', '@monopoly/shared']);
     expect(source).not.toMatch(/\bfetch\(|Math\.random|https?:\/\//);
+    // Difficulty scales one policy through a profile table; it never forks into separate per-level policies.
     const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-    expect(code).not.toMatch(/difficulty|EASY|HARD/i);
     expect([...code.matchAll(/export function (decide\w*)/g)].map((match) => match[1])).toEqual(['decideBotAction']);
   });
 });
@@ -383,5 +384,41 @@ describe('bot pacing (BA)', () => {
     // 780 dice + 220 lead + 7 x 180 hops + 240 landing + 900 thinking.
     expect(botActionDelayMs(near, purchase)).toBe(3400);
     expect(botActionDelayMs(throughGo, purchase)).toBe(4400);
+  });
+});
+
+describe('bot difficulty', () => {
+  it('treats a missing difficulty as MEDIUM, the original Balanced policy', () => {
+    const plain = viewOf({ bot: { accountBalance: 300 }, turnInfo: purchaseOf(39, 200) });
+    const medium = viewOf({ bot: { accountBalance: 300 }, board: { botDifficulty: 'MEDIUM' }, turnInfo: purchaseOf(39, 200) });
+    expect(decide(medium).action).toEqual(decide(plain).action);
+  });
+
+  it('invests harder as the difficulty rises and keeps more cash as it falls', () => {
+    // 310 cash for a 200 street: MEDIUM's 120 reserve declines, VERY_HARD's 84 buys, VERY_EASY's 180 declines.
+    type Level = 'VERY_EASY' | 'MEDIUM' | 'VERY_HARD';
+    const at = (botDifficulty: Level, accountBalance = 310) => viewOf({
+      bot: { accountBalance }, board: { botDifficulty }, turnInfo: purchaseOf(39, 200),
+    });
+    expect(decide(at('VERY_HARD')).action.command).toBe('buy property');
+    expect(decide(at('MEDIUM')).action.command).toBe('do not buy');
+    // Very easy bots also get a clear choice wrong now and then.
+    const clear = Array.from({ length: 40 }, (_, index) => decide(at('VERY_EASY', 1500), `seed-${String(index)}`).action.command);
+    expect(new Set(clear)).toEqual(new Set(['buy property', 'do not buy']));
+  });
+
+  it('never blunders into a purchase it cannot pay for', () => {
+    const poor = viewOf({ bot: { accountBalance: 50 }, board: { botDifficulty: 'VERY_EASY' }, turnInfo: purchaseOf(3, 60) });
+    for (let index = 0; index < 40; index += 1) {
+      expect(decide(poor, `seed-${String(index)}`).action.command).toBe('do not buy');
+    }
+  });
+
+  it('scales the gain it asks of an offer', () => {
+    expect(DIFFICULTY_PROFILES.VERY_EASY.offerGain).toBeLessThan(DIFFICULTY_PROFILES.MEDIUM.offerGain);
+    expect(DIFFICULTY_PROFILES.VERY_HARD.offerGain).toBeGreaterThan(DIFFICULTY_PROFILES.MEDIUM.offerGain);
+    expect(DIFFICULTY_PROFILES.MEDIUM).toEqual({
+      reserveFactor: 1, blunder: 0, offerGain: 1.15, setHandoverGain: 2, boardAware: true,
+    });
   });
 });

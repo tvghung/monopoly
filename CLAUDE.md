@@ -100,6 +100,7 @@ thay đổi chưa hoàn tất.
   (snapshot V10, `011_lobby_seats_v10.sql`: `Player.teamSlot`, `boardState.seatSwapRequests`). Protocol V12 bổ sung ghế
   bot (snapshot V11: `RoomMember.kind`, `boardState.matchId`, `RoomPlayerMeta.kind`, lệnh `add bot`/`remove bot`); V10
   snapshot hợp lệ như V11 (thiếu `kind` = HUMAN) nên chỉ đổi số version, không có file SQL mới (runtime RAM không đọc SQL).
+  V12 (chưa phát hành) còn có `set bot difficulty` và `BoardState.botDifficulty` tùy chọn (thiếu = MEDIUM).
 - 2v2 Teamplay (`GameCore/team-play.instruction.md`): `GameMode` do host chọn chỉ ở
   `LOBBY` (đổi mode reset Ready mọi người); mọi thành viên đổi tên/màu **đội mình** (không đội kia), tự nhảy vào ghế trống hoặc xin
   đổi chỗ (người kia phải đồng ý; host không di chuyển được người khác), host chỉ có `kick player` ở sảnh; tiền và `ownedProps` luôn theo `PlayerId`, không có

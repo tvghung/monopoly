@@ -521,13 +521,13 @@ describe('resolveTile', () => {
     revealAndDismissPendingCard(state, 'p1');
 
     expect(state.players.p1.currentTile).toBe(4);
-    expect(state.players.p1.accountBalance).toBe(300);
+    expect(state.players.p1.accountBalance).toBe(350);
     expect(state.boardState.paymentQueue).toBeNull();
     expect(state.boardState.activityFeed.events.filter(event => (
       event.type === 'TILE_LANDED' && event.tileID === 4
     ))).toHaveLength(1);
     expect(state.boardState.gameplayEvents.events).toContainEqual(expect.objectContaining({
-      type: 'MONEY_TRANSFER', amount: 200, reason: 'TAX',
+      type: 'MONEY_TRANSFER', amount: 150, reason: 'TAX',
     }));
   });
 
@@ -759,8 +759,8 @@ describe('resolveTile', () => {
   });
 
   it.each([
-    { tileID: 4, openingBalance: 200, closingBalance: 0, amount: 200 },
-    { tileID: 4, openingBalance: 450, closingBalance: 250, amount: 200 },
+    { tileID: 4, openingBalance: 150, closingBalance: 0, amount: 150 },
+    { tileID: 4, openingBalance: 450, closingBalance: 300, amount: 150 },
     { tileID: 38, openingBalance: 100, closingBalance: 0, amount: 100 },
   ])('charges tile $tileID tax through the bank payment pipeline', ({
     tileID, openingBalance, closingBalance, amount,
@@ -783,7 +783,7 @@ describe('resolveTile', () => {
   });
 
   it.each([
-    { tileID: 4, openingBalance: 199 },
+    { tileID: 4, openingBalance: 149 },
     { tileID: 4, openingBalance: 0 },
     { tileID: 38, openingBalance: 99 },
   ])('bankrupts a cash-short player without assets on tax tile $tileID', ({ tileID, openingBalance }) => {
@@ -811,8 +811,8 @@ describe('resolveTile', () => {
 
     expect(state.players.p1.accountBalance).toBe(0);
     expect(state.boardState.paymentQueue?.orderedClaims[0]).toMatchObject({
-      amount: 200,
-      remainingAmount: 150,
+      amount: 150,
+      remainingAmount: 100,
       source: { kind: 'TAX', tileID: 4 },
     });
     expect(state.boardState.currentPlayer.id).toBe('p1');
@@ -820,7 +820,7 @@ describe('resolveTile', () => {
 
     progressPaymentQueue(state);
 
-    expect(state.boardState.paymentQueue?.orderedClaims[0]?.remainingAmount).toBe(150);
+    expect(state.boardState.paymentQueue?.orderedClaims[0]?.remainingAmount).toBe(100);
     expect(state.boardState.gameplayEvents.events.filter(event => (
       event.type === 'MONEY_TRANSFER' && event.reason === 'TAX'
     ))).toHaveLength(1);
@@ -842,7 +842,7 @@ describe('resolveTile', () => {
     ).ok).toBe(false);
     expect(sellHouse(state, 'p1', 39)).toBe(true);
     expect(progressPaymentQueue(state).status).toBe('WAITING_FOR_LIQUIDATION');
-    expect(claim.remainingAmount).toBe(100);
+    expect(claim.remainingAmount).toBe(50);
 
     const sale = sellPropertyToBankForPayment(
       state, 'p1', queue.operationId, claim.claimId, 39,
@@ -852,7 +852,7 @@ describe('resolveTile', () => {
     expect(progress).toMatchObject({ status: 'COMPLETED' });
     if (progress.continuation) resumePaymentContinuation(state, progress.continuation);
 
-    expect(state.players.p1.accountBalance).toBe(180);
+    expect(state.players.p1.accountBalance).toBe(230);
     expect(state.boardState.paymentQueue).toBeNull();
     expect(state.boardState.turnNumber).toBe(1);
     expect(state.boardState.currentPlayer.id).toBe('p2');

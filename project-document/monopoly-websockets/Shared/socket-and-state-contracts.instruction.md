@@ -70,6 +70,8 @@ Public/persisted types dùng stable IDs và phân biệt hidden state:
 - Bot seats (protocol 12, snapshot 11): `PLAYER_KINDS`/`PlayerKind`, `RoomPlayerMeta.kind` (always set; `connected` is true
   for an active bot), server-only `RoomMember.kind` (absent = HUMAN), `BoardState.matchId` (UUID per started match, null in
   a lobby), `AddBotRequest {requestId, seat?}` → `AddBotResult {playerId}`, `RemoveBotRequest {playerId}`, `MAX_BOTS_PER_ROOM`.
+- Bot difficulty (protocol 12, snapshot 11): `BOT_DIFFICULTIES`/`BotDifficulty`, `DEFAULT_BOT_DIFFICULTY = MEDIUM`,
+  optional `BoardState.botDifficulty` (projected as MEDIUM when absent), `SetBotDifficultyRequest {difficulty}`.
 - Lobby seats (protocol 11): `Player.teamSlot` (`TeamSlot` 0|1) and `RoomPlayerMeta.teamSlot` (`PublicPlayer` omits it); `BoardState.seatSwapRequests`
   (`SeatSwapRequest {requesterPlayerId, targetPlayerId}`, public, empty outside a 2v2 lobby). Requests: `MoveToSeatRequest {teamId, teamSlot}`,
   `RequestSeatSwapRequest {targetPlayerId}`, `RespondSeatSwapRequest {requesterPlayerId, accept}`, `KickPlayerRequest {playerId}`;

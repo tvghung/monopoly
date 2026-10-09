@@ -21,6 +21,7 @@ Rule: [GameCore/bot-players.instruction.md](../GameCore/bot-players.instruction.
 - [x] `[AUTOMATED]` Lệnh bất hợp lệ của bot bị từ chối như người; bot chờ khi mọi người mất kết nối; hành động đang chờ bị bỏ khi ván kết thúc và chơi lại.
 - [x] `[AUTOMATED]` Người mất kết nối khi thẻ đã lật: hết grace thì thẻ được áp dụng, ghế giữ nguyên.
 - [x] `[AUTOMATED]` Policy: mua/không mua, xây, tù, nợ, rescue, forced sale, offer, revive, seed tái lập, một policy offline (`bots/policy.test.ts`).
+- [x] `[AUTOMATED]` Độ khó: thiếu = MEDIUM như policy gốc, mức khó đầu tư mạnh hơn, mức cực dễ có lúc chọn sai nhưng không bao giờ mua khi thiếu tiền (`bots/policy.test.ts`); chỉ host đặt được, mức lạ bị từ chối (`socket.bots.integration.test.ts`); dropdown 5 mức chỉ hiện khi có bot, khách chỉ xem (`Lobby.test.tsx`).
 - [x] `[AUTOMATED]` Retry bằng fallback, park khi fallback lỗi, ranh giới thông tin của view (`bots/driver.test.ts`).
 - [x] `[AUTOMATED]` Client: ghế bot, Thêm Bot chỉ host, phòng đầy ẩn nút, Xóa Bot không hỏi, start với bot (`Lobby.test.tsx`); chip Bot trên HUD (`PlayerCardList.test.tsx`).
 

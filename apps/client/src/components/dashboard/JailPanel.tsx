@@ -21,6 +21,8 @@ export default function JailPanel() {
   const visible = canMutate
     && state.loaded
     && state.boardState.currentPlayer.id === playerId
+    // Being sent to jail mid-turn keeps this player current until the hand-off; the choice belongs to their next turn.
+    && !state.boardState.currentPlayer.hasMoved
     && Boolean(myPlayer?.isJail);
   const titleId = useId();
   const warningId = useId();

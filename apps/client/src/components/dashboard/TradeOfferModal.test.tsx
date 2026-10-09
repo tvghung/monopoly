@@ -141,7 +141,7 @@ function renderTrade(options: { closeTrade?: () => void; makeOffer?: () => void;
     },
     privateOffers: [],
   };
-  return render(
+  const tree = () => (
     <stateContext.Provider value={contextValue}>
       <tradePromptContext.Provider value={{
         tradeTarget: { tileID: 1 },
@@ -151,8 +151,10 @@ function renderTrade(options: { closeTrade?: () => void; makeOffer?: () => void;
       >
         <TradeOfferModal />
       </tradePromptContext.Provider>
-    </stateContext.Provider>,
+    </stateContext.Provider>
   );
+  const result = render(tree());
+  return { ...result, rerenderBoard: () => result.rerender(tree()) };
 }
 
 describe('TradeOfferModal layout and feedback', () => {
@@ -278,5 +280,17 @@ describe('describeTradeSide', () => {
     expect(describeTradeSide(1, 0, 0)).toBe('1 tài sản');
     expect(describeTradeSide(2, 1, 50)).toBe('2 tài sản + 1 thẻ Thoát Tù + 50.000 ₫');
     expect(describeTradeSide(0, 0, 25)).toBe('25.000 ₫');
+  });
+});
+
+describe('TradeOfferModal typed amounts', () => {
+  it('keeps a typed cash amount when the board re-renders the trade target', () => {
+    const { rerenderBoard } = renderTrade();
+    const cash = () => document.getElementById('private-offer-cash') as HTMLInputElement;
+    fireEvent.change(cash(), { target: { value: '120' } });
+
+    rerenderBoard();
+
+    expect(cash().value).toBe('120');
   });
 });

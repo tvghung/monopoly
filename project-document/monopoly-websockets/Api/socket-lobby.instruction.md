@@ -98,8 +98,9 @@ from the room code like anyone else. Everyone else receives the normal room upda
 | --- | --- | --- | --- |
 | `add bot` | `{requestId: uuid, seat?: {teamId, teamSlot}}` → ACK `{playerId}` | host | `LOBBY` only (`GAME_ALREADY_STARTED` otherwise); `ROOM_FULL` at four seats; at most three bots; a repeated `requestId` answers with the bot it already created; `seat` is used in 2v2 when still empty |
 | `remove bot` | `{playerId}` | host | `LOBBY` only; the target must be a bot seat (`CONFLICT` for a human, `NOT_FOUND` when already gone) |
+| `set bot difficulty` | `{difficulty: VERY_EASY|EASY|MEDIUM|HARD|VERY_HARD}` | host | `LOBBY` only; one level for every bot of the room, stored as `boardState.botDifficulty` (absent = MEDIUM) and kept by `play again` |
 
-Both commit through `commitRoomCommand` and broadcast the room; guests get `FORBIDDEN` and nothing changes. Rules:
+All three commit through `commitRoomCommand` and broadcast the room; guests get `FORBIDDEN` and nothing changes. Rules:
 [GameCore/bot-players.instruction.md](../GameCore/bot-players.instruction.md).
 
 First activated Seat is host. Temporary disconnect never transfers host or ready. Host succession and the "last member leaves"

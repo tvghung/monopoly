@@ -12,7 +12,7 @@
 
 - `normal`: unowned → `TurnInfo.pendingPropertyDecision` mua/không mua; owner khác
   → enqueue rent claim; own tile → same-landing development decision when eligible.
-- `expense`: thuế **thu tiền**. Dừng ở ô thuế (index 4 Thuế Thu Nhập 200, index 38 Thuế Xa Xỉ 100; `expenseAmount` trong
+- `expense`: thuế **thu tiền**. Dừng ở ô thuế (index 4 Thuế Thu Nhập 150, index 38 Thuế Xa Xỉ 100; `expenseAmount` trong
   `tileState.ts`) tạo một `DebtClaim` `source: { kind: 'TAX', tileID }` với creditor Bank qua cùng `PaymentQueue` như
   tiền thuê và thẻ phạt: đủ tiền thì trừ ngay (`MONEY_TRANSFER` lý do `TAX`), thiếu thì vào luồng thiếu hụt (bán tài sản,
   tự bán khi hết hạn, phá sản nếu hết tài sản). Không ai khác nhận tiền thuế và Bãi Đỗ Xe không gom tiền thuế.

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  BOT_DIFFICULTIES,
   CHARACTER_IDS,
   GAME_MODES,
   PLAYER_COLOR_IDS,
@@ -15,6 +16,7 @@ import type {
   OfferAction,
   OfferInfo,
   RemoveBotRequest,
+  SetBotDifficultyRequest,
   RequestSeatSwapRequest,
   RescueDecisionRequest,
   RespondSeatSwapRequest,
@@ -119,6 +121,10 @@ export const addBotRequestSchema = z.strictObject({
   requestId: z.uuid(),
   seat: z.strictObject({ teamId: teamIdSchema, teamSlot: teamSlotSchema }).optional(),
 }) satisfies z.ZodType<AddBotRequest>;
+
+export const setBotDifficultyRequestSchema = z.strictObject({
+  difficulty: z.enum(BOT_DIFFICULTIES),
+}) satisfies z.ZodType<SetBotDifficultyRequest>;
 
 export const removeBotRequestSchema = z.strictObject({
   playerId: playerIdSchema,
@@ -231,6 +237,7 @@ export const clientEventPayloadSchemas = {
   'kick player': kickPlayerRequestSchema,
   'add bot': addBotRequestSchema,
   'remove bot': removeBotRequestSchema,
+  'set bot difficulty': setBotDifficultyRequestSchema,
   'set team name': setTeamNameRequestSchema,
   'set team color': setTeamColorRequestSchema,
   'move to seat': moveToSeatRequestSchema,

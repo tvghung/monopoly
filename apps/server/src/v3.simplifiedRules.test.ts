@@ -134,12 +134,12 @@ describe('simplified v4 rules', () => {
 
     resolveTile(state, 'p1', 0, { playerId: 'p1', turnNumber: 1 });
 
-    expect(state.players.p1.accountBalance).toBe(800);
+    expect(state.players.p1.accountBalance).toBe(850);
     expect(state.boardState.paymentQueue).toBeNull();
     expect(state.boardState.gameplayEvents.events).toContainEqual(expect.objectContaining({
       type: 'MONEY_TRANSFER',
       destination: { kind: 'BANK' },
-      amount: 200,
+      amount: 150,
       reason: 'TAX',
     }));
   });

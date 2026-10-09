@@ -137,7 +137,7 @@ describe('PropertyInspectionModal', () => {
 
   it('prints what a tax tile costs, from the shared tile value', () => {
     renderInspection(4);
-    expect(screen.getByText(/^Nộp 200\.000 ₫ cho Ngân hàng/u)).toBeTruthy();
+    expect(screen.getByText(/^Nộp 150\.000 ₫ cho Ngân hàng/u)).toBeTruthy();
   });
 
   describe('actions', () => {

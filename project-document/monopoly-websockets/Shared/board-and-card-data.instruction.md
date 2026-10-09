@@ -29,7 +29,7 @@ hai. Presentation-only icon/layout có thể ở Client nhưng không lặp econ
 | 1 | normal | Cà Mau | brown, giữ |
 | 2 | chest | Khí Vận | giữ |
 | 3 | normal | Bạc Liêu | brown, giữ |
-| 4 | expense | Thuế Thu Nhập | `expenseAmount` 200: người chơi nộp 200.000 ₫ cho Ngân hàng (không phải no-op) |
+| 4 | expense | Thuế Thu Nhập | `expenseAmount` 150: người chơi nộp 150.000 ₫ cho Ngân hàng (không phải no-op) |
 | 5 | railroad | Ga Hà Nội | giữ |
 | 6 | normal | Buôn Ma Thuột | lightblue, giữ |
 | 7 | chance | Cơ Hội | giữ |

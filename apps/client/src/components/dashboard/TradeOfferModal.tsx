@@ -122,15 +122,17 @@ export default function TradeOfferModal() {
     return models;
   }, [language, playerId, recipientPlayerId, roomPlayers, state]);
 
+  // Keyed by the tile ID, not the target object: the provider rebuilds that object on every board render, which would wipe typed amounts.
+  const tradeTileId = tradeTarget?.tileID ?? null;
   useEffect(() => {
-    if (!tradeTarget) return;
-    const requestedTileId = tradeTarget.tileID;
+    if (tradeTileId === null) return;
+    const requestedTileId = tradeTileId;
     setOfferedCash(0);
     setRequestedCash(0);
     setOfferedPropertyIds([]);
     setOfferedJailFreeCardIds([]);
     setRequestedPropertyIds([requestedTileId]);
-  }, [tradeTarget, recipientPlayerId]);
+  }, [tradeTileId, recipientPlayerId]);
 
   useEffect(() => {
     const heldCards = new Set(

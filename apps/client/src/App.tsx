@@ -10,6 +10,7 @@ import type {
   Ack,
   AckCallback,
   AddBotResult,
+  BotDifficulty,
   JoinRoomRequest,
   OfferResult,
   PrivatePlayerState,
@@ -881,6 +882,10 @@ export default function App({
     runTeamCommand(done => socket.emit('remove bot', { playerId: targetPlayerId }, done));
   }, [runTeamCommand, socket]);
 
+  const handleSetBotDifficulty = useCallback((difficulty: BotDifficulty) => {
+    runTeamCommand(done => socket.emit('set bot difficulty', { difficulty }, done));
+  }, [runTeamCommand, socket]);
+
   const handleMoveToSeat = useCallback((teamId: TeamId, teamSlot: TeamSlot) => {
     runTeamCommand(done => socket.emit('move to seat', { teamId, teamSlot }, done));
   }, [runTeamCommand, socket]);
@@ -1131,6 +1136,8 @@ export default function App({
           onKickPlayer={handleKickPlayer}
           onAddBot={handleAddBot}
           onRemoveBot={handleRemoveBot}
+          botDifficulty={room.gameState.boardState.botDifficulty}
+          onSetBotDifficulty={handleSetBotDifficulty}
           onMoveToSeat={handleMoveToSeat}
           onRequestSeatSwap={handleRequestSeatSwap}
           onCancelSeatSwap={handleCancelSeatSwap}

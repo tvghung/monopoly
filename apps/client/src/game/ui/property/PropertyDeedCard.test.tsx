@@ -190,7 +190,7 @@ describe('PropertyDeedCard', () => {
   it('renders a special tile as a rule card without price, ladder or owner', () => {
     const { container } = renderDeed(4);
     expect(screen.getByRole('article', { name: 'Thuế Thu Nhập' })).toBeTruthy();
-    expect(container.querySelector('.deed__rule')?.textContent).toBe('Nộp 200.000 ₫ cho Ngân hàng khi dừng tại đây.');
+    expect(container.querySelector('.deed__rule')?.textContent).toBe('Nộp 150.000 ₫ cho Ngân hàng khi dừng tại đây.');
     expect(screen.queryByRole('table')).toBeNull();
     expect(container.querySelector('.deed__owner')).toBeNull();
     expect(container.querySelector('.deed__price')).toBeNull();

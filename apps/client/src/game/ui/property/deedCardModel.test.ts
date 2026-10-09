@@ -191,7 +191,7 @@ describe('buildDeedCardModel', () => {
     expect(start.ruleLines[0]).toContain('200.000 ₫');
     const tax = build(4)!;
     expect(tax.name).toBe('Thuế Thu Nhập');
-    expect(tax.ruleLines).toEqual(['Nộp 200.000 ₫ cho Ngân hàng khi dừng tại đây.']);
+    expect(tax.ruleLines).toEqual(['Nộp 150.000 ₫ cho Ngân hàng khi dừng tại đây.']);
     expect(build(38)!.ruleLines[0]).toContain('Nộp');
   });
 });

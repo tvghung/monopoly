@@ -21,6 +21,9 @@ ghế đó được làm. Thiết kế đầy đủ và quyết định: [BOT_SY
 - `add bot {requestId, seat?}`: host, `LOBBY`; `ROOM_FULL` khi đủ 4 ghế; cùng `requestId` (LRU runtime 64 id/phòng, 10 phút)
   trả lại bot cũ, không thêm bot thứ hai. 2v2: `seat` là ghế trống host bấm, ghế đã có người thì về ghế mặc định.
 - `remove bot {playerId}`: host, `LOBBY`, chỉ ghế BOT; `NOT_FOUND` khi đã bị xóa. `kick player` từ chối bot.
+- `set bot difficulty {difficulty}`: host, `LOBBY`; một mức cho mọi bot (Cực dễ, Dễ, Trung bình, Khó, Cực khó)
+  lưu ở `boardState.botDifficulty` (thiếu = MEDIUM, `play again` giữ nguyên). Client chỉ hiện dropdown khi có ít nhất một bot;
+  khách thấy mức hiện tại nhưng không đổi được.
 - `request seat swap` tới bot: đổi chỗ ngay (bot luôn đồng ý). Bot không bao giờ xin đổi chỗ.
 - `start game`: 2–4 ghế, ít nhất 1 người, mọi người Ready + connected. `boardState.matchId = randomUUID()`.
 - `play again`: giữ `kind`; bot Ready lại ngay, người phải Ready lại; `matchId` về null tới lần start sau.
