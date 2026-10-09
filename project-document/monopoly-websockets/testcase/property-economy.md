@@ -36,3 +36,6 @@
   `playerPortfolioFlow.test.tsx`, `portfolioModel.test.ts`: actions and their disabled reasons, authoritative balance, district
   grouping, read-only player portfolio opened from a HUD card button, focus return to that button.
 - [ ] `[MANUAL-E2E]` G4: inspection, "Tài sản của tôi" and player portfolio at phone and desktop sizes.
+- [x] `[AUTO][SOCKET]` CURRENT DEVELOPMENT (protocol 13): `sell house` carries `{tileID, requestId}`; one sale, a retransmitted and a concurrent duplicate sell once, a new
+  request sells another house, a refused request is not remembered, another actor's id is not a replay, bare tile number / missing id are `INVALID_REQUEST`
+  (`apps/server/src/socket.hardening.integration.test.ts`).

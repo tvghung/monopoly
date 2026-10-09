@@ -38,8 +38,10 @@ offers liên quan; offer cùng tài sản vẫn được định danh bằng ID.
 đúng một lần và private events không xuất hiện trong public state.
 
 Offer chỉ nằm trong RAM của process host: host thoát là mọi offer mất cùng phòng; resume chỉ trả lại pending offers khi
-process host đó vẫn sống. `make offer` **không idempotent** phía server: mỗi lần emit tạo một `offerId` mới (payload không có
-`requestId`), nên client không được tự gửi lại sau ACK timeout (resume/resync trước).
+process host đó vẫn sống. `make offer` mang `requestId` (UUID mới cho mỗi đề nghị, `apps/client/src/App.tsx` thêm vào payload; protocol 13, CURRENT
+DEVELOPMENT) nên server idempotent: emit gửi lại trả đúng `offerId` ban đầu và không tạo thêm đề nghị
+([socket-trading](../Api/socket-trading.instruction.md)). Released v1.7.0 không có `requestId`: mỗi emit tạo một `offerId` mới.
+Client vẫn không tự gửi lại sau ACK timeout (resume/resync trước); một đề nghị mới là một lần gửi mới với `requestId` mới.
 
 ## Tests
 

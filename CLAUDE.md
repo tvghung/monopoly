@@ -134,6 +134,8 @@ Mọi khẳng định kỹ thuật quan trọng phải kèm đường dẫn code
 - Public room dùng `room:<roomId>`; private delivery dùng `player:<playerId>`.
 - Mọi payload mạng được parse bằng runtime schema. Mọi state-changing command có typed ACK và chỉ ACK/broadcast sau khi RAM
   transaction commit.
+- Lệnh chuyển tiền/tài sản mà client có thể gửi lại (`sell house`, `make offer`, `add bot`) mang `requestId` UUID và idempotent theo
+  ledger runtime (`apps/server/src/services/commandRequestLedger.ts`, `botRequestLedger.ts`); chỉ lệnh đã commit được ghi nhớ.
 - Mutation cùng room chạy tuần tự qua room command executor trên draft state. Save thất bại phải bỏ draft, không commit revision
   hoặc broadcast.
 - ACK lỗi runtime RAM không phân loại theo thuộc tính `code`; `DATABASE_UNAVAILABLE` chỉ còn là mã tương thích (deprecated), server
@@ -192,7 +194,9 @@ Mọi khẳng định kỹ thuật quan trọng phải kèm đường dẫn code
   và packaged `app://` path traversal guard. Main process chỉ là shell/runtime/window boundary, không chứa GameCore hoặc bypass
   server authority.
 - Active-game desktop close là disconnect để reconnect; không emit `leave room`. Chỉ nút `Bỏ cuộc`/explicit leave mới revoke
-  session. Prompt/confirmation dùng central Modal/ConfirmationDialog; không thêm `window.confirm`.
+  session. Prompt/confirmation dùng central Modal/ConfirmationDialog; không thêm `window.confirm`. Hộp xác nhận đóng cửa sổ đã
+  hiện (`quit.acknowledge`) thì main chờ người chơi trả lời; chỉ renderer không thể hỏi/trả lời mới làm đóng tự động (canonical:
+  `Desktop/electron-shell-and-packaging.instruction.md`).
 
 ## 9. Guardrails protocol, persistence, networking và release
 

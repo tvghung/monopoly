@@ -21,11 +21,10 @@ ghế đó được làm. Thiết kế đầy đủ và quyết định: [BOT_SY
 - `add bot {requestId, seat?}`: host, `LOBBY`; `ROOM_FULL` khi đủ 4 ghế; cùng `requestId` (LRU runtime 64 id/phòng, 10 phút)
   trả lại bot cũ, không thêm bot thứ hai. 2v2: `seat` là ghế trống host bấm, ghế đã có người thì về ghế mặc định.
 - `remove bot {playerId}`: host, `LOBBY`, chỉ ghế BOT; `NOT_FOUND` khi đã bị xóa. `kick player` từ chối bot.
-- `set bot difficulty {difficulty}` — CURRENT DEVELOPMENT (vNext, unreleased; commit 1937a73; implemented on the vNext development branch; product approval/release decision not independently verified;
-  không có trong v1.7.0): host, `LOBBY`; một mức cho mọi bot (Cực dễ, Dễ, Trung bình, Khó, Cực khó)
+- `set bot difficulty {difficulty}` — CURRENT DEVELOPMENT (vNext, unreleased, protocol 13; không có trong v1.7.0): host, `LOBBY`; một mức cho mọi bot (Cực dễ, Dễ, Trung bình, Khó, Cực khó)
   lưu ở `boardState.botDifficulty` (thiếu = MEDIUM, `play again` giữ nguyên). Client chỉ hiện dropdown khi có ít nhất một bot;
-  khách thấy mức hiện tại nhưng không đổi được. RELEASE RISK: lệnh được thêm trong protocol 12 không bump (snapshot vẫn 11),
-  nên host 1.7.0 đã phát hành không có handler cho lệnh này (không ACK; theo đọc code); chi tiết ở
+  khách thấy mức hiện tại nhưng không đổi được. Lệnh thuộc protocol 13 (snapshot vẫn 11): app 1.7.0 bị từ chối ở bắt tay
+  (`UPGRADE_REQUIRED`), nên không có host 1.7.0 nào nhận lệnh này; chi tiết ở
   [Version history](../Shared/socket-and-state-contracts.instruction.md#version-history).
   Profile trong `DIFFICULTY_PROFILES` (`apps/server/src/bots/policy.ts`); MEDIUM = Balanced policy đã phát hành ở v1.7.0, không đổi:
 

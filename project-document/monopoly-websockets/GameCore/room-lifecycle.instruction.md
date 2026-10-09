@@ -66,8 +66,11 @@ Explicit leave:
 - Finished: any member may leave. The membership becomes `LEFT` and the session is revoked without a liquidation; the winner
   keeps its live seat (cash, properties, turn slot) with no liquidation, so the victory state is unchanged for everyone who
   stays. Another still-active member of the winning 2v2 team is removed via `removePlayerFromGame` (properties to the Bank,
-  cash forfeited). Known issue, NOT VERIFIED by a test: this path does not return held jail-free cards to the deck, which may
-  make the snapshot card-count check fail on commit. The host passes to the lowest join order among the non-`LEFT` members,
+  cash forfeited) and its held jail-free cards return to their draw pile (`removePlayerRecord` in `apps/server/src/game/turn.ts`;
+  CURRENT DEVELOPMENT fix: in released v1.7.0 this path left the cards in the removed hand, the snapshot card-accounting check failed
+  on commit and the leave ended in `INTERNAL_ERROR`, reproduced by a test). Tests: `apps/server/src/socket.teamplay.integration.test.ts`
+  (a winning-team member who is not the stored winner leaves a finished room while holding a jail-free card), `apps/server/src/game.test.ts`.
+  The host passes to the lowest join order among the non-`LEFT` members,
   finished members included; the room is deleted when no human remains (bots may still be seated). `play again` excludes `LEFT` members.
 - After a forfeit the client may re-join the same Socket as a spectator (a join after the start is a spectator); the forfeiter
   is a `LEFT` member with no seat and no token, exactly like any other spectator.

@@ -16,14 +16,14 @@ Unless the "Applies to" column says otherwise, a decision holds both in released
 | [ADR-03](#adr-03-ram-only-volatile-runtime-no-recovery-across-process-exit) | RAM-only volatile runtime, no recovery across process exit | v1.5.0 | v1.7.0 and vNext |
 | [ADR-04](#adr-04-stable-identity-hashed-reconnect-token-newest-connection-wins) | Stable identity, hashed reconnect token, newest connection wins | V1 | v1.7.0 and vNext |
 | [ADR-05](#adr-05-serialized-room-commands-commit-before-ack-and-broadcast) | Serialized room commands, commit before ACK and broadcast | V1 | v1.7.0 and vNext |
-| [ADR-06](#adr-06-shared-runtime-validated-contracts-and-explicit-versions) | Shared runtime-validated contracts and explicit versions | V1 | v1.7.0 and vNext (both protocol 12 / snapshot 11; see ADR-13) |
+| [ADR-06](#adr-06-shared-runtime-validated-contracts-and-explicit-versions) | Shared runtime-validated contracts and explicit versions | V1 | v1.7.0 (protocol 12 / snapshot 11) and vNext (protocol 13 / snapshot 11; see ADR-13) |
 | [ADR-07](#adr-07-public-and-private-projections) | Public and private projections | V1 | v1.7.0 and vNext |
 | [ADR-08](#adr-08-lan-and-online-networking) | LAN and Online networking | v1.5.0 (Online), v1.7.0 (relink, registry) | v1.7.0 and vNext |
 | [ADR-09](#adr-09-bots-are-host-played-seats-using-the-same-commands) | Bots are host-played seats using the same commands | v1.7.0 | v1.7.0 (one Balanced policy); difficulty levels vNext only |
 | [ADR-10](#adr-10-presentation-never-replaces-authoritative-state) | Presentation never replaces authoritative state | V1 | v1.7.0 and vNext |
 | [ADR-11](#adr-11-electron-security-boundary) | Electron security boundary | V1 | v1.7.0 and vNext |
-| [ADR-12](#adr-12-packaging-update-policy-and-protocol-review) | Packaging, update policy and protocol review | v1.2.0 (updates) | v1.7.0 and vNext (update policy unchanged at 1.7.0 / protocol 12) |
-| [ADR-13](#adr-13-released-contract-vs-current-development) | Released contract vs current development | — (open decision) | Differences between v1.7.0 and vNext; R-1 OPEN |
+| [ADR-12](#adr-12-packaging-update-policy-and-protocol-review) | Packaging, update policy and protocol review | v1.2.0 (updates) | v1.7.0 (update policy 1.7.0 / protocol 12); vNext reviewed for protocol 13 |
+| [ADR-13](#adr-13-released-contract-vs-current-development) | Released contract vs current development | — | Differences between v1.7.0 and vNext (protocol 13); R-1 RESOLVED in code |
 
 ## ADR-01 Host process is the only gameplay authority
 
@@ -168,24 +168,32 @@ Unless the "Applies to" column says otherwise, a decision holds both in released
   history is never rewritten to match the branch.
 - **Released v1.7.0** (tag `v1.7.0`, `f37a271`): socket protocol 12, room snapshot schema 11, Income Tax (tile 4) 200 and Luxury
   Tax (tile 38) 100 game units, one Balanced bot policy, no difficulty setting, update policy minimum 1.7.0.
-- **CURRENT DEVELOPMENT** (commit `1937a73`, 2026-10-09, unreleased; implemented on the vNext development branch; product approval/release decision not independently verified):
-  - Income Tax 150 (`packages/shared/src/tileState.ts`). This departs from vNext decision D15 ("taxes stay 200/100")
-    on this branch only; D15 still describes the released v1.7.0 rule, and whether D15 is superseded is the owner's release decision.
+- **CURRENT DEVELOPMENT** (unreleased; candidate for v1.8.0): socket protocol **13**, room snapshot schema 11 (unchanged).
+  - Income Tax 150 (`packages/shared/src/tileState.ts`). **Approval evidence:** the project owner asked for it in the session
+    "Cải tiến game board và lobby" on 2026-10-09 (user message: "…xuống từ 200k xuống 150k"; commit `1937a73`, Claude Code session
+    `local_51f973e8-7b78-4ed1-be95-f19a8f787dd9`). It is an owner request recorded in a chat transcript, not a written decision
+    in the repository; it departs from vNext decision D15 ("taxes stay 200/100"), which still describes the released v1.7.0 rule
+    and is superseded for the next release by this owner request. Luxury Tax stays 100.
   - Host-only lobby command `set bot difficulty` and optional `BoardState.botDifficulty` (absent = MEDIUM = the released
     Balanced policy), profiles in `apps/server/src/bots/policy.ts`.
   - Client fixes: jail panel only at the start of the jailed player's own turn; trade-offer amounts survive board re-renders.
-  - The release records added on `main` by commit `e88b959` (owner-reported manual QA for v1.7.0) are not on this branch.
-- **OPEN RELEASE RISK R-1 (pending owner decision).** The two rule changes were added *inside* protocol 12 without a version bump,
-  so 1.7.0 and vNext apps pass each other's handshake. Analysis by code reading (not executed):
-  - *Additive command.* A 1.7.0 server passes an unknown event through `installInboundValidation`
-    (`git show v1.7.0:apps/server/src/socket/validation.ts`) and has no listener, so `set bot difficulty` gets **no ACK**; the
-    vNext client's `runTeamCommand` (`apps/client/src/App.tsx`) has no ACK timeout, so lobby controls would stay busy. Only the
-    host sends this command, and a packaged host's renderer always ships with its own helper, so this needs a mixed-version
-    host setup (for example development tooling) to occur.
-  - *Additive state.* A 1.7.0 client receives `boardState.botDifficulty` and ignores it (no strict parse of public state).
-  - *Gameplay-rule mismatch (the practical risk).* A desktop guest renders tax text from its own bundled shared data while the
-    authoritative host charges its own value: a 1.7.0 desktop guest at a vNext host sees 200 and is charged 150, and the
-    reverse. Browser guests load the host-served client, so they match the host. Money is always correct; displayed rules can
-    be wrong.
-  The options (accept, or bump the protocol and update policy) are a separate engineering task; vNext is not release-ready
-  while R-1 is open. Tracked in [testcase/RELEASE_ACCEPTANCE_MATRIX.md](./testcase/RELEASE_ACCEPTANCE_MATRIX.md).
+  - Multiplayer hardening: `sell house` and `make offer` carry a client `requestId` and are idempotent
+    ([socket-building](./Api/socket-building.instruction.md), [socket-trading](./Api/socket-trading.instruction.md));
+    `decline offer` requires an in-progress room; a removed player's jail-free cards return to their deck (a winning-team member
+    can leave a finished 2v2 room); the desktop quit confirmation waits for the player instead of failing open after 2 s
+    ([Desktop shell](./Desktop/electron-shell-and-packaging.instruction.md)).
+- **R-1 (protocol compatibility) — RESOLVED in code, option A: protocol bump 12 → 13.** v1.7.0 and the earlier state of this branch
+  were both protocol 12 but differed in a displayed rule (Income Tax 200 vs 150) and in the command contract. Facts checked in
+  code, not guessed: the handshake compares `auth.protocolVersion` for strict equality (`apps/server/src/socket/index.ts`, same
+  at tag `v1.7.0`), so a protocol-13 host answers a 1.7.0 client with `UPGRADE_REQUIRED` and a 1.7.0 host rejects a protocol-13
+  client; a desktop guest renders tax text from its own bundled shared data while the host charges its own value (that mismatch is
+  what the bump prevents); a 1.7.0 host never ACKs `set bot difficulty` and `sell house`/`make offer` payloads changed. Option B
+  (stay on 12) was rejected because backward compatibility cannot be guaranteed: the displayed-rule mismatch of a desktop guest has
+  no capability negotiation to fix it. Consequences: LAN discovery ignores hosts of another protocol (`LAN_DISCOVERY_SOCKET_PROTOCOL`),
+  `apps/desktop/update-policy.json` `reviewedForSocketProtocol: 13`, and the next release raises `minimumSupportedVersion` to its
+  own version so installed 1.7.0 apps are told to update (as for protocols 10 and 11; see
+  [V1_RELEASE_CONTRACT](../ui-ux-overhaul/V1_RELEASE_CONTRACT.md)). Desktop guests of another version see an "update both apps"
+  message (`app.versionMismatchDesktop`). Snapshot schema stays 11: `botDifficulty` is optional and snapshots never leave one
+  process's RAM. Tracked in [testcase/RELEASE_ACCEPTANCE_MATRIX.md](./testcase/RELEASE_ACCEPTANCE_MATRIX.md).
+- **R-2 (release records) — RESOLVED.** `origin/main` (including `e88b959` and the v1.7.0 merge `f37a271`) was merged into this branch
+  without conflicts.

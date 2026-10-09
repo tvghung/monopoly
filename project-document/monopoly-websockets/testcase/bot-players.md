@@ -30,7 +30,8 @@ Rule: [GameCore/bot-players.instruction.md](../GameCore/bot-players.instruction.
 - [ ] `[MANUAL-E2E]` Sảnh A1–A8 và trọn ván B1–B8, mất kết nối/chơi lại C1–C7 trong USER_MANUAL_BOT_TEST_PLAN.
 - [ ] `[MANUAL-E2E]` `[NOT RUN]` CURRENT DEVELOPMENT (vNext, unreleased): chơi trọn một ván với bot ở từng mức `VERY_EASY`, `EASY`, `MEDIUM`,
   `HARD`, `VERY_HARD` (host đổi mức ở sảnh, khách chỉ xem; ghi lại hành vi mua/xây/offer và ván kết thúc không treo). NOT RUN.
-- [ ] `[RELEASE]` CURRENT DEVELOPMENT: quyết định tương thích 1.7.0 ↔ vNext trước khi phát hành — `set bot difficulty` và
-  Thuế Thu Nhập 150 được thêm trong protocol 12 không bump (snapshot vẫn 11); host 1.7.0 không có handler nên lệnh này không bao giờ được ACK (theo đọc code, chưa chạy thử) và
-  guest 1.7.0 hiển thị thuế 200 trong khi host vNext thu 150. Bump protocol hay chấp nhận rủi ro:
-  [Version history](../Shared/socket-and-state-contracts.instruction.md#version-history). NOT DECIDED.
+- [x] `[AUTOMATED]` `[RELEASE]` CURRENT DEVELOPMENT: tương thích 1.7.0 ↔ vNext đã được quyết định bằng bump protocol 12 → 13 (R-1 RESOLVED):
+  `set bot difficulty` và Thuế Thu Nhập 150 đổi hợp đồng nên app 1.7.0 bị từ chối ở bắt tay (`UPGRADE_REQUIRED`), không còn host/guest hiển thị luật khác nhau.
+  Test: `apps/server/src/socket.integration.test.ts` ("rejects incompatible protocol", gồm 12 và 14), `apps/client/src/App.test.tsx` (thông báo cập nhật cho desktop guest),
+  `pnpm validate:v1-contract`. Lý do: [Version history](../Shared/socket-and-state-contracts.instruction.md#version-history), [ADR-13](../ARCHITECTURE_DECISIONS.md#adr-13-released-contract-vs-current-development).
+  Chạy thử chéo phiên bản bằng hai app đóng gói thật (1.7.0 ↔ bản mới): NOT RUN.

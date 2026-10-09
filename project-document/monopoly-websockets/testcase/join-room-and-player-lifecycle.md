@@ -127,6 +127,16 @@ lookup contract: [Api/http-runtime.instruction.md](../Api/http-runtime.instructi
   the new `launcher-join-failed`, render and are listed in the capture manifest.
 - [ ] `[MANUAL-E2E]` G4 re-capture of `launcher`, `launcher-running`, `launcher-host`, `launcher-join`, `launcher-join-failed` and
   `lobby-lan` at the standard viewports (the form fits 375 px landscape with the extra field). _(Captures not run by the author.)_
+- [x] `[AUTO][DESKTOP]` CURRENT DEVELOPMENT: the host-close confirmation is not closed by the old 2 s countdown once the dialog is open — acknowledged request waits past 60 s;
+  cancel keeps the window and allows asking again; unacknowledged renderer still fails open after 2 s; foreign/finished acknowledgement ignored; repeated close adds no request
+  or listener; renderer process gone closes; reload is a cancellation; short freeze waits, 30 s unresponsive closes; dispose answers no
+  (`apps/desktop/tests/quitRequestController.test.ts`, `apps/desktop/tests/windowHandlers.test.ts`, `apps/desktop/tests/preloadBridge.test.ts`).
+- [x] `[AUTO][CLIENT]` CURRENT DEVELOPMENT: active game → dialog + `quit.acknowledge`, nothing answered until the player decides; cancel answers `false` and keeps the seat;
+  unmount while open answers `false`, never `true`; no `leave room` in any case (`apps/client/src/App.test.tsx`).
+- [x] `[AUTO][CLIENT]` CURRENT DEVELOPMENT: a desktop guest of another protocol sees the "update both apps" message and no reload action (`apps/client/src/App.test.tsx`).
+- [x] `[AUTO][SOCKET]` CURRENT DEVELOPMENT: a winning-team member who is not the stored winner can leave a finished 2v2 room holding a jail-free card; the card returns to
+  its deck once, the winner is unchanged, a repeated leave is refused (`apps/server/src/socket.teamplay.integration.test.ts`).
+- [ ] `[MANUAL-E2E]` `[NOT RUN]` CURRENT DEVELOPMENT: real Windows/macOS app — leave the host-close dialog open for more than 2 s, then cancel (window and match stay) and confirm (window closes, match ends).
 - [ ] `[MANUAL-E2E]` Packaged app on two PCs: see [V1 final manual acceptance](../../ui-ux-overhaul/V1_FINAL_MANUAL_ACCEPTANCE.md#lan-room-lookup-v11)
   (HISTORICAL procedure; not current — current manual tracking: [RELEASE_ACCEPTANCE_MATRIX.md](./RELEASE_ACCEPTANCE_MATRIX.md)).
 

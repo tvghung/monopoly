@@ -19,6 +19,13 @@ ACK and room broadcast happen after commit and, in the socket handlers, after `c
 
 Error mapping on ACK (`mapCommandError` in `apps/server/src/socket/errors.ts`; a domain `CommandError` keeps its own code; `UnsupportedRoomSnapshotVersionError` → `INTERNAL_ERROR`, non-retryable): `RoomNotFoundError` → `ROOM_GONE`; `RoomVersionConflictError` → `CONFLICT` (retryable); `RuntimeUnavailableError` (closed store) → `INTERNAL_ERROR` (non-retryable); any other error → `INTERNAL_ERROR` (retryable). `DATABASE_UNAVAILABLE` is deprecated and never emitted.
 
+## Request ledgers
+
+Runtime-memory ledgers of client request ids make retransmitted emits idempotent without touching the durable-looking room aggregate: `runtime.botRequests` (`add bot`, `apps/server/src/services/botRequestLedger.ts`, 64 ids per room), and
+`runtime.sellHouseRequests` / `runtime.makeOfferRequests` (`apps/server/src/services/commandRequestLedger.ts`, CURRENT DEVELOPMENT, protocol 13; keyed by room, actor, event and
+id; 128 ids per room, 10 minutes, 1024 rooms, oldest first). They are written in `afterCommit` (a refused or rolled-back command records nothing), are never persisted or
+snapshotted, and die with the helper like every room, so a restarted host has no memory of old request ids (its rooms and tokens are gone too).
+
 ## Failure semantics
 
 | Event | Result |

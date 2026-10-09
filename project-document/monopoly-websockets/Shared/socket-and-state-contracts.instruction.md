@@ -47,16 +47,17 @@ artifact, runtime RAM không bao giờ nạp; các helper `upgradeRoomSnapshotV4
 | V10 | V9 | v1.3.0 (2026-10-06) | 2v2 Teamplay: `GameMode`, `TeamId`, team settings, `TeamPlayState`/`ReviveWindow`, `EmergencyRescueOffer`; snapshot V9 thêm `gameMode`, `teams`, `teamPlay`, `winningTeamId`, `PaymentQueue.rescue`, `teamId` trên mọi player record. HISTORICAL SQL `010_teamplay_v9.sql`. |
 | V11 | V10 | v1.4.0 (2026-10-07); giữ nguyên tới v1.4.1, v1.5.0, v1.6.0, v1.6.1 | Ghế sảnh 2v2 + host kick: `Player.teamSlot`, `RoomPlayerMeta.teamSlot`, `boardState.seatSwapRequests`, lệnh `kick player`/`move to seat`/`request seat swap`/`cancel seat swap`/`respond seat swap`, event `removed from room`; bỏ `swap team`. HISTORICAL SQL `011_lobby_seats_v10.sql`. |
 | V12 | V11 | v1.7.0 (GitHub Release 2026-10-09; minimum supported version 1.7.0) | Ghế bot: `RoomMember.kind`, `boardState.matchId`, `RoomPlayerMeta.kind`, lệnh `add bot`/`remove bot`, `MAX_BOTS_PER_ROOM`. Snapshot V10 hợp lệ như V11 (thiếu `kind` = HUMAN); không có file SQL mới. |
-| V12 (CURRENT DEVELOPMENT, unreleased) | V11 (không đổi) | NOT RELEASED — commit 1937a73 trên `feat/own-the-block-multiplayer-bots-vnext` (implemented on the vNext development branch; product approval/release decision not independently verified) | Lệnh host-only, lobby-only `set bot difficulty {difficulty}` + optional `BoardState.botDifficulty` (`BOT_DIFFICULTIES`, `DEFAULT_BOT_DIFFICULTY = MEDIUM`). Cùng commit đổi dữ liệu Thuế Thu Nhập (ô 4) 200 → 150 (không phải thay đổi protocol). |
+| V13 (CURRENT DEVELOPMENT, unreleased; candidate for v1.8.0) | V11 (không đổi) | NOT RELEASED — nhánh `feat/own-the-block-multiplayer-bots-vnext` sau v1.7.0 | Lệnh host-only, lobby-only `set bot difficulty {difficulty}` + optional `BoardState.botDifficulty` (`BOT_DIFFICULTIES`, `DEFAULT_BOT_DIFFICULTY = MEDIUM`); dữ liệu Thuế Thu Nhập (ô 4) 200 → 150 (chủ dự án yêu cầu trong phiên làm việc ngày 2026-10-09, xem [ADR-13](../ARCHITECTURE_DECISIONS.md#adr-13-released-contract-vs-current-development)); `sell house` nhận `{tileID, requestId}` (`SellHouseRequest`) và `make offer` nhận `OfferInfo` = `TradeOfferRequest` + `requestId` (UUID mỗi lần gửi, server idempotent theo `requestId`). Snapshot V11 không đổi: `botDifficulty` là optional (thiếu = MEDIUM) và snapshot chỉ nằm trong RAM của một process. |
 
-RELEASE RISK (dòng CURRENT DEVELOPMENT): thay đổi được thêm trong protocol 12 mà không bump, nên một host 1.7.0 đã phát hành
-và một client vNext vẫn bắt tay thành công. Host 1.7.0 không có handler cho `set bot difficulty`: inbound guard của nó
-(`installInboundValidation` tại tag v1.7.0) cho event lạ đi qua và không listener nào trả lời, nên ACK không bao giờ tới (không phải
-`INVALID_REQUEST`; theo đọc code, chưa chạy thử) và `runTeamCommand` trong `apps/client/src/App.tsx` (không có ACK timeout) giữ
-trạng thái pending; client 1.7.0 bỏ qua
-field thừa `botDifficulty` (client không strict-parse public state); desktop guest 1.7.0 vào host vNext sẽ hiển thị thuế trên
-deed/how-to-play từ shared data của chính nó (200) trong khi host thu 150 (host authoritative). Quyết định bump protocol hay
-chấp nhận chênh lệch phải có trước khi phát hành.
+Quyết định bump 12 → 13 (R-1 RESOLVED trong code): v1.7.0 và nhánh này cùng ở protocol 12 nhưng khác luật hiển thị (thuế 200 / 150)
+và khác hợp đồng lệnh. Một desktop guest dùng renderer đóng gói riêng hiển thị thuế từ shared data của chính nó trong khi host
+authoritative thu giá trị của host, và một host 1.7.0 không bao giờ ACK `set bot difficulty` (không listener, client không timeout;
+theo đọc code tại tag `v1.7.0`). Handshake bằng đúng `SOCKET_PROTOCOL_VERSION` (`apps/server/src/socket/index.ts`) nên protocol 13 từ chối mọi
+app 1.7.0 (và ngược lại) bằng `UPGRADE_REQUIRED` thay vì để hai bên hiển thị luật khác nhau; desktop guest nhận thông báo "cập nhật cả
+chủ phòng và người chơi" (`app.versionMismatchDesktop`), browser guest vẫn nhận "tải lại trang" vì client browser luôn do host phục vụ.
+LAN discovery (`LAN_DISCOVERY_SOCKET_PROTOCOL` trong `apps/desktop/src/lanFinder.ts`) bỏ qua host khác protocol. `apps/desktop/update-policy.json`
+ghi `reviewedForSocketProtocol: 13`. Bằng chứng: `apps/server/src/socket.integration.test.ts` ("rejects incompatible protocol"),
+`apps/client/src/App.test.tsx` (thông báo desktop), `pnpm validate:v1-contract`.
 
 ## Standard Mode aggregate
 
@@ -96,10 +97,13 @@ Public types và room snapshot trong RAM dùng stable IDs và phân biệt hidde
 - Bot seats (protocol 12, snapshot 11): `PLAYER_KINDS`/`PlayerKind`, `RoomPlayerMeta.kind` (always set; `connected` is true
   for an active bot), server-only `RoomMember.kind` (absent = HUMAN), `BoardState.matchId` (UUID per started match, null in
   a lobby), `AddBotRequest {requestId, seat?}` → `AddBotResult {playerId}`, `RemoveBotRequest {playerId}`, `MAX_BOTS_PER_ROOM`.
-- Bot difficulty — CURRENT DEVELOPMENT (vNext, unreleased; commit 1937a73, không có trong v1.7.0): `BOT_DIFFICULTIES`/`BotDifficulty`
+- Idempotent money commands — CURRENT DEVELOPMENT (protocol 13, không có trong v1.7.0): `SellHouseRequest {tileID, requestId}` cho `sell house`
+  và `OfferInfo extends TradeOfferRequest {requestId}` cho `make offer`; `requestId` là UUID (`sellHouseRequestSchema`, `offerInfoSchema` trong
+  `packages/shared/src/socketSchemas.ts`). Ledger runtime: [socket-building](../Api/socket-building.instruction.md), [socket-trading](../Api/socket-trading.instruction.md).
+- Bot difficulty — CURRENT DEVELOPMENT (vNext, unreleased; không có trong v1.7.0): `BOT_DIFFICULTIES`/`BotDifficulty`
   (`VERY_EASY | EASY | MEDIUM | HARD | VERY_HARD`), `DEFAULT_BOT_DIFFICULTY = MEDIUM`, optional `BoardState.botDifficulty`
   (thiếu = MEDIUM; `apps/server/src/services/publicState.ts` luôn project ra giá trị, MEDIUM khi thiếu), `SetBotDifficultyRequest {difficulty}`
-  cho lệnh host-only, lobby-only `set bot difficulty`. Thêm trong protocol 12 không bump, snapshot vẫn 11 → RELEASE RISK:
+  cho lệnh host-only, lobby-only `set bot difficulty`. Thuộc protocol 13 (CURRENT DEVELOPMENT), snapshot vẫn 11;
   xem [Version history](#version-history).
 - Lobby seats (protocol 11): `Player.teamSlot` (`TeamSlot` 0|1) and `RoomPlayerMeta.teamSlot` (`PublicPlayer` omits it); `BoardState.seatSwapRequests`
   (`SeatSwapRequest {requesterPlayerId, targetPlayerId}`, public, empty outside a 2v2 lobby). Requests: `MoveToSeatRequest {teamId, teamSlot}`,

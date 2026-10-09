@@ -133,8 +133,8 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Entry:** toolbar Bỏ cuộc / Rời phòng → ConfirmationDialog → ForfeitChoiceDialog ("Xem tiếp").
 - **Docs:** [join-room][c-join], [socket-lobby][a-lobby], [room-lifecycle][g-room].
 - **Client:** `apps/client/src/App.tsx`, `apps/client/src/components/ForfeitChoiceDialog.tsx`, `apps/client/src/roomExitContext.ts`.
-- **Server:** `apps/server/src/socket/lobby.ts` (`leave room`), `apps/server/src/game/bankruptcy.ts`.
-- **Tests:** `apps/client/src/App.test.tsx` (forfeit and "Xem tiếp" cases), `apps/server/src/socket.integration.test.ts`.
+- **Server:** `apps/server/src/socket/lobby.ts` (`leave room`), `apps/server/src/game/bankruptcy.ts`, `apps/server/src/game/turn.ts` (`removePlayerRecord` returns held jail-free cards).
+- **Tests:** `apps/client/src/App.test.tsx` (forfeit and "Xem tiếp" cases), `apps/server/src/socket.integration.test.ts`, `apps/server/src/socket.teamplay.integration.test.ts` (leave of a finished 2v2 room while holding a jail-free card), `apps/server/src/game.test.ts`.
 - **Manual:** [join checklist][t-join], [status checklist][t-status]. **Affects:** F29, F31, F39.
 
 ### F08 Desktop close / quit while hosting or playing
@@ -142,10 +142,11 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Docs:** [Desktop shell][d-shell], [join-room][c-join]; [ADR-11][adr].
 - **Client:** `apps/client/src/App.tsx` (quit confirmation), `apps/client/src/i18n/catalog.ts` (`app.closeHostMessage`).
 - **Desktop:** `apps/desktop/src/ipc/windowHandlers.ts` (`QuitRequestController`), `apps/desktop/src/appQuitCoordinator.ts`, `apps/desktop/src/ipc/channels.ts`, `apps/desktop/src/preload.ts` (`quit` bridge).
-- **Tests:** `apps/client/src/App.test.tsx` ("confirms active desktop close without emitting leave room"), `apps/desktop/tests/quitRequestController.test.ts`, `apps/desktop/tests/appQuitCoordinator.test.ts`, `apps/desktop/tests/windowHandlers.test.ts`.
+- **Tests:** `apps/client/src/App.test.tsx` ("confirms active desktop close without emitting leave room"), `apps/desktop/tests/quitRequestController.test.ts`, `apps/desktop/tests/appQuitCoordinator.test.ts`, `apps/desktop/tests/windowHandlers.test.ts`, `apps/desktop/tests/preloadBridge.test.ts`.
 - **Manual:** [join checklist][t-join] (host close vs guest close copy; active game close must not emit `leave room`).
-- **Note:** code review found that the main process allows the close 2 s after asking the renderer if no answer arrives, while the
-  confirmation dialog is still open; real-app behavior NOT VERIFIED (follow-up task, see the final report).
+- **Note:** CURRENT DEVELOPMENT fix of a confirmed fail-open (released v1.7.0 closed the window 2 s after asking, even with the dialog
+  open): the renderer now acknowledges the dialog (`ownTheBlock:quit:prompting`) and main waits for the player; see
+  [Desktop shell][d-shell]. Real-app behaviour on Windows/macOS: NOT RUN (automated tests only).
 - **Affects:** F04, F48.
 
 ## Lobby
@@ -201,7 +202,7 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Shared:** `packages/shared/src/types.ts` (`BOT_DIFFICULTIES`), `packages/shared/src/socketSchemas.ts`, `packages/shared/src/stateSchemas.ts`.
 - **Tests:** `apps/server/src/bots/policy.test.ts`, `apps/server/src/socket.bots.integration.test.ts`, `apps/client/src/components/Lobby.test.tsx`.
 - **Manual:** [bot checklist][t-bot] (full game per level NOT RUN).
-- **Gap:** released v1.7.0 has no difficulty; added inside protocol 12 → RELEASE RISK R-1 ([release matrix][t-rel]); manual play NOT RUN.
+- **Gap:** released v1.7.0 has no difficulty; protocol 13 rejects 1.7.0 apps (R-1 RESOLVED in code, [release matrix][t-rel]); manual play per level NOT RUN.
 - **Affects:** F13, F15, F32.
 
 ### F15 Bots playing a match
@@ -299,9 +300,9 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Entry:** property inspection modal on an owned developed tile.
 - **Docs:** [socket-building][a-build], [property-management][c-prop].
 - **Client:** `apps/client/src/game/ui/property/PropertyInspectionModal.tsx`.
-- **Server:** `apps/server/src/socket/building.ts`, `apps/server/src/game/property.ts`.
-- **Tests:** `apps/client/src/game/ui/property/PropertyInspectionModal.test.tsx`, `apps/server/src/socket.teamplay.integration.test.ts`.
-- **Note:** not idempotent on a replayed emit (documented; code follow-up proposed). **Affects:** F29, F36.
+- **Server:** `apps/server/src/socket/building.ts`, `apps/server/src/game/property.ts`, `apps/server/src/services/commandRequestLedger.ts`.
+- **Tests:** `apps/client/src/game/ui/property/PropertyInspectionModal.test.tsx`, `apps/server/src/socket.teamplay.integration.test.ts`, `apps/server/src/socket.hardening.integration.test.ts`.
+- **Note:** idempotent per client `requestId` (CURRENT DEVELOPMENT, protocol 13; released v1.7.0 sold one more level on a replayed emit). **Affects:** F29, F36.
 
 ### F26 Tile resolution, rent and taxes
 - **Entry:** automatic after movement.
@@ -403,8 +404,8 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Entry:** private `offer on prop` push; offer card in the HUD or debt panel.
 - **Docs:** [socket-trading][a-trade], [trade-offers][c-trade].
 - **Client:** `apps/client/src/components/dashboard/IncomingOffers.tsx`, `apps/client/src/components/dashboard/OfferCard.tsx`, `apps/client/src/components/dashboard/useIncomingOffers.ts`.
-- **Server:** `apps/server/src/socket/trading.ts`, `apps/server/src/services/offerInvalidation.ts`, `apps/server/src/services/deadlineScheduler.ts`, `apps/server/src/services/privateOffers.ts`.
-- **Tests:** `apps/client/src/components/dashboard/IncomingOffers.test.tsx`, `apps/server/src/socket.integration.test.ts`, `apps/server/src/bots/driver.test.ts`.
+- **Server:** `apps/server/src/socket/trading.ts`, `apps/server/src/commands/gameplay.ts` (`declineOfferCommand`), `apps/server/src/services/commandRequestLedger.ts`, `apps/server/src/services/offerInvalidation.ts`, `apps/server/src/services/deadlineScheduler.ts`, `apps/server/src/services/privateOffers.ts`.
+- **Tests:** `apps/client/src/components/dashboard/IncomingOffers.test.tsx`, `apps/server/src/socket.integration.test.ts`, `apps/server/src/socket.hardening.integration.test.ts` (`make offer` idempotency, `decline offer` guards), `apps/server/src/bots/driver.test.ts`.
 - **Manual:** [trade checklist][t-trade]. **Affects:** F15, F29.
 
 ### F37 Property inspection, deed and portfolios
@@ -522,7 +523,7 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Desktop:** `apps/desktop/forge.config.cjs`, `apps/desktop/scripts/release.mjs`, `apps/desktop/scripts/validateRelease.mjs`, `apps/desktop/scripts/checkPackagedBudget.mjs`.
 - **Tests:** `apps/desktop/tests/releaseMetadata.test.ts`, `apps/desktop/tests/checkPackagedBudget.test.ts`, `scripts/validateV1Contract.check.mjs`.
 - **Manual:** [release matrix][t-rel].
-- **Gap:** the v1.7.0 release records (`e88b959`) are on `main` only; open release risks R-1 and R-2.
+- **Gap:** R-1 and R-2 are resolved in code and docs (protocol 13, `main` merged); the open items are the manual/device/network rows in the [release matrix][t-rel].
 - **Affects:** F45, F50.
 
 ### F52 Dev-only tools (Design Lab, UAT harness, FPS badge)

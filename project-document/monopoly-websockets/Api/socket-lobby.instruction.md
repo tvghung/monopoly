@@ -101,14 +101,14 @@ from the room code like anyone else. Everyone else receives the normal room upda
 | --- | --- | --- | --- |
 | `add bot` | `{requestId: uuid, seat?: {teamId, teamSlot}}` → ACK `{playerId}` | host | `LOBBY` only (`GAME_ALREADY_STARTED` otherwise); `ROOM_FULL` at four seats; at most three bots; a repeated `requestId` answers with the bot it already created; `seat` is used in 2v2 when still empty |
 | `remove bot` | `{playerId}` | host | `LOBBY` only; the target must be a bot seat (`CONFLICT` for a human, `NOT_FOUND` when already gone) |
-| `set bot difficulty` — CURRENT DEVELOPMENT (vNext, unreleased; commit 1937a73) | `{difficulty: VERY_EASY\|EASY\|MEDIUM\|HARD\|VERY_HARD}` | host | `LOBBY` only; one level for every bot of the room, stored as optional `boardState.botDifficulty` (absent = MEDIUM = the released v1.7.0 Balanced policy; the public projection always shows a value) and kept by `play again` |
+| `set bot difficulty` — CURRENT DEVELOPMENT (vNext, unreleased, protocol 13) | `{difficulty: VERY_EASY\|EASY\|MEDIUM\|HARD\|VERY_HARD}` | host | `LOBBY` only; one level for every bot of the room, stored as optional `boardState.botDifficulty` (absent = MEDIUM = the released v1.7.0 Balanced policy; the public projection always shows a value) and kept by `play again` |
 
 All three commit through `commitRoomCommand` and broadcast the room; guests get `FORBIDDEN` and nothing changes. Rules:
 [GameCore/bot-players.instruction.md](../GameCore/bot-players.instruction.md).
 
-Release risk for `set bot difficulty`: it was added inside the same `SOCKET_PROTOCOL_VERSION` (no bump). A released v1.7.0
-host has no listener and no schema for it, so the command gets no ACK at all; v1.7.0 has one Balanced bot policy and no
-difficulty. Released v1.7.0 has only `add bot`/`remove bot`. Test: `apps/server/src/socket.bots.integration.test.ts`
+Compatibility of `set bot difficulty` (R-1, RESOLVED by the protocol 12 → 13 bump): a released v1.7.0 host has no listener and
+no schema for it and would never ACK it, so protocol 13 refuses the handshake with a 1.7.0 app (`UPGRADE_REQUIRED`) instead of
+letting the command reach a host that cannot answer. v1.7.0 has one Balanced bot policy and no difficulty (only `add bot`/`remove bot`). Test: `apps/server/src/socket.bots.integration.test.ts`
 ("bot difficulty in the lobby"). Version history:
 [socket-and-state-contracts](../Shared/socket-and-state-contracts.instruction.md).
 

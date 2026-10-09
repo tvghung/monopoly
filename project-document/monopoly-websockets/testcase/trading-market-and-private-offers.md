@@ -27,6 +27,12 @@
   expiry resolves exactly once. Host process exit (or restart) discards the offer and room permanently.
 - [ ] `[SOCKET]` Leave cancels relevant pending offers; failed room/offer transaction
   produces no transfer/private result/public update/success ACK.
+- [x] `[AUTO][SOCKET]` CURRENT DEVELOPMENT (protocol 13): `make offer` is idempotent per `requestId` — one offer delivered once, a retransmitted and a
+  concurrent duplicate return the same `offerId` and create nothing, identical terms with a new id are a separate offer, a retry after decline does not
+  recreate it, a refused request is not remembered, a missing/malformed id is `INVALID_REQUEST`
+  (`apps/server/src/socket.hardening.integration.test.ts`).
+- [x] `[AUTO][SOCKET]` CURRENT DEVELOPMENT: `decline offer` — valid (both sides told, resolved once, repeat refused), unauthorized/unknown `FORBIDDEN`, expired and
+  not-in-progress room `CONFLICT`, malformed payload (`apps/server/src/socket.hardening.integration.test.ts`).
 
 ## Trade and incoming offers UI (visual overhaul V2, plan 04)
 

@@ -77,7 +77,7 @@ On `powerMonitor` `resume` it calls `hostRuntime.verifyAndRecover()`.
 
 `apps/desktop/src/preload.ts` exposes exactly one object, `window.ownTheBlockDesktop`, through `contextBridge`; the raw
 `ipcRenderer` is never exposed. Groups: `getRuntimeConfig`, `window` (state, fullscreen, fullscreen listener), `quit`
-(`onQuitRequested`, `respond`, `exitApp`), `openExternal`, `host` (`getStatus`, `start`, `stop`, `refreshNetwork`,
+(`onQuitRequested`, `respond`, `acknowledge`, `exitApp`), `openExternal`, `host` (`getStatus`, `start`, `stop`, `refreshNetwork`,
 `onStatusChanged`, `activateOnline`), `lan.findRoom`, `online.findRoom`, `update` (five calls without arguments and one
 listener). Every channel name lives in `IPC_CHANNELS` (`apps/desktop/src/ipc/channels.ts`, prefix `ownTheBlock:`).
 
@@ -106,15 +106,23 @@ both, plus `apps/desktop/tests/preloadBridge.test.ts`.
   random request id and waits for the renderer's answer. `apps/client/src/App.tsx` answers `true` at once unless the player
   holds a seat in an `IN_PROGRESS` room; then it opens the central `ConfirmationDialog`
   (`apps/client/src/design-system/components/ConfirmationDialog/ConfirmationDialog.tsx`) with `app.closeHostMessage`
-  (hosting) or `app.closeWindowMessage` (guest) from `apps/client/src/i18n/catalog.ts`. Cancel answers `false` only within the 2 s window; with no answer in 2 s the main process proceeds with the close
-  (`QUIT_RESPONSE_TIMEOUT_MS` in `apps/desktop/src/ipc/windowHandlers.ts`, known issue). There is no
+  (hosting) or `app.closeWindowMessage` (guest) from `apps/client/src/i18n/catalog.ts`, and tells main it is on screen
+  (`quit.acknowledge(requestId)`, channel `ownTheBlock:quit:prompting`). Cancel answers `false`; confirm answers `true`. There is no
   `window.confirm`.
 - Closing is a disconnect, not `leave room`: the session and seat stay and a guest can reconnect. Only the explicit
   forfeit/leave action in the renderer revokes the session (see [Join room](../Client/join-room.instruction.md)). On the
   Host, quitting stops the helper and therefore ends the RAM match for everyone; that is what the host-close copy says.
-- Main fails open: if no answer arrives within 2 s (`QUIT_RESPONSE_TIMEOUT_MS`), or the message cannot be sent, the close
-  proceeds. The confirmation dialog does not extend that timeout (no keep-alive channel exists), so per the code a close
-  left unanswered for more than 2 s proceeds while the dialog is still open. Real-app behaviour: NOT VERIFIED here.
+- Fail-open only for a renderer that cannot ask (CURRENT DEVELOPMENT; released v1.7.0 closed the window 2 s after asking even while
+  the dialog was open, confirmed in `QuitRequestController` and its old test). Main starts a `QUIT_RESPONSE_TIMEOUT_MS` (2 s)
+  countdown per request; if the renderer neither answers nor acknowledges the dialog in that time, or the message cannot be sent,
+  the close proceeds. Once the dialog is acknowledged the countdown stops and main waits for the player without a limit, ending the
+  wait only when the renderer cannot answer any more: `render-process-gone`/`destroyed` closes, `unresponsive` for
+  `QUIT_UNRESPONSIVE_GRACE_MS` (30 s, cancelled by `responsive`) closes, a main-frame navigation (reload) or the renderer unmounting
+  the dialog is a cancellation (`respond(requestId, false)`), never a confirmation. A repeated close while a request is pending
+  creates no second request and no second set of listeners. A forced OS shutdown, a crash or `End task` cannot be confirmed by any
+  design and end the helper like a process exit (ADR-03). Real-app behaviour on Windows/macOS: NOT RUN (unit tests with fake
+  timers and an event-emitter `webContents`: `apps/desktop/tests/quitRequestController.test.ts`,
+  `apps/desktop/tests/windowHandlers.test.ts`; renderer: `apps/client/src/App.test.tsx`).
 - Application quit (Cmd+Q, last window, update restart, the start screen's "Thoát") goes through `before-quit` →
   `AppQuitCoordinator`: it prevents the quit, asks the renderer once (coalescing concurrent quits), and on approval stops
   the host runtime, arms the final window close and quits. A cleanup error is reported and the quit still proceeds. "Thoát"
@@ -225,8 +233,8 @@ silicon through `pnpm desktop:release`, runs every packaged proof and the budget
   per-run `--config` and the removal of `TUNNEL_*` variables.
 - Keep `cloudflared-integrity.json` inside `app.asar`; keep `checkPackagedBudget.mjs` failing on an obsolete `postgres`
   resource.
-- Known fail-open: an unanswered quit request proceeds after 2 s (see Quit and close semantics). Changing this needs a
-  renderer keep-alive or a different protocol and tests on both sides.
+- The quit request has a renderer keep-alive (`quit.acknowledge`); keep the 2 s countdown for a renderer that never acknowledges,
+  and the tests on both sides (see Quit and close semantics).
 
 ## Change impact
 
