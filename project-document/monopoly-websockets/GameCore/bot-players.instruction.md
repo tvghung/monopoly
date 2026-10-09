@@ -35,8 +35,12 @@ ghế đó được làm. Thiết kế đầy đủ và quyết định: [BOT_SY
 - `bots/policy.ts`: `botTaskOf` tìm việc đang chờ bot; `decideBotAction` (Balanced, offline, tie-break seeded) trả lệnh +
   fallback luôn hợp lệ. Bot không gọi `make offer`, `propose forced sale`, `sell house` (ngoài luồng nợ), chat hay leave.
 - `bots/driver.ts`: một timer/phòng, key = danh tính công khai của việc đang chờ (có `matchId`); guard trong room queue tính
-  lại task, lệch key = no-op. Lỗi lần 1 → fallback; fallback lỗi → park tới khi phòng đổi. Không có người thật kết nối → bot
-  chờ. Delay chỉ để trình bày (`BOT_ACTION_DELAY_SCALE`), logic không chờ animation client.
+  lại task, lệch key = no-op. Phục hồi có giới hạn: lỗi lần 1 → fallback; rồi tối đa 2 lần quyết định lại (2 s, 8 s); hết
+  lượt thì việc gắn với lượt (đổ, mua, xây, thẻ) giao cho turn recovery của server (deadline ngay, trong room queue, chỉ khi
+  phòng còn chờ đúng task đó), việc có deadline riêng (nợ, cứu trợ, bán bắt buộc, đề nghị) để deadline đó xử lý; sau đó park
+  với một dòng log rõ ràng. Không có người thật kết nối → bot chờ. Delay chỉ để trình bày (`BOT_ACTION_DELAY_SCALE`): sau
+  khi đổ, bot chờ ước lượng trình bày ở tốc độ thường (`packages/shared/src/botPacing.ts`) + 0,9 s suy nghĩ; logic không chờ
+  animation client, client giữ cờ sở hữu tới khi hàng đợi trình bày tới bước chuyển nhượng.
 
 ## Mất kết nối của người
 

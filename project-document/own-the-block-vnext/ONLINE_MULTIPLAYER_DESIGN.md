@@ -91,10 +91,15 @@ static `/join` page (type a code → resolve → open the host's link). Owner-on
   reconnect overlay says the host link may have changed; it (a) resolves the room code through the registry when
   available and reconnects the socket to the new endpoint with the same in-memory/storage token, or (b) accepts a
   pasted new invitation link for the **same room code** and does the same. The token never travels in a URL.
-  **The token is sent only to a proven same Host** (R5 security review): the resume ACK names the Host process
-  (`hostInstanceId`, a random per-process id that survives a tunnel change); the new address must answer `/_otb/room` with
-  that id (CORS readable by the game's own origins) before the token is stored for it, so another Host running a room with
-  the same code cannot collect a player's token through a pasted link.
+  **The token is sent only to a cryptographically proven same Host** (RC hardening; replaces the R5 public-id check,
+  which another Host could copy). Every Host process has its own P-256 key pair in RAM; the resume ACK pins its public
+  key (`hostContinuityKey`, base64url SPKI). Before storing the token for a new address, the client sends a fresh random
+  32-byte challenge to `<address>/_otb/continuity?code&challenge&endpoint`; the Host signs
+  `otb-host-continuity-v1\n<room>\n<address>\n<challenge>` (ECDSA P-256/SHA-256) **only for its own addresses** (its LAN
+  IPv4 + listening port, or the tunnel origin Electron main published to the helper), so a relaying Host is refused. The
+  client verifies with WebCrypto against the pinned key and the exact room, address and challenge; a replayed, altered,
+  late (5 s request timeout), wrong-room or other-key answer is rejected, a restarted Host has a new key, and a page
+  without WebCrypto (`http://` LAN page) fails closed. Nothing secret appears in codes, links, QR, public state or logs.
 - Messages: `Reconnecting…` (transport loss), `Host link changed — paste the new link` (endpoint unreachable),
   `This room has closed` (`SESSION_INVALID` / `ROOM_GONE` after the helper exited), `Room full`, `Game already
   started`, `Code not found / expired`, `Invalid link`, `Online service unavailable`.

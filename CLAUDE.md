@@ -70,7 +70,7 @@ thay đổi chưa hoàn tất.
   Chỉ host thêm/xóa bot ở `LOBBY` (`add bot` idempotent theo `requestId`, `remove bot`), tối đa 3 bot, chung 4 ghế với người;
   bot luôn Ready, tự có mascot không trùng, host luôn là người thật, người thật cuối cùng rời thì phòng đóng. Bot chỉ đọc
   public projection + private projection của chính nó, gửi đúng các lệnh trong `apps/server/src/commands/gameplay.ts` mà
-  socket handler dùng; `bots/driver.ts` không lưu timer, re-check task trong room queue, retry một lần bằng fallback hợp lệ,
+  socket handler dùng; `bots/driver.ts` không lưu timer, re-check task trong room queue, retry bằng fallback hợp lệ rồi phục hồi có giới hạn (turn recovery của server / deadline),
   dừng khi không còn người thật kết nối, không bao giờ đề nghị giao dịch hay thay người mất kết nối.
 - Standard Mode dùng board Việt Nam cố định 40 ô, đơn vị số nguyên game-unit
   (`1 unit = 1.000 VNĐ`), socket protocol v12 và snapshot schema v11

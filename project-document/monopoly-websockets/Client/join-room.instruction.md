@@ -146,8 +146,10 @@ ACK is resumable because token was stored first.
 - Every new Socket.IO connection resumes token before enabling mutation.
 - During transport loss, last snapshot remains visible under `RECONNECTING` overlay;
   actions are disabled. After `RECONNECT_STALL_MS` (20 s) the overlay offers "Link mời mới của phòng": only an invitation
-  of the same room code is accepted, and only after the new address answers `/_otb/room` with the `hostInstanceId` of the
-  resume ACK (same Host process; otherwise "Link này không dẫn tới máy chủ…" and the token goes nowhere); then the token is
+  of the same room code is accepted, and only after the new address signs a fresh challenge for that room and address with
+  the `hostContinuityKey` pinned from the resume ACK (`runtime/hostContinuity.ts`; otherwise "Link này không dẫn tới máy
+  chủ…", or "Trang này không kiểm tra được máy chủ mới…" where WebCrypto is missing, and the token goes nowhere); the
+  registry answer of a desktop guest is only a hint that goes through the same check; then the token is
   written for the new authority (`writePlayerSessionForRoom`) and the shell
   remounts App on that endpoint (`onSwitchEndpoint`: desktop launch selection, or the web socket URL). A desktop guest also
   asks the registry (`bridge.online.findRoom`) and switches by itself when the Host has a new address.

@@ -101,8 +101,11 @@ One policy, no difficulty switch, no network access.
 - **Debt:** sell the property whose loss of value per unit raised is lowest, preferring one sale that covers
   the remainder; undeveloped, non-set tiles first.
 - **Trade response:** accept when value gained ≥ 1.15 × value given, post-trade cash ≥ 0.5 R and the trade does
-  not complete an opponent's set (unless gained ≥ 2 × given). In a shortfall (cash for the bot's properties)
-  accept when the cash is at least the bank's 70 % sale value of those tiles.
+  not complete an opponent's set (unless gained ≥ 2 × given; tiles the proposer gives in the same trade no longer count
+  as theirs). **In a shortfall** the whole bundle counts both ways: net cash, incoming tiles at Bank value (liquidity)
+  must be ≥ the Bank value of the requested tiles and > 0; the debt must be payable afterwards (cash + liquidity + the
+  rest still sellable); when the debt is payable without the trade it must also be fair by worth (cash + incoming worth
+  incl. jail cards ≥ outgoing worth); a completed opponent set needs ≥ 2 × the outgoing worth.
 - **Forced-sale buy:** accept when `price ≤ 0.9 × V` and `cash − price ≥ R`.
 - **Rescue:** accept when `cash − amount ≥ max(100, 0.5 R)`.
 - **Revive:** revive when `cash − 750 ≥ R + 200`.
@@ -120,13 +123,18 @@ offer terms of other players or deck order.
   the driver; a 1 s sweep re-checks rooms that hold bots (covers missed notifications and offers).
 - **Task:** `nextBotTask(room, offers)` returns at most one task `{botId, kind, key}`; the key is
   `matchId|aggregateVersion|botId|kind|operationId`. One timer per room; a different key cancels the old timer.
-- **Delay (presentation only):** roll 1.1 s; decision after a move `1.2 s + 0.16 s × steps` (≤ 3.6 s); card
+- **Delay (presentation only):** roll 1.1 s; decision after a move = normal-speed roll presentation
+  (`estimateRollPresentationMs`: 0.78 s dice + 0.22 s lead + 0.18 s × steps + 0.24 s landing + 1 s when passing GO) +
+  0.9 s thinking (≤ 6 s); card
   2.6 s; develop 1.5 s; jail 1.2 s; debt step 1.3 s; responses 1.5 s; `BOT_ACTION_DELAY_SCALE` (default 1,
   tests 0). Logic never waits on client animation, focus, visibility or rendering.
 - **Execute:** inside `commitRoomCommand`, the task is recomputed from the current transaction state; a key
   mismatch is a no-op (stale). The command body is the same exported function the socket handler calls.
-- **Failure:** a `CommandError` counts a retry for that key; the second failure switches to the fallback in
-  §4; a failed fallback marks the key dead (warning log) until state changes. Exactly-once is guaranteed by
+- **Failure (bounded recovery):** a refused first choice is retried with the fallback in §4 after 0.3 s, then decided
+  afresh at most twice more (after 2 s and 8 s). Still refused: a turn-bound task (roll, purchase, development, revealed
+  card) gets `turnRecovery` with an immediate deadline inside the room queue (only while the room still waits on exactly
+  that task) and the server resolves it as for an absent player; a deadline-backed task (debt, rescue, forced sale,
+  offer, legacy draw) is left to its deadline. The key is then parked with one journal line; bookkeeping is bounded. Exactly-once is guaranteed by
   per-room serialization, the key check and the domain's own operation-id / `hasMoved` guards.
 - **Pause:** bots act only while at least one human member is connected; with every human disconnected the
   game waits (the existing 60 s human grace still skips absent humans), and resumes on reconnect.
