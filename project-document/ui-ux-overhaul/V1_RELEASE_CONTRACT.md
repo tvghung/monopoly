@@ -121,8 +121,9 @@ exactly those two files (running the `Setup.exe` over a running install deletes 
 So the Release Candidate artifact of Windows holds the `Setup.exe`, the `.nupkg`, `RELEASES` and `release-artifacts/`
 (`manifest.json`, `SHA256SUMS`), and the macOS ones their disk image and `release-artifacts/`. The Desktop Build artifacts
 (`own-the-block-windows-setup`, `own-the-block-macos-dmg`) hold the installer alone and expire after 14 days: they are for
-inspection and are not a release path. Desktop Build no longer runs for documentation-only changes; the `CI` workflow
-still validates the release contract on every push.
+inspection and are not a release path. Desktop Build runs only by manual dispatch. `CI` runs on pushes to `main` and on
+pull requests, skipping changes confined to project documentation except the two Markdown files read by the V1 contract
+validator; manual dispatch remains available.
 
 ## In-app updates
 
