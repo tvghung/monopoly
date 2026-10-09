@@ -430,6 +430,7 @@ describe('rules.ts agrees with the trading handler', () => {
         recipientPlayerId: hostId,
         offered: { cash: 1, propertyIds: [], jailFreeCardIds: [] },
         requested: { cash: 0, propertyIds: [], jailFreeCardIds: [] },
+        requestId: crypto.randomUUID(),
       }, acknowledge);
     }));
     const after = Date.now();

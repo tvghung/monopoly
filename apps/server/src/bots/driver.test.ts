@@ -169,6 +169,7 @@ describe('bot driver liveness', () => {
       recipientPlayerId: botId,
       offered: { cash: 400, propertyIds: [], jailFreeCardIds: [] },
       requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+      requestId: crypto.randomUUID(),
     }, callback as never)));
     subject.bots?.start();
     subject.bots?.notify(roomId);

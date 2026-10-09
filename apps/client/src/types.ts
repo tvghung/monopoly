@@ -3,7 +3,7 @@ import type {
   Ack,
   ClientToServerEvents,
   OfferId,
-  OfferInfo,
+  TradeOfferRequest,
   PrivatePlayerState,
   PrivateOffer,
   PublicGameState,
@@ -24,7 +24,8 @@ export interface SocketFunctions {
   dismissCard?: (operationId: string) => void | Promise<Ack>;
   waitInJail?: () => void | Promise<Ack>;
   sendChat: (message: string) => void;
-  makeOffer: (offerInfo: OfferInfo) => void;
+  /** The terms of the offer; the socket layer adds the `requestId` of this one logical request. */
+  makeOffer: (offerInfo: TradeOfferRequest) => void;
   acceptOffer: (offerId: OfferId) => void;
   declineOffer: (offerId: OfferId) => void;
   sellHouse: (tileID: number) => void;

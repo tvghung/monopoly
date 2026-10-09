@@ -685,7 +685,8 @@ export function emitOfferResult(
 
 export const declineOfferCommand: GameCommand<{ offerId: string }, TradeOfferRecord> = {
   name: 'decline offer',
-  async apply({ transaction }, { roomId, actorPlayerId, payload: request, now }) {
+  async apply({ room, transaction }, { roomId, actorPlayerId, payload: request, now }) {
+    if (room.status !== 'IN_PROGRESS') throw new CommandError('CONFLICT', 'Ván chơi chưa diễn ra.');
     const offer = await transaction.tradeOffers.findById(request.offerId);
     if (!offer || offer.roomId !== roomId || offer.recipientPlayerId !== actorPlayerId) {
       throw new CommandError('FORBIDDEN', 'Đề nghị này không thuộc về bạn.');

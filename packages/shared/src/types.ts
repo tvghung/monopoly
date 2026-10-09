@@ -956,7 +956,17 @@ export interface TradeOfferRequest {
   requested: TradeBundle;
 }
 
-export type OfferInfo = TradeOfferRequest;
+// The `make offer` payload (protocol 13): the terms plus a fresh client UUID per logical request, so a retransmitted emit answers
+// with the offer the first one created instead of creating a second.
+export interface OfferInfo extends TradeOfferRequest {
+  requestId: string;
+}
+
+// The `sell house` payload (protocol 13): the street plus a fresh client UUID per logical sale; a retransmitted emit sells nothing twice.
+export interface SellHouseRequest {
+  tileID: number;
+  requestId: string;
+}
 
 export interface OfferAction {
   offerId: OfferId;

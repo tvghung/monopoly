@@ -772,7 +772,8 @@ export default function App({
       },
       makeOffer: (offerInfo) => {
         if (!gameCommandAllowed()) return;
-        socket.emit('make offer', offerInfo, response => showCommandFailure(response));
+        // One logical offer, one request id: a retransmitted emit cannot create a second offer.
+        socket.emit('make offer', { ...offerInfo, requestId: crypto.randomUUID() }, response => showCommandFailure(response));
       },
       acceptOffer: (offerId) => {
         if (gameCommandAllowed()) socket.emit('accept offer', { offerId }, ack);
@@ -781,7 +782,8 @@ export default function App({
         if (gameCommandAllowed()) socket.emit('decline offer', { offerId }, ack);
       },
       sellHouse: (tileID) => {
-        if (gameCommandAllowed()) socket.emit('sell house', tileID, ack);
+        // One logical sale, one request id: a retransmitted emit cannot sell a second house.
+        if (gameCommandAllowed()) socket.emit('sell house', { tileID, requestId: crypto.randomUUID() }, ack);
       },
       payBail: () => {
         if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());

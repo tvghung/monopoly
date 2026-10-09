@@ -15,6 +15,7 @@ import type {
   MoveToSeatRequest,
   OfferAction,
   OfferInfo,
+  SellHouseRequest,
   RemoveBotRequest,
   SetBotDifficultyRequest,
   RequestSeatSwapRequest,
@@ -201,6 +202,7 @@ export const offerInfoSchema = z.strictObject({
   recipientPlayerId: playerIdSchema,
   offered: tradeBundleSchema,
   requested: tradeBundleSchema,
+  requestId: z.uuid(),
 })
   .refine(
     (offer) => bundleHasValue(offer.offered) || bundleHasValue(offer.requested),
@@ -216,6 +218,11 @@ export const offerInfoSchema = z.strictObject({
     ),
     'The same jail-free card cannot appear on both sides of a trade',
   ) satisfies z.ZodType<OfferInfo>;
+
+export const sellHouseRequestSchema = z.strictObject({
+  tileID: tileIdSchema,
+  requestId: z.uuid(),
+}) satisfies z.ZodType<SellHouseRequest>;
 
 export const offerActionSchema = z.strictObject({
   offerId: offerIdSchema,
@@ -257,7 +264,7 @@ export const clientEventPayloadSchemas = {
   'make offer': offerInfoSchema,
   'accept offer': offerActionSchema,
   'decline offer': offerActionSchema,
-  'sell house': tileIdSchema,
+  'sell house': sellHouseRequestSchema,
   'pay bail': noPayloadSchema,
   'use jail card': noPayloadSchema,
   'wait in jail': noPayloadSchema,

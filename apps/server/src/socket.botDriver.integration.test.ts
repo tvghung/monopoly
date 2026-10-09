@@ -224,6 +224,7 @@ describe('bot driver: one turn at a time through the shared commands', () => {
       recipientPlayerId: botId,
       offered: { cash: 400, propertyIds: [], jailFreeCardIds: [] },
       requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+      requestId: crypto.randomUUID(),
     }, callback as never)));
     expect((await accepted).status).toBe('ACCEPTED');
 
@@ -232,6 +233,7 @@ describe('bot driver: one turn at a time through the shared commands', () => {
       recipientPlayerId: botId,
       offered: { cash: 5, propertyIds: [], jailFreeCardIds: [] },
       requested: { cash: 0, propertyIds: [39], jailFreeCardIds: [] },
+      requestId: crypto.randomUUID(),
     }, callback as never)));
     expect((await declined).status).toBe('DECLINED');
 

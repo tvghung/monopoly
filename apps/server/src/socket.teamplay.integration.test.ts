@@ -431,7 +431,7 @@ describe('2v2 match', () => {
     okOf(await ack((cb) => alex.socket.emit('send chat', 'Cố lên!', cb)));
     for (const request of [
       (cb: AckCallback) => alex.socket.emit('roll dice', cb),
-      (cb: AckCallback) => alex.socket.emit('sell house', 1, cb),
+      (cb: AckCallback) => alex.socket.emit('sell house', { tileID: 1, requestId: randomUUID() }, cb),
       (cb: AckCallback) => alex.socket.emit('pay bail', cb),
       (cb: AckCallback) => alex.socket.emit('revive teammate', cb),
       (cb: AckCallback) => alex.socket.emit('accept rescue', { rescueId: randomUUID() }, cb),
@@ -442,6 +442,7 @@ describe('2v2 match', () => {
       recipientPlayerId: harvey.playerId,
       offered: { cash: 1, propertyIds: [], jailFreeCardIds: [] },
       requested: { cash: 0, propertyIds: [], jailFreeCardIds: [] },
+      requestId: crypto.randomUUID(),
     }, cb));
     expect(offer.ok).toBe(false);
     const room = await stored(persistence, roomId);

@@ -18,6 +18,7 @@ import type {
   PrivateOffer,
   PublicRoomState,
   RemoveBotRequest,
+  SellHouseRequest,
   SetBotDifficultyRequest,
   RemovedFromRoomInfo,
   RequestSeatSwapRequest,
@@ -141,7 +142,7 @@ export interface ClientToServerEvents {
   ) => void;
   'accept offer': (offer: OfferAction, acknowledge: AckCallback) => void;
   'decline offer': (offer: OfferAction, acknowledge: AckCallback) => void;
-  'sell house': (tileID: number, acknowledge: AckCallback) => void;
+  'sell house': (request: SellHouseRequest, acknowledge: AckCallback) => void;
   'pay bail': (acknowledge: AckCallback) => void;
   'use jail card': (acknowledge: AckCallback) => void;
   'wait in jail': (acknowledge: AckCallback) => void;
