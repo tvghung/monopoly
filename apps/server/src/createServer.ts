@@ -1,4 +1,9 @@
-import { isPublicEndpointOrigin } from '@monopoly/shared';
+import {
+  HOST_CONTINUITY_CHALLENGE_PATTERN,
+  HOST_CONTINUITY_VERSION,
+  isPublicEndpointOrigin,
+  type HostContinuityProof,
+} from '@monopoly/shared';
 import express from 'express';
 import { createServer as createHttpServer, type Server as HttpServer } from 'http';
 import path from 'path';
@@ -143,15 +148,44 @@ export function createServer(
       if (runtime.flags.shuttingDown) { res.status(503).end(); return; }
       const room = await runtime.persistence.rooms.findByCode(code);
       res.set('cache-control', 'no-store');
-      // A client of this Host whose tunnel address changed checks the new address from its old page: the answer (which
-      // process serves the room) is public, so the origins that may play here may read it.
+      // The process id is public and only tells the desktop Join whether a LAN and an Online answer are one Host. It is
+      // never proof of anything: continuity after a link change is the signed check below.
+      if (room) res.status(200).json({ instanceId: runtime.instanceId });
+      else res.status(404).end();
+    });
+
+    // Host continuity (see packages/shared/src/hostContinuity.ts): sign a client's fresh challenge for one of this process's
+    // own addresses only. Readable cross-origin by the game's own pages, which ask it from their old address.
+    app.get('/_otb/continuity', roomProbeLimiter, async (req, res) => {
+      res.set('cache-control', 'no-store');
       const origin = req.get('origin');
       if (origin && (origin === PACKAGED_RENDERER_ORIGIN || isDesktopBrowserOrigin(origin) || isTunnelOrigin(origin))) {
         res.set('access-control-allow-origin', origin);
         res.set('vary', 'Origin');
       }
-      if (room) res.status(200).json({ instanceId: runtime.instanceId });
-      else res.status(404).end();
+      const { code, challenge, endpoint } = req.query;
+      const address = server.address();
+      if (
+        typeof code !== 'string' || !/^[A-Z0-9-]{1,20}$/.test(code)
+        || typeof challenge !== 'string' || !HOST_CONTINUITY_CHALLENGE_PATTERN.test(challenge)
+        || typeof endpoint !== 'string' || endpoint.length > 200
+        || !address || typeof address === 'string'
+      ) {
+        res.status(400).end();
+        return;
+      }
+      if (runtime.flags.shuttingDown) { res.status(503).end(); return; }
+      // An address that is not this process's own is refused: a relaying Host cannot borrow this signature.
+      if (!runtime.continuity.ownsEndpoint(endpoint, address.port)) { res.status(403).end(); return; }
+      if (!await runtime.persistence.rooms.findByCode(code)) { res.status(404).end(); return; }
+      const proof: HostContinuityProof = {
+        version: HOST_CONTINUITY_VERSION,
+        roomCode: code,
+        endpoint,
+        challenge,
+        signature: runtime.continuity.sign(code, endpoint, challenge),
+      };
+      res.status(200).json(proof);
     });
   }
   if (runtimeProfile === 'desktop' && environment.OTB_REGISTRY_ROOM_CODE

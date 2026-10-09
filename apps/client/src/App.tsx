@@ -31,7 +31,7 @@ import ErrorScreen from './app/screens/ErrorScreen';
 import LoadingScreen from './app/screens/LoadingScreen';
 import Board from './components/Board';
 import ConnectionOverlay, { type RelinkOutcome } from './components/ConnectionOverlay';
-import { fetchHostInstanceId } from './runtime/hostInstance';
+import { verifyHostContinuity } from './runtime/hostContinuity';
 import ForfeitChoiceDialog from './components/ForfeitChoiceDialog';
 import JoinForm from './components/JoinForm';
 import Lobby from './components/Lobby';
@@ -213,8 +213,8 @@ export default function App({
     : readPlayerSession(sessionAuthority));
   const [initialRoomCode] = useState(() => roomCodeFromLocation());
   const tokenRef = useRef<string | null>(initialToken);
-  // The Host process this seat was resumed on (from the resume ACK); a new address must prove to be the same process.
-  const hostInstanceRef = useRef<string | null>(null);
+  // The continuity key of the Host process this seat was resumed on (resume ACK); a new address must sign with it.
+  const hostContinuityKeyRef = useRef<string | null>(null);
   const initialJoinRef = useRef(launch?.initialJoin ?? null);
   // The Host's room-creation capability outlives a failed first admission (timeout, throttling): without it a retry
   // would be a Guest request for a room that does not exist yet. It is dropped once the admission is accepted.
@@ -259,21 +259,18 @@ export default function App({
 
   /**
    * Moves this player's token to the Host's new address (in this device's storage only) and reconnects there, but only once
-   * that address proves to be the same Host process: a link of another Host using the same room code never receives the
-   * token. `provenInstanceId` is the id the desktop main process already read from that address.
+   * that address signs a fresh challenge with the pinned continuity key of the Host process (`runtime/hostContinuity.ts`):
+   * another Host using the same room code, a replayed or relayed answer, or a restarted Host never receives the token.
    */
-  const switchEndpoint = useCallback(async (
-    endpoint: string,
-    roomCode: string,
-    provenInstanceId?: string,
-  ): Promise<RelinkOutcome> => {
+  const switchEndpoint = useCallback(async (endpoint: string, roomCode: string): Promise<RelinkOutcome> => {
     const token = tokenRef.current;
-    const expected = hostInstanceRef.current;
+    const pinnedKey = hostContinuityKeyRef.current;
     const target = getSessionAuthority(endpoint);
-    if (!token || !onSwitchEndpoint || !target || target === sessionAuthority || !expected) return 'NOT_SAME_HOST';
-    const instanceId = provenInstanceId ?? await fetchHostInstanceId(endpoint, roomCode);
-    if (instanceId === undefined) return 'UNREACHABLE';
-    if (instanceId !== expected) return 'NOT_SAME_HOST';
+    if (!token || !onSwitchEndpoint || !target || target === sessionAuthority || !pinnedKey) return 'NOT_SAME_HOST';
+    const outcome = await verifyHostContinuity(endpoint, roomCode, pinnedKey);
+    if (outcome !== 'SAME_HOST') return outcome;
+    // The seat may have changed while the check ran (a new resume, leave): only the token checked for is moved.
+    if (tokenRef.current !== token || hostContinuityKeyRef.current !== pinnedKey) return 'NOT_SAME_HOST';
     if (!writePlayerSessionForRoom(token, target, roomCode)) return 'NOT_SAME_HOST';
     onSwitchEndpoint(endpoint, roomCode);
     return 'OK';
@@ -285,7 +282,8 @@ export default function App({
     if (!reconnectStalled || !roomCode || !desktopBridge?.online) return undefined;
     let active = true;
     void desktopBridge.online.findRoom(roomCode).then(result => {
-      if (active && result.ok && result.instanceId) void switchEndpoint(result.endpoint, roomCode, result.instanceId);
+      // The registry is only a hint: the address it names still has to prove continuity before the token moves.
+      if (active && result.ok) void switchEndpoint(result.endpoint, roomCode);
     }).catch(() => undefined);
     return () => {
       active = false;
@@ -404,7 +402,7 @@ export default function App({
 
       setFailure(null);
       setOperationError(null);
-      hostInstanceRef.current = response.data.hostInstanceId ?? null;
+      hostContinuityKeyRef.current = response.data.hostContinuityKey ?? null;
       setIdentity(response.data.role, response.data.playerId);
       setPrivatePlayerState(
         response.data.privatePlayerState.playerId === response.data.playerId

@@ -89,11 +89,11 @@ describe('bot seats in the lobby', () => {
     expect(projected.players.find((player) => player.playerId === host.playerId)?.kind).toBe('HUMAN');
   });
 
-  it('names the Host process in the resume answer, the id a new tunnel address must prove before a token goes there', async () => {
+  it('gives the Host process public continuity key in the resume answer, never a secret', async () => {
     const { subject, host } = await hostLobby();
     const again = await resume(await connect(subject.url), host.token);
-    expect(again.hostInstanceId).toBe(subject.runtime.instanceId);
-    expect(again.hostInstanceId).toMatch(/^[0-9a-f-]{36}$/u);
+    expect(again.hostContinuityKey).toBe(subject.runtime.continuity.publicKey);
+    expect(again.hostContinuityKey).toMatch(/^[A-Za-z0-9_-]{80,}$/u);
   });
 
   it('answers a repeated request id with the same bot instead of adding another', async () => {

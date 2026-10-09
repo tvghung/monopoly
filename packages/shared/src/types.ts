@@ -907,10 +907,10 @@ export interface ResumeSessionResult {
   pendingOffers: PrivateOffer[];
   forcedSaleProposal?: ForcedSaleProposal | null;
   /**
-   * A random id of the Host's server process (not a credential; `/_otb/room` shows the same id). It survives a new tunnel
-   * address, so a client only hands its token to a new address that proves to be this very process.
+   * The public continuity key of the Host's server process (base64url SPKI, P-256). After a link change the client hands its
+   * token only to an address that signs a fresh challenge with this key (see `hostContinuity.ts`). Public, never a credential.
    */
-  hostInstanceId?: string;
+  hostContinuityKey?: string;
 }
 
 export interface LeaveRoomResult {

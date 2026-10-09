@@ -126,6 +126,11 @@ export class ServerHelperController {
     return () => this.unexpectedExitListeners.delete(listener);
   }
 
+  public setPublicEndpoints(endpoints: readonly string[]): void {
+    if (this.currentState !== 'READY') return;
+    this.child?.postMessage({ type: 'public-endpoints', endpoints: [...endpoints] });
+  }
+
   public async checkHealth(): Promise<void> {
     const port = this.currentInfo?.port;
     if (this.currentState !== 'READY' || port === undefined) {

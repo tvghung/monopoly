@@ -1,9 +1,10 @@
 import {
   act, cleanup, fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
+import { generateKeyPairSync, sign, webcrypto, type KeyObject } from 'node:crypto';
 import { StrictMode } from 'react';
 import type { PrivateOffer, PublicRoomState } from '@monopoly/shared';
-import { SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
+import { continuityMessage, HOST_CONTINUITY_VERSION, SOCKET_PROTOCOL_VERSION } from '@monopoly/shared';
 import {
   afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest';
@@ -77,7 +78,9 @@ import type { OwnTheBlockDesktopBridge } from './runtime/types';
 import { soloTeamBoardFields } from './game/presentation/testFixtures';
 
 const RECONNECT_TOKEN = 'A'.repeat(43);
-const HOST_INSTANCE = '00000000-0000-4000-8000-0000000000aa';
+/** The Host process of the game: its continuity key pair (the public half is in the resume ACK). */
+const HOST_KEYS = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+const HOST_CONTINUITY_KEY = HOST_KEYS.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url');
 const FORFEIT_TOKEN = 'B'.repeat(43);
 
 const room: PublicRoomState = {
@@ -1550,7 +1553,7 @@ describe('App how-to-play key placement', () => {
               gameplayEvents: { sequence: 0, events: [] },
             },
             pendingOffers: [],
-            hostInstanceId: HOST_INSTANCE,
+            hostContinuityKey: HOST_CONTINUITY_KEY,
           },
         });
       }
@@ -1693,12 +1696,24 @@ describe('App how-to-play key placement', () => {
     expect(screen.getByRole('dialog', { name: GUIDE })).toBeTruthy();
   });
 
+  /** The answer of an address to `/_otb/continuity`, signed with `key` (null: the address has no such room). */
+  function continuityAnswer(key: KeyObject | null) {
+    return (input: unknown) => {
+      if (key === null) return Promise.resolve(new Response(null, { status: 404 }));
+      const query = new URL(String(input)).searchParams;
+      const [roomCode, endpoint, challenge] = [query.get('code') ?? '', query.get('endpoint') ?? '', query.get('challenge') ?? ''];
+      const signature = sign('sha256', Buffer.from(continuityMessage(roomCode, endpoint, challenge)), { key, dsaEncoding: 'ieee-p1363' });
+      return Promise.resolve(Response.json({
+        version: HOST_CONTINUITY_VERSION, roomCode, endpoint, challenge, signature: signature.toString('base64url'),
+      }));
+    };
+  }
+
   /** Renders the game, drops the connection and waits until the overlay offers a new link. */
-  function stallWith(answer: string | null) {
+  function stallWith(key: KeyObject | null, pageCrypto: unknown = webcrypto) {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(answer === null
-      ? new Response(null, { status: 404 })
-      : Response.json({ instanceId: answer }))));
+    vi.stubGlobal('crypto', pageCrypto);
+    vi.stubGlobal('fetch', vi.fn(continuityAnswer(key)));
     storeSession();
     const onSwitchEndpoint = vi.fn();
     render(
@@ -1726,12 +1741,14 @@ describe('App how-to-play key placement', () => {
 
   it('after a long outage follows a pasted new link once it proves to be the same Host process', async () => {
     try {
-      const onSwitchEndpoint = stallWith(HOST_INSTANCE);
+      const onSwitchEndpoint = stallWith(HOST_KEYS.privateKey);
       await waitFor(() => expect(onSwitchEndpoint).toHaveBeenCalledWith('https://new-host.trycloudflare.com', gameRoom.roomCode));
       expect(vi.mocked(fetch)).toHaveBeenCalledWith(
-        `https://new-host.trycloudflare.com/_otb/room?code=${gameRoom.roomCode}`,
+        expect.stringMatching(new RegExp(String.raw`^https://new-host\.trycloudflare\.com/_otb/continuity\?code=${gameRoom.roomCode}&challenge=[A-Za-z0-9_-]{43}&endpoint=`, 'u')),
         expect.objectContaining({ credentials: 'omit' }),
       );
+      // The check never carries the token.
+      expect(JSON.stringify(vi.mocked(fetch).mock.calls)).not.toContain(RECONNECT_TOKEN);
       expect(storedFor('https://new-host.trycloudflare.com')).toEqual({ token: RECONNECT_TOKEN, roomCode: gameRoom.roomCode });
     } finally {
       vi.useRealTimers();
@@ -1739,11 +1756,36 @@ describe('App how-to-play key placement', () => {
     }
   });
 
-  it('never hands the token to another Host that uses the same room code', async () => {
+  it('never hands the token to another Host that uses the same room code (it cannot sign with the pinned key)', async () => {
     try {
-      const onSwitchEndpoint = stallWith('00000000-0000-4000-8000-0000000000ff');
+      const onSwitchEndpoint = stallWith(generateKeyPairSync('ec', { namedCurve: 'prime256v1' }).privateKey);
       expect((await screen.findByRole('alert')).textContent).toBe('Link này không dẫn tới máy chủ của ván bạn đang chơi.');
       expect(onSwitchEndpoint).not.toHaveBeenCalled();
+      expect(storedFor('https://new-host.trycloudflare.com')).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('treats a restarted Host (no such room at that address) as another Host', async () => {
+    try {
+      const onSwitchEndpoint = stallWith(null);
+      expect((await screen.findByRole('alert')).textContent).toBe('Link này không dẫn tới máy chủ của ván bạn đang chơi.');
+      expect(onSwitchEndpoint).not.toHaveBeenCalled();
+      expect(storedFor('https://new-host.trycloudflare.com')).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('keeps the token where the page cannot check the signature (no WebCrypto on an http page)', async () => {
+    try {
+      const onSwitchEndpoint = stallWith(HOST_KEYS.privateKey, { getRandomValues: webcrypto.getRandomValues.bind(webcrypto) });
+      expect((await screen.findByRole('alert')).textContent).toBe('Trang này không kiểm tra được máy chủ mới. Hãy mở link mới và vào lại phòng.');
+      expect(onSwitchEndpoint).not.toHaveBeenCalled();
+      expect(vi.mocked(fetch)).not.toHaveBeenCalled();
       expect(storedFor('https://new-host.trycloudflare.com')).toBeUndefined();
     } finally {
       vi.useRealTimers();

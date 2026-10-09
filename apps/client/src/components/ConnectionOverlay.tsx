@@ -8,7 +8,7 @@ import './style/RoomStatus.css';
 import { useTranslation } from '../i18n/I18n';
 
 /** What happened to a pasted new link: used, not the same Host process, or not answering. */
-export type RelinkOutcome = 'OK' | 'NOT_SAME_HOST' | 'UNREACHABLE';
+export type RelinkOutcome = 'OK' | 'NOT_SAME_HOST' | 'UNREACHABLE' | 'UNSUPPORTED';
 
 interface ConnectionOverlayProps {
   message?: string;
@@ -56,6 +56,7 @@ export default function ConnectionOverlay({
       setChecking(false);
       if (outcome === 'NOT_SAME_HOST') setLinkError(t('connection.notSameHost'));
       if (outcome === 'UNREACHABLE') setLinkError(t('connection.unreachable'));
+      if (outcome === 'UNSUPPORTED') setLinkError(t('connection.relinkUnsupported'));
     }, () => {
       setChecking(false);
       setLinkError(t('connection.unreachable'));

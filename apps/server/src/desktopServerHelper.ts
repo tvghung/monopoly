@@ -8,7 +8,8 @@ import {
 const DIAGNOSTIC_LIMIT = 512;
 
 interface HelperMessage {
-  type: 'shutdown';
+  type: 'shutdown' | 'public-endpoints';
+  endpoints?: unknown;
 }
 
 interface ParentPortLike {
@@ -87,6 +88,16 @@ async function main(): Promise<void> {
 
   parentPort.on('message', (message: unknown) => {
     const value = parentMessageData(message);
+    if (
+      typeof value === 'object'
+      && value !== null
+      && (value as Partial<HelperMessage>).type === 'public-endpoints'
+    ) {
+      // Electron main tells which public address (tunnel) it opened for this process; continuity is signed only for those.
+      const endpoints = (value as Partial<HelperMessage>).endpoints;
+      authoritativeServer.runtime.continuity.setPublicEndpoints(Array.isArray(endpoints) ? endpoints : []);
+      return;
+    }
     if (
       typeof value === 'object'
       && value !== null

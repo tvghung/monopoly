@@ -75,6 +75,8 @@ export interface ServerHelperLike {
   start(): Promise<ServerHelperInfo>;
   stop(): Promise<void>;
   checkHealth?(): Promise<void>;
+  /** Tells the server process its public (tunnel) addresses: it signs continuity proofs only for its own addresses. */
+  setPublicEndpoints?(endpoints: readonly string[]): void;
   onUnexpectedExit?(listener: (diagnostic: string) => void): () => void;
 }
 
@@ -642,7 +644,10 @@ export class HostRuntimeController {
   }
 
   private update(update: Partial<HostRuntimeStatus>): void {
+    const previousOnline = this.currentStatus.onlineEndpoint;
     this.currentStatus = { ...this.currentStatus, ...update };
+    const online = this.currentStatus.onlineEndpoint;
+    if ('onlineEndpoint' in update && online !== previousOnline) this.helper?.setPublicEndpoints?.(online ? [online] : []);
     const status = this.status;
     for (const listener of this.listeners) listener(status);
   }
