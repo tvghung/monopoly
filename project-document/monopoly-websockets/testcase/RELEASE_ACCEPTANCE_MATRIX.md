@@ -75,9 +75,10 @@ Scope and decisions: [ADR-13](../ARCHITECTURE_DECISIONS.md#adr-13-released-contr
 | Full games with bots on real Windows / macOS desktops | NOT APPLICABLE | NOT RUN | No owner report exists for 1.8.0 |
 | Code signing / notarization | NOT APPLICABLE | NOT APPLICABLE | Unsigned by design |
 
-**Verdict:** engineering and automated gates PASS; **manual acceptance for 1.8.0 is NOT RUN** (rows above). A release needs the
-owner's decision to accept those rows as v1.7.0 did (OWNER-REPORTED / BLOCKED, release notes disclose the gaps) or to run them.
-No such decision or report is recorded for 1.8.0.
+**Verdict:** engineering and automated gates PASS; **manual acceptance for 1.8.0 is NOT RUN** (rows above). **Owner decision (2026-10-09,
+in the working session, in answer to an explicit question):** the project owner chose to accept the NOT RUN rows as they were accepted
+for v1.7.0 and to tag `v1.8.0` now. This is a risk acceptance of unverified rows, **not** a manual PASS and not an owner test report; the
+release notes disclose the gaps. The rows stay NOT RUN until someone runs them.
 
 ## Open release risks
 
@@ -86,4 +87,4 @@ No such decision or report is recorded for 1.8.0.
 | R-1 | `set bot difficulty` and Income Tax 150 were added inside protocol 12 (mixed 1.7.0/vNext apps connecting with different rules) | Compatibility | RESOLVED in code: protocol 12 → 13, `UPGRADE_REQUIRED` for any 1.7.0 app, desktop "update both apps" message, minimum supported 1.8.0 (executed against real v1.7.0 server code, table above) |
 | R-2 | The branch lacked the v1.7.0 release records on `main` (`e88b959`) | Documentation divergence | RESOLVED: `origin/main` merged without conflicts |
 | R-3 | WebKit-on-Windows music-lifecycle e2e is flaky ("access control checks"); failed twice in one Desktop Build run on the branch, passed in the next run on `main` | Test infrastructure | OPEN, non-blocking follow-up |
-| R-4 | No manual acceptance for 1.8.0 (bot games per level, real host-close, two real apps, in-place update, devices, independent networks) | Verification gap | OPEN — owner decision required before tagging |
+| R-4 | No manual acceptance for 1.8.0 (bot games per level, real host-close, two real apps, in-place update, devices, independent networks) | Verification gap | ACCEPTED BY OWNER for release on 2026-10-09 (risk acceptance; rows remain NOT RUN) |
