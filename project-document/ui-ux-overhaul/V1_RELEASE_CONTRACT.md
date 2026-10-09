@@ -34,7 +34,7 @@ Client authentication and server admission both import that shared constant.
   the cloud server is untouched), with a pasted invitation link as the fallback
   for networks that block broadcast. This reverses the Phase 7.2 decision to ship
   no UDP discovery; the contract is in
-  [Api/http-runtime.instruction.md](../monopoly-websockets/Api/http-runtime.instruction.md#lan-room-lookup-desktop-host-profile-only).
+  [Api/http-runtime.instruction.md](../monopoly-websockets/Api/http-runtime.instruction.md#lan).
   The `1.0.0` release record at the end of this file is unchanged by it.
 - Persistence (since v1.5.0): authoritative room state, reconnect session hashes,
   trade offers, and timeouts live only in the Host helper process RAM. A helper
@@ -72,7 +72,10 @@ The packaged app is kept lean on purpose, because players download the installer
   `generated/`, `src/`, `tests/` and `scripts/`; the managed PostgreSQL and the server helper ship once, as the
   `resources/postgres` and `resources/server-helper` extraResource copies that the packaged app reads from
   `process.resourcesPath`. Before this rule `generated/` was packed into `app.asar` as well, a 139 MiB duplicate.
-- The PostgreSQL runtime is the pinned EDB archive minus the `runtimeExclude` patterns of
+  *HISTORICAL for `resources/postgres`: since v1.5.0 the extraResources are the client `dist`, `release-config.json`,
+  `server-helper` and `cloudflared` (`apps/desktop/forge.config.cjs`); no PostgreSQL resource exists.*
+- *HISTORICAL (V1.1–v1.4.x; PostgreSQL is no longer packaged, and `postgres-resources.json` and `preparePostgres.mjs` no longer exist):*
+  The PostgreSQL runtime was the pinned EDB archive minus the `runtimeExclude` patterns of
   `apps/desktop/postgres-resources.json`: link-time libraries, `lib/pgxs`, `lib/pkgconfig` and, on Windows, the StackBuilder GUI
   and the DLLs that are not in the import closure of `initdb`, `postgres`, `pg_ctl`, `pg_isready`, `createdb` and `psql`.
   `preparePostgres.mjs` runs `postgres --version` on the pruned copy. The client tools, `share/` and the server modules stay.
@@ -81,12 +84,12 @@ The packaged app is kept lean on purpose, because players download the installer
 - The macOS disk image is LZMA-compressed (`format: 'ULMO'`, macOS 10.15 and later; Electron 43 needs macOS 12), and Desktop
   Build and Release Candidate run `hdiutil verify` on it.
 - `pnpm --filter @monopoly/desktop proof:packaged:budget` runs after the packaged proofs in Desktop Build and Release Candidate.
-  It fails when `app.asar` packs a development folder or exceeds 5 MiB, when an excluded PostgreSQL file or an extra locale
-  ships, when a required binary is missing, or when an installer is over its budget (Windows `Setup.exe` 175 MiB, macOS `.dmg`
+  It fails when `app.asar` packs a development folder or exceeds 5 MiB, when an excluded PostgreSQL file (today: any
+  obsolete PostgreSQL runtime, see `apps/desktop/scripts/checkPackagedBudget.mjs`) or an extra locale ships, when a required binary is missing, or when an installer is over its budget (Windows `Setup.exe` 175 MiB, macOS `.dmg`
   195 MiB).
 - The workflows upload only the installers and no longer install ffmpeg: nothing in the repository calls it.
 
-Measured on Windows x64 (V1.1.0 sources): `Setup.exe` 249.7 MiB before, 181.9 MiB after these rules and 160.6 MiB once the
+HISTORICAL measurement, Windows x64 (V1.1.0 sources): `Setup.exe` 249.7 MiB before, 181.9 MiB after these rules and 160.6 MiB once the
 music is Ogg Vorbis (see the audio policy); unpacked app 655.6 MiB before, 425.5 MiB after the packaging rules and 402.4 MiB
 with the Ogg music; `resources/postgres` 134.5 MiB before, 89.2 MiB after. The packaged runtime proof, the Host proof and the
 audio, card and landmark proofs pass on the lean package. macOS (Apple silicon, Desktop Build artifact): the disk image was
@@ -502,11 +505,34 @@ and macOS arm64 entries match the published filenames, sizes and SHA-256 values 
 `RELEASES` and `own_the_block-1.4.1-full.nupkg`. GitHub's latest-release endpoint resolves to `v1.4.1`. Socket protocol remains 11,
 room snapshot schema remains 10, and the updater minimum remains 1.4.0.
 
+## V1.5.0, V1.6.0 and V1.6.1 — release records
+
+These releases have no section in this contract. Their records are the published GitHub Releases (`gh release list`:
+v1.5.0 2026-10-08 08:26 UTC, v1.6.0 2026-10-08 15:01 UTC, v1.6.1 2026-10-08 17:03 UTC) and their notes in
+`.github/release-notes/v1.5.0.md`, `v1.6.0.md` and `v1.6.1.md` (Socket protocol 11, room snapshot schema 10). The v1.5.0 RAM
+hosting gates are recorded in [RAM-HOSTING-VERIFICATION](../monopoly-websockets/RAM-HOSTING-VERIFICATION.md). No further
+acceptance record was found; none is reconstructed here.
+
 ## V1.7.0 bots and online join — release candidate preparation (Socket protocol 12, snapshot schema 11)
 
-Prepared on branch `feat/own-the-block-multiplayer-bots-vnext` (base `77953b6` = `v1.6.1`). **Not released**: no tag exists and no
-publication is authorized until the owner has run the manual matrix in
+**Released 2026-10-09.** GitHub Release `v1.7.0` was published at 03:15 UTC (not a draft or pre-release) with the Windows
+installer and full package, both macOS disk images, `SHA256SUMS.txt` and `update-manifest.json`; tag `v1.7.0` = `f37a271`
+(merge of the release preparation into `main`); `release-candidate.yml` run 37877831791 on the tag concluded success. Manual
+acceptance is OWNER-REPORTED (commit `e88b959` on `main`, not on the vNext branch). Per-platform status:
+[RELEASE_ACCEPTANCE_MATRIX](../monopoly-websockets/testcase/RELEASE_ACCEPTANCE_MATRIX.md). The paragraph below is the
+preparation record written before the release.
+
+Prepared on branch `feat/own-the-block-multiplayer-bots-vnext` (base `77953b6` = `v1.6.1`). At preparation time it was not
+released: no tag existed and no
+publication was authorized until the owner has run the manual matrix in
 [USER_MANUAL_BOT_TEST_PLAN](../own-the-block-vnext/USER_MANUAL_BOT_TEST_PLAN.md) and approved the release.
 Protocol 11 → 12 (bot seats: `RoomPlayerMeta.kind`, `boardState.matchId`, `add bot` / `remove bot`), snapshot 10 → 11. A v1.6.x
 client cannot join a 1.7.0 host (`UPGRADE_REQUIRED`), so `update-policy.json` sets `minimumSupportedVersion` 1.7.0 and
 `reviewedForSocketProtocol` 12. Scope, evidence and the release gate: [own-the-block-vnext](../own-the-block-vnext/RELEASE_SCOPE.md).
+
+## After V1.7.0 — current development (unreleased)
+
+Changes on `feat/own-the-block-multiplayer-bots-vnext` after the v1.7.0 tag (Income Tax 150, bot difficulty levels, two client
+fixes) are not released and have no release decision. They were added inside Socket protocol 12, which is open release risk
+R-1; see [ARCHITECTURE_DECISIONS ADR-13](../monopoly-websockets/ARCHITECTURE_DECISIONS.md#adr-13-released-contract-vs-current-development).
+The product identity block above stays at the last published version until a new release is approved.

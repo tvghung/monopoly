@@ -8,7 +8,7 @@
 >
 > **Superseded in part by V1.1:** the decision below to ship no UDP discovery was
 > reversed for the desktop app on the owner's request (room-code lookup, see
-> [Api/http-runtime.instruction.md](../monopoly-websockets/Api/http-runtime.instruction.md#lan-room-lookup-desktop-host-profile-only)).
+> [Api/http-runtime.instruction.md](../monopoly-websockets/Api/http-runtime.instruction.md#lan)).
 
 ## Status
 

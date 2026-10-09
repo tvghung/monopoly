@@ -13,7 +13,7 @@ ghế đó được làm. Thiết kế đầy đủ và quyết định: [BOT_SY
   khi trùng thì bot nhường, lựa chọn của người không bao giờ bị đổi vì bot.
 - Invariant (`assertSupportedRoomSnapshot`): host không phải bot, tối đa `MAX_BOTS_PER_ROOM = 3` bot, bot không LEFT,
   bot ở `LOBBY` phải Ready.
-- Presence: bot luôn "có mặt" (`services/presence.ts`): không chặn start, không bật `turnRecovery`. Room expiry và quyết định
+- Presence: bot luôn "có mặt" (`apps/server/src/services/presence.ts`): không chặn start, không bật `turnRecovery`. Room expiry và quyết định
   đóng phòng chỉ đếm người.
 
 ## Lệnh sảnh
@@ -21,9 +21,26 @@ ghế đó được làm. Thiết kế đầy đủ và quyết định: [BOT_SY
 - `add bot {requestId, seat?}`: host, `LOBBY`; `ROOM_FULL` khi đủ 4 ghế; cùng `requestId` (LRU runtime 64 id/phòng, 10 phút)
   trả lại bot cũ, không thêm bot thứ hai. 2v2: `seat` là ghế trống host bấm, ghế đã có người thì về ghế mặc định.
 - `remove bot {playerId}`: host, `LOBBY`, chỉ ghế BOT; `NOT_FOUND` khi đã bị xóa. `kick player` từ chối bot.
-- `set bot difficulty {difficulty}`: host, `LOBBY`; một mức cho mọi bot (Cực dễ, Dễ, Trung bình, Khó, Cực khó)
+- `set bot difficulty {difficulty}` — CURRENT DEVELOPMENT (vNext, unreleased; commit 1937a73; implemented on the vNext development branch; product approval/release decision not independently verified;
+  không có trong v1.7.0): host, `LOBBY`; một mức cho mọi bot (Cực dễ, Dễ, Trung bình, Khó, Cực khó)
   lưu ở `boardState.botDifficulty` (thiếu = MEDIUM, `play again` giữ nguyên). Client chỉ hiện dropdown khi có ít nhất một bot;
-  khách thấy mức hiện tại nhưng không đổi được.
+  khách thấy mức hiện tại nhưng không đổi được. RELEASE RISK: lệnh được thêm trong protocol 12 không bump (snapshot vẫn 11),
+  nên host 1.7.0 đã phát hành không có handler cho lệnh này (không ACK; theo đọc code); chi tiết ở
+  [Version history](../Shared/socket-and-state-contracts.instruction.md#version-history).
+  Profile trong `DIFFICULTY_PROFILES` (`apps/server/src/bots/policy.ts`); MEDIUM = Balanced policy đã phát hành ở v1.7.0, không đổi:
+
+  | Mức | `reserveFactor` | `blunder` | `offerGain` | `setHandoverGain` | `boardAware` |
+  | --- | ---: | ---: | ---: | ---: | --- |
+  | `VERY_EASY` | 1.5 | 0.4 | 0.9 | 1 | false |
+  | `EASY` | 1.25 | 0.2 | 1 | 1.5 | true |
+  | `MEDIUM` | 1 | 0 | 1.15 | 2 | true |
+  | `HARD` | 0.85 | 0 | 1.3 | 2.5 | true |
+  | `VERY_HARD` | 0.7 | 0 | 1.5 | 3 | true |
+
+  `reserveFactor` nhân tiền đệm (cao hơn = mua/xây ít hơn), `blunder` = xác suất cố tình quyết định sai khi mua/xây,
+  `offerGain` = offer phải cho hơn bao nhiêu lần phần lấy đi, `setHandoverGain` = ngưỡng khi trade trao cho đối thủ đủ khu màu,
+  `boardAware` chỉ bật giảm ngưỡng mua khi đủ/chặn khu và kiểm tra nguy hiểm khi chờ trong tù (`apps/server/src/bots/policy.ts`);
+  định giá khu màu và kiểm tra trao đủ khu cho đối thủ áp dụng ở mọi mức.
 - `request seat swap` tới bot: đổi chỗ ngay (bot luôn đồng ý). Bot không bao giờ xin đổi chỗ.
 - `start game`: 2–4 ghế, ít nhất 1 người, mọi người Ready + connected. `boardState.matchId = randomUUID()`.
 - `play again`: giữ `kind`; bot Ready lại ngay, người phải Ready lại; `matchId` về null tới lần start sau.
@@ -36,7 +53,7 @@ ghế đó được làm. Thiết kế đầy đủ và quyết định: [BOT_SY
   `apps/server/src/commands/gameplay.ts`; socket handler và bot driver gọi cùng `runGameCommand`.
 - `bots/view.ts`: bot chỉ thấy `projectPublicRoomState`, `projectPrivatePlayerState(bot)` và offer gửi cho bot.
 - `bots/policy.ts`: `botTaskOf` tìm việc đang chờ bot; `decideBotAction` (Balanced, offline, tie-break seeded) trả lệnh +
-  fallback luôn hợp lệ. Bot không gọi `make offer`, `propose forced sale`, `sell house` (ngoài luồng nợ), chat hay leave.
+  fallback luôn hợp lệ. Bot không gọi `make offer`, `propose forced sale`, `sell house` (kể cả khi nợ: bot gửi `sell property to bank`), chat hay leave.
 - `bots/driver.ts`: một timer/phòng, key = danh tính công khai của việc đang chờ (có `matchId`); guard trong room queue tính
   lại task, lệch key = no-op. Phục hồi có giới hạn: lỗi lần 1 → fallback; rồi tối đa 2 lần quyết định lại (2 s, 8 s); hết
   lượt thì việc gắn với lượt (đổ, mua, xây, thẻ) giao cho turn recovery của server (deadline ngay, trong room queue, chỉ khi
@@ -54,4 +71,6 @@ thẻ đã lật được áp dụng như khi bấm "Đóng" thay vì treo ván.
 
 `apps/server/src/socket.bots.integration.test.ts`, `socket.botDriver.integration.test.ts`, `bots/policy.test.ts`,
 `bots/driver.test.ts`, client `components/Lobby.test.tsx` ("Lobby bot seats"), `game/ui/hud/PlayerCardList.test.tsx`.
+CURRENT DEVELOPMENT (difficulty): `apps/server/src/bots/policy.test.ts`, `apps/server/src/socket.bots.integration.test.ts`,
+`apps/client/src/components/Lobby.test.tsx` (các describe/it có "difficulty"); chưa có manual full-game theo từng mức.
 Checklist: [testcase/bot-players.md](../testcase/bot-players.md).

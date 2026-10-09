@@ -1,5 +1,8 @@
 # Phase 1 Implementation Plan
 
+> **HISTORICAL** — V1 phase record (PostgreSQL era, before v1.5.0). Not a current instruction; facts below are kept as recorded.
+> Current rules: [Documentation Hub](../README.md) → [technical docs](../monopoly-websockets/README.md); release: [V1_RELEASE_CONTRACT](./V1_RELEASE_CONTRACT.md).
+
 The implementation follows the dependency order from the phase prompt:
 
 1. Add the isolated Electron workspace and typed secure bridge.

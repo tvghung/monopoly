@@ -1,9 +1,11 @@
 # Own the Block — implementation guide
 
-This directory is the source of truth for current behavior. The host desktop application's server helper is the only gameplay authority. It stores room snapshots, session hashes, offers and deadlines in process RAM. A helper exit permanently destroys those matches. Protocol v12 and snapshot schema v11 still describe the in-memory room shape; they do not imply durable storage.
+This directory is the source of truth for current behavior. Start from the [Documentation Hub](../README.md) for lifecycle labels, released-vs-development status and task navigation. The host desktop application's server helper is the only gameplay authority. It stores room snapshots, session hashes, offers and deadlines in process RAM. A helper exit permanently destroys those matches. The protocol and snapshot versions (`SOCKET_PROTOCOL_VERSION` in `packages/shared/src/types.ts`, `ROOM_SNAPSHOT_SCHEMA_VERSION` in `apps/server/src/rooms.ts`; history in [Shared contracts](./Shared/socket-and-state-contracts.instruction.md#version-history)) describe the in-memory room shape; they do not imply durable storage.
 
-The migration findings and implementation choices are recorded in [RAM hosting discovery](./RAM-HOSTING-DISCOVERY.md).
-Executed gates and remaining device checks are recorded in the [verification report](./RAM-HOSTING-VERIFICATION.md).
+Cross-cutting documents: [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) (current decisions, released vs current development) and [FEATURE_TRACEABILITY.md](./FEATURE_TRACEABILITY.md) (feature → docs → code → tests).
+
+The migration findings and implementation choices are recorded in [RAM hosting discovery](./RAM-HOSTING-DISCOVERY.md) (HISTORICAL, v1.5.0).
+Executed gates and remaining device checks at v1.5.0 are recorded in the [verification report](./RAM-HOSTING-VERIFICATION.md) (HISTORICAL).
 
 ## Current architecture
 
@@ -23,19 +25,20 @@ Only Electron main supplies the process-scoped creation capability for its selec
 
 ## Read order
 
-1. [Shared instructions](./monopoly.shared.instructions.md).
-2. The block instructions and module index for the code being changed.
-3. [RAM lifecycle and storage](./Persistence/README.md), [HTTP and hosting](./Api/http-runtime.instruction.md), and the related [testcases](./testcase/README.md).
+1. The feature entry in [FEATURE_TRACEABILITY.md](./FEATURE_TRACEABILITY.md).
+2. [Shared instructions](./monopoly.shared.instructions.md).
+3. The block instructions and module index for the code being changed, then the feature/event instruction.
+4. [RAM lifecycle and storage](./Persistence/README.md), [HTTP and hosting](./Api/http-runtime.instruction.md), and the related [testcases](./testcase/README.md).
 
 | Block | Code | Guide |
 | --- | --- | --- |
 | Client | `apps/client/` | [Client instructions](./monopoly.client.instructions.md), [index](./Client/README.md) |
-| Desktop | `apps/desktop/` | [HTTP and hosting](./Api/http-runtime.instruction.md), [Client join](./Client/join-room.instruction.md) |
-| HTTP/Socket | `apps/server/src/createServer.ts`, `socket/` | [API instructions](./monopoly.api.instructions.md), [index](./Api/README.md) |
-| GameCore | `apps/server/src/rooms.ts`, `game/` | [GameCore instructions](./monopoly.game-core.instructions.md), [index](./GameCore/README.md) |
-| Volatile store | `apps/server/src/persistence/`, `services/` | [Persistence](./Persistence/README.md) |
+| Desktop | `apps/desktop/` | [Desktop index](./Desktop/README.md), [HTTP and hosting](./Api/http-runtime.instruction.md), [Client join](./Client/join-room.instruction.md) |
+| HTTP/Socket | `apps/server/src/createServer.ts`, `apps/server/src/socket/` | [API instructions](./monopoly.api.instructions.md), [index](./Api/README.md) |
+| GameCore | `apps/server/src/rooms.ts`, `apps/server/src/game/`, `apps/server/src/bots/` | [GameCore instructions](./monopoly.game-core.instructions.md), [index](./GameCore/README.md) |
+| Volatile store | `apps/server/src/persistence/`, `apps/server/src/services/` | [Persistence](./Persistence/README.md) |
 | Contracts | `packages/shared/src/` | [Shared instructions](./monopoly.contracts.instructions.md), [index](./Shared/README.md) |
-| Tests | `apps/**/*.test.ts*`, packaged proofs | [Testcase index](./testcase/README.md) |
+| Tests | `apps/**/*.test.ts*`, packaged proofs | [Testcase index](./testcase/README.md), [release acceptance](./testcase/RELEASE_ACCEPTANCE_MATRIX.md) |
 
 The old `apps/server/migrations/` SQL files are historical schema artifacts only. They are never loaded by the current runtime or package build. Any older module guide that describes PostgreSQL, database recovery or managed PostgreSQL is superseded by the RAM lifecycle in this index and [Persistence](./Persistence/README.md); its gameplay/protocol rules still apply where code and tests confirm them.
 
@@ -46,6 +49,7 @@ pnpm typecheck
 pnpm lint
 pnpm test
 pnpm build
+pnpm validate:docs
 pnpm desktop:package
 pnpm desktop:proof:host
 ```

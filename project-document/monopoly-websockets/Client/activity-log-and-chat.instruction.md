@@ -55,7 +55,7 @@
 - `send chat` có request-scoped ACK. Server appends both the compatibility string log
   and a typed `CHAT` event in one room command, then emits the committed `update`.
 - Server giới hạn một chat attempt mỗi socket trong 750 ms và chỉ giữ 500 log entries
-  mới nhất trong durable snapshot.
+  mới nhất trong room snapshot trên RAM của host (mất khi host process thoát).
 - Effect theo dõi activity signature và cuộn vùng log xuống `scrollHeight` sau mỗi
   log signature mới. Vùng log vẫn `overflow-y:auto` nhưng ẩn scrollbar ở Firefox và
   Chromium/WebKit.

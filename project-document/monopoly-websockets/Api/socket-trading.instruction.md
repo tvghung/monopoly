@@ -3,13 +3,21 @@
 ## Authority/validation
 
 All actions require authenticated active Player. Zod validates bounded money, UUID
-offer/card IDs and bilateral `TradeOfferRequest`; payload không mang trusted
+offer IDs, jail-card IDs (`gameCardIdSchema` in `packages/shared/src/socketSchemas.ts`: `chance-…`/`chest-…`
+strings, not UUIDs) and bilateral `TradeOfferRequest`; payload không mang trusted
 buyer/seller/owner identity.
 
-## Durable bilateral offer
+## Bilateral offer (in RAM)
 
-- `make offer(TradeOfferRequest)` persists canonical `TradeBundle.offered/requested`,
-  server-derived participants and 20-second `expiresAt`; ACK returns offer ID/deadline.
+Offers are records in the host process's RAM store (`apps/server/src/persistence/inMemory.ts`), committed in the same
+room command as the room aggregate. They survive reconnect while the host process lives and are lost when the host
+process exits. Handlers: `apps/server/src/socket/trading.ts`; accept/decline
+rules: `apps/server/src/commands/gameplay.ts` (shared with the bot driver).
+
+- `make offer(TradeOfferRequest)`: `requested` may not contain jail-card IDs (`INVALID_REQUEST`) and only the
+  holder can offer a card (`apps/server/src/socket/trading.ts`).
+- `make offer(TradeOfferRequest)` stores canonical `TradeBundle.offered/requested`,
+  server-derived participants and 20-second `expiresAt` in the RAM offer store; ACK returns offer ID/deadline.
 - `accept offer({offerId})`/`decline offer({offerId})` use only the stable offer ID.
   Accept reloads terms, checks ownership/money/card holders/debt and applies all
   transfers once.
@@ -24,8 +32,22 @@ buyer/seller/owner identity.
 - Explicit leave cancels unresolved offers unless they are consumed inside the same
   creditor-resolution transaction.
 
-Room + offer + payment writes commit atomically before private/public emit and ACK.
-Tests cover bundle validation/transfers, jail cards, spoof/replay/expiry/restart,
-private routing and DB rollback. V1.1 shortfall offers: `socket.integration.test.ts` (debt offer settles the debt, decline, the
+Room + offer + payment writes commit atomically in one RAM transaction before private/public emit and ACK; a failed
+command discards its draft and its offer writes.
+
+Current behavior and regression risks (documented, not changed here):
+
+- `make offer` is not idempotent: every emit creates a new offer ID, so a retried or duplicated emit creates a duplicate
+  pending offer.
+- `make offer` and `decline offer` commit without a room `update` broadcast (only the private offer events), so the room
+  revision can move ahead of the last `update` a client saw. `make offer` notifies the bot driver directly.
+- `decline offer` checks recipient, expiry and pending status but not the room status.
+- `accept offer` is guarded by the stored offer status: a replay cannot resolve the offer again, so it is refused and its
+  draft is discarded.
+
+Tests cover bundle validation/transfers, jail cards, spoof/replay/expiry and private routing; the failed-commit path
+(discarded draft, no broadcast) is covered generically by a chat-based test in `apps/server/src/socket.integration.test.ts`. Forced sale and Bank sale
+during a shortfall: [socket-debt-and-rescue](./socket-debt-and-rescue.instruction.md). A socket test that keeps a pending offer across an in-process server restart reusing the same store:
+NOT VERIFIED (none found in `apps/server/src/socket.integration.test.ts`). V1.1 shortfall offers: `socket.integration.test.ts` (debt offer settles the debt, decline, the
 locked shapes and the proposer balance, open forced-sale proposal, eliminated debtor with a valid snapshot) and
 `v3.simplifiedRules.test.ts` (`executeVoluntaryTrade` locks unless the caller opts in).

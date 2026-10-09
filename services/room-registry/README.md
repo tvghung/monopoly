@@ -31,7 +31,8 @@ Then give the builds the Worker URL (for example `https://own-the-block-room-reg
 
 - for a local desktop run: environment variable `OWN_THE_BLOCK_REGISTRY_URL=<url>`;
 - for packaged releases: the GitHub repository variable `OWN_THE_BLOCK_REGISTRY_URL`, which the desktop build writes into
-  `resources/online-config.json` (HTTPS only; an empty value ships builds without bare-code lookup).
+  `registryUrl` of `resources/release-config.json` (`apps/desktop/scripts/writeReleaseConfig.mjs`, read by
+  `apps/desktop/src/runtimeConfig.ts`; HTTPS only; an empty value ships builds without bare-code lookup).
 
 Free-plan limits (Cloudflare docs, checked 2026-10-09): 100,000 requests and 100,000 SQLite rows written per day; each hosted
 room renews every 30 s, so roughly 30 rooms hosted all day fit the write budget. Over the limit, lookups fail until 00:00 UTC

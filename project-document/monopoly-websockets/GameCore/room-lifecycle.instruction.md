@@ -3,8 +3,8 @@
 ## Aggregate model
 
 Room has internal UUID/code, lifecycle status, stable host ID, version, Seat/game
-snapshot and durable deadlines. Runtime connection registry/command queue are not
-the durable store.
+snapshot and absolute deadlines, all held in the host process RAM (lost on host process exit). Runtime connection
+registry/command queue are not part of the room aggregate.
 
 Lifecycle moves through the authoritative host replay boundary:
 
@@ -18,20 +18,23 @@ presence (`CONNECTED | DISCONNECTED`).
 ## Admission/Seat
 
 - Two-step pending admission creates a Seat only on `resume session` activation.
-- Stable UUID Player identity is assigned once and reused across connections/restart.
+- Stable UUID Player identity is assigned once and reused across connections/reconnects while the host process lives;
+  host process exit loses it with the room.
 - First activated active Seat is host; new Seat has `ready=false`.
 - Lobby maximum is four active Seats. Start requires 2–4 in Solo and exactly four (two per team) in 2v2; the host picks the
-  mode and teams in the lobby ([team-play.instruction.md](./team-play.instruction.md)).
-- Seat/color/join order and game references are persisted in aggregate.
+  mode and teams in the lobby ([team-play.instruction.md](./team-play.instruction.md)). Start also requires at least one
+  active human seat (`activeHumanIds`, defined in `apps/server/src/rooms.ts`, used in `apps/server/src/socket/lobby.ts`); bot seats are always Ready and count as present
+  ([bot-players.instruction.md](./bot-players.instruction.md)).
+- Seat/color/join order and game references are stored in the room aggregate.
 - Join without valid Player token after start is spectator and creates no Seat.
 
 ## Host/ready/start
 
 - Player toggles only own ready flag in lobby.
-- All active players, including host, must be connected and ready.
-- Only persisted host may atomically transition lobby to in-progress.
+- All active human players, including host, must be connected and ready (bots are always both).
+- Only the stored host may atomically transition lobby to in-progress.
 - Start rolls server-side 2d6 for all active Player; tied highest rollers reroll
-  until one winner, whose stable ID becomes first in persisted turn order. This
+  until one winner, whose stable ID becomes first in the stored turn order. This
   happens inside start command; no client dice/order payload is accepted.
 - Start cannot repeat. `play again` is the only reverse lifecycle command: an
   authenticated host may transition `FINISHED → LOBBY` in the same room, even when
@@ -39,7 +42,8 @@ presence (`CONNECTED | DISCONNECTED`).
   Players (exactly four in 2v2). The reset keeps the mode, teams, team names/colours and each Player's `teamId` and lays each team out again on seats 0 and 1 by join order.
   In the lobby the host may remove another active Player with `kick player` (session revoked, seat freed; see [../Api/socket-lobby.instruction.md](../Api/socket-lobby.instruction.md)).
 - Temporary host disconnect preserves host. Explicit leave transfers host to lowest
-  remaining active join order.
+  remaining active join order among human seats (never a bot); when the last human leaves, the room is deleted
+  ([bot-players.instruction.md](./bot-players.instruction.md)).
 
 ## Disconnect versus leave
 
@@ -48,11 +52,11 @@ Disconnect:
 - Runtime presence only.
 - Does not delete/release/revoke player, balance, property, ready, host,
   session, offer or payment/proposal state.
-- May persist a guarded current-turn reconnect deadline.
+- May store a guarded current-turn reconnect deadline (absolute, in the RAM aggregate).
 
 Explicit leave:
 
-- Lobby: remove Seat, revoke session, transfer host; delete room if empty.
+- Lobby: remove Seat, revoke session, transfer host; delete room when no human remains (bots may still be seated).
 - In game: confirmed forfeit atomically revokes session, cancels stale offers
   and resolves assets according to active payment shortfall. An active payer is
   auto-liquidated to the Bank before the creditor is paid; other leavers return
@@ -60,9 +64,11 @@ Explicit leave:
   winner check; finished reason remains `LEFT`.
 - Spectator: runtime room leave only.
 - Finished: any member may leave. The membership becomes `LEFT` and the session is revoked without a liquidation; the winner
-  keeps its live seat (cash, properties, turn slot), so the victory state is unchanged for everyone who stays. The host passes
-  to the lowest join order among the non-`LEFT` members, finished members included; the room is deleted when all members have
-  left. `play again` excludes `LEFT` members.
+  keeps its live seat (cash, properties, turn slot) with no liquidation, so the victory state is unchanged for everyone who
+  stays. Another still-active member of the winning 2v2 team is removed via `removePlayerFromGame` (properties to the Bank,
+  cash forfeited). Known issue, NOT VERIFIED by a test: this path does not return held jail-free cards to the deck, which may
+  make the snapshot card-count check fail on commit. The host passes to the lowest join order among the non-`LEFT` members,
+  finished members included; the room is deleted when no human remains (bots may still be seated). `play again` excludes `LEFT` members.
 - After a forfeit the client may re-join the same Socket as a spectator (a join after the start is a spectator); the forfeiter
   is a `LEFT` member with no seat and no token, exactly like any other spectator.
 
@@ -74,19 +80,20 @@ Finished history records reason (`BANKRUPT | LEFT`); it is not erased by disconn
   and publish only the committed result.
 - All-offline alone does not immediately delete a room; configured inactivity
   retention still applies.
-- Empty lobby after explicit leave deletes immediately.
+- A lobby with no human left after explicit leave deletes immediately (bots may still be seated).
 - Default inactivity retention: lobby 24h, in-progress 30d, finished 7d.
-- Cleanup uses persisted expiry and cascades session/offer rows.
+- Cleanup (deadline scheduler, while the host process lives) uses the room's stored expiry; deleting the room also
+  removes its in-RAM sessions and offers.
 
 ## Invariants
 
 - All player references are stable IDs and must resolve to valid Seat/history state.
 - A `LEFT` or finished member is not a live player and not in the turn order, except the winner of a finished game, who may be
   `LEFT` while keeping the live seat it won with (`assertRoomSnapshot`).
-- Public connected flags derive from runtime registry after load/restart.
+- Public connected flags always derive from the runtime connection registry (bots: always connected), never from the snapshot.
 - Raw token, SocketData, presence, command queue and scheduler timer handles never
   enter snapshot.
-- Snapshot v10 persists the 2v2 team state (`gameMode`, `teams`, `teamPlay`, `winningTeamId`, `PaymentQueue.rescue`), the lobby seats (`Player.teamSlot`, `seatSwapRequests`) plus pending landing/card decisions, ordered payments, private deck
+- The room snapshot (current `ROOM_SNAPSHOT_SCHEMA_VERSION`, see [Version history](../Shared/socket-and-state-contracts.instruction.md#version-history)) holds bot seat identity (`RoomMember.kind`, `boardState.matchId`), the 2v2 team state (`gameMode`, `teams`, `teamPlay`, `winningTeamId`, `PaymentQueue.rescue`), the lobby seats (`Player.teamSlot`, `seatSwapRequests`) plus pending landing/card decisions, ordered payments, private deck
   state, bounded semantic/activity lanes, completed card operations, turn recovery,
   forced-sale proposals and appearance identity; auction/contention/Bank queue state
   is not part of the schema. Exact deck order remains private.

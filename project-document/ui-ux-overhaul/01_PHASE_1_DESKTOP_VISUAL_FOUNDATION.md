@@ -1,5 +1,8 @@
 # Phase 1 — Desktop & Visual Foundation
 
+> **HISTORICAL** — V1 phase record (PostgreSQL era, before v1.5.0). Not a current instruction; facts below are kept as recorded.
+> Current rules: [Documentation Hub](../README.md) → [technical docs](../monopoly-websockets/README.md); release: [V1_RELEASE_CONTRACT](./V1_RELEASE_CONTRACT.md).
+
 ## 1. Mục tiêu
 
 Tạo nền móng cho toàn bộ overhaul trước khi chuyển gameplay sang 2.5D.

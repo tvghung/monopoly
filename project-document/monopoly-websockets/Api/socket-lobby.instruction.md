@@ -2,8 +2,9 @@
 
 ## Scope
 
-`apps/server/src/socket/lobby.ts` handles `set ready`, `start game`, `play again` and
-`leave room`; `kick player` (lobby) also lives in `lobby.ts`; `apps/server/src/socket/team.ts` handles the 2v2 lobby commands `set game mode`,
+`apps/server/src/socket/lobby.ts` handles `set appearance`, `set ready`, `start game`, `play again` and
+`leave room`; `kick player` (lobby) also lives in `lobby.ts`; `apps/server/src/socket/bots.ts` handles `add bot`,
+`remove bot` and `set bot difficulty` (CURRENT DEVELOPMENT, see below); `apps/server/src/socket/team.ts` handles the 2v2 lobby commands `set game mode`,
 `set team name`, `set team color`, `move to seat`, `request seat swap`, `cancel seat swap`, `respond seat swap` and the in-game
 `revive teammate` (rules: [../GameCore/team-play.instruction.md](../GameCore/team-play.instruction.md)).
 All Player commands use authenticated stable actor, runtime schema where applicable,
@@ -25,12 +26,14 @@ per-room executor and typed ACK.
 
 ## Ready/start
 
-- `set ready({ready})`: active lobby Player changes only own durable ready flag.
-- `start game`: actor must be persisted host; room must be `LOBBY`; 2-4 active
-  Players must all be connected and ready, with a valid character and unique
-  mascot plus color combinations.
+- `set ready({ready})`: active lobby Player changes only own ready flag in the in-RAM room aggregate; becoming ready
+  needs a chosen mascot without a conflict.
+- `start game`: actor must be the room's host (`FORBIDDEN` otherwise); room must be `LOBBY` (`GAME_ALREADY_STARTED`
+  otherwise); 2–4 active seats (Solo), at least one human, every seat Ready and present, with a valid character and unique
+  mascot plus color combinations. Bots are always Ready (lobby normalisation) and always count as present, so in practice
+  every human must be connected and Ready. 2v2 needs exactly four active seats, two per team (below).
 - Successful start rolls server-side 2d6 for every active Player, rerolls tied
-  highest group to one winner, persists that stable-ID turn order, initializes
+  highest group to one winner, stores that stable-ID turn order, initializes
   private decks/Standard Mode state, sets `IN_PROGRESS` and commits once before
   public update/ACK. The same command `now` is stored once as optional nullable
   `boardState.gameStartedAt` and exposed in the public projection; later commands
@@ -44,10 +47,10 @@ per-room executor and typed ACK.
 ## Same-room Play Again
 
 - `play again` has no business payload and is accepted only from an authenticated
-  Player whose room is `FINISHED` and whose stable ID is the persisted host.
+  Player whose room is `FINISHED` and whose stable ID is the room's host.
   Unlike `start game`, it may reset a room with only one eligible active Player;
-  `start game` still requires 2–4 active connected ready Players.
-- The command runs inside the room executor, cancels all pending persisted trade
+  `start game` still applies the full start rule above.
+- The command runs inside the room executor, cancels all pending trade
   offers in the same transaction, reconstructs `freshState()` and canonical player
   defaults, preserves eligible IDs/appearance/join order/sessions, resets ready
   flags, and removes `LEFT` members from the next lobby.
@@ -67,13 +70,13 @@ per-room executor and typed ACK.
 | `set team name` | `{name}` | active member | 2v2 `LOBBY`; renames the actor's **own** team only (the payload has no team: nobody, the host included, can name the other team); `sanitizeName`, at most 20 chars; Ready untouched |
 | `set team color` | `{color}` | active member | own team only, not the other team's colour; resets that team's Ready |
 | `move to seat` | `{teamId, teamSlot}` | active member | 2v2 `LOBBY`; the seat must be empty (`CONFLICT` when it is held, or is the actor's own); the move is immediate. Across teams: colour becomes the new team's, a mascot that clashes with the new teammate is cleared (the stayer keeps theirs) and only the mover's Ready resets; inside the team only the seat changes |
-| `request seat swap` | `{targetPlayerId}` | active member | 2v2 `LOBBY`; asks another active member to exchange seats and moves nothing. One open request per requester (a new one replaces the old); stored in `boardState.seatSwapRequests` |
+| `request seat swap` | `{targetPlayerId}` | active member | 2v2 `LOBBY`; asks another active member to exchange seats and moves nothing. One open request per requester (a new one replaces the old); stored in `boardState.seatSwapRequests`. A BOT target swaps at once in the same commit and no request is stored (`apps/server/src/socket/team.ts`) |
 | `cancel seat swap` | no payload | requester | withdraws the actor's open request; nothing to cancel is a success |
 | `respond seat swap` | `{requesterPlayerId, accept}` | target | only the target of an open request `requester → actor` (else `CONFLICT`); accept exchanges the two seats as they are now (across teams: colours, mascot clash and both Ready as for a move; inside a team nothing but the seats), decline closes the request |
 | `kick player` | `{playerId}` | host | `LOBBY` only (Solo and 2v2); never the host themself; see below |
 | `revive teammate` | no payload | survivor | `IN_PROGRESS`, own turn, window open, ≥ `REVIVE_COST`; see team-play |
 
-The host has no command that moves another player: seats change only by their own holder's `move to seat` or by an accepted swap.
+The host has no command that moves another player: seats change only by their own holder's `move to seat`, by an accepted swap or by a swap with a bot (immediate).
 A request is void (removed in the same commit) when either side moves, swaps, leaves or is removed, when the mode changes and when
 the game starts; `assertRoomSnapshot` rejects a request outside a 2v2 lobby, a repeated requester and a request that names a player
 who is not an active lobby member.
@@ -98,27 +101,35 @@ from the room code like anyone else. Everyone else receives the normal room upda
 | --- | --- | --- | --- |
 | `add bot` | `{requestId: uuid, seat?: {teamId, teamSlot}}` → ACK `{playerId}` | host | `LOBBY` only (`GAME_ALREADY_STARTED` otherwise); `ROOM_FULL` at four seats; at most three bots; a repeated `requestId` answers with the bot it already created; `seat` is used in 2v2 when still empty |
 | `remove bot` | `{playerId}` | host | `LOBBY` only; the target must be a bot seat (`CONFLICT` for a human, `NOT_FOUND` when already gone) |
-| `set bot difficulty` | `{difficulty: VERY_EASY|EASY|MEDIUM|HARD|VERY_HARD}` | host | `LOBBY` only; one level for every bot of the room, stored as `boardState.botDifficulty` (absent = MEDIUM) and kept by `play again` |
+| `set bot difficulty` — CURRENT DEVELOPMENT (vNext, unreleased; commit 1937a73) | `{difficulty: VERY_EASY\|EASY\|MEDIUM\|HARD\|VERY_HARD}` | host | `LOBBY` only; one level for every bot of the room, stored as optional `boardState.botDifficulty` (absent = MEDIUM = the released v1.7.0 Balanced policy; the public projection always shows a value) and kept by `play again` |
 
 All three commit through `commitRoomCommand` and broadcast the room; guests get `FORBIDDEN` and nothing changes. Rules:
 [GameCore/bot-players.instruction.md](../GameCore/bot-players.instruction.md).
+
+Release risk for `set bot difficulty`: it was added inside the same `SOCKET_PROTOCOL_VERSION` (no bump). A released v1.7.0
+host has no listener and no schema for it, so the command gets no ACK at all; v1.7.0 has one Balanced bot policy and no
+difficulty. Released v1.7.0 has only `add bot`/`remove bot`. Test: `apps/server/src/socket.bots.integration.test.ts`
+("bot difficulty in the lobby"). Version history:
+[socket-and-state-contracts](../Shared/socket-and-state-contracts.instruction.md).
 
 First activated Seat is host. Temporary disconnect never transfers host or ready. Host succession and the "last member leaves"
 rule count humans only: the last human to leave closes the room even when bots remain.
 
 ## Explicit leave
 
-- Spectator: leave public Socket room and clear runtime SocketData; no durable Seat.
+- Spectator: leave public Socket room and clear runtime SocketData; a spectator has no Seat.
 - Lobby Player: revoke session, remove Seat, transfer host to lowest remaining join
   order; delete empty room.
 - In-progress Player: confirmed forfeit records `LEFT`, revokes session, cancels
-  stale listings/offers and, when the leaver is the active payer, auto-liquidates
+  its pending offers and, when the leaver is the active payer, auto-liquidates
   to the Bank to settle the creditor before removal. Remaining properties return to
   the Bank without proceeds or auction; payment/current turn/winner reconcile
   atomically.
 - Finished room (any member): revoke the session, mark the member `LEFT`, cancel its pending offers; nothing is liquidated
   (V1.1: before this the handler rejected the command with `CONFLICT`). A bankrupt member keeps its finished-player record.
-  The winner is the only live seat of a finished game: it stays in the game state exactly as the game ended (cash, properties,
+  In Solo the winner is the only live seat of a finished game; in 2v2 `winner` is one representative of the winning team, and a
+  still-active teammate who is not that representative leaving a `FINISHED` room goes through `removePlayerFromGame` (reason
+  `LEFT`, `apps/server/src/socket/lobby.ts`). The stored winner stays in the game state exactly as the game ended (cash, properties,
   turn slot) while its membership becomes `LEFT`, so everyone still in the room keeps a complete victory screen; the snapshot
   validator allows this one LEFT-but-live seat. When the host leaves, the lowest join order among the members that stay
   (finished members included) becomes host, so the replay always has a host; the room is deleted when every member has left.
@@ -133,9 +144,9 @@ leave clears runtime binding/admission lock so the same Socket can join another 
 
 ## Tests
 
-- Own-ready only, persistence through reconnect, 2/4 and connected gates.
+- Own-ready only, ready kept across reconnect while the host process lives, 2/4 and connected gates.
 - First host, non-host/repeated start and deterministic transfer.
-- Successful start persists one ISO `gameStartedAt`; hydration/public projection and
+- Successful start stores one ISO `gameStartedAt`; hydration/public projection and
   subsequent command storage do not reset it. Older snapshots without the field remain valid.
 - Spectator/lobby/in-progress/finished leave branches and token revocation.
 - Finished leave (`socket.integration.test.ts`): the winner leaves without liquidation and the host passes to a finished member,
@@ -151,13 +162,15 @@ leave clears runtime binding/admission lock so the same Socket can join another 
   seat order driving the match order, Play Again re-seating, kick (host-only, lobby-only, self, stranger, offline target, session revoked,
   `removed from room` event, seat freed, rejoin). Historical SQL migrations 010 and 011 are not part of the current RAM host.
   Seat arrangements and open requests last only for the lifetime of that host process.
-- Current/non-current leave, property/listing/offer cleanup and winner.
+- Current/non-current leave, property/offer cleanup and winner.
 - Active-payer leave settles creditor and leaves no auction/proposal; non-payer leave
   returns assets without proceeds.
 - Host-only replay, finished/non-finished authorization, same-room identity,
   finished-player return, explicit-LEFT exclusion, session/spectator continuity,
   fresh state, offer cancellation and second-match start.
-- Phase 7.2 reuses these protocol-V8 handlers unchanged. The packaged Host proof
+- Phase 7.2 was written when the protocol was V8 (HISTORICAL context); the handlers
+  have been extended since (2v2, seats, bots) and its contract
+  (`apps/server/src/phase72HostContract.ts`) still drives them. The packaged Host proof
   adds 2–4-player capacity/host/reconnect evidence; the existing deterministic
   Socket/GameCore tests remain the `LOBBY → IN_PROGRESS → FINISHED → Play Again →
   LOBBY` authority gate.

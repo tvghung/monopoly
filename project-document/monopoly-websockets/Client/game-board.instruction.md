@@ -8,6 +8,13 @@ tile controls, property dialog và chọn WebGL/fallback. WebGL code chính nằ
 `game/scene/`: `GameScene.tsx`, `board/Board3D.tsx`, `boardRenderModel.ts`, tile
 batches/materials/motion và local SDF text. Không có detail route hay permission key.
 
+Fallback và accessibility boundary: `apps/client/src/components/rendererMode.ts` chọn `webgl`/`legacy` lúc đầu theo
+`supportsWebGL()` (`apps/client/src/game/scene/fallback/webglSupport.ts`); lỗi renderer (`apps/client/src/game/scene/fallback/SceneErrorBoundary.tsx`)
+hoặc mất WebGL context chuyển hẳn sang board DOM `apps/client/src/components/legacy-board/` (`LegacyBoardView.tsx`, `LegacyTile.tsx`,
+`LegacyDiceOverlay.tsx`). Ở chế độ WebGL, 40 nút ô ngữ nghĩa (`sr-only`, `data-tile-index`) nằm trong
+`apps/client/src/components/BoardAccessibilityControls.tsx`; nhãn truy cập dùng chung `legacy-board/tileAccessibility.ts`.
+Pipeline display state: [presentation-pipeline.instruction.md](./presentation-pipeline.instruction.md).
+
 ## Canonical data
 
 - Map đúng 40 tile index từ `packages/shared/src/tileState.ts`; canonical names stay
@@ -134,7 +141,7 @@ và 40 semantic tile buttons không đổi.
   error boundary). Lỗi của một layer chỉ cảnh báo một lần và bỏ layer, không kéo board
   sang legacy; chỉ lỗi renderer thật hoặc mất WebGL context mới chuyển sang legacy.
 - **Graphics tiers** (`render/renderQuality.ts`, `GameSettings.graphicsQuality`):
-  `auto` (mặc định) → `balanced`, hoặc `low` khi thiết bị cảm ứng nhỏ, `MAX_TEXTURE_SIZE <
+  `auto` (mặc định) → `balanced`, hoặc `low` khi thiết bị cảm ứng nhỏ, mobile profile (`coarsePointer && hoverNone`), `MAX_TEXTURE_SIZE <
   8192` hay `hardwareConcurrency <= 4`; `auto` không bao giờ chọn `high`.
 
   | Tier | DPR | Shadow | Environment | Decal | Post |
@@ -290,7 +297,7 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
 - `pendingCardInteraction` cũng là committed public state cho card interaction:
   a new Chance/Khí Vận landing is immediately `REVEALED` with
   `revealedCardId`, and the effect waits for the acting player to send
-  `dismiss card`. Persisted `AWAITING_DRAW` remains only as protocol-9
+  `dismiss card`. A legacy `AWAITING_DRAW` stage remains only as protocol-9
   compatibility for legacy snapshots; the current client has no Draw action.
   Commands are operation-scoped and do not expose deck order. Public
   `gameplayEvents` and private player semantic events đi qua cùng
@@ -323,7 +330,7 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
   nếu ảnh không tải được) và dòng "Khách sạn · <tên landmark>" / "Hotel · <landmark name>" dưới tên ô (theo ngôn ngữ đang chọn, đổi ngay khi đổi ngôn ngữ); dòng đó mô tả
   thẻ cho assistive technology, và nhãn truy cập của ô cờ khi có Khách sạn là "Có Khách sạn · <landmark>" / "Hotel · <landmark name>".
   Tên ô phố ("Hội An"…) không phải landmark và không dịch. Validator
-  `scripts/validateLandmarkArtwork.mjs` (phủ đúng 22 ô phố, an toàn SVG, file thừa, SHA-256 bản build,
+  `apps/client/scripts/validateLandmarkArtwork.mjs` (phủ đúng 22 ô phố, an toàn SVG, file thừa, SHA-256 bản build,
   `--build-output`) chạy trong `pnpm build`; bản đóng gói kiểm bằng
   `pnpm --filter @monopoly/desktop proof:packaged:landmarks`.
 - **Banner khánh thành (OD-05-4):** `LandmarkBanner` trong HUD (dùng chung khung `.turn-banner`; banner lượt không còn): khi một phố lên bậc Khách sạn lúc

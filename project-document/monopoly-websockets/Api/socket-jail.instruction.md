@@ -13,7 +13,12 @@ authenticated current jailed Player. Spectator/other player/blocking state fails
   auto-handoffs; `wait in jail` remains only for protocol compatibility and is not
   exposed as a client action.
 
-Jail/card/dice state commits before update/ACK and restores exactly across
-reconnect/restart. Tests cover invalid/exact balance, duplicate/stale bail, card
-state, compatibility wait, double escape, opponent-round counter and card source
-return.
+Jail/card/dice state is committed to the in-RAM room aggregate before update/ACK. It
+survives reconnect while the host process lives and is lost when the host process exits.
+Handlers: `pay bail`/`use jail card` in `apps/server/src/socket/jail.ts`, `wait in jail` in `apps/server/src/socket/turn.ts`; rules: `payBailCommand`/`useJailCardCommand`/
+`waitInJailCommand` in `apps/server/src/commands/gameplay.ts` (shared with the bot driver).
+`use jail card` takes no card ID: the server uses the first held card. A repeated `pay bail`
+is refused by state (`FORBIDDEN`, the player is no longer jailed), never a second charge.
+All three are refused while a payment shortfall is open. Tests cover invalid/exact balance,
+duplicate/stale bail, card state, compatibility wait, double escape, opponent-round counter
+and card source return.

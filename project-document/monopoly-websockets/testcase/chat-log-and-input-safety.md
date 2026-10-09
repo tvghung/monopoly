@@ -16,11 +16,12 @@ runtime schema or RAM transaction failure behavior.
   renders in selected VI/EN locale; user names and chat remain unchanged, and every
   amount uses VNĐ formatting. Legacy freeform logs remain as stored for compatibility.
 - [ ] Multi-claim `PaymentQueue` and forced-sale continuation append logs in
-  deterministic committed order without restart/recovery duplicates.
-- [ ] Chat append commits before update/success ACK; DB failure creates no phantom line.
+  deterministic committed order without recovery/retry duplicates.
+- [ ] Chat append commits in the RAM transaction before update/success ACK; a failed command discards its draft, so it
+  creates no phantom line.
 - [ ] Per-socket 750 ms throttle rejects spam attempts with ACK failure.
-- [ ] Committed logs preserve ordering through reconnect/server restart and retain only
-  the newest 500 entries.
+- [ ] Committed logs preserve ordering through reconnect while the host process lives and retain only
+  the newest 500 entries; host process exit loses the log with the room.
 - [x] `[CLIENT][AUTOMATED]` Chat bubbles on the sender's card are plain text (markup never becomes elements),
   truncated to 80 characters, only for other players, never replayed after a reset epoch or a sequence restart, hidden
   while the drawer is open, and not held back by the presentation queue; the drawer and its unread count use the

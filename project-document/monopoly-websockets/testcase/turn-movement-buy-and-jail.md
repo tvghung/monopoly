@@ -2,8 +2,8 @@
 
 ## Start/movement
 
-- [ ] `[AUTO][SOCKET]` Start requires host + 2–4 connected/ready; all Players roll
-  server-side 2d6, tied highest group rerolls, final stable-ID order persists once.
+- [ ] `[AUTO][SOCKET]` Start requires host + 2–4 seats with at least one human, humans connected/ready (bots always are); all Players roll
+  server-side 2d6, tied highest group rerolls, final stable-ID order is stored once in the RAM aggregate.
 - [ ] `[AUTO]` Every Player starts index 0/1500; normal 2d6 movement and exact/pass
   Xuất Phát pay 200; direct-to-jail pays none.
 - [ ] `[SOCKET]` Client cannot supply starting roll, dice, position or actor.
@@ -21,12 +21,12 @@
 
 - [ ] `[AUTO]` Buy/Do Not Buy revalidate operation ID, property and balance; Do Not
   Buy never starts an auction; Free Parking is a no-op (tax tiles charge, see the tax row).
-- [x] `[AUTO]` Landing on a tax tile charges its `expenseAmount` to the Bank through the payment pipeline (index 4 pays 200
-  = 200.000 ₫, index 38 pays 100 = 100.000 ₫, nobody else is paid); a short payer enters the TAX shortfall and is
+- [x] `[AUTO]` Landing on a tax tile charges its `expenseAmount` to the Bank through the payment pipeline (index 4 pays 150
+  = 150.000 ₫ (CURRENT DEVELOPMENT; 200 in released v1.7.0), index 38 pays 100 = 100.000 ₫, nobody else is paid); a short payer enters the TAX shortfall and is
   bankrupt at once when nothing is left to sell (`game.test.ts` "charges tile $tileID tax through the bank payment
   pipeline", "bankrupts a cash-short player without assets on tax tile", "pauses a TAX debt for liquidation and never
   charges the landing twice"; `rulesContract.test.ts` "charges each tax tile the amount in the tile data, to the Bank").
-- [ ] `[AUTO]` Chance/Khí Vận draw top in persisted order, normal card rotates bottom,
+- [ ] `[AUTO]` Chance/Khí Vận draw top in the stored private order, normal card rotates bottom,
   movement resolves destination/pass-GO and go-to-jail direct semantics.
 - [ ] `[AUTO][RAM]` Jail-free card leaves source pile, holder identity persists,
   use/transfer/elimination returns card to correct deck while the host runs.
@@ -37,7 +37,7 @@
   insufficient/duplicate/stale attempts do not double-charge; use held card then
   roll; doubles escapes, moves/resolves and ends turn.
 - [ ] `[AUTO]` Failed roll automatically ends the jailed turn; compatibility wait
-  does the same without a visible client action. The persisted
+  does the same without a visible client action. The authoritative
   opponent-round counter increments on handoff and releases before the second
   jailed turn.
 - [x] `[CLIENT][AUTOMATED]` The roll call to action says "Đổ xúc xắc" ("Đang đổ…" while pending), its permission
@@ -49,7 +49,7 @@
   one `JailPanel` (`centerStage.test.tsx` "CenterStage jail group").
 - [ ] `[CLIENT][MANUAL-E2E]` While jailed, the jail group (roll button, then the panel; a compact strip on a phone) never hides the roll button: `hudOverlap.regionOverlaps` is empty in
   `evidence/03/g3/*jail*.json` at 1440×900, 1280×720, 1024×768, 812×375 and 667×375.
-- [ ] `[RAM]` Host restart discards jail progress, card identities and the old room.
+- [ ] `[RAM]` Host process exit (or restart) discards jail progress, card identities and the old room.
 
 ## Multi-debtor PaymentQueue
 

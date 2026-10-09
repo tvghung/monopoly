@@ -24,7 +24,7 @@
 - [ ] `[SOCKET]` Arrival/result only to the two participant private rooms; public state
   has no offer terms.
 - [ ] `[RAM]` The live host retains the canonical pending offer across reconnect;
-  expiry resolves exactly once. Host restart discards the offer and room.
+  expiry resolves exactly once. Host process exit (or restart) discards the offer and room permanently.
 - [ ] `[SOCKET]` Leave cancels relevant pending offers; failed room/offer transaction
   produces no transfer/private result/public update/success ACK.
 

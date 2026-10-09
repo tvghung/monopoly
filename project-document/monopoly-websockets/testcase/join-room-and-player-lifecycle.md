@@ -20,14 +20,14 @@
 - [ ] `resume session` activates exactly one stable UUID Seat; lost ACK is resumable.
 - [ ] Newest valid socket wins; old receives `session replaced`; stale disconnect no-ops.
 - [ ] Refresh/network reconnect/new socket keeps Player ID, Seat, ready, money and assets.
-- [ ] Protocol/snapshot V9 (2v2 teams included) identity-preserving reset keeps room/code, stable Player
+- [ ] Current-schema (2v2 teams and bot seats included; see [Version history](../Shared/socket-and-state-contracts.instruction.md#version-history)) identity-preserving reset keeps room/code, stable Player
   IDs, join order/name/color/ready, host, `IN_PROGRESS` status and active reconnect
   token hashes while preserving the current appearance fields and gameplay state.
 - [ ] Existing tokens reclaim the same Seats after in-process Play Again; pending old-game offers are cancelled.
 - [ ] Invalid/revoked/expired token is rejected, not spectator/new Player.
 - [ ] First activated Seat is host; concurrent first joins produce one host/join order.
-- [ ] Lobby capacity and start boundaries are 2–4; all connected/ready; host only.
-- [ ] Start rolls/tie-breaks first Player server-side, persists order once and accepts
+- [ ] Lobby capacity and start boundaries are 2–4 with at least one human; all humans connected/ready (bots always are); host only.
+- [ ] Start rolls/tie-breaks first Player server-side, stores order once in the RAM aggregate and accepts
   no client dice/order.
 - [ ] Host temporary disconnect does not transfer; explicit leave transfers deterministically.
 - [ ] Disconnect preserves Seat/property/payment/session and does not delete room.
@@ -127,7 +127,8 @@ lookup contract: [Api/http-runtime.instruction.md](../Api/http-runtime.instructi
   the new `launcher-join-failed`, render and are listed in the capture manifest.
 - [ ] `[MANUAL-E2E]` G4 re-capture of `launcher`, `launcher-running`, `launcher-host`, `launcher-join`, `launcher-join-failed` and
   `lobby-lan` at the standard viewports (the form fits 375 px landscape with the extra field). _(Captures not run by the author.)_
-- [ ] `[MANUAL-E2E]` Packaged app on two PCs: see [V1 final manual acceptance](../../ui-ux-overhaul/V1_FINAL_MANUAL_ACCEPTANCE.md#lan-room-lookup-v11).
+- [ ] `[MANUAL-E2E]` Packaged app on two PCs: see [V1 final manual acceptance](../../ui-ux-overhaul/V1_FINAL_MANUAL_ACCEPTANCE.md#lan-room-lookup-v11)
+  (HISTORICAL procedure; not current — current manual tracking: [RELEASE_ACCEPTANCE_MATRIX.md](./RELEASE_ACCEPTANCE_MATRIX.md)).
 
 ## V1.1 Start screen as a main menu, and a way back from the join screen (owner feedback 4 and 3)
 
@@ -166,11 +167,14 @@ launcher"); quit channel: [Api/http-runtime.instruction.md](../Api/http-runtime.
   button (the lab supplies the settings and how-to-play providers), `launcher-running` shows "Vào lại phòng đang mở" and
   "Đóng phòng", and the new `landing-desktop-failed` (name and code kept, "Quay lại") renders and is in the capture manifest.
 - [x] `[AUTO]` The desktop side of "Thoát" (channel, sender check, shutdown through the coordinator, preload whitelist) is in
-  [http-runtime-and-deployment.md](./http-runtime-and-deployment.md#v11-lan-room-lookup-owner-feedback-5-and-6).
+  `apps/desktop/tests/windowHandlers.test.ts` and `apps/desktop/tests/preloadBridge.test.ts` (quit channel `ownTheBlock:quit:exit`;
+  the former "V1.1 LAN room lookup" section of [http-runtime-and-deployment.md](./http-runtime-and-deployment.md) that listed
+  them was removed in commit bffc0da).
 - [ ] `[MANUAL-E2E]` Look at the start screen and its forms (`launcher`, `launcher-running`, `launcher-host`, `launcher-join`,
   `launcher-join-failed`) and the join form with its "Quay lại" (`landing-desktop-failed`) at 1280×720, 1920×1080, 2560×1440 and
   812×375 landscape: buttons on the left, art on the right, nothing overlaps or scrolls off, text readable over the background,
   no motion under reduced motion. _(Captures not run by the author; the 812×375 form fit was measured in the Design Lab only.)_
 - [ ] `[MANUAL-E2E]` Packaged app: see [V1 final manual acceptance](../../ui-ux-overhaul/V1_FINAL_MANUAL_ACCEPTANCE.md#main-menu-and-way-back-v11)
-  for the real "Thoát", settings kept after a restart and the real way back from a failed join.
+  for the real "Thoát", settings kept after an app restart and the real way back from a failed join (HISTORICAL procedure;
+  not current — current manual tracking: [RELEASE_ACCEPTANCE_MATRIX.md](./RELEASE_ACCEPTANCE_MATRIX.md)).
 

@@ -521,7 +521,7 @@ Mục tiêu:
 
 Phase 5 contains only:
 
-1. [Phase 5.1 — Core Game Feel, Audio & Visual Feedback](05_PHASE_5_GAME_FEEL_AUDIO_EFFECTS.md#2-phase-51--core-game-feel-audio--visual-feedback)
+1. [Phase 5.1 — Core Game Feel, Audio & Visual Feedback](05_PHASE_5_GAME_FEEL_AUDIO_EFFECTS.md)
 2. [Phase 5.2 — Activity Feed, Victory, Play Again & Corrective Pass](05_PHASE_5_GAME_FEEL_AUDIO_EFFECTS.md#3-phase-52--remaining-game-feel-activity-feed-victory-play-again--corrective-pass)
 
 The detailed approved audit and implementation boundary are in

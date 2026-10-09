@@ -41,8 +41,9 @@ Development endpoint contract:
   There is no mDNS and no periodic advertisement. The launcher is the app's main
   menu (V1.1): buttons only ("Tạo phòng", "Tham gia phòng", "Cài đặt", "Thoát"), no
   explanation under them, over a picture on the right. "Cài đặt" works because
-  `AppBootstrap` lifts only `SettingsProvider` over the launcher (it reads and writes
-  the same storage `bootstrap()` reads; no audio provider, so nothing plays);
+  `SettingsProvider` sits at the renderer root (`apps/client/src/index.tsx`), above the
+  launcher and the game; `AppBootstrap` renders the launcher outside `AudioProvider`, so
+  nothing plays ([Client/settings-and-audio.instruction.md](./Client/settings-and-audio.instruction.md));
   "Thoát" calls `bridge.quit.exitApp()` after a central confirmation when a room is
   open. Every desktop screen after the launcher has a way back to it through
   `onExitToLauncher` (join form "Quay lại", failure screens "Về trang chủ"); going
@@ -58,7 +59,7 @@ Development endpoint contract:
 - Electron main chỉ quản lý window, runtime config, fullscreen, quit (cửa sổ, lệnh
   thoát của app và nút "Thoát" của launcher qua `quit.exitApp`), external
   links, bộ cập nhật tự động (nhóm `update`, xem [Client/app-update.instruction.md](./Client/app-update.instruction.md))
-  và packaged renderer. Không expose Node/Electron API hoặc game command cho
+  và packaged renderer; ngoài ra main giám sát host helper, Quick Tunnel, registry lease và LAN finder. Không expose Node/Electron API hoặc game command cho
   renderer; production renderer dùng `app://own-the-block` với path traversal guard.
 
 ## Session storage và reconnect
@@ -73,8 +74,9 @@ Development endpoint contract:
 - Mỗi Socket.IO `connect` có stored token phải resume trước khi bật gameplay action.
 - Terminal session errors (`SESSION_INVALID`, `SESSION_REVOKED`, `SESSION_EXPIRED`,
   `ROOM_GONE`, `GAME_ALREADY_STARTED`, `ROOM_FULL`) mới clear storage.
-  Transport errors giữ token để retry khi cùng host process còn sống; terminal
-  `SESSION_INVALID`/`ROOM_GONE` sau host restart xóa token cũ.
+  Transport errors giữ token để retry khi cùng host process còn sống; khi process host
+  đã kết thúc, phòng và token mất vĩnh viễn (runtime RAM-only), nên terminal
+  `SESSION_INVALID`/`ROOM_GONE` từ một host process mới xóa token cũ.
 - `session replaced` đưa tab cũ vào `REPLACED` nhưng không xóa shared localStorage.
 - `removed from room` (host dùng `kick player` ở lobby; session đã bị thu hồi trên server) là kết thúc terminal: client xóa session/room/private state bằng
   `forgetSession`, dừng resume và hiện màn hình lỗi `ERROR` "Bạn đã được mời ra khỏi phòng" (`retryable: false`; desktop về launcher). Xem
@@ -96,8 +98,10 @@ Development endpoint contract:
 ## Role và visibility
 
 - Player lobby thấy roster, host badge, ready controls và start state.
-- Chỉ host có start action; button chỉ enabled khi 2–4 active players (2v2: đúng 4, mỗi đội 2) đều connected
-  và ready. Host chọn chế độ Solo/2v2 và có nút X mời người khác ra khỏi phòng (sau xác nhận trung tâm; không đổi chỗ thay ai);
+- Chỉ host có start action; button chỉ enabled khi có 2–4 active seat (người + bot; 2v2: đúng 4, mỗi đội 2), ít nhất
+  một người thật (host luôn là người thật), mọi người thật connected và ready (bot luôn ready/có mặt). Host thêm/xóa bot ở
+  sảnh; dropdown "Độ khó của Bot" là CURRENT DEVELOPMENT (vNext, unreleased) — xem
+  [Client/game-status.instruction.md](./Client/game-status.instruction.md). Host chọn chế độ Solo/2v2 và có nút X mời người khác ra khỏi phòng (sau xác nhận trung tâm; không đổi chỗ thay ai);
   mỗi người tự đổi chỗ của mình (chỗ trống: chuyển ngay; chỗ có người: gửi yêu cầu, người kia đồng ý mới đổi) và thành viên đổi tên/màu của
   **đội mình**, không ai đổi được đội kia ([GameCore/team-play.instruction.md](./GameCore/team-play.instruction.md),
   [Client/game-status.instruction.md](./Client/game-status.instruction.md)). Người bị loại còn revivable chỉ xem và chat.
@@ -120,6 +124,8 @@ chọn, mặc định là tiếng Việt. Preference chỉ tồn tại ở clien
 
 ## Presentation queue
 
+Chi tiết module: [Client/presentation-pipeline.instruction.md](./Client/presentation-pipeline.instruction.md).
+
 - `derivePresentationEvents(previous, next)` chỉ phát event chứng minh được từ
   hai `PublicRoomState`; không suy đoán rent/cause từ một diff chung.
 - `AnimationQueue` là FIFO, cancellable, có pause/resume/skip/reset/speed và luôn
@@ -135,10 +141,11 @@ chọn, mặc định là tiếng Việt. Preference chỉ tồn tại ở clien
   consumed only through the same `PresentationController → AnimationQueue →
   PresentationStore` path. A missing/non-contiguous semantic tail resets to the
   authoritative snapshot instead of fabricating a consequence.
-- `pendingCardInteraction` is durable and operation-scoped. A new card landing is
+- `pendingCardInteraction` is operation-scoped authoritative state in host RAM (reconnect-safe
+  while the host process lives). A new card landing is
   immediately `REVEALED` with `revealedCardId`; `dismiss card` sends its operation
   ID through authoritative ACK flow and applies the effect only after the actor
-  presses `Đóng`. Persisted `AWAITING_DRAW` is legacy protocol-9 compatibility;
+  presses `Đóng`. A legacy `AWAITING_DRAW` stage is protocol-9 compatibility only;
   the current client does not expose or emit `draw card`. The card presentation
   is queued after the appropriate `LAND` boundary; a chained card closes before
   movement and opens the next interaction after landing.
@@ -195,4 +202,5 @@ pnpm lint
 pnpm build
 pnpm dev:desktop:shell
 pnpm desktop:make
+pnpm validate:docs
 ```

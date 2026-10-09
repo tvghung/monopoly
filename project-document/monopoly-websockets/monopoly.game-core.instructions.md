@@ -15,7 +15,9 @@
   metadata và monotonic aggregate version.
 - `gameStarted` là compatibility projection từ room status, không phải lifecycle
   authority thứ hai.
-- Persisted snapshot loại `loaded`, presence, SocketData, token, offers và timers.
+- Room snapshot (chỉ trong RAM của host process; version hiện hành `ROOM_SNAPSHOT_SCHEMA_VERSION`, xem
+  [Version history](./Shared/socket-and-state-contracts.instruction.md#version-history)) loại `loaded`, presence, SocketData,
+  token, offers và timers.
 
 ## Module map
 
@@ -25,17 +27,19 @@
 | Turn/payment shortfall/bankruptcy/winner/recovery | `game/turn.ts`, `game/dice.ts`, `game/payment.ts` | [GameCore/turn-movement-and-bankruptcy.instruction.md](./GameCore/turn-movement-and-bankruptcy.instruction.md) |
 | Tile/card/jail | `game/tiles.ts` | [GameCore/tile-cards-and-jail-resolution.instruction.md](./GameCore/tile-cards-and-jail-resolution.instruction.md) |
 | 2v2 Teamplay (đội, thuê theo đội, hồi sinh, Emergency Rescue) | `game/team*.ts`, `game/rescue*.ts`, `socket/team.ts`, `teamLobby.ts`, `packages/shared/src/teams.ts` | [GameCore/team-play.instruction.md](./GameCore/team-play.instruction.md) |
+| Bot seats/policy/driver (difficulty: CURRENT DEVELOPMENT) | `apps/server/src/bots/policy.ts`, `apps/server/src/bots/driver.ts`, `apps/server/src/commands/gameplay.ts`, `apps/server/src/socket/bots.ts` | [GameCore/bot-players.instruction.md](./GameCore/bot-players.instruction.md) |
 | Property economy | `game/property.ts` | [GameCore/property-economy.instruction.md](./GameCore/property-economy.instruction.md) |
 | Forced sale | `game/payment.ts`, `game/bankruptcy.ts`, `socket/debt.ts` | [testcase/payment-shortfall-and-forced-sale.md](./testcase/payment-shortfall-and-forced-sale.md) |
 
 ## Lifecycle rules
 
 - First activated Seat is host; new Seat is unready.
-- Lobby capacity is 2–4 for start (exactly four, two per team, in 2v2); all active Seats must be connected and ready.
+- Lobby capacity is 2–4 for start (exactly four, two per team, in 2v2) with at least one human seat; all active human
+  Seats must be connected and ready (bot seats are always Ready and present).
 - Only host transitions room once from lobby to in-progress.
-- Disconnect preserves Seat/host/ready/assets. Explicit leave is a distinct durable
-  domain command; lobby leave removes Seat, in-game leave is confirmed forfeit.
-- Host transfer occurs on explicit leave to lowest remaining join order, not on
+- Disconnect preserves Seat/host/ready/assets. Explicit leave is a distinct
+  domain command committed in a RAM transaction; lobby leave removes Seat, in-game leave is confirmed forfeit.
+- Host transfer occurs on explicit leave to lowest remaining human join order (never a bot), not on
   transient disconnect.
 - New no-token join after start is spectator; valid token reclaim is handled first.
 
@@ -47,20 +51,23 @@ functions must not broadcast, ACK or assume persistence has already succeeded.
 
 ## Turn/payment deadline rules
 
-- Offline current Player receives persisted configured recovery deadline (default
+- Offline current human Player receives a configured absolute recovery deadline in the RAM aggregate (default
   60 seconds).
 - Reconnect before committed expiry clears marker and preserves exact turn.
 - Expiry resolves a pending purchase as Do Not Buy or a development prompt as Skip;
   otherwise it advances the turn.
-- Card landing immediately takes and reveals the top card into durable
+- Card landing immediately takes and reveals the top card into the aggregate's
   `PendingCardInteraction` with an operation ID, continuation, card ID, and
   deadline. `REVEALED` waits for the actor's operation-scoped dismiss; only
-  persisted legacy `AWAITING_DRAW` records are scheduler-promotable. Recovery is
+  legacy `AWAITING_DRAW` records are scheduler-promotable (only their deadline is scheduled, `calculateNextActionAt` in
+  `apps/server/src/rooms.ts`; the `REVEALED` `deadlineAt` itself is not). A `REVEALED` card of an offline actor is
+  dismissed (applied) when turn recovery expires (`apps/server/src/services/deadlineScheduler.ts`;
+  `apps/server/src/bots/driver.ts` can trigger the same path). Recovery is
   idempotent and never exposes the private draw pile.
 - Payment shortfall expiry sells owned properties in deterministic tile order and
   eliminates the debtor only after all sellable properties are exhausted.
-- Forced-sale proposal persists its proposal ID and absolute expiry inside the
-  snapshot; only the seller and selected buyer receive its terms.
+- Forced-sale proposal keeps its proposal ID and absolute expiry inside the
+  RAM snapshot; only the seller and selected buyer receive its terms.
 - Deadline callbacks must match operation ID/turn/deadline/version before mutation.
 
 ## Standard Mode

@@ -5,7 +5,7 @@
 - The client supports Vietnamese (`vi`) and English (`en`); Vietnamese is the default. The list of shipped languages is one
   constant, `SUPPORTED_LANGUAGES` in `apps/client/src/i18n/languages.ts` (see "Adding a language").
 - Language is a renderer preference stored with ordinary client settings. It never enters
-  room state, socket payloads, ACKs, snapshots, database records, or gameplay rules.
+  room state, socket payloads, ACKs, snapshots, any server-side state (the host runtime is RAM-only), or gameplay rules.
 - Shared board/card data, player names, team names, and user-authored chat stay in their
   existing authoritative/canonical form. Display copy is localized in the client.
 - “Own the Block” remains the product brand in both locales. VNĐ formatting and all game

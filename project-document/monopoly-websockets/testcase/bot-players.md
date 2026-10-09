@@ -21,10 +21,16 @@ Rule: [GameCore/bot-players.instruction.md](../GameCore/bot-players.instruction.
 - [x] `[AUTOMATED]` Lệnh bất hợp lệ của bot bị từ chối như người; bot chờ khi mọi người mất kết nối; hành động đang chờ bị bỏ khi ván kết thúc và chơi lại.
 - [x] `[AUTOMATED]` Người mất kết nối khi thẻ đã lật: hết grace thì thẻ được áp dụng, ghế giữ nguyên.
 - [x] `[AUTOMATED]` Policy: mua/không mua, xây, tù, nợ, rescue, forced sale, offer, revive, seed tái lập, một policy offline (`bots/policy.test.ts`).
-- [x] `[AUTOMATED]` Độ khó: thiếu = MEDIUM như policy gốc, mức khó đầu tư mạnh hơn, mức cực dễ có lúc chọn sai nhưng không bao giờ mua khi thiếu tiền (`bots/policy.test.ts`); chỉ host đặt được, mức lạ bị từ chối (`socket.bots.integration.test.ts`); dropdown 5 mức chỉ hiện khi có bot, khách chỉ xem (`Lobby.test.tsx`).
-- [x] `[AUTOMATED]` Retry bằng fallback, park khi fallback lỗi, ranh giới thông tin của view (`bots/driver.test.ts`).
+- [x] `[AUTOMATED]` CURRENT DEVELOPMENT (vNext, unreleased; commit 1937a73) — Độ khó: thiếu = MEDIUM như policy gốc, mức khó đầu tư mạnh hơn, mức cực dễ có lúc chọn sai nhưng không bao giờ mua khi thiếu tiền (`bots/policy.test.ts`); chỉ host đặt được, mức lạ bị từ chối (`socket.bots.integration.test.ts`); dropdown 5 mức chỉ hiện khi có bot, khách chỉ xem (`Lobby.test.tsx`).
+- [x] `[AUTOMATED]` Retry bằng fallback, park chỉ sau fallback + 2 retry (2 s, 8 s) rồi recovery (`apps/server/src/bots/driver.ts`), ranh giới thông tin của view (`bots/driver.test.ts`).
 - [x] `[AUTOMATED]` Client: ghế bot, Thêm Bot chỉ host, phòng đầy ẩn nút, Xóa Bot không hỏi, start với bot (`Lobby.test.tsx`); chip Bot trên HUD (`PlayerCardList.test.tsx`).
 
 ## Manual
 
 - [ ] `[MANUAL-E2E]` Sảnh A1–A8 và trọn ván B1–B8, mất kết nối/chơi lại C1–C7 trong USER_MANUAL_BOT_TEST_PLAN.
+- [ ] `[MANUAL-E2E]` `[NOT RUN]` CURRENT DEVELOPMENT (vNext, unreleased): chơi trọn một ván với bot ở từng mức `VERY_EASY`, `EASY`, `MEDIUM`,
+  `HARD`, `VERY_HARD` (host đổi mức ở sảnh, khách chỉ xem; ghi lại hành vi mua/xây/offer và ván kết thúc không treo). NOT RUN.
+- [ ] `[RELEASE]` CURRENT DEVELOPMENT: quyết định tương thích 1.7.0 ↔ vNext trước khi phát hành — `set bot difficulty` và
+  Thuế Thu Nhập 150 được thêm trong protocol 12 không bump (snapshot vẫn 11); host 1.7.0 không có handler nên lệnh này không bao giờ được ACK (theo đọc code, chưa chạy thử) và
+  guest 1.7.0 hiển thị thuế 200 trong khi host vNext thu 150. Bump protocol hay chấp nhận rủi ro:
+  [Version history](../Shared/socket-and-state-contracts.instruction.md#version-history). NOT DECIDED.

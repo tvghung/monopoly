@@ -1,4 +1,4 @@
-# Checklist — 2v2 Teamplay (protocol 11, snapshot 10)
+# Checklist — 2v2 Teamplay (added in protocol 10/snapshot 9, lobby seats in protocol 11/snapshot 10; current versions: [Version history](../Shared/socket-and-state-contracts.instruction.md#version-history))
 
 Luật và trạng thái: [../GameCore/team-play.instruction.md](../GameCore/team-play.instruction.md). Mỗi dòng dưới đây trỏ tới file test
 thật. Các dòng `[PG]` lịch sử đã ngừng áp dụng sau khi chuyển sang RAM; hàng `[MANUAL-E2E]` chưa tick vì chưa có người quan sát.
@@ -65,19 +65,22 @@ Manual UAT: SKIPPED BY RELEASE DECISION for 1.3.0, and not performed for 1.4.0. 
   leave tường minh không bao giờ hồi sinh.
 - [x] `[AUTO]` › "Emergency Rescue": chỉ sau khi hết tài sản, phải đủ toàn bộ phần còn lại (không cứu một phần), trả thẳng cho creditor/Bank và không chạm ví
   người nợ, claim nợ chính rescuer không tốn tiền và không có cứu miễn phí, decline/hết hạn/rescuer rời/debtor rời → phá sản bình thường, chạy tiếp hàng đợi,
-  hoàn tất lượt qua cùng continuation. `[SOCKET]` accept/decline/expire (scheduler) và restart giữa offer.
+  hoàn tất lượt qua cùng continuation. `[SOCKET]` accept/decline/expire (scheduler) và in-process server restart giữa offer
+  dùng lại cùng in-memory store (test harness `startServer(persistence)` trong `apps/server/src/socket.teamplay.integration.test.ts:533`;
+  không phải host process restart — host process thoát thì phòng mất).
 - [x] `[CLIENT]` `RescuePanel.test.tsx`, `RevivePanel.test.tsx`, `game/team/teamView.test.ts`, `PlayerCardList.test.tsx`/`playerCardSelectors.test.ts` (nhãn "Có thể hồi sinh",
   "Còn N lượt", "Cơ hội cuối", "Đã bị loại vĩnh viễn"), `WinnerBanner.test.tsx` (thắng đội, thành viên đã bị loại, "Đội đối thủ").
 - [x] `[SOCKET]` "team win, then Play Again…": Play Again giữ mode/tên/màu/phân đội, xóa revive/win, host vẫn đổi mode.
 
 ## Snapshot, migration, persistence
 
-- [x] `[AUTO]` `rooms.teamplay.test.ts`: schema v10 là phiên bản hiện tại, round-trip JSON, `assertTeamState` từ chối state hỏng (màu, slot, window, winner,
+- [x] `[AUTO]` `rooms.teamplay.test.ts`: `ROOM_SNAPSHOT_SCHEMA_VERSION` là phiên bản hiện tại (describe "snapshot schema v11"), round-trip JSON, `assertTeamState` từ chối state hỏng (màu, slot, window, winner,
   rescue, hai người một ghế, yêu cầu đổi chỗ ngoài sảnh 2v2/trùng người xin/người không còn trong sảnh), `upgradeRoomSnapshotV8ToV9` và
-  `upgradeRoomSnapshotV9ToV10` không mutate input và cho snapshot hợp lệ (ghế theo thứ tự vào phòng, không quá ghế 1), chia đội và chọn ghế khi join, public projection của
+  `upgradeRoomSnapshotV9ToV10` (+ `upgradeRoomSnapshotV10ToV11`; helper chỉ được test gọi) không mutate input và cho snapshot hợp lệ (ghế theo thứ tự vào phòng, không quá ghế 1), chia đội và chọn ghế khi join, public projection của
   team/ghế/revive/rescue. SQL migrations 010 và 011 chỉ còn là tài liệu lịch sử.
-- [x] `[RAM]` Host giữ state 2v2 trong cùng process; restart host xóa phòng, ghế, rescue và token. Bằng chứng restart nằm trong packaged host proof.
-- [x] `[AUTO]` `services/deadlineScheduler.test.ts`: rescue hết hạn được recover như decline; `config.test.ts` (`EMERGENCY_RESCUE_TIMEOUT_MS`);
+- [x] `[RAM]` Host giữ state 2v2 trong cùng process; host process thoát/khởi động lại xóa phòng, ghế, rescue và token. Bằng chứng host
+  process restart nằm trong packaged host proof (khác với in-process server restart dùng lại store ở mục Emergency Rescue phía trên).
+- [x] `[AUTO]` `apps/server/src/socket.teamplay.integration.test.ts`: rescue hết hạn được recover như decline; `config.test.ts` (`EMERGENCY_RESCUE_TIMEOUT_MS`);
   `rulesContract.test.ts`: các số 2v2 trong `rules.ts` (150/200, 750/300/5, 4 người, 20 chữ, 30 giây) và mặc định `emergencyRescueTimeoutMs` khớp server, bonus
   Solo do `streetRent` thật tính.
 

@@ -1,5 +1,8 @@
 # Phase 6.2 — Distribution and Release Verification
 
+> **HISTORICAL** — V1 phase record (PostgreSQL era, before v1.5.0). Not a current instruction; facts below are kept as recorded.
+> Current rules: [Documentation Hub](../README.md) → [technical docs](../monopoly-websockets/README.md); release: [V1_RELEASE_CONTRACT](./V1_RELEASE_CONTRACT.md).
+
 **Status: Phase 6 engineering COMPLETE; production release readiness NOT YET APPROVED**
 
 Verification date: 2026-08-28

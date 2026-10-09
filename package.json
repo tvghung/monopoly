@@ -22,6 +22,8 @@
     "validate:release": "node apps/desktop/scripts/validateRelease.mjs",
     "validate:v1-contract": "node scripts/validateV1Contract.mjs",
     "test:v1-contract": "node --test scripts/validateV1Contract.check.mjs",
+    "validate:docs": "node scripts/validateDocs.mjs",
+    "test:docs": "node --test scripts/validateDocs.check.mjs",
     "test:registry": "node --test services/room-registry/src/index.test.mjs",
     "build": "pnpm --filter @monopoly/client build",
     "validate:music-assets": "pnpm --filter @monopoly/client validate:music-assets",

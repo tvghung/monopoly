@@ -1,0 +1,35 @@
+name: Docs
+
+# Documentation quality gate. Deliberately separate from ci.yml: ci.yml skips Markdown-only changes to save Actions time,
+# while this job must run for documentation, CLAUDE.md/AGENTS.md and validator changes *and* for code changes that can break
+# the code paths named in the docs. It needs no dependency install and finishes in seconds, so it has no path filter.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  validate-docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Validate documentation (links, anchors, canonical files, agent instructions, code paths, indexes)
+        run: node scripts/validateDocs.mjs
+
+      - name: Test the documentation validator
+        run: node --test scripts/validateDocs.check.mjs

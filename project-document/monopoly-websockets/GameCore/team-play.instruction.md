@@ -6,8 +6,9 @@ state công khai (`apps/client/src/game/team/teamView.ts`). Solo giữ nguyên, 
 xây Nhà không bao giờ bị khóa bởi bộ màu.
 
 Code: `packages/shared/src/teams.ts`, `rules.ts`, `apps/server/src/game/team*.ts`,
-`game/rescue*.ts`, `game/tiles.ts`, `game/property.ts`, `socket/team.ts`, `teamLobby.ts`,
-`migrations/010_teamplay_v9.sql`, `migrations/011_lobby_seats_v10.sql`. Test: [testcase/team-play.md](../testcase/team-play.md).
+`game/rescue*.ts`, `game/tiles.ts`, `game/property.ts`, `socket/team.ts`, `teamLobby.ts`. HISTORICAL (không phải code
+runtime, không bao giờ được nạp): `apps/server/migrations/010_teamplay_v9.sql`, `apps/server/migrations/011_lobby_seats_v10.sql`.
+Test: [testcase/team-play.md](../testcase/team-play.md).
 
 ## Mô hình team
 
@@ -29,9 +30,9 @@ Code: `packages/shared/src/teams.ts`, `rules.ts`, `apps/server/src/game/team*.ts
 - Ownership vẫn là `PlayerId`; tiền luôn theo từng người. Không có ví chung.
 - 2v2: `player.color` luôn bằng màu đội (mascot vẽ theo màu đội, màu cũng là accent ownership). Hai đồng đội
   không được trùng mascot; hai đội được trùng.
-- Public projection (`services/publicState.ts`): `teams: PublicTeam[]` (kèm `memberPlayerIds` gồm cả người đã
+- Public projection (`apps/server/src/services/publicState.ts`): `teams: PublicTeam[]` (kèm `memberPlayerIds` gồm cả người đã
   bị loại), `teamPlay: { revivedPlayerIds, reviveWindows }` (mỗi window có `survivorPlayerId`,
-  `turnsRemaining`, `openedAtTurnNumber`), `winningTeamId`. `slotOrder` là private durable state.
+  `turnsRemaining`, `openedAtTurnNumber`), `winningTeamId`. `slotOrder` là private state của room aggregate (RAM).
 
 ## Lobby
 
@@ -98,23 +99,30 @@ Investment nếu không đủ tiền cho một cấp (không tạo decision vô 
   **toàn bộ phần còn thiếu của mọi claim còn mở của người nợ** (claim nợ chính rescuer không tốn tiền) mới được hỏi; cứu một
   phần sẽ vẫn kết thúc bằng phá sản nên không có. `accept rescue` trả tiền trực tiếp
   cho creditor/Bank (`MONEY_TRANSFER reason RESCUE`), **không bao giờ qua ví người nợ**; `decline rescue`, hết hạn
-  (`deadlineScheduler`), rescuer rời/mất điều kiện → rescue đóng và đi tiếp đường phá sản bình thường (không deadlock).
+  (`deadlineScheduler`) hoặc rescuer rời → rescue đóng; nếu rescuer không đủ tiền thì `accept rescue` bị từ chối và offer vẫn mở
+  (`apps/server/src/game/rescueResolution.ts`, `apps/server/src/game/teamplay.test.ts`). Khi đóng, trận đi tiếp đường phá sản bình thường (không deadlock).
   Client chỉ gửi `rescueId`; amount/creditor luôn do queue của server quyết định.
 
 ## Snapshot, protocol, persistence
 
-- `SOCKET_PROTOCOL_VERSION = 11`, `ROOM_SNAPSHOT_SCHEMA_VERSION = 10`. Migration `011_lobby_seats_v10.sql` thêm `Player.teamSlot` và
-  `boardState.seatSwapRequests: []` (xem [Persistence](../Persistence/README.md)); migration `010_teamplay_v9.sql` nâng snapshot
-  v8 (xem [Persistence](../Persistence/README.md)); helper TS `upgradeRoomSnapshotV8ToV9` tương đương SQL và được test so
-  sánh với mẫu snapshot lịch sử. Các file SQL là tài liệu lịch sử, không chạy trong runtime hiện tại.
+- Version hiện hành là `SOCKET_PROTOCOL_VERSION` (`packages/shared/src/types.ts`) và `ROOM_SNAPSHOT_SCHEMA_VERSION`
+  (`apps/server/src/rooms.ts`); 2v2 được thêm ở protocol 10/snapshot 9 và ghế sảnh ở protocol 11/snapshot 10
+  ([Version history](../Shared/socket-and-state-contracts.instruction.md#version-history)). HISTORICAL: migration
+  `011_lobby_seats_v10.sql` từng thêm `Player.teamSlot` và `boardState.seatSwapRequests: []`; migration `010_teamplay_v9.sql`
+  từng nâng snapshot v8; helper TS `upgradeRoomSnapshotV8ToV9` tương đương SQL và chỉ được test gọi (so sánh với mẫu
+  snapshot lịch sử). Các file SQL không chạy trong runtime RAM hiện tại ([Persistence](../Persistence/README.md)).
 - `assertTeamState` (trong `assertRoomSnapshot`) validate: Solo không có team match state; 2v2 màu = màu đội, lobby
   không có match state, `slotOrder` 4 người xen kẽ, `boardState.players` = `slotOrder` lọc người còn sống, windows hợp lệ
-  (người bị loại thật, đồng đội còn sống, chưa hồi sinh, `turnsRemaining` 1–5), winner/`winningTeamId` nhất quán,
+  (người bị loại thật, đồng đội còn sống; "chưa hồi sinh" và `turnsRemaining` 1–5 do Zod state schema
+  `packages/shared/src/stateSchemas.ts` kiểm trong `assertRoomSnapshot`, không phải `assertTeamState`), winner/`winningTeamId` nhất quán,
   rescue khớp `planEmergencyRescue`.
 - Trong một đời host, RAM giữ `teams`, `teamPlay`, `winningTeamId`, `PaymentQueue.rescue` và deadline absolute;
-  `recoverRoomIfDue` xử lý deadline quá hạn khi command tiếp theo chạy. Khi host process dừng, toàn bộ phòng và token hết hiệu lực.
+  `recoverRoomIfDue` (`apps/server/src/services/deadlineScheduler.ts`) xử lý deadline quá hạn: scheduler poll mỗi 1 s,
+  và cũng được gọi khi join/resume session (`apps/server/src/socket/session.ts`) và khi bot driver giao việc cho turn
+  recovery. Khi host process dừng, toàn bộ phòng và token hết hiệu lực.
 
 ## Giới hạn đã biết
 
 - Cờ 3D trên bàn chưa vẽ mascot chủ ô; thông tin chủ ô/đội nằm ở hover card, deed, modal và accessible label.
-- `minimumSupportedVersion` của updater giữ `1.0.0`; nâng lên là quyết định phát hành của chủ sản phẩm.
+- HISTORICAL (v1.3.0): `minimumSupportedVersion` của updater từng giữ `1.0.0`. Hiện `apps/desktop/update-policy.json` đặt
+  `1.7.0` (từ bản v1.7.0); nâng tiếp là quyết định phát hành của chủ sản phẩm.

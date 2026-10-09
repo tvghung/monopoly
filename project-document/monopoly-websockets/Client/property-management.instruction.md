@@ -45,7 +45,7 @@ stable `playerId` và derive mọi dòng của thẻ; `PropertyDeedCard` (`full`
   cho giá đã nhập thì bị vô hiệu); buyer accept/reject theo proposal ID.
 
 Client guard chỉ là UX. Domain revalidates landing level/ownership/debt inside the
-serialized durable command; failure keeps state and renders the localized ACK.
+serialized room command (committed to the in-RAM aggregate); failure keeps state and renders the localized ACK.
 
 ## Tests
 

@@ -24,8 +24,9 @@
 - `BUILD_HOUSES` nhận số lượng 1–4 trong phần còn lại của lần đáp xuống; level 4
   mở `UPGRADE_HOTEL`; `SKIP` kết thúc chờ. Không có stock contention, auction hay
   luật build-even.
-- Bán Nhà tự nguyện hoàn tiền `floor(houseCost/2)` cho đúng tile; hành động chỉ
-  bị chặn bởi payment shortfall đang mở.
+- Bán Nhà tự nguyện hoàn tiền `floor(houseCost/2)` cho đúng tile; hành động bị
+  chặn bởi payment shortfall đang mở, pending development decision trên tile đó, ván đã kết thúc, và chỉ chủ sở hữu được bán
+  (`apps/server/src/socket/building.ts`, `apps/server/src/game/property.ts`).
 - Team Investment (2v2): dừng ở street đồng đội, người dừng chân trả bằng tiền của mình để xây/nâng cấp; `ownedProps` không đổi chủ,
   và bán công trình hoàn tiền cho **chủ ô**.
 
@@ -49,4 +50,4 @@ trước. Mọi offer pending liên quan asset được hủy trong cùng transa
 Xem [property testcase](../testcase/property-economy.md),
 [trading testcase](../testcase/trading-market-and-private-offers.md),
 [payment shortfall testcase](../testcase/payment-shortfall-and-forced-sale.md)
- và persistence restart cases.
+ và RAM transaction/reconnect cases (state survives reconnect while the host process lives; host process exit loses the room).

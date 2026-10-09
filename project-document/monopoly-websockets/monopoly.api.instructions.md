@@ -9,6 +9,9 @@ Repo không có REST business controller; gameplay vẫn đi qua Socket.IO.
 
 - `GET /healthz`: public liveness; 503 khi shutting down.
 - `GET /readyz`: RAM authority readiness; 503 khi shutting down.
+- Desktop profile only: `GET /_otb/room`, `GET /_otb/continuity` và (khi helper có
+  `OTB_REGISTRY_ROOM_CODE` + `OTB_REGISTRY_PROOF`) `GET /_otb/registry-proof`; chi tiết tại
+  [Api/http-runtime](./Api/http-runtime.instruction.md).
 - Production static client và SPA fallback cùng origin.
 - Socket.IO root namespace/path mặc định.
 
@@ -51,47 +54,61 @@ Mọi state-changing request có request-scoped `Ack<T>`:
 - Success chỉ sau in-memory transaction commit.
 - Failure có stable code/message/retryable.
 - Không broadcast state từ failed draft.
-- Current transport uses protocol V11 (2v2 Teamplay and lobby seats). The card commands below carry only the
-  operation ID; the authenticated actor, pending state, card order and consequence
+- Current transport uses the current `SOCKET_PROTOCOL_VERSION` (`packages/shared/src/types.ts`); a handshake
+  with another version is refused with `UPGRADE_REQUIRED` (`apps/server/src/socket/index.ts`). Version history:
+  [Shared/socket-and-state-contracts](./Shared/socket-and-state-contracts.instruction.md). The card commands below
+  carry only the operation ID; the authenticated actor, pending state, card order and consequence
   remain server-authoritative.
 
 ## Command handler pattern
 
-1. Parse payload.
-2. Require authenticated Player hoặc explicit allowed spectator action.
-3. Enqueue theo internal room ID.
+1. Parse payload: `installInboundValidation` (`apps/server/src/socket/validation.ts`) parses every known event
+   with `clientEventPayloadSchemas` (`packages/shared/src/socketSchemas.ts`) and requires exactly one ACK callback,
+   else `INVALID_REQUEST`.
+2. Require authenticated Player (`requirePlayer`, `apps/server/src/socket/authority.ts`: role `PLAYER` and the
+   current connection, else `UNAUTHENTICATED`) hoặc explicit allowed spectator action (`send chat` qua `requireRoom`; spectator `leave room` chỉ rời
+   Socket room, không vào room queue).
+3. Enqueue theo internal room ID (`commitRoomCommand`, `apps/server/src/socket/roomCommands.ts`, per-room FIFO).
 4. Re-check connection generation trong queue, rồi load/clone aggregate và validate
    business state; command của connection đã bị thay thế trả `SESSION_REPLACED`.
 5. Mutate draft và related session/offer records; validate lại strict snapshot/output
    invariants trước save.
-6. Repository transaction compare-and-swap aggregate version.
-7. Sau commit mới emit public/private projections và ACK; scheduler poll deadline
-   metadata đã persist.
+6. Version-checked commit (compare-and-swap aggregate version) trong in-RAM store.
+7. Sau commit mới emit public/private projections và ACK: `broadcastRoom`
+   (`apps/server/src/socket/broadcast.ts`) gửi `update` tới `room:<id>` và `private player state` tới mỗi member
+   chưa `LEFT`, rồi báo bot driver. Broadcast chạy sau khi command resolve (ngoài FIFO), nên client so `version`.
+   Scheduler poll deadline tuyệt đối nằm trong room aggregate (RAM). Ngoại lệ: `resume session` ACK trước rồi mới broadcast
+   presence (`apps/server/src/socket/session.ts`).
 
-Actor không bao giờ lấy từ client payload. Handler không tự viết SQL.
+Gameplay command objects (`runGameCommand`, `apps/server/src/commands/gameplay.ts`) được socket handler và bot
+driver dùng chung. Actor không bao giờ lấy từ client payload. Handler không tự viết SQL (runtime không có database).
 
 ## Event modules
 
 | Module | Events |
 | --- | --- |
 | Session/presence | `join room`, `resume session`, disconnect |
-| Lobby/lifecycle | `set ready`, `start game`, `play again`, `leave room` |
-| Team (2v2) | `set game mode`, `set team name`, `set team color`, `move to seat`, `request seat swap`, `cancel seat swap`, `respond seat swap`, `revive teammate`, `accept rescue`, `decline rescue` |
+| Lobby/lifecycle | `set appearance`, `set ready`, `start game`, `play again`, `leave room` |
+| Bots (`socket/bots.ts`) | `add bot`, `remove bot`; `set bot difficulty` is CURRENT DEVELOPMENT (vNext, unreleased, added without a protocol bump) |
+| Team (2v2, `socket/team.ts`) | `set game mode`, `set team name`, `set team color`, `move to seat`, `request seat swap`, `cancel seat swap`, `respond seat swap`, `revive teammate` |
 | Lobby removal | `kick player` (host, lobby); the removed player's connection receives `removed from room` |
 | Turn | `roll dice`, `buy property`, `do not buy`, `resolve development`, `wait in jail` |
 | Chat | `send chat` |
-| Trading | durable bilateral offer events |
+| Trading | `make offer`, `decline offer`, `accept offer` (bilateral offers held in RAM) |
 | Property | sell-house và landing development |
 | Jail | `pay bail`, `use jail card`, `wait in jail` |
 | Card | `dismiss card` (current client); `draw card` retained for protocol-9 compatibility |
-| Payment shortfall | sell to Bank / propose / accept / reject forced sale |
+| Payment shortfall and 2v2 rescue (`socket/debt.ts`) | `sell property to bank`, `propose forced sale`, `accept forced sale`, `reject forced sale`, `accept rescue`, `decline rescue` — [Api/socket-debt-and-rescue](./Api/socket-debt-and-rescue.instruction.md) |
+
+Full event → handler → document map (39 client commands, 10 server events): [Api/README](./Api/README.md).
 
 Pending purchase/development decisions, `PendingCardInteraction`, payment shortfall
 and forced-sale proposals carry operation/claim IDs. New card landings are
 immediately `REVEALED`; the current client sends only operation-scoped `dismiss
-card`, which commits the existing effect and continuation once. Persisted
-`AWAITING_DRAW` and `draw card` remain protocol-9 compatibility for legacy state;
-the scheduler may promote that state but never applies a normal `REVEALED` card.
+card`, which commits the existing effect and continuation once. A legacy
+`AWAITING_DRAW` state and `draw card` remain protocol-9 compatibility;
+the scheduler may promote that state but never applies a normal `REVEALED` card
+(only the turn-recovery deadline of a disconnected current player applies it).
 The handler commits the draft and only then broadcasts/ACKs. Turn handler không tự
 advance: domain `completeTurnResolution` handoff sau khi decision/card/payment
 continuation hoàn tất.
@@ -103,7 +120,8 @@ continuation hoàn tất.
 - `update(PublicRoomState)` tới public room với monotonic revision.
 - Offer arrival/result/expiry/cancellation chỉ tới private room của buyer/owner.
 - `session replaced` chỉ tới old connection.
-- Token/session hash/database row không được serialize trong `update`.
+- Token/session hash/store record không được serialize trong `update`.
+- Full server → client event list và emitters: [Api/README](./Api/README.md#server--client-events).
 
 ## Persistence/recovery
 
@@ -117,7 +135,10 @@ continuation hoàn tất.
   message, code or stack of the cause leaves the server); a closed store
   (`RuntimeUnavailableError`, thrown once `persistence.close()` ran during shutdown) is a
   non-retryable `INTERNAL_ERROR` (`The game service is shutting down.`) because the
-  match ends with the process.
+  match ends with the process. `DATABASE_UNAVAILABLE` remains only as a deprecated
+  compatibility code; the server never emits it.
+- Tests that stop a server and start another one on the same in-memory store object are an
+  in-process server restart reusing the same store (test harness), not a host process restart.
 - Offer/turn/payment/forced-sale deadlines và stable operation ID được giữ trong
   RAM khi process còn sống. Process chết thì room/token mất vĩnh viễn.
 - Graceful shutdown ngừng nhận command, đóng scheduler/socket/http; shutdown không
