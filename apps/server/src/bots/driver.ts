@@ -22,9 +22,12 @@ import {
 import type { RoomRecord } from '../persistence/types';
 import { RuntimeUnavailableError } from '../persistence/types';
 import type { RoomSnapshot } from '../rooms';
+import { recoverRoomIfDue } from '../services/deadlineScheduler';
 import { hasConnectedHuman } from '../services/presence';
 import type { AppRuntime } from '../services/runtime';
+import { broadcastRoom } from '../socket/broadcast';
 import { CommandError } from '../socket/errors';
+import { commitRoomCommand } from '../socket/roomCommands';
 import type { DomainCommandContext } from '../socket/roomCommands';
 import type { AppServer } from '../socket/types';
 import {
@@ -44,6 +47,8 @@ export interface BotDriverOptions {
   sweepIntervalMs?: number;
   /** Writes one line per decision (and refusals) when set. */
   log?: (line: string) => void;
+  /** Waits before each fresh re-decision after the fallback was refused too (bounded; then authoritative recovery). */
+  recoveryDelaysMs?: readonly number[];
 }
 
 /** The task an armed timer was set for no longer matches the room: somebody else's commit got there first. */
@@ -52,6 +57,13 @@ class StaleBotTaskError extends Error {}
 const JOURNAL_LIMIT = 50;
 const DEAD_KEY_LIMIT = 512;
 const RETRY_DELAY_MS = 300;
+/** After the first choice and the fallback were refused: two more fresh decisions, further apart, then recovery. */
+const RECOVERY_DELAYS_MS: readonly number[] = [2_000, 8_000];
+/**
+ * Tasks the server already resolves on its own absolute deadline (payment, rescue, forced sale, offer, legacy card draw): a
+ * bot that cannot answer one leaves it to that deadline, exactly like an absent human.
+ */
+const DEADLINE_BACKED: ReadonlySet<BotTask['kind']> = new Set(['DEBT', 'RESCUE', 'FORCED_SALE', 'OFFER', 'DRAW_CARD']);
 
 interface Invocation {
   command: GameCommand<never, unknown>;
@@ -85,8 +97,13 @@ function invocationOf(action: BotAction): Invocation {
 /**
  * Plays every bot seat of the process. It keeps no durable state: each check derives the one open bot task from the room as
  * it is, arms at most one timer per room, and acts through `runGameCommand` with a guard that re-derives the task inside the
- * room queue, so a stale timer, a duplicate fire, a restore or a rematch can never apply a second effect. A refused first
- * choice is retried once with an always-legal fallback; a refused fallback parks that task until the room changes.
+ * room queue, so a stale timer, a duplicate fire, a restore or a rematch can never apply a second effect.
+ *
+ * Recovery is bounded: a refused first choice is retried once with an always-legal fallback, then decided afresh at most
+ * `recoveryDelaysMs.length` more times, further apart. A task still stuck after that is resolved by the server's own turn
+ * recovery (the very path an absent human's turn takes: decline the purchase, skip the development, apply the revealed card
+ * or pass the turn), or, when the server already owns a deadline for it, left to that deadline. Either way the task is then
+ * parked with one meaningful journal line, so nothing retries forever or floods timers or logs.
  */
 export class BotDriver {
   private readonly timers = new Map<string, { key: string; timer: ReturnType<typeof setTimeout> }>();
@@ -101,6 +118,8 @@ export class BotDriver {
 
   private readonly dead = new Set<string>();
 
+  private readonly recoveryDelays: readonly number[];
+
   private readonly journals = new Map<string, string[]>();
 
   private sweepTimer: ReturnType<typeof setInterval> | undefined;
@@ -111,7 +130,9 @@ export class BotDriver {
     private readonly io: AppServer,
     private readonly runtime: AppRuntime,
     private readonly options: BotDriverOptions = {},
-  ) {}
+  ) {
+    this.recoveryDelays = options.recoveryDelaysMs ?? RECOVERY_DELAYS_MS;
+  }
 
   start(): void {
     if (this.active) return;
@@ -197,8 +218,10 @@ export class BotDriver {
     this.cancel(roomId);
     const view = views.find(candidate => candidate.botId === task.botId);
     if (!view) return;
-    const retrying = (this.failures.get(task.key) ?? 0) > 0;
-    const delay = retrying ? RETRY_DELAY_MS : botActionDelayMs(view, task) * (this.options.delayScale ?? 1);
+    const failed = this.failures.get(task.key) ?? 0;
+    const delay = failed === 0
+      ? botActionDelayMs(view, task) * (this.options.delayScale ?? 1)
+      : failed === 1 ? RETRY_DELAY_MS : this.recoveryDelays[failed - 2] ?? 0;
     const timer = setTimeout(() => {
       if (this.timers.get(roomId)?.key === task.key) this.timers.delete(roomId);
       void this.fire(roomId, task).catch((error: unknown) => this.report(roomId, 'action failed', error));
@@ -218,12 +241,16 @@ export class BotDriver {
       this.notify(roomId);
       return;
     }
-    const decision = decideBotAction(view, task);
-    if (!decision) {
-      this.park(roomId, task, 'no decision');
+    const attempts = this.failures.get(task.key) ?? 0;
+    if (attempts >= 2 + this.recoveryDelays.length) {
+      await this.recover(roomId, task, view, `${String(attempts)} refused attempts`);
       return;
     }
-    const attempts = this.failures.get(task.key) ?? 0;
+    const decision = decideBotAction(view, task);
+    if (!decision) {
+      await this.recover(roomId, task, view, 'no decision');
+      return;
+    }
     const chosen = attempts > 0 ? decision.fallback : decision.action;
     try {
       await this.perform(roomId, task.botId, task, chosen);
@@ -236,9 +263,9 @@ export class BotDriver {
       }
       if (error instanceof RuntimeUnavailableError || !this.active) return;
       const failed = attempts + 1;
-      this.failures.set(task.key, failed);
+      this.setFailures(task.key, failed);
       this.report(roomId, `${chosen.command} refused (${String(failed)})`, error);
-      if (failed >= 2 || chosen === decision.fallback) this.park(roomId, task, 'fallback refused');
+      // The next evaluation waits longer (see `evaluate`) and, once the bounded attempts are spent, recovers.
       this.notify(roomId);
     }
   }
@@ -259,6 +286,71 @@ export class BotDriver {
         if (!latest || latest.key !== task.key || latest.botId !== task.botId) throw new StaleBotTaskError();
       },
     });
+  }
+
+  private setFailures(key: string, count: number): void {
+    this.failures.delete(key);
+    this.failures.set(key, count);
+    if (this.failures.size > DEAD_KEY_LIMIT) {
+      const oldest = this.failures.keys().next().value;
+      if (oldest !== undefined) this.failures.delete(oldest);
+    }
+  }
+
+  /**
+   * The bounded attempts are spent: let the server resolve the task. A turn-bound task (roll, purchase, development, revealed
+   * card) is handed to turn recovery with an immediate deadline, inside the room queue and only while the room still waits on
+   * exactly this task; any other task already has a server deadline. The task is parked either way, with one clear line.
+   */
+  private async recover(roomId: string, task: BotTask, view: BotView, why: string): Promise<void> {
+    const name = view.room.gameState.players[task.botId]?.name ?? task.botId;
+    this.park(roomId, task, why);
+    this.failures.delete(task.key);
+    if (DEADLINE_BACKED.has(task.kind)) {
+      this.writeJournal(roomId, `[bot] ${name} cannot answer ${task.kind}; the server resolves it at its deadline`);
+      return;
+    }
+    const now = new Date();
+    try {
+      const armed = await commitRoomCommand(this.runtime, roomId, async (context) => {
+        const snapshotRoom: RoomRecord<RoomSnapshot> = {
+          ...context.original,
+          status: context.room.status,
+          hostPlayerId: context.room.hostPlayerId,
+          gameSnapshot: context.room.gameSnapshot,
+        };
+        const offers = await context.transaction.tradeOffers.listPendingForRoom(roomId);
+        const latest = findBotTask(buildBotViews(snapshotRoom, this.runtime.connections, offers, context.now));
+        const { state } = context;
+        if (
+          !latest || latest.key !== task.key || latest.botId !== task.botId
+          || context.room.status !== 'IN_PROGRESS'
+          || state.boardState.currentPlayer.id !== task.botId
+          || state.boardState.paymentQueue
+          || state.boardState.turnRecovery
+          || state.boardState.winner
+        ) throw new StaleBotTaskError();
+        state.boardState.turnRecovery = {
+          playerId: task.botId,
+          turnNumber: state.boardState.turnNumber,
+          deadlineAt: now.toISOString(),
+          pendingOperationId: state.turnInfo.pendingPropertyDecision?.operationId
+            ?? state.turnInfo.pendingDevelopmentDecision?.operationId
+            ?? state.turnInfo.pendingCardInteraction?.operationId
+            ?? null,
+        };
+      }, now);
+      if (armed.room) broadcastRoom(this.io, this.runtime, armed.room);
+      await recoverRoomIfDue(this.io, this.runtime, roomId, now);
+      this.writeJournal(roomId, `[bot] ${name} could not resolve ${task.kind}; the server's turn recovery resolved it`);
+    } catch (error) {
+      if (error instanceof StaleBotTaskError) {
+        this.notify(roomId);
+        return;
+      }
+      if (error instanceof RuntimeUnavailableError) return;
+      this.report(roomId, `${name} could not resolve ${task.kind} and recovery failed; waiting for the room to change`, error);
+    }
   }
 
   private park(roomId: string, task: BotTask, why: string): void {
