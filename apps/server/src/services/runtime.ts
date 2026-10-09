@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import type { MakeOfferResult } from '@monopoly/shared';
 import type { PersistenceTimingConfig } from '../config';
 import type { PersistenceStore } from '../persistence';
 import type { RoomSnapshot } from '../rooms';
 import { BotRequestLedger } from './botRequestLedger';
+import { CommandRequestLedger } from './commandRequestLedger';
 import { HostContinuity } from './hostContinuity';
 import { RoomCommandExecutor } from './roomCommandExecutor';
 import { ConnectionRegistry } from './connectionRegistry';
@@ -19,6 +21,10 @@ export interface AppRuntime {
   sessions: PlayerSessionService;
   /** `add bot` request ids already applied per room (idempotent retries). */
   botRequests: BotRequestLedger;
+  /** `sell house` request ids already applied per room and actor (a retransmitted emit sells nothing twice). */
+  sellHouseRequests: CommandRequestLedger<true>;
+  /** `make offer` request ids already applied per room and actor, with the offer each one created. */
+  makeOfferRequests: CommandRequestLedger<MakeOfferResult>;
   timing: PersistenceTimingConfig;
   flags: RuntimeFlags;
   /** A random id of this server process: shown by `/_otb/room` for the desktop Join's LAN/Online match, never a credential. */
@@ -50,6 +56,8 @@ export function createAppRuntime(
     connections: new ConnectionRegistry(),
     sessions: new PlayerSessionService(persistence, timing),
     botRequests: new BotRequestLedger(),
+    sellHouseRequests: new CommandRequestLedger<true>(),
+    makeOfferRequests: new CommandRequestLedger<MakeOfferResult>(),
     instanceId: randomUUID(),
     continuity: new HostContinuity(),
     timing,

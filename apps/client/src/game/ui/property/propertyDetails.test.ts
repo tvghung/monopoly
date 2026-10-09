@@ -66,7 +66,7 @@ describe('rules read from the shared rules file', () => {
 
 describe('tax tiles', () => {
   it('print the amount from shared tile data', () => {
-    expect(getTileDetails(tileState[4])).toEqual([{ label: 'Nộp 200.000 ₫ cho Ngân hàng khi dừng tại đây.' }]);
+    expect(getTileDetails(tileState[4])).toEqual([{ label: 'Nộp 150.000 ₫ cho Ngân hàng khi dừng tại đây.' }]);
     expect(getTileDetails(tileState[38])[0].label).toMatch(/^Nộp .* cho Ngân hàng/u);
   });
 });

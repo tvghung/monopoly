@@ -161,6 +161,8 @@ export interface OwnTheBlockDesktopBridge {
   quit: {
     onQuitRequested(listener: (requestId: string) => void): () => void;
     respond(requestId: string, allowQuit: boolean): void;
+    /** Tells main the confirmation dialog is on screen, so it waits for the player without its 2 s limit. Absent on a bridge that predates it. */
+    acknowledge?(requestId: string): void;
     /** Quits the app now; the start screen's "Thoát" asks the player first. Absent on a bridge that predates it. */
     exitApp?(): Promise<void>;
   };

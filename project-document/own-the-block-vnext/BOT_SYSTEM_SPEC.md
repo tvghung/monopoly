@@ -84,7 +84,7 @@ view of a bot equals what a human seat in the same position receives.
 
 ## 6. Balanced policy
 
-One policy, no difficulty switch, no network access.
+One policy, scaled by the room's `botDifficulty` profile, no network access.
 
 - **Reserve** `R = clamp(120 + 0.6 × maxOpponentRent, 120, 650)`, where `maxOpponentRent` is the highest rent
   any opponent street/station/utility (utility at 7 × multiplier) would charge at its current public level.

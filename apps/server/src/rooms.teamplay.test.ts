@@ -616,7 +616,7 @@ describe('public projection of team state', () => {
     const projected = projectPublicRoomState(room(snapshot, 'IN_PROGRESS'), new ConnectionRegistry());
     const board = projected.gameState.boardState;
 
-    expect(projected.protocolVersion).toBe(12);
+    expect(projected.protocolVersion).toBe(13);
     expect(board.gameMode).toBe('TEAM_2V2');
     expect(board.winningTeamId).toBeNull();
     expect(board.teams).toEqual([

@@ -294,9 +294,13 @@ async function acceptForcedSale(socket: TestSocket, proposalId: string): Promise
   });
 }
 
-async function makeOffer(socket: TestSocket, request: TradeOfferRequest): Promise<Ack<{ offerId: string; expiresAt: string }>> {
+async function makeOffer(
+  socket: TestSocket,
+  request: TradeOfferRequest,
+  requestId: string = crypto.randomUUID(),
+): Promise<Ack<{ offerId: string; expiresAt: string }>> {
   return waitForAck((acknowledge) => {
-    socket.emit('make offer', request, acknowledge);
+    socket.emit('make offer', { ...request, requestId }, acknowledge);
   });
 }
 
@@ -1590,7 +1594,7 @@ describe('Socket.IO player lifecycle over the RAM store', () => {
     const spoofed = await waitForAck((acknowledge) => {
       buyer.socket.emit(
         'make offer',
-        spoofedOffer,
+        spoofedOffer as never,
         acknowledge,
       );
     });
@@ -1611,6 +1615,7 @@ describe('Socket.IO player lifecycle over the RAM store', () => {
         recipientPlayerId: owner.playerId,
         offered: { cash: 100, propertyIds: [], jailFreeCardIds: [] },
         requested: { cash: 0, propertyIds: [1], jailFreeCardIds: [] },
+        requestId: crypto.randomUUID(),
       }, acknowledge);
     });
 

@@ -1,4 +1,5 @@
 import {
+  gameCardsById,
   getOpposingTeamId,
   isTeamMode,
   teamActivePlayerIds,
@@ -19,6 +20,23 @@ const returnPendingCardToDeck = (state: GameState): void => {
   const interaction = state.turnInfo.pendingCardInteraction;
   if (!interaction?.revealedCardId) return;
   state.privateState.decks[interaction.deck].drawPile.push(interaction.revealedCardId);
+};
+
+/**
+ * A removed player's Get Out of Jail Free cards go back to the bottom of the draw pile they came from, so the card count of
+ * the two decks stays whole whichever way the seat ends (bankruptcy and surrender return them first, a leave from a
+ * finished 2v2 room by a winning-team member relies on this). Idempotent: a card already in a pile is not added twice.
+ */
+const returnHeldCardsToDeck = (state: GameState, playerId: PlayerId): void => {
+  const player = state.players[playerId];
+  if (!player) return;
+  for (const cardId of player.heldJailFreeCardIds) {
+    const deck = gameCardsById[cardId]?.sourceDeck;
+    if (deck && !state.privateState.decks[deck].drawPile.includes(cardId)) {
+      state.privateState.decks[deck].drawPile.push(cardId);
+    }
+  }
+  player.heldJailFreeCardIds = [];
 };
 
 const orderedPlayerIds = (state: GameState): PlayerId[] => {
@@ -89,6 +107,7 @@ const removePlayerRecord = (
   const player = state.players[playerId];
   if (!player) return false;
 
+  returnHeldCardsToDeck(state, playerId);
   if (player.accountBalance > 0) {
     recordPublicGameplayEvent(state, {
       type: 'MONEY_TRANSFER',

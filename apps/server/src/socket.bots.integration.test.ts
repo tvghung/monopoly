@@ -377,3 +377,24 @@ describe('room lifecycle with bots', () => {
     expect(room.gameSnapshot.gameState.boardState.matchId).not.toBe(firstMatch);
   });
 });
+
+describe('bot difficulty in the lobby', () => {
+  const setDifficulty = (player: Player, difficulty: string) => ack((callback) => (
+    player.socket.emit('set bot difficulty', { difficulty } as never, callback)
+  ));
+
+  it('lets only the host set one difficulty for every bot, and refuses an unknown level', async () => {
+    const { host, persistence, roomId, joinHuman } = await hostLobby();
+    const guest = await joinHuman('Guest');
+    dataOf(await addBot(host.socket));
+    expect((await stored(persistence, roomId)).gameSnapshot.gameState.boardState.botDifficulty).toBeUndefined();
+
+    okOf(await setDifficulty(host, 'VERY_HARD'));
+    expect((await stored(persistence, roomId)).gameSnapshot.gameState.boardState.botDifficulty).toBe('VERY_HARD');
+
+    const before = await stored(persistence, roomId);
+    expect(failureOf(await setDifficulty(guest, 'VERY_EASY')).code).toBe('FORBIDDEN');
+    expect(failureOf(await setDifficulty(host, 'IMPOSSIBLE')).code).toBe('INVALID_REQUEST');
+    expect((await stored(persistence, roomId)).aggregateVersion).toBe(before.aggregateVersion);
+  });
+});

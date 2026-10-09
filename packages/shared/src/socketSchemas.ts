@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  BOT_DIFFICULTIES,
   CHARACTER_IDS,
   GAME_MODES,
   PLAYER_COLOR_IDS,
@@ -14,7 +15,9 @@ import type {
   MoveToSeatRequest,
   OfferAction,
   OfferInfo,
+  SellHouseRequest,
   RemoveBotRequest,
+  SetBotDifficultyRequest,
   RequestSeatSwapRequest,
   RescueDecisionRequest,
   RespondSeatSwapRequest,
@@ -120,6 +123,10 @@ export const addBotRequestSchema = z.strictObject({
   seat: z.strictObject({ teamId: teamIdSchema, teamSlot: teamSlotSchema }).optional(),
 }) satisfies z.ZodType<AddBotRequest>;
 
+export const setBotDifficultyRequestSchema = z.strictObject({
+  difficulty: z.enum(BOT_DIFFICULTIES),
+}) satisfies z.ZodType<SetBotDifficultyRequest>;
+
 export const removeBotRequestSchema = z.strictObject({
   playerId: playerIdSchema,
 }) satisfies z.ZodType<RemoveBotRequest>;
@@ -195,6 +202,7 @@ export const offerInfoSchema = z.strictObject({
   recipientPlayerId: playerIdSchema,
   offered: tradeBundleSchema,
   requested: tradeBundleSchema,
+  requestId: z.uuid(),
 })
   .refine(
     (offer) => bundleHasValue(offer.offered) || bundleHasValue(offer.requested),
@@ -210,6 +218,11 @@ export const offerInfoSchema = z.strictObject({
     ),
     'The same jail-free card cannot appear on both sides of a trade',
   ) satisfies z.ZodType<OfferInfo>;
+
+export const sellHouseRequestSchema = z.strictObject({
+  tileID: tileIdSchema,
+  requestId: z.uuid(),
+}) satisfies z.ZodType<SellHouseRequest>;
 
 export const offerActionSchema = z.strictObject({
   offerId: offerIdSchema,
@@ -231,6 +244,7 @@ export const clientEventPayloadSchemas = {
   'kick player': kickPlayerRequestSchema,
   'add bot': addBotRequestSchema,
   'remove bot': removeBotRequestSchema,
+  'set bot difficulty': setBotDifficultyRequestSchema,
   'set team name': setTeamNameRequestSchema,
   'set team color': setTeamColorRequestSchema,
   'move to seat': moveToSeatRequestSchema,
@@ -250,7 +264,7 @@ export const clientEventPayloadSchemas = {
   'make offer': offerInfoSchema,
   'accept offer': offerActionSchema,
   'decline offer': offerActionSchema,
-  'sell house': tileIdSchema,
+  'sell house': sellHouseRequestSchema,
   'pay bail': noPayloadSchema,
   'use jail card': noPayloadSchema,
   'wait in jail': noPayloadSchema,

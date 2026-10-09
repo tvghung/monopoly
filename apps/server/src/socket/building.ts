@@ -1,4 +1,5 @@
-import { tileIdSchema, type AckCallback, type GameState } from '@monopoly/shared';
+import { sellHouseRequestSchema, type AckCallback, type GameState } from '@monopoly/shared';
+import type { TradeOfferRecord } from '../persistence/types';
 import {
   isPropertyLockedByLandingDecision,
   sellHouse,
@@ -18,15 +19,19 @@ async function executePropertyAction(
   io: AppServer,
   socket: AppSocket,
   runtime: AppRuntime,
-  rawTileID: unknown,
+  rawRequest: unknown,
   acknowledge: AckCallback,
   action: PropertyAction,
 ): Promise<void> {
   try {
-    const tileID = parsePayload(tileIdSchema, rawTileID);
+    const { tileID, requestId } = parsePayload(sellHouseRequestSchema, rawRequest);
     const actor = requirePlayer(socket, runtime);
     const now = new Date();
-    const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }) => {
+    let replayed = false;
+    const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }): Promise<TradeOfferRecord[]> => {
+      // A retransmitted emit of a sale that already committed: acknowledge it again, sell nothing.
+      replayed = runtime.sellHouseRequests.find(actor.roomId, actor.playerId, 'sell house', requestId) !== undefined;
+      if (replayed) return [];
       if (room.status !== 'IN_PROGRESS' || state.boardState.winner || state.boardState.paymentQueue) {
         throw new CommandError('CONFLICT', 'Hành động tài sản bị khóa trong lúc thanh toán thiếu hụt.');
       }
@@ -37,7 +42,11 @@ async function executePropertyAction(
         throw new CommandError('CONFLICT', 'Hành động tài sản không hợp lệ.');
       }
       return cancelPendingOffersForAssets(transaction.tradeOffers, actor.roomId, null, [tileID], [], now);
-    }, now, actor);
+    }, now, actor, {
+      afterCommit: (done) => {
+        if (done.room && !replayed) runtime.sellHouseRequests.record(actor.roomId, actor.playerId, 'sell house', requestId, true);
+      },
+    });
     if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
     emitCancelledOffers(io, committed.room, committed.result, now);
     broadcastRoom(io, runtime, committed.room);
@@ -48,7 +57,7 @@ async function executePropertyAction(
 }
 
 export function registerBuildingHandlers(io: AppServer, socket: AppSocket, runtime: AppRuntime): void {
-  socket.on('sell house', (tileID, acknowledge) => {
-    void executePropertyAction(io, socket, runtime, tileID, acknowledge, sellHouse);
+  socket.on('sell house', (request, acknowledge) => {
+    void executePropertyAction(io, socket, runtime, request, acknowledge, sellHouse);
   });
 }

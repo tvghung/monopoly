@@ -26,7 +26,7 @@
   process and selected room code. It is never written to SocketData or a public
   DTO. An existing-room Guest admission records the internal room ID in RAM.
 - `Ack<T>` là discriminated success/failure contract. State-changing request chỉ
-  được ACK success sau durable commit.
+  được ACK success sau khi RAM transaction commit (failed command bỏ draft, không ACK success/broadcast).
 - `update` phát `PublicRoomState`, không phát raw persistence record.
 - Session/private-offer DTO chỉ gửi đúng client liên quan.
 
@@ -58,8 +58,9 @@ recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
 
 ## Standard Mode contracts và game data
 
-- `SOCKET_PROTOCOL_VERSION = 11`; client/server cũ bị từ chối bằng
-  `UPGRADE_REQUIRED`.
+- `SOCKET_PROTOCOL_VERSION` (`packages/shared/src/types.ts`) và `ROOM_SNAPSHOT_SCHEMA_VERSION` (`apps/server/src/rooms.ts`)
+  là version hiện hành; client lệch protocol bị từ chối bằng `UPGRADE_REQUIRED`. Lịch sử version và phần CURRENT DEVELOPMENT
+  (vNext, unreleased): [Version history](./Shared/socket-and-state-contracts.instruction.md#version-history).
 - Appearance contract dùng stable `CharacterId`/`PlayerColorId`; `set appearance`
   is strict, lobby-only, allows duplicate characters and enforces unique active
   lobby colors.
@@ -68,9 +69,9 @@ recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
 - Shared state định nghĩa `PendingTurnContinuation`, pending purchase/development
   landing decisions, `PaymentQueue`/`DebtClaim`, forced-sale proposal, `TradeBundle`,
   transfer policy và public deck/card projections. `PendingCardInteraction` là
-  durable operation-scoped state. New landings are `REVEALED` with
-  `revealedCardId`; persisted `AWAITING_DRAW` is retained only for protocol-9
-  compatibility. The continuation and deadline remain durable; `GamePrivateState`
+  operation-scoped state trong room aggregate (RAM). New landings are `REVEALED` with
+  `revealedCardId`; legacy `AWAITING_DRAW` is retained only for protocol-9
+  compatibility. The continuation and absolute deadline stay in the aggregate (reconnect-safe while the host process lives); the public projection also carries the whole `pendingCardInteraction` including `continuation` and `deadlineAt` (not scrubbed, `apps/server/src/services/publicState.ts`); `GamePrivateState`
   giữ private semantic lanes và `completedCardOperations`.
 - Public `gameplayEvents` chỉ chứa bounded authoritative semantic families:
   `MONEY_TRANSFER`, `PROPERTY_TRANSFER`, `PASS_GO`, `SENT_TO_JAIL`,
@@ -84,22 +85,14 @@ recovery dùng stable operation/player/claim IDs và ISO absolute deadlines.
   và tăng đúng một lần cho gameplay `roll dice` đã commit; starting-player
   tie-break, rejected command và rollback không tăng sequence. `ROLL_DICE` phía
   client chỉ được derive khi sequence tăng đúng một bước.
-- Private persisted `GamePrivateState.decks.chance.drawPile` và
+- Private `GamePrivateState.decks.chance.drawPile` và
   `GamePrivateState.decks.chest.drawPile` giữ exact draw order;
   `heldJailFreeCardIds` nằm trên Player/private player projection. Các ID/order này
   không thuộc public `GameState`.
-- V7 snapshots are upgraded by `009_activity_feed_v8.sql` to snapshot V8; the
-  migration initializes an empty activity tail rather than inventing historical
-  events from legacy HTML logs.
-- Protocol V9 adds `TAX` to money/debt unions and `TILE_LANDED` to activity.
-  Snapshot schema stayed V8 for that change because older valid JSON remained accepted; no empty SQL
-  migration was created.
-- Protocol V10 adds 2v2 Teamplay and snapshot V9 (`010_teamplay_v9.sql`): `GameMode`, `TeamId`, team settings, `TeamPlayState`,
-  revive windows, `EmergencyRescueOffer`, `teamId` on all player records and the team commands. Team rules shared by both sides live
-  in `teams.ts`/`rules.ts`; see [GameCore/team-play.instruction.md](./GameCore/team-play.instruction.md).
-- Protocol V11 adds the 2v2 lobby seats and the host kick, and snapshot V10 (`011_lobby_seats_v10.sql`): `Player.teamSlot`, `RoomPlayerMeta.teamSlot`,
-  `BoardState.seatSwapRequests`, the commands `kick player`, `move to seat`, `request seat swap`, `cancel seat swap`, `respond seat swap` and the
-  event `removed from room`. `swap team` is removed and `set team name` takes only `{name}` (the actor's own team). The revive window is 5 survivor turns.
+- Lịch sử protocol/snapshot (V8 activity feed → V12 bot seats, và bot difficulty CURRENT DEVELOPMENT) chỉ được ghi ở
+  [Version history](./Shared/socket-and-state-contracts.instruction.md#version-history); không chép lại ở đây. Team rules
+  shared by both sides live in `packages/shared/src/teams.ts`/`packages/shared/src/rules.ts`; see
+  [GameCore/team-play.instruction.md](./GameCore/team-play.instruction.md).
 
 Khi đổi static data/contract, đọc
 [Shared/board-and-card-data.instruction.md](./Shared/board-and-card-data.instruction.md).

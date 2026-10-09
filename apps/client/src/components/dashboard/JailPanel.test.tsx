@@ -13,14 +13,14 @@ afterEach(cleanup);
 
 const success: Ack = { ok: true, protocolVersion: SOCKET_PROTOCOL_VERSION };
 
-function jailedState(options: { balance?: number; cards?: number; rounds?: number; turnOf?: string } = {}): PublicGameState {
+function jailedState(options: { balance?: number; cards?: number; rounds?: number; turnOf?: string; hasMoved?: boolean } = {}): PublicGameState {
   const room = makeRoom();
   const player = room.gameState.players['player-a'];
   player.isJail = true;
   player.accountBalance = options.balance ?? 1500;
   player.getOutOfJailCardCount = options.cards ?? 0;
   player.jailOpponentRoundsElapsed = options.rounds ?? 0;
-  room.gameState.boardState.currentPlayer = { id: options.turnOf ?? 'player-a', hasMoved: false };
+  room.gameState.boardState.currentPlayer = { id: options.turnOf ?? 'player-a', hasMoved: options.hasMoved ?? false };
   return room.gameState;
 }
 
@@ -165,5 +165,12 @@ describe('JailPanel', () => {
 
     expect(container.querySelector('.jail-panel')).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
+  });
+});
+
+describe('JailPanel turn gate', () => {
+  it('stays hidden after being jailed mid-turn until the player’s next turn starts', () => {
+    const { container } = renderJail(jailedState({ hasMoved: true }));
+    expect(container.querySelector('.jail-panel')).toBeNull();
   });
 });

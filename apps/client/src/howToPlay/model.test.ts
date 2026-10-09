@@ -287,7 +287,7 @@ describe('every number in the text comes from the shared data', () => {
     for (const tile of taxTiles) {
       expect(text).toContain(`${tile.streetName}\nNộp ${formatMoney(tile.expenseAmount ?? 0)} cho Ngân hàng.`);
     }
-    expect(taxTiles.map((tile) => tile.expenseAmount)).toEqual([200, 100]);
+    expect(taxTiles.map((tile) => tile.expenseAmount)).toEqual([150, 100]);
     expect(text).toContain(`Nhận ${formatMoney(GO_REWARD)} khi đi qua hoặc dừng ở đây`);
     expect(text).toContain('Nghỉ ngơi. Không nhận và không mất gì.');
   });

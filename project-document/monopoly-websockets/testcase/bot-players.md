@@ -21,9 +21,17 @@ Rule: [GameCore/bot-players.instruction.md](../GameCore/bot-players.instruction.
 - [x] `[AUTOMATED]` Lệnh bất hợp lệ của bot bị từ chối như người; bot chờ khi mọi người mất kết nối; hành động đang chờ bị bỏ khi ván kết thúc và chơi lại.
 - [x] `[AUTOMATED]` Người mất kết nối khi thẻ đã lật: hết grace thì thẻ được áp dụng, ghế giữ nguyên.
 - [x] `[AUTOMATED]` Policy: mua/không mua, xây, tù, nợ, rescue, forced sale, offer, revive, seed tái lập, một policy offline (`bots/policy.test.ts`).
-- [x] `[AUTOMATED]` Retry bằng fallback, park khi fallback lỗi, ranh giới thông tin của view (`bots/driver.test.ts`).
+- [x] `[AUTOMATED]` CURRENT DEVELOPMENT (vNext, unreleased; commit 1937a73) — Độ khó: thiếu = MEDIUM như policy gốc, mức khó đầu tư mạnh hơn, mức cực dễ có lúc chọn sai nhưng không bao giờ mua khi thiếu tiền (`bots/policy.test.ts`); chỉ host đặt được, mức lạ bị từ chối (`socket.bots.integration.test.ts`); dropdown 5 mức chỉ hiện khi có bot, khách chỉ xem (`Lobby.test.tsx`).
+- [x] `[AUTOMATED]` Retry bằng fallback, park chỉ sau fallback + 2 retry (2 s, 8 s) rồi recovery (`apps/server/src/bots/driver.ts`), ranh giới thông tin của view (`bots/driver.test.ts`).
 - [x] `[AUTOMATED]` Client: ghế bot, Thêm Bot chỉ host, phòng đầy ẩn nút, Xóa Bot không hỏi, start với bot (`Lobby.test.tsx`); chip Bot trên HUD (`PlayerCardList.test.tsx`).
 
 ## Manual
 
 - [ ] `[MANUAL-E2E]` Sảnh A1–A8 và trọn ván B1–B8, mất kết nối/chơi lại C1–C7 trong USER_MANUAL_BOT_TEST_PLAN.
+- [ ] `[MANUAL-E2E]` `[NOT RUN]` CURRENT DEVELOPMENT (vNext, unreleased): chơi trọn một ván với bot ở từng mức `VERY_EASY`, `EASY`, `MEDIUM`,
+  `HARD`, `VERY_HARD` (host đổi mức ở sảnh, khách chỉ xem; ghi lại hành vi mua/xây/offer và ván kết thúc không treo). NOT RUN.
+- [x] `[AUTOMATED]` `[RELEASE]` CURRENT DEVELOPMENT: tương thích 1.7.0 ↔ vNext đã được quyết định bằng bump protocol 12 → 13 (R-1 RESOLVED):
+  `set bot difficulty` và Thuế Thu Nhập 150 đổi hợp đồng nên app 1.7.0 bị từ chối ở bắt tay (`UPGRADE_REQUIRED`), không còn host/guest hiển thị luật khác nhau.
+  Test: `apps/server/src/socket.integration.test.ts` ("rejects incompatible protocol", gồm 12 và 14), `apps/client/src/App.test.tsx` (thông báo cập nhật cho desktop guest),
+  `pnpm validate:v1-contract`. Lý do: [Version history](../Shared/socket-and-state-contracts.instruction.md#version-history), [ADR-13](../ARCHITECTURE_DECISIONS.md#adr-13-released-contract-vs-current-development).
+  Chạy thử chéo phiên bản bằng hai app đóng gói thật (1.7.0 ↔ bản mới): NOT RUN.

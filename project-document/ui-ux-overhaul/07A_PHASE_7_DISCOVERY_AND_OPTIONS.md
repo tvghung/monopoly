@@ -1,5 +1,8 @@
 # Phase 7 — LAN Multiplayer & Desktop Host Mode Discovery
 
+> **HISTORICAL** — V1 phase record (PostgreSQL era, before v1.5.0). Not a current instruction; facts below are kept as recorded.
+> Current rules: [Documentation Hub](../README.md) → [technical docs](../monopoly-websockets/README.md); release: [V1_RELEASE_CONTRACT](./V1_RELEASE_CONTRACT.md).
+
 > **Phase 7.2 current-state addendum (2026-08-30):** Phase 7.2 now absorbs the
 > unfinished Phase 7.1 implementation. The final V1 uses explicit IPv4
 > interface selection, room-code entry, Copy Link, and QR; the carried UDP

@@ -1,6 +1,7 @@
 import {
   addBotRequestSchema,
   removeBotRequestSchema,
+  setBotDifficultyRequestSchema,
   type AddBotResult,
 } from '@monopoly/shared';
 import { addBotSeat, removeBotSeat } from '../bots/botSeats';
@@ -19,7 +20,7 @@ function requireHostLobby(context: DomainCommandContext, actorPlayerId: string):
     throw new CommandError('GAME_ALREADY_STARTED', 'Chỉ có thể thêm hoặc xóa Bot trong phòng chờ.');
   }
   if (context.room.hostPlayerId !== actorPlayerId) {
-    throw new CommandError('FORBIDDEN', 'Chỉ chủ phòng mới có thể thêm hoặc xóa Bot.');
+    throw new CommandError('FORBIDDEN', 'Chỉ chủ phòng mới có thể thay đổi Bot.');
   }
 }
 
@@ -73,6 +74,23 @@ export function registerBotHandlers(io: AppServer, socket: AppSocket, runtime: A
           throw new CommandError('CONFLICT', 'Chỉ có thể xóa ghế Bot.');
         }
         removeBotSeat(context.room.gameSnapshot, context.state, request.playerId);
+      }, undefined, actor);
+      if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
+      broadcastRoom(io, runtime, committed.room);
+      acknowledge(successAck(committed.room.aggregateVersion));
+    } catch (error) {
+      acknowledgeFailure(acknowledge, error);
+    }
+  });
+
+  socket.on('set bot difficulty', async (rawRequest, acknowledge) => {
+    try {
+      const request = parsePayload(setBotDifficultyRequestSchema, rawRequest);
+      const actor = requirePlayer(socket, runtime);
+      const committed = await commitRoomCommand(runtime, actor.roomId, (context) => {
+        requireHostLobby(context, actor.playerId);
+        // One setting for the whole room; it applies to the bots seated now and to any added later.
+        context.state.boardState.botDifficulty = request.difficulty;
       }, undefined, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
       broadcastRoom(io, runtime, committed.room);

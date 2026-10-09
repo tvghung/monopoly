@@ -18,15 +18,44 @@ import {
   type PublicGameState,
   type TradeBundle,
   BOT_THINKING_PAUSE_MS,
+  DEFAULT_BOT_DIFFICULTY,
+  type BotDifficulty,
   estimateRollPresentationMs,
 } from '@monopoly/shared';
 import { seededRandom, type BotRandom } from './rng';
 import type { BotView } from './view';
 
 /**
- * The one Balanced bot policy: plain rules over public state, no network, no learning, no difficulty levels. It only reads a
- * `BotView`, and it only names a command and a payload; the server runs that command through the same rules as a human's.
+ * The Balanced bot policy: plain rules over public state, no network, no learning. The room's `botDifficulty` only scales
+ * those rules (see `DIFFICULTY_PROFILES`). It only reads a `BotView`, and it only names a command and a payload; the server
+ * runs that command through the same rules as a human's.
  */
+
+export interface DifficultyProfile {
+  /** Multiplies the cash cushion: above 1 the bot buys and builds less, below 1 it invests harder. */
+  reserveFactor: number;
+  /** Chance to get a purchase or build decision wrong on purpose. */
+  blunder: number;
+  /** How much more an offer must give than it takes before the bot accepts. */
+  offerGain: number;
+  /** How much a trade must pay before the bot hands an opponent a full colour set. */
+  setHandoverGain: number;
+  /** Whether colour sets, blocking and developed opponent streets shape its choices at all. */
+  boardAware: boolean;
+}
+
+/** MEDIUM is the original Balanced policy, unchanged. */
+export const DIFFICULTY_PROFILES: Record<BotDifficulty, DifficultyProfile> = {
+  VERY_EASY: { reserveFactor: 1.5, blunder: 0.4, offerGain: 0.9, setHandoverGain: 1, boardAware: false },
+  EASY: { reserveFactor: 1.25, blunder: 0.2, offerGain: 1, setHandoverGain: 1.5, boardAware: true },
+  MEDIUM: { reserveFactor: 1, blunder: 0, offerGain: 1.15, setHandoverGain: 2, boardAware: true },
+  HARD: { reserveFactor: 0.85, blunder: 0, offerGain: 1.3, setHandoverGain: 2.5, boardAware: true },
+  VERY_HARD: { reserveFactor: 0.7, blunder: 0, offerGain: 1.5, setHandoverGain: 3, boardAware: true },
+};
+
+export const difficultyProfile = (game: PublicGameState): DifficultyProfile => (
+  DIFFICULTY_PROFILES[game.boardState.botDifficulty ?? DEFAULT_BOT_DIFFICULTY]
+);
 
 export type BotCommandName =
   | 'roll dice'
@@ -257,7 +286,10 @@ export function decideBotAction(view: BotView, task: BotTask, random?: BotRandom
   if (!self) return null;
   const rng = random ?? seededRandom(room.roomId, board.matchId ?? '', board.turnNumber, board.rollSequence, botId, task.kind);
   const cash = self.accountBalance;
-  const reserve = cashReserve(game, botId);
+  const profile = difficultyProfile(game);
+  const reserve = Math.round(cashReserve(game, botId) * profile.reserveFactor);
+  // Weaker bots sometimes get a choice wrong; MEDIUM and above never draw for it, so their choices stay as they were.
+  const blunders = (): boolean => profile.blunder > 0 && rng() < profile.blunder;
   const decision = (chosen: BotAction, fallback: BotAction, reason: string): BotDecision => ({
     task, action: chosen, fallback, reason,
   });
@@ -272,7 +304,7 @@ export function decideBotAction(view: BotView, task: BotTask, random?: BotRandom
       const developedOpponentStreets = Object.entries(board.ownedProps).filter(([, owned]) => (
         owned.houses > 0 && !isAlly(game, botId, owned.id)
       )).length;
-      const dangerous = developedOpponentStreets >= 3;
+      const dangerous = profile.boardAware && developedOpponentStreets >= 3;
       const heldCards = view.self.heldJailFreeCardIds.length;
       if (dangerous) return decision(action('wait in jail'), action('roll dice'), `jail wait: ${String(developedOpponentStreets)} developed opponent streets`);
       if (heldCards > 0) return decision(action('use jail card'), action('roll dice'), 'jail card');
@@ -286,9 +318,10 @@ export function decideBotAction(view: BotView, task: BotTask, random?: BotRandom
       const price = landing.price ?? tileState[landing.tileID]?.price ?? 0;
       if (price <= 0 || cash < price) return decision(decline, decline, `cannot afford ${String(price)}`);
       const outlook = tileOutlook(game, botId, landing.tileID);
-      const threshold = outlook.completesSet || outlook.blocksSet ? 0.5 * reserve : reserve;
+      const threshold = profile.boardAware && (outlook.completesSet || outlook.blocksSet) ? 0.5 * reserve : reserve;
       const margin = cash - price - threshold;
-      const buy = nearThreshold(margin, threshold) ? rng() < 0.5 : margin >= 0;
+      const rational = nearThreshold(margin, threshold) ? rng() < 0.5 : margin >= 0;
+      const buy = blunders() ? !rational : rational;
       return decision(
         buy ? action('buy property', { operationId: landing.operationId }) : decline,
         decline,
@@ -319,6 +352,7 @@ export function decideBotAction(view: BotView, task: BotTask, random?: BotRandom
       }
       const maxQuantity = Math.max(0, Math.min(4, landing.maxQuantity ?? 0));
       let quantity = 0;
+      if (blunders()) return decision(skip, skip, `skip build (difficulty) unit=${String(unit)} cash=${String(cash)}`);
       for (let candidate = maxQuantity; candidate >= 1; candidate -= 1) {
         if (cash - candidate * unit >= keep + 40) {
           quantity = candidate;
@@ -394,7 +428,7 @@ export function decideBotAction(view: BotView, task: BotTask, random?: BotRandom
       const offer = view.offers.find(candidate => `${board.matchId ?? 'match'}|OFFER|${candidate.offerId}` === task.key);
       if (!offer) return null;
       const decline = action('decline offer', { offerId: offer.offerId });
-      const accept = acceptsOffer(game, botId, offer, cash, reserve);
+      const accept = acceptsOffer(game, botId, offer, cash, reserve, profile);
       return decision(
         accept.accept ? action('accept offer', { offerId: offer.offerId }) : decline,
         decline,
@@ -413,6 +447,7 @@ export function acceptsOffer(
   offer: PrivateOffer,
   cash: number,
   reserve: number,
+  profile: DifficultyProfile = DIFFICULTY_PROFILES[DEFAULT_BOT_DIFFICULTY],
 ): { accept: boolean; reason: string } {
   if (offer.requested.cash > cash) return { accept: false, reason: 'not enough cash' };
   const shortfall = game.boardState.paymentShortfall;
@@ -421,8 +456,8 @@ export function acceptsOffer(
   const loss = bundleValue(game, botId, offer.requested);
   const cashAfter = cash - offer.requested.cash + offer.offered.cash;
   const handsSet = completesOpponentSet(game, botId, offer.proposerPlayerId, offer.requested.propertyIds, offer.offered.propertyIds);
-  const enough = loss === 0 ? gain > 0 : gain >= 1.15 * loss;
-  const accept = enough && cashAfter >= 0.5 * reserve && (!handsSet || gain >= 2 * loss);
+  const enough = loss === 0 ? gain > 0 : gain >= profile.offerGain * loss;
+  const accept = enough && cashAfter >= 0.5 * reserve && (!handsSet || gain >= profile.setHandoverGain * loss);
   return { accept, reason: `gain=${String(gain)} loss=${String(loss)} cashAfter=${String(cashAfter)} handsSet=${String(handsSet)}` };
 }
 

@@ -29,7 +29,7 @@ hai. Presentation-only icon/layout có thể ở Client nhưng không lặp econ
 | 1 | normal | Cà Mau | brown, giữ |
 | 2 | chest | Khí Vận | giữ |
 | 3 | normal | Bạc Liêu | brown, giữ |
-| 4 | expense | Thuế Thu Nhập | `expenseAmount` 200: người chơi nộp 200.000 ₫ cho Ngân hàng (không phải no-op) |
+| 4 | expense | Thuế Thu Nhập | RELEASED v1.7.0: `expenseAmount` 200 (nộp 200.000 ₫ cho Ngân hàng, không phải no-op). CURRENT DEVELOPMENT (vNext, unreleased, commit 1937a73; implemented on the vNext development branch; product approval/release decision not independently verified): `expenseAmount` 150 trong `packages/shared/src/tileState.ts`. Rủi ro tương thích 1.7.0 ↔ vNext: [Version history](./socket-and-state-contracts.instruction.md#version-history) |
 | 5 | railroad | Ga Hà Nội | giữ |
 | 6 | normal | Buôn Ma Thuột | lightblue, giữ |
 | 7 | chance | Cơ Hội | giữ |
@@ -89,10 +89,10 @@ tại. `1 game unit = 1.000 VNĐ`; shared math không nhân 1000.
 
 ## Deck lifecycle
 
-- New game shuffle mỗi deck server-side, persist order trong private `DeckState`.
+- New game shuffle mỗi deck server-side, giữ order trong private `DeckState` của room aggregate (RAM).
 - Draw top; normal card resolve rồi xuống cuối; jail-free card rời pile vào
   `heldJailFreeCardIds`; use/transfer/elimination trả card đúng source deck.
-- Reconnect/restart phục hồi exact order/holder. Public projection không lộ pile,
+- Reconnect (khi host process còn sống) giữ exact order/holder; host process thoát thì deck mất cùng room. Public projection không lộ pile,
   discard hoặc card kế tiếp.
 
 ## Tests
@@ -100,6 +100,6 @@ tại. `1 game unit = 1.000 VNĐ`; shared math không nhân 1000.
 - Exact 40 rows/names/types/groups/economy and no English board label.
 - Canonical source derivation: không còn client metadata duplicate.
 - Vietnamese card text/effects/destinations; deterministic injected shuffle tests.
-- Draw rotation, jail-free remove/return/transfer và exact restart/no-public-leak.
+- Draw rotation, jail-free remove/return/transfer, exact order trong snapshot (reconnect cùng process) và no-public-leak.
 - `rules.ts` đúng giá trị/hàm và khớp code server thật (`rulesContract.test.ts`, kể cả mỗi ô thuế thu đúng
   `expenseAmount` về Ngân hàng); mọi số tiền trong hộp thoại hướng dẫn có trong dữ liệu dùng chung (`howToPlay/model.test.ts`).

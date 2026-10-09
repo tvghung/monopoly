@@ -177,7 +177,7 @@ không bắt đầu hay vào phòng mới. Khóa chỉ là UX của renderer; th
 
 1. Đổi channel/payload: sửa `ipc/channels.ts`, `windowHandlers.ts`, `preload.ts`, `runtime/types.ts` của client, test
    `windowHandlers.test.ts` và `preloadBridge.test.ts`. `AppUpdateState` được lặp lại ở `apps/client/src/runtime/types.ts`.
-2. Đổi manifest: sửa **cả** `scripts/updateManifest.mjs` và `src/update/manifest.ts` (`updateManifestContract.test.ts` giữ hai
+2. Đổi manifest: sửa **cả** `apps/desktop/scripts/updateManifest.mjs` và `src/update/manifest.ts` (`updateManifestContract.test.ts` giữ hai
    bên bằng nhau, kể cả hàm so sánh phiên bản). Đổi tên gói Squirrel (`name` của maker trong `forge.config.cjs`) thì sửa
    `releaseTargets` trong `stageReleaseAssets.mjs`; test hợp đồng đọc `forge.config.cjs` để giữ hai bên khớp.
 3. Không thêm đường để renderer chọn URL, tệp hay phiên bản; không bỏ kiểm tra SHA-256 hay danh sách host. Không chạy

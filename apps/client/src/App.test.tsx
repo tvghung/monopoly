@@ -1052,9 +1052,11 @@ describe('App session admission', () => {
     expect(onExitToLauncher).toHaveBeenCalledOnce();
   });
 
-  it('confirms active desktop close without emitting leave room', () => {
+  /** An in-progress room the player holds a seat in, with a desktop bridge whose quit calls are spies. */
+  function renderActiveDesktopGame() {
     let quitListener: ((requestId: string) => void) | undefined;
     const respond = vi.fn();
+    const acknowledge = vi.fn();
     const bridge: OwnTheBlockDesktopBridge = {
       getRuntimeConfig: () => Promise.resolve({
         ok: true,
@@ -1077,6 +1079,7 @@ describe('App session admission', () => {
           return () => { quitListener = undefined; };
         },
         respond,
+        acknowledge,
       },
       openExternal: () => Promise.resolve(),
     };
@@ -1095,7 +1098,7 @@ describe('App session admission', () => {
       token: RECONNECT_TOKEN,
     }));
 
-    render(
+    const view = render(
       <ToastProvider>
         <App />
       </ToastProvider>,
@@ -1122,12 +1125,49 @@ describe('App session admission', () => {
       }
     });
 
-    act(() => quitListener?.('desktop-quit-1'));
+    return { respond, acknowledge, view, askToQuit: (requestId: string) => act(() => quitListener?.(requestId)) };
+  }
+
+  it('confirms active desktop close without emitting leave room', () => {
+    const { respond, askToQuit } = renderActiveDesktopGame();
+
+    askToQuit('desktop-quit-1');
     expect(screen.getByRole('alertdialog')).toBeTruthy();
     expect(lastEmission('leave room')).toBeUndefined();
     fireEvent.click(screen.getByRole('button', { name: 'Đóng cửa sổ' }));
 
     expect(respond).toHaveBeenCalledWith('desktop-quit-1', true);
+    expect(lastEmission('leave room')).toBeUndefined();
+  });
+
+  it('tells main the dialog is open, and answers nothing until the player decides', () => {
+    const { respond, acknowledge, askToQuit } = renderActiveDesktopGame();
+
+    askToQuit('desktop-quit-2');
+
+    expect(acknowledge).toHaveBeenCalledExactlyOnceWith('desktop-quit-2');
+    expect(screen.getByRole('alertdialog')).toBeTruthy();
+    expect(respond).not.toHaveBeenCalled();
+  });
+
+  it('answers no, and keeps the seat, when the player cancels the close dialog', () => {
+    const { respond, askToQuit } = renderActiveDesktopGame();
+    askToQuit('desktop-quit-3');
+
+    fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' });
+
+    expect(respond).toHaveBeenCalledExactlyOnceWith('desktop-quit-3', false);
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(lastEmission('leave room')).toBeUndefined();
+  });
+
+  it('answers no, never yes, when the app goes away while the close dialog is open', () => {
+    const { respond, askToQuit, view } = renderActiveDesktopGame();
+    askToQuit('desktop-quit-4');
+
+    view.unmount();
+
+    expect(respond).toHaveBeenCalledExactlyOnceWith('desktop-quit-4', false);
     expect(lastEmission('leave room')).toBeUndefined();
   });
 
@@ -1473,6 +1513,22 @@ describe('App way back to the start screen (desktop)', () => {
 
     expect(screen.getAllByRole('button', { name: HOME })).toHaveLength(1);
     expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: HOME }));
+    expect(onExit).toHaveBeenCalledOnce();
+  });
+
+  it('tells a desktop guest of another version to update both apps, with no "reload the page"', () => {
+    const onExit = renderDesktop();
+    const mismatch = Object.assign(new Error('Client protocol version is no longer supported.'), {
+      data: { code: 'UPGRADE_REQUIRED', message: 'Client protocol version is no longer supported.', retryable: false },
+    });
+
+    act(() => socketHarness.trigger('connect_error', mismatch));
+
+    expect(screen.getByText(/Phiên bản ứng dụng của bạn và của chủ phòng không khớp/u)).toBeTruthy();
+    expect(screen.queryByText(/tải lại trang/iu)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Tải lại|Reload/iu })).toBeNull();
+    expect(socketHarness.socket.io.reconnection).toHaveBeenCalledWith(false);
     fireEvent.click(screen.getByRole('button', { name: HOME }));
     expect(onExit).toHaveBeenCalledOnce();
   });

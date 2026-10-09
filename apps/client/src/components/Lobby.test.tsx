@@ -740,3 +740,31 @@ describe('Lobby LAN invitation', () => {
     expect(screen.queryByText('Mời qua mạng LAN')).toBeNull();
   });
 });
+
+describe('Lobby bot difficulty', () => {
+  const bot = {
+    id: 'bot-1', name: 'Bot 1', color: 'green' as const, characterId: 'cat' as const, teamId: 'TEAM_1' as const,
+    teamSlot: 1 as const, ready: true, connected: true, kind: 'BOT' as const,
+  };
+
+  it('shows the five levels only once a bot is seated, Medium by default, and sends the host choice', () => {
+    const onSetBotDifficulty = vi.fn();
+    renderLobby({ onSetBotDifficulty });
+    expect(screen.queryByLabelText('Độ khó của Bot')).toBeNull();
+
+    cleanup();
+    renderLobby({ players: [...readyPlayers, bot], onSetBotDifficulty });
+    const select = screen.getByLabelText<HTMLSelectElement>('Độ khó của Bot');
+    expect([...select.options].map(option => option.text)).toEqual(['Cực dễ', 'Dễ', 'Trung bình', 'Khó', 'Cực khó']);
+    expect(select.value).toBe('MEDIUM');
+    fireEvent.change(select, { target: { value: 'VERY_HARD' } });
+    expect(onSetBotDifficulty).toHaveBeenCalledWith('VERY_HARD');
+  });
+
+  it('shows a guest the room difficulty without letting them change it', () => {
+    renderLobby({ players: [...readyPlayers, bot], playerId: 'player-b', botDifficulty: 'EASY', onSetBotDifficulty: vi.fn() });
+    const select = screen.getByLabelText<HTMLSelectElement>('Độ khó của Bot');
+    expect(select.value).toBe('EASY');
+    expect(select.disabled).toBe(true);
+  });
+});

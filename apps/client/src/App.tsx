@@ -10,6 +10,7 @@ import type {
   Ack,
   AckCallback,
   AddBotResult,
+  BotDifficulty,
   JoinRoomRequest,
   OfferResult,
   PrivatePlayerState,
@@ -619,12 +620,17 @@ export default function App({
     const onConnectError = (error: Error) => {
       const details = (error as Error & { data?: Partial<AckError> }).data;
       setConnected(false);
+      // A packaged desktop renderer cannot be reloaded into the host's version: both apps must be updated, so it says that
+      // instead of "reload the page" (a browser guest always loads the host-served client and does reload).
+      const desktopVersionMismatch = details?.code === 'UPGRADE_REQUIRED' && Boolean(desktopBridge);
       setFailure({
-        ...(details?.code
-          ? { error: { code: details.code, message: details.message ?? '' } }
-          : { messageKey: 'app.offlineJoinFailed' as const }),
+        ...(desktopVersionMismatch
+          ? { messageKey: 'app.versionMismatchDesktop' as const }
+          : details?.code
+            ? { error: { code: details.code, message: details.message ?? '' } }
+            : { messageKey: 'app.offlineJoinFailed' as const }),
         retryable: details?.retryable ?? true,
-        reloadRequired: details?.code === 'UPGRADE_REQUIRED',
+        reloadRequired: details?.code === 'UPGRADE_REQUIRED' && !desktopVersionMismatch,
         returnToLauncher: Boolean(desktopBridge && launch),
       });
       if (details?.code === 'UPGRADE_REQUIRED' || desktopBridge && launch) {
@@ -766,7 +772,8 @@ export default function App({
       },
       makeOffer: (offerInfo) => {
         if (!gameCommandAllowed()) return;
-        socket.emit('make offer', offerInfo, response => showCommandFailure(response));
+        // One logical offer, one request id: a retransmitted emit cannot create a second offer.
+        socket.emit('make offer', { ...offerInfo, requestId: crypto.randomUUID() }, response => showCommandFailure(response));
       },
       acceptOffer: (offerId) => {
         if (gameCommandAllowed()) socket.emit('accept offer', { offerId }, ack);
@@ -775,7 +782,8 @@ export default function App({
         if (gameCommandAllowed()) socket.emit('decline offer', { offerId }, ack);
       },
       sellHouse: (tileID) => {
-        if (gameCommandAllowed()) socket.emit('sell house', tileID, ack);
+        // One logical sale, one request id: a retransmitted emit cannot sell a second house.
+        if (gameCommandAllowed()) socket.emit('sell house', { tileID, requestId: crypto.randomUUID() }, ack);
       },
       payBail: () => {
         if (!gameCommandAllowed(false)) return Promise.resolve(unavailableAck());
@@ -879,6 +887,10 @@ export default function App({
 
   const handleRemoveBot = useCallback((targetPlayerId: string) => {
     runTeamCommand(done => socket.emit('remove bot', { playerId: targetPlayerId }, done));
+  }, [runTeamCommand, socket]);
+
+  const handleSetBotDifficulty = useCallback((difficulty: BotDifficulty) => {
+    runTeamCommand(done => socket.emit('set bot difficulty', { difficulty }, done));
   }, [runTeamCommand, socket]);
 
   const handleMoveToSeat = useCallback((teamId: TeamId, teamSlot: TeamSlot) => {
@@ -1005,10 +1017,21 @@ export default function App({
         && roomRef.current?.status === 'IN_PROGRESS';
       if (activeGame) {
         setConfirmation({ kind: 'QUIT', requestId });
+        // Main stops its 2 s countdown: the player decides in their own time.
+        desktopBridge.quit.acknowledge?.(requestId);
       } else {
         desktopBridge.quit.respond(requestId, true);
       }
     });
+  }, [desktopBridge]);
+
+  // A quit question that disappears without an answer (the screen goes back to the launcher, the app unmounts) is a
+  // cancellation, never a yes: main would otherwise wait on a dialog that no longer exists.
+  const confirmationRef = useRef(confirmation);
+  confirmationRef.current = confirmation;
+  useEffect(() => () => {
+    const open = confirmationRef.current;
+    if (open && open !== 'LEAVE') desktopBridge?.quit.respond(open.requestId, false);
   }, [desktopBridge]);
 
   const cancelConfirmation = useCallback(() => {
@@ -1131,6 +1154,8 @@ export default function App({
           onKickPlayer={handleKickPlayer}
           onAddBot={handleAddBot}
           onRemoveBot={handleRemoveBot}
+          botDifficulty={room.gameState.boardState.botDifficulty}
+          onSetBotDifficulty={handleSetBotDifficulty}
           onMoveToSeat={handleMoveToSeat}
           onRequestSeatSwap={handleRequestSeatSwap}
           onCancelSeatSwap={handleCancelSeatSwap}

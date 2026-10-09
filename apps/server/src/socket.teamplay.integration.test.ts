@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import {
+  gameCardsById,
   REVIVE_COST,
   REVIVE_STARTING_CASH,
   REVIVE_WINDOW_SURVIVOR_TURNS,
@@ -10,7 +11,7 @@ import {
 } from '@monopoly/shared';
 import { describe, expect, it } from 'vitest';
 
-import { calculateNextActionAt, type RoomSnapshot } from './rooms.js';
+import { assertSupportedRoomSnapshot, calculateNextActionAt, type RoomSnapshot } from './rooms.js';
 import { recoverRoomIfDue } from './services/deadlineScheduler.js';
 import type { PersistenceStore } from './persistence/types.js';
 import type { RoomRecord } from './persistence/types.js';
@@ -430,7 +431,7 @@ describe('2v2 match', () => {
     okOf(await ack((cb) => alex.socket.emit('send chat', 'Cố lên!', cb)));
     for (const request of [
       (cb: AckCallback) => alex.socket.emit('roll dice', cb),
-      (cb: AckCallback) => alex.socket.emit('sell house', 1, cb),
+      (cb: AckCallback) => alex.socket.emit('sell house', { tileID: 1, requestId: randomUUID() }, cb),
       (cb: AckCallback) => alex.socket.emit('pay bail', cb),
       (cb: AckCallback) => alex.socket.emit('revive teammate', cb),
       (cb: AckCallback) => alex.socket.emit('accept rescue', { rescueId: randomUUID() }, cb),
@@ -441,6 +442,7 @@ describe('2v2 match', () => {
       recipientPlayerId: harvey.playerId,
       offered: { cash: 1, propertyIds: [], jailFreeCardIds: [] },
       requested: { cash: 0, propertyIds: [], jailFreeCardIds: [] },
+      requestId: crypto.randomUUID(),
     }, cb));
     expect(offer.ok).toBe(false);
     const room = await stored(persistence, roomId);
@@ -617,6 +619,68 @@ describe('2v2 match', () => {
 
     okOf(await setMode(harvey.socket, 'SOLO'));
     expect((await stored(persistence, roomId)).gameSnapshot.gameState.boardState.gameMode).toBe('SOLO');
+  });
+
+  /** Gives a player a Get Out of Jail Free card the way a draw does: it leaves its draw pile and sits in the hand. */
+  async function giveJailFreeCard(
+    persistence: PersistenceStore<RoomSnapshot>,
+    roomId: string,
+    playerId: string,
+  ): Promise<string> {
+    let cardId = '';
+    await arrange(persistence, roomId, (state) => {
+      const deckName = (['chance', 'chest'] as const).find(name => state.privateState.decks[name].drawPile
+        .some(id => gameCardsById[id]?.getOutOfJailFree));
+      if (!deckName) throw new Error('Expected a jail-free card in a draw pile');
+      const pile = state.privateState.decks[deckName].drawPile;
+      cardId = pile.find(id => gameCardsById[id]?.getOutOfJailFree) ?? '';
+      state.privateState.decks[deckName].drawPile = pile.filter(id => id !== cardId);
+      state.players[playerId].heldJailFreeCardIds.push(cardId);
+    });
+    return cardId;
+  }
+
+  it('lets a winning-team member who is not the stored winner leave a finished room while holding a jail-free card', async () => {
+    const { players, persistence, roomId } = await startedTeamGame();
+    const [harvey, nora, alex, zed] = players;
+    // Both Team 1 members hold one of the two jail-free cards. Which of them the game stores as the individual winner depends
+    // on the turn order, so the test follows whoever it is and lets the other teammate leave.
+    const harveyCard = await giveJailFreeCard(persistence, roomId, harvey.playerId);
+    const alexCard = await giveJailFreeCard(persistence, roomId, alex.playerId);
+    okOf(await leave(nora.socket));
+    okOf(await leave(zed.socket));
+    const finished = await stored(persistence, roomId);
+    const winnerId = finished.gameSnapshot.gameState.boardState.winner?.playerId;
+    expect(finished.status).toBe('FINISHED');
+    expect(finished.gameSnapshot.gameState.boardState.winningTeamId).toBe('TEAM_1');
+    expect([harvey.playerId, alex.playerId]).toContain(winnerId);
+    const [winner, teammate, teammateCard] = winnerId === harvey.playerId
+      ? [harvey, alex, alexCard]
+      : [alex, harvey, harveyCard];
+    expect(finished.gameSnapshot.gameState.players[teammate.playerId].heldJailFreeCardIds).toEqual([teammateCard]);
+
+    okOf(await leave(teammate.socket));
+
+    const after = await stored(persistence, roomId);
+    assertSupportedRoomSnapshot(after);
+    const state = after.gameSnapshot.gameState;
+    expect(after.status).toBe('FINISHED');
+    expect(after.gameSnapshot.members[teammate.playerId].membershipStatus).toBe('LEFT');
+    expect(state.boardState.winner?.playerId).toBe(winner.playerId);
+    expect(state.boardState.winningTeamId).toBe('TEAM_1');
+    expect(state.boardState.finishedPlayers[teammate.playerId].reason).toBe('LEFT');
+    // The card went back to the draw pile it came from, exactly once; the winner keeps their own card untouched.
+    const sourceDeck = gameCardsById[teammateCard].sourceDeck;
+    expect(state.privateState.decks[sourceDeck].drawPile.filter(id => id === teammateCard)).toHaveLength(1);
+    const winnerCard = teammateCard === alexCard ? harveyCard : alexCard;
+    expect(state.players[winner.playerId].heldJailFreeCardIds).toEqual([winnerCard]);
+    expect(Object.values(state.players).flatMap(player => player.heldJailFreeCardIds)).not.toContain(teammateCard);
+    // A repeated leave of the same seat changes nothing.
+    expect(failureOf(await leave(teammate.socket)).code).toBe('UNAUTHENTICATED');
+    expect((await stored(persistence, roomId)).aggregateVersion).toBe(after.aggregateVersion);
+    // The replay still works for the winner.
+    okOf(await playAgain(winner.socket));
+    expect((await stored(persistence, roomId)).status).toBe('LOBBY');
   });
 
   it('Play Again preserves team names, colours and assignments, and clears revive state', async () => {

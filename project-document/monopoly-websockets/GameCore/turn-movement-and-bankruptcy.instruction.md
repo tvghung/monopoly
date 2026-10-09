@@ -5,7 +5,7 @@
 - `roll dice` là server-authoritative. Server tạo 2d6, di chuyển theo index 0..39
   và resolve card/property/tile trên draft room.
 - Đổ đôi chỉ là kết quả xúc xắc; không có extra roll hoặc triple-double jail.
-- `completeTurnResolution` là cổng handoff duy nhất và chỉ trả `ADVANCE_TURN`.
+- `completeTurnResolution` là cổng handoff duy nhất cho landing/payment/card resolution; turn-recovery hết hạn khi không còn gì chờ (`nextTurn` trong `apps/server/src/services/deadlineScheduler.ts`) và việc loại người chơi hiện tại (`removePlayerFromGame`/`checkBalance` trong `apps/server/src/game/turn.ts`) handoff trực tiếp; nó chỉ trả `ADVANCE_TURN`.
 - Landing tile unowned tạo `pendingPropertyDecision` với operation ID. Landing
   property của chính người chơi tạo `pendingDevelopmentDecision` chứa level tại
   thời điểm đáp; quyết định gồm `SKIP`, xây 1..4 Nhà trong khoảng còn thiếu, hoặc

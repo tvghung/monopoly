@@ -18,6 +18,8 @@ import type {
   PrivateOffer,
   PublicRoomState,
   RemoveBotRequest,
+  SellHouseRequest,
+  SetBotDifficultyRequest,
   RemovedFromRoomInfo,
   RequestSeatSwapRequest,
   RescueDecisionRequest,
@@ -109,6 +111,8 @@ export interface ClientToServerEvents {
   // Host only, lobby only (protocol 12): one bot per accepted request, into a free seat; and removing a bot seat.
   'add bot': (request: AddBotRequest, acknowledge: AckCallback<AddBotResult>) => void;
   'remove bot': (request: RemoveBotRequest, acknowledge: AckCallback) => void;
+  // Host only, lobby only (protocol 13): sets the difficulty of every bot of the room.
+  'set bot difficulty': (request: SetBotDifficultyRequest, acknowledge: AckCallback) => void;
   'set team name': (request: SetTeamNameRequest, acknowledge: AckCallback) => void;
   'set team color': (request: SetTeamColorRequest, acknowledge: AckCallback) => void;
   'move to seat': (request: MoveToSeatRequest, acknowledge: AckCallback) => void;
@@ -138,7 +142,7 @@ export interface ClientToServerEvents {
   ) => void;
   'accept offer': (offer: OfferAction, acknowledge: AckCallback) => void;
   'decline offer': (offer: OfferAction, acknowledge: AckCallback) => void;
-  'sell house': (tileID: number, acknowledge: AckCallback) => void;
+  'sell house': (request: SellHouseRequest, acknowledge: AckCallback) => void;
   'pay bail': (acknowledge: AckCallback) => void;
   'use jail card': (acknowledge: AckCallback) => void;
   'wait in jail': (acknowledge: AckCallback) => void;

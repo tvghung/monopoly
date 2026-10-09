@@ -1,6 +1,6 @@
 # Payment shortfall and forced sale v4
 
-The server creates an ordered, durable payment queue for mandatory rent and card
+The server creates an ordered payment queue in the authoritative RAM aggregate for mandatory rent and card
 claims. While a shortfall is active, ordinary trade and development commands are
 blocked, except one trade (V1.1): another player may offer cash for properties of the
 debtor, and the debtor may accept it to raise money.
@@ -13,7 +13,7 @@ Timeout sells properties in tile order; bankruptcy occurs only after no saleable
 property remains.
 
 Proposal terms are private to the seller and designated buyer and are restored
-through private player state after reconnect or restart.
+through private player state after reconnect while the host process lives (host process exit loses them with the room).
 
 ## Debtor dialog (visual overhaul V2, plan 04)
 

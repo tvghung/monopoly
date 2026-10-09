@@ -1,5 +1,8 @@
 # Phase 2 — 2.5D Board
 
+> **HISTORICAL** — V1 phase record (PostgreSQL era, before v1.5.0). Not a current instruction; facts below are kept as recorded.
+> Current rules: [Documentation Hub](../README.md) → [technical docs](../monopoly-websockets/README.md); release: [V1_RELEASE_CONTRACT](./V1_RELEASE_CONTRACT.md).
+
 ## 1. Mục tiêu
 
 Thay board gameplay hiện tại bằng một board 2.5D/3D đơn giản nhưng rõ ràng, render bằng React Three Fiber + Three.js.

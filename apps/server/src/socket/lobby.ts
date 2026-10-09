@@ -324,11 +324,12 @@ export function registerLobbyHandlers(
 
         const nextJoinOrder = room.gameSnapshot.nextJoinOrder;
         // The lobby configuration survives the replay: game mode, team names and colours here, each player's team below.
-        const { gameMode, teams } = state.boardState;
+        const { gameMode, teams, botDifficulty } = state.boardState;
         const reset = freshState();
         state.boardState = reset.boardState;
         state.boardState.gameMode = gameMode;
         state.boardState.teams = teams;
+        if (botDifficulty !== undefined) state.boardState.botDifficulty = botDifficulty;
         state.players = reset.players;
         state.turnInfo = reset.turnInfo;
         state.privateState = reset.privateState;

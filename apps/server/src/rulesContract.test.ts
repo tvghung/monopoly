@@ -150,12 +150,12 @@ describe('rules.ts', () => {
     }
   });
 
-  it('keeps the tax tiles at the amounts the guide reads (200 and 100; they are charged, not free)', () => {
+  it('keeps the tax tiles at the amounts the guide reads (150 and 100; they are charged, not free)', () => {
     const expense = tileState.flatMap((tile, index) => (
       tile.tileType === 'expense' ? [{ index, name: tile.streetName, amount: tile.expenseAmount }] : []
     ));
     expect(expense).toEqual([
-      { index: 4, name: 'Thuế Thu Nhập', amount: 200 },
+      { index: 4, name: 'Thuế Thu Nhập', amount: 150 },
       { index: 38, name: 'Thuế Xa Xỉ', amount: 100 },
     ]);
   });
@@ -430,6 +430,7 @@ describe('rules.ts agrees with the trading handler', () => {
         recipientPlayerId: hostId,
         offered: { cash: 1, propertyIds: [], jailFreeCardIds: [] },
         requested: { cash: 0, propertyIds: [], jailFreeCardIds: [] },
+        requestId: crypto.randomUUID(),
       }, acknowledge);
     }));
     const after = Date.now();

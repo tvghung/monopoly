@@ -637,7 +637,7 @@ describe('durable room snapshot compatibility', () => {
         : total,
       0,
     );
-    expect(taxPaid).toBe(200);
+    expect(taxPaid).toBe(150);
     expect(reconnected.boardState.activityFeed.events.filter(event => event.type === 'TILE_LANDED'))
       .toHaveLength(1);
     expect(reconnected.boardState.paymentQueue).toBeNull();

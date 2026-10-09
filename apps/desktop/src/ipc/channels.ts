@@ -6,6 +6,7 @@ export const IPC_CHANNELS = {
   windowFullscreenChanged: 'ownTheBlock:window:fullscreen-changed',
   quitRequested: 'ownTheBlock:quit:requested',
   quitResponse: 'ownTheBlock:quit:response',
+  quitPrompting: 'ownTheBlock:quit:prompting',
   quitExit: 'ownTheBlock:quit:exit',
   openExternal: 'ownTheBlock:open-external',
   hostGetStatus: 'ownTheBlock:host:get-status',

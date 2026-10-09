@@ -80,7 +80,7 @@ describe('RAM runtime ACK errors', () => {
   it('builds the wire acknowledgement from the mapped error only', () => {
     expect(failureAck(new RuntimeUnavailableError())).toEqual({
       ok: false,
-      protocolVersion: 12,
+      protocolVersion: 13,
       error: { code: 'INTERNAL_ERROR', message: 'The game service is shutting down.', retryable: false },
     });
   });

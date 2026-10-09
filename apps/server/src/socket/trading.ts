@@ -12,6 +12,7 @@ import {
   runGameCommand,
 } from '../commands/gameplay';
 import type { GameState } from '@monopoly/shared';
+import type { TradeOfferRecord } from '../persistence/types';
 import { projectPrivateOffer } from '../services/privateOffers';
 import type { AppRuntime } from '../services/runtime';
 import { requirePlayer } from './authority';
@@ -40,7 +41,11 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
       const now = new Date();
       const offerId = randomUUID();
       const expiresAt = new Date(now.getTime() + OFFER_TTL_MS);
-      const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }) => {
+      type OfferOutcome = { replayed: MakeOfferResult } | { created: TradeOfferRecord };
+      const committed = await commitRoomCommand(runtime, actor.roomId, async ({ room, state, transaction }): Promise<OfferOutcome> => {
+        // A retransmitted emit of a request that already created its offer: answer with that offer, create nothing.
+        const earlier = runtime.makeOfferRequests.find(actor.roomId, actor.playerId, 'make offer', request.requestId);
+        if (earlier) return { replayed: earlier };
         const proposer = state.players[actor.playerId];
         const recipient = state.players[request.recipientPlayerId];
         if (room.status !== 'IN_PROGRESS' || !proposer || !recipient || actor.playerId === request.recipientPlayerId) {
@@ -72,18 +77,32 @@ export function registerTradingHandlers(io: AppServer, socket: AppSocket, runtim
         ) {
           throw new CommandError('CONFLICT', 'Tài sản đang chờ quyết định phát triển của lượt hiện tại.');
         }
-        return transaction.tradeOffers.create({
-          id: offerId,
-          roomId: actor.roomId,
-          proposerPlayerId: actor.playerId,
-          recipientPlayerId: request.recipientPlayerId,
-          offered: request.offered,
-          requested: request.requested,
-          expiresAt,
-        });
-      }, now, actor);
+        return {
+          created: await transaction.tradeOffers.create({
+            id: offerId,
+            roomId: actor.roomId,
+            proposerPlayerId: actor.playerId,
+            recipientPlayerId: request.recipientPlayerId,
+            offered: request.offered,
+            requested: request.requested,
+            expiresAt,
+          }),
+        };
+      }, now, actor, {
+        afterCommit: (done) => {
+          if (!done.room || !('created' in done.result)) return;
+          runtime.makeOfferRequests.record(actor.roomId, actor.playerId, 'make offer', request.requestId, {
+            offerId: done.result.created.id,
+            expiresAt: done.result.created.expiresAt.toISOString(),
+          });
+        },
+      });
       if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');
-      const offer = projectPrivateOffer(committed.result, committed.room);
+      if ('replayed' in committed.result) {
+        acknowledge(successAck(committed.result.replayed, committed.room.aggregateVersion));
+        return;
+      }
+      const offer = projectPrivateOffer(committed.result.created, committed.room);
       io.to(privatePlayerRoomName(offer.recipientPlayerId)).emit('offer on prop', offer);
       // Offers are not part of the room broadcast: a bot recipient learns about one here.
       runtime.bots?.notify(actor.roomId);

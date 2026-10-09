@@ -62,9 +62,10 @@ bằng application session state, không bằng `socket.id` hay optimistic `join
     độ rộng `--scene-w` được tính từ cột menu nên không chạm cột. Dưới 40rem tranh ẩn; ở landscape thấp khi mở form tranh ẩn để form
     vừa 812×375 không cuộn. Hiệu ứng vào (bưu thiếp rơi xuống, nút trồi lên, mascot nhảy hai lần) chạy một lần, không lặp, và tắt
     khi reduced motion từ hệ điều hành hoặc từ cài đặt (`data-reduced-motion`). Màu chữ trên nền là mực/đỏ sơn mài trên giấy (≥ 4.5:1).
-  - **`Cài đặt`**: mở `SettingsPanel` hiện có. `AppBootstrap` bọc **chỉ launcher** bằng `SettingsProvider` (đọc cài đặt đã lưu
-    đồng bộ từ `settings/storage.ts`, ghi mỗi thay đổi về cùng key, nên `bootstrap()` và game đọc đúng giá trị đó khi người chơi vào
-    chơi); không có `AudioProvider` hay `ToastProvider` ở đây nên không có âm thanh nào tự chạy. Không có provider (render cô lập
+  - **`Cài đặt`**: mở `SettingsPanel` hiện có. `SettingsProvider` nằm ở gốc renderer (`apps/client/src/index.tsx`, bọc cả
+    `I18nProvider` và `AppBootstrap`), nên launcher, `bootstrap()` và game dùng chung một state cài đặt và cùng key lưu
+    (`settings/storage.ts`); `AppBootstrap` render launcher **ngoài** `AudioProvider` và `ToastProvider` nên không có âm thanh nào tự chạy
+    (xem [settings-and-audio.instruction.md](./settings-and-audio.instruction.md)). Không có provider (render cô lập
     trong test) thì không có nút (`useSettingsAvailable()`); Design Lab cấp provider để nút hiện trong ảnh chụp.
   - **`Thoát`**: chỉ hiện khi bridge có `quit.exitApp` (trình duyệt thường và stub cũ thì không). Không có phòng nào đang mở trên
     máy này thì thoát ngay; khi Host ở `HOSTING`/`READY`/`STARTING_*` thì `ConfirmationDialog` trung tâm hỏi "Đóng phòng và thoát
@@ -177,7 +178,7 @@ ACK is resumable because token was stored first.
 - Valid Player token is resolved before spectator branch.
 - Join without valid token after start is an explicit read-only gameplay spectator;
   the bound spectator may still use room chat.
-- Spectator has no durable identity/token; a temporary transport reconnect reissues
+- Spectator has no stable identity or reconnect token; a temporary transport reconnect reissues
   the remembered room request and receives a fresh spectator admission.
 - Refresh never derives identity from a new `socket.id`.
 - Desktop Host/Join resolves the endpoint before creating the gameplay socket.
@@ -209,6 +210,16 @@ trên desktop, JoinForm trên web). Host desktop thấy thêm một dòng nói m
 thì không hiện dialog: `WinnerBanner` là lựa chọn. Nếu join lại thất bại hoặc quá `ACK_TIMEOUT_MS`, client rời hẳn và hiện toast
 "Bạn đã bỏ cuộc và rời phòng."; mất kết nối giữa chừng thì connect handler vào lại như khán giả (`spectatorRequestRef`). Tải lại trang
 sau khi bỏ cuộc về launcher/JoinForm vì token đã bị thu hồi và khán giả không bền.
+
+**Host close (desktop).** Đóng cửa sổ/thoát app khi đang là Player trong ván `IN_PROGRESS` mở `ConfirmationDialog` trung tâm
+(`desktopBridge.quit.onQuitRequested` trong `apps/client/src/App.tsx`); ngoài ván đang chơi renderer trả lời đồng ý ngay, không hỏi. Trên máy đang
+host (`launch.hosting`) nội dung là `app.closeHostMessage` (`apps/client/src/i18n/catalog.ts`): đóng sẽ dừng máy chủ cho mọi người và
+kết thúc ván vĩnh viễn, vì phòng chỉ nằm trong RAM của máy này và không khôi phục được khi mở lại game; khách thấy
+`app.closeWindowMessage` (ngắt kết nối, không bỏ cuộc, vào lại bằng phiên đã lưu). Xác nhận chỉ trả `quit.respond(requestId, true)`:
+đóng khi đang chơi là **disconnect, không phải leave** — không emit `leave room` (test "confirms active desktop close without emitting
+leave room" trong `apps/client/src/App.test.tsx`). Với khách, reconnect chỉ còn tác dụng khi process host vẫn sống. Lưu ý (known issue): nếu renderer không trả lời trong 2 giây, Electron main coi như đồng ý và vẫn đóng
+([../Desktop/electron-shell-and-packaging.instruction.md](../Desktop/electron-shell-and-packaging.instruction.md)). Desktop shell:
+[../Desktop/README.md](../Desktop/README.md).
 
 ## Security
 

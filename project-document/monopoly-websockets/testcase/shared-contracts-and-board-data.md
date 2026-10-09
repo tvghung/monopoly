@@ -1,8 +1,12 @@
-# Checklist — protocol/snapshot v7, board Việt Nam và decks
+# Checklist — protocol/snapshot contracts, board Việt Nam và decks
+
+Current versions are `SOCKET_PROTOCOL_VERSION` (`packages/shared/src/types.ts`) and `ROOM_SNAPSHOT_SCHEMA_VERSION`
+(`apps/server/src/rooms.ts`); history: [Version history](../Shared/socket-and-state-contracts.instruction.md#version-history).
+Items below were first written against protocol/snapshot v7; the wording now refers to the current versions.
 
 ## Protocol/contracts/privacy
 
-- [ ] `[AUTO][SOCKET]` Protocol v7 client/server works; older/mismatch gets
+- [ ] `[AUTO][SOCKET]` Current-protocol client/server works; older/mismatch gets
   `UPGRADE_REQUIRED`; every mutation has typed ACK and strict payload shape.
 - [ ] `[AUTO][SOCKET]` `set appearance` accepts strict character/color combinations,
   allows duplicate characters and colors, rejects conflicting exact combinations,
@@ -13,7 +17,7 @@
   `TradeOfferRequest/TradeBundle`, transfer policies and IDs.
 - [ ] `[AUTO]` Continuation schema accepts only the supported card/jail/payment
   resume kinds; stale operation IDs cannot advance another Player.
-- [ ] `[AUTO][SOCKET]` Durable `PendingCardInteraction` accepts only
+- [ ] `[AUTO][SOCKET]` Operation-scoped `PendingCardInteraction` (RAM aggregate) accepts only
   `AWAITING_DRAW` without `revealedCardId` or `REVEALED` with a valid card ID;
   operation-scoped `draw card` and `dismiss card` commit/ACK exactly once.
 - [ ] `[AUTO]` Public semantic event lanes validate contiguous bounded tails for
@@ -21,10 +25,10 @@
   `JAIL_ROLL_FAILED` and `JAIL_RELEASED`; private lanes stay participant-scoped.
 - [ ] `[AUTO]` Public projection contains no raw/hash token, session row, private
   offer terms or exact `DeckState`/next card; snapshot omits presence/socket/timer.
-- [ ] `[AUTO]` Snapshot v7 deep validation rejects dangling player/card/creditor,
+- [ ] `[AUTO]` Snapshot deep validation (current schema) rejects dangling player/card/creditor,
   invalid claim index, duplicate card, two landing decisions, malformed proposal
-  binding and any removed auction/contention/Bank queue state; migration 008
-  upgrades V6 to empty V7 semantic baselines and a completed-card ledger without
+  binding and any removed auction/contention/Bank queue state; HISTORICAL: SQL migration 008
+  (never loaded by the RAM runtime) upgraded V6 to empty V7 semantic baselines and a completed-card ledger without
   inventing history.
 
 ## Board/card data
@@ -37,9 +41,12 @@
   names/economy.
 - [ ] `[AUTO]` Money formatter maps 60→`60.000 ₫`, 200→`200.000 ₫`,
   1500→`1.500.000 ₫`.
-- [x] `[AUTO]` The tax tiles keep their amounts: index 4 Thuế Thu Nhập `expenseAmount` 200 and index 38 Thuế Xa Xỉ 100, and
+- [x] `[AUTO]` The tax tiles keep their amounts: index 4 Thuế Thu Nhập `expenseAmount` 150 and index 38 Thuế Xa Xỉ 100, and
   each is charged to the Bank on landing (`apps/server/src/rulesContract.test.ts` "keeps the tax tiles at the amounts the
-  guide reads", "charges each tax tile the amount in the tile data, to the Bank").
+  guide reads", "charges each tax tile the amount in the tile data, to the Bank"). Scope: the 150 assertion is CURRENT
+  DEVELOPMENT (vNext, unreleased, commit 1937a73; implemented on the vNext development branch; product approval/release decision not independently verified); the RELEASED v1.7.0
+  value and assertion are 200. The 1.7.0 ↔ vNext display mismatch is an open release risk
+  ([Version history](../Shared/socket-and-state-contracts.instruction.md#version-history)).
 - [x] `[AUTO]` `packages/shared/src/rules.ts` (start cash, Xuất Phát reward, 2–4 players, 4 Nhà then Khách Sạn, half refund,
   Ga rent 25/50/100/200, Công Ty ×4/×10, 70% forced sale, jail round limit 2, offer and forced-sale proposal 20 s, default
   60 s reconnect wait and 120 s debt deadline) computes the documented values **and agrees with the real server**:

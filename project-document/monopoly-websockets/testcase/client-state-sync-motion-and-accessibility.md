@@ -170,8 +170,10 @@
 
 ## Phase 1.1 acceptance procedure
 
-The executable procedure is documented in
-[`project-document/ui-ux-overhaul/PHASE_1_1_MANUAL_ACCEPTANCE.md`](../../ui-ux-overhaul/PHASE_1_1_MANUAL_ACCEPTANCE.md).
+The Phase 1.1 procedure was documented in
+[`project-document/ui-ux-overhaul/PHASE_1_1_MANUAL_ACCEPTANCE.md`](../../ui-ux-overhaul/PHASE_1_1_MANUAL_ACCEPTANCE.md)
+(HISTORICAL procedure; not current — its Docker/PostgreSQL steps no longer apply to the RAM-only host). Current manual
+release tracking lives in [RELEASE_ACCEPTANCE_MATRIX.md](./RELEASE_ACCEPTANCE_MATRIX.md).
 The manual boxes above remain unchecked until a human run records the environment,
 players, and observed result.
 

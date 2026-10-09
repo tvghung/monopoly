@@ -22,9 +22,9 @@ function fixture(t) {
   const root = mkdtempSync(path.join(tmpdir(), 'otb-v1-contract-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const file of packagePaths) write(root, file, packageJson('1.0.0'));
-  write(root, protocolPath, 'export const SOCKET_PROTOCOL_VERSION = 12 as const;\n');
-  write(root, updatePolicyPath, policy('1.0.0', 12));
-  write(root, contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 1.0.0\nSocket protocol: 12\n');
+  write(root, protocolPath, 'export const SOCKET_PROTOCOL_VERSION = 13 as const;\n');
+  write(root, updatePolicyPath, policy('1.0.0', 13));
+  write(root, contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 1.0.0\nSocket protocol: 13\n');
   write(root, historicalPath, '# Phase 7.2\nHISTORICAL ENGINEERING RECORD\n[Current](V1_RELEASE_CONTRACT.md)\nprotocol V8; version 3.0.0\n');
   write(root, 'README.md', 'Own the Block');
   write(root, 'apps/desktop/forge.config.cjs', 'module.exports = {};');
@@ -64,9 +64,9 @@ test('CLI validates the fixture through a filesystem-equivalent directory alias'
 const cases = [
   ['correct contract and historical V8 / 3.0.0', null, null, null],
   ...packagePaths.map(file => [`${file} version drift`, file, packageJson('2.0.0'), /expected V1 version/]),
-  ['protocol drift', protocolPath, 'export const SOCKET_PROTOCOL_VERSION = 13 as const;', /SOCKET_PROTOCOL_VERSION/],
+  ['protocol drift', protocolPath, 'export const SOCKET_PROTOCOL_VERSION = 11 as const;', /SOCKET_PROTOCOL_VERSION/],
   ['missing contract', contractPath, null, /V1_RELEASE_CONTRACT/],
-  ['incorrect contract version', contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 2.0.0\nSocket protocol: 12', /expected V1 version 2\.0\.0/],
+  ['incorrect contract version', contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 2.0.0\nSocket protocol: 13', /expected V1 version 2\.0\.0/],
   ['incorrect contract protocol', contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 1.0.0\nSocket protocol: 8', /Socket protocol/],
   ['missing historical notice', historicalPath, '[Current](V1_RELEASE_CONTRACT.md)\nprotocol V8', /historical notice/],
   ['missing historical link', historicalPath, 'HISTORICAL ENGINEERING RECORD\nprotocol V8', /historical notice/],
@@ -79,13 +79,13 @@ const cases = [
   ['product name drift', 'apps/desktop/package.json', JSON.stringify({ version: '1.0.0', productName: 'Other' }), /productName/],
   ['missing update policy', updatePolicyPath, null, /update policy is missing/],
   ['update policy that is not JSON', updatePolicyPath, 'minimumSupportedVersion: 1.0.0', /update policy is missing or is not JSON/],
-  ['update policy below the release', updatePolicyPath, policy('0.9.0', 12), null],
-  ['update policy equal to the release', updatePolicyPath, policy('1.0.0', 12), null],
-  ['update policy newer than the release', updatePolicyPath, policy('1.0.1', 12), /newer than the release 1\.0\.0/],
-  ['update policy with a major version above the release', updatePolicyPath, policy('2.0.0', 12), /newer than the release/],
-  ['update policy that is not a plain version', updatePolicyPath, policy('1.0.0-rc.1', 12), /plain x\.y\.z/],
-  ['update policy without a version', updatePolicyPath, JSON.stringify({ reviewedForSocketProtocol: 12 }), /plain x\.y\.z/],
-  ['update policy reviewed for another protocol', updatePolicyPath, policy('1.0.0', 8), /reviewedForSocketProtocol 8 differs from SOCKET_PROTOCOL_VERSION 12/],
+  ['update policy below the release', updatePolicyPath, policy('0.9.0', 13), null],
+  ['update policy equal to the release', updatePolicyPath, policy('1.0.0', 13), null],
+  ['update policy newer than the release', updatePolicyPath, policy('1.0.1', 13), /newer than the release 1\.0\.0/],
+  ['update policy with a major version above the release', updatePolicyPath, policy('2.0.0', 13), /newer than the release/],
+  ['update policy that is not a plain version', updatePolicyPath, policy('1.0.0-rc.1', 13), /plain x\.y\.z/],
+  ['update policy without a version', updatePolicyPath, JSON.stringify({ reviewedForSocketProtocol: 13 }), /plain x\.y\.z/],
+  ['update policy reviewed for another protocol', updatePolicyPath, policy('1.0.0', 8), /reviewedForSocketProtocol 8 differs from SOCKET_PROTOCOL_VERSION 13/],
   ['update policy that was never reviewed for a protocol', updatePolicyPath, JSON.stringify({ minimumSupportedVersion: '1.0.0' }), /reviewedForSocketProtocol undefined/],
 ];
 
@@ -117,6 +117,6 @@ test('release metadata derives identity and rejects every application mismatch',
     write(root, file, packageJson('1.0.0'));
   }
   assert.equal(assertCanonicalReleaseMetadata({ root, environment: {} }).version, '1.0.0');
-  write(root, protocolPath, 'export const SOCKET_PROTOCOL_VERSION = 13 as const;');
+  write(root, protocolPath, 'export const SOCKET_PROTOCOL_VERSION = 11 as const;');
   assert.throws(() => assertCanonicalReleaseMetadata({ root, environment: {} }), /SOCKET_PROTOCOL_VERSION/);
 });

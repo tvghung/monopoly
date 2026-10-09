@@ -1,4 +1,5 @@
 import {
+  DEFAULT_BOT_DIFFICULTY,
   SOCKET_PROTOCOL_VERSION,
   teamActivePlayerIds,
   TEAM_IDS,
@@ -84,6 +85,7 @@ export function projectPublicRoomState(
       gameStarted: boardState.gameStarted,
       gameStartedAt: boardState.gameStartedAt ?? null,
       matchId: boardState.matchId ?? null,
+      botDifficulty: boardState.botDifficulty ?? DEFAULT_BOT_DIFFICULTY,
       gameMode: boardState.gameMode,
       winningTeamId: boardState.winningTeamId,
       seatSwapRequests: boardState.seatSwapRequests.map((request) => ({ ...request })),

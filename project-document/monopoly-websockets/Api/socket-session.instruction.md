@@ -3,7 +3,9 @@
 ## Scope
 
 `apps/server/src/socket/session.ts` handles `join room`, `resume session` and Socket.IO
-disconnect. Durable token/Seat work is delegated to `playerSessionService.ts`.
+disconnect. Token/Seat work in the in-RAM store is delegated to
+`apps/server/src/services/playerSessionService.ts`. Sessions and Seats survive reconnect while the
+host process lives and are lost when the host process exits.
 
 ## `join room({name, roomCode, hostCapability?})`
 
@@ -26,11 +28,11 @@ disconnect. Durable token/Seat work is delegated to `playerSessionService.ts`.
   is checked again only when the room does not exist. `PlayerSessionService.beginAdmission`
   takes the resulting permission as a required argument with no default.
 - An accepted lobby admission creates a five-minute `PENDING` session with random
-  32-byte token; only SHA-256 hash is persisted.
+  32-byte token; only its SHA-256 hash is kept in the RAM store.
 - Pending admission does not reserve color, join order, host or capacity. It does
   retain the admitted existing room ID or explicit Host creation permission in
-  RAM. Activation rechecks that exact room ID; deletion or expiry returns
-  `ROOM_GONE`, even if a new room later reuses the code. A Guest admission that names a
+  RAM. Activation rechecks that exact room ID; room deletion or room expiry returns
+  `ROOM_GONE` (an expired pending session returns `SESSION_EXPIRED`), even if a new room later reuses the code. A Guest admission that names a
   room that does not exist is refused with `NOT_FOUND` and writes no pending row, so no
   timing or ordering between a Guest and the Host can turn a Guest into a room creator or a
   Host; racing admissions settle identically in either order because every transaction
@@ -52,7 +54,7 @@ disconnect. Durable token/Seat work is delegated to `playerSessionService.ts`.
 
 ## Connection binding/newest-wins
 
-After durable load/activation, handler sets internal room/player/role/session/
+After load/activation from the RAM store, handler sets internal room/player/role/session/
 generation SocketData and awaits joins of `room:<roomId>` and
 `player:<playerId>`. Raw token is never stored in SocketData/log/public state.
 
@@ -63,10 +65,10 @@ or queued command from deactivating/mutating the newer connection.
 ## Disconnect
 
 Disconnect changes runtime presence only. It never deletes/revokes Player, balance,
-property, listing, ready, host, session, offer or payment/proposal state.
+property, ready, host, session, offer or payment/proposal state.
 
 If the disconnected stable Player owns current turn and no payment/proposal operation
-controls progression, handler persists the configured guarded turn-recovery deadline
+controls progression, handler stores the configured guarded turn-recovery deadline in the room aggregate
 (default 60 seconds). Reconnect before expiry clears it and preserves exact turn,
 pending decision/continuation, payment, deck holder and forced-sale proposal state. The common room commit
 boundary also arms the same marker when a command advances to an already-offline
@@ -74,15 +76,21 @@ current Player. Controlled shutdown does not arm artificial deadlines.
 
 ## Broadcast/ACK
 
-Admission/resume uses protocol-v12 typed ACK. Resume returns stable Player identity,
-public room, persisted `PlayerColorId`/`CharacterId` and pending private offers.
+Admission/resume uses the typed ACK of the current `SOCKET_PROTOCOL_VERSION` (`packages/shared/src/types.ts`).
+Resume returns stable Player identity, public room, stored `PlayerColorId`/`CharacterId`, pending private offers,
+private player state, the open forced-sale proposal for that player (or `null`) and the host continuity public key.
+A spectator admission through `join room` (`recoverRoomIfDue`) and every `resume session`
+(`reconcileTurnPresence`, which calls `recoverRoomIfDue`) also run the room's due deadlines.
 Public presence projection is broadcast after binding;
 session/token/offer/exact private deck state remain private.
 
 ## Tests
 
 - Pending/lost ACK/idempotent activation; invalid/revoked/expired token.
-- Same stable Player across new socket/process; protocol mismatch.
+- Same stable Player across a new socket, and across an in-process server restart reusing the same
+  store (test harness, `apps/server/src/socket.integration.test.ts` "restores the same identity and game
+  state after recreating the server"); protocol mismatch. That test is not a host process restart: a new
+  host process has an empty store, so old tokens fail (`SESSION_INVALID`, Phase 7.2 contract below).
 - Newest-wins and stale generation race.
 - Disconnect preserves domain state and arms only valid current-turn grace.
 - Spectator admission versus valid Player reclaim; public/private room isolation.
@@ -91,5 +99,5 @@ session/token/offer/exact private deck state remain private.
   (`hostAdmission.integration.test.ts`, including a real non-loopback LAN peer).
 - Phase 7.2 packaged Host contract uses four real Socket.IO clients, rejects a
   fifth with `ROOM_FULL`, preserves PlayerId/room on reconnect, proves newest-wins,
-  and rejects the old session after helper restart. Physical LAN
-  devices remain manual evidence.
+  and rejects the old session with `SESSION_INVALID` after a real helper restart
+  (`apps/server/src/phase72HostContract.ts`). Physical LAN devices remain manual evidence.

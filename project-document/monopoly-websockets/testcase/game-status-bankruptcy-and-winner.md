@@ -25,7 +25,7 @@
 - [ ] `[AUTO][SOCKET]` Last active Player becomes stable winner once; room FINISHED,
   all live operation/deadline state clear; bankruptcy and leave reasons differ.
 - [ ] `[RAM]` Finished/winner history remains available for reconnect while the host
-  runs; credential privacy remains intact. Host restart clears the history.
+  runs; credential privacy remains intact. Host process exit (or restart) clears the history permanently.
 - [ ] `[AUTO][CLIENT]` WinnerBanner shows only authoritative winner name, mascot,
   color, final cash, owned-property count, houses and hotel count; level `5` counts
   as one hotel.

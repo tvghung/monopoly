@@ -71,14 +71,28 @@
     không báo khi đã đổi chỗ thật, khi chính họ hủy, khi bị thay bằng yêu cầu khác hoặc khi đổi chế độ.
   - Lỗi `CONFLICT`/`FORBIDDEN` của mọi lệnh phòng chờ (mode, đội, chỗ, mời ra) hiện trong `.lobby__error` qua cùng `operationError` và cùng trạng thái `busy`
     (`runTeamCommand` trong `App.tsx`).
-- 2–4 active Player (2v2: đúng 4, mỗi đội 2), tất cả connected/ready; chỉ host có start action. Nút "Bắt đầu" bị disable luôn kèm **lý do viết ra**
+- **Bot ở sảnh** ([../GameCore/bot-players.instruction.md](../GameCore/bot-players.instruction.md)): chỉ host thấy nút "Thêm Bot"
+  (`aria-label` "Thêm Bot vào chỗ trống N") trên mỗi ô trống khi phòng chưa đủ `maxPlayers` và chưa có `MAX_BOTS_PER_ROOM` bot; một
+  lần bấm = một `add bot` với `requestId` mới (2v2 kèm `seat {teamId, teamSlot}` của ô đã bấm), disable khi `busy`. Ghế bot có huy hiệu
+  "Bot", luôn Sẵn sàng và có mặt, không có nút sẵn sàng; nút X của host trên ghế bot ("Xóa <tên>") gửi `remove bot` **ngay, không hỏi xác
+  nhận** (bot thêm lại được ngay), khác với X mời người thật ra (có `ConfirmationDialog`). Khách không có nút thêm/xóa bot.
+- **Độ khó của Bot** — CURRENT DEVELOPMENT (vNext, unreleased; commit 1937a73; implemented on the vNext development branch; product approval/release decision not independently verified; v1.7.0 RELEASED chỉ có một
+  chính sách "Balanced"): `<select>` "Độ khó của Bot" chỉ hiện khi có ít nhất một bot đang ngồi; năm mức Cực dễ / Dễ / Trung bình / Khó /
+  Cực khó (`BOT_DIFFICULTIES` = `VERY_EASY`..`VERY_HARD`), mặc định Trung bình (`DEFAULT_BOT_DIFFICULTY` = `MEDIUM` = hành vi Balanced đã
+  phát hành). Giá trị đọc từ public `boardState.botDifficulty` (thiếu = `MEDIUM`), áp dụng cho mọi bot của phòng và được giữ qua
+  `play again`. Chỉ host đổi được (`set bot difficulty` `{difficulty}`); khách thấy giá trị nhưng control bị disable. RELEASE RISK: lệnh
+  này được thêm vào bên trong protocol hiện hành mà không tăng `SOCKET_PROTOCOL_VERSION`.
+- Start: 2–4 ghế active (người + bot), ít nhất một người thật, mọi người thật connected và Ready (bot luôn Ready/có mặt); 2v2 đúng 4, mỗi
+  đội 2. Host luôn là người thật nên điều kiện "ít nhất một người thật" luôn đúng phía client; server kiểm lại tất cả. Chỉ host có start
+  action. Nút "Bắt đầu" bị disable luôn kèm **lý do viết ra**
   (`startReadiness.getStartBlockReason`, lý do đầu tiên thắng): "Cần ít nhất N người chơi", "Tối đa N người chơi", "Chờ mọi
   người sẵn sàng", "Có người chưa chọn mascot", "Có người đang mất kết nối", "Hai người đang trùng mascot và màu"; 2v2 thêm
   "Chế độ 2v2 cần đúng 4 người chơi", "Mỗi đội cần đúng 2 người chơi", "Hai đồng đội đang trùng mascot";
   nút trỏ tới lý do bằng `aria-describedby`. Server vẫn là authority.
-- Start success update chứa persisted first-player result từ server dice tie-break;
+- Start success update chứa first-player result đã commit (trong RAM của host) từ server dice tie-break;
   UI không tự random/reorder roster.
-- Temporary host disconnect không transfer; explicit leave transfer theo join order.
+- Temporary host disconnect không transfer; explicit leave transfer theo join order cho người thật kế tiếp (không bao giờ cho bot); người
+  thật cuối cùng rời thì phòng bị xóa.
 
 ## In-game/finished/replay
 
@@ -113,7 +127,9 @@
 
 - Both localized copy sets, brand metadata and no uncatalogued player-facing text.
 - Host/ready/2–4/first-player result/disconnect-transfer behavior.
-- Bankruptcy versus forfeit reason, stable winner and reconnect/restart.
-- Lobby: `Lobby.test.tsx` (Solo kick), `App.test.tsx` ("App 2v2 lobby commands": payload của từng lệnh, `removed from room`).
+- Bankruptcy versus forfeit reason, stable winner and reconnect while the host process lives (host process exit ends the
+  room permanently; nothing is restored).
+- Lobby: `Lobby.test.tsx` (Solo kick; "Lobby bot seats": badge/Ready, Add bot chỉ cho host, ẩn khi đầy, X xóa bot không hỏi, bot không
+  chặn start; "Lobby bot difficulty" — CURRENT DEVELOPMENT: năm mức chỉ khi có bot, mặc định Trung bình, khách bị disable), `App.test.tsx` ("App 2v2 lobby commands": payload của từng lệnh, `removed from room`).
 - 2v2: `Lobby.teamplay.test.tsx` (ô chỗ, nút đổi chỗ/chuyển chỗ, yêu cầu/hủy/trả lời, kick, tên đội của đội mình, busy), `startReadiness.test.ts`, `stationSlots.test.ts`, `playerCardSelectors.test.ts`, `PlayerCardList.test.tsx`,
   `WinnerBanner.test.tsx`, `teamView.test.ts` (xem [testcase/team-play.md](../testcase/team-play.md)).

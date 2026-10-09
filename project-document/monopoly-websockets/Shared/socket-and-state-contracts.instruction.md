@@ -10,13 +10,13 @@
 ## Identity/protocol
 
 - Stable aliases: `PlayerId`, `RoomId`, `SessionId`, `OfferId`, `GameCardId` và
-  operation IDs cần cho durable continuation.
+  operation IDs cần cho continuation trong room aggregate (RAM của host process).
 - `JoinRoomRequest.hostCapability?` is a strict 64-character lowercase hex value
   used only by the desktop Host's initial room creation. It is never part of a
   public room DTO, invitation or reconnect credential. The server verifies it
   against the process and selected room code before granting creation.
-- `DATABASE_UNAVAILABLE` stays in the v11 `AckErrorCode` union, marked `@deprecated`, only so
-  a current client can still render the code if an older v11 Host sends it (the client keeps
+- `DATABASE_UNAVAILABLE` stays in the current `AckErrorCode` union (`packages/shared/src/events.ts`), marked `@deprecated`, only so
+  a current client can still render the code if an older Host build sends it (the client keeps
   its localized text, now "game service temporarily unavailable"). The RAM server never emits
   it and no code path maps an error to it. A closed runtime and an unexpected exception both
   map to sanitized `INTERNAL_ERROR` (non-retryable and retryable respectively), while CAS
@@ -24,17 +24,44 @@
   the union member needs a protocol bump and is deliberately not part of this change.
 - `RoomStatus`: `LOBBY | IN_PROGRESS | FINISHED`; `RoomRole`:
   `PLAYER | SPECTATOR`.
-- `SOCKET_PROTOCOL_VERSION = 11`; older clients nhận `UPGRADE_REQUIRED`, không chạy legacy
-  state/payload.
+- `SOCKET_PROTOCOL_VERSION` (`packages/shared/src/types.ts`) là protocol hiện hành; client lệch version nhận
+  `UPGRADE_REQUIRED`, không chạy legacy state/payload. Giá trị hiện tại và lịch sử: [Version history](#version-history).
 - `CharacterId` và `PlayerColorId` là stable shared appearance IDs. `set appearance`
   nhận strict character-only, color-only hoặc combined payload; empty/unknown keys
   bị từ chối.
 - Stable public ID không phải credential. Raw reconnect token không thuộc
   `PublicRoomState`, `GameState`, `SocketData`, log hoặc snapshot.
 
+## Version history
+
+File này là owner duy nhất của lịch sử protocol/snapshot. Hằng số hiện hành: `SOCKET_PROTOCOL_VERSION` trong
+`packages/shared/src/types.ts` và `ROOM_SNAPSHOT_SCHEMA_VERSION` trong `apps/server/src/rooms.ts`. "Released in" lấy từ
+`git tag` + `.github/release-notes/*.md` (ngày = ngày commit của tag). SQL dưới `apps/server/migrations/` là HISTORICAL
+artifact, runtime RAM không bao giờ nạp; các helper `upgradeRoomSnapshotV4ToV5` … `upgradeRoomSnapshotV10ToV11` trong
+`apps/server/src/rooms.ts` chỉ được test gọi, còn `assertSupportedRoomSnapshot` đòi đúng version hiện hành.
+
+| Protocol | Snapshot | Released in | Additions |
+| --- | --- | --- | --- |
+| V8 | V8 | Không có bản phát hành `v1.x` nào (HISTORICAL; tag `v3.0.0-phase6-stable`, 2026-08-28, mang protocol 8 / snapshot 8) | Bounded public `BoardState.gameplayEvents` và typed public `BoardState.activityFeed`; private semantic lanes + `completedCardOperations`. HISTORICAL SQL `009_activity_feed_v8.sql` nâng V7 → V8 với activity tail rỗng, không dựng lại lịch sử. |
+| V9 | V8 (không đổi) | v1.0.0 (2026-10-02); giữ nguyên tới v1.1.0, v1.1.1, v1.2.0 | `TAX` money/debt semantics và activity `TILE_LANDED`; chỉ nới union nên snapshot V8 vẫn hợp lệ, không có migration. v1.1.0 thêm optional `price?` cho `propose forced sale` mà không đổi version. |
+| V10 | V9 | v1.3.0 (2026-10-06) | 2v2 Teamplay: `GameMode`, `TeamId`, team settings, `TeamPlayState`/`ReviveWindow`, `EmergencyRescueOffer`; snapshot V9 thêm `gameMode`, `teams`, `teamPlay`, `winningTeamId`, `PaymentQueue.rescue`, `teamId` trên mọi player record. HISTORICAL SQL `010_teamplay_v9.sql`. |
+| V11 | V10 | v1.4.0 (2026-10-07); giữ nguyên tới v1.4.1, v1.5.0, v1.6.0, v1.6.1 | Ghế sảnh 2v2 + host kick: `Player.teamSlot`, `RoomPlayerMeta.teamSlot`, `boardState.seatSwapRequests`, lệnh `kick player`/`move to seat`/`request seat swap`/`cancel seat swap`/`respond seat swap`, event `removed from room`; bỏ `swap team`. HISTORICAL SQL `011_lobby_seats_v10.sql`. |
+| V12 | V11 | v1.7.0 (GitHub Release 2026-10-09; minimum supported version 1.7.0) | Ghế bot: `RoomMember.kind`, `boardState.matchId`, `RoomPlayerMeta.kind`, lệnh `add bot`/`remove bot`, `MAX_BOTS_PER_ROOM`. Snapshot V10 hợp lệ như V11 (thiếu `kind` = HUMAN); không có file SQL mới. |
+| V13 (CURRENT DEVELOPMENT, unreleased; candidate for v1.8.0) | V11 (không đổi) | NOT RELEASED — nhánh `feat/own-the-block-multiplayer-bots-vnext` sau v1.7.0 | Lệnh host-only, lobby-only `set bot difficulty {difficulty}` + optional `BoardState.botDifficulty` (`BOT_DIFFICULTIES`, `DEFAULT_BOT_DIFFICULTY = MEDIUM`); dữ liệu Thuế Thu Nhập (ô 4) 200 → 150 (chủ dự án yêu cầu trong phiên làm việc ngày 2026-10-09, xem [ADR-13](../ARCHITECTURE_DECISIONS.md#adr-13-released-contract-vs-current-development)); `sell house` nhận `{tileID, requestId}` (`SellHouseRequest`) và `make offer` nhận `OfferInfo` = `TradeOfferRequest` + `requestId` (UUID mỗi lần gửi, server idempotent theo `requestId`). Snapshot V11 không đổi: `botDifficulty` là optional (thiếu = MEDIUM) và snapshot chỉ nằm trong RAM của một process. |
+
+Quyết định bump 12 → 13 (R-1 RESOLVED trong code): v1.7.0 và nhánh này cùng ở protocol 12 nhưng khác luật hiển thị (thuế 200 / 150)
+và khác hợp đồng lệnh. Một desktop guest dùng renderer đóng gói riêng hiển thị thuế từ shared data của chính nó trong khi host
+authoritative thu giá trị của host, và một host 1.7.0 không bao giờ ACK `set bot difficulty` (không listener, client không timeout;
+theo đọc code tại tag `v1.7.0`). Handshake bằng đúng `SOCKET_PROTOCOL_VERSION` (`apps/server/src/socket/index.ts`) nên protocol 13 từ chối mọi
+app 1.7.0 (và ngược lại) bằng `UPGRADE_REQUIRED` thay vì để hai bên hiển thị luật khác nhau; desktop guest nhận thông báo "cập nhật cả
+chủ phòng và người chơi" (`app.versionMismatchDesktop`), browser guest vẫn nhận "tải lại trang" vì client browser luôn do host phục vụ.
+LAN discovery (`LAN_DISCOVERY_SOCKET_PROTOCOL` trong `apps/desktop/src/lanFinder.ts`) bỏ qua host khác protocol. `apps/desktop/update-policy.json`
+ghi `reviewedForSocketProtocol: 13`. Bằng chứng: `apps/server/src/socket.integration.test.ts` ("rejects incompatible protocol"),
+`apps/client/src/App.test.tsx` (thông báo desktop), `pnpm validate:v1-contract`.
+
 ## Standard Mode aggregate
 
-Public/persisted types dùng stable IDs và phân biệt hidden state:
+Public types và room snapshot trong RAM dùng stable IDs và phân biệt hidden state:
 
 - Turn không còn `doublesStreak`/extra-roll. `TurnInfo` biểu diễn purchase hoặc
   same-landing development wait bằng operation ID và `PendingTurnContinuation`.
@@ -47,12 +74,12 @@ Public/persisted types dùng stable IDs và phân biệt hidden state:
   idempotency/recovery.
 - Payment shortfall giữ `orderedClaims`, `activeClaimIndex`, absolute deadline và
   deterministic forced-sale proposal (tối đa một proposal trong snapshot).
-- Cards: private persisted `GamePrivateState.decks.chance.drawPile` và
-  `.chest.drawPile`; Player giữ `heldJailFreeCardIds`. Public projection chỉ lộ
-  counts cần cho UI, không lộ holder IDs/order/card kế tiếp. `PendingCardInteraction`
-  is durable and operation-scoped. New landings are `REVEALED` with
+- Cards: private `GamePrivateState.decks.chance.drawPile` và
+  `.chest.drawPile` trong room aggregate (RAM); Player giữ `heldJailFreeCardIds`. Public projection lộ
+  `getOutOfJailCardCount` của từng player (công khai) nhưng không lộ card IDs/deck order/card kế tiếp. `PendingCardInteraction`
+  is operation-scoped state in the authoritative aggregate. New landings are `REVEALED` with
   `revealedCardId`; legacy `AWAITING_DRAW` remains for protocol-9 compatibility.
-  Continuation and deadline remain durable; `dismiss card` is the current
+  Continuation and absolute deadline stay in the aggregate (reconnect-safe while the host process lives); `dismiss card` is the current
   authoritative commit/ACK command, while `draw card` is compatibility-only.
 - `BoardState.gameplayEvents` is a bounded public semantic stream for
   `MONEY_TRANSFER`, `PROPERTY_TRANSFER`, `PASS_GO`, `SENT_TO_JAIL`,
@@ -70,6 +97,14 @@ Public/persisted types dùng stable IDs và phân biệt hidden state:
 - Bot seats (protocol 12, snapshot 11): `PLAYER_KINDS`/`PlayerKind`, `RoomPlayerMeta.kind` (always set; `connected` is true
   for an active bot), server-only `RoomMember.kind` (absent = HUMAN), `BoardState.matchId` (UUID per started match, null in
   a lobby), `AddBotRequest {requestId, seat?}` → `AddBotResult {playerId}`, `RemoveBotRequest {playerId}`, `MAX_BOTS_PER_ROOM`.
+- Idempotent money commands — CURRENT DEVELOPMENT (protocol 13, không có trong v1.7.0): `SellHouseRequest {tileID, requestId}` cho `sell house`
+  và `OfferInfo extends TradeOfferRequest {requestId}` cho `make offer`; `requestId` là UUID (`sellHouseRequestSchema`, `offerInfoSchema` trong
+  `packages/shared/src/socketSchemas.ts`). Ledger runtime: [socket-building](../Api/socket-building.instruction.md), [socket-trading](../Api/socket-trading.instruction.md).
+- Bot difficulty — CURRENT DEVELOPMENT (vNext, unreleased; không có trong v1.7.0): `BOT_DIFFICULTIES`/`BotDifficulty`
+  (`VERY_EASY | EASY | MEDIUM | HARD | VERY_HARD`), `DEFAULT_BOT_DIFFICULTY = MEDIUM`, optional `BoardState.botDifficulty`
+  (thiếu = MEDIUM; `apps/server/src/services/publicState.ts` luôn project ra giá trị, MEDIUM khi thiếu), `SetBotDifficultyRequest {difficulty}`
+  cho lệnh host-only, lobby-only `set bot difficulty`. Thuộc protocol 13 (CURRENT DEVELOPMENT), snapshot vẫn 11;
+  xem [Version history](#version-history).
 - Lobby seats (protocol 11): `Player.teamSlot` (`TeamSlot` 0|1) and `RoomPlayerMeta.teamSlot` (`PublicPlayer` omits it); `BoardState.seatSwapRequests`
   (`SeatSwapRequest {requesterPlayerId, targetPlayerId}`, public, empty outside a 2v2 lobby). Requests: `MoveToSeatRequest {teamId, teamSlot}`,
   `RequestSeatSwapRequest {targetPlayerId}`, `RespondSeatSwapRequest {requesterPlayerId, accept}`, `KickPlayerRequest {playerId}`;
@@ -79,9 +114,10 @@ Public/persisted types dùng stable IDs và phân biệt hidden state:
   `REVIVE` and `RESCUE`; activity gains `TEAM_REVIVE` and `EMERGENCY_RESCUE`, `PROPERTY_DEVELOPMENT` an optional
   `ownerPlayerId/ownerName` and `GAME_FINISHED` optional `winningTeamId/winningTeamName`. Rules: [../GameCore/team-play.instruction.md](../GameCore/team-play.instruction.md).
 - Jail wait progress (`jailOpponentRoundsElapsed`) là state authoritative, được giữ
-  nguyên qua payment/restart; không có third-failed-roll hoặc stored-dice state.
+  nguyên qua payment và reconnect khi host process còn sống (mất khi process thoát); không có third-failed-roll hoặc stored-dice state.
 
-`PersistedGameState`/room snapshot V9 chứa durable fields trên và bỏ `loaded`, presence,
+`PersistedGameState`/room snapshot (version hiện hành `ROOM_SNAPSHOT_SCHEMA_VERSION` trong `apps/server/src/rooms.ts`) chứa
+authoritative fields trên trong RAM và bỏ `loaded`, presence,
 credential, socket ID, countdown tick/timer handle. `BoardState.gameStartedAt?: string | null`
 là ISO timestamp authoritative được set tại transition `LOBBY -> IN_PROGRESS`; `freshState()`
 dùng `null`, schema chấp nhận missing/null để hydrate snapshot cũ, và public projection
@@ -89,10 +125,10 @@ giữ giá trị này cho compatibility/public state. Board client hiện không
 và không cần đưa timestamp vào scene render model. Client không tự khởi tạo timestamp từ
 mount/reconnect.
 
-`BoardState.rollSequence` là public durable non-negative safe integer. Fresh state
-starts at `0`; historical V5 → V6 migration 007 also starts at `0` without
-reconstructing historical rolls. Current V7 → V8 migration 009 initializes an empty
-activity baseline without reconstructing history. The server increments it once after accepted dice generation
+`BoardState.rollSequence` là public non-negative safe integer, ổn định trong đời host process. Fresh state
+starts at `0`; HISTORICAL: SQL migration 007 (V5 → V6) also started at `0` without
+reconstructing historical rolls, and migration 009 (V7 → V8) initialized an empty
+activity baseline without reconstructing history (SQL files are never loaded by the RAM runtime). The server increments it once after accepted dice generation
 inside the gameplay transaction, including jail attempts but excluding
 starting-player tie-breaks, rejected commands, and rolled-back transactions.
 
@@ -118,8 +154,8 @@ Runtime schema yêu cầu:
   session và authoritative ownership.
 
 Private offer vẫn có stable `offerId`, participants, status và absolute expiry;
-persisted row chứa complete canonical terms để accept/restart không phụ thuộc client
-hay board label hiện tại.
+offer record trong RAM store chứa complete canonical terms để accept (kể cả sau reconnect khi host process còn sống)
+không phụ thuộc client hay board label hiện tại. Host process thoát thì mọi offer mất.
 
 ## Events/ACK
 
@@ -130,7 +166,7 @@ hay board label hiện tại.
 - Buy/development/forced-sale payloads chỉ mang operation/claim/proposal IDs; tile,
   owner, seller, buyer và giá Bank đều được derive từ snapshot. Ngoại lệ có chủ ý (V1.1): `propose forced sale` có thêm
   `price?` (`moneyAmountSchema`, số nguyên dương) là giá người bán đòi; vắng mặt thì dùng giá Bank. `ForcedSaleProposal.grossPrice`
-  là giá đã thỏa thuận (không còn bắt buộc bằng công thức Bank). Field optional nên protocol vẫn 9 và snapshot vẫn 8.
+  là giá đã thỏa thuận (không còn bắt buộc bằng công thức Bank). Field optional nên protocol vẫn 9 và snapshot vẫn 8 (lịch sử: trạng thái V1.1; version hiện hành xem Version history).
 - Public `update(PublicRoomState)` tách khỏi private offer/session delivery.
 - `play again` is a no-payload, host-only command accepted only in `FINISHED`; it
   resets the same room through the canonical fresh-state path and ACKs only after
@@ -147,11 +183,11 @@ hay board label hiện tại.
 
 ## Tests
 
-- Protocol v8 mismatch; payload/ACK compile/runtime validation, including `play again`.
-- Strict appearance/`TradeBundle`, payment shortfall, landing decision, durable card
-  interaction, semantic lanes and snapshot v7 validation.
+- Protocol mismatch (`SOCKET_PROTOCOL_VERSION` ≠ handshake → `UPGRADE_REQUIRED`, `apps/server/src/socket/index.ts`); payload/ACK compile/runtime validation, including `play again`.
+- Strict appearance/`TradeBundle`, payment shortfall, landing decision, operation-scoped card
+  interaction, semantic lanes and snapshot validation (historical "snapshot v7" wording referred to an older schema; the current check is `assertSupportedRoomSnapshot`).
 - Strict board snapshot validation cho `activityFeed`, `gameStartedAt` optional/null và compatibility với
-  snapshot cũ không có field; start timestamp persistence/public projection.
+  snapshot cũ không có field; start timestamp trong snapshot/public projection.
 - Public no-leak assertion cho token/hash/session/private offer/exact deck order and
   hidden pre-reveal card state; activity projection remains spectator-safe.
 - Socket actor spoof/spectator rejection và save-failure no-publish.
