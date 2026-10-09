@@ -255,7 +255,7 @@ describe('Modal peek toggle (MP)', () => {
     expect(document.activeElement).toBe(restore);
     fireEvent.click(restore);
     expect(restoreKey()).toBeNull();
-    expect((screen.getByLabelText('Giá')).value).toBe('120');
+    expect(screen.getByLabelText<HTMLInputElement>('Giá').value).toBe('120');
     expect(document.activeElement).toBe(eye());
   });
 
