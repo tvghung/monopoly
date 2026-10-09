@@ -20,6 +20,8 @@ export interface OwnTheBlockDesktopBridge {
   quit: {
     onQuitRequested(listener: (requestId: string) => void): () => void;
     respond(requestId: string, allowQuit: boolean): void;
+    /** The confirmation dialog for this request is on screen: main waits for the player without the 2 s limit. */
+    acknowledge(requestId: string): void;
     /** Quits the app now (the start screen's "Thoát", after the player confirmed); a running Host is stopped on the way. */
     exitApp(): Promise<void>;
   };
@@ -72,6 +74,9 @@ const bridge: OwnTheBlockDesktopBridge = {
     },
     respond: (requestId, allowQuit) => {
       ipcRenderer.send(IPC_CHANNELS.quitResponse, requestId, allowQuit);
+    },
+    acknowledge: requestId => {
+      ipcRenderer.send(IPC_CHANNELS.quitPrompting, requestId);
     },
     exitApp: () => ipcRenderer.invoke(IPC_CHANNELS.quitExit),
   },

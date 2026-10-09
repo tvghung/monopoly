@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { EventEmitter } from 'node:events';
+
 import type { HostRuntimeStatus } from '../src/hostRuntime';
 import type { AppUpdateState } from '../src/update/updateTypes';
 
@@ -7,6 +9,7 @@ type IpcHandler = (event: { sender: object }, ...args: unknown[]) => unknown;
 
 const harness = vi.hoisted(() => ({
   handlers: new Map<string, IpcHandler>(),
+  listeners: new Map<string, IpcHandler>(),
   getDesktopRuntimeConfig: vi.fn(),
 }));
 
@@ -20,7 +23,9 @@ vi.mock('electron', () => ({
     handle: vi.fn((channel: string, handler: IpcHandler) => {
       harness.handlers.set(channel, handler);
     }),
-    on: vi.fn(),
+    on: vi.fn((channel: string, handler: IpcHandler) => {
+      harness.listeners.set(channel, handler);
+    }),
     removeHandler: vi.fn(),
     removeAllListeners: vi.fn(),
   },
@@ -42,6 +47,7 @@ import { DesktopRuntimeConfigError } from '../src/runtimeConfig';
 afterEach(() => {
   vi.useRealTimers();
   harness.handlers.clear();
+  harness.listeners.clear();
   harness.getDesktopRuntimeConfig.mockReset();
   vi.restoreAllMocks();
 });
@@ -49,7 +55,7 @@ afterEach(() => {
 function createWindow() {
   const fullscreenHandlers = new Map<string, () => void>();
   let fullscreen = false;
-  const webContents = { send: vi.fn() };
+  const webContents = Object.assign(new EventEmitter(), { send: vi.fn() });
   const window = {
     webContents,
     close: vi.fn(),
@@ -601,5 +607,62 @@ describe('quit channel ("Thoát" on the start screen)', () => {
     fullscreenHandlers.get('closed')?.();
 
     expect(vi.mocked(ipcMain.removeHandler)).toHaveBeenCalledWith(IPC_CHANNELS.quitExit);
+  });
+});
+
+describe('quit prompting channel (the confirmation dialog is open)', () => {
+  const REQUEST_ID = '00000000-0000-4000-8000-000000000001';
+
+  function register() {
+    const fixture = createWindow();
+    const controller = new QuitRequestController(fixture.window as never);
+    registerWindowHandlers(fixture.window as never, false, controller);
+    return { ...fixture, controller, prompting: harness.listeners.get(IPC_CHANNELS.quitPrompting)! };
+  }
+
+  it('uses the namespaced channel name and is registered', () => {
+    const { prompting } = register();
+    expect(IPC_CHANNELS.quitPrompting).toBe('ownTheBlock:quit:prompting');
+    expect(prompting).toBeTypeOf('function');
+  });
+
+  it('ignores an acknowledgement from another sender or with a malformed id', () => {
+    vi.useFakeTimers();
+    const { prompting, webContents, controller, window } = register();
+    controller.handleClose({ preventDefault: vi.fn() });
+    const requestId = webContents.send.mock.calls[0]?.[1] as string;
+
+    prompting({ sender: {} }, requestId);
+    prompting({ sender: webContents }, 'not-a-request-id');
+    vi.advanceTimersByTime(2_000);
+
+    expect(window.close).toHaveBeenCalledOnce();
+    expect(REQUEST_ID).toHaveLength(36);
+    controller.dispose();
+  });
+
+  it('keeps the application quit pending past 2 s once acknowledged, so the Host is not stopped unanswered', async () => {
+    vi.useFakeTimers();
+    const { prompting, webContents, controller } = register();
+    const stopRuntime = vi.fn(async () => undefined);
+    const coordinator = new AppQuitCoordinator({
+      hasLiveWindow: () => true,
+      requestRendererDecision: () => controller.requestApplicationQuit(),
+      stopRuntime,
+      armFinalWindowClose: () => controller.armNextClose(),
+      quitApp: vi.fn(),
+    });
+    coordinator.handleBeforeQuit({ preventDefault: vi.fn() });
+    await vi.advanceTimersByTimeAsync(0);
+    const requestId = webContents.send.mock.calls[0]?.[1] as string;
+
+    prompting({ sender: webContents }, requestId);
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(stopRuntime).not.toHaveBeenCalled();
+
+    controller.respond(requestId, false);
+    await coordinator.waitForSettled();
+    expect(stopRuntime).not.toHaveBeenCalled();
+    controller.dispose();
   });
 });

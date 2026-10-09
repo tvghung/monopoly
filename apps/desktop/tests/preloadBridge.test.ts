@@ -62,8 +62,8 @@ describe('preload bridge contract', () => {
     for (const raw of ['ipcRenderer', 'invoke', 'send', 'on', 'removeListener']) expect(names).not.toContain(raw);
   });
 
-  it('keeps the quit group to the two renderer answers and the confirmed exit', () => {
-    expect(Object.keys(bridge.quit).sort()).toEqual(['exitApp', 'onQuitRequested', 'respond']);
+  it('keeps the quit group to the renderer answers, the dialog acknowledgement and the confirmed exit', () => {
+    expect(Object.keys(bridge.quit).sort()).toEqual(['acknowledge', 'exitApp', 'onQuitRequested', 'respond']);
   });
 
   it('asks the main process to quit through its own channel, with no payload', async () => {
@@ -111,6 +111,7 @@ describe('preload bridge contract', () => {
     (bridge.window.onFullscreenChanged?.(() => undefined) as () => void)();
     (bridge.quit.onQuitRequested?.(() => undefined) as () => void)();
     bridge.quit.respond?.('00000000-0000-4000-8000-000000000000', true);
+    bridge.quit.acknowledge?.('00000000-0000-4000-8000-000000000000');
     await bridge.quit.exitApp?.();
     await bridge.openExternal('https://example.com');
     await bridge.host.getStatus?.();

@@ -620,12 +620,17 @@ export default function App({
     const onConnectError = (error: Error) => {
       const details = (error as Error & { data?: Partial<AckError> }).data;
       setConnected(false);
+      // A packaged desktop renderer cannot be reloaded into the host's version: both apps must be updated, so it says that
+      // instead of "reload the page" (a browser guest always loads the host-served client and does reload).
+      const desktopVersionMismatch = details?.code === 'UPGRADE_REQUIRED' && Boolean(desktopBridge);
       setFailure({
-        ...(details?.code
-          ? { error: { code: details.code, message: details.message ?? '' } }
-          : { messageKey: 'app.offlineJoinFailed' as const }),
+        ...(desktopVersionMismatch
+          ? { messageKey: 'app.versionMismatchDesktop' as const }
+          : details?.code
+            ? { error: { code: details.code, message: details.message ?? '' } }
+            : { messageKey: 'app.offlineJoinFailed' as const }),
         retryable: details?.retryable ?? true,
-        reloadRequired: details?.code === 'UPGRADE_REQUIRED',
+        reloadRequired: details?.code === 'UPGRADE_REQUIRED' && !desktopVersionMismatch,
         returnToLauncher: Boolean(desktopBridge && launch),
       });
       if (details?.code === 'UPGRADE_REQUIRED' || desktopBridge && launch) {
@@ -1010,10 +1015,21 @@ export default function App({
         && roomRef.current?.status === 'IN_PROGRESS';
       if (activeGame) {
         setConfirmation({ kind: 'QUIT', requestId });
+        // Main stops its 2 s countdown: the player decides in their own time.
+        desktopBridge.quit.acknowledge?.(requestId);
       } else {
         desktopBridge.quit.respond(requestId, true);
       }
     });
+  }, [desktopBridge]);
+
+  // A quit question that disappears without an answer (the screen goes back to the launcher, the app unmounts) is a
+  // cancellation, never a yes: main would otherwise wait on a dialog that no longer exists.
+  const confirmationRef = useRef(confirmation);
+  confirmationRef.current = confirmation;
+  useEffect(() => () => {
+    const open = confirmationRef.current;
+    if (open && open !== 'LEAVE') desktopBridge?.quit.respond(open.requestId, false);
   }, [desktopBridge]);
 
   const cancelConfirmation = useCallback(() => {

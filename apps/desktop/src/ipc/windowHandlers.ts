@@ -16,7 +16,13 @@ import type { LanFindRoomResult, LanRoomFinder } from '../lanFinder';
 import { hostInstanceId } from '../online/hostInstance';
 import type { AppUpdateController, AppUpdateState } from '../update/updateTypes';
 
+/**
+ * How long the renderer has to say anything about a quit request: either the answer, or that it put the question to the
+ * player (`acknowledge`). A renderer that does neither is not showing a dialog, so the close proceeds (fail-open).
+ */
 const QUIT_RESPONSE_TIMEOUT_MS = 2_000;
+/** Once the player is being asked, a renderer that stays unresponsive this long can no longer be answered: close proceeds. */
+const QUIT_UNRESPONSIVE_GRACE_MS = 30_000;
 
 interface CloseEventLike {
   preventDefault(): void;
@@ -36,6 +42,8 @@ export class QuitRequestController {
   private allowNextClose = false;
   private applicationQuitApproved = false;
   private timeout: NodeJS.Timeout | null = null;
+  /** Removes the renderer-lifetime listeners that exist while the player is being asked. */
+  private detachRendererWatch: (() => void) | null = null;
 
   public constructor(private readonly window: BrowserWindow) {}
 
@@ -69,6 +77,20 @@ export class QuitRequestController {
   public respond(requestId: string, allowQuit: boolean): void {
     if (requestId !== this.pendingRequest?.requestId) return;
     this.resolvePending(allowQuit);
+  }
+
+  /**
+   * The renderer shows the confirmation dialog for this request. From now on the player's answer is awaited without the
+   * 2 s limit: a person needs longer than that to read and decide. The wait still ends if the renderer cannot answer any
+   * more (its process is gone, or it stays unresponsive for `QUIT_UNRESPONSIVE_GRACE_MS`), or if the page is reloaded and
+   * the dialog with it (treated as a cancellation: nobody confirmed).
+   */
+  public acknowledge(requestId: string): void {
+    const pending = this.pendingRequest;
+    if (!pending || requestId !== pending.requestId || this.detachRendererWatch) return;
+    if (this.timeout) clearTimeout(this.timeout);
+    this.timeout = null;
+    this.watchRenderer(pending.requestId);
   }
 
   public armNextClose(): void {
@@ -106,9 +128,44 @@ export class QuitRequestController {
     if (pending.intent === 'window-close' && allowQuit) this.allowAndClose();
   }
 
+  private watchRenderer(requestId: string): void {
+    const contents = this.window.webContents;
+    let hangTimer: NodeJS.Timeout | null = null;
+    const settle = (allowQuit: boolean): void => {
+      if (this.pendingRequest?.requestId === requestId) this.resolvePending(allowQuit);
+    };
+    const onGone = (): void => settle(true);
+    const onUnresponsive = (): void => {
+      if (hangTimer) clearTimeout(hangTimer);
+      hangTimer = setTimeout(() => settle(true), QUIT_UNRESPONSIVE_GRACE_MS);
+    };
+    const onResponsive = (): void => {
+      if (hangTimer) clearTimeout(hangTimer);
+      hangTimer = null;
+    };
+    const onNavigate = (_event: unknown, _url: string, isInPlace: boolean, isMainFrame: boolean): void => {
+      if (isMainFrame && !isInPlace) settle(false);
+    };
+    contents.on('render-process-gone', onGone);
+    contents.on('destroyed', onGone);
+    contents.on('unresponsive', onUnresponsive);
+    contents.on('responsive', onResponsive);
+    contents.on('did-start-navigation', onNavigate);
+    this.detachRendererWatch = () => {
+      if (hangTimer) clearTimeout(hangTimer);
+      contents.removeListener('render-process-gone', onGone);
+      contents.removeListener('destroyed', onGone);
+      contents.removeListener('unresponsive', onUnresponsive);
+      contents.removeListener('responsive', onResponsive);
+      contents.removeListener('did-start-navigation', onNavigate);
+    };
+  }
+
   private clearPending(): void {
     if (this.timeout) clearTimeout(this.timeout);
     this.timeout = null;
+    this.detachRendererWatch?.();
+    this.detachRendererWatch = null;
     this.pendingRequest = null;
   }
 
@@ -230,6 +287,10 @@ export function registerWindowHandlers(
   ipcMain.on(IPC_CHANNELS.quitResponse, (event, requestId: unknown, allowQuit: unknown) => {
     if (!isSender(window, event) || !isQuitRequestId(requestId) || typeof allowQuit !== 'boolean') return;
     quitController.respond(requestId, allowQuit);
+  });
+  ipcMain.on(IPC_CHANNELS.quitPrompting, (event, requestId: unknown) => {
+    if (!isSender(window, event) || !isQuitRequestId(requestId)) return;
+    quitController.acknowledge(requestId);
   });
   // "Thoát" on the start screen. The player has already answered the renderer's own question, so this takes the same road
   // as Cmd+Q and the end of a window close: `before-quit` -> AppQuitCoordinator -> stop a running Host -> quit. No payload.
@@ -379,5 +440,6 @@ export function registerWindowHandlers(
     ipcMain.removeHandler(IPC_CHANNELS.updateCancel);
     ipcMain.removeHandler(IPC_CHANNELS.updateInstall);
     ipcMain.removeAllListeners(IPC_CHANNELS.quitResponse);
+    ipcMain.removeAllListeners(IPC_CHANNELS.quitPrompting);
   });
 }
