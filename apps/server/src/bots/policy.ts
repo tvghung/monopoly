@@ -205,12 +205,22 @@ export function tileOutlook(game: PublicGameState, botId: PlayerId, tileID: numb
   return { value: Math.round(base * (1 + bonus)), completesSet, blocksSet };
 }
 
-/** Whether giving `tileIDs` to `receiverId` would hand that opponent (with their team) a complete colour set. */
-function completesOpponentSet(game: PublicGameState, botId: PlayerId, receiverId: PlayerId, tileIDs: number[]): boolean {
+/**
+ * Whether giving `tileIDs` to `receiverId` would hand that opponent (with their team) a complete colour set. `leaving` are the
+ * tiles the receiver gives the bot in the same trade: they no longer count as theirs.
+ */
+function completesOpponentSet(
+  game: PublicGameState,
+  botId: PlayerId,
+  receiverId: PlayerId,
+  tileIDs: number[],
+  leaving: number[] = [],
+): boolean {
   if (isAlly(game, botId, receiverId)) return false;
   const groups = new Set(tileIDs.map(colorGroupOfTile).filter((group): group is string => group !== null));
   return [...groups].some(group => colorGroups[group].every(id => {
     if (tileIDs.includes(id)) return true;
+    if (leaving.includes(id)) return false;
     const holder = game.boardState.ownedProps[id]?.id;
     return holder !== undefined && (holder === receiverId || areTeammates(game, receiverId, holder));
   }));
@@ -402,23 +412,60 @@ export function acceptsOffer(
   cash: number,
   reserve: number,
 ): { accept: boolean; reason: string } {
-  const shortfall = game.boardState.paymentShortfall;
-  if (shortfall && shortfall.debtorPlayerId === botId) {
-    // A debtor is offered cash for properties: better than the Bank's 70 % is worth taking.
-    const bank = offer.requested.propertyIds.reduce((total, tileID) => {
-      const listed = shortfall.sellableProperties?.find(candidate => candidate.tileID === tileID)?.grossPrice;
-      return total + (listed ?? bankSaleValue(game, tileID));
-    }, 0);
-    return { accept: offer.offered.cash >= bank, reason: `debt cash=${String(offer.offered.cash)} bank=${String(bank)}` };
-  }
   if (offer.requested.cash > cash) return { accept: false, reason: 'not enough cash' };
+  const shortfall = game.boardState.paymentShortfall;
+  if (shortfall && shortfall.debtorPlayerId === botId) return acceptsDebtOffer(game, botId, offer, cash, shortfall);
   const gain = bundleValue(game, botId, offer.offered);
   const loss = bundleValue(game, botId, offer.requested);
   const cashAfter = cash - offer.requested.cash + offer.offered.cash;
-  const handsSet = completesOpponentSet(game, botId, offer.proposerPlayerId, offer.requested.propertyIds);
+  const handsSet = completesOpponentSet(game, botId, offer.proposerPlayerId, offer.requested.propertyIds, offer.offered.propertyIds);
   const enough = loss === 0 ? gain > 0 : gain >= 1.15 * loss;
   const accept = enough && cashAfter >= 0.5 * reserve && (!handsSet || gain >= 2 * loss);
   return { accept, reason: `gain=${String(gain)} loss=${String(loss)} cashAfter=${String(cashAfter)} handsSet=${String(handsSet)}` };
+}
+
+/**
+ * A trade offered to the bot while it owes money. The whole bundle counts, both ways: cash it receives and pays, properties
+ * and Get-Out-of-Jail cards it receives and gives, what they are worth to it, what they would raise from the Bank, the debt
+ * still owed and whether an opponent completes a colour set. Accepted only when:
+ * - it raises at least what selling the requested properties to the Bank would (liquidity, incoming tiles at Bank value);
+ * - afterwards the debt can be paid (cash plus what is left to sell), so it never trades into bankruptcy anyway;
+ * - when the debt could be paid without giving these items, it is also a fair trade by worth;
+ * - it hands no opponent a full set unless paid at least twice what the items are worth to the bot.
+ */
+function acceptsDebtOffer(
+  game: PublicGameState,
+  botId: PlayerId,
+  offer: PrivateOffer,
+  cash: number,
+  shortfall: NonNullable<PublicGameState['boardState']['paymentShortfall']>,
+): { accept: boolean; reason: string } {
+  const listedOrBank = (tileID: number): number => (
+    shortfall.sellableProperties?.find(candidate => candidate.tileID === tileID)?.grossPrice ?? bankSaleValue(game, tileID)
+  );
+  const sum = (tileIDs: number[], value: (tileID: number) => number): number => tileIDs.reduce((total, id) => total + value(id), 0);
+  const netCash = offer.offered.cash - offer.requested.cash;
+  const outgoingBank = sum(offer.requested.propertyIds, listedOrBank);
+  const liquid = netCash + sum(offer.offered.propertyIds, tileID => bankSaleValue(game, tileID));
+  const outgoingWorth = bundleValue(game, botId, { ...offer.requested, cash: 0 });
+  const incomingWorth = bundleValue(game, botId, { ...offer.offered, cash: 0 });
+  // What the bot could still sell to the Bank without giving away the requested properties.
+  const otherSellable = Object.entries(game.boardState.ownedProps)
+    .filter(([tileKey, owned]) => owned.id === botId && !offer.requested.propertyIds.includes(Number(tileKey)))
+    .reduce((total, [tileKey]) => total + listedOrBank(Number(tileKey)), 0);
+  const paysAfter = cash + liquid + otherSellable >= shortfall.remainingAmount;
+  const paysWithout = cash + otherSellable >= shortfall.remainingAmount;
+  const fair = netCash + incomingWorth >= outgoingWorth;
+  const handsSet = completesOpponentSet(game, botId, offer.proposerPlayerId, offer.requested.propertyIds, offer.offered.propertyIds);
+  const accept = liquid > 0
+    && liquid >= outgoingBank
+    && paysAfter
+    && (!paysWithout || fair)
+    && (!handsSet || netCash + incomingWorth >= 2 * outgoingWorth);
+  return {
+    accept,
+    reason: `debt net=${String(netCash)} liquid=${String(liquid)} bank=${String(outgoingBank)} worth=${String(incomingWorth)}/${String(outgoingWorth)} owed=${String(shortfall.remainingAmount)} paysAfter=${String(paysAfter)} paysWithout=${String(paysWithout)} handsSet=${String(handsSet)}`,
+  };
 }
 
 // ---- Presentation timing ----

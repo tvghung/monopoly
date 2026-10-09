@@ -293,11 +293,69 @@ describe('Balanced debt, rescue, forced sale and trade answers', () => {
 
   it('as a debtor takes cash for properties when it beats the Bank\'s 70 %', () => {
     const debtor = (cash: number) => viewOf({
+      bot: { accountBalance: 0 },
       board: { currentPlayer: { id: HUMAN, hasMoved: true }, ownedProps: { 39: owned(BOT) }, paymentShortfall: shortfall(300, [{ tileID: 39, grossPrice: 280, houses: 0 }]) as never },
       offers: [offer({ ...none, cash }, { ...none, propertyIds: [39] })],
     });
     expect(decide(debtor(300)).action.command).toBe('accept offer');
     expect(decide(debtor(200)).action.command).toBe('decline offer');
+  });
+
+  describe('as a debtor weighs the whole bundle (TRADE)', () => {
+    // The bot owes 300 with 50 cash; Landmark 81 (39) would raise 280 from the Bank, Cà Mau (1) 42, Diamond Plaza (37) 245.
+    const owing = (tradeOffer: PrivateOffer, overrides: { cash?: number; owed?: number; ownedProps?: Record<number, ReturnType<typeof owned>> } = {}) => {
+      const ownedProps = overrides.ownedProps ?? { 1: owned(BOT), 39: owned(BOT) };
+      const sellable = Object.keys(ownedProps).map(Number).filter(id => ownedProps[id]?.id === BOT)
+        .map(tileID => ({ tileID, grossPrice: tileID === 39 ? 280 : 42, houses: 0 }));
+      return decide(viewOf({
+        bot: { accountBalance: overrides.cash ?? 50 },
+        board: { currentPlayer: { id: HUMAN, hasMoved: true }, ownedProps, paymentShortfall: shortfall(overrides.owed ?? 300, sellable) as never },
+        offers: [tradeOffer],
+      }));
+    };
+    const withDiamond = { 1: owned(BOT), 39: owned(BOT), 37: owned(HUMAN) };
+
+    it('counts the cash it would pay back: 300 in and 40 out is 260, below the Bank\'s 280 (the original bug)', () => {
+      const asksCashBack = owing(offer({ ...none, cash: 300 }, { ...none, cash: 40, propertyIds: [39] }));
+      expect(asksCashBack.action.command).toBe('decline offer');
+      expect(asksCashBack.reason).toContain('net=260');
+      expect(owing(offer({ ...none, cash: 300 }, { ...none, propertyIds: [39] })).action.command).toBe('accept offer');
+    });
+
+    it('refuses to pay cash it does not have', () => {
+      expect(owing(offer({ ...none, cash: 500 }, { ...none, cash: 60, propertyIds: [39] })).action.command).toBe('decline offer');
+    });
+
+    it('counts incoming properties at what they would raise from the Bank, and a swap is not a set handed over', () => {
+      // No cash, but Diamond Plaza (37) and Bạc Liêu (3) raise 287, more than Landmark 81 would: accepted. The Human gives
+      // up 37 in the same trade, so receiving 39 completes nothing for them.
+      const swap = offer({ ...none, propertyIds: [37, 3] }, { ...none, propertyIds: [39] });
+      expect(owing(swap, { ownedProps: { ...withDiamond, 3: owned(HUMAN) } }).action.command).toBe('accept offer');
+      const poor = offer({ ...none, propertyIds: [3] }, { ...none, propertyIds: [39] });
+      expect(owing(poor, { ownedProps: { 1: owned(BOT), 39: owned(BOT), 3: owned(HUMAN) } }).action.command).toBe('decline offer');
+    });
+
+    it('never trades into bankruptcy anyway: the debt must be payable afterwards', () => {
+      expect(owing(offer({ ...none, cash: 300 }, { ...none, propertyIds: [39] }), { owed: 900 }).action.command).toBe('decline offer');
+    });
+
+    it('counts Get-Out-of-Jail cards and worth when the debt can be paid without the trade', () => {
+      // 280 cash plus Landmark 81 already pay the 300: Cà Mau (worth 60) plus a jail card (50) for 60 is a loss.
+      const cardToo = (cash: number) => offer({ ...none, cash }, { ...none, propertyIds: [1], jailFreeCardIds: ['card-1'] });
+      expect(owing(cardToo(60), { cash: 280 }).action.command).toBe('decline offer');
+      expect(owing(cardToo(150), { cash: 280 }).action.command).toBe('accept offer');
+    });
+
+    it('does not hand an opponent a full colour set at Bank price', () => {
+      // The Human holds Diamond Plaza (37): Landmark 81 (39, worth 600 to the bot as a blocker) completes their set.
+      expect(owing(offer({ ...none, cash: 300 }, { ...none, propertyIds: [39] }), { ownedProps: withDiamond }).action.command).toBe('decline offer');
+      expect(owing(offer({ ...none, cash: 1200 }, { ...none, propertyIds: [39] }), { ownedProps: withDiamond }).action.command).toBe('accept offer');
+    });
+
+    it('declines a bundle that raises nothing', () => {
+      expect(owing(offer(none, { ...none, jailFreeCardIds: ['card-1'] })).action.command).toBe('decline offer');
+      expect(owing(offer(none, none)).action.command).toBe('decline offer');
+    });
   });
 });
 
