@@ -219,3 +219,59 @@ describe('Modal peek', () => {
     expect(screen.getByRole('button', { name: 'View Board' })).toBeTruthy();
   });
 });
+
+describe('Modal peek toggle (MP)', () => {
+  const at = { top: 12, left: 300, width: 36, height: 36 };
+
+  it('draws the restore key exactly where the hide key was, icon-only, eye-off then eye', () => {
+    render(<Decision onClose={() => undefined} />);
+    const hide = eye();
+    expect(hide.querySelector('.lucide-eye-off')).toBeTruthy();
+    expect(hide.textContent).toBe('');
+    vi.spyOn(hide, 'getBoundingClientRect').mockReturnValue({ ...at, right: 336, bottom: 48, x: 300, y: 12, toJSON: () => at });
+
+    fireEvent.click(hide);
+
+    const restore = restoreKey()!;
+    expect(restore.querySelector('.lucide-eye')).toBeTruthy();
+    expect(restore.querySelector('.lucide-eye-off')).toBeNull();
+    // No visible label: the name is only accessible (aria-label / tooltip).
+    expect(restore.textContent).toBe('');
+    expect(document.body.textContent).not.toContain('Hiện quyết định');
+    // Same centre as the hide key, grown to a 44 px target: 300 + 18 - 22 = 296, 12 + 18 - 22 = 8.
+    const layer = screen.getByTestId('modal-peek-restore');
+    expect(layer.className).toContain('ds-modal-peek--anchored');
+    expect(layer.style).toMatchObject({ top: '8px', left: '296px', width: '44px', height: '44px' });
+    // Its own layer on body, outside the hidden overlay whose opacity or display could hide it.
+    expect(layer.parentElement).toBe(document.body);
+    expect(document.querySelector('.ds-modal__overlay')?.contains(layer)).toBe(false);
+  });
+
+  it('toggles back from the same place with the keyboard and keeps the dialog state', () => {
+    render(<Decision onClose={() => undefined} />);
+    fireEvent.change(screen.getByLabelText('Giá'), { target: { value: '120' } });
+    fireEvent.click(eye());
+    const restore = restoreKey()!;
+    expect(document.activeElement).toBe(restore);
+    fireEvent.click(restore);
+    expect(restoreKey()).toBeNull();
+    expect((screen.getByLabelText('Giá')).value).toBe('120');
+    expect(document.activeElement).toBe(eye());
+  });
+
+  it('falls back to the top centre when the hide key could not be measured', () => {
+    render(<Decision onClose={() => undefined} />);
+    fireEvent.click(eye());
+    const layer = screen.getByTestId('modal-peek-restore');
+    expect(layer.className).not.toContain('ds-modal-peek--anchored');
+    expect(layer.getAttribute('style')).toBeNull();
+  });
+
+  it('removes the restore key when the dialog closes while hidden', () => {
+    const { rerender } = render(<Decision onClose={() => undefined} />);
+    fireEvent.click(eye());
+    expect(restoreKey()).toBeTruthy();
+    rerender(<Decision onClose={() => undefined} open={false} />);
+    expect(restoreKey()).toBeNull();
+  });
+});

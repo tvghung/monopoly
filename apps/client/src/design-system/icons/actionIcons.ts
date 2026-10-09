@@ -1,4 +1,5 @@
 import {
+  EyeOff,
   ArrowLeft,
   ArrowLeftRight,
   ArrowRightLeft,
@@ -86,6 +87,8 @@ export const ACTION_ICON_NAMES = [
   'swap', 'revive', 'rescue',
   // Bot seats: the badge of a bot, the host's add key on an empty seat and remove key on a bot seat.
   'bot', 'addBot', 'removeBot',
+  // Dialog peek: hide a dialog to look at the board, and show it again (one toggle, same place).
+  'hideDialog', 'showDialog',
 ] as const;
 
 export type ActionIconName = typeof ACTION_ICON_NAMES[number];
@@ -126,6 +129,8 @@ export const ACTION_ICONS = {
   sellToBank: Landmark,
   propose: Handshake,
   view: Eye,
+  hideDialog: EyeOff,
+  showDialog: Eye,
   sellHouse: CircleMinus,
   reject: CircleX,
   offline: WifiOff,

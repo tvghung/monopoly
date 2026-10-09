@@ -15,7 +15,7 @@ import { useEffectiveReducedMotion } from '../../../settings/selectors';
 import IconButton from '../IconButton/IconButton';
 import { useTranslation } from '../../../i18n/I18n';
 import { motionDuration, motionEase } from '../../motion/motionTokens';
-import ModalPeekRestore from './ModalPeekRestore';
+import ModalPeekRestore, { type PeekAnchor } from './ModalPeekRestore';
 import { registerPeek, useOwnsRestoreKey } from './modalPeek';
 import './Modal.css';
 
@@ -156,6 +156,8 @@ function ModalSurface({
   // Peek: hiding is local, presentation-only state of this surface. The content below stays mounted while `peeking`.
   const [peeking, setPeeking] = useState(false);
   const [focusRestoreKey, setFocusRestoreKey] = useState(false);
+  // Where the hide key was: the restore key is drawn in exactly that place.
+  const [peekAnchor, setPeekAnchor] = useState<PeekAnchor | null>(null);
   const [peekId] = useState(() => Symbol('modal-peek'));
   const peekKeyRef = useRef(peekKey);
   const ownsRestoreKey = useOwnsRestoreKey(peekId);
@@ -164,6 +166,8 @@ function ModalSurface({
     setFocusRestoreKey(false);
   }, []);
   const hideDialog = useCallback(() => {
+    const key = dialogRef.current?.querySelector<HTMLElement>('[data-modal-peek]')?.getBoundingClientRect();
+    setPeekAnchor(key ? { top: key.top, left: key.left, width: key.width, height: key.height } : null);
     setPeeking(true);
     setFocusRestoreKey(true);
   }, []);
@@ -307,7 +311,7 @@ function ModalSurface({
             </div>
             {peek ? (
               <div className="ds-modal__tools">
-                <IconButton className="ds-modal__peek" data-modal-peek label={t('modal.peek')} icon="view" onClick={hideDialog} />
+                <IconButton className="ds-modal__peek" data-modal-peek label={t('modal.peek')} icon="hideDialog" onClick={hideDialog} />
                 {onClose ? <IconButton className="ds-modal__close" label={t('ui.close')} icon="close" onClick={onClose} /> : null}
               </div>
             ) : onClose ? <IconButton className="ds-modal__close" label={t('ui.close')} icon="close" onClick={onClose} /> : null}
@@ -319,6 +323,7 @@ function ModalSurface({
       {peeking && isPresent && ownsRestoreKey ? (
         <ModalPeekRestore
           onRestore={showDialog}
+          anchor={peekAnchor}
           summary={peekSummary}
           focusOnShow={focusRestoreKey}
           onFocused={consumeRestoreFocus}
