@@ -66,7 +66,10 @@ export function createSemanticExecutors(
       audio.play(propertyCue(event), { signal: context.signal, scope: 'presentation' });
       await context.waitForDuration(pulseDuration);
     },
-    finish() {},
+    // A skipped or failed transfer still releases its held owner, so the board never stays on a stale flag.
+    finish(event) {
+      event.transfers.forEach(transfer => store.releaseOwnership(transfer.eventId, transfer.tileId, transfer.toPlayerId));
+    },
   };
 
   const passGo: PresentationExecutor<PassGoPresentationEvent> = {

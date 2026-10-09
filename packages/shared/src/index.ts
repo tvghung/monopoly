@@ -16,6 +16,7 @@ export * from './cardData';
 export * from './money';
 export * from './endpointPolicy';
 export * from './hostContinuity';
+export * from './botPacing';
 export * from './rules';
 export * from './teams';
 export * from './types';

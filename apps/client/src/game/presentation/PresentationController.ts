@@ -132,6 +132,15 @@ export class PresentationController {
           }]
         : []),
     );
+    // A flag rises only once the queue reaches its purchase or transfer: never before the dice and the walk that led there.
+    this.store.holdOwnership(events.flatMap(event => {
+      if (event.type === 'PROPERTY_TRANSFER') {
+        return event.transfers.map(transfer => ({ id: transfer.eventId, tileId: transfer.tileId, fromPlayerId: transfer.fromPlayerId }));
+      }
+      return event.type === 'PROPERTY_OWNERSHIP_CHANGED'
+        ? [{ id: event.id, tileId: event.tileId, fromPlayerId: event.fromPlayerId }]
+        : [];
+    }));
     this.updateLogGate(previous, room, events);
     if (!events.some(event => event.type === 'ROLL_DICE')) {
       this.store.syncDisplayDice(

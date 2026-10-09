@@ -122,20 +122,26 @@ export function createBasicExecutors(
       durationMs,
     ),
   );
-  const ownershipExecutor = createConsequenceExecutor<PropertyOwnershipChangedPresentationEvent>(
-    presentationTiming.propertyPurchase,
-    (event, durationMs) => store.emitOwnershipChange(
-      event.id,
-      event.tileId,
-      event.fromPlayerId,
-      event.toPlayerId,
-      durationMs,
+  const ownershipExecutor: PresentationExecutor<PropertyOwnershipChangedPresentationEvent> = {
+    ...createConsequenceExecutor<PropertyOwnershipChangedPresentationEvent>(
+      presentationTiming.propertyPurchase,
+      (event, durationMs) => store.emitOwnershipChange(
+        event.id,
+        event.tileId,
+        event.fromPlayerId,
+        event.toPlayerId,
+        durationMs,
+      ),
+      (_event, context) => audio.play('property.change', {
+        signal: context.signal,
+        scope: 'presentation',
+      }),
     ),
-    (_event, context) => audio.play('property.change', {
-      signal: context.signal,
-      scope: 'presentation',
-    }),
-  );
+    // A skipped or failed change still releases its held owner.
+    finish(event) {
+      store.releaseOwnership(event.id, event.tileId, event.toPlayerId);
+    },
+  };
   const developmentExecutor: PresentationExecutor<PropertyDevelopmentChangedPresentationEvent> = {
     async run(event, context) {
       if (!isExecutionCurrent(context)) return;

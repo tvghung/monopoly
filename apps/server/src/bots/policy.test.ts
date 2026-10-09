@@ -373,3 +373,15 @@ describe('2v2 revive', () => {
     expect(decide(window(1500, 4)).action.command).toBe('roll dice'); // opened during this very turn
   });
 });
+
+describe('bot pacing (BA)', () => {
+  it('waits for the roll presentation plus a thinking pause before answering a landing', async () => {
+    const { botActionDelayMs } = await import('./policy');
+    const purchase = { botId: BOT, kind: 'PURCHASE' as const, key: 'k' };
+    const near = viewOf({ board: { diceValue: { dice1: 3, dice2: 4 } }, bot: { currentTile: 17 } });
+    const throughGo = viewOf({ board: { diceValue: { dice1: 3, dice2: 4 } }, bot: { currentTile: 3 } });
+    // 780 dice + 220 lead + 7 x 180 hops + 240 landing + 900 thinking.
+    expect(botActionDelayMs(near, purchase)).toBe(3400);
+    expect(botActionDelayMs(throughGo, purchase)).toBe(4400);
+  });
+});

@@ -17,6 +17,8 @@ import {
   type PrivateOffer,
   type PublicGameState,
   type TradeBundle,
+  BOT_THINKING_PAUSE_MS,
+  estimateRollPresentationMs,
 } from '@monopoly/shared';
 import { seededRandom, type BotRandom } from './rng';
 import type { BotView } from './view';
@@ -471,13 +473,16 @@ function acceptsDebtOffer(
 // ---- Presentation timing ----
 
 /**
- * How long the bot "thinks" before acting, in milliseconds at scale 1. Presentation only: it lets the board show the previous
- * move and the card before the bot answers; nothing waits for a client to finish animating.
+ * How long the bot "thinks" before acting, in milliseconds at scale 1. Presentation only: after a roll it waits for what
+ * clients show at normal speed (dice, walk, landing, GO moment; `estimateRollPresentationMs`) plus a thinking pause, so a
+ * purchase follows the landing players see. Nothing waits for a client to finish animating.
  */
 export function botActionDelayMs(view: BotView, task: BotTask): number {
   const dice = view.room.gameState.boardState.diceValue;
   const steps = Math.max(0, dice.dice1 + dice.dice2);
-  const afterMove = Math.min(3600, 1200 + 160 * steps);
+  const tile = view.room.gameState.players[view.botId]?.currentTile ?? 0;
+  const passesGo = steps > 0 && tile < steps;
+  const afterMove = Math.min(6000, estimateRollPresentationMs(steps, passesGo) + BOT_THINKING_PAUSE_MS);
   switch (task.kind) {
     case 'TURN': return view.room.gameState.players[view.botId]?.isJail ? 1300 : 1500;
     case 'PURCHASE':
