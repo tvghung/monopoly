@@ -8,7 +8,7 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.7.0
+Semantic version: 1.8.0
 Socket protocol: 13
 ```
 
@@ -530,9 +530,21 @@ Protocol 11 → 12 (bot seats: `RoomPlayerMeta.kind`, `boardState.matchId`, `add
 client cannot join a 1.7.0 host (`UPGRADE_REQUIRED`), so `update-policy.json` sets `minimumSupportedVersion` 1.7.0 and
 `reviewedForSocketProtocol` 12. Scope, evidence and the release gate: [own-the-block-vnext](../own-the-block-vnext/RELEASE_SCOPE.md).
 
-## After V1.7.0 — current development (unreleased)
+## V1.8.0 bot difficulty and multiplayer hardening — release preparation (Socket protocol 13, snapshot schema 11)
 
-Changes on `feat/own-the-block-multiplayer-bots-vnext` after the v1.7.0 tag (Income Tax 150, bot difficulty levels, two client
-fixes) are not released and have no release decision. They were added inside Socket protocol 12, which is open release risk
-R-1; see [ARCHITECTURE_DECISIONS ADR-13](../monopoly-websockets/ARCHITECTURE_DECISIONS.md#adr-13-released-contract-vs-current-development).
-The product identity block above stays at the last published version until a new release is approved.
+**Status: PREPARED, NOT RELEASED** (no tag `v1.8.0`, no GitHub Release until the gates in
+[RELEASE_ACCEPTANCE_MATRIX](../monopoly-websockets/testcase/RELEASE_ACCEPTANCE_MATRIX.md) are satisfied; this paragraph is
+rewritten with the tag, run and asset evidence when it is published). Prepared on `feat/own-the-block-multiplayer-bots-vnext`
+(base `main` `f37a271` = `v1.7.0` merged into the branch).
+
+- Scope: bot difficulty levels (`set bot difficulty`), Income Tax 150 (owner request, see
+  [ADR-13](../monopoly-websockets/ARCHITECTURE_DECISIONS.md#adr-13-released-contract-vs-current-development)), jail panel timing, trade-input
+  fix, idempotent `sell house` / `make offer` (`requestId`), `decline offer` room-status guard, a removed player's jail-free cards
+  return to their deck (finished 2v2 leave), and a host-close confirmation that waits for the player (renderer keep-alive).
+- Protocol 12 → **13**, snapshot schema **11** unchanged. The bump resolves release risk R-1: v1.7.0 and the pre-bump branch were both
+  protocol 12 with different displayed rules and command contracts; the handshake compares the protocol for strict equality, so a
+  1.7.0 app and a 1.8.0 host reject each other with `UPGRADE_REQUIRED` (desktop guests are told to update both apps).
+- `apps/desktop/update-policy.json`: `minimumSupportedVersion` **1.8.0** (a 1.7.0 install must update before multiplayer, as it did for
+  protocols 10, 11 and 12) and `reviewedForSocketProtocol` **13**. `LAN_DISCOVERY_SOCKET_PROTOCOL` is 13.
+- Release notes: `.github/release-notes/v1.8.0.md`. Publication is by pushing the tag `v1.8.0` on a `main` commit whose root
+  `package.json` version is 1.8.0 (`.github/workflows/release-candidate.yml`); no tag was created while preparing this change.

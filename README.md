@@ -15,12 +15,12 @@ No database, Node.js, developer tools, port forwarding or VPN is required on pla
 
 ### Hosting and reconnecting
 
-- **Keep the host running.** Closing the host application stops the server for everyone and ends the match permanently. During an active game the app shows a confirmation, but the current code proceeds with the close if it gets no answer within 2 seconds (known issue); closing from the lobby or after the game ends stops the room without asking. Rooms live only in the host's memory, so reopening the app cannot bring a match back.
+- **Keep the host running.** Closing the host application stops the server for everyone and ends the match permanently. During an active game the app shows a confirmation and waits for your answer (published 1.7.0 closes the window after 2 seconds even while the question is open; fixed on the development branch); closing from the lobby or after the game ends stops the room without asking. Rooms live only in the host's memory, so reopening the app cannot bring a match back.
 - **Dropped connection.** A player who loses connection rejoins the same seat automatically while the host keeps running. If the current player stays disconnected, the game waits about 60 seconds and then skips that turn; bots never take over a human seat.
 - **Online link changed.** A Quick Tunnel address is temporary. If a guest cannot reconnect for about 20 seconds, the "Mất kết nối" dialog accepts the new invitation link from the host and returns the guest to the same seat.
 - **LAN.** Players on the same network can type the room code; the desktop app finds the host on the LAN.
 
-> **Development branch note.** `feat/own-the-block-multiplayer-bots-vnext` contains unreleased changes after v1.7.0 (bot difficulty levels in the lobby, Income Tax 150 instead of 200). They are not in any published installer. See the [Documentation Hub](project-document/README.md).
+> **Development branch note.** `feat/own-the-block-multiplayer-bots-vnext` contains unreleased changes after v1.7.0 (version 1.8.0 candidate, Socket protocol 13: bot difficulty levels in the lobby, Income Tax 150 instead of 200, idempotent sell-house and trade-offer requests, a host-close confirmation that waits for the player, a leave fix for finished 2v2 rooms). They are not in any published installer, and a 1.7.0 app will not be able to join a 1.8.0 host. See the [Documentation Hub](project-document/README.md).
 
 ## Development
 
