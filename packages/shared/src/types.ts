@@ -1,7 +1,7 @@
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
-export const SOCKET_PROTOCOL_VERSION = 12 as const;
+export const SOCKET_PROTOCOL_VERSION = 13 as const;
 
 export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
 export type PlayerId = string;
@@ -647,7 +647,7 @@ export interface BoardState {
   // A fresh UUID per started match (set by `start game`, cleared by `play again`), so work scheduled for one match can never
   // apply to the rematch. Absent in snapshots older than schema 11.
   matchId?: string | null;
-  // How well every bot of the room plays (protocol 12). Host-chosen in the lobby; absent in older snapshots means MEDIUM.
+  // How well every bot of the room plays (protocol 13). Host-chosen in the lobby; absent in older snapshots means MEDIUM.
   botDifficulty?: BotDifficulty;
   // Lobby configuration that survives "play again" (together with each player's `teamId`).
   gameMode: GameMode;
@@ -863,7 +863,7 @@ export interface AddBotResult {
   playerId: PlayerId;
 }
 
-// Host only, lobby only (protocol 12): one difficulty for every bot of the room.
+// Host only, lobby only (protocol 13): one difficulty for every bot of the room.
 export interface SetBotDifficultyRequest {
   difficulty: BotDifficulty;
 }

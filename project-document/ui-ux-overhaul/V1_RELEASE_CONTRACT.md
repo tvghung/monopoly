@@ -9,7 +9,7 @@ versions, protocol values, proof SHAs, and acceptance limits.
 Product: Own the Block
 Release: V1
 Semantic version: 1.7.0
-Socket protocol: 12
+Socket protocol: 13
 ```
 
 Application semantic version and network protocol version are independent.

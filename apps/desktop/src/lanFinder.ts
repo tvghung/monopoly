@@ -29,7 +29,7 @@ export const LAN_DISCOVERY_REQUEST_TYPE = 'find-room';
 export const LAN_DISCOVERY_REPLY_TYPE = 'room-here';
 export const LAN_DISCOVERY_MAX_REQUEST_BYTES = 256;
 /** Mirrors `SOCKET_PROTOCOL_VERSION` of `packages/shared`. */
-export const LAN_DISCOVERY_SOCKET_PROTOCOL = 12;
+export const LAN_DISCOVERY_SOCKET_PROTOCOL = 13;
 
 const LIMITED_BROADCAST_ADDRESS = '255.255.255.255';
 const MAX_INTERFACES = 6;
