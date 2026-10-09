@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createCanonicalDecks,
+  gameCardsById,
   formatMoney,
   type GameCard,
   type GameState,
@@ -1029,5 +1030,23 @@ describe('checkBalance / winner', () => {
     expect(state.boardState.currentPlayer.id).toBe('p3');
     expect(state.boardState.turnNumber).toBe(1);
     expect(state.boardState.ownedProps[1]).toBeUndefined();
+  });
+
+  it('returns the jail-free cards of a removed player to their draw pile exactly once, whatever the removal path', () => {
+    const state = makeState();
+    addPlayer(state, 'p1');
+    addPlayer(state, 'p2');
+    const [cardId] = Object.values(gameCardsById).filter(card => card.getOutOfJailFree).map(card => card.id);
+    const deck = state.privateState.decks[gameCardsById[cardId].sourceDeck];
+    deck.drawPile = deck.drawPile.filter(id => id !== cardId);
+    state.players.p2.heldJailFreeCardIds = [cardId];
+
+    expect(removePlayerFromGame(state, 'p2', 'LEFT', { deferWinner: true })).toBe(true);
+
+    expect(deck.drawPile.filter(id => id === cardId)).toHaveLength(1);
+    expect(state.players.p2).toBeUndefined();
+    // Removing a seat that is already gone changes nothing, so the card cannot be duplicated.
+    expect(removePlayerFromGame(state, 'p2')).toBe(false);
+    expect(deck.drawPile.filter(id => id === cardId)).toHaveLength(1);
   });
 });
