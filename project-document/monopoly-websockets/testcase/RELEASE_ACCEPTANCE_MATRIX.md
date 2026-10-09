@@ -47,26 +47,44 @@ Source: `RELEASE_CANDIDATE.md` and `ACCEPTANCE_MATRIX.md` at tag `v1.7.0`, plus 
 | All | Code signing / notarization | NOT APPLICABLE | NOT APPLICABLE | Unsigned distribution by design (release notes); signing BLOCKED in `validate:release` |
 | All | Performance baseline, human usability study | NOT RUN | NOT RUN | No record found |
 
-## CURRENT DEVELOPMENT on `feat/own-the-block-multiplayer-bots-vnext` (after v1.7.0, unreleased)
+## v1.8.0 candidate on `main` (protocol 13 / snapshot 11) — NOT PUBLISHED
 
-Changes: commit `1937a73` (Income Tax 150, bot difficulty, jail panel timing, trade-offer input). Details:
-[ADR-13](../ARCHITECTURE_DECISIONS.md#adr-13-released-contract-vs-current-development).
+Merged into `main` by the project owner as PR #6 (merge commit `ea133e4`, 2026-10-09). **No tag `v1.8.0` and no GitHub Release exist.**
+Scope and decisions: [ADR-13](../ARCHITECTURE_DECISIONS.md#adr-13-released-contract-vs-current-development),
+[V1_RELEASE_CONTRACT §V1.8.0](../../ui-ux-overhaul/V1_RELEASE_CONTRACT.md), `.github/release-notes/v1.8.0.md`.
 
 | Scenario | Automated | Manual | Evidence / limitation |
 | --- | --- | --- | --- |
-| typecheck, lint, `pnpm test`, build on `1937a73` | PASS | NOT APPLICABLE | Local Windows x64 run 2026-10-09: desktop 479, server 527, client 2298 tests (agent-run local result reported in session; no committed log); CI not triggered for this branch (ci.yml runs on `main` and pull requests) |
-| Bot difficulty (5 levels, host-only, guests read-only) | PASS (`apps/server/src/bots/policy.test.ts`, `apps/server/src/socket.bots.integration.test.ts`, `apps/client/src/components/Lobby.test.tsx`) | NOT RUN | No full game per level has been played |
-| Income Tax 150 | PASS (`apps/server/src/rulesContract.test.ts`, `apps/server/src/game.test.ts`) | NOT RUN | Implemented on the vNext development branch; product approval/release decision not independently verified |
-| Jail panel only on the jailed player's own turn | PASS (`apps/client/src/components/dashboard/JailPanel.test.tsx`) | NOT RUN | |
-| Trade offer keeps typed amounts | PASS (`apps/client/src/components/dashboard/TradeOfferModal.test.tsx`) | NOT RUN | |
-| Packaged build and proofs | NOT RUN | NOT RUN | |
-| Compatibility with released 1.7.0 clients and hosts | NOT RUN | NOT RUN | **RELEASE RISK R-1 open** (below) |
+| typecheck, lint, `pnpm test`, build (Windows x64 dev machine, `bf60852`) | PASS | NOT APPLICABLE | Local 2026-10-09: desktop 491, server 559, client 2302 tests; contract/music/card-art/landmark validators |
+| `pnpm validate:docs` (128 files), `pnpm test:docs`, `validate:v1-contract` (1.8.0, protocol 13), `test:v1-contract` | PASS | NOT APPLICABLE | Local, same commit |
+| GitHub CI on the PR head (`bf60852`) and on `main` (`ea133e4`), Docs workflow | PASS | NOT APPLICABLE | `ci.yml` runs 37917830408 (PR) and 37918466424 (main); Docs 37917829860 and 37918466393 |
+| Release Candidate workflow, manual dispatch on the branch (Windows x64, macOS x64, macOS arm64: quality gates, packaged build, packaged proofs; validation-only, publishes nothing) | PASS | NOT APPLICABLE | Run 37917874868 on `bf60852` |
+| Desktop Build on the branch (`bf60852`) | FAIL (Windows only: WebKit e2e "single rendered Ogg Vorbis music asset…" failed twice with "access control checks"; every other step including packaged proofs passed) | NOT APPLICABLE | Run 37917870580. Known WebKit-on-Windows music-lifecycle flake class (also seen at v1.7.0); not caused by this change, but not proven flake-free either |
+| Desktop Build on `main` (`ea133e4`, Windows and macOS) | PASS | NOT APPLICABLE | Run 37918826593 |
+| Packaged Windows x64 host proof (`pnpm desktop:proof:host`, local) | PASS | NOT APPLICABLE | Local, version 1.8.0 package; `physicalDeviceAcceptance: MANUAL_REQUIRED` |
+| Cross-version handshake, executed against the real v1.7.0 server code (isolated worktree, probe test, not committed) | PASS: a v1.7.0 host (protocol 12) rejects a protocol-13 client with `UPGRADE_REQUIRED`; a v1.7.0 host never ACKs `set bot difficulty` (no ACK in 3 s) | NOT APPLICABLE | The reverse (protocol-12 client against the current server): `apps/server/src/socket.integration.test.ts`. Two real packaged apps (1.7.0 ↔ 1.8.0): NOT RUN |
+| Host-close confirmation: unanswered past 2 s, cancel, confirm, repeated close, unmount, process gone (fake timers, event-emitter `webContents`) | PASS | NOT RUN | `apps/desktop/tests/quitRequestController.test.ts`, `windowHandlers.test.ts`, `preloadBridge.test.ts`, `apps/client/src/App.test.tsx`. Real Windows/macOS window: NOT RUN |
+| Finished 2v2 room: winning-team member holding a jail-free card leaves | PASS (reproduced as `INTERNAL_ERROR` before the fix, 3/3; passes after) | NOT APPLICABLE | `apps/server/src/socket.teamplay.integration.test.ts` |
+| `sell house`, `make offer` idempotency; `decline offer` guard; sell property to bank, reject forced sale, do not buy, wait in jail | PASS (idempotency/guard tests fail when the fix is disabled) | NOT APPLICABLE | `apps/server/src/socket.hardening.integration.test.ts` |
+| Income Tax 150 | PASS (`rulesContract.test.ts`, `game.test.ts`) | NOT RUN | Owner request in a chat transcript (ADR-13), not a written repository decision |
+| Bot difficulty (5 levels) | PASS (`policy.test.ts`, `socket.bots.integration.test.ts`, `Lobby.test.tsx`) | NOT RUN | **No full game has been played per level** (neither manually nor by a simulation) |
+| Emulated phone/tablet (`pnpm test:e2e:mobile`) | PASS on Chromium; WebKit/Windows flake above | NOT APPLICABLE | Not a physical device |
+| Physical Android / iPhone / iPad | NOT APPLICABLE | NOT RUN | |
+| Independent-network Online play (Quick Tunnel across networks) | NOT APPLICABLE | NOT RUN | Same as v1.7.0 (BLOCKED there) |
+| In-place update 1.7.0 → 1.8.0 on a real install | NOT APPLICABLE | NOT RUN | Cannot be run before 1.8.0 is published; the `update-manifest.json` and mandatory-update policy are generated by the release workflow |
+| Full games with bots on real Windows / macOS desktops | NOT APPLICABLE | NOT RUN | No owner report exists for 1.8.0 |
+| Code signing / notarization | NOT APPLICABLE | NOT APPLICABLE | Unsigned by design |
 
-**Verdict for the branch: NOT RELEASE READY** while R-1 is open and manual checks are NOT RUN.
+**Verdict:** engineering and automated gates PASS; **manual acceptance for 1.8.0 is NOT RUN** (rows above). **Owner decision (2026-10-09,
+in the working session, in answer to an explicit question):** the project owner chose to accept the NOT RUN rows as they were accepted
+for v1.7.0 and to tag `v1.8.0` now. This is a risk acceptance of unverified rows, **not** a manual PASS and not an owner test report; the
+release notes disclose the gaps. The rows stay NOT RUN until someone runs them.
 
 ## Open release risks
 
 | ID | Risk | Type | Status |
 | --- | --- | --- | --- |
-| R-1 | `set bot difficulty` and Income Tax 150 were added inside protocol 12, so mixed 1.7.0/vNext apps connect. A 1.7.0 server never ACKs `set bot difficulty` (unknown event, no listener; the vNext client has no ACK timeout) — reachable only with a mixed-version host setup; a 1.7.0 client ignores `boardState.botDifficulty`; a desktop guest of the other version displays its own tax value while the host charges its value. Code reading, not executed. | Additive command and state (handshake-compatible) plus a gameplay-rule display mismatch for cross-version desktop guests | OPEN — owner decision required: accept, or bump the protocol and `apps/desktop/update-policy.json` in a separate engineering task |
-| R-2 | This branch lacks the v1.7.0 release records committed on `main` (`e88b959`). | Documentation divergence | OPEN — sync the branch with `main` before the next release |
+| R-1 | `set bot difficulty` and Income Tax 150 were added inside protocol 12 (mixed 1.7.0/vNext apps connecting with different rules) | Compatibility | RESOLVED in code: protocol 12 → 13, `UPGRADE_REQUIRED` for any 1.7.0 app, desktop "update both apps" message, minimum supported 1.8.0 (executed against real v1.7.0 server code, table above) |
+| R-2 | The branch lacked the v1.7.0 release records on `main` (`e88b959`) | Documentation divergence | RESOLVED: `origin/main` merged without conflicts |
+| R-3 | WebKit-on-Windows music-lifecycle e2e is flaky ("access control checks"); failed twice in one Desktop Build run on the branch, passed in the next run on `main` | Test infrastructure | OPEN, non-blocking follow-up |
+| R-4 | No manual acceptance for 1.8.0 (bot games per level, real host-close, two real apps, in-place update, devices, independent networks) | Verification gap | ACCEPTED BY OWNER for release on 2026-10-09 (risk acceptance; rows remain NOT RUN) |
