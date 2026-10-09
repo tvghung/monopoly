@@ -12,7 +12,7 @@ on CI passed on the candidate. The release stays blocked until the owner records
 | --- | --- |
 | Base | `origin/main` = tag `v1.6.1` = `77953b6547f9d0b79248cd9fafa0c08f8d064c06` (unchanged during the work; local `main` still `bffc0da`) |
 | Branch | `feat/own-the-block-multiplayer-bots-vnext` (pushed; every commit is on this branch only) |
-| Candidate code SHA | **`648d4ca7c33e6f41197da403bb4881dad148a426`** (18 commits over the base). Commits after it touch documentation only |
+| Candidate code SHA | **`548c551`** (RC hardening of the five review findings on top of `648d4ca`). Commits after it touch documentation only |
 | Proposed version | 1.7.0 (Socket protocol 12, room snapshot schema 11, update policy minimum 1.7.0) |
 | Tag / release | none (requires owner approval; `.github/release-notes/v1.7.0.md` is ready) |
 
@@ -27,7 +27,23 @@ on CI passed on the candidate. The release stays blocked until the owner records
 | R4 UI/UX | PASS (automated + emulated phone/tablet) · devices NOT RUN | matrix section E, [UI_UX_REGRESSION_MATRIX.md](./UI_UX_REGRESSION_MATRIX.md) |
 | R5 candidate | engineering PASS · release NOT READY | below |
 
-## Validation on `648d4ca` (this Windows x64 machine, 2026-10-09)
+## RC hardening (2026-10-09, candidate `548c551`)
+
+| Finding | Root cause | Fix (commit) |
+| --- | --- | --- |
+| P1 host identity spoofing | relink trusted the public `/_otb/room` process id, which any Host could copy or relay | per-process P-256 key pinned from the resume ACK, fresh signed challenge bound to room + address, Host signs only its own addresses (`39e4a6c`) |
+| P2 debt trade evaluation | debt branch compared only incoming cash with the Bank value | whole bundle: net cash, liquidity, worth, debt payable, set completion (`8559867`) |
+| P2 bot task parking | primary + fallback failure parked the task forever | bounded re-decisions, then server turn recovery or the task's own deadline, one log line (`5620b8e`) |
+| UX early ownership flag | board read ownership from the newest state while the queue still played the roll | ownership held until the queue plays the transfer; bot waits the roll presentation + 0.9 s (`768466d`) |
+| UX modal peek | restore key was a text button at the top centre | icon-only toggle drawn where the hide key was, own layer, 44 px (`a2a8af2`, `548c551`) |
+
+Local validation on `548c551`: typecheck, lint, `pnpm test` (desktop 479, server 522, client 2294 + node suites), build,
+`pnpm test:e2e:mobile` 4 passed (first run: one WebKit music-lifecycle failure, passed on re-run; no audio code changed).
+Not re-run on `548c551`: `desktop:make`, packaged host proof, live Quick Tunnel proof. **CI: not run** — GitHub Actions is
+disabled for the repository (workflow dispatch answered HTTP 422); the owner must re-enable Actions and dispatch CI,
+Desktop Build and Release Candidate on this SHA before any release. Matrix section G lists every SEC/TRADE/BR/BA/MP row.
+
+## Validation on `648d4ca` (previous candidate) (this Windows x64 machine, 2026-10-09)
 
 | Command | Result |
 | --- | --- |
@@ -58,9 +74,9 @@ Candidate 37856575792. They are not evidence for the candidate SHA.
 - Bots have no socket, session or token; `add bot` / `remove bot` are host-only, lobby-only and schema-validated.
 - The bot view is built from the public projection plus the bot's own private projection (test: no `drawPile`, no hidden card ids).
 - Bot decision logs carry names, kinds, choices and public numbers only, and print only with `OTB_BOT_LOG=1`.
-- `/_otb/room` returns a random process id; CORS reflects only the game's own origins.
+- `/_otb/room` returns a random process id with no CORS and is never proof; `/_otb/continuity` returns only a signature over public fields.
 - Registry: owner tokens hashed, public lookup only via CORS GET, `/join` page without secrets, and the tunnel service host itself refused.
-- **Fixed during R5:** the relink flow could have sent a player's reconnect token to any pasted link that used the same room code. The token now moves only to an address that proves to be the same Host process (`hostInstanceId`).
+- **Fixed during R5, hardened after review:** the relink flow could have sent a player's reconnect token to any pasted link that used the same room code. The R5 fix compared a public process id, which another Host could copy; the token now moves only to an address that signs a fresh challenge with the Host process's pinned key (see ONLINE_MULTIPLAYER_DESIGN).
 - **Fixed during R3:** a code already held by another room (`CODE_TAKEN`) was silently ignored. Starting a room with such a code now fails, so the launcher draws a new one.
 - Dependency set unchanged (no new packages); bundled cloudflared integrity pinning unchanged.
 
@@ -72,6 +88,8 @@ Candidate 37856575792. They are not evidence for the candidate SHA.
 - LAN play needs no registry or tunnel, so a failure of the public service never blocks LAN rooms.
 
 ## Still open (owner actions)
+
+0. Re-enable GitHub Actions and run CI, Desktop Build and Release Candidate on the final SHA.
 
 1. Play the complete-game matrix with bots and without (USER_MANUAL_BOT_TEST_PLAN, sections B and C) and record results.
 2. Test on real phones and tablets: iPhone/iPad Safari, Android Chrome, the lobby with bots, audio, touch targets.

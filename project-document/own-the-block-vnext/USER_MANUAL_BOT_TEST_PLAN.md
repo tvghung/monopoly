@@ -49,6 +49,20 @@ hoặc ghi chú). Một lỗi tìm thấy: ghi bước tái hiện, mã phòng, 
 | C6 | Kết thúc ván → "Chơi lại" | Bot ở lại và sẵn sàng; người chơi phải bấm sẵn sàng lại; tiền/tài sản/vị trí đặt lại; không có hành động nào của ván trước chạy sang ván mới |
 | C7 | Người chơi thật cuối cùng rời phòng khi còn bot | Phòng đóng, không để bot tự chơi |
 
+## D. Hoạt ảnh bot và nút "Xem bàn cờ" (RC hardening)
+
+| # | Thao tác | Kỳ vọng |
+| --- | --- | --- |
+| D1 | 1 người + 1 bot, xem bot đổ và dừng ở ô đất trống rồi mua | Xúc xắc lăn xong, mascot nhảy từng ô và đáp xuống, dừng một nhịp "suy nghĩ", **sau đó** cờ sở hữu mới hiện; không bao giờ thấy cờ trước khi mascot đáp |
+| D2 | Như D1 ở tốc độ hoạt ảnh chậm nhất và nhanh nhất (Cài đặt) | Thứ tự giữ nguyên; ở tốc độ chậm nhịp suy nghĩ có thể ngắn hơn nhưng cờ vẫn sau khi đáp |
+| D3 | Bật "Giảm chuyển động" | Không có hoạt ảnh nhưng cờ vẫn không hiện trước vị trí mới của mascot |
+| D4 | Bot đi qua Xuất Phát rồi mua; bot từ chối mua; bot xây nhà; hai máy cùng xem | Qua Xuất Phát: nhận tiền rồi mới cờ; từ chối: không có cờ; nhà hiện sau khi đáp; hai máy thấy cùng thứ tự (máy chậm không làm máy kia chờ); mất mạng rồi vào lại: thấy đúng chủ sở hữu ngay |
+| D5 | Mở quyết định mua, bấm nút mắt gạch (Xem bàn cờ) | Hộp thoại và nền tối biến mất; đúng chỗ nút vừa bấm còn một nút mắt (không có chữ); bấm được mọi thứ trên bàn cờ quanh đó |
+| D6 | Bấm lại nút mắt | Hộp thoại hiện lại đúng như trước (lựa chọn, chữ đã gõ còn nguyên); nút mắt gạch ở đúng chỗ cũ |
+| D7 | Điện thoại dọc/ngang, máy tính bảng; xoay máy khi đang ẩn | Nút vẫn ở góc header cũ, đủ lớn để bấm bằng ngón tay, không bị tràn ra ngoài màn hình |
+| D8 | Bàn phím: Tab tới nút mắt gạch, Enter, Enter lại; ẩn hai hộp thoại chồng nhau | Focus chuyển qua lại giữa hai nút; Escape không đóng quyết định đang ẩn; chỉ một nút mắt cho hộp ẩn sau cùng |
+| D9 | Mất kết nối khi Host đổi link Online, dán link mới (trình duyệt https và ứng dụng desktop) | Vào lại đúng ghế; link của một Host khác cùng mã phòng bị từ chối ("Link này không dẫn tới máy chủ…"); trang LAN `http://` báo không kiểm tra được và không chuyển token |
+
 ## Ghi kết quả
 
 | Ngày | Ca | Máy / trình duyệt / mạng | Phiên bản (commit) | Kết quả | Ghi chú / ảnh |

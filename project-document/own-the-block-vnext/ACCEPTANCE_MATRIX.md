@@ -1,6 +1,6 @@
 # Acceptance matrix
 
-Status at **R0** (2026-10-09); section A updated at the R1 gate, sections B and C at the R2 gate, section D at the R3 gate, section E at the R4 gate, section F at the R5 gate on candidate `648d4ca` (2026-10-09). Verdict: RC READY FOR USER MANUAL QA — NOT RELEASE READY ([RELEASE_CANDIDATE.md](./RELEASE_CANDIDATE.md)). Every row is updated as waves complete; nothing is PASS because code exists.
+Status at **R0** (2026-10-09); section A updated at the R1 gate, sections B and C at the R2 gate, section D at the R3 gate, section E at the R4 gate, section F at the R5 gate on candidate `648d4ca`, section G at RC hardening on `548c551` (2026-10-09). Verdict: RC READY FOR USER MANUAL QA — NOT RELEASE READY ([RELEASE_CANDIDATE.md](./RELEASE_CANDIDATE.md)). Every row is updated as waves complete; nothing is PASS because code exists.
 Status words: `PASS`, `FAIL`, `BLOCKED`, `NOT RUN`, `NOT RUN (USER MANUAL)`, `N/A — verified absent`, `PLANNED`.
 BOT-L0n = AC-L0n, BOT-A0n = AC-B0n, BOT-E0n = AC-E0n, NET-0n = AC-N0n.
 
@@ -76,18 +76,71 @@ BOT-L0n = AC-L0n, BOT-A0n = AC-B0n, BOT-E0n = AC-E0n, NET-0n = AC-N0n.
 | AC-U09 | Rule non-regression | no rule changed (taxes 200/100 units verified in `tileState.ts`) | `rulesContract.test.ts`, `v3.simplifiedRules.test.ts`, `game.test.ts`, full server suite 505 green | full game | PASS (automated) · full game NOT RUN (USER MANUAL) |
 | AC-U10 | Accessibility/error affordances | Bot badge + `data-kind`, Bot chip on HUD with screen-reader text, add/remove keys with names, join/relink/sharing messages | `Lobby.test.tsx` bot seats, `PlayerCardList.test.tsx` bot summary, `JoinForm.test.tsx` errors, `ConnectionOverlay.test.tsx`, `HostLanSharing.test.tsx` | practical review on devices | PASS (automated) · NEEDS MANUAL ACCEPTANCE |
 
+## G. RC hardening (five review findings, candidate code `548c551`)
+
+Automated evidence: `pnpm typecheck`, `pnpm lint`, `pnpm test` (desktop 479, server 522, client 2294 + node suites),
+`pnpm build`, `pnpm test:e2e:mobile` (4 passed; one earlier run had a WebKit music-lifecycle failure that passed on
+re-run, unrelated to these changes) on this Windows x64 machine, 2026-10-09. CI could not run: GitHub Actions is disabled
+for the repository (dispatch answered HTTP 422).
+
+| ID | Criterion | Implementation | Automated test | Status |
+| --- | --- | --- | --- | --- |
+| SEC-01 | An endpoint copying the public id / room code gets no token | pinned P-256 key + signed challenge (`runtime/hostContinuity.ts`, `App.tsx switchEndpoint`) | `hostContinuity.test.ts` "original attack", `App.test.tsx` "never hands the token…" | PASS |
+| SEC-02 | Token moves only after verification | verify before `writePlayerSessionForRoom`; seat re-checked after the await | `App.test.tsx` "follows a pasted new link…" | PASS |
+| SEC-03 | Replayed / expired / altered / invalid proofs rejected | fresh 32-byte challenge per check, exact field match, 5 s timeout | `hostContinuity.test.ts` replay, altered, garbage, version, late answer; server test reverse signature | PASS |
+| SEC-04 | Wrong room / other Host / relay rejected | Host signs only for its own addresses (`services/hostContinuity.ts`) | `hostContinuity.integration.test.ts` 403 relay, 404 room; client other-room, other-address | PASS |
+| SEC-05 | Legitimate tunnel rotation still works | Electron main posts `public-endpoints` to the helper on every onlineEndpoint change | desktop `hostRuntime.test.ts` (first → withdrawn → second); server "published tunnel" test | PASS (automated); live rotation on a real tunnel NOT RUN |
+| SEC-06 | Host restart is not continuity | key exists only in RAM per process | "different identity after a restart"; App "restarted Host" | PASS |
+| SEC-07 | No secrets in codes, links, QR, public APIs, logs | key public, challenge random, token never sent | proof body keys only; App asserts the token is in no request | PASS |
+| SEC-08 | LAN + Online compatible | own IPv4/127.0.0.1 + port, tunnel origin; no WebCrypto (`http://` LAN page) fails closed with a message | server LAN test; App "no WebCrypto" | PASS (automated); real LAN browser relink NOT RUN |
+| SEC-09 | Tests show the original attack and the fix | — | as above | PASS |
+| TRADE-01 | Cash paid back counts (original bug) | `acceptsDebtOffer` net cash | "300 in and 40 out…" | PASS |
+| TRADE-02 | Incoming properties count (liquidity) | incoming tiles at Bank value | "counts incoming properties…" | PASS |
+| TRADE-03 | Jail cards and worth count | bundle worth incl. 50 per card when debt payable without the trade | "counts Get-Out-of-Jail cards…" | PASS |
+| TRADE-04 | Outstanding debt considered | must be payable afterwards | "never trades into bankruptcy anyway" | PASS |
+| TRADE-05 | Completing an opponent set guarded (swaps handled) | ≥ 2 × worth; tiles the proposer gives away excluded | "does not hand an opponent a full colour set", swap case | PASS |
+| TRADE-06 | Cannot pay cash it lacks; empty bundle declined | early check | "refuses to pay cash…", "raises nothing" | PASS |
+| TRADE-07 | Non-debt trades unchanged | same path | existing trade tests + bot integration offer test | PASS |
+| BR-01 | No infinite retries | 1 fallback + 2 re-decisions, then recovery and park | driver "bounded number of refusals" (exactly 4 refusals) | PASS |
+| BR-02 | No timer/CPU/log flooding | one timer per room, backoff 0.3/2/8 s, park, bounded maps | journal length stable 300 ms after park | PASS |
+| BR-03 | Recovery is authoritative and legal | `turnRecovery` armed inside the room queue, resolved by `recoverRoomIfDue` | turn passed without a roll, cash unchanged | PASS |
+| BR-04 | Deterministic recovery path | turn-bound → turn recovery; deadline-backed → its deadline | driver tests (TURN, OFFER) | PASS |
+| BR-05 | Stale tasks never execute | key re-derived in queue before arming | "never recovers a task that changed…" | PASS |
+| BR-06 | Reconnect / rematch / completion cancel | key includes matchId; non-IN_PROGRESS cancels | existing driver integration tests | PASS |
+| BR-07 | Meaningful error when no recovery | one journal line per outcome | "resolves it at its deadline" line once | PASS |
+| BR-08 | Tests | — | `bots/driver.test.ts` | PASS |
+| BA-01..03 | Dice completes, mascot lands, flag only after landing + purchase | `displayOwnership` hold until PROPERTY_TRANSFER plays | `ownershipHold.test.ts` order walk → landing → flag | PASS (automated) |
+| BA-04 | Decline shows nothing | no ownership change, no hold | "holds nothing when declined" | PASS |
+| BA-05 | Development ordered | existing `displayDevelopmentLevels` hold | PresentationController test | PASS |
+| BA-06 | Natural thinking delay | bot waits shared roll budget + 0.9 s | server pacing test, client drift-guard `botPacing.test.ts` | PASS (automated) |
+| BA-07 | All animation speeds | hold is queue-ordered, independent of speed | speed 2 test; 0.75 covered by the hold (pause shrinks, order kept) | PASS (automated) |
+| BA-08 | Reduced motion | hold still applies | reduced-motion case | PASS |
+| BA-09 | Multiplayer coherent, never waits on slow clients | server timing fixed, each client gates locally | by design + tests | PASS (automated); multi-device NOT RUN |
+| BA-10 | Special movement (GO, card move, chained transfers) | per-tile pending set | GO pacing test, "changes hands twice" | PASS |
+| BA-11 | No gameplay regression | presentation only | full suites | PASS |
+| BA-12 | Reconnect / reset / skip safe | hold cleared on reset, released in `finish` | "never leaves a stale flag" | PASS |
+| BA-13 | Visual check in the real app | — | — | NOT RUN (USER MANUAL) — plan D1–D4 |
+| MP-01..03 | Toggle stays in place; Eye-Off visible state, Eye hidden state; no visible text | anchored `ModalPeekRestore`, icons `hideDialog`/`showDialog` | "Modal peek toggle (MP)" | PASS |
+| MP-04..05 | Hidden content/backdrop do not obstruct or intercept; independent layer | overlay `display:none`; restore portal on body | existing peek tests + layer assertion | PASS |
+| MP-06 | State preserved | content stays mounted | typed value test | PASS |
+| MP-07..08 | 44 px target, responsive (resize clamp, fallback) | min 44, clamp to window | anchored size test, fallback test | PASS (automated); phones NOT RUN |
+| MP-09 | Keyboard a11y | focus moves hide ↔ restore, accessible name kept | focus test | PASS |
+| MP-10..12 | Multi-layer, lifecycle cleanup, decision replaced | registry unchanged | existing peek tests, close-while-hidden test | PASS |
+| MP-13..14 | Compatibility (all dialogs using `peek`), tests | shared Modal | 249 design-system + DecisionPeek tests | PASS |
+| MP-15 | Visual check on devices | — | — | NOT RUN (USER MANUAL) — plan D5–D8 |
+
 ## F. Tests, devices, operations, release
 
 | ID | Criterion | Status |
 | --- | --- | --- |
 | AC-R01 | Requirement trace (this file) | PASS: every row has an implementation path, a test or manual proof and an outcome; manual rows stay NOT RUN/BLOCKED |
-| AC-R02 | Deterministic automated tests, no playthroughs | PASS: `pnpm test` on `648d4ca` (desktop 479, server 506, client 2271 + node suites); seeded single-decision fixtures only; no complete match simulated |
+| AC-R02 | Deterministic automated tests, no playthroughs | PASS: `pnpm test` on `548c551` (desktop 479, server 522, client 2294 + node suites); seeded single-decision fixtures only; no complete match simulated |
 | AC-R03 | User-owned manual gameplay matrix | NOT RUN (USER MANUAL) — plan in USER_MANUAL_BOT_TEST_PLAN.md |
 | AC-R04 | Real device/network matrix | BLOCKED/NOT RUN: physical Windows/macOS hosts, phones/tablets, independent networks need the owner; same-machine live tunnel proof PASS |
 | AC-R05 | Packaged binaries | PASS for automated scope: local `desktop:make` + packaged host proof + packaged UI bot check (Windows x64); CI packaged proofs Windows x64 and macOS arm64, RC builds incl. macOS x64; clean install/upgrade on owner machines NOT RUN; unsigned (signing BLOCKED) |
 | AC-R06 | Security and robustness | PASS (review in RELEASE_CANDIDATE.md; relink token leak and CODE_TAKEN swallow found and fixed with tests) |
 | AC-R07 | Performance measurement 20–50 remote users | BLOCKED (no remote infrastructure); no capacity claimed |
-| AC-R08 | CI/provenance for the RC SHA | PASS: `648d4ca` CI 37857669544, Desktop Build 37857673483, Release Candidate 37857677473 all success; local installer SHA-256 recorded |
+| AC-R08 | CI/provenance for the RC SHA | BLOCKED for `548c551`: GitHub Actions is disabled for the repository (dispatch HTTP 422). Previous candidate `648d4ca`: CI 37857669544, Desktop Build 37857673483, Release Candidate 37857677473 all success |
 | AC-R09 | Upgrade/rollback | PASS (documented): RAM-only, protocol refusal of 1.6.x, minimum 1.7.0, reinstall v1.6.1 to roll back; LAN independent of registry |
 | AC-R10 | Release gate | NO-GO for release / **RC READY FOR USER MANUAL QA — NOT RELEASE READY** |
 | AC-R11 | Branch isolation | PASS: all work on `feat/own-the-block-multiplayer-bots-vnext`; `origin/main` still `77953b6`, local `main` still `bffc0da`; no commit, push, merge or tag on `main` |
