@@ -11,6 +11,8 @@ vi.mock('@react-three/fiber', async importOriginal => ({
   },
   useThree: (selector: (state: { invalidate: () => void }) => unknown) => selector({ invalidate: frameLoop.invalidate }),
 }));
+import { useFrame } from '@react-three/fiber';
+import TileMotionProvider, { getUnprocessedTileImpacts, useTileMotionController } from './TileMotionProvider';
 
 import { createElement, useEffect } from 'react';
 import { cleanup, render } from '@testing-library/react';
@@ -36,8 +38,7 @@ const impact = (sequence: number, tileId: number, playerId = 'player-a'): TileIm
 });
 
 describe('tile impact cursor', () => {
-  it('processes each impact once and never replays an earlier sequence', async () => {
-    const { getUnprocessedTileImpacts } = await import('./TileMotionProvider');
+  it('processes each impact once and never replays an earlier sequence', () => {
     const impacts = [impact(1, 1), impact(2, 2)];
 
     expect(getUnprocessedTileImpacts(impacts, 0).map(item => item.sequence)).toEqual([1, 2]);
@@ -45,8 +46,7 @@ describe('tile impact cursor', () => {
     expect(getUnprocessedTileImpacts(impacts, 2)).toEqual([]);
   });
 
-  it('keeps another player impact independent from a stationary player cursor', async () => {
-    const { getUnprocessedTileImpacts } = await import('./TileMotionProvider');
+  it('keeps another player impact independent from a stationary player cursor', () => {
     const impacts = [impact(1, 4, 'player-b')];
 
     expect(getUnprocessedTileImpacts(impacts, 0)).toEqual(impacts);
@@ -54,9 +54,7 @@ describe('tile impact cursor', () => {
   });
 });
 
-it('advances before child batch readers on every start/peak/rebound/rest frame, across all 40 tiles', async () => {
-  const { useFrame } = await import('@react-three/fiber');
-  const { default: TileMotionProvider, useTileMotionController } = await import('./TileMotionProvider');
+it('advances before child batch readers on every start/peak/rebound/rest frame, across all 40 tiles', () => {
   let now = 0;
   vi.spyOn(performance, 'now').mockImplementation(() => now);
   let controller: TileMotionController | null = null;
