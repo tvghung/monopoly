@@ -23,7 +23,7 @@ type RescueAnswer = 'ACCEPT' | 'DECLINE';
  * debtor, sees who is deciding and for how long. The server owns the deadline and the amount; this only displays them and sends
  * the offer id back.
  */
-export default function RescuePanel({ claim, offer }: { claim: DebtClaim; offer: EmergencyRescueOffer }) {
+export default function RescuePanel({ claim, offer, active = true }: { claim: DebtClaim; offer: EmergencyRescueOffer; active?: boolean }) {
   const { t } = useTranslation();
   const {
     state, playerId, canMutate, connected, socketFunctions,
@@ -31,7 +31,7 @@ export default function RescuePanel({ claim, offer }: { claim: DebtClaim; offer:
   const descriptionId = useId();
   const [pending, setPending] = useState<RescueAnswer | null>(null);
   const { error, clearError, setErrorKey, setAckError } = useLocalizedError();
-  const seconds = useCountdownSeconds(offer.expiresAt);
+  const seconds = useCountdownSeconds(active ? offer.expiresAt : null);
   const debtor = state.players[offer.debtorPlayerId];
   const rescuer = state.players[offer.rescuerPlayerId];
   const creditorPlayer = claim.creditor === 'BANK' ? undefined : state.players[claim.creditorPlayerId ?? ''];
@@ -67,10 +67,11 @@ export default function RescuePanel({ claim, offer }: { claim: DebtClaim; offer:
     })();
   };
 
+  if (!active) return <><Modal open={false} title="" children={null} /></>;
   if (!isRescuer || !canMutate) {
     const waitingOnMe = playerId === offer.debtorPlayerId;
     return (
-      <section className="debt-panel debt-panel--status debt-panel--rescue" data-rescue-id={offer.rescueId}>
+      <><Modal open={false} title="" children={null} /><section className="debt-panel debt-panel--status debt-panel--rescue" data-rescue-id={offer.rescueId}>
         <div className="debt-panel__status-copy" role="status">
           <strong>
             {waitingOnMe
@@ -82,14 +83,14 @@ export default function RescuePanel({ claim, offer }: { claim: DebtClaim; offer:
         <span role="timer">
           <Chip tone="loss" icon={<ActionIcon name="clock" />}>{t('dashboard.timeLeft', { time: countdown || '0:00' })}</Chip>
         </span>
-      </section>
+      </section></>
     );
   }
 
   const balance = rescuer?.accountBalance ?? 0;
   const cannotAfford = balance < offer.amount;
   return (
-    <Modal
+    <><Modal
       open
       title={t('dashboard.rescueTitle')}
       eyebrow={t('dashboard.rescueEyebrow')}
@@ -164,6 +165,6 @@ export default function RescuePanel({ claim, offer }: { claim: DebtClaim; offer:
       {pending
         ? <p className="debt-panel__pending" role="status">{t('dashboard.rescuePending')}</p>
         : null}
-    </Modal>
+    </Modal></>
   );
 }

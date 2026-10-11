@@ -1,7 +1,7 @@
 // Shared game data + state types, used by both the server and the client so the
 // two sides always agree on the shape of the game state and its data tables.
 
-export const SOCKET_PROTOCOL_VERSION = 13 as const;
+export const SOCKET_PROTOCOL_VERSION = 14 as const;
 
 export type SocketProtocolVersion = typeof SOCKET_PROTOCOL_VERSION;
 export type PlayerId = string;
@@ -130,6 +130,8 @@ export interface Tile {
   houseCost?: number;
   // Fixed compulsory payment to the bank when landing on an expense tile.
   expenseAmount?: number;
+  // Fraction of the player's current cash charged to the bank when landing on an expense tile.
+  expenseRate?: number;
 }
 
 // A Cơ Hội / Khí Vận card. Identity, source deck and message are required; the

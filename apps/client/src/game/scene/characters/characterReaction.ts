@@ -1,5 +1,6 @@
 import { presentationTiming } from '../../presentation/timings';
 import type { CharacterReactionKind } from '../../presentation/store/types';
+import { getAnimationElapsedMs } from '../animationTime';
 
 export type { CharacterReactionKind } from '../../presentation/store/types';
 
@@ -97,13 +98,16 @@ export function sampleCharacterReaction(
 
 export class CharacterReactionController {
   private active: CharacterReactionState | null = null;
+  private startedAtMs = 0;
 
-  public start(kind: CharacterReactionKind, durationMs = getCharacterReactionDuration(kind)): void {
+  public start(kind: CharacterReactionKind, durationMs = getCharacterReactionDuration(kind), startedAtMs = performance.now()): void {
+    this.startedAtMs = startedAtMs;
     this.active = { kind, elapsedMs: 0, durationMs: Math.max(0, durationMs) };
   }
 
   public reset(): void {
     this.active = null;
+    this.startedAtMs = 0;
   }
 
   public getState(): CharacterReactionState | null {
@@ -117,6 +121,18 @@ export class CharacterReactionController {
       return IDLE_REACTION;
     }
     this.active.elapsedMs += Math.max(0, deltaMs);
+    const sample = sampleCharacterReaction(this.active.kind, this.active.elapsedMs, false, this.active.durationMs);
+    if (sample.done) this.reset();
+    return sample;
+  }
+
+  public advanceAt(nowMs: number, reducedMotion = false): CharacterReactionSample {
+    if (!this.active) return IDLE_REACTION;
+    if (reducedMotion) {
+      this.reset();
+      return IDLE_REACTION;
+    }
+    this.active.elapsedMs = getAnimationElapsedMs(this.startedAtMs, nowMs);
     const sample = sampleCharacterReaction(this.active.kind, this.active.elapsedMs, false, this.active.durationMs);
     if (sample.done) this.reset();
     return sample;

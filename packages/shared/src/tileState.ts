@@ -30,7 +30,7 @@ const tileState: Tile[] = [
   {
     streetName: 'Thuế Thu Nhập',
     tileType: 'expense',
-    expenseAmount: 150,
+    expenseRate: 0.3,
   },
   {
     streetName: 'Ga Hà Nội',

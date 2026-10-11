@@ -10,6 +10,9 @@ import { CAPTURES, type CaptureEntry } from './captures';
 const EVIDENCE_ROOT = process.env.VISUAL_EVIDENCE_DIR
   ? path.resolve(process.env.VISUAL_EVIDENCE_DIR)
   : fileURLToPath(new URL('../../project-document/visual-overhaul-v2/evidence/', import.meta.url));
+const FPS_LIMIT_OVERRIDE = ['30', '60', '120', '180', '240'].includes(process.env.VISUAL_FPS_LIMIT ?? '')
+  ? process.env.VISUAL_FPS_LIMIT
+  : null;
 
 const READY_TIMEOUT_MS = 60_000;
 /** The renderer counts as settled once its published frame sequence has not changed for this long. */
@@ -171,7 +174,10 @@ for (const entry of CAPTURES) {
         if (message.type() === 'error') consoleErrors.push(`console: ${message.text()}`);
       });
 
-      await page.goto(entry.url);
+      const url = entry.benchmarkSeconds && FPS_LIMIT_OVERRIDE
+        ? `${entry.url}&fpsLimit=${FPS_LIMIT_OVERRIDE}`
+        : entry.url;
+      await page.goto(url);
       await waitForReadiness(page, entry);
 
       const expectsWebgl = entry.webgl ?? entry.kind === 'harness';

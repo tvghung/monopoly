@@ -34,6 +34,13 @@ describe('readHarnessUrlParams', () => {
     expect(readHarnessUrlParams('').graphicsQuality).toBe('auto');
   });
 
+  it('reads only supported FPS caps and defaults invalid values to 60', () => {
+    expect(readHarnessUrlParams('?fpsLimit=30').fpsLimit).toBe(30);
+    expect(readHarnessUrlParams('?fpsLimit=120').fpsLimit).toBe(120);
+    expect(readHarnessUrlParams('?fpsLimit=360').fpsLimit).toBe(60);
+    expect(readHarnessUrlParams('').fpsLimit).toBe(60);
+  });
+
   it('reads the controls and gallery switches', () => {
     expect(readHarnessUrlParams('?uat-controls=collapsed').controlsCollapsed).toBe(true);
     expect(readHarnessUrlParams('?uat-controls=open').controlsCollapsed).toBe(false);

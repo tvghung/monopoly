@@ -72,8 +72,13 @@ describe('PresentationStore reset and impact generations', () => {
   it('keeps logical hop origins and resolved durations independent of rendered frames', () => {
     const store = new PresentationStore();
     store.resetFromSnapshot(makeRoom());
+    const startedBefore = performance.now();
     store.startCharacterHop('player-a', 0, 1, 90);
+    const firstHopStart = store.getSnapshot().characterMovements[0];
+    expect(firstHopStart.startedAtMs).toBeGreaterThanOrEqual(startedBefore);
+    expect(firstHopStart.startedAtMs).toBeLessThanOrEqual(performance.now());
     store.completeCharacterHop('player-a', 1);
+    expect(store.getSnapshot().characterMovements[1].startedAtMs).toBe(firstHopStart.startedAtMs);
     store.startCharacterHop('player-a', 1, 2, 240);
 
     expect(store.getSnapshot().characterMovements.map(signal => ({

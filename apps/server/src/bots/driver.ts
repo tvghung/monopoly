@@ -1,4 +1,4 @@
-import type { PlayerId } from '@monopoly/shared';
+import { CARD_MINIMUM_VISIBLE_MS, type PlayerId } from '@monopoly/shared';
 import {
   acceptForcedSaleCommand,
   acceptOfferCommand,
@@ -41,7 +41,7 @@ import {
 import { buildBotViews, roomHasBots, type BotView } from './view';
 
 export interface BotDriverOptions {
-  /** Multiplies every presentation delay; 0 acts on the next tick (tests). */
+  /** Scales presentation pacing; the revealed-card minimum stays fixed. */
   delayScale?: number;
   /** How often rooms with bots are re-checked when no commit announced a change. */
   sweepIntervalMs?: number;
@@ -219,8 +219,12 @@ export class BotDriver {
     const view = views.find(candidate => candidate.botId === task.botId);
     if (!view) return;
     const failed = this.failures.get(task.key) ?? 0;
+    const actionDelay = botActionDelayMs(view, task);
+    const delayScale = this.options.delayScale ?? 1;
     const delay = failed === 0
-      ? botActionDelayMs(view, task) * (this.options.delayScale ?? 1)
+      ? task.kind === 'CARD'
+        ? CARD_MINIMUM_VISIBLE_MS + (actionDelay - CARD_MINIMUM_VISIBLE_MS) * delayScale
+        : actionDelay * delayScale
       : failed === 1 ? RETRY_DELAY_MS : this.recoveryDelays[failed - 2] ?? 0;
     const timer = setTimeout(() => {
       if (this.timers.get(roomId)?.key === task.key) this.timers.delete(roomId);

@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { getPlayerDisplayColor } from '../../ui/playerVisualColors';
+import { getAnimationElapsedMs } from '../animationTime';
 
 /** The dust-and-owner-color burst that plays where a building appears (frozen Phase 4 timing). */
 export default function ConstructionPuff({
@@ -20,7 +21,7 @@ export default function ConstructionPuff({
   lift?: number;
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const elapsedRef = useRef(0);
+  const startedAtMsRef = useRef(0);
   const objectRef = useRef<THREE.Object3D>(new THREE.Object3D());
   const invalidate = useThree(state => state.invalidate);
   const ownerDisplayColor = useMemo(() => new THREE.Color(getPlayerDisplayColor(ownerColor)), [ownerColor]);
@@ -34,12 +35,12 @@ export default function ConstructionPuff({
     }
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }, [dustColor, ownerDisplayColor, particleCount]);
-  useFrame((_, delta) => {
+  useLayoutEffect(() => { startedAtMsRef.current = performance.now(); invalidate(); }, [invalidate]);
+  useFrame(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
     const object = objectRef.current;
-    elapsedRef.current += delta * 1000;
-    const local = elapsedRef.current - delayMs;
+    const local = getAnimationElapsedMs(startedAtMsRef.current) - delayMs;
     const progress = THREE.MathUtils.clamp(local / Math.max(1, durationMs), 0, 1);
     const burstProgress = 1 - (1 - progress) ** 3;
     for (let index = 0; index < particleCount; index += 1) {
@@ -53,7 +54,6 @@ export default function ConstructionPuff({
     mesh.instanceMatrix.needsUpdate = true;
     if (local < durationMs) invalidate();
   });
-  useEffect(() => { invalidate(); }, [invalidate]);
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, particleCount]}>
       <octahedronGeometry args={[0.068, 0]} />

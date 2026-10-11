@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Monitor } from 'lucide-react';
+import { Gauge, Monitor } from 'lucide-react';
 import Button from '../design-system/components/Button/Button';
 import Modal from '../design-system/components/Modal/Modal';
 import SegmentedControl, { type SegmentedControlProps } from '../design-system/components/SegmentedControl/SegmentedControl';
@@ -9,13 +9,13 @@ import { ActionIcon } from '../design-system/icons/ActionIcon';
 import UpdateSettingsContent from '../components/update/UpdateSettingsContent';
 import { useAppUpdate } from '../runtime/appUpdate';
 import { getDesktopBridge, isDesktopRuntime } from '../runtime/desktopBridge';
-import { ANIMATION_SPEED_OPTIONS } from './defaults';
-import type { GraphicsQualitySetting } from './types';
+import DropdownSelector from '../components/DropdownSelector';
+import { ANIMATION_SPEED_OPTIONS, FPS_LIMIT_OPTIONS } from './defaults';
+import type { FpsLimitSetting, GraphicsQualitySetting } from './types';
 import { useEffectiveReducedMotion, useSettings } from './selectors';
 import './SettingsPanel.css';
 import { useTranslation } from '../i18n/I18n';
-import type { Language } from '../i18n/I18n';
-import { SUPPORTED_LANGUAGES } from '../i18n/languages';
+import LanguageSelector from '../components/LanguageSelector';
 
 const VOLUME_CONTROLS: readonly { key: 'masterVolume' | 'musicVolume' | 'sfxVolume'; labelKey: 'settings.masterVolume' | 'settings.music' | 'settings.effects' }[] = [
   { key: 'masterVolume', labelKey: 'settings.masterVolume' },
@@ -24,6 +24,7 @@ const VOLUME_CONTROLS: readonly { key: 'masterVolume' | 'musicVolume' | 'sfxVolu
 ];
 
 const SPEED_CHOICES = ANIMATION_SPEED_OPTIONS.map(option => ({ value: option, label: `${option}x` }));
+const FPS_LIMIT_CHOICES = FPS_LIMIT_OPTIONS.map(value => ({ value, label: `${value} FPS` }));
 
 const GRAPHICS_QUALITY_CHOICES: readonly { value: GraphicsQualitySetting; labelKey: 'settings.qualityAuto' | 'settings.qualityHigh' | 'settings.qualityBalanced' | 'settings.qualityLow' }[] = [
   { value: 'auto', labelKey: 'settings.qualityAuto' },
@@ -100,11 +101,10 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
       <div className="settings-panel">
         <section className="settings-panel__section" aria-labelledby="settings-language-title">
           <SectionHeading id="settings-language-title" icon={<ActionIcon name="settings" />}>{t('language.label')}</SectionHeading>
-          <SegmentedField<Language>
-            label={t('language.label')}
-            options={SUPPORTED_LANGUAGES.map(({ code, labelKey }) => ({ value: code, label: t(labelKey) }))}
+          <LanguageSelector
             value={settings.language}
             onChange={language => updateSettings({ language })}
+            className="settings-panel__language-selector"
           />
         </section>
         <section className="settings-panel__section" aria-labelledby="settings-audio-title">
@@ -163,6 +163,18 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
             onChange={value => updateSettings({ graphicsQuality: value })}
             hint={t('settings.graphicsHint')}
           />
+          <div className="settings-panel__field">
+            <span className="settings-panel__label">{t('settings.fpsLimit')}</span>
+            <DropdownSelector<FpsLimitSetting>
+              value={settings.fpsLimit}
+              options={FPS_LIMIT_CHOICES}
+              onChange={fpsLimit => updateSettings({ fpsLimit })}
+              heading={t('settings.fpsLimit')}
+              triggerLabel={t('settings.fpsLimitTrigger', { fps: settings.fpsLimit })}
+              icon={<Gauge />}
+              className="settings-panel__fps-selector"
+            />
+          </div>
         </section>
 
         {desktop

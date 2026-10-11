@@ -39,7 +39,7 @@ function placement(anchor: PeekAnchor | null): CSSProperties | undefined {
 /**
  * The restore key of a hidden dialog: an icon-only eye, drawn in its own layer (portal on `body`, so no opacity or transform of
  * the hidden dialog can affect it) exactly where the dialog's eye-off key was. Only the key (and the optional status beside it)
- * takes pointer input; the hidden dialog itself is `display: none`. Without a measured place it falls back to the top center.
+ * takes pointer input; the fading dialog itself is `inert and does not take pointer input`. Without a measured place it falls back to the top center.
  * It sits under the dialog layers (`--z-floating-control`), so a dialog opened over the board covers it until it is closed.
  */
 export default function ModalPeekRestore({

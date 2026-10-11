@@ -1,7 +1,8 @@
+import type { HTMLMotionProps } from 'framer-motion';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { allGameCards, SOCKET_PROTOCOL_VERSION, type Ack, type CardDeck, type GameCardId } from '@monopoly/shared';
+import { allGameCards, CARD_MINIMUM_VISIBLE_MS, SOCKET_PROTOCOL_VERSION, type Ack, type CardDeck, type GameCardId } from '@monopoly/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import ConfirmationDialog from '../../../design-system/components/ConfirmationDialog/ConfirmationDialog';
 import stateContext from '../../../internal';
@@ -14,8 +15,24 @@ import { makeRoom } from '../../presentation/testFixtures';
 import CardInteractionOverlay from './CardInteractionOverlay';
 import { cardVisualFor } from './cardVisuals';
 
+// VM workers may have loaded Modal in another file before this motion fixture.
+const modalMotion = vi.hoisted(() => { vi.resetModules(); return { complete: () => {} }; });
+vi.mock('framer-motion', async importOriginal => {
+  const actual = await importOriginal<typeof import('framer-motion')>();
+  const React = await import('react');
+  const Div = React.forwardRef<HTMLDivElement, HTMLMotionProps<'div'>>((props, ref) => {
+    const { onAnimationComplete } = props;
+    React.useLayoutEffect(() => {
+      if (onAnimationComplete) modalMotion.complete = () => onAnimationComplete('visible');
+    }, [onAnimationComplete]);
+    return React.createElement(actual.motion.div, { ...props, onAnimationComplete: undefined, ref });
+  });
+  return { ...actual, motion: { ...actual.motion, div: Div } };
+});
+
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   window.localStorage.clear();
 });
@@ -42,13 +59,14 @@ function socketFunctions(overrides: Partial<SocketFunctions> = {}): SocketFuncti
   };
 }
 
-function revealedRoom(cardId: GameCardId = 'chance-dividend', deck: CardDeck = 'chance', deadlineAt = '2030-01-01T00:00:30.000Z') {
+function revealedRoom(cardId: GameCardId = 'chance-dividend', deck: CardDeck = 'chance', deadlineAt = '2030-01-01T00:00:30.000Z', playerId: 'player-a' | 'player-b' = 'player-a') {
   const room = makeRoom();
-  room.gameState.players['player-a'].currentTile = 7;
+  room.gameState.players[playerId].currentTile = 7;
+  room.gameState.boardState.currentPlayer = { id: playerId, hasMoved: true };
   room.gameState.turnInfo.pendingCardInteraction = {
-    operationId: 'revealed-card', playerId: 'player-a', turnNumber: 1, deck, sourceTile: 7,
+    operationId: 'revealed-card', playerId, turnNumber: 1, deck, sourceTile: 7,
     stage: 'REVEALED', revealedCardId: cardId,
-    continuation: { playerId: 'player-a', turnNumber: 1 }, deadlineAt,
+    continuation: { playerId, turnNumber: 1 }, deadlineAt,
   };
   return room;
 }
@@ -82,7 +100,12 @@ function renderOverlay(
   );
 }
 
-const closeButton = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Đóng' });
+const closeButton = () => screen.getByRole<HTMLButtonElement>('button', { name: /^Đóng/u });
+
+async function advanceCardReadTime(): Promise<void> {
+  act(() => modalMotion.complete());
+  await act(async () => { await vi.advanceTimersByTimeAsync(CARD_MINIMUM_VISIBLE_MS); });
+}
 
 /** The artwork file in `public/`. The URL is built from a variable so Vite leaves it alone instead of turning it into an asset reference. */
 const artworkFile = (deck: CardDeck, id: GameCardId): string => {
@@ -102,7 +125,7 @@ describe('CardInteractionOverlay', () => {
     expect(screen.getByText('CƠ HỘI')).toBeTruthy();
     expect(screen.getByText('Nhận cổ tức 50.000 ₫.')).toBeTruthy();
     expect(screen.getByRole('img').getAttribute('src')).toContain('/art/cards/chance/');
-    expect(screen.getAllByRole('button', { name: 'Đóng' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /^Đóng/u })).toHaveLength(1);
     expect(screen.queryByText('Nhấn vào thẻ để xem')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Đóng thẻ' })).toBeNull();
     expect(document.querySelector('canvas')).toBeNull();
@@ -135,7 +158,7 @@ describe('CardInteractionOverlay', () => {
       expect(title, card.id).toBe(cardVisualFor(card.id)?.title);
       expect(screen.getByText(card.sourceDeck === 'chance' ? 'CƠ HỘI' : 'KHÍ VẬN'), card.id).toBeTruthy();
       expect(screen.getByText(card.message), card.id).toBeTruthy();
-      expect(screen.getAllByRole('button', { name: 'Đóng' }), card.id).toHaveLength(1);
+      expect(screen.getAllByRole('button', { name: /^Đóng/u }), card.id).toHaveLength(1);
       expect(dialog.getAttribute('aria-labelledby'), card.id).toBe(dialog.querySelector('h2')?.id);
 
       const src = screen.getByRole('img', { name: `${title} — minh họa` }).getAttribute('src') ?? '';
@@ -181,7 +204,8 @@ describe('CardInteractionOverlay', () => {
     controller.dispose();
   });
 
-  it('waits for the presentation to reach the revealed card, then opens with the description and the right focus', () => {
+  it('waits for the presentation to reach the card and focuses it until the local reading time expires', async () => {
+    vi.useFakeTimers();
     const controller = new PresentationController();
     const room = revealedRoom();
     renderOverlay(controller, room);
@@ -191,8 +215,94 @@ describe('CardInteractionOverlay', () => {
     act(() => { controller.acceptRoomSnapshot(room, 'SESSION_SYNC'); });
     const dialog = screen.getByRole('dialog', { name: 'Cổ tức' });
     expect(document.getElementById(dialog.getAttribute('aria-describedby') ?? '')?.textContent).toBe('Nhận cổ tức 50.000 ₫.');
+    expect(closeButton().disabled).toBe(true);
+    expect(closeButton().textContent).toBe('Đóng sau 3 giây');
+    expect(document.activeElement).toBe(dialog);
+    await advanceCardReadTime();
+    expect(closeButton().disabled).toBe(false);
     expect(document.activeElement).toBe(closeButton());
     controller.dispose();
+  });
+
+  it('keeps an observer card visible locally after the authoritative interaction clears', async () => {
+    vi.useFakeTimers();
+    const controller = new PresentationController();
+    const room = revealedRoom();
+    controller.acceptRoomSnapshot(room, 'SESSION_SYNC');
+    const view = renderOverlay(controller, room, { playerId: null, role: 'SPECTATOR', canMutate: false });
+    act(() => modalMotion.complete());
+    const clearedRoom = { ...room, version: room.version + 1, gameState: { ...room.gameState, turnInfo: {} } };
+    controller.acceptRoomSnapshot(clearedRoom, 'LIVE_UPDATE');
+    view.rerender(
+      <PresentationProvider controller={controller}>
+        <stateContext.Provider value={contextFor(clearedRoom, { playerId: null, role: 'SPECTATOR', canMutate: false })}>
+          <CardInteractionOverlay />
+        </stateContext.Provider>
+      </PresentationProvider>,
+    );
+
+    expect(screen.getByRole('dialog', { name: 'Cổ tức' })).toBeTruthy();
+    await act(async () => { await vi.advanceTimersByTimeAsync(CARD_MINIMUM_VISIBLE_MS - 1); });
+    expect(screen.getByRole('dialog', { name: 'Cổ tức' })).toBeTruthy();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(screen.queryByRole('dialog', { name: 'Cổ tức' })).toBeNull();
+    controller.dispose();
+  });
+
+  it("Player B authoritative close removes Player A's hidden restore key and preserves only A's unread window", async () => {
+    vi.useFakeTimers();
+    const room = revealedRoom('chance-dividend', 'chance', '2030-01-01T00:00:30.000Z', 'player-b');
+    const actorController = new PresentationController();
+    const observerController = new PresentationController();
+    actorController.acceptRoomSnapshot(room, 'SESSION_SYNC');
+    observerController.acceptRoomSnapshot(room, 'SESSION_SYNC');
+    let currentRoom = room;
+    let rerenderClients: (snapshot: ReturnType<typeof makeRoom>) => void = () => {};
+    let dismissFromPlayerB = () => {};
+    const renderClients = (snapshot: ReturnType<typeof makeRoom>) => (
+      <>
+        <PresentationProvider controller={observerController}>
+          <stateContext.Provider value={contextFor(snapshot, { playerId: 'player-a', role: 'PLAYER', canMutate: true })}>
+            <CardInteractionOverlay />
+          </stateContext.Provider>
+        </PresentationProvider>
+        <button type="button" onClick={() => dismissFromPlayerB()}>Player B dismisses card</button>
+      </>
+    );
+    const view = render(renderClients(room));
+    rerenderClients = snapshot => view.rerender(renderClients(snapshot));
+    dismissFromPlayerB = () => {
+      const closedRoom = structuredClone(currentRoom);
+      closedRoom.version += 1;
+      delete closedRoom.gameState.turnInfo.pendingCardInteraction;
+      currentRoom = closedRoom;
+      actorController.acceptRoomSnapshot(closedRoom, 'LIVE_UPDATE');
+      observerController.acceptRoomSnapshot(closedRoom, 'LIVE_UPDATE');
+      rerenderClients(closedRoom);
+    };
+
+    act(() => modalMotion.complete());
+    fireEvent.click(screen.getByRole('button', { name: 'Xem bàn cờ' }));
+    const oldRestoreKey = screen.getByRole('button', { name: 'Hiện quyết định' });
+    expect(screen.queryByRole('dialog', { name: 'Cổ tức' })).toBeNull();
+    await act(async () => { await vi.advanceTimersByTimeAsync(CARD_MINIMUM_VISIBLE_MS * 2); });
+    expect(screen.getByRole('button', { name: 'Hiện quyết định' })).toBe(oldRestoreKey);
+
+    // Both client controllers receive the same server-accepted close after the server minimum has elapsed.
+    fireEvent.click(screen.getByRole('button', { name: 'Player B dismisses card' }));
+    expect(actorController.store.getSnapshot().cardPresentation).toBeNull();
+    expect(observerController.store.getSnapshot().cardPresentation).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hiện quyết định' })).toBeNull();
+    const readableCard = screen.getByRole('dialog', { name: 'Cổ tức' });
+    fireEvent.click(oldRestoreKey);
+    expect(screen.getByRole('dialog', { name: 'Cổ tức' })).toBe(readableCard);
+
+    await advanceCardReadTime();
+    expect(screen.queryByRole('dialog', { name: 'Cổ tức' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hiện quyết định' })).toBeNull();
+    expect(observerController.store.getSnapshot().cardPresentation).toBeNull();
+    actorController.dispose();
+    observerController.dispose();
   });
 
   it('puts the focus on a player who is waiting on the dialog itself, not on a disabled button', () => {
@@ -206,6 +316,7 @@ describe('CardInteractionOverlay', () => {
   });
 
   it('gives the focus back to "Đóng" after a dismissal fails, so the keyboard keeps working', async () => {
+    vi.useFakeTimers();
     const controller = new PresentationController();
     const room = revealedRoom();
     controller.acceptRoomSnapshot(room, 'SESSION_SYNC');
@@ -216,6 +327,7 @@ describe('CardInteractionOverlay', () => {
       settle = resolve;
     }));
     renderOverlay(controller, room, { socketFunctions: socketFunctions({ dismissCard }) });
+    await advanceCardReadTime();
 
     closeButton().focus();
     fireEvent.click(closeButton());
@@ -235,12 +347,14 @@ describe('CardInteractionOverlay', () => {
   });
 
   it('sends dismiss once, disables immediately, and keeps the modal until the authoritative clear', async () => {
+    vi.useFakeTimers();
     const controller = new PresentationController();
     const room = revealedRoom();
     controller.acceptRoomSnapshot(room, 'SESSION_SYNC');
     let resolve: ((ack: Ack) => void) | undefined;
     const dismissCard = vi.fn(() => new Promise<Ack>(res => { resolve = res; }));
     const view = renderOverlay(controller, room, { socketFunctions: socketFunctions({ dismissCard }) });
+    await advanceCardReadTime();
     const button = closeButton();
 
     fireEvent.click(button);
@@ -257,12 +371,11 @@ describe('CardInteractionOverlay', () => {
     });
     expect(screen.getByRole('dialog')).toBeTruthy();
 
+    const clearedRoom = { ...room, version: room.version + 1, gameState: { ...room.gameState, turnInfo: {} } };
+    controller.acceptRoomSnapshot(clearedRoom, 'LIVE_UPDATE');
     view.rerender(
       <PresentationProvider controller={controller}>
-        <stateContext.Provider value={contextFor(
-          { ...room, gameState: { ...room.gameState, turnInfo: {} } },
-          { socketFunctions: socketFunctions({ dismissCard }) },
-        )}>
+        <stateContext.Provider value={contextFor(clearedRoom, { socketFunctions: socketFunctions({ dismissCard }) })}>
           <CardInteractionOverlay />
         </stateContext.Provider>
       </PresentationProvider>,
@@ -272,6 +385,7 @@ describe('CardInteractionOverlay', () => {
   });
 
   it('shows an inline failure and re-enables close without pretending the card resolved', async () => {
+    vi.useFakeTimers();
     const controller = new PresentationController();
     const room = revealedRoom();
     controller.acceptRoomSnapshot(room, 'SESSION_SYNC');
@@ -281,6 +395,7 @@ describe('CardInteractionOverlay', () => {
       error: { code: 'CONFLICT' as const, message: 'retry', retryable: true },
     }));
     renderOverlay(controller, room, { socketFunctions: socketFunctions({ dismissCard }) });
+    await advanceCardReadTime();
     const button = closeButton();
 
     await act(async () => {
@@ -356,11 +471,15 @@ describe('CardInteractionOverlay', () => {
     controller.dispose();
   });
 
-  it('puts focus on the close button for the acting player and on the dialog for everyone else', () => {
+  it('focuses the dialog until the actor can close it and the dialog for everyone else', async () => {
+    vi.useFakeTimers();
     const controller = new PresentationController();
     const room = revealedRoom();
     controller.acceptRoomSnapshot(room, 'SESSION_SYNC');
     const actor = renderOverlay(controller, room);
+    expect(closeButton().hasAttribute('data-modal-autofocus')).toBe(false);
+    expect(document.activeElement).toBe(screen.getByRole('dialog'));
+    await advanceCardReadTime();
     expect(closeButton().hasAttribute('data-modal-autofocus')).toBe(true);
     expect(document.activeElement).toBe(closeButton());
     actor.unmount();
@@ -370,7 +489,8 @@ describe('CardInteractionOverlay', () => {
     controller.dispose();
   });
 
-  it('waits indefinitely and survives a reconnect: the card stays, and close follows the connection', () => {
+  it('waits indefinitely and survives a reconnect: the card stays, and close follows the connection', async () => {
+    vi.useFakeTimers();
     const controller = new PresentationController();
     const room = revealedRoom('chance-dividend', 'chance', '2000-01-01T00:00:00.000Z');
     controller.acceptRoomSnapshot(room, 'SESSION_SYNC');
@@ -378,6 +498,8 @@ describe('CardInteractionOverlay', () => {
     const sockets = socketFunctions({ dismissCard });
     const view = renderOverlay(controller, room, { socketFunctions: sockets });
     expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(closeButton().disabled).toBe(true);
+    await advanceCardReadTime();
     expect(closeButton().disabled).toBe(false);
     expect(dismissCard).not.toHaveBeenCalled();
 
@@ -400,12 +522,12 @@ describe('CardInteractionOverlay', () => {
     controller.dispose();
   });
 
-  it('gives the card a plain fade under reduced motion and the tilted entrance otherwise', () => {
+  it('uses the shared Modal transition without a competing card entrance class', () => {
     const controller = new PresentationController();
     const room = revealedRoom();
     controller.acceptRoomSnapshot(room, 'SESSION_SYNC');
     const plain = renderOverlay(controller, room);
-    expect(screen.getByRole('dialog').className).not.toContain('card-modal--reduced-motion');
+    expect(screen.getByRole('dialog').className).toContain('card-modal');
     plain.unmount();
 
     render(
@@ -417,11 +539,11 @@ describe('CardInteractionOverlay', () => {
         </PresentationProvider>
       </SettingsProvider>,
     );
-    expect(screen.getByRole('dialog').className).toContain('card-modal--reduced-motion');
+    expect(screen.getByRole('dialog').className).toContain('card-modal');
     controller.dispose();
   });
 
-  it('also fades only when the operating system asks for reduced motion', () => {
+  it('keeps operating-system reduced motion in the shared Modal system', () => {
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: query.includes('prefers-reduced-motion'),
       media: query,
@@ -433,7 +555,7 @@ describe('CardInteractionOverlay', () => {
     controller.acceptRoomSnapshot(room, 'SESSION_SYNC');
     renderOverlay(controller, room);
 
-    expect(screen.getByRole('dialog').className).toContain('card-modal--reduced-motion');
+    expect(screen.getByRole('dialog').className).toContain('card-modal');
     controller.dispose();
   });
 
@@ -470,4 +592,48 @@ describe('CardInteractionOverlay', () => {
     expect(screen.getByRole('dialog', { name: 'Cổ tức' })).toBe(card);
     controller.dispose();
   });
+});
+
+describe('card readable visibility during motion and peek', () => {
+  it('credits only fully entered visible time, pauses on hide and resumes without resetting on restore', async () => {
+    vi.useFakeTimers();
+    const controller = new PresentationController();
+    const room = revealedRoom();
+    controller.acceptRoomSnapshot(room, 'SESSION_SYNC');
+    renderOverlay(controller, room);
+    await act(async () => { await vi.advanceTimersByTimeAsync(4000); });
+    expect(closeButton().disabled).toBe(true);
+    act(() => modalMotion.complete());
+    await act(async () => { await vi.advanceTimersByTimeAsync(1200); });
+    fireEvent.click(screen.getByRole('button', { name: 'Xem bàn cờ' }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    fireEvent.click(screen.getByRole('button', { name: 'Hiện quyết định' }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(4000); });
+    expect(closeButton().disabled).toBe(true);
+    act(() => modalMotion.complete());
+    await act(async () => { await vi.advanceTimersByTimeAsync(1700); });
+    expect(closeButton().disabled).toBe(true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(closeButton().disabled).toBe(false);
+    controller.dispose();
+  });
+});
+
+it('retains an unread observer card when the next operation arrives, and gives the next card its full window', async () => {
+  vi.useFakeTimers();
+  const controller = new PresentationController();
+  const room = revealedRoom();
+  controller.acceptRoomSnapshot(room, 'SESSION_SYNC');
+  renderOverlay(controller, room, { playerId: null, role: 'SPECTATOR', canMutate: false });
+  act(() => modalMotion.complete());
+  await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+  const first = controller.store.getSnapshot().cardPresentation!;
+  act(() => controller.store.setCardPresentation({ ...first, operationId: 'next-card', revealedCardId: 'chest-inheritance', deck: 'chest' }));
+  expect(screen.getByRole('dialog', { name: 'Cổ tức' })).toBeTruthy();
+  await act(async () => { await vi.advanceTimersByTimeAsync(1900); });
+  expect(screen.getByRole('dialog', { name: 'Cổ tức' })).toBeTruthy();
+  await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+  expect(screen.queryByRole('dialog', { name: 'Cổ tức' })).toBeNull();
+  expect(closeButton().textContent).toContain('3');
+  controller.dispose();
 });

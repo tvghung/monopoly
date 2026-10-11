@@ -125,7 +125,8 @@ export default function Log() {
   useEffect(() => {
     const wasOpen = previousOpenRef.current;
     previousOpenRef.current = panelOpen;
-    if (panelOpen && !wasOpen) panelRef.current?.focus();
+    if (panelOpen && !wasOpen) panelRef.current?.focus({ preventScroll: true });
+    if (!panelOpen && wasOpen && panelRef.current?.contains(document.activeElement)) toggleRef.current?.focus();
   }, [panelOpen]);
 
   useEffect(() => {
@@ -162,7 +163,7 @@ export default function Log() {
     }
   }, [latestActivitySequence, latestChatSequence, panelOpen, playerId, presentation.resetEpoch, visibleActivity]);
 
-  // A half-typed message does not survive closing the drawer: the field is gone and must not send in the dark.
+  // A half-typed message does not survive closing the drawer: the field is inert and must not send in the dark.
   useEffect(() => {
     if (!panelOpen) setChat('');
   }, [panelOpen]);
@@ -177,7 +178,7 @@ export default function Log() {
   const closeOnEscape = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key !== 'Escape' || !panelOpen || event.defaultPrevented) return;
     // A dialog owns Escape while it is open.
-    if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+    if (document.querySelector('[aria-modal="true"]')) return;
     event.preventDefault();
     setPanelOpen(false);
     toggleRef.current?.focus();
@@ -219,43 +220,42 @@ export default function Log() {
           ? <span id="board-log-new" className="center__room-new" data-testid="log-new-activity">{t('log.newActivity')}</span>
           : null}
       </button>
-      {panelOpen
-        ? (
-          <div
-            id="board-log-panel"
-            ref={panelRef}
-            className="center__room-panel"
-            data-hud-region="activity-drawer-panel"
-            data-hud-transient="true"
-            tabIndex={-1}
-          >
-            <section ref={scrollRef} className="center__log" role="log" aria-live="polite" aria-label={t('log.gameLog')}>
+      <div
+        ref={panelRef}
+        id="board-log-panel"
+        className="center__room-panel"
+        data-hud-region="activity-drawer-panel"
+        data-hud-transient="true"
+        tabIndex={-1}
+        aria-hidden={!panelOpen}
+        inert={!panelOpen}
+      >
+              <section ref={scrollRef} className="center__log" role="log" aria-live="polite" aria-label={t('log.gameLog')}>
               {state.loaded
                 ? entries
                 : <p>{t('board.loading')}</p>}
-            </section>
-            <section className="center__chat">
-              <form className="center__chat--form" onSubmit={sendChat}>
-                <input
-                  className="center__chat--input"
-                  aria-label={t('log.message')}
-                  disabled={!connected}
-                  onChange={e => setChat(e.target.value)}
-                  type="text"
-                  name="chat"
-                  id="chat"
-                  autoComplete="off"
-                  placeholder={t('log.messagePlaceholder')}
-                />
-                <button className="center__chat--button" type="submit" disabled={!connected}>
-                  <Send aria-hidden="true" size={16} strokeWidth={2.25} />
-                  <span>{t('log.send')}</span>
-                </button>
-              </form>
-            </section>
-          </div>
-        )
-        : null}
+              </section>
+              <section className="center__chat">
+                <form className="center__chat--form" onSubmit={sendChat}>
+                  <input
+                    className="center__chat--input"
+                    aria-label={t('log.message')}
+                    disabled={!connected}
+                    onChange={e => setChat(e.target.value)}
+                    value={chat}
+                    type="text"
+                    name="chat"
+                    id="chat"
+                    autoComplete="off"
+                    placeholder={t('log.messagePlaceholder')}
+                  />
+                  <button className="center__chat--button" type="submit" disabled={!connected}>
+                    <Send aria-hidden="true" size={16} strokeWidth={2.25} />
+                    <span>{t('log.send')}</span>
+                  </button>
+                </form>
+              </section>
+      </div>
     </section>
   );
 }

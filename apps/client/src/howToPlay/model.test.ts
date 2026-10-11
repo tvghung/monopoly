@@ -285,9 +285,12 @@ describe('every number in the text comes from the shared data', () => {
     const taxTiles = tileState.filter((tile) => tile.tileType === 'expense');
     expect(taxTiles).toHaveLength(2);
     for (const tile of taxTiles) {
-      expect(text).toContain(`${tile.streetName}\nNộp ${formatMoney(tile.expenseAmount ?? 0)} cho Ngân hàng.`);
+      const payment = typeof tile.expenseRate === 'number'
+        ? `Nộp ${tile.expenseRate * 100}% số tiền mặt hiện có (làm tròn xuống) cho Ngân hàng.`
+        : `Nộp ${formatMoney(tile.expenseAmount ?? 0)} cho Ngân hàng.`;
+      expect(text).toContain(`${tile.streetName}\n${payment}`);
     }
-    expect(taxTiles.map((tile) => tile.expenseAmount)).toEqual([150, 100]);
+    expect(taxTiles.map((tile) => [tile.expenseRate, tile.expenseAmount])).toEqual([[0.3, undefined], [undefined, 100]]);
     expect(text).toContain(`Nhận ${formatMoney(GO_REWARD)} khi đi qua hoặc dừng ở đây`);
     expect(text).toContain('Nghỉ ngơi. Không nhận và không mất gì.');
   });

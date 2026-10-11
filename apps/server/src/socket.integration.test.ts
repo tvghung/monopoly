@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import {
   BAIL_AMOUNT,
+  CARD_MINIMUM_VISIBLE_MS,
   createCanonicalDecks,
   SOCKET_PROTOCOL_VERSION,
   tileState,
@@ -1047,6 +1048,10 @@ describe('Socket.IO player lifecycle over the RAM store', () => {
       ok: false, error: { code: 'CONFLICT' },
     });
 
+    expect(await dismissCard(actor.socket, operationId)).toMatchObject({
+      ok: false, error: { code: 'CONFLICT' },
+    });
+    await new Promise((resolve) => setTimeout(resolve, CARD_MINIMUM_VISIBLE_MS));
     expect((await dismissCard(actor.socket, operationId)).ok).toBe(true);
     expect((await dismissCard(actor.socket, operationId)).ok).toBe(true);
     const resolved = await persistence.rooms.findById(host.room.roomId);

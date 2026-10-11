@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { parseBenchmarkSeconds, percentile, summarizeFrameIntervals } from './rendererBenchmark';
+import {
+  parseBenchmarkSeconds,
+  percentile,
+  summarizeFrameIntervals,
+  summarizeRendererFrames,
+} from './rendererBenchmark';
 
 describe('percentile', () => {
   it('uses nearest rank on an ascending array', () => {
@@ -18,11 +23,39 @@ describe('summarizeFrameIntervals', () => {
     const summary = summarizeFrameIntervals([...warmup, ...steady]);
 
     expect(summary.frames).toBe(20);
+    expect(summary.averageFrameMs).toBe(17.2);
+    expect(summary.averageFps).toBeCloseTo(1000 / 17.2, 5);
     expect(summary.medianFrameMs).toBe(16);
     expect(summary.p95FrameMs).toBe(16);
     expect(summary.maxFrameMs).toBe(40);
     expect(summary.medianFps).toBeCloseTo(62.5, 5);
     expect(summary.slowFrames).toBe(1);
+  });
+
+  it('summarizes actual scene submissions separately from browser animation callbacks', () => {
+    const warmup = Array.from({ length: 5 }, () => ({
+      timestampMs: 0, intervalMs: 0, cpuMs: 0, drawCalls: 0, triangles: 0,
+    }));
+    const steady = [10, 20, 30].map((intervalMs, index) => ({
+      timestampMs: index * intervalMs,
+      intervalMs,
+      cpuMs: intervalMs / 5,
+      drawCalls: 100 + index,
+      triangles: 1_000 + index * 100,
+    }));
+
+    expect(summarizeRendererFrames([...warmup, ...steady])).toEqual({
+      frames: 3,
+      averageFps: 50,
+      averageFrameMs: 20,
+      p95FrameMs: 30,
+      maxFrameMs: 30,
+      averageCpuMs: 4,
+      p95CpuMs: 6,
+      maxCpuMs: 6,
+      averageDrawCalls: 101,
+      averageTriangles: 1_100,
+    });
   });
 
   it('returns zeros when nothing was measured and ignores invalid samples', () => {

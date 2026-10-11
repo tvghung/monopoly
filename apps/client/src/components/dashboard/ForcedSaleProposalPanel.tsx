@@ -50,7 +50,7 @@ export default function ForcedSaleProposalPanel() {
       });
   };
 
-  if (!visible || !proposal) return null;
+  if (!visible || !proposal) return <Modal open={false} title="" children={null} />;
   const buyer = state.players[proposal.buyerPlayerId];
   const seller = state.players[proposal.sellerPlayerId];
   const buyerName = buyer?.name ?? t('forcedSale.buyer');

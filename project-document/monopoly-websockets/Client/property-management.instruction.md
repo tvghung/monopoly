@@ -29,6 +29,9 @@ stable `playerId` và derive mọi dòng của thẻ; `PropertyDeedCard` (`full`
 
 - Tên/type/color/price/base rent/rent tiers/build cost derive từ shared data; labels,
   tooltips/actions follow the selected VI/EN locale and all amounts use formatter VNĐ.
+- English hotel copy in the inspection modal is verified through `PropertyInspectionModal` passing the selected locale into
+  `buildDeedCardModel` and `PropertyDeedCard`; the test also switches language while the modal stays open. Keep hotel count,
+  rent guidance, build-cost label and `Hotel · <landmark>` in English. No missing translation was found in the audited path.
 - Hiển thị 1–4 Nhà hoặc Khách Sạn; payment-shortfall chỉ hiển thị gross forced-sale
   value do server chiếu.
 - Owner thấy hành động Bán Nhà khi phù hợp; non-owner thấy hành động mở TradeBundle
@@ -50,6 +53,7 @@ serialized room command (committed to the in-RAM aggregate); failure keeps state
 ## Tests
 
 - Canonical data/money/labels; owner/non-owner/spectator actions.
+- `PropertyInspectionModal.test.tsx`: English hotel copy after switching language in an already-open modal.
 - Landing development prompt, skip/build/hotel operations và forced-sale gross value.
 - Direct bilateral offer selection, private card identity và stale/reconnect behavior.
 - Revision/reconnect/save-failure consistency.

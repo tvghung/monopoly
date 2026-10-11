@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useEffectiveReducedMotion } from '../../../../settings/selectors';
 import { TileMotionController } from './TileMotionController';
 import type { TileImpactSignal } from './tileMotionTypes';
+import TileImpactProbe, { tileImpactProbeClock } from './TileImpactProbe';
 
 const tileMotionContext = createContext<TileMotionController | null>(null);
 
@@ -26,7 +27,12 @@ export default function TileMotionProvider({ impacts, resetEpoch, children }: Ti
   const invalidate = useThree(state => state.invalidate);
   const reducedMotion = useEffectiveReducedMotion();
   const controllerRef = useRef<TileMotionController | null>(null);
-  if (!controllerRef.current) controllerRef.current = new TileMotionController();
+  const probeEnabled = (import.meta.env.DEV || __PHASE4_UAT__)
+    && typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).has('tile-impact-probe');
+  if (!controllerRef.current) controllerRef.current = new TileMotionController(
+    probeEnabled ? { now: () => tileImpactProbeClock.now } : {},
+  );
   const controller = controllerRef.current;
   const initializedRef = useRef(false);
   const lastSequenceRef = useRef(0);
@@ -36,6 +42,11 @@ export default function TileMotionProvider({ impacts, resetEpoch, children }: Ti
     controller.setReducedMotion(reducedMotion);
     return () => controller.reset();
   }, [controller, invalidate, reducedMotion]);
+
+  // Advance before every batch reads offsets; child frame subscriptions otherwise run first.
+  useFrame(() => {
+    if (controller.advance()) invalidate();
+  }, -1);
 
   useEffect(() => {
     controller.reset();
@@ -53,7 +64,7 @@ export default function TileMotionProvider({ impacts, resetEpoch, children }: Ti
     lastSequenceRef.current = impacts.reduce((latest, impact) => Math.max(latest, impact.sequence), lastSequenceRef.current);
   }, [controller, impacts]);
 
-  return <tileMotionContext.Provider value={controller}>{children}</tileMotionContext.Provider>;
+  return <tileMotionContext.Provider value={controller}>{children}{probeEnabled ? <TileImpactProbe /> : null}</tileMotionContext.Provider>;
 }
 
 export function useTileMotionController(): TileMotionController | null {

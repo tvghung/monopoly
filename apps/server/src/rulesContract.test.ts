@@ -150,13 +150,13 @@ describe('rules.ts', () => {
     }
   });
 
-  it('keeps the tax tiles at the amounts the guide reads (150 and 100; they are charged, not free)', () => {
+  it('keeps Income Tax at 30% and Luxury Tax at 100 in shared board data', () => {
     const expense = tileState.flatMap((tile, index) => (
-      tile.tileType === 'expense' ? [{ index, name: tile.streetName, amount: tile.expenseAmount }] : []
+      tile.tileType === 'expense' ? [{ index, name: tile.streetName, amount: tile.expenseAmount, rate: tile.expenseRate }] : []
     ));
     expect(expense).toEqual([
-      { index: 4, name: 'Thuế Thu Nhập', amount: 150 },
-      { index: 38, name: 'Thuế Xa Xỉ', amount: 100 },
+      { index: 4, name: 'Thuế Thu Nhập', amount: undefined, rate: 0.3 },
+      { index: 38, name: 'Thuế Xa Xỉ', amount: 100, rate: undefined },
     ]);
   });
 });
@@ -278,7 +278,10 @@ describe('rules.ts agrees with the server', () => {
       const state = makeState();
       state.players.p1.currentTile = index;
       resolveTile(state, 'p1', 0);
-      expect(state.players.p1.accountBalance, tile.streetName).toBe(STARTING_CASH - (tile.expenseAmount ?? 0));
+      const amount = typeof tile.expenseRate === 'number'
+        ? Math.floor(STARTING_CASH * tile.expenseRate)
+        : tile.expenseAmount ?? 0;
+      expect(state.players.p1.accountBalance, tile.streetName).toBe(STARTING_CASH - amount);
       expect(state.players.p2.accountBalance, 'nobody else is paid').toBe(STARTING_CASH);
     }
   });

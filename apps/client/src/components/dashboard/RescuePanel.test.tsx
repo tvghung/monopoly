@@ -64,11 +64,12 @@ function renderAs(playerId: string, state: PublicGameState, socketFunctions: Par
       ...socketFunctions,
     },
   };
-  return render(
+  const view = render(
     <stateContext.Provider value={value}>
       <DebtPanel />
     </stateContext.Provider>,
   );
+  return { ...view, context: value };
 }
 
 describe('Emergency Rescue', () => {
@@ -158,4 +159,18 @@ describe('Emergency Rescue', () => {
 
     expect(screen.getByRole('alertdialog', { name: 'Cần thanh toán' })).toBeTruthy();
   });
+});
+
+it('stops countdown intervals when retained rescue content is only exiting', () => {
+  const intervals = vi.spyOn(globalThis, 'setInterval');
+  const clear = vi.spyOn(globalThis, 'clearInterval');
+  const state = rescueState();
+  const view = renderAs('player-c', state);
+  const timers = intervals.mock.results.filter((result, index) => result.type === 'return' && intervals.mock.calls[index][1] === 1000)
+    .map(result => result.value as ReturnType<typeof setInterval>);
+  expect(timers.length).toBeGreaterThan(0);
+  const closedState = { ...state, boardState: { ...state.boardState, paymentShortfall: null } };
+  view.rerender(<stateContext.Provider value={{ ...view.context, state: closedState }}><DebtPanel /></stateContext.Provider>);
+  timers.forEach(timer => expect(clear).toHaveBeenCalledWith(timer));
+  expect(screen.queryByRole('alertdialog')).toBeNull();
 });

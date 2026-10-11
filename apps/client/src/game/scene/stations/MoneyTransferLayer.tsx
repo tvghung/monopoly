@@ -1,9 +1,10 @@
 import {
-  useEffect, useLayoutEffect, useMemo, useRef,
+  useLayoutEffect, useMemo, useRef,
 } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { BoardRenderModel } from '../board/boardRenderModel';
+import { getAnimationElapsedMs } from '../animationTime';
 import type { MoneyTransferSignal } from '../../presentation/store/types';
 import {
   COIN_FINISH_MATERIALS,
@@ -30,7 +31,7 @@ function TransferCoinFinish({
   indices: readonly number[];
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const elapsedRef = useRef(0);
+  const startedAtMsRef = useRef(0);
   const activeSequenceRef = useRef(0);
   const invalidate = useThree(state => state.invalidate);
   const object = useMemo(() => new THREE.Object3D(), []);
@@ -45,22 +46,22 @@ function TransferCoinFinish({
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }, [indices, signal.id]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (signal.sequence === activeSequenceRef.current) return;
     activeSequenceRef.current = signal.sequence;
-    elapsedRef.current = 0;
+    startedAtMsRef.current = performance.now();
     invalidate();
   }, [invalidate, signal]);
 
-  useFrame((_, delta) => {
+  useFrame(() => {
     const mesh = meshRef.current;
     if (!mesh || signal.durationMs <= 0) return;
-    elapsedRef.current += delta * 1000;
+    const elapsedMs = getAnimationElapsedMs(startedAtMsRef.current);
     let active = false;
     indices.forEach((globalIndex, index) => {
       const delay = globalIndex * 0.055;
       const progress = THREE.MathUtils.clamp(
-        elapsedRef.current / signal.durationMs * 1.28 - delay,
+        elapsedMs / signal.durationMs * 1.28 - delay,
         0,
         1,
       );

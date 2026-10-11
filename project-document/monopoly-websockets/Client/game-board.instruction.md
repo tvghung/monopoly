@@ -71,8 +71,11 @@ Pipeline display state: [presentation-pipeline.instruction.md](./presentation-pi
   board/Troika dùng một local full-coverage ExtraBold TTF và callback sync invalidate
   demand frame. Các mẫu kiểm tra gồm `Cà Mau`, `Buôn Ma Thuột`, `Đà Nẵng`, `Phú Quốc`,
   `Công Ty Nước`, `Khí vận` và `Cơ hội`.
-- Scene dùng fixed orthographic camera và `frameloop="demand"` (callback async như SDF
-  text, texture hay post chain phải `invalidate`). Ánh sáng, môi trường, bàn và preset
+- Scene dùng fixed orthographic camera và một `DemandFrameScheduler` dựa trên invalidation. Canvas đặt
+  `frameloop="never"`; mọi `state.invalidate()` đi vào cùng scheduler, scheduler gọi R3F `advance` ở FPS cap đã chọn,
+  đổi RAF timestamp từ milliseconds sang seconds để giữ `useFrame` delta/time-based animation. Tối đa một frame đang chờ;
+  frame cuối vẫn được render, invalidation được gộp, timer chỉ chờ đến slot kế tiếp, và không có loop khi idle/ẩn tab.
+  Callback async như SDF text, texture hay post chain vẫn phải `invalidate`. Ánh sáng, môi trường, bàn và preset
   chất lượng nằm ở mục **Lighting, environment và graphics tiers** bên dưới. Budget:
   main pass target 210 draw calls, stress ceiling 240, target 80k triangles và hard
   ceiling 100k; định nghĩa main/shadow/post ở mục đó.
@@ -175,7 +178,33 @@ và 40 semantic tile buttons không đổi.
   draw call của pass màu scene, *shadow* là draw call của shadow map trong cùng frame,
   *post* là số pass full-screen của composer (`postPasses`) cùng số lần render full-screen
   nội bộ (`postRenders`). Diagnostics chỉ chạy trên localhost/UAT và tắt `gl.info.autoReset`.
-  Harness `benchmark=<giây>` ghi median/p95 frame time; `quality=<tier>` chọn preset.
+  Harness `benchmark=<giây>` tách browser RAF khỏi main-scene submissions, ghi average/p95 frame interval, đồng bộ CPU
+  render submission, long tasks, draw calls và triangles. Long Tasks API không cung cấp call-stack attribution, và GPU execution
+  time is not measured; scene submissions are not proof of physical display presentation. `quality=<tier>` chọn preset,
+  `fpsLimit=30|60|120|180|240` đặt cap cho benchmark.
+
+### v1.8.1 FPS investigation (2026-10-10)
+
+The first instrumented Chrome 155 hardware run on Windows used ANGLE Intel UHD Graphics 630 / D3D11, 1894×1054 drawing buffer, DPR 1,
+forced `low`, no real shadows or post-processing. Its board-readability fixture was replayed every two seconds; this needlessly reconstructed React state and makes that run unsuitable as a clean baseline. It measured 26.7 scene submissions/s, p95 interval 90.5 ms,
+142 draw calls and about 67.4k triangles; synchronous main-scene WebGL submission averaged 3.4 ms (p95 5.3 ms). The stress
+fixture averaged 18.9 submissions/s, p95 interval 158.2 ms, about 143 draw calls; CPU submission averaged 5.4 ms (p95 8.5 ms).
+Both stayed below the low-tier draw/triangle targets. Browser Long Tasks reported 19 tasks / 3.1 s total (max 766 ms) for
+board readability and 37 / 8.5 s (max 2342 ms) for stress. This confirms significant main-thread stalls in the UAT run, but
+does not attribute them to a production call site. CPU time inside `renderer.render` alone does not explain the measured
+frame intervals; GPU execution time and packaged-app scheduling remain unresolved. No hardware acceleration flags or visual
+quality reductions were applied. These UAT figures include browser/dev harness overhead and are not owner-machine acceptance.
+
+After the harness stopped replaying static fixtures, 10-second board-readability runs at caps 30 and 60 measured 26.1 and
+29.4 scene submissions/s respectively (mean intervals 38.4/34.0 ms; p95 61.8/41.2 ms). Synchronous scene submission CPU
+averaged 3.45/2.75 ms; each stayed near 141 draw calls and 67.4k triangles. The 30/60 runs still recorded 12/9 browser long
+tasks totalling 5.935/5.921 s (max 2.172/2.312 s). The 60-cap stress fixture measured 15.6 submissions/s, p95 interval
+162 ms, 6.49 ms mean scene-submission CPU, 142 draw calls, 67.4k triangles, and 24 long tasks totalling 9.016 s (max
+3.075 s). The browser RAF stream also had multi-second outliers. These figures show that render submission time and scene
+budgets alone do not account for the observed stalls; Long Tasks has no call-stack attribution here, and the stress fixture
+replays state every two seconds. No like-for-like post-change FPS improvement is established. Owner-side Chrome Performance
+recordings during a real dice roll and mascot move are needed to attribute the main-thread stalls; packaged-app and physical
+GPU timings remain unmeasured.
 
 ## Game HUD (Visual Overhaul V2 plan 03)
 
@@ -396,3 +425,17 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
 - `Phase4UatHarness` board-readability fixture at `1280×720`, `1440×900` and
   `1920×1080`, covering four corners, all four runs, short/two-line Vietnamese
   names, special icons, unowned/owned/1–4 Nhà/Khách sạn and flag+building states.
+
+## Motion and render scheduling
+
+- Character hops use the last rendered transform as the next segment origin, a monotonic start timestamp, linear tile-to-tile travel, a restrained arc, light stretch/contact squash and a grounded shadow. Jail transfer and slot reflow keep their separate paths; Reduced Motion still snaps to the correct anchor.
+- Dice retain authoritative faces and the existing 640 ms roll/contact timing. Balanced draws one dice-local translucent trail mesh per die; High draws two; Low and Reduced Motion draw none. Trails reuse each die's geometry, live outside the die transform, and fade before the result settles. Reduced Motion lowers tumble to one turn. No full-scene blur was added.
+- Tile depression, rebound and the instanced landing highlight remain driven by `TileMotionController`. Its samples run at R3F frame priority -1, before body/surface/highlight/house batch readers at priority 0, so one demand scheduler applies the selected 30/60/120/180/240 FPS cap. The controller stops invalidating after the effect completes.
+- Destination preview keeps the active player's color and existing tile-local surface/frame. Its 460 ms pulse uses absolute elapsed time; Reduced Motion shows a steady highlight. The preview is removed by the existing presentation lifecycle.
+- Finite scene effects use elapsed monotonic time; FPS limits affect sampling frequency, not intended duration. Idle rendering remains demand-driven. Transparent dice trails add one or two small local draws per die at Balanced/High; Low and Reduced Motion retain the lower-cost path.
+
+### Tile-layer refinement evidence
+
+The final refinement reproduced a frame-order defect: registered TilePressRoot content received the new offset after instanced body and white-pebble footer had already sampled the previous offset. The light footer temporarily occluded attached text/art. Controller priority -1 makes every attached layer use the same displayed-frame offset without changing geometry, materials, press depths, timing, batching or socket height.
+
+`TileMotionProvider.test.ts` checks real controller/root/body/surface offsets at start/peak/rebound/rest across all 40 tiles; controller tests cover overlapping impacts and neutral recovery. Dev/UAT-only `?tile-impact-probe=1` supplies a frozen clock and after-render matrix/image sampling via `TileImpactProbe.tsx`. `e2e/visual/refinement.visual.ts` captures the physical lifecycle on all sides/corners and checks modal/peek/Journal motion. This probe is disabled in normal production.

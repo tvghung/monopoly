@@ -323,7 +323,9 @@ function jailSection(): HowToPlaySection {
 // 6. Thuế và ô đặc biệt.
 function tilesSection(): HowToPlaySection {
   const taxRows: HowToPlayTableRow[] = tilesOfType('expense').map((tile) => ({
-    cells: [tileName(tileState.indexOf(tile)), `Nộp ${money(tile.expenseAmount ?? 0)} cho Ngân hàng.`],
+    cells: [tileName(tileState.indexOf(tile)), typeof tile.expenseRate === 'number'
+      ? `Nộp ${tile.expenseRate * 100}% số tiền mặt hiện có (làm tròn xuống) cho Ngân hàng.`
+      : `Nộp ${money(tile.expenseAmount ?? 0)} cho Ngân hàng.`],
   }));
   const first = (type: TileType): string => tileName(tileState.indexOf(tilesOfType(type)[0]));
   return {

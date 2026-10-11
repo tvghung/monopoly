@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -60,10 +61,12 @@ export interface ModalProps {
    * is read-only (`useDecisionHidden`).
    */
   peek?: ModalPeek;
-  /** A hidden dialog is shown again when this changes: a different decision has taken its place. */
+  /** A hidden dialog is shown again when its active decision changes or ends. */
   peekKey?: string | number;
   /** A compact status (for example the seconds left of a debt) drawn beside the floating "show decision" key. */
   peekSummary?: ReactNode;
+  /** True only after entrance/restore completes; false immediately on peek/close. */
+  onVisibleChange?: (visible: boolean) => void;
 }
 
 const SIZE_CLASS: Record<ModalSize, string> = {
@@ -138,6 +141,7 @@ function ModalSurface({
   peek,
   peekKey,
   peekSummary,
+  onVisibleChange,
 }: Omit<ModalProps, 'open'>) {
   const { t } = useTranslation();
   const reduced = useEffectiveReducedMotion();
@@ -160,14 +164,24 @@ function ModalSurface({
   const [peekAnchor, setPeekAnchor] = useState<PeekAnchor | null>(null);
   const [peekId] = useState(() => Symbol('modal-peek'));
   const peekKeyRef = useRef(peekKey);
+  const readableRef = useRef(false);
+  const interactiveRef = useRef(true);
+  useLayoutEffect(() => {
+    interactiveRef.current = isPresent && !peeking;
+    if (!interactiveRef.current) readableRef.current = false;
+    onVisibleChange?.(interactiveRef.current && readableRef.current);
+  }, [isPresent, onVisibleChange, peeking]);
   const ownsRestoreKey = useOwnsRestoreKey(peekId);
   const showDialog = useCallback(() => {
+    if (!isPresent) return;
+    if (entryRef.current) entryRef.current.peeking = false;
     setPeeking(false);
     setFocusRestoreKey(false);
-  }, []);
+  }, [isPresent]);
   const hideDialog = useCallback(() => {
     const key = dialogRef.current?.querySelector<HTMLElement>('[data-modal-peek]')?.getBoundingClientRect();
     setPeekAnchor(key ? { top: key.top, left: key.left, width: key.width, height: key.height } : null);
+    if (entryRef.current) entryRef.current.peeking = true;
     setPeeking(true);
     setFocusRestoreKey(true);
   }, []);
@@ -183,18 +197,22 @@ function ModalSurface({
   useEffect(() => {
     if (entryRef.current) entryRef.current.peeking = peeking;
     // Shown again by the player: the eye key they pressed is where the keyboard continues.
-    if (wasPeeking.current && !peeking) dialogRef.current?.querySelector<HTMLElement>('[data-modal-peek]')?.focus();
+    if (wasPeeking.current && !peeking && interactiveRef.current) {
+      dialogRef.current?.querySelector<HTMLElement>('[data-modal-peek]')?.focus();
+    }
     wasPeeking.current = peeking;
-  }, [peeking]);
+  }, [isPresent, peeking]);
 
   // A different decision has replaced the one that was hidden: show it, and start in it as a freshly opened dialog does.
   useEffect(() => {
     if (peekKeyRef.current === peekKey) return;
     peekKeyRef.current = peekKey;
-    if (!wasPeeking.current) return;
+    if (!isPresent || !wasPeeking.current) return;
     showDialog();
-    queueMicrotask(() => focusInto(dialogRef.current));
-  }, [peekKey, showDialog]);
+    queueMicrotask(() => {
+      if (interactiveRef.current) focusInto(dialogRef.current);
+    });
+  }, [isPresent, peekKey, showDialog]);
 
   useEffect(() => {
     if (openerRef.current === undefined) {
@@ -246,30 +264,38 @@ function ModalSurface({
   }, [closeOnEscape]);
 
   const handleBackdropClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (closeOnOutsideClick && event.target === event.currentTarget) onClose?.();
+    if (isPresent && !peeking && closeOnOutsideClick && event.target === event.currentTarget) onClose?.();
   };
 
   const sheet = placement === 'sheet';
-  // Enter 280 ms (scale + fade, or a short rise for the sheet), exit 200 ms; reduced motion is a 120 ms fade.
-  const cardMotion = reduced
-    ? {
-      initial: { opacity: 0 },
-      animate: { opacity: 1, transition: { duration: motionDuration.micro } },
-      exit: { opacity: 0, transition: { duration: motionDuration.micro } },
-    }
-    : {
-      initial: sheet ? { opacity: 0, y: 24 } : { opacity: 0, scale: 0.96 },
-      animate: { opacity: 1, y: 0, scale: 1, transition: { duration: motionDuration.panel, ease: motionEase.out } },
-      exit: {
-        opacity: 0,
-        ...(sheet ? { y: 16 } : { scale: 0.97 }),
-        transition: { duration: motionDuration.ui, ease: motionEase.out },
-      },
-    };
+  // Preserve the earlier curves; the overlay alone owns opacity, so fades do not multiply.
+  const printedCard = className.split(' ').includes('card-modal');
+  const enterDuration = reduced ? motionDuration.micro : printedCard ? 0.32 : motionDuration.panel;
+  const transition = { duration: peeking ? motionDuration.ui : enterDuration, ease: motionEase.out };
+  const resting = { y: 0, scale: 1, rotate: 0 };
+  const entrance = reduced ? resting
+    : printedCard ? { y: 32, scale: 1, rotate: -2 }
+    : { y: sheet ? 24 : 12, scale: sheet ? 1 : 0.96, rotate: 0 };
+  const departure = reduced ? resting : { y: sheet ? 16 : 8, scale: 0.97, rotate: 0 };
+  const cardMotion = {
+    initial: entrance,
+    animate: resting,
+    exit: { ...departure, transition: { duration: reduced ? motionDuration.micro : motionDuration.ui, ease: motionEase.out } },
+    transition,
+  };
   const overlayMotion = {
-    initial: { opacity: 0 },
-    animate: { opacity: 1, transition: { duration: reduced ? motionDuration.micro : motionDuration.ui } },
-    exit: { opacity: 0, transition: { duration: reduced ? motionDuration.micro : motionDuration.ui } },
+    initial: 'hidden',
+    animate: peeking ? 'hidden' : 'visible',
+    exit: 'hidden',
+    variants: {
+      visible: { opacity: 1, transition: { duration: enterDuration, ease: motionEase.out } },
+      hidden: { opacity: 0, transition: { duration: reduced ? motionDuration.micro : motionDuration.ui, ease: motionEase.out } },
+    },
+    onAnimationComplete: (definition: unknown) => {
+      if (definition !== 'visible' || !interactiveRef.current) return;
+      readableRef.current = true;
+      onVisibleChange?.(true);
+    },
   };
   const cardStyle = headerAccent ? ({ '--ds-modal-accent': headerAccent } as CSSProperties) : undefined;
 
@@ -279,8 +305,9 @@ function ModalSurface({
         className={`ds-modal__overlay ds-modal__overlay--${placement} ds-modal__overlay--${backdrop} ds-modal__overlay--${layer}`}
         data-exiting={isPresent ? undefined : 'true'}
         data-peeking={peeking ? 'true' : undefined}
-        // A hidden dialog takes no space, no pointer input and no part in the accessibility tree; its content stays mounted.
-        hidden={peeking}
+        // Semantic hiding is immediate; mounted pixels finish fading without blocking the board.
+        inert={!isPresent || peeking}
+        aria-hidden={!isPresent || peeking ? true : undefined}
         onMouseDown={handleBackdropClick}
         {...overlayMotion}
       >
@@ -295,9 +322,9 @@ function ModalSurface({
           ].filter(Boolean).join(' ')}
           style={cardStyle}
           role={role}
-          aria-modal={isPresent ? 'true' : undefined}
-          aria-hidden={isPresent ? undefined : true}
-          inert={!isPresent}
+          aria-modal={isPresent && !peeking ? 'true' : undefined}
+          aria-hidden={isPresent && !peeking ? undefined : true}
+          inert={!isPresent || peeking}
           aria-labelledby={titleId}
           aria-describedby={describedBy}
           tabIndex={-1}

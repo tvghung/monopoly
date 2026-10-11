@@ -16,6 +16,7 @@ import {
   type TubeHouseEntry,
 } from './tubeHouseMeshes';
 import { getScaledConstructionBurstDuration } from './constructionTiming';
+import { getAnimationElapsedMs } from '../animationTime';
 import { getTubeHouseWorldPlacement } from './tubeHouseLayout';
 
 interface TubeHouseInstancesProps {
@@ -53,20 +54,25 @@ export default function TubeHouseInstances({ tiles, developmentChanges, reducedM
   const animationsRef = useRef<HouseAnimation[]>(animations);
   const entriesRef = useRef(entries);
   const tileIdsRef = useRef<number[]>([]);
-  const elapsedRef = useRef(new Map<string, number>());
+  const startedAtMsRef = useRef(new Map<string, number>());
   const offsetsRef = useRef(new Map<number, number>());
   const dirtyRef = useRef(true);
 
   useEffect(() => () => disposeTubeHouseMeshes(meshes), [meshes]);
 
   const writeMatrices = useCallback(() => {
+    const nowMs = performance.now();
     const byTile = new Map(animationsRef.current.map(animation => [animation.tileId, animation]));
     writeTubeHouseMatrices(
       meshes,
       entriesRef.current,
       entry => {
         const animation = byTile.get(entry.tileId);
-        return getHouseScale(entry, animation, animation ? elapsedRef.current.get(animation.id) ?? 0 : 0);
+        return getHouseScale(
+          entry,
+          animation,
+          animation ? getAnimationElapsedMs(startedAtMsRef.current.get(animation.id) ?? nowMs, nowMs) : 0,
+        );
       },
       tileId => offsetsRef.current.get(tileId) ?? motionController?.getTileOffsetY(tileId) ?? 0,
     );
@@ -76,24 +82,26 @@ export default function TubeHouseInstances({ tiles, developmentChanges, reducedM
     animationsRef.current = animations;
     entriesRef.current = entries;
     tileIdsRef.current = [...new Set(entries.map(entry => entry.tileId))];
-    // Forget clocks of animations that are gone; a new one starts at zero.
+    // Keep each build's start time only while its signal is present.
+    const nowMs = performance.now();
     const live = new Set(animations.map(animation => animation.id));
-    for (const id of [...elapsedRef.current.keys()]) if (!live.has(id)) elapsedRef.current.delete(id);
+    for (const id of [...startedAtMsRef.current.keys()]) if (!live.has(id)) startedAtMsRef.current.delete(id);
+    for (const animation of animations) {
+      if (!startedAtMsRef.current.has(animation.id)) startedAtMsRef.current.set(animation.id, nowMs);
+    }
     applyTubeHouseColors(meshes, entries);
     writeMatrices();
     dirtyRef.current = false;
     invalidate();
   }, [animations, entries, invalidate, meshes, writeMatrices]);
 
-  useFrame((_, delta) => {
+  useFrame(() => {
+    const nowMs = performance.now();
     const running = animationsRef.current;
     let moving = false;
     for (const animation of running) {
-      const elapsed = elapsedRef.current.get(animation.id) ?? 0;
-      if (elapsed < animation.durationMs) {
-        elapsedRef.current.set(animation.id, elapsed + delta * 1000);
-        moving = true;
-      }
+      const startedAtMs = startedAtMsRef.current.get(animation.id) ?? nowMs;
+      if (getAnimationElapsedMs(startedAtMs, nowMs) < animation.durationMs) moving = true;
     }
     // A tile pressed by a token moves its houses with it.
     let pressed = false;

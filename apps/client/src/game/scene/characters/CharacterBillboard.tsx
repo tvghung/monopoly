@@ -24,12 +24,14 @@ import {
   sampleCharacterSlotReflow,
 } from './characterMotion';
 import { resolvePresentationDuration } from '../../presentation/timings';
+import { getAnimationElapsedMs } from '../animationTime';
 import { CharacterReactionController } from './characterReaction';
 import CharacterStandee, { applyStandeeOpacity } from './CharacterStandee';
 import { syncStandeeBasesNow } from './standeeBaseRegistry';
 import { STANDEE_HEADING_Y } from './standeeMaterial';
 import ContactShadow from '../fx/ContactShadow';
 import { useRenderQuality } from '../render/RenderQualityContext';
+import { recordCharacterMovementTrace } from '../../presentation/movementTrace';
 
 interface CharacterBillboardProps {
   player: CharacterPlayerModel;
@@ -46,14 +48,18 @@ type CharacterMotionKind = 'TILE_HOP' | 'JAIL_TRANSFER' | 'SLOT_REFLOW';
 
 interface ActiveCharacterMotion {
   kind: CharacterMotionKind;
+  sequence: number;
+  fromTileId: number;
+  toTileId: number;
+  rollSequence?: number;
   from: THREE.Vector3;
   to: THREE.Vector3;
-  elapsedMs: number;
+  startedAtMs: number;
   durationMs: number;
 }
 
 interface ActiveLanding {
-  elapsedMs: number;
+  startedAtMs: number;
   durationMs: number;
 }
 
@@ -112,6 +118,7 @@ export default function CharacterBillboard({
   const movementSequenceRef = useRef(0);
   const landingSequenceRef = useRef(0);
   const lastReactionSequenceRef = useRef<number | null>(null);
+  const frameSequenceRef = useRef(0);
   const bodyPositionScratchRef = useRef(new THREE.Vector3());
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
   const invalidate = useThree(state => state.invalidate);
@@ -134,6 +141,11 @@ export default function CharacterBillboard({
   }, []);
 
   useEffect(() => {
+    recordCharacterMovementTrace({ stage: 'SCENE_MOUNT', playerId: player.playerId });
+    return () => recordCharacterMovementTrace({ stage: 'SCENE_UNMOUNT', playerId: player.playerId });
+  }, [player.playerId]);
+
+  useEffect(() => {
     setTexture(null);
     return acquireCharacterTexture(player.characterId, player.color, nextTexture => {
       setTexture(nextTexture);
@@ -144,7 +156,7 @@ export default function CharacterBillboard({
     });
   }, [invalidate, player.characterId, player.color]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const group = groupRef.current;
     const ground = groundGroupRef.current;
     const body = bodyGroupRef.current;
@@ -209,6 +221,24 @@ export default function CharacterBillboard({
     pendingMovementSignals.forEach(signal => {
       movementSequenceRef.current = signal.sequence;
       movementSignalHandled = true;
+      recordCharacterMovementTrace({
+        stage: signal.transition === 'SNAP'
+          ? 'BILLBOARD_SNAP'
+          : signal.phase === 'START' ? 'BILLBOARD_START' : 'BILLBOARD_COMPLETE',
+        playerId: player.playerId,
+        sequence: signal.sequence,
+        transition: signal.transition,
+        fromTileId: signal.fromTileId,
+        toTileId: signal.toTileId,
+        playerTileId: player.tileId,
+        durationMs: signal.durationMs,
+        rollSequence: signal.rollSequence,
+        resetEpoch,
+        displayTileId: player.tileId,
+        settledTileId: player.settledTileId,
+        targetAnchor: effectTarget.toArray(),
+        position: [group.position.x, body.position.y, group.position.z],
+      });
       if (signal.transition === 'SNAP') {
         activeMotionRef.current = null;
         activeLandingRef.current = null;
@@ -226,10 +256,10 @@ export default function CharacterBillboard({
       }
 
       if (signal.phase === 'START') {
-        const from = signalAnchor(
-          signal.fromTileId,
-          signal.fromSlotIndex,
-          signal.fromOccupantCount,
+        const from = new THREE.Vector3(
+          group.position.x,
+          group.position.y + body.position.y,
+          group.position.z,
         );
         const to = signalAnchor(
           signal.toTileId,
@@ -253,9 +283,13 @@ export default function CharacterBillboard({
         activeLandingRef.current = null;
         activeMotionRef.current = {
           kind: signal.transition === 'JAIL_TRANSFER' ? 'JAIL_TRANSFER' : 'TILE_HOP',
+          sequence: signal.sequence,
+          fromTileId: signal.fromTileId,
+          toTileId: signal.toTileId,
+          rollSequence: signal.rollSequence,
           from,
           to,
-          elapsedMs: 0,
+          startedAtMs: signal.startedAtMs ?? performance.now(),
           durationMs: signal.durationMs,
         };
         return;
@@ -289,7 +323,7 @@ export default function CharacterBillboard({
         return;
       }
       activeLandingRef.current = {
-        elapsedMs: 0,
+        startedAtMs: performance.now(),
         durationMs: signal.durationMs,
       };
     });
@@ -342,9 +376,12 @@ export default function CharacterBillboard({
     ) {
       activeMotionRef.current = {
         kind: 'SLOT_REFLOW',
+        sequence: movementSequenceRef.current,
+        fromTileId: player.tileId,
+        toTileId: player.tileId,
         from: previousAnchor.clone(),
         to: effectTarget.clone(),
-        elapsedMs: 0,
+        startedAtMs: performance.now(),
         durationMs: resolvePresentationDuration(CHARACTER_SLOT_REFLOW_DURATION_MS, animationSpeedMultiplier),
       };
     }
@@ -358,6 +395,8 @@ export default function CharacterBillboard({
     landingSignals,
     movementSignals,
     occupantCount,
+    player.playerId,
+    player.settledTileId,
     player.tileId,
     reducedMotion,
     resetEpoch,
@@ -369,14 +408,16 @@ export default function CharacterBillboard({
     tileMotionOffsetYSnapshot,
   ]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!reaction || reaction.sequence === lastReactionSequenceRef.current) return;
     lastReactionSequenceRef.current = reaction.sequence;
     reactionControllerRef.current.start(reaction.kind, reaction.durationMs);
     invalidate();
   }, [invalidate, reaction]);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
+    const nowMs = performance.now();
+    const frameSequence = ++frameSequenceRef.current;
     const group = groupRef.current;
     const ground = groundGroupRef.current;
     const body = bodyGroupRef.current;
@@ -398,13 +439,18 @@ export default function CharacterBillboard({
     let movementActive = false;
 
     const motion = activeMotionRef.current;
+    const latestMovement = movementSignals.at(-1);
+    const pendingSignal = latestMovement?.phase === 'START'
+      && latestMovement.sequence > movementSequenceRef.current
+      ? latestMovement
+      : null;
     if (motion) {
-      motion.elapsedMs += delta * 1000;
+      const elapsedMs = getAnimationElapsedMs(motion.startedAtMs, nowMs);
       const sample = motion.kind === 'TILE_HOP'
-        ? sampleCharacterHop(motion.elapsedMs, motion.from, motion.to, motion.durationMs)
+        ? sampleCharacterHop(elapsedMs, motion.from, motion.to, motion.durationMs)
         : motion.kind === 'JAIL_TRANSFER'
-          ? sampleCharacterJailTransfer(motion.elapsedMs, motion.from, motion.to, motion.durationMs)
-          : sampleCharacterSlotReflow(motion.elapsedMs, motion.from, motion.to, motion.durationMs);
+          ? sampleCharacterJailTransfer(elapsedMs, motion.from, motion.to, motion.durationMs)
+          : sampleCharacterSlotReflow(elapsedMs, motion.from, motion.to, motion.durationMs);
       bodyPosition.set(...sample.position);
       bodyRotationZ = sample.rotationZ;
       bodyScaleX = sample.scaleXZ;
@@ -414,6 +460,31 @@ export default function CharacterBillboard({
       movementActive = !sample.done;
       if (sample.done) activeMotionRef.current = null;
     }
+    if (motion || pendingSignal) {
+      recordCharacterMovementTrace({
+        stage: 'FRAME',
+        playerId: player.playerId,
+        sequence: motion?.sequence ?? pendingSignal?.sequence,
+        fromTileId: motion?.fromTileId ?? pendingSignal?.fromTileId,
+        toTileId: motion?.toTileId ?? pendingSignal?.toTileId,
+        playerTileId: player.tileId,
+        displayTileId: player.tileId,
+        settledTileId: player.settledTileId,
+        rollSequence: motion?.rollSequence ?? pendingSignal?.rollSequence,
+        resetEpoch,
+        frameSequence,
+        schedulerTimestampMs: state.clock.elapsedTime * 1_000,
+        targetAnchor: targetX === undefined || targetY === undefined || targetZ === undefined
+          ? undefined
+          : [targetX, targetY, targetZ],
+        activeSequence: motion?.sequence ?? null,
+        pendingSignal: pendingSignal !== null,
+        elapsedMs: motion ? getAnimationElapsedMs(motion.startedAtMs, nowMs) : undefined,
+        frameDeltaMs: delta * 1_000,
+        durationMs: motion?.durationMs ?? pendingSignal?.durationMs,
+        position: [bodyPosition.x, bodyPosition.y, bodyPosition.z],
+      });
+    }
 
     let landingActive = false;
     let landingOffsetY = 0;
@@ -422,8 +493,8 @@ export default function CharacterBillboard({
     let landingScaleY = 1;
     const landing = activeLandingRef.current;
     if (landing) {
-      landing.elapsedMs += delta * 1000;
-      const landingSample = sampleCharacterLanding(landing.elapsedMs, landing.durationMs);
+      const landingElapsedMs = getAnimationElapsedMs(landing.startedAtMs, nowMs);
+      const landingSample = sampleCharacterLanding(landingElapsedMs, landing.durationMs);
       landingOffsetY = landingSample.offsetY;
       landingRotationZ = landingSample.rotationZ;
       landingScaleX = landingSample.scaleX;
@@ -433,7 +504,7 @@ export default function CharacterBillboard({
     }
 
     const reactionWasActive = reactionControllerRef.current.getState() !== null;
-    const reactionSample = reactionControllerRef.current.advance(delta * 1000, reducedMotion);
+    const reactionSample = reactionControllerRef.current.advanceAt(nowMs, reducedMotion);
     const reactionActive = reactionWasActive || !reactionSample.done;
     const currentTileMotionOffsetY = tileMotionController?.getTileOffsetY(player.tileId) ?? 0;
     const activeHop = activeMotionRef.current?.kind === 'TILE_HOP'
@@ -442,7 +513,7 @@ export default function CharacterBillboard({
       : null;
     const bodyTileOffsetY = getCharacterBodyTileOffsetY(
       currentTileMotionOffsetY,
-      activeHop !== null && activeHop.elapsedMs < activeHop.durationMs * 0.9,
+      activeHop !== null && getAnimationElapsedMs(activeHop.startedAtMs, nowMs) < activeHop.durationMs * 0.9,
     );
     const grounding = getCharacterGroundingTransforms(
       [bodyPosition.x, bodyPosition.y, bodyPosition.z],

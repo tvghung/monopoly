@@ -188,7 +188,9 @@ function jailSection(): HowToPlaySection {
 }
 
 function tilesSection(): HowToPlaySection {
-  const taxes = tilesOfType('expense').map(tile => ({ cells: [tileName(tileState.indexOf(tile)), `Pay ${money(tile.expenseAmount ?? 0)} to the Bank.`] }));
+  const taxes = tilesOfType('expense').map(tile => ({ cells: [tileName(tileState.indexOf(tile)), typeof tile.expenseRate === 'number'
+    ? `Pay ${tile.expenseRate * 100}% of your current cash, rounded down, to the Bank.`
+    : `Pay ${money(tile.expenseAmount ?? 0)} to the Bank.`] }));
   const first = (type: TileType) => tileName(tileState.findIndex(tile => tile.tileType === type));
   return { id: 'tiles', title: sections.tiles, blocks: [
     table('Special spaces', ['Space', 'What happens when you land here'], [

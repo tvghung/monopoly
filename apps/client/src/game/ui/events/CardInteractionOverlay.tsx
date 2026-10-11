@@ -1,9 +1,8 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { allGameCards, gameCardsById, type CardDeck, type GameCard } from '@monopoly/shared';
+import { allGameCards, CARD_MINIMUM_VISIBLE_MS, gameCardsById, type CardDeck, type GameCard } from '@monopoly/shared';
 import stateContext from '../../../internal';
 import Button from '../../../design-system/components/Button/Button';
 import Modal from '../../../design-system/components/Modal/Modal';
-import { useEffectiveReducedMotion } from '../../../settings/selectors';
 import { usePresentation } from '../../presentation/PresentationProvider';
 import { cardVisualFor, type CardVisualDefinition } from './cardVisuals';
 import './CardInteractionOverlay.css';
@@ -98,30 +97,65 @@ export default function CardInteractionOverlay() {
   const { language, t } = useTranslation();
   const { state, playerId, role, canMutate, connected, socketFunctions } = useContext(stateContext);
   const { state: presentation } = usePresentation();
-  const reducedMotion = useEffectiveReducedMotion();
   const pendingCard = state.turnInfo.pendingCardInteraction;
-  const cardPresentation = pendingCard
-    && presentation.cardPresentation?.operationId === pendingCard.operationId
-    ? presentation.cardPresentation
-    : null;
-  const cardId = pendingCard?.revealedCardId;
-  const pendingOperationId = pendingCard?.operationId;
+  const cardPresentation = presentation.cardPresentation;
+  const [retainedCardPresentation, setRetainedCardPresentation] = useState(
+    cardPresentation?.stage === 'REVEALED' ? cardPresentation : null,
+  );
+  const resetEpochRef = useRef(presentation.presentationResetEpoch);
+  const [readTime, setReadTime] = useState<{ operationId: string | null; remainingMs: number }>({
+    operationId: null,
+    remainingMs: CARD_MINIMUM_VISIBLE_MS,
+  });
+  const readingVisibleRef = useRef(false);
+  const lastReadTickRef = useRef(0);
+  const onCardVisibleChange = useCallback((visible: boolean) => {
+    readingVisibleRef.current = visible;
+    lastReadTickRef.current = performance.now();
+  }, []);
+  const retainedRemainingMs = readTime.operationId === retainedCardPresentation?.operationId
+    ? readTime.remainingMs
+    : CARD_MINIMUM_VISIBLE_MS;
+  useEffect(() => {
+    if (resetEpochRef.current !== presentation.presentationResetEpoch) {
+      resetEpochRef.current = presentation.presentationResetEpoch;
+      setRetainedCardPresentation(cardPresentation?.stage === 'REVEALED' ? cardPresentation : null);
+      return;
+    }
+    if (cardPresentation?.stage === 'REVEALED'
+      && (!retainedCardPresentation || retainedRemainingMs === 0)) {
+      setRetainedCardPresentation(cardPresentation);
+    }
+  }, [cardPresentation, presentation.presentationResetEpoch, retainedCardPresentation, retainedRemainingMs]);
+  // An observer finishes reading the current card before a later operation replaces it.
+  const retainUnreadCard = Boolean(retainedCardPresentation && retainedRemainingMs > 0
+    && cardPresentation?.operationId !== retainedCardPresentation.operationId);
+  const visibleCardPresentation = retainUnreadCard ? retainedCardPresentation
+    : cardPresentation?.stage === 'REVEALED' ? cardPresentation : null;
+  const cardId = visibleCardPresentation?.stage === 'REVEALED' ? visibleCardPresentation.revealedCardId : undefined;
+  const pendingOperationId = visibleCardPresentation?.operationId;
+  const cardReadOperationId = pendingOperationId ?? null;
+  const remainingMs = readTime.operationId === cardReadOperationId ? readTime.remainingMs : CARD_MINIMUM_VISIBLE_MS;
   const card = cardId ? gameCardsById[cardId] : undefined;
   const localizedCard = cardId ? getCardPresentation(cardId, language) : undefined;
   const visual = cardId ? cardVisualFor(cardId, language) : undefined;
   const revealed = Boolean(
-    pendingCard?.stage === 'REVEALED'
+    visibleCardPresentation?.stage === 'REVEALED'
     && cardId
-    && cardPresentation?.stage === 'REVEALED'
-    && cardPresentation.revealedCardId === cardId
+    && visibleCardPresentation.revealedCardId === cardId
     && card
     && visual,
   );
-  const actor = Boolean(
-    pendingCard
-    && pendingCard.playerId === playerId
+  const localActor = Boolean(
+    visibleCardPresentation
+    && visibleCardPresentation.playerId === playerId
     && role === 'PLAYER'
     && canMutate
+  );
+  const actor = Boolean(
+    localActor
+    && pendingCard?.operationId === visibleCardPresentation?.operationId
+    && pendingCard?.stage === 'REVEALED'
     && connected,
   );
   const [dismissPending, setDismissPending] = useState(false);
@@ -131,6 +165,43 @@ export default function CardInteractionOverlay() {
   const observedOperationRef = useRef<string | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const descriptionId = pendingOperationId ? `card-dialog-description-${safeDomId(pendingOperationId)}` : undefined;
+  const peekKey = pendingCard?.operationId === pendingOperationId ? pendingOperationId : undefined;
+
+  useEffect(() => {
+    if (!cardReadOperationId) {
+      setReadTime({ operationId: null, remainingMs: CARD_MINIMUM_VISIBLE_MS });
+      return undefined;
+    }
+    let remainingMs = CARD_MINIMUM_VISIBLE_MS;
+    lastReadTickRef.current = performance.now();
+    setReadTime({ operationId: cardReadOperationId, remainingMs });
+    const tick = () => {
+      const now = performance.now();
+      if (document.visibilityState === 'visible' && readingVisibleRef.current) {
+        remainingMs = Math.max(0, remainingMs - (now - lastReadTickRef.current));
+      }
+      lastReadTickRef.current = now;
+      setReadTime({ operationId: cardReadOperationId, remainingMs });
+    };
+    const onVisibilityChange = () => { lastReadTickRef.current = performance.now(); };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    const interval = window.setInterval(tick, 100);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [cardReadOperationId]);
+
+  const canDismiss = actor && remainingMs <= 0;
+
+  useEffect(() => {
+    if (retainedRemainingMs === 0
+      && retainedCardPresentation
+      && pendingCard?.operationId !== retainedCardPresentation.operationId
+      && cardPresentation?.stage !== 'REVEALED') {
+      setRetainedCardPresentation(null);
+    }
+  }, [cardPresentation?.stage, pendingCard?.operationId, retainedRemainingMs, retainedCardPresentation]);
 
   useEffect(() => {
     const operationId = pendingCard?.operationId ?? null;
@@ -160,14 +231,14 @@ export default function CardInteractionOverlay() {
   useEffect(() => {
     if (!revealed || !pendingOperationId) return;
     const stage = stageRef.current;
-    const target = actor
+    const target = canDismiss
       ? stage?.querySelector<HTMLElement>('[data-modal-autofocus]')
       : stage?.closest<HTMLElement>('[role="dialog"]');
     target?.focus();
-  }, [actor, pendingOperationId, revealed]);
+  }, [canDismiss, pendingOperationId, revealed]);
 
   const dismiss = useCallback(async () => {
-    if (!revealed || !actor || !pendingCard || dismissPendingRef.current) return;
+    if (!revealed || !actor || remainingMs > 0 || !pendingCard || dismissPendingRef.current) return;
     const dismissCard = socketFunctions.dismissCard;
     if (!dismissCard) {
       setErrorKey('card.dismissUnavailable');
@@ -189,7 +260,7 @@ export default function CardInteractionOverlay() {
       setDismissPending(false);
       setErrorKey('card.dismissFailed');
     }
-  }, [actor, clearError, pendingCard, revealed, setAckError, setErrorKey, socketFunctions.dismissCard]);
+  }, [actor, clearError, pendingCard, remainingMs, revealed, setAckError, setErrorKey, socketFunctions.dismissCard]);
 
   const shown = revealed && card && visual ? { card, visual } : null;
   const deck = shown?.visual.deck ?? 'chance';
@@ -197,16 +268,17 @@ export default function CardInteractionOverlay() {
   return (
     <Modal
       open={shown !== null}
+      onVisibleChange={onCardVisibleChange}
       title={shown?.visual.title ?? ''}
       eyebrow={shown ? <DeckBadge deck={deck} language={language} /> : null}
       size="sm"
       layer="card"
       peek={actor ? 'decision' : 'view'}
-      peekKey={pendingOperationId ?? undefined}
+      peekKey={peekKey}
       describedBy={shown ? descriptionId : undefined}
       closeOnEscape={false}
       closeOnOutsideClick={false}
-      className={`card-modal card-face card-face--${deck}${reducedMotion ? ' card-modal--reduced-motion' : ''}`}
+      className={`card-modal card-face card-face--${deck}`}
     >
       {shown
         ? (
@@ -220,15 +292,15 @@ export default function CardInteractionOverlay() {
             <p id={descriptionId} className="card-face__message">{localizedCard?.message}</p>
             <div className="card-modal__actions">
               {dismissError ? <p className="card-modal__error" role="alert">{dismissError}</p> : null}
-              {!actor ? <p className="card-modal__helper">{t('card.waitingForPlayer')}</p> : null}
+              {!localActor || !connected ? <p className="card-modal__helper">{t('card.waitingForPlayer')}</p> : null}
               <Button
-                data-modal-autofocus={actor ? true : undefined}
+                data-modal-autofocus={canDismiss ? true : undefined}
                 size="lg"
                 busy={dismissPending}
-                disabled={!actor}
+                disabled={!canDismiss}
                 onClick={() => void dismiss()}
               >
-                {t('card.close')}
+                {remainingMs > 0 ? t('card.closeCountdown', { seconds: Math.ceil(remainingMs / 1000) }) : t('card.close')}
               </Button>
             </div>
           </div>

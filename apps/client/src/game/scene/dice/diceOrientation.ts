@@ -31,21 +31,35 @@ export function easeOutCubic(progress: number): number {
   return 1 - ((1 - clamped) ** 3);
 }
 
-export function getDiceTumbleTurns(rollSequence: number, dieIndex: 0 | 1): number {
-  return 2 + ((Math.max(0, rollSequence) + dieIndex) % 3);
+export function getDiceTumbleTurns(rollSequence: number, dieIndex: 0 | 1, reducedMotion = false): number {
+  return reducedMotion ? 1 : 2 + ((Math.max(0, rollSequence) + dieIndex) % 3);
+}
+
+export function getDiceMotionTrailOpacity(
+  progress: number,
+  tier: 'high' | 'balanced' | 'low',
+  reducedMotion = false,
+): number {
+  const clamped = Math.min(1, Math.max(0, progress));
+  if (reducedMotion || tier === 'low' || clamped >= 0.72) return 0;
+  const peakOpacity = tier === 'high' ? 0.15 : 0.08;
+  return peakOpacity * (1 - clamped / 0.72);
 }
 
 function getTumbleStartRotation(
   settled: DiceEuler,
   rollSequence: number,
   dieIndex: 0 | 1,
+  reducedMotion: boolean,
 ): DiceEuler {
   const direction = dieIndex === 0 ? 1 : -1;
-  const turns = getDiceTumbleTurns(rollSequence, dieIndex);
+  const turns = getDiceTumbleTurns(rollSequence, dieIndex, reducedMotion);
+  const impulse = reducedMotion ? 0.16 : 0.55;
+  const yawOffset = reducedMotion ? 0 : 0.35;
   return [
-    settled[0] + direction * turns * TWO_PI + 0.55 * direction,
+    settled[0] + direction * turns * TWO_PI + impulse * direction,
     settled[1] + (turns + 1) * TWO_PI,
-    settled[2] - direction * (turns * TWO_PI + 0.35),
+    settled[2] - direction * (turns * TWO_PI + yawOffset),
   ];
 }
 
@@ -84,13 +98,14 @@ export function getDiceAnimationRotation(
   dieIndex: 0 | 1,
   progress: number,
   fromValue?: number,
+  reducedMotion = false,
 ): DiceEuler {
   const settled = getSettledDiceRotation(value);
   if (progress >= 1) return settled;
   const hasPreviousDice = isValidDiceFace(fromValue ?? 0);
   const previous = hasPreviousDice ? getSettledDiceRotation(fromValue as number) : settled;
   if (hasPreviousDice && progress <= DICE_REROLL_LIFT_RATIO) return previous;
-  const start = getTumbleStartRotation(previous, rollSequence, dieIndex);
+  const start = getTumbleStartRotation(previous, rollSequence, dieIndex, reducedMotion);
   const tumbleProgress = hasPreviousDice
     ? (progress - DICE_REROLL_LIFT_RATIO) / (1 - DICE_REROLL_LIFT_RATIO)
     : progress;

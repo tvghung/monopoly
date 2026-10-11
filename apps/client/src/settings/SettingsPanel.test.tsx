@@ -155,13 +155,20 @@ describe('SettingsPanel language', () => {
     renderPanel();
     expect(screen.getByRole('dialog', { name: 'Cài đặt' })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('radio', { name: 'English' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ngôn ngữ: Tiếng Việt' }));
+    fireEvent.keyDown(screen.getByRole('option', { name: 'Tiếng Việt' }), { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Cài đặt' })).toBeTruthy();
+    expect(currentSettings().language).toBe('vi');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ngôn ngữ: Tiếng Việt' }));
+    fireEvent.click(screen.getByRole('option', { name: 'English' }));
 
     expect(currentSettings().language).toBe('en');
     expect(screen.getByRole('dialog', { name: 'Settings' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Language' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Done' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: 'English' }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Language: English' }).textContent).toContain('English');
   });
 });
 
@@ -258,6 +265,41 @@ describe('SettingsPanel graphics quality', () => {
   });
 });
 
+describe('SettingsPanel FPS limit', () => {
+  it('shows the five FPS choices in the shared dropdown and applies changes independently of graphics quality', () => {
+    renderPanel();
+
+    expect(screen.getByText('Giới hạn FPS')).toBeTruthy();
+    const trigger = screen.getByRole('button', { name: 'Giới hạn FPS: 60 FPS' });
+    fireEvent.click(trigger);
+    const listbox = screen.getByRole('listbox', { name: 'Giới hạn FPS' });
+    expect([...listbox.querySelectorAll('[role="option"]')].map(option => option.textContent)).toEqual([
+      '30 FPS', '60 FPS', '120 FPS', '180 FPS', '240 FPS',
+    ]);
+    fireEvent.click(screen.getByRole('option', { name: '30 FPS' }));
+    expect(currentSettings().fpsLimit).toBe(30);
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Thấp' }));
+    expect(currentSettings()).toMatchObject({ fpsLimit: 30, graphicsQuality: 'low' });
+    fireEvent.click(screen.getByRole('button', { name: 'Giới hạn FPS: 30 FPS' }));
+    fireEvent.click(screen.getByRole('option', { name: '240 FPS' }));
+    expect(currentSettings()).toMatchObject({ fpsLimit: 240, graphicsQuality: 'low' });
+  });
+
+  it('localizes the trigger and supports listbox keyboard navigation and focus return', () => {
+    renderPanel({ settings: { language: 'en' } });
+
+    const trigger = screen.getByRole('button', { name: 'FPS Limit: 60 FPS' });
+    expect(screen.getByText('FPS Limit')).toBeTruthy();
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    const listbox = screen.getByRole('listbox', { name: 'FPS Limit' });
+    fireEvent.keyDown(listbox, { key: 'End' });
+    expect(document.activeElement).toBe(screen.getByRole('option', { name: '240 FPS' }));
+    fireEvent.keyDown(listbox, { key: 'Escape' });
+    expect(document.activeElement).toBe(trigger);
+  });
+});
+
 describe('SettingsPanel window section', () => {
   it('is absent outside the desktop shell', () => {
     renderPanel();
@@ -289,7 +331,8 @@ describe('SettingsPanel reset and closing', () => {
   it('restores every default with "Khôi phục mặc định"', () => {
     renderPanel({
       settings: {
-        masterVolume: 0.1, musicVolume: 0.2, sfxVolume: 0.3, animationSpeed: 2, reducedMotion: true, graphicsQuality: 'low',
+        masterVolume: 0.1, musicVolume: 0.2, sfxVolume: 0.3, animationSpeed: 2, reducedMotion: true,
+        graphicsQuality: 'low', fpsLimit: 240,
       },
     });
     expect(currentSettings()).not.toEqual(DEFAULT_GAME_SETTINGS);
@@ -300,6 +343,7 @@ describe('SettingsPanel reset and closing', () => {
     expect(screen.getByLabelText('Âm lượng tổng')).toHaveProperty('value', '1');
     expect(screen.getByRole('radio', { name: '1x' }).getAttribute('aria-checked')).toBe('true');
     expect(screen.getByRole('radio', { name: 'Tự động' }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Giới hạn FPS: 60 FPS' })).toBeTruthy();
     expect(screen.getByRole('switch', { name: 'Giảm chuyển động' })).toHaveProperty('checked', false);
   });
 

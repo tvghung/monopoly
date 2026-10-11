@@ -586,7 +586,6 @@
   font-weight: 700;
 }
 
-.lobby__bot-difficulty select,
 .lobby-share__network select {
   width: min(100%, 24rem);
   min-height: 2.75rem;
@@ -598,12 +597,13 @@
   font: var(--type-body);
 }
 
-.lobby__bot-difficulty select:focus-visible,
 .lobby-share__network select:focus-visible {
   border-color: var(--color-focus);
   outline: 2px solid transparent;
   box-shadow: var(--focus-ring);
 }
+
+.lobby__bot-difficulty-selector { width: min(100%, 24rem); }
 
 .lobby-share__actions {
   display: flex;

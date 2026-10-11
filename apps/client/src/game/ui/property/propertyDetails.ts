@@ -47,7 +47,9 @@ export function getTileDetails(tile: Tile, language: Language = 'vi'): TileDetai
   }
 
   if (tile.tileType === 'expense') {
-    // Display text for the existing shared value; the amount is charged by the server, not computed here.
+    if (typeof tile.expenseRate === 'number') {
+      return [{ label: t('property.taxRateLanding', { percent: tile.expenseRate * 100 }) }];
+    }
     return typeof tile.expenseAmount === 'number'
       ? [{ label: t('property.taxLanding', { amount: formatMoney(tile.expenseAmount) }) }]
       : [];

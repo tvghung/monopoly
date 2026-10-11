@@ -24,6 +24,7 @@ const settingsContext = createContext<SettingsContextValue>({
     reducedMotion: false,
     fullscreen: false,
     graphicsQuality: 'auto',
+    fpsLimit: 60,
   },
   updateSettings: () => {},
   resetSettings: () => {},

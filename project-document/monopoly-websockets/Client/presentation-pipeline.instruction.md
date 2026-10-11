@@ -52,8 +52,8 @@ also resets to the current room snapshot.
   items, unpauses and calls `onReset`, which stops presentation audio voices and snaps the store
   (`resetFromSnapshot` increments `presentationResetEpoch`). A generation counter stops a stale executor from finishing
   after a reset.
-- Speed is clamped to 0.75–2 (`PRESENTATION_MIN_SPEED`/`PRESENTATION_MAX_SPEED`); reduced motion makes the queue resolve every item duration to 0 (`AnimationQueue`) and executors skip
-  reactions/tweens and snap, and
+- Speed is clamped to 0.75–2 (`PRESENTATION_MIN_SPEED`/`PRESENTATION_MAX_SPEED`); reduced motion makes ordinary item durations 0 (`AnimationQueue`) and executors skip
+  reactions/tweens and snap. The fixed 3-second REVEALED-card reading duration uses `waitForDuration`, so speed and reduced motion do not shorten it, and
   switching reduced motion on calls `skipAllAndSnap()`. Preferences come from Settings through `PresentationProvider`
   (see [settings-and-audio.instruction.md](./settings-and-audio.instruction.md)).
 - Display maps (`displayPositions`, `settledPositions`, `displayBalances`, `displayOwnership`, dice, card presentation) are
@@ -70,6 +70,8 @@ opening card → balances → ownership → development → jail → finished pl
 therefore queued after the authoritative LAND boundary; session/reconnect hydration snaps to the current revealed card
 without replaying a draw or flight.
 
+A REVEALED card blocks this client's FIFO queue for `CARD_MINIMUM_VISIBLE_MS = 3,000`. The overlay starts its own countdown when the local card is rendered and reads from the presentation signal, so a slow observer still sees the complete card after the authoritative state clears. Server dismissal checks the reveal timestamp independently; it never waits for a client. A bot uses the movement estimate plus the same 3-second minimum.
+
 ### Activity tail gate
 
 The log and the typed activity feed shown to players (`displayLogs`, `displayActivity`) wait on the same queue: after a live
@@ -81,7 +83,7 @@ replaces the tail with the snapshot's feed at once. Reconnect never replays hist
 
 `packages/shared/src/botPacing.ts` (`ROLL_PRESENTATION_BUDGET_MS`, `BOT_THINKING_PAUSE_MS`, `estimateRollPresentationMs`)
 lets the server-side bot wait about as long as clients take to play a roll at normal speed before it decides. It is pacing
-only: the server never waits on a client, and a slower client still shows events in order because its queue holds them.
+only: the server never waits on a client, and a slower client still shows events in order because its queue holds them. `CARD` adds the 3-second revealed-card minimum after the movement estimate.
 `apps/client/src/game/presentation/botPacing.test.ts` fails when the shared budget and `timings.ts` drift apart.
 
 ## Constraints and regression risks
@@ -127,3 +129,11 @@ Manual: [../testcase/client-state-sync-motion-and-accessibility.md](../testcase/
   [activity-log-and-chat.instruction.md](./activity-log-and-chat.instruction.md), [settings-and-audio.instruction.md](./settings-and-audio.instruction.md)
 - [../GameCore/bot-players.instruction.md](../GameCore/bot-players.instruction.md) (bot pacing on the server)
 - [../FEATURE_TRACEABILITY.md](../FEATURE_TRACEABILITY.md), [../ARCHITECTURE_DECISIONS.md](../ARCHITECTURE_DECISIONS.md)
+
+## Motion timing and first-hop diagnostics
+
+Movement `START` signals carry the monotonic start timestamp and roll sequence. `CharacterBillboard` consumes them in a layout effect and starts from its last rendered world position; hop progress uses elapsed monotonic time rather than the first R3F delta. This keeps an idle period out of the first sample while retaining queue-resolved durations and authoritative tile order.
+
+For a local development trace, add `?motion-trace=1` to the game URL and inspect `window.__OWN_THE_BLOCK_MOVEMENT_TRACE__`. Entries include store/billboard START, COMPLETE and SNAP, roll and movement sequences, reset epoch, display/settled tile, target anchor, rendered XYZ, elapsed/duration, raw frame delta, scheduler time/frame sequence, scene lifecycle and queue/presentation resets. First and later hops can be separated by roll sequence and movement sequence. The trace is opt-in and capped at 512 records.
+
+Source inspection found that the store advances the display tile and publishes START together, while the billboard formerly handled START in a passive effect. A demand-rendered frame could therefore observe the new tile anchor before the hop was initialized; the next frame then returned to the origin. The first frame after `frameloop="never"` could also carry idle time in its delta. Layout-phase signal consumption, the rendered-position origin and the signal timestamp remove those two ordering/timing hazards. Confirm the full visual result with the owner checklist before acceptance.

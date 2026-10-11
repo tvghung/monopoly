@@ -51,7 +51,7 @@ describe('the optional update offer', () => {
     expect(within(offer).getByRole('button', { name: 'Cập nhật' })).toBeTruthy();
     expect(within(offer).getByRole('button', { name: 'Để sau' })).toBeTruthy();
     // The choice that keeps the player where they are has the focus, so a stray Enter downloads nothing.
-    expect(document.activeElement).toBe(within(offer).getByRole('button', { name: 'Để sau' }));
+    await waitFor(() => expect(document.activeElement).toBe(within(offer).getByRole('button', { name: 'Để sau' })));
   });
 
   it('starts the download when the player chooses "Cập nhật"', async () => {

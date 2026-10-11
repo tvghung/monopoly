@@ -14,6 +14,7 @@ import {
   easeOutCubic,
   getDiceAnimationRotation,
   getDiceAnimationVerticalOffset,
+  getDiceMotionTrailOpacity,
   getSettledDiceRotation,
   isValidDiceFace,
 } from './diceOrientation';
@@ -32,13 +33,10 @@ import DiceContactShadowBatch from './DiceContactShadowBatch';
 import { DiceAnimationClock, useDiceAnimationProgressRef } from './diceAnimationClock';
 import { useRenderQuality } from '../render/RenderQualityContext';
 
-function DieBody() {
-  const geometry = useMemo(() => createDiceBodyGeometry(), []);
-  const { tier } = useRenderQuality();
-  useEffect(() => () => geometry.dispose(), [geometry]);
+function DieBody({ geometry, castShadow }: { geometry: THREE.BufferGeometry; castShadow: boolean }) {
   return (
-    <mesh name="DieBody" castShadow={tier === 'high'}>
-      <primitive object={geometry} attach="geometry" />
+    <mesh name="DieBody" castShadow={castShadow} dispose={null}>
+      <primitive object={geometry} attach="geometry" dispose={null} />
       <meshPhysicalMaterial {...getBoardMaterialProps('diceBody', DICE_BODY_COLOR)} />
     </mesh>
   );
@@ -83,6 +81,77 @@ function DiePips() {
   );
 }
 
+function DiceMotionTrail({
+  geometry,
+  progressRef,
+  basePosition,
+  value,
+  rollSequence,
+  dieIndex,
+  fromValue,
+  tier,
+  hasPreviousDice,
+}: {
+  geometry: THREE.BufferGeometry;
+  progressRef: ReturnType<typeof useDiceAnimationProgressRef>;
+  basePosition: readonly [number, number, number];
+  value: number;
+  rollSequence: number;
+  dieIndex: 0 | 1;
+  fromValue?: number;
+  tier: 'high' | 'balanced';
+  hasPreviousDice: boolean;
+}) {
+  const count = tier === 'high' ? 2 : 1;
+  const refs = useRef<Array<THREE.Mesh | null>>([]);
+  const materials = useMemo(() => Array.from({ length: count }, (_, index) => new THREE.MeshBasicMaterial({
+    color: index === 0 ? '#d6e7ff' : '#edf4ff',
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    toneMapped: false,
+  })), [count]);
+  useEffect(() => () => materials.forEach(material => material.dispose()), [materials]);
+
+  useFrame(() => {
+    const progress = progressRef.current.progress;
+    const opacity = getDiceMotionTrailOpacity(progress, tier);
+    for (let index = 0; index < count; index += 1) {
+      const mesh = refs.current[index];
+      if (!mesh) continue;
+      const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+      if (!material) continue;
+      mesh.visible = opacity > 0;
+      if (opacity <= 0) continue;
+      const sampleProgress = Math.max(0, progress - (index + 1) * 0.055);
+      mesh.rotation.set(...getDiceAnimationRotation(value, rollSequence, dieIndex, sampleProgress, fromValue));
+      mesh.position.set(
+        basePosition[0],
+        basePosition[1] + getDiceAnimationVerticalOffset(sampleProgress, hasPreviousDice),
+        basePosition[2],
+      );
+      mesh.scale.setScalar(hasPreviousDice ? 1 : 0.86 + easeOutCubic(sampleProgress) * 0.14);
+      material.opacity = opacity * (index === 0 ? 0.68 : 0.32);
+    }
+  });
+
+  return (
+    <>
+      {materials.map((material, index) => (
+        <mesh
+          key={index}
+          ref={mesh => { refs.current[index] = mesh; }}
+          geometry={geometry}
+          material={material}
+          visible={false}
+          dispose={null}
+          renderOrder={1}
+        />
+      ))}
+    </>
+  );
+}
+
 function isValidDiceValue(dice: DiceValue): boolean {
   return isValidDiceFace(dice.dice1) && isValidDiceFace(dice.dice2);
 }
@@ -93,16 +162,21 @@ function Die({
   phase,
   rollSequence,
   fromValue,
+  reducedMotion,
 }: {
   dieIndex: 0 | 1;
   value: number;
   phase: DiceRenderModel['phase'];
   rollSequence: number;
   fromValue?: number;
+  reducedMotion: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const progressRef = useDiceAnimationProgressRef();
+  const geometry = useMemo(() => createDiceBodyGeometry(), []);
+  const { tier } = useRenderQuality();
   const basePosition = getDicePosition(dieIndex);
+  useEffect(() => () => geometry.dispose(), [geometry]);
   const isRolling = phase === 'ROLLING';
   const hasPreviousDice = isValidDiceFace(fromValue ?? 0);
 
@@ -110,7 +184,7 @@ function Die({
     if (!isRolling || !groupRef.current) return;
     const progress = progressRef.current.progress;
     const eased = easeOutCubic(progress);
-    const rotation = getDiceAnimationRotation(value, rollSequence, dieIndex, progress, fromValue);
+    const rotation = getDiceAnimationRotation(value, rollSequence, dieIndex, progress, fromValue, reducedMotion);
     groupRef.current.rotation.set(...rotation);
     groupRef.current.position.y = basePosition[1]
       + getDiceAnimationVerticalOffset(progress, hasPreviousDice);
@@ -119,26 +193,47 @@ function Die({
   });
 
   const rotation = isRolling
-    ? getDiceAnimationRotation(value, rollSequence, dieIndex, 0, fromValue)
+    ? getDiceAnimationRotation(value, rollSequence, dieIndex, 0, fromValue, reducedMotion)
     : getSettledDiceRotation(value);
 
   return (
-    <group
-      ref={groupRef}
-      name={`ProceduralDie${dieIndex + 1}`}
-      position={isRolling
-        ? [basePosition[0], basePosition[1] + getDiceAnimationVerticalOffset(0, hasPreviousDice), basePosition[2]]
-        : basePosition}
-      rotation={rotation}
-      scale={isRolling && !hasPreviousDice ? 0.86 : 1}
-    >
-      <DieBody />
-      <DiePips />
+    <group>
+      {isRolling && !reducedMotion && tier !== 'low'
+        ? <DiceMotionTrail
+          geometry={geometry}
+          progressRef={progressRef}
+          basePosition={basePosition}
+          value={value}
+          rollSequence={rollSequence}
+          dieIndex={dieIndex}
+          fromValue={fromValue}
+          tier={tier}
+          hasPreviousDice={hasPreviousDice}
+        />
+        : null}
+      <group
+        ref={groupRef}
+        name={`ProceduralDie${dieIndex + 1}`}
+        position={isRolling
+          ? [basePosition[0], basePosition[1] + getDiceAnimationVerticalOffset(0, hasPreviousDice), basePosition[2]]
+          : basePosition}
+        rotation={rotation}
+        scale={isRolling && !hasPreviousDice ? 0.86 : 1}
+      >
+        <DieBody geometry={geometry} castShadow={tier === 'high'} />
+        <DiePips />
+      </group>
     </group>
   );
 }
 
-export default function DiceLayer({ model }: { model: DiceRenderModel }) {
+export default function DiceLayer({
+  model,
+  reducedMotion = false,
+}: {
+  model: DiceRenderModel;
+  reducedMotion?: boolean;
+}) {
   const hasVisibleDice = model.phase !== 'HIDDEN' && isValidDiceValue(model.dice);
 
   return (
@@ -163,6 +258,7 @@ export default function DiceLayer({ model }: { model: DiceRenderModel }) {
               phase={model.phase}
               rollSequence={model.rollSequence}
               fromValue={model.fromDice?.dice1}
+              reducedMotion={reducedMotion}
             />
             <Die
               dieIndex={1}
@@ -170,6 +266,7 @@ export default function DiceLayer({ model }: { model: DiceRenderModel }) {
               phase={model.phase}
               rollSequence={model.rollSequence}
               fromValue={model.fromDice?.dice2}
+              reducedMotion={reducedMotion}
             />
           </DiceAnimationClock>
         )

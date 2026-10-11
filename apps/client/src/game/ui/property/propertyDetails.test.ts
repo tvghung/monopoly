@@ -16,6 +16,14 @@ describe('property inspection details', () => {
     expect(details).toContainEqual({ label: 'Giá mỗi Nhà / Khách Sạn', value: '50.000 ₫' });
   });
 
+  it('localizes percentage Income Tax and keeps Luxury Tax fixed', () => {
+    expect(getTileDetails(tileState[4])[0].label)
+      .toBe('Nộp 30% số tiền mặt hiện có (làm tròn xuống) cho Ngân hàng khi dừng tại đây.');
+    expect(getTileDetails(tileState[4], 'en')[0].label)
+      .toBe('Pay 30% of your current cash, rounded down, to the Bank when you land here.');
+    expect(getTileDetails(tileState[38], 'en')[0].label).toBe('Pay 100.000 ₫ to the Bank when you land here.');
+  });
+
   it('describes special spaces without adding gameplay actions', () => {
     expect(getTileDetails(tileState[7])[0].label).toContain('Cơ Hội');
     expect(getTileDetails(tileState[10])[0].label).toContain('thăm tù');
@@ -66,7 +74,7 @@ describe('rules read from the shared rules file', () => {
 
 describe('tax tiles', () => {
   it('print the amount from shared tile data', () => {
-    expect(getTileDetails(tileState[4])).toEqual([{ label: 'Nộp 150.000 ₫ cho Ngân hàng khi dừng tại đây.' }]);
+    expect(getTileDetails(tileState[4])).toEqual([{ label: 'Nộp 30% số tiền mặt hiện có (làm tròn xuống) cho Ngân hàng khi dừng tại đây.' }]);
     expect(getTileDetails(tileState[38])[0].label).toMatch(/^Nộp .* cho Ngân hàng/u);
   });
 });

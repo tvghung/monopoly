@@ -18,15 +18,20 @@ import stateContext from '../../internal';
 import { PresentationController } from '../../game/presentation/PresentationController';
 import { PresentationProvider } from '../../game/presentation/PresentationProvider';
 import CardInteractionOverlay, { CardArtworkGallery } from '../../game/ui/events/CardInteractionOverlay';
-import { DEFAULT_GAME_SETTINGS } from '../../settings/defaults';
+import { DEFAULT_GAME_SETTINGS, FPS_LIMIT_OPTIONS, GRAPHICS_QUALITY_OPTIONS } from '../../settings/defaults';
 import { useSettings } from '../../settings/selectors';
 import { SettingsProvider } from '../../settings/SettingsProvider';
 import DesignLab, { useLabTheme } from '../design-lab/DesignLab';
 import { readDesignLabParams, type LabSectionId } from '../design-lab/labKit';
 import HudConcept from '../design-lab/screens/HudConcept';
-import { GRAPHICS_QUALITY_OPTIONS } from '../../settings/defaults';
-import type { GraphicsQualitySetting } from '../../settings/types';
-import { parseBenchmarkSeconds, summarizeFrameIntervals, type BenchmarkResult } from './rendererBenchmark';
+import type { FpsLimitSetting, GraphicsQualitySetting } from '../../settings/types';
+import {
+  parseBenchmarkSeconds,
+  summarizeFrameIntervals,
+  summarizeRendererFrames,
+  type BenchmarkResult,
+  type RendererFrameSample,
+} from './rendererBenchmark';
 import type { SocketFunctions } from '../../types';
 import './Phase4UatHarness.css';
 
@@ -124,6 +129,8 @@ export interface HarnessUrlParams {
   benchmarkSeconds: number | null;
   /** `quality=auto|high|balanced|low`: starts the harness with that graphics preset. */
   graphicsQuality: GraphicsQualitySetting;
+  /** `fpsLimit=30|60|120|180|240`: sets the harness FPS cap for reproducible benchmarks. */
+  fpsLimit: FpsLimitSetting;
 }
 
 /**
@@ -142,11 +149,17 @@ export function readHarnessUrlParams(search: string): HarnessUrlParams {
     labSection: readDesignLabParams(search).section,
     benchmarkSeconds: parseBenchmarkSeconds(params.get('benchmark')),
     graphicsQuality: parseGraphicsQuality(params.get('quality')),
+    fpsLimit: parseFpsLimit(params.get('fpsLimit')),
   };
 }
 
 function parseGraphicsQuality(raw: string | null): GraphicsQualitySetting {
   return GRAPHICS_QUALITY_OPTIONS.find(option => option === raw) ?? 'auto';
+}
+
+function parseFpsLimit(raw: string | null): FpsLimitSetting {
+  const value = raw === null ? Number.NaN : Number(raw);
+  return FPS_LIMIT_OPTIONS.includes(value as FpsLimitSetting) ? value as FpsLimitSetting : 60;
 }
 
 function initialHarnessUrlParams(): HarnessUrlParams {
@@ -554,10 +567,12 @@ function Phase4UatSurface() {
   }, [runId, settledNow]);
   const uatReady = settledNow && readyRunId === runId;
 
-  // Benchmark mode: once the scenario has settled, replay it every 2 s while requesting a frame on
-  // every animation frame, record the intervals, then publish the summary (plan 02 §8.10).
+  // Benchmark mode keeps the renderer active; only animated fixtures replay to avoid needless
+  // React state reconstruction for a static board workload.
   const benchmarkStartedRef = useRef(false);
   const benchmarkFrameRef = useRef(0);
+  const benchmarkLongTaskObserverRef = useRef<PerformanceObserver | null>(null);
+  const benchmarkSampleHandlerRef = useRef<NonNullable<Window['__OWN_THE_BLOCK_RENDERER_FRAME_SAMPLE__']> | null>(null);
   const [benchmark, setBenchmark] = useState<BenchmarkResult | null>(null);
   const runScenarioRef = useRef<() => void>(() => {});
   useEffect(() => {
@@ -565,6 +580,20 @@ function Phase4UatSurface() {
     if (seconds === null || !uatReady || benchmarkStartedRef.current) return undefined;
     benchmarkStartedRef.current = true;
     const intervals: number[] = [];
+    const rendererSamples: RendererFrameSample[] = [];
+    const longTaskDurations: number[] = [];
+    const sampleHandler = (sample: RendererFrameSample) => rendererSamples.push(sample);
+    benchmarkSampleHandlerRef.current = sampleHandler;
+    window.__OWN_THE_BLOCK_RENDERER_FRAME_SAMPLE__ = sampleHandler;
+    const longTasksSupported = typeof PerformanceObserver !== 'undefined'
+      && PerformanceObserver.supportedEntryTypes?.includes('longtask') === true;
+    if (longTasksSupported) {
+      const observer = new PerformanceObserver(list => {
+        list.getEntries().forEach(entry => longTaskDurations.push(entry.duration));
+      });
+      observer.observe({ entryTypes: ['longtask'] });
+      benchmarkLongTaskObserverRef.current = observer;
+    }
     const startedAt = performance.now();
     let last = startedAt;
     let lastReplay = startedAt;
@@ -572,7 +601,7 @@ function Phase4UatSurface() {
       intervals.push(now - last);
       last = now;
       window.__OWN_THE_BLOCK_RENDERER_INVALIDATE__?.();
-      if (now - lastReplay >= 2_000) {
+      if (!STATIC_SCENARIOS.includes(scenarioRef.current) && now - lastReplay >= 2_000) {
         lastReplay = now;
         runScenarioRef.current();
       }
@@ -580,10 +609,26 @@ function Phase4UatSurface() {
         benchmarkFrameRef.current = window.requestAnimationFrame(tick);
         return;
       }
+      benchmarkLongTaskObserverRef.current?.takeRecords().forEach(entry => longTaskDurations.push(entry.duration));
+      benchmarkLongTaskObserverRef.current?.disconnect();
+      benchmarkLongTaskObserverRef.current = null;
+      if (window.__OWN_THE_BLOCK_RENDERER_FRAME_SAMPLE__ === sampleHandler) {
+        delete window.__OWN_THE_BLOCK_RENDERER_FRAME_SAMPLE__;
+      }
+      benchmarkSampleHandlerRef.current = null;
+      const longTaskSummary = {
+        supported: longTasksSupported,
+        count: longTaskDurations.length,
+        totalMs: longTaskDurations.reduce((sum, duration) => sum + duration, 0),
+        maxMs: Math.max(0, ...longTaskDurations),
+      };
       const result: BenchmarkResult = {
         ...summarizeFrameIntervals(intervals),
         scenario: scenarioRef.current,
         seconds,
+        fpsLimit: initialParams.fpsLimit,
+        renderer: summarizeRendererFrames(rendererSamples),
+        longTasks: longTaskSummary,
         diagnostics: window.__OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__ ?? null,
       };
       window.__OWN_THE_BLOCK_RENDERER_BENCHMARK__ = result;
@@ -592,8 +637,15 @@ function Phase4UatSurface() {
     benchmarkFrameRef.current = window.requestAnimationFrame(tick);
     // No cleanup here: a replay flips uatReady and must not stop the run; the unmount effect cancels it.
     return undefined;
-  }, [initialParams.benchmarkSeconds, uatReady]);
-  useEffect(() => () => window.cancelAnimationFrame(benchmarkFrameRef.current), []);
+  }, [initialParams.benchmarkSeconds, initialParams.fpsLimit, uatReady]);
+  useEffect(() => () => {
+    window.cancelAnimationFrame(benchmarkFrameRef.current);
+    benchmarkLongTaskObserverRef.current?.disconnect();
+    benchmarkLongTaskObserverRef.current = null;
+    if (window.__OWN_THE_BLOCK_RENDERER_FRAME_SAMPLE__ === benchmarkSampleHandlerRef.current) {
+      delete window.__OWN_THE_BLOCK_RENDERER_FRAME_SAMPLE__;
+    }
+  }, []);
 
   useEffect(() => {
     if (traceRef.current.scenario !== scenario) {
@@ -1111,7 +1163,7 @@ function Phase4UatSurface() {
               data-benchmark-ready={benchmark ? 'true' : 'false'}
             >
               {benchmark
-                ? `benchmark ${benchmark.scenario}: median ${benchmark.medianFps.toFixed(1)} fps · p95 ${benchmark.p95FrameMs.toFixed(1)} ms · ${benchmark.frames} frames`
+                ? `benchmark ${benchmark.scenario} cap ${benchmark.fpsLimit}: browser rAF ${benchmark.averageFps.toFixed(1)} fps · scene submits ${benchmark.renderer.averageFps.toFixed(1)} fps · scene p95 ${benchmark.renderer.p95FrameMs.toFixed(1)} ms`
                 : 'benchmark running…'}
             </output>
           ) : null}
@@ -1131,6 +1183,7 @@ export default function Phase4UatHarness() {
         masterVolume: 0,
         reducedMotion: isReducedMotionScenario(params.scenario),
         graphicsQuality: params.graphicsQuality,
+        fpsLimit: params.fpsLimit,
       }}
     >
       {params.designLab && params.labSection !== 'hud'

@@ -750,21 +750,29 @@ describe('Lobby bot difficulty', () => {
   it('shows the five levels only once a bot is seated, Medium by default, and sends the host choice', () => {
     const onSetBotDifficulty = vi.fn();
     renderLobby({ onSetBotDifficulty });
-    expect(screen.queryByLabelText('Độ khó của Bot')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Độ khó của Bot/u })).toBeNull();
 
     cleanup();
     renderLobby({ players: [...readyPlayers, bot], onSetBotDifficulty });
-    const select = screen.getByLabelText<HTMLSelectElement>('Độ khó của Bot');
-    expect([...select.options].map(option => option.text)).toEqual(['Cực dễ', 'Dễ', 'Trung bình', 'Khó', 'Cực khó']);
-    expect(select.value).toBe('MEDIUM');
-    fireEvent.change(select, { target: { value: 'VERY_HARD' } });
+    const selector = screen.getByRole('button', { name: 'Độ khó của Bot: Trung bình' });
+    fireEvent.click(selector);
+    const listbox = screen.getByRole('listbox', { name: 'Độ khó của Bot' });
+    const options = within(listbox).getAllByRole('option');
+    expect(options.map(option => option.textContent)).toEqual(['Cực dễ', 'Dễ', 'Trung bình', 'Khó', 'Cực khó']);
+    expect(options.map(option => option.getAttribute('aria-selected'))).toEqual(['false', 'false', 'true', 'false', 'false']);
+    fireEvent.click(within(listbox).getByRole('option', { name: 'Cực khó' }));
     expect(onSetBotDifficulty).toHaveBeenCalledWith('VERY_HARD');
   });
 
   it('shows a guest the room difficulty without letting them change it', () => {
     renderLobby({ players: [...readyPlayers, bot], playerId: 'player-b', botDifficulty: 'EASY', onSetBotDifficulty: vi.fn() });
-    const select = screen.getByLabelText<HTMLSelectElement>('Độ khó của Bot');
-    expect(select.value).toBe('EASY');
-    expect(select.disabled).toBe(true);
+    const selector = screen.getByRole<HTMLButtonElement>('button', { name: 'Độ khó của Bot: Dễ' });
+    expect(selector.textContent).toContain('Dễ');
+    expect(selector.disabled).toBe(true);
+  });
+
+  it('disables the host selector while a lobby request is busy', () => {
+    renderLobby({ players: [...readyPlayers, bot], busy: true, onSetBotDifficulty: vi.fn() });
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Độ khó của Bot: Trung bình' }).disabled).toBe(true);
   });
 });

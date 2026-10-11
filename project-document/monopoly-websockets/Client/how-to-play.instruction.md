@@ -56,9 +56,7 @@ chiến thắng; số lấy từ `REVIVE_COST`, `REVIVE_STARTING_CASH`, `REVIVE_
   `BAIL_AMOUNT`, còn lại từ `rules.ts`. Tiền luôn qua `formatMoney`. Chỉ có hai ví dụ minh họa là hằng trong model
   (tổng xúc xắc 7, "2 Nhà"). `model.test.ts` quét mọi số tiền trong chữ và chỉ chấp nhận số có trong dữ liệu.
 - Thời gian server có thể đổi bằng biến môi trường (chờ mất kết nối 60 giây, hạn trả nợ 120 giây) luôn ghi "(mặc định)".
-- Luật khớp code, không khớp tài liệu cũ: ô thuế **thu tiền** nộp Ngân hàng, số tiền đọc từ `expenseAmount` trong `packages/shared/src/tileState.ts` nên hướng dẫn luôn
-  hiện đúng giá trị của bản build (RELEASED v1.7.0: Thuế Thu Nhập ô 4 = 200.000 ₫, Thuế Xa Xỉ = 100.000 ₫; CURRENT DEVELOPMENT
-  (vNext, unreleased, commit 1937a73; implemented on the vNext development branch; product approval/release decision not independently verified): Thuế Thu Nhập = 150.000 ₫, Thuế Xa Xỉ vẫn 100.000 ₫); đổ đôi không được đi
+- Luật khớp code: Thuế Thu Nhập ô 4 thu 30% tiền mặt hiện có (làm tròn xuống), Thuế Xa Xỉ ô 38 vẫn thu 100.000 ₫; hướng dẫn tiếng Việt và tiếng Anh đọc nguồn `tileState.ts`; đổ đôi không được đi
   thêm lượt và chỉ giúp ra tù; sở hữu cả khu màu nhân tiền thuê mọi ô trong khu ×1,5 (Solo; 2v2 đủ khu theo đội ×2) và **không** cần để xây; chỉ xây khi quân dừng
   ở ô đất của mình (1 đến 4 Nhà hoặc nâng Khách Sạn ở cấp 4); bán lại một cấp công trình nhận một nửa giá xây; không có
   đấu giá, không có thế chấp; ra tù bằng đổ đôi, bảo lãnh, thẻ, hoặc tự động khi vòng chờ đạt 2/2; thẻ lật ngay khi dừng và

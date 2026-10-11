@@ -88,7 +88,7 @@ function viewOf(fixture: Fixture = {}): BotView {
   return {
     botId: BOT,
     room: {
-      protocolVersion: 13,
+      protocolVersion: 14,
       version: 7,
       roomId: '00000000-0000-4000-8000-00000000r00m'.replace('r00m', 'beef'),
       roomCode: 'OTB-TEST23',
@@ -384,6 +384,8 @@ describe('bot pacing (BA)', () => {
     // 780 dice + 220 lead + 7 x 180 hops + 240 landing + 900 thinking.
     expect(botActionDelayMs(near, purchase)).toBe(3400);
     expect(botActionDelayMs(throughGo, purchase)).toBe(4400);
+    expect(botActionDelayMs(near, { botId: BOT, kind: 'CARD', key: 'k' })).toBe(6400);
+    expect(botActionDelayMs(throughGo, { botId: BOT, kind: 'CARD', key: 'k' })).toBe(7400);
   });
 });
 

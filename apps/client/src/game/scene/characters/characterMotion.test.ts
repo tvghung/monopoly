@@ -11,6 +11,7 @@ import {
   sampleCharacterMotion,
   sampleCharacterSlotReflow,
 } from './characterMotion';
+import { getAnimationElapsedMs } from '../animationTime';
 
 describe('character motion samples', () => {
   it('adds a restrained hop arc and lighter, smaller apex shadow', () => {
@@ -63,6 +64,38 @@ describe('character motion samples', () => {
       done: true,
     });
     expect(sampleCharacterHop(239, from, to, 240).done).toBe(false);
+  });
+
+  it.each([30, 60, 120])('keeps first and consecutive hops continuous at %i FPS after idle', fps => {
+    const startedAtMs = 60_000;
+    const firstFrom = new THREE.Vector3(0, 0.6, 0);
+    const firstTo = new THREE.Vector3(1, 0.6, 0);
+    const secondTo = new THREE.Vector3(1, 0.6, 1);
+    const frameElapsedMs = 1_000 / fps;
+    const firstFrameElapsed = getAnimationElapsedMs(startedAtMs, startedAtMs + frameElapsedMs);
+    const firstStart = sampleCharacterHop(0, firstFrom, firstTo, 180);
+    const firstFrame = sampleCharacterHop(firstFrameElapsed, firstFrom, firstTo, 180);
+    const firstLanding = sampleCharacterHop(180, firstFrom, firstTo, 180);
+    const secondStart = sampleCharacterHop(0, firstTo, secondTo, 180);
+
+    expect(firstStart.position).toEqual([0, 0.6, 0]);
+    expect(firstFrame.position[0]).toBeGreaterThan(0);
+    expect(firstFrame.position[0]).toBeLessThan(1);
+    expect(firstLanding.position).toEqual(secondStart.position);
+    expect(firstLanding.position).toEqual([1, 0.6, 0]);
+    expect(sampleCharacterHop(45, firstFrom, firstTo, 180).position[0])
+      .toBeLessThan(sampleCharacterHop(130, firstFrom, firstTo, 180).position[0]);
+  });
+
+  it('uses the movement start clock rather than a long-idle R3F frame delta', () => {
+    const startedAtMs = 900_000;
+    const from = new THREE.Vector3(0, 0.6, 0);
+    const to = new THREE.Vector3(1, 0.6, 0);
+    const firstFrameElapsedMs = getAnimationElapsedMs(startedAtMs, startedAtMs + 8);
+
+    expect(firstFrameElapsedMs).toBe(8);
+    expect(sampleCharacterHop(firstFrameElapsedMs, from, to, 180).position[0]).toBeCloseTo(8 / 180);
+    expect(sampleCharacterHop(180, from, to, 180).position).toEqual([1, 0.6, 0]);
   });
 
   it('keeps slot reflow grounded and landing physics neutral', () => {

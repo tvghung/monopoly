@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { CARD_MINIMUM_VISIBLE_MS } from '@monopoly/shared';
 import type {
   CardInteractionChangedPresentationEvent,
   PropertyTransferPresentationEvent,
@@ -87,7 +88,9 @@ describe('semantic presentation executors', () => {
     expect(store.getSnapshot().cardPresentation).toMatchObject({
       stage: 'AWAITING_DRAW', durationMs: 0,
     });
-    await executor.run(cardEvent('REVEALED'), immediateContext);
+    const waitForDuration = vi.fn().mockResolvedValue(undefined);
+    await executor.run(cardEvent('REVEALED'), { ...immediateContext, waitForDuration });
+    expect(waitForDuration).toHaveBeenCalledExactlyOnceWith(CARD_MINIMUM_VISIBLE_MS);
     expect(store.getSnapshot().cardPresentation).toMatchObject({
       stage: 'REVEALED',
       revealedCardId: 'chance-dividend',

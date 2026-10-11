@@ -19,17 +19,17 @@ describe('card surfaces', () => {
   it.each([
     ['card-chance', 'CƠ HỘI'],
     ['card-chest', 'KHÍ VẬN'],
-  ])('%s shows the deck badge and lets the acting player press Đóng', (id, badge) => {
+  ])('%s shows the deck badge and keeps the close action disabled during the reading minimum', (id, badge) => {
     renderSurface(id);
     expect(screen.getByText(badge)).toBeTruthy();
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đóng' }).disabled).toBe(false);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: /^Đóng/u }).disabled).toBe(true);
     expect(screen.queryByText('Đang chờ người chơi đóng thẻ')).toBeNull();
   });
 
   it('card-waiting shows the card to another player, who can only wait', () => {
     renderSurface('card-waiting');
     expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Đóng' }).disabled).toBe(true);
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: /^Đóng/u }).disabled).toBe(true);
     expect(screen.getByText('Đang chờ người chơi đóng thẻ')).toBeTruthy();
   });
 });

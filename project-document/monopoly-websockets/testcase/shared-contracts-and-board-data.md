@@ -41,12 +41,7 @@ Items below were first written against protocol/snapshot v7; the wording now ref
   names/economy.
 - [ ] `[AUTO]` Money formatter maps 60→`60.000 ₫`, 200→`200.000 ₫`,
   1500→`1.500.000 ₫`.
-- [x] `[AUTO]` The tax tiles keep their amounts: index 4 Thuế Thu Nhập `expenseAmount` 150 and index 38 Thuế Xa Xỉ 100, and
-  each is charged to the Bank on landing (`apps/server/src/rulesContract.test.ts` "keeps the tax tiles at the amounts the
-  guide reads", "charges each tax tile the amount in the tile data, to the Bank"). Scope: the 150 assertion is CURRENT
-  DEVELOPMENT (vNext, unreleased, commit 1937a73; implemented on the vNext development branch; product approval/release decision not independently verified); the RELEASED v1.7.0
-  value and assertion are 200. The 1.7.0 ↔ vNext display mismatch is an open release risk
-  ([Version history](../Shared/socket-and-state-contracts.instruction.md#version-history)).
+- [x] `[AUTO]` Index 4 Income Tax uses shared `expenseRate: 0.3`; server charges `floor(max(0, cash) * 0.3)` to the Bank and zero creates no debt; index 38 Luxury Tax remains `expenseAmount: 100` (`apps/server/src/rulesContract.test.ts`, `apps/server/src/game.test.ts`).
 - [x] `[AUTO]` `packages/shared/src/rules.ts` (start cash, Xuất Phát reward, 2–4 players, 4 Nhà then Khách Sạn, half refund,
   Ga rent 25/50/100/200, Công Ty ×4/×10, 70% forced sale, jail round limit 2, offer and forced-sale proposal 20 s, default
   60 s reconnect wait and 120 s debt deadline) computes the documented values **and agrees with the real server**:

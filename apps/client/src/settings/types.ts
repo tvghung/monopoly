@@ -2,6 +2,7 @@ import type { Language } from '../i18n/languages';
 
 /** Player-facing graphics preset; `auto` resolves per device (never to `high`). */
 export type GraphicsQualitySetting = 'auto' | 'high' | 'balanced' | 'low';
+export type FpsLimitSetting = 30 | 60 | 120 | 180 | 240;
 
 export interface GameSettings {
   version: 2;
@@ -15,6 +16,7 @@ export interface GameSettings {
   reducedMotion: boolean;
   fullscreen: boolean;
   graphicsQuality: GraphicsQualitySetting;
+  fpsLimit: FpsLimitSetting;
 }
 
 export type GameSettingsPatch = Partial<Omit<GameSettings, 'version'>>;

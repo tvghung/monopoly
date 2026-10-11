@@ -1,3 +1,4 @@
+import { CARD_MINIMUM_VISIBLE_MS } from '@monopoly/shared';
 import { NOOP_AUDIO_PORT, type AudioCueId, type AudioPort } from '../../../audio/types';
 import type {
   CardInteractionChangedPresentationEvent,
@@ -183,7 +184,7 @@ export function createSemanticExecutors(
         durationMs: 0,
       });
       audio.play('card.draw', { signal: context.signal, scope: 'presentation' });
-      return Promise.resolve();
+      return context.waitForDuration(CARD_MINIMUM_VISIBLE_MS);
     },
     finish() {},
   };

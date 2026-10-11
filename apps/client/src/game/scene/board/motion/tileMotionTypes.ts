@@ -34,12 +34,6 @@ export interface TileMotionState {
   phase: 'WAITING' | 'DEPRESS' | 'REBOUND';
 }
 
-export interface TileMotionScheduler {
-  now: () => number;
-  requestFrame: (callback: (time: number) => void) => number;
-  cancelFrame: (handle: number) => void;
-}
-
 export interface TileMotionRegistration {
   tileId: number;
   group: THREE.Group;

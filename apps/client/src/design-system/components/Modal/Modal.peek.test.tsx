@@ -53,7 +53,7 @@ describe('Modal peek', () => {
     expect(restoreKey()).toBeNull();
   });
 
-  it('hides the dialog and its backdrop at once, leaves no layer behind, and shows the floating restore key', () => {
+  it('releases semantics and input at once while its mounted pixels fade, and shows the floating restore key', () => {
     const onClose = vi.fn();
     const onCommand = vi.fn();
     render(<Decision onClose={onClose} onCommand={onCommand} />);
@@ -62,7 +62,9 @@ describe('Modal peek', () => {
 
     fireEvent.click(eye());
 
-    expect(overlay?.hidden).toBe(true);
+    expect(overlay?.hidden).toBe(false);
+    expect(overlay?.hasAttribute('inert')).toBe(true);
+    expect(overlay?.getAttribute('aria-hidden')).toBe('true');
     expect(overlay?.getAttribute('data-peeking')).toBe('true');
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Mua tài sản' })).toBeNull();

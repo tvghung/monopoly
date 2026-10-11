@@ -1,5 +1,6 @@
 import type { PresentationEvent } from '../events/types';
 import { resolvePresentationDuration } from '../timings';
+import { recordCharacterMovementTrace } from '../movementTrace';
 import { waitForDelay } from './helpers';
 import type {
   AnimationExecutionContext,
@@ -93,6 +94,7 @@ export class AnimationQueue {
   public reset(snapshot?: unknown): void {
     this.setStatus('resetting');
     this.generation += 1;
+    recordCharacterMovementTrace({ stage: 'QUEUE_RESET', playerId: '*', queueGeneration: this.generation });
     this.pending.splice(0).forEach(item => item.resolve());
     this.current?.controller.abort();
     this.paused = false;

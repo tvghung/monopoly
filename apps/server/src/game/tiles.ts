@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   areTeammates,
   CHANCE_TILE_INDICES,
+  CARD_MINIMUM_VISIBLE_MS,
   CHEST_TILE_INDICES,
   effectiveRailroadOwnershipCount,
   effectiveUtilityOwnershipCount,
@@ -289,7 +290,7 @@ export const applyCard = (
   return { continueDestination: false, awaitingExternalResolution: false };
 };
 
-export type CardCommandResult = 'APPLIED' | 'ALREADY_APPLIED' | 'STALE' | 'NOT_REVEALED';
+export type CardCommandResult = 'APPLIED' | 'ALREADY_APPLIED' | 'STALE' | 'NOT_REVEALED' | 'TOO_EARLY';
 
 export const drawPendingCard = (
   state: GameState,
@@ -357,6 +358,9 @@ export const dismissPendingCard = (
     return 'STALE';
   }
   if (interaction.stage !== 'REVEALED' || !interaction.revealedCardId) return 'NOT_REVEALED';
+  const revealTimeout = options.cardRevealedTimeoutMs ?? DEFAULT_CARD_REVEALED_TIMEOUT_MS;
+  const revealedAt = Date.parse(interaction.deadlineAt) - revealTimeout;
+  if ((options.now ?? Date.now()) - revealedAt < CARD_MINIMUM_VISIBLE_MS) return 'TOO_EARLY';
 
   const card = gameCardsById[interaction.revealedCardId];
   if (!card) throw new Error(`Không tìm thấy thẻ ${interaction.revealedCardId}.`);
@@ -448,16 +452,20 @@ export const resolveTile = (
           options,
         );
         break;
-      case 'expense':
-        complete = tile.expenseAmount === undefined
+      case 'expense': {
+        const amount = typeof tile.expenseRate === 'number'
+          ? Math.floor(Math.max(0, player.accountBalance) * tile.expenseRate)
+          : tile.expenseAmount;
+        complete = amount === undefined || amount <= 0
           ? true
           : processPayments(
             state,
-            [payment(playerId, 'BANK', tile.expenseAmount, { kind: 'TAX', tileID })],
+            [payment(playerId, 'BANK', amount, { kind: 'TAX', tileID })],
             continuation,
             options,
           );
         break;
+      }
       case 'gojail':
         moveToJail(state, playerId, 'BOARD_TILE');
         break;

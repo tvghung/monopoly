@@ -80,7 +80,7 @@
   chính sách "Balanced"): `<select>` "Độ khó của Bot" chỉ hiện khi có ít nhất một bot đang ngồi; năm mức Cực dễ / Dễ / Trung bình / Khó /
   Cực khó (`BOT_DIFFICULTIES` = `VERY_EASY`..`VERY_HARD`), mặc định Trung bình (`DEFAULT_BOT_DIFFICULTY` = `MEDIUM` = hành vi Balanced đã
   phát hành). Giá trị đọc từ public `boardState.botDifficulty` (thiếu = `MEDIUM`), áp dụng cho mọi bot của phòng và được giữ qua
-  `play again`. Chỉ host đổi được (`set bot difficulty` `{difficulty}`); khách thấy giá trị nhưng control bị disable. RELEASE RISK: lệnh
+  `play again`. Chỉ host đổi được (`set bot difficulty` `{difficulty}`); khách thấy giá trị nhưng dropdown cùng thiết kế với LanguageSelector bị disable. RELEASE RISK: lệnh
   này được thêm vào bên trong protocol hiện hành mà không tăng `SOCKET_PROTOCOL_VERSION`.
 - Start: 2–4 ghế active (người + bot), ít nhất một người thật, mọi người thật connected và Ready (bot luôn Ready/có mặt); 2v2 đúng 4, mỗi
   đội 2. Host luôn là người thật nên điều kiện "ít nhất một người thật" luôn đúng phía client; server kiểm lại tất cả. Chỉ host có start

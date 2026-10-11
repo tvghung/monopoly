@@ -39,7 +39,7 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
     return () => { requestGeneration.current += 1; };
   }, [canMutate, clearError, connected, operationId, playerId, presentationState.presentationResetEpoch, show, tokenArrived]);
 
-  if (!show || !decision) return null;
+  if (!show || !decision) return <Modal open={false} title="" children={null} />;
   const player = playerId ? state.players[playerId] : undefined;
   const balance = player?.accountBalance ?? 0;
   const unitCost = decision.unitCost ?? 0;

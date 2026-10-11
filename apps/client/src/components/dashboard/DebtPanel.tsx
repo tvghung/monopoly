@@ -4,6 +4,7 @@ import type { Ack, PublicGameState } from '@monopoly/shared';
 import stateContext from '../../internal';
 import { formatMoney, getTileName } from '../../presentation';
 import { useRoomExit } from '../../roomExitContext';
+import { useRetainedValue } from '../../game/ui/property/useRetainedValue';
 import Modal from '../../design-system/components/Modal/Modal';
 import Button from '../../design-system/components/Button/Button';
 import Chip from '../../design-system/components/Chip/Chip';
@@ -97,6 +98,7 @@ export default function DebtPanel() {
   const priceId = useId();
   const [now, setNow] = useState(() => Date.now());
   const claim = state.boardState.paymentShortfall;
+  const rescueClaim = useRetainedValue(claim?.rescue ? claim : null);
   // The debt window waits for the hop, the coins and the figures that lead to it (V1.1 item 1).
   const heldForPresentation = useDebtPresentationHold(claim ?? null, state);
   const isMyShortfall = claim?.debtorPlayerId === playerId;
@@ -183,9 +185,13 @@ export default function DebtPanel() {
     })();
   };
 
-  if (!state.loaded || !claim || heldForPresentation) return null;
+  const closedModal = <Modal open={false} title="" children={null} />;
+  const rescuePanel = rescueClaim?.rescue ? (
+    <RescuePanel claim={rescueClaim} offer={rescueClaim.rescue} active={Boolean(state.loaded && claim?.rescue && !heldForPresentation)} />
+  ) : null;
+  if (!state.loaded || !claim || heldForPresentation) return <>{closedModal}{rescuePanel}</>;
   // 2v2 Emergency Rescue: the debtor has nothing left to sell, so the open window is the teammate's decision, not a sale screen.
-  if (claim.rescue) return <RescuePanel claim={claim} offer={claim.rescue} />;
+  if (claim.rescue) return <>{closedModal}{rescuePanel}</>;
   const debtor = state.players[claim.debtorPlayerId];
   const creditorPlayer = claim.creditor === 'BANK' ? undefined : state.players[claim.creditorPlayerId ?? ''];
   const creditor = claim.creditor === 'BANK'
@@ -201,7 +207,7 @@ export default function DebtPanel() {
 
   if (!isMyShortfall || !canMutate) {
     return (
-      <section className="debt-panel debt-panel--status">
+      <>{closedModal}{rescuePanel}<section className="debt-panel debt-panel--status">
         {/* Only this copy is announced, and it changes with the claim. The countdown below ticks every second. */}
         <div className="debt-panel__status-copy" role="status">
           <strong>{t('debt.summary', { name: debtor?.name ?? t('ui.player'), amount: formatMoney(claim.remainingAmount) })}</strong>
@@ -210,14 +216,14 @@ export default function DebtPanel() {
         <span role="timer">
           <Chip tone="loss" icon={<ActionIcon name="clock" />}>{t('debt.secondsLeft', { seconds })}</Chip>
         </span>
-      </section>
+      </section></>
     );
   }
 
-  if (forcedSaleActive) return null;
+  if (forcedSaleActive) return <>{closedModal}{rescuePanel}</>;
 
   return (
-    <Modal
+    <><Modal
       open
       title={t('debt.title')}
       eyebrow={describeDebtSource(claim.source, language)}
@@ -434,6 +440,6 @@ export default function DebtPanel() {
           );
         })}
       </div>
-    </Modal>
+    </Modal>{rescuePanel}</>
   );
 }

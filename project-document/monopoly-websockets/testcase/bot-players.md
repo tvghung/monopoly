@@ -1,4 +1,4 @@
-# Checklist — Bot players (protocol 12, snapshot 11)
+# Checklist — Bot players (protocol 13, snapshot 11)
 
 Rule: [GameCore/bot-players.instruction.md](../GameCore/bot-players.instruction.md). Full trace:
 [ACCEPTANCE_MATRIX](../../own-the-block-vnext/ACCEPTANCE_MATRIX.md). Không test nào chơi trọn ván; trọn ván là
@@ -18,10 +18,12 @@ Rule: [GameCore/bot-players.instruction.md](../GameCore/bot-players.instruction.
 - [x] `[AUTOMATED]` Chơi lại: bot Ready, người chưa, tiền reset, `matchId` mới.
 - [x] `[AUTOMATED]` Snapshot JSON round trip (sảnh, đang chơi), không lưu timer; host là bot / bot chưa Ready bị từ chối.
 - [x] `[AUTOMATED]` Driver: đổ một lần và mua; nhiều notify + driver thứ hai không lặp hiệu ứng; trả bail; đóng thẻ; bán tài sản rồi phá sản; nhận/từ chối offer (`socket.botDriver.integration.test.ts`).
+- [x] `[AUTO]` CARD wait keeps the existing movement estimate and adds the shared 3-second revealed-card minimum; server still rejects an early bot close (`apps/server/src/bots/policy.test.ts`, `apps/server/src/game.test.ts`, `apps/server/src/socket.botDriver.integration.test.ts`).
 - [x] `[AUTOMATED]` Lệnh bất hợp lệ của bot bị từ chối như người; bot chờ khi mọi người mất kết nối; hành động đang chờ bị bỏ khi ván kết thúc và chơi lại.
 - [x] `[AUTOMATED]` Người mất kết nối khi thẻ đã lật: hết grace thì thẻ được áp dụng, ghế giữ nguyên.
 - [x] `[AUTOMATED]` Policy: mua/không mua, xây, tù, nợ, rescue, forced sale, offer, revive, seed tái lập, một policy offline (`bots/policy.test.ts`).
-- [x] `[AUTOMATED]` CURRENT DEVELOPMENT (vNext, unreleased; commit 1937a73) — Độ khó: thiếu = MEDIUM như policy gốc, mức khó đầu tư mạnh hơn, mức cực dễ có lúc chọn sai nhưng không bao giờ mua khi thiếu tiền (`bots/policy.test.ts`); chỉ host đặt được, mức lạ bị từ chối (`socket.bots.integration.test.ts`); dropdown 5 mức chỉ hiện khi có bot, khách chỉ xem (`Lobby.test.tsx`).
+- [x] `[AUTOMATED]` CURRENT DEVELOPMENT — difficulty defaults to MEDIUM, policy behavior for each level, and server host-only validation (`bots/policy.test.ts`, `socket.bots.integration.test.ts`).
+- [x] `[AUTO][CLIENT]` Bot difficulty uses the LanguageSelector dropdown design; all five options stay localized and current, only a non-busy host can change it (`apps/client/src/components/Lobby.test.tsx`).
 - [x] `[AUTOMATED]` Retry bằng fallback, park chỉ sau fallback + 2 retry (2 s, 8 s) rồi recovery (`apps/server/src/bots/driver.ts`), ranh giới thông tin của view (`bots/driver.test.ts`).
 - [x] `[AUTOMATED]` Client: ghế bot, Thêm Bot chỉ host, phòng đầy ẩn nút, Xóa Bot không hỏi, start với bot (`Lobby.test.tsx`); chip Bot trên HUD (`PlayerCardList.test.tsx`).
 

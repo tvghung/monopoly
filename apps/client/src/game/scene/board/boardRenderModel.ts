@@ -35,6 +35,7 @@ export interface CharacterPlayerModel {
   color: PlayerColorId;
   characterId: CharacterId | null;
   tileId: number;
+  settledTileId?: number;
   isActive: boolean;
   joinOrder: number;
 }
@@ -140,6 +141,7 @@ export function buildBoardRenderModel(
       color: player.color,
       characterId: player.characterId ?? roomOrder.get(playerId)?.characterId ?? null,
       tileId: presentationState.displayPositions[playerId] ?? player.currentTile,
+      settledTileId: presentationState.settledPositions[playerId] ?? presentationState.displayPositions[playerId] ?? player.currentTile,
       isActive: playerId === activePlayerId,
       joinOrder: roomOrder.get(playerId)?.joinOrder ?? Number.MAX_SAFE_INTEGER,
     }))

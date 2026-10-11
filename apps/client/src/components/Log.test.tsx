@@ -85,8 +85,8 @@ describe('activity drawer', () => {
     const toggle = screen.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(toggle.getAttribute('aria-controls')).toBe('board-log-panel');
-    expect(document.getElementById('board-log-panel')).toBeNull();
-    expect(screen.queryByText('Một dòng nhật ký')).toBeNull();
+    expect(document.getElementById('board-log-panel')?.hasAttribute('inert')).toBe(true);
+    expect(screen.queryByRole('log')).toBeNull();
 
     fireEvent.click(toggle);
     expect(screen.getByRole('button', { name: 'Ẩn nhật ký và trò chuyện' }).getAttribute('aria-expanded')).toBe('true');
@@ -119,7 +119,7 @@ describe('activity drawer', () => {
     expect(overlay.hasAttribute('data-idle')).toBe(false);
   });
 
-  it('moves focus into the drawer when it opens and back to the tab when Escape closes it', () => {
+  it('moves focus into the drawer and makes the exiting panel inert on Escape', () => {
     window.localStorage.removeItem(HUD_DRAWER_STORAGE_KEY);
     renderLog();
     const toggle = screen.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' });
@@ -130,13 +130,17 @@ describe('activity drawer', () => {
     const input = screen.getByRole('textbox', { name: 'Tin nhắn' });
     input.focus();
     fireEvent.keyDown(input, { key: 'Escape' });
-    expect(document.getElementById('board-log-panel')).toBeNull();
+    const exitingPanel = document.getElementById('board-log-panel')!;
+    expect(exitingPanel.getAttribute('aria-hidden')).toBe('true');
+    expect(exitingPanel.hasAttribute('inert')).toBe(true);
+    expect(screen.queryByRole('textbox')).toBeNull();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }));
+    expect(exitingPanel.isConnected).toBe(true);
   });
 
   it('leaves Escape to an open dialog', () => {
     renderLog();
-    document.body.insertAdjacentHTML('beforeend', '<div role="dialog" aria-label="Cài đặt"></div>');
+    document.body.insertAdjacentHTML('beforeend', '<div role="dialog" aria-modal="true" aria-label="Cài đặt"></div>');
     fireEvent.keyDown(screen.getByRole('textbox', { name: 'Tin nhắn' }), { key: 'Escape' });
     expect(document.getElementById('board-log-panel')).not.toBeNull();
     document.querySelector('[role="dialog"]')!.remove();
@@ -444,5 +448,31 @@ describe('activity drawer', () => {
     expect((reopened as HTMLInputElement).value).toBe('');
     fireEvent.submit(reopened.closest('form')!);
     expect(socketFunctions.sendChat).not.toHaveBeenCalled();
+  });
+});
+
+describe('CSS Journal lifecycle', () => {
+  afterEach(() => { cleanup(); window.localStorage.clear(); });
+  it('keeps one panel through rapid toggles and restores focus after a programmatic close', () => {
+    window.localStorage.removeItem(HUD_DRAWER_STORAGE_KEY);
+    renderLog();
+    const panel = document.getElementById('board-log-panel')!;
+    for (let index = 0; index < 6; index += 1) {
+      fireEvent.click(screen.getByRole('button', { name: /nhật ký và trò chuyện/ }));
+      expect(document.getElementById('board-log-panel')).toBe(panel);
+    }
+    expect(panel.hasAttribute('inert')).toBe(true);
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(window.localStorage.getItem(HUD_DRAWER_STORAGE_KEY)).toBe('closed');
+  });
+
+  it('focuses the opening Journal without allowing the renderer to scroll', () => {
+    window.localStorage.removeItem(HUD_DRAWER_STORAGE_KEY);
+    renderLog();
+    const panel = document.getElementById('board-log-panel')!;
+    const focus = vi.spyOn(panel, 'focus');
+    fireEvent.click(screen.getByRole('button', { name: 'Hiện nhật ký và trò chuyện' }));
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    focus.mockRestore();
   });
 });

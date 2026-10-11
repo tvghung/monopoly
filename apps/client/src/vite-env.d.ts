@@ -7,6 +7,14 @@ interface Window {
   __OWN_THE_BLOCK_DESTINATION_PREVIEW_DIAGNOSTICS__?: Record<string, unknown>;
   /** Set by RendererDiagnostics (local/UAT only): asks the demand-rendered scene for one more frame. */
   __OWN_THE_BLOCK_RENDERER_INVALIDATE__?: () => void;
+  /** Set by the UAT harness while a benchmark is active; samples complete main scene submissions. */
+  __OWN_THE_BLOCK_RENDERER_FRAME_SAMPLE__?: (sample: {
+    timestampMs: number;
+    intervalMs: number;
+    cpuMs: number;
+    drawCalls: number;
+    triangles: number;
+  }) => void;
   /** Set by TileScreenRectsPublisher (dev/UAT only): the 40 tiles projected to page coordinates. */
   __OWN_THE_BLOCK_TILE_SCREEN_RECTS__?: {
     canvas: { left: number; top: number; width: number; height: number };

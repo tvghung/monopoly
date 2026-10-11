@@ -31,12 +31,12 @@ Status: CURRENT (RELEASED in v1.7.0 unless marked CURRENT DEVELOPMENT). Foundati
 
 ### Settings dialog sections
 
-1. Language: segmented control over `SUPPORTED_LANGUAGES` (see [language-system.instruction.md](./language-system.instruction.md)).
+1. Language: shared dropdown over `SUPPORTED_LANGUAGES` (see [language-system.instruction.md](./language-system.instruction.md)); updates and persists at once, and Escape closes the list without closing Settings.
 2. Audio: "mute" switch plus Master, Music and SFX sliders (0–100 %, step 5 %). Mute keeps the slider levels.
 3. Display: animation speed (`0.75`, `1`, `1.5`, `2`) and reduced motion; a polite hint says whether motion is currently
    reduced (by the setting or the OS). Effective reduced motion = setting OR `prefers-reduced-motion`.
-4. Graphics: quality `auto` | `high` | `balanced` | `low` (default `auto`; `auto` never resolves to `high`). Tiers are
-   described in [game-board.instruction.md](./game-board.instruction.md) "Lighting, environment và graphics tiers".
+4. Graphics: quality `auto` | `high` | `balanced` | `low` (default `auto`; `auto` never resolves to `high`) and FPS limit `30` | `60` | `120` | `180` | `240` (default `60`). The FPS cap is a local render preference independent of quality and uses the shared dropdown.
+   Tiers are described in [game-board.instruction.md](./game-board.instruction.md) "Lighting, environment và graphics tiers".
 5. Window (desktop only): fullscreen switch, applied through the preload bridge and kept in sync with the window.
 6. Update (desktop only, when the updater is available): see [app-update.instruction.md](./app-update.instruction.md).
 
@@ -48,7 +48,7 @@ A reset button restores every default (Vietnamese, fullscreen off).
   game read and write the same settings. Every change is normalized and written to localStorage.
 - Key `own-the-block.settings.v2` (`version: 2`). The old `own-the-block.settings.v1` key is read only when V2 is absent,
   normalized and copied forward (details: [language-system.instruction.md](./language-system.instruction.md) "Settings migration").
-- Normalization is defensive: volumes clamp to 0–1, unknown speed/quality/language fall back to defaults, bad JSON or a
+- Normalization is defensive: volumes clamp to 0–1, unknown speed/quality/FPS/language fall back to defaults, bad JSON or a
   throwing storage yields defaults. Settings are separate from the reconnect token storage
   (`apps/client/src/playerSessionStorage.ts`) and never enter room state or socket payloads.
 
@@ -79,6 +79,8 @@ A reset button restores every default (Vietnamese, fullscreen off).
 - Changing an audio asset requires `pnpm validate:music-assets` (expected file list and hashes) and the bundled release checks.
 - Adding a setting: extend `types.ts`, `defaults.ts` (`DEFAULT_GAME_SETTINGS` and `normalizeSettings`), the default value
   in `SettingsContext.ts`, the panel, and `settings.test.ts`; bump the storage version only with a migration.
+- FPS uses `GameSettings.fpsLimit` in the existing V2 record; missing or invalid values become 60, and changing it does not
+  alter `graphicsQuality`. The game scene scheduler retains demand invalidation and stops while idle or while the document is hidden.
 
 ## Change impact
 
@@ -91,7 +93,7 @@ A reset button restores every default (Vietnamese, fullscreen off).
 
 Automated:
 
-- `apps/client/src/settings/settings.test.ts` (normalize/clamp, key, V1 → V2 migration, graphics quality),
+- `apps/client/src/settings/settings.test.ts` (normalize/clamp, key, V1 → V2 migration, graphics quality and FPS limit),
   `apps/client/src/settings/SettingsPanel.test.tsx`, `apps/client/src/settings/SettingsPanel.update.test.tsx`,
   `apps/client/src/settings/SettingsProvider.test.tsx`, `apps/client/src/settings/selectors.test.tsx`,
   `apps/client/src/settings/ReducedMotionDocumentSync.test.tsx`, `apps/client/src/settings/GraphicsQualityDocumentSync.test.tsx`
