@@ -2,16 +2,13 @@ import { describe, expect, it, vi, afterEach } from 'vitest';
 import { createElement, useEffect } from 'react';
 import { cleanup, render } from '@testing-library/react';
 import * as THREE from 'three';
-import { useFrame } from '@react-three/fiber';
 import { tileState } from '@monopoly/shared';
 import { composeTileSurfaceMatrix } from '../architecture/tileMatrix';
 import { BOARD_FOUNDATION_HEIGHT, TILE_SOCKET_LIP_HEIGHT, PROPERTY_NAME_Y } from '../architecture/boardArtSpec';
 import { getBoardTileLayout, TILE_SURFACE_LOCAL_POSITION } from '../boardLayout';
 import { buildBodyEntries, createTileBodyGeometry, createTileBodyMesh, syncTileBodyOffsets, TILE_BODY_CENTER_Y } from '../tiles/tileBodyInstances';
 import type { TileMotionController } from './TileMotionController';
-import TileMotionProvider, { useTileMotionController } from './TileMotionProvider';
 import type { TileImpactSignal } from './tileMotionTypes';
-import { getUnprocessedTileImpacts } from './TileMotionProvider';
 
 const impact = (sequence: number, tileId: number, playerId = 'player-a'): TileImpactSignal => ({
   sequence,
@@ -24,7 +21,8 @@ const impact = (sequence: number, tileId: number, playerId = 'player-a'): TileIm
 });
 
 describe('tile impact cursor', () => {
-  it('processes each impact once and never replays an earlier sequence', () => {
+  it('processes each impact once and never replays an earlier sequence', async () => {
+    const { getUnprocessedTileImpacts } = await import('./TileMotionProvider');
     const impacts = [impact(1, 1), impact(2, 2)];
 
     expect(getUnprocessedTileImpacts(impacts, 0).map(item => item.sequence)).toEqual([1, 2]);
@@ -32,7 +30,8 @@ describe('tile impact cursor', () => {
     expect(getUnprocessedTileImpacts(impacts, 2)).toEqual([]);
   });
 
-  it('keeps another player impact independent from a stationary player cursor', () => {
+  it('keeps another player impact independent from a stationary player cursor', async () => {
+    const { getUnprocessedTileImpacts } = await import('./TileMotionProvider');
     const impacts = [impact(1, 4, 'player-b')];
 
     expect(getUnprocessedTileImpacts(impacts, 0)).toEqual(impacts);
@@ -52,7 +51,11 @@ vi.mock('@react-three/fiber', () => ({
 }));
 afterEach(() => { cleanup(); frameLoop.callbacks.length = 0; vi.restoreAllMocks(); });
 
-it('advances before child batch readers on every start/peak/rebound/rest frame, across all 40 tiles', () => {
+it('advances before child batch readers on every start/peak/rebound/rest frame, across all 40 tiles', async () => {
+  const [{ default: TileMotionProvider, useTileMotionController }, { useFrame }] = await Promise.all([
+    import('./TileMotionProvider'),
+    import('@react-three/fiber'),
+  ]);
   let now = 0;
   vi.spyOn(performance, 'now').mockImplementation(() => now);
   let controller: TileMotionController | null = null;
