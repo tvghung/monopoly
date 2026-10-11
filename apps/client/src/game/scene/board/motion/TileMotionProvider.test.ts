@@ -43,7 +43,8 @@ const frameLoop = vi.hoisted(() => ({
   callbacks: [] as { callback: () => void; priority: number }[],
   invalidate: vi.fn(),
 }));
-vi.mock('@react-three/fiber', () => ({
+vi.mock('@react-three/fiber', async importOriginal => ({
+  ...(await importOriginal<typeof import('@react-three/fiber')>()),
   useFrame: (callback: () => void, priority = 0) => {
     frameLoop.callbacks.push({ callback, priority });
   },
