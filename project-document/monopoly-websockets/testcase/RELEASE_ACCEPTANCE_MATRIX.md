@@ -114,9 +114,34 @@ Protocol 14 is required because Income Tax changes from v1.8.0's fixed 150 to 30
 
 | Gate | Automated / release evidence | Manual evidence |
 | --- | --- | --- |
-| Accepted v1.8.1/v1.9.0 behavior | Local checks PASS; GitHub CI/RC pending | OWNER-REPORTED PASS |
-| Protocol compatibility and update policy | Protocol 14 / minimum 1.9.0; strict handshake and server/LAN fixtures PASS | Packaged mixed-version upgrade: NOT RUN |
-| Windows x64, macOS x64, macOS arm64 release candidates | Pending Release Candidate workflow on the integrated main SHA | Physical devices and independent networks: not independently verified in this run |
-| Official publication | Pending tag-triggered Release Candidate workflow | Not applicable |
+| Accepted v1.8.1/v1.9.0 behavior | PASS: integrated-main CI, unsigned RC, and tagged production RC are linked below | OWNER-REPORTED PASS |
+| Protocol compatibility and update policy | PASS: protocol 14, minimum 1.9.0, strict handshake, update manifest, and latest Squirrel/update feeds verified below | Packaged v1.8.0-to-v1.9.0 upgrade: NOT RUN |
+| Windows x64, macOS x64, macOS arm64 release candidates | PASS: Desktop Build, unsigned RC, and tagged production RC passed on the integrated main SHA; run links below | Physical devices and independent networks: not independently verified in this run |
+| Official publication | PASS: public v1.9.0 GitHub Release published by the successful tag-triggered workflow; release evidence below | Not applicable |
 
-Local suite evidence: desktop 491/491, client 2,337/2,337, server 559/559 across the single-fork rerun (29/29 files), and 42 root contract/registry/artwork validator tests passed. Music transport passed 22/22. Mobile Chromium and WebKit E2E passed 4/4. The first aggregate pnpm test invocation exited on a Vitest worker error in the server package without an assertion failure; the stable server rerun passed. CI remains the required independent gate.
+Local suite evidence: desktop 491/491, client 2,337/2,337, server 559/559 across the single-fork rerun (29/29 files), and 42 root contract/registry/artwork validator tests passed. Music transport passed 22/22. Mobile Chromium and WebKit E2E passed 4/4. The first aggregate pnpm test invocation exited on a Vitest worker error in the server package without an assertion failure; the stable server rerun passed. Final integrated-main and release workflow evidence is recorded below.
+### Published v1.9.0 evidence (2026-10-11)
+
+The release tag is an annotated tag that resolves to main commit 0c3582314dbc8995e7b28fb51494bfb78d7cfb63. The public release is [Own the Block v1.9.0](https://github.com/tvghung/monopoly/releases/tag/v1.9.0); it is published, not a draft or prerelease, and is served by the latest-release endpoint.
+
+| Gate | Result |
+| --- | --- |
+| Integrated-main CI | PASS — [run 38118545910](https://github.com/tvghung/monopoly/actions/runs/38118545910) |
+| Integrated-main Docs | PASS — [run 38118545855](https://github.com/tvghung/monopoly/actions/runs/38118545855) |
+| Desktop Build: Windows and macOS packaged proofs, Chromium/WebKit flows | PASS — [run 38118689828](https://github.com/tvghung/monopoly/actions/runs/38118689828) |
+| Unsigned workflow-dispatch RC: quality gates and all three distributables; publication correctly skipped | PASS — [run 38118688254](https://github.com/tvghung/monopoly/actions/runs/38118688254) |
+| Tagged production RC: quality gates, Windows x64, macOS x64, macOS arm64, publication | PASS — [run 38119202459](https://github.com/tvghung/monopoly/actions/runs/38119202459) |
+
+All seven public assets were downloaded and their local byte sizes and SHA-256 values matched the GitHub asset metadata. The five entries in SHA256SUMS.txt matched those calculated values. The update manifest version and minimumSupportedVersion are both 1.9.0; its platform asset sizes and hashes match the published assets. The RELEASES row SHA-1 and package size match the downloaded Squirrel package. Both latest-download endpoints for update-manifest.json and RELEASES match the corresponding published files.
+
+| Release asset | Bytes | SHA-256 |
+| --- | ---: | --- |
+| OwnTheBlock-1.9.0-win32-x64-Setup.exe | 152247296 | ec6041c769ec2048e5bc5d766399768c356b0c578a463117575c3166bb498a14 |
+| OwnTheBlock-1.9.0-macos-x64.dmg | 120717928 | b685a33db3d661fb235392c29afdf8941d13d60be9f12e58eb123fbea22d15b0 |
+| OwnTheBlock-1.9.0-macos-arm64.dmg | 111463341 | e9a908fd94fce291a537a62138b20891a11105cc595f6309b5ded75ffb12f6d5 |
+| own_the_block-1.9.0-full.nupkg | 151538455 | 3229541c60ca06a9dc4692610fdbe13afa93740553407568bfdb212bd8c73bcc |
+| RELEASES | 84 | 8b7ca1f14048ac1986622f3210d10b3387ad344241f39ec510266812626f6763 |
+| SHA256SUMS.txt | 474 | b62158fe16d1a1d13a08e4391650e481076f580be41aaca64c1264cf33f18acc |
+| update-manifest.json | 1090 | 5003c4b96ad8c9a23f6521b5d7c8036fbd20072f6faab59d7b08bbd959faabfe |
+
+Signing-certificate preparation, Authenticode verification, macOS signing, and notarization were skipped by the authorized unsigned-validation release mode. Artifacts are unsigned and not notarized. The packaged v1.8.0-to-v1.9.0 in-place upgrade and independent physical-device/cross-network acceptance were not run; the everyday installation was not modified. The owner-reported manual acceptance above remains separate from these automated release checks.
