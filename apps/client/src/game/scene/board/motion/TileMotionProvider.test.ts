@@ -11,8 +11,7 @@ vi.mock('@react-three/fiber', async importOriginal => ({
   },
   useThree: (selector: (state: { invalidate: () => void }) => unknown) => selector({ invalidate: frameLoop.invalidate }),
 }));
-import { useFrame } from '@react-three/fiber';
-import TileMotionProvider, { getUnprocessedTileImpacts, useTileMotionController } from './TileMotionProvider';
+import { getUnprocessedTileImpacts } from './TileMotionProvider';
 
 import { createElement, useEffect } from 'react';
 import { cleanup, render } from '@testing-library/react';
@@ -54,7 +53,10 @@ describe('tile impact cursor', () => {
   });
 });
 
-it('advances before child batch readers on every start/peak/rebound/rest frame, across all 40 tiles', () => {
+it('advances before child batch readers on every start/peak/rebound/rest frame, across all 40 tiles', async () => {
+  vi.resetModules();
+  const { useFrame } = await import('@react-three/fiber');
+  const { default: TileMotionProvider, useTileMotionController } = await import('./TileMotionProvider');
   let now = 0;
   vi.spyOn(performance, 'now').mockImplementation(() => now);
   let controller: TileMotionController | null = null;
