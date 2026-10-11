@@ -1,4 +1,17 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
+
+const frameLoop = vi.hoisted(() => ({
+  callbacks: [] as { callback: () => void; priority: number }[],
+  invalidate: vi.fn(),
+}));
+vi.mock('@react-three/fiber', async importOriginal => ({
+  ...(await importOriginal<typeof import('@react-three/fiber')>()),
+  useFrame: (callback: () => void, priority = 0) => {
+    frameLoop.callbacks.push({ callback, priority });
+  },
+  useThree: (selector: (state: { invalidate: () => void }) => unknown) => selector({ invalidate: frameLoop.invalidate }),
+}));
+
 import { createElement, useEffect } from 'react';
 import { cleanup, render } from '@testing-library/react';
 import * as THREE from 'three';
@@ -9,6 +22,8 @@ import { getBoardTileLayout, TILE_SURFACE_LOCAL_POSITION } from '../boardLayout'
 import { buildBodyEntries, createTileBodyGeometry, createTileBodyMesh, syncTileBodyOffsets, TILE_BODY_CENTER_Y } from '../tiles/tileBodyInstances';
 import type { TileMotionController } from './TileMotionController';
 import type { TileImpactSignal } from './tileMotionTypes';
+
+afterEach(() => { cleanup(); frameLoop.callbacks.length = 0; vi.restoreAllMocks(); });
 
 const impact = (sequence: number, tileId: number, playerId = 'player-a'): TileImpactSignal => ({
   sequence,
@@ -39,24 +54,9 @@ describe('tile impact cursor', () => {
   });
 });
 
-const frameLoop = vi.hoisted(() => ({
-  callbacks: [] as { callback: () => void; priority: number }[],
-  invalidate: vi.fn(),
-}));
-vi.mock('@react-three/fiber', async importOriginal => ({
-  ...(await importOriginal<typeof import('@react-three/fiber')>()),
-  useFrame: (callback: () => void, priority = 0) => {
-    frameLoop.callbacks.push({ callback, priority });
-  },
-  useThree: (selector: (state: { invalidate: () => void }) => unknown) => selector({ invalidate: frameLoop.invalidate }),
-}));
-afterEach(() => { cleanup(); frameLoop.callbacks.length = 0; vi.restoreAllMocks(); });
-
 it('advances before child batch readers on every start/peak/rebound/rest frame, across all 40 tiles', async () => {
-  const [{ default: TileMotionProvider, useTileMotionController }, { useFrame }] = await Promise.all([
-    import('./TileMotionProvider'),
-    import('@react-three/fiber'),
-  ]);
+  const { useFrame } = await import('@react-three/fiber');
+  const { default: TileMotionProvider, useTileMotionController } = await import('./TileMotionProvider');
   let now = 0;
   vi.spyOn(performance, 'now').mockImplementation(() => now);
   let controller: TileMotionController | null = null;
