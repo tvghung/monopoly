@@ -1,5 +1,5 @@
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { lazy, useEffect, useMemo, useRef } from 'react';
+import { Canvas, flushGlobalEffects, useFrame, useThree, type RootState } from '@react-three/fiber';
+import { lazy, useCallback, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import Board3D from './board/Board3D';
 import type { BoardRenderModel } from './board/boardRenderModel';
@@ -18,6 +18,7 @@ import {
   getTileTextureAnisotropy,
 } from './board/architecture/sceneBudget';
 import TileMotionProvider from './board/motion/TileMotionProvider';
+import { DemandFrameScheduler } from './render/demandFrameScheduler';
 import { countComposerPasses } from './render/diagnostics/composerPasses';
 import { FrameCounter, shadowMapTypeName, toneMappingName } from './render/diagnostics/rendererInfo';
 import OptionalSceneLayer from './render/OptionalSceneLayer';
@@ -70,9 +71,10 @@ export function RendererLifecycleGuard({ onFailure }: { onFailure?: (error: Erro
 
 /** Diagnostics only run on localhost or in the UAT harness; production pages pay nothing. */
 function isLocalDiagnosticsEnabled(): boolean {
-  return window.location.hostname === '127.0.0.1'
-    || window.location.hostname === 'localhost'
-    || new URLSearchParams(window.location.search).get('phase4-uat') === '1';
+  return (import.meta.env.DEV || __PHASE4_UAT__)
+    && (window.location.hostname === '127.0.0.1'
+      || window.location.hostname === 'localhost'
+      || new URLSearchParams(window.location.search).get('phase4-uat') === '1');
 }
 
 const DIAGNOSTICS_DEBOUNCE_MS = 120;
@@ -247,7 +249,14 @@ function RendererDiagnostics({
     measureAfterRender();
     const settledMeasurement = window.setTimeout(measureAfterRender, 650);
     // Async completions (SDF text, textures) render new frames later; republish once frames go quiet.
-    const unsubscribe = counterRef.current?.subscribe(() => {
+    const unsubscribe = counterRef.current?.subscribe(stats => {
+      window.__OWN_THE_BLOCK_RENDERER_FRAME_SAMPLE__?.({
+        timestampMs: stats.mainRenderAtMs,
+        intervalMs: stats.mainRenderIntervalMs,
+        cpuMs: stats.mainRenderCpuMs,
+        drawCalls: stats.mainDrawCalls,
+        triangles: stats.mainTriangles,
+      });
       window.clearTimeout(debounce);
       debounce = window.setTimeout(publish, DIAGNOSTICS_DEBOUNCE_MS);
     });
@@ -336,6 +345,37 @@ export default function GameScene({
   onRendererFailure,
 }: GameSceneProps) {
   const { settings } = useSettings();
+  const fpsLimitRef = useRef(settings.fpsLimit);
+  fpsLimitRef.current = settings.fpsLimit;
+  const frameSchedulerRef = useRef<DemandFrameScheduler | null>(null);
+  const onCanvasCreated = useCallback((state: RootState) => {
+    frameSchedulerRef.current?.dispose();
+    const scheduler = new DemandFrameScheduler(fpsLimitRef.current, timestampSeconds => {
+      const current = state.get();
+      if (!current.internal.active || current.gl.xr.isPresenting) return;
+      const timestampMs = timestampSeconds * 1_000;
+      flushGlobalEffects('before', timestampMs);
+      try {
+        current.advance(timestampSeconds, false);
+      } finally {
+        flushGlobalEffects('after', timestampMs);
+      }
+    }, undefined, timestampMs => flushGlobalEffects('tail', timestampMs));
+    const invalidate = (frames = 1) => {
+      const current = state.get();
+      if (current.internal.active && !current.gl.xr.isPresenting) scheduler.invalidate(frames);
+    };
+    state.set({ invalidate });
+    frameSchedulerRef.current = scheduler;
+    scheduler.invalidate();
+  }, []);
+  useEffect(() => {
+    frameSchedulerRef.current?.setFpsLimit(settings.fpsLimit);
+  }, [settings.fpsLimit]);
+  useEffect(() => () => {
+    frameSchedulerRef.current?.dispose();
+    frameSchedulerRef.current = null;
+  }, []);
   const quality = useMemo(
     () => resolveRenderQuality(settings.graphicsQuality, probeRenderCapabilities()),
     [settings.graphicsQuality],
@@ -353,7 +393,8 @@ export default function GameScene({
         camera={BOARD_CANVAS_CAMERA}
         orthographic
         dpr={[quality.dpr[0], quality.dpr[1]]}
-        frameloop="demand"
+        frameloop="never"
+        onCreated={onCanvasCreated}
         shadows={quality.shadows.enabled ? 'percentage' : false}
         gl={{
           antialias: true,

@@ -113,8 +113,7 @@ Mục đích: một quyết định (mua, nợ, thẻ…) hay một hộp thoạ
 - **Opt-in**: `<Modal peek="decision" | "view">`. `decision` là quyết định đang chờ của game (xem [turn-actions.instruction.md](./turn-actions.instruction.md)); `view` là hộp thoại
   thông tin/công cụ. Dialog không truyền `peek` không đổi gì (DOM header cũ giữ nguyên). Header có thêm `IconButton` hình mắt "Xem bàn cờ" / "View Board" (`data-modal-peek`)
   đứng trước nút đóng.
-- **Chủ sở hữu trạng thái**: `peeking` là `useState` cục bộ của `ModalSurface` — không nằm trong state game, context hay socket. Ẩn = đặt `hidden` trên lớp phủ
-  (`.ds-modal__overlay[hidden] { display: none }`): nền, thẻ và mọi pointer input biến mất cùng lúc, nên không còn lớp vô hình nào chặn click; **nội dung không bị unmount**, vì vậy
+- **Chủ sở hữu trạng thái**: `peeking` là `useState` cục bộ của `ModalSurface` — không nằm trong state game, context hay socket. Ẩn = đặt `inert`, `aria-hidden` và `data-peeking` trên lớp phủ: pointer/focus được nhả ngay, opacity thoát trong 200 ms (Reduced Motion: 120 ms), nên không còn lớp vô hình nào chặn click; **nội dung không bị unmount**, vì vậy
   lựa chọn, chữ đã gõ, request đang chờ, dòng lỗi và deed đã dựng còn nguyên (test dùng cùng phần tử `input` trước và sau). Không có lệnh socket, không gọi `onClose`.
 - **Registry** `Modal/modalPeek.ts` (module-level, chỉ trình bày) biết dialog nào đang ẩn: (1) chỉ dialog **ẩn sau cùng** vẽ nút khôi phục (`useOwnsRestoreKey`); khôi phục nó thì nút của dialog ẩn
   trước đó hiện ra; (2) `useDecisionHidden()` là true khi có dialog `decision` đang ẩn.
@@ -189,3 +188,17 @@ pnpm typecheck
 pnpm lint
 pnpm visual:capture
 ```
+
+## Motion ownership and exits
+
+The shared motion tokens remain the source for micro, UI, panel, emphasis and celebration durations. Gameplay presentation durations, cosmetic UI timing and FPS caps remain separate controls. The shared Modal owns backdrop and surface enter/exit transitions, focus handling and Reduced Motion behavior; the card-specific CSS entrance transform/opacity was removed so it no longer competes with the Modal.
+
+The Journal uses a mounted panel and a native CSS transform transition in both directions (240 ms, shared ease-out). The toggle follows the same displacement and curve. Closing immediately sets inert/aria-hidden and disables pointer input, then CSS visibility hides the panel after the slide. Reduced Motion removes sliding. Chat, unread counts, preference and scroll keep their existing state path; closing still clears an unsent draft.
+
+### v1.9.0 final modal refinement (unreleased)
+
+`Modal.tsx` owns each animated property once: the overlay owns opacity; the card owns its transform. The recovered shared entrance uses the 280 ms ease-out curve, scale 0.96 and a restrained 12 px rise (sheet: 24 px). Printed Chance/Community Chest cards recover their earlier 320 ms, 32 px rise and -2 degree start. Exit is a complementary 200 ms fade with restrained transform; Reduced Motion is a 120 ms fade with no movement.
+
+Peek releases modal semantics, focus trapping and pointer interception immediately, while the mounted content fades. Restore animates the same content back and returns focus to its eye. The existing stack, one restore key, decision-hidden registry, new-decision and close cleanup remain authoritative for UI ownership. Conditional decision callers render their existing Modal slot with `open={false}` rather than deleting it before exit; no gameplay state is retained as authority.
+
+`onVisibleChange` reports true after entrance/restore completes and false on peek/close. The card reader credits only readable visible time; peek/tab hiding pause it without resetting elapsed credit. An unread observer card is retained before a later card replaces it. Server/bot pacing and dismiss validation are unchanged.

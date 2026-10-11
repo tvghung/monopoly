@@ -141,7 +141,7 @@ export default function WinnerBanner() {
   const [replaying, setReplaying] = useState(false);
   const { error, clearError, setAckError } = useLocalizedError();
   const winner = state.boardState.winner;
-  if (!winner) return null;
+  if (!winner) return <><Modal open={false} title="" children={null} /></>;
 
   const teamVictory = getTeamVictorySummary(state);
   const summary = getWinnerSummary(state);

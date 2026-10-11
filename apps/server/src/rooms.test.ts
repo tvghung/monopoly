@@ -571,9 +571,9 @@ describe('durable room snapshot compatibility', () => {
         claimId: '00000000-0000-4000-8000-000000000021',
         debtorPlayerId: PLAYER_ONE,
         creditor: 'BANK',
-        amount: 200,
-        remainingAmount: 150,
-        source: { kind: 'TAX', tileID: 4 },
+        amount: 100,
+        remainingAmount: 50,
+        source: { kind: 'TAX', tileID: 38 },
         status: 'PENDING',
       }],
       activeClaimIndex: 0,
@@ -595,8 +595,8 @@ describe('durable room snapshot compatibility', () => {
       .toMatchObject({
         activeClaimIndex: 0,
         orderedClaims: [{
-          remainingAmount: 150,
-          source: { kind: 'TAX', tileID: 4 },
+          remainingAmount: 50,
+          source: { kind: 'TAX', tileID: 38 },
         }],
       });
   });
@@ -604,7 +604,7 @@ describe('durable room snapshot compatibility', () => {
   it('resumes a hydrated TAX shortfall once without duplicating the landing or charge', () => {
     const gameSnapshot = createActiveSnapshot();
     const state = hydrateGameState(gameSnapshot, 'IN_PROGRESS');
-    state.players[PLAYER_ONE].currentTile = 4;
+    state.players[PLAYER_ONE].currentTile = 38;
     state.players[PLAYER_ONE].accountBalance = 50;
     state.boardState.currentPlayer = { id: PLAYER_ONE, hasMoved: false };
     state.boardState.ownedProps[39] = { id: PLAYER_ONE, color: 'red', houses: 0 };
@@ -637,7 +637,7 @@ describe('durable room snapshot compatibility', () => {
         : total,
       0,
     );
-    expect(taxPaid).toBe(150);
+    expect(taxPaid).toBe(100);
     expect(reconnected.boardState.activityFeed.events.filter(event => event.type === 'TILE_LANDED'))
       .toHaveLength(1);
     expect(reconnected.boardState.paymentQueue).toBeNull();

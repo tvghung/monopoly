@@ -1,9 +1,11 @@
 /*
  * Activity drawer (visual overhaul V2, plan 03). It sits at the right edge inside .game-board__renderer, above the
  * scene and the cards. Collapsed, only a tab (icon, label and unread badge) is visible; open, an opaque paper panel
- * slides in. Nothing fades when idle.
+ * slides in. The panel stays rendered offscreen while closed so its entrance only transitions transform.
  */
 .center__room {
+  --log-panel-width: min(360px, 40vw);
+  --log-panel-inset: max(var(--hud-inset, 16px), env(safe-area-inset-right));
   position: absolute;
   z-index: var(--z-hud-drawer, 20);
   top: 0;
@@ -35,6 +37,7 @@
   color: var(--color-text-primary);
   cursor: pointer;
   pointer-events: auto;
+  transition: transform 240ms var(--motion-ease-out, ease-out);
 }
 
 .center__room-toggle-label {
@@ -68,11 +71,11 @@
 .center__room-panel {
   position: absolute;
   top: var(--hud-inset, 16px);
-  right: max(var(--hud-inset, 16px), env(safe-area-inset-right));
+  right: var(--log-panel-inset);
   bottom: var(--hud-inset, 16px);
   display: flex;
   flex-direction: column;
-  width: min(360px, 40vw);
+  width: var(--log-panel-width);
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--color-border);
@@ -81,20 +84,28 @@
   background-image: var(--paper-grain);
   box-shadow: var(--elevation-2);
   color: var(--color-text-primary);
-  pointer-events: auto;
-  animation: log-drawer-in calc(var(--motion-duration-panel, 280ms) / var(--hud-speed, 1)) var(--motion-ease-out, ease-out) both;
+  transform: translateX(calc(100% + var(--log-panel-inset)));
+  pointer-events: none;
+  transition: transform 240ms var(--motion-ease-out, ease-out);
 }
+
+.center__room--open .center__room-panel {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+.center__room--collapsed .center__room-panel * { pointer-events: none; }
 
 .center__room-panel:focus-visible { outline: 0; box-shadow: var(--focus-ring, 0 0 0 3px var(--color-turn-active)), var(--elevation-2); }
 
-@keyframes log-drawer-in {
-  from { opacity: 0; transform: translateX(24px); }
-  to { opacity: 1; transform: none; }
+:root[data-reduced-motion='true'] .center__room-toggle,
+:root[data-reduced-motion='true'] .center__room-panel { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .center__room-toggle, .center__room-panel { transition: none; }
 }
 
 /* With the panel open the tab rides on its left edge. */
 .center__room--open .center__room-toggle {
-  right: calc(min(360px, 40vw) + max(var(--hud-inset, 16px), env(safe-area-inset-right)));
+  transform: translateX(calc(0px - var(--log-panel-width) - var(--log-panel-inset) + max(0px, env(safe-area-inset-right))));
 }
 
 .center__log {
@@ -169,21 +180,14 @@
 .center__chat--input:disabled,
 .center__chat--button:disabled { cursor: not-allowed; opacity: 0.65; }
 
-/* Reduced motion: the panel appears without sliding. */
-:root[data-reduced-motion='true'] .center__room-panel { animation: none; }
-@media (prefers-reduced-motion: reduce) {
-  .center__room-panel { animation: none; }
-}
-
 /* Tablet landscape and phones: the panel is an overlay and the tab hugs the edge. */
 @media (max-width: 960px) {
-  .center__room-panel { width: min(92vw, 360px); }
-  .center__room--open .center__room-toggle { right: calc(min(92vw, 360px) + max(var(--hud-inset, 12px), env(safe-area-inset-right))); }
+  .center__room { --log-panel-width: min(360px, calc(100vw - 44px - var(--log-panel-inset))); }
 }
 
 @media (max-height: 500px) {
-  .center__room-panel { top: 0; bottom: 0; right: 0; border-radius: var(--radius-lg, 20px) 0 0 var(--radius-lg, 20px); }
-  .center__room--open .center__room-toggle { right: min(92vw, 360px); }
+  .center__room { --log-panel-inset: max(0px, env(safe-area-inset-right)); }
+  .center__room-panel { top: 0; bottom: 0; right: var(--log-panel-inset); border-radius: var(--radius-lg, 20px) 0 0 var(--radius-lg, 20px); }
 }
 
 /* Phone tier: a slimmer tab (30 px), under the top-right card. */

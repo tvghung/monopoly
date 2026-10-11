@@ -1,7 +1,8 @@
+import type { HTMLMotionProps } from 'framer-motion';
 import {
-  cleanup, fireEvent, render, screen, waitFor,
+  act, cleanup, fireEvent, render, screen, waitFor,
 } from '@testing-library/react';
-import { SOCKET_PROTOCOL_VERSION, type Ack, type PlayerColorId, type PublicGameState } from '@monopoly/shared';
+import { CARD_MINIMUM_VISIBLE_MS, SOCKET_PROTOCOL_VERSION, type Ack, type PlayerColorId, type PublicGameState } from '@monopoly/shared';
 import {
   afterEach, describe, expect, it, vi,
 } from 'vitest';
@@ -14,11 +15,29 @@ import CardInteractionOverlay from '../game/ui/events/CardInteractionOverlay';
 import Board from './Board';
 import { soloTeamBoardFields } from '../game/presentation/testFixtures';
 
+// Simulate entrance completion explicitly; fake RAF does not drive the real transition.
+const modalMotion = vi.hoisted(() => { vi.resetModules(); return { complete: () => {} }; });
+vi.mock('framer-motion', async importOriginal => {
+  const actual = await importOriginal<typeof import('framer-motion')>();
+  const React = await import('react');
+  const Div = React.forwardRef<HTMLDivElement, HTMLMotionProps<'div'>>((props, ref) => {
+    const { onAnimationComplete } = props;
+    React.useLayoutEffect(() => {
+      if (onAnimationComplete) modalMotion.complete = () => onAnimationComplete('visible');
+    }, [onAnimationComplete]);
+    return React.createElement(actual.motion.div, { ...props, onAnimationComplete: undefined, ref });
+  });
+  return { ...actual, motion: { ...actual.motion, div: Div } };
+});
+
 vi.mock('../game/scene/GameScene', () => ({
   default: () => <div data-testid="game-scene" />,
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 const makeSocketFunctions = (): SocketFunctions => ({
   rollDice: vi.fn(),
@@ -290,7 +309,8 @@ describe('Vietnamese game board', () => {
     expect(screen.queryByText('Thị trường tài sản')).toBeNull();
   });
 
-  it('locks an authoritative card close locally before a second command can be sent', () => {
+  it('locks an authoritative card close locally before a second command can be sent', async () => {
+    vi.useFakeTimers();
     const state = makeGameState({
       players: { a: { ...makePlayer('An', 'red'), currentTile: 7 } },
       currentPlayerId: 'a',
@@ -336,7 +356,14 @@ describe('Vietnamese game board', () => {
       </stateContext.Provider>,
     );
 
-    const close = screen.getByRole<HTMLButtonElement>('button', { name: 'Đóng' });
+    const close = screen.getByRole<HTMLButtonElement>('button', { name: /^Đóng/u });
+    expect(close.disabled).toBe(true);
+    fireEvent.click(close);
+    fireEvent.click(close);
+    expect(dismissCard).not.toHaveBeenCalled();
+    act(() => modalMotion.complete());
+    await act(async () => { await vi.advanceTimersByTimeAsync(CARD_MINIMUM_VISIBLE_MS); });
+    expect(close.disabled).toBe(false);
     fireEvent.click(close);
     fireEvent.click(close);
     expect(dismissCard).toHaveBeenCalledTimes(1);

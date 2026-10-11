@@ -1,6 +1,7 @@
 import {
   areTeammates,
   BAIL_AMOUNT,
+  CARD_MINIMUM_VISIBLE_MS,
   colorGroupOfTile,
   colorGroups,
   colorSetRentPercent,
@@ -522,7 +523,7 @@ export function botActionDelayMs(view: BotView, task: BotTask): number {
     case 'TURN': return view.room.gameState.players[view.botId]?.isJail ? 1300 : 1500;
     case 'PURCHASE':
     case 'DEVELOP': return afterMove;
-    case 'CARD': return afterMove + 2200;
+    case 'CARD': return afterMove + CARD_MINIMUM_VISIBLE_MS;
     case 'DRAW_CARD': return 800;
     case 'DEBT': return 1300;
     default: return 1500;

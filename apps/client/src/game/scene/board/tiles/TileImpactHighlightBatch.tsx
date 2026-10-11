@@ -1,10 +1,11 @@
 import { useFrame } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { tileState } from '@monopoly/shared';
 import { getBoardTileLayout, getTileSurfaceGeometry } from '../boardLayout';
 import { composeTileSurfaceMatrix } from '../architecture/tileMatrix';
 import type { BoardTileRenderModel } from '../boardRenderModel';
+import type { TileMotionController } from '../motion/TileMotionController';
 import { useTileMotionController } from '../motion/TileMotionProvider';
 import { withPanel, type TileSurfaceBatchEntry } from './TileSurfaceBatch';
 
@@ -45,11 +46,47 @@ export function createTileImpactHighlightMaterial(): THREE.MeshBasicMaterial {
   });
 }
 
+export function createTileImpactHighlightMeshBundle(
+  geometry: THREE.BufferGeometry,
+  entries: readonly TileSurfaceBatchEntry[],
+  motionController: TileMotionController | null,
+) {
+  const material = createTileImpactHighlightMaterial();
+  const mesh = new THREE.InstancedMesh(geometry, material, entries.length);
+  const matrix = new THREE.Matrix4();
+  const color = new THREE.Color();
+  entries.forEach((entry, index) => {
+    const layout = getBoardTileLayout(entry.tileId);
+    if (!layout) return;
+    const offsetY = motionController?.getTileOffsetY(entry.tileId) ?? 0;
+    const intensity = motionController?.getTilePressIntensity(entry.tileId) ?? 0;
+    const kind = motionController?.getTilePressKind(entry.tileId) ?? 'STEP';
+    composeTileSurfaceMatrix(
+      layout,
+      entry.surfaceSize,
+      offsetY,
+      matrix,
+      (entry.surfacePlaneOffset ?? 0) + TILE_HIGHLIGHT_PLANE_OFFSET,
+    );
+    mesh.setMatrixAt(index, matrix);
+    mesh.setColorAt(index, color.setScalar(getTileImpactHighlightIntensity(intensity, kind)));
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.name = 'TileImpactHighlightBatch';
+  mesh.renderOrder = 1;
+  mesh.userData = {
+    layer: 'above-tile-surface',
+    contributionAtIdle: 0,
+    tileCount: entries.length,
+  };
+  return { material, mesh };
+}
 interface TileImpactHighlightBatchProps {
   tiles: readonly BoardTileRenderModel[];
 }
 
-function getHighlightEntries(tiles: readonly BoardTileRenderModel[]): TileSurfaceBatchEntry[] {
+export function getTileImpactHighlightEntries(tiles: readonly BoardTileRenderModel[]): TileSurfaceBatchEntry[] {
   const baseEntries = tiles.map<TileSurfaceBatchEntry | null>(tile => {
     const layout = getBoardTileLayout(tile.tileId);
     const sourceTile = tileState[tile.tileId];
@@ -70,38 +107,13 @@ function getHighlightEntries(tiles: readonly BoardTileRenderModel[]): TileSurfac
 export default function TileImpactHighlightBatch({
   tiles,
 }: TileImpactHighlightBatchProps) {
-  const entries = useMemo(() => getHighlightEntries(tiles), [tiles]);
+  const entries = useMemo(() => getTileImpactHighlightEntries(tiles), [tiles]);
   const geometry = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
-  const meshBundle = useMemo(() => {
-    const material = createTileImpactHighlightMaterial();
-    const mesh = new THREE.InstancedMesh(geometry, material, entries.length);
-    const matrix = new THREE.Matrix4();
-    const neutralColor = new THREE.Color(0, 0, 0);
-    entries.forEach((entry, index) => {
-      const layout = getBoardTileLayout(entry.tileId);
-      if (!layout) return;
-      composeTileSurfaceMatrix(
-        layout,
-        entry.surfaceSize,
-        0,
-        matrix,
-        (entry.surfacePlaneOffset ?? 0) + TILE_HIGHLIGHT_PLANE_OFFSET,
-      );
-      mesh.setMatrixAt(index, matrix);
-      mesh.setColorAt(index, neutralColor);
-    });
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    mesh.name = 'TileImpactHighlightBatch';
-    mesh.renderOrder = 1;
-    mesh.userData = {
-      layer: 'above-tile-surface',
-      contributionAtIdle: 0,
-      tileCount: entries.length,
-    };
-    return { material, mesh };
-  }, [entries, geometry]);
   const motionController = useTileMotionController();
+  const meshBundle = useMemo(
+    () => createTileImpactHighlightMeshBundle(geometry, entries, motionController),
+    [entries, geometry, motionController],
+  );
   const meshRef = useRef<THREE.InstancedMesh | null>(null);
   const matrixRef = useRef(new THREE.Matrix4());
   const colorRef = useRef(new THREE.Color());
@@ -142,7 +154,7 @@ export default function TileImpactHighlightBatch({
     if (colorChanged && mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     meshRef.current = meshBundle.mesh;
     return () => {
       if (meshRef.current === meshBundle.mesh) meshRef.current = null;

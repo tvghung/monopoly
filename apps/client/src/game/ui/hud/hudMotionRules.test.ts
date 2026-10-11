@@ -18,7 +18,6 @@ function mediaBlock(css: string): string {
 describe('HUD reduced motion (CSS contract)', () => {
   it.each([
     ['.turn-banner', 'turn-banner-fade'],
-    ['.dice-callout', 'dice-callout-fade'],
     ['.game-board__roll-button', 'roll-cta-fade'],
   ])('%s fades instead of sliding or scaling', (selector, fade) => {
     const setting = hudCss.split('\n').find(line => line.startsWith(REDUCED_MOTION_SETTING) && line.includes(selector));
@@ -26,6 +25,10 @@ describe('HUD reduced motion (CSS contract)', () => {
     expect(setting).toContain(fade);
     const media = hudCss.split(REDUCED_MOTION_MEDIA).slice(1).find(block => block.includes(selector) && block.includes(fade));
     expect(media, `${selector} under prefers-reduced-motion`).toBeDefined();
+  });
+
+  it('keeps dice-callout motion in the shared component transition system', () => {
+    expect(hudCss).not.toMatch(/\.dice-callout[^}]*animation:/u);
   });
 
   it('drops the active-card pulse and keeps only the ring', () => {

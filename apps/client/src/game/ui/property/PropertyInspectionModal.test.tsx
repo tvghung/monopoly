@@ -5,11 +5,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import stateContext from '../../../internal';
 import tradePromptContext from '../../../tradePromptContext';
 import type { SocketFunctions, StateContextValue } from '../../../types';
+import { DEFAULT_GAME_SETTINGS } from '../../../settings/defaults';
+import { SettingsProvider } from '../../../settings/SettingsProvider';
+import { useSettings } from '../../../settings/selectors';
+import { I18nProvider } from '../../../i18n/I18n';
 import { makeRoom } from '../../presentation/testFixtures';
 import PropertyInspectionModal from './PropertyInspectionModal';
 import { getTileDetails } from './propertyDetails';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  window.localStorage.clear();
+});
 
 type OwnedProps = StateContextValue['state']['boardState']['ownedProps'];
 
@@ -61,6 +68,15 @@ function renderInspection(
 }
 
 const currentRow = () => document.querySelector('.property-inspection__detail--current');
+
+function LanguageToggle() {
+  const { settings, updateSettings } = useSettings();
+  return (
+    <button type="button" onClick={() => updateSettings({ language: settings.language === 'vi' ? 'en' : 'vi' })}>
+      Switch language
+    </button>
+  );
+}
 
 describe('PropertyInspectionModal', () => {
   it('shows a street as a full deed: price, development, the rent ladder with the current tier, and the owner', () => {
@@ -135,9 +151,53 @@ describe('PropertyInspectionModal', () => {
     expect(within(dialog).queryByRole('button', { name: /Đề nghị mua|Bán Nhà/u })).toBeNull();
   });
 
-  it('prints what a tax tile costs, from the shared tile value', () => {
+  it('prints the localized Income Tax rule and keeps the Luxury Tax amount', () => {
     renderInspection(4);
-    expect(screen.getByText(/^Nộp 150\.000 ₫ cho Ngân hàng/u)).toBeTruthy();
+    expect(screen.getByText('Nộp 30% số tiền mặt hiện có (làm tròn xuống) cho Ngân hàng khi dừng tại đây.')).toBeTruthy();
+    cleanup();
+    renderInspection(38);
+    expect(screen.getByText('Nộp 100.000 ₫ cho Ngân hàng khi dừng tại đây.')).toBeTruthy();
+  });
+
+  it('localizes every hotel label in the open English property modal when language changes', () => {
+    const room = makeRoom();
+    room.gameState.boardState.ownedProps[13] = { id: 'player-a', color: 'red', houses: 5 };
+    const socketFunctions = makeSocketFunctions();
+
+    render(
+      <SettingsProvider initialSettings={{ ...DEFAULT_GAME_SETTINGS, language: 'vi' }}>
+        <I18nProvider>
+          <LanguageToggle />
+          <stateContext.Provider value={{
+            state: room.gameState,
+            socketFunctions,
+            playerId: 'player-a',
+            role: 'PLAYER',
+            connected: true,
+            canMutate: false,
+            privatePlayerState: null,
+            privateOffers: [],
+            roomPlayers: room.players,
+          }}>
+            <tradePromptContext.Provider value={{ tradeTarget: null, openTradeForProperty: vi.fn(), closeTrade: vi.fn() }}>
+              <PropertyInspectionModal tileId={13} onClose={vi.fn()} />
+            </tradePromptContext.Provider>
+          </stateContext.Provider>
+        </I18nProvider>
+      </SettingsProvider>,
+    );
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('1 Khách sạn')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Switch language' }));
+
+    expect(screen.getByRole('dialog')).toBe(dialog);
+    expect(within(dialog).getByText('1 hotel')).toBeTruthy();
+    expect(within(dialog).getByText('With a hotel')).toBeTruthy();
+    expect(within(dialog).getByText('Cost per house / hotel')).toBeTruthy();
+    expect(within(dialog).getByText('Hotel · Chùa Cầu Temple')).toBeTruthy();
+    expect(dialog.textContent).not.toContain('Khách sạn');
+    expect(dialog.textContent).not.toContain('Nhà');
   });
 
   describe('actions', () => {

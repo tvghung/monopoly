@@ -1,4 +1,4 @@
-import type { GameState, OfferResult, PlayerColorId } from '@monopoly/shared';
+import { CARD_MINIMUM_VISIBLE_MS, type GameState, type OfferResult, type PlayerColorId } from '@monopoly/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { BotDriver } from './bots/driver.js';
@@ -177,11 +177,13 @@ describe('bot driver: one turn at a time through the shared commands', () => {
     const { subject, persistence, roomId, host, botId } = await botGame();
     await arrange(persistence, roomId, (state) => turnOf(state, botId));
     diceRandom(3, 4); // tile 7, Cơ Hội
+    const startedAt = Date.now();
     const driver = resumeBots(subject, roomId);
     const room = await until(persistence, roomId, (candidate) => {
       const board = candidate?.gameSnapshot.gameState.boardState;
       return Boolean(board && (board.winner || board.currentPlayer.id === host.playerId));
-    });
+    }, CARD_MINIMUM_VISIBLE_MS + 5_000);
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(CARD_MINIMUM_VISIBLE_MS);
     expect(room!.gameSnapshot.gameState.turnInfo.pendingCardInteraction).toBeUndefined();
     expect(room!.gameSnapshot.gameState.privateState.completedCardOperations
       .some((operation) => operation.playerId === botId)).toBe(true);

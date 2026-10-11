@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { DevelopmentChangeSignal } from '../../presentation/store/types';
@@ -12,6 +12,7 @@ import { hasLandmark } from './landmarks/registry';
 import { useHouseRenderMode } from './houseRenderMode';
 import { getHotelTransitionScales, getHousePopScale } from './buildingMotion';
 import { getScaledConstructionBurstDuration } from './constructionTiming';
+import { getAnimationElapsedMs } from '../animationTime';
 import { getBuildingSlots, getHotelSlot } from '../board/architecture/tileAnchors';
 
 interface BuildingLayerProps {
@@ -68,14 +69,13 @@ function AnimatedLegacyHouse({
   reducedMotion: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
-  const elapsedRef = useRef(0);
+  const startedAtMsRef = useRef(0);
   const invalidate = useThree(state => state.invalidate);
-  useEffect(() => { invalidate(); }, [invalidate]);
-  useFrame((_, delta) => {
+  useLayoutEffect(() => { startedAtMsRef.current = performance.now(); invalidate(); }, [invalidate]);
+  useFrame(() => {
     const group = groupRef.current;
     if (!group) return;
-    elapsedRef.current += delta * 1000;
-    const local = elapsedRef.current - delayMs;
+    const local = getAnimationElapsedMs(startedAtMsRef.current) - delayMs;
     const progress = THREE.MathUtils.clamp(local / Math.max(1, durationMs), 0, 1);
     group.scale.setScalar(local < 0 ? 0 : getHousePopScale(progress));
     if (progress < 1) invalidate();
@@ -112,12 +112,12 @@ function HotelTransition({
   const mode = useHouseRenderMode();
   const oldRef = useRef<THREE.Group>(null);
   const hotelRef = useRef<THREE.Group>(null);
-  const elapsedRef = useRef(0);
+  const startedAtMsRef = useRef(0);
   const invalidate = useThree(state => state.invalidate);
-  useEffect(() => { invalidate(); }, [invalidate]);
-  useFrame((_, delta) => {
-    elapsedRef.current += delta * 1000;
-    const progress = THREE.MathUtils.clamp(elapsedRef.current / Math.max(1, durationMs), 0, 1);
+  useLayoutEffect(() => { startedAtMsRef.current = performance.now(); invalidate(); }, [invalidate]);
+  useFrame(() => {
+    const elapsedMs = getAnimationElapsedMs(startedAtMsRef.current);
+    const progress = THREE.MathUtils.clamp(elapsedMs / Math.max(1, durationMs), 0, 1);
     const scales = getHotelTransitionScales(progress);
     oldRef.current?.scale.setScalar(scales.oldScale);
     hotelRef.current?.scale.setScalar(scales.hotelScale);

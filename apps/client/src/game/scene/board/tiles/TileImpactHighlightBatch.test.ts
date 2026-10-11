@@ -1,6 +1,12 @@
 import * as THREE from 'three';
+import { tileState } from '@monopoly/shared';
+import { composeTileSurfaceMatrix } from '../architecture/tileMatrix';
+import { getBoardTileLayout } from '../boardLayout';
+import { TileMotionController } from '../motion/TileMotionController';
 import { describe, expect, it } from 'vitest';
 import {
+  createTileImpactHighlightMeshBundle,
+  getTileImpactHighlightEntries,
   createTileImpactHighlightMaterial,
   getTileImpactHighlightIntensity,
   TILE_LAND_HIGHLIGHT_STRENGTH,
@@ -29,5 +35,39 @@ describe('tile impact highlight FX', () => {
     expect(material.transparent).toBe(true);
     expect(material.forceSinglePass).toBe(true);
     material.dispose();
+  });
+
+  it('rebuilds the batch at the current tile press offset and intensity', () => {
+    let now = 0;
+    const controller = new TileMotionController({ now: () => now });
+    controller.press(1, 'LAND', { delayMs: 0, depressDurationMs: 100, reboundDurationMs: 200 });
+    now = 15;
+    controller.advance();
+    const tiles = tileState.map((tile, tileId) => ({ tileId, name: '', tileType: tile.tileType, houses: 0 }));
+    const entries = getTileImpactHighlightEntries(tiles);
+    const index = entries.findIndex(entry => entry.tileId === 1);
+    const entry = entries[index];
+    const geometry = new THREE.PlaneGeometry(1, 1);
+    const { mesh, material } = createTileImpactHighlightMeshBundle(geometry, entries, controller);
+    const actual = new THREE.Matrix4();
+    const expected = new THREE.Matrix4();
+    const layout = getBoardTileLayout(1)!;
+    const color = new THREE.Color();
+    mesh.getMatrixAt(index, actual);
+    mesh.getColorAt(index, color);
+    composeTileSurfaceMatrix(
+      layout,
+      entry.surfaceSize,
+      controller.getTileOffsetY(1),
+      expected,
+      (entry.surfacePlaneOffset ?? 0) + 0.002,
+    );
+    expect(actual.elements[13]).toBeCloseTo(expected.elements[13], 6);
+    expect(color.r).toBeCloseTo(
+      getTileImpactHighlightIntensity(controller.getTilePressIntensity(1), 'LAND'),
+      6,
+    );
+    material.dispose();
+    geometry.dispose();
   });
 });

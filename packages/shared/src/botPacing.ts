@@ -20,6 +20,9 @@ export const ROLL_PRESENTATION_BUDGET_MS = {
 
 export const BOT_THINKING_PAUSE_MS = 900;
 
+/** Minimum time each client shows a revealed card before it can be dismissed. */
+export const CARD_MINIMUM_VISIBLE_MS = 3_000;
+
 export function estimateRollPresentationMs(steps: number, passesGo: boolean): number {
   const budget = ROLL_PRESENTATION_BUDGET_MS;
   return budget.dice + budget.moveLead + budget.perStep * Math.max(0, steps) + budget.landing

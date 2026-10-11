@@ -20,7 +20,7 @@
 | `translate` (per-language catalog lookup), interpolation and React context | `apps/client/src/i18n/I18n.tsx` |
 | Root provider lifecycle and document metadata | `apps/client/src/index.tsx`, `i18n/LanguageDocumentSync.tsx` |
 | Settings value/default/migration | `settings/types.ts`, `settings/defaults.ts`, `settings/storage.ts`, `settings/SettingsProvider.tsx` |
-| Main-menu language selector and Settings segmented control | `components/LanguageSelector.tsx` (+ `components/style/LanguageSelector.css`), `components/DesktopMultiplayerLauncher.tsx`, `settings/SettingsPanel.tsx` |
+| Shared dropdown selector, configured for main-menu language, Settings language, and Lobby bot difficulty | `components/DropdownSelector.tsx`, `components/LanguageSelector.tsx` (+ `components/style/LanguageSelector.css`), `components/DesktopMultiplayerLauncher.tsx`, `components/Lobby.tsx`, `settings/SettingsPanel.tsx` |
 | Landmark (hotel) names in both languages | `game/scene/buildings/landmarks/plan.ts` (`name`, `nameEn`), `game/ui/property/landmarkVisuals.ts` (`getLandmarkName`, `getLandmarkHotelLabel`) |
 | Board, structured activity, card presentation and player accessibility copy | `game/ui/formatters.ts`, `game/ui/hud/activityText.ts`, `i18n/cardCopy.ts`, `game/characters/` |
 | How To Play model and card lists | `howToPlay/model.ts`, `howToPlay/model.en.ts`, `howToPlay/cards.ts` |
@@ -42,14 +42,14 @@ HTML is injected.
 
 ## Language-specific presentation rules
 
-- The main menu has a language selector (`LanguageSelector`): a ghost button showing the globe icon, the current language
+- The main menu, Settings and Lobby bot difficulty use the same `DropdownSelector` behavior and visual treatment. The language configuration (`LanguageSelector`) is a ghost button showing the globe icon, the current language
   in its own name ("Tiếng Việt" / "English") and a chevron, in the utility row next to "Cài đặt" and "Thoát". Pressing it only
   opens a small list titled "Chọn ngôn ngữ" / "Select Language" with one option for every entry of `SUPPORTED_LANGUAGES`; the
   current option has a check and `aria-selected`. **Opening the list changes nothing**: the language changes only when an
   option is chosen, and the list then closes and returns focus to the button. It also closes on Escape (the key is consumed, so it
   cannot close anything behind it), on a press outside and when Tab leaves it. Keyboard: an arrow key opens it on the current
   language, Up/Down/Home/End move, Enter or Space chooses; the options are real buttons (`role="option"`, 44 px) so touch and
-  mouse behave the same. The list opens upward when the button is in the lower half of the window, otherwise downward.
+  mouse behave the same. Its popover is positioned against the viewport so it is not clipped by the Settings modal's scrolling body; it opens on the side with more room.
 - The selector and the Settings dialog write the same `settings.language` through `updateSettings`; the choice is persisted with the
   other settings (`own-the-block.settings.v2`) and read back at start. Both update immediately without reloading; open dialogs and
   error messages render from current locale. Option names are the language's own name (`language.vietnamese` / `language.english`),
@@ -100,7 +100,7 @@ HTML is injected.
 
 ## Adding a language
 
-1. Add `{ code, labelKey }` to `SUPPORTED_LANGUAGES` (`i18n/languages.ts`). The selector, the Settings segmented control, the
+1. Add `{ code, labelKey }` to `SUPPORTED_LANGUAGES` (`i18n/languages.ts`). The main selector and the Settings dropdown, the
    `Language` type and the stored-value check (`normalizeSettings` accepts only listed codes, so an unknown stored value falls
    back to the default) follow from it. `labelKey` names a message whose text is the language's own name.
 2. Add a complete catalog to `catalog.ts` and register it in `CATALOGS` of `I18n.tsx` (a `Record<Language, …>`, so TypeScript

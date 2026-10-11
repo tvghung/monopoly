@@ -21,11 +21,8 @@
 
 - [ ] `[AUTO]` Buy/Do Not Buy revalidate operation ID, property and balance; Do Not
   Buy never starts an auction; Free Parking is a no-op (tax tiles charge, see the tax row).
-- [x] `[AUTO]` Landing on a tax tile charges its `expenseAmount` to the Bank through the payment pipeline (index 4 pays 150
-  = 150.000 ₫ (CURRENT DEVELOPMENT; 200 in released v1.7.0), index 38 pays 100 = 100.000 ₫, nobody else is paid); a short payer enters the TAX shortfall and is
-  bankrupt at once when nothing is left to sell (`game.test.ts` "charges tile $tileID tax through the bank payment
-  pipeline", "bankrupts a cash-short player without assets on tax tile", "pauses a TAX debt for liquidation and never
-  charges the landing twice"; `rulesContract.test.ts` "charges each tax tile the amount in the tile data, to the Bank").
+- [x] `[AUTO]` Income Tax index 4 charges `floor(max(0, currentCash) * 0.30)` to the Bank, with no minimum and no debt/event for a zero charge; Luxury Tax index 38 remains fixed at 100. Shortfalls still use the Bank payment pipeline (`apps/server/src/game.test.ts`, `apps/server/src/v3.simplifiedRules.test.ts`, `apps/server/src/rulesContract.test.ts`).
+- [x] `[AUTO][CLIENT]` A revealed card cannot be dismissed before three seconds from server reveal; the human countdown starts on local reveal, stays disabled for the full visible time, and slow observers retain their own card after server clear. Bot `CARD` wait is movement estimate + 3 seconds (`apps/server/src/game.test.ts`, `apps/client/src/game/ui/events/CardInteractionOverlay.test.tsx`, `apps/client/src/game/presentation/executors/semanticExecutors.test.ts`, `apps/server/src/bots/policy.test.ts`, `apps/server/src/socket.botDriver.integration.test.ts`).
 - [ ] `[AUTO]` Chance/Khí Vận draw top in the stored private order, normal card rotates bottom,
   movement resolves destination/pass-GO and go-to-jail direct semantics.
 - [ ] `[AUTO][RAM]` Jail-free card leaves source pile, holder identity persists,

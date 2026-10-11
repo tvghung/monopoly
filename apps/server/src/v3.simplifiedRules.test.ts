@@ -128,18 +128,18 @@ describe('simplified v4 rules', () => {
     expect(state.turnInfo.pendingDevelopmentDecision?.operationId).toEqual(expect.any(String));
   });
 
-  it('charges the fixed Income Tax amount through the bank payment pipeline', () => {
+  it('charges 30% of current cash as Income Tax through the bank payment pipeline', () => {
     const state = makeState();
     addPlayer(state, 'p1', { currentTile: 4, accountBalance: 1000 });
 
     resolveTile(state, 'p1', 0, { playerId: 'p1', turnNumber: 1 });
 
-    expect(state.players.p1.accountBalance).toBe(850);
+    expect(state.players.p1.accountBalance).toBe(700);
     expect(state.boardState.paymentQueue).toBeNull();
     expect(state.boardState.gameplayEvents.events).toContainEqual(expect.objectContaining({
       type: 'MONEY_TRANSFER',
       destination: { kind: 'BANK' },
-      amount: 150,
+      amount: 300,
       reason: 'TAX',
     }));
   });

@@ -1,5 +1,6 @@
 import './style/Lobby.css';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Bot } from 'lucide-react';
 import {
   BOT_DIFFICULTIES, DEFAULT_BOT_DIFFICULTY, getAppearanceCombinationKey, MAX_BOTS_PER_ROOM, TEAM_IDS,
 } from '@monopoly/shared';
@@ -15,6 +16,7 @@ import type {
   TeamSlot,
 } from '@monopoly/shared';
 import Button from '../design-system/components/Button/Button';
+import DropdownSelector from './DropdownSelector';
 import Chip from '../design-system/components/Chip/Chip';
 import ConfirmationDialog from '../design-system/components/ConfirmationDialog/ConfirmationDialog';
 import IconButton from '../design-system/components/IconButton/IconButton';
@@ -326,18 +328,22 @@ export default function Lobby({
 
         {botCount > 0
           ? (
-            <label className="lobby__bot-difficulty">
+            <div className="lobby__bot-difficulty">
               <span>{t('lobby.botDifficulty')}</span>
-              <select
+              <DropdownSelector
                 value={botDifficulty}
+                options={BOT_DIFFICULTIES.map(level => ({
+                  value: level,
+                  label: t(`lobby.botDifficulty.${level}`),
+                }))}
+                heading={t('lobby.botDifficulty')}
+                triggerLabel={t('lobby.botDifficultyTrigger', { difficulty: t(`lobby.botDifficulty.${botDifficulty}`) })}
+                icon={<Bot />}
                 disabled={busy || !isHost || !onSetBotDifficulty}
-                onChange={event => onSetBotDifficulty?.(event.target.value as BotDifficulty)}
-              >
-                {BOT_DIFFICULTIES.map(level => (
-                  <option key={level} value={level}>{t(`lobby.botDifficulty.${level}`)}</option>
-                ))}
-              </select>
-            </label>
+                onChange={difficulty => onSetBotDifficulty?.(difficulty)}
+                className="lobby__bot-difficulty-selector"
+              />
+            </div>
           )
           : null}
 

@@ -12,11 +12,10 @@
 
 - `normal`: unowned → `TurnInfo.pendingPropertyDecision` mua/không mua; owner khác
   → enqueue rent claim; own tile → same-landing development decision when eligible.
-- `expense`: thuế **thu tiền**. Dừng ở ô thuế (index 4 Thuế Thu Nhập: RELEASED v1.7.0 = 200, CURRENT DEVELOPMENT (vNext,
-  unreleased; implemented on the vNext development branch; product approval/release decision not independently verified) = 150; index 38 Thuế Xa Xỉ 100; `expenseAmount` trong
-  `packages/shared/src/tileState.ts`, xem [Version history](../Shared/socket-and-state-contracts.instruction.md#version-history)) tạo một `DebtClaim` `source: { kind: 'TAX', tileID }` với creditor Bank qua cùng `PaymentQueue` như
+- `expense`: thuế **thu tiền**. Index 4 Income Tax dùng `expenseRate: 0.3` và thu `floor(max(0, currentCash) * 0.3)`; index 38 Luxury Tax vẫn dùng `expenseAmount: 100` trong
+  `packages/shared/src/tileState.ts`. Khoản thu tạo `DebtClaim` `source: { kind: 'TAX', tileID }` với creditor Bank qua cùng `PaymentQueue` như
   tiền thuê và thẻ phạt: đủ tiền thì trừ ngay (`MONEY_TRANSFER` lý do `TAX`), thiếu thì vào luồng thiếu hụt (bán tài sản,
-  tự bán khi hết hạn, phá sản nếu hết tài sản). Không ai khác nhận tiền thuế và Bãi Đỗ Xe không gom tiền thuế.
+  tự bán khi hết hạn, phá sản nếu hết tài sản). Thuế bằng 0 không mở hàng đợi nợ. Không ai khác nhận tiền thuế và Bãi Đỗ Xe không gom tiền thuế.
 - `railroad`/`company`: áp rent trong property-economy instruction.
 - `gojail`: direct index 10, reset jail opponent-round progress, không thưởng Xuất Phát.
 - `jail`: landing bình thường là “Thăm Tù”.
@@ -49,6 +48,8 @@ Player.heldJailFreeCardIds: GameCardId[]
   không resolve/handoff hai lần.
 - Card money/multi-player transfer tạo ordered `DebtClaim`, không mutate balance âm
   hoặc iterate Player theo object-key order.
+- Card REVEALED ở lại ít nhất 3 giây trên mỗi client. UI bắt đầu tính khi thẻ đã được vẽ; nút Đóng có countdown và server từ chối lệnh sớm.
+  Bot giữ nguyên ước lượng chuyển động rồi chờ thêm 3 giây. Mốc này ở RAM, không cần chờ client chậm/ngắt kết nối và không đổi snapshot/protocol.
 
 ## Jail simplified rules
 
@@ -74,7 +75,8 @@ Ba cách xử lý lượt tù:
 - Bail trực tiếp, jail-free card, doubles escape, failed-roll auto-handoff và
   compatibility wait; không có third-fail
   forced-bail hay stored-dice continuation.
-- Ô thuế thu đúng `expenseAmount` về Bank (đủ tiền, thiếu tiền vào shortfall, hết tài sản thì phá sản); Bãi Đỗ Xe no-op;
+- Income Tax thu 30% tiền hiện có, làm tròn xuống; Luxury Tax vẫn thu 100; zero Income Tax không tạo claim; shortfall / phá sản vẫn theo payment pipeline và chỉ khoản thực thu đi vào Bank. Bãi Đỗ Xe no-op.
+- Card không thể đóng trước 3 giây theo giờ server; local countdown, bot pacing và observer queue giữ đủ thời gian đọc dù tốc độ/reduced-motion thay đổi hoặc server đã clear state.
   save failure không publish partial resolution.
 - Số luật hiển thị cho người chơi (hệ số Công Ty, tiền thuê Ga, vòng chờ tù, thưởng Xuất Phát...) khớp `rules.ts`
   (`apps/server/src/rulesContract.test.ts`).

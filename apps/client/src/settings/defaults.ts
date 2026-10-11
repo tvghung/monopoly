@@ -1,10 +1,11 @@
 import { DEFAULT_LANGUAGE, isSupportedLanguage } from '../i18n/languages';
-import type { GameSettings, GraphicsQualitySetting } from './types';
+import type { FpsLimitSetting, GameSettings, GraphicsQualitySetting } from './types';
 
 export const SETTINGS_STORAGE_KEY = 'own-the-block.settings.v2';
 export const LEGACY_SETTINGS_STORAGE_KEY = 'own-the-block.settings.v1';
 export const ANIMATION_SPEED_OPTIONS = [0.75, 1, 1.5, 2] as const;
 export const GRAPHICS_QUALITY_OPTIONS = ['auto', 'high', 'balanced', 'low'] as const satisfies readonly GraphicsQualitySetting[];
+export const FPS_LIMIT_OPTIONS = [30, 60, 120, 180, 240] as const satisfies readonly FpsLimitSetting[];
 
 export const DEFAULT_GAME_SETTINGS: GameSettings = {
   version: 2,
@@ -17,6 +18,7 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   reducedMotion: false,
   fullscreen: false,
   graphicsQuality: 'auto',
+  fpsLimit: 60,
 };
 
 function validNumber(value: unknown): value is number {
@@ -39,6 +41,12 @@ export function normalizeGraphicsQuality(value: unknown): GraphicsQualitySetting
     : DEFAULT_GAME_SETTINGS.graphicsQuality;
 }
 
+export function normalizeFpsLimit(value: unknown): FpsLimitSetting {
+  return typeof value === 'number' && (FPS_LIMIT_OPTIONS as readonly number[]).includes(value)
+    ? value as FpsLimitSetting
+    : DEFAULT_GAME_SETTINGS.fpsLimit;
+}
+
 export function normalizeSettings(value: unknown): GameSettings {
   if (!value || typeof value !== 'object') return { ...DEFAULT_GAME_SETTINGS };
   const candidate = value as Partial<GameSettings>;
@@ -57,6 +65,7 @@ export function normalizeSettings(value: unknown): GameSettings {
       ? candidate.fullscreen
       : DEFAULT_GAME_SETTINGS.fullscreen,
     graphicsQuality: normalizeGraphicsQuality(candidate.graphicsQuality),
+    fpsLimit: normalizeFpsLimit(candidate.fpsLimit),
   };
 }
 

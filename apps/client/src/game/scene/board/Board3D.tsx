@@ -126,7 +126,7 @@ export default function Board3D({
         rollSequence: 0,
         phase: 'HIDDEN',
         durationMs: 0,
-      }} />
+      }} reducedMotion={model?.reducedMotion ?? false} />
       <PhysicalCardDecks
         deckCounts={model?.deckCounts ?? { chance: 0, chest: 0 }}
       />

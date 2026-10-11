@@ -1,5 +1,5 @@
 /*
- * Modal v2 (plan 04 §8.1). The overlay blocks the page; the card is a paper sheet with a sticky header and footer and a
+ * Modal v2 (plan 04 Â§8.1). The overlay blocks the page; the card is a paper sheet with a sticky header and footer and a
  * scrolling body (`.ds-modal__body` is the scroll container the e2e suite checks). Sizes, placement, backdrop, tone and
  * layer are modifiers; the defaults equal the previous look, so dialogs that pass none of the new props keep working.
  */
@@ -144,12 +144,9 @@
   .ds-modal__card .ds-button__icon > svg { width: 0.9375rem; height: 0.9375rem; }
 }
 
-/*
- * Peek ("view board", `peek` prop). The eye key sits beside the close key; pressing it hides the whole overlay (`hidden`, so no
- * invisible layer is left to swallow clicks) and the floating restore key below takes its place. Only the key and its status
- * take pointer input; the row around them lets everything through.
- */
-.ds-modal__overlay[hidden] { display: none; }
+/* Peek/exit release input immediately while the single Motion fade finishes. */
+.ds-modal__overlay[data-peeking='true'],
+.ds-modal__overlay[data-exiting='true'] { pointer-events: none; }
 .ds-modal__tools { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-2); }
 
 .ds-modal-peek {

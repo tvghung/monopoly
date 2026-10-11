@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { OwnershipChangeSignal } from '../../../presentation/store/types';
 import { presentationTiming } from '../../../presentation/timings';
+import { getAnimationElapsedMs } from '../../animationTime';
 import { TILE_SURFACE_CLEARANCE_Y, TILE_SURFACE_Y } from '../boardLayout';
 import { boardVisualTokens } from '../boardVisualTokens';
 import { getPlayerDisplayColor } from '../../../ui/playerVisualColors';
@@ -122,7 +123,7 @@ function OwnershipFlagAnimation({
   groupRef: { current: THREE.Group | null };
   ownershipChange: OwnershipChangeSignal;
 }) {
-  const elapsedRef = useRef(0);
+  const startedAtMsRef = useRef(0);
   const animatedSignalRef = useRef<string | null>(null);
   const animatingRef = useRef(false);
   const invalidate = useThree(state => state.invalidate);
@@ -131,19 +132,19 @@ function OwnershipFlagAnimation({
     const group = groupRef.current;
     if (!group || animatedSignalRef.current === ownershipChange.id) return;
     animatedSignalRef.current = ownershipChange.id;
-    elapsedRef.current = 0;
+    startedAtMsRef.current = performance.now();
     animatingRef.current = true;
     group.scale.setScalar(0);
     invalidate();
   }, [groupRef, invalidate, ownershipChange.id]);
 
-  useFrame((_, delta) => {
+  useFrame(() => {
     if (!animatingRef.current) return;
     const group = groupRef.current;
     if (!group) return;
-    elapsedRef.current += delta * 1000;
+    const elapsedMs = getAnimationElapsedMs(startedAtMsRef.current);
     const progress = THREE.MathUtils.clamp(
-      elapsedRef.current / presentationTiming.ownershipPop,
+      elapsedMs / presentationTiming.ownershipPop,
       0,
       1,
     );

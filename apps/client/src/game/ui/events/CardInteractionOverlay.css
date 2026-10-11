@@ -99,11 +99,7 @@
   --ds-modal-width: 26rem;
   align-self: center;
   min-height: min(calc(min(var(--ds-modal-width), 100vw - 2rem) * 1.4), calc(100dvh - 2rem));
-  animation: card-modal-enter 320ms var(--motion-ease-out) backwards;
 }
-
-/* Reduced motion (the in-app setting or the OS): the card only fades. */
-.ds-modal__card.card-modal--reduced-motion { animation: card-modal-fade 120ms linear backwards; }
 
 .card-modal .ds-modal__header {
   flex-direction: column;
@@ -291,16 +287,6 @@
 
 .card-face--gallery .card-face__title { font: var(--type-title-s); }
 .card-face--gallery .card-face__message { font-size: 0.95rem; }
-
-@keyframes card-modal-enter {
-  from { opacity: 0; transform: translateY(32px) rotate(-2deg); }
-  to { opacity: 1; transform: none; }
-}
-
-@keyframes card-modal-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
 
 @media (max-width: 520px) {
   .card-art-gallery { padding: var(--space-4); }

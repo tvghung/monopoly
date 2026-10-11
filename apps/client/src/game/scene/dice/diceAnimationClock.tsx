@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 
 export interface DiceAnimationProgressRef {
@@ -36,7 +36,7 @@ export function DiceAnimationClock({
     startRef.current = null;
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     startRef.current = phase === 'ROLLING' ? performance.now() : null;
     if (phase === 'ROLLING') invalidate();
   }, [invalidate, phase, key]);

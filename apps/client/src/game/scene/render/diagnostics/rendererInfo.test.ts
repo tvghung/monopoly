@@ -130,6 +130,29 @@ describe('FrameCounter', () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
+  it('measures main render cadence and synchronous WebGL submission time', () => {
+    const renderer = new FakeRenderer();
+    const { main, camera } = makeScenes();
+    const counter = new FrameCounter(renderer, main);
+    const now = vi.spyOn(performance, 'now')
+      .mockReturnValueOnce(100)
+      .mockReturnValueOnce(104)
+      .mockReturnValueOnce(120)
+      .mockReturnValueOnce(124);
+
+    counter.beginFrame();
+    renderer.render(main, camera);
+    counter.beginFrame();
+    renderer.render(main, camera);
+
+    expect(counter.stats).toMatchObject({
+      mainRenderAtMs: 124,
+      mainRenderIntervalMs: 20,
+      mainRenderCpuMs: 4,
+    });
+    now.mockRestore();
+  });
+
   it('restores the renderer on dispose', () => {
     const renderer = new FakeRenderer();
     const { main, camera } = makeScenes();

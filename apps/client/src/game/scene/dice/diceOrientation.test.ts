@@ -4,6 +4,7 @@ import { presentationTiming } from '../../presentation/timings';
 import {
   DICE_REROLL_LIFT_RATIO,
   getDiceAnimationHeight,
+  getDiceMotionTrailOpacity,
   getDiceBounceOffset,
   getDiceAnimationRotation,
   getDiceTumbleTurns,
@@ -25,10 +26,27 @@ describe('procedural dice orientation', () => {
     });
   });
 
+  it('reduces the tumble to one turn and disables the trail for low or reduced motion', () => {
+    expect(getDiceTumbleTurns(8, 0, true)).toBe(1);
+    expect(getDiceMotionTrailOpacity(0, 'low')).toBe(0);
+    expect(getDiceMotionTrailOpacity(0, 'high', true)).toBe(0);
+    expect(getDiceMotionTrailOpacity(0.72, 'high')).toBe(0);
+  });
+
+  it('uses tiered dice-local trail opacity that fades before the result settles', () => {
+    const balanced = getDiceMotionTrailOpacity(0.2, 'balanced');
+    const high = getDiceMotionTrailOpacity(0.2, 'high');
+    expect(high).toBeGreaterThan(balanced);
+    expect(balanced).toBeGreaterThan(getDiceMotionTrailOpacity(0.7, 'balanced'));
+  });
+
   it('uses deterministic but distinct tumble paths for each die and sequence', () => {
     expect(getDiceTumbleTurns(1, 0)).not.toBe(getDiceTumbleTurns(2, 0));
     expect(getDiceAnimationRotation(2, 3, 0, 0)).not.toEqual(
       getDiceAnimationRotation(2, 3, 1, 0),
+    );
+    expect(getDiceAnimationRotation(2, 3, 0, 0.4, undefined, true)).not.toEqual(
+      getDiceAnimationRotation(2, 3, 0, 0.4),
     );
   });
 

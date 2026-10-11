@@ -33,12 +33,12 @@
 - `getActivitySignature()` uses typed tail length/sequence/last event identity plus
   the legacy log signature. A new array with equivalent content is not new activity.
 - Log là ngăn kéo cạnh phải (Visual Overhaul V2 plan 03): **mặc định đóng**, tab dọc (icon, nhãn "Nhật ký",
-  badge chưa đọc) luôn hiện; mở ra là panel giấy đặc, rộng `min(360px, 40vw)` (điện thoại `min(92vw, 360px)`).
+  badge chưa đọc) luôn hiện; mở ra là panel giấy đặc, rộng `min(360px, 40vw)` (điện thoại `min(360px, calc(100vw - 44px - inset))`).
   Không còn idle fade: `LOG_IDLE_TIMEOUT_MS`, `data-idle` và opacity `0.2` đã bị xóa.
 - Trạng thái mở/đóng dùng chung qua `HudDrawerProvider` (`game/ui/hud/hudDrawer.tsx`) và được nhớ theo người xem
   trong `localStorage` khóa `own-the-block.hud.drawer.v1` (`open`/`closed`, bọc try/catch; mặc định đóng).
 - A11y: tab là `button[aria-expanded][aria-controls="board-log-panel"]`; mở ngăn thì focus chuyển vào panel;
-  `Escape` đóng và trả focus về tab, trừ khi đang có dialog (`role=dialog|alertdialog`).
+  `Escape` đóng và trả focus về tab, trừ khi đang có dialog hiển thị (`aria-modal=true`).
 - `ActivityTicker` (dòng gameplay mới nhất, không phải chat/dice, 4000 ms / speed, ẩn khi ngăn mở, bấm để mở,
   `aria-hidden`) và bong bóng chat trên card người gửi (tin của người khác, tối đa 80 ký tự, 4000 ms / speed, chỉ
   render text, không hiện khi ngăn mở và bị xóa khi ngăn mở) không bao giờ replay lịch sử; cursor nhảy tới mới nhất
@@ -139,3 +139,7 @@ Khi sửa activity log/chat, kiểm tra tối thiểu:
 - Listener `update` không bị nhân đôi sau rerender/reconnect.
 - Audit không còn player-facing English/USD trong chat hoặc game-generated log.
 - Chạy typecheck, build, lint và testcase được liên kết ở trên.
+
+## v1.9.0 final drawer refinement (unreleased)
+
+The panel stays mounted; CSS slides it from/to the right in 240 ms using transform only. Toggle and panel share width/inset-derived travel and easing, including narrow/landscape safe areas. Closed/closing content is inert, aria-hidden and cannot intercept clicks; visibility becomes hidden after exit. Rapid toggles reverse the same transition without remounting. Escape and focus return to the toggle are preserved. Reduced Motion removes sliding; chat drafts still clear on close, and feed/unread/preference behavior is unchanged.

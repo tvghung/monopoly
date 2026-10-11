@@ -28,6 +28,8 @@ export interface CharacterMovementSignal {
   toSlotIndex: number;
   toOccupantCount: number;
   durationMs: number;
+  startedAtMs?: number;
+  rollSequence?: number;
 }
 
 export interface CharacterLandingSignal {

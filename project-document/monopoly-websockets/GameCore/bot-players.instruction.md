@@ -60,6 +60,7 @@ ghế đó được làm. Thiết kế đầy đủ và quyết định: [BOT_SY
   với một dòng log rõ ràng. Không có người thật kết nối → bot chờ. Delay chỉ để trình bày (`BOT_ACTION_DELAY_SCALE`): sau
   khi đổ, bot chờ ước lượng trình bày ở tốc độ thường (`packages/shared/src/botPacing.ts`) + 0,9 s suy nghĩ; logic không chờ
   animation client, client giữ cờ sở hữu tới khi hàng đợi trình bày tới bước chuyển nhượng.
+  Với task `CARD`, bot giữ ước lượng đó rồi chờ thêm tối thiểu 3 giây để con người đọc thẻ; bot dùng cùng server command và không bỏ qua kiểm tra thời gian đóng.
 
 ## Mất kết nối của người
 

@@ -25,7 +25,8 @@ each version's release notes in `.github/release-notes/`.
 | v1.5.0 | 2026-10-08 | 11 / 10 | `.github/release-notes/v1.5.0.md` | [RAM-HOSTING-VERIFICATION](../RAM-HOSTING-VERIFICATION.md) (HISTORICAL). No section in the release contract; the release notes are the record |
 | v1.6.0 | 2026-10-08 | 11 / 10 | `.github/release-notes/v1.6.0.md` | Release notes only (no separate acceptance record found) |
 | v1.6.1 | 2026-10-08 | 11 / 10 | `.github/release-notes/v1.6.1.md` | Release notes only (no separate acceptance record found) |
-| **v1.7.0** (latest) | 2026-10-09 | 12 / 11 | `.github/release-notes/v1.7.0.md` | The final copies at tag `v1.7.0`: `own-the-block-vnext/ACCEPTANCE_MATRIX.md`, `RELEASE_CANDIDATE.md`, `USER_MANUAL_BOT_TEST_PLAN.md` (commit `e88b959`, not on this branch; read with `git show v1.7.0:<path>`). The copies on this branch are the pre-QA versions: [ACCEPTANCE_MATRIX](../../own-the-block-vnext/ACCEPTANCE_MATRIX.md) |
+| v1.7.0 | 2026-10-09 | 12 / 11 | `.github/release-notes/v1.7.0.md` | The final copies at tag `v1.7.0`: `own-the-block-vnext/ACCEPTANCE_MATRIX.md`, `RELEASE_CANDIDATE.md`, `USER_MANUAL_BOT_TEST_PLAN.md` (commit `e88b959`, not on this branch; read with `git show v1.7.0:<path>`). The copies on this branch are the pre-QA versions: [ACCEPTANCE_MATRIX](../../own-the-block-vnext/ACCEPTANCE_MATRIX.md) |
+| **v1.8.0** (latest) | 2026-10-09 | 13 / 11 | .github/release-notes/v1.8.0.md | [Published GitHub Release](https://github.com/tvghung/monopoly/releases/tag/v1.8.0); candidate and acceptance evidence below |
 
 ## v1.7.0 — platform and scenario summary
 
@@ -47,9 +48,9 @@ Source: `RELEASE_CANDIDATE.md` and `ACCEPTANCE_MATRIX.md` at tag `v1.7.0`, plus 
 | All | Code signing / notarization | NOT APPLICABLE | NOT APPLICABLE | Unsigned distribution by design (release notes); signing BLOCKED in `validate:release` |
 | All | Performance baseline, human usability study | NOT RUN | NOT RUN | No record found |
 
-## v1.8.0 candidate on `main` (protocol 13 / snapshot 11) — NOT PUBLISHED
+## v1.8.0 candidate validation before publication (protocol 13 / snapshot 11)
 
-Merged into `main` by the project owner as PR #6 (merge commit `ea133e4`, 2026-10-09). **No tag `v1.8.0` and no GitHub Release exist.**
+Merged into `main` by the project owner as PR #6 (merge commit `ea133e4`, 2026-10-09). The candidate evidence below predates publication; GitHub later published [v1.8.0](https://github.com/tvghung/monopoly/releases/tag/v1.8.0) on 2026-10-09.
 Scope and decisions: [ADR-13](../ARCHITECTURE_DECISIONS.md#adr-13-released-contract-vs-current-development),
 [V1_RELEASE_CONTRACT §V1.8.0](../../ui-ux-overhaul/V1_RELEASE_CONTRACT.md), `.github/release-notes/v1.8.0.md`.
 
@@ -80,6 +81,22 @@ in the working session, in answer to an explicit question):** the project owner 
 for v1.7.0 and to tag `v1.8.0` now. This is a risk acceptance of unverified rows, **not** a manual PASS and not an owner test report; the
 release notes disclose the gaps. The rows stay NOT RUN until someone runs them.
 
+## v1.8.1 pre-release corrections on `codex/v181-pre-release-fixes`
+
+This branch starts from `origin/main` at `debf4e4`. It corrects the unreleased v1.8.0 candidate before manual acceptance; it does not
+bump the app version or publish a release. Automated entries below are updated only after the listed local gates run. Owner manual
+acceptance was later recorded by the owner as OWNER-REPORTED MANUAL ACCEPTANCE: PASS; no independent per-case or full LAN/device log was provided.
+
+| Task | Automated | Manual | Evidence / limitation |
+| --- | --- | --- | --- |
+| Revealed-card minimum for human, bot and observer; server rejects early dismissal | PASS | OWNER-REPORTED PASS | Server card/game tests, bot policy/driver tests, client overlay and semantic-executor tests; all client 2,306 tests and server 559 tests passed across runs; aggregate runner worker note below |
+| Income Tax 30% rounded down, zero no-debt; Luxury Tax fixed 100 | PASS | OWNER-REPORTED PASS | `apps/server/src/game.test.ts`, `apps/server/src/v3.simplifiedRules.test.ts`, `apps/server/src/rulesContract.test.ts`, client tax-copy tests; owner-reported acceptance; no per-case landing/Bank display log |
+| Lobby bot difficulty shared dropdown | PASS | OWNER-REPORTED PASS | `apps/client/src/components/Lobby.test.tsx`; owner-reported acceptance; no per-case interaction log |
+| Settings language shared dropdown | PASS | OWNER-REPORTED PASS | `apps/client/src/settings/SettingsPanel.test.tsx`, `apps/client/src/components/LanguageSelector.test.tsx`; owner-reported acceptance; no per-case persistence/viewport log |
+| English hotel text in Property Modal | PASS | OWNER-REPORTED PASS | `apps/client/src/game/ui/property/PropertyInspectionModal.test.tsx` checks a live locale switch; audit found no source translation defect |
+
+The aggregate `pnpm test` command had Vitest worker processes exit unexpectedly in the server socket-hardening and 2v2 suites. Those two suites passed separately (30/30 and 28/28); the other server tests passed in the aggregate report. The non-default `vmThreads` experiment was not used as gate evidence because four timer-based driver-liveness tests fail under that pool, while they pass with the server's default fork pool.
+
 ## Open release risks
 
 | ID | Risk | Type | Status |
@@ -88,3 +105,18 @@ release notes disclose the gaps. The rows stay NOT RUN until someone runs them.
 | R-2 | The branch lacked the v1.7.0 release records on `main` (`e88b959`) | Documentation divergence | RESOLVED: `origin/main` merged without conflicts |
 | R-3 | WebKit-on-Windows music-lifecycle e2e is flaky ("access control checks"); failed twice in one Desktop Build run on the branch, passed in the next run on `main` | Test infrastructure | OPEN, non-blocking follow-up |
 | R-4 | No manual acceptance for 1.8.0 (bot games per level, real host-close, two real apps, in-place update, devices, independent networks) | Verification gap | ACCEPTED BY OWNER for release on 2026-10-09 (risk acceptance; rows remain NOT RUN) |
+
+## v1.9.0 release execution record
+
+Owner acceptance for the v1.9.0 implementation scope: OWNER-REPORTED MANUAL ACCEPTANCE: PASS. This is the owner's report for the requested gameplay and animation behavior, not an independently logged LAN, physical-device, or cross-network test suite.
+
+Protocol 14 is required because Income Tax changes from v1.8.0's fixed 150 to 30% of current nonnegative cash, rounded down. The strict handshake rejects mixed protocol versions; minimum supported version is 1.9.0. Room snapshot schema stays 11 because the accepted changes add no persisted snapshot fields.
+
+| Gate | Automated / release evidence | Manual evidence |
+| --- | --- | --- |
+| Accepted v1.8.1/v1.9.0 behavior | Local checks PASS; GitHub CI/RC pending | OWNER-REPORTED PASS |
+| Protocol compatibility and update policy | Protocol 14 / minimum 1.9.0; strict handshake and server/LAN fixtures PASS | Packaged mixed-version upgrade: NOT RUN |
+| Windows x64, macOS x64, macOS arm64 release candidates | Pending Release Candidate workflow on the integrated main SHA | Physical devices and independent networks: not independently verified in this run |
+| Official publication | Pending tag-triggered Release Candidate workflow | Not applicable |
+
+Local suite evidence: desktop 491/491, client 2,337/2,337, server 559/559 across the single-fork rerun (29/29 files), and 42 root contract/registry/artwork validator tests passed. Music transport passed 22/22. Mobile Chromium and WebKit E2E passed 4/4. The first aggregate pnpm test invocation exited on a Vitest worker error in the server package without an assertion failure; the stable server rerun passed. CI remains the required independent gate.

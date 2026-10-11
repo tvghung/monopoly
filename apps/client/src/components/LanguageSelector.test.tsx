@@ -182,10 +182,11 @@ describe('LanguageSelector with the settings', () => {
       </SettingsProvider>,
     );
 
-    expect(trigger('Language: English').textContent).toBe('English');
+    const languageTriggers = screen.getAllByRole('button', { name: 'Language: English' });
+    expect(languageTriggers).toHaveLength(2);
+    expect(languageTriggers[0]?.textContent).toContain('English');
     const dialog = screen.getByRole('dialog');
-    const selected = within(dialog).getAllByRole('radio').filter(radio => radio.getAttribute('aria-checked') === 'true' || (radio as HTMLInputElement).checked);
-    expect(selected.map(radio => radio.getAttribute('aria-label') ?? radio.textContent)).toContain('English');
+    expect(within(dialog).getByRole('button', { name: 'Language: English' }).textContent).toContain('English');
   });
 
   it('ignores a stored language the game does not ship', () => {

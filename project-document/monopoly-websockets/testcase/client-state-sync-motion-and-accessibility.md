@@ -281,7 +281,7 @@ harness (`?phase4-uat=1`) in system Chrome, results written down here; `[NOT RUN
 
 ### Modal peek ("Xem bàn cờ" / "Hiện quyết định")
 
-- [x] `[AUTO][CLIENT]` `design-system/components/Modal/Modal.peek.test.tsx` (12 tests): the eye key exists only with `peek`; hiding sets `hidden` on the overlay, removes the dialog from
+- [x] `[AUTO][CLIENT]` `design-system/components/Modal/Modal.peek.test.tsx` (12 tests): the eye key exists only with `peek`; hiding sets `inert`/`aria-hidden` on the mounted fading overlay, removes the dialog from
   the accessibility tree and sends/closes nothing; showing returns the same elements with the typed value; focus goes to the restore key and back to the eye; Escape does
   nothing while hidden; the restore key and the "decision hidden" flag disappear when the dialog goes away; `view` dialogs do not raise the flag; only the dialog hidden last
   owns the key; the dialog below takes Escape; a new `peekKey` shows the dialog; `peekSummary` updates while hidden; a language change relabels both keys.
@@ -329,6 +329,13 @@ Labels as in the batch-5 section above (`[AUTO]` committed test, `[PROBE]` throw
 - [x] `[AUTO][CLIENT]` `components/Log.test.tsx`: a gameplay line while the Journal is closed marks the tab (not the chat count) and opening it clears the mark.
 - [ ] `[NOT RUN]` Real phones and tablets (pinch on glass, notch safe areas, browser chrome showing/hiding), browser text zoom, a full match against a server on a device.
 
+## v1.8.1 pre-release acceptance corrections (`codex/v181-pre-release-fixes`)
+
+- [x] `[AUTO][CLIENT]` `apps/client/src/settings/SettingsPanel.test.tsx`: Settings language uses the shared dropdown, immediately changes the open UI, persists through the existing settings path, and Escape closes the option list without closing Settings.
+- [x] `[AUTO][CLIENT]` `apps/client/src/components/Lobby.test.tsx`: bot difficulty uses the LanguageSelector dropdown treatment, exposes all five localized levels, and disables changes for guests and while busy.
+- [x] `[AUTO][CLIENT]` `apps/client/src/game/ui/property/PropertyInspectionModal.test.tsx`: switch the already-open English modal and verify hotel count, hotel rent guidance, build-cost label and `Hotel · Chùa Cầu Temple` remain English; this confirms the audited path has no missing translation.
+- [ ] `[NOT RUN]` Manual owner acceptance: change Settings language and Lobby bot difficulty in a real room; inspect the English hotel deed in a real property modal at desktop and narrow viewport sizes.
+
 ## Mobile and tablet overhaul (2026-10-08, branch `overhaul/mobile-tablet-redesign`)
 
 From the owner's iPhone screenshots (Safari landscape with the tab bar, a ~760×280 game window): the jail panel covered "Đổ xúc xắc",
@@ -352,3 +359,28 @@ Rules: [game-board "Tầng bố cục"](../Client/game-board.instruction.md), [d
 - [x] `[PROBE]` Screenshots at 760×280 and 667×375 (VI and EN): jail group, opponent pill, 2v2 revive, buy / build / hotel / debt dialogs fit with every button reachable;
   real-app join form and 2v2 lobby at 760×280 show none of the removed helper lines.
 - [ ] `[NOT RUN]` Real iPhone/iPad/Android devices (Safari tab bar, notch insets, pinch on glass), the desktop launcher in Electron at a small window.
+
+## v1.9.0 motion owner acceptance
+
+- [ ] Open a local development game with `?motion-trace=1`. Leave the board idle, make the first roll, and inspect the first hop separately from later hops. The first rendered position should continue from the visible origin, horizontal travel should not reverse, no SNAP or duplicate START should appear, and COMPLETE should finish on the destination anchor. Repeat at 30, 60 and 120 FPS and with the available animation-speed choices.
+- [ ] Repeat movement after a later roll, including one step, a long path and GO wraparound; land on and leave an occupied tile; land on Chance/Community Chest; go to Jail; use a direct relocation card; then reset, reconnect and rejoin. Include a bot as mover and a second LAN client as observer. Verify no duplicate movement and correct shared-tile slots.
+- [ ] Roll both dice repeatedly, including equal consecutive faces. Check distinct restrained trajectories, readable authoritative top faces, no pop/clipping/disappearance, contact SFX timing, and trails only on Balanced/High. Verify Low and Reduced Motion have no trail, Reduced Motion has subdued rotation, and results stay exact.
+- [ ] Check intermediate tile steps and final landing: a short depression, stronger final contact, a brief highlight and exact neutral rest; overlapping impacts must not leave an offset. Verify destination preview uses the mover's color, stays on an occupied destination, clears after resolution and is steady with Reduced Motion.
+- [ ] Open and close Chance/Community Chest, property, purchase/build/debt, Settings and nested confirmation dialogs. Check coordinated backdrop/surface exits, focus and Escape, no doubled card entrance, no lost three-second readable card interval, and no invisible click-blocking overlay.
+- [ ] Open/close Journal by toggle and Escape on desktop and narrow viewport. Confirm transform-aligned toggle, no horizontal overflow or board interception during exit, preserved chat/unread/scroll behavior, and Reduced Motion without sliding.
+- [ ] Check roll button enabled/disabled feedback, dice callout, player-card turn/balance feedback, building/ownership changes, money transfer, toasts and turn/game notifications. Compare Low/Balanced/High and Reduced Motion.
+- [ ] Repeat representative scenes at 30/60/120 FPS and inspect the renderer diagnostics for idle demand rendering and active-frame pacing. Keep hardware frame-time profiling separate from automated tests.
+- [ ] Recheck all accepted v1.8.1 behaviors: three-second card visibility on human/bot/observer clients, Income Tax, Lobby difficulty dropdown, Settings language dropdown, English hotel text, FPS choices, Low quality and demand-rendering idle behavior.
+- [ ] Run in a Windows x64 packaged manual build with two clients, then test reconnect and a full match. Owner visual/device acceptance remains a separate check from automated coverage.
+
+## v1.9.0 final refinement checks
+
+- [x] `[OWNER-REPORTED]` Before this refinement the owner accepted mascot first hop, dice/trails/results, destination preview, other gameplay effects, FPS and the earlier v1.8.1 features. These systems remain frozen.
+- [x] `[AUTO][CLIENT]` `TileMotionProvider.test.ts`: frame priority regression, body/surface/root agreement at start/peak/rebound/rest on all 40 tiles, text clearance above the moving face and fixed socket below maximum depression; existing controller tests cover overlap/reset.
+- [x] `[AUTO][CLIENT]` `Modal.test.tsx`, `Modal.peek.test.tsx`, decision component tests: exit semantics/unmount, nested focus/ESC, same mounted input across peek, one restore control, new-key/close cleanup and localized labels.
+- [x] `[AUTO][CLIENT]` `CardInteractionOverlay.test.tsx`: no reading credit during entrance or peek; resume remaining credit on restore, retain an unread observer card before a later operation, and keep dismiss actor-only/once with ACK error handling.
+- [x] `[AUTO][CLIENT]` `Log.test.tsx`: mounted CSS panel, immediate inert/aria-hidden, rapid toggles, focus/ESC, draft clearing, unread/chat and preference behavior. `demandFrameScheduler.test.ts` remains the FPS/idle scheduler regression gate.
+- [ ] `[MANUAL][OWNER]` Test the new package: property/special/corner/developed/occupied tiles depress together with no text/art flashing and recover exactly; repeat overlapping impacts with destination preview.
+- [ ] `[MANUAL][OWNER]` Open/close centered and sheet dialogs, nested confirmation, eye hide/restore and rapid toggles/ESC; preserve input/debt status and require three readable card seconds on every client.
+- [ ] `[MANUAL][OWNER]` Journal slides both directions on desktop/phone landscape with aligned tab, no horizontal scroll or closed-panel click interception; verify chat/unread/preferences and Reduced Motion.
+- [ ] `[MANUAL][OWNER]` Low/60 FPS gameplay and LAN human/bot/observer regression; recheck the accepted hopping, dice, highlights, buildings, money and audio.

@@ -463,6 +463,9 @@ export const dismissCardCommand: GameCommand<{ operationId: string }, void> = {
     if (result === 'NOT_REVEALED') {
       throw new CommandError('CONFLICT', 'Thẻ chưa được rút.');
     }
+    if (result === 'TOO_EARLY') {
+      throw new CommandError('CONFLICT', 'Thẻ cần hiển thị ít nhất 3 giây trước khi đóng.');
+    }
   },
   publish: (io, room, _result, input) => publishRoom(io, room, input),
 };

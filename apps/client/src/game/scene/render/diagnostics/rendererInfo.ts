@@ -39,6 +39,12 @@ export interface CountableRenderer {
 export interface FrameStats {
   /** Number of scene (main pass) renders since the counter was installed. */
   frameSequence: number;
+  /** Browser-clock time when the latest main scene submission completed. */
+  mainRenderAtMs: number;
+  /** Time since the previous main scene submission completed. */
+  mainRenderIntervalMs: number;
+  /** Synchronous CPU time spent submitting the main scene to WebGL. */
+  mainRenderCpuMs: number;
   /** Draw calls of the scene color pass: the quantity the historical 210/240 limits measured. */
   mainDrawCalls: number;
   /** Draw calls spent on shadow maps inside the frame. */
@@ -54,6 +60,9 @@ export interface FrameStats {
 
 const emptyStats = (frameSequence: number): FrameStats => ({
   frameSequence,
+  mainRenderAtMs: 0,
+  mainRenderIntervalMs: 0,
+  mainRenderCpuMs: 0,
   mainDrawCalls: 0,
   shadowDrawCalls: 0,
   postDrawCalls: 0,
@@ -72,7 +81,8 @@ const emptyStats = (frameSequence: number): FrameStats => ({
 export class FrameCounter {
   private current = emptyStats(0);
   private sequence = 0;
-  private readonly listeners = new Set<() => void>();
+  private lastMainRenderAtMs = 0;
+  private readonly listeners = new Set<(stats: Readonly<FrameStats>) => void>();
   private readonly originalRender: CountableRenderer['render'];
   private readonly originalShadowRender: CountableRenderer['shadowMap']['render'];
   private readonly previousAutoReset: boolean;
@@ -100,18 +110,26 @@ export class FrameCounter {
     renderer.render = (scene, camera) => {
       const callsBefore = renderer.info.render.calls;
       const trianglesBefore = renderer.info.render.triangles;
+      const startedAt = performance.now();
       this.shadowInsideRender = 0;
       this.shadowTrianglesInsideRender = 0;
       this.originalRender.call(renderer, scene, camera);
+      const completedAt = performance.now();
       const spent = renderer.info.render.calls - callsBefore;
       const triangles = renderer.info.render.triangles - trianglesBefore;
       if (scene === this.mainScene) {
         this.sequence += 1;
         this.current.frameSequence = this.sequence;
+        this.current.mainRenderAtMs = completedAt;
+        this.current.mainRenderIntervalMs = this.lastMainRenderAtMs === 0
+          ? 0
+          : completedAt - this.lastMainRenderAtMs;
+        this.current.mainRenderCpuMs = completedAt - startedAt;
+        this.lastMainRenderAtMs = completedAt;
         this.current.mainDrawCalls += spent - this.shadowInsideRender;
         this.current.mainTriangles += triangles - this.shadowTrianglesInsideRender;
         this.current.totalDrawCalls = this.current.mainDrawCalls + this.current.shadowDrawCalls + this.current.postDrawCalls;
-        this.listeners.forEach(listener => listener());
+        this.listeners.forEach(listener => listener(this.current));
       } else {
         this.current.postDrawCalls += spent;
         this.current.postRenders += 1;
@@ -130,7 +148,7 @@ export class FrameCounter {
   }
 
   /** Called after every main scene render. Returns an unsubscribe function. */
-  subscribe(listener: () => void): () => void {
+  subscribe(listener: (stats: Readonly<FrameStats>) => void): () => void {
     this.listeners.add(listener);
     return () => { this.listeners.delete(listener); };
   }

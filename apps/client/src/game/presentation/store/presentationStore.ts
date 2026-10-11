@@ -15,6 +15,7 @@ import type {
   PresentationStoreLike,
 } from './types';
 import type { TileImpactSignal, TileImpactTiming } from '../../scene/board/motion/tileMotionTypes';
+import { recordCharacterMovementTrace } from '../movementTrace';
 
 const emptyState: PresentationState = {
   displayLogs: [],
@@ -105,6 +106,11 @@ export class PresentationStore implements PresentationStoreLike {
     room.players.forEach(player => this.playerJoinOrder.set(player.playerId, player.joinOrder));
     const pendingCard = room.gameState.turnInfo.pendingCardInteraction;
     this.activeCharacterMovements.clear();
+    const resetEpoch = this.state.presentationResetEpoch + 1;
+    recordCharacterMovementTrace({
+      stage: 'PRESENTATION_RESET', playerId: '*', resetEpoch,
+      rollSequence: room.gameState.boardState.rollSequence,
+    });
     this.state = {
       displayLogs: [...room.gameState.boardState.logs],
       displayActivity: [...room.gameState.boardState.activityFeed.events],
@@ -141,7 +147,7 @@ export class PresentationStore implements PresentationStoreLike {
         : null,
       animationSpeedMultiplier: this.state.animationSpeedMultiplier,
       reducedMotion: this.state.reducedMotion,
-      presentationResetEpoch: this.state.presentationResetEpoch + 1,
+      presentationResetEpoch: resetEpoch,
     };
     this.nextTileImpactSequence = 0;
     this.nextCharacterMovementSequence = 0;
@@ -316,8 +322,16 @@ export class PresentationStore implements PresentationStoreLike {
       fromOccupantCount: fromSlot.occupantCount,
       toSlotIndex: toSlot.slotIndex,
       toOccupantCount: toSlot.occupantCount,
+      startedAtMs: performance.now(),
+      rollSequence: this.state.diceRoll?.rollSequence ?? this.state.displayRollSequence,
       durationMs: Math.max(0, durationMs),
     };
+    recordCharacterMovementTrace({
+      stage: 'STORE_START', playerId, sequence: signal.sequence, transition: signal.transition,
+      fromTileId, toTileId, durationMs: signal.durationMs,
+      displayTileId: toTileId, settledTileId: this.state.settledPositions[playerId],
+      rollSequence: signal.rollSequence, resetEpoch: this.state.presentationResetEpoch,
+    });
     this.activeCharacterMovements.set(playerId, signal);
     this.state = {
       ...this.state,
@@ -349,8 +363,16 @@ export class PresentationStore implements PresentationStoreLike {
       fromOccupantCount: fromSlot.occupantCount,
       toSlotIndex: toSlot.slotIndex,
       toOccupantCount: toSlot.occupantCount,
+      startedAtMs: performance.now(),
+      rollSequence: this.state.diceRoll?.rollSequence ?? this.state.displayRollSequence,
       durationMs: Math.max(0, durationMs),
     };
+    recordCharacterMovementTrace({
+      stage: 'STORE_START', playerId, sequence: signal.sequence, transition: signal.transition,
+      fromTileId, toTileId, durationMs: signal.durationMs,
+      displayTileId: toTileId, settledTileId: this.state.settledPositions[playerId],
+      rollSequence: signal.rollSequence, resetEpoch: this.state.presentationResetEpoch,
+    });
     this.activeCharacterMovements.set(playerId, signal);
     this.state = {
       ...this.state,
@@ -373,6 +395,12 @@ export class PresentationStore implements PresentationStoreLike {
       phase: 'COMPLETE',
       toTileId: tileId,
     };
+    recordCharacterMovementTrace({
+      stage: 'STORE_COMPLETE', playerId, sequence: completed.sequence, transition: completed.transition,
+      fromTileId: completed.fromTileId, toTileId: completed.toTileId, durationMs: completed.durationMs,
+      displayTileId: tileId, settledTileId: tileId, rollSequence: completed.rollSequence,
+      resetEpoch: this.state.presentationResetEpoch,
+    });
     this.state = {
       ...this.state,
       displayPositions: { ...this.state.displayPositions, [playerId]: tileId },
@@ -392,6 +420,12 @@ export class PresentationStore implements PresentationStoreLike {
       ...this.createSnapSignal(playerId, tileId, currentTileId),
       sequence: this.nextCharacterMovementSequence,
     };
+    recordCharacterMovementTrace({
+      stage: 'STORE_SNAP', playerId, sequence: signal.sequence, transition: signal.transition,
+      fromTileId: signal.fromTileId, toTileId: signal.toTileId,
+      displayTileId: tileId, settledTileId: tileId, rollSequence: signal.rollSequence,
+      resetEpoch: this.state.presentationResetEpoch,
+    });
     this.state = {
       ...this.state,
       displayPositions: { ...this.state.displayPositions, [playerId]: tileId },
@@ -779,6 +813,8 @@ export class PresentationStore implements PresentationStoreLike {
       fromOccupantCount: fromSlot.occupantCount,
       toSlotIndex: toSlot.slotIndex,
       toOccupantCount: toSlot.occupantCount,
+      startedAtMs: performance.now(),
+      rollSequence: this.state.diceRoll?.rollSequence ?? this.state.displayRollSequence,
       durationMs: 0,
     };
   }

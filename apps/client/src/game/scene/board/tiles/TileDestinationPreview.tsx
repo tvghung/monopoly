@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { DestinationPreviewRenderModel } from '../boardRenderModel';
 import { TILE_SURFACE_CLEARANCE_Y, TILE_SURFACE_LOCAL_POSITION } from '../boardLayout';
 import type { TilePanelLayout } from './tilePanelLayout';
+import { getAnimationElapsedMs } from '../../animationTime';
 
 export const DESTINATION_PREVIEW_EPSILON = 0.012;
 export const DESTINATION_PREVIEW_SURFACE_Y = Math.max(
@@ -76,13 +77,16 @@ export default function TileDestinationPreview({
   const surfaceMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const edgeMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const elapsedRef = useRef(0);
+  const startedAtMsRef = useRef(0);
   const lastDiagnosticEventMsRef = useRef(Number.NEGATIVE_INFINITY);
   const invalidate = useThree(state => state.invalidate);
-  const diagnosticsEnabled = typeof window !== 'undefined'
+  const diagnosticsEnabled = (import.meta.env.DEV || __PHASE4_UAT__)
+    && typeof window !== 'undefined'
     && (window.location.hostname === '127.0.0.1'
       || window.location.hostname === 'localhost'
       || new URLSearchParams(window.location.search).get('phase4-uat') === '1');
-  useEffect(() => {
+  useLayoutEffect(() => {
+    startedAtMsRef.current = performance.now();
     elapsedRef.current = 0;
     lastDiagnosticEventMsRef.current = Number.NEGATIVE_INFINITY;
     invalidate();
@@ -90,11 +94,11 @@ export default function TileDestinationPreview({
       if (diagnosticsEnabled) delete window.__OWN_THE_BLOCK_DESTINATION_PREVIEW_DIAGNOSTICS__;
     };
   }, [diagnosticsEnabled, invalidate, signal.id]);
-  useFrame((_, delta) => {
+  useFrame(() => {
     const surfaceMaterial = surfaceMaterialRef.current;
     const edgeMaterial = edgeMaterialRef.current;
     if (!surfaceMaterial || !edgeMaterial) return;
-    elapsedRef.current += delta * 1000;
+    elapsedRef.current = getAnimationElapsedMs(startedAtMsRef.current);
     const opacity = getDestinationPreviewOpacity(elapsedRef.current, reducedMotion);
     surfaceMaterial.opacity = opacity.surfaceOpacity;
     edgeMaterial.opacity = opacity.edgeOpacity;

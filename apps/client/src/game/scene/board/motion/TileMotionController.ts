@@ -6,40 +6,26 @@ import {
 import type {
   TileImpactTiming,
   TileMotionKind,
-  TileMotionScheduler,
   TileMotionState,
 } from './tileMotionTypes';
 
-const defaultScheduler: TileMotionScheduler = {
-  now: () => (typeof performance === 'undefined' ? Date.now() : performance.now()),
-  requestFrame: callback => {
-    if (typeof window !== 'undefined') return window.requestAnimationFrame(callback);
-    return globalThis.setTimeout(() => callback(Date.now()), 16) as unknown as number;
-  },
-  cancelFrame: handle => {
-    if (typeof window !== 'undefined') window.cancelAnimationFrame(handle);
-    else globalThis.clearTimeout(handle);
-  },
-};
-
 export interface TileMotionControllerOptions {
-  scheduler?: TileMotionScheduler;
+  now?: () => number;
   invalidate?: () => void;
   reducedMotion?: boolean;
 }
 
 export class TileMotionController {
-  private readonly scheduler: TileMotionScheduler;
+  private readonly now: () => number;
   private readonly roots = new Map<number, THREE.Group>();
   private readonly states = new Map<number, TileMotionState>();
   private readonly listeners = new Set<() => void>();
   private invalidate?: () => void;
   private reducedMotion: boolean;
-  private frameHandle: number | null = null;
   private revision = 0;
 
   public constructor(options: TileMotionControllerOptions = {}) {
-    this.scheduler = options.scheduler ?? defaultScheduler;
+    this.now = options.now ?? (() => performance.now());
     this.invalidate = options.invalidate;
     this.reducedMotion = options.reducedMotion ?? false;
   }
@@ -76,7 +62,7 @@ export class TileMotionController {
       ?? 0;
     const currentPressIntensity = currentState?.pressIntensity ?? 0;
     const targetOffsetY = -(kind === 'LAND' ? TILE_LAND_PRESS_DEPTH : TILE_STEP_PRESS_DEPTH);
-    const now = this.scheduler.now();
+    const now = this.now();
     const delayMs = this.resolveDuration(timing.delayMs);
     const depressDurationMs = this.resolveDuration(timing.depressDurationMs);
     const phase = delayMs > 0 ? 'WAITING' : 'DEPRESS';
@@ -98,7 +84,11 @@ export class TileMotionController {
     this.writeOffset(tileId, currentOffsetY);
     this.invalidate?.();
     this.notify();
-    this.ensureFrame();
+  }
+
+  public advance(now = this.now()): boolean {
+    if (this.states.size === 0) return false;
+    return this.tick(now);
   }
 
   public getTileOffsetY(tileId: number): number {
@@ -123,27 +113,14 @@ export class TileMotionController {
   }
 
   public reset(): void {
-    if (this.frameHandle !== null) {
-      this.scheduler.cancelFrame(this.frameHandle);
-      this.frameHandle = null;
-    }
     this.states.clear();
     this.roots.forEach(root => { root.position.y = 0; });
     this.invalidate?.();
     this.notify();
   }
 
-  private ensureFrame(): void {
-    if (this.frameHandle !== null) return;
-    this.frameHandle = this.scheduler.requestFrame(time => {
-      this.frameHandle = null;
-      this.tick(time);
-    });
-  }
-
-  private tick(now: number): void {
+  private tick(now: number): boolean {
     let active = false;
-    let visualChanged = false;
     let lifecycleChanged = false;
     this.states.forEach((state, tileId) => {
       let remainingMs = Math.max(0, now - state.startedAt);
@@ -171,7 +148,6 @@ export class TileMotionController {
         state.pressIntensity = state.startPressIntensity
           + (state.targetPressIntensity - state.startPressIntensity) * eased;
         this.writeOffset(tileId, state.offsetY);
-        visualChanged = true;
         if (progress < 1) {
           active = true;
           break;
@@ -194,9 +170,8 @@ export class TileMotionController {
         break;
       }
     });
-    if (visualChanged) this.invalidate?.();
     if (lifecycleChanged) this.notify();
-    if (active) this.ensureFrame();
+    return active;
   }
 
   private writeOffset(tileId: number, offsetY: number): void {

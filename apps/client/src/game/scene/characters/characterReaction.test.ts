@@ -19,6 +19,15 @@ describe('character reactions', () => {
     expect(controller.getState()).toBeNull();
   });
 
+  it('measures reaction progress from its start across a rendering idle gap', () => {
+    const controller = new CharacterReactionController();
+    controller.start('jail', 70, 3_000);
+
+    expect(controller.advanceAt(3_016).done).toBe(false);
+    expect(controller.advanceAt(3_070).done).toBe(true);
+    expect(controller.getState()).toBeNull();
+  });
+
   it('uses the resolved reaction duration instead of the base timing', () => {
     const controller = new CharacterReactionController();
     controller.start('jail', getCharacterReactionDuration('jail') / 2);

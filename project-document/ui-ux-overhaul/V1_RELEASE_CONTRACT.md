@@ -8,8 +8,8 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.8.0
-Socket protocol: 13
+Semantic version: 1.9.0
+Socket protocol: 14
 ```
 
 Application semantic version and network protocol version are independent.
@@ -532,9 +532,7 @@ client cannot join a 1.7.0 host (`UPGRADE_REQUIRED`), so `update-policy.json` se
 
 ## V1.8.0 bot difficulty and multiplayer hardening — release preparation (Socket protocol 13, snapshot schema 11)
 
-**Status: PREPARED, NOT RELEASED** (no tag `v1.8.0`, no GitHub Release until the gates in
-[RELEASE_ACCEPTANCE_MATRIX](../monopoly-websockets/testcase/RELEASE_ACCEPTANCE_MATRIX.md) are satisfied; this paragraph is
-rewritten with the tag, run and asset evidence when it is published). Prepared on `feat/own-the-block-multiplayer-bots-vnext`
+**Status: PUBLISHED 2026-10-09** ([GitHub Release v1.8.0](https://github.com/tvghung/monopoly/releases/tag/v1.8.0)). The matrix below records the evidence and limitations known during preparation. Prepared on `feat/own-the-block-multiplayer-bots-vnext`
 (base `main` `f37a271` = `v1.7.0` merged into the branch).
 
 - Scope: bot difficulty levels (`set bot difficulty`), Income Tax 150 (owner request, see
@@ -547,4 +545,12 @@ rewritten with the tag, run and asset evidence when it is published). Prepared o
 - `apps/desktop/update-policy.json`: `minimumSupportedVersion` **1.8.0** (a 1.7.0 install must update before multiplayer, as it did for
   protocols 10, 11 and 12) and `reviewedForSocketProtocol` **13**. `LAN_DISCOVERY_SOCKET_PROTOCOL` is 13.
 - Release notes: `.github/release-notes/v1.8.0.md`. Publication is by pushing the tag `v1.8.0` on a `main` commit whose root
-  `package.json` version is 1.8.0 (`.github/workflows/release-candidate.yml`); no tag was created while preparing this change.
+  `package.json` version is 1.8.0 (`.github/workflows/release-candidate.yml`); the tag-triggered Release Candidate workflow later published v1.8.0 on 2026-10-09.
+
+## V1.9.0 animation and gameplay release (Socket protocol 14, snapshot schema 11)
+
+**Release preparation status:** metadata and accepted implementation are prepared on codex/v181-pre-release-fixes. Local quality gates PASS; integration, main CI, Desktop Build, the manual Release Candidate matrix, and tag-triggered production publication remain pending.
+
+Income Tax changes from v1.8.0's fixed 150 to 30% of the player's current nonnegative cash, rounded down. Because a protocol-13 client would present a different tax rule, strict handshake compatibility requires protocol 14 and minimumSupportedVersion 1.9.0. LAN discovery advertises the same protocol. Snapshot schema remains 11 because no persisted field was added.
+
+The release includes the accepted v1.8.1 work, the animation overhaul and refinements, the final Journal opening fix, and regression coverage. Owner acceptance is recorded as OWNER-REPORTED MANUAL ACCEPTANCE: PASS; this does not claim independent physical-device, LAN, or cross-network verification. Release evidence and final workflow links are recorded in the acceptance matrix after the gates complete.

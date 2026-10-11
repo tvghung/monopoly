@@ -1,10 +1,13 @@
 import { useEffect, useRef } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import type { DiceValue } from '@monopoly/shared';
 import Chip from '../../../design-system/components/Chip/Chip';
 import { usePresentationSelector } from '../../presentation/usePresentationSelector';
 import type { PresentationState } from '../../presentation/store/types';
 import { useTransientList } from './useTransientList';
 import { useTranslation } from '../../../i18n/I18n';
+import { motionDuration, motionEase } from '../../../design-system/motion/motionTokens';
+import { useEffectiveReducedMotion } from '../../../settings/selectors';
 
 /** The callout stays this long at speed 1 (divided by the animation speed). */
 export const DICE_CALLOUT_LIFETIME_MS = 1200;
@@ -62,27 +65,35 @@ function DieGlyph({ value }: { value: number }) {
  */
 export default function DiceResultCallout() {
   const { t } = useTranslation();
+  const reducedMotion = useEffectiveReducedMotion();
   const slice = usePresentationSelector(selectDiceSlice, sameDiceSlice);
   const list = useTransientList<CalloutValue>(1);
   const seenSequence = useRef<number | null>(null);
   const seenEpoch = useRef(slice.resetEpoch);
+  const skipExitRef = useRef(false);
   const { push, clear } = list;
 
   useEffect(() => {
     if (seenSequence.current === null || seenEpoch.current !== slice.resetEpoch) {
       seenSequence.current = slice.displayRollSequence;
       seenEpoch.current = slice.resetEpoch;
+      skipExitRef.current = true;
       clear();
       return;
     }
     if (slice.displayRollSequence <= seenSequence.current) {
       // A lower sequence means the store restarted: forget the old roll without showing anything.
-      if (slice.displayRollSequence < seenSequence.current) seenSequence.current = slice.displayRollSequence;
+      if (slice.displayRollSequence < seenSequence.current) {
+        seenSequence.current = slice.displayRollSequence;
+        skipExitRef.current = true;
+        clear();
+      }
       return;
     }
     seenSequence.current = slice.displayRollSequence;
     if (slice.rolling || !isDie(slice.displayDice.dice1) || !isDie(slice.displayDice.dice2)) return;
     const { dice1, dice2 } = slice.displayDice;
+    skipExitRef.current = false;
     push(
       `roll-${slice.displayRollSequence}`,
       { dice: slice.displayDice, total: dice1 + dice2, doubles: dice1 === dice2, sequence: slice.displayRollSequence },
@@ -91,17 +102,46 @@ export default function DiceResultCallout() {
   }, [clear, push, slice]);
 
   const entry = list.entries.at(-1);
-  if (!entry) return null;
-  const { dice, total, doubles } = entry.value;
+  const { dice, total, doubles } = entry?.value ?? {
+    dice: { dice1: 0, dice2: 0 }, total: 0, doubles: false,
+  };
+  const variants = {
+    exit: (skipExit: boolean) => skipExit
+      ? { opacity: 0, transition: { duration: 0 } }
+      : reducedMotion
+        ? { opacity: 0, transition: { duration: motionDuration.micro, ease: motionEase.out } }
+        : { opacity: 0, x: 8, scale: 0.98, transition: { duration: motionDuration.ui, ease: motionEase.out } },
+  };
   return (
-    <div className="dice-callout" data-hud-region="dice-callout" data-hud-transient="true" aria-hidden="true" key={entry.key}>
-      <span className="dice-callout__sum">
-        <DieGlyph value={dice.dice1} />
-        <span className="dice-callout__plus">+</span>
-        <DieGlyph value={dice.dice2} />
-      </span>
-      <span className="dice-callout__total">{total}</span>
-      {doubles ? <Chip tone="gold" className="dice-callout__doubles">{t('hud.doubles')}</Chip> : null}
-    </div>
+    <AnimatePresence custom={skipExitRef.current} initial={false} mode="wait">
+      {entry
+        ? (
+          <motion.div
+            key={entry.key}
+            className="dice-callout"
+            data-hud-region="dice-callout"
+            data-hud-transient="true"
+            aria-hidden="true"
+            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, x: -12, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            custom={skipExitRef.current}
+            variants={variants}
+            exit="exit"
+            transition={{
+              duration: reducedMotion ? motionDuration.micro : motionDuration.emphasis,
+              ease: motionEase.out,
+            }}
+          >
+            <span className="dice-callout__sum">
+              <DieGlyph value={dice.dice1} />
+              <span className="dice-callout__plus">+</span>
+              <DieGlyph value={dice.dice2} />
+            </span>
+            <span className="dice-callout__total">{total}</span>
+            {doubles ? <Chip tone="gold" className="dice-callout__doubles">{t('hud.doubles')}</Chip> : null}
+          </motion.div>
+        )
+        : null}
+    </AnimatePresence>
   );
 }
