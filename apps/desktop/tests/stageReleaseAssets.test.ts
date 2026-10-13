@@ -132,6 +132,12 @@ describe('release asset staging', () => {
     ]);
   });
 
+  it('uses Squirrel NuGet prerelease naming while preserving the app version in installer names', () => {
+    const [windows] = releaseTargets('1.9.1-rc.1');
+    expect(windows.assetName).toBe('OwnTheBlock-1.9.1-rc.1-win32-x64-Setup.exe');
+    expect(windows.squirrel?.packageName).toBe('own_the_block-1.9.1-rc1-full.nupkg');
+  });
+
   it('stages the installers, the Windows Squirrel feed, the checksum file and the update manifest, with the bytes untouched', async () => {
     const staged = await stage();
 

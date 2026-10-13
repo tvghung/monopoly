@@ -30,10 +30,10 @@ log is recorded as `OWNER-REPORTED`, never as an automated or independent `PASS`
 
 | Item | Value | Evidence |
 | --- | --- | --- |
-| Latest published release | **v1.7.0** (socket protocol 12, room snapshot schema 11) | GitHub Release `v1.7.0` published 2026-10-09; tag `v1.7.0` = `f37a271` on `main`; `release-candidate.yml` run on the tag succeeded |
-| Working branch | `feat/own-the-block-multiplayer-bots-vnext` — **CURRENT DEVELOPMENT** after v1.7.0; `origin/main` (v1.7.0 and its release records) merged in | `git log v1.7.0..HEAD` |
-| Differences from v1.7.0 | Candidate **v1.8.0**, socket protocol **13** (released: 12), snapshot schema 11: Income Tax 150 (released: 200); bot difficulty levels; idempotent `sell house`/`make offer`; `decline offer` guard; jail-free card returned on leave; host-close confirmation waits for the player; two client fixes | [ADR-13](./monopoly-websockets/ARCHITECTURE_DECISIONS.md#adr-13-released-contract-vs-current-development), [Shared contracts — Version history](./monopoly-websockets/Shared/socket-and-state-contracts.instruction.md#version-history) |
-| Release risks | R-1 (rules added inside protocol 12) **RESOLVED in code** by the bump to 13; R-2 (missing release records) **RESOLVED** by the merge. Open: manual, device, network and update acceptance rows | [Release acceptance matrix](./monopoly-websockets/testcase/RELEASE_ACCEPTANCE_MATRIX.md) |
+| Latest published release | **v1.9.0** (socket protocol 14, room snapshot schema 11) | [GitHub Release v1.9.0](https://github.com/tvghung/monopoly/releases/tag/v1.9.0) published 2026-10-11; tag is on `main`; `release-candidate.yml` tag run 38119202459 succeeded |
+| Working branch | `release/v1.9.1-rc.1` is an unpublished validation candidate for the Online hosting reliability fix (**CURRENT DEVELOPMENT**) | Branch package metadata and [release contract](./ui-ux-overhaul/V1_RELEASE_CONTRACT.md) |
+| Differences from v1.9.0 | Online public and room probes use Electron's network stack with bounded retries, cancellation and safe failure diagnostics; gameplay, protocol 14 and snapshot schema 11 are unchanged | [HTTP and hosting](./monopoly-websockets/Api/http-runtime.instruction.md#online), [Shared contracts — Version history](./monopoly-websockets/Shared/socket-and-state-contracts.instruction.md#version-history) |
+| Release risks | Physical-device and independent-network acceptance for the Online fix remains NOT RUN; the affected v1.9.0 Windows PC has not yet supplied an in-app failure-stage diagnostic | [Hosting checklist](./monopoly-websockets/testcase/http-runtime-and-deployment.md) |
 
 The current protocol and snapshot numbers are defined only in code: `SOCKET_PROTOCOL_VERSION` in `packages/shared/src/types.ts`
 and `ROOM_SNAPSHOT_SCHEMA_VERSION` in `apps/server/src/rooms.ts`; the history is in

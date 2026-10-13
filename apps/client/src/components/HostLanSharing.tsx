@@ -125,6 +125,7 @@ export default function HostLanSharing({ roomCode }: HostLanSharingProps) {
           ? <p className="lobby-share__note">{t('sharing.linkOnly')}</p>
           : null}
         {activationFailed || status?.onlineState === 'DISCOVERY_UNAVAILABLE'
+          || (status?.onlineState === 'UNAVAILABLE' && Boolean(status.onlineEndpoint))
           ? <Button variant="ghost" onClick={() => activate(status?.onlineEndpoint ?? undefined)}>{t('sharing.retry')}</Button> : null}
         {networkChoices.length > 0 ? (
           <label className="lobby-share__network">

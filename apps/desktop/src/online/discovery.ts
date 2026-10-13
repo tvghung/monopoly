@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { quickTunnelEndpoint } from './connectivity';
+import type { OnlineFetcher } from './probe';
 
 export interface RoomDiscoveryProvider {
   reserve(roomCode: string): Promise<{ credential: string; proof: string }>;
@@ -21,7 +22,7 @@ export function registryBaseUrl(value: string): string {
 
 export class HttpRoomDiscovery implements RoomDiscoveryProvider {
   private readonly base: string;
-  constructor(base: string, private readonly fetcher: typeof fetch = fetch) {
+  constructor(base: string, private readonly fetcher: OnlineFetcher = fetch) {
     this.base = registryBaseUrl(base);
   }
 

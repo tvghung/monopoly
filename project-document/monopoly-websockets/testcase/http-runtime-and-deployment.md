@@ -35,6 +35,19 @@
   with a new hostname and the old link is withdrawn and never presented again; a tunnel that cannot be
   recreated leaves the healthy server running with no invitation; stopping the Host terminates the
   tunnel; helper loss is terminal for the match and the tunnel.
+- `[AUTO]` Current development after v1.9.0 (`apps/desktop/src/online/probe.test.ts`,
+  `apps/desktop/tests/hostRuntime.test.ts`, `apps/client/src/components/DesktopMultiplayerLauncher.test.tsx`): injected
+  Electron fetch adapter is used instead of Node's global fetch for public and room probes; DNS, proxy, TLS and timeout
+  errors are classified without exposing raw exceptions; HTTP 403/502/503, redirect, non-HTML response, delayed
+  readiness, cancellation and safe troubleshooting copy are covered. The existing connectivity tests cover early child
+  exit, spawn failure and cleanup. These tests do not establish the cause on the affected Windows PC.
+- `[MANUAL-E2E][NOT RUN]` Install the corrected Windows build on the affected v1.9.0 PC, host an Online room, copy the
+  diagnostic if it fails, and join over an independent network. Repeat on another Windows PC and supported macOS hosts;
+  a packaged build alone does not prove these physical-device paths.
+- `[PACKAGED][WINDOWS-X64][PASS]` Local 2026-10-13 packaged Electron smoke: the actual application reached
+  `HOSTING` / Online `READY`, `PUBLIC_ROOM` probe `PASSED` on attempt 1 and published an invitation. A separate packaged
+  Electron check verified that `net.fetch` rejects `redirect: 'manual'` responses and aborts a stalled request. These
+  ad hoc checks are not committed automated gates and do not verify a second machine or independent network.
 - `[SOCKET]` Host-only room creation, pending-admission lifecycle and request limits
   (`apps/server/src/hostAdmission.integration.test.ts`, desktop profile, real Socket.IO clients including a real
   non-loopback LAN peer): only the matching capability creates a room; a Guest that arrives first, forged

@@ -227,11 +227,11 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 ### F17 Online Quick Tunnel and room registry
 - **Entry:** launcher Online host; invitation link; optional bare-code lookup.
 - **Docs:** [http-runtime][a-http], [Desktop index][d-idx], [room registry README](../../services/room-registry/README.md); [ADR-08][adr].
-- **Desktop:** `apps/desktop/src/online/connectivity.ts`, `apps/desktop/src/online/discovery.ts`, `apps/desktop/cloudflared-integrity.json`.
+- **Desktop:** `apps/desktop/src/online/connectivity.ts`, `apps/desktop/src/online/probe.ts`, `apps/desktop/src/online/discovery.ts`, `apps/desktop/src/hostRuntime.ts`, `apps/desktop/src/desktopBootstrap.ts`, `apps/desktop/cloudflared-integrity.json`.
 - **Server:** `apps/server/src/createServer.ts` (`/_otb/room`, `/_otb/registry-proof`), `apps/server/src/socket/clientIdentity.ts`.
 - **Registry:** `services/room-registry/src/index.js`.
-- **Client (remote join):** `apps/client/src/runtime/joinTargetResolver.ts` (code or link), `packages/shared/src/endpointPolicy.ts` (allowed public origins), `apps/client/src/components/ConnectionOverlay.tsx` (relink).
-- **Tests:** `apps/desktop/src/online/connectivity.test.ts`, `apps/desktop/src/online/discovery.test.ts`, `services/room-registry/src/index.test.mjs`, `apps/server/src/createServer.test.ts`; live probe `scripts/proveQuickTunnel.mjs` (manual, same network).
+- **Client (remote join):** `apps/client/src/runtime/joinTargetResolver.ts` (code or link), `packages/shared/src/endpointPolicy.ts` (allowed public origins), `apps/client/src/components/ConnectionOverlay.tsx` (relink), `apps/client/src/components/DesktopMultiplayerLauncher.tsx` (safe failure details), `apps/client/src/components/HostLanSharing.tsx` (room-probe retry).
+- **Tests:** `apps/desktop/src/online/connectivity.test.ts`, `apps/desktop/src/online/probe.test.ts`, `apps/desktop/src/online/discovery.test.ts`, `apps/desktop/tests/hostRuntime.test.ts`, `apps/client/src/components/DesktopMultiplayerLauncher.test.tsx`, `services/room-registry/src/index.test.mjs`, `apps/server/src/createServer.test.ts`; live probe `scripts/proveQuickTunnel.mjs` (manual, same network).
 - **Manual:** [hosting checklist][t-http] (cross-network is MANUAL-E2E). **Affects:** F05, F06, F48.
 
 ## Board and HUD

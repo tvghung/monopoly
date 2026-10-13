@@ -243,7 +243,7 @@ describe('Cloudflare Quick Tunnel process', () => {
     const config = configOf(calls[0]?.args ?? []);
     (children[0]).stderr.emit('data', Buffer.from('ERR Cannot determine default origin certificate path'));
     (children[0]).emit('exit', 1);
-    await expect(starting).rejects.toThrow('TUNNEL_START_FAILED');
+    await expect(starting).rejects.toThrow('TUNNEL_EXIT_EARLY');
     expect(onLost).not.toHaveBeenCalled();
     expect(existsSync(config)).toBe(false);
     // The failure leaves nothing running: the next start is a clean one.

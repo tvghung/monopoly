@@ -58,6 +58,16 @@ export interface HostRuntimeStatus {
   discoveryConfigured?: boolean;
   errorCode?: HostRuntimeErrorCode;
   diagnostic?: string;
+  onlineDiagnostic?: {
+    stage: 'HELPER_READY' | 'BINARY_VERIFY' | 'TUNNEL_SPAWN' | 'URL_ANNOUNCEMENT'
+      | 'PUBLIC_READINESS' | 'PUBLIC_PAGE' | 'PUBLIC_ROOM';
+    outcome: 'STARTED' | 'RETRYING' | 'PASSED' | 'FAILED';
+    reason?: 'DNS' | 'PROXY' | 'TLS' | 'TIMEOUT' | 'NETWORK' | 'HTTP'
+      | 'CONTENT' | 'REDIRECT' | 'TUNNEL_EXIT' | 'SPAWN' | 'INTEGRITY' | 'HELPER' | 'CANCELLED' | 'INVALID_ENDPOINT';
+    httpStatus?: number;
+    elapsedMs: number;
+    attempts: number;
+  };
 }
 
 export type HostRuntimeOperationResult =

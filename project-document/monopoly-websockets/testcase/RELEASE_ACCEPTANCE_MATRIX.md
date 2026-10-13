@@ -26,7 +26,13 @@ each version's release notes in `.github/release-notes/`.
 | v1.6.0 | 2026-10-08 | 11 / 10 | `.github/release-notes/v1.6.0.md` | Release notes only (no separate acceptance record found) |
 | v1.6.1 | 2026-10-08 | 11 / 10 | `.github/release-notes/v1.6.1.md` | Release notes only (no separate acceptance record found) |
 | v1.7.0 | 2026-10-09 | 12 / 11 | `.github/release-notes/v1.7.0.md` | The final copies at tag `v1.7.0`: `own-the-block-vnext/ACCEPTANCE_MATRIX.md`, `RELEASE_CANDIDATE.md`, `USER_MANUAL_BOT_TEST_PLAN.md` (commit `e88b959`, not on this branch; read with `git show v1.7.0:<path>`). The copies on this branch are the pre-QA versions: [ACCEPTANCE_MATRIX](../../own-the-block-vnext/ACCEPTANCE_MATRIX.md) |
-| **v1.8.0** (latest) | 2026-10-09 | 13 / 11 | .github/release-notes/v1.8.0.md | [Published GitHub Release](https://github.com/tvghung/monopoly/releases/tag/v1.8.0); candidate and acceptance evidence below |
+| v1.8.0 | 2026-10-09 | 13 / 11 | .github/release-notes/v1.8.0.md | [Published GitHub Release](https://github.com/tvghung/monopoly/releases/tag/v1.8.0); candidate and acceptance evidence below |
+| **v1.9.0** (latest) | 2026-10-11 | 14 / 11 | `.github/release-notes/v1.9.0.md` | [Published GitHub Release](https://github.com/tvghung/monopoly/releases/tag/v1.9.0); tag workflow 38119202459 succeeded. Physical-device Online hosting failure is under investigation; this fix is not released |
+
+`v1.9.1-rc.1` is an unpublished validation candidate on `release/v1.9.1-rc.1`, not a published release row. It retains
+protocol 14, snapshot 11 and the 1.9.0 minimum supported version. The affected Windows PC and independent-network
+Online host/join tests are **NOT RUN** until external results are supplied. A manual `release-candidate.yml` dispatch
+uploads private workflow artifacts only; its outcome is reported with the run, not assumed here.
 
 ## v1.7.0 — platform and scenario summary
 

@@ -4,9 +4,15 @@ import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileS
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import integrity from '../../cloudflared-integrity.json';
+import type { OnlineStage } from './probe';
+
+export interface TunnelStartOptions {
+  signal?: AbortSignal;
+  onStage?: (stage: OnlineStage) => void;
+}
 
 export interface ConnectivityProvider {
-  start(localEndpoint: string, onLost: () => void): Promise<string>;
+  start(localEndpoint: string, onLost: () => void, options?: TunnelStartOptions): Promise<string>;
   stop(): Promise<void>;
 }
 
@@ -88,20 +94,23 @@ export class CloudflareQuickTunnel implements ConnectivityProvider {
     private readonly baseEnvironment: NodeJS.ProcessEnv = process.env,
   ) {}
 
-  async start(localEndpoint: string, onLost: () => void): Promise<string> {
+  async start(localEndpoint: string, onLost: () => void, options: TunnelStartOptions = {}): Promise<string> {
     if (this.starting) return this.starting;
     if (this.child) throw new Error('TUNNEL_ALREADY_RUNNING');
     const local = new URL(localEndpoint);
     if (local.protocol !== 'http:' || local.hostname !== '127.0.0.1' || !local.port || local.pathname !== '/') {
       throw new Error('TUNNEL_ORIGIN_INVALID');
     }
+    options.onStage?.('BINARY_VERIFY');
     const binary = this.resolveExecutable(this.executable);
+    if (options.signal?.aborted) throw new Error('TUNNEL_CANCELLED');
     this.stopping = false;
     const runtimeDirectory = mkdtempSync(path.join(tmpdir(), 'otb-cloudflared-'));
     const configFile = path.join(runtimeDirectory, 'config.yml');
     writeFileSync(configFile, '# Own the Block runs Cloudflare Quick Tunnels only; other cloudflared configuration is ignored.\n');
     this.runtimeDirectory = runtimeDirectory;
     this.starting = new Promise<string>((resolve, reject) => {
+      options.onStage?.('TUNNEL_SPAWN');
       const child = this.spawnProcess(binary, quickTunnelArguments(configFile, local.origin), {
         shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
         env: quickTunnelEnvironment(this.baseEnvironment),
@@ -109,10 +118,15 @@ export class CloudflareQuickTunnel implements ConnectivityProvider {
       this.child = child;
       let settled = false;
       let tail = '';
+      const abort = (): void => {
+        finish(new Error('TUNNEL_CANCELLED'));
+        child.kill();
+      };
       const finish = (error?: Error, endpoint?: string): void => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        options.signal?.removeEventListener('abort', abort);
         if (error) reject(error);
         else resolve(endpoint as string);
       };
@@ -134,10 +148,13 @@ export class CloudflareQuickTunnel implements ConnectivityProvider {
         removeDirectory(runtimeDirectory);
         const current = this.child === child;
         if (current) this.child = undefined;
-        if (!settled) finish(new Error('TUNNEL_START_FAILED'));
+        if (!settled) finish(new Error('TUNNEL_EXIT_EARLY'));
         else if (current && !this.stopping) onLost();
       });
+      options.onStage?.('URL_ANNOUNCEMENT');
       const timer = setTimeout(() => finish(new Error('TUNNEL_START_TIMEOUT')), 25_000);
+      options.signal?.addEventListener('abort', abort, { once: true });
+      if (options.signal?.aborted) abort();
     }).catch(async error => {
       await this.stop();
       throw error;

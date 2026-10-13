@@ -1,6 +1,6 @@
 # Desktop module index
 
-Status: CURRENT (RELEASED in v1.7.0; no desktop changes on the vNext branch after v1.7.0).
+Status: CURRENT (latest published release: v1.9.0; Online hosting reliability changes in v1.9.1-rc.1 are CURRENT DEVELOPMENT).
 
 ## Scope
 

@@ -596,6 +596,30 @@ describe('DesktopMultiplayerLauncher host form', () => {
     expect(text).toMatch(/Hãy /u);
   });
 
+  it('shows a safe Online failure stage and copies troubleshooting details without the tunnel URL', async () => {
+    const failed: HostRuntimeStatus = { ...status, state: 'FAILED', connectionMode: 'ONLINE',
+      errorCode: 'ONLINE_FAILED', onlineEndpoint: null,
+      onlineDiagnostic: { stage: 'PUBLIC_READINESS', outcome: 'FAILED', reason: 'PROXY',
+        httpStatus: 502, elapsedMs: 40123, attempts: 7 } };
+    const { host } = installHostBridge(status);
+    host.start.mockResolvedValueOnce({ ok: false as const, status: failed });
+    const writeText = vi.fn<(value: string) => Promise<void>>(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    render(<DesktopMultiplayerLauncher onReady={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo phòng' }));
+    fireEvent.change(screen.getByLabelText('Tên của bạn'), { target: { value: 'Ada' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo và vào phòng' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('cấu hình proxy của hệ thống');
+    fireEvent.click(screen.getByRole('button', { name: 'Sao chép chi tiết lỗi' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledOnce());
+    const details = writeText.mock.calls[0]?.[0];
+    expect(details).toContain('elapsedMs=40123');
+    expect(details).toContain('attempts=7');
+    expect(details).toContain('stage=PUBLIC_READINESS');
+    expect(details).toContain('http=502');
+    expect(details).not.toMatch(/trycloudflare|https:|OTB-/u);
+  });
+
   it('keeps the failure for a port that is taken short and plain', async () => {
     const failed: HostRuntimeStatus = { ...status, state: 'FAILED', errorCode: 'PORT_OCCUPIED' };
     const { host } = installHostBridge(status);

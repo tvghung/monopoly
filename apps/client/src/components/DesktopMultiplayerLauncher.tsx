@@ -86,6 +86,30 @@ function errorMessage(error: LauncherError, t: (key: MessageKey, values?: Readon
   }
 }
 
+function onlineHelp(status?: HostRuntimeStatus): MessageKey {
+  const diagnostic = status?.onlineDiagnostic;
+  if (diagnostic?.reason === 'PROXY') return 'launcher.onlineProxyHelp';
+  if (diagnostic?.reason === 'TLS') return 'launcher.onlineTlsHelp';
+  if (diagnostic?.reason === 'DNS' || diagnostic?.reason === 'NETWORK' || diagnostic?.reason === 'TIMEOUT') {
+    return 'launcher.onlineNetworkHelp';
+  }
+  if (diagnostic?.reason === 'HTTP') return 'launcher.onlineHttpHelp';
+  return 'launcher.onlineGeneralHelp';
+}
+
+function troubleshootingDetails(status: HostRuntimeStatus): string {
+  const diagnostic = status.onlineDiagnostic;
+  return [
+    `Own the Block ${status.appVersion} (${status.platform})`,
+    `error=${status.errorCode ?? 'ONLINE_FAILED'}`,
+    `stage=${diagnostic?.stage ?? 'UNKNOWN'}`,
+    `reason=${diagnostic?.reason ?? 'UNKNOWN'}`,
+    `http=${diagnostic?.httpStatus ?? 'NONE'}`,
+    `elapsedMs=${diagnostic?.elapsedMs ?? 0}`,
+    `attempts=${diagnostic?.attempts ?? 0}`,
+  ].join('\n');
+}
+
 function fallbackPlatform(): DesktopPlatform {
   return typeof navigator !== 'undefined' && /macintosh|mac os/iu.test(navigator.userAgent)
     ? 'darwin'
@@ -147,6 +171,7 @@ export default function DesktopMultiplayerLauncher({
   const [error, setError] = useState<LauncherError | null>(() => configurationError
     ? { kind: 'message', key: 'launcher.configurationError' }
     : initialJoin?.failure ? { kind: 'find-room', code: initialJoin.failure, roomCode: initialJoin.roomCode } : null);
+  const [copiedTroubleshooting, setCopiedTroubleshooting] = useState(false);
 
   useEffect(() => {
     if (!bridge?.host) return undefined;
@@ -361,7 +386,17 @@ export default function DesktopMultiplayerLauncher({
           <h1 id="desktop-launcher-title">{t('brand.name')}</h1>
         </header>
 
-        {error ? <p className="desktop-launcher__error" role="alert">{errorMessage(error, t)}</p> : null}
+        {error ? <div className="desktop-launcher__error" role="alert">
+          <p>{errorMessage(error, t)}</p>
+          {error.kind === 'host' && hostStatus?.connectionMode === 'ONLINE' ? <>
+            <p>{t(onlineHelp(hostStatus))}</p>
+            <Button size="sm" variant="secondary" onClick={() => {
+              void navigator.clipboard.writeText(troubleshootingDetails(hostStatus)).then(
+                () => setCopiedTroubleshooting(true), () => setCopiedTroubleshooting(false),
+              );
+            }}>{t(copiedTroubleshooting ? 'launcher.troubleshootingCopied' : 'launcher.copyTroubleshooting')}</Button>
+          </> : null}
+        </div> : null}
         {hostStarting ? <p className="desktop-launcher__status" role="status">{t(hostStatus?.state === 'STARTING_SERVER' ? 'launcher.openingRoom' : 'launcher.closingRoom')}</p> : null}
         <UpdateStatusLine menuVisible={mode === null} />
 
