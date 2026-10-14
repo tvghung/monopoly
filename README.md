@@ -1,6 +1,6 @@
 # Own the Block — Cờ Tỷ Phú Việt Nam
 
-**Latest published version: 1.9.0.** This branch prepares 1.9.1 with the rc.2 Online hosting reliability fix. The host can add up to three bots; guests join by code or invitation link. An optional room registry (`services/room-registry`) supports Online code lookup. Socket protocol is 14, snapshot schema is 11, and the minimum supported version is 1.9.0. Download published Windows/macOS packages from [GitHub Releases](https://github.com/tvghung/monopoly/releases/latest). The installers are unsigned.
+**Latest published version: 1.9.1.** This release includes the rc.2 Online hosting reliability fix. The host can add up to three bots; guests join by code or invitation link. An optional room registry (`services/room-registry`) supports Online code lookup. Socket protocol is 14, snapshot schema is 11, and the minimum supported version is 1.9.0. Download published Windows/macOS packages from [GitHub Releases](https://github.com/tvghung/monopoly/releases/latest). The installers are unsigned.
 
 Own the Block is a host-authoritative multiplayer Monopoly game. A Windows or macOS desktop player hosts a match; other players join from desktop or mobile browsers over the LAN or a temporary HTTPS Cloudflare Quick Tunnel invitation. The host's server process holds every room, reconnect session and offer in RAM. Stopping or crashing that process permanently ends its matches.
 
@@ -20,7 +20,7 @@ No database, Node.js, developer tools, port forwarding or VPN is required on pla
 - **Online link changed.** A Quick Tunnel address is temporary. If a guest cannot reconnect for about 20 seconds, the "Mất kết nối" dialog accepts the new invitation link from the host and returns the guest to the same seat.
 - **LAN.** Players on the same network can type the room code; the desktop app finds the host on the LAN.
 
-> **1.9.1 candidate note.** Online room creation retries temporary DNS/readiness failures and uses Electron resolver diagnostics while keeping public HTTPS and room checks mandatory. The owner reports repeated success on a Windows PC where 1.9.0 and rc.1 failed, but startup still takes roughly 40–90 seconds there. The cause has not been isolated. Cross-network guest joining and real macOS hosting have not been independently confirmed. See the [Documentation Hub](project-document/README.md).
+> **1.9.1 Online hosting note.** Online room creation retries temporary DNS/readiness failures and uses Electron resolver diagnostics while keeping public HTTPS and room checks mandatory. The owner reports repeated success with rc.2 on a Windows PC where 1.9.0 and rc.1 failed, but startup still takes roughly 40–90 seconds there. The cause has not been isolated, and the stable build has not been tested on that PC. Cross-network guest joining and real macOS hosting have not been independently confirmed. See the [Documentation Hub](project-document/README.md).
 
 ## Development
 

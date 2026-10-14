@@ -37,11 +37,11 @@
   with a new hostname and the old link is withdrawn and never presented again; a tunnel that cannot be
   recreated leaves the healthy server running with no invitation; stopping the Host terminates the
   tunnel; helper loss is terminal for the match and the tunnel.
-- `[AUTO]` Current development after v1.9.0 (`apps/desktop/src/online/probe.test.ts`,
+- `[AUTO]` Released in v1.9.1 (`apps/desktop/src/online/probe.test.ts`,
   `apps/desktop/tests/hostRuntime.test.ts`, `apps/client/src/components/DesktopMultiplayerLauncher.test.tsx`): injected
   Electron fetch adapter is used instead of Node's global fetch for public and room probes; DNS, proxy, TLS and timeout
   errors are classified without exposing raw exceptions; HTTP 403/429/502/503, redirect, non-HTML response, delayed
-  readiness, cancellation and safe troubleshooting copy are covered. The stable candidate also asserts that a healthy
+  readiness, cancellation and safe troubleshooting copy are covered. The stable build also asserts that a healthy
   public route skips resolver observations and retry waits. rc.2 tests cover a transient new-hostname DNS
   failure, negative cache refresh, system resolver success while Electron's resolver fails, persistent DNS filtering,
   capped backoff, a fetch that ignores abort, and no endpoint publication until public checks pass. These tests do not

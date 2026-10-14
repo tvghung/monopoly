@@ -166,7 +166,7 @@ and `FAILED` (`READY` exists in the type; the current start path goes straight t
   network behaviour (arguments, empty config, environment filtering, accepted hostnames, registry fallback) is canonical in
   [HTTP, LAN and online hosting](../Api/http-runtime.instruction.md#online). The registry URL comes from
   `OWN_THE_BLOCK_REGISTRY_URL` at runtime, else `registryUrl` in the packaged `release-config.json` (`resolveRegistryUrl`).
-  In current development after v1.9.0, `apps/desktop/src/online/probe.ts` records safe stage and failure codes through
+  Released in v1.9.1, `apps/desktop/src/online/probe.ts` records safe stage and failure codes through
   `HostRuntimeStatus`, and `apps/desktop/src/desktopBootstrap.ts` supplies Electron `net.fetch` to public-route, room and
   registry checks so they use the desktop network stack. The renderer can copy only the bounded diagnostic fields; it
   receives no helper output or registry credential. See the Online section of the canonical HTTP document for retry and

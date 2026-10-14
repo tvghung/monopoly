@@ -30,8 +30,8 @@ log is recorded as `OWNER-REPORTED`, never as an automated or independent `PASS`
 
 | Item | Value | Evidence |
 | --- | --- | --- |
-| Latest published release | **v1.9.0** (socket protocol 14, room snapshot schema 11) | [GitHub Release v1.9.0](https://github.com/tvghung/monopoly/releases/tag/v1.9.0) published 2026-10-11; tag is on `main`; `release-candidate.yml` tag run 38119202459 succeeded |
-| Working branch | `release/v1.9.1-stable` prepares the unpublished v1.9.1 stable release from the tested rc.2 Online reliability implementation (**CURRENT DEVELOPMENT**) | Branch package metadata and [release contract](./ui-ux-overhaul/V1_RELEASE_CONTRACT.md) |
+| Latest published release | **v1.9.1** (socket protocol 14, room snapshot schema 11) | [GitHub Release v1.9.1](https://github.com/tvghung/monopoly/releases/tag/v1.9.1); tag on `main` commit `3590444`; `release-candidate.yml` tag run 38524488302 |
+| Working branch | `main` carries the v1.9.1 release; the rc.2 reliability behavior is now **RELEASED** | [Release contract](./ui-ux-overhaul/V1_RELEASE_CONTRACT.md), [release acceptance matrix](./monopoly-websockets/testcase/RELEASE_ACCEPTANCE_MATRIX.md) |
 | Differences from v1.9.0 | Online public probes use Electron's network stack, bounded DNS/readiness retries, resolver-cache refresh and safe failure diagnostics; gameplay, protocol 14 and snapshot schema 11 are unchanged | [HTTP and hosting](./monopoly-websockets/Api/http-runtime.instruction.md#online), [Shared contracts — Version history](./monopoly-websockets/Shared/socket-and-state-contracts.instruction.md#version-history) |
 | Release risks | The affected Windows PC failed on rc.1 (`PUBLIC_READINESS` / `DNS`, 39 attempts in 39.6 s). The owner reports repeated rc.2 Online room creation on that PC with Defender enabled, taking about 40–90 s; root cause and timing breakdown are unknown. Cross-network, full-game, upgrade and macOS device checks remain **NOT RUN** | [Hosting checklist](./monopoly-websockets/testcase/http-runtime-and-deployment.md) |
 

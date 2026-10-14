@@ -571,7 +571,7 @@ readiness is plausible but unconfirmed. See the [release acceptance matrix](../m
 
 ## V1.9.1-rc.2 Online hosting validation candidate (Socket protocol 14, snapshot schema 11)
 
-**Status: CURRENT DEVELOPMENT, unpublished.** Branch `release/v1.9.1-rc.2` tests bounded delayed readiness and
+**Status: TESTED EXTERNALLY, unpublished.** Branch `release/v1.9.1-rc.2` tested bounded delayed readiness and
 Electron host-resolver cache recovery. Version `1.9.1-rc.2` is distinct for Squirrel installation; protocol 14,
 snapshot schema 11 and `minimumSupportedVersion` 1.9.0 are unchanged. A manual `release-candidate.yml` dispatch
 with `unsigned-validation` uploads workflow artifacts only; it creates no tag, GitHub Release or stable update.
@@ -579,16 +579,23 @@ The owner reports that rc.2 repeatedly creates Online rooms on the previously fa
 enabled. Startup took about 40–90 seconds, commonly about 60 seconds. This is **OWNER-REPORTED**, without a per-run timing
 trace; cross-network joining, full gameplay, Windows upgrade and real-device macOS checks remain **NOT RUN**.
 
-## V1.9.1 stable release candidate (Socket protocol 14, snapshot schema 11)
+## V1.9.1 stable release (Socket protocol 14, snapshot schema 11)
 
-**Status: PRE-PUBLICATION.** Branch `release/v1.9.1-stable` promotes the tested rc.2 Online reliability implementation
+**Status: PUBLISHED 2026-10-14.** [GitHub Release v1.9.1](https://github.com/tvghung/monopoly/releases/tag/v1.9.1) was published by the successful [tag workflow 38524488302](https://github.com/tvghung/monopoly/actions/runs/38524488302). Annotated tag `v1.9.1` points to `main` commit `359044481618371ed6e4e75cb421e65f59a6b80f`. The release promotes the tested rc.2 Online reliability implementation
 without a speculative startup optimization. The 8-second tunnel-registration fallback, resolver-observation cycle and
 retry backoff are possible contributors to latency, but the external 40–90-second reports do not isolate any one cause.
 No comparable real-device trace or controlled improvement establishes that changing them would preserve the affected-PC
 recovery. A speed target is not a release gate. Version metadata is `1.9.1`; protocol 14, snapshot schema 11 and minimum
-supported version 1.9.0 are unchanged. Release notes: `.github/release-notes/v1.9.1.md`. Publication requires the local
-gates and a successful validation workflow on the final `main` commit before the annotated `v1.9.1` tag is pushed.
+supported version 1.9.0 are unchanged. Release notes: `.github/release-notes/v1.9.1.md`. Local gates, final `main` CI
+and unsigned validation run 38522758173 passed before the annotated `v1.9.1` tag was pushed.
 
 Pre-publication artifact inspection of validation run 38504716182 found compiled `*.test.js` files and source maps inside
-the Windows `app.asar`, despite that run's green packaged size gate. This is a release blocker until the packaging build
-excludes development-only files, the budget gate detects them, and fresh local and three-platform artifacts pass again.
+the Windows `app.asar`, despite that run's green packaged size gate. Publication was blocked until the packaging build
+excluded development-only files and the budget gate detected their return. Fresh local packaging and validation run
+38522758173 passed all four jobs; its downloaded artifacts matched their SHA-256 manifests. The published tag workflow
+passed quality and all three platform jobs. The downloaded public Windows package contains the expected Online runtime
+and no compiled tests, source maps or build configuration. All seven public asset URLs returned HTTP 200; the downloaded
+payloads matched `SHA256SUMS.txt` and `update-manifest.json`, the Squirrel `RELEASES` SHA-1 and size match the full
+`.nupkg`, and the latest public update feed serves version 1.9.1 with minimum supported version 1.9.0. Real Windows
+in-place upgrades, cross-network gameplay and macOS device hosting remain **NOT RUN**; rc.2 success on the affected PC is
+**OWNER-REPORTED**, and the stable build has not been tested there.
