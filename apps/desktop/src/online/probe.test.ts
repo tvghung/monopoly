@@ -26,6 +26,20 @@ describe('public Online probes', () => {
     expect(safeNetworkCode(new Error('private hostname and secret token'))).toBeUndefined();
   });
 
+  it('completes a healthy public route without DNS recovery or retry waiting', async () => {
+    vi.useFakeTimers();
+    const events: OnlineDiagnostic[] = [];
+    const resolver = { resolve: vi.fn(() => Promise.resolve()), clearCache: vi.fn(() => Promise.resolve()) };
+    const fetcher = vi.fn((url: string) => Promise.resolve(url.endsWith('/readyz') ? ready() : html()));
+    const task = probePublicTunnel(endpoint, fetcher, new AbortController().signal,
+      event => events.push(event), 150_000, resolver);
+    await task;
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(resolver.resolve).not.toHaveBeenCalled();
+    expect(resolver.clearCache).not.toHaveBeenCalled();
+    expect(events.at(-1)).toMatchObject({ stage: 'PUBLIC_PAGE', outcome: 'PASSED', elapsedMs: 0, attempts: 1 });
+  });
+
   it('accepts delayed readiness, then the actual HTML page, without exposing the endpoint in diagnostics', async () => {
     vi.useFakeTimers();
     const events: OnlineDiagnostic[] = [];
@@ -152,7 +166,7 @@ describe('public Online probes', () => {
     expect(events.at(-1)).toMatchObject({ outcome: 'FAILED', reason: 'TIMEOUT' });
   });
 
-  it.each([[403, 1], [502, 2], [503, 2]])('records HTTP %i with stage and bounded attempts', async (status, count) => {
+  it.each([[403, 1], [429, 2], [502, 2], [503, 2]])('records HTTP %i with stage and bounded attempts', async (status, count) => {
     vi.useFakeTimers();
     const events: OnlineDiagnostic[] = [];
     const task = probePublicTunnel(endpoint, () => Promise.resolve(new Response(null, { status })),

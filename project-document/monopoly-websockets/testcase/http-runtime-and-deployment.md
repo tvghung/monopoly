@@ -40,16 +40,19 @@
 - `[AUTO]` Current development after v1.9.0 (`apps/desktop/src/online/probe.test.ts`,
   `apps/desktop/tests/hostRuntime.test.ts`, `apps/client/src/components/DesktopMultiplayerLauncher.test.tsx`): injected
   Electron fetch adapter is used instead of Node's global fetch for public and room probes; DNS, proxy, TLS and timeout
-  errors are classified without exposing raw exceptions; HTTP 403/502/503, redirect, non-HTML response, delayed
-  readiness, cancellation and safe troubleshooting copy are covered. rc.2 tests also cover a transient new-hostname DNS
+  errors are classified without exposing raw exceptions; HTTP 403/429/502/503, redirect, non-HTML response, delayed
+  readiness, cancellation and safe troubleshooting copy are covered. The stable candidate also asserts that a healthy
+  public route skips resolver observations and retry waits. rc.2 tests cover a transient new-hostname DNS
   failure, negative cache refresh, system resolver success while Electron's resolver fails, persistent DNS filtering,
   capped backoff, a fetch that ignores abort, and no endpoint publication until public checks pass. These tests do not
   establish the cause on the affected Windows PC.
 - `[MANUAL-E2E][FAIL]` The affected Windows PC failed on rc.1: `PUBLIC_READINESS` / `DNS`, no HTTP response, 39 attempts
   in 39,612 ms. This is real external-device evidence, separate from the earlier manual Quick Tunnel HTTP PASS.
-- `[MANUAL-E2E][NOT RUN]` Install rc.2 on that PC with Defender enabled; repeat Online creation, copy the diagnostic on
-  failure, and join from an independent network. Repeat on another Windows PC and supported macOS hosts. A packaged
-  build alone does not prove these physical-device paths.
+- `[MANUAL-E2E][OWNER-REPORTED]` On the previously failing Windows PC, rc.2 repeatedly created Online rooms with
+  Defender enabled. Each creation reportedly took about 40–90 seconds, usually about 60 seconds. There is no per-run
+  timing trace, so no single bottleneck or faster baseline is established.
+- `[MANUAL-E2E][NOT RUN]` Join rc.2 or stable from an independent network, play a full game, exercise Windows upgrades
+  and repeat on supported macOS hosts. A packaged build alone does not prove these physical-device paths.
 - `[PACKAGED][WINDOWS-X64][PASS]` Local 2026-10-13 packaged Electron smoke: the actual application reached
   `HOSTING` / Online `READY`, `PUBLIC_ROOM` probe `PASSED` on attempt 1 and published an invitation. A separate packaged
   Electron check verified that `net.fetch` rejects `redirect: 'manual'` responses and aborts a stalled request. These

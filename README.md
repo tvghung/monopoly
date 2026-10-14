@@ -1,6 +1,6 @@
 # Own the Block — Cờ Tỷ Phú Việt Nam
 
-**Version 1.7.0 — bot players and Online join by code or link.** The host adds up to three Balanced bots in the lobby; one join field takes an `OTB-XXXXXX` code or an invitation link; a guest whose host link changed pastes the new link to return to the same seat; an optional room registry (`services/room-registry`) lets a code be found from another network. Socket protocol 12, snapshot schema 11 (1.6.x must update). Download the Windows/macOS packages from [GitHub Releases](https://github.com/tvghung/monopoly/releases/latest) (v1.7.0 published 2026-10-09). The installers are unsigned. (Version 1.6.1 brought the phone and tablet layout; 1.5.0 introduced RAM-only LAN & Cloudflare Online Multiplayer.)
+**Latest published version: 1.9.0.** This branch prepares 1.9.1 with the rc.2 Online hosting reliability fix. The host can add up to three bots; guests join by code or invitation link. An optional room registry (`services/room-registry`) supports Online code lookup. Socket protocol is 14, snapshot schema is 11, and the minimum supported version is 1.9.0. Download published Windows/macOS packages from [GitHub Releases](https://github.com/tvghung/monopoly/releases/latest). The installers are unsigned.
 
 Own the Block is a host-authoritative multiplayer Monopoly game. A Windows or macOS desktop player hosts a match; other players join from desktop or mobile browsers over the LAN or a temporary HTTPS Cloudflare Quick Tunnel invitation. The host's server process holds every room, reconnect session and offer in RAM. Stopping or crashing that process permanently ends its matches.
 
@@ -15,12 +15,12 @@ No database, Node.js, developer tools, port forwarding or VPN is required on pla
 
 ### Hosting and reconnecting
 
-- **Keep the host running.** Closing the host application stops the server for everyone and ends the match permanently. During an active game the app shows a confirmation and waits for your answer (published 1.7.0 closes the window after 2 seconds even while the question is open; fixed on the development branch); closing from the lobby or after the game ends stops the room without asking. Rooms live only in the host's memory, so reopening the app cannot bring a match back.
+- **Keep the host running.** Closing the host application stops the server for everyone and ends the match permanently. During an active game the app shows a confirmation and waits for your answer; closing from the lobby or after the game ends stops the room without asking. Rooms live only in the host's memory, so reopening the app cannot bring a match back.
 - **Dropped connection.** A player who loses connection rejoins the same seat automatically while the host keeps running. If the current player stays disconnected, the game waits about 60 seconds and then skips that turn; bots never take over a human seat.
 - **Online link changed.** A Quick Tunnel address is temporary. If a guest cannot reconnect for about 20 seconds, the "Mất kết nối" dialog accepts the new invitation link from the host and returns the guest to the same seat.
 - **LAN.** Players on the same network can type the room code; the desktop app finds the host on the LAN.
 
-> **Development branch note.** `feat/own-the-block-multiplayer-bots-vnext` contains unreleased changes after v1.7.0 (version 1.8.0 candidate, Socket protocol 13: bot difficulty levels in the lobby, Income Tax 150 instead of 200, idempotent sell-house and trade-offer requests, a host-close confirmation that waits for the player, a leave fix for finished 2v2 rooms). They are not in any published installer, and a 1.7.0 app will not be able to join a 1.8.0 host. See the [Documentation Hub](project-document/README.md).
+> **1.9.1 candidate note.** Online room creation retries temporary DNS/readiness failures and uses Electron resolver diagnostics while keeping public HTTPS and room checks mandatory. The owner reports repeated success on a Windows PC where 1.9.0 and rc.1 failed, but startup still takes roughly 40–90 seconds there. The cause has not been isolated. Cross-network guest joining and real macOS hosting have not been independently confirmed. See the [Documentation Hub](project-document/README.md).
 
 ## Development
 
@@ -58,6 +58,6 @@ The desktop package step downloads the pinned official `cloudflared` asset for t
 
 The in-memory store serializes transactions and direct writes. Room commands use draft snapshots and expected-version checks; success ACKs and broadcasts follow commit. The server stores only SHA-256 reconnect-token hashes. A new server process starts with an empty store, so old room codes and tokens are invalid.
 
-Cloudflare Quick Tunnels are a personal-use/testing path with no uptime guarantee. [Cloudflare documents](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) that production deployments require a managed tunnel. A stable public release, macOS signing/notarization, and physical cross-network device checks need separate release evidence. The optional registry supports bare online room-code lookup; complete invitation links work without it.
+Cloudflare Quick Tunnels are a personal-use/testing path with no uptime guarantee. [Cloudflare documents](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) that production deployments require a managed tunnel. Physical cross-network device checks need separate release evidence. The optional registry supports bare online room-code lookup; complete invitation links work without it.
 
 Historical SQL migrations and the former cloud deployment design are superseded. There is no active database migration, PostgreSQL process, Docker deployment or cloud-hosted authoritative gameplay service in the supported workflow.

@@ -8,7 +8,7 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.9.1-rc.2
+Semantic version: 1.9.1
 Socket protocol: 14
 ```
 
@@ -97,8 +97,8 @@ audio, card and landmark proofs pass on the lean package. macOS (Apple silicon, 
 
 ## Release publication
 
-A release is published by pushing the annotated tag `v<semver>` (`v1.2.0` for `1.2.0`) on a commit that is on `main`;
-the README section "Publishing a release" has the commands. The `Release Candidate` workflow
+A release is published by pushing the annotated tag `v<semver>` (`v1.2.0` for `1.2.0`) on a commit that is on `main`.
+The `Release Candidate` workflow
 (`.github/workflows/release-candidate.yml`) reacts to the tag:
 
 1. It first checks that the tag equals the root `package.json` version and that `.github/release-notes/<tag>.md` exists.
@@ -575,4 +575,16 @@ readiness is plausible but unconfirmed. See the [release acceptance matrix](../m
 Electron host-resolver cache recovery. Version `1.9.1-rc.2` is distinct for Squirrel installation; protocol 14,
 snapshot schema 11 and `minimumSupportedVersion` 1.9.0 are unchanged. A manual `release-candidate.yml` dispatch
 with `unsigned-validation` uploads workflow artifacts only; it creates no tag, GitHub Release or stable update.
-External-device Online hosting and independent-network joining on rc.2 are **NOT RUN** until actually tested.
+The owner reports that rc.2 repeatedly creates Online rooms on the previously failing Windows PC with Windows Defender
+enabled. Startup took about 40–90 seconds, commonly about 60 seconds. This is **OWNER-REPORTED**, without a per-run timing
+trace; cross-network joining, full gameplay, Windows upgrade and real-device macOS checks remain **NOT RUN**.
+
+## V1.9.1 stable release candidate (Socket protocol 14, snapshot schema 11)
+
+**Status: PRE-PUBLICATION.** Branch `release/v1.9.1-stable` promotes the tested rc.2 Online reliability implementation
+without a speculative startup optimization. The 8-second tunnel-registration fallback, resolver-observation cycle and
+retry backoff are possible contributors to latency, but the external 40–90-second reports do not isolate any one cause.
+No comparable real-device trace or controlled improvement establishes that changing them would preserve the affected-PC
+recovery. A speed target is not a release gate. Version metadata is `1.9.1`; protocol 14, snapshot schema 11 and minimum
+supported version 1.9.0 are unchanged. Release notes: `.github/release-notes/v1.9.1.md`. Publication requires the local
+gates and a successful validation workflow on the final `main` commit before the annotated `v1.9.1` tag is pushed.

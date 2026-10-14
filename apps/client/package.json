@@ -1,6 +1,6 @@
 {
   "name": "@monopoly/client",
-  "version": "1.9.1-rc.2",
+  "version": "1.9.1",
   "private": true,
   "type": "module",
   "scripts": {
