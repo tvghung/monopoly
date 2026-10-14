@@ -54,6 +54,11 @@ Automated gates and publication status are recorded only after execution; no rc.
 | Windows in-place update from 1.9.0 or rc.2; independent-network guests and full game; real macOS device hosting | NOT RUN | NOT RUN | Version precedence and Squirrel feed shape have automated coverage, but no isolated real-install upgrade or external-device run was executed for this candidate. |
 | Final `main` CI, three-platform release-candidate workflow, public tag and feed | NOT RUN | NOT APPLICABLE | Pending pre-publication validation; this table is not publication evidence. |
 
+Pre-publication validation run 38504716182 passed all four required jobs, and its downloaded artifacts matched their
+SHA-256 manifests. Manual archive inspection then found compiled Online test modules and source maps in the Windows
+`app.asar`. **Artifact-content acceptance: FAIL; publication blocked.** The packaging cleanup on
+`codex/v191-package-cleanup` must pass a fresh local package and a new three-platform validation run before tagging.
+
 ## v1.7.0 — platform and scenario summary
 
 Source: `RELEASE_CANDIDATE.md` and `ACCEPTANCE_MATRIX.md` at tag `v1.7.0`, plus the `release-candidate.yml` run on the tag

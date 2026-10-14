@@ -12,6 +12,13 @@ const serverRoot = path.join(repositoryRoot, 'apps', 'server');
 const helperOutputRoot = path.join(desktopRoot, 'generated', 'server-helper');
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 
+// TypeScript does not delete outputs removed by an exclude rule. Start with a clean,
+// fixed build directory so a previous test compilation cannot leak into a package.
+if (path.dirname(outputRoot) !== desktopRoot || path.basename(outputRoot) !== 'dist') {
+  throw new Error('Refusing to clean a desktop output path outside the expected dist directory.');
+}
+await rm(outputRoot, { recursive: true, force: true });
+
 const typeScript = spawnSync(pnpm, ['exec', 'tsc', '-p', 'tsconfig.build.json'], {
   cwd: desktopRoot,
   stdio: 'inherit',
@@ -44,7 +51,7 @@ await build({
   target: 'node22',
   external: ['electron'],
   outfile: path.join(outputRoot, 'preload.js'),
-  sourcemap: true,
+  sourcemap: false,
   legalComments: 'none',
 });
 

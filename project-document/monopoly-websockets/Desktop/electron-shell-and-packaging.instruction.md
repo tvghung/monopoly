@@ -188,8 +188,11 @@ and `FAILED` (`READY` exists in the type; the current start path goes straight t
 `server-helper.cjs` and of `apps/server/src/phase72HostContract.ts` for the proof, and the preload bundle with `electron`
 external), then Electron Forge.
 
-`apps/desktop/forge.config.cjs`: `asar: true`, `prune: false`; `generated/`, `src/`, `tests/`, `scripts/`, `node_modules/`
-and `update-policy.json` are ignored, while `cloudflared-integrity.json` stays in `app.asar` because main requires it.
+`apps/desktop/forge.config.cjs`: `asar: true`, `prune: false`; `generated/`, `src/`, `tests/`, `scripts/`, `node_modules/`,
+`update-policy.json`, TypeScript configuration and Forge configuration are ignored, while `cloudflared-integrity.json`
+stays in `app.asar` because main requires it. `apps/desktop/scripts/compile.mjs` cleans the fixed `dist/` output before
+compiling, and `tsconfig.build.json` excludes test files and source maps. The packaged budget gate rejects compiled tests,
+source maps and build configuration even when they are nested under `dist/`.
 `extraResource` = client `dist`, `release-config.json`, `server-helper/`, `cloudflared/`. The `packageAfterExtract` hook
 prunes Electron locales to `en-US` and `vi` (Windows; macOS bundles are listed, not pruned). Makers: Squirrel (win32,
 `OwnTheBlock-<version>-win32-x64-Setup.exe`) and DMG (darwin, ULMO). Signing inputs are read only when

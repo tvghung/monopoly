@@ -135,6 +135,26 @@ describe('packaged size budget', () => {
     expect(rows.map(([label]) => label)).toContain('resources/app.asar');
   });
 
+  it('rejects compiled tests, source maps and build configuration inside app.asar', async () => {
+    await buildLeanPackage();
+    await writeAsar(path.join(resourcesRoot, 'app.asar'), {
+      'package.json': 10,
+      'cloudflared-integrity.json': 10,
+      'dist/main.js': 100,
+      'dist/online/probe.test.js': 10,
+      'dist/online/probe.js.map': 10,
+      'tsconfig.build.json': 10,
+      'forge.config.cjs': 10,
+    });
+    const { errors } = await check();
+    expect(errors).toEqual(expect.arrayContaining([
+      'app.asar contains development-only file dist/online/probe.test.js',
+      'app.asar contains development-only file dist/online/probe.js.map',
+      'app.asar contains development-only file tsconfig.build.json',
+      'app.asar contains development-only file forge.config.cjs',
+    ]));
+  });
+
   it('rejects a binary that is not the shipped pinned build even when its adjacent digest matches', async () => {
     await buildLeanPackage();
     const { errors } = await check(await loadCloudflaredIntegrity());
