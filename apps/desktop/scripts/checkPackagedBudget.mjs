@@ -19,6 +19,7 @@ const MIB = 1048576;
 /** app.asar holds only the compiled main/preload code and package.json. */
 export const ASAR_MAX_BYTES = 5 * MIB;
 export const ASAR_FORBIDDEN_ROOTS = ['generated', 'src', 'tests', 'scripts', 'node_modules', 'out'];
+const ASAR_FORBIDDEN_FILE = /(?:^|\/)(?:[^/]+\.test\.js|[^/]+\.map|tsconfig(?:\.build)?\.json|forge\.config\.cjs)$/u;
 /**
  * What a player downloads. Windows `Setup.exe`: 249.7 MiB originally, 181.9 MiB after the duplicate PostgreSQL copy, the
  * link-time libraries and the extra Electron locales were removed, 160.6 MiB once the music shipped as Ogg Vorbis instead
@@ -113,6 +114,11 @@ export async function checkPackagedBudget({
   }
   for (const forbidden of ASAR_FORBIDDEN_ROOTS) {
     if (asarRoots.has(forbidden)) errors.push(`app.asar contains ${forbidden}/, which must not be packed into the app`);
+  }
+  for (const entry of asarEntries) {
+    if (ASAR_FORBIDDEN_FILE.test(entry.path)) {
+      errors.push(`app.asar contains development-only file ${entry.path}`);
+    }
   }
 
   const targetKey = `${platform}-${architecture}`;

@@ -4,7 +4,7 @@
     "outDir": "dist",
     "rootDir": "src",
     "noEmit": false,
-    "sourceMap": true
+    "sourceMap": false
   },
-  "exclude": ["src/preload.ts"]
+  "exclude": ["src/preload.ts", "src/**/*.test.ts", "src/**/*.test.tsx"]
 }

@@ -588,3 +588,7 @@ No comparable real-device trace or controlled improvement establishes that chang
 recovery. A speed target is not a release gate. Version metadata is `1.9.1`; protocol 14, snapshot schema 11 and minimum
 supported version 1.9.0 are unchanged. Release notes: `.github/release-notes/v1.9.1.md`. Publication requires the local
 gates and a successful validation workflow on the final `main` commit before the annotated `v1.9.1` tag is pushed.
+
+Pre-publication artifact inspection of validation run 38504716182 found compiled `*.test.js` files and source maps inside
+the Windows `app.asar`, despite that run's green packaged size gate. This is a release blocker until the packaging build
+excludes development-only files, the budget gate detects them, and fresh local and three-platform artifacts pass again.
