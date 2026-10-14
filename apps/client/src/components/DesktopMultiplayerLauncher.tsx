@@ -105,6 +105,10 @@ function troubleshootingDetails(status: HostRuntimeStatus): string {
     `stage=${diagnostic?.stage ?? 'UNKNOWN'}`,
     `reason=${diagnostic?.reason ?? 'UNKNOWN'}`,
     `http=${diagnostic?.httpStatus ?? 'NONE'}`,
+    `networkCode=${diagnostic?.networkCode ?? 'NONE'}`,
+    `resolver=${diagnostic?.resolver ?? 'NOT_CHECKED'}`,
+    `resolverCache=${diagnostic?.resolverCache ?? 'NOT_CHECKED'}`,
+    `tunnelRegistrationObserved=${diagnostic?.tunnelConnected ? 'YES' : 'NO'}`,
     `elapsedMs=${diagnostic?.elapsedMs ?? 0}`,
     `attempts=${diagnostic?.attempts ?? 0}`,
   ].join('\n');

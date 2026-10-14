@@ -29,10 +29,14 @@ each version's release notes in `.github/release-notes/`.
 | v1.8.0 | 2026-10-09 | 13 / 11 | .github/release-notes/v1.8.0.md | [Published GitHub Release](https://github.com/tvghung/monopoly/releases/tag/v1.8.0); candidate and acceptance evidence below |
 | **v1.9.0** (latest) | 2026-10-11 | 14 / 11 | `.github/release-notes/v1.9.0.md` | [Published GitHub Release](https://github.com/tvghung/monopoly/releases/tag/v1.9.0); tag workflow 38119202459 succeeded. Physical-device Online hosting failure is under investigation; this fix is not released |
 
-`v1.9.1-rc.1` is an unpublished validation candidate on `release/v1.9.1-rc.1`, not a published release row. It retains
-protocol 14, snapshot 11 and the 1.9.0 minimum supported version. The affected Windows PC and independent-network
-Online host/join tests are **NOT RUN** until external results are supplied. A manual `release-candidate.yml` dispatch
-uploads private workflow artifacts only; its outcome is reported with the run, not assumed here.
+`v1.9.1-rc.1` is an unpublished validation candidate, not a published release row. It retains protocol 14,
+snapshot 11 and the 1.9.0 minimum supported version. **External-device Online hosting: FAIL** on the original
+affected Windows PC (`PUBLIC_READINESS` / `DNS`, no HTTP status, 39 attempts, 39,612 ms). LAN and the earlier manual
+Quick Tunnel checks passed on that PC; the exact cause of the automatic probe's DNS failures remains unconfirmed.
+
+`v1.9.1-rc.2` is a new unpublished candidate on `release/v1.9.1-rc.2`, with the same protocol, snapshot and
+minimum version. Its external-device Online hosting and independent-network joining are **NOT RUN**. A manual
+`release-candidate.yml` dispatch uploads workflow artifacts only; it does not publish a release.
 
 ## v1.7.0 — platform and scenario summary
 

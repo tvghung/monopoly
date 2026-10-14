@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { CloudflareQuickTunnel, type ConnectivityProvider } from './online/connectivity';
 import { classifyNetworkException, OnlineProbeError, probePublicTunnel,
   type OnlineDiagnostic, type OnlineFailure, type OnlineFetcher, type OnlineStage } from './online/probe';
+import type { OnlineHostResolver } from './online/probe';
 import { HttpRoomDiscovery, type RoomDiscoveryProvider } from './online/discovery';
 
 import {
@@ -101,6 +102,8 @@ export interface HostRuntimeOptions {
   registryUrl?: string;
   /** The desktop shell injects Electron net.fetch to use Chromium's system proxy and certificate handling. */
   onlineFetch?: OnlineFetcher;
+  /** Electron's host resolver and cache control for DNS failure diagnostics and recovery. */
+  onlineResolver?: OnlineHostResolver;
 }
 
 const LOOPBACK_HOST = '127.0.0.1';
@@ -375,20 +378,29 @@ export class HostRuntimeController {
     const started = Date.now();
     let stage: OnlineStage = 'BINARY_VERIFY';
     let tunnelLost = false;
-    const report = (diagnostic: OnlineDiagnostic): void => this.update({ onlineDiagnostic: diagnostic });
+    let tunnelConnected = false;
+    const report = (diagnostic: OnlineDiagnostic): void => this.update({
+      onlineDiagnostic: { ...diagnostic, tunnelConnected },
+    });
     try {
       const publicEndpoint = await this.connectivity.start(this.currentStatus.localEndpoint, () => {
         tunnelLost = true;
         if (this.currentStatus.state !== 'HOSTING' || this.onlineRecoveryPromise) abort.abort();
         else void this.recoverOnlineTunnel();
-      }, { signal: abort.signal, onStage: next => {
+      }, { signal: abort.signal, onConnectionRegistered: () => {
+        tunnelConnected = true;
+        if (this.onlineAbort === abort && this.currentStatus.onlineDiagnostic) {
+          this.update({ onlineDiagnostic: { ...this.currentStatus.onlineDiagnostic, tunnelConnected: true } });
+        }
+      }, onStage: next => {
         stage = next;
         report({ stage, outcome: 'STARTED', elapsedMs: Date.now() - started, attempts: 1 });
       } });
       if (abort.signal.aborted) throw new OnlineProbeError('TUNNEL_EXIT');
       stage = 'URL_ANNOUNCEMENT';
       report({ stage, outcome: 'PASSED', elapsedMs: Date.now() - started, attempts: 1 });
-      await probePublicTunnel(publicEndpoint, this.options.onlineFetch ?? fetch, abort.signal, report);
+      await probePublicTunnel(publicEndpoint, this.options.onlineFetch ?? fetch, abort.signal, report,
+        undefined, this.options.onlineResolver);
       return publicEndpoint;
     } catch (error) {
       if (tunnelLost) {

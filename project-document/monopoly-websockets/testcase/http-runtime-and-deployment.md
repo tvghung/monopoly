@@ -28,7 +28,9 @@
   directory is removed on stop, failure and exit; a startup failure, a spawn error and a start
   timeout reject cleanly; an unexpected exit is reported once; a recreated tunnel gets a new
   hostname and directory; the late exit of a stopped tunnel cannot disturb its replacement; only a
-  root `trycloudflare.com` hostname is accepted from the process output.
+  root `trycloudflare.com` hostname is accepted from the process output. A URL announced before connection registration
+  waits for the registration signal or a bounded grace; early exit during that wait fails, and a missing log line does
+  not block public HTTPS verification forever.
 - `[AUTO]` Online Host (`apps/desktop/tests/hostRuntime.test.ts`, `src/online/hostLifecycle.test.ts`): the
   public endpoint is presented only after the public readiness probe and client page answer; a tunnel
   start failure or an unreachable route fails the start and ends the server; a lost tunnel is recreated
@@ -39,11 +41,15 @@
   `apps/desktop/tests/hostRuntime.test.ts`, `apps/client/src/components/DesktopMultiplayerLauncher.test.tsx`): injected
   Electron fetch adapter is used instead of Node's global fetch for public and room probes; DNS, proxy, TLS and timeout
   errors are classified without exposing raw exceptions; HTTP 403/502/503, redirect, non-HTML response, delayed
-  readiness, cancellation and safe troubleshooting copy are covered. The existing connectivity tests cover early child
-  exit, spawn failure and cleanup. These tests do not establish the cause on the affected Windows PC.
-- `[MANUAL-E2E][NOT RUN]` Install the corrected Windows build on the affected v1.9.0 PC, host an Online room, copy the
-  diagnostic if it fails, and join over an independent network. Repeat on another Windows PC and supported macOS hosts;
-  a packaged build alone does not prove these physical-device paths.
+  readiness, cancellation and safe troubleshooting copy are covered. rc.2 tests also cover a transient new-hostname DNS
+  failure, negative cache refresh, system resolver success while Electron's resolver fails, persistent DNS filtering,
+  capped backoff, a fetch that ignores abort, and no endpoint publication until public checks pass. These tests do not
+  establish the cause on the affected Windows PC.
+- `[MANUAL-E2E][FAIL]` The affected Windows PC failed on rc.1: `PUBLIC_READINESS` / `DNS`, no HTTP response, 39 attempts
+  in 39,612 ms. This is real external-device evidence, separate from the earlier manual Quick Tunnel HTTP PASS.
+- `[MANUAL-E2E][NOT RUN]` Install rc.2 on that PC with Defender enabled; repeat Online creation, copy the diagnostic on
+  failure, and join from an independent network. Repeat on another Windows PC and supported macOS hosts. A packaged
+  build alone does not prove these physical-device paths.
 - `[PACKAGED][WINDOWS-X64][PASS]` Local 2026-10-13 packaged Electron smoke: the actual application reached
   `HOSTING` / Online `READY`, `PUBLIC_ROOM` probe `PASSED` on attempt 1 and published an invitation. A separate packaged
   Electron check verified that `net.fetch` rejects `redirect: 'manual'` responses and aborts a stalled request. These

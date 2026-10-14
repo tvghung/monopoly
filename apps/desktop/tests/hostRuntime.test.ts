@@ -185,6 +185,31 @@ describe('Online Host (Cloudflare Quick Tunnel)', () => {
     await controller.stop();
   });
 
+  it('withholds the endpoint during transient DNS failure, then hosts after cache refresh and public checks', async () => {
+    vi.useFakeTimers();
+    const helper = new FakeHelper();
+    let negativeCache = true;
+    const onlineResolver = {
+      resolve: vi.fn(() => Promise.resolve()),
+      clearCache: vi.fn(() => { negativeCache = false; return Promise.resolve(); }),
+    };
+    const onlineFetch = vi.fn((url: string) => negativeCache
+      ? Promise.reject(new Error('net::ERR_NAME_NOT_RESOLVED'))
+      : Promise.resolve(new Response(url.endsWith('/readyz') ? 'ready' : '<html>Own the Block</html>')));
+    const controller = new HostRuntimeController(options({
+      helperFactory: () => helper, connectivity: new FakeTunnel(), onlineFetch, onlineResolver,
+    }));
+    const starting = controller.start({ mode: 'ONLINE', roomCode: 'ONLINE-1' });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(controller.status.onlineEndpoint).toBeNull();
+    expect(helper.published).toEqual([]);
+    await vi.advanceTimersByTimeAsync(1_100);
+    expect(await starting).toMatchObject({ state: 'HOSTING', onlineEndpoint: 'https://first.trycloudflare.com',
+      onlineDiagnostic: { stage: 'PUBLIC_PAGE', outcome: 'PASSED', resolverCache: 'CLEARED' } });
+    expect(onlineResolver.clearCache).toHaveBeenCalledOnce();
+    await controller.stop();
+  });
+
   it('retries a transient room probe response before making the invitation ready', async () => {
     let roomAttempts = 0;
     const onlineFetch = vi.fn((url: string) => {
@@ -254,7 +279,7 @@ describe('Online Host (Cloudflare Quick Tunnel)', () => {
     const { controller, helper, tunnel } = online(new FakeTunnel());
     const starting = controller.start({ mode: 'ONLINE', roomCode: 'ONLINE-1' });
     const outcome = starting.then(() => 'started', (error: Error) => error.message);
-    await vi.advanceTimersByTimeAsync(45_000);
+    await vi.advanceTimersByTimeAsync(155_000);
     await expect(outcome).resolves.toBe('ONLINE_FAILED');
     expect(controller.status).toMatchObject({ state: 'FAILED', errorCode: 'ONLINE_FAILED', onlineEndpoint: null });
     expect(tunnel.stops).toBeGreaterThanOrEqual(1);

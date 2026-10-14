@@ -65,6 +65,13 @@ export interface HostRuntimeStatus {
     reason?: 'DNS' | 'PROXY' | 'TLS' | 'TIMEOUT' | 'NETWORK' | 'HTTP'
       | 'CONTENT' | 'REDIRECT' | 'TUNNEL_EXIT' | 'SPAWN' | 'INTEGRITY' | 'HELPER' | 'CANCELLED' | 'INVALID_ENDPOINT';
     httpStatus?: number;
+    networkCode?: 'ENOTFOUND' | 'EAI_AGAIN' | 'ERR_NAME_NOT_RESOLVED' | 'ERR_DNS_TIMED_OUT'
+      | 'ERR_PROXY_CONNECTION_FAILED' | 'ERR_TUNNEL_CONNECTION_FAILED'
+      | 'ERR_CERT_AUTHORITY_INVALID' | 'ERR_CERT_DATE_INVALID' | 'ERR_CERT_COMMON_NAME_INVALID'
+      | 'ERR_TIMED_OUT' | 'ETIMEDOUT' | 'ERR_INTERNET_DISCONNECTED';
+    resolver?: 'BOTH' | 'SYSTEM_ONLY' | 'ELECTRON_ONLY' | 'NEITHER' | 'UNAVAILABLE';
+    resolverCache?: 'CLEARED' | 'FAILED' | 'UNAVAILABLE';
+    tunnelConnected?: boolean;
     elapsedMs: number;
     attempts: number;
   };

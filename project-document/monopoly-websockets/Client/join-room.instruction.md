@@ -86,8 +86,9 @@ bằng application session state, không bằng `socket.id` hay optimistic `join
     Dòng tiến trình ("Đang chuẩn bị phòng…", "Đang mở phòng…", "Đang đóng phòng…") và mọi lỗi host (`HostRuntimeErrorCode`)
     cũng viết bằng lời thường: không nhắc cổng, máy chủ hay cơ sở dữ liệu, và lỗi luôn có việc cần làm.
     Trong current development sau v1.9.0, lỗi tạo phòng Online có hướng dẫn theo loại lỗi mạng và nút sao chép chi tiết
-    để gửi hỗ trợ. Nội dung sao chép chỉ có version/nền tảng, mã lỗi, stage, loại lỗi, HTTP status, thời gian và số lần
-    thử từ `HostRuntimeStatus.onlineDiagnostic`; không có URL tunnel, mã phòng, credential hay output của tiến trình.
+    để gửi hỗ trợ. Nội dung sao chép chỉ có version/nền tảng, mã lỗi, stage, loại lỗi, HTTP status, mã lỗi mạng trong
+    allowlist, quan sát resolver/cache, dấu hiệu đăng ký tunnel, thời gian và số lần thử từ
+    `HostRuntimeStatus.onlineDiagnostic`; không có URL tunnel, mã phòng, credential hay output của tiến trình.
   - **Form join**: tên và một ô `Mã phòng hoặc liên kết mời` (`desktop-lan-room`). `parseJoinInput` nhận mã theo schema chung,
     URL LAN `http://<ip>:<cổng>/?room=<MÃ>` và HTTPS `*.trycloudflare.com/?room=<MÃ>`; từ chối credentials, host/path/query
     không hợp lệ. URL đi thẳng tới endpoint đã kiểm tra, không cần registry/LAN lookup. Mã đơn lẻ tìm LAN và registry đồng thời;

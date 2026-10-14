@@ -9,6 +9,8 @@ import type { OnlineStage } from './probe';
 export interface TunnelStartOptions {
   signal?: AbortSignal;
   onStage?: (stage: OnlineStage) => void;
+  /** Advisory only: public HTTPS probes, not this log line, establish reachability. */
+  onConnectionRegistered?: () => void;
 }
 
 export interface ConnectivityProvider {
@@ -118,6 +120,9 @@ export class CloudflareQuickTunnel implements ConnectivityProvider {
       this.child = child;
       let settled = false;
       let tail = '';
+      let announcedEndpoint: string | undefined;
+      let connectionRegistered = false;
+      let connectionTimer: NodeJS.Timeout | undefined;
       const abort = (): void => {
         finish(new Error('TUNNEL_CANCELLED'));
         child.kill();
@@ -126,6 +131,7 @@ export class CloudflareQuickTunnel implements ConnectivityProvider {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        if (connectionTimer) clearTimeout(connectionTimer);
         options.signal?.removeEventListener('abort', abort);
         if (error) reject(error);
         else resolve(endpoint as string);
@@ -134,10 +140,21 @@ export class CloudflareQuickTunnel implements ConnectivityProvider {
         // cloudflared prints its generated URL on stderr. Never forward process
         // output to the renderer or application logs.
         tail = (tail + chunk.toString('utf8')).slice(-4096);
+        if (!connectionRegistered && /Registered tunnel connection/i.test(tail)) {
+          connectionRegistered = true;
+          options.onConnectionRegistered?.();
+          if (announcedEndpoint) finish(undefined, announcedEndpoint);
+        }
         // The hostname must end where the URL ends: `room.trycloudflare.com.evil.test` is not `room.trycloudflare.com`.
         const match = tail.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com(?![a-z0-9.-])\/?/i);
         const endpoint = match && quickTunnelEndpoint(match[0]);
-        if (endpoint) finish(undefined, endpoint);
+        if (endpoint && !announcedEndpoint) {
+          announcedEndpoint = endpoint;
+          options.onStage?.('URL_ANNOUNCEMENT');
+          clearTimeout(timer);
+          if (connectionRegistered) finish(undefined, endpoint);
+          else connectionTimer = setTimeout(() => finish(undefined, endpoint), 8_000);
+        }
       };
       child.stdout?.on('data', parse);
       child.stderr?.on('data', parse);
@@ -151,7 +168,6 @@ export class CloudflareQuickTunnel implements ConnectivityProvider {
         if (!settled) finish(new Error('TUNNEL_EXIT_EARLY'));
         else if (current && !this.stopping) onLost();
       });
-      options.onStage?.('URL_ANNOUNCEMENT');
       const timer = setTimeout(() => finish(new Error('TUNNEL_START_TIMEOUT')), 25_000);
       options.signal?.addEventListener('abort', abort, { once: true });
       if (options.signal?.aborted) abort();

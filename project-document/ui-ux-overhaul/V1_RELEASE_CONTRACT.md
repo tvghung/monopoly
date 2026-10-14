@@ -8,7 +8,7 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.9.1-rc.1
+Semantic version: 1.9.1-rc.2
 Socket protocol: 14
 ```
 
@@ -122,7 +122,7 @@ Squirrel update feed next to the `Setup.exe`: `RELEASES` and the full `own_the_b
 same bytes the `Setup.exe` embeds), because an installed app updates in place with Squirrel's `Update.exe --update` from
 exactly those two files (running the `Setup.exe` over a running install deletes the running version; see "In-app updates").
 For prereleases, electron-winstaller converts SemVer to NuGet by removing dots from the prerelease identifier: the
-`1.9.1-rc.1` Setup embeds `own_the_block-1.9.1-rc1-full.nupkg`. The app and Setup metadata retain `1.9.1-rc.1`.
+`1.9.1-rc.2` Setup embeds `own_the_block-1.9.1-rc2-full.nupkg`. The app and Setup metadata retain `1.9.1-rc.2`.
 So the Release Candidate artifact of Windows holds the `Setup.exe`, the `.nupkg`, `RELEASES` and `release-artifacts/`
 (`manifest.json`, `SHA256SUMS`), and the macOS ones their disk image and `release-artifacts/`. The Desktop Build artifacts
 (`own-the-block-windows-setup`, `own-the-block-macos-dmg`) hold the installer alone and expire after 14 days: they are for
@@ -559,10 +559,20 @@ The release includes the accepted v1.8.1 work, the animation overhaul and refine
 
 ## V1.9.1-rc.1 Online hosting validation candidate (Socket protocol 14, snapshot schema 11)
 
-**Status: CURRENT DEVELOPMENT, unpublished.** Branch `release/v1.9.1-rc.1` packages the Online hosting reliability patch
+**Status: TESTED EXTERNALLY, FAILED; unpublished.** Branch `release/v1.9.1-rc.1` packages the Online hosting reliability patch
 for manual validation on the affected Windows PC. A manual `release-candidate.yml` dispatch in `unsigned-validation` mode
 uploads workflow artifacts without creating a tag or GitHub Release. The public latest feed remains v1.9.0.
 
-The application version changes to `1.9.1-rc.1`; socket protocol 14, snapshot schema 11 and
-`minimumSupportedVersion` 1.9.0 remain unchanged. External-device Online hosting and joining are NOT RUN until the
-affected PC and a separate Internet connection have been tested. See the [release acceptance matrix](../monopoly-websockets/testcase/RELEASE_ACCEPTANCE_MATRIX.md).
+The application version was `1.9.1-rc.1`; socket protocol 14, snapshot schema 11 and
+`minimumSupportedVersion` 1.9.0 remained unchanged. On the affected Windows PC, Online hosting failed at
+`PUBLIC_READINESS` with `DNS` after 39 attempts in 39,612 ms. No public HTTP response was observed by the app.
+The successful manual Quick Tunnel checks were performed nearly two minutes after its URL appeared, so delayed
+readiness is plausible but unconfirmed. See the [release acceptance matrix](../monopoly-websockets/testcase/RELEASE_ACCEPTANCE_MATRIX.md).
+
+## V1.9.1-rc.2 Online hosting validation candidate (Socket protocol 14, snapshot schema 11)
+
+**Status: CURRENT DEVELOPMENT, unpublished.** Branch `release/v1.9.1-rc.2` tests bounded delayed readiness and
+Electron host-resolver cache recovery. Version `1.9.1-rc.2` is distinct for Squirrel installation; protocol 14,
+snapshot schema 11 and `minimumSupportedVersion` 1.9.0 are unchanged. A manual `release-candidate.yml` dispatch
+with `unsigned-validation` uploads workflow artifacts only; it creates no tag, GitHub Release or stable update.
+External-device Online hosting and independent-network joining on rc.2 are **NOT RUN** until actually tested.
