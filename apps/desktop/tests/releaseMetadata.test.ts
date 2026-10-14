@@ -19,7 +19,7 @@ describe('desktop release metadata', () => {
     const metadata = readCanonicalReleaseMetadata(repositoryRoot);
     const rootPackage = JSON.parse(readFileSync(path.join(repositoryRoot, 'package.json'), 'utf8')) as { version: string };
 
-    expect(rootPackage.version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(rootPackage.version).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
     expect(metadata).toMatchObject({
       version: rootPackage.version,
       productName: 'Own the Block',

@@ -22,10 +22,10 @@ export function validateV1Contract(root = repositoryRoot) {
       throw new Error(`${file}: obsolete product version; derive release identity from package metadata.`);
     }
   };
-  // The release version is written once, in the contract ("Semantic version: x.y.z"); every package must carry it.
-  const contractVersion = /^Semantic version: (\d+\.\d+\.\d+)\s*$/m.exec(read(contractPath))?.[1];
-  if (!contractVersion) {
-    throw new Error(`${contractPath}: required contract field "Semantic version: x.y.z" is missing or incorrect.`);
+  // The release version is written once in the contract; prerelease validation builds use the same identity.
+  const contractVersion = /^Semantic version: (\S+)\s*$/m.exec(read(contractPath))?.[1];
+  if (!contractVersion || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?$/.test(contractVersion)) {
+    throw new Error(`${contractPath}: required contract field "Semantic version: x.y.z[-prerelease]" is missing or incorrect.`);
   }
   for (const file of packagePaths) {
     const metadata = JSON.parse(read(file));
@@ -93,9 +93,10 @@ function validateUpdatePolicy(read, contractVersion) {
     throw new Error(`${updatePolicyPath}: minimumSupportedVersion must be a plain x.y.z version.`);
   }
   const floorParts = floor.split('.').map(Number);
-  const releaseParts = contractVersion.split('.').map(Number);
+  const releaseParts = contractVersion.split('-')[0].split('.').map(Number);
   const difference = floorParts.findIndex((part, index) => part !== releaseParts[index]);
-  if (difference !== -1 && floorParts[difference] > releaseParts[difference]) {
+  if ((difference !== -1 && floorParts[difference] > releaseParts[difference])
+    || (difference === -1 && contractVersion.includes('-'))) {
     throw new Error(`${updatePolicyPath}: minimumSupportedVersion ${floor} is newer than the release ${contractVersion}.`);
   }
   const protocol = Number(/^export const SOCKET_PROTOCOL_VERSION = (\d+) as const;/m.exec(read('packages/shared/src/types.ts'))?.[1]);

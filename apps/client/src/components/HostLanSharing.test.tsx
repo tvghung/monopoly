@@ -143,6 +143,20 @@ describe('HostLanSharing', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(link));
   });
 
+  it('offers a retry when the public room probe failed but the tunnel remains available', async () => {
+    const unavailable: HostRuntimeStatus = { ...hostStatus(), connectionMode: 'ONLINE',
+      onlineEndpoint: 'https://room.trycloudflare.com', onlineState: 'UNAVAILABLE' };
+    const ready: HostRuntimeStatus = { ...unavailable, onlineState: 'READY' };
+    installBridge(unavailable);
+    const activateOnline = vi.fn(() => Promise.resolve({ ok: true as const, status: ready }));
+    window.ownTheBlockDesktop!.host!.activateOnline = activateOnline;
+    render(<HostLanSharing roomCode="OTB-ABC234" />);
+    expect(screen.queryByAltText(QR_ALT)).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: 'Thử lại' }));
+    await waitFor(() => expect(activateOnline).toHaveBeenCalledWith('OTB-ABC234'));
+    await screen.findByAltText(QR_ALT);
+  });
+
   it('says that only the link and QR reach the room when this build has no room registry', async () => {
     const ready = { ...hostStatus(), connectionMode: 'ONLINE' as const, onlineEndpoint: 'https://room.trycloudflare.com',
       onlineState: 'READY' as const, discoveryConfigured: false };

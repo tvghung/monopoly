@@ -28,13 +28,35 @@
   directory is removed on stop, failure and exit; a startup failure, a spawn error and a start
   timeout reject cleanly; an unexpected exit is reported once; a recreated tunnel gets a new
   hostname and directory; the late exit of a stopped tunnel cannot disturb its replacement; only a
-  root `trycloudflare.com` hostname is accepted from the process output.
+  root `trycloudflare.com` hostname is accepted from the process output. A URL announced before connection registration
+  waits for the registration signal or a bounded grace; early exit during that wait fails, and a missing log line does
+  not block public HTTPS verification forever.
 - `[AUTO]` Online Host (`apps/desktop/tests/hostRuntime.test.ts`, `src/online/hostLifecycle.test.ts`): the
   public endpoint is presented only after the public readiness probe and client page answer; a tunnel
   start failure or an unreachable route fails the start and ends the server; a lost tunnel is recreated
   with a new hostname and the old link is withdrawn and never presented again; a tunnel that cannot be
   recreated leaves the healthy server running with no invitation; stopping the Host terminates the
   tunnel; helper loss is terminal for the match and the tunnel.
+- `[AUTO]` Current development after v1.9.0 (`apps/desktop/src/online/probe.test.ts`,
+  `apps/desktop/tests/hostRuntime.test.ts`, `apps/client/src/components/DesktopMultiplayerLauncher.test.tsx`): injected
+  Electron fetch adapter is used instead of Node's global fetch for public and room probes; DNS, proxy, TLS and timeout
+  errors are classified without exposing raw exceptions; HTTP 403/429/502/503, redirect, non-HTML response, delayed
+  readiness, cancellation and safe troubleshooting copy are covered. The stable candidate also asserts that a healthy
+  public route skips resolver observations and retry waits. rc.2 tests cover a transient new-hostname DNS
+  failure, negative cache refresh, system resolver success while Electron's resolver fails, persistent DNS filtering,
+  capped backoff, a fetch that ignores abort, and no endpoint publication until public checks pass. These tests do not
+  establish the cause on the affected Windows PC.
+- `[MANUAL-E2E][FAIL]` The affected Windows PC failed on rc.1: `PUBLIC_READINESS` / `DNS`, no HTTP response, 39 attempts
+  in 39,612 ms. This is real external-device evidence, separate from the earlier manual Quick Tunnel HTTP PASS.
+- `[MANUAL-E2E][OWNER-REPORTED]` On the previously failing Windows PC, rc.2 repeatedly created Online rooms with
+  Defender enabled. Each creation reportedly took about 40–90 seconds, usually about 60 seconds. There is no per-run
+  timing trace, so no single bottleneck or faster baseline is established.
+- `[MANUAL-E2E][NOT RUN]` Join rc.2 or stable from an independent network, play a full game, exercise Windows upgrades
+  and repeat on supported macOS hosts. A packaged build alone does not prove these physical-device paths.
+- `[PACKAGED][WINDOWS-X64][PASS]` Local 2026-10-13 packaged Electron smoke: the actual application reached
+  `HOSTING` / Online `READY`, `PUBLIC_ROOM` probe `PASSED` on attempt 1 and published an invitation. A separate packaged
+  Electron check verified that `net.fetch` rejects `redirect: 'manual'` responses and aborts a stalled request. These
+  ad hoc checks are not committed automated gates and do not verify a second machine or independent network.
 - `[SOCKET]` Host-only room creation, pending-admission lifecycle and request limits
   (`apps/server/src/hostAdmission.integration.test.ts`, desktop profile, real Socket.IO clients including a real
   non-loopback LAN peer): only the matching capability creates a room; a Guest that arrives first, forged

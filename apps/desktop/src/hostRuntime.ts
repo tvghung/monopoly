@@ -1,6 +1,9 @@
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { CloudflareQuickTunnel, type ConnectivityProvider } from './online/connectivity';
+import { classifyNetworkException, OnlineProbeError, probePublicTunnel,
+  type OnlineDiagnostic, type OnlineFailure, type OnlineFetcher, type OnlineStage } from './online/probe';
+import type { OnlineHostResolver } from './online/probe';
 import { HttpRoomDiscovery, type RoomDiscoveryProvider } from './online/discovery';
 
 import {
@@ -61,6 +64,7 @@ export interface HostRuntimeStatus {
   discoveryConfigured?: boolean;
   errorCode?: HostRuntimeErrorCode;
   diagnostic?: string;
+  onlineDiagnostic?: OnlineDiagnostic;
 }
 
 export type HostRuntimeOperationResult =
@@ -96,6 +100,10 @@ export interface HostRuntimeOptions {
   discovery?: RoomDiscoveryProvider;
   cloudflaredPath?: string;
   registryUrl?: string;
+  /** The desktop shell injects Electron net.fetch to use Chromium's system proxy and certificate handling. */
+  onlineFetch?: OnlineFetcher;
+  /** Electron's host resolver and cache control for DNS failure diagnostics and recovery. */
+  onlineResolver?: OnlineHostResolver;
 }
 
 const LOOPBACK_HOST = '127.0.0.1';
@@ -181,6 +189,7 @@ export class HostRuntimeController {
   private renewalTimer: NodeJS.Timeout | undefined;
   private onlineRecoveryPromise: Promise<void> | undefined;
   private onlineEpoch = 0;
+  private onlineAbort: AbortController | undefined;
   private hostRoomCode: string | undefined;
   private hostCreationSecret: string | undefined;
 
@@ -239,6 +248,7 @@ export class HostRuntimeController {
   public async stop(): Promise<HostRuntimeStatus> {
     if (this.currentStatus.state === 'IDLE') return this.status;
     if (this.stopPromise) return this.stopPromise;
+    this.onlineAbort?.abort();
     const pendingStart = this.startPromise;
     const pendingRecovery = this.recoveryPromise;
     const pendingOnlineRecovery = this.onlineRecoveryPromise;
@@ -258,14 +268,57 @@ export class HostRuntimeController {
     const endpoint = this.currentStatus.onlineEndpoint;
     if (this.onlineRoomCode !== roomCode || !endpoint
       || this.currentStatus.state !== 'HOSTING') throw new Error('ONLINE_ROOM_NOT_READY');
+    const abort = new AbortController();
+    this.onlineAbort = abort;
+    const started = Date.now();
+    let roomReady = false;
     try {
-      const response = await fetch(`${endpoint}/_otb/room?code=${encodeURIComponent(roomCode)}`, {
-        redirect: 'error', signal: AbortSignal.timeout(8_000),
-      });
-      if (!response.ok) throw new Error('ONLINE_ROOM_NOT_READY');
-    } catch (error) {
-      this.update({ onlineState: 'UNAVAILABLE' });
-      throw error;
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        if (abort.signal.aborted || endpoint !== this.currentStatus.onlineEndpoint) break;
+        this.update({ onlineDiagnostic: { stage: 'PUBLIC_ROOM', outcome: 'STARTED',
+          elapsedMs: Date.now() - started, attempts: attempt } });
+        let reason: OnlineFailure | undefined;
+        let httpStatus: number | undefined;
+        const timeout = AbortSignal.timeout(8_000);
+        try {
+          const response = await (this.options.onlineFetch ?? fetch)(
+            `${endpoint}/_otb/room?code=${encodeURIComponent(roomCode)}`, {
+              redirect: 'manual', credentials: 'omit', cache: 'no-store',
+              signal: AbortSignal.any([abort.signal, timeout]),
+            },
+          );
+          if (response.ok && !abort.signal.aborted && endpoint === this.currentStatus.onlineEndpoint) {
+            await response.body?.cancel().catch(() => undefined);
+            roomReady = true;
+            this.update({ onlineDiagnostic: { stage: 'PUBLIC_ROOM', outcome: 'PASSED',
+              elapsedMs: Date.now() - started, attempts: attempt } });
+            break;
+          }
+          reason = 'HTTP';
+          httpStatus = response.status;
+        } catch (error) {
+          reason = abort.signal.aborted ? 'CANCELLED' : timeout.aborted ? 'TIMEOUT' : classifyNetworkException(error);
+        }
+        const retry = attempt < 3 && !abort.signal.aborted && reason !== 'REDIRECT'
+          && !(httpStatus !== undefined && httpStatus >= 300 && httpStatus < 400);
+        this.update({ onlineDiagnostic: { stage: 'PUBLIC_ROOM',
+          outcome: retry ? 'RETRYING' : 'FAILED',
+          reason, ...(httpStatus === undefined ? {} : { httpStatus }),
+          elapsedMs: Date.now() - started, attempts: attempt } });
+        if (retry) {
+          await new Promise<void>(resolve => {
+            const cancelled = (): void => { clearTimeout(timer); resolve(); };
+            const timer = setTimeout(() => { abort.signal.removeEventListener('abort', cancelled); resolve(); }, 1_000);
+            abort.signal.addEventListener('abort', cancelled, { once: true });
+          });
+        } else break;
+      }
+    } finally {
+      if (this.onlineAbort === abort) this.onlineAbort = undefined;
+    }
+    if (!roomReady) {
+      if (endpoint === this.currentStatus.onlineEndpoint) this.update({ onlineState: 'UNAVAILABLE' });
+      throw new Error('ONLINE_ROOM_NOT_READY');
     }
     // The public link works now. Registry trouble only means the bare code cannot be looked up from another network: it is
     // reported next to the link, never by hiding it.
@@ -297,12 +350,15 @@ export class HostRuntimeController {
   }
 
   public async resolveOnlineRoom(roomCode: string): Promise<string | null> {
-    this.discovery ??= this.options.registryUrl ? new HttpRoomDiscovery(this.options.registryUrl) : undefined;
+    this.discovery ??= this.options.registryUrl
+      ? new HttpRoomDiscovery(this.options.registryUrl, this.options.onlineFetch ?? fetch) : undefined;
     if (!this.discovery) throw new Error('REGISTRY_UNAVAILABLE');
     return this.discovery.resolve(roomCode);
   }
 
   private async stopOnline(): Promise<void> {
+    this.onlineAbort?.abort();
+    this.onlineAbort = undefined;
     this.onlineEpoch += 1;
     if (this.renewalTimer) clearInterval(this.renewalTimer);
     this.renewalTimer = undefined;
@@ -316,23 +372,53 @@ export class HostRuntimeController {
 
   private async openOnlineTunnel(): Promise<string> {
     if (!this.connectivity || !this.currentStatus.localEndpoint) throw new Error('ONLINE_FAILED');
-    const publicEndpoint = await this.connectivity.start(this.currentStatus.localEndpoint, () => {
-      if (this.currentStatus.state === 'HOSTING') void this.recoverOnlineTunnel();
+    const abort = new AbortController();
+    this.onlineAbort = abort;
+    this.update({ onlineDiagnostic: undefined });
+    const started = Date.now();
+    let stage: OnlineStage = 'BINARY_VERIFY';
+    let tunnelLost = false;
+    let tunnelConnected = false;
+    const report = (diagnostic: OnlineDiagnostic): void => this.update({
+      onlineDiagnostic: { ...diagnostic, tunnelConnected },
     });
-    const deadline = Date.now() + 40_000;
-    do {
-      try {
-        const response = await fetch(`${publicEndpoint}/readyz`, {
-          redirect: 'error', signal: AbortSignal.timeout(5_000),
-        });
-        const page = await fetch(`${publicEndpoint}/`, {
-          redirect: 'error', signal: AbortSignal.timeout(5_000),
-        });
-        if (response.ok && page.ok && (await page.text()).includes('<html')) return publicEndpoint;
-      } catch { /* DNS and the public route can lag the tunnel URL announcement. */ }
-      await new Promise(resolve => setTimeout(resolve, 1_000));
-    } while (Date.now() < deadline);
-    throw new Error('ONLINE_FAILED');
+    try {
+      const publicEndpoint = await this.connectivity.start(this.currentStatus.localEndpoint, () => {
+        tunnelLost = true;
+        if (this.currentStatus.state !== 'HOSTING' || this.onlineRecoveryPromise) abort.abort();
+        else void this.recoverOnlineTunnel();
+      }, { signal: abort.signal, onConnectionRegistered: () => {
+        tunnelConnected = true;
+        if (this.onlineAbort === abort && this.currentStatus.onlineDiagnostic) {
+          this.update({ onlineDiagnostic: { ...this.currentStatus.onlineDiagnostic, tunnelConnected: true } });
+        }
+      }, onStage: next => {
+        stage = next;
+        report({ stage, outcome: 'STARTED', elapsedMs: Date.now() - started, attempts: 1 });
+      } });
+      if (abort.signal.aborted) throw new OnlineProbeError('TUNNEL_EXIT');
+      stage = 'URL_ANNOUNCEMENT';
+      report({ stage, outcome: 'PASSED', elapsedMs: Date.now() - started, attempts: 1 });
+      await probePublicTunnel(publicEndpoint, this.options.onlineFetch ?? fetch, abort.signal, report,
+        undefined, this.options.onlineResolver);
+      return publicEndpoint;
+    } catch (error) {
+      if (tunnelLost) {
+        const previous = this.currentStatus.onlineDiagnostic;
+        report({ stage: previous?.stage ?? stage, outcome: 'FAILED', reason: 'TUNNEL_EXIT',
+          elapsedMs: Date.now() - started, attempts: previous?.attempts ?? 1 });
+      } else if (this.currentStatus.onlineDiagnostic?.outcome !== 'FAILED') {
+        const reason: OnlineFailure = error instanceof OnlineProbeError ? error.reason
+          : abort.signal.aborted ? 'CANCELLED'
+            : stage === 'BINARY_VERIFY' ? 'INTEGRITY'
+              : errorText(error) === 'TUNNEL_START_TIMEOUT' ? 'TIMEOUT'
+                : errorText(error) === 'TUNNEL_EXIT_EARLY' ? 'TUNNEL_EXIT' : 'SPAWN';
+        report({ stage, outcome: 'FAILED', reason, elapsedMs: Date.now() - started, attempts: 1 });
+      }
+      throw error;
+    } finally {
+      if (this.onlineAbort === abort) this.onlineAbort = undefined;
+    }
   }
 
   private async recoverOnlineTunnel(): Promise<void> {
@@ -421,7 +507,8 @@ export class HostRuntimeController {
     if (online) {
       if (!options.roomCode || !/^[A-Z0-9-]{1,20}$/.test(options.roomCode)) throw new Error('INVALID_CODE');
       this.onlineRoomCode = options.roomCode;
-      this.discovery ??= this.options.registryUrl ? new HttpRoomDiscovery(this.options.registryUrl) : undefined;
+      this.discovery ??= this.options.registryUrl
+        ? new HttpRoomDiscovery(this.options.registryUrl, this.options.onlineFetch ?? fetch) : undefined;
       this.connectivity ??= new CloudflareQuickTunnel(this.options.cloudflaredPath);
       this.discoveryUnavailable = false;
       if (this.discovery) {
@@ -466,7 +553,9 @@ export class HostRuntimeController {
       selectedLanUrl: preferredAddress && requestedPort ? `http://${preferredAddress}:${String(requestedPort)}` : null,
       errorCode: undefined,
       diagnostic: undefined,
+      onlineDiagnostic: online ? { stage: 'HELPER_READY', outcome: 'STARTED', elapsedMs: 0, attempts: 1 } : undefined,
     });
+    const helperStarted = Date.now();
     try {
       const helperInfo = await this.startHelperWithRetry(requestedPort);
       const port = helperInfo.port;
@@ -480,6 +569,8 @@ export class HostRuntimeController {
         lanAvailable: interfaces.length > 0,
         errorCode: undefined,
         diagnostic: undefined,
+        onlineDiagnostic: online ? { stage: 'HELPER_READY', outcome: 'PASSED',
+          elapsedMs: Date.now() - helperStarted, attempts: 1 } : undefined,
       });
       this.startHealthMonitor();
       if (online && this.connectivity) {
@@ -488,6 +579,11 @@ export class HostRuntimeController {
       }
       return this.status;
     } catch (error) {
+      if (online && this.currentStatus.onlineDiagnostic?.stage === 'HELPER_READY'
+        && this.currentStatus.onlineDiagnostic.outcome === 'STARTED') {
+        this.update({ onlineDiagnostic: { stage: 'HELPER_READY', outcome: 'FAILED', reason: 'HELPER',
+          elapsedMs: Date.now() - helperStarted, attempts: 1 } });
+      }
       await this.stopOnline();
       this.detachHelperListener();
       await this.helper?.stop().catch(() => undefined);
@@ -497,7 +593,9 @@ export class HostRuntimeController {
       this.update({
         state: 'FAILED',
         errorCode: classifyHostRuntimeError(error),
-        diagnostic: safeDiagnostic(error),
+        diagnostic: online ? this.currentStatus.onlineDiagnostic
+          ? `${this.currentStatus.onlineDiagnostic.stage}:${this.currentStatus.onlineDiagnostic.reason ?? 'UNKNOWN'}`
+          : 'ONLINE_FAILED' : safeDiagnostic(error),
       });
       throw error;
     }
@@ -639,6 +737,7 @@ export class HostRuntimeController {
       advertisedEndpoints: [],
       selectedLanUrl: null,
       connectionMode: 'LAN',
+      onlineDiagnostic: undefined,
     });
     return this.status;
   }

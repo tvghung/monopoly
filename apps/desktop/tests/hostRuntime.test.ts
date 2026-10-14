@@ -166,6 +166,101 @@ describe('Online Host (Cloudflare Quick Tunnel)', () => {
     await controller.stop();
   });
 
+  it('uses the injected desktop fetch adapter for public and room probes', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('Node DNS failed'))));
+    const onlineFetch = vi.fn((url: string) => Promise.resolve(new Response(
+      url.endsWith('/readyz') ? 'ready' : '<html>Own the Block</html>', { status: 200 },
+    )));
+    const controller = new HostRuntimeController(options({
+      helperFactory: () => new FakeHelper(), connectivity: new FakeTunnel(), onlineFetch,
+    }));
+    expect(await controller.start({ mode: 'ONLINE', roomCode: 'ONLINE-1' })).toMatchObject({
+      onlineEndpoint: 'https://first.trycloudflare.com',
+      onlineDiagnostic: { stage: 'PUBLIC_PAGE', outcome: 'PASSED' },
+    });
+    await controller.activateOnlineRoom('ONLINE-1');
+    expect(controller.status.onlineDiagnostic).toMatchObject({ stage: 'PUBLIC_ROOM', outcome: 'PASSED' });
+    expect(onlineFetch).toHaveBeenCalledTimes(3);
+    expect(fetch).not.toHaveBeenCalled();
+    await controller.stop();
+  });
+
+  it('withholds the endpoint during transient DNS failure, then hosts after cache refresh and public checks', async () => {
+    vi.useFakeTimers();
+    const helper = new FakeHelper();
+    let negativeCache = true;
+    const onlineResolver = {
+      resolve: vi.fn(() => Promise.resolve()),
+      clearCache: vi.fn(() => { negativeCache = false; return Promise.resolve(); }),
+    };
+    const onlineFetch = vi.fn((url: string) => negativeCache
+      ? Promise.reject(new Error('net::ERR_NAME_NOT_RESOLVED'))
+      : Promise.resolve(new Response(url.endsWith('/readyz') ? 'ready' : '<html>Own the Block</html>')));
+    const controller = new HostRuntimeController(options({
+      helperFactory: () => helper, connectivity: new FakeTunnel(), onlineFetch, onlineResolver,
+    }));
+    const starting = controller.start({ mode: 'ONLINE', roomCode: 'ONLINE-1' });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(controller.status.onlineEndpoint).toBeNull();
+    expect(helper.published).toEqual([]);
+    await vi.advanceTimersByTimeAsync(1_100);
+    expect(await starting).toMatchObject({ state: 'HOSTING', onlineEndpoint: 'https://first.trycloudflare.com',
+      onlineDiagnostic: { stage: 'PUBLIC_PAGE', outcome: 'PASSED', resolverCache: 'CLEARED' } });
+    expect(onlineResolver.clearCache).toHaveBeenCalledOnce();
+    await controller.stop();
+  });
+
+  it('retries a transient room probe response before making the invitation ready', async () => {
+    let roomAttempts = 0;
+    const onlineFetch = vi.fn((url: string) => {
+      if (url.includes('/_otb/room')) {
+        roomAttempts += 1;
+        return Promise.resolve(new Response(null, { status: roomAttempts === 1 ? 503 : 200 }));
+      }
+      return Promise.resolve(new Response(url.endsWith('/readyz') ? 'ready' : '<html>game</html>'));
+    });
+    const controller = new HostRuntimeController(options({
+      helperFactory: () => new FakeHelper(), connectivity: new FakeTunnel(), onlineFetch,
+    }));
+    await controller.start({ mode: 'ONLINE', roomCode: 'ONLINE-1' });
+    expect(await controller.activateOnlineRoom('ONLINE-1')).toMatchObject({ onlineState: 'READY',
+      onlineDiagnostic: { stage: 'PUBLIC_ROOM', outcome: 'PASSED', attempts: 2 } });
+    expect(roomAttempts).toBe(2);
+    await controller.stop();
+  });
+
+  it('cancels a pending public probe on Host stop without publishing its URL', async () => {
+    const tunnel = new FakeTunnel();
+    const helper = new FakeHelper();
+    const onlineFetch = vi.fn((_url: string, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init.signal?.addEventListener('abort', () => reject(new Error('AbortError')), { once: true });
+    }));
+    const controller = new HostRuntimeController(options({ connectivity: tunnel, helperFactory: () => helper, onlineFetch }));
+    const starting = controller.start({ mode: 'ONLINE', roomCode: 'ONLINE-1' }).catch(() => undefined);
+    await vi.waitFor(() => expect(onlineFetch).toHaveBeenCalledOnce());
+    await controller.stop();
+    await starting;
+    expect(controller.status).toMatchObject({ state: 'IDLE', onlineEndpoint: null });
+    expect(helper.published).not.toContainEqual(['https://first.trycloudflare.com']);
+    expect(tunnel.starts).toBe(1);
+  });
+
+  it('records tunnel exit during the public probe and never publishes that hostname', async () => {
+    const tunnel = new FakeTunnel();
+    const helper = new FakeHelper();
+    const onlineFetch = vi.fn((_url: string, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init.signal?.addEventListener('abort', () => reject(new Error('AbortError')), { once: true });
+    }));
+    const controller = new HostRuntimeController(options({ connectivity: tunnel, helperFactory: () => helper, onlineFetch }));
+    const outcome = controller.start({ mode: 'ONLINE', roomCode: 'ONLINE-1' }).catch(() => undefined);
+    await vi.waitFor(() => expect(onlineFetch).toHaveBeenCalledOnce());
+    tunnel.exit();
+    await outcome;
+    expect(controller.status).toMatchObject({ state: 'FAILED', onlineEndpoint: null,
+      onlineDiagnostic: { stage: 'PUBLIC_READINESS', outcome: 'FAILED', reason: 'TUNNEL_EXIT' } });
+    expect(helper.published).not.toContainEqual(['https://first.trycloudflare.com']);
+  });
+
   it('fails the start, ends the server and revokes the Host capability when the tunnel cannot start', async () => {
     publicRoute();
     const tunnel = new FakeTunnel();
@@ -184,7 +279,7 @@ describe('Online Host (Cloudflare Quick Tunnel)', () => {
     const { controller, helper, tunnel } = online(new FakeTunnel());
     const starting = controller.start({ mode: 'ONLINE', roomCode: 'ONLINE-1' });
     const outcome = starting.then(() => 'started', (error: Error) => error.message);
-    await vi.advanceTimersByTimeAsync(45_000);
+    await vi.advanceTimersByTimeAsync(155_000);
     await expect(outcome).resolves.toBe('ONLINE_FAILED');
     expect(controller.status).toMatchObject({ state: 'FAILED', errorCode: 'ONLINE_FAILED', onlineEndpoint: null });
     expect(tunnel.stops).toBeGreaterThanOrEqual(1);

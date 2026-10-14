@@ -176,7 +176,30 @@ describe('Cloudflare Quick Tunnel process', () => {
   const configOf = (args: readonly string[]): string => args[args.indexOf('--config') + 1];
   const announce = (child: FakeChild, host: string): void => {
     child.stderr.emit('data', Buffer.from(`Your quick Tunnel has been created! Visit it at https://${host}.trycloudflare.com`));
+    child.stderr.emit('data', Buffer.from('Registered tunnel connection'));
   };
+
+  it('observes registration after the URL before probing, but proceeds after a bounded grace without the log line', async () => {
+    vi.useFakeTimers();
+    const { children, tunnel } = fixture({ children: [fakeChild(), fakeChild()] });
+    const registered = vi.fn();
+    const first = tunnel.start('http://127.0.0.1:53120', vi.fn(), { onConnectionRegistered: registered });
+    children[0].stderr.emit('data', Buffer.from('https://first.trycloudflare.com'));
+    let settled = false;
+    void first.then(() => { settled = true; });
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(settled).toBe(false);
+    children[0].stderr.emit('data', Buffer.from('Registered tunnel connection'));
+    await expect(first).resolves.toBe('https://first.trycloudflare.com');
+    expect(registered).toHaveBeenCalledOnce();
+    await tunnel.stop();
+
+    const second = tunnel.start('http://127.0.0.1:53120', vi.fn());
+    children[1].stderr.emit('data', Buffer.from('https://second.trycloudflare.com'));
+    await vi.advanceTimersByTimeAsync(8_001);
+    await expect(second).resolves.toBe('https://second.trycloudflare.com');
+    await tunnel.stop();
+  });
 
   it('starts without a shell, reads the verified public URL, and stops the process', async () => {
     const { children, calls, tunnel } = fixture();
@@ -243,7 +266,7 @@ describe('Cloudflare Quick Tunnel process', () => {
     const config = configOf(calls[0]?.args ?? []);
     (children[0]).stderr.emit('data', Buffer.from('ERR Cannot determine default origin certificate path'));
     (children[0]).emit('exit', 1);
-    await expect(starting).rejects.toThrow('TUNNEL_START_FAILED');
+    await expect(starting).rejects.toThrow('TUNNEL_EXIT_EARLY');
     expect(onLost).not.toHaveBeenCalled();
     expect(existsSync(config)).toBe(false);
     // The failure leaves nothing running: the next start is a clean one.
@@ -251,6 +274,27 @@ describe('Cloudflare Quick Tunnel process', () => {
     announce(children[1], 'again');
     await expect(second).resolves.toBe('https://again.trycloudflare.com');
     await tunnel.stop();
+  });
+
+  it('does not accept an announced URL when cloudflared exits before connection registration', async () => {
+    const { children, tunnel } = fixture();
+    const starting = tunnel.start('http://127.0.0.1:53120', vi.fn());
+    children[0].stderr.emit('data', Buffer.from('https://room.trycloudflare.com'));
+    children[0].emit('exit', 1);
+    await expect(starting).rejects.toThrow('TUNNEL_EXIT_EARLY');
+  });
+
+  it('cancels registration waiting and kills the child without a stale endpoint', async () => {
+    vi.useFakeTimers();
+    const { children, tunnel } = fixture();
+    const controller = new AbortController();
+    const starting = tunnel.start('http://127.0.0.1:53120', vi.fn(), { signal: controller.signal });
+    children[0].stderr.emit('data', Buffer.from('https://room.trycloudflare.com'));
+    controller.abort();
+    await expect(starting).rejects.toThrow('TUNNEL_CANCELLED');
+    expect(children[0].kill).toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(9_000);
+    await expect(tunnel.stop()).resolves.toBeUndefined();
   });
 
   it('reports a startup failure when the process cannot be spawned', async () => {

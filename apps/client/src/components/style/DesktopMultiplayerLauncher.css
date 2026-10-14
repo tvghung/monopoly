@@ -75,6 +75,9 @@
   color: var(--color-danger-strong);
 }
 
+.desktop-launcher__error p { margin: 0 0 var(--space-2); }
+.desktop-launcher__error p:last-child { margin-bottom: 0; }
+
 .desktop-launcher__status {
   background: var(--color-info-soft);
   color: var(--color-info-strong);

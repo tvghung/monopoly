@@ -26,7 +26,33 @@ each version's release notes in `.github/release-notes/`.
 | v1.6.0 | 2026-10-08 | 11 / 10 | `.github/release-notes/v1.6.0.md` | Release notes only (no separate acceptance record found) |
 | v1.6.1 | 2026-10-08 | 11 / 10 | `.github/release-notes/v1.6.1.md` | Release notes only (no separate acceptance record found) |
 | v1.7.0 | 2026-10-09 | 12 / 11 | `.github/release-notes/v1.7.0.md` | The final copies at tag `v1.7.0`: `own-the-block-vnext/ACCEPTANCE_MATRIX.md`, `RELEASE_CANDIDATE.md`, `USER_MANUAL_BOT_TEST_PLAN.md` (commit `e88b959`, not on this branch; read with `git show v1.7.0:<path>`). The copies on this branch are the pre-QA versions: [ACCEPTANCE_MATRIX](../../own-the-block-vnext/ACCEPTANCE_MATRIX.md) |
-| **v1.8.0** (latest) | 2026-10-09 | 13 / 11 | .github/release-notes/v1.8.0.md | [Published GitHub Release](https://github.com/tvghung/monopoly/releases/tag/v1.8.0); candidate and acceptance evidence below |
+| v1.8.0 | 2026-10-09 | 13 / 11 | .github/release-notes/v1.8.0.md | [Published GitHub Release](https://github.com/tvghung/monopoly/releases/tag/v1.8.0); candidate and acceptance evidence below |
+| **v1.9.0** (latest) | 2026-10-11 | 14 / 11 | `.github/release-notes/v1.9.0.md` | [Published GitHub Release](https://github.com/tvghung/monopoly/releases/tag/v1.9.0); tag workflow 38119202459 succeeded. Physical-device Online hosting failure is under investigation; this fix is not released |
+
+`v1.9.1-rc.1` is an unpublished validation candidate, not a published release row. It retains protocol 14,
+snapshot 11 and the 1.9.0 minimum supported version. **External-device Online hosting: FAIL** on the original
+affected Windows PC (`PUBLIC_READINESS` / `DNS`, no HTTP status, 39 attempts, 39,612 ms). LAN and the earlier manual
+Quick Tunnel checks passed on that PC; the exact cause of the automatic probe's DNS failures remains unconfirmed.
+
+`v1.9.1-rc.2` is an unpublished candidate on `release/v1.9.1-rc.2`, with the same protocol, snapshot and
+minimum version. The owner reports repeated Online room creation on the previously failing Windows PC with Defender
+enabled, at roughly 40–90 seconds each (**OWNER-REPORTED**, no per-run trace). Independent-network joining, full gameplay,
+upgrade-path and macOS device checks remain **NOT RUN**. A manual
+`release-candidate.yml` dispatch uploads workflow artifacts only; it does not publish a release.
+
+The `release/v1.9.1-stable` candidate retains the rc.2 Online behavior and changes product version metadata to 1.9.1.
+Automated gates and publication status are recorded only after execution; no rc.2 result is counted as a stable-build PASS.
+
+### v1.9.1 stable candidate — local validation, 2026-10-14
+
+| Scenario | Automated | Manual | Evidence / limitation |
+| --- | --- | --- | --- |
+| Frozen install; typecheck, lint, full test, renderer build, docs and V1 contract validators | PASS | NOT APPLICABLE | Local `release/v1.9.1-stable`: server 559, desktop 524, client 2,340 tests; documentation validator covered 130 Markdown files. The full suite was rerun after adding healthy-route and HTTP 429 probe assertions. |
+| Windows x64 installer, artifact metadata, packaged runtime and Host, audio, art and size budget | PASS | NOT APPLICABLE | Local `pnpm desktop:make`, `collectArtifacts.mjs`, `validateRelease.mjs --release --artifacts`, packaged proofs; installer is `OwnTheBlock-1.9.1-win32-x64-Setup.exe`. Packaged Host proof reports `physicalDeviceAcceptance: MANUAL_REQUIRED`. |
+| Live Quick Tunnel public route and four-player contract on the build machine | PASS | NOT APPLICABLE | `scripts/proveQuickTunnel.mjs` passed with protocol 14, admission and reconnect checks. This is a same-machine/local-network proof, not independent-network acceptance or a startup benchmark. |
+| Healthy probe and DNS-recovery timing in fake-timer tests | PASS | NOT APPLICABLE | `apps/desktop/src/online/probe.test.ts` asserts two immediate public requests with no resolver/backoff on the healthy path; rc.2 tests cover bounded DNS recovery and retry. `apps/desktop/src/online/connectivity.test.ts` covers the 8-second registration fallback. Simulated timing does not explain the affected PC's 40–90-second reports. |
+| Windows in-place update from 1.9.0 or rc.2; independent-network guests and full game; real macOS device hosting | NOT RUN | NOT RUN | Version precedence and Squirrel feed shape have automated coverage, but no isolated real-install upgrade or external-device run was executed for this candidate. |
+| Final `main` CI, three-platform release-candidate workflow, public tag and feed | NOT RUN | NOT APPLICABLE | Pending pre-publication validation; this table is not publication evidence. |
 
 ## v1.7.0 — platform and scenario summary
 

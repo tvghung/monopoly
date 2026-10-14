@@ -1,4 +1,4 @@
-import { app, BrowserWindow, net, powerMonitor, protocol, shell } from 'electron';
+import { app, BrowserWindow, net, powerMonitor, protocol, session, shell } from 'electron';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { installExternalNavigationGuards } from './ipc/externalLinks';
@@ -33,6 +33,15 @@ function createHostServices(): void {
     clientDist: rendererRoot(),
     appVersion: app.getVersion(),
     routeProbe: probeDefaultRouteAddress,
+    // Public probes use the same Chromium network stack as the installed app's browser and updater.
+    onlineFetch: (input, init) => net.fetch(input, init),
+    onlineResolver: {
+      resolve: async (hostname, source) => {
+        // cacheUsage disallowed observes the current resolver result, including after a cached DNS failure.
+        await session.defaultSession.resolveHost(hostname, { source, cacheUsage: 'disallowed' });
+      },
+      clearCache: () => session.defaultSession.clearHostResolverCache(),
+    },
     registryUrl: resolveRegistryUrl(process.env, app.isPackaged ? packagedReleaseConfig() : undefined),
     cloudflaredPath: process.env.OWN_THE_BLOCK_CLOUDFLARED_PATH
       ?? path.join(resourcesRoot, 'cloudflared', `${process.platform}-${process.arch}`,

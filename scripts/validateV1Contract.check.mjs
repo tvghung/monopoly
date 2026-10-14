@@ -34,6 +34,15 @@ function fixture(t) {
 
 test('current repository contract passes', () => validateV1Contract(repositoryRoot));
 
+test('prerelease contract accepts an older stable update floor and rejects a newer stable floor', t => {
+  const root = fixture(t);
+  for (const file of packagePaths) write(root, file, packageJson('1.0.1-rc.1'));
+  write(root, contractPath, 'Product: Own the Block\nRelease: V1\nSemantic version: 1.0.1-rc.1\nSocket protocol: 14\n');
+  assert.equal(validateV1Contract(root), '1.0.1-rc.1');
+  write(root, updatePolicyPath, policy('1.0.1', 14));
+  assert.throws(() => validateV1Contract(root), /newer than the release 1\.0\.1-rc\.1/);
+});
+
 test('entry detection handles absent, missing, and unrelated entry paths', () => {
   assert.equal(isCliEntry(''), false);
   assert.equal(isCliEntry(path.join(repositoryRoot, 'package.json', 'missing')), false);

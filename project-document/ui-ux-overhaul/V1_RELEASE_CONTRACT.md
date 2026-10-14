@@ -8,7 +8,7 @@ versions, protocol values, proof SHAs, and acceptance limits.
 ```text
 Product: Own the Block
 Release: V1
-Semantic version: 1.9.0
+Semantic version: 1.9.1
 Socket protocol: 14
 ```
 
@@ -51,7 +51,7 @@ Implementation references: `apps/desktop/src/hostRuntime.ts`,
 ## Packaging identity
 
 Forge uses the root package version for app metadata and the Windows Squirrel
-name: `OwnTheBlock-1.7.0-win32-x64-Setup.exe`. The installed Forge DMG maker resolves
+name: `OwnTheBlock-<version>-win32-x64-Setup.exe`. The installed Forge DMG maker resolves
 `Own the Block-1.7.0-x64.dmg` and `Own the Block-1.7.0-arm64.dmg` from app name,
 desktop package version, and target architecture. The application and collected
 manifest derive their version from package metadata. These are configuration expectations,
@@ -97,8 +97,8 @@ audio, card and landmark proofs pass on the lean package. macOS (Apple silicon, 
 
 ## Release publication
 
-A release is published by pushing the annotated tag `v<semver>` (`v1.2.0` for `1.2.0`) on a commit that is on `main`;
-the README section "Publishing a release" has the commands. The `Release Candidate` workflow
+A release is published by pushing the annotated tag `v<semver>` (`v1.2.0` for `1.2.0`) on a commit that is on `main`.
+The `Release Candidate` workflow
 (`.github/workflows/release-candidate.yml`) reacts to the tag:
 
 1. It first checks that the tag equals the root `package.json` version and that `.github/release-notes/<tag>.md` exists.
@@ -121,6 +121,8 @@ Workflow artifacts carry what a player installs and what the in-app updater appl
 Squirrel update feed next to the `Setup.exe`: `RELEASES` and the full `own_the_block-<version>-full.nupkg` (160.5 MiB, the
 same bytes the `Setup.exe` embeds), because an installed app updates in place with Squirrel's `Update.exe --update` from
 exactly those two files (running the `Setup.exe` over a running install deletes the running version; see "In-app updates").
+For prereleases, electron-winstaller converts SemVer to NuGet by removing dots from the prerelease identifier: the
+`1.9.1-rc.2` Setup embeds `own_the_block-1.9.1-rc2-full.nupkg`. The app and Setup metadata retain `1.9.1-rc.2`.
 So the Release Candidate artifact of Windows holds the `Setup.exe`, the `.nupkg`, `RELEASES` and `release-artifacts/`
 (`manifest.json`, `SHA256SUMS`), and the macOS ones their disk image and `release-artifacts/`. The Desktop Build artifacts
 (`own-the-block-windows-setup`, `own-the-block-macos-dmg`) hold the installer alone and expire after 14 days: they are for
@@ -549,8 +551,40 @@ client cannot join a 1.7.0 host (`UPGRADE_REQUIRED`), so `update-policy.json` se
 
 ## V1.9.0 animation and gameplay release (Socket protocol 14, snapshot schema 11)
 
-**Release preparation status:** metadata and accepted implementation are prepared on codex/v181-pre-release-fixes. Local quality gates PASS; integration, main CI, Desktop Build, the manual Release Candidate matrix, and tag-triggered production publication remain pending.
+**Status: PUBLISHED 2026-10-11.** [GitHub Release v1.9.0](https://github.com/tvghung/monopoly/releases/tag/v1.9.0) is published; `release-candidate.yml` tag run 38119202459 succeeded. The Online hosting reliability fix documented after this release is current development and is not part of v1.9.0.
 
 Income Tax changes from v1.8.0's fixed 150 to 30% of the player's current nonnegative cash, rounded down. Because a protocol-13 client would present a different tax rule, strict handshake compatibility requires protocol 14 and minimumSupportedVersion 1.9.0. LAN discovery advertises the same protocol. Snapshot schema remains 11 because no persisted field was added.
 
 The release includes the accepted v1.8.1 work, the animation overhaul and refinements, the final Journal opening fix, and regression coverage. Owner acceptance is recorded as OWNER-REPORTED MANUAL ACCEPTANCE: PASS; this does not claim independent physical-device, LAN, or cross-network verification. Release evidence and final workflow links are recorded in the acceptance matrix after the gates complete.
+
+## V1.9.1-rc.1 Online hosting validation candidate (Socket protocol 14, snapshot schema 11)
+
+**Status: TESTED EXTERNALLY, FAILED; unpublished.** Branch `release/v1.9.1-rc.1` packages the Online hosting reliability patch
+for manual validation on the affected Windows PC. A manual `release-candidate.yml` dispatch in `unsigned-validation` mode
+uploads workflow artifacts without creating a tag or GitHub Release. The public latest feed remains v1.9.0.
+
+The application version was `1.9.1-rc.1`; socket protocol 14, snapshot schema 11 and
+`minimumSupportedVersion` 1.9.0 remained unchanged. On the affected Windows PC, Online hosting failed at
+`PUBLIC_READINESS` with `DNS` after 39 attempts in 39,612 ms. No public HTTP response was observed by the app.
+The successful manual Quick Tunnel checks were performed nearly two minutes after its URL appeared, so delayed
+readiness is plausible but unconfirmed. See the [release acceptance matrix](../monopoly-websockets/testcase/RELEASE_ACCEPTANCE_MATRIX.md).
+
+## V1.9.1-rc.2 Online hosting validation candidate (Socket protocol 14, snapshot schema 11)
+
+**Status: CURRENT DEVELOPMENT, unpublished.** Branch `release/v1.9.1-rc.2` tests bounded delayed readiness and
+Electron host-resolver cache recovery. Version `1.9.1-rc.2` is distinct for Squirrel installation; protocol 14,
+snapshot schema 11 and `minimumSupportedVersion` 1.9.0 are unchanged. A manual `release-candidate.yml` dispatch
+with `unsigned-validation` uploads workflow artifacts only; it creates no tag, GitHub Release or stable update.
+The owner reports that rc.2 repeatedly creates Online rooms on the previously failing Windows PC with Windows Defender
+enabled. Startup took about 40–90 seconds, commonly about 60 seconds. This is **OWNER-REPORTED**, without a per-run timing
+trace; cross-network joining, full gameplay, Windows upgrade and real-device macOS checks remain **NOT RUN**.
+
+## V1.9.1 stable release candidate (Socket protocol 14, snapshot schema 11)
+
+**Status: PRE-PUBLICATION.** Branch `release/v1.9.1-stable` promotes the tested rc.2 Online reliability implementation
+without a speculative startup optimization. The 8-second tunnel-registration fallback, resolver-observation cycle and
+retry backoff are possible contributors to latency, but the external 40–90-second reports do not isolate any one cause.
+No comparable real-device trace or controlled improvement establishes that changing them would preserve the affected-PC
+recovery. A speed target is not a release gate. Version metadata is `1.9.1`; protocol 14, snapshot schema 11 and minimum
+supported version 1.9.0 are unchanged. Release notes: `.github/release-notes/v1.9.1.md`. Publication requires the local
+gates and a successful validation workflow on the final `main` commit before the annotated `v1.9.1` tag is pushed.

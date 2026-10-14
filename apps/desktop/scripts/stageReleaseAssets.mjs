@@ -23,8 +23,15 @@ import {
 export const CHECKSUM_FILE_NAME = 'SHA256SUMS.txt';
 const MANIFEST_FILE_NAME = 'manifest.json';
 const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
-// `name` of the Squirrel maker in forge.config.cjs; Squirrel names its full package `<name>-<version>-full.nupkg`.
+// `name` of the Squirrel maker in forge.config.cjs. electron-winstaller removes dots from
+// prerelease identifiers when converting SemVer to NuGet (1.9.1-rc.1 -> 1.9.1-rc1).
 const SQUIRREL_PACKAGE_ID = 'own_the_block';
+const squirrelPackageVersion = version => {
+  const [mainVersion, ...prerelease] = version.split('-');
+  return prerelease.length > 0
+    ? `${mainVersion}-${prerelease.join('-').replace(/\./g, '')}`
+    : mainVersion;
+};
 // A RELEASES line: SHA-1 of the package, its file name, its size.
 const RELEASES_LINE_PATTERN = /^([0-9A-Fa-f]{40}) (\S+) (\d+)$/;
 
@@ -41,7 +48,7 @@ export function releaseTargets(version) {
       // What an app installed by the Setup.exe updates from: `Update.exe --update=<folder>` reads RELEASES and the package.
       squirrel: {
         releasesName: SQUIRREL_RELEASES_NAME,
-        packageName: `${SQUIRREL_PACKAGE_ID}-${version}-full.nupkg`,
+        packageName: `${SQUIRREL_PACKAGE_ID}-${squirrelPackageVersion(version)}-full.nupkg`,
       },
     },
     {

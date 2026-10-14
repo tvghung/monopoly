@@ -4,26 +4,26 @@ Status: CURRENT. Every decision below is verified against the code paths it name
 document records it; otherwise it says *not recorded*. Scope labels follow the [Documentation Hub](../README.md#lifecycle-and-scope-labels):
 **RELEASED** = shipped in a published version, **CURRENT DEVELOPMENT** = on this branch after the latest release, unreleased.
 
-Latest release: **v1.8.0** (GitHub Release published 2026-10-09; v1.9.0 is under release preparation).
-The accepted v1.9.0 implementation is being prepared on codex/v181-pre-release-fixes; ADR-13 below preserves the historical v1.8.0 compatibility decision.
+Latest release: **v1.9.0** (GitHub Release published 2026-10-11; tag workflow 38119202459 succeeded).
+ADR-13 below preserves the historical v1.8.0 compatibility decision; ADR-14 records v1.9.0 protocol 14. The current Online hosting reliability fix changes no gameplay or wire contract.
 
-Unless the "Applies to" column says otherwise, these architecture decisions hold in v1.8.0 and the v1.9.0 release candidate.
+Unless the "Applies to" column says otherwise, these architecture decisions hold in released v1.8.0 and v1.9.0.
 
 | ID | Decision | Since | Applies to |
 | --- | --- | --- | --- |
-| [ADR-01](#adr-01-host-process-is-the-only-gameplay-authority) | Host process is the only gameplay authority | V1 | v1.8.0 and v1.9.0 candidate |
-| [ADR-02](#adr-02-desktop-hosted-server-helper) | Desktop-hosted server helper | V1 (helper model), v1.5.0 (RAM helper) | v1.8.0 and v1.9.0 candidate |
-| [ADR-03](#adr-03-ram-only-volatile-runtime-no-recovery-across-process-exit) | RAM-only volatile runtime, no recovery across process exit | v1.5.0 | v1.8.0 and v1.9.0 candidate |
-| [ADR-04](#adr-04-stable-identity-hashed-reconnect-token-newest-connection-wins) | Stable identity, hashed reconnect token, newest connection wins | V1 | v1.8.0 and v1.9.0 candidate |
-| [ADR-05](#adr-05-serialized-room-commands-commit-before-ack-and-broadcast) | Serialized room commands, commit before ACK and broadcast | V1 | v1.8.0 and v1.9.0 candidate |
-| [ADR-06](#adr-06-shared-runtime-validated-contracts-and-explicit-versions) | Shared runtime-validated contracts and explicit versions | V1 | v1.8.0 (protocol 13 / snapshot 11) and v1.9.0 candidate (protocol 14 / snapshot 11; see ADR-14) |
-| [ADR-07](#adr-07-public-and-private-projections) | Public and private projections | V1 | v1.8.0 and v1.9.0 candidate |
-| [ADR-08](#adr-08-lan-and-online-networking) | LAN and Online networking | v1.5.0 (Online), v1.7.0 (relink, registry) | v1.8.0 and v1.9.0 candidate |
+| [ADR-01](#adr-01-host-process-is-the-only-gameplay-authority) | Host process is the only gameplay authority | V1 | v1.8.0 and v1.9.0 |
+| [ADR-02](#adr-02-desktop-hosted-server-helper) | Desktop-hosted server helper | V1 (helper model), v1.5.0 (RAM helper) | v1.8.0 and v1.9.0 |
+| [ADR-03](#adr-03-ram-only-volatile-runtime-no-recovery-across-process-exit) | RAM-only volatile runtime, no recovery across process exit | v1.5.0 | v1.8.0 and v1.9.0 |
+| [ADR-04](#adr-04-stable-identity-hashed-reconnect-token-newest-connection-wins) | Stable identity, hashed reconnect token, newest connection wins | V1 | v1.8.0 and v1.9.0 |
+| [ADR-05](#adr-05-serialized-room-commands-commit-before-ack-and-broadcast) | Serialized room commands, commit before ACK and broadcast | V1 | v1.8.0 and v1.9.0 |
+| [ADR-06](#adr-06-shared-runtime-validated-contracts-and-explicit-versions) | Shared runtime-validated contracts and explicit versions | V1 | v1.8.0 (protocol 13 / snapshot 11) and v1.9.0 (protocol 14 / snapshot 11; see ADR-14) |
+| [ADR-07](#adr-07-public-and-private-projections) | Public and private projections | V1 | v1.8.0 and v1.9.0 |
+| [ADR-08](#adr-08-lan-and-online-networking) | LAN and Online networking | v1.5.0 (Online), v1.7.0 (relink, registry) | v1.8.0 and v1.9.0 |
 | [ADR-09](#adr-09-bots-are-host-played-seats-using-the-same-commands) | Bots are host-played seats using the same commands | v1.7.0 | v1.7.0 (one Balanced policy); difficulty levels released in v1.8.0 |
-| [ADR-10](#adr-10-presentation-never-replaces-authoritative-state) | Presentation never replaces authoritative state | V1 | v1.8.0 and v1.9.0 candidate |
-| [ADR-11](#adr-11-electron-security-boundary) | Electron security boundary | V1 | v1.8.0 and v1.9.0 candidate |
-| [ADR-12](#adr-12-packaging-update-policy-and-protocol-review) | Packaging, update policy and protocol review | v1.2.0 (updates) | v1.8.0 (update policy 1.8.0 / protocol 13); v1.9.0 candidate reviewed for protocol 14 |
-| [ADR-13](#adr-13-released-contract-vs-current-development) | Released contract vs current development | — | Differences between v1.8.0 and v1.9.0 candidate (protocol 13); R-1 RESOLVED in code |
+| [ADR-10](#adr-10-presentation-never-replaces-authoritative-state) | Presentation never replaces authoritative state | V1 | v1.8.0 and v1.9.0 |
+| [ADR-11](#adr-11-electron-security-boundary) | Electron security boundary | V1 | v1.8.0 and v1.9.0 |
+| [ADR-12](#adr-12-packaging-update-policy-and-protocol-review) | Packaging, update policy and protocol review | v1.2.0 (updates) | v1.8.0 (update policy 1.8.0 / protocol 13); v1.9.0 reviewed for protocol 14 |
+| [ADR-13](#adr-13-released-contract-vs-current-development) | Released contract vs current development | — | Historical v1.8.0 preparation and compatibility decision; R-1 RESOLVED in code |
 | [ADR-14](#adr-14-income-tax-compatibility-requires-protocol-14) | v1.9.0 tax-rule compatibility requires protocol 14 | v1.9.0 | v1.8.0 protocol 13 to v1.9.0 protocol 14; snapshot remains 11 |
 
 ## ADR-01 Host process is the only gameplay authority

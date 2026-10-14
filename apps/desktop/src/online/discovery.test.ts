@@ -13,7 +13,7 @@ describe('HTTP room discovery', () => {
       if (init?.method === 'POST') return Promise.resolve(new Response(JSON.stringify({ proof: '12345678-1234-1234-1234-123456789012' }), { status: 201 }));
       return Promise.resolve(new Response(JSON.stringify({ roomCode: 'OTHER', target: { kind: 'socket-io-https', endpoint: 'https://host.trycloudflare.com' } })));
     });
-    const discovery = new HttpRoomDiscovery('https://rooms.example.com', fetcher as typeof fetch);
+    const discovery = new HttpRoomDiscovery('https://rooms.example.com', fetcher);
     const reservation = await discovery.reserve('OTB-ABC234');
     expect(reservation.credential).toMatch(/^[A-Za-z0-9_-]{32,}$/);
     expect(fetcher.mock.calls[0][0]).toBe('https://rooms.example.com/v1/rooms/OTB-ABC234/reserve');
