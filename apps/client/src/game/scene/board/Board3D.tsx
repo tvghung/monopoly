@@ -6,7 +6,12 @@ import TileAssembly from './tiles/TileAssembly';
 import TileBodyBatch from './tiles/TileBodyBatch';
 import TileSurfaceBatch from './tiles/TileSurfaceBatch';
 import TileImpactHighlightBatch from './tiles/TileImpactHighlightBatch';
-import type { BoardRenderModel, BoardTileRenderModel } from './boardRenderModel';
+import {
+  DestinationPreviewMaterialsContext,
+  useDestinationPreviewMaterialsOwner,
+} from './tiles/TileDestinationPreview';
+import type { BoardRenderModel } from './boardRenderModel';
+import { useBoardTiles } from './stableTiles';
 import CharactersLayer from '../characters/CharactersLayer';
 import DiceLayer from '../dice/DiceLayer';
 import PlayerStationLayer from '../stations/PlayerStationLayer';
@@ -17,7 +22,6 @@ import TubeHouseInstances from '../buildings/TubeHouseInstances';
 import { houseRenderModeContext, type HouseRenderMode } from '../buildings/houseRenderMode';
 import OptionalSceneLayer from '../render/OptionalSceneLayer';
 import { useTranslation } from '../../../i18n/I18n';
-import { getTileBoardName } from '../../../game/ui/formatters';
 
 interface Board3DProps {
   model?: BoardRenderModel;
@@ -35,18 +39,7 @@ export default function Board3D({
   onTileSelect,
 }: Board3DProps) {
   const { language } = useTranslation();
-  const sourceTiles: readonly BoardTileRenderModel[] = model?.tiles ?? tileState.map((tile, tileId) => ({
-    tileId,
-    name: getTileBoardName(tileId, language),
-    tileType: tile.tileType,
-    price: tile.price,
-    propertyColor: tile.color,
-    houses: 0,
-  }));
-  const tiles: readonly BoardTileRenderModel[] = sourceTiles.map(tile => ({
-    ...tile,
-    name: getTileBoardName(tile.tileId, language),
-  }));
+  const tiles = useBoardTiles(model?.tiles, language);
   // Keyed on the signal lists, not rebuilt on every hover: the instanced houses re-plan only when a signal actually changes.
   const ownershipChanges = model?.ownershipChanges;
   const developmentChanges = model?.developmentChanges;
@@ -63,8 +56,11 @@ export default function Board3D({
   const latestGoCrossing = model?.goCrossings.at(-1);
   // The houses of the whole board are three instanced meshes; if that layer ever fails the per-tile boxes take over.
   const [houseMode, setHouseMode] = useState<HouseRenderMode>('instanced');
+  // Owned here, for the scene's lifetime, so the per-move destination preview borrows them instead of linking its program anew.
+  const previewMaterials = useDestinationPreviewMaterialsOwner();
   return (
     <houseRenderModeContext.Provider value={houseMode}>
+    <DestinationPreviewMaterialsContext.Provider value={previewMaterials}>
     <group name="Board3D">
       <BoardFoundation />
       <TileBodyBatch
@@ -141,6 +137,7 @@ export default function Board3D({
         resetEpoch={model?.presentationResetEpoch ?? 0}
       />
     </group>
+    </DestinationPreviewMaterialsContext.Provider>
     </houseRenderModeContext.Provider>
   );
 }

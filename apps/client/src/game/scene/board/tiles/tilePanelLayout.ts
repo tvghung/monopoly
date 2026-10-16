@@ -41,12 +41,47 @@ export function getUsableTileSurfaceSize(
   ];
 }
 
+/**
+ * A layout is a pure function of (clamped width, clamped depth, side), and it is the input of many memos downstream
+ * (`JailVisual`/`TaxVisual` specs, the merged-geometry hook, text and ownership layers). Returning a new object per call made
+ * every board render invalidate all of them (audit PERF-02), so equal inputs now return the same frozen object.
+ * The cache is a small LRU: the board uses a handful of distinct sizes, and the bound keeps arbitrary inputs from growing it.
+ */
+export const TILE_PANEL_LAYOUT_CACHE_LIMIT = 64;
+const panelLayoutCache = new Map<string, TilePanelLayout>();
+
+export function getTilePanelLayoutCacheSize(): number {
+  return panelLayoutCache.size;
+}
+
+export function clearTilePanelLayoutCache(): void {
+  panelLayoutCache.clear();
+}
+
 export function getTilePanelLayout(
   surfaceSize: readonly [number, number],
   side: BoardSide = 'BOTTOM',
 ): TilePanelLayout {
   const width = Math.max(0.3, surfaceSize[0]);
   const depth = Math.max(0.3, surfaceSize[1]);
+  const key = `${side}|${width}|${depth}`;
+  const cached = panelLayoutCache.get(key);
+  if (cached) {
+    // Refresh recency: Map iteration order is insertion order, so re-inserting makes this the newest entry.
+    panelLayoutCache.delete(key);
+    panelLayoutCache.set(key, cached);
+    return cached;
+  }
+  const layout = computeTilePanelLayout(width, depth, side);
+  panelLayoutCache.set(key, layout);
+  if (panelLayoutCache.size > TILE_PANEL_LAYOUT_CACHE_LIMIT) {
+    const oldest = panelLayoutCache.keys().next();
+    if (!oldest.done) panelLayoutCache.delete(oldest.value);
+  }
+  return layout;
+}
+
+function computeTilePanelLayout(width: number, depth: number, side: BoardSide): TilePanelLayout {
   const upperDepth = depth * TILE_UPPER_PANEL_RATIO;
   const footerDepth = depth * TILE_FOOTER_PANEL_RATIO;
   const dividerDepth = Math.min(TILE_DIVIDER_THICKNESS, footerDepth * 0.08);
@@ -59,14 +94,15 @@ export function getTilePanelLayout(
   const dividerPlaneOffset = upperFooterBoundaryPlaneOffset;
   const upperOuterBoundaryLocalZ = -upperPlaneOffset - flowSign * upperDepth / 2;
 
-  return {
+  // Shared between every caller with equal inputs, so it is immutable.
+  return Object.freeze({
     side,
     flowSign,
     contentRotationY: flowSign === -1 ? Math.PI : 0,
-    surfaceSize: [width, depth],
-    upperSize: [width, upperDepth],
-    footerSize: [width, footerDepth],
-    dividerSize: [width, dividerDepth],
+    surfaceSize: Object.freeze([width, depth] as const),
+    upperSize: Object.freeze([width, upperDepth] as const),
+    footerSize: Object.freeze([width, footerDepth] as const),
+    dividerSize: Object.freeze([width, dividerDepth] as const),
     upperPlaneOffset,
     footerPlaneOffset,
     upperFooterBoundaryPlaneOffset,
@@ -77,7 +113,7 @@ export function getTilePanelLayout(
     footerCenterLocalZ: -footerPlaneOffset,
     upperFooterBoundaryLocalZ: -upperFooterBoundaryPlaneOffset,
     dividerLocalZ: -dividerPlaneOffset,
-  };
+  });
 }
 
 /**

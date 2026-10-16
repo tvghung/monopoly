@@ -101,7 +101,7 @@ test('program links: first use is separated from a repeat of the identical progr
   assert.equal(stats.total, 4);
   assert.equal(stats.repeat, 2);
   assert.equal(stats.firstUse, 2);
-  assert.deepEqual(stats.repeatByName, { M: 2 });
+  assert.deepEqual(stats.repeatByName, { 'M#6f': 2 });
   assert.equal(stats.linkMs, 8);
 });
 

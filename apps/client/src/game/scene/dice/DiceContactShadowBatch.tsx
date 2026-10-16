@@ -70,7 +70,30 @@ function updateDiceContactShadowInstances(
   opacityAttribute.needsUpdate = true;
 }
 
-export default function DiceContactShadowBatch({ fromDice }: { fromDice?: DiceValue }) {
+export function createDiceContactShadowMaterial(): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: { shadowTexture: { value: CONTACT_SHADOW_TEXTURE } },
+    vertexShader: DICE_CONTACT_SHADOW_VERTEX_SHADER,
+    fragmentShader: DICE_CONTACT_SHADOW_FRAGMENT_SHADER,
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+    toneMapped: false,
+  });
+}
+
+/**
+ * The contact-shadow material, owned by the always-mounted dice layer rather than by the batch, which exists only while dice
+ * are visible: a material disposed whenever the dice disappear released its shader program, so the next appearance linked the
+ * identical program again on the main thread (audit PERF-05). Disposed when the layer unmounts.
+ */
+export function useDiceContactShadowMaterial(): THREE.ShaderMaterial {
+  const material = useMemo(() => createDiceContactShadowMaterial(), []);
+  useEffect(() => () => material.dispose(), [material]);
+  return material;
+}
+
+export default function DiceContactShadowBatch({ fromDice, material }: { fromDice?: DiceValue; material: THREE.ShaderMaterial }) {
   const progressRef = useDiceAnimationProgressRef();
   const geometry = useMemo(() => {
     const nextGeometry = CONTACT_SHADOW_GEOMETRY.clone();
@@ -83,15 +106,6 @@ export default function DiceContactShadowBatch({ fromDice }: { fromDice?: DiceVa
     );
     return nextGeometry;
   }, []);
-  const material = useMemo(() => new THREE.ShaderMaterial({
-    uniforms: { shadowTexture: { value: CONTACT_SHADOW_TEXTURE } },
-    vertexShader: DICE_CONTACT_SHADOW_VERTEX_SHADER,
-    fragmentShader: DICE_CONTACT_SHADOW_FRAGMENT_SHADER,
-    transparent: true,
-    depthTest: true,
-    depthWrite: false,
-    toneMapped: false,
-  }), []);
   const mesh = useMemo(() => {
     const nextMesh = new THREE.InstancedMesh(
       geometry,
@@ -119,10 +133,8 @@ export default function DiceContactShadowBatch({ fromDice }: { fromDice?: DiceVa
     updateDiceContactShadowInstances(meshRef.current, opacityAttribute, progressRef.current.progress, fromDice);
   });
 
-  useEffect(() => () => {
-    geometry.dispose();
-    material.dispose();
-  }, [geometry, material]);
+  // The material belongs to the dice layer; the batch releases only the geometry it cloned.
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   return <primitive object={mesh} dispose={null} />;
 }

@@ -4,7 +4,7 @@ import type { DevelopmentChangeSignal } from '../../presentation/store/types';
 import { presentationTiming } from '../../presentation/timings';
 import type { BoardTileRenderModel } from '../board/boardRenderModel';
 import { useTileMotionController } from '../board/motion/TileMotionProvider';
-import ConstructionPuff from './ConstructionPuff';
+import ConstructionPuff, { useConstructionPuffMaterial } from './ConstructionPuff';
 import { getHouseScale, planHouseAnimations, type HouseAnimation } from './tubeHouseAnimation';
 import {
   applyTubeHouseColors,
@@ -41,6 +41,7 @@ export default function TubeHouseInstances({ tiles, developmentChanges, reducedM
   const invalidate = useThree(state => state.invalidate);
   const motionController = useTileMotionController();
   const meshes = useMemo(() => createTubeHouseMeshes(), []);
+  const puffMaterial = useConstructionPuffMaterial();
   const animations = useMemo(
     () => planHouseAnimations(tiles, developmentChanges, reducedMotion),
     [tiles, developmentChanges, reducedMotion],
@@ -130,6 +131,7 @@ export default function TubeHouseInstances({ tiles, developmentChanges, reducedM
             delayMs={step.delayMs}
             durationMs={getScaledConstructionBurstDuration(step.durationMs, presentationTiming.housePop)}
             ownerColor={tile?.ownerColor}
+            material={puffMaterial}
           />
         </group>
       )];

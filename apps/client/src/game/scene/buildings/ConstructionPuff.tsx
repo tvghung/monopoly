@@ -1,8 +1,26 @@
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { getPlayerDisplayColor } from '../../ui/playerVisualColors';
 import { getAnimationElapsedMs } from '../animationTime';
+
+export function createConstructionPuffMaterial(): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({
+    vertexColors: true, color: '#ffffff', transparent: true, opacity: 0.86, roughness: 0.94,
+  });
+}
+
+/**
+ * One puff material for every construction burst, owned by the always-mounted house layer. A puff exists only while a
+ * building appears; its own material was disposed with it, which released the shader program, so every build linked the
+ * identical program again on the main thread (audit PERF-05). The owner color travels in the instance colors, so the
+ * material itself never changes.
+ */
+export function useConstructionPuffMaterial(): THREE.MeshStandardMaterial {
+  const material = useMemo(() => createConstructionPuffMaterial(), []);
+  useEffect(() => () => material.dispose(), [material]);
+  return material;
+}
 
 /** The dust-and-owner-color burst that plays where a building appears (frozen Phase 4 timing). */
 export default function ConstructionPuff({
@@ -12,6 +30,7 @@ export default function ConstructionPuff({
   particleCount = 11,
   spread = 0.32,
   lift = 0.22,
+  material,
 }: {
   delayMs: number;
   durationMs: number;
@@ -19,6 +38,8 @@ export default function ConstructionPuff({
   particleCount?: number;
   spread?: number;
   lift?: number;
+  /** A material owned by the caller (never disposed here); without one the puff creates and releases its own. */
+  material?: THREE.Material;
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const startedAtMsRef = useRef(0);
@@ -57,7 +78,9 @@ export default function ConstructionPuff({
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, particleCount]}>
       <octahedronGeometry args={[0.068, 0]} />
-      <meshStandardMaterial vertexColors color="#ffffff" transparent opacity={0.86} roughness={0.94} />
+      {material
+        ? <primitive object={material} attach="material" dispose={null} />
+        : <meshStandardMaterial vertexColors color="#ffffff" transparent opacity={0.86} roughness={0.94} />}
     </instancedMesh>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -54,9 +54,36 @@ export function createMergedBoxGeometry(specs: readonly MergedBoxSpec[]): THREE.
   return merged;
 }
 
+/**
+ * Canonical content key of a spec list: two lists with the same key bake the same geometry, whatever array they live in or
+ * the order their properties were written in.
+ */
+export function getMergedBoxSpecsKey(specs: readonly MergedBoxSpec[]): string {
+  return specs.map(spec => [
+    spec.width, spec.height, spec.depth, spec.radius, spec.segments ?? 2, spec.color,
+    ...spec.position, ...(spec.rotation ?? [0, 0, 0]),
+  ].join(',')).join(';');
+}
+
+/**
+ * The merged geometry of a spec list, owned by the calling component: built once for as long as the spec *content* stays
+ * the same (a new but equal array reuses it; audit PERF-02 rebuilt ~27 rounded boxes on every board render) and disposed
+ * when the content changes or the component unmounts. It is deliberately not shared between components: each owner
+ * disposes only what it built, so no consumer can be left holding a disposed geometry.
+ */
+export function useMergedBoxGeometry(specs: readonly MergedBoxSpec[]): THREE.BufferGeometry {
+  const key = useMemo(() => getMergedBoxSpecsKey(specs), [specs]);
+  const stableRef = useRef({ key, specs });
+  if (stableRef.current.key !== key) stableRef.current = { key, specs };
+  const stableSpecs = stableRef.current.specs;
+  const geometry = useMemo(() => createMergedBoxGeometry(stableSpecs), [stableSpecs]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return geometry;
+}
+
 interface MergedRoundedBoxesProps {
   name: string;
-  /** Callers memoize the array: a new array rebuilds the geometry. */
+  /** Equal content reuses the geometry, so callers need not memoize the array (they still should: it avoids building the key). */
   specs: readonly MergedBoxSpec[];
   materialProfile: BoardMaterialProfile;
   position?: readonly [number, number, number];
@@ -70,11 +97,13 @@ export default function MergedRoundedBoxes({
   position,
   rotation,
 }: MergedRoundedBoxesProps) {
-  const geometry = useMemo(() => createMergedBoxGeometry(specs), [specs]);
-  useEffect(() => () => geometry.dispose(), [geometry]);
+  const geometry = useMergedBoxGeometry(specs);
+  // A fresh `userData` object per render reads as a changed prop to R3F, which then asks for a frame.
+  const boxCount = specs.length;
+  const userData = useMemo(() => ({ mergedBoxCount: boxCount }), [boxCount]);
 
   return (
-    <mesh name={name} position={position} rotation={rotation} userData={{ mergedBoxCount: specs.length }}>
+    <mesh name={name} position={position} rotation={rotation} userData={userData}>
       <primitive object={geometry} attach="geometry" />
       <meshStandardMaterial {...getBoardMaterialProps(materialProfile, '#ffffff')} vertexColors />
     </mesh>

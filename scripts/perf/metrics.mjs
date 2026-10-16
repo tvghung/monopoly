@@ -116,7 +116,8 @@ export function programLinkStats(links, window) {
     stats.linkMs += link.dur;
     if (known) {
       stats.repeat += 1;
-      const label = link.name || `#${(link.hash >>> 0).toString(16)}`;
+      // Name plus source hash: several distinct programs share a material name (for example every MeshBasicMaterial variant).
+      const label = `${link.name || 'program'}#${(link.hash >>> 0).toString(16)}`;
       stats.repeatByName[label] = (stats.repeatByName[label] ?? 0) + 1;
     } else {
       stats.firstUse += 1;

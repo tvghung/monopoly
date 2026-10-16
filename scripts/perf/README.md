@@ -11,6 +11,9 @@ game: the probe is injected from outside and the harness is a development/UAT bu
 | `probe-init.js` | In-page probe injected before any page script; observation only |
 | `metrics.mjs` | Pure analysis (percentiles, pacing, link classification, React tasks, resource trend); unit tested by `metrics.check.mjs` |
 | `compareResults.mjs` | Before/after table from two reports; flags non-comparable conditions; unit tested by `compareResults.check.mjs` |
+| `captureCompare.mjs` | Before/after **visual equivalence**: renders the same settled harness states from two bundles in the same browser and compares the screenshots pixel by pixel (see [Visual equivalence](#visual-equivalence)) |
+| `pngDiff.mjs` | Dependency-free PNG decode/encode, pixel comparison and diff image; unit tested by `pngDiff.check.mjs` |
+| `staticServer.mjs` | The static file server `captureCompare.mjs` serves a bundle with |
 
 ## Run it
 
@@ -83,6 +86,24 @@ CPU, GPU and presentation time are different things and are never mixed.
 Compositor-level presentation timing is **not** measured: rAF timestamps are the proxy. A scheduler-pacing effect (for
 example the vsync-divisor rounding of finding PERF-06 on a 144 Hz display) is part of what these numbers show; run with
 `--cap 240` to see the frame cost without a cap.
+
+## Visual equivalence
+
+A performance change must not change what the board looks like. `captureCompare.mjs` serves two UAT bundles in turn, renders
+the same settled states (complete board at every tier, Jail, both Tax tiles and a property tile as crops, landmarks, maximum
+houses, standees, four stations, and the end state of dice, walk, purchase, rent, house, hotel and jail fixtures) at one
+viewport and device pixel ratio, and compares the screenshots with `pngDiff.mjs`:
+
+```bash
+pnpm perf:visual-compare --before /tmp/otb-before/uat-dist --after /tmp/otb-after/uat-dist --out /tmp/otb-visual --assert-identical
+pnpm perf:visual-compare --before ... --after ... --out ... --renderer swiftshader   # software WebGL, same result on any machine
+```
+
+It writes `before/*.png`, `after/*.png`, `diff/*.png` (only for states that differ, differing pixels in red) and
+`visual-report.json` (differing pixel count and ratio, maximum channel delta, mean absolute delta per state). Every state is a
+settled scene, never a frame in the middle of an animation, because mid-animation pixels depend on frame timing; animation
+behavior is covered by the unit tests and by the benchmark counters. Both bundles must be rendered by the same browser on the
+same GPU: pixels from different GPUs or drivers are not comparable.
 
 ## Measurement overhead
 
