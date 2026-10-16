@@ -447,6 +447,35 @@ board. Mọi phần tử là DOM; `inert={!connected}` của `.game-board` vẫn
 - Destination preview keeps the active player's color and existing tile-local surface/frame. Its 460 ms pulse uses absolute elapsed time; Reduced Motion shows a steady highlight. The preview is removed by the existing presentation lifecycle.
 - Finite scene effects use elapsed monotonic time; FPS limits affect sampling frequency, not intended duration. Idle rendering remains demand-driven. Transparent dice trails add one or two small local draws per die at Balanced/High; Low and Reduced Motion retain the lower-cost path.
 
+### GPU resource ownership (performance program B1)
+
+A board render must not create, dispose or re-upload a GPU resource whose inputs did not change; every GPU object has exactly
+one owner that disposes it. Measured basis: [08B](../../ui-ux-overhaul/08B_PHASE_B0_B1_IMPLEMENTATION.md) (a warm walk replay linked 17
+identical shader programs and a 30-replay soak leaked 30 geometries before; both are 0 now).
+
+- **Stable inputs.** `Board3D` receives its tiles through `useBoardTiles` (`apps/client/src/game/scene/board/stableTiles.ts`), which keeps the
+  previous tile objects and array when every field of every tile is equal; a changed owner, house count, name or language produces a
+  new array. `getTilePanelLayout` (`apps/client/src/game/scene/board/tiles/tilePanelLayout.ts`) returns the same frozen object for equal inputs
+  from a bounded LRU cache (64 entries). A new object or array for unchanged data is a bug, because memos downstream key on it.
+- **Highlight batch.** `TileImpactHighlightBatch` keys its entries on the tile ids and owns mesh, material and geometry in one
+  `TileImpactHighlightResources` object, created once per (tile ids, motion controller) and disposed with it; its per-tile state is
+  two fixed-size arrays and cannot grow.
+- **Merged geometry.** `MergedRoundedBoxes` builds its geometry once per canonical *content* of its specs (`useMergedBoxGeometry`) and
+  disposes it on change or unmount. A geometry is never shared between components, so no consumer can hold a disposed one.
+- **Effect materials outlive their effect.** A shader program is released when the last material using it is disposed, and a link
+  blocks the main thread. Materials of transient effects therefore belong to the nearest component that is mounted for the whole
+  scene, and the effect borrows them: dice trails and the contact-shadow material (`DiceLayer`), the destination-preview pair
+  (`Board3D`, provided by `DestinationPreviewMaterialsContext`, with a fallback pair owned by the preview only when there is no board),
+  the construction-puff material (`TubeHouseInstances`). The borrower sets per-use state (color, opacity, instance colors) and never
+  disposes what it borrowed.
+- **Passed-in resources are owned by whoever created them.** R3F disposes only objects it created from JSX; a geometry or material
+  passed as a prop (`geometry=`, `<primitive>`) needs an explicit `dispose` in an effect cleanup (the destination-preview frame geometry
+  is released by `useDestinationFrameGeometry`).
+- **Verification.** Unit tests assert identity across re-renders and `dispose` on unmount; `pnpm perf:benchmark` reports program
+  links (first use vs repeat), geometry/texture/program counts and heap over repeated replays, and
+  `pnpm perf:visual-compare` compares settled states pixel by pixel ([scripts/perf/README.md](../../../scripts/perf/README.md)). First-use
+  links of a program variant per session remain (shader warm-up is a separate batch).
+
 ### Tile-layer refinement evidence
 
 The final refinement reproduced a frame-order defect: registered TilePressRoot content received the new offset after instanced body and white-pebble footer had already sampled the previous offset. The light footer temporarily occluded attached text/art. Controller priority -1 makes every attached layer use the same displayed-frame offset without changing geometry, materials, press depths, timing, batching or socket height.

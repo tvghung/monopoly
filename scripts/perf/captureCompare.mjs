@@ -48,6 +48,7 @@ export const STATES = [
 function parseArgs(argv) {
   const options = {
     before: null, after: null, out: null, states: 'all', viewport: '1280x720', renderer: 'gpu', tolerance: 0, port: 4174, assertIdentical: false,
+    readyTimeoutMs: 60_000,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
@@ -61,6 +62,7 @@ function parseArgs(argv) {
       case '--renderer': options.renderer = value(); break;
       case '--tolerance': options.tolerance = Number(value()); break;
       case '--port': options.port = Number(value()); break;
+      case '--ready-timeout': options.readyTimeoutMs = Number(value()) * 1_000; break;
       case '--assert-identical': options.assertIdentical = true; break;
       default: throw new Error(`Unknown option ${flag}`);
     }
@@ -71,7 +73,7 @@ function parseArgs(argv) {
 }
 
 async function settle(page, state) {
-  await page.waitForSelector('main.phase4-uat[data-uat-ready="true"]', { state: 'attached', timeout: 180_000 });
+  await page.waitForSelector('main.phase4-uat[data-uat-ready="true"]', { state: 'attached', timeout: state.timeoutMs ?? 60_000 });
   await page.waitForSelector('.game-scene canvas', { state: 'attached', timeout: 60_000 });
   // Shader compiles, SDF text and procedural textures finish after the ready marker; animated fixtures also play out.
   await sleep(state.animated ? 6_000 : 4_000);
@@ -126,12 +128,18 @@ async function captureAll(distDir, options, states) {
       const params = new URLSearchParams({
         'phase4-uat': '1', scenario: state.fixture, quality: state.tier, fpsLimit: '60', 'uat-controls': 'hidden',
       });
-      await page.goto(`http://127.0.0.1:${options.port}/?${params.toString()}`);
-      await settle(page, state);
-      renderer ??= await page.evaluate(() => window.__OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__?.glRenderer ?? null);
-      const clip = state.crop ? await cropFor(page, state.crop) : undefined;
-      const png = await page.screenshot({ animations: 'disabled', caret: 'hide', ...(clip ? { clip } : {}) });
-      images.set(state.name, { png, errors });
+      console.log(`  ${state.name}`);
+      try {
+        await page.goto(`http://127.0.0.1:${options.port}/?${params.toString()}`);
+        await settle(page, { ...state, timeoutMs: options.readyTimeoutMs });
+        renderer ??= await page.evaluate(() => window.__OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__?.glRenderer ?? null);
+        const clip = state.crop ? await cropFor(page, state.crop) : undefined;
+        const png = await page.screenshot({ animations: 'disabled', caret: 'hide', ...(clip ? { clip } : {}) });
+        images.set(state.name, { png, errors });
+      } catch (error) {
+        // One failing state must not hide the others; it is reported as not comparable with its reason.
+        images.set(state.name, { png: null, errors: [...errors, `capture failed: ${error.message.split('\n')[0]}`] });
+      }
       await context.close();
     }
   } finally {
@@ -158,13 +166,18 @@ async function main() {
   for (const state of states) {
     const left = before.images.get(state.name);
     const right = after.images.get(state.name);
-    writeFileSync(path.join(options.out, 'before', `${state.name}.png`), left.png);
-    writeFileSync(path.join(options.out, 'after', `${state.name}.png`), right.png);
-    const a = decodePng(left.png);
-    const b = decodePng(right.png);
-    const comparison = compareImages(a, b, { tolerance: options.tolerance });
-    if (comparison.comparable && !comparison.identical) {
-      writeFileSync(path.join(options.out, 'diff', `${state.name}.png`), encodePng(diffImage(a, b, { tolerance: options.tolerance })));
+    if (left.png) writeFileSync(path.join(options.out, 'before', `${state.name}.png`), left.png);
+    if (right.png) writeFileSync(path.join(options.out, 'after', `${state.name}.png`), right.png);
+    let comparison;
+    if (left.png && right.png) {
+      const a = decodePng(left.png);
+      const b = decodePng(right.png);
+      comparison = compareImages(a, b, { tolerance: options.tolerance });
+      if (comparison.comparable && !comparison.identical) {
+        writeFileSync(path.join(options.out, 'diff', `${state.name}.png`), encodePng(diffImage(a, b, { tolerance: options.tolerance })));
+      }
+    } else {
+      comparison = { comparable: false, identical: false, reason: `no screenshot from the ${left.png ? 'after' : right.png ? 'before' : 'before or after'} bundle` };
     }
     results.push({ state: state.name, fixture: state.fixture, tier: state.tier, ...comparison, pageErrors: [...left.errors, ...right.errors] });
     const verdict = !comparison.comparable ? `NOT COMPARABLE (${comparison.reason})`

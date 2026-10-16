@@ -99,6 +99,10 @@ pnpm perf:visual-compare --before /tmp/otb-before/uat-dist --after /tmp/otb-afte
 pnpm perf:visual-compare --before ... --after ... --out ... --renderer swiftshader   # software WebGL, same result on any machine
 ```
 
+`--states a,b` selects states, `--ready-timeout <seconds>` raises the wait for a fixture to become ready (software rendering is
+slow), `--tolerance <0..255>` allows a per-channel difference. A state that fails to capture is reported as not comparable
+with its reason instead of aborting the run.
+
 It writes `before/*.png`, `after/*.png`, `diff/*.png` (only for states that differ, differing pixels in red) and
 `visual-report.json` (differing pixel count and ratio, maximum channel delta, mean absolute delta per state). Every state is a
 settled scene, never a frame in the middle of an animation, because mid-animation pixels depend on frame timing; animation
