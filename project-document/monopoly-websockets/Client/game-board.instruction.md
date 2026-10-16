@@ -182,6 +182,19 @@ và 40 semantic tile buttons không đổi.
   render submission, long tasks, draw calls và triangles. Long Tasks API không cung cấp call-stack attribution, và GPU execution
   time is not measured; scene submissions are not proof of physical display presentation. `quality=<tier>` chọn preset,
   `fpsLimit=30|60|120|180|240` đặt cap cho benchmark.
+- **Diagnostics observe the scene; they never drive it** (performance program B0, finding PERF-17 of the
+  [Phase A audit](../../ui-ux-overhaul/08A_PERFORMANCE_AUDIT.md)). `RendererDiagnostics` in `apps/client/src/game/scene/GameScene.tsx`
+  is mounted only when `isLocalDiagnosticsEnabled()` (`apps/client/src/game/scene/render/diagnostics/localDiagnostics.ts`: a development or
+  UAT build on localhost or with `?phase4-uat=1`); a production page mounts neither it nor the tile/prop screen-rect publishers. The
+  opt-out `?renderDiagnostics=off` removes all of that instrumentation from a development/UAT page so the scene tree matches the player's.
+  `MeasurementScheduler` (`render/diagnostics/measurementScheduler.ts`) requests only the mount measurement and one settled
+  measurement; every later publish is debounced from frames the scene rendered for its own reasons, and it asks for a frame again
+  only when nothing has been counted yet (at most 5 times in a row). The UAT harness shows the renderer metrics and the destination
+  alpha through isolated readouts (`apps/client/src/dev/phase4-uat/DiagnosticsReadouts.tsx`) that hold only formatted text, so a diagnostics event
+  never re-renders `<Board />`. Contract: a demand-rendered scene at rest submits **0** scene frames over a stable 10-second
+  window, with the diagnostics on and off.
+  `pnpm perf:benchmark --scenarios idle --assert-idle` verifies it in a real browser; the repository benchmark tooling, its metric
+  definitions and the comparison tool are in [scripts/perf/README.md](../../../scripts/perf/README.md).
 
 ### v1.8.1 FPS investigation (2026-10-10)
 

@@ -20,6 +20,8 @@ import {
 import TileMotionProvider from './board/motion/TileMotionProvider';
 import { DemandFrameScheduler } from './render/demandFrameScheduler';
 import { countComposerPasses } from './render/diagnostics/composerPasses';
+import { isDevToolingEnabled, isLocalDiagnosticsEnabled } from './render/diagnostics/localDiagnostics';
+import { MeasurementScheduler } from './render/diagnostics/measurementScheduler';
 import { FrameCounter, shadowMapTypeName, toneMappingName } from './render/diagnostics/rendererInfo';
 import OptionalSceneLayer from './render/OptionalSceneLayer';
 import SceneLightRig from './render/lighting/SceneLightRig';
@@ -69,41 +71,39 @@ export function RendererLifecycleGuard({ onFailure }: { onFailure?: (error: Erro
   return null;
 }
 
-/** Diagnostics only run on localhost or in the UAT harness; production pages pay nothing. */
-function isLocalDiagnosticsEnabled(): boolean {
-  return (import.meta.env.DEV || __PHASE4_UAT__)
-    && (window.location.hostname === '127.0.0.1'
-      || window.location.hostname === 'localhost'
-      || new URLSearchParams(window.location.search).get('phase4-uat') === '1');
-}
-
-const DIAGNOSTICS_DEBOUNCE_MS = 120;
-
-function RendererDiagnostics({
-  activityKey,
-  activeAnimatedObjects,
-  stationCount,
-  deckCounts,
-  destinationPreviewTileId,
-  hoveredTileId,
-  selectedTileId,
-}: {
-  activityKey: string;
+interface DiagnosticsInputs {
   activeAnimatedObjects: number;
   stationCount: number;
   deckCounts: DeckCounts;
   destinationPreviewTileId: number | null;
-  hoveredTileId?: number | null;
-  selectedTileId?: number | null;
-}) {
+  qualityTier: string;
+}
+
+/**
+ * Dev/UAT only (mounted by `BoardSceneContents` only when `isLocalDiagnosticsEnabled()`; a production page never mounts
+ * it). It observes the scene and must not drive it: the measurement lifecycle lives in `MeasurementScheduler`, the
+ * latest scene inputs are read through a ref, and a change of those inputs never asks for a frame by itself.
+ */
+function RendererDiagnostics({
+  activeAnimatedObjects,
+  stationCount,
+  deckCounts,
+  destinationPreviewTileId,
+}: Omit<DiagnosticsInputs, 'qualityTier'>) {
   const camera = useThree(state => state.camera);
   const gl = useThree(state => state.gl);
   const scene = useThree(state => state.scene);
-  const width = useThree(state => state.size.width);
-  const height = useThree(state => state.size.height);
   const invalidate = useThree(state => state.invalidate);
   const counterRef = useRef<FrameCounter | null>(null);
   const quality = useRenderQuality();
+  const latestRef = useRef<DiagnosticsInputs>({
+    activeAnimatedObjects, stationCount, deckCounts, destinationPreviewTileId, qualityTier: quality.tier,
+  });
+  useEffect(() => {
+    latestRef.current = {
+      activeAnimatedObjects, stationCount, deckCounts, destinationPreviewTileId, qualityTier: quality.tier,
+    };
+  });
 
   useEffect(() => {
     if (!isLocalDiagnosticsEnabled()) return undefined;
@@ -123,16 +123,11 @@ function RendererDiagnostics({
     if (!isLocalDiagnosticsEnabled()) {
       return undefined;
     }
-    let firstFrame = 0;
-    let measurementFrame = 0;
-    let debounce = 0;
-    const publish = () => {
+    const publish = (): boolean => {
       const counter = counterRef.current;
-      if (!counter || counter.stats.frameSequence === 0) {
-        // No frame has been rendered with the counter yet; the subscription publishes after the first one.
-        invalidate();
-        return;
-      }
+      // No frame has been rendered with the counter yet: the scheduler asks for a bounded number of retries.
+      if (!counter || counter.stats.frameSequence === 0) return false;
+      const latest = latestRef.current;
       const stats = counter.stats;
       const drawingBufferSize = gl.getDrawingBufferSize(new THREE.Vector2());
       const context = gl.getContext();
@@ -156,7 +151,7 @@ function RendererDiagnostics({
       const chestCards = scene.getObjectByName('chestCardBodies');
       const diagnostics = {
         glRenderer,
-        qualityTier: quality.tier,
+        qualityTier: latest.qualityTier,
         pixelRatio: gl.getPixelRatio(),
         drawingBuffer: { width: drawingBufferSize.x, height: drawingBufferSize.y },
         camera: 'orthographic',
@@ -190,15 +185,15 @@ function RendererDiagnostics({
         triangles: estimateSceneTriangles(scene),
         combinedDrawCalls: stats.totalDrawCalls,
         combinedTriangles: estimateSceneTriangles(scene),
-        activeAnimatedObjects,
+        activeAnimatedObjects: latest.activeAnimatedObjects,
         targetDrawCalls: TARGET_DRAW_CALLS,
         stressDrawCallLimit: STRESS_DRAW_CALL_LIMIT,
         targetTriangles: TARGET_TRIANGLES,
         hardTriangleLimit: HARD_TRIANGLE_LIMIT,
         physicalScene: {
           stationLayer: Boolean(scene.getObjectByName('PlayerStationLayer')),
-          stationCount: stationCount,
-          authoritativeStationCount: stationCount,
+          stationCount: latest.stationCount,
+          authoritativeStationCount: latest.stationCount,
           stationLabelCount: sceneObjects.filter(object => object.name.startsWith('PlayerStationName:')).length,
           bankTreasury: Boolean(scene.getObjectByName('BankTreasury')),
           sharedCoinInstanceCount: stationCoinMeshes.reduce(
@@ -209,14 +204,14 @@ function RendererDiagnostics({
           decks: {
             chance: {
               physicalCount: chanceCards instanceof THREE.InstancedMesh ? chanceCards.count : 0,
-              authoritativeCount: deckCounts.chance,
+              authoritativeCount: latest.deckCounts.chance,
             },
             chest: {
               physicalCount: chestCards instanceof THREE.InstancedMesh ? chestCards.count : 0,
-              authoritativeCount: deckCounts.chest,
+              authoritativeCount: latest.deckCounts.chest,
             },
           },
-          destinationPreviewTileId,
+          destinationPreviewTileId: latest.destinationPreviewTileId,
           destinationPreview: destinationPreviewDiagnostics,
           coinSystem: {
             geometryType: SHARED_COIN_GEOMETRY.type,
@@ -239,15 +234,16 @@ function RendererDiagnostics({
       window.__OWN_THE_BLOCK_RENDERER_DIAGNOSTICS__ = diagnostics;
       window.dispatchEvent(new CustomEvent('own-the-block-renderer', { detail: diagnostics }));
       console.info('[own-the-block-renderer]', JSON.stringify(diagnostics));
+      return true;
     };
-    const measureAfterRender = () => {
-      invalidate();
-      firstFrame = window.requestAnimationFrame(() => {
-        measurementFrame = window.requestAnimationFrame(publish);
-      });
-    };
-    measureAfterRender();
-    const settledMeasurement = window.setTimeout(measureAfterRender, 650);
+    const scheduler = new MeasurementScheduler({
+      invalidate: () => invalidate(),
+      requestAnimationFrame: callback => window.requestAnimationFrame(callback),
+      cancelAnimationFrame: id => window.cancelAnimationFrame(id),
+      setTimeout: (callback, delayMs) => window.setTimeout(callback, delayMs),
+      clearTimeout: id => window.clearTimeout(id),
+    }, publish);
+    scheduler.start();
     // Async completions (SDF text, textures) render new frames later; republish once frames go quiet.
     const unsubscribe = counterRef.current?.subscribe(stats => {
       window.__OWN_THE_BLOCK_RENDERER_FRAME_SAMPLE__?.({
@@ -257,17 +253,13 @@ function RendererDiagnostics({
         drawCalls: stats.mainDrawCalls,
         triangles: stats.mainTriangles,
       });
-      window.clearTimeout(debounce);
-      debounce = window.setTimeout(publish, DIAGNOSTICS_DEBOUNCE_MS);
+      scheduler.noteFrame();
     });
     return () => {
       unsubscribe?.();
-      window.clearTimeout(debounce);
-      window.clearTimeout(settledMeasurement);
-      window.cancelAnimationFrame(firstFrame);
-      window.cancelAnimationFrame(measurementFrame);
+      scheduler.dispose();
     };
-  }, [activeAnimatedObjects, activityKey, camera, deckCounts.chance, deckCounts.chest, destinationPreviewTileId, gl, height, hoveredTileId, invalidate, quality.tier, scene, selectedTileId, stationCount, width]);
+  }, [camera, gl, invalidate, scene]);
 
   return null;
 }
@@ -295,29 +287,26 @@ function BoardSceneContents({
     + (model?.destinationPreview ? 1 : 0)
     + (model?.moneyTransfers.at(-1)?.coinCount ?? 0)
     + developmentObjects;
-  const activityKey = [
-    model?.players.map(player => `${player.playerId}:${player.tileId}`).join('|') ?? '',
-    model?.tileImpacts.at(-1)?.sequence ?? 0,
-    model?.moneyTransfers.at(-1)?.sequence ?? 0,
-    model?.developmentChanges.at(-1)?.sequence ?? 0,
-    model?.destinationPreview?.id ?? '',
-  ].join('|');
+  // Stable for the page's lifetime, so mounting the dev instrumentation conditionally never changes the hook order.
+  const devTooling = isDevToolingEnabled();
+  const localDiagnostics = isLocalDiagnosticsEnabled();
 
   return (
     <>
       <FixedBoardCamera />
       <CameraAutoFocus players={model?.players ?? NO_PLAYER_PLACES} />
-      {import.meta.env.DEV || __PHASE4_UAT__ ? <TileScreenRectsPublisher /> : null}
-      {import.meta.env.DEV || __PHASE4_UAT__ ? <PropScreenRectsPublisher /> : null}
-      <RendererDiagnostics
-        activityKey={activityKey}
-        activeAnimatedObjects={activeAnimatedObjects}
-        stationCount={model?.stations.length ?? 0}
-        deckCounts={model?.deckCounts ?? { chance: 0, chest: 0 }}
-        destinationPreviewTileId={model?.destinationPreview?.tileId ?? null}
-        hoveredTileId={hoveredTileId}
-        selectedTileId={selectedTileId}
-      />
+      {devTooling ? <TileScreenRectsPublisher /> : null}
+      {devTooling ? <PropScreenRectsPublisher /> : null}
+      {localDiagnostics
+        ? (
+          <RendererDiagnostics
+            activeAnimatedObjects={activeAnimatedObjects}
+            stationCount={model?.stations.length ?? 0}
+            deckCounts={model?.deckCounts ?? NO_DECK_COUNTS}
+            destinationPreviewTileId={model?.destinationPreview?.tileId ?? null}
+          />
+        )
+        : null}
       <TileMotionProvider
         impacts={model?.tileImpacts ?? []}
         resetEpoch={model?.presentationResetEpoch ?? 0}
@@ -335,6 +324,7 @@ function BoardSceneContents({
 }
 
 const NO_PLAYER_PLACES: readonly { playerId: string; tileId: number }[] = [];
+const NO_DECK_COUNTS: DeckCounts = { chance: 0, chest: 0 };
 
 export default function GameScene({
   model,

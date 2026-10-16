@@ -33,6 +33,7 @@ import {
   type RendererFrameSample,
 } from './rendererBenchmark';
 import type { SocketFunctions } from '../../types';
+import { DestinationPreviewAlphaReadout, RendererMetricsReadout } from './DiagnosticsReadouts';
 import './Phase4UatHarness.css';
 
 const PLAYER_IDS = ['player-a', 'player-b', 'player-c', 'player-d'] as const;
@@ -536,8 +537,6 @@ function Phase4UatSurface() {
   const [scenario, setScenario] = useState<ScenarioKey>(initialParams.scenario);
   const [room, setRoom] = useState(initialSetup.room);
   const [viewer, setViewer] = useState<{ playerId: string | null; role: RoomRole }>(initialSetup.viewer);
-  const [rendererMetrics, setRendererMetrics] = useState<Record<string, unknown> | null>(null);
-  const [destinationPreviewDiagnostics, setDestinationPreviewDiagnostics] = useState<Record<string, unknown> | null>(null);
   const [controlsCollapsed, setControlsCollapsed] = useState(initialParams.controlsCollapsed);
   const [pendingTimers, setPendingTimers] = useState(0);
   const [runId, setRunId] = useState(0);
@@ -1036,19 +1035,9 @@ function Phase4UatSurface() {
     controller.acceptRoomSnapshot(roomRef.current, 'SESSION_SYNC');
     const initialKey = scenarioRef.current;
     if (!STATIC_SCENARIOS.includes(initialKey)) schedule(() => applyAnimatedScenario(initialKey), 180);
-    const onMetrics = (event: Event) => {
-      setRendererMetrics((event as CustomEvent<Record<string, unknown>>).detail);
-    };
-    const onDestinationPreview = (event: Event) => {
-      setDestinationPreviewDiagnostics((event as CustomEvent<Record<string, unknown>>).detail);
-    };
-    window.addEventListener('own-the-block-renderer', onMetrics);
-    window.addEventListener('own-the-block-destination-preview', onDestinationPreview);
-    return () => {
-      clearTimers();
-      window.removeEventListener('own-the-block-renderer', onMetrics);
-      window.removeEventListener('own-the-block-destination-preview', onDestinationPreview);
-    };
+    // The renderer diagnostics events are shown by their own readout components: storing them here would re-render
+    // `<Board />` after every frame burst, which invalidates a frame, which publishes again (PERF-17).
+    return clearTimers;
   }, [applyAnimatedScenario, clearTimers, controller, schedule]);
 
   const contextValue = useMemo(() => ({
@@ -1062,9 +1051,6 @@ function Phase4UatSurface() {
     privateOffers: [],
     roomPlayers: room.players,
   }), [room, socketFunctions, viewer]);
-  const destinationPreviewOpacity = typeof destinationPreviewDiagnostics?.surfaceOpacity === 'number'
-    ? Number(destinationPreviewDiagnostics.surfaceOpacity)
-    : null;
 
   return (
     <PresentationProvider controller={controller}>
@@ -1141,18 +1127,12 @@ function Phase4UatSurface() {
               {traceRef.current.previewBeforeLand ? ' · preview-before-land yes' : ''}
               {` · build ${String(presentationState.displayDevelopmentLevels[1] ?? 0)}/${String(room.gameState.boardState.ownedProps[1]?.houses ?? 0)}`}
               {` · logs ${presentationState.displayLogs.length}/${room.gameState.boardState.logs.length}`}
-              {scenario === 'destination-flicker'
-                ? ` · alpha ${destinationPreviewOpacity === null ? '—' : destinationPreviewOpacity.toFixed(2)}`
-                : ''}
+              {scenario === 'destination-flicker' ? <DestinationPreviewAlphaReadout /> : null}
               {scenario === 'balance-gate'
                 ? ` · balance ${String(presentationState.displayBalances['player-a'] ?? '—')}/${String(room.gameState.players['player-a']?.accountBalance ?? '—')}`
                 : ''}
             </output>
-              {rendererMetrics ? (
-                <output data-testid="renderer-metrics">
-                {`draw ${String(rendererMetrics.drawCalls)} · tri ${String(rendererMetrics.triangles)} · combined ${String(rendererMetrics.combinedDrawCalls ?? rendererMetrics.drawCalls)} / ${String(rendererMetrics.combinedTriangles ?? rendererMetrics.triangles)} · active ${String(rendererMetrics.activeAnimatedObjects)}`}
-                </output>
-            ) : null}</> : null}
+              <RendererMetricsReadout /></> : null}
           </aside>}
           <Board />
           {initialParams.designLab ? <HudConceptLayer ready={uatReady} /> : null}

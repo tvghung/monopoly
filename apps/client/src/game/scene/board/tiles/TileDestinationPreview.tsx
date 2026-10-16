@@ -5,6 +5,7 @@ import type { DestinationPreviewRenderModel } from '../boardRenderModel';
 import { TILE_SURFACE_CLEARANCE_Y, TILE_SURFACE_LOCAL_POSITION } from '../boardLayout';
 import type { TilePanelLayout } from './tilePanelLayout';
 import { getAnimationElapsedMs } from '../../animationTime';
+import { isLocalDiagnosticsEnabled } from '../../render/diagnostics/localDiagnostics';
 
 export const DESTINATION_PREVIEW_EPSILON = 0.012;
 export const DESTINATION_PREVIEW_SURFACE_Y = Math.max(
@@ -80,11 +81,7 @@ export default function TileDestinationPreview({
   const startedAtMsRef = useRef(0);
   const lastDiagnosticEventMsRef = useRef(Number.NEGATIVE_INFINITY);
   const invalidate = useThree(state => state.invalidate);
-  const diagnosticsEnabled = (import.meta.env.DEV || __PHASE4_UAT__)
-    && typeof window !== 'undefined'
-    && (window.location.hostname === '127.0.0.1'
-      || window.location.hostname === 'localhost'
-      || new URLSearchParams(window.location.search).get('phase4-uat') === '1');
+  const diagnosticsEnabled = isLocalDiagnosticsEnabled();
   useLayoutEffect(() => {
     startedAtMsRef.current = performance.now();
     elapsedRef.current = 0;
