@@ -23,6 +23,9 @@ Every `results.json` carries its own environment block (commit, options, GPU ren
 | `visual_gpu_baseline-vs-b2.json`, `visual_gpu_baseline-vs-baseline-dice.json` | Pixel comparison of 19 settled states, baseline against after, and the dice-settled state of the baseline against itself (the capture's own noise) |
 | `hover_baseline-vs-b2.json` | Hover and selection equivalence: canvas pixels with five tiles hovered, at rest, after the pointer left and after a click, the dialog, the 2v2 owner card; with a control |
 | `lifecycle_b2-bundle.json` | Structural GPU-resource ownership check on the final bundle (`--expect-persistent`) |
+| `review_after_balanced-all.json`, `review_baseline_balanced-all.json` | **Final review (2026-10-17), a different machine** (Core i5-10210U, Intel UHD Graphics, 59.9 Hz, devicePixelRatio 1.25; not comparable with the files above): the PR head `7cb246b` and the same baseline (`7a76fd6` plus `3db7648`), Balanced, `hover,volume,socket,walk,dice,purchase,soak`; see [08C §14](../08C_PHASE_B2_IMPLEMENTATION.md#14-final-review-2026-10-17) |
+| `review_after_soak-anomaly.json`, `review_soak-repeats.md` | The one soak of the final review that showed 57 first-use program links, 2 geometries more and a 2 s stall, and the table of all 12 soak runs of the review (8 after, 4 baseline) |
+| `review_lifecycle_b2-bundle.txt` | `pnpm perf:lifecycle-check --expect-persistent` on the review bundle: all checks passed |
 | `profile_dice_baseline.txt`, `profile_dice_final.txt` | `cpuProfile.mjs` over three warm dice replays: baseline shows `Die` → `SelectiveRoundedBoxGeometry`, the final build does not |
 | `heap_final_warmup3.txt`, `heap_final_warmup30.txt`, `heap_final_jit-off.txt` | `heapSample.mjs` over 30 walk replays on the final bundle with 3 warm-up replays, 30 warm-up replays and the JIT tiers off |
 

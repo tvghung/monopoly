@@ -1,0 +1,161 @@
+$ node scripts/perf/lifecycleCheck.mjs "--dist" "<scratch>/b2-review-bench/uat-dist" "--expect-persistent"
+scenario walk
+scenario dice
+scenario house-2
+scenario hotel
+tier switch and context loss
+{
+ "scenarios": {
+  "walk": {
+   "replays": 4,
+   "samples": 819,
+   "highlightMaterials": 1,
+   "contactShadowMaterials": 1,
+   "previewSurfaceMaterials": 1,
+   "previewEdgeMaterials": 1,
+   "previewSamples": 186,
+   "previewSurfaceOpacity": [
+    0.12000000001321635,
+    0.3699999998980229
+   ],
+   "previewEdgeOpacity": [
+    0.4200000000243181,
+    0.8799999998123622
+   ],
+   "previewColors": [
+    "f2384a/bd2033"
+   ],
+   "trailMaterials": 2,
+   "trailVisibleSamples": 158,
+   "trailMaxOpacity": 0.054400000000000004,
+   "puffMaterials": 0,
+   "puffSamples": 0,
+   "puffProps": []
+  },
+  "dice": {
+   "replays": 4,
+   "samples": 488,
+   "highlightMaterials": 1,
+   "contactShadowMaterials": 1,
+   "previewSurfaceMaterials": 0,
+   "previewEdgeMaterials": 0,
+   "previewSamples": 0,
+   "previewSurfaceOpacity": [
+    null,
+    null
+   ],
+   "previewEdgeOpacity": [
+    null,
+    null
+   ],
+   "previewColors": [],
+   "trailMaterials": 2,
+   "trailVisibleSamples": 308,
+   "trailMaxOpacity": 0.054400000000000004,
+   "puffMaterials": 0,
+   "puffSamples": 0,
+   "puffProps": []
+  },
+  "house-2": {
+   "replays": 4,
+   "samples": 490,
+   "highlightMaterials": 1,
+   "contactShadowMaterials": 0,
+   "previewSurfaceMaterials": 0,
+   "previewEdgeMaterials": 0,
+   "previewSamples": 0,
+   "previewSurfaceOpacity": [
+    null,
+    null
+   ],
+   "previewEdgeOpacity": [
+    null,
+    null
+   ],
+   "previewColors": [],
+   "trailMaterials": 0,
+   "trailVisibleSamples": 0,
+   "trailMaxOpacity": 0,
+   "puffMaterials": 1,
+   "puffSamples": 116,
+   "puffProps": [
+    "MeshStandardMaterial/0.86/true/11"
+   ]
+  },
+  "hotel": {
+   "replays": 4,
+   "samples": 529,
+   "highlightMaterials": 1,
+   "contactShadowMaterials": 0,
+   "previewSurfaceMaterials": 0,
+   "previewEdgeMaterials": 0,
+   "previewSamples": 0,
+   "previewSurfaceOpacity": [
+    null,
+    null
+   ],
+   "previewEdgeOpacity": [
+    null,
+    null
+   ],
+   "previewColors": [],
+   "trailMaterials": 0,
+   "trailVisibleSamples": 0,
+   "trailMaxOpacity": 0,
+   "puffMaterials": 0,
+   "puffSamples": 0,
+   "puffProps": []
+  }
+ },
+ "tierSwitch": [
+  {
+   "tier": "low",
+   "trail": 0,
+   "highlight": 1,
+   "preview": "1/1",
+   "geometries": 114,
+   "programs": 56
+  },
+  {
+   "tier": "balanced",
+   "trail": 2,
+   "highlight": 1,
+   "preview": "1/1",
+   "geometries": 118,
+   "programs": 58
+  },
+  {
+   "tier": "high",
+   "trail": 4,
+   "highlight": 1,
+   "preview": "1/1",
+   "geometries": 120,
+   "programs": 102
+  },
+  {
+   "tier": "balanced",
+   "trail": 2,
+   "highlight": 1,
+   "preview": "1/1",
+   "geometries": 119,
+   "programs": 96
+  },
+  {
+   "tier": "low",
+   "trail": 0,
+   "highlight": 1,
+   "preview": "1/1",
+   "geometries": 115,
+   "programs": 97
+  }
+ ],
+ "contextLoss": {
+  "fellBackToLegacyBoard": true,
+  "newPageErrors": 0
+ },
+ "pageErrors": 0,
+ "consoleMessages": 12
+}
+
+ALL CHECKS PASSED
+exit 0

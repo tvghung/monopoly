@@ -1,0 +1,237 @@
+{
+  "environment": {
+    "commit": "7cb246bec5077c42dd1bf4968db7df7ff96d4a50",
+    "branch": "HEAD",
+    "workingTreeDirty": true,
+    "capturedAt": "2026-10-17T05:45:39.836Z",
+    "node": "v24.21.0",
+    "os": "Windows_NT 10.0.19044 x64",
+    "cpu": "Intel(R) Core(TM) i5-10210U CPU @ 1.60GHz (8 logical)",
+    "memoryGiB": 15.8,
+    "options": {
+      "label": "b2-review-soak-rerun",
+      "tiers": [
+        "balanced"
+      ],
+      "scenarios": [
+        "soak"
+      ],
+      "cap": 60,
+      "replays": 5,
+      "soakReplays": 30,
+      "soakWarmup": 3,
+      "idleSeconds": 10,
+      "gpu": "default",
+      "diagnostics": "on",
+      "lite": false,
+      "window": "1536x864",
+      "build": false,
+      "dist": "uat-dist",
+      "out": null,
+      "port": 4173,
+      "assertIdle": false,
+      "hoverTiles": 18,
+      "volumeSteps": 20,
+      "cold": false
+    }
+  },
+  "page": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+    "devicePixelRatio": 1.25,
+    "viewport": {
+      "width": 1522,
+      "height": 770
+    },
+    "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "drawingBuffer": {
+      "width": 1871,
+      "height": 930
+    },
+    "gpuTimerQuery": true,
+    "renderers": [
+      {
+        "id": 1,
+        "name": "react-dom",
+        "version": "19.2.8",
+        "bundleType": 0
+      },
+      {
+        "id": 2,
+        "name": "@react-three/fiber",
+        "version": "9.7.0",
+        "bundleType": 0
+      }
+    ],
+    "refreshHz": 59.880239520962
+  },
+  "runs": [
+    {
+      "tier": "balanced",
+      "scenario": "soak",
+      "fixture": "walk",
+      "fpsCap": 60,
+      "replays": 30,
+      "warmupReplays": 3,
+      "samples": [
+        {
+          "replay": 0,
+          "heapBytes": 19700848,
+          "geometries": 117,
+          "textures": 52,
+          "programs": 43,
+          "dpr": 1.25
+        },
+        {
+          "replay": 10,
+          "heapBytes": 20765480,
+          "geometries": 117,
+          "textures": 52,
+          "programs": 43,
+          "dpr": 1.25
+        },
+        {
+          "replay": 20,
+          "heapBytes": 21298784,
+          "geometries": 117,
+          "textures": 52,
+          "programs": 43,
+          "dpr": 1.25
+        },
+        {
+          "replay": 30,
+          "heapBytes": 22931896,
+          "geometries": 119,
+          "textures": 52,
+          "programs": 96,
+          "dpr": 1.25
+        }
+      ],
+      "trend": {
+        "replays": 30,
+        "heapBytes": {
+          "first": 19700848,
+          "last": 22931896,
+          "growth": 3231048,
+          "slopePerReplay": 102264.48
+        },
+        "geometries": {
+          "first": 117,
+          "last": 119,
+          "growth": 2,
+          "slopePerReplay": 0.06
+        },
+        "textures": {
+          "first": 52,
+          "last": 52,
+          "growth": 0,
+          "slopePerReplay": 0
+        },
+        "programs": {
+          "first": 43,
+          "last": 96,
+          "growth": 53,
+          "slopePerReplay": 1.59
+        }
+      },
+      "warm": {
+        "frames": {
+          "renderedFrames": 2334,
+          "contiguousIntervals": 2179,
+          "expectedIntervalMs": 16.69999999999891,
+          "effectiveFps": 37.03428494392979,
+          "onePercentLowFps": 5.768833405531007,
+          "intervalMs": {
+            "count": 2179,
+            "min": 16.20000000001164,
+            "mean": 27.002006424965618,
+            "median": 16.800000000017462,
+            "p95": 33.60000000000582,
+            "p99": 66.80000000000291,
+            "max": 2014.9040000000095
+          },
+          "lateFrames": 1038,
+          "lateFrameRatio": 0.47636530518586506,
+          "intervalsOver50Ms": 73,
+          "cpuMs": {
+            "count": 2334,
+            "min": 1.7999999523162842,
+            "mean": 7.950042844738016,
+            "median": 5.1000001430511475,
+            "p95": 9.100000143051147,
+            "p99": 13.099999904632568,
+            "max": 2454.5
+          },
+          "gpuMs": {
+            "count": 2334,
+            "min": 16.578099,
+            "mean": 22.403638299914356,
+            "median": 20.397417,
+            "p95": 28.685551,
+            "p99": 60.148092,
+            "max": 543.877237
+          },
+          "gpuSamples": 2334,
+          "callbackLagMs": {
+            "count": 2334,
+            "min": 0.09999990463256836,
+            "mean": 7.102120775040661,
+            "median": 6.799999952316284,
+            "p95": 15.169999952311628,
+            "p99": 16.29999985694303,
+            "max": 60.19999995231046
+          },
+          "drawCallsPerFrame": {
+            "count": 2334,
+            "min": 134,
+            "mean": 158.03427592116537,
+            "median": 159,
+            "p95": 159,
+            "p99": 180,
+            "max": 182
+          },
+          "trianglesPerFrame": {
+            "count": 0,
+            "min": null,
+            "mean": null,
+            "median": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          }
+        },
+        "programLinks": {
+          "total": 57,
+          "firstUse": 57,
+          "repeat": 0,
+          "repeatByName": {},
+          "linkMs": 0.6000003814697266
+        },
+        "syncWaits": {
+          "count": 105,
+          "totalMs": 6309.300001859665,
+          "maxMs": 222.5
+        },
+        "react": {
+          "tasks": {
+            "count": 636,
+            "min": 0,
+            "mean": 1.6707547134573355,
+            "median": 1,
+            "p95": 5.200000047683716,
+            "p99": 7.1000001430511475,
+            "max": 9.200000047683716
+          },
+          "tasksOverFrame": 0,
+          "domCommits": 758,
+          "r3fCommits": 351
+        },
+        "longAnimationFrames": {
+          "count": 152,
+          "totalMs": 16708.500000476837,
+          "maxMs": 2468.5
+        }
+      },
+      "errors": []
+    }
+  ]
+}

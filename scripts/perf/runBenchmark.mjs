@@ -567,7 +567,12 @@ async function main() {
       || (blindIdle.length > 0 ? 'the probe saw no frame during load (blind)' : 'no idle run')}`);
     process.exitCode = 1;
   }
-  const blind = report.runs.some(run => run.scenario !== 'idle' && run.warm && run.warm.frames.renderedFrames === 0);
+  // `volume` and `socket` pass by drawing nothing, so zero rendered frames there is the result, not a blind probe; the probe is
+  // blind only when another scenario (or the idle load) also saw no frame, or when nothing in the report could have shown one.
+  const expectsNoFrames = new Set(['volume', 'socket']);
+  const sawFrames = report.runs.some(run => run.probeSawFrames || (run.warm && run.warm.frames.renderedFrames > 0));
+  const blind = report.runs.some(run => run.scenario !== 'idle' && run.warm && run.warm.frames.renderedFrames === 0
+    && !(expectsNoFrames.has(run.scenario) && sawFrames));
   if (blind && !options.lite) {
     console.error('The probe observed no rendered scheduler frames: the build is minified or the scheduler changed (see probe-init.js).');
     process.exitCode = 1;

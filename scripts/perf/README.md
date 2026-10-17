@@ -56,7 +56,7 @@ presentation events are scripted, so every replay is the same gameplay trace. On
 | `dice` | `dice-contact-shadows` | Two dice rolls and settles |
 | `walk` | `walk` | Dice roll, destination preview, five hops, landing, turn handoff |
 | `hover` | `board-readability` | Mouse sweep across the first 18 tiles (150 ms per tile) per sweep, `--replays` sweeps |
-| `volume` | `board-readability` | Master-volume slider moved through `--volume-steps` (20) values, 50 ms apart, per sweep: a setting unrelated to the picture, so 0 R3F commits and 0 scene submissions are expected |
+| `volume` | `board-readability` | Master-volume slider moved through `--volume-steps` (20) values, 50 ms apart, per sweep: a setting unrelated to the picture, so 0 R3F commits and 0 scene submissions are expected (zero rendered frames is the pass condition: the "probe saw no frame" exit code ignores it while another run in the report saw frames) |
 | `socket` | `board-readability` | `--volume-steps` (20) room updates that change nothing on the board (a log line, as a chat or presence update does) per sweep: 0 scene submissions expected; R3F commits are bounded by the context bridge (see the B2 record) |
 | `purchase` | `purchase` | Property purchase |
 | `rent` | `rent` | Rent payment (money transfer coins) |

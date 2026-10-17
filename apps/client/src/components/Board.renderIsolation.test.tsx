@@ -10,7 +10,7 @@ import type { StateContextValue } from '../types';
 import { PresentationController } from '../game/presentation/PresentationController';
 import { PresentationProvider } from '../game/presentation/PresentationProvider';
 import { sameScenePresentation, selectScenePresentation } from '../game/scene/board/boardRenderModel';
-import { cloneRoom, makeRoom } from '../game/presentation/testFixtures';
+import { cloneRoom, makeRoom, makeTeamRoom } from '../game/presentation/testFixtures';
 import type { GameSceneProps } from '../game/scene/GameScene';
 import { useSettings } from '../settings/selectors';
 import { SettingsProvider } from '../settings/SettingsProvider';
@@ -87,9 +87,8 @@ function Harness({ controller, initial }: { controller: PresentationController; 
   );
 }
 
-async function mount() {
+async function mount(room = makeRoom()) {
   const controller = new PresentationController();
-  const room = makeRoom();
   controller.acceptRoomSnapshot(room, 'SESSION_SYNC');
   render(<Harness controller={controller} initial={room} />);
   await screen.findByTestId('game-scene');
@@ -209,5 +208,46 @@ describe('the 3D scene is not re-rendered by what it does not draw', () => {
     expect(second.onTileSelect).toBe(first.onTileSelect);
     expect(second.onRendererFailure).toBe(first.onRendererFailure);
     expect(second.hoverStore).toBe(first.hoverStore);
+  });
+});
+
+describe('the 2v2 owner hover card follows the hover store', () => {
+  function teamRoomWithOwnedTile() {
+    const room = makeTeamRoom();
+    room.gameState.boardState.ownedProps = { 1: { id: 'player-c', color: 'red', houses: 0 } };
+    return room;
+  }
+
+  it('shows the owner, team and relation of the hovered tile and hides them when the pointer leaves', async () => {
+    await mount(teamRoomWithOwnedTile());
+    const store = lastProps().hoverStore;
+    expect(screen.queryByTestId('tile-owner-hover')).toBeNull();
+
+    act(() => store?.set(1));
+    const card = screen.getByTestId('tile-owner-hover');
+    expect(card.textContent).toContain('Chủ sở hữu: Chi');
+    expect(card.textContent).toContain('Đồng đội');
+
+    act(() => store?.set(2));
+    expect(screen.queryByTestId('tile-owner-hover')).toBeNull();
+    act(() => store?.set(1));
+    expect(screen.getByTestId('tile-owner-hover')).toBeTruthy();
+    act(() => store?.set(null));
+    expect(screen.queryByTestId('tile-owner-hover')).toBeNull();
+  });
+
+  it('draws no card in a solo game, and the scene still does not render for the hover in a team game', async () => {
+    const solo = makeRoom();
+    solo.gameState.boardState.ownedProps = { 1: { id: 'player-b', color: 'blue', houses: 0 } };
+    await mount(solo);
+    act(() => lastProps().hoverStore?.set(1));
+    expect(screen.queryByTestId('tile-owner-hover')).toBeNull();
+    cleanup();
+
+    await mount(teamRoomWithOwnedTile());
+    const before = scene.renders;
+    act(() => lastProps().hoverStore?.set(1));
+    act(() => lastProps().hoverStore?.set(null));
+    expect(scene.renders).toBe(before);
   });
 });

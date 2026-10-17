@@ -12,6 +12,8 @@ the 3D scene **0** times and draw **0** extra frames, and the React task P95 is 
 ≤ 8 ms). One target is **not met as the benchmark measures it**: heap growth over 30 replays is 2.00 MB after the benchmark's fixed
 3 warm-up replays (baseline 2.29 MB); it is 0.65 MB (baseline 0.92 MB) after 30 warm-up replays, and the residual is compiled-code
 growth, not retained objects ([§6.4](#64-heap-growth-after-30-replays)). Raw reports: [08C_evidence/](./08C_evidence/README.md).
+The final review before merge ([§14](#14-final-review-2026-10-17)) re-measured on a second machine, strengthened the context-isolation
+tests and kept the verdict PARTIAL.
 
 ## Contents
 
@@ -28,6 +30,7 @@ growth, not retained objects ([§6.4](#64-heap-growth-after-30-replays)). Raw re
 - [11. Acceptance checklist](#11-acceptance-checklist)
 - [12. Recommendation for the next batch](#12-recommendation-for-the-next-batch)
 - [13. Commits](#13-commits)
+- [14. Final review (2026-10-17)](#14-final-review-2026-10-17)
 
 ## 1. Scope and what did not change
 
@@ -207,7 +210,7 @@ then), and not met with the benchmark's fixed 3-replay warm-up. The benchmark de
 | Volume slider changes: 0 unnecessary R3F commits | 0 R3F commits and 0 scene submissions at all three tiers | **PASS** |
 | React task P95 ≤ 8 ms, especially during walk, dice and repeated gameplay | Balanced: walk 4.0, dice 2.8, purchase 1.3, rent 1.1, build 1.5, soak 1.8 ms; Low walk 1.4 ms; High walk 4.4 ms. Across the three builds measured the walk read 4.8, 3.1 and 4.0 ms | **PASS** |
 | Heap growth after 30 replays ≤ 1 MB, after warm-up and GC | 2.00 MB with the benchmark's 3 warm-up replays; 0.65 MB with 30 warm-up replays; JIT-off control 0.11 MB ([§6.4](#64-heap-growth-after-30-replays)) | **PARTIAL** (not met under the fixed protocol; met under a steady-state warm-up; the baseline met it there too) |
-| Preserve B1's 0 unnecessary shader re-links and 0 geometry growth | 0 links, 0 geometry growth over 30 replays at all tiers; the ownership check passes | **PASS** |
+| Preserve B1's 0 unnecessary shader re-links and 0 geometry growth | 0 links, 0 geometry growth over 30 replays at all tiers; the ownership check passes (final review: held in 7 of 8 soaks on a second machine; one soak showed an unexplained one-off program burst with no program linked twice, [§14](#14-final-review-2026-10-17)) | **PASS** |
 | No visual or gameplay regressions | 18 of 19 settled states bit-identical, the 19th equals the capture's own noise; hover, click, dialog and 2v2 owner card the same ([§8](#8-visual-and-behavior-equivalence)); the full test suite passes | **PASS** with the limits of §8 |
 | Do not change graphics quality, FPS scheduling or visual design | No file of the renderer quality, scheduler or materials changed | **PASS** |
 
@@ -238,7 +241,9 @@ pixel by pixel.
 | Settings store and selectors | `settingsStore.test.ts`, `useSettingsSelector.test.tsx` (selector readers re-render only for their value, the settings context value never changes, no-op updates notify nobody, defaults without a provider) |
 | Hover store | `tileHoverStore.test.tsx` |
 | Structural sharing | `shareStructurally.test.ts` (equal contents keep identity, a changed part replaces only itself, never differs by content, non-plain values by identity) |
-| Room state is not read by the scene | `sceneStateIsolation.test.ts` (only `GameScene.tsx` imports the app state context) |
+| Room state is not read by the scene | `sceneStateIsolation.test.ts` (only `GameScene.tsx` imports the app state context; since the final review also over the whole import closure of the scene, [§14](#14-final-review-2026-10-17)) |
+| The context shadow, with the real `Canvas` | `game/scene/GameScene.contextIsolation.test.tsx` (final review): the real `GameScene` and react-three-fiber `Canvas` with a stand-in renderer; a component under the canvas sees none of the room state, a room-state change does not render it, and every other context is still bridged in |
+| 2v2 owner card through the hover store | `components/Board.renderIsolation.test.tsx` (final review): the card appears for the hovered owned tile with owner, team and relation, disappears for another tile and for the pointer leaving, is never drawn in Solo, and a hover in a team game still does not render the scene |
 | Die geometry | `diceLayerMaterialLifetime.test.tsx` (not built before the dice show, built once for both dice, kept across roll, hide and show, released once with the layer) |
 | Tooling | `scripts/perf/compareResults.check.mjs` (per-sweep rows, labels, every row names a runnable scenario) |
 
@@ -247,7 +252,8 @@ tree, **fails 5 of its 6 tests**: a sweep of 18 hovered tiles renders the scene 
 times and a log-only room update 2 times instead of 1, and an unchanged token move or owner change replaces every tile object. Its
 settings assertion passes on the baseline because the stand-in scene cannot read settings; that behavior is what `useSettingsSelector.test.tsx`
 (selector readers, stable context) and the benchmark's `volume` scenario (20 → 0 R3F commits) cover. Real-GPU behavior (R3F commits, scene
-submissions, heap) is verified by the benchmark counters above: jsdom has no WebGL and no react-three-fiber context bridge.
+submissions, heap) is verified by the benchmark counters above: jsdom has no WebGL. (The scene stand-in of `Board.renderIsolation.test.tsx`
+cannot show the context bridge; `GameScene.contextIsolation.test.tsx` does, by mounting the real `Canvas` with a stand-in renderer.)
 
 ## 10. Known limitations and remaining work
 
@@ -264,6 +270,10 @@ submissions, heap) is verified by the benchmark counters above: jsdom has no Web
 - **Idle** (carried B1-OPEN-3): of the five Balanced idle windows measured (baseline, two intermediate builds, one more intermediate
   build and the final build) four saw 0 scene submissions and one saw 1: an intermediate build, the first scenario of a fresh
   profile, as in B1. The final build's window saw 0. Not explained, not reproduced.
+- **One unexplained program burst in a soak** (final review, [§14](#14-final-review-2026-10-17)): 1 of 8 soaks of the final bundle on the
+  review machine compiled 57 new programs (0 repeats), kept 53 of them and added 2 geometries between replays 20 and 30, with one 2 s
+  stall. It did not recur in 7 further runs and was not seen in 4 baseline runs. Not explained; the structural guarantee that no
+  program is linked twice held in it.
 - **Frame pacing** is dominated by the vsync divisor of PERF-06 (batch B4) and by GPU time (batch B5): B2 does not change either.
 - **Not measured**: the Phase A reference laptop, Electron, battery power, other GPUs and refresh rates, long sessions, multiplayer over
   a network, audio, compositor-level presentation.
@@ -309,3 +319,95 @@ Branch `perf/phase-b2-react-rendering`, started from `origin/main` `5c910fb`.
 | `3db7648` | Measurement only: `socket` scenario, `--soak-warmup` |
 | `09b7253` | B2-7: room-state context shadow, lint fixes in the new tests |
 | (the following commits) | Diagnosis tools and hover comparison, documentation, canonical rules, evidence |
+| `7cb246b` | The head the final review started from |
+| (the final review commit) | Review: stronger context-isolation tests, 2v2 hover card test, benchmark exit-code fix, review evidence, this section |
+
+## 14. Final review (2026-10-17)
+
+Review of the pull request head `7cb246b` before it leaves draft. It changed no render, scheduler, quality, gameplay, server, protocol or
+persistence code; it added tests, one benchmark-tool fix, evidence and this section. **The overall verdict stays PARTIAL**, for the
+heap row alone ([§6.4](#64-heap-growth-after-30-replays)); the review adds one open item ([§14.5](#145-outstanding-risks)).
+
+### 14.1 CI
+
+Both workflows passed on `7cb246b`: `CI` / `build` (V1 contract, music, artwork validators, typecheck, lint, test, build; run 39002936777) and
+`Docs` / `validate-docs` (run 39002936819). Local gates at the review commit: `pnpm typecheck`, `pnpm lint`, `pnpm build`,
+`pnpm validate:docs` and `pnpm validate:v1-contract` PASS; `pnpm test` PASS (client 247 files / 2,468 tests, server 29 / 559, desktop
+35 / 525, perf tools included). The checks of the head after the review commit are recorded in the pull request.
+
+### 14.2 React context safety of the `GameScene` shadow
+
+| Finding | Detail | Action |
+| --- | --- | --- |
+| The shadow is sound today | The import closure of `GameScene.tsx` is 199 files; the only one that imports the app state context is `GameScene.tsx`. The files reachable from outside `game/scene` (settings selectors, i18n, presentation selectors, the dev rect publishers, formatters, character registry) read other contexts or stores, which are still bridged | none |
+| The guard was weaker than the claim | `sceneStateIsolation.test.ts` looked only at files under `game/scene`; a scene file that imported a hook or component from elsewhere which reads `stateContext` would have passed it and then failed in production at its first read of `state`. Every behavior test replaced `GameScene` with a stand-in, so the real shadow was not run by any test | the scan now walks the whole import closure (static and dynamic, relative imports) and asserts the resolver found the scene (more than 100 files, `settings/selectors.ts` among them) |
+| No test showed the shadow working | | `GameScene.contextIsolation.test.tsx` mounts the real `GameScene` inside the real react-three-fiber `Canvas`, with only the renderer, the measured size and the drawn layers replaced. A probe under the canvas sees none of the room state; two room-state changes do not render it; another context (a stand-in for settings, language, trade prompt) is still bridged in and its change reaches it. Checked by mutation: with the shadow removed, 2 of its 3 tests fail (the probe sees the room state, and it renders twice instead of once) |
+| The 2v2 owner card had no test through the hover store | `TileOwnerHoverCard.test.tsx` renders the card with a tile id; nothing rendered `Board`'s `HoveredTileOwnerCard` and `TeamHoverCard` wiring | two tests in `Board.renderIsolation.test.tsx` (owner, team and relation for the hovered tile; gone for another tile and for the pointer leaving; no card in Solo; a team-game hover still does not render the scene). Checked by mutation: breaking the wiring fails the first |
+
+### 14.3 Functional regression
+
+| Area | Evidence at the reviewed head |
+| --- | --- |
+| Property ownership updates | `Board.renderIsolation.test.tsx` (an owner change renders the scene and replaces only that tile), ownership-hold and presentation tests; model fields are guarded by type: `buildBoardRenderModel` accepts only the 22 keys of `SCENE_PRESENTATION_KEYS`, so a field the model reads and the slice omits does not compile |
+| Dice rolling, player movement | `Board.renderIsolation.test.tsx` (a token move renders once; a roll and a walk render at most once per change of the drawn slice), `diceLayerMaterialLifetime.test.tsx`; benchmark walk, dice and purchase replays complete on the real GPU with no page error |
+| Tile selection and hover | `Board.test.tsx` (40 tiles as controls, inspection opens and closes), `tileHoverStore.test.tsx`; the hover scenario draws one frame per hover change |
+| 2v2 hover cards | `TileOwnerHoverCard.test.tsx` and the new store-wiring tests ([§14.2](#142-react-context-safety-of-the-gamescene-shadow)); the byte-identical card text is in [§8](#8-visual-and-behavior-equivalence) |
+| Settings changes | `settingsStore.test.ts`, `useSettingsSelector.test.tsx`; the `volume` scenario commits the scene 0 times |
+| Reconnect | `PresentationController`, `PresentationProvider`, `PresentationFreezeChain` and `Board.test.tsx` reconnect cases (`SESSION_SYNC` snaps, no replay, roll lock cleared on disconnect and on reset epoch) pass unchanged |
+| Reduced motion | `useEffectiveReducedMotion` reads `reducedMotion` through the selector; presentation and board tests for reduced motion pass unchanged. Not run by hand on a real display |
+| Legacy renderer fallback | `Board.test.tsx` (legacy board when WebGL is unavailable, selection visible); `pnpm perf:lifecycle-check --expect-persistent` on the review bundle forces a WebGL context loss in real Chrome: the board falls back to the legacy board, no page error |
+
+This is automated and scripted evidence plus the real-GPU benchmark; no one played a game by hand for this review.
+
+### 14.4 Resource stability and performance, measured again
+
+Machine of the review: Core i5-10210U, Intel UHD Graphics (ANGLE Direct3D 11), Chrome 155, 59.9 Hz, devicePixelRatio 1.25, viewport
+1522 × 770. It is **not** the machine of [§2](#2-machine-baseline-and-method), so no absolute number below is compared with the earlier
+tables; the baseline was rebuilt (`7a76fd6` plus `3db7648`) and measured here in the same session. Balanced, cap 60, five warm replays or
+sweeps per scenario. Reports: `review_*` files in [08C_evidence](./08C_evidence/README.md).
+
+| Scenario (per replay or sweep) | R3F commits, baseline → after | React task P95, baseline → after |
+| --- | --- | --- |
+| hover (18 tiles) | 19 → **0** | 18.4 ms → no React task |
+| volume (20 changes) | 20 → **0** | 20.2 ms → no React task |
+| socket (20 room updates) | 20 → **0** | 0.5 → 0.4 ms |
+| walk | 16 → 11 | 21.9 → 5.3 ms (6.1 ms in a second run) |
+| dice | 8 → 5 | 35.3 → 4.5 ms |
+| purchase | 9 → 6.4 | 16.8 → 2.9 ms |
+| soak (30 walk replays), 4 baseline runs, 6 clean after runs | 14 → 11 | 10.1–19.9 ms → 2.6–2.9 ms |
+
+The React task P95 target (≤ 8 ms) is met in every scenario on this slower machine. Scene submissions in `volume` and `socket`: 0. Heap growth
+over 30 replays after the fixed 3 warm-up replays: baseline +2.19 to +2.30 MB (4 runs), after +1.87 to +2.02 MB (7 of 8 runs): **the
+≤ 1 MB target is still not met, so the heap row stays PARTIAL**, as in [§6.4](#64-heap-growth-after-30-replays); nothing in this review
+changes the diagnosis there. The benchmark was not run with `--soak-warmup 30` here.
+
+B1's guarantees, 8 soaks of the final bundle ([`review_soak-repeats.md`](./08C_evidence/review_soak-repeats.md)): 0 program links in the
+warm window, 0 geometry, program and texture growth in 7; in all 8, 0 repeat links (no program linked twice). The 8th soak is
+[§14.5](#145-outstanding-risks). The structural lifecycle check passes (one highlight, shadow, preview, trail and puff material for the
+session; live tier cycle; context loss falls back to the legacy board with no page error). The `idle` scenario was not run in this
+review; the hover scenario drew 19 frames per sweep of 18 tiles, one per hover change.
+
+Frame pacing is not claimed (59.9 Hz here, so the vsync-divisor effect of PERF-06 differs from [§6.1](#61-required-comparison-balanced-cap-60-diagnostics-on)):
+walk 37.5 → 40.7 FPS and dice 41.2 → 43.3 FPS are inside the run-to-run spread seen between runs of the same bundle (soaks: 37.0 to 44.1 FPS).
+
+### 14.5 Outstanding risks
+
+1. **Heap growth, PARTIAL** — unchanged ([§6.4](#64-heap-growth-after-30-replays)); a 30–60 minute packaged session is still NOT RUN.
+2. **One unexplained program burst (new)** — soak run 3 of the review: between replays 20 and 30 the page compiled 57 programs for the first
+   time (0 repeats), kept 53, added 2 geometries and stalled once for 2,015 ms; heap growth +3.23 MB. It did not recur in 7 further
+   runs of the same bundle and was not seen in 4 baseline runs (1 in 8 against 0 in 4: no statement about the baseline's rate). A
+   stalled soak (run 1: a third of the intervals at 1 s with flat resource counters) shows the machine can throttle the page, which
+   explains run 1 but not the burst. Not attributed to B2, not ruled out. It is a first-use compile (a new shader variant appeared), not a
+   re-link, so B1's guarantee as defined (no program linked twice) holds. If it shows up again, run the soak with a probe that keeps the
+   names of first-use programs (the probe records them, the report aggregates them) before B3 relies on a stable program set.
+3. **Context bridge** — as in [§10](#10-known-limitations-and-remaining-work): a context that starts changing often above the canvas commits the scene; the
+   `volume` and `socket` scenarios and the new tests catch the two that matter today.
+4. **Not measured**: Electron, the Phase A reference laptop, battery power, other GPUs, long sessions, multiplayer over a network; reduced
+   motion and reconnect were not exercised by hand.
+
+### 14.6 Tooling fix
+
+`runBenchmark.mjs` exited with code 1 ("the probe observed no rendered scheduler frames") for any run that included `volume` or `socket`,
+whose pass condition is zero rendered frames. The check now ignores zero frames in those two scenarios while another run in the same
+report saw frames, so a blind probe is still reported. Verified: the same bundle with `--scenarios volume,socket,walk` exits 0 where it
+exited 1 before. No measurement changed.

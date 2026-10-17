@@ -511,13 +511,15 @@ main-thread work. The scene is rendered only when the part of the render model i
   a context above `Canvas` must change only when something the scene shows changes; the walking positions are provided around the legacy
   board only (`LegacyPositions`), not above the whole board; `GameScene` shadows `stateContext` with a constant just above the `Canvas` so a
   socket update does not commit the scene, which is sound only while nothing under `game/scene` imports the app state context
-  (`sceneStateIsolation.test.ts` scans for it). Other ancestor contexts (`roomExitContext`, i18n, toast, audio, update) change rarely and are
+  (`sceneStateIsolation.test.ts` scans the whole import closure of `GameScene.tsx` for it, and `GameScene.contextIsolation.test.tsx` checks
+  the shadow with the real `Canvas`). Other ancestor contexts (`roomExitContext`, i18n, toast, audio, update) change rarely and are
   left alone; one that starts changing often must be shadowed or made stable the same way.
 - **Dice geometry.** `DiceLayer` owns one die body geometry for both dice, built the first time the dice are shown and kept until the layer
   unmounts (it was built and disposed by each `Die` on every appearance).
 - **Verification.** `Board.renderIsolation.test.tsx` (the scene is not rendered for hover, settings, a log-only tick or a log-only room update,
   and is rendered once for a real change), `useSettingsSelector.test.tsx` (selector readers, stable context), `shareStructurally.test.ts`,
-  `tileHoverStore.test.tsx`, `diceLayerMaterialLifetime.test.tsx` (geometry built once). `pnpm perf:benchmark --scenarios hover,volume,socket`
+  `tileHoverStore.test.tsx`, `diceLayerMaterialLifetime.test.tsx` (geometry built once), `GameScene.contextIsolation.test.tsx` (a component
+  under the canvas sees no room state; a room-state change does not render it; other contexts are still bridged). `pnpm perf:benchmark --scenarios hover,volume,socket`
   reports R3F commits, DOM commits and scene submissions per sweep.
 
 ### Tile-layer refinement evidence
