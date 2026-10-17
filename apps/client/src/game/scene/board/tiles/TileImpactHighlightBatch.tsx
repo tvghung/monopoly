@@ -1,5 +1,5 @@
 import { useFrame } from '@react-three/fiber';
-import { useLayoutEffect, useMemo } from 'react';
+import { memo, useLayoutEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { tileState } from '@monopoly/shared';
 import { getBoardTileLayout, getTileSurfaceGeometry, type BoardTileLayout } from '../boardLayout';
@@ -209,7 +209,7 @@ export function useTileImpactHighlightResources(
   return resources;
 }
 
-export default function TileImpactHighlightBatch({
+function TileImpactHighlightBatch({
   tiles,
 }: TileImpactHighlightBatchProps) {
   const motionController = useTileMotionController();
@@ -221,3 +221,5 @@ export default function TileImpactHighlightBatch({
 
   return <primitive object={resources.mesh} dispose={null} />;
 }
+
+export default memo(TileImpactHighlightBatch);

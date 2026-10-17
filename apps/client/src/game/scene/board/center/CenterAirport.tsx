@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { boardVisualTokens } from '../boardVisualTokens';
 import {
   CENTER_AIRPORT_FIELD_HEIGHT,
@@ -12,7 +13,7 @@ import { AIRPORT_FIELD_SIZE } from './airportRunwayGeometry';
 export const CENTER_DECORATION_MESH_COUNT = 4;
 export const CENTER_DECORATION_THEME = 'airport';
 
-export default function CenterAirport() {
+function CenterAirport() {
   return (
     <group name="CenterAirport" position={[0, CENTER_AIRPORT_SURFACE_Y, 0]}>
       <RoundedBoxMesh
@@ -32,3 +33,5 @@ export default function CenterAirport() {
     </group>
   );
 }
+
+export default memo(CenterAirport);

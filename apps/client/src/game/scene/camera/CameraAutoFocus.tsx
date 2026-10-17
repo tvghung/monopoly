@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { getBoardTileLayout } from '../board/boardLayout';
 import { boardViewStore } from './boardView';
 
@@ -16,7 +16,7 @@ function dialogIsOpen(): boolean {
  * dialog is open, and a move is one eased pan to the new tile, never a continuous chase. It reads only the displayed token
  * positions the board already animates, so it adds no second source of truth.
  */
-export default function CameraAutoFocus({ players }: { players: readonly PlayerPlace[] }) {
+function CameraAutoFocus({ players }: { players: readonly PlayerPlace[] }) {
   const seen = useRef<Map<string, number> | null>(null);
 
   useEffect(() => {
@@ -35,3 +35,5 @@ export default function CameraAutoFocus({ players }: { players: readonly PlayerP
 
   return null;
 }
+
+export default memo(CameraAutoFocus);

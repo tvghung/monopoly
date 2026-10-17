@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import {
   BOARD_FOUNDATION_BEVEL,
@@ -44,7 +44,7 @@ function FoundationOuterAccentLoop() {
   );
 }
 
-export default function BoardFoundation() {
+function BoardFoundation() {
   return (
     <group name="BoardFoundation">
       <RoundedBoxMesh
@@ -97,3 +97,5 @@ export default function BoardFoundation() {
     </group>
   );
 }
+
+export default memo(BoardFoundation);

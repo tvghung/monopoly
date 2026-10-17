@@ -7,14 +7,14 @@ import TradeOfferModal from './dashboard/TradeOfferModal';
 import IncomingOffers from './dashboard/IncomingOffers';
 import WinnerBanner from './dashboard/WinnerBanner';
 import ForcedSaleProposalPanel from './dashboard/ForcedSaleProposalPanel';
-import { usePresentation } from '../game/presentation/PresentationProvider';
+import { usePresentationSelector } from '../game/presentation/usePresentationSelector';
+import { selectSettledPositions } from '../game/presentation/store/selectors';
 import { useTranslation } from '../i18n/I18n';
 
 export default function Dashboard() {
   const { t } = useTranslation();
   const { state, playerId } = useContext(stateContext);
-  const { state: presentationState } = usePresentation();
-  const settledPositions = presentationState.settledPositions;
+  const settledPositions = usePresentationSelector(selectSettledPositions);
 
   // The buy prompt is driven by authoritative server state, which updates the
   // instant the move resolves — but the token is still walking there. Hold the

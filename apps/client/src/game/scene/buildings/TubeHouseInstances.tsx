@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import type { DevelopmentChangeSignal } from '../../presentation/store/types';
 import { presentationTiming } from '../../presentation/timings';
@@ -37,7 +37,7 @@ function useStableEntries(next: TubeHouseEntry[]): TubeHouseEntry[] {
  * many houses stand. The pop animation of the Phase 4 schedule runs on the instance matrices; the dust puffs are small
  * separate instanced meshes that exist only while a house is being built.
  */
-export default function TubeHouseInstances({ tiles, developmentChanges, reducedMotion }: TubeHouseInstancesProps) {
+function TubeHouseInstances({ tiles, developmentChanges, reducedMotion }: TubeHouseInstancesProps) {
   const invalidate = useThree(state => state.invalidate);
   const motionController = useTileMotionController();
   const meshes = useMemo(() => createTubeHouseMeshes(), []);
@@ -147,3 +147,5 @@ export default function TubeHouseInstances({ tiles, developmentChanges, reducedM
     </group>
   );
 }
+
+export default memo(TubeHouseInstances);

@@ -1,5 +1,5 @@
 import { Canvas, flushGlobalEffects, useFrame, useThree, type RootState } from '@react-three/fiber';
-import { lazy, useCallback, useEffect, useMemo, useRef } from 'react';
+import { lazy, memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import Board3D from './board/Board3D';
 import type { BoardRenderModel } from './board/boardRenderModel';
@@ -32,7 +32,9 @@ import Tabletop from './render/table/Tabletop';
 import { RenderQualityContext, useRenderQuality } from './render/RenderQualityContext';
 import { probeRenderCapabilities, resolveRenderQuality } from './render/renderQuality';
 import { SCENE_TONE_MAPPING, SCENE_TONE_MAPPING_EXPOSURE, parseToneMappingOverride } from './render/toneMapping';
-import { useSettings } from '../../settings/selectors';
+import { useSettingsSelector } from '../../settings/selectors';
+import type { GameSettings } from '../../settings/types';
+import type { TileHoverStore } from './board/tileHoverStore';
 import {
   COIN_FINISH_MATERIALS,
   COIN_FINISH_ORDER,
@@ -46,9 +48,9 @@ const ScenePostEffects = lazy(() => import('./render/post/ScenePostEffects'));
 
 export interface GameSceneProps {
   model?: BoardRenderModel;
-  hoveredTileId?: number | null;
+  /** The hovered tile (see `tileHoverStore`): a store, so hover never changes a prop and never re-renders the scene. */
+  hoverStore?: TileHoverStore;
   selectedTileId?: number | null;
-  onTileHover?: (tileId: number | null) => void;
   onTileSelect?: (tileId: number) => void;
   onRendererFailure?: (error: Error) => void;
 }
@@ -266,9 +268,8 @@ function RendererDiagnostics({
 
 function BoardSceneContents({
   model,
-  hoveredTileId,
+  hoverStore,
   selectedTileId,
-  onTileHover,
   onTileSelect,
 }: BoardSceneContentsProps) {
   const latestMovementByPlayer = new Map<string, BoardRenderModel['characterMovements'][number]>();
@@ -313,9 +314,8 @@ function BoardSceneContents({
       >
         <Board3D
           model={model}
-          hoveredTileId={hoveredTileId}
+          hoverStore={hoverStore}
           selectedTileId={selectedTileId}
-          onTileHover={onTileHover}
           onTileSelect={onTileSelect}
         />
       </TileMotionProvider>
@@ -326,17 +326,25 @@ function BoardSceneContents({
 const NO_PLAYER_PLACES: readonly { playerId: string; tileId: number }[] = [];
 const NO_DECK_COUNTS: DeckCounts = { chance: 0, chest: 0 };
 
-export default function GameScene({
+const selectFpsLimit = (settings: GameSettings): number => settings.fpsLimit;
+const selectGraphicsQuality = (settings: GameSettings): GameSettings['graphicsQuality'] => settings.graphicsQuality;
+
+/**
+ * The 3D scene. It is `memo`ised and reads only the two settings it uses (selectors, not the settings context), so a volume,
+ * language or animation-speed change, a hover and a socket update that changes nothing visible all leave it alone: a React
+ * commit here is a new frame, so every re-render that changes nothing is wasted GPU work too (Phase B2, PERF-03).
+ */
+function GameScene({
   model,
-  hoveredTileId,
+  hoverStore,
   selectedTileId,
-  onTileHover,
   onTileSelect,
   onRendererFailure,
 }: GameSceneProps) {
-  const { settings } = useSettings();
-  const fpsLimitRef = useRef(settings.fpsLimit);
-  fpsLimitRef.current = settings.fpsLimit;
+  const fpsLimit = useSettingsSelector(selectFpsLimit);
+  const graphicsQuality = useSettingsSelector(selectGraphicsQuality);
+  const fpsLimitRef = useRef(fpsLimit);
+  fpsLimitRef.current = fpsLimit;
   const frameSchedulerRef = useRef<DemandFrameScheduler | null>(null);
   const onCanvasCreated = useCallback((state: RootState) => {
     frameSchedulerRef.current?.dispose();
@@ -360,15 +368,15 @@ export default function GameScene({
     scheduler.invalidate();
   }, []);
   useEffect(() => {
-    frameSchedulerRef.current?.setFpsLimit(settings.fpsLimit);
-  }, [settings.fpsLimit]);
+    frameSchedulerRef.current?.setFpsLimit(fpsLimit);
+  }, [fpsLimit]);
   useEffect(() => () => {
     frameSchedulerRef.current?.dispose();
     frameSchedulerRef.current = null;
   }, []);
   const quality = useMemo(
-    () => resolveRenderQuality(settings.graphicsQuality, probeRenderCapabilities()),
-    [settings.graphicsQuality],
+    () => resolveRenderQuality(graphicsQuality, probeRenderCapabilities()),
+    [graphicsQuality],
   );
   // Comparison captures may override the tone mapper; real players always get Neutral.
   const toneMapping = useMemo(
@@ -419,9 +427,8 @@ export default function GameScene({
             : null}
           <BoardSceneContents
             model={model}
-            hoveredTileId={hoveredTileId}
+            hoverStore={hoverStore}
             selectedTileId={selectedTileId}
-            onTileHover={onTileHover}
             onTileSelect={onTileSelect}
           />
         </RenderQualityContext.Provider>
@@ -429,3 +436,5 @@ export default function GameScene({
     </div>
   );
 }
+
+export default memo(GameScene);

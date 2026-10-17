@@ -3,7 +3,8 @@ import { allGameCards, CARD_MINIMUM_VISIBLE_MS, gameCardsById, type CardDeck, ty
 import stateContext from '../../../internal';
 import Button from '../../../design-system/components/Button/Button';
 import Modal from '../../../design-system/components/Modal/Modal';
-import { usePresentation } from '../../presentation/PresentationProvider';
+import { usePresentationSelector } from '../../presentation/usePresentationSelector';
+import { selectCardPresentation, selectPresentationResetEpoch } from '../../presentation/store/selectors';
 import { cardVisualFor, type CardVisualDefinition } from './cardVisuals';
 import './CardInteractionOverlay.css';
 import { translate, useTranslation } from '../../../i18n/I18n';
@@ -96,13 +97,13 @@ const safeDomId = (operationId: string): string => operationId.replace(/[^a-zA-Z
 export default function CardInteractionOverlay() {
   const { language, t } = useTranslation();
   const { state, playerId, role, canMutate, connected, socketFunctions } = useContext(stateContext);
-  const { state: presentation } = usePresentation();
+  const cardPresentation = usePresentationSelector(selectCardPresentation);
+  const presentationResetEpoch = usePresentationSelector(selectPresentationResetEpoch);
   const pendingCard = state.turnInfo.pendingCardInteraction;
-  const cardPresentation = presentation.cardPresentation;
   const [retainedCardPresentation, setRetainedCardPresentation] = useState(
     cardPresentation?.stage === 'REVEALED' ? cardPresentation : null,
   );
-  const resetEpochRef = useRef(presentation.presentationResetEpoch);
+  const resetEpochRef = useRef(presentationResetEpoch);
   const [readTime, setReadTime] = useState<{ operationId: string | null; remainingMs: number }>({
     operationId: null,
     remainingMs: CARD_MINIMUM_VISIBLE_MS,
@@ -117,8 +118,8 @@ export default function CardInteractionOverlay() {
     ? readTime.remainingMs
     : CARD_MINIMUM_VISIBLE_MS;
   useEffect(() => {
-    if (resetEpochRef.current !== presentation.presentationResetEpoch) {
-      resetEpochRef.current = presentation.presentationResetEpoch;
+    if (resetEpochRef.current !== presentationResetEpoch) {
+      resetEpochRef.current = presentationResetEpoch;
       setRetainedCardPresentation(cardPresentation?.stage === 'REVEALED' ? cardPresentation : null);
       return;
     }
@@ -126,7 +127,7 @@ export default function CardInteractionOverlay() {
       && (!retainedCardPresentation || retainedRemainingMs === 0)) {
       setRetainedCardPresentation(cardPresentation);
     }
-  }, [cardPresentation, presentation.presentationResetEpoch, retainedCardPresentation, retainedRemainingMs]);
+  }, [cardPresentation, presentationResetEpoch, retainedCardPresentation, retainedRemainingMs]);
   // An observer finishes reading the current card before a later operation replaces it.
   const retainUnreadCard = Boolean(retainedCardPresentation && retainedRemainingMs > 0
     && cardPresentation?.operationId !== retainedCardPresentation.operationId);

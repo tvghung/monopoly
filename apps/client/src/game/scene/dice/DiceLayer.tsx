@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { DiceValue } from '@monopoly/shared';
@@ -252,7 +252,7 @@ function Die({
   );
 }
 
-export default function DiceLayer({
+function DiceLayer({
   model,
   reducedMotion = false,
 }: {
@@ -307,3 +307,5 @@ export default function DiceLayer({
     </group>
   );
 }
+
+export default memo(DiceLayer);

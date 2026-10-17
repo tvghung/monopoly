@@ -1,4 +1,5 @@
 import {
+  memo,
   useLayoutEffect, useMemo, useRef,
 } from 'react';
 import { useThree } from '@react-three/fiber';
@@ -136,7 +137,7 @@ function CoinPiles({ stations }: { stations: readonly PlayerStationRenderModel[]
  * The world-space part of a player seat: the lacquer tray and the coin piles. Names, balances and money changes are
  * DOM (the player cards of `GameHud`); the station stays a coin-flight anchor and a camera fit point.
  */
-export default function PlayerStationLayer({ stations }: { stations: readonly PlayerStationRenderModel[] }) {
+function PlayerStationLayer({ stations }: { stations: readonly PlayerStationRenderModel[] }) {
   return (
     <group name="PlayerStationLayer">
       <PlayerTrays stations={stations} />
@@ -144,3 +145,5 @@ export default function PlayerStationLayer({ stations }: { stations: readonly Pl
     </group>
   );
 }
+
+export default memo(PlayerStationLayer);

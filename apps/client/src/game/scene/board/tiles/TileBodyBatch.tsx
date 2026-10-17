@@ -1,8 +1,9 @@
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import {
-  useEffect, useLayoutEffect, useMemo, useRef,
+  memo, useEffect, useLayoutEffect, useMemo, useRef,
 } from 'react';
 import type { BoardTileRenderModel } from '../boardRenderModel';
+import type { TileHoverStore } from '../tileHoverStore';
 import { useTileMotionController } from '../motion/TileMotionProvider';
 import {
   applyTileBodyColors,
@@ -16,9 +17,9 @@ import {
 
 interface TileBodyBatchProps {
   tiles: readonly BoardTileRenderModel[];
-  hoveredTileId?: number | null;
+  /** The hovered tile lives in a store, not in props: a hover repaints instance colours here and never re-renders the board. */
+  hoverStore?: TileHoverStore;
   selectedTileId?: number | null;
-  onHover?: (tileId: number | null) => void;
   onSelect?: (tileId: number) => void;
 }
 
@@ -33,11 +34,10 @@ function useStableBodyEntries(next: BodyEntry[]): BodyEntry[] {
   return ref.current;
 }
 
-export default function TileBodyBatch({
+function TileBodyBatch({
   tiles,
-  hoveredTileId = null,
+  hoverStore,
   selectedTileId = null,
-  onHover,
   onSelect,
 }: TileBodyBatchProps) {
   const invalidate = useThree(state => state.invalidate);
@@ -47,11 +47,17 @@ export default function TileBodyBatch({
   const mesh = useMemo(() => createTileBodyMesh(entries, geometry), [entries, geometry]);
   const motionController = useTileMotionController();
   const previousOffsetsRef = useRef(new Map<number, number>());
+  const userData = useMemo(() => ({ tileIds: entries.map(entry => entry.tileId) }), [entries]);
 
-  // Hover and selection only rewrite instance colors on the one stable mesh.
+  // Hover and selection only rewrite instance colors on the one stable mesh. Hover arrives through the store, so the pointer
+  // crossing a tile costs one colour write and one frame, not a React render.
   useLayoutEffect(() => {
-    if (applyTileBodyColors(mesh, entries, hoveredTileId, selectedTileId)) invalidate();
-  }, [entries, hoveredTileId, invalidate, mesh, selectedTileId]);
+    const apply = () => {
+      if (applyTileBodyColors(mesh, entries, hoverStore?.get() ?? null, selectedTileId)) invalidate();
+    };
+    apply();
+    return hoverStore?.subscribe(apply);
+  }, [entries, hoverStore, invalidate, mesh, selectedTileId]);
 
   useFrame(() => {
     syncTileBodyOffsets(mesh, entries, tileId => motionController?.getTileOffsetY(tileId) ?? 0, previousOffsetsRef.current);
@@ -69,15 +75,15 @@ export default function TileBodyBatch({
     <group name="TileBodyBatch">
       <primitive
         object={mesh}
-        userData={{ tileIds: entries.map(entry => entry.tileId) }}
+        userData={userData}
         onPointerEnter={(event: ThreeEvent<PointerEvent>) => {
           stopPointerEvent(event);
           const entry = event.instanceId === undefined ? undefined : entries[event.instanceId];
-          if (entry) onHover?.(entry.tileId);
+          if (entry) hoverStore?.set(entry.tileId);
         }}
         onPointerLeave={(event: ThreeEvent<PointerEvent>) => {
           stopPointerEvent(event);
-          onHover?.(null);
+          hoverStore?.set(null);
         }}
         onClick={(event: ThreeEvent<MouseEvent>) => {
           stopPointerEvent(event);
@@ -89,3 +95,5 @@ export default function TileBodyBatch({
     </group>
   );
 }
+
+export default memo(TileBodyBatch);
