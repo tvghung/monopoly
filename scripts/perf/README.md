@@ -34,8 +34,8 @@ pnpm perf:benchmark --dist /tmp/otb-before/uat-dist --label before --tiers low,b
 pnpm perf:compare /tmp/otb-before/results.json /tmp/otb-after/results.json --tier balanced
 ```
 
-Options: `--tiers low,balanced,high,auto`, `--scenarios idle,dice,walk,hover,purchase,rent,build,soak|all`, `--cap 30|60|120|180|240`
-(the harness FPS limit), `--replays 5`, `--soak-replays 30`, `--idle-seconds 10`, `--window 1536x864`, `--gpu default|intel|nvidia`
+Options: `--tiers low,balanced,high,auto`, `--scenarios idle,dice,walk,hover,volume,socket,purchase,rent,build,soak|all`, `--cap 30|60|120|180|240`
+(the harness FPS limit), `--replays 5`, `--soak-replays 30`, `--soak-warmup 3`, `--idle-seconds 10`, `--window 1536x864`, `--gpu default|intel|nvidia`
 (adds `--force_low_power_gpu` / `--force_high_performance_gpu` on hybrid laptops), `--diagnostics on|off`, `--lite`,
 `--assert-idle` (exit code 1 unless every idle window has 0 scene submissions and the probe provably saw frames).
 
@@ -54,6 +54,8 @@ presentation events are scripted, so every replay is the same gameplay trace. On
 | `dice` | `dice-contact-shadows` | Two dice rolls and settles |
 | `walk` | `walk` | Dice roll, destination preview, five hops, landing, turn handoff |
 | `hover` | `board-readability` | Mouse sweep across the first 18 tiles (150 ms per tile) per sweep, `--replays` sweeps |
+| `volume` | `board-readability` | Master-volume slider moved through `--volume-steps` (20) values, 50 ms apart, per sweep: a setting unrelated to the picture, so 0 R3F commits and 0 scene submissions are expected |
+| `socket` | `board-readability` | `--volume-steps` (20) room updates that change nothing on the board (a log line, as a chat or presence update does) per sweep: 0 scene submissions expected; R3F commits are bounded by the context bridge (see the B2 record) |
 | `purchase` | `purchase` | Property purchase |
 | `rent` | `rent` | Rent payment (money transfer coins) |
 | `build` | `house-2` | Building construction (two houses) |

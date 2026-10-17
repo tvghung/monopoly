@@ -31,7 +31,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
 const probePath = path.join(here, 'probe-init.js');
 
-const ALL_SCENARIOS = ['idle', 'dice', 'walk', 'hover', 'volume', 'purchase', 'rent', 'build', 'soak'];
+const ALL_SCENARIOS = ['idle', 'dice', 'walk', 'hover', 'volume', 'socket', 'purchase', 'rent', 'build', 'soak'];
 /** Harness fixture behind each benchmark scenario (apps/client/src/dev/phase4-uat/Phase4UatHarness.tsx). */
 const FIXTURE = {
   idle: 'board-readability',
@@ -39,6 +39,7 @@ const FIXTURE = {
   walk: 'walk',
   hover: 'board-readability',
   volume: 'board-readability',
+  socket: 'board-readability',
   purchase: 'purchase',
   rent: 'rent',
   build: 'house-2',
@@ -67,6 +68,7 @@ function parseArgs(argv) {
       case '--cap': options.cap = Number(value()); break;
       case '--replays': options.replays = Number(value()); break;
       case '--soak-replays': options.soakReplays = Number(value()); break;
+      case '--soak-warmup': options.soakWarmup = Number(value()); break;
       case '--idle-seconds': options.idleSeconds = Number(value()); break;
       case '--gpu': options.gpu = value(); break;
       case '--diagnostics': options.diagnostics = value(); break;
@@ -392,6 +394,50 @@ async function runVolume(context, base, options, tier, facts) {
   }
 }
 
+/**
+ * Sends `--volume-steps` room updates that change nothing on the board (the harness's "Cập nhật phòng" button appends a log
+ * line, as a chat or presence update does), 50 ms apart, `--replays` times. The picture is the same, so the scene must not
+ * submit a frame for them.
+ */
+async function runSocket(context, base, options, tier, facts) {
+  const { page, errors } = await openHarness(context, harnessUrl(base, {
+    fixture: FIXTURE.socket, tier, cap: options.cap, diagnostics: options.diagnostics, lite: options.lite,
+  }));
+  try {
+    const button = page.getByRole('button', { name: /Cập nhật phòng/ });
+    await button.waitFor({ state: 'attached', timeout: 10_000 });
+    const sweep = async () => {
+      const start = await page.evaluate(() => window.__PROBE__.mark('socket-start'));
+      for (let step = 0; step < options.volumeSteps; step += 1) {
+        await button.click();
+        await sleep(50);
+      }
+      await sleep(500);
+      const end = await page.evaluate(() => window.__PROBE__.mark('socket-end'));
+      return { start, end };
+    };
+    const store = newStore();
+    await drain(page, store);
+    await sweep(); // warm-up sweep
+    await sleep(500);
+    await drain(page, store);
+    const measured = [];
+    for (let index = 0; index < options.replays; index += 1) {
+      measured.push(await sweep());
+      await sleep(500);
+      await drain(page, store);
+    }
+    return {
+      tier, scenario: 'socket', fixture: FIXTURE.socket, fpsCap: options.cap, sweeps: options.replays,
+      changesPerSweep: options.volumeSteps,
+      warm: summarize(store, measured, { cap: options.cap, refreshHz: facts.refreshHz }),
+      errors,
+    };
+  } finally {
+    await page.close();
+  }
+}
+
 async function sampleResources(page, cdp) {
   await cdp.send('HeapProfiler.collectGarbage');
   await cdp.send('HeapProfiler.collectGarbage');
@@ -497,6 +543,7 @@ async function main() {
         let result;
         if (scenario === 'idle') result = await runIdle(context, base, options, tier, facts);
         else if (scenario === 'hover') result = await runHover(context, base, options, tier, facts, centers);
+        else if (scenario === 'socket') result = await runSocket(context, base, options, tier, facts);
         else if (scenario === 'volume') result = await runVolume(context, base, options, tier, facts);
         else if (scenario === 'soak') result = await runSoak(context, base, options, tier, facts);
         else result = await runReplayScenario(context, base, options, tier, scenario, facts);

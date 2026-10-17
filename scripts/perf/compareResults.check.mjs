@@ -89,6 +89,6 @@ test('the volume rows are per sweep and the table takes its column labels from t
 });
 
 test('every comparison row names a scenario the benchmark can run', () => {
-  const runnable = new Set(['idle', 'dice', 'walk', 'hover', 'volume', 'purchase', 'rent', 'build', 'soak']);
+  const runnable = new Set(['idle', 'dice', 'walk', 'hover', 'volume', 'socket', 'purchase', 'rent', 'build', 'soak']);
   for (const row of comparisonRows()) assert.ok(runnable.has(row.scenario), row.label);
 });
