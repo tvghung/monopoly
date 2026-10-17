@@ -9,6 +9,7 @@ import stateContext from '../internal';
 import type { StateContextValue } from '../types';
 import { PresentationController } from '../game/presentation/PresentationController';
 import { PresentationProvider } from '../game/presentation/PresentationProvider';
+import { sameScenePresentation, selectScenePresentation } from '../game/scene/board/boardRenderModel';
 import { cloneRoom, makeRoom } from '../game/presentation/testFixtures';
 import type { GameSceneProps } from '../game/scene/GameScene';
 import { useSettings } from '../settings/selectors';
@@ -22,7 +23,7 @@ import Board from './Board';
  * contract the real one has (it is `memo`ised, so it renders only when a prop changes).
  */
 // The module registry is reset first so these mocks apply whichever test file ran before in the same worker.
-const scene = vi.hoisted(() => { vi.resetModules(); return { renders: 0, props: null }; });
+const scene = vi.hoisted((): { renders: number; props: unknown } => { vi.resetModules(); return { renders: 0, props: null }; });
 vi.mock('../game/scene/GameScene', async () => {
   const { memo: memoize } = await import('react');
   const { useEffect: useCommitEffect } = await import('react');
@@ -109,10 +110,12 @@ describe('the 3D scene is not re-rendered by what it does not draw', () => {
     await mount();
     const store = lastProps().hoverStore;
     const before = scene.renders;
-    act(() => {
-      for (let tileId = 0; tileId < 18; tileId += 1) store?.set(tileId);
-      store?.set(null);
-    });
+    // One act per tile: a batch that ends where it began would hide a render per step.
+    for (let tileId = 0; tileId < 18; tileId += 1) {
+      act(() => store?.set(tileId));
+      expect(store?.get()).toBe(tileId);
+    }
+    act(() => store?.set(null));
     expect(scene.renders).toBe(before);
     expect(store?.get()).toBeNull();
   });
@@ -171,6 +174,32 @@ describe('the 3D scene is not re-rendered by what it does not draw', () => {
     expect(modelAfter?.tiles[1]?.ownerId).toBe('player-b');
     expect(modelAfter?.tiles[2]).toBe(modelBefore?.tiles[2]);
   });
+
+  it('renders the scene at most once per change of what it draws while a roll and a walk play', async () => {
+    const { controller, room } = await mount();
+    let previous = selectScenePresentation(controller.getState());
+    let sliceChanges = 0;
+    controller.store.subscribe(() => {
+      const next = selectScenePresentation(controller.store.getSnapshot());
+      if (sameScenePresentation(previous, next)) return;
+      sliceChanges += 1;
+      previous = next;
+    });
+    const before = scene.renders;
+    const live = cloneRoom(room);
+    live.gameState.boardState.diceValue = { dice1: 2, dice2: 3 };
+    live.gameState.boardState.rollSequence = 1;
+    live.gameState.players['player-a'].currentTile = 5;
+    act(() => setRoom(live));
+    act(() => { controller.acceptRoomSnapshot(live, 'LIVE_UPDATE'); });
+    await act(async () => { await controller.queue.whenIdle(); });
+    const renders = scene.renders - before;
+    // The roll and five hops really change the scene many times; none of them may render it twice, and nothing else renders it.
+    expect(sliceChanges).toBeGreaterThan(3);
+    expect(renders).toBeGreaterThan(0);
+    expect(renders).toBeLessThanOrEqual(sliceChanges + 1);
+    expect(lastProps().model?.players.find(player => player.playerId === 'player-a')?.tileId).toBe(5);
+  }, 30_000);
 
   it('keeps the callbacks it passes stable across its own re-renders', async () => {
     const { controller } = await mount();

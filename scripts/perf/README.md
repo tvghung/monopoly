@@ -13,6 +13,8 @@ game: the probe is injected from outside and the harness is a development/UAT bu
 | `compareResults.mjs` | Before/after table from two reports; flags non-comparable conditions; unit tested by `compareResults.check.mjs` |
 | `captureCompare.mjs` | Before/after **visual equivalence**: renders the same settled harness states from two bundles in the same browser and compares the screenshots pixel by pixel (see [Visual equivalence](#visual-equivalence)) |
 | `captureMotion.mjs` | Mid-animation pixel comparison of the tile impact (depression, rebound, highlight) at fixed simulated times through the harness's `?tile-impact-probe=1`, with a built-in determinism control (`--repeat-self`) and a check that the animation is visible in the compared frames |
+| `captureHover.mjs` | Before/after **hover and selection** check (Phase B2): the canvas with tiles hovered, after the pointer left and after a click, the inspection dialog, and the 2v2 owner hover card, from two bundles, with a control (one bundle against itself) |
+| `cpuProfile.mjs`, `heapSample.mjs` | Diagnosis tools (not benchmarks): a V8 CPU profile of warm replays ranked by self and inclusive time, and the allocation sites still alive after N replays, optionally with the JIT off; they say *where* to look, never what a frame costs |
 | `lifecycleCheck.mjs` | Structural GPU-resource ownership check in a real browser: inspects the live three.js scene during dice rolls, walks with the destination preview and construction bursts, switches tiers live and forces a WebGL context loss; `--expect-persistent` asserts one material per shared effect for the whole session; works on a bundle (`--dist`) or a running dev server (`--base-url`, React StrictMode) |
 | `pngDiff.mjs` | Dependency-free PNG decode/encode, pixel comparison and diff image; unit tested by `pngDiff.check.mjs` |
 | `staticServer.mjs` | The static file server `captureCompare.mjs` serves a bundle with |
@@ -112,6 +114,24 @@ It writes `before/*.png`, `after/*.png`, `diff/*.png` (only for states that diff
 settled scene, never a frame in the middle of an animation, because mid-animation pixels depend on frame timing; animation
 behavior is covered by the unit tests and by the benchmark counters. Both bundles must be rendered by the same browser on the
 same GPU: pixels from different GPUs or drivers are not comparable.
+
+### Finding the cause
+
+```bash
+node scripts/perf/cpuProfile.mjs --dist <dist> --scenario dice --replays 3        # heaviest functions and React components
+node scripts/perf/heapSample.mjs --dist <dist> --scenario walk --warmup 3 --replays 30   # retained allocation sites
+JSFLAGS="--no-opt --no-sparkplug --no-maglev" node scripts/perf/heapSample.mjs ...        # the same with the JIT tiers off
+```
+
+Read the heap growth with the JIT in mind: `Runtime.getHeapUsage` includes compiled code and feedback vectors, which keep growing for tens of replays after load. Compare growth with a longer `--soak-warmup` (or with the JIT off) before attributing it to retained objects.
+
+### Hover and selection
+
+```bash
+pnpm perf:hover-compare --before <dist> --after <dist> --out <dir>
+```
+
+Hover is a store, not React state (B2), so the same tiles are hovered in two bundles and the scene is captured while it is static: every hovered state must be pixel-identical, the dialog must open on a click and close on Escape, and in a 2v2 game the owner card must say the same thing. A state that differs while the control is clean fails the run.
 
 ### Mid-animation and ownership checks
 
