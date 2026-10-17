@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useContext, useEffect, useRef } from 'react';
 import {
   Bloom, EffectComposer, N8AO, ToneMapping, Vignette,
 } from '@react-three/postprocessing';
 import { ToneMappingMode, type EffectComposer as EffectComposerImpl } from 'postprocessing';
 import { registerComposerPassCounter } from '../diagnostics/composerPasses';
+import { WarmupHostContext } from '../warmup/warmupHost';
 import {
   POST_AMBIENT_OCCLUSION,
   POST_BLOOM,
@@ -36,6 +37,26 @@ function configureAmbientOcclusionPass(pass: AmbientOcclusionPass | null): void 
  */
 export default function ScenePostEffects() {
   const composerRef = useRef<EffectComposerImpl | null>(null);
+  const warmupHost = useContext(WarmupHostContext);
+
+  // The warm-up compiles the scene as this chain draws it (into its input buffer), so it needs the chain once it exists. The
+  // composer is created in an effect of its own and gets its passes one render later, so the chain is announced when they are there.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const announce = () => {
+      const composer = composerRef.current;
+      if (composer && composer.passes.length > 1) {
+        warmupHost.registerPostChain(composer);
+        return;
+      }
+      timer = setTimeout(announce, 16);
+    };
+    announce();
+    return () => {
+      clearTimeout(timer);
+      warmupHost.registerPostChain(null);
+    };
+  }, [warmupHost]);
 
   // The scene render pass draws the board rather than filtering an image, so it is not counted.
   useEffect(() => registerComposerPassCounter(

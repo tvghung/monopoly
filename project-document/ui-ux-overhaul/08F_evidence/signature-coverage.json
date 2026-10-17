@@ -1,0 +1,81 @@
+{
+ "note": "Stable = present in all 20 launches of the main bundle. Covered = linked in at least one launch of the B3 bundle (all 20 launches link the same 32).",
+ "mainStableSignatures": 42,
+ "b3StableSignatures": 32,
+ "coveredByB3": 30,
+ "notLinkedByB3": [
+  {
+   "sig": "6823e9cc-159d4905",
+   "name": "KitOpaque",
+   "instanced": false,
+   "withEnvironment": false
+  },
+  {
+   "sig": "befa737e-159d4905",
+   "name": "KitOpaque",
+   "instanced": true,
+   "withEnvironment": false
+  },
+  {
+   "sig": "4a35c469-56e32137",
+   "name": "(MeshPhysicalMaterial)",
+   "instanced": true,
+   "withEnvironment": false
+  },
+  {
+   "sig": "edf729dc-3c79441",
+   "name": "(MeshStandardMaterial)",
+   "instanced": true,
+   "withEnvironment": false
+  },
+  {
+   "sig": "748d644c-2cdbe6c2",
+   "name": "(MeshStandardMaterial)",
+   "instanced": true,
+   "withEnvironment": false
+  },
+  {
+   "sig": "754d5643-4eebc5b6",
+   "name": "TileDividerMaterial",
+   "instanced": true,
+   "withEnvironment": false
+  },
+  {
+   "sig": "42ccb07-8e6a6678",
+   "name": "DistrictSurfaceMaterial:oldTownStone",
+   "instanced": true,
+   "withEnvironment": false
+  },
+  {
+   "sig": "c5152827-831acea9",
+   "name": "(MeshStandardMaterial)",
+   "instanced": false,
+   "withEnvironment": false
+  },
+  {
+   "sig": "a5bf94d0-3c79441",
+   "name": "(MeshStandardMaterial)",
+   "instanced": false,
+   "withEnvironment": false
+  },
+  {
+   "sig": "52821dcd-aa6a219e",
+   "name": "(MeshStandardMaterial)",
+   "instanced": false,
+   "withEnvironment": false
+  },
+  {
+   "sig": "3050bb3f-a1ba60db",
+   "name": "(MeshBasicMaterial)",
+   "instanced": true,
+   "withEnvironment": false
+  },
+  {
+   "sig": "edf729dc-c9276ee2",
+   "name": "(MeshStandardMaterial)",
+   "instanced": true,
+   "withEnvironment": false
+  }
+ ],
+ "onlyInB3": 2
+}

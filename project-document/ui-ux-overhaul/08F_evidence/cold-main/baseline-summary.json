@@ -1,0 +1,245 @@
+{
+  "runs": 20,
+  "environment": {
+    "commit": "dfb1e3172fa67ded31c0007684ce99ab8f2df6c2",
+    "cpu": "11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHz",
+    "os": "Windows_NT 10.0.26200",
+    "node": "v24.15.0",
+    "window": "1536x864",
+    "cap": 60,
+    "dist": "dist-main",
+    "capturedAt": "2026-10-17T14:23:12.875Z"
+  },
+  "signaturesAfterFirstTurn": {
+    "count": 20,
+    "min": 42,
+    "mean": 42.4,
+    "median": 42,
+    "p95": 43,
+    "p99": 43,
+    "max": 43
+  },
+  "identicalToRun1": 8,
+  "differencesFromRun1": [
+    {
+      "run": 2,
+      "onlyInRun1": [
+        "9663196d-7814f1f6"
+      ],
+      "onlyInThisRun": []
+    },
+    {
+      "run": 3,
+      "onlyInRun1": [
+        "9663196d-7814f1f6"
+      ],
+      "onlyInThisRun": []
+    },
+    {
+      "run": 5,
+      "onlyInRun1": [
+        "9663196d-7814f1f6"
+      ],
+      "onlyInThisRun": []
+    },
+    {
+      "run": 6,
+      "onlyInRun1": [
+        "9663196d-7814f1f6"
+      ],
+      "onlyInThisRun": []
+    },
+    {
+      "run": 7,
+      "onlyInRun1": [
+        "9663196d-7814f1f6"
+      ],
+      "onlyInThisRun": []
+    },
+    {
+      "run": 9,
+      "onlyInRun1": [
+        "9663196d-7814f1f6"
+      ],
+      "onlyInThisRun": []
+    },
+    {
+      "run": 10,
+      "onlyInRun1": [
+        "9663196d-7814f1f6"
+      ],
+      "onlyInThisRun": []
+    },
+    {
+      "run": 11,
+      "onlyInRun1": [
+        "9663196d-7814f1f6"
+      ],
+      "onlyInThisRun": []
+    },
+    {
+      "run": 12,
+      "onlyInRun1": [
+        "9663196d-7814f1f6"
+      ],
+      "onlyInThisRun": []
+    },
+    {
+      "run": 15,
+      "onlyInRun1": [
+        "9663196d-7814f1f6"
+      ],
+      "onlyInThisRun": []
+    },
+    {
+      "run": 19,
+      "onlyInRun1": [
+        "9663196d-7814f1f6"
+      ],
+      "onlyInThisRun": []
+    },
+    {
+      "run": 20,
+      "onlyInRun1": [
+        "9663196d-7814f1f6"
+      ],
+      "onlyInThisRun": []
+    }
+  ],
+  "secondTurnFirstUse": {
+    "count": 20,
+    "min": 0,
+    "mean": 0,
+    "median": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+  },
+  "coldLinks": {
+    "count": 20,
+    "min": 49,
+    "mean": 49.4,
+    "median": 49,
+    "p95": 50,
+    "p99": 50,
+    "max": 50
+  },
+  "coldFirstUse": {
+    "count": 20,
+    "min": 42,
+    "mean": 42.4,
+    "median": 42,
+    "p95": 43,
+    "p99": 43,
+    "max": 43
+  },
+  "coldLongestActiveFrameMs": {
+    "count": 20,
+    "min": 2533.3000000044703,
+    "mean": 2617.220000001043,
+    "median": 2613.4000000059605,
+    "p95": 2729.2000000029802,
+    "p99": 2739.6999999955297,
+    "max": 2739.6999999955297
+  },
+  "coldLongestCallbackMs": {
+    "count": 20,
+    "min": 2454.3000000044703,
+    "mean": 2518.5000000003724,
+    "median": 2524,
+    "p95": 2569,
+    "p99": 2591.2000000029802,
+    "max": 2591.2000000029802
+  },
+  "coldLongestActiveIntervalMs": {
+    "count": 20,
+    "min": 2533.3000000044703,
+    "mean": 2617.220000001043,
+    "median": 2613.4000000059605,
+    "p95": 2729.2000000029802,
+    "p99": 2739.6999999955297,
+    "max": 2739.6999999955297
+  },
+  "coldLongestIdleGapMs": {
+    "count": 20,
+    "min": 2496.7000000029802,
+    "mean": 2566.2450000006706,
+    "median": 2527.5,
+    "p95": 2663.5,
+    "p99": 2736.7999999970198,
+    "max": 2736.7999999970198
+  },
+  "coldMaxLongTaskMs": {
+    "count": 20,
+    "min": 2463,
+    "mean": 2524.85,
+    "median": 2527,
+    "p95": 2573,
+    "p99": 2598,
+    "max": 2598
+  },
+  "firstTurnLongestActiveFrameMs": {
+    "count": 20,
+    "min": 2533.3000000044703,
+    "mean": 2617.220000001043,
+    "median": 2613.4000000059605,
+    "p95": 2729.2000000029802,
+    "p99": 2739.6999999955297,
+    "max": 2739.6999999955297
+  },
+  "secondTurnLongestActiveFrameMs": {
+    "count": 20,
+    "min": 30.100000001490116,
+    "mean": 32.519999999925496,
+    "median": 31.599999994039536,
+    "p95": 38.600000001490116,
+    "p99": 41.5,
+    "max": 41.5
+  },
+  "linksBeforeTurnStart": {
+    "count": 20,
+    "min": 0,
+    "mean": 12.6,
+    "median": 21,
+    "p95": 21,
+    "p99": 21,
+    "max": 21
+  },
+  "linksAfterTurnStart": {
+    "count": 20,
+    "min": 28,
+    "mean": 36.8,
+    "median": 28,
+    "p95": 50,
+    "p99": 50,
+    "max": 50
+  },
+  "timeToPlayableMs": {
+    "count": 20,
+    "min": 2121.1999999955297,
+    "mean": 2173.8750000003724,
+    "median": 2161.8000000044703,
+    "p95": 2228.2999999970198,
+    "p99": 2241.5,
+    "max": 2241.5
+  },
+  "readySeconds": {
+    "count": 20,
+    "min": 9.204,
+    "mean": 9.568200000000001,
+    "median": 9.544,
+    "p95": 9.817,
+    "p99": 9.89,
+    "max": 9.89
+  },
+  "programsAfterSecondTurn": {
+    "count": 20,
+    "min": 43,
+    "mean": 43.4,
+    "median": 43,
+    "p95": 44,
+    "p99": 44,
+    "max": 44
+  },
+  "withContextEvents": 0
+}

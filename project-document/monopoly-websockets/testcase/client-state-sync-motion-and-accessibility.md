@@ -403,6 +403,20 @@ development build multiplies long-frame time about 3.8×, audit PERF-19).
 - [ ] `[NOT RUN]` The Phase A reference laptop (ThinkPad T14 Gen 1, 60 Hz), Electron, battery power, other GPUs and refresh rates, a 30–60 minute packaged session.
 - [ ] `[MANUAL][OWNER]` Play a full match at Balanced and High on the target machine, watching hops, dice rolls, purchase, rent and construction for hitches, and compare with the previous build.
 
+## Performance program B3 checks (shader warm-up)
+
+Evidence and numbers: [08F](../../ui-ux-overhaul/08F_PHASE_B3_IMPLEMENTATION.md). Rules: [game-board.instruction.md](../Client/game-board.instruction.md)
+"Shader warm-up".
+
+- [x] `[AUTO][CLIENT]` `shaderCompile.test.ts`, `warmupRunner.test.ts`: all batches are started before any wait; each program is finished once; the render target is bound only while compiling and restored (also when `compile` throws); a program that never becomes ready ends as `timeout`, an abort as `aborted`; without parallel compile the first use is done in slices; `otb:warmup:done` is never emitted for a timeout, an abort or a throwing renderer.
+- [x] `[AUTO][CLIENT]` `warmupHost.test.ts`, `demandFrameScheduler.test.ts` (hold): frames are held from canvas creation, hold/release are idempotent and nest, the watchdog releases a hold that never ends, an invalidation made while held is drawn after the release, a hidden tab becoming visible does not start frames while held, the post chain rendezvous resolves on arrival, timeout, abort and dispose.
+- [x] `[AUTO][CLIENT]` `ShaderWarmup.test.tsx`: holds, warms, releases and invalidates; a tier switch cancels the run it replaces, uses its own reason and does not release a hold the newer run needs; shadow depth fixtures only while shadows are on; a restored context and an unmount are handled.
+- [x] `[AUTO][CLIENT]` `warmupFixtures.test.ts`, `warmupPostChain.test.ts`, `warmupTextures.test.ts`: depth fixtures follow side, alpha test, maps, instancing, instance color and attribute layout of the casters; the standee, dice (by tier), preview and construction fixtures are built once and released on dispose; post chain materials are found without walking into the scene, renderer or targets; only ready textures are uploaded.
+- [x] `[PROBE]` `pnpm perf:warmup-check`: cold launches (empty Chrome profile) of the scripted scenarios at Balanced and of walk, 4 houses and dice at Low and High, plus a live Low → Balanced → High → Low → High → Balanced switch sequence: marks present and ordered, 0 program links after `otb:warmup:done`, longest callback after it ≤ 300 ms, no page error (08F §6).
+- [ ] `[PARTIAL]` T1 (cold longest active frame ≤ 300 ms) and T2 are met on the measuring machine; T3 covers 30 of the 42 cold signatures (the 12 pre-environment variants are no longer asked for); T5 (time-to-playable) is **not met**, see 08F §7.
+- [ ] `[NOT RUN]` The original baseline machine (Core i5-10210U, Windows 10), Electron, other GPUs, the real lobby-to-board path, a 30–60 minute session.
+- [ ] `[MANUAL][OWNER]` Launch the packaged game with a fresh GPU cache and start a match at Balanced and High: the board should appear once, without a multi-second freeze, and the first roll, walk, purchase and build should not hitch.
+
 ## Performance program B2 checks (React render fan-out)
 
 Evidence and numbers: [08C](../../ui-ux-overhaul/08C_PHASE_B2_IMPLEMENTATION.md). Rules: [game-board.instruction.md](../Client/game-board.instruction.md)

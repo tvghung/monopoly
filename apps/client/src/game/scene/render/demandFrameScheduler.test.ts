@@ -139,4 +139,72 @@ describe('DemandFrameScheduler', () => {
     expect(host.frames.size).toBe(0);
     expect(host.visibilityListeners.size).toBe(0);
   });
+
+  describe('hold (shader warm-up)', () => {
+    it('draws nothing while held, keeps the invalidation, and draws the latest state once released', () => {
+      const host = new FakeFrameHost();
+      const advance = vi.fn();
+      const scheduler = new DemandFrameScheduler(60, advance, host);
+      const release = scheduler.hold();
+
+      scheduler.invalidate();
+      expect(scheduler.isHeld).toBe(true);
+      expect(host.frames.size).toBe(0);
+      expect(host.timers.size).toBe(0);
+
+      release();
+      expect(scheduler.isHeld).toBe(false);
+      expect(host.frames.size).toBe(1);
+      host.renderAt(10);
+      expect(advance).toHaveBeenCalledTimes(1);
+      scheduler.dispose();
+    });
+
+    it('cancels a frame that was already scheduled when the hold starts', () => {
+      const host = new FakeFrameHost();
+      const advance = vi.fn();
+      const scheduler = new DemandFrameScheduler(60, advance, host);
+      scheduler.invalidate();
+      expect(host.frames.size).toBe(1);
+
+      const release = scheduler.hold();
+      expect(host.frames.size).toBe(0);
+      host.renderAt(5);
+      expect(advance).not.toHaveBeenCalled();
+
+      release();
+      host.renderAt(10);
+      expect(advance).toHaveBeenCalledTimes(1);
+      scheduler.dispose();
+    });
+
+    it('nests, and a release is idempotent', () => {
+      const host = new FakeFrameHost();
+      const scheduler = new DemandFrameScheduler(60, vi.fn(), host);
+      const first = scheduler.hold();
+      const second = scheduler.hold();
+      scheduler.invalidate();
+
+      first();
+      first();
+      expect(scheduler.isHeld).toBe(true);
+      expect(host.frames.size).toBe(0);
+
+      second();
+      expect(scheduler.isHeld).toBe(false);
+      expect(host.frames.size).toBe(1);
+      scheduler.dispose();
+    });
+
+    it('does not start frames when a hidden tab becomes visible while held', () => {
+      const host = new FakeFrameHost();
+      const scheduler = new DemandFrameScheduler(60, vi.fn(), host);
+      scheduler.hold();
+      scheduler.invalidate();
+      host.setVisible(false);
+      host.setVisible(true);
+      expect(host.frames.size).toBe(0);
+      scheduler.dispose();
+    });
+  });
 });

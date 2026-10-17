@@ -29,6 +29,7 @@ export class DemandFrameScheduler {
   private timeoutId: number | null = null;
   private inFrame = false;
   private disposed = false;
+  private holds = 0;
   private readonly removeVisibilityListener: () => void;
 
   constructor(
@@ -51,6 +52,27 @@ export class DemandFrameScheduler {
     this.schedule();
   };
 
+  /**
+   * Stops frames from being produced until the returned release function is called (shader warm-up). Invalidations made
+   * meanwhile are kept, so the first frame after the last release draws the latest state. Holds nest; each release is
+   * idempotent.
+   */
+  hold(): () => void {
+    this.holds += 1;
+    this.cancelScheduled();
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.holds = Math.max(0, this.holds - 1);
+      this.schedule();
+    };
+  }
+
+  get isHeld(): boolean {
+    return this.holds > 0;
+  }
+
   setFpsLimit(fpsLimit: number): void {
     if (this.disposed || fpsLimit === this.fpsLimit) return;
     this.fpsLimit = fpsLimit;
@@ -67,7 +89,7 @@ export class DemandFrameScheduler {
   }
 
   private schedule(): void {
-    if (this.disposed || this.pendingFrames === 0 || this.frameId !== null || this.timeoutId !== null
+    if (this.disposed || this.holds > 0 || this.pendingFrames === 0 || this.frameId !== null || this.timeoutId !== null
       || !this.host.isVisible()) return;
     const dueAt = this.lastFrameAt === null ? this.host.now() : this.lastFrameAt + 1000 / this.fpsLimit;
     const delay = dueAt - this.host.now() - 1;
