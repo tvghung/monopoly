@@ -1,0 +1,68 @@
+{
+  "environment": {
+    "commit": "088e4931f9857f18ba28dd68f980c0db0e5db0b6",
+    "branch": "investigate/phase-b3-08e",
+    "workingTreeDirty": true,
+    "capturedAt": "2026-10-17T08:20:20.646Z",
+    "node": "v24.21.0",
+    "os": "Windows_NT 10.0.19044 x64",
+    "cpu": "Intel(R) Core(TM) i5-10210U CPU @ 1.60GHz (8 logical)",
+    "memoryGiB": 15.8,
+    "options": {
+      "label": "series-18",
+      "tiers": [
+        "balanced"
+      ],
+      "scenarios": [
+        "soak"
+      ],
+      "cap": 60,
+      "replays": 5,
+      "soakReplays": 30,
+      "soakWarmup": 3,
+      "idleSeconds": 10,
+      "gpu": "default",
+      "diagnostics": "on",
+      "lite": false,
+      "window": "1536x864",
+      "build": false,
+      "dist": "dist-main",
+      "out": null,
+      "port": 4173,
+      "assertIdle": false,
+      "hoverTiles": 18,
+      "volumeSteps": 20,
+      "cold": false
+    }
+  },
+  "page": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+    "devicePixelRatio": 1.25,
+    "viewport": {
+      "width": 1522,
+      "height": 770
+    },
+    "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "drawingBuffer": {
+      "width": 1871,
+      "height": 930
+    },
+    "gpuTimerQuery": true,
+    "renderers": [
+      {
+        "id": 1,
+        "name": "react-dom",
+        "version": "19.2.8",
+        "bundleType": 0
+      },
+      {
+        "id": 2,
+        "name": "@react-three/fiber",
+        "version": "9.7.0",
+        "bundleType": 0
+      }
+    ],
+    "refreshHz": 59.880239520962
+  },
+  "runs": []
+}

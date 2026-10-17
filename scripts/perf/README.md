@@ -16,6 +16,7 @@ game: the probe is injected from outside and the harness is a development/UAT bu
 | `captureHover.mjs` | Before/after **hover and selection** check (Phase B2): the canvas with tiles hovered, after the pointer left and after a click, the inspection dialog, and the 2v2 owner hover card, from two bundles, with a control (one bundle against itself) |
 | `cpuProfile.mjs`, `heapSample.mjs` | Diagnosis tools (not benchmarks): a V8 CPU profile of warm replays ranked by self and inclusive time, and the allocation sites still alive after N replays, optionally with the JIT off; they say *where* to look, never what a frame costs |
 | `lifecycleCheck.mjs` | Structural GPU-resource ownership check in a real browser: inspects the live three.js scene during dice rolls, walks with the destination preview and construction bursts, switches tiers live and forces a WebGL context loss; `--expect-persistent` asserts one material per shared effect for the whole session; works on a bundle (`--dist`) or a running dev server (`--base-url`, React StrictMode) |
+| `signatures.mjs`, `soakSeries.mjs`, `b3Baseline.mjs` | Phase B3 gate (08D/08E): first-use shader program signatures (probe v3), classification of every link (initial / new variant / repeat link / context reset / renderer recreation), a fixed-count soak series and a cold-profile first-turn baseline; unit tested by `signatures.check.mjs` |
 | `pngDiff.mjs` | Dependency-free PNG decode/encode, pixel comparison and diff image; unit tested by `pngDiff.check.mjs` |
 | `staticServer.mjs` | The static file server `captureCompare.mjs` serves a bundle with |
 
@@ -165,3 +166,17 @@ reports with the same machine, GPU renderer, display refresh rate, window, Chrom
 reference laptop and any other computer, are recorded separately and never merged.
 
 On a hybrid-graphics laptop Chrome picks the GPU by Windows graphics settings; the report names the renderer it used.
+
+## Program signatures, soak series and cold baseline (B3 gate)
+
+Probe v3 keeps, for every program link, the vertex/fragment source hashes (`sig`), the defines that make the variant, the replay label, renderer/context identity and the renderer state at that moment; the soak scenario adds owners of new programs, a per-replay scene census and context/renderer/visibility events to `results.json` under `signatures`.
+
+```bash
+pnpm perf:soak-series run --dist <uat-dist> --runs 20 --out <dir>     # fixed count, fresh Chrome profile per run; then: aggregate --out <dir>
+pnpm perf:b3-baseline run --dist <uat-dist> --runs 10 --out <dir>     # cold profile, first scripted turn, second turn
+node --test scripts/perf/signatures.check.mjs
+```
+
+Stalls and throttled pages are only counted for gaps that follow a frame which scheduled a continuation; the demand-rendered scene is idle between animation steps. The run count is fixed before a series and is a cap, not a target.
+
+Frame figures separate **active** frames from **idle gaps**: the longest active frame is the larger of the longest scheduler callback and the longest rAF gap after a frame that scheduled a continuation; a gap after a frame that did not is an idle gap and is never a frame time. Any `performance.mark("otb:…")` is kept by the probe; `b3Baseline` reads `otb:warmup:start|done` (a future warm-up) and the harness's `otb:uat:turn-start:*` as independent boundaries, and reports time-to-playable (navigation to the first board frame at or after warm-up completion). See 08E §11.

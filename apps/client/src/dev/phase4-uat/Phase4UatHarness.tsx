@@ -704,6 +704,8 @@ function Phase4UatSurface() {
   }, [controller]);
 
   const applyAnimatedScenario = useCallback((key: ScenarioKey) => {
+    // UAT-only boundary for the performance probe (scripts/perf): the first scripted turn starts here, independent of load work.
+    performance.mark?.(`otb:uat:turn-start:${key}`);
     if (key === 'dice-contact-shadows') {
       commit(next => {
         next.gameState.boardState.diceValue = { dice1: 5, dice2: 2 };

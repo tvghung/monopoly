@@ -26,6 +26,7 @@ import {
   resourceTrend,
   syncWaitStats,
 } from './metrics.mjs';
+import { classCounts, classifyLinks, familyView, signatureTable, stallFrames, throttledIntervals } from './signatures.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -217,9 +218,12 @@ async function drain(page, store) {
   for (const key of Object.keys(batch)) store[key].push(...batch[key]);
 }
 
-const newStore = () => ({ frames: [], links: [], syncWaits: [], tasks: [], commits: [], loaf: [], longtasks: [], marks: [] });
+const newStore = () => ({
+  frames: [], links: [], syncWaits: [], tasks: [], commits: [], loaf: [], longtasks: [], marks: [], events: [], owners: [], census: [], contexts: [],
+});
 
-async function replayOnce(page) {
+async function replayOnce(page, label = null) {
+  if (label) await page.evaluate(value => window.__PROBE__.setReplay(value), label);
   const start = await page.evaluate(() => window.__PROBE__.mark('replay-start'));
   await page.getByRole('button', { name: /Chạy lại/ }).click();
   await page.waitForFunction(
@@ -446,6 +450,33 @@ async function sampleResources(page, cdp) {
   return { heapBytes: heap.usedSize, ...(resources ?? { geometries: null, textures: null, programs: null }) };
 }
 
+/** Scene census after a replay (objects, lights, materials, new geometries); the probe hands it over with the next drain. */
+async function censusAfterReplay(page, label) {
+  await page.evaluate(value => window.__PROBE__.census(value), label);
+}
+
+/** First-use program signatures and the events around them (08D): everything needed to diff two runs by signature. */
+function signatureReport(store, windows = null) {
+  const classified = classifyLinks(store.links, store.events);
+  const table = signatureTable(store.links);
+  const samples = store.census.map(entry => ({ t: entry.t, ...(entry.memory ?? {}) }));
+  return {
+    probeVersion: 3,
+    classCounts: classCounts(classified),
+    totalLinks: classified.length,
+    signatureCount: table.length,
+    signatures: table,
+    families: familyView(table),
+    links: classified.map(link => { const slim = { ...link }; delete slim.defines; return slim; }),
+    events: store.events,
+    owners: store.owners,
+    census: store.census,
+    contexts: store.contexts,
+    stalls: stallFrames(store.frames, store.links, { windows }),
+    throttled: throttledIntervals(store.frames, store.links, samples, { windows }),
+  };
+}
+
 async function runSoak(context, base, options, tier, facts) {
   const { page, errors } = await openHarness(context, harnessUrl(base, {
     fixture: FIXTURE.soak, tier, cap: options.cap, diagnostics: options.diagnostics, lite: options.lite,
@@ -456,14 +487,16 @@ async function runSoak(context, base, options, tier, facts) {
     await drain(page, store);
     const windows = [];
     for (let warm = 0; warm < options.soakWarmup; warm += 1) {
-      await replayOnce(page);
+      await replayOnce(page, `warmup:${warm + 1}`);
+      await censusAfterReplay(page, `warmup:${warm + 1}`);
       await sleep(500);
       await drain(page, store);
     }
     const samples = [{ replay: 0, ...(await sampleResources(page, cdp)) }];
     const checkpoint = Math.max(1, Math.round(options.soakReplays / 3));
     for (let replay = 1; replay <= options.soakReplays; replay += 1) {
-      windows.push(await replayOnce(page));
+      windows.push(await replayOnce(page, `soak:${replay}`));
+      await censusAfterReplay(page, `soak:${replay}`);
       await sleep(500);
       await drain(page, store);
       if (replay % checkpoint === 0 || replay === options.soakReplays) {
@@ -475,6 +508,7 @@ async function runSoak(context, base, options, tier, facts) {
       samples,
       trend: resourceTrend(samples),
       warm: summarize(store, windows, { cap: options.cap, refreshHz: facts.refreshHz }),
+      signatures: signatureReport(store, windows),
       errors,
     };
   } finally {

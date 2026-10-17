@@ -31,6 +31,8 @@
     "perf:hover-compare": "node scripts/perf/captureHover.mjs",
     "perf:cpu-profile": "node scripts/perf/cpuProfile.mjs",
     "perf:heap-sample": "node scripts/perf/heapSample.mjs",
+    "perf:soak-series": "node scripts/perf/soakSeries.mjs",
+    "perf:b3-baseline": "node scripts/perf/b3Baseline.mjs",
     "perf:lifecycle-check": "node scripts/perf/lifecycleCheck.mjs",
     "test:perf-tools": "node --test scripts/perf/metrics.check.mjs scripts/perf/compareResults.check.mjs scripts/perf/pngDiff.check.mjs",
     "test:registry": "node --test services/room-registry/src/index.test.mjs",
