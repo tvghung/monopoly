@@ -1096,6 +1096,18 @@ function Phase4UatSurface() {
               </select>
             </label>
             <label>
+              Âm lượng
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                aria-label="Âm lượng chính (UAT)"
+                value={settings.masterVolume}
+                onChange={event => updateSettings({ masterVolume: Number(event.target.value) })}
+              />
+            </label>
+            <label>
               <input
                 type="checkbox"
                 checked={settings.reducedMotion}

@@ -7,7 +7,7 @@ const summary = ({ links, repeat, p95, max, gpu, fps }) => ({
     intervalMs: { p95, p99: p95 + 10, max }, cpuMs: { p95: 8 }, gpuMs: { median: gpu, p95: gpu + 4 }, effectiveFps: fps, intervalsOver50Ms: 2,
   },
   programLinks: { total: links, repeat },
-  react: { tasks: { p95: 20 }, r3fCommits: 57 },
+  react: { tasks: { p95: 20 }, r3fCommits: 57, domCommits: 40 },
 });
 
 const report = (overrides = {}) => ({
@@ -68,7 +68,27 @@ test('reports from different machines or conditions are flagged as not comparabl
   assert.match(toMarkdown(compareReports(report(), other, 'balanced'), 'balanced', problems), /Not comparable/);
 });
 
+test('the volume rows are per sweep and the table takes its column labels from the caller', () => {
+  const idleFrames = { renderedFrames: 0 };
+  const volumeRun = (r3f, dom, rendered) => ({
+    tier: 'balanced',
+    scenario: 'volume',
+    sweeps: 5,
+    warm: { frames: { renderedFrames: rendered }, programLinks: { total: 0, repeat: 0 }, react: { tasks: { p95: 0 }, r3fCommits: r3f, domCommits: dom } },
+  });
+  const before = report();
+  before.runs.push(volumeRun(100, 100, 40));
+  const after = report();
+  after.runs.push({ ...volumeRun(0, 5, 0), idleFrames });
+  const rows = compareReports(before, after, 'balanced');
+  const volume = rows.find(row => row.label === 'Volume slider (20 changes): R3F commits');
+  assert.equal(volume.before, 20);
+  assert.equal(volume.after, 0);
+  assert.equal(volume.improvementPercent, 100);
+  assert.match(toMarkdown(rows, 'balanced', [], { before: 'B1', after: 'B2' }), /\| Metric \| B1 \| B2 \| Change \|/);
+});
+
 test('every comparison row names a scenario the benchmark can run', () => {
-  const runnable = new Set(['idle', 'dice', 'walk', 'hover', 'purchase', 'rent', 'build', 'soak']);
+  const runnable = new Set(['idle', 'dice', 'walk', 'hover', 'volume', 'purchase', 'rent', 'build', 'soak']);
   for (const row of comparisonRows()) assert.ok(runnable.has(row.scenario), row.label);
 });

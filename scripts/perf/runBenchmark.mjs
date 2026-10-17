@@ -31,13 +31,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
 const probePath = path.join(here, 'probe-init.js');
 
-const ALL_SCENARIOS = ['idle', 'dice', 'walk', 'hover', 'purchase', 'rent', 'build', 'soak'];
+const ALL_SCENARIOS = ['idle', 'dice', 'walk', 'hover', 'volume', 'purchase', 'rent', 'build', 'soak'];
 /** Harness fixture behind each benchmark scenario (apps/client/src/dev/phase4-uat/Phase4UatHarness.tsx). */
 const FIXTURE = {
   idle: 'board-readability',
   dice: 'dice-contact-shadows',
   walk: 'walk',
   hover: 'board-readability',
+  volume: 'board-readability',
   purchase: 'purchase',
   rent: 'rent',
   build: 'house-2',
@@ -54,7 +55,7 @@ function parseArgs(argv) {
   const options = {
     label: 'run', tiers: ['balanced'], scenarios: ['idle', 'walk'], cap: 60, replays: 5, soakReplays: 30, soakWarmup: 3,
     idleSeconds: 10, gpu: 'default', diagnostics: 'on', lite: false, window: '1536x864', build: false, dist: null,
-    out: null, port: 4173, assertIdle: false, hoverTiles: 18, cold: false,
+    out: null, port: 4173, assertIdle: false, hoverTiles: 18, volumeSteps: 20, cold: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
@@ -75,6 +76,7 @@ function parseArgs(argv) {
       case '--dist': options.dist = path.resolve(value()); break;
       case '--out': options.out = path.resolve(value()); break;
       case '--port': options.port = Number(value()); break;
+      case '--volume-steps': options.volumeSteps = Number(value()); break;
       case '--assert-idle': options.assertIdle = true; break;
       case '--cold': options.cold = true; break;
       default: throw new Error(`Unknown option ${flag}`);
@@ -345,6 +347,51 @@ async function runHover(context, base, options, tier, facts, cachedCenters) {
   }
 }
 
+/**
+ * Drags the harness's master-volume slider through `--volume-steps` values, 50 ms apart, `--replays` times. A volume change has
+ * nothing to do with the picture, so it must cost the scene nothing: no R3F commit and no scene submission.
+ */
+async function runVolume(context, base, options, tier, facts) {
+  const { page, errors } = await openHarness(context, harnessUrl(base, {
+    fixture: FIXTURE.volume, tier, cap: options.cap, diagnostics: options.diagnostics, lite: options.lite,
+  }));
+  try {
+    const slider = page.getByRole('slider', { name: /Âm lượng chính/ });
+    await slider.waitFor({ state: 'attached', timeout: 10_000 });
+    let level = 0;
+    const sweep = async () => {
+      const start = await page.evaluate(() => window.__PROBE__.mark('volume-start'));
+      for (let step = 0; step < options.volumeSteps; step += 1) {
+        level = level >= 0.95 ? 0.05 : Math.round((level + 0.05) * 100) / 100;
+        await slider.fill(String(level));
+        await sleep(50);
+      }
+      await sleep(500);
+      const end = await page.evaluate(() => window.__PROBE__.mark('volume-end'));
+      return { start, end };
+    };
+    const store = newStore();
+    await drain(page, store);
+    await sweep(); // warm-up sweep
+    await sleep(500);
+    await drain(page, store);
+    const measured = [];
+    for (let index = 0; index < options.replays; index += 1) {
+      measured.push(await sweep());
+      await sleep(500);
+      await drain(page, store);
+    }
+    return {
+      tier, scenario: 'volume', fixture: FIXTURE.volume, fpsCap: options.cap, sweeps: options.replays,
+      changesPerSweep: options.volumeSteps,
+      warm: summarize(store, measured, { cap: options.cap, refreshHz: facts.refreshHz }),
+      errors,
+    };
+  } finally {
+    await page.close();
+  }
+}
+
 async function sampleResources(page, cdp) {
   await cdp.send('HeapProfiler.collectGarbage');
   await cdp.send('HeapProfiler.collectGarbage');
@@ -450,6 +497,7 @@ async function main() {
         let result;
         if (scenario === 'idle') result = await runIdle(context, base, options, tier, facts);
         else if (scenario === 'hover') result = await runHover(context, base, options, tier, facts, centers);
+        else if (scenario === 'volume') result = await runVolume(context, base, options, tier, facts);
         else if (scenario === 'soak') result = await runSoak(context, base, options, tier, facts);
         else result = await runReplayScenario(context, base, options, tier, scenario, facts);
         report.runs.push(result);

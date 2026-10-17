@@ -21,7 +21,21 @@ export function comparisonRows() {
     { label: 'Warm walk replay: program re-links of an identical program', scenario: 'walk', pick: run => run.warm.programLinks.repeat / run.replays, unit: 'per replay', digits: 1 },
     { label: 'Hover sweep (18 tiles): program links', scenario: 'hover', pick: run => run.warm.programLinks.total / run.sweeps, unit: 'per sweep', digits: 1 },
     { label: 'Hover sweep (18 tiles): R3F commits', scenario: 'hover', pick: run => run.warm.react.r3fCommits / run.sweeps, unit: 'per sweep', digits: 1 },
+    { label: 'Hover sweep (18 tiles): React task P95', scenario: 'hover', pick: run => run.warm.react.tasks.p95, unit: 'ms', digits: 1 },
+    { label: 'Hover sweep (18 tiles): DOM commits', scenario: 'hover', pick: run => run.warm.react.domCommits / run.sweeps, unit: 'per sweep', digits: 1 },
+    { label: 'Hover sweep (18 tiles): scene submissions', scenario: 'hover', pick: run => run.warm.frames.renderedFrames / run.sweeps, unit: 'per sweep', digits: 1 },
+    { label: 'Volume slider (20 changes): R3F commits', scenario: 'volume', pick: run => run.warm.react.r3fCommits / run.sweeps, unit: 'per sweep', digits: 1 },
+    { label: 'Volume slider (20 changes): DOM commits', scenario: 'volume', pick: run => run.warm.react.domCommits / run.sweeps, unit: 'per sweep', digits: 1 },
+    { label: 'Volume slider (20 changes): scene submissions', scenario: 'volume', pick: run => run.warm.frames.renderedFrames / run.sweeps, unit: 'per sweep', digits: 1 },
+    { label: 'Walk replay: R3F commits', scenario: 'walk', pick: run => run.warm.react.r3fCommits / run.replays, unit: 'per replay', digits: 1 },
+    { label: 'Walk replay: DOM commits', scenario: 'walk', pick: run => run.warm.react.domCommits / run.replays, unit: 'per replay', digits: 1 },
+    { label: 'Dice replay: R3F commits', scenario: 'dice', pick: run => run.warm.react.r3fCommits / run.replays, unit: 'per replay', digits: 1 },
     { label: 'React task P95 (walk)', scenario: walk[0], pick: run => run.warm.react.tasks.p95, unit: 'ms', digits: 1 },
+    { label: 'React task P95 (dice)', scenario: 'dice', pick: run => run.warm.react.tasks.p95, unit: 'ms', digits: 1 },
+    { label: 'React task P95 (purchase)', scenario: 'purchase', pick: run => run.warm.react.tasks.p95, unit: 'ms', digits: 1 },
+    { label: 'React task P95 (rent)', scenario: 'rent', pick: run => run.warm.react.tasks.p95, unit: 'ms', digits: 1 },
+    { label: 'React task P95 (build)', scenario: 'build', pick: run => run.warm.react.tasks.p95, unit: 'ms', digits: 1 },
+    { label: 'React task P95 (soak: 30 walk replays)', scenario: 'soak', pick: run => run.warm.react.tasks.p95, unit: 'ms', digits: 1 },
     { label: 'Warm walk frame interval P95', scenario: 'walk', pick: run => run.warm.frames.intervalMs.p95, unit: 'ms', digits: 1 },
     { label: 'Warm walk frame interval P99', scenario: 'walk', pick: run => run.warm.frames.intervalMs.p99, unit: 'ms', digits: 1 },
     { label: 'Maximum frame interval (walk)', scenario: 'walk', pick: run => run.warm.frames.intervalMs.max, unit: 'ms', digits: 1 },
@@ -70,12 +84,14 @@ export function compareReports(before, after, tier) {
   });
 }
 
-export function toMarkdown(rows, tier, problems) {
+export function toMarkdown(rows, tier, problems, labels = {}) {
+  const beforeLabel = labels.before ?? 'Before';
+  const afterLabel = labels.after ?? 'After';
   const lines = [`Tier: \`${tier}\``, ''];
   if (problems.length > 0) {
     lines.push('**Not comparable** (the conditions differ):', '', ...problems.map(problem => `- ${problem}`), '');
   }
-  lines.push('| Metric | B0 baseline | After B1 | Change |', '| --- | --- | --- | --- |');
+  lines.push(`| Metric | ${beforeLabel} | ${afterLabel} | Change |`, '| --- | --- | --- | --- |');
   for (const row of rows) {
     const cell = (value, ran) => {
       const text = format(value, row.digits);
@@ -95,7 +111,8 @@ export function toMarkdown(rows, tier, problems) {
 
 function main() {
   const args = process.argv.slice(2);
-  const files = args.filter(arg => !arg.startsWith('--') && !['balanced', 'low', 'high', 'auto'].includes(arg));
+  const valueFlags = new Set(['--tier', '--out', '--before-label', '--after-label']);
+  const files = args.filter((arg, index) => !arg.startsWith('--') && !valueFlags.has(args[index - 1]));
   const option = name => { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : null; };
   if (files.length < 2) {
     console.error('Usage: compareResults.mjs <before results.json> <after results.json> [--tier balanced] [--out table.md]');
@@ -103,7 +120,10 @@ function main() {
   }
   const tier = option('--tier') ?? 'balanced';
   const [before, after] = files.slice(0, 2).map(file => JSON.parse(readFileSync(file, 'utf8')));
-  const markdown = toMarkdown(compareReports(before, after, tier), tier, incompatibilities(before, after));
+  const markdown = toMarkdown(compareReports(before, after, tier), tier, incompatibilities(before, after), {
+    before: option('--before-label') ?? undefined,
+    after: option('--after-label') ?? undefined,
+  });
   const out = option('--out');
   if (out) writeFileSync(out, markdown);
   process.stdout.write(markdown);
