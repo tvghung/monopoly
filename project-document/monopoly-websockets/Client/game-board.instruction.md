@@ -476,6 +476,50 @@ identical shader programs and a 30-replay soak leaked 30 geometries before; both
   `pnpm perf:visual-compare` compares settled states pixel by pixel ([scripts/perf/README.md](../../../scripts/perf/README.md)). First-use
   links of a program variant per session remain (shader warm-up is a separate batch).
 
+### React render fan-out (performance program B2)
+
+A React commit on the 3D scene is a GPU frame, so a render that changes nothing the scene draws is wasted GPU work as well as
+main-thread work. The scene is rendered only when the part of the render model it draws changes. Measured basis:
+[08C](../../ui-ux-overhaul/08C_PHASE_B2_IMPLEMENTATION.md).
+
+- **Shell and surface.** `Board` (`apps/client/src/components/Board.tsx`) is `memo`ised, takes no props and reads no game state: it owns
+  only UI state (renderer mode, selected tile, portfolio, hover store). `BoardFrame` reads `connected`, `TradePromptProvider` reads
+  `canMutate` and owns the trade target (its value is memoised), `BoardRenderSurface`
+  (`apps/client/src/components/BoardRenderSurface.tsx`) is the only component that builds the render model. A socket update or a presentation
+  tick therefore never re-renders `Board` itself.
+- **Presentation slice.** The surface reads the presentation state through `usePresentationSelector(selectScenePresentation, sameScenePresentation)`
+  (`boardRenderModel.ts`): exactly the fields `buildBoardRenderModel` reads (`SCENE_PRESENTATION_KEYS`). A tick that changes only logs,
+  activity, queue status or the card overlay does not render the surface. Every other DOM reader (`Dashboard`, `BuyPrompt`,
+  `DevelopmentPrompt`, `CardInteractionOverlay`, the HUD) uses a selector too; `usePresentation()` (every tick) has no remaining caller in
+  `apps/client/src` outside tests, and a new one is a regression.
+- **Structural sharing.** The built model is passed through `shareStructurally` (`board/shareStructurally.ts`) against the previous
+  committed model: every part with equal content keeps its previous object, a changed part gets a new one. `GameScene` and every scene layer
+  (`TileAssembly`, the batches, `DiceLayer`, `CharactersLayer`, `PlayerStationLayer`, `MoneyTransferLayer`, `PhysicalCardDecks`, houses and
+  landmark shadows, `CenterAirport`, `BoardFoundation`, `CameraAutoFocus`) is `memo`ised on these stable props. `Board3D` passes module constants,
+  not new literals, for an absent model, and `MoneyTransferLayer` takes the two slices it draws, not the model.
+- **Hover is a store, not state.** `createTileHoverStore` (`board/tileHoverStore.ts`) holds the hovered tile. The pointer handlers of the tile
+  batches and `BoardAccessibilityControls` write it; `TileBodyBatch` subscribes in a layout effect and rewrites instance colours itself
+  (one frame, no React render); `TileOwnerHoverCard` subscribes only in a 2v2 game. `GameScene` and `Board3D` receive the store, never a
+  hovered tile id or a hover callback. Selection stays a prop (a click is a real change).
+- **Settings.** The settings context value never changes while a provider is mounted: it carries a `SettingsStore` handle
+  (`settings/settingsStore.ts`). `useSettings()` subscribes to the whole store (every change re-renders the reader);
+  `useSettingsSelector(selector)` subscribes to one primitive. Everything under the canvas uses selectors (`GameScene`: `fpsLimit` and
+  `graphicsQuality`; `useEffectiveReducedMotion`: `reducedMotion`), so a volume, mute or animation-speed change commits
+  nothing on the scene. See [settings-and-audio.instruction.md](./settings-and-audio.instruction.md).
+- **react-three-fiber re-provides every ancestor context.** `Canvas` reads every context above it while it renders (its-fine `useContextBridge`),
+  so any context above the canvas whose value changes is a commit on the scene even if nothing under it reads it. Rules that follow:
+  a context above `Canvas` must change only when something the scene shows changes; the walking positions are provided around the legacy
+  board only (`LegacyPositions`), not above the whole board; `GameScene` shadows `stateContext` with a constant just above the `Canvas` so a
+  socket update does not commit the scene, which is sound only while nothing under `game/scene` imports the app state context
+  (`sceneStateIsolation.test.ts` scans for it). Other ancestor contexts (`roomExitContext`, i18n, toast, audio, update) change rarely and are
+  left alone; one that starts changing often must be shadowed or made stable the same way.
+- **Dice geometry.** `DiceLayer` owns one die body geometry for both dice, built the first time the dice are shown and kept until the layer
+  unmounts (it was built and disposed by each `Die` on every appearance).
+- **Verification.** `Board.renderIsolation.test.tsx` (the scene is not rendered for hover, settings, a log-only tick or a log-only room update,
+  and is rendered once for a real change), `useSettingsSelector.test.tsx` (selector readers, stable context), `shareStructurally.test.ts`,
+  `tileHoverStore.test.tsx`, `diceLayerMaterialLifetime.test.tsx` (geometry built once). `pnpm perf:benchmark --scenarios hover,volume,socket`
+  reports R3F commits, DOM commits and scene submissions per sweep.
+
 ### Tile-layer refinement evidence
 
 The final refinement reproduced a frame-order defect: registered TilePressRoot content received the new offset after instanced body and white-pebble footer had already sampled the previous offset. The light footer temporarily occluded attached text/art. Controller priority -1 makes every attached layer use the same displayed-frame offset without changing geometry, materials, press depths, timing, batching or socket height.

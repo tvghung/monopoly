@@ -1,0 +1,87 @@
+samples 16891, total 9968 ms over 3 replays
+  7753.2 ms  (idle) :0
+  1018.5 ms  (program) :0
+    69.2 ms  WebGLRenderer.renderBufferDirect events-156d8d12.esm-1Uu6jwdP.js:10205
+    59.8 ms  setProgram events-156d8d12.esm-1Uu6jwdP.js:10729
+    49.7 ms  updateMatrixWorld three.core-YbaC7NdB.js:9967
+    47.6 ms  projectObject events-156d8d12.esm-1Uu6jwdP.js:10488
+    39.5 ms  refreshUniformsCommon events-156d8d12.esm-1Uu6jwdP.js:8513
+    26.5 ms  getUv GameScene-N24JFglU.js:10
+    20.9 ms  upload events-156d8d12.esm-1Uu6jwdP.js:3917
+    19.4 ms  multiplyMatrices three.core-YbaC7NdB.js:8178
+    18.3 ms  getParameters events-156d8d12.esm-1Uu6jwdP.js:4587
+    18.1 ms  bindVertexArray :0
+    17.4 ms  renderObject events-156d8d12.esm-1Uu6jwdP.js:5819
+    17.0 ms  setMaterial events-156d8d12.esm-1Uu6jwdP.js:6266
+    16.2 ms  uniformMatrix4fv :0
+    14.3 ms  renderObject events-156d8d12.esm-1Uu6jwdP.js:10616
+    14.2 ms  _prepareForRender GameScene-N24JFglU.js:7040
+    13.8 ms  commitUpdate events-156d8d12.esm-1Uu6jwdP.js:17758
+    13.8 ms  getProgram events-156d8d12.esm-1Uu6jwdP.js:10632
+    13.7 ms  refreshMaterialUniforms events-156d8d12.esm-1Uu6jwdP.js:8478
+    13.3 ms  needsUpdate events-156d8d12.esm-1Uu6jwdP.js:1388
+    12.5 ms  getBindingState events-156d8d12.esm-1Uu6jwdP.js:1342
+    11.1 ms  arraysEqual events-156d8d12.esm-1Uu6jwdP.js:3403
+    10.4 ms  processBatch SettingsProvider-CjsjUqpF.js:2725
+    10.3 ms  (garbage collector) :0
+     9.7 ms  setValueV3f events-156d8d12.esm-1Uu6jwdP.js:3440
+     9.5 ms  copyArray events-156d8d12.esm-1Uu6jwdP.js:3408
+     9.3 ms  update events-156d8d12.esm-1Uu6jwdP.js:550
+     8.9 ms  renderHTML SettingsProvider-CjsjUqpF.js:7364
+     8.9 ms  renderObjects events-156d8d12.esm-1Uu6jwdP.js:10606
+     8.5 ms  setValue events-156d8d12.esm-1Uu6jwdP.js:3860
+     8.3 ms  diffProps events-156d8d12.esm-1Uu6jwdP.js:11857
+     8.3 ms  $l events-156d8d12.esm-1Uu6jwdP.js:13889
+     7.7 ms  setValue events-156d8d12.esm-1Uu6jwdP.js:3909
+     7.7 ms  applyClipRect GameScene-N24JFglU.js:6330
+     7.7 ms  update events-156d8d12.esm-1Uu6jwdP.js:2893
+     7.4 ms  equ events-156d8d12.esm-1Uu6jwdP.js:11703
+     7.2 ms  flatten events-156d8d12.esm-1Uu6jwdP.js:3385
+     6.9 ms  calculateOrthographicHalfHeight renderQuality-BuzwRTa9.js:8698
+     6.2 ms  convertBufferAttribute three.core-YbaC7NdB.js:14352
+--- inclusive, PascalCase functions
+   761.3 ms  WebGLRenderer.render
+   468.8 ms  WebGLRenderer.renderBufferDirect
+   165.6 ms  Ji
+   157.9 ms  Bu
+   143.9 ms  Yd
+   113.0 ms  WebGLShadowMap.render
+    53.1 ms  Die
+    47.5 ms  SelectiveRoundedBoxGeometry
+    41.4 ms  RoundedBoxGeometry
+    20.8 ms  Su
+    20.8 ms  Ea
+    20.8 ms  Lp
+    17.9 ms  TileTextLayer
+    13.1 ms  TableProps
+    11.3 ms  VisualElement.render
+     8.5 ms  BoardAccessibilityControls
+     7.8 ms  TileActionFeedback
+     6.9 ms  WebGLRenderer.setRenderTarget
+     6.0 ms  Board
+     5.5 ms  Oe
+     5.2 ms  Br
+     5.2 ms  Mr
+     4.6 ms  W
+     4.5 ms  Oa
+     4.3 ms  SurfaceBatchMesh
+     4.3 ms  Kl
+     4.1 ms  SdfSurfaceText
+     4.0 ms  Qr
+     4.0 ms  Di
+     4.0 ms  CanvasImpl
+     3.6 ms  RaisedSvgTileIcon
+     3.4 ms  Tu
+     3.3 ms  AnimatePresence
+     3.2 ms  BoxGeometry
+     3.2 ms  MotionValue.updateAndNotify
+     2.8 ms  R
+     2.7 ms  TradeOfferModal
+     2.7 ms  Ku
+     2.6 ms  BoardSceneContents
+     2.6 ms  Mn
+     2.5 ms  MotionDOMComponent
+     2.5 ms  WebGLRenderer.clear
+     1.9 ms  NativeAnimation
+     1.9 ms  NativeAnimationExtended
+     1.9 ms  CharacterBillboard

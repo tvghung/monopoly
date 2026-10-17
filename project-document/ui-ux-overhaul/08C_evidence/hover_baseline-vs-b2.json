@@ -1,0 +1,124 @@
+{
+  "capturedAt": "2026-10-17T03:53:41.488Z",
+  "renderer": "gpu",
+  "tiles": [
+    1,
+    3,
+    12,
+    25,
+    30
+  ],
+  "crossBundle": {
+    "rest": {
+      "identical": true,
+      "differingPixels": 0,
+      "maxChannelDelta": 0
+    },
+    "hover-1": {
+      "identical": true,
+      "differingPixels": 0,
+      "maxChannelDelta": 0
+    },
+    "hover-3": {
+      "identical": true,
+      "differingPixels": 0,
+      "maxChannelDelta": 0
+    },
+    "hover-12": {
+      "identical": true,
+      "differingPixels": 0,
+      "maxChannelDelta": 0
+    },
+    "hover-25": {
+      "identical": true,
+      "differingPixels": 0,
+      "maxChannelDelta": 0
+    },
+    "hover-30": {
+      "identical": true,
+      "differingPixels": 0,
+      "maxChannelDelta": 0
+    },
+    "after-leave": {
+      "identical": true,
+      "differingPixels": 0,
+      "maxChannelDelta": 0
+    },
+    "after-click-modal": {
+      "identical": false,
+      "differingPixels": 24560,
+      "maxChannelDelta": 2
+    }
+  },
+  "control": {
+    "rest": {
+      "identical": true,
+      "differingPixels": 0,
+      "maxChannelDelta": 0
+    },
+    "hover-1": {
+      "identical": true,
+      "differingPixels": 0,
+      "maxChannelDelta": 0
+    },
+    "hover-3": {
+      "identical": true,
+      "differingPixels": 0,
+      "maxChannelDelta": 0
+    },
+    "hover-12": {
+      "identical": true,
+      "differingPixels": 0,
+      "maxChannelDelta": 0
+    },
+    "hover-25": {
+      "identical": true,
+      "differingPixels": 0,
+      "maxChannelDelta": 0
+    },
+    "hover-30": {
+      "identical": true,
+      "differingPixels": 0,
+      "maxChannelDelta": 0
+    },
+    "after-leave": {
+      "identical": true,
+      "differingPixels": 0,
+      "maxChannelDelta": 0
+    },
+    "after-click-modal": {
+      "identical": false,
+      "differingPixels": 23362,
+      "maxChannelDelta": 2
+    }
+  },
+  "inspection": {
+    "before": {
+      "dialogOpen": true,
+      "dialogClosedAfterEscape": true
+    },
+    "after": {
+      "dialogOpen": true,
+      "dialogClosedAfterEscape": true
+    }
+  },
+  "ownerCards": {
+    "before": {
+      "1": "Cà Mau Chủ sở hữu: An Đội Rồng",
+      "2": null,
+      "3": "Bạc Liêu Chủ sở hữu: Chi Đội Rồng · Đồng đội",
+      "6": "Buôn Ma Thuột Chủ sở hữu: Bình Đội Phượng · Đối thủ",
+      "8": "Cần Thơ Chủ sở hữu: Dũng Đội Phượng · Đối thủ",
+      "afterLeave": null
+    },
+    "after": {
+      "1": "Cà Mau Chủ sở hữu: An Đội Rồng",
+      "2": null,
+      "3": "Bạc Liêu Chủ sở hữu: Chi Đội Rồng · Đồng đội",
+      "6": "Buôn Ma Thuột Chủ sở hữu: Bình Đội Phượng · Đối thủ",
+      "8": "Cần Thơ Chủ sở hữu: Dũng Đội Phượng · Đối thủ",
+      "afterLeave": null
+    },
+    "same": true
+  }
+}
