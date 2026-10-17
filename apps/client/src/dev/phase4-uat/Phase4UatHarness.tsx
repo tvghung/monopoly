@@ -1083,6 +1083,15 @@ function Phase4UatSurface() {
               {scenarios.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
             </select>
             <button type="button" onClick={() => runScenario()}><RefreshCw className="action-icon" aria-hidden="true" />Chạy lại</button>
+            <button
+              type="button"
+              onClick={() => commit(next => {
+                // A room update that changes nothing on the board: only the log line differs (a chat or presence update).
+                next.gameState.boardState.logs = [...next.gameState.boardState.logs, `Cập nhật phòng ${next.version}`];
+              })}
+            >
+              Cập nhật phòng (không đổi bàn)
+            </button>
             <button type="button" onClick={runNextScenario}><StepForward className="action-icon" aria-hidden="true" />Kịch bản kế</button>
             <button type="button" onClick={() => controller.skipAllAndSnap()}><SkipForward className="action-icon" aria-hidden="true" />Bỏ qua trình bày</button>
             <label>
@@ -1094,6 +1103,18 @@ function Phase4UatSurface() {
               >
                 {[0.75, 1, 1.5, 2].map(speed => <option key={speed} value={speed}>{speed}×</option>)}
               </select>
+            </label>
+            <label>
+              Âm lượng
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                aria-label="Âm lượng chính (UAT)"
+                value={settings.masterVolume}
+                onChange={event => updateSettings({ masterVolume: Number(event.target.value) })}
+              />
             </label>
             <label>
               <input

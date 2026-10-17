@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { DiceValue } from '@monopoly/shared';
@@ -109,6 +109,21 @@ export function useDiceTrailMaterials(count: number): THREE.MeshBasicMaterial[] 
   return materials;
 }
 
+/**
+ * The one die body geometry both dice share, owned by the always-mounted dice layer. Building it (a rounded box, six face
+ * plates, a merge) takes about as long as a frame, and each `Die` used to build and dispose its own whenever the dice appeared:
+ * on every first roll, replay and reset. It is built the first time the dice are shown (never at load) and kept until the layer
+ * goes away; the dice and their trails borrow it and never dispose it.
+ */
+export function useDiceBodyGeometry(needed: boolean): THREE.BufferGeometry | null {
+  const everNeededRef = useRef(false);
+  if (needed) everNeededRef.current = true;
+  const everNeeded = everNeededRef.current;
+  const geometry = useMemo(() => (everNeeded ? createDiceBodyGeometry() : null), [everNeeded]);
+  useEffect(() => () => geometry?.dispose(), [geometry]);
+  return geometry;
+}
+
 function DiceMotionTrail({
   geometry,
   materials,
@@ -179,6 +194,7 @@ function isValidDiceValue(dice: DiceValue): boolean {
 }
 
 function Die({
+  geometry,
   dieIndex,
   value,
   phase,
@@ -187,6 +203,7 @@ function Die({
   reducedMotion,
   trailMaterials,
 }: {
+  geometry: THREE.BufferGeometry;
   dieIndex: 0 | 1;
   value: number;
   phase: DiceRenderModel['phase'];
@@ -197,10 +214,8 @@ function Die({
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const progressRef = useDiceAnimationProgressRef();
-  const geometry = useMemo(() => createDiceBodyGeometry(), []);
   const { tier } = useRenderQuality();
   const basePosition = getDicePosition(dieIndex);
-  useEffect(() => () => geometry.dispose(), [geometry]);
   const isRolling = phase === 'ROLLING';
   const hasPreviousDice = isValidDiceFace(fromValue ?? 0);
 
@@ -252,7 +267,7 @@ function Die({
   );
 }
 
-export default function DiceLayer({
+function DiceLayer({
   model,
   reducedMotion = false,
 }: {
@@ -266,6 +281,7 @@ export default function DiceLayer({
   const firstDieTrail = useDiceTrailMaterials(trailCount);
   const secondDieTrail = useDiceTrailMaterials(trailCount);
   const contactShadowMaterial = useDiceContactShadowMaterial();
+  const bodyGeometry = useDiceBodyGeometry(hasVisibleDice);
 
   return (
     <group
@@ -275,7 +291,7 @@ export default function DiceLayer({
         centerFieldClearance: true,
       }}
     >
-      {hasVisibleDice
+      {hasVisibleDice && bodyGeometry
         ? (
           <DiceAnimationClock
             phase={model.phase === 'ROLLING' ? 'ROLLING' : 'SETTLED'}
@@ -284,6 +300,7 @@ export default function DiceLayer({
           >
             <DiceContactShadowBatch fromDice={model.fromDice} material={contactShadowMaterial} />
             <Die
+              geometry={bodyGeometry}
               dieIndex={0}
               value={model.dice.dice1}
               phase={model.phase}
@@ -293,6 +310,7 @@ export default function DiceLayer({
               trailMaterials={firstDieTrail}
             />
             <Die
+              geometry={bodyGeometry}
               dieIndex={1}
               value={model.dice.dice2}
               phase={model.phase}
@@ -307,3 +325,5 @@ export default function DiceLayer({
     </group>
   );
 }
+
+export default memo(DiceLayer);

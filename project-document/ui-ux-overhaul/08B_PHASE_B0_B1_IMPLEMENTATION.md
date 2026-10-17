@@ -360,6 +360,10 @@ this record; the owning batch inherits them.
 | B1-OPEN-2 | React task P95 during walk ≤ 8 ms ([08A K](./08A_PERFORMANCE_AUDIT.md#k-acceptance-criteria); target of the B1 task) | walk 10.1, soak 10.0, dice 21.6 ms (purchase 6.3, rent 5.7, build 7.1, hover 7.9 ms meet it); measured with this tool's method, which differs from Phase A's CPU-profile attribution | **OPEN** | B2 (a board render per presentation tick, hover and socket update is the remaining cost) |
 | B1-OPEN-3 | Idle: 0 scene submissions in a 10 s window (08A K) | 0 in 17 of 18 B1 windows; one Low window with 1 scene submission, unexplained, not reproduced in 13 reruns | **OPEN** (monitor) | whoever next changes scene mounting; re-run `pnpm perf:benchmark --scenarios idle --assert-idle` on a fresh profile |
 
+**Follow-up (batch B2, [08C](./08C_PHASE_B2_IMPLEMENTATION.md)):** B1-OPEN-2 is met (React task P95 1.1–4.4 ms in every scenario at
+every tier); B1-OPEN-1 is met after 30 warm-up replays (+0.65 MB) and not with the 3-warm-up protocol used here (+2.00 MB; the residual is
+compiled-code growth); B1-OPEN-3 stays open.
+
 These three rows are also in the pull request description. No verdict in [§6](#6-targets-from-phase-a-and-their-results) or
 [§10](#10-acceptance-checklist) was changed by the final review.
 

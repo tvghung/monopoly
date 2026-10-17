@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import settingsContext from './SettingsContext';
+import { createSettingsStore } from './settingsStore';
 import {
   DEFAULT_GAME_SETTINGS,
   normalizeSettings,
@@ -24,32 +25,34 @@ interface SettingsProviderProps {
 }
 
 export function SettingsProvider({ children, initialSettings }: SettingsProviderProps) {
-  const [settings, setSettings] = useState<GameSettings>(
-    () => initialSettings ? normalizeSettings(initialSettings) : readGameSettings(),
-  );
-  const startupFullscreenIntentRef = useRef(settings.fullscreen);
+  // The store is the one holder of the settings. The provider does not read them while rendering, so a change re-renders
+  // only the components that read the settings (`useSettings`, `useSettingsSelector`), not the provider and not what it wraps.
+  const [store] = useState(() => createSettingsStore(
+    initialSettings ? normalizeSettings(initialSettings) : readGameSettings(),
+  ));
+  const startupFullscreenIntentRef = useRef(store.getSnapshot().fullscreen);
   const startupFullscreenAppliedRef = useRef(false);
   const desktopBridge = getDesktopBridge();
 
   useEffect(() => {
-    writeGameSettings(settings);
-  }, [settings]);
+    writeGameSettings(store.getSnapshot());
+    return store.subscribe(() => writeGameSettings(store.getSnapshot()));
+  }, [store]);
 
   const updateSettings = useCallback((patch: GameSettingsPatch) => {
-    setSettings(current => normalizeSettings({ ...current, ...patch }));
-  }, []);
+    store.set(normalizeSettings({ ...store.getSnapshot(), ...patch }));
+  }, [store]);
   const resetSettings = useCallback(() => {
-    setSettings({ ...DEFAULT_GAME_SETTINGS });
+    store.set({ ...DEFAULT_GAME_SETTINGS });
     if (desktopBridge) void desktopBridge.window.setFullscreen(false);
-  }, [desktopBridge]);
+  }, [desktopBridge, store]);
 
   useEffect(() => {
     if (!desktopBridge) return undefined;
     let active = true;
     const syncFullscreen = (fullscreen: boolean) => {
-      setSettings(current => current.fullscreen === fullscreen
-        ? current
-        : normalizeSettings({ ...current, fullscreen }));
+      const current = store.getSnapshot();
+      if (current.fullscreen !== fullscreen) store.set(normalizeSettings({ ...current, fullscreen }));
     };
     const removeListener = desktopBridge.window.onFullscreenChanged(state => {
       if (active) syncFullscreen(state.fullscreen);
@@ -64,11 +67,11 @@ export function SettingsProvider({ children, initialSettings }: SettingsProvider
       active = false;
       removeListener();
     };
-  }, [desktopBridge]);
+  }, [desktopBridge, store]);
 
-  const value = useMemo(() => ({ available: true, settings, updateSettings, resetSettings }), [
+  const value = useMemo(() => ({ available: true, store, updateSettings, resetSettings }), [
     resetSettings,
-    settings,
+    store,
     updateSettings,
   ]);
 

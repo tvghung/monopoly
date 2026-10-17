@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { Tile } from '@monopoly/shared';
 import type {
   DevelopmentChangeSignal,
@@ -31,7 +32,7 @@ export interface TileAssemblyProps {
   reducedMotion?: boolean;
 }
 
-export default function TileAssembly({
+function TileAssembly({
   tileId,
   tile,
   name,
@@ -96,3 +97,5 @@ export default function TileAssembly({
     </group>
   );
 }
+
+export default memo(TileAssembly);

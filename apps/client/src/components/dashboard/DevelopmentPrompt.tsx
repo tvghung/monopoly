@@ -5,7 +5,8 @@ import { formatMoney, getTileName } from '../../presentation';
 import Modal from '../../design-system/components/Modal/Modal';
 import Button from '../../design-system/components/Button/Button';
 import { SHORT_VIEWPORT_QUERY, useMediaQuery } from '../../design-system/useMediaQuery';
-import { usePresentation } from '../../game/presentation/PresentationProvider';
+import { usePresentationSelector } from '../../game/presentation/usePresentationSelector';
+import { selectPresentationResetEpoch } from '../../game/presentation/store/selectors';
 import { buildDeedCardModel } from '../../game/ui/property/deedCardModel';
 import PropertyDeedCard from '../../game/ui/property/PropertyDeedCard';
 import './DecisionSheet.css';
@@ -17,7 +18,7 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
   const {
     state, playerId, canMutate, socketFunctions, connected, roomPlayers,
   } = useContext(stateContext);
-  const { state: presentationState } = usePresentation();
+  const presentationResetEpoch = usePresentationSelector(selectPresentationResetEpoch);
   const short = useMediaQuery(SHORT_VIEWPORT_QUERY);
   const decision = state.turnInfo.pendingLandingDecision;
   const show = canMutate && state.loaded && tokenArrived && decision?.kind !== 'PURCHASE'
@@ -37,7 +38,7 @@ export default function DevelopmentPrompt({ tokenArrived }: { tokenArrived: bool
     setPendingAction(null);
     clearError();
     return () => { requestGeneration.current += 1; };
-  }, [canMutate, clearError, connected, operationId, playerId, presentationState.presentationResetEpoch, show, tokenArrived]);
+  }, [canMutate, clearError, connected, operationId, playerId, presentationResetEpoch, show, tokenArrived]);
 
   if (!show || !decision) return <Modal open={false} title="" children={null} />;
   const player = playerId ? state.players[playerId] : undefined;

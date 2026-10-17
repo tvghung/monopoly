@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import type { DevelopmentChangeSignal } from '../../presentation/store/types';
 import { mergeKit } from './kit/lowPolyKit';
@@ -74,7 +74,7 @@ interface LandmarkShadowProxyProps {
  * stand and the main pass pays nothing (plan 05 §8.8). The geometry is rebuilt only when the set of visible landmarks changes;
  * a landmark that is still popping in leaves the set until its transition is over.
  */
-export default function LandmarkShadowProxy({ tiles, developmentChanges, reducedMotion = false }: LandmarkShadowProxyProps) {
+function LandmarkShadowProxy({ tiles, developmentChanges, reducedMotion = false }: LandmarkShadowProxyProps) {
   const { shadows } = useRenderQuality();
   const popping = useMemo(() => new Set(
     planHouseAnimations(tiles, developmentChanges ?? new Map(), reducedMotion)
@@ -91,3 +91,5 @@ export default function LandmarkShadowProxy({ tiles, developmentChanges, reduced
   if (!mesh) return null;
   return <primitive object={mesh} />;
 }
+
+export default memo(LandmarkShadowProxy);

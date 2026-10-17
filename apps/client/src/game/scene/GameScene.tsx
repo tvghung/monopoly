@@ -1,5 +1,5 @@
 import { Canvas, flushGlobalEffects, useFrame, useThree, type RootState } from '@react-three/fiber';
-import { lazy, useCallback, useEffect, useMemo, useRef } from 'react';
+import { lazy, memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import Board3D from './board/Board3D';
 import type { BoardRenderModel } from './board/boardRenderModel';
@@ -32,7 +32,11 @@ import Tabletop from './render/table/Tabletop';
 import { RenderQualityContext, useRenderQuality } from './render/RenderQualityContext';
 import { probeRenderCapabilities, resolveRenderQuality } from './render/renderQuality';
 import { SCENE_TONE_MAPPING, SCENE_TONE_MAPPING_EXPOSURE, parseToneMappingOverride } from './render/toneMapping';
-import { useSettings } from '../../settings/selectors';
+import stateContext from '../../internal';
+import type { StateContextValue } from '../../types';
+import { useSettingsSelector } from '../../settings/selectors';
+import type { GameSettings } from '../../settings/types';
+import type { TileHoverStore } from './board/tileHoverStore';
 import {
   COIN_FINISH_MATERIALS,
   COIN_FINISH_ORDER,
@@ -46,9 +50,9 @@ const ScenePostEffects = lazy(() => import('./render/post/ScenePostEffects'));
 
 export interface GameSceneProps {
   model?: BoardRenderModel;
-  hoveredTileId?: number | null;
+  /** The hovered tile (see `tileHoverStore`): a store, so hover never changes a prop and never re-renders the scene. */
+  hoverStore?: TileHoverStore;
   selectedTileId?: number | null;
-  onTileHover?: (tileId: number | null) => void;
   onTileSelect?: (tileId: number) => void;
   onRendererFailure?: (error: Error) => void;
 }
@@ -266,9 +270,8 @@ function RendererDiagnostics({
 
 function BoardSceneContents({
   model,
-  hoveredTileId,
+  hoverStore,
   selectedTileId,
-  onTileHover,
   onTileSelect,
 }: BoardSceneContentsProps) {
   const latestMovementByPlayer = new Map<string, BoardRenderModel['characterMovements'][number]>();
@@ -313,9 +316,8 @@ function BoardSceneContents({
       >
         <Board3D
           model={model}
-          hoveredTileId={hoveredTileId}
+          hoverStore={hoverStore}
           selectedTileId={selectedTileId}
-          onTileHover={onTileHover}
           onTileSelect={onTileSelect}
         />
       </TileMotionProvider>
@@ -326,17 +328,35 @@ function BoardSceneContents({
 const NO_PLAYER_PLACES: readonly { playerId: string; tileId: number }[] = [];
 const NO_DECK_COUNTS: DeckCounts = { chance: 0, chest: 0 };
 
-export default function GameScene({
+/**
+ * What the scene sees of the room state: nothing. react-three-fiber re-provides every ancestor context inside the canvas, and
+ * it does so by reading each one while the `Canvas` renders, so a context that changes at every socket update commits the
+ * scene at every update (a chat line, a presence flag), though the scene draws only what arrives through `model`. Shadowing the
+ * context just above the canvas with a value that never changes removes that commit. Nothing under `game/scene` may read
+ * `stateContext` (a source scan in `sceneStateIsolation.test.ts` keeps it so), and a component that did would fail on the first read
+ * of `state` instead of silently showing stale data.
+ */
+const SCENE_STATE_SHADOW = {} as StateContextValue;
+
+const selectFpsLimit = (settings: GameSettings): number => settings.fpsLimit;
+const selectGraphicsQuality = (settings: GameSettings): GameSettings['graphicsQuality'] => settings.graphicsQuality;
+
+/**
+ * The 3D scene. It is `memo`ised and reads only the two settings it uses (selectors, not the settings context), so a volume,
+ * language or animation-speed change, a hover and a socket update that changes nothing visible all leave it alone: a React
+ * commit here is a new frame, so every re-render that changes nothing is wasted GPU work too (Phase B2, PERF-03).
+ */
+function GameScene({
   model,
-  hoveredTileId,
+  hoverStore,
   selectedTileId,
-  onTileHover,
   onTileSelect,
   onRendererFailure,
 }: GameSceneProps) {
-  const { settings } = useSettings();
-  const fpsLimitRef = useRef(settings.fpsLimit);
-  fpsLimitRef.current = settings.fpsLimit;
+  const fpsLimit = useSettingsSelector(selectFpsLimit);
+  const graphicsQuality = useSettingsSelector(selectGraphicsQuality);
+  const fpsLimitRef = useRef(fpsLimit);
+  fpsLimitRef.current = fpsLimit;
   const frameSchedulerRef = useRef<DemandFrameScheduler | null>(null);
   const onCanvasCreated = useCallback((state: RootState) => {
     frameSchedulerRef.current?.dispose();
@@ -360,15 +380,15 @@ export default function GameScene({
     scheduler.invalidate();
   }, []);
   useEffect(() => {
-    frameSchedulerRef.current?.setFpsLimit(settings.fpsLimit);
-  }, [settings.fpsLimit]);
+    frameSchedulerRef.current?.setFpsLimit(fpsLimit);
+  }, [fpsLimit]);
   useEffect(() => () => {
     frameSchedulerRef.current?.dispose();
     frameSchedulerRef.current = null;
   }, []);
   const quality = useMemo(
-    () => resolveRenderQuality(settings.graphicsQuality, probeRenderCapabilities()),
-    [settings.graphicsQuality],
+    () => resolveRenderQuality(graphicsQuality, probeRenderCapabilities()),
+    [graphicsQuality],
   );
   // Comparison captures may override the tone mapper; real players always get Neutral.
   const toneMapping = useMemo(
@@ -379,6 +399,7 @@ export default function GameScene({
   useBoardGestures(sceneRef);
   return (
     <div ref={sceneRef} className="game-scene" data-testid="game-scene" data-graphics-tier={quality.tier}>
+      <stateContext.Provider value={SCENE_STATE_SHADOW}>
       <Canvas
         camera={BOARD_CANVAS_CAMERA}
         orthographic
@@ -419,13 +440,15 @@ export default function GameScene({
             : null}
           <BoardSceneContents
             model={model}
-            hoveredTileId={hoveredTileId}
+            hoverStore={hoverStore}
             selectedTileId={selectedTileId}
-            onTileHover={onTileHover}
             onTileSelect={onTileSelect}
           />
         </RenderQualityContext.Provider>
       </Canvas>
+      </stateContext.Provider>
     </div>
   );
 }
+
+export default memo(GameScene);

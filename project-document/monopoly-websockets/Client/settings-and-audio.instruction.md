@@ -17,8 +17,8 @@ Status: CURRENT (RELEASED in v1.7.0 unless marked CURRENT DEVELOPMENT). Foundati
 | Concern | Code |
 | --- | --- |
 | Dialog and sections | `apps/client/src/settings/SettingsPanel.tsx`, `apps/client/src/settings/SettingsPanel.css` |
-| Provider (state, write-through to storage, desktop fullscreen sync) | `apps/client/src/settings/SettingsProvider.tsx`, `apps/client/src/settings/SettingsContext.ts` |
-| Hooks (`useSettings`, `useSettingsAvailable`, `useEffectiveReducedMotion`) | `apps/client/src/settings/selectors.ts` |
+| Provider (write-through to storage, desktop fullscreen sync) and the store that holds the settings | `apps/client/src/settings/SettingsProvider.tsx`, `apps/client/src/settings/SettingsContext.ts`, `apps/client/src/settings/settingsStore.ts` |
+| Hooks (`useSettings`, `useSettingsSelector`, `useSettingsAvailable`, `useEffectiveReducedMotion`) | `apps/client/src/settings/selectors.ts` |
 | Storage, defaults, normalization, types | `apps/client/src/settings/storage.ts`, `apps/client/src/settings/defaults.ts`, `apps/client/src/settings/types.ts` |
 | `<html data-reduced-motion>` / `<html data-graphics-quality>` mirrors | `apps/client/src/settings/ReducedMotionDocumentSync.tsx`, `apps/client/src/settings/GraphicsQualityDocumentSync.tsx` |
 | Provider placement (renderer root, above `I18nProvider` and `AppBootstrap`) | `apps/client/src/index.tsx` |
@@ -26,6 +26,17 @@ Status: CURRENT (RELEASED in v1.7.0 unless marked CURRENT DEVELOPMENT). Foundati
 | Audio provider placement (only around `App`, not the launcher) | `apps/client/src/app/bootstrap/AppBootstrap.tsx` |
 | Music on/off by room status | `apps/client/src/App.tsx` (`audio.setGameActive(room?.status === 'IN_PROGRESS')`) |
 | Assets and validator | `apps/client/public/audio/music/own-the-block-main-theme-loop.ogg`, `apps/client/public/audio/sfx/`, `apps/client/scripts/validateGameplayMusicAssets.mjs` |
+
+## Reading settings (render cost)
+
+- The settings live in one `SettingsStore`; `SettingsContext` carries only a **stable** handle (`available`, `store`, `updateSettings`, `resetSettings`) that
+  never changes while a provider is mounted, and the provider itself does not re-render for a setting change.
+- `useSettings()` returns `{ available, settings, updateSettings, resetSettings }` and re-renders its caller on **every** change of any setting: use
+  it in dialogs, providers and anything that really needs several settings.
+- `useSettingsSelector(selector)` re-renders its caller only when the selected primitive changes. Use it in anything that renders often or sits
+  under the 3D canvas (`GameScene`, `useEffectiveReducedMotion`). A volume slider must not commit the scene
+  ([game-board.instruction.md](./game-board.instruction.md) "React render fan-out").
+- `updateSettings` does nothing, and notifies nobody, when the normalised result equals the current settings.
 
 ## Current behavior
 

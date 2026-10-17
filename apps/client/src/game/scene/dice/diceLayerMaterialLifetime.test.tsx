@@ -16,6 +16,8 @@ const FAKE_INSTANCED_MESH_MEMBERS = {
   instanceMatrix: { configurable: true, get: () => ({ needsUpdate: false }) },
 } satisfies PropertyDescriptorMap;
 let disposeSpy: MockInstance<() => void>;
+let bodyGeometryBuilds = 0;
+let bodyGeometryDisposals = 0;
 const disposedTypes = () => disposeSpy.mock.contexts.map(context => (context as THREE.Material).type);
 
 beforeEach(async () => {
@@ -29,6 +31,20 @@ beforeEach(async () => {
     CONTACT_SHADOW_GEOMETRY: new THREE.PlaneGeometry(1, 1),
     CONTACT_SHADOW_TEXTURE: new THREE.Texture(),
   }));
+  bodyGeometryBuilds = 0;
+  bodyGeometryDisposals = 0;
+  vi.doMock('./diceGeometry', async importOriginal => {
+    const actual = await importOriginal<typeof import('./diceGeometry')>();
+    return {
+      ...actual,
+      createDiceBodyGeometry: () => {
+        bodyGeometryBuilds += 1;
+        const geometry = actual.createDiceBodyGeometry();
+        geometry.addEventListener('dispose', () => { bodyGeometryDisposals += 1; });
+        return geometry;
+      },
+    };
+  });
   // The spy calls through; its recorded `this` values tell which material types were disposed.
   disposeSpy = vi.spyOn(THREE.Material.prototype, 'dispose');
   ({ default: DiceLayer } = await import('./DiceLayer'));
@@ -42,6 +58,7 @@ afterEach(() => {
   Reflect.deleteProperty(HTMLElement.prototype, 'instanceMatrix');
   vi.doUnmock('@react-three/fiber');
   vi.doUnmock('../fx/ContactShadow');
+  vi.doUnmock('./diceGeometry');
 });
 
 const model = (phase: DiceRenderModel['phase'], rollSequence: number): DiceRenderModel => ({
@@ -118,5 +135,32 @@ describe('dice effect materials outlive the dice and the rolls (audit PERF-05)',
     cleanup();
     const empty = render(<Tier tier="balanced"><DiceLayer model={hidden} /></Tier>);
     expect(empty.container.querySelector('group[name="ProceduralDie1"]')).toBeNull();
+  });
+});
+
+describe('the die body geometry is built once and shared (Phase B2)', () => {
+  it('is not built before the dice are first shown, and is built once for both dice', () => {
+    const view = render(<Tier tier="balanced"><DiceLayer model={hidden} /></Tier>);
+    expect(bodyGeometryBuilds).toBe(0);
+    view.rerender(<Tier tier="balanced"><DiceLayer model={model('ROLLING', 1)} /></Tier>);
+    expect(bodyGeometryBuilds).toBe(1);
+  });
+
+  it('is kept while the dice roll, settle, hide and appear again', () => {
+    const view = render(<Tier tier="balanced"><DiceLayer model={hidden} /></Tier>);
+    const sequence: DiceRenderModel[] = [
+      model('ROLLING', 1), model('SETTLED', 1), model('ROLLING', 2), model('SETTLED', 2), hidden,
+      model('ROLLING', 1), model('SETTLED', 1), hidden, model('ROLLING', 1),
+    ];
+    sequence.forEach(next => view.rerender(<Tier tier="balanced"><DiceLayer model={next} /></Tier>));
+    expect(bodyGeometryBuilds).toBe(1);
+    expect(bodyGeometryDisposals).toBe(0);
+  });
+
+  it('is released once, with the layer', () => {
+    const view = render(<Tier tier="balanced"><DiceLayer model={model('SETTLED', 1)} /></Tier>);
+    view.unmount();
+    expect(bodyGeometryBuilds).toBe(1);
+    expect(bodyGeometryDisposals).toBe(1);
   });
 });

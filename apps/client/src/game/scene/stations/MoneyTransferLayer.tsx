@@ -1,4 +1,5 @@
 import {
+  memo,
   useLayoutEffect, useMemo, useRef,
 } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
@@ -97,11 +98,17 @@ function TransferCoinFinish({
   );
 }
 
-export default function MoneyTransferLayer({ model }: { model?: BoardRenderModel }) {
-  const signal = model?.moneyTransfers.at(-1);
+/** The two slices of the render model the layer draws from; passing slices, not the model, keeps `memo` effective. */
+interface MoneyTransferLayerProps {
+  moneyTransfers: BoardRenderModel['moneyTransfers'];
+  stations: BoardRenderModel['stations'];
+}
+
+function MoneyTransferLayer({ moneyTransfers, stations }: MoneyTransferLayerProps) {
+  const signal = moneyTransfers.at(-1);
   const anchors = useMemo(() => new Map<string, WorldAnchor>(
-    model?.stations.map(station => [station.playerId, station.anchor]) ?? [],
-  ), [model?.stations]);
+    stations.map(station => [station.playerId, station.anchor]),
+  ), [stations]);
   const from = signal ? resolveMoneyEndpointAnchor(signal.source, anchors) : null;
   const to = signal ? resolveMoneyEndpointAnchor(signal.destination, anchors) : null;
   const finishIndices = useMemo(() => {
@@ -126,3 +133,5 @@ export default function MoneyTransferLayer({ model }: { model?: BoardRenderModel
     </group>
   );
 }
+
+export default memo(MoneyTransferLayer);

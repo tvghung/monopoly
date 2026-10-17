@@ -1,28 +1,26 @@
 import {
-  lazy,
-  Suspense,
+  memo,
   useCallback,
   useContext,
   useMemo,
   useState,
+  type ReactNode,
 } from 'react';
 import { Smartphone } from 'lucide-react';
 import stateContext from '../internal';
 import { PORTRAIT_BLOCKED_QUERY, useMediaQuery } from '../design-system/useMediaQuery';
 // Keep Dashboard first: its stylesheet must precede Button.css in the bundle (the HUD imports Button).
 import Dashboard from './Dashboard';
-import displayPositionsContext from '../displayPositionsContext';
 import tradePromptContext from '../tradePromptContext';
-import { usePresentation } from '../game/presentation/PresentationProvider';
-import { buildBoardRenderModel } from '../game/scene/board/boardRenderModel';
-import SceneErrorBoundary from '../game/scene/fallback/SceneErrorBoundary';
+import { createTileHoverStore, useTileHover, type TileHoverStore } from '../game/scene/board/tileHoverStore';
 import { supportsWebGL } from '../game/scene/fallback/webglSupport';
 import PlayerPortfolioModal from '../game/ui/property/PlayerPortfolioModal';
 import PropertyInspectionModal from '../game/ui/property/PropertyInspectionModal';
 import TileOwnerHoverCard from '../game/ui/property/TileOwnerHoverCard';
+import { isTeamGame } from '../game/team/teamView';
 import GameHud from '../game/ui/hud/GameHud';
 import BoardAccessibilityControls from './BoardAccessibilityControls';
-import LegacyBoardView from './legacy-board/LegacyBoardView';
+import BoardRenderSurface from './BoardRenderSurface';
 import {
   resolveInitialRendererMode,
   type RendererMode,
@@ -30,29 +28,71 @@ import {
 import './style/BoardShell.css';
 import { useTranslation } from '../i18n/I18n';
 
-const GameScene = lazy(() => import('../game/scene/GameScene'));
+/**
+ * Owns the trade prompt. It is its own component so that the permission to trade (a part of the room state that changes with
+ * every update) re-renders this provider and its memoised value, not the whole board, and so that the value is only a new
+ * object when the prompt or the permission really changed.
+ */
+function TradePromptProvider({ onOpen, children }: { onOpen: () => void; children: ReactNode }) {
+  const { canMutate } = useContext(stateContext);
+  const [tradeTarget, setTradeTarget] = useState<number | null>(null);
+  const openTradeForProperty = useCallback((tileId: number) => {
+    if (!canMutate) return;
+    onOpen();
+    setTradeTarget(tileId);
+  }, [canMutate, onOpen]);
+  const closeTrade = useCallback(() => {
+    setTradeTarget(null);
+  }, []);
+  const value = useMemo(() => ({
+    tradeTarget: tradeTarget === null ? null : { tileID: tradeTarget },
+    openTradeForProperty,
+    closeTrade,
+  }), [closeTrade, openTradeForProperty, tradeTarget]);
+  return <tradePromptContext.Provider value={value}>{children}</tradePromptContext.Provider>;
+}
 
-export default function Board() {
-  const { t, language } = useTranslation();
-  const {
-    state, connected, canMutate, roomPlayers, playerId, role,
-  } = useContext(stateContext);
-  const { state: presentationState } = usePresentation();
+/** The board's frame: busy and inert while disconnected. Its children are fixed elements, so a connection change renders only this. */
+function BoardFrame({ label, children }: { label: string; children: ReactNode }) {
+  const { connected } = useContext(stateContext);
+  return (
+    <section
+      className="game-board"
+      aria-label={label}
+      aria-busy={!connected}
+      data-testid="game-board"
+      inert={!connected}
+    >
+      {children}
+    </section>
+  );
+}
+
+/** Hover card for the tile under the pointer, drawn only in a team game. */
+function TeamHoverCard({ store }: { store: TileHoverStore }) {
+  return <TileOwnerHoverCard tileId={useTileHover(store)} />;
+}
+
+/**
+ * The card exists only in a 2v2 game, so only then does anything subscribe to the hover store: in a solo game a hover costs no
+ * React render at all, not even a render that returns nothing.
+ */
+function HoveredTileOwnerCard({ store }: { store: TileHoverStore }) {
+  const { state } = useContext(stateContext);
+  return isTeamGame(state) ? <TeamHoverCard store={store} /> : null;
+}
+
+function Board() {
+  const { t } = useTranslation();
   const [rendererMode, setRendererMode] = useState<RendererMode>(
     () => resolveInitialRendererMode(supportsWebGL()),
   );
   const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
   const [portfolioPlayerId, setPortfolioPlayerId] = useState<string | null>(null);
-  const [hoveredTileId, setHoveredTileId] = useState<number | null>(null);
-  const [tradeTarget, setTradeTarget] = useState<number | null>(null);
+  const [hoverStore] = useState(createTileHoverStore);
   // Portrait on a phone: the rotate notice covers the game, and the game under it is inert (no touch, no keyboard) but not unmounted.
   // A tablet (600 px wide and up) plays in portrait as well.
   const portraitBlocked = useMediaQuery(PORTRAIT_BLOCKED_QUERY);
-  const displayPositions = presentationState.displayPositions;
-  const renderModel = useMemo(
-    () => buildBoardRenderModel(state, presentationState, roomPlayers, playerId, role, language),
-    [language, playerId, presentationState, role, roomPlayers, state],
-  );
 
   const selectTile = useCallback((tileId: number) => {
     setSelectedTileId(tileId);
@@ -60,13 +100,8 @@ export default function Board() {
   const closePortfolio = useCallback(() => {
     setPortfolioPlayerId(null);
   }, []);
-  const openTradeForProperty = useCallback((tileId: number) => {
-    if (!canMutate) return;
+  const clearSelection = useCallback(() => {
     setSelectedTileId(null);
-    setTradeTarget(tileId);
-  }, [canMutate]);
-  const closeTrade = useCallback(() => {
-    setTradeTarget(null);
   }, []);
   const closeInspection = useCallback(() => {
     const tileId = selectedTileId;
@@ -81,31 +116,13 @@ export default function Board() {
       console.error('Switching to the legacy board fallback after a renderer error.', error);
     }
     setRendererMode('legacy');
-    setHoveredTileId(null);
-  }, []);
+    hoverStore.set(null);
+  }, [hoverStore]);
 
-  const legacyBoard = (
-    <LegacyBoardView
-      selectedTileId={selectedTileId}
-      onTileSelect={selectTile}
-      dice={renderModel.dice}
-    />
-  );
   return (
-    <tradePromptContext.Provider value={{
-      tradeTarget: tradeTarget === null ? null : { tileID: tradeTarget },
-      openTradeForProperty,
-      closeTrade,
-    }}
-    >
-      <displayPositionsContext.Provider value={displayPositions}>
-        <section
-          className="game-board"
-          aria-label={t('board.boardLabel')}
-          aria-busy={!connected}
-          data-testid="game-board"
-          inert={!connected}
-        >
+    <TradePromptProvider onOpen={clearSelection}>
+      <>
+        <BoardFrame label={t('board.boardLabel')}>
           <aside className="game-board__orientation-notice" role="status">
             <span className="game-board__orientation-icon" aria-hidden="true"><Smartphone /></span>
             <strong>{t('board.orientationTitle')}</strong>
@@ -118,32 +135,23 @@ export default function Board() {
             aria-label={t('board.boardArea')}
             inert={portraitBlocked}
           >
-            {rendererMode === 'webgl'
-              ? (
-                <SceneErrorBoundary fallback={legacyBoard} onError={switchToLegacy}>
-                  <Suspense fallback={<div className="game-board__scene-loading" role="status">{t('board.sceneLoading')}</div>}>
-                    <GameScene
-                      model={renderModel}
-                      hoveredTileId={hoveredTileId}
-                      selectedTileId={selectedTileId}
-                      onTileHover={setHoveredTileId}
-                      onTileSelect={selectTile}
-                      onRendererFailure={switchToLegacy}
-                    />
-                  </Suspense>
-                </SceneErrorBoundary>
-              )
-              : legacyBoard}
+            <BoardRenderSurface
+              rendererMode={rendererMode}
+              selectedTileId={selectedTileId}
+              hoverStore={hoverStore}
+              onTileSelect={selectTile}
+              onRendererFailure={switchToLegacy}
+            />
             <Dashboard />
             <GameHud onSelectTile={selectTile} onSelectPlayer={setPortfolioPlayerId} />
-            <TileOwnerHoverCard tileId={hoveredTileId} />
+            <HoveredTileOwnerCard store={hoverStore} />
           </section>
 
           {rendererMode === 'webgl'
             ? (
               <BoardAccessibilityControls
                 selectedTileId={selectedTileId}
-                onHover={setHoveredTileId}
+                onHover={hoverStore.set}
                 onSelect={selectTile}
               />
             )
@@ -151,8 +159,11 @@ export default function Board() {
 
           <PropertyInspectionModal tileId={selectedTileId} onClose={closeInspection} />
           <PlayerPortfolioModal playerId={portfolioPlayerId} onClose={closePortfolio} onSelectTile={selectTile} />
-        </section>
-      </displayPositionsContext.Provider>
-    </tradePromptContext.Provider>
+        </BoardFrame>
+      </>
+    </TradePromptProvider>
   );
 }
+
+/** No props and no game state of its own: it re-renders for its own UI state only, never for a socket update or a presentation tick. */
+export default memo(Board);

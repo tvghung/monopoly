@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { type CardDeck, type DeckCounts } from '@monopoly/shared';
@@ -171,7 +171,7 @@ function IdleDeckStack({
   );
 }
 
-export default function PhysicalCardDecks({ deckCounts }: { deckCounts: DeckCounts }) {
+function PhysicalCardDecks({ deckCounts }: { deckCounts: DeckCounts }) {
   const chanceCount = getIdleDeckCardCount('chance', deckCounts);
   const chestCount = getIdleDeckCardCount('chest', deckCounts);
   return (
@@ -181,3 +181,5 @@ export default function PhysicalCardDecks({ deckCounts }: { deckCounts: DeckCoun
     </group>
   );
 }
+
+export default memo(PhysicalCardDecks);

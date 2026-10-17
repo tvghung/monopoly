@@ -1,5 +1,5 @@
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { tileState, type TileType } from '@monopoly/shared';
 import { getBoardTileLayout, getTileSurfaceGeometry, type BoardSide } from '../boardLayout';
@@ -317,7 +317,7 @@ export function TileDividerLine({
   );
 }
 
-export default function TileSurfaceBatch({
+function TileSurfaceBatch({
   tiles,
   onHover,
   onSelect,
@@ -399,3 +399,5 @@ export default function TileSurfaceBatch({
     </group>
   );
 }
+
+export default memo(TileSurfaceBatch);

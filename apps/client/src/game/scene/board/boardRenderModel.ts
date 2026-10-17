@@ -90,6 +90,48 @@ export interface BoardRenderModel {
   presentationResetEpoch: number;
 }
 
+/**
+ * The fields of the presentation state the render model reads. The 3D board subscribes to exactly these: a tick that only
+ * changes the log, the activity feed, the queue status or the card overlay does not touch the scene.
+ */
+export const SCENE_PRESENTATION_KEYS = [
+  'displayPositions',
+  'settledPositions',
+  'displayBalances',
+  'displayDevelopmentLevels',
+  'displayOwnership',
+  'displayActivePlayerId',
+  'displayDice',
+  'displayRollSequence',
+  'diceRoll',
+  'tileImpacts',
+  'characterMovements',
+  'characterLandings',
+  'characterReactions',
+  'balanceDeltas',
+  'ownershipChanges',
+  'developmentChanges',
+  'goCrossings',
+  'destinationPreview',
+  'moneyTransfers',
+  'animationSpeedMultiplier',
+  'reducedMotion',
+  'presentationResetEpoch',
+] as const satisfies readonly (keyof PresentationState)[];
+
+export type ScenePresentationInput = Pick<PresentationState, typeof SCENE_PRESENTATION_KEYS[number]>;
+
+/** Picks the scene's slice. The store replaces a field only when it changes, so equal slices have equal fields. */
+export function selectScenePresentation(state: PresentationState): ScenePresentationInput {
+  const slice: Partial<Record<keyof PresentationState, unknown>> = {};
+  for (const key of SCENE_PRESENTATION_KEYS) slice[key] = state[key];
+  return slice as ScenePresentationInput;
+}
+
+export function sameScenePresentation(left: ScenePresentationInput, right: ScenePresentationInput): boolean {
+  return SCENE_PRESENTATION_KEYS.every(key => Object.is(left[key], right[key]));
+}
+
 function resolveOwnerColor(
   state: PublicGameState,
   ownerId: string,
@@ -102,7 +144,7 @@ function resolveOwnerColor(
 
 export function buildBoardRenderModel(
   state: PublicGameState,
-  presentationState: PresentationState,
+  presentationState: ScenePresentationInput,
   roomPlayers: readonly RoomPlayerMeta[] = [],
   viewerPlayerId: string | null = null,
   viewerRole: RoomRole | null = null,

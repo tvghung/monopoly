@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { CharacterPlayerModel } from '../board/boardRenderModel';
 import type {
   CharacterLandingSignal,
@@ -17,7 +18,7 @@ interface CharactersLayerProps {
   reactions: readonly CharacterReactionSignal[];
 }
 
-export default function CharactersLayer({
+function CharactersLayer({
   players,
   movementSignals,
   landingSignals,
@@ -63,3 +64,5 @@ export default function CharactersLayer({
     </group>
   );
 }
+
+export default memo(CharactersLayer);

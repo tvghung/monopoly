@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { tileState } from '@monopoly/shared';
 import BoardFoundation from './foundation/BoardFoundation';
 import CenterAirport from './center/CenterAirport';
@@ -12,6 +12,7 @@ import {
 } from './tiles/TileDestinationPreview';
 import type { BoardRenderModel } from './boardRenderModel';
 import { useBoardTiles } from './stableTiles';
+import type { TileHoverStore } from './tileHoverStore';
 import CharactersLayer from '../characters/CharactersLayer';
 import DiceLayer from '../dice/DiceLayer';
 import PlayerStationLayer from '../stations/PlayerStationLayer';
@@ -25,22 +26,36 @@ import { useTranslation } from '../../../i18n/I18n';
 
 interface Board3DProps {
   model?: BoardRenderModel;
-  hoveredTileId?: number | null;
+  /** Hover lives in a store (see `tileHoverStore`): a pointer crossing a tile never re-renders this component. */
+  hoverStore?: TileHoverStore;
   selectedTileId?: number | null;
-  onTileHover?: (tileId: number | null) => void;
   onTileSelect?: (tileId: number) => void;
 }
 
+// Fallbacks for a board without a render model. Module constants, so an absent model never hands a layer a new object per render.
+const NO_DICE: BoardRenderModel['dice'] = {
+  dice: { dice1: 0, dice2: 0 },
+  rollSequence: 0,
+  phase: 'HIDDEN',
+  durationMs: 0,
+};
+const NO_DECK_COUNTS: BoardRenderModel['deckCounts'] = { chance: 0, chest: 0 };
+const NO_STATIONS: BoardRenderModel['stations'] = [];
+const NO_PLAYERS: BoardRenderModel['players'] = [];
+const NO_MOVEMENTS: BoardRenderModel['characterMovements'] = [];
+const NO_LANDINGS: BoardRenderModel['characterLandings'] = [];
+const NO_REACTIONS: BoardRenderModel['characterReactions'] = [];
+const NO_MONEY_TRANSFERS: BoardRenderModel['moneyTransfers'] = [];
+
 export default function Board3D({
   model,
-  hoveredTileId = null,
+  hoverStore,
   selectedTileId = null,
-  onTileHover,
   onTileSelect,
 }: Board3DProps) {
   const { language } = useTranslation();
   const tiles = useBoardTiles(model?.tiles, language);
-  // Keyed on the signal lists, not rebuilt on every hover: the instanced houses re-plan only when a signal actually changes.
+  // Keyed on the signal lists, not rebuilt on every render: the instanced houses re-plan only when a signal actually changes.
   const ownershipChanges = model?.ownershipChanges;
   const developmentChanges = model?.developmentChanges;
   const latestOwnershipChanges = useMemo(() => {
@@ -54,8 +69,11 @@ export default function Board3D({
     return latest;
   }, [developmentChanges]);
   const latestGoCrossing = model?.goCrossings.at(-1);
+  const reducedMotion = model?.reducedMotion ?? false;
+  const destinationPreview = model?.destinationPreview ?? null;
   // The houses of the whole board are three instanced meshes; if that layer ever fails the per-tile boxes take over.
   const [houseMode, setHouseMode] = useState<HouseRenderMode>('instanced');
+  const fallBackToLegacyHouses = useCallback(() => setHouseMode('legacy'), []);
   // Owned here, for the scene's lifetime, so the per-move destination preview borrows them instead of linking its program anew.
   const previewMaterials = useDestinationPreviewMaterialsOwner();
   return (
@@ -65,16 +83,13 @@ export default function Board3D({
       <BoardFoundation />
       <TileBodyBatch
         tiles={tiles}
-        hoveredTileId={hoveredTileId}
+        hoverStore={hoverStore}
         selectedTileId={selectedTileId}
-        onHover={onTileHover}
         onSelect={onTileSelect}
       />
       <TileSurfaceBatch
         tiles={tiles}
-        hoveredTileId={hoveredTileId}
-        selectedTileId={selectedTileId}
-        onHover={onTileHover}
+        onHover={hoverStore?.set}
         onSelect={onTileSelect}
       />
       <TileImpactHighlightBatch tiles={tiles} />
@@ -91,20 +106,18 @@ export default function Board3D({
             ownershipChange={latestOwnershipChanges.get(tile.tileId)}
             developmentChange={latestDevelopmentChanges.get(tile.tileId)}
             goCrossing={tile.tileId === 0 ? latestGoCrossing : undefined}
-            destinationPreview={model?.destinationPreview?.tileId === tile.tileId
-              ? model.destinationPreview
-              : undefined}
-            reducedMotion={model?.reducedMotion ?? false}
+            destinationPreview={destinationPreview?.tileId === tile.tileId ? destinationPreview : undefined}
+            reducedMotion={reducedMotion}
           />
         ))}
       </group>
       {houseMode === 'instanced'
         ? (
-          <OptionalSceneLayer name="tube-houses" onFail={() => setHouseMode('legacy')}>
+          <OptionalSceneLayer name="tube-houses" onFail={fallBackToLegacyHouses}>
             <TubeHouseInstances
               tiles={tiles}
               developmentChanges={latestDevelopmentChanges}
-              reducedMotion={model?.reducedMotion ?? false}
+              reducedMotion={reducedMotion}
             />
           </OptionalSceneLayer>
         )
@@ -113,26 +126,22 @@ export default function Board3D({
         <LandmarkShadowProxy
           tiles={tiles}
           developmentChanges={latestDevelopmentChanges}
-          reducedMotion={model?.reducedMotion ?? false}
+          reducedMotion={reducedMotion}
         />
       </OptionalSceneLayer>
       <CenterAirport />
-      <DiceLayer model={model?.dice ?? {
-        dice: { dice1: 0, dice2: 0 },
-        rollSequence: 0,
-        phase: 'HIDDEN',
-        durationMs: 0,
-      }} reducedMotion={model?.reducedMotion ?? false} />
-      <PhysicalCardDecks
-        deckCounts={model?.deckCounts ?? { chance: 0, chest: 0 }}
+      <DiceLayer model={model?.dice ?? NO_DICE} reducedMotion={reducedMotion} />
+      <PhysicalCardDecks deckCounts={model?.deckCounts ?? NO_DECK_COUNTS} />
+      <PlayerStationLayer stations={model?.stations ?? NO_STATIONS} />
+      <MoneyTransferLayer
+        moneyTransfers={model?.moneyTransfers ?? NO_MONEY_TRANSFERS}
+        stations={model?.stations ?? NO_STATIONS}
       />
-      <PlayerStationLayer stations={model?.stations ?? []} />
-      <MoneyTransferLayer model={model} />
       <CharactersLayer
-        players={model?.players ?? []}
-        movementSignals={model?.characterMovements ?? []}
-        landingSignals={model?.characterLandings ?? []}
-        reactions={model?.characterReactions ?? []}
+        players={model?.players ?? NO_PLAYERS}
+        movementSignals={model?.characterMovements ?? NO_MOVEMENTS}
+        landingSignals={model?.characterLandings ?? NO_LANDINGS}
+        reactions={model?.characterReactions ?? NO_REACTIONS}
         animationSpeedMultiplier={model?.animationSpeedMultiplier ?? 1}
         resetEpoch={model?.presentationResetEpoch ?? 0}
       />
