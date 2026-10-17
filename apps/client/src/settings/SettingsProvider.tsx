@@ -4,10 +4,9 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from 'react';
-import settingsContext, { settingsStoreContext } from './SettingsContext';
+import settingsContext from './SettingsContext';
 import { createSettingsStore } from './settingsStore';
 import {
   DEFAULT_GAME_SETTINGS,
@@ -26,18 +25,19 @@ interface SettingsProviderProps {
 }
 
 export function SettingsProvider({ children, initialSettings }: SettingsProviderProps) {
-  // The store is the one holder of the settings; `settings` mirrors it for `useSettings()` readers.
+  // The store is the one holder of the settings. The provider does not read them while rendering, so a change re-renders
+  // only the components that read the settings (`useSettings`, `useSettingsSelector`), not the provider and not what it wraps.
   const [store] = useState(() => createSettingsStore(
     initialSettings ? normalizeSettings(initialSettings) : readGameSettings(),
   ));
-  const settings = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
-  const startupFullscreenIntentRef = useRef(settings.fullscreen);
+  const startupFullscreenIntentRef = useRef(store.getSnapshot().fullscreen);
   const startupFullscreenAppliedRef = useRef(false);
   const desktopBridge = getDesktopBridge();
 
   useEffect(() => {
-    writeGameSettings(settings);
-  }, [settings]);
+    writeGameSettings(store.getSnapshot());
+    return store.subscribe(() => writeGameSettings(store.getSnapshot()));
+  }, [store]);
 
   const updateSettings = useCallback((patch: GameSettingsPatch) => {
     store.set(normalizeSettings({ ...store.getSnapshot(), ...patch }));
@@ -69,20 +69,18 @@ export function SettingsProvider({ children, initialSettings }: SettingsProvider
     };
   }, [desktopBridge, store]);
 
-  const value = useMemo(() => ({ available: true, settings, updateSettings, resetSettings }), [
+  const value = useMemo(() => ({ available: true, store, updateSettings, resetSettings }), [
     resetSettings,
-    settings,
+    store,
     updateSettings,
   ]);
 
   return (
-    <settingsStoreContext.Provider value={store}>
-      <settingsContext.Provider value={value}>
-        <ReducedMotionDocumentSync />
-        <GraphicsQualityDocumentSync />
-        <LanguageDocumentSync />
-        {children}
-      </settingsContext.Provider>
-    </settingsStoreContext.Provider>
+    <settingsContext.Provider value={value}>
+      <ReducedMotionDocumentSync />
+      <GraphicsQualityDocumentSync />
+      <LanguageDocumentSync />
+      {children}
+    </settingsContext.Provider>
   );
 }

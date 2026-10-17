@@ -1,9 +1,17 @@
-import { useContext, useEffect, useState, useSyncExternalStore } from 'react';
-import settingsContext, { settingsStoreContext } from './SettingsContext';
+import { useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import settingsContext, { type SettingsContextValue } from './SettingsContext';
 import type { GameSettings } from './types';
 
-export function useSettings() {
-  return useContext(settingsContext);
+/** All of the settings. The component re-renders on every change of any setting; prefer `useSettingsSelector` for one value. */
+export function useSettings(): SettingsContextValue {
+  const {
+    available, store, updateSettings, resetSettings,
+  } = useContext(settingsContext);
+  const settings = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  return useMemo(
+    () => ({ available, settings, updateSettings, resetSettings }),
+    [available, resetSettings, settings, updateSettings],
+  );
 }
 
 /**
@@ -14,7 +22,7 @@ export function useSettings() {
 export function useSettingsSelector<T extends string | number | boolean | null | undefined>(
   selector: (settings: GameSettings) => T,
 ): T {
-  const store = useContext(settingsStoreContext);
+  const { store } = useContext(settingsContext);
   return useSyncExternalStore(
     store.subscribe,
     () => selector(store.getSnapshot()),
@@ -24,7 +32,7 @@ export function useSettingsSelector<T extends string | number | boolean | null |
 
 /** Whether a `SettingsProvider` is above, that is, whether a change made in the settings dialog is kept. */
 export function useSettingsAvailable(): boolean {
-  return useContext(settingsContext).available === true;
+  return useContext(settingsContext).available;
 }
 
 function systemPrefersReducedMotion(): boolean {

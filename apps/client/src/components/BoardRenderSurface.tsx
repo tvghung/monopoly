@@ -8,7 +8,9 @@ import {
   useRef,
 } from 'react';
 import stateContext from '../internal';
+import displayPositionsContext from '../displayPositionsContext';
 import { usePresentationSelector } from '../game/presentation/usePresentationSelector';
+import { selectDisplayPositions } from '../game/presentation/store/selectors';
 import {
   buildBoardRenderModel,
   sameScenePresentation,
@@ -21,6 +23,7 @@ import SceneErrorBoundary from '../game/scene/fallback/SceneErrorBoundary';
 import LegacyBoardView from './legacy-board/LegacyBoardView';
 import type { RendererMode } from './rendererMode';
 import { useTranslation } from '../i18n/I18n';
+import type { ReactNode } from 'react';
 
 const GameScene = lazy(() => import('../game/scene/GameScene'));
 
@@ -38,6 +41,16 @@ function useSharedRenderModel(next: BoardRenderModel): BoardRenderModel {
     committedRef.current = model;
   }, [model]);
   return model;
+}
+
+/**
+ * The walking positions, for the legacy board's tiles only. They are provided here, around the legacy board, and not above the
+ * whole board: react-three-fiber re-provides every ancestor context inside its tree, so a context above the canvas that
+ * changes at every hop is a React commit on the scene at every hop.
+ */
+function LegacyPositions({ children }: { children: ReactNode }) {
+  const displayPositions = usePresentationSelector(selectDisplayPositions);
+  return <displayPositionsContext.Provider value={displayPositions}>{children}</displayPositionsContext.Provider>;
 }
 
 interface BoardRenderSurfaceProps {
@@ -73,11 +86,13 @@ function BoardRenderSurface({
   const model = useSharedRenderModel(builtModel);
 
   const legacyBoard = (
-    <LegacyBoardView
-      selectedTileId={selectedTileId}
-      onTileSelect={onTileSelect}
-      dice={model.dice}
-    />
+    <LegacyPositions>
+      <LegacyBoardView
+        selectedTileId={selectedTileId}
+        onTileSelect={onTileSelect}
+        dice={model.dice}
+      />
+    </LegacyPositions>
   );
   if (rendererMode !== 'webgl') return legacyBoard;
   return (

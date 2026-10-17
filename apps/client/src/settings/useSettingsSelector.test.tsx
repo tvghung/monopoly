@@ -1,5 +1,7 @@
+import { useContext } from 'react';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import settingsContext from './SettingsContext';
 import { useSettings, useSettingsSelector, useEffectiveReducedMotion } from './selectors';
 import type { GameSettings } from './types';
 import { SettingsProvider } from './SettingsProvider';
@@ -82,5 +84,29 @@ describe('useSettingsSelector', () => {
     renders = { reducedMotion: 0, fps: 0, effective: 0, whole: 0 };
     render(<FpsReader />);
     expect(screen.getByTestId('fps').textContent).toBe('60');
+  });
+});
+
+describe('the settings context', () => {
+  it('never changes while the provider is mounted, so it cannot re-render what sits under the 3D canvas', () => {
+    // react-three-fiber re-provides every ancestor context inside its tree: a context value that changed per setting would be
+    // a React commit on the scene for every volume tick even though nothing in the scene reads the volume.
+    const seen: unknown[] = [];
+    function RawContextReader() {
+      seen.push(useContext(settingsContext));
+      return null;
+    }
+    renders = { reducedMotion: 0, fps: 0, effective: 0, whole: 0 };
+    render(
+      <SettingsProvider>
+        <RawContextReader />
+        <WholeReader />
+      </SettingsProvider>,
+    );
+    const rendersAfterMount = seen.length;
+    act(() => update({ masterVolume: 0.1 }));
+    act(() => update({ language: 'en', animationSpeed: 2, graphicsQuality: 'low' }));
+    expect(seen).toHaveLength(rendersAfterMount);
+    expect(new Set(seen).size).toBe(1);
   });
 });

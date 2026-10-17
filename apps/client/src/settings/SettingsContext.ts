@@ -2,6 +2,7 @@ import { createContext } from 'react';
 import { createSettingsStore, type SettingsStore } from './settingsStore';
 import type { GameSettings, GameSettingsPatch } from './types';
 
+/** What `useSettings()` returns: the current settings and the two ways to change them. */
 export interface SettingsContextValue {
   /**
    * True inside a `SettingsProvider`. Outside one (an isolated render in a test) a change goes nowhere, so a screen that offers
@@ -9,6 +10,20 @@ export interface SettingsContextValue {
    */
   available?: boolean;
   settings: GameSettings;
+  updateSettings: (patch: GameSettingsPatch) => void;
+  resetSettings: () => void;
+}
+
+/**
+ * What the settings context carries. It never changes while a provider is mounted: the settings themselves live in `store` and
+ * are read through `useSettings()` (every setting) or `useSettingsSelector()` (one value). A context whose value changed with
+ * every setting would re-render everything that sits under the 3D canvas: react-three-fiber re-provides every ancestor context
+ * inside its tree, so a changed ancestor context is a React commit on the scene even when nothing in the scene reads it
+ * (Phase B2, PERF-03).
+ */
+export interface SettingsContextHandle {
+  available: boolean;
+  store: SettingsStore;
   updateSettings: (patch: GameSettingsPatch) => void;
   resetSettings: () => void;
 }
@@ -27,17 +42,11 @@ const DEFAULT_CONTEXT_SETTINGS: GameSettings = {
   fpsLimit: 60,
 };
 
-const settingsContext = createContext<SettingsContextValue>({
-  settings: DEFAULT_CONTEXT_SETTINGS,
+const settingsContext = createContext<SettingsContextHandle>({
+  available: false,
+  store: createSettingsStore(DEFAULT_CONTEXT_SETTINGS),
   updateSettings: () => {},
   resetSettings: () => {},
 });
-
-/**
- * The store behind the same settings, for `useSettingsSelector`. Its value never changes while a provider is mounted, so
- * reading it from a component does not subscribe that component to any setting. Without a provider it is a static store of
- * the defaults, as `settingsContext` is.
- */
-export const settingsStoreContext = createContext<SettingsStore>(createSettingsStore(DEFAULT_CONTEXT_SETTINGS));
 
 export default settingsContext;

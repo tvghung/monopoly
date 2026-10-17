@@ -11,15 +11,13 @@ import stateContext from '../internal';
 import { PORTRAIT_BLOCKED_QUERY, useMediaQuery } from '../design-system/useMediaQuery';
 // Keep Dashboard first: its stylesheet must precede Button.css in the bundle (the HUD imports Button).
 import Dashboard from './Dashboard';
-import displayPositionsContext from '../displayPositionsContext';
 import tradePromptContext from '../tradePromptContext';
-import { usePresentationSelector } from '../game/presentation/usePresentationSelector';
-import { selectDisplayPositions } from '../game/presentation/store/selectors';
 import { createTileHoverStore, useTileHover, type TileHoverStore } from '../game/scene/board/tileHoverStore';
 import { supportsWebGL } from '../game/scene/fallback/webglSupport';
 import PlayerPortfolioModal from '../game/ui/property/PlayerPortfolioModal';
 import PropertyInspectionModal from '../game/ui/property/PropertyInspectionModal';
 import TileOwnerHoverCard from '../game/ui/property/TileOwnerHoverCard';
+import { isTeamGame } from '../game/team/teamView';
 import GameHud from '../game/ui/hud/GameHud';
 import BoardAccessibilityControls from './BoardAccessibilityControls';
 import BoardRenderSurface from './BoardRenderSurface';
@@ -29,12 +27,6 @@ import {
 } from './rendererMode';
 import './style/BoardShell.css';
 import { useTranslation } from '../i18n/I18n';
-
-/** Provides the walking positions to the legacy board's tiles; only this component re-renders when a token moves. */
-function DisplayPositionsProvider({ children }: { children: ReactNode }) {
-  const displayPositions = usePresentationSelector(selectDisplayPositions);
-  return <displayPositionsContext.Provider value={displayPositions}>{children}</displayPositionsContext.Provider>;
-}
 
 /**
  * Owns the trade prompt. It is its own component so that the permission to trade (a part of the room state that changes with
@@ -76,9 +68,18 @@ function BoardFrame({ label, children }: { label: string; children: ReactNode })
   );
 }
 
-/** Hover card for the tile under the pointer; subscribes to the hover store so the board itself never re-renders for a hover. */
-function HoveredTileOwnerCard({ store }: { store: TileHoverStore }) {
+/** Hover card for the tile under the pointer, drawn only in a team game. */
+function TeamHoverCard({ store }: { store: TileHoverStore }) {
   return <TileOwnerHoverCard tileId={useTileHover(store)} />;
+}
+
+/**
+ * The card exists only in a 2v2 game, so only then does anything subscribe to the hover store: in a solo game a hover costs no
+ * React render at all, not even a render that returns nothing.
+ */
+function HoveredTileOwnerCard({ store }: { store: TileHoverStore }) {
+  const { state } = useContext(stateContext);
+  return isTeamGame(state) ? <TeamHoverCard store={store} /> : null;
 }
 
 function Board() {
@@ -120,7 +121,7 @@ function Board() {
 
   return (
     <TradePromptProvider onOpen={clearSelection}>
-      <DisplayPositionsProvider>
+      <>
         <BoardFrame label={t('board.boardLabel')}>
           <aside className="game-board__orientation-notice" role="status">
             <span className="game-board__orientation-icon" aria-hidden="true"><Smartphone /></span>
@@ -159,7 +160,7 @@ function Board() {
           <PropertyInspectionModal tileId={selectedTileId} onClose={closeInspection} />
           <PlayerPortfolioModal playerId={portfolioPlayerId} onClose={closePortfolio} onSelectTile={selectTile} />
         </BoardFrame>
-      </DisplayPositionsProvider>
+      </>
     </TradePromptProvider>
   );
 }
