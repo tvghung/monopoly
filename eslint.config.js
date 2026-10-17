@@ -66,6 +66,13 @@ export default tseslint.config(
     },
   },
   {
+    // The benchmark driver runs in Node but hands functions to `page.evaluate`, and the probe runs inside the page.
+    files: ['scripts/perf/**/*.{js,mjs}'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
+    },
+  },
+  {
     files: ['apps/desktop/**/*.cjs', 'apps/desktop/scripts/**/*.mjs', 'scripts/**/*.mjs'],
     languageOptions: {
       globals: { ...globals.node },

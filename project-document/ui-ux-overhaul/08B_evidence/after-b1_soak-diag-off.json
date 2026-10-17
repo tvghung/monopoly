@@ -1,0 +1,236 @@
+{
+  "environment": {
+    "commit": "fedbf49720a345cf6d59b0ca8132c256ed65d201",
+    "branch": "perf/phase-b0-b1-render-stability",
+    "workingTreeDirty": false,
+    "capturedAt": "2026-10-16T14:17:39.613Z",
+    "node": "v24.15.0",
+    "os": "Windows_NT 10.0.26200 x64",
+    "cpu": "11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHz (16 logical)",
+    "memoryGiB": 15.7,
+    "options": {
+      "label": "after-b1-soak-diag-off",
+      "tiers": [
+        "balanced"
+      ],
+      "scenarios": [
+        "soak"
+      ],
+      "cap": 60,
+      "replays": 5,
+      "soakReplays": 30,
+      "soakWarmup": 3,
+      "idleSeconds": 10,
+      "gpu": "default",
+      "diagnostics": "off",
+      "lite": false,
+      "window": "1536x864",
+      "build": false,
+      "dist": "dist-b1",
+      "out": null,
+      "port": 4173,
+      "assertIdle": false,
+      "hoverTiles": 18,
+      "cold": false
+    }
+  },
+  "page": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+    "devicePixelRatio": 1,
+    "viewport": {
+      "width": 1520,
+      "height": 769
+    },
+    "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009A60) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "drawingBuffer": {
+      "width": 1867,
+      "height": 928
+    },
+    "gpuTimerQuery": true,
+    "renderers": [
+      {
+        "id": 1,
+        "name": "react-dom",
+        "version": "19.2.8",
+        "bundleType": 0
+      },
+      {
+        "id": 2,
+        "name": "@react-three/fiber",
+        "version": "9.7.0",
+        "bundleType": 0
+      }
+    ],
+    "refreshHz": 144.92753623185348
+  },
+  "runs": [
+    {
+      "tier": "balanced",
+      "scenario": "soak",
+      "fixture": "walk",
+      "fpsCap": 60,
+      "replays": 30,
+      "warmupReplays": 3,
+      "samples": [
+        {
+          "replay": 0,
+          "heapBytes": 19929072,
+          "geometries": 118,
+          "textures": 52,
+          "programs": 43,
+          "dpr": 1.25
+        },
+        {
+          "replay": 10,
+          "heapBytes": 21132140,
+          "geometries": 118,
+          "textures": 52,
+          "programs": 43,
+          "dpr": 1.25
+        },
+        {
+          "replay": 20,
+          "heapBytes": 21497352,
+          "geometries": 118,
+          "textures": 52,
+          "programs": 43,
+          "dpr": 1.25
+        },
+        {
+          "replay": 30,
+          "heapBytes": 21919848,
+          "geometries": 118,
+          "textures": 52,
+          "programs": 43,
+          "dpr": 1.25
+        }
+      ],
+      "trend": {
+        "replays": 30,
+        "heapBytes": {
+          "first": 19929072,
+          "last": 21919848,
+          "growth": 1990776,
+          "slopePerReplay": 63375.4
+        },
+        "geometries": {
+          "first": 118,
+          "last": 118,
+          "growth": 0,
+          "slopePerReplay": 0
+        },
+        "textures": {
+          "first": 52,
+          "last": 52,
+          "growth": 0,
+          "slopePerReplay": 0
+        },
+        "programs": {
+          "first": 43,
+          "last": 43,
+          "growth": 0,
+          "slopePerReplay": 0
+        }
+      },
+      "warm": {
+        "frames": {
+          "renderedFrames": 2961,
+          "contiguousIntervals": 2780,
+          "expectedIntervalMs": 16.666666666666668,
+          "effectiveFps": 47.03719318848647,
+          "onePercentLowFps": 26.831797212941666,
+          "intervalMs": {
+            "count": 2780,
+            "min": 16.66599999999744,
+            "mean": 21.259771942446058,
+            "median": 20.80000000000291,
+            "p95": 21.099999999976717,
+            "p99": 34.60000000000582,
+            "max": 48.69999999999709
+          },
+          "lateFrames": 134,
+          "lateFrameRatio": 0.04820143884892086,
+          "intervalsOver50Ms": 0,
+          "cpuMs": {
+            "count": 2961,
+            "min": 2.5,
+            "mean": 3.4121918270049245,
+            "median": 3.100000023841858,
+            "p95": 4.899999976158142,
+            "p99": 6,
+            "max": 10.099999964237213
+          },
+          "gpuMs": {
+            "count": 2961,
+            "min": 10.992656,
+            "mean": 12.700086874029045,
+            "median": 11.497812,
+            "p95": 25.040052,
+            "p99": 27.801144,
+            "max": 28.925937
+          },
+          "gpuSamples": 2961,
+          "callbackLagMs": {
+            "count": 2961,
+            "min": 0.09999998807325028,
+            "mean": 1.43498346365487,
+            "median": 0.5,
+            "p95": 5.59999998807325,
+            "p99": 10.400000000001455,
+            "max": 27.800000035756966
+          },
+          "drawCallsPerFrame": {
+            "count": 2961,
+            "min": 152,
+            "mean": 158.5596082404593,
+            "median": 159,
+            "p95": 159,
+            "p99": 159,
+            "max": 159
+          },
+          "trianglesPerFrame": {
+            "count": 0,
+            "min": null,
+            "mean": null,
+            "median": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          }
+        },
+        "programLinks": {
+          "total": 0,
+          "firstUse": 0,
+          "repeat": 0,
+          "repeatByName": {},
+          "linkMs": 0
+        },
+        "syncWaits": {
+          "count": 0,
+          "totalMs": 0,
+          "maxMs": 0
+        },
+        "react": {
+          "tasks": {
+            "count": 630,
+            "min": 0,
+            "mean": 4.636031746012824,
+            "median": 4.699999988079071,
+            "p95": 11.600000023841858,
+            "p99": 28.30000001192093,
+            "max": 34.5
+          },
+          "tasksOverFrame": 30,
+          "domCommits": 660,
+          "r3fCommits": 420
+        },
+        "longAnimationFrames": {
+          "count": 0,
+          "totalMs": 0,
+          "maxMs": 0
+        }
+      },
+      "errors": []
+    }
+  ]
+}

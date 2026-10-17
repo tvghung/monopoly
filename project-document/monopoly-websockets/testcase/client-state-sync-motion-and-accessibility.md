@@ -384,3 +384,21 @@ Rules: [game-board "Tầng bố cục"](../Client/game-board.instruction.md), [d
 - [ ] `[MANUAL][OWNER]` Open/close centered and sheet dialogs, nested confirmation, eye hide/restore and rapid toggles/ESC; preserve input/debt status and require three readable card seconds on every client.
 - [ ] `[MANUAL][OWNER]` Journal slides both directions on desktop/phone landscape with aligned tab, no horizontal scroll or closed-panel click interception; verify chat/unread/preferences and Reduced Motion.
 - [ ] `[MANUAL][OWNER]` Low/60 FPS gameplay and LAN human/bot/observer regression; recheck the accepted hopping, dice, highlights, buildings, money and audio.
+
+## Performance program B0/B1 checks (GPU-resource stability)
+
+Evidence and numbers: [08B](../../ui-ux-overhaul/08B_PHASE_B0_B1_IMPLEMENTATION.md). Judge smoothness only in a production build (a
+development build multiplies long-frame time about 3.8×, audit PERF-19).
+
+- [x] `[AUTO][CLIENT]` `measurementScheduler.test.ts`, `localDiagnostics.test.ts`, `DiagnosticsReadouts.test.tsx`, `Phase4UatHarness.diagnostics.test.tsx`: renderer diagnostics observe the scene and never drive it; a diagnostics event cannot re-render `<Board />`; no frame request after the mount measurement.
+- [x] `[AUTO][CLIENT]` `TileImpactHighlightBatch.resources.test.ts`, `tilePanelLayout.cache.test.ts`, `MergedRoundedBoxes.hook.test.ts`, `specialVisualRebuild.test.tsx`, `stableTiles.test.ts`: highlight resources, panel layouts and Jail/Tax geometry keep their identity across board re-renders, are bounded, and are disposed on unmount; tile data and language changes still update.
+- [x] `[AUTO][CLIENT]` `TileDestinationPreview.geometry.test.ts`, `TileDestinationPreview.materials.test.tsx`, `diceTrailMaterials.test.ts`, `diceLayerMaterialLifetime.test.tsx`, `constructionPuffMaterial.test.ts`: transient-effect materials are owned by always-mounted components, survive show/hide/roll/tier cycles, and are disposed once with their owner; the preview frame geometry is released per move.
+- [x] `[AUTO][SCRIPT]` `pnpm test:perf-tools`: benchmark metric definitions, comparison tool and pixel comparison.
+- [x] `[PROBE]` `pnpm perf:benchmark` on the Intel UHD iGPU (Chrome 155, 144 Hz): idle 10 s = 0 scene submissions, warm replays and hover sweeps = 0 shader re-links, 0 geometry growth over 30 and 90 replays at Low, Balanced and High (08B §5–6).
+- [x] `[PROBE]` `pnpm perf:visual-compare` B0 against B1: 18 of 19 settled states bit-identical; dice-settled differs only on the dice silhouette and equally between two captures of one bundle (08B §7).
+- [x] `[PROBE]` `pnpm perf:motion-compare`: tile-impact depression/rebound/highlight on tiles 1, 4 and 10 at Balanced and tile 1 at Low, 26 frames identical between B0 and B1 at fixed simulated times, with an identical determinism control; High tier frames do not change in that capture path and are not evidence (08B §7.1).
+- [x] `[PROBE]` `pnpm perf:lifecycle-check --expect-persistent`: one highlight, contact-shadow, preview, trail (per die) and puff material for a whole session; effects drawn during rolls, walk and builds; live tier cycle and forced context loss without page errors or new console messages; also on the React development server (StrictMode) (08B §7.1).
+- [ ] `[NOT RUN]` Pixel comparison of dice roll, hop, destination preview and construction-burst animation in progress: a stepped fake clock was not reproducible (the same bundle differed from itself), so these have structural evidence only.
+- [ ] `[NOT MET]` Heap growth over 30 warm replays ≤ 1 MB (measured +2.4 MB; bounded: +0.65 MB over the next 60 replays) and React task P95 ≤ 8 ms on walk, dice and soak (10–22 ms); owned by the React fan-out batch.
+- [ ] `[NOT RUN]` The Phase A reference laptop (ThinkPad T14 Gen 1, 60 Hz), Electron, battery power, other GPUs and refresh rates, a 30–60 minute packaged session.
+- [ ] `[MANUAL][OWNER]` Play a full match at Balanced and High on the target machine, watching hops, dice rolls, purchase, rent and construction for hitches, and compare with the previous build.

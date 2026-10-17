@@ -1,0 +1,38 @@
+{
+  "renderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009A60) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "rendererAfter": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009A60) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "viewport": "1280x720",
+  "tolerance": 0,
+  "results": [
+    {
+      "state": "dice-settled-balanced",
+      "fixture": "dice-contact-shadows",
+      "tier": "balanced",
+      "comparable": true,
+      "identical": false,
+      "width": 1280,
+      "height": 720,
+      "totalPixels": 921600,
+      "differingPixels": 917,
+      "differingRatio": 0.0009950086805555556,
+      "maxChannelDelta": 48,
+      "meanAbsDelta": 0.001630588107638889,
+      "pageErrors": []
+    },
+    {
+      "state": "walk-end-balanced",
+      "fixture": "walk",
+      "tier": "balanced",
+      "comparable": true,
+      "identical": true,
+      "width": 1280,
+      "height": 720,
+      "totalPixels": 921600,
+      "differingPixels": 0,
+      "differingRatio": 0,
+      "maxChannelDelta": 0,
+      "meanAbsDelta": 0,
+      "pageErrors": []
+    }
+  ]
+}

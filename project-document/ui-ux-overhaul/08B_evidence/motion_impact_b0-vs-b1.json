@@ -1,0 +1,111 @@
+{
+  "viewport": "1280x720",
+  "tolerance": 0,
+  "cross": {
+    "impact-property-1": {
+      "frames": 10,
+      "identical": 10,
+      "differing": 0,
+      "missing": 0,
+      "maxPixels": 0,
+      "maxDelta": 0
+    },
+    "impact-tax-4": {
+      "frames": 6,
+      "identical": 6,
+      "differing": 0,
+      "missing": 0,
+      "maxPixels": 0,
+      "maxDelta": 0
+    },
+    "impact-jail-10": {
+      "frames": 6,
+      "identical": 6,
+      "differing": 0,
+      "missing": 0,
+      "maxPixels": 0,
+      "maxDelta": 0
+    },
+    "impact-property-1-low": {
+      "frames": 4,
+      "identical": 4,
+      "differing": 0,
+      "missing": 0,
+      "maxPixels": 0,
+      "maxDelta": 0
+    },
+    "impact-property-1-high": {
+      "frames": 4,
+      "identical": 4,
+      "differing": 0,
+      "missing": 0,
+      "maxPixels": 0,
+      "maxDelta": 0
+    }
+  },
+  "animationVisible": {
+    "impact-property-1": {
+      "successivePairs": 9,
+      "differing": 9
+    },
+    "impact-tax-4": {
+      "successivePairs": 5,
+      "differing": 5
+    },
+    "impact-jail-10": {
+      "successivePairs": 5,
+      "differing": 5
+    },
+    "impact-property-1-low": {
+      "successivePairs": 3,
+      "differing": 3
+    },
+    "impact-property-1-high": {
+      "successivePairs": 3,
+      "differing": 0
+    }
+  },
+  "pageErrors": {},
+  "control": {
+    "impact-property-1": {
+      "frames": 10,
+      "identical": 10,
+      "differing": 0,
+      "missing": 0,
+      "maxPixels": 0,
+      "maxDelta": 0
+    },
+    "impact-tax-4": {
+      "frames": 6,
+      "identical": 6,
+      "differing": 0,
+      "missing": 0,
+      "maxPixels": 0,
+      "maxDelta": 0
+    },
+    "impact-jail-10": {
+      "frames": 6,
+      "identical": 6,
+      "differing": 0,
+      "missing": 0,
+      "maxPixels": 0,
+      "maxDelta": 0
+    },
+    "impact-property-1-low": {
+      "frames": 4,
+      "identical": 4,
+      "differing": 0,
+      "missing": 0,
+      "maxPixels": 0,
+      "maxDelta": 0
+    },
+    "impact-property-1-high": {
+      "frames": 4,
+      "identical": 4,
+      "differing": 0,
+      "missing": 0,
+      "maxPixels": 0,
+      "maxDelta": 0
+    }
+  }
+}

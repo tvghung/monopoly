@@ -1,0 +1,330 @@
+{
+  "dist": "dist-b1",
+  "scenarios": {
+    "walk": {
+      "replays": 4,
+      "samples": 809,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 1,
+      "previewSurfaceMaterials": 1,
+      "previewEdgeMaterials": 1,
+      "previewSamples": 187,
+      "previewSurfaceOpacity": [
+        0.1200000001019771,
+        0.36999999995822996
+      ],
+      "previewEdgeOpacity": [
+        0.4200000001876379,
+        0.8799999999231432
+      ],
+      "previewColors": [
+        "f2384a/bd2033"
+      ],
+      "trailMaterials": 2,
+      "trailVisibleSamples": 164,
+      "trailMaxOpacity": 0.054400000000000004,
+      "puffMaterials": 0,
+      "puffSamples": 0,
+      "puffProps": []
+    },
+    "dice": {
+      "replays": 4,
+      "samples": 480,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 1,
+      "previewSurfaceMaterials": 0,
+      "previewEdgeMaterials": 0,
+      "previewSamples": 0,
+      "previewSurfaceOpacity": [
+        null,
+        null
+      ],
+      "previewEdgeOpacity": [
+        null,
+        null
+      ],
+      "previewColors": [],
+      "trailMaterials": 2,
+      "trailVisibleSamples": 310,
+      "trailMaxOpacity": 0.054400000000000004,
+      "puffMaterials": 0,
+      "puffSamples": 0,
+      "puffProps": []
+    },
+    "house-2": {
+      "replays": 4,
+      "samples": 483,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 0,
+      "previewSurfaceMaterials": 0,
+      "previewEdgeMaterials": 0,
+      "previewSamples": 0,
+      "previewSurfaceOpacity": [
+        null,
+        null
+      ],
+      "previewEdgeOpacity": [
+        null,
+        null
+      ],
+      "previewColors": [],
+      "trailMaterials": 0,
+      "trailVisibleSamples": 0,
+      "trailMaxOpacity": 0,
+      "puffMaterials": 1,
+      "puffSamples": 114,
+      "puffProps": [
+        "MeshStandardMaterial/0.86/true/11"
+      ]
+    },
+    "hotel": {
+      "replays": 4,
+      "samples": 564,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 0,
+      "previewSurfaceMaterials": 0,
+      "previewEdgeMaterials": 0,
+      "previewSamples": 0,
+      "previewSurfaceOpacity": [
+        null,
+        null
+      ],
+      "previewEdgeOpacity": [
+        null,
+        null
+      ],
+      "previewColors": [],
+      "trailMaterials": 0,
+      "trailVisibleSamples": 0,
+      "trailMaxOpacity": 0,
+      "puffMaterials": 0,
+      "puffSamples": 0,
+      "puffProps": []
+    }
+  },
+  "tierSwitch": [
+    {
+      "tier": "low",
+      "replays": 2,
+      "samples": 405,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 1,
+      "previewSurfaceMaterials": 1,
+      "previewEdgeMaterials": 1,
+      "previewSamples": 93,
+      "previewSurfaceOpacity": [
+        0.1200000001019771,
+        0.3699999976112677
+      ],
+      "previewEdgeOpacity": [
+        0.4200000001876379,
+        0.8799999956047325
+      ],
+      "previewColors": [
+        "f2384a/bd2033"
+      ],
+      "trailMaterials": 0,
+      "trailVisibleSamples": 0,
+      "trailMaxOpacity": 0,
+      "puffMaterials": 0,
+      "puffSamples": 0,
+      "puffProps": [],
+      "resources": {
+        "geometries": 115,
+        "textures": 50,
+        "programs": 56,
+        "dpr": 1
+      }
+    },
+    {
+      "tier": "balanced",
+      "replays": 2,
+      "samples": 406,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 1,
+      "previewSurfaceMaterials": 1,
+      "previewEdgeMaterials": 1,
+      "previewSamples": 94,
+      "previewSurfaceOpacity": [
+        0.1200000001019771,
+        0.36999999836844233
+      ],
+      "previewEdgeOpacity": [
+        0.4200000001876379,
+        0.879999996997934
+      ],
+      "previewColors": [
+        "f2384a/bd2033"
+      ],
+      "trailMaterials": 2,
+      "trailVisibleSamples": 82,
+      "trailMaxOpacity": 0.054400000000000004,
+      "puffMaterials": 0,
+      "puffSamples": 0,
+      "puffProps": [],
+      "resources": {
+        "geometries": 119,
+        "textures": 52,
+        "programs": 58,
+        "dpr": 1.25
+      }
+    },
+    {
+      "tier": "high",
+      "replays": 2,
+      "samples": 405,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 1,
+      "previewSurfaceMaterials": 1,
+      "previewEdgeMaterials": 1,
+      "previewSamples": 92,
+      "previewSurfaceOpacity": [
+        0.1200000001019771,
+        0.369999389174396
+      ],
+      "previewEdgeOpacity": [
+        0.4200000001876379,
+        0.8799988760808887
+      ],
+      "previewColors": [
+        "f2384a/bd2033"
+      ],
+      "trailMaterials": 4,
+      "trailVisibleSamples": 172,
+      "trailMaxOpacity": 0.10200000000000001,
+      "puffMaterials": 0,
+      "puffSamples": 0,
+      "puffProps": [],
+      "resources": {
+        "geometries": 121,
+        "textures": 76,
+        "programs": 102,
+        "dpr": 1.25
+      }
+    },
+    {
+      "tier": "balanced",
+      "replays": 2,
+      "samples": 406,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 1,
+      "previewSurfaceMaterials": 1,
+      "previewEdgeMaterials": 1,
+      "previewSamples": 93,
+      "previewSurfaceOpacity": [
+        0.1200000001019771,
+        0.36999999999738936
+      ],
+      "previewEdgeOpacity": [
+        0.4200000001876379,
+        0.8799999999951964
+      ],
+      "previewColors": [
+        "f2384a/bd2033"
+      ],
+      "trailMaterials": 2,
+      "trailVisibleSamples": 84,
+      "trailMaxOpacity": 0.054400000000000004,
+      "puffMaterials": 0,
+      "puffSamples": 0,
+      "puffProps": [],
+      "resources": {
+        "geometries": 120,
+        "textures": 52,
+        "programs": 96,
+        "dpr": 1.25
+      }
+    },
+    {
+      "tier": "low",
+      "replays": 2,
+      "samples": 406,
+      "highlightMaterials": 1,
+      "contactShadowMaterials": 1,
+      "previewSurfaceMaterials": 1,
+      "previewEdgeMaterials": 1,
+      "previewSamples": 93,
+      "previewSurfaceOpacity": [
+        0.1200000001019771,
+        0.3699999999867837
+      ],
+      "previewEdgeOpacity": [
+        0.4200000001876379,
+        0.879999999975682
+      ],
+      "previewColors": [
+        "f2384a/bd2033"
+      ],
+      "trailMaterials": 0,
+      "trailVisibleSamples": 0,
+      "trailMaxOpacity": 0,
+      "puffMaterials": 0,
+      "puffSamples": 0,
+      "puffProps": [],
+      "resources": {
+        "geometries": 116,
+        "textures": 50,
+        "programs": 97,
+        "dpr": 1
+      }
+    }
+  ],
+  "contextLoss": {
+    "fellBackToLegacyBoard": true,
+    "newPageErrors": 0
+  },
+  "pageErrors": [],
+  "consoleWarningsAndErrors": [
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "warning: THREE.WebGLProgram: Program Info Log: (210,81-129): warning X4122: sum of 0.996094 and -2.98545e-017 cannot be represented accurately in double precision\n(209,37-61): warning X4122: sum of 1 and -1.49272e-017 cannot be represented accurately in double precision\n(210,82-106): warning X4122: sum of 1 ",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.WebGLProgram: Program Info Log: (85,12-86): warning X3595: gradient instruction used in a loop with varying iteration; partial derivatives may have undefined value\n(85,12-86): warning X3595: gradient instruction used in a loop with varying iteration; partial derivatives may have undefined valu",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+    "error: Switching to the legacy board fallback after a renderer error. Error: WebGL context was lost\n    at HTMLCanvasElement.onContextLost (http://127.0.0.1:4177/assets/GameScene-N24JFglU.js:14728:32)",
+    "warning: THREE.WebGLRenderer: WEBGL_lose_context extension not supported."
+  ]
+}

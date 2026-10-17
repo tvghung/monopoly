@@ -1,0 +1,1455 @@
+{
+  "environment": {
+    "commit": "37908708a3c0b0ddbb8f7f8f242f0300edcb36f0",
+    "branch": "perf/phase-b0-b1-render-stability",
+    "workingTreeDirty": false,
+    "capturedAt": "2026-10-16T12:53:53.170Z",
+    "node": "v24.15.0",
+    "os": "Windows_NT 10.0.26200 x64",
+    "cpu": "11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHz (16 logical)",
+    "memoryGiB": 15.7,
+    "options": {
+      "label": "balanced-cap60",
+      "tiers": [
+        "balanced"
+      ],
+      "scenarios": [
+        "idle",
+        "dice",
+        "walk",
+        "hover",
+        "purchase",
+        "rent",
+        "build",
+        "soak"
+      ],
+      "cap": 60,
+      "replays": 5,
+      "soakReplays": 30,
+      "soakWarmup": 3,
+      "idleSeconds": 10,
+      "gpu": "default",
+      "diagnostics": "on",
+      "lite": false,
+      "window": "1536x864",
+      "build": false,
+      "dist": "dist-b0-baseline",
+      "out": null,
+      "port": 4173,
+      "assertIdle": false,
+      "hoverTiles": 18,
+      "cold": false
+    }
+  },
+  "page": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+    "devicePixelRatio": 1,
+    "viewport": {
+      "width": 1520,
+      "height": 769
+    },
+    "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009A60) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "drawingBuffer": {
+      "width": 1867,
+      "height": 928
+    },
+    "gpuTimerQuery": true,
+    "renderers": [
+      {
+        "id": 1,
+        "name": "react-dom",
+        "version": "19.2.8",
+        "bundleType": 0
+      },
+      {
+        "id": 2,
+        "name": "@react-three/fiber",
+        "version": "9.7.0",
+        "bundleType": 0
+      }
+    ],
+    "refreshHz": 144.92753623185348
+  },
+  "runs": [
+    {
+      "tier": "balanced",
+      "scenario": "idle",
+      "fixture": "board-readability",
+      "fpsCap": 60,
+      "windowSeconds": 10,
+      "idle": {
+        "seconds": 10.015899999976158,
+        "sceneSubmissions": 0,
+        "schedulerCallbacks": 0,
+        "domCommits": 0,
+        "r3fCommits": 0
+      },
+      "loadFrames": 5,
+      "probeSawFrames": true,
+      "refreshHz": 144.92753623185348,
+      "errors": []
+    },
+    {
+      "tier": "balanced",
+      "scenario": "dice",
+      "fixture": "dice-contact-shadows",
+      "fpsCap": 60,
+      "replays": 5,
+      "firstReplay": {
+        "frames": {
+          "renderedFrames": 65,
+          "contiguousIntervals": 59,
+          "expectedIntervalMs": 16.666666666666668,
+          "effectiveFps": 45.00374522693325,
+          "onePercentLowFps": null,
+          "intervalMs": {
+            "count": 59,
+            "min": 20.69999999999891,
+            "mean": 22.220372881355953,
+            "median": 20.80000000000109,
+            "p95": 34.69999999999982,
+            "p99": 34.70000000000073,
+            "max": 34.70000000000073
+          },
+          "lateFrames": 8,
+          "lateFrameRatio": 0.13559322033898305,
+          "intervalsOver50Ms": 0,
+          "cpuMs": {
+            "count": 65,
+            "min": 3.099999964237213,
+            "mean": 4.783076920876137,
+            "median": 3.399999976158142,
+            "p95": 16.799999952316284,
+            "p99": 19.69999998807907,
+            "max": 19.69999998807907
+          },
+          "gpuMs": {
+            "count": 65,
+            "min": 10.977447,
+            "mean": 12.22802666153846,
+            "median": 11.1,
+            "p95": 22.675259,
+            "p99": 25.598854,
+            "max": 25.598854
+          },
+          "gpuSamples": 65,
+          "callbackLagMs": {
+            "count": 65,
+            "min": 0.09999998807870725,
+            "mean": 2.429261552216387,
+            "median": 0.29999998807943484,
+            "p95": 17.70000002384222,
+            "p99": 29.89999998807889,
+            "max": 29.89999998807889
+          },
+          "drawCallsPerFrame": {
+            "count": 65,
+            "min": 152,
+            "mean": 158.27692307692308,
+            "median": 159,
+            "p95": 159,
+            "p99": 159,
+            "max": 159
+          },
+          "trianglesPerFrame": {
+            "count": 0,
+            "min": null,
+            "mean": null,
+            "median": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          }
+        },
+        "programLinks": {
+          "total": 11,
+          "firstUse": 0,
+          "repeat": 11,
+          "repeatByName": {
+            "TileImpactHighlightMaterial": 8,
+            "(ShaderMaterial)": 1,
+            "(MeshBasicMaterial)": 2
+          },
+          "linkMs": 0.19999998807907104
+        },
+        "syncWaits": {
+          "count": 17,
+          "totalMs": 63.199999928474426,
+          "maxMs": 11.199999988079071
+        },
+        "react": {
+          "tasks": {
+            "count": 16,
+            "min": 0,
+            "mean": 9.643749997019768,
+            "median": 0.800000011920929,
+            "p95": 36.19999998807907,
+            "p99": 36.19999998807907,
+            "max": 36.19999998807907
+          },
+          "tasksOverFrame": 7,
+          "domCommits": 16,
+          "r3fCommits": 8
+        },
+        "longAnimationFrames": {
+          "count": 1,
+          "totalMs": 60.89999997615814,
+          "maxMs": 60.89999997615814
+        }
+      },
+      "warm": {
+        "frames": {
+          "renderedFrames": 306,
+          "contiguousIntervals": 276,
+          "expectedIntervalMs": 16.666666666666668,
+          "effectiveFps": 42.82628665061195,
+          "onePercentLowFps": 14.917951268025696,
+          "intervalMs": {
+            "count": 276,
+            "min": 16.665999999999258,
+            "mean": 23.35014492753625,
+            "median": 20.899999999997817,
+            "p95": 34.70000000000073,
+            "p99": 62.400000000001455,
+            "max": 76.29999999999927
+          },
+          "lateFrames": 56,
+          "lateFrameRatio": 0.2028985507246377,
+          "intervalsOver50Ms": 3,
+          "cpuMs": {
+            "count": 306,
+            "min": 2.699999988079071,
+            "mean": 5.2692810485955155,
+            "median": 3.199999988079071,
+            "p95": 16.899999976158142,
+            "p99": 36.90000003576279,
+            "max": 61.5
+          },
+          "gpuMs": {
+            "count": 306,
+            "min": 10.972291,
+            "mean": 14.917376147058818,
+            "median": 11.230156,
+            "p95": 26.25552,
+            "p99": 26.8825,
+            "max": 27.063125
+          },
+          "gpuSamples": 306,
+          "callbackLagMs": {
+            "count": 306,
+            "min": 1.1921656550839543e-8,
+            "mean": 2.821732037129657,
+            "median": 0.3000000238425855,
+            "p95": 14.800000035764242,
+            "p99": 17.400000011921293,
+            "max": 25.5
+          },
+          "drawCallsPerFrame": {
+            "count": 306,
+            "min": 152,
+            "mean": 158.2516339869281,
+            "median": 159,
+            "p95": 159,
+            "p99": 159,
+            "max": 159
+          },
+          "trianglesPerFrame": {
+            "count": 0,
+            "min": null,
+            "mean": null,
+            "median": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          }
+        },
+        "programLinks": {
+          "total": 55,
+          "firstUse": 0,
+          "repeat": 55,
+          "repeatByName": {
+            "TileImpactHighlightMaterial": 40,
+            "(ShaderMaterial)": 5,
+            "(MeshBasicMaterial)": 10
+          },
+          "linkMs": 0.5000000596046448
+        },
+        "syncWaits": {
+          "count": 111,
+          "totalMs": 480.4000002145767,
+          "maxMs": 31.099999964237213
+        },
+        "react": {
+          "tasks": {
+            "count": 80,
+            "min": 0,
+            "mean": 9.824999999254942,
+            "median": 1.2999999523162842,
+            "p95": 31.099999964237213,
+            "p99": 57.59999996423721,
+            "max": 57.59999996423721
+          },
+          "tasksOverFrame": 33,
+          "domCommits": 80,
+          "r3fCommits": 40
+        },
+        "longAnimationFrames": {
+          "count": 8,
+          "totalMs": 534.6999998688698,
+          "maxMs": 87
+        }
+      },
+      "resourcesAfter": {
+        "geometries": 118,
+        "textures": 52,
+        "programs": 42,
+        "dpr": 1.25
+      },
+      "errors": []
+    },
+    {
+      "tier": "balanced",
+      "scenario": "walk",
+      "fixture": "walk",
+      "fpsCap": 60,
+      "replays": 5,
+      "firstReplay": {
+        "frames": {
+          "renderedFrames": 91,
+          "contiguousIntervals": 85,
+          "expectedIntervalMs": 16.666666666666668,
+          "effectiveFps": 42.072959461466134,
+          "onePercentLowFps": null,
+          "intervalMs": {
+            "count": 85,
+            "min": 20.69999999999891,
+            "mean": 23.768235294117638,
+            "median": 20.80000000000109,
+            "p95": 34.79999999999927,
+            "p99": 83.19999999999891,
+            "max": 83.19999999999891
+          },
+          "lateFrames": 15,
+          "lateFrameRatio": 0.17647058823529413,
+          "intervalsOver50Ms": 2,
+          "cpuMs": {
+            "count": 91,
+            "min": 2.899999976158142,
+            "mean": 6.161538464027447,
+            "median": 3.300000011920929,
+            "p95": 21.400000035762787,
+            "p99": 45.60000002384186,
+            "max": 45.60000002384186
+          },
+          "gpuMs": {
+            "count": 91,
+            "min": 11.066458,
+            "mean": 12.640500021978026,
+            "median": 11.377864,
+            "p95": 26.347239,
+            "p99": 26.899894,
+            "max": 26.899894
+          },
+          "gpuSamples": 91,
+          "callbackLagMs": {
+            "count": 91,
+            "min": 0.1000000000003638,
+            "mean": 2.7875824427342444,
+            "median": 0.5,
+            "p95": 17.200000047683716,
+            "p99": 38.90000002384113,
+            "max": 38.90000002384113
+          },
+          "drawCallsPerFrame": {
+            "count": 91,
+            "min": 152,
+            "mean": 158.54945054945054,
+            "median": 159,
+            "p95": 159,
+            "p99": 159,
+            "max": 159
+          },
+          "trianglesPerFrame": {
+            "count": 0,
+            "min": null,
+            "mean": null,
+            "median": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          }
+        },
+        "programLinks": {
+          "total": 17,
+          "firstUse": 0,
+          "repeat": 17,
+          "repeatByName": {
+            "TileImpactHighlightMaterial": 14,
+            "(ShaderMaterial)": 1,
+            "(MeshBasicMaterial)": 2
+          },
+          "linkMs": 0.19999998807907104
+        },
+        "syncWaits": {
+          "count": 37,
+          "totalMs": 200.70000010728836,
+          "maxMs": 25.69999998807907
+        },
+        "react": {
+          "tasks": {
+            "count": 23,
+            "min": 0.09999996423721313,
+            "mean": 11.78695651759272,
+            "median": 17.399999976158142,
+            "p95": 23,
+            "p99": 36.90000003576279,
+            "max": 36.90000003576279
+          },
+          "tasksOverFrame": 13,
+          "domCommits": 24,
+          "r3fCommits": 14
+        },
+        "longAnimationFrames": {
+          "count": 4,
+          "totalMs": 268.2000000476837,
+          "maxMs": 88.5
+        }
+      },
+      "warm": {
+        "frames": {
+          "renderedFrames": 426,
+          "contiguousIntervals": 396,
+          "expectedIntervalMs": 16.666666666666668,
+          "effectiveFps": 40.34364636471144,
+          "onePercentLowFps": 17.589994810951385,
+          "intervalMs": {
+            "count": 396,
+            "min": 20.5,
+            "mean": 24.787050505050512,
+            "median": 20.900000000001455,
+            "p95": 41.599999999998545,
+            "p99": 54.20200000000477,
+            "max": 62.5
+          },
+          "lateFrames": 125,
+          "lateFrameRatio": 0.31565656565656564,
+          "intervalsOver50Ms": 4,
+          "cpuMs": {
+            "count": 426,
+            "min": 2.799999952316284,
+            "mean": 6.137323943382138,
+            "median": 3.400000035762787,
+            "p95": 20.19999998807907,
+            "p99": 37,
+            "max": 53.69999998807907
+          },
+          "gpuMs": {
+            "count": 426,
+            "min": 11.051145,
+            "mean": 14.476191887323946,
+            "median": 11.656458,
+            "p95": 26.003385,
+            "p99": 26.927236,
+            "max": 27.174945
+          },
+          "gpuSamples": 426,
+          "callbackLagMs": {
+            "count": 426,
+            "min": 0.09999999999854481,
+            "mean": 3.4811033100588262,
+            "median": 1.2000000119205652,
+            "p95": 16.900000011919474,
+            "p99": 24.50000003576133,
+            "max": 28
+          },
+          "drawCallsPerFrame": {
+            "count": 426,
+            "min": 152,
+            "mean": 158.53755868544602,
+            "median": 159,
+            "p95": 159,
+            "p99": 159,
+            "max": 159
+          },
+          "trianglesPerFrame": {
+            "count": 0,
+            "min": null,
+            "mean": null,
+            "median": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          }
+        },
+        "programLinks": {
+          "total": 85,
+          "firstUse": 0,
+          "repeat": 85,
+          "repeatByName": {
+            "TileImpactHighlightMaterial": 70,
+            "(ShaderMaterial)": 5,
+            "(MeshBasicMaterial)": 10
+          },
+          "linkMs": 1.4000000357627869
+        },
+        "syncWaits": {
+          "count": 158,
+          "totalMs": 843.1999999880791,
+          "maxMs": 34.89999997615814
+        },
+        "react": {
+          "tasks": {
+            "count": 115,
+            "min": 0,
+            "mean": 12.30086956438811,
+            "median": 17.399999976158142,
+            "p95": 28.900000035762787,
+            "p99": 39.09999996423721,
+            "max": 40.5
+          },
+          "tasksOverFrame": 64,
+          "domCommits": 120,
+          "r3fCommits": 70
+        },
+        "longAnimationFrames": {
+          "count": 14,
+          "totalMs": 920.1000002026558,
+          "maxMs": 85.90000003576279
+        }
+      },
+      "resourcesAfter": {
+        "geometries": 125,
+        "textures": 52,
+        "programs": 42,
+        "dpr": 1.25
+      },
+      "errors": []
+    },
+    {
+      "tier": "balanced",
+      "scenario": "hover",
+      "fixture": "board-readability",
+      "fpsCap": 60,
+      "sweeps": 5,
+      "tilesPerSweep": 18,
+      "hoverEvents": 90,
+      "warm": {
+        "frames": {
+          "renderedFrames": 95,
+          "contiguousIntervals": 0,
+          "expectedIntervalMs": 16.666666666666668,
+          "effectiveFps": null,
+          "onePercentLowFps": null,
+          "intervalMs": {
+            "count": 0,
+            "min": null,
+            "mean": null,
+            "median": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          },
+          "lateFrames": 0,
+          "lateFrameRatio": null,
+          "intervalsOver50Ms": 0,
+          "cpuMs": {
+            "count": 95,
+            "min": 10.099999964237213,
+            "mean": 11.55684210501219,
+            "median": 11.300000011920929,
+            "p95": 13.399999976158142,
+            "p99": 16.400000035762787,
+            "max": 16.400000035762787
+          },
+          "gpuMs": {
+            "count": 95,
+            "min": 11.277864,
+            "mean": 18.83885317894737,
+            "median": 17.989583,
+            "p95": 26.495677,
+            "p99": 26.582656,
+            "max": 26.582656
+          },
+          "gpuSamples": 95,
+          "callbackLagMs": {
+            "count": 95,
+            "min": 0.19999995231773937,
+            "mean": 2.7568420789115695,
+            "median": 2.3999999880797986,
+            "p95": 7.299999964237941,
+            "p99": 8.599999964237213,
+            "max": 8.599999964237213
+          },
+          "drawCallsPerFrame": {
+            "count": 95,
+            "min": 163,
+            "mean": 163,
+            "median": 163,
+            "p95": 163,
+            "p99": 163,
+            "max": 163
+          },
+          "trianglesPerFrame": {
+            "count": 0,
+            "min": null,
+            "mean": null,
+            "median": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          }
+        },
+        "programLinks": {
+          "total": 95,
+          "firstUse": 0,
+          "repeat": 95,
+          "repeatByName": {
+            "TileImpactHighlightMaterial": 95
+          },
+          "linkMs": 1.2000000476837158
+        },
+        "syncWaits": {
+          "count": 122,
+          "totalMs": 513.3000006079674,
+          "maxMs": 8.699999988079071
+        },
+        "react": {
+          "tasks": {
+            "count": 190,
+            "min": 1.100000023841858,
+            "mean": 9.968421052631578,
+            "median": 2.199999988079071,
+            "p95": 20.900000035762787,
+            "p99": 27.399999976158142,
+            "max": 29.100000023841858
+          },
+          "tasksOverFrame": 91,
+          "domCommits": 95,
+          "r3fCommits": 95
+        },
+        "longAnimationFrames": {
+          "count": 0,
+          "totalMs": 0,
+          "maxMs": 0
+        }
+      },
+      "errors": []
+    },
+    {
+      "tier": "balanced",
+      "scenario": "purchase",
+      "fixture": "purchase",
+      "fpsCap": 60,
+      "replays": 5,
+      "firstReplay": {
+        "frames": {
+          "renderedFrames": 69,
+          "contiguousIntervals": 63,
+          "expectedIntervalMs": 16.666666666666668,
+          "effectiveFps": 47.25827019728452,
+          "onePercentLowFps": null,
+          "intervalMs": {
+            "count": 63,
+            "min": 20.599999999998545,
+            "mean": 21.160317460317465,
+            "median": 20.80000000000109,
+            "p95": 21,
+            "p99": 27.800000000000182,
+            "max": 27.800000000000182
+          },
+          "lateFrames": 3,
+          "lateFrameRatio": 0.047619047619047616,
+          "intervalsOver50Ms": 0,
+          "cpuMs": {
+            "count": 69,
+            "min": 2.899999976158142,
+            "mean": 4.520289853863094,
+            "median": 3.300000011920929,
+            "p95": 11.600000023841858,
+            "p99": 21.899999976158142,
+            "max": 21.899999976158142
+          },
+          "gpuMs": {
+            "count": 69,
+            "min": 10.840364,
+            "mean": 11.955909057971015,
+            "median": 11.008593,
+            "p95": 24.616196,
+            "p99": 25.164687,
+            "max": 25.164687
+          },
+          "gpuSamples": 69,
+          "callbackLagMs": {
+            "count": 69,
+            "min": 0.09999998807870725,
+            "mean": 1.5125797208564873,
+            "median": 0.20000003576205927,
+            "p95": 14.500000011921657,
+            "p99": 21.00000003576315,
+            "max": 21.00000003576315
+          },
+          "drawCallsPerFrame": {
+            "count": 69,
+            "min": 152,
+            "mean": 154.0144927536232,
+            "median": 154,
+            "p95": 154,
+            "p99": 156,
+            "max": 156
+          },
+          "trianglesPerFrame": {
+            "count": 0,
+            "min": null,
+            "mean": null,
+            "median": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          }
+        },
+        "programLinks": {
+          "total": 7,
+          "firstUse": 0,
+          "repeat": 7,
+          "repeatByName": {
+            "TileImpactHighlightMaterial": 7
+          },
+          "linkMs": 0
+        },
+        "syncWaits": {
+          "count": 12,
+          "totalMs": 52.50000011920929,
+          "maxMs": 10.400000035762787
+        },
+        "react": {
+          "tasks": {
+            "count": 59,
+            "min": 0.09999996423721313,
+            "mean": 2.4016949140419395,
+            "median": 0.3999999761581421,
+            "p95": 20,
+            "p99": 22.5,
+            "max": 22.5
+          },
+          "tasksOverFrame": 6,
+          "domCommits": 57,
+          "r3fCommits": 9
+        },
+        "longAnimationFrames": {
+          "count": 0,
+          "totalMs": 0,
+          "maxMs": 0
+        }
+      },
+      "warm": {
+        "frames": {
+          "renderedFrames": 344,
+          "contiguousIntervals": 316,
+          "expectedIntervalMs": 16.666666666666668,
+          "effectiveFps": 46.91136187246406,
+          "onePercentLowFps": 27.378507871321286,
+          "intervalMs": {
+            "count": 316,
+            "min": 16.666000000001077,
+            "mean": 21.31679746835442,
+            "median": 20.80000000000109,
+            "p95": 27.700000000000728,
+            "p99": 27.899999999999636,
+            "max": 48.599999999998545
+          },
+          "lateFrames": 18,
+          "lateFrameRatio": 0.056962025316455694,
+          "intervalsOver50Ms": 0,
+          "cpuMs": {
+            "count": 344,
+            "min": 2.699999988079071,
+            "mean": 4.504069768758708,
+            "median": 3.100000023841858,
+            "p95": 11.599999964237213,
+            "p99": 38.700000047683716,
+            "max": 47.19999998807907
+          },
+          "gpuMs": {
+            "count": 344,
+            "min": 10.82375,
+            "mean": 12.563814287790688,
+            "median": 11.095104,
+            "p95": 20.744531,
+            "p99": 25.086718,
+            "max": 26.230572
+          },
+          "gpuSamples": 344,
+          "callbackLagMs": {
+            "count": 344,
+            "min": 0.09999998807870725,
+            "mean": 1.4070348943596558,
+            "median": 0.2000000238422217,
+            "p95": 12.634000035763165,
+            "p99": 16.799999988077616,
+            "max": 17.800000035764242
+          },
+          "drawCallsPerFrame": {
+            "count": 344,
+            "min": 152,
+            "mean": 153.52325581395348,
+            "median": 154,
+            "p95": 154,
+            "p99": 155,
+            "max": 156
+          },
+          "trianglesPerFrame": {
+            "count": 0,
+            "min": null,
+            "mean": null,
+            "median": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          }
+        },
+        "programLinks": {
+          "total": 35,
+          "firstUse": 0,
+          "repeat": 35,
+          "repeatByName": {
+            "TileImpactHighlightMaterial": 35
+          },
+          "linkMs": 0.20000004768371582
+        },
+        "syncWaits": {
+          "count": 65,
+          "totalMs": 349.39999997615814,
+          "maxMs": 25.80000001192093
+        },
+        "react": {
+          "tasks": {
+            "count": 312,
+            "min": 0,
+            "mean": 2.1708333352819467,
+            "median": 0.3999999761581421,
+            "p95": 18.30000001192093,
+            "p99": 19.899999976158142,
+            "max": 21.700000047683716
+          },
+          "tasksOverFrame": 30,
+          "domCommits": 302,
+          "r3fCommits": 45
+        },
+        "longAnimationFrames": {
+          "count": 3,
+          "totalMs": 190.99999994039536,
+          "maxMs": 67.30000001192093
+        }
+      },
+      "resourcesAfter": {
+        "geometries": 114,
+        "textures": 51,
+        "programs": 40,
+        "dpr": 1.25
+      },
+      "errors": []
+    },
+    {
+      "tier": "balanced",
+      "scenario": "rent",
+      "fixture": "rent",
+      "fpsCap": 60,
+      "replays": 5,
+      "firstReplay": {
+        "frames": {
+          "renderedFrames": 62,
+          "contiguousIntervals": 55,
+          "expectedIntervalMs": 16.666666666666668,
+          "effectiveFps": 47.77615049313669,
+          "onePercentLowFps": null,
+          "intervalMs": {
+            "count": 55,
+            "min": 19.502000000000407,
+            "mean": 20.930945454545476,
+            "median": 20.800000000000182,
+            "p95": 21,
+            "p99": 27.800000000000182,
+            "max": 27.800000000000182
+          },
+          "lateFrames": 1,
+          "lateFrameRatio": 0.01818181818181818,
+          "intervalsOver50Ms": 0,
+          "cpuMs": {
+            "count": 62,
+            "min": 2.799999952316284,
+            "mean": 4.9806451576371344,
+            "median": 3.199999988079071,
+            "p95": 14.099999964237213,
+            "p99": 46.5,
+            "max": 46.5
+          },
+          "gpuMs": {
+            "count": 62,
+            "min": 10.872708,
+            "mean": 12.052694306451613,
+            "median": 11.222916,
+            "p95": 16.032291,
+            "p99": 26.447187,
+            "max": 26.447187
+          },
+          "gpuSamples": 62,
+          "callbackLagMs": {
+            "count": 62,
+            "min": 0.2000000000007276,
+            "mean": 2.1317742181593737,
+            "median": 0.3000000476840796,
+            "p95": 18.200000047683716,
+            "p99": 22.30000001192093,
+            "max": 22.30000001192093
+          },
+          "drawCallsPerFrame": {
+            "count": 62,
+            "min": 152,
+            "mean": 153.83870967741936,
+            "median": 154,
+            "p95": 154,
+            "p99": 154,
+            "max": 154
+          },
+          "trianglesPerFrame": {
+            "count": 0,
+            "min": null,
+            "mean": null,
+            "median": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          }
+        },
+        "programLinks": {
+          "total": 7,
+          "firstUse": 0,
+          "repeat": 7,
+          "repeatByName": {
+            "TileImpactHighlightMaterial": 7
+          },
+          "linkMs": 0
+        },
+        "syncWaits": {
+          "count": 14,
+          "totalMs": 79.5,
+          "maxMs": 19.400000035762787
+        },
+        "react": {
+          "tasks": {
+            "count": 69,
+            "min": 0.09999996423721313,
+            "mean": 2.3434782572414563,
+            "median": 0.5,
+            "p95": 20.399999976158142,
+            "p99": 23.399999976158142,
+            "max": 23.399999976158142
+          },
+          "tasksOverFrame": 6,
+          "domCommits": 69,
+          "r3fCommits": 7
+        },
+        "longAnimationFrames": {
+          "count": 1,
+          "totalMs": 68.79999995231628,
+          "maxMs": 68.79999995231628
+        }
+      },
+      "warm": {
+        "frames": {
+          "renderedFrames": 299,
+          "contiguousIntervals": 264,
+          "expectedIntervalMs": 16.666666666666668,
+          "effectiveFps": 46.35671350567732,
+          "onePercentLowFps": 28.81844380403398,
+          "intervalMs": {
+            "count": 264,
+            "min": 20.69999999999709,
+            "mean": 21.571848484848474,
+            "median": 20.80000000000109,
+            "p95": 27.799999999999272,
+            "p99": 34.70000000000073,
+            "max": 34.70000000000073
+          },
+          "lateFrames": 25,
+          "lateFrameRatio": 0.0946969696969697,
+          "intervalsOver50Ms": 0,
+          "cpuMs": {
+            "count": 299,
+            "min": 2.699999988079071,
+            "mean": 4.840802676900972,
+            "median": 3,
+            "p95": 13.300000011920929,
+            "p99": 40.69999998807907,
+            "max": 49.40000003576279
+          },
+          "gpuMs": {
+            "count": 299,
+            "min": 10.858697,
+            "mean": 13.57868100334448,
+            "median": 11.281875,
+            "p95": 25.407604,
+            "p99": 26.30276,
+            "max": 26.393385
+          },
+          "gpuSamples": 299,
+          "callbackLagMs": {
+            "count": 299,
+            "min": 0.2000000000007276,
+            "mean": 2.5033645720976647,
+            "median": 0.30000004768226063,
+            "p95": 16.80000004768226,
+            "p99": 19.700000011922384,
+            "max": 22.700000000000728
+          },
+          "drawCallsPerFrame": {
+            "count": 299,
+            "min": 152,
+            "mean": 153.28428093645485,
+            "median": 153,
+            "p95": 154,
+            "p99": 154,
+            "max": 154
+          },
+          "trianglesPerFrame": {
+            "count": 0,
+            "min": null,
+            "mean": null,
+            "median": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          }
+        },
+        "programLinks": {
+          "total": 35,
+          "firstUse": 0,
+          "repeat": 35,
+          "repeatByName": {
+            "TileImpactHighlightMaterial": 35
+          },
+          "linkMs": 0.30000001192092896
+        },
+        "syncWaits": {
+          "count": 77,
+          "totalMs": 389.8000001311302,
+          "maxMs": 26.80000001192093
+        },
+        "react": {
+          "tasks": {
+            "count": 352,
+            "min": 0.09999996423721313,
+            "mean": 2.0704545436257664,
+            "median": 0.40000003576278687,
+            "p95": 18.400000035762787,
+            "p99": 21,
+            "max": 23.299999952316284
+          },
+          "tasksOverFrame": 30,
+          "domCommits": 352,
+          "r3fCommits": 35
+        },
+        "longAnimationFrames": {
+          "count": 7,
+          "totalMs": 419.8000000715256,
+          "maxMs": 68.20000004768372
+        }
+      },
+      "resourcesAfter": {
+        "geometries": 113,
+        "textures": 51,
+        "programs": 40,
+        "dpr": 1.25
+      },
+      "errors": []
+    },
+    {
+      "tier": "balanced",
+      "scenario": "build",
+      "fixture": "house-2",
+      "fpsCap": 60,
+      "replays": 5,
+      "firstReplay": {
+        "frames": {
+          "renderedFrames": 75,
+          "contiguousIntervals": 68,
+          "expectedIntervalMs": 16.666666666666668,
+          "effectiveFps": 44.28040435823364,
+          "onePercentLowFps": null,
+          "intervalMs": {
+            "count": 68,
+            "min": 20.69999999999891,
+            "mean": 22.583352941176493,
+            "median": 20.80000000000109,
+            "p95": 27.80000000000109,
+            "p99": 83.30000000000109,
+            "max": 83.30000000000109
+          },
+          "lateFrames": 8,
+          "lateFrameRatio": 0.11764705882352941,
+          "intervalsOver50Ms": 1,
+          "cpuMs": {
+            "count": 75,
+            "min": 2.899999976158142,
+            "mean": 6.138666667143504,
+            "median": 3.399999976158142,
+            "p95": 28.80000001192093,
+            "p99": 68.69999998807907,
+            "max": 68.69999998807907
+          },
+          "gpuMs": {
+            "count": 75,
+            "min": 10.888281,
+            "mean": 12.243975733333333,
+            "median": 11.64276,
+            "p95": 18.764893,
+            "p99": 25.141927,
+            "max": 25.141927
+          },
+          "gpuSamples": 75,
+          "callbackLagMs": {
+            "count": 75,
+            "min": 0.09999997615886969,
+            "mean": 2.01647998839698,
+            "median": 0.29999998807943484,
+            "p95": 15.500000011921657,
+            "p99": 22.399999976158142,
+            "max": 22.399999976158142
+          },
+          "drawCallsPerFrame": {
+            "count": 75,
+            "min": 153,
+            "mean": 156.16,
+            "median": 155,
+            "p95": 162,
+            "p99": 162,
+            "max": 162
+          },
+          "trianglesPerFrame": {
+            "count": 0,
+            "min": null,
+            "mean": null,
+            "median": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          }
+        },
+        "programLinks": {
+          "total": 9,
+          "firstUse": 0,
+          "repeat": 9,
+          "repeatByName": {
+            "TileImpactHighlightMaterial": 8,
+            "(MeshStandardMaterial)": 1
+          },
+          "linkMs": 0.10000002384185791
+        },
+        "syncWaits": {
+          "count": 28,
+          "totalMs": 174.30000019073486,
+          "maxMs": 25.30000001192093
+        },
+        "react": {
+          "tasks": {
+            "count": 52,
+            "min": 0.09999996423721313,
+            "mean": 3.0326923051705728,
+            "median": 0.5,
+            "p95": 19.69999998807907,
+            "p99": 20.80000001192093,
+            "max": 20.80000001192093
+          },
+          "tasksOverFrame": 7,
+          "domCommits": 49,
+          "r3fCommits": 11
+        },
+        "longAnimationFrames": {
+          "count": 3,
+          "totalMs": 213.50000005960464,
+          "maxMs": 88.30000001192093
+        }
+      },
+      "warm": {
+        "frames": {
+          "renderedFrames": 356,
+          "contiguousIntervals": 321,
+          "expectedIntervalMs": 16.666666666666668,
+          "effectiveFps": 42.39188484620858,
+          "onePercentLowFps": 18.6046511627907,
+          "intervalMs": {
+            "count": 321,
+            "min": 16.666000000001077,
+            "mean": 23.589420560747662,
+            "median": 20.899999999999636,
+            "p95": 34.70000000000073,
+            "p99": 48.5,
+            "max": 55.5
+          },
+          "lateFrames": 87,
+          "lateFrameRatio": 0.27102803738317754,
+          "intervalsOver50Ms": 3,
+          "cpuMs": {
+            "count": 356,
+            "min": 2.699999988079071,
+            "mean": 5.603370786382911,
+            "median": 3.199999988079071,
+            "p95": 21.100000023841858,
+            "p99": 47.39999997615814,
+            "max": 61.299999952316284
+          },
+          "gpuMs": {
+            "count": 356,
+            "min": 10.874843,
+            "mean": 14.5940360730337,
+            "median": 11.285104,
+            "p95": 25.628333,
+            "p99": 26.36625,
+            "max": 26.600937
+          },
+          "gpuSamples": 356,
+          "callbackLagMs": {
+            "count": 356,
+            "min": 0.09999996423721313,
+            "mean": 2.849280886955476,
+            "median": 0.39999996423648554,
+            "p95": 17.79999996423794,
+            "p99": 22.799999988077616,
+            "max": 25.399999964236486
+          },
+          "drawCallsPerFrame": {
+            "count": 356,
+            "min": 153,
+            "mean": 156.11516853932585,
+            "median": 155,
+            "p95": 162,
+            "p99": 162,
+            "max": 162
+          },
+          "trianglesPerFrame": {
+            "count": 0,
+            "min": null,
+            "mean": null,
+            "median": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          }
+        },
+        "programLinks": {
+          "total": 45,
+          "firstUse": 0,
+          "repeat": 45,
+          "repeatByName": {
+            "TileImpactHighlightMaterial": 40,
+            "(MeshStandardMaterial)": 5
+          },
+          "linkMs": 0.30000001192092896
+        },
+        "syncWaits": {
+          "count": 113,
+          "totalMs": 712.6999999880791,
+          "maxMs": 28.19999998807907
+        },
+        "react": {
+          "tasks": {
+            "count": 272,
+            "min": 0,
+            "mean": 2.9330882346805405,
+            "median": 0.5,
+            "p95": 20,
+            "p99": 22.5,
+            "max": 24.30000001192093
+          },
+          "tasksOverFrame": 35,
+          "domCommits": 257,
+          "r3fCommits": 55
+        },
+        "longAnimationFrames": {
+          "count": 17,
+          "totalMs": 1078.0000000596046,
+          "maxMs": 91.19999998807907
+        }
+      },
+      "resourcesAfter": {
+        "geometries": 114,
+        "textures": 51,
+        "programs": 41,
+        "dpr": 1.25
+      },
+      "errors": []
+    },
+    {
+      "tier": "balanced",
+      "scenario": "soak",
+      "fixture": "walk",
+      "fpsCap": 60,
+      "replays": 30,
+      "warmupReplays": 3,
+      "samples": [
+        {
+          "replay": 0,
+          "heapBytes": 20504884,
+          "geometries": 122,
+          "textures": 52,
+          "programs": 42,
+          "dpr": 1.25
+        },
+        {
+          "replay": 10,
+          "heapBytes": 22574476,
+          "geometries": 132,
+          "textures": 52,
+          "programs": 42,
+          "dpr": 1.25
+        },
+        {
+          "replay": 20,
+          "heapBytes": 23933796,
+          "geometries": 142,
+          "textures": 52,
+          "programs": 42,
+          "dpr": 1.25
+        },
+        {
+          "replay": 30,
+          "heapBytes": 25643476,
+          "geometries": 152,
+          "textures": 52,
+          "programs": 42,
+          "dpr": 1.25
+        }
+      ],
+      "trend": {
+        "replays": 30,
+        "heapBytes": {
+          "first": 20504884,
+          "last": 25643476,
+          "growth": 5138592,
+          "slopePerReplay": 167750.96
+        },
+        "geometries": {
+          "first": 122,
+          "last": 152,
+          "growth": 30,
+          "slopePerReplay": 1
+        },
+        "textures": {
+          "first": 52,
+          "last": 52,
+          "growth": 0,
+          "slopePerReplay": 0
+        },
+        "programs": {
+          "first": 42,
+          "last": 42,
+          "growth": 0,
+          "slopePerReplay": 0
+        }
+      },
+      "warm": {
+        "frames": {
+          "renderedFrames": 2652,
+          "contiguousIntervals": 2472,
+          "expectedIntervalMs": 16.666666666666668,
+          "effectiveFps": 41.502911768402534,
+          "onePercentLowFps": 15.3434100667503,
+          "intervalMs": {
+            "count": 2472,
+            "min": 16.66599999999744,
+            "mean": 24.09469498381873,
+            "median": 20.89999999999418,
+            "p95": 34.80000000000291,
+            "p99": 55.599999999998545,
+            "max": 90.29999999998836
+          },
+          "lateFrames": 662,
+          "lateFrameRatio": 0.26779935275080907,
+          "intervalsOver50Ms": 38,
+          "cpuMs": {
+            "count": 2652,
+            "min": 2.599999964237213,
+            "mean": 5.719758672299788,
+            "median": 3.100000023841858,
+            "p95": 19.5,
+            "p99": 38.30000001192093,
+            "max": 55.90000003576279
+          },
+          "gpuMs": {
+            "count": 2652,
+            "min": 11.019531,
+            "mean": 13.101864674208159,
+            "median": 11.363489,
+            "p95": 25.295156,
+            "p99": 26.912915,
+            "max": 31.565989
+          },
+          "gpuSamples": 2652,
+          "callbackLagMs": {
+            "count": 2652,
+            "min": 0.10000000000582077,
+            "mean": 3.0651184253138797,
+            "median": 0.6000000000058208,
+            "p95": 16.39999999999418,
+            "p99": 23.39999999999418,
+            "max": 50.300000035756966
+          },
+          "drawCallsPerFrame": {
+            "count": 2652,
+            "min": 152,
+            "mean": 158.53846153846155,
+            "median": 159,
+            "p95": 159,
+            "p99": 159,
+            "max": 159
+          },
+          "trianglesPerFrame": {
+            "count": 0,
+            "min": null,
+            "mean": null,
+            "median": null,
+            "p95": null,
+            "p99": null,
+            "max": null
+          }
+        },
+        "programLinks": {
+          "total": 510,
+          "firstUse": 0,
+          "repeat": 510,
+          "repeatByName": {
+            "TileImpactHighlightMaterial": 420,
+            "(ShaderMaterial)": 30,
+            "(MeshBasicMaterial)": 60
+          },
+          "linkMs": 8.800000011920929
+        },
+        "syncWaits": {
+          "count": 1010,
+          "totalMs": 5040.100001454353,
+          "maxMs": 38.60000002384186
+        },
+        "react": {
+          "tasks": {
+            "count": 684,
+            "min": 0,
+            "mean": 12.456578947298707,
+            "median": 17.100000023841858,
+            "p95": 31.30000001192093,
+            "p99": 38.799999952316284,
+            "max": 64.09999996423721
+          },
+          "tasksOverFrame": 365,
+          "domCommits": 714,
+          "r3fCommits": 420
+        },
+        "longAnimationFrames": {
+          "count": 90,
+          "totalMs": 5794.699999988079,
+          "maxMs": 105.30000001192093
+        }
+      },
+      "errors": []
+    }
+  ]
+}

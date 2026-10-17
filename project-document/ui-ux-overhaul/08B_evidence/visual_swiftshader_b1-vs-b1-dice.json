@@ -1,0 +1,23 @@
+{
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "rendererAfter": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "viewport": "1280x720",
+  "tolerance": 0,
+  "results": [
+    {
+      "state": "dice-settled-balanced",
+      "fixture": "dice-contact-shadows",
+      "tier": "balanced",
+      "comparable": true,
+      "identical": false,
+      "width": 1280,
+      "height": 720,
+      "totalPixels": 921600,
+      "differingPixels": 2141,
+      "differingRatio": 0.0023231336805555557,
+      "maxChannelDelta": 149,
+      "meanAbsDelta": 0.030973036024305556,
+      "pageErrors": []
+    }
+  ]
+}

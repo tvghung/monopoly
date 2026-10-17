@@ -29,7 +29,7 @@ import {
   DICE_PIP_SEGMENTS,
   DICE_PIP_RADIUS,
 } from './diceVisualConfig';
-import DiceContactShadowBatch from './DiceContactShadowBatch';
+import DiceContactShadowBatch, { useDiceContactShadowMaterial } from './DiceContactShadowBatch';
 import { DiceAnimationClock, useDiceAnimationProgressRef } from './diceAnimationClock';
 import { useRenderQuality } from '../render/RenderQualityContext';
 
@@ -81,8 +81,37 @@ function DiePips() {
   );
 }
 
+/** Trail meshes per die for a quality tier: none on Low, one on Balanced, two on High. */
+export function getDiceTrailCount(tier: 'low' | 'balanced' | 'high'): number {
+  if (tier === 'high') return 2;
+  return tier === 'balanced' ? 1 : 0;
+}
+
+export function createDiceTrailMaterials(count: number): THREE.MeshBasicMaterial[] {
+  return Array.from({ length: count }, (_, index) => new THREE.MeshBasicMaterial({
+    color: index === 0 ? '#d6e7ff' : '#edf4ff',
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    toneMapped: false,
+  }));
+}
+
+/**
+ * The trail materials of one die, owned by the always-mounted dice layer. The trail meshes exist only while a roll plays and
+ * the dice themselves only while they are visible (a replay or a reset hides them): a material disposed with either released
+ * its shader program, so the next roll linked the identical program again on the main thread (audit PERF-05). Created once
+ * per trail count, disposed when the layer goes away or the quality tier changes the count.
+ */
+export function useDiceTrailMaterials(count: number): THREE.MeshBasicMaterial[] {
+  const materials = useMemo(() => createDiceTrailMaterials(count), [count]);
+  useEffect(() => () => materials.forEach(material => material.dispose()), [materials]);
+  return materials;
+}
+
 function DiceMotionTrail({
   geometry,
+  materials,
   progressRef,
   basePosition,
   value,
@@ -93,6 +122,7 @@ function DiceMotionTrail({
   hasPreviousDice,
 }: {
   geometry: THREE.BufferGeometry;
+  materials: readonly THREE.MeshBasicMaterial[];
   progressRef: ReturnType<typeof useDiceAnimationProgressRef>;
   basePosition: readonly [number, number, number];
   value: number;
@@ -102,16 +132,8 @@ function DiceMotionTrail({
   tier: 'high' | 'balanced';
   hasPreviousDice: boolean;
 }) {
-  const count = tier === 'high' ? 2 : 1;
+  const count = materials.length;
   const refs = useRef<Array<THREE.Mesh | null>>([]);
-  const materials = useMemo(() => Array.from({ length: count }, (_, index) => new THREE.MeshBasicMaterial({
-    color: index === 0 ? '#d6e7ff' : '#edf4ff',
-    transparent: true,
-    opacity: 0,
-    depthWrite: false,
-    toneMapped: false,
-  })), [count]);
-  useEffect(() => () => materials.forEach(material => material.dispose()), [materials]);
 
   useFrame(() => {
     const progress = progressRef.current.progress;
@@ -163,6 +185,7 @@ function Die({
   rollSequence,
   fromValue,
   reducedMotion,
+  trailMaterials,
 }: {
   dieIndex: 0 | 1;
   value: number;
@@ -170,6 +193,7 @@ function Die({
   rollSequence: number;
   fromValue?: number;
   reducedMotion: boolean;
+  trailMaterials: readonly THREE.MeshBasicMaterial[];
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const progressRef = useDiceAnimationProgressRef();
@@ -201,6 +225,7 @@ function Die({
       {isRolling && !reducedMotion && tier !== 'low'
         ? <DiceMotionTrail
           geometry={geometry}
+          materials={trailMaterials}
           progressRef={progressRef}
           basePosition={basePosition}
           value={value}
@@ -235,6 +260,12 @@ export default function DiceLayer({
   reducedMotion?: boolean;
 }) {
   const hasVisibleDice = model.phase !== 'HIDDEN' && isValidDiceValue(model.dice);
+  // Effect materials live as long as the layer, not as long as the dice are visible or a roll is playing.
+  const { tier } = useRenderQuality();
+  const trailCount = getDiceTrailCount(tier);
+  const firstDieTrail = useDiceTrailMaterials(trailCount);
+  const secondDieTrail = useDiceTrailMaterials(trailCount);
+  const contactShadowMaterial = useDiceContactShadowMaterial();
 
   return (
     <group
@@ -251,7 +282,7 @@ export default function DiceLayer({
             rollSequence={model.rollSequence}
             durationMs={model.durationMs}
           >
-            <DiceContactShadowBatch fromDice={model.fromDice} />
+            <DiceContactShadowBatch fromDice={model.fromDice} material={contactShadowMaterial} />
             <Die
               dieIndex={0}
               value={model.dice.dice1}
@@ -259,6 +290,7 @@ export default function DiceLayer({
               rollSequence={model.rollSequence}
               fromValue={model.fromDice?.dice1}
               reducedMotion={reducedMotion}
+              trailMaterials={firstDieTrail}
             />
             <Die
               dieIndex={1}
@@ -267,6 +299,7 @@ export default function DiceLayer({
               rollSequence={model.rollSequence}
               fromValue={model.fromDice?.dice2}
               reducedMotion={reducedMotion}
+              trailMaterials={secondDieTrail}
             />
           </DiceAnimationClock>
         )

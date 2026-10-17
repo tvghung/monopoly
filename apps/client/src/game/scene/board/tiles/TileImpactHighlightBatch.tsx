@@ -1,8 +1,8 @@
 import { useFrame } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useLayoutEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { tileState } from '@monopoly/shared';
-import { getBoardTileLayout, getTileSurfaceGeometry } from '../boardLayout';
+import { getBoardTileLayout, getTileSurfaceGeometry, type BoardTileLayout } from '../boardLayout';
 import { composeTileSurfaceMatrix } from '../architecture/tileMatrix';
 import type { BoardTileRenderModel } from '../boardRenderModel';
 import type { TileMotionController } from '../motion/TileMotionController';
@@ -82,17 +82,19 @@ export function createTileImpactHighlightMeshBundle(
   };
   return { material, mesh };
 }
+
 interface TileImpactHighlightBatchProps {
   tiles: readonly BoardTileRenderModel[];
 }
 
-export function getTileImpactHighlightEntries(tiles: readonly BoardTileRenderModel[]): TileSurfaceBatchEntry[] {
-  const baseEntries = tiles.map<TileSurfaceBatchEntry | null>(tile => {
-    const layout = getBoardTileLayout(tile.tileId);
-    const sourceTile = tileState[tile.tileId];
+/** Highlight entries depend only on which tiles exist: layout and tile type are static data. */
+export function getTileImpactHighlightEntriesForIds(tileIds: readonly number[]): TileSurfaceBatchEntry[] {
+  const baseEntries = tileIds.map<TileSurfaceBatchEntry | null>(tileId => {
+    const layout = getBoardTileLayout(tileId);
+    const sourceTile = tileState[tileId];
     if (!layout || !sourceTile) return null;
     return {
-      tileId: tile.tileId,
+      tileId,
       tileType: sourceTile.tileType,
       side: layout.side,
       surfaceSize: getTileSurfaceGeometry(layout).size,
@@ -104,64 +106,118 @@ export function getTileImpactHighlightEntries(tiles: readonly BoardTileRenderMod
   return [...edgeEntries.map(entry => withPanel(entry, 'upper')), ...cornerEntries];
 }
 
+export function getTileImpactHighlightEntries(tiles: readonly BoardTileRenderModel[]): TileSurfaceBatchEntry[] {
+  return getTileImpactHighlightEntriesForIds(tiles.map(tile => tile.tileId));
+}
+
+/**
+ * The batch's GPU resources and the per-tile state needed to keep them current, owned by one object so the component only
+ * decides when to create and when to dispose it. Created once per (tile set, motion controller); the audit found it was
+ * rebuilt on every board render, which re-linked the identical shader program and left the old buffers undisposed.
+ */
+export interface TileImpactHighlightResources {
+  readonly mesh: THREE.InstancedMesh;
+  readonly material: THREE.MeshBasicMaterial;
+  readonly geometry: THREE.PlaneGeometry;
+  readonly entries: readonly TileSurfaceBatchEntry[];
+  /** Number of tiles whose last written state is remembered: fixed at creation, never grows. */
+  readonly trackedTiles: number;
+  /** Writes the controller's current offset and intensity for the tiles whose state changed; true when anything was written. */
+  sync(controller: TileMotionController | null): boolean;
+  /**
+   * Releases the mesh's instance buffers, the material (and its program reference) and the geometry. Safe to call again:
+   * three.js re-creates GPU resources on the next render, which is what a development double-mount relies on.
+   */
+  dispose(): void;
+}
+
+export function createTileImpactHighlightResources(
+  entries: readonly TileSurfaceBatchEntry[],
+  controller: TileMotionController | null,
+): TileImpactHighlightResources {
+  const geometry = new THREE.PlaneGeometry(1, 1);
+  const { mesh, material } = createTileImpactHighlightMeshBundle(geometry, entries, controller);
+  const layouts: (BoardTileLayout | undefined)[] = entries.map(entry => getBoardTileLayout(entry.tileId));
+  // NaN never equals a real value, so the first sync writes every tile once, exactly like the first frame always did.
+  const lastOffsets = new Float64Array(entries.length).fill(Number.NaN);
+  const lastIntensities = new Float64Array(entries.length).fill(Number.NaN);
+  const matrix = new THREE.Matrix4();
+  const color = new THREE.Color();
+  return {
+    mesh,
+    material,
+    geometry,
+    entries,
+    trackedTiles: entries.length,
+    sync(motionController) {
+      let changed = false;
+      entries.forEach((entry, index) => {
+        const layout = layouts[index];
+        if (!layout) return;
+        const offsetY = motionController?.getTileOffsetY(entry.tileId) ?? 0;
+        const pressIntensity = motionController?.getTilePressIntensity(entry.tileId) ?? 0;
+        const kind = motionController?.getTilePressKind(entry.tileId) ?? 'STEP';
+        const highlightIntensity = getTileImpactHighlightIntensity(pressIntensity, kind);
+        if (lastOffsets[index] === offsetY && lastIntensities[index] === highlightIntensity) return;
+        composeTileSurfaceMatrix(
+          layout,
+          entry.surfaceSize,
+          offsetY,
+          matrix,
+          (entry.surfacePlaneOffset ?? 0) + TILE_HIGHLIGHT_PLANE_OFFSET,
+        );
+        mesh.setMatrixAt(index, matrix);
+        mesh.setColorAt(index, color.setScalar(highlightIntensity));
+        lastOffsets[index] = offsetY;
+        lastIntensities[index] = highlightIntensity;
+        changed = true;
+      });
+      if (changed) {
+        mesh.instanceMatrix.needsUpdate = true;
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      }
+      return changed;
+    },
+    dispose() {
+      mesh.dispose();
+      material.dispose();
+      geometry.dispose();
+    },
+  };
+}
+
+/** Parses the id key back into ids: the key (a primitive) is what keeps the entries stable while `tiles` changes identity. */
+function parseTileIdsKey(key: string): number[] {
+  return key === '' ? [] : key.split(',').map(Number);
+}
+
+/**
+ * The highlight resources for a set of tiles: one instance for as long as the tile ids and the motion controller are the
+ * same, however often the tile array or its objects are recreated, disposed when they change or the owner unmounts.
+ */
+export function useTileImpactHighlightResources(
+  tiles: readonly BoardTileRenderModel[],
+): TileImpactHighlightResources {
+  const tileIdsKey = tiles.map(tile => tile.tileId).join(',');
+  const entries = useMemo(() => getTileImpactHighlightEntriesForIds(parseTileIdsKey(tileIdsKey)), [tileIdsKey]);
+  const motionController = useTileMotionController();
+  const resources = useMemo(
+    () => createTileImpactHighlightResources(entries, motionController),
+    [entries, motionController],
+  );
+  useLayoutEffect(() => () => resources.dispose(), [resources]);
+  return resources;
+}
+
 export default function TileImpactHighlightBatch({
   tiles,
 }: TileImpactHighlightBatchProps) {
-  const entries = useMemo(() => getTileImpactHighlightEntries(tiles), [tiles]);
-  const geometry = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
   const motionController = useTileMotionController();
-  const meshBundle = useMemo(
-    () => createTileImpactHighlightMeshBundle(geometry, entries, motionController),
-    [entries, geometry, motionController],
-  );
-  const meshRef = useRef<THREE.InstancedMesh | null>(null);
-  const matrixRef = useRef(new THREE.Matrix4());
-  const colorRef = useRef(new THREE.Color());
-  const previousStateRef = useRef(new Map<string, string>());
+  const resources = useTileImpactHighlightResources(tiles);
 
   useFrame(() => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
-    const matrix = matrixRef.current;
-    const color = colorRef.current;
-    let matrixChanged = false;
-    let colorChanged = false;
-    entries.forEach((entry, index) => {
-      const layout = getBoardTileLayout(entry.tileId);
-      if (!layout) return;
-      const offsetY = motionController?.getTileOffsetY(entry.tileId) ?? 0;
-      const pressIntensity = motionController?.getTilePressIntensity(entry.tileId) ?? 0;
-      const kind = motionController?.getTilePressKind(entry.tileId) ?? 'STEP';
-      const highlightIntensity = getTileImpactHighlightIntensity(pressIntensity, kind);
-      const stateKey = `${offsetY}:${highlightIntensity}`;
-      const stateMapKey = `${mesh.uuid}:${entry.tileId}`;
-      if (previousStateRef.current.get(stateMapKey) === stateKey) return;
-      composeTileSurfaceMatrix(
-        layout,
-        entry.surfaceSize,
-        offsetY,
-        matrix,
-        (entry.surfacePlaneOffset ?? 0) + TILE_HIGHLIGHT_PLANE_OFFSET,
-      );
-      mesh.setMatrixAt(index, matrix);
-      color.setScalar(highlightIntensity);
-      mesh.setColorAt(index, color);
-      previousStateRef.current.set(stateMapKey, stateKey);
-      matrixChanged = true;
-      colorChanged = true;
-    });
-    if (matrixChanged) mesh.instanceMatrix.needsUpdate = true;
-    if (colorChanged && mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    resources.sync(motionController);
   });
 
-  useLayoutEffect(() => {
-    meshRef.current = meshBundle.mesh;
-    return () => {
-      if (meshRef.current === meshBundle.mesh) meshRef.current = null;
-      meshBundle.material.dispose();
-    };
-  }, [meshBundle]);
-  useEffect(() => () => geometry.dispose(), [geometry]);
-
-  return <primitive object={meshBundle.mesh} dispose={null} />;
+  return <primitive object={resources.mesh} dispose={null} />;
 }
