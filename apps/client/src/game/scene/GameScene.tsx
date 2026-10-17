@@ -1,5 +1,5 @@
 import { Canvas, flushGlobalEffects, useFrame, useThree, type RootState } from '@react-three/fiber';
-import { lazy, memo, useCallback, useEffect, useMemo, useRef } from 'react';
+import { lazy, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import Board3D from './board/Board3D';
 import type { BoardRenderModel } from './board/boardRenderModel';
@@ -24,6 +24,8 @@ import { isDevToolingEnabled, isLocalDiagnosticsEnabled } from './render/diagnos
 import { MeasurementScheduler } from './render/diagnostics/measurementScheduler';
 import { FrameCounter, shadowMapTypeName, toneMappingName } from './render/diagnostics/rendererInfo';
 import OptionalSceneLayer from './render/OptionalSceneLayer';
+import ShaderWarmup from './render/warmup/ShaderWarmup';
+import { FrameWarmupHost, WarmupHostContext } from './render/warmup/warmupHost';
 import SceneLightRig from './render/lighting/SceneLightRig';
 import StudioEnvironment from './render/environment/StudioEnvironment';
 import TableProps from './props/TableProps';
@@ -55,6 +57,8 @@ export interface GameSceneProps {
   selectedTileId?: number | null;
   onTileSelect?: (tileId: number) => void;
   onRendererFailure?: (error: Error) => void;
+  /** Shown over the empty canvas until the first frame is drawn (the shader warm-up holds it), as the chunk's own fallback is. */
+  loadingLabel?: string;
 }
 
 interface BoardSceneContentsProps extends GameSceneProps {
@@ -338,6 +342,9 @@ const NO_DECK_COUNTS: DeckCounts = { chance: 0, chest: 0 };
  */
 const SCENE_STATE_SHADOW = {} as StateContextValue;
 
+/** The frames resume after this long even if the warm-up never reported back (a stuck driver must not keep the board blank). */
+const WARMUP_WATCHDOG_MS = 20_000;
+
 const selectFpsLimit = (settings: GameSettings): number => settings.fpsLimit;
 const selectGraphicsQuality = (settings: GameSettings): GameSettings['graphicsQuality'] => settings.graphicsQuality;
 
@@ -352,12 +359,26 @@ function GameScene({
   selectedTileId,
   onTileSelect,
   onRendererFailure,
+  loadingLabel,
 }: GameSceneProps) {
+  const sceneRef = useRef<HTMLDivElement>(null);
   const fpsLimit = useSettingsSelector(selectFpsLimit);
   const graphicsQuality = useSettingsSelector(selectGraphicsQuality);
   const fpsLimitRef = useRef(fpsLimit);
   fpsLimitRef.current = fpsLimit;
   const frameSchedulerRef = useRef<DemandFrameScheduler | null>(null);
+  // Holds the frame stream while the shader warm-up compiles (Phase B3); the warm-up component releases it.
+  const [warmupHost] = useState(() => new FrameWarmupHost({
+    watchdogMs: WARMUP_WATCHDOG_MS,
+    // A data attribute and CSS, not React state: showing and hiding it must not render the scene.
+    onInitialPendingChange: pending => {
+      if (sceneRef.current) sceneRef.current.dataset.warmup = pending ? 'pending' : 'ready';
+    },
+    onWatchdog: () => {
+      console.warn('[scene] shader warm-up did not finish in time; drawing without it.');
+      performance.mark?.('otb:warmup:watchdog');
+    },
+  }));
   const onCanvasCreated = useCallback((state: RootState) => {
     frameSchedulerRef.current?.dispose();
     const scheduler = new DemandFrameScheduler(fpsLimitRef.current, timestampSeconds => {
@@ -377,15 +398,18 @@ function GameScene({
     };
     state.set({ invalidate });
     frameSchedulerRef.current = scheduler;
+    // Nothing is drawn before the first warm-up ends; the invalidation below is kept and drawn on release.
+    warmupHost.attach(scheduler);
     scheduler.invalidate();
-  }, []);
+  }, [warmupHost]);
   useEffect(() => {
     frameSchedulerRef.current?.setFpsLimit(fpsLimit);
   }, [fpsLimit]);
   useEffect(() => () => {
+    warmupHost.dispose();
     frameSchedulerRef.current?.dispose();
     frameSchedulerRef.current = null;
-  }, []);
+  }, [warmupHost]);
   const quality = useMemo(
     () => resolveRenderQuality(graphicsQuality, probeRenderCapabilities()),
     [graphicsQuality],
@@ -395,7 +419,6 @@ function GameScene({
     () => (isLocalDiagnosticsEnabled() ? parseToneMappingOverride(window.location.search) : SCENE_TONE_MAPPING),
     [],
   );
-  const sceneRef = useRef<HTMLDivElement>(null);
   useBoardGestures(sceneRef);
   return (
     <div ref={sceneRef} className="game-scene" data-testid="game-scene" data-graphics-tier={quality.tier}>
@@ -418,6 +441,7 @@ function GameScene({
         }}
       >
         <RenderQualityContext.Provider value={quality}>
+          <WarmupHostContext.Provider value={warmupHost}>
           <RendererLifecycleGuard onFailure={onRendererFailure} />
           <color attach="background" args={[boardVisualTokens.sceneBackground]} />
           <SceneLightRig />
@@ -444,9 +468,13 @@ function GameScene({
             selectedTileId={selectedTileId}
             onTileSelect={onTileSelect}
           />
+          {/* Last, so its effects run after every layer above has mounted and applied its own. */}
+          <ShaderWarmup />
+          </WarmupHostContext.Provider>
         </RenderQualityContext.Provider>
       </Canvas>
       </stateContext.Provider>
+      {loadingLabel ? <div className="game-board__scene-loading game-scene__loading" role="status">{loadingLabel}</div> : null}
     </div>
   );
 }

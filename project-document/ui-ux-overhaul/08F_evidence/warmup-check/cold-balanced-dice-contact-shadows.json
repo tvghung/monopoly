@@ -1,0 +1,70 @@
+{
+ "kind": "cold",
+ "scenario": "dice-contact-shadows",
+ "tier": "balanced",
+ "verdict": {
+  "startT": 3104.10000000149,
+  "doneT": 3765.89999999851,
+  "ordered": true,
+  "warmupMs": 661.7999999970198,
+  "linksDuring": 28,
+  "linksAfter": 0,
+  "linksAfterNames": [],
+  "worstCallbackAfterMs": 127.70000000298023,
+  "framesAfter": 82,
+  "marks": [
+   "otb:warmup:start@3104",
+   "otb:warmup:done@3766"
+  ]
+ },
+ "warmup": {
+  "reason": "initial",
+  "tier": "balanced",
+  "outcome": "complete",
+  "parallel": true,
+  "startedAtMs": 3104,
+  "durationMs": 661.7999999970198,
+  "fixtureBuildMs": 3.600000001490116,
+  "programsBefore": 4,
+  "programsAfter": 30,
+  "steps": [
+   {
+    "name": "scene",
+    "status": "ready",
+    "materials": 107,
+    "programsAdded": 16,
+    "durationMs": 536.1000000014901
+   },
+   {
+    "name": "fixtures:main",
+    "status": "ready",
+    "materials": 9,
+    "programsAdded": 6,
+    "durationMs": 542.6999999955297
+   },
+   {
+    "name": "fixtures:shadow-depth",
+    "status": "ready",
+    "materials": 7,
+    "programsAdded": 4,
+    "durationMs": 544.7999999970198
+   },
+   {
+    "name": "textures",
+    "status": "ready",
+    "materials": 0,
+    "programsAdded": 0,
+    "durationMs": 116.39999999850988
+   }
+  ]
+ },
+ "failures": [],
+ "pageErrors": [],
+ "consoleMessages": [
+  "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+  "warning: THREE.WebGLProgram: Program Info Log: (210,81-129): warning X4122: sum of 0.996094 and -2.98545e-017 cannot be represented accurately in double precision\n(209,37-61): warning X4122: sum of 1 and -1.49",
+  "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed."
+ ],
+ "links": 32,
+ "frames": 89
+}

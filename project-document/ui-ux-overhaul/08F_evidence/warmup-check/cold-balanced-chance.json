@@ -1,0 +1,69 @@
+{
+ "kind": "cold",
+ "scenario": "chance",
+ "tier": "balanced",
+ "verdict": {
+  "startT": 3140.8000000044703,
+  "doneT": 4033.10000000149,
+  "ordered": true,
+  "warmupMs": 892.2999999970198,
+  "linksDuring": 28,
+  "linksAfter": 0,
+  "linksAfterNames": [],
+  "worstCallbackAfterMs": 152.09999999403954,
+  "framesAfter": 3,
+  "marks": [
+   "otb:warmup:start@3141",
+   "otb:warmup:done@4033"
+  ]
+ },
+ "warmup": {
+  "reason": "initial",
+  "tier": "balanced",
+  "outcome": "complete",
+  "parallel": true,
+  "startedAtMs": 3140.7000000029802,
+  "durationMs": 892.3999999985099,
+  "fixtureBuildMs": 3.4000000059604645,
+  "programsBefore": 4,
+  "programsAfter": 30,
+  "steps": [
+   {
+    "name": "scene",
+    "status": "ready",
+    "materials": 107,
+    "programsAdded": 16,
+    "durationMs": 790.8999999985099
+   },
+   {
+    "name": "fixtures:main",
+    "status": "ready",
+    "materials": 9,
+    "programsAdded": 6,
+    "durationMs": 776.2000000029802
+   },
+   {
+    "name": "fixtures:shadow-depth",
+    "status": "ready",
+    "materials": 7,
+    "programsAdded": 4,
+    "durationMs": 777.8000000044703
+   },
+   {
+    "name": "textures",
+    "status": "ready",
+    "materials": 0,
+    "programsAdded": 0,
+    "durationMs": 100.89999999850988
+   }
+  ]
+ },
+ "failures": [],
+ "pageErrors": [],
+ "consoleMessages": [
+  "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+  "warning: THREE.WebGLProgram: Program Info Log: (210,81-129): warning X4122: sum of 0.996094 and -2.98545e-017 cannot be represented accurately in double precision\n(209,37-61): warning X4122: sum of 1 and -1.49"
+ ],
+ "links": 32,
+ "frames": 3
+}

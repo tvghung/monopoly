@@ -1,0 +1,63 @@
+{
+ "kind": "cold",
+ "scenario": "dice-contact-shadows",
+ "tier": "low",
+ "verdict": {
+  "startT": 2812.2999999970198,
+  "doneT": 3399,
+  "ordered": true,
+  "warmupMs": 586.7000000029802,
+  "linksDuring": 24,
+  "linksAfter": 0,
+  "linksAfterNames": [],
+  "worstCallbackAfterMs": 90.80000000447035,
+  "framesAfter": 95,
+  "marks": [
+   "otb:warmup:start@2812",
+   "otb:warmup:done@3399"
+  ]
+ },
+ "warmup": {
+  "reason": "initial",
+  "tier": "low",
+  "outcome": "complete",
+  "parallel": true,
+  "startedAtMs": 2812.2000000029802,
+  "durationMs": 586.7999999970198,
+  "fixtureBuildMs": 3.5,
+  "programsBefore": 4,
+  "programsAfter": 26,
+  "steps": [
+   {
+    "name": "scene",
+    "status": "ready",
+    "materials": 116,
+    "programsAdded": 18,
+    "durationMs": 464.1000000014901
+   },
+   {
+    "name": "fixtures:main",
+    "status": "ready",
+    "materials": 8,
+    "programsAdded": 4,
+    "durationMs": 464.1000000014901
+   },
+   {
+    "name": "textures",
+    "status": "ready",
+    "materials": 0,
+    "programsAdded": 0,
+    "durationMs": 122.20000000298023
+   }
+  ]
+ },
+ "failures": [],
+ "pageErrors": [],
+ "consoleMessages": [
+  "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+  "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+  "warning: THREE.WebGLProgram: Program Info Log: (210,81-129): warning X4122: sum of 0.996094 and -2.98545e-017 cannot be represented accurately in double precision\n(209,37-61): warning X4122: sum of 1 and -1.49"
+ ],
+ "links": 28,
+ "frames": 97
+}

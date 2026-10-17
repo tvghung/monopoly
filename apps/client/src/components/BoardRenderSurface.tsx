@@ -104,6 +104,7 @@ function BoardRenderSurface({
           selectedTileId={selectedTileId}
           onTileSelect={onTileSelect}
           onRendererFailure={onRendererFailure}
+          loadingLabel={t('board.sceneLoading')}
         />
       </Suspense>
     </SceneErrorBoundary>
