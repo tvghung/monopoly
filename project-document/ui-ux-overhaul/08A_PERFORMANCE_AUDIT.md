@@ -942,7 +942,7 @@ authority or persistence change).
 | Files | `apps/client/src/game/scene/GameScene.tsx`, a new warm-up module under `apps/client/src/game/scene/render/`, `apps/client/src/game/scene/render/lighting/SceneLightRig.tsx` |
 | Benefit | Cold first launch freeze from 2–4.5 s frames to an expected < 300 ms longest frame; first-use hitches removed |
 | Complexity / risk | Medium / Medium (variant coverage) |
-| Dependencies | B1 (stable materials make the variant set finite) |
+| Dependencies | B1 (stable materials make the variant set finite); **gate:** the [B3 prerequisite gate](./08D_PHASE_B3_PREREQUISITE_GATE.md) (program signatures, B2 soak anomaly, bounded soak series, `main` baseline) must be closed before any B3 code |
 | Success | Fresh-profile Electron launch: longest frame ≤ 300 ms, 0 program links during the first scripted turn |
 | Regression prevention | Probe test: program links during scripted gameplay after warm-up = 0 |
 

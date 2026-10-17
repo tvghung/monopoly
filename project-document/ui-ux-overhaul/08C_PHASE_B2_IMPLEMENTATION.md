@@ -301,7 +301,7 @@ cannot show the context bridge; `GameScene.contextIsolation.test.tsx` does, by m
 
 ## 12. Recommendation for the next batch
 
-B3 (shader warm-up) is the next batch on the roadmap and is independent of B2. Before B5 (GPU cost), B4 (scheduler pacing) should be
+B3 (shader warm-up) is the next batch on the roadmap and is independent of B2. It is gated by the [B3 prerequisite gate](./08D_PHASE_B3_PREREQUISITE_GATE.md), which requires the burst in [§14.5](#145-outstanding-risks) to be investigated first. Before B5 (GPU cost), B4 (scheduler pacing) should be
 taken first: every frame-time number in this record is quantised by PERF-06 on a 144 Hz display, so neither B2 nor B5 can be read
 cleanly in FPS until it is fixed. If another change adds a context above the canvas, add it to the list in the
 [game board instruction](../monopoly-websockets/Client/game-board.instruction.md) and measure `socket` and `volume` first: they catch a
@@ -399,7 +399,7 @@ walk 37.5 → 40.7 FPS and dice 41.2 → 43.3 FPS are inside the run-to-run spre
    stalled soak (run 1: a third of the intervals at 1 s with flat resource counters) shows the machine can throttle the page, which
    explains run 1 but not the burst. Not attributed to B2, not ruled out. It is a first-use compile (a new shader variant appeared), not a
    re-link, so B1's guarantee as defined (no program linked twice) holds. If it shows up again, run the soak with a probe that keeps the
-   names of first-use programs (the probe records them, the report aggregates them) before B3 relies on a stable program set.
+   names of first-use programs (the probe records them, the report aggregates them) before B3 relies on a stable program set. This is now a mandatory gate: [08D](./08D_PHASE_B3_PREREQUISITE_GATE.md). B2 itself stays PARTIAL and its heap criterion is unchanged.
 3. **Context bridge** — as in [§10](#10-known-limitations-and-remaining-work): a context that starts changing often above the canvas commits the scene; the
    `volume` and `socket` scenarios and the new tests catch the two that matter today.
 4. **Not measured**: Electron, the Phase A reference laptop, battery power, other GPUs, long sessions, multiplayer over a network; reduced
