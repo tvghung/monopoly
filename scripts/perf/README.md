@@ -12,6 +12,8 @@ game: the probe is injected from outside and the harness is a development/UAT bu
 | `metrics.mjs` | Pure analysis (percentiles, pacing, link classification, React tasks, resource trend); unit tested by `metrics.check.mjs` |
 | `compareResults.mjs` | Before/after table from two reports; flags non-comparable conditions; unit tested by `compareResults.check.mjs` |
 | `captureCompare.mjs` | Before/after **visual equivalence**: renders the same settled harness states from two bundles in the same browser and compares the screenshots pixel by pixel (see [Visual equivalence](#visual-equivalence)) |
+| `captureMotion.mjs` | Mid-animation pixel comparison of the tile impact (depression, rebound, highlight) at fixed simulated times through the harness's `?tile-impact-probe=1`, with a built-in determinism control (`--repeat-self`) and a check that the animation is visible in the compared frames |
+| `lifecycleCheck.mjs` | Structural GPU-resource ownership check in a real browser: inspects the live three.js scene during dice rolls, walks with the destination preview and construction bursts, switches tiers live and forces a WebGL context loss; `--expect-persistent` asserts one material per shared effect for the whole session; works on a bundle (`--dist`) or a running dev server (`--base-url`, React StrictMode) |
 | `pngDiff.mjs` | Dependency-free PNG decode/encode, pixel comparison and diff image; unit tested by `pngDiff.check.mjs` |
 | `staticServer.mjs` | The static file server `captureCompare.mjs` serves a bundle with |
 
@@ -108,6 +110,21 @@ It writes `before/*.png`, `after/*.png`, `diff/*.png` (only for states that diff
 settled scene, never a frame in the middle of an animation, because mid-animation pixels depend on frame timing; animation
 behavior is covered by the unit tests and by the benchmark counters. Both bundles must be rendered by the same browser on the
 same GPU: pixels from different GPUs or drivers are not comparable.
+
+### Mid-animation and ownership checks
+
+```bash
+pnpm perf:motion-compare --before <dist> --after <dist> --out <dir> --repeat-self
+pnpm perf:lifecycle-check --dist <dist> --out <report.json> --expect-persistent
+pnpm perf:lifecycle-check --base-url http://127.0.0.1:5173 --out <report.json> --expect-persistent   # a running `vite --mode phase4-uat`
+```
+
+`captureMotion.mjs` only covers what was found reproducible: the frozen-clock tile impact. A stepped Playwright fake clock was tried
+for dice, hops, the destination preview and construction bursts and gave different frames for one bundle against itself, so those
+animations have **no** pixel comparison; `lifecycleCheck.mjs` checks their resources structurally instead (it is not pixel
+evidence). A pixel result is only evidence when the control (the same bundle twice) is identical and the compared frames
+actually change over time; the tool prints both. `lifecycleCheck.mjs` allow-lists the console messages the B0 baseline already
+printed and fails on any other warning or error.
 
 ## Measurement overhead
 

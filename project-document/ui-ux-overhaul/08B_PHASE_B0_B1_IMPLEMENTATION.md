@@ -23,6 +23,7 @@ replays) and the React-task P95 target (≤ 8 ms) are **not** met on every scena
 - [10. Acceptance checklist](#10-acceptance-checklist)
 - [11. Recommendation for the next batch](#11-recommendation-for-the-next-batch)
 - [12. Commits](#12-commits)
+- [13. Final review of pull request #15](#13-final-review-of-pull-request-15-2026-10-17)
 
 ## 1. Scope and what did not change
 
@@ -288,11 +289,41 @@ SwiftShader (software WebGL, not tied to the GPU) repeat of eight states (comple
 end, walk end, dice settled): 7 of 8 bit-identical; dice settled again differs (1901 pixels, maximum channel delta 98), and again
 equally between two captures of one bundle (B0 against itself 31,168 pixels, B1 against itself 2,141), so on both renderers that
 state is not reproducible between captures and carries no B1 signal. Reports: `visual_*.json` in [08B_evidence/](./08B_evidence/).
-Not captured: the dice, highlights and destination preview *during* animation (mid-animation pixels depend on frame
-timing); those are covered by the unit tests that compare the new resource owner's per-tile matrices and colors with the previous
-builder's output at the same press state ([§8](#8-resource-lifecycle-verification-and-tests)) and by the unchanged 0-diff
-settled states. Reduced motion, the legacy fallback board and reconnect snapping have unchanged tests and passed in the full
-suite; they were not re-captured pixel by pixel.
+Reduced motion, the legacy fallback board and reconnect snapping have unchanged tests and passed in the full suite; they were
+not re-captured pixel by pixel.
+
+### 7.1 Mid-animation checks (final review, 2026-10-17)
+
+Mid-animation pixels depend on frame timing, so only what could be made reproducible is compared pixel by pixel, and the rest is
+checked structurally. The determinism of each method was tested first (a control: the same bundle captured twice).
+
+| Animation | Method | Result |
+| --- | --- | --- |
+| Tile impact: depression, rebound and the additive highlight (the `TileImpactHighlightBatch` output), landing on a property tile, a Tax tile and the Jail corner | `scripts/perf/captureMotion.mjs`: the harness's `?tile-impact-probe=1` freezes the tile-motion clock; the canvas is captured at fixed simulated times (0–300 ms) and compared pixel by pixel, tolerance 0 | **26 of 26 frames identical** (Balanced tiles 1, 4, 10: 10 + 6 + 6; Low tile 1: 4). The control (B0 against B0) is also 26 of 26 identical, and in every one of these scenes successive times show a different picture (9 of 9, 5 of 5, 5 of 5, 3 of 3), so the identical frames are frames of a moving animation. The High-tier scene captured 4 identical frames, but its frames do not change over time in this capture path (0 of 3), so they carry **no evidence** and are not counted |
+| Dice roll with trails and contact shadows, hops, destination preview, construction bursts | Playwright fake clock (`page.clock`) stepped in 8–20 ms steps with up to 220 ms real settling | **Not reproducible**: the B0 bundle against itself, and the B1 bundle against itself, gave different frames at every checkpoint (about 6,000–7,000 differing pixels), as large as the B0-against-B1 difference. **No pixel-equivalence claim is made for these animations.** Settled end states of the same fixtures are bit-identical ([§7](#7-visual-regression)) apart from the dice-settled state noted there. An attempt to pin the destination preview in a steady state (Reduced Motion fixture) failed because the harness's preview diagnostics did not appear within 30 s, so no preview frame was captured |
+
+Because pixels cannot settle those animations, they were checked structurally in a real browser
+(`scripts/perf/lifecycleCheck.mjs`, which inspects the live three.js scene graph and materials while the harness plays them; run on
+the B0 bundle, the B1 bundle and the Vite development server with React StrictMode; reports in [08B_evidence/](./08B_evidence/)):
+
+| Fact observed over four replays per fixture (Balanced) | B0 bundle | B1 bundle |
+| --- | --- | --- |
+| Distinct highlight materials in the scene | 33–57 | **1** |
+| Distinct dice contact-shadow materials | 5 | **1** |
+| Distinct destination-preview material pairs | 4 | **1** |
+| Distinct dice trail materials (expected 1 per die on Balanced) | 8–16 | **2** |
+| Distinct construction-puff materials | 8 | **1** |
+| Trails visible during rolls (dice fixture: scene samples, 25 ms apart, with a visible trail of opacity above 0) | 308 samples | 316 samples; maximum trail opacity 0.05 in both |
+| Destination preview present during the walk, opacity range | 171 samples, surface 0.12–0.37, edge 0.42–0.88 | 193 samples, surface 0.12–0.37, edge 0.42–0.88 (the documented pulse range), mover color `f2384a/bd2033` |
+| Construction puffs present during a build, material | 96 samples | 114 samples, `MeshStandardMaterial`, opacity 0.86, vertex colors on, 11 particles |
+| Live tier switch low → balanced → high → balanced → low with replays at each step: trail materials | not asserted | 0 / 2 / 4 / 2 / 0 as designed; highlight material 1 at every tier; geometries 115 → 116 over the cycle (B0: 118 → 127) |
+| Forced WebGL context loss (unmounts the whole board, legacy fallback takes over) | falls back, 0 page errors | falls back, **0 page errors** |
+| Console warnings and errors | 6 distinct messages | the **same** 6 distinct messages with the same counts: three.js `Clock` deprecation, HLSL precision notes, `toNonIndexed`, and the deliberate context-loss error; nothing new, nothing about disposed or incomplete resources |
+
+All persistence and effect-drawn assertions pass on the B1 bundle and on the development server (where React StrictMode mounts,
+unmounts and remounts every component, the dispose-then-reuse path); run with the same assertions, the B0 bundle fails the
+persistence ones, so the check does detect the old behavior. The hotel fixture draws no puffs in either build (its transition
+scales the old houses). This is structural evidence of ownership and drawing, **not** pixel evidence.
 
 ## 8. Resource lifecycle verification and tests
 
@@ -317,6 +348,22 @@ idle) is verified by the benchmark counters above; jsdom cannot link a shader, s
 benchmark proves the effect.
 
 ## 9. Known limitations and remaining work
+
+### 9.1 Open follow-up items (carried forward, criteria unchanged)
+
+The two Phase A targets that B1 did not meet stay **open**. Their original criteria are repeated verbatim and are not weakened by
+this record; the owning batch inherits them.
+
+| ID | Original criterion | Measured after B1 | Status | Owner |
+| --- | --- | --- | --- | --- |
+| B1-OPEN-1 | Heap growth after 30 repeated replays ≤ 1 MB, evaluated after appropriate warm-up and garbage collection ([08A K](./08A_PERFORMANCE_AUDIT.md#k-acceptance-criteria): ≤ +1 MB) | +2.37 MB (diagnostics on), +1.99 MB (off), 3 warm-up replays; bounded (+0.65 MB over the next 60 replays); the audited leak sites are gone and the residual is spread over small React/R3F allocation sites | **OPEN** | B2 (React fan-out: fewer per-render allocations), re-measured with `pnpm perf:benchmark --scenarios soak`; a 30–60 minute packaged session is still **NOT RUN** |
+| B1-OPEN-2 | React task P95 during walk ≤ 8 ms ([08A K](./08A_PERFORMANCE_AUDIT.md#k-acceptance-criteria); target of the B1 task) | walk 10.1, soak 10.0, dice 21.6 ms (purchase 6.3, rent 5.7, build 7.1, hover 7.9 ms meet it); measured with this tool's method, which differs from Phase A's CPU-profile attribution | **OPEN** | B2 (a board render per presentation tick, hover and socket update is the remaining cost) |
+| B1-OPEN-3 | Idle: 0 scene submissions in a 10 s window (08A K) | 0 in 17 of 18 B1 windows; one Low window with 1 scene submission, unexplained, not reproduced in 13 reruns | **OPEN** (monitor) | whoever next changes scene mounting; re-run `pnpm perf:benchmark --scenarios idle --assert-idle` on a fresh profile |
+
+These three rows are also in the pull request description. No verdict in [§6](#6-targets-from-phase-a-and-their-results) or
+[§10](#10-acceptance-checklist) was changed by the final review.
+
+### 9.2 Limitations
 
 - **Remaining GPU cost** (batch B5): Balanced GPU median 11.9 ms on this iGPU (Phase A: 17.6–19 ms on the reference), image-based
   lighting on every PBR material, the PBR tabletop, DPR policy, the High tier's post chain (about 49 ms per frame here).
@@ -379,3 +426,32 @@ laptop (or another GPU-bound device) measurement first and decide the pacing pol
 | (this record) | Documentation, canonical instruction and checklist updates, evidence reports |
 
 Branch `perf/phase-b0-b1-render-stability`, started from `origin/main` `c2f989275527e94694dcf827ace296add1de4246`.
+
+## 13. Final review of pull request #15 (2026-10-17)
+
+Reviewed head `ee94dc1f9b3cf80d1eab4c7bf342370f96ef247e`: the `CI / build` and `Docs / validate-docs` checks were SUCCESS, the pull
+request was mergeable and clean. No code was changed by the review; it added verification tooling, evidence and this section.
+
+**Scope.** `git diff c2f9892..ee94dc1 --name-only` lists no file under `apps/server`, `packages/shared`, `apps/desktop`,
+`services`, `e2e` or `.github`: no game rule, socket protocol (v14), snapshot schema (11), persistence or server logic changed. The
+client changes are limited to `apps/client/src/game/scene/` (render ownership), `apps/client/src/dev/phase4-uat/` (dev harness),
+their tests, `eslint.config.js` (browser globals for `scripts/perf/`) and `package.json` scripts.
+
+**GPU resource ownership, one row per shared resource.**
+
+| Resource | Owner (lifetime) | Borrowers | Disposed by | Checked by |
+| --- | --- | --- | --- | --- |
+| Highlight mesh, material, geometry | `TileImpactHighlightBatch` hook (tile-id set × motion controller) | none | owner effect cleanup | unit tests; live scene: 1 material across replays and tier switches |
+| Merged Jail/Tax geometry | each `MergedRoundedBoxes` (spec content) | none (not shared) | owner effect cleanup | unit tests; merge counts 1 and 2 across 20 re-renders |
+| Preview frame geometry | `TileDestinationPreview` | none | owner effect cleanup | unit tests (30 moves release 30) |
+| Preview material pair | `Board3D` (scene) | every preview, through context | `Board3D` unmount; a preview disposes only a fallback pair it created itself | unit tests; live scene: 1 pair, mover color and pulse range correct |
+| Dice trail materials | `DiceLayer` (scene), count from the tier | trail meshes | `DiceLayer` unmount or a tier change of the count | unit tests through the real layer; live scene and tier cycle |
+| Contact-shadow material | `DiceLayer` (scene) | `DiceContactShadowBatch` | `DiceLayer` unmount | same |
+| Construction-puff material | `TubeHouseInstances` (houses layer) | every `ConstructionPuff` of a build | houses-layer unmount | unit tests; live scene: 1 material, expected properties |
+
+Risks looked for and the evidence: a borrower disposing a shared resource (borrowers use `dispose={null}`; the live scene shows
+materials surviving every preview, roll and build); use after dispose on unmount/remount (hooks tolerate repeated `dispose`,
+three.js re-creates GPU resources on the next draw; the check passes under React StrictMode on the development server and across
+mount/unmount cycles in the unit tests); a stale value on a shared material (the preview sets its colors in a layout effect and
+its opacity every frame before drawing; the live range and mover color are correct); a context loss unmounting the board (falls
+back to the legacy board with no page error). Nothing was found that required a code change.

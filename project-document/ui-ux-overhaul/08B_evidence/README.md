@@ -16,6 +16,8 @@ own environment block (commit, options, GPU renderer, viewport, drawing buffer, 
 | `compare_*.md` | `compareResults.mjs` tables for each pair of reports |
 | `visual_gpu_b0-vs-b1.json` | Pixel comparison of 19 settled states, B0 against B1 bundle, same browser and GPU, 1280×720 |
 | `visual_gpu_b0-vs-b0-dice.json`, `visual_gpu_b1-vs-b1-dice.json` | The same capture of one bundle against itself, for the one state (dice settled) that is not deterministic between captures |
+| `motion_impact_b0-vs-b1.json` | Mid-animation tile-impact comparison (frozen-clock probe), cross-bundle, determinism control and animation-visible counts |
+| `lifecycle_b0-bundle.json`, `lifecycle_b1-bundle.json`, `lifecycle_b1-dev-server-strictmode.json` | Live scene-graph ownership facts (distinct materials per effect, effects drawn, tier cycle, context loss, console messages) for the B0 bundle, the B1 bundle and the B1 code on the React development server |
 | `visual_swiftshader_*.json` | The same three comparisons under software WebGL (SwiftShader) for eight states (cross-bundle) and for the dice state (each bundle against itself) |
 
 Reading notes: a `workingTreeDirty: true` flag in a baseline report means uncommitted B1 edits were in the working tree while

@@ -27,6 +27,8 @@
     "perf:benchmark": "node scripts/perf/runBenchmark.mjs",
     "perf:compare": "node scripts/perf/compareResults.mjs",
     "perf:visual-compare": "node scripts/perf/captureCompare.mjs",
+    "perf:motion-compare": "node scripts/perf/captureMotion.mjs",
+    "perf:lifecycle-check": "node scripts/perf/lifecycleCheck.mjs",
     "test:perf-tools": "node --test scripts/perf/metrics.check.mjs scripts/perf/compareResults.check.mjs scripts/perf/pngDiff.check.mjs",
     "test:registry": "node --test services/room-registry/src/index.test.mjs",
     "build": "pnpm --filter @monopoly/client build",
