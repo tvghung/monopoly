@@ -119,12 +119,15 @@ export function throttledIntervals(frames, links, samples, { minGapMs = 500, win
 }
 
 /** Stall frames: scheduler frames whose CPU time or the gap to the previous frame is at least `minMs`, with links inside. */
-export function stallFrames(frames, links, { minMs = 250 } = {}) {
+export function stallFrames(frames, links, { minMs = 250, windows = null } = {}) {
   const ordered = [...frames].sort((a, b) => a.start - b.start);
   const out = [];
   for (let index = 0; index < ordered.length; index += 1) {
     const frame = ordered[index];
-    const gap = index > 0 ? frame.start - ordered[index - 1].start : 0;
+    const previous = index > 0 ? ordered[index - 1].start : null;
+    // The scene is demand-rendered: a long gap between replays is idleness, so with windows only in-window gaps count.
+    const inWindow = previous !== null && (!windows || windows.some(window => previous >= window.start && frame.start <= window.end));
+    const gap = inWindow ? frame.start - previous : 0;
     if (frame.cpu < minMs && gap < minMs) continue;
     const linked = links.filter(link => link.t >= frame.start && link.t <= frame.start + frame.cpu);
     out.push({ start: frame.start, cpuMs: frame.cpu, gapMs: gap, linksInside: linked.length, linkMs: linked.reduce((total, link) => total + link.dur, 0) });

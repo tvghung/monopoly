@@ -73,6 +73,9 @@ test('stall frames list the links compiled inside the callback', () => {
   const stalls = stallFrames(frames, [link(30, 'a-b'), link(40, 'c-d'), link(5000, 'e-f')]);
   assert.equal(stalls.length, 1);
   assert.equal(stalls[0].linksInside, 2);
+  // a long idle gap between replays is not a stall when windows are given
+  assert.equal(stallFrames([{ start: 0, cpu: 2 }, { start: 5000, cpu: 2 }], [], { windows: [{ start: 0, end: 100 }] }).length, 0);
+  assert.equal(stallFrames([{ start: 0, cpu: 2 }, { start: 5000, cpu: 2 }], []).length, 1);
 });
 
 test('longestFrame reports the worst callback and the worst gap of rendered frames', () => {

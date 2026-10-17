@@ -472,7 +472,7 @@ function signatureReport(store, windows = null) {
     owners: store.owners,
     census: store.census,
     contexts: store.contexts,
-    stalls: stallFrames(store.frames, store.links),
+    stalls: stallFrames(store.frames, store.links, { windows }),
     throttled: throttledIntervals(store.frames, store.links, samples, { windows }),
   };
 }
