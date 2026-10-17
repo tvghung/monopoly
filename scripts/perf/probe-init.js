@@ -398,6 +398,13 @@
     };
   }
 
+  // ---- Boundary marks: any `performance.mark("otb:...")` (the harness turn start, a future warm-up start/done) is kept with its time ----
+  try {
+    new PerformanceObserver(list => {
+      for (const entry of list.getEntries()) if (entry.name.startsWith("otb:")) P.marks.push({ name: entry.name, t: entry.startTime });
+    }).observe({ type: "mark", buffered: true });
+  } catch { /* unsupported */ }
+
   // ---- Long animation frames and long tasks ---------------------------------------------------------------------
   try {
     new PerformanceObserver(list => {

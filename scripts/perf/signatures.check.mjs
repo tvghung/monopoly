@@ -78,9 +78,14 @@ test('stall frames list the links compiled inside the callback', () => {
   assert.equal(stallFrames([{ start: 0, cpu: 2 }, { start: 5000, cpu: 2 }], []).length, 1);
 });
 
-test('longestFrame reports the worst callback and the worst gap of rendered frames', () => {
-  const stats = longestFrame([{ start: 0, cpu: 5, rendered: true }, { start: 40, cpu: 90, rendered: true }, { start: 50, cpu: 1, rendered: false }]);
+test('longestFrame separates active intervals from idle gaps', () => {
+  const stats = longestFrame([
+    { start: 0, cpu: 5, rendered: true, continued: true }, { start: 40, cpu: 90, rendered: true, continued: false },
+    { start: 2040, cpu: 1, rendered: true, continued: true }, { start: 2057, cpu: 1, rendered: true, continued: true },
+    { start: 50, cpu: 1, rendered: false },
+  ]);
   assert.equal(stats.maxCpuMs, 90);
-  assert.equal(stats.maxGapMs, 40);
-  assert.equal(stats.renderedFrames, 2);
+  assert.equal(stats.maxActiveIntervalMs, 40);
+  assert.equal(stats.maxIdleGapMs, 2000);
+  assert.equal(stats.renderedFrames, 4);
 });

@@ -178,3 +178,5 @@ node --test scripts/perf/signatures.check.mjs
 ```
 
 Stalls and throttled pages are only counted for gaps that follow a frame which scheduled a continuation; the demand-rendered scene is idle between animation steps. The run count is fixed before a series and is a cap, not a target.
+
+Frame figures separate **active** frames from **idle gaps**: the longest active frame is the larger of the longest scheduler callback and the longest rAF gap after a frame that scheduled a continuation; a gap after a frame that did not is an idle gap and is never a frame time. Any `performance.mark("otb:…")` is kept by the probe; `b3Baseline` reads `otb:warmup:start|done` (a future warm-up) and the harness's `otb:uat:turn-start:*` as independent boundaries, and reports time-to-playable (navigation to the first board frame at or after warm-up completion). See 08E §11.

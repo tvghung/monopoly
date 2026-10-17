@@ -91,11 +91,23 @@ async function oneRun(dist, runDir, port, cap) {
     };
     await drain();
     const marks = store.marks;
-    const mounted = marks.find(mark => mark.name === 'main-mounted')?.t ?? null;
-    // The harness mounts with data-uat-ready=false and schedules its first scripted turn 180 ms after mount (a setTimeout in
-    // Phase4UatHarness.tsx), so the nominal turn start is mount + 180 ms; ready flips to true when that turn has settled.
-    const readyFalse = mounted === null ? null : mounted + 180;
-    const readyTrueAfter = mounted === null ? null : marks.find(mark => mark.name === 'ready:true' && mark.t > mounted)?.t ?? null;
+    const markTime = (matcher, after = -Infinity) => marks.filter(mark => matcher(mark.name) && mark.t > after).sort((a, b) => a.t - b.t)[0]?.t ?? null;
+    // Boundaries, each measured on its own (they overlap in the harness and are NEVER treated as consecutive phases):
+    //   mounted        main.phase4-uat mounted (DOMContentLoaded observer)
+    //   firstFrame     first scheduler frame that rendered the board
+    //   warmupStart/Done  `otb:warmup:start` / `otb:warmup:done` performance marks (null while no warm-up exists)
+    //   turnStart      `otb:uat:turn-start:*` mark the harness emits when its first scripted turn begins
+    //   turnSettled    data-uat-ready flips to true after the first turn
+    const mounted = markTime(name => name === 'main-mounted');
+    const firstFrame = store.frames.filter(frame => frame.rendered).sort((a, b) => a.start - b.start)[0]?.start ?? null;
+    const warmupStart = markTime(name => name === 'otb:warmup:start');
+    const warmupDone = markTime(name => name === 'otb:warmup:done');
+    const turnStart = markTime(name => name.startsWith('otb:uat:turn-start:'));
+    const turnSettled = mounted === null ? null : markTime(name => name === 'ready:true', turnStart ?? mounted);
+    // Time to playable: navigation start -> the first board frame submitted at or after warm-up completion (the first board frame
+    // when there is no warm-up).
+    const playableFrom = warmupDone ?? 0;
+    const timeToPlayableMs = store.frames.filter(frame => frame.rendered && frame.start >= playableFrom).sort((a, b) => a.start - b.start)[0]?.start ?? null;
     // Second turn on the warm scene.
     await page.evaluate(() => window.__PROBE__.setReplay('second-turn'));
     const secondStart = await page.evaluate(() => window.__PROBE__.mark('second-start'));
@@ -109,29 +121,33 @@ async function oneRun(dist, runDir, port, cap) {
     const resources = await page.evaluate(() => window.__PROBE__.resources());
 
     const inside = (items, from, to, key = 't') => items.filter(item => item[key] >= from && item[key] <= to);
-    const phases = {
-      load: { from: 0, to: readyFalse ?? mounted ?? 0 },
-      firstTurn: { from: readyFalse ?? 0, to: readyTrueAfter ?? 0 },
-      settle: { from: readyTrueAfter ?? 0, to: secondStart },
+    // Independent windows. They may overlap; each is a measurement of its own interval, not a phase of a sequence.
+    const windows = {
+      cold: { from: 0, to: turnSettled ?? 0 },
+      firstTurn: turnStart === null || turnSettled === null ? null : { from: turnStart, to: turnSettled },
+      warmup: warmupStart === null || warmupDone === null ? null : { from: warmupStart, to: warmupDone },
       second: { from: secondStart, to: secondEnd },
     };
     const classified = classifyLinks(store.links, store.events);
-    const report = { phases: {}, facts };
-    for (const [name, window] of Object.entries(phases)) {
+    const report = { windows: {}, boundaries: { mounted, firstFrame, warmupStart, warmupDone, turnStart, turnSettled, secondStart, secondEnd }, facts };
+    for (const [name, window] of Object.entries(windows)) {
+      if (!window) { report.windows[name] = null; continue; }
       const links = inside(classified, window.from, window.to);
       const frames = store.frames.filter(frame => frame.start >= window.from && frame.start <= window.to);
       const loaf = inside(store.loaf, window.from, window.to, 'start');
       const longtasks = inside(store.longtasks, window.from, window.to, 'start');
       const waits = inside(store.syncWaits, window.from, window.to);
-      report.phases[name] = {
+      const longest = longestFrame(frames);
+      report.windows[name] = {
         windowMs: window.to - window.from,
         links: links.length,
         firstUseLinks: links.filter(link => link.kind === 'new-variant').length,
         repeatLinks: links.filter(link => link.kind === 'repeat-link').length,
         signatures: [...new Set(links.map(link => link.sig))].sort(),
-        longest: longestFrame(frames),
-        // Contiguous interval = rAF gap while an animation was running (idle gaps of the demand-rendered scene excluded).
-        contiguousMaxMs: analyzeFrames(frames, { fpsCap: cap, refreshHz: 59.9 }).intervalMs.max,
+        longest,
+        // The 08E/B3 "longest active frame": worst scheduler callback and worst ACTIVE contiguous interval; idle gaps are excluded.
+        longestActiveFrameMs: Math.max(longest.maxCpuMs, longest.maxActiveIntervalMs),
+        contiguousMaxMs: analyzeFrames(frames, { fpsCap: options.cap, refreshHz: 59.9 }).intervalMs.max,
         maxLoafMs: Math.max(0, ...loaf.map(entry => entry.dur)),
         loafCount: loaf.length,
         maxLongTaskMs: Math.max(0, ...longtasks.map(entry => entry.dur)),
@@ -139,9 +155,15 @@ async function oneRun(dist, runDir, port, cap) {
         syncWaitMaxMs: Math.max(0, ...waits.map(wait => wait.dur)),
       };
     }
-    const afterFirstTurnSignatures = [...new Set(classified.filter(link => link.t <= (readyTrueAfter ?? Infinity)).map(link => link.sig))].sort();
+    report.overlap = {
+      linksBeforeTurnStart: turnStart === null ? null : classified.filter(link => link.t < turnStart).length,
+      linksAfterTurnStart: turnStart === null ? null : classified.filter(link => link.t >= turnStart && link.t <= (turnSettled ?? Infinity)).length,
+      linksAfterWarmupDone: warmupDone === null ? null : classified.filter(link => link.t > warmupDone).length,
+      linksAfterTurnSettled: turnSettled === null ? null : classified.filter(link => link.t > turnSettled && link.t < secondStart).length,
+    };
+    const afterFirstTurnSignatures = [...new Set(classified.filter(link => link.t <= (turnSettled ?? Infinity)).map(link => link.sig))].sort();
     return {
-      readySeconds, mountedMs: mounted, readyFalseMs: readyFalse, readyTrueMs: readyTrueAfter, secondStart, secondEnd,
+      readySeconds, timeToPlayableMs, secondStart, secondEnd,
       programsAfterSecondTurn: resources?.programs ?? null, geometriesAfterSecondTurn: resources?.geometries ?? null,
       afterFirstTurnSignatures, signatureTable: signatureTable(store.links), classCounts: classified.reduce((counts, link) => { counts[link.kind] = (counts[link.kind] ?? 0) + 1; return counts; }, {}),
       contextEvents: store.events.filter(event => /context-(lost|restored)|renderer-changed|canvas-changed/.test(event.kind)),
@@ -166,18 +188,19 @@ function summarize(rows) {
     signaturesAfterFirstTurn: spread(row => row.afterFirstTurnSignatures.length),
     identicalToRun1: diffs.filter(diff => diff.identical).length + 1,
     differencesFromRun1: diffs.map((diff, index) => ({ run: index + 2, onlyInRun1: diff.onlyInA, onlyInThisRun: diff.onlyInB })).filter(entry => entry.onlyInRun1.length || entry.onlyInThisRun.length),
-    secondTurnFirstUse: spread(row => row.report.phases.second.firstUseLinks),
-    loadLinks: spread(row => row.report.phases.load.links),
-    firstTurnLinks: spread(row => row.report.phases.firstTurn.links),
-    firstTurnFirstUse: spread(row => row.report.phases.firstTurn.firstUseLinks),
-    loadLongestFrameCpuMs: spread(row => row.report.phases.load.longest.maxCpuMs),
-    loadLongestFrameGapMs: spread(row => row.report.phases.load.longest.maxGapMs),
-    firstTurnLongestFrameCpuMs: spread(row => row.report.phases.firstTurn.longest.maxCpuMs),
-    firstTurnLongestFrameGapMs: spread(row => row.report.phases.firstTurn.longest.maxGapMs),
-    firstTurnContiguousMaxMs: spread(row => row.report.phases.firstTurn.contiguousMaxMs),
-    loadMaxLongTaskMs: spread(row => row.report.phases.load.maxLongTaskMs),
-    firstTurnMaxLongTaskMs: spread(row => row.report.phases.firstTurn.maxLongTaskMs),
-    secondTurnLongestFrameGapMs: spread(row => row.report.phases.second.longest.maxGapMs),
+    secondTurnFirstUse: spread(row => row.report.windows.second.firstUseLinks),
+    coldLinks: spread(row => row.report.windows.cold.links),
+    coldFirstUse: spread(row => row.report.windows.cold.firstUseLinks),
+    coldLongestActiveFrameMs: spread(row => row.report.windows.cold.longestActiveFrameMs),
+    coldLongestCallbackMs: spread(row => row.report.windows.cold.longest.maxCpuMs),
+    coldLongestActiveIntervalMs: spread(row => row.report.windows.cold.longest.maxActiveIntervalMs),
+    coldLongestIdleGapMs: spread(row => row.report.windows.cold.longest.maxIdleGapMs),
+    coldMaxLongTaskMs: spread(row => row.report.windows.cold.maxLongTaskMs),
+    firstTurnLongestActiveFrameMs: spread(row => row.report.windows.firstTurn?.longestActiveFrameMs ?? null),
+    secondTurnLongestActiveFrameMs: spread(row => row.report.windows.second.longestActiveFrameMs),
+    linksBeforeTurnStart: spread(row => row.report.overlap.linksBeforeTurnStart),
+    linksAfterTurnStart: spread(row => row.report.overlap.linksAfterTurnStart),
+    timeToPlayableMs: spread(row => row.timeToPlayableMs),
     readySeconds: spread(row => row.readySeconds),
     programsAfterSecondTurn: spread(row => row.programsAfterSecondTurn),
     withContextEvents: rows.filter(row => row.contextEvents.some(event => /lost|restored/.test(event.kind))).length,
@@ -223,8 +246,8 @@ if (command === 'run') {
     const row = await oneRun(options.dist, runDir, options.port, options.cap);
     rmSync(path.join(runDir, 'chrome-profile'), { recursive: true, force: true });
     writeFileSync(path.join(runDir, 'baseline.json'), `${JSON.stringify({ run, environment, ...row }, null, 2)}\n`);
-    const { load, firstTurn, second } = row.report.phases;
-    console.log(`  ready ${row.readySeconds.toFixed(1)} s | load links ${load.links} longest gap ${load.longest.maxGapMs.toFixed(0)} ms | first turn links ${firstTurn.links} (first-use ${firstTurn.firstUseLinks}) longest gap ${firstTurn.longest.maxGapMs.toFixed(0)} ms | second-turn first-use ${second.firstUseLinks} | sigs after first turn ${row.afterFirstTurnSignatures.length}`);
+    const { cold, second } = row.report.windows;
+    console.log(`  playable ${row.timeToPlayableMs?.toFixed(0)} ms | settled ${row.readySeconds.toFixed(1)} s | cold links ${cold.links} (first-use ${cold.firstUseLinks}) longest active frame ${cold.longestActiveFrameMs.toFixed(0)} ms (idle gap ${cold.longest.maxIdleGapMs.toFixed(0)} ms, not a frame) | before/after turn start ${row.report.overlap.linksBeforeTurnStart}/${row.report.overlap.linksAfterTurnStart} | second-turn first-use ${second.firstUseLinks}\n`);
   }
 }
 const rows = collect(options.out);

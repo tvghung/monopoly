@@ -137,14 +137,22 @@ export function stallFrames(frames, links, { minMs = 250, windows = null } = {})
   return out;
 }
 
-/** Longest-frame helper for baselines: maximum scheduler-callback CPU time and maximum rAF-to-rAF interval. */
+/**
+ * Longest ACTIVE frame: the worst scheduler callback (CPU time) and the worst active contiguous interval, i.e. the rAF-to-rAF gap
+ * that follows a frame which scheduled a continuation (an animation was running). A gap after a frame that did not schedule one is a
+ * legitimate idle gap of the demand-rendered scene and is reported separately as `maxIdleGapMs`, never as a frame time.
+ */
 export function longestFrame(frames) {
-  const rendered = frames.filter(frame => frame.rendered);
+  const ordered = [...frames].filter(frame => frame.rendered).sort((a, b) => a.start - b.start);
   let maxCpu = 0;
-  let maxGap = 0;
-  for (let index = 0; index < rendered.length; index += 1) {
-    maxCpu = Math.max(maxCpu, rendered[index].cpu);
-    if (index > 0) maxGap = Math.max(maxGap, rendered[index].start - rendered[index - 1].start);
+  let maxActive = 0;
+  let maxIdle = 0;
+  for (let index = 0; index < ordered.length; index += 1) {
+    maxCpu = Math.max(maxCpu, ordered[index].cpu);
+    if (index === 0) continue;
+    const gap = ordered[index].start - ordered[index - 1].start;
+    if (ordered[index - 1].continued === false) maxIdle = Math.max(maxIdle, gap);
+    else maxActive = Math.max(maxActive, gap);
   }
-  return { maxCpuMs: maxCpu, maxGapMs: maxGap, renderedFrames: rendered.length };
+  return { maxCpuMs: maxCpu, maxActiveIntervalMs: maxActive, maxIdleGapMs: maxIdle, renderedFrames: ordered.length };
 }

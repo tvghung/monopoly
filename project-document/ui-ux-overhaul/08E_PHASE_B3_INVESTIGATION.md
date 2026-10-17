@@ -85,9 +85,10 @@ throttled-looking series, so an environmental cause on this machine is plausible
 bundle, same window and GPU selection as the series. Raw: [08E_evidence/cold-baseline](./08E_evidence/cold-baseline/). Machine and
 settings as in §0. The application bundle is `f87d9a3`; each file's `environment.commit` is the branch commit that ran the driver.
 
-The harness mounts the board and schedules the first scripted turn 180 ms later; the first shader link happens after that, so **load
-and first turn overlap and cannot be separated without changing production code**. The window below runs from navigation to the
-settled first turn.
+> **Superseded in part by §11.** This baseline assumed the first scripted turn starts at mount + 180 ms and treated load and turn as
+> separable. Measured with a real turn-start mark (§11), 21 of the 49 links happen *before* the turn starts and 28 after, so the two
+> overlap and must not be read as phases. The window below runs from navigation to the settled first turn as one cold window; its
+> frame figures were already active-interval based and agree with §11.
 
 | Measure (10 launches) | min / median / max |
 | --- | --- |
@@ -158,3 +159,88 @@ node --test scripts/perf/signatures.check.mjs
 - `node --test scripts/perf/*.check.mjs`: PASS (38 tests). `pnpm validate:docs`: PASS (149 files). `pnpm lint`: PASS. `pnpm typecheck`: PASS.
 - `pnpm test`, `pnpm build`, desktop checks: NOT RUN (only `scripts/perf`, `package.json` scripts, README and documents changed; no `apps/` or `packages/` file changed).
 - After the measured runs, one dead no-op statement (`P.census.push?.call;`) was removed from the probe to satisfy lint, and a destructuring in the report builder was rewritten with identical output; a 3-replay smoke run afterwards produced the same report shape. The measured runs used the probe without that line removed.
+
+## 11. Owner approval, B3 acceptance targets and closeout corrections (2026-10-17)
+
+The owner approved proceeding toward Phase B3 (shader warm-up) with this gate recorded as **PARTIAL** and every unexplained anomaly
+kept **OPEN**. Approval is for the B3 change, which is a separate branch and PR after this record is merged; nothing in this PR
+implements warm-up or changes production rendering.
+
+### 11.1 Owner-approved B3 acceptance targets
+
+| # | Target | How it is measured |
+| --- | --- | --- |
+| T1 | Cold-launch **longest active frame ≤ 300 ms** | `b3Baseline` `coldLongestActiveFrameMs`: the larger of the longest scheduler callback and the longest *active* contiguous interval (§11.2), over a cold window from navigation to the settled first turn, empty Chrome profile |
+| T2 | **Zero shader program links during tested gameplay after warm-up completes** | Links with a timestamp after `otb:warmup:done` (`overlap.linksAfterWarmupDone`) in the first and second scripted turn and in every soak replay |
+| T3 | Cover the **42 stable cold signatures** and handle **unexpected variants safely** | Warm-up signature set ⊇ the 42 signatures of §5; any link whose signature is not in the set is recorded by the probe (class "new variant") and must not break rendering, hang or throw |
+| T4 | **No shader or geometry resource growth** and no visual or gameplay regression | Soak counters (programs, geometries, textures) unchanged against the §3 series; `perf:visual-compare`, `perf:lifecycle-check`, the existing unit/e2e suites |
+| T5 | **Time-to-playable P95 must not regress by more than 10 %** against a same-machine baseline | `timeToPlayableMs` (§11.3), P95 over at least 20 cold launches on the same machine and bundle family |
+
+Shader signature diagnostics (the probe and the renderer's shader error checking) stay enabled during acceptance testing; neither is
+to be disabled to improve a benchmark number.
+
+### 11.2 Active frames versus idle gaps
+
+The scene is demand-rendered: the gap after a frame that did not schedule a continuation is idle time, not a frame time. The tools now
+separate them everywhere a frame figure is reported (`scripts/perf/signatures.mjs` `longestFrame`, unit tested):
+
+- **Longest active frame** = max(longest scheduler callback, longest rAF-to-rAF gap *after a frame that scheduled a continuation*).
+- **Idle gap** = a gap after a frame that did not schedule one; reported as `maxIdleGapMs` and never counted as a frame.
+- Stall and throttled-page detection already require a running animation (§2); the earlier `maxGapMs` field, which mixed the two, was
+  removed from the baseline report. The 10-launch v1 baseline in §5 used the contiguous-interval metric for its frame figures and is
+  unchanged by this correction; its `longest gap` console line and `*GapMs` summary fields were the mixed ones and are not used.
+
+### 11.3 Independent boundaries (warm-up completion and first turn)
+
+The baseline now records each boundary separately, each from its own signal, and reports windows that are allowed to overlap:
+
+| Boundary | Source |
+| --- | --- |
+| `mounted` | board `main` mounted (DOMContentLoaded observer) |
+| `firstFrame` | first scheduler frame that rendered the board |
+| `warmupStart` / `warmupDone` | `performance.mark('otb:warmup:start')` / `('otb:warmup:done')`, to be emitted by the B3 change (null today) |
+| `turnStart` | `performance.mark('otb:uat:turn-start:<scenario>')`, emitted by the UAT harness (`Phase4UatHarness.tsx`, UAT-only module, not in the production bundle) when its first scripted turn begins |
+| `turnSettled` | `data-uat-ready` flips to true |
+
+Windows: `cold` (navigation to turnSettled), `firstTurn` (turnStart to turnSettled), `warmup` (warmupStart to warmupDone) and `second`
+(a replay on the warm scene) are measured independently and may overlap. `overlap` reports the links before and after `turnStart` and
+after `warmupDone` and after `turnSettled`, so an overlap is visible instead of being folded into "phases". **Time-to-playable** is
+navigation start to the first board frame submitted at or after `warmupDone` (the first board frame while no warm-up exists).
+
+The probe keeps any `performance.mark("otb:…")` with its time, so the B3 change only has to emit those two marks. The harness change
+is one `performance.mark` line in a UAT-only file; it is a measurement boundary, not rendering code.
+
+### 11.4 Same-machine baseline for the B3 targets (v2)
+
+20 cold launches (new Chrome process, empty profile each), the UAT bundle built from this branch (it differs from the §3/§5 bundle only
+by the harness mark), same machine and settings as §0. Raw: [08E_evidence/cold-baseline-v2](./08E_evidence/cold-baseline-v2/).
+
+| Measure (20 launches) | min / median / P95 / max |
+| --- | --- |
+| Longest active frame (T1 metric) | 2077 / 2136 / 2213 / 2493 ms (target ≤ 300 ms) |
+| of which longest scheduler callback | 2007 / 2026 / 2089 / 2431 ms |
+| Idle gap in the cold window (not a frame) | 1925 / 1969 / 2010 / 2312 ms |
+| Longest long task | 2011 / 2031 / 2093 / 2436 ms |
+| **Time-to-playable (T5 baseline)** | **1608 / 1669 / 1858 / 1889 ms** → regression limit at +10 % of P95 = **2044 ms** |
+| Links in the cold window: total / first-use | 49 / 42 in 20 of 20 |
+| Links before / after `turnStart` | 21 / 28 in 20 of 20 (load and first turn overlap) |
+| Signature set after the first turn | identical in 20 of 20 (42 signatures) |
+| First-use programs in the second turn | 0 in 20 of 20 |
+| Second-turn longest active frame | 44 / 49 / 53 / 55 ms |
+| Programs after the second turn; context events | 43 in 20 of 20; 0 of 20 |
+
+T1 is therefore not met today by about a factor of seven (the 2.0–2.5 s frame is the cold compile of the first scene; see §5 for the
+families); T2 has no measurement yet because no warm-up exists (`linksAfterWarmupDone` is null).
+
+### 11.5 Items that stay OPEN (unchanged by approval)
+
+1. **B2 shader burst** (57 first-use programs, 2 geometries, 2 s stall): not reproduced in 0 of 20 valid runs; cause unknown.
+2. **Run 18 hang**: 1 of 21 launches, unclassified.
+3. **Extra load-time variant** (run 20, 1 of 20 launches): the load set is not strictly constant; T3's "unexpected variants" rule exists because of it.
+4. **Heap growth**: +1.70 to +2.14 MB over 30 replays against the original ≤ 1 MB B2 target; B2 stays PARTIAL.
+
+The 10 % allowance in T5 applies to time-to-playable only; it does not relax the B2 heap target or close any item above.
+
+### 11.6 Validation of the closeout change
+
+`node --test scripts/perf/*.check.mjs` PASS (38); `pnpm --filter @monopoly/client test` PASS (247 files, 2468 tests; a first run failed because jsdom has no `performance.mark`, fixed with an optional call, which Chrome treats identically — the v2 baseline bundle was built before that one-character guard); `pnpm lint` PASS; `pnpm typecheck` PASS; `pnpm validate:docs` PASS. `pnpm build`, desktop checks and the soak series were NOT RUN for this change (the soak series of §3 is unaffected: it ran before and no production rendering code changed).
