@@ -156,7 +156,6 @@
     });
     knownGeometries = seenGeometries;
     const info = state.gl && state.gl.info;
-    P.census.push?.call;
     P.censusLog.push({
       t: now(), label, objects, types, lights, materials, newSceneGeometries: fresh, sceneGeometries: seenGeometries.size,
       memory: info ? { geometries: info.memory.geometries, textures: info.memory.textures, programs: info.programs ? info.programs.length : null } : null,

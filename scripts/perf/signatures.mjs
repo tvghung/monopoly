@@ -103,6 +103,8 @@ export function throttledIntervals(frames, links, samples, { minGapMs = 500, win
   const ordered = [...frames].sort((a, b) => a.start - b.start);
   const out = [];
   for (let index = 1; index < ordered.length; index += 1) {
+    // Only a gap that follows a frame which scheduled a continuation (an animation was running) can be a stall or a throttled page.
+    if (ordered[index - 1].continued === false) continue;
     const from = ordered[index - 1].start;
     const to = ordered[index].start;
     if (to - from < minGapMs) continue;
@@ -126,7 +128,7 @@ export function stallFrames(frames, links, { minMs = 250, windows = null } = {})
     const frame = ordered[index];
     const previous = index > 0 ? ordered[index - 1].start : null;
     // The scene is demand-rendered: a long gap between replays is idleness, so with windows only in-window gaps count.
-    const inWindow = previous !== null && (!windows || windows.some(window => previous >= window.start && frame.start <= window.end));
+    const inWindow = previous !== null && ordered[index - 1].continued !== false && (!windows || windows.some(window => previous >= window.start && frame.start <= window.end));
     const gap = inWindow ? frame.start - previous : 0;
     if (frame.cpu < minMs && gap < minMs) continue;
     const linked = links.filter(link => link.t >= frame.start && link.t <= frame.start + frame.cpu);

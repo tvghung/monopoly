@@ -50,8 +50,10 @@ export function summarizeRun(result, runNumber) {
     anyFirstUse: soakLinks.some(link => link.kind === 'new-variant'),
     intervalP95: intervals.p95,
     intervalMax: intervals.max,
-    stallsOver1000AfterLoad: afterLoadStalls.filter(entry => Math.max(entry.cpuMs, entry.gapMs) >= 1000).length,
-    throttledIntervals: signatures.throttled.filter(entry => entry.countersFlat && !entry.linked).length,
+    // Runs 1-20 were collected before stall/throttle detection required a running animation (every idle gap inside a replay was
+    // counted), so their stall figure is taken from the contiguous interval maximum instead, which already excludes idle gaps.
+    stallsOver1000AfterLoad: (intervals.max ?? 0) >= 1000 || afterLoadStalls.some(entry => entry.cpuMs >= 1000) ? 1 : 0,
+    throttledIntervals: (intervals.max ?? 0) >= 500 ? 1 : 0,
     contextLostEvents: signatures.events.filter(event => event.kind === 'context-lost').length,
     contextRestoredEvents: signatures.events.filter(event => event.kind === 'context-restored').length,
     rendererChangedEvents: signatures.events.filter(event => event.kind === 'renderer-changed' || event.kind === 'canvas-changed').length,

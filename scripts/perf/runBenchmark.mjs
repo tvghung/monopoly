@@ -467,7 +467,7 @@ function signatureReport(store, windows = null) {
     signatureCount: table.length,
     signatures: table,
     families: familyView(table),
-    links: classified.map(({ defines, ...rest }) => rest),
+    links: classified.map(link => { const slim = { ...link }; delete slim.defines; return slim; }),
     events: store.events,
     owners: store.owners,
     census: store.census,

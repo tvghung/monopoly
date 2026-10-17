@@ -1,0 +1,151 @@
+{
+  "runs": 10,
+  "environment": {
+    "commit": "088e4931f9857f18ba28dd68f980c0db0e5db0b6",
+    "cpu": "Intel(R) Core(TM) i5-10210U CPU @ 1.60GHz",
+    "os": "Windows_NT 10.0.19044",
+    "node": "v24.21.0",
+    "window": "1536x864",
+    "cap": 60,
+    "dist": "dist-main",
+    "capturedAt": "2026-10-17T09:10:48.362Z"
+  },
+  "signaturesAfterFirstTurn": {
+    "count": 10,
+    "min": 42,
+    "mean": 42,
+    "median": 42,
+    "p95": 42,
+    "p99": 42,
+    "max": 42
+  },
+  "identicalToRun1": 10,
+  "differencesFromRun1": [],
+  "secondTurnFirstUse": {
+    "count": 10,
+    "min": 0,
+    "mean": 0,
+    "median": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+  },
+  "loadLinks": {
+    "count": 10,
+    "min": 0,
+    "mean": 0,
+    "median": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+  },
+  "firstTurnLinks": {
+    "count": 10,
+    "min": 49,
+    "mean": 49,
+    "median": 49,
+    "p95": 49,
+    "p99": 49,
+    "max": 49
+  },
+  "firstTurnFirstUse": {
+    "count": 10,
+    "min": 42,
+    "mean": 42,
+    "median": 42,
+    "p95": 42,
+    "p99": 42,
+    "max": 42
+  },
+  "loadLongestFrameCpuMs": {
+    "count": 10,
+    "min": 0,
+    "mean": 0,
+    "median": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+  },
+  "loadLongestFrameGapMs": {
+    "count": 10,
+    "min": 0,
+    "mean": 0,
+    "median": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+  },
+  "firstTurnLongestFrameCpuMs": {
+    "count": 10,
+    "min": 2005.2999999523163,
+    "mean": 2125,
+    "median": 2043.2999999523163,
+    "p95": 2768,
+    "p99": 2768,
+    "max": 2768
+  },
+  "firstTurnLongestFrameGapMs": {
+    "count": 10,
+    "min": 2073.199999809265,
+    "mean": 2226.4100000143053,
+    "median": 2169.4000000953674,
+    "p95": 2866.9000000953674,
+    "p99": 2866.9000000953674,
+    "max": 2866.9000000953674
+  },
+  "firstTurnContiguousMaxMs": {
+    "count": 10,
+    "min": 2012.3959999999997,
+    "mean": 2169.2028,
+    "median": 2096.08,
+    "p95": 2778.6859999999997,
+    "p99": 2778.6859999999997,
+    "max": 2778.6859999999997
+  },
+  "loadMaxLongTaskMs": {
+    "count": 10,
+    "min": 362,
+    "mean": 444.1,
+    "median": 439,
+    "p95": 549,
+    "p99": 549,
+    "max": 549
+  },
+  "firstTurnMaxLongTaskMs": {
+    "count": 10,
+    "min": 2010,
+    "mean": 2129.4,
+    "median": 2048,
+    "p95": 2773,
+    "p99": 2773,
+    "max": 2773
+  },
+  "secondTurnLongestFrameGapMs": {
+    "count": 10,
+    "min": 1610.0999999046326,
+    "mean": 1635.999999976158,
+    "median": 1636.8999998569489,
+    "p95": 1657.7000000476837,
+    "p99": 1657.7000000476837,
+    "max": 1657.7000000476837
+  },
+  "readySeconds": {
+    "count": 10,
+    "min": 7.699,
+    "mean": 8.0604,
+    "median": 7.887,
+    "p95": 9.845,
+    "p99": 9.845,
+    "max": 9.845
+  },
+  "programsAfterSecondTurn": {
+    "count": 10,
+    "min": 43,
+    "mean": 43,
+    "median": 43,
+    "p95": 43,
+    "p99": 43,
+    "max": 43
+  },
+  "withContextEvents": 0
+}

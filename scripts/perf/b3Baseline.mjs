@@ -20,7 +20,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe } from './metrics.mjs';
+import { analyzeFrames, describe } from './metrics.mjs';
 import { classifyLinks, diffSignatures, longestFrame, signatureTable } from './signatures.mjs';
 import { serveDirectory } from './staticServer.mjs';
 
@@ -130,6 +130,8 @@ async function oneRun(dist, runDir, port, cap) {
         repeatLinks: links.filter(link => link.kind === 'repeat-link').length,
         signatures: [...new Set(links.map(link => link.sig))].sort(),
         longest: longestFrame(frames),
+        // Contiguous interval = rAF gap while an animation was running (idle gaps of the demand-rendered scene excluded).
+        contiguousMaxMs: analyzeFrames(frames, { fpsCap: cap, refreshHz: 59.9 }).intervalMs.max,
         maxLoafMs: Math.max(0, ...loaf.map(entry => entry.dur)),
         loafCount: loaf.length,
         maxLongTaskMs: Math.max(0, ...longtasks.map(entry => entry.dur)),
@@ -144,6 +146,7 @@ async function oneRun(dist, runDir, port, cap) {
       afterFirstTurnSignatures, signatureTable: signatureTable(store.links), classCounts: classified.reduce((counts, link) => { counts[link.kind] = (counts[link.kind] ?? 0) + 1; return counts; }, {}),
       contextEvents: store.events.filter(event => /context-(lost|restored)|renderer-changed|canvas-changed/.test(event.kind)),
       report, errors,
+      frames: store.frames.map(({ ts, start, cpu, continued, rendered, draws }) => ({ ts, start, cpu, continued, rendered, draws })),
     };
   } finally {
     await context.close();
@@ -171,6 +174,7 @@ function summarize(rows) {
     loadLongestFrameGapMs: spread(row => row.report.phases.load.longest.maxGapMs),
     firstTurnLongestFrameCpuMs: spread(row => row.report.phases.firstTurn.longest.maxCpuMs),
     firstTurnLongestFrameGapMs: spread(row => row.report.phases.firstTurn.longest.maxGapMs),
+    firstTurnContiguousMaxMs: spread(row => row.report.phases.firstTurn.contiguousMaxMs),
     loadMaxLongTaskMs: spread(row => row.report.phases.load.maxLongTaskMs),
     firstTurnMaxLongTaskMs: spread(row => row.report.phases.firstTurn.maxLongTaskMs),
     secondTurnLongestFrameGapMs: spread(row => row.report.phases.second.longest.maxGapMs),
