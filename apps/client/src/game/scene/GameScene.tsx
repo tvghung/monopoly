@@ -32,6 +32,8 @@ import Tabletop from './render/table/Tabletop';
 import { RenderQualityContext, useRenderQuality } from './render/RenderQualityContext';
 import { probeRenderCapabilities, resolveRenderQuality } from './render/renderQuality';
 import { SCENE_TONE_MAPPING, SCENE_TONE_MAPPING_EXPOSURE, parseToneMappingOverride } from './render/toneMapping';
+import stateContext from '../../internal';
+import type { StateContextValue } from '../../types';
 import { useSettingsSelector } from '../../settings/selectors';
 import type { GameSettings } from '../../settings/types';
 import type { TileHoverStore } from './board/tileHoverStore';
@@ -326,6 +328,16 @@ function BoardSceneContents({
 const NO_PLAYER_PLACES: readonly { playerId: string; tileId: number }[] = [];
 const NO_DECK_COUNTS: DeckCounts = { chance: 0, chest: 0 };
 
+/**
+ * What the scene sees of the room state: nothing. react-three-fiber re-provides every ancestor context inside the canvas, and
+ * it does so by reading each one while the `Canvas` renders, so a context that changes at every socket update commits the
+ * scene at every update (a chat line, a presence flag), though the scene draws only what arrives through `model`. Shadowing the
+ * context just above the canvas with a value that never changes removes that commit. Nothing under `game/scene` may read
+ * `stateContext` (a source scan in `sceneStateIsolation.test.ts` keeps it so), and a component that did would fail on the first read
+ * of `state` instead of silently showing stale data.
+ */
+const SCENE_STATE_SHADOW = {} as StateContextValue;
+
 const selectFpsLimit = (settings: GameSettings): number => settings.fpsLimit;
 const selectGraphicsQuality = (settings: GameSettings): GameSettings['graphicsQuality'] => settings.graphicsQuality;
 
@@ -387,6 +399,7 @@ function GameScene({
   useBoardGestures(sceneRef);
   return (
     <div ref={sceneRef} className="game-scene" data-testid="game-scene" data-graphics-tier={quality.tier}>
+      <stateContext.Provider value={SCENE_STATE_SHADOW}>
       <Canvas
         camera={BOARD_CANVAS_CAMERA}
         orthographic
@@ -433,6 +446,7 @@ function GameScene({
           />
         </RenderQualityContext.Provider>
       </Canvas>
+      </stateContext.Provider>
     </div>
   );
 }

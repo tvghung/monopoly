@@ -1,7 +1,7 @@
 import {
   act, cleanup, render, screen,
 } from '@testing-library/react';
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import {
   afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest';
@@ -22,12 +22,16 @@ import Board from './Board';
  * contract the real one has (it is `memo`ised, so it renders only when a prop changes).
  */
 // The module registry is reset first so these mocks apply whichever test file ran before in the same worker.
-const scene = vi.hoisted(() => { vi.resetModules(); return { renders: 0, props: null as unknown }; });
+const scene = vi.hoisted(() => { vi.resetModules(); return { renders: 0, props: null }; });
 vi.mock('../game/scene/GameScene', async () => {
   const { memo: memoize } = await import('react');
+  const { useEffect: useCommitEffect } = await import('react');
   const SceneStandIn = (props: unknown) => {
-    scene.renders += 1;
-    scene.props = props;
+    // Counted in an effect without dependencies, which runs once after every committed render.
+    useCommitEffect(() => {
+      scene.renders += 1;
+      scene.props = props;
+    });
     return <div data-testid="game-scene" />;
   };
   return { default: memoize(SceneStandIn) };
@@ -62,13 +66,14 @@ let setRoom: (room: ReturnType<typeof makeRoom>) => void = () => {};
 let updateSettings: ReturnType<typeof useSettings>['updateSettings'] = () => {};
 
 const SettingsHandle = memo(function SettingsHandle() {
-  updateSettings = useSettings().updateSettings;
+  const settings = useSettings();
+  useEffect(() => { updateSettings = settings.updateSettings; });
   return null;
 });
 
 function Harness({ controller, initial }: { controller: PresentationController; initial: ReturnType<typeof makeRoom> }) {
   const [room, setRoomState] = useState(initial);
-  setRoom = setRoomState;
+  useEffect(() => { setRoom = setRoomState; }, [setRoomState]);
   return (
     <SettingsProvider>
       <SettingsHandle />

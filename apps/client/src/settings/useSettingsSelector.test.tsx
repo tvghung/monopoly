@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { useContext, useEffect } from 'react';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import settingsContext from './SettingsContext';
@@ -18,22 +18,25 @@ const selectFpsLimit = (settings: GameSettings): number => settings.fpsLimit;
 let renders = { reducedMotion: 0, fps: 0, effective: 0, whole: 0 };
 let update: ReturnType<typeof useSettings>['updateSettings'] = () => {};
 
+// Each reader counts its committed renders in an effect (an effect without dependencies runs after every render).
 function ReducedMotionReader() {
-  renders.reducedMotion += 1;
+  useEffect(() => { renders.reducedMotion += 1; });
   return <output data-testid="reduced">{String(useSettingsSelector(selectReducedMotion))}</output>;
 }
 function FpsReader() {
-  renders.fps += 1;
+  useEffect(() => { renders.fps += 1; });
   return <output data-testid="fps">{useSettingsSelector(selectFpsLimit)}</output>;
 }
 function EffectiveReader() {
-  renders.effective += 1;
+  useEffect(() => { renders.effective += 1; });
   return <output data-testid="effective">{String(useEffectiveReducedMotion())}</output>;
 }
 function WholeReader() {
-  renders.whole += 1;
   const { settings, updateSettings } = useSettings();
-  update = updateSettings;
+  useEffect(() => {
+    renders.whole += 1;
+    update = updateSettings;
+  });
   return <output data-testid="volume">{settings.masterVolume}</output>;
 }
 
@@ -93,7 +96,8 @@ describe('the settings context', () => {
     // a React commit on the scene for every volume tick even though nothing in the scene reads the volume.
     const seen: unknown[] = [];
     function RawContextReader() {
-      seen.push(useContext(settingsContext));
+      const value = useContext(settingsContext);
+      useEffect(() => { seen.push(value); });
       return null;
     }
     renders = { reducedMotion: 0, fps: 0, effective: 0, whole: 0 };

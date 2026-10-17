@@ -2,6 +2,7 @@ import {
   lazy,
   memo,
   Suspense,
+  type ReactNode,
   useContext,
   useLayoutEffect,
   useMemo,
@@ -23,7 +24,6 @@ import SceneErrorBoundary from '../game/scene/fallback/SceneErrorBoundary';
 import LegacyBoardView from './legacy-board/LegacyBoardView';
 import type { RendererMode } from './rendererMode';
 import { useTranslation } from '../i18n/I18n';
-import type { ReactNode } from 'react';
 
 const GameScene = lazy(() => import('../game/scene/GameScene'));
 

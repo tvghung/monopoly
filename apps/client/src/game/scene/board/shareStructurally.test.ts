@@ -24,8 +24,8 @@ describe('shareStructurally', () => {
   it('treats a different length, a new key and a removed key as a change', () => {
     expect(shareStructurally([1, 2], [1, 2, 3])).toEqual([1, 2, 3]);
     expect(shareStructurally([1, 2, 3], [1, 2])).toEqual([1, 2]);
-    expect(shareStructurally({ a: 1 } as Record<string, number>, { a: 1, b: 2 })).toEqual({ a: 1, b: 2 });
-    expect(shareStructurally({ a: 1, b: 2 } as Record<string, number>, { a: 1 })).toEqual({ a: 1 });
+    expect(shareStructurally({ a: 1 }, { a: 1, b: 2 })).toEqual({ a: 1, b: 2 });
+    expect(shareStructurally({ a: 1, b: 2 }, { a: 1 })).toEqual({ a: 1 });
   });
 
   it('never returns something that differs in content from the next value', () => {
@@ -44,7 +44,7 @@ describe('shareStructurally', () => {
   });
 
   it('distinguishes undefined from a missing key and null from undefined', () => {
-    expect(shareStructurally({ a: undefined } as Record<string, unknown>, {})).toEqual({});
-    expect(shareStructurally({ a: null } as Record<string, unknown>, { a: undefined })).toEqual({ a: undefined });
+    expect(shareStructurally({ a: undefined }, {})).toEqual({});
+    expect(shareStructurally({ a: null }, { a: undefined })).toEqual({ a: undefined });
   });
 });
