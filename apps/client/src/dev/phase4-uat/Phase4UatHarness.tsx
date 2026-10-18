@@ -45,6 +45,8 @@ const PLAYER_CHARACTERS = ['dog', 'panda', 'cat', 'penguin'] as const;
 const STREET_TILE_IDS = Object.values(colorGroups).flat();
 const CARD_OPERATION = '00000000-0000-4000-8000-000000004001';
 const CHAIN_OPERATION = '00000000-0000-4000-8000-000000004002';
+/** Spike (08H Task 3): a real board mounted but not visible, with the size of the window. */
+const HIDDEN_BOARD_STYLE = { position: 'fixed', inset: 0, visibility: 'hidden', pointerEvents: 'none', zIndex: -1 } as const;
 
 const scenarios = [
   ['stations-2', '01 · Trạm 2 người'],
@@ -138,6 +140,12 @@ export interface HarnessUrlParams {
    * `App.tsx` switches from its Lobby branch to its Board branch when a room starts (08H). Null opens straight on the board.
    */
   lobbyDwellMs: number | null;
+  /**
+   * `persist=hidden-board|warm-root` (spike for 08H Task 3, with `lobby`): a real, hidden board is mounted from the start of the lobby.
+   * `hidden-board` keeps it and reveals it when the lobby ends (the upper bound of a persistent scene, design A1); `warm-root` unmounts it shortly after its
+   * warm-up is done, before the board is mounted from nothing (design A2).
+   */
+  persistMode: 'hidden-board' | 'warm-root' | null;
 }
 
 /**
@@ -158,6 +166,7 @@ export function readHarnessUrlParams(search: string): HarnessUrlParams {
     graphicsQuality: parseGraphicsQuality(params.get('quality')),
     fpsLimit: parseFpsLimit(params.get('fpsLimit')),
     lobbyDwellMs: parseLobbyDwell(params.get('lobby')),
+    persistMode: params.get('persist') === 'hidden-board' || params.get('persist') === 'warm-root' ? params.get('persist') as 'hidden-board' | 'warm-root' : null,
   };
 }
 
@@ -591,6 +600,27 @@ function Phase4UatSurface() {
     }, dwell);
     return () => window.clearTimeout(timer);
   }, [initialParams.lobbyDwellMs]);
+  // Spike marks: the moment the board became visible (two frames after the commit that revealed or mounted it).
+  useEffect(() => {
+    if (!boardShown || initialParams.lobbyDwellMs === null) return undefined;
+    let second = 0;
+    const first = window.requestAnimationFrame(() => {
+      second = window.requestAnimationFrame(() => performance.mark?.('otb:uat:revealed'));
+    });
+    return () => { window.cancelAnimationFrame(first); window.cancelAnimationFrame(second); };
+  }, [boardShown, initialParams.lobbyDwellMs]);
+  // Design A2: the hidden warm board is unmounted a moment after its warm-up is done, while the lobby is still shown.
+  const [warmRootAlive, setWarmRootAlive] = useState(true);
+  useEffect(() => {
+    if (initialParams.persistMode !== 'warm-root' || boardShown) return undefined;
+    let removal = 0;
+    const poll = window.setInterval(() => {
+      if (performance.getEntriesByName('otb:warmup:done').length === 0) return;
+      window.clearInterval(poll);
+      removal = window.setTimeout(() => setWarmRootAlive(false), 800);
+    }, 100);
+    return () => { window.clearInterval(poll); window.clearTimeout(removal); };
+  }, [boardShown, initialParams.persistMode]);
 
   // Benchmark mode keeps the renderer active; only animated fixtures replay to avoid needless
   // React state reconstruction for a static board workload.
@@ -1084,6 +1114,33 @@ function Phase4UatSurface() {
     roomPlayers: room.players,
   }), [room, socketFunctions, viewer]);
 
+  const lobbyView = (
+    <Lobby
+          roomCode="OTB-LOBBY"
+          players={room.players.filter(member => member.membershipStatus === 'ACTIVE').map(member => ({
+            id: member.playerId,
+            name: member.name,
+            color: member.color,
+            characterId: member.characterId,
+            teamId: member.teamId,
+            teamSlot: member.teamSlot,
+            ready: true,
+            connected: member.connected,
+            kind: member.kind,
+          }))}
+          playerId={viewer.playerId ?? 'player-a'}
+          hostPlayerId={viewer.playerId ?? 'player-a'}
+          minPlayers={room.minPlayers}
+          maxPlayers={room.maxPlayers}
+          busy={false}
+          error={null}
+          onSetReady={() => {}}
+          onSetAppearance={() => {}}
+          onStart={() => {}}
+          onLeave={() => {}}
+        />
+  );
+
   return (
     <PresentationProvider controller={controller}>
       <stateContext.Provider value={contextValue}>
@@ -1187,34 +1244,23 @@ function Phase4UatSurface() {
             </output>
               <RendererMetricsReadout /></> : null}
           </aside>}
-          {boardShown
-            ? <Board />
-            : (
-              <Lobby
-                roomCode="OTB-LOBBY"
-                players={room.players.filter(member => member.membershipStatus === 'ACTIVE').map(member => ({
-                  id: member.playerId,
-                  name: member.name,
-                  color: member.color,
-                  characterId: member.characterId,
-                  teamId: member.teamId,
-                  teamSlot: member.teamSlot,
-                  ready: true,
-                  connected: member.connected,
-                  kind: member.kind,
-                }))}
-                playerId={viewer.playerId ?? 'player-a'}
-                hostPlayerId={viewer.playerId ?? 'player-a'}
-                minPlayers={room.minPlayers}
-                maxPlayers={room.maxPlayers}
-                busy={false}
-                error={null}
-                onSetReady={() => {}}
-                onSetAppearance={() => {}}
-                onStart={() => {}}
-                onLeave={() => {}}
-              />
-            )}
+          {initialParams.persistMode === 'hidden-board'
+            ? (
+              <>
+                <div style={boardShown ? { display: 'contents' } : HIDDEN_BOARD_STYLE} data-testid="uat-persistent-board"><Board /></div>
+                {boardShown ? null : lobbyView}
+              </>
+            )
+            : boardShown
+              ? <Board />
+              : (
+                <>
+                  {initialParams.persistMode === 'warm-root' && warmRootAlive
+                    ? <div style={HIDDEN_BOARD_STYLE} data-testid="uat-warm-root"><Board /></div>
+                    : null}
+                  {lobbyView}
+                </>
+              )}
           {initialParams.designLab ? <HudConceptLayer ready={uatReady} /> : null}
           {initialParams.benchmarkSeconds !== null ? (
             <output
