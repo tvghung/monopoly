@@ -1,7 +1,7 @@
 # 08H — Phase B3 follow-up: build the board's work in the lobby (08G Task 3) — plan
 
 > **REFERENCE** — A plan with an execution record: everything before [Results](#results-task-0-2026-10-18) is the plan as it was approved; Task 0 and Task 1 have been done and are recorded in the
-> Results sections (Task 1 was measured and **not adopted**: it misses the 0.2 s threshold at the 3 s reference dwell; its code is kept on branch `perf/phase-b3-lobby-prewarm-task1`), Tasks 2 to 4 have not been started. Numbers outside Results are cited from [08G](./08G_PHASE_B3_T5_FOLLOW_UP_PLAN.md) or [08F](./08F_PHASE_B3_IMPLEMENTATION.md) (both HISTORICAL records).
+> Results sections (Task 1 was measured and **not adopted**: it misses the 0.2 s threshold at the 3 s reference dwell; its code is kept on branch `perf/phase-b3-lobby-prewarm-task1`), the owner then authorised Task 3 (2026-10-18); its design note and spike are in [Results (Task 3 spike)](#results-task-3-design-note-and-spike-2026-10-18), which stops at approval gate 3. Task 4 has not been started. Numbers outside Results are cited from [08G](./08G_PHASE_B3_T5_FOLLOW_UP_PLAN.md) or [08F](./08F_PHASE_B3_IMPLEMENTATION.md) (both HISTORICAL records).
 > It is written so that a developer or an agent that reads only this file and the documents it links can execute it. Targets T1–T5 are defined in [08E §11.1](./08E_PHASE_B3_INVESTIGATION.md);
 > measurement tooling is in [scripts/perf/README.md](../../scripts/perf/README.md).
 
@@ -260,3 +260,75 @@ In the candidate every launch finished the preparation before the board was moun
 ### Consequences for the plan
 
 - Task 2's gate is reached with these numbers: PR 20 +440 ms (3 s) over the limit; with the candidate +251 ms. Neither meets the limit, so the options of Task 2 apply: **(b)** authorise Task 3 (a scene created before the Board), whose reachable saving is the remaining 0.4–0.6 s but at a memory and complexity cost; **(c)** amend T5 (08G option D); or **(a')** adopt the candidate (cherry-pick `e692e7b`) as a partial improvement of 0.18–0.20 s, accepting the larger post-start callback, and decide (b) or (c) on top of it.
+
+## Results (Task 3 design note and spike, 2026-10-18)
+
+The owner kept Task 1 reverted, authorised Task 3 and asked for the GPU and heap figures to be recorded. Per the plan, Task 3 starts with a design note and a spike and **makes no production change**; this section is that note and stops at approval gate 3 (A1, A2 or neither, and the memory figure).
+The spike is on branch `perf/phase-b3-lobby-scene-spike` (commit `57a6e2e`, from the PR 20 head, UAT harness and driver only; not for merge).
+
+### The spike
+
+In the UAT lobby route (`?lobby=<ms>`) a **real, invisible `<Board />`** (the whole board: scene, HUD, modals; `visibility:hidden`, window-sized, no pointer events) is mounted from the first render of the lobby:
+
+- **A1, persistent scene** (`?persist=hidden-board`): the same board is kept and revealed when the lobby ends (a style change, no remount). This is the **upper bound** of a persistent scene: the production version would hoist only the scene, not the HUD.
+- **A2, hidden warm root** (`?persist=warm-root`): the hidden board is unmounted 0.8 s after its `otb:warmup:done`, still in the lobby, and the board is mounted from nothing at the start, as today.
+
+The driver gained `--persist`, `--memory` and the `t5Reveal` metric (`otb:uat:start` to two frames after the commit that made the board visible; for A1 the first rendered frame after the start comes from the first scenario state change, not from the reveal, so the visible moment is `t5Reveal` and T5-lobby is only comparable between PR 20 and A2).
+Same machine and protocol as Tasks 0 and 1: unminified UAT bundles (PR 20, and the spike bundle), a new Chrome process and an empty profile per launch, the three configurations measured alternately, 20 launches per cell; [raw](./08H_evidence/task3/).
+
+### Timing
+
+| Dwell | Design | T5-lobby median | P95 | min–max | `t5Reveal` median | Limit (1.10 × `main` P95) at P95 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 3 s | PR 20 | 1486 ms | 1520 | 1459–1841 | — | 1115: +405 |
+| 3 s | A2 | **1034** | 1047 | 1003–1278 | 21 ms | within (−68) |
+| 3 s | A1 | **254** | 261 | 252–287 | 18 ms | within (−854) |
+| 10 s | PR 20 | 1493 | 1522 | 1465–1544 | — | 1133: +389 |
+| 10 s | A2 | **991** | 1015 | 957–1017 | 21 ms | within (−118) |
+| 10 s | A1 | **252** | 256 | 248–256 | 17 ms | within (−877) |
+
+In every launch of A1 and A2 the warm-up was done before the start (80 of 80). 0 page errors in all 120 launches. Longest callback after the start (max): PR 20 82 ms, **A2 137 ms**, A1 13 ms. Lobby long task (max): PR 20 80 ms, **A1 and A2 about 730 ms**.
+
+**Both designs meet the T5-lobby limit at the 3 s reference dwell and at 10 s.** A1 makes the board visible in about 18 ms and removes the start-up work from the Start click altogether; A2 meets the limit with a margin of 68 ms at 3 s and 118 ms at 10 s, and keeps the post-start callback larger than PR 20's (137 against 82 ms: the board still builds its scene, creates its context and uploads its textures at the start).
+
+### Memory (6 launches per cell, dwell 10 s, sampled 2 s before the board is mounted, and 2.5 s after it is shown)
+
+Heap = V8 used heap after two forced collections (CDP); GPU and renderer = private memory of the Chrome GPU process and of the page's renderer process read from Windows (the GPU process holds the WebGL textures and buffers; on this integrated GPU the figure includes shared system memory). Medians.
+
+| | JS heap | GPU process | Renderer process | three.js textures / geometries / programs |
+| --- | --- | --- | --- | --- |
+| **Lobby alone** (PR 20, board not mounted) | 7.0 MB | **185 MB** | 131 MB | 0 / 0 / 0 |
+| **Lobby with A1's hidden board** | 15.0 MB (+8.0) | **441 MB (+256)** | 192 MB (+61) | 51 / 99 / 26 |
+| Lobby after A2's board was unmounted | 11.9 MB (+4.9) | 413 MB (+228) | 168 MB (+37) | 4 / 6 / 12 (the old context's resources were not yet released) |
+| Board visible, PR 20 | 17.4 MB | 478 MB | 214 MB | 52 / 103 / 26 |
+| Board visible, A1 | 17.5 MB | 485 MB | 205 MB | 52 / 103 / 26 |
+| Board visible, A2 | 18.3 MB | **595 MB (+117 over PR 20)** | 212 MB | 52 / 103 / 26 |
+
+- **A1 brings the board's own memory forward into the lobby**: +256 MB of GPU process memory and +8 MB of JS heap for as long as a lobby lasts, about what the board uses in a game (478–485 MB). Once the board is visible A1 is the same as PR 20 (485 against 478 MB). A player who leaves the lobby without starting pays the memory for nothing.
+- **A2's peak is higher than PR 20's**: while the board is playing, the GPU process is still at 595 MB (+117 MB), because the old, unmounted WebGL context is not released at once. Releasing it explicitly (`WEBGL_lose_context` on dispose) was **not tried**; it is part of A2's work if A2 is chosen. A2 also creates a throwaway context, which is what the 08A principle of no throwaway contexts rules out.
+- **The lobby freezes for about 0.73 s** when the hidden board mounts (long task 725–733 ms against 80 ms for PR 20): the board's context creation (about 0.43 s) and React scene build cannot be sliced. In the spike the mount happens at once; in a product it must be **deferred** (for example until the lobby is idle, or until the host can start) and it is the Task 3 risk with the most effect on how the lobby feels.
+
+### Design note — choice
+
+**Recommended: A1, a persistent scene, built from the board's slot but mounted early.** Reasons, from the numbers: it is the only design that makes T5 independent of how fast the machine builds a board (254 ms against a limit of 1115; the margin of A2 is 68 ms at 3 s on this machine and would shrink on a slower one), it makes **play again** (`FINISHED → LOBBY → IN_PROGRESS`) instant too,
+and its memory is the board's own memory, brought forward, not extra memory on top of a game. Its cost is the larger piece of work (below) and the lobby's 0.73 s freeze, to be deferred.
+
+**What A1 means in production** (not done; each point is a task, with the risk the plan already names):
+
+1. **Scene layer above the Lobby/Board switch.** Only the scene (`BoardRenderSurface` and what it builds, not the HUD, modals or the 40 accessibility buttons) moves to a layer rendered by `App.tsx` for a player in a room with status `LOBBY` or `IN_PROGRESS`, hidden (`visibility:hidden`, `inert`, `aria-hidden`) and frame-held until the Board shows it. `Board` keeps the state it owns (hover store, selection, renderer mode); the layer takes them through a registration, so `Board.renderIsolation.test.tsx` and `GameScene.contextIsolation.test.tsx` stay meaningful (they are extended, not edited to pass).
+2. **When to mount.** Deferred: after the lobby is interactive and idle, only on the balanced and high tiers, never on the low tier (it plays on the legacy board or a cheap scene), with `saveData` off, with a visible tab and a supported WebGL, and torn down when the player leaves the room or the session ends; this keeps spectators, reconnects and direct launches into a started room as today (accepted, §Decisions 6).
+3. **Reveal.** A style change plus one `invalidate()` and an explicit frame (so the first board frame is drawn at reveal and the warm-up marks and T1/T2 stay exact), with the scene's model coming from the lobby's room state (no empty model).
+4. **Lifecycle.** Context loss and tier change keep their current behavior and are covered by tests and `perf:lifecycle-check` with the scene alive in the lobby; the renderer-failure switch to the legacy board still works when the failure happens while hidden.
+5. **Acceptance** as in Task 3 above, plus: GPU and heap in the lobby no higher than the figures approved at gate 3; lobby long task attributable to the mount under the budget the owner approves (it cannot be below about 0.43 s for the context itself, so the budget is to be decided, not assumed); T1, T2, T4 and the visual result unchanged; 32 of 32 `warmup-check`.
+
+**A2 stays the fallback** if the owner rejects the lobby memory: it meets the limit by 68–118 ms at P95, needs the explicit context release, and keeps a 0.73 s lobby freeze and a larger post-start callback.
+
+### Not measured in this spike
+
+Dwell 0; T1, T2 and T4 (the harness spike is the upper bound, not the product); the 32 of 32 `warmup-check`; the visual comparison; a warm driver cache; a low-end device; the release of the old context in A2; the real path with a server (Task 4).
+
+### Approval gate 3 — for the owner
+
+1. **A1, A2 or neither.** Recommended: A1.
+2. **The memory figure**: +256 MB GPU process memory and +8 MB JS heap during the lobby (A1), equal to the board's own in-game figures; or +117 MB peak during the game (A2, before an explicit release).
+3. **The lobby budget** for the mount: a deferred, unsliceable freeze of about 0.73 s (context 0.43 s plus the React build). Recommended: defer to lobby idle and accept it.

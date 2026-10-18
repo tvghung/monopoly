@@ -1,0 +1,55 @@
+{
+  "run": 4,
+  "dwellMs": 10000,
+  "warmCache": false,
+  "dist": "dist-lob-pr20",
+  "lobbyShown": 642.5999999996275,
+  "start": 10644.5,
+  "warmupStart": 11484.700000001118,
+  "prewarmFirst": null,
+  "prewarmDone": null,
+  "warmupDone": 12216.800000000745,
+  "turnStart": 10896.599999999627,
+  "firstFrame": 12222.900000000373,
+  "revealed": null,
+  "t5Reveal": null,
+  "t5Lobby": 1578.4000000003725,
+  "warmupMs": 732.0999999996275,
+  "longestCallbackMs": 60.5,
+  "linksAfterDone": 0,
+  "linksTotal": 28,
+  "lobbyMaxLongTaskMs": 74,
+  "lobbyMaxLongFrameMs": 698.3000000007451,
+  "startMaxLongTaskMs": 412,
+  "errors": [],
+  "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009A60) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "memory": {
+    "lobby": {
+      "heapMB": 6.980068206787109,
+      "resources": null,
+      "processMB": {
+        "browser": 45.75390625,
+        "crashpad-handler": 2.4921875,
+        "gpu-process": 182.28515625,
+        "utility": 20.38671875,
+        "renderer": 131.04296875
+      }
+    },
+    "board": {
+      "heapMB": 17.366748809814453,
+      "resources": {
+        "geometries": 103,
+        "textures": 52,
+        "programs": 26,
+        "dpr": 1.25
+      },
+      "processMB": {
+        "browser": 45.2421875,
+        "crashpad-handler": 2.4921875,
+        "gpu-process": 508.5390625,
+        "utility": 20.41015625,
+        "renderer": 210.0859375
+      }
+    }
+  }
+}
