@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { markSceneOnce } from '../render/warmup/sceneMarks';
 import { tileState } from '@monopoly/shared';
 import BoardFoundation from './foundation/BoardFoundation';
 import CenterAirport from './center/CenterAirport';
@@ -53,6 +54,8 @@ export default function Board3D({
   selectedTileId = null,
   onTileSelect,
 }: Board3DProps) {
+  markSceneOnce('board3d-render');
+  useEffect(() => { markSceneOnce('board3d-mounted'); }, []);
   const { language } = useTranslation();
   const tiles = useBoardTiles(model?.tiles, language);
   // Keyed on the signal lists, not rebuilt on every render: the instanced houses re-plan only when a signal actually changes.

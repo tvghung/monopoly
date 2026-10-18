@@ -21,6 +21,8 @@ import { isTeamGame } from '../game/team/teamView';
 import GameHud from '../game/ui/hud/GameHud';
 import BoardAccessibilityControls from './BoardAccessibilityControls';
 import BoardRenderSurface from './BoardRenderSurface';
+import LayerSlot from './sceneLayer/LayerSlot';
+import { SceneLayerContext } from './sceneLayer/sceneLayerContext';
 import {
   resolveInitialRendererMode,
   type RendererMode,
@@ -84,12 +86,16 @@ function HoveredTileOwnerCard({ store }: { store: TileHoverStore }) {
 
 function Board() {
   const { t } = useTranslation();
+  // Inside a persistent scene layer (the app) the scene is the layer's, drawn into this board's slot; on its own (tests, the UAT pages)
+  // the board renders its scene itself. A renderer that already failed in the layer starts the board on the legacy board.
+  const sceneLayer = useContext(SceneLayerContext);
   const [rendererMode, setRendererMode] = useState<RendererMode>(
-    () => resolveInitialRendererMode(supportsWebGL()),
+    () => resolveInitialRendererMode(supportsWebGL() && !sceneLayer?.getFailure()),
   );
   const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
   const [portfolioPlayerId, setPortfolioPlayerId] = useState<string | null>(null);
-  const [hoverStore] = useState(createTileHoverStore);
+  const [ownHoverStore] = useState(createTileHoverStore);
+  const hoverStore = sceneLayer ? sceneLayer.hoverStore : ownHoverStore;
   // Portrait on a phone: the rotate notice covers the game, and the game under it is inert (no touch, no keyboard) but not unmounted.
   // A tablet (600 px wide and up) plays in portrait as well.
   const portraitBlocked = useMediaQuery(PORTRAIT_BLOCKED_QUERY);
@@ -135,13 +141,37 @@ function Board() {
             aria-label={t('board.boardArea')}
             inert={portraitBlocked}
           >
-            <BoardRenderSurface
-              rendererMode={rendererMode}
-              selectedTileId={selectedTileId}
-              hoverStore={hoverStore}
-              onTileSelect={selectTile}
-              onRendererFailure={switchToLegacy}
-            />
+            {sceneLayer
+              ? (
+                <>
+                  <LayerSlot
+                    active={rendererMode === 'webgl'}
+                    selectedTileId={selectedTileId}
+                    onTileSelect={selectTile}
+                    onRendererFailure={switchToLegacy}
+                  />
+                  {rendererMode === 'webgl'
+                    ? null
+                    : (
+                      <BoardRenderSurface
+                        rendererMode={rendererMode}
+                        selectedTileId={selectedTileId}
+                        hoverStore={hoverStore}
+                        onTileSelect={selectTile}
+                        onRendererFailure={switchToLegacy}
+                      />
+                    )}
+                </>
+              )
+              : (
+                <BoardRenderSurface
+                  rendererMode={rendererMode}
+                  selectedTileId={selectedTileId}
+                  hoverStore={hoverStore}
+                  onTileSelect={selectTile}
+                  onRendererFailure={switchToLegacy}
+                />
+              )}
             <Dashboard />
             <GameHud onSelectTile={selectTile} onSelectPlayer={setPortfolioPlayerId} />
             <HoveredTileOwnerCard store={hoverStore} />

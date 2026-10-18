@@ -36,6 +36,7 @@ import { verifyHostContinuity } from './runtime/hostContinuity';
 import ForfeitChoiceDialog from './components/ForfeitChoiceDialog';
 import JoinForm from './components/JoinForm';
 import Lobby from './components/Lobby';
+import SceneLayer, { type ScenePhase } from './components/sceneLayer/SceneLayer';
 import SpectatorBanner from './components/SpectatorBanner';
 import { useToast } from './components/Toast';
 import IconButton from './design-system/components/IconButton/IconButton';
@@ -1193,10 +1194,16 @@ export default function App({
       )
     : null;
 
+  // The persistent 3D scene (08H Task 3): a player in a lobby builds it ahead of the board; the board then takes it, and it stays for the next lobby.
+  const scenePhase: ScenePhase = room && role && (phase === 'LOBBY' || phase === 'GAME' || phase === 'RECONNECTING')
+    ? (role === 'PLAYER' && room.status === 'LOBBY' ? 'LOBBY' : 'GAME')
+    : null;
+
   return (
     <PresentationProvider controller={presentationController}>
       <stateContext.Provider value={contextValue}>
         <roomExitContext.Provider value={roomExit}>
+        <SceneLayer phase={scenePhase} roomKey={room?.roomCode ?? null}>
         <main className="App">
           {phase === 'RESTORING' ? <LoadingScreen as="section" stage="restoring" /> : null}
           {phase === 'JOIN' || phase === 'JOINING'
@@ -1257,6 +1264,7 @@ export default function App({
           />
         </main>
         <CardInteractionOverlay />
+        </SceneLayer>
         </roomExitContext.Provider>
       </stateContext.Provider>
     </PresentationProvider>

@@ -560,11 +560,35 @@ loading state, and draws nothing until they are ready. Measured basis and open i
   Programs of a tier already visited stay cached, so switching back is instant (about 9 ms) and the program count stays bounded.
 - **Fallbacks.** Without `KHR_parallel_shader_compile` the links are done one program per slice instead of all inside the first frame. A renderer
   that throws, a lost context or a signal abort ends the warm-up as not complete and releases the frames. `debug.checkShaderErrors` stays on.
-- **Not covered.** Variants the harness does not exercise, the lobby-to-board path, any new transient effect without a fixture, and the pre-environment
+- **Not covered.** Variants the harness does not exercise, the real-server lobby-to-board path (the UAT lobby route measures it, 08H), any new transient effect without a fixture, and the pre-environment
   variants of lit materials (the first frame is drawn after the environment exists, so they are never asked for; a board whose environment layer
   failed compiles its variant at warm-up because the warm-up compiles the scene as it is).
+- **Baked studio environment.** The PMREM of the procedural studio is baked into `studio-environment.cubeuv.f16.z` (raw half-float RGBA of the PMREM render target, 768 × 1024,
+  zlib-deflated, about 470 KB) with `studio-environment.meta.json`, next to `StudioEnvironment.tsx`. `StudioEnvironment` uploads it as a `DataTexture` with the PMREM texture's properties
+  (`bakedStudioEnvironment.ts`; the download starts when the scene chunk is evaluated) instead of filtering the studio, which blocked the main thread for about 0.9 s cold. It is used only while its
+  metadata hash equals the hash of everything that goes into the picture (the studio scene built from the palette and the light rig, the sigma, the layout, the three.js revision); the hash test fails when the
+  file is stale, and a stale or unloadable file makes the effect filter the studio at runtime as before (that path is also the generator). To rebuild after changing any input: build a UAT bundle and run
+  `node scripts/bakeStudioEnvironment.mjs --dist <uat-dist>`. The warm-up waits for the environment (`WarmupHost.waitForEnvironment`) because lit programs are keyed on it. Baked and procedural renders
+  are pixel-identical on the measuring GPU at all three tiers.
+- **One probe context.** The WebGL support check and the `auto` quality's texture limit share a single throwaway context (`getSharedWebGLProbe` in `webglSupport.ts`); they used to create one each.
+- **Procedural textures stay byte-identical.** The table, pebble and district generators run on the cold-launch critical path; they are optimised without changing a byte, and
+  `proceduralTextureGolden.test.ts` holds golden hashes of their output.
 - **Environment effect.** `StudioEnvironment` no longer depends on the identity of `invalidate` (R3F swaps it once the canvas exists), which had
   filtered the studio into a PMREM twice at every launch.
+
+### Persistent scene layer (performance program B3, 08H Task 3)
+
+The 3D scene is not owned by `Board`: it is built by a **scene layer** above the Lobby/Board switch and moved into the board. Rules:
+
+- **One scene per room session.** `SceneLayer` (`apps/client/src/components/sceneLayer/`, rendered by `App.tsx` under the state, presentation and settings providers) renders the scene with a portal into `SceneLayerController.host`. The host sits in an invisible parking element (`visibility:hidden`, `inert`, `aria-hidden`, window-sized, behind everything)
+  while no board holds it and is moved into the board's slot (`LayerSlot`, first child of the renderer section, so the HUD stays above) by a layout effect. Moving the element never remounts the scene, so the canvas, the WebGL context and the warmed programs survive lobby → game → lobby (play again) → game. The scene is dropped when the room ends (`phase` null) or its renderer fails.
+- **Deferred, gated early build.** A player in a lobby builds the scene ahead of the board only when `scheduleEarlyMount` says so: 1.5 s after the lobby appears, then at browser idle (4 s timeout), on a visible tab, never on the low tier, never with data saving on, never without WebGL. A board shown before that mounts the scene itself immediately (a quick start, a spectator, a reconnect into a started room, a launch into a room).
+  The first mount is unsliceable main-thread work of about 0.36–0.41 s (the context, the React build); it must stay deferred.
+- **Reveal.** `GameScene`'s `revealToken` changes whenever the host enters a slot and `RevealFrame` invalidates, so the first board frame is drawn at the click. `otb:scene:layer-mounted` and `otb:scene:layer-attach` mark the two moments.
+- **What the board owns stays in the board.** Selection, `onTileSelect` and the renderer-failure handler are bound to the controller by `LayerSlot` and cleared when the board unmounts; the layer reads the room state only through `useBoardRenderModel()` (the same model hook `BoardRenderSurface` uses) and shadows nothing new: `GameScene` still hides `stateContext` from the canvas. The hover store is the controller's, shared by the scene and the board's DOM readers.
+- **Failure.** A renderer failure while the layer owns the scene drops the scene, makes the bound board switch to the legacy board, and is remembered, so the next board starts on the legacy board; leaving the room clears it.
+- **Standalone boards.** Without a `SceneLayer` above (tests, design lab, UAT pages) `Board` renders `BoardRenderSurface` itself exactly as before. Nothing under `game/scene` may import the layer.
+- **Memory.** A built lobby scene holds the in-game footprint in the lobby (about +256 MB GPU process memory and +8 MB JS heap on the measuring machine, 08H); the in-game steady state is unchanged.
 
 ### Tile-layer refinement evidence
 

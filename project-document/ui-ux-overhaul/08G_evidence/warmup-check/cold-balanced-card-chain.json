@@ -1,0 +1,68 @@
+{
+ "kind": "cold",
+ "scenario": "card-chain",
+ "tier": "balanced",
+ "verdict": {
+  "startT": 1921.7999999998137,
+  "doneT": 2908.2999999998137,
+  "ordered": true,
+  "warmupMs": 986.5,
+  "linksDuring": 28,
+  "linksAfter": 0,
+  "linksAfterNames": [],
+  "worstCallbackAfterMs": 107.09999999962747,
+  "framesAfter": 3,
+  "marks": [
+   "otb:warmup:start@1922",
+   "otb:warmup:done@2908"
+  ]
+ },
+ "warmup": {
+  "reason": "initial",
+  "tier": "balanced",
+  "outcome": "complete",
+  "parallel": true,
+  "startedAtMs": 1921.7999999998137,
+  "durationMs": 986.5,
+  "fixtureBuildMs": 5.400000000372529,
+  "programsBefore": 0,
+  "programsAfter": 26,
+  "steps": [
+   {
+    "name": "scene",
+    "status": "ready",
+    "materials": 107,
+    "programsAdded": 16,
+    "durationMs": 816.7999999998137
+   },
+   {
+    "name": "fixtures:main",
+    "status": "ready",
+    "materials": 9,
+    "programsAdded": 6,
+    "durationMs": 807
+   },
+   {
+    "name": "fixtures:shadow-depth",
+    "status": "ready",
+    "materials": 7,
+    "programsAdded": 4,
+    "durationMs": 707
+   },
+   {
+    "name": "textures",
+    "status": "ready",
+    "materials": 0,
+    "programsAdded": 0,
+    "durationMs": 112.70000000018626
+   }
+  ]
+ },
+ "failures": [],
+ "pageErrors": [],
+ "consoleMessages": [
+  "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+ ],
+ "links": 28,
+ "frames": 3
+}

@@ -25,6 +25,8 @@ import { MeasurementScheduler } from './render/diagnostics/measurementScheduler'
 import { FrameCounter, shadowMapTypeName, toneMappingName } from './render/diagnostics/rendererInfo';
 import OptionalSceneLayer from './render/OptionalSceneLayer';
 import ShaderWarmup from './render/warmup/ShaderWarmup';
+import { markSceneOnce } from './render/warmup/sceneMarks';
+import { preloadBakedStudioEnvironment } from './render/environment/bakedStudioEnvironment';
 import { FrameWarmupHost, WarmupHostContext } from './render/warmup/warmupHost';
 import SceneLightRig from './render/lighting/SceneLightRig';
 import StudioEnvironment from './render/environment/StudioEnvironment';
@@ -47,6 +49,9 @@ import {
 import './GameScene.css';
 import type { DeckCounts } from '@monopoly/shared';
 
+// Starts fetching the baked studio environment as soon as this chunk is evaluated, so the download overlaps the canvas creation.
+void preloadBakedStudioEnvironment();
+
 // The post chain only exists for the high tier: its chunk is never requested for balanced or low.
 const ScenePostEffects = lazy(() => import('./render/post/ScenePostEffects'));
 
@@ -59,10 +64,21 @@ export interface GameSceneProps {
   onRendererFailure?: (error: Error) => void;
   /** Shown over the empty canvas until the first frame is drawn (the shader warm-up holds it), as the chunk's own fallback is. */
   loadingLabel?: string;
+  /** A number that changes whenever the scene's element is moved into a board's slot (08H Task 3): the scene draws one frame on it. */
+  revealToken?: number;
 }
 
 interface BoardSceneContentsProps extends GameSceneProps {
   model?: BoardRenderModel;
+}
+
+/** Draws one frame when the scene's element is shown in a board (the persistent scene is built before the board is). */
+function RevealFrame({ token }: { token: number | undefined }) {
+  const invalidate = useThree(state => state.invalidate);
+  useEffect(() => {
+    if (token !== undefined) invalidate();
+  }, [invalidate, token]);
+  return null;
 }
 
 export function RendererLifecycleGuard({ onFailure }: { onFailure?: (error: Error) => void }) {
@@ -360,7 +376,9 @@ function GameScene({
   onTileSelect,
   onRendererFailure,
   loadingLabel,
+  revealToken,
 }: GameSceneProps) {
+  markSceneOnce('game-scene-render');
   const sceneRef = useRef<HTMLDivElement>(null);
   const fpsLimit = useSettingsSelector(selectFpsLimit);
   const graphicsQuality = useSettingsSelector(selectGraphicsQuality);
@@ -380,6 +398,7 @@ function GameScene({
     },
   }));
   const onCanvasCreated = useCallback((state: RootState) => {
+    markSceneOnce('canvas-created');
     frameSchedulerRef.current?.dispose();
     const scheduler = new DemandFrameScheduler(fpsLimitRef.current, timestampSeconds => {
       const current = state.get();
@@ -443,9 +462,10 @@ function GameScene({
         <RenderQualityContext.Provider value={quality}>
           <WarmupHostContext.Provider value={warmupHost}>
           <RendererLifecycleGuard onFailure={onRendererFailure} />
+          <RevealFrame token={revealToken} />
           <color attach="background" args={[boardVisualTokens.sceneBackground]} />
           <SceneLightRig />
-          <OptionalSceneLayer name="studio-environment" resetKey={quality.tier}>
+          <OptionalSceneLayer name="studio-environment" resetKey={quality.tier} onFail={() => warmupHost.markEnvironmentSettled()}>
             <StudioEnvironment />
           </OptionalSceneLayer>
           <OptionalSceneLayer name="tabletop" resetKey={quality.tier}>

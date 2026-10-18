@@ -16,6 +16,9 @@ export const WARMUP_TIMEOUT_MS = 12_000;
 /** How long the high tier waits for its lazily loaded post-processing chunk before warming the scene without it. */
 export const POST_CHAIN_WAIT_MS = 5_000;
 
+/** How long the warm-up waits for the studio environment (a download and an upload) before compiling without it. */
+export const ENVIRONMENT_WAIT_MS = 5_000;
+
 declare global {
   interface Window {
     /** Dev/UAT only: the report of the latest warm-up, for the performance probe and the tests. */
@@ -113,6 +116,7 @@ export default function ShaderWarmup() {
       reason,
       tier: quality.tier,
       fixtureBuildMs,
+      prerequisite: signal => host.waitForEnvironment(signal, ENVIRONMENT_WAIT_MS),
       resolveTier: quality.postProcessing
         ? async signal => resolvePostChain(await host.waitForPostChain(signal, POST_CHAIN_WAIT_MS))
         : undefined,

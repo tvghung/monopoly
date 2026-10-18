@@ -1,0 +1,61 @@
+{
+ "kind": "cold",
+ "scenario": "house-4",
+ "tier": "low",
+ "verdict": {
+  "startT": 1686.5999999996275,
+  "doneT": 2398.399999999441,
+  "ordered": true,
+  "warmupMs": 711.7999999998137,
+  "linksDuring": 24,
+  "linksAfter": 0,
+  "linksAfterNames": [],
+  "worstCallbackAfterMs": 137,
+  "framesAfter": 136,
+  "marks": [
+   "otb:warmup:start@1687",
+   "otb:warmup:done@2398"
+  ]
+ },
+ "warmup": {
+  "reason": "initial",
+  "tier": "low",
+  "outcome": "complete",
+  "parallel": true,
+  "startedAtMs": 1686.5999999996275,
+  "durationMs": 711.7999999998137,
+  "fixtureBuildMs": 3.900000000372529,
+  "programsBefore": 0,
+  "programsAfter": 22,
+  "steps": [
+   {
+    "name": "scene",
+    "status": "ready",
+    "materials": 112,
+    "programsAdded": 16,
+    "durationMs": 552.2000000001863
+   },
+   {
+    "name": "fixtures:main",
+    "status": "ready",
+    "materials": 8,
+    "programsAdded": 6,
+    "durationMs": 552.9000000003725
+   },
+   {
+    "name": "textures",
+    "status": "ready",
+    "materials": 0,
+    "programsAdded": 0,
+    "durationMs": 107.29999999981374
+   }
+  ]
+ },
+ "failures": [],
+ "pageErrors": [],
+ "consoleMessages": [
+  "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+ ],
+ "links": 24,
+ "frames": 138
+}

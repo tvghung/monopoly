@@ -16,6 +16,10 @@ export interface WarmupHost {
   registerPostChain(chain: PostChain | null): void;
   /** Resolves with the registered chain, or null when none arrived in time or the signal aborted. */
   waitForPostChain(signal: AbortSignal, timeoutMs: number): Promise<PostChain | null>;
+  /** The studio environment (baked or filtered) is applied, or could not be built: the lit programs can now be keyed. Idempotent. */
+  markEnvironmentSettled(): void;
+  /** Resolves true once the environment settled, false when it did not in time, the signal aborted or the host was disposed. */
+  waitForEnvironment(signal: AbortSignal, timeoutMs: number): Promise<boolean>;
   /** Idempotent: stops the frame stream (the picture on screen stays as it is). */
   hold(): void;
   /** Idempotent: lets the frame stream resume; the first frame draws the latest state. */
@@ -28,6 +32,8 @@ export const NO_WARMUP_HOST: WarmupHost = {
   release() {},
   registerPostChain() {},
   waitForPostChain: () => Promise.resolve(null),
+  markEnvironmentSettled() {},
+  waitForEnvironment: () => Promise.resolve(true),
 };
 
 export const WarmupHostContext = createContext<WarmupHost>(NO_WARMUP_HOST);
@@ -60,6 +66,8 @@ export class FrameWarmupHost implements WarmupHost {
   private releaseScheduler: (() => void) | null = null;
   private postChain: PostChain | null = null;
   private initialPending = false;
+  private environmentSettled = false;
+  private readonly environmentWaiters = new Set<(settled: boolean) => void>();
   private initialReported = false;
   private readonly postChainWaiters = new Set<(chain: PostChain | null) => void>();
   private watchdog: unknown = null;
@@ -87,6 +95,27 @@ export class FrameWarmupHost implements WarmupHost {
   registerPostChain(chain: PostChain | null): void {
     this.postChain = chain;
     if (chain) for (const waiter of [...this.postChainWaiters]) waiter(chain);
+  }
+
+  markEnvironmentSettled(): void {
+    this.environmentSettled = true;
+    for (const waiter of [...this.environmentWaiters]) waiter(true);
+  }
+
+  waitForEnvironment(signal: AbortSignal, timeoutMs: number): Promise<boolean> {
+    if (this.environmentSettled) return Promise.resolve(true);
+    return new Promise(resolve => {
+      const settle = (settled: boolean) => {
+        this.environmentWaiters.delete(settle);
+        this.cancel(timer);
+        signal.removeEventListener('abort', onAbort);
+        resolve(settled);
+      };
+      const onAbort = () => settle(false);
+      const timer = this.schedule(() => settle(false), timeoutMs);
+      this.environmentWaiters.add(settle);
+      signal.addEventListener('abort', onAbort, { once: true });
+    });
   }
 
   waitForPostChain(signal: AbortSignal, timeoutMs: number): Promise<PostChain | null> {
@@ -120,6 +149,7 @@ export class FrameWarmupHost implements WarmupHost {
     this.scheduler = null;
     this.postChain = null;
     for (const waiter of [...this.postChainWaiters]) waiter(null);
+    for (const waiter of [...this.environmentWaiters]) waiter(false);
   }
 
   private finishInitial(): void {

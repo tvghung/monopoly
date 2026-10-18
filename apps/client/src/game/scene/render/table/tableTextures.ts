@@ -55,15 +55,38 @@ function lattice(ix: number, iy: number, seed: number): number {
 const smooth = (t: number) => t * t * (3 - 2 * t);
 const wrap = (value: number, period: number) => ((value % period) + period) % period;
 
-/** Value noise in [0, 1) that repeats every `periodX` x `periodY` lattice cells, so the texture tiles. */
-function periodicNoise(x: number, y: number, periodX: number, periodY: number, seed: number): number {
+/**
+ * Value noise that repeats every `periodX` x `periodY` lattice cells, so the texture tiles. The lattice has only
+ * `periodX * periodY` distinct values (a few hundred per noise), so they are computed once per generator call instead of four times
+ * per pixel; the blend is the same arithmetic in the same order, so every sample is bit-identical to the unrolled version.
+ */
+interface NoiseLattice {
+  values: Float64Array;
+  periodX: number;
+  periodY: number;
+}
+
+function createNoiseLattice(periodX: number, periodY: number, seed: number): NoiseLattice {
+  const values = new Float64Array(periodX * periodY);
+  for (let iy = 0; iy < periodY; iy += 1) {
+    for (let ix = 0; ix < periodX; ix += 1) values[iy * periodX + ix] = lattice(ix, iy, seed);
+  }
+  return { values, periodX, periodY };
+}
+
+/** Value noise in [0, 1) over `grid` at lattice coordinates (x, y). */
+function periodicNoise(x: number, y: number, grid: NoiseLattice): number {
+  const { values, periodX, periodY } = grid;
   const x0 = Math.floor(x);
   const y0 = Math.floor(y);
   const tx = smooth(x - x0);
   const ty = smooth(y - y0);
-  const at = (ix: number, iy: number) => lattice(wrap(ix, periodX), wrap(iy, periodY), seed);
-  const top = at(x0, y0) * (1 - tx) + at(x0 + 1, y0) * tx;
-  const bottom = at(x0, y0 + 1) * (1 - tx) + at(x0 + 1, y0 + 1) * tx;
+  const wx0 = wrap(x0, periodX);
+  const wx1 = wrap(x0 + 1, periodX);
+  const row0 = wrap(y0, periodY) * periodX;
+  const row1 = wrap(y0 + 1, periodY) * periodX;
+  const top = values[row0 + wx0] * (1 - tx) + values[row0 + wx1] * tx;
+  const bottom = values[row1 + wx0] * (1 - tx) + values[row1 + wx1] * tx;
   return top * (1 - ty) + bottom * ty;
 }
 
@@ -79,6 +102,9 @@ export function generateTableTextureData(size: number, options: TableTextureOpti
   const plankTone = Array.from({ length: TABLE_PLANKS_PER_TILE }, () => (random() - 0.5) * 0.12);
   const jointAt = Array.from({ length: TABLE_PLANKS_PER_TILE }, () => 0.15 + random() * 0.7);
   const seamHalfWidth = Math.max(1, size / 512);
+  const grainLattice = createNoiseLattice(64, 4, seed + 1);
+  const fineLattice = createNoiseLattice(160, 10, seed + 2);
+  const broadLattice = createNoiseLattice(3, 3, seed + 3);
   const albedo = new Uint8Array(size * size * 4);
   const roughness = options.roughnessVariation ? new Uint8Array(size * size * 4) : null;
 
@@ -89,9 +115,9 @@ export function generateTableTextureData(size: number, options: TableTextureOpti
       const plank = Math.min(TABLE_PLANKS_PER_TILE - 1, Math.floor(x / plankPixels));
       const across = x - plank * plankPixels;
       // Grain runs along the plank (v): high frequency across it, very low along it.
-      const grain = periodicNoise(u * 64, v * 4, 64, 4, seed + 1);
-      const fine = periodicNoise(u * 160, v * 10, 160, 10, seed + 2);
-      const broad = periodicNoise(u * 3, v * 3, 3, 3, seed + 3);
+      const grain = periodicNoise(u * 64, v * 4, grainLattice);
+      const fine = periodicNoise(u * 160, v * 10, fineLattice);
+      const broad = periodicNoise(u * 3, v * 3, broadLattice);
       let towardDark = clamp01(0.06 + grain * 0.16 + fine * 0.05 + (broad - 0.5) * 0.06 + plankTone[plank]);
       const nearSeam = Math.min(across, plankPixels - 1 - across) < seamHalfWidth
         || Math.abs(v - jointAt[plank]) * size < seamHalfWidth;

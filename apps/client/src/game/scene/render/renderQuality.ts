@@ -1,4 +1,5 @@
 import type { GraphicsQualitySetting } from '../../../settings/types';
+import { getSharedWebGLProbe } from '../fallback/webglProbe';
 
 /**
  * Graphics quality tiers of Visual Overhaul V2 (plan 02 §8.8). This module is pure (no three.js, no
@@ -117,29 +118,9 @@ export interface MaxTextureSizeSource {
   capabilities?: { maxTextureSize?: number };
 }
 
-let cachedMaxTextureSize: number | null = null;
-
-/** One throwaway WebGL context for the whole page, only when no renderer is available yet. */
+/** The texture limit from the page's single throwaway context (shared with the WebGL support check), only when no renderer is available yet. */
 function readMaxTextureSizeFromContext(): number {
-  if (cachedMaxTextureSize !== null) return cachedMaxTextureSize;
-  let size = 0;
-  // No WebGL in this environment (for example jsdom): skip the throwaway context entirely.
-  if (typeof WebGL2RenderingContext === 'undefined' && typeof WebGLRenderingContext === 'undefined') {
-    cachedMaxTextureSize = 0;
-    return 0;
-  }
-  try {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
-    if (context) {
-      const value: unknown = context.getParameter(context.MAX_TEXTURE_SIZE);
-      size = typeof value === 'number' ? value : 0;
-    }
-  } catch {
-    size = 0;
-  }
-  cachedMaxTextureSize = size;
-  return size;
+  return getSharedWebGLProbe().maxTextureSize;
 }
 
 /**

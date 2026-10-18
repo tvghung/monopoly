@@ -128,6 +128,39 @@ describe('FrameWarmupHost loading indicator', () => {
   });
 });
 
+describe('FrameWarmupHost environment rendezvous', () => {
+  it('resolves true at once when the environment already settled', async () => {
+    const host = new FrameWarmupHost({ watchdogMs: 1_000, ...manualTimers() });
+    host.markEnvironmentSettled();
+    host.markEnvironmentSettled();
+    await expect(host.waitForEnvironment(new AbortController().signal, 100)).resolves.toBe(true);
+  });
+
+  it('resolves true when the environment settles while the warm-up waits', async () => {
+    const host = new FrameWarmupHost({ watchdogMs: 1_000, ...manualTimers() });
+    const waiting = host.waitForEnvironment(new AbortController().signal, 100);
+    host.markEnvironmentSettled();
+    await expect(waiting).resolves.toBe(true);
+  });
+
+  it('resolves false on timeout, abort and dispose, so a missing environment never holds the board', async () => {
+    const timers = manualTimers();
+    const host = new FrameWarmupHost({ watchdogMs: 1_000, ...timers });
+    const timedOut = host.waitForEnvironment(new AbortController().signal, 100);
+    timers.fireAll();
+    await expect(timedOut).resolves.toBe(false);
+
+    const controller = new AbortController();
+    const aborted = host.waitForEnvironment(controller.signal, 100);
+    controller.abort();
+    await expect(aborted).resolves.toBe(false);
+
+    const disposed = host.waitForEnvironment(new AbortController().signal, 100);
+    host.dispose();
+    await expect(disposed).resolves.toBe(false);
+  });
+});
+
 describe('FrameWarmupHost post chain rendezvous', () => {
   const chain = { inputBuffer: {} as THREE.WebGLRenderTarget, passes: [] } satisfies PostChain;
 

@@ -1,8 +1,8 @@
 # 08G — Phase B3 follow-up: time-to-playable (T5) plan
 
-> **REFERENCE** — A plan, not a record: nothing below has been implemented or measured except where a number is cited from
-> [08F](./08F_PHASE_B3_IMPLEMENTATION.md) (HISTORICAL). It is written to be executed by a developer or an agent that reads only this file and
-> the documents it links. Targets T1–T5 are defined in [08E §11.1](./08E_PHASE_B3_INVESTIGATION.md); the measuring tools are in
+> **REFERENCE** — A plan with an execution record: the sections before [Results](#results-2026-10-18) are the plan as it was approved; the
+> Results section records what was done, measured and decided. The plan is written to be executed by a developer or an agent that reads only this file and
+> the documents it links ([08F](./08F_PHASE_B3_IMPLEMENTATION.md) is HISTORICAL). Targets T1–T5 are defined in [08E §11.1](./08E_PHASE_B3_INVESTIGATION.md); the measuring tools are in
 > [scripts/perf/README.md](../../scripts/perf/README.md).
 
 ## Description
@@ -179,3 +179,107 @@ Chrome profile per launch (b3Baseline.mjs --from n --runs 1), and run pnpm perf:
 PARTIAL/FAIL where a target is not met and quantify the gap. Update the canonical docs and testcase checklist with each landed task, run pnpm typecheck,
 lint, the client tests, build and validate:docs, then commit, push and update the draft PR. Do not merge.
 ```
+
+## Results (2026-10-18)
+
+Status: **PARTIAL.** Time-to-playable fell from 3747 to 2651 ms at the median (−1.1 s) and the main-thread block at load from 1247 to 596 ms, with T1 and T2
+unchanged and no visual change, but **T5 is still not met**: P95 2821 ms against a limit of 2450 ms (**+371 ms**, +26.7 % against the +10 % allowed).
+Owner decisions given before the work: bake the environment as an asset (yes), half-float (yes), procedural path kept as the fallback (yes).
+
+### Task 0 — where the time goes (measured, 20 cold launches, B3 bundle, medians)
+
+[raw](./08G_evidence/task0-load-decomposition.json). The marks (`otb:scene:*` in `sceneMarks.ts`, read by `scripts/perf/loadDecomposition.mjs`) and a CPU profile
+(`scripts/perf/coldProfile.mjs`) split the 3.86 s before the first frame:
+
+| Interval | ms | What the profile says |
+| --- | --- | --- |
+| Page boot, then the scene chunk request to evaluated | 700 + 57 | Fetching and evaluating the chunk is cheap: **a prefetch (option C as "prefetch the chunk") can gain 0.06 s at most** |
+| Scene chunk evaluated to the board's WebGL context | 627 | 426 ms of it is `getContext` of the board's own context; the page also creates throwaway probe contexts before (326 + 128 ms) |
+| Context to the end of the React build of the scene | 308 + 309 | About 0.4 s of it is CPU generation of procedural textures (the pebble test alone 140 ms) |
+| Studio PMREM (blocking) | 931 | The heaviest compile of the page, on the main thread |
+| Warm-up | 762 | Waiting on the GPU compile, the first-use finishing of each program (184 ms) and the texture upload (65 ms and more) |
+
+Option C is reframed by this: what is expensive is creating the context and the scene, not fetching the chunk; moving it into a lobby remains a possible
+product change but not a quick one.
+
+### Task 1 — spike of the placeholder-environment overlap: dropped
+
+Compiling the scene against a CubeUV placeholder before the PMREM (URL flag, same bundle on and off, 20 launches each; [off](./08G_evidence/task1-spike-off.json),
+[on](./08G_evidence/task1-spike-on.json)): the warm-up window shrank from 684 to 525 ms, but `gl.compile` itself blocked the main thread for 163 ms and the queued
+compiles slowed the PMREM from 910 to 1265 ms: **done moved from 3800 to 3939 ms (+139 ms)**. It missed its acceptance bar (at least 0.2 s better) by a wide margin and was deleted. The prediction of
+the plan, that this option cannot reach T5, held; the measurement adds that it does not help at all on this machine, because the GPU process is the shared resource.
+
+### Task 2 — baked environment: done
+
+- `bakedStudioEnvironment.ts`, the asset (`studio-environment.cubeuv.f16.z`, 471 KB deflated from 6.3 MB of half-float RGBA) and its metadata; `StudioEnvironment.tsx` uploads it as a `DataTexture` with the PMREM
+  texture's properties and falls back to filtering the studio when the file is stale (hash of the studio's inputs), missing or cannot be decompressed; `scripts/bakeStudioEnvironment.mjs` regenerates it (two bakes in one
+  browser are byte-identical). A hash test fails when an input of the picture changes without a re-bake. The warm-up waits for the environment (`WarmupHost.waitForEnvironment`).
+- **No CSP or packaging change is needed (read, not packaged):** the file is fetched same-origin, which the desktop CSP allows through `connect-src 'self'`, and the desktop's `app://` handler serves an unknown extension as `application/octet-stream` (`apps/desktop/src/rendererContentType.ts`). `pnpm desktop:package` and a packaged run were not done.
+- **Baked and procedural environments render pixel-identically** at Low, Balanced and High (0 of 921 600 pixels differ, with a forced frame), and the settled-state comparison against `main` shows the same differences as in 08F §8 and no new one.
+- Effect: PMREM step 924 → 70 ms; time to the first frame 3877 → **2883 ms** (median of 20; [raw](./08G_evidence/task2-decomposition-baked-env.json)).
+
+### Further levers found by the measurement (not in the original plan)
+
+| Change | Effect on the median first frame | Evidence |
+| --- | --- | --- |
+| One throwaway probe context for the WebGL support check and the texture limit (`webglProbe.ts`), was two | 2883 → 2811 ms: small, the context cost moves to the board's own context | [raw](./08G_evidence/task2-decomposition-plus-shared-probe.json) |
+| Exact optimisation of the pebble generator (rotation trigonometry and color parsing hoisted out of the per-pixel loop) | 2811 → 2669 ms | [raw](./08G_evidence/task2-decomposition-first-generator-pass.json) |
+| Table texture noise from a precomputed lattice (a few hundred distinct values, not 12 hash calls per pixel) | 2669 → 2613 ms | [raw](./08G_evidence/task2-decomposition-plus-generators.json) |
+| Texture upload run concurrently with the compile wait | 2613 → 2618 ms: **no gain, reverted**: the warm-up is main-thread bound (finishing the programs), not wait bound | [raw](./08G_evidence/task2-negative-concurrent-texture-upload.json) |
+
+The generator hashes are held by `proceduralTextureGolden.test.ts`, taken before the change: not one byte of any texture changed.
+
+### Final measurement (20 launches each, alternating, empty profile, final code)
+
+[main](./08G_evidence/cold-main/baseline-summary.json), [this branch](./08G_evidence/cold-final/baseline-summary.json); same machine and protocol as 08F §2.
+
+| Measure | `main` min / median / P95 / max | This branch min / median / P95 / max |
+| --- | --- | --- |
+| Longest active frame (T1) | 2507 / 2588 / 2692 / 2739 ms | **75 / 79 / 132 / 142 ms** |
+| Links after `otb:warmup:done` (T2) | no warm-up | **0 in 20 launches** |
+| Longest long task | 2434 / 2511 / 2582 / 2665 ms | 397 / 596 / 641 / 643 ms (08F: median 1247) |
+| Program links in the cold window | 49 (42 first-use) | **28** (all first-use; 08F: 32) |
+| Programs after the second turn | 43 | **26** |
+| **Time-to-playable (T5)** | 2094 / 2138 / 2227 / 2240 ms | **2602 / 2651 / 2821 / 2874 ms** (08F: 3670 / 3747 / 3867 / 3886) |
+
+T5: limit 1.10 × 2227 = 2450 ms; this branch's P95 is 2821 ms (**+371 ms over the limit**, +26.7 % over the baseline P95; median +24 %).
+
+Other checks on the final code: `pnpm perf:warmup-check` **32 of 32** ([log](./08G_evidence/warmup-check/check.txt)); `perf:lifecycle-check` passes ([log](./08G_evidence/lifecycle.txt)); soak (3 runs, 30 replays): 0 first-use programs after load, geometry, program and
+texture growth 0 / 0 / 0, heap +1.90 to +2.06 MB, unchanged ([series](./08G_evidence/soak/series.md)); settled-state pixel comparison against `main`: 15 of 19 identical, the other four are the same ones as in 08F §8
+(tile names missing in the `main` capture; the dice silhouette) ([report](./08G_evidence/visual/full-run.visual-report.json)); client tests 258 files, 2540 tests; lint, typecheck and build pass.
+
+### What is left of the 371 ms, measured (before the second round below)
+
+After the changes the first frame is at 2613 ms: about 1.2 s before the warm-up starts (page boot 0.5 s, the board's WebGL context and renderer 0.4–0.6 s, the React build of the scene 0.2 s) and about 0.7 s of warm-up
+(GPU compile wait about 0.25 s, finishing the programs 0.18 s, texture upload 0.07–0.19 s, the rest in between). Candidates, each a separate decision, none done:
+
+1. **The board's own WebGL context (about 0.43 s of blocked main thread):** the renderer is created with `powerPreference: 'high-performance'` and `antialias`; whether a different request is cheaper on hybrid-GPU laptops is a graphics-policy change and needs a measurement on the target machines before anyone decides.
+2. **The remaining generators (about 0.14 s):** the district pattern (40 ms), the rest of the table texture (about 70 ms) and the pebble tests: further exact optimisation, or generation in a worker while the context is created (the main thread is blocked in `getContext` for 0.4 s, a worker would not be).
+3. **Creating the canvas and scene before the board is shown (option C reframed):** can move the whole 1.2 s into a lobby in a real match; needs a lobby-to-board measurement path and an owner decision about holding a renderer early.
+4. **The warm-up (0.7 s):** its floor is the GPU compile and the first-use finishing of 26 programs; fewer programs (for example sharing variants) is the only lever, and each removed variant has to be shown to be unused.
+5. **Redefine "playable" (option D):** the first stable frame and T5 now nearly coincide: 12 of 20 launches have no frame of 100 ms or more at all, and in the other 8 the last one ends at 2749 ms (median), about 0.1 s after the first playable frame (the first frame itself costs 100–140 ms). The 3.6 s head start over `main` that option D relied on in 08F is no longer a separate argument.
+
+Items 1 and 2 together are estimated (unmeasured) at 0.2–0.4 s, which is the size of the gap. They are the next measurements to take, in that order of effort.
+
+### Second round (2026-10-18): the two candidates the owner asked to measure next, both measured, neither kept
+
+Same bundle on and off through temporary URL flags (diagnostics pages only, removed again), 10 cold launches each, medians of the first frame at or after `otb:warmup:done`;
+the machine reports one GPU, **ANGLE Intel UHD (0x9A60), in every variant** ([raw](./08G_evidence/context-spikes/)).
+
+| Experiment | First frame | Reading |
+| --- | --- | --- |
+| `powerPreference` `high-performance` (as shipped) / `default` / `low-power` | 2621 / 2606 / 2604 ms | **No difference** on this machine, and the renderer is the same iGPU each time. The cost of the board's context (about 0.43 s of blocked main thread) is not a power-preference effect here; whether the request matters on a machine where it changes the adapter cannot be seen on this one |
+| `antialias: false` | 2581 ms (−40 ms) | Not worth it: it changes the picture for 40 ms |
+| No throwaway probe context at all | 2551 ms (−71 ms) vs 2622 | The first context of the page pays about 0.4–0.5 s whichever one it is: removing the probe moves the cost onto the board's context (the interval before it grows from 653 to 1049 ms). The shared single probe of this change already keeps one |
+| A WebGL context created in a worker at page start, to initialise the GPU process while the page boots | 2629 ms against 2631 ms without (2608 ms with the probe skipped as well) | **No gain**: creating a context on the main thread costs the same afterwards, so it is not the GPU process start but the main-thread canvas and context creation that costs the 0.43 s |
+| A second pass over the texture generators (per-column noise terms, block fills for the district and pebble upscales, byte-identical to the golden hashes of all eight districts, the pebbles and the table) | 2620 ms against 2613 ms | **No measurable gain**, and the district block fill was slower (the blocks are 4 × 4 pixels, so row fills pay a call per row); reverted. The first pass (hoisted trigonometry, cached lattice) stays: it measured −140 and −55 ms |
+
+Consequence: the board's own WebGL context cannot be made cheaper from the page's side with anything tried here, and the remaining generator work is below what a 20-launch series can resolve. What is left of the gap needs a
+structural change, each part of which is an owner decision: creating the canvas and scene before the board is shown (a lobby in a real match; the harness cannot show it), moving texture generation to a worker (a larger change, and the main thread is blocked
+in `getContext` for 0.4 s anyway, which a worker would use), or amending T5.
+The district golden test added here (all eight surfaces) stays: it is coverage for the generators whether or not they are touched again.
+
+### Open items after this change
+
+The four 08E items stay open (heap growth is +1.90 to +2.06 MB, unchanged; the burst, the run-18 hang and the extra load-time variant were not seen again). T3 stays 30 of 42 in the 08F sense (this branch links 28 programs: the PMREM programs are gone as well).
+The original baseline machine is still not available. A 0.4–0.6 s main-thread block remains at load (the board's context creation and the React build), and the latent text-invalidation defect of `main` (08F §8, §10) is untouched.

@@ -272,4 +272,14 @@ describe('board render model', () => {
     expect(model.deckCounts).toEqual({ chance: 16, chest: 16 });
   });
 
+  it('builds a model for a lobby (no turn, nobody on the board yet): the persistent scene is built from it before the game starts', () => {
+    const room = makeRoom();
+    room.status = 'LOBBY';
+    room.gameState.players = {};
+    room.gameState.turnInfo = {};
+    const model = buildBoardRenderModel(room.gameState, presentation(), room.players, 'player-a', 'PLAYER');
+    expect(model.players).toEqual([]);
+    expect(model.tiles).toHaveLength(40);
+    expect(model.dice.phase).not.toBe('ROLLING');
+  });
 });

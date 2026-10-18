@@ -56,6 +56,8 @@ export interface WarmupInput {
    */
   fixtures: readonly CompileBatch[];
   steps?: readonly WarmupStep[];
+  /** Awaited before anything is compiled (the studio environment must exist, because lit programs are keyed on it). */
+  prerequisite?: (signal: AbortSignal) => Promise<unknown>;
   /**
    * What the tier changes about the draw path, resolved inside the warm-up because the high tier's post chain loads lazily:
    * the render target the scene is drawn into (the chain's input buffer; null means the screen) and the chain's own
@@ -93,6 +95,9 @@ function stepFromBatch(result: BatchResult): WarmupStepReport {
   };
 }
 
+/** The signal aborted while a prerequisite was awaited: nothing was compiled. */
+class WarmupCancelled extends Error {}
+
 export async function runShaderWarmup(input: WarmupInput): Promise<WarmupReport> {
   const now = input.now ?? (() => performance.now());
   const startedAt = now();
@@ -106,6 +111,8 @@ export async function runShaderWarmup(input: WarmupInput): Promise<WarmupReport>
   try {
     // The board first: lights, shadow flags, fog and the environment are what the program variants are keyed on. All
     // batches are started together so the driver compiles them in parallel.
+    if (input.prerequisite) await input.prerequisite(input.signal);
+    if (input.signal.aborted) throw new WarmupCancelled();
     const tier = input.resolveTier ? await input.resolveTier(input.signal) : { sceneTarget: null, batches: [] };
     const sceneTarget = tier.sceneTarget;
     const compiled = await compileBatches(
@@ -130,9 +137,13 @@ export async function runShaderWarmup(input: WarmupInput): Promise<WarmupReport>
       steps.push({ name: step.name, status, materials: 0, programsAdded: 0, durationMs: now() - started });
     }
   } catch (error) {
+    if (error instanceof WarmupCancelled) {
+      status = 'aborted';
+    } else {
     // A renderer that throws (lost context, a driver error) must not leave the board held: report it as not complete.
     console.warn('[scene] shader warm-up failed; programs will compile on first use.', error);
     status = 'aborted';
+    }
   }
 
   const outcome: WarmupOutcome = status === 'ready' ? 'complete' : status === 'aborted' ? 'aborted' : 'incomplete';
