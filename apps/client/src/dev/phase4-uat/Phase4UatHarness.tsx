@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Board from '../../components/Board';
 import Lobby from '../../components/Lobby';
+import PrewarmWhileInLobby from '../../game/scene/prewarm/PrewarmWhileInLobby';
 import stateContext from '../../internal';
 import { PresentationController } from '../../game/presentation/PresentationController';
 import { PresentationProvider } from '../../game/presentation/PresentationProvider';
@@ -1190,6 +1191,8 @@ function Phase4UatSurface() {
           {boardShown
             ? <Board />
             : (
+              <>
+              <PrewarmWhileInLobby />
               <Lobby
                 roomCode="OTB-LOBBY"
                 players={room.players.filter(member => member.membershipStatus === 'ACTIVE').map(member => ({
@@ -1214,6 +1217,7 @@ function Phase4UatSurface() {
                 onStart={() => {}}
                 onLeave={() => {}}
               />
+              </>
             )}
           {initialParams.designLab ? <HudConceptLayer ready={uatReady} /> : null}
           {initialParams.benchmarkSeconds !== null ? (

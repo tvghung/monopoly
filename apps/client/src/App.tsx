@@ -36,6 +36,8 @@ import { verifyHostContinuity } from './runtime/hostContinuity';
 import ForfeitChoiceDialog from './components/ForfeitChoiceDialog';
 import JoinForm from './components/JoinForm';
 import Lobby from './components/Lobby';
+import PrewarmWhileInLobby from './game/scene/prewarm/PrewarmWhileInLobby';
+import { releaseProceduralTextureCache } from './game/scene/prewarm/proceduralTextureCache';
 import SpectatorBanner from './components/SpectatorBanner';
 import { useToast } from './components/Toast';
 import IconButton from './design-system/components/IconButton/IconButton';
@@ -349,6 +351,7 @@ export default function App({
     setPrivateOffers([]);
     setIdentity(null, null);
     setForfeitChoiceOpen(false);
+    releaseProceduralTextureCache();
   }, [sessionAuthority, setIdentity]);
 
   const failSession = useCallback((error: AckError) => {
@@ -1122,6 +1125,8 @@ export default function App({
   const roomContent = room && role
     ? role === 'PLAYER' && room.status === 'LOBBY' && playerId
       ? (
+        <>
+        <PrewarmWhileInLobby />
         <Lobby
           roomCode={room.roomCode}
           players={room.players
@@ -1165,6 +1170,7 @@ export default function App({
           onSettings={() => setSettingsOpen(true)}
           showLanSharing={Boolean(launch?.hosting)}
         />
+        </>
       )
       : (
         <>

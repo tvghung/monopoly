@@ -6,6 +6,7 @@ import {
   type DistrictSurfaceDescriptor,
   type DistrictSurfaceKey,
 } from '../architecture/tileVisualRegistry';
+import { districtTextureKey, pebbleTextureKey, takeProceduralTexture } from '../../prewarm/proceduralTextureCache';
 import { boardMaterialSpecs } from './boardMaterialSpecs';
 import {
   WHITE_PEBBLE_TEXTURE_SIZE,
@@ -257,7 +258,8 @@ function createTextureSet(
   descriptor: DistrictSurfaceDescriptor,
   anisotropy: number,
 ): DistrictSurfaceTextureSet {
-  const data = generateDistrictSurfaceTextureData(descriptor);
+  const data = takeProceduralTexture<DistrictSurfaceTextureData>(districtTextureKey(descriptor.surfaceKey))
+    ?? generateDistrictSurfaceTextureData(descriptor);
   const albedo = new THREE.DataTexture(
     data.albedo,
     DISTRICT_TEXTURE_SIZE,
@@ -299,7 +301,8 @@ function createWhitePebbleTextureSet(
   variant: WhitePebbleVariant,
   anisotropy: number,
 ): DistrictSurfaceTextureSet {
-  const data = generateWhitePebbleTextureData(variant);
+  const data = takeProceduralTexture<ReturnType<typeof generateWhitePebbleTextureData>>(pebbleTextureKey(variant))
+    ?? generateWhitePebbleTextureData(variant);
   const albedo = new THREE.DataTexture(
     data.albedo,
     WHITE_PEBBLE_TEXTURE_SIZE,

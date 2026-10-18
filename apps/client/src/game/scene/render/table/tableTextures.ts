@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OTB_PALETTE } from '../../../../design-system/tokens/palette';
+import { tableTextureKey, takeProceduralTexture } from '../../prewarm/proceduralTextureCache';
 
 /**
  * Deterministic procedural light oak (plan 02 §8.5, decision OD-02-2: no play mat). One texture tile
@@ -93,7 +94,14 @@ function periodicNoise(x: number, y: number, grid: NoiseLattice): number {
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 const mixChannel = (from: number, to: number, amount: number) => from + (to - from) * amount;
 
-export function generateTableTextureData(size: number, options: TableTextureOptions = {}): TableTextureData {
+/** A table texture rendered a band of rows at a time (the lobby prepares it in slices); `data` is complete once every row is done. */
+export interface TableTextureBuild {
+  data: TableTextureData;
+  /** Renders rows `[fromRow, toRow)`; rows are independent, so any order and any banding gives the same bytes. */
+  renderRows(fromRow: number, toRow: number): void;
+}
+
+export function beginTableTexture(size: number, options: TableTextureOptions = {}): TableTextureBuild {
   const seed = options.seed ?? TABLE_TEXTURE_DEFAULT_SEED;
   const random = mulberry32(seed);
   const oak = hexToRgb(OTB_PALETTE['table-oak']);
@@ -108,36 +116,44 @@ export function generateTableTextureData(size: number, options: TableTextureOpti
   const albedo = new Uint8Array(size * size * 4);
   const roughness = options.roughnessVariation ? new Uint8Array(size * size * 4) : null;
 
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      const u = x / size;
-      const v = y / size;
-      const plank = Math.min(TABLE_PLANKS_PER_TILE - 1, Math.floor(x / plankPixels));
-      const across = x - plank * plankPixels;
-      // Grain runs along the plank (v): high frequency across it, very low along it.
-      const grain = periodicNoise(u * 64, v * 4, grainLattice);
-      const fine = periodicNoise(u * 160, v * 10, fineLattice);
-      const broad = periodicNoise(u * 3, v * 3, broadLattice);
-      let towardDark = clamp01(0.06 + grain * 0.16 + fine * 0.05 + (broad - 0.5) * 0.06 + plankTone[plank]);
-      const nearSeam = Math.min(across, plankPixels - 1 - across) < seamHalfWidth
-        || Math.abs(v - jointAt[plank]) * size < seamHalfWidth;
-      if (nearSeam) towardDark = 0.72;
-      const offset = (y * size + x) * 4;
-      albedo[offset] = Math.round(mixChannel(oak[0], dark[0], towardDark));
-      albedo[offset + 1] = Math.round(mixChannel(oak[1], dark[1], towardDark));
-      albedo[offset + 2] = Math.round(mixChannel(oak[2], dark[2], towardDark));
-      albedo[offset + 3] = 255;
-      if (roughness) {
-        // Slightly glossier along dense grain lines, never below 0.85 of the material roughness.
-        const value = Math.round(255 * (1 - 0.15 * clamp01(grain * 0.7 + fine * 0.3)));
-        roughness[offset] = value;
-        roughness[offset + 1] = value;
-        roughness[offset + 2] = value;
-        roughness[offset + 3] = 255;
+  const renderRows = (fromRow: number, toRow: number): void => {
+    for (let y = fromRow; y < toRow; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const u = x / size;
+        const v = y / size;
+        const plank = Math.min(TABLE_PLANKS_PER_TILE - 1, Math.floor(x / plankPixels));
+        const across = x - plank * plankPixels;
+        // Grain runs along the plank (v): high frequency across it, very low along it.
+        const grain = periodicNoise(u * 64, v * 4, grainLattice);
+        const fine = periodicNoise(u * 160, v * 10, fineLattice);
+        const broad = periodicNoise(u * 3, v * 3, broadLattice);
+        let towardDark = clamp01(0.06 + grain * 0.16 + fine * 0.05 + (broad - 0.5) * 0.06 + plankTone[plank]);
+        const nearSeam = Math.min(across, plankPixels - 1 - across) < seamHalfWidth
+          || Math.abs(v - jointAt[plank]) * size < seamHalfWidth;
+        if (nearSeam) towardDark = 0.72;
+        const offset = (y * size + x) * 4;
+        albedo[offset] = Math.round(mixChannel(oak[0], dark[0], towardDark));
+        albedo[offset + 1] = Math.round(mixChannel(oak[1], dark[1], towardDark));
+        albedo[offset + 2] = Math.round(mixChannel(oak[2], dark[2], towardDark));
+        albedo[offset + 3] = 255;
+        if (roughness) {
+          // Slightly glossier along dense grain lines, never below 0.85 of the material roughness.
+          const value = Math.round(255 * (1 - 0.15 * clamp01(grain * 0.7 + fine * 0.3)));
+          roughness[offset] = value;
+          roughness[offset + 1] = value;
+          roughness[offset + 2] = value;
+          roughness[offset + 3] = 255;
+        }
       }
     }
-  }
-  return { size, albedo, roughness };
+  };
+  return { data: { size, albedo, roughness }, renderRows };
+}
+
+export function generateTableTextureData(size: number, options: TableTextureOptions = {}): TableTextureData {
+  const build = beginTableTexture(size, options);
+  build.renderRows(0, size);
+  return build.data;
 }
 
 export interface TableTextures {
@@ -164,7 +180,11 @@ export function createTableTextures(
   worldSize: number,
   options: TableTextureOptions & { anisotropy?: number } = {},
 ): TableTextures {
-  const data = generateTableTextureData(size, options);
+  // Data the lobby prepared for the default seed (byte-identical to generating it here); any other seed is generated.
+  const prepared = options.seed === undefined
+    ? takeProceduralTexture<TableTextureData>(tableTextureKey(size, options.roughnessVariation === true))
+    : undefined;
+  const data = prepared ?? generateTableTextureData(size, options);
   const repeat = worldSize / TABLE_TEXTURE_WORLD_SIZE;
   const anisotropy = options.anisotropy ?? 1;
   const albedo = new THREE.DataTexture(data.albedo, size, size, THREE.RGBAFormat);

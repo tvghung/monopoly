@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DISTRICT_SURFACE_KEYS, getDistrictSurfaceDescriptorByKey } from '../../board/architecture/tileVisualRegistry';
 import { generateDistrictSurfaceTextureData } from '../../board/materials/districtSurfaceMaterials';
 import { generateWhitePebbleTextureData } from '../../board/materials/whitePebbleSurface';
-import { generateTableTextureData } from './tableTextures';
+import { beginTableTexture, generateTableTextureData } from './tableTextures';
 
 /**
  * Golden hashes of the procedural texture generators. They are CPU work on the cold-launch critical path (about 0.4 s of the first
@@ -66,5 +66,14 @@ describe('procedural texture generators (golden hashes)', () => {
       'table-varied-roughness': fnv1a(varied.roughness ?? new Uint8Array()),
     };
     expect(actual).toEqual(Object.fromEntries(Object.entries(EXPECTED).filter(([key]) => key.startsWith('table'))));
+  });
+
+  it('a table texture rendered in uneven bands, in reverse order, is the same bytes (the lobby prepares it in slices)', { timeout: 60_000 }, () => {
+    const build = beginTableTexture(512);
+    const bands: Array<[number, number]> = [];
+    for (let from = 0; from < 512; from += 100) bands.push([from, Math.min(512, from + 100)]);
+    for (const [from, to] of bands.reverse()) build.renderRows(from, to);
+    expect(fnv1a(build.data.albedo)).toBe(EXPECTED['table-albedo']);
+    expect(build.data.roughness).toBeNull();
   });
 });
