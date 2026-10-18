@@ -1,7 +1,7 @@
 # 08H — Phase B3 follow-up: build the board's work in the lobby (08G Task 3) — plan
 
 > **REFERENCE** — A plan with an execution record: everything before [Results](#results-task-0-2026-10-18) is the plan as it was approved; Task 0 and Task 1 have been done and are recorded in the
-> Results sections (Task 1 was measured and **not adopted**: it misses the 0.2 s threshold at the 3 s reference dwell; its code is kept on branch `perf/phase-b3-lobby-prewarm-task1`), the owner then authorised Task 3 (2026-10-18); its design note and spike are in [Results (Task 3 spike)](#results-task-3-design-note-and-spike-2026-10-18), which stops at approval gate 3. The owner then chose **A1** and approved the lobby memory (2026-10-18); it is implemented and recorded in [Results (Task 3 production, A1)](#results-task-3-production-a1-2026-10-18). Task 4 (the real server path) has not been started. Numbers outside Results are cited from [08G](./08G_PHASE_B3_T5_FOLLOW_UP_PLAN.md) or [08F](./08F_PHASE_B3_IMPLEMENTATION.md) (both HISTORICAL records).
+> Results sections (Task 1 was measured and **not adopted**: it misses the 0.2 s threshold at the 3 s reference dwell; its code is kept on branch `perf/phase-b3-lobby-prewarm-task1`), the owner then authorised Task 3 (2026-10-18); its design note and spike are in [Results (Task 3 spike)](#results-task-3-design-note-and-spike-2026-10-18), which stops at approval gate 3. The owner then chose **A1** and approved the lobby memory (2026-10-18); it is implemented and recorded in [Results (Task 3 production, A1)](#results-task-3-production-a1-2026-10-18). Task 4 (the real server path) is done and recorded in [Results (Task 4)](#results-task-4-the-real-path-2026-10-18); it awaits approval gate 4. Numbers outside Results are cited from [08G](./08G_PHASE_B3_T5_FOLLOW_UP_PLAN.md) or [08F](./08F_PHASE_B3_IMPLEMENTATION.md) (both HISTORICAL records).
 > It is written so that a developer or an agent that reads only this file and the documents it links can execute it. Targets T1–T5 are defined in [08E §11.1](./08E_PHASE_B3_INVESTIGATION.md);
 > measurement tooling is in [scripts/perf/README.md](../../scripts/perf/README.md).
 
@@ -395,3 +395,23 @@ that showed no such difference kept the board in place. A player who leaves the 
 - **Task 4 (the real path):** a real server and PostgreSQL, Start click to first board frame on `main` and on this bundle, 10 launches each. Everything above is the UAT harness's lobby route, which fakes the lobby; the layer is the real `SceneLayer` and `Board`.
 - Dwell 0 (the board is shown before the deferral: it behaves as PR 20, not measured); a warm driver cache; a low-end device and the original baseline machine; the packaged Electron app; a game that is left mid-way and restarted (play again) on the real server; screen reader and keyboard walk-through of the lobby with a scene parked; the lobby freeze felt by a person (0.36–0.41 s, once).
 - The T5 of the original (harness) definition is unchanged (+371 ms at P95 over its limit, PARTIAL): this change does not touch the path of a board mounted without a lobby.
+
+## Results (Task 4, the real path, 2026-10-18)
+
+**Method** (`scripts/perf/realPathStart.mjs`, `realServerRun.mjs`): per launch a **real authoritative server** (`startAuthoritativeServer`, desktop profile, serving a built, **minified, non-UAT** client; a new server per launch) and a Node socket.io client as the room's **host** (created with the server's host capability); the browser (new Chrome process, empty profile, probe injected) is a **guest** that joins through the real launcher
+and lobby, picks a mascot, sets Ready and waits `--dwell` ms; then the host readies and sends `start game`. **click** = the wall-clock instant the host emits `start game`; **mounted** = `[data-testid="game-board"]` appears in the guest's page; **first frame** = first rendered scheduler frame at or after mounted (and after `otb:warmup:done` where the bundle has one).
+Bundles: `main` (`dfb1e31`) and this branch's head (`6a9718c`), both minified production builds, served by the same server code (socket protocol 14); 10 launches each per dwell, alternately. [raw](./08H_evidence/task4/).
+
+| Dwell | Bundle | click → first frame, median | min–max | click → mounted | mounted → frame | Longest callback after click (max) | Long task after click (max) | Lobby long task (max) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 3 s | main | **1060 ms** | 1044–1074 | 64 | 999 | **2251 ms** | 2253 | 0 |
+| 3 s | head (layer) | **74 ms** | 66–101 | 71 | 4 | 9 | 259 | 368 |
+| 10 s | main | **1065** | 1059–1090 | 72 | 995 | **2256** | 2257 | 0 |
+| 10 s | head (layer) | **74** | 70–83 | 71 | 4 | 12 | 258 | 371 |
+
+0 page errors in 40 launches; 0 program links after `done` in every head launch. **The harness result holds on the real path**: from the host's Start to the first board frame, about 1.06 s and a 2.25 s main-thread freeze on `main` become about 74 ms with no callback over 12 ms, at both the 3 s and the 10 s dwell, and the 3 s dwell no longer misses (the real lobby here is shown after the room join, so the deferred mount starts earlier relative to the dwell than in the harness).
+What the player still pays: a **0.37 s lobby freeze** (long task 368–371 ms, once, at the deferred mount) and a 259 ms long task right after Start (the board's own React tree).
+
+Notes: the tool needed the guest and the host to pick a mascot (Ready is disabled until then). This base's server persists in memory (`InMemoryPersistenceStore`), so no PostgreSQL was involved here, and the socket protocol is 14, not the 9 that `CLAUDE.md` states: that file is stale against this base.
+
+Not covered by Task 4: the browser as the host (the Start click itself in the browser), a slow or remote network, a warm driver cache, the packaged Electron app, other machines. Gate 4 (owner accepts PASS or PARTIAL): T5-lobby **PASS** on the harness route and on the real path; the original harness T5 stays **PARTIAL**.

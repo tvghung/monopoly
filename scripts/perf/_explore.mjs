@@ -1,0 +1,14 @@
+import { chromium } from '@playwright/test';
+const browser = await chromium.launch({ channel: 'chrome', headless: false, args: ['--ignore-gpu-blocklist'] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+page.on('pageerror', e => console.log('PAGEERROR', e.message));
+await page.goto('http://127.0.0.1:4301/');
+await page.waitForTimeout(2000);
+const dump = async tag => { console.log(tag, JSON.stringify(await page.evaluate(() => [...document.querySelectorAll('button,input,select,[role=button],[role=switch],[role=checkbox]')].map(e => `${e.tagName}:${(e.getAttribute('aria-label')||e.textContent||e.placeholder||'').trim().slice(0,40)}${e.disabled?'(disabled)':''}`)))); };
+await page.getByPlaceholder('Ví dụ: Minh').fill('Host');
+await page.getByText('Phòng chung').first().click();
+await page.getByRole('button', { name: 'Vào phòng' }).click();
+await page.waitForTimeout(4000);
+await dump('LOBBY');
+console.log((await page.evaluate(() => document.body.innerText)).slice(0, 900));
+await browser.close();
