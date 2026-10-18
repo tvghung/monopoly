@@ -1,7 +1,7 @@
 # 08H — Phase B3 follow-up: build the board's work in the lobby (08G Task 3) — plan
 
-> **REFERENCE** — A plan with an execution record: everything before [Results](#results-task-0-2026-10-18) is the plan as it was approved; Task 0 has been done and is recorded in the
-> Results section, Tasks 1 to 4 have not been started. Numbers outside Results are cited from [08G](./08G_PHASE_B3_T5_FOLLOW_UP_PLAN.md) or [08F](./08F_PHASE_B3_IMPLEMENTATION.md) (both HISTORICAL records).
+> **REFERENCE** — A plan with an execution record: everything before [Results](#results-task-0-2026-10-18) is the plan as it was approved; Task 0 and Task 1 have been done and are recorded in the
+> Results sections (Task 1 was measured and **not adopted**: it misses the 0.2 s threshold at the 3 s reference dwell; its code is kept on branch `perf/phase-b3-lobby-prewarm-task1`), Tasks 2 to 4 have not been started. Numbers outside Results are cited from [08G](./08G_PHASE_B3_T5_FOLLOW_UP_PLAN.md) or [08F](./08F_PHASE_B3_IMPLEMENTATION.md) (both HISTORICAL records).
 > It is written so that a developer or an agent that reads only this file and the documents it links can execute it. Targets T1–T5 are defined in [08E §11.1](./08E_PHASE_B3_INVESTIGATION.md);
 > measurement tooling is in [scripts/perf/README.md](../../scripts/perf/README.md).
 
@@ -214,3 +214,49 @@ Task 0 added the harness route (`?lobby=<ms>` in `Phase4UatHarness.tsx`: the rea
 - Task 1 stays as written, with two changes: its acceptance compares T5-lobby at dwell 3 s and 10 s against PR 20's **1521 and 1514 ms** (needs −0.2 s at least, −0.44 s to meet the limit), and the lobby jank check compares against the 80 ms floor.
 - Task 2's gate: Task 1 meeting the limit (1115 ms at P95 at 3 s) ends the work with PASS for the lobby definition; anything above leaves the choice of Task 3 or an amended T5 to the owner.
 - The harness T5 (+371 ms) and T5-lobby (+440 ms at 3 s) are reported together from here on.
+
+## Results (Task 1, 2026-10-18)
+
+**Candidate: measured, not adopted.** The code is commit `e692e7b` on branch `perf/phase-b3-lobby-prewarm-task1` (pushed, not part of PR 20); it can be reinstated by cherry-picking that commit.
+
+### What was built
+
+- `game/scene/prewarm/proceduralTextureCache.ts`: a take-once cache keyed by generator and arguments (`table:<size>:<rough|plain>`, `district:<surfaceKey>`, `pebble:<variant>`). A consumer **takes** (removes) its entry, so the cache never holds a second copy
+  of what a texture holds; a second mount generates as before; `releaseProceduralTextureCache()` runs in `App.tsx` `forgetSession` (a session that ends without the board taking the data).
+- `tableTextures.ts`: the generator became `beginTableTexture(size, options)` returning `{ data, renderRows(from, to) }`; `generateTableTextureData` is all rows at once and keeps its golden hashes; a test renders uneven bands in reverse order and gets the same bytes.
+  The three consumers (`createTableTextures`, the district and the white-pebble texture sets) take the prepared data first, and generate when there is none (the table only for the default seed).
+- `prewarm/lobbyPrewarm.ts` (in the first chunk, imports nothing heavy) schedules the slices with `requestIdleCallback` (timeout 500 ms), one slice per callback, pauses while the tab is hidden, yields to `navigator.scheduling.isInputPending()`, and is skipped for `saveData` and without WebGL;
+  `prewarm/lobbyPrewarmTasks.ts` (loaded on demand) builds the slices for the tier (nothing for the low tier): the table in 16 row bands, then the 8 districts, then the 4 pebbles; the scene chunk is requested once there is work. `PrewarmWhileInLobby` mounts beside `Lobby` in `App.tsx`
+  and in the harness lobby branch, and restarts on a change of graphics tier. Marks `otb:scene:prewarm-first` and `otb:scene:prewarm-done`; `lobbyToBoard.mjs` records them.
+- **Deviation from the plan:** the probe context (step 2) was left out on purpose, because the settings sync already creates it at start-up (the load marks show it at about 0.5 s, before any lobby idle time), so there was nothing left to move.
+- 41 unit tests of the new and touched modules pass (cache, scheduler order, cancel, hidden/visible, pending input, save-data, no WebGL, low tier, chunk failure, prepared bytes equal fresh bytes, custom seed, take-once, component mount/unmount).
+
+### Measurement
+
+Same machine and protocol as Task 0: UAT bundles built unminified from PR 20 (`a470300`) and from the candidate (both with the same lobby route), a new Chrome process and an empty profile per launch, the two bundles measured alternately, 20 launches per cell; [raw](./08H_evidence/task1/).
+
+| Dwell | Bundle | T5-lobby median | P95 | min–max | Longest callback after the start (max) | Lobby long task (max) | Page errors |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 3 s | PR 20 | 1504 ms | 1555 | 1473–1562 | 77 ms | 79 ms | 0 |
+| 3 s | candidate | **1326 ms** | 1366 | 1267–1386 | 164 | 82 | 0 |
+| 10 s | PR 20 | 1503 | 1535 | 1477–1555 | 81 | 80 | 0 |
+| 10 s | candidate | **1301** | 1340 | 1224–1352 | 154 | 83 | 0 |
+
+| Dwell | Median change | P95 change | Over the limit (1.10 × `main` P95: 1115 at 3 s, 1133 at 10 s) at P95 |
+| --- | --- | --- | --- |
+| 3 s | **−178 ms** | −189 | +251 (was +440) |
+| 10 s | **−202 ms** | −195 | +207 (was +427) |
+
+In the candidate every launch finished the preparation before the board was mounted (20 of 20 at both dwells): first slice about 0.52 s and last slice about 1.2 s after the lobby was shown, so the dwell does not limit what it can do beyond about 1.5 s. Links after `done`: 0 in all 80 launches.
+
+### Decision
+
+- **The rule was: keep if the median improves by at least 0.2 s, otherwise revert.** At the **3 s reference dwell the gain is 178 ms**, 22 ms short; at 10 s it is 202 ms, 2 ms over. The gain is real (larger than the spread of either series, 89 and 119 ms), but it does not meet the threshold at the dwell the owner fixed as the reference, and it
+  **does not meet the limit** (P95 still 251 ms over at 3 s). Following the rule, **the code is not adopted on PR 20**; it stays on its own branch for the owner's decision. The rest of 08H's Task 1 acceptance (dwell 0 not worse, `perf:warmup-check` 32/32, visual comparison) was **not run**, because the threshold test came first.
+- **Cost seen in the data:** the longest callback after the start doubled (77 → 164 ms at 3 s, 81 → 154 ms at 10 s): the warm-up, which now has its textures ready, uploads them and finishes programs in larger steps. That is a smoothness regression of the exact kind B3 exists to avoid, on a phase that is still short.
+  The lobby itself is unaffected (long task 82 against a floor of 79–80).
+- **Where the time went:** moving about 0.4 s of CPU texture generation out of the start closed 178–202 ms of the 440 ms gap, less than the CPU cost (not investigated; a plausible reason is that part of the generation overlapped with GPU work on the board path). What remains of the gap is the board's own WebGL context creation (about 0.43 s), the React scene build and the warm-up itself, none of which can be done without a canvas.
+
+### Consequences for the plan
+
+- Task 2's gate is reached with these numbers: PR 20 +440 ms (3 s) over the limit; with the candidate +251 ms. Neither meets the limit, so the options of Task 2 apply: **(b)** authorise Task 3 (a scene created before the Board), whose reachable saving is the remaining 0.4–0.6 s but at a memory and complexity cost; **(c)** amend T5 (08G option D); or **(a')** adopt the candidate (cherry-pick `e692e7b`) as a partial improvement of 0.18–0.20 s, accepting the larger post-start callback, and decide (b) or (c) on top of it.

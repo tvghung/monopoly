@@ -76,6 +76,8 @@ function analyse(batch) {
   const start = mark('otb:uat:start');
   const done = mark('otb:warmup:done');
   const warmupStart = mark('otb:warmup:start');
+  const prewarmFirst = mark('otb:scene:prewarm-first');
+  const prewarmDone = mark('otb:scene:prewarm-done');
   const turnStart = batch.marks.filter(entry => entry.name.startsWith('otb:uat:turn-start:')).sort((a, b) => a.t - b.t)[0]?.t ?? null;
   const floor = Math.max(start ?? 0, done ?? 0);
   const rendered = batch.frames.filter(frame => frame.rendered && frame.start >= floor).sort((a, b) => a.start - b.start);
@@ -86,6 +88,8 @@ function analyse(batch) {
     lobbyShown,
     start,
     warmupStart,
+    prewarmFirst,
+    prewarmDone,
     warmupDone: done,
     turnStart,
     firstFrame,
