@@ -92,11 +92,21 @@ export function createWhitePebbleDescriptors(
   });
 }
 
-function isInsidePebble(u: number, v: number, pebble: WhitePebbleDescriptor): boolean {
+/** A pebble with what the per-pixel test needs computed once: the trigonometry of its rotation and its parsed color. */
+interface PreparedPebble extends WhitePebbleDescriptor {
+  cosine: number;
+  sine: number;
+  rgb: readonly [number, number, number];
+}
+
+function preparePebble(pebble: WhitePebbleDescriptor): PreparedPebble {
+  return { ...pebble, cosine: Math.cos(pebble.rotation), sine: Math.sin(pebble.rotation), rgb: parseHexColor(pebble.color) };
+}
+
+function isInsidePebble(u: number, v: number, pebble: PreparedPebble): boolean {
   const deltaX = u - pebble.x;
   const deltaY = v - pebble.y;
-  const cosine = Math.cos(pebble.rotation);
-  const sine = Math.sin(pebble.rotation);
+  const { cosine, sine } = pebble;
   const rotatedX = deltaX * cosine + deltaY * sine;
   const rotatedY = -deltaX * sine + deltaY * cosine;
   const normalizedX = rotatedX / pebble.radius;
@@ -112,6 +122,7 @@ export function generateWhitePebbleTextureData(
 ): WhitePebbleTextureData {
   const sampleSize = Math.min(Math.max(1, Math.trunc(size)), WHITE_PEBBLE_SAMPLE_SIZE);
   const pebbles = createWhitePebbleDescriptors(variant);
+  const prepared = pebbles.map(preparePebble);
   const sampleAlbedo = new Uint8Array(sampleSize * sampleSize * 4);
   const sampleBump = new Uint8Array(sampleSize * sampleSize);
   let coveredPixels = 0;
@@ -120,7 +131,7 @@ export function generateWhitePebbleTextureData(
     for (let sampleX = 0; sampleX < sampleSize; sampleX += 1) {
       const u = (sampleX + 0.5) / sampleSize;
       const v = (sampleY + 0.5) / sampleSize;
-      const pebble = pebbles.find(candidate => isInsidePebble(u, v, candidate));
+      const pebble = prepared.find(candidate => isInsidePebble(u, v, candidate));
       const pixelIndex = sampleY * sampleSize + sampleX;
       const colorIndex = pixelIndex * 4;
       if (!pebble) {
@@ -131,7 +142,7 @@ export function generateWhitePebbleTextureData(
         sampleBump[pixelIndex] = 128;
         continue;
       }
-      const [red, green, blue] = parseHexColor(pebble.color);
+      const [red, green, blue] = pebble.rgb;
       sampleAlbedo[colorIndex] = red;
       sampleAlbedo[colorIndex + 1] = green;
       sampleAlbedo[colorIndex + 2] = blue;

@@ -38,15 +38,17 @@ function setup() {
   fiber.useThree.mockImplementation((selector: (value: typeof state) => unknown) => selector(state));
   const hold = vi.fn();
   const release = vi.fn();
+  const waitForEnvironment = vi.fn<WarmupHost['waitForEnvironment']>(() => Promise.resolve(true));
   const host: WarmupHost = {
     hold, release, registerPostChain: vi.fn(), waitForPostChain: vi.fn(() => Promise.resolve(null)),
+    markEnvironmentSettled: vi.fn(), waitForEnvironment,
   };
   const wrap = (tier: 'low' | 'balanced' | 'high', children: ReactNode) => (
     <RenderQualityContext.Provider value={RENDER_QUALITY_CONFIGS[tier]}>
       <WarmupHostContext.Provider value={host}>{children}</WarmupHostContext.Provider>
     </RenderQualityContext.Provider>
   );
-  return { hold, release, invalidate, canvas, wrap };
+  return { hold, release, waitForEnvironment, invalidate, canvas, wrap };
 }
 
 const resolvers: Array<(value: WarmupReport) => void> = [];
@@ -67,6 +69,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  // The modules were loaded under this file's react-three-fiber mock: purge them so no later file in the worker receives them.
+  vi.resetModules();
   fiber.useThree.mockReset();
   runner.runShaderWarmup.mockReset();
 });
@@ -84,6 +88,14 @@ describe('ShaderWarmup', () => {
     resolvers[0](report());
     await vi.waitFor(() => { expect(release).toHaveBeenCalledTimes(1); });
     expect(invalidate).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for the studio environment before compiling anything', async () => {
+    const { waitForEnvironment, wrap } = setup();
+    render(wrap('balanced', <ShaderWarmup />));
+    await inputs[0].prerequisite?.(inputs[0].signal);
+    expect(waitForEnvironment).toHaveBeenCalledTimes(1);
+    expect(waitForEnvironment.mock.calls[0][0]).toBe(inputs[0].signal);
   });
 
   it('compiles the shadow depth fixtures only while shadows are on', () => {

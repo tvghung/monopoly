@@ -111,6 +111,44 @@ describe('runShaderWarmup', () => {
     warn.mockRestore();
   });
 
+  it('awaits its prerequisite before compiling anything', async () => {
+    const order: string[] = [];
+    let release: () => void = () => {};
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const { options } = input({
+      renderer: rendererWith(() => true, order),
+      prerequisite: async () => { order.push('prerequisite-start'); await gate; order.push('prerequisite-done'); },
+    });
+
+    const running = runShaderWarmup(options);
+    await Promise.resolve();
+    expect(order).toEqual(['prerequisite-start']);
+    release();
+    await running;
+
+    expect(order).toEqual(['prerequisite-start', 'prerequisite-done', 'scene']);
+  });
+
+  it('compiles nothing and marks aborted when it is cancelled while it waits for the prerequisite', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const order: string[] = [];
+    const controller = new AbortController();
+    const { marks, options } = input({
+      renderer: rendererWith(() => true, order),
+      signal: controller.signal,
+      prerequisite: () => { controller.abort(); return Promise.resolve(); },
+    });
+
+    const report = await runShaderWarmup(options);
+
+    expect(report.outcome).toBe('aborted');
+    expect(order).toEqual([]);
+    expect(marks).toEqual(['otb:warmup:start', 'otb:warmup:aborted']);
+    // A cancellation is not a failure: nothing is logged.
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it('skips the steps once compilation did not finish', async () => {
     const run = vi.fn(() => Promise.resolve('ready' as const));
     let now = 0;

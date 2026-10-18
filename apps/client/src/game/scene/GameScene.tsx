@@ -25,6 +25,8 @@ import { MeasurementScheduler } from './render/diagnostics/measurementScheduler'
 import { FrameCounter, shadowMapTypeName, toneMappingName } from './render/diagnostics/rendererInfo';
 import OptionalSceneLayer from './render/OptionalSceneLayer';
 import ShaderWarmup from './render/warmup/ShaderWarmup';
+import { markSceneOnce } from './render/warmup/sceneMarks';
+import { preloadBakedStudioEnvironment } from './render/environment/bakedStudioEnvironment';
 import { FrameWarmupHost, WarmupHostContext } from './render/warmup/warmupHost';
 import SceneLightRig from './render/lighting/SceneLightRig';
 import StudioEnvironment from './render/environment/StudioEnvironment';
@@ -46,6 +48,9 @@ import {
 } from './stations/coinVisuals';
 import './GameScene.css';
 import type { DeckCounts } from '@monopoly/shared';
+
+// Starts fetching the baked studio environment as soon as this chunk is evaluated, so the download overlaps the canvas creation.
+void preloadBakedStudioEnvironment();
 
 // The post chain only exists for the high tier: its chunk is never requested for balanced or low.
 const ScenePostEffects = lazy(() => import('./render/post/ScenePostEffects'));
@@ -361,6 +366,7 @@ function GameScene({
   onRendererFailure,
   loadingLabel,
 }: GameSceneProps) {
+  markSceneOnce('game-scene-render');
   const sceneRef = useRef<HTMLDivElement>(null);
   const fpsLimit = useSettingsSelector(selectFpsLimit);
   const graphicsQuality = useSettingsSelector(selectGraphicsQuality);
@@ -380,6 +386,7 @@ function GameScene({
     },
   }));
   const onCanvasCreated = useCallback((state: RootState) => {
+    markSceneOnce('canvas-created');
     frameSchedulerRef.current?.dispose();
     const scheduler = new DemandFrameScheduler(fpsLimitRef.current, timestampSeconds => {
       const current = state.get();
@@ -445,7 +452,7 @@ function GameScene({
           <RendererLifecycleGuard onFailure={onRendererFailure} />
           <color attach="background" args={[boardVisualTokens.sceneBackground]} />
           <SceneLightRig />
-          <OptionalSceneLayer name="studio-environment" resetKey={quality.tier}>
+          <OptionalSceneLayer name="studio-environment" resetKey={quality.tier} onFail={() => warmupHost.markEnvironmentSettled()}>
             <StudioEnvironment />
           </OptionalSceneLayer>
           <OptionalSceneLayer name="tabletop" resetKey={quality.tier}>

@@ -563,6 +563,16 @@ loading state, and draws nothing until they are ready. Measured basis and open i
 - **Not covered.** Variants the harness does not exercise, the lobby-to-board path, any new transient effect without a fixture, and the pre-environment
   variants of lit materials (the first frame is drawn after the environment exists, so they are never asked for; a board whose environment layer
   failed compiles its variant at warm-up because the warm-up compiles the scene as it is).
+- **Baked studio environment.** The PMREM of the procedural studio is baked into `studio-environment.cubeuv.f16.z` (raw half-float RGBA of the PMREM render target, 768 × 1024,
+  zlib-deflated, about 470 KB) with `studio-environment.meta.json`, next to `StudioEnvironment.tsx`. `StudioEnvironment` uploads it as a `DataTexture` with the PMREM texture's properties
+  (`bakedStudioEnvironment.ts`; the download starts when the scene chunk is evaluated) instead of filtering the studio, which blocked the main thread for about 0.9 s cold. It is used only while its
+  metadata hash equals the hash of everything that goes into the picture (the studio scene built from the palette and the light rig, the sigma, the layout, the three.js revision); the hash test fails when the
+  file is stale, and a stale or unloadable file makes the effect filter the studio at runtime as before (that path is also the generator). To rebuild after changing any input: build a UAT bundle and run
+  `node scripts/bakeStudioEnvironment.mjs --dist <uat-dist>`. The warm-up waits for the environment (`WarmupHost.waitForEnvironment`) because lit programs are keyed on it. Baked and procedural renders
+  are pixel-identical on the measuring GPU at all three tiers.
+- **One probe context.** The WebGL support check and the `auto` quality's texture limit share a single throwaway context (`getSharedWebGLProbe` in `webglSupport.ts`); they used to create one each.
+- **Procedural textures stay byte-identical.** The table, pebble and district generators run on the cold-launch critical path; they are optimised without changing a byte, and
+  `proceduralTextureGolden.test.ts` holds golden hashes of their output.
 - **Environment effect.** `StudioEnvironment` no longer depends on the identity of `invalidate` (R3F swaps it once the canvas exists), which had
   filtered the studio into a PMREM twice at every launch.
 

@@ -24,8 +24,15 @@ import SceneErrorBoundary from '../game/scene/fallback/SceneErrorBoundary';
 import LegacyBoardView from './legacy-board/LegacyBoardView';
 import type { RendererMode } from './rendererMode';
 import { useTranslation } from '../i18n/I18n';
+import { markSceneOnce } from '../game/scene/render/warmup/sceneMarks';
 
-const GameScene = lazy(() => import('../game/scene/GameScene'));
+const GameScene = lazy(() => {
+  markSceneOnce('chunk-request');
+  return import('../game/scene/GameScene').then(module => {
+    markSceneOnce('chunk-loaded');
+    return module;
+  });
+});
 
 /**
  * `model` with every part that did not change since the last render kept as the same object, so the memoised scene and its
