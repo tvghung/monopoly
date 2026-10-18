@@ -248,7 +248,7 @@ Other checks on the final code: `pnpm perf:warmup-check` **32 of 32** ([log](./0
 texture growth 0 / 0 / 0, heap +1.90 to +2.06 MB, unchanged ([series](./08G_evidence/soak/series.md)); settled-state pixel comparison against `main`: 15 of 19 identical, the other four are the same ones as in 08F §8
 (tile names missing in the `main` capture; the dice silhouette) ([report](./08G_evidence/visual/full-run.visual-report.json)); client tests 258 files, 2540 tests; lint, typecheck and build pass.
 
-### What is left of the 371 ms, measured
+### What is left of the 371 ms, measured (before the second round below)
 
 After the changes the first frame is at 2613 ms: about 1.2 s before the warm-up starts (page boot 0.5 s, the board's WebGL context and renderer 0.4–0.6 s, the React build of the scene 0.2 s) and about 0.7 s of warm-up
 (GPU compile wait about 0.25 s, finishing the programs 0.18 s, texture upload 0.07–0.19 s, the rest in between). Candidates, each a separate decision, none done:
@@ -260,6 +260,24 @@ After the changes the first frame is at 2613 ms: about 1.2 s before the warm-up 
 5. **Redefine "playable" (option D):** the first stable frame and T5 now nearly coincide: 12 of 20 launches have no frame of 100 ms or more at all, and in the other 8 the last one ends at 2749 ms (median), about 0.1 s after the first playable frame (the first frame itself costs 100–140 ms). The 3.6 s head start over `main` that option D relied on in 08F is no longer a separate argument.
 
 Items 1 and 2 together are estimated (unmeasured) at 0.2–0.4 s, which is the size of the gap. They are the next measurements to take, in that order of effort.
+
+### Second round (2026-10-18): the two candidates the owner asked to measure next, both measured, neither kept
+
+Same bundle on and off through temporary URL flags (diagnostics pages only, removed again), 10 cold launches each, medians of the first frame at or after `otb:warmup:done`;
+the machine reports one GPU, **ANGLE Intel UHD (0x9A60), in every variant** ([raw](./08G_evidence/context-spikes/)).
+
+| Experiment | First frame | Reading |
+| --- | --- | --- |
+| `powerPreference` `high-performance` (as shipped) / `default` / `low-power` | 2621 / 2606 / 2604 ms | **No difference** on this machine, and the renderer is the same iGPU each time. The cost of the board's context (about 0.43 s of blocked main thread) is not a power-preference effect here; whether the request matters on a machine where it changes the adapter cannot be seen on this one |
+| `antialias: false` | 2581 ms (−40 ms) | Not worth it: it changes the picture for 40 ms |
+| No throwaway probe context at all | 2551 ms (−71 ms) vs 2622 | The first context of the page pays about 0.4–0.5 s whichever one it is: removing the probe moves the cost onto the board's context (the interval before it grows from 653 to 1049 ms). The shared single probe of this change already keeps one |
+| A WebGL context created in a worker at page start, to initialise the GPU process while the page boots | 2629 ms against 2631 ms without (2608 ms with the probe skipped as well) | **No gain**: creating a context on the main thread costs the same afterwards, so it is not the GPU process start but the main-thread canvas and context creation that costs the 0.43 s |
+| A second pass over the texture generators (per-column noise terms, block fills for the district and pebble upscales, byte-identical to the golden hashes of all eight districts, the pebbles and the table) | 2620 ms against 2613 ms | **No measurable gain**, and the district block fill was slower (the blocks are 4 × 4 pixels, so row fills pay a call per row); reverted. The first pass (hoisted trigonometry, cached lattice) stays: it measured −140 and −55 ms |
+
+Consequence: the board's own WebGL context cannot be made cheaper from the page's side with anything tried here, and the remaining generator work is below what a 20-launch series can resolve. What is left of the gap needs a
+structural change, each part of which is an owner decision: creating the canvas and scene before the board is shown (a lobby in a real match; the harness cannot show it), moving texture generation to a worker (a larger change, and the main thread is blocked
+in `getContext` for 0.4 s anyway, which a worker would use), or amending T5.
+The district golden test added here (all eight surfaces) stays: it is coverage for the generators whether or not they are touched again.
 
 ### Open items after this change
 

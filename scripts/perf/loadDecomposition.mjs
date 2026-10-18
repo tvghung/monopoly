@@ -61,6 +61,7 @@ try {
       const mark = name => batch.marks.filter(entry => entry.name === name).sort((a, b) => a.t - b.t)[0]?.t ?? null;
       // The first context of the page is the capability probe's throwaway one (`probeRenderCapabilities`); the board's is the first one
       // created after the scene chunk was loaded.
+      const glRenderer = await page.evaluate(() => window.__PROBE__.glRenderer ?? null);
       const contexts = batch.events.filter(entry => entry.kind === 'context-created').sort((a, b) => a.t - b.t);
       const throwawayContext = contexts[0]?.t ?? null;
       const contextCreated = contexts.find(entry => entry.t >= (mark('otb:scene:chunk-loaded') ?? 0))?.t ?? null;
@@ -73,6 +74,7 @@ try {
         chunkLoaded: mark('otb:scene:chunk-loaded'),
         gameSceneRender: mark('otb:scene:game-scene-render'),
         board3dRender: mark('otb:scene:board3d-render'),
+        glRenderer,
         throwawayContext,
         contextCreated,
         canvasCreated: mark('otb:scene:canvas-created'),
@@ -96,7 +98,8 @@ try {
 }
 
 const keys = Object.keys(rows[0]);
-const medians = Object.fromEntries(keys.map(key => [key, median(rows.map(row => row[key]))]));
+const medians = Object.fromEntries(keys.filter(key => key !== 'glRenderer').map(key => [key, median(rows.map(row => row[key]))]));
+medians.glRenderer = [...new Set(rows.map(row => row.glRenderer))].join(' | ');
 const step = (from, to) => median(rows.map(row => (row[from] !== null && row[to] !== null ? row[to] - row[from] : null)));
 const steps = {
   'mounted -> chunk-request': step('mounted', 'chunkRequest'),

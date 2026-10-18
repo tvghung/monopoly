@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { DISTRICT_SURFACE_KEYS, getDistrictSurfaceDescriptorByKey } from '../../board/architecture/tileVisualRegistry';
+import { generateDistrictSurfaceTextureData } from '../../board/materials/districtSurfaceMaterials';
 import { generateWhitePebbleTextureData } from '../../board/materials/whitePebbleSurface';
 import { generateTableTextureData } from './tableTextures';
 
@@ -22,10 +24,28 @@ const EXPECTED: Record<string, string> = {
   'pebble-1-albedo': '76c37c05', 'pebble-1-bump': 'acb0ae45', 'pebble-1-coverage': '0.046875',
   'pebble-2-albedo': '82df8c85', 'pebble-2-bump': 'd77dbf65', 'pebble-2-coverage': '0.0552978515625',
   'pebble-3-albedo': '477cc9a5', 'pebble-3-bump': '0f5c74b5', 'pebble-3-coverage': '0.05474853515625',
+  'district-oldTownStone-albedo': 'c7193645', 'district-oldTownStone-bump': '03bb8e85',
+  'district-harborCeramic-albedo': '34a68205', 'district-harborCeramic-bump': '0bb5bf75',
+  'district-coolGranite-albedo': '92b23125', 'district-coolGranite-bump': 'a5336b15',
+  'district-terracottaBrick-albedo': 'ef1d2f65', 'district-terracottaBrick-bump': '999dfd05',
+  'district-metroConcrete-albedo': 'f4c0b505', 'district-metroConcrete-bump': '88d6c675',
+  'district-sandstoneTerrazzo-albedo': '622239a5', 'district-sandstoneTerrazzo-bump': '4a36b605',
+  'district-ecoSlate-albedo': '31ae1245', 'district-ecoSlate-bump': 'd19007d5',
+  'district-premiumBrownStone-albedo': '1c16e245', 'district-premiumBrownStone-bump': 'd0665d35',
   'table-albedo': '23a2801a', 'table-varied-albedo': '8d0baeaa', 'table-varied-roughness': 'cd5df8ae',
 };
 
 describe('procedural texture generators (golden hashes)', () => {
+  it('every district surface is unchanged', { timeout: 60_000 }, () => {
+    const actual: Record<string, string> = {};
+    for (const key of DISTRICT_SURFACE_KEYS) {
+      const data = generateDistrictSurfaceTextureData(getDistrictSurfaceDescriptorByKey(key));
+      actual[`district-${key}-albedo`] = fnv1a(data.albedo);
+      actual[`district-${key}-bump`] = fnv1a(data.bump);
+    }
+    expect(actual).toEqual(Object.fromEntries(Object.entries(EXPECTED).filter(([key]) => key.startsWith('district'))));
+  });
+
   it('white pebble variants are unchanged', () => {
     const actual: Record<string, string> = {};
     for (const variant of [0, 1, 2, 3] as const) {
