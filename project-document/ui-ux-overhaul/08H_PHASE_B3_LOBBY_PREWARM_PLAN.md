@@ -1,7 +1,7 @@
 # 08H — Phase B3 follow-up: build the board's work in the lobby (08G Task 3) — plan
 
 > **REFERENCE** — A plan with an execution record: everything before [Results](#results-task-0-2026-10-18) is the plan as it was approved; Task 0 and Task 1 have been done and are recorded in the
-> Results sections (Task 1 was measured and **not adopted**: it misses the 0.2 s threshold at the 3 s reference dwell; its code is kept on branch `perf/phase-b3-lobby-prewarm-task1`), the owner then authorised Task 3 (2026-10-18); its design note and spike are in [Results (Task 3 spike)](#results-task-3-design-note-and-spike-2026-10-18), which stops at approval gate 3. The owner then chose **A1** and approved the lobby memory (2026-10-18); it is implemented and recorded in [Results (Task 3 production, A1)](#results-task-3-production-a1-2026-10-18). Task 4 (the real server path) is done and recorded in [Results (Task 4)](#results-task-4-the-real-path-2026-10-18); it awaits approval gate 4. Numbers outside Results are cited from [08G](./08G_PHASE_B3_T5_FOLLOW_UP_PLAN.md) or [08F](./08F_PHASE_B3_IMPLEMENTATION.md) (both HISTORICAL records).
+> Results sections (Task 1 was measured and **not adopted**: it misses the 0.2 s threshold at the 3 s reference dwell; its code is kept on branch `perf/phase-b3-lobby-prewarm-task1`), the owner then authorised Task 3 (2026-10-18); its design note and spike are in [Results (Task 3 spike)](#results-task-3-design-note-and-spike-2026-10-18), which stops at approval gate 3. The owner then chose **A1** and approved the lobby memory (2026-10-18); it is implemented and recorded in [Results (Task 3 production, A1)](#results-task-3-production-a1-2026-10-18). Task 4 (the real server path) is done and recorded in [Results (Task 4)](#results-task-4-the-real-path-2026-10-18); **the owner approved gate 4** (T5-lobby PASS); see [Final verdict](#final-verdict-2026-10-18). Numbers outside Results are cited from [08G](./08G_PHASE_B3_T5_FOLLOW_UP_PLAN.md) or [08F](./08F_PHASE_B3_IMPLEMENTATION.md) (both HISTORICAL records).
 > It is written so that a developer or an agent that reads only this file and the documents it links can execute it. Targets T1–T5 are defined in [08E §11.1](./08E_PHASE_B3_INVESTIGATION.md);
 > measurement tooling is in [scripts/perf/README.md](../../scripts/perf/README.md).
 
@@ -412,6 +412,30 @@ Bundles: `main` (`dfb1e31`) and this branch's head (`6a9718c`), both minified pr
 0 page errors in 40 launches; 0 program links after `done` in every head launch. **The harness result holds on the real path**: from the host's Start to the first board frame, about 1.06 s and a 2.25 s main-thread freeze on `main` become about 74 ms with no callback over 12 ms, at both the 3 s and the 10 s dwell, and the 3 s dwell no longer misses (the real lobby here is shown after the room join, so the deferred mount starts earlier relative to the dwell than in the harness).
 What the player still pays: a **0.37 s lobby freeze** (long task 368–371 ms, once, at the deferred mount) and a 259 ms long task right after Start (the board's own React tree).
 
-Notes: the tool needed the guest and the host to pick a mascot (Ready is disabled until then). This base's server persists in memory (`InMemoryPersistenceStore`), so no PostgreSQL was involved here, and the socket protocol is 14, not the 9 that `CLAUDE.md` states: that file is stale against this base.
+Notes: the tool needed the guest and the host to pick a mascot (Ready is disabled until then). This base's server persists in memory (`InMemoryPersistenceStore`), so no PostgreSQL was involved, and the socket protocol is 14 (`SOCKET_PROTOCOL_VERSION`). The `CLAUDE.md` and `AGENTS.md` of this branch are current and consistent with that (verified at closeout, no change needed); the older text that mentions protocol 9 and PostgreSQL belongs to another checkout, not to this branch.
 
 Not covered by Task 4: the browser as the host (the Start click itself in the browser), a slow or remote network, a warm driver cache, the packaged Electron app, other machines. Gate 4 (owner accepts PASS or PARTIAL): T5-lobby **PASS** on the harness route and on the real path; the original harness T5 stays **PARTIAL**.
+
+## Final verdict (2026-10-18)
+
+**Owner decision: gate 4 approved.** Phase B3 closes with these results; nothing here is a claim beyond what was measured.
+
+| Item | Verdict | Evidence |
+| --- | --- | --- |
+| **T5-lobby** (start to first board frame after the warm-up, limit 1.10 × `main` P95) | **PASS** on the UAT harness lobby route (median 67 ms at 3 s against 1500 ms for PR 20 and a limit of 1115 ms; worst of 20 launches 642 ms) **and on the real path** (real server and lobby, minified bundles: host Start to first frame 74 ms against 1060 ms on `main`, 10 launches per cell at 3 s and 10 s) | Results (Task 3 production), Results (Task 4) |
+| **T5, original direct-launch definition** (a board mounted with no lobby) | **PARTIAL**, unchanged: +371 ms at P95 over its limit; this work does not touch that path | 08G, Results (Task 0) |
+| T1, T2, T4 | Held by the lobby route (0 links after `done`, longest callback after the click 9–15 ms when the scene was ready); `perf:warmup-check` 32 of 32; visual parity identical at Balanced, High and Low | Results (Task 3 production) |
+| T3 | 30 of 42 cold signatures, as recorded in 08F | 08F |
+
+**Costs and risks that stay open (not resolved by this work):**
+
+- **Lobby freeze:** a single 0.36–0.41 s main-thread long task in the lobby when the deferred scene mounts (368–371 ms on the real path); it cannot be sliced (WebGL context creation, React scene build).
+- **Post-Start long task:** 258–259 ms right after Start on the real path (the board's own React tree mounting around the scene), and two harness launches at 10 s with a 190 ms task and a 314–321 ms first frame; not investigated.
+- **Memory:** while a lobby is open the GPU process holds about +256 MB and the JS heap +7.4 MB (owner-approved); just after the reveal the GPU process is 30–70 MB above PR 20 for a few seconds; in-game steady state is within +9 MB. A player who leaves the lobby without starting pays this for nothing.
+- **Harness 3 s dwell:** in 7 of 20 launches the click came before the warm-up was done (T5-lobby 375–642 ms, still within the limit).
+- **Task 1 (lobby texture prep) not adopted**; the code stays on `perf/phase-b3-lobby-prewarm-task1`. The Task 3 spike stays on `perf/phase-b3-lobby-scene-spike` (not for merge).
+- **From earlier phases, unchanged:** the 08E open items (the B2 burst, the run-18 hang, the extra load-time variant) stay open; **B2 heap growth over 30 replays is NOT MET** (+2.00 MB against 1 MB with the benchmark's fixed 3 warm-up replays; +0.65 MB after 30; +0.11 MB with the JIT off); a warm driver cache shrinks the warm-up's benefit for a returning player (+0.45 s of waiting for frames of at most 71 ms instead of 397 ms, 08H Task 0).
+- **Not measured:** the browser as host, a slow or remote network, a warm driver cache on the real path, low-end devices and the original baseline machine, the packaged Electron app, a person's keyboard and screen-reader walk-through of a lobby with the scene parked.
+- **Evidence note:** the `.log` files cited by 08F and 08G (`warmup-check/check.log`, `lifecycle.log`) are git-ignored, so verbatim copies are committed as `.txt` and the links point to those; nothing was edited.
+
+**Merge order** (stacked): PR 19 targets `main` and PR 20 targets PR 19's branch. Merge PR 19 first, with a **merge commit** (not squash) so the commits PR 20 contains stay in history; then retarget PR 20 to `main` (GitHub does this when PR 19's branch is deleted; if not, `gh pr edit 20 --base main`) and merge it with a merge commit. A squash of PR 19 would leave PR 20 with duplicate commits and conflicts. Neither PR was merged by this work.

@@ -1,0 +1,160 @@
+scenario walk
+scenario dice
+scenario house-2
+scenario hotel
+tier switch and context loss
+{
+ "scenarios": {
+  "walk": {
+   "replays": 4,
+   "samples": 807,
+   "highlightMaterials": 1,
+   "contactShadowMaterials": 1,
+   "previewSurfaceMaterials": 1,
+   "previewEdgeMaterials": 1,
+   "previewSamples": 185,
+   "previewSurfaceOpacity": [
+    0.1200000001019771,
+    0.36999999999738936
+   ],
+   "previewEdgeOpacity": [
+    0.4200000001876379,
+    0.8799999999951964
+   ],
+   "previewColors": [
+    "f2384a/bd2033"
+   ],
+   "trailMaterials": 2,
+   "trailVisibleSamples": 158,
+   "trailMaxOpacity": 0.054400000000000004,
+   "puffMaterials": 0,
+   "puffSamples": 0,
+   "puffProps": []
+  },
+  "dice": {
+   "replays": 4,
+   "samples": 483,
+   "highlightMaterials": 1,
+   "contactShadowMaterials": 1,
+   "previewSurfaceMaterials": 0,
+   "previewEdgeMaterials": 0,
+   "previewSamples": 0,
+   "previewSurfaceOpacity": [
+    null,
+    null
+   ],
+   "previewEdgeOpacity": [
+    null,
+    null
+   ],
+   "previewColors": [],
+   "trailMaterials": 2,
+   "trailVisibleSamples": 310,
+   "trailMaxOpacity": 0.054400000000000004,
+   "puffMaterials": 0,
+   "puffSamples": 0,
+   "puffProps": []
+  },
+  "house-2": {
+   "replays": 4,
+   "samples": 484,
+   "highlightMaterials": 1,
+   "contactShadowMaterials": 0,
+   "previewSurfaceMaterials": 0,
+   "previewEdgeMaterials": 0,
+   "previewSamples": 0,
+   "previewSurfaceOpacity": [
+    null,
+    null
+   ],
+   "previewEdgeOpacity": [
+    null,
+    null
+   ],
+   "previewColors": [],
+   "trailMaterials": 0,
+   "trailVisibleSamples": 0,
+   "trailMaxOpacity": 0,
+   "puffMaterials": 1,
+   "puffSamples": 118,
+   "puffProps": [
+    "MeshStandardMaterial/0.86/true/11"
+   ]
+  },
+  "hotel": {
+   "replays": 4,
+   "samples": 566,
+   "highlightMaterials": 1,
+   "contactShadowMaterials": 0,
+   "previewSurfaceMaterials": 0,
+   "previewEdgeMaterials": 0,
+   "previewSamples": 0,
+   "previewSurfaceOpacity": [
+    null,
+    null
+   ],
+   "previewEdgeOpacity": [
+    null,
+    null
+   ],
+   "previewColors": [],
+   "trailMaterials": 0,
+   "trailVisibleSamples": 0,
+   "trailMaxOpacity": 0,
+   "puffMaterials": 0,
+   "puffSamples": 0,
+   "puffProps": []
+  }
+ },
+ "tierSwitch": [
+  {
+   "tier": "low",
+   "trail": 0,
+   "highlight": 1,
+   "preview": "1/1",
+   "geometries": 100,
+   "programs": 48
+  },
+  {
+   "tier": "balanced",
+   "trail": 2,
+   "highlight": 1,
+   "preview": "1/1",
+   "geometries": 104,
+   "programs": 51
+  },
+  {
+   "tier": "high",
+   "trail": 4,
+   "highlight": 1,
+   "preview": "1/1",
+   "geometries": 106,
+   "programs": 102
+  },
+  {
+   "tier": "balanced",
+   "trail": 2,
+   "highlight": 1,
+   "preview": "1/1",
+   "geometries": 105,
+   "programs": 91
+  },
+  {
+   "tier": "low",
+   "trail": 0,
+   "highlight": 1,
+   "preview": "1/1",
+   "geometries": 101,
+   "programs": 91
+  }
+ ],
+ "contextLoss": {
+  "fellBackToLegacyBoard": true,
+  "newPageErrors": 0
+ },
+ "pageErrors": 0,
+ "consoleMessages": 11
+}
+
+ALL CHECKS PASSED
+lifecycle exit 0

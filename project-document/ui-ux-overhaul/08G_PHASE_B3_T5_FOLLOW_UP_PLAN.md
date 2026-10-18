@@ -244,7 +244,7 @@ The generator hashes are held by `proceduralTextureGolden.test.ts`, taken before
 
 T5: limit 1.10 × 2227 = 2450 ms; this branch's P95 is 2821 ms (**+371 ms over the limit**, +26.7 % over the baseline P95; median +24 %).
 
-Other checks on the final code: `pnpm perf:warmup-check` **32 of 32** ([log](./08G_evidence/warmup-check/check.log)); `perf:lifecycle-check` passes ([log](./08G_evidence/lifecycle.log)); soak (3 runs, 30 replays): 0 first-use programs after load, geometry, program and
+Other checks on the final code: `pnpm perf:warmup-check` **32 of 32** ([log](./08G_evidence/warmup-check/check.txt)); `perf:lifecycle-check` passes ([log](./08G_evidence/lifecycle.txt)); soak (3 runs, 30 replays): 0 first-use programs after load, geometry, program and
 texture growth 0 / 0 / 0, heap +1.90 to +2.06 MB, unchanged ([series](./08G_evidence/soak/series.md)); settled-state pixel comparison against `main`: 15 of 19 identical, the other four are the same ones as in 08F §8
 (tile names missing in the `main` capture; the dice silhouette) ([report](./08G_evidence/visual/full-run.visual-report.json)); client tests 258 files, 2540 tests; lint, typecheck and build pass.
 
