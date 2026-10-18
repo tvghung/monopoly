@@ -474,7 +474,7 @@ identical shader programs and a 30-replay soak leaked 30 geometries before; both
 - **Verification.** Unit tests assert identity across re-renders and `dispose` on unmount; `pnpm perf:benchmark` reports program
   links (first use vs repeat), geometry/texture/program counts and heap over repeated replays, and
   `pnpm perf:visual-compare` compares settled states pixel by pixel ([scripts/perf/README.md](../../../scripts/perf/README.md)). First-use
-  links of a program variant per session remain (shader warm-up is a separate batch).
+  links of a program variant per session were left for the shader warm-up (performance program B3, below).
 
 ### React render fan-out (performance program B2)
 
@@ -521,6 +521,50 @@ main-thread work. The scene is rendered only when the part of the render model i
   `tileHoverStore.test.tsx`, `diceLayerMaterialLifetime.test.tsx` (geometry built once), `GameScene.contextIsolation.test.tsx` (a component
   under the canvas sees no room state; a room-state change does not render it; other contexts are still bridged). `pnpm perf:benchmark --scenarios hover,volume,socket`
   reports R3F commits, DOM commits and scene submissions per sweep.
+
+### Shader warm-up (performance program B3)
+
+A shader program is linked the first time something draws with it, and the first link in a fresh profile costs about 100–200 ms,
+so a cold launch froze for 2–2.7 s in two frames. The scene now prepares its programs before it draws, behind the existing scene
+loading state, and draws nothing until they are ready. Measured basis and open items:
+[08F](../../ui-ux-overhaul/08F_PHASE_B3_IMPLEMENTATION.md).
+
+- **Where.** `ShaderWarmup` (`apps/client/src/game/scene/render/warmup/ShaderWarmup.tsx`) is the last child inside the canvas, so its effects run after
+  every layer has mounted and applied its own (the environment included). It renders nothing. The compile logic is plain TypeScript over a
+  small renderer interface (`shaderCompile.ts`, `warmupRunner.ts`), covered by unit tests with a fake renderer.
+- **Frames are held, not delayed blindly.** `FrameWarmupHost` (`warmupHost.ts`) holds the `DemandFrameScheduler` from the moment the canvas exists
+  (`DemandFrameScheduler.hold()`); invalidations made meanwhile are kept, and the first frame after the release draws the latest state.
+  A watchdog (`WARMUP_WATCHDOG_MS`, 20 s) ends the hold if the warm-up never reports back, and the warm-up has its own deadline
+  (`WARMUP_TIMEOUT_MS`, 12 s): a stuck driver costs the old behavior (compile on first use), never a blank board.
+- **Loading indicator.** While the first warm-up holds the frames, the scene shows the same "building the board" label the lazy chunk's fallback shows
+  (`loadingLabel`, passed by `BoardRenderSurface`). `FrameWarmupHost` reports `onInitialPendingChange`; `GameScene` sets `data-warmup` on its root and
+  CSS shows or hides the label, so showing it never renders the scene. A tier switch keeps the old picture and shows nothing.
+- **What is compiled.** (1) `renderer.compile(scene)` for everything mounted, hidden objects included; (2) fixtures (`warmupFixtures.ts`): hidden
+  stand-ins, never added to the scene and kept for the renderer's life, for the variants the scene does not hold yet: the shadow depth
+  materials (derived from the scene's shadow casters the way `WebGLShadowMap.getDepthMaterial` derives them, compiled with a render target
+  bound), the mascot standee, the dice, the destination preview and the house/puff effects; (3) on the high tier, the post chain's own
+  full-screen programs (`warmupPostChain.ts`) and the scene compiled against the chain's input buffer. All batches are started together so the
+  driver compiles them in parallel; each program is then finished (first use: uniforms and attributes, which includes three.js's shader error
+  check) a few at a time as it becomes ready, and the scene's textures are uploaded in slices (`warmupTextures.ts`).
+- **A fixture must use the factory the real component uses.** A program is keyed on material parameters, geometry attribute layout,
+  instancing flags (including whether an instance color exists), lights, the render target and the renderer state. Fixtures are built from the
+  exported factories (`createDiceContactShadowMaterial`, `createDestinationPreviewMaterials`, `createConstructionPuffMaterial`,
+  `createTubeHouseMeshes`, `createDiceTrailMaterials`, `getStandeeFaceMaterialProps`, `createStandeeDepthMaterial`), so a change to one of them
+  changes the fixture too. A new transient effect that creates its own material must add a fixture, and `pnpm perf:warmup-check` is what catches a
+  forgotten one (it fails on any program linked after `otb:warmup:done`).
+- **Marks.** `otb:warmup:start` and `otb:warmup:done` bound the first warm-up of a canvas; `done` is emitted only when everything finished.
+  A timeout or a cancellation emits `otb:warmup:incomplete` / `otb:warmup:aborted` instead, never `done`. A tier switch or a restored context
+  emits `otb:warmup:<reason>:start|done`. Dev/UAT pages also publish the latest report as `window.__OWN_THE_BLOCK_WARMUP__`.
+- **Tier switches.** A change of graphics tier holds the frames again; the picture on screen stays the old tier until the new tier's programs are
+  compiled (shadow flags, lights, the tone mapper and the post chain are what change the variants), then the next frame draws the new tier.
+  Programs of a tier already visited stay cached, so switching back is instant (about 9 ms) and the program count stays bounded.
+- **Fallbacks.** Without `KHR_parallel_shader_compile` the links are done one program per slice instead of all inside the first frame. A renderer
+  that throws, a lost context or a signal abort ends the warm-up as not complete and releases the frames. `debug.checkShaderErrors` stays on.
+- **Not covered.** Variants the harness does not exercise, the lobby-to-board path, any new transient effect without a fixture, and the pre-environment
+  variants of lit materials (the first frame is drawn after the environment exists, so they are never asked for; a board whose environment layer
+  failed compiles its variant at warm-up because the warm-up compiles the scene as it is).
+- **Environment effect.** `StudioEnvironment` no longer depends on the identity of `invalidate` (R3F swaps it once the canvas exists), which had
+  filtered the studio into a PMREM twice at every launch.
 
 ### Tile-layer refinement evidence
 

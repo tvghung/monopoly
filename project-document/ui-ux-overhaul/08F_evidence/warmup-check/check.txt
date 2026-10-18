@@ -1,0 +1,35 @@
+ok   cold balanced walk                   warm-up 659 ms, links during 28, after 0, worst callback after 157 ms
+ok   cold balanced pass-go                warm-up 717 ms, links during 28, after 0, worst callback after 72 ms
+ok   cold balanced purchase               warm-up 661 ms, links during 28, after 0, worst callback after 166 ms
+ok   cold balanced rent                   warm-up 693 ms, links during 28, after 0, worst callback after 76 ms
+ok   cold balanced decline                warm-up 772 ms, links during 28, after 0, worst callback after 165 ms
+ok   cold balanced partial-debt           warm-up 732 ms, links during 28, after 0, worst callback after 148 ms
+ok   cold balanced house-1                warm-up 696 ms, links during 28, after 0, worst callback after 77 ms
+ok   cold balanced house-4                warm-up 674 ms, links during 28, after 0, worst callback after 66 ms
+ok   cold balanced hotel                  warm-up 753 ms, links during 28, after 0, worst callback after 108 ms
+ok   cold balanced construction-reduced   warm-up 693 ms, links during 28, after 0, worst callback after 176 ms
+ok   cold balanced chance                 warm-up 892 ms, links during 28, after 0, worst callback after 152 ms
+ok   cold balanced chest                  warm-up 617 ms, links during 28, after 0, worst callback after 146 ms
+ok   cold balanced card-chain             warm-up 867 ms, links during 28, after 0, worst callback after 150 ms
+ok   cold balanced jail                   warm-up 685 ms, links during 28, after 0, worst callback after 94 ms
+ok   cold balanced bankrupt               warm-up 654 ms, links during 28, after 0, worst callback after 124 ms
+ok   cold balanced reduced-motion         warm-up 778 ms, links during 28, after 0, worst callback after 92 ms
+ok   cold balanced dice-contact-shadows   warm-up 662 ms, links during 28, after 0, worst callback after 128 ms
+ok   cold balanced landmarks-all          warm-up 613 ms, links during 30, after 0, worst callback after 173 ms
+ok   cold balanced stress                 warm-up 653 ms, links during 28, after 0, worst callback after 144 ms
+ok   cold balanced standees               warm-up 620 ms, links during 28, after 0, worst callback after 155 ms
+ok   cold low      walk                   warm-up 641 ms, links during 24, after 0, worst callback after 137 ms
+ok   cold low      house-4                warm-up 621 ms, links during 24, after 0, worst callback after 66 ms
+ok   cold low      dice-contact-shadows   warm-up 587 ms, links during 24, after 0, worst callback after 91 ms
+ok   cold high     walk                   warm-up 857 ms, links during 44, after 0, worst callback after 214 ms
+ok   cold high     house-4                warm-up 898 ms, links during 44, after 0, worst callback after 99 ms
+ok   cold high     dice-contact-shadows   warm-up 849 ms, links during 44, after 0, worst callback after 101 ms
+ok   switch balanced -> low      warm-up 197 ms, links during 9, after 0, worst callback after 4 ms, programs 52
+ok   switch low -> balanced warm-up 6 ms, links during 0, after 0, worst callback after 5 ms, programs 55
+ok   switch balanced -> high     warm-up 515 ms, links during 38, after 0, worst callback after 33 ms, programs 106
+ok   switch high -> low      warm-up 6 ms, links during 0, after 0, worst callback after 4 ms, programs 95
+ok   switch low -> high     warm-up 51 ms, links during 11, after 0, worst callback after 8 ms, programs 106
+ok   switch high -> balanced warm-up 6 ms, links during 0, after 0, worst callback after 5 ms, programs 95
+
+32/32 checks passed
+warmupCheck exit 0

@@ -17,6 +17,7 @@ game: the probe is injected from outside and the harness is a development/UAT bu
 | `cpuProfile.mjs`, `heapSample.mjs` | Diagnosis tools (not benchmarks): a V8 CPU profile of warm replays ranked by self and inclusive time, and the allocation sites still alive after N replays, optionally with the JIT off; they say *where* to look, never what a frame costs |
 | `lifecycleCheck.mjs` | Structural GPU-resource ownership check in a real browser: inspects the live three.js scene during dice rolls, walks with the destination preview and construction bursts, switches tiers live and forces a WebGL context loss; `--expect-persistent` asserts one material per shared effect for the whole session; works on a bundle (`--dist`) or a running dev server (`--base-url`, React StrictMode) |
 | `signatures.mjs`, `soakSeries.mjs`, `b3Baseline.mjs` | Phase B3 gate (08D/08E): first-use shader program signatures (probe v3), classification of every link (initial / new variant / repeat link / context reset / renderer recreation), a fixed-count soak series and a cold-profile first-turn baseline; unit tested by `signatures.check.mjs` |
+| `warmupCheck.mjs` | Phase B3 regression check (08F): cold launches of the scripted scenarios and a live tier-switch sequence; fails when `otb:warmup:start`/`done` are missing or out of order, when any program is linked after `otb:warmup:done`, when a callback after it exceeds 300 ms, or on a page error |
 | `pngDiff.mjs` | Dependency-free PNG decode/encode, pixel comparison and diff image; unit tested by `pngDiff.check.mjs` |
 | `staticServer.mjs` | The static file server `captureCompare.mjs` serves a bundle with |
 
@@ -125,6 +126,19 @@ JSFLAGS="--no-opt --no-sparkplug --no-maglev" node scripts/perf/heapSample.mjs .
 ```
 
 Read the heap growth with the JIT in mind: `Runtime.getHeapUsage` includes compiled code and feedback vectors, which keep growing for tens of replays after load. Compare growth with a longer `--soak-warmup` (or with the JIT off) before attributing it to retained objects.
+
+### Shader warm-up check
+
+```bash
+VITE_PHASE4_UAT=1 pnpm --filter @monopoly/client exec vite build --mode phase4-uat --minify false --outDir <dist> --emptyOutDir
+pnpm perf:warmup-check --dist <dist> --out <dir>                      # 20 scenarios at Balanced, 3 at Low and High, live tier switches
+pnpm perf:warmup-check --dist <dist> --out <dir> --scenarios walk,hotel --tiers balanced --skip-switch
+```
+
+Every launch is a new Chrome process with an empty profile, so the driver's shader cache cannot hide a missing variant. The raw per-launch
+data (marks, link counts, the warm-up report) is written to `<dir>`. `window.__OWN_THE_BLOCK_WARMUP__` (dev/UAT pages only) holds the
+latest warm-up report. For before/after cold-launch numbers, `b3Baseline.mjs run --from <n> --runs 1` measures one launch into `run-<n>`, so two
+bundles can be measured alternately (A1, B1, A2, B2, ...) into one folder each and then summarised with `aggregate`.
 
 ### Hover and selection
 

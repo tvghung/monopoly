@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { applyCoinEnvironmentMap } from '../../stations/coinVisuals';
@@ -37,23 +37,27 @@ export default function StudioEnvironment() {
   const scene = useThree(state => state.scene);
   const invalidate = useThree(state => state.invalidate);
   const { environmentIntensity } = useRenderQuality();
+  // R3F swaps `invalidate` for the frame scheduler's once the canvas exists. Reading it through a ref keeps that swap from
+  // re-running the PMREM effect, which would filter the studio a second time (about a second of blocked main thread cold).
+  const invalidateRef = useRef(invalidate);
+  invalidateRef.current = invalidate;
 
   useEffect(() => {
     const pmrem = new THREE.PMREMGenerator(gl);
     const studio = createStudioEnvironmentScene();
     const renderTarget = pmrem.fromScene(studio, STUDIO_PMREM_SIGMA);
     applyStudioEnvironment(scene, renderTarget.texture, environmentIntensity);
-    invalidate();
+    invalidateRef.current();
     return () => {
       applyStudioEnvironment(scene, null, 1);
       renderTarget.dispose();
       disposeStudioEnvironmentScene(studio);
       pmrem.dispose();
-      invalidate();
+      invalidateRef.current();
     };
     // The intensity is applied separately below so a tier switch never regenerates the PMREM.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gl, invalidate, scene]);
+  }, [gl, scene]);
 
   useEffect(() => {
     setStudioEnvironmentIntensity(scene, environmentIntensity);

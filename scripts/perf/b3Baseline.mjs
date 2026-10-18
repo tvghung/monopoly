@@ -217,10 +217,11 @@ function collect(out) {
 }
 
 function parse(argv) {
-  const options = { runs: 10, dist: null, out: null, port: 4173, cap: 60 };
+  const options = { runs: 10, from: 1, dist: null, out: null, port: 4173, cap: 60 };
   for (let index = 1; index < argv.length; index += 1) {
     const flag = argv[index];
     if (flag === '--runs') options.runs = Number(argv[++index]);
+    else if (flag === '--from') options.from = Number(argv[++index]);
     else if (flag === '--dist') options.dist = path.resolve(argv[++index]);
     else if (flag === '--out') options.out = path.resolve(argv[++index]);
     else if (flag === '--port') options.port = Number(argv[++index]);
@@ -239,10 +240,11 @@ if (command === 'run') {
     commit: git(['rev-parse', 'HEAD']), cpu: os.cpus()[0]?.model.trim(), os: `${os.type()} ${os.release()}`, node: process.version,
     window: WINDOW, cap: options.cap, dist: path.basename(options.dist), capturedAt: new Date().toISOString(),
   };
-  for (let run = 1; run <= options.runs; run += 1) {
+  // `--from n` starts at run-n, so two bundles can be measured alternately (A1, B1, A2, B2, ...) with one output folder each.
+  for (let run = options.from; run < options.from + options.runs; run += 1) {
     const runDir = path.join(options.out, `run-${String(run).padStart(2, '0')}`);
     mkdirSync(runDir, { recursive: true });
-    console.log(`[baseline] run ${run}/${options.runs}`);
+    console.log(`[baseline] run ${run}/${options.from + options.runs - 1}`);
     const row = await oneRun(options.dist, runDir, options.port, options.cap);
     rmSync(path.join(runDir, 'chrome-profile'), { recursive: true, force: true });
     writeFileSync(path.join(runDir, 'baseline.json'), `${JSON.stringify({ run, environment, ...row }, null, 2)}\n`);

@@ -11,5 +11,10 @@
   height: 100%;
 }
 
+/* Over the empty canvas while the shader warm-up holds the first frame; GameScene sets data-warmup, React is not involved. */
+/* Above the centred roll button of the HUD, which would cover it. */
+.game-scene__loading { display: none; top: 30%; }
+.game-scene[data-warmup='pending'] .game-scene__loading { display: block; }
+
 /* The board owns touch gestures (pinch, drag): the browser must not scroll or zoom the page instead. */
 .game-scene canvas { touch-action: none; }

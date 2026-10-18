@@ -1,0 +1,85 @@
+{
+ "kind": "cold",
+ "scenario": "dice-contact-shadows",
+ "tier": "high",
+ "verdict": {
+  "startT": 3150.60000000149,
+  "doneT": 3999.9000000059605,
+  "ordered": true,
+  "warmupMs": 849.3000000044703,
+  "linksDuring": 44,
+  "linksAfter": 0,
+  "linksAfterNames": [],
+  "worstCallbackAfterMs": 101.30000000447035,
+  "framesAfter": 36,
+  "marks": [
+   "otb:warmup:start@3151",
+   "otb:warmup:done@4000"
+  ]
+ },
+ "warmup": {
+  "reason": "initial",
+  "tier": "high",
+  "outcome": "complete",
+  "parallel": true,
+  "startedAtMs": 3150.5,
+  "durationMs": 849.4000000059605,
+  "fixtureBuildMs": 5.600000001490116,
+  "programsBefore": 4,
+  "programsAfter": 46,
+  "steps": [
+   {
+    "name": "scene",
+    "status": "ready",
+    "materials": 134,
+    "programsAdded": 20,
+    "durationMs": 556.2999999970198
+   },
+   {
+    "name": "fixtures:main",
+    "status": "ready",
+    "materials": 9,
+    "programsAdded": 2,
+    "durationMs": 556.2999999970198
+   },
+   {
+    "name": "fixtures:shadow-depth",
+    "status": "ready",
+    "materials": 7,
+    "programsAdded": 4,
+    "durationMs": 507.69999999552965
+   },
+   {
+    "name": "post:buffers",
+    "status": "ready",
+    "materials": 15,
+    "programsAdded": 15,
+    "durationMs": 540
+   },
+   {
+    "name": "post:screen",
+    "status": "ready",
+    "materials": 1,
+    "programsAdded": 1,
+    "durationMs": 543.2999999970198
+   },
+   {
+    "name": "textures",
+    "status": "ready",
+    "materials": 0,
+    "programsAdded": 0,
+    "durationMs": 99.60000000149012
+   }
+  ]
+ },
+ "failures": [],
+ "pageErrors": [],
+ "consoleMessages": [
+  "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+  "warning: THREE.WebGLProgram: Program Info Log: (210,81-129): warning X4122: sum of 0.996094 and -2.98545e-017 cannot be represented accurately in double precision\n(209,37-61): warning X4122: sum of 1 and -1.49",
+  "warning: THREE.BufferGeometry.toNonIndexed(): BufferGeometry is already non-indexed.",
+  "warning: THREE.WebGLProgram: Program Info Log: (85,12-86): warning X3595: gradient instruction used in a loop with varying iteration; partial derivatives may have undefined value\n(85,12-86): warning X3595: gra"
+ ],
+ "links": 48,
+ "frames": 47
+}
