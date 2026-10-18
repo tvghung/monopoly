@@ -1,7 +1,7 @@
 import {
   cleanup, fireEvent, render, screen, waitFor,
 } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import Phase4UatHarness, { readHarnessUrlParams } from './Phase4UatHarness';
 
 afterEach(() => {
@@ -87,5 +87,56 @@ describe('Phase4UatHarness URL contract', () => {
     fireEvent.click(screen.getByRole('button', { name: /Chạy lại/ }));
     expect(harnessMain(container).dataset.uatReady).toBe('false');
     await waitFor(() => expect(harnessMain(container).dataset.uatReady).toBe('true'), { timeout: 10_000 });
+  }, 30_000);
+});
+
+describe('the lobby-to-board route (lobby=<ms>)', () => {
+  it('reads the dwell as a non-negative number and ignores anything else', () => {
+    expect(readHarnessUrlParams('?lobby=3000').lobbyDwellMs).toBe(3000);
+    expect(readHarnessUrlParams('?lobby=0').lobbyDwellMs).toBe(0);
+    expect(readHarnessUrlParams('?lobby=-5').lobbyDwellMs).toBeNull();
+    expect(readHarnessUrlParams('?lobby=soon').lobbyDwellMs).toBeNull();
+    expect(readHarnessUrlParams('?lobby=').lobbyDwellMs).toBeNull();
+    expect(readHarnessUrlParams('?phase4-uat=1').lobbyDwellMs).toBeNull();
+  });
+
+  it('opens straight on the board without the parameter', () => {
+    const { container } = openHarness('?phase4-uat=1&scenario=stations-2');
+    expect(container.querySelector('[data-testid="game-board"]')).not.toBeNull();
+    expect(screen.queryByText('OTB-LOBBY')).toBeNull();
+  });
+
+  it('shows the real lobby first, is not ready meanwhile, then mounts the board and marks the start just before it', async () => {
+    const marks: string[] = [];
+    Object.defineProperty(performance, 'mark', { value: vi.fn((name: string) => { marks.push(name); }), configurable: true, writable: true });
+    try {
+      const { container } = openHarness('?phase4-uat=1&scenario=stations-2&lobby=300');
+      expect(screen.getByText('OTB-LOBBY')).toBeTruthy();
+      expect(container.querySelector('[data-testid="game-board"]')).toBeNull();
+      expect(harnessMain(container).dataset.uatReady).toBe('false');
+      expect(marks).toContain('otb:uat:lobby-shown');
+      expect(marks).not.toContain('otb:uat:start');
+
+      await waitFor(() => expect(container.querySelector('[data-testid="game-board"]')).not.toBeNull(), { timeout: 5_000 });
+      expect(marks).toContain('otb:uat:start');
+      expect(screen.queryByText('OTB-LOBBY')).toBeNull();
+      await waitFor(() => expect(harnessMain(container).dataset.uatReady).toBe('true'), { timeout: 10_000 });
+    } finally {
+      Reflect.deleteProperty(performance, 'mark');
+    }
+  }, 30_000);
+
+  it('does not start the scripted scenario while the lobby is shown', async () => {
+    const marks: string[] = [];
+    Object.defineProperty(performance, 'mark', { value: vi.fn((name: string) => { marks.push(name); }), configurable: true, writable: true });
+    try {
+      openHarness('?phase4-uat=1&scenario=purchase&lobby=700');
+      await new Promise(resolve => { setTimeout(resolve, 450); });
+      expect(marks.some(name => name.startsWith('otb:uat:turn-start:'))).toBe(false);
+      await waitFor(() => expect(marks.some(name => name.startsWith('otb:uat:turn-start:'))).toBe(true), { timeout: 5_000 });
+      expect(marks.indexOf('otb:uat:start')).toBeLessThan(marks.findIndex(name => name.startsWith('otb:uat:turn-start:')));
+    } finally {
+      Reflect.deleteProperty(performance, 'mark');
+    }
   }, 30_000);
 });

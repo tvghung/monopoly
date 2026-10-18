@@ -14,6 +14,7 @@ import {
   PanelLeftClose, PanelLeftOpen, RefreshCw, SkipForward, StepForward,
 } from 'lucide-react';
 import Board from '../../components/Board';
+import Lobby from '../../components/Lobby';
 import stateContext from '../../internal';
 import { PresentationController } from '../../game/presentation/PresentationController';
 import { PresentationProvider } from '../../game/presentation/PresentationProvider';
@@ -132,6 +133,11 @@ export interface HarnessUrlParams {
   graphicsQuality: GraphicsQualitySetting;
   /** `fpsLimit=30|60|120|180|240`: sets the harness FPS cap for reproducible benchmarks. */
   fpsLimit: FpsLimitSetting;
+  /**
+   * `lobby=<ms>`: show the real, presentational `Lobby` first and mount the board from nothing after this many milliseconds, the way
+   * `App.tsx` switches from its Lobby branch to its Board branch when a room starts (08H). Null opens straight on the board.
+   */
+  lobbyDwellMs: number | null;
 }
 
 /**
@@ -151,7 +157,14 @@ export function readHarnessUrlParams(search: string): HarnessUrlParams {
     benchmarkSeconds: parseBenchmarkSeconds(params.get('benchmark')),
     graphicsQuality: parseGraphicsQuality(params.get('quality')),
     fpsLimit: parseFpsLimit(params.get('fpsLimit')),
+    lobbyDwellMs: parseLobbyDwell(params.get('lobby')),
   };
+}
+
+function parseLobbyDwell(raw: string | null): number | null {
+  if (raw === null || raw.trim() === '') return null;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
 function parseGraphicsQuality(raw: string | null): GraphicsQualitySetting {
@@ -564,7 +577,20 @@ function Phase4UatSurface() {
     const timer = window.setTimeout(() => setReadyRunId(runId), 250);
     return () => window.clearTimeout(timer);
   }, [runId, settledNow]);
-  const uatReady = settledNow && readyRunId === runId;
+  // With `lobby=<ms>` the board does not exist yet: the page is not ready for a scenario until it has been mounted.
+  const [boardShown, setBoardShown] = useState(initialParams.lobbyDwellMs === null);
+  const uatReady = boardShown && settledNow && readyRunId === runId;
+  useEffect(() => {
+    const dwell = initialParams.lobbyDwellMs;
+    if (dwell === null) return undefined;
+    performance.mark?.('otb:uat:lobby-shown');
+    const timer = window.setTimeout(() => {
+      // The start of the lobby-to-board measurement: set right before the commit that mounts the board from nothing.
+      performance.mark?.('otb:uat:start');
+      setBoardShown(true);
+    }, dwell);
+    return () => window.clearTimeout(timer);
+  }, [initialParams.lobbyDwellMs]);
 
   // Benchmark mode keeps the renderer active; only animated fixtures replay to avoid needless
   // React state reconstruction for a static board workload.
@@ -1035,12 +1061,16 @@ function Phase4UatSurface() {
 
   useEffect(() => {
     controller.acceptRoomSnapshot(roomRef.current, 'SESSION_SYNC');
+  }, [controller]);
+  useEffect(() => {
+    // The scripted scenario starts once the board is there (immediately after mount, as before, unless a lobby comes first).
+    if (!boardShown) return undefined;
     const initialKey = scenarioRef.current;
     if (!STATIC_SCENARIOS.includes(initialKey)) schedule(() => applyAnimatedScenario(initialKey), 180);
     // The renderer diagnostics events are shown by their own readout components: storing them here would re-render
     // `<Board />` after every frame burst, which invalidates a frame, which publishes again (PERF-17).
     return clearTimers;
-  }, [applyAnimatedScenario, clearTimers, controller, schedule]);
+  }, [applyAnimatedScenario, boardShown, clearTimers, schedule]);
 
   const contextValue = useMemo(() => ({
     state: room.gameState,
@@ -1157,7 +1187,34 @@ function Phase4UatSurface() {
             </output>
               <RendererMetricsReadout /></> : null}
           </aside>}
-          <Board />
+          {boardShown
+            ? <Board />
+            : (
+              <Lobby
+                roomCode="OTB-LOBBY"
+                players={room.players.filter(member => member.membershipStatus === 'ACTIVE').map(member => ({
+                  id: member.playerId,
+                  name: member.name,
+                  color: member.color,
+                  characterId: member.characterId,
+                  teamId: member.teamId,
+                  teamSlot: member.teamSlot,
+                  ready: true,
+                  connected: member.connected,
+                  kind: member.kind,
+                }))}
+                playerId={viewer.playerId ?? 'player-a'}
+                hostPlayerId={viewer.playerId ?? 'player-a'}
+                minPlayers={room.minPlayers}
+                maxPlayers={room.maxPlayers}
+                busy={false}
+                error={null}
+                onSetReady={() => {}}
+                onSetAppearance={() => {}}
+                onStart={() => {}}
+                onLeave={() => {}}
+              />
+            )}
           {initialParams.designLab ? <HudConceptLayer ready={uatReady} /> : null}
           {initialParams.benchmarkSeconds !== null ? (
             <output
