@@ -1,8 +1,8 @@
 # 08H — Phase B3 follow-up: build the board's work in the lobby (08G Task 3) — plan
 
-> **REFERENCE** — A plan, not a record: nothing below is implemented or measured except where a number is cited from
-> [08G](./08G_PHASE_B3_T5_FOLLOW_UP_PLAN.md) or [08F](./08F_PHASE_B3_IMPLEMENTATION.md) (both HISTORICAL records). It is written so that a developer or an agent that
-> reads only this file and the documents it links can execute it. Targets T1–T5 are defined in [08E §11.1](./08E_PHASE_B3_INVESTIGATION.md);
+> **REFERENCE** — A plan with an execution record: everything before [Results](#results-task-0-2026-10-18) is the plan as it was approved; Task 0 has been done and is recorded in the
+> Results section, Tasks 1 to 4 have not been started. Numbers outside Results are cited from [08G](./08G_PHASE_B3_T5_FOLLOW_UP_PLAN.md) or [08F](./08F_PHASE_B3_IMPLEMENTATION.md) (both HISTORICAL records).
+> It is written so that a developer or an agent that reads only this file and the documents it links can execute it. Targets T1–T5 are defined in [08E §11.1](./08E_PHASE_B3_INVESTIGATION.md);
 > measurement tooling is in [scripts/perf/README.md](../../scripts/perf/README.md).
 
 ## Description
@@ -169,3 +169,48 @@ alternately, 20 launches each, empty Chrome profile per launch; run pnpm perf:wa
 met and quantify the gap. Update the canonical docs and the testcase checklist with each landed task, run pnpm typecheck, lint, the client tests, build and
 validate:docs, then commit, push and update the draft PR. Do not merge.
 ```
+
+## Results (Task 0, 2026-10-18)
+
+The owner confirmed the definition: **T5-lobby = `otb:uat:start` to the first rendered board frame at or after `otb:warmup:done`; limit 1.10 × the P95 of `main` at the same dwell; reference dwell 3 s.**
+Task 0 added the harness route (`?lobby=<ms>` in `Phase4UatHarness.tsx`: the real `Lobby`, then the board mounted from nothing; the scripted scenario starts only after the board is there; marks `otb:uat:lobby-shown` and
+`otb:uat:start`, UAT-only), its unit tests and `scripts/perf/lobbyToBoard.mjs`. The three bundles were built from `main` (`dfb1e31`), PR 19 and PR 20 with the same harness change applied to each and confirmed by their contents
+(no warm-up in `main`; no baked environment in PR 19). Same machine and protocol as 08F §2: a new Chrome process and an empty profile per launch, the three bundles measured alternately, 20 launches per cell
+(10 for the warm-cache cell); [raw](./08H_evidence/).
+
+| Dwell | Bundle | T5-lobby median | P95 | Limit (1.10 × `main` P95) | Over the limit at P95 | Longest callback after the start (max) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 s | `main` | 1424 ms | 1510 | 1661 | — | 2623 ms |
+| 0 s | PR 19 | 3000 | 3093 | | +1432 | 94 |
+| 0 s | PR 20 | 1966 | 1992 | | +331 | 78 |
+| **3 s** | `main` | **985 ms** | 1014 | **1115** | — | 2463 |
+| **3 s** | PR 19 | 2520 | 2557 | | +1442 | 125 |
+| **3 s** | PR 20 | **1521** | **1555** | | **+440** | 82 |
+| 10 s | `main` | 988 | 1030 | 1133 | — | 3399 |
+| 10 s | PR 19 | 2527 | 2585 | | +1452 | 120 |
+| 10 s | PR 20 | 1514 | 1560 | | +427 | 77 |
+| 3 s, warm driver cache (10 launches) | `main` | 938 | 960 | 1056 | — | 397 |
+| 3 s, warm driver cache | PR 19 | 1562 | 1607 | | +551 | 131 |
+| 3 s, warm driver cache | PR 20 | 1389 | 1430 | | +374 | 71 |
+
+0 page errors and, for PR 19 and PR 20, 0 links after `done` in every launch of every cell.
+
+### What it shows
+
+1. **The derived estimate of the Context section was wrong in both directions.** It said about 1.3 s for `main` and 1.8 s for PR 20 at dwell 0 (gap 0.5 s); measured: 1.42 s and 1.97 s (gap +0.33 s over the limit), and at the 3 s reference **+0.44 s**. The page-boot work of
+   the harness page is not all finished when a dwell-0 board mounts: **a dwell of 3 s is 0.44 s faster than a dwell of 0 for `main` and for PR 20 alike**, so the lobby is already absorbing about 0.44 s of boot residue by itself, with no prep at all.
+2. **Dwell beyond about 3 s changes nothing** (3 s and 10 s are within 7 ms of each other for every bundle): a lobby of any realistic length gives the same T5-lobby, so what Task 1 can add is bounded by the work that is independent of the room, not by how long the lobby lasts.
+3. **At the 3 s reference PR 20 is 440 ms over the limit at P95**: the same size as the harness T5 gap (371 ms), not smaller. The lobby by itself does not close it.
+4. **The hypothesis for Task 1** (from the table of the Context section, the independent work is the chunk 57–150 ms, the probe context 70–330 ms and the texture generation, about 200–400 ms of CPU, and some of the first is already absorbed by the boot residue found in point 1) is that it can remove roughly 0.3–0.5 s:
+   **borderline against a 0.44 s gap, so Task 1 is worth trying but may not be enough alone**; the measurement after it decides.
+5. **A warm driver cache** (a second launch with the same profile) shrinks the gap only a little (+374 ms at P95) and shows what the warm-up costs a returning player: `main`'s longest callback falls from 2.4 s to 0.4 s with a warm cache, so its freeze mostly disappears
+   while PR 20's warm-up still takes about 0.6 s (its remaining work is finishing the programs and uploading textures, not compiling). **For a returning player PR 20 buys frames of at most 71 ms instead of 397 ms for about 0.45 s of extra waiting.** This is a product trade-off
+   the owner should see; it is not addressed by this plan. A possible follow-up (not started): skip the hold when the first programs are ready at once, because then there was nothing to wait for.
+6. **The lobby already has an 80 ms long task of its own** (the largest long task while the lobby is shown is 77–88 ms in all three bundles, with nothing of the board running), so the Task 1 jank budget of 50 ms per slice must be read against this floor:
+   the lobby jank check should compare the prep's bundle with `main` at the same dwell, not with zero.
+
+### Consequences for the plan
+
+- Task 1 stays as written, with two changes: its acceptance compares T5-lobby at dwell 3 s and 10 s against PR 20's **1521 and 1514 ms** (needs −0.2 s at least, −0.44 s to meet the limit), and the lobby jank check compares against the 80 ms floor.
+- Task 2's gate: Task 1 meeting the limit (1115 ms at P95 at 3 s) ends the work with PASS for the lobby definition; anything above leaves the choice of Task 3 or an amended T5 to the owner.
+- The harness T5 (+371 ms) and T5-lobby (+440 ms at 3 s) are reported together from here on.

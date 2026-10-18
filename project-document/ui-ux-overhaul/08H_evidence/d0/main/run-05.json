@@ -1,0 +1,22 @@
+{
+  "run": 5,
+  "dwellMs": 0,
+  "warmCache": false,
+  "dist": "dist-lob-main",
+  "lobbyShown": 648.1999999992549,
+  "start": 655.7999999988824,
+  "warmupStart": null,
+  "warmupDone": null,
+  "turnStart": 1015.0999999996275,
+  "firstFrame": 2064.39999999851,
+  "t5Lobby": 1408.5999999996275,
+  "warmupMs": null,
+  "longestCallbackMs": 2493.199999999255,
+  "linksAfterDone": null,
+  "linksTotal": 50,
+  "lobbyMaxLongTaskMs": 0,
+  "lobbyMaxLongFrameMs": 0,
+  "startMaxLongTaskMs": 2497,
+  "errors": [],
+  "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009A60) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+}

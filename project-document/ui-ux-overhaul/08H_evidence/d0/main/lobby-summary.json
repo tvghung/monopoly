@@ -1,0 +1,85 @@
+{
+  "runs": 20,
+  "dwellMs": 0,
+  "warmCache": false,
+  "glRenderer": [
+    "ANGLE (Intel, Intel(R) UHD Graphics (0x00009A60) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+  ],
+  "t5LobbyMs": {
+    "count": 20,
+    "min": 1405.7000000011176,
+    "mean": 1436.6650000001305,
+    "median": 1423.5999999996275,
+    "p95": 1509.699999999255,
+    "p99": 1512.800000000745,
+    "max": 1512.800000000745
+  },
+  "warmupMs": {
+    "count": 0,
+    "min": null,
+    "mean": null,
+    "median": null,
+    "p95": null,
+    "p99": null,
+    "max": null
+  },
+  "longestCallbackMs": {
+    "count": 20,
+    "min": 2419.9000000003725,
+    "mean": 2503.989999999851,
+    "median": 2503.5999999996275,
+    "p95": 2543.699999999255,
+    "p99": 2623,
+    "max": 2623
+  },
+  "startMaxLongTaskMs": {
+    "count": 20,
+    "min": 2426,
+    "mean": 2507.8,
+    "median": 2507,
+    "p95": 2547,
+    "p99": 2626,
+    "max": 2626
+  },
+  "lobbyMaxLongTaskMs": {
+    "count": 20,
+    "min": 0,
+    "mean": 0,
+    "median": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+  },
+  "lobbyMaxLongFrameMs": {
+    "count": 20,
+    "min": 0,
+    "mean": 0,
+    "median": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+  },
+  "linksAfterDone": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ],
+  "pageErrors": 0
+}
