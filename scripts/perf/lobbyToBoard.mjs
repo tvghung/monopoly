@@ -14,6 +14,7 @@
  */
 import { chromium } from '@playwright/test';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { describe } from './metrics.mjs';
@@ -23,7 +24,7 @@ const probe = readFileSync(new URL('./probe-init.js', import.meta.url), 'utf8');
 const sleep = ms => new Promise(resolve => { setTimeout(resolve, ms); });
 
 function parse(argv) {
-  const options = { command: argv[0], dist: null, out: null, dwell: 3000, runs: 20, from: 1, port: 4175, warmCache: false, scenario: 'walk' };
+  const options = { command: argv[0], dist: null, out: null, dwell: 3000, runs: 20, from: 1, port: 4175, warmCache: false, scenario: 'walk', persist: null, memory: false };
   for (let index = 1; index < argv.length; index += 1) {
     const flag = argv[index];
     if (flag === '--dist') options.dist = path.resolve(argv[++index]);
@@ -34,10 +35,37 @@ function parse(argv) {
     else if (flag === '--port') options.port = Number(argv[++index]);
     else if (flag === '--scenario') options.scenario = argv[++index];
     else if (flag === '--warm-cache') options.warmCache = true;
+    else if (flag === '--persist') options.persist = argv[++index];
+    else if (flag === '--memory') options.memory = true;
     else throw new Error(`Unknown option ${flag}`);
   }
   if (!options.out) throw new Error('--out is required');
   return options;
+}
+
+/**
+ * Private memory (MB) of the Chrome processes that belong to this profile, by process type, read from the operating system (Windows).
+ * The GPU process is where a WebGL context's textures and buffers live; the renderer process is the page (JS heap, canvases).
+ */
+function processMemory(profile) {
+  const script = "$p = '" + profile.replace(/'/g, "''") + "'; Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | Where-Object { $_.CommandLine -like ('*' + $p + '*') } | ForEach-Object { $t = 'browser'; if ($_.CommandLine -match '--type=([a-z-]+)') { $t = $Matches[1] }; $proc = Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue; if ($proc) { '{0} {1}' -f $t, $proc.PrivateMemorySize64 } }";
+  const out = spawnSync('powershell', ['-NoProfile', '-Command', script], { encoding: 'utf8' }).stdout ?? '';
+  const byType = {};
+  for (const line of out.split(/\r?\n/)) {
+    const [type, bytes] = line.trim().split(' ');
+    if (type && bytes) byType[type] = (byType[type] ?? 0) + Number(bytes) / 1048576;
+  }
+  return byType;
+}
+
+async function sampleMemory(context, page, profile) {
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('HeapProfiler.collectGarbage');
+  await cdp.send('HeapProfiler.collectGarbage');
+  const heap = (await cdp.send('Runtime.getHeapUsage')).usedSize / 1048576;
+  const resources = await page.evaluate(() => window.__PROBE__.resources());
+  await cdp.detach();
+  return { heapMB: heap, resources, processMB: processMemory(profile) };
 }
 
 async function launchOnce(options, profile) {
@@ -53,18 +81,29 @@ async function launchOnce(options, profile) {
     page.on('pageerror', error => errors.push(error.message));
     const query = new URLSearchParams({
       'phase4-uat': '1', scenario: options.scenario, quality: 'balanced', fpsLimit: '60', lobby: String(options.dwell),
+      ...(options.persist ? { persist: options.persist } : {}),
     });
     await page.goto(`http://127.0.0.1:${options.port}/?${query}`);
     await page.evaluate(() => window.__PROBE__.setReplay(null));
+    let memory = null;
+    if (options.memory) {
+      // In the lobby, 1.5 s before the board is mounted: whatever the lobby keeps alive is there by now.
+      await page.waitForFunction(() => performance.getEntriesByName('otb:uat:lobby-shown').length > 0, undefined, { timeout: 60_000 });
+      await sleep(Math.max(0, options.dwell - 2_000));
+      memory = { lobby: await sampleMemory(context, page, profile) };
+    }
     await page.waitForSelector('main.phase4-uat[data-uat-ready="true"]', { state: 'attached', timeout: 180_000 });
     await sleep(2_500);
+    if (memory) memory.board = await sampleMemory(context, page, profile);
+    // A late sample, to tell memory that settles from memory that stays.
+    if (memory) { await sleep(10_000); memory.late = await sampleMemory(context, page, profile); }
     await page.evaluate(() => window.__PROBE__.attachMain());
     await page.evaluate(async () => {
       for (let index = 0; index < 8; index += 1) { window.__PROBE__.pollGpu(); await new Promise(resolve => { setTimeout(resolve, 40); }); }
     });
     const batch = await page.evaluate(() => window.__PROBE__.drain());
     const glRenderer = await page.evaluate(() => window.__PROBE__.glRenderer ?? null);
-    return { batch, errors, glRenderer };
+    return { batch, errors, glRenderer, memory };
   } finally {
     await context.close();
   }
@@ -76,6 +115,7 @@ function analyse(batch) {
   const start = mark('otb:uat:start');
   const done = mark('otb:warmup:done');
   const warmupStart = mark('otb:warmup:start');
+  const revealed = mark('otb:uat:revealed');
   const prewarmFirst = mark('otb:scene:prewarm-first');
   const prewarmDone = mark('otb:scene:prewarm-done');
   const turnStart = batch.marks.filter(entry => entry.name.startsWith('otb:uat:turn-start:')).sort((a, b) => a.t - b.t)[0]?.t ?? null;
@@ -93,6 +133,9 @@ function analyse(batch) {
     warmupDone: done,
     turnStart,
     firstFrame,
+    revealed,
+    // Spike designs (08H Task 3): the board is visible two frames after the commit that revealed or mounted it.
+    t5Reveal: start !== null && revealed !== null ? revealed - start : null,
     t5Lobby: start !== null && firstFrame !== null ? firstFrame - start : null,
     warmupMs: warmupStart !== null && done !== null ? done - warmupStart : null,
     // The longest callback and rAF gap of the board's frames from the start on (the T1 reading for this route).
@@ -113,8 +156,8 @@ async function oneRun(options) {
     rmSync(profile, { recursive: true, force: true });
     // A warm driver cache: one launch to fill it (discarded), the measured launch reuses the same profile.
     if (options.warmCache) await launchOnce(options, profile);
-    const { batch, errors, glRenderer } = await launchOnce(options, profile);
-    return { ...analyse(batch), errors, glRenderer };
+    const { batch, errors, glRenderer, memory } = await launchOnce(options, profile);
+    return { ...analyse(batch), errors, glRenderer, memory };
   } finally {
     rmSync(profile, { recursive: true, force: true });
     server.close();
@@ -134,6 +177,7 @@ function summarize(rows) {
     warmCache: rows[0]?.warmCache ?? false,
     glRenderer: [...new Set(rows.map(row => row.glRenderer))],
     t5LobbyMs: spread('t5Lobby'),
+    t5RevealMs: spread('t5Reveal'),
     warmupMs: spread('warmupMs'),
     longestCallbackMs: spread('longestCallbackMs'),
     startMaxLongTaskMs: spread('startMaxLongTaskMs'),

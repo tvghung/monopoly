@@ -1,5 +1,5 @@
 import {
-  useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore,
+  useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode,
 } from 'react';
 import {
   REVIVE_WINDOW_SURVIVOR_TURNS,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Board from '../../components/Board';
 import Lobby from '../../components/Lobby';
+import SceneLayer from '../../components/sceneLayer/SceneLayer';
 import stateContext from '../../internal';
 import { PresentationController } from '../../game/presentation/PresentationController';
 import { PresentationProvider } from '../../game/presentation/PresentationProvider';
@@ -138,6 +139,8 @@ export interface HarnessUrlParams {
    * `App.tsx` switches from its Lobby branch to its Board branch when a room starts (08H). Null opens straight on the board.
    */
   lobbyDwellMs: number | null;
+  /** `persist=layer` (with `lobby`): the page is wrapped in the real persistent `SceneLayer`, as `App.tsx` is (08H Task 3). */
+  sceneLayer: boolean;
 }
 
 /**
@@ -158,6 +161,7 @@ export function readHarnessUrlParams(search: string): HarnessUrlParams {
     graphicsQuality: parseGraphicsQuality(params.get('quality')),
     fpsLimit: parseFpsLimit(params.get('fpsLimit')),
     lobbyDwellMs: parseLobbyDwell(params.get('lobby')),
+    sceneLayer: params.get('persist') === 'layer',
   };
 }
 
@@ -527,6 +531,11 @@ function HudConceptLayer({ ready }: { ready: boolean }) {
   return <HudConcept ready={ready} />;
 }
 
+/** The persistent scene layer around the page, only when asked for (`persist=layer`). */
+function LayerIf({ enabled, boardShown, children }: { enabled: boolean; boardShown: boolean; children: ReactNode }) {
+  return enabled ? <SceneLayer phase={boardShown ? 'GAME' : 'LOBBY'} roomKey="OTB-LOBBY">{children}</SceneLayer> : <>{children}</>;
+}
+
 function Phase4UatSurface() {
   const [controller] = useState(() => new PresentationController());
   const subscribeToPresentation = useMemo(
@@ -591,6 +600,15 @@ function Phase4UatSurface() {
     }, dwell);
     return () => window.clearTimeout(timer);
   }, [initialParams.lobbyDwellMs]);
+  // Mark of the moment the board became visible (two frames after the commit that mounted or revealed it).
+  useEffect(() => {
+    if (!boardShown || initialParams.lobbyDwellMs === null) return undefined;
+    let second = 0;
+    const first = window.requestAnimationFrame(() => {
+      second = window.requestAnimationFrame(() => performance.mark?.('otb:uat:revealed'));
+    });
+    return () => { window.cancelAnimationFrame(first); window.cancelAnimationFrame(second); };
+  }, [boardShown, initialParams.lobbyDwellMs]);
 
   // Benchmark mode keeps the renderer active; only animated fixtures replay to avoid needless
   // React state reconstruction for a static board workload.
@@ -1087,6 +1105,7 @@ function Phase4UatSurface() {
   return (
     <PresentationProvider controller={controller}>
       <stateContext.Provider value={contextValue}>
+        <LayerIf enabled={initialParams.sceneLayer} boardShown={boardShown}>
         <main
           className={`phase4-uat${initialParams.designLab ? ' phase4-uat--lab-hud' : ''}`}
           data-scenario={scenario}
@@ -1229,6 +1248,7 @@ function Phase4UatSurface() {
           ) : null}
           </main>
           <CardInteractionOverlay />
+        </LayerIf>
       </stateContext.Provider>
     </PresentationProvider>
   );

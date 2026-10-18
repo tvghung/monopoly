@@ -1,7 +1,7 @@
 # 08H — Phase B3 follow-up: build the board's work in the lobby (08G Task 3) — plan
 
 > **REFERENCE** — A plan with an execution record: everything before [Results](#results-task-0-2026-10-18) is the plan as it was approved; Task 0 and Task 1 have been done and are recorded in the
-> Results sections (Task 1 was measured and **not adopted**: it misses the 0.2 s threshold at the 3 s reference dwell; its code is kept on branch `perf/phase-b3-lobby-prewarm-task1`), the owner then authorised Task 3 (2026-10-18); its design note and spike are in [Results (Task 3 spike)](#results-task-3-design-note-and-spike-2026-10-18), which stops at approval gate 3. Task 4 has not been started. Numbers outside Results are cited from [08G](./08G_PHASE_B3_T5_FOLLOW_UP_PLAN.md) or [08F](./08F_PHASE_B3_IMPLEMENTATION.md) (both HISTORICAL records).
+> Results sections (Task 1 was measured and **not adopted**: it misses the 0.2 s threshold at the 3 s reference dwell; its code is kept on branch `perf/phase-b3-lobby-prewarm-task1`), the owner then authorised Task 3 (2026-10-18); its design note and spike are in [Results (Task 3 spike)](#results-task-3-design-note-and-spike-2026-10-18), which stops at approval gate 3. The owner then chose **A1** and approved the lobby memory (2026-10-18); it is implemented and recorded in [Results (Task 3 production, A1)](#results-task-3-production-a1-2026-10-18). Task 4 (the real server path) has not been started. Numbers outside Results are cited from [08G](./08G_PHASE_B3_T5_FOLLOW_UP_PLAN.md) or [08F](./08F_PHASE_B3_IMPLEMENTATION.md) (both HISTORICAL records).
 > It is written so that a developer or an agent that reads only this file and the documents it links can execute it. Targets T1–T5 are defined in [08E §11.1](./08E_PHASE_B3_INVESTIGATION.md);
 > measurement tooling is in [scripts/perf/README.md](../../scripts/perf/README.md).
 
@@ -332,3 +332,66 @@ Dwell 0; T1, T2 and T4 (the harness spike is the upper bound, not the product); 
 1. **A1, A2 or neither.** Recommended: A1.
 2. **The memory figure**: +256 MB GPU process memory and +8 MB JS heap during the lobby (A1), equal to the board's own in-game figures; or +117 MB peak during the game (A2, before an explicit release).
 3. **The lobby budget** for the mount: a deferred, unsliceable freeze of about 0.73 s (context 0.43 s plus the React build). Recommended: defer to lobby idle and accept it.
+
+## Results (Task 3 production, A1, 2026-10-18)
+
+The owner chose **A1** and approved the memory figure (+256 MB GPU process memory and +8 MB JS heap while a lobby is open) with the mount deferred to lobby idle time. This section records what was built and measured on PR 20's branch.
+
+### What was built
+
+- **`components/sceneLayer/`** (new). `SceneLayerController` owns one invisible host element for the scene, one hover store and a small external store (is a board's slot attached, the selection, a reveal token, a renderer failure); `SceneLayer` (provider, in `App.tsx` around `<main>` and the card overlay, under the state, presentation and settings providers)
+  renders the scene into the host with a portal and keeps the host in an invisible, `inert`, `aria-hidden`, window-sized parking element (`visibility:hidden`) while no board holds it; `LayerSlot` (rendered by `Board`) takes the host into the board's slot in a layout effect, tells the layer what the board owns (selection, callbacks)
+  and gives the host back when the board unmounts. Moving an element does not remount what is inside it: **one scene, one WebGL context and one set of warmed programs for the whole room session** (lobby, game, the next lobby after play again, the next game).
+- **When the scene is built.** A player in a lobby builds it **deferred** (`sceneEarlyMount.ts`): 1.5 s after the lobby appears, then at browser idle (timeout 4 s), on a visible tab, never on the low tier (it plays as before), never with data saving on, never without WebGL. A board shown earlier (a game that starts quickly, a spectator, a reconnect into a started room, a direct launch) mounts the scene itself at once. Once built the scene stays until the room ends.
+- **Reveal.** The slot takes the host and `GameScene` gets a new `revealToken` that draws one frame (`RevealFrame`), so the first board frame is drawn at the click and not at the next state change.
+- **Failure.** A renderer failure (context lost, render error) while the layer owns the scene drops the scene, tells the bound board to switch to the legacy board, and is remembered, so a board that mounts next starts on the legacy board; leaving the room forgets it.
+- **Standalone boards are unchanged.** Without a `SceneLayer` above it (tests, the design lab, the UAT pages) `Board` renders `BoardRenderSurface` itself exactly as before; `Board.renderIsolation.test.tsx` and `GameScene.contextIsolation.test.tsx` are untouched and pass. `BoardRenderSurface` now exports `useBoardRenderModel` and the lazy scene so the layer builds the same model from the same inputs.
+- **Tooling.** The UAT lobby route takes `persist=layer` (the page is wrapped in the real `SceneLayer`); `lobbyToBoard.mjs` gained `--persist`, `--memory` (JS heap after GC, renderer counts, private memory of the GPU and renderer processes on Windows, in the lobby, 2.5 s after the board is shown and 12.5 s after) and `t5Reveal`; `lobbyVisualCompare.mjs` compares the board reached through the lobby with and without the layer pixel by pixel.
+
+### Measurement
+
+Same machine and protocol: unminified UAT bundles from the PR 20 head (before) and from this change (after), a new Chrome process and an empty profile per launch, alternately, 20 launches per cell (10 at 5 s). T5-lobby = `otb:uat:start` to the first rendered board frame at or after `otb:warmup:done`; [raw](./08H_evidence/task3-layer/).
+
+| Dwell | Bundle | T5-lobby median | P95 | max | Limit (1.10 × `main` P95) | Longest callback after the start (max) | Lobby long task (max) | Launches with the warm-up not done at the click |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 3 s | PR 20 | 1500 ms | 1527 | 1531 | 1115 | 75 ms | 87 ms | — |
+| 3 s | **A1 layer** | **67 ms** | 451 | 642 | within | 314 | 398 | 7 of 20 (T5 375–642 ms) |
+| 5 s | PR 20 | 1499 | 1784 | 1784 | 1115 | 84 | 78 | — |
+| 5 s | **A1 layer** | **69** | 75 | 75 | within | 9 | 361 | 0 of 10 |
+| 10 s | PR 20 | 1495 | 1526 | 1527 | 1133 | 75 | 83 | — |
+| 10 s | **A1 layer** | **69** | 314 | 321 | within | 15 | 406 | 0 of 20 |
+
+0 page errors in all 100 launches; 0 program links after `done` in every launch of every cell.
+
+- **At the 3 s reference dwell the median is 67 ms against a limit of 1115 ms, and the worst of 20 launches is 642 ms.** At 3 s the scene is not always finished at the click: the deferral (1.5 s) plus the mount (about 0.75 s) plus the warm-up (about 0.8 s) end about 3.65 s after the page started, which is the click time of this harness; in 7 of 20 launches the click came a little before the warm-up was done and
+  the board waited for it (375–642 ms, still within the limit). From about 5 s on every launch had it ready. A real lobby is longer than 3 s (the players choose characters and ready up); a shorter deferral would move the 3 s cell but costs the lobby the freeze earlier, and was not tried.
+- **Two launches at 10 s took 314–321 ms** although the warm-up had been done for 7 s: a 190 ms long task right after the click (the board's own React tree mounting around the scene) delayed the frame; the board was visible (`t5Reveal` 62–65 ms) at the same moment as in the other launches. Not investigated further.
+- **The lobby freezes for 0.36–0.41 s once** (long task 361–406 ms against 78–87 ms), at the deferred mount, not the 0.73 s of the spike (the chunk is already loaded, the page has finished booting and the mount is no longer competing with the lobby's own start-up).
+
+### Memory (dwell 10 s, medians; GPU and renderer are private memory of the Chrome processes, read from Windows)
+
+| | JS heap | GPU process | Renderer process |
+| --- | --- | --- | --- |
+| Lobby alone (PR 20, 6 launches) | 7.0 MB | 185 MB | 131 MB |
+| **Lobby with the scene built (A1, 6 launches)** | 14.4 MB (**+7.4**) | 441 MB (**+256**) | 187 MB (+56) |
+| Board just shown (2.5 s after ready), PR 20 (10 launches) | 17.4 MB | 470–509 MB | 211–214 MB |
+| Board just shown, A1 (10 launches) | 17.6 MB | 513–571 MB | 200–208 MB |
+| Board 12.5 s after ready, PR 20 (4 launches) | — | **432–442 MB** | 210–212 MB |
+| Board 12.5 s after ready, A1 (4 launches) | — | **438–456 MB (about +9)** | 194–202 MB (about −13) |
+
+The lobby's footprint is the in-game footprint brought forward, as approved. **The in-game steady state is the same** (GPU +9 MB, renderer −13 MB against PR 20). **Just after the reveal A1 is 30–70 MB above PR 20 in the GPU process**: the canvas is resized from the window-sized parking element to its slot and the old buffers are released in the seconds that follow (gone by 12.5 s); the spike
+that showed no such difference kept the board in place. A player who leaves the lobby without starting pays +256 MB for nothing until the room ends, and the scene is built only once the lobby has been open 1.5 s and the browser is idle.
+
+### Equivalence and regression checks
+
+- **Pixels:** `lobbyVisualCompare.mjs`, `board-readability` settled scene reached through the lobby route, with and without the layer: **identical at Balanced, High and Low** (`08H_evidence/task3-layer/visual-report.json`).
+- **`pnpm perf:warmup-check` on the new bundle: 32 of 32** (links after `done` 0 everywhere; worst callback after `done` 177 ms, the limit is 300 ms). `perf:lifecycle-check --expect-persistent`: all checks passed (that route has no layer; the layer's failure and reveal behavior is covered by unit tests).
+- **Tests:** the whole client suite passes (261 files, 2578 tests), including 33 new tests: `SceneLayerController.test.ts` (host moves, reveal tokens, stale releases, hover cleared, selection forwarding, failure), `sceneEarlyMount.test.ts` (delay, idle, save data, hidden tab, cancel), `SceneLayer.test.tsx` (nothing built before the deferral, parked scene invisible and inert, gating, the same element moved lobby → game → lobby → game with one mount,
+  dropped with the room, reveal token per attach, one scene on the page, failure in a lobby and in a game, a forgotten failure for the next room, no extra scene renders for hover, volume, a presentation tick, stable callbacks, selection both ways) and a lobby-state model test.
+- **Typecheck, lint, `validate:docs`:** see the commit; **client build:** see the commit.
+
+### Not done / not measured
+
+- **Task 4 (the real path):** a real server and PostgreSQL, Start click to first board frame on `main` and on this bundle, 10 launches each. Everything above is the UAT harness's lobby route, which fakes the lobby; the layer is the real `SceneLayer` and `Board`.
+- Dwell 0 (the board is shown before the deferral: it behaves as PR 20, not measured); a warm driver cache; a low-end device and the original baseline machine; the packaged Electron app; a game that is left mid-way and restarted (play again) on the real server; screen reader and keyboard walk-through of the lobby with a scene parked; the lobby freeze felt by a person (0.36–0.41 s, once).
+- The T5 of the original (harness) definition is unchanged (+371 ms at P95 over its limit, PARTIAL): this change does not touch the path of a board mounted without a lobby.

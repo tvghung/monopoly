@@ -1,0 +1,21 @@
+/* Where the persistent scene waits while no board is shown (the lobby): window-sized so the canvas has the size it will have, invisible,
+   out of the tab order and the accessibility tree (the element is also `inert`), and behind everything. */
+.scene-parking {
+  position: fixed;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* The scene's element, in the parking element or in a board's slot: it fills whichever positioned box holds it. */
+.scene-host {
+  position: absolute;
+  inset: 0;
+}
+
+/* The board's slot for it, first in the renderer section so the HUD stays above the scene as before. */
+.scene-slot {
+  position: absolute;
+  inset: 0;
+}

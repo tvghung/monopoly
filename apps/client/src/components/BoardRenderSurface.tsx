@@ -26,7 +26,7 @@ import type { RendererMode } from './rendererMode';
 import { useTranslation } from '../i18n/I18n';
 import { markSceneOnce } from '../game/scene/render/warmup/sceneMarks';
 
-const GameScene = lazy(() => {
+export const GameScene = lazy(() => {
   markSceneOnce('chunk-request');
   return import('../game/scene/GameScene').then(module => {
     markSceneOnce('chunk-loaded');
@@ -48,6 +48,23 @@ function useSharedRenderModel(next: BoardRenderModel): BoardRenderModel {
     committedRef.current = model;
   }, [model]);
   return model;
+}
+
+/**
+ * The model the scene draws, built from the room state and the slice of the presentation state the scene shows. Shared by the board's
+ * own surface and by the persistent scene layer (08H Task 3), so both build the same model from the same inputs.
+ */
+export function useBoardRenderModel(): BoardRenderModel {
+  const { language } = useTranslation();
+  const {
+    state, roomPlayers, playerId, role,
+  } = useContext(stateContext);
+  const presentation = usePresentationSelector(selectScenePresentation, sameScenePresentation);
+  const builtModel = useMemo(
+    () => buildBoardRenderModel(state, presentation, roomPlayers, playerId, role, language),
+    [language, playerId, presentation, role, roomPlayers, state],
+  );
+  return useSharedRenderModel(builtModel);
 }
 
 /**
@@ -81,16 +98,8 @@ function BoardRenderSurface({
   onTileSelect,
   onRendererFailure,
 }: BoardRenderSurfaceProps) {
-  const { t, language } = useTranslation();
-  const {
-    state, roomPlayers, playerId, role,
-  } = useContext(stateContext);
-  const presentation = usePresentationSelector(selectScenePresentation, sameScenePresentation);
-  const builtModel = useMemo(
-    () => buildBoardRenderModel(state, presentation, roomPlayers, playerId, role, language),
-    [language, playerId, presentation, role, roomPlayers, state],
-  );
-  const model = useSharedRenderModel(builtModel);
+  const { t } = useTranslation();
+  const model = useBoardRenderModel();
 
   const legacyBoard = (
     <LegacyPositions>

@@ -1,0 +1,38 @@
+[
+  {
+    "tier": "balanced",
+    "comparable": true,
+    "identical": true,
+    "width": 1280,
+    "height": 720,
+    "totalPixels": 921600,
+    "differingPixels": 0,
+    "differingRatio": 0,
+    "maxChannelDelta": 0,
+    "meanAbsDelta": 0
+  },
+  {
+    "tier": "high",
+    "comparable": true,
+    "identical": true,
+    "width": 1280,
+    "height": 720,
+    "totalPixels": 921600,
+    "differingPixels": 0,
+    "differingRatio": 0,
+    "maxChannelDelta": 0,
+    "meanAbsDelta": 0
+  },
+  {
+    "tier": "low",
+    "comparable": true,
+    "identical": true,
+    "width": 1280,
+    "height": 720,
+    "totalPixels": 921600,
+    "differingPixels": 0,
+    "differingRatio": 0,
+    "maxChannelDelta": 0,
+    "meanAbsDelta": 0
+  }
+]
