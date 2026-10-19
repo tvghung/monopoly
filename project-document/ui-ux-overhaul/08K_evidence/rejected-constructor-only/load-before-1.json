@@ -1,0 +1,61 @@
+{
+ "runs": 1,
+ "medians": {
+  "mounted": 620.2000000476837,
+  "chunkRequest": 382.2999999523163,
+  "chunkLoaded": 437.7000000476837,
+  "gameSceneRender": 441.40000009536743,
+  "board3dRender": 1212.2999999523163,
+  "throwawayContext": 321.10000014305115,
+  "contextCount": 3,
+  "contextCreated": 1042.9000000953674,
+  "canvasCreated": 1363.2000000476837,
+  "board3dMounted": 1409.2999999523163,
+  "envStart": 1402.1000001430511,
+  "earlyCompileStart": null,
+  "earlyCompileEnd": null,
+  "firstPmremLink": null,
+  "envEnd": 1455,
+  "warmupStart": 1414.2000000476837,
+  "warmupDone": 2171.4000000953674,
+  "firstFrame": 2174.2999999523163,
+  "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+ },
+ "steps": {
+  "mounted -> chunk-request": -237.90000009536743,
+  "chunk-request -> chunk-loaded (fetch + parse + evaluate)": 55.40000009536743,
+  "chunk-loaded -> game-scene-render": 3.700000047683716,
+  "game-scene-render -> WebGL context created (Canvas measure + context)": 601.5,
+  "context created -> board3d-render (renderer setup)": 169.39999985694885,
+  "board3d-render -> canvas-created (React build of the scene, commit)": 150.90000009536743,
+  "canvas-created -> env-start": 38.90000009536743,
+  "env-start -> env-end (studio PMREM, blocking)": 52.89999985694885,
+  "env-end -> warmup-start": -40.799999952316284,
+  "warmup-start -> warmup-done": 757.2000000476837,
+  "mounted -> warmup-start": 794,
+  "navigation -> first frame at or after done": 2174.2999999523163
+ },
+ "rows": [
+  {
+   "mounted": 620.2000000476837,
+   "chunkRequest": 382.2999999523163,
+   "chunkLoaded": 437.7000000476837,
+   "gameSceneRender": 441.40000009536743,
+   "board3dRender": 1212.2999999523163,
+   "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "throwawayContext": 321.10000014305115,
+   "contextCount": 3,
+   "contextCreated": 1042.9000000953674,
+   "canvasCreated": 1363.2000000476837,
+   "board3dMounted": 1409.2999999523163,
+   "envStart": 1402.1000001430511,
+   "earlyCompileStart": null,
+   "earlyCompileEnd": null,
+   "firstPmremLink": null,
+   "envEnd": 1455,
+   "warmupStart": 1414.2000000476837,
+   "warmupDone": 2171.4000000953674,
+   "firstFrame": 2174.2999999523163
+  }
+ ]
+}

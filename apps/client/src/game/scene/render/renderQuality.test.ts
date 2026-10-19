@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   GRAPHICS_QUALITY_SETTINGS,
   RENDER_QUALITY_CONFIGS,
   probeRenderCapabilities,
+  resolveConfiguredRenderTier,
   resolveAutoTier,
   resolveRenderQuality,
   resolveRenderTier,
@@ -42,6 +43,16 @@ describe('explicit settings', () => {
   it.each(['high', 'balanced', 'low'] as const)('%s wins over the device probe', setting => {
     expect(resolveRenderTier(setting, { ...desktop, hardwareConcurrency: 2 })).toBe(setting);
     expect(resolveRenderQuality(setting, desktop)).toBe(RENDER_QUALITY_CONFIGS[setting]);
+  });
+
+  it('does not call the GPU probe for explicit settings, including default Balanced', () => {
+    const getProbe = vi.fn(() => desktop);
+    expect(resolveConfiguredRenderTier('balanced', getProbe)).toBe('balanced');
+    expect(resolveConfiguredRenderTier('low', getProbe)).toBe('low');
+    expect(resolveConfiguredRenderTier('high', getProbe)).toBe('high');
+    expect(getProbe).not.toHaveBeenCalled();
+    expect(resolveConfiguredRenderTier('auto', getProbe)).toBe('balanced');
+    expect(getProbe).toHaveBeenCalledTimes(1);
   });
 
   it('falls back to balanced for invalid values even on a weak device', () => {

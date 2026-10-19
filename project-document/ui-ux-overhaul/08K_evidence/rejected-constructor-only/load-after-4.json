@@ -1,0 +1,61 @@
+{
+ "runs": 1,
+ "medians": {
+  "mounted": 603,
+  "chunkRequest": 269,
+  "chunkLoaded": 325.59999990463257,
+  "gameSceneRender": 330.2000000476837,
+  "board3dRender": 1182.2999999523163,
+  "throwawayContext": null,
+  "contextCount": 2,
+  "contextCreated": 1015.2999999523163,
+  "canvasCreated": 1333.7000000476837,
+  "board3dMounted": 1379.5,
+  "envStart": 1372.0999999046326,
+  "earlyCompileStart": null,
+  "earlyCompileEnd": null,
+  "firstPmremLink": null,
+  "envEnd": 1423.5999999046326,
+  "warmupStart": 1382.7000000476837,
+  "warmupDone": 2075,
+  "firstFrame": 2089.0999999046326,
+  "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+ },
+ "steps": {
+  "mounted -> chunk-request": -334,
+  "chunk-request -> chunk-loaded (fetch + parse + evaluate)": 56.59999990463257,
+  "chunk-loaded -> game-scene-render": 4.6000001430511475,
+  "game-scene-render -> WebGL context created (Canvas measure + context)": 685.0999999046326,
+  "context created -> board3d-render (renderer setup)": 167,
+  "board3d-render -> canvas-created (React build of the scene, commit)": 151.40000009536743,
+  "canvas-created -> env-start": 38.39999985694885,
+  "env-start -> env-end (studio PMREM, blocking)": 51.5,
+  "env-end -> warmup-start": -40.89999985694885,
+  "warmup-start -> warmup-done": 692.2999999523163,
+  "mounted -> warmup-start": 779.7000000476837,
+  "navigation -> first frame at or after done": 2089.0999999046326
+ },
+ "rows": [
+  {
+   "mounted": 603,
+   "chunkRequest": 269,
+   "chunkLoaded": 325.59999990463257,
+   "gameSceneRender": 330.2000000476837,
+   "board3dRender": 1182.2999999523163,
+   "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "throwawayContext": null,
+   "contextCount": 2,
+   "contextCreated": 1015.2999999523163,
+   "canvasCreated": 1333.7000000476837,
+   "board3dMounted": 1379.5,
+   "envStart": 1372.0999999046326,
+   "earlyCompileStart": null,
+   "earlyCompileEnd": null,
+   "firstPmremLink": null,
+   "envEnd": 1423.5999999046326,
+   "warmupStart": 1382.7000000476837,
+   "warmupDone": 2075,
+   "firstFrame": 2089.0999999046326
+  }
+ ]
+}

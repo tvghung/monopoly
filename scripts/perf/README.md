@@ -18,6 +18,7 @@ game: the probe is injected from outside and the harness is a development/UAT bu
 | `lifecycleCheck.mjs` | Structural GPU-resource ownership check in a real browser: inspects the live three.js scene during dice rolls, walks with the destination preview and construction bursts, switches tiers live and forces a WebGL context loss; `--expect-persistent` asserts one material per shared effect for the whole session; works on a bundle (`--dist`) or a running dev server (`--base-url`, React StrictMode) |
 | `signatures.mjs`, `soakSeries.mjs`, `b3Baseline.mjs` | Phase B3 gate (08D/08E): first-use shader program signatures (probe v3), classification of every link (initial / new variant / repeat link / context reset / renderer recreation), a fixed-count soak series and a cold-profile first-turn baseline; unit tested by `signatures.check.mjs` |
 | `warmupCheck.mjs` | Phase B3 regression check (08F): cold launches of the scripted scenarios and a live tier-switch sequence; fails when `otb:warmup:start`/`done` are missing or out of order, when any program is linked after `otb:warmup:done`, when a callback after it exceeds 300 ms, or on a page error |
+| `launcherStartup.mjs` | B7 desktop launcher cold/warm navigation with a synthetic idle bridge and an optional click-to-form measurement; fresh headed Chrome profiles, long tasks and initial JS transfer. It does not measure packaged Electron IPC. |
 | `loadDecomposition.mjs`, `coldProfile.mjs` | Phase B3 follow-up (08G): where a cold launch spends the time before the first frame: medians of the load marks (`otb:scene:*`, `otb:warmup:*`, the board's WebGL context, the first PMREM link) over N fresh-profile launches, and a V8 CPU profile ranked by self time inside a window of the load |
 | `lobbyToBoard.mjs` | Phase B3 follow-up (08H): the lobby-to-board measurement. The UAT page (`?lobby=<ms>`) shows the real `Lobby` for the dwell and then mounts the board from nothing, as `App.tsx` does when a room starts; reports **T5-lobby** (`otb:uat:start` to the first board frame at or after `otb:warmup:done`), the longest callback after the start and what the lobby itself had to put up with (long tasks and long frames while it was shown); `--warm-cache` measures a second launch with the same profile; also records `otb:scene:prewarm-first/done` when the bundle has a lobby prewarm; `--persist layer` wraps the UAT page in the real `SceneLayer`, `--memory` samples JS heap, renderer counts and GPU/renderer process memory (Windows) in the lobby, after the board and 10 s later, and `t5Reveal` is the moment the board is visible |
 | `realPathStart.mjs` | Phase B3 follow-up (08H Task 4): the real path. A real server per launch (`realServerRun.mjs`, desktop profile, serves a built client), a Node socket.io host, a Chrome guest through the real lobby; reports click (host `start game`) to first board frame, click to mounted and the longest callback |
@@ -133,6 +134,14 @@ JSFLAGS="--no-opt --no-sparkplug --no-maglev" node scripts/perf/heapSample.mjs .
 
 Read the heap growth with the JIT in mind: `Runtime.getHeapUsage` includes compiled code and feedback vectors, which keep growing for tens of replays after load. Compare growth with a longer `--soak-warmup` (or with the JIT off) before attributing it to retained objects.
 
+### B7 launcher loading
+
+```bash
+node scripts/perf/launcherStartup.mjs --dist <uat-dist> --out <report.json> --runs 5 --form
+node scripts/perf/launcherStartup.mjs --dist <uat-dist> --out <warm-report.json> --runs 5 --warm-cache
+```
+
+Use the same unminified UAT build command and the same hardware/browser for before and after. `--form` measures from an in-page click event to the form heading; `--warm-cache` measures the second navigation in one profile. The bridge is synthetic and idle, so these timings isolate renderer/module loading, not Electron startup or server time. Results and limits: [08K](../../project-document/ui-ux-overhaul/08K_PHASE_B7_IMPLEMENTATION.md).
 ### Shader warm-up check
 
 ```bash

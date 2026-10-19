@@ -1,0 +1,65 @@
+{
+  "runs": 5,
+  "warmCache": true,
+  "form": false,
+  "medianHeadingAt": 106.89999985694885,
+  "medianLongTaskTotal": 0,
+  "medianJsTransferBytes": 1526939,
+  "rows": [
+    {
+      "headingAt": 136.90000009536743,
+      "domContentLoaded": 58.700000047683716,
+      "loadEvent": 58.700000047683716,
+      "jsTransferBytes": 1526939,
+      "jsResourceCount": 6,
+      "longTasks": [],
+      "mainPresent": true,
+      "heading": "OWN THE BLOCK",
+      "pageErrors": []
+    },
+    {
+      "headingAt": 114.79999995231628,
+      "domContentLoaded": 50.40000009536743,
+      "loadEvent": 53,
+      "jsTransferBytes": 1526939,
+      "jsResourceCount": 6,
+      "longTasks": [],
+      "mainPresent": true,
+      "heading": "OWN THE BLOCK",
+      "pageErrors": []
+    },
+    {
+      "headingAt": 105.59999990463257,
+      "domContentLoaded": 68.5,
+      "loadEvent": 69.90000009536743,
+      "jsTransferBytes": 1526939,
+      "jsResourceCount": 6,
+      "longTasks": [],
+      "mainPresent": true,
+      "heading": "OWN THE BLOCK",
+      "pageErrors": []
+    },
+    {
+      "headingAt": 106.89999985694885,
+      "domContentLoaded": 67.89999985694885,
+      "loadEvent": 69.39999985694885,
+      "jsTransferBytes": 1526939,
+      "jsResourceCount": 6,
+      "longTasks": [],
+      "mainPresent": true,
+      "heading": "OWN THE BLOCK",
+      "pageErrors": []
+    },
+    {
+      "headingAt": 103.79999995231628,
+      "domContentLoaded": 68.10000014305115,
+      "loadEvent": 69.60000014305115,
+      "jsTransferBytes": 1526939,
+      "jsResourceCount": 6,
+      "longTasks": [],
+      "mainPresent": true,
+      "heading": "OWN THE BLOCK",
+      "pageErrors": []
+    }
+  ]
+}

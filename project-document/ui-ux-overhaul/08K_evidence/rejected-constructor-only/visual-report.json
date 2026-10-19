@@ -1,0 +1,69 @@
+{
+  "renderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "rendererAfter": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "viewport": "1280x720",
+  "deviceScaleFactor": 1,
+  "tolerance": 0,
+  "results": [
+    {
+      "state": "board-low",
+      "fixture": "board-readability",
+      "tier": "low",
+      "comparable": true,
+      "identical": true,
+      "width": 1280,
+      "height": 720,
+      "totalPixels": 921600,
+      "differingPixels": 0,
+      "differingRatio": 0,
+      "maxChannelDelta": 0,
+      "meanAbsDelta": 0,
+      "pageErrors": []
+    },
+    {
+      "state": "board-balanced",
+      "fixture": "board-readability",
+      "tier": "balanced",
+      "comparable": true,
+      "identical": true,
+      "width": 1280,
+      "height": 720,
+      "totalPixels": 921600,
+      "differingPixels": 0,
+      "differingRatio": 0,
+      "maxChannelDelta": 0,
+      "meanAbsDelta": 0,
+      "pageErrors": []
+    },
+    {
+      "state": "board-high",
+      "fixture": "board-readability",
+      "tier": "high",
+      "comparable": true,
+      "identical": true,
+      "width": 1280,
+      "height": 720,
+      "totalPixels": 921600,
+      "differingPixels": 0,
+      "differingRatio": 0,
+      "maxChannelDelta": 0,
+      "meanAbsDelta": 0,
+      "pageErrors": []
+    },
+    {
+      "state": "crop-property-balanced",
+      "fixture": "board-readability",
+      "tier": "balanced",
+      "comparable": true,
+      "identical": true,
+      "width": 181,
+      "height": 147,
+      "totalPixels": 26607,
+      "differingPixels": 0,
+      "differingRatio": 0,
+      "maxChannelDelta": 0,
+      "meanAbsDelta": 0,
+      "pageErrors": []
+    }
+  ]
+}

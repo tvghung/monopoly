@@ -1,0 +1,100 @@
+{
+  "runs": 5,
+  "warmCache": false,
+  "form": true,
+  "medianHeadingAt": 267.2999999523163,
+  "medianLongTaskTotal": 66,
+  "medianJsTransferBytes": 1526643,
+  "rows": [
+    {
+      "headingAt": 258,
+      "domContentLoaded": 129.5,
+      "loadEvent": 131.39999985694885,
+      "jsTransferBytes": 1526643,
+      "jsResourceCount": 6,
+      "longTasks": [
+        {
+          "start": 64.69999980926514,
+          "duration": 66
+        }
+      ],
+      "mainPresent": true,
+      "heading": "OWN THE BLOCK",
+      "formClickToVisible": 37.90000009536743,
+      "formLongTasks": [],
+      "pageErrors": []
+    },
+    {
+      "headingAt": 268.40000009536743,
+      "domContentLoaded": 130.60000014305115,
+      "loadEvent": 130.90000009536743,
+      "jsTransferBytes": 1526643,
+      "jsResourceCount": 6,
+      "longTasks": [
+        {
+          "start": 65,
+          "duration": 66
+        }
+      ],
+      "mainPresent": true,
+      "heading": "OWN THE BLOCK",
+      "formClickToVisible": 30.700000047683716,
+      "formLongTasks": [],
+      "pageErrors": []
+    },
+    {
+      "headingAt": 267.2999999523163,
+      "domContentLoaded": 138.59999990463257,
+      "loadEvent": 138.79999995231628,
+      "jsTransferBytes": 1526643,
+      "jsResourceCount": 6,
+      "longTasks": [
+        {
+          "start": 66.5,
+          "duration": 73
+        }
+      ],
+      "mainPresent": true,
+      "heading": "OWN THE BLOCK",
+      "formClickToVisible": 35.40000009536743,
+      "formLongTasks": [],
+      "pageErrors": []
+    },
+    {
+      "headingAt": 284.90000009536743,
+      "domContentLoaded": 145,
+      "loadEvent": 145.09999990463257,
+      "jsTransferBytes": 1526643,
+      "jsResourceCount": 6,
+      "longTasks": [
+        {
+          "start": 78,
+          "duration": 67
+        }
+      ],
+      "mainPresent": true,
+      "heading": "OWN THE BLOCK",
+      "formClickToVisible": 36,
+      "formLongTasks": [],
+      "pageErrors": []
+    },
+    {
+      "headingAt": 265.89999985694885,
+      "domContentLoaded": 133.5,
+      "loadEvent": 133.79999995231628,
+      "jsTransferBytes": 1526643,
+      "jsResourceCount": 6,
+      "longTasks": [
+        {
+          "start": 70.69999980926514,
+          "duration": 63
+        }
+      ],
+      "mainPresent": true,
+      "heading": "OWN THE BLOCK",
+      "formClickToVisible": 36.299999952316284,
+      "formLongTasks": [],
+      "pageErrors": []
+    }
+  ]
+}

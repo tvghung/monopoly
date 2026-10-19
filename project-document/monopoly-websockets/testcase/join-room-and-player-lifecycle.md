@@ -13,6 +13,8 @@
 - `[PACKAGED][RAM]` `apps/desktop/src/phase72HostProof.ts` restarts the packaged helper
   and verifies that the former room and reconnect token are rejected.
 
+- `[AUTO][CLIENT]` B7 `AppBootstrap.test.tsx`: lazy room/game chunk failure disconnects the attempted socket and offers safe retry; desktop launcher still creates no gameplay socket before selection.
+
 ## Checklist
 
 - [ ] First `join room` returns pending token but creates no Seat/host/color.

@@ -9,19 +9,19 @@ export interface SharedWebGLProbe {
 let sharedProbe: SharedWebGLProbe | null = null;
 
 /**
- * The one throwaway WebGL context of the page. Two callers need facts about the device before the board's own renderer exists
- * (is WebGL available, what is the texture limit `auto` graphics quality looks at), and each used to create a context of its own: on a
- * cold launch a context costs 130–330 ms of blocked main thread each. They share this one, created at most once.
+ * WebGL support must be tested with a real temporary context; explicit Auto also uses its cached texture limit.
+ * Release the context after reading these facts. Fixed tiers need no additional quality probe.
  */
 export function getSharedWebGLProbe(): SharedWebGLProbe {
   if (sharedProbe) return sharedProbe;
   const result: SharedWebGLProbe = { supported: false, maxTextureSize: 0 };
   if (typeof document !== 'undefined'
     && (typeof WebGL2RenderingContext !== 'undefined' || typeof WebGLRenderingContext !== 'undefined')) {
+    let context: WebGLRenderingContext | WebGL2RenderingContext | null = null;
     try {
       const canvas = document.createElement('canvas');
       const webgl2 = canvas.getContext('webgl2');
-      const context = webgl2 ?? canvas.getContext('webgl');
+      context = webgl2 ?? canvas.getContext('webgl');
       result.supported = Boolean(webgl2);
       if (context) {
         const value: unknown = context.getParameter(context.MAX_TEXTURE_SIZE);
@@ -30,6 +30,13 @@ export function getSharedWebGLProbe(): SharedWebGLProbe {
     } catch {
       result.supported = false;
       result.maxTextureSize = 0;
+    } finally {
+      // The cached number needs no live GPU context.
+      try {
+        context?.getExtension('WEBGL_lose_context')?.loseContext();
+      } catch {
+        // An unavailable extension or a failed renderer must not block the fallback.
+      }
     }
   }
   sharedProbe = result;

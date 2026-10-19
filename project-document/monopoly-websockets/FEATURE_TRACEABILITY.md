@@ -76,7 +76,7 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 ### F01 Bootstrap, loading and boot errors
 - **Entry:** app start (web page load or desktop window); no URL router.
 - **Docs:** [join-room][c-join]; foundation [client][fc].
-- **Client:** `apps/client/src/index.tsx`, `apps/client/src/app/bootstrap/AppBootstrap.tsx`, `apps/client/src/app/bootstrap/bootstrap.ts`, `apps/client/src/app/screens/`.
+- **Client:** `apps/client/src/index.tsx`, `apps/client/src/app/bootstrap/AppBootstrap.tsx`, `apps/client/src/app/bootstrap/bootstrap.ts`, `apps/client/src/app/bootstrap/loadGameApp.ts`, `apps/client/src/app/screens/`.
 - **Server / Shared:** none; protocol constant from `packages/shared/src/types.ts`.
 - **Tests:** `apps/client/src/app/bootstrap/AppBootstrap.test.tsx`, `apps/client/src/app/screens/LoadingScreen.test.tsx`, `apps/client/src/app/screens/AppErrorBoundary.test.tsx`, `apps/client/src/runtime/runtimeConfig.test.ts`.
 - **Manual:** [join checklist][t-join].
@@ -248,7 +248,7 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 - **Entry:** no WebGL or renderer error; keyboard/screen-reader tile buttons.
 - **Docs:** [game-board][c-board].
 - **Client:** `apps/client/src/components/legacy-board/`, `apps/client/src/components/BoardAccessibilityControls.tsx`, `apps/client/src/components/rendererMode.ts`, `apps/client/src/game/scene/fallback/`.
-- **Tests:** `apps/client/src/components/BoardAccessibilityControls.test.tsx`, `apps/client/src/components/rendererMode.test.ts`, `apps/client/src/game/scene/fallback/SceneErrorBoundary.test.tsx`, `e2e/mobile-host.spec.ts`.
+- **Tests:** `apps/client/src/components/BoardAccessibilityControls.test.tsx`, `apps/client/src/components/rendererMode.test.ts`, `apps/client/src/game/scene/fallback/SceneErrorBoundary.test.tsx`, `apps/client/src/game/scene/fallback/sharedWebGLProbe.test.ts`, `e2e/mobile-host.spec.ts`, `e2e/b4-real-session.spec.ts` (explicit headed fallback run).
 - **Manual:** [client checklist][t-client]. **Affects:** F18, F37.
 
 ### F20 Camera zoom/pan and responsive layout tiers

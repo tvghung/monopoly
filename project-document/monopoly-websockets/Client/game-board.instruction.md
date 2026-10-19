@@ -577,7 +577,7 @@ loading state, and draws nothing until they are ready. Measured basis and open i
   file is stale, and a stale or unloadable file makes the effect filter the studio at runtime as before (that path is also the generator). To rebuild after changing any input: build a UAT bundle and run
   `node scripts/bakeStudioEnvironment.mjs --dist <uat-dist>`. The warm-up waits for the environment (`WarmupHost.waitForEnvironment`) because lit programs are keyed on it. Baked and procedural renders
   are pixel-identical on the measuring GPU at all three tiers.
-- **One probe context.** The WebGL support check and the `auto` quality's texture limit share a single throwaway context (`getSharedWebGLProbe` in `webglSupport.ts`); they used to create one each.
+- **B7 probe lifetime.** The native-document support check (`webglSupport.ts`) must actually try `getContext('webgl2')`: a WebGL2 constructor can exist while context creation is blocked, and the accessible DOM board must still appear. The shared probe (`webglProbe.ts`) caches support and texture-limit facts and releases its temporary context via `WEBGL_lose_context`. Fixed Low, Balanced and High settings do not request an additional quality probe; explicit Auto reuses the cached texture limit. The scene canvas and error boundary still handle later renderer failures and context loss.
 - **Procedural textures stay byte-identical.** The table, pebble and district generators run on the cold-launch critical path; they are optimised without changing a byte, and
   `proceduralTextureGolden.test.ts` holds golden hashes of their output.
 - **Environment effect.** `StudioEnvironment` no longer depends on the identity of `invalidate` (R3F swaps it once the canvas exists), which had

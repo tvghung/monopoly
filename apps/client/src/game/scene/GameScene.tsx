@@ -35,7 +35,7 @@ import TableProps from './props/TableProps';
 import BoardGroundShadow from './render/table/BoardGroundShadow';
 import Tabletop from './render/table/Tabletop';
 import { RenderQualityContext, useRenderQuality } from './render/RenderQualityContext';
-import { probeRenderCapabilities, resolveRenderQuality } from './render/renderQuality';
+import { RENDER_QUALITY_CONFIGS, resolveConfiguredRenderTier } from './render/renderQuality';
 import { SCENE_TONE_MAPPING, SCENE_TONE_MAPPING_EXPOSURE, parseToneMappingOverride } from './render/toneMapping';
 import stateContext from '../../internal';
 import type { StateContextValue } from '../../types';
@@ -432,7 +432,7 @@ function GameScene({
     frameSchedulerRef.current = null;
   }, [warmupHost]);
   const quality = useMemo(
-    () => resolveRenderQuality(graphicsQuality, probeRenderCapabilities()),
+    () => RENDER_QUALITY_CONFIGS[resolveConfiguredRenderTier(graphicsQuality)],
     [graphicsQuality],
   );
   // Comparison captures may override the tone mapper; real players always get Neutral.

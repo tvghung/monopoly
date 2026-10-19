@@ -1,0 +1,120 @@
+{
+  "runs": 5,
+  "warmCache": false,
+  "form": true,
+  "medianHeadingAt": 588.5,
+  "medianLongTaskTotal": 382,
+  "medianJsTransferBytes": 3447260,
+  "rows": [
+    {
+      "headingAt": 588.5,
+      "domContentLoaded": 163.20000004768372,
+      "loadEvent": 165.79999995231628,
+      "jsTransferBytes": 3447260,
+      "jsResourceCount": 5,
+      "longTasks": [
+        {
+          "start": 87.70000004768372,
+          "duration": 78
+        },
+        {
+          "start": 257.09999990463257,
+          "duration": 295
+        }
+      ],
+      "mainPresent": true,
+      "heading": "OWN THE BLOCK",
+      "formClickToVisible": 44.90000009536743,
+      "formLongTasks": [],
+      "pageErrors": []
+    },
+    {
+      "headingAt": 542.8000001907349,
+      "domContentLoaded": 145.30000019073486,
+      "loadEvent": 145.40000009536743,
+      "jsTransferBytes": 3447260,
+      "jsResourceCount": 5,
+      "longTasks": [
+        {
+          "start": 77.20000004768372,
+          "duration": 68
+        },
+        {
+          "start": 237.5,
+          "duration": 264
+        }
+      ],
+      "mainPresent": true,
+      "heading": "OWN THE BLOCK",
+      "formClickToVisible": 34.89999985694885,
+      "formLongTasks": [],
+      "pageErrors": []
+    },
+    {
+      "headingAt": 582,
+      "domContentLoaded": 146.79999995231628,
+      "loadEvent": 150.19999980926514,
+      "jsTransferBytes": 3447260,
+      "jsResourceCount": 5,
+      "longTasks": [
+        {
+          "start": 71.39999985694885,
+          "duration": 79
+        },
+        {
+          "start": 243.89999985694885,
+          "duration": 303
+        }
+      ],
+      "mainPresent": true,
+      "heading": "OWN THE BLOCK",
+      "formClickToVisible": 42.700000047683716,
+      "formLongTasks": [],
+      "pageErrors": []
+    },
+    {
+      "headingAt": 611.1999998092651,
+      "domContentLoaded": 152,
+      "loadEvent": 152,
+      "jsTransferBytes": 3447260,
+      "jsResourceCount": 5,
+      "longTasks": [
+        {
+          "start": 80.79999995231628,
+          "duration": 71
+        },
+        {
+          "start": 243.79999995231628,
+          "duration": 332
+        }
+      ],
+      "mainPresent": true,
+      "heading": "OWN THE BLOCK",
+      "formClickToVisible": 41,
+      "formLongTasks": [],
+      "pageErrors": []
+    },
+    {
+      "headingAt": 613,
+      "domContentLoaded": 162,
+      "loadEvent": 162.10000014305115,
+      "jsTransferBytes": 3447260,
+      "jsResourceCount": 5,
+      "longTasks": [
+        {
+          "start": 84.70000004768372,
+          "duration": 77
+        },
+        {
+          "start": 252.90000009536743,
+          "duration": 325
+        }
+      ],
+      "mainPresent": true,
+      "heading": "OWN THE BLOCK",
+      "formClickToVisible": 43.39999985694885,
+      "formLongTasks": [],
+      "pageErrors": []
+    }
+  ]
+}

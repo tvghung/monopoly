@@ -59,12 +59,13 @@ try {
       });
       const batch = await page.evaluate(() => window.__PROBE__.drain());
       const mark = name => batch.marks.filter(entry => entry.name === name).sort((a, b) => a.t - b.t)[0]?.t ?? null;
-      // The first context of the page is the capability probe's throwaway one (`probeRenderCapabilities`); the board's is the first one
-      // created after the scene chunk was loaded.
+      // Support uses one temporary capability context (also cached for Auto); count it separately
+      // from contexts created after the scene chunk loads.
       const glRenderer = await page.evaluate(() => window.__PROBE__.glRenderer ?? null);
       const contexts = batch.events.filter(entry => entry.kind === 'context-created').sort((a, b) => a.t - b.t);
-      const throwawayContext = contexts[0]?.t ?? null;
-      const contextCreated = contexts.find(entry => entry.t >= (mark('otb:scene:chunk-loaded') ?? 0))?.t ?? null;
+      const chunkLoaded = mark('otb:scene:chunk-loaded') ?? 0;
+      const throwawayContext = contexts.find(entry => entry.t < chunkLoaded)?.t ?? null;
+      const contextCreated = contexts.find(entry => entry.t >= chunkLoaded)?.t ?? null;
       const pmrem = batch.links.filter(link => /PMREM/.test(link.name ?? '')).sort((a, b) => a.t - b.t)[0]?.t ?? null;
       const done = mark('otb:warmup:done');
       const firstFrame = batch.frames.filter(frame => frame.rendered && (done === null || frame.start >= done)).sort((a, b) => a.start - b.start)[0]?.start ?? null;
@@ -76,6 +77,7 @@ try {
         board3dRender: mark('otb:scene:board3d-render'),
         glRenderer,
         throwawayContext,
+        contextCount: contexts.length,
         contextCreated,
         canvasCreated: mark('otb:scene:canvas-created'),
         board3dMounted: mark('otb:scene:board3d-mounted'),
