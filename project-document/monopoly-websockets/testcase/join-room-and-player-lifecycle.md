@@ -18,6 +18,9 @@
 - [ ] First `join room` returns pending token but creates no Seat/host/color.
 - [ ] Token hash is 32 bytes in RAM; raw token is absent from logs/public state.
 - [ ] `resume session` activates exactly one stable UUID Seat; lost ACK is resumable.
+- [x] `[AUTO][SOCKET]` `socket.integration.test.ts` and `socket.teamplay.integration.test.ts`: new host and up to four
+  Solo joiners start with Dog, 2v2 teammates get a valid fallback, room state and public roster agree, and Ready stays false.
+  A changed mascot survives active-token resume.
 - [ ] Newest valid socket wins; old receives `session replaced`; stale disconnect no-ops.
 - [ ] Refresh/network reconnect/new socket keeps Player ID, Seat, ready, money and assets.
 - [ ] Current-schema (2v2 teams and bot seats included; see [Version history](../Shared/socket-and-state-contracts.instruction.md#version-history)) identity-preserving reset keeps room/code, stable Player

@@ -1,5 +1,6 @@
 import { createContext } from 'react';
 import { createSettingsStore, type SettingsStore } from './settingsStore';
+import { DEFAULT_GAME_SETTINGS } from './defaults';
 import type { GameSettings, GameSettingsPatch } from './types';
 
 /** What `useSettings()` returns: the current settings and the two ways to change them. */
@@ -28,23 +29,9 @@ export interface SettingsContextHandle {
   resetSettings: () => void;
 }
 
-const DEFAULT_CONTEXT_SETTINGS: GameSettings = {
-  version: 2,
-  language: 'vi',
-  masterVolume: 1,
-  muted: false,
-  musicVolume: 0.7,
-  sfxVolume: 0.8,
-  animationSpeed: 1,
-  reducedMotion: false,
-  fullscreen: false,
-  graphicsQuality: 'auto',
-  fpsLimit: 60,
-};
-
 const settingsContext = createContext<SettingsContextHandle>({
   available: false,
-  store: createSettingsStore(DEFAULT_CONTEXT_SETTINGS),
+  store: createSettingsStore(DEFAULT_GAME_SETTINGS),
   updateSettings: () => {},
   resetSettings: () => {},
 });

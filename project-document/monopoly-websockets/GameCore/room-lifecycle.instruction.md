@@ -20,7 +20,8 @@ presence (`CONNECTED | DISCONNECTED`).
 - Two-step pending admission creates a Seat only on `resume session` activation.
 - Stable UUID Player identity is assigned once and reused across connections/reconnects while the host process lives;
   host process exit loses it with the room.
-- First activated active Seat is host; new Seat has `ready=false`.
+- First activated active Seat is host; new human Seat has `ready=false` and the first valid mascot,
+  preferring Dog (see [session admission](../Api/socket-session.instruction.md#resume-sessiontoken)).
 - Lobby maximum is four active Seats. Start requires 2–4 in Solo and exactly four (two per team) in 2v2; the host picks the
   mode and teams in the lobby ([team-play.instruction.md](./team-play.instruction.md)). Start also requires at least one
   active human seat (`activeHumanIds`, defined in `apps/server/src/rooms.ts`, used in `apps/server/src/socket/lobby.ts`); bot seats are always Ready and count as present

@@ -2,8 +2,10 @@ import { useContext, useEffect, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { applyCoinEnvironmentMap } from '../../stations/coinVisuals';
+import { kitGlassMaterial } from '../../buildings/kit/kitMaterials';
 import { isLocalDiagnosticsEnabled } from '../diagnostics/localDiagnostics';
 import { useRenderQuality } from '../RenderQualityContext';
+import type { RenderTier } from '../renderQuality';
 import { markSceneOnce } from '../warmup/sceneMarks';
 import { WarmupHostContext } from '../warmup/warmupHost';
 import {
@@ -25,15 +27,26 @@ export function applyStudioEnvironment(
   target: THREE.Scene,
   texture: THREE.Texture | null,
   intensity: number,
+  tier: RenderTier = 'high',
 ): void {
-  target.environment = texture;
+  target.environment = tier === 'balanced' ? null : texture;
   target.environmentIntensity = intensity;
   applyCoinEnvironmentMap(texture);
+  kitGlassMaterial.envMap = texture;
+  kitGlassMaterial.envMapIntensity = intensity;
+  kitGlassMaterial.needsUpdate = true;
 }
 
-/** Changes only the intensity, so switching graphics tier never regenerates the PMREM. */
-export function setStudioEnvironmentIntensity(target: THREE.Scene, intensity: number): void {
+/** Switches the scene lookup without regenerating the PMREM or rebinding the glossy materials. */
+export function setStudioEnvironmentTier(
+  target: THREE.Scene,
+  texture: THREE.Texture | null,
+  tier: RenderTier,
+  intensity: number,
+): void {
+  target.environment = tier === 'balanced' ? null : texture;
   target.environmentIntensity = intensity;
+  kitGlassMaterial.envMapIntensity = intensity;
 }
 
 declare global {
@@ -58,7 +71,7 @@ export default function StudioEnvironment() {
   const gl = useThree(state => state.gl);
   const scene = useThree(state => state.scene);
   const invalidate = useThree(state => state.invalidate);
-  const { environmentIntensity } = useRenderQuality();
+  const { tier, environmentIntensity } = useRenderQuality();
   const warmupHost = useContext(WarmupHostContext);
   // R3F swaps `invalidate` for the frame scheduler's once the canvas exists. Reading it through a ref keeps that swap from
   // re-running this effect, which would build the environment a second time.
@@ -66,6 +79,9 @@ export default function StudioEnvironment() {
   invalidateRef.current = invalidate;
   const intensityRef = useRef(environmentIntensity);
   intensityRef.current = environmentIntensity;
+  const tierRef = useRef(tier);
+  tierRef.current = tier;
+  const textureRef = useRef<THREE.Texture | null>(null);
 
   useEffect(() => {
     markSceneOnce('env-start');
@@ -73,10 +89,12 @@ export default function StudioEnvironment() {
     let release: (() => void) | null = null;
 
     const apply = (texture: THREE.Texture, dispose: () => void): void => {
-      applyStudioEnvironment(scene, texture, intensityRef.current);
+      textureRef.current = texture;
+      applyStudioEnvironment(scene, texture, intensityRef.current, tierRef.current);
       markSceneOnce('env-end');
       release = () => {
-        applyStudioEnvironment(scene, null, 1);
+        textureRef.current = null;
+        applyStudioEnvironment(scene, null, 1, tierRef.current);
         dispose();
         invalidateRef.current();
       };
@@ -134,9 +152,9 @@ export default function StudioEnvironment() {
   }, [gl, scene, warmupHost]);
 
   useEffect(() => {
-    setStudioEnvironmentIntensity(scene, environmentIntensity);
+    setStudioEnvironmentTier(scene, textureRef.current, tier, environmentIntensity);
     invalidate();
-  }, [environmentIntensity, invalidate, scene]);
+  }, [environmentIntensity, invalidate, scene, tier]);
 
   return null;
 }

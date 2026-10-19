@@ -46,7 +46,7 @@ Status: CURRENT (RELEASED in v1.7.0 unless marked CURRENT DEVELOPMENT). Foundati
 2. Audio: "mute" switch plus Master, Music and SFX sliders (0–100 %, step 5 %). Mute keeps the slider levels.
 3. Display: animation speed (`0.75`, `1`, `1.5`, `2`) and reduced motion; a polite hint says whether motion is currently
    reduced (by the setting or the OS). Effective reduced motion = setting OR `prefers-reduced-motion`.
-4. Graphics: quality `auto` | `high` | `balanced` | `low` (default `auto`; `auto` never resolves to `high`) and FPS limit `30` | `60` | `120` | `180` | `240` (default `60`). The FPS cap is a local render preference independent of quality and uses the shared dropdown.
+4. Graphics: quality `auto` | `high` | `balanced` | `low` (default `balanced`; explicit `auto` never resolves to `high`) and FPS limit `30` | `60` | `120` | `180` | `240` (default `60`). Balanced stays Balanced on weak devices. The FPS cap is a local render preference independent of quality and uses the shared dropdown.
    Tiers are described in [game-board.instruction.md](./game-board.instruction.md) "Lighting, environment và graphics tiers".
 5. Window (desktop only): fullscreen switch, applied through the preload bridge and kept in sync with the window.
 6. Update (desktop only, when the updater is available): see [app-update.instruction.md](./app-update.instruction.md).
@@ -57,8 +57,9 @@ A reset button restores every default (Vietnamese, fullscreen off).
 
 - `SettingsProvider` sits at the renderer root (`apps/client/src/index.tsx`), so the launcher, bootstrap screens and the
   game read and write the same settings. Every change is normalized and written to localStorage.
-- Key `own-the-block.settings.v2` (`version: 2`). The old `own-the-block.settings.v1` key is read only when V2 is absent,
-  normalized and copied forward (details: [language-system.instruction.md](./language-system.instruction.md) "Settings migration").
+- Key `own-the-block.settings.v3` (`version: 3`). When V3 is absent, V2 is read and copied forward: saved `auto` becomes
+  `balanced` once; saved Low, Balanced and High remain intact. An explicit Auto selected after migration is retained. V1 is
+  read only when both V3 and V2 are absent (details: [language-system.instruction.md](./language-system.instruction.md) "Settings migration").
 - Normalization is defensive: volumes clamp to 0–1, unknown speed/quality/FPS/language fall back to defaults, bad JSON or a
   throwing storage yields defaults. Settings are separate from the reconnect token storage
   (`apps/client/src/playerSessionStorage.ts`) and never enter room state or socket payloads.

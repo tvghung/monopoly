@@ -44,10 +44,10 @@ describe('explicit settings', () => {
     expect(resolveRenderQuality(setting, desktop)).toBe(RENDER_QUALITY_CONFIGS[setting]);
   });
 
-  it('falls back to auto for invalid values', () => {
+  it('falls back to balanced for invalid values even on a weak device', () => {
     for (const value of ['ultra', '', null, undefined, 3, {}]) {
       expect(resolveRenderTier(value, desktop)).toBe('balanced');
-      expect(resolveRenderTier(value, { ...desktop, hardwareConcurrency: 2 })).toBe('low');
+      expect(resolveRenderTier(value, { ...desktop, hardwareConcurrency: 2 })).toBe('balanced');
     }
   });
 
@@ -59,13 +59,14 @@ describe('explicit settings', () => {
 describe('tier table (plan 02 §8.8)', () => {
   it('raises dpr, shadows and effects from low to high', () => {
     const { low, balanced, high } = RENDER_QUALITY_CONFIGS;
-    expect(low.dpr).toEqual([1, 1.25]);
-    expect(balanced.dpr).toEqual([1.25, 1.5]);
+    expect(low.dpr).toEqual([1, 1]);
+    expect(balanced.dpr).toEqual([1.1, 1.2]);
     expect(high.dpr).toEqual([1.25, 2]);
     expect([low, balanced, high].map(config => config.shadows.mapSize)).toEqual([0, 1024, 2048]);
     expect([low, balanced, high].map(config => config.shadows.enabled)).toEqual([false, true, true]);
     expect([low, balanced, high].map(config => config.postProcessing)).toEqual([false, false, true]);
     expect([low, balanced, high].map(config => config.environmentIntensity)).toEqual([0.6, 0.7, 0.8]);
+    expect([low, balanced, high].map(config => config.fillLightMultiplier)).toEqual([1, 2, 1]);
   });
 
   it('keeps blob shadows under buildings only while real shadows are off', () => {

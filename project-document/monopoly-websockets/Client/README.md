@@ -75,9 +75,9 @@ Technical event/package names and canonical shared game data stay unchanged.
   path. Card reveal is queued after the authoritative LAND boundary; session/
   reconnect hydration snaps to the current revealed card without replaying a draw
   animation. The effect waits for the acting player to press `Đóng`.
-- Settings có thêm `graphicsQuality` (`auto` | `high` | `balanced` | `low`, mặc định `auto`);
+- Settings có thêm `graphicsQuality` (`auto` | `high` | `balanced` | `low`, mặc định `balanced`);
   giá trị lạ normalize về `auto`. Chi tiết tier ở [game-board.instruction.md](./game-board.instruction.md).
-- Settings dùng key `own-the-block.settings.v2` (key `v1` cũ chỉ được đọc để migrate), normalize/clamp defensive và tách
+- Settings dùng key `own-the-block.settings.v3` (key `v2`/`v1` cũ chỉ được đọc để migrate), normalize/clamp defensive và tách
   khỏi reconnect token. Reduced motion hiệu lực là user setting hoặc OS
   preference. Audio: một Web Audio engine lazy, bus Master/Music/SFX, nhạc nền một loop duy nhất
   chỉ khi room `IN_PROGRESS`. Chi tiết và lịch sử thiết kế audio:

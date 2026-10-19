@@ -9,7 +9,7 @@ import {
 } from '@monopoly/shared';
 import { sanitizeName } from '../game';
 import { reviveTeammateCommand, runGameCommand } from '../commands/gameplay';
-import { activePlayerIds, isBotMember, lobbySeatHolders } from '../rooms';
+import { activePlayerIds, chooseNewHumanCharacter, isBotMember, lobbySeatHolders } from '../rooms';
 import type { AppRuntime } from '../services/runtime';
 import {
   activeTeamMembers,
@@ -66,7 +66,13 @@ export function registerTeamHandlers(io: AppServer, socket: AppSocket, runtime: 
         if (request.mode === 'TEAM_2V2') {
           // Mascots are drawn in the team colour from now on; two teammates who had picked the same mascot cannot both keep it.
           applyTeamColors(room.gameSnapshot, state);
-          dedupeTeamMascots(room.gameSnapshot, state, players);
+          const cleared = dedupeTeamMascots(room.gameSnapshot, state, players);
+          // The new Dog default can produce matching Solo mascots before a mode switch.
+          // Give the later teammate a valid mascot now so Ready is never blocked by the switch.
+          for (const playerId of cleared) {
+            const player = state.players[playerId];
+            if (player) player.characterId = chooseNewHumanCharacter(room.gameSnapshot, player.color, player.teamId, state);
+          }
         }
       }, undefined, actor);
       if (!committed.room) throw new CommandError('ROOM_GONE', 'Phòng không còn tồn tại.');

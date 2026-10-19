@@ -1,0 +1,35 @@
+{
+  "roomCode": "OTB-F33VU7",
+  "quality": "auto",
+  "guestFallback": false,
+  "steps": [
+    "two-browser authoritative lobby and WebGL board",
+    "FPS preference changed 60 → 30 → 120 during game",
+    "dice roll produced actual WebGL scene frames",
+    "character landed on a non-start tile in the authoritative board view",
+    "wheel zoom and pointer drag while in game",
+    "real browser-tab focus switch and recovery",
+    "synthetic visibility interruption and recovery",
+    "host page reload and session resume",
+    "guest forfeited and host reached winner state",
+    "Play Again returned same room to lobby"
+  ],
+  "roll": {
+    "renderedFrames": 50,
+    "contiguousIntervals": 48,
+    "achievedSceneFps": 24.427480916030536,
+    "intervalP50Ms": 33.400000000001455,
+    "intervalP95Ms": 66.5,
+    "longestCpuMs": 28.299999952316284,
+    "medianGpuMs": 13.882026,
+    "gpuSamples": 50,
+    "programLinks": 0,
+    "longestMainThreadTaskMs": 52,
+    "landedTileLabel": "Ô 5: Ga Hà Nội. Giá 200.000 ₫. Người chơi đang đứng: B4 Host. Mở chi tiết ô cờ"
+  },
+  "renderer": {
+    "devicePixelRatio": 1.25,
+    "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+  },
+  "pageErrors": []
+}

@@ -425,6 +425,20 @@ Evidence and numbers: [08F](../../ui-ux-overhaul/08F_PHASE_B3_IMPLEMENTATION.md)
 - [ ] `[NOT RUN]` The original baseline machine (Core i5-10210U, Windows 10), Electron, other GPUs, the real lobby-to-board path, a 30–60 minute session.
 - [ ] `[MANUAL][OWNER]` Launch the packaged game with a fresh GPU cache and start a match at Balanced and High: the board should appear once, without a multi-second freeze, and the first roll, walk, purchase and build should not hitch.
 
+## Performance program B5 checks (GPU and graphics tiers)
+
+- [x] `[AUTO][CLIENT]` `settings.test.ts`, `SettingsPanel.test.tsx`, `renderQuality.test.ts`: a fresh profile,
+  missing/invalid quality and Reset use Balanced; V2 Auto migrates once, saved manual tiers persist, explicit V3 Auto
+  remains selectable, and Balanced never downgrades on a weak probe.
+- [x] `[AUTO][CLIENT]` `Lobby.test.tsx`: the lobby seat renders the committed Dog mascot and the picker marks Dog selected.
+
+Evidence and measured scope: [08J](../../ui-ux-overhaul/08J_PHASE_B5_IMPLEMENTATION.md). Rules: [game-board.instruction.md](../Client/game-board.instruction.md) "Lighting, environment và graphics tiers". B4 remains PARTIAL.
+
+- [x] `[PROBE]` The deterministic dice, walk, purchase, rent and build fixtures at Low, Balanced and High used the same GPU, viewport, display DPR, FPS cap and browser; actual scene FPS, GPU time, P50/P95/P99 intervals, CPU, draw calls and resource counts are in 08J. Random real-room rolls are reported separately.
+- [x] `[BROWSER]` Matched overall board, text crops, district colors, landmarks, buildings, standees, dice and effects at all tiers, plus a smaller viewport, were captured and classified in 08J. This is engineering capture/review only; owner visual approval remains `[NOT RUN]` and is required before merge.
+- [x] `[AUTO][CLIENT]` `renderQuality.test.ts`, `StudioEnvironment.test.ts` and `postSettings.test.ts` passed; the graphics-tier browser check passed live switching and board visibility.
+- [x] `[PROBE]` Shader warm-up, persistent resources, idle scene submissions, 30-replay resource counts and context-loss fallback passed after the material and lighting changes. Fixed-time cross-build motion comparison remains `[PARTIAL]` because the intended buffer/shading changes prevent pixel identity; selected-build motion control passed.
+
 ## Performance program B2 checks (React render fan-out)
 
 Evidence and numbers: [08C](../../ui-ux-overhaul/08C_PHASE_B2_IMPLEMENTATION.md). Rules: [game-board.instruction.md](../Client/game-board.instruction.md)

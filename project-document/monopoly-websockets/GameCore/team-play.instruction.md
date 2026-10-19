@@ -38,7 +38,7 @@ Test: [testcase/team-play.md](../testcase/team-play.md).
 
 | Command | Ai | Hiệu ứng |
 | --- | --- | --- |
-| `set game mode` `{mode}` | host | Đổi mode; **mọi người** mất Ready. Sang 2v2: áp màu đội cho mọi người và bỏ mascot trùng giữa đồng đội. |
+| `set game mode` `{mode}` | host | Đổi mode; **mọi người** mất Ready. Sang 2v2: áp màu đội, giữ mascot của người vào trước và chọn mascot hợp lệ đầu tiên cho đồng đội có mascot trùng. |
 | `set team name` `{name}` | thành viên active của **đội mình** | Đổi tên đội của chính mình (payload không có `teamId`: không ai, kể cả host, đổi được tên đội kia); không reset Ready. |
 | `set team color` `{color}` | thành viên active của **đội mình** | Đổi màu đội (không được trùng màu đội kia); reset Ready cả đội đó. |
 | `move to seat` `{teamId,teamSlot}` | thành viên active | Nhảy ngay vào một ghế **trống** (đội kia hoặc ghế còn lại của đội mình). Sang đội khác: đổi sang màu đội mới, mascot trùng đồng đội mới bị xóa (người ở lại giữ mascot), chỉ người di chuyển mất Ready; trong cùng đội chỉ đổi ghế. |

@@ -7,7 +7,7 @@ Manual UAT: SKIPPED BY RELEASE DECISION for 1.3.0, and not performed for 1.4.0. 
 ## Lobby, đội và appearance
 
 - [x] `[SOCKET]` `socket.teamplay.integration.test.ts` › "2v2 lobby": join chia xen kẽ và mọi phòng bắt đầu ở Solo với đội mặc định; chỉ
-  host đổi mode, chỉ ở lobby, mode đổi thật reset Ready của mọi người; sang 2v2 áp màu đội; mascot trùng đồng đội bị xóa; lệnh team chỉ
+  host đổi mode, chỉ ở lobby, mode đổi thật reset Ready của mọi người; sang 2v2 áp màu đội; mascot trùng đồng đội được thay bằng mascot hợp lệ đầu tiên; lệnh team chỉ
   chạy khi mode là 2v2.
 - [x] `[SOCKET]` cùng file: đổi màu đội chỉ thành viên đội mình, từ chối màu đội kia, chỉ reset Ready đội đó; hai lựa chọn màu đồng thời
   được room executor xếp thứ tự (đúng một đội thắng màu); tên đội: mọi thành viên chỉ đổi được tên đội mình (host cũng vậy, payload không có `teamId`), qua

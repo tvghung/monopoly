@@ -19,7 +19,7 @@ export function dropShadowMap(light: THREE.DirectionalLight | null): boolean {
  * shadows, and only in tiers that have them; the fill is a hemisphere that bounces the oak table color.
  */
 export default function SceneLightRig() {
-  const { shadows } = useRenderQuality();
+  const { shadows, fillLightMultiplier } = useRenderQuality();
   const { key, fill, rim } = LIGHT_RIG;
   const keyLight = useRef<THREE.DirectionalLight>(null);
   // The shadow camera sees the default layer and the shadow-only layer; the main camera sees only the default one.
@@ -34,7 +34,7 @@ export default function SceneLightRig() {
   }, [invalidate, shadows.enabled, shadows.mapSize]);
   return (
     <>
-      <hemisphereLight name="FillLight" args={[fill.skyColor, fill.groundColor, fill.intensity]} />
+      <hemisphereLight name="FillLight" args={[fill.skyColor, fill.groundColor, fill.intensity * fillLightMultiplier]} />
       <directionalLight
         ref={keyLight}
         name="KeyLight"

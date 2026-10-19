@@ -4,6 +4,7 @@ import {
   FPS_LIMIT_OPTIONS,
   GRAPHICS_QUALITY_OPTIONS,
   LEGACY_SETTINGS_STORAGE_KEY,
+  PREVIOUS_SETTINGS_STORAGE_KEY,
   SETTINGS_STORAGE_KEY,
   normalizeGraphicsQuality,
   normalizeFpsLimit,
@@ -12,6 +13,22 @@ import {
 import { readGameSettings, writeGameSettings } from './storage';
 
 describe('game settings', () => {
+  it('starts a fresh profile at balanced and migrates old Auto once without changing saved manual tiers', () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+    };
+    expect(readGameSettings(storage).graphicsQuality).toBe('balanced');
+    for (const tier of ['auto', 'low', 'balanced', 'high'] as const) {
+      values.delete(SETTINGS_STORAGE_KEY);
+      values.set(PREVIOUS_SETTINGS_STORAGE_KEY, JSON.stringify({ ...DEFAULT_GAME_SETTINGS, version: 2, graphicsQuality: tier }));
+      expect(readGameSettings(storage).graphicsQuality).toBe(tier === 'auto' ? 'balanced' : tier);
+    }
+    expect(writeGameSettings({ ...DEFAULT_GAME_SETTINGS, graphicsQuality: 'auto' }, storage)).toBe(true);
+    expect(readGameSettings(storage).graphicsQuality).toBe('auto');
+  });
+
   it('normalizes malformed and out-of-range values defensively', () => {
     expect(normalizeSettings({
       masterVolume: 2,
@@ -42,14 +59,14 @@ describe('game settings', () => {
     expect(readGameSettings(storage)).toEqual(DEFAULT_GAME_SETTINGS);
   });
 
-  it('defaults the graphics quality to auto and accepts only the four presets', () => {
-    expect(DEFAULT_GAME_SETTINGS.graphicsQuality).toBe('auto');
+  it('defaults the graphics quality to balanced and accepts all four presets', () => {
+    expect(DEFAULT_GAME_SETTINGS.graphicsQuality).toBe('balanced');
     for (const option of GRAPHICS_QUALITY_OPTIONS) {
       expect(normalizeSettings({ graphicsQuality: option }).graphicsQuality).toBe(option);
     }
     for (const invalid of ['ultra', '', null, undefined, 2, {}, 'HIGH']) {
-      expect(normalizeGraphicsQuality(invalid)).toBe('auto');
-      expect(normalizeSettings({ graphicsQuality: invalid }).graphicsQuality).toBe('auto');
+      expect(normalizeGraphicsQuality(invalid)).toBe('balanced');
+      expect(normalizeSettings({ graphicsQuality: invalid }).graphicsQuality).toBe('balanced');
     }
   });
 
@@ -74,7 +91,7 @@ describe('game settings', () => {
     };
 
     expect(readGameSettings(storage)).toMatchObject({
-      graphicsQuality: 'auto', fpsLimit: 60, reducedMotion: true, animationSpeed: 1.5,
+      graphicsQuality: 'balanced', fpsLimit: 60, reducedMotion: true, animationSpeed: 1.5,
     });
   });
 
@@ -102,7 +119,7 @@ describe('game settings', () => {
       reducedMotion: true,
       fullscreen: true,
     });
-    expect(JSON.parse(values.get(SETTINGS_STORAGE_KEY) ?? '{}')).toMatchObject({ version: 2, language: 'vi' });
+    expect(JSON.parse(values.get(SETTINGS_STORAGE_KEY) ?? '{}')).toMatchObject({ version: 3, language: 'vi' });
   });
 
   it('preserves English when reading V2 preferences and normalizes an invalid language to Vietnamese', () => {

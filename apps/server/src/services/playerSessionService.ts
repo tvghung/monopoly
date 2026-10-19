@@ -9,6 +9,7 @@ import {
   assertSupportedRoomSnapshot,
   calculateNextActionAt,
   chooseJoinSeat,
+  chooseNewHumanCharacter,
   createFreshPlayer,
   createRoomSnapshot,
   nextAvailableColor,
@@ -271,20 +272,22 @@ export class PlayerSessionService {
     const { gameMode, teams } = snapshot.gameState.boardState;
     const color = gameMode === 'TEAM_2V2' ? teams[teamId].color : nextAvailableColor(snapshot);
     if (!color) throw new CommandError('ROOM_FULL', 'No player color is available.');
+    const characterId = chooseNewHumanCharacter(snapshot, color, teamId);
+    if (!characterId) throw new CommandError('CONFLICT', 'No mascot is available for this seat.');
     snapshot.members[playerId] = {
       joinOrder: snapshot.nextJoinOrder,
       ready: false,
       membershipStatus: 'ACTIVE',
     };
     snapshot.nextJoinOrder += 1;
-    snapshot.gameState.players[playerId] = createFreshPlayer(name, color, null, teamId, teamSlot);
+    snapshot.gameState.players[playerId] = createFreshPlayer(name, color, characterId, teamId, teamSlot);
     snapshot.gameState.boardState.players = activePlayerIds(snapshot);
     recordActivityEvent(snapshot.gameState, {
       type: 'PLAYER_JOINED',
       playerId,
       playerName: name,
       color,
-      characterId: null,
+      characterId,
     });
     sendToLog(snapshot.gameState, `${name} đã tham gia phòng.`);
   }

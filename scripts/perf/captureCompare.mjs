@@ -47,7 +47,7 @@ export const STATES = [
 
 function parseArgs(argv) {
   const options = {
-    before: null, after: null, out: null, states: 'all', viewport: '1280x720', renderer: 'gpu', tolerance: 0, port: 4174, assertIdentical: false,
+    before: null, after: null, out: null, states: 'all', viewport: '1280x720', dpr: 1, renderer: 'gpu', tolerance: 0, port: 4174, assertIdentical: false,
     readyTimeoutMs: 60_000,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -59,6 +59,7 @@ function parseArgs(argv) {
       case '--out': options.out = path.resolve(value()); break;
       case '--states': options.states = value(); break;
       case '--viewport': options.viewport = value(); break;
+      case '--dpr': options.dpr = Number(value()); break;
       case '--renderer': options.renderer = value(); break;
       case '--tolerance': options.tolerance = Number(value()); break;
       case '--port': options.port = Number(value()); break;
@@ -69,6 +70,7 @@ function parseArgs(argv) {
   }
   if (!options.before || !options.after || !options.out) throw new Error('--before, --after and --out are required');
   if (!['gpu', 'swiftshader'].includes(options.renderer)) throw new Error('--renderer must be gpu or swiftshader');
+  if (!Number.isFinite(options.dpr) || options.dpr <= 0 || options.dpr > 4) throw new Error('--dpr must be in (0, 4]');
   return options;
 }
 
@@ -121,7 +123,7 @@ async function captureAll(distDir, options, states) {
   let renderer = null;
   try {
     for (const state of states) {
-      const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, reducedMotion: 'no-preference' });
+      const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: options.dpr, reducedMotion: 'no-preference' });
       const page = await context.newPage();
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
@@ -186,7 +188,7 @@ async function main() {
     console.log(`${state.name.padEnd(28)} ${verdict}`);
   }
   const report = {
-    renderer: before.renderer, rendererAfter: after.renderer, viewport: options.viewport, tolerance: options.tolerance, results,
+    renderer: before.renderer, rendererAfter: after.renderer, viewport: options.viewport, deviceScaleFactor: options.dpr, tolerance: options.tolerance, results,
   };
   writeFileSync(path.join(options.out, 'visual-report.json'), `${JSON.stringify(report, null, 2)}\n`);
   const failing = results.filter(result => !result.comparable || result.differingPixels > 0);

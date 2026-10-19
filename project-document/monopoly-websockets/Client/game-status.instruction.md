@@ -44,6 +44,8 @@
   toolbar; xem [how-to-play.instruction.md](./how-to-play.instruction.md).
 - `MascotPicker` đổi mascot/màu qua `set appearance`, chuyển động theo reduced motion hiệu lực (setting hoặc OS).
   Mascot chỉ nhận diện bằng hình; localized `alt`/`aria-label` chỉ dùng cho công nghệ hỗ trợ.
+  Người mới vào sảnh đã có Dog (hoặc mascot hợp lệ đầu tiên nếu Dog bị chiếm theo luật xuất hiện)
+  từ room state server; picker và ghế hiển thị cùng lựa chọn đó, nhưng vẫn chưa Ready.
 - **Chế độ chơi**: host thấy `SegmentedControl` "Chế độ chơi" (Solo | 2v2; `set game mode`), người khác chỉ thấy nhãn. Đổi chế độ reset Ready
   của mọi người. Ở 2v2 `Lobby` thay danh sách ghế bằng hai `TeamZone` (mỗi vùng là `section` có tên đội, danh sách người chơi, số "n/2",
   nhãn "Đội của bạn"): tên đội (`TeamNameField` chỉ hiện cho **đội của chính người xem**, kể cả host; tên đội kia chỉ đọc với mọi người,
