@@ -1,0 +1,37 @@
+{
+  "roomCode": "OTB-EQL9S7",
+  "quality": "low",
+  "guestFallback": true,
+  "steps": [
+    "two-browser authoritative lobby and WebGL board",
+    "FPS preference changed 60 → 30 → 120 during game",
+    "both clients changed graphics quality to Low",
+    "dice roll produced actual WebGL scene frames",
+    "character landed on a non-start tile in the authoritative board view",
+    "wheel zoom and pointer drag while in game",
+    "real browser-tab focus switch and recovery",
+    "synthetic visibility interruption and recovery",
+    "host page reload and session resume",
+    "landing property decision resolved through the actual UI",
+    "guest forfeited and host reached winner state",
+    "Play Again returned same room to lobby"
+  ],
+  "roll": {
+    "renderedFrames": 47,
+    "contiguousIntervals": 45,
+    "achievedSceneFps": 27.869678904139462,
+    "intervalP50Ms": 33.29999999999927,
+    "intervalP95Ms": 50.099999999998545,
+    "longestCpuMs": 20.799999952316284,
+    "medianGpuMs": 22.761242,
+    "gpuSamples": 47,
+    "programLinks": 0,
+    "longestMainThreadTaskMs": 0,
+    "landedTileLabel": "Ô 3: Bạc Liêu. Giá 60.000 ₫. Người chơi đang đứng: B4 Guest. Mở chi tiết ô cờ"
+  },
+  "renderer": {
+    "devicePixelRatio": 1.25,
+    "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+  },
+  "pageErrors": []
+}

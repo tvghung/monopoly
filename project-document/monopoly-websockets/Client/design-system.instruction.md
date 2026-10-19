@@ -157,6 +157,11 @@ registry khi plan sau chạm vào. `help` (Lucide `CircleQuestionMark`) là nút
 
 ## Design Lab (dev-only)
 
+The in-game dev FPS badge reports **actual 3D main-scene submissions per elapsed second / configured FPS limit**. It reads
+`FrameCounter` events from `apps/client/src/game/scene/GameScene.tsx`, displays 0 while the demand-rendered scene is idle,
+and resets its sample on visibility changes. It is hidden when local renderer diagnostics are disabled. Browser RAF
+callback frequency is not used as achieved scene FPS.
+
 `?phase4-uat=1&design-lab=1[&section=<id>][&theme=v1|v2][&surface=<id>][&chrome=hidden]` trong harness (build cần
 `VITE_PHASE4_UAT=1`; bản production chỉ chứa stub rỗng). Section: `tokens`, `typography`,
 `components`, `game-ui`, `scene-palette`, `purchase`, `lobby`, `landing`, `hud` (HUD vẽ concept
