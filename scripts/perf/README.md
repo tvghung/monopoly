@@ -112,7 +112,8 @@ pnpm perf:visual-compare --before /tmp/otb-before/uat-dist --after /tmp/otb-afte
 pnpm perf:visual-compare --before ... --after ... --out ... --renderer swiftshader   # software WebGL, same result on any machine
 ```
 
-`--states a,b` selects states, `--ready-timeout <seconds>` raises the wait for a fixture to become ready (software rendering is
+`--states a,b` selects states, `--dpr <ratio>` captures at a matched display scale (default 1), and `--viewport <width>x<height>`
+sets the CSS viewport. `--ready-timeout <seconds>` raises the wait for a fixture to become ready (software rendering is
 slow), `--tolerance <0..255>` allows a per-channel difference. A state that fails to capture is reported as not comparable
 with its reason instead of aborting the run.
 

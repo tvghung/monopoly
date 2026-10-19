@@ -8,7 +8,7 @@ import { expect, test, type Page } from '@playwright/test';
 const SELECT = 'select[aria-label="Chất lượng đồ họa (UAT)"]';
 const SEQUENCE = ['low', 'balanced', 'low', 'high', 'balanced'] as const;
 /** Canvas pixel ratio per tier on a device with ratio 1: the tier's range clamps it (renderQuality.ts). */
-const EXPECTED_PIXEL_RATIO = { low: 1, balanced: 1.25, high: 1.25 } as const;
+const EXPECTED_PIXEL_RATIO = { low: 1, balanced: 1.1, high: 1.25 } as const;
 const READY_TIMEOUT_MS = 120_000;
 const SWITCH_TIMEOUT_MS = 240_000;
 const RENDERER_QUIET_MS = 700;

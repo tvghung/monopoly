@@ -1,0 +1,54 @@
+{
+  "renderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "rendererAfter": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "viewport": "896x414",
+  "deviceScaleFactor": 1.25,
+  "tolerance": 0,
+  "results": [
+    {
+      "state": "board-low",
+      "fixture": "board-readability",
+      "tier": "low",
+      "comparable": true,
+      "identical": false,
+      "width": 1120,
+      "height": 518,
+      "totalPixels": 580160,
+      "differingPixels": 426094,
+      "differingRatio": 0.73444222283508,
+      "maxChannelDelta": 233,
+      "meanAbsDelta": 9.530874672504137,
+      "pageErrors": []
+    },
+    {
+      "state": "board-balanced",
+      "fixture": "board-readability",
+      "tier": "balanced",
+      "comparable": true,
+      "identical": false,
+      "width": 1120,
+      "height": 518,
+      "totalPixels": 580160,
+      "differingPixels": 500228,
+      "differingRatio": 0.8622242140099283,
+      "maxChannelDelta": 224,
+      "meanAbsDelta": 14.97532749586321,
+      "pageErrors": []
+    },
+    {
+      "state": "board-high",
+      "fixture": "board-readability",
+      "tier": "high",
+      "comparable": true,
+      "identical": false,
+      "width": 1120,
+      "height": 518,
+      "totalPixels": 580160,
+      "differingPixels": 97194,
+      "differingRatio": 0.16752964699393272,
+      "maxChannelDelta": 206,
+      "meanAbsDelta": 0.7209916230005515,
+      "pageErrors": []
+    }
+  ]
+}

@@ -23,8 +23,8 @@ describe('high-tier post chain settings (plan 02 §8.7)', () => {
     expect(POST_BLOOM.intensity).toBeLessThanOrEqual(0.3);
   });
 
-  it('keeps the vignette and multisampling at the planned values', () => {
+  it('keeps the vignette and high-tier edge sampling enabled', () => {
     expect(POST_VIGNETTE).toEqual({ offset: 0.3, darkness: 0.3 });
-    expect(POST_MULTISAMPLING).toBe(4);
+    expect(POST_MULTISAMPLING).toBe(2);
   });
 });

@@ -32,4 +32,4 @@ export const POST_VIGNETTE = {
   darkness: 0.3,
 } as const;
 
-export const POST_MULTISAMPLING = 4;
+export const POST_MULTISAMPLING = 2;

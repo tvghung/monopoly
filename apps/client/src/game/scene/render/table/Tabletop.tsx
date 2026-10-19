@@ -14,7 +14,7 @@ export const TABLETOP_ROUGHNESS = 0.62;
 export default function Tabletop() {
   const maxAnisotropy = useThree(state => state.gl.capabilities.getMaxAnisotropy());
   const invalidate = useThree(state => state.invalidate);
-  const { tableTextureSize, tableRoughnessVariation, shadows } = useRenderQuality();
+  const { tier, tableTextureSize, tableRoughnessVariation, shadows } = useRenderQuality();
   const textures = useMemo(
     () => createTableTextures(tableTextureSize, TABLETOP_SIZE, {
       roughnessVariation: tableRoughnessVariation,
@@ -36,14 +36,11 @@ export default function Tabletop() {
       receiveShadow={shadows.enabled}
     >
       <planeGeometry args={[TABLETOP_SIZE, TABLETOP_SIZE]} />
-      <meshStandardMaterial
-        map={textures.albedo}
-        // `null`, not `undefined`: R3F skips an undefined prop, so after a switch to a tier without the roughness variation the
-        // material would keep pointing at the texture that was just disposed.
-        roughnessMap={textures.roughness ?? null}
-        roughness={TABLETOP_ROUGHNESS}
-        metalness={0}
-      />
+      {tier === 'high'
+        ? <meshStandardMaterial map={textures.albedo} roughnessMap={textures.roughness ?? null} roughness={TABLETOP_ROUGHNESS} metalness={0} />
+        : tier === 'balanced'
+          ? <meshLambertMaterial map={textures.albedo} />
+          : <meshBasicMaterial map={textures.albedo} />}
     </mesh>
   );
 }

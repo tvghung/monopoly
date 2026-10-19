@@ -132,11 +132,14 @@ và 40 semantic tile buttons không đổi.
 - **Light rig** (`render/lighting/lightRigSpec.ts` là nguồn duy nhất): key directional ấm
   `#FFF1DE` cường độ 2.2 tại `(-9, 16, 5)` có shadow; fill hemisphere sky `#FFF8EC` /
   ground `table-oak` 0.55; rim lạnh `#DDE9FF` 0.6 tại `(8, 10, -12)`, không shadow.
-- **Environment**: một PMREM studio procedural (`render/environment/`), không file HDR,
-  dùng chung cho `scene.environment` và coin materials. Cường độ 0.6 / 0.7 / 0.8 cho
-  low / balanced / high.
+- **Environment**: một PMREM studio procedural (`render/environment/`), không file HDR.
+  Low và High dùng nó cho `scene.environment`; Balanced chỉ gắn nó trực tiếp cho coin và glass,
+  để các bề mặt nhám không chạy phép lấy mẫu cube-UV trên mỗi pixel. Balanced tăng diffuse
+  hemisphere fill ×2 để giữ bảng màu sáng; key/rim light và shadow thật không đổi.
+  Cường độ environment 0.6 / 0.7 / 0.8 cho low / balanced / high (Balanced áp dụng cho glass).
 - **Bàn và trạm**: `Tabletop` là mặt bàn gỗ sồi sáng procedural (texture canvas
-  512² / 1024²) phủ các aspect 1 → 2.4 (test `tabletopCoverage`); `BoardGroundShadow`
+  512² / 1024²) phủ các aspect 1 → 2.4 (test `tabletopCoverage`). Low dùng unlit
+  material; Balanced dùng Lambert nhận shadow; High giữ PBR và roughness map. `BoardGroundShadow`
   là decal bóng dưới board; khay người chơi (`PlayerTrays`) là instanced lacquer tray với
   viền màu người chơi; bank treasury đặt trên nền riêng, tiếp đất bằng shadow thật.
 - **Shadow**: key light PCF, map 1024 (balanced) hoặc 2048 (high), tắt ở low; khi có
@@ -152,9 +155,9 @@ và 40 semantic tile buttons không đổi.
 
   | Tier | DPR | Shadow | Environment | Decal | Post |
   | --- | --- | --- | --- | --- | --- |
-  | low | 1–1.25 | tắt | 0.6 | 0.35 | không |
-  | balanced | 1.25–1.5 | PCF 1024 | 0.7 | 0.18 | không |
-  | high | 1.25–2 | PCF 2048 | 0.8 | 0.18 | N8AO + bloom + vignette + MSAA |
+  | low | 1 | tắt | toàn scene 0.6 | 0.35 | không |
+  | balanced | 1.1–1.2 | PCF 1024 | coin/glass 0.7, fill ×2 | 0.18 | không |
+  | high | 1.25–2 | PCF 2048 | toàn scene 0.8 | 0.18 | N8AO + bloom + vignette + 2× MSAA |
 
   Đổi tier lúc chạy không cần reload (Canvas `dpr`/`shadows`/`gl.toneMapping` cập nhật,
   post chain mount hoặc unmount). Control nằm trong Settings, nhóm “Đồ họa”, tên
@@ -172,7 +175,8 @@ và 40 semantic tile buttons không đổi.
 - **Post chain (chỉ high)**: `render/post/ScenePostEffects.tsx` là lazy chunk, tier khác
   không tải. Thứ tự: N8AO (half res, aoRadius 0.8, distanceFalloff 0.6, intensity 1.6,
   màu AO ấm) → Bloom (mipmapBlur, ngưỡng 1.5 trên HDR buffer, intensity 0.22) →
-  Vignette (0.3 / 0.3) → ToneMapping Neutral. Không có hiệu ứng temporal vì demand
+  Vignette (0.3 / 0.3) → ToneMapping Neutral. Composer dùng 2× MSAA trong B5;
+  không có hiệu ứng temporal vì demand
   rendering dừng sau invalidate cuối. N8AO tự render scene vào buffer của nó nên
   `transparencyAware` phải tắt (nếu không scene bị render thêm hai lần và main pass tăng gấp đôi).
   Blend alpha của SDF text diễn ra trong không gian tuyến tính nên chữ ở tier high mảnh và

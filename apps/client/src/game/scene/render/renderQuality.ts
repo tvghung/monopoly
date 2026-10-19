@@ -16,6 +16,8 @@ export interface RenderQualityConfig {
   /** Scene tone mapping is always Khronos PBR Neutral; `high` applies it in the post chain instead. */
   toneMappingInPost: boolean;
   environmentIntensity: number;
+  /** Restores diffuse studio fill when the Balanced tier omits the per-pixel environment lookup. */
+  fillLightMultiplier: number;
   /** Key-light shadow map; `mapSize` 0 means shadows are off. */
   shadows: { enabled: boolean; mapSize: number };
   /** Cheap blob shadows under buildings stay on only while real shadows are off. */
@@ -31,9 +33,10 @@ export interface RenderQualityConfig {
 export const RENDER_QUALITY_CONFIGS: Record<RenderTier, RenderQualityConfig> = {
   low: {
     tier: 'low',
-    dpr: [1, 1.25],
+    dpr: [1, 1],
     toneMappingInPost: false,
     environmentIntensity: 0.6,
+    fillLightMultiplier: 1,
     shadows: { enabled: false, mapSize: 0 },
     buildingContactShadows: true,
     groundDecalOpacity: 0.35,
@@ -44,9 +47,10 @@ export const RENDER_QUALITY_CONFIGS: Record<RenderTier, RenderQualityConfig> = {
   },
   balanced: {
     tier: 'balanced',
-    dpr: [1.25, 1.5],
+    dpr: [1.1, 1.2],
     toneMappingInPost: false,
     environmentIntensity: 0.7,
+    fillLightMultiplier: 2,
     shadows: { enabled: true, mapSize: 1024 },
     buildingContactShadows: false,
     groundDecalOpacity: 0.18,
@@ -60,6 +64,7 @@ export const RENDER_QUALITY_CONFIGS: Record<RenderTier, RenderQualityConfig> = {
     dpr: [1.25, 2],
     toneMappingInPost: true,
     environmentIntensity: 0.8,
+    fillLightMultiplier: 1,
     shadows: { enabled: true, mapSize: 2048 },
     buildingContactShadows: false,
     groundDecalOpacity: 0.18,
