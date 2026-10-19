@@ -35,6 +35,20 @@ log is recorded as `OWNER-REPORTED`, never as an automated or independent `PASS`
 | Differences from v1.9.0 | Online public probes use Electron's network stack, bounded DNS/readiness retries, resolver-cache refresh and safe failure diagnostics; gameplay, protocol 14 and snapshot schema 11 are unchanged | [HTTP and hosting](./monopoly-websockets/Api/http-runtime.instruction.md#online), [Shared contracts — Version history](./monopoly-websockets/Shared/socket-and-state-contracts.instruction.md#version-history) |
 | Release risks | The affected Windows PC failed on rc.1 (`PUBLIC_READINESS` / `DNS`, 39 attempts in 39.6 s). The owner reports repeated rc.2 Online room creation on that PC with Defender enabled, taking about 40–90 s; root cause and timing breakdown are unknown. Cross-network, full-game, upgrade and macOS device checks remain **NOT RUN** | [Hosting checklist](./monopoly-websockets/testcase/http-runtime-and-deployment.md) |
 
+## Performance program status (2026-10-19)
+
+These phases are **CURRENT DEVELOPMENT** on `main`, not part of the latest published v1.9.1 release. The historical [Phase A roadmap](./ui-ux-overhaul/08A_PERFORMANCE_AUDIT.md) remains an investigation reference; the decisions below govern the current work.
+
+| Phase | Status | Evidence / next action |
+| --- | --- | --- |
+| B3 shader warm-up | **PARTIAL — CLOSED** | [B3 implementation](./ui-ux-overhaul/08F_PHASE_B3_IMPLEMENTATION.md), [lobby prewarm follow-up](./ui-ux-overhaul/08H_PHASE_B3_LOBBY_PREWARM_PLAN.md); preserve the accepted T5-lobby result and recorded limits |
+| B4 FPS stability | **PARTIAL — CLOSED, MERGED** | [B4 record](./ui-ux-overhaul/08I_PHASE_B4_IMPLEMENTATION.md); [PR #21](https://github.com/tvghung/monopoly/pull/21) merge `37961bf1b093b30a7b89f99279dd2dcb94a50f76`; physical high-refresh and full-match owner UAT deferred |
+| B5 GPU graphics | **PARTIAL — CLOSED, MERGED** | [B5 record](./ui-ux-overhaul/08J_PHASE_B5_IMPLEMENTATION.md); [PR #22](https://github.com/tvghung/monopoly/pull/22) merge `f7e25d7ae717efb5fddba0494a34edc634bc0e28`; **Owner Visual Acceptance — PASS** (owner-reported 2026-10-19); remaining limits stay open |
+| B5 follow-up defaults | **PASS — CLOSED** | Fixed Balanced graphics default and Dog/valid-fallback mascot for new human seats; explicitly chosen Auto remains available; [B5 record](./ui-ux-overhaul/08J_PHASE_B5_IMPLEMENTATION.md) |
+| B6 Adaptive Graphics | **SKIPPED — owner decision** | No adaptive controller is authorized in this phase |
+| B7 Loading Optimization | **APPROVED / STARTING** | Begin from verified post-closeout `main`; preserve B3 lobby-to-board, B4 scheduler and B5 visuals/performance |
+| B8 animation timing | **NOT STARTED** | No B8 implementation in this closeout |
+
 The current protocol and snapshot numbers are defined only in code: `SOCKET_PROTOCOL_VERSION` in `packages/shared/src/types.ts`
 and `ROOM_SNAPSHOT_SCHEMA_VERSION` in `apps/server/src/rooms.ts`; the history is in
 [Shared contracts — Version history](./monopoly-websockets/Shared/socket-and-state-contracts.instruction.md#version-history).
