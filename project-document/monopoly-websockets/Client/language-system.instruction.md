@@ -33,10 +33,10 @@ HTML is injected.
 
 ## Settings migration
 
-- Current settings use `own-the-block.settings.v2` and `version: 2`.
-- The old `own-the-block.settings.v1` key is read only when V2 is absent, normalized, then
-  copied forward to V2. Existing audio, animation, reduced-motion, fullscreen and graphics
-  preferences are preserved.
+- Current settings use `own-the-block.settings.v3` and `version: 3`.
+- When V3 is absent, V2 is normalized and copied forward; V2 `auto` graphics becomes the new
+  Balanced default, while explicit Low, Balanced and High survive. V1 is read only when both
+  V3 and V2 are absent. Existing audio, animation, reduced-motion and fullscreen preferences survive.
 - A missing/invalid language becomes `vi`. Reset restores all existing defaults and
   Vietnamese. A valid saved `en` preference survives reload.
 
@@ -51,7 +51,7 @@ HTML is injected.
   language, Up/Down/Home/End move, Enter or Space chooses; the options are real buttons (`role="option"`, 44 px) so touch and
   mouse behave the same. Its popover is positioned against the viewport so it is not clipped by the Settings modal's scrolling body; it opens on the side with more room.
 - The selector and the Settings dialog write the same `settings.language` through `updateSettings`; the choice is persisted with the
-  other settings (`own-the-block.settings.v2`) and read back at start. Both update immediately without reloading; open dialogs and
+  other settings (`own-the-block.settings.v3`) and read back at start. Both update immediately without reloading; open dialogs and
   error messages render from current locale. Option names are the language's own name (`language.vietnamese` / `language.english`),
   identical in both catalogs, so the list reads the same whichever language is active.
 - Landmark names: every street has a hotel landmark (`LANDMARK_PLAN`, 22 entries). `name` is the Vietnamese name and stays the

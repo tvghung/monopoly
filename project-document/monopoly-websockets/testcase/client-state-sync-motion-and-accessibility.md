@@ -427,6 +427,11 @@ Evidence and numbers: [08F](../../ui-ux-overhaul/08F_PHASE_B3_IMPLEMENTATION.md)
 
 ## Performance program B5 checks (GPU and graphics tiers)
 
+- [x] `[AUTO][CLIENT]` `settings.test.ts`, `SettingsPanel.test.tsx`, `renderQuality.test.ts`: a fresh profile,
+  missing/invalid quality and Reset use Balanced; V2 Auto migrates once, saved manual tiers persist, explicit V3 Auto
+  remains selectable, and Balanced never downgrades on a weak probe.
+- [x] `[AUTO][CLIENT]` `Lobby.test.tsx`: the lobby seat renders the committed Dog mascot and the picker marks Dog selected.
+
 Evidence and measured scope: [08J](../../ui-ux-overhaul/08J_PHASE_B5_IMPLEMENTATION.md). Rules: [game-board.instruction.md](../Client/game-board.instruction.md) "Lighting, environment và graphics tiers". B4 remains PARTIAL.
 
 - [x] `[PROBE]` The deterministic dice, walk, purchase, rent and build fixtures at Low, Balanced and High used the same GPU, viewport, display DPR, FPS cap and browser; actual scene FPS, GPU time, P50/P95/P99 intervals, CPU, draw calls and resource counts are in 08J. Random real-room rolls are reported separately.

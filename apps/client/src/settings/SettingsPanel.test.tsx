@@ -238,7 +238,7 @@ describe('SettingsPanel graphics quality', () => {
     expect([...group.querySelectorAll('[role="radio"]')].map(radio => radio.textContent)).toEqual([
       'Tự động', 'Cao', 'Cân bằng', 'Thấp',
     ]);
-    expect(screen.getByRole('radio', { name: 'Tự động' }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('radio', { name: 'Cân bằng' }).getAttribute('aria-checked')).toBe('true');
     expect(screen.getByText('Chất lượng Cao cần card đồ họa mạnh.')).toBeTruthy();
   });
 
@@ -256,12 +256,12 @@ describe('SettingsPanel graphics quality', () => {
     const group = screen.getByRole('radiogroup', { name: 'Chất lượng đồ họa' });
 
     fireEvent.keyDown(group, { key: 'ArrowRight' });
-    expect(currentSettings().graphicsQuality).toBe('high');
+    expect(currentSettings().graphicsQuality).toBe('low');
     fireEvent.keyDown(group, { key: 'ArrowRight' });
-    expect(currentSettings().graphicsQuality).toBe('balanced');
+    expect(currentSettings().graphicsQuality).toBe('auto');
     fireEvent.keyDown(group, { key: 'ArrowLeft' });
-    expect(currentSettings().graphicsQuality).toBe('high');
-    expect(screen.getByRole('radio', { name: 'Cao' }).getAttribute('aria-checked')).toBe('true');
+    expect(currentSettings().graphicsQuality).toBe('low');
+    expect(screen.getByRole('radio', { name: 'Thấp' }).getAttribute('aria-checked')).toBe('true');
   });
 });
 
@@ -342,7 +342,7 @@ describe('SettingsPanel reset and closing', () => {
     expect(currentSettings()).toEqual(DEFAULT_GAME_SETTINGS);
     expect(screen.getByLabelText('Âm lượng tổng')).toHaveProperty('value', '1');
     expect(screen.getByRole('radio', { name: '1x' }).getAttribute('aria-checked')).toBe('true');
-    expect(screen.getByRole('radio', { name: 'Tự động' }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('radio', { name: 'Cân bằng' }).getAttribute('aria-checked')).toBe('true');
     expect(screen.getByRole('button', { name: 'Giới hạn FPS: 60 FPS' })).toBeTruthy();
     expect(screen.getByRole('switch', { name: 'Giảm chuyển động' })).toHaveProperty('checked', false);
   });

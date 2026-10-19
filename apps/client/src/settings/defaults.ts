@@ -1,14 +1,15 @@
 import { DEFAULT_LANGUAGE, isSupportedLanguage } from '../i18n/languages';
 import type { FpsLimitSetting, GameSettings, GraphicsQualitySetting } from './types';
 
-export const SETTINGS_STORAGE_KEY = 'own-the-block.settings.v2';
+export const SETTINGS_STORAGE_KEY = 'own-the-block.settings.v3';
+export const PREVIOUS_SETTINGS_STORAGE_KEY = 'own-the-block.settings.v2';
 export const LEGACY_SETTINGS_STORAGE_KEY = 'own-the-block.settings.v1';
 export const ANIMATION_SPEED_OPTIONS = [0.75, 1, 1.5, 2] as const;
 export const GRAPHICS_QUALITY_OPTIONS = ['auto', 'high', 'balanced', 'low'] as const satisfies readonly GraphicsQualitySetting[];
 export const FPS_LIMIT_OPTIONS = [30, 60, 120, 180, 240] as const satisfies readonly FpsLimitSetting[];
 
 export const DEFAULT_GAME_SETTINGS: GameSettings = {
-  version: 2,
+  version: 3,
   language: DEFAULT_LANGUAGE,
   masterVolume: 1,
   muted: false,
@@ -17,7 +18,7 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   animationSpeed: 1,
   reducedMotion: false,
   fullscreen: false,
-  graphicsQuality: 'auto',
+  graphicsQuality: 'balanced',
   fpsLimit: 60,
 };
 
@@ -51,7 +52,7 @@ export function normalizeSettings(value: unknown): GameSettings {
   if (!value || typeof value !== 'object') return { ...DEFAULT_GAME_SETTINGS };
   const candidate = value as Partial<GameSettings>;
   return {
-    version: 2,
+    version: 3,
     language: isSupportedLanguage(candidate.language) ? candidate.language : DEFAULT_GAME_SETTINGS.language,
     masterVolume: clampVolume(candidate.masterVolume, DEFAULT_GAME_SETTINGS.masterVolume),
     muted: typeof candidate.muted === 'boolean' ? candidate.muted : DEFAULT_GAME_SETTINGS.muted,

@@ -72,3 +72,16 @@ Owner visual acceptance is **NOT RUN**. Engineering visual review found no missi
 | Owner visual acceptance | **NOT RUN** | Owner must inspect the matched Low, Balanced and High captures, especially small tile text and Balanced matte/gloss balance, and play the changed tiers before merge. |
 
 **B5 recommendation: PARTIAL.** Controlled Low and Balanced GPU-cost targets and ~60 FPS were achieved on the available Intel UHD for representative fixtures, with no new rendering-resource growth or idle work. High still runs near 18–19 FPS on this device, and the small-view Balanced text/lighting change awaits owner visual acceptance. B4 stays **PARTIAL**; its outstanding high-refresh physical-display and owner UAT validation remain separate. Do not merge this stacked draft until owner visual review and the appropriate post-B4 integration verification.
+
+## Owner-approved default follow-up (PR #22)
+
+- New settings profiles and Reset select fixed Balanced. V2 saved Auto migrates to Balanced once in the V3 local settings
+  record; saved Low/Balanced/High persist, and users may still explicitly select Auto. Invalid quality values resolve to
+  Balanced without a device downgrade. Graphics tiers, rendering work and FPS controls are unchanged.
+- New human lobby seats receive Dog in the server's admission transaction, or the first valid mascot in shared order if
+  Dog conflicts with an appearance combination or 2v2 teammate. Solo colors and duplicate mascots across distinct colors
+  remain valid. A Solo-to-2v2 switch assigns a valid fallback to later conflicting teammates. Existing sessions, manual
+  appearance changes and Play Again retain their stored mascot; new seats remain unready.
+- Wire shape and snapshot shape are unchanged, so socket protocol 14 and room snapshot schema 11 stay unchanged.
+  Follow-up validation: `pnpm typecheck`, `pnpm lint`, `pnpm test` (server 561, desktop 525, client 2620),
+  `pnpm build`, `pnpm validate:docs`, and the Playwright `graphicsTierSwitch` browser check all **PASS**.

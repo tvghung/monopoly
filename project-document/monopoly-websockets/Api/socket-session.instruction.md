@@ -43,7 +43,11 @@ host process lives and are lost when the host process exits.
 - Hash lookup handles pending activation or active reconnect.
 - Pending activation transaction creates only with stored Host authorization, or
   finds the exact admitted lobby; it enforces four-seat capacity,
-  creates stable UUID Seat and assigns join order/color/host.
+  creates stable UUID Seat and assigns join order/color/host. A newly admitted human starts
+  unready with Dog in the authoritative room state. If Dog conflicts with an active player's
+  mascot+color combination, or with a teammate's mascot in 2v2, admission chooses the first
+  valid mascot in `CHARACTER_IDS` order. The assigned color is unchanged. Active session
+  resume does not reassign a mascot.
 - Active reconnect returns the same stable Player and relevant pending offers.
 - Invalid/revoked/expired token is rejected, never converted to spectator/new Seat.
 - `resume session` accepts only `{token}`: a capability smuggled into it is an

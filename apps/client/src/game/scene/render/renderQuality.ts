@@ -104,7 +104,7 @@ function isGraphicsQualitySetting(value: unknown): value is GraphicsQualitySetti
 }
 
 export function resolveRenderTier(setting: unknown, probe: RenderCapabilityProbe): RenderTier {
-  const safeSetting: GraphicsQualitySetting = isGraphicsQualitySetting(setting) ? setting : 'auto';
+  const safeSetting: GraphicsQualitySetting = isGraphicsQualitySetting(setting) ? setting : 'balanced';
   return safeSetting === 'auto' ? resolveAutoTier(probe) : safeSetting;
 }
 

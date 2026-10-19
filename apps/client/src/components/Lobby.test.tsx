@@ -131,6 +131,7 @@ describe('Lobby', () => {
     expect(screen.queryByText('Chó')).toBeNull();
     expect(screen.queryByText('Gấu trúc')).toBeNull();
     const characterGroup = screen.getByRole('group', { name: 'Chọn mascot' });
+    expect(within(characterGroup).getByRole('button', { name: 'Chó' }).getAttribute('aria-pressed')).toBe('true');
     const colorGroup = screen.getByRole('group', { name: 'Chọn màu người chơi' });
     expect(characterGroup.querySelectorAll('button')).toHaveLength(8);
     expect(colorGroup.querySelectorAll('button')).toHaveLength(10);
@@ -140,6 +141,7 @@ describe('Lobby', () => {
     expect(screen.queryByText('Xem trước trong phòng')).toBeNull();
     expect(document.querySelector<HTMLImageElement>('.lobby-player__mascot')?.src)
       .toContain('%23f2384a');
+    expect(document.querySelector<HTMLLIElement>('[data-player-id="player-a"]')?.querySelector('.lobby-player__mascot--empty')).toBeNull();
   });
 
   it('keeps ready control on the current player card and exposes the no-mascot guidance', () => {

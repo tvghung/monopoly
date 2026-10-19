@@ -90,7 +90,8 @@ describe('2v2 lobby', () => {
   it('dresses every player in their team colour when the mode becomes 2v2', async () => {
     const { players, persistence, roomId } = await lobbyOfFour();
     okOf(await setMode(players[0].socket, 'TEAM_2V2'));
-    const state = (await stored(persistence, roomId)).gameSnapshot.gameState;
+    const room = await stored(persistence, roomId);
+    const state = room.gameSnapshot.gameState;
     const colors = Object.fromEntries(
       Object.entries(state.players).map(([id, player]) => [id, player.color]),
     );
@@ -100,14 +101,34 @@ describe('2v2 lobby', () => {
     expect(colors[players[3].playerId]).toBe('blue');
   });
 
-  it('clears the later joiner\'s mascot when two teammates had picked the same one in Solo', async () => {
+  it('defaults new 2v2 joiners to Dog or the first free teammate mascot without marking Ready', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const host = await join(await connect(subject.url), 'Host', 'TEAMS-DOG');
+    okOf(await setMode(host.socket, 'TEAM_2V2'));
+    const second = await join(await connect(subject.url), 'Second', 'TEAMS-DOG');
+    const third = await join(await connect(subject.url), 'Third', 'TEAMS-DOG');
+    const fourth = await join(await connect(subject.url), 'Fourth', 'TEAMS-DOG');
+    expect(fourth.room.players.map(player => player.characterId)).toEqual(['dog', 'dog', 'capybara', 'capybara']);
+    const room = await stored(persistence, host.room.roomId);
+    expect([host, second, third, fourth].map(player => room.gameSnapshot.gameState.players[player.playerId].characterId))
+      .toEqual(['dog', 'dog', 'capybara', 'capybara']);
+    expect([host, second, third, fourth].every(player => !room.gameSnapshot.members[player.playerId].ready)).toBe(true);
+    for (const player of [host, second, third, fourth]) okOf(await ready(player.socket));
+    okOf(await start(host.socket));
+  });
+
+  it('assigns a valid fallback to later teammates when switching Dog defaults from Solo to 2v2', async () => {
     const { players, persistence, roomId } = await lobbyOfFour();
     okOf(await appearance(players[0].socket, { characterId: 'dog' }));
     okOf(await appearance(players[2].socket, { characterId: 'dog', color: 'green' })); // Solo: same mascot, other colour
     okOf(await setMode(players[0].socket, 'TEAM_2V2'));
-    const state = (await stored(persistence, roomId)).gameSnapshot.gameState;
+    const room = await stored(persistence, roomId);
+    const state = room.gameSnapshot.gameState;
     expect(state.players[players[0].playerId].characterId).toBe('dog'); // the earlier joiner keeps it
-    expect(state.players[players[2].playerId].characterId).toBeNull();
+    expect(state.players[players[2].playerId].characterId).toBe('capybara');
+    expect(state.players[players[3].playerId].characterId).toBe('capybara');
+    expect(Object.values(room.gameSnapshot.members).every(member => !member.ready)).toBe(true);
   });
 
   it('keeps the team controls for 2v2 only', async () => {
@@ -202,6 +223,8 @@ describe('2v2 lobby', () => {
 
   it('keeps Solo appearance behaviour: personal colours, and a duplicate mascot with another colour is fine', async () => {
     const { players } = await lobbyOfFour();
+    okOf(await appearance(players[2].socket, { characterId: 'cat' }));
+    okOf(await appearance(players[3].socket, { characterId: 'cat' }));
     okOf(await appearance(players[0].socket, { characterId: 'dog', color: 'green' }));
     okOf(await appearance(players[2].socket, { characterId: 'dog', color: 'yellow' }));
     expect(failureOf(await appearance(players[1].socket, { characterId: 'dog', color: 'green' })).code).toBe('CONFLICT');

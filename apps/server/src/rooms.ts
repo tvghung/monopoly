@@ -579,6 +579,23 @@ export const chooseBotCharacter = (
   return free.find(characterId => !worn.has(characterId)) ?? free[0] ?? null;
 };
 
+/** Dog first, then the shared mascot order for a new seat or a Solo-to-2v2 conflict. */
+export const chooseNewHumanCharacter = (
+  snapshot: RoomSnapshot,
+  color: PlayerColorId,
+  teamId: TeamId,
+  state: Pick<GameState, 'players' | 'boardState'> = snapshot.gameState,
+): CharacterId | null => {
+  const players = activePlayerIds(snapshot)
+    .map(playerId => state.players[playerId])
+    .filter((player): player is Player => player !== undefined);
+  return CHARACTER_IDS.find(characterId => players.every(player => (
+    getAppearanceCombinationKey(player.characterId, player.color) !== getAppearanceCombinationKey(characterId, color)
+    && (state.boardState.gameMode !== 'TEAM_2V2'
+      || player.teamId !== teamId || player.characterId !== characterId)
+  ))) ?? null;
+};
+
 /**
  * Lobby bots are always Ready and always wear a valid, unique mascot+colour combination. Run after every lobby command, so a
  * rule that resets Ready (mode switch, play again) or clears/clashes a mascot (team moves, recolours) never leaves a bot

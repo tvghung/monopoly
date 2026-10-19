@@ -598,6 +598,7 @@ describe('Socket.IO player lifecycle over the RAM store', () => {
     const host = await joinPlayer(await connect(subject.url), 'Host', 'play-again');
     const guest = await joinPlayer(await connect(subject.url), 'Guest', 'play-again');
     const left = await joinPlayer(await connect(subject.url), 'Left', 'play-again');
+    expect((await setAppearance(guest.socket, { characterId: 'cat' })).ok).toBe(true);
     await setReady(host.socket);
     await setReady(guest.socket);
     await setReady(left.socket);
@@ -621,7 +622,7 @@ describe('Socket.IO player lifecycle over the RAM store', () => {
         name: 'Guest',
         color: 'blue',
         teamId: 'TEAM_1',
-        characterId: 'dog',
+        characterId: 'cat',
         reason: 'BANKRUPT',
         accountBalance: 0,
       };
@@ -690,7 +691,7 @@ describe('Socket.IO player lifecycle over the RAM store', () => {
             [guest.playerId]: {
               name: 'Guest',
               color: 'blue',
-              characterId: 'dog',
+              characterId: 'cat',
               currentTile: 0,
               accountBalance: 1500,
               heldJailFreeCardIds: [],
@@ -1157,15 +1158,13 @@ describe('Socket.IO player lifecycle over the RAM store', () => {
 
     expect(host.room.players.map(player => player.color)).toEqual(['red']);
     expect(guest.room.players.map(player => player.color)).toEqual(['red', 'blue']);
-    expect(host.room.players.every(player => player.characterId === null)).toBe(true);
+    expect(host.room.players.map(player => player.characterId)).toEqual(['dog']);
+    expect(guest.room.players.map(player => player.characterId)).toEqual(['dog', 'dog']);
 
-    const readyWithoutCharacter = await waitForAck((acknowledge) => {
+    const readyWithDefaultCharacter = await waitForAck((acknowledge) => {
       host.socket.emit('set ready', { ready: true }, acknowledge);
     });
-    expect(readyWithoutCharacter).toMatchObject({
-      ok: false,
-      error: { code: 'CONFLICT' },
-    });
+    expect(readyWithDefaultCharacter.ok).toBe(true);
     expect((await setAppearance(host.socket, { characterId: 'dog', color: 'red' })).ok).toBe(true);
     expect((await setReadyOnly(host.socket)).ok).toBe(true);
 
@@ -1241,6 +1240,27 @@ describe('Socket.IO player lifecycle over the RAM store', () => {
       ok: false,
       error: { code: 'GAME_ALREADY_STARTED' },
     });
+  });
+
+  it('commits Dog for every new Solo seat and preserves a changed mascot across resume', async () => {
+    const persistence = new InMemoryPersistenceStore<RoomSnapshot>();
+    const subject = await startServer(persistence);
+    const players: PlayerConnection[] = [];
+    for (const name of ['Host', 'Guest 1', 'Guest 2', 'Guest 3']) {
+      const joined = await joinPlayer(await connect(subject.url), name, 'default-dog');
+      players.push(joined);
+      expect(joined.room.players.map(player => player.characterId)).toEqual(players.map(() => 'dog'));
+      expect(joined.room.players.map(player => player.ready)).toEqual(players.map(() => false));
+    }
+    const room = await persistence.rooms.findById(players[0].room.roomId);
+    expect(Object.values(room?.gameSnapshot.gameState.players ?? {}).map(player => player.characterId))
+      .toEqual(['dog', 'dog', 'dog', 'dog']);
+    expect((await setAppearance(players[1].socket, { characterId: 'cat' })).ok).toBe(true);
+    const restored = await resumePlayer(await connect(subject.url), players[1].token);
+    expect(restored.playerId).toBe(players[1].playerId);
+    expect(restored.room.players.find(player => player.playerId === players[1].playerId)?.characterId).toBe('cat');
+    expect((await persistence.rooms.findById(players[0].room.roomId))?.gameSnapshot.gameState.players[players[1].playerId].characterId)
+      .toBe('cat');
   });
 
   it('releases a lobby color when its active player leaves', async () => {

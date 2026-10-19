@@ -150,7 +150,7 @@ và 40 semantic tile buttons không đổi.
   error boundary). Lỗi của một layer chỉ cảnh báo một lần và bỏ layer, không kéo board
   sang legacy; chỉ lỗi renderer thật hoặc mất WebGL context mới chuyển sang legacy.
 - **Graphics tiers** (`render/renderQuality.ts`, `GameSettings.graphicsQuality`):
-  `auto` (mặc định) → `balanced`, hoặc `low` khi thiết bị cảm ứng nhỏ, mobile profile (`coarsePointer && hoverNone`), `MAX_TEXTURE_SIZE <
+  Mặc định `balanced`, không giảm tự động theo thiết bị. `auto` chỉ khi người chơi chọn → `balanced`, hoặc `low` khi thiết bị cảm ứng nhỏ, mobile profile (`coarsePointer && hoverNone`), `MAX_TEXTURE_SIZE <
   8192` hay `hardwareConcurrency <= 4`; `auto` không bao giờ chọn `high`.
 
   | Tier | DPR | Shadow | Environment | Decal | Post |

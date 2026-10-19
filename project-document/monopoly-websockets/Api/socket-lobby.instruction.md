@@ -12,6 +12,8 @@ per-room executor and typed ACK.
 
 ## Appearance
 
+- New human admission receives a committed Dog mascot or the first valid fallback in shared mascot order;
+  see [session admission](./socket-session.instruction.md#resume-sessiontoken). `set appearance` remains the manual change path.
 - `set appearance({characterId?, color?})` is accepted only from the authenticated
   active Player while the room is in `LOBBY`. The strict request is non-empty and
   permits character-only, color-only or combined updates; unknown keys and invalid
@@ -66,7 +68,7 @@ per-room executor and typed ACK.
 
 | Event | Payload | Actor | Rule |
 | --- | --- | --- | --- |
-| `set game mode` | `{mode}` | host | `LOBBY` only; a real change resets every Ready |
+| `set game mode` | `{mode}` | host | `LOBBY` only; a real change resets every Ready; switching to 2v2 keeps earlier teammates' mascots and gives a later conflicting teammate the first valid fallback |
 | `set team name` | `{name}` | active member | 2v2 `LOBBY`; renames the actor's **own** team only (the payload has no team: nobody, the host included, can name the other team); `sanitizeName`, at most 20 chars; Ready untouched |
 | `set team color` | `{color}` | active member | own team only, not the other team's colour; resets that team's Ready |
 | `move to seat` | `{teamId, teamSlot}` | active member | 2v2 `LOBBY`; the seat must be empty (`CONFLICT` when it is held, or is the actor's own); the move is immediate. Across teams: colour becomes the new team's, a mascot that clashes with the new teammate is cleared (the stayer keeps theirs) and only the mover's Ready resets; inside the team only the seat changes |

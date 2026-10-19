@@ -44,10 +44,10 @@ describe('explicit settings', () => {
     expect(resolveRenderQuality(setting, desktop)).toBe(RENDER_QUALITY_CONFIGS[setting]);
   });
 
-  it('falls back to auto for invalid values', () => {
+  it('falls back to balanced for invalid values even on a weak device', () => {
     for (const value of ['ultra', '', null, undefined, 3, {}]) {
       expect(resolveRenderTier(value, desktop)).toBe('balanced');
-      expect(resolveRenderTier(value, { ...desktop, hardwareConcurrency: 2 })).toBe('low');
+      expect(resolveRenderTier(value, { ...desktop, hardwareConcurrency: 2 })).toBe('balanced');
     }
   });
 
