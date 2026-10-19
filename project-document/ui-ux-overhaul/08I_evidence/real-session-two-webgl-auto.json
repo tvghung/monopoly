@@ -1,0 +1,35 @@
+{
+  "roomCode": "OTB-EQ2J1R",
+  "quality": "auto",
+  "guestFallback": false,
+  "steps": [
+    "two-browser authoritative lobby and WebGL board",
+    "FPS preference changed 60 → 30 → 120 during game",
+    "dice roll produced actual WebGL scene frames",
+    "character landed on a non-start tile in the authoritative board view",
+    "wheel zoom and pointer drag while in game",
+    "real browser-tab focus switch and recovery",
+    "synthetic visibility interruption and recovery",
+    "host page reload and session resume",
+    "guest forfeited and host reached winner state",
+    "Play Again returned same room to lobby"
+  ],
+  "roll": {
+    "renderedFrames": 51,
+    "contiguousIntervals": 47,
+    "achievedSceneFps": 16.31394981551352,
+    "intervalP50Ms": 66.5,
+    "intervalP95Ms": 83.30000000000109,
+    "longestCpuMs": 22.399999856948853,
+    "medianGpuMs": 24.953483,
+    "gpuSamples": 51,
+    "programLinks": 0,
+    "longestMainThreadTaskMs": 54,
+    "landedTileLabel": "Ô 4: Thuế Thu Nhập. Người chơi đang đứng: B4 Host. Mở chi tiết ô cờ"
+  },
+  "renderer": {
+    "devicePixelRatio": 1.25,
+    "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+  },
+  "pageErrors": []
+}

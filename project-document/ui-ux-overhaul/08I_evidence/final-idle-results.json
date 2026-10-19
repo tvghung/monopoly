@@ -1,0 +1,87 @@
+{
+  "environment": {
+    "commit": "6f7d3c4afed3ec245a51bfc6a0c35e63b6538e83",
+    "branch": "codex/phase-b4-fps-stability",
+    "workingTreeDirty": true,
+    "capturedAt": "2026-10-19T03:58:03.937Z",
+    "node": "v24.19.0",
+    "os": "Windows_NT 10.0.19044 x64",
+    "cpu": "Intel(R) Core(TM) i5-10210U CPU @ 1.60GHz (8 logical)",
+    "memoryGiB": 15.8,
+    "options": {
+      "label": "b4-final",
+      "tiers": [
+        "low"
+      ],
+      "scenarios": [
+        "idle"
+      ],
+      "cap": 60,
+      "replays": 5,
+      "soakReplays": 30,
+      "soakWarmup": 3,
+      "idleSeconds": 3,
+      "gpu": "default",
+      "diagnostics": "on",
+      "lite": false,
+      "window": "1536x864",
+      "build": true,
+      "dist": null,
+      "out": null,
+      "port": 4173,
+      "assertIdle": true,
+      "hoverTiles": 18,
+      "volumeSteps": 20,
+      "cold": false
+    }
+  },
+  "page": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+    "devicePixelRatio": 1.25,
+    "viewport": {
+      "width": 1522,
+      "height": 770
+    },
+    "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "drawingBuffer": {
+      "width": 1871,
+      "height": 930
+    },
+    "gpuTimerQuery": true,
+    "renderers": [
+      {
+        "id": 1,
+        "name": "react-dom",
+        "version": "19.2.8",
+        "bundleType": 0
+      },
+      {
+        "id": 2,
+        "name": "@react-three/fiber",
+        "version": "9.7.0",
+        "bundleType": 0
+      }
+    ],
+    "refreshHz": 59.88023952095874
+  },
+  "runs": [
+    {
+      "tier": "low",
+      "scenario": "idle",
+      "fixture": "board-readability",
+      "fpsCap": 60,
+      "windowSeconds": 3,
+      "idle": {
+        "seconds": 3.0145999999046325,
+        "sceneSubmissions": 0,
+        "schedulerCallbacks": 0,
+        "domCommits": 0,
+        "r3fCommits": 0
+      },
+      "loadFrames": 3,
+      "probeSawFrames": true,
+      "refreshHz": 59.88023952095874,
+      "errors": []
+    }
+  ]
+}

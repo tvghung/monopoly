@@ -23,6 +23,7 @@ import { countComposerPasses } from './render/diagnostics/composerPasses';
 import { isDevToolingEnabled, isLocalDiagnosticsEnabled } from './render/diagnostics/localDiagnostics';
 import { MeasurementScheduler } from './render/diagnostics/measurementScheduler';
 import { FrameCounter, shadowMapTypeName, toneMappingName } from './render/diagnostics/rendererInfo';
+import { SCENE_FRAME_EVENT } from './render/diagnostics/sceneFrameEvent';
 import OptionalSceneLayer from './render/OptionalSceneLayer';
 import ShaderWarmup from './render/warmup/ShaderWarmup';
 import { markSceneOnce } from './render/warmup/sceneMarks';
@@ -270,6 +271,7 @@ function RendererDiagnostics({
     scheduler.start();
     // Async completions (SDF text, textures) render new frames later; republish once frames go quiet.
     const unsubscribe = counterRef.current?.subscribe(stats => {
+      window.dispatchEvent(new Event(SCENE_FRAME_EVENT));
       window.__OWN_THE_BLOCK_RENDERER_FRAME_SAMPLE__?.({
         timestampMs: stats.mainRenderAtMs,
         intervalMs: stats.mainRenderIntervalMs,

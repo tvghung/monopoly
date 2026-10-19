@@ -44,6 +44,7 @@ import { ActionIcon as RegistryIcon } from './design-system/icons/ActionIcon';
 import ConfirmationDialog from './design-system/components/ConfirmationDialog/ConfirmationDialog';
 import SettingsPanel from './settings/SettingsPanel';
 import FpsBadge from './game/ui/FpsBadge';
+import { isLocalDiagnosticsEnabled } from './game/scene/render/diagnostics/localDiagnostics';
 import HowToPlayButton from './howToPlay/HowToPlayButton';
 import { getDesktopBridge } from './runtime/desktopBridge';
 import stateContext from './internal';
@@ -1171,7 +1172,7 @@ export default function App({
         <>
           {role === 'SPECTATOR' ? <SpectatorBanner /> : null}
           <div className="room-toolbar" data-hud-region="toolbar" aria-label={t('app.toolbar')}>
-            {import.meta.env.DEV || __PHASE4_UAT__ ? <FpsBadge /> : null}
+            {isLocalDiagnosticsEnabled() ? <FpsBadge /> : null}
             <HowToPlayButton />
             <IconButton
               label={t('launcher.settings')}

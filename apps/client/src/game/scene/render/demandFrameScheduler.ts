@@ -25,6 +25,7 @@ const browserHost: FrameSchedulerHost = {
 export class DemandFrameScheduler {
   private pendingFrames = 0;
   private lastFrameAt: number | null = null;
+  private nextFrameAt: number | null = null;
   private frameId: number | null = null;
   private timeoutId: number | null = null;
   private inFrame = false;
@@ -40,7 +41,11 @@ export class DemandFrameScheduler {
   ) {
     this.removeVisibilityListener = host.onVisibilityChange(() => {
       if (host.isVisible()) this.schedule();
-      else this.cancelScheduled();
+      else {
+        this.cancelScheduled();
+        this.lastFrameAt = null;
+        this.nextFrameAt = null;
+      }
     });
   }
 
@@ -76,6 +81,7 @@ export class DemandFrameScheduler {
   setFpsLimit(fpsLimit: number): void {
     if (this.disposed || fpsLimit === this.fpsLimit) return;
     this.fpsLimit = fpsLimit;
+    this.nextFrameAt = this.lastFrameAt === null ? null : this.lastFrameAt + 1000 / fpsLimit;
     this.cancelScheduled();
     this.schedule();
   }
@@ -91,15 +97,8 @@ export class DemandFrameScheduler {
   private schedule(): void {
     if (this.disposed || this.holds > 0 || this.pendingFrames === 0 || this.frameId !== null || this.timeoutId !== null
       || !this.host.isVisible()) return;
-    const dueAt = this.lastFrameAt === null ? this.host.now() : this.lastFrameAt + 1000 / this.fpsLimit;
-    const delay = dueAt - this.host.now() - 1;
-    if (delay > 0) {
-      this.timeoutId = this.host.setTimeout(() => {
-        this.timeoutId = null;
-        this.requestFrame();
-      }, delay);
-      return;
-    }
+    // Stay subscribed to display ticks during an active burst. A timeout followed by RAF can miss
+    // the very tick it was waiting for, especially on non-divisor refresh rates.
     this.requestFrame();
   }
 
@@ -108,11 +107,16 @@ export class DemandFrameScheduler {
     this.frameId = this.host.requestAnimationFrame(timestamp => {
       this.frameId = null;
       if (this.disposed || !this.host.isVisible()) return;
-      const dueAt = this.lastFrameAt === null ? timestamp : this.lastFrameAt + 1000 / this.fpsLimit;
-      if (timestamp + 0.5 < dueAt) {
+      if (this.nextFrameAt !== null && timestamp + 0.5 < this.nextFrameAt) {
         this.schedule();
         return;
       }
+      const period = 1000 / this.fpsLimit;
+      // Preserve fractional refresh phases rather than starting a new interval at every actual
+      // vsync. Rebase after a long stall so missed frames never cause a catch-up burst.
+      this.nextFrameAt = this.nextFrameAt === null || timestamp - this.nextFrameAt > period
+        ? timestamp + period
+        : this.nextFrameAt + period;
       this.lastFrameAt = timestamp;
       this.inFrame = true;
       try {

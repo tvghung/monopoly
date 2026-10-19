@@ -1,0 +1,68 @@
+{
+ "kind": "cold",
+ "scenario": "hotel",
+ "tier": "balanced",
+ "verdict": {
+  "startT": 1600.7999999523163,
+  "doneT": 3405.5,
+  "ordered": true,
+  "warmupMs": 1804.7000000476837,
+  "linksDuring": 28,
+  "linksAfter": 0,
+  "linksAfterNames": [],
+  "worstCallbackAfterMs": 104.5,
+  "framesAfter": 79,
+  "marks": [
+   "otb:warmup:start@1601",
+   "otb:warmup:done@3406"
+  ]
+ },
+ "warmup": {
+  "reason": "initial",
+  "tier": "balanced",
+  "outcome": "complete",
+  "parallel": true,
+  "startedAtMs": 1600.7999999523163,
+  "durationMs": 1804.5999999046326,
+  "fixtureBuildMs": 3.0999999046325684,
+  "programsBefore": 0,
+  "programsAfter": 26,
+  "steps": [
+   {
+    "name": "scene",
+    "status": "ready",
+    "materials": 108,
+    "programsAdded": 17,
+    "durationMs": 1553.1999998092651
+   },
+   {
+    "name": "fixtures:main",
+    "status": "ready",
+    "materials": 9,
+    "programsAdded": 5,
+    "durationMs": 1525.8999998569489
+   },
+   {
+    "name": "fixtures:shadow-depth",
+    "status": "ready",
+    "materials": 7,
+    "programsAdded": 4,
+    "durationMs": 1527.0999999046326
+   },
+   {
+    "name": "textures",
+    "status": "ready",
+    "materials": 0,
+    "programsAdded": 0,
+    "durationMs": 214.79999995231628
+   }
+  ]
+ },
+ "failures": [],
+ "pageErrors": [],
+ "consoleMessages": [
+  "warning: THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+ ],
+ "links": 28,
+ "frames": 79
+}

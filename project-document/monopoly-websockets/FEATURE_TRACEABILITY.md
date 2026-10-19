@@ -529,9 +529,9 @@ prove it?* Mappings are many-to-many; a feature lists every module it touches. P
 ### F52 Dev-only tools (Design Lab, UAT harness, FPS badge)
 - **Entry:** development or `?phase4-uat=1` builds only.
 - **Docs:** [design-system][c-ds] ("Design Lab").
-- **Client:** `apps/client/src/dev/`, `apps/client/src/game/ui/FpsBadge.tsx`, `apps/client/src/game/scene/render/diagnostics/localDiagnostics.ts`, `apps/client/src/game/scene/render/diagnostics/measurementScheduler.ts`.
+- **Client:** `apps/client/src/dev/`, `apps/client/src/game/ui/FpsBadge.tsx`, `apps/client/src/game/scene/render/diagnostics/localDiagnostics.ts`, `apps/client/src/game/scene/render/diagnostics/sceneFrameEvent.ts`, `apps/client/src/game/scene/render/diagnostics/measurementScheduler.ts`.
 - **Tooling:** `scripts/perf/` (benchmark driver and probe, before/after comparison, pixel comparison), documented in [scripts/perf/README.md](../../scripts/perf/README.md).
-- **Tests:** `apps/client/src/dev/design-lab/DesignLab.test.tsx`, `apps/client/src/dev/phase4-uat/Phase4UatHarness.test.tsx`, `apps/client/src/dev/phase4-uat/Phase4UatHarness.diagnostics.test.tsx`, `apps/client/src/dev/phase4-uat/DiagnosticsReadouts.test.tsx`, `apps/client/src/game/scene/render/diagnostics/measurementScheduler.test.ts`, `scripts/perf/metrics.check.mjs`; captures `e2e/visual/capture.visual.ts`.
+- **Tests:** `apps/client/src/dev/design-lab/DesignLab.test.tsx`, `apps/client/src/dev/phase4-uat/Phase4UatHarness.test.tsx`, `apps/client/src/dev/phase4-uat/Phase4UatHarness.diagnostics.test.tsx`, `apps/client/src/dev/phase4-uat/DiagnosticsReadouts.test.tsx`, `apps/client/src/game/ui/FpsBadge.test.tsx`, `apps/client/src/game/scene/render/diagnostics/measurementScheduler.test.ts`, `scripts/perf/metrics.check.mjs`; captures `e2e/visual/capture.visual.ts`.
 - **Affects:** none in production builds.
 
 [fs]: ./monopoly.shared.instructions.md

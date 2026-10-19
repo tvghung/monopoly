@@ -1,0 +1,36 @@
+{
+  "roomCode": "OTB-EQ1QGU",
+  "quality": "low",
+  "guestFallback": false,
+  "steps": [
+    "two-browser authoritative lobby and WebGL board",
+    "FPS preference changed 60 → 30 → 120 during game",
+    "both clients changed graphics quality to Low",
+    "dice roll produced actual WebGL scene frames",
+    "character landed on a non-start tile in the authoritative board view",
+    "wheel zoom and pointer drag while in game",
+    "real browser-tab focus switch and recovery",
+    "synthetic visibility interruption and recovery",
+    "host page reload and session resume",
+    "guest forfeited and host reached winner state",
+    "Play Again returned same room to lobby"
+  ],
+  "roll": {
+    "renderedFrames": 43,
+    "contiguousIntervals": 41,
+    "achievedSceneFps": 19.085408599978205,
+    "intervalP50Ms": 50,
+    "intervalP95Ms": 66.79999999999927,
+    "longestCpuMs": 19.700000047683716,
+    "medianGpuMs": 21.188664,
+    "gpuSamples": 43,
+    "programLinks": 0,
+    "longestMainThreadTaskMs": 52,
+    "landedTileLabel": "Ô 6: Buôn Ma Thuột. Giá 100.000 ₫. Người chơi đang đứng: B4 Host. Mở chi tiết ô cờ"
+  },
+  "renderer": {
+    "devicePixelRatio": 1.25,
+    "glRenderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009B41) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+  },
+  "pageErrors": []
+}

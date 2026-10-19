@@ -711,7 +711,7 @@ describe('App session admission', () => {
       }
     });
 
-    expect(screen.getByText(/^FPS (?:--|\d+)$/)).toBeTruthy();
+    expect(screen.getByText(/^3D (?:--|\d+) \/ 60 FPS$/)).toBeTruthy();
     const settingsButton = screen.getByRole('button', { name: 'Cài đặt' });
     const surrenderButton = screen.getByRole('button', { name: 'Bỏ cuộc' });
     expect(settingsButton.textContent).toBe('');
